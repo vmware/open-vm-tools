@@ -38,6 +38,7 @@ EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/dcount.c,, -DVMW_DCOUNT_3
 EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/dalias.c,, -DVMW_DALIAS_319)
 EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/dalias1.c,, -DVMW_DALIAS_319)
 EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/truncate_pagecache.c,, -DVMW_PAGECACHE_312)
+EXTRA_CFLAGS += $(call vm_check_build, $(AUTOCONF_DIR)/wait_on_bit.c,, -DVMW_WAITONBIT_317)
 
 obj-m += $(DRIVER).o
 
