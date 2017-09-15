@@ -26,6 +26,7 @@ vmware_toolbox_cmd_CPPFLAGS += @VMTOOLS_CPPFLAGS@
 
 vmware_toolbox_cmd_SOURCES =
 vmware_toolbox_cmd_SOURCES += toolbox-cmd.c
+vmware_toolbox_cmd_SOURCES += toolboxcmd-config.c
 vmware_toolbox_cmd_SOURCES += toolboxcmd-devices.c
 vmware_toolbox_cmd_SOURCES += toolboxcmd-info.c
 vmware_toolbox_cmd_SOURCES += toolboxcmd-logging.c

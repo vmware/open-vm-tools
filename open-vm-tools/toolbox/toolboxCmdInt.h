@@ -129,6 +129,7 @@ DECLARE_COMMAND(Stat);
 DECLARE_COMMAND(TimeSync);
 DECLARE_COMMAND(Logging);
 DECLARE_COMMAND(Info);
+DECLARE_COMMAND(Config);
 
 #if defined(_WIN32) || \
    (defined(linux) && !defined(OPEN_VM_TOOLS) && !defined(USERWORLD))

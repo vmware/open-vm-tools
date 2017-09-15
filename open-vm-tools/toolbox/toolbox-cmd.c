@@ -111,6 +111,7 @@ static CmdTable commands[] = {
 #endif
    { "logging",   Logging_Command,  TRUE,    TRUE,    Logging_Help},
    { "info",      Info_Command,     TRUE,    TRUE,    Info_Help},
+   { "config",    Config_Command,   TRUE,    TRUE,    Config_Help},
    { "help",      HelpCommand,      FALSE,   FALSE,   ToolboxCmdHelp},
 };
 
@@ -297,6 +298,7 @@ ToolboxCmdHelp(const char *progName,   // IN
                           "Use '-q' option to suppress stdout output.\n"
                           "Most commands take a subcommand.\n\n"
                           "Available commands:\n"
+                          "   config\n"
                           "   device\n"
                           "   disk (not available on all operating systems)\n"
                           "   info\n"
