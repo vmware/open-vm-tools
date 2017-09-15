@@ -496,6 +496,7 @@ FLAG(   7,  0, EBX, 25,  1, PT,                                    NO,  FALSE) \
 FLAG(   7,  0, EBX, 26,  1, AVX512PF,                              YES, TRUE)  \
 FLAG(   7,  0, EBX, 27,  1, AVX512ER,                              YES, TRUE)  \
 FLAG(   7,  0, EBX, 28,  1, AVX512CD,                              YES, TRUE)  \
+FLAG(   7,  0, EBX, 29,  1, SHA,                                   YES, TRUE)  \
 FLAG(   7,  0, EBX, 30,  1, AVX512BW,                              YES, TRUE)  \
 FLAG(   7,  0, EBX, 31,  1, AVX512VL,                              YES, TRUE)  \
 FLAG(   7,  0, ECX,  0,  1, PREFETCHWT1,                           YES, TRUE)  \
