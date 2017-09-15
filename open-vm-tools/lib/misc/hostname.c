@@ -217,8 +217,8 @@ Hostinfo_HostName(void)
 
       p = un.nodename;
 
-      if ((gethostbyname_r(p, &he, buffer, sizeof buffer,
-					&phe, &error) == 0) && phe) {
+      if ((gethostbyname_r(p, &he, buffer, sizeof buffer, &phe,
+                           &error) == 0) && (phe != NULL)) {
          p = phe->h_name;
       }
 
