@@ -344,7 +344,7 @@ FLAG(   1,  0, ECX,  2,  1, DTES64,                                NO,  FALSE) \
 FLAG(   1,  0, ECX,  3,  1, MWAIT,                                 YES, FALSE) \
 FLAG(   1,  0, ECX,  4,  1, DSCPL,                                 NO,  FALSE) \
 FLAG(   1,  0, ECX,  5,  1, VMX,                                   YES, FALSE) \
-FLAG(   1,  0, ECX,  6,  1, SMX,                                   NO,  FALSE) \
+FLAG(   1,  0, ECX,  6,  1, SMX,                                   YES, FALSE) \
 FLAG(   1,  0, ECX,  7,  1, EIST,                                  NO,  FALSE) \
 FLAG(   1,  0, ECX,  8,  1, TM2,                                   NO,  FALSE) \
 FLAG(   1,  0, ECX,  9,  1, SSSE3,                                 YES, TRUE)  \
