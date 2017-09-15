@@ -25,11 +25,8 @@
 
 #include "vm_basic_types.h"
 
-struct KeyLocatorState;
-
 void Preference_DisableUserPreferences(void);
 Bool Preference_Init(void);
-Bool Preference_InitEx(struct KeyLocatorState *klState);
 void Preference_Exit(void);
 Bool Preference_GetBool(Bool defaultValue, const char *fmt);
 int32 Preference_GetTriState(int32 defaultValue, const char *fmt);
@@ -41,7 +38,6 @@ char *Preference_GetStringPlain(const char *defaultValue, const char *fmt);
 char *Preference_GetStringEnum(const void *defaultValue,
                                const char **choices,
                                const char *name);
-int32 Preference_Generation(void);
 void Preference_Log(void);
 char *Preference_GetPathName(const char *defaultValue, const char *fmt);
 void Preference_SetFromString(const char *string, Bool overwrite);
