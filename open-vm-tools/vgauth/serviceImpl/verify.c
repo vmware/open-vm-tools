@@ -120,6 +120,19 @@ ServiceVerifyAndCheckTrustCertChainForSubject(int numCerts,
    ASSERT(numCerts > 0);
 
    /*
+    * Dump the token cert chain for debugging purposes.
+    */
+   if (gVerboseLogging) {
+      gchar *chainx509;
+
+      for (i = 0; i < numCerts; i++) {
+         chainx509 = CertVerify_CertToX509String(pemCertChain[i]);
+         Debug("%s: Token chain cert #%d:\n%s", __FUNCTION__, i, chainx509);
+         g_free(chainx509);
+      }
+   }
+
+   /*
     * If we have no userName, look through the mapping file for a match
     * from the cert chain.
     */
@@ -177,26 +190,13 @@ ServiceVerifyAndCheckTrustCertChainForSubject(int numCerts,
        * Subject went unmatched, so fail.
        */
       if (NULL == queryUserName) {
-         Debug("%s: no matching subject found in mapping file\n",
+         Debug("%s: no matching cert and subject found in mapping file\n",
                __FUNCTION__);
          err = VGAUTH_E_AUTHENTICATION_DENIED;
          goto done;
       }
    } else {
       queryUserName = g_strdup(userName);
-   }
-
-   /*
-    * Dump the token cert chain for debugging purposes.
-    */
-   if (gVerboseLogging) {
-      gchar *chainx509;
-
-      for (i = 0; i < numCerts; i++) {
-         chainx509 = CertVerify_CertToX509String(pemCertChain[i]);
-         Debug("%s: Token chain cert #%d:\n%s", __FUNCTION__, i, chainx509);
-         g_free(chainx509);
-      }
    }
 
    /*
@@ -220,6 +220,8 @@ ServiceVerifyAndCheckTrustCertChainForSubject(int numCerts,
    if (gVerboseLogging) {
       gchar *storex509;
 
+      Debug("%s: %d certs in store for user %s\n",  __FUNCTION__,
+            numStoreCerts, queryUserName);
       for (i = 0; i < numStoreCerts; i++) {
          storex509 = CertVerify_CertToX509String(aList[i].pemCert);
          Debug("%s: Store chain cert #%d:\n%s", __FUNCTION__, i, storex509);
