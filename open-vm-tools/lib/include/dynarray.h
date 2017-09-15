@@ -285,10 +285,16 @@ DynArray_Copy(DynArray *src,        // IN
       return (TYPE*)DynArray_AddressOf((DynArray *)a, i);               \
    }                                                                    \
                                                                         \
-   static INLINE unsigned int                                           \
-   T##Array_Count(T##Array *a)                                          \
+   static INLINE TYPE*                                                  \
+   T##Array_AddressOfUnsafe(T##Array *a, unsigned int i)                \
    {                                                                    \
-      return DynArray_Count((DynArray *)a);                             \
+      return (TYPE*)DynArray_AddressOfUnsafe((DynArray *)a, i);         \
+   }                                                                    \
+                                                                        \
+   static INLINE unsigned int                                           \
+   T##Array_Count(const T##Array *a)                                    \
+   {                                                                    \
+      return DynArray_Count((const DynArray *)a);                       \
    }                                                                    \
                                                                         \
    static INLINE Bool                                                   \

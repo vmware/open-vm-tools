@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -109,7 +109,8 @@
 /*
  * NFC lib lock
  */
-#define RANK_nfcLibLock              (RANK_libLockBase + 0x4505)
+#define RANK_nfcLibInitLock          (RANK_libLockBase + 0x4505)
+#define RANK_nfcLibLock              (RANK_libLockBase + 0x4506)
 
 /*
  * Policy lib lock

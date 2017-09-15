@@ -566,8 +566,19 @@ File_StripFwdSlashes(const char *pathName)  // IN:
  *
  * File_FullPath --
  *
- *      Compute the full path of a file. If the file if NULL or "", the
- *      current directory is returned
+ *      This routine computes the canonical path from a supplied path.
+ *      The supplied path could be an absolute path name or a relative
+ *      one, with our without symlinks and /./ /../ separators. A
+ *      canonical representation of a path is defined as an absolute
+ *      path without symlinks and /./ /../ separators. The canonical
+ *      path of "." is the current working directory, ".." is parent
+ *      directory and so on. If the path is NULL or "", this routine
+ *      returns the current working directory.
+ *      There are mainly two use cases for this function. To find the
+ *      canonical path of a file or directory that exists, or when we
+ *      are about to create a child in an existing parent directory.
+ *      For other uses cases, this routine is not guaranteed to return
+ *      a canonical path.
  *
  * Results:
  *      NULL if error (reported to the user)
@@ -595,19 +606,33 @@ File_FullPath(const char *pathName)  // IN:
 
    if ((pathName == NULL) || Unicode_IsEmpty(pathName)) {
       ret = Unicode_Duplicate(cwd);
-   } else if (File_IsFullPath(pathName)) {
-       ret = Posix_RealPath(pathName);
-       if (ret == NULL) {
-          ret = File_StripFwdSlashes(pathName);
-       }
    } else {
-      char *path = Unicode_Join(cwd, DIRSEPS, pathName, NULL);
+      char *path;
+
+      if (File_IsFullPath(pathName)) {
+         path = Unicode_Duplicate(pathName);
+      } else {
+         path = Unicode_Join(cwd, DIRSEPS, pathName, NULL);
+      }
 
       ret = Posix_RealPath(path);
-
       if (ret == NULL) {
-         ret = File_StripFwdSlashes(path);
+         char *dir;
+         char *file;
+         char *realDir;
+
+         File_GetPathName(path, &dir, &file);
+         realDir = Posix_RealPath(dir);
+         if (realDir == NULL) {
+            realDir = File_StripFwdSlashes(dir);
+         }
+
+         ret = Unicode_Join(realDir, DIRSEPS, file, NULL);
+         free(dir);
+         free(file);
+         free(realDir);
       }
+
       free(path);
    }
 
