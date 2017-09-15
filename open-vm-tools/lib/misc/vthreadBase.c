@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -46,8 +46,6 @@
  *                                  to clean up resource usage prior to thread
  *                                  exit.
  *      Historical quirks:
- *      * Default thread numbering starts at VTHREAD_MAX_VCPUs + 2
- *        to allow VThread_IsVCPU() to run efficiently.
  *      * Most other code uses VThread_Foo instead of VThreadBase_Foo; the
  *        public header file uses inlines to convert names.
  *
@@ -154,7 +152,7 @@ static struct {
 } vthreadBaseGlobals = {
    { VTHREADBASE_INVALID_KEY },
    { VTHREADBASE_INVALID_KEY },
-   { VTHREAD_ALLOCSTART_ID },
+   { VTHREAD_INVALID_ID + 1 },
    { 0 },
    { 0 },
    VThreadBaseSimpleNoID,

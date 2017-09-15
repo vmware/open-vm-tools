@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -125,12 +125,6 @@ VThread_CurName(void)
 }
 
 #else
-
-#define VTHREAD_VMX_ID          1
-//#define VTHREAD_SVGA_ID         2  /* To be removed shortly */
-//#define VTHREAD_MKS_ID          3
-#define VTHREAD_OTHER_ID        4
-#define VTHREAD_ALLOCSTART_ID   5
 
 #define VTHREADBASE_MAX_NAME    32  /* Arbitrary */
 
