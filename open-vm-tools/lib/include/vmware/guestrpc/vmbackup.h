@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -67,6 +67,7 @@
 #define VMBACKUP_EVENT_REQUESTOR_DONE     "req.done"
 #define VMBACKUP_EVENT_REQUESTOR_ERROR    "req.error"
 #define VMBACKUP_EVENT_REQUESTOR_MANIFEST "req.manifest"
+#define VMBACKUP_EVENT_GENERIC_MANIFEST   "req.genericManifest"
 #define VMBACKUP_EVENT_SNAPSHOT_ABORT     "prov.snapshotAbort"
 #define VMBACKUP_EVENT_SNAPSHOT_COMMIT    "prov.snapshotCommit"
 #define VMBACKUP_EVENT_SNAPSHOT_PREPARE   "prov.snapshotPrepare"
