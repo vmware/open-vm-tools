@@ -29,13 +29,13 @@
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
-
 #include "vmware.h"
 
 typedef int CryptoError;
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 /*
  * This set of errors should not be expanded beyond a maximum value of 15

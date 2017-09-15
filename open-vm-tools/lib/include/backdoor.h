@@ -40,14 +40,14 @@
 #ifndef _BACKDOOR_H_
 #define _BACKDOOR_H_
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
-
 #include "vm_basic_types.h"
 #include "vm_assert.h"
 
 #include "backdoor_types.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 void
 Backdoor(Backdoor_proto *bp); // IN/OUT

@@ -23,12 +23,12 @@
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
+#include "vm_basic_types.h"
+#include "preference.h"
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
-
-#include "vm_basic_types.h"
-#include "preference.h"
 
 /*
  * Well-known configuration variable names

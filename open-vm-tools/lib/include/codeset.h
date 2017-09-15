@@ -49,13 +49,13 @@
 #ifndef __CODESET_H__
 #   define __CODESET_H__
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
-
 #include "vm_basic_types.h"
 #include "vm_assert.h"
 #include "dynbuf.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 /*
  * These platforms use UTF-8 (or pretend to):

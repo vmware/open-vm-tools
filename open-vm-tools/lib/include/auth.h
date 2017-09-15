@@ -19,10 +19,6 @@
 #ifndef _AUTH_H_
 #define _AUTH_H_
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
-
 /*
  * auth.h --
  *
@@ -44,6 +40,10 @@ extern "C" {
 #  include <pwd.h> //for getpwent, etc.
 #  include <grp.h> //for initgroups
    typedef const struct passwd * AuthToken;
+#endif
+
+#if defined(__cplusplus)
+extern "C" {
 #endif
 
 #if _WIN32

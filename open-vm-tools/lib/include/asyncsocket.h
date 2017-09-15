@@ -49,12 +49,12 @@
 #define INCLUDE_ALLOW_USERLEVEL
 #include "includeCheck.h"
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
-
 #ifdef __APPLE__
 #include <TargetConditionals.h>
+#endif
+
+#if defined(__cplusplus)
+extern "C" {
 #endif
 
 /*

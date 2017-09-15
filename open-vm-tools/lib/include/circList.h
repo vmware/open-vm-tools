@@ -33,11 +33,11 @@
 #define INCLUDE_ALLOW_VMKERNEL
 #include "includeCheck.h"
 
+#include "vmware.h"
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
-
-#include "vmware.h"
 
 typedef struct ListItem {
    struct ListItem *prev;
