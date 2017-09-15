@@ -218,7 +218,8 @@ extern "C" {
 #define   BDOOR_CMD_STEALCLOCK               91 /* CPL 0 only. */
 #  define BDOOR_STEALCLOCK_STATUS_DISABLED    0
 #  define BDOOR_STEALCLOCK_STATUS_ENABLED     1
-#define   BDOOR_CMD_MAX                      92
+#define   BDOOR_CMD_GUEST_PAGE_HINTS         92 /* CPL 0 only  */
+#define   BDOOR_CMD_MAX                      93
 
 
 /*
@@ -271,6 +272,32 @@ extern "C" {
 
 /* Sub commands for BDOOR_CMD_VMK_INFO */
 #define BDOOR_CMD_VMK_INFO_ENTRY   1
+
+/*
+ * Current format for the guest page hints is:
+ *
+ * Arg0: BDOOR_MAGIC, Arg3: BDOOR_PORT
+ *
+ * Arg1: (rbx on x86)
+ *
+ *  0         64
+ *  |   PPN   |
+ *
+ * Arg2: (rcx on x86)
+ *
+ *  0         16        32         64
+ *  | Command |  Type   | Reserved |
+ *
+ * Arg4: (rsi on x86)
+ *
+ *  0          16         64
+ *  | numPages | Reserved |
+ *
+ */
+#define BDOOR_GUEST_PAGE_HINTS_NOT_SUPPORTED ((unsigned)-1)
+#define BDOOR_GUEST_PAGE_HINTS_MAX_PAGES     (0xffff)
+#define BDOOR_GUEST_PAGE_HINTS_TYPE_PSHARE   (0)
+#define BDOOR_GUEST_PAGE_HINTS_TYPE(reg)     (((reg) >> 16) & 0xffff)
 
 #ifdef VMM
 /*
