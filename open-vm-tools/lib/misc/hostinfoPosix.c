@@ -59,9 +59,6 @@
 #include <mach/vm_map.h>
 #include <sys/mman.h>
 #include <AvailabilityMacros.h>
-#if MAC_OS_X_VERSION_MIN_REQUIRED < 1070 // Must run on Mac OS versions < 10.7
-#   include <dlfcn.h>
-#endif
 #elif defined(__FreeBSD__)
 #if !defined(RLIMIT_AS)
 #  if defined(RLIMIT_VMEM)
@@ -2554,141 +2551,12 @@ Hostinfo_Execute(const char *path,   // IN:
  *
  * 3) In Mac OS 10.7, Apple cleaned their mess and solved all the above
  *    problems by introducing a new mach_zone_info() Mach call. So this is what
- *    we use now, when available. Was bug 816610.
+ *    we use now. Was bug 816610.
  *
  * 4) In Mac OS 10.8, Apple appears to have modified mach_zone_info() to always
  *    return KERN_INVALID_HOST(!) when the calling process (not the calling
  *    thread!) is not root.
  */
-
-
-#if MAC_OS_X_VERSION_MIN_REQUIRED < 1070 // Must run on Mac OS versions < 10.7
-/*
- *-----------------------------------------------------------------------------
- *
- * HostinfoGetKernelZoneElemSizeZprint --
- *
- *      Retrieve the size of the elements in a named kernel zone, by invoking
- *      zprint.
- *
- * Results:
- *      On success: the size (in bytes) > 0.
- *      On failure: 0.
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-static size_t
-HostinfoGetKernelZoneElemSizeZprint(char const *name) // IN: Kernel zone name
-{
-   size_t retval = 0;
-   struct {
-      size_t retval;
-   } volatile *shared;
-   pid_t child;
-   pid_t pid;
-
-   /*
-    * popen(3) incorrectly executes the shell with the identity of the calling
-    * process, ignoring a potential per-thread identity. And starting with
-    * Mac OS 10.6 it is even worse: if there is a per-thread identity,
-    * popen(3) removes it!
-    *
-    * So we run this code in a separate process which runs with the same
-    * identity as the current thread.
-    */
-
-   shared = mmap(NULL, sizeof *shared, PROT_READ | PROT_WRITE,
-                 MAP_ANON | MAP_SHARED, -1, 0);
-
-   if (shared == (void *)-1) {
-      Warning("%s: mmap error %d.\n", __FUNCTION__, errno);
-
-      return retval;
-   }
-
-   // In case the child is terminated before it can set it.
-   shared->retval = retval;
-
-   child = fork();
-   if (child == (pid_t)-1) {
-      Warning("%s: fork error %d.\n", __FUNCTION__, errno);
-      munmap((void *)shared, sizeof *shared);
-
-      return retval;
-   }
-
-   // This executes only in the child process.
-   if (!child) {
-      size_t nameLen;
-      FILE *stream;
-      Bool parsingProperties = FALSE;
-
-      ASSERT(name);
-
-      nameLen = strlen(name);
-      ASSERT(nameLen && *name != '\t');
-
-      stream = popen("/usr/bin/zprint -C", "r");
-      if (!stream) {
-         Warning("%s: popen error %d.\n", __FUNCTION__, errno);
-         exit(EXIT_SUCCESS);
-      }
-
-      for (;;) {
-         char *line;
-         size_t lineLen;
-
-         if (StdIO_ReadNextLine(stream, &line, 0,
-                                &lineLen) != StdIO_Success) {
-            break;
-         }
-
-         if (parsingProperties) {
-            if (   // Not a property line anymore. Property not found.
-                   lineLen < 1 || memcmp(line, "\t", 1)
-                   // Property found.
-                || sscanf(line, " elem_size: %"FMTSZ"u bytes",
-                          &shared->retval) == 1) {
-               free(line);
-               break;
-            }
-         } else if (!(lineLen < nameLen + 6 ||
-                    memcmp(line, name, nameLen) ||
-                    memcmp(line + nameLen, " zone:", 6))) {
-            // Zone found.
-            parsingProperties = TRUE;
-         }
-
-         free(line);
-      }
-
-      pclose(stream);
-      exit(EXIT_SUCCESS);
-   }
-
-   /*
-    * This executes only in the parent process.
-    * Wait for the child to terminate, and return its retval.
-    */
-
-   do {
-      int status;
-
-      pid = waitpid(child, &status, 0);
-   } while ((pid == -1) && (errno == EINTR));
-
-   VERIFY(pid == child);
-
-   retval = shared->retval;
-   munmap((void *)shared, sizeof *shared);
-
-   return retval;
-}
-#endif
 
 
 /*
@@ -2711,21 +2579,6 @@ HostinfoGetKernelZoneElemSizeZprint(char const *name) // IN: Kernel zone name
 size_t
 Hostinfo_GetKernelZoneElemSize(char const *name) // IN: Kernel zone name
 {
-#if MAC_OS_X_VERSION_MAX_ALLOWED < 1070 // Compiles against SDK version < 10.7
-   typedef struct {
-      char mzn_name[80];
-   } mach_zone_name_t;
-   typedef struct {
-      uint64_t mzi_count;
-      uint64_t mzi_cur_size;
-      uint64_t mzi_max_size;
-      uint64_t mzi_elem_size;
-      uint64_t mzi_alloc_size;
-      uint64_t mzi_sum_size;
-      uint64_t mzi_exhaustible;
-      uint64_t mzi_collectable;
-   } mach_zone_info_t;
-#endif
    size_t result = 0;
    mach_zone_name_t *namesPtr;
    mach_msg_type_number_t namesSize;
@@ -2733,16 +2586,6 @@ Hostinfo_GetKernelZoneElemSize(char const *name) // IN: Kernel zone name
    mach_msg_type_number_t infosSize;
    kern_return_t kr;
    mach_msg_type_number_t i;
-
-#if MAC_OS_X_VERSION_MIN_REQUIRED < 1070 // Must run on Mac OS versions < 10.7
-   kern_return_t (*mach_zone_info)(host_t host,
-      mach_zone_name_t **names, mach_msg_type_number_t *namesCnt,
-      mach_zone_info_t **info, mach_msg_type_number_t *infoCnt) =
-         dlsym(RTLD_DEFAULT, "mach_zone_info");
-   if (!mach_zone_info) {
-      return HostinfoGetKernelZoneElemSizeZprint(name);
-   }
-#endif
 
    ASSERT(name);
 

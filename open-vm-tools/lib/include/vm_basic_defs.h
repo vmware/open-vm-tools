@@ -536,19 +536,8 @@ typedef int pid_t;
 
 #elif defined(__APPLE__) && defined(KERNEL)
 
-#include "availabilityMacOS.h"
-
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1050
-// The Mac OS 10.5 kernel SDK defines va_copy in stdarg.h.
+// The macOS kernel SDK defines va_copy in stdarg.h.
 #include <stdarg.h>
-#else
-/*
- * The Mac OS 10.4 kernel SDK needs va_copy. Based on inspection of
- * stdarg.h from the MacOSX10.4u.sdk kernel framework, this should
- * work.
- */
-#define va_copy(dest, src) ((dest) = (src))
-#endif // MAC_OS_X_VERSION_MIN_REQUIRED
 
 #elif defined(__GNUC__) && (__GNUC__ < 3)
 

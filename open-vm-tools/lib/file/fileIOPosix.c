@@ -53,7 +53,7 @@
 #include "su.h"
 
 #if defined(__APPLE__)
-#include "sysSocket.h" // Don't move this: it fixes a system header.
+#include <sys/socket.h>
 #include <sys/un.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -99,18 +99,7 @@
 
 #if defined(__APPLE__)
 #include <sys/sysctl.h>
-
-/*
- * F_NODIRECT was added in Mac OS 10.7.0 "Lion".  We test at runtime for the
- * right version before using it, but we also need to get the definition.
- */
-
 #include <sys/fcntl.h>
-
-#ifndef F_NODIRECT
-#define F_NODIRECT 62
-#endif
-
 #endif
 
 /*
@@ -969,19 +958,14 @@ FileIOCreateRetry(FileIODescriptor *file,   // OUT:
       }
 
       if (!(access & FILEIO_OPEN_SYNC)) {
-         /*
-          * F_NODIRECT was added in Mac OS 10.7.0 "Lion".
-          */
-         if (Hostinfo_OSVersion(0) >= HOSTINFO_OS_VERSION_MACOS_10_7) {
-            error = fcntl(fd, F_NODIRECT, 1);
-            if (error == -1) {
-               ret = FileIOErrno2Result(errno);
-               if (ret == FILEIO_ERROR) {
-                  Log(LGPFX "fcntl error on %s: %s\n", pathName,
-                      Err_Errno2String(errno));
-               }
-               goto error;
+         error = fcntl(fd, F_NODIRECT, 1);
+         if (error == -1) {
+            ret = FileIOErrno2Result(errno);
+            if (ret == FILEIO_ERROR) {
+               Log(LGPFX "fcntl error on %s: %s\n", pathName,
+                   Err_Errno2String(errno));
             }
+            goto error;
          }
       }
    }

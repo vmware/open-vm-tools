@@ -36,16 +36,7 @@
 #   include "file.h"
 #   include "config.h"
 #   include "localconfig.h"
-#   if defined __APPLE__
-#      include <AvailabilityMacros.h>
-#      if MAC_OS_X_VERSION_MAX_ALLOWED <= MAC_OS_X_VERSION_10_5
-#         include <pam/pam_appl.h>
-#      else
-#         include <security/pam_appl.h>
-#      endif
-#   else
-#      include <security/pam_appl.h>
-#   endif
+#   include <security/pam_appl.h>
 #   include <dlfcn.h>
 #endif
 
