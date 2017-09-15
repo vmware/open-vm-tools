@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -29,6 +29,7 @@
 
 #include "vmware.h"
 #include "dynbuf.h"
+#include "asan_common.h"
 
 
 /*
@@ -332,6 +333,8 @@ DynBuf_Enlarge(DynBuf *b,       // IN/OUT:
  *-----------------------------------------------------------------------------
  */
 
+// XXX The instrumentation assumes that "data" points to the heap, PR 1826914.
+DISABLE_ASAN
 Bool
 DynBuf_Append(DynBuf *b,        // IN/OUT:
               void const *data, // IN:
