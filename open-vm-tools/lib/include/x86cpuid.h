@@ -1378,13 +1378,16 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 #define CPUID_MODEL_ATOM_4A        0x4a  // Future Silvermont
 #define CPUID_MODEL_ATOM_4C        0x4c  // Airmont
 #define CPUID_MODEL_ATOM_4D        0x4d  // Avoton
-#define CPUID_MODEL_SKYLAKE_4E     0x4e  // Skylake-Y
+#define CPUID_MODEL_SKYLAKE_4E     0x4e  // Skylake-Y / Kabylake U/Y ES
 #define CPUID_MODEL_BROADWELL_4F   0x4f  // Broadwell EP/EN/EX
 #define CPUID_MODEL_BROADWELL_56   0x56  // Broadwell DE
 #define CPUID_MODEL_KNL_57         0x57  // Knights Landing
 #define CPUID_MODEL_ATOM_5A        0x5a  // Future Silvermont
 #define CPUID_MODEL_ATOM_5D        0x5d  // Future Silvermont
-#define CPUID_MODEL_SKYLAKE_5E     0x5e  // Skylake-S / Kabylake-S
+#define CPUID_MODEL_SKYLAKE_5E     0x5e  // Skylake-S / Kabylake S/H ES
+
+/* Intel stepping information */
+#define CPUID_STEPPING_KABYLAKE_ES 0x8   // Kabylake S/H/U/Y ES
 
 #define CPUID_MODEL_PIII_07    7
 #define CPUID_MODEL_PIII_08    8
@@ -1471,6 +1474,12 @@ CPUID_EFFECTIVE_MODEL(uint32 v) /* %eax from CPUID with %eax=1. */
    uint32 m = CPUID_GET(1, EAX, MODEL, v);
    uint32 em = CPUID_GET(1, EAX, EXTENDED_MODEL, v);
    return m + (em << 4);
+}
+
+static INLINE uint32
+CPUID_EFFECTIVE_STEPPING(uint32 v) /* %eax from CPUID with %eax=1. */
+{
+   return CPUID_GET(1, EAX, STEPPING, v);
 }
 
 /*
@@ -1597,24 +1606,19 @@ CPUID_MODEL_IS_SKYLAKE(uint32 v) // IN: %eax from CPUID with %eax=1.
 {
    /* Assumes the CPU manufacturer is Intel. */
    return CPUID_FAMILY_IS_P6(v) &&
-          (CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_SKYLAKE_5E ||
-           CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_SKYLAKE_4E);
+          ((CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_SKYLAKE_5E &&
+            CPUID_EFFECTIVE_STEPPING(v) != CPUID_STEPPING_KABYLAKE_ES) ||
+           (CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_SKYLAKE_4E &&
+            CPUID_EFFECTIVE_STEPPING(v) != CPUID_STEPPING_KABYLAKE_ES));
 }
 
-static INLINE Bool
-CPUID_MODEL_IS_KABYLAKE(uint32 v) // IN: %eax from CPUID with %eax=1.
-{
-   /* Assumes the CPU manufacturer is Intel. */
-   return CPUID_FAMILY_IS_P6(v) && (
-          CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_SKYLAKE_5E);
-}
 
 static INLINE Bool
 CPUID_UARCH_IS_SKYLAKE(uint32 v) // IN: %eax from CPUID with %eax=1.
 {
    /* Assumes the CPU manufacturer is Intel. */
-   return CPUID_FAMILY_IS_P6(v) &&
-          (CPUID_MODEL_IS_KABYLAKE(v) || CPUID_MODEL_IS_SKYLAKE(v));
+   return CPUID_FAMILY_IS_P6(v) && (
+          CPUID_MODEL_IS_SKYLAKE(v));
 }
 
 static INLINE Bool
