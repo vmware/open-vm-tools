@@ -164,12 +164,6 @@ uint32 Hostinfo_NumCPUs(void);
 char *Hostinfo_GetCpuidStr(void);
 Bool Hostinfo_GetCpuid(HostinfoCpuIdInfo *info);
 
-#if !defined(VMX86_SERVER)
-Bool Hostinfo_CPUCounts(uint32 *logical,
-                        uint32 *cores,
-                        uint32 *pkgs);
-#endif
-
 #if defined(_WIN32)
 typedef enum {
    OS_WIN95                  = 1,
