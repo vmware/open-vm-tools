@@ -32,7 +32,6 @@
 #define _ATOMIC_H_
 
 #define INCLUDE_ALLOW_USERLEVEL
-
 #define INCLUDE_ALLOW_MODULE
 #define INCLUDE_ALLOW_VMMON
 #define INCLUDE_ALLOW_VMKDRIVERS
@@ -44,6 +43,10 @@
 
 #include "vm_basic_types.h"
 #include "vm_assert.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 /*
  * In the Atomic_* definitions below, memory ordering and atomicity are somewhat
@@ -3775,5 +3778,9 @@ Atomic_MFence(void)
 #ifdef ATOMIC_COMPILER_BARRIER
 #undef ATOMIC_COMPILER_BARRIER
 #endif /* ATOMIC_COMPILER_BARRIER */
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif // ifndef _ATOMIC_H_
