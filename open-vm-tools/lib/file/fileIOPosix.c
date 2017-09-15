@@ -958,10 +958,9 @@ FileIOCreateRetry(FileIODescriptor *file,   // OUT:
 
       if (!(access & FILEIO_OPEN_SYNC)) {
          /*
-          * F_NODIRECT was added in Mac OS 10.7.0 "Lion" which has Darwin
-          * kernel 11.0.0.
+          * F_NODIRECT was added in Mac OS 10.7.0 "Lion".
           */
-         if (Hostinfo_OSVersion(0) >= 11) {
+         if (Hostinfo_OSVersion(0) >= HOSTINFO_OS_VERSION_MACOS_10_7) {
             error = fcntl(fd, F_NODIRECT, 1);
             if (error == -1) {
                ret = FileIOErrno2Result(errno);

@@ -79,6 +79,22 @@ Hostinfo_SystemTimerMS(void)
    return Hostinfo_SystemTimerNS() / 1000000ULL;
 }
 
+/*
+ * Apple's kernel major versions are the same as their marketed
+ * minor versions + 4. (E.g. Marketed 10.8.0 == Kernel 12.0.0)
+ * These constants simplify this and make code easier to read / understand.
+ */
+enum {
+   HOSTINFO_OS_VERSION_MACOS_10_5  = 9,
+   HOSTINFO_OS_VERSION_MACOS_10_6  = 10,
+   HOSTINFO_OS_VERSION_MACOS_10_7  = 11,
+   HOSTINFO_OS_VERSION_MACOS_10_8  = 12,
+   HOSTINFO_OS_VERSION_MACOS_10_9  = 13,
+   HOSTINFO_OS_VERSION_MACOS_10_10 = 14,
+   HOSTINFO_OS_VERSION_MACOS_10_11 = 15,
+   HOSTINFO_OS_VERSION_MACOS_10_12 = 16,
+};
+
 int Hostinfo_OSVersion(unsigned int i);
 int Hostinfo_GetSystemBitness(void);
 const char *Hostinfo_OSVersionString(void);
