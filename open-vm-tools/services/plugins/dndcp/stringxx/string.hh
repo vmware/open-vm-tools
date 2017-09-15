@@ -39,6 +39,22 @@
 #pragma pack(push, 8)
 #endif // _WIN32
 
+/*
+ * Include glib.h here as a work-around - hopefully temporary - for a
+ * compilation error that would otherwise occur as a result of the
+ * inclusion of <glibmm/ustring.h> on the next line.  The compilation
+ * error that would otherwise occur is the result of:
+ *  (1) nested includes in <glibmm/ustring.h> ultimately include a
+ *      glib-related header file other than glib.h; but
+ *  (2) including a glib header file other than glib.h outside
+ *      of glib code is not allowed with the latest glib.
+ *
+ * Although including glib.h here does not actually fix the underlying
+ * problem, it does turn off the complaint.  It's believed (hoped?) that
+ * an upgrade of glibmm will fix the issue properly and eliminate the
+ * need to include <glib.h> here.
+ */
+#include <glib.h>
 #include <glibmm/ustring.h>
 
 #ifdef _WIN32
