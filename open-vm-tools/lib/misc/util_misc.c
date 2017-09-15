@@ -969,7 +969,6 @@ UtilMacos_CreateCFDictionaryWithContentsOfFile(const char *path) // IN
    CFURLRef url;
    CFReadStreamRef stream = NULL;
    CFPropertyListRef plist = NULL;
-   CFPropertyListFormat unusedFormat;
    CFDictionaryRef result = NULL;
 
    /*
@@ -988,11 +987,11 @@ UtilMacos_CreateCFDictionaryWithContentsOfFile(const char *path) // IN
    if (   url != NULL
        && (stream = CFReadStreamCreateWithFile(kCFAllocatorDefault, url))
        && CFReadStreamOpen(stream)
-       && (plist = CFPropertyListCreateFromStream(kCFAllocatorDefault,
+       && (plist = CFPropertyListCreateWithStream(kCFAllocatorDefault,
                                                   stream,
                                                   0,
                                                   kCFPropertyListImmutable,
-                                                  &unusedFormat,
+                                                  NULL,
                                                   NULL))
        && (CFGetTypeID(plist) == CFDictionaryGetTypeID())) {
       result = (CFDictionaryRef)plist;
