@@ -930,20 +930,21 @@ GuestInfoUpdateVmdb(ToolsAppCtx *ctx,       // IN: Application context
          ASSERT((pdi->numEntries && pdi->partitionList) ||
                 (!pdi->numEntries && !pdi->partitionList));
 
-         requestSize += sizeof pdi->numEntries +
-                        sizeof *pdi->partitionList * pdi->numEntries;
+         /* partitionCount is a uint8 and cannot be larger than UCHAR_MAX. */
+         if (pdi->numEntries > UCHAR_MAX) {
+            g_message("%s: Too many local filesystems (%d); truncating to %d entries\n",
+                      __FUNCTION__, pdi->numEntries, UCHAR_MAX);
+            partitionCount = UCHAR_MAX;
+         } else {
+            partitionCount = pdi->numEntries;
+         }
+
+         requestSize += sizeof partitionCount +
+                        sizeof *pdi->partitionList * partitionCount;
          request = Util_SafeCalloc(requestSize, sizeof *request);
 
          Str_Sprintf(request, requestSize, "%s  %d ", GUEST_INFO_COMMAND,
                      INFO_DISK_FREE_SPACE);
-
-         /* partitionCount is a uint8 and cannot be larger than UCHAR_MAX. */
-         if (pdi->numEntries > UCHAR_MAX) {
-            g_warning("Too many partitions.\n");
-            vm_free(request);
-            return FALSE;
-         }
-         partitionCount = pdi->numEntries;
 
          offset = strlen(request);
 
@@ -965,7 +966,7 @@ GuestInfoUpdateVmdb(ToolsAppCtx *ctx,       // IN: Application context
           */
          if (pdi->partitionList) {
             memcpy(request + offset + sizeof partitionCount, pdi->partitionList,
-                   sizeof *pdi->partitionList * pdi->numEntries);
+                   sizeof *pdi->partitionList * partitionCount);
          }
 
          g_debug("sizeof request is %d\n", requestSize);
