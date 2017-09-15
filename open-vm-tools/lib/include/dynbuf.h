@@ -240,6 +240,39 @@ DynBuf_AppendString(DynBuf *buf,         // IN/OUT
    return DynBuf_Append(buf, string, strlen(string) + 1);
 }
 
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * DynBuf_ConcatString --
+ *
+ *     Append the string to the specified DynBuf object without adding a
+ *     trailing NUL.  The caller is responsible for NUL-terminating if so
+ *     desired.
+ *
+ * Results:
+ *      TRUE on success
+ *      FALSE on failure (not enough memory)
+ *
+ *
+ * Side effects:
+ *     DynBuf may change its size or allocate additional memory.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+#if defined(SWIG)
+static Bool
+#else
+static INLINE Bool
+#endif
+DynBuf_ConcatString(DynBuf *buf,         // IN/OUT
+                    const char *string)  // IN
+{
+   return DynBuf_Append(buf, string, strlen(string));
+}
+
+
 #if defined(__cplusplus)
 }  // extern "C"
 #endif
