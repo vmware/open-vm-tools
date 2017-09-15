@@ -3966,8 +3966,8 @@ HgfsServer_ShareAccessCheck(HgfsOpenMode accessMode,  // IN: open mode to check
    /*
     * See if access is allowed in the requested mode.
     *
-    * XXX Yeah, this is retarded. We should be using bits instead of
-    * an enum for HgfsOpenMode. Add it to the todo list. [bac]
+    * XXX We should be using bits instead of an enum for HgfsOpenMode.
+    * Add it to the todo list. [bac]
     */
 
    switch (HGFS_OPEN_MODE_ACCMODE(accessMode)) {
