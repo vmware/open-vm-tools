@@ -944,6 +944,11 @@ FIELD( 86,  0, EDX, 18, 14, L3CACHE_SIZE,                      NA,   0, FALSE)
 
 /*    LEVEL, REG, POS, SIZE, NAME,                        MON SUPP, HWV, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_87                                              \
+FLAG(  87,  0, EBX,  0,  1, MCA_OVERFLOW_RECOV,                NA,   0, FALSE) \
+FLAG(  87,  0, EBX,  1,  1, SUCCOR,                            NA,   0, FALSE) \
+FLAG(  87,  0, EBX,  2,  1, HWA,                               NA,   0, FALSE) \
+FLAG(  87,  0, EBX,  3,  1, SCALABLE_MCA,                      NA,   0, FALSE) \
+FLAG(  87,  0, EBX,  4,  1, PFEH_SUPPORT_PRESENT,              NA,   0, FALSE) \
 FLAG(  87,  0, EDX,  0,  1, TS,                                NA,   0, FALSE) \
 FLAG(  87,  0, EDX,  1,  1, FID,                               NA,   0, FALSE) \
 FLAG(  87,  0, EDX,  2,  1, VID,                               NA,   0, FALSE) \
