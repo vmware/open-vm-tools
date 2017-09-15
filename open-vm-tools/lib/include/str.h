@@ -60,24 +60,29 @@ extern "C" {
 #endif
 
 
+
 /*
  * These platforms use bsd_vsnprintf().
  * This does not mean it has bsd_vsnwprintf().
  */
+#if !defined(OPEN_VM_TOOLS)
 #if (defined _WIN32 && !defined STR_NO_WIN32_LIBS) || \
     (defined __linux__ && !defined __UCLIBC__) || \
     defined __APPLE__
 #define HAS_BSD_PRINTF 1
 #endif
+#endif
 
 /*
  * And these platforms/setups use bsd_vsnwprintf()
  */
+#if !defined(OPEN_VM_TOOLS)
 #if (defined _WIN32 && !defined STR_NO_WIN32_LIBS) || \
    (defined __GNUC__ && (__GNUC__ < 2                 \
                          || (__GNUC__ == 2            \
                              && __GNUC_MINOR__ < 96)))
 #define HAS_BSD_WPRINTF 1
+#endif
 #endif
 
 /*

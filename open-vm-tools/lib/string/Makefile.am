@@ -19,12 +19,4 @@ noinst_LTLIBRARIES = libString.la
 
 libString_la_SOURCES =
 
-if USE_PRINTF_WRAPPERS
-   libString_la_SOURCES += bsd_output_shared.c
-   libString_la_SOURCES += bsd_vsnprintf.c
-   libString_la_SOURCES += bsd_vsnwprintf.c
-endif
-
-libString_la_SOURCES += convertutf.c
 libString_la_SOURCES += str.c
-

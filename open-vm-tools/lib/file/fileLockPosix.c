@@ -593,9 +593,14 @@ void
 FileLockAppendMessage(MsgList **msgs,  // IN/OUT/OPT:
                       int err)         // IN: errno
 {
+#if defined(VMX86_TOOLS)
+   Log(LGPFX "A file locking error (%d) has occurred: %s.",
+       err, Err_Errno2String(err));
+#else
    MsgList_Append(msgs, MSGID(fileLock.posix)
                   "A file locking error (%d) has occurred: %s.",
                   err, Err_Errno2String(err));
+#endif
 }
 
 
