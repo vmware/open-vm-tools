@@ -875,6 +875,7 @@ VMToolsConfigLogDomain(const gchar *domain,
 exit:
    g_free(handler);
    g_free(level);
+   g_free(confData);
 }
 
 

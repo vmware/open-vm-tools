@@ -896,6 +896,8 @@ done:
 
    if (result != NULL) {
       *result = res;
+   } else {
+      free(res);
    }
    if (resultLen != NULL) {
       *resultLen = resLen;

@@ -11327,8 +11327,8 @@ GuestAuthPasswordAuthenticateImpersonate(
 {
 #if SUPPORT_VGAUTH
    VixError err;
-   char *username;
-   char *password;
+   char *username = NULL;
+   char *password = NULL;
    VGAuthContext *ctx = NULL;
    VGAuthError vgErr;
    VGAuthUserHandle *newHandle = NULL;
@@ -11377,6 +11377,8 @@ GuestAuthPasswordAuthenticateImpersonate(
    err = VIX_OK;
 
 done:
+   free(username);
+   Util_ZeroFreeString(password);
 
    return err;
 #else
