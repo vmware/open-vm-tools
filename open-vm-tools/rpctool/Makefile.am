@@ -25,4 +25,5 @@ vmware_rpctool_LDADD += ../lib/rpcOut/libRpcOut.la
 vmware_rpctool_LDADD += ../lib/message/libMessage.la
 vmware_rpctool_LDADD += ../lib/backdoor/libBackdoor.la
 vmware_rpctool_LDADD += ../lib/string/libString.la
+vmware_rpctool_LDADD += ../lib/misc/libMisc.la
 

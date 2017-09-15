@@ -391,3 +391,87 @@ CodeSet_UTF32ToUTF8(const char *utf32,  // IN:
    return TRUE;
 }
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * CodeSet_Utf8FindCodePointBoundary
+ *
+ *      Determine if buf[offset] is a valid UTF-8 code point boundary
+ *      and find the previous boundary if it is not. The contents of
+ *      buf[offset] need not be defined, only data prior to this
+ *      location is examined. Useful for finding a suitable place to
+ *      put a NUL terminator.
+ *
+ * Results:
+ *
+ *      Returns the offset of the byte immediately following the last
+ *      complete UTF-8 code point in buf that is entirely within the
+ *      range [0, offset-1]. Note that if the final UTF-8 code point
+ *      is complete, the input offset will be returned unchanged.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+size_t
+CodeSet_Utf8FindCodePointBoundary(const char *buf,   // IN
+                                  size_t offset)     // IN
+{
+   size_t origOffset = offset;
+   signed char c;
+
+   if (offset > 0) {
+
+      /*
+       * Back up 1 byte and then find the start of the UTF-8 code
+       * point occupying that location.
+       */
+
+      offset--;
+      while (offset > 0 && (buf[offset] & 0xc0) == 0x80) {
+         offset--;
+      }
+
+      /*
+       * Maximum UTF-8 code point length is 4
+       */
+
+      ASSERT(origOffset - offset <= 4);
+
+      c = buf[offset];
+
+      /*
+       * The first byte of a UTF-8 code point needs to be one of
+       * 0b0XXXXXXX, 0b110XXXXX, 0b1110XXXX, 0b11110XXX
+       */
+
+      ASSERT(c >= 0 || (c >> 5) == -2 || (c >> 4) == -2 || (c >> 3) == -2);
+
+      /*
+       * offset now points to the start of a UTF-8 code point. If it
+       * is a single byte or if the length, as encoded in the first
+       * byte, matches the number of bytes we have backed up, then the
+       * entire code point is present, so the original offset is a
+       * valid code point starting offset.
+       *
+       * Length is encoded as
+       * 2 bytes: 0b110XXXXX
+       * 3 bytes: 0b1110XXXX
+       * 4 bytes: 0b11110XXX
+       * Thus the first byte is -2 when shifted right (signed) by
+       * (7 - length).
+       */
+
+      if (c >= 0 || (c >> (7 - origOffset + offset)) == -2) {
+         return origOffset;
+      }
+
+      /*
+       * Else we truncated a code point. Return its starting point.
+       */
+   }
+   return offset;
+}
