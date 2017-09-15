@@ -303,7 +303,8 @@
    LOGLEVEL_VAR(promotedisk), \
    LOGLEVEL_VAR(efivarstore), \
    LOGLEVEL_VAR(toolsIso), \
-   LOGLEVEL_VAR(toolsversion)
+   LOGLEVEL_VAR(toolsversion), \
+   LOGLEVEL_VAR(vmva)
 
    /* end of list */
 
