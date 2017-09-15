@@ -187,7 +187,34 @@
 #define VCB_VERSION "4.0.0"
 #define VCB_FILE_VERSION 4,0,0,0
 #define VIM_VERSION "6.6.0"
-
+/*
+ *For smooth version bump up for quaterly releases, we need to have a fallback
+ *mechanism to previous version in all those components which perform version
+ *specific tasks. Assuming that components can create version specific
+ *functions if they can't eliminate version specific code, a default behavior
+ *to fallback to previous version will decouple the component's version
+ *specific work from version bump up activity in this file. We e.g. change
+ *current version to 6.7 in this file, those functions which are written for
+ *6.6 will be used until new functions for 6.7 arent available.
+ *This way version bump up activity will ideally need just these steps
+ *1. Change current version
+ *2. Add a row for fresh previous version
+*/
+/*
+ *VCENTER_PREVIOUS_VERSIONS
+ *Macro to store all vCenter previous versions. This will be used by component
+ *to move to suitale previous product version related functions is current or
+ *specific is not available.
+ *Please keep the version order correct for avoiding any potential issue
+ */
+#define VCENTER_PREVIOUS_VERSIONS \
+"4.0.0,\
+4.1.0,\
+5.0.0,\
+5.1.0,\
+5.5.0,\
+6.0.0,\
+6.5.0"
 // Put VPX_VERSION first, because vpx/make/defs.mk doesn't check for suffix.
 #define VPX_VERSION "6.6.0"
 #define VPX_VERSION_MAJOR "6"
