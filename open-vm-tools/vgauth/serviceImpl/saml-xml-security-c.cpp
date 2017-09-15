@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -549,7 +549,7 @@ SAML_VerifyBearerTokenAndChain(const char *xmlText,
                                                           &subj,
                                                           userNameOut,
                                                           verifyAi);
-      Debug("%s: ServiceVerifyAndCheckTrustCertChainForSubject() returned "VGAUTHERR_FMT64"\n", __FUNCTION__, err);
+      Debug("%s: ServiceVerifyAndCheckTrustCertChainForSubject() returned " VGAUTHERR_FMT64 "\n", __FUNCTION__, err);
 
       for (i = 0; i < (int) certs.size(); i++) {
          g_free(pemCerts[i]);
