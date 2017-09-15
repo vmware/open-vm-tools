@@ -800,18 +800,19 @@ AMQPStatus CAmqpConnection::createSslConnection() {
 	CAF_CM_VALIDATE_PTR(_socket);
 
 	CAF_CM_LOG_DEBUG_VA0(
-			"Disable peer verification (amqp_ssl_socket_set_verify)");
+			"Disable peer verification (amqp_ssl_socket_set_verify_peer)");
 
-#ifdef USE_AMQP_0_8_0
 	amqp_ssl_socket_set_verify_peer(_socket, false);
 
 	CAF_CM_LOG_DEBUG_VA0(
-			"Disable hostname verification (amqp_ssl_socket_set_verify)");
+			"Disable hostname verification (amqp_ssl_socket_set_verify_hostname)");
 
 	amqp_ssl_socket_set_verify_hostname(_socket, false);
-#else
-	amqp_ssl_socket_set_verify(_socket, false);
-#endif
+
+	CAF_CM_LOG_DEBUG_VA0(
+			"Setting ssl protocol >= 1.2 (amqp_ssl_socket_set_ssl_versions)");
+
+	amqp_ssl_socket_set_ssl_versions (_socket, AMQP_TLSv1_2, AMQP_TLSvLATEST);
 
 	CAF_CM_LOG_DEBUG_VA1(
 			"Calling amqp_ssl_socket_set_cacert - caCertPath: %s",

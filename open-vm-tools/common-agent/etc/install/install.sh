@@ -170,8 +170,8 @@ if [ "$linkSo" != "no" ] ; then
 	ln -sf libgthread-2.0.so.0.3400.3 libgthread-2.0.so.0
 	ln -sf liblog4cpp.so.5.0.6 liblog4cpp.so
 	ln -sf liblog4cpp.so.5.0.6 liblog4cpp.so.5
-	ln -sf librabbitmq.so.4.1.4 librabbitmq.so
-	ln -sf librabbitmq.so.4.1.4 librabbitmq.so.4
+	ln -sf librabbitmq.so.4.2.1 librabbitmq.so
+	ln -sf librabbitmq.so.4.2.1 librabbitmq.so.4
 fi
 
 #Run provider install logic

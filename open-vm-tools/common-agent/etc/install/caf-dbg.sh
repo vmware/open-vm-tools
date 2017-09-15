@@ -202,7 +202,7 @@ function checkFileExistsLib() {
    checkFileExists "$CAF_LIB_DIR/libglib-2.0.so.0.3400.3"
    checkFileExists "$CAF_LIB_DIR/libgthread-2.0.so.0.3400.3"
    checkFileExists "$CAF_LIB_DIR/liblog4cpp.so.5.0.6"
-   checkFileExists "$CAF_LIB_DIR/librabbitmq.so.4.1.4"
+   checkFileExists "$CAF_LIB_DIR/librabbitmq.so.4.2.1"
    checkFileExists "$CAF_LIB_DIR/libssl.so.1.0.2"
    checkFileExists "$CAF_LIB_DIR/libstdc++.so.6.0.13"
    checkFileExists "$CAF_LIB_DIR/libvgauth.so"
@@ -384,7 +384,7 @@ function checkFileExistsLib() {
       checkFileExists "$CAF_LIB_DIR/libCommAmqpListener.so"
       checkFileExists "$CAF_LIB_DIR/libManagementAgentHost.so"
       checkFileExists "$CAF_LIB_DIR/liblog4cpp.so.5.0.6"
-      checkFileExists "$CAF_LIB_DIR/librabbitmq.so.4.1.4"
+      checkFileExists "$CAF_LIB_DIR/librabbitmq.so.4.2.1"
       checkFileExists "$CAF_LIB_DIR/libgthread-2.0.so.0.3400.3"
       checkFileExists "$CAF_LIB_DIR/libglib-2.0.so.0.3400.3"
    fi

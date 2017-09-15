@@ -196,20 +196,8 @@ const SSL_METHOD* CCmsMessageUtils::protocolToSslMethod(
 	CAF_CM_VALIDATE_STRING(protocol);
 
 	const SSL_METHOD* rc;
-	if (protocol.compare("TLSv1") == 0) {
-		rc = TLSv1_method();
-	} else if (protocol.compare("TLSv1_1") == 0) {
-		rc = TLSv1_1_method();
-	} else if (protocol.compare("TLSv1_2") == 0) {
+	if (protocol.compare("TLSv1_2") == 0) {
 		rc = TLSv1_2_method();
-#ifndef OPENSSL_NO_SSL2
-	} else if (protocol.compare("SSLv2") == 0) {
-		rc = SSLv2_method();
-#endif
-	} else if (protocol.compare("SSLv3") == 0) {
-		rc = SSLv3_method();
-	} else if (protocol.compare("SSLv23") == 0) {
-		rc = SSLv23_method();
 	} else {
 		CAF_CM_EXCEPTION_VA1(E_FAIL,
 				"Unknown protocol - %s", protocol.c_str());

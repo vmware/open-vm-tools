@@ -44,7 +44,7 @@ cms_policy=CAF_Encrypted_And_Signed
 is_signing_enforced=true
 is_encryption_enforced=true
 
-tls_protocol=TLSv1
+tls_protocol=TLSv1_2
 tls_ciphers=SRP-RSA-AES-128-CBC-SHA
 cms_cipher=des-ede3-cbc
 
