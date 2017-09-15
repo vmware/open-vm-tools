@@ -1296,46 +1296,6 @@ Hostinfo_NumCPUs(void)
 
 
 /*
- *----------------------------------------------------------------------
- *
- * Hostinfo_OSIsSMP --
- *
- *      Host OS SMP capability.
- *
- * Results:
- *      TRUE is host OS is SMP capable.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-Bool
-Hostinfo_OSIsSMP(void)
-{
-   uint32 ncpu;
-
-#if defined(__APPLE__)
-   size_t ncpuSize = sizeof ncpu;
-
-   if (sysctlbyname("hw.ncpu", &ncpu, &ncpuSize, NULL, 0) == -1) {
-      return FALSE;
-   }
-
-#else
-   ncpu = Hostinfo_NumCPUs();
-
-   if (ncpu == 0xFFFFFFFF) {
-      return FALSE;
-   }
-#endif
-
-   return ncpu > 1 ? TRUE : FALSE;
-}
-
-
-/*
  *-----------------------------------------------------------------------------
  *
  * Hostinfo_NameGet --

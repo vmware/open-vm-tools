@@ -86,8 +86,6 @@ const char *Hostinfo_OSVersionString(void);
 char *Hostinfo_GetOSName(void);
 char *Hostinfo_GetOSGuestString(void);
 
-Bool Hostinfo_OSIsSMP(void);
-
 #if defined(_WIN32)
 Bool Hostinfo_OSIsWinNT(void);
 Bool Hostinfo_OSIsWow64(void);
