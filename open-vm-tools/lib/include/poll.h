@@ -211,16 +211,6 @@ PollClassSet_Include(PollClassSet set, PollClass c)
 #define POLL_FLAG_THUNK_TO_WND          0x200   // thunk callback to window message loop
 
 
-/*
- * Advisory minimum time period.
- * Users that want the fastest running real-time poll
- * should use TICKS_TO_USECS(1).
- */
-
-#define TICKS_TO_USECS(_x) ((_x) * (1000000 / HZ))
-#define USECS_TO_TICKS(_x) ((_x) / (1000000 / HZ))
-
-
 typedef void (*PollerFunction)(void *clientData);
 typedef void (*PollerFireWrapper)(PollerFunction func,
                                   void *funcData,
