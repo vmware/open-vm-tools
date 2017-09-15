@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2013 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -186,8 +186,9 @@
 #define EXC_MF           16
 #define EXC_AC           17
 #define EXC_MC           18
-#define EXC_XF           19  /* SIMD exception.                */
-#define EXC_SX           30  /* Security exception (SVM only). */
+#define EXC_XF           19  // SIMD exception.
+#define EXC_VE           20  // Virtualization exception - VT only.
+#define EXC_SX           30  // Security exception (SVM only).
 
 /*
  * eflag/rflag definitions.
