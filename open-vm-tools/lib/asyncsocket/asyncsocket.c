@@ -3224,8 +3224,10 @@ static int
 AsyncTCPSocketFillRecvBuffer(AsyncTCPSocket *s)         // IN
 {
    int recvd;
+   int needed;
    int sysErr = 0;
    int result;
+   int pending = 0;
 
    ASSERT(AsyncTCPSocketIsLocked(s));
    ASSERT(AsyncTCPSocketGetState(s) == AsyncSocketConnected);
@@ -3238,10 +3240,13 @@ AsyncTCPSocketFillRecvBuffer(AsyncTCPSocket *s)         // IN
     * (e.g. aioMgr wait function), then FillRecvBuffer can be potentially be
     * called twice for the same receive event.
     */
-   if (!s->base.recvBuf) {
-      ASSERT(s->base.recvLen == s->base.recvPos);
+
+   needed = s->base.recvLen - s->base.recvPos;
+   if (!s->base.recvBuf && needed == 0) {
       return ASOCKERR_SUCCESS;
    }
+
+   ASSERT(needed > 0);
 
    AsyncTCPSocketAddRef(s);
 
@@ -3251,14 +3256,12 @@ AsyncTCPSocketFillRecvBuffer(AsyncTCPSocket *s)         // IN
 
    s->inRecvLoop = TRUE;
 
-   while (TRUE) {
-      int needed = s->base.recvLen - s->base.recvPos;
-
-      ASSERT(needed > 0);
+   do {
 
       /*
        * Try to read the remaining bytes to complete the current recv request.
        */
+
       if (s->passFd.expected) {
          int fd;
 
@@ -3283,7 +3286,7 @@ AsyncTCPSocketFillRecvBuffer(AsyncTCPSocket *s)         // IN
          s->sslConnected = TRUE;
          s->base.recvPos += recvd;
          if (AsyncSocketCheckAndDispatchRecv(&s->base, &result)) {
-            break;
+            goto exit;
          }
       } else if (recvd == 0) {
          TCPSOCKLG0(s, ("recv detected client closed connection\n"));
@@ -3292,22 +3295,52 @@ AsyncTCPSocketFillRecvBuffer(AsyncTCPSocket *s)         // IN
           * of connection by peer (via the error handler callback).
           */
          result = ASOCKERR_REMOTE_DISCONNECT;
-         break;
+         goto exit;
       } else if ((sysErr = ASOCK_LASTERROR()) == ASOCK_EWOULDBLOCK) {
          TCPSOCKLOG(4, s, ("recv would block\n"));
-         result = ASOCKERR_SUCCESS;
          break;
       } else {
          TCPSOCKLG0(s, ("recv error %d: %s\n", sysErr,
-                        Err_Errno2String(sysErr)));
+                      Err_Errno2String(sysErr)));
          s->genericErrno = sysErr;
          result = ASOCKERR_GENERIC;
-         break;
+         goto exit;
       }
-   }
 
+      /*
+       * At this point, s->recvFoo have been updated to point to the
+       * next chained Recv buffer. By default we're done at this
+       * point, but we may want to continue if the SSL socket has data
+       * buffered in userspace already (SSL_Pending).
+       */
+
+      needed = s->base.recvLen - s->base.recvPos;
+      ASSERT(needed > 0);
+
+      pending = SSL_Pending(s->sslSock);
+      needed = MIN(needed, pending);
+
+   } while (needed);
+
+   /*
+    * Reach this point only when previous SSL_Pending returns 0 or
+    * error is ASOCK_EWOULDBLOCK
+    */
+
+   ASSERT(pending == 0 || sysErr == ASOCK_EWOULDBLOCK);
+
+   /*
+    * Both a spurious wakeup and receiving any data even if it wasn't enough
+    * to fire the callback are both success.  We were ready and now
+    * presumably we aren't ready anymore.
+    */
+
+   result = ASOCKERR_SUCCESS;
+
+exit:
    s->inRecvLoop = FALSE;
    AsyncTCPSocketRelease(s);
+
    return result;
 }
 
