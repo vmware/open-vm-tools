@@ -311,6 +311,7 @@ Bool Poll_CB_RTimeRemove(PollerFunction f,
 
 
 #ifdef _WIN32
+void Poll_SetPumpsWindowsMessages(Bool pumps);
 void Poll_SetWindowMessageRecipient(HWND hWnd, UINT msg, Bool alwaysThunk);
 Bool Poll_FireWndCallback(void *lparam);
 #endif
