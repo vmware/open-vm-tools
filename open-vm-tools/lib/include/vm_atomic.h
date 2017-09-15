@@ -111,7 +111,7 @@ typedef struct Atomic_uint64 {
 #if defined __GNUC__ && defined VM_64BIT && \
      (defined __GCC_HAVE_SYNC_COMPARE_AND_SWAP_16 || defined VM_ARM_64)
 typedef struct Atomic_uint128 {
-   volatile __int128 value;
+   volatile uint128 value;
 } Atomic_uint128 ALIGNED(16);
 #endif
 
@@ -287,16 +287,16 @@ extern int AtomicUndefined(void const *);
  */
 #if defined __GNUC__ && defined VM_64BIT && \
      (defined __GCC_HAVE_SYNC_COMPARE_AND_SWAP_16 || defined VM_ARM_64)
-static INLINE __int128
+static INLINE uint128
 Atomic_ReadIfEqualWrite128(Atomic_uint128 *ptr,   // IN/OUT
-                           __int128       oldVal, // IN
-                           __int128       newVal) // IN
+                           uint128        oldVal, // IN
+                           uint128        newVal) // IN
 {
 #ifdef __GCC_HAVE_SYNC_COMPARE_AND_SWAP_16
    return __sync_val_compare_and_swap(&ptr->value, oldVal, newVal);
 #elif defined VM_ARM_64
    union {
-      __int128 raw;
+      uint128 raw;
       struct {
          uint64 lo;
          uint64 hi;
