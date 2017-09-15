@@ -56,7 +56,7 @@
 // VMX86_DESKTOP must be last because it is the default and is always defined.
 #elif defined(VMX86_DESKTOP)
    // WORKSTATION_VERSION_NUMBER below has to match this
-   #define PRODUCT_VERSION    13,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
+   #define PRODUCT_VERSION    14,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #else
    /* Generic catch-all. */
    #define PRODUCT_VERSION    0,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
@@ -160,9 +160,9 @@
  * ALSO, leave FOO_VERSION at e.x.p on all EXCEPT release branches.
  * lmclient.h has a FLEX_VERSION struct so the versionPrefix can't be FLEX
  */
-#define WORKSTATION_VERSION_NUMBER "13.0.0" /* this version number should always match real WS version number */
+#define WORKSTATION_VERSION_NUMBER "14.0.0" /* this version number should always match real WS version number */
 #define WORKSTATION_VERSION "e.x.p"
-#define PLAYER_VERSION_NUMBER "13.0.0" /* this version number should always match real Player version number */
+#define PLAYER_VERSION_NUMBER "14.0.0" /* this version number should always match real Player version number */
 #define PLAYER_VERSION "e.x.p"
 #define VMRC_VERSION_NUMBER "10.0.0" /* this version number should always match real VMRC version number */
 #define VMRC_VERSION "10.0.0"
@@ -249,8 +249,8 @@
 #define SSO_VERSION "1.0.0"
 #define WBC_VERSION "5.1.0"
 #define SDK_VERSION "4.1.0"
-#define FOUNDRY_VERSION "1.15.0"
-#define FOUNDRY_FILE_VERSION 1,15,0,PRODUCT_BUILD_NUMBER_NUMERIC
+#define FOUNDRY_VERSION "1.17.0"
+#define FOUNDRY_FILE_VERSION 1,17,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #define VMLS_VERSION "e.x.p"
 #define VLICENSE_VERSION "1.1.5"
 #define DDK_VERSION "e.x.p"
@@ -423,7 +423,7 @@
 #    if defined(__APPLE__)
 #      define PRODUCT_LICENSE_VERSION PRODUCT_MAC_DESKTOP_VERSION_STRING_FOR_LICENSE
 #    else
-#      define PRODUCT_LICENSE_VERSION "12.0"
+#      define PRODUCT_LICENSE_VERSION "14.0"
 #    endif
 #  else
 #    define PRODUCT_LICENSE_VERSION "0.0"

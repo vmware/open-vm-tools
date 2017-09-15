@@ -49,6 +49,14 @@
  *   generally are NOT virtualized.
  */
 
+#ifdef _WIN32
+#include <winsock2.h>
+#else
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#endif
+
 #include "vmware.h"
 #include "asyncsocket.h"
 #include "asyncSocketBase.h"
@@ -57,8 +65,6 @@
 
 #define LOGLEVEL_MODULE asyncsocket
 #include "loglevel_user.h"
-
-
 
 
 /*
@@ -314,32 +320,37 @@ AsyncSocket_GetPort(AsyncSocket *asock)  // IN
  *
  * AsyncSocket_UseNodelay --
  *
- *      Sets or unset TCP_NODELAY on the socket, which disables or
- *      enables Nagle's algorithm, respectively.
+ *      THIS IS DEPRECATED in favor of AsyncSocket_SetOption(...TCP_NODELAY...).
+ *      It exists for now to avoid having to change all existing calling code.
+ *      TODO: Remove it fully and fix up all calling code accordingly.
+ *
+ *      Sets the setsockopt() value TCP_NODELAY.
+ *      asyncSocket may be an AsyncTCPSocket itself
+ *      or contain one on which the option will be set.
+ *
+ *      This fails if there is no applicable AsyncTCPSocket (asyncSocket or
+ *      one inside it).
  *
  * Results:
  *      ASOCKERR_SUCCESS on success, ASOCKERR_* otherwise.
+ *      There being no applicable AsyncTCPSocket yields ASOCKERR_INVAL.
+ *      OS error when setting value yields ASOCKERR_GENERIC.
  *
- * Side Effects:
- *      Increased bandwidth usage for short messages on this socket
+ * Side effects:
+ *      Possibly increased bandwidth usage for short messages on this socket
  *      due to TCP overhead, in exchange for lower latency.
  *
  *----------------------------------------------------------------------------
  */
 
 int
-AsyncSocket_UseNodelay(AsyncSocket *asock,  // IN/OUT:
-                       Bool nodelay)        // IN:
+AsyncSocket_UseNodelay(AsyncSocket *asyncSocket,  // IN/OUT
+                       Bool noDelay)              // IN
 {
-   int ret;
-   if (VALID(asock, useNodelay)) {
-      AsyncSocketLock(asock);
-      ret = VT(asock)->useNodelay(asock, nodelay);
-      AsyncSocketUnlock(asock);
-   } else {
-      ret = ASOCKERR_INVAL;
-   }
-   return ret;
+   const int noDelayNative = noDelay ? 1 : 0;
+   return AsyncSocket_SetOption(asyncSocket,
+                                IPPROTO_TCP, TCP_NODELAY,
+                                &noDelayNative, sizeof noDelayNative);
 }
 
 
@@ -348,37 +359,218 @@ AsyncSocket_UseNodelay(AsyncSocket *asock,  // IN/OUT:
  *
  * AsyncSocket_SetTCPTimeouts --
  *
- *      Allow caller to set a number of TCP-specific timeout
- *      parameters on the socket for the active connection.
+ *      Sets setsockopt() TCP_KEEP{INTVL|IDLE|CNT} if available in the OS.
+ *      asyncSocket may be an AsyncTCPSocket itself
+ *      or contain one on which the option will be set.
  *
- *      Parameters:
- *      keepIdle --  The number of seconds a TCP connection must be idle before
- *                   keep-alive probes are sent.
- *      keepIntvl -- The number of seconds between TCP keep-alive probes once
- *                   they are being sent.
- *      keepCnt   -- The number of keep-alive probes to send before killing
- *                   the connection if no response is received from the peer.
+ *      This fails if there is no applicable AsyncTCPSocket (asyncSocket or
+ *      one inside it).
  *
  * Results:
- *      ASOCKERR_SUCCESS on success, ASOCKERR_* otherwise.
+ *      ASOCKERR_SUCCESS if no error, or OS doesn't support options.
+ *      There being no applicable AsyncTCPSocket yields ASOCKERR_INVAL.
+ *      OS error when setting any one value yields ASOCKERR_GENERIC.
  *
- * Side Effects:
+ * Side effects:
  *      None.
+ *      Note that in case of error ASOCKERR_GENERIC, 0, 1, or 2 of the values
+ *      may have still been successfully set (the successful changes are
+ *      not rolled back).
  *
  *----------------------------------------------------------------------------
  */
 
 int
-AsyncSocket_SetTCPTimeouts(AsyncSocket *asock,  // IN/OUT:
-                           int keepIdle,        // IN
-                           int keepIntvl,       // IN
-                           int keepCnt)         // IN
+AsyncSocket_SetTCPTimeouts(AsyncSocket *asyncSocket,  // IN/OUT
+                           int keepIdleSec,           // IN
+                           int keepIntvlSec,          // IN
+                           int keepCnt)               // IN
+{
+   /*
+    * This function is NOT deprecated like the nearby setOption()-wrapping
+    * functions. It's valuable because it: enapsulates OS-dependent logic; and
+    * performs one lock before settong all applicable options together.
+    */
+
+#if defined(__linux__) || defined(VMX86_SERVER)
+   /*
+    * Tempting to call AsyncSocket_SetOption() x 3 instead of worrying about
+    * locking and VT() ourselves, but this way we can reduce amount of
+    * locking/unlocking at the cost of code verbosity.
+    *
+    * Reason for bailing on first error instead of trying all three:
+    * it's what the original code (that this adapts) did. TODO: Find out from
+    * author, explain here.
+    */
+
+   int ret;
+   if (VALID(asyncSocket, setOption)) {
+      AsyncSocketLock(asyncSocket);
+
+      ret = VT(asyncSocket)->setOption
+               (asyncSocket,
+                IPPROTO_TCP, TCP_KEEPIDLE,
+                &keepIdleSec, sizeof keepIdleSec);
+      if (ret == ASOCKERR_SUCCESS) {
+         ret = VT(asyncSocket)->setOption
+                  (asyncSocket,
+                   IPPROTO_TCP, TCP_KEEPINTVL,
+                   &keepIntvlSec, sizeof keepIntvlSec);
+         if (ret == ASOCKERR_SUCCESS) {
+            ret = VT(asyncSocket)->setOption
+                     (asyncSocket,
+                      IPPROTO_TCP, TCP_KEEPCNT,
+                      &keepCnt, sizeof keepCnt);
+         }
+      }
+
+      AsyncSocketUnlock(asyncSocket);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
+#else // #ifndef __linux__
+   return ASOCKERR_SUCCESS;
+#endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * AsyncSocket_EstablishMinBufferSizes --
+ *
+ *      Meant to be invoked around socket creation time, this tries to ensure
+ *      that SO_{SND|RCV}BUF setsockopt() values are set to at least the values
+ *      provided as arguments. That is, it sets the given buffer size but only
+ *      if the current value reported by the OS is smaller.
+ *
+ *      This fails unless asyncSocket is of the "applicable socket type."
+ *      Being of "applicable socket type" is defined as supporting the
+ *      option:
+ *
+ *        layer = SOL_SOCKET,
+ *        optID = SO_{SND|RCV}BUF.
+ *
+ *      As of this writing, only AsyncTCPSockets (or derivations thereof)
+ *      are supported, but (for example) UDP sockets could be added over time.
+ *
+ * Results:
+ *      TRUE: on success; FALSE: on failure.
+ *      Determining that no setsockopt() is required is considered success.
+ *
+ * Side effects:
+ *      None.
+ *      Note that in case of a setsockopt() failing, 0 or 1 of the values
+ *      may have still been successfully set (the successful changes are
+ *      not rolled back).
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+AsyncSocket_EstablishMinBufferSizes(AsyncSocket *asyncSocket,  // IN/OUT
+                                    int sendSz,                // IN
+                                    int recvSz)                // IN
+{
+   Bool ok;
+
+   if (VALID(asyncSocket, setOption)) {
+      int curSendSz;
+      socklen_t curSendSzSz = sizeof curSendSz;
+      int curRecvSz;
+      socklen_t curRecvSzSz = sizeof curRecvSz;
+
+      AsyncSocketLock(asyncSocket);
+
+      /*
+       * For each buffer size, see if the current reported size is already
+       * at least as large (in which case we needn't do anything for that one).
+       * Bail out the moment anything fails, but don't worry about undoing any
+       * change already made (as advertised in doc comment).
+       *
+       * Reason for bailing on first error instead of trying everything:
+       * it's what the original code (that this adapts) did. TODO: Find out from
+       * author, explain here.
+       *
+       * Note that depending on the type of socket and the particular
+       * implementation (e.g., the TCP stack), asking for buffer size N might
+       * result in an even larger buffer, like a multiple 2N. It's not an exact
+       * science.
+       */
+
+      ok = (VT(asyncSocket)->getOption(asyncSocket,
+                                       SOL_SOCKET, SO_SNDBUF,
+                                       &curSendSz, &curSendSzSz) ==
+            ASOCKERR_SUCCESS) &&
+           (VT(asyncSocket)->getOption(asyncSocket,
+                                       SOL_SOCKET, SO_RCVBUF,
+                                       &curRecvSz, &curRecvSzSz) ==
+            ASOCKERR_SUCCESS);
+      if (ok && (curSendSz < sendSz)) {
+         ok = VT(asyncSocket)->setOption(asyncSocket,
+                                         SOL_SOCKET, SO_SNDBUF,
+                                         &sendSz, sizeof sendSz) ==
+              ASOCKERR_SUCCESS;
+      }
+      if (ok && (curRecvSz < recvSz)) {
+         ok = VT(asyncSocket)->setOption(asyncSocket,
+                                         SOL_SOCKET, SO_RCVBUF,
+                                         &recvSz, sizeof recvSz) ==
+              ASOCKERR_SUCCESS;
+      }
+
+      AsyncSocketUnlock(asyncSocket);
+   } else {
+      ok = FALSE;
+   }
+
+   return ok;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocket_SetSendLowLatencyMode --
+ *
+ *      THIS IS DEPRECATED in favor of
+ *      AsyncSocket_SetOption(ASYNC_SOCKET_OPT_SEND_LOW_LATENCY_MODE).
+ *      It exists for now to avoid having to change all existing calling code.
+ *      TODO: Remove it fully and fix up all calling code accordingly.
+ *
+ *      Sets the aforementioned value. See doc comment on
+ *      ASYNC_SOCKET_OPT_SEND_LOW_LATENCY_MODE for more info.
+ *
+ *      This fails unless asyncSocket is of the "applicable socket type."
+ *      Being of "applicable socket type" is defined as supporting the
+ *      option:
+ *
+ *        layer = ASYNC_SOCKET_OPTS_LAYER_BASE,
+ *        optID = ASYNC_SOCKET_OPT_SEND_LOW_LATENCY_MODE.
+ *
+ * Results:
+ *      ASOCKERR_SUCCESS on success, ASOCKERR_* otherwise.
+ *      asyncSocket being of inapplicable socket type yields ASOCKERR_INVAL.
+ *
+ * Side effects:
+ *      See ASYNC_SOCKET_OPT_SEND_LOW_LATENCY_MODE doc comment.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+AsyncSocket_SetSendLowLatencyMode(AsyncSocket *asyncSocket,  // IN
+                                  Bool enable)               // IN
 {
    int ret;
-   if (VALID(asock, setTCPTimeouts)) {
-      AsyncSocketLock(asock);
-      ret = VT(asock)->setTCPTimeouts(asock, keepIdle, keepIntvl, keepCnt);
-      AsyncSocketUnlock(asock);
+   if (VALID(asyncSocket, setOption)) {
+      AsyncSocketLock(asyncSocket);
+      ret = VT(asyncSocket)->setOption
+               (asyncSocket, ASYNC_SOCKET_OPTS_LAYER_BASE,
+                ASYNC_SOCKET_OPT_SEND_LOW_LATENCY_MODE,
+                &enable, sizeof enable);
+      AsyncSocketUnlock(asyncSocket);
    } else {
       ret = ASOCKERR_INVAL;
    }
@@ -387,72 +579,117 @@ AsyncSocket_SetTCPTimeouts(AsyncSocket *asock,  // IN/OUT:
 
 
 /*
- *-----------------------------------------------------------------------------
+ *----------------------------------------------------------------------------
  *
- * AsyncSocket_SetBufferSizes --
+ * AsyncSocket_SetOption --
  *
- *    Set socket level recv/send buffer sizes if they are less than given sizes
+ *      Sets the value of the given socket option belonging to the given
+ *      option layer to the given value. The socket options mechanism is
+ *      discussed in more detail in asyncsocket.h.
  *
- * Result
- *    TRUE: on success
- *    FALSE: on failure
+ *      The exact behavior and supported options are dependent on the socket
+ *      type. See the doc header for the specific implementation for details.
+ *      If ->setOption is NULL, all options are invalid for that socket.
+ *      Setting an invalid layer+option results in a no-op + error result.
  *
- * Side-effects
- *    None
+ *      For native options, layer = setsockopt() level,
+ *      optID = setsockopt() option_name.
  *
- *-----------------------------------------------------------------------------
+ *      For non-native options, optID is obtained as follows: it is converted
+ *      from an enum option ID value for your socket type; for example,
+ *      from ASYNC_TCP_SOCKET_OPT_ALLOW_DECREASING_BUFFER_SIZE,
+ *      where the latter is of type AsyncTCPSocket_OptID.
+ *
+ *      The option's value must reside at the buffer valuePtr that is
+ *      inBufLen long. If inBufLen does not match the expected size for
+ *      the given option, behavior is undefined.
+ *
+ * Results:
+ *      ASOCKERR_SUCCESS on success, ASOCKERR_* otherwise.
+ *      Invalid option+layer yields ASOCKERR_INVAL.
+ *      Failure to set a native OS option yields ASOCKERR_GENERIC.
+ *      inBufLen being wrong (for the given option) yields undefined behavior.
+ *
+ * Side effects:
+ *      Depends on option.
+ *
+ *----------------------------------------------------------------------------
  */
 
-Bool
-AsyncSocket_SetBufferSizes(AsyncSocket *asock,  // IN
-                           int sendSz,          // IN
-                           int recvSz)          // IN
+int
+AsyncSocket_SetOption(AsyncSocket *asyncSocket,     // IN/OUT
+                      AsyncSocketOpts_Layer layer,  // IN
+                      AsyncSocketOpts_ID optID,     // IN
+                      const void *valuePtr,         // IN
+                      socklen_t inBufLen)           // IN
 {
-   Bool ret;
-   if (VALID(asock, setBufferSizes)) {
-      AsyncSocketLock(asock);
-      ret = VT(asock)->setBufferSizes(asock, sendSz, recvSz);
-      AsyncSocketUnlock(asock);
+   int ret;
+   /*
+    * Lacking a setOption() implementation is conceptually the same as
+    * ->setOption() existing but determining layer+optID to be invalid
+    * (ASOCKERR_INVAL results).
+    */
+   if (VALID(asyncSocket, setOption)) {
+      AsyncSocketLock(asyncSocket);
+      ret = VT(asyncSocket)->setOption(asyncSocket, layer, optID,
+                                       valuePtr, inBufLen);
+      AsyncSocketUnlock(asyncSocket);
    } else {
-      ret = FALSE;
+      ret = ASOCKERR_INVAL;
    }
    return ret;
 }
 
 
 /*
- *-----------------------------------------------------------------------------
+ *----------------------------------------------------------------------------
  *
- * AsyncSocket_SetSendLowLatencyMode --
+ * AsyncSocket_GetOption --
  *
- *    Put the socket into a mode where we attempt to issue sends
- *    directly from within AsyncSocket_Send().  Ordinarily, we would
- *    set up a Poll callback from within AsyncSocket_Send(), which
- *    introduces some non-zero latency to the send path.  In
- *    low-latency-send mode, that delay is potentially avoided.  This
- *    does introduce a behavioural change; the send completion
- *    callback may be triggered before the call to Send() returns.  As
- *    not all clients may be expecting this, we don't enable this mode
- *    unless requested by the client.
+ *      Gets the value of the given socket option belonging to the given
+ *      option layer. The socket options mechanism is
+ *      discussed in more detail in asyncsocket.h.
+ *      This is generally symmetrical to ..._SetOption(); most comments applying
+ *      to that function apply to this one in common-sense ways.
+ *      In particular a layer+optID combo is supported here if and only if it
+ *      is supported for ..._SetOption().
  *
- * Result
- *    ASOCKERR_SUCCESS or ASOCKERR_*
+ *      The length of the output buffer at valuePtr must reside at *outBufLen
+ *      at entry to this function. If *outBufLen does not match or exceed the
+ *      expected size for the given option, behavior is undefined.
+ *      At successful return from function, *outBufLen will be set to the
+ *      length of the value written to at valuePtr.
  *
- * Side-effects
- *    See description above.
+ * Results:
+ *      ASOCKERR_SUCCESS on success, ASOCKERR_* otherwise.
+ *      Invalid option+layer yields ASOCKERR_INVAL.
+ *      Failure to get a native OS option yields ASOCKERR_GENERIC.
+ *      *outBufLen being wrong (for the given option) yields undefined behavior.
  *
- *-----------------------------------------------------------------------------
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
  */
 
 int
-AsyncSocket_SetSendLowLatencyMode(AsyncSocket *asock,  // IN
-                                  Bool enable)         // IN
+AsyncSocket_GetOption(AsyncSocket *asyncSocket,     // IN/OUT
+                      AsyncSocketOpts_Layer layer,  // IN
+                      AsyncSocketOpts_ID optID,     // IN
+                      void *valuePtr,               // OUT
+                      socklen_t *outBufLen)         // IN/OUT
 {
    int ret;
-   if (VALID(asock, setSendLowLatencyMode)) {
-      AsyncSocketLock(asock);
-      ret = VT(asock)->setSendLowLatencyMode(asock, enable);
-      AsyncSocketUnlock(asock);
+   /*
+    * Lacking a getOption() implementation is conceptually the same as
+    * ->getOption() existing but determining layer+optID to be invalid
+    * (ASOCKERR_INVAL results).
+    */
+   if (VALID(asyncSocket, getOption)) {
+      AsyncSocketLock(asyncSocket);
+      ret = VT(asyncSocket)->getOption(asyncSocket, layer, optID,
+                                       valuePtr, outBufLen);
+      AsyncSocketUnlock(asyncSocket);
    } else {
       ret = ASOCKERR_INVAL;
    }

@@ -1107,9 +1107,8 @@ RpcInConnectDone(AsyncSocket *asock,   // IN
       goto exit;
    }
 
-
-   if (!AsyncSocket_SetBufferSizes(asock, RPCIN_MIN_SEND_BUF_SIZE,
-                                   RPCIN_MIN_RECV_BUF_SIZE)) {
+   if (!AsyncSocket_EstablishMinBufferSizes(asock, RPCIN_MIN_SEND_BUF_SIZE,
+                                            RPCIN_MIN_RECV_BUF_SIZE)) {
       goto exit;
    }
 

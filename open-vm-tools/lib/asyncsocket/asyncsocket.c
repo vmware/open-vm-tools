@@ -152,6 +152,8 @@
 #define ADDR_STRING_LEN (INET6_ADDRSTRLEN + 2 + PORT_STRING_LEN)
 
 
+/* Local types. */
+
 /*
  * Output buffer list data type, for the queue of outgoing buffers
  */
@@ -307,13 +309,6 @@ static int AsyncTCPSocketGetRemoteIPStr(AsyncSocket *asock, const char **ipStr);
 static int AsyncTCPSocketGetINETIPStr(AsyncSocket *asock, int socketFamily,
                                       char **ipRetStr);
 static unsigned int AsyncTCPSocketGetPort(AsyncSocket *asock);
-static int AsyncTCPSocketUseNodelay(AsyncSocket *asock, Bool nodelay);
-static int AsyncTCPSocketSetTCPTimeouts(AsyncSocket *asock, int keepIdle,
-                                        int keepIntvl, int keepCnt);
-static Bool AsyncTCPSocketSetBufferSizes(AsyncSocket *asock,
-                                         int sendSz, int recvSz);
-static int AsyncTCPSocketSetSendLowLatencyMode(AsyncSocket *asock,
-                                                Bool enable);
 static Bool AsyncTCPSocketConnectSSL(AsyncSocket *asock,
                                      struct _SSLVerifyParam *verifyParam,
                                      void *sslContext);
@@ -359,19 +354,29 @@ static int AsyncTCPSocketSendBlocking(AsyncSocket *s, void *buf, int len,
 static int AsyncTCPSocketDoOneMsg(AsyncSocket *s, Bool read, int timeoutMS);
 static int AsyncTCPSocketWaitForReadMultiple(AsyncSocket **asock, int numSock,
                                              int timeoutMS, int *outIdx);
+static int AsyncTCPSocketSetOption(AsyncSocket *asyncSocket,
+                                   AsyncSocketOpts_Layer layer,
+                                   AsyncSocketOpts_ID optID,
+                                   const void *valuePtr,
+                                   socklen_t inBufLen);
+static int AsyncTCPSocketGetOption(AsyncSocket *asyncSocket,
+                                   AsyncSocketOpts_Layer layer,
+                                   AsyncSocketOpts_ID optID,
+                                   void *valuePtr,
+                                   socklen_t *outBufLen);
 
+
+/* Local constants. */
 
 static const AsyncSocketVTable asyncTCPSocketVTable = {
    AsyncSocketGetState,
+   AsyncTCPSocketSetOption,
+   AsyncTCPSocketGetOption,
    AsyncTCPSocketGetGenericErrno,
    AsyncTCPSocketGetFd,
    AsyncTCPSocketGetRemoteIPStr,
    AsyncTCPSocketGetINETIPStr,
    AsyncTCPSocketGetPort,
-   AsyncTCPSocketUseNodelay,
-   AsyncTCPSocketSetTCPTimeouts,
-   AsyncTCPSocketSetBufferSizes,
-   AsyncTCPSocketSetSendLowLatencyMode,
    AsyncTCPSocketSetCloseOptions,
    AsyncTCPSocketConnectSSL,
    AsyncTCPSocketStartSslConnect,
@@ -404,6 +409,8 @@ static const AsyncSocketVTable asyncTCPSocketVTable = {
    AsyncTCPSocketDestroy
 };
 
+
+/* Function bodies. */
 
 /*
  *----------------------------------------------------------------------
@@ -2259,114 +2266,6 @@ AsyncSocket_AttachToSSLSock(SSLSock sslSock,                   // IN
 /*
  *----------------------------------------------------------------------------
  *
- * AsyncTCPSocketUseNodelay --
- *
- *      Sets or unset TCP_NODELAY on the socket, which disables or
- *      enables Nagle's algorithm, respectively.
- *
- * Results:
- *      ASOCKERR_SUCCESS on success, ASOCKERR_GENERIC otherwise.
- *
- * Side Effects:
- *      Increased bandwidth usage for short messages on this socket
- *      due to TCP overhead, in exchange for lower latency.
- *
- *----------------------------------------------------------------------------
- */
-
-static int
-AsyncTCPSocketUseNodelay(AsyncSocket *base,  // IN/OUT:
-                         Bool nodelay)       // IN:
-{
-   AsyncTCPSocket *asock = TCPSocket(base);
-   int flag = nodelay ? 1 : 0;
-
-   ASSERT(AsyncTCPSocketIsLocked(asock));
-   if (setsockopt(asock->fd, IPPROTO_TCP, TCP_NODELAY,
-                  (const void *) &flag, sizeof(flag)) != 0) {
-      asock->genericErrno = Err_Errno();
-      LOG(0, (ASOCKPREFIX "could not set TCP_NODELAY, error %d: %s\n",
-              Err_Errno(), Err_ErrString()));
-      return ASOCKERR_GENERIC;
-   } else {
-      return ASOCKERR_SUCCESS;
-   }
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * AsyncTCPSocketSetTCPTimeouts --
- *
- *      Allow caller to set a number of TCP-specific timeout
- *      parameters on the socket for the active connection.
- *
- *      Parameters:
- *      keepIdle --  The number of seconds a TCP connection must be idle before
- *                   keep-alive probes are sent.
- *      keepIntvl -- The number of seconds between TCP keep-alive probes once
- *                   they are being sent.
- *      keepCnt   -- The number of keep-alive probes to send before killing
- *                   the connection if no response is received from the peer.
- *
- * Results:
- *      ASOCKERR_SUCCESS on success, ASOCKERR_GENERIC otherwise.
- *
- * Side Effects:
- *      None.
- *
- *----------------------------------------------------------------------------
- */
-
-static int
-AsyncTCPSocketSetTCPTimeouts(AsyncSocket *base,  // IN/OUT:
-                             int keepIdle,       // IN
-                             int keepIntvl,      // IN
-                             int keepCnt)        // IN
-{
-#ifdef VMX86_SERVER
-   AsyncTCPSocket *asock = TCPSocket(base);
-   int val;
-   int opt;
-
-   ASSERT(AsyncTCPSocketIsLocked(asock));
-
-   val = keepIdle;
-   opt = TCP_KEEPIDLE;
-   if (setsockopt(asock->fd, IPPROTO_TCP, opt,
-                  &val, sizeof val) != 0) {
-      goto error;
-   }
-
-   val = keepIntvl;
-   opt = TCP_KEEPINTVL;
-   if (setsockopt(asock->fd, IPPROTO_TCP, opt,
-                  &val, sizeof val) != 0) {
-      goto error;
-   }
-
-   val = keepCnt;
-   opt = TCP_KEEPCNT;
-   if (setsockopt(asock->fd, IPPROTO_TCP, opt,
-                  &val, sizeof val) != 0) {
-      goto error;
-   }
-
-   return ASOCKERR_SUCCESS;
-
-error:
-   asock->genericErrno = Err_Errno();
-   LOG(0, (ASOCKPREFIX "could not set TCP Timeout %d, error %d: %s\n",
-           opt, Err_Errno(), Err_ErrString()));
-#endif
-   return ASOCKERR_GENERIC;
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
  * AsyncTCPSocketRegisterRecvCb --
  *
  *      Register poll callbacks as required to be notified when data is ready
@@ -3535,7 +3434,7 @@ AsyncTCPSocketDispatchSentBuffer(AsyncTCPSocket *s)         // IN
  *      for the socket.
  *
  * Results:
- *      ASOCKERR_SUCESS if everything worked, else ASOCKERR_GENERIC.
+ *      ASOCKERR_SUCCESS if everything worked, else ASOCKERR_GENERIC.
  *
  * Side effects:
  *      None.
@@ -5655,110 +5554,258 @@ AsyncTCPSocketStartSslAccept(AsyncSocket *base,                  // IN
 
 
 /*
- *-----------------------------------------------------------------------------
+ *----------------------------------------------------------------------------
  *
- * AsyncTCPSocketSetBufferSizes --
+ * AsyncTCPSocketSetOption --
  *
- *    Set socket level recv/send buffer sizes if they are less than given sizes.
+ *      This implementation of ->setOption() supports the following
+ *      options. Exact behavior of each cited optID is documented in the
+ *      comment header for that enum value declaration (for non-native options),
+ *      or `man setsockopt`/equivalent (for native options).
  *
- * Result
- *    TRUE: on success
- *    FALSE: on failure
+ *         - layer = SOL_SOCKET, optID =
+ *           SO_SNDBUF, SO_RCVBUF.
  *
- * Side-effects
- *    None
+ *         - layer = IPPROTO_TCP, optID =
+ *           TCP_NODELAY, TCP_KEEPINTVL, TCP_KEEPIDLE, TCP_KEEPCNT.
  *
- *-----------------------------------------------------------------------------
+ *         - layer = ASYNC_SOCKET_OPTS_LAYER_BASE, optID (type) =
+ *           ASYNC_SOCKET_OPT_SEND_LOW_LATENCY_MODE (Bool).
+ *
+ * Results:
+ *      ASOCKERR_SUCCESS on success, ASOCKERR_* otherwise.
+ *      Invalid option+layer yields ASOCKERR_INVAL.
+ *      Failure to set a native OS option yields ASOCKERR_GENERIC.
+ *      inBufLen being wrong (for the given option) yields undefined behavior.
+ *
+ * Side effects:
+ *      Depends on option.
+ *
+ *----------------------------------------------------------------------------
  */
 
-static Bool
-AsyncTCPSocketSetBufferSizes(AsyncSocket *base,   // IN
-                             int sendSz,          // IN
-                             int recvSz)          // IN
+static int
+AsyncTCPSocketSetOption(AsyncSocket *asyncSocket,     // IN/OUT
+                        AsyncSocketOpts_Layer layer,  // IN
+                        AsyncSocketOpts_ID optID,     // IN
+                        const void *valuePtr,         // IN
+                        socklen_t inBufLen)           // IN
 {
-   AsyncTCPSocket *asock = TCPSocket(base);
-   int err;
-   int buffSz;
-   int len = sizeof buffSz;
-   int sysErr;
-   int fd;
+   /* Maintenance: Keep this in sync with ...GetOption(). */
 
-   fd = asock->fd;
+   AsyncTCPSocket *tcpSocket = TCPSocket(asyncSocket);
+   Bool isSupported;
 
-   err = getsockopt(fd, SOL_SOCKET, SO_RCVBUF, (char *)&buffSz, &len);
-   if (err) {
-      sysErr = ASOCK_LASTERROR();
-      Warning(ASOCKPREFIX "Could not get recv buffer size for socket %d, "
-              "error %d: %s\n", fd, sysErr, Err_Errno2String(sysErr));
-      return FALSE;
+   switch ((int)layer)
+   {
+   case SOL_SOCKET:
+   case IPPROTO_TCP:
+   case ASYNC_SOCKET_OPTS_LAYER_BASE:
+      break;
+   default:
+      TCPSOCKLG0(tcpSocket,
+                 ("%s: Option layer [%d] (option [%d]) is not "
+                     "supported for TCP socket.\n",
+                  __FUNCTION__, (int)layer, optID));
+      return ASOCKERR_INVAL;
    }
 
-   if (buffSz < recvSz) {
-      buffSz = recvSz;
-      err = setsockopt(fd, SOL_SOCKET, SO_RCVBUF, (char *)&buffSz, len);
-      if (err) {
-         sysErr = ASOCK_LASTERROR();
-         Warning(ASOCKPREFIX "Could not set recv buffer size for socket %d "
-                 "to %d, error %d: %s\n", fd, buffSz,
-                 sysErr, Err_Errno2String(sysErr));
-         return FALSE;
+   /*
+    * layer is supported.
+    * Handle non-native options first.
+    */
+
+   if ((layer == ASYNC_SOCKET_OPTS_LAYER_BASE) &&
+       (optID == ASYNC_SOCKET_OPT_SEND_LOW_LATENCY_MODE)) {
+      ASSERT(inBufLen == sizeof(Bool));
+      tcpSocket->sendLowLatency = *((const Bool *)valuePtr);
+      TCPSOCKLG0(tcpSocket,
+                 ("%s: sendLowLatencyMode set to [%d].\n",
+                  __FUNCTION__, (int)tcpSocket->sendLowLatency));
+      return ASOCKERR_SUCCESS;
+   }
+
+   /*
+    * Handle native (setsockopt()) options from this point on.
+    *
+    * We need the level and option_name arguments for that call.
+    * Our design dictates that, for native options, simply option_name=optID.
+    * So just determine level from our layer enum (for native layers, the enum's
+    * ordinal value is set to the corresponding int level value). Therefore,
+    * level=layer.
+    *
+    * level and option_name are known. However, we only allow the setting of
+    * certain specific options. Anything else is an error.
+    */
+   isSupported = FALSE;
+   if (layer == SOL_SOCKET) {
+      switch (optID) {
+      case SO_SNDBUF:
+      case SO_RCVBUF:
+         isSupported = TRUE;
+      }
+   } else {
+      ASSERT((int)layer == IPPROTO_TCP);
+
+      switch (optID) {
+         /*
+          * Note: All but TCP_KEEPIDLE are available in Mac OS X (at least
+          * 10.11). iOS and Android are TBD. For now, let's keep it simple and
+          * make all these available in the two known OS where all 3 exist
+          * together, as they're typically often set as a group.
+          * TODO: Possibly enable for other OS in more fine-grained fashion.
+          */
+#if defined(__linux__) || defined(VMX86_SERVER)
+      case TCP_KEEPIDLE:
+      case TCP_KEEPINTVL:
+      case TCP_KEEPCNT:
+#endif
+      case TCP_NODELAY:
+         isSupported = TRUE;
       }
    }
 
-   err =  getsockopt(fd, SOL_SOCKET, SO_SNDBUF, (char *)&buffSz, &len);
-   if (err) {
-      sysErr = ASOCK_LASTERROR();
-      Warning(ASOCKPREFIX "Could not get send buffer size for socket %d, "
-              "error %d: %s\n", fd, sysErr, Err_Errno2String(sysErr));
-      return FALSE;
+   if (!isSupported) {
+      TCPSOCKLG0(tcpSocket,
+                 ("%s: Option layer/level [%d], option/name [%d]: "
+                     "could not set OS option for TCP socket; "
+                     "option not supported.\n",
+                  __FUNCTION__, (int)layer, optID));
+      return ASOCKERR_INVAL;
    }
 
-   if (buffSz < sendSz) {
-      buffSz = sendSz;
-      err = setsockopt(fd, SOL_SOCKET, SO_SNDBUF, (char *)&buffSz, len);
-      if (err) {
-         sysErr = ASOCK_LASTERROR();
-         Warning(ASOCKPREFIX "Could not set send buffer size for socket %d "
-                 "to %d, error %d: %s\n", fd, buffSz,
-                 sysErr, Err_Errno2String(sysErr));
-         return FALSE;
-      }
+   /* All good. Ready to actually set the OS option. */
+
+   if (setsockopt(tcpSocket->fd, layer, optID,
+                  valuePtr, inBufLen) != 0) {
+      tcpSocket->genericErrno = Err_Errno();
+      TCPSOCKLG0(tcpSocket,
+                 ("%s: Option layer/level [%d], option/name [%d]: "
+                     "could not set OS option for TCP socket; "
+                     "error [%d: %s].\n",
+                  __FUNCTION__, (int)layer, optID,
+                  tcpSocket->genericErrno,
+                  Err_Errno2String(tcpSocket->genericErrno)));
+      return ASOCKERR_GENERIC;
    }
 
-   return TRUE;
+   TCPSOCKLG0(tcpSocket,
+              ("%s: Option layer/level [%d], option/name [%d]: successfully "
+                  "set OS option for TCP socket.\n",
+               __FUNCTION__, (int)layer, optID));
+
+   return ASOCKERR_SUCCESS;
 }
 
 
 /*
- *-----------------------------------------------------------------------------
+ *----------------------------------------------------------------------------
  *
- * AsyncTCPSocketSetSendLowLatencyMode --
+ * AsyncTCPSocketGetOption --
  *
- *    Put the socket into a mode where we attempt to issue sends
- *    directly from within AsyncTCPSocket_Send().  Ordinarily, we would
- *    set up a Poll callback from within AsyncTCPSocket_Send(), which
- *    introduces some non-zero latency to the send path.  In
- *    low-latency-send mode, that delay is potentially avoided.  This
- *    does introduce a behavioural change; the send completion
- *    callback may be triggered before the call to Send() returns.  As
- *    not all clients may be expecting this, we don't enable this mode
- *    unless requested by the client.
+ *      This is the reverse of AsyncTCPSocketSetOption().
  *
- * Result
- *    ASOCKERR_*
+ * Results:
+ *      ASOCKERR_SUCCESS on success, ASOCKERR_* otherwise.
+ *      Invalid option+layer yields ASOCKERR_INVAL.
+ *      Failure to get a native OS option yields ASOCKERR_GENERIC.
+ *      *outBufLen being wrong (for the given option) at entry to function
+ *      yields undefined behavior.
  *
- * Side-effects
- *    See description above.
+ * Side effects:
+ *      None.
  *
- *-----------------------------------------------------------------------------
+ *----------------------------------------------------------------------------
  */
 
 static int
-AsyncTCPSocketSetSendLowLatencyMode(AsyncSocket *base,  // IN
-                                    Bool enable)        // IN
+AsyncTCPSocketGetOption(AsyncSocket *asyncSocket,     // IN/OUT
+                        AsyncSocketOpts_Layer layer,  // IN
+                        AsyncSocketOpts_ID optID,     // IN
+                        void *valuePtr,               // OUT
+                        socklen_t *outBufLen)         // IN/OUT
 {
-   AsyncTCPSocket *asock = TCPSocket(base);
-   asock->sendLowLatency = enable;
+   /*
+    * Maintenance: Keep this in sync with ...GetOption().
+    * Substantive comments are kept light to avoid redundancy (refer to the
+    * other function).
+    */
+
+   AsyncTCPSocket *tcpSocket = TCPSocket(asyncSocket);
+   Bool isSupported;
+
+   switch ((int)layer) {
+   case SOL_SOCKET:
+   case IPPROTO_TCP:
+   case ASYNC_SOCKET_OPTS_LAYER_BASE:
+      break;
+   default:
+      TCPSOCKLG0(tcpSocket,
+                 ("%s: Option layer [%d] (option [%d]) is not "
+                     "supported for TCP socket.\n",
+                  __FUNCTION__, (int)layer, optID));
+      return ASOCKERR_INVAL;
+   }
+
+   if ((layer == ASYNC_SOCKET_OPTS_LAYER_BASE) &&
+       (optID == ASYNC_SOCKET_OPT_SEND_LOW_LATENCY_MODE)) {
+      ASSERT(*outBufLen >= sizeof(Bool));
+      *outBufLen = sizeof(Bool);
+      *((Bool *)valuePtr) = tcpSocket->sendLowLatency;
+      TCPSOCKLG0(tcpSocket,
+                 ("%s: sendLowLatencyMode is [%d].\n",
+                  __FUNCTION__, (int)tcpSocket->sendLowLatency));
+      return ASOCKERR_SUCCESS;
+   }
+
+   isSupported = FALSE;
+   if (layer == SOL_SOCKET) {
+      switch (optID) {
+      case SO_SNDBUF:
+      case SO_RCVBUF:
+         isSupported = TRUE;
+      }
+   } else {
+      ASSERT((int)layer == IPPROTO_TCP);
+
+      switch (optID) {
+#ifdef __linux__
+      case TCP_KEEPIDLE:
+      case TCP_KEEPINTVL:
+      case TCP_KEEPCNT:
+#endif
+      case TCP_NODELAY:
+         isSupported = TRUE;
+      }
+   }
+
+   if (!isSupported) {
+      TCPSOCKLG0(tcpSocket,
+                 ("%s: Option layer/level [%d], option/name [%d]: "
+                     "could not get OS option for TCP socket; "
+                     "option not supported.\n",
+                  __FUNCTION__, (int)layer, optID));
+      return ASOCKERR_INVAL;
+   }
+
+   if (getsockopt(tcpSocket->fd, layer, optID,
+                  valuePtr, outBufLen) != 0) {
+      tcpSocket->genericErrno = Err_Errno();
+      TCPSOCKLG0(tcpSocket,
+                 ("%s: Option layer/level [%d], option/name [%d]: "
+                     "could not get OS option for TCP socket; "
+                     "error [%d: %s].\n",
+                  __FUNCTION__, (int)layer, optID,
+                  tcpSocket->genericErrno,
+                  Err_Errno2String(tcpSocket->genericErrno)));
+      return ASOCKERR_GENERIC;
+   }
+
+   TCPSOCKLG0(tcpSocket,
+              ("%s: Option layer/level [%d], option/name [%d]: successfully "
+                  "got OS option for TCP socket.\n",
+               __FUNCTION__, (int)layer, optID));
+
    return ASOCKERR_SUCCESS;
 }
 

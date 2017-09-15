@@ -1012,8 +1012,8 @@ VmxListenSockConnectedCb(AsyncSocket *asock,    // IN
       goto exit;
    }
 
-   if (!AsyncSocket_SetBufferSizes(asock, sendBufSize, recvBufSize)) {
-      g_info("Cannot set VSOCK buffer sizes, closing socket %d\n", fd);
+   if (!AsyncSocket_EstablishMinBufferSizes(asock, sendBufSize, recvBufSize)) {
+      g_info("Cannot set VSOCK buffer size minima, closing socket %d\n", fd);
       goto exit;
    }
 
@@ -1419,7 +1419,7 @@ RmqListenSockConnectedCb(AsyncSocket *asock,    // IN
       goto exit;
    }
 
-   if (!AsyncSocket_SetBufferSizes(asock, sendBufSize, recvBufSize)) {
+   if (!AsyncSocket_EstablishMinBufferSizes(asock, sendBufSize, recvBufSize)) {
       g_info("Closing socket %d due to error.\n", fd);
       goto exit;
    }

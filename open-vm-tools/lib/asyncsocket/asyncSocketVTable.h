@@ -51,16 +51,35 @@
  */
 typedef struct AsyncSocketVTable {
    AsyncSocketState (*getState)(AsyncSocket *sock);
+
+   /*
+    * The socket options mechanism is discussed in asyncsocket.h.
+    * If you're considering adding a new virtual function table entry whose
+    * effect is to call setsockopt() and/or save a value inside the socket
+    * structure and/or forward such a call to a contained AsyncSocket,
+    * strongly consider using this setOption() mechanism instead.
+    * Your life is likely to be made easier by this.
+    */
+   int (*setOption)(AsyncSocket *asyncSocket,
+                    AsyncSocketOpts_Layer layer,
+                    AsyncSocketOpts_ID optID,
+                    const void *valuePtr,
+                    socklen_t inBufLen);
+   /*
+    * A setOption() implementation must have a symmetrical getOption()
+    * counterpart.
+    */
+   int (*getOption)(AsyncSocket *asyncSocket,
+                    AsyncSocketOpts_Layer layer,
+                    AsyncSocketOpts_ID optID,
+                    void *valuePtr,
+                    socklen_t *outBufLen);
+
    int (*getGenericErrno)(AsyncSocket *s);
    int (*getFd)(AsyncSocket *asock);
    int (*getRemoteIPStr)(AsyncSocket *asock, const char **ipStr);
    int (*getINETIPStr)(AsyncSocket *asock, int socketFamily, char **ipRetStr);
    unsigned int (*getPort)(AsyncSocket *asock);
-   int (*useNodelay)(AsyncSocket *asock, Bool nodelay);
-   int (*setTCPTimeouts)(AsyncSocket *asock, int keepIdle, int keepIntvl,
-                         int keepCnt);
-   Bool (*setBufferSizes)(AsyncSocket *asock, int sendSz, int recvSz);
-   int (*setSendLowLatencyMode)(AsyncSocket *asock, Bool enable);
    int (*setCloseOptions)(AsyncSocket *asock, int flushEnabledMaxWaitMsec,
                            AsyncSocketCloseFn closeCb);
    Bool (*connectSSL)(AsyncSocket *asock, struct _SSLVerifyParam *verifyParam,

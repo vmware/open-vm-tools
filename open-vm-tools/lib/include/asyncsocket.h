@@ -47,6 +47,14 @@
 
 #define INCLUDE_ALLOW_VMCORE
 #define INCLUDE_ALLOW_USERLEVEL
+
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#else
+#include <sys/socket.h>
+#endif
+
 #include "includeCheck.h"
 
 #if defined(__cplusplus)
@@ -190,6 +198,154 @@ typedef struct AsyncSocketNetworkStats {
    uint32 inflightBytes;         /* current outstanding bytes */
    double packetLossPercent;     /* packet loss percentage */
 } AsyncSocketNetworkStats;
+
+
+/*
+ * The following covers all facilities involving dynamic socket options w.r.t.
+ * various async sockets, excluding the async socket options API on the
+ * sockets themselves, which can be found in asyncSocketVTable.h and those
+ * files implementing that API.
+ *
+ * Potential related future work is covered in
+ * asyncsocket/README-asyncSocketOptions-future-work.txt.
+ *
+ * Summary of dynamic socket options:
+ *
+ * Dynamic socket option = setting settable by the async socket API user
+ * including during the lifetime of the socket. An interface spiritually
+ * similar to setsockopt()'s seemed appropriate.
+ *
+ * The option-setting API looks as follows:
+ *
+ *   int ...SetOption(AsyncSocket *asyncSocket,
+ *                    AsyncSocketOpts_Layer layer, // enum type
+ *                    AsyncSocketOpts_ID optID, // an integer type
+ *                    const void *valuePtr,
+ *                    size_t inBufLen)
+ *
+ * Both native (setsockopt()) and non-native (usually, struct member)
+ * options are supported. layer and optID arguments are conceptually similar
+ * to setsockopt() level and option_name arguments, respectively.
+ *
+ * FOR NATIVE (setsockopt()) OPTIONS:
+ *    layer = setsockopt() level value.
+ *    optID = setsockopt() option_name value.
+ *
+ * FOR NON-NATIVE (struct member inside socket impl.) OPTIONS:
+ *    layer = ..._BASE, ..._TCP, ..._FEC, etc.
+ *       (pertains to the various AsyncSocket types);
+ *    optID = value from enum type appropriate to the chosen layer.
+ *
+ * Examples (prefixes omitted for space):
+ *
+ *    -- NATIVE OPTIONS --
+ *    optID          | layer       | <= | ssopt() level | ssopt() option_name
+ *    ---------------+-------------+----+---------------+--------------------
+ *    == option_name | == level    | <= | SOL_SOCKET    | SO_SNDBUF
+ *    == option_name | == level    | <= | IPPROTO_TCP   | TCP_NODELAY
+ *
+ *    -- NON-NATIVE OPTIONS --
+ *    optID                          | layer | <= | AsyncSocket type(s)
+ *    -------------------------------+-------+----+--------------------
+ *    _SEND_LOW_LATENCY_MODE         | _BASE | <= | any
+ *       (enum AsyncSocket_OptID)    |       |    |
+ *    _ALLOW_DECREASING_BUFFER_SIZE  | _TCP  | <= | AsyncTCPSocket
+ *       (enum AsyncTCPSocket_OptID) |       |    |
+ *    _MAX_CWND                      | _FEC  | <= | FECAsyncSocket
+ *       (enum FECAsyncSocket_OptID) |       |    |
+ *
+ * Socket option lists for each non-native layer are just enums. Each socket
+ * type should declare its own socket option enum in its own .h file; e.g., see
+ * AsyncTCPSocket_OptID in this file. Some option lists apply to all async
+ * sockets; these are also here in asyncsocket.h.
+ *
+ * The only way in which different socket option layers coexist in the same
+ * file is the layer enum, AsyncSocketOpts_Layer, in the present file,
+ * which enumerates all possible layers.
+ *
+ * The lack of any other cross-pollution between different non-native option
+ * lists' containing files is a deliberate design choice.
+ */
+
+/*
+ * Integral type used for the optID argument to ->setOption() async socket API.
+ *
+ * For a non-native option, use an enum value for your socket type.
+ * (Example: ASYNC_TCP_SOCKET_OPT_ALLOW_DECREASING_BUFFER_SIZE
+ * of type AsyncTCPSocket_OptID, which would apply to TCP sockets only.)
+ *
+ * For a native (setsockopt()) option, use the setsockopt() integer directly.
+ * (Example: TCP_NODELAY.)
+ *
+ * Let's use a typedef as a small bit of abstraction and to be able to easily
+ * change it to size_t, if (for example) we start indexing arrays with this
+ * thing.
+ */
+typedef int AsyncSocketOpts_ID;
+
+/*
+ * Enum type used for the layer argument to ->setOption() async socket API.
+ * As explained in the summary comment above, this
+ * informs the particular ->setOption() implementation how to interpret
+ * the accompanying optID integer value, as it may refer to one of several
+ * option lists; and possible different socket instances (not as of this
+ * writing).
+ *
+ * If editing, see summary comment above first for background.
+ *
+ * The values explicitly in this enum are for non-native options.
+ * For native options, simply use the level value as for setsockopt().
+ *
+ * Ordinal values for all these non-native layers must not clash
+ * with the native levels; hence the `LEVEL + CONSTANT` trick
+ * just below.
+ */
+typedef enum {
+
+   /*
+    * Used when optID applies to a non-native socket option applicable to ANY
+    * async socket type.
+    */
+   ASYNC_SOCKET_OPTS_LAYER_BASE = SOL_SOCKET + 1000,
+
+   /*
+    * Next enums must follow the above ordinally, so just:
+    *    ASYNC_SOCKET_OPTS_LAYER_<layer name 1>,
+    *    ASYNC_SOCKET_OPTS_LAYER_<layer name 2>, ...
+    */
+} AsyncSocketOpts_Layer;
+
+/*
+ * Enum type used for the OptId argument to ->setOption() async socket API,
+ * when optID refers to a non-native option of any AsyncSocket regardless
+ * of type.
+ */
+typedef enum {
+   /*
+    * Bool indicating whether to put the socket into a mode where we attempt
+    * to issue sends directly from within ->send(). Ordinarily
+    * (FALSE), we would set up a Poll callback from within ->send(),
+    * which introduces some non-zero latency to the send path. In
+    * low-latency-send mode (TRUE), that delay is potentially avoided. This
+    * does introduce a behavioral change; the send completion
+    * callback may be triggered before the call to ->send() returns. As
+    * not all clients may be expecting this, we don't enable this mode
+    * unless requested by the client.
+    *
+    * Default: FALSE.
+    */
+   ASYNC_SOCKET_OPT_SEND_LOW_LATENCY_MODE
+} AsyncSocket_OptID;
+
+/*
+ * Note: If you need to add a non-native option that applies to AsyncTCPSockets
+ * only, you'd probably introduce an enum here named AsyncTCPSocket_OptID; and
+ * at least one layer named ASYNC_SOCKET_OPTS_LAYER_TCP in the enum
+ * AsyncSocketOpts_Layer.
+ */
+
+
+/* API functions for all AsyncSockets. */
 
 AsyncSocketState AsyncSocket_GetState(AsyncSocket *sock);
 
@@ -404,16 +560,21 @@ AsyncSocket *AsyncSocket_AttachToSSLSock(struct SSLSockStruct *sslSock,
                                          AsyncSocketPollParams *pollParams,
                                          int *error);
 
-/*
- * Enable or disable TCP_NODELAY on this AsyncSocket.
- */
-int AsyncSocket_UseNodelay(AsyncSocket *asock, Bool nodelay);
-
-/*
- * Set TCP timeout values on this AsyncSocket.
- */
-int AsyncSocket_SetTCPTimeouts(AsyncSocket *asock, int keepIdle,
-                               int keepIntvl, int keepCnt);
+int AsyncSocket_UseNodelay(AsyncSocket *asyncSocket, Bool nodelay);
+int AsyncSocket_SetTCPTimeouts(AsyncSocket *asyncSocket,
+                               int keepIdleSec, int keepIntvlSec, int keepCnt);
+Bool AsyncSocket_EstablishMinBufferSizes(AsyncSocket *asyncSocket,
+                                         int sendSz,
+                                         int recvSz);
+int AsyncSocket_SetSendLowLatencyMode(AsyncSocket *asyncSocket, Bool enable);
+int AsyncSocket_SetOption(AsyncSocket *asyncSocket,
+                          AsyncSocketOpts_Layer layer,
+                          AsyncSocketOpts_ID optID,
+                          const void *valuePtr, socklen_t inBufLen);
+int AsyncSocket_GetOption(AsyncSocket *asyncSocket,
+                          AsyncSocketOpts_Layer layer,
+                          AsyncSocketOpts_ID optID,
+                          void *valuePtr, socklen_t *outBufLen);
 
 /*
  * Waits until at least one packet is received or times out.
@@ -501,13 +662,6 @@ int AsyncSocket_SetErrorFn(AsyncSocket *asock, AsyncSocketErrorFn errorFn,
                            void *clientData);
 
 /*
- * Set socket level recv/send buffer sizes if they are less than given sizes.
- */
-Bool AsyncSocket_SetBufferSizes(AsyncSocket *asock,  // IN
-                                int sendSz,    // IN
-                                int recvSz);   // IN
-
-/*
  * Set optional AsyncSocket_Close() behaviors.
  */
 int AsyncSocket_SetCloseOptions(AsyncSocket *asock,
@@ -541,11 +695,6 @@ int AsyncSocket_SetWebSocketCookie(AsyncSocket *asock,         // IN
  * Retrieve the close status, if received, for a websocket connection
  */
 uint16 AsyncSocket_GetWebSocketCloseStatus(AsyncSocket *asock);
-
-/*
- * Set low-latency mode for sends:
- */
-int AsyncSocket_SetSendLowLatencyMode(AsyncSocket *asock, Bool enable);
 
 /*
  * Get negotiated websocket protocol
