@@ -1151,6 +1151,39 @@ AsyncSocket_GetWebSocketCookie(AsyncSocket *asock)    // IN
    return ret;
 }
 
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocket_SetWebSocketCookie --
+ *
+ *      Return the Cookie field value supplied during a WebSocket
+ *      connection request.
+ *
+ * Results:
+ *      Cookie, if asock is WebSocket.
+ *      NULL, if asock is not WebSocket.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+AsyncSocket_SetWebSocketCookie(AsyncSocket *asock,      // IN
+                               void *clientData,        // IN
+                               const char *path,        // IN
+                               const char *sessionId)   // IN
+{
+   int ret = ASOCKERR_GENERIC;
+   if (VALID(asock, setWebSocketCookie)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->setWebSocketCookie(asock, clientData, path, sessionId);
+      AsyncSocketUnlock(asock);
+   }
+   return ret;
+}
+
 
 /*
  *----------------------------------------------------------------------------

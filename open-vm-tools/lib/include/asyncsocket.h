@@ -247,6 +247,10 @@ typedef void (*AsyncSocketSslAcceptFn) (Bool status, AsyncSocket *asock,
 typedef void (*AsyncSocketSslConnectFn) (Bool status, AsyncSocket *asock,
                                          void *clientData);
 typedef void (*AsyncSocketCloseFn) (AsyncSocket *asock, void *clientData);
+/*
+ * Callback to handle http upgrade request header
+ */
+typedef int (*AsyncWebSocketHandleUpgradeRequestFn) (AsyncSocket *asock, void *clientData);
 
 /*
  * Listen on port and fire callback with new asock
@@ -277,6 +281,17 @@ AsyncSocket *AsyncSocket_ListenWebSocket(const char *addrStr,
                                          AsyncSocketPollParams *pollParams,
                                          void *sslCtx,
                                          int *outError);
+AsyncSocket *AsyncSocket_ListenWebSocketEx(const char *addrStr,
+                                           unsigned int port,
+                                           Bool useSSL,
+                                           const char *protocols[],
+                                           AsyncSocketConnectFn connectFn,
+                                           void *clientData,
+                                           AsyncSocketPollParams *pollParams,
+                                           void *sslCtx,
+                                           AsyncWebSocketHandleUpgradeRequestFn handleUpgradeRequestFn,
+                                           int *outError);
+
 /*
  * Listen on port and fire callback with new asock
  * NOTE - Do not use this API.
@@ -505,6 +520,14 @@ char *AsyncSocket_GetWebSocketURI(AsyncSocket *asock);
  * Retrieve the Cookie Supplied for a websocket connection
  */
 char *AsyncSocket_GetWebSocketCookie(AsyncSocket *asock);
+
+/*
+ * Set the Cookie  for a websocket connection
+ */
+int AsyncSocket_SetWebSocketCookie(AsyncSocket *asock,         // IN
+                                   void *clientData,           // IN
+                                   const char *path,           // IN
+                                   const char *sessionId);     // IN
 
 /*
  * Retrieve the close status, if received, for a websocket connection

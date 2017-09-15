@@ -39,7 +39,16 @@
 #include "ssl.h"
 #endif
 
-
+/*
+ * If we change the AsyncSocketVTable, we also need to change the follow files:
+ * lib/blastSockets/asyncProxySocket.c
+ * lib/asyncsocket/asyncsocket.c
+ * lib/asyncsocket/asyncWebSocket.c
+ * lib/asyncsocket/asyncNamedPipe.c
+ * lib/udpfec/fecAsyncSocket.c
+ * lib/udpfec/fecAsyncSslSocket.c
+ * devices/vsock/asyncVmciSocket.c
+ */
 typedef struct AsyncSocketVTable {
    AsyncSocketState (*getState)(AsyncSocket *sock);
    int (*getGenericErrno)(AsyncSocket *s);
@@ -86,6 +95,7 @@ typedef struct AsyncSocketVTable {
    char *(*getWebSocketCookie)(AsyncSocket *asock);
    uint16 (*getWebSocketCloseStatus)(AsyncSocket *asock);
    const char *(*getWebSocketProtocol)(AsyncSocket *asock);
+   int (*setWebSocketCookie)(AsyncSocket *asock, void *clientData, const char *path, const char *sessionId);
    int (*recvBlocking)(AsyncSocket *s, void *buf, int len, int *received,
                       int timeoutMS);
    int (*recvPartialBlocking)(AsyncSocket *s, void *buf, int len,

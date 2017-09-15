@@ -392,6 +392,7 @@ static const AsyncSocketVTable asyncTCPSocketVTable = {
    NULL,                        /* getWebSocketCookie */
    NULL,                        /* getWebSocketCloseStatus */
    NULL,                        /* getWebSocketProtocol */
+   NULL,                        /* setWebSocketCookie */
    AsyncTCPSocketRecvBlocking,
    AsyncTCPSocketRecvPartialBlocking,
    AsyncTCPSocketSendBlocking,
