@@ -38,6 +38,7 @@
 #include "netutil.h"
 #include "wiper.h"
 
+GPtrArray *gIfaceExcludePatterns = NULL;
 
 /**
  * Helper to initialize an opaque struct member.
@@ -57,6 +58,72 @@ static void * Util_DupeThis(const void *source, size_t sourceSize);
  * Global functions.
  */
 
+/*
+ ******************************************************************************
+ *
+ * GuestInfo_SetIfaceExcludeList --
+ *
+ * @brief Set list of network interfaces to be ignored.
+ *
+ * @param[in] NULL terminated array of pointers to strings with patterns
+ *
+ * @sa gIfaceExcludePatterns will be set
+ *
+ ******************************************************************************
+ */
+
+void
+GuestInfo_SetIfaceExcludeList(char **list)
+{
+   guint i;
+
+   if (gIfaceExcludePatterns != NULL) {
+      g_ptr_array_free(gIfaceExcludePatterns, TRUE);
+      gIfaceExcludePatterns = NULL;
+   }
+
+   if (list != NULL) {
+      gIfaceExcludePatterns =
+         g_ptr_array_new_with_free_func((GDestroyNotify) &g_pattern_spec_free);
+      for (i = 0; list[i] != NULL; i++) {
+         if (list[i][0] != '\0') {
+            g_ptr_array_add(gIfaceExcludePatterns, g_pattern_spec_new(list[i]));
+         }
+      }
+   }
+}
+
+/*
+ ******************************************************************************
+ *
+ * GuestInfo_IfaceIsExcluded --
+ *
+ * @brief Determine if a specific interface name shall be excluded.
+ *
+ * @param[in] The interface name.
+ *
+ * @retval TRUE if interface name shall be excluded.
+ *
+ ******************************************************************************
+*/
+
+Bool
+GuestInfo_IfaceIsExcluded(const char *name)
+{
+   int i;
+
+   if (gIfaceExcludePatterns != NULL && name != NULL) {
+      for(i = 0; i < gIfaceExcludePatterns->len; i++) {
+         if (g_pattern_match_string(g_ptr_array_index(gIfaceExcludePatterns, i),
+                                    name)) {
+            g_debug("%s: excluding interface %s because it matched pattern %d",
+                    __FUNCTION__, name, i);
+            return TRUE;
+         }
+      }
+   }
+   return FALSE;
+}
 
 /*
  ******************************************************************************

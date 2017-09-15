@@ -103,6 +103,16 @@
  */
 #define CONFNAME_GUESTINFO_ENABLESTATLOGGING "enable-stat-logging"
 
+/**
+ * Set a comma separated list of network interface names that shall be ignored.
+ *
+ * @note interface names can use wildcards like '*' and '?'
+ *
+ * @param string comma separated list of interface name patterns.
+ */
+
+#define CONFNAME_GUESTINFO_EXCLUDENICS "exclude-nics"
+
 /*
  * END GuestInfo goodies.
  ******************************************************************************

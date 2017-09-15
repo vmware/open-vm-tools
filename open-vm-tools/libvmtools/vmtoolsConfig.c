@@ -621,7 +621,9 @@ VMTools_ConfigGetInteger(GKeyFile *config,
  * @param[in]  section  Section to look for in the config file.
  * @param[in]  defValue Default value if the key is not found or error.
  *
- * @return value of the key if value was read successfully, else defValue.
+ * @return value of the key if value was read successfully, else a copy
+ * of defValue unless defValue is NULL, in which case it's NULL.
+ * The returned string should be freed with g_free() when no longer needed.
  */
 
 gchar *
@@ -646,7 +648,7 @@ VMTools_ConfigGetString(GKeyFile *config,
       }
       g_debug("%s: Returning default value for '[%s] %s'=%s.\n",
               __FUNCTION__, section, key, defValue ? defValue : "(null)");
-      value = defValue;
+      value = g_strdup(defValue);
       g_clear_error(&err);
    }
    return value;

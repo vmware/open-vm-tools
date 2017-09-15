@@ -74,4 +74,8 @@ Bool
 GuestInfo_IsEqual_WinsConfigInfo(const WinsConfigInfo *a,
                                  const WinsConfigInfo *b);
 
+void GuestInfo_SetIfaceExcludeList(char **list);
+
+Bool GuestInfo_IfaceIsExcluded(const char *name);
+
 #endif

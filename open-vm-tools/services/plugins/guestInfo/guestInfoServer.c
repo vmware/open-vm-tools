@@ -85,6 +85,15 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 
 #define GUESTINFO_DEFAULT_DELIMITER ' '
 
+/**
+ * The default setting for exclude-nics
+ */
+#if defined(_WIN32)
+#define GUESTINFO_DEFAULT_IFACE_EXCLUDES "vEthernet*"
+#else
+#define GUESTINFO_DEFAULT_IFACE_EXCLUDES "docker*,veth*"
+#endif
+
 /*
  * Define what guest info types and nic info versions could be sent
  * to update nic info at VMX. The order defines a sequence of fallback
@@ -311,6 +320,40 @@ GuestInfoCheckIfRunningSlow(ToolsAppCtx *ctx)
 
 /*
  ******************************************************************************
+ * GuestInfoSetNicExcludeList --                                           */ /**
+ *
+ * Gets exclude-nics setting from the config, and sets the list of exclude
+ * patterns.
+ *
+ * @param[in]  ctx     The application context.
+ *
+ ******************************************************************************
+ */
+
+static void
+GuestInfoSetNicExcludeList(ToolsAppCtx *ctx)
+{
+   static gchar *ifaceExcludeStringCached = NULL;
+   gchar *ifaceExcludeString;
+
+   /* Check if we want to exclude interfaces based on the name. */
+   ifaceExcludeString = VMTools_ConfigGetString(ctx->config, CONFGROUPNAME_GUESTINFO,
+                                                CONFNAME_GUESTINFO_EXCLUDENICS,
+                                                GUESTINFO_DEFAULT_IFACE_EXCLUDES);
+   if (g_strcmp0(ifaceExcludeString, ifaceExcludeStringCached) != 0) {
+      gchar **list = NULL;
+      if (ifaceExcludeString != NULL && ifaceExcludeString[0] != '\0') {
+         list = g_strsplit(ifaceExcludeString, ",", 0);
+      }
+      g_free(ifaceExcludeStringCached);
+      ifaceExcludeStringCached = ifaceExcludeString;
+      GuestInfo_SetIfaceExcludeList(list);
+      g_strfreev(list);
+   }
+}
+
+/*
+ ******************************************************************************
  * GuestInfoGather --                                                    */ /**
  *
  * Collects all the desired guest information and updates the VMX.
@@ -396,6 +439,9 @@ GuestInfoGather(gpointer data)
    }
 
    /* Get NIC information. */
+
+   GuestInfoSetNicExcludeList(ctx);
+
    if (!GuestInfo_GetNicInfo(&nicInfo)) {
       g_warning("Failed to get nic info.\n");
       /*
@@ -1528,6 +1574,8 @@ GuestInfoServerShutdown(gpointer src,
                         gpointer data)
 {
    GuestInfoClearCache();
+
+   GuestInfo_SetIfaceExcludeList(NULL);
 
    if (gatherInfoTimeoutSource != NULL) {
       g_source_destroy(gatherInfoTimeoutSource);

@@ -273,6 +273,11 @@ GuestInfoGetNicInfo(NicInfoV3 *nicInfo) // OUT
          GuestNicV3 *nic;
          struct ifaddrs *ip;
          struct sockaddr_ll *sll = (struct sockaddr_ll *)pkt->ifa_addr;
+
+         if (GuestInfo_IfaceIsExcluded(pkt->ifa_name)) {
+            continue;
+         }
+
          if (sll != NULL && sll->sll_family == AF_PACKET) {
             char macAddress[NICINFO_MAC_LEN];
             Str_Sprintf(macAddress, sizeof macAddress,
@@ -382,6 +387,8 @@ GuestInfoGetPrimaryIP(void)
       int currFamily = ((struct sockaddr_storage *)curr->ifa_addr)->ss_family;
 
       if (!(curr->ifa_flags & IFF_UP) || curr->ifa_flags & IFF_LOOPBACK) {
+         continue;
+      } else if (GuestInfo_IfaceIsExcluded(curr->ifa_name)) {
          continue;
       } else if (currFamily == AF_INET || currFamily == AF_INET6) {
          ipstr = ValidateConvertAddress(curr->ifa_addr);
@@ -504,6 +511,11 @@ ReadInterfaceDetails(const struct intf_entry *entry,  // IN: current interface e
       if (entry->intf_link_addr.addr_type == ADDR_TYPE_ETH) {
          Str_Sprintf(macAddress, sizeof macAddress, "%s",
                      addr_ntoa(&entry->intf_link_addr));
+
+         if (GuestInfo_IfaceIsExcluded(entry->intf_name)) {
+            return 0;
+         }
+
          nic = GuestInfoAddNicEntry(nicInfo, macAddress, NULL, NULL);
          if (NULL == nic) {
             /*
@@ -976,6 +988,10 @@ GuestInfoGetIntf(const struct intf_entry *entry,  // IN:
        entry->intf_link_addr.addr_type == ADDR_TYPE_ETH) {
       struct sockaddr_storage ss;
       struct sockaddr *saddr = (struct sockaddr *)&ss;
+
+      if (GuestInfo_IfaceIsExcluded(entry->intf_name)) {
+         return 0;
+      }
 
       memset(&ss, 0, sizeof ss);
       addr_ntos(&entry->intf_addr, saddr);
