@@ -28,19 +28,19 @@
 #define __DND_UI_X11_H__
 
 #include "stringxx/string.hh"
-
-extern "C" {
-#include "debug.h"
 #include "dnd.h"
 #include "str.h"
 #include "util.h"
 #include "vmblock.h"
-#include "dndClipboard.h"
 #include "dynbuf.h"
-#include "../dnd/dndFileContentsUtil.h"
 #include "dynxdr.h"
-#include "cpNameUtil.h"
 #include "posix.h"
+
+extern "C" {
+#include "debug.h"
+#include "dndClipboard.h"
+#include "../dnd/dndFileContentsUtil.h"
+#include "cpNameUtil.h"
 #include "vmware/tools/guestrpc.h"
 #include "vmware/tools/plugin.h"
 }

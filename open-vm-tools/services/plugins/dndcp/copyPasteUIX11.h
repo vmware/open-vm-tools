@@ -28,22 +28,21 @@
 #define __COPYPASTE_UI_X11_H__
 
 #include "stringxx/string.hh"
+#include "dnd.h"
+#include "str.h"
+#include "dynbuf.h"
 
 extern "C" {
-#include "dnd.h"
 #include "debug.h"
-#include "str.h"
 #include "dndClipboard.h"
-#include "dynbuf.h"
 #include "../dnd/dndFileContentsUtil.h"
-#include "dynxdr.h"
 #include "cpNameUtil.h"
-#include "posix.h"
 #include "vmware/tools/guestrpc.h"
 }
 
+#include "dynxdr.h"
+#include "posix.h"
 #include "unicodeOperations.h"
-
 #include "guestCopyPaste.hh"
 
 /*

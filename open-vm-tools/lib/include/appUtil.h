@@ -25,15 +25,15 @@
 #ifndef _APP_UTIL_H_
 #define _APP_UTIL_H_
 
-
 #ifdef _WIN32
 #include <windows.h>
 #endif
 
+#include "vmware.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
-#include "vmware.h"
 #include "vmware/guestrpc/capabilities.h"
 
 #ifdef __cplusplus
