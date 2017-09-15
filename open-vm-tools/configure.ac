@@ -97,12 +97,6 @@ AC_ARG_WITH([root-privileges],
 # Kernel arguments.
 # The kernel args have to go here otherwise the KERNEL_RELEASE won't be visible
 # to getOsVersion()
-AC_ARG_WITH([kernel-modules],
-	    [AS_HELP_STRING([--without-kernel-modules],
-		[does not compile or install the kernel modules])],
-	    [],
-	    [with_kernel_modules=yes])
-
 AC_ARG_WITH([kernel-release],
 	    [AS_HELP_STRING([--with-kernel-release],
 		[specifies the kernel release you want to build against])],
@@ -141,6 +135,17 @@ case "$host_os" in
       ;;
 esac
 osVersion="`getOsVersion`"
+
+AC_ARG_WITH([kernel-modules],
+	    [AS_HELP_STRING([--with-kernel-modules],
+		[compile and install the kernel modules])],
+	    [],
+	    [if test "x$os" = "xlinux" -a "$osVersion" -ge 400000; then
+	        with_kernel_modules=no
+	     else
+	        with_kernel_modules=yes
+	     fi
+	    ])
 
 if test "$with_kernel_modules" = "yes"; then
    case "$os" in
