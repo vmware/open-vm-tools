@@ -29,6 +29,8 @@
 #include "util.h"
 #include "dynbuf.h"
 #include "vmware/tools/guestrpc.h"
+#include "vmware/tools/log.h"
+#include "debug.h"
 
 // Core Namespace commands
 #define NSDB_PRIV_GET_VALUES_CMD  "namespace-priv-get-values"
@@ -698,6 +700,10 @@ main(int argc, char *argv[])
       fprintf(stderr, "%s: %s\n", gAppName, (gErr != NULL ? gErr->message : ""));
       g_error_free(gErr);
       goto exit;
+   }
+
+   if (nsOptions.verboseLogFlag) {
+      VMTools_ConfigLogToStdio(gAppName);
    }
 
    /*

@@ -203,6 +203,9 @@
 G_BEGIN_DECLS
 
 void
+VMTools_ConfigLogToStdio(const gchar *domain);
+
+void
 VMTools_ConfigLogging(const gchar *defaultDomain,
                       GKeyFile *cfg,
                       gboolean force,
