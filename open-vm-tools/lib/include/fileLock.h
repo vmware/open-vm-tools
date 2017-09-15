@@ -78,7 +78,7 @@ Bool FileLock_CleanupVM(const char *cfgfilePath,
                         int *err,
                         MsgList **msgs);
 
-// Device locking functions, for compatibility
+/* Device locking functions, for compatibility */
 int FileLock_LockDevice(const char *device);
 Bool FileLock_UnlockDevice(const char *device);
 
