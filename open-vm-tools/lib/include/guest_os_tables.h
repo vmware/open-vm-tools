@@ -406,7 +406,6 @@ extern "C" {
    GOKM("rhel6-64",                             rhel6_64Guest,           TRUE) \
    GOKM("rhel7",                                rhel7Guest,              TRUE) \
    GOKM("rhel7-64",                             rhel7_64Guest,           TRUE) \
-   GOKM("rhel8-64",                             rhel8_64Guest,           TRUE) \
    GOKM("centos",                               centosGuest,             TRUE) \
    GOKM("centos-64",                            centos64Guest,           TRUE) \
    GOKM("centos6",                              centos6Guest,            TRUE) \
@@ -429,7 +428,6 @@ extern "C" {
    GOKM("sles11-64",                            sles11_64Guest,          TRUE) \
    GOKM("sles12",                               sles12Guest,             TRUE) \
    GOKM("sles12-64",                            sles12_64Guest,          TRUE) \
-   GOKM("sles15-64",                            sles15_64Guest,          TRUE) \
    GOKM("mandrake",                             mandrakeGuest,           TRUE) \
    GOKM("mandrake-64",                          mandriva64Guest,         FALSE) \
    GOKM("mandriva",                             mandrivaGuest,           TRUE) \
