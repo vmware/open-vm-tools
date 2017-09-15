@@ -22,7 +22,6 @@ plugin_LTLIBRARIES = libdndcp.la
 
 libdndcp_la_CPPFLAGS =
 libdndcp_la_CPPFLAGS += @GTK_CPPFLAGS@
-libdndcp_la_CPPFLAGS += @GTKMM_CPPFLAGS@
 libdndcp_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
 libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/dnd
 libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/dndGuest
@@ -34,6 +33,7 @@ libdndcp_la_CPPFLAGS += -I$(top_srcdir)/include
 # So, we need to pass these to C++ compilation only.
 libdndcp_la_CXXFLAGS =
 libdndcp_la_CXXFLAGS += @SIGCXX_CPPFLAGS@
+libdndcp_la_CXXFLAGS += @GTKMM_CPPFLAGS@
 
 libdndcp_la_LDFLAGS =
 libdndcp_la_LDFLAGS += @PLUGIN_LDFLAGS@
