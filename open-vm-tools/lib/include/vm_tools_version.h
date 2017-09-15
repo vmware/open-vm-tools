@@ -17,8 +17,9 @@
  *********************************************************/
 
 
-#ifdef USE_GOBUILD_TOOLS_VERSION
+#if defined(USE_GOBUILD_TOOLS_VERSION) && !defined(GOBUILD_TOOLS_VERSION_USED)
 
+#define GOBUILD_TOOLS_VERSION_USED
 #include "vmtools_version.h"
 
 #else
@@ -1452,4 +1453,4 @@ TOOLS_VERSION_UINT_TO_COMPONENTS(const ToolsVersion toolsVersion,   // IN
 
 #endif /* VM_TOOLS_VERSION_H */
 
-#endif /* USE_GOBUILD_TOOLS_VERSION */
+#endif /* defined(USE_GOBUILD_TOOLS_VERSION) && !defined(GOBUILD_TOOLS_VERSION_USED) */
