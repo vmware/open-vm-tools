@@ -106,7 +106,6 @@ VThread_CurName(void)
 
 typedef struct {
    VThreadID  id;
-   char       name[VTHREADBASE_MAX_NAME];
 } VThreadBaseData;
 
 /* Common VThreadBase functions */

@@ -895,8 +895,8 @@ VThreadBase_InitWithTLS(VThreadBaseData *base)  // IN: caller-managed storage
        *    means the cooking function is broken - it should block signals - or
        *    an ASSERT triggered while setting up the VThreadID.
        */
-      Log("VThreadBase reinitialization, old: %d %s, new: %d %s.\n",
-          realBase->id, realBase->name, base->id, base->name);
+      Log("VThreadBase reinitialization, old: %d, new: %d.\n",
+          realBase->id, base->id);
    }
 
    return firstTime;
@@ -928,7 +928,7 @@ static void
 VThreadBaseForgetNameRaw(void)
 {
 #if defined NEW_HAVE_TLS
-   strncpy(vthreadName, "", sizeof vthreadName);
+   memset(vthreadName, '\0', sizeof vthreadName);
 #else
    char *buf;
 
@@ -947,7 +947,6 @@ VThreadBaseSafeDeleteTLS(void *tlsData)
    VThreadBaseData *data = tlsData;
 
    if (data != NULL) {
-      VThreadBaseForgetNameRaw();  // New-style TLS, will replace old-style soon
       if (vthreadBaseGlobals.freeIDFunc != NULL) {
          Bool success;
          VThreadBaseData tmpData = *data;
@@ -962,7 +961,8 @@ VThreadBaseSafeDeleteTLS(void *tlsData)
          VERIFY(success);
 
          if (vmx86_debug) {
-            Log("Forgetting VThreadID %d (\"%s\").\n", data->id, data->name);
+            Log("Forgetting VThreadID %d (\"%s\").\n",
+                data->id, VThread_CurName());
          }
          (*vthreadBaseGlobals.freeIDFunc)(data);
 
@@ -970,6 +970,7 @@ VThreadBaseSafeDeleteTLS(void *tlsData)
                    VThreadBaseSetID(VTHREAD_INVALID_ID);
          VERIFY(success);
       }
+      VThreadBaseForgetNameRaw();
       Atomic_Dec(&vthreadBaseGlobals.numThreads);
    }
 }
@@ -1032,7 +1033,7 @@ VThreadBaseSetNameRaw(const char *name)  // IN: new name
    char *buf;
 
    ASSERT(vthreadNameKey != 0);
-   ASSERT(!VThreadBase_IsInSignal());
+   ASSERT(!VThreadBase_IsInSignal());  // Cannot alloc in signal handler
 
    /*
     * The below code is racy (signal between get/set), but the
@@ -1054,23 +1055,16 @@ VThreadBaseSetNameRaw(const char *name)  // IN: new name
 void
 VThreadBase_SetName(const char *name)  // IN: new name
 {
-   uint32 len = strlen(name);
-   VThreadBaseData *base = VThreadBaseGetAndInitBase();
+   (void) VThreadBaseGetAndInitBase();  // Side effect of getting a VThreadID
 
    ASSERT(name);
 
-   if (len >= sizeof base->name) {
-      if (vmx86_debug) {
-         Warning("%s: thread name (%s) exceeds maximum length (%u)\n",
-                 __FUNCTION__, name, (uint32) sizeof base->name -1);
-      }
-
-      len = sizeof base->name - 1;
+   if (vmx86_debug && strlen(name) >= VTHREADBASE_MAX_NAME) {
+      Warning("%s: thread name (%s) exceeds maximum length (%u)\n",
+              __FUNCTION__, name, (uint32)VTHREADBASE_MAX_NAME - 1);
    }
 
-   memcpy(base->name, name, len);
-   base->name[len] = '\0';
-   VThreadBaseSetNameRaw(name);  // New-style TLS, will replace old-style soon
+   VThreadBaseSetNameRaw(name);
 }
 
 
@@ -1193,6 +1187,7 @@ static void
 VThreadBaseSimpleNoID(void)
 {
    VThreadID newID;
+   char newName[VTHREADBASE_MAX_NAME];
    Bool reused = FALSE;
    Bool result;
    void *newNative = VThreadBaseGetNative();
@@ -1251,10 +1246,10 @@ VThreadBaseSimpleNoID(void)
    /* ID picked.  Now do the important stuff. */
    base = Util_SafeCalloc(1, sizeof *base);
    base->id = newID;
-   Str_Sprintf(base->name, sizeof base->name, "vthread-%u", newID);
+   Str_Sprintf(newName, sizeof newName, "vthread-%u", newID);
 
    result = VThreadBase_InitWithTLS(base);
-   VThreadBase_SetName(base->name);  // New-style TLS
+   VThreadBase_SetName(newName);
    ASSERT(result);
 
    if (vmx86_debug && reused) {
