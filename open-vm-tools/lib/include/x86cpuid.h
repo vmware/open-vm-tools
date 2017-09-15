@@ -609,7 +609,7 @@ FIELD( 10,  1, EDX,  0, 16, MAX_COS_NUMBER,                        NO,  FALSE)
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_12                                              \
 FLAG(  12,  0, EAX,  0,  1, SGX1,                                 YES,  FALSE) \
-FLAG(  12,  0, EAX,  1,  1, SGX2,                                 YES,  FALSE) \
+FLAG(  12,  0, EAX,  1,  1, SGX2,                                 NO,   FALSE) \
 FLAG(  12,  0, EBX, 31,  1, SGX_MISCSELECT,                       YES,  FALSE) \
 FIELD( 12,  0, EDX,  0,  8, MAX_ENCLAVE_SIZE_NOT64,               YES,  FALSE) \
 FIELD( 12,  0, EDX,  8,  8, MAX_ENCLAVE_SIZE_64,                  YES,  FALSE) \
@@ -623,12 +623,12 @@ FIELD( 12,  2, EBX,  0, 20, EPC00_BASE_HIGH,                      YES,  FALSE) \
 FIELD( 12,  2, ECX,  0,  4, EPC00_PROTECTED,                      YES,  FALSE) \
 FIELD( 12,  2, ECX, 12, 20, EPC00_SIZE_LOW,                       YES,  FALSE) \
 FIELD( 12,  2, EDX,  0, 20, EPC00_SIZE_HIGH,                      YES,  FALSE) \
-FIELD( 12,  3, EAX,  0,  4, EPC01_VALID,                          YES,  FALSE) \
-FIELD( 12,  3, EAX, 12, 20, EPC01_BASE_LOW,                       YES,  FALSE) \
-FIELD( 12,  3, EBX,  0, 20, EPC01_BASE_HIGH,                      YES,  FALSE) \
-FIELD( 12,  3, ECX,  0,  4, EPC01_PROTECTED,                      YES,  FALSE) \
-FIELD( 12,  3, ECX, 12, 20, EPC01_SIZE_LOW,                       YES,  FALSE) \
-FIELD( 12,  3, EDX,  0, 20, EPC01_SIZE_HIGH,                      YES,  FALSE)
+FIELD( 12,  3, EAX,  0,  4, EPC01_VALID,                          NO,   FALSE) \
+FIELD( 12,  3, EAX, 12, 20, EPC01_BASE_LOW,                       NO,   FALSE) \
+FIELD( 12,  3, EBX,  0, 20, EPC01_BASE_HIGH,                      NO,   FALSE) \
+FIELD( 12,  3, ECX,  0,  4, EPC01_PROTECTED,                      NO,   FALSE) \
+FIELD( 12,  3, ECX, 12, 20, EPC01_SIZE_LOW,                       NO,   FALSE) \
+FIELD( 12,  3, EDX,  0, 20, EPC01_SIZE_HIGH,                      NO,   FALSE)
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_14                                              \
