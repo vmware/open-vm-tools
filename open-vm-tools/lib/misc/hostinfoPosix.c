@@ -1540,19 +1540,30 @@ Hostinfo_LogLoadAverage(void)
 }
 
 
+#if __APPLE__
 /*
  *-----------------------------------------------------------------------------
  *
- * HostinfoGetTimeOfDayMonotonic --
+ * HostinfoSystemTimerMach --
  *
- *      Return the system time as indicated by Hostinfo_GetTimeOfDay(), with
- *      locking to ensure monotonicity.
+ *      Returns system time based on a monotonic, nanosecond-resolution,
+ *      fast timer provided by the Mach kernel. Requires speed conversion
+ *      so is non-trivial (but lockless).
  *
- *      Uses OS native locks as lib/lock is not available in lib/misc.  This
- *      is safe because nothing occurs while locked that can be reentrant.
+ *      See also Apple TechNote QA1398.
+ *
+ *      NOTE: on x86, macOS does TSC->ns conversion in the commpage
+ *      for mach_absolute_time() to correct for speed-stepping, so x86
+ *      should always be 1:1 a.k.a. 'unity'. But as Apple has never
+ *      documented this as a promise, retain the fallback... it is
+ *      possible that when Apple drops support for processors where
+ *      speed-stepping can vary TSC frequency, Apple may adjust the mapping.
+ *
+ *      On iOS, mach_absolute_time() uses an ARM register and always
+ *      needs conversion.
  *
  * Results:
- *      The time in microseconds is returned. Zero upon error.
+ *      Current value of timer
  *
  * Side effects:
  *	None.
@@ -1561,77 +1572,8 @@ Hostinfo_LogLoadAverage(void)
  */
 
 static VmTimeType
-HostinfoGetTimeOfDayMonotonic(void)
+HostinfoSystemTimerMach(void)
 {
-   VmTimeType newTime;
-   VmTimeType curTime;
-
-   static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-
-   static VmTimeType lastTimeBase;
-   static VmTimeType lastTimeRead;
-   static VmTimeType lastTimeReset;
-
-   pthread_mutex_lock(&mutex);  // Use native mechanism, just like Windows
-
-   Hostinfo_GetTimeOfDay(&curTime);
-
-   if (curTime == 0) {
-      newTime = 0;
-      goto exit;
-   }
-
-   /*
-    * Don't let time be negative or go backward.  We do this by tracking a
-    * base and moving forward from there.
-    */
-
-   newTime = lastTimeBase + (curTime - lastTimeReset);
-
-   if (newTime < lastTimeRead) {
-      lastTimeReset = curTime;
-      lastTimeBase = lastTimeRead + 1;
-      newTime = lastTimeBase + (curTime - lastTimeReset);
-   }
-
-   lastTimeRead = newTime;
-
-exit:
-   pthread_mutex_unlock(&mutex);
-
-   return newTime;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * HostinfoSystemTimerMach --
- * HostinfoSystemTimerPosix --
- *
- *      Returns system time based on a monotonic, nanosecond-resolution,
- *      fast timer provided by the (relevant) operating system.
- *
- *      Caller should check return value, as some variants may not be known
- *      to be absent until runtime.  Where possible, these functions collapse
- *      into constants at compile-time.
- *
- * Results:
- *      TRUE if timer is available; FALSE to indicate unavailability.
- *      If available, the current time is returned via 'result'.
- *
- * Side effects:
- *	None.
- *
- *-----------------------------------------------------------------------------
- */
-
-static Bool
-HostinfoSystemTimerMach(VmTimeType *result)  // OUT
-{
-#if __APPLE__
-#  define vmx86_apple 1
-
    typedef struct {
       double  scalingFactor;
       Bool    unity;
@@ -1670,74 +1612,13 @@ HostinfoSystemTimerMach(VmTimeType *result)  // OUT
    raw = mach_absolute_time();
 
    if (LIKELY(ptr->unity)) {
-      *result = raw;
+      return raw;
    } else {
-      *result = ((double) raw) * ptr->scalingFactor;
+      /* Could use fixed-point, but 'unity' is the common case already. */
+      return ((double) raw) * ptr->scalingFactor;
    }
-
-   return TRUE;
-#else
-#  define vmx86_apple 0
-   return FALSE;
-#endif
 }
-
-static Bool
-HostinfoSystemTimerPosix(VmTimeType *result)  // OUT
-{
-#if defined(_POSIX_TIMERS) && _POSIX_TIMERS > 0 && defined(_POSIX_MONOTONIC_CLOCK)
-#  define vmx86_posix 1
-   /* Weak declaration to avoid librt.so dependency */
-   extern int clock_gettime(clockid_t clk_id, struct timespec *tp) __attribute__ ((weak));
-
-   /* Assignment is idempotent (expected to always be same answer). */
-   static volatile enum { UNKNOWN, PRESENT, FAILED } hasGetTime = UNKNOWN;
-
-   struct timespec ts;
-   int ret;
-
-   switch (hasGetTime) {
-   case FAILED:
-      break;
-   case UNKNOWN:
-      if (clock_gettime == NULL) {
-         /* librt.so is not present.  No clock_gettime() */
-         hasGetTime = FAILED;
-         break;
-      }
-      ret = clock_gettime(CLOCK_MONOTONIC, &ts);
-      if (ret != 0) {
-         hasGetTime = FAILED;
-         /*
-          * Well-understood error codes:
-          * ENOSYS, OS does not implement syscall
-          * EINVAL, OS implements syscall but not CLOCK_MONOTONIC
-          */
-         if (errno != ENOSYS && errno != EINVAL) {
-            Log("%s: failure, err %d!\n", __FUNCTION__, errno);
-         }
-         break;
-      }
-      hasGetTime = PRESENT;
-      /* Fall through to 'case PRESENT' */
-
-   case PRESENT:
-      ret = clock_gettime(CLOCK_MONOTONIC, &ts);
-      ASSERT(ret == 0);
-      *result = (VmTimeType)ts.tv_sec * 1000 * 1000 * 1000 + ts.tv_nsec;
-      return TRUE;
-   }
-   return FALSE;
-#else
-#if vmx86_server
-#  error Posix clock_gettime support required on ESX
 #endif
-#  define vmx86_posix 0
-   /* No Posix support for clock_gettime() */
-   return FALSE;
-#endif
-}
-
 
 /*
  *-----------------------------------------------------------------------------
@@ -1745,16 +1626,11 @@ HostinfoSystemTimerPosix(VmTimeType *result)  // OUT
  * Hostinfo_SystemTimerNS --
  *
  *      Return the time.
- *         - These timers are documented to never go backwards.
- *         - These timers may take locks
+ *         - These timers are documented to be non-decreasing
+ *         - These timers never take locks
  *
  * NOTES:
  *      These are the routines to use when performing timing measurements.
- *
- *      The value returned is valid (finish-time - start-time) only within a
- *      single process. Don't send a time measurement obtained with these
- *      routines to another process and expect a relative time measurement
- *      to be correct.
  *
  *      The actual resolution of these "clocks" are undefined - it varies
  *      depending on hardware, OSen and OS versions.
@@ -1763,7 +1639,7 @@ HostinfoSystemTimerPosix(VmTimeType *result)  // OUT
  *     while RANK_logLock is held. ***
  *
  * Results:
- *      The time in nanoseconds is returned. Zero upon error.
+ *      The time in nanoseconds is returned.
  *
  * Side effects:
  *	None.
@@ -1774,19 +1650,25 @@ HostinfoSystemTimerPosix(VmTimeType *result)  // OUT
 VmTimeType
 Hostinfo_SystemTimerNS(void)
 {
-   VmTimeType result = 0;  // = 0 silence compiler warning
+#ifdef __APPLE__
+   return HostinfoSystemTimerMach();
+#else
+   struct timespec ts;
+   int ret;
 
-   if ((vmx86_apple && HostinfoSystemTimerMach(&result)) ||
-       (vmx86_posix && HostinfoSystemTimerPosix(&result))) {
-      /* Host provides monotonic clock source. */
-      return result;
-   } else {
-      /* GetTimeOfDay is microseconds. */
-      return HostinfoGetTimeOfDayMonotonic() * 1000;
-   }
+   /*
+    * clock_gettime() is implemented on Linux as a commpage routine that
+    * adds a known offset to TSC, which makes it very fast. Other OSes...
+    * are at worst a single syscall (see: vmkernel PR820064), which still
+    * makes this the best time API. Also, clock_gettime() allows nanosecond
+    * resolution and any alternative is worse: gettimeofday() is microsecond.
+    */
+   ret = clock_gettime(CLOCK_MONOTONIC, &ts);
+   ASSERT(ret == 0);
+
+   return (VmTimeType)ts.tv_sec * 1000 * 1000 * 1000 + ts.tv_nsec;
+#endif
 }
-#undef vmx86_apple
-#undef vmx86_posix
 
 
 /*
