@@ -850,7 +850,8 @@ string::normalize(NormalizeMode mode) // IN
  * utf::string::toLower --
  *
  *      Creates a new string by lower-casing the input string using
- *      the rules of the specified locale.
+ *      the rules of the specified locale.  If no locale is specified,
+ *      uses the process's default locale.
  *
  * Results:
  *      The newly created string.
@@ -862,7 +863,7 @@ string::normalize(NormalizeMode mode) // IN
  */
 
 string
-string::toLower(const char *locale) // IN
+string::toLower(const char *locale) // IN/OPT
    const
 {
 #ifdef USE_ICU
@@ -879,7 +880,8 @@ string::toLower(const char *locale) // IN
  * utf::string::toUpper --
  *
  *      Creates a new string by upper-casing the input string using
- *      the rules of the specified locale.
+ *      the rules of the specified locale.  If no locale is specified,
+ *      uses the process's default locale.
  *
  * Results:
  *      The newly created string.
@@ -891,7 +893,7 @@ string::toLower(const char *locale) // IN
  */
 
 string
-string::toUpper(const char *locale) // IN
+string::toUpper(const char *locale) // IN/OPT
    const
 {
 #ifdef USE_ICU
@@ -909,7 +911,8 @@ string::toUpper(const char *locale) // IN
  * utf::string::toTitle --
  *
  *      Creates a new string by title-casing the input string using
- *      the rules of the specified locale.
+ *      the rules of the specified locale.  If no locale is specified,
+ *      uses the process's default locale.
  *
  * Results:
  *      The newly created string.
@@ -921,7 +924,7 @@ string::toUpper(const char *locale) // IN
  */
 
 string
-string::toTitle(const char *locale) // IN
+string::toTitle(const char *locale) // IN/OPT
    const
 {
    return CopyAndFree(Unicode_ToTitle(c_str(), locale), free);

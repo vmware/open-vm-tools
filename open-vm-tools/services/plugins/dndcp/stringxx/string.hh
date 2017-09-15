@@ -154,10 +154,10 @@ public:
    string trimRight() const;
    string normalize(NormalizeMode mode = NORMALIZE_DEFAULT_COMPOSE) const;
 
-   string toLower(const char *locale) const;
-   string toUpper(const char *locale) const;
+   string toLower(const char *locale = NULL) const;
+   string toUpper(const char *locale = NULL) const;
 #ifdef USE_ICU
-   string toTitle(const char *locale) const;
+   string toTitle(const char *locale = NULL) const;
 #endif
 
    // String-level member methods.

@@ -719,7 +719,13 @@ typedef int pid_t;
 #define APPLE_ONLY(x) x
 #else
 #define vmx86_apple 0
-#define APPLE_ONLY(x) 
+#define APPLE_ONLY(x)
+#endif
+
+#if defined(__APPLE__) && defined(VMW_APPLE_SANDBOX)
+#define vmw_apple_sandbox 1
+#else
+#define vmw_apple_sandbox 0
 #endif
 
 #ifdef VMM

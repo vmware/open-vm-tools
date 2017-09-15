@@ -33,6 +33,7 @@
 #  include <unistd.h>
 #  include <signal.h>
 #  ifdef __APPLE__
+#    include <TargetConditionals.h>
 #    include <sys/types.h>
 #    include <sys/sysctl.h>
 #  endif
@@ -296,7 +297,11 @@ Panic_BreakOnPanic(void)
 #elif defined(__APPLE__) && (defined(__x86_64__) || defined(__i386__))
    if (Panic_GetBreakOnPanic()) {
       Warning("Panic: breaking into debugger\n");
+#  if TARGET_OS_IPHONE
+      __builtin_trap();
+#  else
       __asm__ __volatile__ ("int3");
+#  endif
    }
 #else // Posix
    switch (panicState.breakOnPanic) {
