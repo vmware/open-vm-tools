@@ -29,8 +29,12 @@
 
 #include "vmware.h"
 #include "dynbuf.h"
-#include "asan_common.h"
 
+#ifdef VMX86_SERVER
+#include "asan_common.h"
+#else
+#define DISABLE_ASAN
+#endif
 
 /*
  *-----------------------------------------------------------------------------
