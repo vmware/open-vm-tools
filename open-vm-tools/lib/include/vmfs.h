@@ -81,8 +81,10 @@ extern "C" {
 #define SCSI_DISK_DRIVER_STRING         "disks"
 #define SCSI_GENERIC_DRIVER_STRING      "genscsi"
 #define OLD_SCSI_GENERIC_DRIVER_STRING  "generic"
-#define COW_DRIVER_NAME		        "deltadisks"
-#define MULTI_EXTENT_DRIVER_NAME	"multiextent"
+#define COW_DRIVER_NAME                 "deltadisks"
+#define MULTI_EXTENT_DRIVER_NAME        "multiextent"
+
+#define FDS_DRIVER_ALL_STRING           "fdsall"
 
 #define CDROM_MOUNT_POINT               DEVFS_MOUNT_PATH CDROM_DRIVER_STRING
 #define DISKS_MOUNT_POINT               DEVFS_MOUNT_PATH SCSI_DISK_DRIVER_STRING
