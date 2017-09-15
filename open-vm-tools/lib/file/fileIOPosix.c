@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -451,36 +451,6 @@ FileIO_CreateFDPosix(int posix,  // IN: UNIX file descriptor
    fd.posix = posix;
 
    return fd;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * FileIO_GetVolumeSectorSize --
- *
- *      Get sector size of underlying volume.
- *
- * Results:
- *      Always 512, there does not seem to be a way to query sectorSize
- *      from filename.  But O_DIRECT boundary alignment constraint is
- *      always 512, so use that.
- *
- * Side effects:
- *      None
- *
- *----------------------------------------------------------------------
- */
-
-Bool
-FileIO_GetVolumeSectorSize(const char *pathName,  // IN:
-                           uint32 *sectorSize)    // OUT:
-{
-   ASSERT(sectorSize != NULL);
-
-   *sectorSize = 512;
-
-   return TRUE;
 }
 
 

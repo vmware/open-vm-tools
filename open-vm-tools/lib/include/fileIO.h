@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -417,8 +417,10 @@ FileIOResult    FileIO_CloseAndUnlink(FileIODescriptor *file);
 
 uint32  FileIO_GetFlags(FileIODescriptor *file);
 
+#if defined(_WIN32)
 Bool    FileIO_GetVolumeSectorSize(const char *name,
                                    uint32 *sectorSize);
+#endif
 
 Bool    FileIO_SupportsFileSize(const FileIODescriptor *file,
                                 uint64 testSize);
