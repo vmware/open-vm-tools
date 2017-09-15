@@ -769,22 +769,6 @@ Bswap64(uint64 v) // IN
 
 
 /*
- * COMPILER_MEM_BARRIER prevents the compiler from re-ordering memory
- * references accross the barrier.  NOTE: It does not generate any
- * instruction, so the CPU is free to do whatever it wants to...
- */
-#ifdef __GNUC__
-#define COMPILER_MEM_BARRIER()   __asm__ __volatile__ ("": : :"memory")
-#define COMPILER_READ_BARRIER()  COMPILER_MEM_BARRIER()
-#define COMPILER_WRITE_BARRIER() COMPILER_MEM_BARRIER()
-#elif defined(_MSC_VER)
-#define COMPILER_MEM_BARRIER()   _ReadWriteBarrier()
-#define COMPILER_READ_BARRIER()  _ReadBarrier()
-#define COMPILER_WRITE_BARRIER() _WriteBarrier()
-#endif
-
-
-/*
  *----------------------------------------------------------------------
  *
  * COMPILER_FORCED_LOAD_AND_MEM_BARRIER --

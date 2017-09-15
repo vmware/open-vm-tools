@@ -308,9 +308,74 @@ RDTSC_BARRIER(void)
 
 
 /*
+ * Memory Barriers
+ * ===============
+ *
+ *    Terminology
+ *    -----------
+ *
+ * A compiler memory barrier prevents the compiler from re-ordering memory
+ * accesses accross the barrier. It is not a CPU instruction, it is a compiler
+ * directive (i.e. it does not emit any code).
+ *
+ * A CPU memory barrier prevents the CPU from re-ordering memory accesses
+ * accross the barrier. It is a CPU instruction.
+ *
+ * A memory barrier is the union of a compiler memory barrier and a CPU memory
+ * barrier. A compiler memory barrier is a useless construct by itself. It is
+ * only useful when combined with a CPU memory barrier, to implement a memory
+ * barrier.
+ *
+ *    Semantics
+ *    ---------
+ *
+ * At the time COMPILER_*_BARRIER were created (and references to them were
+ * added to the code), the code was only targetting x86. The intent of the code
+ * was really to use a memory barrier, but because x86 uses a strongly ordered
+ * memory model, the CPU would not re-order memory accesses, and the code could
+ * get away with using just a compiler memory barrier. So COMPILER_*_BARRIER
+ * were born and were implemented as compiler memory barriers _on x86_. But
+ * make no mistake, _the semantics that the code expects from
+ * COMPILER_*_BARRIER are that of a memory barrier_!
+ *
+ *    DO NOT USE!
+ *    -----------
+ *
+ * On at least one non-x86 architecture, COMPILER_*_BARRIER are
+ * 1) Misnomers
+ * 2) Not fine-grained enough to provide the best performance.
+ * For the above two reasons, usage of COMPILER_*_BARRIER is now deprecated.
+ * _Do not add new references to COMPILER_*_BARRIER._ Instead, precisely
+ * document the intent of your code by using the
+ * <mem access type>_<mem access type>_MEM_BARRIER family of barriers. Existing
+ * references to COMPILER_*_BARRIER are being slowly but surely converted,
+ * and when no references are left, COMPILER_*_BARRIER will be retired.
+ *
+ * Thanks for pasting this whole comment into every architecture header.
+ */
+#if defined __GNUC__
+#   define COMPILER_READ_BARRIER()  COMPILER_MEM_BARRIER()
+#   define COMPILER_WRITE_BARRIER() COMPILER_MEM_BARRIER()
+#   define COMPILER_MEM_BARRIER()   __asm__ __volatile__("" ::: "memory")
+#elif defined _MSC_VER
+#   define COMPILER_READ_BARRIER()  _ReadBarrier()
+#   define COMPILER_WRITE_BARRIER() _WriteBarrier()
+#   define COMPILER_MEM_BARRIER()   _ReadWriteBarrier()
+#endif
+
+
+/*
  * (Compiler + CPU) memory barriers. These take the form of
  * <mem access type>_<mem access type>_MEM_BARRIER, where <mem access type> is
  * either LD (load), ST (store) or LDST (any).
+ *
+ * Above every use of these memory barriers in the code, there _must_ be a
+ * comment to justify the use, i.e. a comment which:
+ * 1) Precisely identifies which memory accesses must not be re-ordered across
+ *    the memory barrier.
+ * 2) Explains why it is important that the memory accesses not be re-ordered.
+ *
+ * Thanks for pasting this whole comment into every architecture header.
  *
  * On x86, we only need to care specifically about store-load
  * reordering on normal memory types and mfence, otherwise only a compiler
