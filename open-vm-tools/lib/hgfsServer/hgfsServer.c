@@ -291,6 +291,12 @@ HgfsServerTransportRemoveSessionFromList(HgfsTransportSessionInfo *transportSess
 static HgfsSessionInfo *
 HgfsServerTransportGetSessionInfo(HgfsTransportSessionInfo *transportSession,
                                   uint64 sessionId);
+static HgfsTransportSessionInfo *
+HgfsServerTransportInit(void *transportData,
+                        HgfsServerChannelCallbacks *channelCbTable,
+                        HgfsServerChannelData *channelCapabilities);
+static void
+HgfsServerTransportExit(HgfsTransportSessionInfo *transportSession);
 
 /* Local functions. */
 static void HgfsInvalidateSessionObjects(DblLnkLst_Links *shares,
@@ -483,17 +489,7 @@ HgfsServerTransportSessionPut(HgfsTransportSessionInfo *transportSession)   // I
 {
    ASSERT(transportSession);
    if (Atomic_ReadDec32(&transportSession->refCount) == 1) {
-      DblLnkLst_Links *curr, *next;
-
-      MXUser_AcquireExclLock(transportSession->sessionArrayLock);
-
-      DblLnkLst_ForEachSafe(curr, next,  &transportSession->sessionArray) {
-         HgfsSessionInfo *session = DblLnkLst_Container(curr, HgfsSessionInfo, links);
-         HgfsServerTransportRemoveSessionFromList(transportSession, session);
-         HgfsServerSessionPut(session);
-      }
-
-      MXUser_ReleaseExclLock(transportSession->sessionArrayLock);
+      HgfsServerTransportExit(transportSession);
    }
 }
 
@@ -4244,11 +4240,41 @@ HgfsServerSessionConnect(void *transportData,                         // IN: tra
                          HgfsServerChannelData *channelCapabilities,  // IN: channel capabilities
                          void **transportSessionData)                 // OUT: server session context
 {
-   HgfsTransportSessionInfo *transportSession;
-
    ASSERT(transportSessionData);
 
    LOG(4, ("%s: initting.\n", __FUNCTION__));
+
+   *transportSessionData = HgfsServerTransportInit(transportData,
+                                                   channelCbTable,
+                                                   channelCapabilities);
+   return TRUE;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * HgfsServerTransportInit --
+ *
+ *      Init a transport session.
+ *
+ *      Allocated and initialize the transport session.
+ *
+ * Results:
+ *      The initialized transport session object.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static HgfsTransportSessionInfo *
+HgfsServerTransportInit(void *transportData,                         // IN: transport session context
+                        HgfsServerChannelCallbacks *channelCbTable,  // IN: Channel callbacks
+                        HgfsServerChannelData *channelCapabilities)  // IN: channel capabilities
+{
+   HgfsTransportSessionInfo *transportSession;
 
    transportSession = Util_SafeCalloc(1, sizeof *transportSession);
    transportSession->transportData = transportData;
@@ -4270,9 +4296,43 @@ HgfsServerSessionConnect(void *transportData,                         // IN: tra
 
    /* Give our session a reference to hold while we are open. */
    HgfsServerTransportSessionGet(transportSession);
+   return transportSession;
+}
 
-   *transportSessionData = transportSession;
-   return TRUE;
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * HgfsServerTransportExit --
+ *
+ *      Exit by destroying the transport session.
+ *
+ *      Free session info data if no reference.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static void
+HgfsServerTransportExit(HgfsTransportSessionInfo *transportSession)   // IN: transport session context
+{
+   DblLnkLst_Links *curr, *next;
+
+   ASSERT(Atomic_Read(&transportSession->refCount) == 0);
+
+   DblLnkLst_ForEachSafe(curr, next,  &transportSession->sessionArray) {
+      HgfsSessionInfo *session = DblLnkLst_Container(curr, HgfsSessionInfo, links);
+      HgfsServerTransportRemoveSessionFromList(transportSession, session);
+      HgfsServerSessionPut(session);
+   }
+
+   MXUser_DestroyExclLock(transportSession->sessionArrayLock);
+   free(transportSession);
 }
 
 
@@ -4515,11 +4575,14 @@ HgfsServerSessionClose(void *clientData)    // IN: session context
 {
    HgfsTransportSessionInfo *transportSession = clientData;
 
+   LOG(8, ("%s: entered\n", __FUNCTION__));
+
    ASSERT(transportSession);
    ASSERT(transportSession->state == HGFS_SESSION_STATE_CLOSED);
 
    /* Remove, typically, the last reference, will teardown everything. */
    HgfsServerTransportSessionPut(transportSession);
+   LOG(8, ("%s: exit\n", __FUNCTION__));
 }
 
 
@@ -4569,7 +4632,7 @@ HgfsServerExitSessionInternal(HgfsSessionInfo *session)    // IN: session contex
 
    MXUser_AcquireExclLock(session->nodeArrayLock);
 
-   Log("%s: exit session %p id %"FMT64"x\n", __FUNCTION__, session, session->sessionId);
+   Log("%s: teardown session %p id 0x%"FMT64"x\n", __FUNCTION__, session, session->sessionId);
 
    /* Recycle all nodes that are still in use, then destroy the node pool. */
    for (i = 0; i < session->numNodes; i++) {
