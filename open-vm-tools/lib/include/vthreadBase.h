@@ -128,20 +128,13 @@ VThread_CurName(void)
 #define VTHREADBASE_MAX_NAME    32  /* Arbitrary */
 
 
-typedef struct {
-   VThreadID  id;
-} VThreadBaseData;
-
 /* Common VThreadBase functions */
 const char *VThreadBase_CurName(void);
 VThreadID VThreadBase_CurID(void);
 void VThreadBase_SetName(const char *name);
 
 /* For implementing a thread library */
-Bool VThreadBase_InitWithTLS(VThreadBaseData *tls);
 void VThreadBase_ForgetSelf(void);
-void VThreadBase_SetNoIDFunc(void (*func)(void),
-                             void (*destr)(void *));
 
 /*
  * See PR 1626963 and function documentation before thinking about using this.
