@@ -92,10 +92,6 @@ typedef enum {
 char *Unicode_Normalize(const char *str,
                           UnicodeNormalizationForm form);
 
-#ifdef __cplusplus
-}
-#endif
-
 #if defined(__cplusplus)
 }  // extern "C"
 #endif
