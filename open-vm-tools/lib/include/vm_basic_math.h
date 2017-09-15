@@ -71,6 +71,7 @@ ExponentialAvg(uint32 avg, uint32 value, uint32 gainNumer, uint32 gainDenom)
  *-----------------------------------------------------------------------------
  *
  * IsZeroOrPowerOfTwo --
+ * IsZeroOrPowerOfTwo64 --
  *
  * Results:
  *      TRUE iff the value is 0 or a power of two.
@@ -80,6 +81,13 @@ ExponentialAvg(uint32 avg, uint32 value, uint32 gainNumer, uint32 gainDenom)
  *
  *-----------------------------------------------------------------------------
  */
+
+static INLINE Bool
+IsZeroOrPowerOfTwo64(uint64 x)
+{
+   return !(x & (x - 1));
+}
+
 
 static INLINE Bool
 IsZeroOrPowerOfTwo(uint32 x)     // IN
