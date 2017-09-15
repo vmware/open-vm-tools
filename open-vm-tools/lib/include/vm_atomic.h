@@ -100,7 +100,7 @@ typedef struct Atomic_uint32 {
    volatile uint32 value;
 } Atomic_uint32 ALIGNED(4);
 
-typedef struct  Atomic_uint64 {
+typedef struct Atomic_uint64 {
    volatile uint64 value;
 } Atomic_uint64 ALIGNED(8);
 
@@ -540,6 +540,7 @@ Atomic_ReadIfEqualWriteBool(Atomic_Bool *var,  // IN/OUT:
         "0" (oldVal)
       : "cc"
    );
+
    return val;
 #elif defined _MSC_VER && _MSC_VER >= 1600
    return _InterlockedCompareExchange8(&var->value, newVal, oldVal);
@@ -1442,9 +1443,13 @@ Atomic_ReadOr32(Atomic_uint32 *var, // IN/OUT
 {
    uint32 res;
 
+#if defined VM_ARM_64
+   res = _VMATOM_X(ROP, 32, TRUE, &var->value, orr, val);
+#else
    do {
       res = Atomic_Read(var);
    } while (res != Atomic_ReadIfEqualWrite(var, res, res | val));
+#endif
 
    return res;
 }
@@ -1472,9 +1477,13 @@ Atomic_ReadAnd32(Atomic_uint32 *var, // IN/OUT
 {
    uint32 res;
 
+#if defined VM_ARM_64
+   res = _VMATOM_X(ROP, 32, TRUE, &var->value, and, val);
+#else
    do {
       res = Atomic_Read(var);
    } while (res != Atomic_ReadIfEqualWrite(var, res, res & val));
+#endif
 
    return res;
 }
@@ -1503,9 +1512,13 @@ Atomic_ReadOr64(Atomic_uint64 *var, // IN/OUT
 {
    uint64 res;
 
+#if defined VM_ARM_64
+   res = _VMATOM_X(ROP, 64, TRUE, &var->value, orr, val);
+#else
    do {
       res = var->value;
    } while (res != Atomic_ReadIfEqualWrite64(var, res, res | val));
+#endif
 
    return res;
 }
@@ -1533,9 +1546,13 @@ Atomic_ReadAnd64(Atomic_uint64 *var, // IN/OUT
 {
    uint64 res;
 
+#if defined VM_ARM_64
+   res = _VMATOM_X(ROP, 64, TRUE, &var->value, and, val);
+#else
    do {
       res = var->value;
    } while (res != Atomic_ReadIfEqualWrite64(var, res, res & val));
+#endif
 
    return res;
 }
@@ -2088,7 +2105,11 @@ static INLINE uint64
 Atomic_ReadSub64(Atomic_uint64 *var, // IN/OUT
                  uint64 val)         // IN
 {
+#if defined VM_ARM_64
+   return _VMATOM_X(ROP, 64, TRUE, &var->value, sub, val);
+#else
    return Atomic_ReadAdd64(var, -val);
+#endif
 }
 
 
@@ -3254,9 +3275,13 @@ Atomic_ReadOr16(Atomic_uint16 *var, // IN/OUT
 {
    uint16 res;
 
+#if defined VM_ARM_64
+   res = _VMATOM_X(ROP, 16, TRUE, &var->value, orr, val);
+#else
    do {
       res = var->value;
    } while (res != Atomic_ReadIfEqualWrite16(var, res, res | val));
+#endif
 
    return res;
 }
@@ -3346,8 +3371,8 @@ Atomic_ReadInc16(Atomic_uint16 *var) // IN/OUT
    return Atomic_ReadAdd16(var, 1);
 }
 
-/*
 
+/*
  *----------------------------------------------------------------------
  *
  * Atomic_ReadDec16 --
