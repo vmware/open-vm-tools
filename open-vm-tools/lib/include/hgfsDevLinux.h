@@ -49,11 +49,13 @@
 #define HGFS_MOUNT_POINT "/mnt/hgfs"    // Type of FS (e.g. vmhgfs-fuse )
 #define HGFS_DEVICE_NAME "dev"          // Name of our device under /proc/fs/HGFS_NAME/
 #define HGFS_SUPER_MAGIC 0xbacbacbc     // Superblock magic number
-/*
- * XXX - This needs to move to HgfsProto.h with all the protocol constants, types etc.
- */
-#define HGFS_PROTOCOL_VERSION   2       // Version 2 has size and flags field added
 #define HGFS_DEFAULT_TTL 1              // Default TTL for dentries
+
+typedef enum {
+   HGFS_MOUNTINFO_VERSION_NONE,
+   HGFS_MOUNTINFO_VERSION_1,
+   HGFS_MOUNTINFO_VERSION_2,
+} HgfsMountInfoVersion;
 
 /*
  * The mount info flags.
@@ -72,8 +74,8 @@
 typedef
 struct HgfsMountInfo {
    uint32 magicNumber;        // hgfs magic number
-   uint32 infoSize;           // HgfsMountInfo object size
-   uint32 version;            // protocol version
+   uint32 infoSize;           // HgfsMountInfo structure size
+   HgfsMountInfoVersion version; // HgfsMountInfo structure version
    uint32 fd;                 // file descriptor of client file
    uint32 flags;              // hgfs specific mount flags
 #ifndef sun

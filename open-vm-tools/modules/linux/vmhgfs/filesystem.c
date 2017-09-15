@@ -237,27 +237,27 @@ HgfsValidateMountInfo(void *rawData,             // IN: Fs-specific mount data
     */
    info = rawData;
    infoV1 = rawData;
-   if ((info->version == HGFS_PROTOCOL_VERSION_1 ||
-        info->version == HGFS_PROTOCOL_VERSION) &&
+   if ((info->version == HGFS_MOUNTINFO_VERSION_1 ||
+        info->version == HGFS_MOUNTINFO_VERSION_2) &&
         info->infoSize == sizeof *info) {
       /*
        * The current version is validated with the size and magic number.
        * Note the version can be either 1 or 2 as it was not bumped initially.
-       * Furthermore, return the version as HGFS_PROTOCOL_VERSION (2) only since
+       * Furthermore, return the version as HGFS_MOUNTINFO_VERSION_2 only since
        * the objects are the same and it simplifies field extractions.
        */
       LOG(4, (KERN_DEBUG LGPFX "%s: mount data version %d passed\n",
               __func__, info->version));
-      *mountInfoVersion = HGFS_PROTOCOL_VERSION;
+      *mountInfoVersion = HGFS_MOUNTINFO_VERSION_2;
       retVal = 0;
-   } else if (infoV1->version == HGFS_PROTOCOL_VERSION_1) {
+   } else if (infoV1->version == HGFS_MOUNTINFO_VERSION_1) {
       /*
        * The version 1 is validated with the version and magic number.
        * Note the version can be only be 1 and if so does not collide with version 2 of
        * the header (which would be the info size field).
        */
       LOG(4, (KERN_DEBUG LGPFX "%s: mount data version %d passed\n",
-              __func__, info->version));
+              __func__, infoV1->version));
       *mountInfoVersion = infoV1->version;
       retVal = 0;
    } else {
@@ -414,7 +414,7 @@ HgfsGetMountInfo(void *rawData,            // IN: Fs-specific mount data
    int result = 0;
 
    switch (mountInfoVersion) {
-   case HGFS_PROTOCOL_VERSION_1:
+   case HGFS_MOUNTINFO_VERSION_1:
       HgfsGetMountInfoV1(rawData,
                          mntFlags,
                          ttl,
@@ -425,7 +425,7 @@ HgfsGetMountInfo(void *rawData,            // IN: Fs-specific mount data
                          shareHost,
                          shareDir);
       break;
-   case HGFS_PROTOCOL_VERSION:
+   case HGFS_MOUNTINFO_VERSION_2:
       HgfsGetMountInfoV2(rawData,
                          mntFlags,
                          ttl,
