@@ -19,17 +19,16 @@
 #ifndef _VM_SESSION_ID_H_
 #define _VM_SESSION_ID_H_
 
-
 #include "vm_basic_types.h"
 
-#ifdef __cplusplus
+#if defined(__cplusplus)
 extern "C" {
 #endif
 
 typedef uint64 VMSessionId;
 
-#ifdef __cplusplus
-}
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 
 #endif /* _VM_SESSION_ID_H_ */

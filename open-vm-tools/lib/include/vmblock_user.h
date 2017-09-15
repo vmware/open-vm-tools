@@ -68,6 +68,10 @@
 #include "vm_basic_types.h"
 #include "vmblock.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 static INLINE int
 VMBLOCK_CONTROL_FUSE(int fd,            // IN
                      char op,           // IN
@@ -157,6 +161,10 @@ VMBLOCK_CONTROL(int fd, int cmd, const char *path)
    return ioctl(fd, cmd, path);
 }
 
+#endif
+
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 
 #endif // _VMBLOCK_USER_H_

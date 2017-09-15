@@ -29,6 +29,10 @@
 #include "vm_basic_types.h"
 #include "util.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 /*
  * Helper macros for iterating over an rpcgen-generated array. Given a struct S:
  *
@@ -122,6 +126,10 @@ XdrUtil_ArrayAppend(void **array, u_int *arrayLen, size_t elemSz, u_int elemCnt)
 
 Bool
 XdrUtil_Deserialize(const void *data, size_t dataLen, void *xdrProc, void *dest);
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif /* _XDRUTIL_H_ */
 

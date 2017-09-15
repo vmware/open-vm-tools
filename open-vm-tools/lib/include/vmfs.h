@@ -1,4 +1,3 @@
-
 /*********************************************************
  * Copyright (C) 2003-2016 VMware, Inc. All rights reserved.
  *
@@ -31,6 +30,10 @@
 #include "includeCheck.h"
 
 #include "unicodeTypes.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 // Consolidate all path stuff here so it's consistent between user and kernel
 #define VMFS_ROOT_DIR_NAME              "vmfs"
@@ -108,6 +111,10 @@ typedef enum {
 #if defined(VMX86_SERVER)
 char *Vmfs_GetCOSFileName(const char *vmfsFile);
 #endif /* VM86_SERVER */
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif /* __VMFS_H__ */
 

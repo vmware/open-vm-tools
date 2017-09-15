@@ -30,6 +30,10 @@
 #include <rpc/xdr.h>
 #include "vm_basic_types.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 /*
  * glibc and Solaris headers seem to define functions for unsigned types with
  * slightly different names than all other platforms. Provide macros to
@@ -262,6 +266,10 @@ xdr_Bool(XDR *xdrs,  // IN
 {
    return xdr_char(xdrs, ip);
 }
+#endif
+
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 
 #endif /* _VMXRPC_H_ */

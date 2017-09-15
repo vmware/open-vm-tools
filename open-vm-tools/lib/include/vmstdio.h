@@ -27,6 +27,10 @@
 
 #include <stdio.h>
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 typedef enum {
    StdIO_Error,
    StdIO_EOF,
@@ -40,5 +44,8 @@ StdIO_ReadNextLine(FILE *stream,         // IN
                    size_t maxBufLength,  // IN
                    size_t *count);       // OUT
 
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif /* __VMSTDIO_H__ */

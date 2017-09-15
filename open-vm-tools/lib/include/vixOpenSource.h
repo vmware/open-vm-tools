@@ -30,8 +30,8 @@
 #ifndef _VIXOpenSource_h_
 #define _VIXOpenSource_h_
 
-#ifdef __cplusplus
-extern "C"{
+#if defined(__cplusplus)
+extern "C" {
 #endif
 
 /*
@@ -766,10 +766,9 @@ extern VixError VixLogError(VixError err, const char *function, int line,
 
 #endif   // VIX_HIDE_FROM_JAVA
 
-#ifdef __cplusplus
-} // extern "C" {
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
-
 
 #endif // _VIXOpenSource_h_
 

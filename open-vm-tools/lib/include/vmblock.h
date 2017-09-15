@@ -91,6 +91,9 @@
 # include <sys/param.h>
 #endif
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 /*
  * FUSE definitions. They are supposed to be used by userspace code and
@@ -200,6 +203,10 @@
 # endif                                 /* } */
 #else
 # error "Unknown platform for vmblock."
+#endif
+
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 
 #endif /* _VMBLOCK_H_ */

@@ -26,6 +26,10 @@
 #ifndef _VMSUPPORT_H_
 #define _VMSUPPORT_H_
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 /*
  * The status of vm-support tool running in the guest, exported in VMDB at:
  * vm/#/vmx/guestTools/vmsupport/gStatus
@@ -54,5 +58,9 @@ typedef enum {
 
 #define RPC_VMSUPPORT_START   "vmsupport.start"
 #define RPC_VMSUPPORT_STATUS  "tools.vmsupport.status"
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif // _VMSUPPORT_H_

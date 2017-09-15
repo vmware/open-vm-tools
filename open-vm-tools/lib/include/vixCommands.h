@@ -27,6 +27,10 @@
 
 #include "vixOpenSource.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 /*
  * These describe the format of the message objects.
  * This will change when the client/vmx support different
@@ -2662,8 +2666,9 @@ __VMAutomationMsgParserGetPropertyList(const char *caller,
 
 #endif   // VIX_HIDE_FROM_JAVA
 
-
-
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif // _VIX_COMMANDS_H_
 

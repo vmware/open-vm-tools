@@ -31,7 +31,6 @@
 #define VTHREAD_BASE_H
 
 #define INCLUDE_ALLOW_USERLEVEL
-
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
@@ -42,6 +41,9 @@
 #include <signal.h>
 #endif
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 /*
  * Types
@@ -154,5 +156,8 @@ void VThreadBase_SetIsInSignal(VThreadID tid, Bool isInSignal);
 
 #endif /* VMM */
 
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif // VTHREAD_BASE_H
