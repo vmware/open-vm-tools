@@ -161,6 +161,11 @@ typedef struct HgfsServerMgrCallbacks {
    HgfsServerResEnumCallbacks enumResources;
 } HgfsServerMgrCallbacks;
 
+typedef enum {
+   HGFS_QUIESCE_FREEZE,
+   HGFS_QUIESCE_THAW,
+} HgfsQuiesceOp;
+
 /*
  * Function used for invalidating nodes and searches that fall outside of a
  * share when the list of shares changes.
@@ -192,6 +197,7 @@ typedef struct HgfsServerSessionCallbacks {
    void (*invalidateObjects)(void *, DblLnkLst_Links *);
    uint32 (*invalidateInactiveSessions)(void *);
    void (*sendComplete)(HgfsPacket *, void *);
+   void (*quiesce)(void *, HgfsQuiesceOp);
 } HgfsServerSessionCallbacks;
 
 /* XXX: TODO delete this layer if no other non-session callbacks are required. */
