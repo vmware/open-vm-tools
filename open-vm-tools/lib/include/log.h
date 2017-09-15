@@ -82,6 +82,13 @@ extern "C" {
    #define LOG_FILTER_DEFAULT_LEVEL VMW_LOG_INFO
 #endif
 
+/*
+ * The "routing" parameter may contain other information.
+ */
+
+#define VMW_LOG_LEVEL_MASK 0x000000FF  // Log level bits are in the LOB
+#define VMW_LOG_NO_BLOCK   0x80000000  // Message may be dropped
+
 void LogV(uint32 routing,
           const char *fmt,
           va_list args);
