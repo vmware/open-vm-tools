@@ -45,7 +45,8 @@ DnDCPMsgV4IsPacketValid(const uint8 *packet,
    DnDCPMsgHdrV4 *msgHdr = NULL;
    ASSERT(packet);
 
-   if (packetSize < DND_CP_MSG_HEADERSIZE_V4) {
+   if (packetSize < DND_CP_MSG_HEADERSIZE_V4 ||
+       packetSize > DND_MAX_TRANSPORT_PACKET_SIZE) {
       return FALSE;
    }
 
@@ -56,8 +57,8 @@ DnDCPMsgV4IsPacketValid(const uint8 *packet,
       return FALSE;
    }
 
-   /* Payload size plus header size should not be greater than packet size. */
-   if (msgHdr->payloadSize + DND_CP_MSG_HEADERSIZE_V4 > packetSize) {
+   /* Payload size plus header size should be equal to packet size. */
+   if (msgHdr->payloadSize + DND_CP_MSG_HEADERSIZE_V4 != packetSize) {
       return FALSE;
    }
 
@@ -66,8 +67,17 @@ DnDCPMsgV4IsPacketValid(const uint8 *packet,
       return FALSE;
    }
 
-   /* Payload size is more than binary size. */
-   if (msgHdr->payloadOffset + msgHdr->payloadSize > msgHdr->binarySize) {
+   /* Payload should be smaller than the whole binary
+    * and should not be put beyond the binary tail.
+    *
+    * binarySize should be smaller than DND_CP_MSG_MAX_BINARY_SIZE_V4, so that
+    * integer overflow is not possible since DND_CP_MSG_MAX_BINARY_SIZE_V4 * 2
+    * is guaranteed to be less than MAX_UINT32.
+    */
+   ASSERT_ON_COMPILE(DND_CP_MSG_MAX_BINARY_SIZE_V4 <= MAX_UINT32 / 2);
+   if (msgHdr->payloadOffset > msgHdr->binarySize ||
+       msgHdr->payloadSize > msgHdr->binarySize ||
+       msgHdr->payloadOffset + msgHdr->payloadSize > msgHdr->binarySize) {
       return FALSE;
    }
 
@@ -263,40 +273,44 @@ DnDCPMsgV4_UnserializeMultiple(DnDCPMsgV4 *msg,
    msgHdr = (DnDCPMsgHdrV4 *)packet;
 
    /*
-    * For each session, there is at most 1 big message. If the received
+    * For each session, there is at most 1 big packet. If the received
     * sessionId is different with buffered one, the received packet is for
-    * another another new message. Destroy old buffered message.
+    * another another new packet. Destroy old buffered packet.
     */
-   if (msg->binary &&
-       msg->hdr.sessionId != msgHdr->sessionId) {
+   if (msg->hdr.sessionId != msgHdr->sessionId) {
       DnDCPMsgV4_Destroy(msg);
    }
 
-   /* Offset should be 0 for new message. */
-   if (NULL == msg->binary && msgHdr->payloadOffset != 0) {
-      return FALSE;
-   }
+   if (msg->binary == NULL) {
+      /* New packet */
 
-   /* For existing buffered message, the payload offset should match. */
-   if (msg->binary &&
-       msg->hdr.sessionId == msgHdr->sessionId &&
-       msg->hdr.payloadOffset != msgHdr->payloadOffset) {
-      return FALSE;
-   }
-
-   if (NULL == msg->binary) {
-      memcpy(msg, msgHdr, DND_CP_MSG_HEADERSIZE_V4);
+      /* Offset should be 0 for new packet. */
+      if (msgHdr->payloadOffset != 0) {
+         return FALSE;
+      }
+      msg->hdr = *msgHdr;
+      msg->hdr.payloadSize = 0; // unused; initialize to zero for safety
       msg->binary = Util_SafeMalloc(msg->hdr.binarySize);
-   }
+   } else {
+      /* Existing buffered packet */
 
-   /*
-    * Please notice msg->hdr may be different from msgHdr if this is not the
-    * first packet. We need to make sure we have sufficient buffer to contain
-    * the payload indicated by the new header(msgHdr), which may have been
-    * faked. Otherwise heap overflow will occur.
-    */
-   if (msg->hdr.binarySize < msg->hdr.payloadOffset + msgHdr->payloadSize) {
-      return FALSE;
+      /* Binary size should match.
+       * DnDCPMsgV4IsPacketValid() can only validate packets individually.
+       * For multiple packets in a session, it requires that all packets
+       * have the same binarySize.
+       *
+       * We alloc buffer only when the first packet arrives, using the
+       * binarySize from the first packet. The binarySize in the following
+       * packets must be the same as the first packet.
+       */
+      if (msg->hdr.binarySize != msgHdr->binarySize) {
+         return FALSE;
+      }
+
+      /* Payload offset must match expected offset after earlier payload */
+      if (msg->hdr.payloadOffset != msgHdr->payloadOffset) {
+         return FALSE;
+      }
    }
 
    /* msg->hdr.payloadOffset is used as received binary size. */
