@@ -86,6 +86,8 @@
 #  define SAFE_HANDLER  "std"
 #endif
 
+#define STD_HANDLER  "std"
+
 /** Tells whether the given log level is a fatal error. */
 #define IS_FATAL(level) ((level) & G_LOG_FLAG_FATAL)
 
@@ -972,7 +974,7 @@ VMTools_ConfigLogToStdio(const gchar *domain)
    ASSERT(domain != NULL);
    gLogDomain = g_strdup(domain);
    cfg = g_key_file_new();
-   gStdLogHandler = VMToolsGetLogHandler(SAFE_HANDLER,
+   gStdLogHandler = VMToolsGetLogHandler(STD_HANDLER,
                                          gLogDomain,
                                          ~0,
                                          cfg);
