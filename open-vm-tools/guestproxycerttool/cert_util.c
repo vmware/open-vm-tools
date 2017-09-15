@@ -401,7 +401,7 @@ CertUtil_CopyFile(const gchar *src,              // IN
       goto exit;
    }
 
-   file = fopen(dst, "w");
+   file = g_fopen(dst, "w");
    if (!file) {
       Error("Failed to open %s: %s.\n", dst, strerror(errno));
       goto exit;

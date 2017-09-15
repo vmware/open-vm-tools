@@ -124,7 +124,7 @@ CertKey_ComputeCertPemFileHash(const gchar *certPemFile) // IN
    X509 *cert = NULL;
    gchar *err = NULL;
 
-   file = fopen(certPemFile, "r");
+   file = g_fopen(certPemFile, "r");
    if (!file) {
       Error("Failed to open %s: %s.\n", certPemFile, strerror(errno));
       goto exit;
@@ -612,7 +612,7 @@ WritePemFile(EVP_PKEY *pkey,                     // IN
    mode_t mode;
 
    mode = umask(066);
-   file = fopen(keyFile, "w");
+   file = g_fopen(keyFile, "w");
    if (!file) {
       Error("Failed to open %s: %s.\n", keyFile, strerror(errno));
       goto exit;
@@ -627,7 +627,7 @@ WritePemFile(EVP_PKEY *pkey,                     // IN
    fclose(file);
 
    umask(022);
-   file = fopen(certFile, "w");
+   file = g_fopen(certFile, "w");
    if (!file) {
       Error("Failed to open %s: %s.\n", certFile, strerror(errno));
       goto exit;
