@@ -1431,7 +1431,7 @@ static void
 TweakGatherLoops(ToolsAppCtx *ctx,
                  gboolean enable)
 {
-#if (defined(__linux__) && !defined(USERWORLD)) || defined(_WIN32)
+#if defined(__linux__) || defined(USERWORLD) || defined(_WIN32)
    gboolean perfmonEnabled;
 
    perfmonEnabled = !g_key_file_get_boolean(ctx->config,
