@@ -38,3 +38,13 @@ CLEANFILES = $(desktopfile)
 $(desktopfile): $(desktopfilesrc)
 	sed 's,_bindir_,$(bindir),' $(desktopfilesrc) > $(desktopfile)
 
+# The desktopEvents plugin will look for 'vmware-user'
+# to restart.
+install-exec-hook:
+	cd $(DESTDIR)$(bindir) && \
+	  ln -fs vmware-user-suid-wrapper \
+	  vmware-user
+
+uninstall-hook:
+	rm -f $(DESTDIR)$(bindir)/vmware-user
+
