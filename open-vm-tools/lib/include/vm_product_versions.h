@@ -174,7 +174,7 @@
 #define FUSION_VERSION "e.x.p"
 
 // These must match VIE_FILEVERSION above
-#define SYSIMAGE_VERSION "6.5.0"
+#define SYSIMAGE_VERSION "8.3.0"
 #define SYSIMAGE_FILE_VERSION VIE_FILEVERSION
 
 #define VIM_VERSION "6.6.3"
