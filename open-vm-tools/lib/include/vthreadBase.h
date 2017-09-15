@@ -127,7 +127,7 @@ VThread_CurName(void)
 #else
 
 #define VTHREAD_VMX_ID          1
-#define VTHREAD_SVGA_ID         2
+//#define VTHREAD_SVGA_ID         2  /* To be removed shortly */
 #define VTHREAD_MKS_ID          3
 #define VTHREAD_OTHER_ID        4
 #define VTHREAD_ALLOCSTART_ID   5
