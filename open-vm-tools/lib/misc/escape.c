@@ -855,7 +855,7 @@ Escape_Comma(const char *string) // IN
 {
    DynBuf b;
 
-   if (NULL == string) {
+   if (string == NULL) {
       return NULL;
    }
 

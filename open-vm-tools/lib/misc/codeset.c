@@ -277,7 +277,7 @@ CodeSetGetModulePath(uint32 priv)
    }
 
    size = readlink("/proc/self/exe", path, sizeof path - 1);
-   if (-1 == size) {
+   if (size == -1) {
       if (priv == HGMP_PRIVILEGE) {
          Id_EndSuperUser(uid);
       }
@@ -558,11 +558,11 @@ CodeSet_Init(const char *icuDataDir) // IN: ICU data file location in Current co
          goto exit;
       }
       hMapping = CreateFileMapping(hFile, NULL, PAGE_READONLY, 0, 0, NULL);
-      if (NULL == hMapping) {
+      if (hMapping == NULL) {
          goto exit;
       }
       memMappedData = MapViewOfFile(hMapping, FILE_MAP_READ, 0, 0, 0);
-      if (NULL == memMappedData) {
+      if (memMappedData == NULL) {
          goto exit;
       }
    }
@@ -943,7 +943,7 @@ CodeSet_GenericToGenericDb(const char *codeIn,  // IN
     * Trivial case.
     */
 
-   if ((0 == sizeIn) || (NULL == bufIn)) {
+   if ((sizeIn == 0) || (bufIn == NULL)) {
       result = TRUE;
       goto exit;
    }

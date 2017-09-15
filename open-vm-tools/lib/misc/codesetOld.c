@@ -348,7 +348,7 @@ CodeSetOldGenericToUtf16leDb(UINT codeIn,        // IN:
                      (DynBuf_GetAllocatedSize(db) - initialSize) /
                                       sizeof(wchar_t));
 
-         if (0 == result) {
+         if (result == 0) {
             error = GetLastError();   // may be ERROR_NO_UNICODE_TRANSLATION
          }
 
@@ -1032,7 +1032,7 @@ CodeSetOld_GenericToGenericDb(char const *codeIn,   // IN:
     * Trivial case.
     */
 
-   if ((0 == sizeIn) || (NULL == bufIn)) {
+   if ((sizeIn == 0) || (bufIn == NULL)) {
       ret = TRUE;
       goto exit;
    }

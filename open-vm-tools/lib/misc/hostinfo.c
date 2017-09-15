@@ -203,7 +203,7 @@ Hostinfo_GetCpuid(HostinfoCpuIdInfo *info) // OUT
 
    cpuid.id0.numEntries = id0.eax;
 
-   if (0 == cpuid.id0.numEntries) {
+   if (cpuid.id0.numEntries == 0) {
       Warning(LGPFX" No CPUID information available.\n");
 
       return FALSE;

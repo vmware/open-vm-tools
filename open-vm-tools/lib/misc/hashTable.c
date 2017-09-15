@@ -860,7 +860,7 @@ HashTable_KeyArray(const HashTable *ht,  // IN:
    *keys = NULL;
    *size = HashTable_GetNumElements(ht);
 
-   if (0 == *size) {
+   if (*size == 0) {
       return;
    }
 
@@ -916,7 +916,7 @@ HashTable_ToArray(const HashTable *ht,  // IN:
    *clientDatas = NULL;
    *size = HashTable_GetNumElements(ht);
 
-   if (0 == *size) {
+   if (*size == 0) {
       return;
    }
 

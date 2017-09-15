@@ -145,7 +145,7 @@ Hostinfo_TouchXen(void)
    name[2] = regs.edx;
    name[3] = 0;
 
-   if (0 == strcmp(CPUID_XEN_HYPERVISOR_VENDOR_STRING, (const char*)name)) {
+   if (strcmp(CPUID_XEN_HYPERVISOR_VENDOR_STRING, (const char*)name) == 0) {
       return TRUE;
    }
 
