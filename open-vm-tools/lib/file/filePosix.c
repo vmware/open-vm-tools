@@ -525,7 +525,7 @@ File_StripFwdSlashes(const char *pathName)  // IN:
    char *prev;
    char *result;
 
-   ASSERT(pathName);
+   ASSERT(pathName != NULL);
 
    path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_UTF8);
    ASSERT(path != NULL);
@@ -923,7 +923,7 @@ Bool
 File_SetFilePermissions(const char *pathName,  // IN:
                         int perms)             // IN: permissions
 {
-   ASSERT(pathName);
+   ASSERT(pathName != NULL);
 
    if (Posix_Chmod(pathName, perms) == -1) {
       /* The error is not critical, just log it. */
@@ -970,7 +970,7 @@ FilePosixGetParent(char **canPath)  // IN/OUT: Canonical file path
    char *pathName;
    char *baseName;
 
-   ASSERT(canPath);
+   ASSERT(canPath != NULL);
    ASSERT(File_IsFullPath(*canPath));
 
    if (Unicode_Compare(*canPath, DIRSEPS) == 0) {
@@ -1291,7 +1291,7 @@ File_GetVMFSVersion(const char *pathName,  // IN: File name to test
    int ret = -1;
    FS_PartitionListResult *fsAttrs = NULL;
 
-   if (!versionNum) {
+   if (versionNum == NULL) {
       errno = EINVAL;
       goto exit;
    }
@@ -1337,7 +1337,7 @@ File_GetVMFSBlockSize(const char *pathName,  // IN: File name to test
    int ret = -1;
    FS_PartitionListResult *fsAttrs = NULL;
 
-   if (!blockSize) {
+   if (blockSize == NULL) {
       errno = EINVAL;
       goto exit;
    }
@@ -1555,11 +1555,12 @@ File_SupportsOptimisticLock(const char *pathName)  // IN:
     * File_GetVMFSFSType works much faster on directories, so get the
     * directory.
     */
-   if (!File_IsFullPath(pathName)) {
+
+   if (File_IsFullPath(pathName)) {
+      fullPath = pathName;
+   } else {
       tempPath = File_FullPath(pathName);
       fullPath = tempPath;
-   } else {
-      fullPath = pathName;
    }
    File_GetPathName(fullPath, &dir, NULL);
    res = File_GetVMFSFSType(dir, -1, &fsTypeNum);
@@ -1755,8 +1756,8 @@ FilePosixLookupMountPoint(char const *canPath,  // IN: Canonical file path
    size_t used;
    char *ret = NULL;
 
-   ASSERT(canPath);
-   ASSERT(bind);
+   ASSERT(canPath != NULL);
+   ASSERT(bind != NULL);
 
    size = 4 * FILE_MAXPATH;  // Should suffice for most locales
 
@@ -2038,7 +2039,7 @@ FilePosixNearestExistingAncestor(char const *path)  // IN: File path
       }
 
       ptr = strrchr(result, DIRSEPC);
-      if (!ptr) {
+      if (ptr == NULL) {
          ptr = result;
       }
       *ptr = '\0';
@@ -2088,8 +2089,8 @@ File_IsSameFile(const char *path1,  // IN:
    struct statfs stfs2;
 #endif
 
-   ASSERT(path1);
-   ASSERT(path2);
+   ASSERT(path1 != NULL);
+   ASSERT(path2 != NULL);
 
    /*
     * First take care of the easy checks.  If the paths are identical, or if
@@ -2290,8 +2291,8 @@ FilePosixGetMaxOrSupportsFileSize(FileIODescriptor *fd,  // IN:
    uint64 value = 0;
    uint64 mask;
 
-   ASSERT(fd);
-   ASSERT(fileSize);
+   ASSERT(fd != NULL);
+   ASSERT(fileSize != NULL);
 
    if (!getMaxFileSize) {
       return FileIO_SupportsFileSize(fd, *fileSize);
@@ -2347,7 +2348,7 @@ FilePosixCreateTestGetMaxOrSupportsFileSize(const char *dirName, // IN: test dir
    char *path;
    FileIODescriptor fd;
 
-   ASSERT(fileSize);
+   ASSERT(fileSize != NULL);
 
    temp = Unicode_Append(dirName, "/.vmBigFileTest");
    posixFD = File_MakeSafeTemp(temp, &path);
@@ -2404,7 +2405,7 @@ FileVMKGetMaxFileSize(const char *pathName,  // IN:
 
    char *dirPath = NULL;
 
-   ASSERT(maxFileSize);
+   ASSERT(maxFileSize != NULL);
 
    fullPath = File_FullPath(pathName);
    if (fullPath == NULL) {
@@ -2608,7 +2609,8 @@ FileGetMaxOrSupportsFileSize(const char *pathName,  // IN:
    char *folderPath;
    Bool retval = FALSE;
 
-   ASSERT(fileSize);
+   ASSERT(pathName != NULL);
+   ASSERT(fileSize != NULL);
 
    /*
     * We acquire the full path name for testing in
@@ -2694,7 +2696,7 @@ File_GetMaxFileSize(const char *pathName,  // IN:
 {
    Bool result;
 
-   if (!maxFileSize) {
+   if (maxFileSize == NULL) {
       Log(LGPFX" %s: maxFileSize passed as NULL.\n", __func__);
 
       return FALSE;
@@ -3031,7 +3033,7 @@ File_WalkDirectoryNext(WalkDirContext context,  // IN:
                        char **path)             // OUT:
 {
    ASSERT(context);
-   ASSERT(path);
+   ASSERT(path != NULL);
 
    errno = 0;  // Any errors showed up at "start time".
 

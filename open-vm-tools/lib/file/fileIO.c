@@ -69,7 +69,7 @@
  */
 
 const char *
-FileIO_ErrorEnglish(FileIOResult status) // IN
+FileIO_ErrorEnglish(FileIOResult status)  // IN:
 {
    return Msg_StripMSGID(FileIO_MsgError(status));
 }
@@ -92,7 +92,7 @@ FileIO_ErrorEnglish(FileIOResult status) // IN
  */
 
 const char *
-FileIO_MsgError(FileIOResult status) // IN
+FileIO_MsgError(FileIOResult status)  // IN:
 {
    const char *result = NULL;
 
@@ -201,8 +201,8 @@ void
 FileIO_Init(FileIODescriptor *fd,  // IN/OUT:
             const char *pathName)  // IN:
 {
-   ASSERT(fd);
-   ASSERT(pathName);
+   ASSERT(fd != NULL);
+   ASSERT(pathName != NULL);
 
    fd->fileName = Unicode_Duplicate(pathName);
 }
@@ -228,7 +228,7 @@ FileIO_Init(FileIODescriptor *fd,  // IN/OUT:
 void
 FileIO_Cleanup(FileIODescriptor *fd)  // IN/OUT:
 {
-   ASSERT(fd);
+   ASSERT(fd != NULL);
 
    if (fd->fileName) {
       free(fd->fileName);
@@ -319,7 +319,7 @@ FileIO_Lock(FileIODescriptor *file,  // IN/OUT:
     * Lock the file if necessary.
     */
 
-   ASSERT(file);
+   ASSERT(file != NULL);
    ASSERT(file->lockToken == NULL);
 
    FileIOResolveLockBits(&access);
@@ -392,7 +392,7 @@ FileIO_Unlock(FileIODescriptor *file)  // IN/OUT:
 {
    FileIOResult ret = FILEIO_SUCCESS;
 
-   ASSERT(file);
+   ASSERT(file != NULL);
 
 #if !defined(__FreeBSD__) && !defined(sun)
    if (file->lockToken != NULL) {
@@ -488,7 +488,7 @@ FileIO_GetSizeByPath(const char *pathName)  // IN:
 const char *
 FileIO_Filename(FileIODescriptor *fd)  // IN:
 {
-   ASSERT(fd);
+   ASSERT(fd != NULL);
 
    return fd->fileName;
 }
@@ -518,7 +518,7 @@ FileIO_CloseAndUnlink(FileIODescriptor *fd)  // IN:
    char *path;
    FileIOResult ret;
 
-   ASSERT(fd);
+   ASSERT(fd != NULL);
    ASSERT(FileIO_IsValid(fd));
 
    path = Unicode_Duplicate(fd->fileName);
@@ -565,7 +565,7 @@ FileIO_Pread(FileIODescriptor *fd,  // IN: File descriptor
 {
    struct iovec iov;
 
-   ASSERT(fd);
+   ASSERT(fd != NULL);
 
    iov.iov_base = buf;
    iov.iov_len = len;
@@ -601,7 +601,7 @@ FileIO_Pwrite(FileIODescriptor *fd,  // IN: File descriptor
 {
    struct iovec iov;
 
-   ASSERT(fd);
+   ASSERT(fd != NULL);
 
    /* The cast is safe because FileIO_Pwritev() will not write to '*buf'. */
    iov.iov_base = (void *)buf;
@@ -664,7 +664,7 @@ FileIO_AtomicTempPath(const char *path)  // IN:
    char *retPath;
 
    srcPath = File_FullPath(path);
-   if (!srcPath) {
+   if (srcPath == NULL) {
       Log("%s: File_FullPath of '%s' failed.\n", __FUNCTION__, path);
       return NULL;
    }
@@ -709,7 +709,7 @@ FileIO_AtomicTempFile(FileIODescriptor *fileFD,  // IN:
    ASSERT(tempFD && !FileIO_IsValid(tempFD));
 
    tempPath = FileIO_AtomicTempPath(FileIO_Filename(fileFD));
-   if (!tempPath) {
+   if (tempPath == NULL) {
       status = FILEIO_ERROR;
       goto bail;
    }
@@ -847,7 +847,7 @@ FileIO_AtomicUpdate(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
       char *dstFileName = NULL;
 
       currPath = File_FullPath(FileIO_Filename(currFD));
-      if (!currPath) {
+      if (currPath == NULL) {
          savedErrno = errno;
          Log("%s: File_FullPath of '%s' failed.\n", __FUNCTION__,
              FileIO_Filename(currFD));
@@ -855,7 +855,7 @@ FileIO_AtomicUpdate(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
       }
 
       newPath = File_FullPath(FileIO_Filename(newFD));
-      if (!newPath) {
+      if (newPath == NULL) {
          savedErrno = errno;
          Log("%s: File_FullPath of '%s' failed.\n", __FUNCTION__,
              FileIO_Filename(newFD));
@@ -865,9 +865,9 @@ FileIO_AtomicUpdate(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
       File_GetPathName(newPath, &dirName, &fileName);
       File_GetPathName(currPath, &dstDirName, &dstFileName);
 
-      ASSERT(dirName);
+      ASSERT(dirName != NULL);
       ASSERT(fileName && *fileName);
-      ASSERT(dstDirName);
+      ASSERT(dstDirName != NULL);
       ASSERT(dstFileName && *dstFileName);
       ASSERT(File_IsSameFile(dirName, dstDirName));
 
