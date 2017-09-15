@@ -296,7 +296,8 @@ VGAuth_UserHandleFree(VGAuthUserHandle *handle)
 
    g_free(handle->userName);
 
-   if (handle->details.type == VGAUTH_AUTH_TYPE_SAML) {
+   if (handle->details.type == VGAUTH_AUTH_TYPE_SAML ||
+       handle->details.type == VGAUTH_AUTH_TYPE_SAML_INFO_ONLY) {
       g_free(handle->details.val.samlData.subject);
       VGAuth_FreeAliasInfoContents(&(handle->details.val.samlData.aliasInfo));
    }

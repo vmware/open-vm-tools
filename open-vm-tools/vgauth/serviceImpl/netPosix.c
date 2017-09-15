@@ -113,6 +113,8 @@ ServiceNetworkListen(ServiceConnection *conn,            // IN/OUT
       }
       Log("%s: Created socket directory '%s'\n", __FUNCTION__, socketDir);
    }
+   g_free(socketDir);
+   socketDir = NULL;
 
    sock = socket(PF_UNIX, SOCK_STREAM, 0);
    if (sock < 0) {
