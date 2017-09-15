@@ -118,6 +118,29 @@ LinuxFiClose(SyncDriverHandle handle)
 
 /*
  *******************************************************************************
+ * LinuxFiGetAttr --                                                      */ /**
+ *
+ * Return some attributes of the backend provider
+ *
+ * @param[out] name       name of backend provider
+ * @param[out] quiesces   TRUE (FALSE) if provider is (is not) capable
+ *                        of quiescing.
+ *
+ *******************************************************************************
+ */
+
+static void
+LinuxFiGetAttr(const SyncDriverHandle handle,   // IN (ignored)
+               const char **name,               // OUT
+               Bool *quiesces)                  // OUT
+{
+   *name = "fifreeze";
+   *quiesces = TRUE;
+}
+
+
+/*
+ *******************************************************************************
  * LinuxDriver_Freeze --                                                  */ /**
  *
  * Tries to freeze the filesystems using the Linux kernel's FIFREEZE ioctl.
@@ -159,6 +182,7 @@ LinuxDriver_Freeze(const GSList *paths,
 
    sync->driver.thaw = LinuxFiThaw;
    sync->driver.close = LinuxFiClose;
+   sync->driver.getattr = LinuxFiGetAttr;
 
    /*
     * Ensure we did not get an empty list
