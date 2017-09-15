@@ -458,7 +458,6 @@ SMP_W_BARRIER_R(void)
 
 /* deprecated version -- going away soon */
 #define LD_LD_MEM_BARRIER()      SMP_R_BARRIER_R()
-#define LD_ST_MEM_BARRIER()      SMP_R_BARRIER_W()
 
 
 #endif // _VM_BASIC_ASM_X86_COMMON_H_
