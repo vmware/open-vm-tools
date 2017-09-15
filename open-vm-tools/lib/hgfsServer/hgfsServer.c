@@ -273,7 +273,6 @@ typedef struct HgfsSharedFolderProperties {
    DblLnkLst_Links links;
    char *name;                                /* Name of the share. */
    HgfsSharedFolderHandle notificationHandle; /* Directory notification handle. */
-   Bool markedForDeletion;
 } HgfsSharedFolderProperties;
 
 
@@ -3583,11 +3582,13 @@ abort:
 /*
  *-----------------------------------------------------------------------------
  *
- * HgfsServerCleanupDeletedFolders --
+ * HgfsServerSharesDeleteStale --
  *
  *    This function iterates through all shared folders and removes all
  *    deleted shared folders, removes them from notification package and
  *    from the folders list.
+ *
+ *    Note: this assumes that the list lock is already acquired.
  *
  * Results:
  *    None.
@@ -3599,26 +3600,200 @@ abort:
  */
 
 static void
-HgfsServerCleanupDeletedFolders(void)
+HgfsServerSharesDeleteStale(DblLnkLst_Links *newSharesList)  // IN: new list of shares
 {
    DblLnkLst_Links *link, *nextElem;
 
-   MXUser_AcquireExclLock(gHgfsSharedFoldersLock);
    DblLnkLst_ForEachSafe(link, nextElem, &gHgfsSharedFoldersList) {
-      HgfsSharedFolderProperties *folder =
+      HgfsSharedFolderProperties *currentShare =
          DblLnkLst_Container(link, HgfsSharedFolderProperties, links);
-      if (folder->markedForDeletion) {
+      Bool staleShare = TRUE;
+      DblLnkLst_Links *linkNewShare, *nextNewShare;
+
+      DblLnkLst_ForEachSafe(linkNewShare, nextNewShare, newSharesList) {
+         HgfsSharedFolder *newShare =
+            DblLnkLst_Container(linkNewShare, HgfsSharedFolder, links);
+
+         ASSERT(newShare);
+
+         if (strcmp(currentShare->name, newShare->name) == 0) {
+            LOG(4, ("%s: %s is still valid\n", __FUNCTION__, newShare->name));
+            staleShare = FALSE;
+            break;
+         }
+      }
+
+      if (staleShare) {
          LOG(8, ("%s: removing shared folder handle %#x\n",
-                 __FUNCTION__, folder->notificationHandle));
-         if (!HgfsNotify_RemoveSharedFolder(folder->notificationHandle)) {
-            LOG(4, ("Problem removing %d shared folder handle\n",
-                    folder->notificationHandle));
+                 __FUNCTION__, currentShare->notificationHandle));
+         if (!HgfsNotify_RemoveSharedFolder(currentShare->notificationHandle)) {
+            LOG(4, ("%s: Error: removing %d shared folder handle\n",
+                    __FUNCTION__, currentShare->notificationHandle));
          }
          DblLnkLst_Unlink1(link);
-         free(folder);
+         free(currentShare->name);
+         free(currentShare);
       }
    }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerShareAddInternal --
+ *
+ *    Add a new shared folder property entry if it is not in the list of shares.
+ *
+ *    Note: this assumes that the list lock is already acquired.
+ *
+ * Results:
+ *    The share handle if entry was found HGFS_INVALID_FOLDER_HANDLE if not.
+ *
+ * Side effects:
+ *    May add a shared folders entry for change notifications.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static HgfsSharedFolderHandle
+HgfsServerShareAddInternal(const char *shareName,   // IN: shared folder name
+                           const char *sharePath)   // IN: shared folder path)
+{
+   HgfsSharedFolderHandle handle = HGFS_INVALID_FOLDER_HANDLE;
+   DblLnkLst_Links *link, *nextElem;
+
+   DblLnkLst_ForEachSafe(link, nextElem, &gHgfsSharedFoldersList) {
+      HgfsSharedFolderProperties *currentShare =
+         DblLnkLst_Container(link, HgfsSharedFolderProperties, links);
+
+      ASSERT(currentShare);
+
+      if (strcmp(currentShare->name, shareName) == 0) {
+         LOG(8, ("%s: Share is not new\n", __FUNCTION__));
+         handle = currentShare->notificationHandle;
+         break;
+      }
+   }
+
+   /* If the share is new then add it to the notification shares. */
+   if (handle == HGFS_INVALID_FOLDER_HANDLE) {
+      handle = HgfsNotify_AddSharedFolder(sharePath, shareName);
+      if (HGFS_INVALID_FOLDER_HANDLE != handle) {
+         HgfsSharedFolderProperties *shareProps =
+            (HgfsSharedFolderProperties *)Util_SafeMalloc(sizeof *shareProps);
+
+         shareProps->notificationHandle = handle;
+         shareProps->name = Util_SafeStrdup(shareName);
+         DblLnkLst_Init(&shareProps->links);
+         DblLnkLst_LinkLast(&gHgfsSharedFoldersList, &shareProps->links);
+      }
+
+      LOG(8, ("%s: %s, %s, add hnd %#x\n",__FUNCTION__,
+               (shareName ? shareName : "NULL"),
+               (sharePath ? sharePath : "NULL"),
+               handle));
+   }
+   return handle;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerShareAdd --
+ *
+ *    Add a new shared folder property entry if it is not in the list of shares.
+ *
+ *    Note: this assumes that the list lock is already acquired.
+ *
+ * Results:
+ *    The shares handle if found or added. HGFS_INVALID_FOLDER_HANDLE otherwise.
+ *
+ * Side effects:
+ *    May add a shared folders entry for change notifications.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static HgfsSharedFolderHandle
+HgfsServerShareAdd(const char *shareName,   // IN: shared folder name
+                   const char *sharePath)   // IN: shared folder path)  // IN: List of new shares
+{
+   HgfsSharedFolderHandle handle;
+
+   LOG(8, ("%s: entered\n", __FUNCTION__));
+
+   if (!gHgfsDirNotifyActive) {
+      LOG(8, ("%s: notification disabled\n", __FUNCTION__));
+      return HGFS_INVALID_FOLDER_HANDLE;
+   }
+
+   MXUser_AcquireExclLock(gHgfsSharedFoldersLock);
+   handle = HgfsServerShareAddInternal(shareName, sharePath);
    MXUser_ReleaseExclLock(gHgfsSharedFoldersLock);
+
+   LOG(8, ("%s: exit(%#x)\n", __FUNCTION__, handle));
+   return handle;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerSharesReset --
+ *
+ *    This is a callback function which is invoked by hgfsServerManagement
+ *    for every shared folder when something changed in shared folders
+ *    configuration.
+ *    The function any entries now not present as stale and removes them.
+ *    Any entries on the new list of shares not on the list of list of shares
+ *    will have new entries created and added to the list.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    May add an entry to known shared folders list.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HgfsServerSharesReset(DblLnkLst_Links *newSharesList)  // IN: List of new shares
+{
+   DblLnkLst_Links *linkNewShare, *nextNewShare;
+
+   LOG(8, ("%s: entered\n", __FUNCTION__));
+
+   if (!gHgfsDirNotifyActive) {
+      LOG(8, ("%s: notification disabled\n", __FUNCTION__));
+      return;
+   }
+
+   MXUser_AcquireExclLock(gHgfsSharedFoldersLock);
+
+   /*
+    * Now we go through the shares properties list to
+    * remove and delete those shares that are stale.
+    */
+   HgfsServerSharesDeleteStale(newSharesList);
+
+   /*
+    * Iterate over the new shares and check for any not in the updated shares properties
+    * list, as those will need a new share property created and added to the list.
+    */
+   DblLnkLst_ForEachSafe(linkNewShare, nextNewShare, newSharesList) {
+      HgfsSharedFolder *newShare =
+         DblLnkLst_Container(linkNewShare, HgfsSharedFolder, links);
+
+      ASSERT(newShare);
+
+      HgfsServerShareAddInternal(newShare->name, newShare->path);
+   }
+
+   MXUser_ReleaseExclLock(gHgfsSharedFoldersLock);
+   LOG(8, ("%s: exit\n", __FUNCTION__));
 }
 
 
@@ -3655,58 +3830,7 @@ HgfsServerRegisterShare(const char *shareName,   // IN: shared folder name
                         const char *sharePath,   // IN: shared folder path
                         Bool addFolder)          // IN: add or remove folder
 {
-   DblLnkLst_Links *link, *nextElem;
    HgfsSharedFolderHandle result = HGFS_INVALID_FOLDER_HANDLE;
-
-   LOG(8, ("%s: %s, %s, %s\n", __FUNCTION__,
-           (shareName ? shareName : "NULL"), (sharePath ? sharePath : "NULL"),
-           (addFolder ? "add" : "remove")));
-
-   if (!gHgfsDirNotifyActive) {
-      LOG(8, ("%s: notification disabled\n", __FUNCTION__));
-      goto exit;
-   }
-
-   LOG(8, ("%s: %s, %s, %s - active notification\n", __FUNCTION__,
-           (shareName ? shareName : "NULL"), (sharePath ? sharePath : "NULL"),
-           (addFolder ? "add" : "remove")));
-
-   if (NULL == shareName) {
-      /*
-       * The function is invoked with shareName NULL when all shares has been
-       * enumerated.
-       * Need to delete all shared folders that were marked for deletion.
-       */
-      HgfsServerCleanupDeletedFolders();
-      goto exit;
-   }
-
-   MXUser_AcquireExclLock(gHgfsSharedFoldersLock);
-
-   DblLnkLst_ForEachSafe(link, nextElem, &gHgfsSharedFoldersList) {
-      HgfsSharedFolderProperties *folder =
-         DblLnkLst_Container(link, HgfsSharedFolderProperties, links);
-      if (strcmp(folder->name, shareName) == 0) {
-         result = folder->notificationHandle;
-         folder->markedForDeletion = !addFolder;
-         break;
-      }
-   }
-   if (addFolder && HGFS_INVALID_FOLDER_HANDLE == result) {
-      result = HgfsNotify_AddSharedFolder(sharePath, shareName);
-      if (HGFS_INVALID_FOLDER_HANDLE != result) {
-         HgfsSharedFolderProperties *folder =
-            (HgfsSharedFolderProperties *)Util_SafeMalloc(sizeof *folder);
-         folder->notificationHandle = result;
-         folder->name = Util_SafeStrdup(shareName);
-         folder->markedForDeletion = FALSE;
-         DblLnkLst_Init(&folder->links);
-         DblLnkLst_LinkLast(&gHgfsSharedFoldersList, &folder->links);
-      }
-   }
-   MXUser_ReleaseExclLock(gHgfsSharedFoldersLock);
-
-exit:
    LOG(8, ("%s: %s, %s, %s exit %#x\n",__FUNCTION__,
            (shareName ? shareName : "NULL"), (sharePath ? sharePath : "NULL"),
            (addFolder ? "add" : "remove"), result));
@@ -4202,7 +4326,7 @@ HgfsServerEnumerateSharedFolders(void)
                                                        &sharePathLen, &sharePath);
             if (HGFS_NAME_STATUS_COMPLETE == nameStatus) {
                LOG(8, ("%s: registering share %s path %s\n", __FUNCTION__, shareName, sharePath));
-               handle = HgfsServerRegisterShare(shareName, sharePath, TRUE);
+               handle = HgfsServerShareAdd(shareName, sharePath);
                success = handle != HGFS_INVALID_FOLDER_HANDLE;
                LOG(8, ("%s: registering share %s hnd %#x\n", __FUNCTION__, shareName, handle));
             }
@@ -4226,7 +4350,7 @@ HgfsServerEnumerateSharedFolders(void)
  *    Allocate HgfsTransportSessionInfo and initialize it.
  *
  * Results:
- *    TRUE on success, FALSE otherwise.
+ *    TRUE always.
  *
  * Side effects:
  *    None.
@@ -5028,6 +5152,8 @@ HgfsServerSessionInvalidateObjects(void *clientData,         // IN:
    HgfsTransportSessionInfo *transportSession = clientData;
    DblLnkLst_Links *curr;
 
+   LOG(4, ("%s: Beginning\n", __FUNCTION__));
+
    ASSERT(transportSession);
    MXUser_AcquireExclLock(transportSession->sessionArrayLock);
 
@@ -5039,6 +5165,10 @@ HgfsServerSessionInvalidateObjects(void *clientData,         // IN:
    }
 
    MXUser_ReleaseExclLock(transportSession->sessionArrayLock);
+
+   /* Now invalidate any stale shares and add any new ones. */
+   HgfsServerSharesReset(shares);
+   LOG(4, ("%s: Ending\n", __FUNCTION__));
 }
 
 
@@ -5259,13 +5389,22 @@ HgfsServerGetLocalNameInfo(const char *cpName,      // IN:  Cross-platform filen
                                                len,
                                                &shareInfo->readPermissions,
                                                &shareInfo->writePermissions,
-                                               &shareInfo->handle,
+                                               &shareInfo->handle, // XXX: to be deleted.
                                                &shareInfo->rootDir);
    if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
       LOG(4, ("%s: No such share (%s)\n", __FUNCTION__, cpName));
       return nameStatus;
    }
    shareInfo->rootDirLen = strlen(shareInfo->rootDir);
+   /*
+    * XXX: The handle is now NOT propagated back and held in the policy but only in the
+    * table of share properties.
+    *
+    * Get shareInfo handle returns a valid handle only if we have change
+    * notification active.
+    * Note: cpName begins with the share name.
+    */
+   shareInfo->handle = HgfsServerGetShareHandle(cpName);
 
    /* Get the config options. */
    nameStatus = HgfsServerPolicy_GetShareOptions(cpName, len, &shareOptions);
@@ -7657,7 +7796,7 @@ HgfsServerSetDirWatchByName(HgfsInputParam *input,         // IN: Input params
          /* See if we are dealing with the base of the namespace */
          nameStatus = HGFS_NAME_STATUS_INCOMPLETE_BASE;
       } else {
-         sharedFolder = HgfsServerGetShareHandle(cpName);
+         sharedFolder = shareInfo.handle;
       }
 
       if (HGFS_NAME_STATUS_COMPLETE == nameStatus &&
