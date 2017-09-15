@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -25,14 +25,22 @@
  * Definitions related to the time sync functionality.
  */
 
-#define TOOLSOPTION_SYNCTIME                    "synctime"
-#define TOOLSOPTION_SYNCTIME_PERIOD             "synctime.period"
-#define TOOLSOPTION_SYNCTIME_ENABLE             "time.synchronize.tools.enable"
-#define TOOLSOPTION_SYNCTIME_STARTUP_BACKWARD \
+#define TOOLSOPTION_SYNCTIME                        "synctime"
+#define TOOLSOPTION_SYNCTIME_PERIOD                 "synctime.period"
+#define TOOLSOPTION_SYNCTIME_ENABLE               \
+   "time.synchronize.tools.enable"
+#define TOOLSOPTION_SYNCTIME_STARTUP_BACKWARD     \
    "time.synchronize.tools.startup.backward"
-#define TOOLSOPTION_SYNCTIME_STARTUP            "time.synchronize.tools.startup"
-#define TOOLSOPTION_SYNCTIME_SLEWCORRECTION     "time.synchronize.tools.slewCorrection"
-#define TOOLSOPTION_SYNCTIME_PERCENTCORRECTION  "time.synchronize.tools.percentCorrection"
+#define TOOLSOPTION_SYNCTIME_STARTUP              \
+   "time.synchronize.tools.startup"
+#define TOOLSOPTION_SYNCTIME_SLEWCORRECTION       \
+   "time.synchronize.tools.slewCorrection"
+#define TOOLSOPTION_SYNCTIME_PERCENTCORRECTION    \
+   "time.synchronize.tools.percentCorrection"
+#define TOOLSOPTION_SYNCTIME_GUEST_RESYNC         \
+   "time.synchronize.guest.resync"
+#define TOOLSOPTION_SYNCTIME_GUEST_RESYNC_TIMEOUT \
+   "time.synchronize.guest.resync.timeout"
 
 #define TIMESYNC_SYNCHRONIZE                    "Time_Synchronize"
 

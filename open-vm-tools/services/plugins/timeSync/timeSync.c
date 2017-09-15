@@ -56,8 +56,19 @@
  *
  * When stepping it is relatively easy to co-exist with another time sync
  * agent.  We will only run into issues when we try to step the time at
- * exactly the same time as the other agent.  Since we are relatively
- * conservative about when to step, this is very unlikely.
+ * exactly the same time as the other agent.  Though we are relatively
+ * conservative about when to step and race with another time sync agent to
+ * step time is unlikely, race is still possible.
+ *
+ * We have provided vmx options to eliminate or reduce the race conditions with
+ * another time sync agent. Basic idea here to eliminate the race is to utilize
+ * native time service agent (like w32time or NTP) to do the step correction
+ * for us. We request a resync service from the native time service to
+ * recalibrate and resynchronize its parameters and force it to do a step
+ * correction. We have two vmx options (time.synchronize.guest.resync and
+ * time.synchronize.guest.resync.timeout) that can be used to utilize native
+ * time service resync instead of tools timeSync doing onetime step correction.
+ * Please see the configuration knobs section below for more details.
  *
  * When slewing the time we will conflict much more directly with any
  * other time sync agent that is trying to slew the time since only one
@@ -83,6 +94,20 @@
  *
  * 5. Avoid changing the slew in any other circumstance.  This allows a
  *    another agent to slew the time when we are not actively slewing.
+ *
+ * Configuration knobs:
+ *
+ * 1. time.synchronize.guest.resync
+ *    If enabled, on supported guests, use guest timesync agent (such as
+ *    w32time) to perform step correction by forcing resynchronization of
+ *    its parameters.
+ *
+ * 2. time.synchronize.guest.resync.timeout
+ *    If non-zero, on supported guests, perform VMtools steps correction
+ *    following guest timesync resynchronization, after the specified number
+ *    of seconds. This additional correction mitigates potential failures
+ *    in guest time sync agent.
+ *
  */
 
 #include "timeSync.h"
@@ -766,6 +791,8 @@ TimeSyncSetOption(gpointer src,
                   ToolsPluginData *plugin)
 {
    static gboolean syncBeforeLoop;
+   static gboolean guestResync;
+   static uint32 guestResyncTimeout = 0;
    TimeSyncData *data = plugin->_private;
 
    if (strcmp(option, TOOLSOPTION_SYNCTIME) == 0) {
@@ -870,6 +897,20 @@ TimeSyncSetOption(gpointer src,
       if (!ParseBoolOption(value, &syncBeforeLoop)) {
          return FALSE;
       }
+
+   } else if (strcmp(option, TOOLSOPTION_SYNCTIME_GUEST_RESYNC) == 0) {
+      g_warning("Guest resync not implemented.\n");
+      if (!ParseBoolOption(value, &guestResync)) {
+         return FALSE;
+      }
+      g_debug("guestResync = %d\n", guestResync);
+
+   } else if (strcmp(option, TOOLSOPTION_SYNCTIME_GUEST_RESYNC_TIMEOUT) == 0) {
+      g_warning("Guest resync timeout not implemented.\n");
+      if (!StrUtil_StrToUint(&guestResyncTimeout, value)) {
+         return FALSE;
+      }
+      g_debug("guestResyncTimeout = %d\n", guestResyncTimeout);
 
    } else {
       return FALSE;
