@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -30,6 +30,9 @@
 #include <stdio.h>
 #include <sys/stat.h>
 #if defined(__linux__) || defined(sun)
+# if defined(__linux__)
+#  include <sys/sysmacros.h>
+# endif
 # include <sys/vfs.h>
 #elif defined(__FreeBSD__) || defined(__APPLE__)
 # include <sys/param.h>
@@ -44,7 +47,6 @@
 
 #include "vmware.h"
 #include "wiper.h"
-#include "util.h"
 #include "str.h"
 #include "strutil.h"
 #include "fileIO.h"
