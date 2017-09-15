@@ -333,9 +333,10 @@ hgfs_readlink(const char *path, //IN: path to a file
       goto exit;
    }
 
-   if (size >= strlen(attr->fileName)) {
-      Str_Strcpy(buf, attr->fileName + gState->basePathLen,
-                 strlen(attr->fileName) + 1 - gState->basePathLen);
+   if (size > strlen(attr->fileName)) {
+      Str_Strcpy(buf, attr->fileName,
+                 strlen(attr->fileName) + 1);
+      LOG(4, ("ReadLink: link target name = %s\n", buf));
    } else {
       res = -ENOBUFS;
    }
@@ -559,29 +560,24 @@ exit:
  */
 
 static int
-hgfs_symlink(const char *from,      //IN: from path
-             const char *to)        //IN: to path
+hgfs_symlink(const char *symname,   //IN: symname target
+             const char *source)    //IN: source name
 {
-   char *absfrom = NULL;
-   char *absto = NULL;
+   char *absSource = NULL;
    int res;
 
-   LOG(4, ("Entry(from = %s, to = %s)\n", from, to));
-   res = getAbsPath(from, &absfrom);
-   if (res < 0) {
-      goto exit;
-   }
-   res = getAbsPath(to, &absto);
+   LOG(4, ("Entry(from = %s, to = %s)\n", symname, source));
+   res = getAbsPath(source, &absSource);
    if (res < 0) {
       goto exit;
    }
 
-   res = HgfsSymlink(absto, absfrom);
+   LOG(4, ("symname = %s, abs source = %s)\n", symname, absSource));
+   res = HgfsSymlink(absSource, symname);
 
 exit:
    LOG(4, ("Exit(%d)\n", res));
-   freeAbsPath(absfrom);
-   freeAbsPath(absto);
+   freeAbsPath(absSource);
    return res;
 }
 
