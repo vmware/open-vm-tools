@@ -2055,7 +2055,6 @@ PollUnitTest_StateMachine(void *clientData) // IN: Unused
                           PollUnitTest_DummyCallback,
                           NULL, POLL_REALTIME);
       exitThread = TRUE;
-      VThread_WaitThread(cbRaceThread);
       VThread_DestroyThread(cbRaceThread);
       PollUnitTest_TestResult(rtCbRace == 0 && mlCbRace == 0 && drCbRace == 0 &&
                               dwCbRace == 0);
@@ -2115,7 +2114,6 @@ PollUnitTest_StateMachine(void *clientData) // IN: Unused
 
    case 51:
       exitThread = TRUE;
-      VThread_WaitThread(cbRaceThread);
       VThread_DestroyThread(cbRaceThread);
       GRAB_LOCK(cbLock);
       ret = Poll_CallbackRemove(POLL_CS_MAIN,
