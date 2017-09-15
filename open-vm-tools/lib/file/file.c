@@ -1473,23 +1473,23 @@ File_SupportsLargeFiles(const char *pathName)  // IN:
  */
 
 int64
-File_GetSizeEx(const char *pathName) // IN:
+File_GetSizeEx(const char *pathName)  // IN:
 {
-   int numFiles;
    int i;
-   char **fileList = NULL;
+   int numFiles;
    struct stat sb;
    int64 totalSize = 0;
+   char **fileList = NULL;
 
    if (pathName == NULL) {
       return -1;
    }
 
-   if (-1 == Posix_Lstat(pathName, &sb)) {
+   if (Posix_Lstat(pathName, &sb) == -1) {
       return -1;
    }
 
-   if (S_IFDIR != (sb.st_mode & S_IFMT)) {
+   if ((sb.st_mode & S_IFMT) != S_IFDIR) {
       return sb.st_size;
    }
 
@@ -1500,16 +1500,12 @@ File_GetSizeEx(const char *pathName) // IN:
    }
 
    for (i = 0; i < numFiles; i++) {
-      char *fileName;
-      int64 fileSize;
-
-      fileName = File_PathJoin(pathName, fileList[i]);
-
-      fileSize = File_GetSizeEx(fileName);
+      char *fileName = File_PathJoin(pathName, fileList[i]);
+      int64 fileSize = File_GetSizeEx(fileName);
 
       free(fileName);
 
-      if (-1 == fileSize) {
+      if (fileSize == -1) {
          totalSize = -1;
          break;
       } else {
