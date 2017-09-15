@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -46,7 +46,7 @@
 
 /*
  * NT time of the Unix epoch:
- * midnight January 1, 1970 UTC
+ * Midnight January 1, 1970 UTC
  */
 #define UNIX_EPOCH ((((uint64)369 * 365) + 89) * 24 * 3600 * 10000000)
 
@@ -95,7 +95,7 @@ static int TimeUtilFindIndexAndName(int utcStdOffMins,
  */
 
 time_t
-TimeUtil_MakeTime(const TimeUtil_Date *d) // IN
+TimeUtil_MakeTime(const TimeUtil_Date *d)  // IN:
 {
    struct tm t;
 
@@ -137,8 +137,8 @@ TimeUtil_MakeTime(const TimeUtil_Date *d) // IN
  */
 
 Bool
-TimeUtil_StringToDate(TimeUtil_Date *d,  // IN/OUT
-                      char const *date)  // IN
+TimeUtil_StringToDate(TimeUtil_Date *d,  // IN/OUT:
+                      char const *date)  // IN:
 {
    /*
     * Reduce the string to a known and handled format: YYYYMMDD.
@@ -157,7 +157,7 @@ TimeUtil_StringToDate(TimeUtil_Date *d,  // IN/OUT
          return FALSE;
       }
 
-      Str_Strcpy(temp, date, sizeof(temp));
+      Str_Strcpy(temp, date, sizeof temp);
       temp[4] = date[5];
       temp[5] = date[6];
       temp[6] = date[8];
@@ -193,8 +193,8 @@ TimeUtil_StringToDate(TimeUtil_Date *d,  // IN/OUT
  */
 
 int
-TimeUtil_DeltaDays(TimeUtil_Date const *left,  // IN
-                   TimeUtil_Date const *right) // IN
+TimeUtil_DeltaDays(TimeUtil_Date const *left,   // IN:
+                   TimeUtil_Date const *right)  // IN:
 {
    TimeUtil_Date temp1;
    TimeUtil_Date temp2;
@@ -276,8 +276,8 @@ TimeUtil_DeltaDays(TimeUtil_Date const *left,  // IN
  */
 
 Bool
-TimeUtil_DaysSubtract(TimeUtil_Date *d,   // IN/OUT
-                      unsigned int nr)    // IN
+TimeUtil_DaysSubtract(TimeUtil_Date *d,  // IN/OUT:
+                      unsigned int nr)   // IN:
 {
    TimeUtil_Date temp;
    int subYear = 0;
@@ -397,8 +397,8 @@ TimeUtil_DaysSubtract(TimeUtil_Date *d,   // IN/OUT
  */
 
 void
-TimeUtil_DaysAdd(TimeUtil_Date *d, // IN/OUT
-                 unsigned int nr)  // IN
+TimeUtil_DaysAdd(TimeUtil_Date *d,  // IN/OUT:
+                 unsigned int nr)   // IN:
 {
    const unsigned int *monthDays;
    unsigned int i;
@@ -453,8 +453,8 @@ TimeUtil_DaysAdd(TimeUtil_Date *d, // IN/OUT
  */
 
 void
-TimeUtil_PopulateWithCurrent(Bool local,       // IN
-                             TimeUtil_Date *d) // OUT
+TimeUtil_PopulateWithCurrent(Bool local,        // IN:
+                             TimeUtil_Date *d)  // OUT:
 {
 #ifdef _WIN32
    SYSTEMTIME currentTime;
@@ -515,7 +515,7 @@ TimeUtil_PopulateWithCurrent(Bool local,       // IN
  */
 
 void
-TimeUtil_GetTimeOfDay(TimeUtil_TimeOfDay *timeofday)
+TimeUtil_GetTimeOfDay(TimeUtil_TimeOfDay *timeofday)  // OUT:
 {
 
 #ifdef _WIN32
@@ -543,9 +543,8 @@ TimeUtil_GetTimeOfDay(TimeUtil_TimeOfDay *timeofday)
    // convert into microseconds (since the return is in 100 nseconds).
    tmptime /= 10;  
    // Get the seconds and microseconds in the timeofday
-   timeofday->seconds = (unsigned long)(tmptime / 1000000UL);
-   timeofday->useconds = (unsigned long)(tmptime % 1000000UL);
-   
+   timeofday->seconds = (unsigned long) (tmptime / 1000000UL);
+   timeofday->useconds = (unsigned long) (tmptime % 1000000UL);
 
 #undef DELTA_EPOCH_IN_MICROSECS   
 #else
@@ -580,7 +579,7 @@ TimeUtil_GetTimeOfDay(TimeUtil_TimeOfDay *timeofday)
  */
 
 unsigned int
-TimeUtil_DaysLeft(TimeUtil_Date const *d) // IN
+TimeUtil_DaysLeft(TimeUtil_Date const *d)  // IN:
 {
    TimeUtil_Date c;
    unsigned int i;
@@ -627,8 +626,8 @@ TimeUtil_DaysLeft(TimeUtil_Date const *d) // IN
  */
 
 Bool
-TimeUtil_ExpirationLowerThan(TimeUtil_Expiration const *left,  // IN
-                             TimeUtil_Expiration const *right) // IN
+TimeUtil_ExpirationLowerThan(TimeUtil_Expiration const *left,   // IN:
+                             TimeUtil_Expiration const *right)  // IN:
 {
    if (left->expires == FALSE) {
       return FALSE;
@@ -680,8 +679,8 @@ TimeUtil_ExpirationLowerThan(TimeUtil_Expiration const *left,  // IN
  */
 
 Bool
-TimeUtil_DateLowerThan(TimeUtil_Date const *left,  // IN
-                       TimeUtil_Date const *right) // IN
+TimeUtil_DateLowerThan(TimeUtil_Date const *left,   // IN:
+                       TimeUtil_Date const *right)  // IN:
 {
    ASSERT(left);
    ASSERT(right);
@@ -751,7 +750,7 @@ TimeUtil_DateLowerThan(TimeUtil_Date const *left,  // IN
  */
 
 void
-TimeUtil_ProductExpiration(TimeUtil_Expiration *e) // OUT
+TimeUtil_ProductExpiration(TimeUtil_Expiration *e)  // OUT:
 {
 
    /*
@@ -779,7 +778,7 @@ TimeUtil_ProductExpiration(TimeUtil_Expiration *e) // OUT
    e->daysLeft = TimeUtil_DaysLeft(&e->when);
 #else
    static char *hard_expire = "No Expire";
-   (void)hard_expire;
+   (void) hard_expire;
 
    ASSERT(e);
 
@@ -809,9 +808,9 @@ TimeUtil_ProductExpiration(TimeUtil_Expiration *e) // OUT
  */
 
 char *
-TimeUtil_GetTimeFormat(int64 utcTime,  // IN
-                       Bool showDate,  // IN
-                       Bool showTime)  // IN
+TimeUtil_GetTimeFormat(int64 utcTime,  // IN:
+                       Bool showDate,  // IN:
+                       Bool showTime)  // IN:
 {
 #ifdef _WIN32
    SYSTEMTIME systemTime = { 0 };
@@ -881,8 +880,8 @@ TimeUtil_GetTimeFormat(int64 utcTime,  // IN
  */
 
 int
-TimeUtil_NtTimeToUnixTime(struct timespec *unixTime,   // OUT: Time in Unix format
-                          VmTimeType ntTime)           // IN: Time in Windows NT format
+TimeUtil_NtTimeToUnixTime(struct timespec *unixTime,  // OUT: Time in Unix format
+                          VmTimeType ntTime)          // IN: Time in Windows NT format
 {
 #ifndef VM_X86_64
    ASSERT(unixTime);
@@ -941,7 +940,7 @@ TimeUtil_NtTimeToUnixTime(struct timespec *unixTime,   // OUT: Time in Unix form
  */
 
 VmTimeType
-TimeUtil_UnixTimeToNtTime(struct timespec unixTime) // IN: Time in Unix format
+TimeUtil_UnixTimeToNtTime(struct timespec unixTime)  // IN: Time in Unix format
 {
    return (VmTimeType)unixTime.tv_sec * 10000000 +
                                           unixTime.tv_nsec / 100 + UNIX_EPOCH;
@@ -965,8 +964,8 @@ TimeUtil_UnixTimeToNtTime(struct timespec unixTime) // IN: Time in Unix format
  */
 
 Bool
-TimeUtil_UTCTimeToSystemTime(const __time64_t utcTime,   // IN
-                             SYSTEMTIME *systemTime)     // OUT
+TimeUtil_UTCTimeToSystemTime(const __time64_t utcTime,  // IN:
+                             SYSTEMTIME *systemTime)    // OUT:
 {
    int atmYear;
    int atmMonth;
@@ -1027,9 +1026,9 @@ TimeUtil_UTCTimeToSystemTime(const __time64_t utcTime,   // IN
  * TimeUtil_GetLocalWindowsTimeZoneIndexAndName --
  *
  *    Determines the name and index for the computer's current time zone.  The
- *    name is always the name of the time zone in standard time, even if Daylight
- *    Saving is currently in effect.  This name is not localized, and is
- *    intended to be used when Easy Installing a Vista or later guest.
+ *    name is always the name of the time zone in standard time, even if
+ *    Daylight Saving is currently in effect. This name is not localized, and
+ *    isintended to be used when Easy Installing a Vista or later guest.
  *
  * Results:
  *    The index of the computer's current time zone.  The name of the time zone
@@ -1043,8 +1042,9 @@ TimeUtil_UTCTimeToSystemTime(const __time64_t utcTime,   // IN
  *
  *----------------------------------------------------------------------
  */
+
 int
-TimeUtil_GetLocalWindowsTimeZoneIndexAndName(char **ptzName)   // OUT: returning TZ Name
+TimeUtil_GetLocalWindowsTimeZoneIndexAndName(char **ptzName)  // OUT: returning TZ Name
 {
    int utcStdOffMins = 0;
    int winTimeZoneIndex = (-1);
@@ -1069,7 +1069,8 @@ TimeUtil_GetLocalWindowsTimeZoneIndexAndName(char **ptzName)   // OUT: returning
          (PFNGetTZInfo) GetProcAddress(GetModuleHandleW(L"kernel32"),
                                        "GetDynamicTimeZoneInformation");
 
-      if (pfnGetTZInfo == NULL || pfnGetTZInfo(&tzInfo) == TIME_ZONE_ID_INVALID) {
+      if (pfnGetTZInfo == NULL ||
+          pfnGetTZInfo(&tzInfo) == TIME_ZONE_ID_INVALID) {
          return (-1);
       }
 
@@ -1163,7 +1164,7 @@ TimeUtil_GetLocalWindowsTimeZoneIndexAndName(char **ptzName)   // OUT: returning
  */
 
 static void
-TimeUtilInit(TimeUtil_Date *d)
+TimeUtilInit(TimeUtil_Date *d)  // OUT:
 {
    ASSERT(d);
 
@@ -1195,9 +1196,9 @@ TimeUtilInit(TimeUtil_Date *d)
  */
 
 static Bool
-TimeUtilIsValidDate(unsigned int year,   // IN
-                    unsigned int month,  // IN
-                    unsigned int day)    // IN
+TimeUtilIsValidDate(unsigned int year,   // IN:
+                    unsigned int month,  // IN:
+                    unsigned int day)    // IN:
 {
    const unsigned int *monthDays;
 
@@ -1236,7 +1237,7 @@ TimeUtilIsValidDate(unsigned int year,   // IN
  */
 
 static unsigned int const *
-TimeUtilMonthDaysForYear(unsigned int year) // IN
+TimeUtilMonthDaysForYear(unsigned int year)  // IN:
 {
    static const unsigned int leap[13] =
                    { 0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
@@ -1268,8 +1269,8 @@ TimeUtilMonthDaysForYear(unsigned int year) // IN
  */
 
 static Bool
-TimeUtilLoadDate(TimeUtil_Date *d,  // IN/OUT
-                 const char *date)  // IN
+TimeUtilLoadDate(TimeUtil_Date *d,  // IN/OUT:
+                 const char *date)  // IN:
 {
    char temp[16] = { 0 };
    int i = 0;
@@ -1348,15 +1349,16 @@ TimeUtilLoadDate(TimeUtil_Date *d,  // IN/OUT
  *
  *----------------------------------------------------------------------
  */
+
 static int
 TimeUtilFindIndexAndName(int utcStdOffMins,          // IN: offset (in minutes)
                          const char *englishTzName,  // IN/OPT: The English TZ name
                          const char **ptzName)       // OUT: returning TZ Name
 {
    static struct _tzinfo {
-      int winTzIndex;
+      int         winTzIndex;
       const char *winTzName;
-      int utcStdOffMins;
+      int         utcStdOffMins;
    } TABLE[] = {
 
       /*
@@ -1450,16 +1452,17 @@ TimeUtilFindIndexAndName(int utcStdOffMins,          // IN: offset (in minutes)
    *ptzName = NULL;
 
    /*
-    * Search for the first time zone that has the passed-in offset.  Then, if the
-    * caller also passed a name, search the time zones with that offset for a
-    * time zone with that name.
+    * Search for the first time zone that has the passed-in offset.  Then, if
+    * the caller also passed a name, search the time zones with that offset for
+    * a time zone with that name.
     *
     * If the caller does not pass a name, this loop returns the first time zone
-    * that it finds with the given offset.  Because the UTC offset does not uniquely
-    * identify a time zone, this function can return a time zone that is not what
-    * the caller intended.  For an example, see bug 1159642.  Callers should pass
-    * a time zone name whenever possible.
+    * that it finds with the given offset.  Because the UTC offset does not
+    * uniquely identify a time zone, this function can return a time zone that
+    * is not what the caller intended.  For an example, see bug 1159642.
+    * Callers should pass a time zone name whenever possible.
     */
+
    for (look = 0; look < tableSize; look++) {
       if (TABLE[look].utcStdOffMins == utcStdOffMins) {
          /* We found a time zone with the right offset. */
@@ -1491,7 +1494,8 @@ TimeUtilFindIndexAndName(int utcStdOffMins,          // IN: offset (in minutes)
  *
  * TimeUtil_SecondsSinceEpoch --
  *
- *    Converts a date into the the number of seconds since the unix epoch in UTC.
+ *    Converts a date into the the number of seconds since the unix epoch in
+ *    UTC.
  *
  * Parameters:
  *    date to be converted.
@@ -1504,8 +1508,9 @@ TimeUtilFindIndexAndName(int utcStdOffMins,          // IN: offset (in minutes)
  *
  *----------------------------------------------------------------------
  */
+
 time_t
-TimeUtil_SecondsSinceEpoch(TimeUtil_Date *d) // IN
+TimeUtil_SecondsSinceEpoch(TimeUtil_Date *d)  // IN:
 {
    struct tm tmval = {0};
 
@@ -1531,7 +1536,9 @@ TimeUtil_SecondsSinceEpoch(TimeUtil_Date *d) // IN
    */
    {
       int utcSeconds = 0;
+
       _get_timezone(&utcSeconds);
+
       return mktime(&tmval) - utcSeconds;
    }
 #elif (defined(__linux__) || defined(__APPLE__)) && !defined(__ANDROID__)
