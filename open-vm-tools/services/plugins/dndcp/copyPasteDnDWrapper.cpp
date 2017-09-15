@@ -40,9 +40,9 @@
 
 #include "copyPasteDnDWrapper.h"
 #include "guestDnDCPMgr.hh"
+#include "vmware.h"
 
 extern "C" {
-#include "vmware.h"
 #include "rpcout.h"
 #include "vmware/guestrpc/tclodefs.h"
 #include "vmware/tools/plugin.h"

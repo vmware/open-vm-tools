@@ -27,8 +27,9 @@
 #ifndef __COPYPASTEDNDIMPL_H__
 #define __COPYPASTEDNDIMPL_H__
 
-extern "C" {
 #include "vmware.h"
+
+extern "C" {
 #include "vmware/tools/plugin.h"
 }
 

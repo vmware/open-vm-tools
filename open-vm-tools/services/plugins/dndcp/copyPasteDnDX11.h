@@ -26,14 +26,10 @@
 #ifndef __COPYPASTEDNDX11_H__
 #define __COPYPASTEDNDX11_H__
 
-extern "C" {
 #include "dnd.h"     /* for DnDBlockControl */
-}
-
 #include "copyPasteUIX11.h"
 #include "dndUIX11.h"
 #include <gtk/gtk.h>
-
 #include "vm_basic_types.h"
 #include "copyPasteDnDImpl.h"
 

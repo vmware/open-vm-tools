@@ -31,14 +31,15 @@
 #include "deployPkg/linuxDeployment.h"
 #endif
 
+#include "vm_assert.h"
+#include "file.h"
+#include "str.h"
+#include "util.h"
+#include "unicodeBase.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-   #include "vm_assert.h"
-   #include "file.h"
-   #include "str.h"
-   #include "util.h"
-   #include "unicodeBase.h"
    #include "vmware/tools/plugin.h"
 #ifdef __cplusplus
 }
