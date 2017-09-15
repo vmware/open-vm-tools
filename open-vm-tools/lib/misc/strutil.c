@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -664,7 +664,7 @@ StrUtil_CapacityToSectorType(SectorType *out,    // OUT: The output value
    if (StrUtil_CapacityToBytes(&quantityInBytes, str, bytes) == FALSE) {
       return FALSE;
    }
- 
+
    /*
     * Convert from "number of bytes" to "number of sectors", rounding up or
     * down appropriately.
@@ -1328,11 +1328,297 @@ StrUtil_ReplaceAll(const char *orig, // IN
     return result;
 }
 
-#if 0
 
-#define FAIL(s) \
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtil_GetNextItem --
+ *
+ *      Extract the next item from a list of items delimited by delim. It
+ *      behaves like strsep except it doesn't accept a string of delimiters.
+ *
+ * Results:
+ *      Returns a pointer to the first item and makes list point to the rest of
+ *      the list or NULL if list was NULL or there was only one item.
+ *
+ * Side effects:
+ *      The first delimiter is changed to '\0'.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+char*
+StrUtil_GetNextItem(char **list, // IN/OUT:
+                    char delim)  // IN:
+{
+   char *token = *list;
+   char *foundDelim;
+
+   if (*list == NULL) {
+      return NULL;
+   }
+
+   foundDelim = strchr(*list, delim);
+   if (foundDelim != NULL) {
+      foundDelim[0] = '\0';
+      *list = foundDelim + 1;
+   } else {
+      *list = NULL;
+   }
+
+   return token;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtil_HasListItem --
+ *
+ *      Checks whether an item is a part of a list of tokens
+ *      separated by a delimiter.
+ *
+ *      Note: Any changes to this function should be accompanied with
+ *      changes to StrUtil_HasListItemCase.
+ *
+ * Results:
+ *      Whether the item exists in the list.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+StrUtil_HasListItem(char const *list,   // IN:
+                    char delim,         // IN:
+                    char const *item)   // IN:
+{
+   char *foundDelim;
+
+   if (list == NULL) {
+      return FALSE;
+   }
+
+   do {
+      foundDelim = strchr(list, delim);
+
+      if (foundDelim == NULL) { // either single or last element
+         if (Str_Strcmp(list, item) == 0) {
+            return TRUE;
+         }
+
+         break;
+      } else { // ! last element
+         if (strlen(item) == (foundDelim - list) &&
+             Str_Strncmp(list, item, foundDelim - list) == 0) {
+            // check if whole token is the same as item
+            return TRUE;
+         }
+
+         list = foundDelim + 1;
+      }
+   } while (foundDelim != NULL);
+
+   return FALSE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtil_HasListItemCase --
+ *
+ *      Checks whether an item is a part of a list of tokens
+ *      separated by a delimiter. Case insensitive.
+ *
+ *      Note: Any changes to this function should be accompanied with
+ *      changes to StrUtil_HasListItem.
+ *
+ * Results:
+ *      Whether the item exists in the list.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+StrUtil_HasListItemCase(char const *list,   // IN:
+                        char delim,         // IN:
+                        char const *item)   // IN:
+{
+   char *foundDelim;
+
+   if (list == NULL) {
+      return FALSE;
+   }
+
+   do {
+      foundDelim = strchr(list, delim);
+
+      if (foundDelim == NULL) { // either single or last element
+         if (Str_Strcasecmp(list, item) == 0) {
+            return TRUE;
+         }
+
+         break;
+      } else { // ! last element
+         if (strlen(item) == (foundDelim - list) &&
+             Str_Strncasecmp(list, item, foundDelim - list) == 0) {
+            // check if whole token is the same as item
+            return TRUE;
+         }
+
+         list = foundDelim + 1;
+      }
+   } while (foundDelim != NULL);
+
+   return FALSE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtil_AppendListItem --
+ *
+ *      Insert an item into a list of tokens separated by a delimiter.
+ *
+ * Results:
+ *      A pointer to a new list with the item appended at the end.
+ *
+ * Side effects:
+ *      Allocates a new list.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+char*
+StrUtil_AppendListItem(char const *list,  // IN:
+                       char delim,        // IN:
+                       char const *item)  // IN:
+{
+   if (list != NULL) {
+      return Str_Asprintf(NULL, "%s%c%s", list, delim, item);
+   } else {
+      return Str_Asprintf(NULL, "%s", item);
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtil_RemoveListItem --
+ *
+ *      Removes first occurence of an item from a list of tokens separated by
+ *      a delimiter.
+ *
+ *      Note: Any changes to this function should be accompanied with
+ *      changes to StrUtil_RemoveListItemCase.
+ *
+ * Results:
+ *      The list is modified in-place and the item is removed.
+ *
+ * Side effects:
+ *      See above.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+StrUtil_RemoveListItem(char * const list,  // IN/OUT:
+                       char delim,         // IN:
+                       char const *item)   // IN:
+{
+   char *tok;
+   char *work = list;
+   int maxSize = strlen(list) + 1;
+
+   while ((tok = StrUtil_GetNextItem(&work, delim)) != NULL) {
+      if (Str_Strcmp(tok, item) == 0) { // found the item
+         if (work != NULL) { // in the middle of the list
+            // overwrite it with the rest of the list
+            Str_Strcpy(tok, work, maxSize);
+         } else if (tok == list) {
+            tok[0] = '\0'; // only item in the list
+         } else {
+            tok[-1] = '\0'; // or the last element in the list
+         }
+
+         return;
+      } else if (work != NULL) {
+         // restore delimiter that was replaced by Str_GetNextItem
+         work[-1] = delim;
+      }
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtil_RemoveListItemCase --
+ *
+ *      Remove first occurence of an item from a list of tokens separated by a
+ *      delimiter. Case insensitive.
+ *
+ *      Note: Any changes to this function should be accompanied with
+ *      changes to StrUtil_RemoveListItem.
+ *
+ * Results:
+ *      The list is modified in-place and the item is removed.
+ *
+ * Side effects:
+ *      See above.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+StrUtil_RemoveListItemCase(char * const list,  // IN/OUT:
+                           char delim,         // IN:
+                           char const *item)   // IN:
+{
+   char *tok;
+   char *work = list;
+   int maxSize = strlen(list) + 1;
+
+   while ((tok = StrUtil_GetNextItem(&work, delim)) != NULL) {
+      if (Str_Strcasecmp(tok, item) == 0) { // found the item
+         if (work != NULL) { // in the middle of the list
+            // overwrite it with the rest of the list
+            Str_Strcpy(tok, work, maxSize);
+         } else if (tok == list) {
+            tok[0] = '\0'; // only item in the list
+         } else {
+            tok[-1] = '\0'; // or the last element in the list
+         }
+
+         return;
+      } else if (work != NULL) {
+         // restore delimiter that was replaced by Str_GetNextItem
+         work[-1] = delim;
+      }
+   }
+}
+
+
+//#define STRUTIL_UNITTESTS
+//#define STRUTIL_UNITTESTS_STANDALONE
+
+#ifdef STRUTIL_UNITTESTS_STANDALONE
+#define STRUTIL_UNITTESTS
+#endif // } STRUTIL_UNITTESTS_STANDALONE
+
+#ifdef STRUTIL_UNITTESTS
+
+#define FAIL(fmt, ...) \
    do { \
-      printf("FAIL: %s\n", s); \
+      fprintf(stderr, "FAIL: " fmt "\n", ##__VA_ARGS__); \
       exit(1); \
    } while (0)
 
@@ -1340,13 +1626,17 @@ StrUtil_ReplaceAll(const char *orig, // IN
    do { \
       char *s = StrUtil_ReplaceAll(_a, _b, _c); \
       if (strcmp(_x, s) != 0) { \
-         printf("Got: %s\n", s); \
-         FAIL("Failed ReplaceAll('" _a "', '" _b "', '" _c "') = '" _x "'"); \
+         fprintf(stderr, "Got: %s\n", s); \
+         FAIL("Failed ReplaceAll('%s' '%s' '%s') = '%s'", _a, _b, _c, _x); \
       } \
       free(s); \
    } while (0)
 
-static void
+#define EQ_STRING(s1, s2) \
+   (!(strcmp((s1), (s2)) && \
+      fprintf(stderr, "Got '%s', expected '%s'\n", (s1), (s2))))
+
+void
 StrUtil_UnitTests(void)
 {
    REPLACE_TEST("", "a", "b", "");
@@ -1372,6 +1662,108 @@ StrUtil_UnitTests(void)
    REPLACE_TEST("aaa", "a", "", "");
 
    REPLACE_TEST("a", "not_found", "b", "a");
+
+   {
+      char list[] = "a,b,c,d", *tok, *tmp = list;
+      tok = StrUtil_GetNextItem(&tmp, ',');
+      if (!(EQ_STRING(tok, "a") && EQ_STRING(tmp, "b,c,d"))) {
+         FAIL("StrUtil_GetNextItem('a,b,c,d', ',') != ('a', 'b,c,d')");
+      }
+
+      tok = StrUtil_GetNextItem(&tmp, ',');
+      if (!(EQ_STRING(tok, "b") && EQ_STRING(tmp, "c,d"))) {
+         FAIL("StrUtil_GetNextItem('b,c,d', ',') != ('b', 'c,d')");
+      }
+
+      tok = StrUtil_GetNextItem(&tmp, ':');
+      if (!(EQ_STRING(tok, "c,d") && tmp == NULL)) {
+         FAIL("StrUtil_GetNextItem('c,d', ':') != ('c,d', NULL)");
+      }
+   }
+
+   {
+      if (StrUtil_HasListItem("abc,def", ',', "de")) {
+         FAIL("StrUtil_HasListItem('abc,def', ',', 'de') == TRUE");
+      }
+
+      if (!StrUtil_HasListItem("a,b,c", ',', "b")) {
+         FAIL("StrUtil_HasListItem('a,b,c', ',', 'b') != TRUE");
+      }
+
+      if (StrUtil_HasListItem("a,b,c", ',', "a,b")) {
+         FAIL("StrUtil_HasListItem('a,b,c', ',', 'a,b') == TRUE");
+      }
+
+      if (!StrUtil_HasListItemCase("a,B,Cd,e", ',', "cd")) {
+         FAIL("StrUtil_HasListItemCase('a,B,Cd,e', ',', 'cd') != TRUE");
+      }
+   }
+
+   {
+      char *list = "a,b", *newList;
+      newList = StrUtil_AppendListItem(list, ',', "c");
+      if (!EQ_STRING(newList, "a,b,c")) {
+         FAIL("StrUtil_AppendListItem('a,b', ',', 'c') != 'a,b,c'");
+      }
+      list = newList;
+
+      newList = StrUtil_AppendListItem(list, ',', "def");
+      if (!EQ_STRING(newList, "a,b,c,def")) {
+         FAIL("StrUtil_AppendListItem('a,b,c', ',', 'def') != 'a,b,c,def'");
+      }
+      free(list); list = newList;
+   }
+
+   {
+      char list[] = "a,b,c,def,a,A,D";
+      StrUtil_RemoveListItem(list, ',', "A");
+      if (!EQ_STRING(list, "a,b,c,def,a,D")) {
+         FAIL("RemoveListItem('a,b,c,def,a,A,D', ',', 'A') != 'a,b,c,def,a,D'");
+      }
+
+      StrUtil_RemoveListItemCase(list, ',', "A");
+      if (!EQ_STRING(list, "b,c,def,a,D")) {
+         FAIL("RemoveListItemCase('a,b,c,def,a,D', ',', 'A') != 'b,c,def,a,D'");
+      }
+
+      StrUtil_RemoveListItem(list, ',', "def");
+      if (!EQ_STRING(list, "b,c,a,D")) {
+         FAIL("RemoveListItem('b,c,def,a,D', ',', 'def') != 'b,c,a,D'");
+      }
+
+      StrUtil_RemoveListItemCase(list, ',', "B,C,A,d");
+      if (!EQ_STRING(list, "b,c,a,D")) {
+         FAIL("RemoveListItemCase('b,c,a,D', ',', 'B,C,A,d') != 'b,c,a,D'");
+      }
+
+      StrUtil_RemoveListItemCase(list, ':', "B,C,A,d");
+      if (!EQ_STRING(list, "")) {
+         FAIL("RemoveListItemCase('b,c,a,D', ',', 'B,C,A,d') != ''");
+      }
+   }
 }
 
-#endif // 0
+#ifdef STRUTIL_UNITTESTS_STANDALONE
+
+void
+Panic_Panic(const char *fmt, va_list args)
+{
+   char buf[1024];
+
+   Str_Vsnprintf(buf, sizeof buf, fmt, args);
+   fputs(buf, stderr);
+   exit(1);
+}
+
+
+int
+main(int argc, char *argv[])
+{
+   StrUtil_UnitTests();
+
+   return 0;
+}
+
+#endif // } STRUTIL_UNITTESTS_STANDALONE
+
+#endif // } STRUTIL_UNITTESTS

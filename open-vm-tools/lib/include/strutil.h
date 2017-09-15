@@ -75,6 +75,19 @@ char *StrUtil_TrimWhitespace(const char *str);
 
 char *StrUtil_ReplaceAll(const char *orig, const char *what, const char *with);
 
+char *StrUtil_GetNextItem(char **list, char delim);
+
+Bool StrUtil_HasListItem(char const *list, char delim, char const *item);
+
+Bool StrUtil_HasListItemCase(char const *list, char delim, char const *item);
+
+char *StrUtil_AppendListItem(char const *list, char delim, char const *item);
+
+void StrUtil_RemoveListItem(char * const list, char delim, char const *item);
+
+void StrUtil_RemoveListItemCase(char * const list, char delim,
+                                char const *item);
+
 #if defined(__cplusplus)
 }  // extern "C"
 #endif
