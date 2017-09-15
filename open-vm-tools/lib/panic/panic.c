@@ -377,20 +377,8 @@ Panic_GetBreakOnPanic(void)
    case PanicBreakLevel_Never:
       break;
    case PanicBreakLevel_IfDebuggerAttached:
-#ifdef _WIN32 
-      {
-         typedef BOOL (*pfnIsDebuggerPresent)(void);
-
-         HMODULE kernelLibrary = Win32U_LoadLibrary("kernel32.dll");
-         if (kernelLibrary != NULL) {
-            pfnIsDebuggerPresent IsDebuggerPresentFn = 
-               (pfnIsDebuggerPresent) GetProcAddress(kernelLibrary, "IsDebuggerPresent");
-            if (IsDebuggerPresentFn != NULL) {
-               shouldBreak = IsDebuggerPresentFn();
-            }
-            FreeLibrary(kernelLibrary);
-         }
-      }
+#ifdef _WIN32
+      shouldBreak = IsDebuggerPresent();
 #else
       /*
        * This case is handled by Panic_BreakOnPanic for Posix as there is no
