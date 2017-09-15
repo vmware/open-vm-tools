@@ -27,32 +27,12 @@
 #define _PRODUCT_STATE_H_
 
 #include "vm_basic_types.h"
+#include "product.h"
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-
-/*
- * Public types.
- */
-
-typedef enum {
-   PRODUCT_GENERIC      = 0,
-   PRODUCT_WORKSTATION  = 1 << 0,
-   PRODUCT_ESX          = 1 << 1,
-   PRODUCT_PLAYER       = 1 << 2,
-   PRODUCT_TOOLS        = 1 << 3,
-   PRODUCT_VDM_CLIENT   = 1 << 4,
-   PRODUCT_CVP          = 1 << 5,
-   PRODUCT_FUSION       = 1 << 6,
-   PRODUCT_VIEW         = 1 << 7,
-   PRODUCT_VMRC         = 1 << 8,
-   PRODUCT_GANTRY       = 1 << 9,
-   PRODUCT_VMACORETESTS = 1 << 10,
-   PRODUCT_SRM          = 1 << 11,
-   /* etc */
-} Product;
 typedef uint64 ProductMask;
 #define PRODUCTMASK_HOSTED (PRODUCT_WORKSTATION |\
                             PRODUCT_PLAYER      |\
