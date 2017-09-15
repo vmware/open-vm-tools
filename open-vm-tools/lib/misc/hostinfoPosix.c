@@ -2433,28 +2433,19 @@ Hostinfo_GetCpuDescription(uint32 cpuNumber)  // IN:
    return HostinfoGetSysctlStringAlloc("machdep.cpu.brand_string");
 #elif defined(__FreeBSD__)
    return HostinfoGetSysctlStringAlloc("hw.model");
-#else
-#ifdef VMX86_SERVER
-#ifdef VM_ARM_64
-   return strdup("armv8 unknown");
-#else
-   if (HostType_OSIsVMK()) {
-      char mName[48];
+#elif defined VMX86_SERVER
+   /* VMKernel treats mName as an in/out parameter so terminate it. */
+   char mName[64] = { 0 };
 
-      /* VMKernel treats mName as an in/out parameter so terminate it. */
-      mName[0] = '\0';
-      if (VMKernel_GetCPUModelName(cpuNumber, mName,
-                                   sizeof(mName)) == VMK_OK) {
-         mName[sizeof(mName) - 1] = '\0';
+   if (VMKernel_GetCPUModelName(cpuNumber, mName,
+                                sizeof(mName)) == VMK_OK) {
+      mName[sizeof(mName) - 1] = '\0';
 
-         return strdup(mName);
-      }
-
-      return NULL;
+      return strdup(mName);
    }
-#endif // VM_ARM_64
-#endif // VMX86_SERVER
 
+   return NULL;
+#else
    return HostinfoGetCpuInfo(cpuNumber, "model name");
 #endif
 }
