@@ -91,7 +91,11 @@ extern "C" {
 #endif
 
 
-/* Basic atomic types: 16, 32 and 64 bits */
+/* Basic atomic types: 8, 16, 32, 64 and 128 bits */
+typedef struct Atomic_uint8 {
+   volatile uint8 value;
+} Atomic_uint8 ALIGNED(1);
+
 typedef struct Atomic_uint16 {
    volatile uint16 value;
 } Atomic_uint16 ALIGNED(2);
@@ -252,66 +256,17 @@ Atomic_VolatileToAtomic64(volatile uint64 *var)  // IN:
  */
 
 #if defined _MSC_VER && _MSC_VER < 1600 && defined __x86_64__
-Bool VMWInterlockedExchangeBool(Bool volatile *ptr,
-                                Bool val);
+uint8 VMWInterlockedExchange8(uint8 volatile *ptr,
+                              uint8 val);
 
-Bool VMWInterlockedCompareExchangeBool(Bool volatile *ptr,
-                                       Bool newVal,
-                                       Bool oldVal);
+uint8 VMWInterlockedCompareExchange8(uint8 volatile *ptr,
+                                     uint8 newVal,
+                                     uint8 oldVal);
 #endif
 
-/* The ARM32 team is expected to provide an implementation real soon now. */
-#if defined VM_ARM_32
-extern Bool AtomicUndefined(void);
-#endif
-
-typedef struct Atomic_Bool {
-   volatile Bool value;
-} Atomic_Bool;
-
-/* This should be enforced on all architectures not just ARM... */
-#if defined VM_ARM_ANY
-MY_ASSERTS(AtomicBoolSize,
-   ASSERT_ON_COMPILE(sizeof (Atomic_Bool) == sizeof (uint8));
-)
-#endif
-
-#if defined VMKERNEL || defined VMM
-/*
- *-----------------------------------------------------------------------------
- *
- * CMPXCHG1B --
- *
- *      Compare and exchange a single byte.
- *
- * Results:
- *      The value read from ptr.
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-static INLINE uint8
-CMPXCHG1B(volatile uint8 *ptr, // IN/OUT
-          uint8 oldVal,        // IN
-          uint8 newVal)        // IN
-{
-   uint8 val;
-
-#if defined VM_ARM_64
-   val = _VMATOM_X(RIFEQW, 8, TRUE, ptr, oldVal, newVal);
-#else
-   __asm__ __volatile__("lock; cmpxchgb %b2, %1"
-                        : "=a" (val),
-                          "+m" (*ptr)
-                        : "r" (newVal),
-                          "0" (oldVal)
-                        : "cc");
-
-#endif
-   return val;
-}
+#if defined __GNUC__ && defined VM_ARM_32
+/* Force the link step to fail for unimplemented functions. */
+extern int AtomicUndefined(void const *);
 #endif
 
 
@@ -374,10 +329,11 @@ Atomic_ReadIfEqualWrite128(Atomic_uint128 *ptr,   // IN/OUT
 }
 #endif
 
+
 /*
  *-----------------------------------------------------------------------------
  *
- * Atomic_ReadBool --
+ * Atomic_Read8 --
  *
  *      Read the value of the specified object atomically.
  *
@@ -390,13 +346,13 @@ Atomic_ReadIfEqualWrite128(Atomic_uint128 *ptr,   // IN/OUT
  *-----------------------------------------------------------------------------
  */
 
-static INLINE Bool
-Atomic_ReadBool(Atomic_Bool const *var)  // IN:
+static INLINE uint8
+Atomic_Read8(Atomic_uint8 const *var)  // IN:
 {
-   Bool val;
+   uint8 val;
 
 #if defined __GNUC__ && defined VM_ARM_32
-   val = AtomicUndefined();
+   val = AtomicUndefined(var);
 #elif defined VM_ARM_64
    val = _VMATOM_X(R, 8, &var->value);
 #elif defined __GNUC__ && (defined __i386__ || defined __x86_64__)
@@ -408,7 +364,7 @@ Atomic_ReadBool(Atomic_Bool const *var)  // IN:
 #elif defined _MSC_VER
    val = var->value;
 #else
-#error No compiler defined for Atomic_ReadBool
+#error No compiler defined for Atomic_Read8
 #endif
 
    return val;
@@ -418,7 +374,7 @@ Atomic_ReadBool(Atomic_Bool const *var)  // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * Atomic_ReadWriteBool --
+ * Atomic_ReadWrite8 --
  *
  *      Read followed by write.
  *
@@ -431,12 +387,12 @@ Atomic_ReadBool(Atomic_Bool const *var)  // IN:
  *-----------------------------------------------------------------------------
  */
 
-static INLINE Bool
-Atomic_ReadWriteBool(Atomic_Bool *var,  // IN/OUT:
-                     Bool val)          // IN:
+static INLINE uint8
+Atomic_ReadWrite8(Atomic_uint8 *var,  // IN/OUT:
+                  uint8 val)          // IN:
 {
 #if defined __GNUC__ && defined VM_ARM_32
-   return AtomicUndefined();
+   return AtomicUndefined(var + val);
 #elif defined VM_ARM_64
    return _VMATOM_X(RW, 8, TRUE, &var->value, val);
 #elif defined __GNUC__ && (defined __i386__ || defined __x86_64__)
@@ -448,20 +404,20 @@ Atomic_ReadWriteBool(Atomic_Bool *var,  // IN/OUT:
    );
    return val;
 #elif defined _MSC_VER && _MSC_VER >= 1600
-   return _InterlockedExchange8(&var->value, val);
+   return _InterlockedExchange8((volatile char *)&var->value, val);
 #elif defined _MSC_VER && defined __i386__
 #pragma warning(push)
 #pragma warning(disable : 4035)         // disable no-return warning
    {
       __asm movzx eax, val
       __asm mov ebx, var
-      __asm xchg [ebx]Atomic_Bool.value, al
+      __asm xchg [ebx]Atomic_uint8.value, al
    }
 #pragma warning(pop)
 #elif defined _MSC_VER && defined __x86_64__
-   return VMWInterlockedExchangeBool(&var->value, val);
+   return VMWInterlockedExchange8(&var->value, val);
 #else
-#error No compiler defined for Atomic_ReadBool
+#error No compiler defined for Atomic_ReadWrite8
 #endif
 }
 
@@ -469,7 +425,7 @@ Atomic_ReadWriteBool(Atomic_Bool *var,  // IN/OUT:
 /*
  *-----------------------------------------------------------------------------
  *
- * Atomic_WriteBool --
+ * Atomic_Write8 --
  *
  *      Write the specified value to the specified object atomically.
  *
@@ -483,11 +439,11 @@ Atomic_ReadWriteBool(Atomic_Bool *var,  // IN/OUT:
  */
 
 static INLINE void
-Atomic_WriteBool(Atomic_Bool *var,  // IN/OUT:
-                 Bool val)          // IN:
+Atomic_Write8(Atomic_uint8 *var,  // IN/OUT:
+              uint8 val)          // IN:
 {
 #if defined __GNUC__ && defined VM_ARM_32
-   AtomicUndefined();
+   AtomicUndefined(var + val);
 #elif defined VM_ARM_64
    _VMATOM_X(W, 8, &var->value, val);
 #elif defined __GNUC__ && (defined __i386__ || defined __x86_64__)
@@ -499,7 +455,7 @@ Atomic_WriteBool(Atomic_Bool *var,  // IN/OUT:
 #elif defined _MSC_VER
    var->value = val;
 #else
-#error No compiler defined for Atomic_WriteBool
+#error No compiler defined for Atomic_Write8
 #endif
 }
 
@@ -507,7 +463,7 @@ Atomic_WriteBool(Atomic_Bool *var,  // IN/OUT:
 /*
  *-----------------------------------------------------------------------------
  *
- * Atomic_ReadIfEqualWriteBool --
+ * Atomic_ReadIfEqualWrite8 --
  *
  *      Compare exchange: Read variable, if equal to oldVal, write newVal.
  *
@@ -520,17 +476,17 @@ Atomic_WriteBool(Atomic_Bool *var,  // IN/OUT:
  *-----------------------------------------------------------------------------
  */
 
-static INLINE Bool
-Atomic_ReadIfEqualWriteBool(Atomic_Bool *var,  // IN/OUT:
-                            Bool oldVal,       // IN:
-                            Bool newVal)       // IN:
+static INLINE uint8
+Atomic_ReadIfEqualWrite8(Atomic_uint8 *var,  // IN/OUT:
+                         uint8 oldVal,       // IN:
+                         uint8 newVal)       // IN:
 {
 #if defined __GNUC__ && defined VM_ARM_32
-   return AtomicUndefined();
+   return AtomicUndefined(var + oldVal + newVal);
 #elif defined VM_ARM_64
    return _VMATOM_X(RIFEQW, 8, TRUE, &var->value, oldVal, newVal);
 #elif defined __GNUC__ && (defined __i386__ || defined __x86_64__)
-   Bool val;
+   uint8 val;
 
    __asm__ __volatile__(
       "lock; cmpxchgb %2, %1"
@@ -543,7 +499,8 @@ Atomic_ReadIfEqualWriteBool(Atomic_Bool *var,  // IN/OUT:
 
    return val;
 #elif defined _MSC_VER && _MSC_VER >= 1600
-   return _InterlockedCompareExchange8(&var->value, newVal, oldVal);
+   return _InterlockedCompareExchange8((volatile char *)&var->value,
+                                       newVal, oldVal);
 #elif defined _MSC_VER && defined __i386__
 #pragma warning(push)
 #pragma warning(disable : 4035)         // disable no-return warning
@@ -551,16 +508,384 @@ Atomic_ReadIfEqualWriteBool(Atomic_Bool *var,  // IN/OUT:
       __asm mov al, oldVal
       __asm mov ebx, var
       __asm mov cl, newVal
-      __asm lock cmpxchg [ebx]Atomic_Bool.value, cl
+      __asm lock cmpxchg [ebx]Atomic_uint8.value, cl
       __asm movzx eax, al
       // eax is the return value, this is documented to work - edward
    }
 #pragma warning(pop)
 #elif defined _MSC_VER && defined __x86_64__
-   return VMWInterlockedCompareExchangeBool(&var->value, newVal, oldVal);
+   return VMWInterlockedCompareExchange8(&var->value, newVal, oldVal);
 #else
-#error No compiler defined for Atomic_ReadIfEqualWriteBool
+#error No compiler defined for Atomic_ReadIfEqualWrite8
 #endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Atomic_ReadAnd8 --
+ *
+ *      Atomic read (returned), bitwise AND with a value, write.
+ *
+ * Results:
+ *      The value of the variable before the operation.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE uint8
+Atomic_ReadAnd8(Atomic_uint8 *var, // IN/OUT
+                uint8 val)         // IN
+{
+   uint8 res;
+
+#if defined VM_ARM_64
+   res = _VMATOM_X(ROP, 8, TRUE, &var->value, and, val);
+#else
+   do {
+      res = Atomic_Read8(var);
+   } while (res != Atomic_ReadIfEqualWrite8(var, res, res & val));
+#endif
+
+   return res;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Atomic_And8 --
+ *
+ *      Atomic read, bitwise AND with a value, write.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+Atomic_And8(Atomic_uint8 *var, // IN/OUT
+            uint8 val)         // IN
+{
+#if defined VM_ARM_64
+   _VMATOM_X(OP, 8, TRUE, &var->value, and, val);
+#else
+   (void)Atomic_ReadAnd8(var, val);
+#endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Atomic_ReadOr8 --
+ *
+ *      Atomic read (returned), bitwise OR with a value, write.
+ *
+ * Results:
+ *      The value of the variable before the operation.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE uint8
+Atomic_ReadOr8(Atomic_uint8 *var, // IN/OUT
+               uint8 val)         // IN
+{
+   uint8 res;
+
+#if defined VM_ARM_64
+   res = _VMATOM_X(ROP, 8, TRUE, &var->value, orr, val);
+#else
+   do {
+      res = Atomic_Read8(var);
+   } while (res != Atomic_ReadIfEqualWrite8(var, res, res | val));
+#endif
+
+   return res;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Atomic_Or8 --
+ *
+ *      Atomic read, bitwise OR with a value, write.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+Atomic_Or8(Atomic_uint8 *var, // IN/OUT
+           uint8 val)         // IN
+{
+#if defined VM_ARM_64
+   _VMATOM_X(OP, 8, TRUE, &var->value, orr, val);
+#else
+   (void)Atomic_ReadOr8(var, val);
+#endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Atomic_ReadXor8 --
+ *
+ *      Atomic read (returned), bitwise XOR with a value, write.
+ *
+ * Results:
+ *      The value of the variable before the operation.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE uint8
+Atomic_ReadXor8(Atomic_uint8 *var, // IN/OUT
+                uint8 val)         // IN
+{
+   uint8 res;
+
+#if defined VM_ARM_64
+   res = _VMATOM_X(ROP, 8, TRUE, &var->value, eor, val);
+#else
+   do {
+      res = Atomic_Read8(var);
+   } while (res != Atomic_ReadIfEqualWrite8(var, res, res ^ val));
+#endif
+
+   return res;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Atomic_Xor8 --
+ *
+ *      Atomic read, bitwise XOR with a value, write.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+Atomic_Xor8(Atomic_uint8 *var, // IN/OUT
+            uint8 val)         // IN
+{
+#if defined VM_ARM_64
+   _VMATOM_X(OP, 8, TRUE, &var->value, eor, val);
+#else
+   (void)Atomic_ReadXor8(var, val);
+#endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Atomic_ReadAdd8 --
+ *
+ *      Atomic read (returned), add a value, write.
+ *
+ * Results:
+ *      The value of the variable before the operation.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE uint8
+Atomic_ReadAdd8(Atomic_uint8 *var, // IN/OUT
+                uint8 val)         // IN
+{
+   uint8 res;
+
+#if defined VM_ARM_64
+   res = _VMATOM_X(ROP, 8, TRUE, &var->value, add, val);
+#else
+   do {
+      res = Atomic_Read8(var);
+   } while (res != Atomic_ReadIfEqualWrite8(var, res, res + val));
+#endif
+
+   return res;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Atomic_Add8 --
+ *
+ *      Atomic read, add a value, write.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+Atomic_Add8(Atomic_uint8 *var, // IN/OUT
+            uint8 val)         // IN
+{
+#if defined VM_ARM_64
+   _VMATOM_X(OP, 8, TRUE, &var->value, add, val);
+#else
+   (void)Atomic_ReadAdd8(var, val);
+#endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Atomic_Sub8 --
+ *
+ *      Atomic read, subtract a value, write.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+Atomic_Sub8(Atomic_uint8 *var, // IN/OUT
+            uint8 val)         // IN
+{
+#if defined VM_ARM_64
+   _VMATOM_X(OP, 8, TRUE, &var->value, sub, val);
+#else
+   Atomic_Add8(var, -val);
+#endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Atomic_Inc8 --
+ *
+ *      Atomic read, increment, write.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+Atomic_Inc8(Atomic_uint8 *var) // IN/OUT
+{
+   Atomic_Add8(var, 1);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Atomic_Dec8 --
+ *
+ *      Atomic read, decrement, write.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+Atomic_Dec8(Atomic_uint8 *var) // IN/OUT
+{
+   Atomic_Sub8(var, 1);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Atomic_ReadInc8 --
+ *
+ *      Atomic read (returned), increment, write.
+ *
+ * Results:
+ *      The value of the variable before the operation.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE uint8
+Atomic_ReadInc8(Atomic_uint8 *var) // IN/OUT
+{
+   return Atomic_ReadAdd8(var, 1);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Atomic_ReadDec8 --
+ *
+ *      Atomic read (returned), decrement, write.
+ *
+ * Results:
+ *      The value of the variable before the operation.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE uint8
+Atomic_ReadDec8(Atomic_uint8 *var) // IN/OUT
+{
+   return Atomic_ReadAdd8(var, (uint8)-1);
 }
 
 
@@ -3580,6 +3905,23 @@ Atomic_ReadDec16(Atomic_uint16 *var) // IN/OUT
  * Atomic_ReadAddInt --
  * Atomic_ReadIncInt --
  * Atomic_ReadDecInt --
+ *
+ * Atomic_Bool
+ * Atomic_ReadBool --
+ * Atomic_WriteBool --
+ * Atomic_ReadWriteBool --
+ * Atomic_ReadIfEqualWriteBool --
+ * Atomic_AndBool --
+ * Atomic_OrBool --
+ * Atomic_XorBool --
+ * Atomic_AddBool --
+ * Atomic_SubBool --
+ * Atomic_IncBool --
+ * Atomic_DecBool --
+ * Atomic_ReadOrBool --
+ * Atomic_ReadAddBool --
+ * Atomic_ReadIncBool --
+ * Atomic_ReadDecBool --
  */
 #if defined VM_64BIT
 MAKE_ATOMIC_TYPE(Ptr, 64, void const *, void *, uintptr_t)
@@ -3587,6 +3929,7 @@ MAKE_ATOMIC_TYPE(Ptr, 64, void const *, void *, uintptr_t)
 MAKE_ATOMIC_TYPE(Ptr, 32, void const *, void *, uintptr_t)
 #endif
 MAKE_ATOMIC_TYPE(Int, 32, int, int, int)
+MAKE_ATOMIC_TYPE(Bool, 8, Bool, Bool, Bool)
 
 
 #if    defined VM_ARM_64 && defined VMKERNEL \
