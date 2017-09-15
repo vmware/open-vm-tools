@@ -143,10 +143,8 @@ typedef char           Bool;
 #define VM_I386
 #define VM_X86_ANY
 #define VM_64BIT
-#define vm_64bit 1
 #else
 #define vm_x86_64 0
-#define vm_64bit 0
 #endif
 
 #ifdef __arm__
@@ -160,11 +158,11 @@ typedef char           Bool;
 #define vm_arm_64 1
 #define VM_ARM_ANY
 #define VM_64BIT
-#define vm_64bit 1
 #else
 #define vm_arm_64 0
-#define vm_64bit 0
 #endif
+
+#define vm_64bit (sizeof (void *) == 8)
 
 #ifdef _MSC_VER
 
