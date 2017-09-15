@@ -38,6 +38,7 @@
 /* The DRM device we are looking for */
 #define RESOLUTION_VENDOR     "0x15ad"
 #define RESOLUTION_DEVICE     "0x0405"
+#define RESOLUTION_KERNELNAME "vmwgfx"
 
 /* Required DRM version for resolutionKMS */
 #define RESOLUTION_DRM_MAJOR  2
@@ -84,11 +85,19 @@ resolutionOpenDRM(const char *node) // IN: Device node base name.
     struct udev_list_entry *devices, *devListEntry;
     struct udev_device *dev;
     int fd = -1;
+    int drmFd;
     const char *devNode = NULL;
 
+    /* Force load the kernel module. */
+    drmFd = drmOpen(RESOLUTION_KERNELNAME, NULL);
+    if (drmFd >= 0) {
+       (void) drmDropMaster(drmFd);
+    }
+
     udev = udev_new();
-    if (!udev)
-	return -1;
+    if (!udev) {
+        goto outNoUdev;
+    }
 
     /*
      * Udev error return codes that are not caught immediately are
@@ -148,6 +157,10 @@ skipCheck:
     udev_enumerate_unref(enumerate);
     udev_unref(udev);
 
+    if (drmFd >= 0) {
+       drmClose(drmFd);
+    }
+
     return fd;
 
   outFound:
@@ -155,6 +168,10 @@ skipCheck:
   outErr:
     udev_enumerate_unref(enumerate);
     udev_unref(udev);
+  outNoUdev:
+    if (drmFd >= 0) {
+       drmClose(drmFd);
+    }
 
     return -1;
 }
