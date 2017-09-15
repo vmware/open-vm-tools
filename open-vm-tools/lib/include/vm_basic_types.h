@@ -126,7 +126,8 @@ typedef char           Bool;
  */
 
 #ifdef __i386__
-/* VM_I386 is historically synonymous with VM_X86_ANY in bora, but misleading,
+/*
+ * VM_I386 is historically synonymous with VM_X86_ANY in bora, but misleading,
  * since it is confused with the __i386__ gcc but defined for both 32- and
  * 64-bit x86. We retain it here for legacy compatibility.
  */
@@ -138,12 +139,14 @@ typedef char           Bool;
 
 #ifdef __x86_64__
 #define VM_X86_64
+#define vm_x86_64 1
 #define VM_I386
 #define VM_X86_ANY
 #define VM_64BIT
-#define vm_x86_64 (1)
+#define vm_64bit 1
 #else
-#define vm_x86_64 (0)
+#define vm_x86_64 0
+#define vm_64bit 0
 #endif
 
 #ifdef __arm__
@@ -154,11 +157,13 @@ typedef char           Bool;
 
 #ifdef __aarch64__
 #define VM_ARM_64
+#define vm_arm_64 1
 #define VM_ARM_ANY
 #define VM_64BIT
-#define vm_arm_64 (1)
+#define vm_64bit 1
 #else
-#define vm_arm_64 (0)
+#define vm_arm_64 0
+#define vm_64bit 0
 #endif
 
 #ifdef _MSC_VER
