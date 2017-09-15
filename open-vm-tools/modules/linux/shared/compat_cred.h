@@ -24,7 +24,11 @@
  * Include linux/cred.h via linux/sched.h - it is not nice, but
  * as cpp does not have #ifexist...
  */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0)
 #include <linux/sched.h>
+#else
+#include <linux/cred.h>
+#endif
 
 #if !defined(current_fsuid) && LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 29)
 #define current_uid() (current->uid)
