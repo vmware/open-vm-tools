@@ -61,6 +61,38 @@ DynBuf_Init(DynBuf *b)  // OUT:
 /*
  *-----------------------------------------------------------------------------
  *
+ * DynBuf_InitWithData --
+ *
+ *      Dynamic buffer constructor - starting with the specified memory
+ *      allocation.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+DynBuf_InitWithData(DynBuf *b,        // IN/OUT:
+                    size_t dataSize,  // IN:
+                    void *data)       // IN:
+{
+   ASSERT(b);
+   ASSERT(dataSize != 0);
+   ASSERT(data != NULL);
+
+   b->size = 0;
+   b->data = data;
+   b->allocated = dataSize;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * DynBuf_Destroy --
  *
  *      Dynamic buffer destructor --hpreg
