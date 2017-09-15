@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -496,6 +496,11 @@ void AsyncSocket_SetSendLowLatencyMode(AsyncSocket *asock, Bool enable);
  * Get negotiated websocket protocol
  */
 const char *AsyncSocket_GetWebSocketProtocol(AsyncSocket *asock);
+
+/*
+ * Get error code for websocket failure
+ */
+int AsyncSocket_GetWebSocketError(AsyncSocket *asock);
 
 const char * stristr(const char *s, const char *find);
 
