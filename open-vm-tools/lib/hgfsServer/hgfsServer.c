@@ -3090,6 +3090,51 @@ exit:
 /*
  *-----------------------------------------------------------------------------
  *
+ * HgfsServerGetHeaderSize --
+ *
+ *    Takes the Hgfs input and finds the size of the header component.
+ *
+ * Results:
+ *    Size of the HGFS protocol header used by this request or reply.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static HgfsInternalStatus
+HgfsServerGetHeaderSize(Bool sessionEnabled,     // IN: session based request
+                        HgfsOp op,               // IN: operation
+                        Bool request)            // IN: TRUE for request, FALSE for reply
+{
+   size_t headerSize;
+
+   /*
+    * If the HGFS request is session enabled we must have the new header.
+    * Any V4 operation always must have the new header too.
+    * Otherwise, starting from HGFS V3 the header is not included in the
+    * request itself, so we must return the size of the separate header
+    * structure, for requests this will be HgfsRequest and replies will be HgfsReply.
+    * Prior to V3 (so V1 and V2) there was no separate header from the request
+    * or reply structure for any given operation, so a zero size is returned for these.
+    */
+   if (sessionEnabled) {
+      headerSize = sizeof (HgfsHeader);
+   } else if (op < HGFS_OP_CREATE_SESSION_V4 &&
+              op >= HGFS_OP_OPEN_V3) {
+      headerSize = (request ? sizeof (HgfsRequest) : sizeof (HgfsReply));
+   } else {
+      headerSize = 0;
+   }
+   return headerSize;
+}
+
+
+#if defined HGFS_SERVER_UNUSED
+/*
+ *-----------------------------------------------------------------------------
+ *
  * HgfsServerGetRequestHeaderSize --
  *
  *    Takes the Hgfs request input and finds the size of the header component.
@@ -3104,26 +3149,35 @@ exit:
  */
 
 static HgfsInternalStatus
-HgfsServerGetRequestHeaderSize(HgfsInputParam *input)     // IN: parameters
+HgfsServerGetRequestHeaderSize(Bool sessionEnabled,     // IN: session based request
+                               HgfsOp op)               // IN: operation
 {
-   size_t headerSize;
+   return HgfsServerGetHeaderSize(sessionEnabled, op, TRUE);
+}
+#endif
 
-   /*
-    * If the HGFS request is session enabled we must have the new header.
-    * Otherwise, starting from HGFS V3 the header is not included in the
-    * request itself, so we must return the size of the separate HgfsReply
-    * structure. Prior to V3 (so V1 and V2) there was no separate header
-    * from the request result structure so a zero size is returned for these
-    * operations.
-    */
-   if (input->sessionEnabled) {
-      headerSize = sizeof (HgfsHeader);
-   } else if (input->op >= HGFS_OP_OPEN_V3) {
-      headerSize = sizeof (HgfsReply);
-   } else {
-      headerSize = 0;
-   }
-   return headerSize;
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerGetReplyHeaderSize --
+ *
+ *    Takes the Hgfs reply input and finds the size of the header component.
+ *
+ * Results:
+ *    Size of the HGFS protocol header used by this reply.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static HgfsInternalStatus
+HgfsServerGetReplyHeaderSize(Bool sessionEnabled,     // IN: session based request
+                             HgfsOp op)               // IN: operation
+{
+   return HgfsServerGetHeaderSize(sessionEnabled, op, FALSE);
 }
 
 
@@ -3165,7 +3219,8 @@ HgfsServerCompleteRequest(HgfsInternalStatus status,   // IN: Status of the requ
 
    replySessionId =  (NULL != input->session) ? input->session->sessionId
                                               : HGFS_INVALID_SESSION_ID;
-   replyHeaderSize = HgfsServerGetRequestHeaderSize(input);
+   replyHeaderSize = HgfsServerGetReplyHeaderSize(input->sessionEnabled,
+                                                  input->op);
 
    if (replyHeaderSize != 0) {
       replySize = replyHeaderSize + replyPayloadSize;
@@ -5963,7 +6018,7 @@ HgfsAllocInitReply(HgfsPacket *packet,           // IN/OUT: Hgfs Packet
    void *replyData;
 
    /*
-    * XXX - this should be modified to use the common HgfsServerGetRequestHeaderSize
+    * XXX - this should be modified to use the common HgfsServerGetReplyHeaderSize
     * so that all requests and replies are handled consistently.
     */
    if (HGFS_OP_NEW_HEADER == request->op) {
@@ -6029,7 +6084,8 @@ HgfsServerValidateRead(HgfsInputParam *input,  // IN: Input params
    Bool useMappedBuffer;
 
    useMappedBuffer = (input->transportSession->channelCbTable->getWriteVa != NULL);
-   replyReadHeaderSize = HgfsServerGetRequestHeaderSize(input);
+   replyReadHeaderSize = HgfsServerGetReplyHeaderSize(input->sessionEnabled,
+                                                      input->op);
    switch (input->op) {
    case HGFS_OP_READ_FAST_V4:
       /* Data is packed into a separate buffer from the read results. */
