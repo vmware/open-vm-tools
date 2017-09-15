@@ -232,6 +232,7 @@
    LOGLEVEL_VAR(guestVars), \
    LOGLEVEL_VAR(vmkEvent), \
    LOGLEVEL_VAR(authenticode), \
+   LOGLEVEL_VAR(tpm2Verification), \
    LOGLEVEL_VAR(battery), \
    LOGLEVEL_VAR(fakeDma), \
    LOGLEVEL_VAR(shader), \
