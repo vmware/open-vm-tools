@@ -55,7 +55,8 @@ typedef enum {
    DMERR_UNKNOWN_TYPE,             /* type unknow in decoding */
    DMERR_TRUNCATED_DATA,           /* more data expected during decoding */
    DMERR_BUFFER_TOO_SMALL,         /* a user buffer is too small */
-   DMERR_INTEGER_OVERFLOW         /* an integer overflow happened */
+   DMERR_INTEGER_OVERFLOW,         /* an integer overflow happened */
+   DMERR_BAD_DATA                  /* bad data during decoding */
 } ErrorCode;
 
 /*
