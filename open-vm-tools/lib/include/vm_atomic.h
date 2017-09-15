@@ -2105,6 +2105,8 @@ Atomic_Read64(Atomic_uint64 const *var) // IN
     * XXX Verify that value is properly aligned. Bug 61315.
     */
    return var->value;
+#elif defined (_MSC_VER) && defined(VM_ARM_32)
+   return _InterlockedAdd64((__int64 *)&var->value, 0);
 #elif defined (_MSC_VER) && defined(__i386__)
 #   pragma warning(push)
 #   pragma warning(disable : 4035)		// disable no-return warning

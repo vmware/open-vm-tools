@@ -187,6 +187,7 @@ typedef struct AsyncSocketNetworkStats {
    uint32 rttSmoothedVarMillis;  /* rtt variance in milliseconds */
    uint32 queuedBytes;           /* unsent bytes in send queue */
    uint32 inflightBytes;         /* current outstanding bytes */
+   double packetLossPercent;     /* packet loss percentage */
 } AsyncSocketNetworkStats;
 
 AsyncSocketState AsyncSocket_GetState(AsyncSocket *sock);
