@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -903,6 +903,9 @@ VMCIQPBrokerAllocInt(VMCIHandle handle,             // IN
    Bool isLocal = flags & VMCI_QPFLAG_LOCAL;
    int result;
 
+#if defined(_WIN32)
+#pragma warning(suppress: 6235) /* !vmkernel always true */
+#endif
    if (VMCI_HANDLE_INVALID(handle) ||
        (flags & ~VMCI_QP_ALL_FLAGS) ||
        (isLocal && (!vmkernel || contextId != VMCI_HOST_CONTEXT_ID ||
@@ -1888,6 +1891,10 @@ QueuePairSaveHeaders(QPBrokerEntry *entry) // IN
       if (result < VMCI_SUCCESS) {
          return result;
       }
+#if defined(_WIN32)
+      __assume(entry->produceQ->qHeader != NULL);
+      __assume(entry->consumeQ->qHeader != NULL);
+#endif
    }
    memcpy(&entry->savedProduceQ, entry->produceQ->qHeader,
           sizeof entry->savedProduceQ);

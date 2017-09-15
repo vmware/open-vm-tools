@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2012,2014-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2012,2014-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -34,7 +34,9 @@
 #include "vmciEvent.h"
 #include "vmciKernelAPI.h"
 #include "vmciQueuePair.h"
-#if defined(VMKERNEL)
+#if defined(_WIN32)
+#  include "kernelStubsSal.h"
+#elif defined(VMKERNEL)
 #  include "vmciVmkInt.h"
 #  include "vm_libc.h"
 #  include "helper_ext.h"
@@ -870,6 +872,9 @@ VMCIContext_DequeueDatagram(VMCIContext *context, // IN
    ASSERT (listItem != NULL);
 
    dqEntry = VMCIList_Entry(listItem, DatagramQueueEntry, listItem);
+#if defined(_WIN32)
+   _Analysis_assume_(dqEntry != NULL);
+#endif
    ASSERT(dqEntry->dg);
 
    /* Check size of caller's buffer. */
@@ -896,6 +901,9 @@ VMCIContext_DequeueDatagram(VMCIContext *context, // IN
       listItem = VMCIList_First(&context->datagramQueue);
       ASSERT(listItem);
       nextEntry = VMCIList_Entry(listItem, DatagramQueueEntry, listItem);
+#if defined(_WIN32)
+      _Analysis_assume_(nextEntry != NULL);
+#endif
       ASSERT(nextEntry && nextEntry->dg);
       /*
        * The following size_t -> int truncation is fine as the maximum size of
@@ -1675,7 +1683,7 @@ VMCIContextDgHypervisorSaveState(VMCIContext *context,   // IN
       return VMCI_ERROR_INVALID_ARGS;
    }
 
-   p = VMCI_AllocKernelMem(*bufSize, VMCI_MEMORY_NORMAL);
+   p = VMCI_AllocKernelMem(*bufSize, VMCI_MEMORY_NONPAGED);
    if (p == NULL) {
       return VMCI_ERROR_NO_MEM;
    }
@@ -1818,6 +1826,15 @@ VMCIContext_GetCheckpointState(VMCIId contextID,    // IN:
       for (i = 0; i < arraySize; i++) {
          VMCIHandle tmpHandle = VMCIHandleArray_GetEntry(array, i);
          if (cptType == VMCI_DOORBELL_CPT_STATE) {
+/*
+ * PreFAST thinks this might overflow on arraySize>=2. However, we've
+ * looked *very* carefully at this, tested PreFAST's assumptions, and
+ * concluded PreFAST is getting confused about the relationships between
+ * cptDataSize, arraySize, and i.
+ */
+#if defined(_WIN32)
+#pragma warning(suppress: 6386)
+#endif
             ((VMCIDoorbellCptState *)cptBuf)[i].handle = tmpHandle;
          } else {
             ((VMCIId *)cptBuf)[i] =

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -27,6 +27,9 @@
 #include "vmci_infrastructure.h"
 #include "vmciEvent.h"
 #include "vmciKernelAPI.h"
+#if defined(_WIN32)
+#  include "kernelStubsSal.h"
+#endif
 #if defined(VMKERNEL)
 #  include "vmciVmkInt.h"
 #  include "vm_libc.h"
@@ -400,6 +403,9 @@ VMCIEventDeliver(VMCIEventMsg *eventMsg)  // IN
       VMCISubscription *cur = VMCIList_Entry(iter, VMCISubscription,
                                              subscriberListItem);
       ASSERT(cur && cur->event == eventMsg->eventData.event);
+#if defined(_WIN32)
+      _Analysis_assume_(cur != NULL);
+#endif
 
       if (cur->runDelayed) {
          VMCIDelayedEventInfo *eventInfo;
@@ -455,6 +461,13 @@ out:
       VMCI_EventData *ed;
       VMCIListItem *iter2;
 
+/*
+ * The below ScanSafe macro makes the analyzer think iter might be NULL and
+ * then dereferenced.
+ */
+#if defined(_WIN32)
+#pragma warning(suppress: 28182)
+#endif
       VMCIList_ScanSafe(iter, iter2, &noDelayList) {
          VMCIEventRef *eventRef = VMCIList_Entry(iter, VMCIEventRef,
                                                  listItem);
