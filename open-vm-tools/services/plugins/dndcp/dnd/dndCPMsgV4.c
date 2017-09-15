@@ -56,6 +56,11 @@ DnDCPMsgV4IsPacketValid(const uint8 *packet,
       return FALSE;
    }
 
+   /* Payload size plus header size should not be greater than packet size. */
+   if (msgHdr->payloadSize + DND_CP_MSG_HEADERSIZE_V4 > packetSize) {
+      return FALSE;
+   }
+
    /* Binary size is not valid. */
    if (msgHdr->binarySize > DND_CP_MSG_MAX_BINARY_SIZE_V4) {
       return FALSE;
@@ -282,6 +287,16 @@ DnDCPMsgV4_UnserializeMultiple(DnDCPMsgV4 *msg,
    if (NULL == msg->binary) {
       memcpy(msg, msgHdr, DND_CP_MSG_HEADERSIZE_V4);
       msg->binary = Util_SafeMalloc(msg->hdr.binarySize);
+   }
+
+   /*
+    * Please notice msg->hdr may be different from msgHdr if this is not the
+    * first packet. We need to make sure we have sufficient buffer to contain
+    * the payload indicated by the new header(msgHdr), which may have been
+    * faked. Otherwise heap overflow will occur.
+    */
+   if (msg->hdr.binarySize < msg->hdr.payloadOffset + msgHdr->payloadSize) {
+      return FALSE;
    }
 
    /* msg->hdr.payloadOffset is used as received binary size. */

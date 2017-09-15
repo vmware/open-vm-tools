@@ -313,8 +313,8 @@ RpcV4Util::RequestNextPacket(void)
    params.cmd = DNDCP_CMD_REQUEST_NEXT;
    params.sessionId = mBigMsgIn.hdr.sessionId;
    params.optional.requestNextCmd.cmd = mBigMsgIn.hdr.cmd;
-   params.optional.requestNextCmd.cmd = mBigMsgIn.hdr.binarySize;
-   params.optional.requestNextCmd.cmd = mBigMsgIn.hdr.payloadOffset;
+   params.optional.requestNextCmd.binarySize = mBigMsgIn.hdr.binarySize;
+   params.optional.requestNextCmd.payloadOffset = mBigMsgIn.hdr.payloadOffset;
 
    return SendMsg(&params);
 }

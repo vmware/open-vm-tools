@@ -261,7 +261,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_OTHER_26           "other26xlinux"
 #define STR_OS_OTHER_26_FULL      "Other Linux 2.6.x kernel"
 #define STR_OS_OTHER_3X           "other3xlinux"
-#define STR_OS_OTHER_3X_FULL      "Other Linux 3.x kernel"
+#define STR_OS_OTHER_3X_FULL      "Other Linux 3.x or later kernel"
 #define STR_OS_PHOTON             "vmware-photon"
 #define STR_OS_PHOTON_FULL        "VMware Photon OS"
 #define STR_OS_PLD                "PLD"
