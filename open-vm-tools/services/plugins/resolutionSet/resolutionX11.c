@@ -592,7 +592,7 @@ ResolutionToolkitInit(ToolsAppCtx *ctx) // IN: For config database access
    Display *display;
    int fd;
 
-   fd = resolutionCheckForKMS(ctx, FALSE);
+   fd = resolutionCheckForKMS(ctx);
    if (fd >= 0) {
       resolutionDRMClose(fd);
       g_message("%s: Backing off for resolutionKMS.\n", __func__);

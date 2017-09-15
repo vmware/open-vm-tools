@@ -41,7 +41,7 @@
 
 /* Required DRM version for resolutionKMS */
 #define RESOLUTION_DRM_MAJOR  2
-#define RESOLUTION_DRM_MINOR  10
+#define RESOLUTION_DRM_MINOR  12
 
 /* Required Xorg driver version for resolutionKMS default on */
 #define RESOLUTION_XORG_MAJOR 13
@@ -180,8 +180,7 @@ skipCheck:
  *-----------------------------------------------------------------------------
  */
 static int
-resolutionDRMCheckVersion(int fd) // IN: An open DRM file
-                                  // descriptor.
+resolutionDRMCheckVersion(int fd)  // IN: An open DRM file descriptor.
 {
     drmVersionPtr ver = drmGetVersion(fd);
 
@@ -192,9 +191,9 @@ resolutionDRMCheckVersion(int fd) // IN: An open DRM file
 
     if (ver->version_major != RESOLUTION_DRM_MAJOR ||
 	ver->version_minor < RESOLUTION_DRM_MINOR) {
-	g_debug("%s: Insufficient DRM version for resolutionKMS.\n", __func__);
-	drmFreeVersion(ver);
-	return -1;
+       g_debug("%s: Insufficient DRM version for resolutionKMS.\n", __func__);
+       drmFreeVersion(ver);
+       return -1;
     }
 
     drmFreeVersion(ver);
@@ -221,7 +220,7 @@ resolutionDRMCheckVersion(int fd) // IN: An open DRM file
  *
  *-----------------------------------------------------------------------------
  */
-int
+static int
 resolutionDRMRPrimaryCheckOpen(void)
 {
     int fd = -1;
@@ -251,44 +250,6 @@ resolutionDRMRPrimaryCheckOpen(void)
 /*
  *-----------------------------------------------------------------------------
  *
- * resolutionDRMDontrolCheckOpen --
- *
- *     Opens a control node to DRM. Then checks that drm supports GUI topology
- *     communication.
- *
- * Results:
- *     If succesful returns a positive open file descriptor. Otherwise
- *     returns -1.
- *
- * Side effects:
- *      Uses a render- or primary node for version check, since the
- *      version check is not available for control nodes. May thus temporarily
- *      become master and race with the X server.
- *
- *-----------------------------------------------------------------------------
- */
-int
-resolutionDRMControlCheckOpen(void)
-{
-    int fd;
-
-    fd = resolutionOpenDRM("controlD");
-    if (fd < 0) {
-	g_debug("%s: Failed to open DRM Control node.\n", __func__);
-	return -1;
-    }
-
-    if (!resolutionDRMCheckVersion(fd)) {
-	return fd;
-    }
-
-    close(fd);
-    return -1;
-}
-
-/*
- *-----------------------------------------------------------------------------
- *
  * resolutionCheckForKMS --
  *
  *     Checks whether the vmwgfx DRM is present and supports exposing
@@ -306,12 +267,8 @@ resolutionDRMControlCheckOpen(void)
  *-----------------------------------------------------------------------------
  */
 int
-resolutionCheckForKMS(ToolsAppCtx *ctx,  // IN: The ToolsAppCtx for
+resolutionCheckForKMS(ToolsAppCtx *ctx)  // IN: The ToolsAppCtx for
 		                         // configuration db access.
-		      gboolean control)  // IN: Whether to open a control node
-                                         // to DRM (supply layout info) or
-                                         // to open a render node to get the
-                                         // version only.
 {
     GError *err = NULL;
     gboolean doResolutionKMS;
@@ -358,10 +315,7 @@ resolutionCheckForKMS(ToolsAppCtx *ctx,  // IN: The ToolsAppCtx for
 	g_message("%s: dlopen succeeded.\n", __func__);
     }
 
-    if (control)
-	fd = resolutionDRMControlCheckOpen();
-    else
-	fd = resolutionDRMRPrimaryCheckOpen();
+    fd = resolutionDRMRPrimaryCheckOpen();
 
     if (fd < 0)
 	g_warning("%s: No system support for resolutionKMS.\n", __func__);

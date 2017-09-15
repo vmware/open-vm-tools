@@ -28,12 +28,12 @@
 #include "vmware/tools/plugin.h"
 #ifdef ENABLE_RESOLUTIONKMS
 
-int resolutionCheckForKMS(ToolsAppCtx *ctx, gboolean control);
+int resolutionCheckForKMS(ToolsAppCtx *ctx);
 void resolutionDRMClose(int fd);
 
 #else
 
-static inline int resolutionCheckForKMS(ToolsAppCtx *ctx, gboolean control)
+static inline int resolutionCheckForKMS(ToolsAppCtx *ctx)
 {
     return -1;
 }

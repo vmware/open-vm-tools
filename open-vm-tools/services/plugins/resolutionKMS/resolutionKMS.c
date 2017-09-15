@@ -440,7 +440,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)
       return NULL;
    }
 
-   kmsInfo.fd = resolutionCheckForKMS(ctx, TRUE);
+   kmsInfo.fd = resolutionCheckForKMS(ctx);
    if (kmsInfo.fd < 0) {
       return NULL;
    }
