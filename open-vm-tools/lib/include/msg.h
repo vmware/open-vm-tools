@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -128,6 +128,7 @@ VMX86_EXTERN_DATA Msg_String const Msg_Severities[];
 
 void Msg_Append(const char *idFmt,
                 ...) PRINTF_DECL(1, 2);
+void Msg_VAppend(const char *idFmt, va_list args);
 void Msg_AppendStr(const char *id);
 void Msg_AppendMsgList(const MsgList *msgs);
 
