@@ -283,37 +283,6 @@ Hostinfo_TouchXen(void)
 /*
  *----------------------------------------------------------------------
  *
- *  Hostinfo_SLC64Supported --
- *
- *      Access the backdoor with an SLC64 control query. This is used
- *      to determine if we are running in a VM that supports SLC64.
- *      This function should only be called after determining that the
- *	backdoor is present with Hostinfo_TouchBackdoor().
- *
- * Results:
- *      TRUE if the outer VM supports SLC64.
- *      FALSE otherwise.
- *
- * Side effects:
- *      Exception if not in a VM, so don't do that!
- *
- *----------------------------------------------------------------------
- */
-
-Bool
-Hostinfo_SLC64Supported(void)
-{
-#if defined(__i386__) || defined(__x86_64__)
-   return Hostinfo_VCPUInfoBackdoor(BDOOR_CMD_VCPU_SLC64);
-#else
-   return FALSE;
-#endif
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  *  Hostinfo_NestedHVReplaySupported --
  *
  *      Access the backdoor with a HV replay control query. This is used

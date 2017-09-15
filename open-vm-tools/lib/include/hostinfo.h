@@ -137,7 +137,6 @@ Bool Hostinfo_Daemonize(const char *path,
 
 Bool Hostinfo_NestingSupported(void);
 Bool Hostinfo_VCPUInfoBackdoor(unsigned bit);
-Bool Hostinfo_SLC64Supported(void);
 Bool Hostinfo_SynchronizedVTSCs(void);
 Bool Hostinfo_NestedHVReplaySupported(void);
 Bool Hostinfo_TouchBackDoor(void);
