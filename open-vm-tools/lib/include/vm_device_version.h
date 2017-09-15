@@ -287,7 +287,7 @@
 #define MAX_NVDIMM 64
 
 /************* vRDMA implementation limits ******************************/
-#define MAX_VRDMA_DEVICES 2
+#define MAX_VRDMA_DEVICES 1
 
 /************* Strings for Host USB Driver *******************************/
 
