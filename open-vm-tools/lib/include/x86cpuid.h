@@ -137,7 +137,7 @@ CPUIDQuery;
    CPUIDLEVEL(FALSE, 2,   2,          0,  0)        \
    CPUIDLEVEL(FALSE, 4,   4,          7,  0)        \
    CPUIDLEVEL(FALSE, 5,   5,          0,  0)        \
-   CPUIDLEVEL(FALSE, 6,   6,          0,  0)        \
+   CPUIDLEVEL(TRUE,  6,   6,          0,  0)        \
    CPUIDLEVEL(TRUE,  7,   7,          2,  0)        \
    CPUIDLEVEL(FALSE, A,   0xA,        0,  0)        \
    CPUIDLEVEL(FALSE, B,   0xB,        2,  0)        \
@@ -449,21 +449,21 @@ FIELD(  5,  0, EDX, 16,  4, MWAIT_C4_SUBSTATE,                     NA,  FALSE)
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_6                                               \
-FLAG(   6,  0, EAX,  0,  1, THERMAL_SENSOR,                        NA,  FALSE) \
-FLAG(   6,  0, EAX,  1,  1, TURBO_MODE,                            NA,  FALSE) \
-FLAG(   6,  0, EAX,  2,  1, APIC_INVARIANT,                        NA,  FALSE) \
-FLAG(   6,  0, EAX,  4,  1, PLN,                                   NA,  FALSE) \
-FLAG(   6,  0, EAX,  5,  1, ECMD,                                  NA,  FALSE) \
-FLAG(   6,  0, EAX,  6,  1, PTM,                                   NA,  FALSE) \
-FLAG(   6,  0, EAX,  7,  1, HWP,                                   NA,  FALSE) \
-FLAG(   6,  0, EAX,  8,  1, HWP_NOTIFICATION,                      NA,  FALSE) \
-FLAG(   6,  0, EAX,  9,  1, HWP_ACTIVITY_WINDOW,                   NA,  FALSE) \
-FLAG(   6,  0, EAX, 10,  1, HWP_ENERGY_PERFORMANCE_PREFERENCE,     NA,  FALSE) \
-FLAG(   6,  0, EAX, 11,  1, HWP_PACKAGE_LEVEL_REQUEST,             NA,  FALSE) \
-FLAG(   6,  0, EAX, 13,  1, HDC,                                   NA,  FALSE) \
-FIELD(  6,  0, EBX,  0,  4, NUM_INTR_THRESHOLDS,                   NA,  FALSE) \
-FLAG(   6,  0, ECX,  0,  1, HW_COORD_FEEDBACK,                     NA,  FALSE) \
-FLAG(   6,  0, ECX,  3,  1, ENERGY_PERF_BIAS,                      NA,  FALSE)
+FLAG(   6,  0, EAX,  0,  1, THERMAL_SENSOR,                        NO,  FALSE) \
+FLAG(   6,  0, EAX,  1,  1, TURBO_MODE,                            NO,  FALSE) \
+FLAG(   6,  0, EAX,  2,  1, APIC_INVARIANT,                        YES, FALSE) \
+FLAG(   6,  0, EAX,  4,  1, PLN,                                   NO,  FALSE) \
+FLAG(   6,  0, EAX,  5,  1, ECMD,                                  NO,  FALSE) \
+FLAG(   6,  0, EAX,  6,  1, PTM,                                   NO,  FALSE) \
+FLAG(   6,  0, EAX,  7,  1, HWP,                                   NO,  FALSE) \
+FLAG(   6,  0, EAX,  8,  1, HWP_NOTIFICATION,                      NO,  FALSE) \
+FLAG(   6,  0, EAX,  9,  1, HWP_ACTIVITY_WINDOW,                   NO,  FALSE) \
+FLAG(   6,  0, EAX, 10,  1, HWP_ENERGY_PERFORMANCE_PREFERENCE,     NO,  FALSE) \
+FLAG(   6,  0, EAX, 11,  1, HWP_PACKAGE_LEVEL_REQUEST,             NO,  FALSE) \
+FLAG(   6,  0, EAX, 13,  1, HDC,                                   NO,  FALSE) \
+FIELD(  6,  0, EBX,  0,  4, NUM_INTR_THRESHOLDS,                   NO,  FALSE) \
+FLAG(   6,  0, ECX,  0,  1, HW_COORD_FEEDBACK,                     NO,  FALSE) \
+FLAG(   6,  0, ECX,  3,  1, ENERGY_PERF_BIAS,                      NO,  FALSE)
 
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
