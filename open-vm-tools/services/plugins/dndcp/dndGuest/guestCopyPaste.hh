@@ -30,9 +30,7 @@
 #include "copyPasteRpc.hh"
 #include "guestFileTransfer.hh"
 
-extern "C" {
 #include "dnd.h"
-}
 
 enum GUEST_CP_STATE {
    GUEST_CP_INVALID = 0,

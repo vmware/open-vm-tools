@@ -41,9 +41,10 @@
 extern "C" {
    #include "debug.h"
    #include "dndClipboard.h"
-   #include "util.h"
-   #include "dndMsg.h"
 }
+
+#include "util.h"
+#include "dndMsg.h"
 
 
 /**

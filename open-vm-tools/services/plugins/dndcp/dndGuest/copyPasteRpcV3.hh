@@ -31,10 +31,11 @@
 #include "rpcV3Util.hpp"
 
 extern "C" {
-#include "vmware/tools/guestrpc.h"
-   #include "dnd.h"
-   #include "dndMsg.h"
+   #include "vmware/tools/guestrpc.h"
 }
+
+#include "dnd.h"
+#include "dndMsg.h"
 
 class CopyPasteRpcV3
    : public CopyPasteRpc,

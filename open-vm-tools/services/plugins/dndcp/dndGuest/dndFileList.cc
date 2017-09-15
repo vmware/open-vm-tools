@@ -50,10 +50,11 @@
 
 extern "C" {
    #include "dndClipboard.h"
-   #include "vm_assert.h"
-   #include "file.h"
    #include "cpNameUtil.h"
 }
+
+#include "vm_assert.h"
+#include "file.h"
 
 /*
  *----------------------------------------------------------------------------

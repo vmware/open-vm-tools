@@ -28,11 +28,13 @@
 #include <string>
 #include <vector>
 
-extern "C" {
 #include "vm_basic_types.h"
+
+extern "C" {
 #include "dndClipboard.h"
-#include "dynbuf.h"
 }
+
+#include "dynbuf.h"
 
 class DnDFileList {
    public:

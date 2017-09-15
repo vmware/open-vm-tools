@@ -29,11 +29,12 @@ extern "C" {
 
    #include "dndClipboard.h"
    #include "debug.h"
-   #include "file.h"
    #include "cpNameUtil.h"
-   #include "util.h"
-   #include "str.h"
 }
+
+#include "file.h"
+#include "util.h"
+#include "str.h"
 
 
 /**

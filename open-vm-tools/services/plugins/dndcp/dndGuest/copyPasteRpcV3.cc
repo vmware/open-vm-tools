@@ -25,9 +25,9 @@
 
 #include "copyPasteRpcV3.hh"
 #include "tracer.hh"
+#include "dndMsg.h"
 
 extern "C" {
-   #include "dndMsg.h"
    #include "debug.h"
    #include "dndClipboard.h"
 }
