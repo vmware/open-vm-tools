@@ -448,6 +448,12 @@ FileIO_CreateFDPosix(int posix,  // IN: UNIX file descriptor
       fd.flags |= FILEIO_OPEN_APPEND;
    }
 
+#if defined(__linux__) && defined(O_CLOEXEC)
+   if (flags & O_CLOEXEC) {
+      fd.flags |= FILEIO_OPEN_CLOSE_ON_EXEC;
+   }
+#endif
+
    fd.posix = posix;
 
    return fd;
@@ -914,6 +920,12 @@ FileIOCreateRetry(FileIODescriptor *file,   // OUT:
 #if defined(O_NOFOLLOW)
    if (access & FILEIO_OPEN_ACCESS_NOFOLLOW) {
       flags |= O_NOFOLLOW;
+   }
+#endif
+
+#if defined(__linux__) && defined(O_CLOEXEC)
+   if (flags & FILEIO_OPEN_CLOSE_ON_EXEC) {
+      flags |= O_CLOEXEC;
    }
 #endif
 

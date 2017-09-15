@@ -202,22 +202,29 @@ typedef enum {
  */
 #define FILEIO_OPEN_OPTIMISTIC_LOCK   (1 << 22)
 
+// Flag passed to open() to enable use of oplocks on VMFS.  This definition
+// must match USEROBJ_OPEN_OPTIMISTIC_LOCK in user_vsiTypes.h.
+#define O_OPTIMISTIC_LOCK             (1 << 22)  // 0x00400000
+
 /*
- * Flag passed to open() to not attempt to get the lun attributes as part of
+ * POSIX specific close the file descriptor when the program uses a variant
+ * of the exec system call capability. This is useful in fork/exec scenarios.
+ */
+#define FILEIO_OPEN_CLOSE_ON_EXEC     (1 << 23)
+
+/*
+ * Flag passed to open() to not attempt to get the LUN attributes as part of
  * the open operation. Applicable only to opening of SCSI devices. This
  * definition must match the definition of USEROBJ_OPEN_NOATTR in
  * user_vsiTypes.h and FS_OPEN_NOATTR in fs_public.h
  */
-#define O_NOATTR 0x04000000
+#define O_NOATTR                      (1 << 26)  // 0x04000000
 // Flag passed to open() to get multiwriter VMFS lock.  This definition must
 // match USEROBJ_OPEN_MULTIWRITER_LOCK in user_vsiTypes.h.
-#define O_MULTIWRITER_LOCK 0x08000000
+#define O_MULTIWRITER_LOCK            (1 << 27)  //0x08000000
 // Flag passed to open() to get exclusive VMFS lock.  This definition must
 // match USEROBJ_OPEN_EXCLUSIVE_LOCK in user_vsiTypes.h.
-#define O_EXCLUSIVE_LOCK 0x10000000
-// Flag passed to open() to enable use of oplocks on VMFS.  This definition
-// must match USEROBJ_OPEN_OPTIMISTIC_LOCK in user_vsiTypes.h.
-#define O_OPTIMISTIC_LOCK 0x00400000
+#define O_EXCLUSIVE_LOCK              (1 << 28)  // 0x10000000
 
 /* File Access check args */
 #define FILEIO_ACCESS_READ       (1 << 0)
