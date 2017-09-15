@@ -148,6 +148,7 @@
 #  define BDOOR_CMD_FAS_GET_MOUSE_HID         8
 #  define BDOOR_CMD_FAS_GET_SMBIOS_VERSION    9
 #  define BDOOR_CMD_FAS_GET_64BIT_PCI_HOLE_SIZE 10
+#  define BDOOR_CMD_FAS_GET_NVDIMM_FMT_CODE  11
 #define   BDOOR_CMD_SENDPSHAREHINTS          66 /* Not in use. Deprecated. */
 #define   BDOOR_CMD_ENABLE_USB_MOUSE         67
 #define   BDOOR_CMD_GET_VCPU_INFO            68
