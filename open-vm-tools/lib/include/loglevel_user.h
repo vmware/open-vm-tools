@@ -305,7 +305,8 @@
    LOGLEVEL_VAR(efivarstore), \
    LOGLEVEL_VAR(toolsIso), \
    LOGLEVEL_VAR(toolsversion), \
-   LOGLEVEL_VAR(vmva)
+   LOGLEVEL_VAR(vmva), \
+   LOGLEVEL_VAR(udpfec)    /* lib/udpfec */
 
    /* end of list */
 

@@ -1477,7 +1477,6 @@ File_GetSizeEx(const char *pathName)  // IN:
 {
    int i;
    int numFiles;
-   struct stat sb;
    int64 totalSize = 0;
    char **fileList = NULL;
 
@@ -1485,16 +1484,11 @@ File_GetSizeEx(const char *pathName)  // IN:
       return -1;
    }
 
-   if (Posix_Lstat(pathName, &sb) == -1) {
-      return -1;
-   }
-
-   if ((sb.st_mode & S_IFMT) != S_IFDIR) {
-      return sb.st_size;
+   if (!File_IsDirectory(pathName)) {
+      return File_GetSize(pathName);
    }
 
    numFiles = File_ListDirectory(pathName, &fileList);
-
    if (numFiles == -1) {
       return -1;
    }
@@ -1505,10 +1499,7 @@ File_GetSizeEx(const char *pathName)  // IN:
 
       free(fileName);
 
-      if (fileSize == -1) {
-         totalSize = -1;
-         break;
-      } else {
+      if (fileSize != -1) {
          totalSize += fileSize;
       }
    }
