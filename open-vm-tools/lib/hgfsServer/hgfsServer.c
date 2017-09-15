@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -344,11 +344,11 @@ static Bool HgfsHandle2NotifyInfo(HgfsHandle handle,
                                   char **fileName,
                                   size_t *fileNameSize,
                                   HgfsSharedFolderHandle *folderHandle);
-static void HgfsServerDirWatchEvent(HgfsSharedFolderHandle sharedFolder,
-                                    HgfsSubscriberHandle subscriber,
-                                    char* fileName,
-                                    uint32 mask,
-                                    struct HgfsSessionInfo *session);
+static void HgfsServerNotifyReceiveEventCb(HgfsSharedFolderHandle sharedFolder,
+                                           HgfsSubscriberHandle subscriber,
+                                           char* fileName,
+                                           uint32 mask,
+                                           struct HgfsSessionInfo *session);
 static void HgfsFreeSearchDirents(HgfsSearch *search);
 
 static HgfsInternalStatus
@@ -7525,7 +7525,7 @@ HgfsServerSetDirWatchByHandle(HgfsInputParam *input,         // IN: Input params
       LOG(4, ("%s: adding a subscriber on shared folder handle %#x\n", __FUNCTION__,
                sharedFolder));
       *watchId = HgfsNotify_AddSubscriber(sharedFolder, fileName, events, watchTree,
-                                          HgfsServerDirWatchEvent, input->session);
+                                          HgfsServerNotifyReceiveEventCb, input->session);
       status = (HGFS_INVALID_SUBSCRIBER_HANDLE == *watchId) ? HGFS_ERROR_INTERNAL :
                                                               HGFS_ERROR_SUCCESS;
       LOG(4, ("%s: result of add subscriber id %"FMT64"x status %u\n", __FUNCTION__,
@@ -7612,7 +7612,7 @@ HgfsServerSetDirWatchByName(HgfsInputParam *input,         // IN: Input params
                LOG(8, ("%s: session %p id %"FMT64"x on share hnd %#x\n", __FUNCTION__,
                        input->session, input->session->sessionId, sharedFolder));
                *watchId = HgfsNotify_AddSubscriber(sharedFolder, tempBuf, events,
-                                                   watchTree, HgfsServerDirWatchEvent,
+                                                   watchTree, HgfsServerNotifyReceiveEventCb,
                                                    input->session);
                status = (HGFS_INVALID_SUBSCRIBER_HANDLE == *watchId) ?
                         HGFS_ERROR_INTERNAL : HGFS_ERROR_SUCCESS;
@@ -7626,7 +7626,7 @@ HgfsServerSetDirWatchByName(HgfsInputParam *input,         // IN: Input params
          } else {
             LOG(8, ("%s: adding subscriber on share hnd %#x\n", __FUNCTION__, sharedFolder));
             *watchId = HgfsNotify_AddSubscriber(sharedFolder, "", events, watchTree,
-                                                HgfsServerDirWatchEvent,
+                                                HgfsServerNotifyReceiveEventCb,
                                                 input->session);
             status = (HGFS_INVALID_SUBSCRIBER_HANDLE == *watchId) ? HGFS_ERROR_INTERNAL :
                                                                     HGFS_ERROR_SUCCESS;
@@ -8891,7 +8891,7 @@ HgfsServerGetTargetRelativePath(const char* source,    // IN: source file name
 /*
  *-----------------------------------------------------------------------------
  *
- * HgfsServerDirWatchEvent --
+ * HgfsServerNotifyReceiveEventCb --
  *
  *    The callback is invoked by the file system change notification component
  *    in response to a change event when the client has set at least one watch
@@ -8911,11 +8911,11 @@ HgfsServerGetTargetRelativePath(const char* source,    // IN: source file name
  */
 
 static void
-HgfsServerDirWatchEvent(HgfsSharedFolderHandle sharedFolder, // IN: shared folder
-                        HgfsSubscriberHandle subscriber,     // IN: subsciber
-                        char* fileName,                      // IN: name of the file
-                        uint32 mask,                         // IN: event type
-                        struct HgfsSessionInfo *session)     // IN: session info
+HgfsServerNotifyReceiveEventCb(HgfsSharedFolderHandle sharedFolder, // IN: shared folder
+                               HgfsSubscriberHandle subscriber,     // IN: subsciber
+                               char* fileName,                      // IN: name of the file
+                               uint32 mask,                         // IN: event type
+                               struct HgfsSessionInfo *session)     // IN: session info
 {
    HgfsPacket *packet = NULL;
    HgfsHeader *packetHeader = NULL;
