@@ -85,10 +85,7 @@ extern "C" {
 
 typedef unsigned VThreadID;
 
-#define VTHREAD_INVALID_ID    (VThreadID)(~0u)
-
-/* XXX Vestigial need as an MXState array size */
-#define VTHREAD_MAX_THREADS   288
+#define VTHREAD_INVALID_ID    (VThreadID)(0)
 
 #ifdef VMM
 /*
@@ -129,11 +126,11 @@ VThread_CurName(void)
 
 #else
 
-#define VTHREAD_VMX_ID          0
-#define VTHREAD_SVGA_ID         1
-#define VTHREAD_MKS_ID          2
-#define VTHREAD_OTHER_ID        3
-#define VTHREAD_ALLOCSTART_ID   4
+#define VTHREAD_VMX_ID          1
+#define VTHREAD_SVGA_ID         2
+#define VTHREAD_MKS_ID          3
+#define VTHREAD_OTHER_ID        4
+#define VTHREAD_ALLOCSTART_ID   5
 
 #define VTHREADBASE_MAX_NAME    32  /* Arbitrary */
 
