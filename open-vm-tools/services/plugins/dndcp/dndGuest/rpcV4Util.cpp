@@ -31,20 +31,21 @@
 
 #include "rpcV4Util.hpp"
 
-extern "C" {
 #ifdef VMX86_TOOLS
+extern "C" {
    #include "debug.h"
    #define LOG(level, msg) (Debug msg)
+}
 #else
    #define LOGLEVEL_MODULE dnd
    #include "loglevel_user.h"
 #endif
 
-   #include "dndClipboard.h"
-   #include "util.h"
+extern "C" {
+#include "dndClipboard.h"
 }
 
-
+#include "util.h"
 
 /**
  * Constructor.

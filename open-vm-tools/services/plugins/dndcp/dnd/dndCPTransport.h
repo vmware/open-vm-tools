@@ -29,9 +29,7 @@
 #define LIB_EXPORT
 #endif
 
-extern "C" {
-   #include "vm_basic_types.h"
-}
+#include "vm_basic_types.h"
 
 /* Some definitions for addressId. */
 #define MAX_NUM_OF_CONNECTIONS  50

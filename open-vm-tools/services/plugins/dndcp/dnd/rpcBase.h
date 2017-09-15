@@ -29,9 +29,7 @@
 #define LIB_EXPORT
 #endif
 
-extern "C" {
-   #include "vm_basic_types.h"
-}
+#include "vm_basic_types.h"
 
 typedef struct RpcParams {
    uint32 addrId;          /* Destination address id. */
