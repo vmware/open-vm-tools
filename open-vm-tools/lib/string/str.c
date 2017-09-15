@@ -1490,9 +1490,8 @@ Str_UnitTests(void)
                 L"%d %i %o %u %x %X", num1, num1, num1, num1, num1, num1);
 
    // 'p' argument
-   // XXX: bsd_vsnwprintf behaves differently from bsd_vsnprintf.
    CheckPrintf("FEEDFACE", "%p", p);
-   CheckWPrintf(L"feedface", L"%p", p);
+   CheckWPrintf(L"FEEDFACE", L"%p", p);
 
    // 64-bit
    CheckPrintf("CAFEBABE42439021",
@@ -1520,12 +1519,11 @@ Str_UnitTests(void)
          "4.827340e-04 4.827340E-04 0.000483 0.000482734 0.000482734",
          "8.274102e+06 8.274102E+06 8274102.387200 8.2741e+06 8.2741E+06",
       };
-      // XXX: bsd_vsnwprintf behaves differently from bsd_vsnprintf.
       const wchar_t *expectedW[] = {
-         L"5.000000e+000 5.000000E+000 5.000000 5 5",
-         L"2.017000e+003 2.017000E+003 2017.000000 2017 2017",
-         L"4.827340e-004 4.827340E-004 0.000483 0.000482734 0.000482734",
-         L"8.274102e+006 8.274102E+006 8274102.387200 8.2741e+006 8.2741E+006",
+         L"5.000000e+00 5.000000E+00 5.000000 5 5",
+         L"2.017000e+03 2.017000E+03 2017.000000 2017 2017",
+         L"4.827340e-04 4.827340E-04 0.000483 0.000482734 0.000482734",
+         L"8.274102e+06 8.274102E+06 8274102.387200 8.2741e+06 8.2741E+06",
       };
 
       size_t i;
@@ -1548,24 +1546,21 @@ Str_UnitTests(void)
                 L"%3$LX %1$x %2$x", num1, num2, num3);
 
    // width and precision
-   // XXX: bsd_vsnwprintf behaves differently from bsd_vsnprintf.
    CheckPrintf("          8e+06           8274102.39     8274102.387",
                "%15.1g %20.2f %*.*f", d[3], d[3], 15, 3, d[3]);
-   CheckWPrintf(L"         8e+006           8274102.39     8274102.387",
+   CheckWPrintf(L"          8e+06           8274102.39     8274102.387",
                 L"%15.1g %20.2f %*.*f", d[3], d[3], 15, 3, d[3]);
 
    // flags
-   // XXX: bsd_vsnwprintf behaves differently from bsd_vsnprintf.
    CheckPrintf("5.000000e+00    +0.000483 000008.2741e+06",
                "%-15e %+f %015g", d[0], d[2], d[3]);
-   CheckWPrintf(L"5.000000e+000   +0.000483 00008.2741e+006",
+   CheckWPrintf(L"5.000000e+00    +0.000483 000008.2741e+06",
                 L"%-15e %+f %015g", d[0], d[2], d[3]);
 
    // more flags
-   // XXX: bsd_vsnwprintf behaves differently from bsd_vsnprintf.
    CheckPrintf("0XDEADBEEF 5.000000E+00 2017.00",
                "%#X %#E %#G", num1, d[0], d[1]);
-   CheckWPrintf(L"0XDEADBEEF 5.000000E+000 2017.00",
+   CheckWPrintf(L"0XDEADBEEF 5.000000E+00 2017.00",
                 L"%#X %#E %#G", num1, d[0], d[1]);
 
    printf("%s succeeded.\n", __FUNCTION__);
