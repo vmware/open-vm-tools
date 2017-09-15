@@ -160,6 +160,11 @@ Please use an older version of open-vm-tools for this system."])
    fi
 fi
 
+if test "x$os" = "xfreebsd" -a "$osVersion" -lt 1000000; then
+   AC_MSG_ERROR(["This version of open-vm-tools requires FreeBSD version 10 or later.
+Please use an older version of open-vm-tools for this system."])
+fi
+
 AC_ARG_WITH([kernel-modules],
 	    [AS_HELP_STRING([--with-kernel-modules],
 		[compile and install the kernel modules])],
