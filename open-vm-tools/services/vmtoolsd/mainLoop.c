@@ -60,6 +60,9 @@ ToolsCoreCleanup(ToolsServiceState *state)
 {
    ToolsCorePool_Shutdown(&state->ctx);
    ToolsCore_UnloadPlugins(state);
+#if defined(__linux__)
+   ToolsCore_ReleaseVsockFamily(state);
+#endif
    if (state->ctx.rpc != NULL) {
       RpcChannel_Stop(state->ctx.rpc);
       RpcChannel_Destroy(state->ctx.rpc);
@@ -201,6 +204,15 @@ ToolsCoreRunLoop(ToolsServiceState *state)
    if (!ToolsCore_LoadPlugins(state)) {
       return 1;
    }
+
+#if defined(__linux__)
+   /*
+    * Init a reference to vSocket family.
+    */
+   if (!ToolsCore_InitVsockFamily(state)) {
+      return 1;
+   }
+#endif
 
    /*
     * The following criteria needs to hold for the main loop to be run:

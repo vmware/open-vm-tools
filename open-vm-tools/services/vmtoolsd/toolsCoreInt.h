@@ -86,6 +86,15 @@ typedef struct ToolsServiceState {
    RpcDebugLibData  *debugData;
    ToolsAppCtx    ctx;
    GArray        *providers;
+#if defined(__linux__)
+   /*
+    * We hold a reference to vSocket device to avoid
+    * address family re-registration when someone
+    * connects over vSocket.
+    */
+   int            vsockDev;
+   int            vsockFamily;
+#endif
 } ToolsServiceState;
 
 
@@ -111,6 +120,14 @@ ToolsCore_Setup(ToolsServiceState *state);
 
 gboolean
 ToolsCore_InitRpc(ToolsServiceState *state);
+
+#if defined(__linux__)
+gboolean
+ToolsCore_InitVsockFamily(ToolsServiceState *state);
+
+void
+ToolsCore_ReleaseVsockFamily(ToolsServiceState *state);
+#endif
 
 gboolean
 ToolsCore_LoadPlugins(ToolsServiceState *state);

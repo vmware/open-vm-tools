@@ -40,6 +40,9 @@
 #include "vmware/tools/utils.h"
 #include "vmware/tools/log.h"
 #include "vm_version.h"
+#if defined(__linux__)
+#include "vmci_sockets.h"
+#endif
 
 /**
  * Take action after an RPC channel reset.
@@ -58,6 +61,7 @@ ToolsCoreCheckReset(RpcChannel *chan,
    static gboolean version_sent = FALSE;
 
    ASSERT(state != NULL);
+   ASSERT(chan == state->ctx.rpc);
 
    if (success) {
       const gchar *app;
@@ -90,6 +94,13 @@ ToolsCoreCheckReset(RpcChannel *chan,
       g_signal_emit_by_name(state->ctx.serviceObj,
                             TOOLS_CORE_SIG_RESET,
                             &state->ctx);
+#if defined(__linux__)
+      /*
+       * Release the existing vSocket family.
+       */
+      ToolsCore_ReleaseVsockFamily(state);
+      ToolsCore_InitVsockFamily(state);
+#endif
    } else {
       VMTOOLSAPP_ERROR(&state->ctx, EXIT_FAILURE);
    }
@@ -394,3 +405,77 @@ ToolsCore_SetCapabilities(RpcChannel *chan,
       g_free(newcaps);
    }
 }
+
+
+#if defined(__linux__)
+/**
+ * Initializes the vSocket address family and sticks a reference
+ * to it in the service state.
+ *
+ * @param[in]  state    The service state.
+ *
+ * @return TRUE on success.
+ */
+
+gboolean
+ToolsCore_InitVsockFamily(ToolsServiceState *state)
+{
+   int vsockDev = -1;
+
+   ASSERT(state);
+   ASSERT(state->ctx.rpc);
+
+   state->vsockDev = -1;
+   state->vsockFamily = -1;
+
+   switch (RpcChannel_GetType(state->ctx.rpc)) {
+   case RPCCHANNEL_TYPE_INACTIVE:
+   case RPCCHANNEL_TYPE_PRIV_VSOCK:
+   case RPCCHANNEL_TYPE_UNPRIV_VSOCK:
+      return TRUE;
+   case RPCCHANNEL_TYPE_BKDOOR:
+      state->vsockFamily = VMCISock_GetAFValueFd(&vsockDev);
+      if (state->vsockFamily == -1) {
+         /*
+          * vSocket driver may not be loaded, log and continue.
+          */
+         g_warning("Couldn't get vSocket family.\n");
+         return TRUE;
+      }
+      ASSERT(vsockDev >= 0);
+      g_debug("Saving reference to vSocket device=%d, family=%d\n",
+              vsockDev, state->vsockFamily);
+      state->vsockDev = vsockDev;
+      return TRUE;
+   default:
+      NOT_IMPLEMENTED();
+   }
+
+   return FALSE;
+}
+
+
+/**
+ * Releases the reference to vSocket address family.
+ *
+ * @param[in]  state    The service state.
+ *
+ * @return TRUE on success.
+ */
+
+void
+ToolsCore_ReleaseVsockFamily(ToolsServiceState *state)
+{
+   ASSERT(state);
+   ASSERT(state->ctx.rpc);
+
+   if (state->vsockFamily >= 0) {
+      ASSERT(state->vsockDev >= 0);
+      g_debug("Releasing reference to vSocket device=%d, family=%d\n",
+              state->vsockDev, state->vsockFamily);
+      VMCISock_ReleaseAFValueFd(state->vsockDev);
+      state->vsockDev = -1;
+      state->vsockFamily = -1;
+   }
+}
+#endif
