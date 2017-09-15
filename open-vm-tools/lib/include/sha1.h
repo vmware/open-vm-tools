@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -107,7 +107,7 @@ A million repetitions of "a"
 
 #define	SHA1_HASH_LEN	20
 
-typedef struct {
+typedef struct SHA1_CTX {
     uint32 state[5];
     uint32 count[2];
     unsigned char buffer[64];
