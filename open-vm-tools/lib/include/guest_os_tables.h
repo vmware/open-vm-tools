@@ -110,26 +110,30 @@ extern "C" {
    GOT(GUEST_OS_ORACLE6)                                                   \
    GOT(GUEST_OS_ORACLE6_64)                                                \
    GOT(GUEST_OS_ORACLE7_64)                                                \
+   GOT(GUEST_OS_ORACLE8_64)                                                \
    GOT(GUEST_OS_CENTOS)                                                    \
    GOT(GUEST_OS_CENTOS_64)                                                 \
    GOT(GUEST_OS_CENTOS6)                                                   \
    GOT(GUEST_OS_CENTOS6_64)                                                \
    GOT(GUEST_OS_CENTOS7_64)                                                \
+   GOT(GUEST_OS_CENTOS8_64)                                                \
 
 
 /* This list must be sorted alphabetically (non-case-sensitive) by gos name. */
 #define GUEST_OS_LIST_GEN                                                                             \
-   GOSL(STR_OS_ASIANUX_3,                    GUEST_OS_OTHER26XLINUX,          "linuxPreGlibc25.iso")  \
-   GOSL(STR_OS_ASIANUX_3 "-64",              GUEST_OS_OTHER26XLINUX_64,       "linuxPreGlibc25.iso")  \
-   GOSL(STR_OS_ASIANUX_4,                    GUEST_OS_OTHER26XLINUX,          "linuxPreGlibc25.iso")  \
-   GOSL(STR_OS_ASIANUX_4 "-64",              GUEST_OS_OTHER26XLINUX_64,       "linuxPreGlibc25.iso")  \
-   GOSL(STR_OS_ASIANUX_5 "-64",              GUEST_OS_OTHER3XLINUX_64,        "linux.iso")            \
-   GOSL(STR_OS_ASIANUX_7 "-64",              GUEST_OS_OTHER3XLINUX_64,        "linux.iso")            \
+   GOSL(STR_OS_ASIANUX "3",                  GUEST_OS_OTHER26XLINUX,          "linuxPreGlibc25.iso")  \
+   GOSL(STR_OS_ASIANUX "3-64",               GUEST_OS_OTHER26XLINUX_64,       "linuxPreGlibc25.iso")  \
+   GOSL(STR_OS_ASIANUX "4",                  GUEST_OS_OTHER26XLINUX,          "linuxPreGlibc25.iso")  \
+   GOSL(STR_OS_ASIANUX "4-64",               GUEST_OS_OTHER26XLINUX_64,       "linuxPreGlibc25.iso")  \
+   GOSL(STR_OS_ASIANUX "5-64",               GUEST_OS_OTHER3XLINUX_64,        "linux.iso")            \
+   GOSL(STR_OS_ASIANUX "7-64",               GUEST_OS_OTHER3XLINUX_64,        "linux.iso")            \
+   GOSL(STR_OS_ASIANUX "8-64",               GUEST_OS_OTHER3XLINUX_64,        "linux.iso")            \
    GOSL(STR_OS_CENTOS,                       GUEST_OS_CENTOS,                 "linux.iso")            \
    GOSL(STR_OS_CENTOS "-64",                 GUEST_OS_CENTOS_64,              "linux.iso")            \
    GOSL(STR_OS_CENTOS "6",                   GUEST_OS_CENTOS6,                "linux.iso")            \
    GOSL(STR_OS_CENTOS "6-64",                GUEST_OS_CENTOS6_64,             "linux.iso")            \
    GOSL(STR_OS_CENTOS "7-64",                GUEST_OS_CENTOS7_64,             "linux.iso")            \
+   GOSL(STR_OS_CENTOS "8-64",                GUEST_OS_CENTOS8_64,             "linux.iso")            \
    GOSL("coreos-64",                         GUEST_OS_OTHER3XLINUX_64,        NULL)                   \
    GOSL(STR_OS_MACOS,                        GUEST_OS_DARWIN9,                "darwinPre15.iso")      \
    GOSL(STR_OS_MACOS "-64",                  GUEST_OS_DARWIN9_64,             "darwinPre15.iso")      \
@@ -188,6 +192,7 @@ extern "C" {
    GOSL(STR_OS_ORACLE "6",                   GUEST_OS_ORACLE6,                "linux.iso")            \
    GOSL(STR_OS_ORACLE "6-64",                GUEST_OS_ORACLE6_64,             "linux.iso")            \
    GOSL(STR_OS_ORACLE "7-64",                GUEST_OS_ORACLE7_64,             "linux.iso")            \
+   GOSL(STR_OS_ORACLE "8-64",                GUEST_OS_ORACLE8_64,             "linux.iso")            \
    GOSL("os2",                               GUEST_OS_OS2,                    NULL)                   \
    GOSL("os2experimental",                   GUEST_OS_OS2,                    NULL)                   \
    GOSL("other",                             GUEST_OS_OTHER,                  NULL)                   \

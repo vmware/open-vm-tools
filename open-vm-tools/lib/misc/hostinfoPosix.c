@@ -531,7 +531,10 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
       Str_Strcpy(distroShort, STR_OS_OPENSUSE, distroShortSize);
    } else if (strstr(distroLower, "suse")) {
       if (strstr(distroLower, "enterprise")) {
-         if (strstr(distroLower, "server 12") ||
+         if (strstr(distroLower, "server 15") ||
+             strstr(distroLower, "desktop 15")) {
+            Str_Strcpy(distroShort, STR_OS_SLES_15, distroShortSize);
+         } else if (strstr(distroLower, "server 12") ||
              strstr(distroLower, "desktop 12")) {
             Str_Strcpy(distroShort, STR_OS_SLES_12, distroShortSize);
          } else if (strstr(distroLower, "server 11") ||
@@ -574,6 +577,9 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
    } else if (strstr(distroLower, "asianux server 7") ||
               strstr(distroLower, "asianux client 7")) {
       Str_Strcpy(distroShort, STR_OS_ASIANUX_7, distroShortSize);
+   } else if (strstr(distroLower, "asianux server 8") ||
+              strstr(distroLower, "asianux client 8")) {
+      Str_Strcpy(distroShort, STR_OS_ASIANUX_8, distroShortSize);
    } else if (strstr(distroLower, "aurox")) {
       Str_Strcpy(distroShort, STR_OS_AUROX, distroShortSize);
    } else if (strstr(distroLower, "black cat")) {
@@ -585,6 +591,8 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
          Str_Strcpy(distroShort, STR_OS_CENTOS6, distroShortSize);
       } else if (strstr(distroLower, "7.")) {
          Str_Strcpy(distroShort, STR_OS_CENTOS7, distroShortSize);
+      } else if (strstr(distroLower, "8.")) {
+         Str_Strcpy(distroShort, STR_OS_CENTOS8, distroShortSize);
       } else {
          Str_Strcpy(distroShort, STR_OS_CENTOS, distroShortSize);
       }
@@ -619,6 +627,8 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
          Str_Strcpy(distroShort, STR_OS_ORACLE6, distroShortSize);
       } else if (strstr(distroLower, "7.")) {
          Str_Strcpy(distroShort, STR_OS_ORACLE7, distroShortSize);
+      } else if (strstr(distroLower, "8.")) {
+         Str_Strcpy(distroShort, STR_OS_ORACLE8, distroShortSize);
       } else {
          Str_Strcpy(distroShort, STR_OS_ORACLE, distroShortSize);
       }
