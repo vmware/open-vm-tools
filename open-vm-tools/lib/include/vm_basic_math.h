@@ -62,12 +62,27 @@ ExponentialAvg(uint32 avg, uint32 value, uint32 gainNumer, uint32 gainDenom)
    return (term1 + term2) / gainDenom;
 }
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * IsZeroOrPowerOfTwo --
+ *
+ * Results:
+ *      TRUE iff the value is 0 or a power of two.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
 static INLINE Bool
-IsPowerOfTwo(uint32 x)
+IsZeroOrPowerOfTwo(uint32 x)     // IN
 {
-   /* Does not check for zero. Callers depend on this. */
    return !(x & (x - 1));
 }
+
 
 static INLINE uint32
 GetPowerOfTwo(uint32 x)
