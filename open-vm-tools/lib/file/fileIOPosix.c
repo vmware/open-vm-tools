@@ -801,7 +801,7 @@ FileIOCreateRetry(FileIODescriptor *file,   // OUT:
                   int access,               // IN:
                   FileIOOpenAction action,  // IN:
                   int mode,                 // IN: mode_t for creation
-                  uint32 msecMaxWaitTime)   // IN: Ignored
+                  uint32 maxWaitTimeMsec)   // IN: Ignored
 {
    uid_t uid = -1;
    int fd = -1;
@@ -1031,10 +1031,10 @@ FileIO_CreateRetry(FileIODescriptor *file,   // OUT:
                    int access,               // IN:
                    FileIOOpenAction action,  // IN:
                    int mode,                 // IN: mode_t for creation
-                   uint32 msecMaxWaitTime)   // IN:
+                   uint32 maxWaitTimeMsec)   // IN:
 {
    return FileIOCreateRetry(file, pathName, access, action, mode,
-                            msecMaxWaitTime);
+                            maxWaitTimeMsec);
 }
 
 
@@ -1093,12 +1093,12 @@ FileIO_OpenRetry(FileIODescriptor *file,   // OUT:
                  const char *pathName,     // IN:
                  int access,               // IN:
                  FileIOOpenAction action,  // IN:
-                 uint32 msecMaxWaitTime)   // IN:
+                 uint32 maxWaitTimeMsec)   // IN:
 {
 #if defined(VMX86_SERVER)
    FileIOResult res;
-   uint32 msecWaitTime = 0;
-   uint32 msecMaxLoopTime = 3000;  // 3 seconds
+   uint32 waitTimeMsec = 0;
+   uint32 maxLoopTimeMsec = 3000;  // 3 seconds
 
    /*
     * Workaround the ESX NFS client bug as seen in PR 1341775.
@@ -1109,14 +1109,14 @@ FileIO_OpenRetry(FileIODescriptor *file,   // OUT:
 
    while (TRUE) {
       res = FileIOCreateRetry(file, pathName, access, action,
-                              S_IRUSR | S_IWUSR, msecMaxWaitTime);
+                              S_IRUSR | S_IWUSR, maxWaitTimeMsec);
 
       if (res == FILEIO_ERROR && Err_Errno() == ESTALE &&
-          msecWaitTime < msecMaxLoopTime) {
+          waitTimeMsec < maxLoopTimeMsec) {
          Log(LGPFX "FileIOCreateRetry (%s) failed with ESTALE, retrying.\n",
              pathName);
 
-         msecWaitTime += FileSleeper(100, 300);
+         waitTimeMsec += FileSleeper(100, 300);
       } else {
          break;
       }
@@ -1125,7 +1125,7 @@ FileIO_OpenRetry(FileIODescriptor *file,   // OUT:
    return res;
 #else
    return FileIOCreateRetry(file, pathName, access, action,
-                            S_IRUSR | S_IWUSR, msecMaxWaitTime);
+                            S_IRUSR | S_IWUSR, maxWaitTimeMsec);
 #endif
 }
 

@@ -323,7 +323,7 @@ FileIOResult FileIO_CreateRetry(FileIODescriptor *file,
                                int access,
                                FileIOOpenAction action,
                                int mode,
-                               uint32 msecMaxWaitTime);
+                               uint32 maxWaitTimeMsec);
 
 FileIOResult FileIO_Open(FileIODescriptor *file,
                          const char *pathName,
@@ -334,7 +334,7 @@ FileIOResult FileIO_OpenRetry(FileIODescriptor *file,
                               const char *pathName,
                               int access,
                               FileIOOpenAction action,
-                              uint32 msecMaxWaitTime);
+                              uint32 maxWaitTimeMsec);
 
 uint64 FileIO_Seek(const FileIODescriptor *file,
                    int64 distance,
