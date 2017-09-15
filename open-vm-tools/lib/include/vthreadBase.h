@@ -51,10 +51,10 @@ extern "C" {
 
 typedef unsigned VThreadID;
 
-#define VTHREAD_INVALID_ID	(VThreadID)(~0u)
+#define VTHREAD_INVALID_ID    (VThreadID)(~0u)
 
 /* XXX Vestigial need as an MXState array size */
-#define VTHREAD_MAX_THREADS   224
+#define VTHREAD_MAX_THREADS   288
 
 #ifdef VMM
 /*

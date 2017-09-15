@@ -107,7 +107,8 @@ typedef enum PollClass {
    POLL_CLASS_CPT,
    POLL_CLASS_MKS,
    POLL_FIXED_CLASSES,
-   POLL_MAX_CLASSES = 320 /* Size enum to maximum */
+   /* Size enum to maximum */
+   POLL_MAX_CLASSES = 540,
 } PollClass;
 
 
