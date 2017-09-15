@@ -53,7 +53,7 @@ typedef struct MsgCatalog {
 
 typedef struct MsgState {
    GHashTable *domains;  /* List of text domains. */
-   GStaticMutex lock;    /* Mutex to protect shared state. */
+   GMutex lock;          /* Mutex to protect shared state. */
 } MsgState;
 
 
@@ -368,7 +368,7 @@ MsgInitState(gpointer unused)
 {
    ASSERT(msgState == NULL);
    msgState = g_new0(MsgState, 1);
-   g_static_mutex_init(&msgState->lock);
+   g_mutex_init(&msgState->lock);
    return NULL;
 }
 
@@ -740,9 +740,9 @@ I18n_BindTextDomain(const char *domain,
                    "catalog dir '%s'.\n", domain, lang, catdir);
       }
    } else {
-      g_static_mutex_lock(&state->lock);
+      g_mutex_lock(&state->lock);
       MsgSetCatalog(domain, catalog);
-      g_static_mutex_unlock(&state->lock);
+      g_mutex_unlock(&state->lock);
    }
    g_free(file);
    g_free(usrlang);
@@ -797,7 +797,7 @@ I18n_GetString(const char *domain,
    memcpy(idBuf, idp, len);
    idBuf[len] = '\0';
 
-   g_static_mutex_lock(&state->lock);
+   g_mutex_lock(&state->lock);
 
    catalog = MsgGetCatalog(domain);
    if (catalog != NULL) {
@@ -813,7 +813,7 @@ I18n_GetString(const char *domain,
       }
    }
 
-   g_static_mutex_unlock(&state->lock);
+   g_mutex_unlock(&state->lock);
 
    return strp;
 }
