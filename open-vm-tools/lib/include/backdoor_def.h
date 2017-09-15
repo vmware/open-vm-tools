@@ -175,6 +175,7 @@ extern "C" {
 #  define BDOOR_CMD_EBC_SHELL_ACTIVE              2
 #  define BDOOR_CMD_EBC_GET_NETWORK_BOOT_PROTOCOL 3
 #  define BDOOR_CMD_EBC_QUICKBOOT_ENABLED         4
+#  define BDOOR_CMD_EBC_GET_PXE_ARCH              5
 #define   BDOOR_CMD_GET_HW_MODEL             74 /* CPL 0 only. */
 #define   BDOOR_CMD_GET_SVGA_CAPABILITIES    75 /* CPL 0 only. */
 #define   BDOOR_CMD_GET_FORCE_X2APIC         76 /* CPL 0 only  */
