@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -157,9 +157,9 @@ char *UUID_Create(const char *configFileFullPath,
 
 char *UUID_CreateRandom(void);
 
-void UUID_CreateRandomRFC4122V4(UUIDRFC4122 *id);
+Bool UUID_CreateRandomRFC4122V4(UUIDRFC4122 *id);
 
-void UUID_CreateRandomEFI(EFIGUID *id);
+Bool UUID_CreateRandomEFI(EFIGUID *id);
 
 char *UUID_CreateRandomVpxStyle(uint8 vpxdId,
                                 UUIDStyle);
