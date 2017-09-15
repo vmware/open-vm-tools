@@ -202,7 +202,7 @@ SHA1TransformSSSE3(uint32 state[5],
  * The AVX2 multi-buffer implementation is 64-bit only and requires GCC 4.7 or
  * newer. For now it is only included in the vmkernel.
  */
-#if defined(VMKERNEL)
+#if defined(VM_X86_64) && defined(VMKERNEL)
 
 void SHA1_Transform_AVX2_X8_ASM(uint32 transposedDigests[5][8],
                                 const uint8 *input[8],
