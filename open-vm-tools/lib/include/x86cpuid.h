@@ -646,9 +646,9 @@ FIELD( 15,  0, EBX,  0, 32, NUMER_TSC_TO_CORE_CRYSTAL_CLK,         NO,  FALSE) \
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_16                                              \
-FIELD( 16,  0, EAX,  0, 16, PROC_BASE_FREQ,                        ANY, FALSE) \
-FIELD( 16,  0, EBX,  0, 16, PROC_MIN_FREQ,                         ANY, FALSE) \
-FIELD( 16,  0, ECX,  0, 16, BUS_FREQ,                              ANY, FALSE) \
+FIELD( 16,  0, EAX,  0, 16, PROC_BASE_FREQ,                        NO,  FALSE) \
+FIELD( 16,  0, EBX,  0, 16, PROC_MIN_FREQ,                         NO,  FALSE) \
+FIELD( 16,  0, ECX,  0, 16, BUS_FREQ,                              NO,  FALSE) \
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_400                                             \
