@@ -27,6 +27,7 @@ libresolutionKMS_la_LDFLAGS += @PLUGIN_LDFLAGS@
 
 libresolutionKMS_la_LIBADD =
 libresolutionKMS_la_LIBADD += @VMTOOLS_LIBS@
+libresolutionKMS_la_LIBADD += @RESOLUTIONSET_LIBADD@
 libresolutionKMS_la_LIBADD += $(top_builddir)/services/plugins/resolutionSet/libresolutionCommon.la
 
 libresolutionKMS_la_SOURCES =

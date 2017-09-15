@@ -31,6 +31,7 @@ libresolutionSet_la_LIBADD =
 libresolutionSet_la_LIBADD += @COMMON_XLIBS@
 libresolutionSet_la_LIBADD += @GTK_LIBS@
 libresolutionSet_la_LIBADD += @VMTOOLS_LIBS@
+libresolutionSet_la_LIBADD += @RESOLUTIONSET_LIBADD@
 libresolutionSet_la_LIBADD += libresolutionCommon.la
 
 libresolutionSet_la_SOURCES =

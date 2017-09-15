@@ -791,6 +791,7 @@ AC_CHECK_FUNCS(
       [VIX_LIBADD="$VIX_LIBADD -ldl"
        LIBVMTOOLS_LIBADD="$LIBVMTOOLS_LIBADD -ldl"
        VGAUTH_LIBADD="$VGAUTH_LIBADD -ldl"
+       RESOLUTIONSET_LIBADD="$RESOLUTIONSET_LIBADD -ldl"
       ],
       [AC_MSG_ERROR(
          [dlopen was not found, but is required for open-vm-tools to function properly. Please contact your OS vendor.])])])
@@ -1417,6 +1418,7 @@ AC_SUBST([LIB_AUTH_CPPFLAGS])
 AC_SUBST([LIB_IMPERSONATE_CPPFLAGS])
 AC_SUBST([LIB_USER_CPPFLAGS])
 AC_SUBST([LIBVMTOOLS_LIBADD])
+AC_SUBST([RESOLUTIONSET_LIBADD])
 
 ### Program substs
 
