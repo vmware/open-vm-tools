@@ -861,7 +861,9 @@ TimeUtil_GetTimeFormat(int64 utcTime,  // IN:
 #else
    str = Util_SafeStrdup(ctime_r(&t, buf));
 #endif
-   str[strlen(str) - 1] = '\0';  // Remove the trailing '\n'.
+   if (str != NULL) {
+      str[strlen(str) - 1] = '\0';  // Remove the trailing '\n'.
+   }
 
    return str;
 #endif // _WIN32
