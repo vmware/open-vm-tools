@@ -93,8 +93,7 @@ typedef char           Bool;
 #define TRUE           1
 #endif
 
-#define IsBool(x)      (((x) & ~1) == 0)
-#define IsBool2(x, y)  ((((x) | (y)) & ~1) == 0)
+#define IS_BOOL(x)     (((x) & ~1) == 0)
 
 /*
  * Macros __i386__ and __ia64 are intrinsically defined by GCC
