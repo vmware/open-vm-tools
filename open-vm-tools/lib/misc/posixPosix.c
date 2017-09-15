@@ -621,8 +621,7 @@ Posix_Pathconf(const char *pathName,  // IN:
  *      Open a file using POSIX popen().
  *
  * Results:
- *      -1	error
- *      >= 0	success (file descriptor)
+ *      Returns a non-NULL FILE* on success, NULL on error.
  *
  * Side effects:
  *      errno is set on error

@@ -846,7 +846,10 @@ HostinfoGetCmdOutput(const char *cmd)  // IN:
       free(line);
    }
 
-   out = DynBuf_DetachString(&db);
+   /* Return NULL instead of an empty string if there's no output. */
+   if (DynBuf_Get(&db) != NULL) {
+      out = DynBuf_DetachString(&db);
+   }
 
  closeIt:
    pclose(stream);
