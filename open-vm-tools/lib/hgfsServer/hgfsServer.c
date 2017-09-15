@@ -234,9 +234,6 @@ static void HgfsServerSessionInvalidateObjects(void *clientData,
                                                DblLnkLst_Links *shares);
 static uint32 HgfsServerSessionInvalidateInactiveSessions(void *clientData);
 static void HgfsServerSessionSendComplete(HgfsPacket *packet, void *clientData);
-static HgfsSharedFolderHandle HgfsServerRegisterShare(const char *shareName,
-                                                      const char *sharePath,
-                                                      Bool addFolder);
 
 /*
  * Callback table passed to transport and any channels.
@@ -251,7 +248,6 @@ static const HgfsServerCallbacks gHgfsServerCBTable = {
       HgfsServerSessionInvalidateInactiveSessions,
       HgfsServerSessionSendComplete,
    },
-   HgfsServerRegisterShare,
 };
 
 /* Lock that protects shared folders list. */
@@ -3794,47 +3790,6 @@ HgfsServerSharesReset(DblLnkLst_Links *newSharesList)  // IN: List of new shares
 
    MXUser_ReleaseExclLock(gHgfsSharedFoldersLock);
    LOG(8, ("%s: exit\n", __FUNCTION__));
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * HgfsServerRegisterShare --
- *
- *    This is a callback function which is invoked by hgfsServerManagement
- *    for every shared folder when something changed in shared folders
- *    configuration. The function iterates through the list of existing
- *    shared folders trying to locate an entry with the shareName. If the
- *    entry is found the function returns corresponding handle. Otherwise
- *    it creates a new entry and assigns a new handle to it.
- *
- *    Currently there is no notification that a shared folder has been
- *    deleted. The only way to find out that a shred folder is deleted
- *    is to notice that it is not enumerated any more. Thus an explicit
- *    "end of list" notification is needed. "sharedFolder == NULL" notifies
- *    that enumeration is completed which allows to delete all shared
- *    folders that were not mentioned during current enumeration.
- *
- * Results:
- *    HgfsSharedFolderHandle for the entry.
- *
- * Side effects:
- *    May add an entry to known shared folders list.
- *
- *-----------------------------------------------------------------------------
- */
-
-static HgfsSharedFolderHandle
-HgfsServerRegisterShare(const char *shareName,   // IN: shared folder name
-                        const char *sharePath,   // IN: shared folder path
-                        Bool addFolder)          // IN: add or remove folder
-{
-   HgfsSharedFolderHandle result = HGFS_INVALID_FOLDER_HANDLE;
-   LOG(8, ("%s: %s, %s, %s exit %#x\n",__FUNCTION__,
-           (shareName ? shareName : "NULL"), (sharePath ? sharePath : "NULL"),
-           (addFolder ? "add" : "remove"), result));
-   return result;
 }
 
 

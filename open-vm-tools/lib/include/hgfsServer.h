@@ -134,9 +134,6 @@ typedef struct HgfsServerConfig {
 typedef uint32 HgfsSharedFolderHandle;
 #define HGFS_INVALID_FOLDER_HANDLE         ((HgfsSharedFolderHandle)~((HgfsSharedFolderHandle)0))
 
-typedef HgfsSharedFolderHandle (*HgfsRegisterSharedFolderFunc)(const char *shareName,
-                                                               const char *sharePath,
-                                                               Bool addFolder);
 /*
  * Callback functions to enumerate the share resources.
  * Filled in by the HGFS server policy and passed in to the HGFS server
@@ -197,9 +194,9 @@ typedef struct HgfsServerSessionCallbacks {
    void (*sendComplete)(HgfsPacket *, void *);
 } HgfsServerSessionCallbacks;
 
+/* XXX: TODO delete this layer if no other non-session callbacks are required. */
 typedef struct HgfsServerCallbacks {
    HgfsServerSessionCallbacks session;
-   HgfsRegisterSharedFolderFunc registerShare;
 } HgfsServerCallbacks;
 
 Bool HgfsServer_InitState(const HgfsServerCallbacks **,
