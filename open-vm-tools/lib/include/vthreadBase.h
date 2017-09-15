@@ -107,9 +107,6 @@ VThread_CurName(void)
 typedef struct {
    VThreadID  id;
    char       name[VTHREADBASE_MAX_NAME];
-#if !defined _WIN32
-   Atomic_Int signalNestCount;
-#endif
 } VThreadBaseData;
 
 /* Common VThreadBase functions */
@@ -151,7 +148,7 @@ VThreadBase_IsInSignal(void)
 }
 #else
 Bool VThreadBase_IsInSignal(void);
-void VThreadBase_SetIsInSignal(VThreadID tid, Bool isInSignal);
+void VThreadBase_SetIsInSignal(Bool isInSignal);
 #endif
 
 #endif /* VMM */

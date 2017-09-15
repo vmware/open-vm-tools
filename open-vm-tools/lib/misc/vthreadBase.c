@@ -80,6 +80,27 @@
 #  define HAVE_TLS
 #endif
 
+/*
+ * Most major OSes now support __thread, so begin making TLS access via
+ * __thread the common case.
+ *
+ * Linux: __thread since glibc-2.3
+ * Windows: __declspec(thread) since vs2005 and >= Vista
+ *          (Prior to Vista, __declspec(thread) unimplemented when
+ *           library loaded via LoadLibrary / delay-load)
+ * FreeBSD and Solaris have supported "a long time", gcc-4.1 was needed.
+ *
+ * OSes without __thread support:
+ * Android
+ * MacOS. (However, pthread_get_specific is very fast. Also, 10.12 looks to
+ *         support C11 thread_local type, so eventually we get it).
+ *
+ * (This is a new TLS rewrite, still in progress. Hence the NEW name. --kevinc)
+ */
+#if !defined __APPLE__ && !defined __ANDROID__
+#  define NEW_HAVE_TLS
+#endif
+
 #if defined _WIN32
 #  include <windows.h>
 #else
@@ -165,6 +186,50 @@ typedef enum VThreadLocal {
    VTHREAD_LOCAL_BASE,
    VTHREAD_LOCAL_ID
 } VThreadLocal;
+
+
+#if !defined _WIN32
+/*
+ * Signal counting code. Signal counting operates self-contained,
+ * having no particular dependency on the rest of VThreadBase
+ * (especially the VThreadBaseData memory allocation).
+ */
+#ifdef NEW_HAVE_TLS
+static __thread int sigNestCount;
+#else
+static pthread_key_t sigNestCountKey = VTHREADBASE_INVALID_KEY;
+
+/*
+ * To avoid needing initialization, manage via constructor/destructor.
+ */
+__attribute__((constructor))
+static void SigNestCountConstruct(void)
+{
+   /*
+    * On Linux, system libraries have been seen to free TLS key 0 (see bugs
+    * 702818 and 773420) as libraries unload due to e.g. appLoader. However,
+    * neither macOS nor Android use appLoader, nor do they in practice unload
+    * libraries at runtime. Thus, avoid the workaround with cautious optimism.
+    */
+   (void) pthread_key_create(&sigNestCountKey, NULL);
+}
+__attribute__((destructor))
+static void SigNestCountDestruct(void)
+{
+   /*
+    * TLS destructors have a wrinkle: if you unload a library THEN
+    * a thread exits, the TLS destructor will SEGV because it's unloaded.
+    * Net result, we must either leak a TLS key or the value in the TLS
+    * slot. This path chooses to leak the value in the TLS slot... and
+    * as the value is an integer and not a pointer, there is no real leak.
+    *
+    * Code elsewhere in this file makes the opposite choice (leak TLS key)
+    * due to needing a non-trivial destructor.
+    */
+   (void) pthread_key_delete(sigNestCountKey);
+}
+#endif
+#endif
 
 
 /*
@@ -1189,9 +1254,11 @@ VThreadBaseInit(void)
 Bool
 VThreadBase_IsInSignal(void)
 {
-   VThreadBaseData *base = VThreadBaseGetAndInitBase();
-
-   return Atomic_Read(&base->signalNestCount) > 0;
+#if defined NEW_HAVE_TLS
+   return sigNestCount > 0;
+#else
+   return (intptr_t)pthread_getspecific(sigNestCountKey) > 0;
+#endif
 }
 
 
@@ -1200,8 +1267,7 @@ VThreadBase_IsInSignal(void)
  *
  * VThreadBase_SetIsInSignal --
  *
- *      Marks the current thread as or as not being inside a signal
- *      handler.
+ *      Marks the current thread as or as not being inside a signal handler.
  *
  * Results:
  *      None.
@@ -1213,14 +1279,14 @@ VThreadBase_IsInSignal(void)
  */
 
 void
-VThreadBase_SetIsInSignal(VThreadID tid,    // IN:
-                          Bool isInSignal)  // IN:
+VThreadBase_SetIsInSignal(Bool isInSignal)  // IN:
 {
-   VThreadBaseData *base = VThreadBaseGetAndInitBase();
-
-   /* It is an error to clear isInSignal while not in a signal. */
-   ASSERT(Atomic_Read(&base->signalNestCount) > 0 || isInSignal);
-
-   Atomic_Add(&base->signalNestCount, isInSignal ? 1 : -1);
+#if defined NEW_HAVE_TLS
+   sigNestCount += (isInSignal ? 1 : -1);
+#else
+   intptr_t cnt = pthread_getspecific(sigNestCountKey);
+   cnt += (isInSignal ? 1 : -1);
+   (void) pthread_setspecific(sigNestCountKey, (void *)cnt);
+#endif
 }
 #endif
