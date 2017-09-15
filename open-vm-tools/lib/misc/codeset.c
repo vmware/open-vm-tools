@@ -654,12 +654,12 @@ found:
       ASSERT(memMappedData);
 
       udata_setCommonData(memMappedData, &uerr);
-      if (U_FAILURE(uerr)) {
+      if (uerr != U_ZERO_ERROR) {
          UnmapViewOfFile(memMappedData);
          goto exit;
       }
       udata_setAppData(ICU_DATA_ITEM, memMappedData, &uerr);
-      if (U_FAILURE(uerr)) {
+      if (uerr != U_ZERO_ERROR) {
          UnmapViewOfFile(memMappedData);
          goto exit;
       }
@@ -972,13 +972,13 @@ CodeSet_GenericToGenericDb(const char *codeIn,  // IN
 
    uerr = U_ZERO_ERROR;
    ucnv_setToUCallBack(cvin, toUCb, NULL, NULL, NULL, &uerr);
-   if (U_FAILURE(uerr)) {
+   if (U_ZERO_ERROR != uerr) {
       goto exit;
    }
 
    uerr = U_ZERO_ERROR;
    ucnv_setFromUCallBack(cvout, fromUCb, NULL, NULL, NULL, &uerr);
-   if (U_FAILURE(uerr)) {
+   if (U_ZERO_ERROR != uerr) {
       goto exit;
    }
 
@@ -1016,7 +1016,7 @@ CodeSet_GenericToGenericDb(const char *codeIn,  // IN
 		     bufPiv, &bufPivSource, &bufPivTarget, bufPivEnd,
 		     FALSE, TRUE, &uerr);
 
-      if (U_SUCCESS(uerr)) {
+      if (!U_FAILURE(uerr)) {
          /*
           * "This was a triumph. I'm making a note here: HUGE SUCCESS. It's
           * hard to overstate my satisfaction."
@@ -1668,7 +1668,7 @@ CodeSet_IsEncodingSupported(const char *name) // IN
 
 Bool
 CodeSet_Validate(const char *buf,   // IN: the string
-                 size_t size,       // IN: length of string
+                 size_t size,	    // IN: length of string
                  const char *code)  // IN: encoding
 {
 #if defined(NO_ICU)
@@ -1701,9 +1701,9 @@ CodeSet_Validate(const char *buf,   // IN: the string
 
    uerr = U_ZERO_ERROR;
    cv = ucnv_open(code, &uerr);
-   VERIFY(U_SUCCESS(uerr));
+   VERIFY(uerr == U_ZERO_ERROR);
    ucnv_setToUCallBack(cv, UCNV_TO_U_CALLBACK_STOP, NULL, NULL, NULL, &uerr);
-   VERIFY(U_SUCCESS(uerr));
+   VERIFY(uerr == U_ZERO_ERROR);
    ucnv_toUChars(cv, NULL, 0, buf, size, &uerr);
    ucnv_close(cv);
 
