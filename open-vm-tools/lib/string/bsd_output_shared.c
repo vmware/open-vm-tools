@@ -49,8 +49,12 @@
 #include <math.h>
 #include <string.h>
 #include <wchar.h>
-#ifndef _WIN32
+#ifdef __APPLE__
 #include <pthread.h>
+#endif
+#if !defined(_WIN32) || !defined(__APPLE__)
+/* required to handle %.20f conversion of 1e308 */
+#define FP_BUFFERSIZE 349
 #endif
 
 #include "vmware.h"
@@ -98,7 +102,7 @@ dtoa(double d,       // IN
      int *sign,      // OUT
      char **strEnd)  // OUT
 {
-   char *str = NULL;
+   char *str;
    int dec;
 
 #if defined(_WIN32)
@@ -137,10 +141,10 @@ dtoa(double d,       // IN
        */
 
       if (str && *str == '\0' && dec < 0 && dec < -prec) {
-	 dec = -prec;
+         dec = -prec;
       }
    }
-#else // _WIN32
+#elif __APPLE__
    static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
    if (2 == mode) {
@@ -150,7 +154,6 @@ dtoa(double d,       // IN
    } else {
       ASSERT(3 == mode);
 
-#ifdef __APPLE__
       /*
        * The Mac fcvt() returns "" when prec is 0, so we have to
        * compensate.  See bug 233530.
@@ -165,24 +168,35 @@ dtoa(double d,       // IN
        */
 
       if (prec == 0) {
-	 size_t l;
+         size_t l;
          pthread_mutex_lock(&mutex);
-	 str = strdup(fcvt(round(d), 1, &dec, sign));
+         str = strdup(fcvt(round(d), 1, &dec, sign));
          pthread_mutex_unlock(&mutex);
-	 if (str) {
-	    l = strlen(str);
-	    ASSERT(l > 0);
-	    l--;
-	    ASSERT(str[l] == '0');
-	    str[l] = '\0';
+         if (str) {
+            l = strlen(str);
+            ASSERT(l > 0);
+            l--;
+            ASSERT(str[l] == '0');
+            str[l] = '\0';
          }
-      } else 
-#endif // __APPLE__
-      {
+      } else {
          pthread_mutex_lock(&mutex);
          str = strdup(fcvt(d, prec, &dec, sign));
          pthread_mutex_unlock(&mutex);
       }
+   }
+#else
+   if (2 == mode) {
+      char buf[FP_BUFFERSIZE];
+
+      str =
+         ecvt_r(d, prec, &dec, sign, buf, sizeof buf) != 0 ? NULL : strdup(buf);
+   } else {
+      char buf[FP_BUFFERSIZE];
+
+      ASSERT(3 == mode);
+      str =
+         fcvt_r(d, prec, &dec, sign, buf, sizeof buf) != 0 ? NULL : strdup(buf);
    }
 #endif // _WIN32
 
