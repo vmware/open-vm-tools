@@ -124,7 +124,7 @@
    GOSL(STR_OS_CENTOS "6",                   GUEST_OS_CENTOS6,                "linux.iso")            \
    GOSL(STR_OS_CENTOS "6-64",                GUEST_OS_CENTOS6_64,             "linux.iso")            \
    GOSL(STR_OS_CENTOS "7-64",                GUEST_OS_CENTOS7_64,             "linux.iso")            \
-   GOSL("coreos-64",                         GUEST_OS_OTHER3XLINUX_64,        "linux.iso")            \
+   GOSL("coreos-64",                         GUEST_OS_OTHER3XLINUX_64,        NULL)                   \
    GOSL(STR_OS_MACOS,                        GUEST_OS_DARWIN9,                "darwin.iso")           \
    GOSL(STR_OS_MACOS "-64",                  GUEST_OS_DARWIN9_64,             "darwin.iso")           \
    GOSL(STR_OS_MACOS "10",                   GUEST_OS_DARWIN10,               "darwin.iso")           \
@@ -190,9 +190,9 @@
    GOSL(STR_OS_OTHER_26 "-64",               GUEST_OS_OTHER26XLINUX_64,       "linux.iso")            \
    GOSL(STR_OS_OTHER_3X,                     GUEST_OS_OTHER3XLINUX,           "linux.iso")            \
    GOSL(STR_OS_OTHER_3X "-64",               GUEST_OS_OTHER3XLINUX_64,        "linux.iso")            \
-   GOSL(STR_OS_OTHER,                        GUEST_OS_OTHERLINUX,             "linux.iso")            \
-   GOSL(STR_OS_OTHER "-64",                  GUEST_OS_OTHERLINUX_64,          "linux.iso")            \
-   GOSL(STR_OS_RED_HAT,                      GUEST_OS_OTHER26XLINUX,          "linux.iso")            \
+   GOSL(STR_OS_OTHER,                        GUEST_OS_OTHERLINUX,             "linuxPreGlibc25.iso")  \
+   GOSL(STR_OS_OTHER "-64",                  GUEST_OS_OTHERLINUX_64,          "linuxPreGlibc25.iso")  \
+   GOSL(STR_OS_RED_HAT,                      GUEST_OS_OTHER26XLINUX,          "linuxPreGlibc25.iso")  \
    GOSL(STR_OS_RED_HAT_EN "2",               GUEST_OS_OTHER24XLINUX,          "linuxPreGlibc25.iso")  \
    GOSL(STR_OS_RED_HAT_EN "3",               GUEST_OS_OTHER24XLINUX,          "linuxPreGlibc25.iso")  \
    GOSL(STR_OS_RED_HAT_EN "3-64",            GUEST_OS_OTHER24XLINUX_64,       "linuxPreGlibc25.iso")  \
@@ -205,8 +205,8 @@
    GOSL(STR_OS_RED_HAT_EN "7",               GUEST_OS_RHEL,                   "linux.iso")            \
    GOSL(STR_OS_RED_HAT_EN "7-64",            GUEST_OS_RHEL_64,                "linux.iso")            \
    GOSL(STR_OS_SUN_DESK,                     GUEST_OS_OTHER24XLINUX,          "linuxPreGlibc25.iso")  \
-   GOSL(STR_OS_SLES,                         GUEST_OS_OTHER26XLINUX,          "linux.iso")            \
-   GOSL(STR_OS_SLES "-64",                   GUEST_OS_OTHER26XLINUX_64,       "linux.iso")            \
+   GOSL(STR_OS_SLES,                         GUEST_OS_OTHER26XLINUX,          "linuxPreGlibc25.iso")  \
+   GOSL(STR_OS_SLES "-64",                   GUEST_OS_OTHER26XLINUX_64,       "linuxPreGlibc25.iso")  \
    GOSL(STR_OS_SLES "10",                    GUEST_OS_OTHER26XLINUX,          "linuxPreGlibc25.iso")  \
    GOSL(STR_OS_SLES "10-64",                 GUEST_OS_OTHER26XLINUX_64,       "linuxPreGlibc25.iso")  \
    GOSL(STR_OS_SLES "11",                    GUEST_OS_OTHER26XLINUX,          "linux.iso")            \
@@ -221,10 +221,10 @@
    GOSL(STR_OS_SOLARIS "7",                  GUEST_OS_SOLARIS_6_AND_7,        "solaris.iso")          \
    GOSL(STR_OS_SOLARIS "8",                  GUEST_OS_SOLARIS8,               "solaris.iso")          \
    GOSL(STR_OS_SOLARIS "9",                  GUEST_OS_SOLARIS9,               "solaris.iso")          \
-   GOSL(STR_OS_SUSE,                         GUEST_OS_OTHER26XLINUX,          "linux.iso")            \
-   GOSL(STR_OS_SUSE "-64",                   GUEST_OS_OTHER26XLINUX_64,       "linux.iso")            \
-   GOSL(STR_OS_TURBO,                        GUEST_OS_OTHER26XLINUX,          "linux.iso")            \
-   GOSL(STR_OS_TURBO "-64",                  GUEST_OS_OTHER26XLINUX_64,       "linux.iso")            \
+   GOSL(STR_OS_SUSE,                         GUEST_OS_OTHER26XLINUX,          "linuxPreGlibc25.iso")  \
+   GOSL(STR_OS_SUSE "-64",                   GUEST_OS_OTHER26XLINUX_64,       "linuxPreGlibc25.iso")  \
+   GOSL(STR_OS_TURBO,                        GUEST_OS_OTHER26XLINUX,          "linuxPreGlibc25.iso")  \
+   GOSL(STR_OS_TURBO "-64",                  GUEST_OS_OTHER26XLINUX_64,       "linuxPreGlibc25.iso")  \
    GOSL(STR_OS_UBUNTU,                       GUEST_OS_UBUNTU,                 "linux.iso")            \
    GOSL(STR_OS_UBUNTU "-64",                 GUEST_OS_OTHER26XLINUX_64,       "linux.iso")            \
    GOSL("unixware7",                         GUEST_OS_UNIXWARE7,              NULL)                   \
