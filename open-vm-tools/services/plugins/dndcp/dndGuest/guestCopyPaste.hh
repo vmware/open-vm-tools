@@ -113,7 +113,6 @@ private:
 
    GuestCopyPasteMgr *mMgr;
    CPClipboard mClipboard;
-   bool mIsActive;
    std::string mStagingDir;
 };
 

@@ -121,7 +121,6 @@ private:
    GuestDnDSrc *mSrc;
    GuestDnDDest *mDest;
    DnDRpc *mRpc;
-   GuestFileTransfer *mFileTransfer;
    GUEST_DND_STATE mDnDState;
    uint32 mSessionId;
    GSource *mHideDetWndTimer;
@@ -129,7 +128,6 @@ private:
    GSource *mUngrabTimeout;
    ToolsAppCtx *mToolsAppCtx;
    bool mDnDAllowed;
-   uint32 mVmxDnDVersion;
    DnDCPTransport *mDnDTransport;
    uint32 mCapabilities;
 };
@@ -183,7 +181,6 @@ private:
    void OnRpcCancel(uint32 sessionId);
 
    GuestDnDMgr *mMgr;
-   DnDRpc *mRpc;
    CPClipboard mClipboard;
 };
 
