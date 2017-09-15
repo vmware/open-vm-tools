@@ -34,10 +34,7 @@ int32 Preference_GetLong(int32 defaultValue, const char *fmt);
 int64 Preference_GetInt64(int64 defaultvalue, const char *fmt);
 double Preference_GetDouble(double defaultValue, const char *fmt);
 char *Preference_GetString(const char *defaultValue, const char *fmt);
-char *Preference_GetStringPlain(const char *defaultValue, const char *fmt);
-char *Preference_GetStringEnum(const void *defaultValue,
-                               const char **choices,
-                               const char *name);
+
 void Preference_Log(void);
 char *Preference_GetPathName(const char *defaultValue, const char *fmt);
 void Preference_SetFromString(const char *string, Bool overwrite);
