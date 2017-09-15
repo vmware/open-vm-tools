@@ -1175,7 +1175,8 @@ SAMLCheckReference(const DOMDocument *doc,
       DSIGReference *ref = references->item(i);
       const XMLCh *uri = ref->getURI();
 
-      if (XMLString::startsWith(uri, uriPrefix.getUnicodeStr()) &&
+      if (uri != NULL &&
+          XMLString::startsWith(uri, uriPrefix.getUnicodeStr()) &&
           XMLString::equals(id, uri + prefixLen)) {
          return true;
       }
