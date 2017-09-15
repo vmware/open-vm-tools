@@ -1,5 +1,5 @@
 ##########################################################
-# Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+# Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -76,11 +76,11 @@ disk.shrink.ignoreFreeSpaceWarnings = "축소 프로세스가 실행되는 동�
 
 disk.wipe.ignoreFreeSpaceWarnings = "지우기 프로세스가 실행되는 동안에는 디스크 공간에 대한 주의를 무시하십시오.\n"
 
-disk.wiper.error = "오류: %1$s"
-
 disk.wiper.file.error = "오류. 와이퍼 파일을 생성할 수 없습니다.\n"
 
 disk.wiper.progress = "\r진행률: %1$d"
+
+error.message = "오류: %1$s\n"
 
 error.missing = "%1$s: %2$s이(가) 없음\n"
 
