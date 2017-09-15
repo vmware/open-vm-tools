@@ -1429,6 +1429,8 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 #define CPUID_MODEL_ATOM_5D        0x5d  // Future Silvermont
 #define CPUID_MODEL_SKYLAKE_5E     0x5e  // Skylake-S / Kabylake S/H ES
 #define CPUID_MODEL_ATOM_5F        0x5f  // Denverton
+#define CPUID_MODEL_KABYLAKE_8E    0x8e  // Kabylake U/Y QS
+#define CPUID_MODEL_KABYLAKE_9E    0x9e  // Kabylake S/H QS
 
 /* Intel stepping information */
 #define CPUID_STEPPING_KABYLAKE_ES 0x8   // Kabylake S/H/U/Y ES
@@ -1658,13 +1660,25 @@ CPUID_MODEL_IS_SKYLAKE(uint32 v) // IN: %eax from CPUID with %eax=1.
             CPUID_EFFECTIVE_STEPPING(v) != CPUID_STEPPING_KABYLAKE_ES));
 }
 
+static INLINE Bool
+CPUID_MODEL_IS_KABYLAKE(uint32 v) // IN: %eax from CPUID with %eax=1.
+{
+   /* Assumes the CPU manufacturer is Intel. */
+   return CPUID_FAMILY_IS_P6(v) &&
+          (CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_KABYLAKE_9E ||
+           CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_KABYLAKE_8E ||
+          (CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_SKYLAKE_5E &&
+           CPUID_EFFECTIVE_STEPPING(v) == CPUID_STEPPING_KABYLAKE_ES) ||
+          (CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_SKYLAKE_4E &&
+           CPUID_EFFECTIVE_STEPPING(v) == CPUID_STEPPING_KABYLAKE_ES));
+}
 
 static INLINE Bool
 CPUID_UARCH_IS_SKYLAKE(uint32 v) // IN: %eax from CPUID with %eax=1.
 {
    /* Assumes the CPU manufacturer is Intel. */
-   return CPUID_FAMILY_IS_P6(v) && (
-          CPUID_MODEL_IS_SKYLAKE(v));
+   return CPUID_FAMILY_IS_P6(v) &&
+          (CPUID_MODEL_IS_KABYLAKE(v) || CPUID_MODEL_IS_SKYLAKE(v));
 }
 
 static INLINE Bool
