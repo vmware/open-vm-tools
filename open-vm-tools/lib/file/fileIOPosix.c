@@ -834,7 +834,9 @@ FileIOCreateRetry(FileIODescriptor *file,   // OUT:
    }
 #elif defined(__linux__)
    if (HostType_OSIsVMK()) {
-      if ((access & FILEIO_OPEN_MULTIWRITER_LOCK) != 0) {
+      if ((access & FILEIO_OPEN_SWMR_LOCK) != 0) {
+         flags |= O_SWMR_LOCK;
+      } else if ((access & FILEIO_OPEN_MULTIWRITER_LOCK) != 0) {
          flags |= O_MULTIWRITER_LOCK;
       } else if ((access & FILEIO_OPEN_LOCK_MANDATORY) != 0) {
          flags |= O_EXCLUSIVE_LOCK;
