@@ -30,10 +30,7 @@
 #endif
 
 #include "rpcBase.h"
-
-extern "C" {
-   #include "dnd.h"
-}
+#include "dnd.h"
 
 struct DnDMsg;
 

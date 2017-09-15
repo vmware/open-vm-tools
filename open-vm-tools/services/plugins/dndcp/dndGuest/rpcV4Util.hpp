@@ -32,10 +32,9 @@
 #include "rpcBase.h"
 #include "dndRpcListener.hpp"
 #include "dbllnklst.h"
-
+#include "dnd.h"
 
 extern "C" {
-   #include "dnd.h"
    #include "dndCPMsgV4.h"
 }
 
