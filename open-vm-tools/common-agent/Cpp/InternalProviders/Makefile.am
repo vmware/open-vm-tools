@@ -33,8 +33,8 @@ ConfigProvider_CPPFLAGS += @SSL_CPPFLAGS@
 ConfigProvider_CPPFLAGS += @LIBRABBITMQ_CPPFLAGS@
 
 ConfigProvider_CPPFLAGS += -I$(top_srcdir)/common-agent/Cpp/Framework/Framework/include
-ConfigProvider_CPPFLAGS += -I$(top_srcdir)/common-agent/Cpp/Framework/Framework/include/Contracts
 ConfigProvider_CPPFLAGS += -I$(top_srcdir)/common-agent/Cpp/ProviderFx/ProviderFx/include
+ConfigProvider_CPPFLAGS += -I$(top_srcdir)/common-agent/Cpp/InternalProviders/Config_Provider/include
 ConfigProvider_LDADD =
 ConfigProvider_LDADD += @GLIB2_LIBS@
 ConfigProvider_LDADD += @LOG4CPP_LIBS@
@@ -60,8 +60,8 @@ InstallProvider_CPPFLAGS += @SSL_CPPFLAGS@
 InstallProvider_CPPFLAGS += @LIBRABBITMQ_CPPFLAGS@
 
 InstallProvider_CPPFLAGS += -I$(top_srcdir)/common-agent/Cpp/Framework/Framework/include
-InstallProvider_CPPFLAGS += -I$(top_srcdir)/common-agent/Cpp/Framework/Framework/include/Contracts
 InstallProvider_CPPFLAGS += -I$(top_srcdir)/common-agent/Cpp/ProviderFx/ProviderFx/include
+InstallProvider_CPPFLAGS += -I$(top_srcdir)/common-agent/Cpp/InternalProviders/Install_Provider/include
 InstallProvider_LDADD =
 InstallProvider_LDADD += @GLIB2_LIBS@
 InstallProvider_LDADD += @LOG4CPP_LIBS@
@@ -82,7 +82,6 @@ RemoteCommandProvider_CPPFLAGS += @SSL_CPPFLAGS@
 RemoteCommandProvider_CPPFLAGS += @LIBRABBITMQ_CPPFLAGS@
 
 RemoteCommandProvider_CPPFLAGS += -I$(top_srcdir)/common-agent/Cpp/Framework/Framework/include
-RemoteCommandProvider_CPPFLAGS += -I$(top_srcdir)/common-agent/Cpp/Framework/Framework/include/Contracts
 RemoteCommandProvider_CPPFLAGS += -I$(top_srcdir)/common-agent/Cpp/ProviderFx/ProviderFx/include
 RemoteCommandProvider_LDADD =
 RemoteCommandProvider_LDADD += @GLIB2_LIBS@
@@ -104,7 +103,6 @@ TestInfraProvider_CPPFLAGS += @SSL_CPPFLAGS@
 TestInfraProvider_CPPFLAGS += @LIBRABBITMQ_CPPFLAGS@
 
 TestInfraProvider_CPPFLAGS += -I$(top_srcdir)/common-agent/Cpp/Framework/Framework/include
-TestInfraProvider_CPPFLAGS += -I$(top_srcdir)/common-agent/Cpp/Framework/Framework/include/Contracts
 TestInfraProvider_CPPFLAGS += -I$(top_srcdir)/common-agent/Cpp/ProviderFx/ProviderFx/include
 TestInfraProvider_LDADD =
 TestInfraProvider_LDADD += @GLIB2_LIBS@

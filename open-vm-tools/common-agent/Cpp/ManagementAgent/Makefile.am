@@ -63,7 +63,9 @@ libMaIntegrationSubsys_la_CPPFLAGS += @GLIB2_CPPFLAGS@
 libMaIntegrationSubsys_la_CPPFLAGS += @LOG4CPP_CPPFLAGS@
 
 libMaIntegrationSubsys_la_CPPFLAGS += -I$(top_srcdir)/common-agent/Cpp/Framework/Framework/include
-libMaIntegrationSubsys_la_CPPFLAGS += -I$(top_srcdir)/common-agent/Cpp/Framework/Framework/include/Contracts
+libMaIntegrationSubsys_la_CPPFLAGS += -I$(top_srcdir)/common-agent/Cpp/Framework/Subsystems/CafIntegration/include
+libMaIntegrationSubsys_la_CPPFLAGS += -I$(top_srcdir)/common-agent/Cpp/ManagementAgent/ManagementAgent/include
+libMaIntegrationSubsys_la_CPPFLAGS += -I$(top_srcdir)/common-agent/Cpp/ManagementAgent/Subsystems/MaIntegration/include
 libMaIntegrationSubsys_la_LIBADD =
 libMaIntegrationSubsys_la_LIBADD += @GLIB2_LIBS@
 libMaIntegrationSubsys_la_LIBADD += @LOG4CPP_LIBS@
@@ -84,7 +86,7 @@ ManagementAgentHost_CPPFLAGS += @GLIB2_CPPFLAGS@
 ManagementAgentHost_CPPFLAGS += @LOG4CPP_CPPFLAGS@
 
 ManagementAgentHost_CPPFLAGS += -I$(top_srcdir)/common-agent/Cpp/Framework/Framework/include
-ManagementAgentHost_CPPFLAGS += -I$(top_srcdir)/common-agent/Cpp/Framework/Framework/include/Contracts
+ManagementAgentHost_CPPFLAGS += -I$(top_srcdir)/common-agent/Cpp/ManagementAgent/ManagementAgent/include
 ManagementAgentHost_LDADD =
 ManagementAgentHost_LDADD += @GLIB2_LIBS@
 ManagementAgentHost_LDADD += @LOG4CPP_LIBS@
@@ -111,7 +113,8 @@ libVgAuthIntegrationSubsys_la_CPPFLAGS += @LOG4CPP_CPPFLAGS@
 libVgAuthIntegrationSubsys_la_CPPFLAGS += -I$(top_srcdir)/vgauth/public
 
 libVgAuthIntegrationSubsys_la_CPPFLAGS += -I$(top_srcdir)/common-agent/Cpp/Framework/Framework/include
-libVgAuthIntegrationSubsys_la_CPPFLAGS += -I$(top_srcdir)/common-agent/Cpp/Framework/Framework/include/Contracts
+libVgAuthIntegrationSubsys_la_CPPFLAGS += -I$(top_srcdir)/common-agent/Cpp/ManagementAgent/ManagementAgent/include
+libVgAuthIntegrationSubsys_la_CPPFLAGS += -I$(top_srcdir)/common-agent/Cpp/ManagementAgent/Subsystems/VgAuth/include
 libVgAuthIntegrationSubsys_la_LIBADD =
 libVgAuthIntegrationSubsys_la_LIBADD += @GLIB2_LIBS@
 libVgAuthIntegrationSubsys_la_LIBADD += @LOG4CPP_LIBS@

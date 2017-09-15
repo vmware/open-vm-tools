@@ -33,7 +33,7 @@ libProviderFx_la_CPPFLAGS += @SSL_CPPFLAGS@
 libProviderFx_la_CPPFLAGS += @LIBRABBITMQ_CPPFLAGS@
 
 libProviderFx_la_CPPFLAGS += -I$(top_srcdir)/common-agent/Cpp/Framework/Framework/include
-libProviderFx_la_CPPFLAGS += -I$(top_srcdir)/common-agent/Cpp/Framework/Framework/include/Contracts
+libProviderFx_la_CPPFLAGS += -I$(top_srcdir)/common-agent/Cpp/ProviderFx/ProviderFx/include
 libProviderFx_la_LIBADD =
 libProviderFx_la_LIBADD += @GLIB2_LIBS@
 libProviderFx_la_LIBADD += @LOG4CPP_LIBS@
