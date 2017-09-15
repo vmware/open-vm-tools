@@ -174,6 +174,8 @@ Bool VThreadBase_IsInSignal(void);
 void VThreadBase_SetIsInSignal(Bool isInSignal);
 #endif
 
+uint64 VThreadBase_GetKernelID(void);
+
 #endif /* VMM */
 
 #if defined(__cplusplus)

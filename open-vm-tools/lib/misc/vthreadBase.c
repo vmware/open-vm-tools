@@ -651,6 +651,62 @@ VThreadBaseGetAndInitBase(void)
 }
 
 
+#if 0
+// Disabled until used in upcoming change
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VThreadBaseGetStableID --
+ *
+ *      Stable thread-id function.
+ *
+ *      In contrast to VThreadBase_GetKernelID below, this stable ID is safe
+ *      for caching. Unfortunately, it tends to not be human readable,
+ *      is not understood by the kernel, and makes no sense passed to
+ *      any other process.
+ *
+ *      Win32 was always safe; for POSIX, we instead make use of the fact
+ *      that pthread_t values (by definition) have to be stable across process
+ *      fork. That is:
+ *         pthread_t before = pthread_self();
+ *         fork();
+ *         pthread_t after = pthread_self();
+ *         ret = pthread_equal(before, after);  <---- POSIX requires equality
+ *      POSIX leaves the exact mechanism unspecified, but in practice
+ *      most POSIX OSes make pthread_t a pointer and make use of the fact that
+ *      the address space is fully cloned so the pointer will not change.
+ *      (An exception is Solaris, which uses integer LWP indexes but
+ *      clones the per-process LWP table at fork).
+ *
+ *      The assumption above is technically non-portable, as POSIX also
+ *      permits pthread_t to be a structure. We do not support any OS
+ *      which uses a structure definition.
+ *
+ * Results:
+ *      Some sort of stable ID.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static uintptr_t
+VThreadBaseGetStableID(void)
+{
+#if defined _WIN32
+   return GetCurrentThreadId();
+#elif defined __sun__
+   /* pthread_t is a uint_t index into a per-process LWP table */
+   return pthread_self();
+#else
+   /* pthread_t is (hopefully) an opaque pointer type */
+   return (uintptr_t)(void *)pthread_self();
+#endif
+}
+#endif
+
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -684,17 +740,46 @@ VThreadBase_CurID(void)
 /*
  *-----------------------------------------------------------------------------
  *
- * VThreadBaseNativeID --
+ * VThreadBase_GetKernelID --
  *
- *      Native thread-id function.
+ *      Native thread-id function. USE WITH GREAT CAUTION.
  *
- *      Most OSes tend to use 'small' numbers (32-bit in practice),
- *      these IDs are more readable in log files than e.g. a pointer.
+ *      Details below. In short, the ID returned by this function is both
+ *      'pretty' (tends to be short, e.g. readable as a decimal) and 'native'
+ *      in that it is useful for correlating with kernel threads.
+ *      However, this ID is not fork-safe on at least Linux.
  *
- *      TODO: merge with Util_GetCurrentThreadId()
+ *      In practice, VThreadBase chooses to use this ID for thread names only.
+ *
+ *      Most POSIX: With most modern threading implementations, threads are
+ *        "lightweight processes" (LWP), so any native TID changes after
+ *        a fork(). Which leads to pthread_atfork() - you can find out that TID
+ *        changed, but it's up to you to fix up all cached copies.
+ *        (A clever soul might suggest just continuing to use the old TID.
+ *        That clever soul is not so clever, having forgotten that POSIX OSes
+ *        recycle LWPs so all it takes is a couple of forks for you to have a
+ *        cached TID on one thread match the native TID on another thread. Hope
+ *        you didn't need that TID for correctness!).
+ *        The good news is nearly all POSIX has a pthread NP API (non-portable)
+ *        to provide the right thing.
+ *      Linux (glibc): is the exception to "nearly all". The *only* way to get a
+ *        system ID is via gettid() syscall. Which is a syscall and thus
+ *        expensive relative to every other OS. This code implements the pthread
+ *        NP wrapper that glibc *should* have.
+ *      Windows: good news. Not having a fork() API means the 'pretty'
+ *        ID returned here is stable forever. No special cases.
+ *      Solaris: good news. Solaris implements the LWP namespace *per process*,
+ *        which it clones on fork, meaning the forked child still gets the
+ *        same LWP IDs. Likely a legacy of SunOS which had forkall().
+ *
+ *      Obviously, specific mechanisms for obtaining native IDs are *highly*
+ *      non-portable, as indicated by the _np suffixes.
+ *
+ *      TODO: merge with Util_GetCurrentThreadId(), or delete that function
+ *      because anybody using it probably hasn't read the above disclaimer.
  *
  * Results:
- *      Some sort of ID.
+ *      Some sort of system ID (e.g. LWP, Task, ...)
  *
  * Side effects:
  *      None.
@@ -702,30 +787,58 @@ VThreadBase_CurID(void)
  *-----------------------------------------------------------------------------
  */
 
-static uint64
-VThreadBaseNativeID(void)
+#ifdef __linux__
+static pid_t
+vmw_pthread_getthreadid_np(void)
 {
-#if defined(_WIN32)
-   return GetCurrentThreadId();
-#elif defined(__APPLE__)
+   static __thread struct {
+      pid_t pid;
+      pid_t tid;
+   } cache = { 0, 0 };
+
+   /*
+    * Linux (well, glibc) gets TWO things wrong, but the combination makes
+    * a right, oddly enough. (1) There is no gettid function, because glibc
+    * people decided anybody who needs a system ID is wrong (glibc bug 6399)
+    * and should instead do a system call to get it. (2) they 'optimized'
+    * getpid() to cache its result (which depends on forking only via POSIX
+    * calls and not via syscalls), then decided they knew better than Linus
+    * when he told them this was wrong.
+    * BUT... the getpid cache can be used to make a sufficiently-correct and
+    * fast gettid cache.
+    */
+   if (UNLIKELY(cache.pid != getpid())) {
+      cache.pid = getpid();
+      cache.tid = syscall(__NR_gettid);
+   }
+   return cache.tid;
+}
+#endif
+
+uint64
+VThreadBase_GetKernelID(void)
+{
+#if defined _WIN32
+   return /* DWORD */ GetCurrentThreadId();
+#elif defined __APPLE__
    /* Available as of 10.6 */
-   uint64 hostTid;
+   uint64 hostTid;  // Mach Task ID
    pthread_threadid_np(NULL /* current thread */, &hostTid);
    return hostTid;
-#elif defined(__ANDROID__)
-   return gettid();
-#elif defined(VMX86_SERVER) || defined(__linux__)
-   return syscall(__NR_gettid);  // pid_t, 32-bit, is the LWP
-#elif defined(__sun__)
-   return pthread_self();  // uint_t, Solaris uses LWP as pthread_t
-#elif defined(__FreeBSD__)
+#elif defined __ANDROID__
+   return /* pid_t */ gettid();  // Thank you, Bionic.
+#elif defined __linux__
+   return vmw_pthread_getthreadid_np();
+#elif defined __sun__
+   return /* uint_t */ pthread_self();  // Solaris uses LWP as pthread_t
+#elif defined __FreeBSD__
 #  if 0
-   // Requires FreeBSD 9, we currently use FreeBSD 6.
-   return pthread_getthreadid_np();   // must include <pthread_np.h>
+   // Requires FreeBSD 9, we currently use FreeBSD 6. Include <pthread_np.h>
+   return /* int */ pthread_getthreadid_np();
 #  endif
+   // Best effort until FreeBSD header update
    return (uint64)(uintptr_t)(void *)pthread_self();
 #else
-   // pthread_self() is available, but cannot be safely cast...
 #  error "Unknown platform"
 #endif
 }
@@ -756,10 +869,10 @@ VThreadBaseSafeName(char *buf,   // OUT: new name
    /*
     * This function should not ASSERT, Panic or call a Str_
     * function (that can ASSERT or Panic), as the Panic handler is
-    * very likey to query the thread name and end up right back here.
+    * very likely to query the thread name and end up right back here.
     */
    snprintf(buf, len - 1 /* keep buffer NUL-terminated */,
-            "host-%"FMT64"u", VThreadBaseNativeID());
+            "host-%"FMT64"u", VThreadBase_GetKernelID());
 }
 
 
