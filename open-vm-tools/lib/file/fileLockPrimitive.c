@@ -141,7 +141,8 @@ FileLockSleeper(LockValues *myValues)  // IN/OUT:
       maxSleepTimeMsec = 100;
    } else {
       /*
-       * The lock has been around a while, linear back off with an upper bound.
+       * The lock has been around a while; use a continuously increasing back
+       * off with an upper bound.
        */
 
       maxSleepTimeMsec = MIN(ageMsec / 10, 2000);
