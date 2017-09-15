@@ -57,6 +57,10 @@
 #elif defined VM_X86_32
 #include "vm_basic_asm_x86_common.h"
 #include "vm_basic_asm_x86.h"
+#elif defined VM_ARM_32
+#include "vm_basic_asm_arm32.h"
+#define MUL64_NO_ASM 1
+#include "mul64.h"
 #elif defined VM_ARM_64
 #include "arm64_basic_defs.h"
 #include "vm_basic_asm_arm64.h"
