@@ -114,7 +114,6 @@
 #include "util.h"
 #include "vmstdio.h"
 #include "su.h"
-#include "rateconv.h"
 #include "vm_atomic.h"
 
 #if defined(__i386__) || defined(__x86_64__)
@@ -128,6 +127,7 @@
 
 #if defined(__APPLE__)
 #include "utilMacos.h"
+#include "rateconv.h"
 #endif
 
 #if defined(VMX86_SERVER)
