@@ -35,13 +35,13 @@
 extern "C" {
 #endif
 
-// The default time, in msec, to wait for a lock before giving up
+/* The default time, in milliseconds, to wait for a lock before giving up */
 #define	FILELOCK_DEFAULT_WAIT (vmx86_server ? 7000 : 3500)
 
-// The wait time that provides "try lock" functionality
+/* The wait time that provides "try lock" functionality */
 #define	FILELOCK_TRYLOCK_WAIT 0
 
-// Wait "forever" to acquire the lock (maximum uint32)
+/* Wait "forever" to acquire the lock (maximum uint32) */
 #define	FILELOCK_INFINITE_WAIT 0xFFFFFFFF
 
 /*
@@ -51,7 +51,7 @@ extern "C" {
 
 #define	FILELOCK_OVERHEAD 15
 
-// File locking functions
+/* File locking functions */
 typedef struct FileLockToken FileLockToken;
 
 char *FileLock_TokenPathName(const FileLockToken *fileLockToken);
