@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1262,7 +1262,6 @@ PollUnitTest_StateMachine(void *clientData) // IN: Unused
 #else
    maxVMCISockets = 60;
 #endif
-   isVMX = VThread_CurID() == VTHREAD_VMX_ID;
    queueLen = isVMX ? MAX_VMX_QUEUE_LENGTH : MAX_QUEUE_LENGTH;
 
    switch (state) {
@@ -2188,7 +2187,7 @@ PollUnitTest_StateMachine(void *clientData) // IN: Unused
  */
 
 void
-PollUnitTest(void)
+PollUnitTest(Bool vmx)  // IN: use vmx-size poll queue
 {
 #ifdef _WIN32
    WSADATA wsaData;
@@ -2200,6 +2199,7 @@ PollUnitTest(void)
    state = 0;
    successCount = failureCount = 0;
    useLocking = FALSE;
+   isVMX = vmx;
 #ifdef _WIN32
    ret = WSAStartup(versionRequested, &wsaData);
    if (ret != 0) {
