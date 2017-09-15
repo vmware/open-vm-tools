@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -198,6 +198,7 @@ enum {
 #define CPUID_MWAIT_FEATURES       5
 #define CPUID_XSAVE_FEATURES       0xd
 #define CPUID_SGX_FEATURES         0x12
+#define CPUID_PT_FEATURES          0x14
 #define CPUID_HYPERVISOR_LEVEL_0   0x40000000
 #define CPUID_SVM_FEATURES         0x8000000a
 
@@ -492,7 +493,7 @@ FLAG(   7,  0, EBX, 20,  1, SMAP,                                  YES, FALSE) \
 FLAG(   7,  0, EBX, 21,  1, AVX512IFMA,                            YES, TRUE)  \
 FLAG(   7,  0, EBX, 23,  1, CLFLUSHOPT,                            YES, TRUE)  \
 FLAG(   7,  0, EBX, 24,  1, CLWB,                                  YES, TRUE)  \
-FLAG(   7,  0, EBX, 25,  1, PT,                                    NO,  FALSE) \
+FLAG(   7,  0, EBX, 25,  1, PT,                                    YES, FALSE) \
 FLAG(   7,  0, EBX, 26,  1, AVX512PF,                              YES, TRUE)  \
 FLAG(   7,  0, EBX, 27,  1, AVX512ER,                              YES, TRUE)  \
 FLAG(   7,  0, EBX, 28,  1, AVX512CD,                              YES, TRUE)  \
@@ -654,20 +655,20 @@ FIELD( 12,  3, EDX,  0, 20, EPC01_SIZE_HIGH,                      NO,   FALSE)
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_14                                              \
-FIELD( 14,  0, EAX,  0, 32, MAX_SUB_LEAF,                          NO,  FALSE) \
-FLAG(  14,  0, EBX,  0,  1, CR3FTR_AND_MATCHMSR_AVAILABLE,         NO,  FALSE) \
-FLAG(  14,  0, EBX,  1,  1, PSB_AND_CYCLE_ACCURATE_MODE,           NO,  FALSE) \
-FLAG(  14,  0, EBX,  2,  1, IP_TRACESTOP_FTR_PTMSR_PERSIST,        NO,  FALSE) \
-FLAG(  14,  0, EBX,  3,  1, MTC_PKT_GENERATION_SUPPORTED,          NO,  FALSE) \
-FLAG(  14,  0, ECX,  0,  1, TOPA_OUTPUT_SUPPORTED,                 NO,  FALSE) \
-FLAG(  14,  0, ECX,  1,  1, TOPA_ALLOW_MULTIPLE_ENTRIES,           NO,  FALSE) \
-FLAG(  14,  0, ECX,  2,  1, SINGLE_RANGE_OUTPUT_SCHEME,            NO,  FALSE) \
-FLAG(  14,  0, ECX,  3,  1, TRACE_TRANSPORT_SUBSYSTEM,             NO,  FALSE) \
-FLAG(  14,  0, ECX, 31,  1, LIP_PRESENT_FOR_IP_PAYLOADS,           NO,  FALSE) \
-FIELD( 14,  1, EAX,  0,  2, NUM_ADDR_RANGE_FOR_FILTERING,          NO,  FALSE) \
-FIELD( 14,  1, EAX, 16, 16, SUPPORTED_MTC_ENCODINGS,               NO,  FALSE) \
-FIELD( 14,  1, EBX,  0, 16, SUPPORTED_CYCLE_THRESHOLD_ENCODINGS,   NO,  FALSE) \
-FIELD( 14,  1, EBX, 16, 16, SUPPORTED_PSB_FREQ_ENCODINGS,          NO,  FALSE) \
+FIELD( 14,  0, EAX,  0, 32, MAX_SUB_LEAF,                          YES,  FALSE) \
+FLAG(  14,  0, EBX,  0,  1, CR3FTR_AND_MATCHMSR_AVAILABLE,         YES,  FALSE) \
+FLAG(  14,  0, EBX,  1,  1, PSB_AND_CYCLE_ACCURATE_MODE,           YES,  FALSE) \
+FLAG(  14,  0, EBX,  2,  1, IP_TRACESTOP_FTR_PTMSR_PERSIST,        YES,  FALSE) \
+FLAG(  14,  0, EBX,  3,  1, MTC_PKT_GENERATION_SUPPORTED,          YES,  FALSE) \
+FLAG(  14,  0, ECX,  0,  1, TOPA_OUTPUT_SUPPORTED,                 YES,  FALSE) \
+FLAG(  14,  0, ECX,  1,  1, TOPA_ALLOW_MULTIPLE_ENTRIES,           YES,  FALSE) \
+FLAG(  14,  0, ECX,  2,  1, SINGLE_RANGE_OUTPUT_SCHEME,            YES,  FALSE) \
+FLAG(  14,  0, ECX,  3,  1, TRACE_TRANSPORT_SUBSYSTEM,             NO,   FALSE) \
+FLAG(  14,  0, ECX, 31,  1, LIP_PRESENT_FOR_IP_PAYLOADS,           YES,  FALSE) \
+FIELD( 14,  1, EAX,  0,  2, NUM_ADDR_RANGE_FOR_FILTERING,          YES,  FALSE) \
+FIELD( 14,  1, EAX, 16, 16, SUPPORTED_MTC_ENCODINGS,               YES,  FALSE) \
+FIELD( 14,  1, EBX,  0, 16, SUPPORTED_CYCLE_THRESHOLD_ENCODINGS,   YES,  FALSE) \
+FIELD( 14,  1, EBX, 16, 16, SUPPORTED_PSB_FREQ_ENCODINGS,          YES,  FALSE) \
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_15                                              \
