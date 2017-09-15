@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -49,18 +49,12 @@
 #include "windowsu.h"
 #endif
 
-typedef enum {
-   PanicBreakLevel_Never,
-   PanicBreakLevel_IfDebuggerAttached,
-   PanicBreakLevel_Always
-} PanicBreakLevel;
-
 static struct PanicState {
    Bool msgPostOnPanic;
    Bool coreDumpOnPanic;
    Bool loopOnPanic;
    int coreDumpFlags; /* Memorize for clients without init func */
-   PanicBreakLevel breakOnPanic; /* XXX: should this be DEVEL only? */
+   PanicBreakAction breakOnPanic; /* XXX: should this be DEVEL only? */
    char *coreDumpFile;
 } panicState = { TRUE, TRUE }; /* defaults in lieu of Panic_Init() */
 
@@ -86,8 +80,8 @@ Panic_Init(void)
 {
    panicState.coreDumpOnPanic = Config_GetBool(TRUE, "coreDumpOnPanic");
    panicState.loopOnPanic = Config_GetBool(FALSE, "panic.loopOnPanic");
-   panicState.breakOnPanic = Config_GetLong(PanicBreakLevel_Never,
-                                                 "panic.breakOnPanic");
+   panicState.breakOnPanic = Config_GetLong(PanicBreakAction_Never,
+                                            "panic.breakOnPanic");
    panicState.coreDumpFlags = Config_GetLong(0, "coreDumpFlags");
 }
 
@@ -297,9 +291,9 @@ Panic_BreakOnPanic(void)
    }
 #else // Posix
    switch (panicState.breakOnPanic) {
-   case PanicBreakLevel_Never:
+   case PanicBreakAction_Never:
       break;
-   case PanicBreakLevel_IfDebuggerAttached:
+   case PanicBreakAction_IfDebuggerAttached:
       {
          void (*handler)(int);
          handler = signal(SIGTRAP, SIG_IGN);
@@ -313,7 +307,7 @@ Panic_BreakOnPanic(void)
       }
       break;
    default:
-   case PanicBreakLevel_Always:
+   case PanicBreakAction_Always:
       Warning("Panic: breaking into debugger\n");
 #  if defined(__GNUC__) && (defined(__x86_64__) || defined(__i386__))
       __asm__ __volatile__ ("int3");
@@ -329,10 +323,9 @@ Panic_BreakOnPanic(void)
 /*
  *-----------------------------------------------------------------------------
  *
- * Panic_SetBreakOnPanic --
+ * Panic_SetBreakAction --
  *
- *      Allow the debug breakpoint on panic to be suppressed.  If passed FALSE,
- *      then any subsequent Panics will not attempt to attract a debugger.
+ *      Allow the debug breakpoint on panic to be suppressed.
  *
  * Results:
  *      void.
@@ -344,10 +337,32 @@ Panic_BreakOnPanic(void)
  */
 
 void
-Panic_SetBreakOnPanic(Bool breakOnPanic)
+Panic_SetBreakAction(PanicBreakAction action)  // IN:
 {
-   panicState.breakOnPanic = breakOnPanic ? PanicBreakLevel_Always
-                                          : PanicBreakLevel_Never;
+   panicState.breakOnPanic = action;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Panic_GetBreakAction --
+ *
+ *      Return the break action that will be taken on an eventual panic.
+ *
+ * Results:
+ *      The current break action.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+PanicBreakAction
+Panic_GetBreakAction(void)
+{
+   return panicState.breakOnPanic;
 }
 
 
@@ -374,9 +389,9 @@ Panic_GetBreakOnPanic(void)
    Bool shouldBreak = FALSE;
 
    switch (panicState.breakOnPanic) {
-   case PanicBreakLevel_Never:
+   case PanicBreakAction_Never:
       break;
-   case PanicBreakLevel_IfDebuggerAttached:
+   case PanicBreakAction_IfDebuggerAttached:
 #ifdef _WIN32
       shouldBreak = IsDebuggerPresent();
 #else
@@ -388,7 +403,7 @@ Panic_GetBreakOnPanic(void)
 #endif
       break;
    default:
-   case PanicBreakLevel_Always:
+   case PanicBreakAction_Always:
       shouldBreak = TRUE;
       break;
    }

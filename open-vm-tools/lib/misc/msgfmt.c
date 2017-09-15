@@ -1,5 +1,5 @@
 /* **********************************************************
- * Copyright (C) 2007-2016 VMware, Inc.  All rights reserved.
+ * Copyright (C) 2007-2017 VMware, Inc.  All rights reserved.
  * **********************************************************/
 
 /*
@@ -163,9 +163,10 @@ memchr(const void *s, int c, size_t n)
    const uint8 *p = s;
    const uint8 *e = p + n;
    while (p < e) {
-      if (*p++ == c) {
-	 return p;
+      if (*p == c) {
+         return p;
       }
+      ++p;
    }
    return NULL;
 }

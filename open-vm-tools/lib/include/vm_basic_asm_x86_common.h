@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013,2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -350,12 +350,13 @@ RDTSC_BARRIER(void)
  * For the above two reasons, usage of COMPILER_*_BARRIER is now deprecated.
  * _Do not add new references to COMPILER_*_BARRIER._ Instead, precisely
  * document the intent of your code by using the
- * <mem access type>_<mem access type>_MEM_BARRIER family of barriers. Existing
+ * <mem_type/purpose>_<before_access_type>_BARRIER_<after_access_type>
  * references to COMPILER_*_BARRIER are being slowly but surely converted,
  * and when no references are left, COMPILER_*_BARRIER will be retired.
  *
  * Thanks for pasting this whole comment into every architecture header.
  */
+
 #if defined __GNUC__
 #   define COMPILER_READ_BARRIER()  COMPILER_MEM_BARRIER()
 #   define COMPILER_WRITE_BARRIER() COMPILER_MEM_BARRIER()
@@ -368,12 +369,17 @@ RDTSC_BARRIER(void)
 
 
 /*
- * (Compiler + CPU) memory barriers. These take the form of
- * <mem access type>_<mem access type>_MEM_BARRIER, where <mem access type> is
- * either LD (load), ST (store) or LDST (any).
+ * Memory barriers. These take the form of
+ *
+ * <mem_type/purpose>_<before_access_type>_BARRIER_<after_access_type>
+ *
+ * where:
+ *   <mem_type/purpose> is either SMP, DMA, or MMIO.
+ *   <*_access type> is either R(load), W(store) or RW(any).
  *
  * Above every use of these memory barriers in the code, there _must_ be a
  * comment to justify the use, i.e. a comment which:
+ *
  * 1) Precisely identifies which memory accesses must not be re-ordered across
  *    the memory barrier.
  * 2) Explains why it is important that the memory accesses not be re-ordered.
@@ -390,8 +396,9 @@ RDTSC_BARRIER(void)
  * store-store (sfence) ordering, and they don't apply to normal memory.
  */
 
+
 static INLINE void
-ST_LD_MEM_BARRIER(void)
+SMP_W_BARRIER_R(void)
 {
    volatile long temp;
 
@@ -410,13 +417,53 @@ ST_LD_MEM_BARRIER(void)
    COMPILER_MEM_BARRIER();
 }
 
-#define LD_LD_MEM_BARRIER()      COMPILER_READ_BARRIER()
-#define LD_ST_MEM_BARRIER()      COMPILER_MEM_BARRIER()
-#define LD_LDST_MEM_BARRIER()    COMPILER_MEM_BARRIER()
-#define ST_ST_MEM_BARRIER()      COMPILER_WRITE_BARRIER()
-#define ST_LDST_MEM_BARRIER()    ST_LD_MEM_BARRIER()
-#define LDST_LD_MEM_BARRIER()    ST_LD_MEM_BARRIER()
-#define LDST_ST_MEM_BARRIER()    COMPILER_MEM_BARRIER()
-#define LDST_LDST_MEM_BARRIER()  ST_LD_MEM_BARRIER()
+#define SMP_R_BARRIER_R()     COMPILER_READ_BARRIER()
+#define SMP_R_BARRIER_W()     COMPILER_MEM_BARRIER()
+#define SMP_R_BARRIER_RW()    COMPILER_MEM_BARRIER()
+#define SMP_W_BARRIER_W()     COMPILER_WRITE_BARRIER()
+#define SMP_W_BARRIER_RW()    SMP_W_BARRIER_R()
+#define SMP_RW_BARRIER_R()    SMP_W_BARRIER_R()
+#define SMP_RW_BARRIER_W()    COMPILER_MEM_BARRIER()
+#define SMP_RW_BARRIER_RW()   SMP_W_BARRIER_R()
+
+/*
+ * Like the above, only for use with observers other than CPUs,
+ * i.e. DMA masters.
+ */
+
+#define DMA_R_BARRIER_R()     SMP_R_BARRIER_R()
+#define DMA_R_BARRIER_W()     SMP_R_BARRIER_W()
+#define DMA_R_BARRIER_RW()    SMP_R_BARRIER_RW()
+#define DMA_W_BARRIER_R()     SMP_W_BARRIER_R()
+#define DMA_W_BARRIER_W()     SMP_W_BARRIER_W()
+#define DMA_W_BARRIER_RW()    SMP_W_BARRIER_RW()
+#define DMA_RW_BARRIER_R()    SMP_RW_BARRIER_R()
+#define DMA_RW_BARRIER_W()    SMP_RW_BARRIER_W()
+#define DMA_RW_BARRIER_RW()   SMP_RW_BARRIER_RW()
+
+/*
+ * And finally a set for use with MMIO accesses.
+ */
+
+#define MMIO_R_BARRIER_R()    SMP_R_BARRIER_R()
+#define MMIO_R_BARRIER_W()    SMP_R_BARRIER_W()
+#define MMIO_R_BARRIER_RW()   SMP_R_BARRIER_RW()
+#define MMIO_W_BARRIER_R()    SMP_W_BARRIER_R()
+#define MMIO_W_BARRIER_W()    SMP_W_BARRIER_W()
+#define MMIO_W_BARRIER_RW()   SMP_W_BARRIER_RW()
+#define MMIO_RW_BARRIER_R()   SMP_RW_BARRIER_R()
+#define MMIO_RW_BARRIER_W()   SMP_RW_BARRIER_W()
+#define MMIO_RW_BARRIER_RW()  SMP_RW_BARRIER_RW()
+
+/* deprecated version -- going away soon */
+#define LD_LD_MEM_BARRIER()      SMP_R_BARRIER_R()
+#define LD_ST_MEM_BARRIER()      SMP_R_BARRIER_W()
+#define LD_LDST_MEM_BARRIER()    SMP_R_BARRIER_RW()
+#define ST_LD_MEM_BARRIER()      SMP_W_BARRIER_R()
+#define ST_ST_MEM_BARRIER()      SMP_W_BARRIER_W()
+#define ST_LDST_MEM_BARRIER()    SMP_W_BARRIER_RW()
+#define LDST_LD_MEM_BARRIER()    SMP_RW_BARRIER_R()
+#define LDST_ST_MEM_BARRIER()    SMP_RW_BARRIER_W()
+#define LDST_LDST_MEM_BARRIER()  SMP_RW_BARRIER_RW()
 
 #endif // _VM_BASIC_ASM_X86_COMMON_H_
