@@ -137,10 +137,20 @@
 #define PCI_DEVICE_ID_INTEL_HECI        0x2a74
 #define PCI_DEVICE_ID_INTEL_PANTHERPOINT_XHCI 0x1e31
 
-/* From drivers/usb/host/xhci-pci.c:
+/*
+ *  From drivers/usb/host/xhci-pci.c:
  *    Intel XHCI (Lynx Point / Intel 8 Series)
  */
 #define PCI_DEVICE_ID_INTEL_LYNXPOINT_XHCI 0x8c31
+
+/*
+ * Intel Quickassist (QAT) devices.
+ */
+#define PCI_DEVICE_ID_INTEL_QAT_DH89XX     0x0434
+#define PCI_DEVICE_ID_INTEL_QAT_DH895X     0x0435
+#define PCI_DEVICE_ID_INTEL_QAT_DH89XX_VF  0x0442
+#define PCI_DEVICE_ID_INTEL_QAT_DH895X_VF  0x0443
+
 
 #define E1000E_PCI_DEVICE_ID_CONFIG_STR "e1000e.pci.deviceID"
 #define E1000E_PCI_SUB_VENDOR_ID_CONFIG_STR "e1000e.pci.subVendorID"
