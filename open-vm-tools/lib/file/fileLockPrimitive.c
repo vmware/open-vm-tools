@@ -194,7 +194,7 @@ FileLockRemoveLockingFile(const char *lockDir,   // IN:
          err = 0;
       } else {
          Warning(LGPFX" %s of '%s' failed: %s\n", __FUNCTION__,
-                 path, strerror(err));
+                 path, Err_Errno2String(err));
       }
    }
 
@@ -343,7 +343,7 @@ FileLockMemberValues(const char *lockDir,       // IN:
 
       if (err != ENOENT) {
          Warning(LGPFX" %s open failure on '%s': %s\n", __FUNCTION__,
-                 path, strerror(err));
+                 path, Err_Errno2String(err));
       }
 
       goto bail;
@@ -362,7 +362,7 @@ FileLockMemberValues(const char *lockDir,       // IN:
 
       if (err != ENOENT) {
          Warning(LGPFX" %s file size failure on '%s': %s\n", __FUNCTION__,
-                 path, strerror(err));
+                 path, Err_Errno2String(err));
       }
 
       FileIO_Close(&desc);
@@ -389,7 +389,7 @@ FileLockMemberValues(const char *lockDir,       // IN:
       err = FileMapErrorToErrno(__FUNCTION__, Err_Errno());
 
       Warning(LGPFX" %s read failure on '%s': %s\n",
-              __FUNCTION__, path, strerror(err));
+              __FUNCTION__, path, Err_Errno2String(err));
 
       goto bail;
    }
@@ -1018,7 +1018,7 @@ FileUnlockIntrinsic(FileLockToken *tokenPtr)  // IN:
 
          if (err && vmx86_debug) {
             Log(LGPFX" %s failed for '%s': %s\n", __FUNCTION__,
-                tokenPtr->u.portable.lockFilePath, strerror(err));
+                tokenPtr->u.portable.lockFilePath, Err_Errno2String(err));
          }
          free(lockDir);
          free(tokenPtr->u.portable.lockFilePath);
@@ -1047,7 +1047,7 @@ FileUnlockIntrinsic(FileLockToken *tokenPtr)  // IN:
             err = Err_Errno();
             if (vmx86_debug) {
                Log(LGPFX" %s failed for advisory lock '%s': %s\n", __FUNCTION__,
-                   tokenPtr->pathName, strerror(err));
+                   tokenPtr->pathName, Err_Errno2String(err));
             }
          }
       }
@@ -1315,13 +1315,13 @@ FileLockCreateEntryDirectory(const char *lockDir,    // IN:
 
             if ((err != 0) && (err != EEXIST)) {
                Warning(LGPFX" %s creation failure on '%s': %s\n",
-                       __FUNCTION__, lockDir, strerror(err));
+                       __FUNCTION__, lockDir, Err_Errno2String(err));
 
                break;
             }
          } else {
             Warning(LGPFX" %s stat failure on '%s': %s\n",
-                    __FUNCTION__, lockDir, strerror(err));
+                    __FUNCTION__, lockDir, Err_Errno2String(err));
 
             break;
          }
@@ -1365,7 +1365,7 @@ FileLockCreateEntryDirectory(const char *lockDir,    // IN:
 
             if (vmx86_debug) {
                Log(LGPFX" %s stat failure on '%s': %s\n",
-                   __FUNCTION__, *memberFilePath, strerror(err));
+                   __FUNCTION__, *memberFilePath, Err_Errno2String(err));
              }
          }
 
@@ -1374,7 +1374,7 @@ FileLockCreateEntryDirectory(const char *lockDir,    // IN:
           if ((err != EEXIST) &&  // Another process/thread created it...
               (err != ENOENT)) {  // lockDir is gone...
              Warning(LGPFX" %s creation failure on '%s': %s\n",
-                     __FUNCTION__, *entryDirectory, strerror(err));
+                     __FUNCTION__, *entryDirectory, Err_Errno2String(err));
 
              break;
           }
@@ -1480,7 +1480,7 @@ FileLockCreateMemberFile(FileIODescriptor *desc,       // IN:
       err = FileMapErrorToErrno(__FUNCTION__, Err_Errno());
 
       Warning(LGPFX" %s write of '%s' failed: %s\n", __FUNCTION__,
-              entryFilePath, strerror(err));
+              entryFilePath, Err_Errno2String(err));
 
       FileIO_Close(desc);
 
@@ -1491,7 +1491,7 @@ FileLockCreateMemberFile(FileIODescriptor *desc,       // IN:
       err = FileMapErrorToErrno(__FUNCTION__, Err_Errno());
 
       Warning(LGPFX" %s close of '%s' failed: %s\n", __FUNCTION__,
-              entryFilePath, strerror(err));
+              entryFilePath, Err_Errno2String(err));
 
       return err;
    }
@@ -1508,16 +1508,16 @@ FileLockCreateMemberFile(FileIODescriptor *desc,       // IN:
    if (err != 0) {
       Warning(LGPFX" %s FileRename of '%s' to '%s' failed: %s\n",
               __FUNCTION__, entryFilePath, memberFilePath,
-              strerror(err));
+              Err_Errno2String(err));
 
       if (vmx86_debug) {
          Log(LGPFX" %s FileLockFileType() of '%s': %s\n",
              __FUNCTION__, entryFilePath,
-            strerror(FileAttributesRobust(entryFilePath, NULL)));
+            Err_Errno2String(FileAttributesRobust(entryFilePath, NULL)));
 
          Log(LGPFX" %s FileLockFileType() of '%s': %s\n",
              __FUNCTION__, memberFilePath,
-            strerror(FileAttributesRobust(memberFilePath, NULL)));
+            Err_Errno2String(FileAttributesRobust(memberFilePath, NULL)));
       }
 
       return err;

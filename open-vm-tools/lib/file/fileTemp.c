@@ -177,7 +177,7 @@ File_MakeTempEx2(const char *dir,                              // IN:
       if (errno != EEXIST) {
          Log(LGPFX" Failed to create temporary %s \"%s\": %s.\n",
              createTempFile ? "file" : "directory",
-             path, strerror(errno));
+             path, Err_Errno2String(errno));
          goto exit;
       }
    }
