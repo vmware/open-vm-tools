@@ -53,20 +53,20 @@
  *----------------------------------------------------------------------
  */
 
+#if defined(__i386__) || defined(__x86_64__)
 static Bool
 Hostinfo_HypervisorPresent(void)
 {
    static Bool hypervisorPresent;
-#if defined(__i386__) || defined(__x86_64__)
    CPUIDRegs regs;
 
    if (!hypervisorPresent) {
       __GET_CPUID(1, &regs);
       hypervisorPresent = CPUID_ISSET(1, ECX, HYPERVISOR, regs.ecx);
    }
-#endif
    return hypervisorPresent;
 }
+#endif
 
 
 /*
