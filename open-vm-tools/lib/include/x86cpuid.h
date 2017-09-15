@@ -366,7 +366,7 @@ FLAG(   1,  0, EDX, 16,  1, PAT,                                   YES, FALSE) \
 FLAG(   1,  0, EDX, 17,  1, PSE36,                                 YES, FALSE) \
 FLAG(   1,  0, EDX, 18,  1, PSN,                                   YES, FALSE) \
 FLAG(   1,  0, EDX, 19,  1, CLFSH,                                 YES, TRUE)  \
-FLAG(   1,  0, EDX, 21,  1, DS,                                    NO,  FALSE) \
+FLAG(   1,  0, EDX, 21,  1, DS,                                    YES, FALSE) \
 FLAG(   1,  0, EDX, 22,  1, ACPI,                                  ANY, FALSE) \
 FLAG(   1,  0, EDX, 23,  1, MMX,                                   YES, TRUE)  \
 FLAG(   1,  0, EDX, 24,  1, FXSR,                                  YES, TRUE)  \
