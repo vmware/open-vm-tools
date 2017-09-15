@@ -27,6 +27,10 @@
 #include "vm_basic_types.h"
 #include "guest_os_tables.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 /*
  * There's no practical max to the number of guests that can be defined in
  * the list below (guest IDs are limited to 2^32), but there is a maximum
@@ -506,5 +510,9 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_64BIT_SUFFIX "-64"
 #define STR_OS_64BIT_SUFFIX_FULL " (64 bit)"
 #define STR_OS_EMPTY ""
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif

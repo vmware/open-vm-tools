@@ -24,6 +24,10 @@
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #define GUEST_OS_TYPE_GEN                                                  \
    GOT(GUEST_OS_ANY)                                                       \
    GOT(GUEST_OS_DOS)                                                       \
@@ -293,5 +297,9 @@
    GOSL(STR_OS_WIN_XP_HOME,                  GUEST_OS_WINXP,                  "winPreVista.iso")      \
    GOSL(STR_OS_WIN_XP_PRO,                   GUEST_OS_WINXP,                  "winPreVista.iso")      \
    GOSL(STR_OS_WIN_XP_PRO_X64,               GUEST_OS_WINXPPRO_64,            "winPreVista.iso")      \
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif
