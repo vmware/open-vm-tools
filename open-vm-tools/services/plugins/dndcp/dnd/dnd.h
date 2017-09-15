@@ -107,6 +107,9 @@ typedef enum
    CPFORMAT_FILECONTENTS,
    CPFORMAT_IMG_PNG,
    CPFORMAT_FILEATTRIBUTES,
+   CPFORMAT_BIFF12,
+   CPFORMAT_ART_GVML_CLIPFORMAT,
+   CPFORMAT_HTML_FORMAT,
    CPFORMAT_MAX,
 } DND_CPFORMAT;
 
@@ -220,6 +223,10 @@ Bool DnD_SetCPClipboardFromLocalText(CPClipboard *clip,
                                      utf16_t *bufIn);
 Bool DnD_SetCPClipboardFromLocalRtf(CPClipboard *clip,
                                     char *bufIn);
+Bool DnD_SetCPClipboardFromSpecifiedFormat(CPClipboard *clip,
+                                           const DND_CPFORMAT fmt,
+                                           char *bufIn,
+                                           unsigned int len);
 Bool DnD_SetCPClipboardFromBMPInfo(CPClipboard *clip,
                                    const LPBITMAPINFOHEADER bmi,
                                    DND_CPFORMAT fmt);
