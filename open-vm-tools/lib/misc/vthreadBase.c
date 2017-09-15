@@ -862,7 +862,7 @@ VThreadBase_InitWithTLS(VThreadBaseData *base)  // IN: caller-managed storage
        *    means the cooking function is broken - it should block signals - or
        *    an ASSERT triggered while setting up the VThreadID.
        */
-      Log("VThreadBase reinitialization, old: %d, new: %d.\n",
+      Log("VThreadBase reinitialization, old: %" FMT64 "d, new: %" FMT64 "d.\n",
           realBase->id, base->id);
    }
 
@@ -928,7 +928,7 @@ VThreadBaseSafeDeleteTLS(void *tlsData)
          VERIFY(success);
 
          if (vmx86_debug) {
-            Log("Forgetting VThreadID %d (\"%s\").\n",
+            Log("Forgetting VThreadID %" FMT64 "d (\"%s\").\n",
                 data->id, VThread_CurName());
          }
          (*vthreadBaseGlobals.freeIDFunc)(data);
@@ -1209,14 +1209,14 @@ VThreadBaseSimpleNoID(void)
    /* ID picked.  Now do the important stuff. */
    base = Util_SafeCalloc(1, sizeof *base);
    base->id = newID;
-   Str_Sprintf(newName, sizeof newName, "vthread-%u", newID);
+   Str_Sprintf(newName, sizeof newName, "vthread-%" FMT64 "u", newID);
 
    result = VThreadBase_InitWithTLS(base);
    VThreadBase_SetName(newName);
    ASSERT(result);
 
    if (vmx86_debug && reused) {
-      Log("VThreadBase reused VThreadID %d.\n", newID);
+      Log("VThreadBase reused VThreadID %" FMT64 "u.\n", newID);
    }
 }
 

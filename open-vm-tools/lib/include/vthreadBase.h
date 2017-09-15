@@ -83,7 +83,7 @@ extern "C" {
  * Types
  */
 
-typedef unsigned VThreadID;
+typedef uint64 VThreadID;
 
 #define VTHREAD_INVALID_ID    (VThreadID)(0)
 
