@@ -143,12 +143,16 @@
 #define PCI_DEVICE_ID_INTEL_LYNXPOINT_XHCI 0x8c31
 
 /*
- * Intel Quickassist (QAT) devices.
+ * Intel Quickassist (QAT) devices:
+ * - Gen 1: Cave Creek (CVC) and Coleto Creek (CLC)
+ * - Gen 2: Lewisburg (LBG)
  */
-#define PCI_DEVICE_ID_INTEL_QAT_DH89XX     0x0434
-#define PCI_DEVICE_ID_INTEL_QAT_DH895X     0x0435
-#define PCI_DEVICE_ID_INTEL_QAT_DH89XX_VF  0x0442
-#define PCI_DEVICE_ID_INTEL_QAT_DH895X_VF  0x0443
+#define PCI_DEVICE_ID_INTEL_QAT_CVC     0x0434
+#define PCI_DEVICE_ID_INTEL_QAT_CLC     0x0435
+#define PCI_DEVICE_ID_INTEL_QAT_LBG     0x37c8
+#define PCI_DEVICE_ID_INTEL_QAT_CVC_VF  0x0442
+#define PCI_DEVICE_ID_INTEL_QAT_CLC_VF  0x0443
+#define PCI_DEVICE_ID_INTEL_QAT_LBG_VF  0x37c9
 
 
 #define E1000E_PCI_DEVICE_ID_CONFIG_STR "e1000e.pci.deviceID"
