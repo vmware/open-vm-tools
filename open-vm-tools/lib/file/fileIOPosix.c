@@ -265,8 +265,6 @@ FileIOErrno2Result(int error)  // IN: errno to convert
       return FILEIO_WRITE_ERROR_DQUOT;
 #endif
    default:
-      Log("%s: Unexpected errno=%d, %s\n", __FUNCTION__,
-          error, Err_Errno2String(error));
       return FILEIO_ERROR;
    }
 }
@@ -969,6 +967,10 @@ FileIOCreateRetry(FileIODescriptor *file,   // OUT:
 
    if (fd == -1) {
       ret = FileIOErrno2Result(errno);
+      if (ret == FILEIO_ERROR) {
+         Log(LGPFX "open error on %s: %s\n", pathName,
+             Err_Errno2String(errno));
+      }
       goto error;
    }
 
@@ -977,6 +979,10 @@ FileIOCreateRetry(FileIODescriptor *file,   // OUT:
       error = fcntl(fd, F_NOCACHE, 1);
       if (error == -1) {
          ret = FileIOErrno2Result(errno);
+         if (ret == FILEIO_ERROR) {
+            Log(LGPFX "fcntl error on %s: %s\n", pathName,
+                Err_Errno2String(errno));
+         }
          goto error;
       }
 
@@ -989,6 +995,10 @@ FileIOCreateRetry(FileIODescriptor *file,   // OUT:
             error = fcntl(fd, F_NODIRECT, 1);
             if (error == -1) {
                ret = FileIOErrno2Result(errno);
+               if (ret == FILEIO_ERROR) {
+                  Log(LGPFX "fcntl error on %s: %s\n", pathName,
+                      Err_Errno2String(errno));
+               }
                goto error;
             }
          }
@@ -1004,6 +1014,10 @@ FileIOCreateRetry(FileIODescriptor *file,   // OUT:
 
       if (Posix_Unlink(pathName) == -1) {
          ret = FileIOErrno2Result(errno);
+         if (ret == FILEIO_ERROR) {
+            Log(LGPFX "unlink error on %s: %s\n", pathName,
+                Err_Errno2String(errno));
+         }
          goto error;
       }
    }
@@ -1336,9 +1350,6 @@ FileIO_Read(FileIODescriptor *fd,  // IN:
             continue;
          }
          fret = FileIOErrno2Result(errno);
-         if (FILEIO_ERROR == fret) {
-            Log("read failed, errno=%d, %s\n", errno, Err_Errno2String(errno));
-         }
          break;
       }
 
