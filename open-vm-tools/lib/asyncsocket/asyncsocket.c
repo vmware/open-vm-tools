@@ -2656,7 +2656,7 @@ AsyncTCPSocketPollWork(AsyncTCPSocket **asock,     // IN:
       }
 
       if (parentSock != NULL) {
-         AsyncTCPSocketLock(parentSock);
+         AsyncTCPSocketUnlock(parentSock);
          retval = select(1, read ? &rwfds : NULL, read ? NULL : &rwfds,
                          &exceptfds, timeoutMS >= 0 ? &tv : NULL);
          AsyncTCPSocketLock(parentSock);
