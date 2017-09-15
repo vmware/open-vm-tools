@@ -254,6 +254,68 @@ VThreadBaseInitKeyWork(Atomic_Int *key, void (*deletePtr)(void*))
 /*
  *-----------------------------------------------------------------------------
  *
+ * VThreadBaseRemoveKey --
+ *
+ *      Abstracts TLS key deletion.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+VThreadBaseRemoveKey(Atomic_Int *key)
+{
+#if defined _WIN32
+#if defined VM_WIN_UWP
+   FlsFree(Atomic_Read(key));
+#else
+   TlsFree(Atomic_Read(key));
+#endif
+#else
+   pthread_key_delete(Atomic_Read(key));
+#endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VThreadBase_DeInitialize --
+ *
+ *      Deletes allocated TLS keys. Notice how this is only used for a very
+ *      special case as the vthread library is not designed to be unloaded
+ *      and normally just leaks these keys. The initialization code assumes
+ *      that once set, these keys never revert to invalid. For the case of
+ *      a copy of the vthread being statically linked into a dlopened library,
+ *      we are using this to avoid leaking the keys immediately before unload.
+ *
+ *      See PR 1626963
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+VThreadBase_DeInitialize(void)
+{
+   VThreadBaseRemoveKey(&vthreadBaseGlobals.baseKey);
+   VThreadBaseRemoveKey(&vthreadBaseGlobals.threadIDKey);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * VThreadBaseInitKeys --
  *
  *      Initialize the host-specific TLS slots.

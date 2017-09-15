@@ -121,6 +121,11 @@ void VThreadBase_ForgetSelf(void);
 void VThreadBase_SetNoIDFunc(void (*func)(void),
                              void (*destr)(void *));
 
+/*
+ * See PR 1626963 and function documentation before thinking about using this.
+ */
+void VThreadBase_DeInitialize(void);
+
 /* Match up historical VThread_ names with VThreadBase_ names */
 static INLINE const char *
 VThread_CurName(void)
