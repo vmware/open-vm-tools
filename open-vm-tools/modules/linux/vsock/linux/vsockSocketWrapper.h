@@ -26,10 +26,6 @@
 #ifndef _VSOCK_SOCKET_WRAPPER_H_
 #define _VSOCK_SOCKET_WRAPPER_H_
 
-#if defined(_WIN32)
-#include <errno.h>
-#endif
-
 /*
  * Socket states and flags.  Note that MSG_WAITALL is only defined on 2K3,
  * XP-SP2 and above.  Since we currently build for 2K to maintain backwards
