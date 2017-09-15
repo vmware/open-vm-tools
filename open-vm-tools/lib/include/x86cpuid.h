@@ -471,6 +471,7 @@ FLAG(   6,  0, EAX, 11,  1, HWP_PACKAGE_LEVEL_REQUEST,         NO,   0, FALSE) \
 FLAG(   6,  0, EAX, 13,  1, HDC,                               NO,   0, FALSE) \
 FIELD(  6,  0, EBX,  0,  4, NUM_INTR_THRESHOLDS,               NO,   0, FALSE) \
 FLAG(   6,  0, ECX,  0,  1, HW_COORD_FEEDBACK,                 NO,   0, FALSE) \
+FLAG(   6,  0, ECX,  1,  1, ACNT2,                             ANY, 13, FALSE) \
 FLAG(   6,  0, ECX,  3,  1, ENERGY_PERF_BIAS,                  NO,   0, FALSE)
 
 
