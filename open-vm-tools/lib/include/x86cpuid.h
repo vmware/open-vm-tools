@@ -497,7 +497,7 @@ FLAG(   7,  0, EBX, 17,  1, AVX512DQ,                          YES, 13, TRUE)  \
 FLAG(   7,  0, EBX, 18,  1, RDSEED,                            YES, 11, TRUE)  \
 FLAG(   7,  0, EBX, 19,  1, ADX,                               YES, 11, TRUE)  \
 FLAG(   7,  0, EBX, 20,  1, SMAP,                              YES, 11, FALSE) \
-FLAG(   7,  0, EBX, 21,  1, AVX512IFMA,                        YES, 14, TRUE)  \
+FLAG(   7,  0, EBX, 21,  1, AVX512IFMA,                        YES, 15, TRUE)  \
 FLAG(   7,  0, EBX, 23,  1, CLFLUSHOPT,                        YES, 13, TRUE)  \
 FLAG(   7,  0, EBX, 24,  1, CLWB,                              YES, 13, TRUE)  \
 FLAG(   7,  0, EBX, 25,  1, PT,                                YES, 15, FALSE) \
@@ -508,7 +508,7 @@ FLAG(   7,  0, EBX, 29,  1, SHA,                               YES, 14, TRUE)  \
 FLAG(   7,  0, EBX, 30,  1, AVX512BW,                          YES, 13, TRUE)  \
 FLAG(   7,  0, EBX, 31,  1, AVX512VL,                          YES, 13, TRUE)  \
 FLAG(   7,  0, ECX,  0,  1, PREFETCHWT1,                       YES, 13, TRUE)  \
-FLAG(   7,  0, ECX,  1,  1, AVX512VBMI,                        YES, 14, TRUE)  \
+FLAG(   7,  0, ECX,  1,  1, AVX512VBMI,                        YES, 15, TRUE)  \
 FLAG(   7,  0, ECX,  3,  1, PKU,                               YES, 13, TRUE)  \
 FLAG(   7,  0, ECX,  4,  1, OSPKE,                             ANY, 13, TRUE)  \
 FLAG(   7,  0, ECX, 30,  1, SGX_LC,                            NO,   0, FALSE) \
