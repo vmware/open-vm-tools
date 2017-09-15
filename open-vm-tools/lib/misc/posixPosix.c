@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -47,6 +47,11 @@
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <CoreFoundation/CoreFoundation.h>
+#include <TargetConditionals.h>
+#if TARGET_OS_IPHONE
+#include <spawn.h>
+extern char **environ;
+#endif
 #elif defined(__FreeBSD__)
 #include <sys/param.h>
 #include <sys/mount.h>
@@ -1241,6 +1246,48 @@ exit:
 }
 
 
+#if TARGET_OS_IPHONE
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Posix_SplitCommands --
+ *
+ *      Split the commands into arguments.
+ *
+ * Results:
+ *      The length of the commands and the arguments.
+ *
+ * Side effects:
+ *      NO
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Posix_SplitCommands(char *command,  // IN
+                    char **argv)    // OUT
+{
+   char *token;
+   char *savePtr;
+   char *str;
+   int count;
+   for (count = 0, str = command; ; str = NULL, count++) {
+      token = strtok_r(str, " ", &savePtr);
+      if (token == NULL) {
+         break;
+      }
+      if (argv != NULL) {
+         *argv = token;
+         argv++;
+      }
+   }
+   return count;
+}
+
+#endif
+
+
 /*
  *----------------------------------------------------------------------
  *
@@ -1267,7 +1314,25 @@ Posix_System(const char *command)  // IN:
       return -1;
    }
 
+#if TARGET_OS_IPHONE
+   pid_t pid;
+   int count;
+   char **argv;
+   char *commandCopy = strdup(command);
+   count = Posix_SplitCommands(commandCopy, NULL);
+   free(commandCopy);
+   if (!count) {
+      return -1;
+   }
+   argv = malloc(count * sizeof(char *));
+   commandCopy = strdup(command);
+   Posix_SplitCommands(commandCopy, argv);
+   ret = posix_spawn(&pid, argv[0], NULL, NULL, argv, environ);
+   free(argv);
+   free(commandCopy);
+#else
    ret = system(tmpcommand);
+#endif
 
    Posix_Free(tmpcommand);
 

@@ -124,6 +124,7 @@ typedef enum {
    VMXNET3_CMD_SET_POLLING,
    VMXNET3_CMD_SET_COALESCE,
    VMXNET3_CMD_REGISTER_MEMREGS,
+   VMXNET3_CMD_SET_RSS_FIELDS,
 
    VMXNET3_CMD_FIRST_GET = 0xF00D0000,
    VMXNET3_CMD_GET_QUEUE_STATUS = VMXNET3_CMD_FIRST_GET,
@@ -137,7 +138,8 @@ typedef enum {
    VMXNET3_CMD_GET_CONF_INTR,
    VMXNET3_CMD_GET_ADAPTIVE_RING_INFO,
    VMXNET3_CMD_GET_TXDATA_DESC_SIZE,
-   VMXNET3_CMD_GET_COALESCE
+   VMXNET3_CMD_GET_COALESCE,
+   VMXNET3_CMD_GET_RSS_FIELDS,
 } Vmxnet3_Cmd;
 
 /* Adaptive Ring Info Flags */
@@ -406,6 +408,10 @@ Vmxnet3_RxCompDescExt;
 #define VMXNET3_RCD_RSS_TYPE_TCPIPV4  2
 #define VMXNET3_RCD_RSS_TYPE_IPV6     3
 #define VMXNET3_RCD_RSS_TYPE_TCPIPV6  4
+#define VMXNET3_RCD_RSS_TYPE_UDPIPV4  5
+#define VMXNET3_RCD_RSS_TYPE_UDPIPV6  6
+#define VMXNET3_RCD_RSS_TYPE_ESPIPV4  7
+#define VMXNET3_RCD_RSS_TYPE_ESPIPV6  8
 
 /* a union for accessing all cmd/completion descriptors */
 typedef union Vmxnet3_GenericDesc {
@@ -841,6 +847,15 @@ struct Vmxnet3_MemRegs {
 #include "vmware_pack_end.h"
 Vmxnet3_MemRegs;
 
+typedef enum Vmxnet3_RSSField {
+   VMXNET3_RSS_FIELDS_TCPIP4 = 0x0001,
+   VMXNET3_RSS_FIELDS_TCPIP6 = 0x0002,
+   VMXNET3_RSS_FIELDS_UDPIP4 = 0x0004,
+   VMXNET3_RSS_FIELDS_UDPIP6 = 0x0008,
+   VMXNET3_RSS_FIELDS_ESPIP4 = 0x0010,
+   VMXNET3_RSS_FIELDS_ESPIP6 = 0x0020,
+} Vmxnet3_RSSField;
+
 /*
  * If a command data does not exceed 16 bytes, it can use
  * the shared memory directly. Otherwise use variable length
@@ -851,6 +866,7 @@ typedef
 union Vmxnet3_CmdInfo {
    Vmxnet3_VariableLenConfDesc varConf;
    Vmxnet3_SetPolling          setPolling;
+   Vmxnet3_RSSField            setRSSFields;
    __le64                      data[2];
 }
 #include "vmware_pack_end.h"
