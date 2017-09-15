@@ -84,20 +84,22 @@
  * Most major OSes now support __thread, so begin making TLS access via
  * __thread the common case.
  *
- * Linux: __thread since glibc-2.3
- * Windows: __declspec(thread) since vs2005 and >= Vista
+ * Linux: since glibc-2.3
+ * Windows: since Vista and vs2005 via __declspec(thread)
  *          (Prior to Vista, __declspec(thread) unimplemented when
  *           library loaded via LoadLibrary / delay-load)
- * FreeBSD and Solaris have supported "a long time", gcc-4.1 was needed.
- *
- * OSes without __thread support:
- * Android
- * MacOS. (However, pthread_get_specific is very fast. Also, 10.12 looks to
- *         support C11 thread_local type, so eventually we get it).
+ * macOS: since 10.7 via clang (xcode-4.6)
+ * iOS: 64-bit since 8, 32-bit since 9 (per llvm commit)
+ * watchOS: since 2
+ * Android: since NDKr12 (per NDK wiki)
+ * FreeBSD and Solaris: "a long time", gcc-4.1 was needed.
  *
  * (This is a new TLS rewrite, still in progress. Hence the NEW name. --kevinc)
  */
-#if !defined __APPLE__ && !defined __ANDROID__
+#if (defined __APPLE__ && __MAC_OS_X_VERSION_MIN_REQUIRED+0 < 1070) || \
+    (defined __ANDROID__)
+   /* pthreads */
+#else
 #  define NEW_HAVE_TLS
 #endif
 
@@ -197,20 +199,18 @@ typedef enum VThreadLocal {
 #ifdef NEW_HAVE_TLS
 static __thread int sigNestCount;
 #else
-static pthread_key_t sigNestCountKey = VTHREADBASE_INVALID_KEY;
+static pthread_key_t sigNestCountKey;
 
 /*
  * To avoid needing initialization, manage via constructor/destructor.
+ * We only do this on Apple and Android, where:
+ * - Apple reserves the first several pthread_key_t for libc
+ * - Android sets bit 31 in all valid pthread_key_t
+ * Thus, the default 0 value indicates unset.
  */
 __attribute__((constructor))
 static void SigNestCountConstruct(void)
 {
-   /*
-    * On Linux, system libraries have been seen to free TLS key 0 (see bugs
-    * 702818 and 773420) as libraries unload due to e.g. appLoader. However,
-    * neither macOS nor Android use appLoader, nor do they in practice unload
-    * libraries at runtime. Thus, avoid the workaround with cautious optimism.
-    */
    (void) pthread_key_create(&sigNestCountKey, NULL);
 }
 __attribute__((destructor))
@@ -221,12 +221,14 @@ static void SigNestCountDestruct(void)
     * a thread exits, the TLS destructor will SEGV because it's unloaded.
     * Net result, we must either leak a TLS key or the value in the TLS
     * slot. This path chooses to leak the value in the TLS slot... and
-    * as the value is an integer and not a pointer, there is no real leak.
+    * as the value is an integer and not a pointer, there is no leak.
     *
     * Code elsewhere in this file makes the opposite choice (leak TLS key)
     * due to needing a non-trivial destructor.
     */
-   (void) pthread_key_delete(sigNestCountKey);
+   if (sigNestCountKey != 0) {
+      (void) pthread_key_delete(sigNestCountKey);
+   }
 }
 #endif
 #endif
@@ -1284,7 +1286,9 @@ VThreadBase_SetIsInSignal(Bool isInSignal)  // IN:
 #if defined NEW_HAVE_TLS
    sigNestCount += (isInSignal ? 1 : -1);
 #else
-   intptr_t cnt = (intptr_t)pthread_getspecific(sigNestCountKey);
+   intptr_t cnt;
+   ASSERT(sigNestCountKey != 0);
+   cnt = (intptr_t)pthread_getspecific(sigNestCountKey);
    cnt += (isInSignal ? 1 : -1);
    (void) pthread_setspecific(sigNestCountKey, (void *)cnt);
 #endif
