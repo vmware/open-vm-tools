@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2009-2015 VMware, Inc.  All rights reserved.
+### Copyright (C) 2009-2016 VMware, Inc.  All rights reserved.
 ###
 ### VMware-specific macros for use with autoconf.
 ###

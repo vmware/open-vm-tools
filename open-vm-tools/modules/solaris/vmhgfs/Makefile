@@ -1,6 +1,6 @@
 #!/usr/bin/make -f
 ##########################################################
-# Copyright (C) 2008-2015 VMware, Inc. All rights reserved.
+# Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
 #
 # The contents of this file are subject to the terms of the Common
 # Development and Distribution License (the "License") version 1.0
