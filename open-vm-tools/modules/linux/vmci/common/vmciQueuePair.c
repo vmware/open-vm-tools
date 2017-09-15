@@ -1654,7 +1654,7 @@ VMCIQPBroker_Detach(VMCIHandle  handle,   // IN
    isLocal = entry->qp.flags & VMCI_QPFLAG_LOCAL;
 
    if (contextId != VMCI_HOST_CONTEXT_ID) {
-      int result;
+      int result2;
       Bool headersMapped;
 
       ASSERT(!isLocal);
@@ -1668,13 +1668,13 @@ VMCIQPBroker_Detach(VMCIHandle  handle,   // IN
       VMCI_AcquireQueueMutex(entry->produceQ, TRUE);
       headersMapped = entry->produceQ->qHeader || entry->consumeQ->qHeader;
       if (QPBROKERSTATE_HAS_MEM(entry)) {
-         result = VMCIHost_UnmapQueues(INVALID_VMCI_GUEST_MEM_ID,
+         result2 = VMCIHost_UnmapQueues(INVALID_VMCI_GUEST_MEM_ID,
                                        entry->produceQ,
                                        entry->consumeQ);
-         if (result < VMCI_SUCCESS) {
+         if (result2 < VMCI_SUCCESS) {
             VMCI_WARNING((LGPFX"Failed to unmap queue headers for queue pair "
-                          "(handle=0x%x:0x%x,result=%d).\n", handle.context,
-                          handle.resource, result));
+                          "(handle=0x%x:0x%x,result2=%d).\n", handle.context,
+                          handle.resource, result2));
          }
          VMCIHost_MarkQueuesUnavailable(entry->produceQ, entry->consumeQ);
          if (entry->vmciPageFiles) {
