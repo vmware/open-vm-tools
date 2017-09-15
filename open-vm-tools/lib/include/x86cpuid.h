@@ -1429,6 +1429,7 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 #define CPUID_MODEL_ATOM_4D        0x4d  // Avoton
 #define CPUID_MODEL_SKYLAKE_4E     0x4e  // Skylake-Y / Kabylake U/Y ES
 #define CPUID_MODEL_BROADWELL_4F   0x4f  // Broadwell EP/EN/EX
+#define CPUID_MODEL_SKYLAKE_55     0x55  // Skylake EP/EN/EX
 #define CPUID_MODEL_BROADWELL_56   0x56  // Broadwell DE
 #define CPUID_MODEL_KNL_57         0x57  // Knights Landing
 #define CPUID_MODEL_ATOM_5A        0x5a  // Future Silvermont
@@ -1662,6 +1663,7 @@ CPUID_MODEL_IS_SKYLAKE(uint32 v) // IN: %eax from CPUID with %eax=1.
    return CPUID_FAMILY_IS_P6(v) &&
           ((CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_SKYLAKE_5E &&
             CPUID_EFFECTIVE_STEPPING(v) != CPUID_STEPPING_KABYLAKE_ES) ||
+            CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_SKYLAKE_55 ||
            (CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_SKYLAKE_4E &&
             CPUID_EFFECTIVE_STEPPING(v) != CPUID_STEPPING_KABYLAKE_ES));
 }
