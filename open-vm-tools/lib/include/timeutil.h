@@ -45,7 +45,7 @@ extern "C" {
 struct timeval;
 
 /*struct timespec is not supported on UWP*/
-#if defined(_WIN32) && !defined(VM_WIN_UWP)
+#if defined(_WIN32) && !defined(VM_WIN_UWP) && _MSC_VER < 1900
 struct timespec {
    time_t tv_sec;
    long   tv_nsec;

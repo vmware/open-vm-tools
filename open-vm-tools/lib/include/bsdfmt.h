@@ -126,7 +126,7 @@ char *BSDFmt_UJToA(uintmax_t, char *, int, int, const char *, int, char,
  * in VS2003/VC7/include/wchar.h -- edward
  */
 
-#ifdef _WIN32
+#if defined(_WIN32) && _MSC_VER < 1900
 #define mbstate_t int
 #endif
 
