@@ -840,7 +840,7 @@ FileIO_AtomicUpdate(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
 
    if (HostType_OSIsVMK()) {
 #if defined(VMX86_SERVER)
-      FS_SwapFilesArgs *args = NULL;
+      FS_SwapFilesArgsUW *args = NULL;
       char *dirName = NULL;
       char *fileName = NULL;
       char *dstDirName = NULL;
@@ -872,39 +872,8 @@ FileIO_AtomicUpdate(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
       ASSERT(File_IsSameFile(dirName, dstDirName));
 
       args = Util_SafeCalloc(1, sizeof *args);
-      if (Str_Snprintf(args->srcFile, sizeof args->srcFile, "%s",
-                       fileName) < 0) {
-         Log("%s: Path too long \"%s\".\n", __FUNCTION__, fileName);
-         savedErrno = ENAMETOOLONG;
-         goto swapdone;
-      }
-      if (Str_Snprintf(args->dstFilePath, sizeof args->dstFilePath, "%s/%s",
-                       dstDirName, dstFileName) < 0) {
-         Log("%s: Path too long \"%s\".\n", __FUNCTION__, dstFileName);
-         savedErrno = ENAMETOOLONG;
-         goto swapdone;
-      }
-
-      /*
-       * Issue the ioctl on the directory rather than on the file,
-       * because the file could be open.
-       */
-
-      if (!*dirName) {
-         /* need a proper root directory string for Posix_Open() */
-         free(dirName);
-         dirName = Util_SafeStrdup("/");
-      }
-
-      fd = Posix_Open(dirName, O_RDONLY);
-      if (fd < 0) {
-         Log("%s: Open failed \"%s\" %d.\n", __FUNCTION__, dirName, errno);
-         ASSERT(errno != EBUSY);   /* #615124. */
-         savedErrno = errno;
-         goto swapdone;
-      }
-
-      if (ioctl(fd, IOCTLCMD_VMFS_SWAP_FILES, args) != 0) {
+      args->fd = currFD->posix;
+      if (ioctl(newFD->posix, IOCTLCMD_VMFS_SWAP_FILES, args) != 0) {
          savedErrno = errno;
          if (errno != ENOSYS && errno != ENOTTY) {
             Log("%s: ioctl failed %d.\n", __FUNCTION__, errno);
@@ -913,8 +882,6 @@ FileIO_AtomicUpdate(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
       } else {
          ret = TRUE;
       }
-
-      close(fd);
 
       /*
        * Did we fail because we are on a file system that does not
