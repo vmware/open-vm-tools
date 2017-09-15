@@ -844,13 +844,14 @@ MXUser_WaitCondVarRecLock(MXUserRecLock *lock,     // IN:
 void
 MXUser_TimedWaitCondVarRecLock(MXUserRecLock *lock,     // IN:
                                MXUserCondVar *condVar,  // IN:
-                               uint32 msecWait)         // IN:
+                               uint32 waitTimeMsec)     // IN:
 {
    ASSERT(lock);
    MXUserValidateHeader(&lock->header, MXUSER_TYPE_REC);
    ASSERT(lock->vmmLock == NULL);  // only unbound locks
 
-   MXUserWaitCondVar(&lock->header, &lock->recursiveLock, condVar, msecWait);
+   MXUserWaitCondVar(&lock->header, &lock->recursiveLock, condVar,
+                     waitTimeMsec);
 }
 
 

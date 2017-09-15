@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -88,7 +88,7 @@ void MXUser_WaitCondVarExclLock(MXUserExclLock *lock,
 
 void MXUser_TimedWaitCondVarExclLock(MXUserExclLock *lock,
                                      MXUserCondVar *condVar,
-                                     uint32 msecWait);
+                                     uint32 waitTimeMsec);
 
 Bool MXUser_EnableStatsExclLock(MXUserExclLock *lock,
                                 Bool trackAcquisitionTime,
@@ -151,7 +151,7 @@ void MXUser_WaitCondVarRecLock(MXUserRecLock *lock,
 
 void MXUser_TimedWaitCondVarRecLock(MXUserRecLock *lock,
                                     MXUserCondVar *condVar,
-                                    uint32 msecWait);
+                                    uint32 waitTimeMsec);
 
 void MXUser_IncRefRecLock(MXUserRecLock *lock);
 
@@ -262,7 +262,7 @@ void MXUser_DownSemaphore(MXUserSemaphore *sema);
 Bool MXUser_TryDownSemaphore(MXUserSemaphore *sema);
 
 Bool MXUser_TimedDownSemaphore(MXUserSemaphore *sema,
-                               uint32 msecWait);
+                               uint32 waitTimeMsec);
 
 MXUserSemaphore *MXUser_CreateSingletonSemaphore(Atomic_Ptr *semaStorage,
                                                  const char *name,

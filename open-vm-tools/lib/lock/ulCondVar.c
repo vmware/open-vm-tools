@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -118,10 +118,11 @@ MXUserDestroyInternal(MXUserCondVar *condVar)  // IN/OUT:
 static INLINE void
 MXUserWaitInternal(MXRecLock *lock,         // IN/OUT:
                    MXUserCondVar *condVar,  // IN/OUT:
-                   uint32 msecWait)         // IN:
+                   uint32 waitTimeMsec)     // IN:
 {
    int lockCount = MXRecLockCount(lock);
-   DWORD waitTime = (msecWait == MXUSER_WAIT_INFINITE) ? INFINITE : msecWait;
+   DWORD waitTime = (waitTimeMsec == MXUSER_WAIT_INFINITE) ? INFINITE :
+                                                             waitTimeMsec;
 
    /*
     * When using the native lock found within the MXUser lock, be sure to
@@ -263,7 +264,7 @@ MXUserDestroyInternal(MXUserCondVar *condVar)  // IN/OUT:
 static INLINE void
 MXUserWaitInternal(MXRecLock *lock,         // IN/OUT:
                    MXUserCondVar *condVar,  // IN/OUT:
-                   uint32 msecWait)         // IN:
+                   uint32 waitTimeMsec)     // IN:
 {
    int err;
    int lockCount = MXRecLockCount(lock);
@@ -278,7 +279,7 @@ MXUserWaitInternal(MXRecLock *lock,         // IN/OUT:
 
    MXRecLockDecCount(lock, lockCount);
 
-   if (msecWait == MXUSER_WAIT_INFINITE) {
+   if (waitTimeMsec == MXUSER_WAIT_INFINITE) {
       err = pthread_cond_wait(&condVar->condObject, &lock->nativeLock);
    } else {
       struct timeval curTime;
@@ -294,7 +295,7 @@ MXUserWaitInternal(MXRecLock *lock,         // IN/OUT:
       gettimeofday(&curTime, NULL);
       endNS = ((uint64) curTime.tv_sec * A_BILLION) +
               ((uint64) curTime.tv_usec * 1000) +
-              ((uint64) msecWait * (1000 * 1000));
+              ((uint64) waitTimeMsec * (1000 * 1000));
 
       endTime.tv_sec = (time_t) (endNS / A_BILLION);
       endTime.tv_nsec = (long int) (endNS % A_BILLION);
@@ -424,7 +425,7 @@ void
 MXUserWaitCondVar(MXUserHeader *header,    // IN:
                   MXRecLock *lock,         // IN/OUT:
                   MXUserCondVar *condVar,  // IN/OUT:
-                  uint32 msecWait)         // IN:
+                  uint32 waitTimeMsec)     // IN:
 {
    ASSERT(header);
    ASSERT(lock);
@@ -442,7 +443,7 @@ MXUserWaitCondVar(MXUserHeader *header,    // IN:
    }
 
    Atomic_Inc(&condVar->referenceCount);
-   MXUserWaitInternal(lock, condVar, msecWait);
+   MXUserWaitInternal(lock, condVar, waitTimeMsec);
    Atomic_Dec(&condVar->referenceCount);
 }
 

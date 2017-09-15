@@ -761,10 +761,11 @@ MXUser_WaitCondVarExclLock(MXUserExclLock *lock,    // IN:
 void
 MXUser_TimedWaitCondVarExclLock(MXUserExclLock *lock,    // IN:
                                 MXUserCondVar *condVar,  // IN:
-                                uint32 msecWait)         // IN:
+                                uint32 waitTimeMsec)     // IN:
 {
    ASSERT(lock);
    MXUserValidateHeader(&lock->header, MXUSER_TYPE_EXCL);
 
-   MXUserWaitCondVar(&lock->header, &lock->recursiveLock, condVar, msecWait);
+   MXUserWaitCondVar(&lock->header, &lock->recursiveLock, condVar,
+                     waitTimeMsec);
 }
