@@ -1565,6 +1565,7 @@ FileLockIntrinsicMandatory(const char *pathName,   // IN:
 {
    int access;
    int loopCount = 0;
+   int errnum;
    FileIOResult result;
    FileLockToken *tokenPtr = Util_SafeMalloc(sizeof *tokenPtr);
 
@@ -1582,6 +1583,7 @@ FileLockIntrinsicMandatory(const char *pathName,   // IN:
                                  lockFile, access,
                                  FILEIO_OPEN_CREATE, 0600,
                                  0);
+      errnum = Err_Errno();
       if (result != FILEIO_LOCK_FAILED) {
          break;
       }
@@ -1593,7 +1595,11 @@ FileLockIntrinsicMandatory(const char *pathName,   // IN:
 
       return tokenPtr;
    } else {
-      *err = FileMapErrorToErrno(__FUNCTION__, Err_Errno());
+      if (result == FILEIO_LOCK_FAILED) {
+         *err = 0;
+      } else {
+         *err = FileMapErrorToErrno(__FUNCTION__, errnum);
+      }
       free(tokenPtr->pathName);
       ASSERT(!FileIO_IsValid(&tokenPtr->u.mandatory.lockFd));
       free(tokenPtr);
