@@ -333,7 +333,7 @@ void WarningThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
 #define ASSERT_ON_COMPILE(e) \
    do {                      \
       _Static_assert(e, #e); \
-   } while (0)
+   } while (0);
 #endif
 
 /*
