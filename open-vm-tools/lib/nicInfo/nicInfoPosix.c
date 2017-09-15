@@ -129,7 +129,7 @@
 
 
 #ifndef NO_DNET
-static void RecordNetworkAddress(GuestNicV3 *nic, const struct addr *addr);
+static Bool RecordNetworkAddress(GuestNicV3 *nic, const struct addr *addr);
 static int ReadInterfaceDetails(const struct intf_entry *entry, void *arg);
 static Bool RecordRoutingInfo(NicInfoV3 *nicInfo);
 
@@ -315,8 +315,16 @@ GuestInfoGetNicInfo(NicInfoV3 *nicInfo) // OUT
                      }
                   }
                   if (goodAddress) {
-                     GuestInfoAddIpAddress(nic, ip->ifa_addr, nBits, NULL,
-                                           NULL);
+                     IpAddressEntry *ent = GuestInfoAddIpAddress(nic,
+                                                                 ip->ifa_addr,
+                                                                 nBits, NULL,
+                                                                 NULL);
+                     if (NULL == ent) {
+                        /*
+                         * Reached the max number of IPs that can be reported
+                         */
+                        break;
+                     }
                   }
                }
             }
@@ -430,19 +438,26 @@ GuestInfoGetPrimaryIP(void)
  * @param[in]  nic      Operand NIC.
  * @param[in]  addr     dnet(3) address.
  *
+ * @retval TRUE on success
+ *
  ******************************************************************************
  */
 
-static void
+static Bool
 RecordNetworkAddress(GuestNicV3 *nic,           // IN: operand NIC
                      const struct addr *addr)   // IN: dnet(3) address to process
 {
    struct sockaddr_storage ss;
    struct sockaddr *sa = (struct sockaddr *)&ss;
+   const IpAddressEntry *ip;
 
    memset(&ss, 0, sizeof ss);
    addr_ntos(addr, sa);
-   GuestInfoAddIpAddress(nic, sa, addr->addr_bits, NULL, NULL);
+   ip = GuestInfoAddIpAddress(nic, sa, addr->addr_bits, NULL, NULL);
+   if (NULL == ip) {
+      return FALSE;
+   }
+   return TRUE;
 }
 
 
@@ -500,7 +515,12 @@ ReadInterfaceDetails(const struct intf_entry *entry,  // IN: current interface e
          /* Record the "primary" address. */
          if (entry->intf_addr.addr_type == ADDR_TYPE_IP ||
              entry->intf_addr.addr_type == ADDR_TYPE_IP6) {
-            RecordNetworkAddress(nic, &entry->intf_addr);
+            if (!RecordNetworkAddress(nic, &entry->intf_addr)) {
+               /*
+                * We reached maximum number of IPs we can report to the host.
+                */
+               return 0;
+            }
          }
 
          /* Walk the list of alias's and add those that are IPV4 or IPV6 */
@@ -508,7 +528,12 @@ ReadInterfaceDetails(const struct intf_entry *entry,  // IN: current interface e
             const struct addr *alias = &entry->intf_alias_addrs[i];
             if (alias->addr_type == ADDR_TYPE_IP ||
                 alias->addr_type == ADDR_TYPE_IP6) {
-               RecordNetworkAddress(nic, alias);
+               if (!RecordNetworkAddress(nic, alias)) {
+                  /*
+                   * We reached maximum number of IPs we can report to the host.
+                   */
+                  return 0;
+               }
             }
          }
       }
