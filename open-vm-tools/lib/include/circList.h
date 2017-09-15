@@ -267,6 +267,9 @@ CircList_DeleteItem(ListItem *p,         // IN
 {
    ListItem *next;
 
+   ASSERT(p != NULL);
+   ASSERT(headp != NULL);
+
    next = p->next;
    if (p == next) {
       *headp = NULL;
