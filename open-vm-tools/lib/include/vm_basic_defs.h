@@ -457,9 +457,7 @@ void *_ReturnAddress(void);
  * guarantee.  Bummer.  --Jeremy.
  */
 
-#if defined(N_PLAT_NLM)
-/* We do not have YIELD() as we do not need it yet... */
-#elif defined(_WIN32)
+#if defined(_WIN32)
 #      define YIELD()		Sleep(0)
 #elif defined(VMKERNEL)
 /* We don't have a YIELD macro in the vmkernel */

@@ -2459,16 +2459,11 @@ FileIO_GetAllocSizeByPath(const char *pathName,  // IN:
    }
 
    if (allocedBytes) {
-#if __linux__ && defined(N_PLAT_NLM)
-      /* Netware doesn't have st_blocks.  Just fall back to GetSize. */
-      *allocedBytes = statBuf.st_size;
-#else
      /*
       * If you don't like the magic number 512, yell at the people
       * who wrote sys/stat.h and tell them to add a #define for it.
       */
       *allocedBytes = statBuf.st_blocks * 512;
-#endif
    }
 
    return FILEIO_SUCCESS;

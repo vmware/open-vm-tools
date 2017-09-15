@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -44,9 +44,7 @@
 #include "vm_basic_types.h"
 
 #include "dbllnklst.h"
-#ifndef N_PLAT_NLM
 #include "guestrpc/nicinfo.h"
-#endif // #ifndef N_PLAT_NLM
 
 #define GUEST_INFO_COMMAND "SetGuestInfo"
 #define MAX_VALUE_LEN 100

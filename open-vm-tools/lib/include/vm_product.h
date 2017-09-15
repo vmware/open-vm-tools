@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -504,9 +504,7 @@
  * before linux below since it uses the Linux gcc which automatically defines
  * linux; the other platforms don't have this issue.
  */
-#ifdef N_PLAT_NLM
-#  define PRODUCT_NAME_PLATFORM         PRODUCT_NAME " for NetWare"
-#elif defined(__linux__)
+#if defined(__linux__)
 #  define PRODUCT_NAME_PLATFORM         PRODUCT_NAME " for Linux"
 #elif defined(_WIN32)
 #  define PRODUCT_NAME_PLATFORM         PRODUCT_NAME " for Windows"
