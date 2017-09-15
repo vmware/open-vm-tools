@@ -212,6 +212,7 @@ extern "C" {
    GOSL(STR_OS_RED_HAT_EN "6-64",            GUEST_OS_RHEL_64,                "linux.iso")            \
    GOSL(STR_OS_RED_HAT_EN "7",               GUEST_OS_RHEL,                   "linux.iso")            \
    GOSL(STR_OS_RED_HAT_EN "7-64",            GUEST_OS_RHEL_64,                "linux.iso")            \
+   GOSL(STR_OS_RED_HAT_EN "8-64",            GUEST_OS_RHEL_64,                "linux.iso")            \
    GOSL(STR_OS_SUN_DESK,                     GUEST_OS_OTHER24XLINUX,          "linuxPreGlibc25.iso")  \
    GOSL(STR_OS_SLES,                         GUEST_OS_OTHER26XLINUX,          "linuxPreGlibc25.iso")  \
    GOSL(STR_OS_SLES "-64",                   GUEST_OS_OTHER26XLINUX_64,       "linuxPreGlibc25.iso")  \
@@ -221,6 +222,7 @@ extern "C" {
    GOSL(STR_OS_SLES "11-64",                 GUEST_OS_OTHER26XLINUX_64,       "linux.iso")            \
    GOSL(STR_OS_SLES "12",                    GUEST_OS_OTHER26XLINUX,          "linux.iso")            \
    GOSL(STR_OS_SLES "12-64",                 GUEST_OS_OTHER26XLINUX_64,       "linux.iso")            \
+   GOSL(STR_OS_SLES "15-64",                 GUEST_OS_OTHER3XLINUX_64,        "linux.iso")            \
    GOSL(STR_OS_SOLARIS "10",                 GUEST_OS_SOLARIS10,              "solaris.iso")          \
    GOSL(STR_OS_SOLARIS "10-64",              GUEST_OS_SOLARIS10_64,           "solaris.iso")          \
    GOSL(STR_OS_SOLARIS "11-64",              GUEST_OS_SOLARIS11_64,           "solaris.iso")          \
@@ -404,6 +406,7 @@ extern "C" {
    GOKM("rhel6-64",                             rhel6_64Guest,           TRUE) \
    GOKM("rhel7",                                rhel7Guest,              TRUE) \
    GOKM("rhel7-64",                             rhel7_64Guest,           TRUE) \
+   GOKM("rhel8-64",                             rhel8_64Guest,           TRUE) \
    GOKM("centos",                               centosGuest,             TRUE) \
    GOKM("centos-64",                            centos64Guest,           TRUE) \
    GOKM("centos6",                              centos6Guest,            TRUE) \
@@ -426,6 +429,7 @@ extern "C" {
    GOKM("sles11-64",                            sles11_64Guest,          TRUE) \
    GOKM("sles12",                               sles12Guest,             TRUE) \
    GOKM("sles12-64",                            sles12_64Guest,          TRUE) \
+   GOKM("sles15-64",                            sles15_64Guest,          TRUE) \
    GOKM("mandrake",                             mandrakeGuest,           TRUE) \
    GOKM("mandrake-64",                          mandriva64Guest,         FALSE) \
    GOKM("mandriva",                             mandrivaGuest,           TRUE) \
