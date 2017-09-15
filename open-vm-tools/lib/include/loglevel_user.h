@@ -300,7 +300,8 @@
    LOGLEVEL_VAR(pmemobj), \
    LOGLEVEL_VAR(secureBoot), \
    LOGLEVEL_VAR(upitd), \
-   LOGLEVEL_VAR(promotedisk),
+   LOGLEVEL_VAR(promotedisk), \
+   LOGLEVEL_VAR(efivarstore)
 
    /* end of list */
 
