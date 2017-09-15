@@ -805,7 +805,7 @@ StrUtil_GetLongestLineLength(const char *buf,   //IN
     size_t longest = 0;
 
     while (bufLength) {
-       const char* next;
+       const char *next;
        size_t len;
 
        next = memchr(buf, '\n', bufLength);
@@ -1496,15 +1496,15 @@ StrUtil_HasListItemCase(char const *list,   // IN:
  *-----------------------------------------------------------------------------
  */
 
-char*
+char *
 StrUtil_AppendListItem(char const *list,  // IN:
                        char delim,        // IN:
                        char const *item)  // IN:
 {
-   if (list != NULL) {
-      return Str_Asprintf(NULL, "%s%c%s", list, delim, item);
-   } else {
+   if (list == NULL) {
       return Str_Asprintf(NULL, "%s", item);
+   } else {
+      return Str_Asprintf(NULL, "%s%c%s", list, delim, item);
    }
 }
 
@@ -1665,6 +1665,7 @@ StrUtil_UnitTests(void)
 
    {
       char list[] = "a,b,c,d", *tok, *tmp = list;
+
       tok = StrUtil_GetNextItem(&tmp, ',');
       if (!(EQ_STRING(tok, "a") && EQ_STRING(tmp, "b,c,d"))) {
          FAIL("StrUtil_GetNextItem('a,b,c,d', ',') != ('a', 'b,c,d')");
@@ -1701,6 +1702,7 @@ StrUtil_UnitTests(void)
 
    {
       char *list = "a,b", *newList;
+
       newList = StrUtil_AppendListItem(list, ',', "c");
       if (!EQ_STRING(newList, "a,b,c")) {
          FAIL("StrUtil_AppendListItem('a,b', ',', 'c') != 'a,b,c'");
@@ -1746,7 +1748,8 @@ StrUtil_UnitTests(void)
 #ifdef STRUTIL_UNITTESTS_STANDALONE
 
 void
-Panic_Panic(const char *fmt, va_list args)
+Panic_Panic(const char *fmt,
+            va_list args)
 {
    char buf[1024];
 
@@ -1757,7 +1760,8 @@ Panic_Panic(const char *fmt, va_list args)
 
 
 int
-main(int argc, char *argv[])
+main(int argc,
+     char *argv[])
 {
    StrUtil_UnitTests();
 
