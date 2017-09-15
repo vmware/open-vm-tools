@@ -282,7 +282,7 @@ FileAcceptableSafeTmpDir(const char *dirname,  // IN:
           * effective user with permissions 'mode'.
           */
 
-         if (0 == Posix_Lstat(dirname, &st)) {
+         if (Posix_Lstat(dirname, &st) == 0) {
             /*
              * Our directory inherited S_ISGID if its parent had it. So it
              * is important to ignore that bit, and it is safe to do so

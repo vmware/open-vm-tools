@@ -1273,10 +1273,10 @@ File_MoveTree(const char *srcName,    // IN:
    } else {
       struct stat statbuf;
 
-      if (-1 == Posix_Stat(dstName, &statbuf)) {
+      if (Posix_Stat(dstName, &statbuf) == -1) {
          int err = Err_Errno();
 
-         if (ENOENT == err) {
+         if (err == ENOENT) {
             if (!File_CreateDirectoryHierarchy(dstName, NULL)) {
                Msg_Append(MSGID(File.MoveTree.dst.couldntCreate)
                           "Could not create '%s'.\n\n", dstName);
