@@ -124,7 +124,12 @@ CPUIDQuery;
    CPUIDLEVEL(FALSE, A,   0xA,        0)            \
    CPUIDLEVEL(FALSE, B,   0xB,        2)            \
    CPUIDLEVEL(TRUE,  D,   0xD,       10)            \
+   CPUIDLEVEL(TRUE,  F,   0xF,        2)            \
+   CPUIDLEVEL(TRUE,  10,  0x10,       2)            \
    CPUIDLEVEL(FALSE, 12,  0x12,       4)            \
+   CPUIDLEVEL(TRUE,  14,  0x14,       2)            \
+   CPUIDLEVEL(TRUE,  15,  0x15,       0)            \
+   CPUIDLEVEL(TRUE,  16,  0x16,       0)            \
    CPUIDLEVEL(FALSE, 400, 0x40000000, 0)            \
    CPUIDLEVEL(FALSE, 401, 0x40000001, 0)            \
    CPUIDLEVEL(FALSE, 402, 0x40000002, 0)            \
@@ -577,6 +582,21 @@ FIELD(  D, 62, EBX,  0, 32, XSAVE_LWP_OFFSET,                      NO,  FALSE) \
 FIELD(  D, 62, ECX,  0, 32, XSAVE_LWP_RSVD1,                       NO,  FALSE) \
 FIELD(  D, 62, EDX,  0, 32, XSAVE_LWP_RSVD2,                       NO,  FALSE)
 
+/*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
+#define CPUID_FIELD_DATA_LEVEL_F                                               \
+FIELD(  F,  0, EBX,  0, 32, MAX_RMID_RANGE,                        NO,  FALSE) \
+FLAG(   F,  0, EDX,  1,  1, L3_QOS_MONITOR,                        NO,  FALSE) \
+FIELD(  F,  1, EBX,  0, 32, IA32_QM_CTR_CONVERSION_FACTOR,         NO,  FALSE) \
+FLAG(   F,  1, EDX,  0,  1, L3_OCCUPANCY,                          NO,  FALSE) \
+
+/*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
+#define CPUID_FIELD_DATA_LEVEL_10                                              \
+FLAG(  10,  0, EBX,  1,  1, L3_QOS_ENFORCEMENT,                    NO,  FALSE) \
+FIELD( 10,  1, EAX,  0,  4, RESID_CAPACITY_MASK_LENGTH,            NO,  FALSE) \
+FIELD( 10,  1, EBX,  0, 32, ISOLATION_UNIT_MAP,                    NO,  FALSE) \
+FLAG(  10,  1, ECX,  1,  1, INFREQUENT_COS_UPDATE,                 NO,  FALSE) \
+FLAG(  10,  1, ECX,  2,  1, CODE_AND_DATA_PRIORITIZATION,          NO,  FALSE) \
+FIELD( 10,  1, EDX,  0, 16, MAX_COS_NUMBER,                        NO,  FALSE) \
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_12                                              \
@@ -601,6 +621,34 @@ FIELD( 12,  3, EBX,  0, 20, EPC01_BASE_HIGH,                       NA,  FALSE) \
 FIELD( 12,  3, ECX,  0,  4, EPC01_PROTECTED,                       NA,  FALSE) \
 FIELD( 12,  3, ECX, 12, 20, EPC01_SIZE_LOW,                        NA,  FALSE) \
 FIELD( 12,  3, EDX,  0, 20, EPC01_SIZE_HIGH,                       NA,  FALSE)
+
+/*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
+#define CPUID_FIELD_DATA_LEVEL_14                                              \
+FIELD( 14,  0, EAX,  0, 32, MAX_SUB_LEAF,                          NO,  FALSE) \
+FLAG(  14,  0, EBX,  0,  1, CR3FTR_AND_MATCHMSR_AVAILABLE,         NO,  FALSE) \
+FLAG(  14,  0, EBX,  1,  1, PSB_AND_CYCLE_ACCURATE_MODE,           NO,  FALSE) \
+FLAG(  14,  0, EBX,  2,  1, IP_TRACESTOP_FTR_PTMSR_PERSIST,        NO,  FALSE) \
+FLAG(  14,  0, EBX,  3,  1, MTC_TIMING_SUPPRESS_COFI_PKT,          NO,  FALSE) \
+FLAG(  14,  0, ECX,  0,  1, TRACING_CAPABLE,                       NO,  FALSE) \
+FLAG(  14,  0, ECX,  1,  1, FLEXIBLE_TOPA_TABLE,                   NO,  FALSE) \
+FLAG(  14,  0, ECX,  2,  1, SINGLE_RANGE_OUTPUT_SCHEME,            NO,  FALSE) \
+FLAG(  14,  0, ECX,  3,  1, TRACE_TRANSPORT_SUBSYSTEM,             NO,  FALSE) \
+FLAG(  14,  0, ECX, 31,  1, LIP_PRESENT_FOR_IP_PAYLOADS,           NO,  FALSE) \
+FIELD( 14,  1, EAX,  0,  2, NUM_ADDR_RANGE_FOR_FILTERING,          NO,  FALSE) \
+FIELD( 14,  1, EAX, 16, 16, SUPPORTED_MTC_ENCODINGS,               NO,  FALSE) \
+FIELD( 14,  1, EBX,  0, 16, CYCLE_THRESHOLD_ENCODINGS,             NO,  FALSE) \
+FIELD( 14,  1, EBX, 16, 16, SUPPORTED_PSB_FREQ_ENCODINGS,          NO,  FALSE) \
+
+/*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
+#define CPUID_FIELD_DATA_LEVEL_15                                              \
+FIELD( 15,  0, EAX,  0, 32, DENOM_TSC_TO_CORE_CRYSTAL_CLK,         NO,  FALSE) \
+FIELD( 15,  0, EBX,  0, 32, NUMER_TSC_TO_CORE_CRYSTAL_CLK,         NO,  FALSE) \
+
+/*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
+#define CPUID_FIELD_DATA_LEVEL_16                                              \
+FIELD( 16,  0, EAX,  0, 16, PROC_BASE_FREQ,                        ANY, FALSE) \
+FIELD( 16,  0, EBX,  0, 16, PROC_MIN_FREQ,                         ANY, FALSE) \
+FIELD( 16,  0, ECX,  0, 16, BUS_FREQ,                              ANY, FALSE) \
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_400                                             \
@@ -946,7 +994,12 @@ FIELD(81E,  0, ECX,  8,  3, NODES_PER_PKG,                         NA,  FALSE)
    CPUID_FIELD_DATA_LEVEL_A                                           \
    CPUID_FIELD_DATA_LEVEL_B                                           \
    CPUID_FIELD_DATA_LEVEL_D                                           \
+   CPUID_FIELD_DATA_LEVEL_F                                           \
+   CPUID_FIELD_DATA_LEVEL_10                                          \
    CPUID_FIELD_DATA_LEVEL_12                                          \
+   CPUID_FIELD_DATA_LEVEL_14                                          \
+   CPUID_FIELD_DATA_LEVEL_15                                          \
+   CPUID_FIELD_DATA_LEVEL_16                                          \
    CPUID_FIELD_DATA_LEVEL_400                                         \
    CPUID_FIELD_DATA_LEVEL_401                                         \
    CPUID_FIELD_DATA_LEVEL_402                                         \
