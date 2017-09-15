@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -35,6 +35,30 @@
 #include "dynbuf.h"
 #include "vm_ctype.h"
 #include "util.h"
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtil_IsEmpty --
+ *
+ *      Test if a non-NULL string is empty.
+ *
+ * Results:
+ *      TRUE if the string has length 0, FALSE otherwise.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE Bool
+StrUtil_IsEmpty(const char *str)  // IN:
+{
+   ASSERT(str != NULL);
+   return str[0] == '\0';
+}
 
 
 /*
@@ -1235,3 +1259,114 @@ StrUtil_TrimWhitespace(const char *str)  // IN
 
    return res;
 }
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtil_ReplaceAll --
+ *
+ *    Replaces all occurrences of a non-empty substring with non-NULL pattern
+ *    in non-NULL string.
+ *
+ * Results:
+ *    Returns pointer to the allocated resulting string. The caller is
+ *    responsible for freeing it.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+char *
+StrUtil_ReplaceAll(const char *orig, // IN
+                   const char *what, // IN
+                   const char *with) // IN
+{
+    char *result;
+    const char *current;
+    char *tmp;
+    size_t lenWhat;
+    size_t lenWith;
+    size_t lenBefore;
+    size_t occurrences = 0;
+    size_t lenNew;
+
+    ASSERT(orig != NULL);
+    ASSERT(!StrUtil_IsEmpty(what));
+    ASSERT(with != NULL);
+
+    lenWhat = strlen(what);
+    lenWith = strlen(with);
+
+    current = orig;
+    while ((tmp = strstr(current, what)) != NULL) {
+       current = tmp + lenWhat;
+       ++occurrences;
+    }
+
+    lenNew = strlen(orig) + (lenWith - lenWhat) * occurrences;
+    tmp = Util_SafeMalloc(lenNew + 1);
+    result = tmp;
+
+    while (occurrences--) {
+       current = strstr(orig, what);
+       lenBefore = current - orig;
+       tmp = memcpy(tmp, orig, lenBefore);
+       tmp += lenBefore;
+       tmp = memcpy(tmp, with, lenWith);
+       tmp += lenWith;
+       orig += lenBefore + lenWhat;
+    }
+    memcpy(tmp, orig, strlen(orig));
+
+    result[lenNew] = '\0';
+
+    return result;
+}
+
+#if 0
+
+#define FAIL(s) \
+   do { \
+      printf("FAIL: %s\n", s); \
+      exit(1); \
+   } while (0)
+
+#define REPLACE_TEST(_a, _b, _c, _x) \
+   do { \
+      char *s = StrUtil_ReplaceAll(_a, _b, _c); \
+      if (strcmp(_x, s) != 0) { \
+         printf("Got: %s\n", s); \
+         FAIL("Failed ReplaceAll('" _a "', '" _b "', '" _c "') = '" _x "'"); \
+      } \
+      free(s); \
+   } while (0)
+
+static void
+StrUtil_UnitTests(void)
+{
+   REPLACE_TEST("", "a", "b", "");
+   REPLACE_TEST("a", "a", "a", "a");
+
+   REPLACE_TEST("a", "a", "b", "b");
+   REPLACE_TEST("/a", "a", "b", "/b");
+   REPLACE_TEST("a/", "a", "b", "b/");
+
+   REPLACE_TEST("a/a", "a", "b", "b/b");
+   REPLACE_TEST("/a/a", "a", "b", "/b/b");
+   REPLACE_TEST("/a/a/", "a", "b", "/b/b/");
+
+   REPLACE_TEST("a", "a", "long", "long");
+   REPLACE_TEST("a/", "a", "long", "long/");
+   REPLACE_TEST("/a", "a", "long", "/long");
+
+   REPLACE_TEST("long", "long", "a", "a");
+   REPLACE_TEST("long/", "long", "a", "a/");
+   REPLACE_TEST("/long", "long", "a", "/a");
+
+   REPLACE_TEST("a", "a", "", "");
+   REPLACE_TEST("aaa", "a", "", "");
+
+   REPLACE_TEST("a", "not_found", "b", "a");
+}
+
+#endif // 0
