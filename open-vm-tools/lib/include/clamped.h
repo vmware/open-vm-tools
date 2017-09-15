@@ -261,7 +261,10 @@ Clamped_UAdd32(uint32 *out,  // OUT
 {
    uint32 c = a + b;
 
-   if (UNLIKELY(c < a || c < b)) {
+   /*
+    * Checking against one src operand is sufficient.
+    */
+   if (UNLIKELY(c < a)) {
       *out = MAX_UINT32;
       return FALSE;
    }
@@ -298,7 +301,10 @@ Clamped_UAdd64(uint64 *out,   // OUT
 {
    uint64 c = a + b;
 
-   if(UNLIKELY(c < a || c < b)) {
+   /*
+    * Checking against one src operand is sufficient.
+    */
+   if (UNLIKELY(c < a)) {
       *out = MAX_UINT64;
       return FALSE;
    }
