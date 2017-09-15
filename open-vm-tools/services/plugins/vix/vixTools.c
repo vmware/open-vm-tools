@@ -209,6 +209,8 @@ char *gImpersonatedUsername = NULL;
 #define  VIX_TOOLS_CONFIG_API_AUTHENTICATION          "Authentication"
 #define  VIX_TOOLS_CONFIG_AUTHTYPE_AGENTS             "InfrastructureAgents"
 
+#define VIX_TOOLS_CONFIG_INFRA_AGENT_DISABLED_DEFAULT  TRUE
+
 /*
  * The switch that controls all APIs
  */
@@ -10405,15 +10407,26 @@ static Bool
 VixToolsCheckIfAuthenticationTypeEnabled(GKeyFile *confDictRef,     // IN
                                          const char *typeName)      // IN
 {
-   char authenticationType[64]; // Authentication.<AuthenticationType>
+   char authnDisabledName[64]; // Authentication.<AuthenticationType>.disabled
+   gboolean disabled;
 
-   Str_Snprintf(authenticationType, sizeof(authenticationType),
-                VIX_TOOLS_CONFIG_API_AUTHENTICATION ".%s",
+   Str_Snprintf(authnDisabledName, sizeof(authnDisabledName),
+                VIX_TOOLS_CONFIG_API_AUTHENTICATION ".%s.disabled",
                 typeName);
 
    ASSERT(confDictRef != NULL);
 
-   return !VixToolsGetAPIDisabledFromConf(confDictRef, authenticationType);
+   /*
+    * XXX Skip doing the strcmp() to verify the auth type since we only
+    * have the one typeName (VIX_TOOLS_CONFIG_AUTHTYPE_AGENTS), and default
+    * it to VIX_TOOLS_CONFIG_INFRA_AGENT_DISABLED_DEFAULT.
+    */
+   disabled = VixTools_ConfigGetBoolean(confDictRef,
+                                        VIX_TOOLS_CONFIG_API_GROUPNAME,
+                                        authnDisabledName,
+                                        VIX_TOOLS_CONFIG_INFRA_AGENT_DISABLED_DEFAULT);
+
+   return !disabled;
 }
 
 
