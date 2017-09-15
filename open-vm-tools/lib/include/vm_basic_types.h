@@ -437,7 +437,7 @@ typedef int64 VmTimeVirtualClock;  /* Virtual Clock kept in CPU cycles */
    #endif
    #if defined(VM_X86_64) || defined(VM_ARM_64)
       #define FMT64     "l"
-   #elif defined(sun) || defined(__FreeBSD__)
+   #elif defined(sun) || defined(__FreeBSD__) || defined(__ANDROID__)
       #define FMT64     "ll"
    #else
       #define FMT64     "L"
