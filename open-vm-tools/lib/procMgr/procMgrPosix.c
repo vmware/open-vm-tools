@@ -121,9 +121,9 @@ static Bool ProcMgrWaitForProcCompletion(pid_t pid,
                                          Bool *validExitCode,
                                          int *exitCode);
 
-static Bool ProcMgrKill(pid_t pid,
-                        int sig,
-                        int timeout);
+static int ProcMgrKill(pid_t pid,
+                       int sig,
+                       int timeout);
 
 #if defined(__APPLE__)
 static int ProcMgrGetCommandLineArgs(long pid,
@@ -1709,15 +1709,16 @@ ProcMgr_IsProcessRunning(pid_t pid)
  *      Try to kill a pid & check every so often to see if it has died.
  *
  * Results:
- *      TRUE if the process died; FALSE otherwise
+ *      1 if the process died; 0 on failure, -1 on timeout
  *
  * Side effects:
  *	Depends on the program being killed.
+ *	errno set.
  *
  *----------------------------------------------------------------------
  */
 
-Bool
+static int
 ProcMgrKill(pid_t pid,      // IN
             int sig,        // IN
             int timeout)    // IN: -1 will wait indefinitely
@@ -1725,6 +1726,7 @@ ProcMgrKill(pid_t pid,      // IN
    if (kill(pid, sig) == -1) {
       Warning("Error trying to kill process %"FMTPID" with signal %d: %s\n",
               pid, sig, Msg_ErrString());
+      return 0;
    } else {
       int i;
 
@@ -1737,7 +1739,12 @@ ProcMgrKill(pid_t pid,      // IN
          if (ret == -1) {
             /*
              * if we didn't start it, we can only check if its running
-             * by looking in the proc table
+             * by looking in the proc table.
+             *
+             * Note that this is susceptible to a race.  Its possible
+             * that just as we kill the process, a new one can come
+             * around and re-use the pid by the time we check on it.
+             * This requires the pids have wrapped and a lot of luck.
              */
             if (ECHILD == errno) {
                if (ProcMgr_IsProcessRunning(pid)) {
@@ -1746,7 +1753,7 @@ ProcMgrKill(pid_t pid,      // IN
                   usleep(100000);
                   continue;
                }
-               return TRUE;
+               return 1;
             }
             Warning("Error trying to wait on process %"FMTPID": %s\n",
                     pid, Msg_ErrString());
@@ -1755,12 +1762,17 @@ ProcMgrKill(pid_t pid,      // IN
          } else {
             Debug("Process %"FMTPID" died from signal %d on iteration #%d\n",
                   pid, sig, i);
-            return TRUE;
+            return 1;
          }
       }
    }
 
-   return FALSE;
+   /*
+    * timed out -- system/process is incredibly unresponsive or unkillable
+    */
+   Warning("%s: timed out trying to kill pid %"FMTPID" with signal %d\n",
+           __FUNCTION__, pid, sig);
+   return -1;
 }
 
 
@@ -1769,13 +1781,16 @@ ProcMgrKill(pid_t pid,      // IN
  *
  * ProcMgr_KillByPid --
  *
- *      Terminate the process of procId.
+ *      Attempt to terminate the process of procId.
+ *      First try TERM for 5 seconds, then KILL for 15
+ *      if that is unsuccessful.
  *
  * Results:
  *      Bool.
  *
  * Side effects:
  *	Lots, depending on the program
+ *	errno is set.
  *
  *----------------------------------------------------------------------
  */
@@ -1783,13 +1798,27 @@ ProcMgrKill(pid_t pid,      // IN
 Bool
 ProcMgr_KillByPid(ProcMgr_Pid procId)   // IN
 {
-   Bool success = TRUE;
+   int ret;
 
-   if (!ProcMgrKill(procId, SIGTERM, 5)) {
-      success = ProcMgrKill(procId, SIGKILL, -1);
+   ret = ProcMgrKill(procId, SIGTERM, 5);
+   if (ret != 1) {
+      /*
+       * We can't try forever, since some processes are unkillable (eg systemd),
+       * or a process could be stuck 'forever' in a disk wait.
+       * 5+15 seconds should be long enough to handle very slow systems, while
+       * not causing timeouts at the VMX layer or the guestInfo gathering.
+       */
+      ret = ProcMgrKill(procId, SIGKILL, 15);
+      if (ret == -1) {
+         /*
+          * Timed out, so fake an errno.  Deadlock is what would happen
+          * to ProcMgrKill() if it tried indefinitely.
+          */
+         errno = EDEADLK;
+      }
    }
 
-   return success;
+   return (ret == 1);
 }
 
 
