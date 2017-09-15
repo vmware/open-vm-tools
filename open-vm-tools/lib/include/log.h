@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -338,13 +338,17 @@ Log_InitWithStdioSimple(const char *appPrefix,
 void Log_Exit(void);
 
 Bool Log_Outputting(void);
+
 Bool Log_IsLevelOutputting(int level);
 
 const char *Log_GetFileName(void);
+
 const char *Log_GetOutputFileName(LogOutput *output);
 
 void Log_SkipLocking(Bool skipLocking);
+
 void Log_DisableThrottling(void);
+
 uint32 Log_MaxLineLength(void);
 
 size_t Log_MakeTimeString(Bool millisec,
@@ -357,12 +361,6 @@ typedef Bool (LogOwnerFunc)(void *userData,
 Bool Log_BoundNumFiles(struct LogOutput *output,
                        LogOwnerFunc *func,
                        void *userData);
-
-/* Logging that uses the custom guest throttling configuration. */
-void GuestLog_Init(void);
-void GuestLog_Log(const char *fmt,
-                  ...) PRINTF_DECL(1, 2);
-
 
 #if defined(VMX86_SERVER)
 #define LOG_KEEPOLD 6  // Old log files to keep around; ESX value
