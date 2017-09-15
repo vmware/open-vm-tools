@@ -349,7 +349,7 @@ VThreadBaseSetLocal(VThreadLocal local, void *value)
  */
 
 static INLINE void *
-VThreadBaseGetLocal(VThreadLocal local) 
+VThreadBaseGetLocal(VThreadLocal local)
 {
    void *result;
 #ifdef HAVE_TLS
@@ -359,7 +359,7 @@ VThreadBaseGetLocal(VThreadLocal local)
       ASSERT(local == VTHREAD_LOCAL_ID);
       result = (void*)(uintptr_t)tlsIDCache;
    }
-#else 
+#else
    VThreadBaseKeyType key;
    Atomic_Int *keyPtr;
 
@@ -369,7 +369,7 @@ VThreadBaseGetLocal(VThreadLocal local)
    if (UNLIKELY(key == VTHREADBASE_INVALID_KEY)) {
       VThreadBaseInitKeys();
       key = Atomic_Read(keyPtr);
-   }      
+   }
    ASSERT(VThreadBaseAreKeysInited());
 
 #if defined _WIN32
@@ -747,7 +747,7 @@ VThreadBase_ForgetSelf(void)
  *
  *      Override the default thread name with a new name.
  *
- *      Historical: this subsumes the behavior of the old 
+ *      Historical: this subsumes the behavior of the old
  *      lib/nothread VThread_Init, replacing it with something that is
  *      optional.
  *
@@ -1064,7 +1064,7 @@ VThreadBaseInit(void)
     * See bugs 295686 & 477318.  Here, the problem is that we could allocate
     * two VThreadIDs (via a signal during the NoID callback).
     */
-   
+
    NO_ASYNC_SIGNALS_START;
    if (VThreadBaseGetBase() == NULL) {
       (*vthreadBaseGlobals.noIDFunc)();
