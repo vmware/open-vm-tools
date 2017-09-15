@@ -32,9 +32,6 @@
 #include "dndMsg.h"
 #include "util.h"
 
-#define LOGLEVEL_MODULE dnd
-#include "loglevel_user.h"
-
 extern "C" {
 #ifdef VMX86_TOOLS
    #include "debug.h"
@@ -45,6 +42,9 @@ extern "C" {
    #include "dndCPInt.h"
    #include "guest_rpc.h"
    #include "tclodefs.h"
+
+   #define LOGLEVEL_MODULE dnd
+   #include "loglevel_user.h"
 #endif
 }
 
