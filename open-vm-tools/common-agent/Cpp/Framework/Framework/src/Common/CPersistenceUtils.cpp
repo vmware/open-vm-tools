@@ -164,6 +164,8 @@ SmartPtrCPersistenceProtocolCollectionDoc CPersistenceUtils::loadPersistenceProt
 					loadTextFile(protocolIdDir, "tlsProtocol.txt"),
 					tlsCipherCollection,
 					tlsCertCollection,
+					FileSystemUtils::buildPath(protocolIdDir, "uri_amqp.txt"),
+					FileSystemUtils::buildPath(protocolIdDir, "uri_tunnel.txt"),
 					FileSystemUtils::buildPath(protocolIdDir, "tlsCert.pem"),
 					tlsCertPathCollection);
 

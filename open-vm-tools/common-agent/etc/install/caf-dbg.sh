@@ -20,33 +20,39 @@ function validateNotEmpty() {
    fi
 }
 
+function configAmqp() {
+   local username="$1"
+   local password="$2"
+   local brokerAddr="$3"
+   validateNotEmpty "$username" "username"
+   validateNotEmpty "$password" "password"
+   validateNotEmpty "$brokerAddr" "brokerAddr"
+
+   local uriAmqpFile="$CAF_INPUT_DIR/persistence/protocol/amqpBroker_default/uri_amqp.txt"
+   sed -i -e "s/#amqpUsername#/${username}/g" -e "s/#amqpPassword#/${password}/g" -e "s/#brokerAddr#/$brokerAddr/g" "$uriAmqpFile"
+}
+
 function enableCaf() {
    local username="$1"
    local password="$2"
    validateNotEmpty "$username" "username"
    validateNotEmpty "$password" "password"
 
-   local uriFile="$CAF_INPUT_DIR/persistence/protocol/amqpBroker_default/uri.txt"
    local uriAmqpFile="$CAF_INPUT_DIR/persistence/protocol/amqpBroker_default/uri_amqp.txt"
-   sed -i "s/#amqpUsername#/${username}/g" "$uriFile"
-   sed -i "s/#amqpPassword#/${password}/g" "$uriFile"
-   sed -i "s/#amqpUsername#/${username}/g" "$uriAmqpFile"
-   sed -i "s/#amqpPassword#/${password}/g" "$uriAmqpFile"
+   sed -i -e "s/#amqpUsername#/${username}/g" -e "s/#amqpPassword#/${password}/g" "$uriAmqpFile"
 }
 
 function setBroker() {
    local brokerAddr="$1"
    validateNotEmpty "$brokerAddr" "brokerAddr"
 
-   local uriFile="$CAF_INPUT_DIR/persistence/protocol/amqpBroker_default/uri.txt"
    local uriAmqpFile="$CAF_INPUT_DIR/persistence/protocol/amqpBroker_default/uri_amqp.txt"
-   sed -i "s/#brokerAddr#/$brokerAddr/g" "$uriFile"
    sed -i "s/#brokerAddr#/$brokerAddr/g" "$uriAmqpFile"
 }
 
 function setListenerConfigured() {
    mkdir -p "$CAF_INPUT_DIR/monitor"
-   echo "Manual" > "$CAF_INPUT_DIR/monitor/listenerConfigured.txt"
+   echo "Manual" > "$CAF_INPUT_DIR/monitor/listenerConfiguredStage1.txt"
 }
 
 function setListenerStartupType() {
@@ -59,23 +65,24 @@ function setListenerStartupType() {
 
 function prtHelp() {
    echo "*** $(basename $0) cmd - Runs commands that help with debugging CAF"
-   echo "  * enableCaf brokerUsername brokerPassword  Enables CAF"
-   echo "  * setBroker brokerAddress                  Sets the Broker into the CAF config file"
-   echo "  * setListenerConfigured                    Indicates that the Listener is configured"
-   echo "  * setListenerStartupType startupType       Sets the startup type used by the Listener (Manual, Automatic)"
+   echo "  * configAmqp brokerUsername brokerPassword brokerAddress  Configures AMQP"
+   echo "  * enableCaf brokerUsername brokerPassword                 Enables CAF"
+   echo "  * setBroker brokerAddress                                 Sets the Broker into the CAF config file"
+   echo "  * setListenerConfigured                                   Indicates that the Listener is configured"
+   echo "  * setListenerStartupType startupType                      Sets the startup type used by the Listener (Manual, Automatic)"
    echo ""
-   echo "  * getAmqpQueueName                         Gets the AMQP Queue Name"
+   echo "  * getAmqpQueueName                                        Gets the AMQP Queue Name"
    echo ""
-   echo "  * checkTunnel                              Checks the AMQP Tunnel "
-   echo "  * checkCerts                               Checks the certificates"
-   echo "  * prtCerts                                 Prints the certificates"
-   echo "  * checkVmwTools                            Checks VMware Tools"
+   echo "  * checkTunnel                                             Checks the AMQP Tunnel "
+   echo "  * checkCerts                                              Checks the certificates"
+   echo "  * prtCerts                                                Prints the certificates"
+   echo "  * checkVmwTools                                           Checks VMware Tools"
    echo ""
-   echo "  * validateXml                              Validates the XML files against the published schema"
-   echo "  * validateInstall                          Validates that the files are in the right locations and have the right permissions"
-   echo "  * validateOVTInstall                       Validates that the files are in the right locations for OVT and have the right permissions"
+   echo "  * validateXml                                             Validates the XML files against the published schema"
+   echo "  * validateInstall                                         Validates that the files are in the right locations and have the right permissions"
+   echo "  * validateOVTInstall                                      Validates that the files are in the right locations for OVT and have the right permissions"
    echo ""
-   echo "  * clearCaches                              Clears the CAF caches"
+   echo "  * clearCaches                                             Clears the CAF caches"
 }
 
 function validateXml() {
@@ -502,6 +509,9 @@ case "$cmd" in
    ;;
    "clearCaches")
       clearCaches
+   ;;
+   "configAmqp")
+      configAmqp "$1" "$2" "$3"
    ;;
    "enableCaf")
       enableCaf "$1" "$2"

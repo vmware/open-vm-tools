@@ -68,6 +68,7 @@ void CSourcePollingChannelAdapter::run() {
 	SmartPtrIIntMessage message;
 	while (! getIsCancelled()) {
 		try {
+			message = NULL;
 			if (_isTimeoutSet) {
 				message = _inputPollableChannel->receive(_timeout);
 			} else {

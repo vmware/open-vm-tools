@@ -5,4 +5,3 @@ scriptsDir=$installDir/../scripts
 
 $installDir/upgrade.sh
 $scriptsDir/start-ma
-$scriptsDir/start-listener

@@ -36,7 +36,7 @@ void CMonitorReadingMessageSource::initialize(
 
 	_monitorDir = AppConfigUtils::getRequiredString("monitor_dir");
 	_restartListenerPath = FileSystemUtils::buildPath(_monitorDir, "restartListener.txt");
-	_listenerConfiguredPath = FileSystemUtils::buildPath(_monitorDir, "listenerConfigured.txt");
+	_listenerConfiguredStage2Path = FileSystemUtils::buildPath(_monitorDir, "listenerConfiguredStage2.txt");
 
 	_scriptOutputDir = AppConfigUtils::getRequiredString(_sConfigTmpDir);
 	_listenerStartupType = AppConfigUtils::getRequiredString("monitor", "listener_startup_type");
@@ -85,7 +85,7 @@ SmartPtrIIntMessage CMonitorReadingMessageSource::doReceive(
 	}
 
 	std::string reason;
-	if (FileSystemUtils::doesFileExist(_listenerConfiguredPath)) {
+	if (FileSystemUtils::doesFileExist(_listenerConfiguredStage2Path)) {
 		if (FileSystemUtils::doesFileExist(_restartListenerPath)) {
 			reason = FileSystemUtils::loadTextFile(_restartListenerPath);
 			FileSystemUtils::removeFile(_restartListenerPath);

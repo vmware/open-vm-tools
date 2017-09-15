@@ -32,6 +32,8 @@ public:
 			const std::string& tlsProtocol = std::string(),
 			const Cdeqstr& tlsCipherCollection = Cdeqstr(),
 			const SmartPtrCCertCollectionDoc& tlsCertCollection = SmartPtrCCertCollectionDoc(),
+			const std::string& uriAmqpPath = std::string(),
+			const std::string& uriTunnelPath = std::string(),
 			const std::string& tlsCertPath = std::string(),
 			const SmartPtrCCertPathCollectionDoc& tlsCertPathCollection = SmartPtrCCertPathCollectionDoc()) {
 		if (! _isInitialized) {
@@ -44,6 +46,8 @@ public:
 			_tlsCipherCollection = tlsCipherCollection;
 			_tlsCertCollection = tlsCertCollection;
 
+			_uriAmqpPath = uriAmqpPath;
+			_uriTunnelPath = uriTunnelPath;
 			_tlsCertPath = tlsCertPath;
 			_tlsCertPathCollection = tlsCertPathCollection;
 
@@ -92,6 +96,16 @@ public:
 		return _tlsCertCollection;
 	}
 
+	/// Accessor for the UriAmqpPath
+	std::string getUriAmqpPath() const {
+		return _uriAmqpPath;
+	}
+
+	/// Accessor for the UriTunnelPath
+	std::string getUriTunnelPath() const {
+		return _uriTunnelPath;
+	}
+
 	/// Accessor for the TlsCertPath
 	std::string getTlsCertPath() const {
 		return _tlsCertPath;
@@ -112,6 +126,8 @@ private:
 	Cdeqstr _tlsCipherCollection;
 	SmartPtrCCertCollectionDoc _tlsCertCollection;
 
+	std::string _uriAmqpPath;
+	std::string _uriTunnelPath;
 	std::string _tlsCertPath;
 	SmartPtrCCertPathCollectionDoc _tlsCertPathCollection;
 

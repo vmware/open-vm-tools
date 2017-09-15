@@ -30,10 +30,9 @@ private:
 			const std::string& vcidPath);
 
 	static std::string mergeUri(
-			const std::string& uri,
-			const std::string& uriAmqp,
-			const std::string& uriTunnel,
-			const std::string& localId);
+			const SmartPtrCPersistenceProtocolDoc& persistenceProtocol,
+			const std::string& localId,
+			const bool isTunnelEnabled);
 
 	static SmartPtrCCertCollectionDoc mergeTlsCertCollection(
 			const SmartPtrCCertCollectionDoc& tlsCertCollection,

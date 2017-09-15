@@ -70,6 +70,16 @@ void PersistenceProtocolXml::add(
 		CertCollectionXml::add(tlsCertCollectionVal, tlsCertCollectionXml);
 	}
 
+	const std::string uriAmqpPathVal = persistenceProtocolDoc->getUriAmqpPath();
+	if (! uriAmqpPathVal.empty()) {
+		thisXml->addAttribute("uriAmqpPath", uriAmqpPathVal);
+	}
+
+	const std::string uriTunnelPathVal = persistenceProtocolDoc->getUriTunnelPath();
+	if (! uriTunnelPathVal.empty()) {
+		thisXml->addAttribute("uriTunnelPath", uriTunnelPathVal);
+	}
+
 	const std::string tlsCertPathVal = persistenceProtocolDoc->getTlsCertPath();
 	if (! tlsCertPathVal.empty()) {
 		thisXml->addAttribute("tlsCertPath", tlsCertPathVal);
@@ -133,6 +143,12 @@ SmartPtrCPersistenceProtocolDoc PersistenceProtocolXml::parse(
 		tlsCertCollectionVal = CertCollectionXml::parse(tlsCertCollectionXml);
 	}
 
+	const std::string uriAmqpPathVal =
+		thisXml->findOptionalAttribute("uriAmqpPath");
+
+	const std::string uriTunnelPathVal =
+		thisXml->findOptionalAttribute("uriTunnelPath");
+
 	const std::string tlsCertPathVal =
 		thisXml->findOptionalAttribute("tlsCertPath");
 
@@ -154,6 +170,8 @@ SmartPtrCPersistenceProtocolDoc PersistenceProtocolXml::parse(
 			tlsProtocolVal,
 			tlsCipherCollectionVal,
 			tlsCertCollectionVal,
+			uriAmqpPathVal,
+			uriTunnelPathVal,
 			tlsCertPathVal,
 			tlsCertPathCollectionVal);
 

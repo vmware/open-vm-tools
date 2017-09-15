@@ -46,7 +46,10 @@ void CConfigEnv::initialize(
 
 		_monitorDir = AppConfigUtils::getRequiredString("monitor_dir");
 		_restartListenerPath = FileSystemUtils::buildPath(_monitorDir, "restartListener.txt");
-		_listenerConfiguredPath = FileSystemUtils::buildPath(_monitorDir, "listenerConfigured.txt");
+		_listenerConfiguredStage1Path = FileSystemUtils::buildPath(
+				_monitorDir, "listenerConfiguredStage1.txt");
+		_listenerConfiguredStage2Path = FileSystemUtils::buildPath(
+				_monitorDir, "listenerConfiguredStage2.txt");
 
 		std::string guestProxyDir;
 #ifdef _WIN32
@@ -60,10 +63,6 @@ void CConfigEnv::initialize(
 		_vcidPath = FileSystemUtils::buildPath(guestProxyDir, "VmVcUuid", "vm.vc.uuid");
 		_cacertPath = FileSystemUtils::buildPath(guestProxyDir, "server", "cert.pem");
 
-		_persistence = CPersistenceUtils::loadPersistence(_persistenceDir);
-		_persistenceUpdated = _persistence;
-		savePersistenceAppconfig(_persistence, _configDir);
-
 		_isInitialized = true;
 	}
 }
@@ -74,15 +73,24 @@ SmartPtrCPersistenceDoc CConfigEnv::getUpdated(
 	CAF_CM_LOCK_UNLOCK;
 	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
 
-	const SmartPtrCPersistenceDoc persistenceTmp =
-			CConfigEnvMerge::mergePersistence(_persistence, _cacertPath, _vcidPath);
-	if (! persistenceTmp.IsNull()) {
-		_persistence = persistenceTmp;
-		_persistenceUpdated = _persistence;
+	if (FileSystemUtils::doesFileExist(_listenerConfiguredStage1Path)) {
+		if (_persistence.IsNull()) {
+			_persistence = CPersistenceUtils::loadPersistence(_persistenceDir);
+		}
 
-		savePersistenceAppconfig(_persistence, _configDir);
-		CPersistenceUtils::savePersistence(_persistence, _persistenceDir);
-		restartListener("Info changed on disk");
+		const SmartPtrCPersistenceDoc persistenceTmp =
+				CConfigEnvMerge::mergePersistence(_persistence, _cacertPath, _vcidPath);
+		if (! persistenceTmp.IsNull()) {
+			_persistence = persistenceTmp;
+			_persistenceUpdated = _persistence;
+
+			savePersistenceAppconfig(_persistence, _configDir);
+			CPersistenceUtils::savePersistence(_persistence, _persistenceDir);
+
+			const std::string reason = "Info changed in env";
+			listenerConfiguredStage2(reason);
+			restartListener(reason);
+		}
 	}
 
 	SmartPtrCPersistenceDoc rc;
@@ -109,11 +117,12 @@ void CConfigEnv::update(
 
 		savePersistenceAppconfig(_persistence, _configDir);
 		CPersistenceUtils::savePersistence(_persistence, _persistenceDir);
+		removePrivateKey(_persistence, _persistenceRemove);
 
 		const std::string reason = "Info changed at source";
-		listenerConfigured(reason);
+		listenerConfiguredStage1(reason);
+		listenerConfiguredStage2(reason);
 		restartListener(reason);
-		removePrivateKey(_persistence, _persistenceRemove);
 	} else {
 		CAF_CM_LOG_DEBUG_VA0("Persistence info did not change");
 	}
@@ -206,7 +215,12 @@ void CConfigEnv::restartListener(
 	FileSystemUtils::saveTextFile(_restartListenerPath, reason);
 }
 
-void CConfigEnv::listenerConfigured(
+void CConfigEnv::listenerConfiguredStage1(
 		const std::string& reason) const {
-	FileSystemUtils::saveTextFile(_listenerConfiguredPath, reason);
+	FileSystemUtils::saveTextFile(_listenerConfiguredStage1Path, reason);
+}
+
+void CConfigEnv::listenerConfiguredStage2(
+		const std::string& reason) const {
+	FileSystemUtils::saveTextFile(_listenerConfiguredStage2Path, reason);
 }

@@ -64,7 +64,10 @@ private:
 	void restartListener(
 			const std::string& reason) const;
 
-	void listenerConfigured(
+	void listenerConfiguredStage1(
+			const std::string& reason) const;
+
+	void listenerConfiguredStage2(
 			const std::string& reason) const;
 
 private:
@@ -74,7 +77,8 @@ private:
 	std::string _persistenceAppconfigPath;
 	std::string _monitorDir;
 	std::string _restartListenerPath;
-	std::string _listenerConfiguredPath;
+	std::string _listenerConfiguredStage1Path;
+	std::string _listenerConfiguredStage2Path;
 	std::string _vcidPath;
 	std::string _cacertPath;
 

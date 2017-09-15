@@ -105,6 +105,8 @@ std::deque<SmartPtrCPersistenceProtocolDoc> CConfigEnvMerge::mergePersistencePro
 	CAF_CM_VALIDATE_BOOL(persistenceProtocolCollectionInner.size() == 1);
 	CAF_CM_VALIDATE_STRING(localId);
 
+	const bool isTunnelEnabled = isTunnelEnabledFunc();
+
 	std::deque<SmartPtrCPersistenceProtocolDoc> rc;
 	std::deque<SmartPtrCPersistenceProtocolDoc> persistenceProtocolCollectionInnerDiff;
 	std::deque<SmartPtrCPersistenceProtocolDoc> persistenceProtocolCollectionInnerAll;
@@ -112,11 +114,7 @@ std::deque<SmartPtrCPersistenceProtocolDoc> CConfigEnvMerge::mergePersistencePro
 		persistenceProtocolIter; persistenceProtocolIter++) {
 		const SmartPtrCPersistenceProtocolDoc persistenceProtocol = *persistenceProtocolIter;
 
-		const std::string uriDiff = mergeUri(
-				persistenceProtocol->getUri(),
-				persistenceProtocol->getUriAmqp(),
-				persistenceProtocol->getUriTunnel(),
-				localId);
+		const std::string uriDiff = mergeUri(persistenceProtocol, localId, isTunnelEnabled);
 		const SmartPtrCCertCollectionDoc tlsCertCollectionDiff =
 				mergeTlsCertCollection(persistenceProtocol->getTlsCertCollection(), cacert);
 
@@ -124,13 +122,15 @@ std::deque<SmartPtrCPersistenceProtocolDoc> CConfigEnvMerge::mergePersistencePro
 		persistenceProtocolDiff.CreateInstance();
 		persistenceProtocolDiff->initialize(
 				persistenceProtocol->getProtocolName(),
-				uriDiff.empty() ? persistenceProtocol->getUri() : uriDiff,
-				persistenceProtocol->getUriAmqp(),
-				persistenceProtocol->getUriTunnel(),
+				! uriDiff.empty() ? uriDiff : persistenceProtocol->getUri(),
+				! uriDiff.empty() && ! isTunnelEnabled ? uriDiff : persistenceProtocol->getUriAmqp(),
+				! uriDiff.empty() && isTunnelEnabled ? uriDiff : persistenceProtocol->getUriTunnel(),
 				persistenceProtocol->getTlsCert(),
 				persistenceProtocol->getTlsProtocol(),
 				persistenceProtocol->getTlsCipherCollection(),
 				tlsCertCollectionDiff.IsNull() ? persistenceProtocol->getTlsCertCollection() : tlsCertCollectionDiff,
+				persistenceProtocol->getUriAmqpPath(),
+				persistenceProtocol->getUriTunnelPath(),
 				persistenceProtocol->getTlsCertPath(),
 				persistenceProtocol->getTlsCertPathCollection());
 		persistenceProtocolCollectionInnerAll.push_back(persistenceProtocolDiff);
@@ -148,43 +148,37 @@ std::deque<SmartPtrCPersistenceProtocolDoc> CConfigEnvMerge::mergePersistencePro
 }
 
 std::string CConfigEnvMerge::mergeUri(
-		const std::string& uri,
-		const std::string& uriAmqp,
-		const std::string& uriTunnel,
-		const std::string& localId) {
+		const SmartPtrCPersistenceProtocolDoc& persistenceProtocol,
+		const std::string& localId,
+		const bool isTunnelEnabled) {
 	CAF_CM_STATIC_FUNC_LOG_VALIDATE("CConfigEnvMerge", "mergeUri");
-	CAF_CM_VALIDATE_STRING(uriAmqp);
-	CAF_CM_VALIDATE_STRING(uriTunnel);
+	CAF_CM_VALIDATE_SMARTPTR(persistenceProtocol);
 	CAF_CM_VALIDATE_STRING(localId);
 
-	UriUtils::SUriRecord uriData;
-	if (! uri.empty()) {
-		UriUtils::parseUriString(uri, uriData);
-	}
+	const std::string uri = persistenceProtocol->getUri();
 
-	const bool isTunnelEnabled = isTunnelEnabledFunc();
-	const std::string uriProtocol = isTunnelEnabled ? "tunnel" : "amqp";
-
-	bool isUriChanged = false;
-	if (uriData.protocol.compare(uriProtocol) != 0) {
-		const std::string uriTmp = isTunnelEnabled ? uriTunnel : uriAmqp;
-		UriUtils::parseUriString(uriTmp, uriData);
-		isUriChanged = true;
-	}
-
-	std::string amqpQueueId = localId;
+	std::string uriNew;
 	if (isTunnelEnabled) {
-		amqpQueueId += "-agentId1";
+		uriNew = loadTextFile(persistenceProtocol->getUriTunnelPath());
+	} else {
+		uriNew = loadTextFile(persistenceProtocol->getUriAmqpPath());
 	}
+	CAF_CM_VALIDATE_STRING(uriNew);
 
-	if (uriData.path.compare(amqpQueueId) != 0) {
-		uriData.path = amqpQueueId;
-		isUriChanged = true;
-	}
+	CAF_CM_LOG_DEBUG_VA3("uri: %s, uriNew: %s, localId: %s",
+			uri.c_str(), uriNew.c_str(), localId.c_str());
+
+	UriUtils::SUriRecord uriDataNew;
+	UriUtils::parseUriString(uriNew, uriDataNew);
 
 	std::string rc;
-	if (isUriChanged) {
-		rc = UriUtils::buildUriString(uriData);
+	if ((uri.compare(uriNew) != 0) || (uriDataNew.path.compare(localId) != 0)) {
+		uriDataNew.path = localId;
+		if (isTunnelEnabled) {
+			uriDataNew.path += "-agentId1";
+		}
+
+		rc = UriUtils::buildUriString(uriDataNew);
 		CAF_CM_LOG_DEBUG_VA2("uri changed - %s != %s", uri.c_str(), rc.c_str());
 	}
 
@@ -286,6 +280,8 @@ bool CConfigEnvMerge::isTunnelEnabledFunc() {
 
 std::string CConfigEnvMerge::loadTextFile(
 		const std::string& path) {
+	CAF_CM_STATIC_FUNC_VALIDATE("CConfigEnvMerge", "loadTextFile");
+	CAF_CM_VALIDATE_STRING(path);
 
 	std::string rc;
 	if (FileSystemUtils::doesFileExist(path)) {

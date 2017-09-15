@@ -197,6 +197,8 @@ SmartPtrCPersistenceProtocolDoc CPersistenceMerge::mergePersistenceProtocol(
 						tlsProtocol.empty() ? persistenceProtocolIn->getTlsProtocol() : tlsProtocol,
 						tlsCipherCollection.empty() ? persistenceProtocolIn->getTlsCipherCollection() : tlsCipherCollection,
 						tlsCertCollection.IsNull() ? persistenceProtocolIn->getTlsCertCollection() : tlsCertCollection,
+						persistenceProtocolLoaded->getUriAmqpPath(),
+						persistenceProtocolLoaded->getUriTunnelPath(),
 						persistenceProtocolLoaded->getTlsCertPath(),
 						persistenceProtocolLoaded->getTlsCertPathCollection());
 			}

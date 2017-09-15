@@ -63,7 +63,7 @@ private:
 
 	std::string _monitorDir;
 	std::string _restartListenerPath;
-	std::string _listenerConfiguredPath;
+	std::string _listenerConfiguredStage2Path;
 
 	std::string _scriptOutputDir;
 	std::string _stopListenerScript;

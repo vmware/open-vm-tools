@@ -360,72 +360,76 @@ SmartPtrIIntMessage CCafMessageCreator::createPayloadEnvelope(
 		const SmartPtrCAttachmentCollectionDoc& attachmentCollection,
 		const SmartPtrCProtocolCollectionDoc& protocolCollection) {
 	CAF_CM_STATIC_FUNC_LOG_VALIDATE("CCafMessageCreator", "createPayloadEnvelope");
+	CAF_CM_VALIDATE_STRING(payloadType);
 	CAF_CM_VALIDATE_STRING(payloadStr);
 	// clientId is optional
-	CAF_CM_VALIDATE_GUID(requestId);
+	// requestId is optional
 	// pmeId is optional
-	CAF_CM_VALIDATE_STRING(payloadType);
 	CAF_CM_VALIDATE_STRING(payloadVersion);
 
-	const std::string outputDir =
-			AppConfigUtils::getRequiredString(_sAppConfigGlobalParamOutputDir);
-
-	const std::string destAttachmentFilename =
-			BasePlatform::UuidToString(requestId) + "-EnvelopePayload.xml";
-	const std::string destAttachmentPath = FileSystemUtils::buildPath(
-			outputDir, "att", destAttachmentFilename);
-	const std::string destAttachmentUri =
-			"file:///" + destAttachmentPath + "?relPath=" + destAttachmentFilename;
-
-	const SmartPtrCDynamicByteArray payload =
-			CCafMessagePayload::createBufferFromStr(payloadStr);
-	FileSystemUtils::saveByteFile(destAttachmentPath, payload);
-
-	const std::string cmsPolicyStr = AppConfigUtils::getRequiredString(
-			"security", "cms_policy");
-	const CMS_POLICY cmsPolicy =
-			EnumConvertersXml::convertStringToCmsPolicy(cmsPolicyStr);
-
-	SmartPtrCAttachmentDoc envelopePayloadAttachment;
-	envelopePayloadAttachment.CreateInstance();
-	envelopePayloadAttachment->initialize("_EnvelopePayload_", "EnvelopePayload",
-			destAttachmentUri, false, cmsPolicy);
-
-	std::deque<SmartPtrCAttachmentDoc> attachmentCollectionNew;
-	if (! attachmentCollection.IsNull()) {
-		attachmentCollectionNew = attachmentCollection->getAttachment();
-	}
-	attachmentCollectionNew.push_back(envelopePayloadAttachment);
-
-	SmartPtrCAttachmentCollectionDoc attachmentCollectionDocNew;
-	attachmentCollectionDocNew.CreateInstance();
-	attachmentCollectionDocNew->initialize(attachmentCollectionNew);
-
-	SmartPtrCPayloadEnvelopeDoc payloadEnvelope;
-	payloadEnvelope.CreateInstance();
-	payloadEnvelope->initialize(
-			clientId,
-			requestId,
-			pmeId,
-			payloadType,
-			payloadVersion,
-			attachmentCollectionDocNew,
-			protocolCollection);
-
-	const std::string payloadEnvelopeStr =
-			XmlRoots::savePayloadEnvelopeToString(payloadEnvelope);
-
-	const CIntMessage::SmartPtrCHeaders mergedHeaders =
-			CIntMessage::mergeHeaders(newHeaders, origHeaders);
-
-	SmartPtrCCafMessageHeadersWriter messageHeadersWriter =
-			CCafMessageHeadersWriter::create();
-	messageHeadersWriter->setPayloadType(payloadType);
-
 	SmartPtrCIntMessage messageImpl;
-	messageImpl.CreateInstance();
-	messageImpl->initializeStr(
-			payloadEnvelopeStr, messageHeadersWriter->getHeaders(), mergedHeaders);
+	if (::IsEqualGUID(requestId, CAFCOMMON_GUID_NULL)) {
+		CAF_CM_LOG_WARN_VA1("Message is not associated with a request - %s", payloadStr.c_str());
+	} else {
+		const std::string outputDir =
+				AppConfigUtils::getRequiredString(_sAppConfigGlobalParamOutputDir);
+
+		const std::string destAttachmentFilename =
+				BasePlatform::UuidToString(requestId) + "-EnvelopePayload.xml";
+		const std::string destAttachmentPath = FileSystemUtils::buildPath(
+				outputDir, "att", destAttachmentFilename);
+		const std::string destAttachmentUri =
+				"file:///" + destAttachmentPath + "?relPath=" + destAttachmentFilename;
+
+		const SmartPtrCDynamicByteArray payload =
+				CCafMessagePayload::createBufferFromStr(payloadStr);
+		FileSystemUtils::saveByteFile(destAttachmentPath, payload);
+
+		const std::string cmsPolicyStr = AppConfigUtils::getRequiredString(
+				"security", "cms_policy");
+		const CMS_POLICY cmsPolicy =
+				EnumConvertersXml::convertStringToCmsPolicy(cmsPolicyStr);
+
+		SmartPtrCAttachmentDoc envelopePayloadAttachment;
+		envelopePayloadAttachment.CreateInstance();
+		envelopePayloadAttachment->initialize("_EnvelopePayload_", "EnvelopePayload",
+				destAttachmentUri, false, cmsPolicy);
+
+		std::deque<SmartPtrCAttachmentDoc> attachmentCollectionNew;
+		if (! attachmentCollection.IsNull()) {
+			attachmentCollectionNew = attachmentCollection->getAttachment();
+		}
+		attachmentCollectionNew.push_back(envelopePayloadAttachment);
+
+		SmartPtrCAttachmentCollectionDoc attachmentCollectionDocNew;
+		attachmentCollectionDocNew.CreateInstance();
+		attachmentCollectionDocNew->initialize(attachmentCollectionNew);
+
+		SmartPtrCPayloadEnvelopeDoc payloadEnvelope;
+		payloadEnvelope.CreateInstance();
+		payloadEnvelope->initialize(
+				clientId,
+				requestId,
+				pmeId,
+				payloadType,
+				payloadVersion,
+				attachmentCollectionDocNew,
+				protocolCollection);
+
+		const std::string payloadEnvelopeStr =
+				XmlRoots::savePayloadEnvelopeToString(payloadEnvelope);
+
+		const CIntMessage::SmartPtrCHeaders mergedHeaders =
+				CIntMessage::mergeHeaders(newHeaders, origHeaders);
+
+		SmartPtrCCafMessageHeadersWriter messageHeadersWriter =
+				CCafMessageHeadersWriter::create();
+		messageHeadersWriter->setPayloadType(payloadType);
+
+		messageImpl.CreateInstance();
+		messageImpl->initializeStr(
+				payloadEnvelopeStr, messageHeadersWriter->getHeaders(), mergedHeaders);
+	}
 
 	return messageImpl;
 }
