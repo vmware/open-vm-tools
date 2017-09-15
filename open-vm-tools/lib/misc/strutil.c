@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #if !defined(_WIN32)
 #include <strings.h> /* For strncasecmp */
 #endif
@@ -1140,15 +1141,21 @@ StrUtil_SafeDynBufPrintf(DynBuf *b,        // IN/OUT
  */
 
 void
-StrUtil_SafeStrcat(char **prefix,    // IN/OUT
-                   const char *str)  // IN
+StrUtil_SafeStrcat(char **prefix,    // IN/OUT:
+                   const char *str)  // IN:
 {
    char *tmp;
-   size_t plen = *prefix != NULL ? strlen(*prefix) : 0;
+   size_t plen = (*prefix == NULL) ? 0 : strlen(*prefix);
    size_t slen = strlen(str);
 
-   /* Check for overflow */
-   VERIFY((size_t)-1 - plen > slen + 1);
+   /*
+    * If we're manipulating strings that are anywhere near max(size_t)/2 in
+    * length we're doing something very wrong. Avoid potential overflow by
+    * checking for "insane" operations. Prevent the problem before it gets
+    * started.
+    */
+
+   VERIFY((plen < (SIZE_MAX/2)) && (slen < (SIZE_MAX/2)));
 
    tmp = Util_SafeRealloc(*prefix, plen + slen + 1 /* NUL */);
 
