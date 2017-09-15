@@ -877,7 +877,8 @@ HgfsWrite(struct fuse_file_info *fi,  // IN: File info structure
       result = HgfsDoWrite(fi->fh, buffer, nextCount, curOffset);
       if (result < 0) {
          bytesWritten = result;
-         LOG(4, ("Error: DoWrite -> %d\n", result));
+         LOG(4, ("Error: written 0x%"FMTSZ"x bytes DoWrite -> %d\n",
+             count - remainingCount, result));
          goto out;
       }
       remainingCount -= result;
