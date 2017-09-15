@@ -784,26 +784,25 @@ Posix_Lchown(const char *pathName,  // IN:
  */
 
 int
-Posix_Link(const char *pathName1,  // IN:
-           const char *pathName2)  // IN:
+Posix_Link(const char *uOldPath,  // IN:
+           const char *uNewPath)  // IN:
 {
-   char *path1;
-   char *path2;
+   char *oldPath;
+   char *newPath;
    int ret;
 
-   if (!PosixConvertToCurrent(pathName1, &path1)) {
+   if (!PosixConvertToCurrent(uOldPath, &oldPath)) {
       return -1;
    }
-   if (!PosixConvertToCurrent(pathName2, &path2)) {
-      Posix_Free(path1);
-
+   if (!PosixConvertToCurrent(uNewPath, &newPath)) {
+      Posix_Free(oldPath);
       return -1;
    }
 
-   ret = link(path1, path2);
+   ret = link(oldPath, newPath);
 
-   Posix_Free(path1);
-   Posix_Free(path2);
+   Posix_Free(oldPath);
+   Posix_Free(newPath);
 
    return ret;
 }
@@ -827,26 +826,25 @@ Posix_Link(const char *pathName1,  // IN:
  */
 
 int
-Posix_Symlink(const char *pathName1,  // IN:
-              const char *pathName2)  // IN:
+Posix_Symlink(const char *uOldPath,  // IN:
+              const char *uNewPath)  // IN:
 {
-   char *path1;
-   char *path2;
+   char *oldPath;
+   char *newPath;
    int ret;
 
-   if (!PosixConvertToCurrent(pathName1, &path1)) {
+   if (!PosixConvertToCurrent(uOldPath, &oldPath)) {
       return -1;
    }
-   if (!PosixConvertToCurrent(pathName2, &path2)) {
-      Posix_Free(path1);
-
+   if (!PosixConvertToCurrent(uNewPath, &newPath)) {
+      Posix_Free(oldPath);
       return -1;
    }
 
-   ret = symlink(path1, path2);
+   ret = symlink(oldPath, newPath);
 
-   Posix_Free(path1);
-   Posix_Free(path2);
+   Posix_Free(oldPath);
+   Posix_Free(newPath);
 
    return ret;
 }
