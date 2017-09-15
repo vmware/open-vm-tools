@@ -19,3 +19,4 @@ SUBDIRS =
 SUBDIRS += lib
 SUBDIRS += cli
 SUBDIRS += service
+SUBDIRS += test

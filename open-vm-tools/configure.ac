@@ -1531,6 +1531,7 @@ AC_CONFIG_FILES([                      \
    vgauth/lib/Makefile                 \
    namespacetool/Makefile              \
    vgauth/cli/Makefile                 \
+   vgauth/test/Makefile                 \
    vgauth/service/Makefile             \
    libguestlib/Makefile                \
    libguestlib/vmguestlib.pc           \
