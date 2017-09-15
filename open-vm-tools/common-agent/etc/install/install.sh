@@ -164,14 +164,22 @@ fi
 #Set up links
 if [ "$linkSo" != "no" ] ; then
 	cd "$libDir"
-	ln -sf libglib-2.0.so.0.3400.3 libglib-2.0.so
-	ln -sf libglib-2.0.so.0.3400.3 libglib-2.0.so.0
-	ln -sf libgthread-2.0.so.0.3400.3 libgthread-2.0.so
-	ln -sf libgthread-2.0.so.0.3400.3 libgthread-2.0.so.0
+	ln -sf libglib-2.0.so.0.4800.1 libglib-2.0.so
+	ln -sf libglib-2.0.so.0.4800.1 libglib-2.0.so.0
+	ln -sf libgthread-2.0.so.0.4800.1 libgthread-2.0.so
+	ln -sf libgthread-2.0.so.0.4800.1 libgthread-2.0.so.0
 	ln -sf liblog4cpp.so.5.0.6 liblog4cpp.so
 	ln -sf liblog4cpp.so.5.0.6 liblog4cpp.so.5
 	ln -sf librabbitmq.so.4.2.1 librabbitmq.so
 	ln -sf librabbitmq.so.4.2.1 librabbitmq.so.4
+	ln -sf libpcre.so.1.2.6 libpcre.so
+	ln -sf libpcre.so.1.2.6 libpcre.so.1
+	ln -sf libiconv.so.2.5.1 libiconv.so
+	ln -sf libiconv.so.2.5.1 libiconv.so.2
+	ln -sf libz.so.1.2.8 libz.so
+	ln -sf libz.so.1.2.8 libz.so.1
+	ln -sf libffi.so.6.0.4 libffi.so
+	ln -sf libffi.so.6.0.4 libffi.so.6
 fi
 
 #Run provider install logic
