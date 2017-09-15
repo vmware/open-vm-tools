@@ -55,6 +55,7 @@ extern "C" {
 
 #define FILE_SEARCHPATHTOKEN ";"
 
+#define FILE_UNLINK_DEFAULT_WAIT_MS 2000
 
 /*
  * Opaque, platform-specific stucture for supporting the directory walking API.
@@ -150,6 +151,9 @@ int File_UnlinkIfExists(const char *pathName);
 int File_UnlinkDelayed(const char *pathName);
 
 int File_UnlinkNoFollow(const char *pathName);
+
+int File_UnlinkRetry(const char *pathName,
+                     uint32 maxWaitTimeMilliSec);
 
 void File_SplitName(const char *pathName,
                     char **volume,

@@ -290,6 +290,49 @@ File_UnlinkNoFollow(const char *pathName)  // IN:
 /*
  *----------------------------------------------------------------------
  *
+ * File_UnlinkRetry --
+ *
+ *      Unlink the file, retrying on EBUSY on ESX, up to given timeout.
+ *
+ * Results:
+ *      Return 0 if the unlink is successful. Otherwise, return -1.
+ *
+ * Side effects:
+ *      The file is removed.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+File_UnlinkRetry(const char *pathName,       // IN:
+                 uint32 maxWaitTimeMilliSec) // IN:
+{
+   int ret;
+
+   if (vmx86_server) {
+      uint32 const unlinkWait = 300;
+      uint32 waitMilliSec = 0;
+
+      do {
+         ret = FileDeletion(pathName, TRUE);
+         if (ret != EBUSY || waitMilliSec >= maxWaitTimeMilliSec) {
+            break;
+         }
+         Log(LGPFX" %s: %s after %u ms\n", __FUNCTION__, pathName, unlinkWait);
+         Util_Usleep(unlinkWait * 1000);
+         waitMilliSec += unlinkWait;
+      } while (TRUE);
+   } else {
+      ret = FileDeletion(pathName, TRUE);
+   }
+
+   return ret == 0 ? 0 : -1;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * File_CreateDirectoryEx --
  *
  *      Creates the specified directory with the specified permissions.
