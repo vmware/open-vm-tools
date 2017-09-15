@@ -121,6 +121,24 @@ VMTools_ChangeLogFilePath(const gchar *delimiter,
                           const gchar *domain,
                           GKeyFile *conf);
 
+gboolean
+VMTools_ConfigGetBoolean(GKeyFile *config,
+                         const gchar *section,
+                         const gchar *key,
+                         gboolean defValue);
+
+gint
+VMTools_ConfigGetInteger(GKeyFile *config,
+                         const gchar *section,
+                         const gchar *key,
+                         gint defValue);
+
+gchar *
+VMTools_ConfigGetString(GKeyFile *config,
+                        const gchar *section,
+                        const gchar *key,
+                        gchar *defValue);
+
 #if defined(G_PLATFORM_WIN32)
 
 gboolean

@@ -121,7 +121,7 @@ typedef struct VmBackupState {
    Bool           execScripts;
    Bool           enableNullDriver;
    Bool           needsPriv;
-   char          *scriptArg;
+   gchar         *scriptArg;
    guint          timeout;
    gpointer       clientData;
    void          *scripts;
