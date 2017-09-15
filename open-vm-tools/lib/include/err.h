@@ -29,12 +29,12 @@
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
-
 #if !defined(_WIN32)
 #include <errno.h>
+#endif
+
+#if defined(__cplusplus)
+extern "C" {
 #endif
 
 #if defined(_WIN32)
