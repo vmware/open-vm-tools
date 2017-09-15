@@ -51,6 +51,9 @@
  *    such an operation. This layer takes care of retrying those operations.
  */
 
+#include "backdoor_def.h"
+#include "guest_msg_def.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -63,8 +66,6 @@ extern "C" {
 #   include "debug.h"
 #endif
 
-#include "backdoor_def.h"
-#include "guest_msg_def.h"
 #include "backdoor.h"
 #include "message.h"
 

@@ -42,7 +42,6 @@
 
 #include "vm_basic_types.h"
 #include "vm_assert.h"
-
 #include "backdoor_types.h"
 
 #if defined(__cplusplus)
