@@ -48,6 +48,20 @@
 #define LOGLEVEL_MODULE asyncsocket
 #include "loglevel_user.h"
 
+/*
+ * A version of ASOCKLOG() which is safe to call from inside IncRef,
+ * DecRef or any of the other functions which the regular ASOCKLOG()
+ * implicitly calls.  We don't log fd as that isn't available at the
+ * base class level.
+ */
+#define ASOCKLOG_NORECURSION(_level, _asock, _logargs)                  \
+   do {                                                                 \
+      if (((_level) == 0) || DOLOG_BYNAME(asyncsocket, (_level))) {     \
+         Log(ASOCKPREFIX "%d ", (_asock)->id);                          \
+         Log _logargs;                                                  \
+      }                                                                 \
+   } while(0)
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -111,10 +125,10 @@ AsyncSocketInternalDecRef(AsyncSocket *s, // IN
 
    ASSERT(count >= 0);
    if (UNLIKELY(count == 0)) {
-      ASOCKLOG(1, s, ("Final release; freeing asock struct\n"));
+      ASOCKLOG_NORECURSION(1, s, ("Final release; freeing asock struct\n"));
       VT(s)->destroy(s);
    } else {
-      ASOCKLOG(1, s, ("Release (count now %d)\n", count));
+      ASOCKLOG_NORECURSION(1, s, ("Release (count now %d)\n", count));
    }
 }
 
@@ -753,6 +767,8 @@ AsyncSocket_MsgError(int asyncSockError)   // IN
    case ASOCKERR_ADDRUNRESV:
       result = MSGID(asyncsocket.addrunresv) "Address unresolvable";
       break;
+   case ASOCKERR_BUSY:
+      result = MSGID(asyncsocket.busy) "Concurrent operations on socket";
    }
 
    if (!result) {

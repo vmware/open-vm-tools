@@ -76,6 +76,13 @@ const char *MsgList_GetMsgID(const MsgList *messages);
 
 Bool MsgList_Present(const MsgList *messages);
 
+static INLINE void
+MsgList_LogAndFree(MsgList *messages)
+{
+   MsgList_Log(messages);
+   MsgList_Free(messages);
+}
+
 #if defined(__cplusplus)
 }  // extern "C"
 #endif

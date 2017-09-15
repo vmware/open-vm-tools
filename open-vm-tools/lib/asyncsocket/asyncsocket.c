@@ -3864,6 +3864,15 @@ AsyncTCPSocketDoOneMsg(AsyncSocket *base, // IN
    ASSERT(AsyncTCPSocketGetState(s) == AsyncSocketConnected);
 
    if (read) {
+      if (s->inRecvLoop) {
+         /*
+          * The recv loop would read the data if there is any and it is
+          * not safe to proceed and race with the recv loop.
+          */
+         TCPSOCKLG0(s, ("busy: another thread in recv loop\n"));
+         return ASOCKERR_BUSY;
+      }
+
       /*
        * Bug 158571: There could other threads polling on the same asyncsocket.
        * If two threads land up polling  on the same socket at the same time,

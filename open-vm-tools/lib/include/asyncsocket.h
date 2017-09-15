@@ -72,6 +72,7 @@ extern "C" {
 #define ASOCKERR_CONNECTSSL        13
 #define ASOCKERR_NETUNREACH        14
 #define ASOCKERR_ADDRUNRESV        15
+#define ASOCKERR_BUSY              16
 
 /*
  * Cross-platform codes for AsyncSocket_GetGenericError():

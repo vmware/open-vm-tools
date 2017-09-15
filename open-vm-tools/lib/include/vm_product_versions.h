@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -56,7 +56,7 @@
 // VMX86_DESKTOP must be last because it is the default and is always defined.
 #elif defined(VMX86_DESKTOP)
    // WORKSTATION_VERSION_NUMBER below has to match this
-   #define PRODUCT_VERSION    12,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
+   #define PRODUCT_VERSION    13,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #else
    /* Generic catch-all. */
    #define PRODUCT_VERSION    0,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
@@ -160,9 +160,9 @@
  * ALSO, leave FOO_VERSION at e.x.p on all EXCEPT release branches.
  * lmclient.h has a FLEX_VERSION struct so the versionPrefix can't be FLEX
  */
-#define WORKSTATION_VERSION_NUMBER "12.0.0" /* this version number should always match real WS version number */
+#define WORKSTATION_VERSION_NUMBER "13.0.0" /* this version number should always match real WS version number */
 #define WORKSTATION_VERSION "e.x.p"
-#define PLAYER_VERSION_NUMBER "12.0.0" /* this version number should always match real Player version number */
+#define PLAYER_VERSION_NUMBER "13.0.0" /* this version number should always match real Player version number */
 #define PLAYER_VERSION "e.x.p"
 #define VMRC_VERSION_NUMBER "9.0.0" /* this version number should always match real VMRC version number */
 #define VMRC_VERSION "9.0.0"
@@ -401,7 +401,7 @@
 #  define PRODUCT_VERSION_STRING_FOR_LICENSE PRODUCT_LICENSE_VERSION
 #endif
 #define PRODUCT_ESX_LICENSE_VERSION "6.0"
-#define PRODUCT_ESX_LICENSE_FILE_VERSION "6.5.0.2"
+#define PRODUCT_ESX_LICENSE_FILE_VERSION "6.6.0.0"
 #define PRODUCT_VSAN_LICENSE_VERSION "5.0"
 #define PRODUCT_VSAN_LICENSE_FILE_VERSION "6.5.0.0"
 
@@ -483,7 +483,7 @@
 #define PRODUCT_VERSION_WORKSTATION_90 PRODUCT_WORKSTATION_BRIEF_NAME " 9.x"
 #define PRODUCT_VERSION_WORKSTATION_100 PRODUCT_WORKSTATION_BRIEF_NAME " 10.x"
 #define PRODUCT_VERSION_WORKSTATION_110 PRODUCT_WORKSTATION_BRIEF_NAME " 11.x"
-#define PRODUCT_VERSION_WORKSTATION_120 PRODUCT_WORKSTATION_BRIEF_NAME " 12.0"
+#define PRODUCT_VERSION_WORKSTATION_120 PRODUCT_WORKSTATION_BRIEF_NAME " 12.x"
 #define PRODUCT_VERSION_WORKSTATION_130 PRODUCT_WORKSTATION_BRIEF_NAME " 2017"
 #define PRODUCT_VERSION_WORKSTATION_ENTERPRISE_1 "ACE 1.x"
 #define PRODUCT_VERSION_WORKSTATION_ENTERPRISE_2 "ACE 2.0"
