@@ -510,9 +510,16 @@ FLAG(   7,  0, EBX, 30,  1, AVX512BW,                          YES, 13, TRUE)  \
 FLAG(   7,  0, EBX, 31,  1, AVX512VL,                          YES, 13, TRUE)  \
 FLAG(   7,  0, ECX,  0,  1, PREFETCHWT1,                       YES, 13, TRUE)  \
 FLAG(   7,  0, ECX,  1,  1, AVX512VBMI,                        YES, 15, TRUE)  \
+FLAG(   7,  0, ECX,  2,  1, UMIP,                              NO,   0, FALSE) \
 FLAG(   7,  0, ECX,  3,  1, PKU,                               YES, 13, TRUE)  \
 FLAG(   7,  0, ECX,  4,  1, OSPKE,                             ANY, 13, TRUE)  \
+FLAG(   7,  0, ECX, 14,  1, AVX512VPOPCNTDQ,                   NO,   0, TRUE)  \
+FLAG(   7,  0, ECX, 16,  1, VA57,                              NO,   0, TRUE)  \
+FIELD(  7,  0, ECX, 17,  5, MAWA,                              NO,   0, TRUE)  \
+FLAG(   7,  0, ECX, 22,  1, RDPID,                             NO,   0, TRUE)  \
 FLAG(   7,  0, ECX, 30,  1, SGX_LC,                            NO,   0, FALSE) \
+FLAG(   7,  0, EDX,  2,  1, AVX512QVNNIW,                      NO,   0, TRUE)  \
+FLAG(   7,  0, EDX,  3,  1, AVX512QFMAPS,                      NO,   0, TRUE)
 
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,             MON SUPP, HWV, CPL3 */
