@@ -41,11 +41,12 @@
  *    synchroneous basic request to vmware, and vmware can reply to it.
  */
 
+#include "backdoor_def.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include "backdoor_def.h"
 #include "backdoor.h"
 #include "backdoorInt.h"
 
