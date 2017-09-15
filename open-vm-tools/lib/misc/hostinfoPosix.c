@@ -114,6 +114,7 @@
 #include "util.h"
 #include "vmstdio.h"
 #include "su.h"
+#include "rateconv.h"
 #include "vm_atomic.h"
 
 #if defined(__i386__) || defined(__x86_64__)
@@ -1554,10 +1555,7 @@ Hostinfo_LogLoadAverage(void)
  *
  *      NOTE: on x86, macOS does TSC->ns conversion in the commpage
  *      for mach_absolute_time() to correct for speed-stepping, so x86
- *      should always be 1:1 a.k.a. 'unity'. But as Apple has never
- *      documented this as a promise, retain the fallback... it is
- *      possible that when Apple drops support for processors where
- *      speed-stepping can vary TSC frequency, Apple may adjust the mapping.
+ *      should always be 1:1 a.k.a. 'unity'.
  *
  *      On iOS, mach_absolute_time() uses an ARM register and always
  *      needs conversion.
@@ -1574,49 +1572,75 @@ Hostinfo_LogLoadAverage(void)
 static VmTimeType
 HostinfoSystemTimerMach(void)
 {
-   typedef struct {
-      double  scalingFactor;
-      Bool    unity;
-   } timerData;
+   static Atomic_uint64 machToNS;
 
-   VmTimeType raw;
-   timerData *ptr;
-   static Atomic_Ptr atomic; /* Implicitly initialized to NULL. --mbellon */
+   union {
+      uint64 raw;
+      RateConv_Ratio ratio;
+   } u;
+   VmTimeType result;
 
-   /*
-    * On Mac OS a commpage timer is used. Such timers are ensured to never
-    * go backwards - and be valid across all processes.
-    */
+   u.raw = Atomic_Read64(&machToNS);
 
-   /* Ensure that the time base values are correct. */
-   ptr = Atomic_ReadPtr(&atomic);
-
-   if (UNLIKELY(ptr == NULL)) {
+   if (UNLIKELY(u.raw == 0)) {
       mach_timebase_info_data_t timeBase;
-      timerData *try = Util_SafeMalloc(sizeof *try);
+      kern_return_t kr;
 
-      mach_timebase_info(&timeBase);
+      /* Ensure atomic works correctly */
+      ASSERT_ON_COMPILE(sizeof u == sizeof(machToNS));
 
-      try->scalingFactor = ((double) timeBase.numer) /
-                           ((double) timeBase.denom);
+      kr = mach_timebase_info(&timeBase);
+      ASSERT(kr == KERN_SUCCESS);
 
-      try->unity = ((timeBase.numer == 1) && (timeBase.denom == 1));
-
-      if (Atomic_ReadIfEqualWritePtr(&atomic, NULL, try)) {
-         free(try);
+      /*
+       * Officially, TN QA1398 recommends using a static variable and
+       *    NS = mach_absolute_time() * timeBase.numer / timebase.denom
+       * (where denom != 0 is an obvious init check).
+       * In practice...
+       * x86 (incl x86_64) has only been seen using 1/1
+       * iOS has been seen to use 125/3 (~24MHz)
+       * PPC has been seen to use 1000000000/33333335 (~33MHz),
+       *     which overflows 64-bit multiply in ~8 seconds (!!)
+       *     (2^63 signed bits / 2^30 numer / 2^30 ns/sec ~= 2^3)
+       * We will use fixed-point for everything because it's faster
+       * than floating point and (with a 128-bit multiply) cannot overflow.
+       * Even in the 'unity' case, the four instructions in x86_64 fixed-point
+       * are about as expensive as checking for 'unity'.
+       */
+      if (timeBase.numer == 1 && timeBase.denom == 1) {
+         u.ratio.mult = 1;  // Trivial conversion
+         u.ratio.shift = 0;
+      } else {
+         Bool status;
+         status = RateConv_ComputeRatio(timeBase.denom, timeBase.numer,
+                                        &u.ratio);
+         VERIFY(status);  // Assume we can get fixed-point parameters
       }
 
-      ptr = Atomic_ReadPtr(&atomic);
+      /*
+       * Use ReadWrite for implicit barrier.
+       * Initialization is idempotent, so no multi-init worries.
+       * The fixed-point conversions are stored in an atomic to ensure
+       * they are never read "torn".
+       */
+      Atomic_ReadWrite64(&machToNS, u.raw);
+      ASSERT(u.raw != 0);  // Used as initialization check
    }
 
-   raw = mach_absolute_time();
+   /* Fixed-point */
+   result = Muls64x32s64(mach_absolute_time(),
+                         u.ratio.mult, u.ratio.shift);
 
-   if (LIKELY(ptr->unity)) {
-      return raw;
-   } else {
-      /* Could use fixed-point, but 'unity' is the common case already. */
-      return ((double) raw) * ptr->scalingFactor;
-   }
+   /*
+    * A smart programmer would use a global variable to ASSERT that
+    * mach_absolute_time() and/or the fixed-point result is non-decreasing.
+    * This turns out to be impractical: the synchronization needed to safely
+    * make that check can prevent the very effect being checked.
+    * Thus, we simply trust the documentation.
+    */
+
+   ASSERT(result >= 0);
+   return result;
 }
 #endif
 
