@@ -57,9 +57,29 @@ void MXUser_ReleaseExclLock(MXUserExclLock *lock);
 void MXUser_DestroyExclLock(MXUserExclLock *lock);
 Bool MXUser_IsCurThreadHoldingExclLock(MXUserExclLock *lock);
 
-MXUserExclLock *MXUser_CreateSingletonExclLock(Atomic_Ptr *lockStorage,
-                                               const char *name,
-                                               MX_Rank rank);
+/* Use only when necessary */
+MXUserExclLock *MXUser_CreateSingletonExclLockInt(Atomic_Ptr *lockStorage,
+                                                  const char *name,
+                                                  MX_Rank rank);
+
+/* This is the public interface */
+static INLINE MXUserExclLock *
+MXUser_CreateSingletonExclLock(Atomic_Ptr *lockStorage,
+                               const char *name,
+                               MX_Rank rank)
+{
+   MXUserExclLock *lock;
+
+   ASSERT(lockStorage);
+
+   lock = (MXUserExclLock *) Atomic_ReadPtr(lockStorage);
+
+   if (UNLIKELY(lock == NULL)) {
+      lock = MXUser_CreateSingletonExclLockInt(lockStorage, name, rank);
+   }
+
+   return lock;
+}
 
 MXUserCondVar *MXUser_CreateCondVarExclLock(MXUserExclLock *lock);
 
@@ -98,9 +118,29 @@ void MXUser_ReleaseRecLock(MXUserRecLock *lock);
 void MXUser_DestroyRecLock(MXUserRecLock *lock);
 Bool MXUser_IsCurThreadHoldingRecLock(MXUserRecLock *lock);
 
-MXUserRecLock *MXUser_CreateSingletonRecLock(Atomic_Ptr *lockStorage,
-                                             const char *name,
-                                             MX_Rank rank);
+/* Use only when necessary */
+MXUserRecLock *MXUser_CreateSingletonRecLockInt(Atomic_Ptr *lockStorage,
+                                                const char *name,
+                                                MX_Rank rank);
+
+/* This is the public interface */
+static INLINE MXUserRecLock *
+MXUser_CreateSingletonRecLock(Atomic_Ptr *lockStorage,
+                              const char *name,
+                              MX_Rank rank)
+{
+   MXUserRecLock *lock;
+
+   ASSERT(lockStorage);
+
+   lock = (MXUserRecLock *) Atomic_ReadPtr(lockStorage);
+
+   if (UNLIKELY(lock == NULL)) {
+      lock = MXUser_CreateSingletonRecLockInt(lockStorage, name, rank);
+   }
+
+   return lock;
+}
 
 void MXUser_DumpRecLock(MXUserRecLock *lock);
 
@@ -152,9 +192,29 @@ void MXUser_DestroyRWLock(MXUserRWLock *lock);
 Bool MXUser_IsCurThreadHoldingRWLock(MXUserRWLock *lock,
                                      uint32 queryType);
 
-MXUserRWLock *MXUser_CreateSingletonRWLock(Atomic_Ptr *lockStorage,
-                                           const char *name,
-                                           MX_Rank rank);
+/* Use only when necessary */
+MXUserRWLock *MXUser_CreateSingletonRWLockInt(Atomic_Ptr *lockStorage,
+                                              const char *name,
+                                              MX_Rank rank);
+
+/* This is the public interface */
+static INLINE MXUserRWLock *
+MXUser_CreateSingletonRWLock(Atomic_Ptr *lockStorage,
+                             const char *name,
+                             MX_Rank rank)
+{
+   MXUserRWLock *lock;
+
+   ASSERT(lockStorage);
+
+   lock = (MXUserRWLock *) Atomic_ReadPtr(lockStorage);
+
+   if (UNLIKELY(lock == NULL)) {
+      lock = MXUser_CreateSingletonRWLockInt(lockStorage, name, rank);
+   }
+
+   return lock;
+}
 
 /*
  * Stateful auto-reset event
