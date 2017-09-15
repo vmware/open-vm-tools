@@ -268,6 +268,7 @@ CopyPasteRpcV3::HandleMsg(RpcParams *params,
 
       /* Unserialize clipboard data for the command. */
       buf = DnDMsg_GetArg(&msg, 0);
+      CPClipboard_Init(&clip);
       if (!CPClipboard_Unserialize(&clip, DynBuf_Get(buf), DynBuf_GetSize(buf))) {
          g_debug("%s: CPClipboard_Unserialize failed.\n", __FUNCTION__);
          goto exit;

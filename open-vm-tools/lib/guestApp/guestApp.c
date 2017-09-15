@@ -48,7 +48,7 @@
 #include <shlobj.h>
 #include "productState.h"
 #include "winregistry.h"
-#include "win32util.h"
+#include "windowsUtil.h"
 #endif
 
 /*

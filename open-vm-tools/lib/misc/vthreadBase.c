@@ -210,7 +210,11 @@ VThreadBaseInitKeyWork(Atomic_Int *key, void (*deletePtr)(void*))
       VThreadBaseKeyType newKey;
 
 #if defined _WIN32
+#if defined VM_WIN_UWP
+      newKey = FlsAlloc(NULL);
+#else
       newKey = TlsAlloc();
+#endif
       VERIFY(newKey != VTHREADBASE_INVALID_KEY);
 #else
       Bool success = pthread_key_create(&newKey, deletePtr) == 0;
@@ -228,7 +232,11 @@ VThreadBaseInitKeyWork(Atomic_Int *key, void (*deletePtr)(void*))
           VTHREADBASE_INVALID_KEY) {
          /* Race: someone else init'd */
 #if defined _WIN32
+#if defined VM_WIN_UWP
+         FlsFree(newKey);
+#else
          TlsFree(newKey);
+#endif
 #else
          pthread_key_delete(newKey);
 #endif
@@ -318,7 +326,11 @@ VThreadBaseSetLocal(VThreadLocal local, void *value)
    }
    ASSERT(key != VTHREADBASE_INVALID_KEY);
 #if defined _WIN32
+#if defined VM_WIN_UWP
+   success = FlsSetValue(key, adjustedValue);
+#else
    success = TlsSetValue(key, adjustedValue);
+#endif
 #else
    success = pthread_setspecific(key, adjustedValue) == 0;
 #endif
@@ -373,7 +385,11 @@ VThreadBaseGetLocal(VThreadLocal local)
    ASSERT(VThreadBaseAreKeysInited());
 
 #if defined _WIN32
+#if defined VM_WIN_UWP
+   result = FlsGetValue(key);
+#else
    result = TlsGetValue(key);
+#endif
 #else
    result = pthread_getspecific(key);
 #endif
@@ -842,6 +858,13 @@ VThreadBaseGetNative(void)
 static Bool
 VThreadBaseNativeIsAlive(void *native)
 {
+#if defined(VM_WIN_UWP)
+   /* OpenThread is not support on UWP */
+   NOT_IMPLEMENTED();
+
+   return FALSE;
+#else
+
    // Different access level due to impersonation see PR#780775
    HANDLE hThread = OpenThread(Hostinfo_OpenThreadBits(), FALSE,
                                (DWORD)(uintptr_t)native);
@@ -864,6 +887,7 @@ VThreadBaseNativeIsAlive(void *native)
 
       return exitCode == STILL_ACTIVE;
    }
+#endif // VM_WIN_UWP
 }
 #endif
 
@@ -914,8 +938,11 @@ VThreadBaseSimpleNoID(void)
        *    would only cause missing a reclaim which isn't a problem.
        * Posix: thread exit is hooked (via TLS destructor) and sets
        *    entries to NULL, so any entry that is NULL is reclaimable.
+       * UWP: There is no permission to check thread status with the
+       *    thread id. There are only few threads in UWP client, ignore
+       *    the reclaimation.
        */
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(VM_WIN_UWP)
       void *oldNative;
       reused = HashTable_Lookup(ht, newKey, &oldNative) &&
                (oldNative == NULL ||

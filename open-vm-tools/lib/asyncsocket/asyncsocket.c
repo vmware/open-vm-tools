@@ -1349,7 +1349,7 @@ AsyncSocketGetPort(AsyncSocket *asock)  // IN
 static Bool
 AsyncSocketOSVersionSupportsV4Mapped()
 {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(VM_WIN_UWP)
    OSVERSIONINFOW osvi = {sizeof(OSVERSIONINFOW)};
 
    /*

@@ -84,7 +84,7 @@
 #include "codeset.h"
 #include "codesetOld.h"
 #include "str.h"
-#include "win32util.h"
+#include "windowsUtil.h"
 #if defined __APPLE__
 #   define LOCATION_WEAK
 #   include "location.h"
@@ -312,7 +312,7 @@ char *
 CodeSet_GetAltPathName(const utf16_t *pathW) // IN
 {
    char *path = NULL;
-#if defined(_WIN32)
+#if defined(_WIN32) && !defined(VM_WIN_UWP)
    DWORD res;
    utf16_t shortPathW[_MAX_PATH];
 

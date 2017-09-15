@@ -174,7 +174,7 @@ MXUserSyndrome(void)
 
    if (syndrome == 0) {
 #if defined(_WIN32)
-      syndrome = GetTickCount();
+      syndrome = (uint32)GetTickCount64();
 #else
       syndrome = time(NULL) & 0xFFFFFFFF;
 #endif

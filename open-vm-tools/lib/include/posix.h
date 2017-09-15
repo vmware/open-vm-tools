@@ -297,7 +297,10 @@ Posix_FreeHostent(struct hostent *he)
 #if defined(_WINSOCKAPI_) || defined(_WINSOCK2API_)
 #include <winbase.h>
 #include "vm_atomic.h"
-
+#if defined(VM_WIN_UWP)
+/* UWP use the network definition in winsock2.h */
+#include <winsock2.h>
+#endif
 
 /*
  *----------------------------------------------------------------------

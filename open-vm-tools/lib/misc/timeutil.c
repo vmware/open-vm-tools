@@ -40,7 +40,7 @@
 #include "str.h"
 #include "util.h"
 #ifdef _WIN32
-#include "win32u.h"
+#include "windowsu.h"
 #endif
 
 

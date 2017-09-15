@@ -37,7 +37,7 @@
  * versioning is correct.
  */
 #if defined(VMX86_VIEWCLIENT)
-   #define PRODUCT_VERSION    4,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
+   #define PRODUCT_VERSION    4,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_VMRC) /* check VMX86_VMRC before VMX86_DESKTOP */
    #define PRODUCT_VERSION    8,0,0,PRODUCT_BUILD_NUMBER_NUMERIC   /* VMRC_VERSION_NUMBER below has to match this */
 #elif defined(VMX86_FLEX) /* check VMX86_FLEX before VMX86_DESKTOP */
@@ -246,7 +246,7 @@
 #define PRECHECK_VERSION "e.x.p"
 #define VIEW_FEATUREPACK_VERSION "5.2.0"
 #define VIEW_CLIENT_VERSION_NUMBER "4.0.0"
-#define VIEW_CLIENT_VERSION "4.0.0"
+#define VIEW_CLIENT_VERSION "4.1.0"
 #define VHSESDK_VERSION "1.0.0"
 #define RDE_RFT_ALL_VERSION "4.0.0"
 #define RDESDK_VERSION "2.0.0"

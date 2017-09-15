@@ -122,7 +122,7 @@ typedef enum {
    VMXNET3_CMD_LOAD_PLUGIN,
    VMXNET3_CMD_ACTIVATE_VF,
    VMXNET3_CMD_SET_POLLING,
-   VMXNET3_CMD_UPDATE_COALESCE,
+   VMXNET3_CMD_SET_COALESCE,
    VMXNET3_CMD_REGISTER_MEMREGS,
 
    VMXNET3_CMD_FIRST_GET = 0xF00D0000,
@@ -136,7 +136,6 @@ typedef enum {
    VMXNET3_CMD_GET_DEV_EXTRA_INFO,
    VMXNET3_CMD_GET_CONF_INTR,
    VMXNET3_CMD_GET_ADAPTIVE_RING_INFO,
-   VMXNET3_CMD_GET_COALESCE,
    VMXNET3_CMD_GET_TXDATA_DESC_SIZE
 } Vmxnet3_Cmd;
 
@@ -462,11 +461,12 @@ typedef union Vmxnet3_GenericDesc {
 #define VMXNET3_RC_RING_MAX_SIZE   8192
 
 /* Large enough to accommodate typical payload + encap + extension header */
-#define VMXNET3_RXDATA_DESC_MAX_SIZE 2048
+#define VMXNET3_RXDATA_DESC_MAX_SIZE   2048
+#define VMXNET3_TXDATA_DESC_MIN_SIZE   128
+#define VMXNET3_TXDATA_DESC_MAX_SIZE   2048
 
-#define VMXNET3_TXDATA_DESC_MAX_SIZE 1024
 /* a list of reasons for queue stop */
-#define VMXNET3_TXDATA_DESC_MIN_SIZE 128
+
 #define VMXNET3_ERR_NOEOP        0x80000000  /* cannot find the EOP desc of a pkt */
 #define VMXNET3_ERR_TXD_REUSE    0x80000001  /* reuse a TxDesc before tx completion */
 #define VMXNET3_ERR_BIG_PKT      0x80000002  /* too many TxDesc for a pkt */
@@ -609,6 +609,48 @@ enum vmxnet3_intr_type {
 
 /* value of intrCtrl */
 #define VMXNET3_IC_DISABLE_ALL  0x1   /* bit 0 */
+
+#define VMXNET3_COAL_STATIC_MAX_DEPTH        128
+#define VMXNET3_COAL_RBC_MIN_RATE            100
+#define VMXNET3_COAL_RBC_MAX_RATE            100000
+
+enum Vmxnet3_CoalesceMode {
+   VMXNET3_COALESCE_DEFAULT    = 0,
+   VMXNET3_COALESCE_DISABLED   = 1,
+   VMXNET3_COALESCE_ADAPT      = 2,
+   VMXNET3_COALESCE_STATIC     = 3,
+   VMXNET3_COALESCE_RBC        = 4
+};
+
+typedef
+#include "vmware_pack_begin.h"
+struct Vmxnet3_CoalesceRbc {
+   uint32 rbc_rate;
+}
+#include "vmware_pack_end.h"
+Vmxnet3_CoalesceRbc;
+
+typedef
+#include "vmware_pack_begin.h"
+struct Vmxnet3_CoalesceStatic {
+   uint32 tx_depth;
+   uint32 tx_comp_depth;
+   uint32 rx_depth;
+}
+#include "vmware_pack_end.h"
+Vmxnet3_CoalesceStatic;
+
+typedef
+#include "vmware_pack_begin.h"
+struct Vmxnet3_CoalesceScheme {
+   enum Vmxnet3_CoalesceMode coalMode;
+   union {
+      Vmxnet3_CoalesceRbc    coalRbc;
+      Vmxnet3_CoalesceStatic coalStatic;
+   } coalPara;
+}
+#include "vmware_pack_end.h"
+Vmxnet3_CoalesceScheme;
 
 typedef
 #include "vmware_pack_begin.h"

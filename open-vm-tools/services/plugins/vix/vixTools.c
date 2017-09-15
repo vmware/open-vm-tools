@@ -57,7 +57,7 @@
 #include <WTypes.h>
 #include <io.h>
 #include "wminic.h"
-#include "win32u.h"
+#include "windowsu.h"
 #include <sys/stat.h>
 #include <time.h>
 #define  SECURITY_WIN32
@@ -120,7 +120,7 @@
 
 #ifdef _WIN32
 #include "registryWin32.h"
-#include "win32u.h"
+#include "windowsu.h"
 #endif /* _WIN32 */
 #include "hgfsHelper.h"
 

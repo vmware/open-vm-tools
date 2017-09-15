@@ -49,7 +49,7 @@
 #  include <dbghelp.h>
 #  include "coreDump.h"
 #  include "w32Messages.h"
-#  include "win32u.h"
+#  include "windowsu.h"
 #endif
 #include "str.h"
 #include "system.h"

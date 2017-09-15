@@ -1028,6 +1028,38 @@ error:
 /*
  *----------------------------------------------------------------------
  *
+ * FileIO_CreateRetry --
+ *
+ *      Open/create a file; specify creation mode
+ *
+ * Results:
+ *      FILEIO_SUCCESS on success: 'file' is set
+ *      FILEIO_OPEN_ERROR_EXIST if the file already exists
+ *      FILEIO_FILE_NOT_FOUND if the file is not present
+ *      FILEIO_ERROR for other errors
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+FileIOResult
+FileIO_CreateRetry(FileIODescriptor *file,   // OUT:
+                   const char *pathName,     // IN:
+                   int access,               // IN:
+                   FileIOOpenAction action,  // IN:
+                   int mode,                 // IN: mode_t for creation
+                   uint32 msecMaxWaitTime)   // IN:
+{
+   return FileIOCreateRetry(file, pathName, access, action, mode,
+                            msecMaxWaitTime);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * FileIO_Create --
  *
  *      Open/create a file; specify creation mode
@@ -1052,35 +1084,6 @@ FileIO_Create(FileIODescriptor *file,   // OUT:
               int mode)                 // IN: mode_t for creation
 {
    return FileIOCreateRetry(file, pathName, access, action, mode, 0);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * FileIO_Open --
- *
- *      Open/create a file.
- *
- * Results:
- *      FILEIO_SUCCESS on success: 'file' is set
- *      FILEIO_OPEN_ERROR_EXIST if the file already exists
- *      FILEIO_FILE_NOT_FOUND if the file is not present
- *      FILEIO_ERROR for other errors
- *
- * Side effects:
- *      None
- *
- *----------------------------------------------------------------------
- */
-
-FileIOResult
-FileIO_Open(FileIODescriptor *file,   // OUT:
-            const char *pathName,     // IN:
-            int access,               // IN:
-            FileIOOpenAction action)  // IN:
-{
-   return FileIO_OpenRetry(file, pathName, access, action, 0);
 }
 
 
@@ -1143,6 +1146,35 @@ FileIO_OpenRetry(FileIODescriptor *file,   // OUT:
    return FileIOCreateRetry(file, pathName, access, action,
                             S_IRUSR | S_IWUSR, msecMaxWaitTime);
 #endif
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * FileIO_Open --
+ *
+ *      Open/create a file.
+ *
+ * Results:
+ *      FILEIO_SUCCESS on success: 'file' is set
+ *      FILEIO_OPEN_ERROR_EXIST if the file already exists
+ *      FILEIO_FILE_NOT_FOUND if the file is not present
+ *      FILEIO_ERROR for other errors
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+FileIOResult
+FileIO_Open(FileIODescriptor *file,   // OUT:
+            const char *pathName,     // IN:
+            int access,               // IN:
+            FileIOOpenAction action)  // IN:
+{
+   return FileIO_OpenRetry(file, pathName, access, action, 0);
 }
 
 

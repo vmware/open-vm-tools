@@ -641,6 +641,11 @@ uint16set(void *dst, uint16 val, size_t count)
 {
 #ifdef VM_X86_64
    __stosw((uint16*)dst, val, count);
+#elif defined(VM_ARM_32)
+   size_t i;
+   for (i = 0; i < count; i++) {
+      ((uint16 *)dst)[i] = val;
+   }
 #else
    __asm { pushf;
            mov ax, val;
@@ -659,6 +664,11 @@ uint32set(void *dst, uint32 val, size_t count)
 {
 #ifdef VM_X86_64
    __stosd((unsigned long*)dst, (unsigned long)val, count);
+#elif defined(VM_ARM_32)
+   size_t i;
+   for (i = 0; i < count; i++) {
+      ((uint32 *)dst)[i] = val;
+   }
 #else
    __asm { pushf;
            mov eax, val;
@@ -720,12 +730,12 @@ Bswap32(uint32 v) // IN
       : "0" (v)
    );
    return v;
-#elif defined(VM_ARM_32) && !defined(__ANDROID__)
+#elif defined(VM_ARM_32) && !defined(__ANDROID__) && !defined(_MSC_VER)
     __asm__("rev %0, %0" : "+r"(v));
     return v;
 #elif defined(VM_ARM_64)
    __asm__("rev32 %x0, %x0" : "+r"(v));
-    return v;
+   return v;
 #else
    return    (v >> 24)
           | ((v >>  8) & 0xFF00)
@@ -822,7 +832,7 @@ Bswap64(uint64 v) // IN
  */
 static INLINE void
 PAUSE(void)
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(VM_ARM_32)
 {
 #ifdef VM_ARM_ANY
    /*
@@ -895,6 +905,15 @@ RDTSC(void)
 #ifdef VM_X86_64
 {
    return __rdtsc();
+}
+#elif defined(VM_ARM_32)
+{
+   /*
+    * We need to do more inverstagetion here to find
+    * a microsoft equivalent of that code
+    */
+   NOT_IMPLEMENTED();
+   return 0;
 }
 #else
 #pragma warning( disable : 4035)

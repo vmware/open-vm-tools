@@ -120,4 +120,7 @@ Bool Config_GetDataFileKey(struct CryptoKey **key,
 Bool Config_GetDataFileKeys(struct KeySafeUserRing **parentKeys,
                             struct KeySafeUserRing **allKeys);
 
+Bool Config_TriToBool(Bool boolDefaultValue,
+                      int32 triValue);
+
 #endif // _CONFIG_H_

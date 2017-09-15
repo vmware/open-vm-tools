@@ -71,8 +71,8 @@
 #include "unicode.h"
 
 #if defined(_WIN32)
-#include "win32u.h"
-#include "win32util.h"
+#include "windowsu.h"
+#include "windowsUtil.h"
 #endif
 #if defined(__APPLE__)
 #include "utilMacos.h"
@@ -128,7 +128,12 @@ Util_GetCanonicalPath(const char *path)  // IN:
        strchr(VALID_DIRSEPS, driveSpec[1])) {
       remoteDrive = TRUE;
    } else {
+#if defined( VM_WIN_UWP)
+      /* Don't need remote path for UWP until now*/
+      remoteDrive = FALSE;
+#else
       remoteDrive = (GetDriveTypeA(driveSpec) == DRIVE_REMOTE);
+#endif // !VM_WIN_UWP
    }
 
    /*

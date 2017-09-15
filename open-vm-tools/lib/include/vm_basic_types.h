@@ -720,10 +720,17 @@ typedef void * UserVA;
 #endif
 #define CONST         const
 
-
 #ifndef INLINE
 #   ifdef _MSC_VER
-#      define INLINE        __inline
+       /*
+        * On UWP(Universal Windows Platform),
+        * Only X86 32bit support '__inline'
+        */
+#      if defined(VM_WIN_UWP) && !defined(VM_X86_32)
+#            define INLINE
+#      else
+#            define INLINE        __inline
+#      endif
 #   else
 #      define INLINE        inline
 #   endif

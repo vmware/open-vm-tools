@@ -695,6 +695,9 @@ int
 Util_HasAdminPriv(void)
 {
 #if defined(_WIN32)
+#if defined(VM_WIN_UWP)
+   return 0;
+#else
    HANDLE token = INVALID_HANDLE_VALUE;
    int ret = -1;
 
@@ -734,6 +737,7 @@ end:
    }
 
    return ret;
+#endif // !VM_WIN_UWP
 #else
    return Id_IsSuperUser() ? 1 : 0;
 #endif

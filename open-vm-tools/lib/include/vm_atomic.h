@@ -1289,7 +1289,7 @@ Atomic_And(Atomic_uint32 *var, // IN/OUT
    AtomicEpilogue();
 #endif /* VM_X86_ANY */
 #elif defined _MSC_VER
-#if defined(__x86_64__)
+#if defined(__x86_64__) || defined(VM_ARM_32)
    _InterlockedAnd((long *)&var->value, (long)val);
 #else
    __asm mov eax, val
@@ -1355,7 +1355,7 @@ Atomic_Or(Atomic_uint32 *var, // IN/OUT
    AtomicEpilogue();
 #endif /* VM_X86_ANY */
 #elif defined _MSC_VER
-#if defined(__x86_64__)
+#if defined(__x86_64__) || defined(VM_ARM_32)
    _InterlockedOr((long *)&var->value, (long)val);
 #else
    __asm mov eax, val
@@ -1421,7 +1421,7 @@ Atomic_Xor(Atomic_uint32 *var, // IN/OUT
    AtomicEpilogue();
 #endif /* VM_X86_ANY */
 #elif defined _MSC_VER
-#if defined(__x86_64__)
+#if defined(__x86_64__) || defined(VM_ARM_32)
    _InterlockedXor((long *)&var->value, (long)val);
 #else
    __asm mov eax, val
@@ -2109,7 +2109,7 @@ Atomic_CMPXCHG64(Atomic_uint64 *var,   // IN/OUT
    return equal;
 #endif //VM_ARM_V7
 #elif defined _MSC_VER
-#if defined(__x86_64__)
+#if defined(__x86_64__) || defined(VM_ARM_32)
    return (__int64)*oldVal == _InterlockedCompareExchange64((__int64 *)&var->value,
                                                             (__int64)*newVal,
                                                             (__int64)*oldVal);

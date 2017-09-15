@@ -38,7 +38,7 @@
 #include "ulInt.h"
 #include "hostinfo.h"
 #if defined(_WIN32)
-#include "win32u.h"
+#include "windowsu.h"
 #endif
 
 #define MXUSER_A_BILLION (1000 * 1000 * 1000)

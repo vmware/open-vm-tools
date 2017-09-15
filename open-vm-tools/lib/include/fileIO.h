@@ -301,6 +301,13 @@ FileIOResult FileIO_Create(FileIODescriptor *file,
                            FileIOOpenAction action,
                            int mode);
 
+FileIOResult FileIO_CreateRetry(FileIODescriptor *file,
+                               const char *pathName,
+                               int access,
+                               FileIOOpenAction action,
+                               int mode,
+                               uint32 msecMaxWaitTime);
+
 FileIOResult FileIO_Open(FileIODescriptor *file,
                          const char *pathName,
                          int access,

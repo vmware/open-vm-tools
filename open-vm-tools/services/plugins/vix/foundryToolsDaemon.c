@@ -45,7 +45,7 @@
 #   include <Windows.h>
 #   include <WinSock2.h>
 #   include <WinSpool.h>
-#   include "win32u.h"
+#   include "windowsu.h"
 #elif _WIN32
 #   include "win95.h"
 #endif

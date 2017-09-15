@@ -33,8 +33,8 @@
 #include "vmware.h"
 #include "vm_version.h"
 #include "vm_tools_version.h"
-#if !defined(WINNT_DDK)
-#  include "hostinfo.h"
+#ifndef WINNT_DDK
+#include "hostinfo.h"
 #endif
 
 /*
@@ -192,7 +192,7 @@ VmCheck_GetVersion(uint32 *version, // OUT
    ASSERT(type);
 
    /* Make sure EBX does not contain BDOOR_MAGIC */
-   bp.in.size = ~BDOOR_MAGIC;
+   bp.in.size = (size_t)~BDOOR_MAGIC;
    /* Make sure ECX does not contain any known VMX type */
    bp.in.cx.halfs.high = 0xFFFF;
 

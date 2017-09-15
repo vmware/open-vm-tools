@@ -38,7 +38,7 @@
 #include "log.h"
 #include "hostinfo.h"
 #if defined(_WIN32)	// Windows
-#include "win32u.h"
+#include "windowsu.h"
 #endif
 #include "unicode.h"
 
@@ -165,7 +165,9 @@ Hostinfo_HostName(void)
 
    if ((uname(&un) == 0) && (*un.nodename != '\0')) {
       /* 'un.nodename' is already fully qualified. */
-      result = Unicode_Alloc(un.nodename, STRING_ENCODING_US_ASCII);
+      if (Unicode_IsStringValidUTF8(un.nodename)) {  // ASCII is OK
+         result = Unicode_Duplicate(un.nodename);
+      }
    }
 
    return result;
@@ -220,7 +222,9 @@ Hostinfo_HostName(void)
          p = phe->h_name;
       }
 
-      result = Unicode_Alloc(p, STRING_ENCODING_US_ASCII);
+      if (Unicode_IsStringValidUTF8(p)) {  // ASCII is OK
+         result = Unicode_Duplicate(p);
+      }
    }
 
    return result;

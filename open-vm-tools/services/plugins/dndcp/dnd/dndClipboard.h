@@ -115,6 +115,7 @@ typedef enum
 
 /* CPClipboard */
 void CPClipboard_Init(CPClipboard *clip);
+void CPClipboard_InitWithSize(CPClipboard *clip, uint32 size);
 void CPClipboard_Destroy(CPClipboard *clip);
 
 void CPClipboard_Clear(CPClipboard *clip);

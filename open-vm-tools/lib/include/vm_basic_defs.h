@@ -475,7 +475,11 @@ void *_ReturnAddress(void);
 
 #ifdef _WIN32 // {
 
+/* Conflict with definition of Visual Studio 2015 */
+#if (_MSC_VER < 1900)
 #define snprintf  _snprintf
+#endif
+
 #define strtok_r  strtok_s
 
 #if (_MSC_VER < 1500)

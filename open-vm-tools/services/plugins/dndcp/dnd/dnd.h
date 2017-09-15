@@ -135,6 +135,8 @@ typedef struct CPClipItem {
  */
 typedef struct {
    Bool changed;
+   Bool isInitialized;
+   uint32 maxSize;
    CPClipItem items[CPFORMAT_MAX - 1];
 } CPClipboard;
 

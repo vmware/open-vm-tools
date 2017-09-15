@@ -40,7 +40,8 @@
 
 struct timeval;
 
-#ifdef _WIN32
+/*struct timespec is not supported on UWP*/
+#if defined(_WIN32) && !defined(VM_WIN_UWP)
 struct timespec {
    time_t tv_sec;
    long   tv_nsec;

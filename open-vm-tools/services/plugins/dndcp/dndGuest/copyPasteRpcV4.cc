@@ -273,6 +273,7 @@ CopyPasteRpcV4::HandleMsg(RpcParams *params,
          LOG(0, ("%s: invalid clipboard data.\n", __FUNCTION__));
          break;
       }
+      CPClipboard_Init(&clip);
       if (!CPClipboard_Unserialize(&clip, (void *)binary, binarySize)) {
          LOG(0, ("%s: CPClipboard_Unserialize failed.\n", __FUNCTION__));
          break;
