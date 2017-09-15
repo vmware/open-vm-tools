@@ -730,8 +730,8 @@ File_ReplaceExtension(const char *pathName,      // IN:
    va_list arguments;
    UnicodeIndex index;
 
-   ASSERT(pathName != NULL);
-   ASSERT(newExtension != NULL);
+   ASSERT(pathName);
+   ASSERT(newExtension);
    ASSERT(*newExtension == '.');
 
    File_GetPathName(pathName, &path, &base);
@@ -775,16 +775,7 @@ File_ReplaceExtension(const char *pathName,      // IN:
    }
 
    if (Unicode_IsEmpty(path)) {
-      /*
-       * The pathName may be for a file in the CWD (e.g. "file.txt") or it
-       * could be in the POSIX root directory (e.g. "/file.txt").
-       */
-
-      if (File_IsFullPath(pathName)) {
-         result = Unicode_Join(DIRSEPS, base, newExtension, NULL);
-      } else {
-         result = Unicode_Append(base, newExtension);
-      }
+      result = Unicode_Append(base, newExtension);
    } else {
       result = Unicode_Join(path, DIRSEPS, base, newExtension, NULL);
    }
