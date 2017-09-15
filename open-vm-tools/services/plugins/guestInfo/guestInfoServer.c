@@ -63,6 +63,7 @@
 #if defined(_WIN32)
 #include "guestStats.h"
 #include "win32/guestInfoWin32.h"
+#include <time.h>
 #endif
 
 #if !defined(__APPLE__)
@@ -117,6 +118,14 @@ typedef struct _GuestInfoCache {
  * This value is controlled by the guestinfo.poll-interval config file option.
  */
 int guestInfoPollInterval = 0;
+
+/**
+ * The time when the guestInfo was last gathered.
+ *
+ * TODO: Need to reset this value when a VM is resumed or restored from a
+ * snapshot.
+ */
+time_t guestInfoLastGatherTime = 0;
 
 /**
  * Defines the current stats interval (in milliseconds).
@@ -253,6 +262,58 @@ GuestInfoVMSupport(RpcInData *data)
 
 /*
  ******************************************************************************
+ * GuestInfoCheckIfRunningSlow --                                        */ /**
+ *
+ * Checks the time when the guestInfo was last collected.
+ * Logs a warning message and sends a RPC message to the VMX if
+ * the function was called after longer than expected interval.
+ *
+ * @param[in]  ctx     The application context.
+ *
+ * @return None
+ *
+ ******************************************************************************
+ */
+
+static void
+GuestInfoCheckIfRunningSlow(ToolsAppCtx *ctx)
+{
+   time_t now = time(NULL);
+
+   if (guestInfoLastGatherTime != 0) {
+      time_t delta = now - guestInfoLastGatherTime;
+      /*
+       * Have a long enough delta to ensure that we have really missed a
+       * collection.
+       */
+      if (((int) delta * 1000) >= (2 * guestInfoPollInterval)) {
+         gchar *msg, *rpcMsg;
+
+         msg = g_strdup_printf(
+                   "*** WARNING: GuestInfo collection interval longer than "
+                   "expected; actual=%d sec, expected=%d sec. ***\n",
+                   (int) delta, guestInfoPollInterval / 1000);
+
+         rpcMsg = g_strdup_printf("log %s", msg);
+
+         if (!RpcChannel_Send(ctx->rpc, rpcMsg, strlen(rpcMsg) + 1,
+                              NULL, NULL)) {
+            g_warning("%s: Error sending rpc message.\n", __FUNCTION__);
+         }
+
+         g_warning("%s", msg);
+
+         g_free(rpcMsg);
+         g_free(msg);
+      }
+   }
+
+   guestInfoLastGatherTime = now;
+}
+
+
+/*
+ ******************************************************************************
  * GuestInfoGather --                                                    */ /**
  *
  * Collects all the desired guest information and updates the VMX.
@@ -278,6 +339,8 @@ GuestInfoGather(gpointer data)
    ToolsAppCtx *ctx = data;
 
    g_debug("Entered guest info gather.\n");
+
+   GuestInfoCheckIfRunningSlow(ctx);
 
    /* Send tools version. */
    if (!GuestInfoUpdateVmdb(ctx, INFO_BUILD_NUMBER, BUILD_NUMBER, 0)) {
