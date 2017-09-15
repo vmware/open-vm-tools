@@ -202,7 +202,7 @@ typedef struct HgfsServerCallbacks {
    HgfsRegisterSharedFolderFunc registerShare;
 } HgfsServerCallbacks;
 
-Bool HgfsServer_InitState(HgfsServerCallbacks **,
+Bool HgfsServer_InitState(const HgfsServerCallbacks **,
                           HgfsServerConfig *,
                           HgfsServerMgrCallbacks *);
 void HgfsServer_ExitState(void);

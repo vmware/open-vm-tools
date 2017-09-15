@@ -197,7 +197,7 @@ HgfsChannelInitServer(HgfsServerMgrCallbacks *mgrCb,       // IN: server manager
    Debug("%s: Initialize Hgfs server.\n", __FUNCTION__);
 
    /* If we have a new connection initialize the server session with default settings. */
-   result = HgfsServer_InitState((HgfsServerCallbacks **)&serverInfo->serverCBTable,
+   result = HgfsServer_InitState(&serverInfo->serverCBTable,
                                  &gHgfsGuestCfgSettings,
                                  mgrCb);
    if (!result) {

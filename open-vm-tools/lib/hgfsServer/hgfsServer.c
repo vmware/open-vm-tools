@@ -241,7 +241,7 @@ static HgfsSharedFolderHandle HgfsServerRegisterShare(const char *shareName,
 /*
  * Callback table passed to transport and any channels.
  */
-HgfsServerCallbacks gHgfsServerCBTable = {
+static const HgfsServerCallbacks gHgfsServerCBTable = {
    {
       HgfsServerSessionConnect,
       HgfsServerSessionDisconnect,
@@ -3824,7 +3824,7 @@ HgfsServerGetShareName(HgfsSharedFolderHandle sharedFolder, // IN: Notify handle
  */
 
 Bool
-HgfsServer_InitState(HgfsServerCallbacks **callbackTable,         // IN/OUT: our callbacks
+HgfsServer_InitState(const HgfsServerCallbacks **callbackTable,   // IN/OUT: our callbacks
                      HgfsServerConfig *serverCfgData,             // IN: configurable settings
                      HgfsServerMgrCallbacks *serverMgrData)       // IN: mgr callback
 {
