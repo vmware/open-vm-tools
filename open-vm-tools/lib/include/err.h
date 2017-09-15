@@ -51,7 +51,7 @@ const char *Err_Errno2String(Err_Number errorNumber);
 
 Err_Number Err_String2Errno(const char *string);
 
-#ifdef VMX86_DEBUG
+#if defined(VMX86_DEBUG)
 Err_Number Err_String2ErrnoDebug(const char *string);
 #endif
 
