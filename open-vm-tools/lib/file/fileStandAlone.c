@@ -769,7 +769,7 @@ File_ReplaceExtension(const char *pathName,      // IN:
       va_start(arguments, numExtensions);
 
       for (i = 0; i < numExtensions ; i++) {
-         char *oldExtension = va_arg(arguments, const char *);
+         const char *oldExtension = va_arg(arguments, const char *);
 
          ASSERT(*oldExtension == '.');
 
