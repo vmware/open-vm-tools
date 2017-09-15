@@ -30,13 +30,14 @@
 #include "CPersistenceInboundChannelAdapterInstance.h"
 #include "CPersistenceOutboundChannelAdapterInstance.h"
 
+#include "CMonitorListener.h"
+
 #include "CPersistenceMerge.h"
 #include "CConfigEnvMerge.h"
 #include "CConfigEnv.h"
 #include "CConfigEnvMessageHandler.h"
 #include "CConfigEnvInboundChannelAdapterInstance.h"
 #include "CConfigEnvOutboundChannelAdapterInstance.h"
-
 
 #include "CCollectSchemaExecutor.h"
 #include "CProviderCollectSchemaExecutor.h"

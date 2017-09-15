@@ -77,6 +77,8 @@ private:
 	int32 _listenerRetryCnt;
 	int32 _listenerRetryMax;
 
+	SmartPtrCMonitorListener _monitorListener;
+
 private:
 	CAF_CM_CREATE;
 	CAF_CM_CREATE_LOG;

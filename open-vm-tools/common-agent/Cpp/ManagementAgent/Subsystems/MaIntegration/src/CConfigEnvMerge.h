@@ -23,6 +23,8 @@ public:
 			const std::string& cacertPath,
 			const std::string& vcidPath);
 
+	static bool isTunnelEnabledFunc();
+
 private:
 	static std::deque<SmartPtrCPersistenceProtocolDoc> mergePersistenceProtocolCollectionInner(
 			const std::deque<SmartPtrCPersistenceProtocolDoc>& persistenceProtocolCollectionInner,
@@ -43,8 +45,6 @@ private:
 			const std::string& cacert);
 
 private:
-	static bool isTunnelEnabledFunc();
-
 	static std::string loadTextFile(
 			const std::string& path);
 

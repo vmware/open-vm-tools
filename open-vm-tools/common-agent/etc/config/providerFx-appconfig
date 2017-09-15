@@ -21,4 +21,4 @@ provider_reg_dir=${input_dir}/providerReg
 common_packages_dir=${input_dir}/commonPackages
 
 [security]
-cms_policy=CAF_Encrypted_And_Signed
+cms_policy=None

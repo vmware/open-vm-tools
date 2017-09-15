@@ -91,6 +91,7 @@ private:
 	SmartPtrCPersistenceDoc _persistence;
 	SmartPtrCPersistenceDoc _persistenceUpdated;
 	SmartPtrIPersistence _persistenceRemove;
+	SmartPtrCMonitorListener _monitorListener;
 
 private:
 	CAF_CM_CREATE;

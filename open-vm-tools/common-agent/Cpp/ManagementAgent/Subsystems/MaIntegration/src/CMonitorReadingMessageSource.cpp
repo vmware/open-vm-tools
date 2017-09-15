@@ -15,6 +15,8 @@
 
 using namespace Caf;
 
+#define LISTENER_STARTUP_TYPE_AUTOMATIC "Automatic"
+
 CMonitorReadingMessageSource::CMonitorReadingMessageSource() :
 		_isInitialized(false),
 		_listenerStartTimeMs(0),
@@ -37,6 +39,10 @@ void CMonitorReadingMessageSource::initialize(
 
 	const SmartPtrIDocument pollerDoc = configSection->findOptionalChild("poller");
 	setPollerMetadata(pollerDoc);
+
+
+	_monitorListener.CreateInstance();
+	_monitorListener->initialize();
 
 	_monitorDir = AppConfigUtils::getRequiredString("monitor_dir");
 	_restartListenerPath = FileSystemUtils::buildPath(_monitorDir, "restartListener.txt");
@@ -89,6 +95,10 @@ SmartPtrIIntMessage CMonitorReadingMessageSource::doReceive(
 	}
 
 	std::string reason;
+	// If Listener is pre-configured and Tunnel enabled, start listener
+	// Sets startup type if it is following tunnel
+	_monitorListener->followTunnel(_listenerStartupType);
+
 	if (FileSystemUtils::doesFileExist(_listenerConfiguredStage2Path)) {
 		if (FileSystemUtils::doesFileExist(_restartListenerPath)) {
 			reason = FileSystemUtils::loadTextFile(_restartListenerPath);
@@ -115,7 +125,7 @@ SmartPtrIIntMessage CMonitorReadingMessageSource::doReceive(
 								+ CStringConv::toString<int32>(_listenerRetryMax);
 						_listenerRetryCnt++;
 						_listenerStartTimeMs = CDateTimeUtils::getTimeMs();
-						startListener(reason);
+						_monitorListener->startListener(reason);
 					} else {
 						reason = "Listener not running... Retries exhausted - "
 								+ CStringConv::toString<int32>(_listenerRetryCnt + 1) + " of "
