@@ -246,6 +246,13 @@ typedef struct  Atomic_uint64 {
    volatile uint64 value;
 } Atomic_uint64 ALIGNED(8);
 
+#if (__GNUC__ > 4 || (__GNUC__ ==  4 && __GNUC_MINOR__ >= 6)) && \
+                                (defined(VM_X86_64) || defined(VM_ARM_64))
+typedef struct Atomic_uint128 {
+   volatile __int128 value;
+} Atomic_uint128 ALIGNED(16);
+#endif
+
 /*
  * Prototypes for msft atomics.  These are defined & inlined by the
  * compiler so no function definition is needed.  The prototypes are
@@ -455,6 +462,41 @@ CMPXCHG1B(volatile uint8 *ptr, // IN/OUT
 
 #endif /* defined(VM_ARM_64) */
    return val;
+}
+#endif
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Atomic_ReadIfEqualWrite128 --
+ *
+ *      Compare and exchange a 16 byte tuple.
+ *
+ * Results:
+ *      old value
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+#if (__GNUC__ > 4 || (__GNUC__ ==  4 && __GNUC_MINOR__ >= 6)) && \
+                                (defined(VM_X86_64) || defined(VM_ARM_64))
+static INLINE __int128
+Atomic_ReadIfEqualWrite128(Atomic_uint128 *ptr,   // IN/OUT
+                           __int128       oldVal, // IN
+                           __int128       newVal) // IN
+{
+   __int128 res;
+#ifdef VM_ARM_64
+   LDST_LDST_MEM_BARRIER();
+#endif
+   res = __sync_val_compare_and_swap(&ptr->value, oldVal, newVal);
+#ifdef VM_ARM_64
+   LDST_LDST_MEM_BARRIER();
+#endif
+   return res;
 }
 #endif
 
