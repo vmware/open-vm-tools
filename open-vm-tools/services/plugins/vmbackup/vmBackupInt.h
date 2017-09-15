@@ -67,6 +67,7 @@ typedef enum {
    VMBACKUP_MSTATE_SYNC_FREEZE,
    VMBACKUP_MSTATE_SYNC_THAW,
    VMBACKUP_MSTATE_SCRIPT_THAW,
+   VMBACKUP_MSTATE_COMPLETE_WAIT,
    VMBACKUP_MSTATE_SCRIPT_ERROR,
    VMBACKUP_MSTATE_SYNC_ERROR
 } VmBackupMState;
@@ -86,6 +87,7 @@ typedef struct VmBackupOp {
 
 
 struct VmBackupSyncProvider;
+struct VmBackupSyncCompleter;
 
 /**
  * Holds information about the current state of the backup operation.
@@ -129,6 +131,7 @@ typedef struct VmBackupState {
    VmBackupMState machineState;
    VmBackupFreezeStatus freezeStatus;
    struct VmBackupSyncProvider *provider;
+   struct VmBackupSyncCompleter *completer;
    gint           vssBackupContext;
    gint           vssBackupType;
    Bool           vssBootableSystemState;
@@ -138,6 +141,7 @@ typedef struct VmBackupState {
 
 typedef Bool (*VmBackupCallback)(VmBackupState *);
 typedef Bool (*VmBackupProviderCallback)(VmBackupState *, void *clientData);
+typedef Bool (*VmBackupCompleterCallback)(VmBackupState *, void *clientData);
 
 
 /**
@@ -156,6 +160,19 @@ typedef struct VmBackupSyncProvider {
    void (*release)(struct VmBackupSyncProvider *);
    void *clientData;
 } VmBackupSyncProvider;
+
+/**
+ * Defines the interface between the state machine and the implementation
+ * of the "sync completer": either the VSS completer or the sync driver
+ * completer, currently.
+ */
+
+typedef struct VmBackupSyncCompleter {
+   VmBackupCompleterCallback start;
+   VmBackupCompleterCallback snapshotCompleted;
+   void (*release)(struct VmBackupSyncCompleter *);
+   void *clientData;
+} VmBackupSyncCompleter;
 
 
 /**
@@ -260,6 +277,9 @@ VmBackup_NewSyncDriverOnlyProvider(void);
 #if defined(G_PLATFORM_WIN32)
 VmBackupSyncProvider *
 VmBackup_NewVssProvider(void);
+
+VmBackupSyncCompleter *
+VmBackup_NewVssCompleter(VmBackupSyncProvider *provider);
 
 void
 VmBackup_UnregisterSnapshotProvider(void);
