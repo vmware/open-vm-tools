@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -424,6 +424,12 @@ int AsyncSocket_DoOneMsg(AsyncSocket *s, Bool read, int timeoutMS);
  * Waits until at least one connect() is accept()ed or times out.
  */
 int AsyncSocket_WaitForConnection(AsyncSocket *s, int timeoutMS);
+
+/*
+ * Waits until a socket is ready with readable data or times out.
+ */
+int AsyncSocket_WaitForReadMultiple(AsyncSocket **asock, int numSock,
+                                    int timeoutMS, int *outIdx);
 
 /*
  * Send all pending packets onto the wire or give up after timeoutMS msecs.

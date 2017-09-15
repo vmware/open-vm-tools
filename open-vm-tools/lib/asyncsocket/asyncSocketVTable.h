@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011,2014-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011,2014-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -95,7 +95,8 @@ typedef struct AsyncSocketVTable {
    char *(*getWebSocketCookie)(AsyncSocket *asock);
    uint16 (*getWebSocketCloseStatus)(AsyncSocket *asock);
    const char *(*getWebSocketProtocol)(AsyncSocket *asock);
-   int (*setWebSocketCookie)(AsyncSocket *asock, void *clientData, const char *path, const char *sessionId);
+   int (*setWebSocketCookie)(AsyncSocket *asock, void *clientData,
+                             const char *path, const char *sessionId);
    int (*recvBlocking)(AsyncSocket *s, void *buf, int len, int *received,
                       int timeoutMS);
    int (*recvPartialBlocking)(AsyncSocket *s, void *buf, int len,
@@ -103,7 +104,9 @@ typedef struct AsyncSocketVTable {
    int (*sendBlocking)(AsyncSocket *s, void *buf, int len, int *sent,
                        int timeoutMS);
    int (*doOneMsg)(AsyncSocket *s, Bool read, int timeoutMS);
-   int (*waitForConnection)(AsyncSocket *s, int timeoutMS);   // IN:
+   int (*waitForConnection)(AsyncSocket *s, int timeoutMS);
+   int (*waitForReadMultiple)(AsyncSocket **asock, int numSock, int timeoutMS,
+                              int *outIdx);
 
 
    /*

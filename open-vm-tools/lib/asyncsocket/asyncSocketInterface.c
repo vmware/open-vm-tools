@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2016-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1454,6 +1454,57 @@ AsyncSocket_WaitForConnection(AsyncSocket *asock,         // IN
       AsyncSocketLock(asock);
       ret = VT(asock)->waitForConnection(asock, timeoutMS);
       AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocket_WaitForReadMultiple --
+ *
+ *      Waits on a list of sockets, returning when a socket becomes
+ *      available for read, or when the allowed time elapses.
+ *
+ *      Note, if this function is called by two threads with overlapping
+ *      sets of sockets, a deadlock can occur. The caller should guard
+ *      against such scenarios from happening, or making sure that there
+ *      is a consistent ordering to the lists of sockets.
+ *
+ *      The caller must also make sure synchronous and asynchronous
+ *      operations do not mix, as this function does not hold locks
+ *      for the entirety of the call.
+ *
+ * Results:
+ *      ASOCKERR_SUCCESS if one of the sockets is ready for read,
+ *      ASOCKERR_GENERIC on failures, and ASOCKERR_TIMEOUT if nothing
+ *      happened in the allotted time.
+ *
+ * Side effects:
+ *      None.
+ *----------------------------------------------------------------------------
+ */
+
+int
+AsyncSocket_WaitForReadMultiple(AsyncSocket **asock,  // IN
+                                int numSock,          // IN
+                                int timeoutMS,        // IN
+                                int *outIdx)          // OUT
+{
+   int i;
+   int ret;
+   if (numSock > 0 && VALID(asock[0], waitForReadMultiple)) {
+      for (i = 0; i < numSock; i++) {
+         AsyncSocketLock(asock[i]);
+      }
+      ret = VT(asock[0])->waitForReadMultiple(asock, numSock,
+                                              timeoutMS, outIdx);
+      for (i = numSock - 1; i >= 0; i--) {
+         AsyncSocketUnlock(asock[i]);
+      }
    } else {
       ret = ASOCKERR_INVAL;
    }
