@@ -224,6 +224,7 @@
    LOGLEVEL_VAR(remoteDevice), \
    LOGLEVEL_VAR(vncDecode), \
    LOGLEVEL_VAR(vncEncode), \
+   LOGLEVEL_VAR(vncBlit),   \
    LOGLEVEL_VAR(libconnect), \
    LOGLEVEL_VAR(state3d), \
    LOGLEVEL_VAR(vmGL), \
