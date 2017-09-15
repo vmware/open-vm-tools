@@ -2811,29 +2811,17 @@ Atomic_And64(Atomic_uint64 *var, // IN/OUT
 
 static INLINE void
 Atomic_SetBit64(Atomic_uint64 *var, // IN/OUT
-                uint64 bit)         // IN
+                unsigned bit)       // IN
 {
-#if defined __x86_64__
-#if defined __GNUC__
+#if defined __x86_64__ && defined __GNUC__
    ASSERT(bit <= 63);
    __asm__ __volatile__(
-      "lock; bts %1, %0"
+      "lock; btsq %1, %0"
       : "+m" (var->value)
-      : "ri" (bit)
+      : "ri" ((uint64)bit)
       : "cc"
    );
-#elif defined _MSC_VER
-   uint64 oldVal;
-   uint64 newVal;
-   ASSERT(bit <= 63);
-   do {
-      oldVal = var->value;
-      newVal = oldVal | (CONST64U(1) << bit);
-   } while (!Atomic_CMPXCHG64(var, oldVal, newVal));
 #else
-#error No compiler defined for Atomic_SetBit64
-#endif
-#else // __x86_64__
    uint64 oldVal;
    uint64 newVal;
    ASSERT(bit <= 63);
@@ -2863,29 +2851,17 @@ Atomic_SetBit64(Atomic_uint64 *var, // IN/OUT
 
 static INLINE void
 Atomic_ClearBit64(Atomic_uint64 *var, // IN/OUT
-                  uint64 bit)         // IN
+                  unsigned bit)       // IN
 {
-#if defined __x86_64__
-#if defined __GNUC__
+#if defined __x86_64__ && defined __GNUC__
    ASSERT(bit <= 63);
    __asm__ __volatile__(
-      "lock; btr %1, %0"
+      "lock; btrq %1, %0"
       : "+m" (var->value)
-      : "ri" (bit)
+      : "ri" ((uint64)bit)
       : "cc"
    );
-#elif defined _MSC_VER
-   uint64 oldVal;
-   uint64 newVal;
-   ASSERT(bit <= 63);
-   do {
-      oldVal = var->value;
-      newVal = oldVal & ~(CONST64U(1) << bit);
-   } while (!Atomic_CMPXCHG64(var, oldVal, newVal));
 #else
-#error No compiler defined for Atomic_ClearBit64
-#endif
-#else // __x86_64__
    uint64 oldVal;
    uint64 newVal;
    ASSERT(bit <= 63);
@@ -2915,30 +2891,22 @@ Atomic_ClearBit64(Atomic_uint64 *var, // IN/OUT
 
 static INLINE Bool
 Atomic_TestBit64(Atomic_uint64 *var, // IN
-                 uint64 bit)         // IN
+                 unsigned bit)       // IN
 {
-#if defined __x86_64__
-#if defined __GNUC__
-   Bool out = FALSE;
+   Bool out;
    ASSERT(bit <= 63);
+#if defined __x86_64__ && defined __GNUC__
    __asm__ __volatile__(
-      "bt %2, %1; setc %0"
+      "btq %2, %1; setc %0"
       : "=rm"(out)
       : "m" (var->value),
-        "rJ" (bit)
+        "rJ" ((uint64)bit)
       : "cc"
    );
-   return out;
-#elif defined _MSC_VER
-   ASSERT(bit <= 63);
-   return (var->value & (CONST64U(1) << bit)) != 0;
 #else
-#error No compiler defined for Atomic_TestBit64
+   out = (var->value & (CONST64U(1) << bit)) != 0;
 #endif
-#else // __x86_64__
-   ASSERT(bit <= 63);
-   return (var->value & (CONST64U(1) << bit)) != 0;
-#endif
+   return out;
 }
 
 
