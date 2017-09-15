@@ -314,7 +314,7 @@ Atomic_ReadIfEqualWrite128(Atomic_uint128 *ptr,   // IN/OUT
       "   b.ne    2f                  \n\t"
       "   stxp    %w2, %x6, %x7, %3   \n\t"
       "   cbnz    %w2, 1b             \n\t"
-      "2: clrex                       \n\t"
+      "2:                             \n\t"
       : "=&r" (res.lo),
         "=&r" (res.hi),
         "=&r" (failed),
