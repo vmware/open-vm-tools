@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -212,7 +212,16 @@
 #  define BDOOR_CMD_MKSSTATS_STOP             1
 #define   BDOOR_CMD_SECUREBOOT               89
 #define   BDOOR_CMD_COPY_PHYSMEM             90 /* Devel only. */
-#define   BDOOR_CMD_MAX                      91
+#define   BDOOR_CMD_STEALCLOCK               91 /* CPL 0 only. */
+#  define BDOOR_CMD_STCLK_STATUS              0
+#  define BDOOR_CMD_STCLK_ENABLE              1
+#  define BDOOR_CMD_STCLK_DISABLE             2
+#  define BDOOR_CMD_STCLK_STATUS_NOAVAIL      0
+#  define BDOOR_CMD_STCLK_STATUS_ENABLED      1
+#  define BDOOR_CMD_STCLK_STATUS_DISABLED     2
+#  define BDOOR_CMD_STCLK_OK                  0
+#  define BDOOR_CMD_STCLK_ERROR               1
+#define   BDOOR_CMD_MAX                      92
 
 
 /*
