@@ -222,7 +222,11 @@ extern "C" {
 #  define BDOOR_STEALCLOCK_STATUS_DISABLED    0
 #  define BDOOR_STEALCLOCK_STATUS_ENABLED     1
 #define   BDOOR_CMD_GUEST_PAGE_HINTS         92 /* CPL 0 only  */
-#define   BDOOR_CMD_MAX                      93
+#define   BDOOR_CMD_FIRMWARE_UPDATE          93 /* CPL 0 only. */
+#  define BDOOR_CMD_FU_GET_HOST_VERSION       0
+#  define BDOOR_CMD_FU_UPDATE_FROM_HOST       1
+#  define BDOOR_CMD_FU_LOCK                   2
+#define   BDOOR_CMD_MAX                      94
 
 
 /*
