@@ -266,8 +266,10 @@ typedef struct HgfsSharedFolderProperties {
 
 
 /* Allocate/Add sessions helper functions. */
+#ifndef VMX86_TOOLS
 static void
 HgfsServerAsyncInfoIncCount(HgfsAsyncRequestInfo *info);
+#endif
 
 static Bool
 HgfsServerAllocateSession(HgfsTransportSessionInfo *transportSession,
@@ -4538,6 +4540,7 @@ HgfsServerAsyncInfoDecCount(HgfsAsyncRequestInfo *info) // IN/OUT: info
 }
 
 
+#ifndef VMX86_TOOLS
 /*
  *-----------------------------------------------------------------------------
  *
@@ -4560,6 +4563,7 @@ HgfsServerAsyncInfoIncCount(HgfsAsyncRequestInfo *info) // IN/OUT: info
 {
    Atomic_Inc(&info->requestCount);
 }
+#endif // VMX86_TOOLS
 
 
 /*
