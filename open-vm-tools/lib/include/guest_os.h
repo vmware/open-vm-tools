@@ -157,7 +157,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define ALLPHOTON             BS(PHOTON_64)
 
 #define ALLSOLARIS11_OR_HIGHER \
-                              BS(SOLARIS11_64), BS(SOLARIS12_64)
+                              BS(SOLARIS11_64)
 
 #define ALLSOLARIS10_OR_HIGHER \
                               BS(SOLARIS10), BS(SOLARIS10_64), \

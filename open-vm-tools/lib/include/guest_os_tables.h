@@ -83,7 +83,6 @@ extern "C" {
    GOT(GUEST_OS_SOLARIS10)                                                 \
    GOT(GUEST_OS_SOLARIS10_64)                                              \
    GOT(GUEST_OS_SOLARIS11_64)                                              \
-   GOT(GUEST_OS_SOLARIS12_64)                                              \
    GOT(GUEST_OS_DARWIN9)           /* Mac OS 10.5 */                       \
    GOT(GUEST_OS_DARWIN9_64)                                                \
    GOT(GUEST_OS_DARWIN10)          /* Mac OS 10.6 */                       \
@@ -225,7 +224,6 @@ extern "C" {
    GOSL(STR_OS_SOLARIS "10",                 GUEST_OS_SOLARIS10,              "solaris.iso")          \
    GOSL(STR_OS_SOLARIS "10-64",              GUEST_OS_SOLARIS10_64,           "solaris.iso")          \
    GOSL(STR_OS_SOLARIS "11-64",              GUEST_OS_SOLARIS11_64,           "solaris.iso")          \
-   GOSL(STR_OS_SOLARIS "12-64",              GUEST_OS_SOLARIS12_64,           "solaris.iso")          \
    GOSL(STR_OS_SOLARIS "6",                  GUEST_OS_SOLARIS_6_AND_7,        "solaris.iso")          \
    GOSL(STR_OS_SOLARIS "7",                  GUEST_OS_SOLARIS_6_AND_7,        "solaris.iso")          \
    GOSL(STR_OS_SOLARIS "8",                  GUEST_OS_SOLARIS8,               "solaris.iso")          \
@@ -487,7 +485,6 @@ extern "C" {
    GOKM("solaris10",                            solaris10Guest,          TRUE) \
    GOKM("solaris10-64",                         solaris10_64Guest,       TRUE) \
    GOKM("solaris11-64",                         solaris11_64Guest,       TRUE) \
-   GOKM("solaris12-64",                         solaris12_64Guest,       TRUE) \
    /* macOS guests */ \
    GOKM("darwin",                               darwinGuest,             TRUE) \
    GOKM("darwin-64",                            darwin64Guest,           TRUE) \
