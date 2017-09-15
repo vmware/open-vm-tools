@@ -60,7 +60,7 @@ Posix_Dlopen(const char *pathName,  // IN:
 
    ret = dlopen(path, flag);
 
-   free(path);
+   Posix_Free(path);
    return ret;
 }
 #endif

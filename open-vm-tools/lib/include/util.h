@@ -515,8 +515,11 @@ Util_ZeroFree(void *buf,       // OUT/OPT
               size_t bufSize)  // IN
 {
    if (buf != NULL) {
+      // See Posix_Free.
+      int err = errno;
       Util_Zero(buf, bufSize);
       free(buf);
+      errno = err;
    }
 }
 
@@ -542,8 +545,11 @@ static INLINE void
 Util_ZeroFreeString(char *str)  // IN/OUT/OPT
 {
    if (str != NULL) {
+      // See Posix_Free.
+      int err = errno;
       Util_ZeroString(str);
       free(str);
+      errno = err;
    }
 }
 
@@ -570,8 +576,11 @@ static INLINE void
 Util_ZeroFreeStringW(wchar_t *str)  // IN/OUT/OPT
 {
    if (str != NULL) {
+      // See Posix_Free.
+      int err = errno;
       Util_Zero(str, wcslen(str) * sizeof *str);
       free(str);
+      errno = err;
    }
 }
 #endif // _WIN32
@@ -604,10 +613,15 @@ static INLINE void
 Util_FreeList(void **list,      // IN/OUT/OPT: the list to free
               ssize_t length)   // IN: the length
 {
+   // See Posix_Free.
+   int err;
+
    if (list == NULL) {
       ASSERT(length <= 0);
       return;
    }
+
+   err = errno;
 
    if (length >= 0) {
       ssize_t i;
@@ -625,6 +639,7 @@ Util_FreeList(void **list,      // IN/OUT/OPT: the list to free
       }
    }
    free(list);
+   errno = err;
 }
 
 static INLINE void

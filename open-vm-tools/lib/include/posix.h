@@ -16,8 +16,8 @@
  *
  *********************************************************/
 
-#ifndef _POSIX_H_
-#define _POSIX_H_
+#ifndef VMWARE_POSIX_H
+#define VMWARE_POSIX_H
 
 #define INCLUDE_ALLOW_USERLEVEL
 #define INCLUDE_ALLOW_VMCORE
@@ -102,6 +102,38 @@ long Posix_Pathconf(const char *pathName, int name);
 int Posix_Lstat(const char *pathName, struct stat *statbuf);
 char *Posix_MkTemp(const char *pathName);
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Posix_Free --
+ *
+ *      Wrapper around free() that preserves errno.
+ *
+ *      C11 (and earlier) does not prohibit free() implementations from
+ *      modifying errno.  That is undesirable since it can clobber errno along
+ *      cleanup paths, and it is expected to be prohibited by a future (as of
+ *      January 2017) version of the POSIX standard.  See:
+ *      <http://stackoverflow.com/a/30571921/179715>
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+Posix_Free(void *p)  // IN
+{
+   int err = errno;
+   free(p);
+   errno = err;
+}
+
+
 #if !defined(_WIN32)
 /*
  * These Windows APIs actually work with non-ASCII (MBCS) strings.
@@ -170,7 +202,7 @@ int Posix_GetGroupList(const char *user, gid_t group, gid_t *groups,
 #if !defined(__APPLE__) && !defined(__FreeBSD__)
 int Posix_Mount(const char *source, const char *target,
                 const char *filesystemtype, unsigned long mountflags,
-		const void *data);
+                const void *data);
 int Posix_Umount(const char *target);
 FILE *Posix_Setmntent(const char *pathName, const char *mode);
 struct mntent *Posix_Getmntent(FILE *fp);
@@ -280,6 +312,8 @@ Posix_FreeHostent(struct hostent *he)
    char **p;
 
    if (he) {
+      // See Posix_Free.
+      int err = errno;
       free(he->h_name);
       if (he->h_aliases) {
          Util_FreeStringList(he->h_aliases, -1);
@@ -290,6 +324,7 @@ Posix_FreeHostent(struct hostent *he)
       }
       free(he->h_addr_list);
       free(he);
+      errno = err;
    }
 #else
    (void) he;
@@ -342,10 +377,10 @@ Posix_GetHostName(char *name,   // OUT
          retval = -1;
          WSASetLastError(WSAEFAULT);
       }
-      free(nameUTF8);
+      Posix_Free(nameUTF8);
    }
 
-   free(nameMBCS);
+   Posix_Free(nameMBCS);
 
    return retval;
 }
@@ -384,7 +419,7 @@ Posix_GetHostByName(const char *name)  // IN
 
    if (nameMBCS != NULL) {
       hostentMBCS = gethostbyname(nameMBCS);
-      free(nameMBCS);
+      Posix_Free(nameMBCS);
 
       if (hostentMBCS != NULL) {
          newhostent = (struct hostent *)Util_SafeMalloc(sizeof *newhostent);
@@ -433,11 +468,11 @@ static INLINE void
 Posix_FreeHostent(struct hostent *he)
 {
    if (he) {
-      free(he->h_name);
+      Posix_Free(he->h_name);
       if (he->h_aliases) {
          Util_FreeStringList(he->h_aliases, -1);
       }
-      free(he);
+      Posix_Free(he);
    }
 }
 #endif  // defined(_WINSOCKAPI_) || defined(_WINSOCK2API_)
@@ -511,8 +546,8 @@ Posix_GetAddrInfo(const char *nodename,         // IN
       FreeAddrInfoW(resW);
    }
 
-   free(nodenameW);
-   free(servnameW);
+   Posix_Free(nodenameW);
+   Posix_Free(servnameW);
 
    return retval;
 }
@@ -539,6 +574,8 @@ Posix_FreeAddrInfo(struct addrinfo *ai)
 {
    struct addrinfo *temp;
 
+   // See Posix_Free.
+   int err = errno;
    while (ai) {
       temp = ai;
       ai = ai->ai_next;
@@ -546,6 +583,7 @@ Posix_FreeAddrInfo(struct addrinfo *ai)
       free(temp->ai_addr);
       free(temp);
    }
+   errno = err;
 }
 
 
@@ -617,10 +655,10 @@ Posix_GetNameInfo(const struct sockaddr *sa,  // IN
    }
 
 exit:
-   free(hostW);
-   free(servW);
-   free(hostUTF8);
-   free(servUTF8);
+   Posix_Free(hostW);
+   Posix_Free(servW);
+   Posix_Free(hostUTF8);
+   Posix_Free(servUTF8);
 
    return retval;
 }
@@ -694,4 +732,4 @@ exit:
 }  // extern "C"
 #endif
 
-#endif // _POSIX_H_
+#endif // VMWARE_POSIX_H
