@@ -168,7 +168,7 @@ int Posix_Execvp(const char *fileName, char *const argVal[]);
 DIR *Posix_OpenDir(const char *pathName);
 int Posix_System(const char *command);
 int Posix_Putenv(char *name);
-void Posix_Unsetenv(const char *name);
+int Posix_Unsetenv(const char *name);
 
 /*
  * These functions return dynamically allocated stings that have to be

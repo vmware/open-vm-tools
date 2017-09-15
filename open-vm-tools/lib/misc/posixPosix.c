@@ -1706,7 +1706,7 @@ exit:
  *      POSIX unsetenv().
  *
  * Results:
- *      None.
+ *      0 on success. -1 on error.
  *
  * Side effects:
  *      Environment may be changed.
@@ -1714,21 +1714,31 @@ exit:
  *----------------------------------------------------------------------
  */
 
-void
+int
 Posix_Unsetenv(const char *name)  // IN:
 {
    char *rawName;
+   int ret;
 
    if (!PosixConvertToCurrent(name, &rawName)) {
-      return;
+      return -1;
    }
 
 #if defined(sun)
-   putenv(rawName);
-#else
+   ret = putenv(rawName);
+#elif defined(__FreeBSD__)
+   /*
+    * Our tools build appears to use an old enough libc version that returns
+    * void.
+    */
    unsetenv(rawName);
+   ret = 0;
+#else
+   ret = unsetenv(rawName);
 #endif
    Posix_Free(rawName);
+
+   return ret;
 }
 
 
