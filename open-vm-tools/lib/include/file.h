@@ -100,7 +100,6 @@ FileMacosUnmountStatus FileMacos_UnmountDev(char const *bsdDev,
 void FileMacos_MountDevAsyncNoResult(char const *bsdDev,
                                      Bool su);
 
-Bool FileMacos_IsOnExternalDevice(int fd);
 Bool FileMacos_IsOnSparseDmg(int fd);
 Bool FileMacos_IsSliceDevice(char const *bsdDev);
 
