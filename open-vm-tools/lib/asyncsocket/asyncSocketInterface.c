@@ -49,8 +49,53 @@
  *   generally are NOT virtualized.
  */
 
+#include "vmware.h"
 #include "asyncsocket.h"
-#include "asyncSocketInt.h"
+#include "asyncSocketBase.h"
+#include "msg.h"
+#include "log.h"
+
+#define LOGLEVEL_MODULE asyncsocket
+#include "loglevel_user.h"
+
+
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocket_SetCloseOptions --
+ *
+ *      Enables optional behavior for AsyncSocket_Close():
+ *
+ *      - If flushEnabledMaxWaitMsec is non-zero, the output stream
+ *        will be flushed synchronously before the socket is closed.
+ *        (default is zero: close socket right away without flushing)
+ *
+ *      - If closeCb is set, the callback will be called asynchronously
+ *        when the socket is actually destroyed.
+ *        (default is NULL: no callback)
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+void
+AsyncSocket_SetCloseOptions(AsyncSocket *asock,           // IN
+                            int flushEnabledMaxWaitMsec,  // IN
+                            AsyncSocketCloseFn closeCb)   // IN
+{
+   if (VALID(asock, setCloseOptions)) {
+      AsyncSocketLock(asock);
+      VT(asock)->setCloseOptions(asock, flushEnabledMaxWaitMsec, closeCb);
+      AsyncSocketUnlock(asock);
+   }
+}
 
 
 /*
@@ -72,13 +117,17 @@
  */
 
 AsyncSocketState
-AsyncSocket_GetState(AsyncSocket *asock)
+AsyncSocket_GetState(AsyncSocket *asock)         // IN
 {
-   if (!asock) {
-      return ASOCKERR_INVAL;
+   AsyncSocketState ret;
+   if (VALID(asock, getState)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->getState(asock);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
    }
-   ASSERT(asock->vt->getState);
-   return asock->vt->getState(asock);
+   return ret;
 }
 
 
@@ -106,9 +155,15 @@ AsyncSocket_GetState(AsyncSocket *asock)
 int
 AsyncSocket_GetGenericErrno(AsyncSocket *asock)  // IN:
 {
-   ASSERT(asock);
-   ASSERT(asock->vt->getGenericErrno);
-   return asock->vt->getGenericErrno(asock);
+   int ret;
+   if (VALID(asock, getGenericErrno)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->getGenericErrno(asock);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = -1;
+   }
+   return ret;
 }
 
 
@@ -129,10 +184,17 @@ AsyncSocket_GetGenericErrno(AsyncSocket *asock)  // IN:
  */
 
 int
-AsyncSocket_GetFd(AsyncSocket *asock)
+AsyncSocket_GetFd(AsyncSocket *asock)         // IN
 {
-   ASSERT(asock->vt->getFd);
-   return asock->vt->getFd(asock);
+   int ret;
+   if (VALID(asock, getFd)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->getFd(asock);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = -1;
+   }
+   return ret;
 }
 
 
@@ -146,7 +208,7 @@ AsyncSocket_GetFd(AsyncSocket *asock)
  *      connection.
  *
  * Results:
- *      ASOCKERR_SUCCESS or ASOCKERR_GENERIC.
+ *      ASOCKERR_SUCCESS or ASOCKERR_INVAL.
  *
  * Side effects:
  *
@@ -158,9 +220,15 @@ int
 AsyncSocket_GetRemoteIPStr(AsyncSocket *asock,      // IN
                            const char **ipRetStr)   // OUT
 {
-   ASSERT(asock);
-   ASSERT(asock->vt->getRemoteIPStr);
-   return asock->vt->getRemoteIPStr(asock, ipRetStr);
+   int ret;
+   if (VALID(asock, getRemoteIPStr)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->getRemoteIPStr(asock, ipRetStr);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
 }
 
 
@@ -193,8 +261,15 @@ AsyncSocket_GetINETIPStr(AsyncSocket *asock,  // IN
                          int socketFamily,    // IN
                          char **ipRetStr)     // OUT
 {
-   ASSERT(asock->vt->getINETIPStr);
-   return asock->vt->getINETIPStr(asock, socketFamily, ipRetStr);
+   int ret;
+   if (VALID(asock, getINETIPStr)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->getINETIPStr(asock, socketFamily, ipRetStr);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
 }
 
 
@@ -218,8 +293,15 @@ AsyncSocket_GetINETIPStr(AsyncSocket *asock,  // IN
 unsigned int
 AsyncSocket_GetPort(AsyncSocket *asock)  // IN
 {
-   ASSERT(asock->vt->getPort);
-   return asock->vt->getPort(asock);
+   int ret;
+   if (VALID(asock, getPort)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->getPort(asock);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = MAX_UINT32;
+   }
+   return ret;
 }
 
 
@@ -232,7 +314,7 @@ AsyncSocket_GetPort(AsyncSocket *asock)  // IN
  *      enables Nagle's algorithm, respectively.
  *
  * Results:
- *      ASOCKERR_SUCCESS on success, ASOCKERR_GENERIC otherwise.
+ *      ASOCKERR_SUCCESS on success, ASOCKERR_* otherwise.
  *
  * Side Effects:
  *      Increased bandwidth usage for short messages on this socket
@@ -245,8 +327,15 @@ int
 AsyncSocket_UseNodelay(AsyncSocket *asock,  // IN/OUT:
                        Bool nodelay)        // IN:
 {
-   ASSERT(asock->vt->useNodelay);
-   return asock->vt->useNodelay(asock, nodelay);
+   int ret;
+   if (VALID(asock, useNodelay)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->useNodelay(asock, nodelay);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
 }
 
 
@@ -267,7 +356,7 @@ AsyncSocket_UseNodelay(AsyncSocket *asock,  // IN/OUT:
  *                   the connection if no response is received from the peer.
  *
  * Results:
- *      ASOCKERR_SUCCESS on success, ASOCKERR_GENERIC otherwise.
+ *      ASOCKERR_SUCCESS on success, ASOCKERR_* otherwise.
  *
  * Side Effects:
  *      None.
@@ -275,17 +364,22 @@ AsyncSocket_UseNodelay(AsyncSocket *asock,  // IN/OUT:
  *----------------------------------------------------------------------------
  */
 
-#ifdef VMX86_SERVER
 int
 AsyncSocket_SetTCPTimeouts(AsyncSocket *asock,  // IN/OUT:
                            int keepIdle,        // IN
                            int keepIntvl,       // IN
                            int keepCnt)         // IN
 {
-   ASSERT(asock->vt->setTCPTimeouts);
-   return asock->vt->setTCPTimeouts(asock, keepIdle, keepIntvl, keepCnt);
+   int ret;
+   if (VALID(asock, setTCPTimeouts)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->setTCPTimeouts(asock, keepIdle, keepIntvl, keepCnt);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
 }
-#endif
 
 
 /*
@@ -310,11 +404,15 @@ AsyncSocket_SetBufferSizes(AsyncSocket *asock,  // IN
                            int sendSz,          // IN
                            int recvSz)          // IN
 {
-   if (!asock) {
-      return FALSE;
+   Bool ret;
+   if (VALID(asock, setBufferSizes)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->setBufferSizes(asock, sendSz, recvSz);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = FALSE;
    }
-   ASSERT(asock->vt->setBufferSizes);
-   return asock->vt->setBufferSizes(asock, sendSz, recvSz);
+   return ret;
 }
 
 
@@ -346,8 +444,11 @@ void
 AsyncSocket_SetSendLowLatencyMode(AsyncSocket *asock,  // IN
                                   Bool enable)         // IN
 {
-   ASSERT(asock->vt->setSendLowLatencyMode);
-   asock->vt->setSendLowLatencyMode(asock, enable);
+   if (VALID(asock, setSendLowLatencyMode)) {
+      AsyncSocketLock(asock);
+      VT(asock)->setSendLowLatencyMode(asock, enable);
+      AsyncSocketUnlock(asock);
+   }
 }
 
 
@@ -380,10 +481,12 @@ AsyncSocket_StartSslConnect(AsyncSocket *asock,                   // IN
                             AsyncSocketSslConnectFn sslConnectFn, // IN
                             void *clientData)                     // IN
 {
-   ASSERT(asock);
-   ASSERT(asock->vt->startSslConnect);
-   asock->vt->startSslConnect(asock, verifyParam, sslCtx, sslConnectFn,
-                              clientData);
+   if (VALID(asock, startSslConnect)) {
+      AsyncSocketLock(asock);
+      VT(asock)->startSslConnect(asock, verifyParam, sslCtx, sslConnectFn,
+                                 clientData);
+      AsyncSocketUnlock(asock);
+   }
 }
 
 
@@ -409,9 +512,15 @@ AsyncSocket_ConnectSSL(AsyncSocket *asock,          // IN
                        SSLVerifyParam *verifyParam, // IN/OPT
                        void *sslContext)            // IN/OPT
 {
-   ASSERT(asock);
-   ASSERT(asock->vt->connectSSL);
-   return asock->vt->connectSSL(asock, verifyParam, sslContext);
+   Bool ret;
+   if (VALID(asock, connectSSL)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->connectSSL(asock, verifyParam, sslContext);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = FALSE;
+   }
+   return ret;
 }
 
 
@@ -435,11 +544,16 @@ Bool
 AsyncSocket_AcceptSSL(AsyncSocket *asock,    // IN
                       void *sslCtx)          // IN: optional
 {
-   ASSERT(asock);
-   ASSERT(asock->vt->acceptSSL);
-   return asock->vt->acceptSSL(asock, sslCtx);
+   Bool ret;
+   if (VALID(asock, acceptSSL)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->acceptSSL(asock, sslCtx);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = FALSE;
+   }
+   return ret;
 }
-
 
 /*
  *-----------------------------------------------------------------------------
@@ -467,9 +581,11 @@ AsyncSocket_StartSslAccept(AsyncSocket *asock,                 // IN
                            AsyncSocketSslAcceptFn sslAcceptFn, // IN
                            void *clientData)                   // IN
 {
-   ASSERT(asock);
-   ASSERT(asock->vt->startSslAccept);
-   asock->vt->startSslAccept(asock, sslCtx, sslAcceptFn, clientData);
+   if (VALID(asock, startSslAccept)) {
+      AsyncSocketLock(asock);
+      VT(asock)->startSslAccept(asock, sslCtx, sslAcceptFn, clientData);
+      AsyncSocketUnlock(asock);
+   }
 }
 
 
@@ -484,7 +600,8 @@ AsyncSocket_StartSslAccept(AsyncSocket *asock,                 // IN
  * Results:
  *      ASOCKERR_SUCCESS if it worked, ASOCKERR_GENERIC on system call
  *      failures, and ASOCKERR_TIMEOUT if we couldn't send enough data
- *      before the timeout expired.
+ *      before the timeout expired.  ASOCKERR_INVAL on invalid
+ *      parameters or operation not implemented on this socket.
  *
  * Side effects:
  *      None.
@@ -495,12 +612,15 @@ int
 AsyncSocket_Flush(AsyncSocket *asock,  // IN
                   int timeoutMS)       // IN
 {
-   if (asock == NULL) {
-      Warning(ASOCKPREFIX "Flush called with invalid arguments!\n");
-      return ASOCKERR_INVAL;
+   int ret;
+   if (VALID(asock, flush)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->flush(asock, timeoutMS);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
    }
-   ASSERT(asock->vt->flush);
-   return asock->vt->flush(asock, timeoutMS);
+   return ret;
 }
 
 
@@ -533,30 +653,39 @@ AsyncSocket_Flush(AsyncSocket *asock,  // IN
  */
 
 int
-AsyncSocket_Recv(AsyncSocket *asock,
-                 void *buf,
-                 int len,
-                 void *cb,
-                 void *cbData)
+AsyncSocket_Recv(AsyncSocket *asock,         // IN
+                 void *buf,                  // IN (buffer to fill)
+                 int len,                    // IN
+                 void *cb,                   // IN
+                 void *cbData)               // IN
 {
-   ASSERT(asock->vt->recv);
-   if (!asock) {
-      Warning(ASOCKPREFIX "Recv called with invalid arguments!\n");
-      return ASOCKERR_INVAL;
+   int ret;
+   if (VALID(asock, recv)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->recv(asock, buf, len, FALSE, cb, cbData);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
    }
-
-   return asock->vt->recv(asock, buf, len, FALSE, cb, cbData);
+   return ret;
 }
 
 int
-AsyncSocket_RecvPartial(AsyncSocket *asock,
-                        void *buf,
-                        int len,
-                        void *cb,
-                        void *cbData)
+AsyncSocket_RecvPartial(AsyncSocket *asock,         // IN
+                        void *buf,                  // IN (buffer to fill)
+                        int len,                    // IN
+                        void *cb,                   // IN
+                        void *cbData)               // IN
 {
-   ASSERT(asock->vt->recv);
-   return asock->vt->recv(asock, buf, len, TRUE, cb, cbData);
+   int ret;
+   if (VALID(asock, recv)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->recv(asock, buf, len, TRUE, cb, cbData);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
 }
 
 
@@ -584,13 +713,15 @@ AsyncSocket_RecvPassedFd(AsyncSocket *asock,  // IN/OUT: socket
                          void *cb,            // IN: completion calback
                          void *cbData)        // IN: callback's data
 {
-   if (!asock) {
-      Warning(ASOCKPREFIX "Recv called with invalid arguments!\n");
-      return ASOCKERR_INVAL;
+   int ret;
+   if (VALID(asock, recvPassedFd)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->recvPassedFd(asock, buf, len, cb, cbData);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
    }
-
-   ASSERT(asock->vt->recvPassedFd);
-   return asock->vt->recvPassedFd(asock, buf, len, cb, cbData);
+   return ret;
 }
 
 
@@ -613,13 +744,15 @@ AsyncSocket_RecvPassedFd(AsyncSocket *asock,  // IN/OUT: socket
 int
 AsyncSocket_GetReceivedFd(AsyncSocket *asock)      // IN
 {
-   if (!asock) {
-      Warning(ASOCKPREFIX "Invalid socket while receiving fd!\n");
-      return -1;
+   int ret;
+   if (VALID(asock, getReceivedFd)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->getReceivedFd(asock);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = -1;
    }
-
-   ASSERT(asock->vt->getReceivedFd);
-   return asock->vt->getReceivedFd(asock);
+   return ret;
 }
 
 
@@ -651,19 +784,21 @@ AsyncSocket_GetReceivedFd(AsyncSocket *asock)      // IN
  */
 
 int
-AsyncSocket_Send(AsyncSocket *asock,
-                 void *buf,
-                 int len,
-                 AsyncSocketSendFn sendFn,
-                 void *clientData)
+AsyncSocket_Send(AsyncSocket *asock,         // IN
+                 void *buf,                  // IN
+                 int len,                    // IN
+                 AsyncSocketSendFn sendFn,   // IN
+                 void *clientData)           // IN
 {
-   if (!asock || !buf || len <= 0) {
-      Warning(ASOCKPREFIX "Send called with invalid arguments! asynchSock: %p "
-              "buffer: %p length: %d\n", asock, buf, len);
-      return ASOCKERR_INVAL;
+   int ret;
+   if (VALID(asock, send)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->send(asock, buf, len, sendFn, clientData);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
    }
-   ASSERT(asock->vt->send);
-   return asock->vt->send(asock, buf, len, sendFn, clientData);
+   return ret;
 }
 
 
@@ -679,7 +814,7 @@ AsyncSocket_Send(AsyncSocket *asock,
  * Results:
  *      0: send space probably available,
  *      1: send has reached maximum,
- *      ASOCKERR_GENERIC: null socket.
+ *      ASOCKERR_INVAL: null socket or operation not supported.
  *
  * Side effects:
  *      None.
@@ -688,13 +823,49 @@ AsyncSocket_Send(AsyncSocket *asock,
  */
 
 int
-AsyncSocket_IsSendBufferFull(AsyncSocket *asock)
+AsyncSocket_IsSendBufferFull(AsyncSocket *asock)         // IN
 {
-   if (!asock) {
-      return ASOCKERR_GENERIC;
+   int ret;
+   if (VALID(asock, isSendBufferFull)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->isSendBufferFull(asock);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
    }
-   ASSERT(asock->vt->isSendBufferFull);
-   return asock->vt->isSendBufferFull(asock);
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocket_GetNetworkStats --
+ *
+ *      Get network statistics from the active socket.
+ *
+ * Results:
+ *      ASOCKERR_*
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+AsyncSocket_GetNetworkStats(AsyncSocket *asock,              // IN
+                            AsyncSocketNetworkStats *stats)  // OUT
+{
+   int ret;
+   if (VALID(asock, getNetworkStats)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->getNetworkStats(asock, stats);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
 }
 
 
@@ -720,13 +891,18 @@ AsyncSocket_IsSendBufferFull(AsyncSocket *asock)
  */
 
 int
-AsyncSocket_Close(AsyncSocket *asock)
+AsyncSocket_Close(AsyncSocket *asock)         // IN
 {
-   if (!asock) {
-      return ASOCKERR_INVAL;
+   int ret;
+   if (VALID(asock, close)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->close(asock);
+      AsyncSocketRelease(asock);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
    }
-   ASSERT(asock->vt->close);
-   return asock->vt->close(asock);
+   return ret;
 }
 
 
@@ -768,13 +944,16 @@ AsyncSocket_CancelRecvEx(AsyncSocket *asock,         // IN
                          void **recvFn,              // OUT
                          Bool cancelOnSend)          // IN
 {
-   if (!asock) {
-      Warning(ASOCKPREFIX "Invalid socket while cancelling recv request!\n");
-      return ASOCKERR_INVAL;
+   int ret;
+   if (VALID(asock, cancelRecv)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->cancelRecv(asock, partialRecvd, recvBuf, recvFn,
+                                  cancelOnSend);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
    }
-   ASSERT(asock->vt->cancelRecv);
-   return asock->vt->cancelRecv(asock, partialRecvd, recvBuf, recvFn,
-                                cancelOnSend);
+   return ret;
 }
 
 
@@ -799,8 +978,11 @@ AsyncSocket_CancelRecvEx(AsyncSocket *asock,         // IN
 void
 AsyncSocket_CancelCbForClose(AsyncSocket *asock)  // IN:
 {
-   ASSERT(asock->vt->cancelCbForClose);
-   asock->vt->cancelCbForClose(asock);
+   if (VALID(asock, cancelCbForClose)) {
+      AsyncSocketLock(asock);
+      VT(asock)->cancelCbForClose(asock);
+      AsyncSocketUnlock(asock);
+   }
 }
 
 
@@ -827,9 +1009,15 @@ AsyncSocket_GetLocalVMCIAddress(AsyncSocket *asock,  // IN
                                 uint32 *cid,         // OUT: optional
                                 uint32 *port)        // OUT: optional
 {
-   ASSERT(asock);
-   ASSERT(asock->vt->getLocalVMCIAddress);
-   return asock->vt->getLocalVMCIAddress(asock, cid, port);
+   int ret;
+   if (VALID(asock, getLocalVMCIAddress)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->getLocalVMCIAddress(asock, cid, port);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
 }
 
 
@@ -856,9 +1044,47 @@ AsyncSocket_GetRemoteVMCIAddress(AsyncSocket *asock,  // IN
                                  uint32 *cid,         // OUT: optional
                                  uint32 *port)        // OUT: optional
 {
-   ASSERT(asock);
-   ASSERT(asock->vt->getRemoteVMCIAddress);
-   return asock->vt->getRemoteVMCIAddress(asock, cid, port);
+   int ret;
+   if (VALID(asock, getRemoteVMCIAddress)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->getRemoteVMCIAddress(asock, cid, port);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocket_GetWebSocketError --
+ *
+ *      Return the HTTP error code supplied during a failed WebSocket
+ *      upgrade negotiation.
+ *
+ * Results:
+ *      Numeric HTTP error code, 0 if no error, or -1 on invalid arguments.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+AsyncSocket_GetWebSocketError(AsyncSocket *asock)    // IN
+{
+   int ret;
+   if (VALID(asock, getWebSocketError)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->getWebSocketError(asock);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = -1;
+   }
+   return ret;
 }
 
 
@@ -881,9 +1107,15 @@ AsyncSocket_GetRemoteVMCIAddress(AsyncSocket *asock,  // IN
 char *
 AsyncSocket_GetWebSocketURI(AsyncSocket *asock)    // IN
 {
-   ASSERT(asock);
-   ASSERT(asock->vt->getWebSocketURI);
-   return asock->vt->getWebSocketURI(asock);
+   char *ret;
+   if (VALID(asock, getWebSocketURI)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->getWebSocketURI(asock);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = NULL;
+   }
+   return ret;
 }
 
 
@@ -908,11 +1140,15 @@ AsyncSocket_GetWebSocketURI(AsyncSocket *asock)    // IN
 char *
 AsyncSocket_GetWebSocketCookie(AsyncSocket *asock)    // IN
 {
-   ASSERT(asock);
-   if (asock->vt->getWebSocketCookie) {
-      return asock->vt->getWebSocketCookie(asock);
+   char *ret;
+   if (VALID(asock, getWebSocketCookie)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->getWebSocketCookie(asock);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = NULL;
    }
-   return NULL;
+   return ret;
 }
 
 
@@ -933,11 +1169,17 @@ AsyncSocket_GetWebSocketCookie(AsyncSocket *asock)    // IN
  */
 
 uint16
-AsyncSocket_GetWebSocketCloseStatus(const AsyncSocket *asock)   // IN
+AsyncSocket_GetWebSocketCloseStatus(AsyncSocket *asock)   // IN
 {
-   ASSERT(asock);
-   ASSERT(asock->vt->getWebSocketCloseStatus);
-   return asock->vt->getWebSocketCloseStatus(asock);
+   uint16 ret;
+   if (VALID(asock, getWebSocketCloseStatus)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->getWebSocketCloseStatus(asock);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = 0;
+   }
+   return ret;
 }
 
 
@@ -962,9 +1204,199 @@ AsyncSocket_GetWebSocketCloseStatus(const AsyncSocket *asock)   // IN
 const char *
 AsyncSocket_GetWebSocketProtocol(AsyncSocket *asock)  // IN
 {
-   ASSERT(asock);
-   if (asock->vt->getWebSocketProtocol) {
-      return asock->vt->getWebSocketProtocol(asock);
+   const char *ret;
+   if (VALID(asock, getWebSocketProtocol)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->getWebSocketProtocol(asock);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = NULL;
    }
-   return NULL;
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocket_RecvBlocking --
+ *
+ *      Implement "blocking + timeout" operations on the socket. These are
+ *      simple wrappers around the AsyncTCPSocketBlockingWork function, which
+ *      operates on the actual non-blocking socket, using poll to determine
+ *      when it's ok to keep reading/writing. If we can't finish within the
+ *      specified time, we give up and return the ASOCKERR_TIMEOUT error.
+ *
+ *      Note that if these are called from a callback and a lock is being
+ *      used (pollParams.lock), the whole blocking operation takes place
+ *      with that lock held.  Regardless, it is the caller's responsibility
+ *      to make sure the synchronous and asynchronous operations do not mix.
+ *
+ * Results:
+ *      ASOCKERR_SUCCESS if we finished the operation, ASOCKERR_* error codes
+ *      otherwise.
+ *
+ * Side effects:
+ *      Reads/writes the socket.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+AsyncSocket_RecvBlocking(AsyncSocket *asock,         // IN
+                         void *buf,                  // OUT
+                         int len,                    // IN
+                         int *received,              // OUT
+                         int timeoutMS)              // IN
+{
+   int ret;
+   if (VALID(asock, recvBlocking)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->recvBlocking(asock, buf, len, received, timeoutMS);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocket_RecvPartialBlocking --
+ *
+ *      Implement "blocking + timeout" version of RecvPartial
+ *
+ * Results:
+ *      ASOCKERR_SUCCESS if we finished the operation, ASOCKERR_* error codes
+ *      otherwise.
+ *
+ * Side effects:
+ *      Reads/writes the socket.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+AsyncSocket_RecvPartialBlocking(AsyncSocket *asock,         // IN
+                                void *buf,                  // OUT
+                                int len,                    // IN
+                                int *received,              // OUT
+                                int timeoutMS)              // IN
+{
+   int ret;
+   if (VALID(asock, recvPartialBlocking)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->recvPartialBlocking(asock, buf, len, received,
+                                           timeoutMS);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocket_SendBlocking --
+ *
+ *      Implement "blocking + timeout" version of Send
+ *
+ * Results:
+ *      ASOCKERR_SUCCESS if we finished the operation, ASOCKERR_* error codes
+ *      otherwise.
+ *
+ * Side effects:
+ *      Reads/writes the socket.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+AsyncSocket_SendBlocking(AsyncSocket *asock,         // IN
+                         void *buf,                  // IN
+                         int len,                    // IN
+                         int *sent,                  // OUT
+                         int timeoutMS)              // IN
+{
+   int ret;
+   if (VALID(asock, sendBlocking)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->sendBlocking(asock, buf, len, sent, timeoutMS);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocket_DoOneMsg --
+ *
+ *      Spins a socket until the specified amount of time has elapsed or
+ *      data has arrived / been sent.
+ *
+ * Results:
+ *      ASOCKERR_SUCCESS if it worked, ASOCKERR_GENERIC on system call
+ *         failures
+ *      ASOCKERR_TIMEOUT if nothing happened in the allotted time.
+ *
+ * Side effects:
+ *      None.
+ *----------------------------------------------------------------------------
+ */
+
+int
+AsyncSocket_DoOneMsg(AsyncSocket *asock,         // IN
+                     Bool read,                  // IN
+                     int timeoutMS)              // IN
+{
+   int ret;
+   if (VALID(asock, doOneMsg)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->doOneMsg(asock, read, timeoutMS);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocket_WaitForConnection --
+ *
+ *      Spins a socket currently listening or connecting until the
+ *      connection completes or the allowed time elapses.
+ *
+ * Results:
+ *      ASOCKERR_SUCCESS if it worked, ASOCKERR_GENERIC on failures, and
+ *      ASOCKERR_TIMEOUT if nothing happened in the allotted time.
+ *
+ * Side effects:
+ *      None.
+ *----------------------------------------------------------------------------
+ */
+
+int
+AsyncSocket_WaitForConnection(AsyncSocket *asock,         // IN
+                              int timeoutMS)              // IN
+{
+   int ret;
+   if (VALID(asock, waitForConnection)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->waitForConnection(asock, timeoutMS);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
 }

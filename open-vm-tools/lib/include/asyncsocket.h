@@ -49,10 +49,6 @@
 #define INCLUDE_ALLOW_USERLEVEL
 #include "includeCheck.h"
 
-#ifdef __APPLE__
-#include <TargetConditionals.h>
-#endif
-
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -77,6 +73,30 @@ extern "C" {
 #define ASOCKERR_NETUNREACH        14
 #define ASOCKERR_ADDRUNRESV        15
 
+/*
+ * Cross-platform codes for AsyncSocket_GetGenericError():
+ */
+#ifdef _WIN32
+#define ASOCK_ENOTCONN          WSAENOTCONN
+#define ASOCK_ENOTSOCK          WSAENOTSOCK
+#define ASOCK_EADDRINUSE        WSAEADDRINUSE
+#define ASOCK_ECONNECTING       WSAEWOULDBLOCK
+#define ASOCK_EWOULDBLOCK       WSAEWOULDBLOCK
+#define ASOCK_ENETUNREACH       WSAENETUNREACH
+#define ASOCK_ECONNRESET        WSAECONNRESET
+#define ASOCK_ECONNABORTED      WSAECONNABORTED
+#define ASOCK_EPIPE             ERROR_NO_DATA
+#else
+#define ASOCK_ENOTCONN          ENOTCONN
+#define ASOCK_ENOTSOCK          ENOTSOCK
+#define ASOCK_EADDRINUSE        EADDRINUSE
+#define ASOCK_ECONNECTING       EINPROGRESS
+#define ASOCK_EWOULDBLOCK       EWOULDBLOCK
+#define ASOCK_ENETUNREACH       ENETUNREACH
+#define ASOCK_ECONNRESET        ECONNRESET
+#define ASOCK_ECONNABORTED      ECONNABORTED
+#define ASOCK_EPIPE             EPIPE
+#endif
 
 /*
  * Websocket close status codes --
@@ -160,6 +180,15 @@ typedef enum AsyncSocketState {
    AsyncSocketClosed,
 } AsyncSocketState;
 
+
+typedef struct AsyncSocketNetworkStats {
+   uint32 cwndBytes;             /* maximum outstanding bytes */
+   uint32 rttSmoothedAvgMillis;  /* rtt average in milliseconds */
+   uint32 rttSmoothedVarMillis;  /* rtt variance in milliseconds */
+   uint32 queuedBytes;           /* unsent bytes in send queue */
+   uint32 inflightBytes;         /* current outstanding bytes */
+} AsyncSocketNetworkStats;
+
 AsyncSocketState AsyncSocket_GetState(AsyncSocket *sock);
 
 const char * AsyncSocket_Err2String(int err);
@@ -217,7 +246,7 @@ typedef void (*AsyncSocketSslAcceptFn) (Bool status, AsyncSocket *asock,
                                         void *clientData);
 typedef void (*AsyncSocketSslConnectFn) (Bool status, AsyncSocket *asock,
                                          void *clientData);
-typedef void (*AsyncSocketCloseCb) (AsyncSocket *asock);
+typedef void (*AsyncSocketCloseFn) (AsyncSocket *asock, void *clientData);
 
 /*
  * Listen on port and fire callback with new asock
@@ -239,7 +268,6 @@ AsyncSocket *AsyncSocket_ListenVMCI(unsigned int cid,
                                     void *clientData,
                                     AsyncSocketPollParams *pollParams,
                                     int *outError);
-#ifndef VMX86_TOOLS
 AsyncSocket *AsyncSocket_ListenWebSocket(const char *addrStr,
                                          unsigned int port,
                                          Bool useSSL,
@@ -269,15 +297,13 @@ AsyncSocket *AsyncSocket_ListenWebSocketUDS(const char *pipeName,
                                             void *clientData,
                                             AsyncSocketPollParams *pollParams,
                                             int *outError);
-
 AsyncSocket *AsyncSocket_ListenSocketUDS(const char *pipeName,
                                          AsyncSocketConnectFn connectFn,
                                          void *clientData,
                                          AsyncSocketPollParams *pollParams,
                                          int *outError);
+#endif
 
-#endif
-#endif
 
 /*
  * Connect to address:port and fire callback with new asock
@@ -322,7 +348,6 @@ AsyncSocket_CreateNamedPipe(const char *pipeName,
                             int *error);
 #endif
 
-#if !defined VMX86_TOOLS || TARGET_OS_IPHONE
 AsyncSocket *
 AsyncSocket_ConnectWebSocket(const char *url,
                              struct _SSLVerifyParam *sslVerifyParam,
@@ -346,7 +371,6 @@ AsyncSocket_ConnectProxySocket(const char *url,
                                AsyncSocketConnectFlags flags,
                                AsyncSocketPollParams *pollParams,
                                int *error);
-#endif
 
 /*
  * Initiate SSL connection on existing asock, with optional cert verification
@@ -383,10 +407,8 @@ int AsyncSocket_UseNodelay(AsyncSocket *asock, Bool nodelay);
 /*
  * Set TCP timeout values on this AsyncSocket.
  */
-#ifdef VMX86_SERVER
 int AsyncSocket_SetTCPTimeouts(AsyncSocket *asock, int keepIdle,
                                int keepIntvl, int keepCnt);
-#endif
 
 /*
  * Waits until at least one packet is received or times out.
@@ -449,6 +471,8 @@ int AsyncSocket_Send(AsyncSocket *asock, void *buf, int len,
                       AsyncSocketSendFn sendFn, void *clientData);
 
 int AsyncSocket_IsSendBufferFull(AsyncSocket *asock);
+int AsyncSocket_GetNetworkStats(AsyncSocket *asock,
+                                AsyncSocketNetworkStats *stats);
 int AsyncSocket_CancelRecv(AsyncSocket *asock, int *partialRecvd, void **recvBuf,
                            void **recvFn);
 int AsyncSocket_CancelRecvEx(AsyncSocket *asock, int *partialRecvd, void **recvBuf,
@@ -477,14 +501,7 @@ Bool AsyncSocket_SetBufferSizes(AsyncSocket *asock,  // IN
  */
 void AsyncSocket_SetCloseOptions(AsyncSocket *asock,
                                  int flushEnabledMaxWaitMsec,
-                                 AsyncSocketCloseCb closeCb);
-
-/*
- * Send websocket close frame.
- */
-int
-AsyncSocket_SendWebSocketCloseFrame(AsyncSocket *asock,
-                                    uint16 closeStatus);
+                                 AsyncSocketCloseFn closeCb);
 
 /*
  * Close the connection and destroy the asock.
@@ -504,7 +521,7 @@ char *AsyncSocket_GetWebSocketCookie(AsyncSocket *asock);
 /*
  * Retrieve the close status, if received, for a websocket connection
  */
-uint16 AsyncSocket_GetWebSocketCloseStatus(const AsyncSocket *asock);
+uint16 AsyncSocket_GetWebSocketCloseStatus(AsyncSocket *asock);
 
 /*
  * Set low-latency mode for sends:
@@ -520,11 +537,6 @@ const char *AsyncSocket_GetWebSocketProtocol(AsyncSocket *asock);
  * Get error code for websocket failure
  */
 int AsyncSocket_GetWebSocketError(AsyncSocket *asock);
-
-/*
- * Get error code for proxySocket failure
- */
-int AsyncSocket_GetProxySocketError(AsyncSocket *asock);
 
 const char * stristr(const char *s, const char *find);
 
