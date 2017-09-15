@@ -2048,6 +2048,13 @@ VMCIHost_GetUserMemory(VA64 produceUVA,       // IN
    int err = VMCI_SUCCESS;
 
    down_write(&current->mm->mmap_sem);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0)
+   retval = get_user_pages((VA)produceUVA,
+                           produceQ->kernelIf->numPages,
+                           1, 0,
+                           produceQ->kernelIf->u.h.headerPage,
+                           NULL);
+#else
    retval = get_user_pages(current,
                            current->mm,
                            (VA)produceUVA,
@@ -2055,6 +2062,7 @@ VMCIHost_GetUserMemory(VA64 produceUVA,       // IN
                            1, 0,
                            produceQ->kernelIf->u.h.headerPage,
                            NULL);
+#endif
    if (retval < produceQ->kernelIf->numPages) {
       Log("get_user_pages(produce) failed (retval=%d)\n", retval);
       VMCIReleasePages(produceQ->kernelIf->u.h.headerPage, retval, FALSE);
