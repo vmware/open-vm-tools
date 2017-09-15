@@ -1754,6 +1754,7 @@ CPUID_FAMILY_IS_KYOTO(uint32 eax)
    return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_KYOTO;
 }
 
+
 /*
  * AMD Barcelona (of either Opteron or Phenom kind).
  */
@@ -1846,6 +1847,8 @@ CPUID_MODEL_IS_KYOTO(uint32 eax)
    return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_KYOTO &&
           CPUID_EFFECTIVE_MODEL(eax) == CPUID_MODEL_KYOTO_00;
 }
+
+
 
 #define CPUID_TYPE_PRIMARY     0
 #define CPUID_TYPE_OVERDRIVE   1
