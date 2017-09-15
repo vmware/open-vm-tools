@@ -159,7 +159,8 @@
    LOGLEVEL_VAR(mksMTLRenderer), \
    LOGLEVEL_VAR(vaBasicOps), \
    LOGLEVEL_VAR(vdpPlugin), \
-   \
+   LOGLEVEL_VAR(vncServer), \
+  \
    /* user/sound */ \
    LOGLEVEL_VAR(sound), \
    LOGLEVEL_VAR(hdaudio), \
