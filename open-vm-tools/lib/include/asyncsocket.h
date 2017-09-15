@@ -405,10 +405,14 @@ typedef void (*AsyncSocketSslAcceptFn) (Bool status, AsyncSocket *asock,
 typedef void (*AsyncSocketSslConnectFn) (Bool status, AsyncSocket *asock,
                                          void *clientData);
 typedef void (*AsyncSocketCloseFn) (AsyncSocket *asock, void *clientData);
+
 /*
  * Callback to handle http upgrade request header
  */
-typedef int (*AsyncWebSocketHandleUpgradeRequestFn) (AsyncSocket *asock, void *clientData);
+typedef int (*AsyncWebSocketHandleUpgradeRequestFn) (AsyncSocket *asock,
+                                                     void *clientData,
+                                                     const char *httpRequest,
+                                                     char **httpResponse);
 
 /*
  * Listen on port and fire callback with new asock
@@ -714,6 +718,12 @@ const char * stristr(const char *s, const char *find);
 Bool AsyncSocket_WebSocketParseURL(const char *url, char **hostname,
                                    unsigned int *port, Bool *useSSL,
                                    char **relativeURL);
+
+/*
+ * Find and return the value for the given header key in the supplied buffer
+ */
+char *AsyncSocket_WebSocketGetHttpHeader(const char *request,
+                                         const char *webKey);
 
 /*
  * Some logging macros for convenience
