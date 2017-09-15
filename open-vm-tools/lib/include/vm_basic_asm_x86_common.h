@@ -413,7 +413,7 @@ SMP_W_BARRIER_R(void)
 #elif defined _MSC_VER
    _InterlockedXor(&temp, 1);
 #else
-#error ST_LD_MEM_BARRIER not defined for this compiler
+#error SMP_W_BARRIER_R not defined for this compiler
 #endif
    COMPILER_MEM_BARRIER();
 }
@@ -460,7 +460,6 @@ SMP_W_BARRIER_R(void)
 #define LD_LD_MEM_BARRIER()      SMP_R_BARRIER_R()
 #define LD_ST_MEM_BARRIER()      SMP_R_BARRIER_W()
 #define LD_LDST_MEM_BARRIER()    SMP_R_BARRIER_RW()
-#define ST_LD_MEM_BARRIER()      SMP_W_BARRIER_R()
 
 
 #endif // _VM_BASIC_ASM_X86_COMMON_H_
