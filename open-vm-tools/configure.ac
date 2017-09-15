@@ -549,6 +549,7 @@ if test "$use_xmlsec1" = "yes"; then
                     [],
                     [AC_VMW_LIB_ERROR([XMLSEC1], [xmlsec1])])
 else
+   AC_VMW_DEFAULT_FLAGS([XERCES])
    AC_VMW_CHECK_LIB([xerces-c],
                     [XERCES],
                     [],
