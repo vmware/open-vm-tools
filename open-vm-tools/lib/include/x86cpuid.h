@@ -797,7 +797,7 @@ FLAG( 406,  0, EAX,  6,  1, MEMORY_PATROL_SCRUBBER,                NA,  FALSE)
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_410                                             \
 FIELD(410,  0, EAX,  0, 32, TSC_HZ,                                NA,  FALSE) \
-FIELD(410,  0, EBX,  0, 32, ACPIBUS_HZ,                            NA,  FALSE)
+FIELD(410,  0, EBX,  0, 32, APICBUS_HZ,                            NA,  FALSE)
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_80                                              \
