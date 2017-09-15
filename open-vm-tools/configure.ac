@@ -136,7 +136,7 @@ AC_ARG_WITH([kernel-modules],
 	    [AS_HELP_STRING([--with-kernel-modules],
 		[compile and install the kernel modules])],
 	    [],
-	    [if test "x$os" = "xlinux" -a "$osVersion" -ge 400000; then
+	    [if test "x$os" = "xlinux" ; then
 	        with_kernel_modules=no
 	     else
 	        with_kernel_modules=yes
@@ -146,18 +146,8 @@ AC_ARG_WITH([kernel-modules],
 if test "$with_kernel_modules" = "yes"; then
    case "$os" in
       linux)
-         if test "$osVersion" -lt 206009; then
-            AC_MSG_ERROR([Kernels prior to 2.6.9 are not supported in this release of open-vm-tools. Configure using --without-kernel-modules to suppress building kernel drivers.])
-         fi
-         if test ! -d "$LINUXDIR/kernel/"; then
-             AC_MSG_ERROR([$LINUXDIR/kernel does not exist])
-         fi
-         LINUXINCLUDE="$LINUXDIR/build/include"
-         if test ! -d "$LINUXINCLUDE"; then
-            AC_MSG_ERROR([Cannot find include dir under $LINUXDIR])
-         fi
+         AC_MSG_ERROR([Building kernel modules for Linux is no longer supported.])
          ;;
-
       freebsd)
          freebsd_sysdir=/usr/src/sys
          if test -n "$SYSDIR"; then
