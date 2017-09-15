@@ -40,6 +40,10 @@
 #include "vmciKernelAPI.h"
 #endif // _WIN32 && WINNT_DDK
 
+#if defined __cplusplus
+extern "C" {
+#endif
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -749,5 +753,10 @@ enum VMCrossTalkSockOpt {
 
 /* Clean up helper macros */
 #undef IOCTLCMD
+
+
+#if defined __cplusplus
+} // extern "C"
+#endif
 
 #endif // ifndef _VMCI_IOCONTROLS_H_

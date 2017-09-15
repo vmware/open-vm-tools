@@ -49,6 +49,11 @@
 
 #include "vm_basic_defs.h"
 
+#if defined __cplusplus
+extern "C" {
+#endif
+
+
 #define ETH_LADRF_LEN      2
 #define ETH_ADDR_LENGTH    6
 
@@ -1240,5 +1245,10 @@ Eth_IsFrameHeaderComplete(const Eth_Header *eh,
    }
    return FALSE;
 }
+
+
+#if defined __cplusplus
+} // extern "C"
+#endif
 
 #endif // _ETH_PUBLIC_H_

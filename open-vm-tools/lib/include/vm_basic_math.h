@@ -38,6 +38,10 @@
 #include "vm_basic_types.h" // For INLINE.
 #include "vm_basic_asm.h"   // For Div64...
 
+#if defined __cplusplus
+extern "C" {
+#endif
+
 
 static INLINE uint32
 RatioOf(uint32 numer1, uint32 numer2, uint32 denom)
@@ -177,5 +181,9 @@ RotateRight64(uint64 value, uint8 shift)
 }
 #endif // if !defined(_WIN32) && !defined(_WIN64)
 
+
+#if defined __cplusplus
+} // extern "C"
+#endif
 
 #endif // ifndef _VM_BASIC_MATH_H_

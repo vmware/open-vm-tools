@@ -30,6 +30,10 @@
 #ifndef _VM_PROCPS_H_
 #define _VM_PROCPS_H_
 
+#if defined __cplusplus
+extern "C" {
+#endif
+
 /*
  * The getstat() function below makes use of restricted pointers (added in C99)
  * and the 'jiff' type.
@@ -72,5 +76,9 @@ extern void getstat(jiff *restrict cuse, jiff *restrict cice,
                     unsigned int *restrict btime,
                     unsigned int *restrict processes);
 extern void meminfo(void);
+
+#if defined __cplusplus
+} // extern "C"
+#endif
 
 #endif // ifndef _VM_PROCPS_H_

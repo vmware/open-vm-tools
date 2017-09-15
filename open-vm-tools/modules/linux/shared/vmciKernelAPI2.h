@@ -30,8 +30,11 @@
 #define INCLUDE_ALLOW_VMKERNEL
 #include "includeCheck.h"
 
-
 #include "vmciKernelAPI1.h"
+
+#if defined __cplusplus
+extern "C" {
+#endif
 
 
 /* Define version 2. */
@@ -60,5 +63,9 @@ typedef int (VMCIDoorbell_CreateFct)(VMCIHandle *, uint32, VMCIPrivilegeFlags,
 typedef int (VMCIDoorbell_DestroyFct)(VMCIHandle);
 typedef int (VMCIDoorbell_NotifyFct)(VMCIHandle, VMCIPrivilegeFlags);
 
+
+#if defined __cplusplus
+} // extern "C"
+#endif
 
 #endif /* !__VMCI_KERNELAPI_2_H__ */

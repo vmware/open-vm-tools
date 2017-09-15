@@ -43,6 +43,10 @@
 #  include "util_copy_dist.h"
 #endif
 
+#if defined __cplusplus
+extern "C" {
+#endif
+
 
 /*
  * VMCIQueue
@@ -201,6 +205,10 @@ VMCIMemcpyFromQueueVLocal(void *dest,              // IN/OUT: iovec
 #  endif /* !VMKERNEL */
 #endif /* Does the O/S support iovec? */
 
+
+#if defined __cplusplus
+} // extern "C"
+#endif
 
 #endif /* !_VMCI_QUEUE_H_ */
 

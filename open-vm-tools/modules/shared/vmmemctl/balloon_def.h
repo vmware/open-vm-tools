@@ -75,6 +75,11 @@
 #include "vm_basic_defs.h"
 #include "vm_assert.h"
 
+#if defined __cplusplus
+extern "C" {
+#endif
+
+
 /*
  * constants
  */
@@ -306,5 +311,10 @@ Balloon_BatchSetStatus(BalloonBatchPage *batchPage,      // IN
 MY_ASSERTS(BALLOON_BATCH_SIZE,
            ASSERT_ON_COMPILE(sizeof(BalloonBatchPage) == PAGE_SIZE);
 )
+
+
+#if defined __cplusplus
+} // extern "C"
+#endif
 
 #endif  /* _BALLOON_DEF_H */

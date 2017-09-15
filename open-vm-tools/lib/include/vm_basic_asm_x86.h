@@ -49,6 +49,11 @@
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
+#if defined __cplusplus
+extern "C" {
+#endif
+
+
 #ifdef VM_X86_64
 /*
  * The gcc inline asm uses the "A" constraint which differs in 32 & 64
@@ -559,4 +564,9 @@ Muls64x32s64(int64 multiplicand, uint32 multiplier, uint32 shift)
 #pragma warning(default: 4035)
 #endif
 
+
+#if defined __cplusplus
+} // extern "C"
 #endif
+
+#endif // _VM_BASIC_ASM_X86_H_

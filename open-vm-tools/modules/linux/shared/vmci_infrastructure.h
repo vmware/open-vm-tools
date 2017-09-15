@@ -37,6 +37,11 @@
 #include "vmware.h"
 #include "vmci_defs.h"
 
+#if defined __cplusplus
+extern "C" {
+#endif
+
+
 typedef enum {
    VMCIOBJ_VMX_VM = 10,
    VMCIOBJ_CONTEXT,
@@ -147,5 +152,10 @@ VMCI_HashId(VMCIId id,      // IN
    }
    return hash & (size - 1);
 }
+
+
+#if defined __cplusplus
+} // extern "C"
+#endif
 
 #endif // _VMCI_INFRASTRUCTURE_H_

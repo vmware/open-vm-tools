@@ -54,6 +54,11 @@
 
 #include "vm_basic_asm.h"
 
+#if defined __cplusplus
+extern "C" {
+#endif
+
+
 #ifdef MUL64_NO_ASM
 /*
  *-----------------------------------------------------------------------------
@@ -137,6 +142,11 @@ Muls64x32s64(int64 multiplicand, uint32 multiplier, uint32 shift)
          ((lo2 >> (shift - 1)) & 1);
    }
 }
+#endif
+
+
+#if defined __cplusplus
+} // extern "C"
 #endif
 
 #endif // _MUL64_NOASM_H_

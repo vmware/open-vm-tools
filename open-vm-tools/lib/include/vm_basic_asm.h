@@ -69,6 +69,11 @@
 #include "mul64.h"
 #endif
 
+#if defined __cplusplus
+extern "C" {
+#endif
+
+
 /*
  * Locate most and least significant bit set functions. Use our own name
  * space to avoid namespace collisions. The new names follow a pattern,
@@ -1274,6 +1279,11 @@ RoundUpPow2_32(uint32 value)
    return RoundUpPow2C32(value);
 #endif
 }
+
+
+#if defined __cplusplus
+} // extern "C"
+#endif
 
 #endif // _VM_BASIC_ASM_H_
 

@@ -44,6 +44,10 @@
 #include "vm_basic_types.h"
 #include "vm_assert.h"
 
+#if defined __cplusplus
+extern "C" {
+#endif
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -340,5 +344,10 @@ Clamped_URoundUpBits32(uint32 *out,  // OUT
    *out = c;
    return TRUE;
 }
+
+
+#if defined __cplusplus
+} // extern "C"
+#endif
 
 #endif // ifndef _CLAMPED_H_

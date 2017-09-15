@@ -33,6 +33,10 @@
 #include "vmci_defs.h"
 #include "vmci_call_defs.h"
 
+#if defined __cplusplus
+extern "C" {
+#endif
+
 
 /* VMCI module namespace on vmkernel. */
 
@@ -196,6 +200,10 @@ typedef ssize_t (VMCIQPair_EnqueueVFct)(VMCIQPair *qpair, void *, size_t, int);
 typedef ssize_t (VMCIQPair_DequeueVFct)(VMCIQPair *qpair, void *, size_t, int);
 typedef ssize_t (VMCIQPair_PeekVFct)(VMCIQPair *qpair, void *, size_t, int);
 
+
+#if defined __cplusplus
+} // extern "C"
+#endif
 
 #endif /* !__VMCI_KERNELAPI_1_H__ */
 

@@ -51,6 +51,11 @@
 #include "x86vendor.h"
 #include "vm_assert.h"
 
+#if defined __cplusplus
+extern "C" {
+#endif
+
+
 /*
  * The linux kernel's ptrace.h stupidly defines the bare
  * EAX/EBX/ECX/EDX, which wrecks havoc with our preprocessor tricks.
@@ -2046,4 +2051,9 @@ CPUID_SupportsMsrPlatformInfo(CpuidVendor vendor, uint32 version)
 #pragma warning (pop)
 #endif
 
+
+#if defined __cplusplus
+} // extern "C"
 #endif
+
+#endif // _X86CPUID_H_

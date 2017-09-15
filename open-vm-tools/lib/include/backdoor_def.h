@@ -49,6 +49,11 @@
 #define INCLUDE_ALLOW_VMKERNEL
 #include "includeCheck.h"
 
+#if defined __cplusplus
+extern "C" {
+#endif
+
+
 /*
  * If you want to add a new low-level backdoor call for a guest userland
  * application, please consider using the GuestRpc mechanism instead. --hpreg
@@ -323,4 +328,8 @@ Backdoor_CmdRequiresFullyValidVCPU(unsigned cmd)
 #endif
 
 
+#if defined __cplusplus
+}
 #endif
+
+#endif // _BACKDOOR_DEF_H_

@@ -29,6 +29,10 @@
 #ifndef _VMCI_SOCKETS_INT_H_
 #define _VMCI_SOCKETS_INT_H_
 
+#if defined __cplusplus
+extern "C" {
+#endif
+
 
 #if defined(_WIN32)
 #  if defined(NT_INCLUDED)
@@ -56,6 +60,10 @@
 #  endif // NT_INCLUDED
 #endif // _WIN32
 
+
+#if defined __cplusplus
+} // extern "C"
+#endif
 
 #endif // _VMCI_SOCKETS_INT_H_
 

@@ -29,6 +29,10 @@
 #include "vm_basic_asm.h"
 #include "x86cpuid_asm.h"
 
+#if defined __cplusplus
+extern "C" {
+#endif
+
 
 typedef struct CPUID0 {
    int numEntries;
@@ -92,4 +96,9 @@ CPUIDSummary_RegsFromCpuid0(CPUID0* id0In,
    return id0Out;
 }
 
+
+#if defined __cplusplus
+} // extern "C"
 #endif
+
+#endif // _CPUID_INFO_H

@@ -62,6 +62,10 @@
 
 #ifndef RC_INVOKED
 
+#if defined __cplusplus
+extern "C" {
+#endif
+
 typedef uint32 ToolsVersion;
 typedef enum {
   TOOLS_TYPE_UNSET = -1,
@@ -87,7 +91,12 @@ TOOLS_VERSION_UINT_TO_COMPONENTS(const ToolsVersion toolsVersion,   // IN
    comps->minor = (toolsVersion >> 5) & 0x1f;
    comps->base  = toolsVersion & 0x1f;
 }
+
+#if defined __cplusplus
+} // extern "C"
 #endif
+
+#endif // RC_INVOKED
 
 /*
  * Reserve the highest possible Tools version for Tools whose lifecycle isn't

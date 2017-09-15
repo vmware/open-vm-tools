@@ -29,6 +29,11 @@
 
 #include <ctype.h>
 
+#if defined __cplusplus
+extern "C" {
+#endif
+
+
 /*
  * On Windows platform, ctype.h functions are implemented via table lookup,
  * and a negative index is unsafe.  See bug 83950.
@@ -69,4 +74,9 @@ static __inline int CType_IsBlank(int c) { return c == ' ' || c == '\t'; }
 
 #endif /* _WIN32 */
 
+
+#if defined __cplusplus
+}
 #endif
+
+#endif // _VM_CTYPE_H_

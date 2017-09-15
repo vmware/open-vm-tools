@@ -40,6 +40,11 @@
 #include "vm_libc.h"
 #endif // VMKERNEL
 
+#if defined __cplusplus
+extern "C" {
+#endif
+
+
 #define VMCI_HANDLE_ARRAY_DEFAULT_SIZE 4
 
 typedef struct VMCIHandleArray {
@@ -363,5 +368,10 @@ VMCIHandleArray_GetHandles(VMCIHandleArray *array) // IN
       return NULL;
    }
 }
+
+
+#if defined __cplusplus
+} // extern "C"
+#endif
 
 #endif // _VMCI_HANDLE_ARRAY_H_

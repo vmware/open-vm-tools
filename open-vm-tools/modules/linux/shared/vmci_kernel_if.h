@@ -72,6 +72,11 @@
 #  include "dbllnklst.h"
 #endif
 
+#if defined __cplusplus
+extern "C" {
+#endif
+
+
 /* Flags for specifying memory type. */
 #define VMCI_MEMORY_NORMAL   0x0
 #define VMCI_MEMORY_ATOMIC   0x1
@@ -457,6 +462,11 @@ Bool VMCI_HostPersonalityActive(void);
 #  define VMCIList_ScanSafe(_cur, _next, _l) DblLnkLst_ForEachSafe(_cur, _next, _l)
 #  define VMCIList_Entry(_elem, _type, _field) DblLnkLst_Container(_elem, _type, _field)
 #  define VMCIList_First(_l) (VMCIList_Empty(_l)?NULL:(_l)->next)
+#endif
+
+
+#if defined __cplusplus
+} // extern "C"
 #endif
 
 #endif // _VMCI_KERNEL_IF_H_

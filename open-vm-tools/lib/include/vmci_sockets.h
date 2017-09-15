@@ -45,6 +45,11 @@
 #endif // linux && !VMKERNEL
 #endif
 
+#if defined __cplusplus
+extern "C" {
+#endif
+
+
 /**
  * \brief Option name for STREAM socket buffer size.
  *
@@ -856,6 +861,10 @@ struct uuid_2_cid {
 #endif // __FreeBSD__
 #endif // _WIN32
 
+
+#if defined __cplusplus
+} // extern "C"
+#endif
 
 #endif // _VMCI_SOCKETS_H_
 

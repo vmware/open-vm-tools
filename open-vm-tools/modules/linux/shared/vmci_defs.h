@@ -34,6 +34,10 @@
 #include "vm_atomic.h"
 #include "vm_assert.h"
 
+#if defined __cplusplus
+extern "C" {
+#endif
+
 /* Register offsets. */
 #define VMCI_STATUS_ADDR      0x00
 #define VMCI_CONTROL_ADDR     0x04
@@ -904,5 +908,9 @@ typedef struct {
 
 typedef VMCIFilterList VMCIProtoFilters[VMCI_FP_MAX];
 typedef VMCIProtoFilters VMCIFilters[VMCI_FD_MAX];
+
+#if defined __cplusplus
+} // extern "C"
+#endif
 
 #endif // _VMCI_DEF_H_

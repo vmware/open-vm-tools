@@ -32,6 +32,11 @@
 #include "vm_basic_types.h"
 #include "vmci_defs.h"
 
+#if defined __cplusplus
+extern "C" {
+#endif
+
+
 /*
  * All structs here are an integral size of their largest member, ie. a struct 
  * with at least one 8-byte member will have a size that is an integral of 8.
@@ -310,4 +315,9 @@ typedef struct VMCIQueuePairDetachMsg {
    VMCIHandle    handle;
 } VMCIQueuePairDetachMsg;
 
+
+#if defined __cplusplus
+} // extern "C"
 #endif
+
+#endif // _VMCI_CALL_DEFS_H_

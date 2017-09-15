@@ -44,6 +44,10 @@
 #include "net_sg.h"
 #include "vmxnet_def.h"
 
+#if defined __cplusplus
+extern "C" {
+#endif
+
 
 /*
  * Magic number that identifies this version of the vmxnet protocol.
@@ -417,5 +421,8 @@ Vmxnet2_GetRxEntry(Vmxnet2_RxRingInfo *ri, unsigned int idx)
 
 #endif /* defined VMX86_VMX || defined VMKERNEL */
 
+#if defined __cplusplus
+} // extern "C"
 #endif
 
+#endif // _VMXNET2_DEF_H_
