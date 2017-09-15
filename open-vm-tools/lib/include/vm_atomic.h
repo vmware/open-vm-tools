@@ -907,13 +907,29 @@ static INLINE void
 Atomic_Write(Atomic_uint32 *var, // OUT
              uint32 val)         // IN
 {
-#if defined(VMM)
+#if defined(VMM) || defined(VM_ARM_64)
    ASSERT(((uintptr_t)var % 4) == 0);
 #endif
 
 #if defined(__GNUC__)
-#if defined(VM_ARM_ANY)
+#if defined(VM_ARM_64)
    /*
+    * Just like x86, this only works for aligned addresses - and that's fine.
+    * Clearing the exclusive monitor is not required. The local monitor is
+    * cleared on any exception return, and the global monitor (as per B2.10.2,
+    * ARM DDI 0487A.k) is cleared by a successful write.
+    */
+   __asm__ __volatile__ (
+      "str %w0, [%1]"
+      :
+      : "r" (val), "r" (&var->value)
+      : "memory"
+   );
+#elif defined(VM_ARM_32)
+   /*
+    * Best left this way due to the intricacies of exclusive load/store
+    * operations on legacy (32-bit) ARM.
+    *
     * A3.4.1 ARM DDI 0406C:
     *
     * When a processor writes using any instruction other than a
@@ -2587,7 +2603,7 @@ Atomic_Write64(Atomic_uint64 *var, // OUT
 #if defined(__x86_64__)
 #if defined(__GNUC__)
 
-#ifdef VMM
+#if defined(VMM) || defined(VM_ARM_64)
    ASSERT((uintptr_t)var % 8 == 0);
 #endif
    /*
@@ -2615,7 +2631,20 @@ Atomic_Write64(Atomic_uint64 *var, // OUT
 #else
 #error No compiler defined for Atomic_Write64
 #endif
-#else  /* defined(__x86_64__) */
+#elif defined(VM_ARM_64) && defined(__GNUC__)
+   /*
+    * Just like x86, this only works for aligned addresses - and that's fine.
+    * Clearing the exclusive monitor is not required. The local monitor is
+    * cleared on any exception return, and the global monitor (as per B2.10.2,
+    * ARM DDI 0487A.k) is cleared by a successful write.
+    */
+   __asm__ __volatile__ (
+      "str %x0, [%1]"
+      :
+      : "r" (val), "r" (&var->value)
+      : "memory"
+   );
+#else
    (void)Atomic_ReadWrite64(var, val);
 #endif
 }
@@ -3011,7 +3040,7 @@ static INLINE void
 Atomic_Write16(Atomic_uint16 *var,  // OUT:
                uint16 val)          // IN:
 {
-#ifdef VMM
+#if defined(VMM) || defined(VM_ARM_64)
    ASSERT((uintptr_t)var % 2 == 0);
 #endif
 
@@ -3023,7 +3052,24 @@ Atomic_Write16(Atomic_uint16 *var,  // OUT:
       : "=m" (var->value)
       : "r" (val)
    );
-#elif defined(VM_ARM_ANY)
+#elif defined(VM_ARM_64)
+   /*
+    * Just like x86, this only works for aligned addresses - and that's fine.
+    * Clearing the exclusive monitor is not required. The local monitor is
+    * cleared on any exception return, and the global monitor (as per B2.10.2,
+    * ARM DDI 0487A.k) is cleared by a successful write.
+    */
+   __asm__ __volatile__ (
+      "strh %w0, [%1]"
+      :
+      : "r" (val), "r" (&var->value)
+      : "memory"
+   );
+#elif defined(VM_ARM_32)
+   /*
+    * Best left this way due to the intricacies of exclusive load/store
+    * operations on legacy (32-bit) ARM.
+    */
    Atomic_ReadWrite16(var, val);
 #else
 #error No 16-bits atomics.
