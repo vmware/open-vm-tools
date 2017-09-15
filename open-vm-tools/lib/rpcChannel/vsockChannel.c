@@ -68,13 +68,14 @@ static void VSockChannelShutdown(RpcChannel *chan);
 static SOCKET
 VSockCreateConn(gboolean *isPriv)        // OUT
 {
-   SockConnError err;
+   ApiError apiErr;
+   int sysErr;
    SOCKET fd;
 
    Debug(LGPFX "Creating privileged vsocket ...\n");
    fd = Socket_ConnectVMCI(VMCI_HYPERVISOR_CONTEXT_ID,
                            GUESTRPC_RPCI_VSOCK_LISTEN_PORT,
-                           TRUE, &err);
+                           TRUE, &apiErr, &sysErr);
 
    if (fd != INVALID_SOCKET) {
       Debug(LGPFX "Successfully created priv vsocket %d\n", fd);
@@ -82,11 +83,11 @@ VSockCreateConn(gboolean *isPriv)        // OUT
       return fd;
    }
 
-   if (err == SOCKERR_EACCESS) {
+   if (apiErr == SOCKERR_BIND && sysErr == SYSERR_EACCESS) {
       Debug(LGPFX "Creating unprivileged vsocket ...\n");
       fd = Socket_ConnectVMCI(VMCI_HYPERVISOR_CONTEXT_ID,
                               GUESTRPC_RPCI_VSOCK_LISTEN_PORT,
-                              FALSE, &err);
+                              FALSE, &apiErr, &sysErr);
       if (fd != INVALID_SOCKET) {
          Debug(LGPFX "Successfully created unpriv vsocket %d\n", fd);
          *isPriv = FALSE;
@@ -94,7 +95,7 @@ VSockCreateConn(gboolean *isPriv)        // OUT
       }
    }
 
-   Debug(LGPFX "Failed to create vsocket channel, err=%d\n", err);
+   Debug(LGPFX "Failed to create vsocket channel, %d, %d\n", apiErr, sysErr);
    return INVALID_SOCKET;
 }
 
