@@ -364,6 +364,9 @@ static int AsyncTCPSocketGetOption(AsyncSocket *asyncSocket,
                                    AsyncSocketOpts_ID optID,
                                    void *valuePtr,
                                    socklen_t *outBufLen);
+static void AsyncTCPSocketListenerError(int error,
+                                        AsyncSocket *asock,
+                                        void *clientData);
 
 
 /* Local constants. */
@@ -1083,6 +1086,12 @@ AsyncSocket_Listen(const char *addrStr,                // IN: optional
          AsyncTCPSocketSetState(asock, AsyncSocketListening);
          asock->listenAsock6 = asock6;
          asock->listenAsock4 = asock4;
+         AsyncSocket_SetErrorFn(BaseSocket(asock4),
+                                AsyncTCPSocketListenerError,
+                                asock);
+         AsyncSocket_SetErrorFn(BaseSocket(asock6),
+                                AsyncTCPSocketListenerError,
+                                asock);
 
          return BaseSocket(asock);
       } else if (asock6) {
@@ -3557,8 +3566,18 @@ AsyncTCPSocketAcceptInternal(AsyncTCPSocket *s)         // IN
       s->genericErrno = sysErr;
       if (sysErr == ASOCK_EWOULDBLOCK) {
          TCPSOCKWARN(s, ("spurious accept notification\n"));
-
+#if TARGET_OS_IPHONE
+         /*
+          * For iOS, while the app is suspended and device's screen is locked,
+          * system will reclaim resources from underneath socket(see Apple
+          * Technical Note TN2277), the callback function AsyncTCPSocketAcceptCallback()
+          * will be invoked repeatedly, to deal with this issue, we need to
+          * handle error EWOULDBLOCK.
+          */
+         return ASOCKERR_ACCEPT;
+#else
          return ASOCKERR_GENERIC;
+#endif
 #ifndef _WIN32
          /*
           * This sucks. Linux accept() can return ECONNABORTED for connections
@@ -4373,7 +4392,6 @@ static int
 AsyncTCPSocketClose(AsyncSocket *base)   // IN
 {
    AsyncTCPSocket *asock = TCPSocket(base);
-   Bool isListener = TRUE;
 
    ASSERT(AsyncTCPSocketIsLocked(asock));
 
@@ -4392,8 +4410,6 @@ AsyncTCPSocketClose(AsyncSocket *base)   // IN
    } else {
       Bool removed;
       AsyncSocketState oldState;
-
-      isListener = FALSE;
 
       /* Flush output if requested via AsyncTCPSocket_SetCloseOptions(). */
       if (asock->flushEnabledMaxWaitMsec &&
@@ -5875,3 +5891,32 @@ AsyncSocket_ListenSocketUDS(const char *pipeName,               // IN
    return BaseSocket(asock);
 }
 #endif
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * AsyncTCPSocketListenerError --
+ *
+ *    Call the error handler from parent AsyncSocket object. The passed in
+ *    parameter clientData is the parent AsyncSocket object.
+ *
+ * Result
+ *    None
+ *
+ * Side-effects
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+AsyncTCPSocketListenerError(int error,           // IN
+                            AsyncSocket *asock,  // IN
+                            void *clientData)    // IN
+{
+   AsyncSocket *s = clientData;
+   ASSERT(s);
+
+   AsyncSocketHandleError(s, error);
+}
