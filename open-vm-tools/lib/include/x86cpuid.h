@@ -481,6 +481,7 @@ FLAG(   7,  0, ECX,  0,  1, PREFETCHWT1,                           YES, TRUE)  \
 FLAG(   7,  0, ECX,  1,  1, AVX512VBMI,                            YES, TRUE)  \
 FLAG(   7,  0, ECX,  3,  1, PKU,                                   YES, TRUE)  \
 FLAG(   7,  0, ECX,  4,  1, OSPKE,                                 ANY, TRUE)  \
+FLAG(   7,  0, ECX, 30,  1, SGX_LC,                                NO, FALSE)  \
 
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
