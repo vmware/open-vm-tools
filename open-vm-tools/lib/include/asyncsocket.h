@@ -502,6 +502,11 @@ const char *AsyncSocket_GetWebSocketProtocol(AsyncSocket *asock);
  */
 int AsyncSocket_GetWebSocketError(AsyncSocket *asock);
 
+/*
+ * Get error code for proxySocket failure
+ */
+int AsyncSocket_GetProxySocketError(AsyncSocket *asock);
+
 const char * stristr(const char *s, const char *find);
 
 /*
