@@ -140,6 +140,12 @@
 #define SUPPORT_VGAUTH 0
 #endif
 
+#ifdef _WIN32
+/*
+ * vmwsu can't generate an impersonation token for local SYSTEM.
+ */
+#define  ALLOW_LOCAL_SYSTEM_IMPERSONATION_BYPASS 1
+#endif
 
 #if SUPPORT_VGAUTH
 #include "VGAuthCommon.h"
@@ -154,6 +160,19 @@
 
 static gboolean gSupportVGAuth = USE_VGAUTH_DEFAULT;
 static gboolean QueryVGAuthConfig(GKeyFile *confDictRef);
+
+#if ALLOW_LOCAL_SYSTEM_IMPERSONATION_BYPASS
+static gchar *gCurrentUsername = NULL;
+
+#define VIXTOOLS_CONFIG_ALLOW_LOCAL_SYSTEM_IMPERSONATION_BYPASS \
+      "allowLocalSystemImpersonationBypass"
+/*
+ * This isn't on by default because it won't leave a complete
+ * audit trail.
+ */
+#define ALLOW_LOCAL_SYSTEM_IMPERSONATION_BYPASS_DEFAULT FALSE
+
+#endif
 
 /*
  * XXX
@@ -697,6 +716,14 @@ VixTools_Initialize(Bool thisProcessRunsAsRootParam,                            
    VixError err = VIX_OK;
 #if SUPPORT_VGAUTH
    ToolsAppCtx *ctx = (ToolsAppCtx *) clientData;
+#if ALLOW_LOCAL_SYSTEM_IMPERSONATION_BYPASS
+   if (!gCurrentUsername) {
+      gCurrentUsername = VixToolsGetCurrentUsername();
+      ASSERT(gCurrentUsername);
+      g_message("%s: Toolsd running as user '%s'\n",
+                __FUNCTION__, gCurrentUsername);
+   }
+#endif
 #endif
 
    /*
@@ -7928,6 +7955,11 @@ VixToolsUnimpersonateUser(void *userToken)
    gImpersonatedUsername = NULL;
 
 #if SUPPORT_VGAUTH
+#if ALLOW_LOCAL_SYSTEM_IMPERSONATION_BYPASS
+   if (PROCESS_CREATOR_USER_TOKEN == userToken) {
+      g_debug("%s: Faking unimpersonate\n", __FUNCTION__);
+   }
+#endif
    if (NULL != currentUserHandle) {
       GuestAuthUnimpersonate();
       return;
@@ -11438,11 +11470,107 @@ GuestAuthSAMLAuthenticateAndImpersonate(
                                           0,
                                           NULL,
                                           &newHandle);
-   if (VGAUTH_FAILED(vgErr)) {
+#if ALLOW_LOCAL_SYSTEM_IMPERSONATION_BYPASS
+   /*
+    * Special support for local SYSTEM account.
+    *
+    * If validation fails, try again without token
+    * creation, and if it passes, fake the impersonation.
+    */
+
+   // normal case worked
+   if (!VGAUTH_FAILED(vgErr)) {
+      goto impersonate;
+   }
+
+   /*
+    * If the config is off, bypass the special-case.
+    */
+   if (!VixTools_ConfigGetBoolean(gConfDictRef,
+                                  VIX_TOOLS_CONFIG_API_GROUPNAME,
+                      VIXTOOLS_CONFIG_ALLOW_LOCAL_SYSTEM_IMPERSONATION_BYPASS,
+                      ALLOW_LOCAL_SYSTEM_IMPERSONATION_BYPASS_DEFAULT)) {
+      g_debug("%s: SAML authn failed, %s not set, skipping local SYSTEM check",
+              __FUNCTION__,
+              VIXTOOLS_CONFIG_ALLOW_LOCAL_SYSTEM_IMPERSONATION_BYPASS);
       err = VixToolsTranslateVGAuthError(vgErr);
       goto done;
    }
 
+   /*
+    * VGAUTH_E_FAIL will be returned if token creation fails.
+    */
+   if (vgErr != VGAUTH_E_FAIL) {
+      err = VixToolsTranslateVGAuthError(vgErr);
+      goto done;
+   } else {
+      VGAuthExtraParams extraParams[1];
+      VGAuthError vgErr2;
+
+      extraParams[0].name = VGAUTH_PARAM_VALIDATE_INFO_ONLY;
+      extraParams[0].value = VGAUTH_PARAM_VALUE_TRUE;
+
+      vgErr2 = VGAuth_ValidateSamlBearerToken(ctx,
+                                             token,
+                                             username,
+                                             1,
+                                             extraParams,
+                                             &newHandle);
+      // if it passes with VALIDATE_ONLY, see if its the current user (SYSTEM)
+      if (vgErr2 == VGAUTH_E_OK) {
+         gchar *tokenUser = NULL;
+
+         vgErr2 = VGAuth_UserHandleUsername(ctx, newHandle, &tokenUser);
+         if (VGAUTH_FAILED(vgErr2)) {
+            g_warning("%s: VGAuth_UserHandleUsername() failed\n", __FUNCTION__);
+            err = VixToolsTranslateVGAuthError(vgErr2);
+            goto done;
+         }
+
+         g_debug("%s: VGAuth_ValidateSamlBearerToken() with "
+                 "VGAUTH_PARAM_VALIDATE_INFO_ONLY:  user is %s, "
+                 "toolsd user is %s\n",
+                 __FUNCTION__, tokenUser, gCurrentUsername);
+
+         /*
+          * If VGAUTH_PARAM_VALIDATE_INFO_ONLY passed, and the
+          * username matches, bypass impersonation.  Be sure
+          * to do a case-less comparison.
+          */
+         if (Unicode_CompareIgnoreCase(tokenUser, gCurrentUsername) == 0) {
+            g_message("%s: User '%s' matched; bypassing impersonation\n",
+                      __FUNCTION__, gCurrentUsername);
+
+            // set the impersonation token to the magic value
+            *userToken = PROCESS_CREATOR_USER_TOKEN;
+            gImpersonatedUsername = Util_SafeStrdup("_CONSOLE_USER_NAME_");
+            currentUserHandle = newHandle;
+            err = VIX_OK;
+         } else {
+            g_message("%s: User '%s' mismatch with process user '%s'\n",
+                      __FUNCTION__, tokenUser, gCurrentUsername);
+            // use original error code
+            err = VixToolsTranslateVGAuthError(vgErr);
+         }
+         VGAuth_FreeBuffer(tokenUser);
+         goto done;
+
+      } else {
+         // use original error code
+         err = VixToolsTranslateVGAuthError(vgErr);
+         goto done;
+      }
+   }
+#else
+   if (VGAUTH_FAILED(vgErr)) {
+      err = VixToolsTranslateVGAuthError(vgErr);
+      goto done;
+   }
+#endif
+
+#if ALLOW_LOCAL_SYSTEM_IMPERSONATION_BYPASS
+impersonate:
+#endif
    vgErr = VGAuth_Impersonate(ctx, newHandle, 0, NULL);
    if (VGAUTH_FAILED(vgErr)) {
       err = VixToolsTranslateVGAuthError(vgErr);
@@ -11495,6 +11623,7 @@ GuestAuthUnimpersonate(void)
    VGAuthContext *ctx;
    VGAuthError vgErr = TheVGAuthContext(&ctx);
    ASSERT(vgErr == VGAUTH_E_OK);
+
 
    vgErr = VGAuth_EndImpersonation(ctx);
    ASSERT(vgErr == VGAUTH_E_OK);
@@ -11624,9 +11753,9 @@ TheVGAuthContext(VGAuthContext **ctx) // OUT
    VGAuthError vgaCode = VGAUTH_E_OK;
 
    /*
-    * XXX This needs to handle errors better -- if the service gets
-    * reset, the context will point to junk and anything using it will
-    * fail.
+    * XXX This needs to handle errors better -- if the VGAuthService
+    * service gets reset, the context will point to junk and anything
+    * using it will fail.
     *
     * Maybe add a no-op API here to poke it?  Or make the underlying
     * VGAuth code smarter.

@@ -187,6 +187,8 @@ VixError VixToolsListRegValuesImpl(VixCommandRequestHeader *requestMsg,
 
 VixError VixToolsDeleteRegValueImpl(VixCommandRequestHeader *requestMsg);
 
+gchar *VixToolsGetCurrentUsername(void);
+
 #endif // _WIN32
 
 #ifdef VMX86_DEVEL
