@@ -35,7 +35,12 @@ if HAVE_X11
    SUBDIRS += resolutionSet
 endif
 if ENABLE_RESOLUTIONKMS
-   SUBDIRS += resolutionKMS
+if !HAVE_X11
+# resolutionKMS needs resolutionCommon, which lives in
+# the resolutionSet sub directory
+   SUBDIRS += resolutionSet
+endif
+SUBDIRS += resolutionKMS
 endif
 SUBDIRS += timeSync
 SUBDIRS += vix

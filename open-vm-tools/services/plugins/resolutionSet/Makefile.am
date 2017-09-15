@@ -16,8 +16,10 @@
 ################################################################################
 
 plugindir = @VMUSR_PLUGIN_INSTALLDIR@
-plugin_LTLIBRARIES = libresolutionSet.la
 noinst_LTLIBRARIES = libresolutionCommon.la
+
+if HAVE_X11
+plugin_LTLIBRARIES = libresolutionSet.la
 
 libresolutionSet_la_CPPFLAGS =
 libresolutionSet_la_CPPFLAGS += @GTK_CPPFLAGS@
@@ -39,6 +41,7 @@ libresolutionSet_la_SOURCES += libvmwarectrl.c
 libresolutionSet_la_SOURCES += resolutionSet.c
 libresolutionSet_la_SOURCES += resolutionX11.c
 libresolutionSet_la_SOURCES += resolutionRandR12.c
+endif
 
 libresolutionCommon_la_CPPFLAGS =
 libresolutionCommon_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
