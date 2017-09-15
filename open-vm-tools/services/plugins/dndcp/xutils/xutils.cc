@@ -32,9 +32,7 @@
 #include <gdk/gdkx.h>
 #include <cstring>
 
-extern "C" {
 #include "vm_assert.h"
-}
 
 
 namespace xutils {

@@ -66,9 +66,8 @@
 #endif
 
 #include "libExport.hh"
-extern "C" {
+
 #include "unicodeTypes.h"
-}
 
 #ifdef _WIN32
 /*
