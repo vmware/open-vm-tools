@@ -179,6 +179,7 @@ UUIDStyle UUID_GetStyle(const uint8 *id);
 
 /* like UUID_GetHostUUID, except gets actual host UUID */
 char *UUID_GetRealHostUUID(void);
+Bool UUID_Equal(const uint8 id1[UUID_SIZE], const uint8 id2[UUID_SIZE]);
 
 #if defined(__cplusplus)
 }  // extern "C"
