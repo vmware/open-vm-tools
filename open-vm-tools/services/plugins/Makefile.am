@@ -34,6 +34,9 @@ endif
 if HAVE_X11
    SUBDIRS += resolutionSet
 endif
+if ENABLE_RESOLUTIONKMS
+   SUBDIRS += resolutionKMS
+endif
 SUBDIRS += timeSync
 SUBDIRS += vix
 SUBDIRS += vmbackup

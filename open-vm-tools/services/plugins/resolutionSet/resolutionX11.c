@@ -45,6 +45,7 @@
 #include "strutil.h"
 #include "util.h"
 #include "posix.h"
+#include "resolutionCommon.h"
 
 #define VMWAREDRV_PATH_64   "/usr/X11R6/lib64/modules/drivers/vmware_drv.o"
 #define VMWAREDRV_PATH      "/usr/X11R6/lib/modules/drivers/vmware_drv.o"
@@ -105,8 +106,9 @@ ResolutionBackendInit(InitHandle handle)
    resInfoX->display = handle;
 
    if (resInfoX->display == NULL) {
-      g_warning("%s: Called with invalid X display!\n", __func__);
-      return FALSE;
+      resInfo->canSetResolution = FALSE;
+      resInfo->canSetTopology = FALSE;
+      return TRUE;
    }
 
    resInfoX->display = handle;
@@ -335,15 +337,10 @@ static Bool
 ResolutionCanSet(void)
 {
    ResolutionInfoX11Type *resInfoX = &resolutionInfoX11;
-   int fd = -1;
-   off_t filePos = 0;
-   Bool keepSearching = TRUE;
-   Bool found = FALSE;
-   char buf[sizeof VERSION_STRING + 10]; // size of VERSION_STRING plus some extra for the version number
-   const char versionString[] = VERSION_STRING;
-   ssize_t bytesRead;
-   int32 major, minor, level;
-   unsigned int tokPos;
+   int major, minor, level;
+   static const char *driverPaths[] = {
+      VMWAREDRV_PATH_64,
+      VMWAREDRV_PATH};
 
    /* See if the randr X module is loaded */
    if (!XRRQueryVersion(resInfoX->display, &major, &minor) ) {
@@ -411,55 +408,9 @@ ResolutionCanSet(void)
     * 6.9/7.0, we can instead just use the VMWARE_CTRL check.
     */
 
-   buf[sizeof buf - 1] = '\0';
-   fd = Posix_Open(VMWAREDRV_PATH_64, O_RDONLY);
-   if (fd == -1) {
-      fd = Posix_Open(VMWAREDRV_PATH, O_RDONLY);
-   }
-   if (fd != -1) {
-      /*
-       * One of the opens succeeded, so start searching thru the file.
-       */
-      while (keepSearching) {
-         bytesRead = read(fd, buf, sizeof buf - 1);
-         if (bytesRead == -1 || bytesRead < sizeof buf -1 ) {
-            keepSearching = FALSE;
-         } else {
-            if (Str_Strncmp(versionString, buf, sizeof versionString - 1) == 0) {
-               keepSearching = FALSE;
-               found = TRUE;
-            }
-         }
-         filePos = lseek(fd, filePos+1, SEEK_SET);
-         if (filePos == -1) {
-            keepSearching = FALSE;
-         }
-      }
-      close(fd);
-      if (found) {
-         /*
-          * We NUL-terminated buf earlier, but Coverity really wants it to
-          * be NUL-terminated after the call to read (because
-          * read doesn't NUL-terminate). So we'll do it again.
-          */
-         buf[sizeof buf - 1] = '\0';
-
-         /*
-          * Try and parse the major, minor and level versions
-          */
-         tokPos = sizeof versionString - 1;
-         if (!StrUtil_GetNextIntToken(&major, &tokPos, buf, ".- ")) {
-            return FALSE;
-         }
-         if (!StrUtil_GetNextIntToken(&minor, &tokPos, buf, ".- ")) {
-            return FALSE;
-         }
-         if (!StrUtil_GetNextIntToken(&level, &tokPos, buf, ".- ")) {
-            return FALSE;
-         }
-
-         return ((major > 10) || (major == 10 && minor >= 11));
-      }
+   if (!resolutionXorgDriverVersion(2, driverPaths, VERSION_STRING,
+				    &major, &minor, &level)) {
+      return ((major > 10) || (major == 10 && minor >= 11));
    }
    return FALSE;
 }
@@ -633,16 +584,27 @@ ResolutionX11ErrorHandler(Display *d,      // IN: Pointer to display connection
  */
 
 InitHandle
-ResolutionToolkitInit(void)
+ResolutionToolkitInit(ToolsAppCtx *ctx) // IN: For config database access
 {
    int argc = 1;
    char *argv[] = {"", NULL};
    GtkWidget *wnd;
    Display *display;
+   int fd;
+
+   fd = resolutionCheckForKMS(ctx, FALSE);
+   if (fd >= 0) {
+      resolutionDRMClose(fd);
+      g_message("%s: Backing off for resolutionKMS.\n", __func__);
+      return (InitHandle) 0;
+   }
 
    XSetErrorHandler(ResolutionX11ErrorHandler);
    gtk_init(&argc, (char ***) &argv);
    wnd = gtk_invisible_new();
    display = GDK_WINDOW_XDISPLAY(wnd->window);
+   if (!display)
+      g_error("%s: Invalid display detected.\n", __func__);
+
    return (InitHandle) display;
 }

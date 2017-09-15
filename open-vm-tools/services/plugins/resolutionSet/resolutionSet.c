@@ -584,9 +584,10 @@ ToolsOnLoad(ToolsAppCtx *ctx)
    /*
     * XXX move to some shared lib or plugin
     */
-   handle = ResolutionToolkitInit();
+   handle = ResolutionToolkitInit(ctx);
 
-   ResolutionInit(handle);
+   if (!ResolutionInit(handle))
+      return NULL;
 
    regs[0].data = VMTools_WrapArray(rpcs, sizeof *rpcs, ARRAYSIZE(rpcs));
    regData.regs = VMTools_WrapArray(regs, sizeof *regs, ARRAYSIZE(regs));

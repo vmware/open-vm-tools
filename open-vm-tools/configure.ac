@@ -210,6 +210,14 @@ AC_ARG_ENABLE(
    [enable_tests="$enableval"],
    [enable_tests="auto"])
 
+AC_ARG_ENABLE(
+   resolutionkms,
+   AS_HELP_STRING(
+      [--enable-resolutionkms],
+      [build the linux / unix resolutionkms module.]),
+   [],
+   [enable_resolutionkms="auto"])
+
 AM_INIT_AUTOMAKE
 
 ###
@@ -1148,6 +1156,15 @@ if test "$os" = "linux"; then
       MODULES="$MODULES vmblock vmsync"
    fi
    buildHgfsmounter=yes
+   if test "x$enable_resolutionkms" != "xno"; then
+      PKG_CHECK_MODULES(
+         [LIBUDEV],
+         libdrm libudev,
+         [LIBUDEV_CFLAGS="$LIBUDEV_CFLAGS -DHAVE_LIBUDEV"],
+         [AC_MSG_WARN(
+	    [Missing libdrm or libudev. The resolutionKMS plugin will search for them at run-time.])])
+      enable_resolutionkms="yes"
+   fi
 fi
 
 if test "$os" = "freebsd" || test "$os" = "kfreebsd-gnu"; then
@@ -1215,6 +1232,14 @@ if test "$os" = "solaris"; then
    fi
 fi
 
+if test "x$enable_resolutionkms" = "xauto"; then
+   enable_resolutionkms="no"
+fi
+
+if test "x$enable_resolutionkms" = "xyes"; then
+   CPPFLAGS="$CPPFLAGS -DENABLE_RESOLUTIONKMS"
+fi
+
 AM_CONDITIONAL(BUILD_HGFSMOUNTER, test "$buildHgfsmounter" = "yes")
 AM_CONDITIONAL(LINUX, test "$os" = "linux")
 AM_CONDITIONAL(SOLARIS, test "$os" = "solaris")
@@ -1243,6 +1268,7 @@ AM_CONDITIONAL(ENABLE_VGAUTH, test "$enable_vgauth" = "yes")
 AM_CONDITIONAL(ENABLE_CAF, test "$enable_caf" = "yes")
 AM_CONDITIONAL(HAVE_VSOCK, test "$os" = "linux")
 AM_CONDITIONAL(HAVE_MKDTEMP, test "$have_mkdtemp" = "yes")
+AM_CONDITIONAL(ENABLE_RESOLUTIONKMS, test "x$enable_resolutionkms" = "xyes")
 
 if test "$have_xsm" != "yes"; then
 AC_DEFINE([NO_XSM], 1, [])
@@ -1423,6 +1449,7 @@ AC_CONFIG_FILES([                      \
    services/plugins/hgfsServer/Makefile \
    services/plugins/powerOps/Makefile  \
    services/plugins/resolutionSet/Makefile \
+   services/plugins/resolutionKMS/Makefile \
    services/plugins/timeSync/Makefile  \
    services/plugins/vix/Makefile       \
    services/plugins/vmbackup/Makefile  \
