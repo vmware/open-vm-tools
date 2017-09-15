@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2014 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2014,2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -551,7 +551,7 @@ VSockVmciNotifyPktRecvPostDequeue(struct sock *sk,               // IN
    err = 0;
 
    if (dataRead) {
-      Atomic_MFence();
+      LDST_LDST_MEM_BARRIER();
 
       freeSpace = vmci_qpair_consume_free_space(vsk->qpair);
       wasFull = freeSpace == copied;
@@ -635,7 +635,7 @@ VSockVmciNotifyPktSendPostEnqueue(struct sock *sk,               // IN
 
    vsk = vsock_sk(sk);
 
-   Atomic_MFence();
+   LDST_LDST_MEM_BARRIER();
 
    wasEmpty = (vmci_qpair_produce_buf_ready(vsk->qpair) == written);
    if (wasEmpty) {

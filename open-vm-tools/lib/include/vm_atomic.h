@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -139,10 +139,9 @@ long  _InterlockedCompareExchange(long volatile*, long, long);
 long  _InterlockedExchangeAdd(long volatile*, long);
 long  _InterlockedDecrement(long volatile*);
 long  _InterlockedIncrement(long volatile*);
-void  _ReadWriteBarrier(void);
 #pragma intrinsic(_InterlockedExchange, _InterlockedCompareExchange)
 #pragma intrinsic(_InterlockedExchangeAdd, _InterlockedDecrement)
-#pragma intrinsic(_InterlockedIncrement, _ReadWriteBarrier)
+#pragma intrinsic(_InterlockedIncrement)
 
 # if _MSC_VER >= 1600
 char     _InterlockedExchange8(char volatile *, char);
@@ -3933,69 +3932,6 @@ MAKE_ATOMIC_TYPE(Ptr, 32, void const *, void *, uintptr_t)
 #endif
 MAKE_ATOMIC_TYPE(Int, 32, int, int, int)
 MAKE_ATOMIC_TYPE(Bool, 8, Bool, Bool, Bool)
-
-
-#if    defined VM_ARM_64 && defined VMKERNEL \
-    && !defined ATOMIC_MFENCE_SHOULD_NOT_BE_IN_CROSS_PLATFORM_CODE
-/*
- * Atomic_MFence() is an x86-ism, so in an ideal world it should never be
- * defined on ARM.
- *
- * There is ongoing work to remove all legacy Atomic_MFence() calls in
- * cross-platform code. The vmkernel code has mostly been cleaned up, but a few
- * calls remain in vmkernel module files which are granted an exception (by
- * defining ATOMIC_MFENCE_SHOULD_NOT_BE_IN_CROSS_PLATFORM_CODE) for now.
- *
- * Do not add more Atomic_MFence() calls to cross-platform code. Do not grant
- * any new exception. Instead, either move existing calls to an x86-specific
- * location, or replace them with cross-platform memory barriers such as
- * LDST_LDST_MEM_BARRIER().
- */
-#else // Should we define Atomic_MFence?
-/* Prevent the compiler from re-ordering memory references. */
-#ifdef __GNUC__
-#define ATOMIC_COMPILER_BARRIER()   __asm__ __volatile__ ("": : :"memory")
-#elif defined _MSC_VER
-#define ATOMIC_COMPILER_BARRIER()   _ReadWriteBarrier()
-#else
-#error No compiler defined for ATOMIC_COMPILER_BARRIER
-#endif
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Atomic_MFence --
- *
- *      Implements mfence in terms of a lock xor. The reason for implementing
- *      our own mfence is that not all of our supported cpus have an assembly
- *      mfence (P3, Athlon). We put it here to avoid duplicating code which is
- *      also why it is prefixed with "Atomic_". Moreover, this implementation
- *      performs slightly better than 'mfence' on modern CPUs (See PR 817059).
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      Cause loads and stores prior to this to be globally
- *      visible.
- *
- *-----------------------------------------------------------------------------
- */
-
-static INLINE void
-Atomic_MFence(void)
-{
-   Atomic_uint32 fence;
-   ATOMIC_COMPILER_BARRIER();
-   Atomic_Xor32(&fence, 0x1);
-   ATOMIC_COMPILER_BARRIER();
-}
-
-#ifdef ATOMIC_COMPILER_BARRIER
-#undef ATOMIC_COMPILER_BARRIER
-#endif /* ATOMIC_COMPILER_BARRIER */
-#endif // Should we define Atomic_MFence?
 
 #ifdef VM_ARM_64
 #   include "vm_atomic_arm64_end.h"
