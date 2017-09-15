@@ -724,64 +724,66 @@ File_ReplaceExtension(const char *pathName,      // IN:
                       uint32 numExtensions,      // IN:
                       ...)                       // IN:
 {
-   char *path;
-   char *base;
+   char *p;
+   char *place;
    char *result;
-   va_list arguments;
-   UnicodeIndex index;
+   size_t newExtLen;
+   size_t resultLen;
+   size_t pathNameLen;
 
    ASSERT(pathName);
    ASSERT(newExtension);
    ASSERT(*newExtension == '.');
 
-   File_GetPathName(pathName, &path, &base);
+   pathNameLen = strlen(pathName);
+   newExtLen = strlen(newExtension);
+   resultLen = pathNameLen + newExtLen + 1;
+   result = Util_SafeMalloc(resultLen);
 
-   index = Unicode_FindLast(base, ".");
+   memcpy(result, pathName, pathNameLen + 1);
 
-   if (index != UNICODE_INDEX_NOT_FOUND) {
-      char *oldBase = base;
-
-      if (numExtensions) {
-         uint32 i;
-
-         /*
-          * Only truncate the old extension from the base if it exists in
-          * in the valid extensions list.
-          */
-
-         va_start(arguments, numExtensions);
-
-         for (i = 0; i < numExtensions ; i++) {
-            char *oldExtension = va_arg(arguments, char *);
-
-            ASSERT(*oldExtension == '.');
-
-            if (Unicode_CompareRange(base, index, -1,
-                                     oldExtension, 0, -1, FALSE) == 0) {
-               base = Unicode_Truncate(oldBase, index); // remove '.'
-               break;
-            }
-         }
-
-         va_end(arguments);
-      } else {
-         /* Always truncate the old extension if extension list is empty . */
-         base = Unicode_Truncate(oldBase, index); // remove '.'
-      }
-
-      if (oldBase != base) {
-         Posix_Free(oldBase);
-      }
-   }
-
-   if (Unicode_IsEmpty(path)) {
-      result = Unicode_Append(base, newExtension);
+   p = strrchr(result, DIRSEPC);
+   if (p == NULL) {
+       p = strrchr(result, '.');
    } else {
-      result = Unicode_Join(path, DIRSEPS, base, newExtension, NULL);
+       p = strrchr(p, '.');
    }
 
-   Posix_Free(path);
-   Posix_Free(base);
+   if (p == NULL) {
+      /* No extension... just append */
+      place = &result[pathNameLen];  // The NUL
+   } else if (numExtensions == 0) {
+      /* Always truncate the old extension if extension list is empty. */
+      place = p;  // The '.'
+   } else {
+      uint32 i;
+      va_list arguments;
+
+      /*
+       * Only truncate the old extension if it exists in the valid
+       * extensions list.
+       */
+
+      place = &result[pathNameLen];  // The NUL
+
+      va_start(arguments, numExtensions);
+
+      for (i = 0; i < numExtensions ; i++) {
+         char *oldExtension = va_arg(arguments, const char *);
+
+         ASSERT(*oldExtension == '.');
+
+         if (strcmp(p, oldExtension) == 0) {
+            place = p;  // The '.'
+            break;
+         }
+      }
+
+      va_end(arguments);
+   }
+
+   /* Add the new extension - in the appropriate place - to pathName */
+   memcpy(place, newExtension, newExtLen + 1);
 
    return result;
 }
@@ -808,12 +810,25 @@ File_ReplaceExtension(const char *pathName,      // IN:
 char *
 File_RemoveExtension(const char *pathName)  // IN:
 {
-   UnicodeIndex index;
+   char *p;
+   char *result;
 
-   ASSERT(pathName);
+   ASSERT(pathName != NULL);
 
-   index = Unicode_FindLast(pathName, ".");
-   ASSERT(index != UNICODE_INDEX_NOT_FOUND);
+   result = Util_SafeStrdup(pathName);
 
-   return Unicode_Truncate(pathName, index);
+   p = strrchr(result, DIRSEPC);
+   if (p == NULL) {
+       p = strrchr(result, '.');
+   } else {
+       p = strrchr(p, '.');
+   }
+
+   ASSERT(p != NULL);
+
+   if (p != NULL) {
+      *p = '\0';
+   }
+
+   return result;
 }
