@@ -52,7 +52,7 @@
    #define PRODUCT_VERSION    1,1,5,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_VPX)
    /* this should be kept in sync with the corresponding vpx branch. */
-   #define PRODUCT_VERSION    6,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
+   #define PRODUCT_VERSION    6,5,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_HORIZON_VIEW)
    #define PRODUCT_VERSION    0,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #else
@@ -84,7 +84,7 @@
  * VMI 2.0      : 3.1.0
  * P2VA 3.0     : 3.?.?
  */
-#define VIE_FILEVERSION 6,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
+#define VIE_FILEVERSION 6,5,0,PRODUCT_BUILD_NUMBER_NUMERIC
 
 /*
  * This string can be a little more "free form".  The license
@@ -179,31 +179,32 @@
 #define FUSION_VERSION "e.x.p"
 
 // These must match VIE_FILEVERSION above
-#define SYSIMAGE_VERSION "6.1.0"
+#define SYSIMAGE_VERSION "6.5.0"
 #define SYSIMAGE_FILE_VERSION VIE_FILEVERSION
 
 #define VCB_VERSION "4.0.0"
 #define VCB_FILE_VERSION 4,0,0,0
-#define VIM_VERSION "6.1.0"
+#define VIM_VERSION "6.5.0"
 
 // Put VPX_VERSION first, because vpx/make/defs.mk doesn't check for suffix.
-#define VPX_VERSION "6.1.0"
+#define VPX_VERSION "6.5.0"
 #define VPX_VERSION_MAJOR "6"
-#define VPX_VERSION_MINOR "1"
+#define VPX_VERSION_MINOR "5"
 #define VPX_VERSION_MAINT "0"
 #define VPX_VERSION_THIRD_PARTY VPX_VERSION_MAJOR VPX_VERSION_MINOR \
                                 VPX_VERSION_MAINT
+#define VPX_VERSION_NUMERIC 6,5,0,PRODUCT_BUILD_NUMBER_NUMERIC
 
-#define MAX_SUPPORTED_VI_VERSION "6.1" //from ovfTool/src/supportedVersions.h
-#define VCDB_CURRENT_SCHEMA_VERSION           610 // from PitCADatabase.h
+#define MAX_SUPPORTED_VI_VERSION "6.5" //from ovfTool/src/supportedVersions.h
+#define VCDB_CURRENT_SCHEMA_VERSION           650 // from PitCADatabase.h
 
 #define VPX_RELEASE_UPDATE "0" /* 0 = Pre-release/GA, 1 = Update 1 */
 #define VPX_RELEASE_PATCH "0"  /* 0 = experimental */
 #define VPX_RELEASE VPX_RELEASE_UPDATE "." VPX_RELEASE_PATCH
 
 /* expected database version for current release */
-#define VPXD_VDB_DB_VERSION_ID            610
-#define VPXD_VDB_DB_VERSION_VALUE         "VirtualCenter Database 6.1"
+#define VPXD_VDB_DB_VERSION_ID            650
+#define VPXD_VDB_DB_VERSION_VALUE         "VirtualCenter Database 6.5"
 
 // Virtual Appliance Patch Version Number
 // This is the last component of the VCSA w.x.y.z version number
@@ -226,8 +227,8 @@
 #define VDM_VERSION "e.x.p"
 #define NETDUMP_VERSION        "5.1.0"
 #define NETDUMP_FILE_VERSION    5,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
-#define VDDK_VERSION          "6.0.0"
-#define VDDK_FILE_VERSION      6,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
+#define VDDK_VERSION          "6.1.0"
+#define VDDK_FILE_VERSION      6,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #define OVFTOOL_VERSION "4.1.0"
 #define VCSA_INSTALLER_VERSION "1.0.0"
 #define OVFTOOL_FILE_VERSION 4,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
