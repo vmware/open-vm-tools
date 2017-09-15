@@ -4,3 +4,6 @@ Contributors to open-vm-tools:
 
 Steve Wills     Correct __IS_FREEBSD__ macro in vm_basic_defs.h (clang)
                 - https://github.com/vmware/open-vm-tools/pull/136
+
+Bernd Zeimetz   Fix gcc6 build issues in linuxDeployment.c file.
+                - https://github.com/vmware/open-vm-tools/pull/107
