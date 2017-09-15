@@ -562,7 +562,7 @@ else
                     [],
                     [],
                     [],
-                    [AC_VMW_LIB_ERROR([XERCES], [xerces-c])])
+                    [AC_VMW_LIB_ERROR([XERCES], [xerces])])
 
    AC_VMW_DEFAULT_FLAGS([XMLSECURITY])
    AC_VMW_CHECK_LIB([xml-security-c],
@@ -573,7 +573,7 @@ else
                     [],
                     [],
                     [],
-                    [AC_VMW_LIB_ERROR([XMLSECURITY], [xml-security-c])])
+                    [AC_VMW_LIB_ERROR([XMLSECURITY], [xmlsecurity])])
 fi
 else
    enable_caf=no
