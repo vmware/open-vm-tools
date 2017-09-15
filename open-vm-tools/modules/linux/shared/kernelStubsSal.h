@@ -67,7 +67,9 @@
 #define _Post_z_count_(e)
 #define _Ret_writes_z_(e)
 #define _Ret_writes_maybenull_z_(e)
+#define _Ret_maybenull_
 #define _Ret_maybenull_z_
+#define _Ret_range_(l,h)
 #define _Success_(expr)
 #define _Check_return_
 #define _Must_inspect_result_
@@ -79,9 +81,15 @@
 #define _Dispatch_type_(mj)
 #define _Function_class_(c)
 #define _Requires_lock_held_(cs)
+#define _Requires_lock_not_held_(cs)
+#define _Acquires_lock_(l)
+#define _Releases_lock_(l)
 #define _IRQL_requires_max_(i)
 #define _IRQL_requires_(i)
+#define _IRQL_requires_same_
 #define _Analysis_assume_(e)
+#define _Pre_notnull_
+#define _At_(expr,annos)
 
 #else
 // Sal 2.0 path - everything is already defined.
