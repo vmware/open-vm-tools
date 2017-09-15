@@ -40,6 +40,7 @@
 #ifdef _WIN32
    #include "vmci_sockets.h"
    #include <winsock2.h>
+   #include <ws2tcpip.h>
    #include "err.h"
 #endif
 
@@ -440,6 +441,7 @@ PollSocketPairStartConnecting(Bool vmci,      // IN: vmci socket?
    int addrlen;
    struct sockaddr_vm vaddr;
    struct sockaddr_in iaddr;
+   struct sockaddr_in6 iaddr6;
    int savedError;
    int socketCommType = stream ? SOCK_STREAM : SOCK_DGRAM;
 
@@ -462,26 +464,41 @@ PollSocketPairStartConnecting(Bool vmci,      // IN: vmci socket?
       }
       addr = (struct sockaddr *)&vaddr;
    } else {
-      addrlen = sizeof iaddr;
+      // First try create a IPv6 socket
+      *s = socket(AF_INET6, socketCommType, 0);
 
-      memset(&iaddr, 0, sizeof iaddr);
-      iaddr.sin_family = AF_INET;
-      iaddr.sin_addr.s_addr = inet_addr("127.0.0.1");
-      iaddr.sin_port = 0;
+      if (*s != INVALID_SOCKET) {
+         // Set to IPv6 loopback address
+         memset(&iaddr6, 0, sizeof iaddr6);
+         iaddr6.sin6_family = AF_INET6;
+         iaddr6.sin6_addr = in6addr_loopback;
+         iaddr6.sin6_port = 0;
+         addr = (struct sockaddr *)&iaddr6;
+         addrlen = sizeof iaddr6;
+      } else {
+         // Try create the socket again, but using IPv4
+         *s = socket(AF_INET, socketCommType, 0);
+         if (*s == INVALID_SOCKET) {
+            Log("%s: Could not create inet socket.\n", __FUNCTION__);
+            goto out;
+         }
 
-      *s = socket(AF_INET, socketCommType, 0);
-      if (*s == INVALID_SOCKET) {
-         Log("%s: Could not create inet socket.\n", __FUNCTION__);
-         goto out;
+         // Set to IPv4 loopback address
+         memset(&iaddr, 0, sizeof iaddr);
+         iaddr.sin_family = AF_INET;
+         iaddr.sin_addr = in4addr_loopback;
+         iaddr.sin_port = 0;
+         addr = (struct sockaddr *)&iaddr;
+         addrlen = sizeof iaddr;
       }
-      temp = socket(AF_INET, socketCommType, 0);
+
+      temp = socket(addr->sa_family, socketCommType, 0);
       if (temp == INVALID_SOCKET) {
          Log("%s: Could not create second inet socket.\n", __FUNCTION__);
          goto out;
       }
-      addr = (struct sockaddr *)&iaddr;
    }
-   if (bind(temp, addr, sizeof *addr) == SOCKET_ERROR) {
+   if (bind(temp, addr, addrlen) == SOCKET_ERROR) {
       Log("%s: Could not bind socket.\n", __FUNCTION__);
       goto outCloseTemp;
    }
