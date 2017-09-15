@@ -319,7 +319,8 @@
    LOGLEVEL_VAR(maclatency), \
    LOGLEVEL_VAR(tpm2emu), \
    LOGLEVEL_VAR(tarReader),\
-   LOGLEVEL_VAR(nvramMgr)
+   LOGLEVEL_VAR(nvramMgr), \
+   LOGLEVEL_VAR(hbr)
 
    /* end of list */
 
