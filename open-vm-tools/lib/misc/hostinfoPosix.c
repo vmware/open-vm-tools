@@ -583,7 +583,13 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
    } else if (strstr(distroLower, "cobalt")) {
       Str_Strcpy(distroShort, STR_OS_COBALT, distroShortSize);
    } else if (StrUtil_StartsWith(distroLower, "centos")) {
-      Str_Strcpy(distroShort, STR_OS_CENTOS, distroShortSize);
+      if (strstr(distroLower, "6.")) {
+         Str_Strcpy(distroShort, STR_OS_CENTOS6, distroShortSize);
+      } else if (strstr(distroLower, "7.")) {
+         Str_Strcpy(distroShort, STR_OS_CENTOS7, distroShortSize);
+      } else {
+         Str_Strcpy(distroShort, STR_OS_CENTOS, distroShortSize);
+      }
    } else if (strstr(distroLower, "conectiva")) {
       Str_Strcpy(distroShort, STR_OS_CONECTIVA, distroShortSize);
    } else if (strstr(distroLower, "debian")) {

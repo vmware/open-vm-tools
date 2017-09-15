@@ -214,6 +214,8 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_ASIANUX             "asianux"
 #define STR_OS_BLACKCAT            "BlackCat"
 #define STR_OS_CENTOS              "centos"
+#define STR_OS_CENTOS6             "centos6"
+#define STR_OS_CENTOS7             "centos7"
 #define STR_OS_COBALT              "Cobalt"
 #define STR_OS_CONECTIVA           "Conectiva"
 #define STR_OS_DEBIAN              "Debian"
