@@ -71,13 +71,9 @@ SyncNewManifest(VmBackupState *state,          // IN
    const char *providerName;
    SyncManifest *manifest;
 
-   /*
-    * XXX - feature is to be disabled by default until approved by QE.
-    */
    if (!VMTools_ConfigGetBoolean(state->ctx->config, "vmbackup",
-                                 syncManifestSwitch, FALSE)) {
-      g_debug("No backup manifest - %s is false\n",
-              syncManifestSwitch);
+                                 syncManifestSwitch, TRUE)) {
+      g_debug("No backup manifest - %s is false\n", syncManifestSwitch);
       return NULL;
    }
 
