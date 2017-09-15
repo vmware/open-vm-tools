@@ -33,8 +33,9 @@
 
 #include <string>
 
+#include "dnd.h"
+
 extern "C" {
-   #include "dnd.h"
    #include "vmware/tools/plugin.h"
 }
 

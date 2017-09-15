@@ -27,8 +27,9 @@
 
 extern "C" {
    #include "debug.h"
-   #include "hgfsServer.h"
 }
+
+#include "hgfsServer.h"
 
 
 /**

@@ -23,15 +23,16 @@
  */
 
 #include "guestDnD.hh"
+#include "util.h"
 
 extern "C" {
    #include "dndClipboard.h"
-   #include "util.h"
    #include "debug.h"
-   #include "file.h"
    #include "cpNameUtil.h"
-   #include "str.h"
 }
+
+#include "file.h"
+#include "str.h"
 
 
 /**
