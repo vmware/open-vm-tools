@@ -24,6 +24,12 @@ using namespace Caf;
 CPersistenceNamespaceDb::CPersistenceNamespaceDb() :
 	_isInitialized(false),
 	_isReady(false),
+	_dataReady2Read(false),
+	_dataReady2Update(false),
+	_dataReady2Remove(false),
+	_polledDuringStart(false),
+	_pollingIntervalSecs(86400),
+	_pollingStartedTimeMs(0),
 	CAF_CM_INIT_LOG("CPersistenceNamespaceDb") {
 	CAF_CM_INIT_THREADSAFE;
 	_nsdbNamespace = "com.vmware.caf.guest.rw";
@@ -44,6 +50,10 @@ void CPersistenceNamespaceDb::initialize() {
 	CAF_CM_LOCK_UNLOCK;
 
 	if (! _isInitialized) {
+		_polledDuringStart = false;
+		_nsdbPollerSignalFile = AppConfigUtils::getRequiredString("monitor", "nsdb_poller_signal_file");
+		_pollingIntervalSecs = AppConfigUtils::getRequiredUint32("monitor", "nsdb_polling_interval_secs");
+		_pollingStartedTimeMs = CDateTimeUtils::getTimeMs();
 		setCmd();
 		_isInitialized = true;
 	}
@@ -55,8 +65,9 @@ SmartPtrCPersistenceDoc CPersistenceNamespaceDb::getUpdated(
 	CAF_CM_LOCK_UNLOCK;
 	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
 
+	CAF_CM_LOG_DEBUG_VA0("getUpdated");
 	SmartPtrCPersistenceDoc rc;
-	if (isReady()) {
+	if (isDataReady2Read() && isReady()) {
 		const std::string updatesCur = getValue("updates");
 		if (_updates.compare(updatesCur) != 0) {
 			_updates = updatesCur;
@@ -156,6 +167,13 @@ SmartPtrCPersistenceDoc CPersistenceNamespaceDb::getUpdated(
 		}
 	}
 
+	if (rc.IsNull()) {
+		rc = _persistenceUpdate;
+	}
+
+	_dataReady2Read = false;
+
+
 	return rc;
 }
 
@@ -165,7 +183,8 @@ void CPersistenceNamespaceDb::update(
 	CAF_CM_LOCK_UNLOCK;
 	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
 
-	if (isReady()) {
+	CAF_CM_LOG_DEBUG_VA0("update");
+	if (isDataReady2Update() && isReady()) {
 		const SmartPtrCPersistenceDoc persistenceCur = persistenceDoc.IsNull() ? _persistenceUpdate : persistenceDoc;
 		if (! persistenceCur.IsNull()) {
 			_persistenceUpdate = SmartPtrCPersistenceDoc();
@@ -249,6 +268,8 @@ void CPersistenceNamespaceDb::update(
 			_persistenceUpdate = persistenceDoc;
 		}
 	}
+
+	_dataReady2Update = false;
 }
 
 void CPersistenceNamespaceDb::remove(
@@ -257,7 +278,8 @@ void CPersistenceNamespaceDb::remove(
 	CAF_CM_LOCK_UNLOCK;
 	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
 
-	if (isReady()) {
+	CAF_CM_LOG_DEBUG_VA0("remove");
+	if (isDataReady2Remove() && isReady()) {
 		const SmartPtrCPersistenceDoc persistenceCur = persistenceDoc.IsNull() ? _persistenceRemove : persistenceDoc;
 		if (! persistenceCur.IsNull()) {
 			_persistenceRemove = SmartPtrCPersistenceDoc();
@@ -330,6 +352,8 @@ void CPersistenceNamespaceDb::remove(
 			_persistenceRemove = persistenceDoc;
 		}
 	}
+
+	_dataReady2Remove = false;
 }
 
 void CPersistenceNamespaceDb::setCmd() {
@@ -364,6 +388,7 @@ std::string CPersistenceNamespaceDb::getValue(const std::string& key) {
 	CAF_CM_FUNCNAME("getValue");
 	CAF_CM_VALIDATE_STRING(key);
 
+	CAF_CM_LOG_DEBUG_VA0("getValue");
 	std::string value;
 	std::string stdoutContent;
 	std::string stderrContent;
@@ -387,6 +412,7 @@ void CPersistenceNamespaceDb::setValue(
 	CAF_CM_FUNCNAME("setValue");
 	CAF_CM_VALIDATE_STRING(key);
 
+	CAF_CM_LOG_DEBUG_VA0("setValue");
 	if (_removedKeys.find(key) == _removedKeys.end()) {
 		if (value.empty()) {
 			CAF_CM_LOG_DEBUG_VA1("Cannot set empty value: %s", key.c_str());
@@ -431,6 +457,7 @@ void CPersistenceNamespaceDb::removeKey(const std::string& key) {
 	CAF_CM_FUNCNAME("removeKey");	
 	CAF_CM_VALIDATE_STRING(key);
 
+	CAF_CM_LOG_DEBUG_VA0("removeKey");
 	if (_removedKeys.find(key) == _removedKeys.end()) {
 		std::string stdoutContent;
 		std::string stderrContent;
@@ -459,8 +486,66 @@ void CPersistenceNamespaceDb::removeKey(const std::string& key) {
 	}
 }
 
+bool CPersistenceNamespaceDb::isDataReady() {
+	CAF_CM_FUNCNAME_VALIDATE("isDataReady");
+
+	CAF_CM_LOG_DEBUG_VA0("isDataReady method");
+
+	// Check if data is ready to read/modify
+	bool rc = false;
+	if (!_polledDuringStart) {
+		rc = true;
+		_polledDuringStart = true;
+		CAF_CM_LOG_DEBUG_VA0("Set NSDB polling during service start");
+	}
+	if (FileSystemUtils::doesFileExist(_nsdbPollerSignalFile)) {
+		rc = true;
+		CAF_CM_LOG_DEBUG_VA1("NSDB poller signal file %s exists.", _nsdbPollerSignalFile.c_str());
+		FileSystemUtils::removeFile(_nsdbPollerSignalFile);
+	}
+	CAF_CM_LOG_DEBUG_VA4("NSDB poller signal file %s, _pollingStartedTimeMs=%ld, _pollingIntervalSecs=%ld, rc=%s.",
+			_nsdbPollerSignalFile.c_str(), long(_pollingStartedTimeMs), long(_pollingIntervalSecs), rc?"true":"false");
+	if (CDateTimeUtils::calcRemainingTime(_pollingStartedTimeMs, _pollingIntervalSecs * 1000) <= 0) {
+		rc = true;
+		CAF_CM_LOG_DEBUG_VA0("The next polling interval reached.");
+	}
+	if (rc) {
+		_pollingStartedTimeMs = CDateTimeUtils::getTimeMs();
+		_dataReady2Read = _dataReady2Update = _dataReady2Remove = true;
+	}
+
+	return rc;
+}
+
+bool CPersistenceNamespaceDb::isDataReady2Read() {
+        CAF_CM_FUNCNAME_VALIDATE("isDataReady2Read");
+
+	CAF_CM_LOG_DEBUG_VA1("_dataReady2Read = %s", _dataReady2Read?"true":"false");
+
+	return (isDataReady() || _dataReady2Read);
+}
+
+bool CPersistenceNamespaceDb::isDataReady2Update() {
+        CAF_CM_FUNCNAME_VALIDATE("isDataReady2Update");
+
+	CAF_CM_LOG_DEBUG_VA1("_dataReady2Update = %s", _dataReady2Update?"true":"false");
+	return (isDataReady() || _dataReady2Update);
+
+}
+
+bool CPersistenceNamespaceDb::isDataReady2Remove() {
+        CAF_CM_FUNCNAME_VALIDATE("isDataReady2Remove");
+
+	CAF_CM_LOG_DEBUG_VA1("_dataReady2Remove = %s", _dataReady2Remove?"true":"false");
+	return (isDataReady() || _dataReady2Remove);
+
+}
+
 bool CPersistenceNamespaceDb::isReady() {
 	CAF_CM_FUNCNAME("isReady");
+
+	CAF_CM_LOG_DEBUG_VA0("isReady method");
+
 
 	bool rc = true;
 	if (! _isReady) {
@@ -496,6 +581,7 @@ std::string CPersistenceNamespaceDb::getValueRaw(
 	CAF_CM_FUNCNAME_VALIDATE("getValueRaw");
 	CAF_CM_VALIDATE_STRING(key);
 
+	CAF_CM_LOG_ERROR_VA0("getValueRaw");
 	Cdeqstr argv;
 	argv.push_back(_nsdbCmdPath);
 	argv.push_back("get-value");

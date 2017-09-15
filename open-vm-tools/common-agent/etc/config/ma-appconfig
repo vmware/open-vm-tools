@@ -49,6 +49,8 @@ diagFileAlias_IntBeanConfigFile=file://${root_dir}/config/IntBeanConfigFile.xml?
 listener_retry_max=-1
 listener_startup_type=Automatic
 listener_restart_hours=48
+nsdb_poller_signal_file=${monitor_dir}/nsdbPollerSignal.txt
+nsdb_polling_interval_secs=86400
 
 [subsystems]
 # Integration System Beans

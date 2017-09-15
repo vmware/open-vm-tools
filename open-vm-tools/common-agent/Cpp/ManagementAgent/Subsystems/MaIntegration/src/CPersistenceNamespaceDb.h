@@ -66,6 +66,14 @@ private:
 
 	bool isReady();
 
+	bool isDataReady();
+
+	bool isDataReady2Read();
+
+	bool isDataReady2Update();
+
+	bool isDataReady2Remove();
+
 	std::string getValueRaw(
 			const std::string& key,
 			std::string& stdoutContent,
@@ -74,9 +82,17 @@ private:
 private:
 	bool _isInitialized;
 	bool _isReady;
+	bool _dataReady2Read;
+	bool _dataReady2Update;
+	bool _dataReady2Remove;
+
+	bool _polledDuringStart;
+        uint32 _pollingIntervalSecs;
+        uint64 _pollingStartedTimeMs;
 
 	std::string _nsdbCmdPath;
 	std::string _nsdbNamespace;
+	std::string _nsdbPollerSignalFile;
 	Csetstr _removedKeys;
 	std::string _updates;
 
