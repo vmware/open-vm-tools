@@ -77,6 +77,8 @@
 #define _Printf_format_string_
 #define _Use_decl_annotations_
 #define _Dispatch_type_(mj)
+#define _Requires_lock_held_(cs)
+#define _IRQL_requires_max_(i)
 
 #else
 // Sal 2.0 path - everything is already defined.
