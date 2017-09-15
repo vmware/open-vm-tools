@@ -306,7 +306,8 @@
    LOGLEVEL_VAR(toolsIso), \
    LOGLEVEL_VAR(toolsversion), \
    LOGLEVEL_VAR(vmva), \
-   LOGLEVEL_VAR(udpfec)    /* lib/udpfec */
+   LOGLEVEL_VAR(udpfec),    /* lib/udpfec */ \
+   LOGLEVEL_VAR(maclatency)
 
    /* end of list */
 
