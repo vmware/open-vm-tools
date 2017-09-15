@@ -17,7 +17,7 @@
 //
 //  Created: Tuesday, August 20, 2002 10:00:00 AM
 //  
-//	Copyright (c) 2011 Vmware, Inc.  All rights reserved.
+//	Copyright (C) 2011-2016 VMware, Inc.  All rights reserved. -- VMware Confidential
 //	-- VMware Confidential
 //  
 //  Modification History:

@@ -2,8 +2,7 @@
  *  Created on: Jul 09, 2003
  *      Author: Scott VanCamp
  *
- *  Copyright (c) 2003-2011 VMware, Inc.  All rights reserved.
- *  -- VMware Confidential
+ *  Copyright (C) 2003-2016 VMware, Inc.  All rights reserved. -- VMware Confidential
  */
 
 #ifndef TEDGELISTGRAPH_H_

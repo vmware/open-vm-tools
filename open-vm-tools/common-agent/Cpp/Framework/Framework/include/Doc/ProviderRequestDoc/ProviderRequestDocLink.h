@@ -2,8 +2,7 @@
  *  Author: bwilliams
  *  Created: February 25, 2016
  *
- *  Copyright (c) 2016 Vmware, Inc.  All rights reserved.
- *  -- VMware Confidential
+ *  Copyright (C) 2016 VMware, Inc.  All rights reserved. -- VMware Confidential
  *
  */
 

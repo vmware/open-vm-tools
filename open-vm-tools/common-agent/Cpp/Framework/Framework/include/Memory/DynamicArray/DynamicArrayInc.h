@@ -4,7 +4,7 @@
 //
 //  Created:	05/03/2004
 //
-//	Copyright (c) 2011 Vmware, Inc.  All rights reserved.
+//	Copyright (C) 2011-2016 VMware, Inc.  All rights reserved. -- VMware Confidential
 //	-- VMware Confidential
 // 
 ///////////////////////////////////////////////////////////////////////////////////////////

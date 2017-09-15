@@ -2,8 +2,7 @@
  *	 Author: bwilliams
  *  Created: Jan 26, 2011
  *
- *	Copyright (c) 2010 Vmware, Inc.  All rights reserved.
- *	-- VMware Confidential
+ *	Copyright (C) 2010-2016 VMware, Inc.  All rights reserved. -- VMware Confidential
  */
 
 #ifndef _FxContracts_IBean_h_

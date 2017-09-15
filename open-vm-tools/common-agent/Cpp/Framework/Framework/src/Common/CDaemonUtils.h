@@ -2,8 +2,7 @@
  *	 Author: mdonahue
  *  Created: Jun 9, 2011
  *
- *	Copyright (c) 2010 Vmware, Inc.  All rights reserved.
- *	-- VMware Confidential
+ *	Copyright (C) 2010-2016 VMware, Inc.  All rights reserved. -- VMware Confidential
  */
 
 #ifndef CDAEMONUTILS_H_

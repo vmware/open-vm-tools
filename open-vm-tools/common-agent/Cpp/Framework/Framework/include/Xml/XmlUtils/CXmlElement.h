@@ -2,8 +2,7 @@
  *	 Author: mdonahue
  *  Created: Dec 3, 2010
  *
- *	Copyright (c) 2010 Vmware, Inc.  All rights reserved.
- *	-- VMware Confidential
+ *	Copyright (C) 2010-2016 VMware, Inc.  All rights reserved. -- VMware Confidential
  */
 
 #ifndef _CXmlElement_h
