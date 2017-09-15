@@ -246,8 +246,8 @@ typedef struct  Atomic_uint64 {
    volatile uint64 value;
 } Atomic_uint64 ALIGNED(8);
 
-#if (__GNUC__ > 4 || (__GNUC__ ==  4 && __GNUC_MINOR__ >= 6)) && \
-                                (defined(VM_X86_64) || defined(VM_ARM_64))
+#if defined(__GNUC__) && defined(VM_64BIT) && \
+     (__GCC_HAVE_SYNC_COMPARE_AND_SWAP_16 || defined(VM_ARM_64))
 typedef struct Atomic_uint128 {
    volatile __int128 value;
 } Atomic_uint128 ALIGNED(16);
@@ -481,7 +481,7 @@ CMPXCHG1B(volatile uint8 *ptr, // IN/OUT
  *
  *-----------------------------------------------------------------------------
  */
-#if defined(__GNUC__) && \
+#if defined(__GNUC__) && defined(VM_64BIT) && \
      (__GCC_HAVE_SYNC_COMPARE_AND_SWAP_16 || defined(VM_ARM_64))
 static INLINE __int128
 Atomic_ReadIfEqualWrite128(Atomic_uint128 *ptr,   // IN/OUT
