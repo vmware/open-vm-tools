@@ -211,6 +211,7 @@ typedef struct AsyncTCPSocket {
    Bool sendCbRT;
    Bool sendBufFull;
    Bool sendLowLatency;
+   Bool inLowLatencySendCb;
 
    Bool sslConnected;
 
@@ -2879,12 +2880,6 @@ AsyncTCPSocketBlockingWork(AsyncTCPSocket *s,  // IN:
       int numBytes, error;
       AsyncTCPSocket *asock = NULL;
 
-      error = AsyncTCPSocketPoll(s, read, done - now, &asock);
-      if (error != ASOCKERR_SUCCESS) {
-         return error;
-      }
-
-      ASSERT(asock == s);
       if ((numBytes = read ? SSL_Read(s->sslSock, buf, len)
                            : SSL_Write(s->sslSock, buf, len)) > 0) {
          if (completed) {
@@ -2908,9 +2903,21 @@ AsyncTCPSocketBlockingWork(AsyncTCPSocket *s,  // IN:
       }
 
       now = Hostinfo_SystemTimerUS() / 1000;
-   } while ((now < done && timeoutMS > 0) || (timeoutMS < 0));
+      if (now >= done && timeoutMS >= 0) {
+         return ASOCKERR_TIMEOUT;
+      }
 
-   return ASOCKERR_TIMEOUT;
+      /*
+       * Only call in to Poll if we weren't able to send/recv directly
+       * off the socket.  But always make sure that the call to Poll()
+       * is followed by a read/send.
+       */
+      error = AsyncTCPSocketPoll(s, read, done - now, &asock);
+      if (error != ASOCKERR_SUCCESS) {
+         return error;
+      }
+      ASSERT(asock == s);
+   } while (TRUE);
 }
 
 
@@ -2971,6 +2978,7 @@ AsyncTCPSocketSend(AsyncSocket *base,         // IN
    LOG(2, ("%s: sending %d bytes\n", __FUNCTION__, len));
 
    ASSERT(AsyncTCPSocketIsLocked(asock));
+   ASSERT(!asock->inLowLatencySendCb);
 
    if (AsyncTCPSocketGetState(asock) != AsyncSocketConnected) {
       TCPSOCKWARN(asock, ("send called but state is not connected!\n"));
@@ -2994,31 +3002,6 @@ AsyncTCPSocketSend(AsyncSocket *base,         // IN
    bufferListWasEmpty = (asock->sendBufList == newBuf);
 
    if (bufferListWasEmpty && !asock->sendCb) {
-#ifdef _WIN32
-      /*
-       * If the send buffer list was empty, we schedule a one-time callback
-       * to "prime" the output. This is necessary to support the FD_WRITE
-       * network event semantic for sockets on Windows (see WSAEventSelect
-       * documentation). The event won't signal unless a previous write() on
-       * the socket failed with WSAEWOULDBLOCK, so we have to perform at
-       * least one partial write before we can start polling for write.
-       *
-       * XXX: This can be a device callback once all poll implementations
-       * know to get around this Windows quirk.  Both PollVMX and PollDefault
-       * already make 0-byte send() to force WSAEWOULDBLOCK.
-       */
-
-      if (AsyncTCPSocketPollAdd(asock, FALSE, 0, asock->internalSendFn,
-                                AsyncTCPSocketPollParams(asock)->iPoll != NULL
-                                ? 1 : 0)
-          != VMWARE_STATUS_SUCCESS) {
-         retVal = ASOCKERR_POLL;
-         TCPSOCKLOG(1, asock, ("Failed to register poll callback for send\n"));
-         goto outUndoAppend;
-      }
-      asock->sendCbTimer = TRUE;
-      asock->sendCb = TRUE;
-#else
       if (asock->sendLowLatency) {
          /*
           * For low-latency sockets, call the callback directly from
@@ -3030,8 +3013,37 @@ AsyncTCPSocketSend(AsyncSocket *base,         // IN
           * callback to be invoked prior to the call to
           * AsyncTCPSocket_Send() returning.
           */
+         asock->inLowLatencySendCb = TRUE;
          asock->internalSendFn((void *)asock);
+         asock->inLowLatencySendCb = FALSE;
       } else {
+#ifdef _WIN32
+         /*
+          * If the send buffer list was empty, we schedule a one-time
+          * callback to "prime" the output. This is necessary to
+          * support the FD_WRITE network event semantic for sockets on
+          * Windows (see WSAEventSelect documentation). The event
+          * won't signal unless a previous write() on the socket
+          * failed with WSAEWOULDBLOCK, so we have to perform at least
+          * one partial write before we can start polling for write.
+          *
+          * XXX: This can be a device callback once all poll
+          * implementations know to get around this Windows quirk.
+          * Both PollVMX and PollDefault already make 0-byte send() to
+          * force WSAEWOULDBLOCK.
+          */
+         if (AsyncTCPSocketPollAdd(asock, FALSE, 0, asock->internalSendFn,
+                                   AsyncTCPSocketPollParams(asock)->iPoll
+                                   != NULL ? 1 : 0)
+             != VMWARE_STATUS_SUCCESS) {
+            retVal = ASOCKERR_POLL;
+            TCPSOCKLOG(1, asock,
+                       ("Failed to register poll callback for send\n"));
+            goto outUndoAppend;
+         }
+         asock->sendCbTimer = TRUE;
+         asock->sendCb = TRUE;
+#else
          if (AsyncTCPSocketPollAdd(asock, TRUE, POLL_FLAG_WRITE,
                                    asock->internalSendFn)
              != VMWARE_STATUS_SUCCESS) {
@@ -3041,8 +3053,8 @@ AsyncTCPSocketSend(AsyncSocket *base,         // IN
             goto outUndoAppend;
          }
          asock->sendCb = TRUE;
-      }
 #endif
+      }
    }
 
    return ASOCKERR_SUCCESS;

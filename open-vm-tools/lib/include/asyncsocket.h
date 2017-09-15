@@ -529,6 +529,13 @@ int AsyncSocket_GetWebSocketError(AsyncSocket *asock);
 const char * stristr(const char *s, const char *find);
 
 /*
+ * Helper function to parse websocket URL
+ */
+Bool AsyncSocket_WebSocketParseURL(const char *url, char **hostname,
+                                   unsigned int *port, Bool *useSSL,
+                                   char **relativeURL);
+
+/*
  * Some logging macros for convenience
  */
 #define ASOCKPREFIX "SOCKET "
