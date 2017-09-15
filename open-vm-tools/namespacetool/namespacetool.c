@@ -704,7 +704,7 @@ main(int argc, char *argv[])
     *  Validating namespace command name after g_context_parser
     *  because argv[1] can have string "--help"
     */
-   if (argc > 1 && ValidateNSCommands(argv[1]) == FALSE) {
+   if (argc > 1 && ValidateNSCommands(nsOptions.cmdName) == FALSE) {
       goto exit;
    }
 
