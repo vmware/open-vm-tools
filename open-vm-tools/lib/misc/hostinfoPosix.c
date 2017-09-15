@@ -611,7 +611,13 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
        * Not sure why they didn't brand their releases as "Oracle Enterprise
        * Linux". Oh well. It's fixed in 6.0, though.
        */
-      Str_Strcpy(distroShort, STR_OS_ORACLE, distroShortSize);
+      if (strstr(distroLower, "6.")) {
+         Str_Strcpy(distroShort, STR_OS_ORACLE6, distroShortSize);
+      } else if (strstr(distroLower, "7.")) {
+         Str_Strcpy(distroShort, STR_OS_ORACLE7, distroShortSize);
+      } else {
+         Str_Strcpy(distroShort, STR_OS_ORACLE, distroShortSize);
+      }
    } else if (strstr(distroLower, "fedora")) {
       Str_Strcpy(distroShort, STR_OS_FEDORA, distroShortSize);
    } else if (strstr(distroLower, "gentoo")) {
