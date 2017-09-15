@@ -14,148 +14,113 @@ using namespace Caf;
 CConfigEnv::CConfigEnv() :
 	_isInitialized(false),
 	CAF_CM_INIT_LOG("CConfigEnv") {
+	CAF_CM_INIT_THREADSAFE;
 }
 
 CConfigEnv::~CConfigEnv() {
 }
 
-void CConfigEnv::initialize() {
-	CAF_CM_FUNCNAME_VALIDATE("initialize");
-	CAF_CM_PRECOND_ISNOTINITIALIZED(_isInitialized);
+void CConfigEnv::initializeBean(
+	const IBean::Cargs& ctorArgs,
+	const IBean::Cprops& properties) {
+}
 
-	_persistenceDir = AppConfigUtils::getRequiredString("persistence_dir");
-	_scriptsDir = AppConfigUtils::getRequiredString("scripts_dir");
-	_outputDir = AppConfigUtils::getRequiredString(_sAppConfigGlobalParamOutputDir);
-	_configDir = AppConfigUtils::getRequiredString("config_dir");
-	_vcidPath = "/etc/vmware-tools/GuestProxyData/VmVcUuid/vm.vc.uuid";
+void CConfigEnv::terminateBean() {
+}
 
+void CConfigEnv::initialize(
+		const SmartPtrIPersistence& persistenceRemove) {
+	CAF_CM_LOCK_UNLOCK;
+
+	if (_isInitialized) {
+		if (! persistenceRemove.IsNull() && _persistenceRemove.IsNull()) {
+			_persistenceRemove = persistenceRemove;
+		}
+	} else {
+		_persistenceDir = AppConfigUtils::getRequiredString("persistence_dir");
+		_scriptsDir = AppConfigUtils::getRequiredString("scripts_dir");
+		_outputDir = AppConfigUtils::getRequiredString(_sAppConfigGlobalParamOutputDir);
+		_configDir = AppConfigUtils::getRequiredString("config_dir");
+		_persistenceAppconfigPath = FileSystemUtils::buildPath(_configDir, "persistence-appconfig");
+
+		std::string guestProxyDir;
 #ifdef _WIN32
-	_startListenerScript = FileSystemUtils::buildPath(_scriptsDir, "start-listener.bat");
-	_stopListenerScript = FileSystemUtils::buildPath(_scriptsDir, "stop-listener.bat");
-	_startMaScript = FileSystemUtils::buildPath(_scriptsDir, "start-ma.bat");
-	_stopMaScript = FileSystemUtils::buildPath(_scriptsDir, "stop-ma.bat");
+		_startListenerScript = FileSystemUtils::buildPath(_scriptsDir, "start-listener.bat");
+		_stopListenerScript = FileSystemUtils::buildPath(_scriptsDir, "stop-listener.bat");
+		_startMaScript = FileSystemUtils::buildPath(_scriptsDir, "start-ma.bat");
+		_stopMaScript = FileSystemUtils::buildPath(_scriptsDir, "stop-ma.bat");
+
+		std::string programData;
+		CEnvironmentUtils::readEnvironmentVar("ProgramData", programData);
+		guestProxyDir = FileSystemUtils::buildPath(programData, "VMware", "VMware Tools", "GuestProxyData");
 #else
-	_startListenerScript = FileSystemUtils::buildPath(_scriptsDir, "start-listener");
-	_stopListenerScript = FileSystemUtils::buildPath(_scriptsDir, "stop-listener");
-	_startMaScript = FileSystemUtils::buildPath(_scriptsDir, "start-ma");
-	_stopMaScript = FileSystemUtils::buildPath(_scriptsDir, "stop-ma");
+		_startListenerScript = FileSystemUtils::buildPath(_scriptsDir, "start-listener");
+		_stopListenerScript = FileSystemUtils::buildPath(_scriptsDir, "stop-listener");
+		_startMaScript = FileSystemUtils::buildPath(_scriptsDir, "start-ma");
+		_stopMaScript = FileSystemUtils::buildPath(_scriptsDir, "stop-ma");
+
+		guestProxyDir = "/etc/vmware-tools/GuestProxyData";
 #endif
 
-	_isInitialized = true;
+		_vcidPath = FileSystemUtils::buildPath(guestProxyDir, "VmVcUuid", "vm.vc.uuid");
+		_cacertPath = FileSystemUtils::buildPath(guestProxyDir, "server", "cert.pem");
+
+		_persistence = CPersistenceUtils::loadPersistence(_persistenceDir);
+		_persistenceUpdated = _persistence;
+		_persistenceRemove = persistenceRemove;
+
+		_isInitialized = true;
+	}
 }
 
 SmartPtrCPersistenceDoc CConfigEnv::getUpdated(
 		const int32 timeout) {
 	CAF_CM_FUNCNAME_VALIDATE("getUpdated");
+	CAF_CM_LOCK_UNLOCK;
 	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
 
-	if (_persistence.IsNull()) {
-		_persistence = CPersistenceUtils::loadPersistence(_persistenceDir);
+	const SmartPtrCPersistenceDoc persistenceTmp =
+			CConfigEnvMerge::mergePersistence(_persistence, _cacertPath, _vcidPath);
+	if (! persistenceTmp.IsNull() || ! FileSystemUtils::doesFileExist(_persistenceAppconfigPath)) {
+		if (! persistenceTmp.IsNull()) {
+			_persistence = persistenceTmp;
+		}
+
+		savePersistenceAppconfig(_persistence, _configDir);
+		restartRunningListener();
 	}
 
-	return _persistence;
+	SmartPtrCPersistenceDoc rc;
+	if (! _persistenceUpdated.IsNull()) {
+		CAF_CM_LOG_DEBUG_VA1("Returning persistence info - %s", _persistenceDir.c_str());
+		rc = _persistenceUpdated;
+		_persistenceUpdated = SmartPtrCPersistenceDoc();
+	}
+
+	return rc;
 }
 
 void CConfigEnv::update(
 		const SmartPtrCPersistenceDoc& persistence) {
 	CAF_CM_FUNCNAME_VALIDATE("update");
+	CAF_CM_LOCK_UNLOCK;
 	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
 
-	if (_persistence.IsNull()) {
-		_persistence = CPersistenceUtils::loadPersistence(_persistenceDir);
-	}
+	const SmartPtrCPersistenceDoc persistenceTmp =
+			CPersistenceMerge::mergePersistence(_persistence, persistence);
+	if (! persistenceTmp.IsNull()) {
+		CAF_CM_LOG_DEBUG_VA1("Updating persistence info - %s", _persistenceDir.c_str());
 
-	const SmartPtrCPersistenceDoc persistenceTmp = merge(_persistence, persistence);
-	if (_persistence != persistenceTmp) {
 		_persistence = persistenceTmp;
+		_persistenceUpdated = createPersistenceUpdated(_persistence);
 		CPersistenceUtils::savePersistence(_persistence, _persistenceDir);
-		savePersistenceAppconfig(_persistence, _configDir);
 
-		//executeScript(_stopListenerScript, _outputDir);
-		//executeScript(_stopMaScript, _outputDir);
-		//executeScript(_startListenerScript, _outputDir);
-		//executeScript(_startMaScript, _outputDir);
-	}
-}
+		restartRunningListener();
 
-void CConfigEnv::remove(
-		const SmartPtrCPersistenceDoc& persistence) {
-	CAF_CM_FUNCNAME("remove");
-	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
-	CAF_CM_VALIDATE_SMARTPTR(persistence);
-
-	CAF_CM_EXCEPTIONEX_VA0(UnsupportedOperationException, E_NOTIMPL, "Not implemented");
-}
-
-SmartPtrCPersistenceDoc CConfigEnv::merge(
-		const SmartPtrCPersistenceDoc& persistenceLoaded,
-		const SmartPtrCPersistenceDoc& persistenceIn) const {
-	// persistenceIn is non-null only when it has a change.
-	bool isChanged = false;
-	SmartPtrCPersistenceDoc persistenceTmp = persistenceLoaded;
-	if (! persistenceIn.IsNull()) {
-		persistenceTmp = persistenceIn;
-		isChanged = true;
-	}
-
-	const SmartPtrCLocalSecurityDoc localSecurity =
-			calcLocalSecurity(persistenceTmp->getLocalSecurity());
-
-	//TODO: Do something similar to the above for tunnel vs. non-tunnel:
-	// * Tunnel - Use "/etc/vmware-tools/GuestProxyData/server/cert.pem" for the cacert
-	// * Tunnel - Calculate the URL with a protocol of "tunnel"
-	// * Non-tunnel - Calculate the URL with a protocol of "amqp"
-
-	SmartPtrCPersistenceDoc rc = persistenceLoaded;
-	if (isChanged || ! localSecurity.IsNull()) {
-		const SmartPtrCLocalSecurityDoc localSecurityTmp =
-				localSecurity.IsNull() ? persistenceTmp->getLocalSecurity() : localSecurity;
-
-		rc.CreateInstance();
-		rc->initialize(localSecurityTmp, persistenceTmp->getRemoteSecurityCollection(),
-				persistenceTmp->getPersistenceProtocol());
-	}
-
-	return rc;
-}
-
-SmartPtrCLocalSecurityDoc CConfigEnv::calcLocalSecurity(
-		const SmartPtrCLocalSecurityDoc& localSecurity) const {
-	CAF_CM_FUNCNAME_VALIDATE("calcLocalSecurity");
-	CAF_CM_VALIDATE_SMARTPTR(localSecurity);
-
-	const std::string localIdTmp =
-			localSecurity.IsNull() ? std::string() : localSecurity->getLocalId();
-	const std::string localId = calcLocalId(localIdTmp);
-
-	SmartPtrCLocalSecurityDoc rc;
-	if (! localId.empty()) {
-		const std::string privateKey =
-				localSecurity.IsNull() ? std::string() : localSecurity->getPrivateKey();
-		const std::string cert =
-				localSecurity.IsNull() ? std::string() : localSecurity->getCert();
-		rc.CreateInstance();
-		rc->initialize(localId, privateKey, cert);
-	}
-
-	return rc;
-}
-
-std::string CConfigEnv::calcLocalId(
-		const std::string& localIdCurrent) const {
-	std::string rc;
-	if (FileSystemUtils::doesFileExist(_vcidPath)) {
-		const std::string vcid = FileSystemUtils::loadTextFile(_vcidPath);
-		if (vcid.compare(localIdCurrent) != 0) {
-			rc = vcid;
-		}
+		removePrivateKey(_persistence, _persistenceRemove);
 	} else {
-		if (localIdCurrent.empty()) {
-			rc = CStringUtils::createRandomUuid();
-		}
+		CAF_CM_LOG_DEBUG_VA0("Persistence info did not change");
 	}
-
-	return rc;
 }
 
 void CConfigEnv::savePersistenceAppconfig(
@@ -170,26 +135,27 @@ void CConfigEnv::savePersistenceAppconfig(
 #else
 	const std::string newLine = "\n";
 #endif
+	CAF_CM_LOG_DEBUG_VA1("Saving persistence-appconfig - %s", configDir.c_str());
 
-	const std::string appconfigPath =
-			FileSystemUtils::buildPath(configDir, "persistence-appconfig");
-	const Cdeqstr appconfigColl =
-			FileSystemUtils::loadTextFileIntoColl(appconfigPath);
+	const SmartPtrCPersistenceProtocolDoc persistenceProtocol =
+			CPersistenceUtils::loadPersistenceProtocol(
+					persistence->getPersistenceProtocolCollection());
+
+	UriUtils::SUriRecord uriRecord;
+	UriUtils::parseUriString(persistenceProtocol->getUri(), uriRecord);
+	CAF_CM_VALIDATE_STRING(uriRecord.path);
+
+	const std::string listenerContext = calcListenerContext(uriRecord.protocol, configDir);
+
+	CAF_CM_LOG_DEBUG_VA2("Calculated listener context - uri: %s, protocol: %s",
+			persistenceProtocol->getUri().c_str(), uriRecord.protocol.c_str());
 
 	std::string appconfigContents;
-	for (TConstIterator<Cdeqstr> iter(appconfigColl); iter; iter++) {
-		const std::string appconfigLine = *iter;
-		if (appconfigLine.find("reactive_request_amqp_queue_id=") != std::string::npos) {
-			const SmartPtrCAmqpBrokerDoc amqpBroker =
-					CPersistenceUtils::loadAmqpBroker(persistence->getPersistenceProtocol());
-			appconfigContents +=
-					"reactive_request_amqp_queue_id=" + amqpBroker->getAmqpBrokerId() + newLine;
-		} else {
-			appconfigContents += appconfigLine + newLine;
-		}
-	}
+	appconfigContents = "[globals]" + newLine;
+	appconfigContents += "reactive_request_amqp_queue_id=" + uriRecord.path + newLine;
+	appconfigContents += "comm_amqp_listener_context=" + listenerContext + newLine;
 
-	FileSystemUtils::saveTextFile(appconfigPath, appconfigContents);
+	FileSystemUtils::saveTextFile(_persistenceAppconfigPath, appconfigContents);
 }
 
 void CConfigEnv::executeScript(
@@ -208,4 +174,98 @@ void CConfigEnv::executeScript(
 			scriptResultsDir, "stderr");
 
 	ProcessUtils::runSyncToFiles(argv, stdoutPath, stderrPath);
+}
+
+void CConfigEnv::removePrivateKey(
+		const SmartPtrCPersistenceDoc& persistence,
+		const SmartPtrIPersistence& persistenceRemove) const {
+	CAF_CM_FUNCNAME_VALIDATE("removePrivateKey");
+	CAF_CM_VALIDATE_SMARTPTR(persistence);
+
+	if (! persistenceRemove.IsNull()
+			&& ! persistence->getLocalSecurity()->getPrivateKey().empty()) {
+		CAF_CM_LOG_DEBUG_VA0("Removing private key");
+
+		SmartPtrCLocalSecurityDoc localSecurity;
+		localSecurity.CreateInstance();
+		localSecurity->initialize(std::string(), "removePrivateKey");
+
+		SmartPtrCPersistenceDoc persistenceRemoveTmp;
+		persistenceRemoveTmp.CreateInstance();
+		persistenceRemoveTmp->initialize(localSecurity);
+
+		persistenceRemove->remove(persistenceRemoveTmp);
+	}
+}
+
+SmartPtrCPersistenceDoc CConfigEnv::createPersistenceUpdated(
+		const SmartPtrCPersistenceDoc& persistence) const {
+	CAF_CM_FUNCNAME_VALIDATE("createPersistenceUpdated");
+	CAF_CM_VALIDATE_SMARTPTR(persistence);
+
+	SmartPtrCLocalSecurityDoc localSecurity;
+	if (! persistence->getLocalSecurity().IsNull()
+			&& ! persistence->getLocalSecurity()->getLocalId().empty()) {
+		localSecurity.CreateInstance();
+		localSecurity->initialize(persistence->getLocalSecurity()->getLocalId());
+	}
+
+	SmartPtrCPersistenceProtocolCollectionDoc persistenceProtocolCollection;
+	if (! persistence->getPersistenceProtocolCollection().IsNull()
+			&& ! persistence->getPersistenceProtocolCollection()->getPersistenceProtocol().empty()) {
+		const SmartPtrCPersistenceProtocolDoc persistenceProtocolTmp =
+				CPersistenceUtils::loadPersistenceProtocol(persistence->getPersistenceProtocolCollection());
+		if (! persistenceProtocolTmp->getUri().empty()) {
+			SmartPtrCPersistenceProtocolDoc persistenceProtocol;
+			persistenceProtocol.CreateInstance();
+			persistenceProtocol->initialize(
+					persistenceProtocolTmp->getProtocolName(),
+					persistenceProtocolTmp->getUri());
+
+			std::deque<SmartPtrCPersistenceProtocolDoc> persistenceProtocolInner;
+			persistenceProtocolInner.push_back(persistenceProtocol);
+
+			persistenceProtocolCollection.CreateInstance();
+			persistenceProtocolCollection->initialize(persistenceProtocolInner);
+		}
+	}
+
+	SmartPtrCPersistenceDoc rc;
+	if (! localSecurity.IsNull() || ! persistenceProtocolCollection.IsNull()) {
+		rc.CreateInstance();
+		rc->initialize(localSecurity, SmartPtrCRemoteSecurityCollectionDoc(),
+				persistenceProtocolCollection, persistence->getVersion());
+	}
+
+	return rc;
+}
+
+std::string CConfigEnv::calcListenerContext(
+		const std::string& uriSchema,
+		const std::string& configDir) const {
+	CAF_CM_FUNCNAME("calcListenerContext");
+	CAF_CM_VALIDATE_STRING(uriSchema);
+	CAF_CM_VALIDATE_STRING(configDir);
+
+	std::string rc;
+	if (uriSchema.compare("amqp") == 0) {
+		rc = FileSystemUtils::buildPath(configDir, "CommAmqpListener-context-amqp.xml");
+	} else if (uriSchema.compare("tunnel") == 0) {
+		rc = FileSystemUtils::buildPath(configDir, "CommAmqpListener-context-tunnel.xml");
+	} else {
+		CAF_CM_EXCEPTION_VA1(E_INVALIDARG, "Unknown URI schema: %s", uriSchema.c_str());
+	}
+
+	return FileSystemUtils::normalizePathWithForward(rc);
+}
+
+void CConfigEnv::restartRunningListener() const {
+	// TODO: It's difficult to know when we should start the listener, because
+	// it depends upon whether its been fully configured or not, and we don't
+	// know when that happens within this code. All we know is that we've
+	// read whatever info is on the file system and in the NSDDB, but that's it.
+	// Perhaps the best we can do is to re-start the listener only if it's already
+	// running because at least then we know that it's been configured.
+	//executeScript(_stopListenerScript, _outputDir);
+	//executeScript(_startListenerScript, _outputDir);
 }

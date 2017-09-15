@@ -13,7 +13,6 @@ using namespace Caf;
 
 CPersistenceMessageHandler::CPersistenceMessageHandler() :
 		_isInitialized(false),
-		_deleteSourceEntries(false),
 	CAF_CM_INIT_LOG("CPersistenceMessageHandler") {
 }
 
@@ -21,20 +20,15 @@ CPersistenceMessageHandler::~CPersistenceMessageHandler() {
 }
 
 void CPersistenceMessageHandler::initialize(
-		const SmartPtrIDocument& configSection) {
+		const SmartPtrIDocument& configSection,
+		const SmartPtrIPersistence& persistence) {
 	CAF_CM_FUNCNAME_VALIDATE("initialize");
 	CAF_CM_PRECOND_ISNOTINITIALIZED(_isInitialized);
 	CAF_CM_VALIDATE_INTERFACE(configSection);
+	CAF_CM_VALIDATE_SMARTPTR(persistence);
 
 	_id = configSection->findRequiredAttribute("id");
-
-	const std::string implClass = configSection->findRequiredAttribute("impl-class");
-	_persistence.CreateInstance(implClass.c_str());
-	_persistence->initialize();
-
-	const std::string deleteSourceEntriesStr = configSection->findOptionalAttribute(
-		"delete-source-entries");
-	_deleteSourceEntries = (deleteSourceEntriesStr.empty() || deleteSourceEntriesStr.compare("false") == 0) ? false : true;
+	_persistence = persistence;
 
 	_isInitialized = true;
 }
@@ -47,14 +41,13 @@ void CPersistenceMessageHandler::handleMessage(
 
 	_savedMessage = message;
 
+	SmartPtrCPersistenceDoc persistence;
 	const std::string payloadStr = message->getPayloadStr();
-	const SmartPtrCPersistenceDoc persistence =
-			XmlRoots::parsePersistenceFromString(payloadStr);
-	_persistence->update(persistence);
-
-	if (_deleteSourceEntries) {
-		;//TODO: Delete entries like the localSecurity private key.
+	if (! payloadStr.empty()) {
+		persistence = XmlRoots::parsePersistenceFromString(payloadStr);
 	}
+
+	_persistence->update(persistence);
 }
 
 SmartPtrIIntMessage CPersistenceMessageHandler::getSavedMessage() const {

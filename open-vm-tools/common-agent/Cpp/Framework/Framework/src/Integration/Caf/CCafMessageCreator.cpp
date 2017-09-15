@@ -361,9 +361,9 @@ SmartPtrIIntMessage CCafMessageCreator::createPayloadEnvelope(
 		const SmartPtrCProtocolCollectionDoc& protocolCollection) {
 	CAF_CM_STATIC_FUNC_LOG_VALIDATE("CCafMessageCreator", "createPayloadEnvelope");
 	CAF_CM_VALIDATE_STRING(payloadStr);
-	CAF_CM_VALIDATE_GUID(clientId);
+	// clientId is optional
 	CAF_CM_VALIDATE_GUID(requestId);
-	CAF_CM_VALIDATE_STRING(pmeId);
+	// pmeId is optional
 	CAF_CM_VALIDATE_STRING(payloadType);
 	CAF_CM_VALIDATE_STRING(payloadVersion);
 

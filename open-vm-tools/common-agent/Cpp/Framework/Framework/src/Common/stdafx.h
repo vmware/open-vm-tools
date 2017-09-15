@@ -11,7 +11,6 @@
 
 #ifdef WIN32
 	#define COMMONAGGREGATOR_LINKAGE __declspec(dllexport)
-	#define COMMONGLOBALS_LINKAGE __declspec(dllexport)
 	#define EXCEPTION_LINKAGE __declspec(dllexport)
 	#define LOGGING_LINKAGE __declspec(dllexport)
 	#define SUBSYSTEMBASE_LINKAGE __declspec(dllexport)
@@ -19,7 +18,6 @@
 	#define XMLUTILS_LINKAGE __declspec(dllexport)
 #else
 	#define COMMONAGGREGATOR_LINKAGE
-	#define COMMONGLOBALS_LINKAGE
 	#define EXCEPTION_LINKAGE
 	#define LOGGING_LINKAGE
 	#define SUBSYSTEMBASE_LINKAGE

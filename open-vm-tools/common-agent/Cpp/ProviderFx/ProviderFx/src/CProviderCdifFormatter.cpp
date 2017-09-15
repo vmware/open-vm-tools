@@ -12,7 +12,6 @@
 #include "../../Framework/src/Doc/DocXml/ResponseXml/ResponseXmlLink.h"
 #include "../../Framework/src/Doc/DocUtils/DocUtilsLink.h"
 #include "../include/IProviderResponse.h"
-#include <CafContracts.h>
 
 using namespace Caf;
 

@@ -26,7 +26,8 @@ public:
 
 public:
 	void initialize(
-		const SmartPtrIDocument& configSection);
+		const SmartPtrIDocument& configSection,
+		const SmartPtrIConfigEnv& configEnv);
 
 public: // IMessageHandler
 	void handleMessage(
@@ -43,7 +44,6 @@ public: // IErrorProcessor
 private:
 	bool _isInitialized;
 	std::string _id;
-	bool _deleteSourceEntries;
 	SmartPtrIConfigEnv _configEnv;
 	SmartPtrIIntMessage _savedMessage;
 

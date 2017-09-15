@@ -18,7 +18,7 @@
 #endif
 
 #include <BaseDefines.h>
-#include "../../Globals/CommonGlobalsLink.h"
+#include <CommonGlobals.h>
 #include "../../Exception/ExceptionLink.h"
 #include "../../Logging/LoggingLink.h"
 #include "../../Collections/Iterators/IteratorsInc.h"

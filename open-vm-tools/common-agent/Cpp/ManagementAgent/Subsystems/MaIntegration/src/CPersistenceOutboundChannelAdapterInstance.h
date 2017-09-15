@@ -46,6 +46,10 @@ public: // ILifecycle
 	bool isRunning() const;
 
 private:
+	SmartPtrIPersistence createPersistence(
+		const SmartPtrIAppContext& appContext) const;
+
+private:
 	bool _isInitialized;
 	bool _isRunning;
 	std::string _id;

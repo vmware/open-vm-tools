@@ -27,8 +27,8 @@ function enableCaf() {
    validateNotEmpty "$password" "password"
 
    local uriFile="$CAF_INPUT_DIR/persistence/protocol/amqpBroker_default/uri.txt"
-   sed -i "s/@amqpUsername@/${username}/g" "$uriFile"
-   sed -i "s/@amqpPassword@/${password}/g" "$uriFile"
+   sed -i "s/#amqpUsername#/${username}/g" "$uriFile"
+   sed -i "s/#amqpPassword#/${password}/g" "$uriFile"
 }
 
 function setBroker() {
@@ -36,7 +36,7 @@ function setBroker() {
    validateNotEmpty "$brokerAddr" "brokerAddr"
 
    local uriFile="$CAF_INPUT_DIR/persistence/protocol/amqpBroker_default/uri.txt"
-   sed -i "s/@brokerAddr@/$brokerAddr/g" "$uriFile"
+   sed -i "s/#brokerAddr#/$brokerAddr/g" "$uriFile"
 }
 
 function prtHelp() {
@@ -51,7 +51,6 @@ function prtHelp() {
    echo "  * validateXml                              Validates the XML files against the published schema"
    echo "  * validateInstall                          Validates that the files are in the right locations and have the right permissions"
    echo "  * validateOVTInstall                       Validates that the files are in the right locations for OVT and have the right permissions"
-   echo "  * checkFsPerms                             Checks the permissions, owner and group of the major CAF directories and files"
    echo ""
    echo "  * clearCaches                              Clears the CAF caches"
 }
@@ -121,6 +120,133 @@ function checkTunnel() {
    openssl s_client -connect localhost:6672 -key privateKey.pem -cert publicKey.pem -CAfile cacert.pem -verify 10
 
    popd > /dev/null
+}
+
+function validateInstall() {
+   checkFsPermsAll
+   checkFileExistsBin
+   checkFileExistsLib
+   checkFileExistsConfig
+   checkFileExistsScripts
+   checkFileExistsInstall
+   checkFileExistsInvokers
+   checkFileExistsProviderReg
+}
+
+function checkFsPermsAll() {
+   checkFsPerms "$CAF_INPUT_DIR" "755"
+   checkFsPerms "$CAF_OUTPUT_DIR" "755"
+   checkFsPerms "$CAF_LOG_DIR" "755"
+   checkFsPerms "$CAF_BIN_DIR" "755"
+   checkFsPerms "$CAF_LIB_DIR" "755"
+}
+
+function checkFileExistsBin() {
+   checkFileExists "$CAF_BIN_DIR/CommAmqpListener"
+   checkFileExists "$CAF_BIN_DIR/ConfigProvider"
+   checkFileExists "$CAF_BIN_DIR/InstallProvider"
+   checkFileExists "$CAF_BIN_DIR/ManagementAgentHost"
+   checkFileExists "$CAF_BIN_DIR/RemoteCommandProvider"
+   checkFileExists "$CAF_BIN_DIR/TestInfraProvider"
+   checkFileExists "$CAF_BIN_DIR/VGAuthService"
+   checkFileExists "$CAF_BIN_DIR/vmware-vgauth-cmd"
+}
+
+function checkFileExistsLib() {
+   checkFileExists "$CAF_LIB_DIR/libCafIntegrationSubsys.so"
+   checkFileExists "$CAF_LIB_DIR/libCommAmqpIntegration.so"
+   checkFileExists "$CAF_LIB_DIR/libCommAmqpIntegrationSubsys.so"
+   checkFileExists "$CAF_LIB_DIR/libCommIntegrationSubsys.so"
+   checkFileExists "$CAF_LIB_DIR/libFramework.so"
+   checkFileExists "$CAF_LIB_DIR/libIntegrationSubsys.so"
+   checkFileExists "$CAF_LIB_DIR/libMaIntegrationSubsys.so"
+   checkFileExists "$CAF_LIB_DIR/libProviderFx.so"
+   checkFileExists "$CAF_LIB_DIR/libVgAuthIntegrationSubsys.so"
+   checkFileExists "$CAF_LIB_DIR/libcom_err.so.3"
+   checkFileExists "$CAF_LIB_DIR/libcrypto.so.1.0.2"
+   checkFileExists "$CAF_LIB_DIR/libgcc_s.so.1"
+   checkFileExists "$CAF_LIB_DIR/libglib-2.0.so.0.3400.3"
+   checkFileExists "$CAF_LIB_DIR/libgthread-2.0.so.0.3400.3"
+   checkFileExists "$CAF_LIB_DIR/liblog4cpp.so.5.0.6"
+   checkFileExists "$CAF_LIB_DIR/librabbitmq.so.4.1.4"
+   checkFileExists "$CAF_LIB_DIR/libssl.so.1.0.2"
+   checkFileExists "$CAF_LIB_DIR/libstdc++.so.6.0.13"
+   checkFileExists "$CAF_LIB_DIR/libvgauth.so"
+   checkFileExists "$CAF_LIB_DIR/libxerces-c-3.1.so"
+   checkFileExists "$CAF_LIB_DIR/libxml-security-c.so.16"
+   checkFileExists "$CAF_LIB_DIR/libz.so.1.2.3"
+}
+
+function checkFileExistsConfig() {
+   checkFileExists "$CAF_CONFIG_DIR/CommAmqpListener-appconfig"
+   checkFileExists "$CAF_CONFIG_DIR/CommAmqpListener-context-amqp.xml"
+   checkFileExists "$CAF_CONFIG_DIR/CommAmqpListener-context-common.xml"
+   checkFileExists "$CAF_CONFIG_DIR/CommAmqpListener-context-tunnel.xml"
+   checkFileExists "$CAF_CONFIG_DIR/CommAmqpListener-log4cpp_config"
+   checkFileExists "$CAF_CONFIG_DIR/IntBeanConfigFile.xml"
+   checkFileExists "$CAF_CONFIG_DIR/cafenv-appconfig"
+   checkFileExists "$CAF_CONFIG_DIR/ma-appconfig"
+   checkFileExists "$CAF_CONFIG_DIR/ma-context.xml"
+   checkFileExists "$CAF_CONFIG_DIR/ma-log4cpp_config"
+   checkFileExists "$CAF_CONFIG_DIR/providerFx-appconfig"
+   checkFileExists "$CAF_CONFIG_DIR/providerFx-log4cpp_config"
+   checkFileExists "$CAF_CONFIG_DIR/persistence-appconfig"
+}
+
+function checkFileExistsScripts() {
+   checkFileExists "$CAF_CONFIG_DIR/../scripts/caf-common"
+   checkFileExists "$CAF_CONFIG_DIR/../scripts/caf-processes.sh"
+   checkFileExists "$CAF_CONFIG_DIR/../scripts/setUpVgAuth"
+   checkFileExists "$CAF_CONFIG_DIR/../scripts/start-VGAuthService"
+   checkFileExists "$CAF_CONFIG_DIR/../scripts/start-listener"
+   checkFileExists "$CAF_CONFIG_DIR/../scripts/start-ma"
+   checkFileExists "$CAF_CONFIG_DIR/../scripts/startTestProc"
+   checkFileExists "$CAF_CONFIG_DIR/../scripts/stop-VGAuthService"
+   checkFileExists "$CAF_CONFIG_DIR/../scripts/stop-listener"
+   checkFileExists "$CAF_CONFIG_DIR/../scripts/stop-ma"
+   checkFileExists "$CAF_CONFIG_DIR/../scripts/tearDownVgAuth"
+   checkFileExists "$CAF_CONFIG_DIR/../scripts/vgAuth"
+}
+function checkFileExistsInstall() {
+   checkFileExists "$CAF_CONFIG_DIR/../install/caf-c-communication-service"
+   checkFileExists "$CAF_CONFIG_DIR/../install/caf-c-management-agent"
+   checkFileExists "$CAF_CONFIG_DIR/../install/caf-dbg.sh"
+   checkFileExists "$CAF_CONFIG_DIR/../install/caf-vgauth"
+   checkFileExists "$CAF_CONFIG_DIR/../install/commonenv.sh"
+   checkFileExists "$CAF_CONFIG_DIR/../install/install.sh"
+   checkFileExists "$CAF_CONFIG_DIR/../install/postinstallInstall.sh"
+   checkFileExists "$CAF_CONFIG_DIR/../install/postinstallUpgrade.sh"
+   checkFileExists "$CAF_CONFIG_DIR/../install/preinstallUpgrade.sh"
+   checkFileExists "$CAF_CONFIG_DIR/../install/preremoveUninstall.sh"
+   checkFileExists "$CAF_CONFIG_DIR/../install/preuninstall.sh"
+   checkFileExists "$CAF_CONFIG_DIR/../install/preupgrade.sh"
+   checkFileExists "$CAF_CONFIG_DIR/../install/restartServices.sh"
+   checkFileExists "$CAF_CONFIG_DIR/../install/stopAndRemoveServices.sh"
+   checkFileExists "$CAF_CONFIG_DIR/../install/upgrade.sh"
+}
+
+function checkFileExistsInvokers() {
+   checkFileExists "$CAF_INVOKERS_DIR/cafTestInfra_CafTestInfraProvider_1_0_0.sh"
+   checkFileExists "$CAF_INVOKERS_DIR/caf_ConfigProvider_1_0_0.sh"
+   checkFileExists "$CAF_INVOKERS_DIR/caf_InstallProvider_1_0_0.sh"
+   checkFileExists "$CAF_INVOKERS_DIR/caf_RemoteCommandProvider_1_0_0.sh"
+}
+
+function checkFileExistsProviderReg() {
+   checkFileExists "$CAF_INPUT_DIR/providerReg/cafTestInfra_CafTestInfraProvider_1_0_0.xml"
+   checkFileExists "$CAF_INPUT_DIR/providerReg/caf_ConfigProvider_1_0_0.xml"
+   checkFileExists "$CAF_INPUT_DIR/providerReg/caf_InstallProvider_1_0_0.xml"
+   checkFileExists "$CAF_INPUT_DIR/providerReg/caf_RemoteCommandProvider_1_0_0.xml"
+}
+
+function checkFileExists() {
+   local path="$1"
+   validateNotEmpty "$path" "path"
+
+   if [ ! -f "$path" ]; then
+      echo "*** File existence check failed - expected: $path"
+      exit 1
+   fi
 }
 
 function checkFsPerms() {

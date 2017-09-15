@@ -14,6 +14,7 @@ using namespace Caf;
 /// TODO - describe class
 class CPersistenceNamespaceDb :
 	public TCafSubSystemObjectRoot<CPersistenceNamespaceDb>,
+	public IBean,
 	public IPersistence {
 public:
 	CPersistenceNamespaceDb();
@@ -22,8 +23,16 @@ public:
 	CAF_DECLARE_OBJECT_IDENTIFIER(_sObjIdPersistenceNamespaceDb)
 
 	CAF_BEGIN_INTERFACE_MAP(CPersistenceNamespaceDb)
+		CAF_INTERFACE_ENTRY(IBean)
 		CAF_INTERFACE_ENTRY(IPersistence)
 	CAF_END_INTERFACE_MAP()
+
+public: // IBean
+	virtual void initializeBean(
+			const IBean::Cargs& ctorArgs,
+			const IBean::Cprops& properties);
+
+	virtual void terminateBean();
 
 public: // IPersistence
 	void initialize();
@@ -54,6 +63,7 @@ private:
 private:
 	CAF_CM_CREATE;
 	CAF_CM_CREATE_LOG;
+	CAF_CM_CREATE_THREADSAFE;
 	CAF_CM_DECLARE_NOCOPY(CPersistenceNamespaceDb);
 };
 

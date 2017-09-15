@@ -51,9 +51,11 @@ void CConfigEnvInboundChannelAdapterInstance::wire(
 	const std::string outputChannelStr =
 		_configSection->findRequiredAttribute("channel");
 
+	const SmartPtrIConfigEnv configEnv = createConfigEnv(appContext);
+
 	SmartPtrCConfigEnvReadingMessageSource configEnvReadingMessageSource;
 	configEnvReadingMessageSource.CreateInstance();
-	configEnvReadingMessageSource->initialize(_configSection);
+	configEnvReadingMessageSource->initialize(_configSection, configEnv);
 
 	const SmartPtrIMessageChannel outputMessageChannel =
 		channelResolver->resolveChannelName(outputChannelStr);
@@ -113,4 +115,20 @@ bool CConfigEnvInboundChannelAdapterInstance::isMessageProducer() const {
 	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
 
 	return true;
+}
+
+SmartPtrIConfigEnv CConfigEnvInboundChannelAdapterInstance::createConfigEnv(
+	const SmartPtrIAppContext& appContext) const {
+	CAF_CM_FUNCNAME_VALIDATE("createConfigEnv");
+	CAF_CM_VALIDATE_INTERFACE(appContext);
+
+	SmartPtrIConfigEnv rc;
+	const std::string refStr = _configSection->findRequiredAttribute("ref");
+	CAF_CM_LOG_DEBUG_VA1("Creating the configenv impl - %s", refStr.c_str());
+	const SmartPtrIBean bean = appContext->getBean(refStr);
+	rc.QueryInterface(bean, false);
+	CAF_CM_VALIDATE_INTERFACE(rc);
+	rc->initialize();
+
+	return rc;
 }

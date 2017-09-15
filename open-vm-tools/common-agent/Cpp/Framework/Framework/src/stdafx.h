@@ -12,7 +12,7 @@
 	#define BASEPLATFORM_LINKAGE
 #endif
 
-#include "../../include/BaseDefines.h"
+#include <BaseDefines.h>
 #include "BasePlatformInc.h"
 
 #endif // #ifndef stdafx_h_

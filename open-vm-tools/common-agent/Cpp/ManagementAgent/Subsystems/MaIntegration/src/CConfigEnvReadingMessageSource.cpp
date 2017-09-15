@@ -22,17 +22,18 @@ CConfigEnvReadingMessageSource::~CConfigEnvReadingMessageSource() {
 }
 
 void CConfigEnvReadingMessageSource::initialize(
-		const SmartPtrIDocument& configSection) {
+		const SmartPtrIDocument& configSection,
+		const SmartPtrIConfigEnv& configEnv) {
 	CAF_CM_FUNCNAME_VALIDATE("initialize");
 	CAF_CM_PRECOND_ISNOTINITIALIZED(_isInitialized);
 	CAF_CM_VALIDATE_INTERFACE(configSection);
+	CAF_CM_VALIDATE_INTERFACE(configEnv);
+	CAF_CM_VALIDATE_INTERFACE(configSection);
 
 	_id = configSection->findRequiredAttribute("id");
-	const std::string implClass = configSection->findRequiredAttribute("impl-class");
 	const SmartPtrIDocument pollerDoc = configSection->findOptionalChild("poller");
 
-	_configEnv.CreateInstance(implClass.c_str());
-	_configEnv->initialize();
+	_configEnv = configEnv;
 
 	setPollerMetadata(pollerDoc);
 	_refreshSec = 0;

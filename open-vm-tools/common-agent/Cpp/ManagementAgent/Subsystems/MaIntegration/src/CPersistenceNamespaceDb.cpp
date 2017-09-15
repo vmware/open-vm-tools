@@ -24,58 +24,73 @@ const string CPersistenceNamespaceDb::_NAMESPACE = "com.vmware.caf.guest.rw";
 CPersistenceNamespaceDb::CPersistenceNamespaceDb() :
 	_isInitialized(false),
 	CAF_CM_INIT_LOG("CPersistenceNamespaceDb") {
+	CAF_CM_INIT_THREADSAFE;
 }
 
 CPersistenceNamespaceDb::~CPersistenceNamespaceDb() {
 }
 
-void CPersistenceNamespaceDb::initialize() {
-	CAF_CM_FUNCNAME_VALIDATE("initialize");
-	CAF_CM_PRECOND_ISNOTINITIALIZED(_isInitialized);
+void CPersistenceNamespaceDb::initializeBean(
+	const IBean::Cargs& ctorArgs,
+	const IBean::Cprops& properties) {
+}
 
-	setCmd();
-	_isInitialized = true;
+void CPersistenceNamespaceDb::terminateBean() {
+}
+
+void CPersistenceNamespaceDb::initialize() {
+	CAF_CM_LOCK_UNLOCK;
+
+	if (! _isInitialized) {
+		setCmd();
+		_isInitialized = true;
+	}
 }
 
 SmartPtrCPersistenceDoc CPersistenceNamespaceDb::getUpdated(
 		const int32 timeout) {
 	CAF_CM_FUNCNAME_VALIDATE("getUpdated");
+	CAF_CM_LOCK_UNLOCK;
 	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
 
 	//If nothing has been updated, skip all of the unneeded work
 	string updates = getValue("updates");
 	if (!updates.empty()) {
+		string version = getValue("version");
+
 		//EP Doc
-		string epPrivateKey = getValue("ep.private.key");
+		string epLocalId = getValue("ep.local_id");
+		string epPrivateKey = getValue("ep.private_key");
 		string epCert = getValue("ep.cert");
 		SmartPtrCLocalSecurityDoc endpoint;
 		endpoint.CreateInstance();
-		endpoint->initialize(std::string(), epPrivateKey, epCert);
+		endpoint->initialize(epLocalId, epPrivateKey, epCert);
 
 		//App collection
 		std::deque<SmartPtrCRemoteSecurityDoc> applicationCollectionInner;
 		string applications = getValue("applications");
 		Cdeqstr appList = CStringUtils::split(applications, ',');
-		for (Cdeqstr::iterator it = appList.begin(); it != appList.end(); it++) {
-			string appKey = *it;
+		for (Cdeqstr::iterator appIt = appList.begin(); appIt != appList.end(); appIt++) {
+			string appKey = "app." + *appIt;
+			string appId = getValue(appKey + ".remote_id");
+			string appProtocolName = getValue(appKey + ".protocol_name");
 			string appCmsCipher = getValue(appKey + ".cms.cipher");
 
 			std::deque<std::string> cmsCertCollectionInner;
 			string appCmsCertChain = getValue(appKey + ".cms.cert_chain");
 			Cdeqstr appCertList = CStringUtils::split(appCmsCertChain, ',');
-			for (Cdeqstr::iterator it = appCertList.begin(); it != appCertList.end(); it++) {
-				cmsCertCollectionInner.push_back(*it);
+			for (Cdeqstr::iterator appCertIt = appCertList.begin(); appCertIt != appCertList.end(); appCertIt++) {
+				cmsCertCollectionInner.push_back(*appCertIt);
 			}
 
 			SmartPtrCCertCollectionDoc cmsCertCollection;
 			cmsCertCollection.CreateInstance();
 			cmsCertCollection->initialize(cmsCertCollectionInner);
 
-			string appId = appKey;
 			string cmsCert = getValue(appKey + ".cms.cert");
 			SmartPtrCRemoteSecurityDoc application;
 			application.CreateInstance();
-			application->initialize(appId, "amqpBroker_default", cmsCert, appCmsCipher, cmsCertCollection);
+			application->initialize(appId, appProtocolName, cmsCert, appCmsCipher, cmsCertCollection);
 
 			applicationCollectionInner.push_back(application);
 		}
@@ -86,22 +101,22 @@ SmartPtrCPersistenceDoc CPersistenceNamespaceDb::getUpdated(
 
 		string protocols = getValue("protocols");
 		Cdeqstr protocolList = CStringUtils::split(protocols, ',');
-		std::deque<SmartPtrCAmqpBrokerDoc> amqpBrokerCollectionInner;
-		for (Cdeqstr::iterator it = protocolList.begin(); it != protocolList.end(); it++) {
-			string protocolKey = *it;
+		std::deque<SmartPtrCPersistenceProtocolDoc> persistenceProtocolCollectionInner;
+		for (Cdeqstr::iterator protocolIt = protocolList.begin(); protocolIt != protocolList.end(); protocolIt++) {
+			string protocolKey = "protocol." + *protocolIt;
 			//Protoccol Doc
 			std::deque<std::string> tlsCertCollectionInner;
 			string tlsCertChain = getValue(protocolKey + ".tls.cert.chain");
 			Cdeqstr tlsCertList = CStringUtils::split(tlsCertChain, ',');
-			for (Cdeqstr::iterator it = tlsCertList.begin(); it != tlsCertList.end(); it++) {
-				tlsCertCollectionInner.push_back(*it);
+			for (Cdeqstr::iterator tlsCertIt = tlsCertList.begin(); tlsCertIt != tlsCertList.end(); tlsCertIt++) {
+				tlsCertCollectionInner.push_back(*tlsCertIt);
 			}
 
 			Cdeqstr tlsCipherCollection;
 			string tlsCiphers = getValue(protocolKey + ".tls.ciphers");
 			Cdeqstr tlsCipherList = CStringUtils::split(tlsCiphers, ',');
-			for (Cdeqstr::iterator it = tlsCipherList.begin(); it != tlsCipherList.end(); it++) {
-				tlsCipherCollection.push_back(*it);
+			for (Cdeqstr::iterator tlsCipherIt = tlsCipherList.begin(); tlsCipherIt != tlsCipherList.end(); tlsCipherIt++) {
+				tlsCipherCollection.push_back(*tlsCipherIt);
 			}
 
 			SmartPtrCCertCollectionDoc tlsCertCollection;
@@ -109,29 +124,25 @@ SmartPtrCPersistenceDoc CPersistenceNamespaceDb::getUpdated(
 			tlsCertCollection->initialize(tlsCertCollectionInner);
 
 			//For now, we only support one broker.
-			string amqpBrokerId = getValue(protocolKey + ".amqpBrokerId");
+			string protocolName = getValue(protocolKey + ".protocol_name");
 			string uri = getValue(protocolKey + ".uri");
 			string tlsCert = getValue(protocolKey + ".tls.cert");
 			string tlsProtocol = getValue(protocolKey + ".tls.protocol");
-			SmartPtrCAmqpBrokerDoc amqpBroker;
-			amqpBroker.CreateInstance();
-			amqpBroker->initialize(amqpBrokerId, uri, tlsCert, tlsProtocol, tlsCipherCollection, tlsCertCollection);
+			SmartPtrCPersistenceProtocolDoc persistenceProtocol;
+			persistenceProtocol.CreateInstance();
+			persistenceProtocol->initialize(protocolName, uri, tlsCert, tlsProtocol, tlsCipherCollection, tlsCertCollection);
 
-			amqpBrokerCollectionInner.push_back(amqpBroker);
+			persistenceProtocolCollectionInner.push_back(persistenceProtocol);
 		}
 
-		SmartPtrCAmqpBrokerCollectionDoc amqpBrokerCollection;
-		amqpBrokerCollection.CreateInstance();
-		amqpBrokerCollection->initialize(amqpBrokerCollectionInner);
-
-		SmartPtrCPersistenceProtocolDoc persistenceProtocol;
-		persistenceProtocol.CreateInstance();
-		persistenceProtocol->initialize(amqpBrokerCollection);
+		SmartPtrCPersistenceProtocolCollectionDoc persistenceProtocolCollection;
+		persistenceProtocolCollection.CreateInstance();
+		persistenceProtocolCollection->initialize(persistenceProtocolCollectionInner);
 
 		// Persist doc
 		SmartPtrCPersistenceDoc persistence;
 		persistence.CreateInstance();
-		persistence->initialize(endpoint, applicationCollection, persistenceProtocol, "1.0");
+		persistence->initialize(endpoint, applicationCollection, persistenceProtocolCollection, version);
 
 		return persistence;
 	}
@@ -143,54 +154,77 @@ SmartPtrCPersistenceDoc CPersistenceNamespaceDb::getUpdated(
 void CPersistenceNamespaceDb::update(
 		const SmartPtrCPersistenceDoc& persistenceDoc) {
 	CAF_CM_FUNCNAME("update");
+	CAF_CM_LOCK_UNLOCK;
 	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
-	CAF_CM_VALIDATE_SMARTPTR(persistenceDoc);
 
-	//Update LocalSecurity info
-	if (!persistenceDoc->getLocalSecurity().IsNull()){
-		setValue("ep.private.key", persistenceDoc->getLocalSecurity()->getPrivateKey());
-		setValue("ep.cert", persistenceDoc->getLocalSecurity()->getCert());
-	}
+	if (! persistenceDoc.IsNull()) {
+		setValue("version", persistenceDoc->getVersion());
 
-	//Update RemoteSecurity info
-	if (!persistenceDoc->getRemoteSecurityCollection().IsNull()){
-		deque<SmartPtrCRemoteSecurityDoc> applications = persistenceDoc->getRemoteSecurityCollection()->getRemoteSecurity();
-		for (deque<SmartPtrCRemoteSecurityDoc>::iterator it=applications.begin(); it != applications.end(); it++) {
-			string appKey = (*it)->getRemoteId();
-			setValue(appKey + ".cms.cert", (*it)->getCmsCert());
-			//setValue(appKey + ".cms.cipher", (*it)->getCmsCipher());
-			string cmsCertChain;
-			Cdeqstr cmsCertList = (*it)->getCmsCertCollection()->getCert();
-			for (Cdeqstr::iterator it=cmsCertList.begin(); it != cmsCertList.end(); it++) {
-				if (!cmsCertChain.empty()) {
-					cmsCertChain += ",";
-				}
-				cmsCertChain += *it;
-			}
-			setValue(appKey + ".cms.cert_chain", cmsCertChain);
+		//Update LocalSecurity info
+		if (!persistenceDoc->getLocalSecurity().IsNull()){
+			setValue("ep.local_id", persistenceDoc->getLocalSecurity()->getLocalId());
+			setValue("ep.private_key", persistenceDoc->getLocalSecurity()->getPrivateKey());
+			setValue("ep.cert", persistenceDoc->getLocalSecurity()->getCert());
 		}
-	}
 
-	//Update PersistenceProtocol info
-	if (!persistenceDoc->getPersistenceProtocol().IsNull()) {
-		//For now, we only support one broker. 
-		CAF_CM_ASSERT(persistenceDoc->getPersistenceProtocol()->getAmqpBrokerCollection()->getAmqpBroker().size() <= 1);
-
-		deque<SmartPtrCAmqpBrokerDoc> brokerList = persistenceDoc->getPersistenceProtocol()->getAmqpBrokerCollection()->getAmqpBroker();
-		for (deque<SmartPtrCAmqpBrokerDoc>::iterator it=brokerList.begin(); it != brokerList.end(); it++) {
-			setValue("name", (*it)->getAmqpBrokerId());
-			setValue("uri", (*it)->getUri());
-			setValue("tls.cert", (*it)->getTlsCert());
-			setValue("tls.protocol", (*it)->getTlsProtocol());
-			Cdeqstr tlsCipherList = (*it)->getTlsCipherCollection();
-			string tlsCiphers;
-			for (Cdeqstr::iterator it=tlsCipherList.begin(); it != tlsCipherList.end(); it++) {
-				if (!tlsCiphers.empty()) {
-					tlsCiphers += ",";
+		//Update RemoteSecurity info
+		if (!persistenceDoc->getRemoteSecurityCollection().IsNull()){
+			deque<SmartPtrCRemoteSecurityDoc> applications = persistenceDoc->getRemoteSecurityCollection()->getRemoteSecurity();
+			for (deque<SmartPtrCRemoteSecurityDoc>::iterator appIt=applications.begin(); appIt != applications.end(); appIt++) {
+				string appKey = "app." + (*appIt)->getRemoteId();
+				setValue(appKey + ".remote_id", (*appIt)->getRemoteId());
+				setValue(appKey + ".cms.cert", (*appIt)->getCmsCert());
+				setValue(appKey + ".cms.cipher", (*appIt)->getCmsCipherName());
+				setValue(appKey + ".protocol_name", (*appIt)->getProtocolName());
+				string cmsCertChain;
+				if (! (*appIt)->getCmsCertCollection().IsNull()) {
+					Cdeqstr cmsCertList = (*appIt)->getCmsCertCollection()->getCert();
+					for (Cdeqstr::iterator cmsCertIt=cmsCertList.begin(); cmsCertIt != cmsCertList.end(); cmsCertIt++) {
+						if (!cmsCertChain.empty()) {
+							cmsCertChain += ",";
+						}
+						cmsCertChain += *cmsCertIt;
+					}
+					setValue(appKey + ".cms.cert_chain", cmsCertChain);
 				}
-				tlsCiphers += *it;
 			}
-			setValue("tls.ciphers", tlsCiphers);
+		}
+
+		//Update PersistenceProtocol info
+		if (!persistenceDoc->getPersistenceProtocolCollection().IsNull()) {
+			//For now, we only support one broker.
+			CAF_CM_ASSERT(persistenceDoc->getPersistenceProtocolCollection()->getPersistenceProtocol().size() <= 1);
+
+			deque<SmartPtrCPersistenceProtocolDoc> brokerList = persistenceDoc->getPersistenceProtocolCollection()->getPersistenceProtocol();
+			for (deque<SmartPtrCPersistenceProtocolDoc>::iterator protIt=brokerList.begin(); protIt != brokerList.end(); protIt++) {
+				string protocolKey = "protocol." + (*protIt)->getProtocolName();
+				setValue(protocolKey + ".protocol_name", (*protIt)->getProtocolName());
+				setValue(protocolKey + ".uri", (*protIt)->getUri());
+				setValue(protocolKey + ".tls.cert", (*protIt)->getTlsCert());
+				setValue(protocolKey + ".tls.protocol", (*protIt)->getTlsProtocol());
+
+				Cdeqstr tlsCipherList = (*protIt)->getTlsCipherCollection();
+				string tlsCiphers;
+				for (Cdeqstr::iterator tlsCipherIt=tlsCipherList.begin(); tlsCipherIt != tlsCipherList.end(); tlsCipherIt++) {
+					if (!tlsCiphers.empty()) {
+						tlsCiphers += ",";
+					}
+					tlsCiphers += *tlsCipherIt;
+				}
+				setValue(protocolKey + ".tls.ciphers", tlsCiphers);
+
+				if (! (*protIt)->getTlsCertCollection().IsNull()) {
+					Cdeqstr tlsCertList = (*protIt)->getTlsCertCollection()->getCert();
+					string tlsCerts;
+					for (Cdeqstr::iterator tlsCertIt=tlsCertList.begin(); tlsCertIt != tlsCertList.end(); tlsCertIt++) {
+						if (!tlsCerts.empty()) {
+							tlsCerts += ",";
+						}
+						tlsCerts += *tlsCertIt;
+					}
+					setValue(protocolKey + ".tls.cert_chain", tlsCerts);
+				}
+			}
 		}
 	}
 }
@@ -198,12 +232,16 @@ void CPersistenceNamespaceDb::update(
 void CPersistenceNamespaceDb::remove(
 		const SmartPtrCPersistenceDoc& persistenceDoc) {
 	CAF_CM_FUNCNAME("remove");
+	CAF_CM_LOCK_UNLOCK;
 	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
 
 	//Remove LocalSecurity info
 	if (!persistenceDoc->getLocalSecurity().IsNull()){
+		if (!persistenceDoc->getLocalSecurity()->getLocalId().empty()) {
+			removeKey("ep.local_id");
+		}
 		if (!persistenceDoc->getLocalSecurity()->getPrivateKey().empty()) {
-			removeKey("ep.private.key");
+			removeKey("ep.private_key");
 		}
 		if (!persistenceDoc->getLocalSecurity()->getCert().empty()) {
 			removeKey("ep.cert");
@@ -214,32 +252,45 @@ void CPersistenceNamespaceDb::remove(
 	if (!persistenceDoc->getRemoteSecurityCollection().IsNull()){
 		deque<SmartPtrCRemoteSecurityDoc> applications = persistenceDoc->getRemoteSecurityCollection()->getRemoteSecurity();
 		for (deque<SmartPtrCRemoteSecurityDoc>::iterator it=applications.begin(); it != applications.end(); it++) {
-			string appKey = (*it)->getRemoteId();
-			removeKey(appKey + ".cms.cert");
-			removeKey(appKey + ".cms.cert_chain");
+			string appKey = "app." + (*it)->getRemoteId();
+			if (!(*it)->getProtocolName().empty()) {
+				removeKey(appKey + ".protocol_name");
+			}
+			if (!(*it)->getCmsCert().empty()) {
+				removeKey(appKey + ".cms.cert");
+			}
+			if (!(*it)->getCmsCertCollection().IsNull() && !(*it)->getCmsCertCollection()->getCert().empty()) {
+				removeKey(appKey + ".cms.cert_chain");
+			}
+			if (!(*it)->getCmsCipherName().empty()) {
+				removeKey(appKey + ".cms.cipher");
+			}
 		}
 	}
 
 	//Remove PersistenceProtocol info
-	if (!persistenceDoc->getPersistenceProtocol().IsNull()) {
-		//For now, we only support one broker. 
-		CAF_CM_ASSERT(persistenceDoc->getPersistenceProtocol()->getAmqpBrokerCollection()->getAmqpBroker().size() <= 1);
-			
-		deque<SmartPtrCAmqpBrokerDoc> brokerList = persistenceDoc->getPersistenceProtocol()->getAmqpBrokerCollection()->getAmqpBroker();
-		for (deque<SmartPtrCAmqpBrokerDoc>::iterator it=brokerList.begin(); it != brokerList.end(); it++) {
-			if (!(*it)->getAmqpBrokerId().empty()) {
-				removeKey("name");
-			}
+	if (!persistenceDoc->getPersistenceProtocolCollection().IsNull()) {
+		//For now, we only support one broker.
+		CAF_CM_ASSERT(persistenceDoc->getPersistenceProtocolCollection()->getPersistenceProtocol().size() <= 1);
+
+		deque<SmartPtrCPersistenceProtocolDoc> brokerList = persistenceDoc->getPersistenceProtocolCollection()->getPersistenceProtocol();
+		for (deque<SmartPtrCPersistenceProtocolDoc>::iterator it=brokerList.begin(); it != brokerList.end(); it++) {
+			string protocolKey = "protocol." + (*it)->getProtocolName();
 			if (!(*it)->getUri().empty()) {
-				removeKey("uri");
+				removeKey(protocolKey + "uri");
 			}
 			if (!(*it)->getTlsCert().empty()) {
-				removeKey("tls.cert");
+				removeKey(protocolKey + "tls.cert");
 			}
 			if (!(*it)->getTlsProtocol().empty()) {
-				removeKey("tls.protocol");
+				removeKey(protocolKey + "tls.protocol");
 			}
-			removeKey("tls.ciphers");
+			if (!(*it)->getTlsCipherCollection().empty()) {
+				removeKey(protocolKey + "tls.ciphers");
+			}
+			if (!(*it)->getTlsCertCollection().IsNull() && !(*it)->getTlsCertCollection()->getCert().empty()) {
+				removeKey(protocolKey + "tls.cert_chain");
+			}
 		}
 	}	
 }
@@ -312,12 +363,16 @@ string CPersistenceNamespaceDb::getValue(const std::string& key) {
 		}
 	}
 	catch(ProcessFailedException* ex){
-		CAF_CM_LOG_DEBUG_VA1("exception: %s", ex->getMsg().c_str());		
-		CAF_CM_EXCEPTION_VA3(E_UNEXPECTED,
-				"NamespaceDB command failed - %s: %s: %s",
-				ex->getMsg().c_str(),
-				stdoutContent.c_str(),
-				stderrContent.c_str());
+		if (ex->getMsg().compare("There is no namespace database associated with this virtual machine") == 0) {
+			CAF_CM_LOG_INFO_VA1("Acceptable exception... continuing - %s", ex->getMsg().c_str());
+		} else {
+			CAF_CM_LOG_DEBUG_VA1("ProcessFailedException - %s", ex->getMsg().c_str());
+			CAF_CM_EXCEPTION_VA3(E_UNEXPECTED,
+					"NamespaceDB command failed - %s: %s: %s",
+					ex->getMsg().c_str(),
+					stdoutContent.c_str(),
+					stderrContent.c_str());
+		}
 	}
 	return value;
 }
@@ -347,7 +402,7 @@ void CPersistenceNamespaceDb::setValue(const std::string& key, const std::string
 		argv.push_back("-k");
 		argv.push_back(key);
 		argv.push_back("-f");
-		argv.push_back(value);
+		argv.push_back(tmpFile);
 				
 		ProcessUtils::runSync(argv, stdoutContent, stderrContent);
 		//Add to key+hash cache

@@ -11,7 +11,9 @@
 
 using namespace Caf;
 
-void UriUtils::parseUriString(const std::string& uri, UriUtils::SUriRecord& data) {
+void UriUtils::parseUriString(
+		const std::string& uri,
+		UriUtils::SUriRecord& data) {
 	CAF_CM_STATIC_FUNC("UriUtils", "parseUriString");
 	CAF_CM_VALIDATE_STRING(uri);
 
@@ -173,6 +175,31 @@ void UriUtils::parseUriString(const std::string& uri, UriUtils::SUriRecord& data
 		CAF_CM_THROWEXCEPTION;
 	}
 	CAF_CM_EXIT;
+}
+
+std::string UriUtils::buildUriString(
+		UriUtils::SUriRecord& data) {
+	CAF_CM_STATIC_FUNC_VALIDATE("UriUtils", "buildUriString");
+	CAF_CM_VALIDATE_STRING(data.protocol);
+	CAF_CM_VALIDATE_STRING(data.host);
+	CAF_CM_VALIDATE_STRING(data.path);
+
+	std::string rc = data.protocol + ":";
+	if (! data.username.empty() || ! data.password.empty()) {
+		rc += data.username + ":" + data.password + "@";
+	}
+
+	rc += data.host;
+
+	if (! data.portStr.empty()) {
+		rc += ":" + data.portStr;
+	}
+
+	rc += "/" + data.path;
+
+	rc = appendParameters(rc, data.parameters);
+
+	return rc;
 }
 
 void UriUtils::parseFileAddress(const std::string& fileUri, UriUtils::SFileUriRecord& data) {

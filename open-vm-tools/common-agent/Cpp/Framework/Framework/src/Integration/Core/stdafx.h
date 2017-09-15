@@ -16,7 +16,7 @@
 #endif
 
 #include <CommonDefines.h>
-#include <IntegrationContracts.h>
+#include <Integration.h>
 
 #include "FileHeaders.h"
 #include "MessageHeaders.h"

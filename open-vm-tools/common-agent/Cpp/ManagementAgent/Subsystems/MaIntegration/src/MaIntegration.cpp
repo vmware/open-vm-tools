@@ -15,6 +15,25 @@ namespace MaIntegration {
 	const char* _sObjIdIntegrationObjects = "com.vmware.commonagent.maintegration.integrationobjects";
 }}
 
+namespace Caf {
+	const char* _sObjIdCollectSchemaExecutor = "com.vmware.commonagent.maintegration.collectschemaexecutor";
+	const char* _sObjIdProviderCollectSchemaExecutor = "com.vmware.commonagent.maintegration.providercollectschemaexecutor";
+	const char* _sObjIdProviderExecutor = "com.vmware.commonagent.maintegration.providerexecutor";
+	const char* _sObjIdSinglePmeRequestSplitterInstance = "com.vmware.commonagent.maintegration.singlepmerequestsplitterinstance";
+	const char* _sObjIdSinglePmeRequestSplitter = "com.vmware.commonagent.maintegration.singlepmerequestsplitter";
+	const char* _sObjIdDiagToMgmtRequestTransformerInstance = "com.vmware.commonagent.maintegration.diagtomgmtrequesttransformerinstance";
+	const char* _sObjIdDiagToMgmtRequestTransformer = "com.vmware.commonagent.maintegration.diagtomgmtrequesttransformer";
+	const char* _sObjIdInstallToMgmtRequestTransformerInstance = "com.vmware.commonagent.maintegration.installtomgmtrequesttransformerinstance";
+	const char* _sObjIdInstallToMgmtRequestTransformer = "com.vmware.commonagent.maintegration.installtomgmtrequesttransformer";
+	const char* _sObjIdPersistenceNamespaceDb = "com.vmware.commonagent.maintegration.persistencenamespacedb";
+	const char* _sObjIdConfigEnv = "com.vmware.commonagent.maintegration.configenv";
+
+	const char* _sObjIdAttachmentRequestTransformerInstance = "com.vmware.commonagent.maintegration.attachmentrequesttransformerinstance";
+	const char* _sObjIdAttachmentRequestTransformer = "com.vmware.commonagent.maintegration.attachmentrequesttransformer";
+	const char* _sObjIdVersionTransformerInstance = "com.vmware.commonagent.maintegration.versiontransformerinstance";
+	const char* _sObjIdVersionTransformer = "com.vmware.commonagent.maintegration.versiontransformer";
+}
+
 CEcmSubSystemModule _Module;
 
 using namespace Caf::MaIntegration;

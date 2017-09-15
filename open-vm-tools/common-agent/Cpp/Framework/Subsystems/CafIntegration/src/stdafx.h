@@ -12,13 +12,18 @@
 //{{CAF_SUBSYSTEM}}
 
 #include <CommonDefines.h>
-#include <IntegrationContracts.h>
-#include <CafContracts.h>
 #include <Integration.h>
 #include <DocXml.h>
 #include <DocUtils.h>
 
-#include <FxContracts.h>
+namespace Caf {
+	extern const char* _sObjIdErrorToResponseTransformerInstance;
+	extern const char* _sObjIdErrorToResponseTransformer;
+	extern const char* _sObjIdPayloadHeaderEnricherInstance;
+	extern const char* _sObjIdPayloadHeaderEnricher;
+	extern const char* _sObjIdEnvelopeToPayloadTransformerInstance;
+	extern const char* _sObjIdEnvelopeToPayloadTransformer;
+}
 
 #include "CErrorToResponseTransformerInstance.h"
 #include "CErrorToResponseTransformer.h"

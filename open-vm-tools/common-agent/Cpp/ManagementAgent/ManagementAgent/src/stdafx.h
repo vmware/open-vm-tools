@@ -10,8 +10,6 @@
 #define stdafx_h_
 
 #include <CommonDefines.h>
-#include <CafContracts.h>
-#include <IntegrationContracts.h>
 #include <Integration.h>
 
 #ifdef WIN32

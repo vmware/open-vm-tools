@@ -49,27 +49,30 @@ void CPersistenceOutboundChannelAdapterInstance::wire(
 	CAF_CM_VALIDATE_INTERFACE(appContext);
 	CAF_CM_VALIDATE_INTERFACE(channelResolver);
 
-	const SmartPtrIMessageChannel errorMessageChannel =
-		channelResolver->resolveChannelName("errorChannel");
+	const SmartPtrIPersistence persistence = createPersistence(appContext);
+	if (! persistence.IsNull()) {
+		const SmartPtrIMessageChannel errorMessageChannel =
+			channelResolver->resolveChannelName("errorChannel");
 
-	const std::string inputChannelStr = _configSection->findRequiredAttribute("channel");
-	SmartPtrIMessageChannel inputChannel = channelResolver->resolveChannelName(inputChannelStr);
-	SmartPtrIIntegrationObject inputChannelObj;
-	inputChannelObj.QueryInterface(inputChannel);
+		const std::string inputChannelStr = _configSection->findRequiredAttribute("channel");
+		SmartPtrIMessageChannel inputChannel = channelResolver->resolveChannelName(inputChannelStr);
+		SmartPtrIIntegrationObject inputChannelObj;
+		inputChannelObj.QueryInterface(inputChannel);
 
-	SmartPtrCPersistenceMessageHandler persistenceMessageHandler;
-	persistenceMessageHandler.CreateInstance();
-	persistenceMessageHandler->initialize(_configSection);
-	SmartPtrIMessageHandler messageHandler;
-	messageHandler.QueryInterface(persistenceMessageHandler);
+		SmartPtrCPersistenceMessageHandler persistenceMessageHandler;
+		persistenceMessageHandler.CreateInstance();
+		persistenceMessageHandler->initialize(_configSection, persistence);
+		SmartPtrIMessageHandler messageHandler;
+		messageHandler.QueryInterface(persistenceMessageHandler);
 
-	_messagingTemplate.CreateInstance();
-	_messagingTemplate->initialize(
-			channelResolver,
-			inputChannelObj,
-			errorMessageChannel,
-			SmartPtrIMessageChannel(),
-			messageHandler);
+		_messagingTemplate.CreateInstance();
+		_messagingTemplate->initialize(
+				channelResolver,
+				inputChannelObj,
+				errorMessageChannel,
+				SmartPtrIMessageChannel(),
+				messageHandler);
+	}
 }
 
 void CPersistenceOutboundChannelAdapterInstance::start(
@@ -78,8 +81,10 @@ void CPersistenceOutboundChannelAdapterInstance::start(
 	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
 	CAF_CM_VALIDATE_BOOL(!_isRunning);
 
-	_isRunning = true;
-	_messagingTemplate->start(0);
+	if (! _messagingTemplate.IsNull()) {
+		_isRunning = true;
+		_messagingTemplate->start(0);
+	}
 }
 
 void CPersistenceOutboundChannelAdapterInstance::stop(
@@ -88,8 +93,10 @@ void CPersistenceOutboundChannelAdapterInstance::stop(
 	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
 	CAF_CM_VALIDATE_BOOL(_isRunning);
 
-	_isRunning = false;
-	_messagingTemplate->stop(0);
+	if (! _messagingTemplate.IsNull()) {
+		_isRunning = false;
+		_messagingTemplate->stop(0);
+	}
 }
 
 bool CPersistenceOutboundChannelAdapterInstance::isRunning() const {
@@ -97,4 +104,31 @@ bool CPersistenceOutboundChannelAdapterInstance::isRunning() const {
 	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
 
 	return _isRunning;
+}
+
+SmartPtrIPersistence CPersistenceOutboundChannelAdapterInstance::createPersistence(
+	const SmartPtrIAppContext& appContext) const {
+	CAF_CM_FUNCNAME("createPersistence");
+	CAF_CM_VALIDATE_INTERFACE(appContext);
+
+	SmartPtrIPersistence rc;
+	const std::string removeRefStr = _configSection->findRequiredAttribute("ref");
+	CAF_CM_LOG_DEBUG_VA1("Creating the persistence impl - %s", removeRefStr.c_str());
+	const SmartPtrIBean bean = appContext->getBean(removeRefStr);
+	rc.QueryInterface(bean, false);
+	CAF_CM_VALIDATE_INTERFACE(rc);
+
+	try {
+		rc->initialize();
+	}
+	CAF_CM_CATCH_CAF
+	CAF_CM_CATCH_DEFAULT
+	CAF_CM_LOG_WARN_CAFEXCEPTION;
+
+	if (CAF_CM_ISEXCEPTION) {
+		rc = SmartPtrIPersistence();
+		CAF_CM_CLEAREXCEPTION;
+	}
+
+	return rc;
 }

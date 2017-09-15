@@ -15,8 +15,6 @@ namespace Caf {
 }
 
 #include <CommonDefines.h>
-#include <IntegrationContracts.h>
-#include <CafContracts.h>
 #include <Integration.h>
 #include <DocXml.h>
 #include <DocUtils.h>

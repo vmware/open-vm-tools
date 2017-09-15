@@ -23,7 +23,7 @@ baseLibDir='/usr/lib'
 baseBinDir='/usr/lib'
 baseInputDir='/var/lib'
 baseOutputDir='/var/lib'
-brokerAddr='@brokerAddr@'
+brokerAddr='#brokerAddr#'
 linkSo='yes'
 
 #Help function
@@ -117,8 +117,6 @@ configDir="$baseEtcDir/config"
 installDir="$baseEtcDir/install"
 scriptDir="$baseEtcDir/scripts"
 
-brokerUriOpts="vhost=caf;connection_timeout=150000;connection_retries=10;connection_seconds_to_wait=10;channel_cache_size=3"
-
 #Ensure directories exist
 mkdir -p "$outputDir"
 mkdir -p "$persistenceDir"
@@ -143,16 +141,10 @@ fi
 
 tunnelPort=$(netstat -ldn | egrep ":6672 ")
 if [ -f "$vcidPath" -a "$tunnelPort" != "" ]; then
-	commAmqpListenerContext="$configDir/CommAmqpListener-context-tunnel.xml"
-	brokerUri="tunnel:agentId1:bogus@localhost:6672/${reactiveRequestAmqpQueueId}?${brokerUriOpts}"
+	brokerUri="tunnel:agentId1:bogus@localhost:6672/${reactiveRequestAmqpQueueId}"
 else
-	commAmqpListenerContext="$configDir/CommAmqpListener-context-amqp.xml"
-	brokerUri="amqp:@amqpUsername@:@amqpPassword@@${brokerAddr}:5672/${reactiveRequestAmqpQueueId}?${brokerUriOpts}"
+	brokerUri="amqp:#amqpUsername#:#amqpPassword#@${brokerAddr}:5672/${reactiveRequestAmqpQueueId}"
 fi
-
-echo "[globals]" > "$configDir/persistence-appconfig"
-echo "reactive_request_amqp_queue_id=$reactiveRequestAmqpQueueId" >> "$configDir/persistence-appconfig"
-echo "comm_amqp_listener_context=$commAmqpListenerContext" >> "$configDir/persistence-appconfig"
 
 echo -n "$brokerUri" > "$amqpBrokerDir/uri.txt"
 echo -n "$reactiveRequestAmqpQueueId" > "$localDir/localId.txt"

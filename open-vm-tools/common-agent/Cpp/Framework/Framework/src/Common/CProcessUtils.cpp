@@ -409,11 +409,15 @@ const char** ProcessUtils::convertToCharArray(
 	return rc;
 }
 
-std::string ProcessUtils::convertToString(
-		const Cdeqstr& deqstr) {
+std::string ProcessUtils::convertToString(const Cdeqstr& deqstr) {
 	std::string rc;
 	for (TConstIterator<Cdeqstr> strIter(deqstr); strIter; strIter++) {
-		const std::string str = *strIter;
+		std::string str = *strIter;
+#ifdef WIN32
+		if (rc.empty() && str.find(" ") != std::string::npos) {
+			str = "\"" + *strIter + "\"";
+		}
+#endif
 		rc += str + std::string(" ");
 	}
 

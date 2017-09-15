@@ -23,7 +23,8 @@ public:
 
 public:
 	void initialize(
-		const SmartPtrIDocument& configSection);
+		const SmartPtrIDocument& configSection,
+		const SmartPtrIPersistence& persistence);
 
 protected: // CAbstractPollableChannel
 	bool doSend(

@@ -48,38 +48,41 @@ void CPersistenceInboundChannelAdapterInstance::wire(
 	CAF_CM_VALIDATE_INTERFACE(appContext);
 	CAF_CM_VALIDATE_INTERFACE(channelResolver);
 
-	const std::string outputChannelStr =
-		_configSection->findRequiredAttribute("channel");
+	const SmartPtrIPersistence persistence = createPersistence(appContext);
+	if (! persistence.IsNull()) {
+		const std::string outputChannelStr =
+			_configSection->findRequiredAttribute("channel");
 
-	SmartPtrCPersistenceReadingMessageSource persistenceReadingMessageSource;
-	persistenceReadingMessageSource.CreateInstance();
-	persistenceReadingMessageSource->initialize(_configSection);
+		SmartPtrCPersistenceReadingMessageSource persistenceReadingMessageSource;
+		persistenceReadingMessageSource.CreateInstance();
+		persistenceReadingMessageSource->initialize(_configSection, persistence);
 
-	const SmartPtrIMessageChannel outputMessageChannel =
-		channelResolver->resolveChannelName(outputChannelStr);
-	const SmartPtrIMessageChannel errorMessageChannel =
-		channelResolver->resolveChannelName("errorChannel");
+		const SmartPtrIMessageChannel outputMessageChannel =
+			channelResolver->resolveChannelName(outputChannelStr);
+		const SmartPtrIMessageChannel errorMessageChannel =
+			channelResolver->resolveChannelName("errorChannel");
 
-	SmartPtrCMessageHandler messageHandler;
-	messageHandler.CreateInstance();
-	messageHandler->initialize(
-		_id,
-		outputMessageChannel,
-		SmartPtrICafObject());
+		SmartPtrCMessageHandler messageHandler;
+		messageHandler.CreateInstance();
+		messageHandler->initialize(
+			_id,
+			outputMessageChannel,
+			SmartPtrICafObject());
 
-	SmartPtrCErrorHandler errorHandler;
-	errorHandler.CreateInstance();
-	errorHandler->initialize(channelResolver, errorMessageChannel);
+		SmartPtrCErrorHandler errorHandler;
+		errorHandler.CreateInstance();
+		errorHandler->initialize(channelResolver, errorMessageChannel);
 
-	SmartPtrCSourcePollingChannelAdapter sourcePollingChannelAdapter;
-	sourcePollingChannelAdapter.CreateInstance();
-	sourcePollingChannelAdapter->initialize(
-		messageHandler, persistenceReadingMessageSource, errorHandler);
+		SmartPtrCSourcePollingChannelAdapter sourcePollingChannelAdapter;
+		sourcePollingChannelAdapter.CreateInstance();
+		sourcePollingChannelAdapter->initialize(
+			messageHandler, persistenceReadingMessageSource, errorHandler);
 
-	SmartPtrCSimpleAsyncTaskExecutor simpleAsyncTaskExecutor;
-	simpleAsyncTaskExecutor.CreateInstance();
-	simpleAsyncTaskExecutor->initialize(sourcePollingChannelAdapter, errorHandler);
-	_taskExecutor = simpleAsyncTaskExecutor;
+		SmartPtrCSimpleAsyncTaskExecutor simpleAsyncTaskExecutor;
+		simpleAsyncTaskExecutor.CreateInstance();
+		simpleAsyncTaskExecutor->initialize(sourcePollingChannelAdapter, errorHandler);
+		_taskExecutor = simpleAsyncTaskExecutor;
+	}
 }
 
 void CPersistenceInboundChannelAdapterInstance::start(
@@ -87,8 +90,10 @@ void CPersistenceInboundChannelAdapterInstance::start(
 	CAF_CM_FUNCNAME_VALIDATE("start");
 	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
 
-	CAF_CM_LOG_DEBUG_VA0("Starting the executor");
-	_taskExecutor->execute(timeoutMs);
+	if (! _taskExecutor.IsNull()) {
+		CAF_CM_LOG_DEBUG_VA0("Starting the executor");
+		_taskExecutor->execute(timeoutMs);
+	}
 }
 
 void CPersistenceInboundChannelAdapterInstance::stop(
@@ -96,15 +101,18 @@ void CPersistenceInboundChannelAdapterInstance::stop(
 	CAF_CM_FUNCNAME_VALIDATE("stop");
 	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
 
-	CAF_CM_LOG_DEBUG_VA0("Stopping the executor");
-	_taskExecutor->cancel(timeoutMs);
+	if (! _taskExecutor.IsNull()) {
+		CAF_CM_LOG_DEBUG_VA0("Stopping the executor");
+		_taskExecutor->cancel(timeoutMs);
+	}
 }
 
 bool CPersistenceInboundChannelAdapterInstance::isRunning() const {
 	CAF_CM_FUNCNAME_VALIDATE("isRunning");
 	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
 
-	const bool rc = (_taskExecutor->getState() == ITaskExecutor::ETaskStateStarted);
+	const bool rc = ! _taskExecutor.IsNull()
+			&& (_taskExecutor->getState() == ITaskExecutor::ETaskStateStarted);
 	return rc;
 }
 
@@ -113,4 +121,31 @@ bool CPersistenceInboundChannelAdapterInstance::isMessageProducer() const {
 	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
 
 	return true;
+}
+
+SmartPtrIPersistence CPersistenceInboundChannelAdapterInstance::createPersistence(
+	const SmartPtrIAppContext& appContext) const {
+	CAF_CM_FUNCNAME("createPersistence");
+	CAF_CM_VALIDATE_INTERFACE(appContext);
+
+	SmartPtrIPersistence rc;
+	const std::string removeRefStr = _configSection->findRequiredAttribute("ref");
+	CAF_CM_LOG_DEBUG_VA1("Creating the persistence impl - %s", removeRefStr.c_str());
+	const SmartPtrIBean bean = appContext->getBean(removeRefStr);
+	rc.QueryInterface(bean, false);
+	CAF_CM_VALIDATE_INTERFACE(rc);
+
+	try {
+		rc->initialize();
+	}
+	CAF_CM_CATCH_CAF
+	CAF_CM_CATCH_DEFAULT
+	CAF_CM_LOG_WARN_CAFEXCEPTION;
+
+	if (CAF_CM_ISEXCEPTION) {
+		rc = SmartPtrIPersistence();
+		CAF_CM_CLEAREXCEPTION;
+	}
+
+	return rc;
 }

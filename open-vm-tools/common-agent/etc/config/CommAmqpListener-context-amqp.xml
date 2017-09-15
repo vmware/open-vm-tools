@@ -24,7 +24,8 @@
       channel="eventOutFileChannel"
       amqp-template="amqpTemplate"
       exchange-name="client.mgmt.event"
-      routing-key="caf.event" />
+      routing-key="caf.event"
+      mapped-request-headers="caf.msg.*|amqp*" />
 
    <rabbit-inbound-channel-adapter
       id="amqpRequestInboundChannel"

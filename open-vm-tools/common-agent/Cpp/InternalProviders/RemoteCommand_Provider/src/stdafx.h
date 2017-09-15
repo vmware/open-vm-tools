@@ -12,11 +12,10 @@
 //{{CAF_SUBSYSTEM}}
 
 #include <CommonDefines.h>
-#include <CafContracts.h>
 #include <DocXml.h>
 #include <DocUtils.h>
 #include <ProviderFxLink.h>
 
-#include "../../RemoteCommand_Provider/src/CRemoteCommandProvider.h"
+#include "CRemoteCommandProvider.h"
 
 #endif // #ifndef stdafx_h_

@@ -14,12 +14,11 @@
 
 #include "CertCollectionXml.h"
 #include "CertPathCollectionXml.h"
-#include "AmqpBrokerXml.h"
-#include "AmqpBrokerCollectionXml.h"
+#include "PersistenceProtocolXml.h"
+#include "PersistenceProtocolCollectionXml.h"
 #include "RemoteSecurityXml.h"
 #include "RemoteSecurityCollectionXml.h"
 #include "LocalSecurityXml.h"
-#include "PersistenceProtocolXml.h"
 #include "PersistenceXml.h"
 #include "PersistenceXmlRoots.h"
 

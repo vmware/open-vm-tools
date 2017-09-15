@@ -31,6 +31,7 @@ namespace UriUtils {
 	};
 
 	void COMMONAGGREGATOR_LINKAGE parseUriString(const std::string& uri, SUriRecord& data);
+	std::string COMMONAGGREGATOR_LINKAGE buildUriString(SUriRecord& data);
 	void COMMONAGGREGATOR_LINKAGE parseFileAddress(const std::string& fileUri, SFileUriRecord& data);
 	std::string COMMONAGGREGATOR_LINKAGE parseRequiredFilePath(const std::string& uriStr);
 	std::string COMMONAGGREGATOR_LINKAGE parseOptionalFilePath(const std::string& uriStr);

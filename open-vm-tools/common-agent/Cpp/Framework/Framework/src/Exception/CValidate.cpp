@@ -8,6 +8,7 @@
 
 #include "stdafx.h"
 #include "CValidate.h"
+#include "ValidationMacros.h"
 
 using namespace Caf;
 

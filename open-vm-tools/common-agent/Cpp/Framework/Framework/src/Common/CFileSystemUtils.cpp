@@ -1259,7 +1259,7 @@ std::string FileSystemUtils::getTempFilename(const std::string& filename_templat
 		GError *gError = NULL;
 
 		int32 fd = g_file_open_tmp(filename_template.c_str(), &allocatedFilename, &gError);
-		if (fd > 0) {
+		if (fd >= 0) {
 			filename = allocatedFilename;
 #ifdef WIN32
 			::_close(fd);
@@ -1283,6 +1283,7 @@ std::string FileSystemUtils::getTempFilename(const std::string& filename_templat
 		}
 	}
 	CAF_CM_EXIT;
+	CAF_CM_VALIDATE_STRING(filename);
 	
 	return filename;
 }

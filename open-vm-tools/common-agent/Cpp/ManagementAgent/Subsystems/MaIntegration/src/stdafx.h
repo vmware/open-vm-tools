@@ -12,13 +12,11 @@
 //{{CAF_SUBSYSTEM}}
 
 #include <CommonDefines.h>
-#include <IntegrationContracts.h>
-#include <CafContracts.h>
 #include <Integration.h>
 #include <DocXml.h>
 #include <DocUtils.h>
 
-#include <MaContracts.h>
+#include "MaContracts.h"
 #include "MaIntegration.h"
 #include "IntegrationObjects.h"
 
@@ -37,6 +35,8 @@
 #include "CPersistenceInboundChannelAdapterInstance.h"
 #include "CPersistenceOutboundChannelAdapterInstance.h"
 
+#include "CPersistenceMerge.h"
+#include "CConfigEnvMerge.h"
 #include "CConfigEnv.h"
 #include "CConfigEnvReadingMessageSource.h"
 #include "CConfigEnvMessageHandler.h"

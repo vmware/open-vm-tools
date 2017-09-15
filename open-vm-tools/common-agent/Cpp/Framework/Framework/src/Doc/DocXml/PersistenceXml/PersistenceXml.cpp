@@ -35,12 +35,12 @@ void PersistenceXml::add(
 		RemoteSecurityCollectionXml::add(remoteSecurityCollectionVal, remoteSecurityCollectionXml);
 	}
 
-	const SmartPtrCPersistenceProtocolDoc persistenceProtocolVal =
-		persistenceDoc->getPersistenceProtocol();
-	if (! persistenceProtocolVal.IsNull()) {
-		const SmartPtrCXmlElement persistenceProtocolXml =
-			thisXml->createAndAddElement("persistenceProtocol");
-		PersistenceProtocolXml::add(persistenceProtocolVal, persistenceProtocolXml);
+	const SmartPtrCPersistenceProtocolCollectionDoc persistenceProtocolCollectionVal =
+			persistenceDoc->getPersistenceProtocolCollection();
+	if (! persistenceProtocolCollectionVal.IsNull()) {
+		const SmartPtrCXmlElement persistenceProtocolCollectionXml =
+			thisXml->createAndAddElement("persistenceProtocolCollection");
+		PersistenceProtocolCollectionXml::add(persistenceProtocolCollectionVal, persistenceProtocolCollectionXml);
 	}
 
 	const std::string versionVal = persistenceDoc->getVersion().empty() ? "1.0" : persistenceDoc->getVersion();
@@ -66,11 +66,11 @@ SmartPtrCPersistenceDoc PersistenceXml::parse(
 		remoteSecurityCollectionVal = RemoteSecurityCollectionXml::parse(remoteSecurityCollectionXml);
 	}
 
-	const SmartPtrCXmlElement persistenceProtocolXml =
-		thisXml->findOptionalChild("persistenceProtocol");
-	SmartPtrCPersistenceProtocolDoc persistenceProtocolVal;
-	if (! persistenceProtocolXml.IsNull()) {
-		persistenceProtocolVal = PersistenceProtocolXml::parse(persistenceProtocolXml);
+	const SmartPtrCXmlElement persistenceProtocolCollectionXml =
+		thisXml->findOptionalChild("persistenceProtocolCollection");
+	SmartPtrCPersistenceProtocolCollectionDoc persistenceProtocolCollectionVal;
+	if (! persistenceProtocolCollectionXml.IsNull()) {
+		persistenceProtocolCollectionVal = PersistenceProtocolCollectionXml::parse(persistenceProtocolCollectionXml);
 	}
 
 	const std::string versionVal =
@@ -81,7 +81,7 @@ SmartPtrCPersistenceDoc PersistenceXml::parse(
 	persistenceDoc->initialize(
 		localSecurityVal,
 		remoteSecurityCollectionVal,
-		persistenceProtocolVal,
+		persistenceProtocolCollectionVal,
 		versionVal);
 
 	return persistenceDoc;

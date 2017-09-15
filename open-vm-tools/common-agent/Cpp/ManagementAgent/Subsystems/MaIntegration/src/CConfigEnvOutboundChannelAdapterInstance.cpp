@@ -57,9 +57,11 @@ void CConfigEnvOutboundChannelAdapterInstance::wire(
 	SmartPtrIIntegrationObject inputChannelObj;
 	inputChannelObj.QueryInterface(inputChannel);
 
+	const SmartPtrIConfigEnv configEnv = createConfigEnv(appContext);
+
 	SmartPtrCConfigEnvMessageHandler configEnvMessageHandler;
 	configEnvMessageHandler.CreateInstance();
-	configEnvMessageHandler->initialize(_configSection);
+	configEnvMessageHandler->initialize(_configSection, configEnv);
 	SmartPtrIMessageHandler messageHandler;
 	messageHandler.QueryInterface(configEnvMessageHandler);
 
@@ -97,4 +99,50 @@ bool CConfigEnvOutboundChannelAdapterInstance::isRunning() const {
 	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
 
 	return _isRunning;
+}
+
+SmartPtrIConfigEnv CConfigEnvOutboundChannelAdapterInstance::createConfigEnv(
+	const SmartPtrIAppContext& appContext) const {
+	CAF_CM_FUNCNAME_VALIDATE("createConfigEnv");
+	CAF_CM_VALIDATE_INTERFACE(appContext);
+
+	const SmartPtrIPersistence persistenceRemove = createOptPersistence(appContext);
+
+	SmartPtrIConfigEnv rc;
+	const std::string refStr = _configSection->findRequiredAttribute("ref");
+	CAF_CM_LOG_DEBUG_VA1("Creating the configenv impl - %s", refStr.c_str());
+	const SmartPtrIBean bean = appContext->getBean(refStr);
+	rc.QueryInterface(bean, false);
+	CAF_CM_VALIDATE_INTERFACE(rc);
+	rc->initialize(persistenceRemove);
+
+	return rc;
+}
+
+SmartPtrIPersistence CConfigEnvOutboundChannelAdapterInstance::createOptPersistence(
+	const SmartPtrIAppContext& appContext) const {
+	CAF_CM_FUNCNAME("createOptPersistence");
+	CAF_CM_VALIDATE_INTERFACE(appContext);
+
+	SmartPtrIPersistence rc;
+	const std::string removeRefStr = _configSection->findOptionalAttribute("remove-ref");
+	if (! removeRefStr.empty()) {
+		CAF_CM_LOG_DEBUG_VA1("Creating the persistence impl - %s", removeRefStr.c_str());
+		const SmartPtrIBean bean = appContext->getBean(removeRefStr);
+		rc.QueryInterface(bean, false);
+		CAF_CM_VALIDATE_INTERFACE(rc);
+
+		try {
+			rc->initialize();
+		}
+		CAF_CM_CATCH_CAF
+		CAF_CM_CATCH_DEFAULT
+		CAF_CM_LOG_WARN_CAFEXCEPTION;
+
+		if (CAF_CM_ISEXCEPTION) {
+			rc = SmartPtrIPersistence();
+		}
+	}
+
+	return rc;
 }

@@ -21,7 +21,8 @@ SmartPtrCPersistenceDoc CPersistenceUtils::loadPersistence(
 	persistence->initialize(
 			loadLocalSecurity(persistenceDir),
 			loadRemoteSecurityCollection(persistenceDir),
-			loadPersistenceProtocol(persistenceDir));
+			loadPersistenceProtocolCollection(persistenceDir),
+			loadTextFile(persistenceDir, "version.txt", "1.0"));
 
 	return persistence;
 }
@@ -104,14 +105,14 @@ SmartPtrCRemoteSecurityCollectionDoc CPersistenceUtils::loadRemoteSecurityCollec
 	return remoteSecurityCollection;
 }
 
-SmartPtrCPersistenceProtocolDoc CPersistenceUtils::loadPersistenceProtocol(
+SmartPtrCPersistenceProtocolCollectionDoc CPersistenceUtils::loadPersistenceProtocolCollection(
 		const std::string& persistenceDir) {
-	CAF_CM_STATIC_FUNC_VALIDATE("CPersistenceUtils", "loadPersistenceProtocol");
+	CAF_CM_STATIC_FUNC_VALIDATE("CPersistenceUtils", "loadPersistenceProtocolCollection");
 	CAF_CM_VALIDATE_STRING(persistenceDir);
 
 	const std::string protocolDir = FileSystemUtils::buildPath(persistenceDir, "protocol");
 
-	std::deque<SmartPtrCAmqpBrokerDoc> amqpBrokerCollectionInner;
+	std::deque<SmartPtrCPersistenceProtocolDoc> persistenceProtocolCollectionInner;
 	if (FileSystemUtils::doesDirectoryExist(protocolDir)) {
 		FileSystemUtils::DirectoryItems protocolItems = FileSystemUtils::itemsInDirectory(
 				protocolDir, FileSystemUtils::REGEX_MATCH_ALL);
@@ -152,10 +153,10 @@ SmartPtrCPersistenceProtocolDoc CPersistenceUtils::loadPersistenceProtocol(
 			tlsCertPathCollection.CreateInstance();
 			tlsCertPathCollection->initialize(tlsCertPathCollectionInner);
 
-			SmartPtrCAmqpBrokerDoc amqpBroker;
-			amqpBroker.CreateInstance();
-			amqpBroker->initialize(
-					loadTextFile(protocolIdDir, "amqpBrokerId.txt"),
+			SmartPtrCPersistenceProtocolDoc persistenceProtocol;
+			persistenceProtocol.CreateInstance();
+			persistenceProtocol->initialize(
+					loadTextFile(protocolIdDir, "protocolName.txt"),
 					loadTextFile(protocolIdDir, "uri.txt"),
 					loadTextFile(protocolIdDir, "tlsCert.pem"),
 					loadTextFile(protocolIdDir, "tlsProtocol.txt"),
@@ -164,55 +165,39 @@ SmartPtrCPersistenceProtocolDoc CPersistenceUtils::loadPersistenceProtocol(
 					FileSystemUtils::buildPath(protocolIdDir, "tlsCert.pem"),
 					tlsCertPathCollection);
 
-			amqpBrokerCollectionInner.push_back(amqpBroker);
+			persistenceProtocolCollectionInner.push_back(persistenceProtocol);
 		}
 	}
 
-	SmartPtrCAmqpBrokerCollectionDoc amqpBrokerCollection;
-	amqpBrokerCollection.CreateInstance();
-	amqpBrokerCollection->initialize(amqpBrokerCollectionInner);
+	SmartPtrCPersistenceProtocolCollectionDoc persistenceProtocolCollection;
+	persistenceProtocolCollection.CreateInstance();
+	persistenceProtocolCollection->initialize(persistenceProtocolCollectionInner);
 
-	SmartPtrCPersistenceProtocolDoc persistenceProtocol;
-	persistenceProtocol.CreateInstance();
-	persistenceProtocol->initialize(amqpBrokerCollection);
-
-	return persistenceProtocol;
+	return persistenceProtocolCollection;
 }
 
-SmartPtrCAmqpBrokerDoc CPersistenceUtils::loadAmqpBroker(
+SmartPtrCPersistenceProtocolDoc CPersistenceUtils::loadPersistenceProtocol(
 		const std::string& persistenceDir) {
-	CAF_CM_STATIC_FUNC_VALIDATE("CPersistenceUtils", "loadAmqpBroker");
+	CAF_CM_STATIC_FUNC_VALIDATE("CPersistenceUtils", "loadPersistenceProtocol");
 	CAF_CM_VALIDATE_STRING(persistenceDir);
 
-	const SmartPtrCPersistenceProtocolDoc persistenceProtocol =
-			loadPersistenceProtocol(persistenceDir);
+	const SmartPtrCPersistenceProtocolCollectionDoc persistenceProtocolCollection =
+			loadPersistenceProtocolCollection(persistenceDir);
 
-	return loadAmqpBroker(persistenceProtocol);
+	return loadPersistenceProtocol(persistenceProtocolCollection);
 }
 
-SmartPtrCAmqpBrokerDoc CPersistenceUtils::loadAmqpBroker(
-		const SmartPtrCPersistenceProtocolDoc& persistenceProtocol) {
-	CAF_CM_STATIC_FUNC_VALIDATE("CPersistenceUtils", "loadAmqpBroker");
-	CAF_CM_VALIDATE_SMARTPTR(persistenceProtocol);
+SmartPtrCPersistenceProtocolDoc CPersistenceUtils::loadPersistenceProtocol(
+		const SmartPtrCPersistenceProtocolCollectionDoc& persistenceProtocolCollection) {
+	CAF_CM_STATIC_FUNC_VALIDATE("CPersistenceUtils", "loadPersistenceProtocol");
+	CAF_CM_VALIDATE_SMARTPTR(persistenceProtocolCollection);
 
-	const SmartPtrCAmqpBrokerCollectionDoc amqpBrokerCollection =
-			persistenceProtocol->getAmqpBrokerCollection();
-	CAF_CM_VALIDATE_SMARTPTR(amqpBrokerCollection);
+	std::deque<SmartPtrCPersistenceProtocolDoc> persistenceProtocolCollectionInner =
+			persistenceProtocolCollection->getPersistenceProtocol();
+	CAF_CM_VALIDATE_BOOL(! persistenceProtocolCollectionInner.empty());
+	CAF_CM_VALIDATE_BOOL(persistenceProtocolCollectionInner.size() == 1);
 
-	std::deque<SmartPtrCAmqpBrokerDoc> amqpBrokerCollectionInner =
-			amqpBrokerCollection->getAmqpBroker();
-	CAF_CM_VALIDATE_BOOL(! amqpBrokerCollectionInner.empty());
-	CAF_CM_VALIDATE_BOOL(amqpBrokerCollectionInner.size() <= 2);
-
-	SmartPtrCAmqpBrokerDoc amqpBroker = amqpBrokerCollectionInner.front();
-	if (amqpBrokerCollectionInner.size() == 2) {
-		if (amqpBroker->getAmqpBrokerId().compare("amqpBroker_default") == 0) {
-			amqpBroker = amqpBrokerCollectionInner.at(1);
-		}
-		CAF_CM_VALIDATE_BOOL(amqpBroker->getAmqpBrokerId().compare("amqpBroker_default") != 0);
-	}
-
-	return amqpBroker;
+	return persistenceProtocolCollectionInner.front();
 }
 
 void CPersistenceUtils::savePersistence(
@@ -225,8 +210,8 @@ void CPersistenceUtils::savePersistence(
 	const SmartPtrCLocalSecurityDoc localSecurity = persistence->getLocalSecurity();
 	const SmartPtrCRemoteSecurityCollectionDoc remoteSecurityCollection =
 			persistence->getRemoteSecurityCollection();
-	const SmartPtrCPersistenceProtocolDoc persistenceProtocol =
-			persistence->getPersistenceProtocol();
+	const SmartPtrCPersistenceProtocolCollectionDoc persistenceProtocolCollection =
+			persistence->getPersistenceProtocolCollection();
 
 	if (FileSystemUtils::doesDirectoryExist(persistenceDir)) {
 		CAF_CM_LOG_DEBUG_VA1("Removing directory - %s", persistenceDir.c_str());
@@ -235,7 +220,8 @@ void CPersistenceUtils::savePersistence(
 
 	saveLocalSecurity(localSecurity, persistenceDir);
 	saveRemoteSecurityCollection(remoteSecurityCollection, persistenceDir);
-	savePersistenceProtocol(persistenceProtocol, persistenceDir);
+	savePersistenceProtocolCollection(persistenceProtocolCollection, persistenceDir);
+	FileSystemUtils::saveTextFile(persistenceDir, "version.txt", persistence->getVersion());
 }
 
 void CPersistenceUtils::saveLocalSecurity(
@@ -320,59 +306,57 @@ void CPersistenceUtils::saveRemoteSecurityCollection(
 	}
 }
 
-void CPersistenceUtils::savePersistenceProtocol(
-		const SmartPtrCPersistenceProtocolDoc& persistenceProtocol,
+void CPersistenceUtils::savePersistenceProtocolCollection(
+		const SmartPtrCPersistenceProtocolCollectionDoc& persistenceProtocolCollection,
 		const std::string& persistenceDir) {
-	CAF_CM_STATIC_FUNC_VALIDATE("CPersistenceUtils", "savePersistenceProtocol");
+	CAF_CM_STATIC_FUNC_VALIDATE("CPersistenceUtils", "savePersistenceProtocolCollection");
 	CAF_CM_VALIDATE_STRING(persistenceDir);
 
-	if (! persistenceProtocol.IsNull() && ! persistenceProtocol->getAmqpBrokerCollection().IsNull()) {
-		const std::deque<SmartPtrCAmqpBrokerDoc> amqpBrokerCollectionInner =
-				persistenceProtocol->getAmqpBrokerCollection()->getAmqpBroker();
-		if (! amqpBrokerCollectionInner.empty()) {
+	if (! persistenceProtocolCollection.IsNull()) {
+		const std::deque<SmartPtrCPersistenceProtocolDoc> persistenceProtocolCollectionInner =
+				persistenceProtocolCollection->getPersistenceProtocol();
+		if (! persistenceProtocolCollectionInner.empty()) {
 			const std::string protocolDir = createDirectory(persistenceDir, "protocol");
 
-			for (TConstIterator<std::deque<SmartPtrCAmqpBrokerDoc> >
-					amqpBrokerIter(amqpBrokerCollectionInner);
-					amqpBrokerIter;
-					amqpBrokerIter++) {
-				const SmartPtrCAmqpBrokerDoc amqpBroker = *amqpBrokerIter;
+			for (TConstIterator<std::deque<SmartPtrCPersistenceProtocolDoc> >
+					persistenceProtocolIter(persistenceProtocolCollectionInner);
+					persistenceProtocolIter;
+					persistenceProtocolIter++) {
+				const SmartPtrCPersistenceProtocolDoc persistenceProtocol = *persistenceProtocolIter;
 
-				const std::string amqpBrokerId = amqpBroker->getAmqpBrokerId();
-				CAF_CM_VALIDATE_STRING(amqpBrokerId);
+				const std::string protocolName = persistenceProtocol->getProtocolName();
+				CAF_CM_VALIDATE_STRING(protocolName);
 
-				const std::string amqpQueueDir = createDirectory(protocolDir, amqpBrokerId);
+				const std::string amqpQueueDir = createDirectory(protocolDir, protocolName);
 
-				if (! amqpBroker->getAmqpBrokerId().empty()) {
+				FileSystemUtils::saveTextFile(
+						amqpQueueDir, "protocolName.txt", persistenceProtocol->getProtocolName());
+
+				if (! persistenceProtocol->getUri().empty()) {
 					FileSystemUtils::saveTextFile(
-							amqpQueueDir, "amqpBrokerId.txt", amqpBroker->getAmqpBrokerId());
+							amqpQueueDir, "uri.txt", persistenceProtocol->getUri());
 				}
 
-				if (! amqpBroker->getUri().empty()) {
+				if (! persistenceProtocol->getTlsCert().empty()) {
 					FileSystemUtils::saveTextFile(
-							amqpQueueDir, "uri.txt", amqpBroker->getUri());
+							amqpQueueDir, "tlsCert.pem", persistenceProtocol->getTlsCert());
 				}
 
-				if (! amqpBroker->getTlsCert().empty()) {
+				if (! persistenceProtocol->getTlsProtocol().empty()) {
 					FileSystemUtils::saveTextFile(
-							amqpQueueDir, "tlsCert.pem", amqpBroker->getTlsCert());
-				}
-
-				if (! amqpBroker->getTlsProtocol().empty()) {
-					FileSystemUtils::saveTextFile(
-							amqpQueueDir, "tlsProtocol.txt", amqpBroker->getTlsProtocol());
+							amqpQueueDir, "tlsProtocol.txt", persistenceProtocol->getTlsProtocol());
 				}
 
 				const std::deque<std::string> tlsCipherCollectionInner =
-						amqpBroker->getTlsCipherCollection();
+						persistenceProtocol->getTlsCipherCollection();
 				if (! tlsCipherCollectionInner.empty()) {
 					const std::string cipherDir = createDirectory(amqpQueueDir, "tlsCipherCollection");
 					saveCollection(tlsCipherCollectionInner, cipherDir, "tlsCipher", ".txt");
 				}
 
-				if (! amqpBroker->getTlsCertCollection().IsNull()) {
+				if (! persistenceProtocol->getTlsCertCollection().IsNull()) {
 					const std::deque<std::string> tlsCertCollectionInner =
-							amqpBroker->getTlsCertCollection()->getCert();
+							persistenceProtocol->getTlsCertCollection()->getCert();
 
 					if (! tlsCertCollectionInner.empty()) {
 						const std::string certCollectionDir = createDirectory(amqpQueueDir, "tlsCertCollection");
@@ -386,7 +370,8 @@ void CPersistenceUtils::savePersistenceProtocol(
 
 std::string CPersistenceUtils::loadTextFile(
 		const std::string& dir,
-		const std::string& file) {
+		const std::string& file,
+		const std::string& defaultVal) {
 	CAF_CM_STATIC_FUNC_VALIDATE("CPersistenceUtils", "loadTextFile");
 	CAF_CM_VALIDATE_STRING(dir);
 	CAF_CM_VALIDATE_STRING(file);
@@ -396,6 +381,8 @@ std::string CPersistenceUtils::loadTextFile(
 	std::string rc;
 	if (FileSystemUtils::doesFileExist(path)) {
 		rc = FileSystemUtils::loadTextFile(path);
+	} else {
+		rc = defaultVal;
 	}
 
 	return rc;

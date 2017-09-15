@@ -12,7 +12,6 @@
 //{{CAF_SUBSYSTEM}}
 
 #include <CommonDefines.h>
-#include <CafContracts.h>
 #include <DocXml.h>
 #include <DocUtils.h>
 #include <Integration.h>

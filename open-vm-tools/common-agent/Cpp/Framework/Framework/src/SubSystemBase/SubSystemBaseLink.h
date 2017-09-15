@@ -22,7 +22,6 @@
 
 #include "SubSystemBaseInc.h"
 
-#include "CAutoMutexLockUnlockRaw.h"
 #include "CEcmDllManager.h"
 #include "CEcmSubSystem.h"
 #include "CEcmSubSystemModule.h"

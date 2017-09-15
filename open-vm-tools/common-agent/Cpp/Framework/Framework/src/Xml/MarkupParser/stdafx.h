@@ -18,8 +18,8 @@
 #endif
 
 #include <CommonDefines.h>
+#include <CommonGlobals.h>
 #include "../../Common/CAutoMutexLockUnlock.h"
-#include "../../Globals/CommonGlobalsLink.h"
 #include "../../Exception/ExceptionLink.h"
 
 #endif /* STDAFX_H_ */

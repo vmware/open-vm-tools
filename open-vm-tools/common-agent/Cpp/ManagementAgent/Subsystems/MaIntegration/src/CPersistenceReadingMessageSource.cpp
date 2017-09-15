@@ -22,24 +22,17 @@ CPersistenceReadingMessageSource::~CPersistenceReadingMessageSource() {
 }
 
 void CPersistenceReadingMessageSource::initialize(
-		const SmartPtrIDocument& configSection) {
-	CAF_CM_FUNCNAME("initialize");
+		const SmartPtrIDocument& configSection,
+		const SmartPtrIPersistence& persistence) {
+	CAF_CM_FUNCNAME_VALIDATE("initialize");
 	CAF_CM_PRECOND_ISNOTINITIALIZED(_isInitialized);
 	CAF_CM_VALIDATE_INTERFACE(configSection);
+	CAF_CM_VALIDATE_SMARTPTR(persistence);
 
 	_id = configSection->findRequiredAttribute("id");
-	const std::string implClass = configSection->findRequiredAttribute("impl-class");
 	const SmartPtrIDocument pollerDoc = configSection->findOptionalChild("poller");
 
-	SmartPtrIPersistence persistence;
-	persistence.CreateInstance(implClass.c_str());
-	try {
-		persistence->initialize();
-		_persistence = persistence;
-	}
-	CAF_CM_CATCH_CAF
-	CAF_CM_CATCH_DEFAULT
-	CAF_CM_LOG_CRIT_CAFEXCEPTION;
+	_persistence = persistence;
 
 	setPollerMetadata(pollerDoc);
 	_refreshSec = 0;
@@ -70,15 +63,13 @@ SmartPtrIIntMessage CPersistenceReadingMessageSource::doReceive(
 	}
 
 	SmartPtrIIntMessage message;
-	if (! _persistence.IsNull()) {
-		const SmartPtrCPersistenceDoc persistence = _persistence->getUpdated(0);
-		if (! persistence.IsNull()) {
-			SmartPtrCIntMessage messageImpl;
-			messageImpl.CreateInstance();
-			messageImpl->initializeStr(XmlRoots::savePersistenceToString(persistence),
-					IIntMessage::SmartPtrCHeaders(), IIntMessage::SmartPtrCHeaders());
-			message = messageImpl;
-		}
+	const SmartPtrCPersistenceDoc persistence = _persistence->getUpdated(0);
+	if (! persistence.IsNull()) {
+		SmartPtrCIntMessage messageImpl;
+		messageImpl.CreateInstance();
+		messageImpl->initializeStr(XmlRoots::savePersistenceToString(persistence),
+				IIntMessage::SmartPtrCHeaders(), IIntMessage::SmartPtrCHeaders());
+		message = messageImpl;
 	}
 
 	return message;

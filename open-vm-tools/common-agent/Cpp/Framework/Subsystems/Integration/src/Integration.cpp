@@ -14,6 +14,13 @@
 
 using namespace Caf;
 
+namespace Caf {
+	const char* _sObjIdIntegrationObjectFactory = "com.vmware.commonagent.integration.objectfactory";
+	const char* _sObjIdErrorChannel = "com.vmware.commonagent.integration.channels.errorchannel";
+	const char* _sObjIdNullChannel = "com.vmware.commonagent.integration.channels.nullchannel";
+	const char* _sObjIdHeaderExpressionInvoker = "com.vmware.commonagent.integration.headerexpressioninvoker";
+}
+
 CEcmSubSystemModule _Module;
 
 CAF_BEGIN_OBJECT_MAP(ObjectMap)

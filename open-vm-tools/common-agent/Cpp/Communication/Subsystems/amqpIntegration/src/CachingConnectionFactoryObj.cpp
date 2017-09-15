@@ -27,23 +27,26 @@ void CachingConnectionFactoryObj::initializeBean(
 
 	const std::string persistenceDir = AppConfigUtils::getRequiredString(
 			"persistence_dir");
-	const SmartPtrCAmqpBrokerDoc amqpBroker = CPersistenceUtils::loadAmqpBroker(
+	const SmartPtrCPersistenceProtocolDoc persistenceProtocol = CPersistenceUtils::loadPersistenceProtocol(
 			persistenceDir);
 
 	UriUtils::SUriRecord uri;
-	UriUtils::parseUriString(amqpBroker->getUri(), uri);
+	UriUtils::parseUriString(persistenceProtocol->getUri(), uri);
 
 	const std::string vhost = UriUtils::findOptParameter(uri, "vhost",
-			AppConfigUtils::getOptionalString("vhost"));
-	const std::string connectionTimeout = UriUtils::findOptParameter(uri,
-			"connection_timeout", AppConfigUtils::getOptionalString("connection_timeout"));
-	const std::string connectionRetries = UriUtils::findOptParameter(uri,
-			"connection_retries", AppConfigUtils::getOptionalString("connection_retries"));
-	const std::string connectionSecondsToWait = UriUtils::findOptParameter(uri,
-			"connection_seconds_to_wait",
-			AppConfigUtils::getOptionalString("connection_seconds_to_wait"));
-	const std::string channelCacheSize = UriUtils::findOptParameter(uri,
-			"channel_cache_size", AppConfigUtils::getOptionalString("channel_cache_size"));
+			AppConfigUtils::getRequiredString("communication_amqp", "vhost"));
+	const std::string connectionTimeout = UriUtils::findOptParameter(uri, "connection_timeout",
+			CStringConv::toString<uint32>(
+					AppConfigUtils::getRequiredUint32("communication_amqp", "connection_timeout")));
+	const std::string connectionRetries = UriUtils::findOptParameter(uri, "connection_retries",
+			CStringConv::toString<uint32>(
+					AppConfigUtils::getRequiredUint32("communication_amqp", "connection_retries")));
+	const std::string connectionSecondsToWait = UriUtils::findOptParameter(uri, "connection_seconds_to_wait",
+			CStringConv::toString<uint32>(
+					AppConfigUtils::getRequiredUint32("communication_amqp", "connection_seconds_to_wait")));
+	const std::string channelCacheSize = UriUtils::findOptParameter(uri, "channel_cache_size",
+			CStringConv::toString<uint32>(
+					AppConfigUtils::getRequiredUint32("communication_amqp", "channel_cache_size")));
 
 	CAF_CM_VALIDATE_STRING(uri.protocol);
 	CAF_CM_VALIDATE_STRING(uri.host);

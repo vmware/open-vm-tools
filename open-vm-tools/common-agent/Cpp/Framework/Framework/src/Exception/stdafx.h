@@ -18,7 +18,7 @@
 #endif
 
 #include <BaseDefines.h>
-#include "../Globals/CommonGlobalsLink.h"
+#include <CommonGlobals.h>
 #include "CCafException.h"
 #include "ClassMacros.h"
 #include "ExceptionMacros.h"

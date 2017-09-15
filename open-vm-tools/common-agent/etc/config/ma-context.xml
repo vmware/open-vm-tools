@@ -127,7 +127,7 @@
 		input-channel="payloadHeaderEnricherChannel"
 		output-channel="headerValueRouterChannel">
 
-		<!-- Splits the single request into the processing components that require very different processing; 
+		<!-- Splits the single request into the processing components that require very different processing;
                     collect schema vs. collect instances / invoke method. Also splits requests by provider. -->
 		<splitter
 			id="phReqSplitter"
@@ -294,37 +294,41 @@
 		output-channel="nullChannel"
 		ref="errorToResponseTransformerBean"/>
 
- 	<bean
+	<channel id="configenvOutboundChannel"/>
+	<bean
 		id="maIntegrationObjects"
 		class="com.vmware.commonagent.maintegration.integrationobjects" />
-
-	<channel id="configenvOutboundChannel"/>
+	<bean
+		id="configenvBean"
+		class="com.vmware.commonagent.maintegration.configenv"/>
+	<bean
+		id="persistenceNsdbBean"
+		class="com.vmware.commonagent.maintegration.persistencenamespacedb"/>
 
 	<persistence-inbound-channel-adapter
 		id="persistenceInboundChannelAdapterId"
 		channel="configenvOutboundChannel"
-		impl-class="com.vmware.commonagent.maintegration.persistencenamespacedb">
+		ref="persistenceNsdbBean">
 		<poller fixed-rate="30000"/>
 	</persistence-inbound-channel-adapter>
 
 	<configenv-outbound-channel-adapter
 		id="configenvOutboundChannelAdapterId"
 		channel="configenvOutboundChannel"
-		impl-class="com.vmware.commonagent.maintegration.configenv"/>
+		ref="configenvBean"
+		remove-ref="persistenceNsdbBean"/>
 
-<!--
- 	<channel id="persistenceOutboundChannel"/>
+	<channel id="persistenceOutboundChannel"/>
 
 	<configenv-inbound-channel-adapter
 		id="configenvInboundChannelAdapterId"
 		channel="persistenceOutboundChannel"
-		impl-class="com.vmware.commonagent.maintegration.configenv">
+		ref="configenvBean">
 		<poller fixed-rate="30000"/>
 	</configenv-inbound-channel-adapter>
 
 	<persistence-outbound-channel-adapter
 		id="persistenceOutboundChannelAdapterId"
 		channel="persistenceOutboundChannel"
-		impl-class="com.vmware.commonagent.maintegration.persistencenamespacedb"/>
- -->
+		ref="persistenceNsdbBean"/>
 </caf:beans>

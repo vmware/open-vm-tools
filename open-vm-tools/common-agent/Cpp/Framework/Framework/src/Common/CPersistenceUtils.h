@@ -24,14 +24,14 @@ public:
 	static SmartPtrCRemoteSecurityCollectionDoc loadRemoteSecurityCollection(
 			const std::string& persistenceDir);
 
+	static SmartPtrCPersistenceProtocolCollectionDoc loadPersistenceProtocolCollection(
+			const std::string& persistenceDir);
+
 	static SmartPtrCPersistenceProtocolDoc loadPersistenceProtocol(
 			const std::string& persistenceDir);
 
-	static SmartPtrCAmqpBrokerDoc loadAmqpBroker(
-			const std::string& persistenceDir);
-
-	static SmartPtrCAmqpBrokerDoc loadAmqpBroker(
-			const SmartPtrCPersistenceProtocolDoc& persistenceProtocol);
+	static SmartPtrCPersistenceProtocolDoc loadPersistenceProtocol(
+			const SmartPtrCPersistenceProtocolCollectionDoc& persistenceProtocolCollection);
 
 public:
 	static void savePersistence(
@@ -46,14 +46,15 @@ public:
 			const SmartPtrCRemoteSecurityCollectionDoc& remoteSecurityCollection,
 			const std::string& persistenceDir);
 
-	static void savePersistenceProtocol(
-			const SmartPtrCPersistenceProtocolDoc& persistenceProtocol,
+	static void savePersistenceProtocolCollection(
+			const SmartPtrCPersistenceProtocolCollectionDoc& persistenceProtocolCollection,
 			const std::string& persistenceDir);
 
 private:
 	static std::string loadTextFile(
 			const std::string& dir,
-			const std::string& file);
+			const std::string& file,
+			const std::string& defaultVal = std::string());
 
 private:
 	static std::string createDirectory(

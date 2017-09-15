@@ -27,9 +27,10 @@
 #include <errno.h>
 #include <glib/gstdio.h>
 
-#include <FxContracts.h>
+#include <IBean.h>
+#include <IVariant.h>
+#include <CommonGlobals.h>
 
-#include "../Globals/CommonGlobalsLink.h"
 #include "../Logging/LoggingLink.h"
 #include "../Exception/ExceptionLink.h"
 #include "../Collections/Iterators/IteratorsInc.h"
@@ -55,6 +56,7 @@
 #include "CAutoRecMutex.h"
 #include "CAutoCondition.h"
 #include "CAutoMutexLockUnlock.h"
+#include "CAutoMutexLockUnlockRaw.h"
 #include "CAutoMutexUnlockLock.h"
 #include "CThreadSignal.h"
 #include "CCmdLineOptions.h"

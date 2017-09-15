@@ -10,6 +10,15 @@
 
 using namespace Caf;
 
+namespace Caf {
+	const char* _sObjIdErrorToResponseTransformerInstance = "com.vmware.commonagent.cafintegration.errortoresponsetransformerinstance";
+	const char* _sObjIdErrorToResponseTransformer = "com.vmware.commonagent.cafintegration.errortoresponsetransformer";
+	const char* _sObjIdPayloadHeaderEnricherInstance = "com.vmware.commonagent.cafintegration.payloadheaderenricherinstance";
+	const char* _sObjIdPayloadHeaderEnricher = "com.vmware.commonagent.cafintegration.payloadheaderenricher";
+	const char* _sObjIdEnvelopeToPayloadTransformerInstance = "com.vmware.commonagent.cafintegration.envelopetopayloadtransformerinstance";
+	const char* _sObjIdEnvelopeToPayloadTransformer = "com.vmware.commonagent.cafintegration.envelopetopayloadtransformer";
+}
+
 CEcmSubSystemModule _Module;
 
 CAF_BEGIN_OBJECT_MAP(ObjectMap)

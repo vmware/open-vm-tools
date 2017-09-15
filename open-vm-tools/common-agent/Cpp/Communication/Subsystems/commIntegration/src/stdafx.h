@@ -14,7 +14,6 @@
 #include "../../../amqpCore/src/amqpCore/amqpIntegrationCoreLink.h"
 #include "commIntegrationDefines.h"
 
-#include <CafContracts.h>
 #include <DocXml.h>
 #include <DocUtils.h>
 #include "CMessagePartRecord.h"

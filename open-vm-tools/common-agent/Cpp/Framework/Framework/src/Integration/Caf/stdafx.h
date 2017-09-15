@@ -16,7 +16,6 @@
 #endif
 
 #include <CommonDefines.h>
-#include <IntegrationContracts.h>
 #include <DocXml.h>
 #include <DocUtils.h>
 #include <Integration.h>

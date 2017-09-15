@@ -50,6 +50,10 @@ public: // IMessageProducer
 	bool isMessageProducer() const;
 
 private:
+	SmartPtrIConfigEnv createConfigEnv(
+		const SmartPtrIAppContext& appContext) const;
+
+private:
 	bool _isInitialized;
 	std::string _id;
 	SmartPtrIDocument _configSection;
