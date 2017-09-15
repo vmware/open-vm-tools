@@ -110,7 +110,8 @@ TimeSyncEnable(void)
    char *reply = NULL;
    size_t replyLen;
 
-   if (TimeSyncSet(TRUE, &reply, &replyLen)) {
+   if ((TimeSyncGetOldOptions() & VMWARE_GUI_SYNC_TIME) ||
+       TimeSyncSet(TRUE, &reply, &replyLen)) {
       ToolsCmd_Print("%s\n", SU_(option.enabled, "Enabled"));
    } else {
       ToolsCmd_PrintErr(SU_(error.message, "Error: %s\n"), reply);
@@ -145,7 +146,8 @@ TimeSyncDisable(void)
    char *reply = NULL;
    size_t replyLen;
 
-   if (TimeSyncSet(FALSE, &reply, &replyLen)) {
+   if (!(TimeSyncGetOldOptions() & VMWARE_GUI_SYNC_TIME) ||
+       TimeSyncSet(FALSE, &reply, &replyLen)) {
       ToolsCmd_Print("%s\n", SU_(option.disabled, "Disabled"));
    } else {
       ToolsCmd_PrintErr(SU_(error.message, "Error: %s\n"), reply);
