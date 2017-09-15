@@ -349,10 +349,11 @@ RDTSC_BARRIER(void)
  * 2) Not fine-grained enough to provide the best performance.
  * For the above two reasons, usage of COMPILER_*_BARRIER is now deprecated.
  * _Do not add new references to COMPILER_*_BARRIER._ Instead, precisely
- * document the intent of your code by using the
- * <mem_type/purpose>_<before_access_type>_BARRIER_<after_access_type>
- * references to COMPILER_*_BARRIER are being slowly but surely converted,
- * and when no references are left, COMPILER_*_BARRIER will be retired.
+ * document the intent of your code by using
+ * <mem_type/purpose>_<before_access_type>_BARRIER_<after_access_type>.
+ * Existing references to COMPILER_*_BARRIER are being slowly but surely
+ * converted, and when no references are left, COMPILER_*_BARRIER will be
+ * retired.
  *
  * Thanks for pasting this whole comment into every architecture header.
  */
