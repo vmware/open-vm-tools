@@ -31,6 +31,8 @@ libDeployPkg_la_SOURCES += mspackConfig.h
 libDeployPkg_la_SOURCES += mspackWrapper.c
 libDeployPkg_la_SOURCES += mspackWrapper.h
 libDeployPkg_la_SOURCES += processPosix.c
+libDeployPkg_la_SOURCES += linuxDeploymentUtilities.c
+libDeployPkg_la_SOURCES += linuxDeploymentUtilities.h
 libDeployPkg_la_SOURCES += toolsDeployPkg.h
 
 libDeployPkg_la_LDFLAGS =
