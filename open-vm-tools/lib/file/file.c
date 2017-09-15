@@ -1495,7 +1495,7 @@ File_GetSizeEx(const char *pathName)  // IN:
 
    numFiles = File_ListDirectory(pathName, &fileList);
 
-   if (-1 == numFiles) {
+   if (numFiles == -1) {
       return -1;
    }
 
