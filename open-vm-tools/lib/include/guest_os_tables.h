@@ -299,6 +299,230 @@ extern "C" {
    GOSL(STR_OS_WIN_XP_PRO,                   GUEST_OS_WINXP,                  "winPreVista.iso")      \
    GOSL(STR_OS_WIN_XP_PRO_X64,               GUEST_OS_WINXPPRO_64,            "winPreVista.iso")      \
 
+
+/*
+ * Mappings between VIM guest OS keys and the rest of the civilized world.
+ *
+ * Format: GOKM(vmxKey, vimKey, reversible)
+ */
+#define GUEST_OS_KEY_MAP \
+   /* Windows guests */ \
+   GOKM("win31",                                win31Guest,              TRUE) \
+   GOKM("win95",                                win95Guest,              TRUE) \
+   GOKM("win98",                                win98Guest,              TRUE) \
+   GOKM("winMe",                                winMeGuest,              TRUE) \
+   GOKM("winNT",                                winNTGuest,              TRUE) \
+   GOKM("nt4",                                  winNTGuest,              FALSE) \
+   GOKM("win2000",                              win2000ProGuest,         FALSE) \
+   GOKM("win2000Pro",                           win2000ProGuest,         TRUE) \
+   GOKM("win2000Serv",                          win2000ServGuest,        TRUE) \
+   GOKM("win2000AdvServ",                       win2000AdvServGuest,     TRUE) \
+   GOKM("winXPHome",                            winXPHomeGuest,          TRUE) \
+   GOKM("whistler",                             winXPHomeGuest,          FALSE) \
+   GOKM("winXPPro",                             winXPProGuest,           TRUE) \
+   GOKM("winXPPro-64",                          winXPPro64Guest,         TRUE) \
+   GOKM("winNetWeb",                            winNetWebGuest,          TRUE) \
+   GOKM("winNetStandard",                       winNetStandardGuest,     TRUE) \
+   GOKM("winNetEnterprise",                     winNetEnterpriseGuest,   TRUE) \
+   GOKM("winNetDatacenter",                     winNetDatacenterGuest,   TRUE) \
+   GOKM("winNetBusiness",                       winNetBusinessGuest,     TRUE) \
+   GOKM("winNetStandard-64",                    winNetStandard64Guest,   TRUE) \
+   GOKM("winNetEnterprise-64",                  winNetEnterprise64Guest, TRUE) \
+   GOKM("winNetDatacenter-64",                  winNetDatacenter64Guest, TRUE) \
+   GOKM("longhorn",                             winLonghornGuest,        TRUE) \
+   GOKM("longhorn-64",                          winLonghorn64Guest,      TRUE) \
+   GOKM("winvista",                             winVistaGuest,           TRUE) \
+   GOKM("winvista-64",                          winVista64Guest,         TRUE) \
+   GOKM("windows7",                             windows7Guest,           TRUE) \
+   GOKM("windows7-64",                          windows7_64Guest,        TRUE) \
+   GOKM("windows7srv-64",                       windows7Server64Guest,   TRUE) \
+   GOKM("windows8",                             windows8Guest,           TRUE) \
+   GOKM("windows8-64",                          windows8_64Guest,        TRUE) \
+   GOKM("windows8srv-64",                       windows8Server64Guest,   TRUE) \
+   GOKM("windows9",                             windows9Guest,           TRUE) \
+   GOKM("windows9-64",                          windows9_64Guest,        TRUE) \
+   GOKM("windows9srv-64",                       windows9Server64Guest,   TRUE) \
+   GOKM("winHyperV",                            windowsHyperVGuest,      TRUE) \
+   GOKM("winServer2008Cluster-32",              winLonghornGuest,        FALSE) \
+   GOKM("winServer2008Datacenter-32",           winLonghornGuest,        FALSE) \
+   GOKM("winServer2008DatacenterCore-32",       winLonghornGuest,        FALSE) \
+   GOKM("winServer2008Enterprise-32",           winLonghornGuest,        FALSE) \
+   GOKM("winServer2008EnterpriseCore-32",       winLonghornGuest,        FALSE) \
+   GOKM("winServer2008EnterpriseItanium-32",    winLonghornGuest,        FALSE) \
+   GOKM("winServer2008SmallBusiness-32",        winLonghornGuest,        FALSE) \
+   GOKM("winServer2008SmallBusinessPremium-32", winLonghornGuest,        FALSE) \
+   GOKM("winServer2008Standard-32",             winLonghornGuest,        FALSE) \
+   GOKM("winServer2008StandardCore-32",         winLonghornGuest,        FALSE) \
+   GOKM("winServer2008MediumManagement-32",     winLonghornGuest,        FALSE) \
+   GOKM("winServer2008MediumMessaging-32",      winLonghornGuest,        FALSE) \
+   GOKM("winServer2008MediumSecurity-32",       winLonghornGuest,        FALSE) \
+   GOKM("winServer2008ForSmallBusiness-32",     winLonghornGuest,        FALSE) \
+   GOKM("winServer2008StorageEnterprise-32",    winLonghornGuest,        FALSE) \
+   GOKM("winServer2008StorageExpress-32",       winLonghornGuest,        FALSE) \
+   GOKM("winServer2008StorageStandard-32",      winLonghornGuest,        FALSE) \
+   GOKM("winServer2008StorageWorkgroup-32",     winLonghornGuest,        FALSE) \
+   GOKM("winServer2008Web-32",                  winLonghornGuest,        FALSE) \
+   GOKM("winServer2008Cluster-64",              winLonghorn64Guest,      FALSE) \
+   GOKM("winServer2008Datacenter-64",           winLonghorn64Guest,      FALSE) \
+   GOKM("winServer2008DatacenterCore-64",       winLonghorn64Guest,      FALSE) \
+   GOKM("winServer2008Enterprise-64",           winLonghorn64Guest,      FALSE) \
+   GOKM("winServer2008EnterpriseCore-64",       winLonghorn64Guest,      FALSE) \
+   GOKM("winServer2008EnterpriseItanium-64",    winLonghorn64Guest,      FALSE) \
+   GOKM("winServer2008SmallBusiness-64",        winLonghorn64Guest,      FALSE) \
+   GOKM("winServer2008SmallBusinessPremium-64", winLonghorn64Guest,      FALSE) \
+   GOKM("winServer2008Standard-64",             winLonghorn64Guest,      FALSE) \
+   GOKM("winServer2008StandardCore-64",         winLonghorn64Guest,      FALSE) \
+   GOKM("winServer2008MediumManagement-64",     winLonghorn64Guest,      FALSE) \
+   GOKM("winServer2008MediumMessaging-64",      winLonghorn64Guest,      FALSE) \
+   GOKM("winServer2008MediumSecurity-64",       winLonghorn64Guest,      FALSE) \
+   GOKM("winServer2008ForSmallBusiness-64",     winLonghorn64Guest,      FALSE) \
+   GOKM("winServer2008StorageEnterprise-64",    winLonghorn64Guest,      FALSE) \
+   GOKM("winServer2008StorageExpress-64",       winLonghorn64Guest,      FALSE) \
+   GOKM("winServer2008StorageStandard-64",      winLonghorn64Guest,      FALSE) \
+   GOKM("winServer2008StorageWorkgroup-64",     winLonghorn64Guest,      FALSE) \
+   GOKM("winServer2008Web-64",                  winLonghorn64Guest,      FALSE) \
+   GOKM("winVistaUltimate-32",                  winVistaGuest,           FALSE) \
+   GOKM("winVistaHomePremium-32",               winVistaGuest,           FALSE) \
+   GOKM("winVistaHomeBasic-32",                 winVistaGuest,           FALSE) \
+   GOKM("winVistaEnterprise-32",                winVistaGuest,           FALSE) \
+   GOKM("winVistaBusiness-32",                  winVistaGuest,           FALSE) \
+   GOKM("winVistaStarter-32",                   winVistaGuest,           FALSE) \
+   GOKM("winVistaUltimate-64",                  winVista64Guest,         FALSE) \
+   GOKM("winVistaHomePremium-64",               winVista64Guest,         FALSE) \
+   GOKM("winVistaHomeBasic-64",                 winVista64Guest,         FALSE) \
+   GOKM("winVistaEnterprise-64",                winVista64Guest,         FALSE) \
+   GOKM("winVistaBusiness-64",                  winVista64Guest,         FALSE) \
+   GOKM("winVistaStarter-64",                   winVista64Guest,         FALSE) \
+   /* Linux guests */ \
+   GOKM("redhat",                               redhatGuest,             TRUE) \
+   GOKM("rhel2",                                rhel2Guest,              TRUE) \
+   GOKM("rhel3",                                rhel3Guest,              TRUE) \
+   GOKM("rhel3-64",                             rhel3_64Guest,           TRUE) \
+   GOKM("rhel4",                                rhel4Guest,              TRUE) \
+   GOKM("rhel4-64",                             rhel4_64Guest,           TRUE) \
+   GOKM("rhel5",                                rhel5Guest,              TRUE) \
+   GOKM("rhel5-64",                             rhel5_64Guest,           TRUE) \
+   GOKM("rhel6",                                rhel6Guest,              TRUE) \
+   GOKM("rhel6-64",                             rhel6_64Guest,           TRUE) \
+   GOKM("rhel7",                                rhel7Guest,              TRUE) \
+   GOKM("rhel7-64",                             rhel7_64Guest,           TRUE) \
+   GOKM("centos",                               centosGuest,             TRUE) \
+   GOKM("centos-64",                            centos64Guest,           TRUE) \
+   GOKM("centos6",                              centos6Guest,            TRUE) \
+   GOKM("centos6-64",                           centos6_64Guest,         TRUE) \
+   GOKM("centos7",                              centos7Guest,            FALSE) \
+   GOKM("centos7-64",                           centos7_64Guest,         TRUE) \
+   GOKM("oraclelinux",                          oracleLinuxGuest,        TRUE) \
+   GOKM("oraclelinux-64",                       oracleLinux64Guest,      TRUE) \
+   GOKM("oraclelinux6",                         oracleLinux6Guest,       TRUE) \
+   GOKM("oraclelinux6-64",                      oracleLinux6_64Guest,    TRUE) \
+   GOKM("oraclelinux7",                         oracleLinux7Guest,       FALSE) \
+   GOKM("oraclelinux7-64",                      oracleLinux7_64Guest,    TRUE) \
+   GOKM("suse",                                 suseGuest,               TRUE) \
+   GOKM("suse-64",                              suse64Guest,             TRUE) \
+   GOKM("sles",                                 slesGuest,               TRUE) \
+   GOKM("sles-64",                              sles64Guest,             TRUE) \
+   GOKM("sles10",                               sles10Guest,             TRUE) \
+   GOKM("sles10-64",                            sles10_64Guest,          TRUE) \
+   GOKM("sles11",                               sles11Guest,             TRUE) \
+   GOKM("sles11-64",                            sles11_64Guest,          TRUE) \
+   GOKM("sles12",                               sles12Guest,             TRUE) \
+   GOKM("sles12-64",                            sles12_64Guest,          TRUE) \
+   GOKM("mandrake",                             mandrakeGuest,           TRUE) \
+   GOKM("mandrake-64",                          mandriva64Guest,         FALSE) \
+   GOKM("mandriva",                             mandrivaGuest,           TRUE) \
+   GOKM("mandriva-64",                          mandriva64Guest,         TRUE) \
+   GOKM("turbolinux",                           turboLinuxGuest,         TRUE) \
+   GOKM("turbolinux-64",                        turboLinux64Guest,       TRUE) \
+   GOKM("ubuntu",                               ubuntuGuest,             TRUE) \
+   GOKM("ubuntu-64",                            ubuntu64Guest,           TRUE) \
+   GOKM("debian4",                              debian4Guest,            TRUE) \
+   GOKM("debian4-64",                           debian4_64Guest,         TRUE) \
+   GOKM("debian5",                              debian5Guest,            TRUE) \
+   GOKM("debian5-64",                           debian5_64Guest,         TRUE) \
+   GOKM("debian6",                              debian6Guest,            TRUE) \
+   GOKM("debian6-64",                           debian6_64Guest,         TRUE) \
+   GOKM("debian7",                              debian7Guest,            TRUE) \
+   GOKM("debian7-64",                           debian7_64Guest,         TRUE) \
+   GOKM("debian8",                              debian8Guest,            TRUE) \
+   GOKM("debian8-64",                           debian8_64Guest,         TRUE) \
+   GOKM("debian9",                              debian9Guest,            TRUE) \
+   GOKM("debian9-64",                           debian9_64Guest,         TRUE) \
+   GOKM("debian10",                             debian10Guest,           TRUE) \
+   GOKM("debian10-64",                          debian10_64Guest,        TRUE) \
+   GOKM("asianux3",                             asianux3Guest,           TRUE) \
+   GOKM("asianux3-64",                          asianux3_64Guest,        TRUE) \
+   GOKM("asianux4",                             asianux4Guest,           TRUE) \
+   GOKM("asianux4-64",                          asianux4_64Guest,        TRUE) \
+   GOKM("asianux5-64",                          asianux5_64Guest,        TRUE) \
+   GOKM("asianux7-64",                          asianux7_64Guest,        TRUE) \
+   GOKM("nld9",                                 nld9Guest,               TRUE) \
+   GOKM("oes",                                  oesGuest,                TRUE) \
+   GOKM("sjds",                                 sjdsGuest,               TRUE) \
+   GOKM("opensuse",                             opensuseGuest,           TRUE) \
+   GOKM("opensuse-64",                          opensuse64Guest,         TRUE) \
+   GOKM("fedora",                               fedoraGuest,             TRUE) \
+   GOKM("fedora-64",                            fedora64Guest,           TRUE) \
+   GOKM("coreos-64",                            coreos64Guest,           TRUE) \
+   GOKM("vmware-photon-64",                     vmwarePhoton64Guest,     TRUE) \
+   GOKM("other24xlinux",                        other24xLinuxGuest,      TRUE) \
+   GOKM("other24xlinux-64",                     other24xLinux64Guest,    TRUE) \
+   GOKM("other26xlinux",                        other26xLinuxGuest,      TRUE) \
+   GOKM("other26xlinux-64",                     other26xLinux64Guest,    TRUE) \
+   GOKM("other3xlinux",                         other3xLinuxGuest,       TRUE) \
+   GOKM("other3xlinux-64",                      other3xLinux64Guest,     TRUE) \
+   GOKM("linux",                                otherLinuxGuest,         FALSE) \
+   GOKM("otherlinux",                           otherLinuxGuest,         TRUE) \
+   GOKM("otherlinux-64",                        otherLinux64Guest,       TRUE) \
+   GOKM("genericlinux",                         genericLinuxGuest,       TRUE) \
+   /* Netware guests */ \
+   GOKM("netware4",                             netware4Guest,           TRUE) \
+   GOKM("netware5",                             netware5Guest,           TRUE) \
+   GOKM("netware6",                             netware6Guest,           TRUE) \
+   /* Solaris guests */ \
+   GOKM("solaris6",                             solaris6Guest,           TRUE) \
+   GOKM("solaris7",                             solaris7Guest,           TRUE) \
+   GOKM("solaris8",                             solaris8Guest,           TRUE) \
+   GOKM("solaris9",                             solaris9Guest,           TRUE) \
+   GOKM("solaris10",                            solaris10Guest,          TRUE) \
+   GOKM("solaris10-64",                         solaris10_64Guest,       TRUE) \
+   GOKM("solaris11-64",                         solaris11_64Guest,       TRUE) \
+   GOKM("solaris12-64",                         solaris12_64Guest,       TRUE) \
+   /* macOS guests */ \
+   GOKM("darwin",                               darwinGuest,             TRUE) \
+   GOKM("darwin-64",                            darwin64Guest,           TRUE) \
+   GOKM("darwin10",                             darwin10Guest,           TRUE) \
+   GOKM("darwin10-64",                          darwin10_64Guest,        TRUE) \
+   GOKM("darwin11",                             darwin11Guest,           TRUE) \
+   GOKM("darwin11-64",                          darwin11_64Guest,        TRUE) \
+   GOKM("darwin12-64",                          darwin12_64Guest,        TRUE) \
+   GOKM("darwin13-64",                          darwin13_64Guest,        TRUE) \
+   GOKM("darwin14-64",                          darwin14_64Guest,        TRUE) \
+   GOKM("darwin15-64",                          darwin15_64Guest,        TRUE) \
+   GOKM("darwin16-64",                          darwin16_64Guest,        TRUE) \
+   GOKM("darwin17-64",                          darwin17_64Guest,        TRUE) \
+   /* ESX guests */ \
+   GOKM("vmkernel",                             vmkernelGuest,           TRUE) \
+   GOKM("vmkernel5",                            vmkernel5Guest,          TRUE) \
+   GOKM("vmkernel6",                            vmkernel6Guest,          TRUE) \
+   GOKM("vmkernel65",                           vmkernel65Guest,         TRUE) \
+   /* Other guests */ \
+   GOKM("dos",                                  dosGuest,                TRUE) \
+   GOKM("os2",                                  os2Guest,                TRUE) \
+   GOKM("os2experimental",                      os2Guest,                FALSE) \
+   GOKM("eComStation",                          eComStationGuest,        TRUE) \
+   GOKM("eComStation2",                         eComStation2Guest,       TRUE) \
+   GOKM("freeBSD",                              freebsdGuest,            TRUE) \
+   GOKM("freeBSD-64",                           freebsd64Guest,          TRUE) \
+   GOKM("freeBSD11",                            freebsd11Guest,          TRUE) \
+   GOKM("freeBSD11-64",                         freebsd11_64Guest,       TRUE) \
+   GOKM("openserver5",                          openServer5Guest,        TRUE) \
+   GOKM("openserver6",                          openServer6Guest,        TRUE) \
+   GOKM("unixware7",                            unixWare7Guest,          TRUE) \
+   GOKM("other",                                otherGuest,              TRUE) \
+   GOKM("other-64",                             otherGuest64,            TRUE) \
+
+
 #if defined(__cplusplus)
 }  // extern "C"
 #endif
