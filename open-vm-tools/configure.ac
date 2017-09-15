@@ -1239,12 +1239,15 @@ if test "$os" = "linux"; then
                 [AS_HELP_STRING([--with-udev-rules-dir=DIR],
                     [where to install udev rules])],
                 [UDEVRULESDIR="$withval"],
-                [udevdir=$($PKG_CONFIG udev --variable=udevdir)
-                    if test "x$udevdir" = "x"; then
-                        UDEVRULESDIR="/lib/udev/rules.d"
-                    else
-                        UDEVRULESDIR="$udevdir/rules.d"
-                    fi])
+                [
+                    UDEVRULESDIR="/lib/udev/rules.d"
+                    if test $HAVE_PKG_CONFIG = "yes"; then
+                        udevdir=$(pkg-config udev --variable=udevdir)
+                        if test "x$udevdir" != "x"; then
+                            UDEVRULESDIR="$udevdir/rules.d"
+                        fi
+                    fi
+                ])
 else
     have_udev="no"
     UDEVRULESDIR=""
