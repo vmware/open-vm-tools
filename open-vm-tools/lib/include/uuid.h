@@ -143,20 +143,40 @@ struct {
 EFIGUID;
 
 
-Bool UUID_ConvertToBin(uint8 dest_id[UUID_SIZE], const char *text);
-char *UUID_ConvertToText(const uint8 id[UUID_SIZE]);
-void UUID_ConvertToTextBuf(const uint8 id[UUID_SIZE], char *buffer, size_t len);
-char *UUID_Create(const char *configFileFullPath, int schemeControl);
-char *UUID_CreateRandom(void);
-void UUID_CreateRandomRFC4122V4(UUIDRFC4122 *id);
-void UUID_CreateRandomEFI(EFIGUID *id);
-char *UUID_CreateRandomVpxStyle(uint8 vpxdId, UUIDStyle);
+Bool UUID_ConvertToBin(uint8 dest_id[UUID_SIZE],
+                       const char *text);
 
-Bool UUID_IsUUIDGeneratedByThatVpxd(const uint8 *id, int vpxdInstanceId);
-char *UUID_PackText(const char *text, char *pack, int packLen);
+char *UUID_ConvertToText(const uint8 id[UUID_SIZE]);
+
+void UUID_ConvertToTextBuf(const uint8 id[UUID_SIZE],
+                           char *buffer,
+                           size_t len);
+
+char *UUID_Create(const char *configFileFullPath,
+                  int schemeControl);
+
+char *UUID_CreateRandom(void);
+
+void UUID_CreateRandomRFC4122V4(UUIDRFC4122 *id);
+
+void UUID_CreateRandomEFI(EFIGUID *id);
+
+char *UUID_CreateRandomVpxStyle(uint8 vpxdId,
+                                UUIDStyle);
+
+Bool UUID_IsUUIDGeneratedByThatVpxd(const uint8 *id,
+                                    int vpxdInstanceId);
+
+char *UUID_PackText(const char *text,
+                    char *pack,
+                    int packLen);
+
 char *UUID_ProperHostUUID(void);
+
 char *UUID_GetHostUUID(void);
+
 UUIDStyle UUID_GetStyle(const uint8 *id);
+
 /* like UUID_GetHostUUID, except gets actual host UUID */
 char *UUID_GetRealHostUUID(void);
 
