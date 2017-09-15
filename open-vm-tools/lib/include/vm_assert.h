@@ -138,22 +138,11 @@ void Warning(const char *fmt, ...) PRINTF_DECL(1, 2);
 #if defined VMKPANIC
 void Panic_SaveRegs(void);
 
-#ifdef VMX86_DEBUG
-void Panic_NoSave(const char *fmt, ...) PRINTF_DECL(1, 2);
-#else
 NORETURN void Panic_NoSave(const char *fmt, ...) PRINTF_DECL(1, 2);
-#endif
-
-NORETURN void Panic_NoSaveNoReturn(const char *fmt, ...) PRINTF_DECL(1, 2);
 
 #define Panic(fmt...) do { \
    Panic_SaveRegs();       \
    Panic_NoSave(fmt);      \
-} while(0)
-
-#define Panic_NoReturn(fmt...) do { \
-   Panic_SaveRegs();                \
-   Panic_NoSaveNoReturn(fmt);       \
 } while(0)
 
 #else
