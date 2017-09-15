@@ -32,6 +32,7 @@
 #if !defined(_WIN32)
 #include <errno.h>
 #endif
+#include "vm_basic_defs.h"
 
 #if defined(__cplusplus)
 extern "C" {
