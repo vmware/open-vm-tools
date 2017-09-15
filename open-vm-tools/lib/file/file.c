@@ -333,6 +333,37 @@ File_UnlinkRetry(const char *pathName,       // IN:
 /*
  *----------------------------------------------------------------------
  *
+ * FileCreateDirectoryEx --
+ *
+ *      Creates the specified directory with the specified permissions.
+ *
+ * Results:
+ *      True if the directory is successfully created, false otherwise.
+ *
+ * Side effects:
+ *      Creates the directory on disk.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+FileCreateDirectoryEx(const char *pathName,  // IN:
+                      int mask)              // IN:
+{
+   int err = FileCreateDirectory(pathName, mask);
+
+   if (err != 0) {
+      Log(LGPFX" %s: Failed to create %s. Error = %d\n",
+          __FUNCTION__, pathName, err);
+   }
+
+   return err;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * File_CreateDirectoryEx --
  *
  *      Creates the specified directory with the specified permissions.
@@ -350,12 +381,7 @@ Bool
 File_CreateDirectoryEx(const char *pathName,  // IN:
                        int mask)              // IN:
 {
-   int err = FileCreateDirectory(pathName, mask);
-
-   if (err != 0) {
-      Log(LGPFX" %s: Failed to create %s. Error = %d\n",
-          __FUNCTION__, pathName, err);
-   }
+   int err = FileCreateDirectoryEx(pathName, mask);
 
    return err == 0;
 }
@@ -1702,12 +1728,8 @@ File_CreateDirectoryHierarchyEx(const char *pathName,   // IN:
     */
 
    while (TRUE) {
-      Bool failed;
+      int err;
       char *temp;
-#if defined(_WIN32)
-      DWORD status;
-      DWORD statusNew;
-#endif
 
       index = FileFirstSlashIndex(pathName, index + 1);
 
@@ -1721,51 +1743,41 @@ File_CreateDirectoryHierarchyEx(const char *pathName,   // IN:
        * operation to fail with no reason.
        * This is why we reverse the attempt and the check.
        */
+      err = FileCreateDirectoryEx(temp, mask);
 
-      /*
-       * Bugfix 1592498, set last error "Access denied" instead of
-       * "File not found". File_XXX have different implementations on
-       * Windows and Linux, this problem only happens on Windows.
-       *
-       * Bugfix 1878912, working around a problem when we have evidence that
-       * directory exists but we get intermittent errors when we check its
-       * existence.
-       */
-      failed = !File_EnsureDirectoryEx(temp, mask);
-#if defined(_WIN32)
-      status = GetLastError();
-      statusNew = ERROR_SUCCESS;
-#endif
-
-      if (failed) {
-         if (File_IsDirectory(temp)) {
-            failed = FALSE;
-         } else {
-#if defined(_WIN32)
-            statusNew = GetLastError();
-#endif
+      if (err == 0) {
+         if (topmostCreated != NULL && *topmostCreated == NULL) {
+            *topmostCreated = temp;
+            temp = NULL;
          }
-      } else if (topmostCreated != NULL && *topmostCreated == NULL) {
-         *topmostCreated = temp;
-         temp = NULL;
-      }
+      } else {
+         FileData fileData;
+
+         if (err == EEXIST) {
+            err = FileAttributes(temp, &fileData);
+
+            if (err == 0) {
+               if (fileData.fileType != FILE_TYPE_DIRECTORY) {
+                  err = ENOTDIR;
+                  errno = err;
 
 #if defined(_WIN32)
-      if (status == ERROR_ACCESS_DENIED && statusNew == ERROR_FILE_NOT_FOUND) {
-         SetLastError(status);
-      }
+                  SetLastError(ERROR_DIRECTORY);
 #endif
+               }
+            }
+         }
+      }
 
       Posix_Free(temp);
 
-      if (failed) {
+      if (err != 0) {
          return FALSE;
       }
 
       if (index == UNICODE_INDEX_NOT_FOUND) {
          break;
       }
-
    }
 
    return TRUE;
