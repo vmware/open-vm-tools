@@ -248,49 +248,13 @@ freedtoa(void *mem)
    free(mem);
 }
 
-#if defined _MSC_VER && _MSC_VER < 1400
-/* VC80 has a built-in wmemchar */
-/*
- *-----------------------------------------------------------------------------
- *
- * wmemchr --
- *
- *    Stolen from FreeBSD. Find 'c' in 's', which is 'n' characters
- *    long.
- *
- * Results:
- *    The pointer to the first occurence of 'c' in 's', NULL otherwise.
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-const wchar_t *
-wmemchr(const wchar_t *s, wchar_t c, size_t n)
-{
-   size_t i;
-
-   for (i = 0; i < n; i++) {
-      if (*s == c) {
-         /* LINTED const castaway */
-         return (wchar_t *)s;
-      }
-      s++;
-   }
-   return NULL;
-}
-#endif
-
 
 /*
  *-----------------------------------------------------------------------------
  *
  * btowc --
  *
- *    Stolen from FreeBSD. Convert the MBCS character 'c' to a wide
- *    character.
+ *    From FreeBSD. Convert the MBCS character 'c' to a wide character.
  *
  * Results:
  *    The wide character on success, WEOF on failure.

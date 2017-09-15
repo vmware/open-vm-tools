@@ -87,15 +87,6 @@ enum typeid {
    T_DOUBLE, T_LONG_DOUBLE, T_WINT, TP_WCHAR
 };
 
-#if defined _MSC_VER && _MSC_VER < 1400
-/* VC80 has an internal wmemchr */
-extern const wchar_t *wmemchr(
-   const wchar_t * buf, 
-   wchar_t c,
-   size_t count
-);
-#endif
-
 extern wint_t
 bsd_btowc(int c);
 
