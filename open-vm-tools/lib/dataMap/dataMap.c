@@ -2188,7 +2188,7 @@ DataMap_SetStringList(DataMap *that,          // IN/OUT
 {
    DataMapEntry *entry;
 
-   if (that == NULL || strList == NULL || strLens < 0) {
+   if (that == NULL || strList == NULL || strLens == NULL) {
       return DMERR_INVALID_ARGS;
    }
 
