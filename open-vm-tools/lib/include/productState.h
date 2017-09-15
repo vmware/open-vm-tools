@@ -115,8 +115,8 @@ const char   *ProductState_GetRegistryPath(void);
 char         *ProductState_GetRegistryPathForProduct(const char *productName);
 const char   *ProductState_GetVersion(void);
 void          ProductState_GetVersionNumber(unsigned int *major,
-                                           unsigned int *minor,
-                                           unsigned int *patchLevel);
+                                            unsigned int *minor,
+                                            unsigned int *patchLevel);
 
 Bool ProductState_IsProduct(ProductMask product);
 Bool ProductState_AllowUnlicensedVMX(void);
