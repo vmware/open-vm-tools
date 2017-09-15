@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -266,7 +266,7 @@ CopyPasteUIX11::VmxCopyPasteVersionChanged(RpcChannel *chan,    // IN
  * CopyPasteUIX11::GetLocalClipboard --
  *
  *    Retrives the data from local clipboard and sends it to host. Send empty
- *    data back if there is no data or can not get data successfully. For 
+ *    data back if there is no data or can not get data successfully. For
  *    guest->host copy/paste.
  *
  * Results:
@@ -313,7 +313,7 @@ CopyPasteUIX11::GetLocalClipboard(void)
  *
  * CopyPasteUIX11::GetCurrentTime --
  *
- *    Get current time in microseconds. 
+ *    Get current time in microseconds.
  *
  * Results:
  *    Time in microseconds.
@@ -546,7 +546,8 @@ CopyPasteUIX11::LocalGetTextOrRTFRequestCB(Gtk::SelectionData& sd, // IN/OUT
          __FUNCTION__, target.c_str());
 
    if (target == TARGET_NAME_APPLICATION_RTF ||
-       target == TARGET_NAME_TEXT_RICHTEXT) {
+       target == TARGET_NAME_TEXT_RICHTEXT ||
+       target == TARGET_NAME_TEXT_RTF) {
       if (0 == mHGRTFData.size()) {
          g_debug("%s: Can not get valid RTF data\n", __FUNCTION__);
          return;
@@ -753,13 +754,18 @@ again:
    /* Try to get RTF data from clipboard. */
    bool haveRTF = false;
    if (refClipboard->wait_is_target_available(TARGET_NAME_APPLICATION_RTF)) {
-      g_debug("%s: RTF is available\n", __FUNCTION__);
+      g_debug("%s: APP RTF is available\n", __FUNCTION__);
       format = TARGET_NAME_APPLICATION_RTF;
       haveRTF = true;
    }
    if (refClipboard->wait_is_target_available(TARGET_NAME_TEXT_RICHTEXT)) {
       g_debug("%s: RICHTEXT is available\n", __FUNCTION__);
       format = TARGET_NAME_TEXT_RICHTEXT;
+      haveRTF = true;
+   }
+   if (refClipboard->wait_is_target_available(TARGET_NAME_TEXT_RTF)) {
+      g_debug("%s: TEXT_RTF is available\n", __FUNCTION__);
+      format = TARGET_NAME_TEXT_RTF;
       haveRTF = true;
    }
 
@@ -1200,9 +1206,11 @@ CopyPasteUIX11::GetRemoteClipboardCB(const CPClipboard *clip) // IN
       if (CPClipboard_GetItem(clip, CPFORMAT_RTF, &buf, &sz)) {
          g_debug("%s: RTF data, size %" FMTSZ "u.\n", __FUNCTION__, sz);
          Gtk::TargetEntry appRtf(TARGET_NAME_APPLICATION_RTF);
-         Gtk::TargetEntry textRtf(TARGET_NAME_TEXT_RICHTEXT);
+         Gtk::TargetEntry textRichText(TARGET_NAME_TEXT_RICHTEXT);
+         Gtk::TargetEntry textRtf(TARGET_NAME_TEXT_RTF);
 
          targets.push_back(appRtf);
+         targets.push_back(textRichText);
          targets.push_back(textRtf);
          mHGRTFData = std::string((const char *)buf);
          mIsClipboardOwner = true;
