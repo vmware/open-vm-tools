@@ -242,6 +242,8 @@ static FileIOResult
 FileIOErrno2Result(int error)  // IN: errno to convert
 {
    switch (error) {
+   case EIO:
+      return FILEIO_ERROR;
    case EEXIST:
       return FILEIO_OPEN_ERROR_EXIST;
    case ENOENT:
