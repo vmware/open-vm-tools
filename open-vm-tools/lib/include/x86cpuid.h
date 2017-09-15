@@ -124,7 +124,7 @@ CPUIDQuery;
  * value).
  *
  * The fourth parameter is a "subleaf count", where 0 means that ecx is
- * ignored, otherwise is the count of sub-leaves (0, 2, 3, 4...).
+ * ignored, otherwise is the count of sub-leaves.
  *
  * The fifth parameter is the first hardware version that is *aware* of the
  * CPUID level (0 = existed since dawn of time), even though we may not expose
@@ -138,7 +138,7 @@ CPUIDQuery;
    CPUIDLEVEL(FALSE, 4,   4,          7,  0)        \
    CPUIDLEVEL(FALSE, 5,   5,          0,  0)        \
    CPUIDLEVEL(TRUE,  6,   6,          0,  0)        \
-   CPUIDLEVEL(TRUE,  7,   7,          2,  0)        \
+   CPUIDLEVEL(TRUE,  7,   7,          1,  0)        \
    CPUIDLEVEL(FALSE, A,   0xA,        0,  0)        \
    CPUIDLEVEL(FALSE, B,   0xB,        2,  0)        \
    CPUIDLEVEL(TRUE,  D,   0xD,       10,  0)        \
@@ -148,7 +148,7 @@ CPUIDQuery;
    CPUIDLEVEL(TRUE,  14,  0x14,       2, 13)        \
    CPUIDLEVEL(TRUE,  15,  0x15,       0, 13)        \
    CPUIDLEVEL(TRUE,  16,  0x16,       0, 13)        \
-   CPUIDLEVEL(TRUE,  17,  0x17,       4, 13)        \
+   CPUIDLEVEL(TRUE,  17,  0x17,       4, 14)        \
    CPUIDLEVEL(FALSE, 400, 0x40000000, 0,  0)        \
    CPUIDLEVEL(FALSE, 401, 0x40000001, 0,  0)        \
    CPUIDLEVEL(FALSE, 402, 0x40000002, 0,  0)        \
@@ -1966,7 +1966,6 @@ CPUID_LevelUsesEcx(uint32 level) {
 
 #define CPUIDLEVEL(t, s, v, c, h)   \
       case v:                       \
-         ASSERT_ON_COMPILE(c != 1); \
          return c != 0;
 
       CPUID_ALL_LEVELS
