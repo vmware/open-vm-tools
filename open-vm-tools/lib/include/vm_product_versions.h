@@ -215,8 +215,8 @@
                                 VPX_VERSION_MAINT
 #define VPX_VERSION_NUMERIC 6,6,2,PRODUCT_BUILD_NUMBER_NUMERIC
 
-// Last supported ESX version by VC (current -2 releases).
-#define VPX_MIN_HOST_VERSION "5.5.0"
+// Last supported ESX version by VC.
+#define VPX_MIN_HOST_VERSION "6.0.0"
 
 #define MAX_SUPPORTED_VI_VERSION "6.6" //from ovfTool/src/supportedVersions.h
 #define VCDB_CURRENT_SCHEMA_VERSION           662 // from PitCADatabase.h
