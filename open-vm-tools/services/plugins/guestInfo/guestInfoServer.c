@@ -121,11 +121,8 @@ int guestInfoPollInterval = 0;
 
 /**
  * The time when the guestInfo was last gathered.
- *
- * TODO: Need to reset this value when a VM is resumed or restored from a
- * snapshot.
  */
-time_t guestInfoLastGatherTime = 0;
+time_t gGuestInfoLastGatherTime = 0;
 
 /**
  * Defines the current stats interval (in milliseconds).
@@ -153,7 +150,7 @@ static GuestInfoCache gInfoCache;
  * Tools daemon sets it to TRUE after the VM was resumed.
  */
 
-static Bool vmResumed;
+static Bool gVMResumed;
 
 
 /*
@@ -280,8 +277,8 @@ GuestInfoCheckIfRunningSlow(ToolsAppCtx *ctx)
 {
    time_t now = time(NULL);
 
-   if (guestInfoLastGatherTime != 0) {
-      time_t delta = now - guestInfoLastGatherTime;
+   if (gGuestInfoLastGatherTime != 0) {
+      time_t delta = now - gGuestInfoLastGatherTime;
       /*
        * Have a long enough delta to ensure that we have really missed a
        * collection.
@@ -308,7 +305,7 @@ GuestInfoCheckIfRunningSlow(ToolsAppCtx *ctx)
       }
    }
 
-   guestInfoLastGatherTime = now;
+   gGuestInfoLastGatherTime = now;
 }
 
 
@@ -858,8 +855,8 @@ GuestInfoUpdateVmdb(ToolsAppCtx *ctx,       // IN: Application context
    ASSERT(info);
    g_debug("Entered update vmdb: %d.\n", infoType);
 
-   if (vmResumed) {
-      vmResumed = FALSE;
+   if (gVMResumed) {
+      gVMResumed = FALSE;
       GuestInfoClearCache();
    }
 
@@ -1567,7 +1564,10 @@ GuestInfoServerReset(gpointer src,
                      ToolsAppCtx *ctx,
                      gpointer data)
 {
-   vmResumed = TRUE;
+   gVMResumed = TRUE;
+
+   /* Reset the last gather time */
+   gGuestInfoLastGatherTime = 0;
 }
 
 
@@ -1711,7 +1711,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)
       regData.regs = VMTools_WrapArray(regs, sizeof *regs, ARRAYSIZE(regs));
 
       memset(&gInfoCache, 0, sizeof gInfoCache);
-      vmResumed = FALSE;
+      gVMResumed = FALSE;
       gInfoCache.method = NIC_INFO_V3_WITH_INFO_IPADDRESS_V3;
 
       /*
