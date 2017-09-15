@@ -1708,6 +1708,22 @@ CPUID_MODEL_IS_AVOTON(uint32 v) // IN: %eax from CPUID with %eax=1.
 }
 
 static INLINE Bool
+CPUID_MODEL_IS_BAYTRAIL(uint32 v) // IN: %eax from CPUID with %eax=1.
+{
+   /* Assumes the CPU manufacturer is Intel. */
+   return CPUID_FAMILY_IS_P6(v) &&
+          CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_ATOM_37;
+}
+
+static INLINE Bool
+CPUID_UARCH_IS_SILVERMONT(uint32 v) // IN: %eax from CPUID with %eax=1.
+{
+   /* Assumes the CPU manufacturer is Intel. */
+   return CPUID_FAMILY_IS_P6(v) &&
+          (CPUID_MODEL_IS_AVOTON(v) || CPUID_MODEL_IS_BAYTRAIL(v));
+}
+
+static INLINE Bool
 CPUID_MODEL_IS_DENVERTON(uint32 v) // IN: %eax from CPUID with %eax=1.
 {
    /* Assumes the CPU manufacturer is Intel. */
@@ -1773,13 +1789,18 @@ CPUID_FAMILY_IS_K8(uint32 eax)
    return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_K8;
 }
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * CPUID_FAMILY_IS_K8EXT --
+ *
+ *      Return TRUE for family K8 with effective model >= 0x10.
+ *
+ *----------------------------------------------------------------------
+ */
 static INLINE Bool
 CPUID_FAMILY_IS_K8EXT(uint32 eax)
 {
-   /*
-    * We check for this pattern often enough that it's
-    * worth a separate function, for syntactic sugar.
-    */
    return CPUID_FAMILY_IS_K8(eax) &&
           CPUID_GET(1, EAX, EXTENDED_MODEL, eax) != 0;
 }
@@ -2138,7 +2159,7 @@ CPUID_SupportsMsrPlatformInfo(CpuidVendor vendor, uint32 version)
            CPUID_UARCH_IS_SKYLAKE(version)     ||
            CPUID_MODEL_IS_KNIGHTS_LANDING(version) ||
            CPUID_MODEL_IS_DENVERTON(version) ||
-           CPUID_MODEL_IS_AVOTON(version));
+           CPUID_UARCH_IS_SILVERMONT(version));
 }
 
 #ifdef _MSC_VER
