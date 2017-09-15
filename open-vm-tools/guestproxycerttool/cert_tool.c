@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2014-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2014-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -639,6 +639,26 @@ main(int argc, char **argv)
    }
 
    InitProxyPaths(CertUtil_GetToolDir());
+
+#ifdef _WIN32
+   /*
+    * The old VB script created the key with bad perms; regenerate if we
+    * find it looks bad.
+    */
+   {
+      gchar *keyFilename = g_build_filename(guestProxyServerDir,
+                                            "key.pem", NULL);
+
+      if (g_file_test(keyFilename, G_FILE_TEST_EXISTS)) {
+         if (!CheckKeyFile(keyFilename)) {
+            printf("Warning!  Insecure keyfile (%s) found,"
+                  " regenerating key and cert.\n", keyFilename);
+            options.force = TRUE;
+         }
+      }
+      g_free(keyFilename);
+   }
+#endif
 
    if ((options.generateCert && !CreateKeyCert(options.force)) ||
        (options.displayCert && !DisplayServerCert(options.outputCert)) ||
