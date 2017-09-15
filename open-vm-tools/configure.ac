@@ -448,8 +448,8 @@ AC_ARG_ENABLE([xmlsec1],
    [use_xmlsec1="$enableval"],
    [use_xmlsec1=no])
 
-AC_ARG_ENABLE([xml-security-c],
-   [AS_HELP_STRING([--disable-xml-security-c],
+AC_ARG_ENABLE([xmlsecurity],
+   [AS_HELP_STRING([--enable-xmlsecurity],
      [build vgauth with xml-security-c instead of xmlsec1 (on by default).])],
    [
     if test "$enableval" = "yes"; then
