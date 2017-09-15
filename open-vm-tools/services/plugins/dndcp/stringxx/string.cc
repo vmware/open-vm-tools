@@ -1594,7 +1594,7 @@ string::find_last_not_of(value_type uc,   // IN
 
 string
 string::substr(size_type start, // IN
-               size_type len)   // IN
+               size_type len)   // IN: The substring length in code points.
    const
 {
    return string(mUstr.substr(start, len));

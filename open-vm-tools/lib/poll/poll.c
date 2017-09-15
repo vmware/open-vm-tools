@@ -381,7 +381,7 @@ Poll_CB_DeviceRemove(PollerFunction f,
 VMwareStatus
 Poll_CB_RTime(PollerFunction f,
               void *clientData,
-              int info, //microsecs
+              int64 info, //microsecs
               Bool periodic,
               MXUserRecLock *lock)
 {

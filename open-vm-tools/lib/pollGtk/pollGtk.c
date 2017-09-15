@@ -1111,16 +1111,17 @@ PollGtkCallback(PollClassSet classSet,   // IN
       ASSERT(info == 0);
       /* Fall-through */
    case POLL_REALTIME:
+      info = info / 1000;
       ASSERT(info == (uint32)info);
       ASSERT(info >= 0);
 
-      newEntry->event = info / 1000;
+      newEntry->event = info;
 
       /*
        * info is the delay in microseconds, but we need to pass in
        * a delay in milliseconds.
        */
-      newEntry->gtkInputId = g_timeout_add(info / 1000,
+      newEntry->gtkInputId = g_timeout_add(info,
                                            PollGtkBasicCallback,
                                            newEntry);
       g_hash_table_insert(poll->timerTable, (gpointer)(intptr_t)newEntry->gtkInputId,

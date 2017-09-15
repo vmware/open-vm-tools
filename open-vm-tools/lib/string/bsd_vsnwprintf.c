@@ -1061,7 +1061,11 @@ bsd_vsnwprintf(wchar_t **outBuf, size_t bufSize, const wchar_t *fmt0,
          if (flags & LONGINT) {
             /* Argument is wchar_t * */
             if ((cp = GETARG(wchar_t *)) == NULL)
+#if defined(__ANDROID__) || TARGET_OS_IPHONE
                cp = (wchar_t *)L"(null)";
+#else
+               cp = L"(null)";
+#endif
          } else {
             char *mbp;
             /* Argument is char * */
@@ -1069,7 +1073,11 @@ bsd_vsnwprintf(wchar_t **outBuf, size_t bufSize, const wchar_t *fmt0,
             if (convbuf!= NULL)
                free(convbuf);
             if ((mbp = GETARG(char *)) == NULL)
+#if defined(__ANDROID__) || TARGET_OS_IPHONE
                cp = (wchar_t *)L"(null)";
+#else
+               cp = L"(null)";
+#endif
             else {
                convbuf = BSDFmt_UTF8ToWChar(mbp, prec);
                if (convbuf == NULL) {
