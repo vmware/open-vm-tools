@@ -716,6 +716,16 @@ else
       have_xcomposite="yes"
    fi
 
+   AC_VMW_CHECK_LIB([gdk_pixbuf_xlib-2.0],
+                    [GDK_PIXBUF_XLIB2],
+                    [gdk-pixbuf-xlib-2.0],
+                    [],
+                    [],
+                    [gdk-pixbuf-xlib/gdk-pixbuf-xlib.h],
+                    [],
+                    [],
+                    [AC_MSG_ERROR([gdk-pixbuf-xlib-2.0 not found. Please configure without X11 (using --without-x) or install the gdk-pixbuf-xlib-2.0 devel package.])])
+
    # Check whether we have gtk+ 3.0.
    if test "$with_gtk3" != "no"; then
       # gdk_display_get_default_group (added in gtk+ 2.4.0) is function currently
