@@ -457,7 +457,7 @@ FLAG(   7,  0, EBX, 18,  1, RDSEED,                                YES, TRUE)  \
 FLAG(   7,  0, EBX, 19,  1, ADX,                                   YES, TRUE)  \
 FLAG(   7,  0, EBX, 20,  1, SMAP,                                  YES, FALSE) \
 FLAG(   7,  0, EBX, 21,  1, AVX512IFMA,                            YES, TRUE)  \
-FLAG(   7,  0, EBX, 22,  1, PCOMMIT,                               YES, TRUE)  \
+FLAG(   7,  0, EBX, 22,  1, PCOMMIT,                               ANY, TRUE)  \
 FLAG(   7,  0, EBX, 23,  1, CLFLUSHOPT,                            YES, TRUE)  \
 FLAG(   7,  0, EBX, 24,  1, CLWB,                                  YES, TRUE)  \
 FLAG(   7,  0, EBX, 25,  1, PT,                                    NO,  FALSE) \
