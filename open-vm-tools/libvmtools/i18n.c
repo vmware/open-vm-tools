@@ -105,6 +105,7 @@ MsgCatalogFree(MsgCatalog *catalog)
  ******************************************************************************
  */
 
+#ifdef VMX86_DEBUG
 static INLINE gboolean
 MsgHasMsgID(const gchar *s)
 {
@@ -112,7 +113,7 @@ MsgHasMsgID(const gchar *s)
           *(s += MSG_MAGIC_LEN) == '(' &&
           strchr(s + 1, ')') != NULL;
 }
-
+#endif
 
 /*
  ******************************************************************************

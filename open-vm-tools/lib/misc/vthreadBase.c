@@ -267,14 +267,14 @@ VThreadBaseInitKeys(void)
    VThreadBaseInitKeyWork(&vthreadBaseGlobals.threadIDKey, NULL);
 }
 
-
+#ifdef VMX86_DEBUG
 static INLINE Bool
 VThreadBaseAreKeysInited(void)
 {
    return Atomic_Read(&vthreadBaseGlobals.baseKey) != VTHREADBASE_INVALID_KEY &&
       Atomic_Read(&vthreadBaseGlobals.threadIDKey) != VTHREADBASE_INVALID_KEY;
 }
-
+#endif
 
 /*
  *-----------------------------------------------------------------------------
