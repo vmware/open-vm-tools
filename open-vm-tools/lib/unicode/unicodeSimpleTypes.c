@@ -2755,7 +2755,7 @@ Bool
 Unicode_IsEncodingValid(StringEncoding encoding)  // IN
 {
    return encoding >= STRING_ENCODING_FIRST && 
-      encoding < STRING_ENCODING_MAX_SPECIFIED;
+          encoding < STRING_ENCODING_MAX_SPECIFIED;
 }
 
 /*
@@ -2781,6 +2781,7 @@ Unicode_IsEncodingValid(StringEncoding encoding)  // IN
  *
  *-----------------------------------------------------------------------------
  */
+
 static void
 UnicodeInitInternal(int argc,               // IN
                     const char *icuDataDir, // IN
@@ -2861,7 +2862,7 @@ UnicodeInitInternal(int argc,               // IN
    } else if (envp) {
       list = Unicode_AllocList(*envp, -1, STRING_ENCODING_DEFAULT);
       if (!list) {
-         snprintf(panicMsg, sizeof panicMsg, "Unicode_AllocList4 failed.\n");
+         snprintf(panicMsg, sizeof panicMsg, "Unicode_AllocList failed.\n");
          goto exit;
       }
       *envp = list;
@@ -2942,7 +2943,8 @@ Unicode_Init(int argc,        // IN
  */
  
 void
-UnicodeICUTest(void) {
+UnicodeICUTest(void)
+{
    StringEncoding enc, enc2;
    const char *name;
    Bool supported;
