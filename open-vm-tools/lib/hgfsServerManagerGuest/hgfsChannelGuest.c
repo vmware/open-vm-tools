@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -28,16 +28,6 @@
 #include "vm_assert.h"
 #include "vm_atomic.h"
 #include "util.h"
-#if defined(VMTOOLS_USE_GLIB)
-#define G_LOG_DOMAIN "hgfsd"
-#define Debug                 g_debug
-#define Warning               g_warning
-#include "vmware/tools/guestrpc.h"
-#include "vmware/tools/utils.h"
-// #include <glib.h>
-#else
-#include "debug.h"
-#endif
 #include "hgfsChannelGuestInt.h"
 #include "hgfsServer.h"
 #include "hgfsServerManager.h"

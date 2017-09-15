@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -19,6 +19,13 @@
 #ifndef _HGFSCHANNELGUESTINT_H_
 #define _HGFSCHANNELGUESTINT_H_
 
+#if defined(VMTOOLS_USE_GLIB)
+#define G_LOG_DOMAIN          "hgfsd"
+#define Debug                 g_debug
+#define Warning               g_warning
+#else
+#include "debug.h"
+#endif
 #include "hgfsServer.h"
 #include "hgfsServerManager.h"
 
