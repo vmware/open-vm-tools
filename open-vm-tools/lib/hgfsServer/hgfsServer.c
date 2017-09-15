@@ -3986,6 +3986,11 @@ HgfsServer_ExitState(void)
       HgfsServerOplockDestroy();
    }
    if (gHgfsDirNotifyActive) {
+      DblLnkLst_Links emptySharesList;
+      DblLnkLst_Init(&emptySharesList);
+
+      /* Make all existing shared folders stale and delete them. */
+      HgfsServerSharesReset(&emptySharesList);
       HgfsNotify_Exit();
       gHgfsDirNotifyActive = FALSE;
       Log("%s: exit notification - inactive.\n", __FUNCTION__);
