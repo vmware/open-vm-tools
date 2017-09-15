@@ -18,6 +18,14 @@
 
 arg.command = "Befehl"
 
+arg.config.key = "Konfigurationsschlüssel"
+
+arg.config.operation = "Konfigurationsvorgang"
+
+arg.config.section = "Konfigurationsabschnitt"
+
+arg.config.value = "Konfigurationswert"
+
 arg.devicename = "Gerätename"
 
 arg.info.class = "info-Infoklasse"
@@ -84,6 +92,8 @@ error.novirtual = "%1$s muss innerhalb einer virtuellen Maschine ausgeführt wer
 
 error.unknown = "%1$s: %2$s '%3$s' unbekannt\n"
 
+help.config = "%1$s: Tools-Konfiguration bearbeiten\nNutzung: %2$s %3$s <Unterbefehl>\n\nUnterbefehle:\n   get <Abschnitt> <Schlüssel>: Aktuellen Wert für <Schlüssel> anzeigen\n   set <Abschnitt> <Schlüssel> <Wert>: <Schlüssel> auf <Wert> einstellen\n\n   remove <Abschnitt> <Schlüssel>: <Schlüssel> entfernen\n\n<Abschnitt> kann ein beliebiger unterstützter Abschnitt sein, z. B. logging, guestoperations oder guestinfo.\n<Schlüssel> kann ein beliebiger Konfigurationsschlüssel sein.\n<Wert> kann ein beliebiger Wert sein.\n"
+
 help.device = "%1$s: Funktionen für die Hardwaregeräte der virtuellen Maschine\nNutzung: %2$s %3$s <Unterbefehl> [Argumente]\n'dev' ist der Name des Geräts.\n\nUnterbefehle:\n   enable <dev>: Aktivieren des Geräts 'dev' \n   disable <dev>: Deaktivieren des Geräts 'dev'\n   list: Auflisten aller verfügbaren Geräte\n   status <dev>: Ausgeben des Status eines Geräts\n"
 
 help.disk = "%1$s: Führt Verkleinerungen von Festplatten durch\nNutzung: %2$s %3$s <Unterbefehl> [Argumente]\n\nUnterbefehle:\n   list: Auflisten der verfügbaren Speicherorte\n   shrink <Speicherort>: Löschen und Verkleinern eines Dateisystems am angegebenen Speicherort\n   shrinkonly: Verkleinern alle Festplatten\n   wipe <Speicherort>: Löschen eines Dateisystems am angegebenen Speicherort\n"
@@ -94,7 +104,7 @@ help.info = "%1$s: Aktualisieren von Gastbetriebssysteminformationen auf dem Hos
 
 help.logging = "%1$s: Toolsprotokollierung verändern\nNutzung: %2$s %3$s level <Unterbefehl> <Dienstname> <Ebene>\n\nUnterbefehle:\n   get <Dienstname>: Anzeige der aktuellen Ebene\n   set <Dienstname> <Ebene>: Einrichten der aktuellen Ebene\n\n<Dienstname> kann jeder unterstützte Dienst sein wie vmsvc oder vmusr\n<Ebene> kann für einen Fehler, ein kritisches Ereignis, eine Warnung, Info, Meldung oder ein Debugging stehen \n   Standard ist %4$s\n"
 
-help.main = "Nutzung: %1$s <Befehl> [Optionen] [Unterbefehl]\nWenn Sie Hilfe zu einem bestimmten Befehl benötigen, geben Sie '%2$s %3$s <Befehl>' ein.\nGeben Sie '%4$s -v' ein, um die VMware Tools-Version anzuzeigen.\nVerwenden Sie die Option '-q' zum Unterdrücken der stdout-Ausgabe.\nFür die meisten Befehle gibt es Unterbefehle.\n\nVerfügbare Befehle:\n   device\n   disk (nicht auf allen Betriebssystemen verfügbar)\n   info\n  logging\n   script\n   stat\n   timesync\n   upgrade (nicht auf allen Betriebssystemen verfügbar)\n"
+help.main = "Nutzung: %1$s <Befehl> [Optionen] [Unterbefehl]\nWenn Sie Hilfe zu einem bestimmten Befehl benötigen, geben Sie '%2$s %3$s <Befehl>' ein.\nGeben Sie '%4$s -v' ein, um die VMware Tools-Version anzuzeigen.\nVerwenden Sie die Option '-q' zum Unterdrücken der stdout-Ausgabe.\nFür die meisten Befehle gibt es Unterbefehle.\n\nVerfügbare Befehle:\n   config\n   device\n   disk (nicht auf allen Betriebssystemen verfügbar)\n   info\n  logging\n   script\n   stat\n   timesync\n   upgrade (nicht auf allen Betriebssystemen verfügbar)\n"
 
 help.script = "%1$s: Steuerung der Skripts, die als Reaktion auf Betriebsvorgänge ausgeführt werden\nNutzung: %2$s %3$s <power|resume|suspend|shutdown> <Unterbefehl> [Argumente]\n\nUnterbefehle:\n   enable: Aktivieren des angegebenen Skripts und Wiederherstellen dessen Pfads auf den Standardpfad\n   disable: Deaktivieren des vorhandenen Skripts\n   set <Vollständiger Pfad>: Festlegen des angegebenen Skripts auf den angegebenen Pfad\n   default: Ausgeben des Standardpfads des angegebenen Skripts\n   current: Ausgeben des aktuellen Pfads des angegebenen Skripts\n"
 
