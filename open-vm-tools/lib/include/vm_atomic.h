@@ -3802,6 +3802,23 @@ MAKE_ATOMIC_TYPE(Ptr, 32, void const *, void *, uintptr_t)
 MAKE_ATOMIC_TYPE(Int, 32, int, int, int)
 
 
+#if    defined VM_ARM_64 && defined VMKERNEL \
+    && !defined ATOMIC_MFENCE_SHOULD_NOT_BE_IN_CROSS_PLATFORM_CODE
+/*
+ * Atomic_MFence() is an x86-ism, so in an ideal world it should never be
+ * defined on ARM.
+ *
+ * There is ongoing work to remove all legacy Atomic_MFence() calls in
+ * cross-platform code. The vmkernel code has mostly been cleaned up, but a few
+ * calls remain in vmkernel module files which are granted an exception (by
+ * defining ATOMIC_MFENCE_SHOULD_NOT_BE_IN_CROSS_PLATFORM_CODE) for now.
+ *
+ * Do not add more Atomic_MFence() calls to cross-platform code. Do not grant
+ * any new exception. Instead, either move existing calls to an x86-specific
+ * location, or replace them with cross-platform memory barriers such as
+ * LDST_LDST_MEM_BARRIER().
+ */
+#else // Should we define Atomic_MFence?
 /* Prevent the compiler from re-ordering memory references. */
 #ifdef __GNUC__
 #define ATOMIC_COMPILER_BARRIER()   __asm__ __volatile__ ("": : :"memory")
@@ -3845,6 +3862,7 @@ Atomic_MFence(void)
 #ifdef ATOMIC_COMPILER_BARRIER
 #undef ATOMIC_COMPILER_BARRIER
 #endif /* ATOMIC_COMPILER_BARRIER */
+#endif // Should we define Atomic_MFence?
 
 #if defined(__cplusplus)
 }  // extern "C"
