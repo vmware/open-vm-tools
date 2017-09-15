@@ -293,10 +293,10 @@ DynBuf_Enlarge(DynBuf *b,       // IN/OUT:
                         1
 #else
                         /*
-                         * Initial size: 1 KB. Most buffers are smaller than
-                         * that --hpreg
+                         * Most DynBuf operations are on strings. Most strings
+                         * are less than 128 bytes long.
                          */
-                        1 << 10
+                        128
 #endif
                       ;
 
