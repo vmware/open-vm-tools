@@ -1410,7 +1410,7 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 #define CPUID_MODEL_STEAMROLLER_3F    0x3F // Max Steamroller model defined in BKDG
 #define CPUID_MODEL_STEAMROLLER_30    0x30 // family == CPUID_FAMILY_BULLDOZER
 #define CPUID_MODEL_EXCAVATOR_60      0x60 // family == CPUID_FAMILY_BULLDOZER
-#define CPUID_MODEL_EXCAVATOR_6F      0x6f // Max Excavator model defined in BKDG
+#define CPUID_MODEL_EXCAVATOR_6F      0x6F // Max Excavator model defined in BKDG
 
 /* VIA model information */
 #define CPUID_MODEL_NANO       15     // Isaiah
