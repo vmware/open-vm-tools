@@ -465,6 +465,7 @@ Str_Strncat(char *buf,       // IN/OUT
     */
 
    bufLen = strlen(buf);
+   bufLen = MIN(bufLen, bufSize);  // Prevent potential overflow
 
    if (!(bufLen + n < bufSize ||
          bufLen + strlen(src) < bufSize)) {
