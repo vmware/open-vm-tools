@@ -270,8 +270,15 @@ void Poll_Exit(void);
 
 /*
  * Poll_Callback adds a callback regardless of whether an identical one exists.
+ * The exception to this rule is POLL_DEVICE callbacks: there is a maximum of
+ * one read and one write callback per fd.
  *
- * Likewise, Poll_CallbackRemove removes exactly one callback.
+ * Poll_CallbackRemove removes one callback. If there are multiple identical
+ * callbacks, which one is removed is an implementation detail. Note that in
+ * the case of POLL_DEVICE and POLL_REALTIME callbacks, the fd/delay used to
+ * create the callback is not specified when removing, so all callbacks
+ * of those types with the same flags, function, and clientData are considered
+ * "identical" even if their fd/delay differed.
  */
 
 VMwareStatus Poll_Callback(PollClassSet classSet,
