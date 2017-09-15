@@ -43,7 +43,7 @@
 
 typedef struct LinuxDriver {
    SyncHandle  driver;
-   ssize_t     fdCnt;
+   size_t      fdCnt;
    int        *fds;
 } LinuxDriver;
 
@@ -65,15 +65,15 @@ typedef struct LinuxDriver {
 static SyncDriverErr
 LinuxFiThaw(const SyncDriverHandle handle)
 {
-   ssize_t i;
+   size_t i;
    LinuxDriver *sync = (LinuxDriver *) handle;
    SyncDriverErr err = SD_SUCCESS;
 
    /*
     * Thaw in the reverse order of freeze
     */
-   for (i = sync->fdCnt - 1; i >= 0; i--) {
-      if (ioctl(sync->fds[i], FITHAW) == -1) {
+   for (i = sync->fdCnt; i > 0; i--) {
+      if (ioctl(sync->fds[i-1], FITHAW) == -1) {
          err = SD_ERROR;
       }
    }
@@ -98,13 +98,13 @@ static void
 LinuxFiClose(SyncDriverHandle handle)
 {
    LinuxDriver *sync = (LinuxDriver *) handle;
-   ssize_t i;
+   size_t i;
 
    /*
     * Close in the reverse order of open
     */
-   for (i = sync->fdCnt - 1; i >= 0; i--) {
-      close(sync->fds[i]);
+   for (i = sync->fdCnt; i > 0; i--) {
+      close(sync->fds[i-1]);
    }
    free(sync->fds);
    free(sync);
