@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013,2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -102,6 +102,9 @@ void _ReadWriteBarrier(void);
 void _mm_mfence(void);
 void _mm_lfence(void);
 #pragma intrinsic(_mm_mfence, _mm_lfence)
+
+long _InterlockedXor(long volatile *, long);
+#pragma intrinsic(_InterlockedXor)
 
 unsigned int __getcallerseflags(void);
 #pragma intrinsic(__getcallerseflags)
@@ -377,22 +380,43 @@ RDTSC_BARRIER(void)
  *
  * Thanks for pasting this whole comment into every architecture header.
  *
- * On x86, we only need to care specifically about store-load
- * reordering on normal memory types and mfence, otherwise only a compiler
- * barrier is needed.
+ * On x86, we only need to care specifically about store-load reordering on
+ * normal memory types. In other cases, only a compiler barrier is needed. The
+ * ST_LD barrier is implemented with a locked xor operation (instead of the
+ * mfence instruction) for performance reasons. See PR 1674199 for more
+ * details.
  *
  * On x64, special instructions are only provided for load-load (lfence) and
  * store-store (sfence) ordering, and they don't apply to normal memory.
  */
+
+static INLINE void
+ST_LD_MEM_BARRIER(void)
+{
+   volatile long temp;
+
+   COMPILER_MEM_BARRIER();
+#if defined __GNUC__
+   __asm__ __volatile__ (
+      "lock xorl $1, %0\n"
+      : "+m" (temp)
+      : /* no additional inputs */
+      : "cc");
+#elif defined _MSC_VER
+   _InterlockedXor(&temp, 1);
+#else
+#error ST_LD_MEM_BARRIER not defined for this compiler
+#endif
+   COMPILER_MEM_BARRIER();
+}
+
 #define LD_LD_MEM_BARRIER()      COMPILER_READ_BARRIER()
 #define LD_ST_MEM_BARRIER()      COMPILER_MEM_BARRIER()
 #define LD_LDST_MEM_BARRIER()    COMPILER_MEM_BARRIER()
-#define ST_LD_MEM_BARRIER()      __asm__ __volatile__("mfence" ::: "memory")
 #define ST_ST_MEM_BARRIER()      COMPILER_WRITE_BARRIER()
 #define ST_LDST_MEM_BARRIER()    ST_LD_MEM_BARRIER()
 #define LDST_LD_MEM_BARRIER()    ST_LD_MEM_BARRIER()
 #define LDST_ST_MEM_BARRIER()    COMPILER_MEM_BARRIER()
 #define LDST_LDST_MEM_BARRIER()  ST_LD_MEM_BARRIER()
-
 
 #endif // _VM_BASIC_ASM_X86_COMMON_H_
