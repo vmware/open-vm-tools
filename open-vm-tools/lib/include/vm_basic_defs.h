@@ -724,9 +724,13 @@ typedef int pid_t;
 
 #ifdef VMM
 #define VMM_ONLY(x) x
-#define USER_ONLY(x)
 #else
 #define VMM_ONLY(x)
+#endif
+
+#if defined(VMM) || defined(VMKERNEL)
+#define USER_ONLY(x)
+#else
 #define USER_ONLY(x) x
 #endif
 
