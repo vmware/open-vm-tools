@@ -3465,7 +3465,11 @@ AsyncTCPSocketWriteBuffers(AsyncTCPSocket *s)         // IN
       } else if ((error = ASOCK_LASTERROR()) != ASOCK_EWOULDBLOCK) {
          TCPSOCKLG0(s, ("send error %d: %s\n", error, Err_Errno2String(error)));
          s->genericErrno = error;
-         result = ASOCKERR_GENERIC;
+         if (error == ASOCK_EPIPE || error == ASOCK_ECONNRESET) {
+            result = ASOCKERR_REMOTE_DISCONNECT;
+         } else {
+            result = ASOCKERR_GENERIC;
+         }
          goto exit;
       } else {
          /*
