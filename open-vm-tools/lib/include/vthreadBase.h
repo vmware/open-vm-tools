@@ -136,11 +136,6 @@ void VThreadBase_SetName(const char *name);
 /* For implementing a thread library */
 void VThreadBase_ForgetSelf(void);
 
-/*
- * See PR 1626963 and function documentation before thinking about using this.
- */
-void VThreadBase_DeInitialize(void);
-
 /* Match up historical VThread_ names with VThreadBase_ names */
 static INLINE const char *
 VThread_CurName(void)

@@ -181,30 +181,6 @@ static __thread char vthreadName[VTHREADBASE_MAX_NAME];
 /*
  *-----------------------------------------------------------------------------
  *
- * VThreadBase_DeInitialize --
- *
- *      (Vestigial. Will be removed shortly -- kevinc)
- *
- *      See PR 1626963
- *
- * Results:
- *      None
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-VThreadBase_DeInitialize(void)
-{
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
  * VThreadBaseGetStableID --
  *
  *      Stable thread-id function.
@@ -465,60 +441,10 @@ VThreadBase_CurName(void)
        * support for the platform.
        */
 
-#ifdef HAVE_TLS
-      static __thread char name[48];
-#else
       static char name[48];
-#endif
       VThreadBaseSafeName(name, sizeof name);
       return name;
    }
-#endif
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * VThreadBase_ForgetSelf --
- *
- *      Forget the TLS parts of a thread.
- *
- *      If not intending to reallocate TLS, avoid querying the thread's
- *      VThread_CurName between this call and thread destruction.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-VThreadBase_ForgetSelf(void)
-{
-   if (vmx86_debug) {
-      Log("Forgetting VThreadID %" FMT64 "d (\"%s\").\n",
-          VThread_CurID(), VThread_CurName());
-   }
-
-   /*
-    * The VThreadID is fixed (see StableID above).
-    * Only the name needs clearing.
-    */
-#if defined VMW_HAVE_TLS
-   memset(vthreadName, '\0', sizeof vthreadName);
-#else
-   char *buf;
-
-   ASSERT(vthreadNameKey != 0);
-   ASSERT(!VThreadBase_IsInSignal());
-
-   buf = pthread_getspecific(vthreadNameKey);
-   pthread_setspecific(vthreadNameKey, NULL);
-   free(buf);
 #endif
 }
 
@@ -578,6 +504,52 @@ VThreadBase_SetName(const char *name)  // IN: new name
 
       strncpy(buf, name, VTHREADBASE_MAX_NAME - 1);
    } while(0);
+#endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VThreadBase_ForgetSelf --
+ *
+ *      Forget the TLS parts of a thread.
+ *
+ *      If not intending to reallocate TLS, avoid querying the thread's
+ *      VThread_CurName between this call and thread destruction.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+VThreadBase_ForgetSelf(void)
+{
+   if (vmx86_debug) {
+      Log("Forgetting VThreadID %" FMT64 "d (\"%s\").\n",
+          VThread_CurID(), VThread_CurName());
+   }
+
+   /*
+    * The VThreadID is fixed (see StableID above).
+    * Only the name needs clearing.
+    */
+#if defined VMW_HAVE_TLS
+   memset(vthreadName, '\0', sizeof vthreadName);
+#else
+   char *buf;
+
+   ASSERT(vthreadNameKey != 0);
+   ASSERT(!VThreadBase_IsInSignal());
+
+   buf = pthread_getspecific(vthreadNameKey);
+   pthread_setspecific(vthreadNameKey, NULL);
+   free(buf);
 #endif
 }
 
