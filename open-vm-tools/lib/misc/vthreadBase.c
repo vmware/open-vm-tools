@@ -81,13 +81,16 @@
 #if defined _WIN32
 #  include <windows.h>
 #else
-#  if defined(sun) && !defined(_XOPEN_SOURCE)
+#  if defined(__sun__) && !defined(_XOPEN_SOURCE)
      /*
       * Solaris headers don't define constants we need unless
       * the Posix standard is somewhat modern.  Most of our builds
       * set this; we should chase down the oversight.
       */
 #    define _XOPEN_SOURCE 500
+#  endif
+#  if defined __linux__
+#    include <sys/syscall.h>   // for gettid(2)
 #  endif
 #  include <pthread.h>
 #  include <signal.h>
@@ -681,6 +684,56 @@ VThreadBase_CurID(void)
 /*
  *-----------------------------------------------------------------------------
  *
+ * VThreadBaseNativeID --
+ *
+ *      Native thread-id function.
+ *
+ *      Most OSes tend to use 'small' numbers (32-bit in practice),
+ *      these IDs are more readable in log files than e.g. a pointer.
+ *
+ *      TODO: merge with Util_GetCurrentThreadId()
+ *
+ * Results:
+ *      Some sort of ID.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static uint64
+VThreadBaseNativeID(void)
+{
+#if defined(_WIN32)
+   return GetCurrentThreadId();
+#elif defined(__APPLE__)
+   /* Available as of 10.6 */
+   uint64 hostTid;
+   pthread_threadid_np(NULL /* current thread */, &hostTid);
+   return hostTid;
+#elif defined(__ANDROID__)
+   return gettid();
+#elif defined(VMX86_SERVER) || defined(__linux__)
+   return syscall(__NR_gettid);  // pid_t, 32-bit, is the LWP
+#elif defined(__sun__)
+   return pthread_self();  // uint_t, Solaris uses LWP as pthread_t
+#elif defined(__FreeBSD__)
+#  if 0
+   // Requires FreeBSD 9, we currently use FreeBSD 6.
+   return pthread_getthreadid_np();   // must include <pthread_np.h>
+#  endif
+   return (uint64)(uintptr_t)(void *)pthread_self();
+#else
+   // pthread_self() is available, but cannot be safely cast...
+#  error "Unknown platform"
+#endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * VThreadBaseSafeName --
  *
  *      Generates a "safe" name for the current thread into a buffer.
@@ -705,19 +758,8 @@ VThreadBaseSafeName(char *buf,   // OUT: new name
     * function (that can ASSERT or Panic), as the Panic handler is
     * very likey to query the thread name and end up right back here.
     */
-   uintptr_t hostTid;
-
-#if defined(_WIN32)
-   hostTid = GetCurrentThreadId();
-#elif defined(__linux__)
-   hostTid = pthread_self();
-#elif defined(__APPLE__)
-   hostTid = (uintptr_t)(void*)pthread_self();
-#else
-   hostTid = 0;
-#endif
    snprintf(buf, len - 1 /* keep buffer NUL-terminated */,
-            "host-%"FMTPD"u", hostTid);
+            "host-%"FMT64"u", VThreadBaseNativeID());
 }
 
 
@@ -790,8 +832,7 @@ VThreadBase_CurName(void)
  * VThreadBase_InitWithTLS --
  *
  *      (Atomic) VThreadBase initialization, using caller-managed memory.
- *      Gets the VThreadID and thread name from within that caller-managed
- *      memory, so both must be populated.
+ *      Gets the VThreadID from within that caller-managed memory.
  *
  *      Always "succeeds" in initialization; the return value is useful
  *      as an indication of whether this was the first initialization.
@@ -1150,7 +1191,6 @@ static void
 VThreadBaseSimpleNoID(void)
 {
    VThreadID newID;
-   char newName[VTHREADBASE_MAX_NAME];
    Bool reused = FALSE;
    Bool result;
    void *newNative = VThreadBaseGetNative();
@@ -1209,10 +1249,8 @@ VThreadBaseSimpleNoID(void)
    /* ID picked.  Now do the important stuff. */
    base = Util_SafeCalloc(1, sizeof *base);
    base->id = newID;
-   Str_Sprintf(newName, sizeof newName, "vthread-%" FMT64 "u", newID);
 
    result = VThreadBase_InitWithTLS(base);
-   VThreadBase_SetName(newName);
    ASSERT(result);
 
    if (vmx86_debug && reused) {

@@ -39,7 +39,6 @@
 #if !defined VMM
 
 #if !defined WIN32
-#define VTHREAD_USE_PTHREAD 1
 #include <signal.h>
 #endif
 
