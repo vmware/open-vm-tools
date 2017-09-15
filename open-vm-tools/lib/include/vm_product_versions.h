@@ -39,7 +39,7 @@
 #if defined(VMX86_VIEWCLIENT)
    #define PRODUCT_VERSION    4,4,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_VMRC) /* check VMX86_VMRC before VMX86_DESKTOP */
-   #define PRODUCT_VERSION    9,0,0,PRODUCT_BUILD_NUMBER_NUMERIC   /* VMRC_VERSION_NUMBER below has to match this */
+   #define PRODUCT_VERSION    10,0,0,PRODUCT_BUILD_NUMBER_NUMERIC   /* VMRC_VERSION_NUMBER below has to match this */
 #elif defined(VMX86_FLEX) /* check VMX86_FLEX before VMX86_DESKTOP */
    #define PRODUCT_VERSION    8,0,0,PRODUCT_BUILD_NUMBER_NUMERIC   /* FLEX_VERSION_NUMBER below has to match this */
 #elif defined(VMX86_TOOLS)
@@ -164,8 +164,8 @@
 #define WORKSTATION_VERSION "e.x.p"
 #define PLAYER_VERSION_NUMBER "13.0.0" /* this version number should always match real Player version number */
 #define PLAYER_VERSION "e.x.p"
-#define VMRC_VERSION_NUMBER "9.0.0" /* this version number should always match real VMRC version number */
-#define VMRC_VERSION "9.0.0"
+#define VMRC_VERSION_NUMBER "10.0.0" /* this version number should always match real VMRC version number */
+#define VMRC_VERSION "10.0.0"
 #define FLEX_CLIENT_VERSION_NUMBER "8.0.0"
 #define FLEX_CLIENT_VERSION "e.x.p"
 
@@ -357,7 +357,7 @@
  */
 #define PRODUCT_MAC_DESKTOP_VERSION_STRING_FOR_LICENSE "8.0"
 #define PRODUCT_PLAYER_VERSION_STRING_FOR_LICENSE "12.0"
-#define PRODUCT_VMRC_VERSION_STRING_FOR_LICENSE "9.0"
+#define PRODUCT_VMRC_VERSION_STRING_FOR_LICENSE "10.0"
 #define PRODUCT_FLEX_VERSION_STRING_FOR_LICENSE "8.0"
 
 #if defined(VMX86_TOOLS)
@@ -403,7 +403,7 @@
 #define PRODUCT_ESX_LICENSE_VERSION "6.0"
 #define PRODUCT_ESX_LICENSE_FILE_VERSION "6.6.0.0"
 #define PRODUCT_VSAN_LICENSE_VERSION "5.0"
-#define PRODUCT_VSAN_LICENSE_FILE_VERSION "6.5.0.0"
+#define PRODUCT_VSAN_LICENSE_FILE_VERSION "6.6.0.0"
 
 /*
  * This is for ACE Management Server
