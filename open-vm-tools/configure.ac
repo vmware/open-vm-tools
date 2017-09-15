@@ -433,8 +433,32 @@ fi
 AC_ARG_ENABLE([vgauth],
    [AS_HELP_STRING([--disable-vgauth],
      [do not build vgauth.])],
-   [],
-   [enable_vgauth=yes])
+   [
+   enable_vgauth="$enableval"
+   use_xmlsec1=no
+   ],
+   [
+    enable_vgauth=yes
+    use_xmlsec1=no
+   ])
+
+AC_ARG_ENABLE([xmlsec1],
+   [AS_HELP_STRING([--enable-xmlsec1],
+     [build vgauth with xmlsec1 instead of xml-security-c (off by default).])],
+   [use_xmlsec1="$enableval"],
+   [use_xmlsec1=no])
+
+AC_ARG_ENABLE([xml-security-c],
+   [AS_HELP_STRING([--disable-xml-security-c],
+     [build vgauth with xml-security-c instead of xmlsec1 (on by default).])],
+   [
+    if test "$enableval" = "yes"; then
+       use_xmlsec1="no";
+    else
+       use_xmlsec1="yes"
+    fi
+   ],
+   [])
 
 if test "$enable_vgauth" = "yes" ; then
    AC_ARG_ENABLE([caf],
@@ -471,6 +495,19 @@ AC_ARG_WITH([xerces],
    [enable_vgauth=no],
    [with_xerces=yes])
 
+AC_ARG_WITH([xmlsec1],
+   [AS_HELP_STRING([--without-xmlsec1],
+     [compiles without xmlsec1 support (disables vgauth).])],
+   [enable_vgauth=no],
+   [with_xmlsec1=yes])
+
+AC_ARG_WITH([xml2],
+   [AS_HELP_STRING([--without-xml2],
+     [compiles without xml2 support (disables vgauth).])],
+   [enable_vgauth=no],
+   [with_xml2=yes])
+
+
 # Make sure we are building with openssl 1.0.1 and above so that
 # we use only TLSv1_2.
 
@@ -489,7 +526,29 @@ fi
 
 if test "$enable_vgauth" = "yes"; then
    CPPFLAGS="$CPPFLAGS -DUSE_VGAUTH"
-   AC_VMW_DEFAULT_FLAGS([XERCES])
+if test "$use_xmlsec1" = "yes"; then
+   AC_VMW_DEFAULT_FLAGS([XML2])
+   AC_VMW_CHECK_LIB([xml2],
+                    [XML2],
+                    [],
+                    [],
+                    [],
+                    [],
+                    [],
+                    [],
+                    [AC_VMW_LIB_ERROR([XML2], [xml2])])
+
+   AC_VMW_DEFAULT_FLAGS([XMLSEC1])
+   AC_VMW_CHECK_LIB([xmlsec1],
+                    [XMLSEC1],
+                    [],
+                    [xmlsec1-config],
+                    [],
+                    [xmlsec/xmlsec.h],
+                    [xmlSecCheckVersion],
+                    [],
+                    [AC_VMW_LIB_ERROR([XMLSEC1], [xmlsec1])])
+else
    AC_VMW_CHECK_LIB([xerces-c],
                     [XERCES],
                     [],
@@ -510,6 +569,7 @@ if test "$enable_vgauth" = "yes"; then
                     [],
                     [],
                     [AC_VMW_LIB_ERROR([XMLSECURITY], [xml-security-c])])
+fi
 else
    enable_caf=no
 fi
@@ -1241,6 +1301,7 @@ AM_CONDITIONAL(USE_PRINTF_WRAPPERS, test "$bsdPrintfWrappers" = "yes")
 AM_CONDITIONAL(ENABLE_DEPLOYPKG, test "$enable_deploypkg" = "yes")
 AM_CONDITIONAL(ENABLE_GRABBITMQPROXY, test "$enable_grabbitmqproxy" = "yes")
 AM_CONDITIONAL(ENABLE_VGAUTH, test "$enable_vgauth" = "yes")
+AM_CONDITIONAL(USE_XMLSEC1, test "$use_xmlsec1" = "yes")
 AM_CONDITIONAL(ENABLE_CAF, test "$enable_caf" = "yes")
 AM_CONDITIONAL(HAVE_VSOCK, test "$os" = "linux")
 AM_CONDITIONAL(HAVE_MKDTEMP, test "$have_mkdtemp" = "yes")
