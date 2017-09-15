@@ -192,9 +192,6 @@ ToolsCoreReportVersionData(ToolsServiceState *state)
    char *value;
    const static char cmdPrefix[] = "info-set guestinfo.vmtools.";
 
-   ASSERT(state);
-   ASSERT(state->ctx.rpc);
-
    /*
     * These values are documented with specific formats.  Do not change
     * the formats, as client code can depend on them.
@@ -287,7 +284,9 @@ ToolsCoreRunLoop(ToolsServiceState *state)
    }
 
    /* Report version info as guest Vars */
-   ToolsCoreReportVersionData(state);
+   if (state->ctx.rpc) {
+      ToolsCoreReportVersionData(state);
+   }
 
    if (!ToolsCore_LoadPlugins(state)) {
       return 1;
