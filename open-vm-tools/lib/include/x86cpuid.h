@@ -451,7 +451,7 @@ FIELD(  5,  0, EDX, 16,  4, MWAIT_C4_SUBSTATE,                     NA,  FALSE)
 #define CPUID_FIELD_DATA_LEVEL_6                                               \
 FLAG(   6,  0, EAX,  0,  1, THERMAL_SENSOR,                        NO,  FALSE) \
 FLAG(   6,  0, EAX,  1,  1, TURBO_MODE,                            NO,  FALSE) \
-FLAG(   6,  0, EAX,  2,  1, APIC_INVARIANT,                        YES, FALSE) \
+FLAG(   6,  0, EAX,  2,  1, APIC_INVARIANT,                        ANY, FALSE) \
 FLAG(   6,  0, EAX,  4,  1, PLN,                                   NO,  FALSE) \
 FLAG(   6,  0, EAX,  5,  1, ECMD,                                  NO,  FALSE) \
 FLAG(   6,  0, EAX,  6,  1, PTM,                                   NO,  FALSE) \
