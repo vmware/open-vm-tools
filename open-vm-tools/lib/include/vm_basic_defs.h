@@ -306,6 +306,16 @@ Max(int a, int b)
 #define PAGES_2_MBYTES(_npages) ((_npages) >> (MBYTES_SHIFT - PAGE_SHIFT))
 #endif
 
+#ifndef ROUNDUP_PAGES_2_MBYTES
+#define ROUNDUP_PAGES_2_MBYTES(_npages) \
+(((_npages) + MASK(MBYTES_SHIFT - PAGE_SHIFT)) >> (MBYTES_SHIFT - PAGE_SHIFT))
+#endif
+
+#ifndef ROUNDDOWN_PAGES_2_MBYTES
+#define ROUNDDOWN_PAGES_2_MBYTES(_npages) \
+((_npages) >> (MBYTES_SHIFT - PAGE_SHIFT))
+#endif
+
 #ifndef GBYTES_2_PAGES
 #define GBYTES_2_PAGES(_nbytes) ((_nbytes) << (30 - PAGE_SHIFT))
 #endif
