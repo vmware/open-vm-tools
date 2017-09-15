@@ -211,6 +211,8 @@ Atomic_VolatileToAtomic(volatile uint32 *var)  // IN:
 {
    return (Atomic_uint32 *)var;
 }
+#define Atomic_VolatileToAtomic32 Atomic_VolatileToAtomic
+
 
 /* Convert a volatile uint64 to Atomic_uint64. */
 static INLINE Atomic_uint64 *
@@ -2230,7 +2232,7 @@ Atomic_CMPXCHG32(Atomic_uint32 *var,   // IN/OUT
    return equal;
 #endif /* VM_X86_ANY */
 #else // defined __GNUC__
-   return (Atomic_ReadIfEqualWrite(var, oldVal, newVal) == oldVal);
+   return Atomic_ReadIfEqualWrite(var, oldVal, newVal) == oldVal;
 #endif // !defined __GNUC__
 }
 
