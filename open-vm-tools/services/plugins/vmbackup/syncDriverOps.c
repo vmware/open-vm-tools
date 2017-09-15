@@ -488,7 +488,7 @@ VmBackupSyncDriverSnapshotDone(VmBackupState *state,
 
 static Bool
 VmBackupSyncDriverOnlySnapshotDone(VmBackupState *state,
-                               void *clientData)
+                                   void *clientData)
 {
    VmBackupDriverOp *op;
 

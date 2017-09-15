@@ -480,7 +480,7 @@ VmBackupAbortTimer(gpointer data)
 static gboolean
 VmBackupAsyncCallback(void *clientData)
 {
-   VmBackupOpStatus status = VMBACKUP_STATUS_FINISHED;
+   VmBackupOpStatus status = VMBACKUP_STATUS_PENDING;
 
    g_debug("*** %s\n", __FUNCTION__);
    ASSERT(gBackupState != NULL);
