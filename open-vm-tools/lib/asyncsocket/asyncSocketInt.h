@@ -525,6 +525,7 @@ const char *AsyncSocketGetWebSocketProtocol(AsyncSocket *asock);
 AsyncSocket *
 AsyncSocket_ConnectWebSocketEx(const char *url,
                              struct _SSLVerifyParam *sslVerifyParam,
+                             const char *proxyStr,
                              const char *cookies,
                              const char *protocols[],
                              AsyncSocketConnectFn connectFn,
