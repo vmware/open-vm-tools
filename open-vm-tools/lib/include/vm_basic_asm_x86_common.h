@@ -319,11 +319,11 @@ RDTSC_BARRIER(void)
  * On x64, special instructions are only provided for load-load (lfence) and
  * store-store (sfence) ordering, and they don't apply to normal memory.
  */
-#define LD_LD_MEM_BARRIER()      COMPILER_MEM_BARRIER()
+#define LD_LD_MEM_BARRIER()      COMPILER_READ_BARRIER()
 #define LD_ST_MEM_BARRIER()      COMPILER_MEM_BARRIER()
 #define LD_LDST_MEM_BARRIER()    COMPILER_MEM_BARRIER()
-#define ST_LD_MEM_BARRIER()      asm volatile ("mfence" ::: "memory")
-#define ST_ST_MEM_BARRIER()      COMPILER_MEM_BARRIER()
+#define ST_LD_MEM_BARRIER()      __asm__ __volatile__("mfence" ::: "memory")
+#define ST_ST_MEM_BARRIER()      COMPILER_WRITE_BARRIER()
 #define ST_LDST_MEM_BARRIER()    ST_LD_MEM_BARRIER()
 #define LDST_LD_MEM_BARRIER()    ST_LD_MEM_BARRIER()
 #define LDST_ST_MEM_BARRIER()    COMPILER_MEM_BARRIER()
