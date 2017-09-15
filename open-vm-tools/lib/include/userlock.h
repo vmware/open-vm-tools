@@ -163,7 +163,7 @@ MXUserEvent *MXUser_CreateEvent(const char *name,
 void MXUser_SignalEvent(MXUserEvent *event);
 void MXUser_WaitEvent(MXUserEvent *event);
 Bool MXUser_TryWaitEvent(MXUserEvent *event);
-MXSemaHandle MXUser_GetHandleForEvent(MXUserEvent *event);
+PollDevHandle MXUser_GetHandleForEvent(MXUserEvent *event);
 void MXUser_DestroyEvent(MXUserEvent *event);
 
 MXUserEvent *MXUser_CreateSingletonEvent(Atomic_Ptr *eventStorage,

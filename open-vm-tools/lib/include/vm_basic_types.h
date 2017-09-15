@@ -1149,16 +1149,6 @@ typedef void * UserVA;
 
 
 /*
- * Define MXSemaHandle here so both vmmon and vmx see this definition.
- */
-
-#ifdef _WIN32
-typedef uintptr_t MXSemaHandle;
-#else
-typedef int MXSemaHandle;
-#endif
-
-/*
  * Define type for poll device handles.
  */
 
