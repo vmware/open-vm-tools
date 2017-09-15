@@ -27,8 +27,9 @@
  * CopyPasteDnDImpl.
  */
 
-extern "C" {
 #include "vmware.h"
+
+extern "C" {
 #include "vmware/guestrpc/tclodefs.h"
 #include "vmware/tools/plugin.h"
 #include "vmware/tools/utils.h"

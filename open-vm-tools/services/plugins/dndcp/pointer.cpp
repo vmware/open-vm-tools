@@ -35,13 +35,12 @@ extern "C" {
 }
 
 #include "copyPasteDnDWrapper.h"
-
 #include "pointer.h"
 #include "vmware/tools/utils.h"
+#include "vm_assert.h"
+#include "backdoor_def.h"
 
 extern "C" {
-   #include "vm_assert.h"
-   #include "backdoor_def.h"
    #include "backdoor.h"
    #include "rpcvmx.h"
 }

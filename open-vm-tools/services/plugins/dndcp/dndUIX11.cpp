@@ -42,15 +42,16 @@ extern "C" {
 #include "copyPasteCompat.h"
 #include "cpName.h"
 #include "cpNameUtil.h"
-#include "dnd.h"
 #include "dndClipboard.h"
-#include "dndMsg.h"
-#include "file.h"
 #include "hgfsUri.h"
-#include "hostinfo.h"
 #include "rpcout.h"
-#include "vmblock.h"
 }
+
+#include "dnd.h"
+#include "dndMsg.h"
+#include "hostinfo.h"
+#include "file.h"
+#include "vmblock.h"
 
 /* IsXExtensionPointer may be not defined with old Xorg. */
 #ifndef IsXExtensionPointer

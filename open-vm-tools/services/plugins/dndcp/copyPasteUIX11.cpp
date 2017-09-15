@@ -73,12 +73,12 @@
 #include "dndFileList.hh"
 #include "guestDnDCPMgr.hh"
 #include "tracer.hh"
+#include "vmblock.h"
+#include "file.h"
+#include "dnd.h"
+#include "dndMsg.h"
 
 extern "C" {
-   #include "vmblock.h"
-   #include "file.h"
-   #include "dnd.h"
-   #include "dndMsg.h"
    #include "dndClipboard.h"
    #include "cpName.h"
    #include "cpNameUtil.h"
