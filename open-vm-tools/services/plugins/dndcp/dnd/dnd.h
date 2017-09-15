@@ -27,16 +27,20 @@
 #define _DND_H_
 
 #define INCLUDE_ALLOW_USERLEVEL
+#include "includeCheck.h"
 
 #ifdef _WIN32
 #   include <windows.h>
 #   include <shellapi.h>
 #endif
 
-#include "includeCheck.h"
 #include "vm_basic_types.h"
 #include "unicodeTypes.h"
 #include "dynarray.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 /* Error value returned when data contains illegal characters */
 #define DND_ILLEGAL_CHARACTERS  "data contains illegal characters"
@@ -310,5 +314,9 @@ size_t DnD_TransportMsgToPacket(uint8 *msg,
 size_t DnD_TransportReqPacket(DnDTransportBuffer *buf,
                               DnDTransportPacketHeader **packet);
 #endif // !SWIG
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif // _DND_H_

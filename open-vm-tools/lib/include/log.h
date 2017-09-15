@@ -21,11 +21,14 @@
 
 #define INCLUDE_ALLOW_USERLEVEL
 #define INCLUDE_ALLOW_VMCORE
-
 #include "includeCheck.h"
-#include "productState.h"
 
+#include "productState.h"
 #include <stdarg.h>
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 
 /*
@@ -392,4 +395,9 @@ void Log_Histogram(uint32 n,
                    int limit);
 
 #endif /* !VMM */
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
+
 #endif /* VMWARE_LOG_H */

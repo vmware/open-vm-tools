@@ -21,6 +21,10 @@
 
 #include "mutexRank.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 /*
  * MXUser mutex ranks for bora/lib code.
  *
@@ -197,5 +201,8 @@
 #define RANK_licenseCheckLock        (RANK_libLockBase + 0x7090)
 #define RANK_preferenceLock          (RANK_libLockBase + 0x7100)
 
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif /* _LIBMUTEXRANK_H */

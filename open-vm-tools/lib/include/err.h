@@ -25,17 +25,16 @@
 #ifndef _ERR_H_
 #define _ERR_H_
 
-#if !defined(_WIN32)
-#include <errno.h>
-#endif
-
 #define INCLUDE_ALLOW_USERLEVEL
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
-
 #if defined(__cplusplus)
 extern "C" {
+#endif
+
+#if !defined(_WIN32)
+#include <errno.h>
 #endif
 
 #if defined(_WIN32)
@@ -129,8 +128,8 @@ char *Err_SanitizeMessage(const char *msg);
       Err_SetErrno(e); \
    } while (FALSE)
 
-#ifdef __cplusplus
-}
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 
 #endif

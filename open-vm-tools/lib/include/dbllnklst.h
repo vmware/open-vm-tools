@@ -70,6 +70,10 @@
 
 #include "vm_basic_types.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #define DblLnkLst_OffsetOf(type, field) ((intptr_t)&((type *)0)->field)
 
 #define DblLnkLst_Container(addr, type, field) \
@@ -325,5 +329,8 @@ DblLnkLst_Swap(DblLnkLst_Links *head1,  // IN/OUT
    }
 }
 
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif /* _DBLLNKLST_H_ */

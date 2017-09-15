@@ -23,6 +23,10 @@
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 /*
  *  LogFixed_Base2 and LogFixed_Base10 provide their values expressed
  *  as a ration of two uint32 numbers with an accuracy of better than 1%.
@@ -38,5 +42,9 @@ void LogFixed_Base2(uint64 value,
 void LogFixed_Base10(uint64 value,
                     uint32 *numerator,
                     uint32 *denominator);
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif  // _LOGFIXED_H_

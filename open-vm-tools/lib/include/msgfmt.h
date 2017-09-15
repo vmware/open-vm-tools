@@ -34,6 +34,10 @@
 #include "str.h" // for HAS_BSD_PRINTF
 #endif
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 
 /*
  * Format parser callback functions
@@ -181,5 +185,8 @@ int MsgFmt_Snprintf(char *buf, size_t size, const char *format,
 char *MsgFmt_Asprintf(size_t *length, const char *format,
                       const MsgFmt_Arg *args, int numArgs);
 
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif // ifndef _MSGFMT_H_

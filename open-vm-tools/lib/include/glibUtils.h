@@ -19,6 +19,10 @@
 #ifndef _GLIBUTILS_H_
 #define _GLIBUTILS_H_
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 /**
  * @file glibUtils.h
  *
@@ -80,6 +84,10 @@ GlibLogger *
 GlibUtils_CreateSysLogger(const char *domain,
                           const char *facility);
 
+#endif
+
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 
 #endif /* _GLIBUTILS_H_ */

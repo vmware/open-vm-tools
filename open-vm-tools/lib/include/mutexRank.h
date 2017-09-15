@@ -27,8 +27,11 @@
 
 #define INCLUDE_ALLOW_USERLEVEL
 #define INCLUDE_ALLOW_VMCORE
-
 #include "includeCheck.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 /*
  * Core rank defines.
@@ -99,5 +102,9 @@
  * lib/public/mutexRankLib.h for definitions.
  */
 #define RANK_libLockBase         0xF0000000
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif // ifndef _MUTEXRANK_H_

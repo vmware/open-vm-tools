@@ -35,6 +35,10 @@
 #include "x86cpuid.h"
 #include "unicodeTypes.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 typedef enum {
    HOSTINFO_PROCESS_QUERY_DEAD,    // Procss is dead (does not exist)
    HOSTINFO_PROCESS_QUERY_ALIVE,   // Process is alive (does exist)
@@ -234,6 +238,10 @@ Bool Hostinfo_GetLoadAverage(uint32 *l);
 #ifdef __APPLE__
 size_t Hostinfo_GetKernelZoneElemSize(char const *name);
 char *Hostinfo_GetHardwareModel(void);
+#endif
+
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 
 #endif /* ifndef _HOSTINFO_H_ */

@@ -22,6 +22,10 @@
 #include "hgfs.h"             /* for HGFS_PACKET_MAX */
 #include "dbllnklst.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 typedef struct HgfsVmxIov {
    void *va;           /* Virtual addr */
    uint64 pa;          /* Physical address passed by the guest */
@@ -208,5 +212,9 @@ void HgfsServer_SetHandleCounter(uint32 newHandleCounter);
 
 
 void HgfsServer_Quiesce(Bool freeze);
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif // _HGFS_SERVER_H_

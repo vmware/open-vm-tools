@@ -31,6 +31,10 @@
 #include "unicodeTypes.h"
 #include "msgList.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 // The default time, in msec, to wait for a lock before giving up
 #define	FILELOCK_DEFAULT_WAIT 2500
 
@@ -77,5 +81,9 @@ Bool FileLock_CleanupVM(const char *cfgfilePath,
 // Device locking functions, for compatibility
 int FileLock_LockDevice(const char *device);
 Bool FileLock_UnlockDevice(const char *device);
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif // ifndef _FILELOCK_H_

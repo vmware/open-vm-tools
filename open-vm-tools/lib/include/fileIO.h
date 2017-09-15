@@ -36,10 +36,6 @@
 #ifndef _FILEIO_H_
 #define _FILEIO_H_
 
-#ifdef __cplusplus
-extern "C"{
-#endif
-
 #define INCLUDE_ALLOW_USERLEVEL
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
@@ -55,6 +51,10 @@ extern "C"{
 #include "unicodeTypes.h"
 
 #include "iovector.h"        // for struct iovec
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 struct FileLockToken;
 
@@ -484,8 +484,8 @@ Bool FileIO_IsSuccess(FileIOResult res);
 Bool FileIO_SupportsPrealloc(const char *pathName,
                              Bool fsCheck);
 
-#ifdef __cplusplus
-} // extern "C" {
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 
 #endif // _FILEIO_H_

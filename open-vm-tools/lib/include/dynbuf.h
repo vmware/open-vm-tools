@@ -29,6 +29,9 @@
 #include "vm_basic_types.h"
 #include "vm_assert.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 typedef struct DynBuf {
    char   *data;
@@ -237,5 +240,8 @@ DynBuf_AppendString(DynBuf *buf,         // IN/OUT
    return DynBuf_Append(buf, string, strlen(string) + 1);
 }
 
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif /* __DYNBUF_H__ */

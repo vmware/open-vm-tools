@@ -38,12 +38,11 @@
 #include "aioMgr.h"
 #endif
 
-typedef struct HashMap HashMap;
-
-#ifdef __cplusplus
+#if defined(__cplusplus)
 extern "C" {
 #endif
 
+typedef struct HashMap HashMap;
 
 /*
  * ----------------------------------------------------------------------------
@@ -79,8 +78,8 @@ void HashMap_Iterate(HashMap* map, HashMapIteratorFn mapFn, Bool clear,
       void *userData);
 Bool HashMap_DoTests(void);
 
-#ifdef __cplusplus
-}
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 
 #endif /* _HASHMAP_H_ */

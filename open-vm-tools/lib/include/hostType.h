@@ -33,12 +33,22 @@
 
 #include "vm_basic_types.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 Bool HostType_OSIsVMK(void);
 Bool HostType_OSIsSimulator(void);
 
 /* Old name. TODO: remove */
 static INLINE Bool
 HostType_OSIsPureVMK(void)
-{ return HostType_OSIsVMK(); }
+{
+   return HostType_OSIsVMK();
+}
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif /* ifndef _HOSTTYPE_H_ */

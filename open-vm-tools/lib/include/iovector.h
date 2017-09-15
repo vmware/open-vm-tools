@@ -29,6 +29,10 @@
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 /*
  * Ugly definition of struct iovec.
  */
@@ -137,6 +141,10 @@ void IOV_Assert(struct iovec *iov,       // IN: iovector
                 uint32 numEntries);      // IN: # of entries in 'iov'
 #else
 #define IOV_ASSERT(IOVEC, NUM_ENTRIES) ((void) 0)
+#endif
+
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 
 #endif /* #ifndef _IOVECTOR_H_ */

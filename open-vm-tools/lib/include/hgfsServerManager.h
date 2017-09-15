@@ -19,6 +19,10 @@
 #ifndef _HGFS_SERVER_MANAGER_H_
 # define _HGFS_SERVER_MANAGER_H_
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 /*
  * hgfsServerManager.h --
  *
@@ -61,6 +65,10 @@ Bool HgfsServerManager_ProcessPacket(HgfsServerMgrData *mgrData,
                                      char *packetOut,
                                      size_t *packetOutSize);
 uint32 HgfsServerManager_InvalidateInactiveSessions(HgfsServerMgrData *mgrData);
+#endif
+
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 
 #endif // _HGFS_SERVER_MANAGER_H_

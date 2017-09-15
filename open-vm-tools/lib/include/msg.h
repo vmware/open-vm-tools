@@ -40,6 +40,10 @@
 #include "voblib.h"
 #endif
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 
 #define INVALID_MSG_CODE (-1)
 
@@ -265,6 +269,10 @@ void Msg_GetThreadCallback(MsgCallback *cb);
 
 #ifdef _WIN32
 const char *Msg_HResult2String(long hr);
+#endif
+
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 
 #endif // ifndef _MSG_H_

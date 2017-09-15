@@ -27,6 +27,10 @@
 
 #include "vmware.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 void *
 Escape_DoString(const char *escStr,    // IN
                 int const *bytesToEsc, // IN
@@ -84,5 +88,8 @@ Escape_UnescapeCString(char *buf); // IN/OUT
 char *
 Escape_Comma(const char *string); // IN
 
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif /* __ESCAPE_H__ */

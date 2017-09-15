@@ -31,8 +31,16 @@
 
 #define INCLUDE_ALLOW_USERLEVEL
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 int
 daemon(int nochdir, int noclose);
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif  /* _MISCSOLARIS_H_ */
 

@@ -35,6 +35,10 @@
 #endif
 #include "vmware.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if defined __APPLE__ && !vm_x86_64
 /*
  * Bug 471584: Mac OS X 10.6's valloc() implementation for 32-bit
@@ -380,5 +384,9 @@ Aligned_Realloc(void *buf,   // IN
    return buf;
 #endif
 }
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif

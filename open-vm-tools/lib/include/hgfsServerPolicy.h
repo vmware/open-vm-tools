@@ -25,6 +25,10 @@
 #include "cpName.h"
 #include "hgfsServer.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 /*
  * Name of share that corresponds to the root of the server's
  * filesystem.
@@ -111,5 +115,9 @@ HgfsServerPolicy_FreeShareList(HgfsServerPolicy_ShareList *shareList); // IN: li
 
 HgfsServerPolicy_ShareList *
 HgfsServerPolicy_GetSharesWithTag(const char *tag); // IN: tag to search for
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif // _HGFS_SERVER_POLICY_H_

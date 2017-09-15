@@ -35,6 +35,10 @@
 #include "msgid.h"
 #include "msgfmt.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 
 /*
  * Data structures, types, and constants
@@ -71,5 +75,9 @@ void MsgList_Free(MsgList *messages);
 const char *MsgList_GetMsgID(const MsgList *messages);
 
 Bool MsgList_Present(const MsgList *messages);
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif // ifndef _MSGLIST_H_

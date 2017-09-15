@@ -25,14 +25,11 @@
 #ifndef _FILE_H_
 #define _FILE_H_
 
-#ifdef __cplusplus
-extern "C"{
-#endif
-
-#include <stdio.h>
 #define INCLUDE_ALLOW_USERLEVEL
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
+
+#include <stdio.h>
 
 #include "fileIO.h"
 #include "unicodeTypes.h"
@@ -50,6 +47,10 @@ extern "C"{
 #  include <limits.h>  // PATH_MAX
 # endif
 #define FILE_MAXPATH	PATH_MAX
+#endif
+
+#if defined(__cplusplus)
+extern "C" {
 #endif
 
 #define FILE_SEARCHPATHTOKEN ";"
@@ -406,8 +407,8 @@ int File_MakeSafeTemp(const char *tag,
 
 Bool File_DoesVolumeSupportAcls(const char *pathName);
 
-#ifdef __cplusplus
-} // extern "C" {
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 
 #endif // ifndef _FILE_H_

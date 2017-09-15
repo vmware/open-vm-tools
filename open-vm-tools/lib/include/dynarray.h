@@ -32,6 +32,9 @@
 #include "vm_basic_types.h"
 #include "vm_assert.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 typedef struct DynArray {
    DynBuf buf;
@@ -337,5 +340,9 @@ DynArray_Copy(DynArray *src,        // IN
    }
 /* Define DynArray of DynBuf. */
 DEFINE_DYNARRAY_TYPE(DynBuf)
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif /* _DYNARRAY_H_ */
