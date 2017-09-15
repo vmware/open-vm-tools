@@ -6369,9 +6369,18 @@ HgfsServerValidateWrite(HgfsInputParam *input,     // IN: Input params
    }
 
    /*
-    * TBD -
-    * - validate the packet size with the header, write request and write data
+    * Validate the packet size with the header, write request and write data.
     */
+   if (!HSPU_ValidateDataPacketSize(input->packet, requestWriteDataSize) ||
+       !HSPU_ValidateRequestPacketSize(input->packet,
+                                       requestWriteHeaderSize,
+                                       requestWritePacketSize,
+                                       requestWritePacketDataSize)) {
+      status = HGFS_ERROR_INVALID_PARAMETER;
+      LOG(4, ("%s: Error: write data size pkt %"FMTSZ"u data %"FMTSZ"u\n",
+               __FUNCTION__, requestWritePacketDataSize, requestWriteDataSize));
+      goto exit;
+   }
 
    /*
     * Now map the file handle, and extract the details of the write e.g. writing

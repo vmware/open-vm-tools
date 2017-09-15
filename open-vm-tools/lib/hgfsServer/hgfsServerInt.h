@@ -860,6 +860,12 @@ HSPU_PutMetaPacket(HgfsPacket *packet,                   // IN/OUT: Hgfs Packet
                    HgfsServerChannelCallbacks *chanCb);  // IN: Channel callbacks
 
 Bool
+HSPU_ValidateRequestPacketSize(HgfsPacket *packet,        // IN: Hgfs Packet
+                               size_t requestHeaderSize,  // IN: request header size
+                               size_t requestOpSize,      // IN: request packet size
+                               size_t requestOpDataSize); // IN: request packet data size
+
+Bool
 HSPU_ValidateReplyPacketSize(HgfsPacket *packet,         // IN: Hgfs Packet
                              size_t replyHeaderSize,     // IN: reply header size
                              size_t replyResultSize,     // IN: reply result size
