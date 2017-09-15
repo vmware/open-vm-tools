@@ -149,7 +149,7 @@ extern "C" {
 #  define BDOOR_CMD_FAS_GET_MOUSE_HID         8
 #  define BDOOR_CMD_FAS_GET_SMBIOS_VERSION    9
 #  define BDOOR_CMD_FAS_GET_64BIT_PCI_HOLE_SIZE 10
-#  define BDOOR_CMD_FAS_GET_NVDIMM_FMT_CODE  11
+//#define BDOOR_CMD_FAS_GET_NVDIMM_FMT_CODE  11 /* Not in use. Never shipped. */
 #  define BDOOR_CMD_FAS_SRP_ENABLED          12
 #  define BDOOR_CMD_FAS_EXIT_BOOT_SERVICES   13
 #define   BDOOR_CMD_SENDPSHAREHINTS          66 /* Not in use. Deprecated. */
