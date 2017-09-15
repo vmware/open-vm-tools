@@ -27,6 +27,8 @@
 #ifndef __GUESTAPP_H__
 #   define __GUESTAPP_H__
 
+#include "vm_basic_types.h"
+
 #if defined(_WIN32)
 #include <windows.h>
 #endif
@@ -34,8 +36,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#   include "vm_basic_types.h"
 
 const char *
 GuestApp_GetDefaultScript(const char *confName); // IN
