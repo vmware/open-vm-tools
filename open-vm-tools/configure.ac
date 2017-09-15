@@ -965,7 +965,7 @@ if test "$enable_caf" = "yes"; then
                        [LIBRABBITMQ],
                        [librabbitmq],
                        [],
-                       [0.7.1],
+                       [0.8.0],
                        [amqp_tcp_socket.h],
                        [],
                        [have_librabbitmq="yes"],
