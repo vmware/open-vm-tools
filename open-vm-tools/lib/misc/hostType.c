@@ -122,7 +122,7 @@ HostType_OSIsVMK(void)
 Bool
 HostType_OSIsSimulator(void)
 {
-#if defined __linux__ && (defined VMX86_SERVER || defined VMX86_VPX || defined VMX86_VMACORE)
+#if defined __linux__ && (defined VMX86_SERVER || defined VMX86_VPX)
    static int simulatorType = -1;
    if (simulatorType == -1) {
       if (access("/etc/vmware/hostd/mockupEsxHost.txt", 0) != -1) {
