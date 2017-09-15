@@ -409,7 +409,7 @@ FileCreateSafeTmpDir(uid_t userId,            // IN:
                             PRODUCT_GENERIC_NAME_LOWER, userName,
                             FileSimpleRandom());
 
-      if (!tmpDir) {
+      if (tmpDir == NULL) {
          Warning("%s: Out of memory error.\n", __FUNCTION__);
          break;
       }
@@ -497,21 +497,21 @@ File_GetSafeTmpDir(Bool useConf)  // IN:
    /* We don't have a useable temporary dir, create one. */
    baseTmpDir = FileGetTmpDir(useConf);
 
-   if (!baseTmpDir) {
+   if (baseTmpDir == NULL) {
       Warning("%s: FileGetTmpDir failed.\n", __FUNCTION__);
       goto exit;
    }
 
    userName = FileGetUserName(userId);
 
-   if (!userName) {
+   if (userName == NULL) {
       Warning("%s: FileGetUserName failed, using numeric ID "
               "as username instead.\n", __FUNCTION__);
 
       /* Fallback on just using the userId as the username. */
       userName = Str_Asprintf(NULL, "uid-%d", userId);
 
-      if (!userName) {
+      if (userName == NULL) {
          Warning("%s: Str_Asprintf error.\n", __FUNCTION__);
          goto exit;
       }
@@ -520,7 +520,7 @@ File_GetSafeTmpDir(Bool useConf)  // IN:
    tmpDir = Str_Asprintf(NULL, "%s%s%s-%s", baseTmpDir, DIRSEPS,
                          PRODUCT_GENERIC_NAME_LOWER, userName);
 
-   if (!tmpDir) {
+   if (tmpDir == NULL) {
       Warning("%s: Out of memory error.\n", __FUNCTION__);
       goto exit;
    }
@@ -536,7 +536,7 @@ File_GetSafeTmpDir(Bool useConf)  // IN:
 
       tmpDir = FileFindExistingSafeTmpDir(userId, userName, baseTmpDir);
 
-      if (!tmpDir) {
+      if (tmpDir == NULL) {
          /*
           * We didn't find any usable directories, so try to create one now.
           */
@@ -545,7 +545,7 @@ File_GetSafeTmpDir(Bool useConf)  // IN:
       }
    }
 
-   if (tmpDir) {
+   if (tmpDir != NULL) {
       /*
        * We have successfully created a temporary directory, remember it for
        * future calls.
