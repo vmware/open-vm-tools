@@ -464,7 +464,8 @@ VThreadBase_CurName(void)
  *      None.
  *
  * Side effects:
- *      If current thread does not have a TLS block, one is allocated.
+ *      If TLS is not supported, allocates thread-local memory which leaks
+ *      on thread exit. (If this leak is a problem, implement TLS).
  *
  *-----------------------------------------------------------------------------
  */
@@ -505,6 +506,37 @@ VThreadBase_SetName(const char *name)  // IN: new name
       strncpy(buf, name, VTHREADBASE_MAX_NAME - 1);
    } while(0);
 #endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VThreadBase_SetNamePrefix --
+ *
+ *      Override the default thread name with a new name based on
+ *      the supplied prefix. Format is "{prefix}-{id}"
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+VThreadBase_SetNamePrefix(const char *prefix)  // IN: name prefix
+{
+   char buf[VTHREADBASE_MAX_NAME];
+
+   ASSERT(prefix != NULL);
+
+   snprintf(buf, sizeof buf, "%s-%" FMT64 "u",
+            prefix, VThreadBase_GetKernelID());
+   buf[sizeof buf - 1] = '\0';  // snprintf does not ensure NUL-term
+   VThreadBase_SetName(buf);
 }
 
 

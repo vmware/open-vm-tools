@@ -132,6 +132,7 @@ VThread_CurName(void)
 const char *VThreadBase_CurName(void);
 VThreadID VThreadBase_CurID(void);
 void VThreadBase_SetName(const char *name);
+void VThreadBase_SetNamePrefix(const char *prefix);
 
 /* For implementing a thread library */
 void VThreadBase_ForgetSelf(void);
