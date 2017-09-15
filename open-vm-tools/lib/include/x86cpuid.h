@@ -953,7 +953,7 @@ FLAG(  87,  0, EDX,  9,  1, CORE_PERF_BOOST,                       NA,  FALSE)
 FIELD( 88,  0, EAX,  0,  8, PHYS_BITS,                             YES, FALSE) \
 FIELD( 88,  0, EAX,  8,  8, VIRT_BITS,                             YES, FALSE) \
 FIELD( 88,  0, EAX, 16,  8, GUEST_PHYS_ADDR_SZ,                    YES, FALSE) \
-FLAG(  88,  0, EBX,  0,  1, CLZERO,                                NO,  FALSE) \
+FLAG(  88,  0, EBX,  0,  1, CLZERO,                                YES, TRUE)  \
 FLAG(  88,  0, EBX,  1,  1, IRPERF,                                NO,  FALSE) \
 FLAG(  88,  0, EBX,  2,  1, XSAVE_ERR_PTR,                         NO,  FALSE) \
 FIELD( 88,  0, ECX,  0,  8, LEAF88_CORE_COUNT,                     YES, FALSE) \
