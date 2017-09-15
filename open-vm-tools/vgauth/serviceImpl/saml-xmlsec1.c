@@ -22,21 +22,6 @@
  * Code for authenticating users based on SAML tokens.
  */
 
-
-/*
- * XXX TODO
- *
- * - Reference verify or confirm its done by sig check
- *
- * - refactor to share code with xml-security-c verifiier
- * - refactor to share with test/sign code
- *   make things static and tweak names as necessary
- * - testing
- * - valgrind
- *
- */
-
-
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
@@ -58,6 +43,7 @@
 
 #include "prefs.h"
 #include "serviceInt.h"
+#include "certverify.h"
 
 static int gClockSkewAdjustment = VGAUTH_PREF_DEFAULT_CLOCK_SKEW_SECS;
 static xmlSchemaPtr gParsedSchemas = NULL;
@@ -77,8 +63,6 @@ static xmlSchemaValidCtxtPtr gSchemaValidateCtx = NULL;
  * @param[in]  msg           The error message in printf format.
  * @param[in]  ...           Any args for the msg.
  *
- * XXX This probably wants to live in shared code.
- *
  ******************************************************************************
  */
 
@@ -94,8 +78,7 @@ XmlErrorHandler(void *ctx,
    va_end(argPtr);
 
    /*
-    * XXX are any of these either debug or fatal?  treat all as
-    * warning for now.
+    * Treat all as warning.
     */
    g_warning("XML Error: %s", msgStr);
 }
@@ -115,8 +98,6 @@ XmlErrorHandler(void *ctx,
  * @param[in]  reason        The error code.
  * @param[in]  msg           The additional error message.
  *
- * XXX This probably wants to live in shared code.
- *
  ******************************************************************************
  */
 
@@ -130,8 +111,7 @@ XmlSecErrorHandler(const char *file,
                    const char *msg)
 {
    /*
-    * XXX are any of these either debug or fatal?  treat all as
-    * warning for now.
+    * Treat all as warning.
     */
    g_warning("XMLSec Error: %s:%s(line %d) object %s"
              " subject %s reason: %d, msg: %s",
@@ -159,7 +139,7 @@ XmlSecErrorHandler(const char *file,
  *
  */
 
-gboolean
+static gboolean
 LoadCatalogAndSchema(void)
 {
    int ret;
@@ -195,7 +175,7 @@ LoadCatalogAndSchema(void)
       }
 #else
       /*
-       * XXX -- clean this up to make a better default for Linux.
+       * TODO -- clean this up to make a better default for Linux.
        */
       schemaDir = g_build_filename(gInstallDir, "..", "schemas", NULL);
 #endif
@@ -282,7 +262,7 @@ done:
  *
  */
 
-void
+static void
 FreeSchemas(void)
 {
    if (NULL != gSchemaValidateCtx) {
@@ -372,7 +352,6 @@ SAML_Init(void)
    /*
     * version check xmlsec1
     */
-   // XXX may want to make this non-fatal
    if (xmlSecCheckVersion() != 1) {
       g_warning("Error: xmlsec1 lib version mismatch\n");
       return VGAUTH_E_FAIL;
@@ -405,6 +384,8 @@ SAML_Init(void)
     * Load prefs
     */
    LoadPrefs();
+
+   Log("%s: Using xmlsec1 for XML signature support\n", __FUNCTION__);
 
    return VGAUTH_E_OK;
 }
@@ -544,7 +525,7 @@ FindAttrValue(const xmlNodePtr node,
  ******************************************************************************
  */
 
-gboolean
+static gboolean
 RegisterID(xmlNodePtr node,
            const xmlChar *idName)
 {
@@ -676,7 +657,7 @@ FindAllNodesByName(xmlNodePtr root,
  ******************************************************************************
  */
 
-gboolean
+static gboolean
 ValidateDoc(xmlDocPtr doc)
 {
    int ret;
@@ -705,7 +686,7 @@ ValidateDoc(xmlDocPtr doc)
  ******************************************************************************
  */
 
-gboolean
+static gboolean
 CheckTimeAttr(const xmlNodePtr node,
               const gchar *attrName,
               gboolean notBefore)
@@ -784,7 +765,7 @@ done:
  ******************************************************************************
  */
 
-gboolean
+static gboolean
 CheckAudience(const xmlChar *audience)
 {
    gboolean ret;
@@ -834,7 +815,7 @@ CheckAudience(const xmlChar *audience)
  ******************************************************************************
  */
 
-gboolean
+static gboolean
 VerifySubject(xmlDocPtr doc,
               gchar **subjectRet)
 {
@@ -872,8 +853,6 @@ VerifySubject(xmlDocPtr doc,
     * Find all the SubjectConfirmation nodes and see if at least one
     * can be validated.
     */
-   // XXX cloning xml-security-c here by using a loop.  Might
-   // be cleaner to use FindAllNodeByName()
    for (child = subjNode->children; child != NULL; child = child->next) {
       xmlChar *method;
       xmlNodePtr subjConfirmData;
@@ -962,7 +941,7 @@ done:
  ******************************************************************************
  */
 
-gboolean
+static gboolean
 VerifyConditions(xmlDocPtr doc)
 {
    xmlNodePtr condNode;
@@ -1009,7 +988,7 @@ VerifyConditions(xmlDocPtr doc)
     */
 
 #if 0
-   // XXX nothing looks at this
+   // TODO nothing looks at this
    /*
     * <OneTimeUse> element is specified to disallow caching. We don't
     * cache, so it doesn't affect our validation.
@@ -1025,55 +1004,6 @@ VerifyConditions(xmlDocPtr doc)
     */
 
    return TRUE;
-}
-
-
-/*
- ******************************************************************************
- * VerifyReference --                                                    */ /**
- *
- * Verifies that the Reference in an XML signtaure is valid.
- *
- * XXX This is done in the xml-security-c version, but doesn't seem
- * to be necessary in xmlsec1, since it appears to do it itself.
- * xmlsec1 also puts the interesting data off in a semi-hidden list,
- * suggesting its not useful to callers.
- *
- * @param[in] doc         Parsed XML document.
- * @param[in] dsigCtx     Digitial signature context.
- *
- * @return TRUE on sucecss.
- *
- ******************************************************************************
- */
-
-static gboolean
-VerifyReference(xmlDocPtr doc,
-                xmlSecDSigCtxPtr dsigCtx)
-{
-   xmlNodePtr root;
-   xmlChar *idAttr;
-   gboolean retCode = FALSE;
-
-   root = xmlDocGetRootElement(doc);
-   idAttr = xmlGetProp(root, "ID");
-
-   if (NULL == idAttr) {
-      g_warning("No ID attribute found\n");
-      goto done;
-   }
-
-   // XXX if this needs to be done, then the place to look is
-   // the signedInfoReferences in the dsigCtx.
-   // this appears to be filled in after the xmlSecDSigCtxVerify()
-   // (unlike in xml-security-c)
-
-   retCode = TRUE;
-done:
-   if (NULL != idAttr) {
-      xmlFree(idAttr);
-   }
-   return retCode;
 }
 
 
@@ -1133,16 +1063,7 @@ BuildCertChain(xmlNodePtr x509Node,
        * Turn the raw base64 into PEM.  Thanks for being so anal,
        * OpenSSL.
        */
-
-      // XXX make this use CertVerify_EncodePEMForSSL() instead,
-      // since it handles corner cases (the newline after the
-      // base64 may exist).  But that means changes to more files,
-      // so do this later
-      pemCert = g_strdup_printf("-----BEGIN CERTIFICATE-----\n"
-                                "%s"
-                                "\n-----END CERTIFICATE-----\n",
-                                base64Cert);
-
+      pemCert = CertVerify_EncodePEMForSSL(base64Cert);
       xmlFree(base64Cert);
 
       /*
@@ -1158,7 +1079,9 @@ BuildCertChain(xmlNodePtr x509Node,
          goto done;
       }
 
-      // add pemCert to the returned list
+      /*
+       * add pemCert to the returned list
+       */
       certList[i] = pemCert;
    }
 
@@ -1192,7 +1115,7 @@ done:
  ******************************************************************************
  */
 
-gboolean
+static gboolean
 VerifySignature(xmlDocPtr doc,
                 int *numCerts,
                 gchar ***certChain)
@@ -1301,23 +1224,10 @@ VerifySignature(xmlDocPtr doc,
       goto done;
    }
 
-   // verify the Reference
-   //
-   // XXX these don't seem to exist until after the Verify.
-   // The one we want is in the list of dsigCtx->signedInfoReferences
-   //
-   // XXX is this even necessary, or has it already been handled
-   // by the Verify?
-   //
-   // the xml-security-c version does this before the verify,
-   // but the data needed isn't accessible in xmlsec1 until after
-   // the verify.
-   //
-   bRet = VerifyReference(doc, dsigCtx);
-   if (FALSE == bRet) {
-      g_warning("Failed to verify Reference\n");
-      goto done;
-   }
+   /*
+    * The xml-security-c verifies the Reference explicitly; this
+    * isn't needed for xmlsec1 because the library does it.
+    */
 
    /*
     * Check status to verify the signature is correct.
@@ -1484,7 +1394,6 @@ SAML_VerifyBearerToken(const char *xmlText,
    // clean up -- this code doesn't look at the chain
    FreeCertArray(num, certChain);
 
-   // XXX errors may need some work
    return (ret == TRUE) ? VGAUTH_E_OK : VGAUTH_E_AUTHENTICATION_DENIED;
 }
 
