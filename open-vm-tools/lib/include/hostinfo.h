@@ -213,7 +213,6 @@ typedef enum {
 OS_TYPE Hostinfo_GetOSType(void);
 OS_DETAIL_TYPE Hostinfo_GetOSDetailType(void);
 
-Bool Hostinfo_GetPCFrequency(uint64 *pcHz);
 Bool Hostinfo_GetMhzOfProcessor(int32 processorNumber,
 				uint32 *currentMhz,
                                 uint32 *maxMhz);

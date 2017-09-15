@@ -85,7 +85,6 @@ NORETURN void Util_ExitProcessAbruptly(int);
 int Util_HasAdminPriv(void);
 #if defined _WIN32 && defined USERLEVEL
 int Util_TokenHasAdminPriv(HANDLE token);
-int Util_TokenHasInteractPriv(HANDLE token);
 #endif
 Bool Util_Data2Buffer(char *buf, size_t bufSize, const void *data0,
                       size_t dataSize);
