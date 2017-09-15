@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -24,15 +24,17 @@
 
 #include <sys/wait.h>
 #include <sys/stat.h>
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <regex.h>
+#include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <stdarg.h>
 #include <time.h>
-#include <stdbool.h>
+#include <unistd.h>
 
 #include "mspackWrapper.h"
 #include "deployPkgFormat.h"
@@ -81,7 +83,6 @@
  * Constant definitions
  */
 
-static const char  ENDOFLINEMARKER = '\n';
 static const char  SPACECHAR       = ' ';
 static const char  TABCHAR         = '\t';
 static const char  QUOTECHAR       = '"';
@@ -128,9 +129,11 @@ static int ListSize(struct List* head);
 static int Touch(const char*  state);
 static int UnTouch(const char* state);
 static int TransitionState(const char* stateFrom, const char* stateTo);
+static bool CopyFileToDirectory(const char* srcPath, const char* destPath,
+                                const char* fileName);
 static int Deploy(const char* pkgName);
 static char** GetFormattedCommandLine(const char* command);
-static int ForkExecAndWaitCommand(const char* command);
+int ForkExecAndWaitCommand(const char* command);
 static void SetDeployError(const char* format, ...);
 static const char* GetDeployError(void);
 static void NoLogging(int level, const char* fmtstr, ...);
@@ -140,7 +143,7 @@ static void NoLogging(int level, const char* fmtstr, ...);
  */
 
 static char* gDeployError = NULL;
-static LogFunction sLog = NoLogging;
+LogFunction sLog = NoLogging;
 
 // .....................................................................................
 
@@ -896,11 +899,13 @@ static int
 CloudInitSetup(const char *tmpDirPath)
 {
    int deployStatus = DEPLOY_ERROR;
-   const char *cloudInitTmpDirPath = "/var/run/vmware-imc";
+   static const char *cloudInitTmpDirPath = "/var/run/vmware-imc";
    int forkExecResult;
    char command[1024];
    Bool cloudInitTmpDirCreated = FALSE;
-
+   char* customScriptName = NULL;
+   sLog(log_info, "Creating temp directory %s to copy customization files",
+        cloudInitTmpDirPath);
    snprintf(command, sizeof(command),
             "/bin/mkdir -p %s", cloudInitTmpDirPath);
    command[sizeof(command) - 1] = '\0';
@@ -915,26 +920,9 @@ CloudInitSetup(const char *tmpDirPath)
 
    cloudInitTmpDirCreated = TRUE;
 
-   snprintf(command, sizeof(command),
-            "/bin/rm -f %s/cust.cfg %s/nics.txt",
-            cloudInitTmpDirPath, cloudInitTmpDirPath);
-   command[sizeof(command) - 1] = '\0';
-
-   forkExecResult = ForkExecAndWaitCommand(command);
-
-   snprintf(command, sizeof(command),
-            "/bin/cp %s/cust.cfg %s/cust.cfg",
-            tmpDirPath, cloudInitTmpDirPath);
-   command[sizeof(command) - 1] = '\0';
-
-   forkExecResult = ForkExecAndWaitCommand(command);
-
-   if (forkExecResult != 0) {
-      SetDeployError("Error copying cust.cfg file: %s",
-                     strerror(errno));
-      goto done;
-   }
-
+   // Copy required files for cloud-init to a temp name initially and then
+   // rename in order to avoid race conditions with partial writes.
+   sLog(log_info, "Check if nics.txt exists. Copy if exists, skip otherwise");
    snprintf(command, sizeof(command),
             "/usr/bin/test -f %s/nics.txt", tmpDirPath);
    command[sizeof(command) - 1] = '\0';
@@ -947,26 +935,49 @@ CloudInitSetup(const char *tmpDirPath)
     * We need to copy the nics.txt only if it exists.
     */
    if (forkExecResult == 0) {
-      snprintf(command, sizeof(command),
-               "/bin/cp %s/nics.txt %s/nics.txt",
-               tmpDirPath, cloudInitTmpDirPath);
-      command[sizeof(command) - 1] = '\0';
+      sLog(log_info, "nics.txt file exists. Copying..");
+      if(!CopyFileToDirectory(tmpDirPath, cloudInitTmpDirPath, "nics.txt")) {
+         goto done;
+       }
+   }
 
-      forkExecResult = ForkExecAndWaitCommand(command);
-      if (forkExecResult != 0) {
-         SetDeployError("Error copying nics.txt file: %s",
-                        strerror(errno));
+   // Get custom script name.
+   if (HasCustomScript(tmpDirPath, &customScriptName)) {
+      char scriptPath[1024];
+
+      sLog(log_info, "Custom script present.");
+      sLog(log_info, "Copying script to execute post customization.");
+      snprintf(scriptPath, sizeof(scriptPath), "%s/scripts", tmpDirPath);
+      scriptPath[sizeof(scriptPath) - 1] = '\0';
+      if (!CopyFileToDirectory(scriptPath, cloudInitTmpDirPath,
+                               "post-customize-guest.sh")) {
          goto done;
       }
+
+      sLog(log_info, "Copying user uploaded custom script %s",
+           customScriptName);
+      if (!CopyFileToDirectory(tmpDirPath, cloudInitTmpDirPath,
+                               customScriptName)) {
+         goto done;
+      }
+   }
+
+   sLog(log_info, "Copying main configuration file cust.cfg");
+   if(!CopyFileToDirectory(tmpDirPath, cloudInitTmpDirPath, "cust.cfg")) {
+      goto done;
    }
 
    deployStatus = DEPLOY_SUCCESS;
 
 done:
+   free(customScriptName);
    if (DEPLOY_SUCCESS == deployStatus) {
+      sLog(log_info, "Deployment for cloud-init succeeded.");
       TransitionState(INPROGRESS, DONE);
    } else {
+      sLog(log_error, "Deployment for cloud-init failed.");
       if (cloudInitTmpDirCreated) {
+         sLog(log_info, "Removing temporary folder %s", cloudInitTmpDirPath);
          snprintf(command, sizeof(command),
                   "/bin/rm -rf %s",
                   cloudInitTmpDirPath);
@@ -985,6 +996,103 @@ done:
 
 
 //......................................................................................
+
+static bool
+CopyFileToDirectory(const char* srcPath, const char* destPath,
+                    const char* fileName)
+{
+   char command[1024];
+   int forkExecResult;
+   snprintf(command, sizeof(command), "/bin/cp %s/%s %s/%s.tmp", srcPath,
+            fileName, destPath, fileName);
+   command[sizeof(command) - 1] = '\0';
+   forkExecResult = ForkExecAndWaitCommand(command);
+   if (forkExecResult != 0) {
+      SetDeployError("Error while copying file %s: %s", fileName,
+                     strerror(errno));
+      return false;
+   }
+   snprintf(command, sizeof(command), "/bin/mv -f %s/%s.tmp %s/%s", destPath,
+            fileName, destPath, fileName);
+   command[sizeof(command) - 1] = '\0';
+
+   forkExecResult = ForkExecAndWaitCommand(command);
+   if (forkExecResult != 0) {
+      SetDeployError("Error while renaming temp file %s: %s", fileName,
+                     strerror(errno));
+      return false;
+   }
+   return true;
+}
+
+
+//......................................................................................
+
+/**
+ *----------------------------------------------------------------------------
+ *
+ * UseCloudInitWorkflow --
+ *
+ * Function which checks if cloud-init should be used for customization.
+ * Essentially it checks if
+ * - customization specificaion file (cust.cfg) is present.
+ * - cloud-init is installed
+ * - cloud-init is enabled.
+ *
+ * @param   [IN]  dirPath  Path where the package is extracted.
+ * @returns true if cloud-init should be used for guest customization.
+ *
+ *----------------------------------------------------------------------------
+ * */
+
+static bool
+UseCloudInitWorkflow(const char* dirPath)
+{
+   char *cfgFullPath = NULL;
+   int cfgFullPathSize;
+   static const char cfgName[] = "cust.cfg";
+   static const char cloudInitConfigFilePath[] = "/etc/cloud/cloud.cfg";
+   static const char cloudInitCommand[] = "/usr/bin/cloud-init -v";
+   int forkExecResult;
+
+   if (NULL == dirPath) {
+      return false;
+   }
+
+   sLog(log_debug, "Check if cust.cfg exists.");
+
+   cfgFullPathSize = strlen(dirPath) + 1 /* For '/' */ + sizeof(cfgName);
+   cfgFullPath = (char *) malloc(cfgFullPathSize);
+   if (cfgFullPath == NULL) {
+      sLog(log_error, "Failed to allocate memory. (%s)", strerror(errno));
+      return false;
+   }
+
+   snprintf(cfgFullPath, cfgFullPathSize, "%s/%s", dirPath, cfgName);
+   cfgFullPath[cfgFullPathSize - 1] = '\0';
+
+   if (access(cfgFullPath, R_OK) != 0) {
+      sLog(log_info, "cust.cfg is missing in '%s' directory. Error: (%s)",
+           dirPath, strerror(errno));
+      free(cfgFullPath);
+      return false;
+   } else {
+      sLog(log_info, "cust.cfg is found in '%s' directory.", dirPath);
+   }
+
+   forkExecResult = ForkExecAndWaitCommand(cloudInitCommand);
+   if (forkExecResult != 0) {
+      sLog(log_info, "cloud-init is not installed");
+      free(cfgFullPath);
+      return false;
+   } else {
+      sLog(log_info, "cloud-init is installed");
+   }
+
+   free(cfgFullPath);
+   return IsCloudInitEnabled(cloudInitConfigFilePath);
+}
+
 
 /**
  *
@@ -1010,10 +1118,7 @@ Deploy(const char* packageName)
    uint8 flags;
    bool forceSkipReboot = false;
    char *tmpDirPath;
-   Bool cloudInitEnabled = FALSE;
-   const char *cloudInitConfigFilePath = "/etc/cloud/cloud.cfg";
-   char cloudCommand[1024];
-   int forkExecResult;
+   bool useCloudInitWorkflow = false;
 
    TransitionState(NULL, INPROGRESS);
 
@@ -1021,7 +1126,6 @@ Deploy(const char* packageName)
    SetCustomizationStatusInVmx(TOOLSDEPLOYPKG_RUNNING,
                                TOOLSDEPLOYPKG_ERROR_SUCCESS,
                                NULL);
-
    tmpDirPath = mkdtemp((char *)Util_SafeStrdup(TMP_DIR_PATH_PATTERN));
    if (tmpDirPath == NULL) {
       SetDeployError("Error creating tmp dir: %s", strerror(errno));
@@ -1037,6 +1141,8 @@ Deploy(const char* packageName)
       free(tmpDirPath);
       return DEPLOY_ERROR;
    }
+
+   sLog(log_info, "Flags in the header: %d\n", (int) flags);
 
    sLog(log_info, "Original deployment command: %s\n", pkgCommand);
    if (strstr(pkgCommand, IMC_TMP_PATH_VAR) != NULL) {
@@ -1062,33 +1168,36 @@ Deploy(const char* packageName)
       }
    }
 
-   // check if cloud-init installed
-   snprintf(cloudCommand, sizeof(cloudCommand),
-            "/usr/bin/cloud-init -h");
-   cloudCommand[sizeof(cloudCommand) - 1] = '\0';
-   forkExecResult = ForkExecAndWaitCommand(cloudCommand);
-   // if cloud-init is installed, check if it is enabled
-   if (forkExecResult == 0 && IsCloudInitEnabled(cloudInitConfigFilePath)) {
-      cloudInitEnabled = TRUE;
+   if (!(flags & VMWAREDEPLOYPKG_HEADER_FLAGS_IGNORE_CLOUD_INIT)) {
+      useCloudInitWorkflow = UseCloudInitWorkflow(tmpDirPath);
+   } else {
+      sLog(log_info, "Ignoring cloud-init.");
+   }
+
+   if (useCloudInitWorkflow) {
+      sLog(log_info, "Executing cloud-init workflow");
       sSkipReboot = TRUE;
       free(command);
       deployStatus =  CloudInitSetup(tmpDirPath);
    } else {
+      sLog(log_info, "Executing traditional GOSC workflow");
       deploymentResult = ForkExecAndWaitCommand(command);
       free(command);
 
-      if (deploymentResult != 0) {
+      if (deploymentResult != CUST_SUCCESS) {
          sLog(log_error, "Customization process returned with error. \n");
          sLog(log_debug, "Deployment result = %d \n", deploymentResult);
 
          if (deploymentResult == CUST_NETWORK_ERROR ||
-             deploymentResult == CUST_NIC_ERROR) {
+             deploymentResult == CUST_NIC_ERROR ||
+             deploymentResult == CUST_DNS_ERROR) {
             sLog(log_info, "Setting network error status in vmx. \n");
             SetCustomizationStatusInVmx(TOOLSDEPLOYPKG_RUNNING,
                                         GUESTCUST_EVENT_NETWORK_SETUP_FAILED,
                                         NULL);
          } else {
-            sLog(log_info, "Setting generic error status in vmx. \n");
+            sLog(log_info, "Setting %s error status in vmx. \n",
+                 deploymentResult == CUST_GENERIC_ERROR ? "generic" : "unknown");
             SetCustomizationStatusInVmx(TOOLSDEPLOYPKG_RUNNING,
                                         GUESTCUST_EVENT_CUSTOMIZE_FAILED,
                                         NULL);
@@ -1102,6 +1211,20 @@ Deploy(const char* packageName)
          sLog(log_error, "Deployment failed. "
                          "The forked off process returned error code. \n");
       } else {
+         nics = GetNicsToEnable(tmpDirPath);
+         if (nics) {
+            // XXX: Sleep before the last SetCustomizationStatusInVmx
+            //      This is a temporary-hack for PR 422790
+            sleep(5);
+            sLog(log_info, "Wait before set enable-nics stats in vmx.\n");
+
+            TryToEnableNics(nics);
+
+            free(nics);
+         } else {
+            sLog(log_info, "No nics to enable.\n");
+         }
+
          SetCustomizationStatusInVmx(TOOLSDEPLOYPKG_DONE,
                                      TOOLSDEPLOYPKG_ERROR_SUCCESS,
                                      NULL);
@@ -1109,28 +1232,7 @@ Deploy(const char* packageName)
          TransitionState(INPROGRESS, DONE);
 
          deployStatus = DEPLOY_SUCCESS;
-         sLog(log_info, "Deployment succeded. \n");
-      }
-   }
-
-   if (!cloudInitEnabled || DEPLOY_SUCCESS != deployStatus) {
-      /*
-       * Read in nics to enable from the nics.txt file. We do it irrespective
-       * of the sucess/failure of the customization so that at the end of it we
-       * always have nics enabled.
-       */
-      nics = GetNicsToEnable(tmpDirPath);
-      if (nics) {
-         // XXX: Sleep before the last SetCustomizationStatusInVmx
-         //      This is a temporary-hack for PR 422790
-         sleep(5);
-         sLog(log_info, "Wait before set enable-nics stats in vmx.\n");
-
-         TryToEnableNics(nics);
-
-         free(nics);
-      } else {
-         sLog(log_info, "No nics to enable.\n");
+         sLog(log_info, "Deployment succeeded. \n");
       }
    }
 
@@ -1388,7 +1490,7 @@ GetFormattedCommandLine(const char* command)
  * @return  Return code from the process (or DEPLOY_ERROR)
  *
  **/
-static int
+int
 ForkExecAndWaitCommand(const char* command)
 {
    ProcessHandle hp;
@@ -1419,7 +1521,7 @@ ForkExecAndWaitCommand(const char* command)
    return retval;
 }
 
-//......................................................................................
+//.............................................................................
 
 /**
  *
