@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -311,7 +311,8 @@
    LOGLEVEL_VAR(vmva), \
    LOGLEVEL_VAR(udpfec),    /* lib/udpfec */ \
    LOGLEVEL_VAR(maclatency), \
-   LOGLEVEL_VAR(tpm2emu)
+   LOGLEVEL_VAR(tpm2emu), \
+   LOGLEVEL_VAR(nvramMgr)
 
    /* end of list */
 
