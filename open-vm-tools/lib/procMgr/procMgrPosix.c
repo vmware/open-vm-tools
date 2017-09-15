@@ -1490,7 +1490,7 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
    ProcMgr_AsyncProc *asyncProc = NULL;
    pid_t pid;
    int fds[2];
-   Bool validExitCode;
+   Bool validExitCode = FALSE;
    int exitCode;
    pid_t resultPid;
    int readFd, writeFd;

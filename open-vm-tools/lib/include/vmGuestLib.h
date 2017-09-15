@@ -469,7 +469,17 @@ VMGuestLib_StatGet(const char *encoding,  // IN
                    const char *stat,      // IN
                    char **reply,          // OUT
                    size_t *replySize);    // OUT
+/*
+ * To avoid a use after free error in SWIG-generated code, it is
+ * necessary to present SWIG with a modified function prototype
+ * for VMGuestLib_StatFree in which reply is of type "void *"
+ * rather than "char *."
+ */
+#ifndef	SWIG
 void VMGuestLib_StatFree(char *reply, size_t replySize);
+#else
+void VMGuestLib_StatFree(void *reply, size_t replySize);
+#endif
 
 #ifdef __cplusplus
 }
