@@ -165,7 +165,7 @@ CPUIDQuery;
    CPUIDLEVEL(FALSE, 85,  0x80000005, 0,  0)        \
    CPUIDLEVEL(FALSE, 86,  0x80000006, 0,  0)        \
    CPUIDLEVEL(FALSE, 87,  0x80000007, 0,  0)        \
-   CPUIDLEVEL(FALSE, 88,  0x80000008, 0,  0)        \
+   CPUIDLEVEL(TRUE,  88,  0x80000008, 0,  0)        \
    CPUIDLEVEL(TRUE,  8A,  0x8000000A, 0,  0)        \
    CPUIDLEVEL(FALSE, 819, 0x80000019, 0,  0)        \
    CPUIDLEVEL(FALSE, 81A, 0x8000001A, 0,  0)        \
@@ -472,8 +472,8 @@ FLAG(   6,  0, ECX,  3,  1, ENERGY_PERF_BIAS,                      NO,  FALSE)
 #define CPUID_FIELD_DATA_LEVEL_7                                               \
 FLAG(   7,  0, EBX,  0,  1, FSGSBASE,                              YES, FALSE) \
 FLAG(   7,  0, EBX,  1,  1, TSC_ADJUST,                            ANY, FALSE) \
-FLAG(   7,  0, EBX,  3,  1, BMI1,                                  YES, TRUE)  \
 FLAG(   7,  0, EBX,  2,  1, SGX,                                   YES, FALSE) \
+FLAG(   7,  0, EBX,  3,  1, BMI1,                                  YES, TRUE)  \
 FLAG(   7,  0, EBX,  4,  1, HLE,                                   YES, TRUE)  \
 FLAG(   7,  0, EBX,  5,  1, AVX2,                                  YES, TRUE)  \
 FLAG(   7,  0, EBX,  6,  1, FDP_EXCPTN_ONLY,                       ANY, TRUE)  \
@@ -842,6 +842,11 @@ FLAG(  81,  0, ECX, 19,  1, NODEID_MSR,                            NO,  FALSE) \
 FLAG(  81,  0, ECX, 21,  1, TBM,                                   YES, TRUE)  \
 FLAG(  81,  0, ECX, 22,  1, TOPOLOGY,                              NO,  FALSE) \
 FLAG(  81,  0, ECX, 23,  1, PERFCORE,                              ANY, TRUE)  \
+FLAG(  81,  0, ECX, 24,  1, PERFNB,                                NO,  FALSE) \
+FLAG(  81,  0, ECX, 26,  1, DATABK,                                NO,  FALSE) \
+FLAG(  81,  0, ECX, 27,  1, PERFTSC,                               NO,  FALSE) \
+FLAG(  81,  0, ECX, 28,  1, PERFL3,                                NO,  FALSE) \
+FLAG(  81,  0, ECX, 29,  1, MWAITX,                                NO,  FALSE) \
 FLAG(  81,  0, EDX,  0,  1, LEAF81_FPU,                            YES, TRUE)  \
 FLAG(  81,  0, EDX,  1,  1, LEAF81_VME,                            YES, FALSE) \
 FLAG(  81,  0, EDX,  2,  1, LEAF81_DE,                             YES, FALSE) \
@@ -890,11 +895,6 @@ FIELD( 84,  0, EAX,  0, 32, LEAF84_BRAND_STRING_EAX,               NA,  FALSE) \
 FIELD( 84,  0, EBX,  0, 32, LEAF84_BRAND_STRING_EBX,               NA,  FALSE) \
 FIELD( 84,  0, ECX,  0, 32, LEAF84_BRAND_STRING_ECX,               NA,  FALSE) \
 FIELD( 84,  0, EDX,  0, 32, LEAF84_BRAND_STRING_EDX,               NA,  FALSE)
-
-#define CPUID_8A_EDX_11 \
-FLAG(  8A,  0, EDX, 11,  1, SVMEDX_RSVD1,                          NO,  FALSE)
-#define CPUID_8A_EDX_14_31 \
-FIELD( 8A,  0, EDX, 14, 18, SVMEDX_RSVD2,                          NO,  FALSE)
 
 /*    LEVEL, REG, POS, SIZE, NAME,                             MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_85                                              \
@@ -949,11 +949,20 @@ FLAG(  87,  0, EDX,  9,  1, CORE_PERF_BOOST,                       NA,  FALSE)
 
 /*    LEVEL, REG, POS, SIZE, NAME,                             MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_88                                              \
-FIELD( 88,  0, EAX,  0,  8, PHYS_BITS,                             NA,  FALSE) \
-FIELD( 88,  0, EAX,  8,  8, VIRT_BITS,                             NA,  FALSE) \
-FIELD( 88,  0, EAX, 16,  8, GUEST_PHYS_ADDR_SZ,                    NA,  FALSE) \
-FIELD( 88,  0, ECX,  0,  8, LEAF88_CORE_COUNT,                     NA,  FALSE) \
-FIELD( 88,  0, ECX, 12,  4, APICID_COREID_SIZE,                    NA,  FALSE)
+FIELD( 88,  0, EAX,  0,  8, PHYS_BITS,                             YES, FALSE) \
+FIELD( 88,  0, EAX,  8,  8, VIRT_BITS,                             YES, FALSE) \
+FIELD( 88,  0, EAX, 16,  8, GUEST_PHYS_ADDR_SZ,                    YES, FALSE) \
+FLAG(  88,  0, EBX,  0,  1, CLZERO,                                NO,  FALSE) \
+FLAG(  88,  0, EBX,  1,  1, IRPERF,                                NO,  FALSE) \
+FLAG(  88,  0, EBX,  2,  1, XSAVE_ERR_PTR,                         NO,  FALSE) \
+FIELD( 88,  0, ECX,  0,  8, LEAF88_CORE_COUNT,                     YES, FALSE) \
+FIELD( 88,  0, ECX, 12,  4, APICID_COREID_SIZE,                    YES, FALSE) \
+FIELD( 88,  0, ECX, 16,  2, PERFTSC_SIZE,                          NO,  FALSE)
+
+#define CPUID_8A_EDX_11 \
+FLAG(  8A,  0, EDX, 11,  1, SVMEDX_RSVD1,                          NO,  FALSE)
+#define CPUID_8A_EDX_14 \
+FLAG(  8A,  0, EDX, 14,  1, SVMEDX_RSVD2,                          NO,  FALSE)
 
 /*    LEVEL, REG, POS, SIZE, NAME,                             MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_8A                                              \
@@ -975,7 +984,10 @@ FLAG(  8A,  0, EDX, 10,  1, SVM_PAUSE_FILTER,                      NO,  FALSE) \
 CPUID_8A_EDX_11 \
 FLAG(  8A,  0, EDX, 12,  1, SVM_PAUSE_THRESHOLD,                   NO,  FALSE) \
 FLAG(  8A,  0, EDX, 13,  1, SVM_AVIC,                              NO,  FALSE) \
-CPUID_8A_EDX_14_31
+CPUID_8A_EDX_14 \
+FLAG(  8A,  0, EDX, 15,  1, SVM_VIRT_VMSAVE_VMLOAD,                NO,  FALSE) \
+FLAG(  8A,  0, EDX, 16,  1, SVM_VGIF,                              NO,  FALSE) \
+FIELD( 8A,  0, EDX, 17, 15, SVMEDX_RSVD,                           NO,  FALSE)
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_819                                             \
@@ -991,7 +1003,8 @@ FIELD(819,  0, EBX, 28,  4, L2_DTLB_ASSOC_1G_PGS,                  NA,  FALSE)
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_81A                                             \
 FLAG( 81A,  0, EAX,  0,  1, FP128,                                 NA,  FALSE) \
-FLAG( 81A,  0, EAX,  1,  1, MOVU,                                  NA,  FALSE)
+FLAG( 81A,  0, EAX,  1,  1, MOVU,                                  NA,  FALSE) \
+FLAG( 81A,  0, EAX,  2,  1, FP256,                                 NA,  FALSE)
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_81B                                             \
@@ -1002,7 +1015,10 @@ FLAG( 81B,  0, EAX,  3,  1, RW_OPCOUNT,                            NA,  FALSE) \
 FLAG( 81B,  0, EAX,  4,  1, OPCOUNT,                               NA,  FALSE) \
 FLAG( 81B,  0, EAX,  5,  1, BRANCH_TARGET_ADDR,                    NA,  FALSE) \
 FLAG( 81B,  0, EAX,  6,  1, OPCOUNT_EXT,                           NA,  FALSE) \
-FLAG( 81B,  0, EAX,  7,  1, RIP_INVALID_CHECK,                     NA,  FALSE)
+FLAG( 81B,  0, EAX,  7,  1, RIP_INVALID_CHECK,                     NA,  FALSE) \
+FLAG( 81B,  0, EAX,  8,  1, OP_BRN_FUSE,                           NA,  FALSE) \
+FLAG( 81B,  0, EAX,  9,  1, IBS_FETCH_CTL_EXTD,                    NA,  FALSE) \
+FLAG( 81B,  0, EAX, 10,  1, IBS_OP_DATA4,                          NA,  FALSE)
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_81C                                             \
@@ -1013,6 +1029,8 @@ FLAG( 81C,  0, EAX,  3,  1, LWP_BRE_AVAIL,                         NA,  FALSE) \
 FLAG( 81C,  0, EAX,  4,  1, LWP_DME_AVAIL,                         NA,  FALSE) \
 FLAG( 81C,  0, EAX,  5,  1, LWP_CNH_AVAIL,                         NA,  FALSE) \
 FLAG( 81C,  0, EAX,  6,  1, LWP_RNH_AVAIL,                         NA,  FALSE) \
+FLAG( 81C,  0, EAX, 29,  1, LWP_CONT_AVAIL,                        NA,  FALSE) \
+FLAG( 81C,  0, EAX, 30,  1, LWP_PTSC_AVAIL,                        NA,  FALSE) \
 FLAG( 81C,  0, EAX, 31,  1, LWP_INT_AVAIL,                         NA,  FALSE) \
 FIELD(81C,  0, EBX,  0,  8, LWP_CB_SIZE,                           NA,  FALSE) \
 FIELD(81C,  0, EBX,  8,  8, LWP_EVENT_SIZE,                        NA,  FALSE) \
@@ -1034,6 +1052,8 @@ FLAG( 81C,  0, EDX,  3,  1, LWP_BRE_SUPPORTED,                     NA,  FALSE) \
 FLAG( 81C,  0, EDX,  4,  1, LWP_DME_SUPPORTED,                     NA,  FALSE) \
 FLAG( 81C,  0, EDX,  5,  1, LWP_CNH_SUPPORTED,                     NA,  FALSE) \
 FLAG( 81C,  0, EDX,  6,  1, LWP_RNH_SUPPORTED,                     NA,  FALSE) \
+FLAG( 81C,  0, EDX, 29,  1, LWP_CONT_SUPPORTED,                    NA,  FALSE) \
+FLAG( 81C,  0, EDX, 30,  1, LWP_PTSC_SUPPORTED,                    NA,  FALSE) \
 FLAG( 81C,  0, EDX, 31,  1, LWP_INT_SUPPORTED,                     NA,  FALSE)
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
