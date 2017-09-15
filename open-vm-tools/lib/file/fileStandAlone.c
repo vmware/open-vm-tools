@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -299,19 +299,19 @@ File_SplitName(const char *pathName,  // IN:
    if (volume) {
       *volume = vol;
    } else {
-      free(vol);
+      Posix_Free(vol);
    }
 
    if (directory) {
       *directory = dir;
    } else {
-      free(dir);
+      Posix_Free(dir);
    }
 
    if (base) {
       *base = bas;
    } else {
-      free(bas);
+      Posix_Free(bas);
    }
 }
 
@@ -397,7 +397,7 @@ File_PathJoin(const char *dirName,   // IN:
    newDir = File_StripSlashes(dirName);
 
    result = Unicode_Join(newDir, DIRSEPS, baseName, NULL);
-   free(newDir);
+   Posix_Free(newDir);
 
    return result;
 }
@@ -442,7 +442,7 @@ File_GetPathName(const char *fullPath,  // IN:
    File_SplitName(fullPath, &volume, pathName, baseName);
 
    if (pathName == NULL) {
-      free(volume);
+      Posix_Free(volume);
       return;
    }
 
@@ -453,10 +453,10 @@ File_GetPathName(const char *fullPath,  // IN:
    if (!Unicode_IsEmpty(volume)) {
       char *temp = Unicode_Append(volume, *pathName);
 
-      free(*pathName);
+      Posix_Free(*pathName);
       *pathName = temp;
    }
-   free(volume);
+   Posix_Free(volume);
 
    /*
     * Remove any trailing directory separator characters.
@@ -474,7 +474,7 @@ File_GetPathName(const char *fullPath,  // IN:
    if (curLen < len) {
       char *temp = Unicode_Substr(*pathName, 0, curLen);
 
-      free(*pathName);
+      Posix_Free(*pathName);
       *pathName = temp;
    }
 }
@@ -530,16 +530,16 @@ File_StripSlashes(const char *path)  // IN:
          i--;
       }
 
-      free(dir);
+      Posix_Free(dir);
       dir = Unicode_AllocWithLength(dir2, i, STRING_ENCODING_UTF8);
-      free(dir2);
+      Posix_Free(dir2);
    }
 
    result = Unicode_Join(volume, dir, base, NULL);
 
-   free(volume);
-   free(dir);
-   free(base);
+   Posix_Free(volume);
+   Posix_Free(dir);
+   Posix_Free(base);
 
    return result;
 }
@@ -618,13 +618,13 @@ File_MapPathPrefix(const char *oldPath,       // IN:
           * aren't allowed.
           */
 
-         free(oldPrefix);
-         free(newPrefix);
+         Posix_Free(oldPrefix);
+         Posix_Free(newPrefix);
 
          return newPath;
       }
-      free(oldPrefix);
-      free(newPrefix);
+      Posix_Free(oldPrefix);
+      Posix_Free(newPrefix);
    }
 
    return NULL;
@@ -770,7 +770,7 @@ File_ReplaceExtension(const char *pathName,      // IN:
       }
 
       if (oldBase != base) {
-         free(oldBase);
+         Posix_Free(oldBase);
       }
    }
 
@@ -780,8 +780,8 @@ File_ReplaceExtension(const char *pathName,      // IN:
       result = Unicode_Join(path, DIRSEPS, base, newExtension, NULL);
    }
 
-   free(path);
-   free(base);
+   Posix_Free(path);
+   Posix_Free(base);
 
    return result;
 }

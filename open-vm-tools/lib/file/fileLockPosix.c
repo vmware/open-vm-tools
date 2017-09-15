@@ -518,8 +518,8 @@ FileLock_LockDevice(const char *deviceName)  // IN:
    }
 
 exit:
-   free(lockFileName);
-   free(lockFileLink);
+   Posix_Free(lockFileName);
+   Posix_Free(lockFileLink);
    return status;
 }
 
@@ -562,12 +562,12 @@ FileLock_UnlockDevice(const char *deviceName)  // IN:
    if (ret < 0) {
       Log(LGPFX" Cannot remove lock file %s (%s).\n",
           path, Err_Errno2String(saveErrno));
-      free(path);
+      Posix_Free(path);
 
       return FALSE;
    }
 
-   free(path);
+   Posix_Free(path);
 
    return TRUE;
 }
@@ -1026,7 +1026,7 @@ FileLockValidExecutionID(const char *executionID)  // IN:
    ASSERT(gotProcData);         // We built it; it had better be good
    ASSERT(procPID == filePID);  // This better match what we started with...
 
-   free(procDescriptor);
+   Posix_Free(procDescriptor);
 
    if ((fileCreationTime != 0) &&
        (procCreationTime != 0) &&
@@ -1079,9 +1079,9 @@ FileLockNormalizePath(const char *filePath)  // IN:
    result = (fullPath == NULL) ? NULL : Unicode_Join(fullPath, DIRSEPS,
                                                      fileName, NULL);
 
-   free(fullPath);
-   free(dirName);
-   free(fileName);
+   Posix_Free(fullPath);
+   Posix_Free(dirName);
+   Posix_Free(fileName);
 
    return result;
 }
@@ -1137,7 +1137,7 @@ FileLock_Lock(const char *filePath,          // IN:
       tokenPtr = FileLockIntrinsic(normalizedPath, !readOnly, maxWaitTimeMsec,
                                    &res);
 
-      free(normalizedPath);
+      Posix_Free(normalizedPath);
    }
 
    if (err != NULL) {
@@ -1195,7 +1195,7 @@ FileLock_IsLocked(const char *filePath,  // IN:
    } else {
       isLocked = FileLockIsLocked(normalizedPath, &res);
 
-      free(normalizedPath);
+      Posix_Free(normalizedPath);
    }
 
    if (err != NULL) {

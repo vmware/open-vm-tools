@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -231,7 +231,7 @@ FileIO_Cleanup(FileIODescriptor *fd)  // IN/OUT:
    ASSERT(fd != NULL);
 
    if (fd->fileName) {
-      free(fd->fileName);
+      Posix_Free(fd->fileName);
       fd->fileName = NULL;
    }
 }
@@ -530,7 +530,7 @@ FileIO_CloseAndUnlink(FileIODescriptor *fd)  // IN:
       }
    }
 
-   free(path);
+   Posix_Free(path);
 
    return ret;
 }
@@ -669,7 +669,7 @@ FileIO_AtomicTempPath(const char *path)  // IN:
       return NULL;
    }
    retPath = Unicode_Join(srcPath, "~", NULL);
-   free(srcPath);
+   Posix_Free(srcPath);
 
    return retPath;
 }
@@ -770,7 +770,7 @@ FileIO_AtomicTempFile(FileIODescriptor *fileFD,  // IN:
    }
 #endif
 
-   free(tempPath);
+   Posix_Free(tempPath);
    return FILEIO_SUCCESS;
 
 bail:
@@ -788,7 +788,7 @@ bail:
       ASSERT(ret == 0);
 #endif
    }
-   free(tempPath);
+   Posix_Free(tempPath);
    return status;
 }
 
@@ -932,13 +932,13 @@ FileIO_AtomicUpdateEx(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
       }
 
 swapdone:
-      free(args);
-      free(dirName);
-      free(fileName);
-      free(dstDirName);
-      free(dstFileName);
-      free(currPath);
-      free(newPath);
+      Posix_Free(args);
+      Posix_Free(dirName);
+      Posix_Free(fileName);
+      Posix_Free(dstDirName);
+      Posix_Free(dstFileName);
+      Posix_Free(currPath);
+      Posix_Free(newPath);
 
       errno = savedErrno;
       return ret;
@@ -994,8 +994,8 @@ swapdone:
    currFD->win32 = tmpFD.win32;
 
    FileIO_Cleanup(&tmpFD);
-   free(currPath);
-   free(newPath);
+   Posix_Free(currPath);
+   Posix_Free(newPath);
    errno = savedErrno;
 
    return ret;

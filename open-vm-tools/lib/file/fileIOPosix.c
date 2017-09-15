@@ -691,7 +691,7 @@ ProxyUse(const char *pathName,  // IN:
 
       temp = Unicode_Substr(pathName, 0, index + 1);
       path = Unicode_Append(temp, ".");
-      free(temp);
+      Posix_Free(temp);
    }
 
    /*
@@ -713,7 +713,7 @@ ProxyUse(const char *pathName,  // IN:
       *useProxy = TRUE;
    }
 
-   free(path);
+   Posix_Free(path);
 
    return 0;
 }
@@ -1545,7 +1545,7 @@ FileIODecoalesce(
    if (filePosixOptions.aligned || flags & FILEIO_OPEN_UNBUFFERED) {
       FileIOAligned_Free(coVec->iov_base);
    } else {
-      free(coVec->iov_base);
+      Posix_Free(coVec->iov_base);
    }
 }
 
@@ -2919,7 +2919,7 @@ FileIO_SupportsPrealloc(const char *pathName,  // IN:
          statBuf.f_type == EXT4_SUPER_MAGIC) {
          ret = TRUE;
       }
-      free(fullPath);
+      Posix_Free(fullPath);
    }
 #endif
 

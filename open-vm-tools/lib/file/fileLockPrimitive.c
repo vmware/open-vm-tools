@@ -200,7 +200,7 @@ FileLockRemoveLockingFile(const char *lockDir,   // IN:
       }
    }
 
-   free(path);
+   Posix_Free(path);
 
    return err;
 }
@@ -465,7 +465,7 @@ fixedUp:
 
         Str_Strcpy(buffer, newBuffer, requiredSize);
 
-        free(newBuffer);
+        Posix_Free(newBuffer);
 
         goto fixedUp;
   }
@@ -484,7 +484,7 @@ fixedUp:
    memberValues->lockType = argv[3];
    memberValues->memberName = Unicode_Duplicate(fileName);
 
-   free(path);
+   Posix_Free(path);
 
    return 0;
 
@@ -511,7 +511,7 @@ corrupt:
    }
 
 bail:
-   free(path);
+   Posix_Free(path);
 
    return err;
 }
@@ -650,7 +650,7 @@ FileLockLocationChecksum(const char *path)  // IN:
    }
 
 #if defined(_WIN32)
-   free(value);
+   Posix_Free(value);
 #endif
 
    return Str_SafeAsprintf(NULL, "%u", hash);
@@ -717,7 +717,7 @@ FileLockScanDirectory(const char *lockDir,      // IN:
             goto bail;
          }
 
-        free(fileList[i]);
+        Posix_Free(fileList[i]);
         fileList[i] = NULL;
 
         continue;
@@ -738,7 +738,7 @@ FileLockScanDirectory(const char *lockDir,      // IN:
             }
         }
 
-        free(fileList[i]);
+        Posix_Free(fileList[i]);
         fileList[i] = NULL;
       }
    }
@@ -805,8 +805,8 @@ FileLockScanDirectory(const char *lockDir,      // IN:
                Log(LGPFX" %s discarding %s from %s': %s\n",
                    __FUNCTION__, fileList[i], lockDir, dispose);
 
-               free(dispose);
-               free(memberValues.memberName);
+               Posix_Free(dispose);
+               Posix_Free(memberValues.memberName);
 
                err = FileLockRemoveLockingFile(lockDir, fileList[i]);
                if (err != 0) {
@@ -824,7 +824,7 @@ FileLockScanDirectory(const char *lockDir,      // IN:
       err = (*func)(lockDir, fileList[i], ptr, myValues);
 
       if (ptr == &memberValues) {
-         free(memberValues.memberName);
+         Posix_Free(memberValues.memberName);
       }
 
       if (err != 0) {
@@ -836,8 +836,8 @@ bail:
 
    Util_FreeStringList(fileList, numEntries);
 
-   free(locationChecksum);
-   free(myExecutionID);
+   Posix_Free(locationChecksum);
+   Posix_Free(myExecutionID);
 
    return err;
 }
@@ -917,15 +917,15 @@ FileLockScanner(const char *lockDir,     // IN:
 
                temp = Unicode_Replace(path, index, 1, "M");
                FileDeletionRobust(temp, FALSE);
-               free(temp);
+               Posix_Free(temp);
 
                temp = Unicode_Replace(path, index, 1, "E");
                FileDeletionRobust(temp, FALSE);
-               free(temp);
+               Posix_Free(temp);
 
                FileRemoveDirectoryRobust(path);
 
-               free(path);
+               Posix_Free(path);
 
                remove = TRUE;
             } else {
@@ -959,9 +959,9 @@ FileLockScanner(const char *lockDir,     // IN:
       ptr = myValues->lockList;
       myValues->lockList = ptr->next;
 
-      free(ptr->dirName);
+      Posix_Free(ptr->dirName);
 
-      free(ptr);
+      Posix_Free(ptr);
    }
 
    return err;
@@ -1021,8 +1021,8 @@ FileUnlockIntrinsic(FileLockToken *tokenPtr)  // IN:
             Log(LGPFX" %s failed for '%s': %s\n", __FUNCTION__,
                 tokenPtr->u.portable.lockFilePath, Err_Errno2String(err));
          }
-         free(lockDir);
-         free(tokenPtr->u.portable.lockFilePath);
+         Posix_Free(lockDir);
+         Posix_Free(tokenPtr->u.portable.lockFilePath);
       }
 
       tokenPtr->u.portable.lockFilePath = NULL;  // Just in case...
@@ -1054,10 +1054,10 @@ FileUnlockIntrinsic(FileLockToken *tokenPtr)  // IN:
       }
    }
 
-   free(tokenPtr->pathName);
+   Posix_Free(tokenPtr->pathName);
    tokenPtr->signature = 0;        // Just in case...
    tokenPtr->pathName = NULL;      // Just in case...
-   free(tokenPtr);
+   Posix_Free(tokenPtr);
 
    return err;
 }
@@ -1147,7 +1147,7 @@ FileLockWaitForPossession(const char *lockDir,       // IN:
          }
       }
 
-      free(path);
+      Posix_Free(path);
    }
 
    return err;
@@ -1332,11 +1332,11 @@ FileLockCreateEntryDirectory(const char *lockDir,    // IN:
 
       temp = Unicode_Format("D%05u%s", randomNumber, FILELOCK_SUFFIX);
       *entryDirectory = Unicode_Join(lockDir, DIRSEPS, temp, NULL);
-      free(temp);
+      Posix_Free(temp);
 
       temp = Unicode_Format("E%05u%s", randomNumber, FILELOCK_SUFFIX);
       *entryFilePath = Unicode_Join(lockDir, DIRSEPS, temp, NULL);
-      free(temp);
+      Posix_Free(temp);
 
       *memberFilePath = Unicode_Join(lockDir, DIRSEPS, *memberName, NULL);
 
@@ -1378,10 +1378,10 @@ FileLockCreateEntryDirectory(const char *lockDir,    // IN:
           }
       }
 
-      free(*entryDirectory);
-      free(*entryFilePath);
-      free(*memberFilePath);
-      free(*memberName);
+      Posix_Free(*entryDirectory);
+      Posix_Free(*entryFilePath);
+      Posix_Free(*memberFilePath);
+      Posix_Free(*memberName);
 
       *entryDirectory = NULL;
       *entryFilePath = NULL;
@@ -1390,10 +1390,10 @@ FileLockCreateEntryDirectory(const char *lockDir,    // IN:
    }
 
    if (err != 0) {
-      free(*entryDirectory);
-      free(*entryFilePath);
-      free(*memberFilePath);
-      free(*memberName);
+      Posix_Free(*entryDirectory);
+      Posix_Free(*entryFilePath);
+      Posix_Free(*memberFilePath);
+      Posix_Free(*memberName);
 
       *entryDirectory = NULL;
       *entryFilePath = NULL;
@@ -1597,9 +1597,9 @@ FileLockIntrinsicMandatory(const char *pathName,   // IN:
       } else {
          *err = FileMapErrorToErrno(__FUNCTION__, errnum);
       }
-      free(tokenPtr->pathName);
+      Posix_Free(tokenPtr->pathName);
       ASSERT(!FileIO_IsValid(&tokenPtr->u.mandatory.lockFd));
-      free(tokenPtr);
+      Posix_Free(tokenPtr);
 
       return NULL;
    }
@@ -1769,8 +1769,8 @@ FileLockIntrinsicPortable(const char *pathName,   // IN:
 
 bail:
 
-   free(entryDirectory);
-   free(entryFilePath);
+   Posix_Free(entryDirectory);
+   Posix_Free(entryFilePath);
 
    if (*err == 0) {
       tokenPtr = Util_SafeMalloc(sizeof *tokenPtr);
@@ -1780,7 +1780,7 @@ bail:
       tokenPtr->pathName = Unicode_Duplicate(pathName);
       tokenPtr->u.portable.lockFilePath = memberFilePath;
    } else {
-      free(memberFilePath);
+      Posix_Free(memberFilePath);
       tokenPtr = NULL;
 
       if (*err == EAGAIN) {
@@ -1864,12 +1864,12 @@ FileLockIntrinsic(const char *pathName,    // IN:
 
       tokenPtr = FileLockIntrinsicPortable(pathName, lockBase, &myValues, err);
 
-      free(myValues.memberName);
-      free(myValues.locationChecksum);
-      free(myValues.executionID);
+      Posix_Free(myValues.memberName);
+      Posix_Free(myValues.locationChecksum);
+      Posix_Free(myValues.executionID);
    }
 
-   free(lockBase);
+   Posix_Free(lockBase);
 
    return tokenPtr;
 }
@@ -2031,7 +2031,7 @@ FileLockIsLocked(const char *pathName,  // IN:
       isLocked = FileLockIsLockedPortable(lockBase, err);
    }
 
-   free(lockBase);
+   Posix_Free(lockBase);
 
    return isLocked;
 }

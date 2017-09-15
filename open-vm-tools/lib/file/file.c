@@ -483,7 +483,7 @@ GetOldMachineID(void)
       p = Util_SafeStrdup(encodedMachineID);
 
       if (Atomic_ReadIfEqualWritePtr(&atomic, NULL, p)) {
-         free(p);
+         Posix_Free(p);
       }
 
       machineID = Atomic_ReadPtr(&atomic);
@@ -552,7 +552,7 @@ FileLockGetMachineID(void)
          p = Util_SafeStrdup(GetOldMachineID());
       } else {
          p = Str_SafeAsprintf(NULL, "uuid=%s", q);
-         free(q);
+         Posix_Free(q);
 
          /* Surpress any whitespace. */
          for (q = p; *q; q++) {
@@ -563,7 +563,7 @@ FileLockGetMachineID(void)
       }
 
       if (Atomic_ReadIfEqualWritePtr(&atomic, NULL, p)) {
-         free(p);
+         Posix_Free(p);
       }
 
       machineID = Atomic_ReadPtr(&atomic);
@@ -610,7 +610,7 @@ OldMachineIDMatch(const char *first,   // IN:
       }
    }
    result = Base64_Decode(q, rawMachineID_1, sizeof rawMachineID_1, &len);
-   free(q);
+   Posix_Free(q);
 
    if ((result == FALSE) || (len != 12)) {
       Warning("%s: unexpected decode problem #1 (%s)\n", __FUNCTION__,
@@ -625,7 +625,7 @@ OldMachineIDMatch(const char *first,   // IN:
       }
    }
    result = Base64_Decode(q, rawMachineID_2, sizeof rawMachineID_2, &len);
-   free(q);
+   Posix_Free(q);
 
    if ((result == FALSE) || (len != 12)) {
       Warning("%s: unexpected decode problem #2 (%s)\n", __FUNCTION__,
@@ -944,7 +944,7 @@ FileCopyTree(const char *srcName,     // IN:
             break;
          }
 
-         free(dstFilename);
+         Posix_Free(dstFilename);
       } else {
          err = Err_Errno();
          Msg_Append(MSGID(File.CopyTree.stat.failure)
@@ -953,7 +953,7 @@ FileCopyTree(const char *srcName,     // IN:
          Err_SetErrno(err);
       }
 
-      free(srcFilename);
+      Posix_Free(srcFilename);
    }
 
    Util_FreeStringList(fileList, numFiles);
@@ -1323,7 +1323,7 @@ File_MoveTree(const char *srcName,    // IN:
                   "There is not enough space in the file system to "
                   "move the directory tree. Free %s and try again.",
                   spaceStr);
-            free(spaceStr);
+            Posix_Free(spaceStr);
             return FALSE;
          }
       }
@@ -1497,7 +1497,7 @@ File_GetSizeEx(const char *pathName)  // IN:
       char *fileName = File_PathJoin(pathName, fileList[i]);
       int64 fileSize = File_GetSizeEx(fileName);
 
-      free(fileName);
+      Posix_Free(fileName);
 
       if (fileSize != -1) {
          totalSize += fileSize;
@@ -1590,7 +1590,7 @@ File_CreateDirectoryHierarchyEx(const char *pathName,   // IN:
 
    index = Unicode_LengthInCodePoints(volume);
 
-   free(volume);
+   Posix_Free(volume);
 
    if (index >= length) {
       return File_IsDirectory(pathName);
@@ -1651,7 +1651,7 @@ File_CreateDirectoryHierarchyEx(const char *pathName,   // IN:
       }
 #endif
 
-      free(temp);
+      Posix_Free(temp);
 
       if (failed) {
          return FALSE;
@@ -1811,10 +1811,10 @@ FileDeleteDirectoryTree(const char *pathName,  // IN: directory to delete
          sawFileError = TRUE;
       }
 
-      free(curPath);
+      Posix_Free(curPath);
    }
 
-   free(base);
+   Posix_Free(base);
 
    if (!contentOnly) {
       /*
@@ -1939,7 +1939,7 @@ File_FindFileInSearchPath(const char *fileIn,      // IN:
       goto done;
    }
 
-   free(cur);
+   Posix_Free(cur);
    cur = NULL;
 
    if (full) {
@@ -1986,7 +1986,7 @@ File_FindFileInSearchPath(const char *fileIn,      // IN:
          break;
       }
 
-      free(cur);
+      Posix_Free(cur);
       cur = NULL;
 
       tok = strtok_r(NULL, FILE_SEARCHPATHTOKEN, &saveptr);
@@ -2004,14 +2004,14 @@ done:
          }
       }
 
-      free(cur);
+      Posix_Free(cur);
    } else {
       found = FALSE;
    }
 
-   free(sp);
-   free(dir);
-   free(file);
+   Posix_Free(sp);
+   Posix_Free(dir);
+   Posix_Free(file);
 
    return found;
 }
@@ -2232,7 +2232,7 @@ FileRotateByRename(const char *fileName,  // IN: full path to file
       }
 
       ASSERT(dst != fileName);
-      free(dst);
+      Posix_Free(dst);
       dst = src;
    }
 }
@@ -2348,7 +2348,7 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
          fileNumbers[nFound++] = curNr;
       }
 
-      free(fileList[i]);
+      Posix_Free(fileList[i]);
    }
 
    if (nFound > 0) {
@@ -2372,7 +2372,7 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
    }
 
    if (newFilePath == NULL || result == -1) {
-      free(tmp);
+      Posix_Free(tmp);
    } else {
       *newFilePath = tmp;
    }
@@ -2387,17 +2387,17 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
             Log(LGPFX" %s: failed to remove %s: %s\n", __FUNCTION__, tmp,
                 Msg_ErrString());
          }
-         free(tmp);
+         Posix_Free(tmp);
       }
    }
 
   cleanup:
-   free(fileNumbers);
-   free(fileList);
-   free(fmtString);
-   free(baseDir);
-   free(baseName);
-   free(fullPathNoExt);
+   Posix_Free(fileNumbers);
+   Posix_Free(fileList);
+   Posix_Free(fmtString);
+   Posix_Free(baseDir);
+   Posix_Free(baseName);
+   Posix_Free(fullPathNoExt);
 }
 
 
@@ -2454,7 +2454,7 @@ File_Rotate(const char *fileName,  // IN: original file
       FileRotateByRename(fileName, baseName, ext, n, newFileName);
    }
 
-   free(baseName);
+   Posix_Free(baseName);
 }
 
 
@@ -2532,8 +2532,8 @@ File_ContainSymLink(const char *pathName)  // IN:
       }
    }
 
-   free(path);
-   free(base);
+   Posix_Free(path);
+   Posix_Free(base);
 
    return retValue;
 }
