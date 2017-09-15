@@ -423,10 +423,17 @@ ToolsCore_InitVsockFamily(ToolsServiceState *state)
    int vsockDev = -1;
 
    ASSERT(state);
-   ASSERT(state->ctx.rpc);
 
    state->vsockDev = -1;
    state->vsockFamily = -1;
+
+   if (!state->ctx.rpc) {
+      /*
+       * Nothing more to do when there is no RPC channel.
+       */
+      g_debug("No RPC channel; skipping reference to vSocket family.\n");
+      return TRUE;
+   }
 
    switch (RpcChannel_GetType(state->ctx.rpc)) {
    case RPCCHANNEL_TYPE_INACTIVE:
@@ -467,7 +474,6 @@ void
 ToolsCore_ReleaseVsockFamily(ToolsServiceState *state)
 {
    ASSERT(state);
-   ASSERT(state->ctx.rpc);
 
    if (state->vsockFamily >= 0) {
       ASSERT(state->vsockDev >= 0);
