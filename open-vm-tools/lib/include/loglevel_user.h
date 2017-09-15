@@ -323,7 +323,8 @@
    LOGLEVEL_VAR(tarReader),\
    LOGLEVEL_VAR(nvramMgr), \
    LOGLEVEL_VAR(hbr), \
-   LOGLEVEL_VAR(vvtd)
+   LOGLEVEL_VAR(vvtd), \
+   LOGLEVEL_VAR(amdIommu)
 
    /* end of list */
 
