@@ -4,23 +4,29 @@ installDir=$(dirname $(readlink -f $0))
 scriptsDir=$installDir/../scripts
 configDir=$installDir/../config
 
-prevCafenvAppconfig="$configDir/_previous_/cafenv-appconfig"
-if [ ! -f "$prevCafenvAppconfig" ]; then
-	echo "The backup file must exist! - $prevCafenvAppconfig"
-	exit 1
-fi
-mv -f "$prevCafenvAppconfig" "$configDir"
+prevCafenvConfig="$configDir/_previous_/cafenv.config"
+if [ -f "$prevCafenvConfig" ]; then
+   echo "Upgrading from a really old version of CAF - $prevCafenvConfig"
+   . $prevCafenvConfig
 
-#Temporary until we remove amqp_username/password
-prevCommAppconfig="$configDir/_previous_/CommAmqpListener-appconfig"
-if [ ! -f "$prevCommAppconfig" ]; then
-	echo "The backup file must exist! - $prevCommAppconfig"
-	exit 1
-fi
-mv -f "$prevCommAppconfig" "$configDir"
+   inputDir=$(echo "$CAF_INPUT_DIR" | sed 's:/vmware-caf/pme/data/input::')
+   outputDir=$(echo "$CAF_OUTPUT_DIR" | sed 's:/vmware-caf/pme/data/output::')
+   libDir=$(echo "$CAF_LIB_DIR" | sed 's:/vmware-caf/pme/lib::')
+   binDir=$(echo "$CAF_BIN_DIR" | sed 's:/vmware-caf/pme/bin::')
+   $installDir/install.sh -L -b "$CAF_BROKER_ADDRESS" -i "$inputDir" -o "$outputDir" -l "$libDir" -B "$binDir"
 
-#Remove the now empty backup directory
-rmdir "$configDir"/_previous_
+   rm -f "$prevCafenvConfig"
+else
+   prevCafenvAppconfig="$configDir/_previous_/cafenv-appconfig"
+   if [ ! -f "$prevCafenvAppconfig" ]; then
+      echo "The backup file must exist! - $prevCafenvAppconfig"
+      exit 1
+   fi
+   mv -f "$prevCafenvAppconfig" "$configDir"
+fi
+
+#Remove the backup directory
+rm -rf "$configDir"/_previous_
 
 . $scriptsDir/caf-common
 sourceCafenv "$configDir"
@@ -33,8 +39,8 @@ sourceCafenv "$configDir"
 #"$dir"/restartServices.sh
 
 if [ ! -d $CAF_LIB_DIR ]; then
-	echo "CAF_LIB_DIR not found - $CAF_LIB_DIR"
-	exit 1
+   echo "CAF_LIB_DIR not found - $CAF_LIB_DIR"
+   exit 1
 fi
 
 cd $CAF_LIB_DIR
