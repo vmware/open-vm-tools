@@ -1332,6 +1332,102 @@ StrUtil_ReplaceAll(const char *orig, // IN
 /*
  *-----------------------------------------------------------------------------
  *
+ * StrUtilStrcmp --
+ *
+ *      Wraps around the Str_Strcmp macro to provide a function that we
+ *      can take the pointer for.
+ *
+ * Results:
+ *      Same as Str_Strcmp.
+ *
+ * Side effects:
+ *      Same as Str_Strcmp.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+StrUtilStrcmp(const char *s1, const char *s2)
+{
+   return Str_Strcmp(s1, s2);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtilStrncmp --
+ *
+ *      Wraps around the Str_Strncmp macro to provide a function that we
+ *      can take the pointer for.
+ *
+ * Results:
+ *      Same as Str_Strncmp.
+ *
+ * Side effects:
+ *      Same as Str_Strncmp.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+StrUtilStrncmp(const char *s1, const char *s2, size_t n)
+{
+   return Str_Strncmp(s1, s2, n);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtilStrcasecmp --
+ *
+ *      Wraps around the Str_Strcasecmp macro to provide a function that we
+ *      can take the pointer for.
+ *
+ * Results:
+ *      Same as Str_Strcasecmp.
+ *
+ * Side effects:
+ *      Same as Str_Strcasecmp.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+StrUtilStrcasecmp(const char *s1, const char *s2)
+{
+   return Str_Strcasecmp(s1, s2);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtilStrncasecmp --
+ *
+ *      Wraps around the Str_Strncasecmp macro to provide a function that we
+ *      can take the pointer for.
+ *
+ * Results:
+ *      Same as Str_Strncasecmp.
+ *
+ * Side effects:
+ *      Same as Str_Strncasecmp.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+StrUtilStrncasecmp(const char *s1, const char *s2, size_t n)
+{
+   return Str_Strncasecmp(s1, s2, n);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * StrUtil_GetNextItem --
  *
  *      Extract the next item from a list of items delimited by delim. It
@@ -1373,13 +1469,102 @@ StrUtil_GetNextItem(char **list, // IN/OUT:
 /*
  *-----------------------------------------------------------------------------
  *
- * StrUtil_HasListItem --
+ * StrUtil_GetLastItem --
+ *
+ *      Extract the last item from a list of items delimited by delim.
+ *
+ * Results:
+ *      Returns a pointer to the last item and makes list point to the rest of
+ *      the list or NULL if list was NULL or there was only one item.
+ *
+ * Side effects:
+ *      The last delimiter is changed to '\0'.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+char*
+StrUtil_GetLastItem(char **list, // IN/OUT:
+                    char delim)  // IN:
+{
+   char *token = *list;
+   char *foundDelim;
+
+   if (*list == NULL) {
+      return NULL;
+   }
+
+   foundDelim = strrchr(*list, delim);
+   if (foundDelim != NULL) {
+      foundDelim[0] = '\0';
+      token = foundDelim + 1;
+   } else {
+      *list = NULL;
+   }
+
+   return token;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtilHasListItem --
  *
  *      Checks whether an item is a part of a list of tokens
  *      separated by a delimiter.
  *
- *      Note: Any changes to this function should be accompanied with
- *      changes to StrUtil_HasListItemCase.
+ * Results:
+ *      Whether the item exists in the list.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+StrUtilHasListItem(char const *list,                               // IN:
+                   char delim,                                     // IN:
+                   char const *item,                               // IN:
+                   int (*ncmp)(char const *, char const*, size_t)) // IN:
+{
+   char *foundDelim;
+   int itemLen = strlen(item);
+
+   if (list == NULL) {
+      return FALSE;
+   }
+
+   do {
+      int tokenLen;
+
+      foundDelim = strchr(list, delim);
+      if (foundDelim == NULL) { // either single or last element
+         tokenLen = strlen(list);
+      } else { // ! last element
+         tokenLen = foundDelim - list;
+      }
+
+      if (itemLen == tokenLen && ncmp(item, list, itemLen) == 0) {
+         return TRUE;
+      } else if (foundDelim != NULL) {
+         // ! last element
+         list = foundDelim + 1;
+      }
+   } while (foundDelim != NULL);
+
+   return FALSE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtil_HasListItem --
+ *
+ *      Checks whether an item is a part of a list of tokens
+ *      separated by a delimiter.
  *
  * Results:
  *      Whether the item exists in the list.
@@ -1395,33 +1580,8 @@ StrUtil_HasListItem(char const *list,   // IN:
                     char delim,         // IN:
                     char const *item)   // IN:
 {
-   char *foundDelim;
-
-   if (list == NULL) {
-      return FALSE;
-   }
-
-   do {
-      foundDelim = strchr(list, delim);
-
-      if (foundDelim == NULL) { // either single or last element
-         if (Str_Strcmp(list, item) == 0) {
-            return TRUE;
-         }
-
-         break;
-      } else { // ! last element
-         if (strlen(item) == (foundDelim - list) &&
-             Str_Strncmp(list, item, foundDelim - list) == 0) {
-            // check if whole token is the same as item
-            return TRUE;
-         }
-
-         list = foundDelim + 1;
-      }
-   } while (foundDelim != NULL);
-
-   return FALSE;
+   return StrUtilHasListItem(list, delim, item,
+                             &StrUtilStrncmp);
 }
 
 
@@ -1432,9 +1592,6 @@ StrUtil_HasListItem(char const *list,   // IN:
  *
  *      Checks whether an item is a part of a list of tokens
  *      separated by a delimiter. Case insensitive.
- *
- *      Note: Any changes to this function should be accompanied with
- *      changes to StrUtil_HasListItem.
  *
  * Results:
  *      Whether the item exists in the list.
@@ -1450,33 +1607,8 @@ StrUtil_HasListItemCase(char const *list,   // IN:
                         char delim,         // IN:
                         char const *item)   // IN:
 {
-   char *foundDelim;
-
-   if (list == NULL) {
-      return FALSE;
-   }
-
-   do {
-      foundDelim = strchr(list, delim);
-
-      if (foundDelim == NULL) { // either single or last element
-         if (Str_Strcasecmp(list, item) == 0) {
-            return TRUE;
-         }
-
-         break;
-      } else { // ! last element
-         if (strlen(item) == (foundDelim - list) &&
-             Str_Strncasecmp(list, item, foundDelim - list) == 0) {
-            // check if whole token is the same as item
-            return TRUE;
-         }
-
-         list = foundDelim + 1;
-      }
-   } while (foundDelim != NULL);
-
-   return FALSE;
+   return StrUtilHasListItem(list, delim, item,
+                             &StrUtilStrncasecmp);
 }
 
 
@@ -1512,13 +1644,10 @@ StrUtil_AppendListItem(char const *list,  // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * StrUtil_RemoveListItem --
+ * StrUtilRemoveListItem --
  *
  *      Removes first occurence of an item from a list of tokens separated by
  *      a delimiter.
- *
- *      Note: Any changes to this function should be accompanied with
- *      changes to StrUtil_RemoveListItemCase.
  *
  * Results:
  *      The list is modified in-place and the item is removed.
@@ -1529,17 +1658,18 @@ StrUtil_AppendListItem(char const *list,  // IN:
  *-----------------------------------------------------------------------------
  */
 
-void
-StrUtil_RemoveListItem(char * const list,  // IN/OUT:
-                       char delim,         // IN:
-                       char const *item)   // IN:
+static void
+StrUtilRemoveListItem(char * const list,                    // IN/OUT:
+                      char delim,                           // IN:
+                      char const *item,                     // IN:
+                      int (*cmp)(char const*, char const*)) // IN:
 {
    char *tok;
    char *work = list;
    int maxSize = strlen(list) + 1;
 
    while ((tok = StrUtil_GetNextItem(&work, delim)) != NULL) {
-      if (Str_Strcmp(tok, item) == 0) { // found the item
+      if (cmp(tok, item) == 0) { // found the item
          if (work != NULL) { // in the middle of the list
             // overwrite it with the rest of the list
             Str_Strcpy(tok, work, maxSize);
@@ -1561,13 +1691,36 @@ StrUtil_RemoveListItem(char * const list,  // IN/OUT:
 /*
  *-----------------------------------------------------------------------------
  *
+ * StrUtil_RemoveListItem --
+ *
+ *      Removes first occurence of an item from a list of tokens separated by
+ *      a delimiter.
+ *
+ * Results:
+ *      The list is modified in-place and the item is removed.
+ *
+ * Side effects:
+ *      See above.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+StrUtil_RemoveListItem(char * const list,  // IN/OUT:
+                       char delim,         // IN:
+                       char const *item)   // IN:
+{
+   StrUtilRemoveListItem(list, delim, item, &StrUtilStrcmp);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * StrUtil_RemoveListItemCase --
  *
  *      Remove first occurence of an item from a list of tokens separated by a
  *      delimiter. Case insensitive.
- *
- *      Note: Any changes to this function should be accompanied with
- *      changes to StrUtil_RemoveListItem.
  *
  * Results:
  *      The list is modified in-place and the item is removed.
@@ -1583,191 +1736,6 @@ StrUtil_RemoveListItemCase(char * const list,  // IN/OUT:
                            char delim,         // IN:
                            char const *item)   // IN:
 {
-   char *tok;
-   char *work = list;
-   int maxSize = strlen(list) + 1;
-
-   while ((tok = StrUtil_GetNextItem(&work, delim)) != NULL) {
-      if (Str_Strcasecmp(tok, item) == 0) { // found the item
-         if (work != NULL) { // in the middle of the list
-            // overwrite it with the rest of the list
-            Str_Strcpy(tok, work, maxSize);
-         } else if (tok == list) {
-            tok[0] = '\0'; // only item in the list
-         } else {
-            tok[-1] = '\0'; // or the last element in the list
-         }
-
-         return;
-      } else if (work != NULL) {
-         // restore delimiter that was replaced by Str_GetNextItem
-         work[-1] = delim;
-      }
-   }
+   StrUtilRemoveListItem(list, delim, item, &StrUtilStrcasecmp);
 }
 
-
-//#define STRUTIL_UNITTESTS
-//#define STRUTIL_UNITTESTS_STANDALONE
-
-#ifdef STRUTIL_UNITTESTS_STANDALONE
-#define STRUTIL_UNITTESTS
-#endif // } STRUTIL_UNITTESTS_STANDALONE
-
-#ifdef STRUTIL_UNITTESTS
-
-#define FAIL(fmt, ...) \
-   do { \
-      fprintf(stderr, "FAIL: " fmt "\n", ##__VA_ARGS__); \
-      exit(1); \
-   } while (0)
-
-#define REPLACE_TEST(_a, _b, _c, _x) \
-   do { \
-      char *s = StrUtil_ReplaceAll(_a, _b, _c); \
-      if (strcmp(_x, s) != 0) { \
-         fprintf(stderr, "Got: %s\n", s); \
-         FAIL("Failed ReplaceAll('%s' '%s' '%s') = '%s'", _a, _b, _c, _x); \
-      } \
-      free(s); \
-   } while (0)
-
-#define EQ_STRING(s1, s2) \
-   (!(strcmp((s1), (s2)) && \
-      fprintf(stderr, "Got '%s', expected '%s'\n", (s1), (s2))))
-
-void
-StrUtil_UnitTests(void)
-{
-   REPLACE_TEST("", "a", "b", "");
-   REPLACE_TEST("a", "a", "a", "a");
-
-   REPLACE_TEST("a", "a", "b", "b");
-   REPLACE_TEST("/a", "a", "b", "/b");
-   REPLACE_TEST("a/", "a", "b", "b/");
-
-   REPLACE_TEST("a/a", "a", "b", "b/b");
-   REPLACE_TEST("/a/a", "a", "b", "/b/b");
-   REPLACE_TEST("/a/a/", "a", "b", "/b/b/");
-
-   REPLACE_TEST("a", "a", "long", "long");
-   REPLACE_TEST("a/", "a", "long", "long/");
-   REPLACE_TEST("/a", "a", "long", "/long");
-
-   REPLACE_TEST("long", "long", "a", "a");
-   REPLACE_TEST("long/", "long", "a", "a/");
-   REPLACE_TEST("/long", "long", "a", "/a");
-
-   REPLACE_TEST("a", "a", "", "");
-   REPLACE_TEST("aaa", "a", "", "");
-
-   REPLACE_TEST("a", "not_found", "b", "a");
-
-   {
-      char list[] = "a,b,c,d", *tok, *tmp = list;
-
-      tok = StrUtil_GetNextItem(&tmp, ',');
-      if (!(EQ_STRING(tok, "a") && EQ_STRING(tmp, "b,c,d"))) {
-         FAIL("StrUtil_GetNextItem('a,b,c,d', ',') != ('a', 'b,c,d')");
-      }
-
-      tok = StrUtil_GetNextItem(&tmp, ',');
-      if (!(EQ_STRING(tok, "b") && EQ_STRING(tmp, "c,d"))) {
-         FAIL("StrUtil_GetNextItem('b,c,d', ',') != ('b', 'c,d')");
-      }
-
-      tok = StrUtil_GetNextItem(&tmp, ':');
-      if (!(EQ_STRING(tok, "c,d") && tmp == NULL)) {
-         FAIL("StrUtil_GetNextItem('c,d', ':') != ('c,d', NULL)");
-      }
-   }
-
-   {
-      if (StrUtil_HasListItem("abc,def", ',', "de")) {
-         FAIL("StrUtil_HasListItem('abc,def', ',', 'de') == TRUE");
-      }
-
-      if (!StrUtil_HasListItem("a,b,c", ',', "b")) {
-         FAIL("StrUtil_HasListItem('a,b,c', ',', 'b') != TRUE");
-      }
-
-      if (StrUtil_HasListItem("a,b,c", ',', "a,b")) {
-         FAIL("StrUtil_HasListItem('a,b,c', ',', 'a,b') == TRUE");
-      }
-
-      if (!StrUtil_HasListItemCase("a,B,Cd,e", ',', "cd")) {
-         FAIL("StrUtil_HasListItemCase('a,B,Cd,e', ',', 'cd') != TRUE");
-      }
-   }
-
-   {
-      char *list = "a,b", *newList;
-
-      newList = StrUtil_AppendListItem(list, ',', "c");
-      if (!EQ_STRING(newList, "a,b,c")) {
-         FAIL("StrUtil_AppendListItem('a,b', ',', 'c') != 'a,b,c'");
-      }
-      list = newList;
-
-      newList = StrUtil_AppendListItem(list, ',', "def");
-      if (!EQ_STRING(newList, "a,b,c,def")) {
-         FAIL("StrUtil_AppendListItem('a,b,c', ',', 'def') != 'a,b,c,def'");
-      }
-      free(list); list = newList;
-   }
-
-   {
-      char list[] = "a,b,c,def,a,A,D";
-      StrUtil_RemoveListItem(list, ',', "A");
-      if (!EQ_STRING(list, "a,b,c,def,a,D")) {
-         FAIL("RemoveListItem('a,b,c,def,a,A,D', ',', 'A') != 'a,b,c,def,a,D'");
-      }
-
-      StrUtil_RemoveListItemCase(list, ',', "A");
-      if (!EQ_STRING(list, "b,c,def,a,D")) {
-         FAIL("RemoveListItemCase('a,b,c,def,a,D', ',', 'A') != 'b,c,def,a,D'");
-      }
-
-      StrUtil_RemoveListItem(list, ',', "def");
-      if (!EQ_STRING(list, "b,c,a,D")) {
-         FAIL("RemoveListItem('b,c,def,a,D', ',', 'def') != 'b,c,a,D'");
-      }
-
-      StrUtil_RemoveListItemCase(list, ',', "B,C,A,d");
-      if (!EQ_STRING(list, "b,c,a,D")) {
-         FAIL("RemoveListItemCase('b,c,a,D', ',', 'B,C,A,d') != 'b,c,a,D'");
-      }
-
-      StrUtil_RemoveListItemCase(list, ':', "B,C,A,d");
-      if (!EQ_STRING(list, "")) {
-         FAIL("RemoveListItemCase('b,c,a,D', ',', 'B,C,A,d') != ''");
-      }
-   }
-}
-
-#ifdef STRUTIL_UNITTESTS_STANDALONE
-
-void
-Panic_Panic(const char *fmt,
-            va_list args)
-{
-   char buf[1024];
-
-   Str_Vsnprintf(buf, sizeof buf, fmt, args);
-   fputs(buf, stderr);
-   exit(1);
-}
-
-
-int
-main(int argc,
-     char *argv[])
-{
-   StrUtil_UnitTests();
-
-   return 0;
-}
-
-#endif // } STRUTIL_UNITTESTS_STANDALONE
-
-#endif // } STRUTIL_UNITTESTS

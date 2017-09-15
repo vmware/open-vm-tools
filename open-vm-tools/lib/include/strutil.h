@@ -77,6 +77,8 @@ char *StrUtil_ReplaceAll(const char *orig, const char *what, const char *with);
 
 char *StrUtil_GetNextItem(char **list, char delim);
 
+char *StrUtil_GetLastItem(char **list, char delim);
+
 Bool StrUtil_HasListItem(char const *list, char delim, char const *item);
 
 Bool StrUtil_HasListItemCase(char const *list, char delim, char const *item);
