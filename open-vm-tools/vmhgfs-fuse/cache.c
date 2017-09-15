@@ -126,7 +126,6 @@ HgfsGetAttrCache(const char* path,   //IN: Path of file or directory
       }
    }
 
-out:
    pthread_mutex_unlock(&HgfsAttrCacheLock);
    return res;
 }
