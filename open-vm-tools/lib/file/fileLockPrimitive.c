@@ -148,6 +148,11 @@ FileLockSleeper(LockValues *myValues)  // IN/OUT:
       maxSleepTimeMsec = MIN(ageMsec / 10, 2000);
    }
 
+   /*
+    * Randomize the time slept. This will prevent any potential cadence issues
+    * (thundering herds).
+    */
+
    (void) FileSleeper(maxSleepTimeMsec / 10, maxSleepTimeMsec);
 
    return 0;
