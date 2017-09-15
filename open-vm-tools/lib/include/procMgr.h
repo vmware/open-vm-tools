@@ -142,7 +142,7 @@ Bool ProcMgr_ExecSync(char const *cmd,       // UTF-8
                       ProcMgr_ProcArgs *userArgs);
 ProcMgr_AsyncProc *ProcMgr_ExecAsync(char const *cmd,     // UTF-8
                                      ProcMgr_ProcArgs *userArgs);
-#if defined(linux)
+#if defined(__linux__)
 Bool ProcMgr_ExecSyncWithExitCode(char const *cmd,
                                   ProcMgr_ProcArgs *userArgs,
                                   Bool *validExitCode,

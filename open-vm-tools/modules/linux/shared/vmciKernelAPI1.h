@@ -60,7 +60,7 @@ extern "C" {
 
 /* VMCI Device Usage API. */
 
-#if defined(linux) && !defined(VMKERNEL)
+#if defined(__linux__) && !defined(VMKERNEL)
 #define vmci_device_get(_a, _b, _c, _d) 1
 #define vmci_device_release(_x)
 #else // !linux
@@ -93,7 +93,7 @@ int vmci_datagram_send(VMCIDatagram *msg);
 
 VMCIId vmci_get_context_id(void);
 
-#if defined(linux) && !defined(VMKERNEL)
+#if defined(__linux__) && !defined(VMKERNEL)
 /* Returned value is a bool, 0 for false, 1 for true. */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)
 int vmci_is_context_owner(VMCIId contextID, kuid_t uid);
@@ -115,7 +115,7 @@ typedef void (*VMCI_EventCB)(VMCIId subID, VMCI_EventData *ed,
                              void *clientData);
 
 int vmci_event_subscribe(VMCI_Event event,
-#if !defined(linux) || defined(VMKERNEL)
+#if !defined(__linux__) || defined(VMKERNEL)
                          uint32 flags,
 #endif // !linux || VMKERNEL
                          VMCI_EventCB callback,

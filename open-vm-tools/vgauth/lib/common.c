@@ -302,7 +302,7 @@ VGAuth_InstallClient(VGAuthContext *ctx,
 
 #ifdef _WIN32
    return VGAUTH_E_OK;
-#elif defined(linux)
+#elif defined(__linux__)
    {
    gchar *fileName;
    gchar *lowAppName;
@@ -425,7 +425,7 @@ VGAuth_UninstallClient(VGAuthContext *ctx,
 
 #ifdef _WIN32
    return VGAUTH_E_OK;
-#elif defined(linux)
+#elif defined(__linux__)
    {
    gchar *fileName;
    gchar *lowAppName;

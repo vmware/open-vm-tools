@@ -54,7 +54,7 @@ ToolsDaemonTcloReceiveVixCommand(RpcInData *data);
 gboolean
 FoundryToolsDaemonRunProgram(RpcInData *data);
 
-#if defined(linux) || defined(_WIN32)
+#if defined(__linux__) || defined(_WIN32)
 gboolean
 ToolsDaemonTcloSyncDriverFreeze(RpcInData *data);
 

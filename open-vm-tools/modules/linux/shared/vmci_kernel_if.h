@@ -27,7 +27,7 @@
 #ifndef _VMCI_KERNEL_IF_H_
 #define _VMCI_KERNEL_IF_H_
 
-#if !defined(linux) && !defined(_WIN32) && !defined(__APPLE__) && \
+#if !defined(__linux__) && !defined(_WIN32) && !defined(__APPLE__) && \
     !defined(VMKERNEL)
 #  error "Platform not supported."
 #endif
@@ -38,7 +38,7 @@
 #define UNREFERENCED_PARAMETER(P)
 #endif
 
-#if defined(linux) && !defined(VMKERNEL)
+#if defined(__linux__) && !defined(VMKERNEL)
 #  include "driver-config.h"
 #  include "compat_cred.h"
 #  include "compat_module.h"
@@ -86,7 +86,7 @@ extern "C" {
 
 #if defined(VMKERNEL)
 #  define VMCI_EXPORT_SYMBOL(_SYMBOL)  VMK_MODULE_EXPORT_SYMBOL(_SYMBOL);
-#elif defined(linux)
+#elif defined(__linux__)
 #  define VMCI_EXPORT_SYMBOL(_symbol)  EXPORT_SYMBOL(_symbol);
 #elif defined(__APPLE__)
 #  define VMCI_EXPORT_SYMBOL(_symbol)  __attribute__((visibility("default")))
@@ -102,7 +102,7 @@ extern "C" {
   typedef World_ID VMCIHostVmID;
   typedef uint32 VMCIHostUser;
   typedef PPN *VMCIQPGuestMem;
-#elif defined(linux)
+#elif defined(__linux__)
   typedef spinlock_t VMCILock;
   typedef unsigned long VMCILockFlags;
   typedef wait_queue_head_t VMCIEvent;
@@ -201,7 +201,7 @@ typedef struct VMCIHost {
                               * First one is the active one and the second
                               * one is shadow world during FSR.
                               */
-#elif defined(linux)
+#elif defined(__linux__)
    wait_queue_head_t  waitQueue;
 #elif defined(__APPLE__)
    struct Socket *socket; /* vmci Socket object on Mac OS. */
@@ -216,7 +216,7 @@ typedef struct VMCIHost {
  * Guest device port I/O.
  */
 
-#if defined(linux)
+#if defined(__linux__)
    typedef unsigned short int VMCIIoPort;
    typedef int VMCIIoHandle;
 #elif defined(_WIN32)

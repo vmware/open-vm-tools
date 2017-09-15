@@ -2466,7 +2466,7 @@ vmci_cid_2_host_vm_id(VMCIId contextID,    // IN
  */
 
 VMCI_EXPORT_SYMBOL(vmci_is_context_owner)
-#if defined(linux) && !defined(VMKERNEL)
+#if defined(__linux__) && !defined(VMKERNEL)
 int
 vmci_is_context_owner(VMCIId contextID,   // IN
                       VMCIHostUser uid)          // IN

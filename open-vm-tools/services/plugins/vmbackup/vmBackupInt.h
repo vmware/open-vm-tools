@@ -269,7 +269,7 @@ VmBackup_NewNullProvider(void);
 VmBackupSyncProvider *
 VmBackup_NewSyncDriverProvider(void);
 
-#if defined(_LINUX) || defined(__linux__)
+#if defined(__linux__)
 VmBackupSyncProvider *
 VmBackup_NewSyncDriverOnlyProvider(void);
 #endif

@@ -172,7 +172,7 @@ Hostinfo_HostName(void)
 
    return result;
 }
-#elif defined(linux)
+#elif defined(__linux__)
 #include <unistd.h>
 #include <sys/utsname.h>
 #include <netdb.h>

@@ -62,7 +62,7 @@
 #  include "vmci_defs.h"
 #include "dataMap.h"
 #include "vmware/guestrpc/tclodefs.h"
-#if defined(linux)
+#if defined(__linux__)
 #include <arpa/inet.h>
 #else
 #include <winsock2.h>

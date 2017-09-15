@@ -47,7 +47,7 @@
 #include <time.h>
 #include <grp.h>
 #include <sys/syscall.h>
-#if defined(linux) || defined(__FreeBSD__) || defined(HAVE_SYS_USER_H)
+#if defined(__linux__) || defined(__FreeBSD__) || defined(HAVE_SYS_USER_H)
 // sys/param.h is required on FreeBSD before sys/user.h
 #   include <sys/param.h>
 // Pull in PAGE_SIZE/PAGE_SHIFT defines ahead of vm_basic_defs.h
@@ -168,7 +168,7 @@ Bool ProcMgr_PromoteEffectiveToReal(void);
  *----------------------------------------------------------------------
  */
 
-#if defined(linux)
+#if defined(__linux__)
 int
 ProcMgr_ReadProcFile(int fd,                       // IN
                      char **contents)              // OUT
@@ -593,7 +593,7 @@ abort:
 
    return procList;
 }
-#endif // defined(linux)
+#endif // defined(__linux__)
 
 
 /*
@@ -1276,7 +1276,7 @@ ProcMgr_ExecSync(char const *cmd,                  // IN: UTF-8 command line
 }
 
 
-#if defined(linux)
+#if defined(__linux__)
 /*
  *----------------------------------------------------------------------
  *
@@ -2150,7 +2150,7 @@ ProcMgr_Free(ProcMgr_AsyncProc *asyncProc) // IN
    free(asyncProc);
 }
 
-#if defined(linux) || defined(__FreeBSD__) || defined(__APPLE__)
+#if defined(__linux__) || defined(__FreeBSD__) || defined(__APPLE__)
 
 /*
  *----------------------------------------------------------------------

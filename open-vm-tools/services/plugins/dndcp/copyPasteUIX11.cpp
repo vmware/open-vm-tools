@@ -993,7 +993,7 @@ CopyPasteUIX11::LocalGetSelectionFileList(const Gtk::SelectionData& sd)      // 
    while ((newPath = DnD_UriListGetNextFile(source.c_str(),
                                             &index,
                                             &newPathLen)) != NULL) {
-#if defined(linux)
+#if defined(__linux__)
       if (DnD_UriIsNonFileSchemes(newPath)) {
          /* Try to get local file path for non file uri. */
          GFile *file = g_file_new_for_uri(newPath);

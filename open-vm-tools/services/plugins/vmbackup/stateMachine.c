@@ -898,7 +898,7 @@ VmBackupStartCommon(RpcInData *data,
                }
             }
          }
-#elif defined(_LINUX) || defined(__linux__)
+#elif defined(__linux__)
          /*
           * If quiescing is requested on linux platform,
           * only allow SyncDriver provider

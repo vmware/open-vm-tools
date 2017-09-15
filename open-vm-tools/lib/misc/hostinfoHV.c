@@ -240,7 +240,7 @@ Hostinfo_HypervisorInterfaceSig(void)
 Bool
 Hostinfo_TouchXen(void)
 {
-#if defined(linux) && (defined(__i386__) || defined(__x86_64__))
+#if defined(__linux__) && (defined(__i386__) || defined(__x86_64__))
 #define XEN_CPUID 0x40000000
    CPUIDRegs regs;
    uint32 name[4];

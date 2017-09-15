@@ -605,7 +605,7 @@ VmBackup_NewSyncDriverProvider(void)
 }
 
 
-#if defined(_LINUX) || defined(__linux__)
+#if defined(__linux__)
 
 /*
  *-----------------------------------------------------------------------------

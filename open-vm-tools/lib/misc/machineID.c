@@ -348,7 +348,7 @@ ObtainHardwareID(uint64 *hardwareID)  // OUT:
 
    return 0;
 }
-#elif defined(linux) || defined __ANDROID__
+#elif defined(__linux__) || defined __ANDROID__
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <net/if.h>

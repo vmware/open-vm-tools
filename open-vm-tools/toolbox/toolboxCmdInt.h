@@ -132,7 +132,7 @@ DECLARE_COMMAND(Info);
 DECLARE_COMMAND(Config);
 
 #if defined(_WIN32) || \
-   (defined(linux) && !defined(OPEN_VM_TOOLS) && !defined(USERWORLD))
+   (defined(__linux__) && !defined(OPEN_VM_TOOLS) && !defined(USERWORLD))
 DECLARE_COMMAND(Upgrade);
 #endif
 

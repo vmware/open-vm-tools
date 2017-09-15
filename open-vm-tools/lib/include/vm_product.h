@@ -506,7 +506,7 @@
  */
 #ifdef N_PLAT_NLM
 #  define PRODUCT_NAME_PLATFORM         PRODUCT_NAME " for NetWare"
-#elif defined(linux)
+#elif defined(__linux__)
 #  define PRODUCT_NAME_PLATFORM         PRODUCT_NAME " for Linux"
 #elif defined(_WIN32)
 #  define PRODUCT_NAME_PLATFORM         PRODUCT_NAME " for Windows"

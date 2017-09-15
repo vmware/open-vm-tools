@@ -595,7 +595,7 @@ static Bool
 OldMachineIDMatch(const char *first,   // IN:
                   const char *second)  // IN:
 {
-#if defined(__APPLE__) || defined(linux)
+#if defined(__APPLE__) || defined(__linux__)
    /* Ignore the host name hash */
    char *p;
    char *q;

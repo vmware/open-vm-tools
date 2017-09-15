@@ -24,7 +24,7 @@
  *
  */
 
-#if !defined(linux) && !defined(sun) && !defined(__FreeBSD__) && !defined(vmblock_fuse)
+#if !defined(__linux__) && !defined(sun) && !defined(__FreeBSD__) && !defined(vmblock_fuse)
 # error "vmblocktest.c needs to be ported to your OS."
 #endif
 

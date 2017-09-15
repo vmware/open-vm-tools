@@ -107,7 +107,7 @@
  * Function Prototypes
  */
 
-#if defined(linux) || defined(__APPLE__) || defined (sun)
+#if defined(__linux__) || defined(__APPLE__) || defined (sun)
 
 #  ifdef linux                               /* if (linux) { */
 char *strdup(const char *source);

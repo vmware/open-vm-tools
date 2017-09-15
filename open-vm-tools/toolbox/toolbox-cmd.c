@@ -106,7 +106,7 @@ static CmdTable commands[] = {
    { "stat",      Stat_Command,     TRUE,    FALSE,   Stat_Help},
    { "device",    Device_Command,   TRUE,    FALSE,   Device_Help},
 #if defined(_WIN32) || \
-   (defined(linux) && !defined(OPEN_VM_TOOLS) && !defined(USERWORLD))
+   (defined(__linux__) && !defined(OPEN_VM_TOOLS) && !defined(USERWORLD))
    { "upgrade",   Upgrade_Command,  TRUE,    TRUE,   Upgrade_Help},
 #endif
    { "logging",   Logging_Command,  TRUE,    TRUE,    Logging_Help},

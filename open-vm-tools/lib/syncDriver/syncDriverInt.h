@@ -48,7 +48,7 @@ typedef struct SyncHandle {
    void (*close)(SyncDriverHandle handle);
 } SyncHandle;
 
-#if defined(linux)
+#if defined(__linux__)
 SyncDriverErr
 LinuxDriver_Freeze(const GSList *userPaths,
                    SyncDriverHandle *handle);

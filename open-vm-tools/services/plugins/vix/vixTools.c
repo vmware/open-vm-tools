@@ -109,7 +109,7 @@
 #include "su.h"
 #include "escape.h"
 
-#if defined(linux) || defined(_WIN32)
+#if defined(__linux__) || defined(_WIN32)
 #include "netutil.h"
 #endif
 
@@ -581,7 +581,7 @@ static VixError VixToolsProcessHgfsPacket(VixCommandHgfsSendPacket *requestMsg,
 static VixError VixToolsListFileSystems(VixCommandRequestHeader *requestMsg,
                                         char **result);
 
-#if defined(_WIN32) || defined(linux)
+#if defined(_WIN32) || defined(__linux__)
 static VixError VixToolsPrintFileSystemInfo(char **destPtr,
                                             const char *endDestPtr,
                                             const char *name,
@@ -1687,7 +1687,7 @@ VixToolsStartProgramImpl(const char *requestName,            // IN
     * For non-Windows, we use the user's $HOME if workingDir isn't supplied.
     */
    if (NULL == workingDir) {
-#if defined(linux) || defined(sun) || defined(__FreeBSD__) || defined(__APPLE__)
+#if defined(__linux__) || defined(sun) || defined(__FreeBSD__) || defined(__APPLE__)
       char *username = NULL;
 
       if (!ProcMgr_GetImpersonatedUserInfo(&username, &workingDirectory)) {
@@ -6541,7 +6541,7 @@ VixToolsGetFileExtendedInfoLength(const char *filePathName,   // IN
    fileExtendedInfoBufferSize += 10 * 3;            // uid, gid, perms
 #endif
 
-#if defined(linux) || defined(sun) || defined(__FreeBSD__)
+#if defined(__linux__) || defined(sun) || defined(__FreeBSD__)
    if (File_IsSymLink(filePathName)) {
       char *symlinkTarget;
       symlinkTarget = Posix_ReadLink(filePathName);
@@ -8551,7 +8551,7 @@ VixToolsListFileSystems(VixCommandRequestHeader *requestMsg, // IN
    char *destPtr;
    char *endDestPtr;
    Bool escapeStrs;
-#if defined(_WIN32) || defined(linux)
+#if defined(_WIN32) || defined(__linux__)
    Bool truncated;
 #endif
 #if defined(_WIN32)
@@ -8633,7 +8633,7 @@ VixToolsListFileSystems(VixCommandRequestHeader *requestMsg, // IN
       free(fileSystemType);
    }
 
-#elif defined(linux)
+#elif defined(__linux__)
 
    mountfile = "/etc/mtab";
 
@@ -8693,7 +8693,7 @@ abort:
 } // VixToolsListFileSystems
 
 
-#if defined(_WIN32) || defined(linux)
+#if defined(_WIN32) || defined(__linux__)
 /*
  *-----------------------------------------------------------------------------
  *
@@ -8771,7 +8771,7 @@ abort:
 
    return err;
 }
-#endif // #if defined(_WIN32) || defined(linux)
+#endif // #if defined(_WIN32) || defined(__linux__)
 
 
 /*
