@@ -481,22 +481,45 @@ CMPXCHG1B(volatile uint8 *ptr, // IN/OUT
  *
  *-----------------------------------------------------------------------------
  */
-#if (__GNUC__ > 4 || (__GNUC__ ==  4 && __GNUC_MINOR__ >= 6)) && \
-                                (defined(VM_X86_64) || defined(VM_ARM_64))
+#if defined(__GNUC__) && \
+     (__GCC_HAVE_SYNC_COMPARE_AND_SWAP_16 || defined(VM_ARM_64))
 static INLINE __int128
 Atomic_ReadIfEqualWrite128(Atomic_uint128 *ptr,   // IN/OUT
                            __int128       oldVal, // IN
                            __int128       newVal) // IN
 {
-   __int128 res;
-#ifdef VM_ARM_64
+#ifdef __GCC_HAVE_SYNC_COMPARE_AND_SWAP_16
+   return __sync_val_compare_and_swap(&ptr->value, oldVal, newVal);
+#elif defined(VM_ARM_64)
+   union {
+      __int128 raw;
+      struct {
+         uint64 lo;
+         uint64 hi;
+      };
+   } res, _old = { oldVal }, _new = { newVal };
+   int failed;
    LDST_LDST_MEM_BARRIER();
-#endif
-   res = __sync_val_compare_and_swap(&ptr->value, oldVal, newVal);
-#ifdef VM_ARM_64
+   __asm__ __volatile__ (
+      "1: ldxp    %x0, %x1, %3        \n\t"
+      "   cmp     %x0, %x4            \n\t"
+      "   ccmp    %x1, %x5, #0, eq    \n\t"
+      "   b.ne    2f                  \n\t"
+      "   stxp    %w2, %x6, %x7, %3   \n\t"
+      "   cbnz    %w2, 1b             \n\t"
+      "2: clrex                       \n\t"
+      : "=&r" (res.lo),
+        "=&r" (res.hi),
+        "=&r" (failed),
+        "+m" (*ptr)
+      : "r" (_old.lo),
+        "r" (_old.hi),
+        "r" (_new.lo),
+        "r" (_new.hi)
+      : "cc");
    LDST_LDST_MEM_BARRIER();
+   return res.raw;
 #endif
-   return res;
 }
 #endif
 
