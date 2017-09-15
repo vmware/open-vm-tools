@@ -69,6 +69,8 @@ static gboolean gUseBackdoorOnly = FALSE;
  */
 static gboolean gVSocketFailed = FALSE;
 
+static void RpcChannelStopNoLock(RpcChannel *chan);
+
 /**
  * Handler for a "ping" message. Does nothing.
  *
@@ -96,13 +98,20 @@ static gboolean
 RpcChannelRestart(gpointer _chan)
 {
    RpcChannelInt *chan = _chan;
+   gboolean chanStarted;
 
-   RpcChannel_Stop(&chan->impl);
+   /* Synchronize with any RpcChannel_Send calls by other threads. */
+   g_static_mutex_lock(&chan->impl.outLock);
+
+   RpcChannelStopNoLock(&chan->impl);
+
    /* Clear vSocket channel failure */
    Debug(LGPFX "Clearing backdoor behavior ...\n");
    gVSocketFailed = FALSE;
 
-   if (!RpcChannel_Start(&chan->impl)) {
+   chanStarted = RpcChannel_Start(&chan->impl);
+   g_static_mutex_unlock(&chan->impl.outLock);
+   if (!chanStarted) {
       Warning("Channel restart failed [%d]\n", chan->rpcErrorCount);
       if (chan->resetCb != NULL) {
          chan->resetCb(&chan->impl, FALSE, chan->resetData);
@@ -766,19 +775,19 @@ RpcChannel_Start(RpcChannel *chan)
 
 
 /**
- * Wrapper for the stop function of an RPC channel struct.
+ * Stop the RPC channel.
+ * The outLock must be acquired by the caller.
  *
  * @param[in]  chan        The RPC channel instance.
  */
 
-void
-RpcChannel_Stop(RpcChannel *chan)
+static void
+RpcChannelStopNoLock(RpcChannel *chan)
 {
    g_return_if_fail(chan != NULL);
    g_return_if_fail(chan->funcs != NULL);
    g_return_if_fail(chan->funcs->stop != NULL);
 
-   g_static_mutex_lock(&chan->outLock);
    chan->funcs->stop(chan);
 
    if (chan->in != NULL) {
@@ -789,6 +798,20 @@ RpcChannel_Stop(RpcChannel *chan)
    } else {
       ASSERT(!chan->inStarted);
    }
+}
+
+
+/**
+ * Wrapper for the stop function of an RPC channel struct.
+ *
+ * @param[in]  chan        The RPC channel instance.
+ */
+
+void
+RpcChannel_Stop(RpcChannel *chan)
+{
+   g_static_mutex_lock(&chan->outLock);
+   RpcChannelStopNoLock(chan);
    g_static_mutex_unlock(&chan->outLock);
 }
 
