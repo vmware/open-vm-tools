@@ -48,14 +48,14 @@
  * Guest channel table of callbacks.
  */
 typedef struct HgfsGuestChannelCBTable {
-   Bool (*init)(HgfsServerSessionCallbacks *, void *, void *, struct HgfsGuestConn **);
+   Bool (*init)(const HgfsServerSessionCallbacks *, void *, void *, struct HgfsGuestConn **);
    void (*exit)(struct HgfsGuestConn *);
    Bool (*receive)(struct HgfsGuestConn *, char const *, size_t, char *, size_t *);
    uint32 (*invalidateInactiveSessions)(struct HgfsGuestConn *);
 } HgfsGuestChannelCBTable;
 
 /* The guest channels callback tables. */
-extern HgfsGuestChannelCBTable gGuestBackdoorOps;
+extern const HgfsGuestChannelCBTable gGuestBackdoorOps;
 
 /* For use by HgfsServerManager. */
 Bool HgfsChannelGuest_Init(HgfsServerMgrData *data, HgfsServerMgrCallbacks *cb);
