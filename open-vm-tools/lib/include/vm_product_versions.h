@@ -432,8 +432,6 @@
 #endif
 #define PRODUCT_ESX_LICENSE_VERSION "6.0"
 #define PRODUCT_ESX_LICENSE_FILE_VERSION "6.6.0.1"
-#define PRODUCT_VSAN_LICENSE_VERSION "5.0"
-#define PRODUCT_VSAN_LICENSE_FILE_VERSION "6.6.0.0"
 
 /*
  * This is for ACE Management Server
