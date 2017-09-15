@@ -348,6 +348,8 @@ HgfsChannelGuestConnConnect(HgfsGuestConn *connData)  // IN: our connection data
       HGFS_LARGE_PACKET_MAX
    };
 
+   connData->channelCbTable.registerThread = NULL;
+   connData->channelCbTable.unregisterThread = NULL;
    connData->channelCbTable.getWriteVa = NULL;
    connData->channelCbTable.getReadVa = NULL;
    connData->channelCbTable.putVa = NULL;

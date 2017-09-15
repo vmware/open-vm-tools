@@ -175,12 +175,16 @@ typedef Bool (*HgfsChannelSendFunc)(void *opaqueSession,
                                     HgfsSendFlags flags);
 typedef void * (*HgfsChannelMapVirtAddrFunc)(uint64 pa, uint32 size, void **context);
 typedef void (*HgfsChannelUnmapVirtAddrFunc)(void **context);
+typedef void (*HgfsChannelRegisterThreadFunc)(void);
+typedef void (*HgfsChannelUnregisterThreadFunc)(void);
 
 typedef struct HgfsServerChannelCallbacks {
-    HgfsChannelMapVirtAddrFunc getReadVa;
-    HgfsChannelMapVirtAddrFunc getWriteVa;
-    HgfsChannelUnmapVirtAddrFunc putVa;
-    HgfsChannelSendFunc send;
+   HgfsChannelRegisterThreadFunc registerThread;
+   HgfsChannelUnregisterThreadFunc unregisterThread;
+   HgfsChannelMapVirtAddrFunc getReadVa;
+   HgfsChannelMapVirtAddrFunc getWriteVa;
+   HgfsChannelUnmapVirtAddrFunc putVa;
+   HgfsChannelSendFunc send;
 }HgfsServerChannelCallbacks;
 
 typedef struct HgfsServerSessionCallbacks {

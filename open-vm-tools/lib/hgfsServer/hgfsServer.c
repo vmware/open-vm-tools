@@ -8887,6 +8887,74 @@ HgfsServerGetTargetRelativePath(const char* source,    // IN: source file name
 }
 
 
+#ifdef HGFS_NOTIFY_THREAD_REGISTER_SUPPORTED
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerNotifyRegisterThreadCb --
+ *
+ *    The callback is invoked by the file system change notification component
+ *    thread for generating change notification events.
+ *    This simply calls back to the channel's register thread function, if present,
+ *    which does the actual work.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HgfsServerNotifyRegisterThreadCb(struct HgfsSessionInfo *session)     // IN: session info
+{
+   HgfsTransportSessionInfo *transportSession;
+
+   ASSERT(session);
+   transportSession = session->transportSession;
+
+   if (transportSession->channelCbTable->registerThread != NULL) {
+      transportSession->channelCbTable->registerThread();
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerNotifyUnregisterThreadCb --
+ *
+ *    The callback is invoked by the file system change notification component
+ *    thread for generating change notification events.
+ *    This simply calls back to the channel's unregister thread function, if present,
+ *    which does the actual work.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HgfsServerNotifyUnregisterThreadCb(struct HgfsSessionInfo *session)     // IN: session info
+{
+   HgfsTransportSessionInfo *transportSession;
+
+   ASSERT(session);
+   transportSession = session->transportSession;
+
+   if (transportSession->channelCbTable->unregisterThread != NULL) {
+      transportSession->channelCbTable->unregisterThread();
+   }
+}
+#endif // HGFS_NOTIFY_THREAD_REGISTER_SUPPORTED
+
+
 /*
  *-----------------------------------------------------------------------------
  *
