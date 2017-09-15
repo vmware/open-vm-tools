@@ -63,9 +63,6 @@
 #endif // _WIN32
 #define HGFS_PARENT_DIR_LEN 3
 
-#define LOGLEVEL_MODULE hgfs
-#include "loglevel_user.h"
-
 
 /*
  * Define this to enable an ASSERT on HGFS_STATUS_PROTOCOL_ERROR.
@@ -200,6 +197,7 @@ static MXUserExclLock *gHgfsAsyncLock;
 static MXUserCondVar  *gHgfsAsyncVar;
 
 static HgfsServerMgrCallbacks *gHgfsMgrData = NULL;
+
 
 /*
  * Session usage and locking.
@@ -3934,6 +3932,7 @@ HgfsServer_ExitState(void)
    }
 
    HgfsPlatformDestroy();
+
    /*
     * Reset the server manager callbacks.
     */

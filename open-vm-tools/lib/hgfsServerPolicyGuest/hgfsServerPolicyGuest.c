@@ -33,8 +33,11 @@
 #include "vmware.h"
 #include "hgfsServerPolicy.h"
 
-#define LOGLEVEL_MODULE hgfs
-#include "loglevel_user.h"
+/*
+ * XXX: Transitioning over to the general tools logging mechanism.
+ */
+#undef LOG
+#define LOG(level, args)
 
 
 typedef struct HgfsServerPolicyState {

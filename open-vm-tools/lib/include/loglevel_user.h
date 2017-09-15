@@ -199,6 +199,7 @@
    LOGLEVEL_VAR(backdoor), \
    LOGLEVEL_VAR(buslogicMdev), \
    LOGLEVEL_VAR(hgfs), \
+   LOGLEVEL_VAR(hgfsServer), \
    LOGLEVEL_VAR(memspace), \
    LOGLEVEL_VAR(dnd), \
    LOGLEVEL_VAR(appstate), \

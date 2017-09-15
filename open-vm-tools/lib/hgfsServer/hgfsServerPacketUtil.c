@@ -30,9 +30,6 @@
 #include "hgfsServerInt.h"
 #include "util.h"
 
-#define LOGLEVEL_MODULE hgfs
-#include "loglevel_user.h"
-
 static void *HSPUGetBuf(HgfsServerChannelCallbacks *chanCb,
                         MappingType mappingType,
                         HgfsVmxIov *iov,

@@ -78,9 +78,6 @@
 #   include "config.h"
 #endif
 
-#define LOGLEVEL_MODULE hgfs
-#include "loglevel_user.h"
-
 #if defined(__APPLE__)
 #include <CoreServices/CoreServices.h> // for the alias manager
 #include <CoreFoundation/CoreFoundation.h> // for CFString and CFURL

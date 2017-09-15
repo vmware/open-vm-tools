@@ -33,9 +33,6 @@
 #include "vm_basic_asm.h"
 #include "hgfsServerParameters.h"
 
-#define LOGLEVEL_MODULE hgfs
-#include "loglevel_user.h"
-
 #ifdef _WIN32
 #define HGFS_REQUEST_WIN32_SUPPORTED  HGFS_REQUEST_SUPPORTED
 #define HGFS_REQUEST_POSIX_SUPPORTED  HGFS_REQUEST_NOT_SUPPORTED
