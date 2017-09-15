@@ -12,7 +12,7 @@ thread_stack_size_kb=0
 schema_namespace_root=http://schemas.vmware.com/caf/schema
 schema_location_root=${input_dir}/schemas/caf
 
-use_single_logging=true
+remap_logging_location=false
 
 [communication_amqp]
 working_dir=${output_dir}/comm-wrk

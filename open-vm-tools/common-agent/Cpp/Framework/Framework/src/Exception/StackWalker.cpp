@@ -289,64 +289,65 @@ public:
       return FALSE;
     // Dynamically load the Entry-Points for dbghelp.dll:
     // First try to load the newsest one from
-    TCHAR szTemp[4096];
+    TCHAR localFile[4096];
     // But before wqe do this, we first check if the ".local" file exists
-    if (GetModuleFileName(NULL, szTemp, 4096) > 0)
+    if (GetModuleFileName(NULL, localFile, 4096) > 0)
     {
-      _tcscat_s(szTemp, _T(".local"));
-      if (GetFileAttributes(szTemp) == INVALID_FILE_ATTRIBUTES)
+      _tcscat_s(localFile, _T(".local"));
+      if (GetFileAttributes(localFile) == INVALID_FILE_ATTRIBUTES)
       {
         // ".local" file does not exist, so we can try to load the dbghelp.dll from the "Debugging Tools for Windows"
         // Ok, first try the new path according to the archtitecture:
+         TCHAR dbghelpFile[4096];
 #ifdef _M_IX86
-        if ( (m_hDbhHelp == NULL) && (GetEnvironmentVariable(_T("ProgramFiles"), szTemp, 4096) > 0) )
+        if ( (m_hDbhHelp == NULL) && (GetEnvironmentVariable(_T("ProgramFiles"), dbghelpFile, 4096) > 0) )
         {
-          _tcscat_s(szTemp, _T("\\Debugging Tools for Windows (x86)\\dbghelp.dll"));
+          _tcscat_s(dbghelpFile, _T("\\Debugging Tools for Windows (x86)\\dbghelp.dll"));
           // now check if the file exists:
-          if (GetFileAttributes(szTemp) != INVALID_FILE_ATTRIBUTES)
+          if (GetFileAttributes(dbghelpFile) != INVALID_FILE_ATTRIBUTES)
           {
-            m_hDbhHelp = LoadLibrary(szTemp);
+            m_hDbhHelp = LoadLibrary(dbghelpFile);
           }
         }
 #elif _M_X64
-        if ( (m_hDbhHelp == NULL) && (GetEnvironmentVariable(_T("ProgramFiles"), szTemp, 4096) > 0) )
+        if ( (m_hDbhHelp == NULL) && (GetEnvironmentVariable(_T("ProgramFiles"), dbghelpFile, 4096) > 0) )
         {
-          _tcscat_s(szTemp, _T("\\Debugging Tools for Windows (x64)\\dbghelp.dll"));
+          _tcscat_s(dbghelpFile, _T("\\Debugging Tools for Windows (x64)\\dbghelp.dll"));
           // now check if the file exists:
-          if (GetFileAttributes(szTemp) != INVALID_FILE_ATTRIBUTES)
+          if (GetFileAttributes(dbghelpFile) != INVALID_FILE_ATTRIBUTES)
           {
-            m_hDbhHelp = LoadLibrary(szTemp);
+            m_hDbhHelp = LoadLibrary(dbghelpFile);
           }
         }
 #elif _M_IA64
-        if ( (m_hDbhHelp == NULL) && (GetEnvironmentVariable(_T("ProgramFiles"), szTemp, 4096) > 0) )
+        if ( (m_hDbhHelp == NULL) && (GetEnvironmentVariable(_T("ProgramFiles"), dbghelpFile, 4096) > 0) )
         {
-          _tcscat_s(szTemp, _T("\\Debugging Tools for Windows (ia64)\\dbghelp.dll"));
+          _tcscat_s(dbghelpFile, _T("\\Debugging Tools for Windows (ia64)\\dbghelp.dll"));
           // now check if the file exists:
-          if (GetFileAttributes(szTemp) != INVALID_FILE_ATTRIBUTES)
+          if (GetFileAttributes(dbghelpFile) != INVALID_FILE_ATTRIBUTES)
           {
-            m_hDbhHelp = LoadLibrary(szTemp);
+            m_hDbhHelp = LoadLibrary(dbghelpFile);
           }
         }
 #endif
         // If still not found, try the old directories...
-        if ( (m_hDbhHelp == NULL) && (GetEnvironmentVariable(_T("ProgramFiles"), szTemp, 4096) > 0) )
+        if ( (m_hDbhHelp == NULL) && (GetEnvironmentVariable(_T("ProgramFiles"), dbghelpFile, 4096) > 0) )
         {
-          _tcscat_s(szTemp, _T("\\Debugging Tools for Windows\\dbghelp.dll"));
+          _tcscat_s(dbghelpFile, _T("\\Debugging Tools for Windows\\dbghelp.dll"));
           // now check if the file exists:
-          if (GetFileAttributes(szTemp) != INVALID_FILE_ATTRIBUTES)
+          if (GetFileAttributes(dbghelpFile) != INVALID_FILE_ATTRIBUTES)
           {
-            m_hDbhHelp = LoadLibrary(szTemp);
+            m_hDbhHelp = LoadLibrary(dbghelpFile);
           }
         }
 #if defined _M_X64 || defined _M_IA64
         // Still not found? Then try to load the (old) 64-Bit version:
-        if ( (m_hDbhHelp == NULL) && (GetEnvironmentVariable(_T("ProgramFiles"), szTemp, 4096) > 0) )
+        if ( (m_hDbhHelp == NULL) && (GetEnvironmentVariable(_T("ProgramFiles"), dbghelpFile, 4096) > 0) )
         {
-          _tcscat_s(szTemp, _T("\\Debugging Tools for Windows 64-Bit\\dbghelp.dll"));
-          if (GetFileAttributes(szTemp) != INVALID_FILE_ATTRIBUTES)
+          _tcscat_s(dbghelpFile, _T("\\Debugging Tools for Windows 64-Bit\\dbghelp.dll"));
+          if (GetFileAttributes(dbghelpFile) != INVALID_FILE_ATTRIBUTES)
           {
-            m_hDbhHelp = LoadLibrary(szTemp);
+            m_hDbhHelp = LoadLibrary(dbghelpFile);
           }
         }
 #endif
@@ -651,7 +652,7 @@ private:
     pGMI = (tGMI) GetProcAddress( hPsapi, "GetModuleInformation" );
     if ( (pEPM == NULL) || (pGMFNE == NULL) || (pGMBN == NULL) || (pGMI == NULL) )
     {
-      // we couldn´t find all functions
+      // we couldnï¿½t find all functions
       FreeLibrary(hPsapi);
       return FALSE;
     }

@@ -29,6 +29,16 @@ void PersistenceProtocolXml::add(
 		thisXml->addAttribute("uri", uriVal);
 	}
 
+	const std::string uriAmqpVal = persistenceProtocolDoc->getUriAmqp();
+	if (! uriAmqpVal.empty()) {
+		thisXml->addAttribute("uriAmqp", uriAmqpVal);
+	}
+
+	const std::string uriTunnelVal = persistenceProtocolDoc->getUriTunnel();
+	if (! uriTunnelVal.empty()) {
+		thisXml->addAttribute("uriTunnel", uriTunnelVal);
+	}
+
 	const std::string tlsCertVal = persistenceProtocolDoc->getTlsCert();
 	if (! tlsCertVal.empty()) {
 		const SmartPtrCXmlElement tlsCertXml = thisXml->createAndAddElement("tlsCert");
@@ -85,6 +95,12 @@ SmartPtrCPersistenceProtocolDoc PersistenceProtocolXml::parse(
 	const std::string uriVal =
 		thisXml->findOptionalAttribute("uri");
 
+	const std::string uriAmqpVal =
+		thisXml->findOptionalAttribute("uriAmqp");
+
+	const std::string uriTunnelVal =
+		thisXml->findOptionalAttribute("uriTunnel");
+
 	std::string tlsCertVal;
 	const SmartPtrCXmlElement tlsCertXml = thisXml->findOptionalChild("tlsCert");
 	if (tlsCertXml) {
@@ -132,6 +148,8 @@ SmartPtrCPersistenceProtocolDoc PersistenceProtocolXml::parse(
 	persistenceProtocolDoc->initialize(
 			protocolNameVal,
 			uriVal,
+			uriAmqpVal,
+			uriTunnelVal,
 			tlsCertVal,
 			tlsProtocolVal,
 			tlsCipherCollectionVal,

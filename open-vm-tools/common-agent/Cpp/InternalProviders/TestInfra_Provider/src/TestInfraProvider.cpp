@@ -10,8 +10,20 @@
 
 using namespace Caf;
 
-int main(int csz, char* asz[])
-{
-	CTestInfraProvider provider;
-	return CProviderDriver::processProviderCommandline(provider, csz, asz);
+int main(int csz, char* asz[]) {
+	CAF_CM_STATIC_FUNC_LOG("TestInfraProvider", "main");
+
+	int rc = 0;
+	try {
+		CTestInfraProvider provider;
+		rc = CProviderDriver::processProviderCommandline(provider, csz, asz);
+	}
+	CAF_CM_CATCH_CAF
+	CAF_CM_CATCH_DEFAULT
+	CAF_CM_LOG_CRIT_CAFEXCEPTION;
+
+	rc = CAF_CM_ISEXCEPTION ? 1 : rc;
+	CAF_CM_CLEAREXCEPTION;
+
+	return rc;
 }

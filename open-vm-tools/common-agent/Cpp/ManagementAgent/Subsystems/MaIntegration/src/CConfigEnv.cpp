@@ -37,6 +37,8 @@ void CConfigEnv::initialize(
 			_persistenceRemove = persistenceRemove;
 		}
 	} else {
+		_persistenceRemove = persistenceRemove;
+
 		_persistenceDir = AppConfigUtils::getRequiredString("persistence_dir");
 
 		_configDir = AppConfigUtils::getRequiredString("config_dir");
@@ -60,7 +62,7 @@ void CConfigEnv::initialize(
 
 		_persistence = CPersistenceUtils::loadPersistence(_persistenceDir);
 		_persistenceUpdated = _persistence;
-		_persistenceRemove = persistenceRemove;
+		savePersistenceAppconfig(_persistence, _configDir);
 
 		_isInitialized = true;
 	}
@@ -74,13 +76,13 @@ SmartPtrCPersistenceDoc CConfigEnv::getUpdated(
 
 	const SmartPtrCPersistenceDoc persistenceTmp =
 			CConfigEnvMerge::mergePersistence(_persistence, _cacertPath, _vcidPath);
-	if (! persistenceTmp.IsNull() || ! FileSystemUtils::doesFileExist(_persistenceAppconfigPath)) {
-		if (! persistenceTmp.IsNull()) {
-			_persistence = persistenceTmp;
-		}
+	if (! persistenceTmp.IsNull()) {
+		_persistence = persistenceTmp;
+		_persistenceUpdated = _persistence;
 
 		savePersistenceAppconfig(_persistence, _configDir);
-		restartListener("Updated persistence-appconfig");
+		CPersistenceUtils::savePersistence(_persistence, _persistenceDir);
+		restartListener("Info changed on disk");
 	}
 
 	SmartPtrCPersistenceDoc rc;
@@ -102,16 +104,15 @@ void CConfigEnv::update(
 	const SmartPtrCPersistenceDoc persistenceTmp =
 			CPersistenceMerge::mergePersistence(_persistence, persistence);
 	if (! persistenceTmp.IsNull()) {
-		CAF_CM_LOG_DEBUG_VA1("Updating persistence info - %s", _persistenceDir.c_str());
-
 		_persistence = persistenceTmp;
-		_persistenceUpdated = createPersistenceUpdated(_persistence);
+		_persistenceUpdated = _persistence;
+
+		savePersistenceAppconfig(_persistence, _configDir);
 		CPersistenceUtils::savePersistence(_persistence, _persistenceDir);
 
-		const std::string reason = "Updated persistence info";
+		const std::string reason = "Info changed at source";
 		listenerConfigured(reason);
 		restartListener(reason);
-
 		removePrivateKey(_persistence, _persistenceRemove);
 	} else {
 		CAF_CM_LOG_DEBUG_VA0("Persistence info did not change");
@@ -125,32 +126,38 @@ void CConfigEnv::savePersistenceAppconfig(
 	CAF_CM_VALIDATE_SMARTPTR(persistence);
 	CAF_CM_VALIDATE_STRING(configDir);
 
-	#ifdef WIN32
+	const SmartPtrCPersistenceProtocolDoc persistenceProtocol =
+			CPersistenceUtils::loadPersistenceProtocol(
+					persistence->getPersistenceProtocolCollection());
+	if (persistenceProtocol.IsNull() || persistenceProtocol->getUri().empty()) {
+		CAF_CM_LOG_DEBUG_VA1(
+				"Can't create persistence-appconfig until protocol is established - %s",
+				configDir.c_str());
+	} else {
+#ifdef WIN32
 	const std::string newLine = "\r\n";
 #else
 	const std::string newLine = "\n";
 #endif
-	CAF_CM_LOG_DEBUG_VA1("Saving persistence-appconfig - %s", configDir.c_str());
 
-	const SmartPtrCPersistenceProtocolDoc persistenceProtocol =
-			CPersistenceUtils::loadPersistenceProtocol(
-					persistence->getPersistenceProtocolCollection());
+		CAF_CM_LOG_DEBUG_VA1("Saving persistence-appconfig - %s", configDir.c_str());
 
-	UriUtils::SUriRecord uriRecord;
-	UriUtils::parseUriString(persistenceProtocol->getUri(), uriRecord);
-	CAF_CM_VALIDATE_STRING(uriRecord.path);
+		UriUtils::SUriRecord uriRecord;
+		UriUtils::parseUriString(persistenceProtocol->getUri(), uriRecord);
+		CAF_CM_VALIDATE_STRING(uriRecord.path);
 
-	const std::string listenerContext = calcListenerContext(uriRecord.protocol, configDir);
+		const std::string listenerContext = calcListenerContext(uriRecord.protocol, configDir);
 
-	CAF_CM_LOG_DEBUG_VA2("Calculated listener context - uri: %s, protocol: %s",
-			persistenceProtocol->getUri().c_str(), uriRecord.protocol.c_str());
+		CAF_CM_LOG_DEBUG_VA2("Calculated listener context - uri: %s, protocol: %s",
+				persistenceProtocol->getUri().c_str(), uriRecord.protocol.c_str());
 
-	std::string appconfigContents;
-	appconfigContents = "[globals]" + newLine;
-	appconfigContents += "reactive_request_amqp_queue_id=" + uriRecord.path + newLine;
-	appconfigContents += "comm_amqp_listener_context=" + listenerContext + newLine;
+		std::string appconfigContents;
+		appconfigContents = "[globals]" + newLine;
+		appconfigContents += "reactive_request_amqp_queue_id=" + uriRecord.path + newLine;
+		appconfigContents += "comm_amqp_listener_context=" + listenerContext + newLine;
 
-	FileSystemUtils::saveTextFile(_persistenceAppconfigPath, appconfigContents);
+		FileSystemUtils::saveTextFile(_persistenceAppconfigPath, appconfigContents);
+	}
 }
 
 void CConfigEnv::removePrivateKey(
@@ -173,48 +180,6 @@ void CConfigEnv::removePrivateKey(
 
 		persistenceRemove->remove(persistenceRemoveTmp);
 	}
-}
-
-SmartPtrCPersistenceDoc CConfigEnv::createPersistenceUpdated(
-		const SmartPtrCPersistenceDoc& persistence) const {
-	CAF_CM_FUNCNAME_VALIDATE("createPersistenceUpdated");
-	CAF_CM_VALIDATE_SMARTPTR(persistence);
-
-	SmartPtrCLocalSecurityDoc localSecurity;
-	if (! persistence->getLocalSecurity().IsNull()
-			&& ! persistence->getLocalSecurity()->getLocalId().empty()) {
-		localSecurity.CreateInstance();
-		localSecurity->initialize(persistence->getLocalSecurity()->getLocalId());
-	}
-
-	SmartPtrCPersistenceProtocolCollectionDoc persistenceProtocolCollection;
-	if (! persistence->getPersistenceProtocolCollection().IsNull()
-			&& ! persistence->getPersistenceProtocolCollection()->getPersistenceProtocol().empty()) {
-		const SmartPtrCPersistenceProtocolDoc persistenceProtocolTmp =
-				CPersistenceUtils::loadPersistenceProtocol(persistence->getPersistenceProtocolCollection());
-		if (! persistenceProtocolTmp->getUri().empty()) {
-			SmartPtrCPersistenceProtocolDoc persistenceProtocol;
-			persistenceProtocol.CreateInstance();
-			persistenceProtocol->initialize(
-					persistenceProtocolTmp->getProtocolName(),
-					persistenceProtocolTmp->getUri());
-
-			std::deque<SmartPtrCPersistenceProtocolDoc> persistenceProtocolInner;
-			persistenceProtocolInner.push_back(persistenceProtocol);
-
-			persistenceProtocolCollection.CreateInstance();
-			persistenceProtocolCollection->initialize(persistenceProtocolInner);
-		}
-	}
-
-	SmartPtrCPersistenceDoc rc;
-	if (! localSecurity.IsNull() || ! persistenceProtocolCollection.IsNull()) {
-		rc.CreateInstance();
-		rc->initialize(localSecurity, SmartPtrCRemoteSecurityCollectionDoc(),
-				persistenceProtocolCollection, persistence->getVersion());
-	}
-
-	return rc;
 }
 
 std::string CConfigEnv::calcListenerContext(

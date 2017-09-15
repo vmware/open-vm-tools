@@ -24,9 +24,11 @@ public:
 public:
 	void initialize(const uint32 timeoutMs);
 	void initialize(const uint32 timeoutMs, const std::string& beanConfigPath);
+	void initializeTwoPhase(const uint32 timeoutMs, const std::string& beanConfigPath);
 	void terminate(const uint32 timeoutMs);
 
 public: // IIntegrationAppContext
+	void startLifecycleBeans();
 	SmartPtrIIntegrationObject getIntegrationObject(const std::string& id) const;
 	void getIntegrationObject(const IID& iid, void **ppv) const;
 	SmartPtrCObjectCollection getIntegrationObjects(const IID& iid) const;
@@ -45,6 +47,11 @@ private:
 	typedef std::multimap<int32, SmartPtrILifecycle> LifecycleBeans;
 
 private:
+	void initializeRaw(
+			const uint32 timeoutMs,
+			const std::string& beanConfigPath,
+			const bool startLifecycleBeans);
+
 	SmartPtrCIntegrationObjectCollection assign(
 		const IAppContext::SmartPtrCBeans& contextBeans,
 		const Cdeqstr& beanConfigPathCollection) const;
@@ -102,6 +109,8 @@ private:
 private:
 	bool _isInitialized;
 	bool _isIntegrationObjectCollectionReady;
+	bool _lifecycleBeansStarted;
+	uint32 _timeoutMs;
 	SmartPtrCApplicationContext _applicationContext;
 	SmartPtrCChannelResolver _channelResolver;
 	SmartPtrCIntegrationObjectCollection _integrationObjectCollection;

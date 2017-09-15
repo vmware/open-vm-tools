@@ -21,14 +21,20 @@ CachingConnectionFactoryObj::~CachingConnectionFactoryObj() {
 void CachingConnectionFactoryObj::initializeBean(
 		const IBean::Cargs& ctorArgs,
 		const IBean::Cprops& properties) {
-	CAF_CM_FUNCNAME_VALIDATE("initializeBean");
+	CAF_CM_FUNCNAME("initializeBean");
 	CAF_CM_PRECOND_ISNOTINITIALIZED(_factory);
 	CAF_CM_VALIDATE_STL_EMPTY(ctorArgs);
 
 	const std::string persistenceDir = AppConfigUtils::getRequiredString(
 			"persistence_dir");
-	const SmartPtrCPersistenceProtocolDoc persistenceProtocol = CPersistenceUtils::loadPersistenceProtocol(
-			persistenceDir);
+	const SmartPtrCPersistenceProtocolDoc persistenceProtocol =
+			CPersistenceUtils::loadPersistenceProtocol(persistenceDir);
+
+	if (persistenceProtocol.IsNull()) {
+		CAF_CM_EXCEPTIONEX_VA1(IllegalStateException, ERROR_INVALID_STATE,
+				"Persistence protocol is empty... Comm must be configured - %s",
+				persistenceDir.c_str());
+	}
 
 	UriUtils::SUriRecord uri;
 	UriUtils::parseUriString(persistenceProtocol->getUri(), uri);

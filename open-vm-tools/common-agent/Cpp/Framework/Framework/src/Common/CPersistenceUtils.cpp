@@ -158,6 +158,8 @@ SmartPtrCPersistenceProtocolCollectionDoc CPersistenceUtils::loadPersistenceProt
 			persistenceProtocol->initialize(
 					loadTextFile(protocolIdDir, "protocolName.txt"),
 					loadTextFile(protocolIdDir, "uri.txt"),
+					loadTextFile(protocolIdDir, "uri_amqp.txt"),
+					loadTextFile(protocolIdDir, "uri_tunnel.txt"),
 					loadTextFile(protocolIdDir, "tlsCert.pem"),
 					loadTextFile(protocolIdDir, "tlsProtocol.txt"),
 					tlsCipherCollection,
@@ -194,10 +196,14 @@ SmartPtrCPersistenceProtocolDoc CPersistenceUtils::loadPersistenceProtocol(
 
 	std::deque<SmartPtrCPersistenceProtocolDoc> persistenceProtocolCollectionInner =
 			persistenceProtocolCollection->getPersistenceProtocol();
-	CAF_CM_VALIDATE_BOOL(! persistenceProtocolCollectionInner.empty());
-	CAF_CM_VALIDATE_BOOL(persistenceProtocolCollectionInner.size() == 1);
+	CAF_CM_VALIDATE_BOOL(persistenceProtocolCollectionInner.size() <= 1);
 
-	return persistenceProtocolCollectionInner.front();
+	SmartPtrCPersistenceProtocolDoc rc;
+	if (persistenceProtocolCollectionInner.size() == 1) {
+		rc = persistenceProtocolCollectionInner.front();
+	}
+
+	return rc;
 }
 
 void CPersistenceUtils::savePersistence(
@@ -337,6 +343,16 @@ void CPersistenceUtils::savePersistenceProtocolCollection(
 							amqpQueueDir, "uri.txt", persistenceProtocol->getUri());
 				}
 
+				if (! persistenceProtocol->getUriAmqp().empty()) {
+					FileSystemUtils::saveTextFile(
+							amqpQueueDir, "uri_amqp.txt", persistenceProtocol->getUriAmqp());
+				}
+
+				if (! persistenceProtocol->getUriTunnel().empty()) {
+					FileSystemUtils::saveTextFile(
+							amqpQueueDir, "uri_tunnel.txt", persistenceProtocol->getUriTunnel());
+				}
+
 				if (! persistenceProtocol->getTlsCert().empty()) {
 					FileSystemUtils::saveTextFile(
 							amqpQueueDir, "tlsCert.pem", persistenceProtocol->getTlsCert());
@@ -371,7 +387,8 @@ void CPersistenceUtils::savePersistenceProtocolCollection(
 std::string CPersistenceUtils::loadTextFile(
 		const std::string& dir,
 		const std::string& file,
-		const std::string& defaultVal) {
+		const std::string& defaultVal,
+		const bool isTrimRight) {
 	CAF_CM_STATIC_FUNC_VALIDATE("CPersistenceUtils", "loadTextFile");
 	CAF_CM_VALIDATE_STRING(dir);
 	CAF_CM_VALIDATE_STRING(file);
@@ -381,6 +398,9 @@ std::string CPersistenceUtils::loadTextFile(
 	std::string rc;
 	if (FileSystemUtils::doesFileExist(path)) {
 		rc = FileSystemUtils::loadTextFile(path);
+		if (isTrimRight) {
+			rc = CStringUtils::trimRight(rc);
+		}
 	} else {
 		rc = defaultVal;
 	}

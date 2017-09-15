@@ -32,6 +32,7 @@ private:
 
 private:
 	bool _isInitialized;
+	GThread* _thread;
 	SmartPtrCSimpleAsyncTaskExecutorState _state;
 	typedef std::pair<SmartPtrCAutoMutex, CSimpleAsyncTaskExecutorState*> CThreadData;
 
@@ -39,6 +40,7 @@ private:
 	CAF_CM_CREATE;
 	CAF_CM_CREATE_LOG;
 	CAF_THREADSIGNAL_CREATE;
+	CAF_CM_CREATE_THREADSAFE;
 	CAF_CM_DECLARE_NOCOPY(CSimpleAsyncTaskExecutor);
 };
 

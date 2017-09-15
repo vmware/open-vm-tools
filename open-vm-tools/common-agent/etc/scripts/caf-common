@@ -40,7 +40,7 @@ startCafProcess() {
 			$processPath -n
 		;;
 		"valgrindMemChecks")
-			G_SLICE=always-malloc G_DEBUG=gc-friendly  valgrind -v --tool=memcheck --leak-check=full --num-callers=40 --track-origins=yes --log-file=${processPath}-valgrind-memchecks.log $processPath -n
+			G_SLICE=always-malloc G_DEBUG=gc-friendly valgrind -v --tool=memcheck --leak-check=full --num-callers=40 --track-origins=yes --leak-resolution=med --track-fds=yes --log-file=${processPath}-valgrind-memchecks.log $processPath -n
 		;;
 		"valgrindProfiling")
 			valgrind --tool=callgrind --log-file=${processPath}-valgrind-profiling.log $processPath -n
@@ -81,7 +81,7 @@ startVgAuthProcess() {
 			$processPath -d
 		;;
 		"valgrindMemChecks")
-			G_SLICE=always-malloc G_DEBUG=gc-friendly  valgrind -v --tool=memcheck --leak-check=full --num-callers=40 --log-file=${processPath}-valgrind.log $processPath -d
+			G_SLICE=always-malloc G_DEBUG=gc-friendly  valgrind -v --tool=memcheck --leak-check=full --show-leak-kinds=all --num-callers=40 --log-file=${processPath}-valgrind.log $processPath -d
 		;;
 		"valgrindProfiling")
 			valgrind --tool=callgrind $processPath -d

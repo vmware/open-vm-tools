@@ -18,7 +18,7 @@ public:
 
 private:
 	bool _isInitialized;
-	bool _useSingleLogging;
+	bool _remapLoggingLocation;
 
 private:
 	CAF_CM_CREATE;

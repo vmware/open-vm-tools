@@ -37,6 +37,14 @@ public: // IAppConfig
 				IConfigParams::PARAM_REQUIRED);
 
 	bool
+		getInt32(
+			const std::string& sectionName,
+			const std::string& parameterName,
+			int32& value,
+			const IConfigParams::EParamDisposition disposition =
+				IConfigParams::PARAM_REQUIRED);
+
+	bool
 		getBoolean(
 			const std::string& sectionName,
 			const std::string& parameterName,
@@ -55,6 +63,13 @@ public: // IAppConfig
 		getGlobalUint32(
 			const std::string& parameterName,
 			uint32& value,
+			const IConfigParams::EParamDisposition disposition =
+				IConfigParams::PARAM_REQUIRED);
+
+	bool
+		getGlobalInt32(
+			const std::string& parameterName,
+			int32& value,
 			const IConfigParams::EParamDisposition disposition =
 				IConfigParams::PARAM_REQUIRED);
 
@@ -86,6 +101,10 @@ public: // IAppConfigWrite
 						const std::string& parameterName,
 						const uint32& value);
 
+	void setInt32(const std::string& sectionName,
+					  const std::string& parameterName,
+					  const int32& value);
+
 	void setBoolean(const std::string& sectionName,
 						 const std::string& parameterName,
 						 const bool& value);
@@ -95,6 +114,9 @@ public: // IAppConfigWrite
 
 	void setGlobalUint32(const std::string& parameterName,
 								const uint32& value);
+
+	void setGlobalInt32(const std::string& parameterName,
+							  const int32& value);
 
 	void setGlobalBoolean(const std::string& parameterName,
 								 const bool& value);

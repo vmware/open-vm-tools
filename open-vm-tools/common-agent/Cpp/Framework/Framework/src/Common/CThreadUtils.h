@@ -17,8 +17,8 @@ public:
 
 public:
 	static uint32 getThreadStackSizeKb();
-	static void start(threadFunc func, void* data);
 	static GThread* startJoinable(threadFunc func, void* data);
+	static void join(GThread* thread);
 	static void sleep(const uint32 milliseconds);
 
 private:

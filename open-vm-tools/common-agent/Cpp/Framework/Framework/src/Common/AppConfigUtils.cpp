@@ -25,6 +25,13 @@ uint32 AppConfigUtils::getRequiredUint32(
 	return rc;
 }
 
+int32 AppConfigUtils::getRequiredInt32(
+	const std::string& parameterName) {
+	int32 rc;
+	getAppConfig()->getGlobalInt32(parameterName, rc, IConfigParams::PARAM_REQUIRED);
+	return rc;
+}
+
 bool AppConfigUtils::getRequiredBoolean(
 	const std::string& parameterName) {
 	bool rc;
@@ -43,6 +50,13 @@ uint32 AppConfigUtils::getOptionalUint32(
 	const std::string& parameterName) {
 	uint32 rc = 0;
 	getAppConfig()->getGlobalUint32(parameterName, rc, IConfigParams::PARAM_OPTIONAL);
+	return rc;
+}
+
+int32 AppConfigUtils::getOptionalInt32(
+	const std::string& parameterName) {
+	int32 rc = 0;
+	getAppConfig()->getGlobalInt32(parameterName, rc, IConfigParams::PARAM_OPTIONAL);
 	return rc;
 }
 
@@ -69,6 +83,14 @@ uint32 AppConfigUtils::getRequiredUint32(
 	return rc;
 }
 
+int32 AppConfigUtils::getRequiredInt32(
+	const std::string& sectionName,
+	const std::string& parameterName) {
+	int32 rc;
+	getAppConfig()->getInt32(sectionName, parameterName, rc, IConfigParams::PARAM_REQUIRED);
+	return rc;
+}
+
 bool AppConfigUtils::getRequiredBoolean(
 	const std::string& sectionName,
 	const std::string& parameterName) {
@@ -90,6 +112,14 @@ uint32 AppConfigUtils::getOptionalUint32(
 	const std::string& parameterName) {
 	uint32 rc = 0;
 	getAppConfig()->getUint32(sectionName, parameterName, rc, IConfigParams::PARAM_OPTIONAL);
+	return rc;
+}
+
+int32 AppConfigUtils::getOptionalInt32(
+	const std::string& sectionName,
+	const std::string& parameterName) {
+	int32 rc = 0;
+	getAppConfig()->getInt32(sectionName, parameterName, rc, IConfigParams::PARAM_OPTIONAL);
 	return rc;
 }
 

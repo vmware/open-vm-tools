@@ -13,10 +13,12 @@ using namespace Caf;
 
 CSimpleAsyncTaskExecutor::CSimpleAsyncTaskExecutor() :
 	_isInitialized(false),
+	_thread(NULL),
 	CAF_CM_INIT_LOG("CSimpleAsyncTaskExecutor") {
 	CAF_CM_FUNCNAME("CSimpleAsyncTaskExecutor");
 
 	try {
+		CAF_CM_INIT_THREADSAFE;
 		CAF_THREADSIGNAL_INIT;
 	}
 	CAF_CM_CATCH_ALL;
@@ -25,12 +27,30 @@ CSimpleAsyncTaskExecutor::CSimpleAsyncTaskExecutor() :
 }
 
 CSimpleAsyncTaskExecutor::~CSimpleAsyncTaskExecutor() {
+	CAF_CM_FUNCNAME("~CSimpleAsyncTaskExecutor");
+
+	try {
+		cancel(0);
+	}
+	CAF_CM_CATCH_ALL;
+	CAF_CM_LOG_CRIT_CAFEXCEPTION;
+	CAF_CM_CLEAREXCEPTION;
+
+	try {
+		if (_thread) {
+			CThreadUtils::join(_thread);
+		}
+	}
+	CAF_CM_CATCH_ALL;
+	CAF_CM_LOG_CRIT_CAFEXCEPTION;
+	CAF_CM_CLEAREXCEPTION;
 }
 
 void CSimpleAsyncTaskExecutor::initialize(
 	const SmartPtrIRunnable& runnable,
 	const SmartPtrIErrorHandler& errorHandler) {
 	CAF_CM_FUNCNAME_VALIDATE("initialize");
+	CAF_CM_LOCK_UNLOCK;
 	CAF_CM_PRECOND_ISNOTINITIALIZED(_isInitialized);
 	CAF_CM_VALIDATE_INTERFACE(runnable);
 	CAF_CM_VALIDATE_INTERFACE(errorHandler);
@@ -44,6 +64,7 @@ void CSimpleAsyncTaskExecutor::initialize(
 void CSimpleAsyncTaskExecutor::execute(
 	const uint32 timeoutMs) {
 	CAF_CM_FUNCNAME("execute");
+	CAF_CM_LOCK_UNLOCK;
 	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
 
 	if (ITaskExecutor::ETaskStateNotStarted == _state->getState()) {
@@ -59,14 +80,19 @@ void CSimpleAsyncTaskExecutor::execute(
 			CThreadData threadData = std::make_pair(
 					CAF_THREADSIGNAL_MUTEX,
 					_state.GetNonAddRefedInterface());
-			CThreadUtils::start(threadFunc, &threadData);
+			CAF_CM_VALIDATE_NULLPTR(_thread);
+			_thread = CThreadUtils::startJoinable(threadFunc, &threadData);
+
+			CAF_CM_UNLOCK_LOCK;
 			_state->waitForStart(CAF_THREADSIGNAL_MUTEX, timeoutMs);
 		}
 		if (_state->getState() != ITaskExecutor::ETaskStateStarted) {
-			CAF_CM_EXCEPTION_VA1(ERROR_INVALID_STATE, "Not Started: %s", _state->getStateStr().c_str());
+			CAF_CM_EXCEPTION_VA1(ERROR_INVALID_STATE,
+					"Not Started: %s", _state->getStateStr().c_str());
 		}
 	} else if (ITaskExecutor::ETaskStateStarted != _state->getState()) {
-		CAF_CM_EXCEPTION_VA1(ERROR_INVALID_STATE, "Invalid State: %s", _state->getStateStr().c_str());
+		CAF_CM_EXCEPTION_VA1(ERROR_INVALID_STATE,
+				"Invalid State: %s", _state->getStateStr().c_str());
 	}
 
 	CAF_CM_LOG_INFO_VA0("Started");
@@ -75,6 +101,7 @@ void CSimpleAsyncTaskExecutor::execute(
 void CSimpleAsyncTaskExecutor::cancel(
 	const uint32 timeoutMs) {
 	CAF_CM_FUNCNAME("cancel");
+	CAF_CM_LOCK_UNLOCK;
 	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
 
 	if (ITaskExecutor::ETaskStateStarted == _state->getState()) {
@@ -93,7 +120,15 @@ void CSimpleAsyncTaskExecutor::cancel(
 		// mutex is guaranteed to unlock
 		{
 			CAF_THREADSIGNAL_LOCK_UNLOCK;
-			_state->waitForStop(CAF_THREADSIGNAL_MUTEX, timeoutMs);
+			CAF_CM_UNLOCK_LOCK;
+			while (! _state->getHasThreadExited()) {
+				_state->waitForStop(CAF_THREADSIGNAL_MUTEX, timeoutMs);
+			}
+		}
+
+		if (_thread) {
+			CThreadUtils::join(_thread);
+			_thread = NULL;
 		}
 
 		if (_state->getState() != ITaskExecutor::ETaskStateFinished) {
@@ -111,6 +146,7 @@ void CSimpleAsyncTaskExecutor::cancel(
 
 ITaskExecutor::ETaskState CSimpleAsyncTaskExecutor::getState() const {
 	CAF_CM_FUNCNAME_VALIDATE("getState");
+	CAF_CM_LOCK_UNLOCK;
 	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
 
 	return _state->getState();
@@ -121,6 +157,7 @@ void* CSimpleAsyncTaskExecutor::threadFunc(void* data) {
 
 	SmartPtrCSimpleAsyncTaskExecutorState state;
 	SmartPtrCAutoMutex mutex;
+	ITaskExecutor::ETaskState stateState = ITaskExecutor::ETaskStateFailed;
 
 	try {
 		CAF_CM_VALIDATE_PTR(data);
@@ -132,8 +169,9 @@ void* CSimpleAsyncTaskExecutor::threadFunc(void* data) {
 		CAF_CM_VALIDATE_SMARTPTR(state);
 
 		try {
-			CAF_CM_LOCK_UNLOCK1(mutex);
 			state->setState(ITaskExecutor::ETaskStateStarted);
+
+			CAF_CM_LOCK_UNLOCK1(mutex);
 			state->signalStart();
 		}
 		CAF_CM_CATCH_ALL;
@@ -142,6 +180,7 @@ void* CSimpleAsyncTaskExecutor::threadFunc(void* data) {
 		if (!CAF_CM_ISEXCEPTION) {
 			try {
 				state->getRunnable()->run();
+				stateState = ITaskExecutor::ETaskStateFinished;
 			}
 			CAF_CM_CATCH_ALL;
 			CAF_CM_LOG_CRIT_CAFEXCEPTION;
@@ -149,16 +188,12 @@ void* CSimpleAsyncTaskExecutor::threadFunc(void* data) {
 
 		try {
 			if (CAF_CM_ISEXCEPTION) {
-				state->setState(ITaskExecutor::ETaskStateFailed);
-
 				SmartPtrCIntException intException;
 				intException.CreateInstance();
 				intException->initialize(CAF_CM_GETEXCEPTION);
 				state->getErrorHandler()->handleError(intException, SmartPtrIIntMessage());
 
 				CAF_CM_CLEAREXCEPTION;
-			} else {
-				state->setState(ITaskExecutor::ETaskStateFinished);
 			}
 		}
 		CAF_CM_CATCH_ALL;
@@ -169,18 +204,20 @@ void* CSimpleAsyncTaskExecutor::threadFunc(void* data) {
 	CAF_CM_LOG_CRIT_CAFEXCEPTION;
 	CAF_CM_CLEAREXCEPTION;
 
-	CAF_CM_LOG_INFO_VA0("**** Thread exiting ****");
 	if (! state.IsNull()) {
 		try {
-			CAF_CM_VALIDATE_PTR(mutex);
+			state->setState(stateState);
+			state->setThreadExited();
+
 			CAF_CM_LOCK_UNLOCK1(mutex);
-			state->detach();
 			state->signalStop();
 		}
 		CAF_CM_CATCH_ALL;
 		CAF_CM_LOG_CRIT_CAFEXCEPTION;
 		CAF_CM_CLEAREXCEPTION;
 	}
+
+	CAF_CM_LOG_INFO_VA0("**** Thread exiting ****");
 
 	return NULL;
 }

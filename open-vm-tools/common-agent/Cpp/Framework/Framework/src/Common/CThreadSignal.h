@@ -47,8 +47,6 @@ private:
 	bool _isInitialized;
 	CAutoCondition _condition;
 
-	uint32 _waitCnt;
-
 private:
 	CAF_CM_CREATE;
 	CAF_CM_CREATE_THREADSAFE;

@@ -54,7 +54,8 @@ private:
 	static std::string loadTextFile(
 			const std::string& dir,
 			const std::string& file,
-			const std::string& defaultVal = std::string());
+			const std::string& defaultVal = std::string(),
+			const bool isTrimRight = true);
 
 private:
 	static std::string createDirectory(

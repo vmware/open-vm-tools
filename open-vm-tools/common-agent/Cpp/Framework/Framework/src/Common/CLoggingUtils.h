@@ -24,8 +24,9 @@ private:
 
 public:
 	static bool isConsoleAppenderUsed();
-	static void setStartupConfigFile();
-	static void setStartupConfigFile(const std::string& configFile);
+	static void setStartupConfigFile(
+			const std::string& configFile = "log4cpp_config",
+			const std::string& logDir = std::string());
 	static std::string getConfigFile();
 	static void resetConfigFile();
 	static void setLogDir(const std::string& logDir);

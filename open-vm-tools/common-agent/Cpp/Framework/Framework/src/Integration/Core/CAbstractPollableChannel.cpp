@@ -17,7 +17,7 @@ CAbstractPollableChannel::~CAbstractPollableChannel() {
 }
 
 SmartPtrIIntMessage CAbstractPollableChannel::receive() {
-	return receive(-1);
+	return receive(0);
 }
 
 SmartPtrIIntMessage CAbstractPollableChannel::receive(const int32 timeout) {

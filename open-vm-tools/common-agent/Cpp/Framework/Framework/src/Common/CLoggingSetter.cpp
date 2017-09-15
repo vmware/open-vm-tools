@@ -15,7 +15,7 @@ using namespace Caf;
 ////////////////////////////////////////////////////////////////////////
 CLoggingSetter::CLoggingSetter() :
 		_isInitialized(false),
-		_useSingleLogging(false),
+		_remapLoggingLocation(false),
 	CAF_CM_INIT_LOG("CLoggingSetter") {
 }
 
@@ -29,7 +29,7 @@ CLoggingSetter::~CLoggingSetter() {
 
 	try {
 		if (_isInitialized) {
-			if (! _useSingleLogging) {
+			if (_remapLoggingLocation) {
 				CAF_CM_LOG_DEBUG_VA0("Resetting log config dir");
 				CLoggingUtils::resetConfigFile();
 				CAF_CM_LOG_DEBUG_VA0("Reset log config dir");
@@ -50,8 +50,8 @@ void CLoggingSetter::initialize(const std::string& logDir) {
 	CAF_CM_PRECOND_ISNOTINITIALIZED(_isInitialized);
 	CAF_CM_VALIDATE_STRING(logDir);
 
-	_useSingleLogging = AppConfigUtils::getOptionalBoolean("use_single_logging");
-	if (! _useSingleLogging) {
+	_remapLoggingLocation = AppConfigUtils::getOptionalBoolean("remap_logging_location");
+	if (_remapLoggingLocation) {
 		CAF_CM_LOG_DEBUG_VA1("Setting log config dir - %s", logDir.c_str());
 		CLoggingUtils::setLogDir(logDir);
 		CAF_CM_LOG_DEBUG_VA1("Set log config dir - %s", logDir.c_str());

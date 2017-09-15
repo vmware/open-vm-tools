@@ -145,6 +145,7 @@ SmartPtrIPersistence CPersistenceInboundChannelAdapterInstance::createPersistenc
 		CAF_CM_LOG_WARN_VA2("initialize failed - ref: %s, msg: %s",
 				removeRefStr.c_str(), (CAF_CM_EXCEPTION_GET_FULLMSG).c_str());
 		rc = SmartPtrIPersistence();
+		CAF_CM_CLEAREXCEPTION;
 	}
 
 	return rc;

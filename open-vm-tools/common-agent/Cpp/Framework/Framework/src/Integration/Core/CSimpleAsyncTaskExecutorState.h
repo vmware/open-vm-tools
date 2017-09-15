@@ -23,10 +23,13 @@ public:
 
 	SmartPtrIRunnable getRunnable() const;
 	SmartPtrIErrorHandler getErrorHandler() const;
+
 	ITaskExecutor::ETaskState getState() const;
 	std::string getStateStr() const;
-
 	void setState(const ITaskExecutor::ETaskState runnableState);
+
+	bool getHasThreadExited();
+	void setThreadExited();
 
 	void signalStart();
 	void waitForStart(SmartPtrCAutoMutex& mutex, const uint32 timeoutMs);
@@ -34,10 +37,9 @@ public:
 	void signalStop();
 	void waitForStop(SmartPtrCAutoMutex& mutex, const uint32 timeoutMs);
 
-	void detach();
-
 private:
 	bool _isInitialized;
+	bool _hasThreadExited;
 	ITaskExecutor::ETaskState _runnableState;
 	SmartPtrIRunnable _runnable;
 	SmartPtrIErrorHandler _errorHandler;

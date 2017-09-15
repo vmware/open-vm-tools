@@ -32,11 +32,11 @@ int32 main(int32 argc, char** argv) {
 		return 1;
 	}
 
-	CafInitialize::serviceConfig();
 
 	SmartPtrIAppConfig appConfig;
-
 	try {
+		CafInitialize::serviceConfig();
+
 		std::string appConfigEnv;
 		CEnvironmentUtils::readEnvironmentVar("CAF_APPCONFIG", appConfigEnv);
 		if (appConfigEnv.empty()) {
@@ -83,20 +83,20 @@ int32 main(int32 argc, char** argv) {
 				"ManagementAgentHost: getAppConfig() failed . unknown exception\n");
 	}
 
-	if (!appConfig) {
-		CafInitialize::term();
-		return 1;
-	}
-
-	const std::string cafBinDir = AppConfigUtils::getRequiredString("globals", "bin_dir");
-	g_setenv("CAF_BIN_DIR", cafBinDir.c_str(), TRUE);
-
-	const std::string cafLibDir = AppConfigUtils::getRequiredString("globals", "lib_dir");
-	g_setenv("CAF_LIB_DIR", cafLibDir.c_str(), TRUE);
-
 	CAF_CM_STATIC_FUNC_LOG("ManagementAgentHostMain", "main");
 	int32 iRc = 0;
 	try {
+		if (!appConfig) {
+			CafInitialize::term();
+			return 1;
+		}
+
+		const std::string cafBinDir = AppConfigUtils::getRequiredString("globals", "bin_dir");
+		g_setenv("CAF_BIN_DIR", cafBinDir.c_str(), TRUE);
+
+		const std::string cafLibDir = AppConfigUtils::getRequiredString("globals", "lib_dir");
+		g_setenv("CAF_LIB_DIR", cafLibDir.c_str(), TRUE);
+
 		_gManagementAgentHostWork.CreateInstance();
 		_gManagementAgentHostWork->initialize();
 
@@ -109,17 +109,18 @@ int32 main(int32 argc, char** argv) {
 			return 1;
 		}
 
+		const std::string procPath = argv[0];
 		CDaemonUtils::MakeDaemon(
 			argc,
 			argv,
+			procPath,
 			"ManagementAgentHost",
 			TermHandler,
 			_gDaemonized,
 			_gSysLogInfos);
 
 		CLoggingUtils::setStartupConfigFile(
-			AppConfigUtils::getRequiredString(_sAppConfigGlobalParamLogConfigFile));
-		CLoggingUtils::setLogDir(
+			AppConfigUtils::getRequiredString(_sAppConfigGlobalParamLogConfigFile),
 			AppConfigUtils::getRequiredString(_sAppConfigGlobalParamLogDir));
 
 		_gManagementAgentHostWork->doWork();

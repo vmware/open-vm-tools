@@ -25,6 +25,11 @@ IAppConfigWrite : public ICafObject {
 			const std::string& parameterName,
 			const uint32& value) = 0;
 
+	virtual void setInt32(
+			const std::string& sectionName,
+			const std::string& parameterName,
+			const int32& value) = 0;
+
 	virtual void setBoolean(
 			const std::string& sectionName,
 			const std::string& parameterName,
@@ -37,6 +42,10 @@ IAppConfigWrite : public ICafObject {
 	virtual void setGlobalUint32(
 			const std::string& parameterName,
 			const uint32& value) = 0;
+
+	virtual void setGlobalInt32(
+			const std::string& parameterName,
+			const int32& value) = 0;
 
 	virtual void setGlobalBoolean(
 			const std::string& parameterName,

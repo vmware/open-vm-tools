@@ -97,7 +97,8 @@ int32 main(int32 argc, char** argv) {
 		CWinService::initialize(_gAmqpListenerWorker);
 		CWinService::execute(argc, argv);
 #else
-		Cdeqstr parts = CStringUtils::split(argv[0], G_DIR_SEPARATOR);
+		const std::string procPath = argv[0];
+		Cdeqstr parts = CStringUtils::split(procPath, G_DIR_SEPARATOR);
 		std::string procName = "CommAmqpListener";
 		if (parts.size()) {
 			procName = parts.back();
@@ -106,14 +107,14 @@ int32 main(int32 argc, char** argv) {
 		CDaemonUtils::MakeDaemon(
 			argc,
 			argv,
-			procName.c_str(),
+			procPath,
+			procName,
 			TermHandler,
 			_gDaemonized,
 			_gSysLogInfos);
 
 		CLoggingUtils::setStartupConfigFile(
-			AppConfigUtils::getRequiredString(_sAppConfigGlobalParamLogConfigFile));
-		CLoggingUtils::setLogDir(
+			AppConfigUtils::getRequiredString(_sAppConfigGlobalParamLogConfigFile),
 			AppConfigUtils::getRequiredString(_sAppConfigGlobalParamLogDir));
 
 		_gAmqpListenerWorker->doWork();

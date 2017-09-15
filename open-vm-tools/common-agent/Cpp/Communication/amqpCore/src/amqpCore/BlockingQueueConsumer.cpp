@@ -95,7 +95,7 @@ SmartPtrIIntMessage BlockingQueueConsumer::nextMessage(int32 timeout) {
 	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
 	CAF_CM_ASSERT(_isRunning);
 
-	gint64 microTimeout = timeout * 1000;
+	guint64 microTimeout = static_cast<guint64>(timeout) * 1000;
 	gpointer data = g_async_queue_timeout_pop(_deliveryQueue, microTimeout);
 
 	checkShutdown();

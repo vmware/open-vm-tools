@@ -115,8 +115,8 @@ SmartPtrIIntMessage CErrorToResponseTransformerInstance::processErrorMessage(
 				errorResponse, relFilename, message->getHeaders());
 
 		// Writing the error response for debugging purposes
-		const std::string outputDir = AppConfigUtils::getRequiredString(_sConfigOutputDir);
-		FileSystemUtils::saveTextFile(outputDir, _sErrorResponseFilename,
+		const std::string tmpDir = AppConfigUtils::getRequiredString(_sConfigTmpDir);
+		FileSystemUtils::saveTextFile(tmpDir, _sErrorResponseFilename,
 				newMessage->getPayloadStr());
 	}
 	CAF_CM_CATCH_ALL;

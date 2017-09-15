@@ -73,11 +73,9 @@ SmartPtrIIntMessage CCollectSchemaExecutor::processMessage(
 		const std::string outputDir = FileSystemUtils::buildPath(
 			configOutputDir, _sProviderHostArea, relDirectory);
 
-		if (AppConfigUtils::getRequiredBoolean("managementAgent", "remap_logging_location")) {
-			SmartPtrCLoggingSetter loggingSetter;
-			loggingSetter.CreateInstance();
-			loggingSetter->initialize(outputDir);
-		}
+		SmartPtrCLoggingSetter loggingSetter;
+		loggingSetter.CreateInstance();
+		loggingSetter->initialize(outputDir);
 
 		const std::string providerCollectSchemaMem = message->getPayloadStr();
 		const SmartPtrCProviderCollectSchemaRequestDoc providerCollectSchemaRequest =

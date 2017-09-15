@@ -26,16 +26,7 @@ uint32 CThreadUtils::getThreadStackSizeKb() {
 	return stackSizeKb;
 }
 
-void CThreadUtils::start(
-	threadFunc func,
-	void* data) {
-	(void)startJoinable(func, data);
-}
-
-GThread* CThreadUtils::startJoinable(
-	threadFunc func,
-	void* data) {
-
+GThread* CThreadUtils::startJoinable(threadFunc func, void* data) {
 	CAF_CM_STATIC_FUNC("CThreadUtils", "startJoinable");
 
 	GThread *rc = g_thread_new("CThreadUtils::startJoinable", func, data);
@@ -44,6 +35,10 @@ GThread* CThreadUtils::startJoinable(
 	}
 
 	return rc;
+}
+
+void CThreadUtils::join(GThread* thread) {
+	(void) g_thread_join(thread);
 }
 
 void CThreadUtils::sleep(

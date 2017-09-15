@@ -148,7 +148,7 @@ std::string CAttachmentRequestTransformerInstance::calcOutputDirPath(
 		const std::string outputDir = AppConfigUtils::getRequiredString(_sConfigOutputDir);
 
 		outputDirPath = FileSystemUtils::buildPath(
-			outputDir, clientIdStr, requestIdStr, pmeIdStr);
+			outputDir, "att", clientIdStr, requestIdStr, pmeIdStr);
 
 		outputDirPath = CStringUtils::expandEnv(outputDirPath);
 		if (! FileSystemUtils::doesDirectoryExist(outputDirPath)) {

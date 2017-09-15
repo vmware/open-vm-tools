@@ -14,6 +14,8 @@ using namespace Caf;
 CIntegrationAppContext::CIntegrationAppContext() :
 	_isInitialized(false),
 	_isIntegrationObjectCollectionReady(false),
+	_lifecycleBeansStarted(false),
+	_timeoutMs(0),
 	CAF_CM_INIT_LOG("CIntegrationAppContext") {
 }
 
@@ -23,20 +25,44 @@ CIntegrationAppContext::~CIntegrationAppContext() {
 	}
 }
 
-void CIntegrationAppContext::initialize(const uint32 timeoutMs) {
+void CIntegrationAppContext::initialize(
+		const uint32 timeoutMs) {
 	CAF_CM_FUNCNAME_VALIDATE("initialize");
 	CAF_CM_PRECOND_ISNOTINITIALIZED(_isInitialized);
 
 	const std::string beanConfigPath = getDefaultBeanConfigPath();
-	initialize(timeoutMs, beanConfigPath);
+	initializeRaw(timeoutMs, beanConfigPath, true);
 }
 
 void CIntegrationAppContext::initialize(
 	const uint32 timeoutMs,
 	const std::string& beanConfigPath) {
-	CAF_CM_FUNCNAME("initialize");
+	CAF_CM_FUNCNAME_VALIDATE("initialize");
 	CAF_CM_PRECOND_ISNOTINITIALIZED(_isInitialized);
 	CAF_CM_VALIDATE_STRING(beanConfigPath);
+
+	initializeRaw(timeoutMs, beanConfigPath, true);
+}
+
+void CIntegrationAppContext::initializeTwoPhase(
+	const uint32 timeoutMs,
+	const std::string& beanConfigPath) {
+	CAF_CM_FUNCNAME_VALIDATE("initializeTwoPhase");
+	CAF_CM_PRECOND_ISNOTINITIALIZED(_isInitialized);
+	CAF_CM_VALIDATE_STRING(beanConfigPath);
+
+	initializeRaw(timeoutMs, beanConfigPath, false);
+}
+
+void CIntegrationAppContext::initializeRaw(
+	const uint32 timeoutMs,
+	const std::string& beanConfigPath,
+	const bool startLifecycleBeans) {
+	CAF_CM_FUNCNAME("initializeRaw");
+	CAF_CM_PRECOND_ISNOTINITIALIZED(_isInitialized);
+	CAF_CM_VALIDATE_STRING(beanConfigPath);
+
+	_timeoutMs = timeoutMs;
 
 	_weakSelfReference.CreateInstance();
 	_weakSelfReference->set(this);
@@ -132,14 +158,27 @@ void CIntegrationAppContext::initialize(
 	}
 
 	// Start the lifecycle objects
-	startStop(_lifecycleBeans, timeoutMs, true);
+	if (startLifecycleBeans) {
+		_lifecycleBeansStarted = true;
+		startStop(_lifecycleBeans, _timeoutMs, true);
+	}
 
 	_isInitialized = true;
+}
+
+void CIntegrationAppContext::startLifecycleBeans() {
+	CAF_CM_FUNCNAME_VALIDATE("startLifecycleBeans");
+	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
+	CAF_CM_PRECOND_ISNOTINITIALIZED(_lifecycleBeansStarted);
+
+	_lifecycleBeansStarted = true;
+	startStop(_lifecycleBeans, _timeoutMs, true);
 }
 
 void CIntegrationAppContext::terminate(const uint32 timeoutMs) {
 	CAF_CM_FUNCNAME("terminate");
 	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
+	CAF_CM_PRECOND_ISINITIALIZED(_lifecycleBeansStarted);
 
 	try {
 		_weakSelfReference->set(NULL);

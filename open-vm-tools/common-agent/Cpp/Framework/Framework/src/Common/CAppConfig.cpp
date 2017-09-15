@@ -232,13 +232,50 @@ bool CAppConfig::getUint32(
 		parameterName.c_str(),
 		IConfigParams::PARAM_OPTIONAL);
 	if (param) {
-		if (g_variant_is_of_type(param, G_VARIANT_TYPE_UINT32)) {
-			value = g_variant_get_uint32(param);
+		if (g_variant_is_of_type(param, G_VARIANT_TYPE_INT32)) {
+			value = static_cast<uint32>(g_variant_get_int32(param));
 			paramFound = true;
 		} else {
 			std::string valueStr;
 			getString(sectionName, parameterName, valueStr, disposition);
 			value = CStringConv::fromString<uint32>(valueStr);
+		}
+	} else {
+		if (IConfigParams::PARAM_REQUIRED == disposition) {
+			CAF_CM_EXCEPTION_VA2(ERROR_TAG_NOT_FOUND,
+				"Required config parameter [%s] is missing from section [%s]",
+				parameterName.c_str(),
+				sectionName.c_str());
+		}
+	}
+
+	return paramFound;
+}
+
+bool CAppConfig::getInt32(
+	const std::string& sectionName,
+	const std::string& parameterName,
+	int32& value,
+	const IConfigParams::EParamDisposition disposition) {
+	CAF_CM_FUNCNAME("getInt32");
+	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
+	CAF_CM_VALIDATE_STRING(sectionName);
+	CAF_CM_VALIDATE_STRING(parameterName);
+
+	bool paramFound = false;
+
+	SmartPtrIConfigParams params = getParameters(sectionName);
+	GVariant* param = params->lookup(
+		parameterName.c_str(),
+		IConfigParams::PARAM_OPTIONAL);
+	if (param) {
+		if (g_variant_is_of_type(param, G_VARIANT_TYPE_INT32)) {
+			value = g_variant_get_int32(param);
+			paramFound = true;
+		} else {
+			std::string valueStr;
+			getString(sectionName, parameterName, valueStr, disposition);
+			value = CStringConv::fromString<int32>(valueStr);
 		}
 	} else {
 		if (IConfigParams::PARAM_REQUIRED == disposition) {
@@ -305,6 +342,13 @@ bool CAppConfig::getGlobalUint32(
 	return getUint32(_sGlobalsSectionName, parameterName, value, disposition);
 }
 
+bool CAppConfig::getGlobalInt32(
+	const std::string& parameterName,
+	int32& value,
+	const IConfigParams::EParamDisposition disposition) {
+	return getInt32(_sGlobalsSectionName, parameterName, value, disposition);
+}
+
 bool CAppConfig::getGlobalBoolean(
 	const std::string& parameterName,
 	bool& value,
@@ -337,7 +381,21 @@ void CAppConfig::setUint32(
 	CAF_CM_VALIDATE_STRING(parameterName);
 
 	SmartPtrIConfigParams params = getParameters(sectionName);
-	params->insert(g_strdup(parameterName.c_str()), g_variant_new_uint32(
+	params->insert(g_strdup(parameterName.c_str()), g_variant_new_int32(
+		value));
+}
+
+void CAppConfig::setInt32(
+	const std::string& sectionName,
+	const std::string& parameterName,
+	const int32& value) {
+	CAF_CM_FUNCNAME_VALIDATE("setInt32");
+	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
+	CAF_CM_VALIDATE_STRING(sectionName);
+	CAF_CM_VALIDATE_STRING(parameterName);
+
+	SmartPtrIConfigParams params = getParameters(sectionName);
+	params->insert(g_strdup(parameterName.c_str()), g_variant_new_int32(
 		value));
 }
 
@@ -365,6 +423,12 @@ void CAppConfig::setGlobalUint32(
 	const std::string& parameterName,
 	const uint32& value) {
 	setUint32(_sGlobalsSectionName, parameterName, value);
+}
+
+void CAppConfig::setGlobalInt32(
+	const std::string& parameterName,
+	const int32& value) {
+	setInt32(_sGlobalsSectionName, parameterName, value);
 }
 
 void CAppConfig::setGlobalBoolean(
@@ -420,13 +484,13 @@ std::string CAppConfig::resolveValue(const std::string& value) {
 
 				if (!resolved) {
 					try {
-						uint32 uval = 0;
-						getUint32(
+						int32 uval = 0;
+						getInt32(
 								section,
 								varName,
 								uval,
 								IConfigParams::PARAM_REQUIRED);
-						configVal = CStringConv::toString<uint32>(uval);
+						configVal = CStringConv::toString<int32>(uval);
 						resolved = true;
 					} catch (CCafException *ex) {
 						if (ex->getError() == DISP_E_TYPEMISMATCH) {
@@ -685,7 +749,7 @@ void CAppConfig::internalLoadParameters(
 
 				for (gsize idx = 0; idx < numKeys; idx++) {
 					// There is no way to tell if a value is an integer or string.
-					// We want to insert the value as either string or uint32 so
+					// We want to insert the value as either string or int32 so
 					// try to read the value as an integer.  If it cannot be read
 					// as an integer then insert it as a string.
 					gint iValue = g_key_file_get_integer(
@@ -694,7 +758,7 @@ void CAppConfig::internalLoadParameters(
 						keys[idx],
 						&configError);
 					if (!configError) {
-						configParams->insert(g_strdup(keys[idx]), g_variant_new_uint32(
+						configParams->insert(g_strdup(keys[idx]), g_variant_new_int32(
 							iValue));
 
 						if (isGlobals) {
@@ -895,7 +959,7 @@ void CAppConfig::validateGlobals(const SmartPtrIConfigParams& globals) {
 	GVariant* thread_stack_size_kb = globals->lookup(
 		_sAppConfigGlobalThreadStackSizeKb,
 		IConfigParams::PARAM_REQUIRED);
-	CAF_CM_ASSERT(g_variant_is_of_type(thread_stack_size_kb, G_VARIANT_TYPE_UINT32));
+	CAF_CM_ASSERT(g_variant_is_of_type(thread_stack_size_kb, G_VARIANT_TYPE_INT32));
 }
 
 std::string CAppConfig::calcConfigPath(

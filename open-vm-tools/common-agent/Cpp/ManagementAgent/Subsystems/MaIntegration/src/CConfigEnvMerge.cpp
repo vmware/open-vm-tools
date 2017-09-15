@@ -9,6 +9,15 @@
 #include "stdafx.h"
 #include "CConfigEnvMerge.h"
 
+#ifdef WIN32
+	#include <winsock.h>
+	#pragma comment (lib, "wsock32.lib")
+#else
+	#include <sys/socket.h>
+	#include <netinet/in.h>
+	#include <arpa/inet.h>
+#endif
+
 using namespace Caf;
 
 SmartPtrCPersistenceDoc CConfigEnvMerge::mergePersistence(
@@ -20,34 +29,30 @@ SmartPtrCPersistenceDoc CConfigEnvMerge::mergePersistence(
 	CAF_CM_VALIDATE_STRING(cacertPath);
 	CAF_CM_VALIDATE_STRING(vcidPath);
 
-	const std::string cacert = FileSystemUtils::doesFileExist(cacertPath) ?
-			FileSystemUtils::loadTextFile(cacertPath) : std::string();
-	const std::string vcid = FileSystemUtils::doesFileExist(vcidPath) ?
-			FileSystemUtils::loadTextFile(vcidPath) : std::string();
-	const std::string protocol = isTunnelEnabled() ? "tunnel" : "amqp";
+	const std::string localId = mergeLocalId(persistence, vcidPath);
 
-	std::string vcidDiff;
-	if (! vcid.empty()) {
-		if (persistence->getLocalSecurity()->getLocalId().compare(vcid) != 0) {
-			CAF_CM_LOG_DEBUG_VA2("vcid changed - %s != %s",
-					persistence->getLocalSecurity()->getLocalId().c_str(), vcid.c_str());
-			vcidDiff = vcid;
-		}
+	std::string localIdDiff;
+	if (persistence->getLocalSecurity()->getLocalId().compare(localId) != 0) {
+		CAF_CM_LOG_DEBUG_VA2("LocalId changed - %s != %s",
+				persistence->getLocalSecurity()->getLocalId().c_str(), localId.c_str());
+		localIdDiff = localId;
 	}
+
+	const std::string cacert = loadTextFile(cacertPath);
 
 	const std::deque<SmartPtrCPersistenceProtocolDoc> persistenceProtocolCollectionInnerDiff =
 			mergePersistenceProtocolCollectionInner(
 					persistence->getPersistenceProtocolCollection()->getPersistenceProtocol(),
-					protocol, vcid, cacert);
+					localId, cacert);
 
 	SmartPtrCPersistenceDoc rc;
-	if (! vcidDiff.empty() || ! persistenceProtocolCollectionInnerDiff.empty()) {
+	if (! localIdDiff.empty() || ! persistenceProtocolCollectionInnerDiff.empty()) {
 		SmartPtrCLocalSecurityDoc localSecurity = persistence->getLocalSecurity();
-		if (! vcidDiff.empty()) {
+		if (! localIdDiff.empty()) {
 			CAF_CM_LOG_DEBUG_VA0("Creating local security diff");
 			localSecurity.CreateInstance();
 			localSecurity->initialize(
-					vcidDiff,
+					localIdDiff,
 					persistence->getLocalSecurity()->getPrivateKey(),
 					persistence->getLocalSecurity()->getCert(),
 					persistence->getLocalSecurity()->getPrivateKeyPath(),
@@ -73,13 +78,32 @@ SmartPtrCPersistenceDoc CConfigEnvMerge::mergePersistence(
 	return rc;
 }
 
+std::string CConfigEnvMerge::mergeLocalId(
+		const SmartPtrCPersistenceDoc& persistence,
+		const std::string& vcidPath) {
+	CAF_CM_STATIC_FUNC_LOG_VALIDATE("CConfigEnvMerge", "mergeLocalId");
+	CAF_CM_VALIDATE_SMARTPTR(persistence);
+	CAF_CM_VALIDATE_STRING(vcidPath);
+
+	std::string rc = loadTextFile(vcidPath);
+	if (rc.empty()) {
+		if (persistence->getLocalSecurity()->getLocalId().empty()) {
+			rc = CStringUtils::createRandomUuid();
+		} else {
+			rc = persistence->getLocalSecurity()->getLocalId();
+		}
+	}
+
+	return rc;
+}
+
 std::deque<SmartPtrCPersistenceProtocolDoc> CConfigEnvMerge::mergePersistenceProtocolCollectionInner(
 		const std::deque<SmartPtrCPersistenceProtocolDoc>& persistenceProtocolCollectionInner,
-		const std::string& protocol,
-		const std::string& vcid,
+		const std::string& localId,
 		const std::string& cacert) {
 	CAF_CM_STATIC_FUNC_LOG_VALIDATE("CConfigEnvMerge", "mergePersistenceProtocolCollectionInner");
-	CAF_CM_VALIDATE_BOOL(persistenceProtocolCollectionInner.size() <= 1);
+	CAF_CM_VALIDATE_BOOL(persistenceProtocolCollectionInner.size() == 1);
+	CAF_CM_VALIDATE_STRING(localId);
 
 	std::deque<SmartPtrCPersistenceProtocolDoc> rc;
 	std::deque<SmartPtrCPersistenceProtocolDoc> persistenceProtocolCollectionInnerDiff;
@@ -88,7 +112,11 @@ std::deque<SmartPtrCPersistenceProtocolDoc> CConfigEnvMerge::mergePersistencePro
 		persistenceProtocolIter; persistenceProtocolIter++) {
 		const SmartPtrCPersistenceProtocolDoc persistenceProtocol = *persistenceProtocolIter;
 
-		const std::string uriDiff = mergeUri(persistenceProtocol->getUri(), protocol, vcid);
+		const std::string uriDiff = mergeUri(
+				persistenceProtocol->getUri(),
+				persistenceProtocol->getUriAmqp(),
+				persistenceProtocol->getUriTunnel(),
+				localId);
 		const SmartPtrCCertCollectionDoc tlsCertCollectionDiff =
 				mergeTlsCertCollection(persistenceProtocol->getTlsCertCollection(), cacert);
 
@@ -97,6 +125,8 @@ std::deque<SmartPtrCPersistenceProtocolDoc> CConfigEnvMerge::mergePersistencePro
 		persistenceProtocolDiff->initialize(
 				persistenceProtocol->getProtocolName(),
 				uriDiff.empty() ? persistenceProtocol->getUri() : uriDiff,
+				persistenceProtocol->getUriAmqp(),
+				persistenceProtocol->getUriTunnel(),
 				persistenceProtocol->getTlsCert(),
 				persistenceProtocol->getTlsProtocol(),
 				persistenceProtocol->getTlsCipherCollection(),
@@ -118,34 +148,44 @@ std::deque<SmartPtrCPersistenceProtocolDoc> CConfigEnvMerge::mergePersistencePro
 }
 
 std::string CConfigEnvMerge::mergeUri(
-		const std::string& srcUri,
-		const std::string& protocol,
-		const std::string& vcid) {
-	CAF_CM_STATIC_FUNC_LOG_ONLY("CConfigEnvMerge", "mergeUri");
+		const std::string& uri,
+		const std::string& uriAmqp,
+		const std::string& uriTunnel,
+		const std::string& localId) {
+	CAF_CM_STATIC_FUNC_LOG_VALIDATE("CConfigEnvMerge", "mergeUri");
+	CAF_CM_VALIDATE_STRING(uriAmqp);
+	CAF_CM_VALIDATE_STRING(uriTunnel);
+	CAF_CM_VALIDATE_STRING(localId);
+
+	UriUtils::SUriRecord uriData;
+	if (! uri.empty()) {
+		UriUtils::parseUriString(uri, uriData);
+	}
+
+	const bool isTunnelEnabled = isTunnelEnabledFunc();
+	const std::string uriProtocol = isTunnelEnabled ? "tunnel" : "amqp";
+
+	bool isUriChanged = false;
+	if (uriData.protocol.compare(uriProtocol) != 0) {
+		const std::string uriTmp = isTunnelEnabled ? uriTunnel : uriAmqp;
+		UriUtils::parseUriString(uriTmp, uriData);
+		isUriChanged = true;
+	}
+
+	std::string amqpQueueId = localId;
+	if (isTunnelEnabled) {
+		amqpQueueId += "-agentId1";
+	}
+
+	if (uriData.path.compare(amqpQueueId) != 0) {
+		uriData.path = amqpQueueId;
+		isUriChanged = true;
+	}
+
 	std::string rc;
-	if (! srcUri.empty()) {
-		UriUtils::SUriRecord uriData;
-		UriUtils::parseUriString(srcUri, uriData);
-
-		bool isUriChanged = false;
-		//TODO: Comment back in once isTunnelEnabled() has been implemented
-//		if (uriData.protocol.compare(protocol) != 0) {
-//			uriData.protocol = protocol;
-//			isUriChanged = true;
-//		}
-		std::string tunnelVcid = vcid;
-		if (uriData.protocol.compare("tunnel") == 0) {
-			tunnelVcid += "-agentId1";
-		}
-		if (! tunnelVcid.empty() && (uriData.path.compare(tunnelVcid) != 0)) {
-			uriData.path = tunnelVcid;
-			isUriChanged = true;
-		}
-
-		if (isUriChanged) {
-			rc = UriUtils::buildUriString(uriData);
-			CAF_CM_LOG_DEBUG_VA2("uri changed - %s != %s", srcUri.c_str(), rc.c_str());
-		}
+	if (isUriChanged) {
+		rc = UriUtils::buildUriString(uriData);
+		CAF_CM_LOG_DEBUG_VA2("uri changed - %s != %s", uri.c_str(), rc.c_str());
 	}
 
 	return rc;
@@ -177,7 +217,81 @@ SmartPtrCCertCollectionDoc CConfigEnvMerge::mergeTlsCertCollection(
 	return rc;
 }
 
-//TODO: Implement isTunnelEnabled
-bool CConfigEnvMerge::isTunnelEnabled() {
-	return false;
+bool CConfigEnvMerge::isTunnelEnabledFunc() {
+	CAF_CM_STATIC_FUNC_LOG("CConfigEnvMerge", "isTunnelEnabledFunc");
+
+	bool rc = false;
+
+#ifdef WIN32
+	try {
+		WSADATA wsaData;
+		int result = ::WSAStartup(MAKEWORD(2, 2), &wsaData);
+		if (result != NO_ERROR) {
+			CAF_CM_EXCEPTION_VA0(E_UNEXPECTED, "WSAStartup() Failed");
+		}
+
+		SOCKADDR_IN socketClient;
+		memset(&socketClient, 0, sizeof(SOCKADDR_IN));
+		socketClient.sin_family = AF_INET;
+		socketClient.sin_addr.s_addr = ::inet_addr("127.0.0.1");
+		socketClient.sin_port = ::htons(6672);
+
+		SOCKET socketFd = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+		if (socketFd == INVALID_SOCKET) {
+			CAF_CM_EXCEPTION_VA1(E_UNEXPECTED, "Failed to open socket - %s", WSAGetLastError());
+		}
+
+		rc = (0 == ::connect(socketFd, (SOCKADDR*) &socketClient, sizeof(socketClient)));
+	}
+	CAF_CM_CATCH_CAF
+	CAF_CM_CATCH_DEFAULT
+	CAF_CM_LOG_CRIT_CAFEXCEPTION;
+	CAF_CM_CLEAREXCEPTION;
+
+	WSACleanup();
+#else
+	int socketFd = -1;
+	try {
+		socketFd = ::socket(AF_INET, SOCK_STREAM, 0);
+		if (socketFd < 0) {
+			CAF_CM_EXCEPTION_VA0(E_UNEXPECTED, "Failed to open socket");
+		}
+
+		struct sockaddr_in socketClient;
+		memset(&socketClient, 0, sizeof(sockaddr_in));
+		socketClient.sin_family = AF_INET;
+		socketClient.sin_port = htons(6672);
+
+		int result = ::inet_aton("127.0.0.1", &socketClient.sin_addr);
+		if (0 == result) {
+			CAF_CM_EXCEPTION_VA0(ERROR_PATH_NOT_FOUND,
+					"Failed to get address of 127.0.0.1");
+		}
+
+		rc = (0 == ::connect(socketFd, (struct sockaddr *) &socketClient,
+				sizeof(socketClient)));
+	}
+	CAF_CM_CATCH_CAF
+	CAF_CM_CATCH_DEFAULT
+	CAF_CM_LOG_CRIT_CAFEXCEPTION;
+	CAF_CM_CLEAREXCEPTION;
+
+	if (socketFd >= 0) {
+		::close(socketFd);
+	}
+#endif
+
+	return rc;
+}
+
+std::string CConfigEnvMerge::loadTextFile(
+		const std::string& path) {
+
+	std::string rc;
+	if (FileSystemUtils::doesFileExist(path)) {
+		rc = FileSystemUtils::loadTextFile(path);
+		rc = CStringUtils::trimRight(rc);
+	}
+
+	return rc;
 }

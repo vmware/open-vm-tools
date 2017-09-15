@@ -27,8 +27,11 @@ function enableCaf() {
    validateNotEmpty "$password" "password"
 
    local uriFile="$CAF_INPUT_DIR/persistence/protocol/amqpBroker_default/uri.txt"
+   local uriAmqpFile="$CAF_INPUT_DIR/persistence/protocol/amqpBroker_default/uri_amqp.txt"
    sed -i "s/#amqpUsername#/${username}/g" "$uriFile"
    sed -i "s/#amqpPassword#/${password}/g" "$uriFile"
+   sed -i "s/#amqpUsername#/${username}/g" "$uriAmqpFile"
+   sed -i "s/#amqpPassword#/${password}/g" "$uriAmqpFile"
 }
 
 function setBroker() {
@@ -36,10 +39,13 @@ function setBroker() {
    validateNotEmpty "$brokerAddr" "brokerAddr"
 
    local uriFile="$CAF_INPUT_DIR/persistence/protocol/amqpBroker_default/uri.txt"
+   local uriAmqpFile="$CAF_INPUT_DIR/persistence/protocol/amqpBroker_default/uri_amqp.txt"
    sed -i "s/#brokerAddr#/$brokerAddr/g" "$uriFile"
+   sed -i "s/#brokerAddr#/$brokerAddr/g" "$uriAmqpFile"
 }
 
 function setListenerConfigured() {
+   mkdir -p "$CAF_INPUT_DIR/monitor"
    echo "Manual" > "$CAF_INPUT_DIR/monitor/listenerConfigured.txt"
 }
 
@@ -62,8 +68,8 @@ function prtHelp() {
    echo ""
    echo "  * checkTunnel                              Checks the AMQP Tunnel "
    echo "  * checkCerts                               Checks the certificates"
-   echo "  * checkCertsVerbose                        Checks the certificates"
-   echo "  * checkToolsInstall                        Checks the Tools install"
+   echo "  * prtCerts                                 Prints the certificates"
+   echo "  * checkVmwTools                            Checks VMware Tools"
    echo ""
    echo "  * validateXml                              Validates the XML files against the published schema"
    echo "  * validateInstall                          Validates that the files are in the right locations and have the right permissions"
@@ -90,57 +96,57 @@ function validateXml() {
 }
 
 function checkCerts() {
-   local certDir="$CAF_INPUT_DIR/certs"
+   local localDir="$CAF_INPUT_DIR/persistence/local"
+   local cacertFile="$CAF_INPUT_DIR/persistence/protocol/amqpBroker_default/tlsCertCollection/tlsCert0.pem"
 
-   pushd $certDir > /dev/null
+   prtHeader "Checking private key - $localDir/privateKey.pem"
+   openssl rsa -in "$localDir/privateKey.pem" -check -noout
 
-   prtHeader "Checking certs - $certDir"
+   prtHeader "Checking cert - $localDir/cert.pem"
+   openssl verify -check_ss_sig -x509_strict -CAfile "$cacertFile" "$localDir/cert.pem"
 
-   openssl rsa -in privateKey.pem -check -noout
-   openssl verify -check_ss_sig -x509_strict -CAfile cacert.pem publicKey.pem
-
-   local clientCertMd5=$(openssl x509 -noout -modulus -in publicKey.pem | openssl md5 | cut -d' ' -f2)
-   local clientKeyMd5=$(openssl rsa -noout -modulus -in privateKey.pem | openssl md5 | cut -d' ' -f2)
+   prtHeader "Validating that private key and cert match - $localDir/cert.pem"
+   local clientCertMd5=$(openssl x509 -noout -modulus -in "$localDir/cert.pem" | openssl md5 | cut -d' ' -f2)
+   local clientKeyMd5=$(openssl rsa -noout -modulus -in "$localDir/privateKey.pem" | openssl md5 | cut -d' ' -f2)
    if [ "$clientCertMd5" == "$clientKeyMd5" ]; then
       echo "Public and Private Key md5's match"
    else
       echo "*** Public and Private Key md5's do not match"
       exit 1
    fi
-
-   popd > /dev/null
 }
 
-function checkCertsVerbose() {
-   local certDir="$CAF_INPUT_DIR/certs"
+function prtCerts() {
+   local localDir="$CAF_INPUT_DIR/persistence/local"
+   local cacertFile="$CAF_INPUT_DIR/persistence/protocol/amqpBroker_default/tlsCertCollection/tlsCert0.pem"
 
-   pushd $certDir > /dev/null
+   prtHeader "Printing - $cacertFile"
+   openssl x509 -in "$cacertFile" -text -noout
 
-   prtHeader "Checking $certDir/cacert.pem"
-   openssl x509 -in cacert.pem -text -noout
-
-   prtHeader "Checking $certDir/publicKey.pem"
-   openssl x509 -in publicKey.pem -text -noout
-
-   prtHeader "Checking /etc/vmware-tools/GuestProxyData/server/cert.pem"
-   openssl x509 -in /etc/vmware-tools/GuestProxyData/server/cert.pem -text -noout
-
-   popd > /dev/null
+   prtHeader "Printing - $localDir/cert.pem"
+   openssl x509 -in "$localDir/cert.pem" -text -noout
 }
 
 function checkTunnel() {
-   local certDir="$CAF_INPUT_DIR/certs"
-
-   pushd $certDir > /dev/null
+   local localDir="$CAF_INPUT_DIR/persistence/local"
+   local cacertFile="$CAF_INPUT_DIR/persistence/protocol/amqpBroker_default/tlsCertCollection/tlsCert0.pem"
 
    prtHeader "Connecting to tunnel"
-   openssl s_client -connect localhost:6672 -key privateKey.pem -cert publicKey.pem -CAfile cacert.pem -verify 10
-
-   popd > /dev/null
+   openssl s_client -connect localhost:6672 -key "$localDir/privateKey.pem" -cert "$localDir/cert.pem" -CAfile "$cacertFile" -verify 10
 }
 
-function checkToolsInstall() {
-   systemctl status vmware-tools.service
+function checkVmwTools() {
+   local isToolboxCmd=$(which vmware-toolbox-cmd 2>/dev/null)
+   if [ "$isToolboxCmd" != "" ]; then
+      vmware-toolbox-cmd --version
+   else
+      echo "It doesn't appear as though VMware Tools is installed"
+   fi
+
+   local isSystemctl=$(which systemctl 2>/dev/null)
+   if [ "$isSystemctl" != "" ]; then
+      systemctl status vmware-tools.service
+   fi
 }
 
 function validateInstall() {
@@ -211,7 +217,6 @@ function checkFileExistsConfig() {
    checkFileExists "$CAF_CONFIG_DIR/ma-log4cpp_config"
    checkFileExists "$CAF_CONFIG_DIR/providerFx-appconfig"
    checkFileExists "$CAF_CONFIG_DIR/providerFx-log4cpp_config"
-   checkFileExists "$CAF_CONFIG_DIR/persistence-appconfig"
 }
 
 function checkFileExistsScripts() {
@@ -317,9 +322,11 @@ function clearCaches() {
       $CAF_OUTPUT_DIR/providerHost/* \
       $CAF_OUTPUT_DIR/responses/* \
       $CAF_OUTPUT_DIR/requests/* \
+      $CAF_OUTPUT_DIR/split-requests/* \
       $CAF_OUTPUT_DIR/request_state/* \
       $CAF_OUTPUT_DIR/events/* \
-      $CAF_OUTPUT_DIR/errorResponse.xml \
+      $CAF_OUTPUT_DIR/tmp/* \
+      $CAF_OUTPUT_DIR/att/* \
       $CAF_LOG_DIR/* \
       $CAF_BIN_DIR/*.log
 }
@@ -388,7 +395,6 @@ function checkFileExistsConfig() {
    checkFileExists "$CAF_CONFIG_DIR/CommAmqpListener-appconfig"
    checkFileExists "$CAF_CONFIG_DIR/providerFx-log4cpp_config"
    checkFileExists "$CAF_CONFIG_DIR/cafenv-appconfig"
-   checkFileExists "$CAF_CONFIG_DIR/persistence-appconfig"
 }
 
 function checkFileExistsScripts() {
@@ -482,14 +488,14 @@ case "$cmd" in
    "checkCerts")
       checkCerts "$certDir"
    ;;
-   "checkCertsVerbose")
-      checkCertsVerbose "$certDir"
+   "prtCerts")
+      prtCerts "$certDir"
    ;;
    "checkTunnel")
       checkTunnel "$certDir"
    ;;
-   "checkToolsInstall")
-      checkToolsInstall
+   "checkVmwTools")
+      checkVmwTools
    ;;
    "getAmqpQueueName")
       getAmqpQueueName

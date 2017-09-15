@@ -26,6 +26,8 @@ public:
 	void initialize(
 			const std::string& protocolName = std::string(),
 			const std::string& uri = std::string(),
+			const std::string& uriAmqp = std::string(),
+			const std::string& uriTunnel = std::string(),
 			const std::string& tlsCert = std::string(),
 			const std::string& tlsProtocol = std::string(),
 			const Cdeqstr& tlsCipherCollection = Cdeqstr(),
@@ -35,6 +37,8 @@ public:
 		if (! _isInitialized) {
 			_protocolName = protocolName;
 			_uri = uri;
+			_uriAmqp = uriAmqp;
+			_uriTunnel = uriTunnel;
 			_tlsCert = tlsCert;
 			_tlsProtocol = tlsProtocol;
 			_tlsCipherCollection = tlsCipherCollection;
@@ -56,6 +60,16 @@ public:
 	/// Accessor for the Uri
 	std::string getUri() const {
 		return _uri;
+	}
+
+	/// Accessor for the UriAmqp
+	std::string getUriAmqp() const {
+		return _uriAmqp;
+	}
+
+	/// Accessor for the UriTunnel
+	std::string getUriTunnel() const {
+		return _uriTunnel;
 	}
 
 	/// Accessor for the TlsCert
@@ -91,6 +105,8 @@ public:
 private:
 	std::string _protocolName;
 	std::string _uri;
+	std::string _uriAmqp;
+	std::string _uriTunnel;
 	std::string _tlsCert;
 	std::string _tlsProtocol;
 	Cdeqstr _tlsCipherCollection;

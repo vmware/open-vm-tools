@@ -66,18 +66,20 @@ bool AmqpMessageListenerSource::doSend(
 }
 
 SmartPtrIIntMessage AmqpMessageListenerSource::doReceive(const int32 timeout) {
-	CAF_CM_FUNCNAME_VALIDATE("doReceive");
+	CAF_CM_FUNCNAME("doReceive");
 	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
 	gpointer data = NULL;
 	if (timeout < 0) {
 		// blocking
-		data = g_async_queue_pop(_messageQueue);
+		CAF_CM_EXCEPTIONEX_VA1(UnsupportedOperationException, E_INVALIDARG,
+			"Infinite blocking is not supported for a polled channel: %s", _id.c_str());
+		//data = g_async_queue_pop(_messageQueue);
 	} else if (timeout == 0) {
 		// immediate
 		data = g_async_queue_try_pop(_messageQueue);
 	} else {
 		// timed
-		gint64 microTimeout = timeout * 1000;
+		guint64 microTimeout = static_cast<guint64>(timeout) * 1000;
 		data = g_async_queue_timeout_pop(_messageQueue, microTimeout);
 	}
 

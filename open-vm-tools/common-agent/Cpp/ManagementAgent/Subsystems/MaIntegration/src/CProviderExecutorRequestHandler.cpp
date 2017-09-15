@@ -15,7 +15,7 @@ CProviderExecutorRequestHandler::CProviderExecutorRequestHandler() :
 		_isInitialized(false),
 		_isCancelled(false),
 		CAF_CM_INIT_LOG("CProviderExecutorRequestHandler") {
-	_taskExecutor = NULL;
+	CAF_CM_INIT_THREADSAFE;
 }
 
 CProviderExecutorRequestHandler::~CProviderExecutorRequestHandler() {
@@ -26,7 +26,7 @@ void CProviderExecutorRequestHandler::initialize(const std::string& providerUri,
 		const SmartPtrITransformer endImpersonationTransformer,
 		const SmartPtrIErrorHandler errorHandler) {
 	CAF_CM_FUNCNAME("initialize");
-
+	CAF_CM_LOCK_UNLOCK;
 	CAF_CM_PRECOND_ISNOTINITIALIZED(_isInitialized);
 	CAF_CM_VALIDATE_STRING(providerUri);
 
@@ -49,11 +49,6 @@ void CProviderExecutorRequestHandler::initialize(const std::string& providerUri,
 				"Provider path not found - %s", _providerPath.c_str());
 	}
 
-	SmartPtrCAutoMutex mutex;
-	mutex.CreateInstance();
-	mutex->initialize();
-	_mutex = mutex;
-
 	_beginImpersonationTransformer = beginImpersonationTransformer;
 	_endImpersonationTransformer = endImpersonationTransformer;
 	_errorHandler = errorHandler;
@@ -61,52 +56,29 @@ void CProviderExecutorRequestHandler::initialize(const std::string& providerUri,
 	_isInitialized = true;
 }
 
-void CProviderExecutorRequestHandler::handleRequest(const SmartPtrCProviderExecutorRequest request) {
+void CProviderExecutorRequestHandler::handleRequest(
+		const SmartPtrCProviderExecutorRequest request) {
 	CAF_CM_FUNCNAME("handleRequest");
-
+	CAF_CM_LOCK_UNLOCK;
+	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
 	CAF_CM_VALIDATE_SMARTPTR(request);
+
 	if (_providerUri.compare(request->getProviderUri()) != 0) {
 		CAF_CM_EXCEPTIONEX_VA1(InvalidArgumentException, ERROR_INVALID_PARAMETER,
 				"Provider request not for current provider - %s", _providerUri.c_str());
 	}
 
-	CAutoMutexLockUnlock lock(_mutex);
-	if (_isCancelled) {
-		CAF_CM_EXCEPTIONEX_VA1(IllegalStateException, ERROR_INVALID_STATE,
-				"Provider canceled: %s", _providerUri.c_str());
-	}
-	_pendingRequests.push_back(request);
-
-	if (_taskExecutor == NULL) {
-		SmartPtrCSimpleAsyncTaskExecutor simpleAsyncTaskExecutor;
-		simpleAsyncTaskExecutor.CreateInstance();
-		simpleAsyncTaskExecutor->initialize(this, _errorHandler);
-		_taskExecutor = simpleAsyncTaskExecutor;
-		_taskExecutor->execute(0);
-	}
-}
-
-SmartPtrCProviderExecutorRequest CProviderExecutorRequestHandler::getNextPendingRequest() {
-	CAutoMutexLockUnlock lock(_mutex);
-
-	SmartPtrCProviderExecutorRequest request;
-	if (_isCancelled || _pendingRequests.empty()) {
-		_taskExecutor = NULL;
-		return request;
-	}
-	request = _pendingRequests.front();
-	_pendingRequests.pop_front();
-	return request;
+	executeRequestAsync(request);
 }
 
 void CProviderExecutorRequestHandler::run() {
 	CAF_CM_FUNCNAME("run");
-
+	CAF_CM_LOCK_UNLOCK;
 	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
 
 	SmartPtrIIntMessage message;
-	SmartPtrCProviderExecutorRequest request = getNextPendingRequest();
-	while (!request.IsNull()) {
+	const SmartPtrCProviderExecutorRequest request = getNextPendingRequest();
+	if (! request.IsNull()) {
 		try {
 			processRequest(request);
 		}
@@ -121,34 +93,41 @@ void CProviderExecutorRequestHandler::run() {
 
 			CAF_CM_CLEAREXCEPTION;
 		}
-
-		request = getNextPendingRequest();
 	}
+
 	CAF_CM_LOG_DEBUG_VA0("Finished");
 }
 
 void CProviderExecutorRequestHandler::cancel() {
 	CAF_CM_FUNCNAME_VALIDATE("cancel");
+	CAF_CM_LOCK_UNLOCK;
 	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
 
 	CAF_CM_LOG_DEBUG_VA0("Canceling");
-
-	CAutoMutexLockUnlock lock(_mutex);
 	_isCancelled = true;
+}
+
+SmartPtrCProviderExecutorRequest CProviderExecutorRequestHandler::getNextPendingRequest() {
+
+	SmartPtrCProviderExecutorRequest rc;
+	if (! _isCancelled && ! _pendingRequests.empty()) {
+		rc = _pendingRequests.front();
+		_pendingRequests.pop_front();
+	}
+
+	return rc;
 }
 
 void CProviderExecutorRequestHandler::processRequest(
 		const SmartPtrCProviderExecutorRequest& request) const {
 	CAF_CM_FUNCNAME_VALIDATE("processRequest");
-	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
 	CAF_CM_VALIDATE_SMARTPTR(request);
 
-	const std::string& outputDir = request->getOutputDirectory();
-	if (AppConfigUtils::getRequiredBoolean("managementAgent", "remap_logging_location")) {
-		SmartPtrCLoggingSetter loggingSetter;
-		loggingSetter.CreateInstance();
-		loggingSetter->initialize(outputDir);
-	}
+	const std::string outputDir = request->getOutputDirectory();
+
+	SmartPtrCLoggingSetter loggingSetter;
+	loggingSetter.CreateInstance();
+	loggingSetter->initialize(outputDir);
 
 	SmartPtrIIntMessage message = request->getInternalRequest();
 
@@ -188,7 +167,10 @@ void CProviderExecutorRequestHandler::processRequest(
 		}
 	}
 
-	ProcessUtils::runSyncToFiles(argv, stdoutPath, stderrPath, priority);
+	{
+		CAF_CM_UNLOCK_LOCK;
+		ProcessUtils::runSyncToFiles(argv, stdoutPath, stderrPath, priority);
+	}
 
 	// End impersonation
 	if (!_endImpersonationTransformer.IsNull()) {
@@ -229,4 +211,36 @@ void CProviderExecutorRequestHandler::processRequest(
 	const SmartPtrCDynamicByteArray payload = responseMessage->getPayload();
 	FileSystemUtils::saveByteFile(filePath, payload->getPtr(), payload->getByteCount(),
 			FileSystemUtils::FILE_MODE_REPLACE, ".writing");
+}
+
+void CProviderExecutorRequestHandler::executeRequestAsync(
+		const SmartPtrCProviderExecutorRequest& request) {
+	CAF_CM_FUNCNAME_VALIDATE("executeRequestAsync");
+	CAF_CM_VALIDATE_SMARTPTR(request);
+
+	_pendingRequests.push_back(request);
+
+	_taskExecutors = removeFinishedTaskExecutors(_taskExecutors);
+
+	SmartPtrCSimpleAsyncTaskExecutor simpleAsyncTaskExecutor;
+	simpleAsyncTaskExecutor.CreateInstance();
+	simpleAsyncTaskExecutor->initialize(this, _errorHandler);
+	_taskExecutors.push_back(simpleAsyncTaskExecutor);
+	simpleAsyncTaskExecutor->execute(0);
+}
+
+std::deque<SmartPtrITaskExecutor> CProviderExecutorRequestHandler::removeFinishedTaskExecutors(
+		const std::deque<SmartPtrITaskExecutor> taskExecutors) const {
+
+	std::deque<SmartPtrITaskExecutor> taskExecutorsTmp;
+	for (TConstIterator<std::deque<SmartPtrITaskExecutor> > iter(taskExecutors);
+			iter; iter++) {
+		const SmartPtrITaskExecutor taskExecutorIter = *iter;
+		if (! ((taskExecutorIter->getState() == ITaskExecutor::ETaskStateFinished)
+				|| (taskExecutorIter->getState() == ITaskExecutor::ETaskStateFailed))) {
+			taskExecutorsTmp.push_back(taskExecutorIter);
+		}
+	}
+
+	return taskExecutorsTmp;
 }

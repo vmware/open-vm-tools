@@ -35,7 +35,6 @@ public: // IRunnable
 
 private:
 	bool getIsCancelled() const;
-	void setIsCancelled(const bool isCancelled);
 
 private:
 	bool _isInitialized;
@@ -46,11 +45,13 @@ private:
 	SmartPtrIPollableChannel _inputPollableChannel;
 	SmartPtrIErrorHandler _errorHandler;
 	SmartPtrCPollerMetadata _pollerMetadata;
+	CThreadSignal _threadSignalCancel;
 
 private:
 	CAF_CM_CREATE;
 	CAF_CM_CREATE_LOG;
 	CAF_CM_CREATE_THREADSAFE;
+	CAF_THREADSIGNAL_CREATE;
 	CAF_CM_DECLARE_NOCOPY(CSourcePollingChannelAdapter);
 };
 

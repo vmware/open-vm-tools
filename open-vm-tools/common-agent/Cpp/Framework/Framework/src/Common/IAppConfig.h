@@ -29,6 +29,12 @@ IAppConfig : public ICafObject {
 			uint32& value,
 			const IConfigParams::EParamDisposition disposition = IConfigParams::PARAM_REQUIRED) = 0;
 
+	virtual bool getInt32(
+			const std::string& sectionName,
+			const std::string& parameterName,
+			int32& value,
+			const IConfigParams::EParamDisposition disposition = IConfigParams::PARAM_REQUIRED) = 0;
+
 	virtual bool getBoolean(
 			const std::string& sectionName,
 			const std::string& parameterName,
@@ -43,6 +49,11 @@ IAppConfig : public ICafObject {
 	virtual bool getGlobalUint32(
 			const std::string& parameterName,
 			uint32& value,
+			const IConfigParams::EParamDisposition disposition = IConfigParams::PARAM_REQUIRED) = 0;
+
+	virtual bool getGlobalInt32(
+			const std::string& parameterName,
+			int32& value,
 			const IConfigParams::EParamDisposition disposition = IConfigParams::PARAM_REQUIRED) = 0;
 
 	virtual bool getGlobalBoolean(

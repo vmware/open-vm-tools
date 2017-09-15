@@ -36,16 +36,16 @@ extern "C" void DaemonUtilsCrashHandler(int32 sigNum, siginfo_t *info, void *con
 void CDaemonUtils::MakeDaemon(
 		int32 argc,
 		char** argv,
-		const char* processName,
+		const std::string& procPath,
+		const std::string& procName,
 		void(*pfnShutdownHandler)(int32 signalNum),
 		bool& isDaemonized,
 		bool& logInfos) {
 
-	const char* logProcessName =
-			(processName && *processName) ? processName : "CDaemonUtils";
-	::openlog(logProcessName, LOG_PID, LOG_USER);
+	const std::string logProcName = procName.empty() ? "CDaemonUtils" : procName;
+	::openlog(logProcName.c_str(), LOG_PID, LOG_USER);
 	::atexit(::closelog);
-	::syslog(LOG_INFO, "Initializing %s", logProcessName);
+	::syslog(LOG_INFO, "Initializing %s", logProcName.c_str());
 
 	isDaemonized = true;
 	logInfos = false;
@@ -151,7 +151,7 @@ void CDaemonUtils::MakeDaemon(
 		}
 
 		// and re-open syslog
-		::openlog(logProcessName, LOG_CONS | LOG_PID, LOG_USER);
+		::openlog(logProcName.c_str(), LOG_CONS | LOG_PID, LOG_USER);
 		errno = 0;
 	}
 
@@ -248,11 +248,11 @@ void CDaemonUtils::MakeDaemon(
 	// to make sure we don't hold a file system open.
 	if (rootDir.empty())	{
 		if (logInfos) {
-			::syslog(LOG_INFO, "Switching to directory of %s", *argv);
+			::syslog(LOG_INFO, "Switching to directory of %s", procPath.c_str());
 		}
-		const char * lastSlash = ::strrchr(*argv, '/');
+		const char * lastSlash = ::strrchr(procPath.c_str(), '/');
 		if (*lastSlash) {
-			std::string directory = *argv;
+			std::string directory = procPath;
 			directory.erase(directory.rfind('/'));
 			if (logInfos) {
 				::syslog(LOG_INFO, "chdir %s", directory.c_str());
@@ -404,6 +404,7 @@ extern "C" void DaemonUtilsCrashHandler(int32 sigNum, siginfo_t *info, void *con
 		CAF_CM_LOG_ERROR_VA0(message.c_str());
 	}
 	CAF_CM_CATCH_ALL;
+	CAF_CM_CLEAREXCEPTION;
 	::exit(-1);
 }
 

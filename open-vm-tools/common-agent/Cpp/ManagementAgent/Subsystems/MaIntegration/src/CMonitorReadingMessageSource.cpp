@@ -38,9 +38,9 @@ void CMonitorReadingMessageSource::initialize(
 	_restartListenerPath = FileSystemUtils::buildPath(_monitorDir, "restartListener.txt");
 	_listenerConfiguredPath = FileSystemUtils::buildPath(_monitorDir, "listenerConfigured.txt");
 
-	_outputDir = AppConfigUtils::getRequiredString(_sAppConfigGlobalParamOutputDir);
+	_scriptOutputDir = AppConfigUtils::getRequiredString(_sConfigTmpDir);
 	_listenerStartupType = AppConfigUtils::getRequiredString("monitor", "listener_startup_type");
-	_listenerRetryMax = AppConfigUtils::getRequiredUint32("monitor", "listener_retry_max");
+	_listenerRetryMax = AppConfigUtils::getRequiredInt32("monitor", "listener_retry_max");
 
 	_listenerRestartMs = calcListenerRestartMs();
 	CAF_CM_LOG_DEBUG_VA1("_listenerRestartMs: %d", _listenerRestartMs);
@@ -56,6 +56,9 @@ void CMonitorReadingMessageSource::initialize(
 	_isListenerRunningScript = FileSystemUtils::buildPath(scriptsDir, "is-listener-running");
 #endif
 
+	if (! FileSystemUtils::doesDirectoryExist(_monitorDir)) {
+		FileSystemUtils::createDirectory(_monitorDir);
+	}
 	_isInitialized = true;
 }
 
@@ -104,15 +107,15 @@ SmartPtrIIntMessage CMonitorReadingMessageSource::doReceive(
 				if (_listenerStartupType.compare("Automatic") == 0) {
 					if ((_listenerRetryMax < 0) || (_listenerRetryCnt < _listenerRetryMax)) {
 						reason = "Listener not running... Starting - "
-								+ CStringConv::toString<uint32>(_listenerRetryCnt + 1) + " of "
-								+ CStringConv::toString<uint32>(_listenerRetryMax);
+								+ CStringConv::toString<int32>(_listenerRetryCnt + 1) + " of "
+								+ CStringConv::toString<int32>(_listenerRetryMax);
 						_listenerRetryCnt++;
 						_listenerStartTimeMs = CDateTimeUtils::getTimeMs();
 						startListener(reason);
 					} else {
 						reason = "Listener not running... Retries exhausted - "
-								+ CStringConv::toString<uint32>(_listenerRetryCnt + 1) + " of "
-								+ CStringConv::toString<uint32>(_listenerRetryMax);
+								+ CStringConv::toString<int32>(_listenerRetryCnt + 1) + " of "
+								+ CStringConv::toString<int32>(_listenerRetryMax);
 						CAF_CM_LOG_WARN_VA0(reason.c_str());
 					}
 				} else {
@@ -138,7 +141,7 @@ SmartPtrIIntMessage CMonitorReadingMessageSource::doReceive(
 }
 
 bool CMonitorReadingMessageSource::isListenerRunning() const {
-	const std::string stdoutStr = executeScript(_isListenerRunningScript, _outputDir);
+	const std::string stdoutStr = executeScript(_isListenerRunningScript, _scriptOutputDir);
 	return (stdoutStr.compare("true") == 0);
 }
 
@@ -148,7 +151,7 @@ void CMonitorReadingMessageSource::startListener(
 
 	CAF_CM_LOG_DEBUG_VA1(
 			"Starting the listener - reason: %s", reason.c_str());
-	executeScript(_startListenerScript, _outputDir);
+	executeScript(_startListenerScript, _scriptOutputDir);
 }
 
 void CMonitorReadingMessageSource::stopListener(
@@ -157,7 +160,7 @@ void CMonitorReadingMessageSource::stopListener(
 
 	CAF_CM_LOG_DEBUG_VA1(
 			"Stopping the listener - reason: %s", reason.c_str());
-	executeScript(_stopListenerScript, _outputDir);
+	executeScript(_stopListenerScript, _scriptOutputDir);
 }
 
 void CMonitorReadingMessageSource::restartListener(
@@ -166,8 +169,8 @@ void CMonitorReadingMessageSource::restartListener(
 
 	CAF_CM_LOG_DEBUG_VA1(
 			"Restarting the listener - reason: %s", reason.c_str());
-	executeScript(_stopListenerScript, _outputDir);
-	executeScript(_startListenerScript, _outputDir);
+	executeScript(_stopListenerScript, _scriptOutputDir);
+	executeScript(_startListenerScript, _scriptOutputDir);
 }
 
 std::string CMonitorReadingMessageSource::executeScript(

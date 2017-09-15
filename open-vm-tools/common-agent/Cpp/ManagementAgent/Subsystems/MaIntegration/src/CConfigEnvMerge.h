@@ -22,21 +22,28 @@ public:
 private:
 	static std::deque<SmartPtrCPersistenceProtocolDoc> mergePersistenceProtocolCollectionInner(
 			const std::deque<SmartPtrCPersistenceProtocolDoc>& persistenceProtocolCollectionInner,
-			const std::string& protocol,
-			const std::string& vcid,
+			const std::string& localId,
 			const std::string& cacert);
 
+	static std::string mergeLocalId(
+			const SmartPtrCPersistenceDoc& persistence,
+			const std::string& vcidPath);
+
 	static std::string mergeUri(
-			const std::string& srcUri,
-			const std::string& protocol,
-			const std::string& vcid);
+			const std::string& uri,
+			const std::string& uriAmqp,
+			const std::string& uriTunnel,
+			const std::string& localId);
 
 	static SmartPtrCCertCollectionDoc mergeTlsCertCollection(
 			const SmartPtrCCertCollectionDoc& tlsCertCollection,
 			const std::string& cacert);
 
 private:
-	static bool isTunnelEnabled();
+	static bool isTunnelEnabledFunc();
+
+	static std::string loadTextFile(
+			const std::string& path);
 
 private:
 	CAF_CM_DECLARE_NOCREATE(CConfigEnvMerge);

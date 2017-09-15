@@ -13,7 +13,6 @@ using namespace Caf;
 
 CThreadSignal::CThreadSignal(void) :
 	_isInitialized(false),
-	_waitCnt(0),
 	CAF_CM_INIT("CThreadSignal") {
 	CAF_CM_INIT_THREADSAFE
 	;
@@ -42,11 +41,7 @@ void CThreadSignal::signal() {
 	CAF_CM_LOCK_UNLOCK;
 	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
 
-	for (uint32 iter = 0; iter < _waitCnt; iter++) {
-		_condition.signal();
-	}
-
-	_waitCnt = 0;
+	_condition.signal();
 }
 
 void CThreadSignal::wait(SmartPtrCAutoMutex& mutex, const uint32 timeoutMs) {
@@ -66,11 +61,6 @@ bool CThreadSignal::waitOrTimeout(SmartPtrCAutoMutex& mutex, const uint32 timeou
 	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
 	CAF_CM_VALIDATE_SMARTPTR(mutex);
 
-	{
-		CAF_CM_LOCK_UNLOCK;
-		_waitCnt++;
-	}
-
 	bool rc = false;
 	if (0 == timeoutMs) {
 		_condition.wait(mutex);
@@ -79,10 +69,6 @@ bool CThreadSignal::waitOrTimeout(SmartPtrCAutoMutex& mutex, const uint32 timeou
 		gint64 endTime;
 		endTime = ::g_get_monotonic_time() + timeoutMs * G_TIME_SPAN_MILLISECOND;
 		rc = _condition.waitUntil(mutex, endTime);
-		if (!rc) {
-			CAF_CM_LOCK_UNLOCK;
-			_waitCnt--;
-		}
 	}
 
 	return rc;
@@ -100,7 +86,6 @@ void CThreadSignal::close() {
 
 	if (_isInitialized) {
 		_condition.close();
-		_waitCnt = 0;
 		_isInitialized = false;
 	}
 }

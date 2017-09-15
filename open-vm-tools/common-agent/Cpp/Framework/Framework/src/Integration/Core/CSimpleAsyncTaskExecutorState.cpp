@@ -13,6 +13,7 @@ using namespace Caf;
 
 CSimpleAsyncTaskExecutorState::CSimpleAsyncTaskExecutorState() :
 	_isInitialized(false),
+	_hasThreadExited(false),
 	_runnableState(ITaskExecutor::ETaskStateNotStarted),
 	CAF_CM_INIT_LOG("CSimpleAsyncTaskExecutorState") {
 	CAF_CM_INIT_THREADSAFE;
@@ -84,6 +85,22 @@ void CSimpleAsyncTaskExecutorState::setState(
 	_runnableState = runnableState;
 }
 
+bool CSimpleAsyncTaskExecutorState::getHasThreadExited() {
+	CAF_CM_FUNCNAME_VALIDATE("getHasThreadExited");
+	CAF_CM_LOCK_UNLOCK;
+	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
+
+	return _hasThreadExited;
+}
+
+void CSimpleAsyncTaskExecutorState::setThreadExited() {
+	CAF_CM_FUNCNAME_VALIDATE("setThreadExited");
+	CAF_CM_LOCK_UNLOCK;
+	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
+
+	_hasThreadExited = true;
+}
+
 SmartPtrIRunnable CSimpleAsyncTaskExecutorState::getRunnable() const {
 	CAF_CM_FUNCNAME_VALIDATE("getRunnable");
 	CAF_CM_LOCK_UNLOCK;
@@ -105,7 +122,7 @@ void CSimpleAsyncTaskExecutorState::signalStart() {
 	CAF_CM_LOCK_UNLOCK;
 	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
 
-	CAF_CM_LOG_DEBUG_VA1("Signal (%s)", _threadSignalStart.getName().c_str());
+	CAF_CM_LOG_DEBUG_VA2("Signal (%s) - %p", _threadSignalStart.getName().c_str(), this);
 	_threadSignalStart.signal();
 }
 
@@ -126,15 +143,6 @@ void CSimpleAsyncTaskExecutorState::signalStop() {
 
 	CAF_CM_LOG_DEBUG_VA1("Signal (%s)", _threadSignalStop.getName().c_str());
 	_threadSignalStop.signal();
-}
-
-void CSimpleAsyncTaskExecutorState::detach() {
-	CAF_CM_FUNCNAME_VALIDATE("detach");
-	CAF_CM_LOCK_UNLOCK;
-	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
-
-	_runnable = NULL;
-	_errorHandler = NULL;
 }
 
 void CSimpleAsyncTaskExecutorState::waitForStop(

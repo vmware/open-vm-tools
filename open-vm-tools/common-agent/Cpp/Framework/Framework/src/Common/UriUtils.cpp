@@ -110,6 +110,9 @@ void UriUtils::parseUriString(
 						hostpath = value;
 						g_free(value);
 					}
+					g_match_info_free(matchInfo);
+					matchInfo = NULL;
+
 					if (g_regex_match(regexHost, hostpath.c_str(), (GRegexMatchFlags)0, &matchInfo)) {
 						value = g_match_info_fetch_named(matchInfo, "host");
 						data.host = value;
@@ -119,11 +122,16 @@ void UriUtils::parseUriString(
 						data.port = CStringConv::fromString<uint32>(value);
 						g_free(value);
 					}
+					g_match_info_free(matchInfo);
+					matchInfo = NULL;
+
 					if (g_regex_match(regexPath, hostpath.c_str(), (GRegexMatchFlags)0, &matchInfo)) {
 						value = g_match_info_fetch_named(matchInfo, "path");
 						data.path = value;
 						g_free(value);
 					}
+					g_match_info_free(matchInfo);
+					matchInfo = NULL;
 				}
 
 				if (params.length()) {
@@ -148,6 +156,8 @@ void UriUtils::parseUriString(
 							}
 						}
 					}
+					g_match_info_free(matchInfo);
+					matchInfo = NULL;
 				}
 			}
 		}
@@ -226,9 +236,9 @@ void UriUtils::parseFileAddress(const std::string& fileUri, UriUtils::SFileUriRe
 
 			GError *error = NULL;
 			regexAddress = g_regex_new(addressPattern.c_str(),
-								   (GRegexCompileFlags)(G_REGEX_RAW),
-								   (GRegexMatchFlags)0,
-								   &error);
+					(GRegexCompileFlags)(G_REGEX_RAW),
+					(GRegexMatchFlags)0,
+					&error);
 			if (error) {
 				throw error;
 			}
@@ -244,19 +254,18 @@ void UriUtils::parseFileAddress(const std::string& fileUri, UriUtils::SFileUriRe
 				matchInfo = NULL;
 
 				regexDrive = g_regex_new(drivePattern.c_str(),
-									   (GRegexCompileFlags)(G_REGEX_RAW),
-									   (GRegexMatchFlags)0,
-									   &error);
+						(GRegexCompileFlags)(G_REGEX_RAW),
+						(GRegexMatchFlags)0,
+						&error);
 				if (error) {
 					throw error;
 				}
 
-				if (g_regex_match(regexDrive, data.path.c_str(), (GRegexMatchFlags)0, &matchInfo)) {
-					g_match_info_free(matchInfo);
-					matchInfo = NULL;
-				} else {
+				if (! g_regex_match(regexDrive, data.path.c_str(), (GRegexMatchFlags)0, &matchInfo)) {
 					data.path = "/" + data.path;
 				}
+				g_match_info_free(matchInfo);
+				matchInfo = NULL;
 			}
 		}
 		CAF_CM_CATCH_CAF

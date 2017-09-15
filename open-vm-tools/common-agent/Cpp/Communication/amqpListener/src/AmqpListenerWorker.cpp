@@ -34,8 +34,7 @@ void AmqpListenerWorker::doWork() {
 	SmartPtrCIntegrationAppContext intAppContext;
 	try {
 		CLoggingUtils::setStartupConfigFile(
-			AppConfigUtils::getRequiredString(_sAppConfigGlobalParamLogConfigFile));
-		CLoggingUtils::setLogDir(
+			AppConfigUtils::getRequiredString(_sAppConfigGlobalParamLogConfigFile),
 			AppConfigUtils::getRequiredString(_sAppConfigGlobalParamLogDir));
 
 		uint32 intStartupTimeout = AppConfigUtils::getOptionalUint32(

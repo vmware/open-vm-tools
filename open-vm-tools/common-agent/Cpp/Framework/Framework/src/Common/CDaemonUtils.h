@@ -14,7 +14,8 @@ public:
 	static void MakeDaemon(
 			int32 argc,
 			char** argv,
-			const char* processName,
+			const std::string& procPath,
+			const std::string& procName,
 			void(*pfnShutdownHandler)(int32 signalNum),
 			bool& isDaemonized,
 			bool& logInfos);

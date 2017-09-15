@@ -14,7 +14,7 @@ thread_stack_size_kb=0
 schema_namespace_root=http://schemas.vmware.com/caf/schema
 schema_location_root=${input_dir}/schemas/caf
 
-use_single_logging=true
+remap_logging_location=false
 
 [security]
 cms_policy=CAF_Encrypted_And_Signed
@@ -23,7 +23,6 @@ cms_policy=CAF_Encrypted_And_Signed
 host_delay_sec=5
 host_integration_timeout_ms=5000
 use_impersonation=false
-remap_logging_location=true
 # Value used to specify the priority that provider sub-process are created at.
 # Valid values are:  NORMAL, LOW, IDLE.  Default value is NORMAL.
 provider_process_priority=NORMAL

@@ -11,21 +11,13 @@
 #include <string>
 
 using namespace Caf;
-using namespace std;
-
-#ifdef WIN32
-	const string CPersistenceNamespaceDb::_NAMESPACE_DB_CMD_FILE = "VMwareNamespaceCmd.exe";
-#else
-	const string CPersistenceNamespaceDb::_NAMESPACE_DB_CMD_FILE = "vmware-namespace-cmd";
-#endif
-
-const string CPersistenceNamespaceDb::_NAMESPACE = "com.vmware.caf.guest.rw";
 
 CPersistenceNamespaceDb::CPersistenceNamespaceDb() :
 	_isInitialized(false),
 	_isReady(false),
 	CAF_CM_INIT_LOG("CPersistenceNamespaceDb") {
 	CAF_CM_INIT_THREADSAFE;
+	_nsdbNamespace = "com.vmware.caf.guest.rw";
 }
 
 CPersistenceNamespaceDb::~CPersistenceNamespaceDb() {
@@ -57,30 +49,31 @@ SmartPtrCPersistenceDoc CPersistenceNamespaceDb::getUpdated(
 	SmartPtrCPersistenceDoc rc;
 	if (isReady()) {
 		//If nothing has been updated, skip all of the unneeded work
-		string updates = getValue("updates");
+		const std::string updates = getValue("updates");
 		if (!updates.empty()) {
-			string version = getValue("version");
+			const std::string version = getValue("version");
 
 			//EP Doc
-			string epLocalId = getValue("ep.local_id");
-			string epPrivateKey = getValue("ep.private_key");
-			string epCert = getValue("ep.cert");
+			const std::string epLocalId = getValue("ep.local_id");
+			const std::string epPrivateKey = getValue("ep.private_key");
+			const std::string epCert = getValue("ep.cert");
+
 			SmartPtrCLocalSecurityDoc endpoint;
 			endpoint.CreateInstance();
 			endpoint->initialize(epLocalId, epPrivateKey, epCert);
 
 			//App collection
 			std::deque<SmartPtrCRemoteSecurityDoc> applicationCollectionInner;
-			string applications = getValue("applications");
+			const std::string applications = getValue("applications");
 			Cdeqstr appList = CStringUtils::split(applications, ',');
 			for (Cdeqstr::iterator appIt = appList.begin(); appIt != appList.end(); appIt++) {
-				string appKey = "app." + *appIt;
-				string appId = getValue(appKey + ".remote_id");
-				string appProtocolName = getValue(appKey + ".protocol_name");
-				string appCmsCipher = getValue(appKey + ".cms.cipher");
+				const std::string appKey = "app." + *appIt;
+				const std::string appId = getValue(appKey + ".remote_id");
+				const std::string appProtocolName = getValue(appKey + ".protocol_name");
+				const std::string appCmsCipher = getValue(appKey + ".cms.cipher");
 
 				std::deque<std::string> cmsCertCollectionInner;
-				string appCmsCertChain = getValue(appKey + ".cms.cert_chain");
+				const std::string appCmsCertChain = getValue(appKey + ".cms.cert_chain");
 				Cdeqstr appCertList = CStringUtils::split(appCmsCertChain, ',');
 				for (Cdeqstr::iterator appCertIt = appCertList.begin(); appCertIt != appCertList.end(); appCertIt++) {
 					cmsCertCollectionInner.push_back(*appCertIt);
@@ -90,10 +83,11 @@ SmartPtrCPersistenceDoc CPersistenceNamespaceDb::getUpdated(
 				cmsCertCollection.CreateInstance();
 				cmsCertCollection->initialize(cmsCertCollectionInner);
 
-				string cmsCert = getValue(appKey + ".cms.cert");
+				const std::string cmsCert = getValue(appKey + ".cms.cert");
 				SmartPtrCRemoteSecurityDoc application;
 				application.CreateInstance();
-				application->initialize(appId, appProtocolName, cmsCert, appCmsCipher, cmsCertCollection);
+				application->initialize(appId, appProtocolName, cmsCert, appCmsCipher,
+						cmsCertCollection);
 
 				applicationCollectionInner.push_back(application);
 			}
@@ -102,21 +96,21 @@ SmartPtrCPersistenceDoc CPersistenceNamespaceDb::getUpdated(
 			applicationCollection.CreateInstance();
 			applicationCollection->initialize(applicationCollectionInner);
 
-			string protocols = getValue("protocols");
+			const std::string protocols = getValue("protocols");
 			Cdeqstr protocolList = CStringUtils::split(protocols, ',');
 			std::deque<SmartPtrCPersistenceProtocolDoc> persistenceProtocolCollectionInner;
 			for (Cdeqstr::iterator protocolIt = protocolList.begin(); protocolIt != protocolList.end(); protocolIt++) {
-				string protocolKey = "protocol." + *protocolIt;
+				const std::string protocolKey = "protocol." + *protocolIt;
 				//Protoccol Doc
 				std::deque<std::string> tlsCertCollectionInner;
-				string tlsCertChain = getValue(protocolKey + ".tls.cert.chain");
+				const std::string tlsCertChain = getValue(protocolKey + ".tls.cert.chain");
 				Cdeqstr tlsCertList = CStringUtils::split(tlsCertChain, ',');
 				for (Cdeqstr::iterator tlsCertIt = tlsCertList.begin(); tlsCertIt != tlsCertList.end(); tlsCertIt++) {
 					tlsCertCollectionInner.push_back(*tlsCertIt);
 				}
 
 				Cdeqstr tlsCipherCollection;
-				string tlsCiphers = getValue(protocolKey + ".tls.ciphers");
+				const std::string tlsCiphers = getValue(protocolKey + ".tls.ciphers");
 				Cdeqstr tlsCipherList = CStringUtils::split(tlsCiphers, ',');
 				for (Cdeqstr::iterator tlsCipherIt = tlsCipherList.begin(); tlsCipherIt != tlsCipherList.end(); tlsCipherIt++) {
 					tlsCipherCollection.push_back(*tlsCipherIt);
@@ -127,13 +121,18 @@ SmartPtrCPersistenceDoc CPersistenceNamespaceDb::getUpdated(
 				tlsCertCollection->initialize(tlsCertCollectionInner);
 
 				//For now, we only support one broker.
-				string protocolName = getValue(protocolKey + ".protocol_name");
-				string uri = getValue(protocolKey + ".uri");
-				string tlsCert = getValue(protocolKey + ".tls.cert");
-				string tlsProtocol = getValue(protocolKey + ".tls.protocol");
+				const std::string protocolName = getValue(protocolKey + ".protocol_name");
+				const std::string uri = getValue(protocolKey + ".uri");
+				const std::string uriAmqp = getValue(protocolKey + ".uri.amqp");
+				const std::string uriTunnel = getValue(protocolKey + ".uri.tunnel");
+				const std::string tlsCert = getValue(protocolKey + ".tls.cert");
+				const std::string tlsProtocol = getValue(protocolKey + ".tls.protocol");
+
 				SmartPtrCPersistenceProtocolDoc persistenceProtocol;
 				persistenceProtocol.CreateInstance();
-				persistenceProtocol->initialize(protocolName, uri, tlsCert, tlsProtocol, tlsCipherCollection, tlsCertCollection);
+				persistenceProtocol->initialize(
+						protocolName, uri, uriAmqp, uriTunnel, tlsCert, tlsProtocol,
+						tlsCipherCollection, tlsCertCollection);
 
 				persistenceProtocolCollectionInner.push_back(persistenceProtocol);
 			}
@@ -172,14 +171,17 @@ void CPersistenceNamespaceDb::update(
 
 			//Update RemoteSecurity info
 			if (!persistenceCur->getRemoteSecurityCollection().IsNull()){
-				deque<SmartPtrCRemoteSecurityDoc> applications = persistenceCur->getRemoteSecurityCollection()->getRemoteSecurity();
-				for (deque<SmartPtrCRemoteSecurityDoc>::iterator appIt=applications.begin(); appIt != applications.end(); appIt++) {
-					string appKey = "app." + (*appIt)->getRemoteId();
+				std::deque<SmartPtrCRemoteSecurityDoc> applications =
+						persistenceCur->getRemoteSecurityCollection()->getRemoteSecurity();
+				for (std::deque<SmartPtrCRemoteSecurityDoc>::iterator appIt = applications.begin(); appIt != applications.end(); appIt++) {
+					const std::string appKey = "app." + (*appIt)->getRemoteId();
+
 					setValue(appKey + ".remote_id", (*appIt)->getRemoteId());
 					setValue(appKey + ".cms.cert", (*appIt)->getCmsCert());
 					setValue(appKey + ".cms.cipher", (*appIt)->getCmsCipherName());
 					setValue(appKey + ".protocol_name", (*appIt)->getProtocolName());
-					string cmsCertChain;
+
+					std::string cmsCertChain;
 					if (! (*appIt)->getCmsCertCollection().IsNull()) {
 						Cdeqstr cmsCertList = (*appIt)->getCmsCertCollection()->getCert();
 						for (Cdeqstr::iterator cmsCertIt=cmsCertList.begin(); cmsCertIt != cmsCertList.end(); cmsCertIt++) {
@@ -188,6 +190,7 @@ void CPersistenceNamespaceDb::update(
 							}
 							cmsCertChain += *cmsCertIt;
 						}
+
 						setValue(appKey + ".cms.cert_chain", cmsCertChain);
 					}
 				}
@@ -198,16 +201,18 @@ void CPersistenceNamespaceDb::update(
 				//For now, we only support one broker.
 				CAF_CM_ASSERT(persistenceCur->getPersistenceProtocolCollection()->getPersistenceProtocol().size() <= 1);
 
-				deque<SmartPtrCPersistenceProtocolDoc> brokerList = persistenceCur->getPersistenceProtocolCollection()->getPersistenceProtocol();
-				for (deque<SmartPtrCPersistenceProtocolDoc>::iterator protIt=brokerList.begin(); protIt != brokerList.end(); protIt++) {
-					string protocolKey = "protocol." + (*protIt)->getProtocolName();
+				std::deque<SmartPtrCPersistenceProtocolDoc> brokerList = persistenceCur->getPersistenceProtocolCollection()->getPersistenceProtocol();
+				for (std::deque<SmartPtrCPersistenceProtocolDoc>::iterator protIt=brokerList.begin(); protIt != brokerList.end(); protIt++) {
+					const std::string protocolKey = "protocol." + (*protIt)->getProtocolName();
 					setValue(protocolKey + ".protocol_name", (*protIt)->getProtocolName());
 					setValue(protocolKey + ".uri", (*protIt)->getUri());
+					setValue(protocolKey + ".uri.amqp", (*protIt)->getUriAmqp());
+					setValue(protocolKey + ".uri.tunnel", (*protIt)->getUriTunnel());
 					setValue(protocolKey + ".tls.cert", (*protIt)->getTlsCert());
 					setValue(protocolKey + ".tls.protocol", (*protIt)->getTlsProtocol());
 
 					Cdeqstr tlsCipherList = (*protIt)->getTlsCipherCollection();
-					string tlsCiphers;
+					std::string tlsCiphers;
 					for (Cdeqstr::iterator tlsCipherIt=tlsCipherList.begin(); tlsCipherIt != tlsCipherList.end(); tlsCipherIt++) {
 						if (!tlsCiphers.empty()) {
 							tlsCiphers += ",";
@@ -218,7 +223,7 @@ void CPersistenceNamespaceDb::update(
 
 					if (! (*protIt)->getTlsCertCollection().IsNull()) {
 						Cdeqstr tlsCertList = (*protIt)->getTlsCertCollection()->getCert();
-						string tlsCerts;
+						std::string tlsCerts;
 						for (Cdeqstr::iterator tlsCertIt=tlsCertList.begin(); tlsCertIt != tlsCertList.end(); tlsCertIt++) {
 							if (!tlsCerts.empty()) {
 								tlsCerts += ",";
@@ -261,9 +266,9 @@ void CPersistenceNamespaceDb::remove(
 
 			//Remove RemoteSecurity info
 			if (!persistenceCur->getRemoteSecurityCollection().IsNull()){
-				deque<SmartPtrCRemoteSecurityDoc> applications = persistenceCur->getRemoteSecurityCollection()->getRemoteSecurity();
-				for (deque<SmartPtrCRemoteSecurityDoc>::iterator it=applications.begin(); it != applications.end(); it++) {
-					string appKey = "app." + (*it)->getRemoteId();
+				std::deque<SmartPtrCRemoteSecurityDoc> applications = persistenceCur->getRemoteSecurityCollection()->getRemoteSecurity();
+				for (std::deque<SmartPtrCRemoteSecurityDoc>::iterator it=applications.begin(); it != applications.end(); it++) {
+					std::string appKey = "app." + (*it)->getRemoteId();
 					if (!(*it)->getProtocolName().empty()) {
 						removeKey(appKey + ".protocol_name");
 					}
@@ -284,11 +289,17 @@ void CPersistenceNamespaceDb::remove(
 				//For now, we only support one broker.
 				CAF_CM_ASSERT(persistenceCur->getPersistenceProtocolCollection()->getPersistenceProtocol().size() <= 1);
 
-				deque<SmartPtrCPersistenceProtocolDoc> brokerList = persistenceCur->getPersistenceProtocolCollection()->getPersistenceProtocol();
-				for (deque<SmartPtrCPersistenceProtocolDoc>::iterator it=brokerList.begin(); it != brokerList.end(); it++) {
-					string protocolKey = "protocol." + (*it)->getProtocolName();
+				std::deque<SmartPtrCPersistenceProtocolDoc> brokerList = persistenceCur->getPersistenceProtocolCollection()->getPersistenceProtocol();
+				for (std::deque<SmartPtrCPersistenceProtocolDoc>::iterator it=brokerList.begin(); it != brokerList.end(); it++) {
+					std::string protocolKey = "protocol." + (*it)->getProtocolName();
 					if (!(*it)->getUri().empty()) {
 						removeKey(protocolKey + "uri");
+					}
+					if (!(*it)->getUriAmqp().empty()) {
+						removeKey(protocolKey + "uri.amqp");
+					}
+					if (!(*it)->getUriTunnel().empty()) {
+						removeKey(protocolKey + "uri.tunnel");
 					}
 					if (!(*it)->getTlsCert().empty()) {
 						removeKey(protocolKey + "tls.cert");
@@ -312,38 +323,41 @@ void CPersistenceNamespaceDb::remove(
 	}
 }
 
-string CPersistenceNamespaceDb::getCmdPath() {
-//	CAF_CM_STATIC_FUNC("CPersistenceNamespaceDb", "getCmdPath");
-//	"/usr/sbin/vmware-namespace-cmd";
-	string cmdPath = "/usr/sbin";
-#ifdef WIN32
-//	       "C:/Program Files/VMware/VMware Tools/VMwareNamespaceCmd.exe";
-//  bin_dir=C:/Program Files/VMware/VMware Tools/VMware CAF/pme//bin
-	cmdPath = AppConfigUtils::getRequiredString("globals", "bin_dir");
-	//Back up two levels
-	cmdPath = FileSystemUtils::getDirname(cmdPath);
-	cmdPath = FileSystemUtils::getDirname(cmdPath);	
-#endif
-	return cmdPath;
-}
-
 void CPersistenceNamespaceDb::setCmd() {
 	CAF_CM_FUNCNAME("setCmd");
-	_namespaceDbCmd = FileSystemUtils::buildPath(getCmdPath(), _NAMESPACE_DB_CMD_FILE);
-	CAF_CM_LOG_DEBUG_VA1("_namespaceDbCmd: %s", _namespaceDbCmd.c_str());
-	if (!FileSystemUtils::doesFileExist(_namespaceDbCmd)) {
+
+	std::string nsdbCmdDir;
+	std::string nsdbCmdFile;
+#ifdef WIN32
+	//  "C:/Program Files/VMware/VMware Tools/VMwareNamespaceCmd.exe";
+	//  bin_dir=C:/Program Files/VMware/VMware Tools/VMware CAF/pme//bin
+	nsdbCmdDir = AppConfigUtils::getRequiredString("globals", "bin_dir");
+
+	//Back up two levels
+	nsdbCmdDir = FileSystemUtils::getDirname(nsdbCmdDir);
+	nsdbCmdDir = FileSystemUtils::getDirname(nsdbCmdDir);
+
+	nsdbCmdFile = "VMwareNamespaceCmd.exe";
+#else
+	nsdbCmdDir = "/usr/sbin";
+	nsdbCmdFile = "vmware-namespace-cmd";
+#endif
+
+	_nsdbCmdPath = FileSystemUtils::buildPath(nsdbCmdDir, nsdbCmdFile);
+	CAF_CM_LOG_DEBUG_VA1("_nsdbCmdPath: %s", _nsdbCmdPath.c_str());
+	if (!FileSystemUtils::doesFileExist(_nsdbCmdPath)) {
 		CAF_CM_EXCEPTIONEX_VA1(FileNotFoundException, ERROR_FILE_NOT_FOUND,
-				"Namespace DB command not found - %s", _namespaceDbCmd.c_str());
+				"Namespace DB command not found - %s", _nsdbCmdPath.c_str());
 	}
 }
 
-string CPersistenceNamespaceDb::getValue(const std::string& key) {
+std::string CPersistenceNamespaceDb::getValue(const std::string& key) {
 	CAF_CM_FUNCNAME("getValue");
 	CAF_CM_VALIDATE_STRING(key);
 
-	string value;
-	string stdoutContent;
-	string stderrContent;
+	std::string value;
+	std::string stdoutContent;
+	std::string stderrContent;
 	try {
 		value = getValueRaw(key, stdoutContent, stderrContent);
 	}
@@ -358,7 +372,9 @@ string CPersistenceNamespaceDb::getValue(const std::string& key) {
 	return value;
 }
 	
-void CPersistenceNamespaceDb::setValue(const std::string& key, const std::string& value) {
+void CPersistenceNamespaceDb::setValue(
+		const std::string& key,
+		const std::string& value) {
 	CAF_CM_FUNCNAME("setValue");
 	CAF_CM_VALIDATE_STRING(key);
 
@@ -366,10 +382,10 @@ void CPersistenceNamespaceDb::setValue(const std::string& key, const std::string
 		return;
 	}
 
-	string stdoutContent;
-	string stderrContent;
+	std::string stdoutContent;
+	std::string stderrContent;
 	Cdeqstr argv;
-	string tmpFile;
+	std::string tmpFile;
 
 	try {
 		//TODO: generate hash of value
@@ -377,9 +393,9 @@ void CPersistenceNamespaceDb::setValue(const std::string& key, const std::string
 
 		tmpFile = FileSystemUtils::saveTempTextFile("caf_nsdb_XXXXXX", value);
 		CAF_CM_LOG_DEBUG_VA2("Setting %s to %s", key.c_str(), value.c_str());
-		argv.push_back(_namespaceDbCmd);
+		argv.push_back(_nsdbCmdPath);
 		argv.push_back("set-key");
-		argv.push_back(_NAMESPACE);
+		argv.push_back(_nsdbNamespace);
 		argv.push_back("-k");
 		argv.push_back(key);
 		argv.push_back("-f");
@@ -387,7 +403,7 @@ void CPersistenceNamespaceDb::setValue(const std::string& key, const std::string
 				
 		ProcessUtils::runSync(argv, stdoutContent, stderrContent);
 		//Add to key+hash _cache
-		//TODO: generate a hash of the value string
+		//TODO: generate a hash of the value std::string
 		_cache[key] = value; //As a temporary hack use the entire value as the "hash"
 	}
 	catch(ProcessFailedException* ex){
@@ -407,14 +423,14 @@ void CPersistenceNamespaceDb::removeKey(const std::string& key) {
 	CAF_CM_FUNCNAME("removeKey");	
 	CAF_CM_VALIDATE_STRING(key);
 
-	string stdoutContent;
-	string stderrContent;
+	std::string stdoutContent;
+	std::string stderrContent;
 	Cdeqstr argv;
 
 	try {
-		argv.push_back(_namespaceDbCmd);
+		argv.push_back(_nsdbCmdPath);
 		argv.push_back("delete-key");
-		argv.push_back(_NAMESPACE);
+		argv.push_back(_nsdbNamespace);
 		argv.push_back("-k");
 		argv.push_back(key);
 
@@ -441,8 +457,8 @@ bool CPersistenceNamespaceDb::isReady() {
 
 	bool rc = true;
 	if (! _isReady) {
-		string stdoutContent;
-		string stderrContent;
+		std::string stdoutContent;
+		std::string stderrContent;
 		try {
 			(void) getValueRaw("updates", stdoutContent, stderrContent);
 			_isReady = true;
@@ -466,22 +482,22 @@ bool CPersistenceNamespaceDb::isReady() {
 	return rc;
 }
 
-string CPersistenceNamespaceDb::getValueRaw(
+std::string CPersistenceNamespaceDb::getValueRaw(
 		const std::string& key,
-		string& stdoutContent,
-		string& stderrContent) {
+		std::string& stdoutContent,
+		std::string& stderrContent) {
 	CAF_CM_FUNCNAME_VALIDATE("getValueRaw");
 	CAF_CM_VALIDATE_STRING(key);
 
 	Cdeqstr argv;
-	argv.push_back(_namespaceDbCmd);
+	argv.push_back(_nsdbCmdPath);
 	argv.push_back("get-value");
-	argv.push_back(_NAMESPACE);
+	argv.push_back(_nsdbNamespace);
 	argv.push_back("-k");
 	argv.push_back(key);
 
 	ProcessUtils::runSync(argv, stdoutContent, stderrContent);
-	string value = stdoutContent;
+	std::string value = stdoutContent;
 
 	//strip spaces
 	value = CStringUtils::trim(value);
@@ -494,7 +510,7 @@ string CPersistenceNamespaceDb::getValueRaw(
 			value.erase(value.length()-1,1);
 	}
 	//TODO: parse hash from nsdb value
-	string hash = value; //As a temporary hack, use the entire value as the "hash"
+	std::string hash = value; //As a temporary hack, use the entire value as the "hash"
 	//if hash has not changed, return empty
 	if (_cache[key] == hash) {
 		CAF_CM_LOG_DEBUG_VA1("Value for %s has not changed", key.c_str());

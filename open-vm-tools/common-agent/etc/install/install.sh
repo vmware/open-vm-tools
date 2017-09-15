@@ -104,11 +104,7 @@ outputDir="${D}/$baseOutputDir/$stdQuals/data/output"
 
 providersDir="$inputDir/providers"
 invokersDir="$inputDir/invokers"
-persistenceDir="$inputDir/persistence"
-protocolDir="$persistenceDir/protocol"
-localDir="$persistenceDir/local"
-amqpBrokerDir="$protocolDir/amqpBroker_default"
-tlsCertCollectionDir="$amqpBrokerDir/tlsCertCollection"
+amqpBrokerDir="$inputDir/persistence/protocol/amqpBroker_default"
 
 logDir="${D}/var/log/$stdQuals"
 
@@ -117,37 +113,9 @@ configDir="$baseEtcDir/config"
 installDir="$baseEtcDir/install"
 scriptDir="$baseEtcDir/scripts"
 
-#Ensure directories exist
-mkdir -p "$outputDir"
-mkdir -p "$persistenceDir"
-mkdir -p "$protocolDir"
 mkdir -p "$amqpBrokerDir"
-mkdir -p "$tlsCertCollectionDir"
-mkdir -p "$localDir"
-mkdir -p "$invokersDir"
-mkdir -p "$providersDir"
-mkdir -p "$logDir"
-
-if [ -f "/etc/vmware-tools/GuestProxyData/server/cert.pem" ]; then
-	cp -f "/etc/vmware-tools/GuestProxyData/server/cert.pem" "$tlsCertCollectionDir/cacert.pem"
-fi
-
-vcidPath="/etc/vmware-tools/GuestProxyData/VmVcUuid/vm.vc.uuid"
-if [ -f "$vcidPath" ]; then
-	reactiveRequestAmqpQueueId=$(cat "$vcidPath")-agentId1
-else
-	reactiveRequestAmqpQueueId=`uuidgen`
-fi
-
-tunnelPort=$(netstat -ldn | egrep ":6672 ")
-if [ -f "$vcidPath" -a "$tunnelPort" != "" ]; then
-	brokerUri="tunnel:agentId1:bogus@localhost:6672/${reactiveRequestAmqpQueueId}"
-else
-	brokerUri="amqp:#amqpUsername#:#amqpPassword#@${brokerAddr}:5672/${reactiveRequestAmqpQueueId}"
-fi
-
-echo -n "$brokerUri" > "$amqpBrokerDir/uri.txt"
-echo -n "$reactiveRequestAmqpQueueId" > "$localDir/localId.txt"
+echo -n "amqp:#amqpUsername#:#amqpPassword#@${brokerAddr}:5672/reactiveRequestAmqpQueueId" > "$amqpBrokerDir/uri_amqp.txt"
+echo -n "tunnel:agentId1:bogus@localhost:6672/reactiveRequestAmqpQueueId" > "$amqpBrokerDir/uri_tunnel.txt"
 
 #Substitute values into config files
 setupCafConfig '@installDir@' "$installDir" "$configDir"

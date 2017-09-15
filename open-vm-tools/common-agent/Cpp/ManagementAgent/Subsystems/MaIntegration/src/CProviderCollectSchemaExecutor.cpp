@@ -165,10 +165,7 @@ void CProviderCollectSchemaExecutor::setupSchemaCacheDir(
 	}
 
 	FileSystemUtils::createDirectory(providerSchemaCacheDir);
-
-	if (AppConfigUtils::getRequiredBoolean("managementAgent", "remap_logging_location")) {
-		loggingSetter->initialize(providerSchemaCacheDir);
-	}
+	loggingSetter->initialize(providerSchemaCacheDir);
 }
 
 void CProviderCollectSchemaExecutor::runProvider(

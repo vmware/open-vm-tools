@@ -43,8 +43,7 @@ void CManagementAgentHostWork::doWork() {
 		_isWorking = true;
 
 		CLoggingUtils::setStartupConfigFile(
-			AppConfigUtils::getRequiredString(_sAppConfigGlobalParamLogConfigFile));
-		CLoggingUtils::setLogDir(
+			AppConfigUtils::getRequiredString(_sAppConfigGlobalParamLogConfigFile),
 			AppConfigUtils::getRequiredString(_sAppConfigGlobalParamLogDir));
 
 		const uint32 hostDelaySec = AppConfigUtils::getRequiredUint32(
@@ -61,6 +60,7 @@ void CManagementAgentHostWork::doWork() {
 	}
 	CAF_CM_CATCH_ALL;
 	CAF_CM_LOG_CRIT_CAFEXCEPTION;
+	CAF_CM_CLEAREXCEPTION;
 
 	try {
 		if (! integrationAppContext.IsNull()) {

@@ -31,14 +31,21 @@ public: // IRunnable
 
 private:
 	SmartPtrCProviderExecutorRequest getNextPendingRequest();
+
 	void processRequest(const SmartPtrCProviderExecutorRequest& request) const;
+
+	void executeRequestAsync(
+			const SmartPtrCProviderExecutorRequest& request);
+
+	std::deque<SmartPtrITaskExecutor> removeFinishedTaskExecutors(
+			const std::deque<SmartPtrITaskExecutor> taskExecutors) const;
 
 private:
 	bool _isInitialized;
 	bool _isCancelled;
 	std::string _providerPath;
 	std::string _providerUri;
-	SmartPtrITaskExecutor _taskExecutor;
+	std::deque<SmartPtrITaskExecutor> _taskExecutors;
 	SmartPtrCAutoMutex _mutex;
 	std::deque<SmartPtrCProviderExecutorRequest> _pendingRequests;
 	SmartPtrITransformer _beginImpersonationTransformer;
@@ -48,6 +55,7 @@ private:
 private:
 	CAF_CM_CREATE;
 	CAF_CM_CREATE_LOG;
+	CAF_CM_CREATE_THREADSAFE;
 	CAF_CM_DECLARE_NOCOPY(CProviderExecutorRequestHandler);
 };
 

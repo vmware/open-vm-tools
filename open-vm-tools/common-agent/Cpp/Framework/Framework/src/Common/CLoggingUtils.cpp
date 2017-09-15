@@ -30,12 +30,11 @@ bool CLoggingUtils::isConsoleAppenderUsed() {
 	return rc;
 }
 
-void CLoggingUtils::setStartupConfigFile() {
-	setStartupConfigFile("log4cpp_config");
-}
-
-void CLoggingUtils::setStartupConfigFile(const std::string& configFile) {
+void CLoggingUtils::setStartupConfigFile(
+		const std::string& configFile,
+		const std::string& logDir) {
 	CAF_CM_STATIC_FUNC("CLoggingUtils", "setStartupConfigFile");
+	CAF_CM_VALIDATE_STRING(configFile);
 
 #ifndef WIN32
 	char configFileFullBuf[ 32768 ];
@@ -60,7 +59,11 @@ void CLoggingUtils::setStartupConfigFile(const std::string& configFile) {
 	_sInstance->_configFile = configFileFull;
 	_sInstance->loadProperties();
 
-	_sInstance->loadConfig(configFileFull);
+	if (logDir.empty()) {
+		_sInstance->loadConfig(configFileFull);
+	} else {
+		setLogDir(logDir);
+	}
 }
 
 SmartPtrCLoggingUtils CLoggingUtils::getInstance() {

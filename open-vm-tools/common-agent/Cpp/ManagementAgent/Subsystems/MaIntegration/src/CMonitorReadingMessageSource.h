@@ -65,14 +65,14 @@ private:
 	std::string _restartListenerPath;
 	std::string _listenerConfiguredPath;
 
-	std::string _outputDir;
+	std::string _scriptOutputDir;
 	std::string _stopListenerScript;
 	std::string _startListenerScript;
 	std::string _isListenerRunningScript;
 
 	std::string _listenerStartupType;
-	uint32 _listenerRetryCnt;
-	uint32 _listenerRetryMax;
+	int32 _listenerRetryCnt;
+	int32 _listenerRetryMax;
 
 private:
 	CAF_CM_CREATE;

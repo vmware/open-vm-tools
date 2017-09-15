@@ -373,7 +373,7 @@ SmartPtrIIntMessage CCafMessageCreator::createPayloadEnvelope(
 	const std::string destAttachmentFilename =
 			BasePlatform::UuidToString(requestId) + "-EnvelopePayload.xml";
 	const std::string destAttachmentPath = FileSystemUtils::buildPath(
-			outputDir, destAttachmentFilename);
+			outputDir, "att", destAttachmentFilename);
 	const std::string destAttachmentUri =
 			"file:///" + destAttachmentPath + "?relPath=" + destAttachmentFilename;
 

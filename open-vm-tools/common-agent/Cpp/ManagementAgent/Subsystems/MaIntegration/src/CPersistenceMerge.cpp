@@ -191,6 +191,8 @@ SmartPtrCPersistenceProtocolDoc CPersistenceMerge::mergePersistenceProtocol(
 				rc->initialize(
 						protocolName.empty() ? persistenceProtocolIn->getProtocolName() : protocolName,
 						uri.empty() ? persistenceProtocolIn->getUri() : uri,
+						persistenceProtocolLoaded->getUriAmqp(),
+						persistenceProtocolLoaded->getUriTunnel(),
 						tlsCert.empty() ? persistenceProtocolIn->getTlsCert() : tlsCert,
 						tlsProtocol.empty() ? persistenceProtocolIn->getTlsProtocol() : tlsProtocol,
 						tlsCipherCollection.empty() ? persistenceProtocolIn->getTlsCipherCollection() : tlsCipherCollection,

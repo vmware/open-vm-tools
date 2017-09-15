@@ -47,12 +47,19 @@ public: // IPersistence
 			const SmartPtrCPersistenceDoc& persistence);
 			
 private:
-	static std::string getCmdPath();
 	void setCmd();
-	std::string getValue(const std::string& key);
-	void setValue(const std::string& key, const std::string& value);
+
+	std::string getValue(
+			const std::string& key);
+
+	void setValue(
+			const std::string& key,
+			const std::string& value);
+
 	void removeKey(const std::string& key);
+
 	bool isReady();
+
 	std::string getValueRaw(
 			const std::string& key,
 			std::string& stdoutContent,
@@ -61,10 +68,11 @@ private:
 private:
 	bool _isInitialized;
 	bool _isReady;
-	static const std::string _NAMESPACE_DB_CMD_FILE;
-	static const std::string _NAMESPACE;
-	std::string _namespaceDbCmd;
+
+	std::string _nsdbCmdPath;
+	std::string _nsdbNamespace;
 	Cmapstrstr _cache;
+
 	SmartPtrCPersistenceDoc _persistenceUpdate;
 	SmartPtrCPersistenceDoc _persistenceRemove;
 

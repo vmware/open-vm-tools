@@ -57,9 +57,6 @@ private:
 			const SmartPtrCPersistenceDoc& persistence,
 			const SmartPtrIPersistence& persistenceRemove) const;
 
-	SmartPtrCPersistenceDoc createPersistenceUpdated(
-			const SmartPtrCPersistenceDoc& persistence) const;
-
 	std::string calcListenerContext(
 			const std::string& uriSchema,
 			const std::string& configDir) const;
