@@ -205,6 +205,13 @@
 #define VPXD_VDB_DB_VERSION_ID            610
 #define VPXD_VDB_DB_VERSION_VALUE         "VirtualCenter Database 6.1"
 
+// Virtual Appliance Patch Version Number
+// This is the last component of the VCSA w.x.y.z version number
+// While patching / minor update this number is used by VCSA
+// to validate a patch iso .
+// Changing the version is required when CPD releases an update.
+#define VA_PATCH_VERSION  "5100"
+
 #define SVA_VERSION "1.0.0"
 #define SSO_VERSION "1.0.0"
 #define WBC_VERSION "5.1.0"
