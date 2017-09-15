@@ -50,7 +50,7 @@
    #define PRODUCT_VERSION    1,1,5,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_VPX)
    /* this should be kept in sync with the corresponding vpx branch. */
-   #define PRODUCT_VERSION    6,5,0,PRODUCT_BUILD_NUMBER_NUMERIC
+   #define PRODUCT_VERSION    6,6,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_HORIZON_VIEW)
    #define PRODUCT_VERSION    0,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
 // VMX86_DESKTOP must be last because it is the default and is always defined.
@@ -186,27 +186,27 @@
 
 #define VCB_VERSION "4.0.0"
 #define VCB_FILE_VERSION 4,0,0,0
-#define VIM_VERSION "6.5.0"
+#define VIM_VERSION "6.6.0"
 
 // Put VPX_VERSION first, because vpx/make/defs.mk doesn't check for suffix.
-#define VPX_VERSION "6.5.0"
+#define VPX_VERSION "6.6.0"
 #define VPX_VERSION_MAJOR "6"
-#define VPX_VERSION_MINOR "5"
+#define VPX_VERSION_MINOR "6"
 #define VPX_VERSION_MAINT "0"
 #define VPX_VERSION_THIRD_PARTY VPX_VERSION_MAJOR VPX_VERSION_MINOR \
                                 VPX_VERSION_MAINT
-#define VPX_VERSION_NUMERIC 6,5,0,PRODUCT_BUILD_NUMBER_NUMERIC
+#define VPX_VERSION_NUMERIC 6,6,0,PRODUCT_BUILD_NUMBER_NUMERIC
 
-#define MAX_SUPPORTED_VI_VERSION "6.5" //from ovfTool/src/supportedVersions.h
-#define VCDB_CURRENT_SCHEMA_VERSION           650 // from PitCADatabase.h
+#define MAX_SUPPORTED_VI_VERSION "6.6" //from ovfTool/src/supportedVersions.h
+#define VCDB_CURRENT_SCHEMA_VERSION           660 // from PitCADatabase.h
 
 #define VPX_RELEASE_UPDATE "0" /* 0 = Pre-release/GA, 1 = Update 1 */
 #define VPX_RELEASE_PATCH "0"  /* 0 = experimental */
 #define VPX_RELEASE VPX_RELEASE_UPDATE "." VPX_RELEASE_PATCH
 
 /* expected database version for current release */
-#define VPXD_VDB_DB_VERSION_ID            650
-#define VPXD_VDB_DB_VERSION_VALUE         "VirtualCenter Database 6.5"
+#define VPXD_VDB_DB_VERSION_ID            660
+#define VPXD_VDB_DB_VERSION_VALUE         "VirtualCenter Database 6.6"
 
 // Virtual Appliance Patch Version Number
 // This is the last component of the VCSA w.x.y.z version number
