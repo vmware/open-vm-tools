@@ -180,7 +180,7 @@ DeployPkg_TcloDeploy(RpcInData *data)  // IN
 
    msg = g_strdup_printf("deployPkg.update.state %d",
                          TOOLSDEPLOYPKG_DEPLOYING);
-   if (!RpcChannel_Send(ctx->rpc, msg, strlen(msg) + 1, NULL, NULL)) {
+   if (!RpcChannel_Send(ctx->rpc, msg, strlen(msg), NULL, NULL)) {
       g_warning("%s: failed update state to TOOLSDEPLOYPKG_DEPLOYING\n",
                 __FUNCTION__);
    }
@@ -204,7 +204,7 @@ DeployPkg_TcloDeploy(RpcInData *data)  // IN
                             TOOLSDEPLOYPKG_DEPLOYING,
                             TOOLSDEPLOYPKG_ERROR_DEPLOY_FAILED,
                             pkgStart);
-      if (!RpcChannel_Send(ctx->rpc, msg, strlen(msg) + 1, NULL, NULL)) {
+      if (!RpcChannel_Send(ctx->rpc, msg, strlen(msg), NULL, NULL)) {
          g_warning("%s: failed update state to TOOLSDEPLOYPKG_DEPLOYING\n",
                    __FUNCTION__);
       }
@@ -220,7 +220,7 @@ DeployPkg_TcloDeploy(RpcInData *data)  // IN
                             TOOLSDEPLOYPKG_DEPLOYING,
                             TOOLSDEPLOYPKG_ERROR_DEPLOY_FAILED,
                             errMsg);
-      if (!RpcChannel_Send(ctx->rpc, msg, strlen(msg) + 1, NULL, NULL)) {
+      if (!RpcChannel_Send(ctx->rpc, msg, strlen(msg), NULL, NULL)) {
          g_warning("%s: failed update state to TOOLSDEPLOYPKG_DEPLOYING\n",
                    __FUNCTION__);
       }
