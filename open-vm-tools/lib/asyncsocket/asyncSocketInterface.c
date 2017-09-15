@@ -77,7 +77,7 @@
  *        (default is NULL: no callback)
  *
  * Results:
- *      None.
+ *      ASOCKERR_SUCCESS or ASOCKERR_*.
  *
  * Side effects:
  *      None.
@@ -85,16 +85,20 @@
  *----------------------------------------------------------------------------
  */
 
-void
+int
 AsyncSocket_SetCloseOptions(AsyncSocket *asock,           // IN
                             int flushEnabledMaxWaitMsec,  // IN
                             AsyncSocketCloseFn closeCb)   // IN
 {
+   int ret;
    if (VALID(asock, setCloseOptions)) {
       AsyncSocketLock(asock);
-      VT(asock)->setCloseOptions(asock, flushEnabledMaxWaitMsec, closeCb);
+      ret = VT(asock)->setCloseOptions(asock, flushEnabledMaxWaitMsec, closeCb);
       AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
    }
+   return ret;
 }
 
 
@@ -432,7 +436,7 @@ AsyncSocket_SetBufferSizes(AsyncSocket *asock,  // IN
  *    unless requested by the client.
  *
  * Result
- *    None
+ *    ASOCKERR_SUCCESS or ASOCKERR_*
  *
  * Side-effects
  *    See description above.
@@ -440,15 +444,19 @@ AsyncSocket_SetBufferSizes(AsyncSocket *asock,  // IN
  *-----------------------------------------------------------------------------
  */
 
-void
+int
 AsyncSocket_SetSendLowLatencyMode(AsyncSocket *asock,  // IN
                                   Bool enable)         // IN
 {
+   int ret;
    if (VALID(asock, setSendLowLatencyMode)) {
       AsyncSocketLock(asock);
-      VT(asock)->setSendLowLatencyMode(asock, enable);
+      ret = VT(asock)->setSendLowLatencyMode(asock, enable);
       AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
    }
+   return ret;
 }
 
 
@@ -464,9 +472,12 @@ AsyncSocket_SetSendLowLatencyMode(AsyncSocket *asock,  // IN
  *    after the sslConnectFn callback is called.
  *
  * Results:
- *    None.
- *    Error is always reported using the callback supplied. Detailed SSL
- *    verification error can be retrieved from verifyParam structure.
+ *    ASOCKERR_SUCCESS indicates we have started async connect.
+ *    ASOCKERR_* indicates a failure to start the connect.
+ *
+ *    Errors during asynchronous processing is reported using the
+ *    callback supplied. Detailed SSL verification error can be
+ *    retrieved from verifyParam structure.
  *
  * Side effects:
  *    None.
@@ -474,19 +485,23 @@ AsyncSocket_SetSendLowLatencyMode(AsyncSocket *asock,  // IN
  *-----------------------------------------------------------------------------
  */
 
-void
+int
 AsyncSocket_StartSslConnect(AsyncSocket *asock,                   // IN
                             SSLVerifyParam *verifyParam,          // IN/OPT
                             void *sslCtx,                         // IN
                             AsyncSocketSslConnectFn sslConnectFn, // IN
                             void *clientData)                     // IN
 {
+   int ret;
    if (VALID(asock, startSslConnect)) {
       AsyncSocketLock(asock);
-      VT(asock)->startSslConnect(asock, verifyParam, sslCtx, sslConnectFn,
-                                 clientData);
+      ret = VT(asock)->startSslConnect(asock, verifyParam, sslCtx, sslConnectFn,
+                                       clientData);
       AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
    }
+   return ret;
 }
 
 
@@ -566,8 +581,11 @@ AsyncSocket_AcceptSSL(AsyncSocket *asock,    // IN
  *    or an error occurs.
  *
  * Results:
- *    None.
- *    Error is always reported using the callback supplied.
+ *    ASOCKERR_SUCCESS indicates we have started async accept.
+ *    ASOCKERR_* indicates a failure to start the accept.
+ *
+ *    Errors during asynchronous processing are reported using the
+ *    callback supplied.
  *
  * Side effects:
  *    None.
@@ -575,17 +593,21 @@ AsyncSocket_AcceptSSL(AsyncSocket *asock,    // IN
  *-----------------------------------------------------------------------------
  */
 
-void
+int
 AsyncSocket_StartSslAccept(AsyncSocket *asock,                 // IN
                            void *sslCtx,                       // IN
                            AsyncSocketSslAcceptFn sslAcceptFn, // IN
                            void *clientData)                   // IN
 {
+   int ret;
    if (VALID(asock, startSslAccept)) {
       AsyncSocketLock(asock);
-      VT(asock)->startSslAccept(asock, sslCtx, sslAcceptFn, clientData);
+      ret = VT(asock)->startSslAccept(asock, sslCtx, sslAcceptFn, clientData);
       AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
    }
+   return ret;
 }
 
 
@@ -967,7 +989,7 @@ AsyncSocket_CancelRecvEx(AsyncSocket *asock,         // IN
  *      function.
  *
  * Results:
- *      None.
+ *      ASOCKERR_*.
  *
  * Side effects:
  *      None.
@@ -975,14 +997,18 @@ AsyncSocket_CancelRecvEx(AsyncSocket *asock,         // IN
  *----------------------------------------------------------------------------
  */
 
-void
+int
 AsyncSocket_CancelCbForClose(AsyncSocket *asock)  // IN:
 {
+   int ret;
    if (VALID(asock, cancelCbForClose)) {
       AsyncSocketLock(asock);
-      VT(asock)->cancelCbForClose(asock);
+      ret = VT(asock)->cancelCbForClose(asock);
       AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
    }
+   return ret;
 }
 
 

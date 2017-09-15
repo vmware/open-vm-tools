@@ -60,17 +60,17 @@ typedef struct AsyncSocketVTable {
    int (*setTCPTimeouts)(AsyncSocket *asock, int keepIdle, int keepIntvl,
                          int keepCnt);
    Bool (*setBufferSizes)(AsyncSocket *asock, int sendSz, int recvSz);
-   void (*setSendLowLatencyMode)(AsyncSocket *asock, Bool enable);
-   void (*setCloseOptions)(AsyncSocket *asock, int flushEnabledMaxWaitMsec,
+   int (*setSendLowLatencyMode)(AsyncSocket *asock, Bool enable);
+   int (*setCloseOptions)(AsyncSocket *asock, int flushEnabledMaxWaitMsec,
                            AsyncSocketCloseFn closeCb);
    Bool (*connectSSL)(AsyncSocket *asock, struct _SSLVerifyParam *verifyParam,
                       void *sslContext);
-   void (*startSslConnect)(AsyncSocket *asock,
+   int (*startSslConnect)(AsyncSocket *asock,
                            struct _SSLVerifyParam *verifyParam, void *sslCtx,
                            AsyncSocketSslConnectFn sslConnectFn,
                            void *clientData);
    Bool (*acceptSSL)(AsyncSocket *asock, void *sslCtx);
-   void (*startSslAccept)(AsyncSocket *asock, void *sslCtx,
+   int (*startSslAccept)(AsyncSocket *asock, void *sslCtx,
                           AsyncSocketSslAcceptFn sslAcceptFn,
                           void *clientData);
    int (*flush)(AsyncSocket *asock, int timeoutMS);
@@ -87,7 +87,7 @@ typedef struct AsyncSocketVTable {
    int (*close)(AsyncSocket *asock);
    int (*cancelRecv)(AsyncSocket *asock, int *partialRecvd, void **recvBuf,
                      void **recvFn, Bool cancelOnSend);
-   void (*cancelCbForClose)(AsyncSocket *asock);
+   int (*cancelCbForClose)(AsyncSocket *asock);
    int (*getLocalVMCIAddress)(AsyncSocket *asock, uint32 *cid, uint32 *port);
    int (*getRemoteVMCIAddress)(AsyncSocket *asock, uint32 *cid, uint32 *port);
    int (*getWebSocketError)(AsyncSocket *asock);

@@ -211,7 +211,7 @@ typedef struct AsyncTCPSocket {
    Bool sendCbRT;
    Bool sendBufFull;
    Bool sendLowLatency;
-   Bool inLowLatencySendCb;
+   int inLowLatencySendCb;
 
    Bool sslConnected;
 
@@ -312,20 +312,20 @@ static int AsyncTCPSocketSetTCPTimeouts(AsyncSocket *asock, int keepIdle,
                                         int keepIntvl, int keepCnt);
 static Bool AsyncTCPSocketSetBufferSizes(AsyncSocket *asock,
                                          int sendSz, int recvSz);
-static void AsyncTCPSocketSetSendLowLatencyMode(AsyncSocket *asock,
+static int AsyncTCPSocketSetSendLowLatencyMode(AsyncSocket *asock,
                                                 Bool enable);
 static Bool AsyncTCPSocketConnectSSL(AsyncSocket *asock,
                                      struct _SSLVerifyParam *verifyParam,
                                      void *sslContext);
-static void AsyncTCPSocketStartSslConnect(AsyncSocket *asock,
-                                          SSLVerifyParam *verifyParam,
-                                          void *sslCtx,
-                                          AsyncSocketSslConnectFn sslConnectFn,
-                                          void *clientData);
-static Bool AsyncTCPSocketAcceptSSL(AsyncSocket *asock, void *sslCtx);
-static void AsyncTCPSocketStartSslAccept(AsyncSocket *asock, void *sslCtx,
-                                         AsyncSocketSslAcceptFn sslAcceptFn,
+static int AsyncTCPSocketStartSslConnect(AsyncSocket *asock,
+                                         SSLVerifyParam *verifyParam,
+                                         void *sslCtx,
+                                         AsyncSocketSslConnectFn sslConnectFn,
                                          void *clientData);
+static Bool AsyncTCPSocketAcceptSSL(AsyncSocket *asock, void *sslCtx);
+static int AsyncTCPSocketStartSslAccept(AsyncSocket *asock, void *sslCtx,
+                                        AsyncSocketSslAcceptFn sslAcceptFn,
+                                        void *clientData);
 static int AsyncTCPSocketFlush(AsyncSocket *asock, int timeoutMS);
 static void AsyncTCPSocketCancelRecvCb(AsyncTCPSocket *asock);
 
@@ -341,12 +341,12 @@ static int AsyncTCPSocketClose(AsyncSocket *asock);
 static int AsyncTCPSocketCancelRecv(AsyncSocket *asock, int *partialRecvd,
                                     void **recvBuf, void **recvFn,
                                     Bool cancelOnSend);
-static void AsyncTCPSocketCancelCbForClose(AsyncSocket *asock);
+static int AsyncTCPSocketCancelCbForClose(AsyncSocket *asock);
 static int AsyncTCPSocketGetLocalVMCIAddress(AsyncSocket *asock,
                             uint32 *cid, uint32 *port);
 static int AsyncTCPSocketGetRemoteVMCIAddress(AsyncSocket *asock,
                              uint32 *cid, uint32 *port);
-static void AsyncTCPSocketSetCloseOptions(AsyncSocket *asock,
+static int AsyncTCPSocketSetCloseOptions(AsyncSocket *asock,
                                           int flushEnabledMaxWaitMsec,
                                           AsyncSocketCloseFn closeCb);
 static void AsyncTCPSocketDestroy(AsyncSocket *s);
@@ -2979,7 +2979,17 @@ AsyncTCPSocketSend(AsyncSocket *base,         // IN
    LOG(2, ("%s: sending %d bytes\n", __FUNCTION__, len));
 
    ASSERT(AsyncTCPSocketIsLocked(asock));
-   ASSERT(!asock->inLowLatencySendCb);
+
+   /*
+    * In low-latency mode, we want to guard against recursive calls to
+    * Send from within the send callback, as these have the capacity
+    * to blow up the stack.  However some operations generate implicit
+    * sends (such as Close on a websocket) seem like they should be
+    * legal from the send callback.  So, allow a small degree of
+    * recursive use of the send callback to accomodate these internal
+    * paths.
+    */
+   ASSERT(asock->inLowLatencySendCb < 2);
 
    if (AsyncTCPSocketGetState(asock) != AsyncSocketConnected) {
       TCPSOCKWARN(asock, ("send called but state is not connected!\n"));
@@ -3014,9 +3024,9 @@ AsyncTCPSocketSend(AsyncSocket *base,         // IN
           * callback to be invoked prior to the call to
           * AsyncTCPSocket_Send() returning.
           */
-         asock->inLowLatencySendCb = TRUE;
+         asock->inLowLatencySendCb++;
          asock->internalSendFn((void *)asock);
-         asock->inLowLatencySendCb = FALSE;
+         asock->inLowLatencySendCb--;
       } else {
 #ifdef _WIN32
          /*
@@ -3214,10 +3224,8 @@ static int
 AsyncTCPSocketFillRecvBuffer(AsyncTCPSocket *s)         // IN
 {
    int recvd;
-   int needed;
    int sysErr = 0;
    int result;
-   int pending = 0;
 
    ASSERT(AsyncTCPSocketIsLocked(s));
    ASSERT(AsyncTCPSocketGetState(s) == AsyncSocketConnected);
@@ -3230,13 +3238,10 @@ AsyncTCPSocketFillRecvBuffer(AsyncTCPSocket *s)         // IN
     * (e.g. aioMgr wait function), then FillRecvBuffer can be potentially be
     * called twice for the same receive event.
     */
-
-   needed = s->base.recvLen - s->base.recvPos;
-   if (!s->base.recvBuf && needed == 0) {
+   if (!s->base.recvBuf) {
+      ASSERT(s->base.recvLen == s->base.recvPos);
       return ASOCKERR_SUCCESS;
    }
-
-   ASSERT(needed > 0);
 
    AsyncTCPSocketAddRef(s);
 
@@ -3246,12 +3251,14 @@ AsyncTCPSocketFillRecvBuffer(AsyncTCPSocket *s)         // IN
 
    s->inRecvLoop = TRUE;
 
-   do {
+   while (TRUE) {
+      int needed = s->base.recvLen - s->base.recvPos;
+
+      ASSERT(needed > 0);
 
       /*
        * Try to read the remaining bytes to complete the current recv request.
        */
-
       if (s->passFd.expected) {
          int fd;
 
@@ -3276,7 +3283,7 @@ AsyncTCPSocketFillRecvBuffer(AsyncTCPSocket *s)         // IN
          s->sslConnected = TRUE;
          s->base.recvPos += recvd;
          if (AsyncSocketCheckAndDispatchRecv(&s->base, &result)) {
-            goto exit;
+            break;
          }
       } else if (recvd == 0) {
          TCPSOCKLG0(s, ("recv detected client closed connection\n"));
@@ -3285,52 +3292,22 @@ AsyncTCPSocketFillRecvBuffer(AsyncTCPSocket *s)         // IN
           * of connection by peer (via the error handler callback).
           */
          result = ASOCKERR_REMOTE_DISCONNECT;
-         goto exit;
+         break;
       } else if ((sysErr = ASOCK_LASTERROR()) == ASOCK_EWOULDBLOCK) {
          TCPSOCKLOG(4, s, ("recv would block\n"));
+         result = ASOCKERR_SUCCESS;
          break;
       } else {
          TCPSOCKLG0(s, ("recv error %d: %s\n", sysErr,
-                      Err_Errno2String(sysErr)));
+                        Err_Errno2String(sysErr)));
          s->genericErrno = sysErr;
          result = ASOCKERR_GENERIC;
-         goto exit;
+         break;
       }
+   }
 
-      /*
-       * At this point, s->recvFoo have been updated to point to the
-       * next chained Recv buffer. By default we're done at this
-       * point, but we may want to continue if the SSL socket has data
-       * buffered in userspace already (SSL_Pending).
-       */
-
-      needed = s->base.recvLen - s->base.recvPos;
-      ASSERT(needed > 0);
-
-      pending = SSL_Pending(s->sslSock);
-      needed = MIN(needed, pending);
-
-   } while (needed);
-
-   /*
-    * Reach this point only when previous SSL_Pending returns 0 or
-    * error is ASOCK_EWOULDBLOCK
-    */
-
-   ASSERT(pending == 0 || sysErr == ASOCK_EWOULDBLOCK);
-
-   /*
-    * Both a spurious wakeup and receiving any data even if it wasn't enough
-    * to fire the callback are both success.  We were ready and now
-    * presumably we aren't ready anymore.
-    */
-
-   result = ASOCKERR_SUCCESS;
-
-exit:
    s->inRecvLoop = FALSE;
    AsyncTCPSocketRelease(s);
-
    return result;
 }
 
@@ -4126,7 +4103,7 @@ AsyncTCPSocketCancelRecvCb(AsyncTCPSocket *asock)  // IN:
  *      socket is closed.
  *
  * Results:
- *      None.
+ *      ASOCKERR_*.
  *
  * Side effects:
  *      Unregisters send/recv Poll callbacks, and fires the send
@@ -4136,7 +4113,7 @@ AsyncTCPSocketCancelRecvCb(AsyncTCPSocket *asock)  // IN:
  *----------------------------------------------------------------------------
  */
 
-static void
+static int
 AsyncTCPSocketCancelCbForClose(AsyncSocket *base)  // IN:
 {
    AsyncTCPSocket *asock = TCPSocket(base);
@@ -4235,6 +4212,7 @@ AsyncTCPSocketCancelCbForClose(AsyncSocket *base)  // IN:
       free(cur);
    }
    AsyncTCPSocketRelease(asock);
+   return ASOCKERR_SUCCESS;
 }
 
 
@@ -4281,7 +4259,7 @@ AsyncTCPSocketCancelCbForConnectingClose(AsyncTCPSocket *asock) // IN
  *        (default is NULL: no callback)
  *
  * Results:
- *      None.
+ *      ASOCKERR_*.
  *
  * Side effects:
  *      None.
@@ -4289,7 +4267,7 @@ AsyncTCPSocketCancelCbForConnectingClose(AsyncTCPSocket *asock) // IN
  *----------------------------------------------------------------------------
  */
 
-static void
+static int
 AsyncTCPSocketSetCloseOptions(AsyncSocket *base,           // IN
                               int flushEnabledMaxWaitMsec, // IN
                               AsyncSocketCloseFn closeCb)  // IN
@@ -4298,6 +4276,7 @@ AsyncTCPSocketSetCloseOptions(AsyncSocket *base,           // IN
    asock->flushEnabledMaxWaitMsec = flushEnabledMaxWaitMsec;
    asock->closeCb = closeCb;
    VERIFY(closeCb == NULL);
+   return ASOCKERR_SUCCESS;
 }
 
 
@@ -5337,8 +5316,8 @@ AsyncTCPSocketSslConnectCallback(void *clientData)  // IN
  *          set to zero.
  *
  * Results:
- *    None.
- *    Error is always reported using the callback supplied.
+ *    ASOCKERR_SUCCESS or ASOCKERR_*.
+ *    Errors during async processing are reported using the callback supplied.
  *
  * Side effects:
  *    None.
@@ -5346,7 +5325,7 @@ AsyncTCPSocketSslConnectCallback(void *clientData)  // IN
  *-----------------------------------------------------------------------------
  */
 
-static void
+static int
 AsyncTCPSocketStartSslConnect(AsyncSocket *base,                    // IN
                               SSLVerifyParam *verifyParam,          // IN/OPT
                               void *sslCtx,                         // IN
@@ -5364,7 +5343,7 @@ AsyncTCPSocketStartSslConnect(AsyncSocket *base,                    // IN
 
    if (asock->sslConnectFn || asock->sslAcceptFn) {
       TCPSOCKWARN(asock, ("An SSL operation was already initiated.\n"));
-      return;
+      return ASOCKERR_GENERIC;
    }
 
    ok = SSL_SetupConnectAndVerifyWithContext(asock->sslSock, verifyParam,
@@ -5372,15 +5351,16 @@ AsyncTCPSocketStartSslConnect(AsyncSocket *base,                    // IN
    if (!ok) {
       /* Something went wrong already */
       (*sslConnectFn)(FALSE, BaseSocket(asock), clientData);
-      return;
+      return ASOCKERR_GENERIC;
    }
 
    asock->sslConnectFn = sslConnectFn;
    asock->clientData = clientData;
 
    AsyncTCPSocketSslConnectCallback(asock);
+   return ASOCKERR_SUCCESS;
 #else
-   NOT_IMPLEMENTED();
+   return ASOCKERR_INVAL;
 #endif
 }
 
@@ -5461,8 +5441,8 @@ AsyncTCPSocketSslAcceptCallback(void *clientData)         // IN
  *          not have to include the openssl header. This is in sync with
  *          SSL_AcceptWithContext(), where the sslCtx param is typed as void *
  * Results:
- *    None.
- *    Error is always reported using the callback supplied.
+ *    ASOCKERR_SUCCESS or ASOCKERR_*.
+ *    Errors during async processing reported using the callback supplied.
  *
  * Side effects:
  *    None.
@@ -5470,7 +5450,7 @@ AsyncTCPSocketSslAcceptCallback(void *clientData)         // IN
  *-----------------------------------------------------------------------------
  */
 
-static void
+static int
 AsyncTCPSocketStartSslAccept(AsyncSocket *base,                  // IN
                              void *sslCtx,                       // IN
                              AsyncSocketSslAcceptFn sslAcceptFn, // IN
@@ -5486,20 +5466,21 @@ AsyncTCPSocketStartSslAccept(AsyncSocket *base,                  // IN
 
    if (asock->sslAcceptFn || asock->sslConnectFn) {
       TCPSOCKWARN(asock, ("An SSL operation was already initiated.\n"));
-      return;
+      return ASOCKERR_GENERIC;
    }
 
    ok = SSL_SetupAcceptWithContext(asock->sslSock, sslCtx);
    if (!ok) {
       /* Something went wrong already */
       (*sslAcceptFn)(FALSE, BaseSocket(asock), clientData);
-      return;
+      return ASOCKERR_GENERIC;
    }
 
    asock->sslAcceptFn = sslAcceptFn;
    asock->clientData = clientData;
 
    AsyncTCPSocketSslAcceptCallback(asock);
+   return ASOCKERR_SUCCESS;
 }
 
 
@@ -5594,7 +5575,7 @@ AsyncTCPSocketSetBufferSizes(AsyncSocket *base,   // IN
  *    unless requested by the client.
  *
  * Result
- *    None
+ *    ASOCKERR_*
  *
  * Side-effects
  *    See description above.
@@ -5602,12 +5583,13 @@ AsyncTCPSocketSetBufferSizes(AsyncSocket *base,   // IN
  *-----------------------------------------------------------------------------
  */
 
-static void
+static int
 AsyncTCPSocketSetSendLowLatencyMode(AsyncSocket *base,  // IN
                                     Bool enable)        // IN
 {
    AsyncTCPSocket *asock = TCPSocket(base);
    asock->sendLowLatency = enable;
+   return ASOCKERR_SUCCESS;
 }
 
 

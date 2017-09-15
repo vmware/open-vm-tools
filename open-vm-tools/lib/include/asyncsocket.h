@@ -381,17 +381,17 @@ AsyncSocket_ConnectWebSocket(const char *url,
 Bool AsyncSocket_ConnectSSL(AsyncSocket *asock,
                             struct _SSLVerifyParam *verifyParam,
                             void *sslContext);
-void AsyncSocket_StartSslConnect(AsyncSocket *asock,
-                                 struct _SSLVerifyParam *verifyParam,
-                                 void *sslCtx,
-                                 AsyncSocketSslConnectFn sslConnectFn,
-                                 void *clientData);
+int AsyncSocket_StartSslConnect(AsyncSocket *asock,
+                                struct _SSLVerifyParam *verifyParam,
+                                void *sslCtx,
+                                AsyncSocketSslConnectFn sslConnectFn,
+                                void *clientData);
 
 Bool AsyncSocket_AcceptSSL(AsyncSocket *asock, void *sslCtx);
-void AsyncSocket_StartSslAccept(AsyncSocket *asock,
-                                void *sslCtx,
-                                AsyncSocketSslAcceptFn sslAcceptFn,
-                                void *clientData);
+int AsyncSocket_StartSslAccept(AsyncSocket *asock,
+                               void *sslCtx,
+                               AsyncSocketSslAcceptFn sslAcceptFn,
+                               void *clientData);
 
 /*
  * Create a new AsyncSocket from an existing socket
@@ -483,7 +483,7 @@ int AsyncSocket_CancelRecvEx(AsyncSocket *asock, int *partialRecvd, void **recvB
 /*
  * Unregister asynchronous send and recv from poll
  */
-void AsyncSocket_CancelCbForClose(AsyncSocket *asock);
+int AsyncSocket_CancelCbForClose(AsyncSocket *asock);
 
 /*
  * Set the error handler to invoke on I/O errors (default is to close the
@@ -502,9 +502,9 @@ Bool AsyncSocket_SetBufferSizes(AsyncSocket *asock,  // IN
 /*
  * Set optional AsyncSocket_Close() behaviors.
  */
-void AsyncSocket_SetCloseOptions(AsyncSocket *asock,
-                                 int flushEnabledMaxWaitMsec,
-                                 AsyncSocketCloseFn closeCb);
+int AsyncSocket_SetCloseOptions(AsyncSocket *asock,
+                                int flushEnabledMaxWaitMsec,
+                                AsyncSocketCloseFn closeCb);
 
 /*
  * Close the connection and destroy the asock.
@@ -537,7 +537,7 @@ uint16 AsyncSocket_GetWebSocketCloseStatus(AsyncSocket *asock);
 /*
  * Set low-latency mode for sends:
  */
-void AsyncSocket_SetSendLowLatencyMode(AsyncSocket *asock, Bool enable);
+int AsyncSocket_SetSendLowLatencyMode(AsyncSocket *asock, Bool enable);
 
 /*
  * Get negotiated websocket protocol
