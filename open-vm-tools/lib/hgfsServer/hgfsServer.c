@@ -234,6 +234,7 @@ static void HgfsServerSessionInvalidateObjects(void *clientData,
                                                DblLnkLst_Links *shares);
 static uint32 HgfsServerSessionInvalidateInactiveSessions(void *clientData);
 static void HgfsServerSessionSendComplete(HgfsPacket *packet, void *clientData);
+static void HgfsServerSessionQuiesce(void * clientData, HgfsQuiesceOp quiesceOp);
 
 /*
  * Callback table passed to transport and any channels.
@@ -247,6 +248,7 @@ static const HgfsServerCallbacks gHgfsServerCBTable = {
       HgfsServerSessionInvalidateObjects,
       HgfsServerSessionInvalidateInactiveSessions,
       HgfsServerSessionSendComplete,
+      HgfsServerSessionQuiesce,
    },
 };
 
@@ -255,8 +257,6 @@ static MXUserExclLock *gHgfsSharedFoldersLock = NULL;
 
 /* List of shared folders nodes. */
 static DblLnkLst_Links gHgfsSharedFoldersList;
-
-static Bool gHgfsInitialized = FALSE;
 
 /*
  * Number of active sessions that support change directory notification. HGFS server
@@ -403,7 +403,7 @@ static void HgfsServerRemoveDirNotifyWatch(HgfsInputParam *input);
 static void
 HgfsServerSessionGet(HgfsSessionInfo *session)   // IN: session context
 {
-   ASSERT(session);
+   ASSERT(session && Atomic_Read(&session->refCount) != 0);
    Atomic_Inc(&session->refCount);
 }
 
@@ -3948,7 +3948,6 @@ HgfsServer_InitState(const HgfsServerCallbacks **callbackTable,   // IN/OUT: our
             gHgfsCfgSettings.flags &= ~HGFS_CONFIG_OPLOCK_ENABLED;
          }
       }
-      gHgfsInitialized = TRUE;
    } else {
       HgfsServer_ExitState(); // Cleanup partially initialized state
    }
@@ -3980,8 +3979,6 @@ HgfsServer_InitState(const HgfsServerCallbacks **callbackTable,   // IN/OUT: our
 void
 HgfsServer_ExitState(void)
 {
-   gHgfsInitialized = FALSE;
-
    if (0 != (gHgfsCfgSettings.flags & HGFS_CONFIG_OPLOCK_ENABLED)) {
       HgfsServerOplockDestroy();
    }
@@ -4501,10 +4498,8 @@ HgfsServerAllocateSession(HgfsTransportSessionInfo *transportSession, // IN:
    /* Initialize search freelist. */
    DblLnkLst_Init(&session->searchFreeList);
 
-   Atomic_Write(&session->refCount, 0);
-
    /* Give our session a reference to hold while we are open. */
-   HgfsServerSessionGet(session);
+   Atomic_Write(&session->refCount, 1);
 
    /* Allocate array of searches and add them to free list. */
    session->numSearches = NUM_SEARCHES;
@@ -4850,7 +4845,7 @@ HgfsServerSessionSendComplete(HgfsPacket *packet,   // IN/OUT: Hgfs packet
 /*
  *----------------------------------------------------------------------------
  *
- * HgfsServer_Quiesce --
+ * HgfsServerSessionQuiesce --
  *
  *    The function is called when VM is about to take a snapshot and
  *    when creation of the snapshot completed. When the freeze is TRUE the
@@ -4868,30 +4863,58 @@ HgfsServerSessionSendComplete(HgfsPacket *packet,   // IN/OUT: Hgfs packet
  *----------------------------------------------------------------------------
  */
 
-void
-HgfsServer_Quiesce(Bool freeze)  // IN:
+static void
+HgfsServerSessionQuiesce(void *clientData,         // IN: transport and session
+                         HgfsQuiesceOp quiesceOp)  // IN: operation
 {
-   if (!gHgfsInitialized) {
-      return;
-   }
+   HgfsTransportSessionInfo *transportSession = clientData;
+   DblLnkLst_Links *curr;
 
-   if (freeze) {
-      /* Suspend background activity. */
-      if (gHgfsDirNotifyActive) {
-         HgfsNotify_Deactivate(HGFS_NOTIFY_REASON_SERVER_SYNC);
+   LOG(4, ("%s: Beginning\n", __FUNCTION__));
+
+   MXUser_AcquireExclLock(transportSession->sessionArrayLock);
+
+   DblLnkLst_ForEach(curr, &transportSession->sessionArray) {
+      HgfsSessionInfo *session = DblLnkLst_Container(curr, HgfsSessionInfo, links);
+
+      switch(quiesceOp) {
+      case HGFS_QUIESCE_FREEZE:
+         /* Suspend background activity. */
+         LOG(8, ("%s: Halt file system activity for session %p\n",
+                 __FUNCTION__, session));
+
+         if (gHgfsDirNotifyActive) {
+            HgfsNotify_Deactivate(HGFS_NOTIFY_REASON_SERVER_SYNC, session);
+         }
+
+         /*
+          * XXX - TODO move these globals into the session!
+          * Wait for outstanding asynchronous requests to complete.
+          */
+         MXUser_AcquireExclLock(gHgfsAsyncLock);
+         while (Atomic_Read(&gHgfsAsyncCounter)) {
+            MXUser_WaitCondVarExclLock(gHgfsAsyncLock, gHgfsAsyncVar);
+         }
+         MXUser_ReleaseExclLock(gHgfsAsyncLock);
+         break;
+
+      case HGFS_QUIESCE_THAW:
+         /* Resume background activity. */
+         LOG(8, ("%s: Resume file system activity for session %p\n",
+                 __FUNCTION__, session));
+
+         if (gHgfsDirNotifyActive) {
+            HgfsNotify_Activate(HGFS_NOTIFY_REASON_SERVER_SYNC, session);
+         }
+         break;
+
+      default:
+         NOT_REACHED();
       }
-      /* Wait for outstanding asynchronous requests to complete. */
-      MXUser_AcquireExclLock(gHgfsAsyncLock);
-      while (Atomic_Read(&gHgfsAsyncCounter)) {
-         MXUser_WaitCondVarExclLock(gHgfsAsyncLock, gHgfsAsyncVar);
-      }
-      MXUser_ReleaseExclLock(gHgfsAsyncLock);
-   } else {
-      /* Resume background activity. */
-      if (gHgfsDirNotifyActive) {
-         HgfsNotify_Activate(HGFS_NOTIFY_REASON_SERVER_SYNC);
-      }
+
    }
+   MXUser_ReleaseExclLock(transportSession->sessionArrayLock);
+   LOG(4, ("%s: Ending\n", __FUNCTION__));
 }
 
 

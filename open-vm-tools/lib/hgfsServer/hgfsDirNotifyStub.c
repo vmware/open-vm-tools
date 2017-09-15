@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -81,28 +81,6 @@ HgfsNotify_Exit(void)
 /*
  *-----------------------------------------------------------------------------
  *
- * HgfsNotify_Deactivate --
- *
- *    Deactivates generating file system change notifications.
- *
- * Results:
- *    None.
- *
- * Side effects:
- *    None.
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-HgfsNotify_Deactivate(HgfsNotifyActivateReason reason) // IN: reason unused
-{
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
  * HgfsNotify_Activate --
  *
  *    Activates generating file system change notifications.
@@ -117,7 +95,31 @@ HgfsNotify_Deactivate(HgfsNotifyActivateReason reason) // IN: reason unused
  */
 
 void
-HgfsNotify_Activate(HgfsNotifyActivateReason reason) // IN: reason unused
+HgfsNotify_Activate(HgfsNotifyActivateReason reason, // IN: reason
+                    struct HgfsSessionInfo *session) // IN: session
+{
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsNotify_Deactivate --
+ *
+ *    Deactivates generating file system change notifications.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+HgfsNotify_Deactivate(HgfsNotifyActivateReason reason, // IN: reason
+                      struct HgfsSessionInfo *session) // IN: session
 {
 }
 

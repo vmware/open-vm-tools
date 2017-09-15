@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -57,8 +57,10 @@ typedef void HgfsNotifyEventReceiveCb(HgfsSharedFolderHandle sharedFolder,
                                       struct HgfsSessionInfo *session);
 HgfsInternalStatus HgfsNotify_Init(void);
 void HgfsNotify_Exit(void);
-void HgfsNotify_Deactivate(HgfsNotifyActivateReason mode);
-void HgfsNotify_Activate(HgfsNotifyActivateReason mode);
+void HgfsNotify_Deactivate(HgfsNotifyActivateReason mode,
+                           struct HgfsSessionInfo *session);
+void HgfsNotify_Activate(HgfsNotifyActivateReason mode,
+                         struct HgfsSessionInfo *session);
 
 HgfsSharedFolderHandle HgfsNotify_AddSharedFolder(const char *path,
                                                   const char *shareName);
