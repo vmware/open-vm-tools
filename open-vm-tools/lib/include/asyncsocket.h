@@ -243,6 +243,7 @@ AsyncSocket *AsyncSocket_ListenWebSocket(const char *addrStr,
                                          AsyncSocketConnectFn connectFn,
                                          void *clientData,
                                          AsyncSocketPollParams *pollParams,
+                                         void *sslCtx,
                                          int *outError);
 /*
  * Listen on port and fire callback with new asock
@@ -355,7 +356,7 @@ void AsyncSocket_StartSslConnect(AsyncSocket *asock,
                                  AsyncSocketSslConnectFn sslConnectFn,
                                  void *clientData);
 
-Bool AsyncSocket_AcceptSSL(AsyncSocket *asock);
+Bool AsyncSocket_AcceptSSL(AsyncSocket *asock, void *sslCtx);
 void AsyncSocket_StartSslAccept(AsyncSocket *asock,
                                 void *sslCtx,
                                 AsyncSocketSslAcceptFn sslAcceptFn,

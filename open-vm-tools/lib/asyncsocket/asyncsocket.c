@@ -739,6 +739,7 @@ AsyncSocketListenImpl(struct sockaddr_storage *addr,      // IN
                       Bool isWebSock,                     // IN
                       Bool webSockUseSSL,                 // IN:
                       const char *protocols[],            // IN: optional
+                      void *sslCtx,                       // IN: optional
                       int *outError)                      // OUT: optional
 {
    AsyncSocket *asock = AsyncSocketInit(addr->ss_family, pollParams, outError);
@@ -746,7 +747,7 @@ AsyncSocketListenImpl(struct sockaddr_storage *addr,      // IN
    if (asock != NULL) {
 #ifndef VMX86_TOOLS
       if (isWebSock) {
-         AsyncSocketInitWebSocket(asock, clientData, webSockUseSSL, protocols);
+         AsyncSocketInitWebSocket(asock, clientData, webSockUseSSL, protocols, sslCtx);
       }
 #endif
 
@@ -788,6 +789,7 @@ AsyncSocketListenerCreateImpl(const char *addrStr,                // IN: optiona
                               Bool isWebSock,                     // IN
                               Bool webSockUseSSL,                 // IN
                               const char *protocols[],            // IN: optional
+                              void *sslCtx,                       // IN: optional
                               int *outError)                      // OUT: optional
 {
    AsyncSocket *asock = NULL;
@@ -801,7 +803,7 @@ AsyncSocketListenerCreateImpl(const char *addrStr,                // IN: optiona
    if (getaddrinfoError == 0) {
       asock = AsyncSocketListenImpl(&addr, addrLen, connectFn, clientData,
                                     pollParams, isWebSock, webSockUseSSL,
-                                    protocols, outError);
+                                    protocols, sslCtx, outError);
 
       if (asock) {
          ASOCKLG0(asock,
@@ -872,13 +874,14 @@ AsyncSocketListenerCreate(const char *addrStr,                // IN: optional
                           Bool isWebSock,                     // IN
                           Bool webSockUseSSL,                 // IN
                           const char *protocols[],            // IN: optional
+                          void *sslCtx,                       // IN: optional
                           int *outError)                      // OUT: optional
 {
    if (addrStr != NULL && *addrStr != '\0' &&
        Str_Strcmp(addrStr, "localhost")) {
       return AsyncSocketListenerCreateImpl(addrStr, port, AF_UNSPEC, connectFn,
                                            clientData, pollParams, FALSE,
-                                           FALSE, protocols, outError);
+                                           FALSE, protocols, sslCtx, outError);
    } else {
       Bool localhost = addrStr != NULL && !Str_Strcmp(addrStr, "localhost");
       unsigned int tempPort = port;
@@ -890,7 +893,7 @@ AsyncSocketListenerCreate(const char *addrStr,                // IN: optional
       asock6 = AsyncSocketListenerCreateImpl(addrStr, port, AF_INET6,
                                              connectFn, clientData, pollParams,
                                              isWebSock, webSockUseSSL, protocols,
-                                             &tempError6);
+                                             sslCtx, &tempError6);
 
       if (localhost && port == 0) {
          tempPort = AsyncSocket_GetPort(asock6);
@@ -904,7 +907,7 @@ AsyncSocketListenerCreate(const char *addrStr,                // IN: optional
       asock4 = AsyncSocketListenerCreateImpl(addrStr, tempPort, AF_INET,
                                              connectFn, clientData, pollParams,
                                              isWebSock, webSockUseSSL,
-                                             protocols, &tempError4);
+                                             protocols, sslCtx, &tempError4);
 
       if (localhost && port == 0 && tempError4 == ASOCKERR_BINDADDRINUSE) {
          Log(ASOCKPREFIX "Failed to reuse IPv6 localhost port number for IPv4 "
@@ -916,7 +919,7 @@ AsyncSocketListenerCreate(const char *addrStr,                // IN: optional
                                                 connectFn, clientData,
                                                 pollParams, isWebSock,
                                                 webSockUseSSL, protocols,
-                                                &tempError4);
+                                                sslCtx, &tempError4);
 
          tempPort = AsyncSocket_GetPort(asock4);
          if (tempPort == MAX_UINT32) {
@@ -930,7 +933,7 @@ AsyncSocketListenerCreate(const char *addrStr,                // IN: optional
                                                 connectFn, clientData,
                                                 pollParams, isWebSock,
                                                 webSockUseSSL, protocols,
-                                                &tempError6);
+                                                sslCtx, &tempError6);
 
          if (!asock6 && tempError6 == ASOCKERR_BINDADDRINUSE) {
             Log(ASOCKPREFIX "Failed to reuse IPv4 localhost port number for "
@@ -1017,12 +1020,12 @@ AsyncSocketListenerCreateLoopback(unsigned int port,                  // IN
    asock6 = AsyncSocketListenerCreateImpl("::1", port, AF_INET6,
                                           connectFn, clientData, pollParams,
                                           isWebSock, webSockUseSSL,
-                                          NULL, &tempError6);
+                                          NULL, NULL, &tempError6);
 
    asock4 = AsyncSocketListenerCreateImpl("127.0.0.1", port, AF_INET,
                                           connectFn, clientData, pollParams,
                                           isWebSock, webSockUseSSL,
-                                          NULL, &tempError4);
+                                          NULL, NULL, &tempError4);
 
    if (asock6 && asock4) {
       AsyncSocket *asock;
@@ -1108,7 +1111,8 @@ AsyncSocket_Listen(const char *addrStr,                // IN: optional
                    int *outError)                      // OUT: optional
 {
    return AsyncSocketListenerCreate(addrStr, port, connectFn, clientData,
-                                    pollParams, FALSE, FALSE, NULL, outError);
+                                    pollParams, FALSE, FALSE, NULL, NULL,
+                                    outError);
 }
 
 
@@ -1178,7 +1182,7 @@ AsyncSocket_ListenVMCI(unsigned int cid,                  // IN
 
    asock = AsyncSocketListenImpl((struct sockaddr_storage *)&addr, sizeof addr,
                                  connectFn, clientData, pollParams, FALSE,
-                                 FALSE, NULL, outError);
+                                 FALSE, NULL, NULL, outError);
 
    VMCISock_ReleaseAFValueFd(vsockDev);
    return asock;
@@ -5713,10 +5717,11 @@ AsyncSocketConnectSSL(AsyncSocket *asock,           // IN
  *
  * AsyncSocketAcceptSSL --
  *
- *    Initialize the socket's SSL object, by calling SSL_Accept.
+ *    Initialize the socket's SSL object, by calling SSL_Accept or
+ *    SSL_AcceptWithContext.
  *
  * Results:
- *    TRUE if SSL_Accept succeeded, FALSE otherwise.
+ *    TRUE if SSL_Accept/SSL_AcceptWithContext succeeded, FALSE otherwise.
  *
  * Side effects:
  *    None.
@@ -5725,13 +5730,18 @@ AsyncSocketConnectSSL(AsyncSocket *asock,           // IN
  */
 
 Bool
-AsyncSocketAcceptSSL(AsyncSocket *asock)  // IN
+AsyncSocketAcceptSSL(AsyncSocket *asock,     // IN
+                     void *sslCtx)           // IN: optional
 {
 #ifndef USE_SSL_DIRECT
    ASSERT(asock);
    ASSERT(asock->asockType != ASYNCSOCKET_TYPE_NAMEDPIPE);
 
-   return SSL_Accept(asock->sslSock);
+   if (sslCtx) {
+      return SSL_AcceptWithContext(asock->sslSock, sslCtx);
+   } else {
+      return SSL_Accept(asock->sslSock);
+   }
 #else
    return FALSE;
 #endif
@@ -6130,6 +6140,6 @@ AsyncSocket_ListenSocketUDS(const char *pipeName,               // IN
    return AsyncSocketListenImpl((struct sockaddr_storage *)&addr,
                                 sizeof addr,
                                 connectFn, clientData, pollParams, FALSE,
-                                FALSE, NULL, outError);
+                                FALSE, NULL, NULL, outError);
 }
 #endif

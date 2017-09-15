@@ -290,6 +290,7 @@ struct AsyncSocket {
       const char *streamProtocol;      // points to one of the above.
       WebSocketDecodeState decodeState;
       Bool useSSL;
+      void *sslCtx;                   // Optional SSL Context
       SSLVerifyParam *sslVerifyParam;  // Used for certificate verifications
       char *upgradeNonceBase64;
       rqContext *randomContext;
@@ -356,7 +357,7 @@ typedef struct AsyncSocketVTable {
                            struct _SSLVerifyParam *verifyParam, void *sslCtx,
                            AsyncSocketSslConnectFn sslConnectFn,
                            void *clientData);
-   Bool (*acceptSSL)(AsyncSocket *asock);
+   Bool (*acceptSSL)(AsyncSocket *asock, void *sslCtx);
    void (*startSslAccept)(AsyncSocket *asock, void *sslCtx,
                           AsyncSocketSslAcceptFn sslAcceptFn,
                           void *clientData);
@@ -455,7 +456,8 @@ void AsyncSocketCloseSocket(AsyncSocket *asock);
 void AsyncSocketInitWebSocket(AsyncSocket *asock,
                               void *clientData,
                               Bool useSSL,
-                              const char *protocols[]);
+                              const char *protocols[],
+                              void *sslCtx);
 #endif
 AsyncSocket *AsyncSocketListenImpl(struct sockaddr_storage *addr,
                                    socklen_t addrLen,
@@ -465,6 +467,7 @@ AsyncSocket *AsyncSocketListenImpl(struct sockaddr_storage *addr,
                                    Bool isWebSock,
                                    Bool webSockUseSSL,
                                    const char *protocols[],
+                                   void *sslCtx,
                                    int *outError);
 AsyncSocket *AsyncSocketListenerCreate(const char *addrStr,
                                        unsigned int port,
@@ -474,6 +477,7 @@ AsyncSocket *AsyncSocketListenerCreate(const char *addrStr,
                                        Bool isWebSock,
                                        Bool webSockUseSSL,
                                        const char *protocols[],
+                                       void *sslCtx,
                                        int *outError);
 AsyncSocket *AsyncSocketListenerCreateImpl(const char *addrStr,
                                            unsigned int port,
@@ -484,6 +488,7 @@ AsyncSocket *AsyncSocketListenerCreateImpl(const char *addrStr,
                                            Bool isWebSock,
                                            Bool webSockUseSSL,
                                            const char *protocols[],
+                                           void *sslCtx,
                                            int *outError);
 
 AsyncSocketState AsyncSocketGetState(AsyncSocket *sock);
@@ -505,7 +510,7 @@ void AsyncSocketStartSslConnect(AsyncSocket *asock, SSLVerifyParam *verifyParam,
                                 void *sslCtx,
                                 AsyncSocketSslConnectFn sslConnectFn,
                                 void *clientData);
-Bool AsyncSocketAcceptSSL(AsyncSocket *asock);
+Bool AsyncSocketAcceptSSL(AsyncSocket *asock, void *sslCtx);
 void AsyncSocketStartSslAccept(AsyncSocket *asock, void *sslCtx,
                         AsyncSocketSslAcceptFn sslAcceptFn,
                         void *clientData);

@@ -432,11 +432,12 @@ AsyncSocket_ConnectSSL(AsyncSocket *asock,          // IN
  */
 
 Bool
-AsyncSocket_AcceptSSL(AsyncSocket *asock)  // IN
+AsyncSocket_AcceptSSL(AsyncSocket *asock,    // IN
+                      void *sslCtx)          // IN: optional
 {
    ASSERT(asock);
    ASSERT(asock->vt->acceptSSL);
-   return asock->vt->acceptSSL(asock);
+   return asock->vt->acceptSSL(asock, sslCtx);
 }
 
 
