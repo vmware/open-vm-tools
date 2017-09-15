@@ -2031,10 +2031,8 @@ PollUnitTest_StateMachine(void *clientData) // IN: Unused
       raceTestIter = 0;
       dummyCount = 0;
       exitThread = FALSE;
-      cbRaceThread = VThread_CreateThread(PollAddRemoveCBThread,
-                                          NULL,
-                                          VTHREAD_INVALID_ID,
-                                          "PollAddRemoveCBThread");
+      VThread_CreateThread(PollAddRemoveCBThread, NULL,
+                           "PollAddRemoveCBThread", &cbRaceThread);
       if (cbRaceThread == VTHREAD_INVALID_ID) {
          Warning("%s:   failure -- error creating thread\n", __FUNCTION__);
          state += 3;
@@ -2081,10 +2079,8 @@ PollUnitTest_StateMachine(void *clientData) // IN: Unused
       deviceEv1Count = 0;
       eventTestIter = 0;
       exitThread = FALSE;
-      cbRaceThread = VThread_CreateThread(PollLockContentionThread,
-                                          NULL,
-                                          VTHREAD_INVALID_ID,
-                                          "PollLockContention");
+      VThread_CreateThread(PollLockContentionThread, NULL,
+                           "PollLockContention", &cbRaceThread);
       if (cbRaceThread == VTHREAD_INVALID_ID) {
          Warning("%s:   failure -- error creating thread\n", __FUNCTION__);
          state += 3;
