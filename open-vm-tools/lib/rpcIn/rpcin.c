@@ -1147,7 +1147,7 @@ static Bool
 RpcInSend(RpcIn *in,   // IN
           int flags)   // IN
 {
-   Bool status;
+   Bool status = FALSE;
    Bool useBackdoor = TRUE;
 
    ASSERT(in);

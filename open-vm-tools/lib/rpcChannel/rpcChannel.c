@@ -272,7 +272,7 @@ RpcChannelXdrWrapper(RpcInData *data,
          goto exit;
       }
 
-      if (!xdrProc(&xdrs, copy.result)) {
+      if (!xdrProc(&xdrs, copy.result, 0)) {
          ret = RPCIN_SETRETVALS(data, "XDR serialization failed.", FALSE);
          DynXdr_Destroy(&xdrs, TRUE);
          goto exit;
@@ -330,7 +330,7 @@ RpcChannel_BuildXdrCommand(const char *cmd,
       goto exit;
    }
 
-   if (!proc(&xdrs, xdrData)) {
+   if (!proc(&xdrs, xdrData, 0)) {
       goto exit;
    }
 
