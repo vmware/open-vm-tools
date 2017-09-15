@@ -58,6 +58,7 @@
    LOGLEVEL_VAR(parallel), \
    LOGLEVEL_VAR(chipset), \
    LOGLEVEL_VAR(smram), \
+   LOGLEVEL_VAR(txt), \
    LOGLEVEL_VAR(smc), \
    LOGLEVEL_VAR(ich7m), \
    LOGLEVEL_VAR(hpet), \
