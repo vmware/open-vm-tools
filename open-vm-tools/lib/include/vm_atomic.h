@@ -87,150 +87,8 @@ extern "C" {
  */
 
 #ifdef VM_ARM_64
-#include "vm_basic_asm_arm64.h"
-
-#define ARM_64_ATOMIC_16_OPV_PRIVATE(atm,modval,op) ({ \
-   uint32 _failed;                     \
-   uint16 _sample;                     \
-   __asm__ __volatile__ (              \
-      "1: ldxrh   %w0, [%2]      \n\t" \
-      #op "       %w0, %w0, %w3  \n\t" \
-      "   stxrh   %w1, %w0, [%2] \n\t" \
-      "   cbnz    %w1, 1b        \n\t" \
-      : "=&r" (_sample),               \
-        "=&r" (_failed)                \
-      : "r" (atm),                     \
-        "r" (modval)                   \
-      : "memory");                     \
-})
-
-#define ARM_64_ATOMIC_16_OPO_PRIVATE(atm,modval,op) ({ \
-   uint32 _failed;                     \
-   uint16 _newval;                     \
-   uint16 _oldval;                     \
-   __asm__ __volatile__ (              \
-      "1: ldxrh   %w0, [%3]      \n\t" \
-      #op "       %w1, %w0, %w4  \n\t" \
-      "   stxrh   %w2, %w1, [%3] \n\t" \
-      "   cbnz    %w2, 1b        \n\t" \
-      : "=&r" (_oldval),               \
-        "=&r" (_newval),               \
-        "=&r" (_failed)                \
-      : "r" (atm),                     \
-        "r" (modval)                   \
-      : "memory");                     \
-   _oldval;                            \
-})
-
-#define ARM_64_ATOMIC_32_OPV_PRIVATE(atm,modval,op) ({ \
-   uint32 _failed;                     \
-   uint32 _sample;                     \
-   __asm__ __volatile__ (              \
-      "1: ldxr    %w0, [%2]      \n\t" \
-      #op "       %w0, %w0, %w3  \n\t" \
-      "   stxr    %w1, %w0, [%2] \n\t" \
-      "   cbnz    %w1, 1b        \n\t" \
-      : "=&r" (_sample),               \
-        "=&r" (_failed)                \
-      : "r" (atm),                     \
-        "r" (modval)                   \
-      : "memory");                     \
-})
-
-#define ARM_64_ATOMIC_32_OPO_PRIVATE(atm,modval,op) ({ \
-   uint32 _failed;                     \
-   uint32 _newval;                     \
-   uint32 _oldval;                     \
-   __asm__ __volatile__ (              \
-      "1: ldxr    %w0, [%3]      \n\t" \
-      #op "       %w1, %w0, %w4  \n\t" \
-      "   stxr    %w2, %w1, [%3] \n\t" \
-      "   cbnz    %w2, 1b        \n\t" \
-      : "=&r" (_oldval),               \
-        "=&r" (_newval),               \
-        "=&r" (_failed)                \
-      : "r" (atm),                     \
-        "r" (modval)                   \
-      : "memory");                     \
-   _oldval;                            \
-})
-
-#define ARM_64_ATOMIC_64_OPV_PRIVATE(atm,modval,op) ({ \
-   uint32 _failed;                     \
-   uint64 _sample;                     \
-   __asm__ __volatile__ (              \
-      "1: ldxr    %x0, [%2]      \n\t" \
-      #op "       %x0, %x0, %x3  \n\t" \
-      "   stxr    %w1, %x0, [%2] \n\t" \
-      "   cbnz    %w1, 1b        \n\t" \
-      : "=&r" (_sample),               \
-        "=&r" (_failed)                \
-      : "r" (atm),                     \
-        "r" (modval)                   \
-      : "memory");                     \
-})
-
-#define ARM_64_ATOMIC_64_OPO_PRIVATE(atm,modval,op) ({ \
-   uint32 _failed;                     \
-   uint64 _newval;                     \
-   uint64 _oldval;                     \
-   __asm__ __volatile__ (              \
-      "1: ldxr    %x0, [%3]      \n\t" \
-      #op "       %x1, %x0, %x4  \n\t" \
-      "   stxr    %w2, %x1, [%3] \n\t" \
-      "   cbnz    %w2, 1b        \n\t" \
-      : "=&r" (_oldval),               \
-        "=&r" (_newval),               \
-        "=&r" (_failed)                \
-      : "r" (atm),                     \
-        "r" (modval)                   \
-      : "memory");                     \
-   _oldval;                            \
-})
-
-#define ARM_64_ATOMIC_16_OPV_PRIVATE_FENCED(atm,modval,op) ({ \
-   DMB();                                       \
-   ARM_64_ATOMIC_16_OPV_PRIVATE(atm,modval,op); \
-   DMB();                                       \
-})
-
-#define ARM_64_ATOMIC_16_OPO_PRIVATE_FENCED(atm,modval,op) ({ \
-   uint16 _oldval_fenced;                                        \
-   DMB();                                                        \
-   _oldval_fenced = ARM_64_ATOMIC_16_OPO_PRIVATE(atm,modval,op); \
-   DMB();                                                        \
-   _oldval_fenced;                                               \
-})
-
-#define ARM_64_ATOMIC_32_OPV_PRIVATE_FENCED(atm,modval,op) ({ \
-   DMB();                                       \
-   ARM_64_ATOMIC_32_OPV_PRIVATE(atm,modval,op); \
-   DMB();                                       \
-})
-
-#define ARM_64_ATOMIC_32_OPO_PRIVATE_FENCED(atm,modval,op) ({ \
-   uint32 _oldval_fenced;                                        \
-   DMB();                                                        \
-   _oldval_fenced = ARM_64_ATOMIC_32_OPO_PRIVATE(atm,modval,op); \
-   DMB();                                                        \
-   _oldval_fenced;                                               \
-})
-
-#define ARM_64_ATOMIC_64_OPV_PRIVATE_FENCED(atm,modval,op) ({ \
-   DMB();                                       \
-   ARM_64_ATOMIC_64_OPV_PRIVATE(atm,modval,op); \
-   DMB();                                       \
-})
-
-#define ARM_64_ATOMIC_64_OPO_PRIVATE_FENCED(atm,modval,op) ({ \
-   uint64 _oldval_fenced;                                        \
-   DMB();                                                        \
-   _oldval_fenced = ARM_64_ATOMIC_64_OPO_PRIVATE(atm,modval,op); \
-   DMB();                                                        \
-   _oldval_fenced;                                               \
-})
-
-#endif /* VM_ARM_64 */
+#   include "vm_atomic_arm64_begin.h"
+#endif
 
 
 /* Basic atomic types: 16, 32 and 64 bits */
@@ -402,19 +260,23 @@ Bool VMWInterlockedCompareExchangeBool(Bool volatile *ptr,
                                        Bool oldVal);
 #endif
 
+/* The ARM32 team is expected to provide an implementation real soon now. */
+#if defined(VM_ARM_32)
+extern Bool AtomicUndefined(void);
+#endif
+
 typedef struct Atomic_Bool {
    volatile Bool value;
 } Atomic_Bool;
 
-/* The ARM team can come along and add the code real soon now */
-#if defined(VM_ARM_32) || defined(VM_ARM_64)
-extern Bool AtomicUndefinedOnARM(void);
-MY_ASSERTS(ARM64_BOOL_SIZE,
-           ASSERT_ON_COMPILE(sizeof(Atomic_Bool) == sizeof(uint8));
-   )
+/* This should be enforced on all architectures not just ARM... */
+#if defined(VM_ARM_ANY)
+MY_ASSERTS(AtomicBoolSize,
+   ASSERT_ON_COMPILE(sizeof (Atomic_Bool) == sizeof (uint8));
+)
 #endif
 
-#if defined VMKERNEL || defined VMM || defined VM_ARM_64
+#if defined VMKERNEL || defined VMM
 /*
  *-----------------------------------------------------------------------------
  *
@@ -438,20 +300,7 @@ CMPXCHG1B(volatile uint8 *ptr, // IN/OUT
    uint8 val;
 
 #if defined(VM_ARM_64)
-     register uint32 failed;
-
-   __asm__ __volatile__ (
-      "   dmb     sy             \n\t"
-      "1: ldxrb   %w0, [%2]      \n\t"
-      "   cmp     %w0, %w3, UXTB \n\t"
-      "   b.ne    2f             \n\t"
-      "   stxrb   %w1, %w4, [%2] \n\t"
-      "   cbnz    %w1, 1b        \n\t"
-      "2: clrex                  \n\t"
-      "   dmb     sy             \n\t"
-      : "=&r" (val), "=&r" (failed)
-      : "r" (ptr), "r" (oldVal), "r" (newVal)
-      : "cc", "memory");
+   val = _VMATOM_X(RIFEQW, 8, TRUE, ptr, oldVal, newVal);
 #else
    __asm__ __volatile__("lock; cmpxchgb %b2, %1"
                         : "=a" (val),
@@ -460,7 +309,7 @@ CMPXCHG1B(volatile uint8 *ptr, // IN/OUT
                           "0" (oldVal)
                         : "cc");
 
-#endif /* defined(VM_ARM_64) */
+#endif
    return val;
 }
 #endif
@@ -498,7 +347,8 @@ Atomic_ReadIfEqualWrite128(Atomic_uint128 *ptr,   // IN/OUT
          uint64 hi;
       };
    } res, _old = { oldVal }, _new = { newVal };
-   int failed;
+   uint32 failed;
+
    LDST_LDST_MEM_BARRIER();
    __asm__ __volatile__ (
       "1: ldxp    %x0, %x1, [%3]      \n\t"
@@ -511,13 +361,14 @@ Atomic_ReadIfEqualWrite128(Atomic_uint128 *ptr,   // IN/OUT
       : "=&r" (res.lo),
         "=&r" (res.hi),
         "=&r" (failed)
-      : "r" (ptr),
+      : "r" (&ptr->value),
         "r" (_old.lo),
         "r" (_old.hi),
         "r" (_new.lo),
         "r" (_new.hi)
       : "cc", "memory");
    LDST_LDST_MEM_BARRIER();
+
    return res.raw;
 #endif
 }
@@ -545,14 +396,9 @@ Atomic_ReadBool(Atomic_Bool const *var)  // IN:
    Bool val;
 
 #if defined(__GNUC__) && defined(VM_ARM_32)
-   val = AtomicUndefinedOnARM();
-#elif defined(__GNUC__) && defined(VM_ARM_64)
-   __asm__ __volatile__ (
-      "ldrb    %w0, [%1]"
-      : "=r" (val)
-      : "r" (&var->value)
-   );
-
+   val = AtomicUndefined();
+#elif defined(VM_ARM_64)
+   val = _VMATOM_X(R, 8, &var->value);
 #elif defined(__GNUC__) && (defined(__i386__) || defined(__x86_64__))
    __asm__ __volatile__(
       "movb %1, %0"
@@ -590,24 +436,9 @@ Atomic_ReadWriteBool(Atomic_Bool *var,  // IN/OUT:
                      Bool val)          // IN:
 {
 #if defined(__GNUC__) && defined(VM_ARM_32)
-   return AtomicUndefinedOnARM();
-#elif defined(__GNUC__) && defined(VM_ARM_64)
-   register Bool retVal;
-   register uint32 failed;
-
-   __asm__ __volatile__(
-      "   dmb     sy             \n\t"
-      "1: ldxrb   %w0, [%2]      \n\t"
-      "   stxrb   %w1, %w3, [%2] \n\t"
-      "   cbnz    %w1, 1b        \n\t"
-      "   dmb     sy             \n\t"
-      : "=&r" (retVal), "=&r" (failed)
-      : "r" (&var->value), "r" (val)
-      : "memory"
-   );
-
-   return retVal;
-
+   return AtomicUndefined();
+#elif defined(VM_ARM_64)
+   return _VMATOM_X(RW, 8, TRUE, &var->value, val);
 #elif defined(__GNUC__) && (defined(__i386__) || defined(__x86_64__))
    __asm__ __volatile__(
       "xchgb %0, %1"
@@ -656,9 +487,9 @@ Atomic_WriteBool(Atomic_Bool *var,  // IN/OUT:
                  Bool val)          // IN:
 {
 #if defined(__GNUC__) && defined(VM_ARM_32)
-   AtomicUndefinedOnARM();
-#elif defined(__GNUC__) && defined(VM_ARM_64)
-   Atomic_ReadWriteBool(var, val);
+   AtomicUndefined();
+#elif defined(VM_ARM_64)
+   _VMATOM_X(W, 8, &var->value, val);
 #elif defined(__GNUC__) && (defined(__i386__) || defined(__x86_64__))
    __asm__ __volatile__(
       "movb %1, %0"
@@ -695,9 +526,9 @@ Atomic_ReadIfEqualWriteBool(Atomic_Bool *var,  // IN/OUT:
                             Bool newVal)       // IN:
 {
 #if defined(__GNUC__) && defined(VM_ARM_32)
-   return AtomicUndefinedOnARM();
-#elif defined(__GNUC__) && defined(VM_ARM_64)
-   return (Bool)CMPXCHG1B((volatile uint8 *)&var->value, oldVal, newVal);
+   return AtomicUndefined();
+#elif defined(VM_ARM_64)
+   return _VMATOM_X(RIFEQW, 8, TRUE, &var->value, oldVal, newVal);
 #elif defined(__GNUC__) && (defined(__i386__) || defined(__x86_64__))
    Bool val;
 
@@ -753,7 +584,7 @@ Atomic_Read(Atomic_uint32 const *var) // IN
 {
    uint32 value;
 
-#if defined(VMM)
+#if defined(VMM) || defined(VM_ARM_64)
    ASSERT(((uintptr_t)var % 4) == 0);
 #endif
 
@@ -771,11 +602,7 @@ Atomic_Read(Atomic_uint32 const *var) // IN
       : "r" (&var->value)
    );
 #elif defined(VM_ARM_64)
-   __asm__ __volatile__ (
-      "ldr    %w0, [%1]"
-      : "=r" (value)
-      : "r" (&var->value)
-   );
+   value = _VMATOM_X(R, 32, &var->value);
 #else
    __asm__ __volatile__(
       "mov %1, %0"
@@ -841,21 +668,7 @@ Atomic_ReadWrite(Atomic_uint32 *var, // IN/OUT
 
    return retVal;
 #elif defined(VM_ARM_64)
-   register uint32 retVal;
-   register uint32 failed;
-
-   __asm__ __volatile__(
-      "   dmb     sy             \n\t"
-      "1: ldxr   %w0, [%2]       \n\t"
-      "   stxr   %w1, %w3, [%2]  \n\t"
-      "   cbnz    %w1, 1b        \n\t"
-      "   dmb     sy             \n\t"
-      : "=&r" (retVal), "=&r" (failed)
-      : "r" (&var->value), "r" (val)
-      : "memory"
-   );
-
-   return retVal;
+   return _VMATOM_X(RW, 32, TRUE, &var->value, val);
 #else /* VM_X86_ANY */
    /* Checked against the Intel manual and GCC --walken */
    __asm__ __volatile__(
@@ -913,18 +726,7 @@ Atomic_Write(Atomic_uint32 *var, // OUT
 
 #if defined(__GNUC__)
 #if defined(VM_ARM_64)
-   /*
-    * Just like x86, this only works for aligned addresses - and that's fine.
-    * Clearing the exclusive monitor is not required. The local monitor is
-    * cleared on any exception return, and the global monitor (as per B2.10.2,
-    * ARM DDI 0487A.k) is cleared by a successful write.
-    */
-   __asm__ __volatile__ (
-      "str %w0, [%1]"
-      :
-      : "r" (val), "r" (&var->value)
-      : "memory"
-   );
+   _VMATOM_X(W, 32, &var->value, val);
 #elif defined(VM_ARM_32)
    /*
     * Best left this way due to the intricacies of exclusive load/store
@@ -1024,23 +826,7 @@ Atomic_ReadIfEqualWrite(Atomic_uint32 *var, // IN/OUT
 
    return retVal;
 #elif defined(VM_ARM_64)
-   register uint32 retVal;
-   register uint32 failed;
-
-   __asm__ __volatile__ (
-      "   dmb     sy             \n\t"
-      "1: ldxr   %w0, [%2]       \n\t"
-      "   cmp     %w0, %w3       \n\t"
-      "   b.ne    2f             \n\t"
-      "   stxr   %w1, %w4, [%2]  \n\t"
-      "   cbnz    %w1, 1b        \n\t"
-      "2: clrex                  \n\t"
-      "   dmb     sy             \n\t"
-      : "=&r" (retVal), "=&r" (failed)
-      : "r" (&var->value), "r" (oldVal), "r" (newVal)
-      : "cc", "memory");
-
-   return retVal;
+   return _VMATOM_X(RIFEQW, 32, TRUE, &var->value, oldVal, newVal);
 #else /* VM_X86_ANY */
    uint32 val;
 
@@ -1145,23 +931,7 @@ Atomic_ReadIfEqualWrite64(Atomic_uint64 *var, // IN/OUT
 
    return retVal;
 #elif defined(VM_ARM_64)
-   register uint64 retVal;
-   register uint32 failed;
-
-   __asm__ __volatile__ (
-      "   dmb     sy             \n\t"
-      "1: ldxr    %x0, [%2]      \n\t"
-      "   cmp     %x0, %x3       \n\t"
-      "   b.ne    2f             \n\t"
-      "   stxr    %w1, %x4, [%2] \n\t"
-      "   cbnz    %w1, 1b        \n\t"
-      "2: clrex                  \n\t"
-      "   dmb     sy             \n\t"
-      : "=&r" (retVal), "=&r" (failed)
-      : "r" (&var->value), "r" (oldVal), "r" (newVal)
-      : "cc", "memory");
-
-   return retVal;
+   return _VMATOM_X(RIFEQW, 64, TRUE, &var->value, oldVal, newVal);
 #else /* VM_X86_64 */
    uint64 val;
 
@@ -1227,7 +997,7 @@ Atomic_And(Atomic_uint32 *var, // IN/OUT
 
    dmb();
 #elif defined(VM_ARM_64)
-   ARM_64_ATOMIC_32_OPV_PRIVATE_FENCED(var, val, and);
+   _VMATOM_X(OP, 32, TRUE, &var->value, and, val);
 #else /* VM_X86_ANY */
    /* Checked against the Intel manual and GCC --walken */
    __asm__ __volatile__(
@@ -1292,7 +1062,7 @@ Atomic_Or(Atomic_uint32 *var, // IN/OUT
 
    dmb();
 #elif defined(VM_ARM_64)
-   ARM_64_ATOMIC_32_OPV_PRIVATE_FENCED(var, val, orr);
+   _VMATOM_X(OP, 32, TRUE, &var->value, orr, val);
 #else /* VM_X86_ANY */
    /* Checked against the Intel manual and GCC --walken */
    __asm__ __volatile__(
@@ -1357,7 +1127,7 @@ Atomic_Xor(Atomic_uint32 *var, // IN/OUT
 
    dmb();
 #elif defined(VM_ARM_64)
-   ARM_64_ATOMIC_32_OPV_PRIVATE_FENCED(var, val, eor);
+   _VMATOM_X(OP, 32, TRUE, &var->value, eor, val);
 #else /* VM_X86_ANY */
    /* Checked against the Intel manual and GCC --walken */
    __asm__ __volatile__(
@@ -1405,7 +1175,7 @@ Atomic_Xor64(Atomic_uint64 *var, // IN/OUT
 {
 #if defined(__GNUC__)
 #if defined(VM_ARM_64)
-   ARM_64_ATOMIC_64_OPV_PRIVATE_FENCED(var, val, eor);
+   _VMATOM_X(OP, 64, TRUE, &var->value, eor, val);
 #else /* VM_X86_64 */
    /* Checked against the AMD manual and GCC --hpreg */
    __asm__ __volatile__(
@@ -1464,7 +1234,7 @@ Atomic_Add(Atomic_uint32 *var, // IN/OUT
 
    dmb();
 #elif defined(VM_ARM_64)
-   ARM_64_ATOMIC_32_OPV_PRIVATE_FENCED(var, val, add);
+   _VMATOM_X(OP, 32, TRUE, &var->value, add, val);
 #else /* VM_X86_ANY */
    /* Checked against the Intel manual and GCC --walken */
    __asm__ __volatile__(
@@ -1529,7 +1299,7 @@ Atomic_Sub(Atomic_uint32 *var, // IN/OUT
 
    dmb();
 #elif defined(VM_ARM_64)
-   ARM_64_ATOMIC_32_OPV_PRIVATE_FENCED(var, val, sub);
+   _VMATOM_X(OP, 32, TRUE, &var->value, sub, val);
 #else /* VM_X86_ANY */
    /* Checked against the Intel manual and GCC --walken */
    __asm__ __volatile__(
@@ -1819,7 +1589,7 @@ Atomic_ReadAdd32(Atomic_uint32 *var, // IN/OUT
 
    return retVal;
 #elif defined(VM_ARM_64)
-   return ARM_64_ATOMIC_32_OPO_PRIVATE_FENCED(var, val, add);
+   return _VMATOM_X(ROP, 32, TRUE, &var->value, add, val);
 #else /* VM_X86_ANY */
    /* Checked against the Intel manual and GCC --walken */
    __asm__ __volatile__(
@@ -1939,7 +1709,7 @@ Atomic_CMPXCHG64(Atomic_uint64 *var,   // IN/OUT
 {
 #if defined(__GNUC__)
 #if defined(VM_ARM_ANY)
-   return (Atomic_ReadIfEqualWrite64(var, *oldVal, *newVal) == *oldVal);
+   return Atomic_ReadIfEqualWrite64(var, *oldVal, *newVal) == *oldVal;
 #else /* VM_X86_ANY */
 
    Bool equal;
@@ -2100,7 +1870,7 @@ Atomic_CMPXCHG32(Atomic_uint32 *var,   // IN/OUT
 {
 #if defined(__GNUC__)
 #if defined(VM_ARM_ANY)
-   return (Atomic_ReadIfEqualWrite(var, oldVal, newVal) == oldVal);
+   return Atomic_ReadIfEqualWrite(var, oldVal, newVal) == oldVal;
 #else /* VM_X86_ANY */
    Bool equal;
    uint32 dummy;
@@ -2142,12 +1912,15 @@ Atomic_CMPXCHG32(Atomic_uint32 *var,   // IN/OUT
 static INLINE uint64
 Atomic_Read64(Atomic_uint64 const *var) // IN
 {
-#if defined(__GNUC__) && defined(__x86_64__)
+#if defined(__GNUC__)
    uint64 value;
+#endif
 
-#ifdef VMM
+#if defined VMM || defined VM_ARM_64
    ASSERT((uintptr_t)var % 8 == 0);
 #endif
+
+#if defined(__GNUC__) && defined(__x86_64__)
    /*
     * Use asm to ensure we emit a single load.
     */
@@ -2156,9 +1929,7 @@ Atomic_Read64(Atomic_uint64 const *var) // IN
       : "=r" (value)
       : "m" (var->value)
    );
-   return value;
 #elif defined(__GNUC__) && defined(__i386__)
-   uint64 value;
    /*
     * Since cmpxchg8b will replace the contents of EDX:EAX with the
     * value in memory if there is no match, we need only execute the
@@ -2176,7 +1947,6 @@ Atomic_Read64(Atomic_uint64 const *var) // IN
       : "m" (*var)
       : "cc"
    );
-   return value;
 #elif defined (_MSC_VER) && defined(__x86_64__)
    /*
     * Microsoft docs guarantee "Simple reads and writes to properly
@@ -2200,25 +1970,18 @@ Atomic_Read64(Atomic_uint64 const *var) // IN
    }
 #   pragma warning(pop)
 #elif defined(__GNUC__) && defined (VM_ARM_V7)
-   uint64 value;
-
    __asm__ __volatile__(
       "ldrexd %[value], %H[value], [%[var]] \n\t"
       : [value] "=&r" (value)
       : [var] "r" (&var->value)
    );
+#elif defined(VM_ARM_64)
+   value = _VMATOM_X(R, 64, &var->value);
+#endif
 
+#if defined(__GNUC__)
    return value;
-#elif defined(__GNUC__) && defined(VM_ARM_64)
-   uint64 value;
-
-   __asm__ __volatile__(
-      "ldr     %0, [%1]"
-      : "=r" (value)
-      : "r" (&var->value));
-
-   return value;
-#endif /* defined(__GNUC__) && defined(VM_ARM_64) */
+#endif
 }
 
 
@@ -2273,7 +2036,7 @@ Atomic_ReadAdd64(Atomic_uint64 *var, // IN/OUT
                  uint64 val)         // IN
 {
 #if defined(VM_ARM_64)
-   return ARM_64_ATOMIC_64_OPO_PRIVATE_FENCED(var, val, add);
+   return _VMATOM_X(ROP, 64, TRUE, &var->value, add, val);
 #elif defined(__x86_64__)
 
 #if defined(__GNUC__)
@@ -2399,7 +2162,7 @@ Atomic_Add64(Atomic_uint64 *var, // IN/OUT
    Atomic_ReadAdd64(var, val); /* Return value is unused. */
 #elif defined(__GNUC__)
 #if defined(VM_ARM_64)
-   ARM_64_ATOMIC_64_OPV_PRIVATE_FENCED(var, val, add);
+   _VMATOM_X(OP, 64, TRUE, &var->value, add, val);
 #else /* defined(VM_X86_64) */
    /* Checked against the AMD manual and GCC --hpreg */
    __asm__ __volatile__(
@@ -2437,11 +2200,11 @@ static INLINE void
 Atomic_Sub64(Atomic_uint64 *var, // IN/OUT
              uint64 val)         // IN
 {
-#if !defined(__x86_64__)
+#if !defined(VM_64BIT)
    Atomic_ReadSub64(var, val); /* Return value is unused. */
 #elif defined(__GNUC__)
 #if defined(VM_ARM_64)
-   ARM_64_ATOMIC_64_OPV_PRIVATE_FENCED(var, val, sub);
+   _VMATOM_X(OP, 64, TRUE, &var->value, sub, val);
 #else /* VM_X86_64 */
    /* Checked against the AMD manual and GCC --hpreg */
    __asm__ __volatile__(
@@ -2478,7 +2241,9 @@ Atomic_Sub64(Atomic_uint64 *var, // IN/OUT
 static INLINE void
 Atomic_Inc64(Atomic_uint64 *var) // IN/OUT
 {
-#if !defined(__x86_64__)
+#if defined(VM_ARM_64)
+   Atomic_Add64(var, 1);
+#elif !defined(__x86_64__)
    Atomic_ReadInc64(var);  /* Return value is unused. */
 #elif defined(__GNUC__)
    /* Checked against the AMD manual and GCC --hpreg */
@@ -2515,7 +2280,9 @@ Atomic_Inc64(Atomic_uint64 *var) // IN/OUT
 static INLINE void
 Atomic_Dec64(Atomic_uint64 *var) // IN/OUT
 {
-#if !defined(__x86_64__)
+#if defined(VM_ARM_64)
+   Atomic_Sub64(var, 1);
+#elif !defined(__x86_64__)
    Atomic_ReadDec64(var);  /* Return value is unused. */
 #elif defined(__GNUC__)
    /* Checked against the AMD manual and GCC --hpreg */
@@ -2568,6 +2335,8 @@ Atomic_ReadWrite64(Atomic_uint64 *var, // IN/OUT
 #else
 #error No compiler defined for Atomic_ReadWrite64
 #endif
+#elif defined(VM_ARM_64)
+   return _VMATOM_X(RW, 64, TRUE, &var->value, val);
 #else
    uint64 oldVal;
 
@@ -2600,12 +2369,12 @@ static INLINE void
 Atomic_Write64(Atomic_uint64 *var, // OUT
                uint64 val)         // IN
 {
-#if defined(__x86_64__)
-#if defined(__GNUC__)
-
 #if defined(VMM) || defined(VM_ARM_64)
    ASSERT((uintptr_t)var % 8 == 0);
 #endif
+
+#if defined(__x86_64__)
+#if defined(__GNUC__)
    /*
     * There is no move instruction for 64-bit immediate to memory, so unless
     * the immediate value fits in 32-bit (i.e. can be sign-extended), GCC
@@ -2631,19 +2400,8 @@ Atomic_Write64(Atomic_uint64 *var, // OUT
 #else
 #error No compiler defined for Atomic_Write64
 #endif
-#elif defined(VM_ARM_64) && defined(__GNUC__)
-   /*
-    * Just like x86, this only works for aligned addresses - and that's fine.
-    * Clearing the exclusive monitor is not required. The local monitor is
-    * cleared on any exception return, and the global monitor (as per B2.10.2,
-    * ARM DDI 0487A.k) is cleared by a successful write.
-    */
-   __asm__ __volatile__ (
-      "str %x0, [%1]"
-      :
-      : "r" (val), "r" (&var->value)
-      : "memory"
-   );
+#elif defined(VM_ARM_64)
+   _VMATOM_X(W, 64, &var->value, val);
 #else
    (void)Atomic_ReadWrite64(var, val);
 #endif
@@ -2684,6 +2442,8 @@ Atomic_Or64(Atomic_uint64 *var, // IN/OUT
 #else
 #error No compiler defined for Atomic_Or64
 #endif
+#elif defined(VM_ARM_64)
+   _VMATOM_X(OP, 64, TRUE, &var->value, orr, val);
 #else // __x86_64__
    uint64 oldVal;
    uint64 newVal;
@@ -2729,6 +2489,8 @@ Atomic_And64(Atomic_uint64 *var, // IN/OUT
 #else
 #error No compiler defined for Atomic_And64
 #endif
+#elif defined(VM_ARM_64)
+   _VMATOM_X(OP, 64, TRUE, &var->value, and, val);
 #else // __x86_64__
    uint64 oldVal;
    uint64 newVal;
@@ -2911,12 +2673,12 @@ Atomic_Read16(Atomic_uint16 const *var) // IN
 {
    uint16 value;
 
-#ifdef VMM
+#if defined VMM || defined VM_ARM_64
    ASSERT((uintptr_t)var % 2 == 0);
 #endif
 
 #if defined(__GNUC__)
-#if (defined(__x86_64__) || defined(__i386__))
+#if defined(__x86_64__) || defined(__i386__)
 
    __asm__ __volatile__(
       "movw %1, %0"
@@ -2932,12 +2694,7 @@ Atomic_Read16(Atomic_uint16 const *var) // IN
       : "r" (&var->value)
    );
 #elif defined(VM_ARM_64)
-   __asm__ __volatile__ (
-      "ldrh   %w0, [%1]"
-      : "=r" (value)
-      : "r" (&var->value)
-   );
-
+   value = _VMATOM_X(R, 16, &var->value);
 #else
 #error No 16-bits atomics.
 #endif
@@ -2968,7 +2725,7 @@ Atomic_ReadWrite16(Atomic_uint16 *var,  // IN/OUT:
                    uint16 val)          // IN:
 {
 #if defined(__GNUC__)
-#if (defined(__x86_64__) || defined(__i386__))
+#if defined(__x86_64__) || defined(__i386__)
    __asm__ __volatile__(
       "xchgw %0, %1"
       : "=r" (val),
@@ -2998,21 +2755,7 @@ Atomic_ReadWrite16(Atomic_uint16 *var,  // IN/OUT:
 
    return retVal;
 #elif defined(VM_ARM_64)
-   register uint16 retVal;
-   register uint16 failed;
-
-   __asm__ __volatile__(
-      "   dmb     sy             \n\t"
-      "1: ldxrh  %w0, [%2]       \n\t"
-      "   stxrh  %w1, %w3, [%2]  \n\t"
-      "   cbnz    %w1, 1b        \n\t"
-      "   dmb     sy             \n\t"
-      : "=&r" (retVal), "=&r" (failed)
-      : "r" (&var->value), "r" (val)
-      : "memory"
-   );
-
-   return retVal;
+   return _VMATOM_X(RW, 16, TRUE, &var->value, val);
 #else
 #error No 16-bits atomics.
 #endif
@@ -3045,26 +2788,14 @@ Atomic_Write16(Atomic_uint16 *var,  // OUT:
 #endif
 
 #if defined(__GNUC__)
-#if (defined(__x86_64__) || defined(__i386__))
-
+#if defined(__x86_64__) || defined(__i386__)
    __asm__ __volatile__(
       "movw %1, %0"
       : "=m" (var->value)
       : "r" (val)
    );
 #elif defined(VM_ARM_64)
-   /*
-    * Just like x86, this only works for aligned addresses - and that's fine.
-    * Clearing the exclusive monitor is not required. The local monitor is
-    * cleared on any exception return, and the global monitor (as per B2.10.2,
-    * ARM DDI 0487A.k) is cleared by a successful write.
-    */
-   __asm__ __volatile__ (
-      "strh %w0, [%1]"
-      :
-      : "r" (val), "r" (&var->value)
-      : "memory"
-   );
+   _VMATOM_X(W, 16, &var->value, val);
 #elif defined(VM_ARM_32)
    /*
     * Best left this way due to the intricacies of exclusive load/store
@@ -3100,7 +2831,7 @@ Atomic_ReadIfEqualWrite16(Atomic_uint16 *var,   // IN/OUT
                           uint16 newVal)        // IN
 {
 #if defined(__GNUC__)
-#if (defined(__x86_64__) || defined(__i386__))
+#if defined(__x86_64__) || defined(__i386__)
    uint16 val;
 
    __asm__ __volatile__(
@@ -3136,23 +2867,7 @@ Atomic_ReadIfEqualWrite16(Atomic_uint16 *var,   // IN/OUT
 
    return retVal;
 #elif defined(VM_ARM_64)
-   register uint16 retVal;
-   register uint16 failed;
-
-   __asm__ __volatile__ (
-      "   dmb     sy             \n\t"
-      "1: ldxrh  %w0, [%2]       \n\t"
-      "   cmp     %w0, %w3       \n\t"
-      "   b.ne    2f             \n\t"
-      "   stxrh  %w1, %w4, [%2]  \n\t"
-      "   cbnz    %w1, 1b        \n\t"
-      "2: clrex                  \n\t"
-      "   dmb     sy             \n\t"
-      : "=&r" (retVal), "=&r" (failed)
-      : "r" (&var->value), "r" (oldVal), "r" (newVal)
-      : "cc", "memory");
-
-   return retVal;
+   return _VMATOM_X(RIFEQW, 16, TRUE, &var->value, oldVal, newVal);
 #else
 #error No 16-bits atomics.
 #endif
@@ -3181,7 +2896,7 @@ Atomic_And16(Atomic_uint16 *var, // IN/OUT
              uint16 val)         // IN
 {
 #if defined(__GNUC__)
-#if (defined(__x86_64__) || defined(__i386__))
+#if defined(__x86_64__) || defined(__i386__)
    __asm__ __volatile__(
       "lock; andw %1, %0"
       : "+m" (var->value)
@@ -3209,7 +2924,7 @@ Atomic_And16(Atomic_uint16 *var, // IN/OUT
 
    dmb();
 #elif defined(VM_ARM_64)
-   ARM_64_ATOMIC_16_OPV_PRIVATE_FENCED(var, val, and);
+   _VMATOM_X(OP, 16, TRUE, &var->value, and, val);
 #else
 #error No 16-bits atomics.
 #endif
@@ -3238,7 +2953,7 @@ Atomic_Or16(Atomic_uint16 *var, // IN/OUT
             uint16 val)         // IN
 {
 #if defined(__GNUC__)
-#if (defined(__x86_64__) || defined(__i386__))
+#if defined(__x86_64__) || defined(__i386__)
    __asm__ __volatile__(
       "lock; orw %1, %0"
       : "+m" (var->value)
@@ -3266,12 +2981,13 @@ Atomic_Or16(Atomic_uint16 *var, // IN/OUT
 
    dmb();
 #elif defined(VM_ARM_64)
-   ARM_64_ATOMIC_16_OPV_PRIVATE_FENCED(var, val, orr);
+   _VMATOM_X(OP, 16, TRUE, &var->value, orr, val);
 #else
 #error No 16-bits atomics.
 #endif
 #endif
 }
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -3294,7 +3010,7 @@ Atomic_Xor16(Atomic_uint16 *var, // IN/OUT
              uint16 val)         // IN
 {
 #if defined(__GNUC__)
-#if (defined(__x86_64__) || defined(__i386__))
+#if defined(__x86_64__) || defined(__i386__)
    __asm__ __volatile__(
       "lock; xorw %1, %0"
       : "+m" (var->value)
@@ -3322,7 +3038,7 @@ Atomic_Xor16(Atomic_uint16 *var, // IN/OUT
 
    dmb();
 #elif defined(VM_ARM_64)
-   ARM_64_ATOMIC_16_OPV_PRIVATE_FENCED(var, val, eor);
+   _VMATOM_X(OP, 16, TRUE, &var->value, eor, val);
 #else
 #error No 16-bits atomics.
 #endif
@@ -3351,7 +3067,7 @@ Atomic_Add16(Atomic_uint16 *var, // IN/OUT
              uint16 val)         // IN
 {
 #if defined(__GNUC__)
-#if (defined(__x86_64__) || defined(__i386__))
+#if defined(__x86_64__) || defined(__i386__)
    __asm__ __volatile__(
       "lock; addw %1, %0"
       : "+m" (var->value)
@@ -3379,7 +3095,7 @@ Atomic_Add16(Atomic_uint16 *var, // IN/OUT
 
    dmb();
 #elif defined(VM_ARM_64)
-   ARM_64_ATOMIC_16_OPV_PRIVATE_FENCED(var, val, add);
+   _VMATOM_X(OP, 16, TRUE, &var->value, add, val);
 #else
 #error No 16-bits atomics.
 #endif
@@ -3408,7 +3124,7 @@ Atomic_Sub16(Atomic_uint16 *var, // IN/OUT
              uint16 val)         // IN
 {
 #if defined(__GNUC__)
-#if (defined(__x86_64__) || defined(__i386__))
+#if defined(__x86_64__) || defined(__i386__)
    __asm__ __volatile__(
       "lock; subw %1, %0"
       : "+m" (var->value)
@@ -3436,7 +3152,7 @@ Atomic_Sub16(Atomic_uint16 *var, // IN/OUT
 
    dmb();
 #elif defined(VM_ARM_64)
-   ARM_64_ATOMIC_16_OPV_PRIVATE_FENCED(var, val, sub);
+   _VMATOM_X(OP, 16, TRUE, &var->value, sub, val);
 #else
 #error No 16-bits atomics.
 #endif
@@ -3464,7 +3180,7 @@ static INLINE void
 Atomic_Inc16(Atomic_uint16 *var) // IN/OUT
 {
 #if defined(__GNUC__)
-#if (defined(__x86_64__) || defined(__i386__))
+#if defined(__x86_64__) || defined(__i386__)
    __asm__ __volatile__(
       "lock; incw %0"
       : "+m" (var->value)
@@ -3500,7 +3216,7 @@ static INLINE void
 Atomic_Dec16(Atomic_uint16 *var) // IN/OUT
 {
 #if defined(__GNUC__)
-#if (defined(__x86_64__) || defined(__i386__))
+#if defined(__x86_64__) || defined(__i386__)
    __asm__ __volatile__(
       "lock; decw %0"
       : "+m" (var->value)
@@ -3567,7 +3283,7 @@ Atomic_ReadAdd16(Atomic_uint16 *var,  // IN/OUT
                  uint16 val)          // IN:
 {
 #if defined(__GNUC__)
-#if (defined(__x86_64__) || defined(__i386__))
+#if defined(__x86_64__) || defined(__i386__)
    __asm__ __volatile__(
       "lock; xaddw %0, %1"
       : "=r" (val),
@@ -3600,7 +3316,7 @@ Atomic_ReadAdd16(Atomic_uint16 *var,  // IN/OUT
 
    return retVal;
 #elif defined(VM_ARM_64)
-   return ARM_64_ATOMIC_16_OPO_PRIVATE_FENCED(var, val, add);
+   return _VMATOM_X(ROP, 16, TRUE, &var->value, add, val);
 #else
 #error No 16-bits atomics.
 #endif
@@ -3909,6 +3625,10 @@ Atomic_MFence(void)
 #undef ATOMIC_COMPILER_BARRIER
 #endif /* ATOMIC_COMPILER_BARRIER */
 #endif // Should we define Atomic_MFence?
+
+#ifdef VM_ARM_64
+#   include "vm_atomic_arm64_end.h"
+#endif
 
 #if defined(__cplusplus)
 }  // extern "C"
