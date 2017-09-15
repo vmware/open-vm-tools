@@ -19,11 +19,12 @@
 
 #include <cairomm/cairomm.h>
 #include <gdkmm.h>
+
+#include "xutils/xutils.hh"
+
 #if GTK_MAJOR_VERSION == 3
 #include <gdkmm/devicemanager.h>
 #endif
-
-#include "xutils/xutils.hh"
 
 /* These must be after the gtkmm includes, as gtkmm is quite picky. */
 #include <X11/Xlib.h>

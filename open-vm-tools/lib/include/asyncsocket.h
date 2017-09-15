@@ -70,6 +70,8 @@
 #define ASOCKERR_BINDADDRINUSE     11
 #define ASOCKERR_LISTEN            12
 #define ASOCKERR_CONNECTSSL        13
+#define ASOCKERR_NETUNREACH        14
+#define ASOCKERR_ADDRUNRESV        15
 
 
 /*
@@ -242,6 +244,18 @@ AsyncSocket *AsyncSocket_ListenWebSocket(const char *addrStr,
                                          void *clientData,
                                          AsyncSocketPollParams *pollParams,
                                          int *outError);
+/*
+ * Listen on port and fire callback with new asock
+ * NOTE - Do not use this API.
+ * Listens on 127.0.0.1:port and does not use SSL.
+ * This API will be deprecated soon.
+ */
+AsyncSocket *AsyncSocket_ListenWebSocketNoHttp(unsigned int port,
+                                             const char *protocols[],
+                                             AsyncSocketConnectFn connectFn,
+                                             void *clientData,
+                                             AsyncSocketPollParams *pollParams,
+                                             int *outError);
 #ifndef _WIN32
 AsyncSocket *AsyncSocket_ListenWebSocketUDS(const char *pipeName,
                                             Bool useSSL,

@@ -99,6 +99,7 @@
 #define ASOCK_EADDRINUSE        WSAEADDRINUSE
 #define ASOCK_ECONNECTING       WSAEWOULDBLOCK
 #define ASOCK_EWOULDBLOCK       WSAEWOULDBLOCK
+#define ASOCK_ENETUNREACH       WSAENETUNREACH
 #else
 #define ASOCK_LASTERROR()       errno
 #define ASOCK_ENOTCONN          ENOTCONN
@@ -106,6 +107,7 @@
 #define ASOCK_EADDRINUSE        EADDRINUSE
 #define ASOCK_ECONNECTING       EINPROGRESS
 #define ASOCK_EWOULDBLOCK       EWOULDBLOCK
+#define ASOCK_ENETUNREACH       ENETUNREACH
 #endif
 
 #define WEBSOCKET_HTTP_BUFFER_SIZE  8192
@@ -473,6 +475,16 @@ AsyncSocket *AsyncSocketListenerCreate(const char *addrStr,
                                        Bool webSockUseSSL,
                                        const char *protocols[],
                                        int *outError);
+AsyncSocket *AsyncSocketListenerCreateImpl(const char *addrStr,
+                                           unsigned int port,
+                                           int socketFamily,
+                                           AsyncSocketConnectFn connectFn,
+                                           void *clientData,
+                                           AsyncSocketPollParams *pollParams,
+                                           Bool isWebSock,
+                                           Bool webSockUseSSL,
+                                           const char *protocols[],
+                                           int *outError);
 
 AsyncSocketState AsyncSocketGetState(AsyncSocket *sock);
 int AsyncSocketGetGenericErrno(AsyncSocket *s);

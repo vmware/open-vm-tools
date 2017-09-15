@@ -418,6 +418,12 @@ AsyncSocket_MsgError(int asyncSockError)   // IN
    case ASOCKERR_CONNECTSSL:
       result = MSGID(asyncsocket.connectssl) "Connection error: could not negotiate SSL";
       break;
+   case ASOCKERR_NETUNREACH:
+      result = MSGID(asyncsocket.netunreach) "Network unreachable";
+      break;
+   case ASOCKERR_ADDRUNRESV:
+      result = MSGID(asyncsocket.addrunresv) "Address unresolvable";
+      break;
    }
 
    if (!result) {
@@ -1986,7 +1992,13 @@ AsyncSocketConnectWithAsock(AsyncSocket *asock,
          sysErr = ASOCK_LASTERROR();
          Log(ASOCKPREFIX "connect failed, error %d: %s\n",
              sysErr, Err_Errno2String(sysErr));
-         error = ASOCKERR_CONNECT;
+
+         /*
+          * If "network unreachable" error happens, explicitly propogate
+          * the error to trigger the reconnection if possible.
+          */
+         error = (sysErr == ASOCK_ENETUNREACH) ? ASOCKERR_NETUNREACH :
+                                                 ASOCKERR_CONNECT;
          goto errorHaveAsock;
       }
    } else {
