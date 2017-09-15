@@ -26,9 +26,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#if defined(_WIN32)
+#if !defined(_WIN32)
 #include <strings.h> /* For strncasecmp */
-#else
 #include <stdint.h>
 #endif
 #include "vmware.h"
