@@ -224,20 +224,25 @@ void CPersistenceUtils::savePersistence(
 	CAF_CM_VALIDATE_SMARTPTR(persistence);
 	CAF_CM_VALIDATE_STRING(persistenceDir);
 
-	const SmartPtrCLocalSecurityDoc localSecurity = persistence->getLocalSecurity();
-	const SmartPtrCRemoteSecurityCollectionDoc remoteSecurityCollection =
-			persistence->getRemoteSecurityCollection();
-	const SmartPtrCPersistenceProtocolCollectionDoc persistenceProtocolCollection =
-			persistence->getPersistenceProtocolCollection();
+	const std::string protocolDir = FileSystemUtils::buildPath(persistenceDir, "protocol", "amqpBroker_default");
+	const std::string uriAmqp = loadTextFile(protocolDir, "uri_amqp.txt");
+	const std::string uriTunnel = loadTextFile(protocolDir, "uri_tunnel.txt");
 
 	if (FileSystemUtils::doesDirectoryExist(persistenceDir)) {
 		CAF_CM_LOG_DEBUG_VA1("Removing directory - %s", persistenceDir.c_str());
 		FileSystemUtils::recursiveRemoveDirectory(persistenceDir);
 	}
 
+	const SmartPtrCLocalSecurityDoc localSecurity = persistence->getLocalSecurity();
+	const SmartPtrCRemoteSecurityCollectionDoc remoteSecurityCollection =
+			persistence->getRemoteSecurityCollection();
+	const SmartPtrCPersistenceProtocolCollectionDoc persistenceProtocolCollection =
+			persistence->getPersistenceProtocolCollection();
+
 	saveLocalSecurity(localSecurity, persistenceDir);
 	saveRemoteSecurityCollection(remoteSecurityCollection, persistenceDir);
-	savePersistenceProtocolCollection(persistenceProtocolCollection, persistenceDir);
+	savePersistenceProtocolCollection(persistenceProtocolCollection, persistenceDir,
+			uriAmqp, uriTunnel);
 	FileSystemUtils::saveTextFile(persistenceDir, "version.txt", persistence->getVersion());
 }
 
@@ -325,7 +330,9 @@ void CPersistenceUtils::saveRemoteSecurityCollection(
 
 void CPersistenceUtils::savePersistenceProtocolCollection(
 		const SmartPtrCPersistenceProtocolCollectionDoc& persistenceProtocolCollection,
-		const std::string& persistenceDir) {
+		const std::string& persistenceDir,
+		const std::string& uriAmqp,
+		const std::string& uriTunnel) {
 	CAF_CM_STATIC_FUNC_VALIDATE("CPersistenceUtils", "savePersistenceProtocolCollection");
 	CAF_CM_VALIDATE_STRING(persistenceDir);
 
@@ -354,14 +361,18 @@ void CPersistenceUtils::savePersistenceProtocolCollection(
 							amqpQueueDir, "uri.txt", persistenceProtocol->getUri());
 				}
 
-				if (! persistenceProtocol->getUriAmqp().empty()) {
+				const std::string uriAmqpTmp = persistenceProtocol->getUriAmqp().empty() ?
+						uriAmqp : persistenceProtocol->getUriAmqp();
+				if (! uriAmqpTmp.empty()) {
 					FileSystemUtils::saveTextFile(
-							amqpQueueDir, "uri_amqp.txt", persistenceProtocol->getUriAmqp());
+							amqpQueueDir, "uri_amqp.txt", uriAmqpTmp);
 				}
 
-				if (! persistenceProtocol->getUriTunnel().empty()) {
+				const std::string uriTunnelTmp = persistenceProtocol->getUriTunnel().empty() ?
+						uriTunnel : persistenceProtocol->getUriTunnel();
+				if (! uriTunnelTmp.empty()) {
 					FileSystemUtils::saveTextFile(
-							amqpQueueDir, "uri_tunnel.txt", persistenceProtocol->getUriTunnel());
+							amqpQueueDir, "uri_tunnel.txt", uriTunnelTmp);
 				}
 
 				if (! persistenceProtocol->getTlsCert().empty()) {
@@ -400,7 +411,7 @@ std::string CPersistenceUtils::loadTextFile(
 		const std::string& file,
 		const std::string& defaultVal,
 		const bool isTrimRight) {
-	CAF_CM_STATIC_FUNC_VALIDATE("CPersistenceUtils", "loadTextFile");
+	CAF_CM_STATIC_FUNC_LOG_VALIDATE("CPersistenceUtils", "loadTextFile");
 	CAF_CM_VALIDATE_STRING(dir);
 	CAF_CM_VALIDATE_STRING(file);
 
@@ -413,6 +424,7 @@ std::string CPersistenceUtils::loadTextFile(
 			rc = CStringUtils::trimRight(rc);
 		}
 	} else {
+		CAF_CM_LOG_DEBUG_VA1("File not found - %s", path.c_str());
 		rc = defaultVal;
 	}
 

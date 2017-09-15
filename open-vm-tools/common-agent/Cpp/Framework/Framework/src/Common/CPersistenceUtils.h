@@ -54,7 +54,9 @@ public:
 
 	static void savePersistenceProtocolCollection(
 			const SmartPtrCPersistenceProtocolCollectionDoc& persistenceProtocolCollection,
-			const std::string& persistenceDir);
+			const std::string& persistenceDir,
+			const std::string& uriAmqp,
+			const std::string& uriTunnel);
 
 private:
 	static std::string loadTextFile(

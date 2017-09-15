@@ -163,13 +163,9 @@ std::string CConfigEnvMerge::mergeUri(
 	CAF_CM_VALIDATE_STRING(localId);
 
 	const std::string uri = persistenceProtocol->getUri();
-
-	std::string uriNew;
-	if (isTunnelEnabled) {
-		uriNew = loadTextFile(persistenceProtocol->getUriTunnelPath());
-	} else {
-		uriNew = loadTextFile(persistenceProtocol->getUriAmqpPath());
-	}
+	const std::string uriNew = isTunnelEnabled ?
+			persistenceProtocol->getUriTunnel() :
+			persistenceProtocol->getUriAmqp();
 	CAF_CM_VALIDATE_STRING(uriNew);
 
 	CAF_CM_LOG_DEBUG_VA3("uri: %s, uriNew: %s, localId: %s",
@@ -287,13 +283,15 @@ bool CConfigEnvMerge::isTunnelEnabledFunc() {
 
 std::string CConfigEnvMerge::loadTextFile(
 		const std::string& path) {
-	CAF_CM_STATIC_FUNC_VALIDATE("CConfigEnvMerge", "loadTextFile");
+	CAF_CM_STATIC_FUNC_LOG_VALIDATE("CConfigEnvMerge", "loadTextFile");
 	CAF_CM_VALIDATE_STRING(path);
 
 	std::string rc;
 	if (FileSystemUtils::doesFileExist(path)) {
 		rc = FileSystemUtils::loadTextFile(path);
 		rc = CStringUtils::trimRight(rc);
+	} else {
+		CAF_CM_LOG_DEBUG_VA1("File does not exist - %s", path.c_str());
 	}
 
 	return rc;

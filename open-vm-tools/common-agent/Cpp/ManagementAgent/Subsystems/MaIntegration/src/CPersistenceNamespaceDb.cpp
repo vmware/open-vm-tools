@@ -57,9 +57,9 @@ SmartPtrCPersistenceDoc CPersistenceNamespaceDb::getUpdated(
 
 	SmartPtrCPersistenceDoc rc;
 	if (isReady()) {
-		//If nothing has been updated, skip all of the unneeded work
-		const std::string updates = getValue("updates");
-		if (!updates.empty()) {
+		const std::string updatesCur = getValue("updates");
+		if (_updates.compare(updatesCur) != 0) {
+			_updates = updatesCur;
 			const std::string version = getValue("version");
 
 			//EP Doc
@@ -131,11 +131,11 @@ SmartPtrCPersistenceDoc CPersistenceNamespaceDb::getUpdated(
 
 				//For now, we only support one broker.
 				const std::string protocolName = getValue(protocolKey + ".protocol_name");
+				const std::string tlsCert = getValue(protocolKey + ".tls.cert");
+				const std::string tlsProtocol = getValue(protocolKey + ".tls.protocol");
 				const std::string uri = getValue(protocolKey + ".uri");
 				const std::string uriAmqp = getValue(protocolKey + ".uri.amqp");
 				const std::string uriTunnel = getValue(protocolKey + ".uri.tunnel");
-				const std::string tlsCert = getValue(protocolKey + ".tls.cert");
-				const std::string tlsProtocol = getValue(protocolKey + ".tls.protocol");
 
 				SmartPtrCPersistenceProtocolDoc persistenceProtocol;
 				persistenceProtocol.CreateInstance();
@@ -380,51 +380,50 @@ std::string CPersistenceNamespaceDb::getValue(const std::string& key) {
 	}
 	return value;
 }
-	
+
 void CPersistenceNamespaceDb::setValue(
 		const std::string& key,
 		const std::string& value) {
 	CAF_CM_FUNCNAME("setValue");
 	CAF_CM_VALIDATE_STRING(key);
 
-	if (value.empty()) {
-		return;
-	}
+	if (_removedKeys.find(key) == _removedKeys.end()) {
+		if (value.empty()) {
+			CAF_CM_LOG_DEBUG_VA1("Cannot set empty value: %s", key.c_str());
+			return;
+		}
 
-	std::string stdoutContent;
-	std::string stderrContent;
-	Cdeqstr argv;
-	std::string tmpFile;
+		std::string stdoutContent;
+		std::string stderrContent;
+		Cdeqstr argv;
+		std::string tmpFile;
 
-	try {
-		//TODO: generate hash of value
-		//TODO: prepend delimitted hash to value
+		try {
+			tmpFile = FileSystemUtils::saveTempTextFile("caf_nsdb_XXXXXX", value);
+			CAF_CM_LOG_DEBUG_VA2("Setting %s to %s", key.c_str(), value.c_str());
+			argv.push_back(_nsdbCmdPath);
+			argv.push_back("set-key");
+			argv.push_back(_nsdbNamespace);
+			argv.push_back("-k");
+			argv.push_back(key);
+			argv.push_back("-f");
+			argv.push_back(tmpFile);
 
-		tmpFile = FileSystemUtils::saveTempTextFile("caf_nsdb_XXXXXX", value);
-		CAF_CM_LOG_DEBUG_VA2("Setting %s to %s", key.c_str(), value.c_str());
-		argv.push_back(_nsdbCmdPath);
-		argv.push_back("set-key");
-		argv.push_back(_nsdbNamespace);
-		argv.push_back("-k");
-		argv.push_back(key);
-		argv.push_back("-f");
-		argv.push_back(tmpFile);
-				
-		ProcessUtils::runSync(argv, stdoutContent, stderrContent);
-		//Add to key+hash _cache
-		//TODO: generate a hash of the value std::string
-		_cache[key] = value; //As a temporary hack use the entire value as the "hash"
-	}
-	catch(ProcessFailedException* ex){
-		CAF_CM_LOG_DEBUG_VA1("exception: %s", ex->getMsg().c_str());
-		CAF_CM_EXCEPTION_VA3(E_UNEXPECTED,
-				"NamespaceDB command failed - %s: %s: %s",
-				ex->getMsg().c_str(),
-				stdoutContent.c_str(),
-				stderrContent.c_str());
-	}
-	if ( !tmpFile.empty() && FileSystemUtils::doesFileExist(tmpFile)) {
-		FileSystemUtils::removeFile(tmpFile);
+			ProcessUtils::runSync(argv, stdoutContent, stderrContent);
+		}
+		catch(ProcessFailedException* ex){
+			CAF_CM_LOG_DEBUG_VA1("exception: %s", ex->getMsg().c_str());
+			CAF_CM_EXCEPTION_VA3(E_UNEXPECTED,
+					"NamespaceDB command failed - %s: %s: %s",
+					ex->getMsg().c_str(),
+					stdoutContent.c_str(),
+					stderrContent.c_str());
+		}
+		if ( !tmpFile.empty() && FileSystemUtils::doesFileExist(tmpFile)) {
+			FileSystemUtils::removeFile(tmpFile);
+		}
+	} else {
+		CAF_CM_LOG_DEBUG_VA1("Cannot set a removed key: %s", key.c_str());
 	}
 }
 	
@@ -432,32 +431,31 @@ void CPersistenceNamespaceDb::removeKey(const std::string& key) {
 	CAF_CM_FUNCNAME("removeKey");	
 	CAF_CM_VALIDATE_STRING(key);
 
-	std::string stdoutContent;
-	std::string stderrContent;
-	Cdeqstr argv;
+	if (_removedKeys.find(key) == _removedKeys.end()) {
+		std::string stdoutContent;
+		std::string stderrContent;
+		Cdeqstr argv;
 
-	try {
-		argv.push_back(_nsdbCmdPath);
-		argv.push_back("delete-key");
-		argv.push_back(_nsdbNamespace);
-		argv.push_back("-k");
-		argv.push_back(key);
+		try {
+			argv.push_back(_nsdbCmdPath);
+			argv.push_back("delete-key");
+			argv.push_back(_nsdbNamespace);
+			argv.push_back("-k");
+			argv.push_back(key);
 
-		ProcessUtils::runSync(argv, stdoutContent, stderrContent);
-
-		//Remove from _cache
-		Cmapstrstr::iterator it = _cache.find(key);
-		if (it != _cache.end()) {
-			_cache.erase(it);
+			ProcessUtils::runSync(argv, stdoutContent, stderrContent);
+			_removedKeys.insert(key);
 		}
-	}
-	catch(ProcessFailedException* ex){
-		CAF_CM_LOG_DEBUG_VA1("exception: %s", ex->getMsg().c_str());		
-		CAF_CM_EXCEPTION_VA3(E_UNEXPECTED,
-				"NamespaceDB command failed - %s: %s: %s",
-				ex->getMsg().c_str(),
-				stdoutContent.c_str(),
-				stderrContent.c_str());
+		catch(ProcessFailedException* ex){
+			CAF_CM_LOG_DEBUG_VA1("exception: %s", ex->getMsg().c_str());
+			CAF_CM_EXCEPTION_VA3(E_UNEXPECTED,
+					"NamespaceDB command failed - %s: %s: %s",
+					ex->getMsg().c_str(),
+					stdoutContent.c_str(),
+					stderrContent.c_str());
+		}
+	} else {
+		CAF_CM_LOG_DEBUG_VA1("Key already removed: %s", key.c_str());
 	}
 }
 
@@ -517,18 +515,6 @@ std::string CPersistenceNamespaceDb::getValueRaw(
 			value.erase(0,1);
 		if (value[value.length()-1] == '"')
 			value.erase(value.length()-1,1);
-	}
-	//TODO: parse hash from nsdb value
-	std::string hash = value; //As a temporary hack, use the entire value as the "hash"
-	//if hash has not changed, return empty
-	if (_cache[key] == hash) {
-		CAF_CM_LOG_DEBUG_VA1("Value for %s has not changed", key.c_str());
-		value = "";
-	}
-	else {
-	//if hash has changed, update key+hash _cache and return value
-		CAF_CM_LOG_DEBUG_VA1("Value for %s has changed", key.c_str());
-		_cache[key] = hash;
 	}
 
 	return value;

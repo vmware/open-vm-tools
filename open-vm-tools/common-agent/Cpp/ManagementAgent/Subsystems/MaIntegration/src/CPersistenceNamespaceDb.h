@@ -77,7 +77,8 @@ private:
 
 	std::string _nsdbCmdPath;
 	std::string _nsdbNamespace;
-	Cmapstrstr _cache;
+	Csetstr _removedKeys;
+	std::string _updates;
 
 	SmartPtrCPersistenceDoc _persistenceUpdate;
 	SmartPtrCPersistenceDoc _persistenceRemove;

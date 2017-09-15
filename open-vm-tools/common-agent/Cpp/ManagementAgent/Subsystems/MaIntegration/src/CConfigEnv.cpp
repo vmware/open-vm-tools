@@ -90,11 +90,11 @@ SmartPtrCPersistenceDoc CConfigEnv::getUpdated(
 		const SmartPtrCPersistenceDoc persistenceTmp =
 				CConfigEnvMerge::mergePersistence(_persistence, _cacertPath, _vcidPath);
 		if (! persistenceTmp.IsNull()) {
-			_persistence = persistenceTmp;
+			CPersistenceUtils::savePersistence(persistenceTmp, _persistenceDir);
+			_persistence = CPersistenceUtils::loadPersistence(_persistenceDir);
 			_persistenceUpdated = _persistence;
 
 			savePersistenceAppconfig(_persistence, _configDir);
-			CPersistenceUtils::savePersistence(_persistence, _persistenceDir);
 
 			const std::string reason = "Info changed in env";
 			listenerConfiguredStage2(reason);
@@ -118,22 +118,27 @@ void CConfigEnv::update(
 	CAF_CM_LOCK_UNLOCK;
 	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
 
-	const SmartPtrCPersistenceDoc persistenceTmp =
+	const SmartPtrCPersistenceDoc persistenceTmp1 =
 			CPersistenceMerge::mergePersistence(_persistence, persistence);
+
+	const SmartPtrCPersistenceDoc persistenceIn = persistenceTmp1.IsNull() ? _persistence : persistenceTmp1;
+	const SmartPtrCPersistenceDoc persistenceTmp2 =
+			CConfigEnvMerge::mergePersistence(persistenceIn, _cacertPath, _vcidPath);
+
+	const SmartPtrCPersistenceDoc persistenceTmp = persistenceTmp2.IsNull() ? persistenceTmp1 : persistenceTmp2;
+
 	if (! persistenceTmp.IsNull()) {
-		_persistence = persistenceTmp;
+		CPersistenceUtils::savePersistence(persistenceTmp, _persistenceDir);
+		_persistence = CPersistenceUtils::loadPersistence(_persistenceDir);
 		_persistenceUpdated = _persistence;
 
 		savePersistenceAppconfig(_persistence, _configDir);
-		CPersistenceUtils::savePersistence(_persistence, _persistenceDir);
 		removePrivateKey(_persistence, _persistenceRemove);
 
 		const std::string reason = "Info changed at source";
 		listenerConfiguredStage1(reason);
 		listenerConfiguredStage2(reason);
 		restartListener(reason);
-	} else {
-		CAF_CM_LOG_DEBUG_VA0("Persistence info did not change");
 	}
 }
 
