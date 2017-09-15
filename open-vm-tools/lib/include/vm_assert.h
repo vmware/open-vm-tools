@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -228,10 +228,8 @@ void WarningThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
            ASSERT_IFNOT(cond, _ASSERT_PANIC(AssertMemAlloc))
 
 #ifdef VMX86_DEVEL
-#define ASSERT_DEVEL(cond) ASSERT(cond)
 #define NOT_TESTED()       Warning(_AssertNotTestedFmt "\n", __FILE__, __LINE__)
 #else
-#define ASSERT_DEVEL(cond) ((void)0)
 #define NOT_TESTED()       Log(_AssertNotTestedFmt "\n", __FILE__, __LINE__)
 #endif
 
