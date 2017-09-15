@@ -3131,7 +3131,6 @@ HgfsServerGetHeaderSize(Bool sessionEnabled,     // IN: session based request
 }
 
 
-#if defined HGFS_SERVER_UNUSED
 /*
  *-----------------------------------------------------------------------------
  *
@@ -3154,7 +3153,6 @@ HgfsServerGetRequestHeaderSize(Bool sessionEnabled,     // IN: session based req
 {
    return HgfsServerGetHeaderSize(sessionEnabled, op, TRUE);
 }
-#endif
 
 
 /*
@@ -6267,6 +6265,129 @@ exit:
 /*
  *-----------------------------------------------------------------------------
  *
+ * HgfsServerValidateWrite --
+ *
+ *    Validate a write request's arguments.
+ *
+ *    The HGFS Packet stored in the following possible formats as follows:
+ *
+ *    Protocol V4 versions:
+ *    In the HgfsPacket metaPacket buffer
+ *    [HgfsHeader][HgfsRequestWriteV3]
+ *    In the HgfsPacket dataPacket buffer
+ *    [Variable length data to write]
+ *
+ *    Protocol V3 versions:
+ *    In the HgfsPacket metaPacket buffer
+ *    [HgfsHeader][HgfsRequestWriteV3][Variable length data to write]
+ *    [HgfsRequest][HgfsRequestWriteV3][Variable length data to write]
+ *
+ *    Protocol V2 versions:
+ *    Does not exist
+ *
+ *    Protocol V1 versions:
+ *    In the HgfsPacket metaPacket buffer
+ *    [HgfsRequestWrite][Variable length data to write]
+ *    (Note, the HgfsRequestWrite contains an HgfsRequest within it.)
+ *
+ *    Note, the writeOffset is ignored here but is checked in the platform specific
+ *    write handler.
+ *
+ * Results:
+ *    HGFS_ERROR_SUCCESS on success.
+ *    HGFS error code on failure.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static HgfsInternalStatus
+HgfsServerValidateWrite(HgfsInputParam *input,     // IN: Input params
+                        HgfsHandle writeHandle,    // IN: write Handle
+                        uint64 writeOffset,        // IN: write offset of file
+                        uint32 writeSize,          // IN: size to write
+                        HgfsWriteFlags flags,      // IN: write flags
+                        fileDesc *writefd,         // OUT: write file descriptor
+                        Bool *writeSequential,     // OUT: write is sequential
+                        Bool *writeAppend)         // OUT: write is append
+{
+   HgfsInternalStatus status = HGFS_ERROR_SUCCESS;
+   size_t requestWriteHeaderSize;
+   size_t requestWritePacketSize = 0;
+   size_t requestWritePacketDataSize = 0;
+   size_t requestWriteDataSize = 0;
+   fileDesc writeFileDesc = 0;
+   Bool sequentialHandle = FALSE;
+   Bool appendHandle = FALSE;
+
+   requestWriteHeaderSize = HgfsServerGetRequestHeaderSize(input->sessionEnabled,
+                                                           input->op);
+   switch (input->op) {
+   case HGFS_OP_WRITE_FAST_V4:
+      /*
+       * For this the operation data is in the shared memory,
+       * which depends on the mapping functions from the transport.
+       */
+      ASSERT(input->transportSession->channelCbTable->getReadVa != NULL);
+      /*
+       * The write data is packed in a separate buffer to the write request.
+       * Note, for size we **include** the 1 byte placeholder payload that was not
+       * counted in earlier versions of the write request. Sigh. See below.
+       */
+      requestWritePacketSize = sizeof (HgfsRequestWriteV3);
+      requestWritePacketDataSize = 0;
+      requestWriteDataSize = writeSize;
+      break;
+   case HGFS_OP_WRITE_V3:
+      /*
+       * Data is packed as a part of the write request.
+       * Note, for size we remove the 1 byte placeholder payload
+       * so it isn't counted twice.
+       */
+      requestWritePacketSize = sizeof (HgfsRequestWriteV3) - 1;
+      requestWritePacketDataSize = writeSize;
+      requestWriteDataSize = 0;
+      break;
+   case HGFS_OP_WRITE:
+      /*
+       * Data is packed as a part of the write request.
+       * Note, for size we remove the 1 byte placeholder payload
+       * so it isn't counted twice.
+       */
+      requestWritePacketSize = sizeof (HgfsRequestWrite) - 1;
+      requestWritePacketDataSize = writeSize;
+      requestWriteDataSize = 0;
+      break;
+   default:
+      status = HGFS_ERROR_PROTOCOL;
+      LOG(4, ("%s: Unsupported protocol version passed %d -> PROTOCOL_ERROR.\n",
+               __FUNCTION__, input->op));
+      NOT_IMPLEMENTED();
+      goto exit;
+   }
+
+   /*
+    * TBD -
+    * - validate the packet size with the header, write request and write data
+    * - map the file handle, and extract the details of the write e.g. writing
+    * sequentially or appending
+    */
+
+exit:
+   *writefd = writeFileDesc;
+   *writeSequential = sequentialHandle;
+   *writeAppend = appendHandle;
+   LOG(4, ("%s: arg validation check return (file %u data size %u) %u.\n",
+            __FUNCTION__, writeHandle, writeSize, status));
+   return status;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * HgfsServerWrite --
  *
  *    Handle a Write request.
@@ -6291,6 +6412,9 @@ HgfsServerWrite(HgfsInputParam *input)  // IN: Input params
    const void *writeData;
    size_t writeReplySize = 0;
    HgfsHandle writeFile;
+   fileDesc writeFd;
+   Bool writeSequential;
+   Bool writeAppend;
 
    HGFS_ASSERT_INPUT(input);
 
@@ -6299,6 +6423,24 @@ HgfsServerWrite(HgfsInputParam *input)  // IN: Input params
                                &writeData)) {
       LOG(4, ("%s: Error: Op %d unpack write request arguments\n", __FUNCTION__, input->op));
       status = HGFS_ERROR_PROTOCOL;
+      goto exit;
+   }
+
+   /*
+    * Validate the read arguments with the data and reply buffers to ensure
+    * there isn't a malformed request or we read more data than the buffer can
+    * hold.
+    */
+   status = HgfsServerValidateWrite(input,
+                                    writeFile,
+                                    writeOffset,
+                                    writeSize,
+                                    writeFlags,
+                                    &writeFd,
+                                    &writeSequential,
+                                    &writeAppend);
+   if (status != HGFS_ERROR_SUCCESS) {
+      LOG(4, ("%s: Error: validate args %u.\n", __FUNCTION__, status));
       goto exit;
    }
 
