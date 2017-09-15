@@ -106,6 +106,7 @@
    LOGLEVEL_VAR(vrdma), \
    LOGLEVEL_VAR(nvdimm), \
    LOGLEVEL_VAR(qat), \
+   LOGLEVEL_VAR(vtpm), \
    \
    /* user/disk */ \
    LOGLEVEL_VAR(aioMgr), \
@@ -309,7 +310,8 @@
    LOGLEVEL_VAR(toolsversion), \
    LOGLEVEL_VAR(vmva), \
    LOGLEVEL_VAR(udpfec),    /* lib/udpfec */ \
-   LOGLEVEL_VAR(maclatency)
+   LOGLEVEL_VAR(maclatency), \
+   LOGLEVEL_VAR(tpm2emu)
 
    /* end of list */
 

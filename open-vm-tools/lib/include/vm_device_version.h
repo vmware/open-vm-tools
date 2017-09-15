@@ -92,6 +92,7 @@
 #define PCI_DEVICE_ID_VMWARE_DUMMY      0x0809
 
 #define PCI_DEVICE_ID_VMWARE_VRDMA      0x0820
+#define PCI_DEVICE_ID_VMWARE_VTPM       0x0830
 
 /*
  * VMware Virtual Device Test Infrastructure (VDTI) devices
