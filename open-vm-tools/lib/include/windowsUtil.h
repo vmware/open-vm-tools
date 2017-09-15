@@ -32,6 +32,10 @@
 #include "vm_atomic.h"
 #include "unicodeTypes.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #ifdef _WIN32
 
 /* Defines */
@@ -72,4 +76,9 @@ char *W32Util_GetInstalledFilePath64(const char *fileName);
 CRITICAL_SECTION *W32Util_GetSingletonCriticalSection(Atomic_Ptr *csMemory);
 
 #endif // _WIN32
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
+
 #endif // WIN32UTIL_H_

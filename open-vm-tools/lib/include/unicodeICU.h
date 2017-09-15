@@ -36,7 +36,7 @@
 
 #include "unicodeBase.h"
 
-#ifdef __cplusplus
+#if defined(__cplusplus)
 extern "C" {
 #endif
 
@@ -94,6 +94,10 @@ char *Unicode_Normalize(const char *str,
 
 #ifdef __cplusplus
 }
+#endif
+
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 
 #endif // _UNICODE_ICU_H_

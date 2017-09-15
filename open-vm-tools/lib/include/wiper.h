@@ -33,6 +33,10 @@
 #include "vm_basic_types.h"
 #include "dbllnklst.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #define TOOLS_WIPE_CANCEL "Wipe cancelled by user.\n"
 
 typedef enum {
@@ -112,5 +116,9 @@ Wiper_State *Wiper_Start(const WiperPartition *p, unsigned int maxWiperFileSize)
 
 unsigned char *Wiper_Next(Wiper_State **s, unsigned int *progress);
 unsigned char *Wiper_Cancel(Wiper_State **s);
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif /* _WIPER_H_ */

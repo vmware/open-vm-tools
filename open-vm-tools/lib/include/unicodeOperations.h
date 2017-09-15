@@ -48,7 +48,7 @@
 #include "unicodeBase.h"
 #include "vm_assert.h"
 
-#ifdef __cplusplus
+#if defined(__cplusplus)
 extern "C" {
 #endif
 
@@ -766,9 +766,8 @@ Unicode_Truncate(const char *str,     // IN
    return Unicode_Substr(str, 0, length);
 }
 
-
-#ifdef __cplusplus
-}
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 
 #endif // _UNICODE_OPERATIONS_H_

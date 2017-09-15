@@ -31,13 +31,12 @@
 #define INCLUDE_ALLOW_VMKERNEL
 #include "includeCheck.h"
 
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "vm_basic_types.h"
 #include "vm_assert.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 typedef ssize_t UnicodeIndex;
 
@@ -460,8 +459,8 @@ void Unicode_InitW(int argc, utf16_t **wargv, utf16_t **wenvp,
 StringEncoding Unicode_GetCurrentEncoding(void);
 StringEncoding Unicode_ResolveEncoding(StringEncoding encoding);
 
-#ifdef __cplusplus
-}
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 
 #endif // _UNICODE_TYPES_H_

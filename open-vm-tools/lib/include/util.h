@@ -50,6 +50,9 @@
 #include "vm_basic_defs.h"
 #include "unicodeTypes.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 /*
  * Define the Util_ThreadID type, and assorted standard bits.
@@ -675,5 +678,8 @@ Util_Memcpy32(void *dst,
 #endif
 }
 
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif /* UTIL_H */

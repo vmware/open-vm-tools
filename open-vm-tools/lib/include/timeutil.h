@@ -35,6 +35,10 @@
 #include "vm_basic_defs.h"
 #include "vm_assert.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 
 #define MAX_DAYSLEFT     4096
 
@@ -135,5 +139,9 @@ Bool TimeUtil_UTCTimeToSystemTime(const __time64_t utcTime,    // IN
 int TimeUtil_GetLocalWindowsTimeZoneIndexAndName(char **ptzName);
 
 time_t TimeUtil_SecondsSinceEpoch(TimeUtil_Date *d); // IN
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif // _TIMEUTIL_H_

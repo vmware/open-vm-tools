@@ -25,13 +25,13 @@
 #ifndef _UUID_H_
 #define _UUID_H_
 
-#ifdef __cplusplus
-extern "C"{
-#endif
-
 #define INCLUDE_ALLOW_USERLEVEL
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #define UUID_SIZE 16
 #define UUID_STRSIZE (2*UUID_SIZE + 1)
@@ -160,8 +160,8 @@ UUIDStyle UUID_GetStyle(const uint8 *id);
 /* like UUID_GetHostUUID, except gets actual host UUID */
 char *UUID_GetRealHostUUID(void);
 
-#ifdef __cplusplus
-} // extern "C" {
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 
 #endif

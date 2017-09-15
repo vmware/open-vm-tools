@@ -19,7 +19,6 @@
 #ifndef _USERLOCK_H_
 #define _USERLOCK_H_
 
-
 #define INCLUDE_ALLOW_USERLEVEL
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
@@ -31,6 +30,10 @@
 #include "vm_basic_defs.h"
 #include "mutexRank.h"
 #include "vthreadBase.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 typedef struct MXUserExclLock   MXUserExclLock;
 typedef struct MXUserRecLock    MXUserRecLock;
@@ -268,4 +271,9 @@ MXUserRecLock       *MXUser_BindMXMutexRec(struct MX_MutexRec *mutex,
 
 struct MX_MutexRec  *MXUser_GetRecLockVmm(MXUserRecLock *lock);
 MX_Rank              MXUser_GetRecLockRank(MXUserRecLock *lock);
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
+
 #endif  // _USERLOCK_H_

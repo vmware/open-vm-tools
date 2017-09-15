@@ -30,15 +30,14 @@
 #define INCLUDE_ALLOW_VMKERNEL
 #include "includeCheck.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <stdlib.h>
 #include <errno.h>
 #include "util.h"
 #include "unicodeTypes.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #define UNICODE_SUBSTITUTION_CHAR "\xEF\xBF\xBD"
 
@@ -352,8 +351,8 @@ const char *Unicode_GetStatic(const char *asciiBytes,
    #define UNICODE_RELEASE_UTF16(s) free((utf16_t *)s)
 #endif
 
-#ifdef __cplusplus
-}
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 
 #endif // _UNICODE_BASE_H_
