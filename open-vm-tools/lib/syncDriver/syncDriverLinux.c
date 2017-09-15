@@ -30,6 +30,8 @@
 #include <unistd.h>
 #include <linux/fs.h>
 #include <sys/ioctl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include "debug.h"
 #include "dynbuf.h"
 #include "syncDriverInt.h"
@@ -170,12 +172,21 @@ LinuxDriver_Freeze(const GSList *paths,
     */
    while (paths != NULL) {
       int fd;
+      struct stat sbuf;
       const char *path = paths->data;
       Debug(LGPFX "opening path '%s'.\n", path);
       paths = g_slist_next(paths);
       fd = open(path, O_RDONLY);
       if (fd == -1) {
          switch (errno) {
+         case ENOENT:
+            /*
+             * We sometimes get stale mountpoints or special mountpoints
+             * created by the docker engine.
+             */
+            Debug(LGPFX "cannot find the directory '%s'.\n", path);
+            continue;
+
          case EACCES:
             /*
              * We sometimes get access errors to virtual filesystems mounted
@@ -199,6 +210,20 @@ LinuxDriver_Freeze(const GSList *paths,
             err = SD_ERROR;
             goto exit;
          }
+      }
+
+      if (fstat(fd, &sbuf) == -1) {
+         close(fd);
+         Debug(LGPFX "failed to stat '%s': %d (%s)\n",
+               path, errno, strerror(errno));
+         err = SD_ERROR;
+         goto exit;
+      }
+
+      if (!S_ISDIR(sbuf.st_mode)) {
+         close(fd);
+         Debug(LGPFX "Skipping a non-directory path '%s'.\n", path);
+         continue;
       }
 
       Debug(LGPFX "freezing path '%s' (fd=%d).\n", path, fd);
