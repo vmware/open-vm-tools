@@ -602,7 +602,11 @@ ResolutionToolkitInit(ToolsAppCtx *ctx) // IN: For config database access
    XSetErrorHandler(ResolutionX11ErrorHandler);
    gtk_init(&argc, (char ***) &argv);
    wnd = gtk_invisible_new();
+#ifndef GTK3
    display = GDK_WINDOW_XDISPLAY(wnd->window);
+#else
+   display = GDK_WINDOW_XDISPLAY(gtk_widget_get_window(wnd));
+#endif
    if (!display)
       g_error("%s: Invalid display detected.\n", __func__);
 

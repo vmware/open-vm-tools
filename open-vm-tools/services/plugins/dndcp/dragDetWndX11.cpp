@@ -219,11 +219,14 @@ DragDetWnd::SetGeometry(const int x,
 void
 DragDetWnd::GetGeometry(int &x, int &y, int &width, int &height)
 {
-   int dummy;
-
    Glib::RefPtr<Gdk::Window> gdkwin = get_window();
    if (gdkwin) {
+#ifndef GTK3
+      int dummy;
       gdkwin->get_geometry(x, y, width, height, dummy);
+#else
+      gdkwin->get_geometry(x, y, width, height);
+#endif
 #if defined(DETWNDTEST)
       Flush();
 #endif
