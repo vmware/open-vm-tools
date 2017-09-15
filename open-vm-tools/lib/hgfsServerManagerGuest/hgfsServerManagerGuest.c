@@ -109,7 +109,6 @@ HgfsServerManager_Register(HgfsServerMgrData *data)   // IN: RpcIn channel
     * down through the channel guest into the HGFS server directly.
     */
    if (!HgfsServerPolicy_Init(NULL,
-                              NULL,
                               &gHgfsServerManagerGuestData.enumResources)) {
       return FALSE;
    }

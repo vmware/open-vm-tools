@@ -158,7 +158,6 @@ HgfsServerPolicyDestroyShares(DblLnkLst_Links *head) // IN
 
 Bool
 HgfsServerPolicy_Init(HgfsInvalidateObjectsFunc invalidateObjects,  // Unused
-                      HgfsRegisterSharedFolderFunc registerFolder,  // Unused
                       HgfsServerResEnumCallbacks *enumResources)    // OUT enum callbacks
 {
    HgfsSharedFolder *rootShare;
@@ -168,7 +167,6 @@ HgfsServerPolicy_Init(HgfsInvalidateObjectsFunc invalidateObjects,  // Unused
     * it in.
     */
    ASSERT(invalidateObjects == NULL);
-   ASSERT(registerFolder == NULL);
 
    DblLnkLst_Init(&myState.shares);
 
