@@ -1575,6 +1575,7 @@ CPUID_MODEL_IS_AVOTON(uint32 v) // IN: %eax from CPUID with %eax=1.
           CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_ATOM_4D;
 }
 
+
 static INLINE Bool
 CPUID_MODEL_IS_WESTMERE(uint32 v) // IN: %eax from CPUID with %eax=1.
 {
