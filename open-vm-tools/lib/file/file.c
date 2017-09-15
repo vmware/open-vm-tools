@@ -352,6 +352,11 @@ File_CreateDirectoryEx(const char *pathName,  // IN:
 {
    int err = FileCreateDirectory(pathName, mask);
 
+   if (err != 0) {
+      Log(LGPFX" %s: Failed to create %s. Error = %d\n",
+          __FUNCTION__, pathName, err);
+   }
+
    return err == 0;
 }
 
@@ -401,8 +406,14 @@ File_EnsureDirectoryEx(const char *pathName,  // IN:
                        int mask)              // IN:
 {
    int err = FileCreateDirectory(pathName, mask);
+   Bool success = ((err == 0) || (err == EEXIST));
 
-   return ((err == 0) || (err == EEXIST));
+   if (!success) {
+      Log(LGPFX" %s: Failed to create %s. Error = %d\n",
+          __FUNCTION__, pathName, err);
+   }
+
+   return success;
 }
 
 
@@ -1646,7 +1657,7 @@ File_CreateDirectoryHierarchyEx(const char *pathName,   // IN:
    while (TRUE) {
       Bool failed;
       char *temp;
-#if defined(_WIN32)  
+#if defined(_WIN32)
       DWORD status;
       DWORD statusNew;
 #endif
