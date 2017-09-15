@@ -49,6 +49,7 @@
 #define _Out_opt_
 #define _Out_writes_bytes_(capcount)
 #define _Out_writes_bytes_opt_(capcount)
+#define _Out_writes_bytes_to_(cap, count)
 #define _Out_writes_bytes_to_opt_(cap, count)
 #define _Out_bytecap_post_bytecount_(cap, count)
 #define _Out_writes_z_(cap)
