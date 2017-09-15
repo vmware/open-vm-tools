@@ -314,4 +314,3 @@ libCafIntegrationSubsys_la_LIBADD += -ldl
 libCafIntegrationSubsys_la_LIBADD += ../Framework/libFramework.la
 
 libCafIntegrationSubsys_la_LDFLAGS += -shared
-

@@ -20,6 +20,8 @@ confdir=/etc/vmware-caf/pme/scripts
 conf_SCRIPTS = \
 	caf-common \
 	caf-processes.sh \
+	is-listener-running \
+	is-ma-running \
 	setUpVgAuth \
 	start-listener \
 	start-ma \
