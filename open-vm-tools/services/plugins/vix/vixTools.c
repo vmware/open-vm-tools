@@ -4844,11 +4844,22 @@ VixToolsInitiateFileTransferToGuest(VixCommandRequestHeader *requestMsg)  // IN
 
    File_GetPathName(guestPathName, &dirName, &baseName);
    if ((NULL == dirName) || (NULL == baseName)) {
+      g_debug("%s: File_GetPathName failed for '%s', dirName='%s', "
+              "baseName='%s'.\n", __FUNCTION__, guestPathName,
+              dirName ? dirName : "(null)",
+              baseName ? baseName : "(null)");
       err = VIX_E_FILE_NAME_INVALID;
       goto abort;
    }
 
    if (!File_IsDirectory(dirName)) {
+#ifdef _WIN32
+      DWORD sysErr = GetLastError();
+#else
+      int sysErr = errno;
+#endif
+      g_debug("%s: File_IsDirectory failed for '%s', err=%d.\n",
+              __FUNCTION__, dirName, sysErr);
       err = VIX_E_FILE_NAME_INVALID;
       goto abort;
    }
