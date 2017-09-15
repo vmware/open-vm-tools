@@ -575,8 +575,8 @@ FIELD(  D,  9, EAX,  0, 32, XSAVE_PKRU_SIZE,                       YES, FALSE) \
 FIELD(  D,  9, EBX,  0, 32, XSAVE_PKRU_OFFSET,                     YES, FALSE) \
 FLAG(   D,  9, ECX,  0,  1, XSAVE_PKRU_SUP_BY_XSS,                 NO,  FALSE) \
 FLAG(   D,  9, ECX,  1,  1, XSAVE_PKRU_ALIGN,                      YES, FALSE) \
-FIELD(  D,  9, ECX,  2, 30, XSAVE_PKRU_RSVD1,                      NO, FALSE) \
-FIELD(  D,  9, EDX,  0, 32, XSAVE_PKRU_RSVD2,                      NO, FALSE) \
+FIELD(  D,  9, ECX,  2, 30, XSAVE_PKRU_RSVD1,                      NO,  FALSE) \
+FIELD(  D,  9, EDX,  0, 32, XSAVE_PKRU_RSVD2,                      NO,  FALSE) \
 FIELD(  D, 62, EAX,  0, 32, XSAVE_LWP_SIZE,                        NO,  FALSE) \
 FIELD(  D, 62, EBX,  0, 32, XSAVE_LWP_OFFSET,                      NO,  FALSE) \
 FIELD(  D, 62, ECX,  0, 32, XSAVE_LWP_RSVD1,                       NO,  FALSE) \
@@ -584,10 +584,11 @@ FIELD(  D, 62, EDX,  0, 32, XSAVE_LWP_RSVD2,                       NO,  FALSE)
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_F                                               \
-FIELD(  F,  0, EBX,  0, 32, MAX_RMID_RANGE,                        NO,  FALSE) \
-FLAG(   F,  0, EDX,  1,  1, L3_QOS_MONITOR,                        NO,  FALSE) \
-FIELD(  F,  1, EBX,  0, 32, IA32_QM_CTR_CONVERSION_FACTOR,         NO,  FALSE) \
-FLAG(   F,  1, EDX,  0,  1, L3_OCCUPANCY,                          NO,  FALSE) \
+FIELD(  F,  0, EBX,  0, 32, PQM_MAX_RMID,                          NO,  FALSE) \
+FLAG(   F,  0, EDX,  1,  1, PQM_CMT_SUPPORT,                       NO,  FALSE) \
+FIELD(  F,  1, EBX,  0, 32, PQM_CMT_CONV,                          NO,  FALSE) \
+FIELD(  F,  1, ECX,  0, 32, PQM_CMT_NUM_RMID,                      NO,  FALSE) \
+FLAG(   F,  1, EDX,  0,  1, PQM_CMT_OCCUPANCY,                     NO,  FALSE)
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_10                                              \
@@ -596,7 +597,7 @@ FIELD( 10,  1, EAX,  0,  4, RESID_CAPACITY_MASK_LENGTH,            NO,  FALSE) \
 FIELD( 10,  1, EBX,  0, 32, ISOLATION_UNIT_MAP,                    NO,  FALSE) \
 FLAG(  10,  1, ECX,  1,  1, INFREQUENT_COS_UPDATE,                 NO,  FALSE) \
 FLAG(  10,  1, ECX,  2,  1, CODE_AND_DATA_PRIORITIZATION,          NO,  FALSE) \
-FIELD( 10,  1, EDX,  0, 16, MAX_COS_NUMBER,                        NO,  FALSE) \
+FIELD( 10,  1, EDX,  0, 16, MAX_COS_NUMBER,                        NO,  FALSE)
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,                  MON SUPP, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_12                                              \
@@ -1869,7 +1870,7 @@ CPUID_IsHypervisorLevel(uint32 level)
 static INLINE Bool
 CPUID_LevelUsesEcx(uint32 level) {
    return level == 4 || level == 7 || level == 0xb || level == 0xd ||
-          level == 0x8000001d;
+          level == 0xf || level == 0x8000001d;
 }
 
 /*
