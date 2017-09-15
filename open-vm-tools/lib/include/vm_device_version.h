@@ -78,6 +78,13 @@
 #define PCI_DEVICE_ID_VMWARE_HDAUDIO_CODEC      0x1975
 #define PCI_DEVICE_ID_VMWARE_HDAUDIO_CONTROLLER 0x1977
 
+/*
+ * TXT revision ID.
+ */
+#define TXT_VENDOR_ID                           0x15AD
+#define TXT_DEVICE_ID                           0xB002
+#define TXT_REVISION_ID                         0x01
+
 /* The hypervisor device might grow.  Please leave room
  * for 7 more subfunctions.
  */
