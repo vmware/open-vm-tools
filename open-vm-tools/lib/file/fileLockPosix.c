@@ -1060,7 +1060,6 @@ static char *
 FileLockNormalizePath(const char *filePath)  // IN:
 {
    char *result;
-   char *fullPath;
 
    char *dirName = NULL;
    char *fileName = NULL;
@@ -1074,12 +1073,25 @@ FileLockNormalizePath(const char *filePath)  // IN:
 
    File_GetPathName(filePath, &dirName, &fileName);
 
-   fullPath = File_FullPath(dirName);
+   /*
+    * Handle filePath - "xxx", "./xxx", "/xxx", and "/a/b/c".
+    */
 
-   result = (fullPath == NULL) ? NULL : Unicode_Join(fullPath, DIRSEPS,
-                                                     fileName, NULL);
+   if (*dirName == '\0') {
+      if (File_IsFullPath(filePath)) {
+         result = Unicode_Join(DIRSEPS, fileName, NULL);
+      } else {
+         result = Unicode_Join(".", DIRSEPS, fileName, NULL);
+      }
+   } else {
+      char *fullPath = File_FullPath(dirName);
 
-   Posix_Free(fullPath);
+      result = (fullPath == NULL) ? NULL : Unicode_Join(fullPath, DIRSEPS,
+                                                        fileName, NULL);
+
+      Posix_Free(fullPath);
+   }
+
    Posix_Free(dirName);
    Posix_Free(fileName);
 
