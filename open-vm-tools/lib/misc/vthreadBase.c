@@ -250,7 +250,7 @@ VThreadBaseGetStableID(void)
 VThreadID
 VThreadBase_CurID(void)
 {
-   return (VThreadID)VThreadBaseGetStableID();
+   return VThreadBaseGetStableID();
 }
 
 
@@ -563,7 +563,7 @@ void
 VThreadBase_ForgetSelf(void)
 {
    if (vmx86_debug) {
-      Log("Forgetting VThreadID %" FMT64 "d (\"%s\").\n",
+      Log("Forgetting VThreadID %" FMTPD "d (\"%s\").\n",
           VThread_CurID(), VThread_CurName());
    }
 
