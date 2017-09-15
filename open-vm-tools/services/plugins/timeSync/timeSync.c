@@ -811,9 +811,16 @@ TimeSyncStopLoop(ToolsAppCtx *ctx,
 static gboolean
 TimeSyncTcloHandler(RpcInData *data)
 {
-   Bool backwardSync = !strcmp(data->args, "1");
+   Bool backwardSync;
+   uint32 argVal;
+   unsigned int index = 0;
    TimeSyncData *syncData = data->clientData;
 
+   if (!StrUtil_GetNextUintToken(&argVal, &index, data->args, " ")) {
+      return RPCIN_SETRETVALS(data,
+                              "Unable to tokenize TimeSync RPC data", FALSE);
+   }
+   backwardSync = argVal == 1;
    if (!TimeSyncDoSync(syncData->slewCorrection, TIMESYNC_STEP,
                        backwardSync, syncData)) {
       return RPCIN_SETRETVALS(data, "Unable to sync time", FALSE);
