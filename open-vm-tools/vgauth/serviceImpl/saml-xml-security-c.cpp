@@ -17,7 +17,7 @@
  *********************************************************/
 
 /**
- * @file saml.cpp
+ * @file saml-xml-security-c.cpp
  *
  * Code for authenticating users based on SAML tokens.
  */
@@ -360,7 +360,7 @@ SAML_Shutdown()
 
 /*
  ******************************************************************************
- * SAML_Reload --                                                */ /**
+ * SAML_Reload --                                                        */ /**
  *
  * Reload any in-memory state used by the SAML module.
  *
@@ -442,7 +442,7 @@ SAMLLoadSchema(XercesDOMParser &parser,
  * @param[in]  userName    Optional username to authenticate as.
  * @param[out] userNameOut The user that the token has authenticated as.
  * @param[out] subjNameOut The subject in the token.
- * @param[out] verifySi    The subjectInfo associeatd with the entry
+ * @param[out] verifySi    The subjectInfo associated with the entry
  *                         in the ID provider store used to verify the
  *                         SAML cert.
  *
@@ -501,7 +501,7 @@ SAML_VerifyBearerToken(const char *xmlText,
  * @param[in]  userName    Optional username to authenticate as.
  * @param[out] userNameOut The user that the token has authenticated as.
  * @param[out] subjNameOut The subject in the token.
- * @param[out] verifySi    The subjectInfo associeatd with the entry
+ * @param[out] verifySi    The subjectInfo associated with the entry
  *                         in the ID provider store used to verify the
  *                         SAML cert.
  *
