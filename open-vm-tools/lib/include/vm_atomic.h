@@ -139,9 +139,11 @@ long  _InterlockedCompareExchange(long volatile*, long, long);
 long  _InterlockedExchangeAdd(long volatile*, long);
 long  _InterlockedDecrement(long volatile*);
 long  _InterlockedIncrement(long volatile*);
+__int64  _InterlockedCompareExchange64(__int64 volatile*, __int64, __int64);
 #pragma intrinsic(_InterlockedExchange, _InterlockedCompareExchange)
 #pragma intrinsic(_InterlockedExchangeAdd, _InterlockedDecrement)
 #pragma intrinsic(_InterlockedIncrement)
+#pragma intrinsic(_InterlockedCompareExchange64)
 
 # if _MSC_VER >= 1600
 char     _InterlockedExchange8(char volatile *, char);
@@ -160,14 +162,12 @@ __int64  _InterlockedExchangeAdd64(__int64 volatile*, __int64);
 __int64  _InterlockedIncrement64(__int64 volatile*);
 __int64  _InterlockedDecrement64(__int64 volatile*);
 __int64  _InterlockedExchange64(__int64 volatile*, __int64);
-__int64  _InterlockedCompareExchange64(__int64 volatile*, __int64, __int64);
 #if !defined _WIN64
 #pragma intrinsic(_InterlockedAnd, _InterlockedAnd64)
 #pragma intrinsic(_InterlockedOr, _InterlockedOr64)
 #pragma intrinsic(_InterlockedXor, _InterlockedXor64)
 #pragma intrinsic(_InterlockedExchangeAdd64, _InterlockedIncrement64)
 #pragma intrinsic(_InterlockedDecrement64, _InterlockedExchange64)
-#pragma intrinsic(_InterlockedCompareExchange64)
 #endif /* !_WIN64 */
 #endif /* __x86_64__ */
 
@@ -2011,27 +2011,11 @@ Atomic_ReadDec32(Atomic_uint32 *var) // IN/OUT
 
 
 /*
- * Usage of this helper struct is strictly reserved to the following
- * function. --hpreg
- */
-typedef struct {
-   uint32 lowValue;
-   uint32 highValue;
-} S_uint64;
-
-
-/*
  *-----------------------------------------------------------------------------
  *
  * Atomic_CMPXCHG64 --
  *
  *      Compare exchange: Read variable, if equal to oldVal, write newVal
- *
- *      XXX: Ensure that if this function is to be inlined by gcc, it is
- *      compiled with -fno-strict-aliasing. Otherwise it will break.
- *      Unfortunately we know that gcc 2.95.3 (used to build the FreeBSD 3.2
- *      Tools) does not honor -fno-strict-aliasing. As a workaround, we avoid
- *      inlining the function entirely for versions of gcc under 3.0.
  *
  * Results:
  *      TRUE if equal, FALSE if not equal
@@ -2042,18 +2026,14 @@ typedef struct {
  *-----------------------------------------------------------------------------
  */
 
-#if defined __GNUC__ && __GNUC__ < 3
-static Bool
-#else
 static INLINE Bool
-#endif
 Atomic_CMPXCHG64(Atomic_uint64 *var,   // IN/OUT
-                 uint64 const *oldVal, // IN
-                 uint64 const *newVal) // IN
+                 uint64 oldVal,        // IN
+                 uint64 newVal)        // IN
 {
 #if defined __GNUC__
 #if defined VM_ARM_ANY
-   return Atomic_ReadIfEqualWrite64(var, *oldVal, *newVal) == *oldVal;
+   return Atomic_ReadIfEqualWrite64(var, oldVal, newVal) == oldVal;
 #else /* VM_X86_ANY */
 
    Bool equal;
@@ -2066,11 +2046,16 @@ Atomic_CMPXCHG64(Atomic_uint64 *var,   // IN/OUT
       : "+m" (*var),
 	"=qm" (equal),
 	"=a" (dummy)
-      : "r" (*newVal),
-        "2" (*oldVal)
+      : "r" (newVal),
+        "2" (oldVal)
       : "cc"
    );
 #else /* 32-bit version for non-ARM */
+   typedef struct {
+      uint32 lowValue;
+      uint32 highValue;
+   } S_uint64;
+
    int dummy1, dummy2;
 #   if defined __PIC__
    /*
@@ -2098,28 +2083,6 @@ Atomic_CMPXCHG64(Atomic_uint64 *var,   // IN/OUT
     * where it temporarily modifies %ebx as small as possible, and should
     * prefer specific register assignments.
     */
-#      if __GNUC__ < 3 // Part of #188541 - for RHL 6.2 etc.
-   __asm__ __volatile__(
-      "xchg %%ebx, %6"       "\n\t"
-      "mov 4(%%ebx), %%ecx"  "\n\t"
-      "mov (%%ebx), %%ebx"   "\n\t"
-      "lock; cmpxchg8b (%3)" "\n\t"
-      "xchg %%ebx, %6"       "\n\t"
-      "sete %0"
-      : "=a" (equal),
-        "=d" (dummy2),
-        "=D" (dummy1)
-      : /*
-         * See the "Rules for __asm__ statements in __PIC__ code" above: %3
-         * must use a register class which does not contain %ebx.
-         */
-        "S" (var),
-        "0" (((S_uint64 const *)oldVal)->lowValue),
-        "1" (((S_uint64 const *)oldVal)->highValue),
-        "D" (newVal)
-      : "ecx", "cc", "memory"
-   );
-#      else
    __asm__ __volatile__(
       "xchgl %%ebx, %6"      "\n\t"
       "lock; cmpxchg8b (%3)" "\n\t"
@@ -2137,13 +2100,12 @@ Atomic_CMPXCHG64(Atomic_uint64 *var,   // IN/OUT
          * stack, %ebp reserved for frame, %ebx reserved for PIC).
          */
         "S" (var),
-        "1" (((S_uint64 const *)oldVal)->lowValue),
-        "2" (((S_uint64 const *)oldVal)->highValue),
-        "D" (((S_uint64 const *)newVal)->lowValue),
-        "c" (((S_uint64 const *)newVal)->highValue)
+        "1" (((S_uint64 *)&oldVal)->lowValue),
+        "2" (((S_uint64 *)&oldVal)->highValue),
+        "D" (((S_uint64 *)&newVal)->lowValue),
+        "c" (((S_uint64 *)&newVal)->highValue)
       : "cc", "memory"
    );
-#      endif
 #   else
    __asm__ __volatile__(
       "lock; cmpxchg8b %0" "\n\t"
@@ -2152,10 +2114,10 @@ Atomic_CMPXCHG64(Atomic_uint64 *var,   // IN/OUT
 	"=qm" (equal),
 	"=a" (dummy1),
 	"=d" (dummy2)
-      : "2" (((S_uint64 const *)oldVal)->lowValue),
-        "3" (((S_uint64 const *)oldVal)->highValue),
-        "b" (((S_uint64 const *)newVal)->lowValue),
-        "c" (((S_uint64 const *)newVal)->highValue)
+      : "2" (((S_uint64 *)&oldVal)->lowValue),
+        "3" (((S_uint64 *)&oldVal)->highValue),
+        "b" (((S_uint64 *)&newVal)->lowValue),
+        "c" (((S_uint64 *)&newVal)->highValue)
       : "cc"
    );
 #   endif
@@ -2163,28 +2125,9 @@ Atomic_CMPXCHG64(Atomic_uint64 *var,   // IN/OUT
    return equal;
 #endif //VM_ARM_V7
 #elif defined _MSC_VER
-#if defined __x86_64__ || defined VM_ARM_32
-   return (__int64)*oldVal == _InterlockedCompareExchange64((__int64 *)&var->value,
-                                                            (__int64)*newVal,
-                                                            (__int64)*oldVal);
-#else
-#pragma warning(push)
-#pragma warning(disable : 4035)		// disable no-return warning
-   {
-      __asm mov esi, var
-      __asm mov edx, oldVal
-      __asm mov ecx, newVal
-      __asm mov eax, [edx]S_uint64.lowValue
-      __asm mov edx, [edx]S_uint64.highValue
-      __asm mov ebx, [ecx]S_uint64.lowValue
-      __asm mov ecx, [ecx]S_uint64.highValue
-      __asm lock cmpxchg8b [esi]
-      __asm sete al
-      __asm movzx eax, al
-      // eax is the return value, this is documented to work - edward
-   }
-#pragma warning(pop)
-#endif
+   return (__int64)oldVal == _InterlockedCompareExchange64((__int64 *)&var->value,
+                                                           (__int64)newVal,
+                                                           (__int64)oldVal);
 #else
 #error No compiler defined for Atomic_CMPXCHG64
 #endif // !GNUC
@@ -2405,7 +2348,7 @@ Atomic_ReadAdd64(Atomic_uint64 *var, // IN/OUT
    do {
       oldVal = var->value;
       newVal = oldVal + val;
-   } while (!Atomic_CMPXCHG64(var, &oldVal, &newVal));
+   } while (!Atomic_CMPXCHG64(var, oldVal, newVal));
 
    return oldVal;
 #endif
@@ -2690,7 +2633,7 @@ Atomic_ReadWrite64(Atomic_uint64 *var, // IN/OUT
 
    do {
       oldVal = var->value;
-   } while (!Atomic_CMPXCHG64(var, &oldVal, &val));
+   } while (!Atomic_CMPXCHG64(var, oldVal, val));
 
    return oldVal;
 #endif
@@ -2798,7 +2741,7 @@ Atomic_Or64(Atomic_uint64 *var, // IN/OUT
    do {
       oldVal = var->value;
       newVal = oldVal | val;
-   } while (!Atomic_CMPXCHG64(var, &oldVal, &newVal));
+   } while (!Atomic_CMPXCHG64(var, oldVal, newVal));
 #endif
 }
 
@@ -2845,7 +2788,7 @@ Atomic_And64(Atomic_uint64 *var, // IN/OUT
    do {
       oldVal = var->value;
       newVal = oldVal & val;
-   } while (!Atomic_CMPXCHG64(var, &oldVal, &newVal));
+   } while (!Atomic_CMPXCHG64(var, oldVal, newVal));
 #endif
 }
 
@@ -2886,7 +2829,7 @@ Atomic_SetBit64(Atomic_uint64 *var, // IN/OUT
    do {
       oldVal = var->value;
       newVal = oldVal | (CONST64U(1) << bit);
-   } while (!Atomic_CMPXCHG64(var, &oldVal, &newVal));
+   } while (!Atomic_CMPXCHG64(var, oldVal, newVal));
 #else
 #error No compiler defined for Atomic_SetBit64
 #endif
@@ -2897,7 +2840,7 @@ Atomic_SetBit64(Atomic_uint64 *var, // IN/OUT
    do {
       oldVal = var->value;
       newVal = oldVal | (CONST64U(1) << bit);
-   } while (!Atomic_CMPXCHG64(var, &oldVal, &newVal));
+   } while (!Atomic_CMPXCHG64(var, oldVal, newVal));
 #endif
 }
 
@@ -2938,7 +2881,7 @@ Atomic_ClearBit64(Atomic_uint64 *var, // IN/OUT
    do {
       oldVal = var->value;
       newVal = oldVal & ~(CONST64U(1) << bit);
-   } while (!Atomic_CMPXCHG64(var, &oldVal, &newVal));
+   } while (!Atomic_CMPXCHG64(var, oldVal, newVal));
 #else
 #error No compiler defined for Atomic_ClearBit64
 #endif
@@ -2949,7 +2892,7 @@ Atomic_ClearBit64(Atomic_uint64 *var, // IN/OUT
    do {
       oldVal = var->value;
       newVal = oldVal & ~(CONST64U(1) << bit);
-   } while (!Atomic_CMPXCHG64(var, &oldVal, &newVal));
+   } while (!Atomic_CMPXCHG64(var, oldVal, newVal));
 #endif
 }
 
