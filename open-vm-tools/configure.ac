@@ -1036,7 +1036,8 @@ CFLAGS="$CFLAGS -Werror"
 # Glib2 keep changing mutex APIs so we also need to disable 'deprecated'
 # warnings for now (-Wno-deprecated-declarations).
 for TEST_CFLAG in -Wno-pointer-sign -Wno-unused-value -fno-strict-aliasing \
-    -Wno-unknown-pragmas -Wno-uninitialized -Wno-deprecated-declarations; do
+    -Wno-unknown-pragmas -Wno-uninitialized -Wno-deprecated-declarations \
+    -Wno-unused-const-variable; do
     AC_MSG_CHECKING([for GCC flag $TEST_CFLAG])
     ORIGINAL_CFLAGS="$CFLAGS"
     CFLAGS="$CFLAGS $TEST_CFLAG"
