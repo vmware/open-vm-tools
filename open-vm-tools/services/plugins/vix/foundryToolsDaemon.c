@@ -830,14 +830,25 @@ ToolsDaemonTcloMountHGFS(RpcInData *data) // IN
    Bool isFuseEnabled = TRUE;
    Bool vmhgfsMntFound = FALSE;
    Bool vmhgfsMntPointCreated = FALSE;
+   Bool validFuseExitCode;
+   int fuseExitCode;
    int ret;
 
    vmhgfsExecProcArgs.envp = NULL;
    vmhgfsExecProcArgs.workingDirectory = NULL;
 
-   execRes = ProcMgr_ExecSync("/usr/bin/vmhgfs-fuse --enabled", &vmhgfsExecProcArgs);
+   execRes = ProcMgr_ExecSyncWithExitCode("/usr/bin/vmhgfs-fuse --enabled",
+                                          &vmhgfsExecProcArgs,
+                                          &validFuseExitCode,
+                                          &fuseExitCode);
    if (!execRes) {
-      g_warning("%s: vmhgfs-fuse -> not available\n", __FUNCTION__);
+      if (validFuseExitCode && fuseExitCode == 2) {
+         g_warning("%s: vmhgfs-fuse -> FUSE not installed\n", __FUNCTION__);
+         err = VIX_E_HGFS_MOUNT_FAIL;
+         goto exit;
+      }
+      g_message("%s: vmhgfs-fuse -> %d: not supported on this kernel version\n",
+                __FUNCTION__, validFuseExitCode ? fuseExitCode : 0);
       isFuseEnabled = FALSE;
    }
 

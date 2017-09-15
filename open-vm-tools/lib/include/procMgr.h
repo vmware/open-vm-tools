@@ -142,6 +142,12 @@ Bool ProcMgr_ExecSync(char const *cmd,       // UTF-8
                       ProcMgr_ProcArgs *userArgs);
 ProcMgr_AsyncProc *ProcMgr_ExecAsync(char const *cmd,     // UTF-8
                                      ProcMgr_ProcArgs *userArgs);
+#if defined(linux)
+Bool ProcMgr_ExecSyncWithExitCode(char const *cmd,
+                                  ProcMgr_ProcArgs *userArgs,
+                                  Bool *validExitCode,
+                                  int *exitCode);
+#endif
 void ProcMgr_Kill(ProcMgr_AsyncProc *asyncProc);
 Selectable ProcMgr_GetAsyncProcSelectable(ProcMgr_AsyncProc *asyncProc);
 ProcMgr_Pid ProcMgr_GetPid(ProcMgr_AsyncProc *asyncProc);

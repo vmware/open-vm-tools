@@ -233,7 +233,7 @@ done:
  *      UTF-8 encoded, although we do not enforce it right now.
  *
  * Results:
- *      
+ *
  *      A ProcMgrProcInfoArray.
  *
  * Side effects:
@@ -354,7 +354,7 @@ ProcMgr_ListProcesses(void)
          Debug("Giant process id '%s'\n", ent->d_name);
          continue;
       }
-      
+
       cmdFd = open(cmdFilePath, O_RDONLY);
       if (-1 == cmdFd) {
          /*
@@ -415,7 +415,7 @@ ProcMgr_ListProcesses(void)
          /*
           * Some procs don't have a command line text, so read a name from
           * the 'status' file (should be the first line). If unable to get a name,
-          * the process is still real, so it should be included in the list, just 
+          * the process is still real, so it should be included in the list, just
           * without a name.
           */
          cmdFd = -1;
@@ -444,12 +444,12 @@ ProcMgr_ListProcesses(void)
             char *copyItr;
 
             /* Skip non-whitespace. */
-            for (nameStart = cmdLineTemp; *nameStart && 
+            for (nameStart = cmdLineTemp; *nameStart &&
                                           *nameStart != ' ' &&
                                           *nameStart != '\t' &&
                                           *nameStart != '\n'; ++nameStart);
             /* Skip whitespace. */
-            for (;*nameStart && 
+            for (;*nameStart &&
                   (*nameStart == ' ' ||
                    *nameStart == '\t' ||
                    *nameStart == '\n'); ++nameStart);
@@ -1165,7 +1165,7 @@ abort:
  *      Free the memory occupied by ProcMgrProcInfoArray.
  *
  * Results:
- *      
+ *
  *      None.
  *
  * Side effects:
@@ -1199,6 +1199,61 @@ ProcMgr_FreeProcList(ProcMgrProcInfoArray *procList)
 /*
  *----------------------------------------------------------------------
  *
+ * ProcMgrExecSync --
+ *
+ *      Synchronously execute a command. The command is UTF-8 encoded.
+ *
+ *      Note, if the caller requests the exitCode for the process to be
+ *      run they must also provide the validExitCode to determine
+ *      if the exitCode contains a valid value.
+ *
+ * Results:
+ *      - TRUE when program execution completed and succeeded and
+ *        *validExitCode contains TRUE if supplied and
+ *        *exitCode contains 0 if supplied by the caller
+ *
+ *      - FALSE when program execution failed to start the process and
+ *        *validExitCode contains FALSE if supplied by the caller and
+          *exitCode is not valid if also supplied.
+ *
+ *      - FALSE when program execution completed and failed and
+ *        *validExitCode contains TRUE if supplied and
+ *        *exitCode contains the exit code of the failed process if supplied
+ *
+ * Side effects:
+ *      Lots, depending on the program.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static Bool
+ProcMgrExecSync(char const *cmd,                  // IN: UTF-8 command line
+                ProcMgr_ProcArgs *userArgs,       // IN: optional
+                Bool *validExitCode,              // OUT: optional exit code is valid
+                int *exitCode)                    // OUT: optional exit code
+{
+   pid_t pid;
+
+   Debug("Executing sync command: %s\n", cmd);
+
+   if (validExitCode != NULL) {
+      *validExitCode = FALSE;
+   }
+
+   pid = ProcMgrStartProcess(cmd, userArgs ? userArgs->envp : NULL,
+                             userArgs ? userArgs->workingDirectory : NULL);
+
+   if (pid == -1) {
+      return FALSE;
+   }
+
+   return ProcMgrWaitForProcCompletion(pid, validExitCode, exitCode);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * ProcMgr_ExecSync --
  *
  *      Synchronously execute a command. The command is UTF-8 encoded.
@@ -1217,19 +1272,56 @@ Bool
 ProcMgr_ExecSync(char const *cmd,                  // IN: UTF-8 command line
                  ProcMgr_ProcArgs *userArgs)       // IN: optional
 {
-   pid_t pid;
-
-   Debug("Executing sync command: %s\n", cmd);
-
-   pid = ProcMgrStartProcess(cmd, userArgs ? userArgs->envp : NULL,
-                             userArgs ? userArgs->workingDirectory : NULL);
-
-   if (pid == -1) {
-      return FALSE;
-   }
-
-   return ProcMgrWaitForProcCompletion(pid, NULL, NULL); 
+   return ProcMgrExecSync(cmd, userArgs, NULL, NULL);
 }
+
+
+#if defined(linux)
+/*
+ *----------------------------------------------------------------------
+ *
+ * ProcMgr_ExecSyncWithExitCode --
+ *
+ *      Synchronously execute a command. The command is UTF-8 encoded.
+ *
+ * Results:
+ *      - TRUE when program execution completed and succeeded and
+ *        *validExitCode contains TRUE and
+ *        *exitCode contains 0
+ *
+ *      - FALSE when either exitCode or validExitCode are not valid
+ *
+ *      - FALSE when program execution failed to start the process and
+ *        *validExitCode contains FALSE by the caller and
+          *exitCode is not valid.
+ *
+ *      - FALSE when program execution completed and failed and
+ *        *validExitCode contains TRUE
+ *        *exitCode contains the exit code of the failed process
+ *
+ * Side effects:
+ *	Lots, depending on the program.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+ProcMgr_ExecSyncWithExitCode(char const *cmd,                  // IN: UTF-8 command line
+                             ProcMgr_ProcArgs *userArgs,       // IN: optional
+                             Bool *validExitCode,              // OUT: exit code is valid
+                             int *exitCode)                    // OUT: exit code
+{
+   Bool result = FALSE;
+
+   ASSERT(exitCode != NULL && validExitCode != NULL);
+
+   result = ProcMgrExecSync(cmd, userArgs, validExitCode, exitCode);
+
+   Debug("Executed sync command: %s -> %d (%d)\n",
+         cmd, result, *validExitCode ? *exitCode : 0);
+   return result;
+}
+#endif
 
 
 /*
@@ -1430,7 +1522,7 @@ ProcMgrWaitForProcCompletion(pid_t pid,                 // IN
    if (NULL != validExitCode) {
       *validExitCode = FALSE;
    }
-   
+
    for (;;) {
       pid_t status;
 
@@ -1497,7 +1589,7 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
 
    Debug("Executing async command: '%s' in working dir '%s'\n",
          cmd, (userArgs && userArgs->workingDirectory) ? userArgs->workingDirectory : "");
-   
+
    if (pipe(fds) == -1) {
       Warning("Unable to create the pipe to launch command: %s.\n", cmd);
       return NULL;
@@ -1564,7 +1656,7 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
        */
       if (write(writeFd, &childPid, sizeof childPid) == -1) {
          Warning("Waiter unable to write back to parent.\n");
-         
+
          /*
           * This is quite bad, since the original process will block
           * waiting for data. Unfortunately, there isn't much to do
@@ -1581,16 +1673,16 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
          ASSERT(pid != -1);
          status = ProcMgrWaitForProcCompletion(childPid, &validExitCode, &exitCode);
       }
-      
-      /* 
+
+      /*
        * We always have to send IPC back to caller, so that it does not
        * block waiting for data we'll never send.
        */
-      Debug("Writing the command %s a success to fd %x\n", 
+      Debug("Writing the command %s a success to fd %x\n",
             status ? "was" : "was not", writeFd);
       if (write(writeFd, &status, sizeof status) == -1) {
          Warning("Waiter unable to write back to parent\n");
-         
+
          /*
           * This is quite bad, since the original process will block
           * waiting for data. Unfortunately, there isn't much to do
@@ -1601,7 +1693,7 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
 
       if (write(writeFd, &exitCode, sizeof exitCode) == -1) {
          Warning("Waiter unable to write back to parent\n");
-         
+
          /*
           * This is quite bad, since the original process will block
           * waiting for data. Unfortunately, there isn't much to do
@@ -1638,7 +1730,7 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
     */
    if (read(readFd, &resultPid, sizeof resultPid) != sizeof resultPid) {
       Warning("Unable to read result pid from the pipe.\n");
-      
+
       /*
        * We cannot wait on the child process here, since the error
        * may have just been on our end, so the child could be running
@@ -1651,7 +1743,7 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
 
    if (resultPid == -1) {
       Warning("The child failed to fork the target process.\n");
-      
+
       /*
        * Clean up the child process; it should exit pretty quickly.
        */
@@ -1674,7 +1766,7 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
    if (writeFd != -1) {
       close(writeFd);
    }
-       
+
    return asyncProc;
 }
 
@@ -1867,7 +1959,7 @@ ProcMgr_Kill(ProcMgr_AsyncProc *asyncProc) // IN
  *
  *----------------------------------------------------------------------
  */
-   
+
 Bool
 ProcMgr_IsAsyncProcRunning(ProcMgr_AsyncProc *asyncProc) // IN
 {
@@ -1878,7 +1970,7 @@ ProcMgr_IsAsyncProcRunning(ProcMgr_AsyncProc *asyncProc) // IN
    Selectable fd;
 
    ASSERT(asyncProc);
-   
+
    /*
     * Do a select, not a read. This procedure may be called many times,
     * while polling another program. After it returns true, then the
@@ -1924,7 +2016,7 @@ Selectable
 ProcMgr_GetAsyncProcSelectable(ProcMgr_AsyncProc *asyncProc)
 {
    ASSERT(asyncProc);
-   
+
    return asyncProc->fd;
 }
 
@@ -1937,7 +2029,7 @@ ProcMgr_GetAsyncProcSelectable(ProcMgr_AsyncProc *asyncProc)
  *      Get the pid for an async proc struct.
  *
  * Results:
- *      
+ *
  * Side effects:
  *
  *	None.
@@ -1949,7 +2041,7 @@ ProcMgr_Pid
 ProcMgr_GetPid(ProcMgr_AsyncProc *asyncProc)
 {
    ASSERT(asyncProc);
-   
+
    return asyncProc->resultPid;
 }
 
@@ -2046,15 +2138,15 @@ ProcMgr_Free(ProcMgr_AsyncProc *asyncProc) // IN
        * Someone did not call ProcMgr_Kill(), ProcMgr_GetAsyncStatus(),
        * or ProcMgr_GetExitCode().
        */
-      Warning("Leaving process %"FMTPID" to be a zombie.\n", 
+      Warning("Leaving process %"FMTPID" to be a zombie.\n",
               asyncProc->waiterPid);
    }
-#endif 
+#endif
 
    if (asyncProc != NULL && asyncProc->fd != -1) {
       close(asyncProc->fd);
    }
-   
+
    free(asyncProc);
 }
 
