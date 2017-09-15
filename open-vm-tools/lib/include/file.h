@@ -348,43 +348,6 @@ int64 File_GetSizeByPath(const char *pathName);
 
 int64 File_GetSizeAlternate(const char *pathName);
 
-/* file change notification module */
-typedef void (*CbFunction)(void *clientData);
-
-typedef void (*NotifyCallback)(const char *pathName,
-                               int err,
-                               void *data);
-
-typedef void (*PollTimeout) (CbFunction f,
-                             void *clientData,
-                             int delay);
-
-typedef void (*PollRemoveTimeout) (CbFunction f,
-                                   void *clientData);
-
-void File_PollInit(PollTimeout pt,
-                   PollRemoveTimeout prt);
-
-void File_PollExit(void);
-
-void File_PollImpersonateOnCheck(Bool check);
-
-Bool File_PollAddFile(const char *pathName,
-                      uint32 pollPeriod,
-                      NotifyCallback callback,
-                      void *data,
-                      Bool fPeriodic);
-
-Bool File_PollAddDirFile(const char *pathName,
-                         uint32 pollPeriod,
-                         NotifyCallback callback,
-                         void *data,
-                         Bool fPeriodic);
-
-Bool File_PollRemoveFile(const char *pathName,
-                         uint32 pollPeriod,
-                         NotifyCallback callback);
-
 Bool File_IsSameFile(const char *path1,
                      const char *path2);
 
