@@ -79,9 +79,11 @@
 #define PCI_DEVICE_ID_VMWARE_HDAUDIO_CONTROLLER 0x1977
 
 /*
- * TXT revision ID.
+ * TXT vendor, device and revision ID. We are keeping vendor
+ * as Intel since tboot code does not like anything other
+ * than Intel in the SINIT ACM header.
  */
-#define TXT_VENDOR_ID                           0x15AD
+#define TXT_VENDOR_ID                           0x8086
 #define TXT_DEVICE_ID                           0xB002
 #define TXT_REVISION_ID                         0x01
 
