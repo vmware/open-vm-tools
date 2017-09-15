@@ -61,7 +61,9 @@ ToolsCoreCleanup(ToolsServiceState *state)
    ToolsCorePool_Shutdown(&state->ctx);
    ToolsCore_UnloadPlugins(state);
 #if defined(__linux__)
-   ToolsCore_ReleaseVsockFamily(state);
+   if (state->mainService) {
+      ToolsCore_ReleaseVsockFamily(state);
+   }
 #endif
    if (state->ctx.rpc != NULL) {
       RpcChannel_Stop(state->ctx.rpc);
@@ -207,10 +209,10 @@ ToolsCoreRunLoop(ToolsServiceState *state)
 
 #if defined(__linux__)
    /*
-    * Init a reference to vSocket family.
+    * Init a reference to vSocket family in the main service.
     */
-   if (!ToolsCore_InitVsockFamily(state)) {
-      return 1;
+   if (state->mainService) {
+      ToolsCore_InitVsockFamily(state);
    }
 #endif
 

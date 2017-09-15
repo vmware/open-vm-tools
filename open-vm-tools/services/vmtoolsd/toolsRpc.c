@@ -95,11 +95,13 @@ ToolsCoreCheckReset(RpcChannel *chan,
                             TOOLS_CORE_SIG_RESET,
                             &state->ctx);
 #if defined(__linux__)
-      /*
-       * Release the existing vSocket family.
-       */
-      ToolsCore_ReleaseVsockFamily(state);
-      ToolsCore_InitVsockFamily(state);
+      if (state->mainService) {
+         /*
+          * Release the existing vSocket family.
+          */
+         ToolsCore_ReleaseVsockFamily(state);
+         ToolsCore_InitVsockFamily(state);
+      }
 #endif
    } else {
       VMTOOLSAPP_ERROR(&state->ctx, EXIT_FAILURE);
@@ -413,14 +415,13 @@ ToolsCore_SetCapabilities(RpcChannel *chan,
  * to it in the service state.
  *
  * @param[in]  state    The service state.
- *
- * @return TRUE on success.
  */
 
-gboolean
+void
 ToolsCore_InitVsockFamily(ToolsServiceState *state)
 {
    int vsockDev = -1;
+   int vsockFamily = -1;
 
    ASSERT(state);
 
@@ -432,33 +433,31 @@ ToolsCore_InitVsockFamily(ToolsServiceState *state)
        * Nothing more to do when there is no RPC channel.
        */
       g_debug("No RPC channel; skipping reference to vSocket family.\n");
-      return TRUE;
+      return;
    }
 
    switch (RpcChannel_GetType(state->ctx.rpc)) {
    case RPCCHANNEL_TYPE_INACTIVE:
    case RPCCHANNEL_TYPE_PRIV_VSOCK:
    case RPCCHANNEL_TYPE_UNPRIV_VSOCK:
-      return TRUE;
+      return;
    case RPCCHANNEL_TYPE_BKDOOR:
-      state->vsockFamily = VMCISock_GetAFValueFd(&vsockDev);
-      if (state->vsockFamily == -1) {
+      vsockFamily = VMCISock_GetAFValueFd(&vsockDev);
+      if (vsockFamily == -1) {
          /*
           * vSocket driver may not be loaded, log and continue.
           */
          g_warning("Couldn't get vSocket family.\n");
-         return TRUE;
+      } else if (vsockDev >= 0) {
+         g_debug("Saving reference to vSocket device=%d, family=%d\n",
+                 vsockDev, vsockFamily);
+         state->vsockFamily = vsockFamily;
+         state->vsockDev = vsockDev;
       }
-      ASSERT(vsockDev >= 0);
-      g_debug("Saving reference to vSocket device=%d, family=%d\n",
-              vsockDev, state->vsockFamily);
-      state->vsockDev = vsockDev;
-      return TRUE;
+      return;
    default:
       NOT_IMPLEMENTED();
    }
-
-   return FALSE;
 }
 
 
@@ -475,8 +474,11 @@ ToolsCore_ReleaseVsockFamily(ToolsServiceState *state)
 {
    ASSERT(state);
 
-   if (state->vsockFamily >= 0) {
-      ASSERT(state->vsockDev >= 0);
+   /*
+    * vSocket device is not opened in case of new kernels.
+    * Therefore, we release it only if it was opened.
+    */
+   if (state->vsockFamily >= 0 && state->vsockDev >= 0) {
       g_debug("Releasing reference to vSocket device=%d, family=%d\n",
               state->vsockDev, state->vsockFamily);
       VMCISock_ReleaseAFValueFd(state->vsockDev);

@@ -90,7 +90,9 @@ typedef struct ToolsServiceState {
    /*
     * We hold a reference to vSocket device to avoid
     * address family re-registration when someone
-    * connects over vSocket.
+    * connects over vSocket. We have vsockFamily
+    * here mainly because it does not cost much
+    * and it is useful for debug logs.
     */
    int            vsockDev;
    int            vsockFamily;
@@ -122,7 +124,7 @@ gboolean
 ToolsCore_InitRpc(ToolsServiceState *state);
 
 #if defined(__linux__)
-gboolean
+void
 ToolsCore_InitVsockFamily(ToolsServiceState *state);
 
 void
