@@ -69,7 +69,14 @@
  *      we use the safer Tls* functions.
  */
 
-#if defined __linux__
+#if defined __APPLE__
+#include <assert.h>
+#include <TargetConditionals.h>
+#else
+#define TARGET_OS_IPHONE 0
+#endif
+
+#if defined __linux__ && !defined __ANDROID__ && !TARGET_OS_IPHONE
 #  define HAVE_TLS
 #endif
 
