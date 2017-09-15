@@ -36,7 +36,7 @@
  * The following strings may be incorporated into MSGID strings.  Updating
  * them therefore may require updating translations and vmsg auditing files.
  */
-#define COPYRIGHT_YEARS    "1998-2015"
+#define COPYRIGHT_YEARS    "1998-2016"
 #define COPYRIGHT_STRING   "Copyright (C) " COPYRIGHT_YEARS " " COMPANY_NAME
 #define RIGHT_RESERVED     "All rights reserved."
 
