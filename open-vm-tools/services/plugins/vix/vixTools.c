@@ -1063,7 +1063,7 @@ VixTools_RunProgram(VixCommandRequestHeader *requestMsg, // IN
    const char *commandLineArgs = NULL;
    Bool impersonatingVMWareUser = FALSE;
    void *userToken = NULL;
-   int64 pid;
+   int64 pid = -1;
    static char resultBuffer[32];
    VMAutomationRequestParser parser;
 

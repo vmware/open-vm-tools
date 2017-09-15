@@ -174,7 +174,7 @@ FoundryToolsDaemonRunProgram(RpcInData *data) // IN
    static char resultBuffer[DEFAULT_RESULT_MSG_MAX_LENGTH];
    Bool impersonatingVMWareUser = FALSE;
    void *userToken = NULL;
-   ProcMgr_Pid pid;
+   ProcMgr_Pid pid = -1;
    GMainLoop *eventQueue = ((ToolsAppCtx *)data->appCtx)->mainLoop;
 
    /*

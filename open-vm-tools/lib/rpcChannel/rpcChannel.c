@@ -214,6 +214,8 @@ RpcChannelXdrWrapper(RpcInData *data,
    RpcInData copy;
    void *xdrData = NULL;
 
+   copy.freeResult = FALSE;
+   copy.result = NULL;
    if (rpc->xdrIn != NULL) {
       xdrData = malloc(rpc->xdrInSize);
       if (xdrData == NULL) {
