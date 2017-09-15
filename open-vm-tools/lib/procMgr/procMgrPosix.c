@@ -1816,8 +1816,10 @@ ProcMgrKill(pid_t pid,      // IN
             int timeout)    // IN: -1 will wait indefinitely
 {
    if (kill(pid, sig) == -1) {
+      int savedErrno = errno;
       Warning("Error trying to kill process %"FMTPID" with signal %d: %s\n",
               pid, sig, Msg_ErrString());
+      errno = savedErrno;
       return 0;
    } else {
       int i;
