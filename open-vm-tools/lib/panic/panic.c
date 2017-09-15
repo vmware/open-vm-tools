@@ -32,6 +32,10 @@
 #else // Posix
 #  include <unistd.h>
 #  include <signal.h>
+#  ifdef __APPLE__
+#    include <sys/types.h>
+#    include <sys/sysctl.h>
+#  endif
 #endif // Win32 vs Posix
 
 #include "vmware.h"
@@ -289,6 +293,11 @@ Panic_BreakOnPanic(void)
       Warning("Panic: breaking into debugger\n");
       DebugBreak();
    }
+#elif defined(__APPLE__)
+   if (Panic_GetBreakOnPanic()) {
+      Warning("Panic: breaking into debugger\n");
+      __asm__ __volatile__ ("int3");
+   }
 #else // Posix
    switch (panicState.breakOnPanic) {
    case PanicBreakAction_Never:
@@ -392,8 +401,25 @@ Panic_GetBreakOnPanic(void)
    case PanicBreakAction_Never:
       break;
    case PanicBreakAction_IfDebuggerAttached:
-#ifdef _WIN32
+#if defined(_WIN32)
       shouldBreak = IsDebuggerPresent();
+#elif defined(__APPLE__)
+      {
+         /*
+          * https://developer.apple.com/library/content/qa/qa1361/
+          */
+         int mib[] = { CTL_KERN, KERN_PROC, KERN_PROC_PID, getpid() };
+         struct kinfo_proc info;
+         size_t size;
+         int ret;
+
+         info.kp_proc.p_flag = 0;
+         size = sizeof info;
+         ret = sysctl(mib, ARRAYSIZE(mib), &info, &size, NULL, 0);
+         if (ret == 0) {
+            shouldBreak = (info.kp_proc.p_flag & P_TRACED) != 0;
+         }
+      }
 #else
       /*
        * This case is handled by Panic_BreakOnPanic for Posix as there is no
