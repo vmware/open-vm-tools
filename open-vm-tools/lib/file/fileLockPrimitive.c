@@ -153,7 +153,7 @@ FileLockSleeper(LockValues *myValues)  // IN/OUT:
     * (thundering herds).
     */
 
-   (void) FileSleeper(maxSleepTimeMsec / 10, maxSleepTimeMsec);
+   (void) FileSleeper(maxSleepTimeMsec / 2, maxSleepTimeMsec);
 
    return 0;
 }
