@@ -61,7 +61,7 @@ extern "C" {
 
 #define BDOOR_PORT 0x5658
 
-#define   BDOOR_CMD_GETMHZ      		    1
+#define   BDOOR_CMD_GETMHZ                    1
 /*
  * BDOOR_CMD_APMFUNCTION is used by:
  *
@@ -93,7 +93,7 @@ extern "C" {
 #define   BDOOR_CMD_OSNOTFOUND               18 /* CPL0 only. */
 #define   BDOOR_CMD_GETUUID                  19
 #define   BDOOR_CMD_GETMEMSIZE               20
-#define   BDOOR_CMD_HOSTCOPY                 21 /* Devel only. */
+//#define BDOOR_CMD_HOSTCOPY                 21 /* Not in use. Was devel only. */
 //#define BDOOR_CMD_SERVICE_VM               22 /* Not in use. Never shipped. */
 #define   BDOOR_CMD_GETTIME                  23 /* Deprecated -> GETTIMEFULL. */
 #define   BDOOR_CMD_STOPCATCHUP              24
@@ -119,7 +119,7 @@ extern "C" {
 //#define BDOOR_CMD_DEVEL_FAKEHARDWARE       44 /* Not in use. */
 #define   BDOOR_CMD_GETHZ                    45
 #define   BDOOR_CMD_GETTIMEFULL              46
-//#define   BDOOR_CMD_STATELOGGER            47 /* Not in use. */
+//#define BDOOR_CMD_STATELOGGER              47 /* Not in use. */
 #define   BDOOR_CMD_CHECKFORCEBIOSSETUP      48 /* CPL 0 only. */
 #define   BDOOR_CMD_LAZYTIMEREMULATION       49 /* CPL 0 only. */
 #define   BDOOR_CMD_BIOSBBS                  50 /* CPL 0 only. */
@@ -174,7 +174,7 @@ extern "C" {
 #  define BDOOR_CMD_EBC_QUICKBOOT_ENABLED         4
 #define   BDOOR_CMD_GET_HW_MODEL             74 /* CPL 0 only. */
 #define   BDOOR_CMD_GET_SVGA_CAPABILITIES    75 /* CPL 0 only. */
-#define	  BDOOR_CMD_GET_FORCE_X2APIC         76 /* CPL 0 only  */
+#define   BDOOR_CMD_GET_FORCE_X2APIC         76 /* CPL 0 only  */
 #define   BDOOR_CMD_SET_PCI_HOLE             77 /* CPL 0 only  */
 #define   BDOOR_CMD_GET_PCI_HOLE             78 /* CPL 0 only  */
 #define   BDOOR_CMD_GET_PCI_BAR              79 /* CPL 0 only  */
