@@ -98,6 +98,13 @@ PollClassSet_Equals(PollClassSet lhs, PollClassSet rhs)
    return TRUE;
 }
 
+/* Verifies if the class set is empty. */
+static INLINE Bool
+PollClassSet_IsEmpty(PollClassSet cs)
+{
+   return PollClassSet_Equals(cs, PollClassSet_Empty());
+}
+
 /* Remove from a PollClassSet. */
 static INLINE void
 PollClassSet_Remove(PollClassSet *set, PollClass c)
