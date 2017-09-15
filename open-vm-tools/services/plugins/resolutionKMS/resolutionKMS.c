@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -279,6 +279,34 @@ ResolutionKMSServerCapability(RpcChannel *chan,   // IN: The RPC channel.
       g_warning("%s: Unable to set tools.capability.resolution_server\n",
                 __FUNCTION__);
    }
+
+   if (value == 1) {
+      /*
+       * Whenever resolutionKMS is enabled, send
+       * "tools.capability.resolution_server toolbox-dnd 0" to clear
+       * resolutionSet as resolution server.
+       *
+       * Note: The below rpc is sent to TOOLS_DND_NAME if rpcChannelName is
+       * TOOLS_DAEMON_NAME and vice versa (to clear the opposite channel).
+       * This is how rpcChannelName is selected in ToolsOnLoad():
+       *
+       *    if (strcmp(ctx->name, VMTOOLS_GUEST_SERVICE) == 0) {
+       *       rpcChannelName = TOOLS_DAEMON_NAME;
+       *    } else if (strcmp(ctx->name, VMTOOLS_USER_SERVICE) == 0) {
+       *       rpcChannelName = TOOLS_DND_NAME;
+       *    }
+       */
+      gchar *msgClear;
+      msgClear = g_strdup_printf("tools.capability.resolution_server %s 0",
+                                 (strcmp(rpcChannelName, TOOLS_DAEMON_NAME) == 0 ?
+                                 TOOLS_DND_NAME : TOOLS_DAEMON_NAME));
+      if (!RpcChannel_Send(chan, msgClear, strlen(msgClear), NULL, NULL)) {
+         g_warning("%s: Unable to clear tools.capability.resolution_server\n",
+                   __FUNCTION__);
+      }
+      g_free(msgClear);
+   }
+
    g_free(msg);
 }
 
@@ -448,7 +476,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)
 
    /*
     * Save the RPC channel name from the ToolsAppCtx so that we can use it later
-    * in calls to ResolutionSetServerCapability().
+    * in calls to ResolutionKMSServerCapability().
     */
 
    if (strcmp(ctx->name, VMTOOLS_GUEST_SERVICE) == 0) {
