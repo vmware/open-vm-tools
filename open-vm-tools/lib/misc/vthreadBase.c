@@ -80,29 +80,6 @@
 #  define HAVE_TLS
 #endif
 
-/*
- * Most major OSes now support __thread, so begin making TLS access via
- * __thread the common case.
- *
- * Linux: since glibc-2.3
- * Windows: since Vista and vs2005 via __declspec(thread)
- *          (Prior to Vista, __declspec(thread) unimplemented when
- *           library loaded via LoadLibrary / delay-load)
- * macOS: since 10.7 via clang (xcode-4.6)
- * iOS: 64-bit since 8, 32-bit since 9 (per llvm commit)
- * watchOS: since 2
- * Android: since NDKr12 (per NDK wiki)
- * FreeBSD and Solaris: "a long time", gcc-4.1 was needed.
- *
- * (This is a new TLS rewrite, still in progress. Hence the NEW name. --kevinc)
- */
-#if (defined __APPLE__ && __MAC_OS_X_VERSION_MIN_REQUIRED+0 < 1070) || \
-    (defined __ANDROID__)
-   /* pthreads */
-#else
-#  define NEW_HAVE_TLS
-#endif
-
 #if defined _WIN32
 #  include <windows.h>
 #else
@@ -195,7 +172,7 @@ typedef enum VThreadLocal {
  * On these platforms, use constructors/destructors to manage
  * pthread keys.
  */
-#if !defined(NEW_HAVE_TLS)
+#if !defined(VMW_HAVE_TLS)
 static pthread_key_t sigNestCountKey;
 static pthread_key_t vthreadNameKey;
 
@@ -234,17 +211,16 @@ static void VThreadBaseDestruct(void)
 }
 #endif
 
+#ifdef VMW_HAVE_TLS
+
 #if !defined _WIN32
 /*
  * Signal counting code. Signal counting operates self-contained,
  * having no particular dependency on the rest of VThreadBase
  * (especially the VThreadBaseData memory allocation).
  */
-#ifdef NEW_HAVE_TLS
 static __thread int sigNestCount;
 #endif
-#endif
-
 
 /*
  * VThread name code.
@@ -293,9 +269,9 @@ static __thread int sigNestCount;
  * for correctness, and minimize effort for "old" platforms.
  */
 
-#ifdef NEW_HAVE_TLS
 static __thread char vthreadName[VTHREADBASE_MAX_NAME];
-#endif
+
+#endif /* VMW_HAVE_TLS */
 
 
 /*
@@ -779,7 +755,7 @@ VThreadBaseSafeName(char *buf,   // OUT: new name
 const char *
 VThreadBase_CurName(void)
 {
-#if defined NEW_HAVE_TLS
+#if defined VMW_HAVE_TLS
    if (UNLIKELY(vthreadName[0] == '\0')) {
       /*
        * Unnamed thread. If the thread's name mattered, it would
@@ -927,7 +903,7 @@ VThreadBase_InitWithTLS(VThreadBaseData *base)  // IN: caller-managed storage
 static void
 VThreadBaseForgetNameRaw(void)
 {
-#if defined NEW_HAVE_TLS
+#if defined VMW_HAVE_TLS
    memset(vthreadName, '\0', sizeof vthreadName);
 #else
    char *buf;
@@ -1023,35 +999,6 @@ VThreadBase_ForgetSelf(void)
  *-----------------------------------------------------------------------------
  */
 
-static void
-VThreadBaseSetNameRaw(const char *name)  // IN: new name
-{
-#if defined NEW_HAVE_TLS
-   /* Never copy last byte; this ensures NUL-term is always present */
-   strncpy(vthreadName, name, sizeof vthreadName - 1);
-#else
-   char *buf;
-
-   ASSERT(vthreadNameKey != 0);
-   ASSERT(!VThreadBase_IsInSignal());  // Cannot alloc in signal handler
-
-   /*
-    * The below code is racy (signal between get/set), but the
-    * race is benign. The signal handler would either get a safe
-    * name or "" (if it interrupts before setspecific or before strncpy,
-    * respectively). But as signal handlers may not call SetName,
-    * this will not double-allocate.
-    */
-   buf = pthread_getspecific(vthreadNameKey);
-   if (buf == NULL) {
-      buf = Util_SafeCalloc(1, VTHREADBASE_MAX_NAME);
-      pthread_setspecific(vthreadNameKey, buf);
-   }
-
-   strncpy(buf, name, VTHREADBASE_MAX_NAME - 1);
-#endif
-}
-
 void
 VThreadBase_SetName(const char *name)  // IN: new name
 {
@@ -1064,7 +1011,32 @@ VThreadBase_SetName(const char *name)  // IN: new name
               __FUNCTION__, name, (uint32)VTHREADBASE_MAX_NAME - 1);
    }
 
-   VThreadBaseSetNameRaw(name);
+#if defined VMW_HAVE_TLS
+   /* Never copy last byte; this ensures NUL-term is always present */
+   strncpy(vthreadName, name, sizeof vthreadName - 1);
+#else
+   do {
+      char *buf;
+
+      ASSERT(vthreadNameKey != 0);
+      ASSERT(!VThreadBase_IsInSignal());  // Cannot alloc in signal handler
+
+      /*
+       * The below code is racy (signal between get/set), but the
+       * race is benign. The signal handler would either get a safe
+       * name or "" (if it interrupts before setspecific or before strncpy,
+       * respectively). But as signal handlers may not call SetName,
+       * this will not double-allocate.
+       */
+      buf = pthread_getspecific(vthreadNameKey);
+      if (buf == NULL) {
+         buf = Util_SafeCalloc(1, VTHREADBASE_MAX_NAME);
+         pthread_setspecific(vthreadNameKey, buf);
+      }
+
+      strncpy(buf, name, VTHREADBASE_MAX_NAME - 1);
+   } while(0);
+#endif
 }
 
 
@@ -1392,7 +1364,7 @@ VThreadBaseInit(void)
 Bool
 VThreadBase_IsInSignal(void)
 {
-#if defined NEW_HAVE_TLS
+#if defined VMW_HAVE_TLS
    return sigNestCount > 0;
 #else
    return (intptr_t)pthread_getspecific(sigNestCountKey) > 0;
@@ -1419,7 +1391,7 @@ VThreadBase_IsInSignal(void)
 void
 VThreadBase_SetIsInSignal(Bool isInSignal)  // IN:
 {
-#if defined NEW_HAVE_TLS
+#if defined VMW_HAVE_TLS
    sigNestCount += (isInSignal ? 1 : -1);
 #else
    intptr_t cnt;

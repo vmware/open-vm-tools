@@ -36,10 +36,44 @@
 
 #include "vm_atomic.h"
 
-#if !defined VMM && !defined WIN32
+#if !defined VMM
+
+#if !defined WIN32
 #define VTHREAD_USE_PTHREAD 1
 #include <signal.h>
 #endif
+
+/*
+ * Most major OSes now support __thread, so begin making TLS access via
+ * __thread the common case. If VMW_HAVE_TLS is defined, __thread may
+ * be used.
+ *
+ * Linux: since glibc-2.3
+ * Windows: since Vista and vs2005 via __declspec(thread)
+ *          (Prior to Vista, __declspec(thread) was ignored when
+ *           a library is loaded via LoadLibrary / delay-load)
+ * macOS: since 10.7 via clang (xcode-4.6)
+ * iOS: 64-bit since 8.0, 32-bit since 9.0 (per llvm commit)
+ * watchOS: since 2.0
+ * Android: since NDKr12 (June 2016, per NDK wiki)
+ * FreeBSD and Solaris: "a long time", gcc-4.1 was needed.
+ */
+#if defined __ANDROID__
+   /* No modern NDK currently in use, no macro known */
+#elif defined __APPLE__
+   /* macOS >= 10.7 tested. iOS >= {8.0,9.0} NOT tested */
+#  if __MAC_OS_X_VERSION_MIN_REQUIRED+0 >= 1070
+#     define VMW_HAVE_TLS
+#  elif  (defined __LP64__ && __IPHONE_OS_VERSION_MIN_REQUIRED+0 >= 80000) || \
+         (!defined __LP64__ && __IPHONE_OS_VERSION_MIN_REQUIRED+0 >= 90000)
+#     define VMW_HAVE_TLS
+#  endif
+#else
+   /* All other platforms require new enough version to support TLS */
+#  define VMW_HAVE_TLS
+#endif
+
+#endif /* VMM */
 
 #if defined(__cplusplus)
 extern "C" {
