@@ -562,11 +562,11 @@ Socket_RecvPacket(SOCKET sock,               // IN
                   int *payloadLen)           // OUT
 {
    gboolean ok;
-   int32 packetLen;
+   uint32 packetLen;
+   uint32 partialPktLen;
    int packetLenSize = sizeof packetLen;
    int fullPktLen;
    char *recvBuf;
-   int recvBufLen;
 
    ok = Socket_Recv(sock, (char *)&packetLen, packetLenSize);
    if (!ok) {
@@ -575,9 +575,13 @@ Socket_RecvPacket(SOCKET sock,               // IN
       return FALSE;
    }
 
-   fullPktLen = ntohl(packetLen) + packetLenSize;
-   recvBufLen = fullPktLen;
-   recvBuf = malloc(recvBufLen);
+   partialPktLen = ntohl(packetLen);
+   if (partialPktLen > INT_MAX - packetLenSize) {
+      Panic(LGPFX "Invalid packetLen value 0x%08x\n", packetLen);
+   }
+
+   fullPktLen = partialPktLen + packetLenSize;
+   recvBuf = malloc(fullPktLen);
    if (recvBuf == NULL) {
       Debug(LGPFX "Could not allocate recv buffer.\n");
       return FALSE;

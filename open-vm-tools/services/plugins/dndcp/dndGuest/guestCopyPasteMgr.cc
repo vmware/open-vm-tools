@@ -253,6 +253,7 @@ GuestCopyPasteMgr::VmxCopyPasteVersionChanged(uint32 version)
 
    if (mRpc) {
       delete mRpc;
+      mRpc = NULL;
    }
 
    switch(version) {
