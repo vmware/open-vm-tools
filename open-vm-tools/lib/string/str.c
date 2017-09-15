@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -115,7 +115,7 @@ Str_Vsnprintf(char *str,          // OUT
    ASSERT(str != NULL);
    ASSERT(format != NULL);
 
-#if defined HAS_BSD_PRINTF && !defined __ANDROID__
+#if defined HAS_BSD_PRINTF
    retval = bsd_vsnprintf(&str, size, format, ap);
 #else
    /*
@@ -577,7 +577,7 @@ StrVasprintfInternal(size_t *length,       // OUT/OPT:
    char *buf = NULL;
    int ret;
 
-#if defined HAS_BSD_PRINTF && !defined __ANDROID__
+#if defined HAS_BSD_PRINTF
    ret = bsd_vsnprintf(&buf, 0, format, arguments);
 
 #elif !defined sun && !defined STR_NO_WIN32_LIBS
