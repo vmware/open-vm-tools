@@ -13,11 +13,10 @@
 namespace Caf {
 
 /// A simple container for objects of type CLocalSecurityDoc
-class CLocalSecurityDoc {
+class PERSISTENCEDOC_LINKAGE CLocalSecurityDoc {
 public:
-	CLocalSecurityDoc() :
-		_isInitialized(false) {}
-	virtual ~CLocalSecurityDoc() {}
+	CLocalSecurityDoc();
+	virtual ~CLocalSecurityDoc();
 
 public:
 	/// Initializes the object with everything required by this
@@ -28,44 +27,23 @@ public:
 			const std::string& privateKey = std::string(),
 			const std::string& cert = std::string(),
 			const std::string& privateKeyPath = std::string(),
-			const std::string& certPath = std::string()) {
-		if (! _isInitialized) {
-			_localId = localId;
-			_privateKey = privateKey;
-			_cert = cert;
-
-			_privateKeyPath = privateKeyPath;
-			_certPath = certPath;
-
-			_isInitialized = true;
-		}
-	}
+			const std::string& certPath = std::string());
 
 public:
 	/// Accessor for the LocalId
-	std::string getLocalId() const {
-		return _localId;
-	}
+	std::string getLocalId() const;
 
 	/// Accessor for the PrivateKey
-	std::string getPrivateKey() const {
-		return _privateKey;
-	}
+	std::string getPrivateKey() const;
 
 	/// Accessor for the Cert
-	std::string getCert() const {
-		return _cert;
-	}
+	std::string getCert() const;
 
 	/// Accessor for the PrivateKeyPath
-	std::string getPrivateKeyPath() const {
-		return _privateKeyPath;
-	}
+	std::string getPrivateKeyPath() const;
 
 	/// Accessor for the CertPath
-	std::string getCertPath() const {
-		return _certPath;
-	}
+	std::string getCertPath() const;
 
 private:
 	std::string _localId;

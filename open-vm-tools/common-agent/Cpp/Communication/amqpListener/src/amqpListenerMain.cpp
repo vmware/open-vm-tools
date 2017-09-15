@@ -93,6 +93,11 @@ int32 main(int32 argc, char** argv) {
 	try {
 		_gAmqpListenerWorker.CreateInstance();
 
+		const uint32 maxStrLen = 4096;
+		if ((argc < 1) || (NULL == argv) || (NULL == argv[0]) || (::strnlen(argv[0], maxStrLen) >= maxStrLen)) {
+			CAF_CM_EXCEPTION_VA0(E_INVALIDARG, "argc/argv are invalid");
+		}
+
 #ifdef WIN32
 		CWinService::initialize(_gAmqpListenerWorker);
 		CWinService::execute(argc, argv);

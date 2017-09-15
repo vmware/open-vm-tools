@@ -13,13 +13,10 @@
 namespace Caf {
 
 /// A simple container for objects of type PayloadEnvelope
-class CPayloadEnvelopeDoc {
+class PAYLOADENVELOPEDOC_LINKAGE CPayloadEnvelopeDoc {
 public:
-	CPayloadEnvelopeDoc() :
-		_clientId(CAFCOMMON_GUID_NULL),
-		_requestId(CAFCOMMON_GUID_NULL),
-		_isInitialized(false) {}
-	virtual ~CPayloadEnvelopeDoc() {}
+	CPayloadEnvelopeDoc();
+	virtual ~CPayloadEnvelopeDoc();
 
 public:
 	/// Initializes the object with everything required by this
@@ -34,67 +31,35 @@ public:
 		const SmartPtrCAttachmentCollectionDoc& attachmentCollection,
 		const SmartPtrCProtocolCollectionDoc& protocolCollection = SmartPtrCProtocolCollectionDoc(),
 		const SmartPtrCPropertyCollectionDoc& headerCollection = SmartPtrCPropertyCollectionDoc(),
-		const std::string version = "1.0") {
-		if (! _isInitialized) {
-			_clientId = clientId;
-			_requestId = requestId;
-			_pmeId = pmeId;
-			_payloadType = payloadType;
-			_payloadVersion = payloadVersion;
-			_attachmentCollection = attachmentCollection;
-			_protocolCollection = protocolCollection;
-			_headerCollection = headerCollection;
-			_version = version;
-
-			_isInitialized = true;
-		}
-	}
+		const std::string version = "1.0");
 
 public:
 	/// Accessor for the ClientId
-	UUID getClientId() const {
-		return _clientId;
-	}
+	UUID getClientId() const;
 
 	/// Accessor for the RequestId
-	UUID getRequestId() const {
-		return _requestId;
-	}
+	UUID getRequestId() const;
 
 	/// Accessor for the PmeId
-	std::string getPmeId() const {
-		return _pmeId;
-	}
+	std::string getPmeId() const;
 
 	/// Accessor for the PayloadType
-	std::string getPayloadType() const {
-		return _payloadType;
-	}
+	std::string getPayloadType() const;
 
 	/// Accessor for the PayloadVersion
-	std::string getPayloadVersion() const {
-		return _payloadVersion;
-	}
+	std::string getPayloadVersion() const;
 
 	/// Accessor for the Protocol Collection
-	SmartPtrCProtocolCollectionDoc getProtocolCollection() const {
-		return _protocolCollection;
-	}
+	SmartPtrCProtocolCollectionDoc getProtocolCollection() const;
 
 	/// Accessor for the AttachmentCollection
-	SmartPtrCAttachmentCollectionDoc getAttachmentCollection() const {
-		return _attachmentCollection;
-	}
+	SmartPtrCAttachmentCollectionDoc getAttachmentCollection() const;
 
 	/// Accessor for the Headers
-	SmartPtrCPropertyCollectionDoc getHeaderCollection() const {
-		return _headerCollection;
-	}
+	SmartPtrCPropertyCollectionDoc getHeaderCollection() const;
 
 	/// Accessor for the version
-	std::string getVersion() const {
-		return _version;
-	}
+	std::string getVersion() const;
 
 private:
 	UUID _clientId;

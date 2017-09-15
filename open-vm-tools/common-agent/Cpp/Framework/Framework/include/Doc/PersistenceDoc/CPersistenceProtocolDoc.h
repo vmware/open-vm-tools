@@ -13,11 +13,10 @@
 namespace Caf {
 
 /// A simple container for objects of type CPersistenceProtocolDoc
-class CPersistenceProtocolDoc {
+class PERSISTENCEDOC_LINKAGE CPersistenceProtocolDoc {
 public:
-	CPersistenceProtocolDoc() :
-		_isInitialized(false) {}
-	virtual ~CPersistenceProtocolDoc() {}
+	CPersistenceProtocolDoc();
+	virtual ~CPersistenceProtocolDoc();
 
 public:
 	/// Initializes the object with everything required by this
@@ -35,86 +34,44 @@ public:
 			const std::string& uriAmqpPath = std::string(),
 			const std::string& uriTunnelPath = std::string(),
 			const std::string& tlsCertPath = std::string(),
-			const SmartPtrCCertPathCollectionDoc& tlsCertPathCollection = SmartPtrCCertPathCollectionDoc()) {
-		if (! _isInitialized) {
-			_protocolName = protocolName;
-			_uri = uri;
-			_uriAmqp = uriAmqp;
-			_uriTunnel = uriTunnel;
-			_tlsCert = tlsCert;
-			_tlsProtocol = tlsProtocol;
-			_tlsCipherCollection = tlsCipherCollection;
-			_tlsCertCollection = tlsCertCollection;
-
-			_uriAmqpPath = uriAmqpPath;
-			_uriTunnelPath = uriTunnelPath;
-			_tlsCertPath = tlsCertPath;
-			_tlsCertPathCollection = tlsCertPathCollection;
-
-			_isInitialized = true;
-		}
-	}
+			const SmartPtrCCertPathCollectionDoc& tlsCertPathCollection = SmartPtrCCertPathCollectionDoc());
 
 public:
 	/// Accessor for the ProtocolName
-	std::string getProtocolName() const {
-		return _protocolName;
-	}
+	std::string getProtocolName() const;
 
 	/// Accessor for the Uri
-	std::string getUri() const {
-		return _uri;
-	}
+	std::string getUri() const;
 
 	/// Accessor for the UriAmqp
-	std::string getUriAmqp() const {
-		return _uriAmqp;
-	}
+	std::string getUriAmqp() const;
 
 	/// Accessor for the UriTunnel
-	std::string getUriTunnel() const {
-		return _uriTunnel;
-	}
+	std::string getUriTunnel() const;
 
 	/// Accessor for the TlsCert
-	std::string getTlsCert() const {
-		return _tlsCert;
-	}
+	std::string getTlsCert() const;
 
 	/// Accessor for the TlsProtocol
-	std::string getTlsProtocol() const {
-		return _tlsProtocol;
-	}
+	std::string getTlsProtocol() const;
 
 	/// Accessor for the tlsCipherCollection
-	Cdeqstr getTlsCipherCollection() const {
-		return _tlsCipherCollection;
-	}
+	Cdeqstr getTlsCipherCollection() const;
 
 	/// Accessor for the TlsCertCollection
-	SmartPtrCCertCollectionDoc getTlsCertCollection() const {
-		return _tlsCertCollection;
-	}
+	SmartPtrCCertCollectionDoc getTlsCertCollection() const;
 
 	/// Accessor for the UriAmqpPath
-	std::string getUriAmqpPath() const {
-		return _uriAmqpPath;
-	}
+	std::string getUriAmqpPath() const;
 
 	/// Accessor for the UriTunnelPath
-	std::string getUriTunnelPath() const {
-		return _uriTunnelPath;
-	}
+	std::string getUriTunnelPath() const;
 
 	/// Accessor for the TlsCertPath
-	std::string getTlsCertPath() const {
-		return _tlsCertPath;
-	}
+	std::string getTlsCertPath() const;
 
 	/// Accessor for the TlsCertPathCollection
-	SmartPtrCCertPathCollectionDoc getTlsCertPathCollection() const {
-		return _tlsCertPathCollection;
-	}
+	SmartPtrCCertPathCollectionDoc getTlsCertPathCollection() const;
 
 private:
 	std::string _protocolName;

@@ -9,19 +9,19 @@
 #ifndef DocContracts_h_
 #define DocContracts_h_
 
-#include "Doc/CafCoreTypesDoc/CafCoreTypesDocInc.h"
-#include "Doc/SchemaTypesDoc/SchemaTypesDocInc.h"
-#include "Doc/DiagTypesDoc/DiagTypesDocInc.h"
-#include "Doc/DiagRequestDoc/DiagRequestDocInc.h"
-#include "Doc/MgmtTypesDoc/MgmtTypesDocInc.h"
-#include "Doc/MgmtRequestDoc/MgmtRequestDocInc.h"
-#include "Doc/PayloadEnvelopeDoc/PayloadEnvelopeDocInc.h"
-#include "Doc/PersistenceDoc/PersistenceDocInc.h"
-#include "Doc/ProviderInfraDoc/ProviderInfraDocInc.h"
-#include "Doc/ProviderRequestDoc/ProviderRequestDocInc.h"
-#include "Doc/ProviderResultsDoc/ProviderResultsDocInc.h"
-#include "Doc/ResponseDoc/ResponseDocInc.h"
-#include "Doc/CafInstallRequestDoc/CafInstallRequestDocInc.h"
-#include "Doc/MultiPmeMgmtRequestDoc/MultiPmeMgmtRequestDocInc.h"
+#include "Doc/CafCoreTypesDoc/CafCoreTypesDocLink.h"
+#include "Doc/SchemaTypesDoc/SchemaTypesDocLink.h"
+#include "Doc/DiagTypesDoc/DiagTypesDocLink.h"
+#include "Doc/DiagRequestDoc/DiagRequestDocLink.h"
+#include "Doc/MgmtTypesDoc/MgmtTypesDocLink.h"
+#include "Doc/MgmtRequestDoc/MgmtRequestDocLink.h"
+#include "Doc/PayloadEnvelopeDoc/PayloadEnvelopeDocLink.h"
+#include "Doc/PersistenceDoc/PersistenceDocLink.h"
+#include "Doc/ProviderInfraDoc/ProviderInfraDocLink.h"
+#include "Doc/ProviderRequestDoc/ProviderRequestDocLink.h"
+#include "Doc/ProviderResultsDoc/ProviderResultsDocLink.h"
+#include "Doc/ResponseDoc/ResponseDocLink.h"
+#include "Doc/CafInstallRequestDoc/CafInstallRequestDocLink.h"
+#include "Doc/MultiPmeMgmtRequestDoc/MultiPmeMgmtRequestDocLink.h"
 
 #endif

@@ -13,11 +13,10 @@
 namespace Caf {
 
 /// A simple container for objects of type CRemoteSecurityDoc
-class CRemoteSecurityDoc {
+class PERSISTENCEDOC_LINKAGE CRemoteSecurityDoc {
 public:
-	CRemoteSecurityDoc() :
-		_isInitialized(false) {}
-	virtual ~CRemoteSecurityDoc() {}
+	CRemoteSecurityDoc();
+	virtual ~CRemoteSecurityDoc();
 
 public:
 	/// Initializes the object with everything required by this
@@ -30,56 +29,29 @@ public:
 		const std::string& cmsCipherName = std::string(),
 		const SmartPtrCCertCollectionDoc& cmsCertCollection = SmartPtrCCertCollectionDoc(),
 		const std::string& cmsCertPath = std::string(),
-		const SmartPtrCCertPathCollectionDoc& cmsCertPathCollection = SmartPtrCCertPathCollectionDoc()) {
-		if (! _isInitialized) {
-			_remoteId = remoteId;
-			_protocolName = protocolName;
-			_cmsCert = cmsCert;
-			_cmsCipherName = cmsCipherName;
-			_cmsCertCollection = cmsCertCollection;
-
-			_cmsCertPath = cmsCertPath;
-			_cmsCertPathCollection = cmsCertPathCollection;
-
-			_isInitialized = true;
-		}
-	}
+		const SmartPtrCCertPathCollectionDoc& cmsCertPathCollection = SmartPtrCCertPathCollectionDoc());
 
 public:
 	/// Accessor for the RemoteId
-	std::string getRemoteId() const {
-		return _remoteId;
-	}
+	std::string getRemoteId() const;
 
 	/// Accessor for the ProtocolName
-	std::string getProtocolName() const {
-		return _protocolName;
-	}
+	std::string getProtocolName() const;
 
 	/// Accessor for the cmsCert
-	std::string getCmsCert() const {
-		return _cmsCert;
-	}
+	std::string getCmsCert() const;
 
 	/// Accessor for the CmsCipher
-	std::string getCmsCipherName() const {
-		return _cmsCipherName;
-	}
+	std::string getCmsCipherName() const;
 
 	/// Accessor for the CertCollection
-	SmartPtrCCertCollectionDoc getCmsCertCollection() const {
-		return _cmsCertCollection;
-	}
+	SmartPtrCCertCollectionDoc getCmsCertCollection() const;
 
 	/// Accessor for the cmsCertPath
-	std::string getCmsCertPath() const {
-		return _cmsCertPath;
-	}
+	std::string getCmsCertPath() const;
 
 	/// Accessor for the CertPathCollection
-	SmartPtrCCertPathCollectionDoc getCmsCertPathCollection() const {
-		return _cmsCertPathCollection;
-	}
+	SmartPtrCCertPathCollectionDoc getCmsCertPathCollection() const;
 
 private:
 	std::string _remoteId;

@@ -13,12 +13,10 @@
 namespace Caf {
 
 /// A simple container for objects of type AuthnAuthz
-class CAuthnAuthzDoc {
+class CAFCORETYPESDOC_LINKAGE CAuthnAuthzDoc {
 public:
-	CAuthnAuthzDoc() :
-		_isInitialized(false),
-		_sequenceNumber(0) {}
-	virtual ~CAuthnAuthzDoc() {}
+	CAuthnAuthzDoc();
+	virtual ~CAuthnAuthzDoc();
 
 public:
 	/// Initializes the object with everything required by this
@@ -28,37 +26,20 @@ public:
 		const std::string type,
 		const std::string value,
 		const std::string name = std::string(),
-		const int32 sequenceNumber = 0) {
-		if (! _isInitialized) {
-			_type = type;
-			_value = value;
-			_name = name;
-			_sequenceNumber = sequenceNumber;
-
-			_isInitialized = true;
-		}
-	}
+		const int32 sequenceNumber = 0);
 
 public:
 	/// Accessor for the Type
-	std::string getType() const {
-		return _type;
-	}
+	std::string getType() const;
 
 	/// Accessor for the Value
-	std::string getValue() const {
-		return _value;
-	}
+	std::string getValue() const;
 
 	/// Accessor for the Name
-	std::string getName() const {
-		return _name;
-	}
+	std::string getName() const;
 
 	/// Accessor for the SequenceNumber
-	int32 getSequenceNumber() const {
-		return _sequenceNumber;
-	}
+	int32 getSequenceNumber() const;
 
 private:
 	bool _isInitialized;

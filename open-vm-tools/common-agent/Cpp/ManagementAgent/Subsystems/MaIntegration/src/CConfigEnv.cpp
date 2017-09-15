@@ -76,6 +76,9 @@ SmartPtrCPersistenceDoc CConfigEnv::getUpdated(
 	if (FileSystemUtils::doesFileExist(_listenerConfiguredStage1Path)) {
 		if (_persistence.IsNull()) {
 			_persistence = CPersistenceUtils::loadPersistence(_persistenceDir);
+			if (FileSystemUtils::doesFileExist(_listenerConfiguredStage2Path)) {
+				_persistenceUpdated = _persistence;
+			}
 		}
 
 		const SmartPtrCPersistenceDoc persistenceTmp =

@@ -13,13 +13,10 @@
 namespace Caf {
 
 /// A simple container for objects of type Attachment
-class CAttachmentDoc {
+class CAFCORETYPESDOC_LINKAGE CAttachmentDoc {
 public:
-	CAttachmentDoc() :
-		_isInitialized(false),
-		_isReference(false),
-		_cmsPolicy(CMS_POLICY_CAF_ENCRYPTED_AND_SIGNED) {}
-	virtual ~CAttachmentDoc() {}
+	CAttachmentDoc();
+	virtual ~CAttachmentDoc();
 
 public:
 	/// Initializes the object with everything required by this
@@ -30,43 +27,23 @@ public:
 		const std::string type,
 		const std::string uri,
 		const bool isReference,
-		const CMS_POLICY cmsPolicy = CMS_POLICY_CAF_ENCRYPTED_AND_SIGNED) {
-		if (! _isInitialized) {
-			_name = name;
-			_type = type;
-			_uri = uri;
-			_isReference = isReference;
-			_cmsPolicy = cmsPolicy;
-
-			_isInitialized = true;
-		}
-	}
+		const CMS_POLICY cmsPolicy = CMS_POLICY_CAF_ENCRYPTED_AND_SIGNED);
 
 public:
 	/// Accessor for the Name
-	std::string getName() const {
-		return _name;
-	}
+	std::string getName() const;
 
 	/// Accessor for the Type
-	std::string getType() const {
-		return _type;
-	}
+	std::string getType() const;
 
 	/// Accessor for the Uri
-	std::string getUri() const {
-		return _uri;
-	}
+	std::string getUri() const;
 
 	/// Accessor for the IsReference
-	bool getIsReference() const {
-		return _isReference;
-	}
+	bool getIsReference() const;
 
 	/// Accessor for the CMS Policy
-	CMS_POLICY getCmsPolicy() const {
-		return _cmsPolicy;
-	}
+	CMS_POLICY getCmsPolicy() const;
 
 private:
 	bool _isInitialized;

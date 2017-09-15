@@ -13,11 +13,10 @@
 namespace Caf {
 
 /// A simple container for objects of type PersistenceEnvelope
-class CPersistenceDoc {
+class PERSISTENCEDOC_LINKAGE CPersistenceDoc {
 public:
-	CPersistenceDoc() :
-		_isInitialized(false) {}
-	virtual ~CPersistenceDoc() {}
+	CPersistenceDoc();
+	virtual ~CPersistenceDoc();
 
 public:
 	/// Initializes the object with everything required by this
@@ -27,37 +26,20 @@ public:
 		const SmartPtrCLocalSecurityDoc& localSecurity = SmartPtrCLocalSecurityDoc(),
 		const SmartPtrCRemoteSecurityCollectionDoc& remoteSecurityCollection = SmartPtrCRemoteSecurityCollectionDoc(),
 		const SmartPtrCPersistenceProtocolCollectionDoc& persistenceProtocolCollection = SmartPtrCPersistenceProtocolCollectionDoc(),
-		const std::string version = "1.0") {
-		if (! _isInitialized) {
-			_localSecurity = localSecurity;
-			_remoteSecurityCollection = remoteSecurityCollection;
-			_persistenceProtocolCollection = persistenceProtocolCollection;
-			_version = version;
-
-			_isInitialized = true;
-		}
-	}
+		const std::string version = "1.0");
 
 public:
 	/// Accessor for the LocalSecurity
-	SmartPtrCLocalSecurityDoc getLocalSecurity() const {
-		return _localSecurity;
-	}
+	SmartPtrCLocalSecurityDoc getLocalSecurity() const;
 
 	/// Accessor for the Protocol Collection
-	SmartPtrCRemoteSecurityCollectionDoc getRemoteSecurityCollection() const {
-		return _remoteSecurityCollection;
-	}
+	SmartPtrCRemoteSecurityCollectionDoc getRemoteSecurityCollection() const;
 
 	/// Accessor for the PersistenceProtocol
-	SmartPtrCPersistenceProtocolCollectionDoc getPersistenceProtocolCollection() const {
-		return _persistenceProtocolCollection;
-	}
+	SmartPtrCPersistenceProtocolCollectionDoc getPersistenceProtocolCollection() const;
 
 	/// Accessor for the version
-	std::string getVersion() const {
-		return _version;
-	}
+	std::string getVersion() const;
 
 private:
 	SmartPtrCLocalSecurityDoc _localSecurity;

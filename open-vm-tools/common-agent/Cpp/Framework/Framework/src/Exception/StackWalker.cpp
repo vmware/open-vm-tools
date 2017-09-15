@@ -331,23 +331,25 @@ public:
         }
 #endif
         // If still not found, try the old directories...
-        if ( (m_hDbhHelp == NULL) && (GetEnvironmentVariable(_T("ProgramFiles"), dbghelpFile, 4096) > 0) )
+        TCHAR dbghelpFile2[4096];
+        if ( (m_hDbhHelp == NULL) && (GetEnvironmentVariable(_T("ProgramFiles"), dbghelpFile2, 4096) > 0) )
         {
-          _tcscat_s(dbghelpFile, _T("\\Debugging Tools for Windows\\dbghelp.dll"));
+          _tcscat_s(dbghelpFile2, _T("\\Debugging Tools for Windows\\dbghelp.dll"));
           // now check if the file exists:
-          if (GetFileAttributes(dbghelpFile) != INVALID_FILE_ATTRIBUTES)
+          if (GetFileAttributes(dbghelpFile2) != INVALID_FILE_ATTRIBUTES)
           {
-            m_hDbhHelp = LoadLibrary(dbghelpFile);
+            m_hDbhHelp = LoadLibrary(dbghelpFile2);
           }
         }
 #if defined _M_X64 || defined _M_IA64
+        TCHAR dbghelpFile3[4096];
         // Still not found? Then try to load the (old) 64-Bit version:
-        if ( (m_hDbhHelp == NULL) && (GetEnvironmentVariable(_T("ProgramFiles"), dbghelpFile, 4096) > 0) )
+        if ( (m_hDbhHelp == NULL) && (GetEnvironmentVariable(_T("ProgramFiles"), dbghelpFile3, 4096) > 0) )
         {
-          _tcscat_s(dbghelpFile, _T("\\Debugging Tools for Windows 64-Bit\\dbghelp.dll"));
-          if (GetFileAttributes(dbghelpFile) != INVALID_FILE_ATTRIBUTES)
+          _tcscat_s(dbghelpFile3, _T("\\Debugging Tools for Windows 64-Bit\\dbghelp.dll"));
+          if (GetFileAttributes(dbghelpFile3) != INVALID_FILE_ATTRIBUTES)
           {
-            m_hDbhHelp = LoadLibrary(dbghelpFile);
+            m_hDbhHelp = LoadLibrary(dbghelpFile3);
           }
         }
 #endif
