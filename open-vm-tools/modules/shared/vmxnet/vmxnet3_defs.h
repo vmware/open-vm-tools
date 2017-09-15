@@ -893,12 +893,12 @@ do {\
 } while (0)
 
 #define VMXNET3_SET_VFTABLE_ENTRY(vfTable, vid) \
-   vfTable[vid >> 5] |= (1 << (vid & 31))
+   (vfTable)[(vid) >> 5] |= (1 << ((vid) & 31))
 #define VMXNET3_CLEAR_VFTABLE_ENTRY(vfTable, vid) \
-   vfTable[vid >> 5] &= ~(1 << (vid & 31))
+   (vfTable)[(vid) >> 5] &= ~(1 << ((vid) & 31))
 
 #define VMXNET3_VFTABLE_ENTRY_IS_SET(vfTable, vid) \
-   ((vfTable[(vid) >> 5] & (1 << ((vid) & 31))) != 0)
+   (((vfTable)[(vid) >> 5] & (1 << ((vid) & 31))) != 0)
 
 #define VMXNET3_MAX_MTU     9000
 #define VMXNET3_MIN_MTU     60
