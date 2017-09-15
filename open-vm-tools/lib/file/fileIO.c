@@ -796,7 +796,7 @@ bail:
 /*
  *-----------------------------------------------------------------------------
  *
- * FileIO_AtomicUpdate --
+ * FileIO_AtomicUpdateEx --
  *
  *      On ESX when the target files reside on vmfs, exchanges the contents
  *      of two files using code modeled from VmkfsLib_SwapFiles.  Both "curr"
@@ -805,11 +805,19 @@ bail:
  *      On hosted products, uses rename to swap files, so "new" becomes "curr",
  *      and path to "new" no longer exists on success.
  *
+ *      On ESX on NFS:
+ *
+ *      If renameOnNFS is TRUE, use rename, like on hosted.
+ *
+ *      If renameOnNFS is FALSE, returns -1 rather than trying to use
+ *      rename, to avoid various bugs in the vmkernel client... (PR
+ *      839283, PR 1671787, etc).
+ *
  *      On success the caller must call FileIO_IsValid on newFD to verify it
  *      is still open before using it again.
  *
  * Results:
- *      TRUE if successful, FALSE otherwise
+ *      1 if successful, 0 on failure, -1 if not supported on this filesystem.
  *      errno is preserved.
  *
  * Side effects:
@@ -818,9 +826,10 @@ bail:
  *-----------------------------------------------------------------------------
  */
 
-Bool
-FileIO_AtomicUpdate(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
-                    FileIODescriptor *currFD)  // IN/OUT: file IO descriptor
+int
+FileIO_AtomicUpdateEx(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
+                      FileIODescriptor *currFD,  // IN/OUT: file IO descriptor
+                      Bool renameOnNFS)          // IN: fall back to rename on NFS
 {
    char *currPath = NULL;
    char *newPath = NULL;
@@ -833,7 +842,7 @@ FileIO_AtomicUpdate(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
    int fd;
 #endif
    int savedErrno = 0;
-   Bool ret = FALSE;
+   int ret = 0;
 
    ASSERT(FileIO_IsValid(newFD));
    ASSERT(FileIO_IsValid(currFD));
@@ -880,7 +889,7 @@ FileIO_AtomicUpdate(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
             ASSERT(errno != EBUSY);   /* #615124. */
          }
       } else {
-         ret = TRUE;
+         ret = 1;
       }
 
       /*
@@ -891,31 +900,35 @@ FileIO_AtomicUpdate(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
        * Check for both ENOSYS and ENOTTY. PR 957695
        */
       if (savedErrno == ENOSYS || savedErrno == ENOTTY) {
-         /*
-          * NFS allows renames of locked files, even if both files
-          * are locked.  The file lock follows the file handle, not
-          * the name, so after the rename we can swap the underlying
-          * file descriptors instead of closing and reopening the
-          * target file.
-          *
-          * This is different than the hosted path below because
-          * ESX uses native file locks and hosted does not.
-          *
-          * We assume that all ESX file systems that support rename
-          * have the same file lock semantics as NFS.
-          */
+         if (renameOnNFS) {
+            /*
+             * NFS allows renames of locked files, even if both files
+             * are locked.  The file lock follows the file handle, not
+             * the name, so after the rename we can swap the underlying
+             * file descriptors instead of closing and reopening the
+             * target file.
+             *
+             * This is different than the hosted path below because
+             * ESX uses native file locks and hosted does not.
+             *
+             * We assume that all ESX file systems that support rename
+             * have the same file lock semantics as NFS.
+             */
 
-         if (File_Rename(newPath, currPath)) {
-            Log("%s: rename of '%s' to '%s' failed %d.\n",
-                __FUNCTION__, newPath, currPath, errno);
-            savedErrno = errno;
-            goto swapdone;
+            if (File_Rename(newPath, currPath)) {
+               Log("%s: rename of '%s' to '%s' failed %d.\n",
+                   __FUNCTION__, newPath, currPath, errno);
+               savedErrno = errno;
+               goto swapdone;
+            }
+            ret = 1;
+            fd = newFD->posix;
+            newFD->posix = currFD->posix;
+            currFD->posix = fd;
+            FileIO_Close(newFD);
+         } else {
+            ret = -1;
          }
-         ret = TRUE;
-         fd = newFD->posix;
-         newFD->posix = currFD->posix;
-         currFD->posix = fd;
-         FileIO_Close(newFD);
       }
 
 swapdone:
@@ -1006,4 +1019,29 @@ swapdone:
 
    return ret;
 #endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * FileIO_AtomicUpdate --
+ *
+ *      Wrapper around FileIO_AtomicUpdateEx that derfaults 'renameOnNFS' to
+ *      TRUE.
+ *
+ * Results:
+ *      TRUE if successful, FALSE otherwise.
+ *
+ * Side effects:
+ *      See FileIO_AtomicUpdateEx.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+FileIO_AtomicUpdate(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
+                    FileIODescriptor *currFD)  // IN/OUT: file IO descriptor
+{
+   return FileIO_AtomicUpdateEx(newFD, currFD, TRUE) == 1;
 }
