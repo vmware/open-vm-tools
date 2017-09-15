@@ -207,11 +207,11 @@ __int64  _InterlockedCompareExchange64(__int64 volatile*, __int64, __int64);
 
 /* Convert a volatile uint32 to Atomic_uint32. */
 static INLINE Atomic_uint32 *
-Atomic_VolatileToAtomic(volatile uint32 *var)  // IN:
+Atomic_VolatileToAtomic32(volatile uint32 *var)  // IN:
 {
    return (Atomic_uint32 *)var;
 }
-#define Atomic_VolatileToAtomic32 Atomic_VolatileToAtomic
+#define Atomic_VolatileToAtomic Atomic_VolatileToAtomic32
 
 
 /* Convert a volatile uint64 to Atomic_uint64. */
@@ -894,7 +894,7 @@ Atomic_ReadDec8(Atomic_uint8 *var) // IN/OUT
 /*
  *-----------------------------------------------------------------------------
  *
- * Atomic_Read --
+ * Atomic_Read32 --
  *
  *      Read
  *
@@ -908,7 +908,7 @@ Atomic_ReadDec8(Atomic_uint8 *var) // IN/OUT
  */
 
 static INLINE uint32
-Atomic_Read(Atomic_uint32 const *var) // IN
+Atomic_Read32(Atomic_uint32 const *var) // IN
 {
    uint32 value;
 
@@ -952,13 +952,13 @@ Atomic_Read(Atomic_uint32 const *var) // IN
 
    return value;
 }
-#define Atomic_Read32 Atomic_Read
+#define Atomic_Read Atomic_Read32
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * Atomic_ReadWrite --
+ * Atomic_ReadWrite32 --
  *
  *      Read followed by write
  *
@@ -972,8 +972,8 @@ Atomic_Read(Atomic_uint32 const *var) // IN
  */
 
 static INLINE uint32
-Atomic_ReadWrite(Atomic_uint32 *var, // IN/OUT
-                 uint32 val)         // IN
+Atomic_ReadWrite32(Atomic_uint32 *var, // IN/OUT
+                   uint32 val)         // IN
 {
 #if defined __GNUC__
 #ifdef VM_ARM_V7
@@ -1025,13 +1025,13 @@ Atomic_ReadWrite(Atomic_uint32 *var, // IN/OUT
 #error No compiler defined for Atomic_ReadWrite
 #endif // __GNUC__
 }
-#define Atomic_ReadWrite32 Atomic_ReadWrite
+#define Atomic_ReadWrite Atomic_ReadWrite32
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * Atomic_Write --
+ * Atomic_Write32 --
  *
  *      Write
  *
@@ -1045,8 +1045,8 @@ Atomic_ReadWrite(Atomic_uint32 *var, // IN/OUT
  */
 
 static INLINE void
-Atomic_Write(Atomic_uint32 *var, // OUT
-             uint32 val)         // IN
+Atomic_Write32(Atomic_uint32 *var, // OUT
+               uint32 val)         // IN
 {
 #if defined VMM || defined VM_ARM_64
    ASSERT(((uintptr_t)var % 4) == 0);
@@ -1081,7 +1081,7 @@ Atomic_Write(Atomic_uint32 *var, // OUT
     * - it is not necessary for every LDREX to have a subsequent STREX.
     */
 
-   Atomic_ReadWrite(var, val);
+   Atomic_ReadWrite32(var, val);
 #else
    /*
     * Use inline assembler to force using a single store instruction to
@@ -1107,13 +1107,13 @@ Atomic_Write(Atomic_uint32 *var, // OUT
 #error No compiler defined for Atomic_Write
 #endif
 }
-#define Atomic_Write32 Atomic_Write
+#define Atomic_Write Atomic_Write32
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * Atomic_ReadIfEqualWrite --
+ * Atomic_ReadIfEqualWrite32 --
  *
  *      Compare exchange: Read variable, if equal to oldVal, write newVal
  *
@@ -1127,9 +1127,9 @@ Atomic_Write(Atomic_uint32 *var, // OUT
  */
 
 static INLINE uint32
-Atomic_ReadIfEqualWrite(Atomic_uint32 *var, // IN/OUT
-                        uint32 oldVal,      // IN
-                        uint32 newVal)      // IN
+Atomic_ReadIfEqualWrite32(Atomic_uint32 *var, // IN/OUT
+                          uint32 oldVal,      // IN
+                          uint32 newVal)      // IN
 {
 #if defined __GNUC__
 #ifdef VM_ARM_V7
@@ -1190,7 +1190,7 @@ Atomic_ReadIfEqualWrite(Atomic_uint32 *var, // IN/OUT
 #error No compiler defined for Atomic_ReadIfEqualWrite
 #endif
 }
-#define Atomic_ReadIfEqualWrite32 Atomic_ReadIfEqualWrite
+#define Atomic_ReadIfEqualWrite Atomic_ReadIfEqualWrite32
 
 
 #if defined VM_64BIT || defined VM_ARM_V7
@@ -1288,7 +1288,7 @@ Atomic_ReadIfEqualWrite64(Atomic_uint64 *var, // IN/OUT
 /*
  *-----------------------------------------------------------------------------
  *
- * Atomic_And --
+ * Atomic_And32 --
  *
  *      Atomic read, bitwise AND with a value, write.
  *
@@ -1302,8 +1302,8 @@ Atomic_ReadIfEqualWrite64(Atomic_uint64 *var, // IN/OUT
  */
 
 static INLINE void
-Atomic_And(Atomic_uint32 *var, // IN/OUT
-           uint32 val)         // IN
+Atomic_And32(Atomic_uint32 *var, // IN/OUT
+             uint32 val)         // IN
 {
 #if defined __GNUC__
 #ifdef VM_ARM_V7
@@ -1347,13 +1347,13 @@ Atomic_And(Atomic_uint32 *var, // IN/OUT
 #error No compiler defined for Atomic_And
 #endif
 }
-#define Atomic_And32 Atomic_And
+#define Atomic_And Atomic_And32
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * Atomic_Or --
+ * Atomic_Or32 --
  *
  *      Atomic read, bitwise OR with a value, write.
  *
@@ -1367,8 +1367,8 @@ Atomic_And(Atomic_uint32 *var, // IN/OUT
  */
 
 static INLINE void
-Atomic_Or(Atomic_uint32 *var, // IN/OUT
-          uint32 val)         // IN
+Atomic_Or32(Atomic_uint32 *var, // IN/OUT
+            uint32 val)         // IN
 {
 #if defined __GNUC__
 #ifdef VM_ARM_V7
@@ -1412,13 +1412,13 @@ Atomic_Or(Atomic_uint32 *var, // IN/OUT
 #error No compiler defined for Atomic_Or
 #endif
 }
-#define Atomic_Or32 Atomic_Or
+#define Atomic_Or Atomic_Or32
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * Atomic_Xor --
+ * Atomic_Xor32 --
  *
  *      Atomic read, bitwise XOR with a value, write.
  *
@@ -1432,8 +1432,8 @@ Atomic_Or(Atomic_uint32 *var, // IN/OUT
  */
 
 static INLINE void
-Atomic_Xor(Atomic_uint32 *var, // IN/OUT
-           uint32 val)         // IN
+Atomic_Xor32(Atomic_uint32 *var, // IN/OUT
+             uint32 val)         // IN
 {
 #if defined __GNUC__
 #ifdef VM_ARM_V7
@@ -1477,7 +1477,7 @@ Atomic_Xor(Atomic_uint32 *var, // IN/OUT
 #error No compiler defined for Atomic_Xor
 #endif
 }
-#define Atomic_Xor32 Atomic_Xor
+#define Atomic_Xor Atomic_Xor32
 
 
 #if defined VM_64BIT
@@ -1525,7 +1525,7 @@ Atomic_Xor64(Atomic_uint64 *var, // IN/OUT
 /*
  *-----------------------------------------------------------------------------
  *
- * Atomic_Add --
+ * Atomic_Add32 --
  *
  *      Atomic read, add a value, write.
  *
@@ -1539,8 +1539,8 @@ Atomic_Xor64(Atomic_uint64 *var, // IN/OUT
  */
 
 static INLINE void
-Atomic_Add(Atomic_uint32 *var, // IN/OUT
-           uint32 val)         // IN
+Atomic_Add32(Atomic_uint32 *var, // IN/OUT
+             uint32 val)         // IN
 {
 #if defined __GNUC__
 #ifdef VM_ARM_V7
@@ -1584,13 +1584,13 @@ Atomic_Add(Atomic_uint32 *var, // IN/OUT
 #error No compiler defined for Atomic_Add
 #endif
 }
-#define Atomic_Add32 Atomic_Add
+#define Atomic_Add Atomic_Add32
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * Atomic_Sub --
+ * Atomic_Sub32 --
  *
  *      Atomic read, subtract a value, write.
  *
@@ -1604,8 +1604,8 @@ Atomic_Add(Atomic_uint32 *var, // IN/OUT
  */
 
 static INLINE void
-Atomic_Sub(Atomic_uint32 *var, // IN/OUT
-           uint32 val)         // IN
+Atomic_Sub32(Atomic_uint32 *var, // IN/OUT
+             uint32 val)         // IN
 {
 #if defined __GNUC__
 #ifdef VM_ARM_V7
@@ -1649,13 +1649,13 @@ Atomic_Sub(Atomic_uint32 *var, // IN/OUT
 #error No compiler defined for Atomic_Sub
 #endif
 }
-#define Atomic_Sub32 Atomic_Sub
+#define Atomic_Sub Atomic_Sub32
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * Atomic_Inc --
+ * Atomic_Inc32 --
  *
  *      Atomic read, increment, write.
  *
@@ -1669,11 +1669,11 @@ Atomic_Sub(Atomic_uint32 *var, // IN/OUT
  */
 
 static INLINE void
-Atomic_Inc(Atomic_uint32 *var) // IN/OUT
+Atomic_Inc32(Atomic_uint32 *var) // IN/OUT
 {
 #ifdef __GNUC__
 #if defined VM_ARM_ANY
-   Atomic_Add(var, 1);
+   Atomic_Add32(var, 1);
 #else /* VM_X86_ANY */
    /* Checked against the Intel manual and GCC --walken */
    __asm__ __volatile__(
@@ -1694,13 +1694,13 @@ Atomic_Inc(Atomic_uint32 *var) // IN/OUT
 #error No compiler defined for Atomic_Inc
 #endif
 }
-#define Atomic_Inc32 Atomic_Inc
+#define Atomic_Inc Atomic_Inc32
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * Atomic_Dec --
+ * Atomic_Dec32 --
  *
  *      Atomic read, decrement, write.
  *
@@ -1714,11 +1714,11 @@ Atomic_Inc(Atomic_uint32 *var) // IN/OUT
  */
 
 static INLINE void
-Atomic_Dec(Atomic_uint32 *var) // IN/OUT
+Atomic_Dec32(Atomic_uint32 *var) // IN/OUT
 {
 #ifdef __GNUC__
 #if defined VM_ARM_ANY
-   Atomic_Sub(var, 1);
+   Atomic_Sub32(var, 1);
 #else /* VM_X86_ANY */
    /* Checked against the Intel manual and GCC --walken */
    __asm__ __volatile__(
@@ -1739,7 +1739,7 @@ Atomic_Dec(Atomic_uint32 *var) // IN/OUT
 #error No compiler defined for Atomic_Dec
 #endif
 }
-#define Atomic_Dec32 Atomic_Dec
+#define Atomic_Dec Atomic_Dec32
 
 
 /*
@@ -1774,8 +1774,8 @@ Atomic_ReadOr32(Atomic_uint32 *var, // IN/OUT
    res = _VMATOM_X(ROP, 32, TRUE, &var->value, orr, val);
 #else
    do {
-      res = Atomic_Read(var);
-   } while (res != Atomic_ReadIfEqualWrite(var, res, res | val));
+      res = Atomic_Read32(var);
+   } while (res != Atomic_ReadIfEqualWrite32(var, res, res | val));
 #endif
 
    return res;
@@ -1808,8 +1808,8 @@ Atomic_ReadAnd32(Atomic_uint32 *var, // IN/OUT
    res = _VMATOM_X(ROP, 32, TRUE, &var->value, and, val);
 #else
    do {
-      res = Atomic_Read(var);
-   } while (res != Atomic_ReadIfEqualWrite(var, res, res & val));
+      res = Atomic_Read32(var);
+   } while (res != Atomic_ReadIfEqualWrite32(var, res, res & val));
 #endif
 
    return res;
@@ -2214,7 +2214,7 @@ Atomic_CMPXCHG32(Atomic_uint32 *var,   // IN/OUT
 {
 #if defined __GNUC__
 #if defined VM_ARM_ANY
-   return Atomic_ReadIfEqualWrite(var, oldVal, newVal) == oldVal;
+   return Atomic_ReadIfEqualWrite32(var, oldVal, newVal) == oldVal;
 #else /* VM_X86_ANY */
    Bool equal;
    uint32 dummy;
@@ -2232,7 +2232,7 @@ Atomic_CMPXCHG32(Atomic_uint32 *var,   // IN/OUT
    return equal;
 #endif /* VM_X86_ANY */
 #else // defined __GNUC__
-   return Atomic_ReadIfEqualWrite(var, oldVal, newVal) == oldVal;
+   return Atomic_ReadIfEqualWrite32(var, oldVal, newVal) == oldVal;
 #endif // !defined __GNUC__
 }
 
@@ -3987,7 +3987,7 @@ Atomic_MFence(void)
 {
    Atomic_uint32 fence;
    ATOMIC_COMPILER_BARRIER();
-   Atomic_Xor(&fence, 0x1);
+   Atomic_Xor32(&fence, 0x1);
    ATOMIC_COMPILER_BARRIER();
 }
 
