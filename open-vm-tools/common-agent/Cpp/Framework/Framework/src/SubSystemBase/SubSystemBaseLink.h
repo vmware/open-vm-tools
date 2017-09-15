@@ -1,8 +1,7 @@
 /*
  *  Created: Nov 21, 2003
  *
- *	Copyright (c) 2003-2011 Vmware, Inc.  All rights reserved.
- *	-- VMware Confidential
+ *	Copyright (C) 2003-2016 VMware, Inc.  All rights reserved. -- VMware Confidential
  */
 
 #ifndef SubSystemBaseLink_h_

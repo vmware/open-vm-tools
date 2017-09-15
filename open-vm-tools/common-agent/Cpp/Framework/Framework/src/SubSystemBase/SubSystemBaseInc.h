@@ -1,8 +1,7 @@
 /*
  *  Created: Mar 11, 2004
  *
- *	Copyright (c) 2004-2011 Vmware, Inc.  All rights reserved.
- *	-- VMware Confidential
+ *	Copyright (C) 2004-2016 VMware, Inc.  All rights reserved. -- VMware Confidential
  */
 
 #ifndef _SubSystemBaseInc_h_

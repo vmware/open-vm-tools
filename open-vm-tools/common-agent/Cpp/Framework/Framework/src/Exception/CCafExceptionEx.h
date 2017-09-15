@@ -2,8 +2,7 @@
  *  Created on: Oct 6, 2011
  *      Author: mdonahue
  *
- *  Copyright (c) 2011 VMware, Inc.  All rights reserved.
- *  -- VMware Confidential
+ *  Copyright (C) 2011-2016 VMware, Inc.  All rights reserved. -- VMware Confidential
  */
 
 #ifndef CCAFEXCEPTIONEX_H_

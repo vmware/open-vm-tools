@@ -2,8 +2,7 @@
  *	 Author: bwilliams
  *  Created: Jan 13, 2011
  *
- *	Copyright (c) 2011 Vmware, Inc.  All rights reserved.
- *	-- VMware Confidential
+ *	Copyright (C) 2011-2016 VMware, Inc.  All rights reserved. -- VMware Confidential
  */
 
 #ifndef LOGGINGLINK_H_

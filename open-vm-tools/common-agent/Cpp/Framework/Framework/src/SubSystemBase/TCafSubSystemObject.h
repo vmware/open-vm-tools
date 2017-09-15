@@ -1,8 +1,7 @@
 /*
  *  Created: Oct 9, 2002
  *
- *	Copyright (c) 2002-2011 Vmware, Inc.  All rights reserved.
- *	-- VMware Confidential
+ *	Copyright (C) 2002-2016 VMware, Inc.  All rights reserved. -- VMware Confidential
  */
 
 #ifndef _TCafSubSystemObject_H_

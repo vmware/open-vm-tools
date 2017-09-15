@@ -1,8 +1,7 @@
 /*
  *  Created: Oct 09, 2002
  *
- *	Copyright (c) 2002-2011 Vmware, Inc.  All rights reserved.
- *	-- VMware Confidential
+ *	Copyright (C) 2002-2016 VMware, Inc.  All rights reserved. -- VMware Confidential
  */
 #ifndef _CEcmSubSystemRegistry_H_
 #define _CEcmSubSystemRegistry_H_

@@ -2,8 +2,7 @@
  *	 Author: bwilliams
  *  Created: Oct 30, 2014
  *
- *	Copyright (c) 2011 Vmware, Inc.  All rights reserved.
- *	-- VMware Confidential
+ *	Copyright (C) 2011-2016 VMware, Inc.  All rights reserved. -- VMware Confidential
  */
 
 #ifndef CBacktraceUtils_H_

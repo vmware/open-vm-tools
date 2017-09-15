@@ -2,8 +2,7 @@
  *  Author: bwilliams
  *  Created: 1/14/2011
  *
- *  Copyright (c) 2009-2011 Vmware, Inc.  All rights reserved.
- *  -- VMware Confidential
+ *  Copyright (C) 2009-2016 VMware, Inc.  All rights reserved. -- VMware Confidential
  */
 
 #ifndef CLogger_h_
