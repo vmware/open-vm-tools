@@ -1081,7 +1081,6 @@ VThreadBase_SetNoIDFunc(void (*hookFunc)(void),       // IN: new hook function
 static void
 VThreadBaseInit(void)
 {
-   Atomic_Init();
    VThreadBaseInitKeys();
 
    /*

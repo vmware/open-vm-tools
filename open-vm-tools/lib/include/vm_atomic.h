@@ -347,135 +347,6 @@ Atomic_VolatileToAtomic64(volatile uint64 *var)  // IN:
    return (Atomic_uint64 *)var;
 }
 
-/*
- *-----------------------------------------------------------------------------
- *
- * Atomic_Init, Atomic_SetFence, AtomicUseFence --
- *
- *      Determine whether an lfence intruction is executed after
- *	every locked instruction.
- *
- *	Certain AMD processors have a bug (see bug 107024) that
- *	requires an lfence after every locked instruction.
- *
- *	The global variable AtomicUseFence controls whether lfence
- *	is used (see AtomicEpilogue).
- *
- *	Atomic_SetFence sets AtomicUseFence to the given value.
- *
- *	Atomic_Init computes and sets AtomicUseFence for x86.
- *	It does not take into account the number of processors.
- *
- *	The rationale for all this complexity is that Atomic_Init
- *	is the easy-to-use interface.  It can be called a number
- *	of times cheaply, and does not depend on other libraries.
- *	However, because the number of CPUs is difficult to compute,
- *	it does without it and always assumes there are more than one.
- *
- *	For programs that care or have special requirements,
- *	Atomic_SetFence can be called directly, in addition to Atomic_Init.
- *	It overrides the effect of Atomic_Init, and can be called
- *	before, after, or between calls to Atomic_Init.
- *
- *-----------------------------------------------------------------------------
- */
-
-// The freebsd assembler doesn't know the lfence instruction
-#if defined(__GNUC__) &&                                                \
-     __GNUC__ >= 3 &&                                                   \
-    (defined(__VMKERNEL__) || !defined(__FreeBSD__)) &&                 \
-    (!defined(MODULE) || defined(__VMKERNEL_MODULE__)) &&               \
-    !defined(__APPLE__) &&                                              \
-    (defined(__i386__) || defined(__x86_64__)) /* PR136775 */
-#define ATOMIC_USE_FENCE
-#endif
-
-/* 
- * Starting with vSphere 2014, we no longer support ESX on AMD Rev F. 
- * Thus, we can eliminate all dynamic checks for whether to enable 
- * the Errata 147 work-around when compiling many of our binaries. 
- * However, we use an opt-in approach here rather than assuming all 
- * parts of our builds are safe. For example, the "fdm" binary from 
- * a new build may time travel back to hosts running older versions 
- * of ESX on Rev F, so "fdm" continues to require the ability to 
- * dynamically enable the errata work-around. With vSphere 2017,
- * this will no longer be required as the oldest version of ESX that 
- * VC 2017 will support is ESX 2014 (which won't run on Rev F).
- *
- * Modules may explicitly define MAY_NEED_AMD_REVF_WORKAROUND as 0 prior to
- * inclusion of vm_atomic.h when they are safe on AMD Rev F with the elided
- * lfence.
- */
-#if !defined(MAY_NEED_AMD_REVF_WORKAROUND)
-#if (!defined(VMX86_SERVER) ||                                          \
-      (!defined(VMX86_VMX) && !defined(VMKERNEL) &&                     \
-       !defined(VMM)       && !defined(VMCORE)))
-#define MAY_NEED_AMD_REVF_WORKAROUND 1
-#else
-#define MAY_NEED_AMD_REVF_WORKAROUND 0
-#endif
-#endif
-
-#if MAY_NEED_AMD_REVF_WORKAROUND
-#if defined(VMATOMIC_IMPORT_DLLDATA)
-VMX86_EXTERN_DATA Bool AtomicUseFence;
-#else
-EXTERN Bool AtomicUseFence;
-#endif
-EXTERN Bool atomicFenceInitialized;
-#else   /* MAY_NEED_AMD_REVF_WORKAROUND */
-#define AtomicUseFence         FALSE
-#define atomicFenceInitialized TRUE
-#endif  /* MAY_NEED_AMD_REVF_WORKAROUND */
-
-
-void AtomicInitFence(void);
-
-static INLINE void
-Atomic_Init(void)
-{
-#ifdef ATOMIC_USE_FENCE
-   if (MAY_NEED_AMD_REVF_WORKAROUND && !atomicFenceInitialized) {
-      AtomicInitFence();
-   }
-#endif
-}
-
-static INLINE void
-Atomic_SetFence(Bool fenceAfterLock)  // IN:
-{
-   (void)fenceAfterLock;     /* Work around unused parameter. */
-#if MAY_NEED_AMD_REVF_WORKAROUND
-   AtomicUseFence = fenceAfterLock;
-   atomicFenceInitialized = TRUE;
-#endif
-}
-
-
-/* Conditionally execute fence after interlocked instruction. */
-static INLINE void
-AtomicEpilogue(void)
-{
-#if MAY_NEED_AMD_REVF_WORKAROUND && defined(ATOMIC_USE_FENCE)
-#ifdef VMM
-      /* The monitor conditionally patches out the lfence when not needed.*/
-      /* Construct a MonitorPatchTextEntry in the .patchtext section. */
-      asm volatile ("1:\n\t"
-                    "lfence\n\t"
-                    "2:\n\t"
-                    ".pushsection .patchtext\n\t"
-                    ".quad 1b\n\t"
-                    ".quad 2b\n\t"
-                    ".quad 0\n\t"
-                    ".popsection\n\t" ::: "memory");
-#else
-      if (UNLIKELY(AtomicUseFence)) {
-         asm volatile ("lfence" ::: "memory");
-      }
-#endif
-#endif
-}
-
 
 /*
  * All the assembly code is tricky and written conservatively.
@@ -676,7 +547,6 @@ Atomic_ReadWriteBool(Atomic_Bool *var,  // IN/OUT:
         "+m" (var->value)
       : "0" (val)
    );
-   AtomicEpilogue();
    return val;
 #elif defined(_MSC_VER) && _MSC_VER >= 1600
    return _InterlockedExchange8(&var->value, val);
@@ -771,7 +641,6 @@ Atomic_ReadIfEqualWriteBool(Atomic_Bool *var,  // IN/OUT:
         "0" (oldVal)
       : "cc"
    );
-   AtomicEpilogue();
    return val;
 #elif defined(_MSC_VER) && _MSC_VER >= 1600
    return _InterlockedCompareExchange8(&var->value, newVal, oldVal);
@@ -927,7 +796,6 @@ Atomic_ReadWrite(Atomic_uint32 *var, // IN/OUT
 	"+m" (var->value)
       : "0" (val)
    );
-   AtomicEpilogue();
    return val;
 #endif /* VM_X86_ANY */
 #elif defined _MSC_VER
@@ -1101,7 +969,6 @@ Atomic_ReadIfEqualWrite(Atomic_uint32 *var, // IN/OUT
 	"0" (oldVal)
       : "cc"
    );
-   AtomicEpilogue();
    return val;
 #endif /* VM_X86_ANY */
 #elif defined _MSC_VER
@@ -1223,7 +1090,6 @@ Atomic_ReadIfEqualWrite64(Atomic_uint64 *var, // IN/OUT
 	"0" (oldVal)
       : "cc"
    );
-   AtomicEpilogue();
    return val;
 #endif //VM_ARM_V7
 #elif defined _MSC_VER
@@ -1286,7 +1152,6 @@ Atomic_And(Atomic_uint32 *var, // IN/OUT
       : "ri" (val)
       : "cc"
    );
-   AtomicEpilogue();
 #endif /* VM_X86_ANY */
 #elif defined _MSC_VER
 #if defined(__x86_64__) || defined(VM_ARM_32)
@@ -1352,7 +1217,6 @@ Atomic_Or(Atomic_uint32 *var, // IN/OUT
       : "ri" (val)
       : "cc"
    );
-   AtomicEpilogue();
 #endif /* VM_X86_ANY */
 #elif defined _MSC_VER
 #if defined(__x86_64__) || defined(VM_ARM_32)
@@ -1418,7 +1282,6 @@ Atomic_Xor(Atomic_uint32 *var, // IN/OUT
       : "ri" (val)
       : "cc"
    );
-   AtomicEpilogue();
 #endif /* VM_X86_ANY */
 #elif defined _MSC_VER
 #if defined(__x86_64__) || defined(VM_ARM_32)
@@ -1467,7 +1330,6 @@ Atomic_Xor64(Atomic_uint64 *var, // IN/OUT
       : "re" (val)
       : "cc"
    );
-   AtomicEpilogue();
 #endif
 #elif defined _MSC_VER
    _InterlockedXor64((__int64 *)&var->value, (__int64)val);
@@ -1527,7 +1389,6 @@ Atomic_Add(Atomic_uint32 *var, // IN/OUT
       : "ri" (val)
       : "cc"
    );
-   AtomicEpilogue();
 #endif /* VM_X86_ANY */
 #elif defined _MSC_VER
 #if _MSC_VER >= 1310
@@ -1593,7 +1454,6 @@ Atomic_Sub(Atomic_uint32 *var, // IN/OUT
       : "ri" (val)
       : "cc"
    );
-   AtomicEpilogue();
 #endif /* VM_X86_ANY */
 #elif defined _MSC_VER
 #if _MSC_VER >= 1310
@@ -1640,7 +1500,6 @@ Atomic_Inc(Atomic_uint32 *var) // IN/OUT
       :
       : "cc"
    );
-   AtomicEpilogue();
 #endif /* VM_X86_ANY */
 #elif defined _MSC_VER
 #if _MSC_VER >= 1310
@@ -1686,7 +1545,6 @@ Atomic_Dec(Atomic_uint32 *var) // IN/OUT
       :
       : "cc"
    );
-   AtomicEpilogue();
 #endif /* VM_X86_ANY */
 #elif defined _MSC_VER
 #if _MSC_VER >= 1310
@@ -1887,7 +1745,6 @@ Atomic_ReadAdd32(Atomic_uint32 *var, // IN/OUT
       : "0" (val)
       : "cc"
    );
-   AtomicEpilogue();
    return val;
 #endif /* VM_X86_ANY */
 #elif defined _MSC_VER
@@ -2105,7 +1962,6 @@ Atomic_CMPXCHG64(Atomic_uint64 *var,   // IN/OUT
    );
 #   endif
 #endif
-   AtomicEpilogue();
    return equal;
 #endif //VM_ARM_V7
 #elif defined _MSC_VER
@@ -2175,7 +2031,6 @@ Atomic_CMPXCHG32(Atomic_uint32 *var,   // IN/OUT
         "2" (oldVal)
       : "cc"
    );
-   AtomicEpilogue();
    return equal;
 #endif /* VM_X86_ANY */
 #else // defined(__GNUC__)
@@ -2237,7 +2092,6 @@ Atomic_Read64(Atomic_uint64 const *var) // IN
       : "m" (*var)
       : "cc"
    );
-   AtomicEpilogue();
    return value;
 #elif defined (_MSC_VER) && defined(__x86_64__)
    /*
@@ -2290,7 +2144,7 @@ Atomic_Read64(Atomic_uint64 const *var) // IN
  *      Atomically read a 64 bit integer, possibly misaligned.
  *      This function can be *very* expensive, costing over 50 kcycles
  *      on Nehalem.
- * 
+ *
  *      Note that "var" needs to be writable, even though it will not
  *      be modified.
  *
@@ -2344,7 +2198,6 @@ Atomic_ReadAdd64(Atomic_uint64 *var, // IN/OUT
       : "0" (val)
       : "cc"
    );
-   AtomicEpilogue();
    return val;
 #elif defined _MSC_VER
    return _InterlockedExchangeAdd64((__int64 *)&var->value, (__int64)val);
@@ -2469,7 +2322,6 @@ Atomic_Add64(Atomic_uint64 *var, // IN/OUT
       : "re" (val)
       : "cc"
    );
-   AtomicEpilogue();
 #endif
 #elif defined _MSC_VER
    _InterlockedExchangeAdd64((__int64 *)&var->value, (__int64)val);
@@ -2512,7 +2364,6 @@ Atomic_Sub64(Atomic_uint64 *var, // IN/OUT
       : "re" (val)
       : "cc"
    );
-   AtomicEpilogue();
 #endif
 #elif defined _MSC_VER
    _InterlockedExchangeAdd64((__int64 *)&var->value, (__int64)-val);
@@ -2551,7 +2402,6 @@ Atomic_Inc64(Atomic_uint64 *var) // IN/OUT
       :
       : "cc"
    );
-   AtomicEpilogue();
 #elif defined _MSC_VER
    _InterlockedIncrement64((__int64 *)&var->value);
 #else
@@ -2589,7 +2439,6 @@ Atomic_Dec64(Atomic_uint64 *var) // IN/OUT
       :
       : "cc"
    );
-   AtomicEpilogue();
 #elif defined _MSC_VER
    _InterlockedDecrement64((__int64 *)&var->value);
 #else
@@ -2627,7 +2476,6 @@ Atomic_ReadWrite64(Atomic_uint64 *var, // IN/OUT
 	"+m" (var->value)
       : "0" (val)
    );
-   AtomicEpilogue();
    return val;
 #elif defined _MSC_VER
    return _InterlockedExchange64((__int64 *)&var->value, (__int64)val);
@@ -2686,7 +2534,7 @@ Atomic_Write64(Atomic_uint64 *var, // OUT
    );
 #elif defined _MSC_VER
    /*
-    * Microsoft docs guarantee "Simple reads and writes to properly aligned 
+    * Microsoft docs guarantee "Simple reads and writes to properly aligned
     * 64-bit variables are atomic on 64-bit Windows."
     * http://msdn.microsoft.com/en-us/library/ms684122%28VS.85%29.aspx
     *
@@ -2732,7 +2580,6 @@ Atomic_Or64(Atomic_uint64 *var, // IN/OUT
       : "re" (val)
       : "cc"
    );
-   AtomicEpilogue();
 #elif defined _MSC_VER
    _InterlockedOr64((__int64 *)&var->value, (__int64)val);
 #else
@@ -2778,7 +2625,6 @@ Atomic_And64(Atomic_uint64 *var, // IN/OUT
       : "re" (val)
       : "cc"
    );
-   AtomicEpilogue();
 #elif defined _MSC_VER
    _InterlockedAnd64((__int64 *)&var->value, (__int64)val);
 #else
@@ -2824,7 +2670,6 @@ Atomic_SetBit64(Atomic_uint64 *var, // IN/OUT
       : "ri" (bit)
       : "cc"
    );
-   AtomicEpilogue();
 #elif defined _MSC_VER
    uint64 oldVal;
    uint64 newVal;
@@ -2877,7 +2722,6 @@ Atomic_ClearBit64(Atomic_uint64 *var, // IN/OUT
       : "ri" (bit)
       : "cc"
    );
-   AtomicEpilogue();
 #elif defined _MSC_VER
    uint64 oldVal;
    uint64 newVal;
@@ -3032,7 +2876,6 @@ Atomic_ReadWrite16(Atomic_uint16 *var,  // IN/OUT:
 	"+m" (var->value)
       : "0" (val)
    );
-   AtomicEpilogue();
    return val;
 #elif defined(VM_ARM_V7)
    register volatile uint16 retVal;
@@ -3152,7 +2995,6 @@ Atomic_ReadIfEqualWrite16(Atomic_uint16 *var,   // IN/OUT
 	"0" (oldVal)
       : "cc"
    );
-   AtomicEpilogue();
    return val;
 #elif defined(VM_ARM_V7)
    register uint16 retVal;
@@ -3230,7 +3072,6 @@ Atomic_And16(Atomic_uint16 *var, // IN/OUT
       : "re" (val)
       : "cc"
    );
-   AtomicEpilogue();
 #elif defined(VM_ARM_V7)
    register volatile uint16 res;
    register volatile uint16 tmp;
@@ -3288,7 +3129,6 @@ Atomic_Or16(Atomic_uint16 *var, // IN/OUT
       : "re" (val)
       : "cc"
    );
-   AtomicEpilogue();
 #elif defined(VM_ARM_V7)
    register volatile uint16 res;
    register volatile uint16 tmp;
@@ -3345,7 +3185,6 @@ Atomic_Xor16(Atomic_uint16 *var, // IN/OUT
       : "re" (val)
       : "cc"
    );
-   AtomicEpilogue();
 #elif defined(VM_ARM_V7)
    register volatile uint16 res;
    register volatile uint16 tmp;
@@ -3403,7 +3242,6 @@ Atomic_Add16(Atomic_uint16 *var, // IN/OUT
       : "re" (val)
       : "cc"
    );
-   AtomicEpilogue();
 #elif defined(VM_ARM_V7)
    register volatile uint16 res;
    register volatile uint16 tmp;
@@ -3461,7 +3299,6 @@ Atomic_Sub16(Atomic_uint16 *var, // IN/OUT
       : "re" (val)
       : "cc"
    );
-   AtomicEpilogue();
 #elif defined(VM_ARM_V7)
    register volatile uint16 res;
    register volatile uint16 tmp;
@@ -3518,7 +3355,6 @@ Atomic_Inc16(Atomic_uint16 *var) // IN/OUT
       :
       : "cc"
    );
-   AtomicEpilogue();
 #elif defined(VM_ARM_ANY)
    Atomic_Add16(var, 1);
 #else
@@ -3555,7 +3391,6 @@ Atomic_Dec16(Atomic_uint16 *var) // IN/OUT
       :
       : "cc"
    );
-   AtomicEpilogue();
 #elif defined(VM_ARM_ANY)
    Atomic_Sub16(var, 1);
 #else
@@ -3624,7 +3459,6 @@ Atomic_ReadAdd16(Atomic_uint16 *var,  // IN/OUT
       : "0" (val)
       : "cc"
    );
-   AtomicEpilogue();
    return val;
 #elif defined(VM_ARM_V7)
    register volatile uint16 res;

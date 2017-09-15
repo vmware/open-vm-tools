@@ -18,7 +18,6 @@
 noinst_LTLIBRARIES = libMisc.la
 
 libMisc_la_SOURCES =
-libMisc_la_SOURCES += atomic.c
 libMisc_la_SOURCES += base64.c
 libMisc_la_SOURCES += codeset.c
 libMisc_la_SOURCES += codesetBase.c

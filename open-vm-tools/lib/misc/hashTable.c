@@ -249,12 +249,6 @@ HashTable_Alloc(uint32 numEntries,        // IN: must be a power of 2
    ht->buckets = Util_SafeCalloc(ht->numEntries, sizeof *ht->buckets);
    ht->numElements = 0;
 
-#ifndef NO_ATOMIC_HASHTABLE
-   if (ht->atomic) {
-      Atomic_Init();
-   }
-#endif
-
    return ht;
 }
 
@@ -289,7 +283,6 @@ HashTable_AllocOnce(Atomic_Ptr *var,          // IN/OUT: the atomic var
 #ifdef NO_ATOMIC_HASHTABLE
       Atomic_WritePtr(var, new);
 #else
-      Atomic_Init();
       ht = Atomic_ReadIfEqualWritePtr(var, NULL, new);
 #endif
       if (ht == NULL) {
