@@ -37,3 +37,7 @@ providers_dir=@providersDir@
 # Substitute @toolsLibDir@ for the value passed in during install
 # Maps to 'lib' in the build output
 tools_lib_dir=@toolsLibDir@
+
+# Substitute @cafInstallMode@ for the value passed in during install
+# No mapping in the build output since it is just a reference value
+install_mode=@cafInstallMode@

@@ -13,7 +13,11 @@ sourceCafenv() {
 	cat "$cafenvAppconfig" | sed 's/^\[/#[/g' | sed 's/^\([a-z].*=\)/export CAF_\U\1/g' > "$tmpCafenv"
 	sed -i 's/[ ]*=[ ]*/=/g' "$tmpCafenv"
 	. "$tmpCafenv"
-        export LD_LIBRARY_PATH="$CAF_TOOLS_LIB_DIR/libvgauth.so/:$CAF_TOOLS_LIB_DIR/libcrypto.so.1.0.2/:$CAF_TOOLS_LIB_DIR/libssl.so.1.0.2/:$CAF_LIB_DIR"
+	if [ "$CAF_INSTALL_MODE" = "standalone" ]; then
+                export LD_LIBRARY_PATH=$CAF_LIB_DIR
+	else
+                export LD_LIBRARY_PATH="$CAF_TOOLS_LIB_DIR/libvgauth.so/:$CAF_TOOLS_LIB_DIR/libcrypto.so.1.0.2/:$CAF_TOOLS_LIB_DIR/libssl.so.1.0.2/:$CAF_TOOLS_LIB_DIR/libz.so.1/:$CAF_TOOLS_LIB_DIR/libffi.so.6/:$CAF_TOOLS_LIB_DIR/libiconv.so.2/:$CAF_TOOLS_LIB_DIR/libpcre.so.1/:$CAF_TOOLS_LIB_DIR/libglib-2.0.so.0/:$CAF_TOOLS_LIB_DIR/libgcc_s.so.1/:$CAF_TOOLS_LIB_DIR/libgthread-2.0.so.0/:$CAF_TOOLS_LIB_DIR/libstdc++.so.6/:$CAF_LIB_DIR"
+	fi
         export VMWARE_USE_SYSTEM_LIBS=1
 }
 
