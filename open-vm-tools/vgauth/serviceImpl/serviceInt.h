@@ -225,6 +225,9 @@ extern gboolean gVerboseLogging;
 
 extern char *gInstallDir;
 
+#ifndef _WIN32
+gboolean ServiceNetworkCreateSocketDir(void);
+#endif
 
 VGAuthError ServiceNetworkListen(ServiceConnection *conn,            // IN/OUT
                                  gboolean makeSecure);

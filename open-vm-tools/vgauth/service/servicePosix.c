@@ -297,6 +297,9 @@ ServiceDaemonize(const char *path,
    ASSERT(path);
 
    if (pidPath) {
+      if (!ServiceNetworkCreateSocketDir()) {
+         return FALSE;
+      }
       pidPathFd = g_open(pidPath, O_WRONLY | O_CREAT, 0644);
       if (pidPathFd == -1) {
          err = errno;
