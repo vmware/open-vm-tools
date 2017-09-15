@@ -325,7 +325,13 @@ AC_ARG_ENABLE([deploypkg],
    [AS_HELP_STRING([--disable-deploypkg],
      [do not build deploypkg plugin.])],
    [],
-   [enable_deploypkg=yes])
+   [
+    if test "$os" = "linux"; then
+       enable_deploypkg=yes
+    else
+       enable_deploypkg=no
+    fi
+   ])
 
 if test "$enable_deploypkg" = "yes"; then
   AC_VMW_CHECK_LIB([mspack],
@@ -343,7 +349,13 @@ AC_ARG_ENABLE([grabbitmqproxy],
    [AS_HELP_STRING([--disable-grabbitmqproxy],
      [do not build grabbitmqproxy plugin.])],
    [],
-   [enable_grabbitmqproxy=yes])
+   [
+    if test "$os" = "linux"; then
+       enable_grabbitmqproxy=yes
+    else
+       enable_grabbitmqproxy=no
+    fi
+   ])
 
 #
 # Check for glib 2.6.14 or greater.
@@ -434,12 +446,17 @@ AC_ARG_ENABLE([vgauth],
    [AS_HELP_STRING([--disable-vgauth],
      [do not build vgauth.])],
    [
-   enable_vgauth="$enableval"
-   use_xmlsec1=no
+    enable_vgauth="$enableval"
+    use_xmlsec1=no
    ],
    [
-    enable_vgauth=yes
-    use_xmlsec1=no
+    if test "$os" = "linux"; then
+       enable_vgauth=yes
+       use_xmlsec1=no
+    else
+       enable_vgauth=no
+       use_xmlsec1=no
+    fi
    ])
 
 AC_ARG_ENABLE([xmlsec1],
@@ -453,7 +470,7 @@ AC_ARG_ENABLE([xmlsecurity],
      [build vgauth with xml-security-c instead of xmlsec1 (on by default).])],
    [
     if test "$enableval" = "yes"; then
-       use_xmlsec1="no";
+       use_xmlsec1="no"
     else
        use_xmlsec1="yes"
     fi
