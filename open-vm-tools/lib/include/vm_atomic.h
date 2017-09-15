@@ -305,7 +305,7 @@ Atomic_ReadIfEqualWrite128(Atomic_uint128 *ptr,   // IN/OUT
    } res, _old = { oldVal }, _new = { newVal };
    uint32 failed;
 
-   LDST_LDST_MEM_BARRIER();
+   SMP_RW_BARRIER_RW();
    __asm__ __volatile__(
       "1: ldxp    %x0, %x1, %3        \n\t"
       "   cmp     %x0, %x4            \n\t"
@@ -324,7 +324,7 @@ Atomic_ReadIfEqualWrite128(Atomic_uint128 *ptr,   // IN/OUT
         "r" (_new.hi)
       : "cc"
    );
-   LDST_LDST_MEM_BARRIER();
+   SMP_RW_BARRIER_RW();
 
    return res.raw;
 #endif

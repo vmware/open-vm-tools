@@ -551,7 +551,7 @@ VSockVmciNotifyPktRecvPostDequeue(struct sock *sk,               // IN
    err = 0;
 
    if (dataRead) {
-      LDST_LDST_MEM_BARRIER();
+      SMP_RW_BARRIER_RW();
 
       freeSpace = vmci_qpair_consume_free_space(vsk->qpair);
       wasFull = freeSpace == copied;
@@ -635,7 +635,7 @@ VSockVmciNotifyPktSendPostEnqueue(struct sock *sk,               // IN
 
    vsk = vsock_sk(sk);
 
-   LDST_LDST_MEM_BARRIER();
+   SMP_RW_BARRIER_RW();
 
    wasEmpty = (vmci_qpair_produce_buf_ready(vsk->qpair) == written);
    if (wasEmpty) {
