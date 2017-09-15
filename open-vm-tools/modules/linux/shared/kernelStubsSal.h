@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2015 VMware, Inc. All rights reserved.
+ * Copyright (C) 2015-2016 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -54,6 +54,12 @@
 #define _Out_writes_z_(cap)
 #define _Out_writes_opt_z_(cap)
 #define _Out_z_cap_(e)
+#define _Outptr_result_buffer_(count)
+#define _Outptr_result_bytebuffer_(count)
+#define _Outptr_result_bytebuffer_maybenull_(count)
+#define _Outptr_opt_result_buffer_(count)
+#define _Outptr_opt_result_bytebuffer_(count)
+#define _Outptr_opt_result_bytebuffer_maybenull_(count)
 #define _COM_Outptr_
 #define _Inout_
 #define _Inout_updates_bytes_(e)
