@@ -774,7 +774,11 @@ VThreadBase_CurName(void)
        * support for the platform.
        */
 
+#ifdef HAVE_TLS
+      static __thread char name[48];
+#else
       static char name[48];
+#endif
       VThreadBaseSafeName(name, sizeof name);
       return name;
    }

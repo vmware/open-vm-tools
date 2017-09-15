@@ -303,6 +303,8 @@
    LOGLEVEL_VAR(filtlib), \
    LOGLEVEL_VAR(epd), \
    LOGLEVEL_VAR(ddecomd), \
+   LOGLEVEL_VAR(vdfs), \
+   LOGLEVEL_VAR(vdfs_9p), \
    LOGLEVEL_VAR(hostctl), \
    LOGLEVEL_VAR(pmemobj), \
    LOGLEVEL_VAR(secureBoot), \
