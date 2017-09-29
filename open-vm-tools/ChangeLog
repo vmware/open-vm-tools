@@ -1,3 +1,63 @@
+open-vm-tools build 6677369
+
+commit d40c954cf9c85b2a5a88040c8a3a381279accf3f
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Fri Sep 29 12:52:44 2017 -0700
+
+    Update the Tools-10.1.15 Open Source License Files.
+
+commit ce1709a23f52b55c912abfb82ef767d8a9dfc8e1
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Fri Sep 29 12:52:44 2017 -0700
+
+    If for some reason RandR12GetInfo failed to return RandR12Info,
+    it should not follow the cleanup path to free it. Instead it
+    should return FALSE.
+
+commit 751e6b2813c4aec752dc1e14f120d2d34191b2d4
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Fri Sep 29 12:52:44 2017 -0700
+
+    Tools Hgfs Plugin: refresh Hgfs drives on client start
+    
+    In order to get Explorer to see that VMware Shared Folders drives are
+    available when the feature is enabled, we touch each drive that is
+    mapped as a VMware Shared Folder.  This is to prevent users being
+    confused when the have the feature enabled but Explorer creates the
+    user's drive mappings before the tools service has initialized the
+    Hgfs plugin and started the Hgfs client.  In this situation the drives
+    were marked as red (disconnected) until the user clicks on the mapped
+    drive.  Then Explorer will refresh the connction and set it to green
+    (connected).
+
+commit 8410d26cb69f48ad8de43704ca2bf0e020fc1b93
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Fri Sep 29 12:52:44 2017 -0700
+
+    For FreeBSD 11 and later the correct osname is "freeBSD11".
+    Without the correct osname, guestInfo ends up with wrong guestId
+    and guestFullName.  Adjust the osname based on the FreeBSD release.
+
+commit d6b96c6f143a47d5764dd6e3530b3792c5091105
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Fri Sep 29 12:52:44 2017 -0700
+
+    Report version data via guestinfo vars.
+
+commit ad0aa8e577642a980975f345b8ee9903a7ce4377
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Fri Sep 29 12:52:44 2017 -0700
+
+    Bump VMTools version to 10.1.15 for the next 10.1.x update release
+    
+    Define TOOLS_VERSION_SCREW_DRIVER_UPDATE3 as 10.1.15.
+
+commit 2e92ad06fa82e4c84db838eb86161a83a464f483
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Fri Sep 29 12:52:44 2017 -0700
+
+    Add entries for MacOS 10.13 (High Sierra) to guest_os_tables.h.
+
 open-vm-tools-10.1.10 build 6082533
 
 commit d58086d3f3218024ecee479034f4441a27fe278f

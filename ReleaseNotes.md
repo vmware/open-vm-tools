@@ -1,4 +1,4 @@
-# open-vm-tools 10.1.10 Release Notes
+# open-vm-tools 10.1.15 Release Notes
 
 ## What's in the Release Notes
 
@@ -14,7 +14,7 @@ The release notes cover the following topics:
 
 open-vm-tools is a suite of utilities that enhances the performance of the virtual machine's guest operating system and improves management of the virtual machine.
 
-*   **Resolved Issues**: This release of open-vm-tools 10.1.5 addresses issues that have been documented in the Resolved Issues section.
+*   **Resolved Issues**: This release of open-vm-tools 10.1.15 addresses issues that have been documented in the Resolved Issues section.
 
 ## Internationalization
 
@@ -36,13 +36,22 @@ Please refer to [VMware Compatibility Guide](http://www.vmware.com/resources/com
 
 ## Resolved Issues
 
-*   **Fix for CVE-2015-5191**
+Nothing applicable to open-vm-tools.
 
-    Open VMware Tools (CVE-2015-5191) contained multiple file system races in libDeployPkg, related to the use of hard-coded paths under /tmp.
+## Known Issues
 
-    Successful exploitation may result in a local privilege escalation. The impact of this vulnerability is low for distributions which have enabled PrivateTmp for the affected service.
+*   **VMware Tools service stops running in the virtual machine**
 
-    We would like to thank Florian Weimer and Kurt Seifried of Red Hat Product Security for reporting this issue to us.
+    When tools.conf configuration file is configured with an entry similar to the following, without specifying the filename, VMware Tools service might stop running with a segmentation fault.
+
+    ```
+    [logging]
+    vmsvc.handler=file
+    ```
+
+    To work around this issue, set a file name. For example,
+
+    ```vmsvc.data=/var/log/vmware-vmsvc.log```
 
 ## Known Issues from Earlier Releases
 
