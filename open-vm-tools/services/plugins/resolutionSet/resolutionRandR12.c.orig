@@ -139,7 +139,7 @@ static FILE *_ofile;
 #define LOG_STOP fclose(_ofile)
 #else
 #define LOG_START
-#include <glib.h>
+#include <gtk/gtk.h>
 #define LOG_STOP
 #endif
 

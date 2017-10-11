@@ -76,8 +76,7 @@ ResolutionInfoType resolutionInfo;
  *
  * Initialize the guest resolution library.
  *
- * @param[in] handle  Back-end specific handle, if needed.  E.g., in the X11
-                      case, this refers to the X11 display handle.
+ * @param[in] handle  Back-end specific handle, if needed.
  * @return TRUE on success, FALSE on failure
  */
 

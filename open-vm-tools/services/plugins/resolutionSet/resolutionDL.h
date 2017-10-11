@@ -144,6 +144,8 @@ struct drm_vmw_update_layout_arg {
  * However this struct is not subject to the license header of this file.
  */
 struct Drm2Interface {
+    int (*Open)(const char *, const char *);
+    int (*Close)(int);
     drmVersionPtr (*GetVersion)(int fd);
     void (*FreeVersion)(drmVersionPtr);
     int (*DropMaster)(int fd);
@@ -190,6 +192,10 @@ int resolutionDLOpen(void);
 #define udev_list_entry_foreach(_a, _b)\
     udevi_list_entry_foreach(udevi, _a, _b)
 
+#define drmOpen \
+    drmi->Open
+#define drmClose \
+    drmi->Close
 #define drmGetVersion \
     drmi->GetVersion
 #define drmFreeVersion \

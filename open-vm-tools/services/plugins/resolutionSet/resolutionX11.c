@@ -35,8 +35,6 @@
 #ifndef NO_MULTIMON
 #include <X11/extensions/Xinerama.h>
 #endif
-#include <gtk/gtk.h>
-#include <gdk/gdkx.h>
 
 #include "vmware.h"
 #include "debug.h"
@@ -62,6 +60,8 @@ typedef struct {
    Bool         canUseVMwareCtrlTopologySet;
                                 // TRUE if VMwareCtrl extension supports topology set
    Bool         canUseRandR12;  // TRUE if RandR extension >= 1.2 available
+
+   Bool         canUseResolutionKMS;    // TRUE if backing off for resolutionKMS
 } ResolutionInfoX11Type;
 
 
@@ -78,6 +78,7 @@ ResolutionInfoX11Type resolutionInfoX11;
 static Bool ResolutionCanSet(void);
 static Bool TopologyCanSet(void);
 static Bool SelectResolution(uint32 width, uint32 height);
+static int ResolutionX11ErrorHandler(Display *d, XErrorEvent *e);
 
 
 /*
@@ -89,29 +90,45 @@ static Bool SelectResolution(uint32 width, uint32 height);
  * X11 back-end initializer.  Records caller's X11 display, then determines
  * which capabilities are available.
  *
- * @param[in] handle User's X11 display
+ * @param[in] handle (ResolutionInfoX11Type is used as backend specific handle)
  * @return TRUE on success, FALSE on failure.
  */
 
 Bool
 ResolutionBackendInit(InitHandle handle)
 {
-   ResolutionInfoX11Type *resInfoX = &resolutionInfoX11;
+   ResolutionInfoX11Type *resInfoX = (ResolutionInfoX11Type *)handle;
    ResolutionInfoType *resInfo = &resolutionInfo;
    int dummy1;
    int dummy2;
 
-   memset(resInfoX, 0, sizeof *resInfoX);
-
-   resInfoX->display = handle;
-
-   if (resInfoX->display == NULL) {
+   if (resInfoX->canUseResolutionKMS == TRUE) {
       resInfo->canSetResolution = FALSE;
       resInfo->canSetTopology = FALSE;
-      return TRUE;
+      return FALSE;
    }
 
-   resInfoX->display = handle;
+   XSetErrorHandler(ResolutionX11ErrorHandler);
+   resInfoX->display = XOpenDisplay(NULL);
+
+   /*
+    * In case display is NULL, we do not load resolutionSet
+    * as it serve no purpose. Also avoids SEGFAULT issue
+    * like BZ1880932.
+    *
+    * VMX currently remembers the settings across a reboot,
+    * so let's say someone replaces our Xorg driver with
+    * xf86-video-modesetting, and then rebooted, we'd end up here,
+    * but the VMX would still send resolution / topology events
+    * and we'd hit the same segfault.
+    */
+   if (resInfoX->display == NULL) {
+      g_error("%s: Invalid display detected.\n", __func__);
+      resInfo->canSetResolution = FALSE;
+      resInfo->canSetTopology = FALSE;
+      return FALSE;
+   }
+
    resInfoX->rootWindow = DefaultRootWindow(resInfoX->display);
    resInfoX->canUseVMwareCtrl = VMwareCtrl_QueryVersion(resInfoX->display, &dummy1,
                                                         &dummy2);
@@ -132,6 +149,10 @@ ResolutionBackendInit(InitHandle handle)
 void
 ResolutionBackendCleanup(void)
 {
+   ResolutionInfoX11Type *resInfoX = &resolutionInfoX11;
+   if (resInfoX->display) {
+      XCloseDisplay(resInfoX->display);
+   }
    return;
 }
 
@@ -524,7 +545,7 @@ SelectResolution(uint32 width,
       g_debug("Setting guest resolution to: %dx%d (requested: %d, %d)\n",
               xrrSizes[bestFitIndex].width, xrrSizes[bestFitIndex].height, width, height);
       rc = XRRSetScreenConfig(resInfoX->display, xrrConfig, resInfoX->rootWindow,
-                              bestFitIndex, xrrCurRotation, GDK_CURRENT_TIME);
+                              bestFitIndex, xrrCurRotation, CurrentTime);
       g_debug("XRRSetScreenConfig returned %d (result: %dx%d)\n", rc,
               xrrSizes[bestFitIndex].width, xrrSizes[bestFitIndex].height);
    } else {
@@ -574,42 +595,28 @@ ResolutionX11ErrorHandler(Display *d,      // IN: Pointer to display connection
 
 
 /**
- * Obtain a "handle", which for X11, is a display pointer. 
+ * Obtain a "handle".
  *
  * @note We will have to move this out of the resolution plugin soon, I am
- * just landing this here now for convenience as I port resolution set over 
+ * just landing this here now for convenience as I port resolution set over
  * to the new service architecture.
  *
- * @return X server display 
+ * @return ResolutionInfoX11Type as backend specific handle
  */
 
 InitHandle
 ResolutionToolkitInit(ToolsAppCtx *ctx) // IN: For config database access
 {
-   int argc = 1;
-   char *argv[] = {"", NULL};
-   GtkWidget *wnd;
-   Display *display;
+   ResolutionInfoX11Type *resInfoX = &resolutionInfoX11;
    int fd;
+
+   memset(resInfoX, 0, sizeof *resInfoX);
 
    fd = resolutionCheckForKMS(ctx);
    if (fd >= 0) {
       resolutionDRMClose(fd);
       g_message("%s: Backing off for resolutionKMS.\n", __func__);
-      return (InitHandle) 0;
+      resInfoX->canUseResolutionKMS = TRUE;
    }
-
-   XSetErrorHandler(ResolutionX11ErrorHandler);
-   gtk_init(&argc, (char ***) &argv);
-   wnd = gtk_invisible_new();
-#ifndef GTK3
-   display = GDK_WINDOW_XDISPLAY(wnd->window);
-#else
-   display = GDK_WINDOW_XDISPLAY(gtk_widget_get_window(wnd));
-#endif
-
-   if (!display)
-      g_error("%s: Invalid display detected.\n", __func__);
-
-   return (InitHandle) display;
+   return (InitHandle) resInfoX;
 }

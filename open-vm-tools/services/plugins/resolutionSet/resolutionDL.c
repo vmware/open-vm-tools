@@ -66,6 +66,8 @@ static struct FuncToResolv udev1Table[] = {
 };
 
 static struct FuncToResolv drm2Table[] = {
+    LIBDRM_RESOLV(Open),
+    LIBDRM_RESOLV(Close),
     LIBDRM_RESOLV(GetVersion),
     LIBDRM_RESOLV(FreeVersion),
     LIBDRM_RESOLV(DropMaster),

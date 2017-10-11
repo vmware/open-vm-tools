@@ -1,0 +1,11 @@
+--- services/plugins/resolutionSet/resolutionRandR12.c	2017-07-28 15:19:20.000000000 -0700
++++ services/plugins/resolutionSet/resolutionRandR12.c	2017-09-27 16:38:40.000000000 -0700
+@@ -1000,7 +1000,7 @@
+    info = RandR12GetInfo(dpy, rootWin);
+    if (!info) {
+       g_warning("%s: Setup info struct failed.\n", __func__);
+-      goto out_ungrab;
++      return FALSE;
+    }
+ 
+    RandR12GetDpi(dpy, screen, info);
