@@ -4120,7 +4120,7 @@ HgfsGenerateSessionId(void)
 
 Bool
 HgfsServerSetSessionCapability(HgfsOp op,                  // IN: operation code
-                               uint32 flags,               // IN: flags that describe level of support
+                               HgfsOpCapFlags flags,       // IN: flags that describe level of support
                                HgfsSessionInfo *session)   // INOUT: session to update
 {
    int i;
@@ -4683,29 +4683,29 @@ HgfsServerAllocateSession(HgfsTransportSessionInfo *transportSession, // IN:
 
    if (transportSession->channelCapabilities.flags & HGFS_CHANNEL_SHARED_MEM) {
       HgfsServerSetSessionCapability(HGFS_OP_READ_FAST_V4,
-                                     HGFS_REQUEST_SUPPORTED, session);
+                                     HGFS_OP_CAPFLAG_IS_SUPPORTED, session);
       HgfsServerSetSessionCapability(HGFS_OP_WRITE_FAST_V4,
-                                     HGFS_REQUEST_SUPPORTED, session);
+                                     HGFS_OP_CAPFLAG_IS_SUPPORTED, session);
       if (gHgfsDirNotifyActive) {
          LOG(8, ("%s: notify is enabled\n", __FUNCTION__));
          if (HgfsServerEnumerateSharedFolders()) {
             HgfsServerSetSessionCapability(HGFS_OP_SET_WATCH_V4,
-                                           HGFS_REQUEST_SUPPORTED, session);
+                                           HGFS_OP_CAPFLAG_IS_SUPPORTED, session);
             HgfsServerSetSessionCapability(HGFS_OP_REMOVE_WATCH_V4,
-                                           HGFS_REQUEST_SUPPORTED, session);
+                                           HGFS_OP_CAPFLAG_IS_SUPPORTED, session);
             session->flags |= HGFS_SESSION_CHANGENOTIFY_ENABLED;
          } else {
             HgfsServerSetSessionCapability(HGFS_OP_SET_WATCH_V4,
-                                           HGFS_REQUEST_NOT_SUPPORTED, session);
+                                           HGFS_OP_CAPFLAG_NOT_SUPPORTED, session);
             HgfsServerSetSessionCapability(HGFS_OP_REMOVE_WATCH_V4,
-                                           HGFS_REQUEST_NOT_SUPPORTED, session);
+                                           HGFS_OP_CAPFLAG_NOT_SUPPORTED, session);
          }
          LOG(8, ("%s: session notify capability is %s\n", __FUNCTION__,
                  (session->flags & HGFS_SESSION_CHANGENOTIFY_ENABLED ? "enabled" :
                                                                        "disabled")));
       }
       HgfsServerSetSessionCapability(HGFS_OP_SEARCH_READ_V4,
-                                     HGFS_REQUEST_SUPPORTED, session);
+                                     HGFS_OP_CAPFLAG_IS_SUPPORTED, session);
    }
 
    *sessionData = session;

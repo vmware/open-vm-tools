@@ -380,7 +380,7 @@ typedef struct HgfsSessionInfo {
    /** END SEARCH ARRAY ****************************************************/
 
    /* Array of session specific capabiities. */
-   HgfsCapability hgfsSessionCapabilities[HGFS_OP_MAX];
+   HgfsOpCapability hgfsSessionCapabilities[HGFS_OP_MAX];
 
    uint32 numberOfCapabilities;
 
