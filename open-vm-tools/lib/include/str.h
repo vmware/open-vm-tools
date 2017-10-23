@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -118,6 +118,10 @@ char *Str_Strnstr(const char *src,  // IN:
 char *Str_Strcpy(char *dst,        // OUT:
                  const char *src,  // IN:
                  size_t maxLen);   // IN:
+char *Str_Strncpy(char *dest,       // OUT:
+                  size_t destSize,  // IN:
+                  const char *src,  // IN:
+                  size_t n);        // IN:
 char *Str_Strcat(char *dst,        // IN/OUT:
                  const char *src,  // IN:
                  size_t maxLen);   // IN:
