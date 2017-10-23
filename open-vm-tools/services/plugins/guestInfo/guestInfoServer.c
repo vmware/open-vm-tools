@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -418,7 +418,7 @@ GuestInfoGather(gpointer data)
       g_key_file_get_boolean(ctx->config, CONFGROUPNAME_GUESTINFO,
                              CONFNAME_GUESTINFO_DISABLEQUERYDISKINFO, NULL);
    if (!disableQueryDiskInfo) {
-      if ((diskInfo = GuestInfo_GetDiskInfo()) == NULL) {
+      if ((diskInfo = GuestInfo_GetDiskInfo(ctx)) == NULL) {
          g_warning("Failed to get disk info.\n");
       } else {
          if (GuestInfoUpdateVmdb(ctx, INFO_DISK_FREE_SPACE, diskInfo, 0)) {

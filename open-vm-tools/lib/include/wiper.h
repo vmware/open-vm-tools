@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -105,8 +105,9 @@ void WiperSinglePartition_Close(WiperPartition *);
 Bool Wiper_IsWipeSupported(const WiperPartition *);
 
 unsigned char *WiperSinglePartition_GetSpace(const WiperPartition *p,
-                              uint64 *free,
-                              uint64 *total);
+                                             uint64 *avail,
+                                             uint64 *free,
+                                             uint64 *total);
 
 /* External definition of the wiper state */
 struct Wiper_State;

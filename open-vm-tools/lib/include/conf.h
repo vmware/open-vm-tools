@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2002-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2002-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -15,7 +15,6 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
-
 
 /*
  * conf.h --
@@ -67,12 +66,12 @@
 #define CONFGROUPNAME_GUESTINFO "guestinfo"
 
 /**
- * Lets users disable just the perf monitor.
+ * Lets user disable just the perf monitor.
  */
 #define CONFNAME_GUESTINFO_DISABLEPERFMON "disable-perf-mon"
 
 /**
- * Lets users disable just DiskInfo.
+ * Lets user disable just DiskInfo.
  *
  * If thinking of deprecating this, please read bug 535343 first.
  */
@@ -112,6 +111,13 @@
  */
 
 #define CONFNAME_GUESTINFO_EXCLUDENICS "exclude-nics"
+
+/**
+ * Lets user include reserved space in diskInfo space metrics on Linux.
+ *
+ * @param boolean Set to true to include reserved space.
+ */
+#define CONFNAME_DISKINFO_INCLUDERESERVED "diskinfo-include-reserved"
 
 /*
  * END GuestInfo goodies.

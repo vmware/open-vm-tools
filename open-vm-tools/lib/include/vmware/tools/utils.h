@@ -129,19 +129,19 @@ gboolean
 VMTools_ConfigGetBoolean(GKeyFile *config,
                          const gchar *section,
                          const gchar *key,
-                         gboolean defValue);
+                         const gboolean defValue);
 
 gint
 VMTools_ConfigGetInteger(GKeyFile *config,
                          const gchar *section,
                          const gchar *key,
-                         gint defValue);
+                         const gint defValue);
 
 gchar *
 VMTools_ConfigGetString(GKeyFile *config,
                         const gchar *section,
                         const gchar *key,
-                        gchar *defValue);
+                        const gchar *defValue);
 
 #if defined(G_PLATFORM_WIN32)
 

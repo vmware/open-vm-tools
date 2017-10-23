@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2014-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2014-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -78,7 +78,7 @@ GuestInfo_FreeDiskInfo(GuestDiskInfo *di)
  */
 
 GuestDiskInfo *
-GuestInfoGetDiskInfoWiper(void)
+GuestInfoGetDiskInfoWiper(Bool includeReserved)  // IN
 {
    WiperPartition_List pl;
    DblLnkLst_Links *curr;
@@ -105,11 +105,16 @@ GuestInfoGetDiskInfoWiper(void)
          PPartitionEntry newPartitionList;
          PPartitionEntry partEntry;
          unsigned char *error;
-
-         error = WiperSinglePartition_GetSpace(part, &freeBytes, &totalBytes);
+         if (includeReserved) {
+            error = WiperSinglePartition_GetSpace(part, NULL,
+                                                  &freeBytes, &totalBytes);
+         } else {
+            error = WiperSinglePartition_GetSpace(part, &freeBytes,
+                                                  NULL, &totalBytes);
+         }
          if (strlen(error)) {
-            g_warning("GetDiskInfo: ERROR: could not get space for partition %s: %s\n",
-                    part->mountPoint, error);
+            g_warning("GetDiskInfo: ERROR: could not get space info for "
+                      "partition %s: %s\n", part->mountPoint, error);
             goto out;
          }
 
