@@ -519,7 +519,7 @@ FIELD(  7,  0, ECX, 17,  5, MAWA,                              NO,   0, TRUE)  \
 FLAG(   7,  0, ECX, 22,  1, RDPID,                             NO,   0, TRUE)  \
 FLAG(   7,  0, ECX, 30,  1, SGX_LC,                            NO,   0, FALSE) \
 FLAG(   7,  0, EDX,  2,  1, AVX512QVNNIW,                      NO,   0, TRUE)  \
-FLAG(   7,  0, EDX,  3,  1, AVX512QFMAPS,                      NO,   0, TRUE)
+FLAG(   7,  0, EDX,  3,  1, AVX512QFMAPS,                      YES, 15, TRUE)
 
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,             MON SUPP, HWV, CPL3 */
