@@ -183,13 +183,17 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
                               BS(CENTOS6_64), BS(CENTOS7_64), \
                               BS(ORACLE6_64), BS(ORACLE7_64)
 
+#define ALL4XLINUX32          BS(OTHER4XLINUX)
+
+#define ALL4XLINUX64          BS(OTHER4XLINUX_64)
+
 #define ALLVMKERNEL           BS(VMKERNEL), BS(VMKERNEL5), BS(VMKERNEL6), \
                               BS(VMKERNEL65)
 
 #define ALLLINUX32            BS(OTHER24XLINUX), ALL26XLINUX32, ALL3XLINUX32, \
-                              BS(OTHERLINUX), BS(VMKERNEL)
+                              ALL4XLINUX32, BS(OTHERLINUX), BS(VMKERNEL)
 #define ALLLINUX64            BS(OTHER24XLINUX_64), ALL26XLINUX64, \
-                              ALL3XLINUX64, BS(OTHERLINUX_64)
+                              ALL3XLINUX64, ALL4XLINUX64, BS(OTHERLINUX_64)
 #define ALLLINUX              ALLLINUX32, ALLLINUX64
 #define ALLDARWIN32           BS(DARWIN9), BS(DARWIN10), BS(DARWIN11)
 #define ALLDARWIN64           BS(DARWIN9_64),  BS(DARWIN10_64), \
@@ -268,7 +272,9 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_OTHER_26           "other26xlinux"
 #define STR_OS_OTHER_26_FULL      "Other Linux 2.6.x kernel"
 #define STR_OS_OTHER_3X           "other3xlinux"
-#define STR_OS_OTHER_3X_FULL      "Other Linux 3.x or later kernel"
+#define STR_OS_OTHER_3X_FULL      "Other Linux 3.x kernel"
+#define STR_OS_OTHER_4X           "other4xlinux"
+#define STR_OS_OTHER_4X_FULL      "Other Linux 4.x or later kernel"
 #define STR_OS_PHOTON             "vmware-photon"
 #define STR_OS_PHOTON_FULL        "VMware Photon OS"
 #define STR_OS_PLD                "PLD"

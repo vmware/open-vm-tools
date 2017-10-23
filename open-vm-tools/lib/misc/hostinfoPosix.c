@@ -1014,6 +1014,9 @@ HostinfoOSData(void)
       } else if (majorVersion == 3) {
          Str_Strcpy(distro, STR_OS_OTHER_3X_FULL, distroSize);
          Str_Strcpy(distroShort, STR_OS_OTHER_3X, distroSize);
+      } else if (majorVersion == 4) {
+         Str_Strcpy(distro, STR_OS_OTHER_4X_FULL, distroSize);
+         Str_Strcpy(distroShort, STR_OS_OTHER_4X, distroSize);
       } else {
          /*
           * Anything newer than this code explicitly handles returns the

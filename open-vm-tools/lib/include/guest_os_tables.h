@@ -62,8 +62,10 @@ extern "C" {
    GOT(GUEST_OS_OTHER24XLINUX_64)                                          \
    GOT(GUEST_OS_OTHER26XLINUX)                                             \
    GOT(GUEST_OS_OTHER26XLINUX_64)                                          \
-   GOT(GUEST_OS_OTHER3XLINUX)      /* Linux 3.x and later */               \
-   GOT(GUEST_OS_OTHER3XLINUX_64)   /* Linux 3.x and later X64 */           \
+   GOT(GUEST_OS_OTHER3XLINUX)      /* Linux 3.x */                         \
+   GOT(GUEST_OS_OTHER3XLINUX_64)   /* Linux 3.x X64 */                     \
+   GOT(GUEST_OS_OTHER4XLINUX)      /* Linux 4.x and later */               \
+   GOT(GUEST_OS_OTHER4XLINUX_64)   /* Linux 4.x and later X64 */           \
    GOT(GUEST_OS_OTHERLINUX)                                                \
    GOT(GUEST_OS_OTHERLINUX_64)                                             \
    GOT(GUEST_OS_OTHER)                                                     \
@@ -209,6 +211,8 @@ extern "C" {
    GOSL(STR_OS_OTHER_26 "-64",               GUEST_OS_OTHER26XLINUX_64,       "linux.iso")            \
    GOSL(STR_OS_OTHER_3X,                     GUEST_OS_OTHER3XLINUX,           "linux.iso")            \
    GOSL(STR_OS_OTHER_3X "-64",               GUEST_OS_OTHER3XLINUX_64,        "linux.iso")            \
+   GOSL(STR_OS_OTHER_4X,                     GUEST_OS_OTHER4XLINUX,           "linux.iso")            \
+   GOSL(STR_OS_OTHER_4X "-64",               GUEST_OS_OTHER4XLINUX_64,        "linux.iso")            \
    GOSL(STR_OS_OTHER,                        GUEST_OS_OTHERLINUX,             "linuxPreGlibc25.iso")  \
    GOSL(STR_OS_OTHER "-64",                  GUEST_OS_OTHERLINUX_64,          "linuxPreGlibc25.iso")  \
    GOSL(STR_OS_RED_HAT,                      GUEST_OS_OTHER26XLINUX,          "linuxPreGlibc25.iso")  \
