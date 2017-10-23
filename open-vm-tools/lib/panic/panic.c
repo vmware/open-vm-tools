@@ -602,7 +602,7 @@ Panic_Panic(const char *format,
 
    Panic_DumpGuiResources();
 
-#if defined(_WIN32) ||  !defined(VMX86_TOOLS)
+#if (defined(_WIN32) || !defined(VMX86_TOOLS)) && !defined(__ANDROID__)
    if (Panic_GetCoreDumpOnPanic()) {
       CoreDump_CoreDump();
    }

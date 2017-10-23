@@ -508,7 +508,7 @@ UtilDoTildeSubst(const char *user)  // IN: name of user
    }
    if (str == NULL && pwd != NULL) {
       str = UtilGetHomeDirectory(pwd);
-      endpwent();
+      Posix_Endpwent();
       if (str == NULL) {
          Log("Could not get home directory for user.\n");
       }
@@ -673,7 +673,7 @@ Util_ExpandString(const char *fileName) // IN  file path to expand
 #if !defined(_WIN32)
          struct passwd *pwd = Posix_Getpwuid(getuid());
          expand = UtilGetLoginName(pwd);
-         endpwent();
+         Posix_Endpwent();
 #else
 	 DWORD n = ARRAYSIZE(bufW);
 	 if (GetUserNameW(bufW, &n)) {
