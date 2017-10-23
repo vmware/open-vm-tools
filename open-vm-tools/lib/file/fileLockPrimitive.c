@@ -995,7 +995,6 @@ FileUnlockIntrinsic(FileLockToken *tokenPtr)  // IN:
    LOG(1, ("Requesting unlock on %s\n", tokenPtr->pathName));
 
    if (tokenPtr->portable) {
-
       /*
        * If the lockFilePath (a pointer) is the fixed-address token representing
        * an implicit read lock, there is no lock file and the token can simply
@@ -1367,7 +1366,14 @@ FileLockCreateEntryDirectory(const char *lockDir,    // IN:
              }
          }
 
-         FileRemoveDirectoryRobust(*entryDirectory);
+         err = FileRemoveDirectoryRobust(*entryDirectory);
+
+         if (err != 0) {
+            Warning(LGPFX" %s unable to remove '%s': %s\n",
+                    __FUNCTION__, *entryDirectory, Err_Errno2String(err));
+
+            break;
+         }
       } else {
           if ((err != EEXIST) &&  // Another process/thread created it...
               (err != ENOENT)) {  // lockDir is gone...
@@ -1717,7 +1723,7 @@ FileLockIntrinsicPortable(const char *pathName,   // IN:
       goto bail;
    }
 
-   /* what is max(Number[1]... Number[all lockers])? */
+   /* What is max(Number[1]... Number[all lockers])? */
    *err = FileLockScanner(lockDir, FileLockNumberScan, myValues, FALSE);
 
    if (*err != 0) {
@@ -1738,7 +1744,9 @@ FileLockIntrinsicPortable(const char *pathName,   // IN:
                                    memberFilePath);
 
    /* Remove entry directory; it has done its job */
-   FileRemoveDirectoryRobust(entryDirectory);
+   if (*err == 0) {
+      *err = FileRemoveDirectoryRobust(entryDirectory);
+   }
 
    if (*err != 0) {
       /* clean up */
@@ -1750,8 +1758,7 @@ FileLockIntrinsicPortable(const char *pathName,   // IN:
    }
 
    /* Attempt to acquire the lock */
-   *err = FileLockScanner(lockDir, FileLockWaitForPossession,
-                          myValues, TRUE);
+   *err = FileLockScanner(lockDir, FileLockWaitForPossession, myValues, TRUE);
 
    switch (*err) {
    case 0:
@@ -1917,11 +1924,11 @@ FileLockIsLockedMandatory(const char *lockFile,  // IN:
    result = FileIOCreateRetry(&desc, lockFile, access, FILEIO_OPEN, 0644, 0);
 
    if (FileIO_IsSuccess(result)) {
-      Bool ret;
+      Bool success;
 
-      ret = !FileIO_IsSuccess(FileIO_Close(&desc));
+      success = FileIO_IsSuccess(FileIO_Close(&desc));
 
-      ASSERT(!ret);
+      ASSERT(success);
       return FALSE;
    } else if (result == FILEIO_LOCK_FAILED) {
       return TRUE;   // locked
