@@ -147,7 +147,7 @@ TimeSync_IsGuestSyncServiceRunning(void)
  */
 
 Bool
-TimeSync_DoGuestResync(void)
+TimeSync_DoGuestResync(void *_ctx)
 {
    // Not Implemented.
    return FALSE;

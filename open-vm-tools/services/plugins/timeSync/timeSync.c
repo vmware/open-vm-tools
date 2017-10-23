@@ -652,14 +652,14 @@ TimeSyncDoSync(Bool slewCorrection,
              TimeSync_IsGuestSyncServiceRunning()) {
             if (data->guestResyncTimer == NULL) {
                g_debug("Guest resync: stepping time.\n");
-               if (!TimeSync_DoGuestResync()) {
+               ASSERT(data->ctx != NULL);
+               if (!TimeSync_DoGuestResync(data->ctx)) {
                   g_warning("Guest resync operation failed.\n");
                   return TimeSyncDoSync(data->slewCorrection,
                                         TIMESYNC_STEP_NORESYNC,
                                         allowBackwardSync, data);
                }
                if (data->guestResyncTimeout > 0) {
-                  ASSERT(data->ctx != NULL);
                   data->guestResyncTimer =
                      g_timeout_source_new(data->guestResyncTimeout);
                   VMTOOLSAPP_ATTACH_SOURCE(data->ctx, data->guestResyncTimer,

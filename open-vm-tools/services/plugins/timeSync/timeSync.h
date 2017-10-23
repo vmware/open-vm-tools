@@ -57,7 +57,7 @@ Bool
 TimeSync_IsGuestSyncServiceRunning(void);
 
 Bool
-TimeSync_DoGuestResync(void);
+TimeSync_DoGuestResync(void *_ctx);
 
 #endif /* _TIMESYNC_INT_H_ */
 
