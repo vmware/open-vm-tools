@@ -1259,8 +1259,8 @@ FileLockCreateEntryDirectory(const char *lockDir,    // IN:
                              char **memberFilePath,  // OUT:
                              char **memberName)      // OUT:
 {
-   int err = 0;
-   uint32 randomNumber = 0;
+   int err;
+   VmTimeType startTimeMsec;
 
    ASSERT(lockDir != NULL);
 
@@ -1270,10 +1270,13 @@ FileLockCreateEntryDirectory(const char *lockDir,    // IN:
    *memberName = NULL;
 
    /* Fun at the races */
+   startTimeMsec = Hostinfo_SystemTimerMS();
 
    while (TRUE) {
       char *temp;
       FileData fileData;
+      VmTimeType ageMsec;
+      uint32 randomNumber;
 
       err = FileAttributesRobust(lockDir, &fileData);
       if (err == 0) {
@@ -1393,6 +1396,21 @@ FileLockCreateEntryDirectory(const char *lockDir,    // IN:
       *entryFilePath = NULL;
       *memberFilePath = NULL;
       *memberName = NULL;
+
+      /*
+       * If we've been trying to get the locking started for a unacceptable
+       * amount of time, bail. Something is seriously wrong, probably the
+       * file system or networking. Nothing we can do about it.
+       */
+
+      ageMsec = Hostinfo_SystemTimerMS() - startTimeMsec;
+
+      if (ageMsec > FILELOCK_PROGRESS_DEARTH) {
+         Warning(LGPFX" %s lack of progress on '%s'\n", __FUNCTION__, lockDir);
+
+         err = EBUSY;
+         break;
+      }
    }
 
    if (err != 0) {
