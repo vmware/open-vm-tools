@@ -4767,8 +4767,11 @@ AsyncTCPSocketIPollRecvCallback(void *clientData)  // IN:
       asock->inIPollCb |= IN_IPOLL_RECV;
       AsyncTCPSocketRecvCallback(clientData);
       asock->inIPollCb &= ~IN_IPOLL_RECV;
-      if (asock->recvCb) {
-         /* Re-register the callback if it has not been canceled. */
+      /*
+       * Re-register the callback if it has not been canceled.  Lock may have
+       * been dropped to fire recv callback so re-check inBlockingRecv.
+       */
+      if (asock->recvCb && asock->inBlockingRecv == 0) {
          AsyncTCPSocketIPollAdd(asock, TRUE, POLL_FLAG_READ,
                                 asock->internalRecvFn, asock->fd);
       }
