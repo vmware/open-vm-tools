@@ -55,6 +55,9 @@
 #elif defined(VMX86_DESKTOP)
    // WORKSTATION_VERSION_NUMBER below has to match this
    #define PRODUCT_VERSION    14,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
+#elif defined(VMX86_SYSIMAGE)
+   // SYSIMAGE_VERSION below has to match this
+   #define PRODUCT_VERSION    8,3,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #else
    /* Generic catch-all. */
    #define PRODUCT_VERSION    0,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
@@ -173,7 +176,7 @@
  */
 #define FUSION_VERSION "e.x.p"
 
-// These must match VIE_FILEVERSION above
+// These must match PRODUCT_VERSION for VMX86_SYSIMAGE above
 #define SYSIMAGE_VERSION "8.3.0"
 #define SYSIMAGE_VERSION_EXT_STR \
    SYSIMAGE_VERSION "." PRODUCT_BUILD_NUMBER_NUMERIC_STRING
