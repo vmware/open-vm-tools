@@ -228,7 +228,10 @@ extern "C" {
 #  define BDOOR_CMD_FU_GET_HOST_VERSION       0
 #  define BDOOR_CMD_FU_UPDATE_FROM_HOST       1
 #  define BDOOR_CMD_FU_LOCK                   2
-#define   BDOOR_CMD_MAX                      94
+#define   BDOOR_CMD_FUZZER_HELPER            94 /* Devel only. */
+#  define BDOOR_CMD_FUZZER_INIT               0
+#  define BDOOR_CMD_FUZZER_NEXT               1
+#define   BDOOR_CMD_MAX                      95
 
 
 /*
