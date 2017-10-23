@@ -94,6 +94,7 @@
 #include "msg.h"
 #include "posix.h"
 #include "vmci_sockets.h"
+#include "vm_basic_asm.h"
 #ifndef VMX86_TOOLS
 #include "vmdblib.h"
 #endif
@@ -3963,6 +3964,8 @@ AsyncTCPSocketDoOneMsg(AsyncSocket *base, // IN
          s->recvCb = FALSE;  /* For re-registering the poll callback. */
          if (retVal == ASOCKERR_SUCCESS || retVal == ASOCKERR_TIMEOUT) {
             retVal = AsyncTCPSocketRegisterRecvCb(s);
+            Log("SOCKET reregister recvCb after DoOneMsg (ref %d)\n",
+                BaseSocket(s)->refCount);
          }
          if (retVal != ASOCKERR_SUCCESS) {
             s->base.recvBuf = NULL;
@@ -4755,38 +4758,31 @@ AsyncTCPSocketIPollRecvCallback(void *clientData)  // IN:
 
    AsyncTCPSocketLock(asock);
    if (asock->recvCbTimer) {
-      /* IVmdbPoll only has periodic callbacks. */
+      /* IVmdbPoll only has periodic timer callbacks. */
       AsyncTCPSocketIPollRemove(asock, FALSE, 0, asock->internalRecvFn);
       asock->recvCbTimer = FALSE;
    }
    asock->inIPollCb |= IN_IPOLL_RECV;
    lock = AsyncTCPSocketPollParams(asock)->lock;
    if (asock->recvCb && asock->inBlockingRecv == 0) {
-      /*
-       * There is no need to take a reference here -- the fact that this
-       * callback is running means AsyncsocketIPollRemove would not release a
-       * reference if it is called.
-       */
-      int error = AsyncTCPSocketFillRecvBuffer(asock);
-
-      if (error == ASOCKERR_GENERIC || error == ASOCKERR_REMOTE_DISCONNECT) {
-         AsyncTCPSocketHandleError(asock, error);
-      }
+      AsyncTCPSocketRecvCallback(clientData);
+   } else {
+      TCPSOCKLG0(asock, ("Skip recv because %s\n",
+                         asock->recvCb ? "blocking recv is in progress"
+                                       : "recv callback is cancelled"));
    }
 
    asock->inIPollCb &= ~IN_IPOLL_RECV;
    if (asock->recvCb) {
-      AsyncTCPSocketUnlock(asock);
-   } else {
-      /*
-       * Callback has been unregistered.  Per above, we need to release the
-       * reference explicitly.
-       */
-      AsyncTCPSocketRelease(asock);
-      AsyncTCPSocketUnlock(asock);
-      if (lock != NULL) {
-         MXUser_DecRefRecLock(lock);
-      }
+      /* Re-register the callback. */
+      AsyncTCPSocketIPollAdd(asock, TRUE, POLL_FLAG_READ, asock->internalRecvFn,
+                             asock->fd);
+   }
+   /* This is a one-shot callback so we always release the reference taken. */
+   AsyncTCPSocketRelease(asock);
+   AsyncTCPSocketUnlock(asock);
+   if (lock != NULL) {
+      MXUser_DecRefRecLock(lock);
    }
 #endif
 }
@@ -4894,21 +4890,15 @@ AsyncTCPSocketIPollSendCallback(void *clientData)  // IN:
    AsyncTCPSocketLock(s);
    s->inIPollCb |= IN_IPOLL_SEND;
    lock = AsyncTCPSocketPollParams(s)->lock;
+   if (s->sendCbTimer) {
+      /* IVmdbPoll only has periodic timer callback. */
+      AsyncTCPSocketIPollRemove(s, FALSE, 0, AsyncTCPSocketIPollSendCallback);
+      s->sendCbTimer = FALSE;
+   }
    if (s->sendCb) {
-      /*
-       * Unregister this callback as we want the non-periodic behavior.  There
-       * is no need to take a reference here -- the fact that this callback is
-       * running means AsyncsocketIPollRemove would not release a reference.
-       * We would release that reference at the end.
-       */
-      if (s->sendCbTimer) {
-         AsyncTCPSocketIPollRemove(s, FALSE, 0, AsyncTCPSocketIPollSendCallback);
-      } else {
-         AsyncTCPSocketIPollRemove(s, TRUE, POLL_FLAG_WRITE,
-                                   AsyncTCPSocketIPollSendCallback);
-      }
-
       AsyncTCPSocketSendCallback(s);
+   } else {
+      TCPSOCKLG0(s, ("cancelled send callback fired\n"));
    }
 
    s->inIPollCb &= ~IN_IPOLL_SEND;
@@ -5062,8 +5052,9 @@ AsyncTCPSocketIPollAdd(AsyncTCPSocket *asock,         // IN
    poll = AsyncTCPSocketPollParams(asock)->iPoll;
 
    if (socket) {
-      int pollFlags = (flags & POLL_FLAG_READ) != 0 ? VMDB_PRF_READ
-                                                    : VMDB_PRF_WRITE;
+      int pollFlags = VMDB_PRF_ONE_SHOT |
+                      ((flags & POLL_FLAG_READ) != 0 ? VMDB_PRF_READ
+                                                     : VMDB_PRF_WRITE);
 
       ret = poll->Register(poll, pollFlags, callback, asock, info);
    } else {
@@ -5121,8 +5112,9 @@ AsyncTCPSocketIPollRemove(AsyncTCPSocket *asock,         // IN
    poll = AsyncTCPSocketPollParams(asock)->iPoll;
 
    if (socket) {
-      int pollFlags = (flags & POLL_FLAG_READ) != 0 ? VMDB_PRF_READ
-                                                    : VMDB_PRF_WRITE;
+      int pollFlags = VMDB_PRF_ONE_SHOT |
+                      ((flags & POLL_FLAG_READ) != 0 ? VMDB_PRF_READ
+                                                     : VMDB_PRF_WRITE);
 
       ret = poll->Unregister(poll, pollFlags, callback, asock);
    } else {
