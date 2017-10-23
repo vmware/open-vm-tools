@@ -854,6 +854,7 @@ FileIO_AtomicUpdateEx(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
       char *fileName = NULL;
       char *dstDirName = NULL;
       char *dstFileName = NULL;
+      Bool isSame;
 
       currPath = File_FullPath(FileIO_Filename(currFD));
       if (currPath == NULL) {
@@ -875,10 +876,19 @@ FileIO_AtomicUpdateEx(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
       File_GetPathName(currPath, &dstDirName, &dstFileName);
 
       ASSERT(dirName != NULL);
-      ASSERT(fileName && *fileName);
+      ASSERT(fileName != NULL && *fileName != '\0');
       ASSERT(dstDirName != NULL);
-      ASSERT(dstFileName && *dstFileName);
-      ASSERT(File_IsSameFile(dirName, dstDirName));
+      ASSERT(dstFileName != NULL && *dstFileName != '\0');
+
+      errno = 0;
+      isSame = File_IsSameFile(dirName, dstDirName);
+      if (errno == 0) {
+         ASSERT(isSame);
+      } else {
+         savedErrno = errno;
+         Log("%s: File_IsSameFile failed (errno = %d).\n", __FUNCTION__, errno);
+         goto swapdone;
+      }
 
       args = Util_SafeCalloc(1, sizeof *args);
       args->fd = currFD->posix;
@@ -1027,7 +1037,7 @@ swapdone:
  *
  * FileIO_AtomicUpdate --
  *
- *      Wrapper around FileIO_AtomicUpdateEx that derfaults 'renameOnNFS' to
+ *      Wrapper around FileIO_AtomicUpdateEx that defaults 'renameOnNFS' to
  *      TRUE.
  *
  * Results:
