@@ -220,7 +220,6 @@ typedef struct AsyncTCPSocket {
 
    uint8 inIPollCb;
    Bool inRecvLoop;
-   Bool inDoOneMsg;
    uint32 inBlockingRecv;
 
    struct AsyncTCPSocket *listenAsock4;
@@ -2411,7 +2410,7 @@ AsyncTCPSocketRecv(AsyncSocket *base,   // IN:
       return ASOCKERR_NOTCONNECTED;
    }
 
-   if (asock->inBlockingRecv) {
+   if (asock->inBlockingRecv && !asock->inRecvLoop) {
       TCPSOCKWARN(asock, ("Recv called while a blocking recv is pending.\n"));
       return ASOCKERR_INVAL;
    }
@@ -3935,7 +3934,6 @@ AsyncTCPSocketDoOneMsg(AsyncSocket *base, // IN
 
       s->inBlockingRecv++;
       retVal = AsyncTCPSocketPoll(s, read, timeoutMS, &asock);
-      s->inBlockingRecv--;
       if (retVal != ASOCKERR_SUCCESS) {
          if (retVal == ASOCKERR_GENERIC) {
             TCPSOCKWARN(s, ("%s: failed to poll on the socket during read.\n",
@@ -3943,10 +3941,9 @@ AsyncTCPSocketDoOneMsg(AsyncSocket *base, // IN
          }
       } else {
          ASSERT(asock == s);
-         s->inDoOneMsg = TRUE;
          retVal = AsyncTCPSocketFillRecvBuffer(s);
-         s->inDoOneMsg = FALSE;
       }
+      s->inBlockingRecv--;
 
       /*
        * If socket got closed in AsyncTCPSocketFillRecvBuffer, we
@@ -4250,7 +4247,7 @@ AsyncTCPSocketCancelCbForClose(AsyncSocket *base)  // IN:
                                          asock->internalRecvFn);
       /* Callback might be temporarily removed in AsyncSocket_DoOneMsg. */
       ASSERT_NOT_TESTED(removed ||
-                        asock->inDoOneMsg ||
+                        asock->inBlockingRecv ||
                         AsyncTCPSocketPollParams(asock)->iPoll);
 
       asock->recvCb = FALSE;
@@ -5184,7 +5181,7 @@ AsyncTCPSocketCancelRecv(AsyncSocket *base,          // IN
       return ASOCKERR_INVAL;
    }
 
-   if (asock->inBlockingRecv) {
+   if (asock->inBlockingRecv && !asock->inRecvLoop) {
       Warning(ASOCKPREFIX "Cannot cancel request while a blocking recv is "
                           "pending.\n");
       return ASOCKERR_INVAL;
