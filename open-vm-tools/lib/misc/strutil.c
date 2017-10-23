@@ -914,8 +914,8 @@ StrUtil_EndsWith(const char *s,      // IN
    size_t slen;
    size_t suffixlen;
 
-   ASSERT(s);
-   ASSERT(suffix);
+   ASSERT(s != NULL);
+   ASSERT(suffix != NULL);
 
    slen = strlen(s);
    suffixlen = strlen(suffix);
@@ -925,6 +925,45 @@ StrUtil_EndsWith(const char *s,      // IN
    }
 
    return strcmp(s + slen - suffixlen, suffix) == 0;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtil_CaselessEndsWith --
+ *
+ *      A case-insensitive version of StrUtil_EndsWith.
+ *
+ * Results:
+ *      TRUE  if string 'suffix' is found at the end of string 's'
+ *      FALSE otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+StrUtil_CaselessEndsWith(const char *s,      // IN
+                         const char *suffix) // IN
+{
+   size_t slen;
+   size_t suffixlen;
+
+   ASSERT(s != NULL);
+   ASSERT(suffix != NULL);
+   ASSERT(StrUtil_IsASCII(suffix));
+
+   slen = strlen(s);
+   suffixlen = strlen(suffix);
+
+   if (suffixlen > slen) {
+      return FALSE;
+   }
+
+   return Str_Strcasecmp(s + (slen - suffixlen), suffix) == 0;
 }
 
 
