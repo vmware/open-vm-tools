@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2014-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2014-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -48,7 +48,7 @@
 #define USE_RESOLVE 1
 #endif
 
-#ifdef USERWORLD
+#if defined(USERWORLD) || (defined(__linux__) && defined(NO_DNET))
 #include "vm_basic_defs.h"
 #include <net/if.h>
 #include <netpacket/packet.h>
@@ -131,13 +131,14 @@
 #ifndef NO_DNET
 static Bool RecordNetworkAddress(GuestNicV3 *nic, const struct addr *addr);
 static int ReadInterfaceDetails(const struct intf_entry *entry, void *arg);
-static Bool RecordRoutingInfo(NicInfoV3 *nicInfo);
 
 #if !defined(__FreeBSD__) && !defined(__APPLE__) && !defined(USERWORLD)
 static int GuestInfoGetIntf(const struct intf_entry *entry, void *arg);
 #endif
 
 #endif
+
+static Bool RecordRoutingInfo(NicInfoV3 *nicInfo);
 
 static char *ValidateConvertAddress(const struct sockaddr *addr);
 
@@ -171,7 +172,7 @@ GuestInfoGetFqdn(int outBufLen,    // IN: length of output buffer
 }
 
 
-#ifdef USERWORLD
+#if defined(USERWORLD) || defined(USE_SLASH_PROC) || (defined(__linux__) && defined(NO_DNET))
 /*
  ******************************************************************************
  * CountNetmaskBits --                                                   */ /**
@@ -189,9 +190,9 @@ static unsigned
 CountNetmaskBits(uint64_t x)
 {
    /* SWAR reduction, much faster than using the loop/shift */
-   const uint64_t m1  = 0x5555555555555555; /* binary: 0101... */
-   const uint64_t m2  = 0x3333333333333333; /* binary: 00110011 */
-   const uint64_t m4  = 0x0f0f0f0f0f0f0f0f; /* binary:  4 zeros,  4 ones */
+   const uint64_t m1  = 0x5555555555555555ull; /* binary: 0101... */
+   const uint64_t m2  = 0x3333333333333333ull; /* binary: 00110011 */
+   const uint64_t m4  = 0x0f0f0f0f0f0f0f0full; /* binary:  4 zeros,  4 ones */
 
    x -= (x >> 1) & m1;             /* each 2 bits into those 2 bits */
    x = (x & m2) + ((x >> 2) & m2); /* each 4 bits into those 4 bits */
@@ -208,7 +209,9 @@ CountNetmaskBitsV4(struct sockaddr *netmask)
    uint64_t value = ((struct sockaddr_in *)netmask)->sin_addr.s_addr;
    return CountNetmaskBits(value);
 }
+#endif
 
+#if defined(USERWORLD) || (defined(__linux__) && defined(NO_DNET))
 static unsigned
 CountNetmaskBitsV6(struct sockaddr *netmask)
 {
@@ -259,7 +262,7 @@ GuestInfoGetNicInfo(NicInfoV3 *nicInfo) // OUT
    }
 
    return TRUE;
-#elif defined(USERWORLD)
+#elif defined(USERWORLD) || defined(__linux__)
    struct ifaddrs *ifaddrs = NULL;
 
    if (getifaddrs(&ifaddrs) == 0 && ifaddrs != NULL) {
@@ -344,10 +347,14 @@ GuestInfoGetNicInfo(NicInfoV3 *nicInfo) // OUT
    }
 #endif
 
-   // XXX - TODO -- fill in routing info
+   if (!RecordRoutingInfo(nicInfo)) {
+      return FALSE;
+   }
 
    return TRUE;
 #else
+   RecordRoutingInfo(nicInfo);
+
    return FALSE;
 #endif
 }
@@ -361,7 +368,10 @@ GuestInfoGetNicInfo(NicInfoV3 *nicInfo) // OUT
  *
  ******************************************************************************
  */
-#if defined(__FreeBSD__) || defined(__APPLE__) || defined(USERWORLD)
+#if defined(__FreeBSD__) || \
+    defined(__APPLE__) || \
+    defined(USERWORLD) || \
+    (defined(__linux__) && defined(NO_DNET))
 
 char *
 GuestInfoGetPrimaryIP(void)
@@ -733,8 +743,6 @@ RecordResolverNS(DnsConfigInfo *dnsConfigInfo) // IN
 #endif // USE_RESOLVE
 
 
-#ifndef NO_DNET
-
 #ifdef USE_SLASH_PROC
 /*
  ******************************************************************************
@@ -799,8 +807,7 @@ RecordRoutingInfoIPv4(NicInfoV3 *nicInfo)
       GuestInfoSockaddrToTypedIpAddress((struct sockaddr *)sin_dst,
                                         &icre->inetCidrRouteDest);
 
-      addr_stob((struct sockaddr *)sin_genmask,
-                (uint16_t *)&icre->inetCidrRoutePfxLen);
+      icre->inetCidrRoutePfxLen = CountNetmaskBitsV4((struct sockaddr *)sin_genmask);
 
       /*
        * Gateways are optional (ex: one can bind a route to an interface w/o
@@ -959,6 +966,8 @@ RecordRoutingInfo(NicInfoV3 *nicInfo)
    return TRUE;
 }
 #endif                                          // else
+
+#ifndef NO_DNET
 
 #if !defined(__FreeBSD__) && !defined(__APPLE__) && !defined(USERWORLD)
 /*
