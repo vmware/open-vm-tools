@@ -63,7 +63,11 @@ extern "C" {
 
 /*
  * These platforms use bsd_vsnprintf().
- * This does not mean it has bsd_vsnwprintf().
+ *
+ * XXX: open-vm-tools does not use bsd_vsnprintf because bsd_vsnprintf uses
+ * convertutf.{h,c}, and the license for those files does not meet the
+ * redistribution requirements for Debian.
+ * <https://github.com/vmware/open-vm-tools/issues/148>
  */
 #if !defined(OPEN_VM_TOOLS)
 #if (defined _WIN32 && !defined STR_NO_WIN32_LIBS) || \
@@ -73,17 +77,6 @@ extern "C" {
 #endif
 #endif
 
-/*
- * And these platforms/setups use bsd_vsnwprintf()
- */
-#if !defined(OPEN_VM_TOOLS)
-#if (defined _WIN32 && !defined STR_NO_WIN32_LIBS) || \
-   (defined __GNUC__ && (__GNUC__ < 2                 \
-                         || (__GNUC__ == 2            \
-                             && __GNUC_MINOR__ < 96)))
-#define HAS_BSD_WPRINTF 1
-#endif
-#endif
 
 /*
  * ASCII/UTF-8 versions
@@ -146,7 +139,7 @@ char *Str_SafeVasprintf(size_t *length,      // OUT/OPT:
                         const char *format,  // IN:
                         va_list arguments);  // IN:
 
-#if defined(_WIN32) || defined(__linux__) // {
+#if defined(_WIN32) // {
 
 /*
  * wchar_t versions
@@ -202,7 +195,6 @@ wchar_t *Str_SafeVaswprintf(size_t *length,         // OUT/OPT:
  * the _tcs functions, but with Str_Strcpy-style bounds checking.
  */
 
-#ifdef _WIN32
 #ifdef UNICODE
    #define Str_Tcscpy(s1, s2, n) Str_Wcscpy(s1, s2, n)
    #define Str_Tcscat(s1, s2, n) Str_Wcscat(s1, s2, n)
@@ -210,9 +202,8 @@ wchar_t *Str_SafeVaswprintf(size_t *length,         // OUT/OPT:
    #define Str_Tcscpy(s1, s2, n) Str_Strcpy(s1, s2, n)
    #define Str_Tcscat(s1, s2, n) Str_Strcat(s1, s2, n)
 #endif
-#endif
 
-#endif // } defined(_WIN32) || defined(__linux__)
+#endif // } defined(_WIN32)
 
 
 /*

@@ -685,7 +685,7 @@ Str_SafeVasprintf(size_t *length,       // OUT/OPT
    return StrVasprintfInternal(length, format, arguments, TRUE);
 }
 
-#if defined(_WIN32) || defined(__linux__)
+#if defined(_WIN32) // {
 
 /*
  *----------------------------------------------------------------------
@@ -698,7 +698,7 @@ Str_SafeVasprintf(size_t *length,       // OUT/OPT
  *      Returns the number of wchar_ts stored in 'buf'.
  *
  * WARNING:
- *      Behavior of this function is guaranteed only if HAS_BSD_WPRINTF is
+ *      Behavior of this function is guaranteed only if HAS_BSD_PRINTF is
  *      enabled.
  *
  * Side effects:
@@ -742,7 +742,7 @@ Str_Swprintf(wchar_t *buf,       // OUT
  *      NB: on overflow the buffer WILL be NUL terminated
  *
  * WARNING:
- *      Behavior of this function is guaranteed only if HAS_BSD_WPRINTF is
+ *      Behavior of this function is guaranteed only if HAS_BSD_PRINTF is
  *      enabled.
  *
  *      See the warning at the top of this file for proper va_list usage.
@@ -761,7 +761,7 @@ Str_Vsnwprintf(wchar_t *str,          // OUT
 {
    int retval;
 
-#if defined HAS_BSD_WPRINTF
+#if defined HAS_BSD_PRINTF
    retval = bsd_vsnwprintf(&str, size, format, ap);
 #elif defined(_WIN32)
    /*
@@ -1146,7 +1146,7 @@ Str_SafeVaswprintf(size_t *length,         // OUT/OPT
    return StrVaswprintfInternal(length, format, arguments, TRUE);
 }
 
-#endif // defined(_WIN32) || defined(__linux__)
+#endif // } defined(_WIN32)
 
 #ifndef _WIN32
 
@@ -1269,7 +1269,7 @@ CheckWPrintf(const wchar_t *expected, // IN
              const wchar_t *fmt,      // IN
              ...)                     // IN
 {
-#if !defined HAS_BSD_WPRINTF
+#if !defined HAS_BSD_PRINTF
    NOT_TESTED_ONCE();
 #else
    wchar_t buf[1024] = L"";
