@@ -197,20 +197,9 @@ wchar_t *Str_SafeVaswprintf(size_t *length,         // OUT/OPT:
                             const wchar_t *format,  // IN:
                             va_list arguments);     // IN:
 
-unsigned char *Str_Mbscpy(char *buf,        // OUT:
-                          const char *src,  // IN:
-                          size_t maxSize);  // IN:
-unsigned char *Str_Mbscat(char *buf,        // IN/OUT:
-                          const char *src,  // IN:
-                          size_t maxSize);  // IN:
-
 /*
  * These are handly for Windows programmers.  They are like
  * the _tcs functions, but with Str_Strcpy-style bounds checking.
- *
- * We don't have Str_Mbsncat() because it has some odd semantic
- * ambiguity (whether to truncate in the middle of a multibyte
- * sequence) that I want to stay away from.  -- edward
  */
 
 #ifdef _WIN32
@@ -218,8 +207,8 @@ unsigned char *Str_Mbscat(char *buf,        // IN/OUT:
    #define Str_Tcscpy(s1, s2, n) Str_Wcscpy(s1, s2, n)
    #define Str_Tcscat(s1, s2, n) Str_Wcscat(s1, s2, n)
 #else
-   #define Str_Tcscpy(s1, s2, n) Str_Mbscpy(s1, s2, n)
-   #define Str_Tcscat(s1, s2, n) Str_Mbscat(s1, s2, n)
+   #define Str_Tcscpy(s1, s2, n) Str_Strcpy(s1, s2, n)
+   #define Str_Tcscat(s1, s2, n) Str_Strcat(s1, s2, n)
 #endif
 #endif
 
