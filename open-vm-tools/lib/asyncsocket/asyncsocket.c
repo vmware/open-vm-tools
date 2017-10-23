@@ -4762,22 +4762,22 @@ AsyncTCPSocketIPollRecvCallback(void *clientData)  // IN:
       AsyncTCPSocketIPollRemove(asock, FALSE, 0, asock->internalRecvFn);
       asock->recvCbTimer = FALSE;
    }
-   asock->inIPollCb |= IN_IPOLL_RECV;
    lock = AsyncTCPSocketPollParams(asock)->lock;
    if (asock->recvCb && asock->inBlockingRecv == 0) {
+      asock->inIPollCb |= IN_IPOLL_RECV;
       AsyncTCPSocketRecvCallback(clientData);
+      asock->inIPollCb &= ~IN_IPOLL_RECV;
+      if (asock->recvCb) {
+         /* Re-register the callback if it has not been canceled. */
+         AsyncTCPSocketIPollAdd(asock, TRUE, POLL_FLAG_READ,
+                                asock->internalRecvFn, asock->fd);
+      }
    } else {
       TCPSOCKLG0(asock, ("Skip recv because %s\n",
                          asock->recvCb ? "blocking recv is in progress"
                                        : "recv callback is cancelled"));
    }
 
-   asock->inIPollCb &= ~IN_IPOLL_RECV;
-   if (asock->recvCb) {
-      /* Re-register the callback. */
-      AsyncTCPSocketIPollAdd(asock, TRUE, POLL_FLAG_READ, asock->internalRecvFn,
-                             asock->fd);
-   }
    /* This is a one-shot callback so we always release the reference taken. */
    AsyncTCPSocketRelease(asock);
    AsyncTCPSocketUnlock(asock);
