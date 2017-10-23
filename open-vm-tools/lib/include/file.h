@@ -87,7 +87,28 @@ typedef char *File_MakeTempCreateNameFunc(uint32 num,
                                           void *data);
 
 #if defined(__APPLE__)
+typedef enum {
+   FILEMACOS_UNMOUNT_SUCCESS,
+   FILEMACOS_UNMOUNT_SUCCESS_ALREADY,
+   FILEMACOS_UNMOUNT_ERROR,
+} FileMacosUnmountStatus;
+
+FileMacosUnmountStatus FileMacos_UnmountDev(char const *bsdDev,
+                                            Bool wholeDev,
+                                            Bool eject,
+                                            Bool su);
+
+void FileMacos_MountDevAsyncNoResult(char const *bsdDev,
+                                     Bool su);
+
 Bool FileMacos_IsOnSparseDmg(int fd);
+Bool FileMacos_IsSliceDevice(char const *bsdDev);
+
+char *FileMacos_DiskDevToUserFriendlyName(char const *bsdDiskDev);
+char *FileMacos_DiskDevToVolumeName(char const *bsdDiskDev);
+
+char *FileMacos_DiskDeviceToUniqueID(char const *bsdPath);
+char *FileMacos_UniqueIDToDiskDevice(char const *identifier);
 Bool FileMacOS_MakeSecureLibraryCopies(const char   *inDir,
                                        const char  **dylibName,
                                        unsigned      numDylibs,
