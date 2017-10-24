@@ -149,14 +149,14 @@ typedef enum {
 /*
  *	Little Endian layout of bitfields -
  *	Byte 0 :	7.....len.....0
- *	Byte 1 :	rsvd gen 13.len.8
+ *	Byte 1 :	oco gen 13.len.8
  *	Byte 2 : 	5.msscof.0 ext1  dtype
  *	Byte 3 : 	13...msscof...6
  *
  *	Big Endian layout of bitfields -
  *	Byte 0:		13...msscof...6
  *	Byte 1 : 	5.msscof.0 ext1  dtype
- *	Byte 2 :	rsvd gen 13.len.8
+ *	Byte 2 :	oco gen 13.len.8
  *	Byte 3 :	7.....len.....0
  *
  *	Thus, le32_to_cpu on the dword will allow the big endian driver to read
