@@ -130,9 +130,23 @@
 
 #ifndef NO_DNET
 static Bool RecordNetworkAddress(GuestNicV3 *nic, const struct addr *addr);
-static int ReadInterfaceDetails(const struct intf_entry *entry, void *arg);
+static int ReadInterfaceDetails(const struct intf_entry *entry,
+                                void *arg,
+                                NicInfoPriority priority);
+static int ReadInterfaceDetailsPrimary(const struct intf_entry *entry,
+                                       void *arg);
+static int ReadInterfaceDetailsNormal(const struct intf_entry *entry,
+                                      void *arg);
+static int ReadInterfaceDetailsLowPriority(const struct intf_entry *entry,
+                                           void *arg);
+static Bool RecordRoutingInfo(NicInfoV3 *nicInfo);
 
 #if !defined(__FreeBSD__) && !defined(__APPLE__) && !defined(USERWORLD)
+typedef struct GuestInfoIpPriority {
+   char *ipstr;
+   NicInfoPriority priority;
+} GuestInfoIpPriority;
+
 static int GuestInfoGetIntf(const struct intf_entry *entry, void *arg);
 #endif
 
@@ -219,6 +233,102 @@ CountNetmaskBitsV6(struct sockaddr *netmask)
 
    return CountNetmaskBits(value[0]) + CountNetmaskBits(value[1]);
 }
+
+
+/*
+ ******************************************************************************
+ * GuestInfoGetInterface --                                              */ /**
+ *
+ * @brief Gather IP addresses from ifaddrs and put into NicInfo, filtered
+ *        by priority.
+ *
+ * @param[in]   ifaddrs  ifaddrs structure
+ * @param[in]   priority the priority - only interfaces with this priority
+ *                       will be considered
+ * @param[out]  nicInfo  NicInfoV3 structure
+ *
+ ******************************************************************************
+ */
+
+static void
+GuestInfoGetInterface(struct ifaddrs *ifaddrs,
+                      NicInfoPriority priority,
+                      NicInfoV3 *nicInfo)
+{
+   struct ifaddrs *pkt;
+   /*
+    * ESXi reports an AF_PACKET record for each physical interface.
+    * The MAC address is the first six bytes of sll_addr.  AF_PACKET
+    * records are intermingled with AF_INET and AF_INET6 records.
+    */
+   for (pkt = ifaddrs; pkt != NULL; pkt = pkt->ifa_next) {
+      GuestNicV3 *nic;
+      struct ifaddrs *ip;
+      struct sockaddr_ll *sll = (struct sockaddr_ll *)pkt->ifa_addr;
+
+      if (GuestInfo_IfaceGetPriority(pkt->ifa_name) != priority ||
+          GuestInfo_IfaceIsExcluded(pkt->ifa_name)) {
+         continue;
+      }
+
+      if (sll != NULL && sll->sll_family == AF_PACKET) {
+         char macAddress[NICINFO_MAC_LEN];
+         Str_Sprintf(macAddress, sizeof macAddress,
+                     "%02x:%02x:%02x:%02x:%02x:%02x",
+                     sll->sll_addr[0], sll->sll_addr[1], sll->sll_addr[2],
+                     sll->sll_addr[3], sll->sll_addr[4], sll->sll_addr[5]);
+         nic = GuestInfoAddNicEntry(nicInfo, macAddress, NULL, NULL);
+         if (nic == NULL) {
+            /*
+             * We reached the maximum number of NICs that we can report.
+             */
+            break;
+         }
+         /*
+          * Now look for all IPv4 and IPv6 interfaces with the same
+          * interface name as the current AF_PACKET interface.
+          */
+         for (ip = ifaddrs; ip != NULL; ip = ip->ifa_next) {
+            struct sockaddr *sa = (struct sockaddr *)ip->ifa_addr;
+            if (sa != NULL &&
+                strncmp(ip->ifa_name, pkt->ifa_name, IFNAMSIZ) == 0) {
+               int family = sa->sa_family;
+               Bool goodAddress = FALSE;
+               unsigned nBits = 0;
+               /*
+                * Ignore any loopback addresses.
+                */
+               if (family == AF_INET) {
+                  struct sockaddr_in *sin = (struct sockaddr_in *)sa;
+                  if ((ntohl(sin->sin_addr.s_addr) >> IN_CLASSA_NSHIFT) !=
+                      IN_LOOPBACKNET) {
+                     nBits = CountNetmaskBitsV4(ip->ifa_netmask);
+                     goodAddress = TRUE;
+                  }
+               } else if (family == AF_INET6) {
+                  struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sa;
+                  if (!IN6_IS_ADDR_LOOPBACK(&sin6->sin6_addr)) {
+                     nBits = CountNetmaskBitsV6(ip->ifa_netmask);
+                     goodAddress = TRUE;
+                  }
+               }
+               if (goodAddress) {
+                  IpAddressEntry *ent = GuestInfoAddIpAddress(nic,
+                                                              ip->ifa_addr,
+                                                              nBits, NULL,
+                                                              NULL);
+                  if (NULL == ent) {
+                     /*
+                      * Reached the max number of IPs that can be reported
+                      */
+                     break;
+                  }
+               }
+            }
+         }
+      }
+   }
+}
 #endif
 
 
@@ -231,8 +341,7 @@ CountNetmaskBitsV6(struct sockaddr *netmask)
  ******************************************************************************
  */
 
-Bool
-GuestInfoGetNicInfo(NicInfoV3 *nicInfo) // OUT
+Bool GuestInfoGetNicInfo(NicInfoV3 *nicInfo) // OUT
 {
 #ifndef NO_DNET
    intf_t *intf;
@@ -243,7 +352,15 @@ GuestInfoGetNicInfo(NicInfoV3 *nicInfo) // OUT
       return FALSE;
    }
 
-   if (intf_loop(intf, ReadInterfaceDetails, nicInfo) < 0) {
+   /*
+    * Iterate through the list of interfaces thrice - first for interfaces
+    * considered to be primary; second for others, non-specified as primary
+    * or low priority; and low-priority last. This ensures interfaces are
+    * handled in the specified order.
+    */
+   if (intf_loop(intf, ReadInterfaceDetailsPrimary, nicInfo) < 0 ||
+       intf_loop(intf, ReadInterfaceDetailsNormal, nicInfo) < 0 ||
+       intf_loop(intf, ReadInterfaceDetailsLowPriority, nicInfo) < 0) {
       intf_close(intf);
       g_debug("Error, negative result from intf_loop\n");
       return FALSE;
@@ -266,77 +383,15 @@ GuestInfoGetNicInfo(NicInfoV3 *nicInfo) // OUT
    struct ifaddrs *ifaddrs = NULL;
 
    if (getifaddrs(&ifaddrs) == 0 && ifaddrs != NULL) {
-      struct ifaddrs *pkt;
+      NicInfoPriority priority;
+
       /*
-       * ESXi reports an AF_PACKET record for each physical interface.
-       * The MAC address is the first six bytes of sll_addr.  AF_PACKET
-       * records are intermingled with AF_INET and AF_INET6 records.
+       * Handle primary interfaces first, then non-primary ones.
        */
-      for (pkt = ifaddrs; pkt != NULL; pkt = pkt->ifa_next) {
-         GuestNicV3 *nic;
-         struct ifaddrs *ip;
-         struct sockaddr_ll *sll = (struct sockaddr_ll *)pkt->ifa_addr;
-
-         if (GuestInfo_IfaceIsExcluded(pkt->ifa_name)) {
-            continue;
-         }
-
-         if (sll != NULL && sll->sll_family == AF_PACKET) {
-            char macAddress[NICINFO_MAC_LEN];
-            Str_Sprintf(macAddress, sizeof macAddress,
-                        "%02x:%02x:%02x:%02x:%02x:%02x",
-                        sll->sll_addr[0], sll->sll_addr[1], sll->sll_addr[2],
-                        sll->sll_addr[3], sll->sll_addr[4], sll->sll_addr[5]);
-            nic = GuestInfoAddNicEntry(nicInfo, macAddress, NULL, NULL);
-            if (nic == NULL) {
-               /*
-                * We reached the maximum number of NICs that we can report.
-                */
-               break;
-            }
-            /*
-             * Now look for all IPv4 and IPv6 interfaces with the same
-             * interface name as the current AF_PACKET interface.
-             */
-            for (ip = ifaddrs; ip != NULL; ip = ip->ifa_next) {
-               struct sockaddr *sa = (struct sockaddr *)ip->ifa_addr;
-               if (sa != NULL &&
-                   strncmp(ip->ifa_name, pkt->ifa_name, IFNAMSIZ) == 0) {
-                  int family = sa->sa_family;
-                  Bool goodAddress = FALSE;
-                  unsigned nBits = 0;
-                  /*
-                   * Ignore any loopback addresses.
-                   */
-                  if (family == AF_INET) {
-                     struct sockaddr_in *sin = (struct sockaddr_in *)sa;
-                     if ((ntohl(sin->sin_addr.s_addr) >> IN_CLASSA_NSHIFT) !=
-                         IN_LOOPBACKNET) {
-                        nBits = CountNetmaskBitsV4(ip->ifa_netmask);
-                        goodAddress = TRUE;
-                     }
-                  } else if (family == AF_INET6) {
-                     struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sa;
-                     if (!IN6_IS_ADDR_LOOPBACK(&sin6->sin6_addr)) {
-                        nBits = CountNetmaskBitsV6(ip->ifa_netmask);
-                        goodAddress = TRUE;
-                     }
-                  }
-                  if (goodAddress) {
-                     IpAddressEntry *ent = GuestInfoAddIpAddress(nic,
-                                                                 ip->ifa_addr,
-                                                                 nBits, NULL,
-                                                                 NULL);
-                     if (NULL == ent) {
-                        /*
-                         * Reached the max number of IPs that can be reported
-                         */
-                        break;
-                     }
-                  }
-               }
-            }
-         }
+      for (priority = NICINFO_PRIORITY_PRIMARY;
+           priority < NICINFO_PRIORITY_MAX;
+           priority++) {
+         GuestInfoGetInterface(ifaddrs, priority, nicInfo);
       }
       freeifaddrs(ifaddrs);
    }
@@ -379,6 +434,8 @@ GuestInfoGetPrimaryIP(void)
    struct ifaddrs *ifaces;
    struct ifaddrs *curr;
    char *ipstr = NULL;
+   char *currIpstr = NULL;
+   NicInfoPriority currPri = NICINFO_PRIORITY_MAX;
 
    /*
     * getifaddrs(3) creates a NULL terminated linked list of interfaces for us
@@ -393,7 +450,7 @@ GuestInfoGetPrimaryIP(void)
     * the primary interface. This function defines the primary interface to be
     * the first non-loopback, internet interface in the interface list.
     */
-   for(curr = ifaces; curr != NULL; curr = curr->ifa_next) {
+   for (curr = ifaces; curr != NULL; curr = curr->ifa_next) {
       int currFamily = ((struct sockaddr_storage *)curr->ifa_addr)->ss_family;
 
       if (!(curr->ifa_flags & IFF_UP) || curr->ifa_flags & IFF_LOOPBACK) {
@@ -407,13 +464,24 @@ GuestInfoGetPrimaryIP(void)
       }
 
       if (ipstr != NULL) {
-         break;
+         NicInfoPriority pri = GuestInfo_IfaceGetPriority(curr->ifa_name);
+         if (pri < currPri) {
+            g_debug("%s: ifa_name=%s, pri=%d, currPri=%d, ipstr=%s",
+                    __FUNCTION__, curr->ifa_name, pri, currPri, ipstr);
+            g_free(currIpstr);
+            currIpstr = ipstr;
+            currPri = pri;
+            if (pri == NICINFO_PRIORITY_PRIMARY) {
+               /* not going to find anything better than that */
+               break;
+            }
+         }
       }
    }
 
    freeifaddrs(ifaces);
 
-   return ipstr;
+   return currIpstr;
 }
 
 #else
@@ -422,16 +490,25 @@ GuestInfoGetPrimaryIP(void)
 char *
 GuestInfoGetPrimaryIP(void)
 {
-   char *ipstr = NULL;
+   GuestInfoIpPriority ipp;
    intf_t *intf = intf_open();
 
    if (intf != NULL) {
-      intf_loop(intf, GuestInfoGetIntf, &ipstr);
-
+      ipp.ipstr = NULL;
+      for (ipp.priority = NICINFO_PRIORITY_PRIMARY;
+          ipp.priority < NICINFO_PRIORITY_MAX;
+          ipp.priority++){
+         intf_loop(intf, GuestInfoGetIntf, &ipp);
+         if (ipp.ipstr != NULL) {
+            break;
+         }
+      }
       intf_close(intf);
    }
 
-   return ipstr;
+   g_debug("%s: returning '%s'", __FUNCTION__, ipp.ipstr);
+
+   return ipp.ipstr;
 }
 #else
 #   error GuestInfoGetPrimaryIP needed for this platform
@@ -483,10 +560,11 @@ RecordNetworkAddress(GuestNicV3 *nic,           // IN: operand NIC
  * ReadInterfaceDetails --                                               */ /**
  *
  * @brief Callback function called by libdnet when iterating over all the NICs
- * on the host.
+ * on the host. Cannot be used as a callback directly, see wrappers below.
  *
- * @param[in]  entry    Current interface entry.
- * @param[in]  arg      Pointer to NicInfoV3 container.
+ * @param[in]  entry      Current interface entry.
+ * @param[in]  arg        Pointer to NicInfoV3 container.
+ * @param[in]  priority   Which priority interfaces to consider
  *
  * @note New GuestNicV3 structures are added to the NicInfoV3 structure.
  *
@@ -497,8 +575,9 @@ RecordNetworkAddress(GuestNicV3 *nic,           // IN: operand NIC
  */
 
 static int
-ReadInterfaceDetails(const struct intf_entry *entry,  // IN: current interface entry
-                     void *arg)                       // IN: Pointer to the GuestNicList
+ReadInterfaceDetails(const struct intf_entry *entry, // IN
+                     void *arg,                      // IN
+                     NicInfoPriority priority)       // IN
 {
    int i;
    NicInfoV3 *nicInfo = arg;
@@ -522,7 +601,8 @@ ReadInterfaceDetails(const struct intf_entry *entry,  // IN: current interface e
          Str_Sprintf(macAddress, sizeof macAddress, "%s",
                      addr_ntoa(&entry->intf_link_addr));
 
-         if (GuestInfo_IfaceIsExcluded(entry->intf_name)) {
+         if (GuestInfo_IfaceIsExcluded(entry->intf_name) ||
+             GuestInfo_IfaceGetPriority(entry->intf_name) != priority) {
             return 0;
          }
 
@@ -563,6 +643,88 @@ ReadInterfaceDetails(const struct intf_entry *entry,  // IN: current interface e
 
    return 0;
 }
+
+
+/*
+ ******************************************************************************
+ * ReadInterfaceDetailsPrimary --                                        */ /**
+ *
+ * @brief Callback function called by libdnet when iterating over all the NICs
+ * on the host. Calls ReadInterfaceDetails with the priority param set to
+ * NICINFO_PRIORITY_PRIMARY.
+ *
+ * @param[in]  entry     Current interface entry.
+ * @param[in]  arg       Pointer to NicInfoV3 container.
+ *
+ * @note New GuestNicV3 structures are added to the NicInfoV3 structure.
+ *
+ * @retval 0    Success.
+ * @retval -1   Failure.
+ *
+ ******************************************************************************
+ */
+
+static int
+ReadInterfaceDetailsPrimary(const struct intf_entry *entry,
+                            void *arg)
+{
+   return ReadInterfaceDetails(entry, arg, NICINFO_PRIORITY_PRIMARY);
+}
+
+
+/*
+ ******************************************************************************
+ * ReadInterfaceDetailsNormal --                                      */ /**
+ *
+ * @brief Callback function called by libdnet when iterating over all the NICs
+ * on the host. Calls ReadInterfaceDetails with the priority param set to
+ * NICINFO_PRIORITY_NORMAL.
+ *
+ * @param[in]  entry     Current interface entry.
+ * @param[in]  arg       Pointer to NicInfoV3 container.
+ *
+ * @note New GuestNicV3 structures are added to the NicInfoV3 structure.
+ *
+ * @retval 0    Success.
+ * @retval -1   Failure.
+ *
+ ******************************************************************************
+ */
+
+static int
+ReadInterfaceDetailsNormal(const struct intf_entry *entry,
+                           void *arg)
+{
+   return ReadInterfaceDetails(entry, arg, NICINFO_PRIORITY_NORMAL);
+}
+
+/*
+ ******************************************************************************
+ * ReadInterfaceDetailsLowPriority --                                    */ /**
+ *
+ * @brief Callback function called by libdnet when iterating over all the NICs
+ * on the host. Calls ReadInterfaceDetails with the priority param set to
+ * NICINFO_PRIORITY_LOW.
+ *
+ * @param[in]  entry     Current interface entry.
+ * @param[in]  arg       Pointer to NicInfoV3 container.
+ *
+ * @note New GuestNicV3 structures are added to the NicInfoV3 structure.
+ *
+ * @retval 0    Success.
+ * @retval -1   Failure.
+ *
+ ******************************************************************************
+ */
+
+
+static int
+ReadInterfaceDetailsLowPriority(const struct intf_entry *entry,
+                                void *arg)
+{
+   return ReadInterfaceDetails(entry, arg, NICINFO_PRIORITY_LOW);
+}
+
 
 #endif // !NO_DNET
 
@@ -977,8 +1139,11 @@ RecordRoutingInfo(NicInfoV3 *nicInfo)
  * @brief Callback function called by libdnet when iterating over all the NICs
  * on the host.
  *
- * @param[in]  intf_entry  sockaddr struct to convert.
- * @param[out] arg         IP address string buffer.
+ * @param[in]      intf_entry  sockaddr struct to convert.
+ * @param[in/out]  arg         GuestInfoIpPriority struct
+ *
+ * arg points to an GuestInfoIpPriority structure containing the priority we
+ * are looking for, and a pointer to the ip address to be set.
  *
  * @retval -1              If applicable address found, returns string of said
  *                         IP address in buffer.
@@ -988,17 +1153,19 @@ RecordRoutingInfo(NicInfoV3 *nicInfo)
  */
 
 static int
-GuestInfoGetIntf(const struct intf_entry *entry,  // IN:
-                 void *arg)                       // OUT:
+GuestInfoGetIntf(const struct intf_entry *entry, // IN
+                 void *arg)                      // IN/OUT
 {
-   char **ipstr = arg;
+   GuestInfoIpPriority *ipp = arg;
+   char **ipstr = &ipp->ipstr;
 
    if (entry->intf_type == INTF_TYPE_ETH &&
        entry->intf_link_addr.addr_type == ADDR_TYPE_ETH) {
       struct sockaddr_storage ss;
       struct sockaddr *saddr = (struct sockaddr *)&ss;
 
-      if (GuestInfo_IfaceIsExcluded(entry->intf_name)) {
+      if (GuestInfo_IfaceGetPriority(entry->intf_name) != ipp->priority ||
+          GuestInfo_IfaceIsExcluded(entry->intf_name)) {
          return 0;
       }
 
