@@ -237,7 +237,14 @@ GuestDnDDest::OnRpcDrop(uint32 sessionId,
 void
 GuestDnDDest::OnRpcCancel(uint32 sessionId)
 {
+   /*
+    * For Windows, the detection window will hide when the drop
+    * event occurs.
+    * Please see bug 1750683.
+    */
+#if !defined(_WIN32)
    mMgr->DelayHideDetWnd();
+#endif // _WIN32
    mMgr->RemoveUngrabTimeout();
    mMgr->destCancelChanged.emit();
    mMgr->SetState(GUEST_DND_READY);
