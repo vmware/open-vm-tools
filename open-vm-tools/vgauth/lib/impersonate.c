@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -115,9 +115,13 @@ VGAuth_CreateHandleForUsername(VGAuthContext *ctx,
 
 #ifdef _WIN32
    newHandle->token = token;
+   newHandle->hProfile = NULL;
 #endif
 
+   newHandle->refCount = 1;
    *handle = newHandle;
+
+   Debug("%s: Created handle %p\n", __FUNCTION__, newHandle);
 
    return err;
 }
@@ -292,6 +296,19 @@ VGAuth_UserHandleFree(VGAuthUserHandle *handle)
       return;
    }
 
+   ASSERT(handle->refCount > 0);
+   if (handle->refCount <= 0) {
+      Warning("%s: invalid user handle reference count %d\n",
+              __FUNCTION__, handle->refCount);
+      return;
+   }
+
+   handle->refCount--;
+
+   if (handle->refCount > 0) {
+      return;
+   }
+
    WIN32_ONLY(CloseHandle(handle->token));
 
    g_free(handle->userName);
@@ -303,6 +320,8 @@ VGAuth_UserHandleFree(VGAuthUserHandle *handle)
    }
 
    g_free(handle);
+
+   Debug("%s: Freed handle %p\n", __FUNCTION__, handle);
 }
 
 
@@ -323,6 +342,10 @@ VGAuth_UserHandleFree(VGAuthUserHandle *handle)
  * before another call to VGAuth_Impersonate() is made.
  *
  * @remark Must be called by superuser.
+ *         One @a extraParams is supported for Windows:
+ *         VGAUTH_PARAM_LOAD_USER_PROFILE, which must have the value
+ *         VGAUTH_PARAM_VALUE_TRUE or VGAUTH_PARAM_VALUE_FALSE.
+ *         If set true, load user profile before impersonation.
  *
  * @param[in]  ctx             The VGAuthContext.
  * @param[in]  handle          The handle representing the user to be
@@ -346,6 +369,7 @@ VGAuth_Impersonate(VGAuthContext *ctx,
                    const VGAuthExtraParams *extraParams)
 {
    VGAuthError err;
+   gboolean loadUserProfile;
 
    if ((NULL == ctx) || (NULL == handle)) {
       return VGAUTH_E_INVALID_ARGUMENT;
@@ -362,13 +386,25 @@ VGAuth_Impersonate(VGAuthContext *ctx,
       return err;
    }
 
+   err = VGAuthGetBoolExtraParam(numExtraParams, extraParams,
+                                 VGAUTH_PARAM_LOAD_USER_PROFILE,
+                                 FALSE,
+                                 &loadUserProfile);
+   if (VGAUTH_E_OK != err) {
+      return err;
+   }
+
    if (ctx->isImpersonating) {
       return VGAUTH_E_ALREADY_IMPERSONATING;
    }
 
-   err = VGAuthImpersonateImpl(ctx, handle);
+   err = VGAuthImpersonateImpl(ctx,
+                               handle,
+                               loadUserProfile);
    if (VGAUTH_E_OK == err) {
       ctx->isImpersonating = TRUE;
+      handle->refCount++;
+      ctx->impersonatedUser = handle;
    }
 
    return err;
@@ -409,6 +445,8 @@ VGAuth_EndImpersonation(VGAuthContext *ctx)
    err = VGAuthEndImpersonationImpl(ctx);
    if (VGAUTH_E_OK == err) {
       ctx->isImpersonating = FALSE;
+      VGAuth_UserHandleFree(ctx->impersonatedUser);
+      ctx->impersonatedUser = NULL;
    }
 
    return err;
