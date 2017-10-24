@@ -1,5 +1,5 @@
 ##########################################################
-# Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
+# Copyright (C) 2011-2017 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -53,7 +53,7 @@ listmapped.subject = "主题"
 
 listmapped.username = "用户名"
 
-listoptions.username = "要查询其证书存储的用户"
+listoptions.username = "要对其证书存储进行查询的用户"
 
 listoptions.verbose = "详细操作"
 
@@ -68,7 +68,7 @@ removesubj.success = "%1$s: 已删除别名\n"
 removeoptions.file = "PEM 文件名"
 
 removeoptions.subject = "SAML 主题"
-removeoptions.username = "要从以下位置删除证书存储的用户"
+removeoptions.username = "要从以下位置移除其证书存储的用户"
 
 removeoptions.verbose = "详细操作"
 
