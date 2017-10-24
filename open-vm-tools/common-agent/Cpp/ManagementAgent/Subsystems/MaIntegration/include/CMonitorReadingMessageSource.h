@@ -2,7 +2,7 @@
  *	 Author: bwilliams
  *  Created: Oct 22, 2010
  *
- *	Copyright (C) 2010-2016 VMware, Inc.  All rights reserved. -- VMware Confidential
+ *	Copyright (C) 2010-2017 VMware, Inc.  All rights reserved. -- VMware Confidential
  */
 
 #ifndef _MaIntegration_CMonitorReadingMessageSource_h_

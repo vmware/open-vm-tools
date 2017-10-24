@@ -2,7 +2,7 @@
  *	 Author: bwilliams
  *  Created: Jan 21, 2011
  *
- *	Copyright (C) 2011-2016 VMware, Inc.  All rights reserved. -- VMware Confidential
+ *	Copyright (C) 2011-2017 VMware, Inc.  All rights reserved. -- VMware Confidential
  */
 
 #ifndef CFILESYSTEMUTILS_H_
