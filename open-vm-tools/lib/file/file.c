@@ -85,6 +85,8 @@
  *      uses the effective uid, but it's too risky to fix right now.
  *      See PR 459242.
  *
+ *      Errno/GetLastError is available upon failure.
+ *
  * Results:
  *      TRUE    file is accessible with the process' real uid
  *      FALSE   file doesn't exist or an error occured
@@ -108,6 +110,8 @@ File_Exists(const char *pathName)  // IN: May be NULL.
  * File_UnlinkIfExists --
  *
  *      If the given file exists, unlink it.
+ *
+ *      Errno/GetLastError is available upon failure.
  *
  * Results:
  *      Return 0 if the unlink is successful or if the file did not exist.
@@ -169,6 +173,8 @@ File_SupportsMandatoryLock(const char *pathName) // IN: file to be locked
  *
  *      Check if specified file is a directory or not.
  *
+ *      Errno/GetLastError is available upon failure.
+ *
  * Results:
  *      TRUE    is a directory
  *      FALSE   is not a directory or an error occured
@@ -195,6 +201,8 @@ File_IsDirectory(const char *pathName)  // IN:
  * File_GetFilePermissions --
  *
  *      Return the read / write / execute permissions of a file.
+ *
+ *      Errno/GetLastError is available upon failure.
  *
  * Results:
  *      TRUE if success, FALSE otherwise.
@@ -246,6 +254,8 @@ File_GetFilePermissions(const char *pathName,  // IN:
  *      followed.
  *      WINDOWS: No symbolic links so no link following.
  *
+ *      Errno/GetLastError is available upon failure.
+ *
  * Results:
  *      Return 0 if the unlink is successful. Otherwise, returns -1.
  *
@@ -270,6 +280,8 @@ File_Unlink(const char *pathName)  // IN:
  *      Unlink the file (do not follow symbolic links).
  *      On Windows, there are no symbolic links so this is the same as
  *      File_Unlink
+ *
+ *      Errno/GetLastError is available upon failure.
  *
  * Results:
  *      Return 0 if the unlink is successful. Otherwise, returns -1.
@@ -333,43 +345,17 @@ File_UnlinkRetry(const char *pathName,       // IN:
 /*
  *----------------------------------------------------------------------
  *
- * FileCreateDirectoryEx --
- *
- *      Creates the specified directory with the specified permissions.
- *
- * Results:
- *      True if the directory is successfully created, false otherwise.
- *
- * Side effects:
- *      Creates the directory on disk.
- *
- *----------------------------------------------------------------------
- */
-
-static int
-FileCreateDirectoryEx(const char *pathName,  // IN:
-                      int mask)              // IN:
-{
-   int err = FileCreateDirectory(pathName, mask);
-
-   if (err != 0) {
-      Log(LGPFX" %s: Failed to create %s. Error = %d\n",
-          __FUNCTION__, pathName, err);
-   }
-
-   return err;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * File_CreateDirectoryEx --
  *
  *      Creates the specified directory with the specified permissions.
  *
+ *      Errno/GetLastError is available upon failure.
+ *
  * Results:
- *      True if the directory is successfully created, false otherwise.
+ *      TRUE   Directory was created
+ *      FALSE  Directory creation failed.
+ *             See File_EnsureDirectoryEx for dealing with directories that
+ *             may exist.
  *
  * Side effects:
  *      Creates the directory on disk.
@@ -381,7 +367,7 @@ Bool
 File_CreateDirectoryEx(const char *pathName,  // IN:
                        int mask)              // IN:
 {
-   int err = FileCreateDirectoryEx(pathName, mask);
+   int err = FileCreateDirectory(pathName, mask);
 
    return err == 0;
 }
@@ -394,8 +380,13 @@ File_CreateDirectoryEx(const char *pathName,  // IN:
  *
  *      Creates the specified directory with 0777 permissions.
  *
+ *      Errno/GetLastError is available upon failure.
+ *
  * Results:
- *      True if the directory is successfully created, false otherwise.
+ *      TRUE   Directory was created
+ *      FALSE  Directory creation failed.
+ *             See File_EnsureDirectoryEx for dealing with directories that
+ *             may exist.
  *
  * Side effects:
  *      Creates the directory on disk.
@@ -406,7 +397,9 @@ File_CreateDirectoryEx(const char *pathName,  // IN:
 Bool
 File_CreateDirectory(const char *pathName)  // IN:
 {
-   return File_CreateDirectoryEx(pathName, 0777);
+   int err = FileCreateDirectory(pathName, 0777);
+
+   return err == 0;
 }
 
 
@@ -417,6 +410,8 @@ File_CreateDirectory(const char *pathName)  // IN:
  *
  *      If the directory doesn't exist, creates it. If the directory
  *      already exists, do nothing and succeed.
+ *
+ *      Errno/GetLastError is available upon failure.
  *
  * Results:
  *      See above.
@@ -432,14 +427,8 @@ File_EnsureDirectoryEx(const char *pathName,  // IN:
                        int mask)              // IN:
 {
    int err = FileCreateDirectory(pathName, mask);
-   Bool success = ((err == 0) || (err == EEXIST));
 
-   if (!success) {
-      Log(LGPFX" %s: Failed to create %s. Error = %d\n",
-          __FUNCTION__, pathName, err);
-   }
-
-   return success;
+   return ((err == 0) || (err == EEXIST));
 }
 
 
@@ -450,6 +439,8 @@ File_EnsureDirectoryEx(const char *pathName,  // IN:
  *
  *      If the directory doesn't exist, creates it. If the directory
  *      already exists, do nothing and succeed.
+ *
+ *      Errno/GetLastError is available upon failure.
  *
  * Results:
  *      See above.
@@ -1739,11 +1730,11 @@ File_CreateDirectoryHierarchyEx(const char *pathName,   // IN:
 
       /*
        * If we check if the directory already exists and then we create it,
-       * there is a race between these two operations - that might cause this
-       * operation to fail with no reason.
-       * This is why we reverse the attempt and the check.
+       * there is a race between these two operations. Any failure can be
+       * confusing. We avoid this by attempting to create the directory before
+       * checking the type.
        */
-      err = FileCreateDirectoryEx(temp, mask);
+      err = FileCreateDirectory(temp, mask);
 
       if (err == 0) {
          if (topmostCreated != NULL && *topmostCreated == NULL) {
@@ -1767,6 +1758,11 @@ File_CreateDirectoryHierarchyEx(const char *pathName,   // IN:
                }
             }
          }
+      }
+
+      if (err != 0) {
+         Log(LGPFX" %s: Failure on '%s'. Error = %d\n",
+             __FUNCTION__, temp, err);
       }
 
       Posix_Free(temp);
