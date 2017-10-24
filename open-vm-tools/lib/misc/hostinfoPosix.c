@@ -1019,7 +1019,7 @@ HostinfoOSData(void)
 
          Str_Sprintf(distro, sizeof distro, "Other Linux %d.%d kernel",
                      majorVersion, Hostinfo_OSVersion(1));
-         Str_Strcpy(distroShort, STR_OS_OTHER_3X, distroSize);
+         Str_Strcpy(distroShort, STR_OS_OTHER_4X, distroSize);
       }
 
       /*
