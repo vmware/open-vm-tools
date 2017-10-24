@@ -208,7 +208,7 @@ AC_ARG_WITH(
       [--without-gtk3],
       [compiles without Gtk 3.0]),
    [with_gtk3="$withval"],
-   [with_gtk3="no"])
+   [with_gtk3="auto"])
 
 AC_ARG_WITH(
    gtk2,
@@ -216,7 +216,39 @@ AC_ARG_WITH(
       [--without-gtk2],
       [compiles without Gtk 2.0]),
    [with_gtk2="$withval"],
-   [if test "$with_gtk3" = "yes"; then with_gtk2="no" ; else with_gtk2="yes"; fi])
+   [with_gtk2="auto"])
+
+
+if test "$with_gtk2" = "auto" ; then
+   if test "$with_gtk3" = "auto" ; then
+      with_gtk2="no"
+      with_gtk3="yes"
+   elif test "$with_gtk3" = "no" ; then
+      with_gtk2="yes"
+   elif test "$with_gtk3" = "yes" ; then
+      with_gtk2="no"
+   fi
+elif test "$with_gtk2" = "no" ; then
+   if test "$with_gtk3" = "auto" ; then
+      with_gtk3="yes"
+   elif test "$with_gtk3" = "no" ; then
+      AC_MSG_ERROR('need either gtk2 or gtk3 or build with --without-x to disable building desktop plugins')
+   fi
+elif test "$with_gtk2" = "yes"  ; then
+   if test "$with_gtk3" = "auto" ; then
+      with_gtk3="no"
+   elif test "$with_gtk3" = "yes" ; then
+      AC_MSG_ERROR('cannot set both --with-gtk2 and --with-gtk3')
+   fi
+fi
+
+if test "$with_gtk2" = "no" ; then
+   with_gtkmm="no"
+fi
+
+if test "$with_gtk3" = "no" ; then
+   with_gtkmm3="no"
+fi
 
 if test "$with_gtk3" = "yes"; then
    AC_ARG_WITH(
@@ -227,7 +259,7 @@ if test "$with_gtk3" = "yes"; then
       [with_gtkmm3="$withval"],
       [with_gtkmm3="yes"])
       with_gtkmm="no"
-else
+elif test "$with_gtk2" = "yes"; then
    AC_ARG_WITH(
       gtkmm,
       AS_HELP_STRING(
