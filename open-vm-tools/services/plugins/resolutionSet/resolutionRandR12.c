@@ -1000,7 +1000,7 @@ RandR12_SetTopology(Display *dpy,           // IN/OUT: The display connection
    info = RandR12GetInfo(dpy, rootWin);
    if (!info) {
       g_warning("%s: Setup info struct failed.\n", __func__);
-      goto out_ungrab;
+      return FALSE;
    }
 
    RandR12GetDpi(dpy, screen, info);

@@ -1,6 +1,6 @@
 LICENSE
 
-open-vm-tools v10.1.10
+open-vm-tools v10.1.15
 
 The Linux kernel modules are released under the GPL v2, a majority of the user level components are released under the LGPL v2.1, and the SVGA and mouse drivers are released under the X11 license.
 
@@ -231,7 +231,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ========
 
-open-vm-tools v10.1.10 includes a number of subcomponents with separate copyright notices and license terms.  Your use of the source code for these subcomponents is subject to the terms and conditions of the following licenses.
+open-vm-tools v10.1.15 includes a number of subcomponents with separate copyright notices and license terms.  Your use of the source code for these subcomponents is subject to the terms and conditions of the following licenses.
 
 
 SECTION 1: BSD-STYLE, MIT-STYLE, OR SIMILAR STYLE LICENSES
@@ -425,5 +425,5 @@ Source Files is valid for three years from the date you acquired this
 Software product. Alternatively, the Source Files may accompany the
 VMware product.
 
-[OPENVMTOOLS10110GAMS052617]
+[OPENVMTOOLS10115GANR091217]
 
