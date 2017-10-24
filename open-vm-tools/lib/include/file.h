@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -151,9 +151,12 @@ char *File_PathJoin(const char *dirName,
 Bool File_CreateDirectory(const char *pathName);
 
 Bool File_CreateDirectoryEx(const char *pathName,
-                            int mask);
+                            int mode);
 
 Bool File_EnsureDirectory(const char *pathName);
+
+Bool File_EnsureDirectoryEx(const char *pathName,
+                            int mode);
 
 Bool File_DeleteEmptyDirectory(const char *pathName);
 
@@ -161,7 +164,7 @@ Bool File_CreateDirectoryHierarchy(const char *pathName,
                                    char **topmostCreated);
 
 Bool File_CreateDirectoryHierarchyEx(const char *pathName,
-                                     int mask,
+                                     int mode,
                                      char **topmostCreated);
 
 Bool File_DeleteDirectoryContent(const char *pathName);

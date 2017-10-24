@@ -365,9 +365,9 @@ File_UnlinkRetry(const char *pathName,       // IN:
 
 Bool
 File_CreateDirectoryEx(const char *pathName,  // IN:
-                       int mask)              // IN:
+                       int mode)              // IN:
 {
-   int err = FileCreateDirectory(pathName, mask);
+   int err = FileCreateDirectory(pathName, mode);
 
    return err == 0;
 }
@@ -385,7 +385,7 @@ File_CreateDirectoryEx(const char *pathName,  // IN:
  * Results:
  *      TRUE   Directory was created
  *      FALSE  Directory creation failed.
- *             See File_EnsureDirectoryEx for dealing with directories that
+ *             See File_EnsureDirectory for dealing with directories that
  *             may exist.
  *
  * Side effects:
@@ -424,11 +424,28 @@ File_CreateDirectory(const char *pathName)  // IN:
 
 Bool
 File_EnsureDirectoryEx(const char *pathName,  // IN:
-                       int mask)              // IN:
+                       int mode)              // IN:
 {
-   int err = FileCreateDirectory(pathName, mask);
+   int err = FileCreateDirectory(pathName, mode);
 
-   return ((err == 0) || (err == EEXIST));
+   if (err == EEXIST) {
+      FileData fileData;
+
+      err = FileAttributes(pathName, &fileData);
+
+      if (err == 0) {
+         if (fileData.fileType != FILE_TYPE_DIRECTORY) {
+            err = ENOTDIR;
+            errno = ENOTDIR;
+
+#if defined(_WIN32)
+            SetLastError(ERROR_DIRECTORY);
+#endif
+         }
+      }
+   }
+
+   return err == 0;
 }
 
 
@@ -1679,7 +1696,7 @@ FileFirstSlashIndex(const char *pathName,     // IN:
 
 Bool
 File_CreateDirectoryHierarchyEx(const char *pathName,   // IN:
-                                int mask,               // IN:
+                                int mode,               // IN:
                                 char **topmostCreated)  // OUT/OPT:
 {
    char *volume;
@@ -1734,7 +1751,7 @@ File_CreateDirectoryHierarchyEx(const char *pathName,   // IN:
        * confusing. We avoid this by attempting to create the directory before
        * checking the type.
        */
-      err = FileCreateDirectory(temp, mask);
+      err = FileCreateDirectory(temp, mode);
 
       if (err == 0) {
          if (topmostCreated != NULL && *topmostCreated == NULL) {
