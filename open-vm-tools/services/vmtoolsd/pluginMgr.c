@@ -877,7 +877,11 @@ ToolsCore_UnloadPlugins(ToolsServiceState *state)
       return;
    }
 
-   if (state->capsRegistered) {
+   /* 
+    * Signal handlers in some plugins may require RPC Channel. Therefore, we don't
+    * emit the signal if RPC channel is not available. See PR 1798412 for details.
+    */
+   if (state->capsRegistered && state->ctx.rpc) {
       GArray *pcaps = NULL;
       g_signal_emit_by_name(state->ctx.serviceObj,
                             TOOLS_CORE_SIG_CAPABILITIES,
@@ -886,9 +890,7 @@ ToolsCore_UnloadPlugins(ToolsServiceState *state)
                             &pcaps);
 
       if (pcaps != NULL) {
-         if (state->ctx.rpc) {
-            ToolsCore_SetCapabilities(state->ctx.rpc, pcaps, FALSE);
-         }
+         ToolsCore_SetCapabilities(state->ctx.rpc, pcaps, FALSE);
          g_array_free(pcaps, TRUE);
       }
    }
