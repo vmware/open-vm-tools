@@ -1,5 +1,5 @@
 ##########################################################
-# Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
+# Copyright (C) 2011-2017 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -53,7 +53,7 @@ listmapped.subject = "Sujet"
 
 listmapped.username = "Nom d'utilisateur"
 
-listoptions.username = "Utilisateur dont le magasin de certificats est interrogé"
+listoptions.username = "Utilisateur dont le magasin de certificats est demandé"
 
 listoptions.verbose = "Opération en mode détaillé"
 
@@ -68,7 +68,7 @@ removesubj.success = "%1$s : alias supprimé\n"
 removeoptions.file = "Nom de fichier PEM"
 
 removeoptions.subject = "Le sujet SAML"
-removeoptions.username = "Utilisateur dont le magasin de certificats est supprimé de"
+removeoptions.username = "Utilisateur pour lequel le magasin de certificats est supprimé"
 
 removeoptions.verbose = "Opération en mode détaillé"
 
