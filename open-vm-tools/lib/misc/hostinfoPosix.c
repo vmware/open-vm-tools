@@ -526,7 +526,8 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
              strstr(distroLower, "desktop 15")) {
             Str_Strcpy(distroShort, STR_OS_SLES_15, distroShortSize);
          } else if (strstr(distroLower, "server 12") ||
-             strstr(distroLower, "desktop 12")) {
+                    strstr(distroLower, "server for sap applications 12") ||
+                    strstr(distroLower, "desktop 12")) {
             Str_Strcpy(distroShort, STR_OS_SLES_12, distroShortSize);
          } else if (strstr(distroLower, "server 11") ||
                     strstr(distroLower, "desktop 11")) {

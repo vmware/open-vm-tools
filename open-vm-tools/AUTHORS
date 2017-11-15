@@ -10,3 +10,6 @@ Bernd Zeimetz   Fix gcc6 build issues in linuxDeployment.c file.
 
 Josh Paetzel    Add support for 64-bit inodes in FreeBSD 12
                 - https://github.com/vmware/open-vm-tools/pull/190
+
+Sebastian Parschauer    Add support to properly report SLES12-SAP
+                - https://github.com/vmware/open-vm-tools/pull/123
