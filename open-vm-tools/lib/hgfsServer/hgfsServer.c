@@ -5417,7 +5417,7 @@ HgfsServerStatFs(const char *pathName, // IN: Path we're interested in
 
    /* Now call the wiper lib to get space information. */
    Str_Strcpy(p.mountPoint, pathName, sizeof p.mountPoint);
-   wiperError = WiperSinglePartition_GetSpace(&p, freeBytes, totalBytes);
+   wiperError = WiperSinglePartition_GetSpace(&p, NULL, freeBytes, totalBytes);
    if (strlen(wiperError) > 0) {
       LOG(4, ("%s: error using wiper lib: %s\n", __FUNCTION__, wiperError));
 

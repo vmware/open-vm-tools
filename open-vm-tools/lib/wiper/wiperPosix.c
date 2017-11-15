@@ -568,9 +568,10 @@ WiperSinglePartition_Open(const char *mountPoint)      // IN
  */
 
 unsigned char *
-WiperSinglePartition_GetSpace(const WiperPartition *p,  // IN
-                              uint64 *free,       // OUT
-                              uint64 *total)      // OUT
+WiperSinglePartition_GetSpace(const WiperPartition *p, // IN
+                              uint64 *avail,           // OUT/OPT
+                              uint64 *free,            // OUT/OPT
+                              uint64 *total)           // OUT
 {
 #ifdef sun
    struct statvfs statfsbuf;
@@ -595,11 +596,32 @@ WiperSinglePartition_GetSpace(const WiperPartition *p,  // IN
    blockSize = statfsbuf.f_bsize;
 #endif
 
-   if (geteuid()== 0) {
-      *free = (uint64)statfsbuf.f_bfree * blockSize;
-   } else {
-      *free = (uint64)statfsbuf.f_bavail * blockSize;
+   if (avail) {
+      /*
+       * Free blocks available to non-superuser users.
+       * This excludes reserved blocks. Mostly applicable
+       * to 'ext' file systems. Newer file systems like
+       * 'xfs' report same value for f_bavail and f_bfree.
+       */
+      *avail = (uint64)statfsbuf.f_bavail * blockSize;
    }
+
+   if (free) {
+      if (geteuid()== 0) {
+         /*
+          * Free blocks in the file system. This includes
+          * the reserved blocks too.
+          */
+         *free = (uint64)statfsbuf.f_bfree * blockSize;
+      } else {
+         /*
+          * Free blocks available to non-superuser users.
+          * This excludes reserved blocks.
+          */
+         *free = (uint64)statfsbuf.f_bavail * blockSize;
+      }
+   }
+
    *total = (uint64)statfsbuf.f_blocks * blockSize;
 
    return "";
@@ -757,7 +779,7 @@ WiperGetSpace(WiperState *state,  // IN
               uint64 *total)      // OUT
 {
    ASSERT(state);
-   return WiperSinglePartition_GetSpace(state->p, free, total);
+   return WiperSinglePartition_GetSpace(state->p, NULL, free, total);
 }
 
 
