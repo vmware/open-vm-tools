@@ -485,17 +485,8 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
                        int distroShortSize)  // IN: size of short distro name
 
 {
-   char *distroLower = NULL;  /* Lower case distro name */
+   char *distroLower = Util_SafeStrdup(distro);
 
-   distroLower = calloc(strlen(distro) + 1, sizeof *distroLower);
-
-   if (distroLower == NULL) {
-      Warning("%s: could not allocate memory\n", __FUNCTION__);
-
-      return;
-   }
-
-   Str_Strcpy(distroLower, distro, distroShortSize);
    distroLower = Str_ToLower(distroLower);
 
    if (strstr(distroLower, "red hat")) {
@@ -664,6 +655,8 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
       Str_Strcpy(distroShort, STR_OS_VALINUX, distroShortSize);
    } else if (strstr(distroLower, "yellow dog")) {
       Str_Strcpy(distroShort, STR_OS_YELLOW_DOG, distroShortSize);
+   } else if (strstr(distroLower, "vmware photon")) {
+      Str_Strcpy(distroShort, STR_OS_PHOTON, distroShortSize);
    }
 
    free(distroLower);
