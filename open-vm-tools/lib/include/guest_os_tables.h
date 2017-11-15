@@ -62,8 +62,10 @@ extern "C" {
    GOT(GUEST_OS_OTHER24XLINUX_64)                                          \
    GOT(GUEST_OS_OTHER26XLINUX)                                             \
    GOT(GUEST_OS_OTHER26XLINUX_64)                                          \
-   GOT(GUEST_OS_OTHER3XLINUX)      /* Linux 3.x and later */               \
-   GOT(GUEST_OS_OTHER3XLINUX_64)   /* Linux 3.x and later X64 */           \
+   GOT(GUEST_OS_OTHER3XLINUX)      /* Linux 3.x */                         \
+   GOT(GUEST_OS_OTHER3XLINUX_64)   /* Linux 3.x X64 */                     \
+   GOT(GUEST_OS_OTHER4XLINUX)      /* Linux 4.x and later */               \
+   GOT(GUEST_OS_OTHER4XLINUX_64)   /* Linux 4.x and later X64 */           \
    GOT(GUEST_OS_OTHERLINUX)                                                \
    GOT(GUEST_OS_OTHERLINUX_64)                                             \
    GOT(GUEST_OS_OTHER)                                                     \
@@ -209,6 +211,8 @@ extern "C" {
    GOSL(STR_OS_OTHER_26 "-64",               GUEST_OS_OTHER26XLINUX_64,       "linux.iso")            \
    GOSL(STR_OS_OTHER_3X,                     GUEST_OS_OTHER3XLINUX,           "linux.iso")            \
    GOSL(STR_OS_OTHER_3X "-64",               GUEST_OS_OTHER3XLINUX_64,        "linux.iso")            \
+   GOSL(STR_OS_OTHER_4X,                     GUEST_OS_OTHER4XLINUX,           "linux.iso")            \
+   GOSL(STR_OS_OTHER_4X "-64",               GUEST_OS_OTHER4XLINUX_64,        "linux.iso")            \
    GOSL(STR_OS_OTHER,                        GUEST_OS_OTHERLINUX,             "linuxPreGlibc25.iso")  \
    GOSL(STR_OS_OTHER "-64",                  GUEST_OS_OTHERLINUX_64,          "linuxPreGlibc25.iso")  \
    GOSL(STR_OS_RED_HAT,                      GUEST_OS_OTHER26XLINUX,          "linuxPreGlibc25.iso")  \
@@ -417,18 +421,21 @@ extern "C" {
    GOKM("rhel6-64",                             rhel6_64Guest,           TRUE) \
    GOKM("rhel7",                                rhel7Guest,              TRUE) \
    GOKM("rhel7-64",                             rhel7_64Guest,           TRUE) \
+   GOKM("rhel8-64",                             rhel8_64Guest,           TRUE) \
    GOKM("centos",                               centosGuest,             TRUE) \
    GOKM("centos-64",                            centos64Guest,           TRUE) \
    GOKM("centos6",                              centos6Guest,            TRUE) \
    GOKM("centos6-64",                           centos6_64Guest,         TRUE) \
    GOKM("centos7",                              centos7Guest,            FALSE) \
    GOKM("centos7-64",                           centos7_64Guest,         TRUE) \
+   GOKM("centos8-64",                           centos8_64Guest,         TRUE) \
    GOKM("oraclelinux",                          oracleLinuxGuest,        TRUE) \
    GOKM("oraclelinux-64",                       oracleLinux64Guest,      TRUE) \
    GOKM("oraclelinux6",                         oracleLinux6Guest,       TRUE) \
    GOKM("oraclelinux6-64",                      oracleLinux6_64Guest,    TRUE) \
    GOKM("oraclelinux7",                         oracleLinux7Guest,       FALSE) \
    GOKM("oraclelinux7-64",                      oracleLinux7_64Guest,    TRUE) \
+   GOKM("oraclelinux8-64",                      oracleLinux8_64Guest,    TRUE) \
    GOKM("suse",                                 suseGuest,               TRUE) \
    GOKM("suse-64",                              suse64Guest,             TRUE) \
    GOKM("sles",                                 slesGuest,               TRUE) \
@@ -439,6 +446,7 @@ extern "C" {
    GOKM("sles11-64",                            sles11_64Guest,          TRUE) \
    GOKM("sles12",                               sles12Guest,             TRUE) \
    GOKM("sles12-64",                            sles12_64Guest,          TRUE) \
+   GOKM("sles15-64",                            sles15_64Guest,          TRUE) \
    GOKM("mandrake",                             mandrakeGuest,           TRUE) \
    GOKM("mandrake-64",                          mandriva64Guest,         FALSE) \
    GOKM("mandriva",                             mandrivaGuest,           TRUE) \
@@ -467,6 +475,7 @@ extern "C" {
    GOKM("asianux4-64",                          asianux4_64Guest,        TRUE) \
    GOKM("asianux5-64",                          asianux5_64Guest,        TRUE) \
    GOKM("asianux7-64",                          asianux7_64Guest,        TRUE) \
+   GOKM("asianux8-64",                          asianux8_64Guest,        TRUE) \
    GOKM("nld9",                                 nld9Guest,               TRUE) \
    GOKM("oes",                                  oesGuest,                TRUE) \
    GOKM("sjds",                                 sjdsGuest,               TRUE) \
@@ -482,6 +491,8 @@ extern "C" {
    GOKM("other26xlinux-64",                     other26xLinux64Guest,    TRUE) \
    GOKM("other3xlinux",                         other3xLinuxGuest,       TRUE) \
    GOKM("other3xlinux-64",                      other3xLinux64Guest,     TRUE) \
+   GOKM("other4xlinux",                         other4xLinuxGuest,       TRUE) \
+   GOKM("other4xlinux-64",                      other4xLinux64Guest,     TRUE) \
    GOKM("linux",                                otherLinuxGuest,         FALSE) \
    GOKM("otherlinux",                           otherLinuxGuest,         TRUE) \
    GOKM("otherlinux-64",                        otherLinux64Guest,       TRUE) \
@@ -511,6 +522,7 @@ extern "C" {
    GOKM("darwin15-64",                          darwin15_64Guest,        TRUE) \
    GOKM("darwin16-64",                          darwin16_64Guest,        TRUE) \
    GOKM("darwin17-64",                          darwin17_64Guest,        TRUE) \
+   GOKM("darwin18-64",                          darwin18_64Guest,        TRUE) \
    /* ESX guests */ \
    GOKM("vmkernel",                             vmkernelGuest,           TRUE) \
    GOKM("vmkernel5",                            vmkernel5Guest,          TRUE) \
@@ -526,6 +538,8 @@ extern "C" {
    GOKM("freeBSD-64",                           freebsd64Guest,          TRUE) \
    GOKM("freeBSD11",                            freebsd11Guest,          TRUE) \
    GOKM("freeBSD11-64",                         freebsd11_64Guest,       TRUE) \
+   GOKM("freeBSD12",                            freebsd12Guest,          TRUE) \
+   GOKM("freeBSD12-64",                         freebsd12_64Guest,       TRUE) \
    GOKM("openserver5",                          openServer5Guest,        TRUE) \
    GOKM("openserver6",                          openServer6Guest,        TRUE) \
    GOKM("unixware7",                            unixWare7Guest,          TRUE) \
