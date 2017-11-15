@@ -320,37 +320,137 @@ GuestInfoCheckIfRunningSlow(ToolsAppCtx *ctx)
 
 /*
  ******************************************************************************
- * GuestInfoSetNicExcludeList --                                           */ /**
+ * GuestInfoSetConfigList --                                             */ /**
+ *
+ * Gets a list setting from the config, and sets the list pointed to by pList.
+ *
+ * @param[in]  ctx           the application context.
+ * @param[in]  pCachedValue  a pointer to the location of the old value
+ * @param[in]  configName    the configuration name
+ * @param[in]  defaultValue  the default value
+ * @param[out] pList         pointer to the pointer list, set when the value has
+ *                           changed, otherwise this value will stay unchanged.
+ *                           Caller needs to free this with g_strfreev().
+ *
+ * @return TRUE to indicate that the value has changed, FALSE otherwise
+ ******************************************************************************
+ */
+
+static Bool
+GuestInfoSetConfigList(ToolsAppCtx *ctx,
+                       gchar **pCachedValue,
+                       const gchar *configName,
+                       const gchar *defaultValue,
+                       gchar ***pList)
+{
+   gchar *listString = VMTools_ConfigGetString(ctx->config,
+                                               CONFGROUPNAME_GUESTINFO,
+                                               configName, defaultValue);
+   if (g_strcmp0(listString, *pCachedValue) != 0) {
+      gchar **list = NULL;
+      if (listString != NULL && listString[0] != '\0') {
+         list = g_strsplit(listString, ",", 0);
+      }
+      g_free(*pCachedValue);
+      *pCachedValue = listString;
+      *pList = list;
+
+      return TRUE;
+   }
+   return FALSE;
+}
+
+
+/*
+ * ****************************************************************************
+ * GuestInfoResetNicPrimaryList --                                       */ /**
+ *
+ * Gets primary-nics setting from the config, and sets the list of primary
+ * patterns.
+ *
+ * @param[in]  ctx     The application context.
+ *
+ * @return TRUE to indicate that the value has changed, FALSE otherwise
+ ******************************************************************************
+ */
+
+static Bool
+GuestInfoResetNicPrimaryList(ToolsAppCtx *ctx)
+{
+   static gchar *ifacePrimaryStringCached = NULL;
+   gchar **list;
+
+   if (GuestInfoSetConfigList(ctx, &ifacePrimaryStringCached,
+                             CONFNAME_GUESTINFO_PRIMARYNICS, NULL,
+                             &list)) {
+      GuestInfo_SetIfacePrimaryList(list);
+      g_strfreev(list);
+      return TRUE;
+   }
+   return FALSE;
+}
+
+
+/*
+ * ****************************************************************************
+ * GuestInfoResetNicLowPriorityList --                                   */ /**
+ *
+ * Gets low-priority-nics setting from the config, and sets the list of low
+ * priority patterns.
+ *
+ * @param[in]  ctx     The application context.
+ *
+ * @return TRUE to indicate that the value has changed, FALSE otherwise
+ ******************************************************************************
+ */
+
+static Bool
+GuestInfoResetNicLowPriorityList(ToolsAppCtx *ctx)
+{
+   static gchar *ifaceLowPriorityStringCached = NULL;
+   gchar **list;
+
+   if (GuestInfoSetConfigList(ctx, &ifaceLowPriorityStringCached,
+                             CONFNAME_GUESTINFO_LOWPRIORITYNICS, NULL,
+                             &list)) {
+      GuestInfo_SetIfaceLowPriorityList(list);
+      g_strfreev(list);
+      return TRUE;
+   }
+   return FALSE;
+}
+
+
+/*
+ * ****************************************************************************
+ * GuestInfoResetNicExcludeList --                                       */ /**
  *
  * Gets exclude-nics setting from the config, and sets the list of exclude
  * patterns.
  *
  * @param[in]  ctx     The application context.
  *
+ * @return TRUE to indicate that the value has changed, FALSE otherwise
  ******************************************************************************
  */
 
-static void
-GuestInfoSetNicExcludeList(ToolsAppCtx *ctx)
+static Bool
+GuestInfoResetNicExcludeList(ToolsAppCtx *ctx)
 {
    static gchar *ifaceExcludeStringCached = NULL;
-   gchar *ifaceExcludeString;
+   gchar **list;
 
-   /* Check if we want to exclude interfaces based on the name. */
-   ifaceExcludeString = VMTools_ConfigGetString(ctx->config, CONFGROUPNAME_GUESTINFO,
-                                                CONFNAME_GUESTINFO_EXCLUDENICS,
-                                                GUESTINFO_DEFAULT_IFACE_EXCLUDES);
-   if (g_strcmp0(ifaceExcludeString, ifaceExcludeStringCached) != 0) {
-      gchar **list = NULL;
-      if (ifaceExcludeString != NULL && ifaceExcludeString[0] != '\0') {
-         list = g_strsplit(ifaceExcludeString, ",", 0);
-      }
-      g_free(ifaceExcludeStringCached);
-      ifaceExcludeStringCached = ifaceExcludeString;
+   if (GuestInfoSetConfigList(ctx, &ifaceExcludeStringCached,
+                             CONFNAME_GUESTINFO_EXCLUDENICS,
+                             GUESTINFO_DEFAULT_IFACE_EXCLUDES,
+                             &list)) {
       GuestInfo_SetIfaceExcludeList(list);
       g_strfreev(list);
+      return TRUE;
    }
+   return FALSE;
 }
+
 
 /*
  ******************************************************************************
@@ -377,6 +477,8 @@ GuestInfoGather(gpointer data)
 #endif
    NicInfoV3 *nicInfo = NULL;
    ToolsAppCtx *ctx = data;
+   Bool primaryChanged;
+   Bool lowPriorityChanged;
 
    g_debug("Entered guest info gather.\n");
 
@@ -440,7 +542,9 @@ GuestInfoGather(gpointer data)
 
    /* Get NIC information. */
 
-   GuestInfoSetNicExcludeList(ctx);
+   primaryChanged = GuestInfoResetNicPrimaryList(ctx);
+   lowPriorityChanged = GuestInfoResetNicLowPriorityList(ctx);
+   GuestInfoResetNicExcludeList(ctx);
 
    if (!GuestInfo_GetNicInfo(&nicInfo)) {
       g_warning("Failed to get nic info.\n");
@@ -450,7 +554,14 @@ GuestInfoGather(gpointer data)
       nicInfo = Util_SafeCalloc(1, sizeof (struct NicInfoV3));
    }
 
-   if (GuestInfo_IsEqual_NicInfoV3(nicInfo, gInfoCache.nicInfo)) {
+   /*
+    * We need to check if the setting for the primary interfaces or
+    * low priority nics have changed, because
+    * GuestInfo_IsEqual_NicInfoV3 does not detect a change in the
+    * order.
+    */
+   if (!primaryChanged && !lowPriorityChanged &&
+       GuestInfo_IsEqual_NicInfoV3(nicInfo, gInfoCache.nicInfo)) {
       g_debug("Nic info not changed.\n");
       GuestInfo_FreeNicInfo(nicInfo);
    } else if (GuestInfoUpdateVmdb(ctx, INFO_IPADDRESS, nicInfo, 0)) {

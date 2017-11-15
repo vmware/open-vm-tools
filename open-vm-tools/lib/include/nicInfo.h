@@ -31,6 +31,13 @@
 
 #include "guestInfo.h"
 
+typedef enum {
+   NICINFO_PRIORITY_PRIMARY,
+   NICINFO_PRIORITY_NORMAL,
+   NICINFO_PRIORITY_LOW,
+   NICINFO_PRIORITY_MAX
+} NicInfoPriority;
+
 Bool GuestInfo_GetFqdn(int outBufLen, char fqdn[]);
 Bool GuestInfo_GetNicInfo(NicInfoV3 **nicInfo);
 void GuestInfo_FreeNicInfo(NicInfoV3 *nicInfo);
@@ -76,6 +83,12 @@ GuestInfo_IsEqual_WinsConfigInfo(const WinsConfigInfo *a,
 
 void GuestInfo_SetIfaceExcludeList(char **list);
 
+void GuestInfo_SetIfacePrimaryList(char **list);
+
+void GuestInfo_SetIfaceLowPriorityList(char **list);
+
 Bool GuestInfo_IfaceIsExcluded(const char *name);
+
+NicInfoPriority GuestInfo_IfaceGetPriority(const char *name);
 
 #endif
