@@ -302,6 +302,47 @@ Str_Strcpy(char *buf,       // OUT
 
 
 /*
+ *-----------------------------------------------------------------------------
+ *
+ * Str_Strncpy --
+ *
+ *      Unlike strncpy:
+ *      * Guaranteed to NUL-terminate.
+ *      * If the src string is shorter than n bytes, does NOT zero-fill the
+ *        remaining bytes.
+ *      * Panics if a buffer overrun would have occurred.
+ *
+ * Results:
+ *      Same as strncpy.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+char *
+Str_Strncpy(char *dest,       // IN/OUT
+            size_t destSize,  // IN: Size of dest
+            const char *src,  // IN: String to copy
+            size_t n)         // IN: Max chars of src to copy, not including NUL
+{
+   ASSERT(dest != NULL);
+   ASSERT(src != NULL);
+
+   n = Str_Strlen(src, n);
+
+   if (n >= destSize) {
+      Panic("%s:%d Buffer too small\n", __FILE__, __LINE__);
+   }
+
+   memcpy(dest, src, n);
+   dest[n] = '\0';
+   return dest;
+}
+
+
+/*
  *----------------------------------------------------------------------
  *
  * Str_Strlen --
@@ -433,7 +474,7 @@ Str_Strcat(char *buf,       // IN/OUT
  *    Specifically, this function will Panic if a buffer overrun would
  *    have occurred.
  *
- *    Guaranteed to NUL-terminate if bufSize > 0.
+ *    Guaranteed to NUL-terminate.
  *
  * Results:
  *    Same as strncat.
@@ -468,7 +509,7 @@ Str_Strncat(char *buf,       // IN/OUT
 
    if (!(bufLen + n < bufSize ||
          bufLen + strlen(src) < bufSize)) {
-      Panic("%s:%d Buffer too small\n", __FILE__,__LINE__);
+      Panic("%s:%d Buffer too small\n", __FILE__, __LINE__);
    }
 
    /*
@@ -942,7 +983,7 @@ Str_Wcsncat(wchar_t *buf,       // IN/OUT
 
    if (bufLen + n >= bufSize &&
        bufLen + wcslen(src) >= bufSize) {
-      Panic("%s:%d Buffer too small\n", __FILE__,__LINE__);
+      Panic("%s:%d Buffer too small\n", __FILE__, __LINE__);
    }
 
    /*
