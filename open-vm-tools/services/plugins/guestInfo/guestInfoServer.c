@@ -356,6 +356,8 @@ GuestInfoSetConfigList(ToolsAppCtx *ctx,
       *pList = list;
 
       return TRUE;
+   } else {
+      g_free(listString);
    }
    return FALSE;
 }

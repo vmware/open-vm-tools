@@ -6480,6 +6480,10 @@ abort:
    }
    VixToolsLogoutUser(userToken);
 
+   if (NULL != regex) {
+      g_regex_unref(regex);
+   }
+
    if (NULL == fileList) {
       fileList = Util_SafeStrdup("");
    }
