@@ -95,6 +95,7 @@ typedef enum {
    ETH_HEADER_TYPE_802_1PQ,
    ETH_HEADER_TYPE_802_3,
    ETH_HEADER_TYPE_802_1PQ_802_3,
+   ETH_HEADER_TYPE_NESTED_802_1PQ,
 } Eth_HdrType;
 
 // DIX type fields we care about
@@ -217,6 +218,10 @@ struct Eth_802_1pq {
    union {
       Eth_DIX      dix;       // DIX header follows
       Eth_802_3    e802_3;    // or 802.3 header follows 
+      struct {
+         Eth_802_1pq_Tag   tag;        // inner VLAN/QOS tag
+         Eth_DIX           dix;        // DIX header follows
+      } nested802_1pq;
    }; 
 }
 #include "vmware_pack_end.h"
@@ -312,6 +317,11 @@ extern Eth_Address netEthBroadcastAddr;
                                       sizeof(Eth_Address) + \
                                       sizeof(Eth_802_1pq_Tag) + \
                                       sizeof(Eth_802_3))
+#define ETH_HEADER_LEN_NESTED_802_1PQ  (sizeof(Eth_Address) + \
+                                        sizeof(Eth_Address) + \
+                                        sizeof(Eth_802_1pq_Tag) + \
+                                        sizeof(Eth_802_1pq_Tag) + \
+                                        sizeof(Eth_DIX))
 
 #define ETH_MIN_HEADER_LEN   (ETH_HEADER_LEN_DIX)
 #define ETH_MAX_HEADER_LEN   (ETH_HEADER_LEN_802_1PQ_802_3)
@@ -440,6 +450,7 @@ Eth_IsNullAddr(const Eth_Address addr)
  *
  *      ETH_HEADER_TYPE_DIX: typical 14 byte eth header
  *      ETH_HEADER_TYPE_802_1PQ: DIX+vlan tagging
+ *      ETH_HEADER_TYPE_NESTED_802_1PQ: DIX+vlan tagging+DIX+vlan tagging
  *      ETH_HEADER_TYPE_802_3: 802.3 eth header
  *      ETH_HEADER_TYPE_802_1PQ_802_3: 802.3 + vlan tag 
  *
@@ -492,6 +503,10 @@ Eth_HeaderType(const Eth_Header *eh)
           * vlan tagging with dix style type
           */
 
+         if (UNLIKELY(eh->e802_1pq.dix.typeNBO == ETH_TYPE_802_1PQ_NBO)) {
+            return ETH_HEADER_TYPE_NESTED_802_1PQ;
+         }
+
          return ETH_HEADER_TYPE_802_1PQ;
       }
 
@@ -537,37 +552,39 @@ Eth_EncapsulatedPktType(const Eth_Header *eh)
    Eth_HdrType type = Eth_HeaderType(eh);  
 
    switch (type) {
-      
-      case ETH_HEADER_TYPE_DIX :
-	 return eh->dix.typeNBO;
+   case ETH_HEADER_TYPE_DIX :
+      return eh->dix.typeNBO;
 
-      case ETH_HEADER_TYPE_802_1PQ :
-	 return eh->e802_1pq.dix.typeNBO;
+   case ETH_HEADER_TYPE_802_1PQ :
+      return eh->e802_1pq.dix.typeNBO;
 
-      case ETH_HEADER_TYPE_802_3 :
-         /*
-          * Documentation describes SNAP headers as having ONLY
-          * 0x03 as the control fields, not just the lower two bits
-          * This prevents the use of Eth_IsLLCControlUFormat.
-          */
-         if ((eh->e802_3.llc.dsap == 0xaa) &&
-              (eh->e802_3.llc.ssap == 0xaa) &&
-              (eh->e802_3.llc.control == ETH_LLC_CONTROL_UFRAME)) {
-                  return eh->e802_3.snap.snapType.typeNBO;
-         } else {
-            // LLC, no snap header, then no type
-            return ETH_TYPE_LLC;
-         }
+   case ETH_HEADER_TYPE_NESTED_802_1PQ:
+      return eh->e802_1pq.nested802_1pq.dix.typeNBO;
 
-      case ETH_HEADER_TYPE_802_1PQ_802_3 :
-         if ((eh->e802_1pq.e802_3.llc.dsap == 0xaa) &&
-              (eh->e802_1pq.e802_3.llc.ssap == 0xaa) &&
-              (eh->e802_1pq.e802_3.llc.control == ETH_LLC_CONTROL_UFRAME)) {
-                  return eh->e802_1pq.e802_3.snap.snapType.typeNBO;
-         } else {
-            // tagged LLC, no snap header, then no type
-            return ETH_TYPE_LLC;
-         }
+   case ETH_HEADER_TYPE_802_3 :
+      /*
+       * Documentation describes SNAP headers as having ONLY
+       * 0x03 as the control fields, not just the lower two bits
+       * This prevents the use of Eth_IsLLCControlUFormat.
+       */
+      if ((eh->e802_3.llc.dsap == 0xaa) &&
+           (eh->e802_3.llc.ssap == 0xaa) &&
+           (eh->e802_3.llc.control == ETH_LLC_CONTROL_UFRAME)) {
+               return eh->e802_3.snap.snapType.typeNBO;
+      } else {
+         // LLC, no snap header, then no type
+         return ETH_TYPE_LLC;
+      }
+
+   case ETH_HEADER_TYPE_802_1PQ_802_3 :
+      if ((eh->e802_1pq.e802_3.llc.dsap == 0xaa) &&
+           (eh->e802_1pq.e802_3.llc.ssap == 0xaa) &&
+           (eh->e802_1pq.e802_3.llc.control == ETH_LLC_CONTROL_UFRAME)) {
+               return eh->e802_1pq.e802_3.snap.snapType.typeNBO;
+      } else {
+         // tagged LLC, no snap header, then no type
+         return ETH_TYPE_LLC;
+      }
    }
 
    ASSERT(FALSE);
@@ -1081,18 +1098,20 @@ Eth_HeaderLength(const Eth_Header *eh)
    Eth_HdrType type = Eth_HeaderType(eh);  
 
    switch (type) {
+   case ETH_HEADER_TYPE_DIX :
+      return ETH_HEADER_LEN_DIX;
 
-      case ETH_HEADER_TYPE_DIX :
-	 return ETH_HEADER_LEN_DIX;
+   case ETH_HEADER_TYPE_802_1PQ :
+      return ETH_HEADER_LEN_802_1PQ;
 
-      case ETH_HEADER_TYPE_802_1PQ :
-	 return ETH_HEADER_LEN_802_1PQ;
+   case ETH_HEADER_TYPE_NESTED_802_1PQ :
+      return ETH_HEADER_LEN_NESTED_802_1PQ;
 
-      case ETH_HEADER_TYPE_802_3 :
-         return Eth_HeaderLength_802_3(eh);
+   case ETH_HEADER_TYPE_802_3 :
+      return Eth_HeaderLength_802_3(eh);
 
-      case ETH_HEADER_TYPE_802_1PQ_802_3 :
-         return Eth_HeaderLength_802_1PQ_802_3(eh);
+   case ETH_HEADER_TYPE_802_1PQ_802_3 :
+      return Eth_HeaderLength_802_1PQ_802_3(eh);
    }
    
    ASSERT(FALSE);
@@ -1198,17 +1217,25 @@ Eth_IsFrameHeaderComplete(const Eth_Header *eh,
    if (len >= ETH_HEADER_LEN_802_1PQ) {
       /*
        * Eth_HeaderType will correctly enumerate all types once
-       * at least ETH_HEADER_LEN_802_1PQ bytes are available
+       * at least ETH_HEADER_LEN_802_1PQ bytes are available except nested
+       * 802.1pq tag.
        */
       Eth_HdrType type = Eth_HeaderType(eh);
 
-      if (type == ETH_HEADER_TYPE_802_1PQ) {
+      switch (type) {
+      case ETH_HEADER_TYPE_802_1PQ:
          if (ehHdrLen != NULL) {
             *ehHdrLen = ETH_HEADER_LEN_802_1PQ;
          }
          return TRUE;
 
-      } else if (type == ETH_HEADER_TYPE_802_3) {
+      case ETH_HEADER_TYPE_NESTED_802_1PQ:
+         if (ehHdrLen != NULL) {
+            *ehHdrLen = ETH_HEADER_LEN_NESTED_802_1PQ;
+         }
+         return len >= ETH_HEADER_LEN_NESTED_802_1PQ;
+
+      case ETH_HEADER_TYPE_802_3:
          /*
           * Length could be shorter LLC or LLC+SNAP.
           * ETH_HEADER_LEN_802_2_LLC bytes are needed to disambiguate.
@@ -1217,13 +1244,17 @@ Eth_IsFrameHeaderComplete(const Eth_Header *eh,
          ASSERT(ETH_HEADER_LEN_802_1PQ > ETH_HEADER_LEN_802_2_LLC);
          ehLen = Eth_HeaderLength_802_3(eh);
          /* continue to common test */
-      } else if (type == ETH_HEADER_TYPE_802_1PQ_802_3) {
+         break;
+
+      case ETH_HEADER_TYPE_802_1PQ_802_3:
          if (len < ETH_HEADER_LEN_802_1PQ_LLC) {
             return FALSE;
          }
          ehLen = Eth_HeaderLength_802_1PQ_802_3(eh);
          /* continue to common test */
-      } else {
+         break;
+
+      default:
          /*
           * This else clause is unreachable, but if removed
           * compiler complains about ehLen possibly being
