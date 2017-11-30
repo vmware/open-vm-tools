@@ -825,7 +825,7 @@ typedef void * UserVA;
 #define INLINE_SINGLE_CALLER INLINE_ALWAYS
 
 /*
- * Used when a hard guaranteed of no inlining is needed. Very few
+ * Used when a hard guarantee of no inlining is needed. Very few
  * instances need this since the absence of INLINE is a good hint
  * that gcc will not do inlining.
  */
