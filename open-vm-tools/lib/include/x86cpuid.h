@@ -1215,8 +1215,6 @@ enum {
 #define CPUID_MASK_HOST_STR    "H"
 #define CPUID_MASK_RSVD_CHR    'R'
 #define CPUID_MASK_RSVD_STR    "R"
-#define CPUID_MASK_INSTALL_CHR 'I'
-#define CPUID_MASK_INSTALL_STR "I"
 
 /*
  * When LM is disabled, we overlay the following masks onto the
