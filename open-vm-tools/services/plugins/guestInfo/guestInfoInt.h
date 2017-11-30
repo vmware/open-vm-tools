@@ -50,5 +50,8 @@ GuestInfo_GetDiskInfo(const ToolsAppCtx *ctx);
 void
 GuestInfo_FreeDiskInfo(GuestDiskInfo *di);
 
+void
+GuestInfo_StatProviderShutdown(void);
+
 #endif /* _GUESTINFOINT_H_ */
 
