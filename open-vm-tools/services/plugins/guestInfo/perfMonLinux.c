@@ -1309,3 +1309,27 @@ GuestInfo_StatProviderPoll(gpointer data)
    DynBuf_Destroy(&stats);
    return TRUE;
 }
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * GuestInfo_StatProviderShutdown --
+ *
+ *      Clean up the resource acquired by perfMonLinux.
+ *      Nothing to do at the moment.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+GuestInfo_StatProviderShutdown(void)
+{
+   // Nothing to do here for now
+}

@@ -1698,8 +1698,11 @@ GuestInfoServerShutdown(gpointer src,
       gatherStatsTimeoutSource = NULL;
    }
 
-#ifdef _WIN32
+#if !defined(__APPLE__)
    GuestInfo_StatProviderShutdown();
+#endif
+
+#ifdef _WIN32
    NetUtil_FreeIpHlpApiDll();
 #endif
 }
