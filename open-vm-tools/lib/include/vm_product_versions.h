@@ -249,8 +249,8 @@
 #define VMLS_VERSION "e.x.p"
 #define VLICENSE_VERSION "1.1.5"
 #define DDK_VERSION "e.x.p"
-#define VIPERL_VERSION "6.5.0"
-#define RCLI_VERSION "6.5.0"
+#define VIPERL_VERSION "6.7.0"
+#define RCLI_VERSION "6.7.0"
 #define VDM_VERSION "e.x.p"
 #define NETDUMP_VERSION        "5.1.0"
 #define NETDUMP_FILE_VERSION    5,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
