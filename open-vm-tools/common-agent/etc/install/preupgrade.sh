@@ -1,3 +1,5 @@
+#Copyright (C) 2017 VMware, Inc.  All rights reserved. -- VMware Confidential
+
 #!/bin/sh
 
 installDir=$(dirname $(readlink -f $0))

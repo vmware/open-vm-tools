@@ -1,3 +1,5 @@
+#Copyright (C) 2017 VMware, Inc.  All rights reserved. -- VMware Confidential
+
 [globals]
 persistence_dir=${input_dir}/persistence
 monitor_dir=${input_dir}/monitor
