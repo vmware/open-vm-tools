@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# Copyright (C) 2017 VMware, Inc.  All rights reserved. -- VMware Confidential
+
 #Standard env
 SCRIPT=`basename "$0"`
 

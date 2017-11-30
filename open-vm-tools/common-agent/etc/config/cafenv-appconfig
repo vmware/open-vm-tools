@@ -1,3 +1,5 @@
+# Copyright (C) 2017 VMware, Inc.  All rights reserved. -- VMware Confidential
+
 [globals]
 # Specifies where python is located.
 python_dir=/opt/vmware/caf/python
