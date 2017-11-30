@@ -1,4 +1,4 @@
-#Copyright (C) 2017 VMware, Inc.  All rights reserved. -- VMware Confidential
+# Copyright (C) 2017 VMware, Inc.  All rights reserved. -- VMware Confidential
 
 [globals]
 # Specifies where python is located.

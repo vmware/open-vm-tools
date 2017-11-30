@@ -1,6 +1,6 @@
-#Copyright (C) 2017 VMware, Inc.  All rights reserved. -- VMware Confidential
-
 #!/bin/sh
+
+# Copyright (C) 2017 VMware, Inc.  All rights reserved. -- VMware Confidential
 
 installDir=$(dirname $(readlink -f $0))
 configDir=$installDir/../config
