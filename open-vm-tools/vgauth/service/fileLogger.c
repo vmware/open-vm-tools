@@ -133,6 +133,32 @@ ServiceFileLoggerOpen(FileLoggerData *data)
    }
 
    logfile = g_fopen(path, data->append ? "a" : "w");
+   /*
+    * Make log readable only by root/Administrator.  Just log any error;
+    * better a readable log than none at all so any issues are logged.
+    */
+#ifdef _WIN32
+   {
+      UserAccessControl uac;
+
+      /* The default access only allows self and administrators */
+      if (!UserAccessControl_Default(&uac)) {
+         VGAUTH_LOG_WARNING("failed to set up logfile %s access control",
+                            path);
+      } else {
+         BOOL ok;
+
+         ok = WinUtil_SetFileSecurity(path,
+                                UserAccessControl_GetSecurityDescriptor(&uac));
+         if (!ok) {
+            VGAUTH_LOG_WARNING("WinUtil_SetFileSecurity(%s) failed", path);
+         }
+         UserAccessControl_Destroy(&uac);
+      }
+   }
+#else
+   (void) ServiceFileSetPermissions(path, 0600);
+#endif
    g_free(path);
 
 #ifndef VMX86_DEBUG
