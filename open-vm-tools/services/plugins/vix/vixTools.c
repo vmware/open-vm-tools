@@ -11380,6 +11380,10 @@ GuestAuthPasswordAuthenticateImpersonate(
    VGAuthContext *ctx = NULL;
    VGAuthError vgErr;
    VGAuthUserHandle *newHandle = NULL;
+   VGAuthExtraParams extraParams[1];
+
+   extraParams[0].name = VGAUTH_PARAM_LOAD_USER_PROFILE;
+   extraParams[0].value = VGAUTH_PARAM_VALUE_TRUE;
 
    err = VixMsg_DeObfuscateNamePassword(obfuscatedNamePassword,
                                         &username,
@@ -11404,7 +11408,9 @@ GuestAuthPasswordAuthenticateImpersonate(
       goto done;
    }
 
-   vgErr = VGAuth_Impersonate(ctx, newHandle, 0, NULL);
+   vgErr = VGAuth_Impersonate(ctx, newHandle,
+                              (int)ARRAYSIZE(extraParams),
+                              extraParams);
    if (VGAUTH_FAILED(vgErr)) {
       err = VixToolsTranslateVGAuthError(vgErr);
       goto done;
@@ -11464,6 +11470,10 @@ GuestAuthSAMLAuthenticateAndImpersonate(
    VGAuthContext *ctx = NULL;
    VGAuthError vgErr;
    VGAuthUserHandle *newHandle = NULL;
+   VGAuthExtraParams extraParams[1];
+
+   extraParams[0].name = VGAUTH_PARAM_LOAD_USER_PROFILE;
+   extraParams[0].value = VGAUTH_PARAM_VALUE_TRUE;
 
    err = VixMsg_DeObfuscateNamePassword(obfuscatedNamePassword,
                                         &token,
@@ -11544,7 +11554,9 @@ GuestAuthSAMLAuthenticateAndImpersonate(
 #if ALLOW_LOCAL_SYSTEM_IMPERSONATION_BYPASS
 impersonate:
 #endif
-   vgErr = VGAuth_Impersonate(ctx, newHandle, 0, NULL);
+   vgErr = VGAuth_Impersonate(ctx, newHandle,
+                              (int)ARRAYSIZE(extraParams),
+                              extraParams);
    if (VGAUTH_FAILED(vgErr)) {
       err = VixToolsTranslateVGAuthError(vgErr);
       goto done;
