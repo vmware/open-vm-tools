@@ -97,6 +97,7 @@ double Config_GetDouble(double defaultValue,
 Bool Config_NotSet(const char *fmt, ...) PRINTF_DECL(1, 2);
 Bool Config_Unset(const char *fmt, ...) PRINTF_DECL(1, 2);
 Bool Config_UnsetWithPrefix(const char *fmt, ...) PRINTF_DECL(1, 2);
+Bool Config_NeedSave(void);
 
 void Config_Set(void *value, int type,
                 const char *fmt, ...) PRINTF_DECL(3, 4);
