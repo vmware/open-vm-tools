@@ -266,7 +266,7 @@ typedef enum {
  * defaultMasks (cpuidcompat.c) if defined there, and must be less than or
  * equal to the version of the cpuid leaf it's in.
  *
- * The eighth parameter describes whether the feature is capable of being used
+ * The ninth parameter describes whether the feature is capable of being used
  * by usermode code (TRUE), or just CPL0 kernel code (FALSE).
  *
  * FLAG is defined identically to FIELD, but its accessors are more appropriate
@@ -1011,7 +1011,7 @@ CPUID_8A_EDX_11 \
 FLAG(  8A,  0, EDX, 12,  1, SVM_PAUSE_THRESHOLD,               NO,   0, FALSE) \
 FLAG(  8A,  0, EDX, 13,  1, SVM_AVIC,                          NO,   0, FALSE) \
 CPUID_8A_EDX_14 \
-FLAG(  8A,  0, EDX, 15,  1, SVM_VIRT_VMSAVE_VMLOAD,            NO,   0, FALSE) \
+FLAG(  8A,  0, EDX, 15,  1, SVM_V_VMSAVE_VMLOAD,               NO,   0, FALSE) \
 FLAG(  8A,  0, EDX, 16,  1, SVM_VGIF,                          NO,   0, FALSE) \
 FIELD( 8A,  0, EDX, 17, 15, SVMEDX_RSVD,                       NO,   0, FALSE)
 
