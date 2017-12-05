@@ -95,8 +95,8 @@ int32 Config_GetTriState(int32 defaultValue,
 double Config_GetDouble(double defaultValue,
                         const char *fmt, ...) PRINTF_DECL(2, 3);
 Bool Config_NotSet(const char *fmt, ...) PRINTF_DECL(1, 2);
-void Config_Unset(const char *fmt, ...) PRINTF_DECL(1, 2);
-void Config_UnsetWithPrefix(const char *fmt, ...) PRINTF_DECL(1, 2);
+Bool Config_Unset(const char *fmt, ...) PRINTF_DECL(1, 2);
+Bool Config_UnsetWithPrefix(const char *fmt, ...) PRINTF_DECL(1, 2);
 
 void Config_Set(void *value, int type,
                 const char *fmt, ...) PRINTF_DECL(3, 4);
