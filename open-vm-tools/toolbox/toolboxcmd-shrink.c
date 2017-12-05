@@ -143,7 +143,7 @@ ShrinkGetMountPoints(WiperPartition_List *pl) // OUT: Known mount points
       break;
 
    case WIPER_ENABLED:
-      if (WiperPartition_Open(pl)) {
+      if (WiperPartition_Open(pl, TRUE)) {
          return TRUE;
       }
 

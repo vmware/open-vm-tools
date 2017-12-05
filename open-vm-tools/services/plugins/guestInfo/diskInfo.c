@@ -90,7 +90,7 @@ GuestInfoGetDiskInfoWiper(Bool includeReserved)  // IN
    GuestDiskInfo *di;
 
    /* Get partition list. */
-   if (!WiperPartition_Open(&pl)) {
+   if (!WiperPartition_Open(&pl, FALSE)) {
       g_warning("GetDiskInfo: ERROR: could not get partition list\n");
       return FALSE;
    }
