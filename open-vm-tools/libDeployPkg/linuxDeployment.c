@@ -48,6 +48,16 @@
 #include <strutil.h>
 #include <util.h>
 
+#include "embed_version.h"
+#include "vm_version.h"
+
+#if defined(OPEN_VM_TOOLS) || defined(USERWORLD)
+#include "vmtoolsd_version.h"
+VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING "-vmtools");
+#else
+VM_EMBED_VERSION(SYSIMAGE_VERSION_EXT_STR);
+#endif
+
 /*
  * These are covered by #ifndef to give the ability to change these
  * variables from makefile (mostly planned for the forthcoming Solaris
