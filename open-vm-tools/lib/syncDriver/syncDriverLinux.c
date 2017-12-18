@@ -195,6 +195,14 @@ LinuxDriver_Freeze(const GSList *paths,
             Debug(LGPFX "cannot access mounted directory '%s'.\n", path);
             continue;
 
+         case ENXIO:
+            /*
+             * A bind-mounted file (like /dev/log bind mounted for a chrooted
+             * application) gives back ENXIO (6). Just ignore.
+             */
+            Debug(LGPFX "No such device or address error (ENXIO) while opening path '%s'.\n", path);
+            continue;
+
          case EIO:
             /*
              * A mounted HGFS filesystem with the backend disabled will give
