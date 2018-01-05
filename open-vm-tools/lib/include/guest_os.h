@@ -204,7 +204,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
                               BS(DARWIN17_64), BS(DARWIN18_64)
 #define ALLDARWIN             ALLDARWIN32, ALLDARWIN64
 #define ALL64                 ALLWIN64, ALLLINUX64,               \
-                              BS(SOLARIS10_64), BS(SOLARIS11_64)  \
+                              BS(SOLARIS10_64), BS(SOLARIS11_64), \
                               BS(FREEBSD_64), BS(FREEBSD11_64),   \
                               BS(FREEBSD12_64), BS(OTHER_64),     \
                               ALLDARWIN64, ALLVMKERNEL
