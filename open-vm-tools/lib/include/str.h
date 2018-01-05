@@ -69,14 +69,13 @@ extern "C" {
  * redistribution requirements for Debian.
  * <https://github.com/vmware/open-vm-tools/issues/148>
  */
-#if !defined(OPEN_VM_TOOLS)
+#if !defined(VMX86_TOOLS) || defined(_WIN32)
 #if (defined _WIN32 && !defined STR_NO_WIN32_LIBS) || \
     (defined __linux__ && !defined __UCLIBC__) || \
     defined __APPLE__
 #define HAS_BSD_PRINTF 1
 #endif
 #endif
-
 
 /*
  * ASCII/UTF-8 versions
