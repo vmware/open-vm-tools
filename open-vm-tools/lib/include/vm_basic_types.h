@@ -197,10 +197,6 @@ typedef  int16_t     int16;
 typedef  uint8_t     uint8;
 typedef   int8_t      int8;
 
-typedef uint64 BA;
-typedef uint64 MA;
-typedef uint32 MPN32;
-
 #elif defined(__APPLE__) || defined(HAVE_STDINT_H)
 
 /*
@@ -542,11 +538,7 @@ typedef uint32    TPPN;
 typedef uint64    PhysMemOff;
 typedef uint64    PhysMemSize;
 
-/* The Xserver source compiles with -ansi -pendantic */
-#ifndef __STRICT_ANSI__
 typedef uint64    BA;
-#endif
-
 #ifdef VMKERNEL
 typedef void     *BPN;
 #else
@@ -602,11 +594,8 @@ typedef uint128 UReg128;
 typedef  Reg64  Reg;
 typedef UReg64 UReg;
 #endif
-/* The Xserver source compiles with -ansi -pendantic */
-#ifndef __STRICT_ANSI__
 typedef uint64 MA;
 typedef uint32 MPN32;
-#endif
 
 /*
  * This type should be used for variables that contain sector
