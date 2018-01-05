@@ -3309,10 +3309,13 @@ AsyncTCPSocketFillRecvBuffer(AsyncTCPSocket *s)         // IN
                           s->base.recvPos,
                           needed);
       }
-      TCPSOCKLOG(3, s, ("need\t%d\trecv\t%d\tremain\t%d\n", needed, recvd,
-                        needed - recvd));
-
+      /*
+       * Do NOT make any system call directly or indirectly here
+       * unless you can preserve the system error number
+       */
       if (recvd > 0) {
+         TCPSOCKLOG(3, s, ("need\t%d\trecv\t%d\tremain\t%d\n", needed, recvd,
+                           needed - recvd));
          s->sslConnected = TRUE;
          s->base.recvPos += recvd;
          if (AsyncSocketCheckAndDispatchRecv(&s->base, &result)) {
@@ -3477,10 +3480,13 @@ AsyncTCPSocketWriteBuffers(AsyncTCPSocket *s)         // IN
 
       sent = SSL_Write(s->sslSock,
                        (uint8 *) head->buf + s->sendPos, left);
-
-      TCPSOCKLOG(3, s, ("left\t%d\tsent\t%d\tremain\t%d\n",
-                      left, sent, left - sent));
+      /*
+       * Do NOT make any system call directly or indirectly here
+       * unless you can preserve the system error number
+       */
       if (sent > 0) {
+         TCPSOCKLOG(3, s, ("left\t%d\tsent\t%d\tremain\t%d\n",
+                        left, sent, left - sent));
          s->sendBufFull = FALSE;
          s->sslConnected = TRUE;
          if ((s->sendPos += sent) == sizeToSend) {
