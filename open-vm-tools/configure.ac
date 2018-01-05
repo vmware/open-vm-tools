@@ -962,7 +962,17 @@ AC_ARG_WITH([icu],
             [with_icu=yes])
 
 if test "$have_x" = "yes" -o "$with_icu" = "yes"; then
-   AC_CHECK_TOOL([have_cxx], [$CXX], [no])
+   # AC_CHECK_PROG fails to locate CXX if it's set to an absolute
+   # path and it includes arguments, which is often the case when
+   # cross compling.  Try to handle this case directly.
+   case "$CXX" in
+      [/*])
+         AS_IF(test -x ${CXX%% *}, [have_cxx=yes], [have_cxx=no])
+         ;;
+      [*])
+         AC_CHECK_PROG([have_cxx], [$CXX], [yes], [no])
+         ;;
+   esac
    if test "$have_cxx" = "no"; then
       AC_MSG_ERROR([C++ compiler not found. Make sure you have a C++ compiler installed or configure without X11 (using --without-x) and without ICU (using --without-icu).])
    fi
