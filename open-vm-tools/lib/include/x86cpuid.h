@@ -474,8 +474,7 @@ FLAG(   6,  0, ECX,  0,  1, HW_COORD_FEEDBACK,                 NO,   0, FALSE) \
 FLAG(   6,  0, ECX,  1,  1, ACNT2,                             ANY, 13, FALSE) \
 FLAG(   6,  0, ECX,  3,  1, ENERGY_PERF_BIAS,                  NO,   0, FALSE)
 
-#if defined (COMMUNITY_SOURCE_INTEL_SECRET) ||    \
-    defined (COMMUNITY_SOURCE_AMD_SECRET) /* { */
+#ifndef COMMUNITY_SOURCE
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,             MON SUPP, HWV, CPL3 */
 #define CPUID_7_EDX_26 \
 FLAG(   7,  0, EDX, 26,  1, IBRSIBPB,                          YES,  9, FALSE)
@@ -486,7 +485,7 @@ FLAG(   7,  0, EDX, 27,  1, STIBP,                             YES,  9, FALSE)
 FLAG(   7,  0, EDX, 26,  1, LEVEL7EDX_RSVD1,                    NO,  0, FALSE)
 #define CPUID_7_EDX_27 \
 FLAG(   7,  0, EDX, 27,  1, LEVEL7EDX_RSVD2,                    NO,  0, FALSE)
-#endif /* } COMMUNITY_SOURCE_INTEL_SECRET || COMMUNITY_SOURCE_AMD_SECRET */
+#endif
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,             MON SUPP, HWV, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_7                                               \
