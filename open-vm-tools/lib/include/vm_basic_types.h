@@ -77,24 +77,6 @@
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
-/* STRICT ANSI means the Xserver build and X defines Bool differently. */
-#if !defined(_XTYPEDEF_BOOL) && \
-    (!defined(__STRICT_ANSI__) || defined(__FreeBSD__) || \
-      defined(__MINGW32__) || defined(__APPLE__))
-#define _XTYPEDEF_BOOL
-typedef char           Bool;
-#endif
-
-#ifndef FALSE
-#define FALSE          0
-#endif
-
-#ifndef TRUE
-#define TRUE           1
-#endif
-
-#define IS_BOOL(x)     (((x) & ~1) == 0)
-
 /*
  * Macros __i386__ and __ia64 are intrinsically defined by GCC
  */
@@ -177,7 +159,14 @@ typedef char           Bool;
 
 #endif
 
-#if defined(__linux__) && defined(__cplusplus) && __cplusplus >= 201103L
+#if defined(__cplusplus) && __cplusplus >= 201103L || \
+    defined(__APPLE__) || defined(HAVE_STDINT_H)
+/*
+ * TODO: C99 a.k.a. defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
+ * really should be in the above conditional. However, a non-trivial amount
+ * of code tries to compile in C99 mode with broken stdint.h headers, so
+ * C99 will need to use the fallback for now.
+ */
 
 /*
  * We're using stdint.h instead of cstdint below because of libstdcpp.cpp.
@@ -185,8 +174,6 @@ typedef char           Bool;
  * defines(e.g. __cplusplus) are set, but the C++ include paths are not.
  */
 #include <stdint.h>
-
-typedef char          Bool;
 
 typedef uint64_t    uint64;
 typedef  int64_t     int64;
@@ -197,52 +184,25 @@ typedef  int16_t     int16;
 typedef  uint8_t     uint8;
 typedef   int8_t      int8;
 
-#elif defined(__APPLE__) || defined(HAVE_STDINT_H)
-
-/*
- * TODO: This is a C99 standard header.  We should be able to test for
- * #if __STDC_VERSION__ >= 199901L, but that breaks the Netware build
- * (which doesn't have stdint.h).
- */
-
-#include <stdint.h>
-
-typedef uint64_t    uint64;
-typedef  int64_t     int64;
-typedef uint32_t    uint32;
-typedef  int32_t     int32;
-typedef uint16_t    uint16;
-typedef  int16_t     int16;
-typedef  uint8_t    uint8;
-typedef   int8_t     int8;
-
-/*
- * Note: C does not specify whether char is signed or unsigned, and
- * both gcc and msvc implement processor-specific signedness.  With
- * three types:
- * typeof(char) != typeof(signed char) != typeof(unsigned char)
- *
- * Be careful here, because gcc (4.0.1 and others) likes to warn about
- * conversions between signed char * and char *.
- */
-
 #else /* !HAVE_STDINT_H */
 
+/* Pre-c99 or pre-c++11; use compiler extension to get 64-bit types */
 #ifdef _MSC_VER
 
 typedef unsigned __int64 uint64;
 typedef signed __int64 int64;
 
 #elif __GNUC__
-/* The Xserver source compiles with -ansi -pendantic */
-#   if !defined(__STRICT_ANSI__) || defined(__FreeBSD__)
-#      if defined(VM_X86_64) || defined(VM_ARM_64)
+#   if defined(VM_X86_64) || defined(VM_ARM_64)
 typedef unsigned long uint64;
 typedef long int64;
-#      else
+#   else
+/*
+ * Only strict c90 (without extensions) lacks a 'long long' type.
+ * If this declaration fails ... use -std=c99 or -std=gnu90.
+ */
 typedef unsigned long long uint64;
 typedef long long int64;
-#      endif
 #   endif
 #else
 #   error - Need compiler define for int64/uint64
@@ -257,6 +217,36 @@ typedef short              int16;
 typedef signed char        int8;
 
 #endif /* HAVE_STDINT_H */
+
+
+/*
+ * The _XTYPEDEF_BOOL guard prevents colliding with:
+ * <X11/Xlib.h> #define Bool int
+ * <X11/Xdefs.h> typedef int Bool;
+ * If using this header AND X11 headers, be sure to #undef Bool and
+ * be careful about the different size.
+ */
+#if !defined(_XTYPEDEF_BOOL)
+#define _XTYPEDEF_BOOL
+/*
+ * C does not specify whether char is signed or unsigned, and
+ * both gcc and msvc implement it as a non-signed, non-unsigned type.
+ * Thus, (uint8_t *)&Bool and (int8_t *)&Bool are possible compile errors.
+ * This is intentional.
+ */
+typedef char           Bool;
+#endif
+
+#ifndef FALSE
+#define FALSE          0
+#endif
+
+#ifndef TRUE
+#define TRUE           1
+#endif
+
+#define IS_BOOL(x)     (((x) & ~1) == 0)
+
 
 /*
  * FreeBSD (for the tools build) unconditionally defines these in
