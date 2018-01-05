@@ -729,6 +729,12 @@ typedef int pid_t;
 #define vmw_apple_sandbox 0
 #endif
 
+#if defined(__APPLE__) && defined(VMW_APPLE_APP_STORE)
+#define vmw_apple_app_store 1
+#else
+#define vmw_apple_app_store 0
+#endif
+
 #ifdef VMM
 #define VMM_ONLY(x) x
 #else
