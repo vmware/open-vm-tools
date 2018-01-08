@@ -190,11 +190,6 @@ LinuxDriver_Freeze(const GSList *paths,
    VERIFY(paths != NULL);
 
    /*
-    * Ensure we did not get an empty list
-    */
-   VERIFY(paths != NULL);
-
-   /*
     * Iterate through the requested paths. If we get an error for the first
     * path, and it's not EPERM, assume that the ioctls are not available in
     * the current kernel.

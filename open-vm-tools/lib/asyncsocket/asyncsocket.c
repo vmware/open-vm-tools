@@ -1980,8 +1980,6 @@ AsyncTCPSocketConnect(struct sockaddr_storage *addr,         // IN
    }
 
 
-   ASSERT(internalConnectFn != NULL);
-
    /*
     * Call connect(), which can either succeed immediately or return an error
     * indicating that the connection is in progress. In the latter case, we
@@ -4426,17 +4424,6 @@ AsyncTCPSocketClose(AsyncSocket *base)   // IN
          }
       }
 
-      /* Flush output if requested via AsyncSocket_SetCloseOptions(). */
-      if (asock->flushEnabledMaxWaitMsec &&
-          asock->state == AsyncSocketConnected &&
-          !asock->errorSeen) {
-         int ret = AsyncSocket_Flush(asock, asock->flushEnabledMaxWaitMsec);
-         if (ret != ASOCKERR_SUCCESS) {
-            ASOCKWARN(asock, ("AsyncSocket_Flush failed: %s. Closing now.\n",
-                              AsyncSocket_Err2String(ret)));
-         }
-      }
-
       /*
        * Set the new state to closed, and then check the old state and do the
        * right thing accordingly
@@ -5495,9 +5482,6 @@ AsyncTCPSocketSslAcceptCallback(void *clientData)         // IN
    /* Only set if poll callback is registered */
    asock->sslPollFlags = 0;
 
-   /* Only set if poll callback is registered */
-   asock->sslPollFlags = 0;
-
    sslOpCode = SSL_TryCompleteAccept(asock->sslSock);
    if (sslOpCode > 0) {
       (*asock->sslAcceptFn)(TRUE, BaseSocket(asock), asock->clientData);
@@ -5936,45 +5920,3 @@ AsyncTCPSocketListenerError(int error,           // IN
 
    AsyncSocketHandleError(s, error);
 }
-
-
-#ifndef _WIN32
-/*
- *-----------------------------------------------------------------------------
- *
- * AsyncSocket_ListenSocketUDS --
- *
- *      Listens on the specified unix domain socket, and accepts new socket
- *      connections. Fires the connect callback with new AsyncSocket object for
- *      each connection.
- *
- * Results:
- *      New AsyncSocket in listening state or NULL on error
- *
- * Side effects:
- *      Creates new Unix domain socket, binds and listens.
- *
- *-----------------------------------------------------------------------------
- */
-
-AsyncSocket *
-AsyncSocket_ListenSocketUDS(const char *pipeName,               // IN
-                            AsyncSocketConnectFn connectFn,     // IN
-                            void *clientData,                   // IN
-                            AsyncSocketPollParams *pollParams,  // IN
-                            int *outError)                      // OUT
-{
-   struct sockaddr_un addr;
-
-   memset(&addr, 0, sizeof addr);
-   addr.sun_family = AF_UNIX;
-   Str_Strcpy(addr.sun_path, pipeName, sizeof addr.sun_path);
-
-   Log(ASOCKPREFIX "creating new socket listening on %s\n", pipeName);
-
-   return AsyncSocketListenImpl((struct sockaddr_storage *)&addr,
-                                sizeof addr,
-                                connectFn, clientData, pollParams, FALSE,
-                                FALSE, NULL, outError);
-}
-#endif

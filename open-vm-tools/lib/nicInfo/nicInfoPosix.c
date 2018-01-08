@@ -644,10 +644,6 @@ ReadInterfaceDetails(const struct intf_entry *entry, // IN
    return 0;
 }
 
-#endif // !NO_DNET
-
-
-#ifdef USE_RESOLVE
 
 /*
  ******************************************************************************

@@ -650,9 +650,6 @@ fi
 else
    enable_caf=no
 fi
-else
-   enable_caf=no
-fi
 
 #
 # Check for CUnit and disable test code if not available.

@@ -106,9 +106,6 @@ void ProductState_SetConfigName(const char *configName);
 void ProductState_SetHelp(Product helpProduct,
                           const char *helpVersion);
 
-void ProductState_SetHelp(Product helpProduct, const char *helpVersion);
-void ProductState_GetHelp(Product *helpProduct, const char **helpVersion);
-
 char *ProductState_Serialize(ProductStateSerializationFlags flags);
 ProductStateSerializationFlags ProductState_Deserialize(const char *state);
 

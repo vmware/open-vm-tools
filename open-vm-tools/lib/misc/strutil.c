@@ -70,31 +70,6 @@ StrUtil_IsEmpty(const char *str)  // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * StrUtil_IsEmpty --
- *
- *      Test if a non-NULL string is empty.
- *
- * Results:
- *      TRUE if the string has length 0, FALSE otherwise.
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-#ifdef VMX86_DEBUG
-static INLINE Bool
-StrUtil_IsEmpty(const char *str)  // IN:
-{
-   ASSERT(str != NULL);
-   return str[0] == '\0';
-}
-#endif
-
-/*
- *-----------------------------------------------------------------------------
- *
  * StrUtil_GetNextToken --
  *
  *      Get the next token from a string after a given index w/o modifying the

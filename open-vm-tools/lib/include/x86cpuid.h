@@ -1800,8 +1800,6 @@ CPUID_MODEL_IS_IVYBRIDGE(uint32 v) // IN: %eax from CPUID with %eax=1.
 }
 
 
-
-
 static INLINE Bool
 CPUID_MODEL_IS_KNIGHTS_LANDING(uint32 v) // IN: %eax from CPUID with %eax=1.
 {

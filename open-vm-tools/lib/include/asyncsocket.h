@@ -664,20 +664,6 @@ int AsyncSocket_SetCloseOptions(AsyncSocket *asock,
                                 AsyncSocketCloseFn closeCb);
 
 /*
- * Set optional AsyncSocket_Close() behaviors.
- */
-void AsyncSocket_SetCloseOptions(AsyncSocket *asock,
-                                 int flushEnabledMaxWaitMsec,
-                                 AsyncSocketCloseCb closeCb);
-
-/*
- * Send websocket close frame.
- */
-int
-AsyncSocket_SendWebSocketCloseFrame(AsyncSocket *asock,
-                                    uint16 closeStatus);
-
-/*
  * Close the connection and destroy the asock.
  */
 int AsyncSocket_Close(AsyncSocket *asock);

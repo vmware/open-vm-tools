@@ -1038,34 +1038,6 @@ CopyFileToDirectory(const char* srcPath, const char* destPath,
 
 //......................................................................................
 
-static bool
-CopyFileToDirectory(const char* srcPath, const char* destPath,
-                    const char* fileName)
-{
-   char command[1024];
-   int forkExecResult;
-   snprintf(command, sizeof(command), "/bin/cp %s/%s %s/%s.tmp", srcPath,
-            fileName, destPath, fileName);
-   command[sizeof(command) - 1] = '\0';
-   forkExecResult = ForkExecAndWaitCommand(command);
-   if (forkExecResult != 0) {
-      SetDeployError("Error while copying file %s: %s", fileName,
-                     strerror(errno));
-      return false;
-   }
-   snprintf(command, sizeof(command), "/bin/mv -f %s/%s.tmp %s/%s", destPath,
-            fileName, destPath, fileName);
-   command[sizeof(command) - 1] = '\0';
-
-   forkExecResult = ForkExecAndWaitCommand(command);
-   if (forkExecResult != 0) {
-      SetDeployError("Error while renaming temp file %s: %s", fileName,
-                     strerror(errno));
-      return false;
-   }
-   return true;
-}
-
 /**
  *----------------------------------------------------------------------------
  *
@@ -1164,12 +1136,6 @@ Deploy(const char* packageName)
    SetCustomizationStatusInVmx(TOOLSDEPLOYPKG_RUNNING,
                                TOOLSDEPLOYPKG_ERROR_SUCCESS,
                                NULL);
-   tmpDirPath = mkdtemp((char *)Util_SafeStrdup(TMP_DIR_PATH_PATTERN));
-   if (tmpDirPath == NULL) {
-      SetDeployError("Error creating tmp dir: %s", strerror(errno));
-      return DEPLOY_ERROR;
-   }
-
    tmpDirPath = mkdtemp((char *)Util_SafeStrdup(TMP_DIR_PATH_PATTERN));
    if (tmpDirPath == NULL) {
       SetDeployError("Error creating tmp dir: %s", strerror(errno));
