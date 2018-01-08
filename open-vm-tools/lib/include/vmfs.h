@@ -1,6 +1,5 @@
-
 /*********************************************************
- * Copyright (C) 2003-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -31,6 +30,10 @@
 #include "includeCheck.h"
 
 #include "unicodeTypes.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 // Consolidate all path stuff here so it's consistent between user and kernel
 #define VMFS_ROOT_DIR_NAME              "vmfs"
@@ -78,8 +81,10 @@
 #define SCSI_DISK_DRIVER_STRING         "disks"
 #define SCSI_GENERIC_DRIVER_STRING      "genscsi"
 #define OLD_SCSI_GENERIC_DRIVER_STRING  "generic"
-#define COW_DRIVER_NAME		        "deltadisks"
-#define MULTI_EXTENT_DRIVER_NAME	"multiextent"
+#define COW_DRIVER_NAME                 "deltadisks"
+#define MULTI_EXTENT_DRIVER_NAME        "multiextent"
+
+#define FDS_DRIVER_ALL_STRING           "fdsall"
 
 #define CDROM_MOUNT_POINT               DEVFS_MOUNT_PATH CDROM_DRIVER_STRING
 #define DISKS_MOUNT_POINT               DEVFS_MOUNT_PATH SCSI_DISK_DRIVER_STRING
@@ -108,6 +113,10 @@ typedef enum {
 #if defined(VMX86_SERVER)
 char *Vmfs_GetCOSFileName(const char *vmfsFile);
 #endif /* VM86_SERVER */
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif /* __VMFS_H__ */
 

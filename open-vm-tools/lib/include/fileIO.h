@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -36,10 +36,6 @@
 #ifndef _FILEIO_H_
 #define _FILEIO_H_
 
-#ifdef __cplusplus
-extern "C"{
-#endif
-
 #define INCLUDE_ALLOW_USERLEVEL
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
@@ -55,6 +51,10 @@ extern "C"{
 #include "unicodeTypes.h"
 
 #include "iovector.h"        // for struct iovec
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 struct FileLockToken;
 
@@ -140,7 +140,7 @@ typedef enum {
  * unshare the flags between the two at which point this could be fixed.
  * --Tommy
  */
-#define  FILEIO_OPEN_PRIVILEGED_IOCTL  (1 << 12)
+#define  FILEIO_OPEN_PRIVILEGED_IOCTL    (1 << 12)
 /*
  * Lock the file on open with a exclusive leased lock that can be broken
  * (supported on ESX file systems)
@@ -151,6 +151,11 @@ typedef enum {
  * (supported on ESX file systems)
  */
 #define FILEIO_OPEN_MULTIWRITER_LOCK     (1 << 14)
+/*
+ * Lock the file on open with an SWMR leased lock that can be broken
+ * (supported on ESX file systems)
+ */
+#define FILEIO_OPEN_SWMR_LOCK            (1 << 15)
 /*
  * Valid only for MacOS. It eventually results into O_EXLOCK flag passed to open
  * system call.
@@ -173,11 +178,11 @@ typedef enum {
 /*
  * Valid only on POSIXen. Don't follow a symbolic link.
  */
-#define FILEIO_OPEN_ACCESS_NOFOLLOW (1 << 18)
+#define FILEIO_OPEN_ACCESS_NOFOLLOW      (1 << 18)
 /*
  * Valid only on Windows. Set FILE_SHARE_DELETE.
  */
-#define FILEIO_OPEN_SHARE_DELETE (1 << 19)
+#define FILEIO_OPEN_SHARE_DELETE         (1 << 19)
 /*
  * Strengths of file lock.
  * Advisory:
@@ -190,9 +195,15 @@ typedef enum {
  *   Adaptively picks between mandatory and advisory.
  * Almost all cases should use the "best" lock.
  */
-#define FILEIO_OPEN_LOCK_BEST         FILEIO_OPEN_LOCKED /* historical */
-#define FILEIO_OPEN_LOCK_ADVISORY     (1 << 20)
-#define FILEIO_OPEN_LOCK_MANDATORY    (1 << 21)
+#define FILEIO_OPEN_LOCK_BEST            FILEIO_OPEN_LOCKED /* historical */
+#define FILEIO_OPEN_LOCK_ADVISORY        (1 << 20)
+#define FILEIO_OPEN_LOCK_MANDATORY       (1 << 21)
+
+/*
+ * Flag passed to open() to enable use of swmr-reader locks on VMFS.  This
+ * definition must match USEROBJ_OPEN_SWMR_LOCK in user_vsiTypes.h.
+ */
+#define O_SWMR_LOCK                      (1 << 21)  // 0x00200000
 
 /*
  * OPTIMISTIC is an alternative to EXCLUSIVE and MANDATORY. It applies
@@ -200,24 +211,41 @@ typedef enum {
  * called "optimistic" to speed up opens. Rule-of-thumb is to use it
  * only for read-only opens of small files (< 1KB).
  */
-#define FILEIO_OPEN_OPTIMISTIC_LOCK   (1 << 22)
+#define FILEIO_OPEN_OPTIMISTIC_LOCK      (1 << 22)  // 0x00400000
 
 /*
- * Flag passed to open() to not attempt to get the lun attributes as part of
+ * Flag passed to open() to enable use of oplocks on VMFS.  This definition
+ * must match USEROBJ_OPEN_OPTIMISTIC_LOCK in user_vsiTypes.h.
+ */
+#define O_OPTIMISTIC_LOCK                (1 << 22)  // 0x00400000
+
+/*
+ * POSIX specific close the file descriptor when the program uses a variant
+ * of the exec system call capability. This is useful in fork/exec scenarios.
+ */
+#define FILEIO_OPEN_CLOSE_ON_EXEC        (1 << 23)  // 0x00800000
+
+/*
+ * Flag passed to open() to not attempt to get the LUN attributes as part of
  * the open operation. Applicable only to opening of SCSI devices. This
  * definition must match the definition of USEROBJ_OPEN_NOATTR in
  * user_vsiTypes.h and FS_OPEN_NOATTR in fs_public.h
  */
-#define O_NOATTR 0x04000000
-// Flag passed to open() to get multiwriter VMFS lock.  This definition must
-// match USEROBJ_OPEN_MULTIWRITER_LOCK in user_vsiTypes.h.
-#define O_MULTIWRITER_LOCK 0x08000000
-// Flag passed to open() to get exclusive VMFS lock.  This definition must
-// match USEROBJ_OPEN_EXCLUSIVE_LOCK in user_vsiTypes.h.
-#define O_EXCLUSIVE_LOCK 0x10000000
-// Flag passed to open() to enable use of oplocks on VMFS.  This definition
-// must match USEROBJ_OPEN_OPTIMISTIC_LOCK in user_vsiTypes.h.
-#define O_OPTIMISTIC_LOCK 0x00400000
+#define O_NOATTR                         (1 << 26)  // 0x04000000
+
+/*
+ * Flag passed to open() to get multiwriter VMFS lock.  This definition must
+ * match USEROBJ_OPEN_MULTIWRITER_LOCK in user_vsiTypes.h.
+ */
+
+#define O_MULTIWRITER_LOCK               (1 << 27)  // 0x08000000
+
+/*
+ * Flag passed to open() to get exclusive VMFS lock.  This definition must
+ * match USEROBJ_OPEN_EXCLUSIVE_LOCK in user_vsiTypes.h.
+ */
+
+#define O_EXCLUSIVE_LOCK                 (1 << 28)  // 0x10000000
 
 /* File Access check args */
 #define FILEIO_ACCESS_READ       (1 << 0)
@@ -301,6 +329,13 @@ FileIOResult FileIO_Create(FileIODescriptor *file,
                            FileIOOpenAction action,
                            int mode);
 
+FileIOResult FileIO_CreateRetry(FileIODescriptor *file,
+                               const char *pathName,
+                               int access,
+                               FileIOOpenAction action,
+                               int mode,
+                               uint32 maxWaitTimeMsec);
+
 FileIOResult FileIO_Open(FileIODescriptor *file,
                          const char *pathName,
                          int access,
@@ -310,7 +345,7 @@ FileIOResult FileIO_OpenRetry(FileIODescriptor *file,
                               const char *pathName,
                               int access,
                               FileIOOpenAction action,
-                              uint32 msecMaxWaitTime);
+                              uint32 maxWaitTimeMsec);
 
 uint64 FileIO_Seek(const FileIODescriptor *file,
                    int64 distance,
@@ -334,6 +369,10 @@ FileIOResult FileIO_AtomicTempFile(FileIODescriptor *fileFD,
 Bool FileIO_AtomicUpdate(FileIODescriptor *newFD,
                          FileIODescriptor *currFD);
 
+int FileIO_AtomicUpdateEx(FileIODescriptor *newFD,
+                          FileIODescriptor *currFD,
+                          Bool renameOnNFS);
+
 #if !defined(VMX86_TOOLS) || !defined(__FreeBSD__)
 
 FileIOResult FileIO_Readv(FileIODescriptor *fd,
@@ -349,29 +388,33 @@ FileIOResult FileIO_Writev(FileIODescriptor *fd,
                            size_t *bytesWritten);
 #endif
 
-FileIOResult FileIO_Preadv(FileIODescriptor *fd,        // IN: File descriptor
-                           struct iovec const *entries, // IN: Vector to read into
-                           int numEntries,              // IN: Number of vector entries
-                           uint64 offset,               // IN: Offset to start reading
-                           size_t totalSize,            // IN: totalSize (bytes) in entries
-                           size_t *actual);             // OUT: number of bytes read
+FileIOResult FileIO_Preadv(
+               FileIODescriptor *fd,        // IN: File descriptor
+               struct iovec const *entries, // IN: Vector to read into
+               int numEntries,              // IN: Number of vector entries
+               uint64 offset,               // IN: Offset to start reading
+               size_t totalSize,            // IN: totalSize (bytes) in entries
+               size_t *actual);             // OUT: number of bytes read
 
-FileIOResult FileIO_Pwritev(FileIODescriptor *fd,        // IN: File descriptor
-                            struct iovec const *entries, // IN: Vector to write from
-                            int numEntries,              // IN: Number of vector entries
-                            uint64 offset,               // IN: Offset to start writing
-                            size_t totalSize,            // IN: Total size (bytes) in entries
-                            size_t *actual);             // OUT: number of bytes written
+FileIOResult FileIO_Pwritev(
+              FileIODescriptor *fd,        // IN: File descriptor
+              struct iovec const *entries, // IN: Vector to write from
+              int numEntries,              // IN: Number of vector entries
+              uint64 offset,               // IN: Offset to start writing
+              size_t totalSize,            // IN: Total size (bytes) in entries
+              size_t *actual);             // OUT: number of bytes written
 
-FileIOResult FileIO_Pread(FileIODescriptor *fd,    // IN: File descriptor
-                          void *buf,               // IN: Buffer to read into
-                          size_t len,              // IN: Length of the buffer
-                          uint64 offset);          // IN: Offset to start reading
+FileIOResult FileIO_Pread(
+                        FileIODescriptor *fd,    // IN: File descriptor
+                        void *buf,               // IN: Buffer to read into
+                        size_t len,              // IN: Length of the buffer
+                        uint64 offset);          // IN: Offset to start reading
 
-FileIOResult FileIO_Pwrite(FileIODescriptor *fd,   // IN: File descriptor
-                           void const *buf,        // IN: Buffer to write from
-                           size_t len,             // IN: Length of the buffer
-                           uint64 offset);         // IN: Offset to start writing
+FileIOResult FileIO_Pwrite(
+                         FileIODescriptor *fd,   // IN: File descriptor
+                         void const *buf,        // IN: Buffer to write from
+                         size_t len,             // IN: Length of the buffer
+                         uint64 offset);         // IN: Offset to start writing
 
 FileIOResult FileIO_Access(const char *pathName,
                            int accessMode);
@@ -402,8 +445,10 @@ FileIOResult    FileIO_CloseAndUnlink(FileIODescriptor *file);
 
 uint32  FileIO_GetFlags(FileIODescriptor *file);
 
+#if defined(_WIN32)
 Bool    FileIO_GetVolumeSectorSize(const char *name,
                                    uint32 *sectorSize);
+#endif
 
 Bool    FileIO_SupportsFileSize(const FileIODescriptor *file,
                                 uint64 testSize);
@@ -477,8 +522,8 @@ Bool FileIO_IsSuccess(FileIOResult res);
 Bool FileIO_SupportsPrealloc(const char *pathName,
                              Bool fsCheck);
 
-#ifdef __cplusplus
-} // extern "C" {
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 
 #endif // _FILEIO_H_

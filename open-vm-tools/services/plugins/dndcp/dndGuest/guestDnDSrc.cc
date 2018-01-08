@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -23,15 +23,16 @@
  */
 
 #include "guestDnD.hh"
+#include "util.h"
 
 extern "C" {
    #include "dndClipboard.h"
-   #include "util.h"
    #include "debug.h"
-   #include "file.h"
    #include "cpNameUtil.h"
-   #include "str.h"
 }
+
+#include "file.h"
+#include "str.h"
 
 
 /**

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -877,7 +877,11 @@ ToolsCore_UnloadPlugins(ToolsServiceState *state)
       return;
    }
 
-   if (state->capsRegistered) {
+   /* 
+    * Signal handlers in some plugins may require RPC Channel. Therefore, we don't
+    * emit the signal if RPC channel is not available. See PR 1798412 for details.
+    */
+   if (state->capsRegistered && state->ctx.rpc) {
       GArray *pcaps = NULL;
       g_signal_emit_by_name(state->ctx.serviceObj,
                             TOOLS_CORE_SIG_CAPABILITIES,
@@ -886,9 +890,7 @@ ToolsCore_UnloadPlugins(ToolsServiceState *state)
                             &pcaps);
 
       if (pcaps != NULL) {
-         if (state->ctx.rpc) {
-            ToolsCore_SetCapabilities(state->ctx.rpc, pcaps, FALSE);
-         }
+         ToolsCore_SetCapabilities(state->ctx.rpc, pcaps, FALSE);
          g_array_free(pcaps, TRUE);
       }
    }

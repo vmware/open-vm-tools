@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -30,6 +30,7 @@
 #include <errno.h>
 #include <locale.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <glib.h>
 #ifdef _WIN32
@@ -52,7 +53,7 @@ typedef struct MsgCatalog {
 
 typedef struct MsgState {
    GHashTable *domains;  /* List of text domains. */
-   GStaticMutex lock;    /* Mutex to protect shared state. */
+   GMutex lock;          /* Mutex to protect shared state. */
 } MsgState;
 
 
@@ -367,7 +368,7 @@ MsgInitState(gpointer unused)
 {
    ASSERT(msgState == NULL);
    msgState = g_new0(MsgState, 1);
-   g_static_mutex_init(&msgState->lock);
+   g_mutex_init(&msgState->lock);
    return NULL;
 }
 
@@ -463,7 +464,20 @@ MsgGetUserLanguage(void)
     * POSIX implementation: just use setlocale() to query the data. Ignore any
     * codeset information.
     */
-   char *tmp = setlocale(LC_MESSAGES, NULL);
+   char *tmp;
+#ifdef VMX86_DEBUG
+   /*
+    * Simple override for testing.  Various documented env variables
+    * don't seem to properly kick in.
+    */
+   char *envLocale = getenv("LANG");
+   if (envLocale) {
+      lang = g_strdup(envLocale);
+      g_debug("Using LANG override of '%s'\n", lang);
+      return lang;
+   }
+#endif
+   tmp = setlocale(LC_MESSAGES, NULL);
    if (tmp == NULL) {
       lang = g_strdup("C");
    } else {
@@ -519,22 +533,8 @@ MsgSetCatalog(const char *domain,
  * MsgLoadCatalog --                                                     */ /**
  *
  * Loads the message catalog at the given path into a new hash table.
- *
- * This function supports an "extended" format for the catalog files. Aside
- * from the usual things you can put in a lib/dict-based dictionary, this code
- * supports multi-line messages so that long messages can be broken down.
- *
- * These lines are any lines following a key / value declaration that start with
- * a quote character (ignoring any leading spaces and tabs). So a long message
- * could look like this:
- *
- * @code
- * message.id = "This is the first part of the message. "
- *              "This is the continuation line, still part of the same message."
- * @endcode
- *
- * The complete value for the "message.id" key will be the concatenation of
- * the values in quotes.
+ * The catalog entries are a simple <key> = <value>.  Line continutatiom
+ * is not supported.
  *
  * @param[in] path    Path containing the message catalog (encoding should be
  *                    UTF-8).
@@ -575,84 +575,48 @@ MsgLoadCatalog(const char *path)
       char *name = NULL;
       char *value = NULL;
       gchar *line;
+      gsize len;
+      gsize term;
+      char *unused = NULL;
 
       /* Read the next key / value pair. */
-      for (;;) {
-         gsize i;
-         gsize len;
-         gsize term;
-         char *unused = NULL;
-         gboolean cont = FALSE;
 
-         g_io_channel_read_line(stream, &line, &len, &term, &err);
+      g_io_channel_read_line(stream, &line, &len, &term, &err);
 
-         if (err != NULL) {
-            g_warning("Unable to read a line from '%s': %s\n",
-                      path, err->message);
-            g_clear_error(&err);
-            error = TRUE;
-            g_free(line);
-            break;
-         }
-
-         if (line == NULL) {
-            eof = TRUE;
-            break;
-         }
-
-         /*
-          * Fix the line break to always be Unix-style, to make lib/dict
-          * happy.
-          */
-         if (line[term] == '\r') {
-            line[term] = '\n';
-            if (len > term) {
-               line[term + 1] = '\0';
-            }
-         }
-
-         /*
-          * If currently name is not NULL, then check if this is a continuation
-          * line and, if it is, just append the contents to the current value.
-          */
-         if (name != NULL && term > 0 && line[term - 1] == '"') {
-            for (i = 0; i < len; i++) {
-               if (line[i] == '"') {
-                  /* OK, looks like a continuation line. */
-                  char *tmp;
-
-                  line[term - 1] = '\0';
-                  tmp = g_strdup_printf("%s%s", value, line + i + 1);
-                  g_free(value);
-                  value = tmp;
-                  cont = TRUE;
-                  break;
-               } else if (line[i] != ' ' && line[i] != '\t') {
-                  break;
-               }
-            }
-         }
-
-         /*
-          * If not a continuation line and we have a name, break out of the
-          * inner loop to update the dictionaty.
-          */
-         if (!cont && name != NULL) {
-            g_free(line);
-            break;
-         }
-
-         /*
-          * Finally, try to parse the string using the dictionary library.
-          */
-         if (!cont && DictLL_UnmarshalLine(line, len, &unused, &name, &value) == NULL) {
-            g_warning("Couldn't parse line from catalog: %s", line);
-            error = TRUE;
-         }
-
+      if (err != NULL) {
+         g_warning("Unable to read a line from '%s': %s\n",
+                   path, err->message);
+         g_clear_error(&err);
+         error = TRUE;
          g_free(line);
-         g_free(unused);
+         break;
       }
+
+      if (line == NULL) {
+         eof = TRUE;
+         break;
+      }
+
+      /*
+       * Fix the line break to always be Unix-style, to make lib/dict
+       * happy.
+       */
+      if (line[term] == '\r') {
+         line[term] = '\n';
+         if (len > term) {
+            line[term + 1] = '\0';
+         }
+      }
+
+      /*
+       * Try to parse the string using the dictionary library.
+       */
+      if (DictLL_UnmarshalLine(line, len, &unused, &name, &value) == NULL) {
+         g_warning("Couldn't parse line from catalog: %s", line);
+         error = TRUE;
+      }
+      g_free(unused);
+      g_free(line);
 
       if (error) {
          break;
@@ -776,9 +740,9 @@ I18n_BindTextDomain(const char *domain,
                    "catalog dir '%s'.\n", domain, lang, catdir);
       }
    } else {
-      g_static_mutex_lock(&state->lock);
+      g_mutex_lock(&state->lock);
       MsgSetCatalog(domain, catalog);
-      g_static_mutex_unlock(&state->lock);
+      g_mutex_unlock(&state->lock);
    }
    g_free(file);
    g_free(usrlang);
@@ -833,7 +797,7 @@ I18n_GetString(const char *domain,
    memcpy(idBuf, idp, len);
    idBuf[len] = '\0';
 
-   g_static_mutex_lock(&state->lock);
+   g_mutex_lock(&state->lock);
 
    catalog = MsgGetCatalog(domain);
    if (catalog != NULL) {
@@ -849,7 +813,7 @@ I18n_GetString(const char *domain,
       }
    }
 
-   g_static_mutex_unlock(&state->lock);
+   g_mutex_unlock(&state->lock);
 
    return strp;
 }

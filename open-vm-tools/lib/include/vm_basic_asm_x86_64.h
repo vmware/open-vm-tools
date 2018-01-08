@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -73,23 +73,22 @@ uint64 __shiftright128(uint64 lowPart, uint64 highPart, uint8 shift);
 
 #if defined(__GNUC__)
 /*
- * GET_CURRENT_RIP
+ * GET_CURRENT_PC
  *
- * Returns the current instruction pointer. In the example below:
+ * Returns the current program counter (i.e. instruction pointer i.e. rip
+ * register on x86_64). In the example below:
  *
  *   foo.c
- *   L123: Foo(GET_CURRENT_RIP())
+ *   L123: Foo(GET_CURRENT_PC())
  *
- * the return value from GET_CURRENT_RIP will point a debugger to L123.
+ * the return value from GET_CURRENT_PC will point a debugger to L123.
  */
-#define GET_CURRENT_RIP() ({                                          \
+#define GET_CURRENT_PC() ({                                           \
       void *__rip;                                                    \
       asm("lea 0(%%rip), %0;\n\t"                                     \
          : "=r" (__rip));                                             \
       __rip;                                                          \
 })
-
-#define GET_CURRENT_PC() GET_CURRENT_RIP()
 
 /*
  * GET_CURRENT_LOCATION

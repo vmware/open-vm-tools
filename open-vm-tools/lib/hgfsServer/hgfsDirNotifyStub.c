@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -50,7 +50,7 @@
  */
 
 HgfsInternalStatus
-HgfsNotify_Init(void)
+HgfsNotify_Init(const HgfsServerNotifyCallbacks *serverCbData) // IN: serverCbData unused
 {
    return HGFS_ERROR_NOT_SUPPORTED;
 }
@@ -81,28 +81,6 @@ HgfsNotify_Exit(void)
 /*
  *-----------------------------------------------------------------------------
  *
- * HgfsNotify_Deactivate --
- *
- *    Deactivates generating file system change notifications.
- *
- * Results:
- *    None.
- *
- * Side effects:
- *    None.
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-HgfsNotify_Deactivate(HgfsNotifyActivateReason reason) // IN: reason unused
-{
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
  * HgfsNotify_Activate --
  *
  *    Activates generating file system change notifications.
@@ -117,7 +95,31 @@ HgfsNotify_Deactivate(HgfsNotifyActivateReason reason) // IN: reason unused
  */
 
 void
-HgfsNotify_Activate(HgfsNotifyActivateReason reason) // IN: reason unused
+HgfsNotify_Activate(HgfsNotifyActivateReason reason, // IN: reason
+                    struct HgfsSessionInfo *session) // IN: session
+{
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsNotify_Deactivate --
+ *
+ *    Deactivates generating file system change notifications.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+HgfsNotify_Deactivate(HgfsNotifyActivateReason reason, // IN: reason
+                      struct HgfsSessionInfo *session) // IN: session
 {
 }
 
@@ -170,7 +172,6 @@ HgfsNotify_AddSubscriber(HgfsSharedFolderHandle sharedFolder, // IN: shared fold
                          const char *path,                    // IN: relative path
                          uint32 eventFilter,                  // IN: event filter
                          uint32 recursive,                    // IN: look in subfolders
-                         HgfsNotifyEventReceiveCb eventCb,    // IN notification callback
                          struct HgfsSessionInfo *session)     // IN: server context
 {
    return HGFS_INVALID_SUBSCRIBER_HANDLE;

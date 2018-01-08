@@ -2,7 +2,7 @@
  *	 Author: bwilliams
  *  Created: Jan 21, 2011
  *
- *	Copyright (C) 2011-2016 VMware, Inc.  All rights reserved. -- VMware Confidential
+ *	Copyright (C) 2011-2017 VMware, Inc.  All rights reserved. -- VMware Confidential
  */
 
 #ifndef CFILESYSTEMUTILS_H_
@@ -178,10 +178,14 @@ public:
 		const std::string &path);
 
 	static int64 getFileSize(const std::string& filename);
-	
+
 	static std::string saveTempTextFile(const std::string& filename_template, const std::string& contents);
-	
+
 	static std::string getTempFilename(const std::string& filename_template);
+
+	static std::string executeScript(
+		const std::string& scriptPath,
+		const std::string& scriptResultsDir);
 
 private:
 	static void saveFileSafely(

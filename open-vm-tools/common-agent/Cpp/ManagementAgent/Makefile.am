@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2016 VMware, Inc.  All rights reserved.
+### Copyright (C) 2016-2017 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -38,6 +38,7 @@ libMaIntegrationSubsys_la_SOURCES += Subsystems/MaIntegration/src/CDiagToMgmtReq
 libMaIntegrationSubsys_la_SOURCES += Subsystems/MaIntegration/src/CInstallToMgmtRequestTransformer.cpp
 libMaIntegrationSubsys_la_SOURCES += Subsystems/MaIntegration/src/CInstallToMgmtRequestTransformerInstance.cpp
 libMaIntegrationSubsys_la_SOURCES += Subsystems/MaIntegration/src/CMonitorInboundChannelAdapterInstance.cpp
+libMaIntegrationSubsys_la_SOURCES += Subsystems/MaIntegration/src/CMonitorListener.cpp
 libMaIntegrationSubsys_la_SOURCES += Subsystems/MaIntegration/src/CMonitorReadingMessageSource.cpp
 libMaIntegrationSubsys_la_SOURCES += Subsystems/MaIntegration/src/CPersistenceInboundChannelAdapterInstance.cpp
 libMaIntegrationSubsys_la_SOURCES += Subsystems/MaIntegration/src/CPersistenceMerge.cpp

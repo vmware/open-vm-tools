@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -61,13 +61,16 @@ gboolean
 GuestInfo_StatProviderPoll(gpointer data);
 
 GuestDiskInfo *
-GuestInfoGetDiskInfoWiper(void);
+GuestInfoGetDiskInfoWiper(Bool includeReserved);
 
 GuestDiskInfo *
-GuestInfo_GetDiskInfo(void);
+GuestInfo_GetDiskInfo(const ToolsAppCtx *ctx);
 
 void
 GuestInfo_FreeDiskInfo(GuestDiskInfo *di);
+
+void
+GuestInfo_StatProviderShutdown(void);
 
 #endif /* _GUESTINFOINT_H_ */
 

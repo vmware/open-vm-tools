@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2014-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2014-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -19,7 +19,7 @@
 /*
  * libDeployPkg_version.h --
  *
- * Version definitions for libDeployPkg.
+ *      Version definitions for libDeployPkg.
  */
 
 #ifndef _LIBDEPLOYPKG_VERSION_H_

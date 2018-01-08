@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -31,6 +31,15 @@
 #include "vixCommands.h"
 #include <glib.h>
 
+/*
+ * Needed for VGAuth support code.
+ */
+#ifdef _WIN32
+#include "VGAuthCommon.h"
+#include "VGAuthError.h"
+#include "VGAuthAuthentication.h"
+#include "VGAuthAlias.h"
+#endif
 
 #define PROCESS_CREATOR_USER_TOKEN       ((void *)1)
 
@@ -60,6 +69,10 @@ VixError VixTools_Initialize(Bool thisProcessRunsAsRootArg,
                              void *clientData);
 
 void VixTools_Uninitialize(void);
+
+#ifdef _WIN32
+VixError VixToolsTranslateVGAuthError(VGAuthError vgErr);
+#endif
 
 VixError VixToolsImpersonateUser(VixCommandRequestHeader *requestMsg, void **userToken);
 
@@ -189,6 +202,13 @@ VixError VixToolsDeleteRegValueImpl(VixCommandRequestHeader *requestMsg);
 
 gchar *VixToolsGetCurrentUsername(void);
 
+VixError VixToolsCheckSAMLForSystem(VGAuthContext *ctx,
+                                    VGAuthError origErr,
+                                    const char *token,
+                                    const char *username,
+                                    char *serviceUsername,
+                                    void **userToken,
+                                    VGAuthUserHandle **curUserHandle);
 #endif // _WIN32
 
 #ifdef VMX86_DEVEL

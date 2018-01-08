@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -20,6 +20,10 @@
 #define _LIBMUTEXRANK_H
 
 #include "mutexRank.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 /*
  * MXUser mutex ranks for bora/lib code.
@@ -109,7 +113,8 @@
 /*
  * NFC lib lock
  */
-#define RANK_nfcLibLock              (RANK_libLockBase + 0x4505)
+#define RANK_nfcLibInitLock          (RANK_libLockBase + 0x4505)
+#define RANK_nfcLibLock              (RANK_libLockBase + 0x4506)
 
 /*
  * Policy lib lock
@@ -196,5 +201,8 @@
 #define RANK_licenseCheckLock        (RANK_libLockBase + 0x7090)
 #define RANK_preferenceLock          (RANK_libLockBase + 0x7100)
 
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif /* _LIBMUTEXRANK_H */

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -249,12 +249,6 @@ HashTable_Alloc(uint32 numEntries,        // IN: must be a power of 2
    ht->buckets = Util_SafeCalloc(ht->numEntries, sizeof *ht->buckets);
    ht->numElements = 0;
 
-#ifndef NO_ATOMIC_HASHTABLE
-   if (ht->atomic) {
-      Atomic_Init();
-   }
-#endif
-
    return ht;
 }
 
@@ -289,7 +283,6 @@ HashTable_AllocOnce(Atomic_Ptr *var,          // IN/OUT: the atomic var
 #ifdef NO_ATOMIC_HASHTABLE
       Atomic_WritePtr(var, new);
 #else
-      Atomic_Init();
       ht = Atomic_ReadIfEqualWritePtr(var, NULL, new);
 #endif
       if (ht == NULL) {
@@ -867,7 +860,7 @@ HashTable_KeyArray(const HashTable *ht,  // IN:
    *keys = NULL;
    *size = HashTable_GetNumElements(ht);
 
-   if (0 == *size) {
+   if (*size == 0) {
       return;
    }
 
@@ -923,7 +916,7 @@ HashTable_ToArray(const HashTable *ht,  // IN:
    *clientDatas = NULL;
    *size = HashTable_GetNumElements(ht);
 
-   if (0 == *size) {
+   if (*size == 0) {
       return;
    }
 

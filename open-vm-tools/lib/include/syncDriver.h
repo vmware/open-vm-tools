@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -27,7 +27,7 @@
 
 #include "vm_basic_types.h"
 
-#ifdef _WIN32 /* { */
+#if defined(_WIN32) /* { */
 
 # include <windows.h>
 # define SYNCDRIVER_INVALID_HANDLE INVALID_HANDLE_VALUE
@@ -55,6 +55,10 @@ Bool SyncDriver_Thaw(const SyncDriverHandle handle);
 SyncDriverStatus SyncDriver_QueryStatus(const SyncDriverHandle handle,
                                         int32 timeout);
 void SyncDriver_CloseHandle(SyncDriverHandle *handle);
+#if defined(__linux__)
+void SyncDriver_GetAttr(const SyncDriverHandle handle, const char **name,
+                        Bool *quiesces);
+#endif
 
 #endif
 

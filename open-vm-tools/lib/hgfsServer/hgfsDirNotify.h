@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -49,16 +49,27 @@ typedef enum {
    HGFS_NOTIFY_REASON_SUBSCRIBERS,
 } HgfsNotifyActivateReason;
 
-/* This is a callback that is implemented in hgfsServer.c */
-typedef void HgfsNotifyEventReceiveCb(HgfsSharedFolderHandle sharedFolder,
-                                      HgfsSubscriberHandle subscriber,
-                                      char *name,
-                                      uint32 mask,
-                                      struct HgfsSessionInfo *session);
-HgfsInternalStatus HgfsNotify_Init(void);
+/* These are the callbacks that are implemented in hgfsServer.c */
+typedef void (*HgfsNotifyRegisterThreadCb)(struct HgfsSessionInfo *session);
+typedef void (*HgfsNotifyUnregisterThreadCb)(struct HgfsSessionInfo *session);
+typedef void (*HgfsNotifyEventReceiveCb)(HgfsSharedFolderHandle sharedFolder,
+                                         HgfsSubscriberHandle subscriber,
+                                         char *name,
+                                         uint32 mask,
+                                         struct HgfsSessionInfo *session);
+
+typedef struct HgfsServerNotifyCallbacks {
+   HgfsNotifyRegisterThreadCb     registerThread;
+   HgfsNotifyUnregisterThreadCb   unregisterThread;
+   HgfsNotifyEventReceiveCb       eventReceive;
+} HgfsServerNotifyCallbacks;
+
+HgfsInternalStatus HgfsNotify_Init(const HgfsServerNotifyCallbacks *serverCbData);
 void HgfsNotify_Exit(void);
-void HgfsNotify_Deactivate(HgfsNotifyActivateReason mode);
-void HgfsNotify_Activate(HgfsNotifyActivateReason mode);
+void HgfsNotify_Deactivate(HgfsNotifyActivateReason mode,
+                           struct HgfsSessionInfo *session);
+void HgfsNotify_Activate(HgfsNotifyActivateReason mode,
+                         struct HgfsSessionInfo *session);
 
 HgfsSharedFolderHandle HgfsNotify_AddSharedFolder(const char *path,
                                                   const char *shareName);
@@ -66,7 +77,6 @@ HgfsSubscriberHandle HgfsNotify_AddSubscriber(HgfsSharedFolderHandle sharedFolde
                                               const char *path,
                                               uint32 eventFilter,
                                               uint32 recursive,
-                                              HgfsNotifyEventReceiveCb notify,
                                               struct HgfsSessionInfo *session);
 
 Bool HgfsNotify_RemoveSharedFolder(HgfsSharedFolderHandle sharedFolder);

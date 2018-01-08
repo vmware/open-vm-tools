@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -77,6 +77,14 @@ extern "C" {
  */
 void __cpuid(int regs[4], int eax);
 #pragma intrinsic(__cpuid)
+
+/*
+ * __cpuidex has been supported since VS2008
+ */
+#if _MSC_VER >= 1500
+void __cpuidex(int regs[4], int eax, int ecx);
+#pragma intrinsic(__cpuidex)
+#endif /* _MSC_VER >= 1500 */
 #endif /* VM_X86_64 */
 
 #ifdef __cplusplus
@@ -261,6 +269,20 @@ __GET_CPUID(int input, CPUIDRegs *regs)
 
 #ifdef VM_X86_64
 
+#if _MSC_VER >= 1500
+
+/*
+ * __cpuidex has been supported since VS2008
+ */
+
+static INLINE void
+__GET_CPUID2(int inputEax, int inputEcx, CPUIDRegs *regs)
+{
+   __cpuidex((int *)regs, inputEax, inputEcx);
+}
+
+#else // _MSC_VER >= 1500
+
 /*
  * No inline assembly in Win64. Implemented in bora/lib/misc in
  * cpuidMasm64.asm.
@@ -268,6 +290,7 @@ __GET_CPUID(int input, CPUIDRegs *regs)
 
 extern void
 __GET_CPUID2(int inputEax, int inputEcx, CPUIDRegs *regs);
+#endif // _MSC_VER >= 1500
 
 #else // VM_X86_64
 

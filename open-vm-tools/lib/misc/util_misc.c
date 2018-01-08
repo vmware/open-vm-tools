@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -41,20 +41,11 @@
 #include <ctype.h>
 
 #if !defined(_WIN32)
-#  if defined(linux)
-#    include <sys/syscall.h> // for SYS_gettid
-#  endif
 #  include <unistd.h>
 #  include <pwd.h>
 #  include <sys/socket.h>    // for AF_INET[6]
 #  include <arpa/inet.h>     // for inet_pton
 #  include <netinet/in.h>    // for INET6_ADDRSTRLEN
-#endif
-
-#if defined(__APPLE__) || defined(__FreeBSD__)
-#include <pthread.h>
-#elif defined(__sun__)
-#include <thread.h>
 #endif
 
 #if defined(__APPLE__)
@@ -71,8 +62,8 @@
 #include "unicode.h"
 
 #if defined(_WIN32)
-#include "win32u.h"
-#include "win32util.h"
+#include "windowsu.h"
+#include "windowsUtil.h"
 #endif
 #if defined(__APPLE__)
 #include "utilMacos.h"
@@ -128,7 +119,12 @@ Util_GetCanonicalPath(const char *path)  // IN:
        strchr(VALID_DIRSEPS, driveSpec[1])) {
       remoteDrive = TRUE;
    } else {
+#if defined( VM_WIN_UWP)
+      /* Don't need remote path for UWP until now*/
+      remoteDrive = FALSE;
+#else
       remoteDrive = (GetDriveTypeA(driveSpec) == DRIVE_REMOTE);
+#endif // !VM_WIN_UWP
    }
 
    /*
@@ -303,7 +299,7 @@ Util_CanonicalPathsIdentical(const char *path1,  // IN:
    ASSERT(path1);
    ASSERT(path2);
 
-#if defined(linux)
+#if defined(__linux__)
    return (strcmp(path1, path2) == 0);
 #elif defined(_WIN32)
    return (_stricmp(path1, path2) == 0);
@@ -358,77 +354,6 @@ Util_IsAbsolutePath(const char *path)  // IN: path to check
    NOT_IMPLEMENTED();
 #endif
    NOT_REACHED();
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Util_GetCurrentThreadId --
- *
- *      Retrieves a unique thread identification suitable to identify a thread
- *      to kill it or change its scheduling priority.
- *
- *      The tid is NOT guaranteed to be correct across fork().
- *
- * Results:
- *      Unique thread identification on success.
- *	ASSERTs on failure (should not happen).
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-Util_ThreadID
-Util_GetCurrentThreadId(void)
-{
-#if defined(__linux__) && !defined(__ANDROID__)
-   /*
-    * Linux does not declare gettid, but the raw syscall
-    * works fine. We must supply our own TLS caching.
-    */
-   static __thread pid_t tid;
-   if (UNLIKELY(tid == 0)) {
-      tid = (pid_t)syscall(SYS_gettid);
-      ASSERT(tid != -1);  // All kernels that support TLS also implement gettid
-   }
-   return tid;
-
-#elif defined(__ANDROID__)
-   /*
-    * Bionic supplies a gettid implementation in <unistd.h> that
-    * natively uses TLS.
-    */
-   return gettid();
-#elif defined(__sun__)
-   /*
-    * The old thr_ API returns an integer thread identifier. It is
-    * still available with Solaris pthreads.
-    */
-   return thr_self();
-#elif defined(__APPLE__)
-   /*
-    * NB: do not use mach_thread_self here. mach_thread_self returns
-    * a reference and requires a matching mach_port_deallocate, which
-    * would take two syscalls instead of zero.
-    */
-   return pthread_mach_thread_np(pthread_self());
-#elif defined(__FreeBSD__)
-   /*
-    * These OSes do not implement OS-native thread IDs. You probably
-    * didn't need one anyway, but guess that pthread_self works
-    * well enough.
-    */
-   ASSERT_ON_COMPILE(sizeof(Util_ThreadID) >= sizeof(pthread_t));
-
-   return pthread_self();
-#elif defined(_WIN32)
-   return GetCurrentThreadId();
-#else
-#error "Unknown platform"
-#endif
 }
 
 
@@ -555,21 +480,26 @@ UtilDoTildeSubst(const char *user)  // IN: name of user
    if (*user == '\0') {
 #if defined(__APPLE__)
       /*
-       * The HOME environment variable is not always set on Mac OS.
-       * (was bug 841728)
+       * This check mimics the checks and order of CFCopyHomeDirectoryURL(),
+       * which is unfortunately not callable directly since Apple has marked it
+       * as only in iOS despite the fact that they clearly ship it on macOS.
        */
+      str = issetugid() ? NULL
+                        : Unicode_Duplicate(Posix_Getenv("CFFIXED_USER_HOME"));
+
       if (str == NULL) {
          pwd = Posix_Getpwuid(getuid());
          if (pwd == NULL) {
             Log("Could not get passwd for current user.\n");
          }
       }
-#else // !defined(__APPLE__)
-      str = Unicode_Duplicate(Posix_Getenv("HOME"));
-      if (str == NULL) {
-         Log("Could not expand environment variable HOME.\n");
+#endif // defined(__APPLE__)
+      if (str == NULL && pwd == NULL) {
+         str = Unicode_Duplicate(Posix_Getenv("HOME"));
+         if (str == NULL) {
+            Log("Could not expand environment variable HOME.\n");
+         }
       }
-#endif // !defined(__APPLE__)
    } else {
       pwd = Posix_Getpwnam(user);
       if (pwd == NULL) {
@@ -964,7 +894,6 @@ UtilMacos_CreateCFDictionaryWithContentsOfFile(const char *path) // IN
    CFURLRef url;
    CFReadStreamRef stream = NULL;
    CFPropertyListRef plist = NULL;
-   CFPropertyListFormat unusedFormat;
    CFDictionaryRef result = NULL;
 
    /*
@@ -983,11 +912,11 @@ UtilMacos_CreateCFDictionaryWithContentsOfFile(const char *path) // IN
    if (   url != NULL
        && (stream = CFReadStreamCreateWithFile(kCFAllocatorDefault, url))
        && CFReadStreamOpen(stream)
-       && (plist = CFPropertyListCreateFromStream(kCFAllocatorDefault,
+       && (plist = CFPropertyListCreateWithStream(kCFAllocatorDefault,
                                                   stream,
                                                   0,
                                                   kCFPropertyListImmutable,
-                                                  &unusedFormat,
+                                                  NULL,
                                                   NULL))
        && (CFGetTypeID(plist) == CFDictionaryGetTypeID())) {
       result = (CFDictionaryRef)plist;

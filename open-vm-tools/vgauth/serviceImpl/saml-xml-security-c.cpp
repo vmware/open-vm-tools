@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -549,7 +549,7 @@ SAML_VerifyBearerTokenAndChain(const char *xmlText,
                                                           &subj,
                                                           userNameOut,
                                                           verifyAi);
-      Debug("%s: ServiceVerifyAndCheckTrustCertChainForSubject() returned "VGAUTHERR_FMT64"\n", __FUNCTION__, err);
+      Debug("%s: ServiceVerifyAndCheckTrustCertChainForSubject() returned " VGAUTHERR_FMT64 "\n", __FUNCTION__, err);
 
       for (i = 0; i < (int) certs.size(); i++) {
          g_free(pemCerts[i]);
@@ -816,7 +816,7 @@ SAMLCheckSubject(const DOMDocument *doc,
       if (NULL != subjConfirmData) {
          if (!SAMLCheckTimeAttr(subjConfirmData, "NotBefore", true) ||
              !SAMLCheckTimeAttr(subjConfirmData, "NotOnOrAfter", false)) {
-            Debug("%s: subjConfirmData time check failed\n", __FUNCTION__);
+            Warning("%s: subjConfirmData time check failed\n", __FUNCTION__);
             continue;
          }
 
@@ -996,9 +996,9 @@ SAMLCheckTimeAttr(const DOMElement *elem,
     * greater than the clock skew range is bad.
     */
    if (diff > clockSkewAdjustment) {
-      Debug("%s: FAILED SAML assertion (timeStamp %s, delta %d) %s.\n",
-            __FUNCTION__, timeStr.c_str(), (int) diff,
-            notBefore ? "is not yet valid" : "has expired");
+      Warning("%s: FAILED SAML assertion (timeStamp %s, delta %d) %s.\n",
+              __FUNCTION__, timeStr.c_str(), (int) diff,
+              notBefore ? "is not yet valid" : "has expired");
       return false;
    }
 
@@ -1070,7 +1070,7 @@ SAMLCheckSignature(DOMDocument *doc,
    DOMElement *sigElem = SAMLFindChildByName(doc->getDocumentElement(),
                                              "ds:Signature");
    if (NULL == sigElem) {
-      Debug("%s: No top level signature found.\n", __FUNCTION__);
+      Warning("%s: No top level signature found.\n", __FUNCTION__);
       return false;
    }
 
@@ -1078,13 +1078,14 @@ SAMLCheckSignature(DOMDocument *doc,
 
    auto_ptr<DSIGKeyInfoX509> keyInfo = SAMLFindKey(secEnv, sigElem);
    if (keyInfo.get() == NULL) {
-      Debug("%s: No X509 data found as part of the signature.\n",
+      Warning("%s: No X509 data found as part of the signature.\n",
             __FUNCTION__);
       return false;
    }
 
    if (keyInfo->getCertificateListSize() == 0) {
-      Debug("%s: No X509 certificates found in the signature\n", __FUNCTION__);
+      Warning("%s: No X509 certificates found in the signature\n",
+              __FUNCTION__);
       return false;
    }
 
@@ -1102,8 +1103,8 @@ SAMLCheckSignature(DOMDocument *doc,
    }
 
    if (!sig->verify()) {
-      Debug("%s: Signature check failed: %s.\n", __FUNCTION__,
-            SAMLStringWrapper(sig->getErrMsgs()).c_str());
+      Warning("%s: Signature check failed: %s.\n", __FUNCTION__,
+              SAMLStringWrapper(sig->getErrMsgs()).c_str());
       return false;
    }
 

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -31,28 +31,60 @@
 #define VTHREAD_BASE_H
 
 #define INCLUDE_ALLOW_USERLEVEL
-
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
 #include "vm_atomic.h"
 
-#if !defined VMM && !defined WIN32
-#define VTHREAD_USE_PTHREAD 1
+#if !defined VMM
+
+#if !defined WIN32
 #include <signal.h>
 #endif
 
+/*
+ * Most major OSes now support __thread, so begin making TLS access via
+ * __thread the common case. If VMW_HAVE_TLS is defined, __thread may
+ * be used.
+ *
+ * Linux: since glibc-2.3
+ * Windows: since Vista and vs2005 via __declspec(thread)
+ *          (Prior to Vista, __declspec(thread) was ignored when
+ *           a library is loaded via LoadLibrary / delay-load)
+ * macOS: since 10.7 via clang (xcode-4.6)
+ * iOS: 64-bit since 8.0, 32-bit since 9.0 (per llvm commit)
+ * watchOS: since 2.0
+ * Android: since NDKr12 (June 2016, per NDK wiki)
+ * FreeBSD and Solaris: "a long time", gcc-4.1 was needed.
+ */
+#if defined __ANDROID__
+   /* No modern NDK currently in use, no macro known */
+#elif defined __APPLE__
+   /* macOS >= 10.7 tested. iOS >= {8.0,9.0} NOT tested */
+#  if __MAC_OS_X_VERSION_MIN_REQUIRED+0 >= 1070
+#     define VMW_HAVE_TLS
+#  elif  (defined __LP64__ && __IPHONE_OS_VERSION_MIN_REQUIRED+0 >= 80000) || \
+         (!defined __LP64__ && __IPHONE_OS_VERSION_MIN_REQUIRED+0 >= 90000)
+#     define VMW_HAVE_TLS
+#  endif
+#else
+   /* All other platforms require new enough version to support TLS */
+#  define VMW_HAVE_TLS
+#endif
+
+#endif /* VMM */
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 /*
  * Types
  */
 
-typedef unsigned VThreadID;
+typedef uintptr_t VThreadID;
 
-#define VTHREAD_INVALID_ID	(VThreadID)(~0u)
-
-/* XXX Vestigial need as an MXState array size */
-#define VTHREAD_MAX_THREADS   224
+#define VTHREAD_INVALID_ID    (VThreadID)(0)
 
 #ifdef VMM
 /*
@@ -93,33 +125,17 @@ VThread_CurName(void)
 
 #else
 
-#define VTHREAD_VMX_ID          0
-#define VTHREAD_SVGA_ID         1
-#define VTHREAD_MKS_ID          2
-#define VTHREAD_OTHER_ID        3
-#define VTHREAD_ALLOCSTART_ID   4
-
 #define VTHREADBASE_MAX_NAME    32  /* Arbitrary */
 
-
-typedef struct {
-   VThreadID  id;
-   char       name[VTHREADBASE_MAX_NAME];
-#if !defined _WIN32
-   Atomic_Int signalNestCount;
-#endif
-} VThreadBaseData;
 
 /* Common VThreadBase functions */
 const char *VThreadBase_CurName(void);
 VThreadID VThreadBase_CurID(void);
 void VThreadBase_SetName(const char *name);
+void VThreadBase_SetNamePrefix(const char *prefix);
 
 /* For implementing a thread library */
-Bool VThreadBase_InitWithTLS(VThreadBaseData *tls);
 void VThreadBase_ForgetSelf(void);
-void VThreadBase_SetNoIDFunc(void (*func)(void),
-                             void (*destr)(void *));
 
 /* Match up historical VThread_ names with VThreadBase_ names */
 static INLINE const char *
@@ -144,10 +160,15 @@ VThreadBase_IsInSignal(void)
 }
 #else
 Bool VThreadBase_IsInSignal(void);
-void VThreadBase_SetIsInSignal(VThreadID tid, Bool isInSignal);
+void VThreadBase_SetIsInSignal(Bool isInSignal);
 #endif
+
+uint64 VThreadBase_GetKernelID(void);
 
 #endif /* VMM */
 
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif // VTHREAD_BASE_H

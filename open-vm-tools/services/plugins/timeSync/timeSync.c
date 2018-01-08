@@ -56,8 +56,19 @@
  *
  * When stepping it is relatively easy to co-exist with another time sync
  * agent.  We will only run into issues when we try to step the time at
- * exactly the same time as the other agent.  Since we are relatively
- * conservative about when to step, this is very unlikely.
+ * exactly the same time as the other agent.  Though we are relatively
+ * conservative about when to step and race with another time sync agent to
+ * step time is unlikely, race is still possible.
+ *
+ * We have provided vmx options to eliminate or reduce the race conditions with
+ * another time sync agent. Basic idea here to eliminate the race is to utilize
+ * native time service agent (like w32time or NTP) to do the step correction
+ * for us. We request a resync service from the native time service to
+ * recalibrate and resynchronize its parameters and force it to do a step
+ * correction. We have two vmx options (time.synchronize.guest.resync and
+ * time.synchronize.guest.resync.timeout) that can be used to utilize native
+ * time service resync instead of tools timeSync doing onetime step correction.
+ * Please see the configuration knobs section below for more details.
  *
  * When slewing the time we will conflict much more directly with any
  * other time sync agent that is trying to slew the time since only one
@@ -83,6 +94,20 @@
  *
  * 5. Avoid changing the slew in any other circumstance.  This allows a
  *    another agent to slew the time when we are not actively slewing.
+ *
+ * Configuration knobs:
+ *
+ * 1. time.synchronize.guest.resync
+ *    If enabled, on supported guests, use guest timesync agent (such as
+ *    w32time) to perform step correction by forcing resynchronization of
+ *    its parameters.
+ *
+ * 2. time.synchronize.guest.resync.timeout
+ *    If non-zero, on supported guests, perform VMtools steps correction
+ *    following guest timesync resynchronization, after the specified number
+ *    of seconds. This additional correction mitigates potential failures
+ *    in guest time sync agent.
+ *
  */
 
 #include "timeSync.h"
@@ -137,6 +162,12 @@ typedef enum TimeSyncSlewState {
    TimeSyncPLL,
 } TimeSyncSlewState;
 
+typedef enum TimeSyncType {
+   TIMESYNC_STEP,
+   TIMESYNC_PERIODIC,
+   TIMESYNC_STEP_NORESYNC,
+} TimeSyncType;
+
 typedef struct TimeSyncData {
    gboolean           slewActive;
    gboolean           slewCorrection;
@@ -145,6 +176,10 @@ typedef struct TimeSyncData {
    TimeSyncState      state;
    TimeSyncSlewState  slewState;
    GSource           *timer;
+   gboolean           guestResync;
+   uint32             guestResyncTimeout;
+   GSource           *guestResyncTimer;
+   ToolsAppCtx       *ctx;
 } TimeSyncData;
 
 /*
@@ -159,7 +194,8 @@ gboolean gTimeSyncToolsStartupAllowBackward = FALSE;
 
 static void TimeSyncSetSlewState(TimeSyncData *data, gboolean active);
 static void TimeSyncResetSlew(TimeSyncData *data);
-
+static gboolean TimeSyncDoSync(Bool slewCorrection, TimeSyncType syncType,
+                               Bool allowBackwardSync, void *_data);
 /**
  * Read the time reported by the Host OS.
  *
@@ -532,11 +568,39 @@ TimeSyncSetSlewState(TimeSyncData *data, gboolean active)
 
 
 /**
+ * Guest resync timeout handler to step correct guest time. This is a callback
+ * handler that requests for step correction after a preconfigured timeout.
+ *
+ * @param[in]  _data    Time sync data.
+ *
+ * @return TRUE on success.
+ */
+
+static gboolean
+TimeSyncGuestResyncTimeoutHandler(gpointer _data)
+{
+   TimeSyncData *data = _data;
+
+   ASSERT(data != NULL);
+   ASSERT(data->guestResyncTimer != NULL);
+
+   g_source_destroy(data->guestResyncTimer);
+   g_source_unref(data->guestResyncTimer);
+   data->guestResyncTimer = NULL;
+
+   g_debug("Guest resync timeout handler: stepping time.\n");
+   return TimeSyncDoSync(data->slewCorrection, TIMESYNC_STEP_NORESYNC,
+                         TRUE, data);
+}
+
+
+/**
  * Set the guest OS time to the host OS time.
  *
  * @param[in]  slewCorrection    Is clock slewing enabled?
- * @param[in]  syncOnce          Is this function called in a loop?
- * @param[in]  allowBackwardSync Can we sync time backwards when doing syncOnce?
+ * @param[in]  syncType          Type of synchronization requested.
+ * @param[in]  allowBackwardSync Can we sync time backwards when doing
+ *    step/resync correction?
  * @param[in]  _data             Time sync data.
  *
  * @return TRUE on success.
@@ -544,7 +608,7 @@ TimeSyncSetSlewState(TimeSyncData *data, gboolean active)
 
 static gboolean
 TimeSyncDoSync(Bool slewCorrection,
-               Bool syncOnce,
+               TimeSyncType syncType,
                Bool allowBackwardSync,
                void *_data)
 {
@@ -554,8 +618,10 @@ TimeSyncDoSync(Bool slewCorrection,
    TimeSyncData *data = _data;
 
    g_debug("Synchronizing time: "
-           "syncOnce %d, slewCorrection %d, allowBackwardSync %d.\n",
-           syncOnce, slewCorrection, allowBackwardSync);
+           "syncType %d, slewCorrection %d, allowBackwardSync %d "
+           "guestResync %d, guestResyncTimeout %d.\n",
+           syncType, slewCorrection, allowBackwardSync,
+           data->guestResync, data->guestResyncTimeout);
 
    if (!TimeSyncReadHostAndGuest(&host, &guest, &apparentError, 
                                  &apparentErrorValid, &maxTimeError)) {
@@ -564,21 +630,52 @@ TimeSyncDoSync(Bool slewCorrection,
 
    gosError = guest - host - apparentError;
 
-   if (syncOnce) {
-
+   if (syncType == TIMESYNC_STEP || syncType == TIMESYNC_STEP_NORESYNC) {
       /*
        * Non-loop behavior:
        *
        * Perform a step correction if:
        * 1) The guest OS error is behind by more than maxTimeError.
        * 2) The guest OS is ahead of the host OS.
+       *
+       * There are 2 ways of step correction:
+       * 1) If guest resync flag is enabled and if a guest resync service is
+       * running, we request guest service to do a resync. If a timeout is
+       * configured, we set up a callback to do legacy step correction.
+       * 2) If conditions to do guest resync are not met, we rely on legacy
+       * step correction.
        */
 
       if (gosError < -maxTimeError || 
           (gosError + apparentError > 0 && allowBackwardSync)) {
-         g_debug("One time synchronization: stepping time.\n");
-         if (!TimeSyncStepTime(data, -gosError + -apparentError)) {
-            return FALSE;
+         if (syncType == TIMESYNC_STEP && data->guestResync &&
+             TimeSync_IsGuestSyncServiceRunning()) {
+            if (data->guestResyncTimer == NULL) {
+               g_debug("Guest resync: stepping time.\n");
+               if (!TimeSync_DoGuestResync()) {
+                  g_warning("Guest resync operation failed.\n");
+                  return TimeSyncDoSync(data->slewCorrection,
+                                        TIMESYNC_STEP_NORESYNC,
+                                        allowBackwardSync, data);
+               }
+               if (data->guestResyncTimeout > 0) {
+                  ASSERT(data->ctx != NULL);
+                  data->guestResyncTimer =
+                     g_timeout_source_new(data->guestResyncTimeout);
+                  VMTOOLSAPP_ATTACH_SOURCE(data->ctx, data->guestResyncTimer,
+                                           TimeSyncGuestResyncTimeoutHandler,
+                                           data, NULL);
+               }
+            } else {
+               g_warning("Guest resync is in progress, ignoring one-time "
+                         "synchronization event.\n");
+               return FALSE;
+            }
+         } else {
+            g_debug("One time synchronization: stepping time.\n");
+            if (!TimeSyncStepTime(data, -gosError + -apparentError)) {
+               return FALSE;
+            }
          }
       } else {
          g_debug("One time synchronization: correction not needed.\n");
@@ -593,6 +690,7 @@ TimeSyncDoSync(Bool slewCorrection,
        * apparent time error perform a slew correction .
        */
 
+      ASSERT(syncType == TIMESYNC_PERIODIC);
       TimeSyncSetSlewState(data, apparentErrorValid && slewCorrection);
 
       if (gosError < -maxTimeError) {
@@ -627,7 +725,7 @@ ToolsDaemonTimeSyncLoop(gpointer _data)
 
    ASSERT(data != NULL);
 
-   if (!TimeSyncDoSync(data->slewCorrection, FALSE, FALSE, data)) {
+   if (!TimeSyncDoSync(data->slewCorrection, TIMESYNC_PERIODIC, FALSE, data)) {
       g_warning("Unable to synchronize time.\n");
    }
 
@@ -661,12 +759,13 @@ TimeSyncStartLoop(ToolsAppCtx *ctx,
 
    g_debug("New sync period is %d sec.\n", data->timeSyncPeriod);
 
-   if (!TimeSyncDoSync(data->slewCorrection, FALSE, FALSE, data)) {
+   if (!TimeSyncDoSync(data->slewCorrection, TIMESYNC_PERIODIC, FALSE, data)) {
       g_warning("Unable to synchronize time when starting time loop.\n");
    }
 
    data->timer = g_timeout_source_new(data->timeSyncPeriod * 1000);
-   VMTOOLSAPP_ATTACH_SOURCE(ctx, data->timer, ToolsDaemonTimeSyncLoop, data, NULL);
+   VMTOOLSAPP_ATTACH_SOURCE(ctx, data->timer, ToolsDaemonTimeSyncLoop,
+                            data, NULL);
 
    data->state = TIMESYNC_RUNNING;
    return TRUE;
@@ -712,10 +811,18 @@ TimeSyncStopLoop(ToolsAppCtx *ctx,
 static gboolean
 TimeSyncTcloHandler(RpcInData *data)
 {
-   Bool backwardSync = !strcmp(data->args, "1");
+   Bool backwardSync;
+   uint32 argVal;
+   unsigned int index = 0;
    TimeSyncData *syncData = data->clientData;
 
-   if (!TimeSyncDoSync(syncData->slewCorrection, TRUE, backwardSync, syncData)) {
+   if (!StrUtil_GetNextUintToken(&argVal, &index, data->args, " ")) {
+      return RPCIN_SETRETVALS(data,
+                              "Unable to tokenize TimeSync RPC data", FALSE);
+   }
+   backwardSync = argVal == 1;
+   if (!TimeSyncDoSync(syncData->slewCorrection, TIMESYNC_STEP,
+                       backwardSync, syncData)) {
       return RPCIN_SETRETVALS(data, "Unable to sync time", FALSE);
    } else {
       return RPCIN_SETRETVALS(data, "", TRUE);
@@ -785,7 +892,7 @@ TimeSyncSetOption(gpointer src,
           * TOOLSOPTION_SYNCTIME_STARTUP which is handled separately.
           */
          if (data->state == TIMESYNC_STOPPED && syncBeforeLoop) {
-            TimeSyncDoSync(data->slewCorrection, TRUE, TRUE, data);
+            TimeSyncDoSync(data->slewCorrection, TIMESYNC_STEP, TRUE, data);
          }
 
          if (!TimeSyncStartLoop(ctx, data)) {
@@ -858,7 +965,7 @@ TimeSyncSetOption(gpointer src,
       }
 
       if (doSync && !doneAlready &&
-          !TimeSyncDoSync(data->slewCorrection, TRUE,
+          !TimeSyncDoSync(data->slewCorrection, TIMESYNC_STEP,
                           gTimeSyncToolsStartupAllowBackward, data)) {
          g_warning("Unable to sync time during startup.\n");
          return FALSE;
@@ -870,6 +977,18 @@ TimeSyncSetOption(gpointer src,
       if (!ParseBoolOption(value, &syncBeforeLoop)) {
          return FALSE;
       }
+
+   } else if (strcmp(option, TOOLSOPTION_SYNCTIME_GUEST_RESYNC) == 0) {
+      if (!ParseBoolOption(value, &data->guestResync)) {
+         return FALSE;
+      }
+      g_debug("guestResync = %d\n", data->guestResync);
+
+   } else if (strcmp(option, TOOLSOPTION_SYNCTIME_GUEST_RESYNC_TIMEOUT) == 0) {
+      if (!StrUtil_StrToUint(&data->guestResyncTimeout, value)) {
+         return FALSE;
+      }
+      g_debug("guestResyncTimeout = %d\n", data->guestResyncTimeout);
 
    } else {
       return FALSE;
@@ -940,7 +1059,10 @@ ToolsOnLoad(ToolsAppCtx *ctx)
    data->slewState = TimeSyncUncalibrated;
    data->timeSyncPeriod = TIMESYNC_TIME;
    data->timer = NULL;
-
+   data->guestResync = FALSE;
+   data->guestResyncTimeout = 0;
+   data->guestResyncTimer = NULL;
+   data->ctx = ctx;
    regData.regs = VMTools_WrapArray(regs, sizeof *regs, ARRAYSIZE(regs));
    regData._private = data;
 

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2013 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -54,7 +54,20 @@
 #define CR0_NW         0x20000000
 #define CR0_CD         0x40000000
 #define CR0_PG         0x80000000
+
+#define CR0_CACHE_CONTROL (CR0_CD | CR0_NW)
+
 #define CR0_RESERVED   CONST64U(0xffffffff1ffaffc0)
+/*
+ * Note: The "Not Reserved" bits in CR0 are:
+ *   PG, CD, NW, AM, WP, NE, ET, TS, EM, MP, PE
+ *        |   |   |               |   |   |
+ *        |   |   +---------------+---+---+---> CR0_MUTABLE
+ *        |   |
+ *        +---+--> CR0_CACHE_CONTROL
+ *
+ * (CR0_MUTABLE is defined in vmkernel/private/x86/cpu.h)
+ */
 
 #define CR3_PWT        0x00000008
 #define CR3_PCD        0x00000010
@@ -186,8 +199,9 @@
 #define EXC_MF           16
 #define EXC_AC           17
 #define EXC_MC           18
-#define EXC_XF           19  /* SIMD exception.                */
-#define EXC_SX           30  /* Security exception (SVM only). */
+#define EXC_XF           19  // SIMD exception.
+#define EXC_VE           20  // Virtualization exception - VT only.
+#define EXC_SX           30  // Security exception (SVM only).
 
 /*
  * eflag/rflag definitions.

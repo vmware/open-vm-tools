@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -57,6 +57,10 @@
 #elif defined VM_X86_32
 #include "vm_basic_asm_x86_common.h"
 #include "vm_basic_asm_x86.h"
+#elif defined VM_ARM_32
+#include "vm_basic_asm_arm32.h"
+#define MUL64_NO_ASM 1
+#include "mul64.h"
 #elif defined VM_ARM_64
 #include "arm64_basic_defs.h"
 #include "vm_basic_asm_arm64.h"
@@ -64,6 +68,11 @@
 #define MUL64_NO_ASM 1
 #include "mul64.h"
 #endif
+
+#if defined __cplusplus
+extern "C" {
+#endif
+
 
 /*
  * Locate most and least significant bit set functions. Use our own name
@@ -109,7 +118,7 @@ lssb32_0(const uint32 value)
    __analysis_assume(ret != 0);
 #endif
 
-#pragma warning(suppress: 6102) // Suppress bogus complaint that idx may be uninitialized in error case
+#pragma warning(suppress: 6001 6102) // Suppress bogus complaint that idx may be uninitialized in error case
    return idx;
 }
 
@@ -127,7 +136,7 @@ mssb32_0(const uint32 value)
    __analysis_assume(ret != 0);
 #endif
 
-#pragma warning(suppress: 6102) // Suppress bogus complaint that idx may be uninitialized in error case
+#pragma warning(suppress: 6001 6102) // Suppress bogus complaint that idx may be uninitialized in error case
    return idx;
 }
 
@@ -146,7 +155,7 @@ lssb64_0(const uint64 value)
       __analysis_assume(ret != 0);
 #endif
 
-#pragma warning(suppress: 6102) // Suppress bogus complaint that idx may be uninitialized in error case
+#pragma warning(suppress: 6001 6102) // Suppress bogus complaint that idx may be uninitialized in error case
       return idx;
 #else
       /* The coding was chosen to minimize conditionals and operations */
@@ -177,7 +186,7 @@ mssb64_0(const uint64 value)
       __analysis_assume(ret != 0);
 #endif
 
-#pragma warning(suppress: 6102) // Suppress bogus complaint that idx may be uninitialized in error case
+#pragma warning(suppress: 6001 6102) // Suppress bogus complaint that idx may be uninitialized in error case
       return idx;
 #else
       /* The coding was chosen to minimize conditionals and operations */
@@ -637,6 +646,11 @@ uint16set(void *dst, uint16 val, size_t count)
 {
 #ifdef VM_X86_64
    __stosw((uint16*)dst, val, count);
+#elif defined(VM_ARM_32)
+   size_t i;
+   for (i = 0; i < count; i++) {
+      ((uint16 *)dst)[i] = val;
+   }
 #else
    __asm { pushf;
            mov ax, val;
@@ -655,6 +669,11 @@ uint32set(void *dst, uint32 val, size_t count)
 {
 #ifdef VM_X86_64
    __stosd((unsigned long*)dst, (unsigned long)val, count);
+#elif defined(VM_ARM_32)
+   size_t i;
+   for (i = 0; i < count; i++) {
+      ((uint32 *)dst)[i] = val;
+   }
 #else
    __asm { pushf;
            mov eax, val;
@@ -716,12 +735,12 @@ Bswap32(uint32 v) // IN
       : "0" (v)
    );
    return v;
-#elif defined(VM_ARM_32) && !defined(__ANDROID__)
+#elif defined(VM_ARM_32) && !defined(__ANDROID__) && !defined(_MSC_VER)
     __asm__("rev %0, %0" : "+r"(v));
     return v;
 #elif defined(VM_ARM_64)
    __asm__("rev32 %x0, %x0" : "+r"(v));
-    return v;
+   return v;
 #else
    return    (v >> 24)
           | ((v >>  8) & 0xFF00)
@@ -755,70 +774,13 @@ Bswap64(uint64 v) // IN
 
 
 /*
- * COMPILER_MEM_BARRIER prevents the compiler from re-ordering memory
- * references accross the barrier.  NOTE: It does not generate any
- * instruction, so the CPU is free to do whatever it wants to...
- */
-#ifdef __GNUC__
-#define COMPILER_MEM_BARRIER()   __asm__ __volatile__ ("": : :"memory")
-#define COMPILER_READ_BARRIER()  COMPILER_MEM_BARRIER()
-#define COMPILER_WRITE_BARRIER() COMPILER_MEM_BARRIER()
-#elif defined(_MSC_VER)
-#define COMPILER_MEM_BARRIER()   _ReadWriteBarrier()
-#define COMPILER_READ_BARRIER()  _ReadBarrier()
-#define COMPILER_WRITE_BARRIER() _WriteBarrier()
-#endif
-
-
-/*
- *----------------------------------------------------------------------
- *
- * COMPILER_FORCED_LOAD_AND_MEM_BARRIER --
- *
- *        This macro prevents the compiler from re-ordering memory references
- *        across the barrier. In addition it emits a forced load from the given
- *        memory reference. The memory reference has to be either 1, 2, 4 or 8
- *        bytes wide.
- *        The forced load of a memory reference can be used exploit details of a
- *        given CPUs memory model. For example x86 CPUs won't reorder stores to
- *        a memory location x with loads from a memory location x.
- *        NOTE: It does not generate any fencing instruction, so the CPU is free
- *              to reorder instructions according to its memory model.
- *
- * Results:
- *        None
- *
- * Side Effects:
- *        None.
- *
- *----------------------------------------------------------------------
- */
-
-#ifdef VM_X86_64
-#ifdef __GNUC__
-
-#define COMPILER_FORCED_LOAD_AND_MEM_BARRIER(_memory_reference)               \
-   do {                                                                       \
-      typeof(_memory_reference) _dummy;                                       \
-                                                                              \
-      asm volatile("mov %1, %0\n\t"                                           \
-                   : "=r" (_dummy) /* Let compiler choose reg for _dummy */   \
-                   : "m" (_memory_reference)                                  \
-                   : "memory");                                               \
-   } while(0)
-
-#endif /* __GNUC__ */
-#endif /* VM_X86_64 */
-
-
-/*
  * PAUSE is a P4 instruction that improves spinlock power+performance;
  * on non-P4 IA32 systems, the encoding is interpreted as a REPZ-NOP.
  * Use volatile to avoid NOP removal.
  */
 static INLINE void
 PAUSE(void)
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(VM_ARM_32)
 {
 #ifdef VM_ARM_ANY
    /*
@@ -891,6 +853,15 @@ RDTSC(void)
 #ifdef VM_X86_64
 {
    return __rdtsc();
+}
+#elif defined(VM_ARM_32)
+{
+   /*
+    * We need to do more inverstagetion here to find
+    * a microsoft equivalent of that code
+    */
+   NOT_IMPLEMENTED();
+   return 0;
 }
 #else
 #pragma warning( disable : 4035)
@@ -1267,6 +1238,11 @@ RoundUpPow2_32(uint32 value)
    return RoundUpPow2C32(value);
 #endif
 }
+
+
+#if defined __cplusplus
+} // extern "C"
+#endif
 
 #endif // _VM_BASIC_ASM_H_
 

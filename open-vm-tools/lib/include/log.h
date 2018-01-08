@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -21,11 +21,14 @@
 
 #define INCLUDE_ALLOW_USERLEVEL
 #define INCLUDE_ALLOW_VMCORE
-
 #include "includeCheck.h"
-#include "productState.h"
 
+#include "productState.h"
 #include <stdarg.h>
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 
 /*
@@ -72,6 +75,18 @@
 #define VMW_LOG_DEBUG_08 (VMW_LOG_DEBUG_00 +  8)
 #define VMW_LOG_DEBUG_09 (VMW_LOG_DEBUG_00 +  9)
 #define VMW_LOG_DEBUG_10 (VMW_LOG_DEBUG_00 + 10) // Noisiest level
+
+#if defined(VMX86_DEBUG) || defined(VMX86_DEVEL)
+   #define LOG_FILTER_DEFAULT_LEVEL VMW_LOG_VERBOSE
+#else
+   #define LOG_FILTER_DEFAULT_LEVEL VMW_LOG_INFO
+#endif
+
+/*
+ * The "routing" parameter may contain other information.
+ */
+
+#define VMW_LOG_LEVEL_MASK 0x000000FF  // Log level bits are in the LOB
 
 void LogV(uint32 routing,
           const char *fmt,
@@ -323,13 +338,17 @@ Log_InitWithStdioSimple(const char *appPrefix,
 void Log_Exit(void);
 
 Bool Log_Outputting(void);
+
 Bool Log_IsLevelOutputting(int level);
 
 const char *Log_GetFileName(void);
+
 const char *Log_GetOutputFileName(LogOutput *output);
 
 void Log_SkipLocking(Bool skipLocking);
+
 void Log_DisableThrottling(void);
+
 uint32 Log_MaxLineLength(void);
 
 size_t Log_MakeTimeString(Bool millisec,
@@ -342,12 +361,6 @@ typedef Bool (LogOwnerFunc)(void *userData,
 Bool Log_BoundNumFiles(struct LogOutput *output,
                        LogOwnerFunc *func,
                        void *userData);
-
-/* Logging that uses the custom guest throttling configuration. */
-void GuestLog_Init(void);
-void GuestLog_Log(const char *fmt,
-                  ...) PRINTF_DECL(1, 2);
-
 
 #if defined(VMX86_SERVER)
 #define LOG_KEEPOLD 6  // Old log files to keep around; ESX value
@@ -386,4 +399,9 @@ void Log_Histogram(uint32 n,
                    int limit);
 
 #endif /* !VMM */
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
+
 #endif /* VMWARE_LOG_H */

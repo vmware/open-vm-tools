@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -92,16 +92,18 @@ Walk(void const * const bufIn,   // IN
 }
 
 /*
-XXX document the escaping/unescaping process: rationale for which chars we escape, and how we escape --hpreg
-*/
-
-
-/*
+ * XXX Document the escaping/unescaping process: rationale for which chars we
+ *     escape, and how we escape --hpreg
+ *
  * The dictionary line format:
  *
  *    <ws> <name> <ws> = <ws> <value> <ws> <comment>
  * or
  *    <ws> <name> <ws> = <ws> " <quoted-value> " <ws> <comment>
+ * or
+ *    <ws> <name> <ws> = <ws> <comment> (Implied value of empty string)
+ * or
+ *    <ws> <comment>
  *
  * where
  *    <name> does not contain any whitespace or = or #
@@ -120,7 +122,7 @@ XXX document the escaping/unescaping process: rationale for which chars we escap
  *
  *      Reads a line from the bufSize-byte buffer buf, which holds one or more
  *      new-line delimited lines.  The buffer is not necessarily
- *      null-terminated.
+ *      NUL-terminated.
  *
  * Results:
  *      The beginning of the next line if a line was successfully parsed.  In

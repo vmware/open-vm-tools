@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2012-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2012-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -483,7 +483,9 @@ Proto_StartElement(GMarkupParseContext *parseContext,
 
             a = reply->replyData.queryUserAliases.uaList;
             reply->replyData.queryUserAliases.num++;
-            a = g_realloc(a, sizeof(VGAuthUserAlias) * reply->replyData.queryUserAliases.num);
+            a = g_realloc_n(a,
+                            reply->replyData.queryUserAliases.num,
+                            sizeof(VGAuthUserAlias));
             reply->replyData.queryUserAliases.uaList = a;
             reply->replyData.queryUserAliases.uaList[reply->replyData.queryUserAliases.num - 1].numInfos = 0;
             reply->replyData.queryUserAliases.uaList[reply->replyData.queryUserAliases.num - 1].infos = NULL;
@@ -491,8 +493,9 @@ Proto_StartElement(GMarkupParseContext *parseContext,
       } else if (g_strcmp0(elementName, VGAUTH_MAPPEDALIASES_ELEMENT_NAME) == 0) {
          reply->parseState = PARSE_STATE_MAPPEDALIAS;
          reply->replyData.queryMappedAliases.num++;
-         reply->replyData.queryMappedAliases.maList = g_realloc(reply->replyData.queryMappedAliases.maList,
-                                                            sizeof(VGAuthMappedAlias) * (reply->replyData.queryMappedAliases.num));
+         reply->replyData.queryMappedAliases.maList = g_realloc_n(reply->replyData.queryMappedAliases.maList,
+                                        reply->replyData.queryMappedAliases.num,
+                                        sizeof(VGAuthMappedAlias));
          reply->replyData.queryMappedAliases.maList[reply->replyData.queryMappedAliases.num - 1].pemCert = NULL;
          reply->replyData.queryMappedAliases.maList[reply->replyData.queryMappedAliases.num - 1].userName = NULL;
          reply->replyData.queryMappedAliases.maList[reply->replyData.queryMappedAliases.num - 1].numSubjects = 0;
@@ -519,7 +522,9 @@ Proto_StartElement(GMarkupParseContext *parseContext,
          info = ip->infos;
          ip->numInfos++;
 
-         info = g_realloc(info, sizeof(VGAuthAliasInfo) * ip->numInfos);
+         info = g_realloc_n(info,
+                            ip->numInfos,
+                            sizeof(VGAuthAliasInfo));
          ip->infos = info;
          ip->infos[ip->numInfos - 1].subject.type = -1;
          ip->infos[ip->numInfos - 1].subject.val.name = NULL;
@@ -624,7 +629,7 @@ Proto_StartElement(GMarkupParseContext *parseContext,
       // got a new Subject or AnySubject, grow
       n = ++(reply->replyData.queryMappedAliases.maList[reply->replyData.queryMappedAliases.num - 1].numSubjects);
       subjs = reply->replyData.queryMappedAliases.maList[reply->replyData.queryMappedAliases.num - 1].subjects;
-      subjs = g_realloc(subjs, n * sizeof(VGAuthSubject));
+      subjs = g_realloc_n(subjs, n,  sizeof(VGAuthSubject));
       subjs[n - 1].type = sType;
       subjs[n - 1].val.name = NULL;
       reply->replyData.queryMappedAliases.maList[reply->replyData.queryMappedAliases.num - 1].subjects = subjs;

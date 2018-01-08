@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013,2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -877,7 +877,8 @@ HgfsWrite(struct fuse_file_info *fi,  // IN: File info structure
       result = HgfsDoWrite(fi->fh, buffer, nextCount, curOffset);
       if (result < 0) {
          bytesWritten = result;
-         LOG(4, ("Error: DoWrite -> %d\n", result));
+         LOG(4, ("Error: written 0x%"FMTSZ"x bytes DoWrite -> %d\n",
+             count - remainingCount, result));
          goto out;
       }
       remainingCount -= result;

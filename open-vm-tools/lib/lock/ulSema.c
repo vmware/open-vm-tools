@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -38,7 +38,7 @@
 #include "ulInt.h"
 #include "hostinfo.h"
 #if defined(_WIN32)
-#include "win32u.h"
+#include "windowsu.h"
 #endif
 
 #define MXUSER_A_BILLION (1000 * 1000 * 1000)
@@ -114,13 +114,13 @@ MXUserDestroy(NativeSemaphore *sema)  // IN:
 
 static int
 MXUserTimedDown(NativeSemaphore *sema,  // IN:
-                uint32 msecWait,        // IN:
+                uint32 waitTimeMsec,    // IN:
                 Bool *downOccurred)     // OUT:
 {
     int err;
     DWORD status;
 
-    status = WaitForSingleObject(*sema, msecWait);
+    status = WaitForSingleObject(*sema, waitTimeMsec);
 
     switch (status) {
        case WAIT_OBJECT_0:  // The down (decrement) occurred
@@ -198,10 +198,10 @@ MXUserDestroy(NativeSemaphore *sema)  // IN:
 
 static int
 MXUserTimedDown(NativeSemaphore *sema,  // IN:
-                uint32 msecWait,        // IN:
+                uint32 waitTimeMsec,    // IN:
                 Bool *downOccurred)     // OUT:
 {
-   int64 nsecWait = 1000000LL * (int64)msecWait;
+   int64 nsecWait = 1000000LL * (int64)waitTimeMsec;
    dispatch_time_t deadline = dispatch_time(DISPATCH_TIME_NOW, nsecWait);
    *downOccurred = dispatch_semaphore_wait(*sema, deadline) == 0;
    return 0;
@@ -260,7 +260,7 @@ MXUserDown(NativeSemaphore *sema)  // IN:
 
 static int
 MXUserTimedDown(NativeSemaphore *sema,  // IN:
-                uint32 msecWait,        // IN:
+                uint32 waitTimeMsec,    // IN:
                 Bool *downOccurred)     // OUT:
 {
    int err;
@@ -277,7 +277,7 @@ MXUserTimedDown(NativeSemaphore *sema,  // IN:
    gettimeofday(&curTime, NULL);
    endNS = ((uint64) curTime.tv_sec * MXUSER_A_BILLION) +
            ((uint64) curTime.tv_usec * 1000) +
-           ((uint64) msecWait * (1000 * 1000));
+           ((uint64) waitTimeMsec * (1000 * 1000));
 
    endTime.tv_sec = (time_t) (endNS / MXUSER_A_BILLION);
    endTime.tv_nsec = (long int) (endNS % MXUSER_A_BILLION);
@@ -653,7 +653,7 @@ MXUser_DownSemaphore(MXUserSemaphore *sema)  // IN/OUT:
 
 Bool
 MXUser_TimedDownSemaphore(MXUserSemaphore *sema,  // IN/OUT:
-                          uint32 msecWait)        // IN:
+                          uint32 waitTimeMsec)    // IN:
 {
    int err;
    Bool downOccurred = FALSE;
@@ -682,7 +682,7 @@ MXUser_TimedDownSemaphore(MXUserSemaphore *sema,  // IN/OUT:
          if (tryDownSuccess) {
             downOccurred = TRUE;
          } else {
-            err = MXUserTimedDown(&sema->nativeSemaphore, msecWait,
+            err = MXUserTimedDown(&sema->nativeSemaphore, waitTimeMsec,
                                   &downOccurred);
          }
       }
@@ -702,7 +702,8 @@ MXUser_TimedDownSemaphore(MXUserSemaphore *sema,  // IN/OUT:
          }
       }
    } else {
-      err = MXUserTimedDown(&sema->nativeSemaphore, msecWait, &downOccurred);
+      err = MXUserTimedDown(&sema->nativeSemaphore, waitTimeMsec,
+                            &downOccurred);
    }
 
    if (UNLIKELY(err != 0)) {

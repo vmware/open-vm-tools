@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -28,7 +28,7 @@
  *      remove blocks in the blocking file system.
  */
 
-#if !defined(sun) && !defined(__FreeBSD__) && !defined(linux)
+#if !defined(sun) && !defined(__FreeBSD__) && !defined(__linux__)
 # error This program is not supported on your platform.
 #endif
 

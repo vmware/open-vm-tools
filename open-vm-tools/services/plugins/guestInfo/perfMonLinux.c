@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1204,4 +1204,28 @@ GuestInfo_StatProviderPoll(gpointer data)
 
    DynBuf_Destroy(&stats);
    return TRUE;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * GuestInfo_StatProviderShutdown --
+ *
+ *      Clean up the resource acquired by perfMonLinux.
+ *      Nothing to do at the moment.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+GuestInfo_StatProviderShutdown(void)
+{
+   // Nothing to do here for now
 }

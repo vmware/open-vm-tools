@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -42,12 +42,15 @@
 #define INCLUDE_ALLOW_MODULE
 #define INCLUDE_ALLOW_USERLEVEL
 #define INCLUDE_ALLOW_VMKERNEL
-
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
 /* for uint32 */
 #include "vm_basic_types.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 
 #if defined __APPLE__ && defined USERLEVEL
@@ -104,7 +107,7 @@ A million repetitions of "a"
 
 #define	SHA1_HASH_LEN	20
 
-typedef struct {
+typedef struct SHA1_CTX {
     uint32 state[5];
     uint32 count[2];
     unsigned char buffer[64];
@@ -132,5 +135,9 @@ void SHA1MultiBuffer(uint32 numBuffers,
                      unsigned char *digests[]);
 
 #endif // defined __APPLE__ && defined USERLEVEL
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif // ifndef _SHA1_H_

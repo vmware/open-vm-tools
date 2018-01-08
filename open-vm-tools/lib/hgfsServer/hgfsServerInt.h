@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -39,6 +39,57 @@ struct DirectoryEntry;
 #include "vm_atomic.h"
 #include "userlock.h"
 #include "hgfsServer.h" // for the server public types
+
+
+#ifndef VMX86_TOOLS
+
+#define LOGLEVEL_MODULE hgfsServer
+#include "loglevel_user.h"
+
+#else // VMX86_TOOLS
+
+#undef DOLOG
+#undef LOG
+
+/*
+ * Map all LOG statements to a Debug or g_debug tools log.
+ * Set the level to a default log level of 10 so that we will
+ * capture everything if tools logging is set to debug.
+ *
+ * Note, for future work would be to go through the log
+ * statements and set the levels correctly so that we can
+ * map to info, error and warnings.
+*/
+#define LGLEVEL         (10)
+#define LGPFX_FMT       "%s:%s:"
+#define LGPFX           "hgfsServer"
+
+#if defined VMTOOLS_USE_GLIB
+#define Debug                 g_debug
+#define Warning               g_warning
+
+#define G_LOG_DOMAIN    LGPFX
+
+#include "vmware/tools/utils.h"
+#include "vmware/tools/log.h"
+
+#else // VMTOOLS_USE_GLIB
+
+#include "debug.h"
+
+#endif // VMTOOLS_USE_GLIB
+
+#define DOLOG(_min)     ((_min) <= LGLEVEL)
+
+#define LOG(_level, args)                                  \
+   do {                                                    \
+      if (DOLOG(_level)) {                                 \
+         Debug(LGPFX_FMT, LGPFX, __FUNCTION__);            \
+         Debug args;                                       \
+      }                                                    \
+   } while (0)
+
+#endif // VNMX86_TOOLS
 
 #define HGFS_DEBUG_ASYNC   (0)
 
@@ -248,6 +299,13 @@ typedef enum {
    HGFS_SESSION_STATE_CLOSED,
 } HgfsSessionInfoState;
 
+typedef struct HgfsAsyncRequestInfo {
+   /* Asynchronous request handling. */
+   Atomic_uint32   requestCount;
+   MXUserExclLock *lock;
+   MXUserCondVar  *requestCountIsZero;
+} HgfsAsyncRequestInfo;
+
 typedef struct HgfsSessionInfo {
 
    DblLnkLst_Links links;
@@ -326,6 +384,8 @@ typedef struct HgfsSessionInfo {
 
    uint32 numberOfCapabilities;
 
+   /* Asynchronous request handling. */
+   HgfsAsyncRequestInfo  asyncRequestsInfo;
 } HgfsSessionInfo;
 
 /*

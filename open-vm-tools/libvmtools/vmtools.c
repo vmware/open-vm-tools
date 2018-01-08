@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -33,7 +33,6 @@
 #endif
 
 #include "vmware.h"
-#include "vm_atomic.h"
 #include "wiper.h"
 #include "vmtoolsInt.h"
 #include "vmware/tools/utils.h"
@@ -86,7 +85,6 @@ VMToolsDllInit(void *lib)
 {
    Bool success;
    WiperInitData wiperData;
-   Atomic_Init();
 #if defined(_WIN32)
    wiperData.resourceModule = lib;
    success = (NetUtil_LoadIpHlpApiDll() == ERROR_SUCCESS);

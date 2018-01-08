@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -28,6 +28,10 @@
 
 #include <stdarg.h>
 #include "vm_basic_types.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 struct DynBuf;
 
@@ -70,5 +74,24 @@ void StrUtil_SafeStrcatF(char **prefix, const char *fmt, ...) PRINTF_DECL(2, 3);
 char *StrUtil_TrimWhitespace(const char *str);
 
 char *StrUtil_ReplaceAll(const char *orig, const char *what, const char *with);
+
+char *StrUtil_GetNextItem(char **list, char delim);
+
+char *StrUtil_GetLastItem(char **list, char delim);
+
+Bool StrUtil_HasListItem(char const *list, char delim, char const *item);
+
+Bool StrUtil_HasListItemCase(char const *list, char delim, char const *item);
+
+char *StrUtil_AppendListItem(char const *list, char delim, char const *item);
+
+void StrUtil_RemoveListItem(char * const list, char delim, char const *item);
+
+void StrUtil_RemoveListItemCase(char * const list, char delim,
+                                char const *item);
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif /* STRUTIL_H */

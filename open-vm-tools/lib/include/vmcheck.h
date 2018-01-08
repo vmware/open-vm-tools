@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -27,11 +27,11 @@
 #ifndef __VMCHECK_H__
 #   define __VMCHECK_H__
 
+#include "vm_basic_types.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#   include "vm_basic_types.h"
 
 Bool
 VmCheck_GetVersion(uint32 *version, // OUT

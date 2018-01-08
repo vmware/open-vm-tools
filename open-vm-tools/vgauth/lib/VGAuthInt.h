@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -97,6 +97,8 @@ typedef struct VCAGComm {
    char *pipeName;
 } VGAuthComm;
 
+struct VGAuthUserHandle;
+
 struct VGAuthContext {
    /*
     * Needed for pam(3) initialization.
@@ -124,6 +126,11 @@ struct VGAuthContext {
     * Impersonation state.
     */
    gboolean isImpersonating;
+
+   /*
+    * Impersonated user.
+    */
+   VGAuthUserHandle *impersonatedUser;
 
    /*
     * XXX optimization -- keep a comm channel alive for superuser?
@@ -165,9 +172,11 @@ struct VGAuthUserHandle {
    AuthDetails details;
 #ifdef _WIN32
    HANDLE token;
+   HANDLE hProfile;
 #else
    uid_t uid;
 #endif
+   int refCount;
 };
 
 
@@ -252,7 +261,8 @@ VGAuthError VGAuth_SetUserHandleSamlInfo(VGAuthContext *ctx,
                                          VGAuthAliasInfo *si);
 
 VGAuthError VGAuthImpersonateImpl(VGAuthContext *ctx,
-                                  VGAuthUserHandle *handle);
+                                  VGAuthUserHandle *handle,
+                                  gboolean loadUserProfile);
 
 VGAuthError VGAuthEndImpersonationImpl(VGAuthContext *ctx);
 
@@ -315,6 +325,17 @@ VGAuthError VGAuthValdiateSSPIResponseImpl(VGAuthContext *ctx,
 VGAuthError VGAuthValidateExtraParamsImpl(const char *funcName,
                                        int numExtraParams,
                                        const VGAuthExtraParams *params);
+
+#define VGAuthGetBoolExtraParam(numEP, ep, name, defValue, value)      \
+   VGAuthGetBoolExtraParamImpl(__FUNCTION__, (numEP), ep,              \
+                               name, defValue, (value))
+
+VGAuthError VGAuthGetBoolExtraParamImpl(const char *funcName,
+                                        int numExtraParams,
+                                        const VGAuthExtraParams *params,
+                                        const char *paramName,
+                                        gboolean defValue,
+                                        gboolean *paramValue);
 
 void VGAuth_FreeAliasInfoContents(VGAuthAliasInfo *si);
 void VGAuth_CopyAliasInfo(const VGAuthAliasInfo *src,

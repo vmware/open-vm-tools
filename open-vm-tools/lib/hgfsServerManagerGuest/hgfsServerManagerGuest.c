@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006,2014-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006,2014-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -66,6 +66,7 @@ Bool HgfsServerManager_ProcessPacket(HgfsServerMgrData *mgrData,  // IN: hgfs mg
                                      char *packetOut,             // OUT: rep
                                      size_t *packetOutSize)       // IN/OUT: rep buf/data size
 {
+   Debug("%s: Processing Packet for %s.\n", __FUNCTION__, mgrData->appName);
    /* Pass to the channel to handle processing and the server. */
    return HgfsChannelGuest_Receive(mgrData,
                                    packetIn,
@@ -98,6 +99,8 @@ HgfsServerManager_Register(HgfsServerMgrData *data)   // IN: RpcIn channel
    ASSERT(data);
    ASSERT(data->appName);
 
+   Debug("%s: Register %s.\n", __FUNCTION__, data->appName);
+
    /*
     * Passing NULL here is safe because the shares maintained by the guest
     * policy server never change, invalidating the need for an invalidate
@@ -106,7 +109,6 @@ HgfsServerManager_Register(HgfsServerMgrData *data)   // IN: RpcIn channel
     * down through the channel guest into the HGFS server directly.
     */
    if (!HgfsServerPolicy_Init(NULL,
-                              NULL,
                               &gHgfsServerManagerGuestData.enumResources)) {
       return FALSE;
    }
@@ -141,6 +143,8 @@ HgfsServerManager_InvalidateInactiveSessions(HgfsServerMgrData *mgrData)  // IN:
 {
    ASSERT(mgrData);
 
+   Debug("%s: Invalidate Inactive Sessions for %s.\n", __FUNCTION__,
+         mgrData->appName);
    return HgfsChannelGuest_InvalidateInactiveSessions(mgrData);
 }
 
@@ -165,9 +169,10 @@ void
 HgfsServerManager_Unregister(HgfsServerMgrData *data)         // IN: RpcIn channel
 
 {
-
    ASSERT(data);
    ASSERT(data->appName != NULL);
+
+   Debug("%s: Unregister %s.\n", __FUNCTION__, data->appName);
 
    HgfsChannelGuest_Exit(data);
    HgfsServerPolicy_Cleanup();

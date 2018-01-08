@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -120,22 +120,22 @@ Bool FileRetryThisError(DWORD error,
                         DWORD *codes);
 
 int FileAttributesRetry(const char *pathName,
-                        uint32 msecMaxWaitTime,
+                        uint32 maxWaitTimeMsec,
                         FileData *fileData);
 
 int FileDeletionRetry(const char *pathName,
                       Bool handleLink,
-                      uint32 msecMaxWaitTime);
+                      uint32 maxWaitTimeMsec);
 
 int FileCreateDirectoryRetry(const char *pathName,
                              int mask,
-                             uint32 msecMaxWaitTime);
+                             uint32 maxWaitTimeMsec);
 
 int FileRemoveDirectoryRetry(const char *pathName,
-                             uint32 msecMaxWaitTime);
+                             uint32 maxWaitTimeMsec);
 
 int FileListDirectoryRetry(const char *pathName,
-                           uint32 msecMaxWaitTime,
+                           uint32 maxWaitTimeMsec,
                            char ***ids);
 
 #define FileAttributes(a, b)       FileAttributesRetry((a), 0, (b))
@@ -201,8 +201,8 @@ typedef struct lock_values
    char         *memberName;
    unsigned int  lamportNumber;
    Bool          exclusivity;
-   uint32        waitTime;
-   uint32        msecMaxWaitTime;
+   VmTimeType    startTimeMsec;
+   uint32        maxWaitTimeMsec;
    ActiveLock   *lockList;
 } LockValues;
 
@@ -212,8 +212,8 @@ typedef struct lock_values
 
 #define FILELOCK_DATA_SIZE 512
 
-uint32 FileSleeper(uint32 msecMinSleepTime,
-                   uint32 msecMaxSleepTime);
+uint32 FileSleeper(uint32 minSleepTimeMsec,
+                   uint32 maxSleepTimeMsec);
 
 uint32 FileSimpleRandom(void);
 
@@ -232,7 +232,7 @@ int FileLockMemberValues(const char *lockDir,
 
 FileLockToken *FileLockIntrinsic(const char *filePathName,
                                  Bool exclusivity,
-                                 uint32 msecMaxWaitTime,
+                                 uint32 maxWaitTimeMsec,
                                  int *err);
 
 int FileUnlockIntrinsic(FileLockToken *tokenPtr);
@@ -249,16 +249,13 @@ void FileLockAppendMessage(MsgList **msgs,
 
 Bool FileIsWritableDir(const char *dirName);
 
-UnicodeIndex FileFirstSlashIndex(const char *pathName,
-                                 UnicodeIndex startIndex);
-
 FileIOResult
 FileIOCreateRetry(FileIODescriptor *fd,
                   const char *pathName,
                   int access,
                   FileIOOpenAction action,
                   int mode,
-                  uint32 msecMaxWaitTime);
+                  uint32 maxWaitTimeMsec);
 
 
 /*

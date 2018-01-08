@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -24,6 +24,10 @@
 #include "dbllnklst.h"
 #include "cpName.h"
 #include "hgfsServer.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 /*
  * Name of share that corresponds to the root of the server's
@@ -74,7 +78,6 @@ typedef struct HgfsServerPolicy_ShareList {
 
 Bool
 HgfsServerPolicy_Init(HgfsInvalidateObjectsFunc invalidateObjects,
-                      HgfsRegisterSharedFolderFunc registerFolder,
                       HgfsServerResEnumCallbacks *enumResources);
 
 Bool
@@ -111,5 +114,9 @@ HgfsServerPolicy_FreeShareList(HgfsServerPolicy_ShareList *shareList); // IN: li
 
 HgfsServerPolicy_ShareList *
 HgfsServerPolicy_GetSharesWithTag(const char *tag); // IN: tag to search for
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif // _HGFS_SERVER_POLICY_H_

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -34,6 +34,10 @@
 #include "vm_basic_types.h"
 #include "msgid.h"
 #include "msgfmt.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 
 /*
@@ -71,5 +75,16 @@ void MsgList_Free(MsgList *messages);
 const char *MsgList_GetMsgID(const MsgList *messages);
 
 Bool MsgList_Present(const MsgList *messages);
+
+static INLINE void
+MsgList_LogAndFree(MsgList *messages)
+{
+   MsgList_Log(messages);
+   MsgList_Free(messages);
+}
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif // ifndef _MSGLIST_H_

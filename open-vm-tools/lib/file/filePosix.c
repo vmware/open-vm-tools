@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -173,7 +173,7 @@ File_Rename(const char *oldName,  // IN:
 int
 File_RenameRetry(const char *oldFile,     // IN:
                  const char *newFile,     // IN:
-                 uint32 msecMaxWaitTime)  // IN: Unused.
+                 uint32 maxWaitTimeMsec)  // IN: Unused.
 {
    return File_Rename(oldFile, newFile);
 }
@@ -221,7 +221,7 @@ FileDeletion(const char *pathName,   // IN:
       } else {
          err = (Posix_Unlink(linkPath) == -1) ? errno : 0;
 
-         free(linkPath);
+         Posix_Free(linkPath);
 
          /* Ignore a file that has already disappeared */
          if (err != ENOENT) {
@@ -469,7 +469,7 @@ File_Cwd(const char *drive)  // IN:
          break;
       }
 
-      free(buffer);
+      Posix_Free(buffer);
       buffer = NULL;
 
       if (errno != ERANGE) {
@@ -494,7 +494,7 @@ File_Cwd(const char *drive)  // IN:
 
    path = Unicode_Alloc(buffer, STRING_ENCODING_DEFAULT);
 
-   free(buffer);
+   Posix_Free(buffer);
 
    return path;
 }
@@ -525,7 +525,7 @@ File_StripFwdSlashes(const char *pathName)  // IN:
    char *prev;
    char *result;
 
-   ASSERT(pathName);
+   ASSERT(pathName != NULL);
 
    path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_UTF8);
    ASSERT(path != NULL);
@@ -555,7 +555,7 @@ File_StripFwdSlashes(const char *pathName)  // IN:
 
    result = Unicode_AllocWithUTF8(path);
 
-   free(path);
+   Posix_Free(path);
 
    return result;
 }
@@ -566,8 +566,19 @@ File_StripFwdSlashes(const char *pathName)  // IN:
  *
  * File_FullPath --
  *
- *      Compute the full path of a file. If the file if NULL or "", the
- *      current directory is returned
+ *      This routine computes the canonical path from a supplied path.
+ *      The supplied path could be an absolute path name or a relative
+ *      one, with our without symlinks and /./ /../ separators. A
+ *      canonical representation of a path is defined as an absolute
+ *      path without symlinks and /./ /../ separators. The canonical
+ *      path of "." is the current working directory, ".." is parent
+ *      directory and so on. If the path is NULL or "", this routine
+ *      returns the current working directory.
+ *      There are mainly two use cases for this function. To find the
+ *      canonical path of a file or directory that exists, or when we
+ *      are about to create a child in an existing parent directory.
+ *      For other uses cases, this routine is not guaranteed to return
+ *      a canonical path.
  *
  * Results:
  *      NULL if error (reported to the user)
@@ -595,23 +606,37 @@ File_FullPath(const char *pathName)  // IN:
 
    if ((pathName == NULL) || Unicode_IsEmpty(pathName)) {
       ret = Unicode_Duplicate(cwd);
-   } else if (File_IsFullPath(pathName)) {
-       ret = Posix_RealPath(pathName);
-       if (ret == NULL) {
-          ret = File_StripFwdSlashes(pathName);
-       }
    } else {
-      char *path = Unicode_Join(cwd, DIRSEPS, pathName, NULL);
+      char *path;
+
+      if (File_IsFullPath(pathName)) {
+         path = Unicode_Duplicate(pathName);
+      } else {
+         path = Unicode_Join(cwd, DIRSEPS, pathName, NULL);
+      }
 
       ret = Posix_RealPath(path);
-
       if (ret == NULL) {
-         ret = File_StripFwdSlashes(path);
+         char *dir;
+         char *file;
+         char *realDir;
+
+         File_GetPathName(path, &dir, &file);
+         realDir = Posix_RealPath(dir);
+         if (realDir == NULL) {
+            realDir = File_StripFwdSlashes(dir);
+         }
+
+         ret = Unicode_Join(realDir, DIRSEPS, file, NULL);
+         Posix_Free(dir);
+         Posix_Free(file);
+         Posix_Free(realDir);
       }
-      free(path);
+
+      Posix_Free(path);
    }
 
-   free(cwd);
+   Posix_Free(cwd);
 
    return ret;
 }
@@ -702,7 +727,7 @@ File_GetTimes(const char *pathName,        // IN:
    *accessTime     = TimeUtil_UnixTimeToNtTime(statBuf.st_atimespec);
    *writeTime      = TimeUtil_UnixTimeToNtTime(statBuf.st_mtimespec);
    *attrChangeTime = TimeUtil_UnixTimeToNtTime(statBuf.st_ctimespec);
-#elif defined(linux)
+#elif defined(__linux__)
    /*
     * Linux: Glibc 2.3+ has st_Xtim.  Glibc 2.1/2.2 has st_Xtime/__unusedX on
     *        same place (see below).  We do not support Glibc 2.0 or older.
@@ -829,7 +854,7 @@ File_SetTimes(const char *pathName,       // IN:
    if (err != 0) {
       Log(LGPFX" %s: error stating file \"%s\": %s\n", __FUNCTION__,
           pathName, Err_Errno2String(err));
-      free(path);
+      Posix_Free(path);
 
       return FALSE;
    }
@@ -865,7 +890,7 @@ File_SetTimes(const char *pathName,       // IN:
 
    err = (utimes(path, times) == -1) ? errno : 0;
 
-   free(path);
+   Posix_Free(path);
 
    if (err != 0) {
       Log(LGPFX" %s: utimes error on file \"%s\": %s\n", __FUNCTION__,
@@ -898,7 +923,7 @@ Bool
 File_SetFilePermissions(const char *pathName,  // IN:
                         int perms)             // IN: permissions
 {
-   ASSERT(pathName);
+   ASSERT(pathName != NULL);
 
    if (Posix_Chmod(pathName, perms) == -1) {
       /* The error is not critical, just log it. */
@@ -945,7 +970,7 @@ FilePosixGetParent(char **canPath)  // IN/OUT: Canonical file path
    char *pathName;
    char *baseName;
 
-   ASSERT(canPath);
+   ASSERT(canPath != NULL);
    ASSERT(File_IsFullPath(*canPath));
 
    if (Unicode_Compare(*canPath, DIRSEPS) == 0) {
@@ -954,22 +979,22 @@ FilePosixGetParent(char **canPath)  // IN/OUT: Canonical file path
 
    File_GetPathName(*canPath, &pathName, &baseName);
 
-   free(*canPath);
+   Posix_Free(*canPath);
 
    if (Unicode_IsEmpty(pathName)) {
       /* empty string which denotes "/" */
-      free(pathName);
+      Posix_Free(pathName);
       *canPath = Unicode_Duplicate("/");
    } else {
       if (Unicode_IsEmpty(baseName)) {  // Directory
          File_GetPathName(pathName, canPath, NULL);
-         free(pathName);
+         Posix_Free(pathName);
       } else {                          // File
          *canPath = pathName;
       }
    }
 
-   free(baseName);
+   Posix_Free(baseName);
 
    return FALSE;
 }
@@ -1038,7 +1063,7 @@ FileGetStats(const char *pathName,       // IN:
       FilePosixGetParent(&dupPath);
    }
 
-   free(dupPath);
+   Posix_Free(dupPath);
 
    return retval;
 }
@@ -1083,7 +1108,7 @@ File_GetFreeSpace(const char *pathName,  // IN: File name
       ret = -1;
    }
 
-   free(fullPath);
+   Posix_Free(fullPath);
 
    return ret;
 }
@@ -1147,7 +1172,7 @@ File_GetVMFSAttributes(const char *pathName,              // IN: File/dir to tes
       Log(LGPFX" %s: could not open %s: %s\n", __func__, pathName,
           Err_Errno2String(errno));
       ret = -1;
-      free(*fsAttrs);
+      Posix_Free(*fsAttrs);
       *fsAttrs = NULL;
       goto bail;
    }
@@ -1156,15 +1181,15 @@ File_GetVMFSAttributes(const char *pathName,              // IN: File/dir to tes
    if (ret == -1) {
       Log(LGPFX" %s: Could not get volume attributes (ret = %d): %s\n",
           __func__, ret, Err_Errno2String(errno));
-      free(*fsAttrs);
+      Posix_Free(*fsAttrs);
       *fsAttrs = NULL;
    }
 
    close(fd);
 
 bail:
-   free(fullPath);
-   free(directory);
+   Posix_Free(fullPath);
+   Posix_Free(directory);
 
    return ret;
 }
@@ -1266,7 +1291,7 @@ File_GetVMFSVersion(const char *pathName,  // IN: File name to test
    int ret = -1;
    FS_PartitionListResult *fsAttrs = NULL;
 
-   if (!versionNum) {
+   if (versionNum == NULL) {
       errno = EINVAL;
       goto exit;
    }
@@ -1280,7 +1305,7 @@ File_GetVMFSVersion(const char *pathName,  // IN: File name to test
    }
 
    if (fsAttrs) {
-      free(fsAttrs);
+      Posix_Free(fsAttrs);
    }
 
 exit:
@@ -1312,7 +1337,7 @@ File_GetVMFSBlockSize(const char *pathName,  // IN: File name to test
    int ret = -1;
    FS_PartitionListResult *fsAttrs = NULL;
 
-   if (!blockSize) {
+   if (blockSize == NULL) {
       errno = EINVAL;
       goto exit;
    }
@@ -1326,7 +1351,7 @@ File_GetVMFSBlockSize(const char *pathName,  // IN: File name to test
    }
 
    if (fsAttrs) {
-      free(fsAttrs);
+      Posix_Free(fsAttrs);
    }
 
 exit:
@@ -1396,7 +1421,7 @@ File_GetVMFSMountInfo(const char *pathName,    // IN:
          *remoteMountPoint = NULL;
       }
 
-      free(fsAttrs);
+      Posix_Free(fsAttrs);
    }
 
    return ret;
@@ -1439,7 +1464,7 @@ FileIsVMFS(const char *pathName)  // IN:
    }
 
    if (fsAttrs) {
-      free(fsAttrs);
+      Posix_Free(fsAttrs);
    }
 #endif
 
@@ -1530,16 +1555,17 @@ File_SupportsOptimisticLock(const char *pathName)  // IN:
     * File_GetVMFSFSType works much faster on directories, so get the
     * directory.
     */
-   if (!File_IsFullPath(pathName)) {
+
+   if (File_IsFullPath(pathName)) {
+      fullPath = pathName;
+   } else {
       tempPath = File_FullPath(pathName);
       fullPath = tempPath;
-   } else {
-      fullPath = pathName;
    }
    File_GetPathName(fullPath, &dir, NULL);
    res = File_GetVMFSFSType(dir, -1, &fsTypeNum);
-   free(tempPath);
-   free(dir);
+   Posix_Free(tempPath);
+   Posix_Free(dir);
 
    return (res == 0) ? IS_VMFS_FSTYPENUM(fsTypeNum) : FALSE;
 #else
@@ -1584,7 +1610,7 @@ File_GetCapacity(const char *pathName)  // IN: Path name
       ret = -1;
    }
 
-   free(fullPath);
+   Posix_Free(fullPath);
 
    return ret;
 }
@@ -1635,13 +1661,13 @@ File_GetUniqueFileSystemID(char const *path)  // IN: File path
       char devfsName[FILE_MAXPATH];
 
       if (sscanf(existPath, DEVFS_MOUNT_PATH "%[^/]%*s", devfsName) == 1) {
-         free(existPath);
-         free(canPath);
+         Posix_Free(existPath);
+         Posix_Free(canPath);
          return Str_SafeAsprintf(NULL, "%s/%s", DEVFS_MOUNT_POINT, devfsName);
       }
    }
 
-   free(existPath);
+   Posix_Free(existPath);
 
    if (canPath == NULL) {
       return NULL;
@@ -1655,7 +1681,7 @@ File_GetUniqueFileSystemID(char const *path)  // IN: File path
     */
    if (strncmp(canPath, VCFS_MOUNT_POINT, strlen(VCFS_MOUNT_POINT)) != 0 ||
        sscanf(canPath, VCFS_MOUNT_PATH "%[^/]%*s", vmfsVolumeName) != 1) {
-      free(canPath);
+      Posix_Free(canPath);
       goto exit;
    }
 
@@ -1677,13 +1703,13 @@ File_GetUniqueFileSystemID(char const *path)  // IN: File path
          unique = Str_SafeAsprintf(NULL, "%s/%s/%s",
                                    VCFS_MOUNT_POINT, vmfsVolumeName,
                                    fsAttrs->name);
-         free(fsAttrs);
-         free(canPath);
+         Posix_Free(fsAttrs);
+         Posix_Free(canPath);
          return unique;
       }
-      free(fsAttrs);
+      Posix_Free(fsAttrs);
    }
-   free(canPath);
+   Posix_Free(canPath);
 
    return Str_SafeAsprintf(NULL, "%s/%s", VCFS_MOUNT_POINT,
                            vmfsVolumeName);
@@ -1730,8 +1756,8 @@ FilePosixLookupMountPoint(char const *canPath,  // IN: Canonical file path
    size_t used;
    char *ret = NULL;
 
-   ASSERT(canPath);
-   ASSERT(bind);
+   ASSERT(canPath != NULL);
+   ASSERT(bind != NULL);
 
    size = 4 * FILE_MAXPATH;  // Should suffice for most locales
 
@@ -1773,7 +1799,7 @@ retry:
           !mnt.mnt_type || !mnt.mnt_opts) {
          size += 4 * FILE_MAXPATH;
          ASSERT(size <= 32 * FILE_MAXPATH);
-         free(buf);
+         Posix_Free(buf);
          endmntent(f);
          goto retry;
       }
@@ -1808,7 +1834,7 @@ retry:
    // 'canPath' is not a mount point.
    endmntent(f);
 
-   free(buf);
+   Posix_Free(buf);
 
    return ret;
 #endif
@@ -1854,7 +1880,7 @@ FilePosixGetBlockDevice(char const *path)  // IN: File path
 
 #if defined(__APPLE__)
    failed = statfs(existPath, &buf) == -1;
-   free(existPath);
+   Posix_Free(existPath);
    if (failed) {
       return NULL;
    }
@@ -1862,13 +1888,13 @@ FilePosixGetBlockDevice(char const *path)  // IN: File path
    return Util_SafeStrdup(buf.f_mntfromname);
 #else
    realPath = Posix_RealPath(existPath);
-   free(existPath);
+   Posix_Free(existPath);
 
    if (realPath == NULL) {
       return NULL;
    }
    Str_Strcpy(canPath, realPath, sizeof canPath);
-   free(realPath);
+   Posix_Free(realPath);
 
 retry:
    Str_Strcpy(canPath2, canPath, sizeof canPath2);
@@ -1929,7 +1955,7 @@ retry:
                Str_Strcpy(canPath, ptr, sizeof canPath);
             }
 
-            free(ptr);
+            Posix_Free(ptr);
 
             /*
              * There could be a series of these chained together.  It is
@@ -1954,7 +1980,7 @@ retry:
       x = Util_SafeStrdup(canPath);
       failed = FilePosixGetParent(&x);
       Str_Strcpy(canPath, x, sizeof canPath);
-      free(x);
+      Posix_Free(x);
 
       /*
        * Prevent an infinite loop in case FilePosixLookupMountPoint() even
@@ -2013,7 +2039,7 @@ FilePosixNearestExistingAncestor(char const *path)  // IN: File path
       }
 
       ptr = strrchr(result, DIRSEPC);
-      if (!ptr) {
+      if (ptr == NULL) {
          ptr = result;
       }
       *ptr = '\0';
@@ -2063,8 +2089,8 @@ File_IsSameFile(const char *path1,  // IN:
    struct statfs stfs2;
 #endif
 
-   ASSERT(path1);
-   ASSERT(path2);
+   ASSERT(path1 != NULL);
+   ASSERT(path2 != NULL);
 
    /*
     * First take care of the easy checks.  If the paths are identical, or if
@@ -2223,8 +2249,8 @@ File_Replace(const char *oldName,  // IN: old file
    result = TRUE;
 
 bail:
-   free(newPath);
-   free(oldPath);
+   Posix_Free(newPath);
+   Posix_Free(oldPath);
 
    errno = status;
 
@@ -2265,8 +2291,8 @@ FilePosixGetMaxOrSupportsFileSize(FileIODescriptor *fd,  // IN:
    uint64 value = 0;
    uint64 mask;
 
-   ASSERT(fd);
-   ASSERT(fileSize);
+   ASSERT(fd != NULL);
+   ASSERT(fileSize != NULL);
 
    if (!getMaxFileSize) {
       return FileIO_SupportsFileSize(fd, *fileSize);
@@ -2322,11 +2348,11 @@ FilePosixCreateTestGetMaxOrSupportsFileSize(const char *dirName, // IN: test dir
    char *path;
    FileIODescriptor fd;
 
-   ASSERT(fileSize);
+   ASSERT(fileSize != NULL);
 
    temp = Unicode_Append(dirName, "/.vmBigFileTest");
    posixFD = File_MakeSafeTemp(temp, &path);
-   free(temp);
+   Posix_Free(temp);
 
    if (posixFD == -1) {
       Log(LGPFX" %s: Failed to create temporary file in dir: %s\n", __func__,
@@ -2343,7 +2369,7 @@ FilePosixCreateTestGetMaxOrSupportsFileSize(const char *dirName, // IN: test dir
 
    FileIO_Close(&fd);
    File_Unlink(path);
-   free(path);
+   Posix_Free(path);
 
    return retVal;
 }
@@ -2379,7 +2405,7 @@ FileVMKGetMaxFileSize(const char *pathName,  // IN:
 
    char *dirPath = NULL;
 
-   ASSERT(maxFileSize);
+   ASSERT(maxFileSize != NULL);
 
    fullPath = File_FullPath(pathName);
    if (fullPath == NULL) {
@@ -2417,8 +2443,8 @@ FileVMKGetMaxFileSize(const char *pathName,  // IN:
    close(fd);
 
 bail:
-   free(fullPath);
-   free(dirPath);
+   Posix_Free(fullPath);
+   Posix_Free(dirPath);
 
    return retval;
 }
@@ -2495,12 +2521,12 @@ FileVMKGetMaxOrSupportsFileSize(const char *pathName,  // IN:
       } else {
          Log(LGPFX" %s: Unsupported filesystem version, %u\n", __func__,
              fsAttrs->versionNumber);
-         free(fsAttrs);
+         Posix_Free(fsAttrs);
 
          return FALSE;
       }
 
-      free(fsAttrs);
+      Posix_Free(fsAttrs);
       if (maxFileSize == -1) {
          Log(LGPFX" %s: Failed to figure out the max file size for %s\n",
              __func__, pathName);
@@ -2523,7 +2549,7 @@ FileVMKGetMaxOrSupportsFileSize(const char *pathName,  // IN:
 
       if (fullPath == NULL) {
          Log(LGPFX" %s: Error acquiring full path\n", __func__);
-         free(fsAttrs);
+         Posix_Free(fsAttrs);
 
          return FALSE;
       }
@@ -2534,9 +2560,9 @@ FileVMKGetMaxOrSupportsFileSize(const char *pathName,  // IN:
                                                               fileSize,
                                                               getMaxFileSize);
 
-      free(fsAttrs);
-      free(fullPath);
-      free(parentPath);
+      Posix_Free(fsAttrs);
+      Posix_Free(fullPath);
+      Posix_Free(parentPath);
 
       return supported;
    }
@@ -2583,7 +2609,8 @@ FileGetMaxOrSupportsFileSize(const char *pathName,  // IN:
    char *folderPath;
    Bool retval = FALSE;
 
-   ASSERT(fileSize);
+   ASSERT(pathName != NULL);
+   ASSERT(fileSize != NULL);
 
    /*
     * We acquire the full path name for testing in
@@ -2634,10 +2661,10 @@ FileGetMaxOrSupportsFileSize(const char *pathName,  // IN:
 
    retval = FilePosixCreateTestGetMaxOrSupportsFileSize(folderPath, fileSize,
                                                         getMaxFileSize);
-   free(folderPath);
+   Posix_Free(folderPath);
 
 out:
-   free(fullPath);
+   Posix_Free(fullPath);
 
    return retval;
 }
@@ -2669,7 +2696,7 @@ File_GetMaxFileSize(const char *pathName,  // IN:
 {
    Bool result;
 
-   if (!maxFileSize) {
+   if (maxFileSize == NULL) {
       Log(LGPFX" %s: maxFileSize passed as NULL.\n", __func__);
 
       return FALSE;
@@ -2790,7 +2817,7 @@ FileKeyDispose(const char *key,   // IN:
                void *value,       // IN:
                void *clientData)  // IN:
 {
-   free((void *) key);
+   Posix_Free((void *) key);
 
    return 0;
 }
@@ -2858,7 +2885,7 @@ File_ListDirectory(const char *pathName,  // IN:
             Warning("%s: file '%s' in directory '%s' cannot be converted to "
                     "UTF8\n", __FUNCTION__, pathName, id);
 
-            free(id);
+            Posix_Free(id);
 
             id = Unicode_Duplicate(UNICODE_SUBSTITUTION_CHAR
                                    UNICODE_SUBSTITUTION_CHAR
@@ -2877,7 +2904,7 @@ File_ListDirectory(const char *pathName,  // IN:
          if (HashTable_Insert(hash, id, NULL)) {
             count++;
          } else {
-            free(id);
+            Posix_Free(id);
          }
       } else {
          count++;
@@ -2931,7 +2958,7 @@ File_WalkDirectoryEnd(WalkDirContext context)  // IN:
       if (context->cnt > 0) {
          Util_FreeStringList(context->files, context->cnt);
       }
-      free(context);
+      Posix_Free(context);
    }
 }
 
@@ -3006,7 +3033,7 @@ File_WalkDirectoryNext(WalkDirContext context,  // IN:
                        char **path)             // OUT:
 {
    ASSERT(context);
-   ASSERT(path);
+   ASSERT(path != NULL);
 
    errno = 0;  // Any errors showed up at "start time".
 
@@ -3081,7 +3108,7 @@ FileIsGroupsMember(gid_t gid)  // IN:
    ret = FALSE;
 
 end:
-   free(members);
+   Posix_Free(members);
 
    return ret;
 }
@@ -3234,4 +3261,51 @@ File_IsCharDevice(const char *pathName)  // IN:
 
    return (FileAttributes(pathName, &fileData) == 0) &&
            (fileData.fileType == FILE_TYPE_CHARDEVICE);
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * File_GetMountPath --
+ *
+ *      This function translates the path for a symlink to the physical path.
+ *      If checkEntirePath is TRUE, this function will try to translate
+ *      every parent directory to physical path.
+ *      Caller must free the returned buffer if valid path is returned.
+ *
+ * Results:
+ *      return valid physical path if successfully.
+ *      return NULL if error.
+ *
+ * Side effects:
+ *      The result is allocated.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+char *
+File_GetMountPath(const char *pathName,  // IN:
+                  Bool checkEntirePath)  // IN:
+{
+   char *mountPath;
+
+   if (pathName == NULL) {
+      return NULL;
+   }
+
+   if (checkEntirePath) {
+      return Posix_RealPath(pathName);
+   }
+
+   mountPath = Posix_ReadLink(pathName);
+   if (mountPath != NULL) {
+      return mountPath;
+   }
+
+   if (!Posix_Access(pathName, F_OK)) {
+      return Util_SafeStrdup(pathName);
+   }
+
+   return NULL;
 }

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -36,7 +36,7 @@
 
 #include "unicodeBase.h"
 
-#ifdef __cplusplus
+#if defined(__cplusplus)
 extern "C" {
 #endif
 
@@ -92,8 +92,8 @@ typedef enum {
 char *Unicode_Normalize(const char *str,
                           UnicodeNormalizationForm form);
 
-#ifdef __cplusplus
-}
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 
 #endif // _UNICODE_ICU_H_

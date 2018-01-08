@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -36,16 +36,7 @@
 #   include "file.h"
 #   include "config.h"
 #   include "localconfig.h"
-#   if defined __APPLE__
-#      include <AvailabilityMacros.h>
-#      if MAC_OS_X_VERSION_MAX_ALLOWED <= MAC_OS_X_VERSION_10_5
-#         include <pam/pam_appl.h>
-#      else
-#         include <security/pam_appl.h>
-#      endif
-#   else
-#      include <security/pam_appl.h>
-#   endif
+#   include <security/pam_appl.h>
 #   include <dlfcn.h>
 #endif
 

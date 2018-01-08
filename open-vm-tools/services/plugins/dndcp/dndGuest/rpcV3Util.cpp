@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -30,22 +30,23 @@
 
 #include "rpcV3Util.hpp"
 
-extern "C" {
 #ifdef VMX86_TOOLS
+extern "C" {      
    #include "debug.h"
    #define LOG(level, msg) (Debug msg)
+}
 #else
    #define LOGLEVEL_MODULE dnd
    #include "loglevel_user.h"
 #endif
 
-   #include "dndClipboard.h"
-   #include "util.h"
-   #include "dndMsg.h"
-   #include "hostinfo.h"
+extern "C" {      
+#include "dndClipboard.h"
 }
 
-
+#include "util.h"
+#include "dndMsg.h"
+#include "hostinfo.h"
 
 /**
  * Constructor.
@@ -304,18 +305,16 @@ RpcV3Util::OnRecvPacket(uint32 srcId,
 {
    DnDTransportPacketHeader *packetV3 = (DnDTransportPacketHeader *)packet;
    ASSERT(packetV3);
-   if (packetSize <= 0 ||
-       packetSize != (packetV3->payloadSize + DND_TRANSPORT_PACKET_HEADER_SIZE) ||
-       packetSize > DND_MAX_TRANSPORT_PACKET_SIZE) {
-      LOG(0, ("%s: Received invalid data.\n", __FUNCTION__));
-      return;
+   if (packetSize <= 0 || packetSize > DND_MAX_TRANSPORT_PACKET_SIZE ||
+       packetV3->payloadSize > DND_MAX_TRANSPORT_PACKET_PAYLOAD_SIZE ||
+       (packetV3->payloadSize + DND_TRANSPORT_PACKET_HEADER_SIZE) != packetSize) {
+      goto invalid_packet;
    }
 
    switch (packetV3->type) {
    case DND_TRANSPORT_PACKET_TYPE_SINGLE:
       if (packetV3->payloadSize != packetV3->totalSize) {
-         LOG(0, ("%s: received invalid packet.\n", __FUNCTION__));
-         return;
+         goto invalid_packet;
       }
       /* This is a single packet. Forward to rpc layer for further processing. */
       mRpc->HandleMsg(NULL, packetV3->payload, packetV3->payloadSize);
@@ -355,6 +354,32 @@ RpcV3Util::OnRecvPacket(uint32 srcId,
          break;
       }
    case DND_TRANSPORT_PACKET_TYPE_PAYLOAD:
+      /*
+       * If seqNum does not match, it means either this is the first packet, or there
+       * is a timeout in another side. The buffer will be reset in all cases later.
+       * For the first packet, the totalSize should not larger than DNDMSG_MAX_ARGSZ.
+       * For the rest packets, the totalSize should be the same as the first packet.
+       */
+      if (mRecvBuf.seqNum != packetV3->seqNum) {
+         if (packetV3->totalSize > DNDMSG_MAX_ARGSZ) {
+            goto invalid_packet;
+         }
+      } else {
+         if (packetV3->totalSize != mRecvBuf.totalSize) {
+            goto invalid_packet;
+         }
+      }
+
+      /*
+       * The totalSize has been validated.
+       * We need to make sure the  payloadSize and offset are in right range.
+       */
+      if (packetV3->payloadSize > packetV3->totalSize ||
+          packetV3->offset > packetV3->totalSize ||
+          (packetV3->payloadSize + packetV3->offset) > packetV3->totalSize) {
+         goto invalid_packet;
+      }
+
       /* Received next packet for big binary buffer. */
       if (!DnD_TransportBufAppendPacket(&mRecvBuf, packetV3, packetSize)) {
          LOG(0, ("%s: DnD_TransportBufAppendPacket failed.\n", __FUNCTION__));
@@ -390,6 +415,9 @@ RpcV3Util::OnRecvPacket(uint32 srcId,
       LOG(0, ("%s: unknown packet.\n", __FUNCTION__));
       break;
    }
+
+invalid_packet:
+   LOG(0, ("%s: received invalid data.\n", __FUNCTION__));
 }
 
 

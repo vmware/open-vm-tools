@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -21,6 +21,10 @@
 
 #include "hgfs.h"             /* for HGFS_PACKET_MAX */
 #include "dbllnklst.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 typedef struct HgfsVmxIov {
    void *va;           /* Virtual addr */
@@ -130,9 +134,6 @@ typedef struct HgfsServerConfig {
 typedef uint32 HgfsSharedFolderHandle;
 #define HGFS_INVALID_FOLDER_HANDLE         ((HgfsSharedFolderHandle)~((HgfsSharedFolderHandle)0))
 
-typedef HgfsSharedFolderHandle (*HgfsRegisterSharedFolderFunc)(const char *shareName,
-                                                               const char *sharePath,
-                                                               Bool addFolder);
 /*
  * Callback functions to enumerate the share resources.
  * Filled in by the HGFS server policy and passed in to the HGFS server
@@ -160,6 +161,11 @@ typedef struct HgfsServerMgrCallbacks {
    HgfsServerResEnumCallbacks enumResources;
 } HgfsServerMgrCallbacks;
 
+typedef enum {
+   HGFS_QUIESCE_FREEZE,
+   HGFS_QUIESCE_THAW,
+} HgfsQuiesceOp;
+
 /*
  * Function used for invalidating nodes and searches that fall outside of a
  * share when the list of shares changes.
@@ -171,12 +177,16 @@ typedef Bool (*HgfsChannelSendFunc)(void *opaqueSession,
                                     HgfsSendFlags flags);
 typedef void * (*HgfsChannelMapVirtAddrFunc)(uint64 pa, uint32 size, void **context);
 typedef void (*HgfsChannelUnmapVirtAddrFunc)(void **context);
+typedef void (*HgfsChannelRegisterThreadFunc)(void);
+typedef void (*HgfsChannelUnregisterThreadFunc)(void);
 
 typedef struct HgfsServerChannelCallbacks {
-    HgfsChannelMapVirtAddrFunc getReadVa;
-    HgfsChannelMapVirtAddrFunc getWriteVa;
-    HgfsChannelUnmapVirtAddrFunc putVa;
-    HgfsChannelSendFunc send;
+   HgfsChannelRegisterThreadFunc registerThread;
+   HgfsChannelUnregisterThreadFunc unregisterThread;
+   HgfsChannelMapVirtAddrFunc getReadVa;
+   HgfsChannelMapVirtAddrFunc getWriteVa;
+   HgfsChannelUnmapVirtAddrFunc putVa;
+   HgfsChannelSendFunc send;
 }HgfsServerChannelCallbacks;
 
 typedef struct HgfsServerSessionCallbacks {
@@ -187,14 +197,15 @@ typedef struct HgfsServerSessionCallbacks {
    void (*invalidateObjects)(void *, DblLnkLst_Links *);
    uint32 (*invalidateInactiveSessions)(void *);
    void (*sendComplete)(HgfsPacket *, void *);
+   void (*quiesce)(void *, HgfsQuiesceOp);
 } HgfsServerSessionCallbacks;
 
+/* XXX: TODO delete this layer if no other non-session callbacks are required. */
 typedef struct HgfsServerCallbacks {
    HgfsServerSessionCallbacks session;
-   HgfsRegisterSharedFolderFunc registerShare;
 } HgfsServerCallbacks;
 
-Bool HgfsServer_InitState(HgfsServerCallbacks **,
+Bool HgfsServer_InitState(const HgfsServerCallbacks **,
                           HgfsServerConfig *,
                           HgfsServerMgrCallbacks *);
 void HgfsServer_ExitState(void);
@@ -206,7 +217,8 @@ Bool HgfsServer_ShareAccessCheck(HgfsOpenMode accessMode,
 uint32 HgfsServer_GetHandleCounter(void);
 void HgfsServer_SetHandleCounter(uint32 newHandleCounter);
 
-
-void HgfsServer_Quiesce(Bool freeze);
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif // _HGFS_SERVER_H_

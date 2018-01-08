@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -31,8 +31,16 @@
 
 #define INCLUDE_ALLOW_USERLEVEL
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 int
 daemon(int nochdir, int noclose);
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif  /* _MISCSOLARIS_H_ */
 

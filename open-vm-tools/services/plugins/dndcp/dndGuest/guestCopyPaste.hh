@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -30,9 +30,7 @@
 #include "copyPasteRpc.hh"
 #include "guestFileTransfer.hh"
 
-extern "C" {
 #include "dnd.h"
-}
 
 enum GUEST_CP_STATE {
    GUEST_CP_INVALID = 0,

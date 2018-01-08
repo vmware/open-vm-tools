@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -527,7 +527,7 @@ MXUserCondVar *MXUserCreateCondVar(MXUserHeader *header,
 void MXUserWaitCondVar(MXUserHeader *header,
                        MXRecLock *lock,
                        MXUserCondVar *condVar,
-                       uint32 msecWait);
+                       uint32 waitTimeMsec);
 
 
 typedef struct {

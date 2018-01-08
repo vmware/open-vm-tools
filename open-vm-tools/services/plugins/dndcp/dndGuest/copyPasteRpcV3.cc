@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -25,9 +25,9 @@
 
 #include "copyPasteRpcV3.hh"
 #include "tracer.hh"
+#include "dndMsg.h"
 
 extern "C" {
-   #include "dndMsg.h"
    #include "debug.h"
    #include "dndClipboard.h"
 }
@@ -268,6 +268,7 @@ CopyPasteRpcV3::HandleMsg(RpcParams *params,
 
       /* Unserialize clipboard data for the command. */
       buf = DnDMsg_GetArg(&msg, 0);
+      CPClipboard_Init(&clip);
       if (!CPClipboard_Unserialize(&clip, DynBuf_Get(buf), DynBuf_GetSize(buf))) {
          g_debug("%s: CPClipboard_Unserialize failed.\n", __FUNCTION__);
          goto exit;

@@ -1,5 +1,5 @@
 ##########################################################
-# Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+# Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -76,11 +76,11 @@ disk.shrink.ignoreFreeSpaceWarnings = "请忽略压缩过程期间有关磁盘�
 
 disk.wipe.ignoreFreeSpaceWarnings = "请忽略擦除过程期间有关磁盘空间的任何警告。\n"
 
-disk.wiper.error = "错误: %1$s"
-
 disk.wiper.file.error = "错误，无法创建擦除器文件。\n"
 
 disk.wiper.progress = "\r进度：%1$d"
+
+error.message = "错误: %1$s\n"
 
 error.missing = "%1$s: 缺失 %2$s\n"
 

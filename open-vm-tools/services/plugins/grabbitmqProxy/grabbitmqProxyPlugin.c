@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2012-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2012-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -633,15 +633,18 @@ SendVmxConnectRequest(void)
    struct sockaddr_vm addr;
    socklen_t len = sizeof addr;
    int port;
+   int fd;
    gchar *msg;
 
    g_debug("Entering %s\n", __FUNCTION__);
 
    ASSERT(asock != NULL);
 
+   fd = AsyncSocket_GetFd(asock);
+   ASSERT(fd >= 0);
+
    /* get the listening port */
-   if (getsockname(AsyncSocket_GetFd(asock),
-                   (struct sockaddr *)&addr, &len) == SOCKET_ERROR) {
+   if (getsockname(fd, (struct sockaddr *)&addr, &len) == SOCKET_ERROR) {
       g_warning("Error in socket getsockname: error=%d.\n", sockerr());
       return FALSE;
    }
@@ -687,6 +690,8 @@ SendToVmxRmqProxy(ConnInfo *cli,     // IN
    int bufLen;
    gboolean mapCreated = FALSE;
    char *ver;
+
+   g_debug("Entering %s\n", __FUNCTION__);
 
    res = DataMap_Create(&map);
    if (res != DMERR_SUCCESS) {
@@ -800,6 +805,8 @@ ProcessVmxDataPacket(ConnInfo *cli,     // IN
 {
    ErrorCode res;
    int64 cmdType;
+
+   g_debug("Entering %s\n", __FUNCTION__);
 
    res = DataMap_GetInt64(map, RMQPROXYDM_FLD_COMMAND, &cmdType);
    ASSERT(res == DMERR_SUCCESS);
@@ -1005,8 +1012,8 @@ VmxListenSockConnectedCb(AsyncSocket *asock,    // IN
       goto exit;
    }
 
-   if (!AsyncSocket_SetBufferSizes(asock, sendBufSize, recvBufSize)) {
-      g_info("Cannot set VSOCK buffer sizes, closing socket %d\n", fd);
+   if (!AsyncSocket_EstablishMinBufferSizes(asock, sendBufSize, recvBufSize)) {
+      g_info("Cannot set VSOCK buffer size minima, closing socket %d\n", fd);
       goto exit;
    }
 
@@ -1412,7 +1419,7 @@ RmqListenSockConnectedCb(AsyncSocket *asock,    // IN
       goto exit;
    }
 
-   if (!AsyncSocket_SetBufferSizes(asock, sendBufSize, recvBufSize)) {
+   if (!AsyncSocket_EstablishMinBufferSizes(asock, sendBufSize, recvBufSize)) {
       g_info("Closing socket %d due to error.\n", fd);
       goto exit;
    }

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -105,8 +105,8 @@ Unicode_CompareRange(const char *str1,         // IN:
    int result = -1;
    char *substr1 = NULL;
    char *substr2 = NULL;
-   utf16_t *substr1UTF16 = NULL;
-   utf16_t *substr2UTF16 = NULL;
+   utf16_t *str1UTF16 = NULL;
+   utf16_t *str2UTF16 = NULL;
    UnicodeIndex i = 0;
    UnicodeIndex utf16Index;
    utf16_t codeUnit1;
@@ -120,27 +120,33 @@ Unicode_CompareRange(const char *str1,         // IN:
     * care, and it's just easier to search UTF-16.)
     */
 
-   substr1 = Unicode_Substr(str1, str1Start, str1Length);
-   if (!substr1) {
-      goto out;
+   if (str1Start != 0 || str1Length != -1) {
+      substr1 = Unicode_Substr(str1, str1Start, str1Length);
+      if (!substr1) {
+         goto out;
+      }
+      str1 = substr1;
    }
 
-   substr2 = Unicode_Substr(str2, str2Start, str2Length);
-   if (!substr2) {
-      goto out;
+   if (str2Start != 0 || str2Length != -1) {
+      substr2 = Unicode_Substr(str2, str2Start, str2Length);
+      if (!substr2) {
+         goto out;
+      }
+      str2 = substr2;
    }
 
    /*
     * XXX TODO: Need to normalize the incoming strings to NFC or NFD.
     */
 
-   substr1UTF16 = Unicode_GetAllocUTF16(substr1);
-   if (!substr1UTF16) {
+   str1UTF16 = Unicode_GetAllocUTF16(str1);
+   if (!str1UTF16) {
       goto out;
    }
 
-   substr2UTF16 = Unicode_GetAllocUTF16(substr2);
-   if (!substr2UTF16) {
+   str2UTF16 = Unicode_GetAllocUTF16(str2);
+   if (!str2UTF16) {
       goto out;
    }
 
@@ -150,8 +156,8 @@ Unicode_CompareRange(const char *str1,         // IN:
     */
 
    while (TRUE) {
-      codeUnit1 = *(substr1UTF16 + i);
-      codeUnit2 = *(substr2UTF16 + i);
+      codeUnit1 = *(str1UTF16 + i);
+      codeUnit2 = *(str2UTF16 + i);
 
       /*
        * TODO: Simple case folding doesn't handle the situation where more
@@ -186,23 +192,23 @@ Unicode_CompareRange(const char *str1,         // IN:
     */
 
    if (U16_IS_SURROGATE(codeUnit1)) {
-      ssize_t substrUTF16Len = Unicode_UTF16Strlen(substr1UTF16);
+      ssize_t strUTF16Len = Unicode_UTF16Strlen(str1UTF16);
 
       // U16_NEXT modifies the index, so let it work on a copy.
       utf16Index = i;
 
       // Decode the surrogate if needed.
-      U16_NEXT(substr1UTF16, utf16Index, substrUTF16Len, codePoint1);
+      U16_NEXT(str1UTF16, utf16Index, strUTF16Len, codePoint1);
    } else {
       // Not a surrogate?  Then the code point value is the code unit.
       codePoint1 = codeUnit1;
    }
 
    if (U16_IS_SURROGATE(codeUnit2)) {
-      ssize_t substrUTF16Len = Unicode_UTF16Strlen(substr2UTF16);
+      ssize_t strUTF16Len = Unicode_UTF16Strlen(str2UTF16);
 
       utf16Index = i;
-      U16_NEXT(substr2UTF16, utf16Index, substrUTF16Len, codePoint2);
+      U16_NEXT(str2UTF16, utf16Index, strUTF16Len, codePoint2);
    } else {
       codePoint2 = codeUnit2;
    }
@@ -216,9 +222,9 @@ Unicode_CompareRange(const char *str1,         // IN:
       NOT_REACHED();
    }
 
-  out:
-   free(substr1UTF16);
-   free(substr2UTF16);
+out:
+   free(str1UTF16);
+   free(str2UTF16);
 
    free(substr1);
    free(substr2);
@@ -314,7 +320,7 @@ Unicode_FindSubstrInRange(const char *str,               // IN:
       index = strStart;
       goto bail;
    }
-  
+
    /*
     * Attempt to find the first occurence of the search string in the string
     * to be searched.
@@ -439,7 +445,7 @@ Unicode_FindLastSubstrInRange(const char *str,               // IN:
       index = strStart;
       goto bail;
    }
-  
+
    /*
     * Attempt to find the last occurence of the search string in the string
     * to be searched.
@@ -617,7 +623,7 @@ Unicode_ReplaceRange(const char *dest,         // IN:
  *      Allocates and returns a new string containing the 'first' followed by
  *      all the unicode strings specified as optional arguments. Appending
  *      ceases when a NULL pointer is detected.
- * 
+ *
  * Results:
  *      The newly-allocated string.  Caller must free with free.
  *
@@ -675,12 +681,12 @@ Unicode_Join(const char *first,  // IN:
  */
 
 char *
-Unicode_Format(const char *fmt,	// IN: the format
-	       ...)		// IN: the arguments
+Unicode_Format(const char *fmt, // IN: the format
+               ...)             // IN: the arguments
 {
    va_list args;
    char *p;
-   
+
    va_start(args, fmt);
    p = Str_Vasprintf(NULL, fmt, args);
    va_end(args);

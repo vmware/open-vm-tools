@@ -1,3 +1,5 @@
+# Copyright (C) 2017 VMware, Inc.  All rights reserved. -- VMware Confidential
+
 [globals]
 persistence_dir=${input_dir}/persistence
 monitor_dir=${input_dir}/monitor
@@ -8,6 +10,7 @@ tmp_dir=${output_dir}/tmp
 bean_config_file=${config_dir}/ma-context.xml
 log_config_file=${config_dir}/ma-log4cpp_config
 scripts_dir=${config_dir}/../scripts
+install_dir=${config_dir}/../install
 
 thread_stack_size_kb=0
 
@@ -17,7 +20,7 @@ schema_location_root=${input_dir}/schemas/caf
 remap_logging_location=false
 
 [security]
-cms_policy=CAF_Encrypted_And_Signed
+cms_policy=None
 
 [managementAgent]
 host_delay_sec=5
@@ -49,6 +52,8 @@ diagFileAlias_IntBeanConfigFile=file://${root_dir}/config/IntBeanConfigFile.xml?
 listener_retry_max=-1
 listener_startup_type=Automatic
 listener_restart_hours=48
+listener_ctrl_preconfigure=1
+listener_ctrl_follow_tunnel=1
 nsdb_poller_signal_file=${monitor_dir}/nsdbPollerSignal.txt
 nsdb_polling_interval_secs=86400
 

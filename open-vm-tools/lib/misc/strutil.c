@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -28,6 +28,7 @@
 #include <string.h>
 #if !defined(_WIN32)
 #include <strings.h> /* For strncasecmp */
+#include <stdint.h>
 #endif
 #include "vmware.h"
 #include "strutil.h"
@@ -36,6 +37,35 @@
 #include "vm_ctype.h"
 #include "util.h"
 
+#ifndef SIZE_MAX /* SIZE_MAX is new in C99 */
+#define SIZE_MAX ((size_t) -1)
+#endif
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtil_IsEmpty --
+ *
+ *      Test if a non-NULL string is empty.
+ *
+ * Results:
+ *      TRUE if the string has length 0, FALSE otherwise.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+#ifdef VMX86_DEBUG
+static INLINE Bool
+StrUtil_IsEmpty(const char *str)  // IN:
+{
+   ASSERT(str != NULL);
+   return str[0] == '\0';
+}
+#endif
 
 /*
  *-----------------------------------------------------------------------------
@@ -664,7 +694,7 @@ StrUtil_CapacityToSectorType(SectorType *out,    // OUT: The output value
    if (StrUtil_CapacityToBytes(&quantityInBytes, str, bytes) == FALSE) {
       return FALSE;
    }
- 
+
    /*
     * Convert from "number of bytes" to "number of sectors", rounding up or
     * down appropriately.
@@ -805,7 +835,7 @@ StrUtil_GetLongestLineLength(const char *buf,   //IN
     size_t longest = 0;
 
     while (bufLength) {
-       const char* next;
+       const char *next;
        size_t len;
 
        next = memchr(buf, '\n', bufLength);
@@ -960,8 +990,7 @@ StrUtil_IsASCII(const char *s) // IN
  * StrUtil_VDynBufPrintf --
  *
  *      This is a vprintf() variant which appends directly into a
- *      dynbuf. The dynbuf is not NUL-terminated: The printf() result
- *      is written immediately after the last byte in the DynBuf.
+ *      DynBuf.  Does NOT visibly NUL-terminate the DynBuf.
  *
  *      This function does not use any temporary buffer. The printf()
  *      result can be arbitrarily large. This function automatically
@@ -1012,6 +1041,11 @@ StrUtil_VDynBufPrintf(DynBuf *b,        // IN/OUT
          va_list tmpArgs;
 
          va_copy(tmpArgs, args);
+
+         /*
+          * We actually do NUL-terminate the buffer internally, but this is not
+          * visible to callers, and they should not rely on this.
+          */
          i = Str_Vsnprintf((char *) DynBuf_Get(b) + size, allocSize - size,
                            fmt, tmpArgs);
          va_end(tmpArgs);
@@ -1136,15 +1170,21 @@ StrUtil_SafeDynBufPrintf(DynBuf *b,        // IN/OUT
  */
 
 void
-StrUtil_SafeStrcat(char **prefix,    // IN/OUT
-                   const char *str)  // IN
+StrUtil_SafeStrcat(char **prefix,    // IN/OUT:
+                   const char *str)  // IN:
 {
    char *tmp;
-   size_t plen = *prefix != NULL ? strlen(*prefix) : 0;
+   size_t plen = (*prefix == NULL) ? 0 : strlen(*prefix);
    size_t slen = strlen(str);
 
-   /* Check for overflow */
-   VERIFY((size_t)-1 - plen > slen + 1);
+   /*
+    * If we're manipulating strings that are anywhere near max(size_t)/2 in
+    * length we're doing something very wrong. Avoid potential overflow by
+    * checking for "insane" operations. Prevent the problem before it gets
+    * started.
+    */
+
+   VERIFY((plen < (SIZE_MAX/2)) && (slen < (SIZE_MAX/2)));
 
    tmp = Util_SafeRealloc(*prefix, plen + slen + 1 /* NUL */);
 
@@ -1324,51 +1364,414 @@ StrUtil_ReplaceAll(const char *orig, // IN
     return result;
 }
 
-#if 0
 
-#define FAIL(s) \
-   do { \
-      printf("FAIL: %s\n", s); \
-      exit(1); \
-   } while (0)
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtilStrcmp --
+ *
+ *      Wraps around the Str_Strcmp macro to provide a function that we
+ *      can take the pointer for.
+ *
+ * Results:
+ *      Same as Str_Strcmp.
+ *
+ * Side effects:
+ *      Same as Str_Strcmp.
+ *
+ *-----------------------------------------------------------------------------
+ */
 
-#define REPLACE_TEST(_a, _b, _c, _x) \
-   do { \
-      char *s = StrUtil_ReplaceAll(_a, _b, _c); \
-      if (strcmp(_x, s) != 0) { \
-         printf("Got: %s\n", s); \
-         FAIL("Failed ReplaceAll('" _a "', '" _b "', '" _c "') = '" _x "'"); \
-      } \
-      free(s); \
-   } while (0)
-
-static void
-StrUtil_UnitTests(void)
+static int
+StrUtilStrcmp(const char *s1, const char *s2)
 {
-   REPLACE_TEST("", "a", "b", "");
-   REPLACE_TEST("a", "a", "a", "a");
-
-   REPLACE_TEST("a", "a", "b", "b");
-   REPLACE_TEST("/a", "a", "b", "/b");
-   REPLACE_TEST("a/", "a", "b", "b/");
-
-   REPLACE_TEST("a/a", "a", "b", "b/b");
-   REPLACE_TEST("/a/a", "a", "b", "/b/b");
-   REPLACE_TEST("/a/a/", "a", "b", "/b/b/");
-
-   REPLACE_TEST("a", "a", "long", "long");
-   REPLACE_TEST("a/", "a", "long", "long/");
-   REPLACE_TEST("/a", "a", "long", "/long");
-
-   REPLACE_TEST("long", "long", "a", "a");
-   REPLACE_TEST("long/", "long", "a", "a/");
-   REPLACE_TEST("/long", "long", "a", "/a");
-
-   REPLACE_TEST("a", "a", "", "");
-   REPLACE_TEST("aaa", "a", "", "");
-
-   REPLACE_TEST("a", "not_found", "b", "a");
+   return Str_Strcmp(s1, s2);
 }
 
-#endif // 0
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtilStrncmp --
+ *
+ *      Wraps around the Str_Strncmp macro to provide a function that we
+ *      can take the pointer for.
+ *
+ * Results:
+ *      Same as Str_Strncmp.
+ *
+ * Side effects:
+ *      Same as Str_Strncmp.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+StrUtilStrncmp(const char *s1, const char *s2, size_t n)
+{
+   return Str_Strncmp(s1, s2, n);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtilStrcasecmp --
+ *
+ *      Wraps around the Str_Strcasecmp macro to provide a function that we
+ *      can take the pointer for.
+ *
+ * Results:
+ *      Same as Str_Strcasecmp.
+ *
+ * Side effects:
+ *      Same as Str_Strcasecmp.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+StrUtilStrcasecmp(const char *s1, const char *s2)
+{
+   return Str_Strcasecmp(s1, s2);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtilStrncasecmp --
+ *
+ *      Wraps around the Str_Strncasecmp macro to provide a function that we
+ *      can take the pointer for.
+ *
+ * Results:
+ *      Same as Str_Strncasecmp.
+ *
+ * Side effects:
+ *      Same as Str_Strncasecmp.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+StrUtilStrncasecmp(const char *s1, const char *s2, size_t n)
+{
+   return Str_Strncasecmp(s1, s2, n);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtil_GetNextItem --
+ *
+ *      Extract the next item from a list of items delimited by delim. It
+ *      behaves like strsep except it doesn't accept a string of delimiters.
+ *
+ * Results:
+ *      Returns a pointer to the first item and makes list point to the rest of
+ *      the list or NULL if list was NULL or there was only one item.
+ *
+ * Side effects:
+ *      The first delimiter is changed to '\0'.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+char*
+StrUtil_GetNextItem(char **list, // IN/OUT:
+                    char delim)  // IN:
+{
+   char *token = *list;
+   char *foundDelim;
+
+   if (*list == NULL) {
+      return NULL;
+   }
+
+   foundDelim = strchr(*list, delim);
+   if (foundDelim != NULL) {
+      foundDelim[0] = '\0';
+      *list = foundDelim + 1;
+   } else {
+      *list = NULL;
+   }
+
+   return token;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtil_GetLastItem --
+ *
+ *      Extract the last item from a list of items delimited by delim.
+ *
+ * Results:
+ *      Returns a pointer to the last item and makes list point to the rest of
+ *      the list or NULL if list was NULL or there was only one item.
+ *
+ * Side effects:
+ *      The last delimiter is changed to '\0'.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+char*
+StrUtil_GetLastItem(char **list, // IN/OUT:
+                    char delim)  // IN:
+{
+   char *token = *list;
+   char *foundDelim;
+
+   if (*list == NULL) {
+      return NULL;
+   }
+
+   foundDelim = strrchr(*list, delim);
+   if (foundDelim != NULL) {
+      foundDelim[0] = '\0';
+      token = foundDelim + 1;
+   } else {
+      *list = NULL;
+   }
+
+   return token;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtilHasListItem --
+ *
+ *      Checks whether an item is a part of a list of tokens
+ *      separated by a delimiter.
+ *
+ * Results:
+ *      Whether the item exists in the list.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+StrUtilHasListItem(char const *list,                               // IN:
+                   char delim,                                     // IN:
+                   char const *item,                               // IN:
+                   int (*ncmp)(char const *, char const*, size_t)) // IN:
+{
+   char *foundDelim;
+   int itemLen = strlen(item);
+
+   if (list == NULL) {
+      return FALSE;
+   }
+
+   do {
+      int tokenLen;
+
+      foundDelim = strchr(list, delim);
+      if (foundDelim == NULL) { // either single or last element
+         tokenLen = strlen(list);
+      } else { // ! last element
+         tokenLen = foundDelim - list;
+      }
+
+      if (itemLen == tokenLen && ncmp(item, list, itemLen) == 0) {
+         return TRUE;
+      } else if (foundDelim != NULL) {
+         // ! last element
+         list = foundDelim + 1;
+      }
+   } while (foundDelim != NULL);
+
+   return FALSE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtil_HasListItem --
+ *
+ *      Checks whether an item is a part of a list of tokens
+ *      separated by a delimiter.
+ *
+ * Results:
+ *      Whether the item exists in the list.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+StrUtil_HasListItem(char const *list,   // IN:
+                    char delim,         // IN:
+                    char const *item)   // IN:
+{
+   return StrUtilHasListItem(list, delim, item,
+                             &StrUtilStrncmp);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtil_HasListItemCase --
+ *
+ *      Checks whether an item is a part of a list of tokens
+ *      separated by a delimiter. Case insensitive.
+ *
+ * Results:
+ *      Whether the item exists in the list.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+StrUtil_HasListItemCase(char const *list,   // IN:
+                        char delim,         // IN:
+                        char const *item)   // IN:
+{
+   return StrUtilHasListItem(list, delim, item,
+                             &StrUtilStrncasecmp);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtil_AppendListItem --
+ *
+ *      Insert an item into a list of tokens separated by a delimiter.
+ *
+ * Results:
+ *      A pointer to a new list with the item appended at the end.
+ *
+ * Side effects:
+ *      Allocates a new list.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+char *
+StrUtil_AppendListItem(char const *list,  // IN:
+                       char delim,        // IN:
+                       char const *item)  // IN:
+{
+   if (list == NULL) {
+      return Str_Asprintf(NULL, "%s", item);
+   } else {
+      return Str_Asprintf(NULL, "%s%c%s", list, delim, item);
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtilRemoveListItem --
+ *
+ *      Removes first occurence of an item from a list of tokens separated by
+ *      a delimiter.
+ *
+ * Results:
+ *      The list is modified in-place and the item is removed.
+ *
+ * Side effects:
+ *      See above.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+StrUtilRemoveListItem(char * const list,                    // IN/OUT:
+                      char delim,                           // IN:
+                      char const *item,                     // IN:
+                      int (*cmp)(char const*, char const*)) // IN:
+{
+   char *tok;
+   char *work = list;
+   int maxSize = strlen(list) + 1;
+
+   while ((tok = StrUtil_GetNextItem(&work, delim)) != NULL) {
+      if (cmp(tok, item) == 0) { // found the item
+         if (work != NULL) { // in the middle of the list
+            // overwrite it with the rest of the list
+            Str_Strcpy(tok, work, maxSize);
+         } else if (tok == list) {
+            tok[0] = '\0'; // only item in the list
+         } else {
+            tok[-1] = '\0'; // or the last element in the list
+         }
+
+         return;
+      } else if (work != NULL) {
+         // restore delimiter that was replaced by Str_GetNextItem
+         work[-1] = delim;
+      }
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtil_RemoveListItem --
+ *
+ *      Removes first occurence of an item from a list of tokens separated by
+ *      a delimiter.
+ *
+ * Results:
+ *      The list is modified in-place and the item is removed.
+ *
+ * Side effects:
+ *      See above.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+StrUtil_RemoveListItem(char * const list,  // IN/OUT:
+                       char delim,         // IN:
+                       char const *item)   // IN:
+{
+   StrUtilRemoveListItem(list, delim, item, &StrUtilStrcmp);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtil_RemoveListItemCase --
+ *
+ *      Remove first occurence of an item from a list of tokens separated by a
+ *      delimiter. Case insensitive.
+ *
+ * Results:
+ *      The list is modified in-place and the item is removed.
+ *
+ * Side effects:
+ *      See above.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+StrUtil_RemoveListItemCase(char * const list,  // IN/OUT:
+                           char delim,         // IN:
+                           char const *item)   // IN:
+{
+   StrUtilRemoveListItem(list, delim, item, &StrUtilStrcasecmp);
+}
 

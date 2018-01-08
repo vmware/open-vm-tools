@@ -2,7 +2,7 @@
  *	Author: bwilliams
  *  Created: Jan 21, 2011
  *
- *	Copyright (C) 2011-2016 VMware, Inc.  All rights reserved. -- VMware Confidential
+ *	Copyright (C) 2011-2017 VMware, Inc.  All rights reserved. -- VMware Confidential
  */
 
 #include "stdafx.h"
@@ -1286,6 +1286,32 @@ std::string FileSystemUtils::getTempFilename(const std::string& filename_templat
 	}
 	CAF_CM_EXIT;
 	CAF_CM_VALIDATE_STRING(filename);
-	
+
 	return filename;
+}
+
+std::string FileSystemUtils::executeScript(
+		const std::string& scriptPath,
+		const std::string& scriptResultsDir) {
+	CAF_CM_STATIC_FUNC_LOG_VALIDATE("FileSystemUtils", "executeScript");
+	CAF_CM_VALIDATE_STRING(scriptPath);
+	CAF_CM_VALIDATE_STRING(scriptResultsDir);
+
+	Cdeqstr argv;
+	argv.push_back(scriptPath);
+
+	const std::string basename = FileSystemUtils::getBasename(scriptPath);
+	const std::string stdoutPath = FileSystemUtils::buildPath(
+			scriptResultsDir, basename + ".stdout");
+	const std::string stderrPath = FileSystemUtils::buildPath(
+			scriptResultsDir, basename + ".stderr");
+
+	ProcessUtils::runSyncToFiles(argv, stdoutPath, stderrPath);
+
+	std::string rc;
+	if (FileSystemUtils::doesFileExist(stdoutPath)) {
+		rc = FileSystemUtils::loadTextFile(stdoutPath);
+	}
+
+	return rc;
 }

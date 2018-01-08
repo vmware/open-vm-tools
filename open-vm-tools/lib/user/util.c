@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -695,6 +695,9 @@ int
 Util_HasAdminPriv(void)
 {
 #if defined(_WIN32)
+#if defined(VM_WIN_UWP)
+   return 0;
+#else
    HANDLE token = INVALID_HANDLE_VALUE;
    int ret = -1;
 
@@ -734,6 +737,7 @@ end:
    }
 
    return ret;
+#endif // !VM_WIN_UWP
 #else
    return Id_IsSuperUser() ? 1 : 0;
 #endif
@@ -842,134 +846,4 @@ Util_DeriveFileName(const char *source, // IN: path to dict file (incl filename)
    free(path);
    free(base);
    return returnResult;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Util_CombineStrings --
- *
- *      Takes a vector of strings, and combines them into one string,
- *      where each string is separated by a 0 (zero) byte.
- *
- *      The 0 bytes are then escaped out, and the result is returned.
- *
- * Results:
- *
- *      A NULL terminated string
- *
- * Side effects:
- *
- *      The result string is allocated
- *
- *-----------------------------------------------------------------------------
- */
-
-char *
-Util_CombineStrings(char **sources,             // IN
-                    int count)                  // IN
-{
-   size_t size = 0;
-   int index = 0;
-
-   char *combinedString = NULL;
-   char *cursor = NULL;
-   char *escapedString = NULL;
-
-   int bytesToEsc[256];
-
-   ASSERT(sources != NULL);
-
-   memset(bytesToEsc, 0, sizeof bytesToEsc);
-   bytesToEsc[0] = 1;
-   bytesToEsc['#'] = 1;
-
-   for (index = 0; index < count; index++) {
-      /*
-       * Count the size of each string + the delimeter
-       */
-
-      size += strlen(sources[index]) + 1;
-   }
-
-   combinedString = Util_SafeMalloc(size);
-
-   cursor = combinedString;
-   for (index = 0; index < count; index++) {
-      memcpy(cursor, sources[index], strlen(sources[index]));
-      cursor += strlen(sources[index]);
-      cursor[0] = '\0';
-      cursor++;
-   }
-
-   escapedString = Escape_Do('#', bytesToEsc, combinedString, size, NULL);
-
-   free(combinedString);
-
-   return escapedString;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Util_SeparateStrings --
- *
- *      Takes as input the result of a call to Util_CombineStrings, and
- *      separates the strings back onto a vector of strings.
- *
- * Results:
- *
- *      A vector of strings, the count will also reflect the number of
- *      entries in the vector
- *
- * Side effects:
- *
- *      The vector is allocated, and each string in the vector must be
- *      freed by the caller
- *
- *-----------------------------------------------------------------------------
- */
-
-char **
-Util_SeparateStrings(char *source,              // IN
-                     int *count)                // OUT
-{
-   char *data = NULL;
-   size_t dataSize = 0;
-
-   int index = 0;
-   char *cursor = NULL;
-   char *endCursor = NULL;
-
-   char **stringVector = NULL;
-
-   ASSERT(count != NULL);
-
-   *count = 0;
-
-   data = Escape_Undo('#', source, strlen(source), &dataSize);
-   ASSERT(data != NULL);
-
-   endCursor = data + dataSize;
-   ASSERT(endCursor[0] == '\0');
-
-   cursor = data;
-   while (cursor < endCursor) {
-      (*count)++;
-      cursor += strlen(cursor) + 1;
-   }
-
-   stringVector = Util_SafeMalloc(sizeof(char *) * (*count));
-
-   cursor = data;
-   for (index = 0; index < (*count); index++) {
-      stringVector[index] = Util_SafeStrdup(cursor);
-      cursor += strlen(cursor) + 1;
-   }
-
-   free(data);
-
-   return stringVector;
 }

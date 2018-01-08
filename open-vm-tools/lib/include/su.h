@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -29,8 +29,13 @@
 #define INCLUDE_ALLOW_USERLEVEL
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
+
 #include "vm_basic_types.h"
 #include "vm_assert.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #if defined(__APPLE__)
 
@@ -124,6 +129,10 @@ static INLINE Bool Id_IsSuperUser(void) { return 0 == geteuid(); }
 uid_t Id_BeginSuperUser(void);
 void Id_EndSuperUser(uid_t uid);
 Bool Id_IsSetUGid(void);
+#endif
+
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 
 #endif /* USER_SU_H */

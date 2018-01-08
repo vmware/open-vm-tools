@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -30,15 +30,14 @@
 #define INCLUDE_ALLOW_VMKERNEL
 #include "includeCheck.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <stdlib.h>
 #include <errno.h>
 #include "util.h"
 #include "unicodeTypes.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #define UNICODE_SUBSTITUTION_CHAR "\xEF\xBF\xBD"
 
@@ -352,8 +351,8 @@ const char *Unicode_GetStatic(const char *asciiBytes,
    #define UNICODE_RELEASE_UTF16(s) free((utf16_t *)s)
 #endif
 
-#ifdef __cplusplus
-}
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 
 #endif // _UNICODE_BASE_H_

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -47,6 +47,11 @@
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <CoreFoundation/CoreFoundation.h>
+#include <TargetConditionals.h>
+#if TARGET_OS_IPHONE
+#include <spawn.h>
+extern char **environ;
+#endif
 #elif defined(__FreeBSD__)
 #include <sys/param.h>
 #include <sys/mount.h>
@@ -138,7 +143,7 @@ Posix_Open(const char *pathName,  // IN:
 
    fd = open(path, flags, mode);
 
-   free(path);
+   Posix_Free(path);
 
    return fd;
 }
@@ -200,7 +205,7 @@ Posix_Fopen(const char *pathName,  // IN:
 
    stream = fopen(path, mode);
 
-   free(path);
+   Posix_Free(path);
 
    return stream;
 }
@@ -236,7 +241,7 @@ Posix_Stat(const char *pathName,  // IN:
 
    ret = stat(path, statbuf);
 
-   free(path);
+   Posix_Free(path);
 
    return ret;
 }
@@ -272,7 +277,7 @@ Posix_Chmod(const char *pathName,  // IN:
 
    ret = chmod(path, mode);
 
-   free(path);
+   Posix_Free(path);
    return ret;
 }
 
@@ -306,14 +311,14 @@ Posix_Rename(const char *fromPathName,  // IN:
       return -1;
    }
    if (!PosixConvertToCurrent(toPathName, &toPath)) {
-      free(fromPath);
+      Posix_Free(fromPath);
       return -1;
    }
 
    result = rename(fromPath, toPath);
 
-   free(toPath);
-   free(fromPath);
+   Posix_Free(toPath);
+   Posix_Free(fromPath);
    return result;
 }
 
@@ -347,7 +352,7 @@ Posix_Unlink(const char *pathName)  // IN:
 
    ret = unlink(path);
 
-   free(path);
+   Posix_Free(path);
    return ret;
 }
 
@@ -381,7 +386,7 @@ Posix_Rmdir(const char *pathName)  // IN:
 
    ret = rmdir(path);
 
-   free(path);
+   Posix_Free(path);
 
    return ret;
 }
@@ -420,7 +425,7 @@ Posix_Freopen(const char *pathName,  // IN:
 
    stream = freopen(path, mode, input_stream);
 
-   free(path);
+   Posix_Free(path);
    return stream;
 }
 
@@ -467,7 +472,7 @@ Posix_Access(const char *pathName,  // IN:
    ret = access(path, mode);
 #endif
 
-   free(path);
+   Posix_Free(path);
 
    return ret;
 }
@@ -494,7 +499,7 @@ int
 Posix_EuidAccess(const char *pathName,  // IN:
                  int mode)              // IN:
 {
-#ifdef __linux__
+#if defined(__GLIBC__)
    char *path;
    int ret;
 
@@ -504,7 +509,7 @@ Posix_EuidAccess(const char *pathName,  // IN:
 
    ret = euidaccess(path, mode);
 
-   free(path);
+   Posix_Free(path);
    return ret;
 #else
    errno = ENOSYS;
@@ -543,7 +548,7 @@ Posix_Utime(const char *pathName,         // IN:
 
    ret = utime(path, times);
 
-   free(path);
+   Posix_Free(path);
 
    return ret;
 }
@@ -574,7 +579,7 @@ Posix_Perror(const char *str)  // IN:
    // ignore conversion error silently
    perror(tmpstr);
 
-   free(tmpstr);
+   Posix_Free(tmpstr);
 }
 
 
@@ -607,7 +612,7 @@ Posix_Pathconf(const char *pathName,  // IN:
 
    ret = pathconf(path, name);
 
-   free(path);
+   Posix_Free(path);
 
    return ret;
 }
@@ -621,8 +626,7 @@ Posix_Pathconf(const char *pathName,  // IN:
  *      Open a file using POSIX popen().
  *
  * Results:
- *      -1	error
- *      >= 0	success (file descriptor)
+ *      Returns a non-NULL FILE* on success, NULL on error.
  *
  * Side effects:
  *      errno is set on error
@@ -645,7 +649,7 @@ Posix_Popen(const char *pathName,  // IN:
 
    stream = popen(path, mode);
 
-   free(path);
+   Posix_Free(path);
 
    return stream;
 }
@@ -682,7 +686,7 @@ Posix_Mknod(const char *pathName,  // IN:
 
    ret = mknod(path, mode, dev);
 
-   free(path);
+   Posix_Free(path);
 
    return ret;
 }
@@ -719,7 +723,7 @@ Posix_Chown(const char *pathName,  // IN:
 
    ret = chown(path, owner, group);
 
-   free(path);
+   Posix_Free(path);
 
    return ret;
 }
@@ -756,7 +760,7 @@ Posix_Lchown(const char *pathName,  // IN:
 
    ret = lchown(path, owner, group);
 
-   free(path);
+   Posix_Free(path);
 
    return ret;
 }
@@ -780,26 +784,25 @@ Posix_Lchown(const char *pathName,  // IN:
  */
 
 int
-Posix_Link(const char *pathName1,  // IN:
-           const char *pathName2)  // IN:
+Posix_Link(const char *uOldPath,  // IN:
+           const char *uNewPath)  // IN:
 {
-   char *path1;
-   char *path2;
+   char *oldPath;
+   char *newPath;
    int ret;
 
-   if (!PosixConvertToCurrent(pathName1, &path1)) {
+   if (!PosixConvertToCurrent(uOldPath, &oldPath)) {
       return -1;
    }
-   if (!PosixConvertToCurrent(pathName2, &path2)) {
-      free(path1);
-
+   if (!PosixConvertToCurrent(uNewPath, &newPath)) {
+      Posix_Free(oldPath);
       return -1;
    }
 
-   ret = link(path1, path2);
+   ret = link(oldPath, newPath);
 
-   free(path1);
-   free(path2);
+   Posix_Free(oldPath);
+   Posix_Free(newPath);
 
    return ret;
 }
@@ -823,26 +826,25 @@ Posix_Link(const char *pathName1,  // IN:
  */
 
 int
-Posix_Symlink(const char *pathName1,  // IN:
-              const char *pathName2)  // IN:
+Posix_Symlink(const char *uOldPath,  // IN:
+              const char *uNewPath)  // IN:
 {
-   char *path1;
-   char *path2;
+   char *oldPath;
+   char *newPath;
    int ret;
 
-   if (!PosixConvertToCurrent(pathName1, &path1)) {
+   if (!PosixConvertToCurrent(uOldPath, &oldPath)) {
       return -1;
    }
-   if (!PosixConvertToCurrent(pathName2, &path2)) {
-      free(path1);
-
+   if (!PosixConvertToCurrent(uNewPath, &newPath)) {
+      Posix_Free(oldPath);
       return -1;
    }
 
-   ret = symlink(path1, path2);
+   ret = symlink(oldPath, newPath);
 
-   free(path1);
-   free(path2);
+   Posix_Free(oldPath);
+   Posix_Free(newPath);
 
    return ret;
 }
@@ -878,7 +880,7 @@ Posix_Mkfifo(const char *pathName,  // IN:
 
    ret = mkfifo(path, mode);
 
-   free(path);
+   Posix_Free(path);
 
    return ret;
 }
@@ -914,7 +916,7 @@ Posix_Truncate(const char *pathName,  // IN:
 
    ret = truncate(path, length);
 
-   free(path);
+   Posix_Free(path);
 
    return ret;
 }
@@ -950,7 +952,7 @@ Posix_Utimes(const char *pathName,         // IN:
 
    ret = utimes(path, times);
 
-   free(path);
+   Posix_Free(path);
 
    return ret;
 }
@@ -1026,10 +1028,8 @@ Posix_Execl(const char *pathName,  // IN:
    ret = execv(path, argv);
 
 exit:
-   if (argv) {
-      Util_FreeStringList(argv, -1);
-   }
-   free(path);
+   Util_FreeStringList(argv, -1);
+   Posix_Free(path);
 
    return ret;
 }
@@ -1105,10 +1105,8 @@ Posix_Execlp(const char *fileName,  // IN:
    ret = execvp(file, argv);
 
 exit:
-   if (argv) {
-      Util_FreeStringList(argv, -1);
-   }
-   free(file);
+   Util_FreeStringList(argv, -1);
+   Posix_Free(file);
 
    return ret;
 }
@@ -1149,10 +1147,8 @@ Posix_Execv(const char *pathName,  // IN:
    ret = execv(path, argv);
 
 exit:
-   if (argv) {
-      Util_FreeStringList(argv, -1);
-   }
-   free(path);
+   Util_FreeStringList(argv, -1);
+   Posix_Free(path);
 
    return ret;
 }
@@ -1177,7 +1173,7 @@ exit:
 
 int
 Posix_Execve(const char *pathName,  // IN:
-	     char *const argVal[],  // IN:
+             char *const argVal[],  // IN:
              char *const envPtr[])  // IN:
 {
    int ret = -1;
@@ -1198,13 +1194,9 @@ Posix_Execve(const char *pathName,  // IN:
    ret = execve(path, argv, envp);
 
 exit:
-   if (argv) {
-      Util_FreeStringList(argv, -1);
-   }
-   if (envp) {
-      Util_FreeStringList(envp, -1);
-   }
-   free(path);
+   Util_FreeStringList(argv, -1);
+   Util_FreeStringList(envp, -1);
+   Posix_Free(path);
 
    return ret;
 }
@@ -1245,13 +1237,53 @@ Posix_Execvp(const char *fileName,   // IN:
    ret = execvp(file, argv);
 
 exit:
-   if (argv) {
-      Util_FreeStringList(argv, -1);
-   }
-   free(file);
+   Util_FreeStringList(argv, -1);
+   Posix_Free(file);
 
    return ret;
 }
+
+
+#if TARGET_OS_IPHONE
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Posix_SplitCommands --
+ *
+ *      Split the commands into arguments.
+ *
+ * Results:
+ *      The length of the commands and the arguments.
+ *
+ * Side effects:
+ *      NO
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Posix_SplitCommands(char *command,  // IN
+                    char **argv)    // OUT
+{
+   char *token;
+   char *savePtr;
+   char *str;
+   int count;
+   for (count = 0, str = command; ; str = NULL, count++) {
+      token = strtok_r(str, " ", &savePtr);
+      if (token == NULL) {
+         break;
+      }
+      if (argv != NULL) {
+         *argv = token;
+         argv++;
+      }
+   }
+   return count;
+}
+
+#endif
 
 
 /*
@@ -1280,9 +1312,27 @@ Posix_System(const char *command)  // IN:
       return -1;
    }
 
+#if TARGET_OS_IPHONE
+   pid_t pid;
+   int count;
+   char **argv;
+   char *commandCopy = strdup(command);
+   count = Posix_SplitCommands(commandCopy, NULL);
+   free(commandCopy);
+   if (!count) {
+      return -1;
+   }
+   argv = malloc(count * sizeof(char *));
+   commandCopy = strdup(command);
+   Posix_SplitCommands(commandCopy, argv);
+   ret = posix_spawn(&pid, argv[0], NULL, NULL, argv, environ);
+   free(argv);
+   free(commandCopy);
+#else
    ret = system(tmpcommand);
+#endif
 
-   free(tmpcommand);
+   Posix_Free(tmpcommand);
 
    return ret;
 }
@@ -1318,7 +1368,7 @@ Posix_Mkdir(const char *pathName,  // IN:
 
    ret = mkdir(path, mode);
 
-   free(path);
+   Posix_Free(path);
 
    return ret;
 }
@@ -1353,7 +1403,7 @@ Posix_Chdir(const char *pathName)  // IN:
 
    ret = chdir(path);
 
-   free(path);
+   Posix_Free(path);
 
    return ret;
 }
@@ -1389,7 +1439,7 @@ Posix_RealPath(const char *pathName)  // IN:
 
    p = realpath(path, rpath);
 
-   free(path);
+   Posix_Free(path);
 
    return p == NULL ? NULL : Unicode_Alloc(rpath, STRING_ENCODING_DEFAULT);
 }
@@ -1426,23 +1476,23 @@ Posix_ReadLink(const char *pathName)  // IN:
          ssize_t len = readlink(path, linkPath, size);
 
          if (len == -1) {
-            free(linkPath);
+            Posix_Free(linkPath);
             break;
          }
 
          if (len < size) {
             linkPath[len] = '\0'; // Add the missing NUL to path
             result = Unicode_Alloc(linkPath, STRING_ENCODING_DEFAULT);
-            free(linkPath);
+            Posix_Free(linkPath);
             break;
          }
-         free(linkPath);
+         Posix_Free(linkPath);
 
          size += 1024;
       }
    }
 
-   free(path);
+   Posix_Free(path);
 
    return result;
 }
@@ -1478,7 +1528,7 @@ Posix_Lstat(const char *pathName,  // IN:
 
    ret = lstat(path, statbuf);
 
-   free(path);
+   Posix_Free(path);
 
    return ret;
 }
@@ -1513,7 +1563,7 @@ Posix_OpenDir(const char *pathName)  // IN:
 
    ret = opendir(path);
 
-   free(path);
+   Posix_Free(path);
 
    return ret;
 }
@@ -1547,14 +1597,14 @@ Posix_Getenv(const char *name)  // IN:
       return NULL;
    }
    rawValue = getenv(rawName);
-   free(rawName);
+   Posix_Free(rawName);
 
    if (rawValue == NULL) {
       return NULL;
    }
 
    return PosixGetenvHash(name, Unicode_Alloc(rawValue,
-					      STRING_ENCODING_DEFAULT));
+                                              STRING_ENCODING_DEFAULT));
 }
 
 
@@ -1617,7 +1667,7 @@ Posix_Statfs(const char *pathName,      // IN:
 
    ret = statfs(path, statfsbuf);
 
-   free(path);
+   Posix_Free(path);
 
    return ret;
 }
@@ -1703,8 +1753,8 @@ Posix_Setenv(const char *name,   // IN:
 #endif
 
 exit:
-   free(rawName);
-   free(rawValue);
+   Posix_Free(rawName);
+   Posix_Free(rawValue);
 
    return ret;
 }
@@ -1718,7 +1768,7 @@ exit:
  *      POSIX unsetenv().
  *
  * Results:
- *      None.
+ *      0 on success. -1 on error.
  *
  * Side effects:
  *      Environment may be changed.
@@ -1726,21 +1776,31 @@ exit:
  *----------------------------------------------------------------------
  */
 
-void
+int
 Posix_Unsetenv(const char *name)  // IN:
 {
    char *rawName;
+   int ret;
 
    if (!PosixConvertToCurrent(name, &rawName)) {
-      return;
+      return -1;
    }
 
 #if defined(sun)
-   putenv(rawName);
-#else
+   ret = putenv(rawName);
+#elif defined(__FreeBSD__)
+   /*
+    * Our tools build appears to use an old enough libc version that returns
+    * void.
+    */
    unsetenv(rawName);
+   ret = 0;
+#else
+   ret = unsetenv(rawName);
 #endif
-   free(rawName);
+   Posix_Free(rawName);
+
+   return ret;
 }
 
 
@@ -1785,8 +1845,8 @@ Posix_Mount(const char *source,          // IN:
    ret = mount(tmpsource, tmptarget, filesystemtype, mountflags, data);
 
 exit:
-   free(tmpsource);
-   free(tmptarget);
+   Posix_Free(tmpsource);
+   Posix_Free(tmptarget);
 
    return ret;
 }
@@ -1821,7 +1881,7 @@ Posix_Umount(const char *target)  // IN:
 
    ret = umount(tmptarget);
 
-   free(tmptarget);
+   Posix_Free(tmptarget);
 
    return ret;
 }
@@ -1862,7 +1922,7 @@ Posix_Setmntent(const char *pathName,  // IN:
       return NULL;
    }
    stream = setmntent(path, mode);
-   free(path);
+   Posix_Free(path);
 
    return stream;
 #endif
@@ -1898,13 +1958,13 @@ Posix_Getmntent(FILE *fp)  // IN:
    }
 
    /* Free static structure string pointers before reuse. */
-   free(sm.mnt_fsname);
+   Posix_Free(sm.mnt_fsname);
    sm.mnt_fsname = NULL;
-   free(sm.mnt_dir);
+   Posix_Free(sm.mnt_dir);
    sm.mnt_dir = NULL;
-   free(sm.mnt_type);
+   Posix_Free(sm.mnt_type);
    sm.mnt_type = NULL;
-   free(sm.mnt_opts);
+   Posix_Free(sm.mnt_opts);
    sm.mnt_opts = NULL;
 
    /* Fill out structure with new values. */
@@ -2057,10 +2117,10 @@ Posix_Getmntent_r(FILE *fp,          // IN:
 
 exit:
 
-   free(fsname);
-   free(dir);
-   free(type);
-   free(opts);
+   Posix_Free(fsname);
+   Posix_Free(dir);
+   Posix_Free(type);
+   Posix_Free(opts);
 
    if (ret != 0) {
       errno = ret;
@@ -2108,8 +2168,8 @@ Posix_Printf(const char *format,  // IN:
    }
    numChars = printf("%s", outCurr);
 
-   free(output);
-   free(outCurr);
+   Posix_Free(output);
+   Posix_Free(outCurr);
 
    return numChars;
 }
@@ -2151,8 +2211,8 @@ Posix_Fprintf(FILE *stream,        // IN:
    }
    nOutput = fprintf(stream, "%s", outCurr);
 
-   free(output);
-   free(outCurr);
+   Posix_Free(output);
+   Posix_Free(outCurr);
 
    return nOutput;
 }
@@ -2189,11 +2249,11 @@ Posix_Getmntent(FILE *fp,           // IN:
 
    ret = getmntent(fp, mp);
    if (ret == 0) {
-      free(m.mnt_special);
-      free(m.mnt_mountp);
-      free(m.mnt_fstype);
-      free(m.mnt_mntopts);
-      free(m.mnt_time);
+      Posix_Free(m.mnt_special);
+      Posix_Free(m.mnt_mountp);
+      Posix_Free(m.mnt_fstype);
+      Posix_Free(m.mnt_mntopts);
+      Posix_Free(m.mnt_time);
       m.mnt_special = Unicode_Alloc(mp->mnt_special, STRING_ENCODING_DEFAULT);
       m.mnt_mountp = Unicode_Alloc(mp->mnt_mountp, STRING_ENCODING_DEFAULT);
       m.mnt_fstype = Unicode_Alloc(mp->mnt_fstype, STRING_ENCODING_DEFAULT);
@@ -2247,6 +2307,6 @@ Posix_MkTemp(const char *pathName)  // IN:
       unlink(path);
       result = Unicode_Alloc(path, STRING_ENCODING_DEFAULT);
    }
-   free(path);
+   Posix_Free(path);
    return result;
 }

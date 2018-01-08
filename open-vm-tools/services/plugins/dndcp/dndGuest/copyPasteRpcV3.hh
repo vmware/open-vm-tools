@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -31,10 +31,11 @@
 #include "rpcV3Util.hpp"
 
 extern "C" {
-#include "vmware/tools/guestrpc.h"
-   #include "dnd.h"
-   #include "dndMsg.h"
+   #include "vmware/tools/guestrpc.h"
 }
+
+#include "dnd.h"
+#include "dndMsg.h"
 
 class CopyPasteRpcV3
    : public CopyPasteRpc,

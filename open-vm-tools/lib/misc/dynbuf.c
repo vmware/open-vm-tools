@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -30,13 +30,13 @@
 #include "vmware.h"
 #include "dynbuf.h"
 
-
 /*
  *-----------------------------------------------------------------------------
  *
  * DynBuf_Init --
  *
- *      Dynamic buffer constructor --hpreg
+ *      Dynamic buffer constructor. The dynamic buffer is empty and starts
+ *      with no memory allocated.
  *
  * Results:
  *      None
@@ -55,6 +55,38 @@ DynBuf_Init(DynBuf *b)  // OUT:
    b->data = NULL;
    b->size = 0;
    b->allocated = 0;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * DynBuf_InitWithMemory --
+ *
+ *      Dynamic buffer constructor. The dynamic buffer is empty but starts with
+ *      the specified memory allocation.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+DynBuf_InitWithMemory(DynBuf *b,        // IN/OUT:
+                      size_t dataSize,  // IN:
+                      void *data)       // IN:
+{
+   ASSERT(b);
+   ASSERT(dataSize != 0);
+   ASSERT(data != NULL);
+
+   b->size = 0;
+   b->data = data;
+   b->allocated = dataSize;
 }
 
 
@@ -81,38 +113,6 @@ DynBuf_Destroy(DynBuf *b)  // IN/OUT:
 
    free(b->data);
    DynBuf_Init(b);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * DynBuf_AllocGet --
- *
- *      Retrieve a pointer to the data contained in a dynamic buffer.  Return
- *      a copy of that data.
- *
- * Results:
- *      The pointer to the data.  NULL on out of memory failure.
- *
- * Side effects:
- *      Allocates memory.
- *
- *-----------------------------------------------------------------------------
- */
-
-void *
-DynBuf_AllocGet(DynBuf const *b)  // IN:
-{
-   void *new_data;
-   ASSERT(b);
-
-   new_data = malloc(b->size);
-   if (new_data) {
-      memcpy(new_data, b->data, b->size);
-   }
-
-   return new_data;
 }
 
 
@@ -152,11 +152,11 @@ DynBuf_Attach(DynBuf *b,    // IN/OUT:
  *
  * DynBuf_Detach --
  *
- *      Releases ownership of the buffer stored in the DynBuf object,
- *      and returns a pointer to it.
+ *      Transfers ownership of the buffer stored in the DynBuf object to the
+ *      caller.
  *
  * Results:
- *      The pointer to the data.
+ *      Returns a pointer to the data.  The caller must free it with free().
  *
  * Side effects:
  *      None
@@ -175,6 +175,33 @@ DynBuf_Detach(DynBuf *b)  // IN/OUT:
    b->data = NULL;
    b->allocated = 0;
 
+   return data;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * DynBuf_DetachString --
+ *
+ *      Transfers ownership of the buffer stored in the DynBuf object to the
+ *      caller.
+ *
+ * Results:
+ *      Returns a pointer to the data as a NUL-terminated string.  The caller
+ *      must free it with free().
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+char *
+DynBuf_DetachString(DynBuf *b) // IN/OUT
+{
+   char *data = DynBuf_GetString(b);
+   DynBuf_Detach(b);
    return data;
 }
 
@@ -261,10 +288,10 @@ DynBuf_Enlarge(DynBuf *b,       // IN/OUT:
                         1
 #else
                         /*
-                         * Initial size: 1 KB. Most buffers are smaller than
-                         * that --hpreg
+                         * Most DynBuf operations are on strings. Most strings
+                         * are less than 128 bytes long.
                          */
-                        1 << 10
+                        128
 #endif
                       ;
 
@@ -327,7 +354,7 @@ DynBuf_Append(DynBuf *b,        // IN/OUT:
 
    if (new_size > b->allocated) {
       /* Not enough room */
-      if (DynBuf_Enlarge(b, new_size) == FALSE) {
+      if (!DynBuf_Enlarge(b, new_size)) {
          return FALSE;
       }
    }

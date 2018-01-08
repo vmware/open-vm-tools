@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -25,12 +25,13 @@
 #include "fileTransferRpcV4.hh"
 #include "dndCPTransport.h"
 
+#include "dndMsg.h"
+#include "hgfsServer.h"
+#include "str.h"
+#include "util.h"
+
 extern "C" {
-   #include "dndMsg.h"
    #include "dndCPMsgV4.h"
-   #include "hgfsServer.h"
-   #include "str.h"
-   #include "util.h"
 
 #if defined VMX86_TOOLS
    #include "debug.h"

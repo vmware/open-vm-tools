@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -120,6 +120,19 @@ ServiceVerifyAndCheckTrustCertChainForSubject(int numCerts,
    ASSERT(numCerts > 0);
 
    /*
+    * Dump the token cert chain for debugging purposes.
+    */
+   if (gVerboseLogging) {
+      gchar *chainx509;
+
+      for (i = 0; i < numCerts; i++) {
+         chainx509 = CertVerify_CertToX509String(pemCertChain[i]);
+         Debug("%s: Token chain cert #%d:\n%s", __FUNCTION__, i, chainx509);
+         g_free(chainx509);
+      }
+   }
+
+   /*
     * If we have no userName, look through the mapping file for a match
     * from the cert chain.
     */
@@ -133,7 +146,7 @@ ServiceVerifyAndCheckTrustCertChainForSubject(int numCerts,
          /*
           * No username, no mapped certs, no chance.
           */
-         Debug("%s: no mapping entries or userName\n", __FUNCTION__);
+         Warning("%s: no mapping entries or userName\n", __FUNCTION__);
          err = VGAUTH_E_AUTHENTICATION_DENIED;
          goto done;
       }
@@ -177,8 +190,8 @@ ServiceVerifyAndCheckTrustCertChainForSubject(int numCerts,
        * Subject went unmatched, so fail.
        */
       if (NULL == queryUserName) {
-         Debug("%s: no matching subject found in mapping file\n",
-               __FUNCTION__);
+         Warning("%s: no matching cert and subject found in mapping file\n",
+                 __FUNCTION__);
          err = VGAUTH_E_AUTHENTICATION_DENIED;
          goto done;
       }
@@ -187,24 +200,11 @@ ServiceVerifyAndCheckTrustCertChainForSubject(int numCerts,
    }
 
    /*
-    * Dump the token cert chain for debugging purposes.
-    */
-   if (gVerboseLogging) {
-      gchar *chainx509;
-
-      for (i = 0; i < numCerts; i++) {
-         chainx509 = CertVerify_CertToX509String(pemCertChain[i]);
-         Debug("%s: Token chain cert #%d:\n%s", __FUNCTION__, i, chainx509);
-         g_free(chainx509);
-      }
-   }
-
-   /*
     * Make sure the user exists -- Query supports deleted users
     * to allow for cleanup.
     */
    if (!UsercheckUserExists(queryUserName)) {
-      Debug("%s: User '%s' doesn't exist\n", __FUNCTION__, queryUserName);
+      Warning("%s: User '%s' doesn't exist\n", __FUNCTION__, queryUserName);
       err = VGAUTH_E_AUTHENTICATION_DENIED;
       goto done;
    }
@@ -220,6 +220,8 @@ ServiceVerifyAndCheckTrustCertChainForSubject(int numCerts,
    if (gVerboseLogging) {
       gchar *storex509;
 
+      Debug("%s: %d certs in store for user %s\n",  __FUNCTION__,
+            numStoreCerts, queryUserName);
       for (i = 0; i < numStoreCerts; i++) {
          storex509 = CertVerify_CertToX509String(aList[i].pemCert);
          Debug("%s: Store chain cert #%d:\n%s", __FUNCTION__, i, storex509);
@@ -258,8 +260,8 @@ ServiceVerifyAndCheckTrustCertChainForSubject(int numCerts,
             }
             if ((foundSubjectIdx >= 0) || (foundAnyIdx >= 0)) {
                numTrusted++;
-               trustedCerts = g_realloc(trustedCerts,
-                                        numTrusted * sizeof(*trustedCerts));
+               trustedCerts = g_realloc_n(trustedCerts,
+                                          numTrusted, sizeof(*trustedCerts));
                trustedCerts[numTrusted - 1] = g_strdup(pemCertChain[i]);
                foundTrusted = TRUE;
                /*
@@ -274,8 +276,8 @@ ServiceVerifyAndCheckTrustCertChainForSubject(int numCerts,
       }
       if (!foundTrusted) {
          numUntrusted++;
-         untrustedCerts = g_realloc(untrustedCerts,
-                                    numUntrusted * sizeof(*untrustedCerts));
+         untrustedCerts = g_realloc_n(untrustedCerts,
+                                      numUntrusted, sizeof(*untrustedCerts));
          untrustedCerts[numUntrusted - 1] = g_strdup(pemCertChain[i]);
       }
    }
@@ -285,7 +287,7 @@ ServiceVerifyAndCheckTrustCertChainForSubject(int numCerts,
     */
    if (numTrusted == 0) {
       err = VGAUTH_E_AUTHENTICATION_DENIED;
-      Debug("%s: No trusted certs in chain\n", __FUNCTION__);
+      Warning("%s: No trusted certs in chain\n", __FUNCTION__);
       goto done;
    }
 

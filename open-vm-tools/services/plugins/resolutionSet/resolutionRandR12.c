@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -139,7 +139,7 @@ static FILE *_ofile;
 #define LOG_STOP fclose(_ofile)
 #else
 #define LOG_START
-#include <gtk/gtk.h>
+#include <glib.h>
 #define LOG_STOP
 #endif
 

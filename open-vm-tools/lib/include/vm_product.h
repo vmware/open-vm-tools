@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -61,13 +61,9 @@
 #define PRODUCT_SCALABLE_SERVER_BRIEF_NAME "ESX"
 #define PRODUCT_ESXI_BRIEF_NAME "ESXi"
 #define PRODUCT_WORKSTATION_BRIEF_NAME "Workstation"
-#define PRODUCT_WORKSTATION_ENTERPRISE_BRIEF_NAME \
-         PRODUCT_WORKSTATION_BRIEF_NAME " " "ACE Edition"
 #define PRODUCT_WORKSTATION_SERVER_BRIEF_NAME "Workstation Server"
 #define PRODUCT_PLAYER_BRIEF_NAME "Player"
-#define PRODUCT_ACE_PLAYER_BRIEF_NAME "ACE " PRODUCT_PLAYER_BRIEF_NAME
 #define PRODUCT_MAC_DESKTOP_BRIEF_NAME "Fusion"
-#define PRODUCT_ACE_MANAGEMENT_SERVER_BRIEF_NAME "ACE Management Server"
 #define PRODUCT_VMRC_BRIEF_NAME "Remote Console"
 #define PRODUCT_GANTRY_BRIEF_NAME "AppCatalyst"
 
@@ -83,16 +79,11 @@
 #define VMWARE_TOOLS_SHORT_NAME MAKE_NAME("Tools")
 
 #define PRODUCT_SCALABLE_SERVER_NAME MAKE_NAME(PRODUCT_SCALABLE_SERVER_BRIEF_NAME)
-#define PRODUCT_ESX_SMP_NAME MAKE_NAME("Virtual SMP for ESX Server")
 #define PRODUCT_WORKSTATION_NAME MAKE_NAME(PRODUCT_WORKSTATION_BRIEF_NAME)
-#define PRODUCT_WORKSTATION_ENTERPRISE_NAME MAKE_NAME(PRODUCT_WORKSTATION_ENTERPRISE_BRIEF_NAME)
 #define PRODUCT_WORKSTATION_SERVER_NAME MAKE_NAME(PRODUCT_WORKSTATION_SERVER_BRIEF_NAME)
-#define PRODUCT_MUI_NAME MAKE_NAME("Management Interface")
 #define PRODUCT_CONSOLE_NAME MAKE_NAME("Server Console")
 #define PRODUCT_PLAYER_NAME MAKE_NAME(PRODUCT_PLAYER_BRIEF_NAME)
 #define PRODUCT_PLAYER_NAME_FOR_LICENSE PRODUCT_PLAYER_NAME
-#define PRODUCT_ACE_PLAYER_NAME MAKE_NAME(PRODUCT_ACE_PLAYER_BRIEF_NAME)
-#define PRODUCT_ACE_MANAGEMENT_SERVER_NAME MAKE_NAME(PRODUCT_ACE_MANAGEMENT_SERVER_BRIEF_NAME)
 #define PRODUCT_MAC_DESKTOP_NAME_FOR_LICENSE "VMware Fusion for Mac OS"
 #define PRODUCT_VMRC_NAME MAKE_NAME(PRODUCT_VMRC_BRIEF_NAME)
 #define PRODUCT_VMRC_NAME_FOR_LICENSE PRODUCT_VMRC_NAME
@@ -114,9 +105,6 @@
 #define PRODUCT_SYSIMAGE_SHORT_NAME "SysImage"
 #define PRODUCT_SYSIMAGE_NAME MAKE_NAME("System Image Framework")
 
-#define PRODUCT_VCB_SHORT_NAME "VCB"
-#define PRODUCT_VCB_NAME MAKE_NAME("Consolidated Backup")
-
 #define PRODUCT_VPX_NAME MAKE_NAME("VirtualCenter")
 
 #define PRODUCT_VPXA_NAME PRODUCT_VPX_NAME " Agent"
@@ -136,10 +124,6 @@
 #define PRODUCT_SSOINSTALLER_NAME MAKE_NAME("Single Sign On")
 
 #define PRODUCT_SSOREGMM_NAME MAKE_NAME("vCenter Registration Tool")
-
-// XXX I think these are dead and can be removed -clayton
-// #define PRODUCT_VDM_SHORT_NAME "VDM"
-// #define PRODUCT_VDM_NAME MAKE_NAME("Virtual Desktop Manager")
 
 #define PRODUCT_VDDK_SHORT_NAME "VDDK"
 #define PRODUCT_VDDK_NAME MAKE_NAME("Virtual Disk Development Kit")
@@ -203,16 +187,13 @@
 
 #if !(   defined(VMX86_SERVER)   \
       || defined(VMX86_DESKTOP)  \
-      || defined(VMX86_ENTERPRISE_DESKTOP) \
       || defined(VMX86_HORIZON_VIEW)     \
-      || defined(VMX86_MUI)      \
       || defined(VMX86_VPX)      \
       || defined(VMX86_WBC)      \
       || defined(VMX86_SDK)      \
       || defined(VMX86_TOOLS)    \
       || defined(VMX86_V2V)      \
       || defined(VMX86_SYSIMAGE) \
-      || defined(VMX86_VCB)      \
       || defined(VMX86_VMLS)     \
       || defined(VMX86_VLICENSE) \
       || defined(VMX86_P2V)      \
@@ -239,22 +220,10 @@
 # define PRODUCT_SHORT_NAME PRODUCT_VMVISOR_NAME
 #elif defined(VMX86_SERVER)
 # define PRODUCT_SHORT_NAME PRODUCT_SCALABLE_SERVER_NAME
-#elif defined(VMX86_CONSOLE)
-# define PRODUCT_SHORT_NAME PRODUCT_CONSOLE_NAME
-#elif defined(VMX86_MUI)
-# define PRODUCT_SHORT_NAME PRODUCT_MUI_NAME
 #elif defined(VMX86_VMRC) /* check VMX86_VMRC before VMX86_DESKTOP */
 # define PRODUCT_SHORT_NAME PRODUCT_VMRC_NAME
 #elif defined(VMX86_GANTRY)
 # define PRODUCT_SHORT_NAME PRODUCT_GANTRY_NAME
-#elif defined(VMX86_ENTERPRISE_DESKTOP)
-# define PRODUCT_SHORT_NAME PRODUCT_WORKSTATION_ENTERPRISE_NAME
-#elif defined(VMX86_DESKTOP)
-# if defined(__APPLE__)
-#  define PRODUCT_SHORT_NAME PRODUCT_MAC_DESKTOP_NAME
-# else
-#  define PRODUCT_SHORT_NAME PRODUCT_WORKSTATION_NAME
-# endif
 #elif defined(VMX86_TOOLS)
 # define PRODUCT_SHORT_NAME VMWARE_TOOLS_SHORT_NAME
 #elif defined(VMX86_VPX)
@@ -285,8 +254,6 @@
 # define PRODUCT_SHORT_NAME PRODUCT_V2V_NAME
 #elif defined(VMX86_SYSIMAGE)
 # define PRODUCT_SHORT_NAME PRODUCT_SYSIMAGE_NAME
-#elif defined(VMX86_VCB)
-# define PRODUCT_SHORT_NAME PRODUCT_VCB_NAME
 #elif defined(VMX86_VMLS)
 # define PRODUCT_SHORT_NAME PRODUCT_VMLS_NAME
 #elif defined(VMX86_VLICENSE)
@@ -303,6 +270,13 @@
 # define PRODUCT_SHORT_NAME PRODUCT_VIEW_NAME
 #elif defined(VMX86_VMCF)
 # define PRODUCT_SHORT_NAME PRODUCT_VMCF_NAME
+// VMX86_DESKTOP must be last because it is the default and is always defined.
+#elif defined(VMX86_DESKTOP)
+# if defined(__APPLE__)
+#  define PRODUCT_SHORT_NAME PRODUCT_MAC_DESKTOP_NAME
+# else
+#  define PRODUCT_SHORT_NAME PRODUCT_WORKSTATION_NAME
+# endif
 #endif
 
 
@@ -310,18 +284,9 @@
  * Names of programs
  */
 
-#if defined(VMX86_CONSOLE)
-   #if defined(__linux__) || defined(__FreeBSD__)
-   #define VMWARE_EXECUTABLE PRODUCT_GENERIC_NAME_LOWER "-console"
-   #else
-   #define VMWARE_EXECUTABLE PRODUCT_GENERIC_NAME_LOWER "Console.exe"
-   #endif
-#else
 #define VMWARE_EXECUTABLE PRODUCT_GENERIC_NAME_LOWER
-#endif
 
 #define VMWARE_VMX_EXECUTABLE PRODUCT_GENERIC_NAME_LOWER "-vmx"
-#define CCAGENT_DISPLAY_NAME   PRODUCT_VPX_NAME " Agent"
 #if defined(__linux__) || defined(__FreeBSD__)
 #   define VMAUTHD_EXECUTABLE PRODUCT_GENERIC_NAME_LOWER "-authd"
 #else
@@ -361,40 +326,30 @@
  */
 #   if defined(VMX86_SERVER)
 #      define PRODUCT_NAME_FOR_LICENSE "VMware ESX Server"
-#      define PRODUCT_SMP_NAME_FOR_LICENSE PRODUCT_ESX_SMP_NAME
 #   elif defined(VMX86_VMRC) /* check VMX86_VMRC before VMX86_DESKTOP */
 #      define PRODUCT_NAME_FOR_LICENSE PRODUCT_VMRC_NAME_FOR_LICENSE
-#      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None
 #   elif defined(VMX86_GANTRY)
 #      define PRODUCT_NAME_FOR_LICENSE PRODUCT_GANTRY_NAME_FOR_LICENSE
-#      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None
+#   elif defined(VMX86_VPX)
+#      define PRODUCT_NAME_FOR_LICENSE PRODUCT_NAME " Server"
+#   elif defined(VMX86_SYSIMAGE)
+#      define PRODUCT_NAME_FOR_LICENSE PRODUCT_NAME
+#   elif defined(VMX86_NETDUMP)
+#      define PRODUCT_NAME_FOR_LICENSE PRODUCT_NETDUMP_NAME
+// VMX86_DESKTOP must be last because it is the default and is always defined.
 #   elif defined(VMX86_DESKTOP)
 #      if defined(__APPLE__)
 #         define PRODUCT_NAME_FOR_LICENSE PRODUCT_MAC_DESKTOP_NAME_FOR_LICENSE
 #      else
 #         define PRODUCT_NAME_FOR_LICENSE "VMware Workstation"
 #      endif
-#      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None
-#   elif defined(VMX86_VPX)
-#      define PRODUCT_NAME_FOR_LICENSE PRODUCT_NAME " Server"
-#      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None
-#   elif defined(VMX86_SYSIMAGE)
-#      define PRODUCT_NAME_FOR_LICENSE PRODUCT_NAME
-#      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None
-#   elif defined(VMX86_NETDUMP)
-#      define PRODUCT_NAME_FOR_LICENSE PRODUCT_NETDUMP_NAME
-#      define PRODUCT_SMP_NAME_FOR_LICENSE "" //None
 #   else   /* It is a product that doesn't use a license */
 #      define PRODUCT_NAME_FOR_LICENSE PRODUCT_NAME
-#      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None
 #   endif
 
 /*
  * VMWARE_HOST_DIRECTORY is for host-specific configuration files.
  * DEFAULT_LIBDIRECTORY is the default for the 'libdir' config variable.
- *
- * The remote console checks at run time, and the MUI is not really a separate
- * product.
  */
 #   if defined(__APPLE__)
 #      if defined VMX86_GANTRY
@@ -407,25 +362,7 @@
 #         define VMWARE_HOST_DIRECTORY_PREFIX \
              "/Library/Application Support/" PRODUCT_SHORT_NAME
 #      endif
-#   endif
-
-#   if defined (VMX86_CONSOLE)
-#      if defined(__APPLE__)
-#         define VMWARE_HOST_DIRECTORY VMWARE_HOST_DIRECTORY_PREFIX " Console"
-#      else
-#         define VMWARE_HOST_DIRECTORY "/etc/" PRODUCT_GENERIC_NAME_LOWER "-console"
-#         define DEFAULT_LIBDIRECTORY "/usr/lib/" PRODUCT_GENERIC_NAME_LOWER "-console"
-#      endif
-#   else
-#      if defined(__APPLE__)
-#         define VMWARE_HOST_DIRECTORY VMWARE_HOST_DIRECTORY_PREFIX
-#      else
-#         define VMWARE_HOST_DIRECTORY "/etc/" PRODUCT_GENERIC_NAME_LOWER
-#         define DEFAULT_LIBDIRECTORY "/usr/lib/" PRODUCT_GENERIC_NAME_LOWER
-#      endif
-#   endif
-
-#   if defined(__APPLE__)
+#      define VMWARE_HOST_DIRECTORY VMWARE_HOST_DIRECTORY_PREFIX
 #      if defined VMX86_DESKTOP
 /* On Mac OS, use Location_Get() instead of DEFAULT_LIBDIRECTORY. */
 #         define DEFAULT_LIBDIRECTORY \
@@ -433,6 +370,9 @@
 #      else
 #         define DEFAULT_LIBDIRECTORY VMWARE_HOST_DIRECTORY
 #      endif
+#   else
+#      define VMWARE_HOST_DIRECTORY "/etc/" PRODUCT_GENERIC_NAME_LOWER
+#      define DEFAULT_LIBDIRECTORY "/usr/lib/" PRODUCT_GENERIC_NAME_LOWER
 #   endif
 
 /* For user-specific files. */
@@ -463,23 +403,19 @@
  */
 #   if defined(VMX86_VMRC) /* check VMX86_VMRC before VMX86_DESKTOP */
 #      define PRODUCT_NAME_FOR_LICENSE PRODUCT_VMRC_NAME
-#      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None
 #   elif defined(VMX86_FLEX) /* check VMX86_FLEX before VMX86_DESKTOP */
 #      define PRODUCT_NAME_FOR_LICENSE PRODUCT_FLEX_NAME
-#      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None
+#   elif defined(VMX86_VPX)
+#      define PRODUCT_NAME_FOR_LICENSE PRODUCT_NAME " Server"
+// VMX86_DESKTOP must be last because it is the default and is always defined.
 #   elif defined(VMX86_DESKTOP)
 #      if defined(__APPLE__)
 #         define PRODUCT_NAME_FOR_LICENSE PRODUCT_MAC_DESKTOP_NAME_FOR_LICENSE
 #      else
 #         define PRODUCT_NAME_FOR_LICENSE "VMware Workstation"
 #      endif
-#      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None
-#   elif defined(VMX86_VPX)
-#      define PRODUCT_NAME_FOR_LICENSE PRODUCT_NAME " Server"
-#      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None
 #   else
 #      define PRODUCT_NAME_FOR_LICENSE PRODUCT_REG_NAME
-#      define PRODUCT_SMP_NAME_FOR_LICENSE "" // None
 #   endif
 
 #define PRIVATE_REG_KEY "Private"
@@ -501,9 +437,7 @@
  * before linux below since it uses the Linux gcc which automatically defines
  * linux; the other platforms don't have this issue.
  */
-#ifdef N_PLAT_NLM
-#  define PRODUCT_NAME_PLATFORM         PRODUCT_NAME " for NetWare"
-#elif defined(linux)
+#if defined(__linux__)
 #  define PRODUCT_NAME_PLATFORM         PRODUCT_NAME " for Linux"
 #elif defined(_WIN32)
 #  define PRODUCT_NAME_PLATFORM         PRODUCT_NAME " for Windows"
@@ -521,19 +455,6 @@
 #  endif
 #endif
 
-
-/*
- * This is for ACE Management Server
- * Since there is no separate product defined for Ace Mgmt Server
- * (i.e. PRODUCT=xxx when running makefile), we can not used the
- * generic PRODUCT_NAME_STRING_FOR_LICENSE definition.
- * As a result, the specific ACE_MGMT_SERVER_PRODUCT_NAME_FOR_LICENSE
- * is used instead.
- * A similar reason is used also for the PRODUCT_VERSION_STRING_FOR_LICENSE
- * definition in the vm_version.h
- */
-
-#define ACE_MGMT_SERVER_PRODUCT_NAME_FOR_LICENSE      "VMware ACE Management Server"
 
 /*
  * For Host Agent (hostd)

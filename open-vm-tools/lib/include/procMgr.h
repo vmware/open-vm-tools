@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2002-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2002-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -142,6 +142,12 @@ Bool ProcMgr_ExecSync(char const *cmd,       // UTF-8
                       ProcMgr_ProcArgs *userArgs);
 ProcMgr_AsyncProc *ProcMgr_ExecAsync(char const *cmd,     // UTF-8
                                      ProcMgr_ProcArgs *userArgs);
+#if defined(__linux__)
+Bool ProcMgr_ExecSyncWithExitCode(char const *cmd,
+                                  ProcMgr_ProcArgs *userArgs,
+                                  Bool *validExitCode,
+                                  int *exitCode);
+#endif
 void ProcMgr_Kill(ProcMgr_AsyncProc *asyncProc);
 Selectable ProcMgr_GetAsyncProcSelectable(ProcMgr_AsyncProc *asyncProc);
 ProcMgr_Pid ProcMgr_GetPid(ProcMgr_AsyncProc *asyncProc);

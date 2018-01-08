@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -39,6 +39,64 @@
 
 /*
  ******************************************************************************
+ * ServiceNetworkCreateSocketDir --                                      */ /**
+ *
+ * Creates the directory for the UNIX domain sockets and pid files.
+ *
+ * @return TRUE on success, FALSE on failure.
+ *
+ ******************************************************************************
+ */
+
+gboolean
+ServiceNetworkCreateSocketDir(void)
+{
+   gboolean bRet = TRUE;
+   char *socketDir = NULL;
+
+   socketDir = g_path_get_dirname(SERVICE_PUBLIC_PIPE_NAME);
+   ASSERT(socketDir != NULL);
+
+   /*
+    * Punt if its there but not a directory.
+    *
+    * g_file_test() on a symlink will return true for IS_DIR
+    * if it's a link pointing to a directory, since glib
+    * uses stat() instead of lstat().
+    */
+   if (g_file_test(socketDir, G_FILE_TEST_EXISTS) &&
+       (!g_file_test(socketDir, G_FILE_TEST_IS_DIR) ||
+       g_file_test(socketDir, G_FILE_TEST_IS_SYMLINK))) {
+      bRet = FALSE;
+      Warning("%s: socket dir path '%s' already exists as a non-directory; "
+              "aborting\n", __FUNCTION__, socketDir);
+      goto abort;
+   }
+
+   /*
+    * XXX May want to add some security checks here.
+    */
+   if (!g_file_test(socketDir, G_FILE_TEST_EXISTS)) {
+      int ret;
+
+      ret = ServiceFileMakeDirTree(socketDir, 0755);
+      if (ret < 0) {
+         bRet = FALSE;
+         Warning("%s: failed to create socket dir '%s' error: %d\n",
+                 __FUNCTION__, socketDir, ret);
+         goto abort;
+      }
+      Log("%s: Created socket directory '%s'\n", __FUNCTION__, socketDir);
+   }
+abort:
+   g_free(socketDir);
+
+   return bRet;
+}
+
+
+/*
+ ******************************************************************************
  * ServiceNetworkListen --                                               */ /**
  *
  * Creates the UNIX domain socket and starts listening on it.
@@ -64,7 +122,6 @@ ServiceNetworkListen(ServiceConnection *conn,            // IN/OUT
    struct stat stbuf;
    uid_t uid;
    gid_t gid;
-   char *socketDir = NULL;
 
    /*
     * For some reason, this is simply hardcoded in sys/un.h
@@ -81,40 +138,10 @@ ServiceNetworkListen(ServiceConnection *conn,            // IN/OUT
     * Make sure the socket dir exists.  In theory this is only ever done once,
     * but something could clobber it.
     */
-   socketDir = g_path_get_dirname(SERVICE_PUBLIC_PIPE_NAME);
-   ASSERT(socketDir != NULL);
-
-   /*
-    * Punt if its there but not a directory.
-    *
-    * g_file_test() on a symlink will return true for IS_DIR
-    * if it's a link pointing to a directory, since glib
-    * uses stat() instead of lstat().
-    */
-   if (g_file_test(socketDir, G_FILE_TEST_EXISTS) &&
-       (!g_file_test(socketDir, G_FILE_TEST_IS_DIR) ||
-       g_file_test(socketDir, G_FILE_TEST_IS_SYMLINK))) {
+   if (!ServiceNetworkCreateSocketDir()) {
       err = VGAUTH_E_COMM;
-      Warning("%s: socket dir path '%s' already exists as a non-directory; "
-              "aborting\n", __FUNCTION__, socketDir);
       goto abort;
    }
-
-   /*
-    * XXX May want to add some security checks here.
-    */
-   if (!g_file_test(socketDir, G_FILE_TEST_EXISTS)) {
-      ret = ServiceFileMakeDirTree(socketDir, 0755);
-      if (ret < 0) {
-         err = VGAUTH_E_COMM;
-         Warning("%s: failed to create socket dir '%s' %d\n",
-                 __FUNCTION__, socketDir, ret);
-         goto abort;
-      }
-      Log("%s: Created socket directory '%s'\n", __FUNCTION__, socketDir);
-   }
-   g_free(socketDir);
-   socketDir = NULL;
 
    sock = socket(PF_UNIX, SOCK_STREAM, 0);
    if (sock < 0) {
@@ -193,7 +220,6 @@ ServiceNetworkListen(ServiceConnection *conn,            // IN/OUT
    return VGAUTH_E_OK;
 
 abort:
-   g_free(socketDir);
    if (sock >= 0) {
       close(sock);
    }

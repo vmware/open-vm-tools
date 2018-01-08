@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -538,6 +538,7 @@ exit:
  *
  * @param[in]  config   Config file to read the key from.
  * @param[in]  section  Section to look for in the config file.
+ * @param[in]  key      Key to look for in the section.
  * @param[in]  defValue Default value if the key is not found or error.
  *
  * @return value of the key if value was read successfully, else defValue.
@@ -547,7 +548,7 @@ gboolean
 VMTools_ConfigGetBoolean(GKeyFile *config,
                          const gchar *section,
                          const gchar *key,
-                         gboolean defValue)
+                         const gboolean defValue)
 {
    GError *err = NULL;
    gboolean value;
@@ -580,6 +581,7 @@ VMTools_ConfigGetBoolean(GKeyFile *config,
  *
  * @param[in]  config   Config file to read the key from.
  * @param[in]  section  Section to look for in the config file.
+ * @param[in]  key      Key to look for in the section.
  * @param[in]  defValue Default value if the key is not found or error.
  *
  * @return value of the key if value was read successfully, else defValue.
@@ -589,7 +591,7 @@ gint
 VMTools_ConfigGetInteger(GKeyFile *config,
                          const gchar *section,
                          const gchar *key,
-                         gint defValue)
+                         const gint defValue)
 {
    GError *err = NULL;
    gint value;
@@ -619,16 +621,19 @@ VMTools_ConfigGetInteger(GKeyFile *config,
  *
  * @param[in]  config   Config file to read the key from.
  * @param[in]  section  Section to look for in the config file.
+ * @param[in]  key      Key to look for in the section.
  * @param[in]  defValue Default value if the key is not found or error.
  *
- * @return value of the key if value was read successfully, else defValue.
+ * @return value of the key if value was read successfully, else a copy
+ * of defValue unless defValue is NULL, in which case it's NULL.
+ * The returned string should be freed with g_free() when no longer needed.
  */
 
 gchar *
 VMTools_ConfigGetString(GKeyFile *config,
                         const gchar *section,
                         const gchar *key,
-                        gchar *defValue)
+                        const gchar *defValue)
 {
    GError *err = NULL;
    gchar *value;
@@ -646,7 +651,7 @@ VMTools_ConfigGetString(GKeyFile *config,
       }
       g_debug("%s: Returning default value for '[%s] %s'=%s.\n",
               __FUNCTION__, section, key, defValue ? defValue : "(null)");
-      value = defValue;
+      value = g_strdup(defValue);
       g_clear_error(&err);
    }
    return value;

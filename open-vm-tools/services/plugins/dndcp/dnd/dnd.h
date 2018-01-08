@@ -27,16 +27,20 @@
 #define _DND_H_
 
 #define INCLUDE_ALLOW_USERLEVEL
+#include "includeCheck.h"
 
 #ifdef _WIN32
 #   include <windows.h>
 #   include <shellapi.h>
 #endif
 
-#include "includeCheck.h"
 #include "vm_basic_types.h"
 #include "unicodeTypes.h"
 #include "dynarray.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 /* Error value returned when data contains illegal characters */
 #define DND_ILLEGAL_CHARACTERS  "data contains illegal characters"
@@ -108,6 +112,9 @@ typedef enum
    CPFORMAT_FILECONTENTS,
    CPFORMAT_IMG_PNG,
    CPFORMAT_FILEATTRIBUTES,
+   CPFORMAT_BIFF12,
+   CPFORMAT_ART_GVML_CLIPFORMAT,
+   CPFORMAT_HTML_FORMAT,
    CPFORMAT_MAX,
 } DND_CPFORMAT;
 
@@ -133,6 +140,8 @@ typedef struct CPClipItem {
  */
 typedef struct {
    Bool changed;
+   Bool isInitialized;
+   uint32 maxSize;
    CPClipItem items[CPFORMAT_MAX - 1];
 } CPClipboard;
 
@@ -221,6 +230,10 @@ Bool DnD_SetCPClipboardFromLocalText(CPClipboard *clip,
                                      utf16_t *bufIn);
 Bool DnD_SetCPClipboardFromLocalRtf(CPClipboard *clip,
                                     char *bufIn);
+Bool DnD_SetCPClipboardFromSpecifiedFormat(CPClipboard *clip,
+                                           const DND_CPFORMAT fmt,
+                                           char *bufIn,
+                                           unsigned int len);
 Bool DnD_SetCPClipboardFromBMPInfo(CPClipboard *clip,
                                    const LPBITMAPINFOHEADER bmi,
                                    DND_CPFORMAT fmt);
@@ -302,5 +315,9 @@ size_t DnD_TransportMsgToPacket(uint8 *msg,
 size_t DnD_TransportReqPacket(DnDTransportBuffer *buf,
                               DnDTransportPacketHeader **packet);
 #endif // !SWIG
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif // _DND_H_

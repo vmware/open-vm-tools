@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -83,15 +83,20 @@ extern int vswprintf(wchar_t *wcs, size_t maxlen, const wchar_t *format, va_list
  *      Compatibility wrapper b/w different libc versions
  *
  * Results:
+ *      int - number of bytes stored in 'str' (not including NUL terminator),
+ *      -1 on overflow (insufficient space for NUL terminator is considered
+ *      overflow).
  *
- *      int - number of bytes stored in 'str' (not including NUL
- *      terminate character), -1 on overflow (insufficient space for
- *      NUL terminate is considered overflow)
+ *      Guaranteed to NUL-terminate if 'size' > 0.
  *
  *      NB: on overflow the buffer WILL be NUL terminated at the last
  *      UTF-8 code point boundary within the buffer's bounds.
  *
- * WARNING: See warning at the top of this file.
+ * WARNING:
+ *      Behavior of this function is guaranteed only if HAS_BSD_PRINTF is
+ *      enabled.
+ *
+ *      See the warning at the top of this file for proper va_list usage.
  *
  * Side effects:
  *      None
@@ -110,22 +115,20 @@ Str_Vsnprintf(char *str,          // OUT
    ASSERT(str != NULL);
    ASSERT(format != NULL);
 
-#if defined HAS_BSD_PRINTF && !defined __ANDROID__
+#if defined HAS_BSD_PRINTF
    retval = bsd_vsnprintf(&str, size, format, ap);
 #else
+   /*
+    * Linux glibc 2.0.x (which we shouldn't be linking against) returns -1, but
+    * glibc 2.1.x follows c99 and returns the number characters (excluding NUL)
+    * that would have been written if given a sufficiently large buffer.
+    *
+    * In the case of Win32, this path uses _vsnprintf(), which returns -1 on
+    * overflow, returns size when result fits exactly, and does not NUL
+    * terminate in those cases.
+    */
    retval = vsnprintf(str, size, format, ap);
 #endif
-
-   /*
-    * Linux glibc 2.0.x returns -1 and NUL terminates (which we shouldn't
-    * be linking against), but glibc 2.1.x follows c99 and returns
-    * characters that would have been written.
-    *
-    * In the case of Win32 and !HAS_BSD_PRINTF, we are using
-    * _vsnprintf(), which returns -1 on overflow, returns size
-    * when result fits exactly, and does not NUL terminate in
-    * those cases.
-    */
 
    if ((retval < 0) || (retval >= size)) {
       if (size > 0) {
@@ -236,12 +239,7 @@ Str_Sprintf(char *buf,       // OUT
  *      Compatibility wrapper b/w different libc versions
  *
  * Results:
- *
- *      int - number of bytes stored in 'str' (not including NUL
- *      terminate character), -1 on overflow (insufficient space for
- *      NUL terminate is considered overflow)
- *
- *      NB: on overflow the buffer WILL be NUL terminated
+ *      See Str_Vsnprintf.
  *
  * Side effects:
  *      None
@@ -300,6 +298,47 @@ Str_Strcpy(char *buf,       // OUT
       Panic("%s:%d Buffer too small\n", __FILE__, __LINE__);
    }
    return memcpy(buf, src, len + 1);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Str_Strncpy --
+ *
+ *      Unlike strncpy:
+ *      * Guaranteed to NUL-terminate.
+ *      * If the src string is shorter than n bytes, does NOT zero-fill the
+ *        remaining bytes.
+ *      * Panics if a buffer overrun would have occurred.
+ *
+ * Results:
+ *      Same as strncpy.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+char *
+Str_Strncpy(char *dest,       // IN/OUT
+            size_t destSize,  // IN: Size of dest
+            const char *src,  // IN: String to copy
+            size_t n)         // IN: Max chars of src to copy, not including NUL
+{
+   ASSERT(dest != NULL);
+   ASSERT(src != NULL);
+
+   n = Str_Strlen(src, n);
+
+   if (n >= destSize) {
+      Panic("%s:%d Buffer too small\n", __FILE__, __LINE__);
+   }
+
+   memcpy(dest, src, n);
+   dest[n] = '\0';
+   return dest;
 }
 
 
@@ -435,6 +474,8 @@ Str_Strcat(char *buf,       // IN/OUT
  *    Specifically, this function will Panic if a buffer overrun would
  *    have occurred.
  *
+ *    Guaranteed to NUL-terminate.
+ *
  * Results:
  *    Same as strncat.
  *
@@ -456,22 +497,19 @@ Str_Strncat(char *buf,       // IN/OUT
    ASSERT(src != NULL);
 
    /*
-    * Check bufLen + n first so we can avoid the second call to strlen
-    * if possible.
+    * If bufLen + n is OK, we know things will fit (and avoids a strlen(src)).
+    * If bufLen + n looks too big, they still might fit if the src is short
+    * enough... so repeat the check using strlen(src).
     *
-    * The reason the test with bufLen and n is >= rather than just >
-    * is that strncat always NUL-terminates the resulting string, even
-    * if it reaches the length limit n. This means that if it happens that
-    * bufLen + n == bufSize, strncat will write a NUL terminator that
-    * is outside of the buffer. Therefore, we make sure this does not
-    * happen by adding the == case to the Panic test.
+    * The "fit" means less than, as strncat always adds a terminating NUL.
     */
 
    bufLen = strlen(buf);
+   bufLen = MIN(bufLen, bufSize);  // Prevent potential overflow
 
-   if (bufLen + n >= bufSize &&
-       bufLen + strlen(src) >= bufSize) {
-      Panic("%s:%d Buffer too small\n", __FILE__,__LINE__);
+   if (!(bufLen + n < bufSize ||
+         bufLen + strlen(src) < bufSize)) {
+      Panic("%s:%d Buffer too small\n", __FILE__, __LINE__);
    }
 
    /*
@@ -580,7 +618,7 @@ StrVasprintfInternal(size_t *length,       // OUT/OPT:
    char *buf = NULL;
    int ret;
 
-#if defined HAS_BSD_PRINTF && !defined __ANDROID__
+#if defined HAS_BSD_PRINTF
    ret = bsd_vsnprintf(&buf, 0, format, arguments);
 
 #elif !defined sun && !defined STR_NO_WIN32_LIBS
@@ -695,10 +733,14 @@ Str_SafeVasprintf(size_t *length,       // OUT/OPT
  *
  * Str_Swprintf --
  *
- *      wsprintf wrapper that fails on overflow
+ *      swprintf wrapper that fails on overflow
  *
  * Results:
  *      Returns the number of wchar_ts stored in 'buf'.
+ *
+ * WARNING:
+ *      Behavior of this function is guaranteed only if HAS_BSD_WPRINTF is
+ *      enabled.
  *
  * Side effects:
  *      None.
@@ -740,7 +782,11 @@ Str_Swprintf(wchar_t *buf,       // OUT
  *
  *      NB: on overflow the buffer WILL be NUL terminated
  *
- * WARNING: See warning at the top of this file.
+ * WARNING:
+ *      Behavior of this function is guaranteed only if HAS_BSD_WPRINTF is
+ *      enabled.
+ *
+ *      See the warning at the top of this file for proper va_list usage.
  *
  * Side effects:
  *      None
@@ -756,30 +802,32 @@ Str_Vsnwprintf(wchar_t *str,          // OUT
 {
    int retval;
 
-#if defined(HAS_BSD_WPRINTF) && HAS_BSD_WPRINTF
+#if defined HAS_BSD_WPRINTF
    retval = bsd_vsnwprintf(&str, size, format, ap);
 #elif defined(_WIN32)
-   retval = _vsnwprintf(str, size, format, ap);
-#else
-   retval = vswprintf(str, size, format, ap);
-#endif
-
    /*
-    * Linux glibc 2.0.x returns -1 and NUL terminates (which we shouldn't
-    * be linking against), but glibc 2.1.x follows c99 and returns
-    * characters that would have been written.
-    *
-    * In the case of Win32 and !HAS_BSD_PRINTF, we are using
-    * _vsnwprintf(), which returns -1 on overflow, returns size
-    * when result fits exactly, and does not NUL terminate in
-    * those cases.
+    * _vsnwprintf() returns -1 on overflow, returns size when result fits
+    * exactly, and does not NUL terminate in those cases.
     */
-
-#if defined _WIN32 && !defined HAS_BSD_PRINTF
+   retval = _vsnwprintf(str, size, format, ap);
    if ((retval < 0 || retval >= size) && size > 0) {
       str[size - 1] = L'\0';
    }
+#else
+   /*
+    * There is no standard vsnwprintf function.  vswprintf is close, but unlike
+    * vsnprintf, vswprintf always returns a negative value if truncation
+    * occurred.  Additionally, the state of the destination buffer on failure
+    * is not specified.  Although the C99 specification says that [v]swprintf
+    * should always NUL-terminate, glibc (as of 2.24) is non-conforming and
+    * seems to leave the final element untouched.
+    */
+   retval = vswprintf(str, size, format, ap);
+   if (retval < 0 && size > 0) {
+      str[size - 1] = L'\0';
+   }
 #endif
+
    if (retval >= size) {
       return -1;
    }
@@ -935,7 +983,7 @@ Str_Wcsncat(wchar_t *buf,       // IN/OUT
 
    if (bufLen + n >= bufSize &&
        bufLen + wcslen(src) >= bufSize) {
-      Panic("%s:%d Buffer too small\n", __FILE__,__LINE__);
+      Panic("%s:%d Buffer too small\n", __FILE__, __LINE__);
    }
 
    /*
@@ -1283,11 +1331,8 @@ Str_ToUpper(char *string)  // IN
 #if 0
 
 /*
- * Unit tests. Compares our bsd_vs*printf code output to C-library
- * code output, where possible.
+ * Unit tests.
  */
-
-static Bool bCompare;
 
 #define FAIL(s) \
    do { \
@@ -1295,88 +1340,82 @@ static Bool bCompare;
       exit(1); \
    } while (0);
 
+
 static void
-PrintAndCheck(char *fmt,  // IN:
-              ...)        // IN:
+CheckPrintf(const char *expected,  // IN
+            const char *fmt,       // IN
+            ...)                   // IN
 {
-   char buf1[1024], buf2[1024];
+#if !defined HAS_BSD_PRINTF
+   NOT_TESTED_ONCE();
+#else
+   char buf[1024] = "";
    int count;
+   int expectedCount = strlen(expected);
    va_list args;
 
    va_start(args, fmt);
-   count = Str_Vsnprintf(buf1, sizeof buf1, fmt, args);
+   count = Str_Vsnprintf(buf, sizeof buf, fmt, args);
    va_end(args);
 
-   if (count < 0) {
-      FAIL("PrintAndCheck new code count off");
+   // Verify there's a NUL somewhere since we print the buffer on failure.
+   VERIFY(buf[ARRAYSIZE(buf) - 1] == '\0');
+
+   if (count == expectedCount && strcmp(buf, expected) == 0) {
+      // Success.
+      return;
    }
 
-   va_start(args, fmt);
-
-#ifdef _WIN32
-   count = _vsnprintf(buf2, sizeof buf2, fmt, args);
-#else
-   count = vsnprintf(buf2, sizeof buf2, fmt, args);
+   printf("%s\n", buf);
+   printf("Format string: %s\n", fmt);
+   printf("Expected count: %d\n", expectedCount);
+   printf("Expected output: %s\n", expected);
+   printf("Actual count: %d\n", count);
+   printf("Actual output: %s\n", buf);
+   FAIL("CheckPrintf");
 #endif
-
-   va_end(args);
-
-   if (count < 0) {
-      FAIL("PrintAndCheck old code count off");
-   }
-
-   if (bCompare && (0 != strcmp(buf1, buf2))) {
-      printf("Format string: %s\n", fmt);
-      printf("Our code: %s\n", buf1);
-      printf("Sys code: %s\n", buf2);
-
-      FAIL("PrintAndCheck compare failed");
-   }
-
-   printf(buf1);
 }
 
+
 static void
-PrintAndCheckW(wchar_t *fmt, ...)
+CheckWPrintf(const wchar_t *expected, // IN
+             const wchar_t *fmt,      // IN
+             ...)                     // IN
 {
-   wchar_t buf1[1024], buf2[1024];
+#if !defined HAS_BSD_WPRINTF
+   NOT_TESTED_ONCE();
+#else
+   wchar_t buf[1024] = L"";
    int count;
+   int expectedCount = wcslen(expected);
    va_list args;
 
    va_start(args, fmt);
-   count = Str_Vsnwprintf(buf1, sizeof buf1, fmt, args);
+   count = Str_Vsnwprintf(buf, sizeof buf, fmt, args);
    va_end(args);
 
-   if (count < 0) {
-      FAIL("PrintAndCheckW new code count off");
+   // Verify there's a NUL somewhere since we print the buffer on failure.
+   VERIFY(buf[ARRAYSIZE(buf) - 1] == L'\0');
+
+   if (count == expectedCount && wcscmp(buf, expected) == 0) {
+      // Success.
+      return;
    }
 
-   va_start(args, fmt);
-
-#ifdef _WIN32
-   count = _vsnwprintf(buf2, sizeof buf2, fmt, args);
-#else
-   count = vswprintf(buf2, sizeof buf2, fmt, args);
+   /*
+    * %S isn't standard, and since we use the system printf here, we must use
+    * %ls instead.
+    */
+   printf("%ls\n", buf);
+   printf("Format string: %ls\n", fmt);
+   printf("Expected count: %d\n", expectedCount);
+   printf("Expected output: %ls\n", expected);
+   printf("Actual count: %d\n", count);
+   printf("Actual output: %ls\n", buf);
+   FAIL("CheckWPrintf");
 #endif
-
-   va_end(args);
-
-   if (count < 0) {
-      FAIL("PrintAndCheckW old code count off");
-   }
-
-   if (bCompare && (0 != wcscmp(buf1, buf2))) {
-      printf("Format string: %S", fmt);
-      printf("Our code: %S", buf1);
-      printf("Sys code: %S", buf2);
-
-      FAIL("PrintAndCheckW compare failed");
-   }
-
-#ifndef _WIN32
-   printf("%S", buf1);
-#endif // _WIN32
 }
+
 
 void
 Str_UnitTests(void)
@@ -1384,14 +1423,11 @@ Str_UnitTests(void)
    char buf[1024];
    wchar_t bufw[1024];
    int count;
+   const void *p = (void*) 0xFEEDFACE;
    int32 num1 = 0xDEADBEEF;
    int32 num2 = 0x927F82CD;
    int64 num3 = CONST64U(0xCAFEBABE42439021);
-#ifdef _WIN32
-   double num4 = 5.1923843;
-   double num5 = 0.000482734;
-   double num6 = 8274102.3872;
-#endif
+   const double d[] = { 5.0, 2017.0, 0.000482734, 8274102.3872 };
    int numChars;
    char empty[1] = {'\0'};
    wchar_t wempty[1] = {L'\0'};
@@ -1472,76 +1508,103 @@ Str_UnitTests(void)
       FAIL("Failed 'n' arg test - numChars (W)");
    }
 
-   bCompare = TRUE;
-
    // simple
-   PrintAndCheck("hello\n");
-   PrintAndCheckW(L"hello\n");
+   CheckPrintf("hello", "hello");
+   CheckWPrintf(L"hello", L"hello");
 
    // string arguments
-   PrintAndCheck("whazz %s up %S doc\n", "hello", L"hello");
-   PrintAndCheckW(L"whazz %s up %S doc\n", L"hello", "hello");
+   CheckPrintf("whazz hello up hello doc",
+               "whazz %s up %S doc", "hello", L"hello");
+   CheckWPrintf(L"whazz hello up hello doc",
+                L"whazz %s up %S doc", "hello", L"hello");
 
    // character arguments
-   PrintAndCheck("whazz %c up %C doc\n", 'a', L'a');
-   PrintAndCheckW(L"whazz %c up %C doc\n", L'a', 'a');
+   CheckPrintf("whazz a up a doc",
+               "whazz %c up %C doc", 'a', L'a');
+   CheckWPrintf(L"whazz a up a doc",
+                L"whazz %c up %C doc", 'a', L'a');
 
    // 32-bit integer arguments
-   PrintAndCheck("%d %i %o %u %x %X\n", num1, num1, num1, num1, num1,
-                 num1);
-   PrintAndCheckW(L"%d %i %o %u %x %X\n", num1, num1, num1, num1, num1,
-                  num1);
+   CheckPrintf("-559038737 -559038737 33653337357 3735928559 deadbeef DEADBEEF",
+               "%d %i %o %u %x %X", num1, num1, num1, num1, num1, num1);
+   CheckWPrintf(L"-559038737 -559038737 33653337357 3735928559 deadbeef DEADBEEF",
+                L"%d %i %o %u %x %X", num1, num1, num1, num1, num1, num1);
 
    // 'p' argument
-   bCompare = FALSE;
-   PrintAndCheck("%p\n", buf);
-   PrintAndCheckW(L"%p\n", buf);
-   bCompare = TRUE;
+   CheckPrintf("FEEDFACE", "%p", p);
+   CheckWPrintf(L"FEEDFACE", L"%p", p);
 
    // 64-bit
-   bCompare = FALSE;
-   PrintAndCheck("%LX %llX %qX\n", num3, num3, num3);
-   PrintAndCheckW(L"%LX %llX %qX\n", num3, num3, num3);
-   bCompare = TRUE;
+   CheckPrintf("CAFEBABE42439021",
+               "%LX", num3);
+   CheckWPrintf(L"CAFEBABE42439021",
+                L"%LX", num3);
+   CheckPrintf("CAFEBABE42439021",
+               "%llX", num3);
+   CheckWPrintf(L"CAFEBABE42439021",
+                L"%llX", num3);
+   CheckPrintf("CAFEBABE42439021",
+               "%qX", num3);
+   CheckWPrintf(L"CAFEBABE42439021",
+                L"%qX", num3);
+   CheckPrintf("CAFEBABE42439021",
+               "%I64X", num3);
+   CheckWPrintf(L"CAFEBABE42439021",
+                L"%I64X", num3);
 
-   // more 64-bit
-#ifdef _WIN32
-   PrintAndCheck("%I64X\n", num3);
-   PrintAndCheckW(L"%I64X\n", num3);
-#else
-   PrintAndCheck("%LX\n", num3);
-   PrintAndCheckW(L"%LX\n", num3);
-#endif
-
-#ifdef _WIN32 // exponent digits printed differs vs. POSIX
    // floating-point
-   PrintAndCheck("%e %E %f %g %G\n", num4, num5, num6);
-   PrintAndCheckW(L"%e %E %f %g %G\n", num4, num5, num6);
-#endif
+   {
+      const char *expected[] = {
+         "5.000000e+00 5.000000E+00 5.000000 5 5",
+         "2.017000e+03 2.017000E+03 2017.000000 2017 2017",
+         "4.827340e-04 4.827340E-04 0.000483 0.000482734 0.000482734",
+         "8.274102e+06 8.274102E+06 8274102.387200 8.2741e+06 8.2741E+06",
+      };
+      const wchar_t *expectedW[] = {
+         L"5.000000e+00 5.000000E+00 5.000000 5 5",
+         L"2.017000e+03 2.017000E+03 2017.000000 2017 2017",
+         L"4.827340e-04 4.827340E-04 0.000483 0.000482734 0.000482734",
+         L"8.274102e+06 8.274102E+06 8274102.387200 8.2741e+06 8.2741E+06",
+      };
+
+      size_t i;
+
+      ASSERT_ON_COMPILE(ARRAYSIZE(d) == ARRAYSIZE(expected));
+      ASSERT_ON_COMPILE(ARRAYSIZE(d) == ARRAYSIZE(expectedW));
+
+      for (i = 0; i < ARRAYSIZE(d); i++) {
+         CheckPrintf(expected[i],
+                     "%e %E %f %g %G", d[i], d[i], d[i], d[i], d[i]);
+         CheckWPrintf(expectedW[i],
+                      L"%e %E %f %g %G", d[i], d[i], d[i], d[i], d[i]);
+      }
+   }
 
    // positional arguments
-   bCompare = FALSE;
-   PrintAndCheck("%3$LX %1$x %2$x\n", num1, num2, num3);
-   PrintAndCheckW(L"%3$LX %1$x %2$x\n", num1, num2, num3);
-   bCompare = TRUE;
+   CheckPrintf("CAFEBABE42439021 deadbeef 927f82cd",
+               "%3$LX %1$x %2$x", num1, num2, num3);
+   CheckWPrintf(L"CAFEBABE42439021 deadbeef 927f82cd",
+                L"%3$LX %1$x %2$x", num1, num2, num3);
 
-#ifdef _WIN32 // exponent digits printed differs vs. POSIX
    // width and precision
-   PrintAndCheck("%15.1g %20.2f %*.*f\n", num6, num6, 15, 3, num6);
-   PrintAndCheckW(L"%15.1g %20.2f %*.*f\n", num6, num6, 15, 3, num6);
-#endif
+   CheckPrintf("          8e+06           8274102.39     8274102.387",
+               "%15.1g %20.2f %*.*f", d[3], d[3], 15, 3, d[3]);
+   CheckWPrintf(L"          8e+06           8274102.39     8274102.387",
+                L"%15.1g %20.2f %*.*f", d[3], d[3], 15, 3, d[3]);
 
-#ifdef _WIN32 // exponent digits printed differs vs. POSIX
    // flags
-   PrintAndCheck("%-15e %+f %015g\n", num4, num5, num6);
-   PrintAndCheckW(L"%-15e %+f %015g\n", num4, num5, num6);
-#endif
+   CheckPrintf("5.000000e+00    +0.000483 000008.2741e+06",
+               "%-15e %+f %015g", d[0], d[2], d[3]);
+   CheckWPrintf(L"5.000000e+00    +0.000483 000008.2741e+06",
+                L"%-15e %+f %015g", d[0], d[2], d[3]);
 
-#ifdef _WIN32 // exponent digits printed differs vs. POSIX
    // more flags
-   PrintAndCheck("%#X %#E %#G\n", num1, num1, num1);
-   PrintAndCheckW(L"%#X %#E %#G\n", num1, num1, num1);
-#endif
+   CheckPrintf("0XDEADBEEF 5.000000E+00 2017.00",
+               "%#X %#E %#G", num1, d[0], d[1]);
+   CheckWPrintf(L"0XDEADBEEF 5.000000E+00 2017.00",
+                L"%#X %#E %#G", num1, d[0], d[1]);
+
+   printf("%s succeeded.\n", __FUNCTION__);
 }
 
 #endif // 0

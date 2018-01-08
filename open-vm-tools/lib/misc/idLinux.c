@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -121,7 +121,7 @@ Id_SetUid(uid_t euid)		// IN: new euid
 {
 #if defined(__FreeBSD__) || defined(sun)
    return setuid(euid);
-#elif defined(linux) || defined __ANDROID__
+#elif defined(__linux__) || defined __ANDROID__
    if (uid32) {
       int r = syscall(SYS_setuid32, euid);
       if (r != -1 || errno != ENOSYS) {
@@ -203,7 +203,7 @@ Id_SetRESUid(uid_t uid,		// IN: new uid
 {
 #if (defined(__FreeBSD__) && __FreeBSD_version >= 500043)
    return setresuid(uid, euid, suid);
-#elif defined(linux)
+#elif defined(__linux__)
    if (uid32) {
       int r = syscall(SYS_setresuid32, uid, euid, suid);
 
@@ -283,7 +283,7 @@ Id_SetRESGid(gid_t gid,		// IN: new gid
 {
 #if (defined(__FreeBSD__) && __FreeBSD_version >= 500043)
    return setresgid(gid, egid, sgid);
-#elif defined(linux)
+#elif defined(__linux__)
    if (uid32) {
       int r = syscall(SYS_setresgid32, gid, egid, sgid);
 

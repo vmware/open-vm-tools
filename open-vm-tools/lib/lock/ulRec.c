@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -715,7 +715,7 @@ MXUser_IsCurThreadHoldingRecLock(MXUserRecLock *lock)  // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * MXUser_CreateSingletonRecLock --
+ * MXUser_CreateSingletonRecLockInt --
  *
  *      Ensures that the specified backing object (Atomic_Ptr) contains a
  *      recursive lock. This is useful for modules that need to protect
@@ -732,9 +732,9 @@ MXUser_IsCurThreadHoldingRecLock(MXUserRecLock *lock)  // IN:
  */
 
 MXUserRecLock *
-MXUser_CreateSingletonRecLock(Atomic_Ptr *lockStorage,  // IN/OUT:
-                              const char *name,         // IN:
-                              MX_Rank rank)             // IN:
+MXUser_CreateSingletonRecLockInt(Atomic_Ptr *lockStorage,  // IN/OUT:
+                                 const char *name,         // IN:
+                                 MX_Rank rank)             // IN:
 {
    MXUserRecLock *lock;
 
@@ -844,13 +844,14 @@ MXUser_WaitCondVarRecLock(MXUserRecLock *lock,     // IN:
 void
 MXUser_TimedWaitCondVarRecLock(MXUserRecLock *lock,     // IN:
                                MXUserCondVar *condVar,  // IN:
-                               uint32 msecWait)         // IN:
+                               uint32 waitTimeMsec)     // IN:
 {
    ASSERT(lock);
    MXUserValidateHeader(&lock->header, MXUSER_TYPE_REC);
    ASSERT(lock->vmmLock == NULL);  // only unbound locks
 
-   MXUserWaitCondVar(&lock->header, &lock->recursiveLock, condVar, msecWait);
+   MXUserWaitCondVar(&lock->header, &lock->recursiveLock, condVar,
+                     waitTimeMsec);
 }
 
 

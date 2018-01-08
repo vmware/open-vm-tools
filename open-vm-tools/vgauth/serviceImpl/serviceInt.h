@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -225,6 +225,9 @@ extern gboolean gVerboseLogging;
 
 extern char *gInstallDir;
 
+#ifndef _WIN32
+gboolean ServiceNetworkCreateSocketDir(void);
+#endif
 
 VGAuthError ServiceNetworkListen(ServiceConnection *conn,            // IN/OUT
                                  gboolean makeSecure);

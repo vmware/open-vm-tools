@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -48,6 +48,11 @@
 #define INCLUDE_ALLOW_DISTRIBUTE
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
+
+#if defined __cplusplus
+extern "C" {
+#endif
+
 
 #ifdef VM_X86_64
 /*
@@ -559,4 +564,9 @@ Muls64x32s64(int64 multiplicand, uint32 multiplier, uint32 shift)
 #pragma warning(default: 4035)
 #endif
 
+
+#if defined __cplusplus
+} // extern "C"
 #endif
+
+#endif // _VM_BASIC_ASM_X86_H_

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -42,6 +42,10 @@
 #include "vm_basic_defs.h"
 #include "vmware.h"
 #include "userlock.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #ifdef _WIN32
 #define HZ 100
@@ -103,7 +107,8 @@ typedef enum PollClass {
    POLL_CLASS_CPT,
    POLL_CLASS_MKS,
    POLL_FIXED_CLASSES,
-   POLL_MAX_CLASSES = 320 /* Size enum to maximum */
+   /* Size enum to maximum */
+   POLL_MAX_CLASSES = 31,
 } PollClass;
 
 
@@ -112,16 +117,14 @@ typedef enum PollClass {
  */
 
 typedef struct PollClassSet {
-   /* Type is uintptr_t to give best 32/64-bit code. */
-#define _POLL_ELEMSIZE (sizeof (uintptr_t) * 8)
-   uintptr_t bits[CEILING(POLL_MAX_CLASSES, _POLL_ELEMSIZE)];
+   uintptr_t bits;
 } PollClassSet;
 
 /* An empty PollClassSet. */
 static INLINE PollClassSet
 PollClassSet_Empty(void)
 {
-   PollClassSet set = { { 0 } };
+   PollClassSet set = { 0 };
    return set;
 }
 
@@ -131,12 +134,10 @@ PollClassSet_Singleton(PollClass c)
 {
    PollClassSet s = PollClassSet_Empty();
 
-   ASSERT_ON_COMPILE(sizeof s.bits[0] * 8 == _POLL_ELEMSIZE); /* Size correct */
-   ASSERT_ON_COMPILE((_POLL_ELEMSIZE & (_POLL_ELEMSIZE - 1)) == 0); /* power of 2 */
-   ASSERT_ON_COMPILE(POLL_MAX_CLASSES <= ARRAYSIZE(s.bits) * _POLL_ELEMSIZE);
+   ASSERT_ON_COMPILE(POLL_MAX_CLASSES < sizeof s.bits * 8);
    ASSERT(c < POLL_MAX_CLASSES);
 
-   s.bits[c / _POLL_ELEMSIZE] = CONST3264U(1) << (c % _POLL_ELEMSIZE);
+   s.bits = CONST3264U(1) << c;
    return s;
 }
 
@@ -144,13 +145,9 @@ PollClassSet_Singleton(PollClass c)
 static INLINE PollClassSet
 PollClassSet_Union(PollClassSet lhs, PollClassSet rhs)
 {
-   PollClassSet u;
-   unsigned i;
-
-   for (i = 0; i < ARRAYSIZE(u.bits); i++) {
-      u.bits[i] = lhs.bits[i] | rhs.bits[i];
-   }
-   return u;
+   PollClassSet set;
+   set.bits = lhs.bits | rhs.bits;
+   return set;
 }
 
 /* Add single class to PollClassSet. */
@@ -214,16 +211,6 @@ PollClassSet_Include(PollClassSet set, PollClass c)
 #define POLL_FLAG_THUNK_TO_WND          0x200   // thunk callback to window message loop
 
 
-/*
- * Advisory minimum time period.
- * Users that want the fastest running real-time poll
- * should use TICKS_TO_USECS(1).
- */
-
-#define TICKS_TO_USECS(_x) ((_x) * (1000000 / HZ))
-#define USECS_TO_TICKS(_x) ((_x) / (1000000 / HZ))
-
-
 typedef void (*PollerFunction)(void *clientData);
 typedef void (*PollerFireWrapper)(PollerFunction func,
                                   void *funcData,
@@ -266,8 +253,15 @@ void Poll_Exit(void);
 
 /*
  * Poll_Callback adds a callback regardless of whether an identical one exists.
+ * The exception to this rule is POLL_DEVICE callbacks: there is a maximum of
+ * one read and one write callback per fd.
  *
- * Likewise, Poll_CallbackRemove removes exactly one callback.
+ * Poll_CallbackRemove removes one callback. If there are multiple identical
+ * callbacks, which one is removed is an implementation detail. Note that in
+ * the case of POLL_DEVICE and POLL_REALTIME callbacks, the fd/delay used to
+ * create the callback is not specified when removing, so all callbacks
+ * of those types with the same flags, function, and clientData are considered
+ * "identical" even if their fd/delay differed.
  */
 
 VMwareStatus Poll_Callback(PollClassSet classSet,
@@ -307,7 +301,7 @@ Bool Poll_CB_DeviceRemove(PollerFunction f,
 
 VMwareStatus Poll_CB_RTime(PollerFunction f,
                            void *clientData,
-                           int delay,	// microseconds
+                           int64 delay,   // microseconds
                            Bool periodic,
                            MXUserRecLock *lock);
 
@@ -317,8 +311,13 @@ Bool Poll_CB_RTimeRemove(PollerFunction f,
 
 
 #ifdef _WIN32
+void Poll_SetPumpsWindowsMessages(Bool pumps);
 void Poll_SetWindowMessageRecipient(HWND hWnd, UINT msg, Bool alwaysThunk);
 Bool Poll_FireWndCallback(void *lparam);
+#endif
+
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 
 #endif // _POLL_H_

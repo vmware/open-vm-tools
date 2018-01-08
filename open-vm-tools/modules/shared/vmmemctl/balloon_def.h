@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2000-2012,2014 VMware, Inc. All rights reserved.
+ * Copyright (C) 2000-2012,2014,2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -74,6 +74,11 @@
 #include "vm_basic_types.h"
 #include "vm_basic_defs.h"
 #include "vm_assert.h"
+
+#if defined __cplusplus
+extern "C" {
+#endif
+
 
 /*
  * constants
@@ -306,5 +311,10 @@ Balloon_BatchSetStatus(BalloonBatchPage *batchPage,      // IN
 MY_ASSERTS(BALLOON_BATCH_SIZE,
            ASSERT_ON_COMPILE(sizeof(BalloonBatchPage) == PAGE_SIZE);
 )
+
+
+#if defined __cplusplus
+} // extern "C"
+#endif
 
 #endif  /* _BALLOON_DEF_H */

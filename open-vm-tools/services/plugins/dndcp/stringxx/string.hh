@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -66,9 +66,8 @@
 #endif
 
 #include "libExport.hh"
-extern "C" {
+
 #include "unicodeTypes.h"
-}
 
 #ifdef _WIN32
 /*
@@ -155,10 +154,10 @@ public:
    string trimRight() const;
    string normalize(NormalizeMode mode = NORMALIZE_DEFAULT_COMPOSE) const;
 
-   string toLower(const char *locale) const;
-   string toUpper(const char *locale) const;
+   string toLower(const char *locale = NULL) const;
+   string toUpper(const char *locale = NULL) const;
 #ifdef USE_ICU
-   string toTitle(const char *locale) const;
+   string toTitle(const char *locale = NULL) const;
 #endif
 
    // String-level member methods.

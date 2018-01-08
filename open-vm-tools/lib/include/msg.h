@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -38,6 +38,10 @@
 #include "msgList.h"
 #if defined VMX86_SERVER && !defined VMCORE
 #include "voblib.h"
+#endif
+
+#if defined(__cplusplus)
+extern "C" {
 #endif
 
 
@@ -101,6 +105,7 @@ typedef struct MsgCallback {
    HintResult (*hintList)(HintOptions options, MsgList *messages);
    void *(*lazyProgressStartList)(MsgList *messages);
    void (*forceUnblock)(void);
+   void (*msgPostHook)(int severity, const MsgList *msgs);
 } MsgCallback;
 
 #define MSG_QUESTION_MAX_BUTTONS   10
@@ -123,6 +128,7 @@ VMX86_EXTERN_DATA Msg_String const Msg_Severities[];
 
 void Msg_Append(const char *idFmt,
                 ...) PRINTF_DECL(1, 2);
+void Msg_VAppend(const char *idFmt, va_list args);
 void Msg_AppendStr(const char *id);
 void Msg_AppendMsgList(const MsgList *msgs);
 
@@ -264,6 +270,10 @@ void Msg_GetThreadCallback(MsgCallback *cb);
 
 #ifdef _WIN32
 const char *Msg_HResult2String(long hr);
+#endif
+
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 
 #endif // ifndef _MSG_H_

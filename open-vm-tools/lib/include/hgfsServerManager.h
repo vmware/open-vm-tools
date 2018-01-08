@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -18,6 +18,10 @@
 
 #ifndef _HGFS_SERVER_MANAGER_H_
 # define _HGFS_SERVER_MANAGER_H_
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 /*
  * hgfsServerManager.h --
@@ -61,6 +65,10 @@ Bool HgfsServerManager_ProcessPacket(HgfsServerMgrData *mgrData,
                                      char *packetOut,
                                      size_t *packetOutSize);
 uint32 HgfsServerManager_InvalidateInactiveSessions(HgfsServerMgrData *mgrData);
+#endif
+
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 
 #endif // _HGFS_SERVER_MANAGER_H_

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -26,6 +26,9 @@
 #include "vm_basic_types.h"
 #include "preference.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 /*
  * Well-known configuration variable names
@@ -119,5 +122,12 @@ Bool Config_GetDataFileKey(struct CryptoKey **key,
 
 Bool Config_GetDataFileKeys(struct KeySafeUserRing **parentKeys,
                             struct KeySafeUserRing **allKeys);
+
+Bool Config_TriToBool(Bool boolDefaultValue,
+                      int32 triValue);
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif // _CONFIG_H_

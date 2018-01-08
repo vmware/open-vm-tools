@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -28,6 +28,7 @@
 
 #include "dynxdr.h"
 #include "dynbuf.h"
+#include "util.h"
 
 /*
  * dynxdr.c --
@@ -420,7 +421,7 @@ void *
 DynXdr_AllocGet(XDR *xdrs) // IN
 {
    DynBuf *buf = &((DynXdrData *) xdrs->x_private)->data;
-   return DynBuf_AllocGet(buf);
+   return Util_Memdup(DynBuf_Get(buf), DynBuf_GetSize(buf));
 }
 
 

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -137,7 +137,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)
                g_array_append_val(regs[reg].data, sysSigs[i]);
             }
          }
-#if defined(_WIN32) || defined(linux)
+#if defined(_WIN32) || defined(__linux__)
          else if (regs[reg].type == TOOLS_APP_GUESTRPC) {
             /*
              * If running the system daemon and if the sync driver is active,

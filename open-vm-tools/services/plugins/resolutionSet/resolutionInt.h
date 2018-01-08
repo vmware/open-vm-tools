@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -74,13 +74,20 @@ typedef struct {
 
 extern ResolutionInfoType resolutionInfo;
 
+#if defined(G_LOG_DOMAIN)
+#error Please include this file before glib.h
+#endif
+#define G_LOG_DOMAIN "resolutionSet"
+
+#include "vmware/tools/plugin.h"
+
 /*
  * Global functions
  */
 
 /* Functions defined by back-end. */
 Bool ResolutionBackendInit(InitHandle handle);
-InitHandle ResolutionToolkitInit(void);
+InitHandle ResolutionToolkitInit(ToolsAppCtx *ctx);
 void ResolutionBackendCleanup(void);
 Bool ResolutionSetResolution(uint32 width, uint32 height);
 #if defined(RESOLUTION_WIN32)
@@ -89,10 +96,5 @@ void ResolutionSetSessionChange(DWORD code, DWORD sessionID);
 #endif
 Bool ResolutionSetTopology(unsigned int ndisplays, DisplayTopologyInfo displays[]);
 Bool ResolutionSetTopologyModes(unsigned int screen, unsigned int cmd, unsigned int ndisplays, DisplayTopologyInfo displays[]);
-
-#if defined(G_LOG_DOMAIN)
-#error Please include this file before glib.h
-#endif
-#define G_LOG_DOMAIN "resolutionSet"
 
 #endif // ifndef _LIB_RESOLUTIONINT_H_

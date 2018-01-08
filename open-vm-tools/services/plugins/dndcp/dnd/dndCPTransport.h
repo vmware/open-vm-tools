@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -29,9 +29,7 @@
 #define LIB_EXPORT
 #endif
 
-extern "C" {
-   #include "vm_basic_types.h"
-}
+#include "vm_basic_types.h"
 
 /* Some definitions for addressId. */
 #define MAX_NUM_OF_CONNECTIONS  50

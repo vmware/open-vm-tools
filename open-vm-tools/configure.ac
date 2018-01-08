@@ -28,21 +28,17 @@
 #  RPCGENFLAGS: extra flags to pass to rpcgen
 #
 # The following libraries are currently tested: DNET, FUSE, GLIB2, GMODULE,
-# GOBJECT, GTHREAD, GTK, GTKMM, ICU, LIBPNG, PAM, PROCPS, URIPARSER, ZLIB
-#
-# For the procps library: you can provide the name of the procps library on
-# your system by defining CUSTOM_PROCPS_NAME. By default the configure script
-# will try both "-lproc" and "-lproc-3.2.7".
+# GOBJECT, GTHREAD, GTK, GTKMM, ICU, LIBPNG, PAM, URIPARSER, ZLIB
 ################################################################################
 
 ###
 ### Initialization
 ###
 
-TOOLS_VERSION="10.1.15"
+TOOLS_VERSION="10.2.0"
 AC_INIT(
    [open-vm-tools],
-   [10.1.15],
+   [10.2.0],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
@@ -136,11 +132,44 @@ case "$host_os" in
 esac
 osVersion="`getOsVersion`"
 
+AC_ARG_ENABLE(
+   glibc-check,
+   AS_HELP_STRING(
+      [--disable-glibc-check],
+      [Skip checking the glibc version on the system. (off by default)]),
+   [enable_glibc_check=$enableval],
+   [enable_glibc_check="yes"])
+
+if test "x$enable_glibc_check" != "xno" ; then
+   if test "x$os" = "xlinux" ; then
+      libc_ver=`ldd --version 2>/dev/null | head -1 | sed 's/.* //;q'`
+
+      if test "x$libc_ver" = "x"; then
+         AC_MSG_ERROR(["Failed to detect glibc version installed in the system."])
+      fi
+
+      libc_ver_mjr=`expr "$libc_ver" : "\([[0-9]]*\)"`
+      libc_ver_mnr=`expr "$libc_ver" : "[[0-9]]*\.\([[0-9]]*\)"`
+      libc_ver_num=`expr $libc_ver_mjr \* 1000 + $libc_ver_mnr`
+
+      if test "$libc_ver_num" -lt 2012; then
+         AC_MSG_ERROR(["glibc version $libc_ver detected.
+This version of open-vm-tools requires glibc version 2.12 or later.
+Please use an older version of open-vm-tools for this system."])
+      fi
+   fi
+fi
+
+if test "x$os" = "xfreebsd" -a "$osVersion" -lt 1000000; then
+   AC_MSG_ERROR(["This version of open-vm-tools requires FreeBSD version 10 or later.
+Please use an older version of open-vm-tools for this system."])
+fi
+
 AC_ARG_WITH([kernel-modules],
 	    [AS_HELP_STRING([--with-kernel-modules],
 		[compile and install the kernel modules])],
 	    [],
-	    [if test "x$os" = "xlinux" -a "$osVersion" -ge 400000; then
+	    [if test "x$os" = "xlinux" ; then
 	        with_kernel_modules=no
 	     else
 	        with_kernel_modules=yes
@@ -150,18 +179,8 @@ AC_ARG_WITH([kernel-modules],
 if test "$with_kernel_modules" = "yes"; then
    case "$os" in
       linux)
-         if test "$osVersion" -lt 206009; then
-            AC_MSG_ERROR([Kernels prior to 2.6.9 are not supported in this release of open-vm-tools. Configure using --without-kernel-modules to suppress building kernel drivers.])
-         fi
-         if test ! -d "$LINUXDIR/kernel/"; then
-             AC_MSG_ERROR([$LINUXDIR/kernel does not exist])
-         fi
-         LINUXINCLUDE="$LINUXDIR/build/include"
-         if test ! -d "$LINUXINCLUDE"; then
-            AC_MSG_ERROR([Cannot find include dir under $LINUXDIR])
-         fi
+         AC_MSG_ERROR([Building kernel modules for Linux is no longer supported.])
          ;;
-
       freebsd)
          freebsd_sysdir=/usr/src/sys
          if test -n "$SYSDIR"; then
@@ -189,7 +208,7 @@ AC_ARG_WITH(
       [--without-gtk3],
       [compiles without Gtk 3.0]),
    [with_gtk3="$withval"],
-   [with_gtk3="no"])
+   [with_gtk3="auto"])
 
 AC_ARG_WITH(
    gtk2,
@@ -197,7 +216,39 @@ AC_ARG_WITH(
       [--without-gtk2],
       [compiles without Gtk 2.0]),
    [with_gtk2="$withval"],
-   [if test "$with_gtk3" = "yes"; then with_gtk2="no" ; else with_gtk2="yes"; fi])
+   [with_gtk2="auto"])
+
+
+if test "$with_gtk2" = "auto" ; then
+   if test "$with_gtk3" = "auto" ; then
+      with_gtk2="no"
+      with_gtk3="yes"
+   elif test "$with_gtk3" = "no" ; then
+      with_gtk2="yes"
+   elif test "$with_gtk3" = "yes" ; then
+      with_gtk2="no"
+   fi
+elif test "$with_gtk2" = "no" ; then
+   if test "$with_gtk3" = "auto" ; then
+      with_gtk3="yes"
+   elif test "$with_gtk3" = "no" ; then
+      AC_MSG_ERROR('need either gtk2 or gtk3 or build with --without-x to disable building desktop plugins')
+   fi
+elif test "$with_gtk2" = "yes"  ; then
+   if test "$with_gtk3" = "auto" ; then
+      with_gtk3="no"
+   elif test "$with_gtk3" = "yes" ; then
+      AC_MSG_ERROR('cannot set both --with-gtk2 and --with-gtk3')
+   fi
+fi
+
+if test "$with_gtk2" = "no" ; then
+   with_gtkmm="no"
+fi
+
+if test "$with_gtk3" = "no" ; then
+   with_gtkmm3="no"
+fi
 
 if test "$with_gtk3" = "yes"; then
    AC_ARG_WITH(
@@ -208,7 +259,7 @@ if test "$with_gtk3" = "yes"; then
       [with_gtkmm3="$withval"],
       [with_gtkmm3="yes"])
       with_gtkmm="no"
-else
+elif test "$with_gtk2" = "yes"; then
    AC_ARG_WITH(
       gtkmm,
       AS_HELP_STRING(
@@ -234,6 +285,14 @@ AC_ARG_ENABLE(
       [disable compilation of test code.]),
    [enable_tests="$enableval"],
    [enable_tests="auto"])
+
+AC_ARG_ENABLE(
+   resolutionkms,
+   AS_HELP_STRING(
+      [--enable-resolutionkms],
+      [build the linux / unix resolutionkms module.]),
+   [],
+   [enable_resolutionkms="auto"])
 
 AM_INIT_AUTOMAKE
 
@@ -321,7 +380,13 @@ AC_ARG_ENABLE([deploypkg],
    [AS_HELP_STRING([--disable-deploypkg],
      [do not build deploypkg plugin.])],
    [],
-   [enable_deploypkg=yes])
+   [
+    if test "$os" = "linux"; then
+       enable_deploypkg=yes
+    else
+       enable_deploypkg=no
+    fi
+   ])
 
 if test "$enable_deploypkg" = "yes"; then
   AC_VMW_CHECK_LIB([mspack],
@@ -339,7 +404,13 @@ AC_ARG_ENABLE([grabbitmqproxy],
    [AS_HELP_STRING([--disable-grabbitmqproxy],
      [do not build grabbitmqproxy plugin.])],
    [],
-   [enable_grabbitmqproxy=yes])
+   [
+    if test "$os" = "linux"; then
+       enable_grabbitmqproxy=yes
+    else
+       enable_grabbitmqproxy=no
+    fi
+   ])
 
 #
 # Check for glib 2.6.14 or greater.
@@ -430,12 +501,17 @@ AC_ARG_ENABLE([vgauth],
    [AS_HELP_STRING([--disable-vgauth],
      [do not build vgauth.])],
    [
-   enable_vgauth="$enableval"
-   use_xmlsec1=no
+    enable_vgauth="$enableval"
+    use_xmlsec1=no
    ],
    [
-    enable_vgauth=yes
-    use_xmlsec1=no
+    if test "$os" = "linux"; then
+       enable_vgauth=yes
+       use_xmlsec1=no
+    else
+       enable_vgauth=no
+       use_xmlsec1=no
+    fi
    ])
 
 AC_ARG_ENABLE([xmlsec1],
@@ -444,12 +520,12 @@ AC_ARG_ENABLE([xmlsec1],
    [use_xmlsec1="$enableval"],
    [use_xmlsec1=no])
 
-AC_ARG_ENABLE([xml-security-c],
-   [AS_HELP_STRING([--disable-xml-security-c],
+AC_ARG_ENABLE([xmlsecurity],
+   [AS_HELP_STRING([--enable-xmlsecurity],
      [build vgauth with xml-security-c instead of xmlsec1 (on by default).])],
    [
     if test "$enableval" = "yes"; then
-       use_xmlsec1="no";
+       use_xmlsec1="no"
     else
        use_xmlsec1="yes"
     fi
@@ -558,7 +634,7 @@ else
                     [],
                     [],
                     [],
-                    [AC_VMW_LIB_ERROR([XERCES], [xerces-c])])
+                    [AC_VMW_LIB_ERROR([XERCES], [xerces])])
 
    AC_VMW_DEFAULT_FLAGS([XMLSECURITY])
    AC_VMW_CHECK_LIB([xml-security-c],
@@ -569,7 +645,10 @@ else
                     [],
                     [],
                     [],
-                    [AC_VMW_LIB_ERROR([XMLSECURITY], [xml-security-c])])
+                    [AC_VMW_LIB_ERROR([XMLSECURITY], [xmlsecurity])])
+fi
+else
+   enable_caf=no
 fi
 else
    enable_caf=no
@@ -695,6 +774,16 @@ else
       have_xcomposite="yes"
    fi
 
+   AC_VMW_CHECK_LIB([gdk_pixbuf_xlib-2.0],
+                    [GDK_PIXBUF_XLIB2],
+                    [gdk-pixbuf-xlib-2.0],
+                    [],
+                    [],
+                    [gdk-pixbuf-xlib/gdk-pixbuf-xlib.h],
+                    [],
+                    [],
+                    [AC_MSG_ERROR([gdk-pixbuf-xlib-2.0 not found. Please configure without X11 (using --without-x) or install the gdk-pixbuf-xlib-2.0 devel package.])])
+
    # Check whether we have gtk+ 3.0.
    if test "$with_gtk3" != "no"; then
       # gdk_display_get_default_group (added in gtk+ 2.4.0) is function currently
@@ -792,6 +881,7 @@ AC_CHECK_FUNCS(
       [VIX_LIBADD="$VIX_LIBADD -ldl"
        LIBVMTOOLS_LIBADD="$LIBVMTOOLS_LIBADD -ldl"
        VGAUTH_LIBADD="$VGAUTH_LIBADD -ldl"
+       RESOLUTIONSET_LIBADD="$RESOLUTIONSET_LIBADD -ldl"
       ],
       [AC_MSG_ERROR(
          [dlopen was not found, but is required for open-vm-tools to function properly. Please contact your OS vendor.])])])
@@ -823,98 +913,6 @@ AC_ARG_WITH([pam-prefix],
 		[specifies where pam files go. Default is $(sysconfdir)])],
 	    [PAM_PREFIX="$withval"],
 	    [if test "$os" = "freebsd" ; then PAM_PREFIX='$(sysconfdir)'; else PAM_PREFIX='/etc'; fi])
-
-if test "$os" = "linux"; then
-        AC_ARG_WITH([procps],
-	    [AS_HELP_STRING([--without-procps],
-		[compiles without libproc (disables support for meminfo)])],
-	    [],
-	    [with_procps=yes])
-else
-	with_procps="no"
-fi
-
-if test "$with_procps" = "yes"; then
-
-   have_procps=no
-
-   if test -z "$CUSTOM_PROCPS_NAME" && test -z "$CUSTOM_PROCPS_LIBS"; then
-      # See if we have procps-ng (that finally supports pkg-config).
-      AC_VMW_CHECK_LIB([procps-ng],
-                       [PROCPS],
-                       [libprocps],
-                       [],
-                       [],
-                       [],
-                       [],
-                       [
-                        have_procps=yes;
-                       ],
-                       [])
-   fi
-
-   if test "$have_procps" = "no"; then
-      # Let's see if there is an older procps version, one that does not
-      # support pkg-config.
-      if test -z "$CUSTOM_PROCPS_NAME"; then
-         CUSTOM_PROCPS_NAME=proc
-      fi
-
-      # XXX: no pkg-config and no procps-config means we need to
-      # hard-code a sensible default.
-      if test -z "$CUSTOM_PROCPS_LIBS"; then
-         CUSTOM_PROCPS_LIBS="-L/lib"
-      fi
-
-      # Some distros provide libproc-${version}.so only, others provide the
-      # libproc.so symlink. Try both to see what sticks (but only try the 3.2.7
-      # and 3.2.8 versions - adding every possible version here would be a mess).
-      #
-      # Users can help by providing CUSTOM_PROCPS_NAME / CUSTOM_PROCPS_LIBS if
-      # necessary.
-      AC_VMW_CHECK_LIB([$CUSTOM_PROCPS_NAME],
-                       [PROCPS],
-                       [],
-                       [],
-                       [],
-                       [],
-                       [getstat],
-                       [
-                        have_procps=yes;
-                       ],
-                       [])
-   fi
-
-   if test "$have_procps" = "no"; then
-      AC_VMW_CHECK_LIB([proc-3.2.8],
-                       [PROCPS],
-                       [],
-                       [],
-                       [],
-                       [],
-                       [getstat],
-                       [
-                        have_procps=yes;
-                       ],
-                       [])
-   fi
-
-   if test "$have_procps" = "no"; then
-      AC_VMW_CHECK_LIB([proc-3.2.7],
-                       [PROCPS],
-                       [],
-                       [],
-                       [],
-                       [],
-                       [getstat],
-                       [],
-                       [AC_MSG_ERROR([libproc not found. Please configure without procps (using --without-procps) or install procps - http://procps.sourceforge.net])])
-   fi
-fi
-
-if test "$with_procps" != "yes"; then
-AC_DEFINE([NO_PROCPS], 1, [Define to 1 if building without procps.])
-fi
 
 AC_ARG_WITH([dnet],
 	    [AS_HELP_STRING([--without-dnet],
@@ -1107,14 +1105,6 @@ if test "$enable_multimon" != "no"; then
        #include <X11/Xmd.h>])
 fi
 
-bsdPrintfWrappers=no
-if test "$os" = "linux"; then
-   AC_CHECK_LIB([c],
-                [ecvt],
-                [bsdPrintfWrappers=yes],
-                [])
-fi
-
 ###
 ### Typdefs, structs, and compiler quarks.
 ###
@@ -1265,6 +1255,15 @@ if test "$os" = "linux"; then
       MODULES="$MODULES vmblock vmsync"
    fi
    buildHgfsmounter=yes
+   if test "x$enable_resolutionkms" != "xno"; then
+      PKG_CHECK_MODULES(
+         [LIBUDEV],
+         libdrm libudev,
+         [LIBUDEV_CFLAGS="$LIBUDEV_CFLAGS -DHAVE_LIBUDEV"],
+         [AC_MSG_WARN(
+	    [Missing libdrm or libudev. The resolutionKMS plugin will search for them at run-time.])])
+      enable_resolutionkms="yes"
+   fi
 fi
 
 if test "$os" = "freebsd" || test "$os" = "kfreebsd-gnu"; then
@@ -1297,6 +1296,7 @@ if test "$os" = "solaris"; then
    LIBVMTOOLS_LIBADD="$LIBVMTOOLS_LIBADD -lnsl"
    LIBVMTOOLS_LIBADD="$LIBVMTOOLS_LIBADD -lresolv"
    LIBVMTOOLS_LIBADD="$LIBVMTOOLS_LIBADD -lrpcsvc"
+   LIBVMTOOLS_LIBADD="$LIBVMTOOLS_LIBADD -lrt"
 
    # Setup defines to identify the OS version.
    if test "$osVersion" -eq 509000; then
@@ -1352,6 +1352,14 @@ else
     UDEVRULESDIR=""
 fi
 
+if test "x$enable_resolutionkms" = "xauto"; then
+   enable_resolutionkms="no"
+fi
+
+if test "x$enable_resolutionkms" = "xyes"; then
+   CPPFLAGS="$CPPFLAGS -DENABLE_RESOLUTIONKMS"
+fi
+
 AM_CONDITIONAL(BUILD_HGFSMOUNTER, test "$buildHgfsmounter" = "yes")
 AM_CONDITIONAL(LINUX, test "$os" = "linux")
 AM_CONDITIONAL(SOLARIS, test "$os" = "solaris")
@@ -1373,7 +1381,6 @@ AM_CONDITIONAL(HAVE_GNU_LD, test "$with_gnu_ld" = "yes")
 AM_CONDITIONAL(HAVE_GTKMM, test "$have_x" = "yes" -a \( "$with_gtkmm" = "yes" -o "$with_gtkmm3" = "yes" \) )
 AM_CONDITIONAL(HAVE_PAM, test "$with_pam" = "yes")
 AM_CONDITIONAL(USE_SLASH_PROC, test "$os" = "linux")
-AM_CONDITIONAL(USE_PRINTF_WRAPPERS, test "$bsdPrintfWrappers" = "yes")
 AM_CONDITIONAL(ENABLE_DEPLOYPKG, test "$enable_deploypkg" = "yes")
 AM_CONDITIONAL(ENABLE_GRABBITMQPROXY, test "$enable_grabbitmqproxy" = "yes")
 AM_CONDITIONAL(ENABLE_VGAUTH, test "$enable_vgauth" = "yes")
@@ -1382,6 +1389,8 @@ AM_CONDITIONAL(ENABLE_CAF, test "$enable_caf" = "yes")
 AM_CONDITIONAL(HAVE_VSOCK, test "$os" = "linux")
 AM_CONDITIONAL(HAVE_MKDTEMP, test "$have_mkdtemp" = "yes")
 AM_CONDITIONAL(HAVE_UDEV, test "$have_udev" = "yes")
+AM_CONDITIONAL(ENABLE_RESOLUTIONKMS, test "x$enable_resolutionkms" = "xyes")
+AM_CONDITIONAL(VGAUTH_USE_CXX, test "$with_icu" = "yes" -o "$use_xmlsec1" != "yes")
 
 if test "$have_xsm" != "yes"; then
 AC_DEFINE([NO_XSM], 1, [])
@@ -1492,6 +1501,7 @@ AC_SUBST([LIB_AUTH_CPPFLAGS])
 AC_SUBST([LIB_IMPERSONATE_CPPFLAGS])
 AC_SUBST([LIB_USER_CPPFLAGS])
 AC_SUBST([LIBVMTOOLS_LIBADD])
+AC_SUBST([RESOLUTIONSET_LIBADD])
 
 ### Program substs
 
@@ -1564,6 +1574,7 @@ AC_CONFIG_FILES([                      \
    services/plugins/hgfsServer/Makefile \
    services/plugins/powerOps/Makefile  \
    services/plugins/resolutionSet/Makefile \
+   services/plugins/resolutionKMS/Makefile \
    services/plugins/timeSync/Makefile  \
    services/plugins/vix/Makefile       \
    services/plugins/vmbackup/Makefile  \
@@ -1579,6 +1590,7 @@ AC_CONFIG_FILES([                      \
    vgauth/lib/Makefile                 \
    namespacetool/Makefile              \
    vgauth/cli/Makefile                 \
+   vgauth/test/Makefile                 \
    vgauth/service/Makefile             \
    libguestlib/Makefile                \
    libguestlib/vmguestlib.pc           \

@@ -1,5 +1,5 @@
 /* **********************************************************
- * Copyright (C) 2007-2016 VMware, Inc.  All rights reserved.
+ * Copyright (C) 2007-2017 VMware, Inc.  All rights reserved.
  * **********************************************************/
 
 /*
@@ -49,10 +49,13 @@
 #ifndef __CODESET_H__
 #   define __CODESET_H__
 
-
 #include "vm_basic_types.h"
 #include "vm_assert.h"
 #include "dynbuf.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 /*
  * These platforms use UTF-8 (or pretend to):
@@ -578,5 +581,9 @@ CodeSet_Utf16FindCodePointBoundary(const char *buf, // IN
 
    return origOffset * 2;
 }
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif /* __CODESET_H__ */

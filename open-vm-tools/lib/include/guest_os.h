@@ -27,6 +27,10 @@
 #include "vm_basic_types.h"
 #include "guest_os_tables.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 /*
  * There's no practical max to the number of guests that can be defined in
  * the list below (guest IDs are limited to 2^32), but there is a maximum
@@ -80,8 +84,9 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define ALLWINXP64            BS(WINXPPRO_64)
 #define ALLWINXP              ALLWINXP32, ALLWINXP64
 
-#define ALLFREEBSD            BS(FREEBSD), BS(FREEBSD_64), \
-                              BS(FREEBSD11), BS(FREEBSD11_64)
+#define ALLFREEBSD            BS(FREEBSD),   BS(FREEBSD_64),   \
+                              BS(FREEBSD11), BS(FREEBSD11_64), \
+                              BS(FREEBSD12), BS(FREEBSD12_64)
 
 #define ALLWINNET32           BS(WINNET)
 #define ALLWINNET64           BS(WINNET_64)
@@ -152,10 +157,17 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 #define ALLPHOTON             BS(PHOTON_64)
 
-#define ALLSOLARIS            BS(SOLARIS_6_AND_7), BS(SOLARIS8),     \
-                              BS(SOLARIS9), BS(SOLARIS10),           \
-                              BS(SOLARIS10_64)
-#define ALLSOLARIS10          BS(SOLARIS10), BS(SOLARIS10_64)
+#define ALLSOLARIS11_OR_HIGHER \
+                              BS(SOLARIS11_64)
+
+#define ALLSOLARIS10_OR_HIGHER \
+                              BS(SOLARIS10), BS(SOLARIS10_64), \
+                              ALLSOLARIS11_OR_HIGHER
+
+#define ALLSOLARIS            BS(SOLARIS_6_AND_7), \
+                              BS(SOLARIS8), \
+                              BS(SOLARIS9), \
+                              ALLSOLARIS10_OR_HIGHER
 
 #define ALLNETWARE            BS(NETWARE4), BS(NETWARE5), BS(NETWARE6)
 
@@ -167,27 +179,34 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 #define ALL3XLINUX32          BS(OTHER3XLINUX), BS(CENTOS6), BS(ORACLE6)
 
-#define ALL3XLINUX64          BS(OTHER3XLINUX_64), BS(PHOTON_64), \
+#define ALL3XLINUX64          BS(OTHER3XLINUX_64), \
                               BS(CENTOS6_64), BS(CENTOS7_64), \
                               BS(ORACLE6_64), BS(ORACLE7_64)
+
+#define ALL4XLINUX32          BS(OTHER4XLINUX)
+
+#define ALL4XLINUX64          BS(OTHER4XLINUX_64), BS(PHOTON_64), \
+                              BS(CENTOS8_64), BS(ORACLE8_64)
 
 #define ALLVMKERNEL           BS(VMKERNEL), BS(VMKERNEL5), BS(VMKERNEL6), \
                               BS(VMKERNEL65)
 
 #define ALLLINUX32            BS(OTHER24XLINUX), ALL26XLINUX32, ALL3XLINUX32, \
-                              BS(OTHERLINUX), BS(VMKERNEL)
+                              ALL4XLINUX32, BS(OTHERLINUX), BS(VMKERNEL)
 #define ALLLINUX64            BS(OTHER24XLINUX_64), ALL26XLINUX64, \
-                              ALL3XLINUX64, BS(OTHERLINUX_64)
+                              ALL3XLINUX64, ALL4XLINUX64, BS(OTHERLINUX_64)
 #define ALLLINUX              ALLLINUX32, ALLLINUX64
 #define ALLDARWIN32           BS(DARWIN9), BS(DARWIN10), BS(DARWIN11)
-#define ALLDARWIN64           BS(DARWIN9_64), BS(DARWIN10_64), \
+#define ALLDARWIN64           BS(DARWIN9_64),  BS(DARWIN10_64), \
                               BS(DARWIN11_64), BS(DARWIN12_64), \
                               BS(DARWIN13_64), BS(DARWIN14_64), \
-                              BS(DARWIN15_64), BS(DARWIN16_64)
+                              BS(DARWIN15_64), BS(DARWIN16_64), \
+                              BS(DARWIN17_64), BS(DARWIN18_64)
 #define ALLDARWIN             ALLDARWIN32, ALLDARWIN64
 #define ALL64                 ALLWIN64, ALLLINUX64, BS(SOLARIS10_64), \
-                              BS(FREEBSD_64), BS(FREEBSD11_64), \
-                              ALLDARWIN64, BS(OTHER_64), ALLVMKERNEL
+                              BS(FREEBSD_64), BS(FREEBSD11_64),       \
+                              BS(FREEBSD12_64), BS(OTHER_64),         \
+                              ALLDARWIN64, ALLVMKERNEL
 
 #define ALLECOMSTATION        BS(ECOMSTATION), BS(ECOMSTATION2)
 #define ALLOS2                BS(OS2), ALLECOMSTATION
@@ -211,12 +230,14 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_ASIANUX_4           "asianux4"
 #define STR_OS_ASIANUX_5           "asianux5"
 #define STR_OS_ASIANUX_7           "asianux7"
+#define STR_OS_ASIANUX_8           "asianux8"
 #define STR_OS_AUROX               "Aurox"
 #define STR_OS_ASIANUX             "asianux"
 #define STR_OS_BLACKCAT            "BlackCat"
 #define STR_OS_CENTOS              "centos"
 #define STR_OS_CENTOS6             "centos6"
 #define STR_OS_CENTOS7             "centos7"
+#define STR_OS_CENTOS8             "centos8"
 #define STR_OS_COBALT              "Cobalt"
 #define STR_OS_CONECTIVA           "Conectiva"
 #define STR_OS_DEBIAN              "Debian"
@@ -243,6 +264,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_NOVELL_FULL        "Novell Linux Desktop 9"
 #define STR_OS_ORACLE6            "oraclelinux6"
 #define STR_OS_ORACLE7            "oraclelinux7"
+#define STR_OS_ORACLE8            "oraclelinux8"
 #define STR_OS_ORACLE             "oraclelinux"
 #define STR_OS_OTHER              "otherlinux"
 #define STR_OS_OTHER_FULL         "Other Linux"
@@ -252,6 +274,8 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_OTHER_26_FULL      "Other Linux 2.6.x kernel"
 #define STR_OS_OTHER_3X           "other3xlinux"
 #define STR_OS_OTHER_3X_FULL      "Other Linux 3.x kernel"
+#define STR_OS_OTHER_4X           "other4xlinux"
+#define STR_OS_OTHER_4X_FULL      "Other Linux 4.x or later kernel"
 #define STR_OS_PHOTON             "vmware-photon"
 #define STR_OS_PHOTON_FULL        "VMware Photon OS"
 #define STR_OS_PLD                "PLD"
@@ -267,6 +291,8 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_SLES_11_FULL       "SUSE Linux Enterprise Server 11"
 #define STR_OS_SLES_12            "sles12"
 #define STR_OS_SLES_12_FULL       "SUSE Linux Enterprise Server 12"
+#define STR_OS_SLES_15            "sles15"
+#define STR_OS_SLES_15_FULL       "SUSE Linux Enterprise Server 15"
 #define STR_OS_SUSE               "suse"
 #define STR_OS_SUSE_FULL          "SUSE Linux"
 #define STR_OS_OPENSUSE           "opensuse"
@@ -495,6 +521,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 /* FreeBSD */
 #define STR_OS_FREEBSD   "freeBSD"
 #define STR_OS_FREEBSD11 "freeBSD11"
+#define STR_OS_FREEBSD12 "freeBSD12"
 
 /* Solaris */
 #define STR_OS_SOLARIS "solaris"
@@ -506,5 +533,9 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_64BIT_SUFFIX "-64"
 #define STR_OS_64BIT_SUFFIX_FULL " (64 bit)"
 #define STR_OS_EMPTY ""
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif

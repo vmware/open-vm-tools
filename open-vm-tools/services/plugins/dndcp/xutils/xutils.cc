@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -19,11 +19,12 @@
 
 #include <cairomm/cairomm.h>
 #include <gdkmm.h>
+
+#include "xutils/xutils.hh"
+
 #if GTK_MAJOR_VERSION == 3
 #include <gdkmm/devicemanager.h>
 #endif
-
-#include "xutils/xutils.hh"
 
 /* These must be after the gtkmm includes, as gtkmm is quite picky. */
 #include <X11/Xlib.h>
@@ -31,9 +32,7 @@
 #include <gdk/gdkx.h>
 #include <cstring>
 
-extern "C" {
 #include "vm_assert.h"
-}
 
 
 namespace xutils {

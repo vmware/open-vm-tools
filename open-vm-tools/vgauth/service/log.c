@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -451,7 +451,8 @@ Service_InitLogging(gboolean haveConsole,
 
       if (g_ascii_strcasecmp(loglevel, SERVICE_LOGLEVEL_NORMAL) == 0) {
          logWantedLevel = DEFAULT_LOG_LEVELS;
-      } else if (g_ascii_strcasecmp(loglevel, SERVICE_LOGLEVEL_VERBOSE) == 0) {
+      } else if ((g_ascii_strcasecmp(loglevel, SERVICE_LOGLEVEL_VERBOSE) == 0) ||
+                 (g_ascii_strcasecmp(loglevel, SERVICE_LOGLEVEL_DEBUG) == 0)) {
          logWantedLevel = DEFAULT_LOG_LEVELS | G_LOG_LEVEL_DEBUG;
          gVerboseLogging = TRUE;
       } else {

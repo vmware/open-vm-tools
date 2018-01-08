@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -27,13 +27,17 @@
 #define _DNDMSG_H_
 
 #define INCLUDE_ALLOW_USERLEVEL
-
 #include "includeCheck.h"
+
 #include "vm_basic_types.h"
 
 #include "dynbuf.h"
 #include "dynarray.h"
 #include "dnd.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 /* Various return types serialization/unserialization functions can return. */
 
@@ -156,5 +160,9 @@ Bool DnDMsg_Serialize(DnDMsg *msg, DynBuf *buf);
 
 DnDMsgErr DnDMsg_UnserializeHeader(DnDMsg *msg, void *buf, size_t len);
 DnDMsgErr DnDMsg_UnserializeArgs(DnDMsg *msg, void *buf, size_t len);
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif /* _DNDMSG_H_ */

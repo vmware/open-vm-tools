@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2014-2016 VMware, Inc.  All rights reserved.
+### Copyright (C) 2014-2017 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -28,6 +28,7 @@ libdeployPkgPlugin_la_LDFLAGS += @PLUGIN_LDFLAGS@
 
 libdeployPkgPlugin_la_LIBADD =
 libdeployPkgPlugin_la_LIBADD += @VMTOOLS_LIBS@
+libdeployPkgPlugin_la_LIBADD += @GOBJECT_LIBS@
 libdeployPkgPlugin_la_LIBADD += $(top_builddir)/libDeployPkg/libDeployPkg.la
 
 libdeployPkgPlugin_la_SOURCES =

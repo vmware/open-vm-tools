@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -43,7 +43,7 @@ typedef struct FileLoggerData {
    guint             maxFiles;
    gboolean          append;
    gboolean          error;
-   GStaticRWLock     lock;
+   GRWLock           lock;
 } FileLoggerData;
 
 
@@ -176,7 +176,7 @@ ServiceFileLogger_Log(const gchar *domain,
    gboolean ret = FALSE;
    FileLoggerData *data = (FileLoggerData *) _data;
 
-   g_static_rw_lock_reader_lock(&data->lock);
+   g_rw_lock_reader_lock(&data->lock);
 
    if (data->error) {
       goto exit;
@@ -192,13 +192,13 @@ ServiceFileLogger_Log(const gchar *domain,
           * We need to drop the read lock and acquire a write lock to open
           * the log file.
           */
-         g_static_rw_lock_reader_unlock(&data->lock);
-         g_static_rw_lock_writer_lock(&data->lock);
+         g_rw_lock_reader_unlock(&data->lock);
+         g_rw_lock_writer_lock(&data->lock);
          if (data->file == NULL) {
             data->file = ServiceFileLoggerOpen(data);
          }
-         g_static_rw_lock_writer_unlock(&data->lock);
-         g_static_rw_lock_reader_lock(&data->lock);
+         g_rw_lock_writer_unlock(&data->lock);
+         g_rw_lock_reader_lock(&data->lock);
          if (data->file == NULL) {
             data->error = TRUE;
             fprintf(stderr, "Unable to open log file %s\n", data->path);
@@ -217,15 +217,15 @@ ServiceFileLogger_Log(const gchar *domain,
 #endif
          if (g_atomic_int_get(&data->logSize) >= data->maxSize) {
             /* Drop the reader lock, grab the writer lock and re-check. */
-            g_static_rw_lock_reader_unlock(&data->lock);
-            g_static_rw_lock_writer_lock(&data->lock);
+            g_rw_lock_reader_unlock(&data->lock);
+            g_rw_lock_writer_lock(&data->lock);
             if (g_atomic_int_get(&data->logSize) >= data->maxSize) {
                fclose(data->file);
                data->append = FALSE;
                data->file = ServiceFileLoggerOpen(data);
             }
-            g_static_rw_lock_writer_unlock(&data->lock);
-            g_static_rw_lock_reader_lock(&data->lock);
+            g_rw_lock_writer_unlock(&data->lock);
+            g_rw_lock_reader_lock(&data->lock);
          } else {
             fflush(data->file);
          }
@@ -236,7 +236,7 @@ ServiceFileLogger_Log(const gchar *domain,
    }
 
 exit:
-   g_static_rw_lock_reader_unlock(&data->lock);
+   g_rw_lock_reader_unlock(&data->lock);
    return ret;
 }
 
@@ -300,7 +300,7 @@ ServiceFileLogger_Init(void)
     */
    data->append = TRUE;
 
-   g_static_rw_lock_init(&data->lock);
+   g_rw_lock_init(&data->lock);
 
    if (logFileName != NULL) {
       data->path = g_filename_from_utf8(logFileName, -1, NULL, NULL, NULL);

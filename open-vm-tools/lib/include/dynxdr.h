@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -38,11 +38,19 @@
 #include <rpc/xdr.h>
 #include "vm_basic_types.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 XDR *DynXdr_Create(XDR *in);
 Bool DynXdr_AppendRaw(XDR *xdrs, const void *buf, size_t len);
 void *DynXdr_AllocGet(XDR *xdrs);
 void *DynXdr_Get(XDR *xdrs);
 void DynXdr_Destroy(XDR *xdrs, Bool release);
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif /* _DYNXDR_H_ */
 

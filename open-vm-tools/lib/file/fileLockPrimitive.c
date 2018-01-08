@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -21,8 +21,8 @@
  *
  *      Portable file locking via Lamport's Bakery algorithm.
  *
- * This implementation does rely upon a remove directory operation to fail
- * if the directory contains any files.
+ *      This implementation relies upon a remove directory operation failing
+ *      if the directory contains any files.
  */
 
 #define _GNU_SOURCE /* For O_NOFOLLOW */
@@ -62,8 +62,8 @@
 
 #define LOCK_SHARED     "S"
 #define LOCK_EXCLUSIVE  "X"
-#define FILELOCK_PROGRESS_DEARTH 8000 // Dearth of progress time in msec
-#define FILELOCK_PROGRESS_SAMPLE 200  // Progress sampling time in msec
+#define FILELOCK_PROGRESS_DEARTH 8000 // Dearth of progress time in milliseconds
+#define FILELOCK_PROGRESS_SAMPLE 200  // Progress sampling time in milliseconds
 
 static char implicitReadToken;
 
@@ -72,9 +72,9 @@ static char implicitReadToken;
 
 typedef struct parse_table
 {
-   int type;
-   char *name;
-   void *valuePtr;
+   int    type;
+   char  *name;
+   void  *valuePtr;
 } ParseTable;
 
 /*
@@ -120,38 +120,40 @@ struct FileLockToken
  */
 
 static int
-FileLockSleeper(LockValues *myValues,  // IN/OUT:
-                uint32 *loopCount)     // IN/OUT:
+FileLockSleeper(LockValues *myValues)  // IN/OUT:
 {
-   uint32 msecSleepTime;
+   VmTimeType ageMsec;
+   uint32 maxSleepTimeMsec;
 
-   if ((myValues->msecMaxWaitTime == FILELOCK_TRYLOCK_WAIT) ||
-       ((myValues->msecMaxWaitTime != FILELOCK_INFINITE_WAIT) &&
-        (myValues->waitTime > myValues->msecMaxWaitTime))) {
+   if (myValues->maxWaitTimeMsec == FILELOCK_TRYLOCK_WAIT) {
       return EAGAIN;
    }
 
-   if (*loopCount <= 20) {
-      /* most locks are "short" */
-      msecSleepTime = 100;
-      *loopCount += 1;
-   } else if (*loopCount < 40) {
-      /* lock has been around a while, linear back-off */
-      msecSleepTime = 100 * (*loopCount - 19);
-      *loopCount += 1;
+   ageMsec = Hostinfo_SystemTimerMS() - myValues->startTimeMsec;
+
+   if ((myValues->maxWaitTimeMsec != FILELOCK_INFINITE_WAIT) &&
+       (ageMsec >= myValues->maxWaitTimeMsec)) {
+      return EAGAIN;
+   }
+
+   if (ageMsec <= 2000) {
+      /* Most locks are "short" */
+      maxSleepTimeMsec = 100;
    } else {
-      /* WOW! long time... Set a maximum */
-      msecSleepTime = 2000;
+      /*
+       * The lock has been around a while; use a continuously increasing back
+       * off with an upper bound.
+       */
+
+      maxSleepTimeMsec = MIN(ageMsec / 10, 2000);
    }
 
-   myValues->waitTime += msecSleepTime;
+   /*
+    * Randomize the time slept. This will prevent any potential cadence issues
+    * (thundering herds).
+    */
 
-   /* Clamp individual sleeps to avoid Windows issues */
-   while (msecSleepTime) {
-      uint32 sleepTime = (msecSleepTime > 900) ? 900 : msecSleepTime;
-
-      msecSleepTime -= FileSleeper(sleepTime, sleepTime);
-   }
+   (void) FileSleeper(maxSleepTimeMsec / 2, maxSleepTimeMsec);
 
    return 0;
 }
@@ -181,8 +183,8 @@ FileLockRemoveLockingFile(const char *lockDir,   // IN:
    int err;
    char *path;
 
-   ASSERT(lockDir);
-   ASSERT(fileName);
+   ASSERT(lockDir != NULL);
+   ASSERT(fileName != NULL);
 
    path = Unicode_Join(lockDir, DIRSEPS, fileName, NULL);
 
@@ -194,11 +196,11 @@ FileLockRemoveLockingFile(const char *lockDir,   // IN:
          err = 0;
       } else {
          Warning(LGPFX" %s of '%s' failed: %s\n", __FUNCTION__,
-                 path, strerror(err));
+                 path, Err_Errno2String(err));
       }
    }
 
-   free(path);
+   Posix_Free(path);
 
    return err;
 }
@@ -315,8 +317,8 @@ FileLockMemberValues(const char *lockDir,       // IN:
                            }
                         };
 
-   ASSERT(lockDir);
-   ASSERT(fileName);
+   ASSERT(lockDir != NULL);
+   ASSERT(fileName != NULL);
 
    path = Unicode_Join(lockDir, DIRSEPS, fileName, NULL);
 
@@ -343,7 +345,7 @@ FileLockMemberValues(const char *lockDir,       // IN:
 
       if (err != ENOENT) {
          Warning(LGPFX" %s open failure on '%s': %s\n", __FUNCTION__,
-                 path, strerror(err));
+                 path, Err_Errno2String(err));
       }
 
       goto bail;
@@ -362,7 +364,7 @@ FileLockMemberValues(const char *lockDir,       // IN:
 
       if (err != ENOENT) {
          Warning(LGPFX" %s file size failure on '%s': %s\n", __FUNCTION__,
-                 path, strerror(err));
+                 path, Err_Errno2String(err));
       }
 
       FileIO_Close(&desc);
@@ -389,7 +391,7 @@ FileLockMemberValues(const char *lockDir,       // IN:
       err = FileMapErrorToErrno(__FUNCTION__, Err_Errno());
 
       Warning(LGPFX" %s read failure on '%s': %s\n",
-              __FUNCTION__, path, strerror(err));
+              __FUNCTION__, path, Err_Errno2String(err));
 
       goto bail;
    }
@@ -463,7 +465,7 @@ fixedUp:
 
         Str_Strcpy(buffer, newBuffer, requiredSize);
 
-        free(newBuffer);
+        Posix_Free(newBuffer);
 
         goto fixedUp;
   }
@@ -482,7 +484,7 @@ fixedUp:
    memberValues->lockType = argv[3];
    memberValues->memberName = Unicode_Duplicate(fileName);
 
-   free(path);
+   Posix_Free(path);
 
    return 0;
 
@@ -509,7 +511,7 @@ corrupt:
    }
 
 bail:
-   free(path);
+   Posix_Free(path);
 
    return err;
 }
@@ -537,7 +539,7 @@ FileLockValidName(const char *fileName)  // IN:
 {
    uint32 i;
 
-   ASSERT(fileName);
+   ASSERT(fileName != NULL);
 
    /* The fileName must start with the ASCII character, 'M', 'D' or 'E' */
    if (Unicode_FindSubstrInRange("MDE", 0, -1, fileName, 0,
@@ -581,8 +583,7 @@ FileLockActivateList(const char *dirName,   // IN:
 {
    ActiveLock   *ptr;
 
-   ASSERT(dirName);
-
+   ASSERT(dirName != NULL);
    ASSERT(*dirName == 'D');
 
    /* Search the list for a matching entry */
@@ -649,7 +650,7 @@ FileLockLocationChecksum(const char *path)  // IN:
    }
 
 #if defined(_WIN32)
-   free(value);
+   Posix_Free(value);
 #endif
 
    return Str_SafeAsprintf(NULL, "%u", hash);
@@ -693,7 +694,7 @@ FileLockScanDirectory(const char *lockDir,      // IN:
    char *myExecutionID = NULL;
    char *locationChecksum = NULL;
 
-   ASSERT(lockDir);
+   ASSERT(lockDir != NULL);
 
    numEntries = FileListDirectoryRobust(lockDir, &fileList);
 
@@ -716,7 +717,7 @@ FileLockScanDirectory(const char *lockDir,      // IN:
             goto bail;
          }
 
-        free(fileList[i]);
+        Posix_Free(fileList[i]);
         fileList[i] = NULL;
 
         continue;
@@ -737,7 +738,7 @@ FileLockScanDirectory(const char *lockDir,      // IN:
             }
         }
 
-        free(fileList[i]);
+        Posix_Free(fileList[i]);
         fileList[i] = NULL;
       }
    }
@@ -804,8 +805,8 @@ FileLockScanDirectory(const char *lockDir,      // IN:
                Log(LGPFX" %s discarding %s from %s': %s\n",
                    __FUNCTION__, fileList[i], lockDir, dispose);
 
-               free(dispose);
-               free(memberValues.memberName);
+               Posix_Free(dispose);
+               Posix_Free(memberValues.memberName);
 
                err = FileLockRemoveLockingFile(lockDir, fileList[i]);
                if (err != 0) {
@@ -823,7 +824,7 @@ FileLockScanDirectory(const char *lockDir,      // IN:
       err = (*func)(lockDir, fileList[i], ptr, myValues);
 
       if (ptr == &memberValues) {
-         free(memberValues.memberName);
+         Posix_Free(memberValues.memberName);
       }
 
       if (err != 0) {
@@ -835,8 +836,8 @@ bail:
 
    Util_FreeStringList(fileList, numEntries);
 
-   free(locationChecksum);
-   free(myExecutionID);
+   Posix_Free(locationChecksum);
+   Posix_Free(myExecutionID);
 
    return err;
 }
@@ -875,7 +876,7 @@ FileLockScanner(const char *lockDir,     // IN:
    int        err;
    ActiveLock *ptr;
 
-   ASSERT(lockDir);
+   ASSERT(lockDir != NULL);
 
    myValues->lockList = NULL;
 
@@ -916,15 +917,15 @@ FileLockScanner(const char *lockDir,     // IN:
 
                temp = Unicode_Replace(path, index, 1, "M");
                FileDeletionRobust(temp, FALSE);
-               free(temp);
+               Posix_Free(temp);
 
                temp = Unicode_Replace(path, index, 1, "E");
                FileDeletionRobust(temp, FALSE);
-               free(temp);
+               Posix_Free(temp);
 
                FileRemoveDirectoryRobust(path);
 
-               free(path);
+               Posix_Free(path);
 
                remove = TRUE;
             } else {
@@ -958,9 +959,9 @@ FileLockScanner(const char *lockDir,     // IN:
       ptr = myValues->lockList;
       myValues->lockList = ptr->next;
 
-      free(ptr->dirName);
+      Posix_Free(ptr->dirName);
 
-      free(ptr);
+      Posix_Free(ptr);
    }
 
    return err;
@@ -1018,10 +1019,10 @@ FileUnlockIntrinsic(FileLockToken *tokenPtr)  // IN:
 
          if (err && vmx86_debug) {
             Log(LGPFX" %s failed for '%s': %s\n", __FUNCTION__,
-                tokenPtr->u.portable.lockFilePath, strerror(err));
+                tokenPtr->u.portable.lockFilePath, Err_Errno2String(err));
          }
-         free(lockDir);
-         free(tokenPtr->u.portable.lockFilePath);
+         Posix_Free(lockDir);
+         Posix_Free(tokenPtr->u.portable.lockFilePath);
       }
 
       tokenPtr->u.portable.lockFilePath = NULL;  // Just in case...
@@ -1047,16 +1048,16 @@ FileUnlockIntrinsic(FileLockToken *tokenPtr)  // IN:
             err = Err_Errno();
             if (vmx86_debug) {
                Log(LGPFX" %s failed for advisory lock '%s': %s\n", __FUNCTION__,
-                   tokenPtr->pathName, strerror(err));
+                   tokenPtr->pathName, Err_Errno2String(err));
             }
          }
       }
    }
 
-   free(tokenPtr->pathName);
+   Posix_Free(tokenPtr->pathName);
    tokenPtr->signature = 0;        // Just in case...
    tokenPtr->pathName = NULL;      // Just in case...
-   free(tokenPtr);
+   Posix_Free(tokenPtr);
 
    return err;
 }
@@ -1088,8 +1089,8 @@ FileLockWaitForPossession(const char *lockDir,       // IN:
 {
    int err = 0;
 
-   ASSERT(lockDir);
-   ASSERT(fileName);
+   ASSERT(lockDir != NULL);
+   ASSERT(fileName != NULL);
 
    /* "Win" or wait? */
    if (((memberValues->lamportNumber < myValues->lamportNumber) ||
@@ -1099,17 +1100,14 @@ FileLockWaitForPossession(const char *lockDir,       // IN:
         ((strcmp(memberValues->lockType, LOCK_EXCLUSIVE) == 0) ||
          (strcmp(myValues->lockType, LOCK_EXCLUSIVE) == 0))) {
       char *path;
-      uint32 loopCount;
       Bool   thisMachine;
 
       thisMachine = FileLockMachineIDMatch(myValues->machineID,
                                            memberValues->machineID);
 
-      loopCount = 0;
-
       path = Unicode_Join(lockDir, DIRSEPS, fileName, NULL);
 
-      while ((err = FileLockSleeper(myValues, &loopCount)) == 0) {
+      while ((err = FileLockSleeper(myValues)) == 0) {
          /* still there? */
          err = FileAttributesRobust(path, NULL);
          if (err != 0) {
@@ -1138,7 +1136,7 @@ FileLockWaitForPossession(const char *lockDir,       // IN:
        * attempts. This can assist in debugging locking problems.
        */
 
-      if ((myValues->msecMaxWaitTime != FILELOCK_TRYLOCK_WAIT) &&
+      if ((myValues->maxWaitTimeMsec != FILELOCK_TRYLOCK_WAIT) &&
           (err == EAGAIN)) {
          if (thisMachine) {
             Log(LGPFX" %s timeout on '%s' due to a local process '%s'\n",
@@ -1149,7 +1147,7 @@ FileLockWaitForPossession(const char *lockDir,       // IN:
          }
       }
 
-      free(path);
+      Posix_Free(path);
    }
 
    return err;
@@ -1179,8 +1177,8 @@ FileLockNumberScan(const char *lockDir,       // IN:
                    LockValues *memberValues,  // IN:
                    LockValues *myValues)      // IN/OUT:
 {
-   ASSERT(lockDir);
-   ASSERT(fileName);
+   ASSERT(lockDir != NULL);
+   ASSERT(fileName != NULL);
 
    if (memberValues->lamportNumber > myValues->lamportNumber) {
       myValues->lamportNumber = memberValues->lamportNumber;
@@ -1218,7 +1216,7 @@ FileLockMakeDirectory(const char *pathName)  // IN:
    save = umask(0);
 #endif
 
-   ASSERT(pathName);
+   ASSERT(pathName != NULL);
 
    err = FileCreateDirectoryRobust(pathName, 0777);
 
@@ -1265,7 +1263,7 @@ FileLockCreateEntryDirectory(const char *lockDir,    // IN:
    int err = 0;
    uint32 randomNumber = 0;
 
-   ASSERT(lockDir);
+   ASSERT(lockDir != NULL);
 
    *entryDirectory = NULL;
    *entryFilePath = NULL;
@@ -1315,13 +1313,13 @@ FileLockCreateEntryDirectory(const char *lockDir,    // IN:
 
             if ((err != 0) && (err != EEXIST)) {
                Warning(LGPFX" %s creation failure on '%s': %s\n",
-                       __FUNCTION__, lockDir, strerror(err));
+                       __FUNCTION__, lockDir, Err_Errno2String(err));
 
                break;
             }
          } else {
             Warning(LGPFX" %s stat failure on '%s': %s\n",
-                    __FUNCTION__, lockDir, strerror(err));
+                    __FUNCTION__, lockDir, Err_Errno2String(err));
 
             break;
          }
@@ -1334,11 +1332,11 @@ FileLockCreateEntryDirectory(const char *lockDir,    // IN:
 
       temp = Unicode_Format("D%05u%s", randomNumber, FILELOCK_SUFFIX);
       *entryDirectory = Unicode_Join(lockDir, DIRSEPS, temp, NULL);
-      free(temp);
+      Posix_Free(temp);
 
       temp = Unicode_Format("E%05u%s", randomNumber, FILELOCK_SUFFIX);
       *entryFilePath = Unicode_Join(lockDir, DIRSEPS, temp, NULL);
-      free(temp);
+      Posix_Free(temp);
 
       *memberFilePath = Unicode_Join(lockDir, DIRSEPS, *memberName, NULL);
 
@@ -1365,7 +1363,7 @@ FileLockCreateEntryDirectory(const char *lockDir,    // IN:
 
             if (vmx86_debug) {
                Log(LGPFX" %s stat failure on '%s': %s\n",
-                   __FUNCTION__, *memberFilePath, strerror(err));
+                   __FUNCTION__, *memberFilePath, Err_Errno2String(err));
              }
          }
 
@@ -1374,16 +1372,16 @@ FileLockCreateEntryDirectory(const char *lockDir,    // IN:
           if ((err != EEXIST) &&  // Another process/thread created it...
               (err != ENOENT)) {  // lockDir is gone...
              Warning(LGPFX" %s creation failure on '%s': %s\n",
-                     __FUNCTION__, *entryDirectory, strerror(err));
+                     __FUNCTION__, *entryDirectory, Err_Errno2String(err));
 
              break;
           }
       }
 
-      free(*entryDirectory);
-      free(*entryFilePath);
-      free(*memberFilePath);
-      free(*memberName);
+      Posix_Free(*entryDirectory);
+      Posix_Free(*entryFilePath);
+      Posix_Free(*memberFilePath);
+      Posix_Free(*memberName);
 
       *entryDirectory = NULL;
       *entryFilePath = NULL;
@@ -1392,10 +1390,10 @@ FileLockCreateEntryDirectory(const char *lockDir,    // IN:
    }
 
    if (err != 0) {
-      free(*entryDirectory);
-      free(*entryFilePath);
-      free(*memberFilePath);
-      free(*memberName);
+      Posix_Free(*entryDirectory);
+      Posix_Free(*entryFilePath);
+      Posix_Free(*memberFilePath);
+      Posix_Free(*memberName);
 
       *entryDirectory = NULL;
       *entryFilePath = NULL;
@@ -1439,8 +1437,8 @@ FileLockCreateMemberFile(FileIODescriptor *desc,       // IN:
    int err = 0;
    char buffer[FILELOCK_DATA_SIZE] = { 0 };
 
-   ASSERT(entryFilePath);
-   ASSERT(memberFilePath);
+   ASSERT(entryFilePath != NULL);
+   ASSERT(memberFilePath != NULL);
 
    /*
     * Populate the buffer with appropriate data
@@ -1480,7 +1478,7 @@ FileLockCreateMemberFile(FileIODescriptor *desc,       // IN:
       err = FileMapErrorToErrno(__FUNCTION__, Err_Errno());
 
       Warning(LGPFX" %s write of '%s' failed: %s\n", __FUNCTION__,
-              entryFilePath, strerror(err));
+              entryFilePath, Err_Errno2String(err));
 
       FileIO_Close(desc);
 
@@ -1491,7 +1489,7 @@ FileLockCreateMemberFile(FileIODescriptor *desc,       // IN:
       err = FileMapErrorToErrno(__FUNCTION__, Err_Errno());
 
       Warning(LGPFX" %s close of '%s' failed: %s\n", __FUNCTION__,
-              entryFilePath, strerror(err));
+              entryFilePath, Err_Errno2String(err));
 
       return err;
    }
@@ -1508,16 +1506,16 @@ FileLockCreateMemberFile(FileIODescriptor *desc,       // IN:
    if (err != 0) {
       Warning(LGPFX" %s FileRename of '%s' to '%s' failed: %s\n",
               __FUNCTION__, entryFilePath, memberFilePath,
-              strerror(err));
+              Err_Errno2String(err));
 
       if (vmx86_debug) {
          Log(LGPFX" %s FileLockFileType() of '%s': %s\n",
              __FUNCTION__, entryFilePath,
-            strerror(FileAttributesRobust(entryFilePath, NULL)));
+            Err_Errno2String(FileAttributesRobust(entryFilePath, NULL)));
 
          Log(LGPFX" %s FileLockFileType() of '%s': %s\n",
              __FUNCTION__, memberFilePath,
-            strerror(FileAttributesRobust(memberFilePath, NULL)));
+            Err_Errno2String(FileAttributesRobust(memberFilePath, NULL)));
       }
 
       return err;
@@ -1538,7 +1536,7 @@ FileLockCreateMemberFile(FileIODescriptor *desc,       // IN:
  *      which requires kernel support for mandatory locking. Such locks
  *      are automatically broken if the host holding the lock fails.
  *
- *      msecMaxWaitTime specifies the maximum amount of time, in
+ *      maxWaitTimeMsec specifies the maximum amount of time, in
  *      milliseconds, to wait for the lock before returning the "not
  *      acquired" status. A value of FILELOCK_TRYLOCK_WAIT is the
  *      equivalent of a "try lock" - the lock will be acquired only if
@@ -1564,7 +1562,7 @@ FileLockIntrinsicMandatory(const char *pathName,   // IN:
                            int *err)               // OUT:
 {
    int access;
-   int loopCount = 0;
+   int errnum;
    FileIOResult result;
    FileLockToken *tokenPtr = Util_SafeMalloc(sizeof *tokenPtr);
 
@@ -1573,8 +1571,8 @@ FileLockIntrinsicMandatory(const char *pathName,   // IN:
    tokenPtr->pathName = Unicode_Duplicate(pathName);
    FileIO_Invalidate(&tokenPtr->u.mandatory.lockFd);
 
-   access = myValues->exclusivity ? FILEIO_OPEN_ACCESS_WRITE
-                                  : FILEIO_OPEN_ACCESS_READ;
+   access = myValues->exclusivity ? FILEIO_OPEN_ACCESS_WRITE :
+                                    FILEIO_OPEN_ACCESS_READ;
    access |= FILEIO_OPEN_EXCLUSIVE_LOCK;
 
    do {
@@ -1582,10 +1580,11 @@ FileLockIntrinsicMandatory(const char *pathName,   // IN:
                                  lockFile, access,
                                  FILEIO_OPEN_CREATE, 0600,
                                  0);
+      errnum = Err_Errno();
       if (result != FILEIO_LOCK_FAILED) {
          break;
       }
-   } while (FileLockSleeper(myValues, &loopCount) == 0);
+   } while (FileLockSleeper(myValues) == 0);
 
    if (FileIO_IsSuccess(result)) {
       ASSERT(FileIO_IsValid(&tokenPtr->u.mandatory.lockFd));
@@ -1593,10 +1592,14 @@ FileLockIntrinsicMandatory(const char *pathName,   // IN:
 
       return tokenPtr;
    } else {
-      *err = FileMapErrorToErrno(__FUNCTION__, Err_Errno());
-      free(tokenPtr->pathName);
+      if (result == FILEIO_LOCK_FAILED) {
+         *err = 0;
+      } else {
+         *err = FileMapErrorToErrno(__FUNCTION__, errnum);
+      }
+      Posix_Free(tokenPtr->pathName);
       ASSERT(!FileIO_IsValid(&tokenPtr->u.mandatory.lockFd));
-      free(tokenPtr);
+      Posix_Free(tokenPtr);
 
       return NULL;
    }
@@ -1648,8 +1651,8 @@ FileLockIntrinsicPortable(const char *pathName,   // IN:
    char *memberFilePath = NULL;
    char *entryDirectory = NULL;
 
-   ASSERT(pathName);
-   ASSERT(err);
+   ASSERT(pathName != NULL);
+   ASSERT(err != NULL);
 
    /*
     * Attempt to create the locking and entry directories; obtain the
@@ -1766,8 +1769,8 @@ FileLockIntrinsicPortable(const char *pathName,   // IN:
 
 bail:
 
-   free(entryDirectory);
-   free(entryFilePath);
+   Posix_Free(entryDirectory);
+   Posix_Free(entryFilePath);
 
    if (*err == 0) {
       tokenPtr = Util_SafeMalloc(sizeof *tokenPtr);
@@ -1777,7 +1780,7 @@ bail:
       tokenPtr->pathName = Unicode_Duplicate(pathName);
       tokenPtr->u.portable.lockFilePath = memberFilePath;
    } else {
-      free(memberFilePath);
+      Posix_Free(memberFilePath);
       tokenPtr = NULL;
 
       if (*err == EAGAIN) {
@@ -1806,7 +1809,7 @@ bail:
  *      implemented via mandatory locks and a more portable scheme depending
  *      on host OS support.
  *
- *      msecMaxWaitTime specifies the maximum amount of time, in
+ *      maxWaitTimeMsec specifies the maximum amount of time, in
  *      milliseconds, to wait for the lock before returning the "not
  *      acquired" status. A value of FILELOCK_TRYLOCK_WAIT is the
  *      equivalent of a "try lock" - the lock will be acquired only if
@@ -1828,7 +1831,7 @@ bail:
 FileLockToken *
 FileLockIntrinsic(const char *pathName,    // IN:
                   Bool exclusivity,        // IN:
-                  uint32 msecMaxWaitTime,  // IN:
+                  uint32 maxWaitTimeMsec,  // IN:
                   int *err)                // OUT:
 {
    char *lockBase;
@@ -1840,12 +1843,12 @@ FileLockIntrinsic(const char *pathName,    // IN:
 
    myValues.lockType = exclusivity ? LOCK_EXCLUSIVE : LOCK_SHARED;
    myValues.exclusivity = exclusivity;
-   myValues.waitTime = 0;
-   myValues.msecMaxWaitTime = msecMaxWaitTime;
+   myValues.startTimeMsec = Hostinfo_SystemTimerMS();
+   myValues.maxWaitTimeMsec = maxWaitTimeMsec;
 
    if (File_SupportsMandatoryLock(pathName)) {
       LOG(1, ("Requesting %s lock on %s (mandatory, %u).\n",
-          myValues.lockType, pathName, myValues.msecMaxWaitTime));
+          myValues.lockType, pathName, myValues.maxWaitTimeMsec));
 
       tokenPtr = FileLockIntrinsicMandatory(pathName, lockBase, &myValues, err);
    } else {
@@ -1857,16 +1860,16 @@ FileLockIntrinsic(const char *pathName,    // IN:
 
       LOG(1, ("Requesting %s lock on %s (%s, %s, %u).\n",
           myValues.lockType, pathName, myValues.machineID,
-          myValues.executionID, myValues.msecMaxWaitTime));
+          myValues.executionID, myValues.maxWaitTimeMsec));
 
       tokenPtr = FileLockIntrinsicPortable(pathName, lockBase, &myValues, err);
 
-      free(myValues.memberName);
-      free(myValues.locationChecksum);
-      free(myValues.executionID);
+      Posix_Free(myValues.memberName);
+      Posix_Free(myValues.locationChecksum);
+      Posix_Free(myValues.executionID);
    }
 
-   free(lockBase);
+   Posix_Free(lockBase);
 
    return tokenPtr;
 }
@@ -2018,7 +2021,7 @@ FileLockIsLocked(const char *pathName,  // IN:
    Bool isLocked;
    char *lockBase;
 
-   ASSERT(pathName);
+   ASSERT(pathName != NULL);
 
    lockBase = Unicode_Append(pathName, FILELOCK_SUFFIX);
 
@@ -2028,7 +2031,7 @@ FileLockIsLocked(const char *pathName,  // IN:
       isLocked = FileLockIsLockedPortable(lockBase, err);
    }
 
-   free(lockBase);
+   Posix_Free(lockBase);
 
    return isLocked;
 }

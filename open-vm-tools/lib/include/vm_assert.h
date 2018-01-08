@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -138,22 +138,11 @@ void Warning(const char *fmt, ...) PRINTF_DECL(1, 2);
 #if defined VMKPANIC
 void Panic_SaveRegs(void);
 
-#ifdef VMX86_DEBUG
-void Panic_NoSave(const char *fmt, ...) PRINTF_DECL(1, 2);
-#else
 NORETURN void Panic_NoSave(const char *fmt, ...) PRINTF_DECL(1, 2);
-#endif
-
-NORETURN void Panic_NoSaveNoReturn(const char *fmt, ...) PRINTF_DECL(1, 2);
 
 #define Panic(fmt...) do { \
    Panic_SaveRegs();       \
    Panic_NoSave(fmt);      \
-} while(0)
-
-#define Panic_NoReturn(fmt...) do { \
-   Panic_SaveRegs();                \
-   Panic_NoSaveNoReturn(fmt);       \
 } while(0)
 
 #else
@@ -215,8 +204,6 @@ void WarningThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
 
 #define ASSERT_NOT_IMPLEMENTED(cond) \
            ASSERT_IFNOT(cond, NOT_IMPLEMENTED())
-#define ASSERT_NOT_IMPLEMENTED_BUG(bug, cond) \
-           ASSERT_IFNOT(cond, NOT_IMPLEMENTED_BUG(bug))
 
 #if defined VMKPANIC || defined VMM
 #define NOT_IMPLEMENTED()        _ASSERT_PANIC_NORETURN(AssertNotImplemented)
@@ -241,10 +228,8 @@ void WarningThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
            ASSERT_IFNOT(cond, _ASSERT_PANIC(AssertMemAlloc))
 
 #ifdef VMX86_DEVEL
-#define ASSERT_DEVEL(cond) ASSERT(cond)
 #define NOT_TESTED()       Warning(_AssertNotTestedFmt "\n", __FILE__, __LINE__)
 #else
-#define ASSERT_DEVEL(cond) ((void)0)
 #define NOT_TESTED()       Log(_AssertNotTestedFmt "\n", __FILE__, __LINE__)
 #endif
 
@@ -344,7 +329,7 @@ void WarningThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
 #define ASSERT_ON_COMPILE(e) \
    do {                      \
       _Static_assert(e, #e); \
-   } while (0);
+   } while (0)
 #endif
 
 /*

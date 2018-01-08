@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -31,7 +31,7 @@
 #     include <winsock2.h>
 #  endif // !NT_INCLUDED
 #else // _WIN32
-#if defined(linux) && !defined(VMKERNEL)
+#if defined(__linux__) && !defined(VMKERNEL)
 #  if !defined(__KERNEL__)
 #    include <sys/socket.h>
 #  endif // __KERNEL__
@@ -44,6 +44,11 @@
 #  endif // __FreeBSD__
 #endif // linux && !VMKERNEL
 #endif
+
+#if defined __cplusplus
+extern "C" {
+#endif
+
 
 /**
  * \brief Option name for STREAM socket buffer size.
@@ -243,6 +248,36 @@
  */
 
 #define SO_VMCI_NONBLOCK_TXRX               7
+
+/**
+ * \brief Option name for STREAM socket connection disconect cause
+ *
+ * Use as the option name in \c getsockopt(3) to get the cause of the
+ * peer disconnect for a stream socket.
+ *
+ * \note Only available for ESX (VMkernel/userworld) endpoints.
+ *
+ * An example is given below.
+ *
+ * \code
+ * int vmciFd;
+ * int af = VMCISock_GetAFValueFd(&vmciFd);
+ * int32 cause;
+ * socklen_t len = sizeof cause;
+ * int fd = socket(af, SOCK_DGRAM, 0);
+ * ...
+ * if (recv(fd, buf, buflen, 0) == 0) {
+ *    getsockopt(fd, af, SO_VMCI_DISCONNECT_CAUSE, &cause, &len);
+ * }
+ * close(fd);
+ * VMCISock_ReleaseAFValueFd(vmciFd);
+ * \endcode
+ */
+
+#define SO_VMCI_DISCONNECT_CAUSE            8
+
+#define VMCI_SOCKETS_DISCONNECT_REGULAR     0
+#define VMCI_SOCKETS_DISCONNECT_VMOTION     1
 
 /**
  * \brief The vSocket equivalent of INADDR_ANY.
@@ -489,8 +524,8 @@ struct uuid_2_cid {
       }
 #  endif // !NT_INCLUDED
 #else // _WIN32
-#if (defined(linux) && !defined(VMKERNEL)) || (defined(__APPLE__))
-#  if defined(linux) && defined(__KERNEL__)
+#if (defined(__linux__) && !defined(VMKERNEL)) || (defined(__APPLE__))
+#  if defined(__linux__) && defined(__KERNEL__)
    void VMCISock_KernelRegister(void);
    void VMCISock_KernelDeregister(void);
    int VMCISock_GetAFValue(void);
@@ -509,7 +544,7 @@ struct uuid_2_cid {
 /** \cond PRIVATE */
 #  define VMCI_SOCKETS_DEFAULT_DEVICE      "/dev/vsock"
 #  define VMCI_SOCKETS_CLASSIC_ESX_DEVICE  "/vmfs/devices/char/vsock/vsock"
-#  if defined(linux)
+#  if defined(__linux__)
 #     define VMCI_SOCKETS_VERSION       1972
 #     define VMCI_SOCKETS_GET_AF_VALUE  1976
 #     define VMCI_SOCKETS_GET_LOCAL_CID 1977
@@ -624,7 +659,7 @@ struct uuid_2_cid {
       int fd;
       int family = -1;
 
-#if defined(linux)
+#if defined(__linux__)
       /*
        * vSockets is now in mainline kernel with address family 40.  As part
        * of upstreaming, we removed the IOCTL we use below to determine the
@@ -856,6 +891,10 @@ struct uuid_2_cid {
 #endif // __FreeBSD__
 #endif // _WIN32
 
+
+#if defined __cplusplus
+} // extern "C"
+#endif
 
 #endif // _VMCI_SOCKETS_H_
 

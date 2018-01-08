@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -46,6 +46,7 @@
 
 
 #if defined(_WIN32)
+#if !defined(VM_WIN_UWP)
 /*
  *-----------------------------------------------------------------------------
  *
@@ -91,6 +92,7 @@ RandomBytesWin32(size_t size,   // IN:
 
    return TRUE;
 }
+#endif // !VM_WIN_UWP
 #else
 /*
  *-----------------------------------------------------------------------------

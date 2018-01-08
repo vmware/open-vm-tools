@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -28,22 +28,21 @@
 #define __COPYPASTE_UI_X11_H__
 
 #include "stringxx/string.hh"
+#include "dnd.h"
+#include "str.h"
+#include "dynbuf.h"
 
 extern "C" {
-#include "dnd.h"
 #include "debug.h"
-#include "str.h"
 #include "dndClipboard.h"
-#include "dynbuf.h"
 #include "../dnd/dndFileContentsUtil.h"
-#include "dynxdr.h"
 #include "cpNameUtil.h"
-#include "posix.h"
 #include "vmware/tools/guestrpc.h"
 }
 
+#include "dynxdr.h"
+#include "posix.h"
 #include "unicodeOperations.h"
-
 #include "guestCopyPaste.hh"
 
 /*

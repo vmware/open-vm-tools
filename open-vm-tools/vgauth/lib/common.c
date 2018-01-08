@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -90,6 +90,82 @@ VGAuthValidateExtraParamsImpl(const char *funcName,
 
 /*
  ******************************************************************************
+ * VGAuthGetBoolExtraParamImpl --                                        */ /**
+ *
+ * Get the boolean value of the specified extra param in the params array.
+ *
+ * @param[in]  funcName    The name of the calling function.
+ * @param[in]  numParams   The number of elements in the params array.
+ * @param[in]  params      The params array to get param value from.
+ * @param[in]  paramName   The param name to get its value.
+ * @param[in]  defValue    The param default value if not set in the array.
+ * @param[out] paramValue  Returned param value, TRUE or FALSE.
+ *
+ * @retval VGAUTH_E_INVALID_ARGUMENT If incomplete arguments are passed in,
+ *                                   the specified extra parameter is passed
+ *                                   in the array multiple times or the
+ *                                   parameter value is invalid.
+ * @reval VGAUTH_E_OK If no error is encountered.
+ *
+ ******************************************************************************
+ */
+
+VGAuthError
+VGAuthGetBoolExtraParamImpl(const char *funcName,
+                            int numParams,
+                            const VGAuthExtraParams *params,
+                            const char *paramName,
+                            gboolean defValue,
+                            gboolean *paramValue)
+{
+   gboolean paramSet = FALSE;
+   int i;
+
+   if ((numParams < 0) || (numParams > 0 && NULL == params)) {
+      Warning("%s: invalid number of parameters: %d.\n", funcName, numParams);
+      return VGAUTH_E_INVALID_ARGUMENT;
+   }
+
+   if (NULL == paramName || NULL == paramValue) {
+      return VGAUTH_E_INVALID_ARGUMENT;
+   }
+
+   *paramValue = defValue;
+
+   for (i = 0; i < numParams; i++) {
+      if (g_strcmp0(params[i].name, paramName) == 0) {
+         // only allow it to be set once
+         if (paramSet) {
+            Warning("%s: extraParam '%s' passed multiple times.\n",
+                    funcName, params[i].name);
+            return VGAUTH_E_INVALID_ARGUMENT;
+         }
+         if (params[i].value) {
+            if (g_ascii_strcasecmp(VGAUTH_PARAM_VALUE_TRUE,
+                                   params[i].value) == 0) {
+               *paramValue = TRUE;
+               paramSet = TRUE;
+            } else if (g_ascii_strcasecmp(VGAUTH_PARAM_VALUE_FALSE,
+                                          params[i].value) == 0) {
+               *paramValue = FALSE;
+               paramSet = TRUE;
+            } else {
+               Warning("%s: Unrecognized value '%s' for boolean param %s\n",
+                       funcName, params[i].value, params[i].name);
+               return VGAUTH_E_INVALID_ARGUMENT;
+            }
+         } else {
+            return VGAUTH_E_INVALID_ARGUMENT;
+         }
+      }
+   }
+
+   return VGAUTH_E_OK;
+}
+
+
+/*
+ ******************************************************************************
  * VGAuth_Init --                                                        */ /**
  *
  * @brief Initializes the library, and specifies any configuration information.
@@ -153,6 +229,7 @@ VGAuth_Init(const char *applicationName,
 
    newCtx->applicationName = g_strdup(applicationName);
    newCtx->isImpersonating = FALSE;
+   newCtx->impersonatedUser = NULL;
 
    /*
     * Only init prefs, i18n and auditing once.
@@ -302,7 +379,7 @@ VGAuth_InstallClient(VGAuthContext *ctx,
 
 #ifdef _WIN32
    return VGAUTH_E_OK;
-#elif defined(linux)
+#elif defined(__linux__)
    {
    gchar *fileName;
    gchar *lowAppName;
@@ -425,7 +502,7 @@ VGAuth_UninstallClient(VGAuthContext *ctx,
 
 #ifdef _WIN32
    return VGAUTH_E_OK;
-#elif defined(linux)
+#elif defined(__linux__)
    {
    gchar *fileName;
    gchar *lowAppName;

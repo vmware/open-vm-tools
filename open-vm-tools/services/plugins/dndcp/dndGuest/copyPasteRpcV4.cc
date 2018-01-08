@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -34,8 +34,9 @@ extern "C" {
 #endif
 
    #include "dndClipboard.h"
-   #include "util.h"
 }
+
+#include "util.h"
 
 
 /**
@@ -273,6 +274,7 @@ CopyPasteRpcV4::HandleMsg(RpcParams *params,
          LOG(0, ("%s: invalid clipboard data.\n", __FUNCTION__));
          break;
       }
+      CPClipboard_Init(&clip);
       if (!CPClipboard_Unserialize(&clip, (void *)binary, binarySize)) {
          LOG(0, ("%s: CPClipboard_Unserialize failed.\n", __FUNCTION__));
          break;

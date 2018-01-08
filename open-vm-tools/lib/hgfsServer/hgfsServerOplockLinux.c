@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2012-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2012-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -29,6 +29,7 @@
 #include <string.h>
 
 #include "vmware.h"
+#include "err.h"
 #include "hgfsServerInt.h"
 #include "hgfsServerOplockInt.h"
 
@@ -167,7 +168,7 @@ HgfsAcquireServerLock(fileDesc fileDesc,            // IN: OS handle
    if (fcntl(fileDesc, F_SETSIG, SIGIO)) {
       error = errno;
       Log("%s: Could not set SIGIO as the desired lease break signal for "
-          "fd %d: %s\n", __FUNCTION__, fileDesc, strerror(error));
+          "fd %d: %s\n", __FUNCTION__, fileDesc, Err_Errno2String(error));
 
       return FALSE;
    }
@@ -198,7 +199,7 @@ HgfsAcquireServerLock(fileDesc fileDesc,            // IN: OS handle
          if (fcntl(fileDesc, F_SETLEASE, leaseType)) {
             error = errno;
             LOG(4, ("%s: Could not get any opportunistic lease for fd %d: %s\n",
-                    __FUNCTION__, fileDesc, strerror(error)));
+                    __FUNCTION__, fileDesc, Err_Errno2String(error)));
 
             return FALSE;
          }
@@ -206,7 +207,7 @@ HgfsAcquireServerLock(fileDesc fileDesc,            // IN: OS handle
          error = errno;
          LOG(4, ("%s: Could not get %s lease for fd %d: %s\n",
                  __FUNCTION__, leaseType == F_WRLCK ? "write" : "read",
-                 fileDesc, strerror(errno)));
+                 fileDesc, Err_Errno2String(errno)));
 
          return FALSE;
       }
@@ -274,7 +275,7 @@ HgfsAckOplockBreak(ServerLockData *lockData, // IN: server lock info
    if (fcntl(fileDesc, F_SETLEASE, newLock) == -1) {
       int error = errno;
       Log("%s: Could not break lease on fd %d: %s\n",
-          __FUNCTION__, fileDesc, strerror(error));
+          __FUNCTION__, fileDesc, Err_Errno2String(error));
    }
 
    /* Cleanup. */
@@ -337,7 +338,7 @@ HgfsServerSigOplockBreak(int sigNum,       // IN: Signal number
    } else if (newLease == -1) {
       int error = errno;
       Log("%s: Could not get old lease for fd %d: %s\n", __FUNCTION__,
-          fd, strerror(error));
+          fd, Err_Errno2String(error));
       goto error;
    } else {
       Log("%s: Unexpected reply to get lease for fd %d: %d\n",

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -452,8 +452,7 @@ VGAuth_ValidateSamlBearerToken(VGAuthContext *ctx,
 {
    VGAuthError err;
    VGAuthUserHandle *newHandle = NULL;
-   int validateOnly = -1;
-   int i;
+   gboolean validateOnly;
 
    /*
     * arg check
@@ -485,45 +484,20 @@ VGAuth_ValidateSamlBearerToken(VGAuthContext *ctx,
       return err;
    }
 
-   /*
-    * XXX
-    *
-    * Should be generalized once we have more use cases.
-    */
-   for (i = 0; i < numExtraParams; i++) {
-      if (g_strcmp0(extraParams[i].name,
-                    VGAUTH_PARAM_VALIDATE_INFO_ONLY) == 0) {
-         // only allow it to be set once
-         if (validateOnly != -1) {
-            Warning("%s: extraParam '%s' passed multiple times\n",
-                    __FUNCTION__, extraParams[i].name);
-            return VGAUTH_E_INVALID_ARGUMENT;
-         }
-         if (extraParams[i].value) {
-            if (g_ascii_strcasecmp(VGAUTH_PARAM_VALUE_TRUE,
-                                   extraParams[i].value) == 0) {
-               validateOnly = 1;
-            } else if (g_ascii_strcasecmp(VGAUTH_PARAM_VALUE_FALSE,
-                                          extraParams[i].value) == 0) {
-               validateOnly = 0;
-            } else {
-               Warning("%s: Unrecognized value '%s' for boolean param %s\n",
-                       __FUNCTION__, extraParams[i].value, extraParams[i].name);
-               return VGAUTH_E_INVALID_ARGUMENT;
-            }
-         } else {
-            return VGAUTH_E_INVALID_ARGUMENT;
-         }
-      }
+   err = VGAuthGetBoolExtraParam(numExtraParams, extraParams,
+                                 VGAUTH_PARAM_VALIDATE_INFO_ONLY,
+                                 FALSE,
+                                 &validateOnly);
+   if (VGAUTH_E_OK != err) {
+      return err;
    }
 
    err = VGAuth_SendValidateSamlBearerTokenRequest(ctx,
-                                                   (validateOnly == 1) ?
-                                                                  TRUE : FALSE,
+                                                   validateOnly,
                                                    samlToken,
                                                    userName,
                                                    &newHandle);
-   if (err != VGAUTH_E_OK) {
+   if (VGAUTH_E_OK != err) {
       goto done;
    }
 

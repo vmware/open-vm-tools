@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2007-2016 VMware, Inc.  All rights reserved.
+### Copyright (C) 2007-2017 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -37,4 +37,14 @@ CLEANFILES = $(desktopfile)
 
 $(desktopfile): $(desktopfilesrc)
 	sed 's,_bindir_,$(bindir),' $(desktopfilesrc) > $(desktopfile)
+
+# The desktopEvents plugin will look for 'vmware-user'
+# to restart.
+install-exec-hook:
+	cd $(DESTDIR)$(bindir) && \
+	  ln -fs vmware-user-suid-wrapper \
+	  vmware-user
+
+uninstall-hook:
+	rm -f $(DESTDIR)$(bindir)/vmware-user
 

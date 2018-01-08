@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -36,7 +36,7 @@
 
 #include "unicodeTypes.h"
 
-#ifdef __cplusplus
+#if defined(__cplusplus)
 extern "C" {
 #endif
 
@@ -53,8 +53,8 @@ char *Unicode_Trim(const char *str);
 char *Unicode_TrimLeft(const char *str);
 char *Unicode_TrimRight(const char *str);
 
-#ifdef __cplusplus
-}
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 
 #endif // _UNICODE_TRANSFORMS_H_

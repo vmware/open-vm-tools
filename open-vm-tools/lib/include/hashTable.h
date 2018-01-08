@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -33,6 +33,9 @@
 #include "vm_basic_defs.h"
 #include "vm_atomic.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 typedef struct HashTable HashTable;
 typedef struct PtrHashTable PtrHashTable;
@@ -176,5 +179,9 @@ Bool PtrHash_Insert(PtrHashTable *hashTable,
 
 Bool PtrHash_Delete(PtrHashTable *hashTable,
                     const void *keyPtr);
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif

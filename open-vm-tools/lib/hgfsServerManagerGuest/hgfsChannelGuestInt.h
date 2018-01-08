@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -19,6 +19,13 @@
 #ifndef _HGFSCHANNELGUESTINT_H_
 #define _HGFSCHANNELGUESTINT_H_
 
+#if defined(VMTOOLS_USE_GLIB)
+#define G_LOG_DOMAIN          "hgfsd"
+#define Debug                 g_debug
+#define Warning               g_warning
+#else
+#include "debug.h"
+#endif
 #include "hgfsServer.h"
 #include "hgfsServerManager.h"
 
@@ -41,14 +48,14 @@
  * Guest channel table of callbacks.
  */
 typedef struct HgfsGuestChannelCBTable {
-   Bool (*init)(HgfsServerSessionCallbacks *, void *, void *, struct HgfsGuestConn **);
+   Bool (*init)(const HgfsServerSessionCallbacks *, void *, void *, struct HgfsGuestConn **);
    void (*exit)(struct HgfsGuestConn *);
    Bool (*receive)(struct HgfsGuestConn *, char const *, size_t, char *, size_t *);
    uint32 (*invalidateInactiveSessions)(struct HgfsGuestConn *);
 } HgfsGuestChannelCBTable;
 
 /* The guest channels callback tables. */
-extern HgfsGuestChannelCBTable gGuestBackdoorOps;
+extern const HgfsGuestChannelCBTable gGuestBackdoorOps;
 
 /* For use by HgfsServerManager. */
 Bool HgfsChannelGuest_Init(HgfsServerMgrData *data, HgfsServerMgrCallbacks *cb);

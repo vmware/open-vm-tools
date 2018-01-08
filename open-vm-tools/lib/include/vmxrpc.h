@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -29,6 +29,10 @@
 #include <rpc/types.h>
 #include <rpc/xdr.h>
 #include "vm_basic_types.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 /*
  * glibc and Solaris headers seem to define functions for unsigned types with
@@ -262,6 +266,10 @@ xdr_Bool(XDR *xdrs,  // IN
 {
    return xdr_char(xdrs, ip);
 }
+#endif
+
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 
 #endif /* _VMXRPC_H_ */

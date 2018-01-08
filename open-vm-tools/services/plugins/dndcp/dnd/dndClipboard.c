@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -155,9 +155,38 @@ CPClipboard_Init(CPClipboard *clip)     // IN/OUT: the clipboard
    ASSERT(clip);
 
    clip->changed = TRUE;
+   clip->maxSize = CPCLIPITEM_MAX_SIZE_V3;
    for (i = CPFORMAT_MIN; i < CPFORMAT_MAX; ++i) {
       CPClipItemInit(&clip->items[CPFormatToIndex(i)]);
    }
+   clip->isInitialized = TRUE;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * CPClipboard_InitWithSize --
+ *
+ *      Call CPClipboard_Init and set the clipboard size.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+void
+CPClipboard_InitWithSize(CPClipboard *clip,  // IN/OUT: the clipboard
+                         uint32 size)        // IN: clipboard size
+{
+   ASSERT(clip);
+
+   CPClipboard_Init(clip);
+   clip->maxSize = size;
 }
 
 
@@ -247,11 +276,14 @@ CPClipboard_SetItem(CPClipboard *clip,          // IN/OUT: the clipboard
    CPClipItem *item;
    uint8 *newBuf = NULL;
    /*
-    * Image, rtf and text may be put into a clipboard at same time, and total
-    * size may be more than limit. Image data will be first dropped, then
-    * rtf data.
+    * Microsoft Office Text Effects i.e. HTML Format, image, rtf and text may
+    * be put into a clipboard at same time, and total size may be more than
+    * limit. HTML format will be first dropped, then image and then rtf data.
     */
-   DND_CPFORMAT filterList[] = {CPFORMAT_IMG_PNG, CPFORMAT_RTF, CPFORMAT_TEXT};
+   DND_CPFORMAT filterList[] = {CPFORMAT_HTML_FORMAT,
+                                CPFORMAT_IMG_PNG,
+                                CPFORMAT_RTF,
+                                CPFORMAT_TEXT};
    int filterIndex = 0;
 
    ASSERT(clip);
@@ -264,7 +296,7 @@ CPClipboard_SetItem(CPClipboard *clip,          // IN/OUT: the clipboard
       return FALSE;
    }
 
-   if (size >= CPCLIPITEM_MAX_SIZE_V3) {
+   if (size >= (size_t) clip->maxSize) {
       return FALSE;
    }
 
@@ -294,7 +326,7 @@ CPClipboard_SetItem(CPClipboard *clip,          // IN/OUT: the clipboard
    item->exists = TRUE;
 
    /* Drop some data if total size is more than limit. */
-   while (CPClipboard_GetTotalSize(clip) >= CPCLIPITEM_MAX_SIZE_V3 &&
+   while (CPClipboard_GetTotalSize(clip) >= (size_t) clip->maxSize &&
           filterIndex < ARRAYSIZE(filterList)) {
       if (!CPClipboard_ClearItem(clip, filterList[filterIndex])) {
          return FALSE;
@@ -381,7 +413,7 @@ CPClipboard_GetItem(const CPClipboard *clip,    // IN: the clipboard
       *buf = clip->items[CPFormatToIndex(fmt)].buf;
       *size = clip->items[CPFormatToIndex(fmt)].size;
       ASSERT(*buf);
-      ASSERT((*size > 0) && (*size < CPCLIPITEM_MAX_SIZE_V3));
+      ASSERT((*size > 0) && (*size < clip->maxSize));
       return TRUE;
    } else {
       ASSERT(!clip->items[CPFormatToIndex(fmt)].size);
@@ -569,6 +601,8 @@ CPClipboard_Copy(CPClipboard *dest,             // IN: the desination clipboard
       }
    }
    dest->changed = src->changed;
+   dest->maxSize = src->maxSize;
+   dest->isInitialized = TRUE;
 
    return TRUE;
 }
@@ -600,6 +634,12 @@ CPClipboard_Serialize(const CPClipboard *clip, // IN
 
    ASSERT(clip);
    ASSERT(buf);
+   ASSERT(clip->isInitialized);
+
+   /* Return FALSE if not initialized. */
+   if (!clip->isInitialized) {
+      return FALSE;
+   }
 
    /* First append number of formats in clip. */
    if (!DynBuf_Append(buf, &maxFmt, sizeof maxFmt)) {
@@ -656,8 +696,12 @@ CPClipboard_Unserialize(CPClipboard *clip, // OUT: the clipboard
 
    ASSERT(clip);
    ASSERT(buf);
+   ASSERT(clip->isInitialized);
 
-   CPClipboard_Init(clip);
+   /* Return FALSE if not initialized. */
+   if (!clip->isInitialized) {
+      goto error;
+   }
 
    r.pos = buf;
    r.unreadLen = len;

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1999-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1999-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -40,11 +40,11 @@
 #ifndef __MESSAGE_H__
 #   define __MESSAGE_H__
 
+#include "vm_basic_types.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include "vm_basic_types.h"
 
 
 /* The channel object */

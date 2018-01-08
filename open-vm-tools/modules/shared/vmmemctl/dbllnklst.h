@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -69,6 +69,10 @@
 #include "includeCheck.h"
 
 #include "vm_basic_types.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #define DblLnkLst_OffsetOf(type, field) ((intptr_t)&((type *)0)->field)
 
@@ -325,5 +329,8 @@ DblLnkLst_Swap(DblLnkLst_Links *head1,  // IN/OUT
    }
 }
 
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif /* _DBLLNKLST_H_ */

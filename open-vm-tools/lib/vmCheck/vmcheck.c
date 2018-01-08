@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -193,7 +193,7 @@ VmCheck_GetVersion(uint32 *version, // OUT
    ASSERT(type);
 
    /* Make sure EBX does not contain BDOOR_MAGIC */
-   bp.in.size = ~BDOOR_MAGIC;
+   bp.in.size = (size_t)~BDOOR_MAGIC;
    /* Make sure ECX does not contain any known VMX type */
    bp.in.cx.halfs.high = 0xFFFF;
 

@@ -2,7 +2,7 @@
  *	 Author: bwilliams
  *  Created: Oct 22, 2010
  *
- *	Copyright (C) 2010-2016 VMware, Inc.  All rights reserved. -- VMware Confidential
+ *	Copyright (C) 2010-2017 VMware, Inc.  All rights reserved. -- VMware Confidential
  */
 
 #ifndef stdafx_h_
@@ -30,13 +30,14 @@
 #include "CPersistenceInboundChannelAdapterInstance.h"
 #include "CPersistenceOutboundChannelAdapterInstance.h"
 
+#include "CMonitorListener.h"
+
 #include "CPersistenceMerge.h"
 #include "CConfigEnvMerge.h"
 #include "CConfigEnv.h"
 #include "CConfigEnvMessageHandler.h"
 #include "CConfigEnvInboundChannelAdapterInstance.h"
 #include "CConfigEnvOutboundChannelAdapterInstance.h"
-
 
 #include "CCollectSchemaExecutor.h"
 #include "CProviderCollectSchemaExecutor.h"

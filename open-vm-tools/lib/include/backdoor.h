@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1999-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1999-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -42,8 +42,11 @@
 
 #include "vm_basic_types.h"
 #include "vm_assert.h"
-
 #include "backdoor_types.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 void
 Backdoor(Backdoor_proto *bp); // IN/OUT
@@ -56,5 +59,9 @@ Backdoor_HbOut(Backdoor_proto_hb *bp); // IN/OUT
 
 void
 Backdoor_HbIn(Backdoor_proto_hb *bp); // IN/OUT
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif /* _BACKDOOR_H_ */

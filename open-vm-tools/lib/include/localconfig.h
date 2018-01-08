@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -25,10 +25,18 @@
 
 #include "preference.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #define LocalConfig_GetBool Preference_GetBool
 #define LocalConfig_GetTriState Preference_GetTriState
 #define LocalConfig_GetLong Preference_GetLong
 #define LocalConfig_GetString Preference_GetString
 #define LocalConfig_GetPathName Preference_GetPathName
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -26,11 +26,12 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <mspack.h>
 #include <stdarg.h>
-#include <errno.h> 
+#include <errno.h>
 
 /*
  * Template functions
@@ -38,13 +39,13 @@
 
 static void DefaultLog(int logLevel, const char* fmtstr, ...);
 
-/* 
+/*
  * String explanation for the error codes.
  * They are arranged in the same order as the corresponding error codes.
  */
 
 static const char*  LINUXCAB_STRERR[] = {
-                                        "Success.", 
+                                        "Success.",
                                         "Unknown Error.",
                                         "Error extractinf file from cabinet.",
                                         "Error creating decompressor.",
@@ -76,7 +77,7 @@ DefaultLog(int logLevel, const char* fmtstr, ...)
 {
    va_list args;
    va_start(args, fmtstr);
-   printf(fmtstr, args); 
+   printf(fmtstr, args);
 }
 
 
@@ -99,7 +100,7 @@ MspackWrapper_SetLogger(LogFunction log)
 //......................................................................................
 
 /**
- * 
+ *
  * Sets up the path for exracting file. For e.g. if the file is /a/b/c/d.abc
  * then it creates /a/b/c (skips if any of the directories along the path
  * exists)
@@ -108,14 +109,14 @@ MspackWrapper_SetLogger(LogFunction log)
  * @return
  *  On Success  LINUXCAB_SUCCESS
  *  On Error    LINUXCAB_ERROR
- *  
+ *
  **/
 unsigned int
 SetupPath (char* path) {
    struct stat stats;
    char* token;
 
-   // walk through the path (it employs in string replacement) 
+   // walk through the path (it employs in string replacement)
    for (token = path; *token; ++token) {
       //MS-DOC to unix path conversion
       if (*token == '\\') {
@@ -126,7 +127,7 @@ SetupPath (char* path) {
       if (token  == path) continue;
       if (*token != '/') continue;
 
-      /* 
+      /*
        * cut it off here for e.g. on first iteration /a/b/c/d.abc will have
        * token /a, on second /a/b etc
        */
@@ -140,12 +141,12 @@ SetupPath (char* path) {
       if (!((stat(path, &stats) == 0) && S_ISDIR(stats.st_mode))) {
          // make directory and check error
          if (mkdir(path, 0777) == -1) {
-            sLog(log_error, "Unable to create directory %s (%s)\n", path, 
+            sLog(log_error, "Unable to create directory %s (%s)\n", path,
                  strerror(errno));
             return LINUXCAB_ERROR;
          }
       }
-        
+
       // restore the token
       *token = '/';
     }
@@ -156,7 +157,7 @@ SetupPath (char* path) {
 //......................................................................................
 
 /**
- * 
+ *
  * Extract one given file.
  *
  * @param deflator      IN: Pointer to the cabinet decompressor
@@ -205,7 +206,8 @@ ExtractFile (struct mscab_decompressor* deflator,
 //.............................................................................
 
 /**
- * 
+ *
+ * Helper function for ExpandAllFilesInCab below.
  * Expands all files in the cabinet into the specified directory. Also returns
  * the command that is specified in the VMware defined header.
  *
@@ -217,9 +219,9 @@ ExtractFile (struct mscab_decompressor* deflator,
  *  On Error            LINUXCAB_ERROR, LINUXCAB_ERR_OPEN, LINUXCAB_ERR_DECOMPRESS,
  *                      LINUXCAB_EXTRACT, LINUXCAB_ERR_HEADER
  **/
-unsigned int
-ExpandAllFilesInCab (const char* cabFileName,
-                     const char* destDirectory)
+static unsigned int
+ExpandAllFilesInCabInt (const char* cabFileName,
+                        const char* destDirectory)
 {
    // set the state as success
    int returnState = LINUXCAB_SUCCESS;
@@ -247,7 +249,7 @@ ExpandAllFilesInCab (const char* cabFileName,
    }
 
    /*
-    * Extract file by file 
+    * Extract file by file
     * NOTE: open call cannot be used as cab can span multiple files. Hence
     * search call has to be used.
     */
@@ -262,49 +264,85 @@ ExpandAllFilesInCab (const char* cabFileName,
          returnState = ExtractFile(deflator, file, destDirectory);
 
          // error extracting ?
-         if (returnState != LINUXCAB_SUCCESS) { 
+         if (returnState != LINUXCAB_SUCCESS) {
             break;
          }
-         
+
          file = file->next;
       }
-      
+
       // Break - if error
       if (returnState != LINUXCAB_SUCCESS) {
          break;
       }
-      
+
 #ifdef VMX86_DEBUG
       sLog(log_debug, "flag = %i \n", cab->flags);
 #endif
-      
+
       // move to next cab file - in case of multi file cabs
-      cab = cab->next; 
+      cab = cab->next;
    }
 
    deflator->close (deflator, cabToClose);
 
-   // close & destroy instance - clean up 
+   // close & destroy instance - clean up
    mspack_destroy_cab_decompressor(deflator);
 
 #ifdef VMX86_DEBUG
    sLog(log_info, "Done extracting files. \n");
 #endif
-   
+
    return returnState;
 }
 
 //.............................................................................
 
 /**
- * 
+ *
+ * Expands all files in the cabinet into the specified directory. Also returns
+ * the command that is specified in the VMware defined header.
+ * The mspack library uses and honors the current umask when setting the
+ * file permission of the extracted files. Here we set the umask in a way
+ * that protects them against world access.
+ *
+ * @param cabFileName      IN:   Cabinet file name
+ * @param destDirectory    IN:   Destination directory to uncab
+ *
+ * @return
+ *  On success          LINUXCAB_SUCCESS
+ *  On Error            LINUXCAB_ERROR, LINUXCAB_ERR_OPEN,
+ *                      LINUXCAB_ERR_DECOMPRESS,
+ *                      LINUXCAB_EXTRACT, LINUXCAB_ERR_HEADER
+ **/
+unsigned int
+ExpandAllFilesInCab (const char* cabFileName,
+                     const char* destDirectory)
+{
+   unsigned int rc;
+   mode_t oldMask;
+
+   /* Turn off the world access permssion for all expanded files */
+   oldMask = umask(0027);
+
+   rc = ExpandAllFilesInCabInt(cabFileName, destDirectory);
+
+   umask(oldMask);
+
+   return rc;
+}
+
+//.............................................................................
+
+/**
+ *
  * Does a self check on the library parameters to make sure that the library
  * compilation is compatible with the client compilation. This is funny scenario
  * and is put in to support different flavours of UNIX operating systems.
  * Essentially the library checks of off_t size.
  *
  * @param         None
- * @return  
+ * @return
  *  On Success    LINUXCAB_SUCCESS
  *  On Error      LINUXCAB_ERR_SEEK, LINUXCAB_ERROR
  *
@@ -317,7 +355,7 @@ SelfTestMspack(void)
 
    // test failed ?
    if (error) {
-      if (error == MSPACK_ERR_SEEK) { 
+      if (error == MSPACK_ERR_SEEK) {
          /* Library has been compiled for a different bit version of
           * than the program that uses it. The other explanation
           * is inappropriate .h inclusion, can be solved using configure.h.
@@ -325,24 +363,24 @@ SelfTestMspack(void)
           */
          return LINUXCAB_ERR_SEEK;
       } else {
-         // Not a common error. 
+         // Not a common error.
          return LINUXCAB_ERROR;
       }
-   } 
-    
-   // Perfectly compatible 
+   }
+
+   // Perfectly compatible
    return LINUXCAB_SUCCESS;
 }
 
 //...........................................................................
 
 /**
- * 
+ *
  * Get a string error message for the given error code.
  *
  * @param   error  IN:  Error  number
  * @return  error as a string message
- * 
+ *
  **/
 const char*
 GetLinuxCabErrorMsg ( const unsigned int error )

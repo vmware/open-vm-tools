@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2012-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2012-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -27,6 +27,10 @@
 
 #include "dataMap.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #define HOST_RABBITMQ_PROXY_LISTEN_PATH    "/var/run/rabbitmqproxy.uds"
 
 /*
@@ -50,5 +54,9 @@ enum {
    COMMAND_CONNECT     = 2,
    COMMAND_CLOSE       = 3,
 };
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif  /* _RABBITMQ_PROXY_CONST_H_ */

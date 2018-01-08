@@ -73,12 +73,12 @@
 #include "dndFileList.hh"
 #include "guestDnDCPMgr.hh"
 #include "tracer.hh"
+#include "vmblock.h"
+#include "file.h"
+#include "dnd.h"
+#include "dndMsg.h"
 
 extern "C" {
-   #include "vmblock.h"
-   #include "file.h"
-   #include "dnd.h"
-   #include "dndMsg.h"
    #include "dndClipboard.h"
    #include "cpName.h"
    #include "cpNameUtil.h"
@@ -999,7 +999,7 @@ CopyPasteUIX11::LocalGetSelectionFileList(const Gtk::SelectionData& sd)      // 
    while ((newPath = DnD_UriListGetNextFile(source.c_str(),
                                             &index,
                                             &newPathLen)) != NULL) {
-#if defined(linux)
+#if defined(__linux__)
       if (DnD_UriIsNonFileSchemes(newPath)) {
          /* Try to get local file path for non file uri. */
          GFile *file = g_file_new_for_uri(newPath);

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -25,6 +25,10 @@
 
 #ifndef _VMSUPPORT_H_
 #define _VMSUPPORT_H_
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 /*
  * The status of vm-support tool running in the guest, exported in VMDB at:
@@ -54,5 +58,9 @@ typedef enum {
 
 #define RPC_VMSUPPORT_START   "vmsupport.start"
 #define RPC_VMSUPPORT_STATUS  "tools.vmsupport.status"
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif // _VMSUPPORT_H_

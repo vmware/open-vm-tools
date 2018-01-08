@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -379,3 +379,40 @@ SyncDriver_CloseHandle(SyncDriverHandle *handle)   // IN/OUT
    }
 }
 
+
+#if defined(__linux__)
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * SyncDriver_GetAttr --
+ *
+ *    Returns attributes of the backend provider for this handle.
+ *    If the backend does not supply a getattr function, it's treated
+ *    as non-quiescing.
+ *
+ * Results:
+ *    No return value.
+ *    Sets OUT parameters:
+ *        *name:      pointer to backend provider name
+ *        *quiesces:  indicates whether backend is capable of quiescing.
+ *
+ * Side effects:
+ *   None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+SyncDriver_GetAttr(const SyncDriverHandle handle,  // IN
+                   const char **name,              // OUT
+                   Bool *quiesces)                 // OUT
+{
+
+   if (handle != SYNCDRIVER_INVALID_HANDLE && handle->getattr != NULL) {
+      handle->getattr(handle, name, quiesces);
+   } else {
+      *name = NULL;
+      *quiesces = FALSE;
+   }
+}
+#endif /* __linux__ */

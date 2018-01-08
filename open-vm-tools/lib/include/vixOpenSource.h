@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -30,8 +30,8 @@
 #ifndef _VIXOpenSource_h_
 #define _VIXOpenSource_h_
 
-#ifdef __cplusplus
-extern "C"{
+#if defined(__cplusplus)
+extern "C" {
 #endif
 
 /*
@@ -703,8 +703,7 @@ extern const char *VixDebug_GetFileBaseName(const char *path);
 extern void VixAssert(const char *cond, const char *file, int lineNum);
 
 extern VixError VixLogError(VixError err, const char *function, int line,
-                const char *fileName, unsigned long threadId, const char *fmt, ...)
-                PRINTF_DECL(6, 7);
+                const char *fileName, const char *fmt, ...) PRINTF_DECL(5, 6);
 
 
 /*
@@ -735,18 +734,18 @@ extern VixError VixLogError(VixError err, const char *function, int line,
 
 #define VIX_DEBUG_LEVEL(logLevel, s) if (logLevel <= vixDebugGlobalSpewLevel) \
     {  char *debugString = VixAllocDebugString s; \
-       Log("Vix: [%lu %s:%d]: %s", (unsigned long)Util_GetCurrentThreadId(),    \
+       Log("Vix: [%s:%d]: %s", \
            VixDebug_GetFileBaseName(__FILE__), __LINE__, debugString); \
        free(debugString); }
 
 #define VIX_DEBUG(s) if (0 != vixDebugGlobalSpewLevel) \
     {  char *debugString = VixAllocDebugString s; \
-       Log("Vix: [%lu %s:%d]: %s", (unsigned long)Util_GetCurrentThreadId(),    \
+       Log("Vix: [%s:%d]: %s", \
            VixDebug_GetFileBaseName(__FILE__), __LINE__, debugString); \
        free(debugString); }
 
 #define VIX_DEBUG_ALWAYS(s) {  char *debugString = VixAllocDebugString s; \
-       Log("Vix: [%lu %s:%d]: %s", (unsigned long) Util_GetCurrentThreadId(),         \
+       Log("Vix: [%s:%d]: %s", \
            VixDebug_GetFileBaseName(__FILE__), __LINE__, debugString); \
        free(debugString); }
 
@@ -754,22 +753,19 @@ extern VixError VixLogError(VixError err, const char *function, int line,
 
 #define VIX_API_LOG(s) if (VIX_API_TRACE_ON())                       \
     {  char *debugString = VixAllocDebugString s;                    \
-       Log("VixApiLog: %lu %s %s\n", (unsigned long) Util_GetCurrentThreadId(),\
-           __FUNCTION__, debugString);                               \
+       Log("VixApiLog: %s %s\n", __FUNCTION__, debugString);         \
        free(debugString); }
 
 // If no MSG is given, a description of err is suplemented.
 #define VIX_ERROR(err) (VIX_ERROR_MSG(err, NULL))
 #define VIX_ERROR_MSG(err, ...) (VixLogError(err, __FUNCTION__, __LINE__, \
-      VixDebug_GetFileBaseName(__FILE__), \
-      (unsigned long)Util_GetCurrentThreadId(), __VA_ARGS__))
+      VixDebug_GetFileBaseName(__FILE__), __VA_ARGS__))
 
 #endif   // VIX_HIDE_FROM_JAVA
 
-#ifdef __cplusplus
-} // extern "C" {
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
-
 
 #endif // _VIXOpenSource_h_
 

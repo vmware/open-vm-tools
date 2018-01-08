@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -41,96 +41,13 @@ struct MXUserCondVar {
    Atomic_uint32      referenceCount;
 
 #if defined(_WIN32)
-   union {
-      struct {
-         CRITICAL_SECTION   condVarLock;
-         HANDLE             signalEvent;
-         uint32             numWaiters;
-         uint32             numForRelease;
-      } compat;
-      CONDITION_VARIABLE    condObject;
-   } x;
+   CONDITION_VARIABLE condObject;
 #else
    pthread_cond_t     condObject;
 #endif
 };
 
 #if defined(_WIN32)
-typedef VOID (WINAPI *InitializeConditionVariableFn)(PCONDITION_VARIABLE cv);
-typedef BOOL (WINAPI *SleepConditionVariableCSFn)(PCONDITION_VARIABLE cv,
-                                                  PCRITICAL_SECTION cs,
-                                                  DWORD msSleep);
-typedef VOID (WINAPI *WakeAllConditionVariableFn)(PCONDITION_VARIABLE cv);
-typedef VOID (WINAPI *WakeConditionVariableFn)(PCONDITION_VARIABLE cv);
-
-static InitializeConditionVariableFn  pInitializeConditionVariable;
-static SleepConditionVariableCSFn     pSleepConditionVariableCS;
-static WakeAllConditionVariableFn     pWakeAllConditionVariable;
-static WakeConditionVariableFn        pWakeConditionVariable;
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * MXUserNativeCVSupported --
- *
- *      Does native condition variable support exist for the Windows the
- *      caller is running on?
- *
- * Results:
- *      TRUE   Yes
- *      FALSE  No
- *
- * Side effects:
- *      Function pointers to the native routines are initialized upon success.
- *
- *-----------------------------------------------------------------------------
- */
-
-static Bool
-MXUserNativeCVSupported(void)
-{
-   static Bool result;
-   static Bool done = FALSE;
-
-   if (!done) {
-      HMODULE kernel32 = GetModuleHandleW(L"kernel32.dll");
-
-      if (kernel32) {
-         pInitializeConditionVariable = (InitializeConditionVariableFn)
-                                        GetProcAddress(kernel32,
-                                             "InitializeConditionVariable");
-
-         pSleepConditionVariableCS = (SleepConditionVariableCSFn)
-                                     GetProcAddress(kernel32,
-                                                "SleepConditionVariableCS");
-
-         pWakeAllConditionVariable = (WakeAllConditionVariableFn)
-                                     GetProcAddress(kernel32,
-                                                "WakeAllConditionVariable");
-
-         pWakeConditionVariable = (WakeConditionVariableFn)
-                                   GetProcAddress(kernel32,
-                                                   "WakeConditionVariable");
-
-         COMPILER_MEM_BARRIER();
-
-         result = ((pInitializeConditionVariable != NULL) &&
-                   (pSleepConditionVariableCS != NULL) &&
-                   (pWakeAllConditionVariable != NULL) &&
-                   (pWakeConditionVariable != NULL));
-
-      } else {
-         result = FALSE;
-      }
-
-      done = TRUE;
-   }
-
-   return result;
-}
-
-
 /*
  *-----------------------------------------------------------------------------
  *
@@ -152,34 +69,9 @@ MXUserNativeCVSupported(void)
 static INLINE Bool
 MXUserCreateInternal(MXUserCondVar *condVar)  // IN/OUT:
 {
-   Bool success;
+   InitializeConditionVariable(&condVar->condObject);
 
-   if (MXUserNativeCVSupported()) {
-      ASSERT(pInitializeConditionVariable);
-      (*pInitializeConditionVariable)(&condVar->x.condObject);
-      success = TRUE;
-   } else {
-      if (InitializeCriticalSectionAndSpinCount(&condVar->x.compat.condVarLock,
-                                                0x80000400) == 0) {
-         success = FALSE;
-      } else {
-         condVar->x.compat.numWaiters = 0;
-         condVar->x.compat.numForRelease = 0;
-
-         condVar->x.compat.signalEvent = CreateEvent(NULL,  // no security
-                                                     TRUE,  // manual-reset
-                                                     FALSE, // non-signaled
-                                                     NULL); // unnamed
-
-         success = (condVar->x.compat.signalEvent != NULL);
-
-         if (!success) {
-            DeleteCriticalSection(&condVar->x.compat.condVarLock);
-         }
-      }
-   }
-
-   return success;
+   return TRUE;
 }
 
 
@@ -202,10 +94,6 @@ MXUserCreateInternal(MXUserCondVar *condVar)  // IN/OUT:
 static INLINE void
 MXUserDestroyInternal(MXUserCondVar *condVar)  // IN/OUT:
 {
-   if (pInitializeConditionVariable == NULL) {
-      DeleteCriticalSection(&condVar->x.compat.condVarLock);
-      CloseHandle(condVar->x.compat.signalEvent);
-   }
 }
 
 
@@ -230,86 +118,24 @@ MXUserDestroyInternal(MXUserCondVar *condVar)  // IN/OUT:
 static INLINE void
 MXUserWaitInternal(MXRecLock *lock,         // IN/OUT:
                    MXUserCondVar *condVar,  // IN/OUT:
-                   uint32 msecWait)         // IN:
+                   uint32 waitTimeMsec)     // IN:
 {
    int lockCount = MXRecLockCount(lock);
-   DWORD waitTime = (msecWait == MXUSER_WAIT_INFINITE) ? INFINITE : msecWait;
+   DWORD waitTime = (waitTimeMsec == MXUSER_WAIT_INFINITE) ? INFINITE :
+                                                             waitTimeMsec;
 
-   if (pSleepConditionVariableCS) {
-      /*
-       * When using the native lock found within the MXUser lock, be sure to
-       * decrement the count before the wait/sleep and increment it after the
-       * wait/sleep - the (native) wait/sleep will perform a lock release
-       * before the wait/sleep and a lock acquisition after the wait/sleep.
-       * The MXUser internal accounting information must be maintained.
-       */
+   /*
+    * When using the native lock found within the MXUser lock, be sure to
+    * decrement the count before the wait/sleep and increment it after the
+    * wait/sleep - the (native) wait/sleep will perform a lock release
+    * before the wait/sleep and a lock acquisition after the wait/sleep.
+    * The MXUser internal accounting information must be maintained.
+    */
 
-      MXRecLockDecCount(lock, lockCount);
-      (*pSleepConditionVariableCS)(&condVar->x.condObject, &lock->nativeLock,
-                                   waitTime);
-      MXRecLockIncCount(lock, lockCount);
-   } else {
-      DWORD err;
-      Bool done = FALSE;
-
-      EnterCriticalSection(&condVar->x.compat.condVarLock);
-      condVar->x.compat.numWaiters++;
-      LeaveCriticalSection(&condVar->x.compat.condVarLock);
-
-      MXRecLockDecCount(lock, lockCount - 1);
-      MXRecLockRelease(lock);
-
-      do {
-         DWORD status = WaitForSingleObject(condVar->x.compat.signalEvent,
-                                            waitTime);
-
-         EnterCriticalSection(&condVar->x.compat.condVarLock);
-
-         ASSERT(condVar->x.compat.numWaiters > 0);
-
-         if (status == WAIT_OBJECT_0) {
-            if (condVar->x.compat.numForRelease > 0) {
-               condVar->x.compat.numWaiters--;
-
-               if (--condVar->x.compat.numForRelease == 0) {
-                  ResetEvent(condVar->x.compat.signalEvent);
-               }
-
-               err = ERROR_SUCCESS;
-               done = TRUE;
-            }
-         } else {
-            condVar->x.compat.numWaiters--;
-
-            if (status == WAIT_TIMEOUT) {
-               if (msecWait == MXUSER_WAIT_INFINITE) {
-                  err = ERROR_CALL_NOT_IMPLEMENTED;  // ACK! "IMPOSSIBLE"
-               } else {
-                  err = ERROR_SUCCESS;
-               }
-            } else if (status == WAIT_ABANDONED) {
-               err = ERROR_WAIT_NO_CHILDREN;
-            } else {
-               ASSERT(status == WAIT_FAILED);
-               err = GetLastError();
-            }
-
-            done = TRUE;
-         }
-
-         LeaveCriticalSection(&condVar->x.compat.condVarLock);
-      } while (!done);
-
-      MXRecLockAcquire(lock,
-                       NULL);  // non-stats
-
-      MXRecLockIncCount(lock, lockCount - 1);
-
-      if (err != ERROR_SUCCESS) {
-         Panic("%s: failure %d on condVar (0x%p; %s)\n", __FUNCTION__, err,
-               condVar, condVar->header->name);
-      }
-   }
+   MXRecLockDecCount(lock, lockCount);
+   SleepConditionVariableCS(&condVar->condObject, &lock->nativeLock,
+                            waitTime);
+   MXRecLockIncCount(lock, lockCount);
 }
 
 
@@ -334,18 +160,7 @@ MXUserWaitInternal(MXRecLock *lock,         // IN/OUT:
 static INLINE int
 MXUserSignalInternal(MXUserCondVar *condVar)  // IN/OUT:
 {
-   if (pWakeConditionVariable) {
-      (*pWakeConditionVariable)(&condVar->x.condObject);
-   } else {
-      EnterCriticalSection(&condVar->x.compat.condVarLock);
-
-      if (condVar->x.compat.numWaiters > condVar->x.compat.numForRelease) {
-         SetEvent(condVar->x.compat.signalEvent);
-         condVar->x.compat.numForRelease++;
-      }
-
-      LeaveCriticalSection(&condVar->x.compat.condVarLock);
-   }
+   WakeConditionVariable(&condVar->condObject);
 
    return 0;
 }
@@ -373,18 +188,7 @@ MXUserSignalInternal(MXUserCondVar *condVar)  // IN/OUT:
 static INLINE int
 MXUserBroadcastInternal(MXUserCondVar *condVar)  // IN/OUT:
 {
-   if (pWakeAllConditionVariable) {
-      (*pWakeAllConditionVariable)(&condVar->x.condObject);
-   } else {
-      EnterCriticalSection(&condVar->x.compat.condVarLock);
-
-      if (condVar->x.compat.numWaiters > condVar->x.compat.numForRelease) {
-         SetEvent(condVar->x.compat.signalEvent);
-         condVar->x.compat.numForRelease = condVar->x.compat.numWaiters;
-      }
-
-      LeaveCriticalSection(&condVar->x.compat.condVarLock);
-   }
+   WakeAllConditionVariable(&condVar->condObject);
 
    return 0;
 }
@@ -460,7 +264,7 @@ MXUserDestroyInternal(MXUserCondVar *condVar)  // IN/OUT:
 static INLINE void
 MXUserWaitInternal(MXRecLock *lock,         // IN/OUT:
                    MXUserCondVar *condVar,  // IN/OUT:
-                   uint32 msecWait)         // IN:
+                   uint32 waitTimeMsec)     // IN:
 {
    int err;
    int lockCount = MXRecLockCount(lock);
@@ -475,7 +279,7 @@ MXUserWaitInternal(MXRecLock *lock,         // IN/OUT:
 
    MXRecLockDecCount(lock, lockCount);
 
-   if (msecWait == MXUSER_WAIT_INFINITE) {
+   if (waitTimeMsec == MXUSER_WAIT_INFINITE) {
       err = pthread_cond_wait(&condVar->condObject, &lock->nativeLock);
    } else {
       struct timeval curTime;
@@ -491,7 +295,7 @@ MXUserWaitInternal(MXRecLock *lock,         // IN/OUT:
       gettimeofday(&curTime, NULL);
       endNS = ((uint64) curTime.tv_sec * A_BILLION) +
               ((uint64) curTime.tv_usec * 1000) +
-              ((uint64) msecWait * (1000 * 1000));
+              ((uint64) waitTimeMsec * (1000 * 1000));
 
       endTime.tv_sec = (time_t) (endNS / A_BILLION);
       endTime.tv_nsec = (long int) (endNS % A_BILLION);
@@ -621,7 +425,7 @@ void
 MXUserWaitCondVar(MXUserHeader *header,    // IN:
                   MXRecLock *lock,         // IN/OUT:
                   MXUserCondVar *condVar,  // IN/OUT:
-                  uint32 msecWait)         // IN:
+                  uint32 waitTimeMsec)     // IN:
 {
    ASSERT(header);
    ASSERT(lock);
@@ -639,7 +443,7 @@ MXUserWaitCondVar(MXUserHeader *header,    // IN:
    }
 
    Atomic_Inc(&condVar->referenceCount);
-   MXUserWaitInternal(lock, condVar, msecWait);
+   MXUserWaitInternal(lock, condVar, waitTimeMsec);
    Atomic_Dec(&condVar->referenceCount);
 }
 

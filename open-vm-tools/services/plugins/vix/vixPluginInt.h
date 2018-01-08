@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -54,7 +54,7 @@ ToolsDaemonTcloReceiveVixCommand(RpcInData *data);
 gboolean
 FoundryToolsDaemonRunProgram(RpcInData *data);
 
-#if defined(linux) || defined(_WIN32)
+#if defined(__linux__) || defined(_WIN32)
 gboolean
 ToolsDaemonTcloSyncDriverFreeze(RpcInData *data);
 

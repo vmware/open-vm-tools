@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -42,6 +42,10 @@
    typedef const struct passwd * AuthToken;
 #endif
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if _WIN32
 
 BOOL Auth_StoreAccountInformation(const char *username, const char *password);
@@ -69,5 +73,9 @@ AuthToken Auth_AuthenticateSelf(void);
 AuthToken Auth_AuthenticateUser(const char *user, const char *pass);
 
 void Auth_CloseToken(AuthToken token);
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif

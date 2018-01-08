@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -31,20 +31,21 @@
 
 #include "rpcV4Util.hpp"
 
-extern "C" {
 #ifdef VMX86_TOOLS
+extern "C" {
    #include "debug.h"
    #define LOG(level, msg) (Debug msg)
+}
 #else
    #define LOGLEVEL_MODULE dnd
    #include "loglevel_user.h"
 #endif
 
-   #include "dndClipboard.h"
-   #include "util.h"
+extern "C" {
+#include "dndClipboard.h"
 }
 
-
+#include "util.h"
 
 /**
  * Constructor.
@@ -312,8 +313,8 @@ RpcV4Util::RequestNextPacket(void)
    params.cmd = DNDCP_CMD_REQUEST_NEXT;
    params.sessionId = mBigMsgIn.hdr.sessionId;
    params.optional.requestNextCmd.cmd = mBigMsgIn.hdr.cmd;
-   params.optional.requestNextCmd.cmd = mBigMsgIn.hdr.binarySize;
-   params.optional.requestNextCmd.cmd = mBigMsgIn.hdr.payloadOffset;
+   params.optional.requestNextCmd.binarySize = mBigMsgIn.hdr.binarySize;
+   params.optional.requestNextCmd.payloadOffset = mBigMsgIn.hdr.payloadOffset;
 
    return SendMsg(&params);
 }

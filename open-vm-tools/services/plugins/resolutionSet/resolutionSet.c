@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -76,8 +76,7 @@ ResolutionInfoType resolutionInfo;
  *
  * Initialize the guest resolution library.
  *
- * @param[in] handle  Back-end specific handle, if needed.  E.g., in the X11
-                      case, this refers to the X11 display handle.
+ * @param[in] handle  Back-end specific handle, if needed.
  * @return TRUE on success, FALSE on failure
  */
 
@@ -584,9 +583,10 @@ ToolsOnLoad(ToolsAppCtx *ctx)
    /*
     * XXX move to some shared lib or plugin
     */
-   handle = ResolutionToolkitInit();
+   handle = ResolutionToolkitInit(ctx);
 
-   ResolutionInit(handle);
+   if (!ResolutionInit(handle))
+      return NULL;
 
    regs[0].data = VMTools_WrapArray(rpcs, sizeof *rpcs, ARRAYSIZE(rpcs));
    regData.regs = VMTools_WrapArray(regs, sizeof *regs, ARRAYSIZE(regs));

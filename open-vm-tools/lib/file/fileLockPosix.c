@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -100,7 +100,7 @@ IsLinkingAvailable(const char *fileName)  // IN:
    struct statfs buf;
    int status;
 
-   ASSERT(fileName);
+   ASSERT(fileName != NULL);
 
    /*
     * Don't use linking on ESX/VMFS... the overheads are expensive and this
@@ -192,7 +192,7 @@ RemoveStaleLockFile(const char *lockFileName)  // IN:
    int ret;
    int saveErrno;
 
-   ASSERT(lockFileName);
+   ASSERT(lockFileName != NULL);
 
    /* stale lock */
    Log(LGPFX" Found a previous instance of lock file '%s'. "
@@ -243,9 +243,9 @@ GetLockFileValues(const char *lockFileName,  // IN:
    uid_t uid;
    int status;
 
-   ASSERT(lockFileName);
-   ASSERT(pid);
-   ASSERT(hostID);
+   ASSERT(lockFileName != NULL);
+   ASSERT(pid != NULL);
+   ASSERT(hostID != NULL);
 
    uid = Id_BeginSuperUser();
    lockFile = Posix_Fopen(lockFileName, "r");
@@ -460,7 +460,7 @@ FileLock_LockDevice(const char *deviceName)  // IN:
 
    int  status = -1;
 
-   ASSERT(deviceName);
+   ASSERT(deviceName != NULL);
 
    lockFileName = Str_SafeAsprintf(NULL, "%s/LCK..%s", DEVICE_LOCK_DIR,
                                    deviceName);
@@ -518,8 +518,8 @@ FileLock_LockDevice(const char *deviceName)  // IN:
    }
 
 exit:
-   free(lockFileName);
-   free(lockFileLink);
+   Posix_Free(lockFileName);
+   Posix_Free(lockFileLink);
    return status;
 }
 
@@ -548,7 +548,7 @@ FileLock_UnlockDevice(const char *deviceName)  // IN:
    int saveErrno;
    char *path;
 
-   ASSERT(deviceName);
+   ASSERT(deviceName != NULL);
 
    path = Str_SafeAsprintf(NULL, "%s/LCK..%s", DEVICE_LOCK_DIR, deviceName);
 
@@ -562,12 +562,12 @@ FileLock_UnlockDevice(const char *deviceName)  // IN:
    if (ret < 0) {
       Log(LGPFX" Cannot remove lock file %s (%s).\n",
           path, Err_Errno2String(saveErrno));
-      free(path);
+      Posix_Free(path);
 
       return FALSE;
    }
 
-   free(path);
+   Posix_Free(path);
 
    return TRUE;
 }
@@ -593,13 +593,18 @@ void
 FileLockAppendMessage(MsgList **msgs,  // IN/OUT/OPT:
                       int err)         // IN: errno
 {
+#if defined(VMX86_TOOLS)
+   Log(LGPFX "A file locking error (%d) has occurred: %s.",
+       err, Err_Errno2String(err));
+#else
    MsgList_Append(msgs, MSGID(fileLock.posix)
                   "A file locking error (%d) has occurred: %s.",
                   err, Err_Errno2String(err));
+#endif
 }
 
 
-#if defined(linux)
+#if defined(__linux__)
 /*
  *----------------------------------------------------------------------
  *
@@ -627,8 +632,8 @@ FileReadSlashProc(const char *procPath,  // IN:
    char *p;
    size_t len;
 
-   ASSERT(procPath);
-   ASSERT(buffer);
+   ASSERT(procPath != NULL);
+   ASSERT(buffer != NULL);
    ASSERT(bufferSize > 0);
 
    fd = Posix_Open(procPath, O_RDONLY, 0);
@@ -804,7 +809,7 @@ FileLockProcessCreationTime(pid_t pid,                 // IN:
    struct kinfo_proc info;
    int mib[4];
 
-   ASSERT(procCreationTime);
+   ASSERT(procCreationTime != NULL);
 
    /* Request information about the specified process */
    mib[0] = CTL_KERN;
@@ -926,7 +931,7 @@ FileLockGetExecutionID(void)
 {
    char *descriptor = FileLockProcessDescriptor(getpid());
 
-   ASSERT(descriptor);  // Must be able to describe ourselves!
+   ASSERT(descriptor != NULL);  // Must be able to describe ourselves!
 
    return descriptor;
 }
@@ -955,9 +960,9 @@ FileLockParseProcessDescriptor(const char *procDescriptor,  // IN:
                                pid_t *pid,                  // OUT:
                                uint64 *procCreationTime)    // OUT:
 {
-   ASSERT(procDescriptor);
-   ASSERT(pid);
-   ASSERT(procCreationTime);
+   ASSERT(procDescriptor != NULL);
+   ASSERT(pid != NULL);
+   ASSERT(procCreationTime != NULL);
 
    if (sscanf(procDescriptor, "%d-%"FMT64"u", pid, procCreationTime) != 2) {
       if (sscanf(procDescriptor, "%d", pid) == 1) {
@@ -1021,7 +1026,7 @@ FileLockValidExecutionID(const char *executionID)  // IN:
    ASSERT(gotProcData);         // We built it; it had better be good
    ASSERT(procPID == filePID);  // This better match what we started with...
 
-   free(procDescriptor);
+   Posix_Free(procDescriptor);
 
    if ((fileCreationTime != 0) &&
        (procCreationTime != 0) &&
@@ -1055,7 +1060,6 @@ static char *
 FileLockNormalizePath(const char *filePath)  // IN:
 {
    char *result;
-   char *fullPath;
 
    char *dirName = NULL;
    char *fileName = NULL;
@@ -1069,14 +1073,27 @@ FileLockNormalizePath(const char *filePath)  // IN:
 
    File_GetPathName(filePath, &dirName, &fileName);
 
-   fullPath = File_FullPath(dirName);
+   /*
+    * Handle filePath - "xxx", "./xxx", "/xxx", and "/a/b/c".
+    */
 
-   result = (fullPath == NULL) ? NULL : Unicode_Join(fullPath, DIRSEPS,
-                                                     fileName, NULL);
+   if (*dirName == '\0') {
+      if (File_IsFullPath(filePath)) {
+         result = Unicode_Join(DIRSEPS, fileName, NULL);
+      } else {
+         result = Unicode_Join(".", DIRSEPS, fileName, NULL);
+      }
+   } else {
+      char *fullPath = File_FullPath(dirName);
 
-   free(fullPath);
-   free(dirName);
-   free(fileName);
+      result = (fullPath == NULL) ? NULL : Unicode_Join(fullPath, DIRSEPS,
+                                                        fileName, NULL);
+
+      Posix_Free(fullPath);
+   }
+
+   Posix_Free(dirName);
+   Posix_Free(fileName);
 
    return result;
 }
@@ -1088,9 +1105,9 @@ FileLockNormalizePath(const char *filePath)  // IN:
  * FileLock_Lock --
  *
  *      Obtain a lock on a file; shared or exclusive access. Also specify
- *      how long to wait on lock acquisition - msecMaxWaitTime
+ *      how long to wait on lock acquisition - maxWaitTimeMsec
  *
- *      msecMaxWaitTime specifies the maximum amount of time, in
+ *      maxWaitTimeMsec specifies the maximum amount of time, in
  *      milliseconds, to wait for the lock before returning the "not
  *      acquired" status. A value of FILELOCK_TRYLOCK_WAIT is the
  *      equivalent of a "try lock" - the lock will be acquired only if
@@ -1111,7 +1128,7 @@ FileLockNormalizePath(const char *filePath)  // IN:
 FileLockToken *
 FileLock_Lock(const char *filePath,          // IN:
               const Bool readOnly,           // IN:
-              const uint32 msecMaxWaitTime,  // IN:
+              const uint32 maxWaitTimeMsec,  // IN:
               int *err,                      // OUT/OPT: returns errno
               MsgList **msgs)                // IN/OUT/OPT: add error message
 {
@@ -1119,8 +1136,8 @@ FileLock_Lock(const char *filePath,          // IN:
    char *normalizedPath;
    FileLockToken *tokenPtr;
 
-   ASSERT(filePath);
-   ASSERT(err);
+   ASSERT(filePath != NULL);
+   ASSERT(err != NULL);
 
    normalizedPath = FileLockNormalizePath(filePath);
 
@@ -1129,10 +1146,10 @@ FileLock_Lock(const char *filePath,          // IN:
 
       tokenPtr = NULL;
    } else {
-      tokenPtr = FileLockIntrinsic(normalizedPath, !readOnly, msecMaxWaitTime,
+      tokenPtr = FileLockIntrinsic(normalizedPath, !readOnly, maxWaitTimeMsec,
                                    &res);
 
-      free(normalizedPath);
+      Posix_Free(normalizedPath);
    }
 
    if (err != NULL) {
@@ -1179,7 +1196,7 @@ FileLock_IsLocked(const char *filePath,  // IN:
    Bool isLocked;
    char *normalizedPath;
 
-   ASSERT(filePath);
+   ASSERT(filePath != NULL);
 
    normalizedPath = FileLockNormalizePath(filePath);
 
@@ -1190,7 +1207,7 @@ FileLock_IsLocked(const char *filePath,  // IN:
    } else {
       isLocked = FileLockIsLocked(normalizedPath, &res);
 
-      free(normalizedPath);
+      Posix_Free(normalizedPath);
    }
 
    if (err != NULL) {
@@ -1229,7 +1246,7 @@ FileLock_Unlock(const FileLockToken *lockToken,  // IN:
 {
    int res;
 
-   ASSERT(lockToken);
+   ASSERT(lockToken != NULL);
 
    res = FileUnlockIntrinsic((FileLockToken *) lockToken);
 

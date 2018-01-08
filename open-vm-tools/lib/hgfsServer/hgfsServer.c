@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -62,9 +62,6 @@
 #define HGFS_PARENT_DIR "../"
 #endif // _WIN32
 #define HGFS_PARENT_DIR_LEN 3
-
-#define LOGLEVEL_MODULE hgfs
-#include "loglevel_user.h"
 
 
 /*
@@ -192,14 +189,8 @@ static HgfsServerConfig gHgfsCfgSettings = {
  */
 static Atomic_uint32 hgfsHandleCounter = {0};
 
-/*
- * Number of outstanding asynchronous operations.
- */
-static Atomic_uint32 gHgfsAsyncCounter = {0};
-static MXUserExclLock *gHgfsAsyncLock;
-static MXUserCondVar  *gHgfsAsyncVar;
-
 static HgfsServerMgrCallbacks *gHgfsMgrData = NULL;
+
 
 /*
  * Session usage and locking.
@@ -236,14 +227,12 @@ static void HgfsServerSessionInvalidateObjects(void *clientData,
                                                DblLnkLst_Links *shares);
 static uint32 HgfsServerSessionInvalidateInactiveSessions(void *clientData);
 static void HgfsServerSessionSendComplete(HgfsPacket *packet, void *clientData);
-static HgfsSharedFolderHandle HgfsServerRegisterShare(const char *shareName,
-                                                      const char *sharePath,
-                                                      Bool addFolder);
+static void HgfsServerSessionQuiesce(void * clientData, HgfsQuiesceOp quiesceOp);
 
 /*
  * Callback table passed to transport and any channels.
  */
-HgfsServerCallbacks gHgfsServerCBTable = {
+static const HgfsServerCallbacks gHgfsServerCBTable = {
    {
       HgfsServerSessionConnect,
       HgfsServerSessionDisconnect,
@@ -252,8 +241,26 @@ HgfsServerCallbacks gHgfsServerCBTable = {
       HgfsServerSessionInvalidateObjects,
       HgfsServerSessionInvalidateInactiveSessions,
       HgfsServerSessionSendComplete,
+      HgfsServerSessionQuiesce,
    },
-   HgfsServerRegisterShare,
+};
+
+
+static void HgfsServerNotifyRegisterThreadCb(struct HgfsSessionInfo *session);
+static void HgfsServerNotifyUnregisterThreadCb(struct HgfsSessionInfo *session);
+static void HgfsServerNotifyReceiveEventCb(HgfsSharedFolderHandle sharedFolder,
+                                           HgfsSubscriberHandle subscriber,
+                                           char* fileName,
+                                           uint32 mask,
+                                           struct HgfsSessionInfo *session);
+
+/*
+ * Callback table passed to the directory change notification component.
+ */
+static const HgfsServerNotifyCallbacks gHgfsServerNotifyCBTable = {
+   HgfsServerNotifyRegisterThreadCb,
+   HgfsServerNotifyUnregisterThreadCb,
+   HgfsServerNotifyReceiveEventCb,
 };
 
 /* Lock that protects shared folders list. */
@@ -261,8 +268,6 @@ static MXUserExclLock *gHgfsSharedFoldersLock = NULL;
 
 /* List of shared folders nodes. */
 static DblLnkLst_Links gHgfsSharedFoldersList;
-
-static Bool gHgfsInitialized = FALSE;
 
 /*
  * Number of active sessions that support change directory notification. HGFS server
@@ -275,11 +280,14 @@ typedef struct HgfsSharedFolderProperties {
    DblLnkLst_Links links;
    char *name;                                /* Name of the share. */
    HgfsSharedFolderHandle notificationHandle; /* Directory notification handle. */
-   Bool markedForDeletion;
 } HgfsSharedFolderProperties;
 
 
 /* Allocate/Add sessions helper functions. */
+#ifndef VMX86_TOOLS
+static void
+HgfsServerAsyncInfoIncCount(HgfsAsyncRequestInfo *info);
+#endif
 
 static Bool
 HgfsServerAllocateSession(HgfsTransportSessionInfo *transportSession,
@@ -293,6 +301,12 @@ HgfsServerTransportRemoveSessionFromList(HgfsTransportSessionInfo *transportSess
 static HgfsSessionInfo *
 HgfsServerTransportGetSessionInfo(HgfsTransportSessionInfo *transportSession,
                                   uint64 sessionId);
+static HgfsTransportSessionInfo *
+HgfsServerTransportInit(void *transportData,
+                        HgfsServerChannelCallbacks *channelCbTable,
+                        HgfsServerChannelData *channelCapabilities);
+static void
+HgfsServerTransportExit(HgfsTransportSessionInfo *transportSession);
 
 /* Local functions. */
 static void HgfsInvalidateSessionObjects(DblLnkLst_Links *shares,
@@ -344,11 +358,6 @@ static Bool HgfsHandle2NotifyInfo(HgfsHandle handle,
                                   char **fileName,
                                   size_t *fileNameSize,
                                   HgfsSharedFolderHandle *folderHandle);
-static void HgfsServerDirWatchEvent(HgfsSharedFolderHandle sharedFolder,
-                                    HgfsSubscriberHandle subscriber,
-                                    char* fileName,
-                                    uint32 mask,
-                                    struct HgfsSessionInfo *session);
 static void HgfsFreeSearchDirents(HgfsSearch *search);
 
 static HgfsInternalStatus
@@ -356,6 +365,7 @@ HgfsServerTransportGetDefaultSession(HgfsTransportSessionInfo *transportSession,
                                      HgfsSessionInfo **session);
 static Bool HgfsPacketSend(HgfsPacket *packet,
                            HgfsTransportSessionInfo *transportSession,
+                           HgfsSessionInfo *session,
                            HgfsSendFlags flags);
 
 /*
@@ -404,7 +414,7 @@ static void HgfsServerRemoveDirNotifyWatch(HgfsInputParam *input);
 static void
 HgfsServerSessionGet(HgfsSessionInfo *session)   // IN: session context
 {
-   ASSERT(session);
+   ASSERT(session && Atomic_Read(&session->refCount) != 0);
    Atomic_Inc(&session->refCount);
 }
 
@@ -485,17 +495,7 @@ HgfsServerTransportSessionPut(HgfsTransportSessionInfo *transportSession)   // I
 {
    ASSERT(transportSession);
    if (Atomic_ReadDec32(&transportSession->refCount) == 1) {
-      DblLnkLst_Links *curr, *next;
-
-      MXUser_AcquireExclLock(transportSession->sessionArrayLock);
-
-      DblLnkLst_ForEachSafe(curr, next,  &transportSession->sessionArray) {
-         HgfsSessionInfo *session = DblLnkLst_Container(curr, HgfsSessionInfo, links);
-         HgfsServerTransportRemoveSessionFromList(transportSession, session);
-         HgfsServerSessionPut(session);
-      }
-
-      MXUser_ReleaseExclLock(transportSession->sessionArrayLock);
+      HgfsServerTransportExit(transportSession);
    }
 }
 
@@ -3247,7 +3247,10 @@ HgfsServerCompleteRequest(HgfsInternalStatus status,   // IN: Status of the requ
       goto exit;
    }
 
-   if (!HgfsPacketSend(input->packet, input->transportSession, 0)) {
+   if (!HgfsPacketSend(input->packet,
+                       input->transportSession,
+                       input->session,
+                       0)) {
       /* Send failed. Drop the reply. */
       Log("%s: Error sending reply\n", __FUNCTION__);
    }
@@ -3365,7 +3368,7 @@ HgfsServerSessionReceive(HgfsPacket *packet,      // IN: Hgfs Packet
              */
             HSPU_PutMetaPacket(packet, transportSession->channelCbTable);
             input->request = NULL;
-            Atomic_Inc(&gHgfsAsyncCounter);
+            HgfsServerAsyncInfoIncCount(&input->session->asyncRequestsInfo);
 
             /* Remove pending requests during poweroff. */
             Poll_Callback(POLL_CS_MAIN,
@@ -3589,11 +3592,13 @@ abort:
 /*
  *-----------------------------------------------------------------------------
  *
- * HgfsServerCleanupDeletedFolders --
+ * HgfsServerSharesDeleteStale --
  *
  *    This function iterates through all shared folders and removes all
  *    deleted shared folders, removes them from notification package and
  *    from the folders list.
+ *
+ *    Note: this assumes that the list lock is already acquired.
  *
  * Results:
  *    None.
@@ -3605,50 +3610,158 @@ abort:
  */
 
 static void
-HgfsServerCleanupDeletedFolders(void)
+HgfsServerSharesDeleteStale(DblLnkLst_Links *newSharesList)  // IN: new list of shares
 {
    DblLnkLst_Links *link, *nextElem;
 
-   MXUser_AcquireExclLock(gHgfsSharedFoldersLock);
    DblLnkLst_ForEachSafe(link, nextElem, &gHgfsSharedFoldersList) {
-      HgfsSharedFolderProperties *folder =
+      HgfsSharedFolderProperties *currentShare =
          DblLnkLst_Container(link, HgfsSharedFolderProperties, links);
-      if (folder->markedForDeletion) {
+      Bool staleShare = TRUE;
+      DblLnkLst_Links *linkNewShare, *nextNewShare;
+
+      DblLnkLst_ForEachSafe(linkNewShare, nextNewShare, newSharesList) {
+         HgfsSharedFolder *newShare =
+            DblLnkLst_Container(linkNewShare, HgfsSharedFolder, links);
+
+         ASSERT(newShare);
+
+         if (strcmp(currentShare->name, newShare->name) == 0) {
+            LOG(4, ("%s: %s is still valid\n", __FUNCTION__, newShare->name));
+            staleShare = FALSE;
+            break;
+         }
+      }
+
+      if (staleShare) {
          LOG(8, ("%s: removing shared folder handle %#x\n",
-                 __FUNCTION__, folder->notificationHandle));
-         if (!HgfsNotify_RemoveSharedFolder(folder->notificationHandle)) {
-            LOG(4, ("Problem removing %d shared folder handle\n",
-                    folder->notificationHandle));
+                 __FUNCTION__, currentShare->notificationHandle));
+         if (!HgfsNotify_RemoveSharedFolder(currentShare->notificationHandle)) {
+            LOG(4, ("%s: Error: removing %d shared folder handle\n",
+                    __FUNCTION__, currentShare->notificationHandle));
          }
          DblLnkLst_Unlink1(link);
-         free(folder);
+         free(currentShare->name);
+         free(currentShare);
       }
    }
-   MXUser_ReleaseExclLock(gHgfsSharedFoldersLock);
 }
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * HgfsServerRegisterShare --
+ * HgfsServerShareAddInternal --
+ *
+ *    Add a new shared folder property entry if it is not in the list of shares.
+ *
+ *    Note: this assumes that the list lock is already acquired.
+ *
+ * Results:
+ *    The share handle if entry was found HGFS_INVALID_FOLDER_HANDLE if not.
+ *
+ * Side effects:
+ *    May add a shared folders entry for change notifications.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static HgfsSharedFolderHandle
+HgfsServerShareAddInternal(const char *shareName,   // IN: shared folder name
+                           const char *sharePath)   // IN: shared folder path)
+{
+   HgfsSharedFolderHandle handle = HGFS_INVALID_FOLDER_HANDLE;
+   DblLnkLst_Links *link, *nextElem;
+
+   DblLnkLst_ForEachSafe(link, nextElem, &gHgfsSharedFoldersList) {
+      HgfsSharedFolderProperties *currentShare =
+         DblLnkLst_Container(link, HgfsSharedFolderProperties, links);
+
+      ASSERT(currentShare);
+
+      if (strcmp(currentShare->name, shareName) == 0) {
+         LOG(8, ("%s: Share is not new\n", __FUNCTION__));
+         handle = currentShare->notificationHandle;
+         break;
+      }
+   }
+
+   /* If the share is new then add it to the notification shares. */
+   if (handle == HGFS_INVALID_FOLDER_HANDLE) {
+      handle = HgfsNotify_AddSharedFolder(sharePath, shareName);
+      if (HGFS_INVALID_FOLDER_HANDLE != handle) {
+         HgfsSharedFolderProperties *shareProps =
+            (HgfsSharedFolderProperties *)Util_SafeMalloc(sizeof *shareProps);
+
+         shareProps->notificationHandle = handle;
+         shareProps->name = Util_SafeStrdup(shareName);
+         DblLnkLst_Init(&shareProps->links);
+         DblLnkLst_LinkLast(&gHgfsSharedFoldersList, &shareProps->links);
+      }
+
+      LOG(8, ("%s: %s, %s, add hnd %#x\n",__FUNCTION__,
+               (shareName ? shareName : "NULL"),
+               (sharePath ? sharePath : "NULL"),
+               handle));
+   }
+   return handle;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerShareAdd --
+ *
+ *    Add a new shared folder property entry if it is not in the list of shares.
+ *
+ *    Note: this assumes that the list lock is already acquired.
+ *
+ * Results:
+ *    The shares handle if found or added. HGFS_INVALID_FOLDER_HANDLE otherwise.
+ *
+ * Side effects:
+ *    May add a shared folders entry for change notifications.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static HgfsSharedFolderHandle
+HgfsServerShareAdd(const char *shareName,   // IN: shared folder name
+                   const char *sharePath)   // IN: shared folder path)  // IN: List of new shares
+{
+   HgfsSharedFolderHandle handle;
+
+   LOG(8, ("%s: entered\n", __FUNCTION__));
+
+   if (!gHgfsDirNotifyActive) {
+      LOG(8, ("%s: notification disabled\n", __FUNCTION__));
+      return HGFS_INVALID_FOLDER_HANDLE;
+   }
+
+   MXUser_AcquireExclLock(gHgfsSharedFoldersLock);
+   handle = HgfsServerShareAddInternal(shareName, sharePath);
+   MXUser_ReleaseExclLock(gHgfsSharedFoldersLock);
+
+   LOG(8, ("%s: exit(%#x)\n", __FUNCTION__, handle));
+   return handle;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerSharesReset --
  *
  *    This is a callback function which is invoked by hgfsServerManagement
  *    for every shared folder when something changed in shared folders
- *    configuration. The function iterates through the list of existing
- *    shared folders trying to locate an entry with the shareName. If the
- *    entry is found the function returns corresponding handle. Otherwise
- *    it creates a new entry and assigns a new handle to it.
- *
- *    Currently there is no notification that a shared folder has been
- *    deleted. The only way to find out that a shred folder is deleted
- *    is to notice that it is not enumerated any more. Thus an explicit
- *    "end of list" notification is needed. "sharedFolder == NULL" notifies
- *    that enumeration is completed which allows to delete all shared
- *    folders that were not mentioned during current enumeration.
+ *    configuration.
+ *    The function any entries now not present as stale and removes them.
+ *    Any entries on the new list of shares not on the list of list of shares
+ *    will have new entries created and added to the list.
  *
  * Results:
- *    HgfsSharedFolderHandle for the entry.
+ *    None.
  *
  * Side effects:
  *    May add an entry to known shared folders list.
@@ -3656,67 +3769,41 @@ HgfsServerCleanupDeletedFolders(void)
  *-----------------------------------------------------------------------------
  */
 
-static HgfsSharedFolderHandle
-HgfsServerRegisterShare(const char *shareName,   // IN: shared folder name
-                        const char *sharePath,   // IN: shared folder path
-                        Bool addFolder)          // IN: add or remove folder
+static void
+HgfsServerSharesReset(DblLnkLst_Links *newSharesList)  // IN: List of new shares
 {
-   DblLnkLst_Links *link, *nextElem;
-   HgfsSharedFolderHandle result = HGFS_INVALID_FOLDER_HANDLE;
+   DblLnkLst_Links *linkNewShare, *nextNewShare;
 
-   LOG(8, ("%s: %s, %s, %s\n", __FUNCTION__,
-           (shareName ? shareName : "NULL"), (sharePath ? sharePath : "NULL"),
-           (addFolder ? "add" : "remove")));
+   LOG(8, ("%s: entered\n", __FUNCTION__));
 
    if (!gHgfsDirNotifyActive) {
       LOG(8, ("%s: notification disabled\n", __FUNCTION__));
-      goto exit;
-   }
-
-   LOG(8, ("%s: %s, %s, %s - active notification\n", __FUNCTION__,
-           (shareName ? shareName : "NULL"), (sharePath ? sharePath : "NULL"),
-           (addFolder ? "add" : "remove")));
-
-   if (NULL == shareName) {
-      /*
-       * The function is invoked with shareName NULL when all shares has been
-       * enumerated.
-       * Need to delete all shared folders that were marked for deletion.
-       */
-      HgfsServerCleanupDeletedFolders();
-      goto exit;
+      return;
    }
 
    MXUser_AcquireExclLock(gHgfsSharedFoldersLock);
 
-   DblLnkLst_ForEachSafe(link, nextElem, &gHgfsSharedFoldersList) {
-      HgfsSharedFolderProperties *folder =
-         DblLnkLst_Container(link, HgfsSharedFolderProperties, links);
-      if (strcmp(folder->name, shareName) == 0) {
-         result = folder->notificationHandle;
-         folder->markedForDeletion = !addFolder;
-         break;
-      }
-   }
-   if (addFolder && HGFS_INVALID_FOLDER_HANDLE == result) {
-      result = HgfsNotify_AddSharedFolder(sharePath, shareName);
-      if (HGFS_INVALID_FOLDER_HANDLE != result) {
-         HgfsSharedFolderProperties *folder =
-            (HgfsSharedFolderProperties *)Util_SafeMalloc(sizeof *folder);
-         folder->notificationHandle = result;
-         folder->name = Util_SafeStrdup(shareName);
-         folder->markedForDeletion = FALSE;
-         DblLnkLst_Init(&folder->links);
-         DblLnkLst_LinkLast(&gHgfsSharedFoldersList, &folder->links);
-      }
-   }
-   MXUser_ReleaseExclLock(gHgfsSharedFoldersLock);
+   /*
+    * Now we go through the shares properties list to
+    * remove and delete those shares that are stale.
+    */
+   HgfsServerSharesDeleteStale(newSharesList);
 
-exit:
-   LOG(8, ("%s: %s, %s, %s exit %#x\n",__FUNCTION__,
-           (shareName ? shareName : "NULL"), (sharePath ? sharePath : "NULL"),
-           (addFolder ? "add" : "remove"), result));
-   return result;
+   /*
+    * Iterate over the new shares and check for any not in the updated shares properties
+    * list, as those will need a new share property created and added to the list.
+    */
+   DblLnkLst_ForEachSafe(linkNewShare, nextNewShare, newSharesList) {
+      HgfsSharedFolder *newShare =
+         DblLnkLst_Container(linkNewShare, HgfsSharedFolder, links);
+
+      ASSERT(newShare);
+
+      HgfsServerShareAddInternal(newShare->name, newShare->path);
+   }
+
+   MXUser_ReleaseExclLock(gHgfsSharedFoldersLock);
+   LOG(8, ("%s: exit\n", __FUNCTION__));
 }
 
 
@@ -3826,7 +3913,7 @@ HgfsServerGetShareName(HgfsSharedFolderHandle sharedFolder, // IN: Notify handle
  */
 
 Bool
-HgfsServer_InitState(HgfsServerCallbacks **callbackTable,         // IN/OUT: our callbacks
+HgfsServer_InitState(const HgfsServerCallbacks **callbackTable,   // IN/OUT: our callbacks
                      HgfsServerConfig *serverCfgData,             // IN: configurable settings
                      HgfsServerMgrCallbacks *serverMgrData)       // IN: mgr callback
 {
@@ -3845,17 +3932,9 @@ HgfsServer_InitState(HgfsServerCallbacks **callbackTable,         // IN/OUT: our
     * Initialize the globals for handling the active shared folders.
     */
 
-   gHgfsAsyncLock = NULL;
-   gHgfsAsyncVar = NULL;
-   Atomic_Write(&gHgfsAsyncCounter, 0);
-
    DblLnkLst_Init(&gHgfsSharedFoldersList);
    gHgfsSharedFoldersLock = MXUser_CreateExclLock("sharedFoldersLock",
                                                   RANK_hgfsSharedFolders);
-   gHgfsAsyncLock = MXUser_CreateExclLock("asyncLock",
-                                          RANK_hgfsSharedFolders);
-
-   gHgfsAsyncVar = MXUser_CreateCondVarExclLock(gHgfsAsyncLock);
 
    if (!HgfsPlatformInit()) {
       LOG(4, ("Could not initialize server platform specific \n"));
@@ -3866,7 +3945,7 @@ HgfsServer_InitState(HgfsServerCallbacks **callbackTable,         // IN/OUT: our
       *callbackTable = &gHgfsServerCBTable;
 
       if (0 != (gHgfsCfgSettings.flags & HGFS_CONFIG_NOTIFY_ENABLED)) {
-         gHgfsDirNotifyActive = HgfsNotify_Init() == HGFS_STATUS_SUCCESS;
+         gHgfsDirNotifyActive = HgfsNotify_Init(&gHgfsServerNotifyCBTable) == HGFS_STATUS_SUCCESS;
          Log("%s: initialized notification %s.\n", __FUNCTION__,
              (gHgfsDirNotifyActive ? "active" : "inactive"));
       }
@@ -3875,7 +3954,6 @@ HgfsServer_InitState(HgfsServerCallbacks **callbackTable,         // IN/OUT: our
             gHgfsCfgSettings.flags &= ~HGFS_CONFIG_OPLOCK_ENABLED;
          }
       }
-      gHgfsInitialized = TRUE;
    } else {
       HgfsServer_ExitState(); // Cleanup partially initialized state
    }
@@ -3907,12 +3985,15 @@ HgfsServer_InitState(HgfsServerCallbacks **callbackTable,         // IN/OUT: our
 void
 HgfsServer_ExitState(void)
 {
-   gHgfsInitialized = FALSE;
-
    if (0 != (gHgfsCfgSettings.flags & HGFS_CONFIG_OPLOCK_ENABLED)) {
       HgfsServerOplockDestroy();
    }
    if (gHgfsDirNotifyActive) {
+      DblLnkLst_Links emptySharesList;
+      DblLnkLst_Init(&emptySharesList);
+
+      /* Make all existing shared folders stale and delete them. */
+      HgfsServerSharesReset(&emptySharesList);
       HgfsNotify_Exit();
       gHgfsDirNotifyActive = FALSE;
       Log("%s: exit notification - inactive.\n", __FUNCTION__);
@@ -3923,17 +4004,8 @@ HgfsServer_ExitState(void)
       gHgfsSharedFoldersLock = NULL;
    }
 
-   if (NULL != gHgfsAsyncLock) {
-      MXUser_DestroyExclLock(gHgfsAsyncLock);
-      gHgfsAsyncLock = NULL;
-   }
-
-   if (NULL != gHgfsAsyncVar) {
-      MXUser_DestroyCondVar(gHgfsAsyncVar);
-      gHgfsAsyncVar = NULL;
-   }
-
    HgfsPlatformDestroy();
+
    /*
     * Reset the server manager callbacks.
     */
@@ -4207,7 +4279,7 @@ HgfsServerEnumerateSharedFolders(void)
                                                        &sharePathLen, &sharePath);
             if (HGFS_NAME_STATUS_COMPLETE == nameStatus) {
                LOG(8, ("%s: registering share %s path %s\n", __FUNCTION__, shareName, sharePath));
-               handle = HgfsServerRegisterShare(shareName, sharePath, TRUE);
+               handle = HgfsServerShareAdd(shareName, sharePath);
                success = handle != HGFS_INVALID_FOLDER_HANDLE;
                LOG(8, ("%s: registering share %s hnd %#x\n", __FUNCTION__, shareName, handle));
             }
@@ -4231,7 +4303,7 @@ HgfsServerEnumerateSharedFolders(void)
  *    Allocate HgfsTransportSessionInfo and initialize it.
  *
  * Results:
- *    TRUE on success, FALSE otherwise.
+ *    TRUE always.
  *
  * Side effects:
  *    None.
@@ -4245,11 +4317,41 @@ HgfsServerSessionConnect(void *transportData,                         // IN: tra
                          HgfsServerChannelData *channelCapabilities,  // IN: channel capabilities
                          void **transportSessionData)                 // OUT: server session context
 {
-   HgfsTransportSessionInfo *transportSession;
-
    ASSERT(transportSessionData);
 
    LOG(4, ("%s: initting.\n", __FUNCTION__));
+
+   *transportSessionData = HgfsServerTransportInit(transportData,
+                                                   channelCbTable,
+                                                   channelCapabilities);
+   return TRUE;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * HgfsServerTransportInit --
+ *
+ *      Init a transport session.
+ *
+ *      Allocated and initialize the transport session.
+ *
+ * Results:
+ *      The initialized transport session object.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static HgfsTransportSessionInfo *
+HgfsServerTransportInit(void *transportData,                         // IN: transport session context
+                        HgfsServerChannelCallbacks *channelCbTable,  // IN: Channel callbacks
+                        HgfsServerChannelData *channelCapabilities)  // IN: channel capabilities
+{
+   HgfsTransportSessionInfo *transportSession;
 
    transportSession = Util_SafeCalloc(1, sizeof *transportSession);
    transportSession->transportData = transportData;
@@ -4271,10 +4373,210 @@ HgfsServerSessionConnect(void *transportData,                         // IN: tra
 
    /* Give our session a reference to hold while we are open. */
    HgfsServerTransportSessionGet(transportSession);
-
-   *transportSessionData = transportSession;
-   return TRUE;
+   return transportSession;
 }
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * HgfsServerTransportExit --
+ *
+ *      Exit by destroying the transport session.
+ *
+ *      Free session info data if no reference.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static void
+HgfsServerTransportExit(HgfsTransportSessionInfo *transportSession)   // IN: transport session context
+{
+   DblLnkLst_Links *curr, *next;
+
+   ASSERT(Atomic_Read(&transportSession->refCount) == 0);
+
+   DblLnkLst_ForEachSafe(curr, next,  &transportSession->sessionArray) {
+      HgfsSessionInfo *session = DblLnkLst_Container(curr, HgfsSessionInfo, links);
+      HgfsServerTransportRemoveSessionFromList(transportSession, session);
+      HgfsServerSessionPut(session);
+   }
+
+   MXUser_DestroyExclLock(transportSession->sessionArrayLock);
+   free(transportSession);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerAsyncInfoInit --
+ *
+ *    Initialize the async request info for a session.
+ *
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HgfsServerAsyncInfoInit(HgfsAsyncRequestInfo *info) // IN/OUT: info
+{
+   Atomic_Write(&info->requestCount, 0);
+   info->lock  = MXUser_CreateExclLock("asyncLock",
+                                       RANK_hgfsSharedFolders);
+   info->requestCountIsZero = MXUser_CreateCondVarExclLock(info->lock);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerAsyncInfoExit --
+ *
+ *    Destroy the async request info for a session session.
+ *
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HgfsServerAsyncInfoExit(HgfsAsyncRequestInfo *info) // IN/OUT: info
+{
+   ASSERT(Atomic_Read(&info->requestCount) == 0);
+   if (NULL != info->lock) {
+      MXUser_DestroyExclLock(info->lock);
+      info->lock = NULL;
+   }
+
+   if (NULL != info->requestCountIsZero) {
+      MXUser_DestroyCondVar(info->requestCountIsZero);
+      info->requestCountIsZero = NULL;
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerAsyncWaitForAllRequestsDone --
+ *
+ *    Wait for all the async info requests to be done.
+ *
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HgfsServerAsyncWaitForAllRequestsDone(HgfsAsyncRequestInfo *info) // IN: info
+{
+   MXUser_AcquireExclLock(info->lock);
+   while (Atomic_Read(&info->requestCount)) {
+      MXUser_WaitCondVarExclLock(info->lock, info->requestCountIsZero);
+   }
+   MXUser_ReleaseExclLock(info->lock);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerAsyncSignalAllRequestsDone --
+ *
+ *    Signal that all the async info requests are done.
+ *
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HgfsServerAsyncSignalAllRequestsDone(HgfsAsyncRequestInfo *info) // IN: info
+{
+   MXUser_AcquireExclLock(info->lock);
+   MXUser_BroadcastCondVar(info->requestCountIsZero);
+   MXUser_ReleaseExclLock(info->lock);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerAsyncInfoDecCount --
+ *
+ *    Decrement the async info request count for a session.
+ *
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HgfsServerAsyncInfoDecCount(HgfsAsyncRequestInfo *info) // IN/OUT: info
+{
+   if (Atomic_ReadDec32(&info->requestCount) == 1) {
+      HgfsServerAsyncSignalAllRequestsDone(info);
+   }
+}
+
+
+#ifndef VMX86_TOOLS
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerAsyncInfoIncCount --
+ *
+ *    Increment the async info request count for a session.
+ *
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HgfsServerAsyncInfoIncCount(HgfsAsyncRequestInfo *info) // IN/OUT: info
+{
+   Atomic_Inc(&info->requestCount);
+}
+#endif // VMX86_TOOLS
 
 
 /*
@@ -4358,10 +4660,8 @@ HgfsServerAllocateSession(HgfsTransportSessionInfo *transportSession, // IN:
    /* Initialize search freelist. */
    DblLnkLst_Init(&session->searchFreeList);
 
-   Atomic_Write(&session->refCount, 0);
-
    /* Give our session a reference to hold while we are open. */
-   HgfsServerSessionGet(session);
+   Atomic_Write(&session->refCount, 1);
 
    /* Allocate array of searches and add them to free list. */
    session->numSearches = NUM_SEARCHES;
@@ -4374,6 +4674,8 @@ HgfsServerAllocateSession(HgfsTransportSessionInfo *transportSession, // IN:
       DblLnkLst_LinkLast(&session->searchFreeList,
                          &session->searchArray[i].links);
    }
+   /* Initialize the async request info.*/
+   HgfsServerAsyncInfoInit(&session->asyncRequestsInfo);
 
    /* Get common to all sessions capabiities. */
    HgfsServerGetDefaultCapabilities(session->hgfsSessionCapabilities,
@@ -4516,11 +4818,14 @@ HgfsServerSessionClose(void *clientData)    // IN: session context
 {
    HgfsTransportSessionInfo *transportSession = clientData;
 
+   LOG(8, ("%s: entered\n", __FUNCTION__));
+
    ASSERT(transportSession);
    ASSERT(transportSession->state == HGFS_SESSION_STATE_CLOSED);
 
    /* Remove, typically, the last reference, will teardown everything. */
    HgfsServerTransportSessionPut(transportSession);
+   LOG(8, ("%s: exit\n", __FUNCTION__));
 }
 
 
@@ -4570,7 +4875,7 @@ HgfsServerExitSessionInternal(HgfsSessionInfo *session)    // IN: session contex
 
    MXUser_AcquireExclLock(session->nodeArrayLock);
 
-   Log("%s: exit session %p id %"FMT64"x\n", __FUNCTION__, session, session->sessionId);
+   Log("%s: teardown session %p id 0x%"FMT64"x\n", __FUNCTION__, session, session->sessionId);
 
    /* Recycle all nodes that are still in use, then destroy the node pool. */
    for (i = 0; i < session->numNodes; i++) {
@@ -4611,6 +4916,9 @@ HgfsServerExitSessionInternal(HgfsSessionInfo *session)    // IN: session contex
    MXUser_DestroyExclLock(session->nodeArrayLock);
    MXUser_DestroyExclLock(session->searchArrayLock);
    MXUser_DestroyExclLock(session->fileIOLock);
+
+   /* Teardown the async request info.*/
+   HgfsServerAsyncInfoExit(&session->asyncRequestsInfo);
 
    free(session);
 }
@@ -4704,7 +5012,7 @@ HgfsServerSessionSendComplete(HgfsPacket *packet,   // IN/OUT: Hgfs packet
 /*
  *----------------------------------------------------------------------------
  *
- * HgfsServer_Quiesce --
+ * HgfsServerSessionQuiesce --
  *
  *    The function is called when VM is about to take a snapshot and
  *    when creation of the snapshot completed. When the freeze is TRUE the
@@ -4722,59 +5030,50 @@ HgfsServerSessionSendComplete(HgfsPacket *packet,   // IN/OUT: Hgfs packet
  *----------------------------------------------------------------------------
  */
 
-void
-HgfsServer_Quiesce(Bool freeze)  // IN:
-{
-   if (!gHgfsInitialized) {
-      return;
-   }
-
-   if (freeze) {
-      /* Suspend background activity. */
-      if (gHgfsDirNotifyActive) {
-         HgfsNotify_Deactivate(HGFS_NOTIFY_REASON_SERVER_SYNC);
-      }
-      /* Wait for outstanding asynchronous requests to complete. */
-      MXUser_AcquireExclLock(gHgfsAsyncLock);
-      while (Atomic_Read(&gHgfsAsyncCounter)) {
-         MXUser_WaitCondVarExclLock(gHgfsAsyncLock, gHgfsAsyncVar);
-      }
-      MXUser_ReleaseExclLock(gHgfsAsyncLock);
-   } else {
-      /* Resume background activity. */
-      if (gHgfsDirNotifyActive) {
-         HgfsNotify_Activate(HGFS_NOTIFY_REASON_SERVER_SYNC);
-      }
-   }
-}
-
-
-/*
- *----------------------------------------------------------------------------
- *
- * HgfsNotifyPacketSent --
- *
- *    Decrements counter of outstanding asynchronous packets
- *    and signal conditional variable when the counter
- *    becomes 0.
- *
- * Results:
- *    TRUE on success, FALSE on error.
- *
- * Side effects:
- *    None.
- *
- *----------------------------------------------------------------------------
- */
-
 static void
-HgfsNotifyPacketSent(void)
+HgfsServerSessionQuiesce(void *clientData,         // IN: transport and session
+                         HgfsQuiesceOp quiesceOp)  // IN: operation
 {
-   if (Atomic_ReadDec32(&gHgfsAsyncCounter) == 1) {
-      MXUser_AcquireExclLock(gHgfsAsyncLock);
-      MXUser_BroadcastCondVar(gHgfsAsyncVar);
-      MXUser_ReleaseExclLock(gHgfsAsyncLock);
+   HgfsTransportSessionInfo *transportSession = clientData;
+   DblLnkLst_Links *curr;
+
+   LOG(4, ("%s: Beginning\n", __FUNCTION__));
+
+   MXUser_AcquireExclLock(transportSession->sessionArrayLock);
+
+   DblLnkLst_ForEach(curr, &transportSession->sessionArray) {
+      HgfsSessionInfo *session = DblLnkLst_Container(curr, HgfsSessionInfo, links);
+
+      switch(quiesceOp) {
+      case HGFS_QUIESCE_FREEZE:
+         /* Suspend background activity. */
+         LOG(8, ("%s: Halt file system activity for session %p\n",
+                 __FUNCTION__, session));
+
+         if (gHgfsDirNotifyActive) {
+            HgfsNotify_Deactivate(HGFS_NOTIFY_REASON_SERVER_SYNC, session);
+         }
+
+         HgfsServerAsyncWaitForAllRequestsDone(&session->asyncRequestsInfo);
+         break;
+
+      case HGFS_QUIESCE_THAW:
+         /* Resume background activity. */
+         LOG(8, ("%s: Resume file system activity for session %p\n",
+                 __FUNCTION__, session));
+
+         if (gHgfsDirNotifyActive) {
+            HgfsNotify_Activate(HGFS_NOTIFY_REASON_SERVER_SYNC, session);
+         }
+         break;
+
+      default:
+         NOT_REACHED();
+      }
+
    }
+   MXUser_ReleaseExclLock(transportSession->sessionArrayLock);
+   LOG(4, ("%s: Ending\n", __FUNCTION__));
 }
 
 
@@ -4795,12 +5094,13 @@ HgfsNotifyPacketSent(void)
  */
 
 static Bool
-HgfsPacketSend(HgfsPacket *packet,            // IN/OUT: Hgfs Packet
-               HgfsTransportSessionInfo *transportSession,      // IN: session info
-               HgfsSendFlags flags)           // IN: flags for how to process
+HgfsPacketSend(HgfsPacket *packet,                         // IN/OUT: Hgfs Packet
+               HgfsTransportSessionInfo *transportSession, // IN: transport
+               HgfsSessionInfo *session,                   // IN: session info
+               HgfsSendFlags flags)                        // IN: send flags
 {
    Bool result = FALSE;
-   Bool notificationNeeded = (0 != (packet->state & HGFS_STATE_CLIENT_REQUEST) &&
+   Bool asyncClientRequest = (0 != (packet->state & HGFS_STATE_CLIENT_REQUEST) &&
                               0 != (packet->state & HGFS_STATE_ASYNC_REQUEST));
 
    ASSERT(packet);
@@ -4813,8 +5113,9 @@ HgfsPacketSend(HgfsPacket *packet,            // IN/OUT: Hgfs Packet
                                                       flags);
    }
 
-   if (notificationNeeded) {
-      HgfsNotifyPacketSent();
+   if (asyncClientRequest) {
+      ASSERT(session);
+      HgfsServerAsyncInfoDecCount(&session->asyncRequestsInfo);
    }
    return result;
 }
@@ -4966,6 +5267,8 @@ HgfsServerSessionInvalidateObjects(void *clientData,         // IN:
    HgfsTransportSessionInfo *transportSession = clientData;
    DblLnkLst_Links *curr;
 
+   LOG(4, ("%s: Beginning\n", __FUNCTION__));
+
    ASSERT(transportSession);
    MXUser_AcquireExclLock(transportSession->sessionArrayLock);
 
@@ -4977,6 +5280,10 @@ HgfsServerSessionInvalidateObjects(void *clientData,         // IN:
    }
 
    MXUser_ReleaseExclLock(transportSession->sessionArrayLock);
+
+   /* Now invalidate any stale shares and add any new ones. */
+   HgfsServerSharesReset(shares);
+   LOG(4, ("%s: Ending\n", __FUNCTION__));
 }
 
 
@@ -5110,7 +5417,7 @@ HgfsServerStatFs(const char *pathName, // IN: Path we're interested in
 
    /* Now call the wiper lib to get space information. */
    Str_Strcpy(p.mountPoint, pathName, sizeof p.mountPoint);
-   wiperError = WiperSinglePartition_GetSpace(&p, freeBytes, totalBytes);
+   wiperError = WiperSinglePartition_GetSpace(&p, NULL, freeBytes, totalBytes);
    if (strlen(wiperError) > 0) {
       LOG(4, ("%s: error using wiper lib: %s\n", __FUNCTION__, wiperError));
 
@@ -5197,13 +5504,22 @@ HgfsServerGetLocalNameInfo(const char *cpName,      // IN:  Cross-platform filen
                                                len,
                                                &shareInfo->readPermissions,
                                                &shareInfo->writePermissions,
-                                               &shareInfo->handle,
+                                               &shareInfo->handle, // XXX: to be deleted.
                                                &shareInfo->rootDir);
    if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
       LOG(4, ("%s: No such share (%s)\n", __FUNCTION__, cpName));
       return nameStatus;
    }
    shareInfo->rootDirLen = strlen(shareInfo->rootDir);
+   /*
+    * XXX: The handle is now NOT propagated back and held in the policy but only in the
+    * table of share properties.
+    *
+    * Get shareInfo handle returns a valid handle only if we have change
+    * notification active.
+    * Note: cpName begins with the share name.
+    */
+   shareInfo->handle = HgfsServerGetShareHandle(cpName);
 
    /* Get the config options. */
    nameStatus = HgfsServerPolicy_GetShareOptions(cpName, len, &shareOptions);
@@ -7525,7 +7841,7 @@ HgfsServerSetDirWatchByHandle(HgfsInputParam *input,         // IN: Input params
       LOG(4, ("%s: adding a subscriber on shared folder handle %#x\n", __FUNCTION__,
                sharedFolder));
       *watchId = HgfsNotify_AddSubscriber(sharedFolder, fileName, events, watchTree,
-                                          HgfsServerDirWatchEvent, input->session);
+                                          input->session);
       status = (HGFS_INVALID_SUBSCRIBER_HANDLE == *watchId) ? HGFS_ERROR_INTERNAL :
                                                               HGFS_ERROR_SUCCESS;
       LOG(4, ("%s: result of add subscriber id %"FMT64"x status %u\n", __FUNCTION__,
@@ -7595,7 +7911,7 @@ HgfsServerSetDirWatchByName(HgfsInputParam *input,         // IN: Input params
          /* See if we are dealing with the base of the namespace */
          nameStatus = HGFS_NAME_STATUS_INCOMPLETE_BASE;
       } else {
-         sharedFolder = HgfsServerGetShareHandle(cpName);
+         sharedFolder = shareInfo.handle;
       }
 
       if (HGFS_NAME_STATUS_COMPLETE == nameStatus &&
@@ -7612,7 +7928,7 @@ HgfsServerSetDirWatchByName(HgfsInputParam *input,         // IN: Input params
                LOG(8, ("%s: session %p id %"FMT64"x on share hnd %#x\n", __FUNCTION__,
                        input->session, input->session->sessionId, sharedFolder));
                *watchId = HgfsNotify_AddSubscriber(sharedFolder, tempBuf, events,
-                                                   watchTree, HgfsServerDirWatchEvent,
+                                                   watchTree,
                                                    input->session);
                status = (HGFS_INVALID_SUBSCRIBER_HANDLE == *watchId) ?
                         HGFS_ERROR_INTERNAL : HGFS_ERROR_SUCCESS;
@@ -7626,12 +7942,11 @@ HgfsServerSetDirWatchByName(HgfsInputParam *input,         // IN: Input params
          } else {
             LOG(8, ("%s: adding subscriber on share hnd %#x\n", __FUNCTION__, sharedFolder));
             *watchId = HgfsNotify_AddSubscriber(sharedFolder, "", events, watchTree,
-                                                HgfsServerDirWatchEvent,
                                                 input->session);
             status = (HGFS_INVALID_SUBSCRIBER_HANDLE == *watchId) ? HGFS_ERROR_INTERNAL :
                                                                     HGFS_ERROR_SUCCESS;
-            LOG(8, ("%s: adding subscriber on share hnd %#x result %u\n", __FUNCTION__,
-                     sharedFolder, status));
+            LOG(8, ("%s: adding subscriber on share hnd %#x watchId %"FMT64"x result %u\n",
+                    __FUNCTION__, sharedFolder, *watchId, status));
          }
       } else if (HGFS_NAME_STATUS_INCOMPLETE_BASE == nameStatus) {
          LOG(4, ("%s: Notification for root share is not supported yet\n",
@@ -8891,7 +9206,77 @@ HgfsServerGetTargetRelativePath(const char* source,    // IN: source file name
 /*
  *-----------------------------------------------------------------------------
  *
- * HgfsServerDirWatchEvent --
+ * HgfsServerNotifyRegisterThreadCb --
+ *
+ *    The callback is invoked by the file system change notification component
+ *    thread for generating change notification events.
+ *    This simply calls back to the channel's register thread function, if present,
+ *    which does the actual work.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HgfsServerNotifyRegisterThreadCb(struct HgfsSessionInfo *session)     // IN: session info
+{
+   HgfsTransportSessionInfo *transportSession;
+
+   ASSERT(session);
+   transportSession = session->transportSession;
+
+   LOG(4, ("%s: Registering thread on session %"FMT64"x\n", __FUNCTION__, session->sessionId));
+
+   if (transportSession->channelCbTable->registerThread != NULL) {
+      transportSession->channelCbTable->registerThread();
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerNotifyUnregisterThreadCb --
+ *
+ *    The callback is invoked by the file system change notification component
+ *    thread for generating change notification events.
+ *    This simply calls back to the channel's unregister thread function, if present,
+ *    which does the actual work.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HgfsServerNotifyUnregisterThreadCb(struct HgfsSessionInfo *session)     // IN: session info
+{
+   HgfsTransportSessionInfo *transportSession;
+
+   ASSERT(session);
+   transportSession = session->transportSession;
+
+   LOG(4, ("%s: Unregistering thread on session %"FMT64"x\n", __FUNCTION__, session->sessionId));
+
+   if (transportSession->channelCbTable->unregisterThread != NULL) {
+      transportSession->channelCbTable->unregisterThread();
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerNotifyReceiveEventCb --
  *
  *    The callback is invoked by the file system change notification component
  *    in response to a change event when the client has set at least one watch
@@ -8911,11 +9296,11 @@ HgfsServerGetTargetRelativePath(const char* source,    // IN: source file name
  */
 
 static void
-HgfsServerDirWatchEvent(HgfsSharedFolderHandle sharedFolder, // IN: shared folder
-                        HgfsSubscriberHandle subscriber,     // IN: subsciber
-                        char* fileName,                      // IN: name of the file
-                        uint32 mask,                         // IN: event type
-                        struct HgfsSessionInfo *session)     // IN: session info
+HgfsServerNotifyReceiveEventCb(HgfsSharedFolderHandle sharedFolder, // IN: shared folder
+                               HgfsSubscriberHandle subscriber,     // IN: subsciber
+                               char* fileName,                      // IN: name of the file
+                               uint32 mask,                         // IN: event type
+                               struct HgfsSessionInfo *session)     // IN: session info
 {
    HgfsPacket *packet = NULL;
    HgfsHeader *packetHeader = NULL;
@@ -8966,7 +9351,10 @@ HgfsServerDirWatchEvent(HgfsSharedFolderHandle sharedFolder, // IN: shared folde
       goto exit;
    }
 
-   if (!HgfsPacketSend(packet, session->transportSession, 0)) {
+   if (!HgfsPacketSend(packet,
+                       session->transportSession,
+                       session,
+                       0)) {
       LOG(4, ("%s: failed to send notification to the host\n", __FUNCTION__));
       goto exit;
    }

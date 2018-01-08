@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -348,7 +348,7 @@ CodeSetOldGenericToUtf16leDb(UINT codeIn,        // IN:
                      (DynBuf_GetAllocatedSize(db) - initialSize) /
                                       sizeof(wchar_t));
 
-         if (0 == result) {
+         if (result == 0) {
             error = GetLastError();   // may be ERROR_NO_UNICODE_TRANSLATION
          }
 
@@ -721,7 +721,7 @@ CodeSetOldGetCodeSetFromLocale(void)
 const char *
 CodeSetOld_GetCurrentCodeSet(void)
 {
-#if defined(CURRENT_IS_UTF8)
+#if defined(CURRENT_IS_UTF8) || defined(VM_WIN_UWP)
    return "UTF-8";
 #elif defined(_WIN32)
    static char ret[20];  // max is "windows-4294967296"
@@ -1032,7 +1032,7 @@ CodeSetOld_GenericToGenericDb(char const *codeIn,   // IN:
     * Trivial case.
     */
 
-   if ((0 == sizeIn) || (NULL == bufIn)) {
+   if ((sizeIn == 0) || (bufIn == NULL)) {
       ret = TRUE;
       goto exit;
    }
@@ -2140,6 +2140,9 @@ CodeSetOldIso88591ToUtf8Db(char const *bufIn,   // IN:
 static DWORD
 GetInvalidCharsFlag(void)
 {
+#if defined(VM_WIN_UWP)
+   return MB_ERR_INVALID_CHARS;
+#else
    static volatile Bool bFirstCall = TRUE;
    static DWORD retval;
 
@@ -2164,7 +2167,7 @@ GetInvalidCharsFlag(void)
 
 #pragma warning(push)
 #pragma warning(disable : 4996) // 'function': was declared deprecated
-   if(!(bOsVersionInfoEx = GetVersionEx((OSVERSIONINFO *) &osvi))) {
+   if (!(bOsVersionInfoEx = GetVersionEx((OSVERSIONINFO *) &osvi))) {
       /*
        * If GetVersionEx failed, we are running something earlier than NT4+SP6,
        * thus we cannot use MB_ERR_INVALID_CHARS
@@ -2192,6 +2195,7 @@ GetInvalidCharsFlag(void)
    bFirstCall = FALSE;
 
    return retval;
+#endif //VM_WIN_UWP
 }
 #endif
 

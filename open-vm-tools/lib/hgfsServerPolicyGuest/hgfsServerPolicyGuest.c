@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -30,11 +30,33 @@
 #   include <stdlib.h>
 #endif
 
+#undef LOG
+
+#define LGLEVEL         (10)
+#define LGPFX_FMT       "%s:%s:"
+#define LGPFX           "hgfsd"
+
+#if defined VMTOOLS_USE_GLIB
+#define G_LOG_DOMAIN          LGPFX
+#define Debug                 g_debug
+#define Warning               g_warning
+#else
+#include "debug.h"
+#endif
+
+#define DOLOG(_min)     ((_min) <= LGLEVEL)
+
+#define LOG(_level, args)                                  \
+   do {                                                    \
+      if (DOLOG(_level)) {                                 \
+         Debug(LGPFX_FMT, LGPFX, __FUNCTION__);            \
+         Debug args;                                       \
+      }                                                    \
+   } while (0)
+
+
 #include "vmware.h"
 #include "hgfsServerPolicy.h"
-
-#define LOGLEVEL_MODULE hgfs
-#include "loglevel_user.h"
 
 
 typedef struct HgfsServerPolicyState {
@@ -136,7 +158,6 @@ HgfsServerPolicyDestroyShares(DblLnkLst_Links *head) // IN
 
 Bool
 HgfsServerPolicy_Init(HgfsInvalidateObjectsFunc invalidateObjects,  // Unused
-                      HgfsRegisterSharedFolderFunc registerFolder,  // Unused
                       HgfsServerResEnumCallbacks *enumResources)    // OUT enum callbacks
 {
    HgfsSharedFolder *rootShare;
@@ -146,7 +167,6 @@ HgfsServerPolicy_Init(HgfsInvalidateObjectsFunc invalidateObjects,  // Unused
     * it in.
     */
    ASSERT(invalidateObjects == NULL);
-   ASSERT(registerFolder == NULL);
 
    DblLnkLst_Init(&myState.shares);
 

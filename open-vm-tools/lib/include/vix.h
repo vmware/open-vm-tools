@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -318,7 +318,7 @@ enum {
    VIX_E_TOOLS_INSTALL_INIT_FAILED              = 21005,
    VIX_E_TOOLS_INSTALL_AUTO_NOT_SUPPORTED       = 21006,
    VIX_E_TOOLS_INSTALL_GUEST_NOT_READY          = 21007,
-   /* VIX_E_TOOLS_INSTALL_SIG_CHECK_FAILED         = 21008, Removed in version 1.15.0 */
+   VIX_E_TOOLS_INSTALL_SIG_CHECK_FAILED         = 21008,
    VIX_E_TOOLS_INSTALL_ERROR                    = 21009,
    VIX_E_TOOLS_INSTALL_ALREADY_UP_TO_DATE       = 21010,
    VIX_E_TOOLS_INSTALL_IN_PROGRESS              = 21011,

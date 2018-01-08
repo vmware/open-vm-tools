@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -68,7 +68,7 @@ SuperFgets(FILE *stream,   // IN:
            size_t *count,  // IN/OUT:
            void *bufIn)    // OUT:
 {
-   char *buf = (char *)bufIn;
+   char *buf = bufIn;
    size_t size = 0;
 
    ASSERT(stream);
@@ -146,11 +146,11 @@ SuperFgets(FILE *stream,   // IN:
  *
  *      Read the next line from a stream.
  *
- *      A line is defined as an arbitrary long sequence of arbitrary bytes,
+ *      A line is defined as an arbitrarily long sequence of arbitrary bytes,
  *      that ends with the first occurrence of one of these line terminators:
- *      . \r\n          (the ANSI way, in text mode)
+ *      . \r\n          (the Windows/DOS way, in text mode)
  *      . \n            (the UNIX way)
- *      . \r            (the Legacy Mac (pre-OS X) way)
+ *      . \r            (the legacy Mac (pre-OS X) way)
  *      . end-of-stream
  *
  *      Note that on Windows, getc() returns one '\n' for a \r\n two-byte
@@ -162,13 +162,16 @@ SuperFgets(FILE *stream,   // IN:
  *      allocated.
  *
  * Results:
- *      StdIO_Success on success: '*buf' is an allocated, NUL terminated buffer
- *                                that contains the line (excluding the line
- *                                terminator). If not NULL, '*count' contains
- *                                the size of the buffer (excluding the NUL
- *                                terminator)
- *      StdIO_EOF if there is no next line (end of stream)
- *      StdIO_Error on failure: errno is set accordingly
+ *      StdIO_Success on success:
+ *          '*buf' is an allocated, NUL terminated buffer that contains the
+ *          line (excluding the line terminator).  If not NULL, '*count'
+ *          contains the size of the buffer (excluding the NUL terminator).
+ *
+ *      StdIO_EOF if there is no next line (end of stream):
+ *          '*buf' is left untouched.
+ *
+ *      StdIO_Error on failure:
+ *          errno is set accordingly and '*buf' is left untouched.
  *
  * Side effects:
  *      If the line read is terminated by a standalone '\r' (legacy Mac), the
@@ -183,8 +186,8 @@ SuperFgets(FILE *stream,   // IN:
 StdIO_Status
 StdIO_ReadNextLine(FILE *stream,         // IN:
                    char **buf,           // OUT:
-                   size_t maxBufLength,  // IN:
-                   size_t *count)        // OUT:
+                   size_t maxBufLength,  // IN: May be 0.
+                   size_t *count)        // OUT/OPT:
 {
    DynBuf b;
 

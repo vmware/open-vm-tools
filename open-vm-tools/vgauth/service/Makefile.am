@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2014-2016 VMware, Inc.  All rights reserved.
+### Copyright (C) 2014-2017 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -90,7 +90,10 @@ VGAuthService_LDADD += -lcrypto
 
 if HAVE_ICU
    VGAuthService_LDADD += @ICU_LIBS@
-   VGAuthService_LINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS)     \
+endif
+
+if VGAUTH_USE_CXX
+  VGAuthService_LINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS)     \
                             $(LIBTOOLFLAGS) --mode=link $(CXX)       \
                             $(AM_CXXFLAGS) $(CXXFLAGS) $(AM_LDFLAGS) \
                             $(LDFLAGS) -o $@

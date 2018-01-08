@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -35,8 +35,6 @@
 #ifndef NO_MULTIMON
 #include <X11/extensions/Xinerama.h>
 #endif
-#include <gtk/gtk.h>
-#include <gdk/gdkx.h>
 
 #include "vmware.h"
 #include "debug.h"
@@ -45,6 +43,7 @@
 #include "strutil.h"
 #include "util.h"
 #include "posix.h"
+#include "resolutionCommon.h"
 
 #define VMWAREDRV_PATH_64   "/usr/X11R6/lib64/modules/drivers/vmware_drv.o"
 #define VMWAREDRV_PATH      "/usr/X11R6/lib/modules/drivers/vmware_drv.o"
@@ -61,6 +60,8 @@ typedef struct {
    Bool         canUseVMwareCtrlTopologySet;
                                 // TRUE if VMwareCtrl extension supports topology set
    Bool         canUseRandR12;  // TRUE if RandR extension >= 1.2 available
+
+   Bool         canUseResolutionKMS;    // TRUE if backing off for resolutionKMS
 } ResolutionInfoX11Type;
 
 
@@ -77,6 +78,7 @@ ResolutionInfoX11Type resolutionInfoX11;
 static Bool ResolutionCanSet(void);
 static Bool TopologyCanSet(void);
 static Bool SelectResolution(uint32 width, uint32 height);
+static int ResolutionX11ErrorHandler(Display *d, XErrorEvent *e);
 
 
 /*
@@ -88,28 +90,45 @@ static Bool SelectResolution(uint32 width, uint32 height);
  * X11 back-end initializer.  Records caller's X11 display, then determines
  * which capabilities are available.
  *
- * @param[in] handle User's X11 display
+ * @param[in] handle (ResolutionInfoX11Type is used as backend specific handle)
  * @return TRUE on success, FALSE on failure.
  */
 
 Bool
 ResolutionBackendInit(InitHandle handle)
 {
-   ResolutionInfoX11Type *resInfoX = &resolutionInfoX11;
+   ResolutionInfoX11Type *resInfoX = (ResolutionInfoX11Type *)handle;
    ResolutionInfoType *resInfo = &resolutionInfo;
    int dummy1;
    int dummy2;
 
-   memset(resInfoX, 0, sizeof *resInfoX);
-
-   resInfoX->display = handle;
-
-   if (resInfoX->display == NULL) {
-      g_warning("%s: Called with invalid X display!\n", __func__);
+   if (resInfoX->canUseResolutionKMS == TRUE) {
+      resInfo->canSetResolution = FALSE;
+      resInfo->canSetTopology = FALSE;
       return FALSE;
    }
 
-   resInfoX->display = handle;
+   XSetErrorHandler(ResolutionX11ErrorHandler);
+   resInfoX->display = XOpenDisplay(NULL);
+
+   /*
+    * In case display is NULL, we do not load resolutionSet
+    * as it serve no purpose. Also avoids SEGFAULT issue
+    * like BZ1880932.
+    *
+    * VMX currently remembers the settings across a reboot,
+    * so let's say someone replaces our Xorg driver with
+    * xf86-video-modesetting, and then rebooted, we'd end up here,
+    * but the VMX would still send resolution / topology events
+    * and we'd hit the same segfault.
+    */
+   if (resInfoX->display == NULL) {
+      g_error("%s: Invalid display detected.\n", __func__);
+      resInfo->canSetResolution = FALSE;
+      resInfo->canSetTopology = FALSE;
+      return FALSE;
+   }
+
    resInfoX->rootWindow = DefaultRootWindow(resInfoX->display);
    resInfoX->canUseVMwareCtrl = VMwareCtrl_QueryVersion(resInfoX->display, &dummy1,
                                                         &dummy2);
@@ -130,6 +149,10 @@ ResolutionBackendInit(InitHandle handle)
 void
 ResolutionBackendCleanup(void)
 {
+   ResolutionInfoX11Type *resInfoX = &resolutionInfoX11;
+   if (resInfoX->display) {
+      XCloseDisplay(resInfoX->display);
+   }
    return;
 }
 
@@ -335,15 +358,10 @@ static Bool
 ResolutionCanSet(void)
 {
    ResolutionInfoX11Type *resInfoX = &resolutionInfoX11;
-   int fd = -1;
-   off_t filePos = 0;
-   Bool keepSearching = TRUE;
-   Bool found = FALSE;
-   char buf[sizeof VERSION_STRING + 10]; // size of VERSION_STRING plus some extra for the version number
-   const char versionString[] = VERSION_STRING;
-   ssize_t bytesRead;
-   int32 major, minor, level;
-   unsigned int tokPos;
+   int major, minor, level;
+   static const char *driverPaths[] = {
+      VMWAREDRV_PATH_64,
+      VMWAREDRV_PATH};
 
    /* See if the randr X module is loaded */
    if (!XRRQueryVersion(resInfoX->display, &major, &minor) ) {
@@ -411,55 +429,9 @@ ResolutionCanSet(void)
     * 6.9/7.0, we can instead just use the VMWARE_CTRL check.
     */
 
-   buf[sizeof buf - 1] = '\0';
-   fd = Posix_Open(VMWAREDRV_PATH_64, O_RDONLY);
-   if (fd == -1) {
-      fd = Posix_Open(VMWAREDRV_PATH, O_RDONLY);
-   }
-   if (fd != -1) {
-      /*
-       * One of the opens succeeded, so start searching thru the file.
-       */
-      while (keepSearching) {
-         bytesRead = read(fd, buf, sizeof buf - 1);
-         if (bytesRead == -1 || bytesRead < sizeof buf -1 ) {
-            keepSearching = FALSE;
-         } else {
-            if (Str_Strncmp(versionString, buf, sizeof versionString - 1) == 0) {
-               keepSearching = FALSE;
-               found = TRUE;
-            }
-         }
-         filePos = lseek(fd, filePos+1, SEEK_SET);
-         if (filePos == -1) {
-            keepSearching = FALSE;
-         }
-      }
-      close(fd);
-      if (found) {
-         /*
-          * We NUL-terminated buf earlier, but Coverity really wants it to
-          * be NUL-terminated after the call to read (because
-          * read doesn't NUL-terminate). So we'll do it again.
-          */
-         buf[sizeof buf - 1] = '\0';
-
-         /*
-          * Try and parse the major, minor and level versions
-          */
-         tokPos = sizeof versionString - 1;
-         if (!StrUtil_GetNextIntToken(&major, &tokPos, buf, ".- ")) {
-            return FALSE;
-         }
-         if (!StrUtil_GetNextIntToken(&minor, &tokPos, buf, ".- ")) {
-            return FALSE;
-         }
-         if (!StrUtil_GetNextIntToken(&level, &tokPos, buf, ".- ")) {
-            return FALSE;
-         }
-
-         return ((major > 10) || (major == 10 && minor >= 11));
-      }
+   if (!resolutionXorgDriverVersion(2, driverPaths, VERSION_STRING,
+				    &major, &minor, &level)) {
+      return ((major > 10) || (major == 10 && minor >= 11));
    }
    return FALSE;
 }
@@ -573,7 +545,7 @@ SelectResolution(uint32 width,
       g_debug("Setting guest resolution to: %dx%d (requested: %d, %d)\n",
               xrrSizes[bestFitIndex].width, xrrSizes[bestFitIndex].height, width, height);
       rc = XRRSetScreenConfig(resInfoX->display, xrrConfig, resInfoX->rootWindow,
-                              bestFitIndex, xrrCurRotation, GDK_CURRENT_TIME);
+                              bestFitIndex, xrrCurRotation, CurrentTime);
       g_debug("XRRSetScreenConfig returned %d (result: %dx%d)\n", rc,
               xrrSizes[bestFitIndex].width, xrrSizes[bestFitIndex].height);
    } else {
@@ -623,30 +595,28 @@ ResolutionX11ErrorHandler(Display *d,      // IN: Pointer to display connection
 
 
 /**
- * Obtain a "handle", which for X11, is a display pointer. 
+ * Obtain a "handle".
  *
  * @note We will have to move this out of the resolution plugin soon, I am
- * just landing this here now for convenience as I port resolution set over 
+ * just landing this here now for convenience as I port resolution set over
  * to the new service architecture.
  *
- * @return X server display 
+ * @return ResolutionInfoX11Type as backend specific handle
  */
 
 InitHandle
-ResolutionToolkitInit(void)
+ResolutionToolkitInit(ToolsAppCtx *ctx) // IN: For config database access
 {
-   int argc = 1;
-   char *argv[] = {"", NULL};
-   GtkWidget *wnd;
-   Display *display;
+   ResolutionInfoX11Type *resInfoX = &resolutionInfoX11;
+   int fd;
 
-   XSetErrorHandler(ResolutionX11ErrorHandler);
-   gtk_init(&argc, (char ***) &argv);
-   wnd = gtk_invisible_new();
-#ifndef GTK3
-   display = GDK_WINDOW_XDISPLAY(wnd->window);
-#else
-   display = GDK_WINDOW_XDISPLAY(gtk_widget_get_window(wnd));
-#endif
-   return (InitHandle) display;
+   memset(resInfoX, 0, sizeof *resInfoX);
+
+   fd = resolutionCheckForKMS(ctx);
+   if (fd >= 0) {
+      resolutionDRMClose(fd);
+      g_message("%s: Backing off for resolutionKMS.\n", __func__);
+      resInfoX->canUseResolutionKMS = TRUE;
+   }
+   return (InitHandle) resInfoX;
 }

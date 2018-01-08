@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -47,10 +47,18 @@
 
 #define INCLUDE_ALLOW_VMCORE
 #define INCLUDE_ALLOW_USERLEVEL
+
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#else
+#include <sys/socket.h>
+#endif
+
 #include "includeCheck.h"
 
-#ifdef __APPLE__
-#include <TargetConditionals.h>
+#if defined(__cplusplus)
+extern "C" {
 #endif
 
 /*
@@ -70,7 +78,34 @@
 #define ASOCKERR_BINDADDRINUSE     11
 #define ASOCKERR_LISTEN            12
 #define ASOCKERR_CONNECTSSL        13
+#define ASOCKERR_NETUNREACH        14
+#define ASOCKERR_ADDRUNRESV        15
+#define ASOCKERR_BUSY              16
 
+/*
+ * Cross-platform codes for AsyncSocket_GetGenericError():
+ */
+#ifdef _WIN32
+#define ASOCK_ENOTCONN          WSAENOTCONN
+#define ASOCK_ENOTSOCK          WSAENOTSOCK
+#define ASOCK_EADDRINUSE        WSAEADDRINUSE
+#define ASOCK_ECONNECTING       WSAEWOULDBLOCK
+#define ASOCK_EWOULDBLOCK       WSAEWOULDBLOCK
+#define ASOCK_ENETUNREACH       WSAENETUNREACH
+#define ASOCK_ECONNRESET        WSAECONNRESET
+#define ASOCK_ECONNABORTED      WSAECONNABORTED
+#define ASOCK_EPIPE             ERROR_NO_DATA
+#else
+#define ASOCK_ENOTCONN          ENOTCONN
+#define ASOCK_ENOTSOCK          ENOTSOCK
+#define ASOCK_EADDRINUSE        EADDRINUSE
+#define ASOCK_ECONNECTING       EINPROGRESS
+#define ASOCK_EWOULDBLOCK       EWOULDBLOCK
+#define ASOCK_ENETUNREACH       ENETUNREACH
+#define ASOCK_ECONNRESET        ECONNRESET
+#define ASOCK_ECONNABORTED      ECONNABORTED
+#define ASOCK_EPIPE             EPIPE
+#endif
 
 /*
  * Websocket close status codes --
@@ -154,6 +189,167 @@ typedef enum AsyncSocketState {
    AsyncSocketClosed,
 } AsyncSocketState;
 
+
+typedef struct AsyncSocketNetworkStats {
+   uint32 cwndBytes;             /* maximum outstanding bytes */
+   uint32 rttSmoothedAvgMillis;  /* rtt average in milliseconds */
+   uint32 rttSmoothedVarMillis;  /* rtt variance in milliseconds */
+   uint32 queuedBytes;           /* unsent bytes in send queue */
+   uint32 inflightBytes;         /* current outstanding bytes */
+   double packetLossPercent;     /* packet loss percentage */
+} AsyncSocketNetworkStats;
+
+
+/*
+ * The following covers all facilities involving dynamic socket options w.r.t.
+ * various async sockets, excluding the async socket options API on the
+ * sockets themselves, which can be found in asyncSocketVTable.h and those
+ * files implementing that API.
+ *
+ * Potential related future work is covered in
+ * asyncsocket/README-asyncSocketOptions-future-work.txt.
+ *
+ * Summary of dynamic socket options:
+ *
+ * Dynamic socket option = setting settable by the async socket API user
+ * including during the lifetime of the socket. An interface spiritually
+ * similar to setsockopt()'s seemed appropriate.
+ *
+ * The option-setting API looks as follows:
+ *
+ *   int ...SetOption(AsyncSocket *asyncSocket,
+ *                    AsyncSocketOpts_Layer layer, // enum type
+ *                    AsyncSocketOpts_ID optID, // an integer type
+ *                    const void *valuePtr,
+ *                    size_t inBufLen)
+ *
+ * Both native (setsockopt()) and non-native (usually, struct member)
+ * options are supported. layer and optID arguments are conceptually similar
+ * to setsockopt() level and option_name arguments, respectively.
+ *
+ * FOR NATIVE (setsockopt()) OPTIONS:
+ *    layer = setsockopt() level value.
+ *    optID = setsockopt() option_name value.
+ *
+ * FOR NON-NATIVE (struct member inside socket impl.) OPTIONS:
+ *    layer = ..._BASE, ..._TCP, ..._FEC, etc.
+ *       (pertains to the various AsyncSocket types);
+ *    optID = value from enum type appropriate to the chosen layer.
+ *
+ * Examples (prefixes omitted for space):
+ *
+ *    -- NATIVE OPTIONS --
+ *    optID          | layer       | <= | ssopt() level | ssopt() option_name
+ *    ---------------+-------------+----+---------------+--------------------
+ *    == option_name | == level    | <= | SOL_SOCKET    | SO_SNDBUF
+ *    == option_name | == level    | <= | IPPROTO_TCP   | TCP_NODELAY
+ *
+ *    -- NON-NATIVE OPTIONS --
+ *    optID                          | layer | <= | AsyncSocket type(s)
+ *    -------------------------------+-------+----+--------------------
+ *    _SEND_LOW_LATENCY_MODE         | _BASE | <= | any
+ *       (enum AsyncSocket_OptID)    |       |    |
+ *    _ALLOW_DECREASING_BUFFER_SIZE  | _TCP  | <= | AsyncTCPSocket
+ *       (enum AsyncTCPSocket_OptID) |       |    |
+ *    _MAX_CWND                      | _FEC  | <= | FECAsyncSocket
+ *       (enum FECAsyncSocket_OptID) |       |    |
+ *
+ * Socket option lists for each non-native layer are just enums. Each socket
+ * type should declare its own socket option enum in its own .h file; e.g., see
+ * AsyncTCPSocket_OptID in this file. Some option lists apply to all async
+ * sockets; these are also here in asyncsocket.h.
+ *
+ * The only way in which different socket option layers coexist in the same
+ * file is the layer enum, AsyncSocketOpts_Layer, in the present file,
+ * which enumerates all possible layers.
+ *
+ * The lack of any other cross-pollution between different non-native option
+ * lists' containing files is a deliberate design choice.
+ */
+
+/*
+ * Integral type used for the optID argument to ->setOption() async socket API.
+ *
+ * For a non-native option, use an enum value for your socket type.
+ * (Example: ASYNC_TCP_SOCKET_OPT_ALLOW_DECREASING_BUFFER_SIZE
+ * of type AsyncTCPSocket_OptID, which would apply to TCP sockets only.)
+ *
+ * For a native (setsockopt()) option, use the setsockopt() integer directly.
+ * (Example: TCP_NODELAY.)
+ *
+ * Let's use a typedef as a small bit of abstraction and to be able to easily
+ * change it to size_t, if (for example) we start indexing arrays with this
+ * thing.
+ */
+typedef int AsyncSocketOpts_ID;
+
+/*
+ * Enum type used for the layer argument to ->setOption() async socket API.
+ * As explained in the summary comment above, this
+ * informs the particular ->setOption() implementation how to interpret
+ * the accompanying optID integer value, as it may refer to one of several
+ * option lists; and possible different socket instances (not as of this
+ * writing).
+ *
+ * If editing, see summary comment above first for background.
+ *
+ * The values explicitly in this enum are for non-native options.
+ * For native options, simply use the level value as for setsockopt().
+ *
+ * Ordinal values for all these non-native layers must not clash
+ * with the native levels; hence the `LEVEL + CONSTANT` trick
+ * just below.
+ */
+typedef enum {
+
+   /*
+    * Used when optID applies to a non-native socket option applicable to ANY
+    * async socket type.
+    */
+   ASYNC_SOCKET_OPTS_LAYER_BASE = SOL_SOCKET + 1000,
+
+   /*
+    * Next enums must follow the above ordinally, so just:
+    *    ASYNC_SOCKET_OPTS_LAYER_<layer name 1>,
+    *    ASYNC_SOCKET_OPTS_LAYER_<layer name 2>, ...
+    */
+
+   ASYNC_SOCKET_OPTS_LAYER_BLAST_PROXY,
+
+} AsyncSocketOpts_Layer;
+
+/*
+ * Enum type used for the OptId argument to ->setOption() async socket API,
+ * when optID refers to a non-native option of any AsyncSocket regardless
+ * of type.
+ */
+typedef enum {
+   /*
+    * Bool indicating whether to put the socket into a mode where we attempt
+    * to issue sends directly from within ->send(). Ordinarily
+    * (FALSE), we would set up a Poll callback from within ->send(),
+    * which introduces some non-zero latency to the send path. In
+    * low-latency-send mode (TRUE), that delay is potentially avoided. This
+    * does introduce a behavioral change; the send completion
+    * callback may be triggered before the call to ->send() returns. As
+    * not all clients may be expecting this, we don't enable this mode
+    * unless requested by the client.
+    *
+    * Default: FALSE.
+    */
+   ASYNC_SOCKET_OPT_SEND_LOW_LATENCY_MODE
+} AsyncSocket_OptID;
+
+/*
+ * Note: If you need to add a non-native option that applies to AsyncTCPSockets
+ * only, you'd probably introduce an enum here named AsyncTCPSocket_OptID; and
+ * at least one layer named ASYNC_SOCKET_OPTS_LAYER_TCP in the enum
+ * AsyncSocketOpts_Layer.
+ */
+
+
+/* API functions for all AsyncSockets. */
+
 AsyncSocketState AsyncSocket_GetState(AsyncSocket *sock);
 
 const char * AsyncSocket_Err2String(int err);
@@ -211,7 +407,15 @@ typedef void (*AsyncSocketSslAcceptFn) (Bool status, AsyncSocket *asock,
                                         void *clientData);
 typedef void (*AsyncSocketSslConnectFn) (Bool status, AsyncSocket *asock,
                                          void *clientData);
-typedef void (*AsyncSocketCloseCb) (AsyncSocket *asock);
+typedef void (*AsyncSocketCloseFn) (AsyncSocket *asock, void *clientData);
+
+/*
+ * Callback to handle http upgrade request header
+ */
+typedef int (*AsyncWebSocketHandleUpgradeRequestFn) (AsyncSocket *asock,
+                                                     void *clientData,
+                                                     const char *httpRequest,
+                                                     char **httpResponse);
 
 /*
  * Listen on port and fire callback with new asock
@@ -233,7 +437,6 @@ AsyncSocket *AsyncSocket_ListenVMCI(unsigned int cid,
                                     void *clientData,
                                     AsyncSocketPollParams *pollParams,
                                     int *outError);
-#ifndef VMX86_TOOLS
 AsyncSocket *AsyncSocket_ListenWebSocket(const char *addrStr,
                                          unsigned int port,
                                          Bool useSSL,
@@ -241,7 +444,19 @@ AsyncSocket *AsyncSocket_ListenWebSocket(const char *addrStr,
                                          AsyncSocketConnectFn connectFn,
                                          void *clientData,
                                          AsyncSocketPollParams *pollParams,
+                                         void *sslCtx,
                                          int *outError);
+AsyncSocket *AsyncSocket_ListenWebSocketEx(const char *addrStr,
+                                           unsigned int port,
+                                           Bool useSSL,
+                                           const char *protocols[],
+                                           AsyncSocketConnectFn connectFn,
+                                           void *clientData,
+                                           AsyncSocketPollParams *pollParams,
+                                           void *sslCtx,
+                                           AsyncWebSocketHandleUpgradeRequestFn handleUpgradeRequestFn,
+                                           int *outError);
+
 #ifndef _WIN32
 AsyncSocket *AsyncSocket_ListenWebSocketUDS(const char *pipeName,
                                             Bool useSSL,
@@ -250,15 +465,13 @@ AsyncSocket *AsyncSocket_ListenWebSocketUDS(const char *pipeName,
                                             void *clientData,
                                             AsyncSocketPollParams *pollParams,
                                             int *outError);
-
 AsyncSocket *AsyncSocket_ListenSocketUDS(const char *pipeName,
                                          AsyncSocketConnectFn connectFn,
                                          void *clientData,
                                          AsyncSocketPollParams *pollParams,
                                          int *outError);
+#endif
 
-#endif
-#endif
 
 /*
  * Connect to address:port and fire callback with new asock
@@ -303,10 +516,10 @@ AsyncSocket_CreateNamedPipe(const char *pipeName,
                             int *error);
 #endif
 
-#if !defined VMX86_TOOLS || TARGET_OS_IPHONE
 AsyncSocket *
 AsyncSocket_ConnectWebSocket(const char *url,
                              struct _SSLVerifyParam *sslVerifyParam,
+                             const char *httpProxy,
                              const char *cookies,
                              const char *protocols[],
                              AsyncSocketConnectFn connectFn,
@@ -315,35 +528,23 @@ AsyncSocket_ConnectWebSocket(const char *url,
                              AsyncSocketPollParams *pollParams,
                              int *error);
 
-AsyncSocket *
-AsyncSocket_ConnectProxySocket(const char *url,
-                               struct _SSLVerifyParam *sslVerifyParam,
-                               const char *cookies,
-                               const char *protocols[],
-                               AsyncSocketConnectFn connectFn,
-                               void *clientData,
-                               AsyncSocketConnectFlags flags,
-                               AsyncSocketPollParams *pollParams,
-                               int *error);
-#endif
-
 /*
  * Initiate SSL connection on existing asock, with optional cert verification
  */
 Bool AsyncSocket_ConnectSSL(AsyncSocket *asock,
                             struct _SSLVerifyParam *verifyParam,
                             void *sslContext);
-void AsyncSocket_StartSslConnect(AsyncSocket *asock,
-                                 struct _SSLVerifyParam *verifyParam,
-                                 void *sslCtx,
-                                 AsyncSocketSslConnectFn sslConnectFn,
-                                 void *clientData);
-
-Bool AsyncSocket_AcceptSSL(AsyncSocket *asock);
-void AsyncSocket_StartSslAccept(AsyncSocket *asock,
+int AsyncSocket_StartSslConnect(AsyncSocket *asock,
+                                struct _SSLVerifyParam *verifyParam,
                                 void *sslCtx,
-                                AsyncSocketSslAcceptFn sslAcceptFn,
+                                AsyncSocketSslConnectFn sslConnectFn,
                                 void *clientData);
+
+Bool AsyncSocket_AcceptSSL(AsyncSocket *asock, void *sslCtx);
+int AsyncSocket_StartSslAccept(AsyncSocket *asock,
+                               void *sslCtx,
+                               AsyncSocketSslAcceptFn sslAcceptFn,
+                               void *clientData);
 
 /*
  * Create a new AsyncSocket from an existing socket
@@ -354,18 +555,21 @@ AsyncSocket *AsyncSocket_AttachToSSLSock(struct SSLSockStruct *sslSock,
                                          AsyncSocketPollParams *pollParams,
                                          int *error);
 
-/*
- * Enable or disable TCP_NODELAY on this AsyncSocket.
- */
-int AsyncSocket_UseNodelay(AsyncSocket *asock, Bool nodelay);
-
-/*
- * Set TCP timeout values on this AsyncSocket.
- */
-#ifdef VMX86_SERVER
-int AsyncSocket_SetTCPTimeouts(AsyncSocket *asock, int keepIdle,
-                               int keepIntvl, int keepCnt);
-#endif
+int AsyncSocket_UseNodelay(AsyncSocket *asyncSocket, Bool nodelay);
+int AsyncSocket_SetTCPTimeouts(AsyncSocket *asyncSocket,
+                               int keepIdleSec, int keepIntvlSec, int keepCnt);
+Bool AsyncSocket_EstablishMinBufferSizes(AsyncSocket *asyncSocket,
+                                         int sendSz,
+                                         int recvSz);
+int AsyncSocket_SetSendLowLatencyMode(AsyncSocket *asyncSocket, Bool enable);
+int AsyncSocket_SetOption(AsyncSocket *asyncSocket,
+                          AsyncSocketOpts_Layer layer,
+                          AsyncSocketOpts_ID optID,
+                          const void *valuePtr, socklen_t inBufLen);
+int AsyncSocket_GetOption(AsyncSocket *asyncSocket,
+                          AsyncSocketOpts_Layer layer,
+                          AsyncSocketOpts_ID optID,
+                          void *valuePtr, socklen_t *outBufLen);
 
 /*
  * Waits until at least one packet is received or times out.
@@ -376,6 +580,12 @@ int AsyncSocket_DoOneMsg(AsyncSocket *s, Bool read, int timeoutMS);
  * Waits until at least one connect() is accept()ed or times out.
  */
 int AsyncSocket_WaitForConnection(AsyncSocket *s, int timeoutMS);
+
+/*
+ * Waits until a socket is ready with readable data or times out.
+ */
+int AsyncSocket_WaitForReadMultiple(AsyncSocket **asock, int numSock,
+                                    int timeoutMS, int *outIdx);
 
 /*
  * Send all pending packets onto the wire or give up after timeoutMS msecs.
@@ -428,6 +638,8 @@ int AsyncSocket_Send(AsyncSocket *asock, void *buf, int len,
                       AsyncSocketSendFn sendFn, void *clientData);
 
 int AsyncSocket_IsSendBufferFull(AsyncSocket *asock);
+int AsyncSocket_GetNetworkStats(AsyncSocket *asock,
+                                AsyncSocketNetworkStats *stats);
 int AsyncSocket_CancelRecv(AsyncSocket *asock, int *partialRecvd, void **recvBuf,
                            void **recvFn);
 int AsyncSocket_CancelRecvEx(AsyncSocket *asock, int *partialRecvd, void **recvBuf,
@@ -435,7 +647,7 @@ int AsyncSocket_CancelRecvEx(AsyncSocket *asock, int *partialRecvd, void **recvB
 /*
  * Unregister asynchronous send and recv from poll
  */
-void AsyncSocket_CancelCbForClose(AsyncSocket *asock);
+int AsyncSocket_CancelCbForClose(AsyncSocket *asock);
 
 /*
  * Set the error handler to invoke on I/O errors (default is to close the
@@ -445,11 +657,11 @@ int AsyncSocket_SetErrorFn(AsyncSocket *asock, AsyncSocketErrorFn errorFn,
                            void *clientData);
 
 /*
- * Set socket level recv/send buffer sizes if they are less than given sizes.
+ * Set optional AsyncSocket_Close() behaviors.
  */
-Bool AsyncSocket_SetBufferSizes(AsyncSocket *asock,  // IN
-                                int sendSz,    // IN
-                                int recvSz);   // IN
+int AsyncSocket_SetCloseOptions(AsyncSocket *asock,
+                                int flushEnabledMaxWaitMsec,
+                                AsyncSocketCloseFn closeCb);
 
 /*
  * Set optional AsyncSocket_Close() behaviors.
@@ -481,21 +693,42 @@ char *AsyncSocket_GetWebSocketURI(AsyncSocket *asock);
 char *AsyncSocket_GetWebSocketCookie(AsyncSocket *asock);
 
 /*
- * Retrieve the close status, if received, for a websocket connection
+ * Set the Cookie  for a websocket connection
  */
-uint16 AsyncSocket_GetWebSocketCloseStatus(const AsyncSocket *asock);
+int AsyncSocket_SetWebSocketCookie(AsyncSocket *asock,         // IN
+                                   void *clientData,           // IN
+                                   const char *path,           // IN
+                                   const char *sessionId);     // IN
 
 /*
- * Set low-latency mode for sends:
+ * Retrieve the close status, if received, for a websocket connection
  */
-void AsyncSocket_SetSendLowLatencyMode(AsyncSocket *asock, Bool enable);
+uint16 AsyncSocket_GetWebSocketCloseStatus(AsyncSocket *asock);
 
 /*
  * Get negotiated websocket protocol
  */
 const char *AsyncSocket_GetWebSocketProtocol(AsyncSocket *asock);
 
+/*
+ * Get error code for websocket failure
+ */
+int AsyncSocket_GetWebSocketError(AsyncSocket *asock);
+
 const char * stristr(const char *s, const char *find);
+
+/*
+ * Helper function to parse websocket URL
+ */
+Bool AsyncSocket_WebSocketParseURL(const char *url, char **hostname,
+                                   unsigned int *port, Bool *useSSL,
+                                   char **relativeURL);
+
+/*
+ * Find and return the value for the given header key in the supplied buffer
+ */
+char *AsyncSocket_WebSocketGetHttpHeader(const char *request,
+                                         const char *webKey);
 
 /*
  * Some logging macros for convenience
@@ -525,5 +758,8 @@ const char * stristr(const char *s, const char *find);
       }                                                               \
    } while(0)
 
-#endif // __ASYNC_SOCKET_H__
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
+#endif // __ASYNC_SOCKET_H__

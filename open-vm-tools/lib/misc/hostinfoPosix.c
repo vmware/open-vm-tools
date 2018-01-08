@@ -59,9 +59,6 @@
 #include <mach/vm_map.h>
 #include <sys/mman.h>
 #include <AvailabilityMacros.h>
-#if MAC_OS_X_VERSION_MIN_REQUIRED < 1070 // Must run on Mac OS versions < 10.7
-#   include <dlfcn.h>
-#endif
 #elif defined(__FreeBSD__)
 #if !defined(RLIMIT_AS)
 #  if defined(RLIMIT_VMEM)
@@ -127,6 +124,7 @@
 
 #if defined(__APPLE__)
 #include "utilMacos.h"
+#include "rateconv.h"
 #endif
 
 #if defined(VMX86_SERVER)
@@ -487,17 +485,8 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
                        int distroShortSize)  // IN: size of short distro name
 
 {
-   char *distroLower = NULL;  /* Lower case distro name */
+   char *distroLower = Util_SafeStrdup(distro);
 
-   distroLower = calloc(strlen(distro) + 1, sizeof *distroLower);
-
-   if (distroLower == NULL) {
-      Warning("%s: could not allocate memory\n", __FUNCTION__);
-
-      return;
-   }
-
-   Str_Strcpy(distroLower, distro, distroShortSize);
    distroLower = Str_ToLower(distroLower);
 
    if (strstr(distroLower, "red hat")) {
@@ -533,8 +522,12 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
       Str_Strcpy(distroShort, STR_OS_OPENSUSE, distroShortSize);
    } else if (strstr(distroLower, "suse")) {
       if (strstr(distroLower, "enterprise")) {
-         if (strstr(distroLower, "server 12") ||
-             strstr(distroLower, "desktop 12")) {
+         if (strstr(distroLower, "server 15") ||
+             strstr(distroLower, "desktop 15")) {
+            Str_Strcpy(distroShort, STR_OS_SLES_15, distroShortSize);
+         } else if (strstr(distroLower, "server 12") ||
+                    strstr(distroLower, "server for sap applications 12") ||
+                    strstr(distroLower, "desktop 12")) {
             Str_Strcpy(distroShort, STR_OS_SLES_12, distroShortSize);
          } else if (strstr(distroLower, "server 11") ||
                     strstr(distroLower, "desktop 11")) {
@@ -576,6 +569,9 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
    } else if (strstr(distroLower, "asianux server 7") ||
               strstr(distroLower, "asianux client 7")) {
       Str_Strcpy(distroShort, STR_OS_ASIANUX_7, distroShortSize);
+   } else if (strstr(distroLower, "asianux server 8") ||
+              strstr(distroLower, "asianux client 8")) {
+      Str_Strcpy(distroShort, STR_OS_ASIANUX_8, distroShortSize);
    } else if (strstr(distroLower, "aurox")) {
       Str_Strcpy(distroShort, STR_OS_AUROX, distroShortSize);
    } else if (strstr(distroLower, "black cat")) {
@@ -587,6 +583,8 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
          Str_Strcpy(distroShort, STR_OS_CENTOS6, distroShortSize);
       } else if (strstr(distroLower, "7.")) {
          Str_Strcpy(distroShort, STR_OS_CENTOS7, distroShortSize);
+      } else if (strstr(distroLower, "8.")) {
+         Str_Strcpy(distroShort, STR_OS_CENTOS8, distroShortSize);
       } else {
          Str_Strcpy(distroShort, STR_OS_CENTOS, distroShortSize);
       }
@@ -621,6 +619,8 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
          Str_Strcpy(distroShort, STR_OS_ORACLE6, distroShortSize);
       } else if (strstr(distroLower, "7.")) {
          Str_Strcpy(distroShort, STR_OS_ORACLE7, distroShortSize);
+      } else if (strstr(distroLower, "8.")) {
+         Str_Strcpy(distroShort, STR_OS_ORACLE8, distroShortSize);
       } else {
          Str_Strcpy(distroShort, STR_OS_ORACLE, distroShortSize);
       }
@@ -656,6 +656,8 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
       Str_Strcpy(distroShort, STR_OS_VALINUX, distroShortSize);
    } else if (strstr(distroLower, "yellow dog")) {
       Str_Strcpy(distroShort, STR_OS_YELLOW_DOG, distroShortSize);
+   } else if (strstr(distroLower, "vmware photon")) {
+      Str_Strcpy(distroShort, STR_OS_PHOTON, distroShortSize);
    }
 
    free(distroLower);
@@ -840,13 +842,14 @@ HostinfoGetCmdOutput(const char *cmd)  // IN:
          break;
       }
 
-      /* size does -not- include the NUL terminator. */
-      DynBuf_Append(&db, line, size + 1);
+      /* size does not include the NUL terminator. */
+      DynBuf_Append(&db, line, size);
       free(line);
    }
 
-   if (DynBuf_Get(&db)) {
-      out = (char *) DynBuf_AllocGet(&db);
+   /* Return NULL instead of an empty string if there's no output. */
+   if (DynBuf_Get(&db) != NULL) {
+      out = DynBuf_DetachString(&db);
    }
 
  closeIt:
@@ -1005,6 +1008,9 @@ HostinfoOSData(void)
       } else if (majorVersion == 3) {
          Str_Strcpy(distro, STR_OS_OTHER_3X_FULL, distroSize);
          Str_Strcpy(distroShort, STR_OS_OTHER_3X, distroSize);
+      } else if (majorVersion == 4) {
+         Str_Strcpy(distro, STR_OS_OTHER_4X_FULL, distroSize);
+         Str_Strcpy(distroShort, STR_OS_OTHER_4X, distroSize);
       } else {
          /*
           * Anything newer than this code explicitly handles returns the
@@ -1014,7 +1020,7 @@ HostinfoOSData(void)
 
          Str_Sprintf(distro, sizeof distro, "Other Linux %d.%d kernel",
                      majorVersion, Hostinfo_OSVersion(1));
-         Str_Strcpy(distroShort, STR_OS_OTHER_3X, distroSize);
+         Str_Strcpy(distroShort, STR_OS_OTHER_4X, distroSize);
       }
 
       /*
@@ -1090,11 +1096,14 @@ HostinfoOSData(void)
       majorVersion = Hostinfo_OSVersion(0);
 
       /*
-       * FreeBSD 11 and later are identified using
-       * a different guestId.
+       * FreeBSD 11 and later are identified using a different guestId.
        */
       if (majorVersion >= 11) {
-         Str_Strcpy(distroShort, STR_OS_FREEBSD11, sizeof distroShort);
+         if (majorVersion >= 12) {
+            Str_Strcpy(distroShort, STR_OS_FREEBSD12, sizeof distroShort);
+         } else {
+            Str_Strcpy(distroShort, STR_OS_FREEBSD11, sizeof distroShort);
+         }
       } else {
          Str_Strcpy(distroShort, STR_OS_FREEBSD, sizeof distroShort);
       }
@@ -1169,95 +1178,6 @@ HostinfoOSData(void)
    Atomic_Write(&mutex, 0);  // unlock
 
    return TRUE;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Hostinfo_CPUCounts --
- *
- *      Get a count of CPUs for the host.
- *        pkgs := total number of sockets/packages
- *        cores := total number of actual cores (not including hyperthreads)
- *        logical := total schedulable threads, as seen by host scheduler
- *      Depending on available host OS interfaces, these numbers may be
- *      either "active" or "possible", so do not depend upon them for
- *      precision.
- *
- *      As an example, a 2 socket Nehalem (4 cores + HT) would return:
- *        pkgs = 2, cores = 8, logical = 16
- *
- *      Again, this interface is generally not useful b/c of its potential
- *      inaccuracy (especially with hotplug!) and because it is only implemented
- *      for a few OSes.
- *
- *      If you are trying to use this interface, it probably means you are doing
- *      something 'clever' with licensing.  Don't.
- *
- * Results:
- *      TRUE if sane numbers are populated, FALSE otherwise.
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-Bool
-Hostinfo_CPUCounts(uint32 *logical,  // OUT
-                   uint32 *cores,    // OUT
-                   uint32 *pkgs)     // OUT
-{
-#if defined __APPLE__
-   /*
-    * Lame logic.  Because Apple doesn't really expose this info,
-    * we'd only use it for licensing anyway, and we just plain
-    * don't need it on Apple except that VMHS stuffs it somewhere
-    * and may result in a division-by-zero if we don't provide it.
-    */
-   *logical = Hostinfo_NumCPUs();
-   *pkgs = *logical > 4 ? 2 : 1;
-   *cores = *logical / *pkgs;
-
-   return TRUE;
-#elif defined __linux__
-   FILE *f;
-   char *line;
-   unsigned count = 0, coresPerProc = 0, siblingsPerProc = 0;
-
-   f = Posix_Fopen("/proc/cpuinfo", "r");
-   if (f == NULL) {
-      return FALSE;
-   }
-
-   while (StdIO_ReadNextLine(f, &line, 0, NULL) == StdIO_Success) {
-      if (strncmp(line, "processor", strlen("processor")) == 0) {
-         count++;
-      }
-      /* Assume all processors are identical, so just read the first. */
-      if (coresPerProc == 0) {
-         sscanf(line, "cpu cores : %u", &coresPerProc);
-      }
-      if (siblingsPerProc == 0) {
-         sscanf(line, "siblings : %u", &siblingsPerProc);
-      }
-      free(line);
-   }
-
-   fclose(f);
-
-   *logical = count;
-   *pkgs = siblingsPerProc > 0 ? count / siblingsPerProc : count;
-   *cores = coresPerProc > 0 ? *pkgs * coresPerProc : *pkgs;
-
-   Log(LGPFX" This machine has %u physical CPUS, %u total cores, and %u "
-            "logical CPUs.\n", *pkgs, *cores, *logical);
-
-   return TRUE;
-#else
-   NOT_IMPLEMENTED();
-#endif
 }
 
 
@@ -1384,46 +1304,6 @@ Hostinfo_NumCPUs(void)
 
    return count;
 #endif
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Hostinfo_OSIsSMP --
- *
- *      Host OS SMP capability.
- *
- * Results:
- *      TRUE is host OS is SMP capable.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-Bool
-Hostinfo_OSIsSMP(void)
-{
-   uint32 ncpu;
-
-#if defined(__APPLE__)
-   size_t ncpuSize = sizeof ncpu;
-
-   if (sysctlbyname("hw.ncpu", &ncpu, &ncpuSize, NULL, 0) == -1) {
-      return FALSE;
-   }
-
-#else
-   ncpu = Hostinfo_NumCPUs();
-
-   if (ncpu == 0xFFFFFFFF) {
-      return FALSE;
-   }
-#endif
-
-   return ncpu > 1 ? TRUE : FALSE;
 }
 
 
@@ -1633,19 +1513,27 @@ Hostinfo_LogLoadAverage(void)
 }
 
 
+#if __APPLE__
 /*
  *-----------------------------------------------------------------------------
  *
- * HostinfoGetTimeOfDayMonotonic --
+ * HostinfoSystemTimerMach --
  *
- *      Return the system time as indicated by Hostinfo_GetTimeOfDay(), with
- *      locking to ensure monotonicity.
+ *      Returns system time based on a monotonic, nanosecond-resolution,
+ *      fast timer provided by the Mach kernel. Requires speed conversion
+ *      so is non-trivial (but lockless).
  *
- *      Uses OS native locks as lib/lock is not available in lib/misc.  This
- *      is safe because nothing occurs while locked that can be reentrant.
+ *      See also Apple TechNote QA1398.
+ *
+ *      NOTE: on x86, macOS does TSC->ns conversion in the commpage
+ *      for mach_absolute_time() to correct for speed-stepping, so x86
+ *      should always be 1:1 a.k.a. 'unity'.
+ *
+ *      On iOS, mach_absolute_time() uses an ARM register and always
+ *      needs conversion.
  *
  * Results:
- *      The time in microseconds is returned. Zero upon error.
+ *      Current value of timer
  *
  * Side effects:
  *	None.
@@ -1654,183 +1542,79 @@ Hostinfo_LogLoadAverage(void)
  */
 
 static VmTimeType
-HostinfoGetTimeOfDayMonotonic(void)
+HostinfoSystemTimerMach(void)
 {
-   VmTimeType newTime;
-   VmTimeType curTime;
+   static Atomic_uint64 machToNS;
 
-   static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+   union {
+      uint64 raw;
+      RateConv_Ratio ratio;
+   } u;
+   VmTimeType result;
 
-   static VmTimeType lastTimeBase;
-   static VmTimeType lastTimeRead;
-   static VmTimeType lastTimeReset;
+   u.raw = Atomic_Read64(&machToNS);
 
-   pthread_mutex_lock(&mutex);  // Use native mechanism, just like Windows
-
-   Hostinfo_GetTimeOfDay(&curTime);
-
-   if (curTime == 0) {
-      newTime = 0;
-      goto exit;
-   }
-
-   /*
-    * Don't let time be negative or go backward.  We do this by tracking a
-    * base and moving forward from there.
-    */
-
-   newTime = lastTimeBase + (curTime - lastTimeReset);
-
-   if (newTime < lastTimeRead) {
-      lastTimeReset = curTime;
-      lastTimeBase = lastTimeRead + 1;
-      newTime = lastTimeBase + (curTime - lastTimeReset);
-   }
-
-   lastTimeRead = newTime;
-
-exit:
-   pthread_mutex_unlock(&mutex);
-
-   return newTime;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * HostinfoSystemTimerMach --
- * HostinfoSystemTimerPosix --
- *
- *      Returns system time based on a monotonic, nanosecond-resolution,
- *      fast timer provided by the (relevant) operating system.
- *
- *      Caller should check return value, as some variants may not be known
- *      to be absent until runtime.  Where possible, these functions collapse
- *      into constants at compile-time.
- *
- * Results:
- *      TRUE if timer is available; FALSE to indicate unavailability.
- *      If available, the current time is returned via 'result'.
- *
- * Side effects:
- *	None.
- *
- *-----------------------------------------------------------------------------
- */
-
-static Bool
-HostinfoSystemTimerMach(VmTimeType *result)  // OUT
-{
-#if __APPLE__
-#  define vmx86_apple 1
-
-   typedef struct {
-      double  scalingFactor;
-      Bool    unity;
-   } timerData;
-
-   VmTimeType raw;
-   timerData *ptr;
-   static Atomic_Ptr atomic; /* Implicitly initialized to NULL. --mbellon */
-
-   /*
-    * On Mac OS a commpage timer is used. Such timers are ensured to never
-    * go backwards - and be valid across all processes.
-    */
-
-   /* Ensure that the time base values are correct. */
-   ptr = Atomic_ReadPtr(&atomic);
-
-   if (UNLIKELY(ptr == NULL)) {
+   if (UNLIKELY(u.raw == 0)) {
       mach_timebase_info_data_t timeBase;
-      timerData *try = Util_SafeMalloc(sizeof *try);
+      kern_return_t kr;
 
-      mach_timebase_info(&timeBase);
+      /* Ensure atomic works correctly */
+      ASSERT_ON_COMPILE(sizeof u == sizeof(machToNS));
 
-      try->scalingFactor = ((double) timeBase.numer) /
-                           ((double) timeBase.denom);
+      kr = mach_timebase_info(&timeBase);
+      ASSERT(kr == KERN_SUCCESS);
 
-      try->unity = ((timeBase.numer == 1) && (timeBase.denom == 1));
-
-      if (Atomic_ReadIfEqualWritePtr(&atomic, NULL, try)) {
-         free(try);
+      /*
+       * Officially, TN QA1398 recommends using a static variable and
+       *    NS = mach_absolute_time() * timeBase.numer / timebase.denom
+       * (where denom != 0 is an obvious init check).
+       * In practice...
+       * x86 (incl x86_64) has only been seen using 1/1
+       * iOS has been seen to use 125/3 (~24MHz)
+       * PPC has been seen to use 1000000000/33333335 (~33MHz),
+       *     which overflows 64-bit multiply in ~8 seconds (!!)
+       *     (2^63 signed bits / 2^30 numer / 2^30 ns/sec ~= 2^3)
+       * We will use fixed-point for everything because it's faster
+       * than floating point and (with a 128-bit multiply) cannot overflow.
+       * Even in the 'unity' case, the four instructions in x86_64 fixed-point
+       * are about as expensive as checking for 'unity'.
+       */
+      if (timeBase.numer == 1 && timeBase.denom == 1) {
+         u.ratio.mult = 1;  // Trivial conversion
+         u.ratio.shift = 0;
+      } else {
+         Bool status;
+         status = RateConv_ComputeRatio(timeBase.denom, timeBase.numer,
+                                        &u.ratio);
+         VERIFY(status);  // Assume we can get fixed-point parameters
       }
 
-      ptr = Atomic_ReadPtr(&atomic);
+      /*
+       * Use ReadWrite for implicit barrier.
+       * Initialization is idempotent, so no multi-init worries.
+       * The fixed-point conversions are stored in an atomic to ensure
+       * they are never read "torn".
+       */
+      Atomic_ReadWrite64(&machToNS, u.raw);
+      ASSERT(u.raw != 0);  // Used as initialization check
    }
 
-   raw = mach_absolute_time();
+   /* Fixed-point */
+   result = Muls64x32s64(mach_absolute_time(),
+                         u.ratio.mult, u.ratio.shift);
 
-   if (LIKELY(ptr->unity)) {
-      *result = raw;
-   } else {
-      *result = ((double) raw) * ptr->scalingFactor;
-   }
+   /*
+    * A smart programmer would use a global variable to ASSERT that
+    * mach_absolute_time() and/or the fixed-point result is non-decreasing.
+    * This turns out to be impractical: the synchronization needed to safely
+    * make that check can prevent the very effect being checked.
+    * Thus, we simply trust the documentation.
+    */
 
-   return TRUE;
-#else
-#  define vmx86_apple 0
-   return FALSE;
-#endif
+   ASSERT(result >= 0);
+   return result;
 }
-
-static Bool
-HostinfoSystemTimerPosix(VmTimeType *result)  // OUT
-{
-#if defined(_POSIX_TIMERS) && _POSIX_TIMERS > 0 && defined(_POSIX_MONOTONIC_CLOCK)
-#  define vmx86_posix 1
-   /* Weak declaration to avoid librt.so dependency */
-   extern int clock_gettime(clockid_t clk_id, struct timespec *tp) __attribute__ ((weak));
-
-   /* Assignment is idempotent (expected to always be same answer). */
-   static volatile enum { UNKNOWN, PRESENT, FAILED } hasGetTime = UNKNOWN;
-
-   struct timespec ts;
-   int ret;
-
-   switch (hasGetTime) {
-   case FAILED:
-      break;
-   case UNKNOWN:
-      if (clock_gettime == NULL) {
-         /* librt.so is not present.  No clock_gettime() */
-         hasGetTime = FAILED;
-         break;
-      }
-      ret = clock_gettime(CLOCK_MONOTONIC, &ts);
-      if (ret != 0) {
-         hasGetTime = FAILED;
-         /*
-          * Well-understood error codes:
-          * ENOSYS, OS does not implement syscall
-          * EINVAL, OS implements syscall but not CLOCK_MONOTONIC
-          */
-         if (errno != ENOSYS && errno != EINVAL) {
-            Log("%s: failure, err %d!\n", __FUNCTION__, errno);
-         }
-         break;
-      }
-      hasGetTime = PRESENT;
-      /* Fall through to 'case PRESENT' */
-
-   case PRESENT:
-      ret = clock_gettime(CLOCK_MONOTONIC, &ts);
-      ASSERT(ret == 0);
-      *result = (VmTimeType)ts.tv_sec * 1000 * 1000 * 1000 + ts.tv_nsec;
-      return TRUE;
-   }
-   return FALSE;
-#else
-#if vmx86_server
-#  error Posix clock_gettime support required on ESX
 #endif
-#  define vmx86_posix 0
-   /* No Posix support for clock_gettime() */
-   return FALSE;
-#endif
-}
-
 
 /*
  *-----------------------------------------------------------------------------
@@ -1838,16 +1622,11 @@ HostinfoSystemTimerPosix(VmTimeType *result)  // OUT
  * Hostinfo_SystemTimerNS --
  *
  *      Return the time.
- *         - These timers are documented to never go backwards.
- *         - These timers may take locks
+ *         - These timers are documented to be non-decreasing
+ *         - These timers never take locks
  *
  * NOTES:
  *      These are the routines to use when performing timing measurements.
- *
- *      The value returned is valid (finish-time - start-time) only within a
- *      single process. Don't send a time measurement obtained with these
- *      routines to another process and expect a relative time measurement
- *      to be correct.
  *
  *      The actual resolution of these "clocks" are undefined - it varies
  *      depending on hardware, OSen and OS versions.
@@ -1856,7 +1635,7 @@ HostinfoSystemTimerPosix(VmTimeType *result)  // OUT
  *     while RANK_logLock is held. ***
  *
  * Results:
- *      The time in nanoseconds is returned. Zero upon error.
+ *      The time in nanoseconds is returned.
  *
  * Side effects:
  *	None.
@@ -1867,19 +1646,25 @@ HostinfoSystemTimerPosix(VmTimeType *result)  // OUT
 VmTimeType
 Hostinfo_SystemTimerNS(void)
 {
-   VmTimeType result = 0;  // = 0 silence compiler warning
+#ifdef __APPLE__
+   return HostinfoSystemTimerMach();
+#else
+   struct timespec ts;
+   int ret;
 
-   if ((vmx86_apple && HostinfoSystemTimerMach(&result)) ||
-       (vmx86_posix && HostinfoSystemTimerPosix(&result))) {
-      /* Host provides monotonic clock source. */
-      return result;
-   } else {
-      /* GetTimeOfDay is microseconds. */
-      return HostinfoGetTimeOfDayMonotonic() * 1000;
-   }
+   /*
+    * clock_gettime() is implemented on Linux as a commpage routine that
+    * adds a known offset to TSC, which makes it very fast. Other OSes...
+    * are at worst a single syscall (see: vmkernel PR820064), which still
+    * makes this the best time API. Also, clock_gettime() allows nanosecond
+    * resolution and any alternative is worse: gettimeofday() is microsecond.
+    */
+   ret = clock_gettime(CLOCK_MONOTONIC, &ts);
+   ASSERT(ret == 0);
+
+   return (VmTimeType)ts.tv_sec * 1000 * 1000 * 1000 + ts.tv_nsec;
+#endif
 }
-#undef vmx86_apple
-#undef vmx86_posix
 
 
 /*
@@ -2659,28 +2444,19 @@ Hostinfo_GetCpuDescription(uint32 cpuNumber)  // IN:
    return HostinfoGetSysctlStringAlloc("machdep.cpu.brand_string");
 #elif defined(__FreeBSD__)
    return HostinfoGetSysctlStringAlloc("hw.model");
-#else
-#ifdef VMX86_SERVER
-#ifdef VM_ARM_64
-   return strdup("armv8 unknown");
-#else
-   if (HostType_OSIsVMK()) {
-      char mName[48];
+#elif defined VMX86_SERVER
+   /* VMKernel treats mName as an in/out parameter so terminate it. */
+   char mName[64] = { 0 };
 
-      /* VMKernel treats mName as an in/out parameter so terminate it. */
-      mName[0] = '\0';
-      if (VMKernel_GetCPUModelName(cpuNumber, mName,
-                                   sizeof(mName)) == VMK_OK) {
-         mName[sizeof(mName) - 1] = '\0';
+   if (VMKernel_GetCPUModelName(cpuNumber, mName,
+                                sizeof(mName)) == VMK_OK) {
+      mName[sizeof(mName) - 1] = '\0';
 
-         return strdup(mName);
-      }
-
-      return NULL;
+      return strdup(mName);
    }
-#endif // VM_ARM_64
-#endif // VMX86_SERVER
 
+   return NULL;
+#else
    return HostinfoGetCpuInfo(cpuNumber, "model name");
 #endif
 }
@@ -2789,141 +2565,12 @@ Hostinfo_Execute(const char *path,   // IN:
  *
  * 3) In Mac OS 10.7, Apple cleaned their mess and solved all the above
  *    problems by introducing a new mach_zone_info() Mach call. So this is what
- *    we use now, when available. Was bug 816610.
+ *    we use now. Was bug 816610.
  *
  * 4) In Mac OS 10.8, Apple appears to have modified mach_zone_info() to always
  *    return KERN_INVALID_HOST(!) when the calling process (not the calling
  *    thread!) is not root.
  */
-
-
-#if MAC_OS_X_VERSION_MIN_REQUIRED < 1070 // Must run on Mac OS versions < 10.7
-/*
- *-----------------------------------------------------------------------------
- *
- * HostinfoGetKernelZoneElemSizeZprint --
- *
- *      Retrieve the size of the elements in a named kernel zone, by invoking
- *      zprint.
- *
- * Results:
- *      On success: the size (in bytes) > 0.
- *      On failure: 0.
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-static size_t
-HostinfoGetKernelZoneElemSizeZprint(char const *name) // IN: Kernel zone name
-{
-   size_t retval = 0;
-   struct {
-      size_t retval;
-   } volatile *shared;
-   pid_t child;
-   pid_t pid;
-
-   /*
-    * popen(3) incorrectly executes the shell with the identity of the calling
-    * process, ignoring a potential per-thread identity. And starting with
-    * Mac OS 10.6 it is even worse: if there is a per-thread identity,
-    * popen(3) removes it!
-    *
-    * So we run this code in a separate process which runs with the same
-    * identity as the current thread.
-    */
-
-   shared = mmap(NULL, sizeof *shared, PROT_READ | PROT_WRITE,
-                 MAP_ANON | MAP_SHARED, -1, 0);
-
-   if (shared == (void *)-1) {
-      Warning("%s: mmap error %d.\n", __FUNCTION__, errno);
-
-      return retval;
-   }
-
-   // In case the child is terminated before it can set it.
-   shared->retval = retval;
-
-   child = fork();
-   if (child == (pid_t)-1) {
-      Warning("%s: fork error %d.\n", __FUNCTION__, errno);
-      munmap((void *)shared, sizeof *shared);
-
-      return retval;
-   }
-
-   // This executes only in the child process.
-   if (!child) {
-      size_t nameLen;
-      FILE *stream;
-      Bool parsingProperties = FALSE;
-
-      ASSERT(name);
-
-      nameLen = strlen(name);
-      ASSERT(nameLen && *name != '\t');
-
-      stream = popen("/usr/bin/zprint -C", "r");
-      if (!stream) {
-         Warning("%s: popen error %d.\n", __FUNCTION__, errno);
-         exit(EXIT_SUCCESS);
-      }
-
-      for (;;) {
-         char *line;
-         size_t lineLen;
-
-         if (StdIO_ReadNextLine(stream, &line, 0,
-                                &lineLen) != StdIO_Success) {
-            break;
-         }
-
-         if (parsingProperties) {
-            if (   // Not a property line anymore. Property not found.
-                   lineLen < 1 || memcmp(line, "\t", 1)
-                   // Property found.
-                || sscanf(line, " elem_size: %"FMTSZ"u bytes",
-                          &shared->retval) == 1) {
-               free(line);
-               break;
-            }
-         } else if (!(lineLen < nameLen + 6 ||
-                    memcmp(line, name, nameLen) ||
-                    memcmp(line + nameLen, " zone:", 6))) {
-            // Zone found.
-            parsingProperties = TRUE;
-         }
-
-         free(line);
-      }
-
-      pclose(stream);
-      exit(EXIT_SUCCESS);
-   }
-
-   /*
-    * This executes only in the parent process.
-    * Wait for the child to terminate, and return its retval.
-    */
-
-   do {
-      int status;
-
-      pid = waitpid(child, &status, 0);
-   } while ((pid == -1) && (errno == EINTR));
-
-   VERIFY(pid == child);
-
-   retval = shared->retval;
-   munmap((void *)shared, sizeof *shared);
-
-   return retval;
-}
-#endif
 
 
 /*
@@ -2946,21 +2593,6 @@ HostinfoGetKernelZoneElemSizeZprint(char const *name) // IN: Kernel zone name
 size_t
 Hostinfo_GetKernelZoneElemSize(char const *name) // IN: Kernel zone name
 {
-#if MAC_OS_X_VERSION_MAX_ALLOWED < 1070 // Compiles against SDK version < 10.7
-   typedef struct {
-      char mzn_name[80];
-   } mach_zone_name_t;
-   typedef struct {
-      uint64_t mzi_count;
-      uint64_t mzi_cur_size;
-      uint64_t mzi_max_size;
-      uint64_t mzi_elem_size;
-      uint64_t mzi_alloc_size;
-      uint64_t mzi_sum_size;
-      uint64_t mzi_exhaustible;
-      uint64_t mzi_collectable;
-   } mach_zone_info_t;
-#endif
    size_t result = 0;
    mach_zone_name_t *namesPtr;
    mach_msg_type_number_t namesSize;
@@ -2968,16 +2600,6 @@ Hostinfo_GetKernelZoneElemSize(char const *name) // IN: Kernel zone name
    mach_msg_type_number_t infosSize;
    kern_return_t kr;
    mach_msg_type_number_t i;
-
-#if MAC_OS_X_VERSION_MIN_REQUIRED < 1070 // Must run on Mac OS versions < 10.7
-   kern_return_t (*mach_zone_info)(host_t host,
-      mach_zone_name_t **names, mach_msg_type_number_t *namesCnt,
-      mach_zone_info_t **info, mach_msg_type_number_t *infoCnt) =
-         dlsym(RTLD_DEFAULT, "mach_zone_info");
-   if (!mach_zone_info) {
-      return HostinfoGetKernelZoneElemSizeZprint(name);
-   }
-#endif
 
    ASSERT(name);
 

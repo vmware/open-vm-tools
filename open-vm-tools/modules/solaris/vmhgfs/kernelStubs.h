@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
  *
  * The contents of this file are subject to the terms of the Common
  * Development and Distribution License (the "License") version 1.0
@@ -107,7 +107,7 @@
  * Function Prototypes
  */
 
-#if defined(linux) || defined(__APPLE__) || defined (sun)
+#if defined(__linux__) || defined(__APPLE__) || defined (sun)
 
 #  ifdef linux                               /* if (linux) { */
 char *strdup(const char *source);

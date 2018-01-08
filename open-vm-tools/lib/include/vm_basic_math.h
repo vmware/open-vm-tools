@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -38,6 +38,10 @@
 #include "vm_basic_types.h" // For INLINE.
 #include "vm_basic_asm.h"   // For Div64...
 
+#if defined __cplusplus
+extern "C" {
+#endif
+
 
 static INLINE uint32
 RatioOf(uint32 numer1, uint32 numer2, uint32 denom)
@@ -62,12 +66,35 @@ ExponentialAvg(uint32 avg, uint32 value, uint32 gainNumer, uint32 gainDenom)
    return (term1 + term2) / gainDenom;
 }
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * IsZeroOrPowerOfTwo --
+ * IsZeroOrPowerOfTwo64 --
+ *
+ * Results:
+ *      TRUE iff the value is 0 or a power of two.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
 static INLINE Bool
-IsPowerOfTwo(uint32 x)
+IsZeroOrPowerOfTwo64(uint64 x)
 {
-   /* Does not check for zero. Callers depend on this. */
    return !(x & (x - 1));
 }
+
+
+static INLINE Bool
+IsZeroOrPowerOfTwo(uint32 x)     // IN
+{
+   return !(x & (x - 1));
+}
+
 
 static INLINE uint32
 GetPowerOfTwo(uint32 x)
@@ -162,5 +189,9 @@ RotateRight64(uint64 value, uint8 shift)
 }
 #endif // if !defined(_WIN32) && !defined(_WIN64)
 
+
+#if defined __cplusplus
+} // extern "C"
+#endif
 
 #endif // ifndef _VM_BASIC_MATH_H_

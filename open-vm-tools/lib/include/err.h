@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -25,14 +25,14 @@
 #ifndef _ERR_H_
 #define _ERR_H_
 
-#if !defined(_WIN32)
-#include <errno.h>
-#endif
-
 #define INCLUDE_ALLOW_USERLEVEL
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
+#if !defined(_WIN32)
+#include <errno.h>
+#endif
+#include "vm_basic_defs.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -52,7 +52,7 @@ const char *Err_Errno2String(Err_Number errorNumber);
 
 Err_Number Err_String2Errno(const char *string);
 
-#ifdef VMX86_DEBUG
+#if defined(VMX86_DEBUG)
 Err_Number Err_String2ErrnoDebug(const char *string);
 #endif
 
@@ -129,8 +129,8 @@ char *Err_SanitizeMessage(const char *msg);
       Err_SetErrno(e); \
    } while (FALSE)
 
-#ifdef __cplusplus
-}
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 
 #endif

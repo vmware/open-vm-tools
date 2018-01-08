@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -193,6 +193,8 @@ VGAuthError VGAuth_ValidateSamlBearerToken(VGAuthContext *ctx,
                                            VGAuthUserHandle **handle);  // OUT
 
 /* Impersonation APIs */
+
+#define  VGAUTH_PARAM_LOAD_USER_PROFILE  "loadUserProfile"
 
 /*
  * Start impersonating the user described by VGAuthUserHandle.

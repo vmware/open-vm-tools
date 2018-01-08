@@ -1,6 +1,6 @@
 
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -106,7 +106,7 @@ static CmdTable commands[] = {
    { "stat",      Stat_Command,     TRUE,    FALSE,   Stat_Help},
    { "device",    Device_Command,   TRUE,    FALSE,   Device_Help},
 #if defined(_WIN32) || \
-   (defined(linux) && !defined(OPEN_VM_TOOLS) && !defined(USERWORLD))
+   (defined(__linux__) && !defined(OPEN_VM_TOOLS) && !defined(USERWORLD))
    { "upgrade",   Upgrade_Command,  TRUE,    TRUE,   Upgrade_Help},
 #endif
    { "logging",   Logging_Command,  TRUE,    TRUE,    Logging_Help},
@@ -435,12 +435,16 @@ main(int argc,    // IN: length of command line arguments
 
    /*
     * Check if we are in a VM
+    *
+    * Valgrind can't handle the backdoor check, so don't bother.
     */
+#ifndef USE_VALGRIND
    if (!VmCheck_IsVirtualWorld()) {
       g_printerr(SU_(error.novirtual, "%s must be run inside a virtual machine.\n"),
                  argv[0]);
       goto exit;
    }
+#endif
 
    /*
     * Parse the command line optional arguments

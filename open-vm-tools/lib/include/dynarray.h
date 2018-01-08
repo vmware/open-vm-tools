@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -32,6 +32,9 @@
 #include "vm_basic_types.h"
 #include "vm_assert.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 typedef struct DynArray {
    DynBuf buf;
@@ -285,10 +288,16 @@ DynArray_Copy(DynArray *src,        // IN
       return (TYPE*)DynArray_AddressOf((DynArray *)a, i);               \
    }                                                                    \
                                                                         \
-   static INLINE unsigned int                                           \
-   T##Array_Count(T##Array *a)                                          \
+   static INLINE TYPE*                                                  \
+   T##Array_AddressOfUnsafe(T##Array *a, unsigned int i)                \
    {                                                                    \
-      return DynArray_Count((DynArray *)a);                             \
+      return (TYPE*)DynArray_AddressOfUnsafe((DynArray *)a, i);         \
+   }                                                                    \
+                                                                        \
+   static INLINE unsigned int                                           \
+   T##Array_Count(const T##Array *a)                                    \
+   {                                                                    \
+      return DynArray_Count((const DynArray *)a);                       \
    }                                                                    \
                                                                         \
    static INLINE Bool                                                   \
@@ -331,5 +340,9 @@ DynArray_Copy(DynArray *src,        // IN
    }
 /* Define DynArray of DynBuf. */
 DEFINE_DYNARRAY_TYPE(DynBuf)
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif /* _DYNARRAY_H_ */

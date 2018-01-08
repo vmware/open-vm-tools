@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -58,6 +58,8 @@
    LOGLEVEL_VAR(parallel), \
    LOGLEVEL_VAR(chipset), \
    LOGLEVEL_VAR(smram), \
+   LOGLEVEL_VAR(txt), \
+   LOGLEVEL_VAR(sgx), \
    LOGLEVEL_VAR(smc), \
    LOGLEVEL_VAR(ich7m), \
    LOGLEVEL_VAR(hpet), \
@@ -104,6 +106,9 @@
    LOGLEVEL_VAR(vsock), \
    LOGLEVEL_VAR(vrdma), \
    LOGLEVEL_VAR(nvdimm), \
+   LOGLEVEL_VAR(qat), \
+   LOGLEVEL_VAR(vtpm), \
+   LOGLEVEL_VAR(mor), \
    \
    /* user/disk */ \
    LOGLEVEL_VAR(aioMgr), \
@@ -151,8 +156,11 @@
    LOGLEVEL_VAR(mksDX11Renderer), \
    LOGLEVEL_VAR(mksDX11ResourceView), \
    LOGLEVEL_VAR(mksDX11ShimOps), \
+   LOGLEVEL_VAR(mksMTLRenderer), \
+   LOGLEVEL_VAR(vaBasicOps), \
    LOGLEVEL_VAR(vdpPlugin), \
-   \
+   LOGLEVEL_VAR(vncServer), \
+  \
    /* user/sound */ \
    LOGLEVEL_VAR(sound), \
    LOGLEVEL_VAR(hdaudio), \
@@ -195,6 +203,7 @@
    LOGLEVEL_VAR(backdoor), \
    LOGLEVEL_VAR(buslogicMdev), \
    LOGLEVEL_VAR(hgfs), \
+   LOGLEVEL_VAR(hgfsServer), \
    LOGLEVEL_VAR(memspace), \
    LOGLEVEL_VAR(dnd), \
    LOGLEVEL_VAR(appstate), \
@@ -217,6 +226,7 @@
    LOGLEVEL_VAR(remoteDevice), \
    LOGLEVEL_VAR(vncDecode), \
    LOGLEVEL_VAR(vncEncode), \
+   LOGLEVEL_VAR(vncBlit),   \
    LOGLEVEL_VAR(libconnect), \
    LOGLEVEL_VAR(state3d), \
    LOGLEVEL_VAR(vmGL), \
@@ -225,6 +235,7 @@
    LOGLEVEL_VAR(guestVars), \
    LOGLEVEL_VAR(vmkEvent), \
    LOGLEVEL_VAR(authenticode), \
+   LOGLEVEL_VAR(tpm2Verification), \
    LOGLEVEL_VAR(battery), \
    LOGLEVEL_VAR(fakeDma), \
    LOGLEVEL_VAR(shader), \
@@ -272,6 +283,7 @@
    LOGLEVEL_VAR(vsanobj), \
    LOGLEVEL_VAR(vvolbe), \
    LOGLEVEL_VAR(upitbe), \
+   LOGLEVEL_VAR(slotfs), \
    LOGLEVEL_VAR(svgadevtap), \
    LOGLEVEL_VAR(masReceipt), /* lib/masReceipt */ \
    LOGLEVEL_VAR(serviceImpl), /* lib/serviceImpl */ \
@@ -295,12 +307,25 @@
    LOGLEVEL_VAR(filtlib), \
    LOGLEVEL_VAR(epd), \
    LOGLEVEL_VAR(ddecomd), \
+   LOGLEVEL_VAR(vdfs), \
+   LOGLEVEL_VAR(vdfs_9p), \
    LOGLEVEL_VAR(hostctl), \
    LOGLEVEL_VAR(pmemobj), \
    LOGLEVEL_VAR(secureBoot), \
    LOGLEVEL_VAR(upitd), \
    LOGLEVEL_VAR(promotedisk), \
-   LOGLEVEL_VAR(toolsIso)
+   LOGLEVEL_VAR(efivarstore), \
+   LOGLEVEL_VAR(toolsIso), \
+   LOGLEVEL_VAR(toolsversion), \
+   LOGLEVEL_VAR(vmva), \
+   LOGLEVEL_VAR(udpfec),    /* lib/udpfec */ \
+   LOGLEVEL_VAR(maclatency), \
+   LOGLEVEL_VAR(tpm2emu), \
+   LOGLEVEL_VAR(tarReader),\
+   LOGLEVEL_VAR(nvramMgr), \
+   LOGLEVEL_VAR(hbr), \
+   LOGLEVEL_VAR(vvtd), \
+   LOGLEVEL_VAR(amdIommu)
 
    /* end of list */
 

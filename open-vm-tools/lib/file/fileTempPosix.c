@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -86,7 +86,7 @@ FileTryDir(const char *dirName)  // IN: Is this a writable directory?
          return edirName;
       }
 
-      free(edirName);
+      Posix_Free(edirName);
    }
 
    return NULL;
@@ -122,7 +122,7 @@ FileGetTmpDir(Bool useConf)  // IN: Use the config file?
    if (useConf) {
       dirName = (char *)LocalConfig_GetString(NULL, "tmpDirectory");
       edirName = FileTryDir(dirName);
-      free(dirName);
+      Posix_Free(dirName);
       if (edirName != NULL) {
          return edirName;
       }
@@ -154,7 +154,7 @@ FileGetTmpDir(Bool useConf)  // IN: Use the config file?
 
    if (dirName != NULL) {
       edirName = FileTryDir(dirName);
-      free(dirName);
+      Posix_Free(dirName);
       if (edirName != NULL) {
          return edirName;
       }
@@ -221,7 +221,7 @@ FileGetUserName(uid_t uid)  // IN:
 
    if ((Posix_Getpwuid_r(uid, &pw, memPool, memPoolSize, &pw_p) != 0) ||
        pw_p == NULL) {
-      free(memPool);
+      Posix_Free(memPool);
       Warning("%s: Unable to retrieve the username associated with "
               "user ID %u.\n", __FUNCTION__, uid);
 
@@ -229,7 +229,7 @@ FileGetUserName(uid_t uid)  // IN:
    }
 
    userName = strdup(pw_p->pw_name);
-   free(memPool);
+   Posix_Free(memPool);
    if (userName == NULL) {
       Warning("%s: Not enough memory.\n", __FUNCTION__);
 
@@ -282,7 +282,7 @@ FileAcceptableSafeTmpDir(const char *dirname,  // IN:
           * effective user with permissions 'mode'.
           */
 
-         if (0 == Posix_Lstat(dirname, &st)) {
+         if (Posix_Lstat(dirname, &st) == 0) {
             /*
              * Our directory inherited S_ISGID if its parent had it. So it
              * is important to ignore that bit, and it is safe to do so
@@ -346,7 +346,7 @@ FileFindExistingSafeTmpDir(uid_t userId,            // IN:
    numFiles = File_ListDirectory(baseTmpDir, &fileList);
 
    if (numFiles == -1) {
-      free(pattern);
+      Posix_Free(pattern);
 
       return NULL;
    }
@@ -361,12 +361,12 @@ FileFindExistingSafeTmpDir(uid_t userId,            // IN:
              break;
           }
 
-          free(path);
+          Posix_Free(path);
        }
    }
 
    Util_FreeStringList(fileList, numFiles);
-   free(pattern);
+   Posix_Free(pattern);
 
    return tmpDir;
 }
@@ -409,7 +409,7 @@ FileCreateSafeTmpDir(uid_t userId,            // IN:
                             PRODUCT_GENERIC_NAME_LOWER, userName,
                             FileSimpleRandom());
 
-      if (!tmpDir) {
+      if (tmpDir == NULL) {
          Warning("%s: Out of memory error.\n", __FUNCTION__);
          break;
       }
@@ -422,12 +422,12 @@ FileCreateSafeTmpDir(uid_t userId,            // IN:
          Warning("%s: Failed to create a safe temporary directory, path "
                  "\"%s\". The maximum number of attempts was exceeded.\n",
                  __FUNCTION__, tmpDir);
-         free(tmpDir);
+         Posix_Free(tmpDir);
          tmpDir = NULL;
          break;
       }
 
-      free(tmpDir);
+      Posix_Free(tmpDir);
       tmpDir = NULL;
    }
 
@@ -497,21 +497,21 @@ File_GetSafeTmpDir(Bool useConf)  // IN:
    /* We don't have a useable temporary dir, create one. */
    baseTmpDir = FileGetTmpDir(useConf);
 
-   if (!baseTmpDir) {
+   if (baseTmpDir == NULL) {
       Warning("%s: FileGetTmpDir failed.\n", __FUNCTION__);
       goto exit;
    }
 
    userName = FileGetUserName(userId);
 
-   if (!userName) {
+   if (userName == NULL) {
       Warning("%s: FileGetUserName failed, using numeric ID "
               "as username instead.\n", __FUNCTION__);
 
       /* Fallback on just using the userId as the username. */
       userName = Str_Asprintf(NULL, "uid-%d", userId);
 
-      if (!userName) {
+      if (userName == NULL) {
          Warning("%s: Str_Asprintf error.\n", __FUNCTION__);
          goto exit;
       }
@@ -520,7 +520,7 @@ File_GetSafeTmpDir(Bool useConf)  // IN:
    tmpDir = Str_Asprintf(NULL, "%s%s%s-%s", baseTmpDir, DIRSEPS,
                          PRODUCT_GENERIC_NAME_LOWER, userName);
 
-   if (!tmpDir) {
+   if (tmpDir == NULL) {
       Warning("%s: Out of memory error.\n", __FUNCTION__);
       goto exit;
    }
@@ -532,11 +532,11 @@ File_GetSafeTmpDir(Bool useConf)  // IN:
        * an acceptable one to use.
        */
 
-      free(tmpDir);
+      Posix_Free(tmpDir);
 
       tmpDir = FileFindExistingSafeTmpDir(userId, userName, baseTmpDir);
 
-      if (!tmpDir) {
+      if (tmpDir == NULL) {
          /*
           * We didn't find any usable directories, so try to create one now.
           */
@@ -545,20 +545,20 @@ File_GetSafeTmpDir(Bool useConf)  // IN:
       }
    }
 
-   if (tmpDir) {
+   if (tmpDir != NULL) {
       /*
        * We have successfully created a temporary directory, remember it for
        * future calls.
        */
 
-      free(safeDir);
+      Posix_Free(safeDir);
       safeDir = Util_SafeStrdup(tmpDir);
    }
 
   exit:
    MXUser_ReleaseExclLock(lck);
-   free(baseTmpDir);
-   free(userName);
+   Posix_Free(baseTmpDir);
+   Posix_Free(userName);
 #endif
 
    return tmpDir;

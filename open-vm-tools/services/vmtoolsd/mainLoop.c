@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -506,7 +506,14 @@ ToolsCore_Setup(ToolsServiceState *state)
 #else
    state->ctx.mainLoop = g_main_loop_new(gctx, FALSE);
 #endif
+   /*
+    * Valgrind can't handle the backdoor check.
+    */
+#ifdef USE_VALGRIND
+   state->ctx.isVMware = TRUE;
+#else
    state->ctx.isVMware = VmCheck_IsVirtualWorld();
+#endif
    g_main_context_unref(gctx);
 
    g_type_init();

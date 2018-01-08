@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -49,26 +49,10 @@
 #include "vm_assert.h"
 #include "vm_basic_defs.h"
 #include "unicodeTypes.h"
+#include "utilZero.h"
 
-
-/*
- * Define the Util_ThreadID type, and assorted standard bits.
- */
-#if defined(_WIN32)
-   typedef DWORD Util_ThreadID;
-#elif defined(__linux__) || defined(__ANDROID__)
-   typedef pid_t Util_ThreadID;
-#elif defined(__APPLE__)
-#  include <pthread.h>
-   typedef mach_port_t Util_ThreadID;
-#elif defined(__sun__)
-#  include <thread.h>
-   typedef thread_t Util_ThreadID;
-#elif defined(__FreeBSD__)
-#  include <pthread.h>
-   typedef pthread_t Util_ThreadID;
-#else
-#  error "Need typedef for Util_ThreadID"
+#if defined(__cplusplus)
+extern "C" {
 #endif
 
 uint32 CRC_Compute(const uint8 *buf, int len);
@@ -82,7 +66,6 @@ NORETURN void Util_ExitProcessAbruptly(int);
 int Util_HasAdminPriv(void);
 #if defined _WIN32 && defined USERLEVEL
 int Util_TokenHasAdminPriv(HANDLE token);
-int Util_TokenHasInteractPriv(HANDLE token);
 #endif
 Bool Util_Data2Buffer(char *buf, size_t bufSize, const void *data0,
                       size_t dataSize);
@@ -95,14 +78,10 @@ char *Util_CompatGetLowerCaseCanonicalPath(const char* path);
 int Util_BumpNoFds(uint32 *cur, uint32 *wanted);
 Bool Util_CanonicalPathsIdentical(const char *path1, const char *path2);
 Bool Util_IsAbsolutePath(const char *path);
-Util_ThreadID Util_GetCurrentThreadId(void);
 
 char *Util_DeriveFileName(const char *source,
                           const char *name,
                           const char *ext);
-
-char *Util_CombineStrings(char **sources, int count);
-char **Util_SeparateStrings(char *source, int *count);
 
 typedef struct UtilSingleUseResource UtilSingleUseResource;
 UtilSingleUseResource *Util_SingleUseAcquire(const char *name);
@@ -173,107 +152,6 @@ uint32 Util_FastRand(uint32 seed);
 
 // Not thread safe!
 void Util_OverrideHomeDir(const char *path);
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Util_ValidateBytes --
- *
- *      Check that memory is filled with the specified value.
- *
- * Results:
- *      NULL   No error
- *      !NULL  First address that doesn't have the proper value
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-static INLINE void *
-Util_ValidateBytes(const void *ptr,  // IN: ptr to check
-                   size_t size,      // IN: size of ptr
-                   uint8 byteValue)  // IN: memory must be filled with this
-{
-   uint8 *p;
-   uint8 *end;
-   uint64 bigValue;
-
-   ASSERT(ptr);
-
-   if (size == 0) {
-      return NULL;
-   }
-
-   p = (uint8 *) ptr;
-   end = p + size;
-
-   /* Compare bytes until a "nice" boundary is achieved. */
-   while ((uintptr_t) p % sizeof bigValue) {
-      if (*p != byteValue) {
-         return p;
-      }
-
-      p++;
-
-      if (p == end) {
-         return NULL;
-      }
-   }
-
-   /* Compare using a "nice sized" chunk for a long as possible. */
-   memset(&bigValue, (int) byteValue, sizeof bigValue);
-
-   while (p + sizeof bigValue <= end) {
-      if (*((uint64 *) p) != bigValue) {
-         /* That's not right... let the loop below report the exact address. */
-         break;
-      }
-
-      size -= sizeof bigValue;
-      p += sizeof bigValue;
-   }
-
-   /* Handle any trailing bytes. */
-   while (p < end) {
-      if (*p != byteValue) {
-         return p;
-      }
-
-      p++;
-   }
-
-   return NULL;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Util_BufferIsEmpty --
- *
- *    Determine if the specified buffer of 'len' bytes starting at 'base'
- *    is empty (i.e. full of zeroes).
- *
- * Results:
- *    TRUE  Yes
- *    FALSE No
- *
- * Side effects:
- *    None
- *
- *----------------------------------------------------------------------
- */
-
-static INLINE Bool
-Util_BufferIsEmpty(void const *base,  // IN:
-                   size_t len)        // IN:
-{
-   return Util_ValidateBytes(base, len, '\0') == NULL;
-}
-
 
 Bool Util_MakeSureDirExistsAndAccessible(char const *path,
                                          unsigned int mode);
@@ -422,159 +300,11 @@ char *UtilSafeStrndup1(const char *s, size_t n,
 #endif  /* VMX86_DEBUG */
 
 
+void *Util_Memdup(const void *src, size_t size);
 void *Util_Memcpy(void *dest, const void *src, size_t count);
 
 
-/*
- *-----------------------------------------------------------------------------
- *
- * Util_Zero --
- *
- *      Zeros out bufSize bytes of buf. NULL is legal.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      See above.
- *
- *-----------------------------------------------------------------------------
- */
-
-static INLINE void
-Util_Zero(void *buf,       // OUT
-          size_t bufSize)  // IN
-{
-   if (buf != NULL) {
-#if defined _WIN32 && defined USERLEVEL
-      /*
-       * Simple memset calls might be optimized out.  See CERT advisory
-       * MSC06-C.
-       */
-      SecureZeroMemory(buf, bufSize);
-#else
-      memset(buf, 0, bufSize);
-#if !defined _WIN32
-      /*
-       * Memset calls before free might be optimized out.  See PR1248269.
-       */
-      __asm__ __volatile__("" : : "r"(&buf) : "memory");
-#endif
-#endif
-   }
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Util_ZeroString --
- *
- *      Zeros out a NULL-terminated string. NULL is legal.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      See above.
- *
- *-----------------------------------------------------------------------------
- */
-
-static INLINE void
-Util_ZeroString(char *str)  // IN/OUT/OPT
-{
-   if (str != NULL) {
-      Util_Zero(str, strlen(str));
-   }
-}
-
-
 #ifndef VMKBOOT
-/*
- *-----------------------------------------------------------------------------
- *
- * Util_ZeroFree --
- *
- *      Zeros out bufSize bytes of buf, and then frees it. NULL is
- *      legal.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *	buf is zeroed, and then free() is called on it.
- *
- *-----------------------------------------------------------------------------
- */
-
-static INLINE void
-Util_ZeroFree(void *buf,       // OUT/OPT
-              size_t bufSize)  // IN
-{
-   if (buf != NULL) {
-      Util_Zero(buf, bufSize);
-      free(buf);
-   }
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Util_ZeroFreeString --
- *
- *      Zeros out a NULL-terminated string, and then frees it. NULL is
- *      legal.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *	str is zeroed, and then free() is called on it.
- *
- *-----------------------------------------------------------------------------
- */
-
-static INLINE void
-Util_ZeroFreeString(char *str)  // IN/OUT/OPT
-{
-   if (str != NULL) {
-      Util_ZeroString(str);
-      free(str);
-   }
-}
-
-
-#ifdef _WIN32
-/*
- *-----------------------------------------------------------------------------
- *
- * Util_ZeroFreeStringW --
- *
- *      Zeros out a NUL-terminated wide-character string, and then frees it.
- *      NULL is legal.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *	str is zeroed, and then free() is called on it.
- *
- *-----------------------------------------------------------------------------
- */
-
-static INLINE void
-Util_ZeroFreeStringW(wchar_t *str)  // IN/OUT/OPT
-{
-   if (str != NULL) {
-      Util_Zero(str, wcslen(str) * sizeof *str);
-      free(str);
-   }
-}
-#endif // _WIN32
-
-
 /*
  *-----------------------------------------------------------------------------
  *
@@ -602,10 +332,15 @@ static INLINE void
 Util_FreeList(void **list,      // IN/OUT/OPT: the list to free
               ssize_t length)   // IN: the length
 {
+   // See Posix_Free.
+   int err;
+
    if (list == NULL) {
       ASSERT(length <= 0);
       return;
    }
+
+   err = errno;
 
    if (length >= 0) {
       ssize_t i;
@@ -623,6 +358,7 @@ Util_FreeList(void **list,      // IN/OUT/OPT: the list to free
       }
    }
    free(list);
+   errno = err;
 }
 
 static INLINE void
@@ -631,7 +367,7 @@ Util_FreeStringList(char **list,      // IN/OUT/OPT: the list to free
 {
    Util_FreeList((void **) list, length);
 }
-#endif
+#endif /* VMKBOOT */
 
 
 /*
@@ -675,5 +411,8 @@ Util_Memcpy32(void *dst,
 #endif
 }
 
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif /* UTIL_H */

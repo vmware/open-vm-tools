@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -175,8 +175,8 @@ PosixGetenvHash(const char *name,  // IN
    }
 
    ht = HashTable_AllocOnce(&htPtr, 128,
-			    HASH_FLAG_ATOMIC | HASH_FLAG_COPYKEY |
-			       HASH_STRING_KEY,
+                            HASH_FLAG_ATOMIC | HASH_FLAG_COPYKEY |
+                               HASH_STRING_KEY,
                             PosixEnvFree);
 
    /*
@@ -195,14 +195,14 @@ PosixGetenvHash(const char *name,  // IN
        */
 
       if (!HashTable_Lookup(ht, name, (void **) &e)) {
-	 e = Util_SafeMalloc(sizeof *e);
-	 Atomic_WritePtr(&e->value, value);
-	 Atomic_WritePtr(&e->lastValue, NULL);
-	 if (!HashTable_Insert(ht, name, e)) {
-	    free(e);
-	    continue;
-	 }
-	 break;
+         e = Util_SafeMalloc(sizeof *e);
+         Atomic_WritePtr(&e->value, value);
+         Atomic_WritePtr(&e->lastValue, NULL);
+         if (!HashTable_Insert(ht, name, e)) {
+            Posix_Free(e);
+            continue;
+         }
+         break;
       }
 
       /*
@@ -211,9 +211,9 @@ PosixGetenvHash(const char *name,  // IN
 
       oldValue = Atomic_ReadPtr(&e->value);
       if (Str_Strcmp(oldValue, value) == 0) {
-	 free(value);
-	 value = oldValue;
-	 break;
+         Posix_Free(value);
+         value = oldValue;
+         break;
       }
 
       /*
@@ -225,9 +225,9 @@ PosixGetenvHash(const char *name,  // IN
        */
 
       if (Atomic_ReadIfEqualWritePtr(&e->value, oldValue, value) == oldValue) {
-	 oldValue = Atomic_ReadWritePtr(&e->lastValue, oldValue);
-	 free(oldValue);
-	 break;
+         oldValue = Atomic_ReadWritePtr(&e->lastValue, oldValue);
+         Posix_Free(oldValue);
+         break;
       }
    }
 

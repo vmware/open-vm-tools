@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -297,6 +297,9 @@ ServiceDaemonize(const char *path,
    ASSERT(path);
 
    if (pidPath) {
+      if (!ServiceNetworkCreateSocketDir()) {
+         return FALSE;
+      }
       pidPathFd = g_open(pidPath, O_WRONLY | O_CREAT, 0644);
       if (pidPathFd == -1) {
          err = errno;

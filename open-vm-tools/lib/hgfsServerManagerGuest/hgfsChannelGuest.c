@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -28,16 +28,6 @@
 #include "vm_assert.h"
 #include "vm_atomic.h"
 #include "util.h"
-#if defined(VMTOOLS_USE_GLIB)
-#define G_LOG_DOMAIN "hgfsd"
-#define Debug                 g_debug
-#define Warning               g_warning
-#include "vmware/tools/guestrpc.h"
-#include "vmware/tools/utils.h"
-// #include <glib.h>
-#else
-#include "debug.h"
-#endif
 #include "hgfsChannelGuestInt.h"
 #include "hgfsServer.h"
 #include "hgfsServerManager.h"
@@ -78,7 +68,7 @@
  * also removed and the HGFS server exit is called and this object is torn down.
  */
 typedef struct HgfsChannelServerData {
-   HgfsServerCallbacks        *serverCBTable; /* HGFS server entry points. */
+   const HgfsServerCallbacks  *serverCBTable; /* HGFS server entry points. */
    Atomic_uint32              refCount;       /* Server data reference count. */
 } HgfsChannelServerData;
 
@@ -90,12 +80,12 @@ typedef struct HgfsChannelServerData {
  * for each client that it is returned to (a usage count).
  */
 typedef struct HgfsChannelData {
-   const char                 *name;          /* Channel name. */
-   HgfsGuestChannelCBTable    *ops;           /* Channel operations. */
-   uint32                     state;          /* Channel state (see flags below). */
-   struct HgfsGuestConn       *connection;    /* Opaque server connection */
-   HgfsChannelServerData      *serverInfo;    /* HGFS server entry points. */
-   Atomic_uint32              refCount;       /* Channel reference count. */
+   const char                    *name;          /* Channel name. */
+   const HgfsGuestChannelCBTable *ops;           /* Channel operations. */
+   uint32                        state;          /* Channel state (see flags below). */
+   struct HgfsGuestConn          *connection;    /* Opaque server connection */
+   HgfsChannelServerData         *serverInfo;    /* HGFS server entry points. */
+   Atomic_uint32                 refCount;       /* Channel reference count. */
 } HgfsChannelData;
 
 #define HGFS_CHANNEL_STATE_INIT         (1 << 0)
@@ -207,7 +197,9 @@ HgfsChannelInitServer(HgfsServerMgrCallbacks *mgrCb,       // IN: server manager
    Debug("%s: Initialize Hgfs server.\n", __FUNCTION__);
 
    /* If we have a new connection initialize the server session with default settings. */
-   result = HgfsServer_InitState(&serverInfo->serverCBTable, &gHgfsGuestCfgSettings, mgrCb);
+   result = HgfsServer_InitState(&serverInfo->serverCBTable,
+                                 &gHgfsGuestCfgSettings,
+                                 mgrCb);
    if (!result) {
       Debug("%s: Could not init Hgfs server.\n", __FUNCTION__);
    }

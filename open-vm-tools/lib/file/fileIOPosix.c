@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -53,7 +53,7 @@
 #include "su.h"
 
 #if defined(__APPLE__)
-#include "sysSocket.h" // Don't move this: it fixes a system header.
+#include <sys/socket.h>
 #include <sys/un.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -99,18 +99,7 @@
 
 #if defined(__APPLE__)
 #include <sys/sysctl.h>
-
-/*
- * F_NODIRECT was added in Mac OS 10.7.0 "Lion".  We test at runtime for the
- * right version before using it, but we also need to get the definition.
- */
-
 #include <sys/fcntl.h>
-
-#ifndef F_NODIRECT
-#define F_NODIRECT 62
-#endif
-
 #endif
 
 /*
@@ -242,6 +231,8 @@ static FileIOResult
 FileIOErrno2Result(int error)  // IN: errno to convert
 {
    switch (error) {
+   case EIO:
+      return FILEIO_ERROR;
    case EEXIST:
       return FILEIO_OPEN_ERROR_EXIST;
    case ENOENT:
@@ -263,8 +254,6 @@ FileIOErrno2Result(int error)  // IN: errno to convert
       return FILEIO_WRITE_ERROR_DQUOT;
 #endif
    default:
-      Log("%s: Unexpected errno=%d, %s\n", __FUNCTION__,
-          error, Err_Errno2String(error));
       return FILEIO_ERROR;
    }
 }
@@ -362,7 +351,7 @@ FileIO_OptionalSafeInitialize(void)
 void
 FileIO_Invalidate(FileIODescriptor *fd)  // OUT:
 {
-   ASSERT(fd);
+   ASSERT(fd != NULL);
 
    (memset)(fd, 0, sizeof *fd);
    fd->posix = -1;
@@ -388,7 +377,7 @@ FileIO_Invalidate(FileIODescriptor *fd)  // OUT:
 Bool
 FileIO_IsValid(const FileIODescriptor *fd)  // IN:
 {
-   ASSERT(fd);
+   ASSERT(fd != NULL);
 
    return fd->posix != -1;
 }
@@ -448,39 +437,15 @@ FileIO_CreateFDPosix(int posix,  // IN: UNIX file descriptor
       fd.flags |= FILEIO_OPEN_APPEND;
    }
 
+#if defined(__linux__) && defined(O_CLOEXEC)
+   if (flags & O_CLOEXEC) {
+      fd.flags |= FILEIO_OPEN_CLOSE_ON_EXEC;
+   }
+#endif
+
    fd.posix = posix;
 
    return fd;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * FileIO_GetVolumeSectorSize --
- *
- *      Get sector size of underlying volume.
- *
- * Results:
- *      Always 512, there does not seem to be a way to query sectorSize
- *      from filename.  But O_DIRECT boundary alignment constraint is
- *      always 512, so use that.
- *
- * Side effects:
- *      None
- *
- *----------------------------------------------------------------------
- */
-
-Bool
-FileIO_GetVolumeSectorSize(const char *pathName,  // IN:
-                           uint32 *sectorSize)    // OUT:
-{
-   ASSERT(sectorSize);
-
-   *sectorSize = 512;
-
-   return TRUE;
 }
 
 
@@ -726,7 +691,7 @@ ProxyUse(const char *pathName,  // IN:
 
       temp = Unicode_Substr(pathName, 0, index + 1);
       path = Unicode_Append(temp, ".");
-      free(temp);
+      Posix_Free(temp);
    }
 
    /*
@@ -748,7 +713,7 @@ ProxyUse(const char *pathName,  // IN:
       *useProxy = TRUE;
    }
 
-   free(path);
+   Posix_Free(path);
 
    return 0;
 }
@@ -836,7 +801,7 @@ FileIOCreateRetry(FileIODescriptor *file,   // OUT:
                   int access,               // IN:
                   FileIOOpenAction action,  // IN:
                   int mode,                 // IN: mode_t for creation
-                  uint32 msecMaxWaitTime)   // IN: Ignored
+                  uint32 maxWaitTimeMsec)   // IN: Ignored
 {
    uid_t uid = -1;
    int fd = -1;
@@ -844,7 +809,7 @@ FileIOCreateRetry(FileIODescriptor *file,   // OUT:
    int error;
    FileIOResult ret;
 
-   ASSERT(file);
+   ASSERT(file != NULL);
 
    if (pathName == NULL) {
       errno = EFAULT;
@@ -869,7 +834,9 @@ FileIOCreateRetry(FileIODescriptor *file,   // OUT:
    }
 #elif defined(__linux__)
    if (HostType_OSIsVMK()) {
-      if ((access & FILEIO_OPEN_MULTIWRITER_LOCK) != 0) {
+      if ((access & FILEIO_OPEN_SWMR_LOCK) != 0) {
+         flags |= O_SWMR_LOCK;
+      } else if ((access & FILEIO_OPEN_MULTIWRITER_LOCK) != 0) {
          flags |= O_MULTIWRITER_LOCK;
       } else if ((access & FILEIO_OPEN_LOCK_MANDATORY) != 0) {
          flags |= O_EXCLUSIVE_LOCK;
@@ -947,6 +914,12 @@ FileIOCreateRetry(FileIODescriptor *file,   // OUT:
    }
 #endif
 
+#if defined(__linux__) && defined(O_CLOEXEC)
+   if (flags & FILEIO_OPEN_CLOSE_ON_EXEC) {
+      flags |= O_CLOEXEC;
+   }
+#endif
+
    flags |= FileIO_OpenActions[action];
 
    file->flags = access;
@@ -967,6 +940,10 @@ FileIOCreateRetry(FileIODescriptor *file,   // OUT:
 
    if (fd == -1) {
       ret = FileIOErrno2Result(errno);
+      if (ret == FILEIO_ERROR) {
+         Log(LGPFX "open error on %s: %s\n", pathName,
+             Err_Errno2String(errno));
+      }
       goto error;
    }
 
@@ -975,20 +952,22 @@ FileIOCreateRetry(FileIODescriptor *file,   // OUT:
       error = fcntl(fd, F_NOCACHE, 1);
       if (error == -1) {
          ret = FileIOErrno2Result(errno);
+         if (ret == FILEIO_ERROR) {
+            Log(LGPFX "fcntl error on %s: %s\n", pathName,
+                Err_Errno2String(errno));
+         }
          goto error;
       }
 
       if (!(access & FILEIO_OPEN_SYNC)) {
-         /*
-          * F_NODIRECT was added in Mac OS 10.7.0 "Lion" which has Darwin
-          * kernel 11.0.0.
-          */
-         if (Hostinfo_OSVersion(0) >= 11) {
-            error = fcntl(fd, F_NODIRECT, 1);
-            if (error == -1) {
-               ret = FileIOErrno2Result(errno);
-               goto error;
+         error = fcntl(fd, F_NODIRECT, 1);
+         if (error == -1) {
+            ret = FileIOErrno2Result(errno);
+            if (ret == FILEIO_ERROR) {
+               Log(LGPFX "fcntl error on %s: %s\n", pathName,
+                   Err_Errno2String(errno));
             }
+            goto error;
          }
       }
    }
@@ -1002,6 +981,10 @@ FileIOCreateRetry(FileIODescriptor *file,   // OUT:
 
       if (Posix_Unlink(pathName) == -1) {
          ret = FileIOErrno2Result(errno);
+         if (ret == FILEIO_ERROR) {
+            Log(LGPFX "unlink error on %s: %s\n", pathName,
+                Err_Errno2String(errno));
+         }
          goto error;
       }
    }
@@ -1022,6 +1005,38 @@ error:
    errno = error;
 
    return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * FileIO_CreateRetry --
+ *
+ *      Open/create a file; specify creation mode
+ *
+ * Results:
+ *      FILEIO_SUCCESS on success: 'file' is set
+ *      FILEIO_OPEN_ERROR_EXIST if the file already exists
+ *      FILEIO_FILE_NOT_FOUND if the file is not present
+ *      FILEIO_ERROR for other errors
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+FileIOResult
+FileIO_CreateRetry(FileIODescriptor *file,   // OUT:
+                   const char *pathName,     // IN:
+                   int access,               // IN:
+                   FileIOOpenAction action,  // IN:
+                   int mode,                 // IN: mode_t for creation
+                   uint32 maxWaitTimeMsec)   // IN:
+{
+   return FileIOCreateRetry(file, pathName, access, action, mode,
+                            maxWaitTimeMsec);
 }
 
 
@@ -1058,6 +1073,68 @@ FileIO_Create(FileIODescriptor *file,   // OUT:
 /*
  *----------------------------------------------------------------------
  *
+ * FileIO_OpenRetry --
+ *
+ *      Open/create a file.
+ *      May perform retries to deal with certain OS conditions.
+ *
+ * Results:
+ *      FILEIO_SUCCESS on success: 'file' is set
+ *      FILEIO_OPEN_ERROR_EXIST if the file already exists
+ *      FILEIO_FILE_NOT_FOUND if the file is not present
+ *      FILEIO_ERROR for other errors
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+FileIOResult
+FileIO_OpenRetry(FileIODescriptor *file,   // OUT:
+                 const char *pathName,     // IN:
+                 int access,               // IN:
+                 FileIOOpenAction action,  // IN:
+                 uint32 maxWaitTimeMsec)   // IN:
+{
+#if defined(VMX86_SERVER)
+   FileIOResult res;
+   uint32 waitTimeMsec = 0;
+   uint32 maxLoopTimeMsec = 3000;  // 3 seconds
+
+   /*
+    * Workaround the ESX NFS client bug as seen in PR 1341775.
+    * Since ESX NFS client can sometimes *wrongly* return ESTALE for a
+    * legitimate file open case, we retry for some time in hopes that the
+    * problem will resolve itself.
+    */
+
+   while (TRUE) {
+      res = FileIOCreateRetry(file, pathName, access, action,
+                              S_IRUSR | S_IWUSR, maxWaitTimeMsec);
+
+      if (res == FILEIO_ERROR && Err_Errno() == ESTALE &&
+          waitTimeMsec < maxLoopTimeMsec) {
+         Log(LGPFX "FileIOCreateRetry (%s) failed with ESTALE, retrying.\n",
+             pathName);
+
+         waitTimeMsec += FileSleeper(100, 300);
+      } else {
+         break;
+      }
+   }
+
+   return res;
+#else
+   return FileIOCreateRetry(file, pathName, access, action,
+                            S_IRUSR | S_IWUSR, maxWaitTimeMsec);
+#endif
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * FileIO_Open --
  *
  *      Open/create a file.
@@ -1087,68 +1164,6 @@ FileIO_Open(FileIODescriptor *file,   // OUT:
 /*
  *----------------------------------------------------------------------
  *
- * FileIO_OpenRetry --
- *
- *      Open/create a file.
- *      May perform retries to deal with certain OS conditions.
- *
- * Results:
- *      FILEIO_SUCCESS on success: 'file' is set
- *      FILEIO_OPEN_ERROR_EXIST if the file already exists
- *      FILEIO_FILE_NOT_FOUND if the file is not present
- *      FILEIO_ERROR for other errors
- *
- * Side effects:
- *      None
- *
- *----------------------------------------------------------------------
- */
-
-FileIOResult
-FileIO_OpenRetry(FileIODescriptor *file,   // OUT:
-                 const char *pathName,     // IN:
-                 int access,               // IN:
-                 FileIOOpenAction action,  // IN:
-                 uint32 msecMaxWaitTime)   // IN:
-{
-#if defined(VMX86_SERVER)
-   FileIOResult res;
-   uint32 msecWaitTime = 0;
-   uint32 msecMaxLoopTime = 3000;  // 3 seconds
-
-   /*
-    * Workaround the ESX NFS client bug as seen in PR 1341775.
-    * Since ESX NFS client can sometimes *wrongly* return ESTALE for a
-    * legitimate file open case, we retry for some time in hopes that the
-    * problem will resolve itself.
-    */
-
-   while (TRUE) {
-      res = FileIOCreateRetry(file, pathName, access, action,
-                              S_IRUSR | S_IWUSR, msecMaxWaitTime);
-
-      if (res == FILEIO_ERROR && Err_Errno() == ESTALE &&
-          msecWaitTime < msecMaxLoopTime) {
-         Log(LGPFX "FileIOCreateRetry (%s) failed with ESTALE, retrying.\n",
-             pathName);
-
-         msecWaitTime += FileSleeper(100, 300);
-      } else {
-         break;
-      }
-   }
-
-   return res;
-#else
-   return FileIOCreateRetry(file, pathName, access, action,
-                            S_IRUSR | S_IWUSR, msecMaxWaitTime);
-#endif
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * FileIO_Seek --
  *
  *      Change the current position in a file
@@ -1170,7 +1185,7 @@ FileIO_Seek(const FileIODescriptor *file,  // IN:
             int64 distance,                // IN:
             FileIOSeekOrigin origin)       // IN:
 {
-   ASSERT(file);
+   ASSERT(file != NULL);
 
 #if defined(__ANDROID__)
    /*
@@ -1224,7 +1239,7 @@ FileIO_Write(FileIODescriptor *fd,  // IN:
    size_t initial_requested;
    FileIOResult fret = FILEIO_SUCCESS;
 
-   ASSERT(fd);
+   ASSERT(fd != NULL);
 
    VERIFY(requested < 0x80000000);
 
@@ -1238,7 +1253,6 @@ FileIO_Write(FileIODescriptor *fd,  // IN:
          int error = errno;
 
          if (error == EINTR) {
-            NOT_TESTED();
             continue;
          }
          fret = FileIOErrno2Result(error);
@@ -1287,7 +1301,7 @@ FileIO_Read(FileIODescriptor *fd,  // IN:
    size_t initial_requested;
    FileIOResult fret = FILEIO_SUCCESS;
 
-   ASSERT(fd);
+   ASSERT(fd != NULL);
 
    VERIFY(requested < 0x80000000);
 
@@ -1298,13 +1312,9 @@ FileIO_Read(FileIODescriptor *fd,  // IN:
       res = read(fd->posix, buf, requested);
       if (res == -1) {
          if (errno == EINTR) {
-            NOT_TESTED();
             continue;
          }
          fret = FileIOErrno2Result(errno);
-         if (FILEIO_ERROR == fret) {
-            Log("read failed, errno=%d, %s\n", errno, Err_Errno2String(errno));
-         }
          break;
       }
 
@@ -1344,7 +1354,7 @@ Bool
 FileIO_Truncate(FileIODescriptor *file,  // IN:
                 uint64 newLength)        // IN:
 {
-   ASSERT(file);
+   ASSERT(file != NULL);
 
    return ftruncate(file->posix, newLength) == 0;
 }
@@ -1373,7 +1383,7 @@ FileIO_Close(FileIODescriptor *file)  // IN:
 {
    int err;
 
-   ASSERT(file);
+   ASSERT(file != NULL);
 
    err = (close(file->posix) == -1) ? errno : 0;
 
@@ -1410,7 +1420,7 @@ FileIO_Close(FileIODescriptor *file)  // IN:
 FileIOResult
 FileIO_Sync(const FileIODescriptor *file)  // IN:
 {
-   ASSERT(file);
+   ASSERT(file != NULL);
 
    return (fsync(file->posix) == -1) ? FILEIO_ERROR : FILEIO_SUCCESS;
 }
@@ -1440,18 +1450,19 @@ FileIO_Sync(const FileIODescriptor *file)  // IN:
  */
 
 static Bool
-FileIOCoalesce(struct iovec const *inVec, // IN:  Vector to coalesce from
-               int inCount,               // IN:  count for inVec
-               size_t inTotalSize,        // IN:  totalSize (bytes) in inVec
-               Bool isWrite,              // IN:  coalesce for writing (or reading)
-               Bool forceCoalesce,        // IN:  if TRUE always coalesce
-               int flags,                 // IN: fileIO open flags
-               struct iovec *outVec)      // OUT: Coalesced (1-entry) iovec
+FileIOCoalesce(
+           struct iovec const *inVec, // IN:  Vector to coalesce from
+           int inCount,               // IN:  count for inVec
+           size_t inTotalSize,        // IN:  totalSize (bytes) in inVec
+           Bool isWrite,              // IN:  coalesce for writing (or reading)
+           Bool forceCoalesce,        // IN:  if TRUE always coalesce
+           int flags,                 // IN: fileIO open flags
+           struct iovec *outVec)      // OUT: Coalesced (1-entry) iovec
 {
    uint8 *cBuf;
 
-   ASSERT(inVec);
-   ASSERT(outVec);
+   ASSERT(inVec != NULL);
+   ASSERT(outVec != NULL);
 
    FileIO_OptionalSafeInitialize();
 
@@ -1515,15 +1526,16 @@ FileIOCoalesce(struct iovec const *inVec, // IN:  Vector to coalesce from
  */
 
 static void
-FileIODecoalesce(struct iovec *coVec,         // IN: Coalesced (1-entry) vector
-                 struct iovec const *origVec, // IN: Original vector
-                 int origVecCount,            // IN: count for origVec
-                 size_t actualSize,           // IN: # bytes to transfer back to origVec
-                 Bool isWrite,                // IN: decoalesce for writing (or reading)
-                 int flags)                   // IN: fileIO open flags
+FileIODecoalesce(
+        struct iovec *coVec,         // IN: Coalesced (1-entry) vector
+        struct iovec const *origVec, // IN: Original vector
+        int origVecCount,            // IN: count for origVec
+        size_t actualSize,           // IN: # bytes to transfer back to origVec
+        Bool isWrite,                // IN: decoalesce for writing (or reading)
+        int flags)                   // IN: fileIO open flags
 {
-   ASSERT(coVec);
-   ASSERT(origVec);
+   ASSERT(coVec != NULL);
+   ASSERT(origVec != NULL);
 
    ASSERT(actualSize <= coVec->iov_len);
    ASSERT_NOT_TESTED(actualSize == coVec->iov_len);
@@ -1535,7 +1547,7 @@ FileIODecoalesce(struct iovec *coVec,         // IN: Coalesced (1-entry) vector
    if (filePosixOptions.aligned || flags & FILEIO_OPEN_UNBUFFERED) {
       FileIOAligned_Free(coVec->iov_base);
    } else {
-      free(coVec->iov_base);
+      Posix_Free(coVec->iov_base);
    }
 }
 
@@ -1578,7 +1590,7 @@ FileIO_Readv(FileIODescriptor *fd,  // IN:
    Bool didCoalesce;
    int numVec;
 
-   ASSERT(fd);
+   ASSERT(fd != NULL);
 
    didCoalesce = FileIOCoalesce(v, numEntries, totalSize, FALSE,
                                 FALSE, fd->flags, &coV);
@@ -1597,7 +1609,6 @@ FileIO_Readv(FileIODescriptor *fd,  // IN:
 
       if (retval == -1) {
          if (errno == EINTR) {
-            NOT_TESTED();
             continue;
          }
          fret = FileIOErrno2Result(errno);
@@ -1691,7 +1702,7 @@ FileIO_Writev(FileIODescriptor *fd,  // IN:
    Bool didCoalesce;
    int numVec;
 
-   ASSERT(fd);
+   ASSERT(fd != NULL);
 
    didCoalesce = FileIOCoalesce(v, numEntries, totalSize, TRUE,
                                 FALSE, fd->flags, &coV);
@@ -1710,7 +1721,6 @@ FileIO_Writev(FileIODescriptor *fd,  // IN:
 
       if (retval == -1) {
          if (errno == EINTR) {
-            NOT_TESTED();
             continue;
          }
          fret = FileIOErrno2Result(errno);
@@ -1774,12 +1784,13 @@ FileIO_Writev(FileIODescriptor *fd,  // IN:
  */
 
 static FileIOResult
-FileIOPreadvCoalesced(FileIODescriptor *fd,        // IN: File descriptor
-                      struct iovec const *entries, // IN: Vector to read into
-                      int numEntries,              // IN: Number of vector entries
-                      uint64 offset,               // IN: Offset to start reading
-                      size_t totalSize,            // IN: totalSize(bytes) in entries
-                      size_t *actual)              // OUT: number of bytes read
+FileIOPreadvCoalesced(
+                FileIODescriptor *fd,        // IN: File descriptor
+                struct iovec const *entries, // IN: Vector to read into
+                int numEntries,              // IN: Number of vector entries
+                uint64 offset,               // IN: Offset to start reading
+                size_t totalSize,            // IN: totalSize(bytes) in entries
+                size_t *actual)              // OUT: number of bytes read
 {
    struct iovec const *vPtr;
    struct iovec coV;
@@ -1805,8 +1816,6 @@ FileIOPreadvCoalesced(FileIODescriptor *fd,        // IN: File descriptor
 
          if (retval == -1) {
             if (errno == EINTR) {
-               LOG_ONCE((LGPFX" %s got EINTR.  Retrying\n", __FUNCTION__));
-               NOT_TESTED_ONCE();
                continue;
             }
             fret = FileIOErrno2Result(errno);
@@ -1862,12 +1871,13 @@ exit:
  */
 
 static FileIOResult
-FileIOPwritevCoalesced(FileIODescriptor *fd,        // IN: File descriptor
-                       struct iovec const *entries, // IN: Vector to write from
-                       int numEntries,              // IN: Number of vector entries
-                       uint64 offset,               // IN: Offset to start writing
-                       size_t totalSize,            // IN: Total size(bytes)
-                       size_t *actual)              // OUT: number of bytes written
+FileIOPwritevCoalesced(
+                   FileIODescriptor *fd,        // IN: File descriptor
+                   struct iovec const *entries, // IN: Vector to write from
+                   int numEntries,              // IN: Number of vector entries
+                   uint64 offset,               // IN: Offset to start writing
+                   size_t totalSize,            // IN: Total size(bytes)
+                   size_t *actual)              // OUT: number of bytes written
 {
    struct iovec coV;
    Bool didCoalesce;
@@ -1893,8 +1903,6 @@ FileIOPwritevCoalesced(FileIODescriptor *fd,        // IN: File descriptor
 
          if (retval == -1) {
             if (errno == EINTR) {
-               LOG_ONCE((LGPFX" %s got EINTR.  Retrying\n", __FUNCTION__));
-               NOT_TESTED_ONCE();
                continue;
             }
             fret = FileIOErrno2Result(errno);
@@ -1975,12 +1983,13 @@ exit:
  */
 
 static FileIOResult
-FileIOPreadvInternal(FileIODescriptor *fd,        // IN: File descriptor
-                     struct iovec const *entries, // IN: Vector to read into
-                     int numEntries,              // IN: Number of vector entries
-                     uint64 offset,               // IN: Offset to start reading
-                     size_t totalSize,            // IN: totalSize(bytes) in entries
-                     size_t *actual)              // OUT: number of bytes read
+FileIOPreadvInternal(
+                FileIODescriptor *fd,        // IN: File descriptor
+                struct iovec const *entries, // IN: Vector to read into
+                int numEntries,              // IN: Number of vector entries
+                uint64 offset,               // IN: Offset to start reading
+                size_t totalSize,            // IN: totalSize(bytes) in entries
+                size_t *actual)              // OUT: number of bytes read
 {
    struct iovec const *vPtr;
    int numVec;
@@ -1999,17 +2008,16 @@ FileIOPreadvInternal(FileIODescriptor *fd,        // IN: File descriptor
       ssize_t retval = 0;
 
       ASSERT(numVec > 0);
-      if (preadv64 != NULL) {
-         int tempVec = MIN(filePosixOptions.maxIOVec, numVec);
-         retval = preadv64(fd->posix, vPtr, tempVec, offset);
-      } else {
+      if (preadv64 == NULL) {
          fret = FileIOPreadvCoalesced(fd, entries, numEntries, offset,
                                       totalSize, &bytesRead);
          break;
+      } else {
+         int tempVec = MIN(filePosixOptions.maxIOVec, numVec);
+         retval = preadv64(fd->posix, vPtr, tempVec, offset);
       }
       if (retval == -1) {
          if (errno == EINTR) {
-            NOT_TESTED();
             continue;
          }
          if (errno == ENOSYS || errno == EINVAL || errno == ENOMEM) {
@@ -2110,12 +2118,13 @@ FileIOPreadvInternal(FileIODescriptor *fd,        // IN: File descriptor
  */
 
 static FileIOResult
-FileIOPwritevInternal(FileIODescriptor *fd,        // IN: File descriptor
-                      struct iovec const *entries, // IN: Vector to write from
-                      int numEntries,              // IN: Number of vector entries
-                      uint64 offset,               // IN: Offset to start writing
-                      size_t totalSize,            // IN: Total size(bytes)in entries
-                      size_t *actual)              // OUT: number of bytes written
+FileIOPwritevInternal(
+                FileIODescriptor *fd,        // IN: File descriptor
+                struct iovec const *entries, // IN: Vector to write from
+                int numEntries,              // IN: Number of vector entries
+                uint64 offset,               // IN: Offset to start writing
+                size_t totalSize,            // IN: Total size(bytes)in entries
+                size_t *actual)              // OUT: number of bytes written
 {
    struct iovec const *vPtr;
    int numVec;
@@ -2134,17 +2143,16 @@ FileIOPwritevInternal(FileIODescriptor *fd,        // IN: File descriptor
       ssize_t retval = 0;
 
       ASSERT(numVec > 0);
-      if (pwritev64 != NULL) {
-         int tempVec = MIN(filePosixOptions.maxIOVec, numVec);
-         retval = pwritev64(fd->posix, vPtr, tempVec, offset);
-      } else {
+      if (pwritev64 == NULL) {
          fret = FileIOPwritevCoalesced(fd, entries, numEntries, offset,
                                        totalSize, &bytesWritten);
          break;
+      } else {
+         int tempVec = MIN(filePosixOptions.maxIOVec, numVec);
+         retval = pwritev64(fd->posix, vPtr, tempVec, offset);
       }
       if (retval == -1) {
          if (errno == EINTR) {
-            NOT_TESTED();
             continue;
          }
          if (errno == ENOSYS || errno == EINVAL || errno == ENOMEM) {
@@ -2232,8 +2240,8 @@ FileIO_Preadv(FileIODescriptor *fd,        // IN: File descriptor
 {
    FileIOResult fret;
 
-   ASSERT(fd);
-   ASSERT(entries);
+   ASSERT(fd != NULL);
+   ASSERT(entries != NULL);
    ASSERT(!(fd->flags & FILEIO_ASYNCHRONOUS));
    VERIFY(totalSize < 0x80000000);
 
@@ -2278,8 +2286,8 @@ FileIO_Pwritev(FileIODescriptor *fd,        // IN: File descriptor
 {
    FileIOResult fret;
 
-   ASSERT(fd);
-   ASSERT(entries);
+   ASSERT(fd != NULL);
+   ASSERT(entries != NULL);
    ASSERT(!(fd->flags & FILEIO_ASYNCHRONOUS));
    VERIFY(totalSize < 0x80000000);
 
@@ -2314,13 +2322,13 @@ FileIO_Pwritev(FileIODescriptor *fd,        // IN: File descriptor
  */
 
 FileIOResult
-FileIO_GetAllocSize(const FileIODescriptor *fd,     // IN:
-                    uint64 *logicalBytes,           // OUT:
-                    uint64 *allocedBytes)           // OUT:
+FileIO_GetAllocSize(const FileIODescriptor *fd,  // IN:
+                    uint64 *logicalBytes,        // OUT:
+                    uint64 *allocedBytes)        // OUT:
 {
    struct stat statBuf;
 
-   ASSERT(fd);
+   ASSERT(fd != NULL);
 
    if (fstat(fd->posix, &statBuf) == -1) {
       return FileIOErrno2Result(errno);
@@ -2437,16 +2445,11 @@ FileIO_GetAllocSizeByPath(const char *pathName,  // IN:
    }
 
    if (allocedBytes) {
-#if __linux__ && defined(N_PLAT_NLM)
-      /* Netware doesn't have st_blocks.  Just fall back to GetSize. */
-      *allocedBytes = statBuf.st_size;
-#else
      /*
       * If you don't like the magic number 512, yell at the people
       * who wrote sys/stat.h and tell them to add a #define for it.
       */
       *allocedBytes = statBuf.st_blocks * 512;
-#endif
    }
 
    return FILEIO_SUCCESS;
@@ -2519,7 +2522,7 @@ FileIO_Access(const char *pathName,  // IN: Path name. May be NULL.
 uint32
 FileIO_GetFlags(FileIODescriptor *fd)  // IN:
 {
-   ASSERT(fd);
+   ASSERT(fd != NULL);
    ASSERT(FileIO_IsValid(fd));
 
    return fd->flags;
@@ -2918,7 +2921,7 @@ FileIO_SupportsPrealloc(const char *pathName,  // IN:
          statBuf.f_type == EXT4_SUPER_MAGIC) {
          ret = TRUE;
       }
-      free(fullPath);
+      Posix_Free(fullPath);
    }
 #endif
 

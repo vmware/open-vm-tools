@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -34,6 +34,10 @@
 #include "vm_basic_defs.h"
 #include "x86cpuid.h"
 #include "unicodeTypes.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 typedef enum {
    HOSTINFO_PROCESS_QUERY_DEAD,    // Procss is dead (does not exist)
@@ -75,6 +79,22 @@ Hostinfo_SystemTimerMS(void)
    return Hostinfo_SystemTimerNS() / 1000000ULL;
 }
 
+/*
+ * Apple's kernel major versions are the same as their marketed
+ * minor versions + 4. (E.g. Marketed 10.8.0 == Kernel 12.0.0)
+ * These constants simplify this and make code easier to read / understand.
+ */
+enum {
+   HOSTINFO_OS_VERSION_MACOS_10_5  = 9,
+   HOSTINFO_OS_VERSION_MACOS_10_6  = 10,
+   HOSTINFO_OS_VERSION_MACOS_10_7  = 11,
+   HOSTINFO_OS_VERSION_MACOS_10_8  = 12,
+   HOSTINFO_OS_VERSION_MACOS_10_9  = 13,
+   HOSTINFO_OS_VERSION_MACOS_10_10 = 14,
+   HOSTINFO_OS_VERSION_MACOS_10_11 = 15,
+   HOSTINFO_OS_VERSION_MACOS_10_12 = 16,
+};
+
 int Hostinfo_OSVersion(unsigned int i);
 int Hostinfo_GetSystemBitness(void);
 const char *Hostinfo_OSVersionString(void);
@@ -82,14 +102,13 @@ const char *Hostinfo_OSVersionString(void);
 char *Hostinfo_GetOSName(void);
 char *Hostinfo_GetOSGuestString(void);
 
-Bool Hostinfo_OSIsSMP(void);
-
 #if defined(_WIN32)
 Bool Hostinfo_OSIsWinNT(void);
 Bool Hostinfo_OSIsWow64(void);
 Bool Hostinfo_TSCInvariant(void);
 DWORD Hostinfo_OpenProcessBits(void);
 DWORD Hostinfo_OpenThreadBits(void);
+int Hostinfo_EnumerateAllProcessPids(uint32 **processIds);
 #else
 void Hostinfo_ResetProcessState(const int *keepFds,
                                 size_t numKeepFds);
@@ -118,13 +137,14 @@ Bool Hostinfo_Daemonize(const char *path,
 
 Bool Hostinfo_NestingSupported(void);
 Bool Hostinfo_VCPUInfoBackdoor(unsigned bit);
-Bool Hostinfo_SLC64Supported(void);
 Bool Hostinfo_SynchronizedVTSCs(void);
 Bool Hostinfo_NestedHVReplaySupported(void);
 Bool Hostinfo_TouchBackDoor(void);
 Bool Hostinfo_TouchVirtualPC(void);
 Bool Hostinfo_TouchXen(void);
 char *Hostinfo_HypervisorCPUIDSig(void);
+void Hostinfo_LogHypervisorCPUID(void);
+char *Hostinfo_HypervisorInterfaceSig(void);
 
 #define HGMP_PRIVILEGE    0
 #define HGMP_NO_PRIVILEGE 1
@@ -158,12 +178,6 @@ typedef struct {
 uint32 Hostinfo_NumCPUs(void);
 char *Hostinfo_GetCpuidStr(void);
 Bool Hostinfo_GetCpuid(HostinfoCpuIdInfo *info);
-
-#if !defined(VMX86_SERVER)
-Bool Hostinfo_CPUCounts(uint32 *logical,
-                        uint32 *cores,
-                        uint32 *pkgs);
-#endif
 
 #if defined(_WIN32)
 typedef enum {
@@ -214,7 +228,6 @@ typedef enum {
 OS_TYPE Hostinfo_GetOSType(void);
 OS_DETAIL_TYPE Hostinfo_GetOSDetailType(void);
 
-Bool Hostinfo_GetPCFrequency(uint64 *pcHz);
 Bool Hostinfo_GetMhzOfProcessor(int32 processorNumber,
 				uint32 *currentMhz,
                                 uint32 *maxMhz);
@@ -233,6 +246,10 @@ Bool Hostinfo_GetLoadAverage(uint32 *l);
 #ifdef __APPLE__
 size_t Hostinfo_GetKernelZoneElemSize(char const *name);
 char *Hostinfo_GetHardwareModel(void);
+#endif
+
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 
 #endif /* ifndef _HOSTINFO_H_ */

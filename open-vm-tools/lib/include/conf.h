@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2002-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2002-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -15,7 +15,6 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
-
 
 /*
  * conf.h --
@@ -67,12 +66,12 @@
 #define CONFGROUPNAME_GUESTINFO "guestinfo"
 
 /**
- * Lets users disable just the perf monitor.
+ * Lets user disable just the perf monitor.
  */
 #define CONFNAME_GUESTINFO_DISABLEPERFMON "disable-perf-mon"
 
 /**
- * Lets users disable just DiskInfo.
+ * Lets user disable just DiskInfo.
  *
  * If thinking of deprecating this, please read bug 535343 first.
  */
@@ -102,6 +101,45 @@
  * Indicates whether stat results should be written to the log.
  */
 #define CONFNAME_GUESTINFO_ENABLESTATLOGGING "enable-stat-logging"
+
+/**
+ * Set a comma separated list of network interface names that can be the
+ * primary one
+ *
+ * @note interface names can use wildcards like '*' and '?'
+ *
+ * @param string comma separated list of interface name patterns.
+ */
+
+#define CONFNAME_GUESTINFO_PRIMARYNICS "primary-nics"
+
+/**
+ * Set a comma separated list of network interface names that have
+ * low priority (so they will be sorted to the end).
+ *
+ * @note interface names can use wildcards like '*' and '?'
+ *
+ * @param string comma separated list of interface name patterns.
+ */
+
+#define CONFNAME_GUESTINFO_LOWPRIORITYNICS "low-priority-nics"
+
+/**
+ * Set a comma separated list of network interface names that shall be ignored.
+ *
+ * @note interface names can use wildcards like '*' and '?'
+ *
+ * @param string comma separated list of interface name patterns.
+ */
+
+#define CONFNAME_GUESTINFO_EXCLUDENICS "exclude-nics"
+
+/**
+ * Lets user include reserved space in diskInfo space metrics on Linux.
+ *
+ * @param boolean Set to true to include reserved space.
+ */
+#define CONFNAME_DISKINFO_INCLUDERESERVED "diskinfo-include-reserved"
 
 /*
  * END GuestInfo goodies.

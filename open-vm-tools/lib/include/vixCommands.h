@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -26,6 +26,10 @@
 #define _VIX_COMMANDS_H_
 
 #include "vixOpenSource.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 /*
  * These describe the format of the message objects.
@@ -2662,8 +2666,9 @@ __VMAutomationMsgParserGetPropertyList(const char *caller,
 
 #endif   // VIX_HIDE_FROM_JAVA
 
-
-
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif // _VIX_COMMANDS_H_
 

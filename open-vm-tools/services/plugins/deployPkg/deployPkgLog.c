@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -75,6 +75,9 @@ DeployPkgLog_Open()
       Str_Strcat(logPath, DIRSEPS "toolsDeployPkg.log", sizeof logPath);
       _file = fopen(logPath, "w");
       if (_file != NULL) {
+#ifndef _WIN32
+         setlinebuf(_file);
+#endif
          fprintf(_file, "## Starting deploy pkg operation\n");
       }
    }

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -33,6 +33,10 @@
 #include "vm_basic_defs.h"
 #include "vm_atomic.h"
 #include "vm_assert.h"
+
+#if defined __cplusplus
+extern "C" {
+#endif
 
 /* Register offsets. */
 #define VMCI_STATUS_ADDR      0x00
@@ -904,5 +908,9 @@ typedef struct {
 
 typedef VMCIFilterList VMCIProtoFilters[VMCI_FP_MAX];
 typedef VMCIProtoFilters VMCIFilters[VMCI_FD_MAX];
+
+#if defined __cplusplus
+} // extern "C"
+#endif
 
 #endif // _VMCI_DEF_H_

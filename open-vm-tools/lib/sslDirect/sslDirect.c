@@ -794,6 +794,9 @@ SSL_TryCompleteAccept(SSLSock ssl) // IN
  * OpenSSL cipher lists are colon, comma, or space delimited lists.
  * To get a full list of ciphers:
  * openssl ciphers | sed 's#:#\n#g'
+ *
+ * For the VMware Product Security Policy approved ciphers, see
+ * https://wiki.eng.vmware.com/VSECR/vSDL/PSP/PSPRequirements#.C2.A0.C2.A0.5B3.3.E2.80.93M.5D_TLS_Cipher-Suites
  */
 #define SSL_CIPHER_LIST \
    "!aNULL:kECDH+AES:ECDH+AES:RSA+AES:@STRENGTH"

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -43,6 +43,10 @@
 
 #include "vm_basic_types.h"
 #include "vm_assert.h"
+
+#if defined __cplusplus
+extern "C" {
+#endif
 
 
 /*
@@ -257,7 +261,10 @@ Clamped_UAdd32(uint32 *out,  // OUT
 {
    uint32 c = a + b;
 
-   if (UNLIKELY(c < a || c < b)) {
+   /*
+    * Checking against one src operand is sufficient.
+    */
+   if (UNLIKELY(c < a)) {
       *out = MAX_UINT32;
       return FALSE;
    }
@@ -294,7 +301,10 @@ Clamped_UAdd64(uint64 *out,   // OUT
 {
    uint64 c = a + b;
 
-   if(UNLIKELY(c < a || c < b)) {
+   /*
+    * Checking against one src operand is sufficient.
+    */
+   if (UNLIKELY(c < a)) {
       *out = MAX_UINT64;
       return FALSE;
    }
@@ -340,5 +350,10 @@ Clamped_URoundUpBits32(uint32 *out,  // OUT
    *out = c;
    return TRUE;
 }
+
+
+#if defined __cplusplus
+} // extern "C"
+#endif
 
 #endif // ifndef _CLAMPED_H_

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -49,9 +49,13 @@
 #define HGFS_MOUNT_POINT "/mnt/hgfs"    // Type of FS (e.g. vmhgfs-fuse )
 #define HGFS_DEVICE_NAME "dev"          // Name of our device under /proc/fs/HGFS_NAME/
 #define HGFS_SUPER_MAGIC 0xbacbacbc     // Superblock magic number
-#define HGFS_PROTOCOL_VERSION   2       // Version 2 has size and flags field added
-#define HGFS_PROTOCOL_VERSION_1 1       // Version 1
 #define HGFS_DEFAULT_TTL 1              // Default TTL for dentries
+
+typedef enum {
+   HGFS_MOUNTINFO_VERSION_NONE,
+   HGFS_MOUNTINFO_VERSION_1,
+   HGFS_MOUNTINFO_VERSION_2,
+} HgfsMountInfoVersion;
 
 /*
  * The mount info flags.
@@ -70,8 +74,8 @@
 typedef
 struct HgfsMountInfo {
    uint32 magicNumber;        // hgfs magic number
-   uint32 infoSize;           // HgfsMountInfo object size
-   uint32 version;            // protocol version
+   uint32 infoSize;           // HgfsMountInfo structure size
+   HgfsMountInfoVersion version; // HgfsMountInfo structure version
    uint32 fd;                 // file descriptor of client file
    uint32 flags;              // hgfs specific mount flags
 #ifndef sun

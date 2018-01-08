@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -36,6 +36,16 @@
 #include "vm_basic_types.h"
 #include "vm_basic_defs.h"
 
+#if defined __cplusplus
+#define LOGLEVEL_EXTERN_C_BEGIN extern "C" {
+#define LOGLEVEL_EXTERN_C_END }
+#else
+#define LOGLEVEL_EXTERN_C_BEGIN
+#define LOGLEVEL_EXTERN_C_END
+#endif
+
+LOGLEVEL_EXTERN_C_BEGIN
+
 
 /*
  * CPP variable name hacks
@@ -51,9 +61,11 @@
  */
 
 #define LOGLEVEL_EXTENSION_DECLARE(list) \
-	VMX86_EXTERN_DATA const int8 *logLevelPtr; \
-        VMX86_EXTERN_DATA int LOGLEVEL_EXTOFFSET(LOGLEVEL_EXTENSION); \
-        enum { list(LOGLEVEL_MODULEVAR) }
+	LOGLEVEL_EXTERN_C_BEGIN \
+   VMX86_EXTERN_DATA const int8 *logLevelPtr; \
+   VMX86_EXTERN_DATA int LOGLEVEL_EXTOFFSET(LOGLEVEL_EXTENSION); \
+   LOGLEVEL_EXTERN_C_END \
+   enum { list(LOGLEVEL_MODULEVAR) }
 
 
 #ifdef VMX86_LOG
@@ -137,5 +149,7 @@ int LogLevel_Set(const char *extension, const char *module, int val);
    #define LOG_DEVEL(_x)
 #endif
 
+
+LOGLEVEL_EXTERN_C_END
 
 #endif /* _LOGLEVEL_DEFS_H_ */

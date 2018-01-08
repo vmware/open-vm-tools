@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -85,6 +85,15 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 
 #define GUESTINFO_DEFAULT_DELIMITER ' '
 
+/**
+ * The default setting for exclude-nics
+ */
+#if defined(_WIN32)
+#define GUESTINFO_DEFAULT_IFACE_EXCLUDES "vEthernet*"
+#else
+#define GUESTINFO_DEFAULT_IFACE_EXCLUDES "docker*,veth*"
+#endif
+
 /*
  * Define what guest info types and nic info versions could be sent
  * to update nic info at VMX. The order defines a sequence of fallback
@@ -121,11 +130,8 @@ int guestInfoPollInterval = 0;
 
 /**
  * The time when the guestInfo was last gathered.
- *
- * TODO: Need to reset this value when a VM is resumed or restored from a
- * snapshot.
  */
-time_t guestInfoLastGatherTime = 0;
+time_t gGuestInfoLastGatherTime = 0;
 
 /**
  * Defines the current stats interval (in milliseconds).
@@ -153,7 +159,7 @@ static GuestInfoCache gInfoCache;
  * Tools daemon sets it to TRUE after the VM was resumed.
  */
 
-static Bool vmResumed;
+static Bool gVMResumed;
 
 
 /*
@@ -280,8 +286,8 @@ GuestInfoCheckIfRunningSlow(ToolsAppCtx *ctx)
 {
    time_t now = time(NULL);
 
-   if (guestInfoLastGatherTime != 0) {
-      time_t delta = now - guestInfoLastGatherTime;
+   if (gGuestInfoLastGatherTime != 0) {
+      time_t delta = now - gGuestInfoLastGatherTime;
       /*
        * Have a long enough delta to ensure that we have really missed a
        * collection.
@@ -308,7 +314,143 @@ GuestInfoCheckIfRunningSlow(ToolsAppCtx *ctx)
       }
    }
 
-   guestInfoLastGatherTime = now;
+   gGuestInfoLastGatherTime = now;
+}
+
+
+/*
+ ******************************************************************************
+ * GuestInfoSetConfigList --                                             */ /**
+ *
+ * Gets a list setting from the config, and sets the list pointed to by pList.
+ *
+ * @param[in]  ctx           the application context.
+ * @param[in]  pCachedValue  a pointer to the location of the old value
+ * @param[in]  configName    the configuration name
+ * @param[in]  defaultValue  the default value
+ * @param[out] pList         pointer to the pointer list, set when the value has
+ *                           changed, otherwise this value will stay unchanged.
+ *                           Caller needs to free this with g_strfreev().
+ *
+ * @return TRUE to indicate that the value has changed, FALSE otherwise
+ ******************************************************************************
+ */
+
+static Bool
+GuestInfoSetConfigList(ToolsAppCtx *ctx,
+                       gchar **pCachedValue,
+                       const gchar *configName,
+                       const gchar *defaultValue,
+                       gchar ***pList)
+{
+   gchar *listString = VMTools_ConfigGetString(ctx->config,
+                                               CONFGROUPNAME_GUESTINFO,
+                                               configName, defaultValue);
+   if (g_strcmp0(listString, *pCachedValue) != 0) {
+      gchar **list = NULL;
+      if (listString != NULL && listString[0] != '\0') {
+         list = g_strsplit(listString, ",", 0);
+      }
+      g_free(*pCachedValue);
+      *pCachedValue = listString;
+      *pList = list;
+
+      return TRUE;
+   } else {
+      g_free(listString);
+   }
+   return FALSE;
+}
+
+
+/*
+ * ****************************************************************************
+ * GuestInfoResetNicPrimaryList --                                       */ /**
+ *
+ * Gets primary-nics setting from the config, and sets the list of primary
+ * patterns.
+ *
+ * @param[in]  ctx     The application context.
+ *
+ * @return TRUE to indicate that the value has changed, FALSE otherwise
+ ******************************************************************************
+ */
+
+static Bool
+GuestInfoResetNicPrimaryList(ToolsAppCtx *ctx)
+{
+   static gchar *ifacePrimaryStringCached = NULL;
+   gchar **list;
+
+   if (GuestInfoSetConfigList(ctx, &ifacePrimaryStringCached,
+                             CONFNAME_GUESTINFO_PRIMARYNICS, NULL,
+                             &list)) {
+      GuestInfo_SetIfacePrimaryList(list);
+      g_strfreev(list);
+      return TRUE;
+   }
+   return FALSE;
+}
+
+
+/*
+ * ****************************************************************************
+ * GuestInfoResetNicLowPriorityList --                                   */ /**
+ *
+ * Gets low-priority-nics setting from the config, and sets the list of low
+ * priority patterns.
+ *
+ * @param[in]  ctx     The application context.
+ *
+ * @return TRUE to indicate that the value has changed, FALSE otherwise
+ ******************************************************************************
+ */
+
+static Bool
+GuestInfoResetNicLowPriorityList(ToolsAppCtx *ctx)
+{
+   static gchar *ifaceLowPriorityStringCached = NULL;
+   gchar **list;
+
+   if (GuestInfoSetConfigList(ctx, &ifaceLowPriorityStringCached,
+                             CONFNAME_GUESTINFO_LOWPRIORITYNICS, NULL,
+                             &list)) {
+      GuestInfo_SetIfaceLowPriorityList(list);
+      g_strfreev(list);
+      return TRUE;
+   }
+   return FALSE;
+}
+
+
+/*
+ * ****************************************************************************
+ * GuestInfoResetNicExcludeList --                                       */ /**
+ *
+ * Gets exclude-nics setting from the config, and sets the list of exclude
+ * patterns.
+ *
+ * @param[in]  ctx     The application context.
+ *
+ * @return TRUE to indicate that the value has changed, FALSE otherwise
+ ******************************************************************************
+ */
+
+static Bool
+GuestInfoResetNicExcludeList(ToolsAppCtx *ctx)
+{
+   static gchar *ifaceExcludeStringCached = NULL;
+   gchar **list;
+
+   if (GuestInfoSetConfigList(ctx, &ifaceExcludeStringCached,
+                             CONFNAME_GUESTINFO_EXCLUDENICS,
+                             GUESTINFO_DEFAULT_IFACE_EXCLUDES,
+                             &list)) {
+      GuestInfo_SetIfaceExcludeList(list);
+      g_strfreev(list);
+      return TRUE;
+   }
+   return FALSE;
 }
 
 
@@ -337,6 +479,8 @@ GuestInfoGather(gpointer data)
 #endif
    NicInfoV3 *nicInfo = NULL;
    ToolsAppCtx *ctx = data;
+   Bool primaryChanged;
+   Bool lowPriorityChanged;
 
    g_debug("Entered guest info gather.\n");
 
@@ -378,7 +522,7 @@ GuestInfoGather(gpointer data)
       g_key_file_get_boolean(ctx->config, CONFGROUPNAME_GUESTINFO,
                              CONFNAME_GUESTINFO_DISABLEQUERYDISKINFO, NULL);
    if (!disableQueryDiskInfo) {
-      if ((diskInfo = GuestInfo_GetDiskInfo()) == NULL) {
+      if ((diskInfo = GuestInfo_GetDiskInfo(ctx)) == NULL) {
          g_warning("Failed to get disk info.\n");
       } else {
          if (GuestInfoUpdateVmdb(ctx, INFO_DISK_FREE_SPACE, diskInfo, 0)) {
@@ -399,6 +543,11 @@ GuestInfoGather(gpointer data)
    }
 
    /* Get NIC information. */
+
+   primaryChanged = GuestInfoResetNicPrimaryList(ctx);
+   lowPriorityChanged = GuestInfoResetNicLowPriorityList(ctx);
+   GuestInfoResetNicExcludeList(ctx);
+
    if (!GuestInfo_GetNicInfo(&nicInfo)) {
       g_warning("Failed to get nic info.\n");
       /*
@@ -407,7 +556,14 @@ GuestInfoGather(gpointer data)
       nicInfo = Util_SafeCalloc(1, sizeof (struct NicInfoV3));
    }
 
-   if (GuestInfo_IsEqual_NicInfoV3(nicInfo, gInfoCache.nicInfo)) {
+   /*
+    * We need to check if the setting for the primary interfaces or
+    * low priority nics have changed, because
+    * GuestInfo_IsEqual_NicInfoV3 does not detect a change in the
+    * order.
+    */
+   if (!primaryChanged && !lowPriorityChanged &&
+       GuestInfo_IsEqual_NicInfoV3(nicInfo, gInfoCache.nicInfo)) {
       g_debug("Nic info not changed.\n");
       GuestInfo_FreeNicInfo(nicInfo);
    } else if (GuestInfoUpdateVmdb(ctx, INFO_IPADDRESS, nicInfo, 0)) {
@@ -858,8 +1014,8 @@ GuestInfoUpdateVmdb(ToolsAppCtx *ctx,       // IN: Application context
    ASSERT(info);
    g_debug("Entered update vmdb: %d.\n", infoType);
 
-   if (vmResumed) {
-      vmResumed = FALSE;
+   if (gVMResumed) {
+      gVMResumed = FALSE;
       GuestInfoClearCache();
    }
 
@@ -933,20 +1089,21 @@ GuestInfoUpdateVmdb(ToolsAppCtx *ctx,       // IN: Application context
          ASSERT((pdi->numEntries && pdi->partitionList) ||
                 (!pdi->numEntries && !pdi->partitionList));
 
-         requestSize += sizeof pdi->numEntries +
-                        sizeof *pdi->partitionList * pdi->numEntries;
+         /* partitionCount is a uint8 and cannot be larger than UCHAR_MAX. */
+         if (pdi->numEntries > UCHAR_MAX) {
+            g_message("%s: Too many local filesystems (%d); truncating to %d entries\n",
+                      __FUNCTION__, pdi->numEntries, UCHAR_MAX);
+            partitionCount = UCHAR_MAX;
+         } else {
+            partitionCount = pdi->numEntries;
+         }
+
+         requestSize += sizeof partitionCount +
+                        sizeof *pdi->partitionList * partitionCount;
          request = Util_SafeCalloc(requestSize, sizeof *request);
 
          Str_Sprintf(request, requestSize, "%s  %d ", GUEST_INFO_COMMAND,
                      INFO_DISK_FREE_SPACE);
-
-         /* partitionCount is a uint8 and cannot be larger than UCHAR_MAX. */
-         if (pdi->numEntries > UCHAR_MAX) {
-            g_warning("Too many partitions.\n");
-            vm_free(request);
-            return FALSE;
-         }
-         partitionCount = pdi->numEntries;
 
          offset = strlen(request);
 
@@ -968,7 +1125,7 @@ GuestInfoUpdateVmdb(ToolsAppCtx *ctx,       // IN: Application context
           */
          if (pdi->partitionList) {
             memcpy(request + offset + sizeof partitionCount, pdi->partitionList,
-                   sizeof *pdi->partitionList * pdi->numEntries);
+                   sizeof *pdi->partitionList * partitionCount);
          }
 
          g_debug("sizeof request is %d\n", requestSize);
@@ -1387,7 +1544,7 @@ static void
 TweakGatherLoops(ToolsAppCtx *ctx,
                  gboolean enable)
 {
-#if (defined(__linux__) && !defined(USERWORLD)) || defined(_WIN32)
+#if defined(__linux__) || defined(USERWORLD) || defined(_WIN32)
    gboolean perfmonEnabled;
 
    perfmonEnabled = !g_key_file_get_boolean(ctx->config,
@@ -1531,6 +1688,8 @@ GuestInfoServerShutdown(gpointer src,
 {
    GuestInfoClearCache();
 
+   GuestInfo_SetIfaceExcludeList(NULL);
+
    if (gatherInfoTimeoutSource != NULL) {
       g_source_destroy(gatherInfoTimeoutSource);
       gatherInfoTimeoutSource = NULL;
@@ -1541,8 +1700,11 @@ GuestInfoServerShutdown(gpointer src,
       gatherStatsTimeoutSource = NULL;
    }
 
-#ifdef _WIN32
+#if !defined(__APPLE__)
    GuestInfo_StatProviderShutdown();
+#endif
+
+#ifdef _WIN32
    NetUtil_FreeIpHlpApiDll();
 #endif
 }
@@ -1567,7 +1729,10 @@ GuestInfoServerReset(gpointer src,
                      ToolsAppCtx *ctx,
                      gpointer data)
 {
-   vmResumed = TRUE;
+   gVMResumed = TRUE;
+
+   /* Reset the last gather time */
+   gGuestInfoLastGatherTime = 0;
 }
 
 
@@ -1711,7 +1876,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)
       regData.regs = VMTools_WrapArray(regs, sizeof *regs, ARRAYSIZE(regs));
 
       memset(&gInfoCache, 0, sizeof gInfoCache);
-      vmResumed = FALSE;
+      gVMResumed = FALSE;
       gInfoCache.method = NIC_INFO_V3_WITH_INFO_IPADDRESS_V3;
 
       /*

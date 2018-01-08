@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -62,7 +62,7 @@
 #  include "vmci_defs.h"
 #include "dataMap.h"
 #include "vmware/guestrpc/tclodefs.h"
-#if defined(linux)
+#if defined(__linux__)
 #include <arpa/inet.h>
 #else
 #include <winsock2.h>
@@ -1107,9 +1107,8 @@ RpcInConnectDone(AsyncSocket *asock,   // IN
       goto exit;
    }
 
-
-   if (!AsyncSocket_SetBufferSizes(asock, RPCIN_MIN_SEND_BUF_SIZE,
-                                   RPCIN_MIN_RECV_BUF_SIZE)) {
+   if (!AsyncSocket_EstablishMinBufferSizes(asock, RPCIN_MIN_SEND_BUF_SIZE,
+                                            RPCIN_MIN_RECV_BUF_SIZE)) {
       goto exit;
    }
 

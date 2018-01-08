@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -69,7 +69,7 @@
  */
 
 const char *
-FileIO_ErrorEnglish(FileIOResult status) // IN
+FileIO_ErrorEnglish(FileIOResult status)  // IN:
 {
    return Msg_StripMSGID(FileIO_MsgError(status));
 }
@@ -92,7 +92,7 @@ FileIO_ErrorEnglish(FileIOResult status) // IN
  */
 
 const char *
-FileIO_MsgError(FileIOResult status) // IN
+FileIO_MsgError(FileIOResult status)  // IN:
 {
    const char *result = NULL;
 
@@ -201,8 +201,8 @@ void
 FileIO_Init(FileIODescriptor *fd,  // IN/OUT:
             const char *pathName)  // IN:
 {
-   ASSERT(fd);
-   ASSERT(pathName);
+   ASSERT(fd != NULL);
+   ASSERT(pathName != NULL);
 
    fd->fileName = Unicode_Duplicate(pathName);
 }
@@ -228,10 +228,10 @@ FileIO_Init(FileIODescriptor *fd,  // IN/OUT:
 void
 FileIO_Cleanup(FileIODescriptor *fd)  // IN/OUT:
 {
-   ASSERT(fd);
+   ASSERT(fd != NULL);
 
    if (fd->fileName) {
-      free(fd->fileName);
+      Posix_Free(fd->fileName);
       fd->fileName = NULL;
    }
 }
@@ -319,7 +319,7 @@ FileIO_Lock(FileIODescriptor *file,  // IN/OUT:
     * Lock the file if necessary.
     */
 
-   ASSERT(file);
+   ASSERT(file != NULL);
    ASSERT(file->lockToken == NULL);
 
    FileIOResolveLockBits(&access);
@@ -342,7 +342,7 @@ FileIO_Lock(FileIODescriptor *file,  // IN/OUT:
          /* Describe the lock not acquired situation in detail */
          Warning(LGPFX" %s on '%s' failed: %s\n",
                  __FUNCTION__, file->fileName,
-                 (err == 0) ? "Lock timed out" : strerror(err));
+                 (err == 0) ? "Lock timed out" : Err_Errno2String(err));
 
          /* Return a serious failure status if the locking code did */
          switch (err) {
@@ -392,7 +392,7 @@ FileIO_Unlock(FileIODescriptor *file)  // IN/OUT:
 {
    FileIOResult ret = FILEIO_SUCCESS;
 
-   ASSERT(file);
+   ASSERT(file != NULL);
 
 #if !defined(__FreeBSD__) && !defined(sun)
    if (file->lockToken != NULL) {
@@ -400,7 +400,7 @@ FileIO_Unlock(FileIODescriptor *file)  // IN/OUT:
 
       if (!FileLock_Unlock(file->lockToken, &err, NULL)) {
          Warning(LGPFX" %s on '%s' failed: %s\n",
-                 __FUNCTION__, file->fileName, strerror(err));
+                 __FUNCTION__, file->fileName, Err_Errno2String(err));
 
          ret = FILEIO_ERROR;
       }
@@ -488,7 +488,7 @@ FileIO_GetSizeByPath(const char *pathName)  // IN:
 const char *
 FileIO_Filename(FileIODescriptor *fd)  // IN:
 {
-   ASSERT(fd);
+   ASSERT(fd != NULL);
 
    return fd->fileName;
 }
@@ -518,7 +518,7 @@ FileIO_CloseAndUnlink(FileIODescriptor *fd)  // IN:
    char *path;
    FileIOResult ret;
 
-   ASSERT(fd);
+   ASSERT(fd != NULL);
    ASSERT(FileIO_IsValid(fd));
 
    path = Unicode_Duplicate(fd->fileName);
@@ -530,7 +530,7 @@ FileIO_CloseAndUnlink(FileIODescriptor *fd)  // IN:
       }
    }
 
-   free(path);
+   Posix_Free(path);
 
    return ret;
 }
@@ -565,7 +565,7 @@ FileIO_Pread(FileIODescriptor *fd,  // IN: File descriptor
 {
    struct iovec iov;
 
-   ASSERT(fd);
+   ASSERT(fd != NULL);
 
    iov.iov_base = buf;
    iov.iov_len = len;
@@ -601,7 +601,7 @@ FileIO_Pwrite(FileIODescriptor *fd,  // IN: File descriptor
 {
    struct iovec iov;
 
-   ASSERT(fd);
+   ASSERT(fd != NULL);
 
    /* The cast is safe because FileIO_Pwritev() will not write to '*buf'. */
    iov.iov_base = (void *)buf;
@@ -664,12 +664,12 @@ FileIO_AtomicTempPath(const char *path)  // IN:
    char *retPath;
 
    srcPath = File_FullPath(path);
-   if (!srcPath) {
+   if (srcPath == NULL) {
       Log("%s: File_FullPath of '%s' failed.\n", __FUNCTION__, path);
       return NULL;
    }
    retPath = Unicode_Join(srcPath, "~", NULL);
-   free(srcPath);
+   Posix_Free(srcPath);
 
    return retPath;
 }
@@ -709,7 +709,7 @@ FileIO_AtomicTempFile(FileIODescriptor *fileFD,  // IN:
    ASSERT(tempFD && !FileIO_IsValid(tempFD));
 
    tempPath = FileIO_AtomicTempPath(FileIO_Filename(fileFD));
-   if (!tempPath) {
+   if (tempPath == NULL) {
       status = FILEIO_ERROR;
       goto bail;
    }
@@ -770,7 +770,7 @@ FileIO_AtomicTempFile(FileIODescriptor *fileFD,  // IN:
    }
 #endif
 
-   free(tempPath);
+   Posix_Free(tempPath);
    return FILEIO_SUCCESS;
 
 bail:
@@ -788,7 +788,7 @@ bail:
       ASSERT(ret == 0);
 #endif
    }
-   free(tempPath);
+   Posix_Free(tempPath);
    return status;
 }
 
@@ -796,7 +796,7 @@ bail:
 /*
  *-----------------------------------------------------------------------------
  *
- * FileIO_AtomicUpdate --
+ * FileIO_AtomicUpdateEx --
  *
  *      On ESX when the target files reside on vmfs, exchanges the contents
  *      of two files using code modeled from VmkfsLib_SwapFiles.  Both "curr"
@@ -805,11 +805,19 @@ bail:
  *      On hosted products, uses rename to swap files, so "new" becomes "curr",
  *      and path to "new" no longer exists on success.
  *
+ *      On ESX on NFS:
+ *
+ *      If renameOnNFS is TRUE, use rename, like on hosted.
+ *
+ *      If renameOnNFS is FALSE, returns -1 rather than trying to use
+ *      rename, to avoid various bugs in the vmkernel client... (PR
+ *      839283, PR 1671787, etc).
+ *
  *      On success the caller must call FileIO_IsValid on newFD to verify it
  *      is still open before using it again.
  *
  * Results:
- *      TRUE if successful, FALSE otherwise
+ *      1 if successful, 0 on failure, -1 if not supported on this filesystem.
  *      errno is preserved.
  *
  * Side effects:
@@ -818,9 +826,10 @@ bail:
  *-----------------------------------------------------------------------------
  */
 
-Bool
-FileIO_AtomicUpdate(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
-                    FileIODescriptor *currFD)  // IN/OUT: file IO descriptor
+int
+FileIO_AtomicUpdateEx(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
+                      FileIODescriptor *currFD,  // IN/OUT: file IO descriptor
+                      Bool renameOnNFS)          // IN: fall back to rename on NFS
 {
    char *currPath = NULL;
    char *newPath = NULL;
@@ -833,21 +842,21 @@ FileIO_AtomicUpdate(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
    int fd;
 #endif
    int savedErrno = 0;
-   Bool ret = FALSE;
+   int ret = 0;
 
    ASSERT(FileIO_IsValid(newFD));
    ASSERT(FileIO_IsValid(currFD));
 
    if (HostType_OSIsVMK()) {
 #if defined(VMX86_SERVER)
-      FS_SwapFilesArgs *args = NULL;
+      FS_SwapFilesArgsUW *args = NULL;
       char *dirName = NULL;
       char *fileName = NULL;
       char *dstDirName = NULL;
       char *dstFileName = NULL;
 
       currPath = File_FullPath(FileIO_Filename(currFD));
-      if (!currPath) {
+      if (currPath == NULL) {
          savedErrno = errno;
          Log("%s: File_FullPath of '%s' failed.\n", __FUNCTION__,
              FileIO_Filename(currFD));
@@ -855,7 +864,7 @@ FileIO_AtomicUpdate(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
       }
 
       newPath = File_FullPath(FileIO_Filename(newFD));
-      if (!newPath) {
+      if (newPath == NULL) {
          savedErrno = errno;
          Log("%s: File_FullPath of '%s' failed.\n", __FUNCTION__,
              FileIO_Filename(newFD));
@@ -865,56 +874,23 @@ FileIO_AtomicUpdate(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
       File_GetPathName(newPath, &dirName, &fileName);
       File_GetPathName(currPath, &dstDirName, &dstFileName);
 
-      ASSERT(dirName);
+      ASSERT(dirName != NULL);
       ASSERT(fileName && *fileName);
-      ASSERT(dstDirName);
+      ASSERT(dstDirName != NULL);
       ASSERT(dstFileName && *dstFileName);
       ASSERT(File_IsSameFile(dirName, dstDirName));
 
       args = Util_SafeCalloc(1, sizeof *args);
-      if (Str_Snprintf(args->srcFile, sizeof args->srcFile, "%s",
-                       fileName) < 0) {
-         Log("%s: Path too long \"%s\".\n", __FUNCTION__, fileName);
-         savedErrno = ENAMETOOLONG;
-         goto swapdone;
-      }
-      if (Str_Snprintf(args->dstFilePath, sizeof args->dstFilePath, "%s/%s",
-                       dstDirName, dstFileName) < 0) {
-         Log("%s: Path too long \"%s\".\n", __FUNCTION__, dstFileName);
-         savedErrno = ENAMETOOLONG;
-         goto swapdone;
-      }
-
-      /*
-       * Issue the ioctl on the directory rather than on the file,
-       * because the file could be open.
-       */
-
-      if (!*dirName) {
-         /* need a proper root directory string for Posix_Open() */
-         free(dirName);
-         dirName = Util_SafeStrdup("/");
-      }
-
-      fd = Posix_Open(dirName, O_RDONLY);
-      if (fd < 0) {
-         Log("%s: Open failed \"%s\" %d.\n", __FUNCTION__, dirName, errno);
-         ASSERT(errno != EBUSY);   /* #615124. */
-         savedErrno = errno;
-         goto swapdone;
-      }
-
-      if (ioctl(fd, IOCTLCMD_VMFS_SWAP_FILES, args) != 0) {
+      args->fd = currFD->posix;
+      if (ioctl(newFD->posix, IOCTLCMD_VMFS_SWAP_FILES, args) != 0) {
          savedErrno = errno;
          if (errno != ENOSYS && errno != ENOTTY) {
             Log("%s: ioctl failed %d.\n", __FUNCTION__, errno);
             ASSERT(errno != EBUSY);   /* #615124. */
          }
       } else {
-         ret = TRUE;
+         ret = 1;
       }
-
-      close(fd);
 
       /*
        * Did we fail because we are on a file system that does not
@@ -924,41 +900,45 @@ FileIO_AtomicUpdate(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
        * Check for both ENOSYS and ENOTTY. PR 957695
        */
       if (savedErrno == ENOSYS || savedErrno == ENOTTY) {
-         /*
-          * NFS allows renames of locked files, even if both files
-          * are locked.  The file lock follows the file handle, not
-          * the name, so after the rename we can swap the underlying
-          * file descriptors instead of closing and reopening the
-          * target file.
-          *
-          * This is different than the hosted path below because
-          * ESX uses native file locks and hosted does not.
-          *
-          * We assume that all ESX file systems that support rename
-          * have the same file lock semantics as NFS.
-          */
+         if (renameOnNFS) {
+            /*
+             * NFS allows renames of locked files, even if both files
+             * are locked.  The file lock follows the file handle, not
+             * the name, so after the rename we can swap the underlying
+             * file descriptors instead of closing and reopening the
+             * target file.
+             *
+             * This is different than the hosted path below because
+             * ESX uses native file locks and hosted does not.
+             *
+             * We assume that all ESX file systems that support rename
+             * have the same file lock semantics as NFS.
+             */
 
-         if (File_Rename(newPath, currPath)) {
-            Log("%s: rename of '%s' to '%s' failed %d.\n",
-                __FUNCTION__, newPath, currPath, errno);
-            savedErrno = errno;
-            goto swapdone;
+            if (File_Rename(newPath, currPath)) {
+               Log("%s: rename of '%s' to '%s' failed %d.\n",
+                   __FUNCTION__, newPath, currPath, errno);
+               savedErrno = errno;
+               goto swapdone;
+            }
+            ret = 1;
+            fd = newFD->posix;
+            newFD->posix = currFD->posix;
+            currFD->posix = fd;
+            FileIO_Close(newFD);
+         } else {
+            ret = -1;
          }
-         ret = TRUE;
-         fd = newFD->posix;
-         newFD->posix = currFD->posix;
-         currFD->posix = fd;
-         FileIO_Close(newFD);
       }
 
 swapdone:
-      free(args);
-      free(dirName);
-      free(fileName);
-      free(dstDirName);
-      free(dstFileName);
-      free(currPath);
-      free(newPath);
+      Posix_Free(args);
+      Posix_Free(dirName);
+      Posix_Free(fileName);
+      Posix_Free(dstDirName);
+      Posix_Free(dstFileName);
+      Posix_Free(currPath);
+      Posix_Free(newPath);
 
       errno = savedErrno;
       return ret;
@@ -1014,8 +994,8 @@ swapdone:
    currFD->win32 = tmpFD.win32;
 
    FileIO_Cleanup(&tmpFD);
-   free(currPath);
-   free(newPath);
+   Posix_Free(currPath);
+   Posix_Free(newPath);
    errno = savedErrno;
 
    return ret;
@@ -1039,4 +1019,29 @@ swapdone:
 
    return ret;
 #endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * FileIO_AtomicUpdate --
+ *
+ *      Wrapper around FileIO_AtomicUpdateEx that derfaults 'renameOnNFS' to
+ *      TRUE.
+ *
+ * Results:
+ *      TRUE if successful, FALSE otherwise.
+ *
+ * Side effects:
+ *      See FileIO_AtomicUpdateEx.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+FileIO_AtomicUpdate(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
+                    FileIODescriptor *currFD)  // IN/OUT: file IO descriptor
+{
+   return FileIO_AtomicUpdateEx(newFD, currFD, TRUE) == 1;
 }

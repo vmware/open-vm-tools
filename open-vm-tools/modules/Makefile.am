@@ -16,21 +16,6 @@ EXTRA_ARGS =
 EXTRA_ARGS += "SYSDIR=@SYSDIR@"
 endif
 
-if LINUX
-export LINUXINCLUDE := @LINUXINCLUDE@
-export vmblockdir := $(MODULES_DIR)/fs/vmblock
-export vmcidir := $(MODULES_DIR)/drivers/misc
-export vmhgfsdir := $(MODULES_DIR)/fs/vmhgfs
-export vmsyncdir := $(MODULES_DIR)/drivers/misc
-export vmxnetdir := $(MODULES_DIR)/drivers/net
-export vsockdir := $(MODULES_DIR)/net/vsock
-if WITH_ROOT_PRIVILEGES
-export DEPMOD := depmod -a $(KERNEL_RELEASE)
-endif WITH_ROOT_PRIVILEGES
-
-include_HEADERS = $(top_srcdir)/lib/include/vmci_sockets.h
-endif LINUX
-
 if SOLARIS
 export vmhgfsdir := $(MODULES_DIR)
 # Solaris does not have Kbuild-like system so we need to supply
@@ -68,14 +53,6 @@ if FREEBSD
 	   $(INSTALL) -m644 $(modulesrc)/$(MODULES_OS)/$$MOD.ko                \
 	      $(DESTDIR)$(MODULES_DIR);                                        \
 	done
-endif
-if LINUX
-	for MOD in $(MODULES); do                                              \
-	   $(INSTALL) -d $(DESTDIR)`eval echo '$$'$${MOD}dir`;                 \
-	   $(INSTALL) -m644 $(modulesrc)/$(MODULES_OS)/$$MOD/$$MOD.ko          \
-	      $(DESTDIR)`eval echo '$$'$${MOD}dir`;                            \
-	done
-	eval "$$DEPMOD"
 endif
 
 uninstall-hook:

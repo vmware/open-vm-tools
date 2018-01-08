@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -211,7 +211,7 @@ File_GetFilePermissions(const char *pathName,  // IN:
 {
    FileData fileData;
 
-   ASSERT(mode);
+   ASSERT(mode != NULL);
 
    if (FileAttributes(pathName, &fileData) != 0) {
       return FALSE;
@@ -290,6 +290,80 @@ File_UnlinkNoFollow(const char *pathName)  // IN:
 /*
  *----------------------------------------------------------------------
  *
+ * File_UnlinkRetry --
+ *
+ *      Unlink the file, retrying on EBUSY on ESX, up to given timeout.
+ *
+ * Results:
+ *      Return 0 if the unlink is successful. Otherwise, return -1.
+ *
+ * Side effects:
+ *      The file is removed.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+File_UnlinkRetry(const char *pathName,       // IN:
+                 uint32 maxWaitTimeMilliSec) // IN:
+{
+   int ret;
+
+   if (vmx86_server) {
+      uint32 const unlinkWait = 300;
+      uint32 waitMilliSec = 0;
+
+      do {
+         ret = FileDeletion(pathName, TRUE);
+         if (ret != EBUSY || waitMilliSec >= maxWaitTimeMilliSec) {
+            break;
+         }
+         Log(LGPFX" %s: %s after %u ms\n", __FUNCTION__, pathName, unlinkWait);
+         Util_Usleep(unlinkWait * 1000);
+         waitMilliSec += unlinkWait;
+      } while (TRUE);
+   } else {
+      ret = FileDeletion(pathName, TRUE);
+   }
+
+   return ret == 0 ? 0 : -1;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * FileCreateDirectoryEx --
+ *
+ *      Creates the specified directory with the specified permissions.
+ *
+ * Results:
+ *      True if the directory is successfully created, false otherwise.
+ *
+ * Side effects:
+ *      Creates the directory on disk.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+FileCreateDirectoryEx(const char *pathName,  // IN:
+                      int mask)              // IN:
+{
+   int err = FileCreateDirectory(pathName, mask);
+
+   if (err != 0) {
+      Log(LGPFX" %s: Failed to create %s. Error = %d\n",
+          __FUNCTION__, pathName, err);
+   }
+
+   return err;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * File_CreateDirectoryEx --
  *
  *      Creates the specified directory with the specified permissions.
@@ -307,7 +381,7 @@ Bool
 File_CreateDirectoryEx(const char *pathName,  // IN:
                        int mask)              // IN:
 {
-   int err = FileCreateDirectory(pathName, mask);
+   int err = FileCreateDirectoryEx(pathName, mask);
 
    return err == 0;
 }
@@ -358,8 +432,14 @@ File_EnsureDirectoryEx(const char *pathName,  // IN:
                        int mask)              // IN:
 {
    int err = FileCreateDirectory(pathName, mask);
+   Bool success = ((err == 0) || (err == EEXIST));
 
-   return ((err == 0) || (err == EEXIST));
+   if (!success) {
+      Log(LGPFX" %s: Failed to create %s. Error = %d\n",
+          __FUNCTION__, pathName, err);
+   }
+
+   return success;
 }
 
 
@@ -483,11 +563,11 @@ GetOldMachineID(void)
       p = Util_SafeStrdup(encodedMachineID);
 
       if (Atomic_ReadIfEqualWritePtr(&atomic, NULL, p)) {
-         free(p);
+         Posix_Free(p);
       }
 
       machineID = Atomic_ReadPtr(&atomic);
-      ASSERT(machineID);
+      ASSERT(machineID != NULL);
    }
 
    return machineID;
@@ -552,7 +632,7 @@ FileLockGetMachineID(void)
          p = Util_SafeStrdup(GetOldMachineID());
       } else {
          p = Str_SafeAsprintf(NULL, "uuid=%s", q);
-         free(q);
+         Posix_Free(q);
 
          /* Surpress any whitespace. */
          for (q = p; *q; q++) {
@@ -563,11 +643,11 @@ FileLockGetMachineID(void)
       }
 
       if (Atomic_ReadIfEqualWritePtr(&atomic, NULL, p)) {
-         free(p);
+         Posix_Free(p);
       }
 
       machineID = Atomic_ReadPtr(&atomic);
-      ASSERT(machineID);
+      ASSERT(machineID != NULL);
    }
 
    return machineID;
@@ -595,7 +675,7 @@ static Bool
 OldMachineIDMatch(const char *first,   // IN:
                   const char *second)  // IN:
 {
-#if defined(__APPLE__) || defined(linux)
+#if defined(__APPLE__) || defined(__linux__)
    /* Ignore the host name hash */
    char *p;
    char *q;
@@ -610,7 +690,7 @@ OldMachineIDMatch(const char *first,   // IN:
       }
    }
    result = Base64_Decode(q, rawMachineID_1, sizeof rawMachineID_1, &len);
-   free(q);
+   Posix_Free(q);
 
    if ((result == FALSE) || (len != 12)) {
       Warning("%s: unexpected decode problem #1 (%s)\n", __FUNCTION__,
@@ -625,7 +705,7 @@ OldMachineIDMatch(const char *first,   // IN:
       }
    }
    result = Base64_Decode(q, rawMachineID_2, sizeof rawMachineID_2, &len);
-   free(q);
+   Posix_Free(q);
 
    if ((result == FALSE) || (len != 12)) {
       Warning("%s: unexpected decode problem #2 (%s)\n", __FUNCTION__,
@@ -944,7 +1024,7 @@ FileCopyTree(const char *srcName,     // IN:
             break;
          }
 
-         free(dstFilename);
+         Posix_Free(dstFilename);
       } else {
          err = Err_Errno();
          Msg_Append(MSGID(File.CopyTree.stat.failure)
@@ -953,7 +1033,7 @@ FileCopyTree(const char *srcName,     // IN:
          Err_SetErrno(err);
       }
 
-      free(srcFilename);
+      Posix_Free(srcFilename);
    }
 
    Util_FreeStringList(fileList, numFiles);
@@ -988,8 +1068,8 @@ File_CopyTree(const char *srcName,     // IN:
 {
    int err;
 
-   ASSERT(srcName);
-   ASSERT(dstName);
+   ASSERT(srcName != NULL);
+   ASSERT(dstName != NULL);
 
    if (!File_IsDirectory(srcName)) {
       err = Err_Errno();
@@ -1043,7 +1123,7 @@ File_CopyFromFd(FileIODescriptor src,    // IN:
    FileIODescriptor dst;
    FileIOOpenAction action;
 
-   ASSERT(dstName);
+   ASSERT(dstName != NULL);
 
    FileIO_Invalidate(&dst);
 
@@ -1120,8 +1200,8 @@ File_Copy(const char *srcName,     // IN:
    FileIOResult fret;
    FileIODescriptor src;
 
-   ASSERT(srcName);
-   ASSERT(dstName);
+   ASSERT(srcName != NULL);
+   ASSERT(dstName != NULL);
 
    FileIO_Invalidate(&src);
 
@@ -1249,8 +1329,8 @@ File_MoveTree(const char *srcName,    // IN:
    Bool ret = FALSE;
    Bool createdDir = FALSE;
 
-   ASSERT(srcName);
-   ASSERT(dstName);
+   ASSERT(srcName != NULL);
+   ASSERT(dstName != NULL);
 
    if (asMove) {
       *asMove = FALSE;
@@ -1273,10 +1353,10 @@ File_MoveTree(const char *srcName,    // IN:
    } else {
       struct stat statbuf;
 
-      if (-1 == Posix_Stat(dstName, &statbuf)) {
+      if (Posix_Stat(dstName, &statbuf) == -1) {
          int err = Err_Errno();
 
-         if (ENOENT == err) {
+         if (err == ENOENT) {
             if (!File_CreateDirectoryHierarchy(dstName, NULL)) {
                Msg_Append(MSGID(File.MoveTree.dst.couldntCreate)
                           "Could not create '%s'.\n\n", dstName);
@@ -1323,7 +1403,7 @@ File_MoveTree(const char *srcName,    // IN:
                   "There is not enough space in the file system to "
                   "move the directory tree. Free %s and try again.",
                   spaceStr);
-            free(spaceStr);
+            Posix_Free(spaceStr);
             return FALSE;
          }
       }
@@ -1473,46 +1553,33 @@ File_SupportsLargeFiles(const char *pathName)  // IN:
  */
 
 int64
-File_GetSizeEx(const char *pathName) // IN:
+File_GetSizeEx(const char *pathName)  // IN:
 {
-   int numFiles;
    int i;
-   char **fileList = NULL;
-   struct stat sb;
+   int numFiles;
    int64 totalSize = 0;
+   char **fileList = NULL;
 
    if (pathName == NULL) {
       return -1;
    }
 
-   if (-1 == Posix_Lstat(pathName, &sb)) {
-      return -1;
-   }
-
-   if (S_IFDIR != (sb.st_mode & S_IFMT)) {
-      return sb.st_size;
+   if (!File_IsDirectory(pathName)) {
+      return File_GetSize(pathName);
    }
 
    numFiles = File_ListDirectory(pathName, &fileList);
-
-   if (-1 == numFiles) {
+   if (numFiles == -1) {
       return -1;
    }
 
    for (i = 0; i < numFiles; i++) {
-      char *fileName;
-      int64 fileSize;
+      char *fileName = File_PathJoin(pathName, fileList[i]);
+      int64 fileSize = File_GetSizeEx(fileName);
 
-      fileName = File_PathJoin(pathName, fileList[i]);
+      Posix_Free(fileName);
 
-      fileSize = File_GetSizeEx(fileName);
-
-      free(fileName);
-
-      if (-1 == fileSize) {
-         totalSize = -1;
-         break;
-      } else {
+      if (fileSize != -1) {
          totalSize += fileSize;
       }
    }
@@ -1543,6 +1610,53 @@ int64
 File_GetSizeByPath(const char *pathName)  // IN:
 {
    return (pathName == NULL) ? -1 : FileIO_GetSizeByPath(pathName);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * FileFirstSlashIndex --
+ *
+ *      Finds the first pathname slash index in a path (both slashes count
+ *      for Win32, only forward slash for Unix).
+ *
+ * Results:
+ *      As described.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static UnicodeIndex
+FileFirstSlashIndex(const char *pathName,     // IN:
+                    UnicodeIndex startIndex)  // IN:
+{
+   UnicodeIndex firstFS;
+#if defined(_WIN32)
+   UnicodeIndex firstBS;
+#endif
+
+   ASSERT(pathName);
+
+   firstFS = Unicode_FindSubstrInRange(pathName, startIndex, -1,
+                                       "/", 0, 1);
+
+#if defined(_WIN32)
+   firstBS = Unicode_FindSubstrInRange(pathName, startIndex, -1,
+                                       "\\", 0, 1);
+
+   if ((firstFS != UNICODE_INDEX_NOT_FOUND) &&
+       (firstBS != UNICODE_INDEX_NOT_FOUND)) {
+      return MIN(firstFS, firstBS);
+   } else {
+     return (firstFS == UNICODE_INDEX_NOT_FOUND) ? firstBS : firstFS;
+   }
+#else
+   return firstFS;
+#endif
 }
 
 
@@ -1603,7 +1717,7 @@ File_CreateDirectoryHierarchyEx(const char *pathName,   // IN:
 
    index = Unicode_LengthInCodePoints(volume);
 
-   free(volume);
+   Posix_Free(volume);
 
    if (index >= length) {
       return File_IsDirectory(pathName);
@@ -1614,7 +1728,7 @@ File_CreateDirectoryHierarchyEx(const char *pathName,   // IN:
     */
 
    while (TRUE) {
-      Bool failed;
+      int err;
       char *temp;
 
       index = FileFirstSlashIndex(pathName, index + 1);
@@ -1629,28 +1743,41 @@ File_CreateDirectoryHierarchyEx(const char *pathName,   // IN:
        * operation to fail with no reason.
        * This is why we reverse the attempt and the check.
        */
+      err = FileCreateDirectoryEx(temp, mask);
 
-      failed = !File_CreateDirectoryEx(temp, mask);
-
-      if (failed) {
-         if (File_IsDirectory(temp)) {
-            failed = FALSE;
+      if (err == 0) {
+         if (topmostCreated != NULL && *topmostCreated == NULL) {
+            *topmostCreated = temp;
+            temp = NULL;
          }
-      } else if (topmostCreated != NULL && *topmostCreated == NULL) {
-         *topmostCreated = temp;
-         temp = NULL;
+      } else {
+         FileData fileData;
+
+         if (err == EEXIST) {
+            err = FileAttributes(temp, &fileData);
+
+            if (err == 0) {
+               if (fileData.fileType != FILE_TYPE_DIRECTORY) {
+                  err = ENOTDIR;
+                  errno = err;
+
+#if defined(_WIN32)
+                  SetLastError(ERROR_DIRECTORY);
+#endif
+               }
+            }
+         }
       }
 
-      free(temp);
+      Posix_Free(temp);
 
-      if (failed) {
+      if (err != 0) {
          return FALSE;
       }
 
       if (index == UNICODE_INDEX_NOT_FOUND) {
          break;
       }
-
    }
 
    return TRUE;
@@ -1801,10 +1928,10 @@ FileDeleteDirectoryTree(const char *pathName,  // IN: directory to delete
          sawFileError = TRUE;
       }
 
-      free(curPath);
+      Posix_Free(curPath);
    }
 
-   free(base);
+   Posix_Free(base);
 
    if (!contentOnly) {
       /*
@@ -1907,9 +2034,9 @@ File_FindFileInSearchPath(const char *fileIn,      // IN:
    char *dir = NULL;
    char *file = NULL;
 
-   ASSERT(fileIn);
-   ASSERT(cwd);
-   ASSERT(searchPath);
+   ASSERT(fileIn != NULL);
+   ASSERT(searchPath != NULL);
+   ASSERT(cwd != NULL);
 
    /*
     * First check the usual places - the fullpath or the cwd.
@@ -1929,7 +2056,7 @@ File_FindFileInSearchPath(const char *fileIn,      // IN:
       goto done;
    }
 
-   free(cur);
+   Posix_Free(cur);
    cur = NULL;
 
    if (full) {
@@ -1976,7 +2103,7 @@ File_FindFileInSearchPath(const char *fileIn,      // IN:
          break;
       }
 
-      free(cur);
+      Posix_Free(cur);
       cur = NULL;
 
       tok = strtok_r(NULL, FILE_SEARCHPATHTOKEN, &saveptr);
@@ -1994,14 +2121,14 @@ done:
          }
       }
 
-      free(cur);
+      Posix_Free(cur);
    } else {
       found = FALSE;
    }
 
-   free(sp);
-   free(dir);
-   free(file);
+   Posix_Free(sp);
+   Posix_Free(dir);
+   Posix_Free(file);
 
    return found;
 }
@@ -2083,7 +2210,7 @@ FileSimpleRandom(void)
 #endif
 
       context = Random_QuickSeed(value);
-      ASSERT(context);
+      ASSERT(context != NULL);
    }
 
    result = Random_Quick(context);
@@ -2114,27 +2241,44 @@ FileSimpleRandom(void)
  */
 
 uint32
-FileSleeper(uint32 msecMinSleepTime,  // IN:
-            uint32 msecMaxSleepTime)  // IN:
+FileSleeper(uint32 minSleepTimeMsec,  // IN:
+            uint32 maxSleepTimeMsec)  // IN:
 {
    uint32 variance;
-   uint32 msecActualSleepTime;
+   uint32 actualSleepTimeMsec;
+#if defined(_WIN32)
+   uint32 totalSleepTimeMsec;
+#endif
 
-   ASSERT(msecMinSleepTime <= msecMaxSleepTime);
+   ASSERT(minSleepTimeMsec <= maxSleepTimeMsec);
 
-   variance = msecMaxSleepTime - msecMinSleepTime;
+   variance = maxSleepTimeMsec - minSleepTimeMsec;
 
    if (variance == 0) {
-      msecActualSleepTime = msecMinSleepTime;
+      actualSleepTimeMsec = minSleepTimeMsec;
    } else {
       float fpRand = ((float) FileSimpleRandom()) / ((float) ~((uint32) 0));
 
-      msecActualSleepTime = msecMinSleepTime + (uint32) (fpRand * variance);
+      actualSleepTimeMsec = minSleepTimeMsec + (uint32) (fpRand * variance);
    }
 
-   Util_Usleep(1000 * msecActualSleepTime);
+#if defined(_WIN32)
+   /* Clamp individual sleeps to avoid Windows issues */
+   totalSleepTimeMsec = actualSleepTimeMsec;
 
-   return msecActualSleepTime;
+   while (totalSleepTimeMsec > 0) {
+      uint32 sleepTimeMsec = (totalSleepTimeMsec > 900) ? 900 :
+                                                          totalSleepTimeMsec;
+
+      Util_Usleep(1000 * sleepTimeMsec);
+
+      totalSleepTimeMsec -= sleepTimeMsec;
+   }
+#else
+   Util_Usleep(1000 * actualSleepTimeMsec);
+#endif
+
+   return actualSleepTimeMsec;
 }
 
 
@@ -2205,7 +2349,7 @@ FileRotateByRename(const char *fileName,  // IN: full path to file
       }
 
       ASSERT(dst != fileName);
-      free(dst);
+      Posix_Free(dst);
       dst = src;
    }
 }
@@ -2286,8 +2430,13 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
    }
 
    File_GetPathName(fullPathNoExt, &baseDir, &baseName);
-   if ((baseDir[0] == '\0') || (baseName[0] == '\0')) {
-      Log(LGPFX" %s: failed to get base dir for path '%s'.\n", __FUNCTION__,
+
+   if ((baseDir == NULL) || (*baseDir == '\0')) {
+      baseDir = Unicode_Duplicate(DIRSEPS);
+   }
+
+   if ((baseName == NULL) || (*baseName == '\0')) {
+      Log(LGPFX" %s: failed to get base name for path '%s'.\n", __FUNCTION__,
           filePathNoExt);
       goto cleanup;
    }
@@ -2316,7 +2465,7 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
          fileNumbers[nFound++] = curNr;
       }
 
-      free(fileList[i]);
+      Posix_Free(fileList[i]);
    }
 
    if (nFound > 0) {
@@ -2340,7 +2489,7 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
    }
 
    if (newFilePath == NULL || result == -1) {
-      free(tmp);
+      Posix_Free(tmp);
    } else {
       *newFilePath = tmp;
    }
@@ -2355,17 +2504,17 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
             Log(LGPFX" %s: failed to remove %s: %s\n", __FUNCTION__, tmp,
                 Msg_ErrString());
          }
-         free(tmp);
+         Posix_Free(tmp);
       }
    }
 
   cleanup:
-   free(fileNumbers);
-   free(fileList);
-   free(fmtString);
-   free(baseDir);
-   free(baseName);
-   free(fullPathNoExt);
+   Posix_Free(fileNumbers);
+   Posix_Free(fileList);
+   Posix_Free(fmtString);
+   Posix_Free(baseDir);
+   Posix_Free(baseName);
+   Posix_Free(fullPathNoExt);
 }
 
 
@@ -2399,7 +2548,7 @@ File_Rotate(const char *fileName,  // IN: original file
    size_t baseLen;
    char *baseName;
 
-   ASSERT(fileName);
+   ASSERT(fileName != NULL);
 
    if ((ext = Str_Strrchr(fileName, '.')) == NULL) {
       ext = fileName + strlen(fileName);
@@ -2422,7 +2571,7 @@ File_Rotate(const char *fileName,  // IN: original file
       FileRotateByRename(fileName, baseName, ext, n, newFileName);
    }
 
-   free(baseName);
+   Posix_Free(baseName);
 }
 
 
@@ -2461,3 +2610,47 @@ File_GetFSMountInfo(const char *pathName,
 }
 
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * File_ContainSymLink --
+ *
+ *      Check if the specified file path contains symbolic link.
+ *
+ * Results:
+ *      return TRUE if pathName contains a symlink,
+ *      return FALSE if pathName is not a symlink or error.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+File_ContainSymLink(const char *pathName)  // IN:
+{
+   char *path = NULL;
+   char *base = NULL;
+   Bool retValue = FALSE;
+
+   if (File_IsSymLink(pathName)) {
+      return TRUE;
+   }
+
+   File_GetPathName(pathName, &path, &base);
+
+   if ((path != NULL) &&
+       (base != NULL) &&
+       (strcmp(path, "") != 0) &&
+       (strcmp(base, "") != 0)) {
+      if (File_ContainSymLink(path)) {
+         retValue = TRUE;
+      }
+   }
+
+   Posix_Free(path);
+   Posix_Free(base);
+
+   return retValue;
+}

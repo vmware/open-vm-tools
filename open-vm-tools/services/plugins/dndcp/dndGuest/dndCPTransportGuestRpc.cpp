@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -27,11 +27,12 @@
 #include "dndCPTransportGuestRpc.hpp"
 #include "rpcBase.h"
 
+#include "str.h"
+#include "hostinfo.h"
+#include "dndMsg.h"
+#include "util.h"
+
 extern "C" {
-   #include "str.h"
-   #include "hostinfo.h"
-   #include "dndMsg.h"
-   #include "util.h"
 #ifdef VMX86_TOOLS
    #include "debug.h"
    #include "rpcout.h"
@@ -41,6 +42,7 @@ extern "C" {
    #include "dndCPInt.h"
    #include "guest_rpc.h"
    #include "tclodefs.h"
+
    #define LOGLEVEL_MODULE dnd
    #include "loglevel_user.h"
 #endif

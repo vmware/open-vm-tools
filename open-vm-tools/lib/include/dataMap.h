@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -55,7 +55,8 @@ typedef enum {
    DMERR_UNKNOWN_TYPE,             /* type unknow in decoding */
    DMERR_TRUNCATED_DATA,           /* more data expected during decoding */
    DMERR_BUFFER_TOO_SMALL,         /* a user buffer is too small */
-   DMERR_INTEGER_OVERFLOW         /* an integer overflow happened */
+   DMERR_INTEGER_OVERFLOW,         /* an integer overflow happened */
+   DMERR_BAD_DATA                  /* bad data during decoding */
 } ErrorCode;
 
 /*

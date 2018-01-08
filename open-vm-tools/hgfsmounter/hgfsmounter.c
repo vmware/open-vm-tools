@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -32,7 +32,7 @@
 #include <errno.h>
 #include <getopt.h>
 #include <grp.h>
-#if defined(linux)
+#if defined(__linux__)
 #   include <mntent.h>
 #endif
 
@@ -103,7 +103,7 @@
 #include "hgfsmounter_version.h"
 
 /* XXX embed_version.h does not currently support Mach-O binaries (OS X). */
-#if defined(linux) || defined(__FreeBSD__)
+#if defined(__linux__) || defined(__FreeBSD__)
 #  include "vm_version.h"
 #  include "embed_version.h"
    VM_EMBED_VERSION(HGFSMOUNTER_VERSION_STRING);
@@ -1132,7 +1132,7 @@ main(int argc,          // IN
 
    mountInfo.magicNumber = HGFS_SUPER_MAGIC;
    mountInfo.infoSize = sizeof mountInfo;
-   mountInfo.version = HGFS_PROTOCOL_VERSION;
+   mountInfo.version = HGFS_MOUNTINFO_VERSION_2;
 
 #ifndef sun
    mountInfo.fmask = 0;
@@ -1187,7 +1187,7 @@ main(int argc,          // IN
    }
 
    /* Go! */
-#if defined(linux)
+#if defined(__linux__)
    mntRes = mount(shareName, mountPoint, HGFS_NAME, flags, &mountInfo);
 #elif defined(__FreeBSD__)
    {

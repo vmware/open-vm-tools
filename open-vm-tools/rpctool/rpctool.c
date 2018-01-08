@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2002-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2002-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -50,7 +50,8 @@ void
 PrintUsage(void)
 {
    fprintf(stderr, "rpctool syntax:\n\n");
-   fprintf(stderr, "  rpctool <text>\n\n");
+   fprintf(stderr, "  -h | --help\tprint usage.\n");
+   fprintf(stderr, "  rpctool <text>\tsend <text> as an RPC command.\n");
 }
 
 
@@ -137,6 +138,12 @@ main(int argc, char *argv[])
    if (argc <= 1) {
       PrintUsage();
       return 1;
+   }
+
+   if (!strncmp(argv[1], "-h", 2) ||
+       !strncmp(argv[1], "--help", 6)) {
+      PrintUsage();
+      return 0;
    }
 
    argc--;

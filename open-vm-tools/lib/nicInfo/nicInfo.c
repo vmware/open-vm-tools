@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2014-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2014-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -38,6 +38,9 @@
 #include "netutil.h"
 #include "wiper.h"
 
+static GPtrArray *gIfaceExcludePatterns = NULL;
+static GPtrArray *gIfacePrimaryPatterns = NULL;
+static GPtrArray *gIfaceLowPriorityPatterns = NULL;
 
 /**
  * Helper to initialize an opaque struct member.
@@ -56,6 +59,197 @@ static void * Util_DupeThis(const void *source, size_t sourceSize);
 /*
  * Global functions.
  */
+
+/*
+ ******************************************************************************
+ *
+ * GuestInfoResetPatternList --
+ *
+ * @brief Create list of patterns (to be used with the 'exclude-nics',
+ * 'primary-nics' and low-priority options).
+ *
+ * @param[in]   list          NULL terminated array of pointers to strings with
+ *                            patterns
+ * @param[out]  pPatternList  pointer to the list to be created. If not NULL,
+ *                            pPatternList will be freed.
+ *
+ ******************************************************************************
+ */
+
+static void
+GuestInfoResetPatternList(char **list,
+                          GPtrArray **pPatternList)
+{
+   guint i;
+
+   if (*pPatternList != NULL) {
+      g_ptr_array_free(*pPatternList, TRUE);
+      *pPatternList = NULL;
+   }
+
+   if (list != NULL) {
+      *pPatternList =
+         g_ptr_array_new_with_free_func((GDestroyNotify) &g_pattern_spec_free);
+      for (i = 0; list[i] != NULL; i++) {
+         if (list[i][0] != '\0') {
+            g_ptr_array_add(*pPatternList, g_pattern_spec_new(list[i]));
+         }
+      }
+   }
+}
+
+
+/*
+ ******************************************************************************
+ *
+ * GuestInfo_SetIfacePrimaryList --
+ *
+ * @brief Set list of network interfaces that can be considered primary
+ *
+ * @param[in] NULL terminated array of pointers to strings with patterns
+ *
+ * @sa gIfacePrimaryPatterns will be set
+ *
+ ******************************************************************************
+ */
+
+void
+GuestInfo_SetIfacePrimaryList(char **list)
+{
+   GuestInfoResetPatternList(list, &gIfacePrimaryPatterns);
+}
+
+
+/*
+ *******************************************************************************
+ *
+ * GuestInfo_SetIfaceLowPriorityList --
+ *
+ * @brief Set list of network interfaces that can be considered low priority
+ *
+ * @param[in] NULL terminated array of pointers to strings with patterns
+ *
+ * @sa gIfaceLowPriorityPatterns will be set
+ *
+ *******************************************************************************
+ */
+
+void
+GuestInfo_SetIfaceLowPriorityList(char **list)
+{
+   GuestInfoResetPatternList(list, &gIfaceLowPriorityPatterns);
+}
+
+
+/*
+ *******************************************************************************
+ *
+ * GuestInfo_SetIfaceExcludeList --
+ *
+ * @brief Set list of network interfaces to be excluded
+ *
+ * @param[in] NULL terminated array of pointers to strings with patterns
+ *
+ * @sa gIfaceExcludePatterns will be set
+ *
+ *******************************************************************************
+ */
+
+
+void
+GuestInfo_SetIfaceExcludeList(char **list)
+{
+   GuestInfoResetPatternList(list, &gIfaceExcludePatterns);
+}
+
+
+/*
+ ******************************************************************************
+ *
+ * GuestInfoMatchesPatternList --
+ *
+ * @brief Determine if a specific name matches a pattern in a list
+ *
+ * @param[in] The interface name.
+ * @param[in] The list of patterns
+ *
+ * @retval TRUE if the name matches one of the patterns in the list.
+ *
+ ******************************************************************************
+*/
+
+static Bool
+GuestInfoMatchesPatternList(const char *name,
+                            const GPtrArray *patterns)
+{
+   int i;
+
+   ASSERT(name);
+   ASSERT(patterns);
+
+   for (i = 0; i < patterns->len; i++) {
+      if (g_pattern_match_string(g_ptr_array_index(patterns, i),
+                                 name)) {
+         g_debug("%s: interface %s matched pattern %d",
+                 __FUNCTION__, name, i);
+         return TRUE;
+      }
+   }
+   return FALSE;
+}
+
+
+/*
+ ******************************************************************************
+ *
+ * GuestInfo_IfaceIsExcluded --
+ *
+ * @brief Determine if a specific interface name shall be excluded.
+ *
+ * @param[in] The interface name.
+ *
+ * @retval TRUE if interface name shall be excluded.
+ *
+ ******************************************************************************
+*/
+
+Bool GuestInfo_IfaceIsExcluded(const char *name)
+{
+   ASSERT(name);
+   return gIfaceExcludePatterns != NULL &&
+          GuestInfoMatchesPatternList(name, gIfaceExcludePatterns);
+}
+
+
+/*
+ ******************************************************************************
+ *
+ * GuestInfo_IfaceGetPriority --
+ *
+ * @brief Determine priority of an interface
+ *
+ * @param[in] The interface name.
+ *
+ * @retval one of NICINFO_PRIORITY_PRIMARY, NICINFO_PRIORITY_LOW or
+ * NICINFO_PRIORITY_NORMAL
+ *
+ ******************************************************************************
+*/
+
+NicInfoPriority
+GuestInfo_IfaceGetPriority(const char *name)
+{
+   ASSERT(name);
+   g_debug("%s: checking %s", __FUNCTION__, name);
+   if (gIfacePrimaryPatterns != NULL &&
+       GuestInfoMatchesPatternList(name, gIfacePrimaryPatterns)) {
+      return NICINFO_PRIORITY_PRIMARY;
+   } else if (gIfaceLowPriorityPatterns != NULL &&
+              GuestInfoMatchesPatternList(name, gIfaceLowPriorityPatterns)) {
+      return NICINFO_PRIORITY_LOW;
+   }
+   return NICINFO_PRIORITY_NORMAL;
+}
 
 
 /*

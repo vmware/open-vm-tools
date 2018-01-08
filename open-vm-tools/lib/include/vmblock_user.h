@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -68,6 +68,10 @@
 #include "vm_basic_types.h"
 #include "vmblock.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 static INLINE int
 VMBLOCK_CONTROL_FUSE(int fd,            // IN
                      char op,           // IN
@@ -117,7 +121,7 @@ VMBLOCK_CONTROL_FUSE(int fd,            // IN
 
 #define VMBLOCK_CONTROL(fd, op, path) VMBLOCK_CONTROL_FUSE(fd, op, path)
 
-#elif defined(linux)
+#elif defined(__linux__)
 
 static INLINE int
 VMBLOCK_CONTROL(int fd, int op, const char *path)
@@ -157,6 +161,10 @@ VMBLOCK_CONTROL(int fd, int cmd, const char *path)
    return ioctl(fd, cmd, path);
 }
 
+#endif
+
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 
 #endif // _VMBLOCK_USER_H_

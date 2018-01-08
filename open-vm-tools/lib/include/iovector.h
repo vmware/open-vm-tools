@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -28,6 +28,10 @@
 #define INCLUDE_ALLOW_USERLEVEL
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 /*
  * Ugly definition of struct iovec.
@@ -137,6 +141,10 @@ void IOV_Assert(struct iovec *iov,       // IN: iovector
                 uint32 numEntries);      // IN: # of entries in 'iov'
 #else
 #define IOV_ASSERT(IOVEC, NUM_ENTRIES) ((void) 0)
+#endif
+
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 
 #endif /* #ifndef _IOVECTOR_H_ */

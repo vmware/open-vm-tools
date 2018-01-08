@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -82,97 +82,80 @@ File_GetModTime(const char *pathName)  // IN:
 }
 
 
+#if defined(_WIN32)
 /*
- *----------------------------------------------------------------------
+ *---------------------------------------------------------------------------
  *
- * FileFirstSlashIndex --
+ * FileFindFirstDirsep --
  *
- *      Finds the first pathname slash index in a path (both slashes count
- *      for Win32, only forward slash for Unix).
+ *      Return a pointer to the first directory separator.
  *
  * Results:
- *      As described.
+ *      NULL  No directory separator found
+ *     !NULL  Pointer to the last directory separator
  *
  * Side effects:
- *      None.
+ *      None
  *
- *----------------------------------------------------------------------
+ *---------------------------------------------------------------------------
  */
 
-UnicodeIndex
-FileFirstSlashIndex(const char *pathName,     // IN:
-                    UnicodeIndex startIndex)  // IN:
+static char *
+FileFindFirstDirsep(const char *pathName)  // IN:
 {
-   UnicodeIndex firstFS;
-#if defined(_WIN32)
-   UnicodeIndex firstBS;
-#endif
+   char *p;
 
-   ASSERT(pathName);
+   ASSERT(pathName != NULL);
 
-   firstFS = Unicode_FindSubstrInRange(pathName, startIndex, -1,
-                                       "/", 0, 1);
+   p = (char *) pathName;
 
-#if defined(_WIN32)
-   firstBS = Unicode_FindSubstrInRange(pathName, startIndex, -1,
-                                       "\\", 0, 1);
+   while (*p != '\0') {
+      if (File_IsDirsep(*p)) {
+         return p;
+      }
 
-   if ((firstFS != UNICODE_INDEX_NOT_FOUND) &&
-       (firstBS != UNICODE_INDEX_NOT_FOUND)) {
-      return MIN(firstFS, firstBS);
-   } else {
-     return (firstFS == UNICODE_INDEX_NOT_FOUND) ? firstBS : firstFS;
+      p++;
    }
-#else
-   return firstFS;
-#endif
+
+   return NULL;
 }
+#endif
 
 
 /*
- *----------------------------------------------------------------------
+ *---------------------------------------------------------------------------
  *
- * FileLastSlashIndex --
+ * FileFindLastDirsep --
  *
- *      Finds the last pathname slash index in a path (both slashes count
- *      for Win32, only forward slash for Unix).
+ *      Return a pointer to the last directory separator.
  *
  * Results:
- *      As described.
+ *      NULL  No directory separator found
+ *     !NULL  Pointer to the last directory separator
  *
  * Side effects:
- *      None.
+ *      None
  *
- *----------------------------------------------------------------------
+ *---------------------------------------------------------------------------
  */
 
-static UnicodeIndex
-FileLastSlashIndex(const char *pathName,     // IN:
-                   UnicodeIndex startIndex)  // IN:
+static char *
+FileFindLastDirsep(const char *pathName,  // IN:
+                   size_t len)            // IN:
 {
-   UnicodeIndex lastFS;
-#if defined(_WIN32)
-   UnicodeIndex lastBS;
-#endif
+   char *p;
 
-   ASSERT(pathName);
+   ASSERT(pathName != NULL);
 
-   lastFS = Unicode_FindLastSubstrInRange(pathName, startIndex, -1,
-                                          "/", 0, 1);
+   p = (char *) pathName + len;
 
-#if defined(_WIN32)
-   lastBS = Unicode_FindLastSubstrInRange(pathName, startIndex, -1,
-                                          "\\", 0, 1);
-
-   if ((lastFS != UNICODE_INDEX_NOT_FOUND) &&
-       (lastBS != UNICODE_INDEX_NOT_FOUND)) {
-      return MAX(lastFS, lastBS);
-   } else {
-     return (lastFS == UNICODE_INDEX_NOT_FOUND) ? lastBS : lastFS;
+   while (p-- != pathName) {
+      if (File_IsDirsep(*p)) {
+         return p;
+      }
    }
-#else
-   return lastFS;
-#endif
+
+   return NULL;
 }
 
 
@@ -219,99 +202,91 @@ File_SplitName(const char *pathName,  // IN:
    char *vol;
    char *dir;
    char *bas;
-   UnicodeIndex volEnd;
-   UnicodeIndex length;
-   UnicodeIndex baseBegin;
-   WIN32_ONLY(UnicodeIndex pathLen);
+   char *baseBegin;
+   char *volEnd;
+   int volLen, dirLen;
+   int len = strlen(pathName);
 
-   ASSERT(pathName);
+   ASSERT(pathName != NULL);
 
    /*
     * Get volume.
     */
 
-   volEnd = 0;
+   volEnd = (char *) pathName;
 
-#if defined(_WIN32)
-   pathLen = Unicode_LengthInCodePoints(pathName);
-   if ((pathLen > 2) &&
-       (StrUtil_StartsWith(pathName, "\\\\") ||
-        StrUtil_StartsWith(pathName, "//"))) {
+#ifdef WIN32
+   if ((len > 2) &&
+       (!Str_Strncmp("\\\\", pathName, 2) ||
+        !Str_Strncmp("//", pathName, 2))) {
       /* UNC path */
-      volEnd = FileFirstSlashIndex(pathName, 2);
+      volEnd = FileFindFirstDirsep(volEnd + 2);
 
-      if (volEnd == UNICODE_INDEX_NOT_FOUND) {
-         /* we have \\foo, which is just bogus */
-         volEnd = 0;
-      } else {
-         volEnd = FileFirstSlashIndex(pathName, volEnd + 1);
+      if (volEnd != NULL) {
+         volEnd = FileFindFirstDirsep(volEnd + 1);
 
-         if (volEnd == UNICODE_INDEX_NOT_FOUND) {
-            /* we have \\foo\bar, which is legal */
-            volEnd = pathLen;
+         if (volEnd == NULL) {
+            /* We have \\foo\bar, which is legal */
+            volEnd = (char *) pathName + len;
          }
-      }
-   } else if ((pathLen >= 2) &&
-              (Unicode_FindSubstrInRange(pathName, 1, 1, ":", 0,
-                                         1) != UNICODE_INDEX_NOT_FOUND)) {
-      /* drive-letter path */
-      volEnd = 2;
-   }
 
-   if (volEnd > 0) {
-      vol = Unicode_Substr(pathName, 0, volEnd);
-   } else {
-      vol = Unicode_Duplicate("");
+      } else {
+         /* We have \\foo, which is just bogus */
+         volEnd = (char *) pathName;
+      }
+   } else if ((len >= 2) && (pathName[1] == ':')) {
+      // drive-letter path
+      volEnd = (char *) pathName + 2;
    }
-#else
-   vol = Unicode_Duplicate("");
-#endif /* _WIN32 */
+#endif /* WIN32 */
+
+   volLen = volEnd - pathName;
+   vol = Util_SafeMalloc(volLen + 1);
+   memcpy(vol, pathName, volLen);
+   vol[volLen] = '\0';
 
    /*
     * Get base.
     */
 
-   baseBegin = FileLastSlashIndex(pathName, 0);
-   baseBegin = (baseBegin == UNICODE_INDEX_NOT_FOUND) ? 0 : baseBegin + 1;
+   baseBegin = FileFindLastDirsep(pathName, len);
+   baseBegin = (baseBegin == NULL) ? (char *) pathName : baseBegin + 1;
 
-   if (baseBegin >= volEnd) {
-      bas = Unicode_Substr(pathName, baseBegin, -1);
-   } else {
-      bas = Unicode_Duplicate("");
+   if (baseBegin < volEnd) {
+      baseBegin = (char *) pathName + len;
    }
+
+   bas = Util_SafeStrdup(baseBegin);
 
    /*
     * Get dir.
     */
 
-   length = baseBegin - volEnd;
-
-   if (length > 0) {
-      dir = Unicode_Substr(pathName, volEnd, length);
-   } else {
-      dir = Unicode_Duplicate("");
-   }
+   dirLen = baseBegin - volEnd;
+   dir = Util_SafeMalloc(dirLen + 1);
+   memcpy(dir, volEnd, dirLen);
+   dir[dirLen] = '\0';
 
    /*
     * Return what needs to be returned.
     */
 
-   if (volume) {
-      *volume = vol;
-   } else {
+   if (volume == NULL) {
       free(vol);
+   } else {
+      *volume = vol;
    }
 
-   if (directory) {
-      *directory = dir;
-   } else {
+   if (directory == NULL) {
       free(dir);
+   } else {
+      *directory = dir;
    }
 
-   if (base) {
-      *base = bas;
-   } else {
+   if (base == NULL) {
       free(bas);
+   } else {
+      *base = bas;
    }
 }
 
@@ -397,7 +372,7 @@ File_PathJoin(const char *dirName,   // IN:
    newDir = File_StripSlashes(dirName);
 
    result = Unicode_Join(newDir, DIRSEPS, baseName, NULL);
-   free(newDir);
+   Posix_Free(newDir);
 
    return result;
 }
@@ -435,47 +410,42 @@ File_GetPathName(const char *fullPath,  // IN:
                  char **pathName,       // OUT/OPT:
                  char **baseName)       // OUT/OPT:
 {
-   char *volume;
-   UnicodeIndex len;
-   UnicodeIndex curLen;
+   char *p;
+   char *pName;
+   char *bName;
+   ASSERT(fullPath);
 
-   File_SplitName(fullPath, &volume, pathName, baseName);
+   p = FileFindLastDirsep(fullPath, strlen(fullPath));
+
+   if (p == NULL) {
+      pName = Util_SafeStrdup("");
+      bName = Util_SafeStrdup(fullPath);
+   } else {
+      bName = Util_SafeStrdup(&fullPath[p - fullPath + 1]);
+      pName = Util_SafeStrdup(fullPath);
+      pName[p - fullPath] = '\0';
+
+      p = &pName[p - fullPath];
+
+      while (p-- != pName) {
+         if (File_IsDirsep(*p)) {
+            *p = '\0';
+         } else {
+            break;
+         }
+      }
+   }
 
    if (pathName == NULL) {
-      free(volume);
-      return;
+      free(pName);
+   } else {
+      *pathName = pName;
    }
 
-   /*
-    * The volume component may be empty.
-    */
-
-   if (!Unicode_IsEmpty(volume)) {
-      char *temp = Unicode_Append(volume, *pathName);
-
-      free(*pathName);
-      *pathName = temp;
-   }
-   free(volume);
-
-   /*
-    * Remove any trailing directory separator characters.
-    */
-
-   len = Unicode_LengthInCodePoints(*pathName);
-
-   curLen = len;
-
-   while ((curLen > 0) &&
-          (FileFirstSlashIndex(*pathName, curLen - 1) == curLen - 1)) {
-      curLen--;
-   }
-
-   if (curLen < len) {
-      char *temp = Unicode_Substr(*pathName, 0, curLen);
-
-      free(*pathName);
-      *pathName = temp;
+   if (baseName == NULL) {
+      free(bName);
+   } else {
+      *baseName = bName;
    }
 }
 
@@ -522,24 +492,23 @@ File_StripSlashes(const char *path)  // IN:
        */
 
 #if defined(_WIN32)
-      while ((i > 1) && (('/' == dir2[i - 1]) ||
-                         ('\\' == dir2[i - 1]))) {
+      while ((i > 1) && File_IsDirsep(dir2[i - 1])) {
 #else
-      while ((i > 0) && ('/' == dir2[i - 1])) {
+      while ((i > 0) && File_IsDirsep(dir2[i - 1])) {
 #endif
          i--;
       }
 
-      free(dir);
+      Posix_Free(dir);
       dir = Unicode_AllocWithLength(dir2, i, STRING_ENCODING_UTF8);
-      free(dir2);
+      Posix_Free(dir2);
    }
 
    result = Unicode_Join(volume, dir, base, NULL);
 
-   free(volume);
-   free(dir);
-   free(base);
+   Posix_Free(volume);
+   Posix_Free(dir);
+   Posix_Free(base);
 
    return result;
 }
@@ -618,13 +587,13 @@ File_MapPathPrefix(const char *oldPath,       // IN:
           * aren't allowed.
           */
 
-         free(oldPrefix);
-         free(newPrefix);
+         Posix_Free(oldPrefix);
+         Posix_Free(newPrefix);
 
          return newPath;
       }
-      free(oldPrefix);
-      free(newPrefix);
+      Posix_Free(oldPrefix);
+      Posix_Free(newPrefix);
    }
 
    return NULL;
@@ -724,64 +693,66 @@ File_ReplaceExtension(const char *pathName,      // IN:
                       uint32 numExtensions,      // IN:
                       ...)                       // IN:
 {
-   char *path;
-   char *base;
+   char *p;
+   char *place;
    char *result;
-   va_list arguments;
-   UnicodeIndex index;
+   size_t newExtLen;
+   size_t resultLen;
+   size_t pathNameLen;
 
    ASSERT(pathName);
    ASSERT(newExtension);
    ASSERT(*newExtension == '.');
 
-   File_GetPathName(pathName, &path, &base);
+   pathNameLen = strlen(pathName);
+   newExtLen = strlen(newExtension);
+   resultLen = pathNameLen + newExtLen + 1;
+   result = Util_SafeMalloc(resultLen);
 
-   index = Unicode_FindLast(base, ".");
+   memcpy(result, pathName, pathNameLen + 1);
 
-   if (index != UNICODE_INDEX_NOT_FOUND) {
-      char *oldBase = base;
-
-      if (numExtensions) {
-         uint32 i;
-
-         /*
-          * Only truncate the old extension from the base if it exists in
-          * in the valid extensions list.
-          */
-
-         va_start(arguments, numExtensions);
-
-         for (i = 0; i < numExtensions ; i++) {
-            char *oldExtension = va_arg(arguments, char *);
-
-            ASSERT(*oldExtension == '.');
-
-            if (Unicode_CompareRange(base, index, -1,
-                                     oldExtension, 0, -1, FALSE) == 0) {
-               base = Unicode_Truncate(oldBase, index); // remove '.'
-               break;
-            }
-         }
-
-         va_end(arguments);
-      } else {
-         /* Always truncate the old extension if extension list is empty . */
-         base = Unicode_Truncate(oldBase, index); // remove '.'
-      }
-
-      if (oldBase != base) {
-         free(oldBase);
-      }
-   }
-
-   if (Unicode_IsEmpty(path)) {
-      result = Unicode_Append(base, newExtension);
+   p = FileFindLastDirsep(result, pathNameLen);
+   if (p == NULL) {
+       p = strrchr(result, '.');
    } else {
-      result = Unicode_Join(path, DIRSEPS, base, newExtension, NULL);
+       p = strrchr(p, '.');
    }
 
-   free(path);
-   free(base);
+   if (p == NULL) {
+      /* No extension... just append */
+      place = &result[pathNameLen];  // The NUL
+   } else if (numExtensions == 0) {
+      /* Always truncate the old extension if extension list is empty. */
+      place = p;  // The '.'
+   } else {
+      uint32 i;
+      va_list arguments;
+
+      /*
+       * Only truncate the old extension if it exists in the valid
+       * extensions list.
+       */
+
+      place = &result[pathNameLen];  // The NUL
+
+      va_start(arguments, numExtensions);
+
+      for (i = 0; i < numExtensions ; i++) {
+         const char *oldExtension = va_arg(arguments, const char *);
+
+         ASSERT(*oldExtension == '.');
+
+         if (strcmp(p, oldExtension) == 0) {
+            place = p;  // The '.'
+            break;
+         }
+      }
+
+      va_end(arguments);
+   }
+
+   /* Add the new extension - in the appropriate place - to pathName */
+   memcpy(place, newExtension, newExtLen + 1);
 
    return result;
 }
@@ -808,12 +779,25 @@ File_ReplaceExtension(const char *pathName,      // IN:
 char *
 File_RemoveExtension(const char *pathName)  // IN:
 {
-   UnicodeIndex index;
+   char *p;
+   char *result;
 
-   ASSERT(pathName);
+   ASSERT(pathName != NULL);
 
-   index = Unicode_FindLast(pathName, ".");
-   ASSERT(index != UNICODE_INDEX_NOT_FOUND);
+   result = Util_SafeStrdup(pathName);
 
-   return Unicode_Truncate(pathName, index);
+   p = FileFindLastDirsep(result, strlen(pathName));
+   if (p == NULL) {
+       p = strrchr(result, '.');
+   } else {
+       p = strrchr(p, '.');
+   }
+
+   ASSERT(p != NULL);
+
+   if (p != NULL) {
+      *p = '\0';
+   }
+
+   return result;
 }

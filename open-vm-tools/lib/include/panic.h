@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -29,6 +29,12 @@
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
+#include "vm_basic_types.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 /*
  * Initialize module to read custom behavior from config files.
  */
@@ -57,10 +63,43 @@ void Panic_PostPanicMsg(const char *format, ...);
  * debugger stops it:
  */
 
-void Panic_SetBreakOnPanic(Bool breakOnPanic);
+typedef enum {
+   PanicBreakAction_Never,
+   PanicBreakAction_IfDebuggerAttached,
+   PanicBreakAction_Always
+} PanicBreakAction;
+
+void Panic_SetBreakAction(PanicBreakAction action);
+PanicBreakAction Panic_GetBreakAction(void);
 Bool Panic_GetBreakOnPanic(void);
 void Panic_BreakOnPanic(void);
 void Panic_LoopOnPanic(void);
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Panic_SetBreakOnPanic --
+ *
+ *      Allow the debug breakpoint on panic to be suppressed.  If passed FALSE,
+ *      then any subsequent Panics will not attempt to attract a debugger.
+ *
+ * Results:
+ *      void.
+ *
+ * Side effects:
+ *      Enables/Disables break into debugger on Panic().
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+Panic_SetBreakOnPanic(Bool breakOnPanic)  // IN:
+{
+   Panic_SetBreakAction(breakOnPanic ? PanicBreakAction_Always
+                                     : PanicBreakAction_Never);
+}
+
 
 /*
  * On panic, dump core; Panic is also the place where various pieces of
@@ -78,5 +117,8 @@ void Panic_SetCoreDumpFlags(int flags);
  */
 void Panic_DumpGuiResources(void);
 
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif //  _PANIC_H_

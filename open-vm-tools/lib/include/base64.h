@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -26,6 +26,10 @@
 #ifndef _BASE64_H
 #define _BASE64_H
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 Bool Base64_Encode(uint8 const *src, size_t srcLength,
                    char *target, size_t targSize,
                    size_t *dataLength);
@@ -41,5 +45,9 @@ size_t Base64_DecodedLength(char const *src, size_t srcLength);
 Bool Base64_EasyEncode(const uint8 *src, size_t srcLength, char **target);
 Bool Base64_EasyDecode(const char *src, uint8 **target, size_t *targSize);
 Bool Base64_DecodeFixed(const char *src, char *outBuf, size_t outBufSize);
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif

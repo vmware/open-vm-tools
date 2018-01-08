@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -32,6 +32,9 @@
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #if __linux__         // We need the REG_foo offsets in the gregset_t;
 #  define _GNU_SOURCE // _GNU_SOURCE maps to __USE_GNU
@@ -69,11 +72,9 @@
 #endif
 
 #include <signal.h>
-#ifndef __ANDROID__
 #include <sys/ucontext.h>
-#endif
 
-#if __linux__
+#if __linux__ && !defined __ANDROID__
 #  if defined(__x86_64__)
 #    undef REG_RAX
 #    undef REG_RBX
@@ -230,15 +231,15 @@
 #define SC_EIP(uc) ((unsigned long) (uc)->uc_mcontext.gregs[EIP])
 #endif
 #elif defined(ANDROID_X86)
-#define SC_EAX(uc) ((unsigned long) (uc)->uc_mcontext.eax)
-#define SC_EBX(uc) ((unsigned long) (uc)->uc_mcontext.ebx)
-#define SC_ECX(uc) ((unsigned long) (uc)->uc_mcontext.ecx)
-#define SC_EDX(uc) ((unsigned long) (uc)->uc_mcontext.edx)
-#define SC_EDI(uc) ((unsigned long) (uc)->uc_mcontext.edi)
-#define SC_ESI(uc) ((unsigned long) (uc)->uc_mcontext.esi)
-#define SC_EBP(uc) ((unsigned long) (uc)->uc_mcontext.ebp)
-#define SC_ESP(uc) ((unsigned long) (uc)->uc_mcontext.esp)
-#define SC_EIP(uc) ((unsigned long) (uc)->uc_mcontext.eip)
+#define SC_EAX(uc) ((unsigned long) (uc)->uc_mcontext.gregs[REG_EAX])
+#define SC_EBX(uc) ((unsigned long) (uc)->uc_mcontext.gregs[REG_EBX])
+#define SC_ECX(uc) ((unsigned long) (uc)->uc_mcontext.gregs[REG_ECX])
+#define SC_EDX(uc) ((unsigned long) (uc)->uc_mcontext.gregs[REG_EDX])
+#define SC_EDI(uc) ((unsigned long) (uc)->uc_mcontext.gregs[REG_EDI])
+#define SC_ESI(uc) ((unsigned long) (uc)->uc_mcontext.gregs[REG_ESI])
+#define SC_EBP(uc) ((unsigned long) (uc)->uc_mcontext.gregs[REG_EBP])
+#define SC_ESP(uc) ((unsigned long) (uc)->uc_mcontext.gregs[REG_ESP])
+#define SC_EIP(uc) ((unsigned long) (uc)->uc_mcontext.gregs[REG_EIP])
 #else
 #ifdef __x86_64__
 #define SC_EAX(uc) ((unsigned long) (uc)->uc_mcontext.gregs[GNU_REG_RAX])
@@ -291,6 +292,10 @@
 #define SC_ESP(uc) ((unsigned long) (uc)->uc_mcontext.gregs[GNU_REG_ESP])
 #define SC_EIP(uc) ((unsigned long) (uc)->uc_mcontext.gregs[GNU_REG_EIP])
 #endif
+#endif
+
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 
 #endif // ifndef _SIGPOSIXREGS_H_

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -35,12 +35,17 @@
 #include "vm_basic_defs.h"
 #include "vm_assert.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 
 #define MAX_DAYSLEFT     4096
 
 struct timeval;
 
-#ifdef _WIN32
+/*struct timespec is not supported on UWP*/
+#if defined(_WIN32) && !defined(VM_WIN_UWP) && _MSC_VER < 1900
 struct timespec {
    time_t tv_sec;
    long   tv_nsec;
@@ -134,5 +139,9 @@ Bool TimeUtil_UTCTimeToSystemTime(const __time64_t utcTime,    // IN
 int TimeUtil_GetLocalWindowsTimeZoneIndexAndName(char **ptzName);
 
 time_t TimeUtil_SecondsSinceEpoch(TimeUtil_Date *d); // IN
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif // _TIMEUTIL_H_

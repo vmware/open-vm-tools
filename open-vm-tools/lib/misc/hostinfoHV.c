@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -40,6 +40,38 @@
 /*
  *----------------------------------------------------------------------
  *
+ *  Hostinfo_HypervisorPresent --
+ *
+ *      Check if hypervisor is present.
+ *
+ * Results:
+ *      TRUE iff hypervisor cpuid bit is present.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+#if defined(__i386__) || defined(__x86_64__)
+static Bool
+Hostinfo_HypervisorPresent(void)
+{
+   static Bool hypervisorPresent;
+   CPUIDRegs regs;
+
+   if (!hypervisorPresent) {
+      __GET_CPUID(1, &regs);
+      hypervisorPresent = CPUID_ISSET(1, ECX, HYPERVISOR, regs.ecx);
+   }
+   return hypervisorPresent;
+}
+#endif
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  *  Hostinfo_HypervisorCPUIDSig --
  *
  *      Get the hypervisor signature string from CPUID.
@@ -61,20 +93,14 @@ Hostinfo_HypervisorCPUIDSig(void)
 #if defined(__i386__) || defined(__x86_64__)
    CPUIDRegs regs;
 
-   __GET_CPUID(1, &regs);
-   if (!CPUID_ISSET(1, ECX, HYPERVISOR, regs.ecx)) {
+   if (!Hostinfo_HypervisorPresent()) {
       return NULL;
    }
 
-   regs.ebx = 0;
-   regs.ecx = 0;
-   regs.edx = 0;
-
    __GET_CPUID(0x40000000, &regs);
-
    if (regs.eax < 0x40000000) {
       Log(LGPFX" CPUID hypervisor bit is set, but no "
-          "hypervisor vendor signature is present\n");
+          "hypervisor vendor signature is present.\n");
    }
 
    name = Util_SafeMalloc(4 * sizeof *name);
@@ -86,6 +112,100 @@ Hostinfo_HypervisorCPUIDSig(void)
 #endif // defined(__i386__) || defined(__x86_64__)
 
    return (char *)name;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ *  Hostinfo_LogHypervisorCPUID --
+ *
+ *      Logs hypervisor CPUID leafs.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+Hostinfo_LogHypervisorCPUID(void)
+{
+#if defined(__i386__) || defined(__x86_64__)
+   CPUIDRegs regs;
+   uint32 maxLeaf;
+   uint32 leafId;
+   if (!Hostinfo_HypervisorPresent()) {
+      Log(LGPFX" Hypervisor not found. CPUID hypervisor bit is not set.\n");
+      return;
+   }
+
+   __GET_CPUID(0x40000000, &regs);
+   maxLeaf = regs.eax > 0x400000FF ? 0x400000FF : regs.eax;
+   if (maxLeaf < 0x40000000) {
+      Log(LGPFX" CPUID hypervisor bit is set, but no "
+          "hypervisor vendor signature is present.\n");
+      return;
+   } else {
+      Log("CPUID level   %10s   %10s   %10s   %10s\n", "EAX", "EBX",
+          "ECX", "EDX");
+      for (leafId = 0x40000000; leafId <= maxLeaf; leafId++) {
+         __GET_CPUID(leafId, &regs);
+         Log("0x%08x    0x%08x   0x%08x   0x%08x   0x%08x\n",
+             leafId, regs.eax, regs.ebx, regs.ecx, regs.edx);
+      }
+   }
+#endif // defined(__i386__) || defined(__x86_64__)
+
+   return;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ *  Hostinfo_HypervisorInterfaceSig --
+ *
+ *      Get hypervisor interface signature string from CPUID.
+ *
+ * Results:
+ *      Unqualified 8 byte nul-terminated hypervisor interface signature string.
+ *      String may contain garbage and caller must free.
+ *      NULL if hypervisor is not present.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+char *
+Hostinfo_HypervisorInterfaceSig(void)
+{
+   uint32 *intrSig = NULL;
+#if defined(__i386__) || defined(__x86_64__)
+   CPUIDRegs regs;
+
+   if (!Hostinfo_HypervisorPresent()) {
+      return NULL;
+   }
+
+   __GET_CPUID(0x40000000, &regs);
+   if (regs.eax < 0x40000001) {
+      Log(LGPFX" CPUID hypervisor bit is set, but no "
+          "hypervisor interface signature is present.\n");
+      return NULL;
+   }
+
+   __GET_CPUID(0x40000001, &regs);
+   if (regs.eax != 0) {
+      intrSig = Util_SafeMalloc(2 * sizeof *intrSig);
+      intrSig[0] = regs.eax;
+      intrSig[1] = 0;
+   }
+#endif // defined(__i386__) || defined(__x86_64__)
+
+   return (char *)intrSig;
 }
 
 
@@ -120,7 +240,7 @@ Hostinfo_HypervisorCPUIDSig(void)
 Bool
 Hostinfo_TouchXen(void)
 {
-#if defined(linux) && (defined(__i386__) || defined(__x86_64__))
+#if defined(__linux__) && (defined(__i386__) || defined(__x86_64__))
 #define XEN_CPUID 0x40000000
    CPUIDRegs regs;
    uint32 name[4];
@@ -145,7 +265,7 @@ Hostinfo_TouchXen(void)
    name[2] = regs.edx;
    name[3] = 0;
 
-   if (0 == strcmp(CPUID_XEN_HYPERVISOR_VENDOR_STRING, (const char*)name)) {
+   if (strcmp(CPUID_XEN_HYPERVISOR_VENDOR_STRING, (const char*)name) == 0) {
       return TRUE;
    }
 
@@ -157,37 +277,6 @@ Hostinfo_TouchXen(void)
 #endif
 
    return FALSE;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- *  Hostinfo_SLC64Supported --
- *
- *      Access the backdoor with an SLC64 control query. This is used
- *      to determine if we are running in a VM that supports SLC64.
- *      This function should only be called after determining that the
- *	backdoor is present with Hostinfo_TouchBackdoor().
- *
- * Results:
- *      TRUE if the outer VM supports SLC64.
- *      FALSE otherwise.
- *
- * Side effects:
- *      Exception if not in a VM, so don't do that!
- *
- *----------------------------------------------------------------------
- */
-
-Bool
-Hostinfo_SLC64Supported(void)
-{
-#if defined(__i386__) || defined(__x86_64__)
-   return Hostinfo_VCPUInfoBackdoor(BDOOR_CMD_VCPU_SLC64);
-#else
-   return FALSE;
-#endif
 }
 
 

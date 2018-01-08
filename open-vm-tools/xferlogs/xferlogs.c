@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -272,7 +272,10 @@ static void
 usage(void)
 {
    Warning("xferlogs <options> <filename>\n");
-   Warning("options - enc/dec\n");
+   Warning("options:\n");
+   Warning("\t-h | --help - prints this usage.\n");
+   Warning("\tenc - encodes and transfers <filename> to the VMX log.\n");
+   Warning("\tdec - extracts encoded data to <filename> from the VMX log.\n");
 }
 
 
@@ -281,6 +284,14 @@ main(int argc,
      char *argv[])
 {
    int status;
+
+   if (argc == 2 &&
+       (!strncmp(argv[1], "-h", 2) ||
+        !strncmp(argv[1], "--help", 6))) {
+      usage();
+      return 0;
+   }
+
    if (argc != 3) {
       usage();
       return -1;
@@ -288,9 +299,9 @@ main(int argc,
 
    if (!strncmp(argv[1], "enc", 3)) {
       xmitFile(argv[2]);
-   } else if(!strncmp(argv[1], "dec", 3)) {
+   } else if (!strncmp(argv[1], "dec", 3)) {
       extractFile(argv[2]);
-   } else if(!strncmp(argv[1], "upd", 3)) {
+   } else if (!strncmp(argv[1], "upd", 3)) {
       if (StrUtil_StrToInt(&status, argv[2])) {
          RpcOut_sendOne(NULL, NULL, RPC_VMSUPPORT_STATUS " %d", status);
       } else {

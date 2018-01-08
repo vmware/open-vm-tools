@@ -2,7 +2,7 @@
  *	 Author: bwilliams
  *  Created: Oct 22, 2010
  *
- *	Copyright (C) 2010-2016 VMware, Inc.  All rights reserved. -- VMware Confidential
+ *	Copyright (C) 2010-2017 VMware, Inc.  All rights reserved. -- VMware Confidential
  */
 
 #include "stdafx.h"
@@ -42,6 +42,9 @@ void CConfigEnv::initialize(
 			_persistenceRemove = persistenceRemove;
 		}
 	} else {
+		_monitorListener.CreateInstance();
+		_monitorListener->initialize();
+
 		_persistenceRemove = persistenceRemove;
 
 		_persistenceDir = AppConfigUtils::getRequiredString("persistence_dir");
@@ -78,16 +81,20 @@ SmartPtrCPersistenceDoc CConfigEnv::getUpdated(
 	CAF_CM_LOCK_UNLOCK;
 	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
 
+	bool preConfigDoneNow = _monitorListener->preConfigureListener();
 	if (FileSystemUtils::doesFileExist(_listenerConfiguredStage1Path)) {
-		if (_persistence.IsNull()) {
+		if (_persistence.IsNull() || preConfigDoneNow) {
 			_persistence = CPersistenceUtils::loadPersistence(_persistenceDir);
 			if (FileSystemUtils::doesFileExist(_listenerConfiguredStage2Path)) {
 				_persistenceUpdated = _persistence;
 			}
 		}
 
-		const SmartPtrCPersistenceDoc persistenceTmp =
-				CConfigEnvMerge::mergePersistence(_persistence, _cacertPath, _vcidPath);
+		SmartPtrCPersistenceDoc persistenceTmp;
+		if (preConfigDoneNow) {
+			persistenceTmp = CConfigEnvMerge::mergePersistence(
+					_persistence, _cacertPath, _vcidPath);
+		}
 		if (! persistenceTmp.IsNull()) {
 			CPersistenceUtils::savePersistence(persistenceTmp, _persistenceDir);
 			_persistence = CPersistenceUtils::loadPersistence(_persistenceDir);
@@ -116,6 +123,8 @@ void CConfigEnv::update(
 	CAF_CM_FUNCNAME_VALIDATE("update");
 	CAF_CM_LOCK_UNLOCK;
 	CAF_CM_PRECOND_ISINITIALIZED(_isInitialized);
+
+	getUpdated(0);
 
 	const SmartPtrCPersistenceDoc persistenceTmp1 =
 			CPersistenceMerge::mergePersistence(_persistence, persistence);

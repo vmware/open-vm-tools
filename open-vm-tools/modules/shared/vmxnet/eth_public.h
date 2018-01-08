@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2014 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005-2014,2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -48,6 +48,11 @@
 #include "includeCheck.h"
 
 #include "vm_basic_defs.h"
+
+#if defined __cplusplus
+extern "C" {
+#endif
+
 
 #define ETH_LADRF_LEN      2
 #define ETH_ADDR_LENGTH    6
@@ -115,6 +120,7 @@ typedef enum {
    ETH_TYPE_AKIMBI_NBO  = 0xDE88,
    ETH_TYPE_VMWARE_NBO  = 0x2289,
    ETH_TYPE_802_1PQ_NBO = 0x0081,  // not really a DIX type, but used as such
+   ETH_TYPE_802_3_PAUSE_NBO = 0x0888,  // pause frame based ethernet flow control
 } Eth_DixTypeNBO;
 
 // low two bits of the LLC control byte
@@ -752,6 +758,27 @@ Eth_IsFrameTagged(const Eth_Header *eh)
    return (eh->dix.typeNBO == ETH_TYPE_802_1PQ_NBO);
 }
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * Eth_IsPauseFrame --
+ *
+ *      Is the frame 802.3 pause frame ?
+ *
+ * Results:
+ *	TRUE or FALSE.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static INLINE Bool
+Eth_IsPauseFrame(const Eth_Header *eh)
+{
+   return (eh->dix.typeNBO == ETH_TYPE_802_3_PAUSE_NBO);
+}
 
 /*
  *----------------------------------------------------------------------
@@ -1240,5 +1267,10 @@ Eth_IsFrameHeaderComplete(const Eth_Header *eh,
    }
    return FALSE;
 }
+
+
+#if defined __cplusplus
+} // extern "C"
+#endif
 
 #endif // _ETH_PUBLIC_H_

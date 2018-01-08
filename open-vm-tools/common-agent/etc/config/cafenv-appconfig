@@ -1,3 +1,5 @@
+# Copyright (C) 2017 VMware, Inc.  All rights reserved. -- VMware Confidential
+
 [globals]
 # Specifies where python is located.
 python_dir=/opt/vmware/caf/python
@@ -37,3 +39,7 @@ providers_dir=@providersDir@
 # Substitute @toolsLibDir@ for the value passed in during install
 # Maps to 'lib' in the build output
 tools_lib_dir=@toolsLibDir@
+
+# Substitute @cafInstallMode@ for the value passed in during install
+# No mapping in the build output since it is just a reference value
+install_mode=@cafInstallMode@

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -141,7 +141,7 @@ File_MakeTempEx2(const char *dir,                              // IN:
       char *fileName;
 
       /* construct suffixed pathname to use */
-      free(path);
+      Posix_Free(path);
       path = NULL;
 
       /*
@@ -160,7 +160,7 @@ File_MakeTempEx2(const char *dir,                              // IN:
       /* construct base full pathname to use */
       path = Unicode_Join(dir, DIRSEPS, fileName, NULL);
 
-      free(fileName);
+      Posix_Free(fileName);
 
       if (createTempFile) {
          fd = Posix_Open(path, O_CREAT | O_EXCL | O_BINARY | O_RDWR, 0600);
@@ -177,7 +177,7 @@ File_MakeTempEx2(const char *dir,                              // IN:
       if (errno != EEXIST) {
          Log(LGPFX" Failed to create temporary %s \"%s\": %s.\n",
              createTempFile ? "file" : "directory",
-             path, strerror(errno));
+             path, Err_Errno2String(errno));
          goto exit;
       }
    }
@@ -191,7 +191,7 @@ File_MakeTempEx2(const char *dir,                              // IN:
    }
 
   exit:
-   free(path);
+   Posix_Free(path);
 
    return fd;
 }
@@ -299,7 +299,7 @@ File_MakeSafeTempDir(const char *prefix)  // IN:
       File_MakeTempEx2(dir, FALSE, FileMakeTempExCreateNameFunc,
                        (void *) effectivePrefix, &result);
 
-      free(dir);
+      Posix_Free(dir);
    }
 
    return result;
@@ -344,8 +344,8 @@ File_MakeSafeTemp(const char *tag,  // IN (OPT):
 
    fd = File_MakeTempEx(dir, fileName, presult);
 
-   free(dir);
-   free(fileName);
+   Posix_Free(dir);
+   Posix_Free(fileName);
 
    return fd;
 }
@@ -403,8 +403,8 @@ File_DoesVolumeSupportAcls(const char *path)  // IN:
    succeeded = TRUE;
 
   exit:
-   free(vol);
-   free(vol2);
+   Posix_Free(vol);
+   Posix_Free(vol2);
 #endif
 
    return succeeded;

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -38,7 +38,7 @@
 #include "log.h"
 #include "hostinfo.h"
 #if defined(_WIN32)	// Windows
-#include "win32u.h"
+#include "windowsu.h"
 #endif
 #include "unicode.h"
 
@@ -165,12 +165,14 @@ Hostinfo_HostName(void)
 
    if ((uname(&un) == 0) && (*un.nodename != '\0')) {
       /* 'un.nodename' is already fully qualified. */
-      result = Unicode_Alloc(un.nodename, STRING_ENCODING_US_ASCII);
+      if (Unicode_IsStringValidUTF8(un.nodename)) {  // ASCII is OK
+         result = Unicode_Duplicate(un.nodename);
+      }
    }
 
    return result;
 }
-#elif defined(linux)
+#elif defined(__linux__)
 #include <unistd.h>
 #include <sys/utsname.h>
 #include <netdb.h>
@@ -215,12 +217,14 @@ Hostinfo_HostName(void)
 
       p = un.nodename;
 
-      if ((gethostbyname_r(p, &he, buffer, sizeof buffer,
-					&phe, &error) == 0) && phe) {
+      if ((gethostbyname_r(p, &he, buffer, sizeof buffer, &phe,
+                           &error) == 0) && (phe != NULL)) {
          p = phe->h_name;
       }
 
-      result = Unicode_Alloc(p, STRING_ENCODING_US_ASCII);
+      if (Unicode_IsStringValidUTF8(p)) {  // ASCII is OK
+         result = Unicode_Duplicate(p);
+      }
    }
 
    return result;

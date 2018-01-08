@@ -27,7 +27,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <fcntl.h>
-#if defined(linux)
+#if defined(__linux__)
 #include <sys/wait.h>
 #include <mntent.h>
 #include <paths.h>
@@ -45,7 +45,7 @@
 #   include <Windows.h>
 #   include <WinSock2.h>
 #   include <WinSpool.h>
-#   include "win32u.h"
+#   include "windowsu.h"
 #elif _WIN32
 #   include "win95.h"
 #endif
@@ -80,7 +80,7 @@
 #include "codeset.h"
 #include "vixToolsInt.h"
 
-#if defined(linux)
+#if defined(__linux__)
 #include "mntinfo.h"
 #include "hgfsDevLinux.h"
 #endif
@@ -94,7 +94,7 @@
 
 #define MAX64_DECIMAL_DIGITS 20          /* 2^64 = 18,446,744,073,709,551,616 */
 
-#if defined(linux) || defined(_WIN32)
+#if defined(__linux__) || defined(_WIN32)
 
 # if defined(_WIN32)
 #  define DECLARE_SYNCDRIVER_ERROR(name) DWORD name = ERROR_SUCCESS
@@ -121,7 +121,7 @@ gboolean ToolsDaemonTcloReceiveVixCommand(RpcInData *data);
 static HgfsServerMgrData gFoundryHgfsBkdrConn;
 gboolean ToolsDaemonHgfsImpersonated(RpcInData *data);
 
-#if defined(linux) || defined(_WIN32)
+#if defined(__linux__) || defined(_WIN32)
 gboolean ToolsDaemonTcloSyncDriverFreeze(RpcInData *data);
 
 gboolean ToolsDaemonTcloSyncDriverThaw(RpcInData *data);
@@ -523,7 +523,7 @@ abort:
    return err;
 }
 
-#if defined(linux) || defined(_WIN32)
+#if defined(__linux__) || defined(_WIN32)
 
 /*
  *-----------------------------------------------------------------------------
@@ -650,7 +650,7 @@ abort:
  *-----------------------------------------------------------------------------
  */
 
-#if defined(linux) || defined(_WIN32)
+#if defined(__linux__) || defined(_WIN32)
 static Bool
 ToolsDaemonSyncDriverThawCallback(void *clientData) // IN (ignored)
 {
@@ -688,7 +688,7 @@ exit:
  *-----------------------------------------------------------------------------
  */
 
-#if defined(linux) || defined(_WIN32)
+#if defined(__linux__) || defined(_WIN32)
 gboolean
 ToolsDaemonTcloSyncDriverThaw(RpcInData *data) // IN
 {
@@ -725,7 +725,7 @@ ToolsDaemonTcloSyncDriverThaw(RpcInData *data) // IN
 #endif
 
 
-#if defined(linux)
+#if defined(__linux__)
 /*
  *-----------------------------------------------------------------------------
  *
@@ -813,7 +813,7 @@ ToolsDaemonTcloMountHGFS(RpcInData *data) // IN
    VixError err = VIX_OK;
    static char resultBuffer[DEFAULT_RESULT_MSG_MAX_LENGTH];
 
-#if defined(linux)
+#if defined(__linux__)
 #define MOUNT_PATH_BIN       "/bin/mount"
 #define MOUNT_PATH_USR_BIN   "/usr" MOUNT_PATH_BIN
 #define MOUNT_HGFS_PATH      "/mnt/hgfs"
@@ -830,14 +830,25 @@ ToolsDaemonTcloMountHGFS(RpcInData *data) // IN
    Bool isFuseEnabled = TRUE;
    Bool vmhgfsMntFound = FALSE;
    Bool vmhgfsMntPointCreated = FALSE;
+   Bool validFuseExitCode;
+   int fuseExitCode;
    int ret;
 
    vmhgfsExecProcArgs.envp = NULL;
    vmhgfsExecProcArgs.workingDirectory = NULL;
 
-   execRes = ProcMgr_ExecSync("/usr/bin/vmhgfs-fuse --enabled", &vmhgfsExecProcArgs);
+   execRes = ProcMgr_ExecSyncWithExitCode("/usr/bin/vmhgfs-fuse --enabled",
+                                          &vmhgfsExecProcArgs,
+                                          &validFuseExitCode,
+                                          &fuseExitCode);
    if (!execRes) {
-      g_warning("%s: vmhgfs-fuse -> not available\n", __FUNCTION__);
+      if (validFuseExitCode && fuseExitCode == 2) {
+         g_warning("%s: vmhgfs-fuse -> FUSE not installed\n", __FUNCTION__);
+         err = VIX_E_HGFS_MOUNT_FAIL;
+         goto exit;
+      }
+      g_message("%s: vmhgfs-fuse -> %d: not supported on this kernel version\n",
+                __FUNCTION__, validFuseExitCode ? fuseExitCode : 0);
       isFuseEnabled = FALSE;
    }
 
@@ -923,7 +934,6 @@ exit:
 } // ToolsDaemonTcloMountHGFS
 
 
-#if !defined(N_PLAT_NLM)
 /*
  *-----------------------------------------------------------------------------
  *
@@ -1130,7 +1140,6 @@ abort:
 
 #undef STRLEN_OF_MAX_64_BIT_NUMBER_AS_STRING
 #undef OTHER_TEXT_SIZE
-#endif
 
 
 /*

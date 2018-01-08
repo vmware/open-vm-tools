@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2016-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -49,8 +49,63 @@
  *   generally are NOT virtualized.
  */
 
+#ifdef _WIN32
+#include <winsock2.h>
+#else
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#endif
+
+#include "vmware.h"
 #include "asyncsocket.h"
-#include "asyncSocketInt.h"
+#include "asyncSocketBase.h"
+#include "msg.h"
+#include "log.h"
+
+#define LOGLEVEL_MODULE asyncsocket
+#include "loglevel_user.h"
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocket_SetCloseOptions --
+ *
+ *      Enables optional behavior for AsyncSocket_Close():
+ *
+ *      - If flushEnabledMaxWaitMsec is non-zero, the output stream
+ *        will be flushed synchronously before the socket is closed.
+ *        (default is zero: close socket right away without flushing)
+ *
+ *      - If closeCb is set, the callback will be called asynchronously
+ *        when the socket is actually destroyed.
+ *        (default is NULL: no callback)
+ *
+ * Results:
+ *      ASOCKERR_SUCCESS or ASOCKERR_*.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+AsyncSocket_SetCloseOptions(AsyncSocket *asock,           // IN
+                            int flushEnabledMaxWaitMsec,  // IN
+                            AsyncSocketCloseFn closeCb)   // IN
+{
+   int ret;
+   if (VALID(asock, setCloseOptions)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->setCloseOptions(asock, flushEnabledMaxWaitMsec, closeCb);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
+}
 
 
 /*
@@ -72,13 +127,17 @@
  */
 
 AsyncSocketState
-AsyncSocket_GetState(AsyncSocket *asock)
+AsyncSocket_GetState(AsyncSocket *asock)         // IN
 {
-   if (!asock) {
-      return ASOCKERR_INVAL;
+   AsyncSocketState ret;
+   if (VALID(asock, getState)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->getState(asock);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
    }
-   ASSERT(asock->vt->getState);
-   return asock->vt->getState(asock);
+   return ret;
 }
 
 
@@ -106,9 +165,15 @@ AsyncSocket_GetState(AsyncSocket *asock)
 int
 AsyncSocket_GetGenericErrno(AsyncSocket *asock)  // IN:
 {
-   ASSERT(asock);
-   ASSERT(asock->vt->getGenericErrno);
-   return asock->vt->getGenericErrno(asock);
+   int ret;
+   if (VALID(asock, getGenericErrno)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->getGenericErrno(asock);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = -1;
+   }
+   return ret;
 }
 
 
@@ -129,10 +194,17 @@ AsyncSocket_GetGenericErrno(AsyncSocket *asock)  // IN:
  */
 
 int
-AsyncSocket_GetFd(AsyncSocket *asock)
+AsyncSocket_GetFd(AsyncSocket *asock)         // IN
 {
-   ASSERT(asock->vt->getFd);
-   return asock->vt->getFd(asock);
+   int ret;
+   if (VALID(asock, getFd)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->getFd(asock);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = -1;
+   }
+   return ret;
 }
 
 
@@ -146,7 +218,7 @@ AsyncSocket_GetFd(AsyncSocket *asock)
  *      connection.
  *
  * Results:
- *      ASOCKERR_SUCCESS or ASOCKERR_GENERIC.
+ *      ASOCKERR_SUCCESS or ASOCKERR_INVAL.
  *
  * Side effects:
  *
@@ -158,9 +230,15 @@ int
 AsyncSocket_GetRemoteIPStr(AsyncSocket *asock,      // IN
                            const char **ipRetStr)   // OUT
 {
-   ASSERT(asock);
-   ASSERT(asock->vt->getRemoteIPStr);
-   return asock->vt->getRemoteIPStr(asock, ipRetStr);
+   int ret;
+   if (VALID(asock, getRemoteIPStr)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->getRemoteIPStr(asock, ipRetStr);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
 }
 
 
@@ -193,8 +271,15 @@ AsyncSocket_GetINETIPStr(AsyncSocket *asock,  // IN
                          int socketFamily,    // IN
                          char **ipRetStr)     // OUT
 {
-   ASSERT(asock->vt->getINETIPStr);
-   return asock->vt->getINETIPStr(asock, socketFamily, ipRetStr);
+   int ret;
+   if (VALID(asock, getINETIPStr)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->getINETIPStr(asock, socketFamily, ipRetStr);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
 }
 
 
@@ -218,8 +303,15 @@ AsyncSocket_GetINETIPStr(AsyncSocket *asock,  // IN
 unsigned int
 AsyncSocket_GetPort(AsyncSocket *asock)  // IN
 {
-   ASSERT(asock->vt->getPort);
-   return asock->vt->getPort(asock);
+   int ret;
+   if (VALID(asock, getPort)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->getPort(asock);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = MAX_UINT32;
+   }
+   return ret;
 }
 
 
@@ -228,25 +320,37 @@ AsyncSocket_GetPort(AsyncSocket *asock)  // IN
  *
  * AsyncSocket_UseNodelay --
  *
- *      Sets or unset TCP_NODELAY on the socket, which disables or
- *      enables Nagle's algorithm, respectively.
+ *      THIS IS DEPRECATED in favor of AsyncSocket_SetOption(...TCP_NODELAY...).
+ *      It exists for now to avoid having to change all existing calling code.
+ *      TODO: Remove it fully and fix up all calling code accordingly.
+ *
+ *      Sets the setsockopt() value TCP_NODELAY.
+ *      asyncSocket may be an AsyncTCPSocket itself
+ *      or contain one on which the option will be set.
+ *
+ *      This fails if there is no applicable AsyncTCPSocket (asyncSocket or
+ *      one inside it).
  *
  * Results:
- *      ASOCKERR_SUCCESS on success, ASOCKERR_GENERIC otherwise.
+ *      ASOCKERR_SUCCESS on success, ASOCKERR_* otherwise.
+ *      There being no applicable AsyncTCPSocket yields ASOCKERR_INVAL.
+ *      OS error when setting value yields ASOCKERR_GENERIC.
  *
- * Side Effects:
- *      Increased bandwidth usage for short messages on this socket
+ * Side effects:
+ *      Possibly increased bandwidth usage for short messages on this socket
  *      due to TCP overhead, in exchange for lower latency.
  *
  *----------------------------------------------------------------------------
  */
 
 int
-AsyncSocket_UseNodelay(AsyncSocket *asock,  // IN/OUT:
-                       Bool nodelay)        // IN:
+AsyncSocket_UseNodelay(AsyncSocket *asyncSocket,  // IN/OUT
+                       Bool noDelay)              // IN
 {
-   ASSERT(asock->vt->useNodelay);
-   return asock->vt->useNodelay(asock, nodelay);
+   const int noDelayNative = noDelay ? 1 : 0;
+   return AsyncSocket_SetOption(asyncSocket,
+                                IPPROTO_TCP, TCP_NODELAY,
+                                &noDelayNative, sizeof noDelayNative);
 }
 
 
@@ -255,99 +359,341 @@ AsyncSocket_UseNodelay(AsyncSocket *asock,  // IN/OUT:
  *
  * AsyncSocket_SetTCPTimeouts --
  *
- *      Allow caller to set a number of TCP-specific timeout
- *      parameters on the socket for the active connection.
+ *      Sets setsockopt() TCP_KEEP{INTVL|IDLE|CNT} if available in the OS.
+ *      asyncSocket may be an AsyncTCPSocket itself
+ *      or contain one on which the option will be set.
  *
- *      Parameters:
- *      keepIdle --  The number of seconds a TCP connection must be idle before
- *                   keep-alive probes are sent.
- *      keepIntvl -- The number of seconds between TCP keep-alive probes once
- *                   they are being sent.
- *      keepCnt   -- The number of keep-alive probes to send before killing
- *                   the connection if no response is received from the peer.
+ *      This fails if there is no applicable AsyncTCPSocket (asyncSocket or
+ *      one inside it).
  *
  * Results:
- *      ASOCKERR_SUCCESS on success, ASOCKERR_GENERIC otherwise.
+ *      ASOCKERR_SUCCESS if no error, or OS doesn't support options.
+ *      There being no applicable AsyncTCPSocket yields ASOCKERR_INVAL.
+ *      OS error when setting any one value yields ASOCKERR_GENERIC.
  *
- * Side Effects:
+ * Side effects:
  *      None.
+ *      Note that in case of error ASOCKERR_GENERIC, 0, 1, or 2 of the values
+ *      may have still been successfully set (the successful changes are
+ *      not rolled back).
  *
  *----------------------------------------------------------------------------
  */
 
-#ifdef VMX86_SERVER
 int
-AsyncSocket_SetTCPTimeouts(AsyncSocket *asock,  // IN/OUT:
-                           int keepIdle,        // IN
-                           int keepIntvl,       // IN
-                           int keepCnt)         // IN
+AsyncSocket_SetTCPTimeouts(AsyncSocket *asyncSocket,  // IN/OUT
+                           int keepIdleSec,           // IN
+                           int keepIntvlSec,          // IN
+                           int keepCnt)               // IN
 {
-   ASSERT(asock->vt->setTCPTimeouts);
-   return asock->vt->setTCPTimeouts(asock, keepIdle, keepIntvl, keepCnt);
-}
+   /*
+    * This function is NOT deprecated like the nearby setOption()-wrapping
+    * functions. It's valuable because it: enapsulates OS-dependent logic; and
+    * performs one lock before settong all applicable options together.
+    */
+
+#if defined(__linux__) || defined(VMX86_SERVER)
+   /*
+    * Tempting to call AsyncSocket_SetOption() x 3 instead of worrying about
+    * locking and VT() ourselves, but this way we can reduce amount of
+    * locking/unlocking at the cost of code verbosity.
+    *
+    * Reason for bailing on first error instead of trying all three:
+    * it's what the original code (that this adapts) did. TODO: Find out from
+    * author, explain here.
+    */
+
+   int ret;
+   if (VALID(asyncSocket, setOption)) {
+      AsyncSocketLock(asyncSocket);
+
+      ret = VT(asyncSocket)->setOption
+               (asyncSocket,
+                IPPROTO_TCP, TCP_KEEPIDLE,
+                &keepIdleSec, sizeof keepIdleSec);
+      if (ret == ASOCKERR_SUCCESS) {
+         ret = VT(asyncSocket)->setOption
+                  (asyncSocket,
+                   IPPROTO_TCP, TCP_KEEPINTVL,
+                   &keepIntvlSec, sizeof keepIntvlSec);
+         if (ret == ASOCKERR_SUCCESS) {
+            ret = VT(asyncSocket)->setOption
+                     (asyncSocket,
+                      IPPROTO_TCP, TCP_KEEPCNT,
+                      &keepCnt, sizeof keepCnt);
+         }
+      }
+
+      AsyncSocketUnlock(asyncSocket);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
+#else // #ifndef __linux__
+   return ASOCKERR_SUCCESS;
 #endif
+}
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * AsyncSocket_SetBufferSizes --
+ * AsyncSocket_EstablishMinBufferSizes --
  *
- *    Set socket level recv/send buffer sizes if they are less than given sizes
+ *      Meant to be invoked around socket creation time, this tries to ensure
+ *      that SO_{SND|RCV}BUF setsockopt() values are set to at least the values
+ *      provided as arguments. That is, it sets the given buffer size but only
+ *      if the current value reported by the OS is smaller.
  *
- * Result
- *    TRUE: on success
- *    FALSE: on failure
+ *      This fails unless asyncSocket is of the "applicable socket type."
+ *      Being of "applicable socket type" is defined as supporting the
+ *      option:
  *
- * Side-effects
- *    None
+ *        layer = SOL_SOCKET,
+ *        optID = SO_{SND|RCV}BUF.
+ *
+ *      As of this writing, only AsyncTCPSockets (or derivations thereof)
+ *      are supported, but (for example) UDP sockets could be added over time.
+ *
+ * Results:
+ *      TRUE: on success; FALSE: on failure.
+ *      Determining that no setsockopt() is required is considered success.
+ *
+ * Side effects:
+ *      None.
+ *      Note that in case of a setsockopt() failing, 0 or 1 of the values
+ *      may have still been successfully set (the successful changes are
+ *      not rolled back).
  *
  *-----------------------------------------------------------------------------
  */
 
 Bool
-AsyncSocket_SetBufferSizes(AsyncSocket *asock,  // IN
-                           int sendSz,          // IN
-                           int recvSz)          // IN
+AsyncSocket_EstablishMinBufferSizes(AsyncSocket *asyncSocket,  // IN/OUT
+                                    int sendSz,                // IN
+                                    int recvSz)                // IN
 {
-   if (!asock) {
-      return FALSE;
+   Bool ok;
+
+   if (VALID(asyncSocket, setOption)) {
+      int curSendSz;
+      socklen_t curSendSzSz = sizeof curSendSz;
+      int curRecvSz;
+      socklen_t curRecvSzSz = sizeof curRecvSz;
+
+      AsyncSocketLock(asyncSocket);
+
+      /*
+       * For each buffer size, see if the current reported size is already
+       * at least as large (in which case we needn't do anything for that one).
+       * Bail out the moment anything fails, but don't worry about undoing any
+       * change already made (as advertised in doc comment).
+       *
+       * Reason for bailing on first error instead of trying everything:
+       * it's what the original code (that this adapts) did. TODO: Find out from
+       * author, explain here.
+       *
+       * Note that depending on the type of socket and the particular
+       * implementation (e.g., the TCP stack), asking for buffer size N might
+       * result in an even larger buffer, like a multiple 2N. It's not an exact
+       * science.
+       */
+
+      ok = (VT(asyncSocket)->getOption(asyncSocket,
+                                       SOL_SOCKET, SO_SNDBUF,
+                                       &curSendSz, &curSendSzSz) ==
+            ASOCKERR_SUCCESS) &&
+           (VT(asyncSocket)->getOption(asyncSocket,
+                                       SOL_SOCKET, SO_RCVBUF,
+                                       &curRecvSz, &curRecvSzSz) ==
+            ASOCKERR_SUCCESS);
+      if (ok && (curSendSz < sendSz)) {
+         ok = VT(asyncSocket)->setOption(asyncSocket,
+                                         SOL_SOCKET, SO_SNDBUF,
+                                         &sendSz, sizeof sendSz) ==
+              ASOCKERR_SUCCESS;
+      }
+      if (ok && (curRecvSz < recvSz)) {
+         ok = VT(asyncSocket)->setOption(asyncSocket,
+                                         SOL_SOCKET, SO_RCVBUF,
+                                         &recvSz, sizeof recvSz) ==
+              ASOCKERR_SUCCESS;
+      }
+
+      AsyncSocketUnlock(asyncSocket);
+   } else {
+      ok = FALSE;
    }
-   ASSERT(asock->vt->setBufferSizes);
-   return asock->vt->setBufferSizes(asock, sendSz, recvSz);
+
+   return ok;
 }
 
 
 /*
- *-----------------------------------------------------------------------------
+ *----------------------------------------------------------------------------
  *
  * AsyncSocket_SetSendLowLatencyMode --
  *
- *    Put the socket into a mode where we attempt to issue sends
- *    directly from within AsyncSocket_Send().  Ordinarily, we would
- *    set up a Poll callback from within AsyncSocket_Send(), which
- *    introduces some non-zero latency to the send path.  In
- *    low-latency-send mode, that delay is potentially avoided.  This
- *    does introduce a behavioural change; the send completion
- *    callback may be triggered before the call to Send() returns.  As
- *    not all clients may be expecting this, we don't enable this mode
- *    unless requested by the client.
+ *      THIS IS DEPRECATED in favor of
+ *      AsyncSocket_SetOption(ASYNC_SOCKET_OPT_SEND_LOW_LATENCY_MODE).
+ *      It exists for now to avoid having to change all existing calling code.
+ *      TODO: Remove it fully and fix up all calling code accordingly.
  *
- * Result
- *    None
+ *      Sets the aforementioned value. See doc comment on
+ *      ASYNC_SOCKET_OPT_SEND_LOW_LATENCY_MODE for more info.
  *
- * Side-effects
- *    See description above.
+ *      This fails unless asyncSocket is of the "applicable socket type."
+ *      Being of "applicable socket type" is defined as supporting the
+ *      option:
  *
- *-----------------------------------------------------------------------------
+ *        layer = ASYNC_SOCKET_OPTS_LAYER_BASE,
+ *        optID = ASYNC_SOCKET_OPT_SEND_LOW_LATENCY_MODE.
+ *
+ * Results:
+ *      ASOCKERR_SUCCESS on success, ASOCKERR_* otherwise.
+ *      asyncSocket being of inapplicable socket type yields ASOCKERR_INVAL.
+ *
+ * Side effects:
+ *      See ASYNC_SOCKET_OPT_SEND_LOW_LATENCY_MODE doc comment.
+ *
+ *----------------------------------------------------------------------------
  */
 
-void
-AsyncSocket_SetSendLowLatencyMode(AsyncSocket *asock,  // IN
-                                  Bool enable)         // IN
+int
+AsyncSocket_SetSendLowLatencyMode(AsyncSocket *asyncSocket,  // IN
+                                  Bool enable)               // IN
 {
-   ASSERT(asock->vt->setSendLowLatencyMode);
-   asock->vt->setSendLowLatencyMode(asock, enable);
+   int ret;
+   if (VALID(asyncSocket, setOption)) {
+      AsyncSocketLock(asyncSocket);
+      ret = VT(asyncSocket)->setOption
+               (asyncSocket, ASYNC_SOCKET_OPTS_LAYER_BASE,
+                ASYNC_SOCKET_OPT_SEND_LOW_LATENCY_MODE,
+                &enable, sizeof enable);
+      AsyncSocketUnlock(asyncSocket);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocket_SetOption --
+ *
+ *      Sets the value of the given socket option belonging to the given
+ *      option layer to the given value. The socket options mechanism is
+ *      discussed in more detail in asyncsocket.h.
+ *
+ *      The exact behavior and supported options are dependent on the socket
+ *      type. See the doc header for the specific implementation for details.
+ *      If ->setOption is NULL, all options are invalid for that socket.
+ *      Setting an invalid layer+option results in a no-op + error result.
+ *
+ *      For native options, layer = setsockopt() level,
+ *      optID = setsockopt() option_name.
+ *
+ *      For non-native options, optID is obtained as follows: it is converted
+ *      from an enum option ID value for your socket type; for example,
+ *      from ASYNC_TCP_SOCKET_OPT_ALLOW_DECREASING_BUFFER_SIZE,
+ *      where the latter is of type AsyncTCPSocket_OptID.
+ *
+ *      The option's value must reside at the buffer valuePtr that is
+ *      inBufLen long. If inBufLen does not match the expected size for
+ *      the given option, behavior is undefined.
+ *
+ * Results:
+ *      ASOCKERR_SUCCESS on success, ASOCKERR_* otherwise.
+ *      Invalid option+layer yields ASOCKERR_INVAL.
+ *      Failure to set a native OS option yields ASOCKERR_GENERIC.
+ *      inBufLen being wrong (for the given option) yields undefined behavior.
+ *
+ * Side effects:
+ *      Depends on option.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+AsyncSocket_SetOption(AsyncSocket *asyncSocket,     // IN/OUT
+                      AsyncSocketOpts_Layer layer,  // IN
+                      AsyncSocketOpts_ID optID,     // IN
+                      const void *valuePtr,         // IN
+                      socklen_t inBufLen)           // IN
+{
+   int ret;
+   /*
+    * Lacking a setOption() implementation is conceptually the same as
+    * ->setOption() existing but determining layer+optID to be invalid
+    * (ASOCKERR_INVAL results).
+    */
+   if (VALID(asyncSocket, setOption)) {
+      AsyncSocketLock(asyncSocket);
+      ret = VT(asyncSocket)->setOption(asyncSocket, layer, optID,
+                                       valuePtr, inBufLen);
+      AsyncSocketUnlock(asyncSocket);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocket_GetOption --
+ *
+ *      Gets the value of the given socket option belonging to the given
+ *      option layer. The socket options mechanism is
+ *      discussed in more detail in asyncsocket.h.
+ *      This is generally symmetrical to ..._SetOption(); most comments applying
+ *      to that function apply to this one in common-sense ways.
+ *      In particular a layer+optID combo is supported here if and only if it
+ *      is supported for ..._SetOption().
+ *
+ *      The length of the output buffer at valuePtr must reside at *outBufLen
+ *      at entry to this function. If *outBufLen does not match or exceed the
+ *      expected size for the given option, behavior is undefined.
+ *      At successful return from function, *outBufLen will be set to the
+ *      length of the value written to at valuePtr.
+ *
+ * Results:
+ *      ASOCKERR_SUCCESS on success, ASOCKERR_* otherwise.
+ *      Invalid option+layer yields ASOCKERR_INVAL.
+ *      Failure to get a native OS option yields ASOCKERR_GENERIC.
+ *      *outBufLen being wrong (for the given option) yields undefined behavior.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+AsyncSocket_GetOption(AsyncSocket *asyncSocket,     // IN/OUT
+                      AsyncSocketOpts_Layer layer,  // IN
+                      AsyncSocketOpts_ID optID,     // IN
+                      void *valuePtr,               // OUT
+                      socklen_t *outBufLen)         // IN/OUT
+{
+   int ret;
+   /*
+    * Lacking a getOption() implementation is conceptually the same as
+    * ->getOption() existing but determining layer+optID to be invalid
+    * (ASOCKERR_INVAL results).
+    */
+   if (VALID(asyncSocket, getOption)) {
+      AsyncSocketLock(asyncSocket);
+      ret = VT(asyncSocket)->getOption(asyncSocket, layer, optID,
+                                       valuePtr, outBufLen);
+      AsyncSocketUnlock(asyncSocket);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
 }
 
 
@@ -363,9 +709,12 @@ AsyncSocket_SetSendLowLatencyMode(AsyncSocket *asock,  // IN
  *    after the sslConnectFn callback is called.
  *
  * Results:
- *    None.
- *    Error is always reported using the callback supplied. Detailed SSL
- *    verification error can be retrieved from verifyParam structure.
+ *    ASOCKERR_SUCCESS indicates we have started async connect.
+ *    ASOCKERR_* indicates a failure to start the connect.
+ *
+ *    Errors during asynchronous processing is reported using the
+ *    callback supplied. Detailed SSL verification error can be
+ *    retrieved from verifyParam structure.
  *
  * Side effects:
  *    None.
@@ -373,17 +722,23 @@ AsyncSocket_SetSendLowLatencyMode(AsyncSocket *asock,  // IN
  *-----------------------------------------------------------------------------
  */
 
-void
+int
 AsyncSocket_StartSslConnect(AsyncSocket *asock,                   // IN
                             SSLVerifyParam *verifyParam,          // IN/OPT
                             void *sslCtx,                         // IN
                             AsyncSocketSslConnectFn sslConnectFn, // IN
                             void *clientData)                     // IN
 {
-   ASSERT(asock);
-   ASSERT(asock->vt->startSslConnect);
-   asock->vt->startSslConnect(asock, verifyParam, sslCtx, sslConnectFn,
-                              clientData);
+   int ret;
+   if (VALID(asock, startSslConnect)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->startSslConnect(asock, verifyParam, sslCtx, sslConnectFn,
+                                       clientData);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
 }
 
 
@@ -409,9 +764,15 @@ AsyncSocket_ConnectSSL(AsyncSocket *asock,          // IN
                        SSLVerifyParam *verifyParam, // IN/OPT
                        void *sslContext)            // IN/OPT
 {
-   ASSERT(asock);
-   ASSERT(asock->vt->connectSSL);
-   return asock->vt->connectSSL(asock, verifyParam, sslContext);
+   Bool ret;
+   if (VALID(asock, connectSSL)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->connectSSL(asock, verifyParam, sslContext);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = FALSE;
+   }
+   return ret;
 }
 
 
@@ -432,13 +793,19 @@ AsyncSocket_ConnectSSL(AsyncSocket *asock,          // IN
  */
 
 Bool
-AsyncSocket_AcceptSSL(AsyncSocket *asock)  // IN
+AsyncSocket_AcceptSSL(AsyncSocket *asock,    // IN
+                      void *sslCtx)          // IN: optional
 {
-   ASSERT(asock);
-   ASSERT(asock->vt->acceptSSL);
-   return asock->vt->acceptSSL(asock);
+   Bool ret;
+   if (VALID(asock, acceptSSL)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->acceptSSL(asock, sslCtx);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = FALSE;
+   }
+   return ret;
 }
-
 
 /*
  *-----------------------------------------------------------------------------
@@ -451,8 +818,11 @@ AsyncSocket_AcceptSSL(AsyncSocket *asock)  // IN
  *    or an error occurs.
  *
  * Results:
- *    None.
- *    Error is always reported using the callback supplied.
+ *    ASOCKERR_SUCCESS indicates we have started async accept.
+ *    ASOCKERR_* indicates a failure to start the accept.
+ *
+ *    Errors during asynchronous processing are reported using the
+ *    callback supplied.
  *
  * Side effects:
  *    None.
@@ -460,15 +830,21 @@ AsyncSocket_AcceptSSL(AsyncSocket *asock)  // IN
  *-----------------------------------------------------------------------------
  */
 
-void
+int
 AsyncSocket_StartSslAccept(AsyncSocket *asock,                 // IN
                            void *sslCtx,                       // IN
                            AsyncSocketSslAcceptFn sslAcceptFn, // IN
                            void *clientData)                   // IN
 {
-   ASSERT(asock);
-   ASSERT(asock->vt->startSslAccept);
-   asock->vt->startSslAccept(asock, sslCtx, sslAcceptFn, clientData);
+   int ret;
+   if (VALID(asock, startSslAccept)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->startSslAccept(asock, sslCtx, sslAcceptFn, clientData);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
 }
 
 
@@ -483,7 +859,8 @@ AsyncSocket_StartSslAccept(AsyncSocket *asock,                 // IN
  * Results:
  *      ASOCKERR_SUCCESS if it worked, ASOCKERR_GENERIC on system call
  *      failures, and ASOCKERR_TIMEOUT if we couldn't send enough data
- *      before the timeout expired.
+ *      before the timeout expired.  ASOCKERR_INVAL on invalid
+ *      parameters or operation not implemented on this socket.
  *
  * Side effects:
  *      None.
@@ -494,12 +871,15 @@ int
 AsyncSocket_Flush(AsyncSocket *asock,  // IN
                   int timeoutMS)       // IN
 {
-   if (asock == NULL) {
-      Warning(ASOCKPREFIX "Flush called with invalid arguments!\n");
-      return ASOCKERR_INVAL;
+   int ret;
+   if (VALID(asock, flush)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->flush(asock, timeoutMS);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
    }
-   ASSERT(asock->vt->flush);
-   return asock->vt->flush(asock, timeoutMS);
+   return ret;
 }
 
 
@@ -532,30 +912,39 @@ AsyncSocket_Flush(AsyncSocket *asock,  // IN
  */
 
 int
-AsyncSocket_Recv(AsyncSocket *asock,
-                 void *buf,
-                 int len,
-                 void *cb,
-                 void *cbData)
+AsyncSocket_Recv(AsyncSocket *asock,         // IN
+                 void *buf,                  // IN (buffer to fill)
+                 int len,                    // IN
+                 void *cb,                   // IN
+                 void *cbData)               // IN
 {
-   ASSERT(asock->vt->recv);
-   if (!asock) {
-      Warning(ASOCKPREFIX "Recv called with invalid arguments!\n");
-      return ASOCKERR_INVAL;
+   int ret;
+   if (VALID(asock, recv)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->recv(asock, buf, len, FALSE, cb, cbData);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
    }
-
-   return asock->vt->recv(asock, buf, len, FALSE, cb, cbData);
+   return ret;
 }
 
 int
-AsyncSocket_RecvPartial(AsyncSocket *asock,
-                        void *buf,
-                        int len,
-                        void *cb,
-                        void *cbData)
+AsyncSocket_RecvPartial(AsyncSocket *asock,         // IN
+                        void *buf,                  // IN (buffer to fill)
+                        int len,                    // IN
+                        void *cb,                   // IN
+                        void *cbData)               // IN
 {
-   ASSERT(asock->vt->recv);
-   return asock->vt->recv(asock, buf, len, TRUE, cb, cbData);
+   int ret;
+   if (VALID(asock, recv)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->recv(asock, buf, len, TRUE, cb, cbData);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
 }
 
 
@@ -583,13 +972,15 @@ AsyncSocket_RecvPassedFd(AsyncSocket *asock,  // IN/OUT: socket
                          void *cb,            // IN: completion calback
                          void *cbData)        // IN: callback's data
 {
-   if (!asock) {
-      Warning(ASOCKPREFIX "Recv called with invalid arguments!\n");
-      return ASOCKERR_INVAL;
+   int ret;
+   if (VALID(asock, recvPassedFd)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->recvPassedFd(asock, buf, len, cb, cbData);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
    }
-
-   ASSERT(asock->vt->recvPassedFd);
-   return asock->vt->recvPassedFd(asock, buf, len, cb, cbData);
+   return ret;
 }
 
 
@@ -612,13 +1003,15 @@ AsyncSocket_RecvPassedFd(AsyncSocket *asock,  // IN/OUT: socket
 int
 AsyncSocket_GetReceivedFd(AsyncSocket *asock)      // IN
 {
-   if (!asock) {
-      Warning(ASOCKPREFIX "Invalid socket while receiving fd!\n");
-      return -1;
+   int ret;
+   if (VALID(asock, getReceivedFd)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->getReceivedFd(asock);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = -1;
    }
-
-   ASSERT(asock->vt->getReceivedFd);
-   return asock->vt->getReceivedFd(asock);
+   return ret;
 }
 
 
@@ -650,19 +1043,21 @@ AsyncSocket_GetReceivedFd(AsyncSocket *asock)      // IN
  */
 
 int
-AsyncSocket_Send(AsyncSocket *asock,
-                 void *buf,
-                 int len,
-                 AsyncSocketSendFn sendFn,
-                 void *clientData)
+AsyncSocket_Send(AsyncSocket *asock,         // IN
+                 void *buf,                  // IN
+                 int len,                    // IN
+                 AsyncSocketSendFn sendFn,   // IN
+                 void *clientData)           // IN
 {
-   if (!asock || !buf || len <= 0) {
-      Warning(ASOCKPREFIX "Send called with invalid arguments! asynchSock: %p "
-              "buffer: %p length: %d\n", asock, buf, len);
-      return ASOCKERR_INVAL;
+   int ret;
+   if (VALID(asock, send)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->send(asock, buf, len, sendFn, clientData);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
    }
-   ASSERT(asock->vt->send);
-   return asock->vt->send(asock, buf, len, sendFn, clientData);
+   return ret;
 }
 
 
@@ -678,7 +1073,7 @@ AsyncSocket_Send(AsyncSocket *asock,
  * Results:
  *      0: send space probably available,
  *      1: send has reached maximum,
- *      ASOCKERR_GENERIC: null socket.
+ *      ASOCKERR_INVAL: null socket or operation not supported.
  *
  * Side effects:
  *      None.
@@ -687,13 +1082,49 @@ AsyncSocket_Send(AsyncSocket *asock,
  */
 
 int
-AsyncSocket_IsSendBufferFull(AsyncSocket *asock)
+AsyncSocket_IsSendBufferFull(AsyncSocket *asock)         // IN
 {
-   if (!asock) {
-      return ASOCKERR_GENERIC;
+   int ret;
+   if (VALID(asock, isSendBufferFull)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->isSendBufferFull(asock);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
    }
-   ASSERT(asock->vt->isSendBufferFull);
-   return asock->vt->isSendBufferFull(asock);
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocket_GetNetworkStats --
+ *
+ *      Get network statistics from the active socket.
+ *
+ * Results:
+ *      ASOCKERR_*
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+AsyncSocket_GetNetworkStats(AsyncSocket *asock,              // IN
+                            AsyncSocketNetworkStats *stats)  // OUT
+{
+   int ret;
+   if (VALID(asock, getNetworkStats)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->getNetworkStats(asock, stats);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
 }
 
 
@@ -719,13 +1150,18 @@ AsyncSocket_IsSendBufferFull(AsyncSocket *asock)
  */
 
 int
-AsyncSocket_Close(AsyncSocket *asock)
+AsyncSocket_Close(AsyncSocket *asock)         // IN
 {
-   if (!asock) {
-      return ASOCKERR_INVAL;
+   int ret;
+   if (VALID(asock, close)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->close(asock);
+      ASSERT(!asock->inited);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
    }
-   ASSERT(asock->vt->close);
-   return asock->vt->close(asock);
+   return ret;
 }
 
 
@@ -767,13 +1203,16 @@ AsyncSocket_CancelRecvEx(AsyncSocket *asock,         // IN
                          void **recvFn,              // OUT
                          Bool cancelOnSend)          // IN
 {
-   if (!asock) {
-      Warning(ASOCKPREFIX "Invalid socket while cancelling recv request!\n");
-      return ASOCKERR_INVAL;
+   int ret;
+   if (VALID(asock, cancelRecv)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->cancelRecv(asock, partialRecvd, recvBuf, recvFn,
+                                  cancelOnSend);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
    }
-   ASSERT(asock->vt->cancelRecv);
-   return asock->vt->cancelRecv(asock, partialRecvd, recvBuf, recvFn,
-                                cancelOnSend);
+   return ret;
 }
 
 
@@ -787,7 +1226,7 @@ AsyncSocket_CancelRecvEx(AsyncSocket *asock,         // IN
  *      function.
  *
  * Results:
- *      None.
+ *      ASOCKERR_*.
  *
  * Side effects:
  *      None.
@@ -795,11 +1234,18 @@ AsyncSocket_CancelRecvEx(AsyncSocket *asock,         // IN
  *----------------------------------------------------------------------------
  */
 
-void
+int
 AsyncSocket_CancelCbForClose(AsyncSocket *asock)  // IN:
 {
-   ASSERT(asock->vt->cancelCbForClose);
-   asock->vt->cancelCbForClose(asock);
+   int ret;
+   if (VALID(asock, cancelCbForClose)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->cancelCbForClose(asock);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
 }
 
 
@@ -826,9 +1272,15 @@ AsyncSocket_GetLocalVMCIAddress(AsyncSocket *asock,  // IN
                                 uint32 *cid,         // OUT: optional
                                 uint32 *port)        // OUT: optional
 {
-   ASSERT(asock);
-   ASSERT(asock->vt->getLocalVMCIAddress);
-   return asock->vt->getLocalVMCIAddress(asock, cid, port);
+   int ret;
+   if (VALID(asock, getLocalVMCIAddress)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->getLocalVMCIAddress(asock, cid, port);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
 }
 
 
@@ -855,9 +1307,47 @@ AsyncSocket_GetRemoteVMCIAddress(AsyncSocket *asock,  // IN
                                  uint32 *cid,         // OUT: optional
                                  uint32 *port)        // OUT: optional
 {
-   ASSERT(asock);
-   ASSERT(asock->vt->getRemoteVMCIAddress);
-   return asock->vt->getRemoteVMCIAddress(asock, cid, port);
+   int ret;
+   if (VALID(asock, getRemoteVMCIAddress)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->getRemoteVMCIAddress(asock, cid, port);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocket_GetWebSocketError --
+ *
+ *      Return the HTTP error code supplied during a failed WebSocket
+ *      upgrade negotiation.
+ *
+ * Results:
+ *      Numeric HTTP error code, 0 if no error, or -1 on invalid arguments.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+AsyncSocket_GetWebSocketError(AsyncSocket *asock)    // IN
+{
+   int ret;
+   if (VALID(asock, getWebSocketError)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->getWebSocketError(asock);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = -1;
+   }
+   return ret;
 }
 
 
@@ -880,9 +1370,15 @@ AsyncSocket_GetRemoteVMCIAddress(AsyncSocket *asock,  // IN
 char *
 AsyncSocket_GetWebSocketURI(AsyncSocket *asock)    // IN
 {
-   ASSERT(asock);
-   ASSERT(asock->vt->getWebSocketURI);
-   return asock->vt->getWebSocketURI(asock);
+   char *ret;
+   if (VALID(asock, getWebSocketURI)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->getWebSocketURI(asock);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = NULL;
+   }
+   return ret;
 }
 
 
@@ -907,11 +1403,48 @@ AsyncSocket_GetWebSocketURI(AsyncSocket *asock)    // IN
 char *
 AsyncSocket_GetWebSocketCookie(AsyncSocket *asock)    // IN
 {
-   ASSERT(asock);
-   if (asock->vt->getWebSocketCookie) {
-      return asock->vt->getWebSocketCookie(asock);
+   char *ret;
+   if (VALID(asock, getWebSocketCookie)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->getWebSocketCookie(asock);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = NULL;
    }
-   return NULL;
+   return ret;
+}
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocket_SetWebSocketCookie --
+ *
+ *      Return the Cookie field value supplied during a WebSocket
+ *      connection request.
+ *
+ * Results:
+ *      Cookie, if asock is WebSocket.
+ *      NULL, if asock is not WebSocket.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+AsyncSocket_SetWebSocketCookie(AsyncSocket *asock,      // IN
+                               void *clientData,        // IN
+                               const char *path,        // IN
+                               const char *sessionId)   // IN
+{
+   int ret = ASOCKERR_GENERIC;
+   if (VALID(asock, setWebSocketCookie)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->setWebSocketCookie(asock, clientData, path, sessionId);
+      AsyncSocketUnlock(asock);
+   }
+   return ret;
 }
 
 
@@ -932,11 +1465,17 @@ AsyncSocket_GetWebSocketCookie(AsyncSocket *asock)    // IN
  */
 
 uint16
-AsyncSocket_GetWebSocketCloseStatus(const AsyncSocket *asock)   // IN
+AsyncSocket_GetWebSocketCloseStatus(AsyncSocket *asock)   // IN
 {
-   ASSERT(asock);
-   ASSERT(asock->vt->getWebSocketCloseStatus);
-   return asock->vt->getWebSocketCloseStatus(asock);
+   uint16 ret;
+   if (VALID(asock, getWebSocketCloseStatus)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->getWebSocketCloseStatus(asock);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = 0;
+   }
+   return ret;
 }
 
 
@@ -961,9 +1500,250 @@ AsyncSocket_GetWebSocketCloseStatus(const AsyncSocket *asock)   // IN
 const char *
 AsyncSocket_GetWebSocketProtocol(AsyncSocket *asock)  // IN
 {
-   ASSERT(asock);
-   if (asock->vt->getWebSocketProtocol) {
-      return asock->vt->getWebSocketProtocol(asock);
+   const char *ret;
+   if (VALID(asock, getWebSocketProtocol)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->getWebSocketProtocol(asock);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = NULL;
    }
-   return NULL;
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocket_RecvBlocking --
+ *
+ *      Implement "blocking + timeout" operations on the socket. These are
+ *      simple wrappers around the AsyncTCPSocketBlockingWork function, which
+ *      operates on the actual non-blocking socket, using poll to determine
+ *      when it's ok to keep reading/writing. If we can't finish within the
+ *      specified time, we give up and return the ASOCKERR_TIMEOUT error.
+ *
+ *      Note that if these are called from a callback and a lock is being
+ *      used (pollParams.lock), the whole blocking operation takes place
+ *      with that lock held.  Regardless, it is the caller's responsibility
+ *      to make sure the synchronous and asynchronous operations do not mix.
+ *
+ * Results:
+ *      ASOCKERR_SUCCESS if we finished the operation, ASOCKERR_* error codes
+ *      otherwise.
+ *
+ * Side effects:
+ *      Reads/writes the socket.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+AsyncSocket_RecvBlocking(AsyncSocket *asock,         // IN
+                         void *buf,                  // OUT
+                         int len,                    // IN
+                         int *received,              // OUT
+                         int timeoutMS)              // IN
+{
+   int ret;
+   if (VALID(asock, recvBlocking)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->recvBlocking(asock, buf, len, received, timeoutMS);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocket_RecvPartialBlocking --
+ *
+ *      Implement "blocking + timeout" version of RecvPartial
+ *
+ * Results:
+ *      ASOCKERR_SUCCESS if we finished the operation, ASOCKERR_* error codes
+ *      otherwise.
+ *
+ * Side effects:
+ *      Reads/writes the socket.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+AsyncSocket_RecvPartialBlocking(AsyncSocket *asock,         // IN
+                                void *buf,                  // OUT
+                                int len,                    // IN
+                                int *received,              // OUT
+                                int timeoutMS)              // IN
+{
+   int ret;
+   if (VALID(asock, recvPartialBlocking)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->recvPartialBlocking(asock, buf, len, received,
+                                           timeoutMS);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocket_SendBlocking --
+ *
+ *      Implement "blocking + timeout" version of Send
+ *
+ * Results:
+ *      ASOCKERR_SUCCESS if we finished the operation, ASOCKERR_* error codes
+ *      otherwise.
+ *
+ * Side effects:
+ *      Reads/writes the socket.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+AsyncSocket_SendBlocking(AsyncSocket *asock,         // IN
+                         void *buf,                  // IN
+                         int len,                    // IN
+                         int *sent,                  // OUT
+                         int timeoutMS)              // IN
+{
+   int ret;
+   if (VALID(asock, sendBlocking)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->sendBlocking(asock, buf, len, sent, timeoutMS);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocket_DoOneMsg --
+ *
+ *      Spins a socket until the specified amount of time has elapsed or
+ *      data has arrived / been sent.
+ *
+ * Results:
+ *      ASOCKERR_SUCCESS if it worked, ASOCKERR_GENERIC on system call
+ *         failures
+ *      ASOCKERR_TIMEOUT if nothing happened in the allotted time.
+ *
+ * Side effects:
+ *      None.
+ *----------------------------------------------------------------------------
+ */
+
+int
+AsyncSocket_DoOneMsg(AsyncSocket *asock,         // IN
+                     Bool read,                  // IN
+                     int timeoutMS)              // IN
+{
+   int ret;
+   if (VALID(asock, doOneMsg)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->doOneMsg(asock, read, timeoutMS);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocket_WaitForConnection --
+ *
+ *      Spins a socket currently listening or connecting until the
+ *      connection completes or the allowed time elapses.
+ *
+ * Results:
+ *      ASOCKERR_SUCCESS if it worked, ASOCKERR_GENERIC on failures, and
+ *      ASOCKERR_TIMEOUT if nothing happened in the allotted time.
+ *
+ * Side effects:
+ *      None.
+ *----------------------------------------------------------------------------
+ */
+
+int
+AsyncSocket_WaitForConnection(AsyncSocket *asock,         // IN
+                              int timeoutMS)              // IN
+{
+   int ret;
+   if (VALID(asock, waitForConnection)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->waitForConnection(asock, timeoutMS);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocket_WaitForReadMultiple --
+ *
+ *      Waits on a list of sockets, returning when a socket becomes
+ *      available for read, or when the allowed time elapses.
+ *
+ *      Note, if this function is called by two threads with overlapping
+ *      sets of sockets, a deadlock can occur. The caller should guard
+ *      against such scenarios from happening, or making sure that there
+ *      is a consistent ordering to the lists of sockets.
+ *
+ *      The caller must also make sure synchronous and asynchronous
+ *      operations do not mix, as this function does not hold locks
+ *      for the entirety of the call.
+ *
+ * Results:
+ *      ASOCKERR_SUCCESS if one of the sockets is ready for read,
+ *      ASOCKERR_GENERIC on failures, and ASOCKERR_TIMEOUT if nothing
+ *      happened in the allotted time.
+ *
+ * Side effects:
+ *      None.
+ *----------------------------------------------------------------------------
+ */
+
+int
+AsyncSocket_WaitForReadMultiple(AsyncSocket **asock,  // IN
+                                int numSock,          // IN
+                                int timeoutMS,        // IN
+                                int *outIdx)          // OUT
+{
+   int i;
+   int ret;
+   if (numSock > 0 && VALID(asock[0], waitForReadMultiple)) {
+      for (i = 0; i < numSock; i++) {
+         AsyncSocketLock(asock[i]);
+      }
+      ret = VT(asock[0])->waitForReadMultiple(asock, numSock,
+                                              timeoutMS, outIdx);
+      for (i = numSock - 1; i >= 0; i--) {
+         AsyncSocketUnlock(asock[i]);
+      }
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
 }

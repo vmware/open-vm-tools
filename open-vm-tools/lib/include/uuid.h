@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -25,13 +25,13 @@
 #ifndef _UUID_H_
 #define _UUID_H_
 
-#ifdef __cplusplus
-extern "C"{
-#endif
-
 #define INCLUDE_ALLOW_USERLEVEL
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #define UUID_SIZE 16
 #define UUID_STRSIZE (2*UUID_SIZE + 1)
@@ -142,26 +142,49 @@ struct {
 #include "vmware_pack_end.h"
 EFIGUID;
 
+Bool UUID_ConvertPackedToBin(EFIGUID *destID,
+                             const char *text);
 
-Bool UUID_ConvertToBin(uint8 dest_id[UUID_SIZE], const char *text);
+Bool UUID_ConvertToBin(uint8 dest_id[UUID_SIZE],
+                       const char *text);
+
 char *UUID_ConvertToText(const uint8 id[UUID_SIZE]);
-void UUID_ConvertToTextBuf(const uint8 id[UUID_SIZE], char *buffer, size_t len);
-char *UUID_Create(const char *configFileFullPath, int schemeControl);
-char *UUID_CreateRandom(void);
-void UUID_CreateRandomRFC4122V4(UUIDRFC4122 *id);
-void UUID_CreateRandomEFI(EFIGUID *id);
-char *UUID_CreateRandomVpxStyle(uint8 vpxdId, UUIDStyle);
 
-Bool UUID_IsUUIDGeneratedByThatVpxd(const uint8 *id, int vpxdInstanceId);
-char *UUID_PackText(const char *text, char *pack, int packLen);
+void UUID_ConvertToTextBuf(const uint8 id[UUID_SIZE],
+                           char *buffer,
+                           size_t len);
+
+char *UUID_Create(const char *configFileFullPath,
+                  int schemeControl);
+
+char *UUID_CreateRandom(void);
+
+Bool UUID_CreateRandomRFC4122V4(UUIDRFC4122 *id);
+
+Bool UUID_CreateRandomEFI(EFIGUID *id);
+
+char *UUID_CreateRandomVpxStyle(uint8 vpxdId,
+                                UUIDStyle);
+
+Bool UUID_IsUUIDGeneratedByThatVpxd(const uint8 *id,
+                                    int vpxdInstanceId);
+
+char *UUID_PackText(const char *text,
+                    char *pack,
+                    int packLen);
+
 char *UUID_ProperHostUUID(void);
+
 char *UUID_GetHostUUID(void);
+
 UUIDStyle UUID_GetStyle(const uint8 *id);
+
 /* like UUID_GetHostUUID, except gets actual host UUID */
 char *UUID_GetRealHostUUID(void);
+Bool UUID_Equal(const uint8 id1[UUID_SIZE], const uint8 id2[UUID_SIZE]);
 
-#ifdef __cplusplus
-} // extern "C" {
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 
 #endif

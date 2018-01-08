@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -28,23 +28,32 @@
 
 #define INCLUDE_ALLOW_USERLEVEL
 #include "includeCheck.h"
+
 #include "auth.h"
 
-extern void Impersonate_Init(void);
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
-extern Bool Impersonate_Owner(const char *file);
-extern Bool Impersonate_Do(const char *user, AuthToken token);
-extern Bool Impersonate_Undo(void);
-extern char *Impersonate_Who(void);
+void Impersonate_Init(void);
 
-extern Bool Impersonate_ForceRoot(void);
-extern Bool Impersonate_UnforceRoot(void);
+Bool Impersonate_Owner(const char *file);
+Bool Impersonate_Do(const char *user, AuthToken token);
+Bool Impersonate_Undo(void);
+char *Impersonate_Who(void);
 
-extern Bool Impersonate_Runas(const char *cfg, const char *caller, 
-                              AuthToken callerToken);
+Bool Impersonate_ForceRoot(void);
+Bool Impersonate_UnforceRoot(void);
+
+Bool Impersonate_Runas(const char *cfg, const char *caller, 
+                       AuthToken callerToken);
 
 #ifdef _WIN32
-extern Bool Impersonate_CfgRunasOnly(const char *cfg);
+Bool Impersonate_CfgRunasOnly(const char *cfg);
+#endif
+
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 
 #endif // ifndef _IMPERSONATE_H_

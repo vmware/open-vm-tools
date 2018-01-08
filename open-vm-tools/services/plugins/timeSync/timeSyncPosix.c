@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -113,4 +113,42 @@ TimeSync_GetCurrentTime(int64 *now)
    *now = (int64)tv.tv_sec * US_PER_SEC + (int64)tv.tv_usec;
 
    return TRUE;
+}
+
+
+/*
+ ******************************************************************************
+ * TimeSync_IsGuestSyncServiceRunning --                                */ /**
+ *
+ * Check if the guest time sync service is running.
+ *
+ * @return TRUE if running and FALSE if not running or not implemented.
+ *
+ ******************************************************************************
+ */
+
+Bool
+TimeSync_IsGuestSyncServiceRunning(void)
+{
+   // Not Implemented.
+   return FALSE;
+}
+
+
+/*
+ ******************************************************************************
+ * TimeSync_DoGuestResync --                                            */ /**
+ *
+ * Issue a resync command to the guest time sync service.
+ *
+ * @return TRUE on success and FALSE on failure or if not implemented.
+ *
+ ******************************************************************************
+ */
+
+Bool
+TimeSync_DoGuestResync(void)
+{
+   // Not Implemented.
+   return FALSE;
 }

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -162,8 +162,31 @@ System_GetTimeMonotonic(void)
 
    return base + (last = current);
 #else  // VM_X86_64
+#ifdef sun
+   /* Solaris has a bug where times() can return a lower value than in
+    * a previous call, see bug #1710952, so we make sure to never
+    * return a lower value, by saving the old value and compare.
+    * We also make that thread safe. */
+   static Atomic_uint64 last = { 0 };
 
+   while (1) {
+      uint64 last1 = Atomic_Read64(&last);
+      uint64 now = times(&tp);
+
+      if (now > last1) {
+         uint64 last2 = Atomic_ReadIfEqualWrite64(&last, last1, now);
+         /* check if another thread changed last, and try again if true */
+         if (last2 != last1) {
+            continue;
+         }
+         return now;
+      } else {
+         return last1;
+      }
+   }
+#else
    return times(&tp);
+#endif
 #endif
 }
 

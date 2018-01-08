@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -28,7 +28,6 @@
 #include "vm_assert.h"
 #include "vm_atomic.h"
 #include "util.h"
-#include "debug.h"
 #include "hgfsChannelGuestInt.h"
 #include "hgfsServer.h"
 #include "hgfsServerManager.h"
@@ -44,7 +43,7 @@ typedef enum {
 typedef struct HgfsGuestConn {
    Atomic_uint32 refCount;                   /* Reference count. */
    HgfsGuestConnState state;
-   HgfsServerSessionCallbacks *serverCbTable; /* Server session callbacks. */
+   const HgfsServerSessionCallbacks *serverCbTable; /* Server session callbacks. */
    HgfsServerChannelCallbacks channelCbTable;
    void *serverSession;
    size_t packetOutLen;
@@ -54,7 +53,7 @@ typedef struct HgfsGuestConn {
 
 
 /* Callback functions. */
-static Bool HgfsChannelGuestBdInit(HgfsServerSessionCallbacks *serverCBTable,
+static Bool HgfsChannelGuestBdInit(const HgfsServerSessionCallbacks *serverCBTable,
                                    void *rpc,
                                    void *rpcCallback,
                                    HgfsGuestConn **connection);
@@ -69,7 +68,7 @@ static Bool HgfsChannelGuestBdReceive(HgfsGuestConn *data,
                                       size_t *packetOutSize);
 static uint32 HgfsChannelGuestBdInvalidateInactiveSessions(HgfsGuestConn *data);
 
-HgfsGuestChannelCBTable gGuestBackdoorOps = {
+const HgfsGuestChannelCBTable gGuestBackdoorOps = {
    HgfsChannelGuestBdInit,
    HgfsChannelGuestBdExit,
    HgfsChannelGuestBdReceive,
@@ -164,8 +163,8 @@ HgfsChannelGuestConnPut(HgfsGuestConn *connData)   // IN: connection
  */
 
 static Bool
-HgfsChannelGuestConnInit(HgfsGuestConn **connData,                   // IN/OUT: channel object
-                         HgfsServerSessionCallbacks *serverCBTable)  // IN: server callbacks
+HgfsChannelGuestConnInit(HgfsGuestConn **connData,                        // IN/OUT: channel object
+                         const HgfsServerSessionCallbacks *serverCBTable) // IN: server callbacks
 {
    HgfsGuestConn *conn = NULL;
 
@@ -348,6 +347,8 @@ HgfsChannelGuestConnConnect(HgfsGuestConn *connData)  // IN: our connection data
       HGFS_LARGE_PACKET_MAX
    };
 
+   connData->channelCbTable.registerThread = NULL;
+   connData->channelCbTable.unregisterThread = NULL;
    connData->channelCbTable.getWriteVa = NULL;
    connData->channelCbTable.getReadVa = NULL;
    connData->channelCbTable.putVa = NULL;
@@ -675,10 +676,10 @@ HgfsChannelGuestBdSend(void *conn,              // IN: our connection data
  */
 
 static Bool
-HgfsChannelGuestBdInit(HgfsServerSessionCallbacks *serverCBTable,   // IN: server callbacks
-                       void *rpc,                                   // IN: Rpc channel unused
-                       void *rpcCallback,                           // IN: Rpc callback unused
-                       HgfsGuestConn **connection)                  // OUT: connection object
+HgfsChannelGuestBdInit(const HgfsServerSessionCallbacks *serverCBTable, // IN: server callbacks
+                       void *rpc,                                       // IN: Rpc channel unused
+                       void *rpcCallback,                               // IN: Rpc callback unused
+                       HgfsGuestConn **connection)                      // OUT: connection object
 {
    HgfsGuestConn *connData = NULL;
    Bool result;

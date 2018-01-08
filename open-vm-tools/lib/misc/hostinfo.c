@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -203,7 +203,7 @@ Hostinfo_GetCpuid(HostinfoCpuIdInfo *info) // OUT
 
    cpuid.id0.numEntries = id0.eax;
 
-   if (0 == cpuid.id0.numEntries) {
+   if (cpuid.id0.numEntries == 0) {
       Warning(LGPFX" No CPUID information available.\n");
 
       return FALSE;

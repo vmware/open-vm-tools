@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -26,6 +26,10 @@
 #   define __ESCAPE_H__
 
 #include "vmware.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 void *
 Escape_DoString(const char *escStr,    // IN
@@ -84,5 +88,8 @@ Escape_UnescapeCString(char *buf); // IN/OUT
 char *
 Escape_Comma(const char *string); // IN
 
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif /* __ESCAPE_H__ */

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -32,7 +32,12 @@
 #define INCLUDE_ALLOW_MODULE
 #define INCLUDE_ALLOW_VMKERNEL
 #include "includeCheck.h"
+
 #include "vmware.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 typedef struct ListItem {
    struct ListItem *prev;
@@ -262,8 +267,8 @@ CircList_DeleteItem(ListItem *p,         // IN
 {
    ListItem *next;
 
-   ASSERT(p);
-   ASSERT(headp);
+   ASSERT(p != NULL);
+   ASSERT(headp != NULL);
 
    next = p->next;
    if (p == next) {
@@ -466,5 +471,9 @@ CircList_Size(ListItem *head)     // IN
    }
    return ret;
 }
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif /* _CIRCLIST_H_ */

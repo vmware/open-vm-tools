@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2014-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2014-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -30,6 +30,13 @@
 #include <glib.h>
 
 #include "guestInfo.h"
+
+typedef enum {
+   NICINFO_PRIORITY_PRIMARY,
+   NICINFO_PRIORITY_NORMAL,
+   NICINFO_PRIORITY_LOW,
+   NICINFO_PRIORITY_MAX
+} NicInfoPriority;
 
 Bool GuestInfo_GetFqdn(int outBufLen, char fqdn[]);
 Bool GuestInfo_GetNicInfo(NicInfoV3 **nicInfo);
@@ -73,5 +80,15 @@ GuestInfo_IsEqual_TypedIpAddress(const TypedIpAddress *a,
 Bool
 GuestInfo_IsEqual_WinsConfigInfo(const WinsConfigInfo *a,
                                  const WinsConfigInfo *b);
+
+void GuestInfo_SetIfaceExcludeList(char **list);
+
+void GuestInfo_SetIfacePrimaryList(char **list);
+
+void GuestInfo_SetIfaceLowPriorityList(char **list);
+
+Bool GuestInfo_IfaceIsExcluded(const char *name);
+
+NicInfoPriority GuestInfo_IfaceGetPriority(const char *name);
 
 #endif

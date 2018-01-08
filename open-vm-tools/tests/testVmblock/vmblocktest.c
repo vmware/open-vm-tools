@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -24,7 +24,7 @@
  *
  */
 
-#if !defined(linux) && !defined(sun) && !defined(__FreeBSD__) && !defined(vmblock_fuse)
+#if !defined(__linux__) && !defined(sun) && !defined(__FreeBSD__) && !defined(vmblock_fuse)
 # error "vmblocktest.c needs to be ported to your OS."
 #endif
 

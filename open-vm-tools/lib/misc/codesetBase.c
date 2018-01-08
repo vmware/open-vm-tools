@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -19,38 +19,15 @@
 /*
  * codesetBase.c --
  *
- *    Character set and encoding conversion functions, without ICU.
+ *    Character set and encoding conversion functions - unentangled from ICU,
+ *    Unicode, codesetOld or other dependencies. Routines here can be used
+ *    "anywhere" without fear of linking entanglements.
  */
 
 #include <stdlib.h>
 #include "vmware.h"
 #include "codeset.h"
-#include "codesetOld.h"
 #include "util.h"
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * CodeSet_GetCurrentCodeSet --
- *
- *    Return native code set name. Always calls down to
- *    CodeSetOld_GetCurrentCodeSet. See there for more details.
- *
- * Results:
- *    See CodeSetOld_GetCurrentCodeSet.
- *
- * Side effects:
- *    See CodeSetOld_GetCurrentCodeSet.
- *
- *-----------------------------------------------------------------------------
- */
-
-const char *
-CodeSet_GetCurrentCodeSet(void)
-{
-   return CodeSetOld_GetCurrentCodeSet();
-}
 
 
 /*

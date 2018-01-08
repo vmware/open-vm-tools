@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -32,6 +32,10 @@
 #include "vmware.h"
 
 typedef int CryptoError;
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 /*
  * This set of errors should not be expanded beyond a maximum value of 15
@@ -88,5 +92,9 @@ CryptoError_IsFailure(CryptoError error)
 {
    return (CRYPTO_ERROR_SUCCESS != error);
 }
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif /* cryptoError.h */

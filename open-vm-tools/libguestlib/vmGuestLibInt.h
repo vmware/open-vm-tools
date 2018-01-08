@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -16,7 +16,6 @@
  *
  *********************************************************/
 
-
 #ifndef _VM_GUEST_LIB_INT_H_
 #define _VM_GUEST_LIB_INT_H_
 
@@ -26,6 +25,9 @@
 #include "vmware.h"
 #include "vmGuestLib.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 /*
  * Backdoor string for retrieving guestlib info
@@ -209,5 +211,9 @@ struct VMGuestLibDataV3 {
 }
 #include "vmware_pack_end.h"
 VMGuestLibDataV3;
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif /* _VM_GUEST_LIB_INT_H_ */

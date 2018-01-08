@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -28,6 +28,11 @@
 #include "includeCheck.h"
 
 #include <ctype.h>
+
+#if defined __cplusplus
+extern "C" {
+#endif
+
 
 /*
  * On Windows platform, ctype.h functions are implemented via table lookup,
@@ -69,4 +74,9 @@ static __inline int CType_IsBlank(int c) { return c == ' ' || c == '\t'; }
 
 #endif /* _WIN32 */
 
+
+#if defined __cplusplus
+}
 #endif
+
+#endif // _VM_CTYPE_H_

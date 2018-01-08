@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -436,7 +436,7 @@ ShrinkDoWipeAndShrink(char *mountPoint,         // IN: mount point
                               SU_(disk.wiper.file.error,
                                   "Error, Unable to create wiper file.\n"));
          } else {
-            ToolsCmd_PrintErr(SU_(disk.wiper.error, "Error: %s"), err);
+            ToolsCmd_PrintErr(SU_(error.message, "Error: %s\n"), err);
          }
 
          rc = EX_TEMPFAIL;

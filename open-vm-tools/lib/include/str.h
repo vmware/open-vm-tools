@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -55,25 +55,34 @@
 
 #include "vm_basic_types.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
+
 
 /*
  * These platforms use bsd_vsnprintf().
  * This does not mean it has bsd_vsnwprintf().
  */
+#if !defined(OPEN_VM_TOOLS)
 #if (defined _WIN32 && !defined STR_NO_WIN32_LIBS) || \
     (defined __linux__ && !defined __UCLIBC__) || \
     defined __APPLE__
 #define HAS_BSD_PRINTF 1
 #endif
+#endif
 
 /*
  * And these platforms/setups use bsd_vsnwprintf()
  */
+#if !defined(OPEN_VM_TOOLS)
 #if (defined _WIN32 && !defined STR_NO_WIN32_LIBS) || \
    (defined __GNUC__ && (__GNUC__ < 2                 \
                          || (__GNUC__ == 2            \
                              && __GNUC_MINOR__ < 96)))
 #define HAS_BSD_WPRINTF 1
+#endif
 #endif
 
 /*
@@ -116,6 +125,10 @@ char *Str_Strnstr(const char *src,  // IN:
 char *Str_Strcpy(char *dst,        // OUT:
                  const char *src,  // IN:
                  size_t maxLen);   // IN:
+char *Str_Strncpy(char *dest,       // OUT:
+                  size_t destSize,  // IN:
+                  const char *src,  // IN:
+                  size_t n);        // IN:
 char *Str_Strcat(char *dst,        // IN/OUT:
                  const char *src,  // IN:
                  size_t maxLen);   // IN:
@@ -255,6 +268,10 @@ unsigned char *Str_Mbscat(char *buf,        // IN/OUT:
    #define Str_Tcscspn(s1, s2) _tcscspn(s1, s2)
    #define Str_Tcsupr(s) _tcsupr(s)
    #define Str_Tcslwr(s) _tcslwr(s)
+#endif
+
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 
 #endif /* _STR_H_ */

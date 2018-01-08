@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2012-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2012-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -522,6 +522,10 @@ DecodeString(char **buf,         // IN/OUT
       return res;
    }
 
+   if (*strLen <= 0) {
+      return DMERR_BAD_DATA;
+   }
+
    if (*left < *strLen) {
       return DMERR_TRUNCATED_DATA;
    }
@@ -600,12 +604,19 @@ DecodeInt64List(char **buf,        // IN/OUT
    int32 listLen;
    int64 *numList = NULL;
    ErrorCode res;
+   int32 i;
 
    res = DecodeInt32(buf, left, &listLen);
+   if (res != DMERR_SUCCESS) {
+      return res;
+   }
 
-   if (res == DMERR_SUCCESS) {
-      int32 i;
+   if (listLen < 0 || listLen > *left / sizeof(int64)) {
+      /* listLen can be zero to support an empty list */
+      return DMERR_BAD_DATA;
+   }
 
+   if (listLen) {
       numList = (int64 *)malloc(sizeof(int64) * listLen);
       if (numList == NULL) {
          return DMERR_INSUFFICIENT_MEM;
@@ -617,15 +628,15 @@ DecodeInt64List(char **buf,        // IN/OUT
             break;
          }
       }
+   }
 
-      if (res == DMERR_SUCCESS) {
-         res = AddEntry_Int64List(that, fieldId, numList, listLen);
-      }
+   if (res == DMERR_SUCCESS) {
+      res = AddEntry_Int64List(that, fieldId, numList, listLen);
+   }
 
-      if (res != DMERR_SUCCESS) {
-         /* clean up memory */
-         free(numList);
-      }
+   if (res != DMERR_SUCCESS) {
+      /* clean up memory */
+      free(numList);
    }
 
    return res;
@@ -1434,12 +1445,23 @@ DecodeStringList(char **buf,           // IN
       return res;
    }
 
-   strList = (char **)calloc(listSize + 1, sizeof(char *));
-   strLens = (int32 *)malloc(sizeof(int32) * listSize);
+   if (listSize < 0 || listSize > *left / sizeof(int32)) {
+      /* listSize can be zero to support an empty list */
+      return DMERR_BAD_DATA;
+   }
 
-   if (strList == NULL || strLens == NULL) {
-      FreeStringList(strList, strLens);
+   strList = (char **)calloc(listSize + 1, sizeof(char *));
+   if (strList == NULL) {
       return DMERR_INSUFFICIENT_MEM;
+   }
+   if (listSize) {
+      strLens = (int32 *)malloc(sizeof(int32) * listSize);
+      if (strLens == NULL) {
+         FreeStringList(strList, strLens);
+         return DMERR_INSUFFICIENT_MEM;
+      }
+   } else {
+      strLens = NULL;
    }
 
    for (i = 0; i < listSize; i++) {
@@ -2166,7 +2188,7 @@ DataMap_SetStringList(DataMap *that,          // IN/OUT
 {
    DataMapEntry *entry;
 
-   if (that == NULL || strList == NULL || strLens < 0) {
+   if (that == NULL || strList == NULL || strLens == NULL) {
       return DMERR_INVALID_ARGS;
    }
 

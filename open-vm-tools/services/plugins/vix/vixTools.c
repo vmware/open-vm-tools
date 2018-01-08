@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -57,7 +57,7 @@
 #include <WTypes.h>
 #include <io.h>
 #include "wminic.h"
-#include "win32u.h"
+#include "windowsu.h"
 #include <sys/stat.h>
 #include <time.h>
 #define  SECURITY_WIN32
@@ -109,7 +109,7 @@
 #include "su.h"
 #include "escape.h"
 
-#if defined(linux) || defined(_WIN32)
+#if defined(__linux__) || defined(_WIN32)
 #include "netutil.h"
 #endif
 
@@ -120,7 +120,7 @@
 
 #ifdef _WIN32
 #include "registryWin32.h"
-#include "win32u.h"
+#include "windowsu.h"
 #endif /* _WIN32 */
 #include "hgfsHelper.h"
 
@@ -581,7 +581,7 @@ static VixError VixToolsProcessHgfsPacket(VixCommandHgfsSendPacket *requestMsg,
 static VixError VixToolsListFileSystems(VixCommandRequestHeader *requestMsg,
                                         char **result);
 
-#if defined(_WIN32) || defined(linux)
+#if defined(_WIN32) || defined(__linux__)
 static VixError VixToolsPrintFileSystemInfo(char **destPtr,
                                             const char *endDestPtr,
                                             const char *name,
@@ -1687,7 +1687,7 @@ VixToolsStartProgramImpl(const char *requestName,            // IN
     * For non-Windows, we use the user's $HOME if workingDir isn't supplied.
     */
    if (NULL == workingDir) {
-#if defined(linux) || defined(sun) || defined(__FreeBSD__) || defined(__APPLE__)
+#if defined(__linux__) || defined(sun) || defined(__FreeBSD__) || defined(__APPLE__)
       char *username = NULL;
 
       if (!ProcMgr_GetImpersonatedUserInfo(&username, &workingDirectory)) {
@@ -2332,7 +2332,7 @@ FoundryToolsDaemon_TranslateSystemErr(void)
  *-----------------------------------------------------------------------------
  */
 
-static VixError
+VixError
 VixToolsTranslateVGAuthError(VGAuthError vgErr)
 {
    VixError err;
@@ -4844,11 +4844,22 @@ VixToolsInitiateFileTransferToGuest(VixCommandRequestHeader *requestMsg)  // IN
 
    File_GetPathName(guestPathName, &dirName, &baseName);
    if ((NULL == dirName) || (NULL == baseName)) {
+      g_debug("%s: File_GetPathName failed for '%s', dirName='%s', "
+              "baseName='%s'.\n", __FUNCTION__, guestPathName,
+              dirName ? dirName : "(null)",
+              baseName ? baseName : "(null)");
       err = VIX_E_FILE_NAME_INVALID;
       goto abort;
    }
 
    if (!File_IsDirectory(dirName)) {
+#ifdef _WIN32
+      DWORD sysErr = GetLastError();
+#else
+      int sysErr = errno;
+#endif
+      g_debug("%s: File_IsDirectory failed for '%s', err=%d.\n",
+              __FUNCTION__, dirName, sysErr);
       err = VIX_E_FILE_NAME_INVALID;
       goto abort;
    }
@@ -6255,7 +6266,7 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
    int remaining = 0;
    int numResults;
    GRegex *regex = NULL;
-   GError *gerr = NULL;
+   GError *gErr = NULL;
    char *pathName;
    VMAutomationRequestParser parser;
 
@@ -6309,10 +6320,11 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
            index, maxResults, (int) offset);
 
    if (pattern) {
-      regex = g_regex_new(pattern, 0, 0, &gerr);
+      regex = g_regex_new(pattern, 0, 0, &gErr);
       if (!regex) {
-         g_warning("%s: bad regex pattern '%s'; failing with INVALID_ARG\n",
-                   __FUNCTION__, pattern);
+         g_warning("%s: bad regex pattern '%s' (%s);"
+                   "failing with INVALID_ARG\n",
+                   __FUNCTION__, pattern, gErr ? gErr->message : "");
          err = VIX_E_INVALID_ARG;
          goto abort;
       }
@@ -6468,6 +6480,10 @@ abort:
    }
    VixToolsLogoutUser(userToken);
 
+   if (NULL != regex) {
+      g_regex_unref(regex);
+   }
+
    if (NULL == fileList) {
       fileList = Util_SafeStrdup("");
    }
@@ -6529,7 +6545,7 @@ VixToolsGetFileExtendedInfoLength(const char *filePathName,   // IN
    fileExtendedInfoBufferSize += 10 * 3;            // uid, gid, perms
 #endif
 
-#if defined(linux) || defined(sun) || defined(__FreeBSD__)
+#if defined(__linux__) || defined(sun) || defined(__FreeBSD__)
    if (File_IsSymLink(filePathName)) {
       char *symlinkTarget;
       symlinkTarget = Posix_ReadLink(filePathName);
@@ -8539,7 +8555,7 @@ VixToolsListFileSystems(VixCommandRequestHeader *requestMsg, // IN
    char *destPtr;
    char *endDestPtr;
    Bool escapeStrs;
-#if defined(_WIN32) || defined(linux)
+#if defined(_WIN32) || defined(__linux__)
    Bool truncated;
 #endif
 #if defined(_WIN32)
@@ -8621,7 +8637,7 @@ VixToolsListFileSystems(VixCommandRequestHeader *requestMsg, // IN
       free(fileSystemType);
    }
 
-#elif defined(linux)
+#elif defined(__linux__)
 
    mountfile = "/etc/mtab";
 
@@ -8681,7 +8697,7 @@ abort:
 } // VixToolsListFileSystems
 
 
-#if defined(_WIN32) || defined(linux)
+#if defined(_WIN32) || defined(__linux__)
 /*
  *-----------------------------------------------------------------------------
  *
@@ -8759,7 +8775,7 @@ abort:
 
    return err;
 }
-#endif // #if defined(_WIN32) || defined(linux)
+#endif // #if defined(_WIN32) || defined(__linux__)
 
 
 /*
@@ -11364,6 +11380,10 @@ GuestAuthPasswordAuthenticateImpersonate(
    VGAuthContext *ctx = NULL;
    VGAuthError vgErr;
    VGAuthUserHandle *newHandle = NULL;
+   VGAuthExtraParams extraParams[1];
+
+   extraParams[0].name = VGAUTH_PARAM_LOAD_USER_PROFILE;
+   extraParams[0].value = VGAUTH_PARAM_VALUE_TRUE;
 
    err = VixMsg_DeObfuscateNamePassword(obfuscatedNamePassword,
                                         &username,
@@ -11388,7 +11408,9 @@ GuestAuthPasswordAuthenticateImpersonate(
       goto done;
    }
 
-   vgErr = VGAuth_Impersonate(ctx, newHandle, 0, NULL);
+   vgErr = VGAuth_Impersonate(ctx, newHandle,
+                              (int)ARRAYSIZE(extraParams),
+                              extraParams);
    if (VGAUTH_FAILED(vgErr)) {
       err = VixToolsTranslateVGAuthError(vgErr);
       goto done;
@@ -11448,6 +11470,10 @@ GuestAuthSAMLAuthenticateAndImpersonate(
    VGAuthContext *ctx = NULL;
    VGAuthError vgErr;
    VGAuthUserHandle *newHandle = NULL;
+   VGAuthExtraParams extraParams[1];
+
+   extraParams[0].name = VGAUTH_PARAM_LOAD_USER_PROFILE;
+   extraParams[0].value = VGAUTH_PARAM_VALUE_TRUE;
 
    err = VixMsg_DeObfuscateNamePassword(obfuscatedNamePassword,
                                         &token,
@@ -11504,62 +11530,19 @@ GuestAuthSAMLAuthenticateAndImpersonate(
       err = VixToolsTranslateVGAuthError(vgErr);
       goto done;
    } else {
-      VGAuthExtraParams extraParams[1];
-      VGAuthError vgErr2;
-
-      extraParams[0].name = VGAUTH_PARAM_VALIDATE_INFO_ONLY;
-      extraParams[0].value = VGAUTH_PARAM_VALUE_TRUE;
-
-      vgErr2 = VGAuth_ValidateSamlBearerToken(ctx,
-                                             token,
-                                             username,
-                                             1,
-                                             extraParams,
-                                             &newHandle);
-      // if it passes with VALIDATE_ONLY, see if its the current user (SYSTEM)
-      if (vgErr2 == VGAUTH_E_OK) {
-         gchar *tokenUser = NULL;
-
-         vgErr2 = VGAuth_UserHandleUsername(ctx, newHandle, &tokenUser);
-         if (VGAUTH_FAILED(vgErr2)) {
-            g_warning("%s: VGAuth_UserHandleUsername() failed\n", __FUNCTION__);
-            err = VixToolsTranslateVGAuthError(vgErr2);
-            goto done;
-         }
-
-         g_debug("%s: VGAuth_ValidateSamlBearerToken() with "
-                 "VGAUTH_PARAM_VALIDATE_INFO_ONLY:  user is %s, "
-                 "toolsd user is %s\n",
-                 __FUNCTION__, tokenUser, gCurrentUsername);
-
-         /*
-          * If VGAUTH_PARAM_VALIDATE_INFO_ONLY passed, and the
-          * username matches, bypass impersonation.  Be sure
-          * to do a case-less comparison.
-          */
-         if (Unicode_CompareIgnoreCase(tokenUser, gCurrentUsername) == 0) {
-            g_message("%s: User '%s' matched; bypassing impersonation\n",
-                      __FUNCTION__, gCurrentUsername);
-
-            // set the impersonation token to the magic value
-            *userToken = PROCESS_CREATOR_USER_TOKEN;
-            gImpersonatedUsername = Util_SafeStrdup("_CONSOLE_USER_NAME_");
-            currentUserHandle = newHandle;
-            err = VIX_OK;
-         } else {
-            g_message("%s: User '%s' mismatch with process user '%s'\n",
-                      __FUNCTION__, tokenUser, gCurrentUsername);
-            // use original error code
-            err = VixToolsTranslateVGAuthError(vgErr);
-         }
-         VGAuth_FreeBuffer(tokenUser);
-         goto done;
-
-      } else {
-         // use original error code
-         err = VixToolsTranslateVGAuthError(vgErr);
-         goto done;
-      }
+      /*
+       * See if we have a SAML token associated with the toolsd owner.
+       * If this returns OK, we don't bother to impersonate.
+       * If it fails, return an error.
+       */
+      err = VixToolsCheckSAMLForSystem(ctx,
+                                       vgErr,
+                                       token,
+                                       username,
+                                       gCurrentUsername,
+                                       userToken,
+                                       &currentUserHandle);
+      goto done;
    }
 #else
    if (VGAUTH_FAILED(vgErr)) {
@@ -11571,7 +11554,9 @@ GuestAuthSAMLAuthenticateAndImpersonate(
 #if ALLOW_LOCAL_SYSTEM_IMPERSONATION_BYPASS
 impersonate:
 #endif
-   vgErr = VGAuth_Impersonate(ctx, newHandle, 0, NULL);
+   vgErr = VGAuth_Impersonate(ctx, newHandle,
+                              (int)ARRAYSIZE(extraParams),
+                              extraParams);
    if (VGAUTH_FAILED(vgErr)) {
       err = VixToolsTranslateVGAuthError(vgErr);
       goto done;

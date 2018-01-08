@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2014-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2014-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -22,6 +22,7 @@
  * Contains POSIX-specific bits of gettting disk information.
  */
 
+#include "conf.h"
 #include "util.h"
 #include "vmware.h"
 #include "guestInfoInt.h"
@@ -40,7 +41,24 @@
  */
 
 GuestDiskInfo *
-GuestInfo_GetDiskInfo(void)
+GuestInfo_GetDiskInfo(const ToolsAppCtx *ctx)
 {
-   return GuestInfoGetDiskInfoWiper();
+   gboolean includeReserved;
+
+   /*
+    * In order to be consistent with the way 'df' reports
+    * disk free space, we don't include the reserved space
+    * while reporting the disk free space by default.
+    */
+   includeReserved = VMTools_ConfigGetBoolean(ctx->config,
+                                              CONFGROUPNAME_GUESTINFO,
+                                              CONFNAME_DISKINFO_INCLUDERESERVED,
+                                              FALSE);
+   if (includeReserved) {
+      g_debug("Including reserved space in diskInfo stats.\n");
+   } else {
+      g_debug("Excluding reserved space from diskInfo stats.\n");
+   }
+
+   return GuestInfoGetDiskInfoWiper(includeReserved);
 }

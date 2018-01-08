@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -63,7 +63,7 @@ ErrErrno2String(Err_Number errorNumber, // IN
 {
    char *p;
 
-#if defined(linux) && !defined(N_PLAT_NLM) && !defined(__ANDROID__)
+#if defined(__linux__) && !defined(__ANDROID__)
    p = strerror_r(errorNumber, buf, bufSize);
 #else
    p = strerror(errorNumber);

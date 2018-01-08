@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -91,6 +91,9 @@
 # include <sys/param.h>
 #endif
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 /*
  * FUSE definitions. They are supposed to be used by userspace code and
@@ -145,7 +148,7 @@
 # define VMBLOCK_DEVICE_MODE           VMBLOCK_FUSE_DEVICE_MODE
 # define VMBLOCK_MOUNT_POINT           VMBLOCK_FUSE_MOUNT_POINT
 
-#elif defined __linux__
+#elif defined(__linux__)
 # define VMBLOCK_ADD_FILEBLOCK         98
 # define VMBLOCK_DEL_FILEBLOCK         99
 # ifdef VMX86_DEVEL
@@ -200,6 +203,10 @@
 # endif                                 /* } */
 #else
 # error "Unknown platform for vmblock."
+#endif
+
+#if defined(__cplusplus)
+}  // extern "C"
 #endif
 
 #endif /* _VMBLOCK_H_ */

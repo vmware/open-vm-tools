@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -142,13 +142,14 @@ ObtainHardwareID(uint64 *hardwareID) // OUT:
 
    // Deal with BUG 21643
    dllHandle = LoadLibrary(TEXT("icmp.dll"));
-   FreeLibrary(dllHandle);
 
    if (!dllHandle) {
       Warning("%s Failed to load icmp.dll.\n", __FUNCTION__);
 
       return EINVAL;
    }
+
+   FreeLibrary(dllHandle);
 
    dllHandle = LoadLibrary(TEXT("IpHlpApi.dll"));
 
@@ -348,7 +349,7 @@ ObtainHardwareID(uint64 *hardwareID)  // OUT:
 
    return 0;
 }
-#elif defined(linux) || defined __ANDROID__
+#elif defined(__linux__) || defined __ANDROID__
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <net/if.h>

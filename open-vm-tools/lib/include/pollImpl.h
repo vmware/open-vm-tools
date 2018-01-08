@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -45,6 +45,11 @@
 #include "includeCheck.h"
 
 #include "poll.h"
+#include "vm_basic_asm.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 /*
  * PollImpl:
@@ -80,49 +85,36 @@ void Poll_InitWithImpl(const PollImpl *impl);
 static INLINE Bool
 PollClassSet_IsMember(PollClassSet set, PollClass c)
 {
-   ASSERT(c < POLL_MAX_CLASSES);
-   return ((set.bits[c / _POLL_ELEMSIZE] >> (c % _POLL_ELEMSIZE)) & 0x1) != 0;
+   return (set.bits & PollClassSet_Singleton(c).bits) != 0;
 }
 
 /* Compare two PollClassSets. */
 static INLINE Bool
 PollClassSet_Equals(PollClassSet lhs, PollClassSet rhs)
 {
-   unsigned i;
+   return lhs.bits == rhs.bits;
+}
 
-   for (i = 0; i < ARRAYSIZE(lhs.bits); i++) {
-      if (lhs.bits[i] != rhs.bits[i]) {
-         return FALSE;
-      }
-   }
-   return TRUE;
+/* Verifies if the class set is empty. */
+static INLINE Bool
+PollClassSet_IsEmpty(PollClassSet cs)
+{
+   return PollClassSet_Equals(cs, PollClassSet_Empty());
 }
 
 /* Remove from a PollClassSet. */
 static INLINE void
 PollClassSet_Remove(PollClassSet *set, PollClass c)
 {
-   ASSERT(c < POLL_MAX_CLASSES);
-   set->bits[c / _POLL_ELEMSIZE] &= ~(CONST3264U(1) << (c % _POLL_ELEMSIZE));
+   set->bits &= ~PollClassSet_Singleton(c).bits;
 }
 
 /* Find first set.  POLL_MAX_CLASSES for none set. */
 static INLINE PollClass
 PollClassSet_FFS(PollClassSet *set)
 {
-   unsigned i, j;
-
-   /* XXX TODO: use lssbPtr */
-   for (i = 0; i < ARRAYSIZE(set->bits); i++) {
-      if (set->bits[i] != 0) {
-         for (j = 0; j < _POLL_ELEMSIZE; j++) {
-            if ((set->bits[i] & (CONST3264U(1) << j)) != 0) {
-               PollClass c = (PollClass)(i * _POLL_ELEMSIZE + j);
-               ASSERT(c < POLL_MAX_CLASSES);
-               return c;
-            }
-         }
-      }
+   if (set->bits != 0) {
+      return (PollClass)lssbPtr_0(set->bits);
    }
    return POLL_MAX_CLASSES;
 }
@@ -157,5 +149,9 @@ PollLockingNotAvailable(void)
 {
    return FALSE;
 }
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif /* _POLLIMPL_H_ */

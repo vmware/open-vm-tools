@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -27,8 +27,11 @@
 
 #define INCLUDE_ALLOW_USERLEVEL
 #define INCLUDE_ALLOW_VMCORE
-
 #include "includeCheck.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 /*
  * Core rank defines.
@@ -99,5 +102,9 @@
  * lib/public/mutexRankLib.h for definitions.
  */
 #define RANK_libLockBase         0xF0000000
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif // ifndef _MUTEXRANK_H_

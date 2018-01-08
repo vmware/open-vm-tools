@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1098,8 +1098,8 @@ AliasStartElement(GMarkupParseContext *parseContext,
        */
       if (g_strcmp0(elementName, ALIASINFO_ALIAS_ELEMENT_NAME) == 0) {
          list->num++;
-         list->aList = g_realloc(list->aList,
-                                 (list->num * sizeof(ServiceAlias)));
+         list->aList = g_realloc_n(list->aList,
+                                   list->num, sizeof(ServiceAlias));
          list->aList[list->num - 1].pemCert = NULL;
          list->aList[list->num - 1].num = 0;
          list->aList[list->num - 1].infos = NULL;
@@ -1128,7 +1128,7 @@ AliasStartElement(GMarkupParseContext *parseContext,
          // grow
          infos = list->aList[list->num - 1].infos;
          n = ++(list->aList[list->num - 1].num);
-         infos = g_realloc(infos, sizeof(ServiceAliasInfo) * n);
+         infos = g_realloc_n(infos, n, sizeof(ServiceAliasInfo));
          infos[n - 1].type = -1;
          infos[n - 1].name = NULL;
          infos[n - 1].comment = NULL;
@@ -1547,8 +1547,8 @@ MappedStartElement(GMarkupParseContext *parseContext,
        */
       if (g_strcmp0(elementName, MAP_MAPPING_ELEMENT_NAME) == 0) {
          list->num++;
-         list->maList = g_realloc(list->maList,
-                                  (list->num * sizeof(ServiceMappedAlias)));
+         list->maList = g_realloc_n(list->maList,
+                                    list->num, sizeof(ServiceMappedAlias));
          list->maList[list->num - 1].pemCert = NULL;
          list->maList[list->num - 1].userName = NULL;
          list->maList[list->num - 1].num = 0;
@@ -1588,7 +1588,7 @@ MappedStartElement(GMarkupParseContext *parseContext,
       // grow
       n = ++(list->maList[list->num - 1].num);
       subjs = list->maList[list->num - 1].subjects;
-      subjs = g_realloc(subjs, sizeof(ServiceSubject) * n);
+      subjs = g_realloc_n(subjs, n, sizeof(ServiceSubject));
 
       subjs[n - 1].type = sType;
       subjs[n - 1].name = NULL;
@@ -2595,9 +2595,9 @@ ServiceAliasAddAlias(const gchar *reqUserName,
     */
    if (matchCertIdx != -1) {
       aList[matchCertIdx].num++;
-      aList[matchCertIdx].infos = g_realloc(aList[matchCertIdx].infos,
-                                             sizeof(ServiceAliasInfo) *
-                                                aList[matchCertIdx].num);
+      aList[matchCertIdx].infos = g_realloc_n(aList[matchCertIdx].infos,
+                                              aList[matchCertIdx].num,
+                                              sizeof(ServiceAliasInfo));
       newAi = &(aList[matchCertIdx].infos[aList[matchCertIdx].num - 1]);
       newAi->type = ai->type;
       newAi->name = g_strdup(ai->name);
@@ -2606,7 +2606,7 @@ ServiceAliasAddAlias(const gchar *reqUserName,
       /*
        * If its a new cert, add the incoming cert and subject to our list.
        */
-      aList = g_realloc(aList, sizeof(ServiceAlias) * (num + 1));
+      aList = g_realloc_n(aList, num + 1, sizeof(ServiceAlias));
       aList[num].pemCert = g_strdup(pemCert);
       aList[num].num = 1;
       aList[num].infos = g_malloc0(sizeof(ServiceAliasInfo));
@@ -2643,8 +2643,9 @@ check_map:
             if (g_strcmp0(maList[i].userName, userName) == 0) {
                // additional subject for cert/username pair
                maList[i].num++;
-               maList[i].subjects = g_realloc(maList[i].subjects,
-                                              sizeof(ServiceSubject) * maList[i].num);
+               maList[i].subjects = g_realloc_n(maList[i].subjects,
+                                                maList[i].num,
+                                                sizeof(ServiceSubject));
                maList[i].subjects[maList[i].num - 1].type = ai->type;
                maList[i].subjects[maList[i].num - 1].name = g_strdup(ai->name);
                updatedMapList = TRUE;
@@ -2656,7 +2657,9 @@ check_map:
        * If new, add it to the array.
        */
       if (!updatedMapList) {
-         maList = g_realloc(maList, sizeof(ServiceMappedAlias) * (numMapped + 1));
+         maList = g_realloc_n(maList,
+                              numMapped + 1,
+                              sizeof(ServiceMappedAlias));
          maList[numMapped].pemCert = g_strdup(pemCert);
          maList[numMapped].userName = g_strdup(userName);
          maList[numMapped].num = 1;

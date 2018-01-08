@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2016-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -16,12 +16,17 @@
  *
  *********************************************************/
 
-#ifndef LINUXDEPLOYMENTUTILITIES_H_
-#define LINUXDEPLOYMENTUTILITIES_H_
+#ifndef _LINUXDEPLOYMENTUTILITIES_H_
+#define _LINUXDEPLOYMENTUTILITIES_H_
 
 #include <stdbool.h>
+#include "imgcust-common/log.h"
+#include "imgcust-common/imgcust-api.h"
 
-bool IsCloudInitEnabled(const char* configFile);
+IMGCUST_API bool
+IsCloudInitEnabled(const char* configFile);
 
-#endif //LINUXDEPLOYMENTUTILITIES_H_
+IMGCUST_API bool
+HasCustomScript(const char* dirPath, char** scriptName);
+#endif //_LINUXDEPLOYMENTUTILITIES_H_
 

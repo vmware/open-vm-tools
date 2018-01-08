@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# Copyright (C) 2017 VMware, Inc.  All rights reserved. -- VMware Confidential
+
 #Args
 #brokerAddr
 #	- default:
@@ -26,6 +28,7 @@ baseOutputDir='/var/lib'
 brokerAddr='#brokerAddr#'
 linkSo='yes'
 toolsLibDir='/usr/lib/vmware-tools/lib' # lib is symlink to either lib64 or lib32
+cafInstallMode='standalone'
 
 #Help function
 HELP() {
@@ -49,6 +52,7 @@ setupCafConfig() {
 	local pattern="$1"
 	local value="$2"
 	local rconfigDir="$3"
+	local key="$4" ## Add the key if not exists
 
 	if [ ! -n "$pattern" ]; then
 		echo 'The pattern cannot be empty!'
@@ -59,7 +63,10 @@ setupCafConfig() {
 			echo "The config file must exist! - $rconfigDir/cafenv-appconfig"
 			exit 1
 		fi
-
+		if [ -n "$key" -a `grep -c -E "^$key=" "$rconfigDir/cafenv-appconfig"` -eq 0 ]; then
+		        echo >> "$rconfigDir"
+                        echo "$key=$value" >> "$rconfigDir/cafenv-appconfig"
+		fi
 		sed -i "s?$pattern?$value?g" "$rconfigDir/cafenv-appconfig"
 	fi
 }
@@ -86,6 +93,7 @@ while getopts ":b:i:l:B:o:t:hL" opt; do
 			;;
 		t)
 			toolsLibDir="$OPTARG"
+                        cafInstallMode='tools'
 			;;
 		L)
 			linkSo='no'
@@ -132,7 +140,8 @@ setupCafConfig '@outputDir@' "$outputDir" "$configDir"
 setupCafConfig '@providersDir@' "$providersDir" "$configDir"
 setupCafConfig '@invokersDir@' "$invokersDir" "$configDir"
 setupCafConfig '@logDir@' "$logDir" "$configDir"
-setupCafConfig '@toolsLibDir@' "$toolsLibDir" "$configDir"
+setupCafConfig '@toolsLibDir@' "$toolsLibDir" "$configDir" 'tools_lib_dir'
+setupCafConfig '@cafInstallMode@' "$cafInstallMode" "$configDir" 'install_mode'
 
 #Set default permissions
 if [ -d "$libDir" ]; then
@@ -167,23 +176,28 @@ if [ -d "$scriptDir" ]; then
 	chmod 555 "$scriptDir"/*
 fi
 
-#Set up links
+
+#Set up links only in case of CAF Standalone mode
 if [ "$linkSo" != "no" ] ; then
 	cd "$libDir"
-	ln -sf libglib-2.0.so.0.4800.1 libglib-2.0.so
-	ln -sf libglib-2.0.so.0.4800.1 libglib-2.0.so.0
-	ln -sf libgthread-2.0.so.0.4800.1 libgthread-2.0.so
-	ln -sf libgthread-2.0.so.0.4800.1 libgthread-2.0.so.0
+	if [ "$cafInstallMode" = "standalone" ]; then
+                ln -sf libglib-2.0.so.0.4800.1 libglib-2.0.so
+                ln -sf libglib-2.0.so.0.4800.1 libglib-2.0.so.0
+                ln -sf libgthread-2.0.so.0.4800.1 libgthread-2.0.so
+                ln -sf libgthread-2.0.so.0.4800.1 libgthread-2.0.so.0
+                ln -sf libpcre.so.1.2.6 libpcre.so
+                ln -sf libpcre.so.1.2.6 libpcre.so.1
+                ln -sf libiconv.so.2.5.1 libiconv.so
+                ln -sf libiconv.so.2.5.1 libiconv.so.2
+                ln -sf libz.so.1.2.8 libz.so
+                ln -sf libz.so.1.2.8 libz.so.1
+                ln -sf libffi.so.6.0.4 libffi.so
+                ln -sf libffi.so.6.0.4 libffi.so.6
+	fi
 	ln -sf liblog4cpp.so.5.0.6 liblog4cpp.so
 	ln -sf liblog4cpp.so.5.0.6 liblog4cpp.so.5
 	ln -sf librabbitmq.so.4.2.1 librabbitmq.so
 	ln -sf librabbitmq.so.4.2.1 librabbitmq.so.4
-	ln -sf libpcre.so.1 libpcre.so
-	ln -sf libiconv.so.2 libiconv.so
-	ln -sf libz.so.1.2.8 libz.so
-	ln -sf libz.so.1.2.8 libz.so.1
-	ln -sf libffi.so.6.0.4 libffi.so
-	ln -sf libffi.so.6.0.4 libffi.so.6
 fi
 
 #Run provider install logic

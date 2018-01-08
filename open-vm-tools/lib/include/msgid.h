@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -29,12 +29,16 @@
 #define INCLUDE_ALLOW_VMCORE
 #define INCLUDE_ALLOW_VMKERNEL
 #include "includeCheck.h"
-#include "msgid_defs.h"
 
+#include "msgid_defs.h"
 #include "vm_basic_defs.h"
 
 #ifndef VMKERNEL
 #include <string.h>
+#endif
+
+#if defined(__cplusplus)
+extern "C" {
 #endif
 
 
@@ -104,5 +108,8 @@ Msg_StripMSGID(const char *idString)    // IN
    return idString;
 }
 
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif // ifndef _MSGID_H_

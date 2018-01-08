@@ -1,3 +1,5 @@
+# Copyright (C) 2017 VMware, Inc.  All rights reserved. -- VMware Confidential
+
 [globals]
 response_dir=${output_dir}/responses
 event_dir=${output_dir}/events
@@ -40,9 +42,9 @@ channel_cache_size=4
 reply_timeout=5000
 
 [security]
-cms_policy=CAF_Encrypted_And_Signed
-is_signing_enforced=true
-is_encryption_enforced=true
+cms_policy=None
+is_signing_enforced=false
+is_encryption_enforced=false
 
 tls_protocol=TLSv1_2
 tls_ciphers=SRP-RSA-AES-128-CBC-SHA

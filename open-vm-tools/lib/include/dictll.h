@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -25,9 +25,12 @@
 #ifndef __DICTLL_H__
 #   define __DICTLL_H__
 
-
 #include "vm_basic_types.h"
 #include "dynbuf.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 int
 DictLL_ReadLine(FILE *stream,  // IN
@@ -56,5 +59,8 @@ DictLL_MarshalLine(DynBuf *output,     // IN/OUT
 Bool
 DictLL_ReadUTF8BOM(FILE *file); // IN/OUT
 
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif /* __DICTLL_H__ */

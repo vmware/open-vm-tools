@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -26,8 +26,11 @@
 #ifndef __RANDOM_H__
 #   define __RANDOM_H__
 
-
 #include "vm_basic_types.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 /*
  * OS-native random number generator based on one-way hashes.
@@ -108,5 +111,9 @@ void Random_FastStreamSeed(RandomFastContext *rfc, uint64 seed, uint64 seq);
  */
 
 int Random_Simple(int seed);
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif /* __RANDOM_H__ */

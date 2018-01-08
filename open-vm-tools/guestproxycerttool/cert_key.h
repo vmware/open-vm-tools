@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2014-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2014-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -44,4 +44,9 @@ WritePemFile(EVP_PKEY *pkey,                     // IN
 
 gchar *
 GetSSLError(gchar **errorStr);                   // OUT
+
+#ifdef _WIN32
+gboolean
+CheckKeyFile(const gchar *keyFile);
+#endif
 #endif // #ifndef _CERT_KEY_H_

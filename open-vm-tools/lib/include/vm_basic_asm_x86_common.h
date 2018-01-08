@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -102,6 +102,9 @@ void _ReadWriteBarrier(void);
 void _mm_mfence(void);
 void _mm_lfence(void);
 #pragma intrinsic(_mm_mfence, _mm_lfence)
+
+long _InterlockedXor(long volatile *, long);
+#pragma intrinsic(_InterlockedXor)
 
 unsigned int __getcallerseflags(void);
 #pragma intrinsic(__getcallerseflags)
@@ -308,20 +311,150 @@ RDTSC_BARRIER(void)
 
 
 /*
- * Compiler/CPU barriers. These take the form of <mem access type>_<mem access
- * type>_MEM_BARRIER, where <mem access type> is either LD (load), ST (store) or
- * LDST (any). On x86 we only need to care specifically about store-load
- * reordering on normal memory types and mfence, otherwise only a compiler
- * barrier is needed.
+ * Memory Barriers
+ * ===============
+ *
+ *    Terminology
+ *    -----------
+ *
+ * A compiler memory barrier prevents the compiler from re-ordering memory
+ * accesses accross the barrier. It is not a CPU instruction, it is a compiler
+ * directive (i.e. it does not emit any code).
+ *
+ * A CPU memory barrier prevents the CPU from re-ordering memory accesses
+ * accross the barrier. It is a CPU instruction.
+ *
+ * A memory barrier is the union of a compiler memory barrier and a CPU memory
+ * barrier. A compiler memory barrier is a useless construct by itself. It is
+ * only useful when combined with a CPU memory barrier, to implement a memory
+ * barrier.
+ *
+ *    Semantics
+ *    ---------
+ *
+ * At the time COMPILER_*_BARRIER were created (and references to them were
+ * added to the code), the code was only targetting x86. The intent of the code
+ * was really to use a memory barrier, but because x86 uses a strongly ordered
+ * memory model, the CPU would not re-order memory accesses, and the code could
+ * get away with using just a compiler memory barrier. So COMPILER_*_BARRIER
+ * were born and were implemented as compiler memory barriers _on x86_. But
+ * make no mistake, _the semantics that the code expects from
+ * COMPILER_*_BARRIER are that of a memory barrier_!
+ *
+ *    DO NOT USE!
+ *    -----------
+ *
+ * On at least one non-x86 architecture, COMPILER_*_BARRIER are
+ * 1) Misnomers
+ * 2) Not fine-grained enough to provide the best performance.
+ * For the above two reasons, usage of COMPILER_*_BARRIER is now deprecated.
+ * _Do not add new references to COMPILER_*_BARRIER._ Instead, precisely
+ * document the intent of your code by using
+ * <mem_type/purpose>_<before_access_type>_BARRIER_<after_access_type>.
+ * Existing references to COMPILER_*_BARRIER are being slowly but surely
+ * converted, and when no references are left, COMPILER_*_BARRIER will be
+ * retired.
+ *
+ * Thanks for pasting this whole comment into every architecture header.
  */
-#define LD_LD_MEM_BARRIER()      COMPILER_MEM_BARRIER()
-#define LD_ST_MEM_BARRIER()      COMPILER_MEM_BARRIER()
-#define LD_LDST_MEM_BARRIER()    COMPILER_MEM_BARRIER()
-#define ST_LD_MEM_BARRIER()      asm volatile ("mfence" ::: "memory")
-#define ST_ST_MEM_BARRIER()      COMPILER_MEM_BARRIER()
-#define ST_LDST_MEM_BARRIER()    ST_LD_MEM_BARRIER()
-#define LDST_LD_MEM_BARRIER()    ST_LD_MEM_BARRIER()
-#define LDST_ST_MEM_BARRIER()    COMPILER_MEM_BARRIER()
-#define LDST_LDST_MEM_BARRIER()  ST_LD_MEM_BARRIER()
+
+#if defined __GNUC__
+#   define COMPILER_READ_BARRIER()  COMPILER_MEM_BARRIER()
+#   define COMPILER_WRITE_BARRIER() COMPILER_MEM_BARRIER()
+#   define COMPILER_MEM_BARRIER()   __asm__ __volatile__("" ::: "memory")
+#elif defined _MSC_VER
+#   define COMPILER_READ_BARRIER()  _ReadBarrier()
+#   define COMPILER_WRITE_BARRIER() _WriteBarrier()
+#   define COMPILER_MEM_BARRIER()   _ReadWriteBarrier()
+#endif
+
+
+/*
+ * Memory barriers. These take the form of
+ *
+ * <mem_type/purpose>_<before_access_type>_BARRIER_<after_access_type>
+ *
+ * where:
+ *   <mem_type/purpose> is either SMP, DMA, or MMIO.
+ *   <*_access type> is either R(load), W(store) or RW(any).
+ *
+ * Above every use of these memory barriers in the code, there _must_ be a
+ * comment to justify the use, i.e. a comment which:
+ *
+ * 1) Precisely identifies which memory accesses must not be re-ordered across
+ *    the memory barrier.
+ * 2) Explains why it is important that the memory accesses not be re-ordered.
+ *
+ * Thanks for pasting this whole comment into every architecture header.
+ *
+ * On x86, we only need to care specifically about store-load reordering on
+ * normal memory types. In other cases, only a compiler barrier is needed. The
+ * ST_LD barrier is implemented with a locked xor operation (instead of the
+ * mfence instruction) for performance reasons. See PR 1674199 for more
+ * details.
+ *
+ * On x64, special instructions are only provided for load-load (lfence) and
+ * store-store (sfence) ordering, and they don't apply to normal memory.
+ */
+
+
+static INLINE void
+SMP_W_BARRIER_R(void)
+{
+   volatile long temp;
+
+   COMPILER_MEM_BARRIER();
+#if defined __GNUC__
+   __asm__ __volatile__ (
+      "lock xorl $1, %0\n"
+      : "+m" (temp)
+      : /* no additional inputs */
+      : "cc");
+#elif defined _MSC_VER
+   _InterlockedXor(&temp, 1);
+#else
+#error SMP_W_BARRIER_R not defined for this compiler
+#endif
+   COMPILER_MEM_BARRIER();
+}
+
+#define SMP_R_BARRIER_R()     COMPILER_READ_BARRIER()
+#define SMP_R_BARRIER_W()     COMPILER_MEM_BARRIER()
+#define SMP_R_BARRIER_RW()    COMPILER_MEM_BARRIER()
+#define SMP_W_BARRIER_W()     COMPILER_WRITE_BARRIER()
+#define SMP_W_BARRIER_RW()    SMP_W_BARRIER_R()
+#define SMP_RW_BARRIER_R()    SMP_W_BARRIER_R()
+#define SMP_RW_BARRIER_W()    COMPILER_MEM_BARRIER()
+#define SMP_RW_BARRIER_RW()   SMP_W_BARRIER_R()
+
+/*
+ * Like the above, only for use with observers other than CPUs,
+ * i.e. DMA masters.
+ */
+
+#define DMA_R_BARRIER_R()     SMP_R_BARRIER_R()
+#define DMA_R_BARRIER_W()     SMP_R_BARRIER_W()
+#define DMA_R_BARRIER_RW()    SMP_R_BARRIER_RW()
+#define DMA_W_BARRIER_R()     SMP_W_BARRIER_R()
+#define DMA_W_BARRIER_W()     SMP_W_BARRIER_W()
+#define DMA_W_BARRIER_RW()    SMP_W_BARRIER_RW()
+#define DMA_RW_BARRIER_R()    SMP_RW_BARRIER_R()
+#define DMA_RW_BARRIER_W()    SMP_RW_BARRIER_W()
+#define DMA_RW_BARRIER_RW()   SMP_RW_BARRIER_RW()
+
+/*
+ * And finally a set for use with MMIO accesses.
+ */
+
+#define MMIO_R_BARRIER_R()    SMP_R_BARRIER_R()
+#define MMIO_R_BARRIER_W()    SMP_R_BARRIER_W()
+#define MMIO_R_BARRIER_RW()   SMP_R_BARRIER_RW()
+#define MMIO_W_BARRIER_R()    SMP_W_BARRIER_R()
+#define MMIO_W_BARRIER_W()    SMP_W_BARRIER_W()
+#define MMIO_W_BARRIER_RW()   SMP_W_BARRIER_RW()
+#define MMIO_RW_BARRIER_R()   SMP_RW_BARRIER_R()
+#define MMIO_RW_BARRIER_W()   SMP_RW_BARRIER_W()
+#define MMIO_RW_BARRIER_RW()  SMP_RW_BARRIER_RW()
+
 
 #endif // _VM_BASIC_ASM_X86_COMMON_H_

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -19,7 +19,6 @@
 #ifndef _USERLOCK_H_
 #define _USERLOCK_H_
 
-
 #define INCLUDE_ALLOW_USERLEVEL
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
@@ -31,6 +30,10 @@
 #include "vm_basic_defs.h"
 #include "mutexRank.h"
 #include "vthreadBase.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 typedef struct MXUserExclLock   MXUserExclLock;
 typedef struct MXUserRecLock    MXUserRecLock;
@@ -54,9 +57,29 @@ void MXUser_ReleaseExclLock(MXUserExclLock *lock);
 void MXUser_DestroyExclLock(MXUserExclLock *lock);
 Bool MXUser_IsCurThreadHoldingExclLock(MXUserExclLock *lock);
 
-MXUserExclLock *MXUser_CreateSingletonExclLock(Atomic_Ptr *lockStorage,
-                                               const char *name,
-                                               MX_Rank rank);
+/* Use only when necessary */
+MXUserExclLock *MXUser_CreateSingletonExclLockInt(Atomic_Ptr *lockStorage,
+                                                  const char *name,
+                                                  MX_Rank rank);
+
+/* This is the public interface */
+static INLINE MXUserExclLock *
+MXUser_CreateSingletonExclLock(Atomic_Ptr *lockStorage,
+                               const char *name,
+                               MX_Rank rank)
+{
+   MXUserExclLock *lock;
+
+   ASSERT(lockStorage);
+
+   lock = (MXUserExclLock *) Atomic_ReadPtr(lockStorage);
+
+   if (UNLIKELY(lock == NULL)) {
+      lock = MXUser_CreateSingletonExclLockInt(lockStorage, name, rank);
+   }
+
+   return lock;
+}
 
 MXUserCondVar *MXUser_CreateCondVarExclLock(MXUserExclLock *lock);
 
@@ -65,7 +88,7 @@ void MXUser_WaitCondVarExclLock(MXUserExclLock *lock,
 
 void MXUser_TimedWaitCondVarExclLock(MXUserExclLock *lock,
                                      MXUserCondVar *condVar,
-                                     uint32 msecWait);
+                                     uint32 waitTimeMsec);
 
 Bool MXUser_EnableStatsExclLock(MXUserExclLock *lock,
                                 Bool trackAcquisitionTime,
@@ -95,9 +118,29 @@ void MXUser_ReleaseRecLock(MXUserRecLock *lock);
 void MXUser_DestroyRecLock(MXUserRecLock *lock);
 Bool MXUser_IsCurThreadHoldingRecLock(MXUserRecLock *lock);
 
-MXUserRecLock *MXUser_CreateSingletonRecLock(Atomic_Ptr *lockStorage,
-                                             const char *name,
-                                             MX_Rank rank);
+/* Use only when necessary */
+MXUserRecLock *MXUser_CreateSingletonRecLockInt(Atomic_Ptr *lockStorage,
+                                                const char *name,
+                                                MX_Rank rank);
+
+/* This is the public interface */
+static INLINE MXUserRecLock *
+MXUser_CreateSingletonRecLock(Atomic_Ptr *lockStorage,
+                              const char *name,
+                              MX_Rank rank)
+{
+   MXUserRecLock *lock;
+
+   ASSERT(lockStorage);
+
+   lock = (MXUserRecLock *) Atomic_ReadPtr(lockStorage);
+
+   if (UNLIKELY(lock == NULL)) {
+      lock = MXUser_CreateSingletonRecLockInt(lockStorage, name, rank);
+   }
+
+   return lock;
+}
 
 void MXUser_DumpRecLock(MXUserRecLock *lock);
 
@@ -108,7 +151,7 @@ void MXUser_WaitCondVarRecLock(MXUserRecLock *lock,
 
 void MXUser_TimedWaitCondVarRecLock(MXUserRecLock *lock,
                                     MXUserCondVar *condVar,
-                                    uint32 msecWait);
+                                    uint32 waitTimeMsec);
 
 void MXUser_IncRefRecLock(MXUserRecLock *lock);
 
@@ -149,9 +192,29 @@ void MXUser_DestroyRWLock(MXUserRWLock *lock);
 Bool MXUser_IsCurThreadHoldingRWLock(MXUserRWLock *lock,
                                      uint32 queryType);
 
-MXUserRWLock *MXUser_CreateSingletonRWLock(Atomic_Ptr *lockStorage,
-                                           const char *name,
-                                           MX_Rank rank);
+/* Use only when necessary */
+MXUserRWLock *MXUser_CreateSingletonRWLockInt(Atomic_Ptr *lockStorage,
+                                              const char *name,
+                                              MX_Rank rank);
+
+/* This is the public interface */
+static INLINE MXUserRWLock *
+MXUser_CreateSingletonRWLock(Atomic_Ptr *lockStorage,
+                             const char *name,
+                             MX_Rank rank)
+{
+   MXUserRWLock *lock;
+
+   ASSERT(lockStorage);
+
+   lock = (MXUserRWLock *) Atomic_ReadPtr(lockStorage);
+
+   if (UNLIKELY(lock == NULL)) {
+      lock = MXUser_CreateSingletonRWLockInt(lockStorage, name, rank);
+   }
+
+   return lock;
+}
 
 /*
  * Stateful auto-reset event
@@ -163,7 +226,7 @@ MXUserEvent *MXUser_CreateEvent(const char *name,
 void MXUser_SignalEvent(MXUserEvent *event);
 void MXUser_WaitEvent(MXUserEvent *event);
 Bool MXUser_TryWaitEvent(MXUserEvent *event);
-MXSemaHandle MXUser_GetHandleForEvent(MXUserEvent *event);
+PollDevHandle MXUser_GetHandleForEvent(MXUserEvent *event);
 void MXUser_DestroyEvent(MXUserEvent *event);
 
 MXUserEvent *MXUser_CreateSingletonEvent(Atomic_Ptr *eventStorage,
@@ -199,7 +262,7 @@ void MXUser_DownSemaphore(MXUserSemaphore *sema);
 Bool MXUser_TryDownSemaphore(MXUserSemaphore *sema);
 
 Bool MXUser_TimedDownSemaphore(MXUserSemaphore *sema,
-                               uint32 msecWait);
+                               uint32 waitTimeMsec);
 
 MXUserSemaphore *MXUser_CreateSingletonSemaphore(Atomic_Ptr *semaStorage,
                                                  const char *name,
@@ -268,4 +331,9 @@ MXUserRecLock       *MXUser_BindMXMutexRec(struct MX_MutexRec *mutex,
 
 struct MX_MutexRec  *MXUser_GetRecLockVmm(MXUserRecLock *lock);
 MX_Rank              MXUser_GetRecLockRank(MXUserRecLock *lock);
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
+
 #endif  // _USERLOCK_H_

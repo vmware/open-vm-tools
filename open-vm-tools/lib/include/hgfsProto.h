@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -164,8 +164,14 @@ MY_ASSERTS(hgfsOpValuesAsserts,
 )
 
 /* HGFS protocol versions. */
-#define HGFS_VERSION_OLD           (1 << 0)
-#define HGFS_VERSION_3             (1 << 1)
+
+typedef enum {
+   HGFS_PROTOCOL_VERSION_NONE,
+   HGFS_PROTOCOL_VERSION_1,
+   HGFS_PROTOCOL_VERSION_2,
+   HGFS_PROTOCOL_VERSION_3,
+   HGFS_PROTOCOL_VERSION_4,
+} HgfsProtocolVersion;
 
 /* XXX: Needs change when VMCI is supported. */
 #define HGFS_REQ_PAYLOAD_SIZE_V3(hgfsReq) (sizeof *hgfsReq + sizeof(HgfsRequest))

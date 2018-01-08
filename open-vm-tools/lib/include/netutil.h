@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -97,7 +97,7 @@ const char *NetUtil_InetNToP(int af, const void *src, char *dst,
 #   define NetUtil_InetNToP     inet_ntop
 #endif
 
-#if defined(linux)
+#if defined(__linux__)
 #   ifdef DUMMY_NETUTIL
 /*
  * Dummy interface table to enable other tools'/libraries' unit tests.
@@ -121,7 +121,7 @@ EXTERN NetUtilIfTableEntry netUtilIfTable[];
 int   NetUtil_GetIfIndex(const char *ifName);
 char *NetUtil_GetIfName(int ifIndex);
 #   endif // ifdef DUMMY_NETUTIL
-#endif // if defined(linux)
+#endif // if defined(__linux__)
 
 size_t NetUtil_GetHardwareAddress(int ifIndex,         // IN
                                   char *hwAddr,        // OUT

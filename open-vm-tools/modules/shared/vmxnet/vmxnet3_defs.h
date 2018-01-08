@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2014 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2014,2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -122,6 +122,9 @@ typedef enum {
    VMXNET3_CMD_LOAD_PLUGIN,
    VMXNET3_CMD_ACTIVATE_VF,
    VMXNET3_CMD_SET_POLLING,
+   VMXNET3_CMD_SET_COALESCE,
+   VMXNET3_CMD_REGISTER_MEMREGS,
+   VMXNET3_CMD_SET_RSS_FIELDS,
 
    VMXNET3_CMD_FIRST_GET = 0xF00D0000,
    VMXNET3_CMD_GET_QUEUE_STATUS = VMXNET3_CMD_FIRST_GET,
@@ -133,8 +136,10 @@ typedef enum {
    VMXNET3_CMD_GET_DID_HI,
    VMXNET3_CMD_GET_DEV_EXTRA_INFO,
    VMXNET3_CMD_GET_CONF_INTR,
-   VMXNET3_CMD_GET_ADAPTIVE_RING_INFO
-
+   VMXNET3_CMD_GET_ADAPTIVE_RING_INFO,
+   VMXNET3_CMD_GET_TXDATA_DESC_SIZE,
+   VMXNET3_CMD_GET_COALESCE,
+   VMXNET3_CMD_GET_RSS_FIELDS,
 } Vmxnet3_Cmd;
 
 /* Adaptive Ring Info Flags */
@@ -220,7 +225,6 @@ Vmxnet3_TxDesc;
 #define VMXNET3_TXD_EOP_SIZE 1
 
 #define VMXNET3_HDR_COPY_SIZE   128
-
 typedef
 #include "vmware_pack_begin.h"
 struct Vmxnet3_TxDataDesc {
@@ -228,6 +232,7 @@ struct Vmxnet3_TxDataDesc {
 }
 #include "vmware_pack_end.h"
 Vmxnet3_TxDataDesc;
+typedef uint8 Vmxnet3_RxDataDesc;
 
 #define VMXNET3_TCD_GEN_SHIFT	31
 #define VMXNET3_TCD_GEN_SIZE	1
@@ -403,6 +408,10 @@ Vmxnet3_RxCompDescExt;
 #define VMXNET3_RCD_RSS_TYPE_TCPIPV4  2
 #define VMXNET3_RCD_RSS_TYPE_IPV6     3
 #define VMXNET3_RCD_RSS_TYPE_TCPIPV6  4
+#define VMXNET3_RCD_RSS_TYPE_UDPIPV4  5
+#define VMXNET3_RCD_RSS_TYPE_UDPIPV6  6
+#define VMXNET3_RCD_RSS_TYPE_ESPIPV4  7
+#define VMXNET3_RCD_RSS_TYPE_ESPIPV6  8
 
 /* a union for accessing all cmd/completion descriptors */
 typedef union Vmxnet3_GenericDesc {
@@ -443,12 +452,25 @@ typedef union Vmxnet3_GenericDesc {
 #define VMXNET3_RING_SIZE_ALIGN 32
 #define VMXNET3_RING_SIZE_MASK  (VMXNET3_RING_SIZE_ALIGN - 1)
 
+/* Rx Data Ring buffer size must be a multiple of 64 bytes */
+#define VMXNET3_RXDATA_DESC_SIZE_ALIGN 64
+#define VMXNET3_RXDATA_DESC_SIZE_MASK  (VMXNET3_RXDATA_DESC_SIZE_ALIGN - 1)
+
+/* Tx Data Ring buffer size must be a multiple of 64 bytes */
+#define VMXNET3_TXDATA_DESC_SIZE_ALIGN 64
+#define VMXNET3_TXDATA_DESC_SIZE_MASK  (VMXNET3_TXDATA_DESC_SIZE_ALIGN - 1)
+
 /* Max ring size */
 #define VMXNET3_TX_RING_MAX_SIZE   4096
 #define VMXNET3_TC_RING_MAX_SIZE   4096
 #define VMXNET3_RX_RING_MAX_SIZE   4096
-#define VMXNET3_RX_RING2_MAX_SIZE  2048
+#define VMXNET3_RX_RING2_MAX_SIZE  4096
 #define VMXNET3_RC_RING_MAX_SIZE   8192
+
+/* Large enough to accommodate typical payload + encap + extension header */
+#define VMXNET3_RXDATA_DESC_MAX_SIZE   2048
+#define VMXNET3_TXDATA_DESC_MIN_SIZE   128
+#define VMXNET3_TXDATA_DESC_MAX_SIZE   2048
 
 /* a list of reasons for queue stop */
 
@@ -549,7 +571,9 @@ struct Vmxnet3_TxQueueConf {
    __le32    compRingSize; /* # of comp desc */
    __le32    ddLen;        /* size of driver data */
    uint8     intrIdx;
-   uint8     _pad[7];
+   uint8     _pad1[1];
+   __le16    txDataRingDescSize;
+   uint8     _pad2[4];
 }
 #include "vmware_pack_end.h"
 Vmxnet3_TxQueueConf;
@@ -560,12 +584,14 @@ struct Vmxnet3_RxQueueConf {
    __le64    rxRingBasePA[2];
    __le64    compRingBasePA;
    __le64    ddPA;            /* driver data */
-   __le64    reserved;
+   __le64    rxDataRingBasePA;
    __le32    rxRingSize[2];   /* # of rx desc */
    __le32    compRingSize;    /* # of rx comp desc */
    __le32    ddLen;           /* size of driver data */
    uint8     intrIdx;
-   uint8     _pad[7];
+   uint8     _pad1[1];
+   __le16    rxDataRingDescSize; /* size of rx data ring buffer */
+   uint8     _pad2[4];
 }
 #include "vmware_pack_end.h"
 Vmxnet3_RxQueueConf;
@@ -590,6 +616,47 @@ enum vmxnet3_intr_type {
 
 /* value of intrCtrl */
 #define VMXNET3_IC_DISABLE_ALL  0x1   /* bit 0 */
+
+#define VMXNET3_COAL_STATIC_MAX_DEPTH        128
+#define VMXNET3_COAL_RBC_MIN_RATE            100
+#define VMXNET3_COAL_RBC_MAX_RATE            100000
+
+enum Vmxnet3_CoalesceMode {
+   VMXNET3_COALESCE_DISABLED   = 0,
+   VMXNET3_COALESCE_ADAPT      = 1,
+   VMXNET3_COALESCE_STATIC     = 2,
+   VMXNET3_COALESCE_RBC        = 3
+};
+
+typedef
+#include "vmware_pack_begin.h"
+struct Vmxnet3_CoalesceRbc {
+   uint32 rbc_rate;
+}
+#include "vmware_pack_end.h"
+Vmxnet3_CoalesceRbc;
+
+typedef
+#include "vmware_pack_begin.h"
+struct Vmxnet3_CoalesceStatic {
+   uint32 tx_depth;
+   uint32 tx_comp_depth;
+   uint32 rx_depth;
+}
+#include "vmware_pack_end.h"
+Vmxnet3_CoalesceStatic;
+
+typedef
+#include "vmware_pack_begin.h"
+struct Vmxnet3_CoalesceScheme {
+   enum Vmxnet3_CoalesceMode coalMode;
+   union {
+      Vmxnet3_CoalesceRbc    coalRbc;
+      Vmxnet3_CoalesceStatic coalStatic;
+   } coalPara;
+}
+#include "vmware_pack_end.h"
+Vmxnet3_CoalesceScheme;
 
 typedef
 #include "vmware_pack_begin.h"
@@ -743,6 +810,52 @@ struct Vmxnet3_SetPolling {
 #include "vmware_pack_end.h"
 Vmxnet3_SetPolling;
 
+typedef
+#include "vmware_pack_begin.h"
+
+struct Vmxnet3_MemoryRegion {
+   __le64            startPA;  // starting physical address
+   __le32            length;   // limit the length to be less than 4G
+   /*
+    * any bits is set in txQueueBits or rxQueueBits indicate this region
+    * is applicable for the relevant queue
+    */
+   __le16            txQueueBits; // bit n corresponding to tx queue n
+   __le16            rxQueueBits; // bit n corresponding to rx queueb n
+}
+#include "vmware_pack_end.h"
+Vmxnet3_MemoryRegion;
+
+/*
+ * Assume each queue can have upto 16 memory region
+ * we have 8 + 8 = 16 queues. So max regions is
+ * defined as 16 * 16
+ * when more region is passed to backend, the handling
+ * is undefined, Backend can choose to fail the the request
+ * or ignore the extra region.
+ */
+#define MAX_MEMORY_REGION_PER_QUEUE 16
+#define MAX_MEMORY_REGION_PER_DEVICE (16 * 16)
+
+typedef
+#include "vmware_pack_begin.h"
+struct Vmxnet3_MemRegs {
+   __le16           numRegs;
+   __le16           pad[3];
+   Vmxnet3_MemoryRegion memRegs[1];
+}
+#include "vmware_pack_end.h"
+Vmxnet3_MemRegs;
+
+typedef enum Vmxnet3_RSSField {
+   VMXNET3_RSS_FIELDS_TCPIP4 = 0x0001,
+   VMXNET3_RSS_FIELDS_TCPIP6 = 0x0002,
+   VMXNET3_RSS_FIELDS_UDPIP4 = 0x0004,
+   VMXNET3_RSS_FIELDS_UDPIP6 = 0x0008,
+   VMXNET3_RSS_FIELDS_ESPIP4 = 0x0010,
+   VMXNET3_RSS_FIELDS_ESPIP6 = 0x0020,
+} Vmxnet3_RSSField;
+
 /*
  * If a command data does not exceed 16 bytes, it can use
  * the shared memory directly. Otherwise use variable length
@@ -753,6 +866,7 @@ typedef
 union Vmxnet3_CmdInfo {
    Vmxnet3_VariableLenConfDesc varConf;
    Vmxnet3_SetPolling          setPolling;
+   Vmxnet3_RSSField            setRSSFields;
    __le64                      data[2];
 }
 #include "vmware_pack_end.h"
@@ -795,12 +909,12 @@ do {\
 } while (0)
 
 #define VMXNET3_SET_VFTABLE_ENTRY(vfTable, vid) \
-   vfTable[vid >> 5] |= (1 << (vid & 31))
+   (vfTable)[(vid) >> 5] |= (1 << ((vid) & 31))
 #define VMXNET3_CLEAR_VFTABLE_ENTRY(vfTable, vid) \
-   vfTable[vid >> 5] &= ~(1 << (vid & 31))
+   (vfTable)[(vid) >> 5] &= ~(1 << ((vid) & 31))
 
 #define VMXNET3_VFTABLE_ENTRY_IS_SET(vfTable, vid) \
-   ((vfTable[vid >> 5] & (1 << (vid & 31))) != 0)
+   (((vfTable)[(vid) >> 5] & (1 << ((vid) & 31))) != 0)
 
 #define VMXNET3_MAX_MTU     9000
 #define VMXNET3_MIN_MTU     60

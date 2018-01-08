@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2014 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2014,2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -53,6 +53,11 @@
 #include "includeCheck.h"
 
 #include "vm_basic_asm.h"
+
+#if defined __cplusplus
+extern "C" {
+#endif
+
 
 #ifdef MUL64_NO_ASM
 /*
@@ -137,6 +142,11 @@ Muls64x32s64(int64 multiplicand, uint32 multiplier, uint32 shift)
          ((lo2 >> (shift - 1)) & 1);
    }
 }
+#endif
+
+
+#if defined __cplusplus
+} // extern "C"
 #endif
 
 #endif // _MUL64_NOASM_H_

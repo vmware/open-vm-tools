@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Copyright (C) 2017 VMware, Inc.  All rights reserved. -- VMware Confidential
+
 function prtHeader() {
    local header=$1
 
@@ -198,20 +200,22 @@ function checkFileExistsLib() {
    checkFileExists "$CAF_LIB_DIR/libVgAuthIntegrationSubsys.so"
    checkFileExists "$CAF_LIB_DIR/libcom_err.so.3"
    checkFileExists "$CAF_LIB_DIR/libcrypto.so.1.0.2"
-   checkFileExists "$CAF_LIB_DIR/libgcc_s.so.1"
-   checkFileExists "$CAF_LIB_DIR/libglib-2.0.so.0.4800.1"
-   checkFileExists "$CAF_LIB_DIR/libgthread-2.0.so.0.4800.1"
+   if [ "$CAF_INSTALL_MODE" = "standalone" ]; then
+      checkFileExists "$CAF_LIB_DIR/libgcc_s.so.1"
+      checkFileExists "$CAF_LIB_DIR/libglib-2.0.so.0.4800.1"
+      checkFileExists "$CAF_LIB_DIR/libgthread-2.0.so.0.4800.1"
+      checkFileExists "$CAF_LIB_DIR/libstdc++.so.6.0.13"
+      checkFileExists "$CAF_LIB_DIR/libpcre.so.1.2.6"
+      checkFileExists "$CAF_LIB_DIR/libiconv.so.2.5.1"
+      checkFileExists "$CAF_LIB_DIR/libz.so.1.2.8"
+      checkFileExists "$CAF_LIB_DIR/libffi.so.6.0.4"
+   fi
    checkFileExists "$CAF_LIB_DIR/liblog4cpp.so.5.0.6"
    checkFileExists "$CAF_LIB_DIR/librabbitmq.so.4.2.1"
    checkFileExists "$CAF_LIB_DIR/libssl.so.1.0.2"
-   checkFileExists "$CAF_LIB_DIR/libstdc++.so.6.0.13"
    checkFileExists "$CAF_LIB_DIR/libvgauth.so"
    checkFileExists "$CAF_LIB_DIR/libxerces-c-3.1.so"
    checkFileExists "$CAF_LIB_DIR/libxml-security-c.so.16"
-   checkFileExists "$CAF_LIB_DIR/libpcre.so.1"
-   checkFileExists "$CAF_LIB_DIR/libiconv.so.2"
-   checkFileExists "$CAF_LIB_DIR/libz.so.1.2.8"
-   checkFileExists "$CAF_LIB_DIR/libffi.so.6.0.4"
 }
 
 function checkFileExistsConfig() {
@@ -388,8 +392,10 @@ function checkFileExistsLib() {
       checkFileExists "$CAF_LIB_DIR/libManagementAgentHost.so"
       checkFileExists "$CAF_LIB_DIR/liblog4cpp.so.5.0.6"
       checkFileExists "$CAF_LIB_DIR/librabbitmq.so.4.2.1"
-      checkFileExists "$CAF_LIB_DIR/libgthread-2.0.so.0.4800.1"
-      checkFileExists "$CAF_LIB_DIR/libglib-2.0.so.0.4800.1"
+      if [ "$CAF_INSTALL_MODE" = "standalone" ]; then
+           checkFileExists "$CAF_LIB_DIR/libgthread-2.0.so.0.4800.1"
+           checkFileExists "$CAF_LIB_DIR/libglib-2.0.so.0.4800.1"
+      fi
    fi
 }
 

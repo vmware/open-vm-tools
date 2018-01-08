@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -40,6 +40,7 @@
 #ifdef _WIN32
    #include "vmci_sockets.h"
    #include <winsock2.h>
+   #include <ws2tcpip.h>
    #include "err.h"
 #endif
 
@@ -380,7 +381,7 @@ Poll_CB_DeviceRemove(PollerFunction f,
 VMwareStatus
 Poll_CB_RTime(PollerFunction f,
               void *clientData,
-              int info, //microsecs
+              int64 info, //microsecs
               Bool periodic,
               MXUserRecLock *lock)
 {
@@ -440,6 +441,7 @@ PollSocketPairStartConnecting(Bool vmci,      // IN: vmci socket?
    int addrlen;
    struct sockaddr_vm vaddr;
    struct sockaddr_in iaddr;
+   struct sockaddr_in6 iaddr6;
    int savedError;
    int socketCommType = stream ? SOCK_STREAM : SOCK_DGRAM;
 
@@ -462,26 +464,41 @@ PollSocketPairStartConnecting(Bool vmci,      // IN: vmci socket?
       }
       addr = (struct sockaddr *)&vaddr;
    } else {
-      addrlen = sizeof iaddr;
+      // First try create a IPv6 socket
+      *s = socket(AF_INET6, socketCommType, 0);
 
-      memset(&iaddr, 0, sizeof iaddr);
-      iaddr.sin_family = AF_INET;
-      iaddr.sin_addr.s_addr = inet_addr("127.0.0.1");
-      iaddr.sin_port = 0;
+      if (*s != INVALID_SOCKET) {
+         // Set to IPv6 loopback address
+         memset(&iaddr6, 0, sizeof iaddr6);
+         iaddr6.sin6_family = AF_INET6;
+         iaddr6.sin6_addr = in6addr_loopback;
+         iaddr6.sin6_port = 0;
+         addr = (struct sockaddr *)&iaddr6;
+         addrlen = sizeof iaddr6;
+      } else {
+         // Try create the socket again, but using IPv4
+         *s = socket(AF_INET, socketCommType, 0);
+         if (*s == INVALID_SOCKET) {
+            Log("%s: Could not create inet socket.\n", __FUNCTION__);
+            goto out;
+         }
 
-      *s = socket(AF_INET, socketCommType, 0);
-      if (*s == INVALID_SOCKET) {
-         Log("%s: Could not create inet socket.\n", __FUNCTION__);
-         goto out;
+         // Set to IPv4 loopback address
+         memset(&iaddr, 0, sizeof iaddr);
+         iaddr.sin_family = AF_INET;
+         iaddr.sin_addr = in4addr_loopback;
+         iaddr.sin_port = 0;
+         addr = (struct sockaddr *)&iaddr;
+         addrlen = sizeof iaddr;
       }
-      temp = socket(AF_INET, socketCommType, 0);
+
+      temp = socket(addr->sa_family, socketCommType, 0);
       if (temp == INVALID_SOCKET) {
          Log("%s: Could not create second inet socket.\n", __FUNCTION__);
          goto out;
       }
-      addr = (struct sockaddr *)&iaddr;
    }
-   if (bind(temp, addr, sizeof *addr) == SOCKET_ERROR) {
+   if (bind(temp, addr, addrlen) == SOCKET_ERROR) {
       Log("%s: Could not bind socket.\n", __FUNCTION__);
       goto outCloseTemp;
    }
@@ -1245,7 +1262,6 @@ PollUnitTest_StateMachine(void *clientData) // IN: Unused
 #else
    maxVMCISockets = 60;
 #endif
-   isVMX = VThread_CurID() == VTHREAD_VMX_ID;
    queueLen = isVMX ? MAX_VMX_QUEUE_LENGTH : MAX_QUEUE_LENGTH;
 
    switch (state) {
@@ -2015,10 +2031,8 @@ PollUnitTest_StateMachine(void *clientData) // IN: Unused
       raceTestIter = 0;
       dummyCount = 0;
       exitThread = FALSE;
-      cbRaceThread = VThread_CreateThread(PollAddRemoveCBThread,
-                                          NULL,
-                                          VTHREAD_INVALID_ID,
-                                          "PollAddRemoveCBThread");
+      VThread_CreateThread(PollAddRemoveCBThread, NULL,
+                           "PollAddRemoveCBThread", &cbRaceThread);
       if (cbRaceThread == VTHREAD_INVALID_ID) {
          Warning("%s:   failure -- error creating thread\n", __FUNCTION__);
          state += 3;
@@ -2041,7 +2055,6 @@ PollUnitTest_StateMachine(void *clientData) // IN: Unused
                           PollUnitTest_DummyCallback,
                           NULL, POLL_REALTIME);
       exitThread = TRUE;
-      VThread_WaitThread(cbRaceThread);
       VThread_DestroyThread(cbRaceThread);
       PollUnitTest_TestResult(rtCbRace == 0 && mlCbRace == 0 && drCbRace == 0 &&
                               dwCbRace == 0);
@@ -2065,10 +2078,8 @@ PollUnitTest_StateMachine(void *clientData) // IN: Unused
       deviceEv1Count = 0;
       eventTestIter = 0;
       exitThread = FALSE;
-      cbRaceThread = VThread_CreateThread(PollLockContentionThread,
-                                          NULL,
-                                          VTHREAD_INVALID_ID,
-                                          "PollLockContention");
+      VThread_CreateThread(PollLockContentionThread, NULL,
+                           "PollLockContention", &cbRaceThread);
       if (cbRaceThread == VTHREAD_INVALID_ID) {
          Warning("%s:   failure -- error creating thread\n", __FUNCTION__);
          state += 3;
@@ -2103,7 +2114,6 @@ PollUnitTest_StateMachine(void *clientData) // IN: Unused
 
    case 51:
       exitThread = TRUE;
-      VThread_WaitThread(cbRaceThread);
       VThread_DestroyThread(cbRaceThread);
       GRAB_LOCK(cbLock);
       ret = Poll_CallbackRemove(POLL_CS_MAIN,
@@ -2171,7 +2181,7 @@ PollUnitTest_StateMachine(void *clientData) // IN: Unused
  */
 
 void
-PollUnitTest(void)
+PollUnitTest(Bool vmx)  // IN: use vmx-size poll queue
 {
 #ifdef _WIN32
    WSADATA wsaData;
@@ -2183,6 +2193,7 @@ PollUnitTest(void)
    state = 0;
    successCount = failureCount = 0;
    useLocking = FALSE;
+   isVMX = vmx;
 #ifdef _WIN32
    ret = WSAStartup(versionRequested, &wsaData);
    if (ret != 0) {

@@ -1,6 +1,6 @@
 LICENSE
 
-open-vm-tools v10.1.15
+Open-vm-tools v10.2.0
 
 The Linux kernel modules are released under the GPL v2, a majority of the user level components are released under the LGPL v2.1, and the SVGA and mouse drivers are released under the X11 license.
 
@@ -231,7 +231,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ========
 
-open-vm-tools v10.1.15 includes a number of subcomponents with separate copyright notices and license terms.  Your use of the source code for these subcomponents is subject to the terms and conditions of the following licenses.
+Open-vm-tools v10.2.0 includes a number of subcomponents with separate copyright notices and license terms.  Your use of the source code for these subcomponents is subject to the terms and conditions of the following licenses.
 
 
 SECTION 1: BSD-STYLE, MIT-STYLE, OR SIMILAR STYLE LICENSES
@@ -242,6 +242,7 @@ SECTION 1: BSD-STYLE, MIT-STYLE, OR SIMILAR STYLE LICENSES
    >>> unicode-5.0
 
 
+===================================================
 
 
 --------------- SECTION 1:  BSD-STYLE, MIT-STYLE, OR SIMILAR STYLE LICENSES ----------
@@ -406,24 +407,5 @@ THE DATA FILES AND SOFTWARE ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, 
 Except as contained in this notice, the name of a copyright holder shall not be used in advertising or otherwise to promote the sale, use or other dealings in these Data Files or Software without prior written authorization of the copyright holder.
 
 
-
-===========================================================================
-
-To the extent any open source components are licensed under the GPL
-and/or LGPL, or other similar licenses that require the source code
-and/or modifications to source code to be made available (as would be
-noted above), you may obtain a copy of the source code corresponding to
-the binaries for such open source components and modifications thereto,
-if any, (the "Source Files"), by downloading the Source Files from
-VMware's website at http://www.vmware.com/download/open_source.html, or
-by sending a request, with your name and address to: VMware, Inc., 3401
-Hillview Avenue, Palo Alto, CA 94304, United States of America. All such
-requests should clearly specify: OPEN SOURCE FILES REQUEST, Attention
-General Counsel. VMware shall mail a copy of the Source Files to you on
-a CD or equivalent physical medium. This offer to obtain a copy of the
-Source Files is valid for three years from the date you acquired this
-Software product. Alternatively, the Source Files may accompany the
-VMware product.
-
-[OPENVMTOOLS10115GANR091217]
+[OPENVMTOOLS1020GANR111717]
 
