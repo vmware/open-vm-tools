@@ -265,20 +265,26 @@
 #define VIEWY_VERSION "e.x.p"
 #define VMCFSDK_VERSION "e.x.p"
 #define PCOIP_VERSION "e.x.p"
-#define VIEW_VERSION "7.2.0"
 #define HOSTD_VERSION "e.x.p"
 #define RECOVERYLIBS_VERSION "2.0.0"
 #define PRECHECK_VERSION "e.x.p"
-#define VIEW_FEATUREPACK_VERSION "5.2.0"
 #define VIEW_CLIENT_VERSION_NUMBER "4.5.1"
 #define VIEW_CLIENT_VERSION "4.7.0"
 #define VHSESDK_VERSION "1.0.0"
-#define RDE_RFT_ALL_VERSION "4.0.0"
-#define RDESDK_VERSION "2.0.0"
-#define RDESDKREL_VERSION "2.0.0"
-#define MKSVCHANDEV_VERSION "1.0.0"
-#define TSMMRDEV_VERSION "1.0.0"
-#define VIEWMPDEV_VERSION "1.0.0"
+
+/*
+ * All of these components should follow the current version of View.
+ * SCons parsing code requires that each line have a version string, so we
+ * can't just do something like #define RDESDK_VERSION VIEW_VERSION"
+ */
+#define VIEW_VERSION "7.5.0"
+#define VIEW_FEATUREPACK_VERSION "7.5.0"
+#define RDE_RFT_ALL_VERSION "7.5.0"
+#define RDESDK_VERSION "7.5.0"
+#define RDESDKREL_VERSION "7.5.0"
+#define MKSVCHANDEV_VERSION "7.5.0"
+#define TSMMRDEV_VERSION "7.5.0"
+#define VIEWMPDEV_VERSION "7.5.0"
 
 
 #ifndef MAKESTR

@@ -4172,7 +4172,7 @@ AsyncTCPSocketCancelRecvCb(AsyncTCPSocket *asock)  // IN:
       removed = AsyncTCPSocketPollRemove(asock, TRUE,
                                          POLL_FLAG_READ | POLL_FLAG_PERIODIC,
                                          asock->internalRecvFn);
-      VERIFY(removed || AsyncTCPSocketPollParams(asock)->iPoll);
+      ASSERT(removed || AsyncTCPSocketPollParams(asock)->iPoll);
       asock->recvCb = FALSE;
    }
 }
