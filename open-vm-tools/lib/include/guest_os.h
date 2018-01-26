@@ -186,7 +186,8 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define ALL4XLINUX32          BS(OTHER4XLINUX)
 
 #define ALL4XLINUX64          BS(OTHER4XLINUX_64), BS(PHOTON_64), \
-                              BS(CENTOS8_64), BS(ORACLE8_64)
+                              BS(CENTOS8_64), BS(ORACLE8_64), \
+                              BS(AMAZON2_64)
 
 #define ALLVMKERNEL           BS(VMKERNEL), BS(VMKERNEL5), BS(VMKERNEL6), \
                               BS(VMKERNEL65)
@@ -224,6 +225,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_ESX_65              "VMware ESXi 6.5"
 
 /* Linux */
+#define STR_OS_AMAZON              "amazonlinux"
 #define STR_OS_ANNVIX              "Annvix"
 #define STR_OS_ARCH                "Arch"
 #define STR_OS_ARKLINUX            "Arklinux"

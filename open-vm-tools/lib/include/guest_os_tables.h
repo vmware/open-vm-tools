@@ -122,10 +122,12 @@ extern "C" {
    GOT(GUEST_OS_CENTOS6_64)                                                \
    GOT(GUEST_OS_CENTOS7_64)                                                \
    GOT(GUEST_OS_CENTOS8_64)                                                \
+   GOT(GUEST_OS_AMAZON2_64)
 
 
 /* This list must be sorted alphabetically (non-case-sensitive) by gos name. */
 #define GUEST_OS_LIST_GEN                                                                             \
+   GOSL(STR_OS_AMAZON "2-64",                GUEST_OS_AMAZON2_64,             "linuxPreGlibc25.iso")  \
    GOSL(STR_OS_ASIANUX "3",                  GUEST_OS_OTHER26XLINUX,          "linuxPreGlibc25.iso")  \
    GOSL(STR_OS_ASIANUX "3-64",               GUEST_OS_OTHER26XLINUX_64,       "linuxPreGlibc25.iso")  \
    GOSL(STR_OS_ASIANUX "4",                  GUEST_OS_OTHER26XLINUX,          "linuxPreGlibc25.iso")  \
