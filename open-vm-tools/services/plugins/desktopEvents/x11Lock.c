@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -364,6 +364,16 @@ X11Lock_Init(ToolsAppCtx *ctx,
    g_set_prgname(VMUSER_TITLE);
    argv[0] = VMUSER_TITLE;
 
+#if GTK_MAJOR_VERSION > 3 || (GTK_MAJOR_VERSION == 3 && GTK_MINOR_VERSION >= 10)
+   /*
+    * On recent distros, Wayland is the default display server. If the obtained
+    * display or window is a wayland one, applying X11 specific functions on them
+    * will result in crashes. Before migrating the X11 specific code to Wayland,
+    * force using X11 as the backend of Gtk+3. gdk_set_allowed_backends() is
+    * introduced since Gtk+3.10 and Wayland is supported from Gtk+3.10.
+    */
+   gdk_set_allowed_backends("x11");
+#endif
    /* XXX: is calling gtk_init() multiple times safe? */
    gtk_init(&argc, (char ***) &argv);
 
