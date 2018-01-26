@@ -7466,63 +7466,78 @@ HgfsServerCreateDir(HgfsInputParam *input)  // IN: Input params
 
    HGFS_ASSERT_INPUT(input);
 
-   if (HgfsUnpackCreateDirRequest(input->payload, input->payloadSize,
-                                  input->op, &info)) {
-      nameStatus = HgfsServerGetLocalNameInfo(info.cpName, info.cpNameSize, info.caseFlags,
-                                              &shareInfo, &utf8Name, &utf8NameLen);
-      if (HGFS_NAME_STATUS_COMPLETE == nameStatus) {
-         ASSERT(utf8Name);
+   if (!HgfsUnpackCreateDirRequest(input->payload, input->payloadSize,
+                                   input->op, &info)) {
+      status = HGFS_ERROR_PROTOCOL;
+      goto exit;
+   }
 
-         LOG(4, ("%s: making dir \"%s\"", __FUNCTION__, utf8Name));
-         /*
-          * For read-only shares we must never attempt to create a directory.
-          * However the error code must be different depending on the existence
-          * of the file with the same name.
-          */
-         if (shareInfo.writePermissions) {
-            status = HgfsPlatformCreateDir(&info, utf8Name);
-            if (HGFS_ERROR_SUCCESS == status) {
-               if (!HgfsPackCreateDirReply(input->packet, input->request, info.requestType,
-                                           &replyPayloadSize, input->session)) {
-                  status = HGFS_ERROR_PROTOCOL;
-               }
-            }
-         } else {
-            status = HgfsPlatformFileExists(utf8Name);
-            if (HGFS_ERROR_SUCCESS == status) {
-               status = HGFS_ERROR_FILE_EXIST;
-            } else if (HGFS_ERROR_FILE_NOT_FOUND == status) {
-               status = HGFS_ERROR_ACCESS_DENIED;
+   nameStatus = HgfsServerGetLocalNameInfo(info.cpName, info.cpNameSize, info.caseFlags,
+                                           &shareInfo, &utf8Name, &utf8NameLen);
+   if (HGFS_NAME_STATUS_COMPLETE == nameStatus) {
+      ASSERT(utf8Name);
+
+      /*
+       * Check if the guest is attempting to create a directory as a new
+       * share in our virtual root folder. If so, then it exists as we have found
+       * the share. This should error as a file exists whereas access denied is for
+       * new folders that do not collide.
+       * The virtual root folder is read-only for guests and new shares can only be
+       * created from the host.
+       */
+      if (HgfsServerIsSharedFolderOnly(info.cpName, info.cpNameSize)) {
+         /* Disallow creating a subfolder matching the share in the virtual folder. */
+         LOG(4, ("%s: Collision: cannot create a folder which is a share\n", __FUNCTION__));
+         status = HGFS_ERROR_FILE_EXIST;
+         goto exit;
+      }
+      /*
+       * For read-only shares we must never attempt to create a directory.
+       * However the error code must be different depending on the existence
+       * of the file with the same name.
+       */
+      if (shareInfo.writePermissions) {
+         status = HgfsPlatformCreateDir(&info, utf8Name);
+         if (HGFS_ERROR_SUCCESS == status) {
+            if (!HgfsPackCreateDirReply(input->packet, input->request, info.requestType,
+                                        &replyPayloadSize, input->session)) {
+               status = HGFS_ERROR_PROTOCOL;
             }
          }
       } else {
-         /*
-          * Check if the name does not exist - the share was not found.
-          * Then it could one of two things: the share was removed/disabled;
-          * or we could be in the root share itself and have a new name.
-          * To return the correct error, if we are in the root share,
-          * we must check the open mode too - creation of new files/folders
-          * should fail access denied, for anything else "not found" is acceptable.
-          */
-         if (nameStatus == HGFS_NAME_STATUS_DOES_NOT_EXIST) {
-             if (HgfsServerIsSharedFolderOnly(info.cpName,
-                                              info.cpNameSize)) {
-               nameStatus = HGFS_NAME_STATUS_ACCESS_DENIED;
-               LOG(4, ("%s: New file creation in share root not allowed\n", __FUNCTION__));
-            } else {
-               LOG(4, ("%s: Shared folder not found\n", __FUNCTION__));
-            }
-         } else {
-            LOG(4, ("%s: Shared folder access error %u\n", __FUNCTION__, nameStatus));
+         status = HgfsPlatformFileExists(utf8Name);
+         if (HGFS_ERROR_SUCCESS == status) {
+            status = HGFS_ERROR_FILE_EXIST;
+         } else if (HGFS_ERROR_FILE_NOT_FOUND == status) {
+            status = HGFS_ERROR_ACCESS_DENIED;
          }
-
-         status = HgfsPlatformConvertFromNameStatus(nameStatus);
+      }
+   } else {
+      /*
+       * Check if the name does not exist - the share was not found.
+       * Then it could one of two things: the share was removed/disabled;
+       * or we could be in the root share itself and have a new name.
+       * To return the correct error, if we are in the root share,
+       * we must check the open mode too - creation of new files/folders
+       * should fail access denied, for anything else "not found" is acceptable.
+       */
+      if (nameStatus == HGFS_NAME_STATUS_DOES_NOT_EXIST) {
+         if (HgfsServerIsSharedFolderOnly(info.cpName,
+                                          info.cpNameSize)) {
+            nameStatus = HGFS_NAME_STATUS_ACCESS_DENIED;
+            LOG(4, ("%s: disallow new folder creation in virtual share root.\n",
+                    __FUNCTION__));
+         } else {
+            LOG(4, ("%s: Shared folder not found\n", __FUNCTION__));
+         }
+      } else {
+         LOG(4, ("%s: Shared folder access error %u\n", __FUNCTION__, nameStatus));
       }
 
-   } else {
-      status = HGFS_ERROR_PROTOCOL;
+      status = HgfsPlatformConvertFromNameStatus(nameStatus);
    }
 
+exit:
    HgfsServerCompleteRequest(status, replyPayloadSize, input);
    free(utf8Name);
 }
