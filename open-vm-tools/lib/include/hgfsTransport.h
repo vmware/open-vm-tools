@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -82,14 +82,13 @@ typedef enum {
  * Lives in : Inside HgfsVmciTransportHeader
  */
 
+#pragma pack(push, 1)
+
 typedef
-#include "vmware_pack_begin.h"
 struct HgfsIov {
    uint64 pa;                 /* Physical addr */
    uint32 len;                /* length of data; should be <= PAGE_SIZE */
-}
-#include "vmware_pack_end.h"
-HgfsIov;
+} HgfsIov;
 
 /*
  * Used By : Guest and Host
@@ -97,7 +96,6 @@ HgfsIov;
  */
 
 typedef
-#include "vmware_pack_begin.h"
 struct HgfsAsyncIov {
    uint64 pa;                 /* Physical addr */
    uint64 va;                 /* Virtual addr */
@@ -105,9 +103,7 @@ struct HgfsAsyncIov {
    uint64 index;              /* Guest opaque data; should not be changed by
                                  host */
    Bool chain;                /* Are pages chained ? */
-}
-#include "vmware_pack_end.h"
-HgfsAsyncIov;
+} HgfsAsyncIov;
 
 /*
  * Every VMCI request will have this transport Header sent over
@@ -120,19 +116,15 @@ HgfsAsyncIov;
  * Lives in : Sent by Guest inside VMCI datagram
  */
 typedef
-#include "vmware_pack_begin.h"
 struct HgfsVmciHeaderNode {
    uint32 version;                          /* Version number */
    union {
       HgfsTransportRequestType pktType;     /* Type of packet for client to server */
       HgfsTransportReplyType replyType;     /* Type of packet for server to client */
    };
-}
-#include "vmware_pack_end.h"
-HgfsVmciHeaderNode;
+} HgfsVmciHeaderNode;
 
 typedef
-#include "vmware_pack_begin.h"
 struct HgfsVmciTransportHeader {
    HgfsVmciHeaderNode node;                 /* Node: version, type etc. */
    uint32 iovCount;                         /* Number of iovs */
@@ -140,9 +132,7 @@ struct HgfsVmciTransportHeader {
       HgfsIov iov[1];                       /* (PA, len) */
       HgfsAsyncIov asyncIov[1];
    };
-}
-#include "vmware_pack_end.h"
-HgfsVmciTransportHeader;
+} HgfsVmciTransportHeader;
 
 /*
  * Every VMCI request will have this transport Header sent over
@@ -154,7 +144,6 @@ HgfsVmciTransportHeader;
  * Lives in : Sent by Guest and Host inside VMCI datagram
  */
 typedef
-#include "vmware_pack_begin.h"
 struct HgfsVmciTransportHeaderV2 {
    HgfsVmciHeaderNode node;                 /* Common node for all versions. */
    uint32 size;                             /* Size of the header. */
@@ -168,9 +157,7 @@ struct HgfsVmciTransportHeaderV2 {
       HgfsIov iov[1];                       /* (PA, len) */
       HgfsAsyncIov asyncIov[1];
    };
-}
-#include "vmware_pack_end.h"
-HgfsVmciTransportHeaderV2;
+} HgfsVmciTransportHeaderV2;
 
 #define HGFS_VMCI_HDR_FLAGS_REQUEST          (1 << 0)    /* CLient to the server */
 #define HGFS_VMCI_HDR_FLAGS_REPLY            (1 << 1)    /* Server to the client */
@@ -185,42 +172,32 @@ HgfsVmciTransportHeaderV2;
  * Lives in: Guest Memory
  */
 typedef
-#include "vmware_pack_begin.h"
 struct HgfsVmciTransportStatus {
    HgfsTransportRequestState status; /* IO_PENDING, IO_COMPLETE, IO_FAILED etc */
    uint32 size;                      /* G->H: Size of the packet,H->G: How much more space is needed */
-}
-#include "vmware_pack_end.h"
-HgfsVmciTransportStatus;
+} HgfsVmciTransportStatus;
 
 typedef
-#include "vmware_pack_begin.h"
 struct HgfsVmciAsyncResponse {
    uint64 id;            /* Id corresponding to the guest request */
-}
-#include "vmware_pack_end.h"
-HgfsVmciAsyncResponse;
+} HgfsVmciAsyncResponse;
 
 typedef
-#include "vmware_pack_begin.h"
 struct HgfsVmciAsyncShmem {
    uint32 count;          /* Number of iovs */
    HgfsAsyncIov iov[1];
-}
-#include "vmware_pack_end.h"
-HgfsVmciAsyncShmem;
+} HgfsVmciAsyncShmem;
 
 typedef
-#include "vmware_pack_begin.h"
 struct HgfsVmciAsyncReply {
    HgfsVmciHeaderNode node;                 /* Node: version, type etc. */
    union {
      HgfsVmciAsyncResponse response;
      HgfsVmciAsyncShmem shmem;
    };
-}
-#include "vmware_pack_end.h"
-HgfsVmciAsyncReply;
+} HgfsVmciAsyncReply;
+
+#pragma pack(pop)
 
 #endif /* _HGFS_TRANSPORT_H_ */
 
