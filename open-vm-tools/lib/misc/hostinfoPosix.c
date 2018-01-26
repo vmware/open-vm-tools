@@ -1182,11 +1182,10 @@ HostinfoLinux(struct utsname *buf)  // IN:
 
    if (len != -1) {
       if (Hostinfo_GetSystemBitness() == 64) {
-         len = Str_Snprintf(osName, sizeof osName, "%s%d%s", distroShort,
-                            Hostinfo_OSVersion(0), STR_OS_64BIT_SUFFIX);
+         len = Str_Snprintf(osName, sizeof osName, "%s%s", distroShort,
+                            STR_OS_64BIT_SUFFIX);
       } else {
-         len = Str_Snprintf(osName, sizeof osName, "%s%d", distroShort,
-                            Hostinfo_OSVersion(0));
+         len = Str_Snprintf(osName, sizeof osName, "%s", distroShort);
       }
    }
 
@@ -1250,11 +1249,10 @@ HostinfoBSD(struct utsname *buf)  // IN:
 
    if (len != -1) {
       if (Hostinfo_GetSystemBitness() == 64) {
-         len = Str_Snprintf(osName, sizeof osName, "%s%d%s", distroShort,
-                            Hostinfo_OSVersion(0), STR_OS_64BIT_SUFFIX);
+         len = Str_Snprintf(osName, sizeof osName, "%s%s", distroShort,
+                            STR_OS_64BIT_SUFFIX);
       } else {
-         len = Str_Snprintf(osName, sizeof osName, "%s%d", distroShort,
-                            Hostinfo_OSVersion(0));
+         len = Str_Snprintf(osName, sizeof osName, "%s", distroShort);
       }
    }
 
