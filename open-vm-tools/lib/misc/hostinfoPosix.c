@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -151,23 +151,23 @@ struct hostinfoOSVersion {
 
 static Atomic_Ptr hostinfoOSVersion;
 
-#define DISTRO_BUF_SIZE 255
+#define DISTRO_BUF_SIZE 1024
 
 #if !defined __APPLE__ && !defined USERWORLD
-typedef struct lsb_distro_info {
+typedef struct {
    char *name;
-   char *scanstring;
-} LSBDistroInfo;
+   char *scanString;
+} DistoNameScan;
 
-static const LSBDistroInfo lsbFields[] = {
-   {"DISTRIB_ID=",          "DISTRIB_ID=%s"},
-   {"DISTRIB_RELEASE=",     "DISTRIB_RELEASE=%s"},
-   {"DISTRIB_CODENAME=",    "DISTRIB_CODENAME=%s"},
-   {"DISTRIB_DESCRIPTION=", "DISTRIB_DESCRIPTION=%s"},
-   {NULL, NULL},
+static const DistoNameScan lsbFields[] = {
+   {"DISTRIB_ID=",          "DISTRIB_ID=%s"          },
+   {"DISTRIB_RELEASE=",     "DISTRIB_RELEASE=%s"     },
+   {"DISTRIB_CODENAME=",    "DISTRIB_CODENAME=%s"    },
+   {"DISTRIB_DESCRIPTION=", "DISTRIB_DESCRIPTION=%s" },
+   {NULL,                   NULL                     },
 };
 
-typedef struct distro_info {
+typedef struct {
    char *name;
    char *filename;
 } DistroInfo;
@@ -613,7 +613,8 @@ HostinfoMacOS(struct utsname *buf)  // IN:
  *      Determine the specifics concerning ESXi.
  *
  * Return value:
- *      Returns TRUE on success and FALSE on failure.
+ *      TRUE   Success
+ *      FALSE  Failure
  *
  * Side effects:
  *      Cache values are set when returning TRUE.
@@ -868,7 +869,9 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
  *      Once found, read the file in and figure out which distribution.
  *
  * Return value:
- *      Returns TRUE on success and FALSE on failure.
+ *      TRUE   Success
+ *      FALSE  Failure
+ *
  *      Returns distro information verbatium from /etc/xxx-release (distro).
  *
  * Side effects:
@@ -882,14 +885,12 @@ HostinfoReadDistroFile(char *filename,  // IN: distro version file name
                        int distroSize,  // IN: size of OS distro name buffer
                        char *distro)    // OUT: full distro name
 {
-   int fd = -1;
+   int i;
    int buf_sz;
    struct stat st;
+   int fd = -1;
    Bool ret = FALSE;
    char *distroOrig = NULL;
-   char distroPart[DISTRO_BUF_SIZE];
-   char *tmpDistroPos = NULL;
-   int i = 0;
 
    /* It's OK for the file to not exist, don't warn for this.  */
    if ((fd = Posix_Open(filename, O_RDONLY)) == -1) {
@@ -935,9 +936,12 @@ HostinfoReadDistroFile(char *filename,  // IN: distro version file name
    distro[0] = '\0';
 
    for (i = 0; lsbFields[i].name != NULL; i++) {
-      tmpDistroPos = strstr(distroOrig, lsbFields[i].name);
-      if (tmpDistroPos) {
-         sscanf(tmpDistroPos, lsbFields[i].scanstring, distroPart);
+      const char *tmpDistroPos = strstr(distroOrig, lsbFields[i].name);
+
+      if (tmpDistroPos != NULL) {
+         char distroPart[DISTRO_BUF_SIZE];
+
+         sscanf(tmpDistroPos, lsbFields[i].scanString, distroPart);
          if (distroPart[0] == '"') {
             char *tmpMakeNull;
 
@@ -1068,7 +1072,8 @@ HostinfoGetCmdOutput(const char *cmd)  // IN:
  *      Determine the specifics concerning Linux.
  *
  * Return value:
- *      Returns TRUE on success and FALSE on failure.
+ *      TRUE   Success
+ *      FALSE  Failure
  *
  * Side effects:
  *      Cache values are set when returning TRUE
@@ -1203,7 +1208,8 @@ HostinfoLinux(struct utsname *buf)  // IN:
  *      Determine the specifics concerning BSD.
  *
  * Return value:
- *      Returns TRUE on success and FALSE on failure.
+ *      TRUE   Success
+ *      FALSE  Failure
  *
  * Side effects:
  *      Cache values are set when returning TRUE
@@ -1270,7 +1276,8 @@ HostinfoBSD(struct utsname *buf)  // IN:
  *      Determine the specifics concerning Sun.
  *
  * Return value:
- *      Returns TRUE on success and FALSE on failure.
+ *      TRUE   Success
+ *      FALSE  Failure
  *
  * Side effects:
  *      None
@@ -1328,7 +1335,8 @@ HostinfoSun(struct utsname *buf)  // IN:
  *      Determine the OS short (.vmx format) and long names.
  *
  * Return value:
- *      Returns TRUE on success and FALSE on failure.
+ *      TRUE   Success
+ *      FALSE  Failure
  *
  * Side effects:
  *      Cache values are set when returning TRUE.
