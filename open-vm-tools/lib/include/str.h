@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -65,7 +65,7 @@ extern "C" {
  * These platforms use bsd_vsnprintf().
  * This does not mean it has bsd_vsnwprintf().
  */
-#if !defined(OPEN_VM_TOOLS)
+#if !defined(VMX86_TOOLS) || defined(_WIN32)
 #if (defined _WIN32 && !defined STR_NO_WIN32_LIBS) || \
     (defined __linux__ && !defined __UCLIBC__) || \
     defined __APPLE__
@@ -76,7 +76,7 @@ extern "C" {
 /*
  * And these platforms/setups use bsd_vsnwprintf()
  */
-#if !defined(OPEN_VM_TOOLS)
+#if !defined(VMX86_TOOLS) || defined(_WIN32)
 #if (defined _WIN32 && !defined STR_NO_WIN32_LIBS) || \
    (defined __GNUC__ && (__GNUC__ < 2                 \
                          || (__GNUC__ == 2            \
