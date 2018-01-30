@@ -13,3 +13,7 @@ Josh Paetzel    Add support for 64-bit inodes in FreeBSD 12
 
 Sebastian Parschauer    Add support to properly report SLES12-SAP
                 - https://github.com/vmware/open-vm-tools/pull/123
+
+Andrew Stormont Fix finding C++ compiler for cross-compiling
+                - https://github.com/vmware/open-vm-tools/pull/206
+
