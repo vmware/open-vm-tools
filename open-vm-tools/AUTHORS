@@ -17,3 +17,5 @@ Sebastian Parschauer    Add support to properly report SLES12-SAP
 Andrew Stormont Fix finding C++ compiler for cross-compiling
                 - https://github.com/vmware/open-vm-tools/pull/206
 
+Josh Paetzel    Fix compilation error in clang 6.0
+                - https://github.com/vmware/open-vm-tools/pull/221
