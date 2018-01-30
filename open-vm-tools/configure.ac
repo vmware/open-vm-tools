@@ -152,9 +152,9 @@ if test "x$enable_glibc_check" != "xno" ; then
       libc_ver_mnr=`expr "$libc_ver" : "[[0-9]]*\.\([[0-9]]*\)"`
       libc_ver_num=`expr $libc_ver_mjr \* 1000 + $libc_ver_mnr`
 
-      if test "$libc_ver_num" -lt 2012; then
+      if test "$libc_ver_num" -lt 2011; then
          AC_MSG_ERROR(["glibc version $libc_ver detected.
-This version of open-vm-tools requires glibc version 2.12 or later.
+This version of open-vm-tools requires glibc version 2.11 or later.
 Please use an older version of open-vm-tools for this system."])
       fi
    fi
