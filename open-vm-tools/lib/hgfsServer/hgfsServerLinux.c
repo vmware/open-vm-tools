@@ -176,6 +176,12 @@ getdents_linux(unsigned int fd,
 #   endif
 }
 #      define getdents getdents_linux
+#elif defined(__FreeBSD__) && defined(__INO64)
+#define getdents(fd, dirp, count)                                             \
+({                                                                            \
+   off_t basep;                                                                \
+   getdirentries(fd, dirp, count, &basep);                                    \
+})
 #elif defined(__FreeBSD__)
 #if defined(__INO64)
 typedef off_t BASEPTYPE;
