@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -304,8 +304,8 @@ HgfsServerClientRedirectorExecOpImpl(HgfsClientRdrServiceOp serviceOp,
    PCWSTR      serviceName = HGFS_SERVICE_NAME_U;
    DWORD       result = ERROR_SUCCESS;
 
-   g_warning("%s: Info: Op %d on client redirector %S\n",
-             __FUNCTION__, serviceOp, serviceName);
+   g_info("%s: Info: Op %d on client redirector %S\n",
+          __FUNCTION__, serviceOp, serviceName);
 
    serviceControlManager = OpenSCManagerW(NULL, NULL, accessFlags);
    if (NULL == serviceControlManager) {
@@ -345,7 +345,7 @@ exit:
    if (NULL != serviceControlManager) {
       CloseServiceHandle(serviceControlManager);
    }
-   g_warning("%s: Info: Op %d Done %u\n", __FUNCTION__, serviceOp, result);
+   g_info("%s: Info: Op %d Done %u\n", __FUNCTION__, serviceOp, result);
    return result;
 }
 
@@ -364,8 +364,8 @@ HgfsServerClientRedirectorExecOp(HgfsClientRdrServiceOp serviceOp)
    DWORD       result = ERROR_SUCCESS;
    DWORD       accessFlags = 0;
 
-   g_warning("%s: Info: Service client redirector op %d\n",
-             __FUNCTION__, serviceOp);
+   g_info("%s: Info: Service client redirector op %d\n",
+          __FUNCTION__, serviceOp);
 
    switch (serviceOp) {
       case HGFS_CLIENTRDR_SERVICE_START:
@@ -381,7 +381,7 @@ HgfsServerClientRedirectorExecOp(HgfsClientRdrServiceOp serviceOp)
    result = HgfsServerClientRedirectorExecOpImpl(serviceOp,
                                                  accessFlags);
 
-   g_warning("%s: Info: Op %d Done %u\n", __FUNCTION__, serviceOp, result);
+   g_info("%s: Info: Op %d Done %u\n", __FUNCTION__, serviceOp, result);
    return result;
 }
 
