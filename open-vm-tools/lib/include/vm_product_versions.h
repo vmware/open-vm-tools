@@ -48,7 +48,7 @@
    #define PRODUCT_VERSION    1,1,5,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_VPX)
    /* this should be kept in sync with the corresponding vpx branch. */
-   #define PRODUCT_VERSION    6,6,4,PRODUCT_BUILD_NUMBER_NUMERIC
+   #define PRODUCT_VERSION    6,8,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_HORIZON_VIEW)
    #define PRODUCT_VERSION    0,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
 // VMX86_DESKTOP must be last because it is the default and is always defined.
@@ -131,8 +131,8 @@
  * 4.0.0-1.8: patch 3
  */
 #define ESX_VERSION_MAJOR "6"
-#define ESX_VERSION_MINOR "6"
-#define ESX_VERSION_MAINT "4"
+#define ESX_VERSION_MINOR "8"
+#define ESX_VERSION_MAINT "0"
 #define ESX_VERSION ESX_VERSION_MAJOR "." ESX_VERSION_MINOR "." \
                     ESX_VERSION_MAINT
 #define ESX_VERSION_THIRD_PARTY ESX_VERSION_MAJOR ESX_VERSION_MINOR \
@@ -181,7 +181,7 @@
 #define SYSIMAGE_VERSION_EXT_STR \
    SYSIMAGE_VERSION "." PRODUCT_BUILD_NUMBER_NUMERIC_STRING
 
-#define VIM_VERSION "6.6.4"
+#define VIM_VERSION "6.8.0"
 /*
  *For smooth version bump up for quaterly releases, we need to have a fallback
  *mechanism to previous version in all those components which perform version
@@ -211,27 +211,27 @@
 6.0.0,\
 6.5.0"
 // Put VPX_VERSION first, because vpx/make/defs.mk doesn't check for suffix.
-#define VPX_VERSION "6.6.4"
+#define VPX_VERSION "6.8.0"
 #define VPX_VERSION_MAJOR "6"
-#define VPX_VERSION_MINOR "6"
-#define VPX_VERSION_MAINT "4"
+#define VPX_VERSION_MINOR "8"
+#define VPX_VERSION_MAINT "0"
 #define VPX_VERSION_THIRD_PARTY VPX_VERSION_MAJOR VPX_VERSION_MINOR \
                                 VPX_VERSION_MAINT
-#define VPX_VERSION_NUMERIC 6,6,4,PRODUCT_BUILD_NUMBER_NUMERIC
+#define VPX_VERSION_NUMERIC 6,8,0,PRODUCT_BUILD_NUMBER_NUMERIC
 
 // Last supported ESX version by VC.
 #define VPX_MIN_HOST_VERSION "6.0.0"
 
 #define MAX_SUPPORTED_VI_VERSION "6.6" //from ovfTool/src/supportedVersions.h
-#define VCDB_CURRENT_SCHEMA_VERSION           664 // from PitCADatabase.h
+#define VCDB_CURRENT_SCHEMA_VERSION           680 // from PitCADatabase.h
 
 #define VPX_RELEASE_UPDATE "0" /* 0 = Pre-release/GA, 1 = Update 1 */
 #define VPX_RELEASE_PATCH "0"  /* 0 = experimental */
 #define VPX_RELEASE VPX_RELEASE_UPDATE "." VPX_RELEASE_PATCH
 
 /* expected database version for current release */
-#define VPXD_VDB_DB_VERSION_ID            664
-#define VPXD_VDB_DB_VERSION_VALUE         "VirtualCenter Database 6.6"
+#define VPXD_VDB_DB_VERSION_ID            680
+#define VPXD_VDB_DB_VERSION_VALUE         "VirtualCenter Database 6.8"
 
 // Virtual Appliance Patch Version Number
 // This is the last component of the VCSA w.x.y.z version number
@@ -254,8 +254,8 @@
 #define VDM_VERSION "e.x.p"
 #define NETDUMP_VERSION        "5.1.0"
 #define NETDUMP_FILE_VERSION    5,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
-#define VDDK_VERSION          "6.7.0"
-#define VDDK_FILE_VERSION      6,7,0,PRODUCT_BUILD_NUMBER_NUMERIC
+#define VDDK_VERSION          "6.8.0"
+#define VDDK_FILE_VERSION      6,8,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #define OVFTOOL_VERSION "4.3.0"
 #define VCSA_INSTALLER_VERSION "1.0.0"
 #define OVFTOOL_FILE_VERSION 4,3,0,PRODUCT_BUILD_NUMBER_NUMERIC
