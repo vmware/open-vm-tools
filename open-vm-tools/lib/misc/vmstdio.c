@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -227,7 +227,7 @@ StdIO_ReadNextLine(FILE *stream,         // IN:
       size += nr;
       DynBuf_SetSize(&b, size);
 
-      if (maxBufLength != 0 && size > maxBufLength) {
+      if (maxBufLength != 0 && size >= maxBufLength) {
          errno = E2BIG;
          goto error;
       }
