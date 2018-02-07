@@ -2046,7 +2046,7 @@ AsyncTCPSocketConnect(struct sockaddr_storage *addr,         // IN
    asock->clientData = clientData;
 
    /* Store a copy of the sockaddr_storage so we can look it up later. */
-   asock->remoteAddr = *addr;
+   memcpy(&(asock->remoteAddr), addr, addrLen);
    asock->remoteAddrLen = addrLen;
 
    AsyncTCPSocketUnlock(asock);
