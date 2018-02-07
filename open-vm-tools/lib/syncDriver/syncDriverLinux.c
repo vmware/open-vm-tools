@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -217,6 +217,14 @@ LinuxDriver_Freeze(const GSList *paths,
              * as users with permission 700, so just ignore these.
              */
             Debug(LGPFX "cannot access mounted directory '%s'.\n", path);
+            continue;
+
+         case ENXIO:
+            /*
+             * A bind-mounted file, such as a mount of /dev/log for a
+             * chrooted application, will land us here.  Just skip it.
+             */
+            Debug(LGPFX "no such device or address '%s'.\n", path);
             continue;
 
          case EIO:

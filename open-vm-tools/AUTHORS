@@ -23,3 +23,5 @@ Josh Paetzel    Fix compilation error in clang 6.0
 Mike Latimer    Restrict udev rules to disk devices only
                 - https://github.com/vmware/open-vm-tools/pull/216
 
+Thomas Mueller  Ignore ENXIO errors with SyncDriver
+                - https://github.com/vmware/open-vm-tools/pull/218
