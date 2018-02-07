@@ -19,3 +19,7 @@ Andrew Stormont Fix finding C++ compiler for cross-compiling
 
 Josh Paetzel    Fix compilation error in clang 6.0
                 - https://github.com/vmware/open-vm-tools/pull/221
+
+Mike Latimer    Restrict udev rules to disk devices only
+                - https://github.com/vmware/open-vm-tools/pull/216
+
