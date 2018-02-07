@@ -1070,7 +1070,7 @@ ClearBitVector(void *var, int32 index)
       "setc %0"
       : "=qQm" (bit), "+m" (*(uint32 *)var)
       : "rI" (index)
-      : "cc"
+      : "memory", "cc"
    );
    return bit;
 #elif defined(_MSC_VER)
@@ -1092,7 +1092,7 @@ ComplementBitVector(void *var, int32 index)
       "setc %0"
       : "=qQm" (bit), "+m" (*(uint32 *)var)
       : "rI" (index)
-      : "cc"
+      : "memory", "cc"
    );
    return bit;
 #elif defined(_MSC_VER)

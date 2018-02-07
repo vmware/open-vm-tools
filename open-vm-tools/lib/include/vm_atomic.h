@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -3843,6 +3843,91 @@ MAKE_ATOMIC_TYPE(Ptr, 32, void const *, void *, uintptr_t)
 #endif
 MAKE_ATOMIC_TYPE(Int, 32, int, int, int)
 MAKE_ATOMIC_TYPE(Bool, 8, Bool, Bool, Bool)
+
+/*
+ * Define arbitrary sized bit vector to be used by
+ * Atomic_TestSetBitVector and Atomic_TestClearBitVector.
+ */
+#define ATOMIC_BITVECTOR(varName, capacity) \
+      Atomic_uint8 varName[CEILING(capacity, 8)]
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Atomic_TestSetBitVector --
+ *
+ *      Atomically test and set the bit 'index' in bit vector var.
+ *
+ *      The index input value specifies which bit to modify and is 0-based.
+ *
+ * Results:
+ *      Returns the value of the bit before modification.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE Bool
+Atomic_TestSetBitVector(Atomic_uint8 *var, // IN/OUT
+                        unsigned index)    // IN
+{
+#if defined __x86_64__ && defined __GNUC__
+   Bool bit;
+   __asm__ __volatile__(
+      "lock; bts %2, %1;"
+      "setc %0"
+      : "=qQm" (bit), "+m" (var->value)
+      : "rI" (index)
+      : "cc", "memory"
+   );
+   return bit;
+#else
+   uint8 bit = 1 << index % 8;
+   return (Atomic_ReadOr8(var + index / 8, bit) & bit) != 0;
+#endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Atomic_TestClearBitVector --
+ *
+ *      Atomically test and clear the bit 'index' in bit vector var.
+ *
+ *      The index input value specifies which bit to modify and is 0-based.
+ *
+ * Results:
+ *      Returns the value of the bit before modification.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE Bool
+Atomic_TestClearBitVector(Atomic_uint8 *var, // IN/OUT
+                          unsigned index)    // IN
+{
+#if defined __x86_64__ && defined __GNUC__
+   Bool bit;
+   __asm__ __volatile__(
+      "lock; btr %2, %1;"
+      "setc %0"
+      : "=qQm" (bit), "+m" (var->value)
+      : "rI" (index)
+      : "cc", "memory"
+   );
+   return bit;
+#else
+   uint8 bit = 1 << index % 8;
+   return (Atomic_ReadAnd8(var + index / 8, ~bit) & bit) != 0;
+#endif
+}
+
 
 #ifdef VM_ARM_64
 #   include "vm_atomic_arm64_end.h"
