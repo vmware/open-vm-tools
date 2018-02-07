@@ -167,7 +167,7 @@ static const DistroNameScan lsbFields[] = {
    {NULL,                   NULL                     },
 };
 
-static const DistroNameScan amazonFields[] = {
+static const DistroNameScan osReleaseFields[] = {
    {"PRETTY_NAME=",        "PRETTY_NAME=%s"          },
    {NULL,                   NULL                     },
 };
@@ -752,6 +752,19 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
       Str_Strcpy(distroShort, STR_OS_TURBO, distroShortSize);
    } else if (strstr(distroLower, "sun")) {
       Str_Strcpy(distroShort, STR_OS_SUN_DESK, distroShortSize);
+   } else if (strstr(distroLower, "amazon")) {
+      int amazonMinor = 0;
+      int amazonMajor = 0;
+
+      if (sscanf(distroLower, "Amazon Linux %d.%d", &amazonMajor,
+                 &amazonMinor) != 2) {
+         /* Oldest known good release */
+         amazonMajor = 2;
+         amazonMinor = 0;
+      }
+
+      Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_AMAZON,
+                  amazonMajor);
    } else if (strstr(distroLower, "annvix")) {
       Str_Strcpy(distroShort, STR_OS_ANNVIX, distroShortSize);
    } else if (strstr(distroLower, "arch")) {
@@ -965,12 +978,7 @@ HostinfoReadDistroFile(char *filename,                // IN: version file
       }
    }
 
-   if (distro[0] == '\0') {
-      /* Copy original string. What we got wasn't LSB compliant. */
-      Str_Strcpy(distro, distroOrig, distroSize);
-   }
-
-   ret = TRUE;
+   ret =  (distro[0] != '\0');
 
 out:
    if (fd != -1) {
@@ -1073,6 +1081,185 @@ HostinfoGetCmdOutput(const char *cmd)  // IN:
 /*
  *-----------------------------------------------------------------------------
  *
+ * HostinfoOsRelease --
+ *
+ *      Attempt to determine the distro string via the os-release standard.
+ *
+ * Return value:
+ *      TRUE   Success
+ *      FALSE  Failure
+ *
+ * Side effects:
+ *      distro is set on success.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+HostinfoOsRelease(char *distro,       // OUT:
+                  size_t distroSize)  // IN:
+{
+   Bool success;
+
+   success = HostinfoReadDistroFile("/etc/os-release",
+                                    &osReleaseFields[0],
+                                    distroSize, distro);
+
+   if (!success) {
+      success = HostinfoReadDistroFile("/usr/lib/os-release",
+                                       &osReleaseFields[0],
+                                       distroSize, distro);
+   }
+
+   return success;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HostinfoLsb --
+ *
+ *      Attempt to determine the disto string via the LSB standard.
+ *
+ * Return value:
+ *      TRUE   Success
+ *      FALSE  Failure
+ *
+ * Side effects:
+ *      distro is set on success.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+HostinfoLsb(char *distro,       // OUT:
+            size_t distroSize)  // IN:
+{
+   char *lsbOutput;
+   Bool success = FALSE;
+
+   /*
+    * Try to get OS detailed information from the lsb_release command.
+    */
+
+   lsbOutput = HostinfoGetCmdOutput("/usr/bin/lsb_release -sd 2>/dev/null");
+   if (lsbOutput == NULL) {
+      int i;
+
+      /*
+       * Try to get more detailed information from the version file.
+       */
+
+      for (i = 0; distroArray[i].filename != NULL; i++) {
+         if (HostinfoReadDistroFile(distroArray[i].filename, &lsbFields[0],
+                                    distroSize, distro)) {
+            success = TRUE;
+            break;
+         }
+      }
+
+      /*
+       * If we failed to read every distro file, exit now, before calling
+       * strlen on the distro buffer (which wasn't set).
+       */
+
+      if (distroArray[i].filename == NULL) {
+         Warning("%s: Error: no distro file found\n", __FUNCTION__);
+      }
+   } else {
+      char *lsbStart = lsbOutput;
+      char *quoteEnd = NULL;
+
+      if (lsbStart[0] == '"') {
+         lsbStart++;
+         quoteEnd = strchr(lsbStart, '"');
+         if (quoteEnd) {
+            *quoteEnd = '\0';
+         }
+      }
+      Str_Strcpy(distro, lsbStart, distroSize);
+      free(lsbOutput);
+      success = TRUE;
+   }
+
+   return success;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HostinfoDefaultLinux --
+ *
+ *      Build a generic description of the running Linux, along with a short
+ *      description (i.e. guestOS string).
+ *
+ * Return value:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HostinfoDefaultLinux(char *distro,            // OUT:
+                     size_t distroSize,       // OUT:
+                     char *distroShort,       // OUT:
+                     size_t distroShortSize)  // OUT:
+{
+   int majorVersion = Hostinfo_OSVersion(0);
+   int minorVersion = Hostinfo_OSVersion(1);
+
+   switch (majorVersion) {
+   case 1:
+      Str_Strcpy(distro, STR_OS_OTHER_FULL, distroSize);
+      Str_Strcpy(distroShort, STR_OS_OTHER, distroShortSize);
+      break;
+
+   case 2:
+      if (minorVersion < 4) {
+         Str_Strcpy(distro, STR_OS_OTHER_FULL, distroSize);
+         Str_Strcpy(distroShort, STR_OS_OTHER, distroShortSize);
+      } else if (minorVersion < 6) {
+         Str_Strcpy(distro, STR_OS_OTHER_24_FULL, distroSize);
+         Str_Strcpy(distroShort, STR_OS_OTHER_24, distroShortSize);
+      } else {
+         Str_Strcpy(distro, STR_OS_OTHER_26_FULL, distroSize);
+         Str_Strcpy(distroShort, STR_OS_OTHER_26, distroShortSize);
+      }
+
+      break;
+
+   case 3:
+      Str_Strcpy(distro, STR_OS_OTHER_3X_FULL, distroSize);
+      Str_Strcpy(distroShort, STR_OS_OTHER_3X, distroShortSize);
+      break;
+
+   case 4:
+      Str_Strcpy(distro, STR_OS_OTHER_4X_FULL, distroSize);
+      Str_Strcpy(distroShort, STR_OS_OTHER_4X, distroShortSize);
+      break;
+
+   default:
+      /*
+       * Anything newer than this code explicitly handles returns the
+       * "highest" known short description and a dynamically created,
+       * appropriate long description.
+       */
+
+      Str_Sprintf(distro, distroSize, "Other Linux %d.%d kernel",
+                  majorVersion, minorVersion);
+      Str_Strcpy(distroShort, STR_OS_OTHER_4X, distroShortSize);
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * HostinfoLinux --
  *
  *      Determine the specifics concerning Linux.
@@ -1091,97 +1278,29 @@ static Bool
 HostinfoLinux(struct utsname *buf)  // IN:
 {
    int len;
-   char *lsbOutput;
-   int majorVersion;
    char distro[DISTRO_BUF_SIZE];
    char distroShort[DISTRO_BUF_SIZE];
    char osName[MAX_OS_NAME_LEN];
    char osNameFull[MAX_OS_FULLNAME_LEN];
-   static int const distroSize = sizeof distro;
 
-   /*
-    * Write default distro string depending on the kernel version. If
-    * later we find more detailed information this will get overwritten.
-    */
-
-   majorVersion = Hostinfo_OSVersion(0);
-   if (majorVersion < 2) {
-      Str_Strcpy(distro, STR_OS_OTHER_FULL, distroSize);
-      Str_Strcpy(distroShort, STR_OS_OTHER, distroSize);
-   } else if (majorVersion == 2) {
-       if (Hostinfo_OSVersion(1) < 4) {
-         Str_Strcpy(distro, STR_OS_OTHER_FULL, distroSize);
-         Str_Strcpy(distroShort, STR_OS_OTHER, distroSize);
-      } else if (Hostinfo_OSVersion(1) < 6) {
-         Str_Strcpy(distro, STR_OS_OTHER_24_FULL, distroSize);
-         Str_Strcpy(distroShort, STR_OS_OTHER_24, distroSize);
-      } else {
-         Str_Strcpy(distro, STR_OS_OTHER_26_FULL, distroSize);
-         Str_Strcpy(distroShort, STR_OS_OTHER_26, distroSize);
-      }
-   } else if (majorVersion == 3) {
-      Str_Strcpy(distro, STR_OS_OTHER_3X_FULL, distroSize);
-      Str_Strcpy(distroShort, STR_OS_OTHER_3X, distroSize);
-   } else if (majorVersion == 4) {
-      Str_Strcpy(distro, STR_OS_OTHER_4X_FULL, distroSize);
-      Str_Strcpy(distroShort, STR_OS_OTHER_4X, distroSize);
-   } else {
-      /*
-       * Anything newer than this code explicitly handles returns the
-       * "highest" known short description and a dynamically created,
-       * appropriate long description.
-       */
-
-      Str_Sprintf(distro, sizeof distro, "Other Linux %d.%d kernel",
-                  majorVersion, Hostinfo_OSVersion(1));
-      Str_Strcpy(distroShort, STR_OS_OTHER_4X, distroSize);
+   /* Try the LSB standard first, this maximizes compatibility */
+   if (HostinfoLsb(distro, sizeof distro)) {
+      HostinfoGetOSShortName(distro, distroShort, sizeof distro);
+      goto bail;
    }
 
-   /*
-    * Try to get OS detailed information from the lsb_release command.
-    */
-
-   lsbOutput = HostinfoGetCmdOutput("/usr/bin/lsb_release -sd 2>/dev/null");
-   if (lsbOutput == NULL) {
-      int i;
-
-      /*
-       * Try to get more detailed information from the version file.
-       */
-
-      for (i = 0; distroArray[i].filename != NULL; i++) {
-         if (HostinfoReadDistroFile(distroArray[i].filename, &lsbFields[0],
-                                    distroSize, distro)) {
-            break;
-         }
-      }
-
-      /*
-       * If we failed to read every distro file, exit now, before calling
-       * strlen on the distro buffer (which wasn't set).
-       */
-
-      if (distroArray[i].filename == NULL) {
-         Warning("%s: Error: no distro file found\n", __FUNCTION__);
-
-         return FALSE;
-      }
-   } else {
-      char *lsbStart = lsbOutput;
-      char *quoteEnd = NULL;
-
-      if (lsbStart[0] == '"') {
-         lsbStart++;
-         quoteEnd = strchr(lsbStart, '"');
-         if (quoteEnd) {
-            *quoteEnd = '\0';
-         }
-      }
-      Str_Strcpy(distro, lsbStart, distroSize);
-      free(lsbOutput);
+   /* No LSB compliance, try the os-release standard */
+   if (HostinfoOsRelease(distro, sizeof distro)) {
+      HostinfoGetOSShortName(distro, distroShort, sizeof distro);
+      goto bail;
    }
 
-   HostinfoGetOSShortName(distro, distroShort, distroSize);
+   /* Not LSB or os-release compliant. Report something generic. */
+
+   HostinfoDefaultLinux(distro, sizeof distro,
+                        distroShort, sizeof distroShort);
+
+bail:
 
    len = Str_Snprintf(osNameFull, sizeof osNameFull, "%s %s %s", buf->sysname,
                       buf->release, distro);
@@ -1328,68 +1447,6 @@ HostinfoSun(struct utsname *buf)  // IN:
 
    return (len != -1);
 }
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * HostinfoAmazon --
- *
- *      Determine the specifics concerning Amazon Linux.
- *
- * Return value:
- *      TRUE   Success
- *      FALSE  Failure
- *
- * Side effects:
- *      Cache values are set when returning TRUE
- *
- *-----------------------------------------------------------------------------
- */
-
-static Bool
-HostinfoAmazon(struct utsname *buf)  // IN:
-{
-   int len;
-   char osName[MAX_OS_NAME_LEN];
-   char osNameFull[MAX_OS_FULLNAME_LEN] = { '\0' };
-
-   if (HostinfoReadDistroFile("/etc/os-release", &amazonFields[0],
-                              sizeof osNameFull, osNameFull)) {
-      len = strlen(osNameFull);
-   } else {
-      Log("%s: Using fallback\n", __FUNCTION__);
-
-      len = Str_Snprintf(osNameFull, sizeof osNameFull,
-                         "Amazon Linux x.y (kernel %d.%d)",
-                         Hostinfo_OSVersion(0),          // Kernel major
-                         Hostinfo_OSVersion(1));         // Kernel minor
-   }
-
-   if (len != -1) {
-      int amazonMinor = 0;
-      int amazonMajor = 0;
-
-      if (sscanf(osNameFull, "Amazon Linux %d.%d", &amazonMajor,
-                 &amazonMinor) != 2) {
-         /* Oldest known good release */
-         amazonMajor = 2;
-         amazonMinor = 0;
-      }
-
-      /* We are not offering a 32-bit version... or ever plan to. */
-      len = Str_Snprintf(osName, sizeof osName, "%s%d%s", STR_OS_AMAZON,
-                         amazonMajor, STR_OS_64BIT_SUFFIX);
-   }
-
-   if (len == -1) {
-      Warning("%s: Error: buffer too small\n", __FUNCTION__);
-   } else {
-      HostinfoPostData(osName, osNameFull);
-   }
-
-   return (len != -1);
-}
 #endif // !defined __APPLE__ && !defined USERWORLD
 
 
@@ -1432,13 +1489,7 @@ HostinfoOSData(void)
    success = HostinfoMacOS(&buf);
 #else
    if (strstr(buf.sysname, "Linux")) {
-      struct stat sb;
-
-      if (Posix_Stat("/etc/amazon", &sb) == 0) {
-         success = HostinfoAmazon(&buf);
-      } else {
-         success = HostinfoLinux(&buf);
-      }
+      success = HostinfoLinux(&buf);
    } else if (strstr(buf.sysname, "FreeBSD")) {
       success = HostinfoBSD(&buf);
    } else if (strstr(buf.sysname, "SunOS")) {
