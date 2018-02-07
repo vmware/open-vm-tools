@@ -56,14 +56,9 @@ typedef enum {
 } UUIDStyle;
 
 /* Scheme control */
-#define UUID_CREATE_WS4     0  /* the "original", WS4 and earlier scheme */
-#define UUID_CREATE_WS5     1  /* the WS5 scheme */
-#define UUID_CREATE_WS6     2  /* the WS6 scheme - "native" path */
-#define UUID_CREATE_ESX50   3  /* the scheme to allow location generated using
-                                  host UUID with wrong endianness as reported by
-                                  pre-ESX 5.0 U2. See PR 861271 for details. */
-#define UUID_CREATE_WS65    4  /* the WS65 scheme - UTF-8 path */
-#define UUID_CREATE_CURRENT 4  /* the current scheme - always the latest */
+#define UUID_CREATE_WS6     0  /* the WS6 scheme - "native" path */
+#define UUID_CREATE_WS65    1  /* the WS65 scheme - UTF-8 path */
+#define UUID_CREATE_CURRENT 1  /* the current scheme - always the latest */
 
 
 /*
