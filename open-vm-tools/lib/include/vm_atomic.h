@@ -3929,6 +3929,24 @@ Atomic_TestClearBitVector(Atomic_uint8 *var, // IN/OUT
 }
 
 
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Atomic_TestBitVector --
+ *
+ *      Test the bit 'index' (zero-based) in bit vector var.
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE Bool
+Atomic_TestBitVector(const Atomic_uint8 *var, // IN
+                     unsigned index)          // IN
+{
+   uint8 bit = 1 << index % 8;
+   return (Atomic_Read8(var + index / 8) & bit) != 0;
+}
+
+
 #ifdef VM_ARM_64
 #   include "vm_atomic_arm64_end.h"
 #endif
