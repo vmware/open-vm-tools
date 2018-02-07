@@ -108,7 +108,10 @@ typedef enum {
    ETH_TYPE_CDP         = 0x2000,
    ETH_TYPE_AKIMBI      = 0x88DE,
    ETH_TYPE_VMWARE      = 0x8922,
+   ETH_TYPE_1588        = 0x88F7,
+   ETH_TYPE_NSH         = 0x894F,
    ETH_TYPE_802_1PQ     = 0x8100,  // not really a DIX type, but used as such
+   ETH_TYPE_QINQ        = 0x88A8,
    ETH_TYPE_LLC         = 0xFFFF,  // 0xFFFF is IANA reserved, used to mark LLC
 } Eth_DixType;
 typedef enum {
@@ -120,7 +123,10 @@ typedef enum {
    ETH_TYPE_CDP_NBO     = 0x0020,
    ETH_TYPE_AKIMBI_NBO  = 0xDE88,
    ETH_TYPE_VMWARE_NBO  = 0x2289,
+   ETH_TYPE_1588_NBO    = 0xF788,
+   ETH_TYPE_NSH_NBO     = 0x4F89,
    ETH_TYPE_802_1PQ_NBO = 0x0081,  // not really a DIX type, but used as such
+   ETH_TYPE_QINQ_NBO    = 0xA888,
    ETH_TYPE_802_3_PAUSE_NBO = 0x0888,  // pause frame based ethernet flow control
 } Eth_DixTypeNBO;
 
