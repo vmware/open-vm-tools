@@ -1099,11 +1099,9 @@ static Bool
 HostinfoOsRelease(char *distro,       // OUT:
                   size_t distroSize)  // IN:
 {
-   Bool success;
-
-   success = HostinfoReadDistroFile("/etc/os-release",
-                                    &osReleaseFields[0],
-                                    distroSize, distro);
+   Bool success = HostinfoReadDistroFile("/etc/os-release",
+                                         &osReleaseFields[0],
+                                         distroSize, distro);
 
    if (!success) {
       success = HostinfoReadDistroFile("/usr/lib/os-release",
@@ -1120,7 +1118,7 @@ HostinfoOsRelease(char *distro,       // OUT:
  *
  * HostinfoLsb --
  *
- *      Attempt to determine the disto string via the LSB standard.
+ *      Attempt to determine the distro string via the LSB standard.
  *
  * Return value:
  *      TRUE   Success
@@ -1144,6 +1142,7 @@ HostinfoLsb(char *distro,       // OUT:
     */
 
    lsbOutput = HostinfoGetCmdOutput("/usr/bin/lsb_release -sd 2>/dev/null");
+
    if (lsbOutput == NULL) {
       int i;
 
@@ -1296,7 +1295,6 @@ HostinfoLinux(struct utsname *buf)  // IN:
    }
 
    /* Not LSB or os-release compliant. Report something generic. */
-
    HostinfoDefaultLinux(distro, sizeof distro,
                         distroShort, sizeof distroShort);
 
