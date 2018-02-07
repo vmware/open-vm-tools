@@ -171,7 +171,7 @@ Bool UUID_IsUUIDGeneratedByThatVpxd(const uint8 *id,
 
 char *UUID_PackText(const char *text,
                     char *pack,
-                    int packLen);
+                    size_t packLen);
 
 char *UUID_ProperHostUUID(void);
 

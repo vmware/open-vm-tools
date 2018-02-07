@@ -3843,7 +3843,6 @@ MAKE_ATOMIC_TYPE(Ptr, 32, void const *, void *, uintptr_t)
 #endif
 MAKE_ATOMIC_TYPE(Int, 32, int, int, int)
 MAKE_ATOMIC_TYPE(Bool, 8, Bool, Bool, Bool)
-MAKE_ATOMIC_TYPE(PageIndex, 32, unsigned, unsigned, unsigned)
 
 /*
  * Define arbitrary sized bit vector to be used by
