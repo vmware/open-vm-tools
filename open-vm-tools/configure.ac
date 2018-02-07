@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2007-2017 VMware, Inc.  All rights reserved.
+### Copyright (C) 2007-2018 VMware, Inc.  All rights reserved.
 ###
 ### Configure script for building the VMware OSS Tools.
 ###
@@ -598,55 +598,55 @@ fi
 
 if test "$enable_vgauth" = "yes"; then
    CPPFLAGS="$CPPFLAGS -DUSE_VGAUTH"
-if test "$use_xmlsec1" = "yes"; then
-   AC_VMW_DEFAULT_FLAGS([XML2])
-   AC_VMW_CHECK_LIB([xml2],
-                    [XML2],
-                    [],
-                    [],
-                    [],
-                    [],
-                    [],
-                    [],
-                    [AC_VMW_LIB_ERROR([XML2], [xml2])])
+   if test "$use_xmlsec1" = "yes"; then
+      AC_VMW_DEFAULT_FLAGS([XML2])
+      AC_VMW_CHECK_LIB([xml2],
+                       [XML2],
+                       [],
+                       [],
+                       [],
+                       [],
+                       [],
+                       [],
+                       [AC_VMW_LIB_ERROR([XML2], [xml2])])
 
-# Multiple distros built xmlsec1 with -DXMLSEC_NO_SIZE_T but
-# their xmlssec1-config --cflags doesn't properly report it,
-# so force it on.
-   AC_VMW_DEFAULT_FLAGS([XMLSEC1])
-   AC_VMW_CHECK_LIB([xmlsec1],
-                    [XMLSEC1],
-                    [],
-                    [xmlsec1-config],
-                    [],
-                    [xmlsec/xmlsec.h],
-                    [xmlSecCheckVersion],
-                    [XMLSEC1_CPPFLAGS="$XMLSEC1_CPPFLAGS -DXMLSEC_NO_SIZE_T"],
-                    [AC_VMW_LIB_ERROR([XMLSEC1], [xmlsec1])])
+   # Multiple distros built xmlsec1 with -DXMLSEC_NO_SIZE_T but
+   # their xmlssec1-config --cflags doesn't properly report it,
+   # so force it on.
+      AC_VMW_DEFAULT_FLAGS([XMLSEC1])
+      AC_VMW_CHECK_LIB([xmlsec1],
+                       [XMLSEC1],
+                       [],
+                       [xmlsec1-config],
+                       [],
+                       [xmlsec/xmlsec.h],
+                       [xmlSecCheckVersion],
+                       [XMLSEC1_CPPFLAGS="$XMLSEC1_CPPFLAGS -DXMLSEC_NO_SIZE_T"],
+                       [AC_VMW_LIB_ERROR([XMLSEC1], [xmlsec1])])
 
-else
-   AC_VMW_DEFAULT_FLAGS([XERCES])
-   AC_VMW_CHECK_LIB([xerces-c],
-                    [XERCES],
-                    [],
-                    [],
-                    [],
-                    [],
-                    [],
-                    [],
-                    [AC_VMW_LIB_ERROR([XERCES], [xerces])])
+   else
+      AC_VMW_DEFAULT_FLAGS([XERCES])
+      AC_VMW_CHECK_LIB([xerces-c],
+                       [XERCES],
+                       [],
+                       [],
+                       [],
+                       [],
+                       [],
+                       [],
+                       [AC_VMW_LIB_ERROR([XERCES], [xerces])])
 
-   AC_VMW_DEFAULT_FLAGS([XMLSECURITY])
-   AC_VMW_CHECK_LIB([xml-security-c],
-                    [XMLSECURITY],
-                    [],
-                    [],
-                    [],
-                    [],
-                    [],
-                    [],
-                    [AC_VMW_LIB_ERROR([XMLSECURITY], [xmlsecurity])])
-fi
+      AC_VMW_DEFAULT_FLAGS([XMLSECURITY])
+      AC_VMW_CHECK_LIB([xml-security-c],
+                       [XMLSECURITY],
+                       [],
+                       [],
+                       [],
+                       [],
+                       [],
+                       [],
+                       [AC_VMW_LIB_ERROR([XMLSECURITY], [xmlsecurity])])
+   fi
 else
    enable_caf=no
 fi
@@ -948,7 +948,7 @@ if test "$with_dnet" = "yes"; then
    if test $have_dnet = "no"; then
 		AC_MSG_ERROR(
 		   [dnet-config was not found on your PATH. Please configure without dnet (using --without-dnet) or install dnet - http://libdnet.sourceforge.net])
-	fi
+   fi
 fi
 
 if test "$with_dnet" != "yes"; then
@@ -979,15 +979,16 @@ if test "$have_x" = "yes" -o "$with_icu" = "yes"; then
 fi
 
 if test "$with_icu" = "yes"; then
-   AC_VMW_CHECK_LIBXX([icuuc],
+   AC_VMW_CHECK_LIBXX([icui18n],
                       [ICU],
-                      [],
+                      [icu-i18n],
                       [icu-config],
                       [],
                       [unicode/utf.h],
                       [],
                       [ICU_CPPFLAGS="$ICU_CPPFLAGS -DUSE_ICU"],
                       [AC_MSG_ERROR([ICU library not found. Please configure without ICU (using --without-icu) or install ICU - http://www.icu-project.org])])
+
    # Check whether we have ICU >= 3.8.
    AC_LANG_PUSH([C++])
    AC_MSG_CHECKING([for ucasemap_utf8ToTitle in ICU])
