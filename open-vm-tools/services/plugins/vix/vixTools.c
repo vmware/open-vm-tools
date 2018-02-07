@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -7330,7 +7330,7 @@ VixToolsRunScript(VixCommandRequestHeader *requestMsg,  // IN
          goto abort;
       }
    }
-   for (var = 0; var <= 0xFFFFFFFF; var++) {
+   for (var = 0; var < MAX_INT32; var++) {
       free(tempScriptFilePath);
       tempScriptFilePath = Str_SafeAsprintf(NULL,
                                             "%s"DIRSEPS"%s%d%s",
