@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -947,8 +947,8 @@ File_CopyFromFdToFd(FileIODescriptor src,  // IN:
  *      for File_CopyTree.
  *
  * Results:
- *      TRUE on success
- *      FALSE on failure: Error messages are appended.
+ *      TRUE   Success.
+ *      FALSE  Failure. Error messages appended
  *
  * Side effects:
  *      None.
@@ -1059,8 +1059,8 @@ FileCopyTree(const char *srcName,     // IN:
  *      optionally overwriting any files.
  *
  * Results:
- *      TRUE on success
- *      FALSE on failure: Error messages are appended.
+ *      TRUE   Success.
+ *      FALSE  Failure. Error messages appended
  *
  * Side effects:
  *      None.
@@ -1111,8 +1111,8 @@ File_CopyTree(const char *srcName,     // IN:
  *      decides whether to overwrite the existing file or not.
  *
  * Results:
- *      TRUE on success
- *      FALSE on failure: Messages are appended
+ *      TRUE   Success.
+ *      FALSE  Failure. Error messages appended
  *
  * Side effects:
  *      None
@@ -1189,8 +1189,8 @@ File_CopyFromFd(FileIODescriptor src,    // IN:
  *      decides whether to overwrite the existing file or not.
  *
  * Results:
- *      TRUE on success
- *      FALSE on failure: Messages are appended
+ *      TRUE   Success.
+ *      FALSE  Failure. Error messages appended
  *
  * Side effects:
  *      None
@@ -1259,7 +1259,7 @@ File_Copy(const char *srcName,     // IN:
  *      purposes copying only results if the native rename ability fails.
  *
  * Results:
- *      TRUE   succeeded
+ *      TRUE   success
  *      FALSE  otherwise
  *
  * Side effects:
@@ -1318,8 +1318,8 @@ File_Move(const char *oldFile,  // IN:
  *    reason.  In that event we will append error messages.
  *
  * Results:
- *    TRUE - on success
- *    FALSE - on failure with error messages appended
+ *    TRUE   Success.
+ *    FALSE  Failure. Error messages appended
  *
  * Side effects:
  *    - Deletes the originating directory
@@ -1679,7 +1679,8 @@ FileFirstSlashIndex(const char *pathName,     // IN:
  *      to remove it after in case later operations fail.
  *
  * Results:
- *      TRUE on success, FALSE on failure.
+ *      TRUE   Success.
+ *      FALSE  Failure.
  *
  *      If topmostCreated is not NULL, it returns the result of the hierarchy
  *      creation. If no directory was created, *topmostCreated is set to NULL.
@@ -1732,7 +1733,7 @@ File_CreateDirectoryHierarchyEx(const char *pathName,   // IN:
    }
 
    /*
-    * Iterate parent directories, splitting on appropriate dir separators.
+    * Iterate directory path, creating directories as necessary.
     */
 
    while (TRUE) {
@@ -1759,9 +1760,9 @@ File_CreateDirectoryHierarchyEx(const char *pathName,   // IN:
             temp = NULL;
          }
       } else {
-         FileData fileData;
-
          if (err == EEXIST) {
+            FileData fileData;
+
             err = FileAttributes(temp, &fileData);
 
             if (err == 0) {
@@ -1972,9 +1973,9 @@ FileDeleteDirectoryTree(const char *pathName,  // IN: directory to delete
  *      it can but will return FALSE.
  *
  * Results:
- *      TRUE   the entire content was deleted or there were no files and the
- *             directoy was empty
- *      FALSE  otherwise.
+ *      TRUE   the entire contents were deleted or there were no files and the
+ *             directory was empty
+ *      FALSE  otherwise
  *
  * Side effects:
  *      Deletes the directory content from disk.
@@ -2024,7 +2025,8 @@ File_DeleteDirectoryTree(const char *pathName)  // IN: directory to delete
  *      searchPath must be ';' delimited.
  *
  * Results:
- *      TRUE if a file is found. FALSE otherwise.
+ *      TRUE   file was found
+ *      FALSE  otherwise.
  *
  * Side effects:
  *      If result is non Null allocate a string for the filename found.
@@ -2156,7 +2158,8 @@ done:
  *      the named directory is writeable.
  *
  * Results:
- *      NULL if error, the expanded path otherwise.
+ *      NULL error
+ *     !NULL the expanded path otherwise.
  *
  * Side effects:
  *      The result is allocated.
@@ -2631,8 +2634,8 @@ File_GetFSMountInfo(const char *pathName,
  *      Check if the specified file path contains symbolic link.
  *
  * Results:
- *      return TRUE if pathName contains a symlink,
- *      return FALSE if pathName is not a symlink or error.
+ *      TRUE   pathName contains a symlink,
+ *      FALSE  pathName is not a symlink nor contains a symlink, or error.
  *
  * Side effects:
  *      None
