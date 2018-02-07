@@ -1164,7 +1164,7 @@ HostinfoLsb(char *distro,       // OUT:
        */
 
       if (distroArray[i].filename == NULL) {
-         Warning("%s: Error: no distro file found\n", __FUNCTION__);
+         Log("%s: Error: no distro file found\n", __FUNCTION__);
       }
    } else {
       char *lsbStart = lsbOutput;
