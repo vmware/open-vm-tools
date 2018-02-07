@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -349,7 +349,6 @@ static HgfsHandle HgfsFileNode2Handle(HgfsFileNode const *fileNode);
 static HgfsFileNode *HgfsHandle2FileNode(HgfsHandle handle,
                                          HgfsSessionInfo *session);
 static void HgfsServerExitSessionInternal(HgfsSessionInfo *session);
-static Bool HgfsIsShareRoot(char const *cpName, size_t cpNameSize);
 static void HgfsServerCompleteRequest(HgfsInternalStatus status,
                                       size_t replyPayloadSize,
                                       HgfsInputParam *input);
@@ -8212,7 +8211,7 @@ HgfsServerGetattr(HgfsInputParam *input)  // IN: Input params
                 * Replace it with a more appropriate error code: no such device.
                 */
                if (status == HGFS_ERROR_FILE_NOT_FOUND &&
-                   HgfsIsShareRoot(cpName, cpNameSize)) {
+                   HgfsServerIsSharedFolderOnly(cpName, cpNameSize)) {
                   status = HGFS_ERROR_IO;
                }
             }
@@ -9389,38 +9388,6 @@ exit:
    }
 }
 
-
-/*
- *-----------------------------------------------------------------------------
- *
- * HgfsIsShareRoot --
- *
- *    Checks if the cpName represents the root directory for a share.
- *    Components in CPName format are separated by NUL characters.
- *    CPName for the root of a share contains only one component thus
- *    it does not have any embedded '\0' characters in the name.
- *
- * Results:
- *    TRUE if it is the root directory, FALSE otherwise.
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-static Bool
-HgfsIsShareRoot(char const *cpName,         // IN: name to test
-                size_t cpNameSize)          // IN: length of the name
-{
-   size_t i;
-   for (i = 0; i < cpNameSize; i++) {
-      if (cpName[i] == '\0') {
-         return FALSE;
-      }
-   }
-   return TRUE;
-}
 
 /*
  * more testing
