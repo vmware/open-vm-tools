@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1206,46 +1206,6 @@ enum {
 #undef VMW_BIT_MASK
 #undef FIELD
 #undef FLAG
-
-/*
- * Legal CPUID config file mask characters.  For a description of the
- * cpuid masking system, please see:
- *
- * http://vmweb.vmware.com/~mts/cgi-bin/view.cgi/Apps/CpuMigrationChecks
- */
-
-#define CPUID_MASK_HIDE_CHR    '0'
-#define CPUID_MASK_HIDE_STR    "0"
-#define CPUID_MASK_FORCE_CHR   '1'
-#define CPUID_MASK_FORCE_STR   "1"
-#define CPUID_MASK_PASS_CHR    '-'
-#define CPUID_MASK_PASS_STR    "-"
-#define CPUID_MASK_TRUE_CHR    'T'
-#define CPUID_MASK_TRUE_STR    "T"
-#define CPUID_MASK_FALSE_CHR   'F'
-#define CPUID_MASK_FALSE_STR   "F"
-#define CPUID_MASK_IGNORE_CHR  'X'
-#define CPUID_MASK_IGNORE_STR  "X"
-#define CPUID_MASK_HOST_CHR    'H'
-#define CPUID_MASK_HOST_STR    "H"
-#define CPUID_MASK_RSVD_CHR    'R'
-#define CPUID_MASK_RSVD_STR    "R"
-
-/*
- * When LM is disabled, we overlay the following masks onto the
- * guest's default masks.  Any level that is not defined below should
- * be treated as all "-"s
- */
-
-#define CPT_ID1ECX_LM_DISABLED  "----:----:----:----:--0-:----:----:----"
-#define CPT_ID81EDX_LM_DISABLED "--0-:----:----:----:----:----:----:----"
-#define CPT_ID81ECX_LM_DISABLED "----:----:----:----:----:----:----:---0"
-
-#define CPT_GET_LM_DISABLED_MASK(lvl, reg)                                  \
-   ((lvl == 1 && reg == CPUID_REG_ECX) ? CPT_ID1ECX_LM_DISABLED :           \
-    (lvl == 0x80000001 && reg == CPUID_REG_ECX) ? CPT_ID81ECX_LM_DISABLED : \
-    (lvl == 0x80000001 && reg == CPUID_REG_EDX) ? CPT_ID81EDX_LM_DISABLED : \
-    NULL)
 
 /*
  * CPUID_MASK --
