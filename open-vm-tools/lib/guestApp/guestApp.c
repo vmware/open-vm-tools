@@ -27,6 +27,14 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifdef _MSC_VER
+#include <windows.h>
+#include <shlobj.h>
+#include "productState.h"
+#include "winregistry.h"
+#include "windowsUtil.h"
+#endif
+
 #include "vmware.h"
 #include "vm_version.h"
 #include "vm_tools_version.h"
@@ -42,14 +50,6 @@
 #include "file.h"
 #include "posix.h"
 #include "vmware/guestrpc/tclodefs.h"
-
-#ifdef _MSC_VER
-#include <windows.h>
-#include <shlobj.h>
-#include "productState.h"
-#include "winregistry.h"
-#include "windowsUtil.h"
-#endif
 
 /*
  * For Netware/Linux/BSD/Solaris, the install path
