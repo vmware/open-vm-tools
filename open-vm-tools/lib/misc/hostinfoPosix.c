@@ -702,7 +702,7 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
          int release = 0;
          char *releaseStart = strstr(distroLower, "release");
 
-         if (releaseStart) {
+         if (releaseStart != NULL) {
             sscanf(releaseStart, "release %d", &release);
             if (release > 0) {
                snprintf(distroShort, distroShortSize, STR_OS_RED_HAT_EN"%d",
@@ -711,8 +711,6 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
          }
 
          if (release <= 0) {
-            Warning("%s: could not read Red Hat Enterprise release version\n",
-                  __FUNCTION__);
             Str_Strcpy(distroShort, STR_OS_RED_HAT_EN, distroShortSize);
          }
 
@@ -883,14 +881,16 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
  *
  * HostinfoReadDistroFile --
  *
- *      Look for a distro version file /etc/xxx-release.
- *      Once found, read the file in and figure out which distribution.
+ *      Attempt to open and read the specified distro identication file.
+ *      If the file has data and can be read, attempt to identify the distro.
+ *
+ *      os-release rules require strict compliance. No data unless things
+ *      are perfect. For the LSB, we will return the contents of the file
+ *      even if things aren't strictly compliant.
  *
  * Return value:
- *      TRUE   Success
- *      FALSE  Failure
- *
- *      Returns distro information verbatium from /etc/xxx-release (distro).
+ *      TRUE   Success.
+ *      FALSE  Failure.
  *
  * Side effects:
  *      None
@@ -899,7 +899,8 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
  */
 
 static Bool
-HostinfoReadDistroFile(char *filename,                // IN: version file
+HostinfoReadDistroFile(Bool osReleaseRules,           // IN: osRelease rules
+                       char *filename,                // IN: distro file
                        const DistroNameScan *values,  // IN: search strings
                        int distroSize,                // IN: length of distro
                        char *distro)                  // OUT: full distro name
@@ -978,7 +979,32 @@ HostinfoReadDistroFile(char *filename,                // IN: version file
       }
    }
 
-   ret =  (distro[0] != '\0');
+   if (distro[0] == '\0') {
+      /*
+       * The distro identification file was not standards compliant.
+       */
+
+      if (osReleaseRules) {
+         /*
+          * We must strictly comply with the os-release standard. Error.
+          */
+
+         ret = FALSE;
+      } else {
+         /*
+          * Our old code played fast and loose with the LSB standard. If there
+          * was a distro identication file but the contents were not LSB
+          * compliant (e.g. RH 7.2), we returned success along with the
+          * contents "as is"... in the hopes that the available data would
+          * be "good enough". Continue the practice to maximize compatibility.
+          */
+
+         Str_Strcpy(distro, distroOrig, distroSize);
+         ret = TRUE;
+      }
+   } else {
+      ret = TRUE;
+   }
 
 out:
    if (fd != -1) {
@@ -1099,12 +1125,12 @@ static Bool
 HostinfoOsRelease(char *distro,       // OUT:
                   size_t distroSize)  // IN:
 {
-   Bool success = HostinfoReadDistroFile("/etc/os-release",
+   Bool success = HostinfoReadDistroFile(TRUE, "/etc/os-release",
                                          &osReleaseFields[0],
                                          distroSize, distro);
 
    if (!success) {
-      success = HostinfoReadDistroFile("/usr/lib/os-release",
+      success = HostinfoReadDistroFile(TRUE, "/usr/lib/os-release",
                                        &osReleaseFields[0],
                                        distroSize, distro);
    }
@@ -1151,8 +1177,8 @@ HostinfoLsb(char *distro,       // OUT:
        */
 
       for (i = 0; distroArray[i].filename != NULL; i++) {
-         if (HostinfoReadDistroFile(distroArray[i].filename, &lsbFields[0],
-                                    distroSize, distro)) {
+         if (HostinfoReadDistroFile(FALSE, distroArray[i].filename,
+                                    &lsbFields[0], distroSize, distro)) {
             success = TRUE;
             break;
          }
@@ -1191,8 +1217,9 @@ HostinfoLsb(char *distro,       // OUT:
  *
  * HostinfoDefaultLinux --
  *
- *      Build a generic description of the running Linux, along with a short
- *      description (i.e. guestOS string).
+ *      Build and return generic data about the Linux disto. Only return what
+ *      has been required - short description (i.e. guestOS string), long
+ *      description (nice looking string).
  *
  * Return value:
  *      None
@@ -1204,42 +1231,45 @@ HostinfoLsb(char *distro,       // OUT:
  */
 
 static void
-HostinfoDefaultLinux(char *distro,            // OUT:
-                     size_t distroSize,       // OUT:
-                     char *distroShort,       // OUT:
-                     size_t distroShortSize)  // OUT:
+HostinfoDefaultLinux(char *distro,            // OUT/OPT:
+                     size_t distroSize,       // IN:
+                     char *distroShort,       // OUT/OPT:
+                     size_t distroShortSize)  // IN:
 {
+   char generic[128];
+   char *distroOut = NULL;
+   char *distroShortOut = NULL;
    int majorVersion = Hostinfo_OSVersion(0);
    int minorVersion = Hostinfo_OSVersion(1);
 
    switch (majorVersion) {
    case 1:
-      Str_Strcpy(distro, STR_OS_OTHER_FULL, distroSize);
-      Str_Strcpy(distroShort, STR_OS_OTHER, distroShortSize);
+      distroOut = STR_OS_OTHER_FULL;
+      distroShortOut = STR_OS_OTHER;
       break;
 
    case 2:
       if (minorVersion < 4) {
-         Str_Strcpy(distro, STR_OS_OTHER_FULL, distroSize);
-         Str_Strcpy(distroShort, STR_OS_OTHER, distroShortSize);
+         distroOut = STR_OS_OTHER_FULL;
+         distroShortOut = STR_OS_OTHER;
       } else if (minorVersion < 6) {
-         Str_Strcpy(distro, STR_OS_OTHER_24_FULL, distroSize);
-         Str_Strcpy(distroShort, STR_OS_OTHER_24, distroShortSize);
+         distroOut = STR_OS_OTHER_24_FULL;
+         distroShortOut = STR_OS_OTHER_24;
       } else {
-         Str_Strcpy(distro, STR_OS_OTHER_26_FULL, distroSize);
-         Str_Strcpy(distroShort, STR_OS_OTHER_26, distroShortSize);
+         distroOut = STR_OS_OTHER_26_FULL;
+         distroShortOut = STR_OS_OTHER_26;
       }
 
       break;
 
    case 3:
-      Str_Strcpy(distro, STR_OS_OTHER_3X_FULL, distroSize);
-      Str_Strcpy(distroShort, STR_OS_OTHER_3X, distroShortSize);
+      distroOut = STR_OS_OTHER_3X_FULL;
+      distroShortOut = STR_OS_OTHER_3X;
       break;
 
    case 4:
-      Str_Strcpy(distro, STR_OS_OTHER_4X_FULL, distroSize);
-      Str_Strcpy(distroShort, STR_OS_OTHER_4X, distroShortSize);
+      distroOut = STR_OS_OTHER_4X_FULL;
+      distroShortOut = STR_OS_OTHER_4X;
       break;
 
    default:
@@ -1249,9 +1279,20 @@ HostinfoDefaultLinux(char *distro,            // OUT:
        * appropriate long description.
        */
 
-      Str_Sprintf(distro, distroSize, "Other Linux %d.%d kernel",
+      Str_Sprintf(generic, sizeof generic, "Other Linux %d.%d kernel",
                   majorVersion, minorVersion);
-      Str_Strcpy(distroShort, STR_OS_OTHER_4X, distroShortSize);
+      distroOut = &generic[0];
+      distroShortOut = STR_OS_OTHER_4X;
+   }
+
+   if (distro != NULL) {
+      ASSERT(distroOut != NULL);
+      Str_Strcpy(distro, distroOut, distroSize);
+   }
+
+   if (distroShort != NULL) {
+      ASSERT(distroShortOut != NULL);
+      Str_Strcpy(distroShort, distroShortOut, distroShortSize);
    }
 }
 
@@ -1284,13 +1325,15 @@ HostinfoLinux(struct utsname *buf)  // IN:
 
    /* Try the LSB standard first, this maximizes compatibility */
    if (HostinfoLsb(distro, sizeof distro)) {
-      HostinfoGetOSShortName(distro, distroShort, sizeof distro);
+      HostinfoDefaultLinux(NULL, 0, distroShort, sizeof distroShort);
+      HostinfoGetOSShortName(distro, distroShort, sizeof distroShort);
       goto bail;
    }
 
    /* No LSB compliance, try the os-release standard */
    if (HostinfoOsRelease(distro, sizeof distro)) {
-      HostinfoGetOSShortName(distro, distroShort, sizeof distro);
+      HostinfoDefaultLinux(NULL, 0, distroShort, sizeof distroShort);
+      HostinfoGetOSShortName(distro, distroShort, sizeof distroShort);
       goto bail;
    }
 
