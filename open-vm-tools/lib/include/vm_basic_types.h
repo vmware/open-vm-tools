@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -538,6 +538,7 @@ typedef uint64    BPN;
 #define UINT64_2_BPN(u) ((BPN)(u))
 #define BPN_2_UINT64(b) ((uint64)(b))
 
+typedef uint32    PageCnt;
 typedef uint32    PageNum;
 typedef unsigned      MemHandle;
 typedef unsigned int  IoHandle;
