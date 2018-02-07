@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -149,8 +149,8 @@ void UUID_ConvertToTextBuf(const uint8 id[UUID_SIZE],
                            char *buffer,
                            size_t len);
 
-char *UUID_Create(const char *configFileFullPath,
-                  int schemeControl);
+char *UUID_CreateLocation(const char *configFileFullPath,
+                          int schemeControl);
 
 char *UUID_CreateRandom(void);
 
@@ -174,9 +174,11 @@ char *UUID_GetHostUUID(void);
 
 UUIDStyle UUID_GetStyle(const uint8 *id);
 
-/* like UUID_GetHostUUID, except gets actual host UUID */
+Bool UUID_Equal(const uint8 id1[UUID_SIZE],
+                const uint8 id2[UUID_SIZE]);
+
+/* Like UUID_GetHostUUID, except gets actual host UUID */
 char *UUID_GetRealHostUUID(void);
-Bool UUID_Equal(const uint8 id1[UUID_SIZE], const uint8 id2[UUID_SIZE]);
 
 #if defined(__cplusplus)
 }  // extern "C"
