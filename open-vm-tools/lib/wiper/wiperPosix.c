@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -143,6 +143,9 @@ static const PartitionInfo gKnownPartitions[] = {
    { "ntfs",      PARTITION_NTFS,         NULL,                   TRUE        },
    { "pcfs",      PARTITION_PCFS,         NULL,                   TRUE        },
    { "reiserfs",  PARTITION_REISERFS,     NULL,                   TRUE        },
+#ifdef VMX86_TOOLS
+   { "ufs",       PARTITION_UFS,          NULL,                   TRUE        },
+#endif
    { "vfat",      PARTITION_FAT,          NULL,                   TRUE        },
    { "zfs",       PARTITION_ZFS,          NULL,                   FALSE       },
    { "xfs",       PARTITION_XFS,          NULL,                   TRUE        },
