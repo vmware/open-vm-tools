@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -88,20 +88,25 @@ typedef char *File_MakeTempCreateNameFunc(uint32 num,
 
 #if defined(__APPLE__)
 Bool FileMacos_IsOnSparseDmg(int fd);
+
 Bool FileMacOS_MakeSecureLibraryCopies(const char   *inDir,
                                        const char  **dylibName,
                                        unsigned      numDylibs,
                                        char        **outDir);
+
 #elif defined VMX86_SERVER
 struct FS_PartitionListResult;
 
 int File_GetVMFSAttributes(const char *pathName,
                            struct FS_PartitionListResult **fsAttrs);
+
 int File_GetVMFSFSType(const char *pathName,
                        int fd,
                        uint16 *fsTypeNum);
+
 int File_GetVMFSVersion(const char *pathName,
                         uint32 *versionNum);
+
 int File_GetVMFSBlockSize(const char *pathName,
                           uint32 *blockSize);
 
@@ -236,7 +241,8 @@ char *File_GetModTimeString(const char *pathName);
 
 char *File_GetUniqueFileSystemID(const char *pathName);
 
-char *File_GetMountPath(const char *pathName, Bool checkEntirePath);
+char *File_GetMountPath(const char *pathName,
+                        Bool checkEntirePath);
 
 #ifdef _WIN32
 char *File_GetVolumeGUID(const char *pathName);
