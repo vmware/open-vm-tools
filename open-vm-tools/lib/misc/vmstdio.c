@@ -217,11 +217,6 @@ StdIO_ReadNextLine(FILE *stream,         // IN:
       data = DynBuf_Get(&b);
       size = DynBuf_GetSize(&b);
 
-      if (maxBufLength != 0 && size > maxBufLength) {
-         errno = E2BIG;
-         goto error;
-      }
-
       max = DynBuf_GetAllocatedSize(&b);
       nr = max - size;
 
@@ -231,6 +226,11 @@ StdIO_ReadNextLine(FILE *stream,         // IN:
 
       size += nr;
       DynBuf_SetSize(&b, size);
+
+      if (maxBufLength != 0 && size > maxBufLength) {
+         errno = E2BIG;
+         goto error;
+      }
 
       if (size < max) {
          /* SuperFgets() found end-of-line */
