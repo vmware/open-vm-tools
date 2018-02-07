@@ -157,13 +157,18 @@ static Atomic_Ptr hostinfoOSVersion;
 typedef struct {
    char *name;
    char *scanString;
-} DistoNameScan;
+} DistroNameScan;
 
-static const DistoNameScan lsbFields[] = {
+static const DistroNameScan lsbFields[] = {
    {"DISTRIB_ID=",          "DISTRIB_ID=%s"          },
    {"DISTRIB_RELEASE=",     "DISTRIB_RELEASE=%s"     },
    {"DISTRIB_CODENAME=",    "DISTRIB_CODENAME=%s"    },
    {"DISTRIB_DESCRIPTION=", "DISTRIB_DESCRIPTION=%s" },
+   {NULL,                   NULL                     },
+};
+
+static const DistroNameScan amazonFields[] = {
+   {"PRETTY_NAME=",        "PRETTY_NAME=%s"          },
    {NULL,                   NULL                     },
 };
 
@@ -881,9 +886,10 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
  */
 
 static Bool
-HostinfoReadDistroFile(char *filename,  // IN: distro version file name
-                       int distroSize,  // IN: size of OS distro name buffer
-                       char *distro)    // OUT: full distro name
+HostinfoReadDistroFile(char *filename,                // IN: version file
+                       const DistroNameScan *values,  // IN: search strings
+                       int distroSize,                // IN: length of distro
+                       char *distro)                  // OUT: full distro name
 {
    int i;
    int buf_sz;
@@ -929,23 +935,23 @@ HostinfoReadDistroFile(char *filename,  // IN: distro version file name
    distroOrig[buf_sz - 1] = '\0';
 
    /*
-    * For the case where we do have a release file in the LSB format,
-    * but there is no LSB module, let's parse the LSB file for possible fields.
+    * Attempt to parse a file with one name=value pair per line. Values are
+    * expected to embedded in double quotes.
     */
 
    distro[0] = '\0';
 
-   for (i = 0; lsbFields[i].name != NULL; i++) {
-      const char *tmpDistroPos = strstr(distroOrig, lsbFields[i].name);
+   for (i = 0; values[i].name != NULL; i++) {
+      const char *tmpDistroPos = strstr(distroOrig, values[i].name);
 
       if (tmpDistroPos != NULL) {
          char distroPart[DISTRO_BUF_SIZE];
 
-         sscanf(tmpDistroPos, lsbFields[i].scanString, distroPart);
+         sscanf(tmpDistroPos, values[i].scanString, distroPart);
          if (distroPart[0] == '"') {
             char *tmpMakeNull;
 
-            tmpDistroPos += strlen(lsbFields[i].name) + 1;
+            tmpDistroPos += strlen(values[i].name) + 1;
             tmpMakeNull = strchr(tmpDistroPos + 1 , '"');
             if (tmpMakeNull != NULL) {
                *tmpMakeNull = '\0';
@@ -1144,8 +1150,8 @@ HostinfoLinux(struct utsname *buf)  // IN:
        */
 
       for (i = 0; distroArray[i].filename != NULL; i++) {
-         if (HostinfoReadDistroFile(distroArray[i].filename, distroSize,
-                                    distro)) {
+         if (HostinfoReadDistroFile(distroArray[i].filename, &lsbFields[0],
+                                    distroSize, distro)) {
             break;
          }
       }
@@ -1322,6 +1328,68 @@ HostinfoSun(struct utsname *buf)  // IN:
 
    return (len != -1);
 }
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HostinfoAmazon --
+ *
+ *      Determine the specifics concerning Amazon Linux.
+ *
+ * Return value:
+ *      TRUE   Success
+ *      FALSE  Failure
+ *
+ * Side effects:
+ *      Cache values are set when returning TRUE
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+HostinfoAmazon(struct utsname *buf)  // IN:
+{
+   int len;
+   char osName[MAX_OS_NAME_LEN];
+   char osNameFull[MAX_OS_FULLNAME_LEN] = { '\0' };
+
+   if (HostinfoReadDistroFile("/etc/os-release", &amazonFields[0],
+                              sizeof osNameFull, osNameFull)) {
+      len = strlen(osNameFull);
+   } else {
+      Log("%s: Using fallback\n", __FUNCTION__);
+
+      len = Str_Snprintf(osNameFull, sizeof osNameFull,
+                         "Amazon Linux x.y (kernel %d.%d)",
+                         Hostinfo_OSVersion(0),          // Kernel major
+                         Hostinfo_OSVersion(1));         // Kernel minor
+   }
+
+   if (len != -1) {
+      int amazonMinor = 0;
+      int amazonMajor = 0;
+
+      if (sscanf(osNameFull, "Amazon Linux %d.%d", &amazonMajor,
+                 &amazonMinor) != 2) {
+         /* Oldest known good release */
+         amazonMajor = 2;
+         amazonMinor = 0;
+      }
+
+      /* We are not offering a 32-bit version... or ever plan to. */
+      len = Str_Snprintf(osName, sizeof osName, "%s%d%s", STR_OS_AMAZON,
+                         amazonMajor, STR_OS_64BIT_SUFFIX);
+   }
+
+   if (len == -1) {
+      Warning("%s: Error: buffer too small\n", __FUNCTION__);
+   } else {
+      HostinfoPostData(osName, osNameFull);
+   }
+
+   return (len != -1);
+}
 #endif // !defined __APPLE__ && !defined USERWORLD
 
 
@@ -1364,7 +1432,13 @@ HostinfoOSData(void)
    success = HostinfoMacOS(&buf);
 #else
    if (strstr(buf.sysname, "Linux")) {
-      success = HostinfoLinux(&buf);
+      struct stat sb;
+
+      if (Posix_Stat("/etc/amazon", &sb) == 0) {
+         success = HostinfoAmazon(&buf);
+      } else {
+         success = HostinfoLinux(&buf);
+      }
    } else if (strstr(buf.sysname, "FreeBSD")) {
       success = HostinfoBSD(&buf);
    } else if (strstr(buf.sysname, "SunOS")) {
