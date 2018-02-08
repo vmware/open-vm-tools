@@ -522,7 +522,7 @@ FLAG(   7,  0, ECX, 14,  1, AVX512VPOPCNTDQ,                   YES, 15, TRUE)  \
 FLAG(   7,  0, ECX, 16,  1, VA57,                              NO,   0, TRUE)  \
 FIELD(  7,  0, ECX, 17,  5, MAWA,                              NO,   0, TRUE)  \
 FLAG(   7,  0, ECX, 22,  1, RDPID,                             NO,   0, TRUE)  \
-FLAG(   7,  0, ECX, 30,  1, SGX_LC,                            NO,   0, FALSE) \
+FLAG(   7,  0, ECX, 30,  1, SGX_LC,                            YES, 15, FALSE) \
 FLAG(   7,  0, EDX,  2,  1, AVX512QVNNIW,                      YES, 15, TRUE)  \
 FLAG(   7,  0, EDX,  3,  1, AVX512QFMAPS,                      YES, 15, TRUE)  \
 FLAG(   7,  0, EDX, 26,  1, IBRSIBPB,                          ANY,  9, FALSE) \
