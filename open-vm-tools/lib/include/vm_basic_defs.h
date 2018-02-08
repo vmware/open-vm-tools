@@ -466,22 +466,6 @@ void *_ReturnAddress(void);
 #ifdef USERLEVEL // {
 
 /*
- * Note this might be a problem on NT b/c while sched_yield guarantees it
- * moves you to the end of your priority list, Sleep(0) offers no such
- * guarantee.  Bummer.  --Jeremy.
- */
-
-#if defined(_WIN32)
-#      define YIELD()		Sleep(0)
-#elif defined(VMKERNEL)
-/* We don't have a YIELD macro in the vmkernel */
-#else
-#      include <sched.h>        // For sched_yield.  Don't ask.  --Jeremy.
-#      define YIELD()		sched_yield()
-#endif 
-
-
-/*
  * Standardize some Posix names on Windows.
  */
 
