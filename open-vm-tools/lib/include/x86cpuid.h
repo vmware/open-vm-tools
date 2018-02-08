@@ -225,6 +225,7 @@ typedef enum {
 #define CPUID_AMD_VENDOR_STRING         "AuthcAMDenti"
 #define CPUID_CYRIX_VENDOR_STRING       "CyriteadxIns"
 #define CPUID_VIA_VENDOR_STRING         "CentaulsaurH"
+#define CPUID_HIGON_VENDOR_STRING       "HygouinenGen"
 
 #define CPUID_HYPERV_HYPERVISOR_VENDOR_STRING  "Microsoft Hv"
 #define CPUID_KVM_HYPERVISOR_VENDOR_STRING     "KVMKVMKVM\0\0\0"
@@ -235,6 +236,7 @@ typedef enum {
 #define CPUID_AMD_VENDOR_STRING_FIXED   "AuthenticAMD"
 #define CPUID_CYRIX_VENDOR_STRING_FIXED "CyrixInstead"
 #define CPUID_VIA_VENDOR_STRING_FIXED   "CentaurHauls"
+#define CPUID_HIGON_VENDOR_STRING_FIXED "GenuineHygon"
 
 /*
  * FIELD can be defined to process the CPUID information provided in the
@@ -1362,6 +1364,9 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 /* Effective VIA CPU Families */
 #define CPUID_FAMILY_C7               6
 
+/* Effective Higon CPU Families */
+#define CPUID_FAMILY_DHYANA           1
+
 /* Intel model information */
 #define CPUID_MODEL_PPRO              1
 #define CPUID_MODEL_PII_03            3
@@ -1442,17 +1447,21 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 #define CPUID_MODEL_ZEN_1F            0x1F // Max Zen model defined in BKDG
 
 /* VIA model information */
-#define CPUID_MODEL_NANO       15     // Isaiah
+#define CPUID_MODEL_NANO                15 // Isaiah
+
+/* Higon model information */
+#define CPUID_MODEL_DHYANA_A0            0 // Dhyana A0
 
 /*
  *----------------------------------------------------------------------
  *
- * CPUID_IsVendor{AMD,Intel,VIA} --
+ * CPUID_IsVendor{AMD,Intel,VIA,Higon} --
  *
- *      Determines if the vendor string in cpuid id0 is from {AMD,Intel,VIA}.
+ *      Determines if the vendor string in cpuid id0 is from
+ *      {AMD,Intel,VIA,Higon}.
  *
  * Results:
- *      True iff vendor string is CPUID_{AMD,INTEL,VIA}_VENDOR_STRING
+ *      True iff vendor string is CPUID_{AMD,INTEL,VIA,HIGON}_VENDOR_STRING
  *
  * Side effects:
  *      None.
@@ -1484,6 +1493,12 @@ static INLINE Bool
 CPUID_IsVendorVIA(CPUIDRegs *id0)
 {
    return CPUID_IsRawVendor(id0, CPUID_VIA_VENDOR_STRING);
+}
+
+static INLINE Bool
+CPUID_IsVendorHigon(CPUIDRegs *id0)
+{
+   return CPUID_IsRawVendor(id0, CPUID_HIGON_VENDOR_STRING);
 }
 
 static INLINE uint32
@@ -1965,6 +1980,22 @@ CPUID_MODEL_IS_ZEN(uint32 eax)
    return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_ZEN &&
           CPUID_EFFECTIVE_MODEL(eax) <= CPUID_MODEL_ZEN_1F;
 }
+
+
+static INLINE Bool
+CPUID_FAMILY_IS_DHYANA(uint32 eax)
+{
+   return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_DHYANA;
+}
+
+
+static INLINE Bool
+CPUID_MODEL_IS_DHYANA_A0(uint32 eax)
+{
+   return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_DHYANA &&
+          CPUID_EFFECTIVE_MODEL(eax)  == CPUID_MODEL_DHYANA_A0;
+}
+
 
 #define CPUID_TYPE_PRIMARY     0
 #define CPUID_TYPE_OVERDRIVE   1
