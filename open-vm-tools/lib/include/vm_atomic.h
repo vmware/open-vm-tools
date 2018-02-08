@@ -2910,6 +2910,50 @@ Atomic_TestBit64(Atomic_uint64 *var, // IN
 }
 
 
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Atomic_TestSetBit64 --
+ *
+ *      Atomically test and set the bit 'bit' in var.
+ *      Bit must be between 0 and 63.
+ *
+ * Results:
+ *      TRUE if the tested bit was set; else FALSE.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE Bool
+Atomic_TestSetBit64(Atomic_uint64 *var, // IN/OUT
+                    unsigned bit)       // IN
+{
+#if defined __x86_64__ && defined __GNUC__
+   Bool out;
+   ASSERT(bit <= 63);
+   __asm__ __volatile__(
+      "lock; btsq %2, %1; setc %0"
+      : "=rm" (out), "+m" (var->value)
+      : "rJ" ((uint64)bit)
+      : "cc"
+   );
+   return out;
+#else
+   uint64 oldVal;
+   uint64 mask;
+   ASSERT(bit <= 63);
+   mask = CONST64U(1) << bit;
+   do {
+      oldVal = var->value;
+   } while (!Atomic_CMPXCHG64(var, oldVal, oldVal | mask));
+   return (oldVal & mask) != 0;
+#endif
+}
+
+
 #if defined __GNUC__
 /*
  *-----------------------------------------------------------------------------
