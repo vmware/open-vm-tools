@@ -2510,7 +2510,7 @@ VixTools_GetToolsPropertiesImpl(GKeyFile *confDictRef,            // IN
                                             CONFNAME_SUSPENDSCRIPT, NULL);
    }
 
-   tempDir = File_GetSafeTmpDir(TRUE);
+   tempDir = File_GetSafeRandomTmpDir(TRUE);
 
    /*
     * Now, record these values in a property list.
@@ -7316,7 +7316,7 @@ VixToolsRunScript(VixCommandRequestHeader *requestMsg,  // IN
       /*
        * Don't give up if VixToolsGetUserTmpDir() failed. It might just
        * have failed to load DLLs, so we might be running on Win 9x.
-       * Just fall through to use the old fashioned File_GetSafeTmpDir().
+       * Just fall through to use the old fashioned File_GetSafeRandomTmpDir().
        */
 
       err = VIX_OK;
@@ -7324,7 +7324,8 @@ VixToolsRunScript(VixCommandRequestHeader *requestMsg,  // IN
 #endif
 
    if (NULL == tempDirPath) {
-      tempDirPath = File_GetSafeTmpDir(TRUE);
+      tempDirPath = File_GetSafeRandomTmpDir(TRUE);
+
       if (NULL == tempDirPath) {
          err = FoundryToolsDaemon_TranslateSystemErr();
          goto abort;
@@ -8360,7 +8361,8 @@ VixToolsGetTempFile(VixCommandRequestHeader *requestMsg,   // IN
          /*
           * Don't give up if VixToolsGetUserTmpDir() failed. It might just
           * have failed to load DLLs, so we might be running on Win 9x.
-          * Just fall through to use the old fashioned File_GetSafeTmpDir().
+          * Just fall through to use the old fashioned
+          * File_GetSafeRandomTmpDir().
           */
 
          ASSERT(directoryPath == NULL);
@@ -8374,7 +8376,7 @@ VixToolsGetTempFile(VixCommandRequestHeader *requestMsg,   // IN
       if (!strcmp(directoryPath, "")) {
          free(directoryPath);
          directoryPath = NULL;
-         directoryPath = File_GetSafeTmpDir(TRUE);
+         directoryPath = File_GetSafeRandomTmpDir(TRUE);
       }
 
       /*

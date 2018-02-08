@@ -360,6 +360,8 @@ char *File_ExpandAndCheckDir(const char *dirName);
 
 char *File_GetSafeTmpDir(Bool useConf);
 
+char *File_GetSafeRandomTmpDir(Bool useConf);
+
 int File_MakeSafeTemp(const char *tag,
                       char **presult);
 
