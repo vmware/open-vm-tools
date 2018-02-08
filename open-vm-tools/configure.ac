@@ -193,6 +193,10 @@ if test "$with_kernel_modules" = "yes"; then
    esac
 fi
 
+# Locates X includes and lib, adds --without-x option,
+# and sets no_x.
+AC_PATH_XTRA
+
 # Arguments for disabling individual open-vm-tools features or libraries.
 AC_ARG_ENABLE(
    multimon,
@@ -219,26 +223,31 @@ AC_ARG_WITH(
    [with_gtk2="auto"])
 
 
-if test "$with_gtk2" = "auto" ; then
-   if test "$with_gtk3" = "auto" ; then
-      with_gtk2="no"
-      with_gtk3="yes"
-   elif test "$with_gtk3" = "no" ; then
-      with_gtk2="yes"
-   elif test "$with_gtk3" = "yes" ; then
-      with_gtk2="no"
-   fi
-elif test "$with_gtk2" = "no" ; then
-   if test "$with_gtk3" = "auto" ; then
-      with_gtk3="yes"
-   elif test "$with_gtk3" = "no" ; then
-      AC_MSG_ERROR('need either gtk2 or gtk3 or build with --without-x to disable building desktop plugins')
-   fi
-elif test "$with_gtk2" = "yes"  ; then
-   if test "$with_gtk3" = "auto" ; then
-      with_gtk3="no"
-   elif test "$with_gtk3" = "yes" ; then
-      AC_MSG_ERROR('cannot set both --with-gtk2 and --with-gtk3')
+if test "$no_x" = "yes" ; then
+   with_gtk2="no"
+   with_gtk3="no"
+else
+   if test "$with_gtk2" = "auto" ; then
+      if test "$with_gtk3" = "auto" ; then
+         with_gtk2="no"
+         with_gtk3="yes"
+      elif test "$with_gtk3" = "no" ; then
+         with_gtk2="yes"
+      elif test "$with_gtk3" = "yes" ; then
+         with_gtk2="no"
+      fi
+   elif test "$with_gtk2" = "no" ; then
+      if test "$with_gtk3" = "auto" ; then
+         with_gtk3="yes"
+      elif test "$with_gtk3" = "no" ; then
+         AC_MSG_ERROR('need either gtk2 or gtk3 or build with --without-x to disable building desktop plugins')
+      fi
+   elif test "$with_gtk2" = "yes"  ; then
+      if test "$with_gtk3" = "auto" ; then
+         with_gtk3="no"
+      elif test "$with_gtk3" = "yes" ; then
+         AC_MSG_ERROR('cannot set both --with-gtk2 and --with-gtk3')
+      fi
    fi
 fi
 
@@ -355,8 +364,6 @@ fi
 ###
 ### Libraries
 ###
-
-AC_PATH_XTRA
 
 #
 # Check for libintl.h. When configuring using "--without-x", /usr/local/include
