@@ -56,9 +56,10 @@ typedef enum {
 } UUIDStyle;
 
 /* Scheme control */
-#define UUID_CREATE_WS6     0  /* the WS6 scheme - "native" path */
-#define UUID_CREATE_WS65    1  /* the WS65 scheme - UTF-8 path */
-#define UUID_CREATE_CURRENT 1  /* the current scheme - always the latest */
+#define UUID_CREATE_WS6      0  /* the WS6 scheme - "native" path */
+#define UUID_CREATE_WS65     1  /* the WS65 scheme - UTF-8 path */
+#define UUID_CREATE_ESXi2018 2  /* UTF-8 path, no host UUID for >= 2018 ESXi */
+#define UUID_CREATE_CURRENT  2  /* the current scheme - always the latest */
 
 
 /*
