@@ -881,7 +881,7 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
  *
  * HostinfoReadDistroFile --
  *
- *      Attempt to open and read the specified distro identication file.
+ *      Attempt to open and read the specified distro identification file.
  *      If the file has data and can be read, attempt to identify the distro.
  *
  *      os-release rules require strict compliance. No data unless things
@@ -993,7 +993,7 @@ HostinfoReadDistroFile(Bool osReleaseRules,           // IN: osRelease rules
       } else {
          /*
           * Our old code played fast and loose with the LSB standard. If there
-          * was a distro identication file but the contents were not LSB
+          * was a distro identification file but the contents were not LSB
           * compliant (e.g. RH 7.2), we returned success along with the
           * contents "as is"... in the hopes that the available data would
           * be "good enough". Continue the practice to maximize compatibility.
