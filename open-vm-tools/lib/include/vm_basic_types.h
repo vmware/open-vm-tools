@@ -777,6 +777,14 @@ typedef void * UserVA;
 #error "gcc version is too old to compile assembly, need gcc-3.3 or better"
 #endif
 
+/*
+ * Similarly, we require a compiler that is at least vc80 (vs2005).
+ * Enforce this here.
+ */
+#if defined _MSC_VER && _MSC_VER < 1400
+#error "cl.exe version is too old, need vc80 or better"
+#endif
+
 
 /*
  * Consider the following reasons functions are inlined:
@@ -1106,33 +1114,6 @@ typedef void * UserVA;
 #   endif
 #else
 # define FMTMODE "o"
-#endif
-
-/*
- * Format modifier for printing time_t. Most platforms define a time_t to be
- * a long int, but on FreeBSD (as of 5.0, it seems), the time_t is a signed
- * size quantity. Refer to the definition of FMTSZ to see why we need silly
- * preprocessor arithmetic.
- * Use this like this: printf("The mode is %" FMTTIME ".\n", time);
- */
-#if defined(__FreeBSD__) && (__FreeBSD__ + 0) && ((__FreeBSD__ + 0) >= 5)
-#   define FMTTIME FMTSZ"d"
-#else
-#   if defined(_MSC_VER)
-#      ifndef _SAFETIME_H_
-#         if (_MSC_VER < 1400) || defined(_USE_32BIT_TIME_T)
-#             define FMTTIME "ld"
-#         else
-#             define FMTTIME FMT64"d"
-#         endif
-#      else
-#         ifndef FMTTIME
-#            error "safetime.h did not define FMTTIME"
-#         endif
-#      endif
-#   else
-#      define FMTTIME "ld"
-#   endif
 #endif
 
 #ifdef __APPLE__
