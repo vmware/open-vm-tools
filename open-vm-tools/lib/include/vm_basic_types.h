@@ -372,6 +372,7 @@ typedef int64 VmTimeVirtualClock;  /* Virtual Clock kept in CPU cycles */
  */
 
 #ifdef _MSC_VER
+   /* MSVC added C99-compatible formatting in vs2015. */
    #define FMT64      "I64"
    #ifdef VM_X86_64
       #define FMTSZ      "I64"
@@ -383,53 +384,29 @@ typedef int64 VmTimeVirtualClock;  /* Virtual Clock kept in CPU cycles */
       #define FMTH       "I"
    #endif
 #elif defined __APPLE__
-   /* Mac OS hosts use the same formatters for 32- and 64-bit. */
-   #define FMT64 "ll"
+   /* macOS hosts use the same formatters for 32- and 64-bit. */
+   #define FMT64         "ll"
    #if KERNEL
-      #define FMTSZ "l"
+      /* macOS osfmk/kern added 'z' length specifier in 10.13 */
+      #define FMTSZ      "l"
    #else
-      #define FMTSZ "z"
+      #define FMTSZ      "z"
    #endif
-   #define FMTPD "l"
-   #define FMTH ""
-#elif __GNUC__
-   #define FMTH ""
-   #if defined(sun)
-      #if defined(VM_X86_64) || defined(VM_ARM_64)
-         #define FMTSZ  "l"
-         #define FMTPD  "l"
-      #else
-         #define FMTSZ  ""
-         #define FMTPD  ""
-      #endif
-   #elif defined(__linux__) || \
-        (defined(__FreeBSD__) && (__FreeBSD__ + 0))\
-      || (defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112L) \
-      || (defined(_POSIX_VERSION) && _POSIX_VERSION >= 200112L) \
-      || (defined(_POSIX2_VERSION) && _POSIX2_VERSION >= 200112L)
-      /* BSD, Linux */
-      #define FMTSZ     "z"
-
-      #if defined(VM_X86_64) || defined(VM_ARM_64)
-         #define FMTPD  "l"
-      #else
-         #define FMTPD  ""
-      #endif
-   #else
-      /* Systems with a pre-C99 libc */
-      #define FMTSZ     "Z"
-      #if defined(VM_X86_64) || defined(VM_ARM_64)
-         #define FMTPD  "l"
-      #else
-         #define FMTPD  ""
-      #endif
-   #endif
+   #define FMTPD         "l"
+   #define FMTH          ""
+#elif defined __GNUC__
+   /*
+    * Every POSIX system we target has C99-compatible printf
+    * (supports 'z' for size_t and 'll' for long long).
+    */
+   #define FMTH          ""
+   #define FMTSZ         "z"
    #if defined(VM_X86_64) || defined(VM_ARM_64)
-      #define FMT64     "l"
-   #elif defined(sun) || defined(__FreeBSD__) || defined(__ANDROID__)
-      #define FMT64     "ll"
+      #define FMT64      "l"
+      #define FMTPD      "l"
    #else
-      #define FMT64     "L"
+      #define FMT64      "ll"
+      #define FMTPD      ""
    #endif
 #else
    #error - Need compiler define for FMT64 and FMTSZ
