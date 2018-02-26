@@ -109,8 +109,6 @@ char *Hostinfo_GetOSGuestString(void);
 Bool Hostinfo_OSIsWinNT(void);
 Bool Hostinfo_OSIsWow64(void);
 Bool Hostinfo_TSCInvariant(void);
-DWORD Hostinfo_OpenProcessBits(void);
-DWORD Hostinfo_OpenThreadBits(void);
 int Hostinfo_EnumerateAllProcessPids(uint32 **processIds);
 #else
 void Hostinfo_ResetProcessState(const int *keepFds,
