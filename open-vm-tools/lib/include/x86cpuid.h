@@ -975,6 +975,17 @@ FLAG(  87,  0, EDX,  7,  1, HWPSTATE,                          NA,   0, FALSE) \
 FLAG(  87,  0, EDX,  8,  1, TSC_INVARIANT,                     NA,   0, FALSE) \
 FLAG(  87,  0, EDX,  9,  1, CORE_PERF_BOOST,                   NA,   0, FALSE)
 
+#define CPUID_88_EBX_14 \
+FLAG(  88,  0, EBX, 14,  1, LEAF88_RSVD1,                       NO,  0, FALSE)
+#define CPUID_88_EBX_15 \
+FLAG(  88,  0, EBX, 15,  1, LEAF88_RSVD2,                       NO,  0, FALSE)
+#define CPUID_88_EBX_16 \
+FLAG(  88,  0, EBX, 16,  1, LEAF88_RSVD3,                       NO,  0, FALSE)
+#define CPUID_88_EBX_17 \
+FLAG(  88,  0, EBX, 17,  1, LEAF88_RSVD4,                       NO,  0, FALSE)
+#define CPUID_88_EBX_18 \
+FLAG(  88,  0, EBX, 18,  1, LEAF88_RSVD5,                       NO,  0, FALSE)
+
 /*    LEVEL, REG, POS, SIZE, NAME,                        MON SUPP, HWV, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_88                                              \
 FIELD( 88,  0, EAX,  0,  8, PHYS_BITS,                         YES,  4, FALSE) \
@@ -983,7 +994,12 @@ FIELD( 88,  0, EAX, 16,  8, GUEST_PHYS_ADDR_SZ,                YES,  8, FALSE) \
 FLAG(  88,  0, EBX,  0,  1, CLZERO,                            YES, 14, TRUE)  \
 FLAG(  88,  0, EBX,  1,  1, IRPERF,                            NO,   0, FALSE) \
 FLAG(  88,  0, EBX,  2,  1, XSAVE_ERR_PTR,                     NO,   0, FALSE) \
-FLAG(  88,  0, EBX, 12,  1, IBPBONLY,                         ANY,   9, FALSE) \
+FLAG(  88,  0, EBX, 12,  1, LEAF88_IBPB,                       ANY,  9, FALSE) \
+CPUID_88_EBX_14 \
+CPUID_88_EBX_15 \
+CPUID_88_EBX_16 \
+CPUID_88_EBX_17 \
+CPUID_88_EBX_18 \
 FIELD( 88,  0, ECX,  0,  8, LEAF88_CORE_COUNT,                 YES,  4, FALSE) \
 FIELD( 88,  0, ECX, 12,  4, APICID_COREID_SIZE,                YES,  7, FALSE) \
 FIELD( 88,  0, ECX, 16,  2, PERFTSC_SIZE,                      NO,   0, FALSE)
