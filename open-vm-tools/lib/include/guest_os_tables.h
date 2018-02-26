@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -122,10 +122,12 @@ extern "C" {
    GOT(GUEST_OS_CENTOS6_64)                                                \
    GOT(GUEST_OS_CENTOS7_64)                                                \
    GOT(GUEST_OS_CENTOS8_64)                                                \
+   GOT(GUEST_OS_AMAZON2_64)
 
 
 /* This list must be sorted alphabetically (non-case-sensitive) by gos name. */
 #define GUEST_OS_LIST_GEN                                                                             \
+   GOSL(STR_OS_AMAZON "2-64",                GUEST_OS_AMAZON2_64,             NULL)                   \
    GOSL(STR_OS_ASIANUX "3",                  GUEST_OS_OTHER26XLINUX,          "linuxPreGlibc25.iso")  \
    GOSL(STR_OS_ASIANUX "3-64",               GUEST_OS_OTHER26XLINUX_64,       "linuxPreGlibc25.iso")  \
    GOSL(STR_OS_ASIANUX "4",                  GUEST_OS_OTHER26XLINUX,          "linuxPreGlibc25.iso")  \
