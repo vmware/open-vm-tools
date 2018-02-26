@@ -234,6 +234,7 @@ int File_MakeTempEx2(const char *dir,
                      char **presult);
 
 char *File_MakeSafeTempDir(const char *prefix);
+char *File_MakeSafeTempSubdir(const char *safeDir, const char *subdirName);
 
 int64 File_GetModTime(const char *pathName);
 

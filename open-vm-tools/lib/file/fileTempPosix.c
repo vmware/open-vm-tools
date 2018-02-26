@@ -661,3 +661,51 @@ File_GetSafeRandomTmpDir(Bool useConf)  // IN:
 {
    return FileGetSafeTmpDir(useConf, TRUE);
 }
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * File_MakeSafeTempSubdir --
+ *
+ *      Given an existing safe directory, create a safe subdir of
+ *      the specified name in that directory.
+ *
+ * Results:
+ *      The allocated subdir path on success.
+ *      NULL on failure.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+char *
+File_MakeSafeTempSubdir(const char *safeDir,     // IN
+                        const char *subdirName)  // IN
+{
+#if defined(__FreeBSD__) || defined(sun)
+   if (!File_Exists(safeDir)) {
+      return NULL;
+   }
+
+   return File_PathJoin(safeDir, subdirName);
+#else
+   uid_t userId = geteuid();
+   char *fullSafeSubdir;
+
+   if (!File_Exists(safeDir) ||
+       !FileAcceptableSafeTmpDir(safeDir, userId)) {
+      return NULL;
+   }
+
+   fullSafeSubdir = File_PathJoin(safeDir, subdirName);
+   if (!FileAcceptableSafeTmpDir(fullSafeSubdir, userId)) {
+      free(fullSafeSubdir);
+      return NULL;
+   }
+
+   return fullSafeSubdir;
+#endif
+}
