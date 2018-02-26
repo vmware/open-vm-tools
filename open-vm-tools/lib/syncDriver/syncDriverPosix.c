@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -50,16 +50,31 @@ static const char *gRemoteFSTypes[] = {
    "vmhgfs"
 };
 
+typedef struct {
+   const char *prefix;
+   size_t len;
+} RemoteDevPrefix;
+
+#define DEF_DEV_PREFIX(a) {(a), sizeof((a)) - 1}
+
+static RemoteDevPrefix gRemoteDevPrefixes[] = {
+   DEF_DEV_PREFIX("https://"),
+   DEF_DEV_PREFIX("http://")
+};
+
+#undef DEF_DEV_PREFIX
+
 
 /*
  *-----------------------------------------------------------------------------
  *
- * SyncDriverIsRemoteFSType  --
+ * SyncDriverIsRemoteFS  --
  *
  *    Checks whether a filesystem is remote or not
  *
  * Results:
- *    Returns TRUE for remote filesystem types, otherwise FALSE.
+ *    Returns TRUE for remote filesystem types or device names,
+ *    otherwise FALSE.
  *
  * Side effects:
  *    None
@@ -68,12 +83,20 @@ static const char *gRemoteFSTypes[] = {
  */
 
 static Bool
-SyncDriverIsRemoteFSType(const char *fsType)
+SyncDriverIsRemoteFS(const MNTINFO *mntinfo)
 {
    size_t i;
 
    for (i = 0; i < ARRAYSIZE(gRemoteFSTypes); i++) {
-      if (Str_Strcmp(gRemoteFSTypes[i], fsType) == 0) {
+      if (Str_Strcmp(gRemoteFSTypes[i], MNTINFO_FSTYPE(mntinfo)) == 0) {
+         return TRUE;
+      }
+   }
+
+   for (i = 0; i < ARRAYSIZE(gRemoteDevPrefixes); i++) {
+      if (Str_Strncasecmp(gRemoteDevPrefixes[i].prefix,
+                          MNTINFO_NAME(mntinfo),
+                          gRemoteDevPrefixes[i].len) == 0) {
          return TRUE;
       }
    }
@@ -125,7 +148,7 @@ SyncDriverLocalMounts(void)
        * Skip remote mounts because they are not freezable and opening them
        * could lead to hangs. See PR 1196785.
        */
-      if (SyncDriverIsRemoteFSType(MNTINFO_FSTYPE(mntinfo))) {
+      if (SyncDriverIsRemoteFS(mntinfo)) {
          Debug(LGPFX "Skipping remote filesystem, name=%s, mntpt=%s.\n",
                MNTINFO_NAME(mntinfo), MNTINFO_MNTPT(mntinfo));
          continue;
