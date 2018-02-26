@@ -30,9 +30,15 @@
 #   include <ntddk.h>
 #endif
 
+#if (!defined(WINNT_DDK) && defined(_WIN32))
+// include windows.h, otherwise DWORD type used in hostinfo.h is not defined
+#  include "windows.h"
+#endif
+
 #include "vmware.h"
 #include "vm_version.h"
 #include "vm_tools_version.h"
+
 #if !defined(WINNT_DDK)
 #  include "hostinfo.h"
 #  include "str.h"
