@@ -236,7 +236,7 @@ typedef enum {
 #define CPUID_AMD_VENDOR_STRING_FIXED   "AuthenticAMD"
 #define CPUID_CYRIX_VENDOR_STRING_FIXED "CyrixInstead"
 #define CPUID_VIA_VENDOR_STRING_FIXED   "CentaurHauls"
-#define CPUID_HIGON_VENDOR_STRING_FIXED "GenuineHygon"
+#define CPUID_HIGON_VENDOR_STRING_FIXED "HygonGenuine"
 
 /*
  * FIELD can be defined to process the CPUID information provided in the
