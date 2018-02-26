@@ -470,9 +470,9 @@ FileCreateSafeTmpDir(const char *baseTmpDir,  // IN:
  *      is not prone to symlink attacks, because it is only writable with the
  *      current set of credentials (EUID).
  *
- *      Guaranteed to return the same directory every time it is called during
- *      the lifetime of the current process, for the current effective UID.
- *      (Barring the user manually deleting or renaming the directory.)
+ *      Guaranteed to return the same directory for any EUID every time it is
+ *      called during the lifetime of the current process. (Barring the user
+ *      manually deleting or renaming the directory.)
  *
  *      Optionally, add the PID to the user identifier for the cases where
  *      the EUID may change during the lifetime of the calling process.
@@ -497,13 +497,14 @@ FileGetSafeTmpDir(Bool useConf,  // IN: Use configuration variables?
    tmpDir = FileGetTmpDir(useConf);
 #else
    static Atomic_Ptr lckStorage;
-   static char *safeDir;
-   static char *safePidDir;
-   MXUserExclLock *lck;
+   static char *cachedDir;
+   static uid_t cachedEuid;
+   static char *cachedPidDir;
+   uid_t euid;
    char *testSafeDir;
+   MXUserExclLock *lck;
    char *userName = NULL;
    char *baseTmpDir = NULL;
-   uid_t euid = geteuid();
 
    /* Get and take lock for our safe dir. */
    lck = MXUser_CreateSingletonExclLock(&lckStorage, "getSafeTmpDirLock",
@@ -512,13 +513,22 @@ FileGetSafeTmpDir(Bool useConf,  // IN: Use configuration variables?
    MXUser_AcquireExclLock(lck);
 
    /*
-    * Based on the addPid boolean argument, check if we've created a
-    * temporary dir already and if it is still usable.
+    * If a suitable temporary directory was cached for this EUID, use it...
+    * as long as it is still acceptable.
     */
 
-   testSafeDir = addPid ? safePidDir : safeDir;
+   euid = geteuid();
 
-   if ((testSafeDir != NULL) && FileAcceptableSafeTmpDir(testSafeDir, euid)) {
+   testSafeDir = addPid ? cachedPidDir : cachedDir;
+
+   /*
+    * Detecting an EUID change without resorting to I/Os is an nice performance
+    * improvement... particularly on ESXi where the operations are expensive.
+    */
+
+   if ((euid == cachedEuid) &&
+       (testSafeDir != NULL) &&
+       FileAcceptableSafeTmpDir(testSafeDir, euid)) {
       tmpDir = Util_SafeStrdup(testSafeDir);
       goto exit;
    }
@@ -564,12 +574,14 @@ FileGetSafeTmpDir(Bool useConf,  // IN: Use configuration variables?
       testSafeDir = Util_SafeStrdup(tmpDir);
 
       if (addPid) {
-         Posix_Free(safePidDir);
-         safePidDir = testSafeDir;
+         Posix_Free(cachedPidDir);
+         cachedPidDir = testSafeDir;
       } else {
-         Posix_Free(safeDir);
-         safeDir = testSafeDir;
+         Posix_Free(cachedDir);
+         cachedDir = testSafeDir;
       }
+
+      cachedEuid = euid;
    }
 
 exit:
@@ -592,9 +604,9 @@ exit:
  *      is not prone to symlink attacks, because it is only writable with the
  *      current set of credentials (EUID).
  *
- *      Guaranteed to return the same directory every time it is called during
- *      the lifetime of the current process, for the current effective UID.
- *      (Barring the user manually deleting or renaming the directory.)
+ *      Guaranteed to return the same directory for any EUID every time it is
+ *      called during the lifetime of the current process. (Barring the user
+ *      manually deleting or renaming the directory.)
  *
  * Results:
  *     !NULL  Path to safe temp directory (must be freed)
@@ -622,9 +634,9 @@ File_GetSafeTmpDir(Bool useConf)  // IN:
  *      is not prone to symlink attacks, because it is only writable with the
  *      current set of credentials (EUID).
  *
- *      Guaranteed to return the same directory every time it is called during
- *      the lifetime of the current process, for the current effective UID.
- *      (Barring the user manually deleting or renaming the directory.)
+ *      Guaranteed to return the same directory for any EUID every time it is
+ *      called during the lifetime of the current process. (Barring the user
+ *      manually deleting or renaming the directory.)
  *
  * Results:
  *     !NULL  Path to safe temp directory (must be freed).
