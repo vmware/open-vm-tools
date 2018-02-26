@@ -617,6 +617,8 @@ typedef uint64 PPN64;
 typedef uint64 MA64;
 typedef uint64 MPN;
 
+#define FMTPPN ""
+
 /*
  * IO device DMA virtual address and page number (translated by IOMMU to
  * MA/MPN). IOPN can be in the inclusive range 0 -> MAX_IOPN.
