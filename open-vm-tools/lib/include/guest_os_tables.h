@@ -127,7 +127,7 @@ extern "C" {
 
 /* This list must be sorted alphabetically (non-case-sensitive) by gos name. */
 #define GUEST_OS_LIST_GEN                                                                             \
-   GOSL(STR_OS_AMAZON "2-64",                GUEST_OS_AMAZON2_64,             "linux.iso")            \
+   GOSL(STR_OS_AMAZON "2-64",                GUEST_OS_AMAZON2_64,             NULL)                   \
    GOSL(STR_OS_ASIANUX "3",                  GUEST_OS_OTHER26XLINUX,          "linuxPreGlibc25.iso")  \
    GOSL(STR_OS_ASIANUX "3-64",               GUEST_OS_OTHER26XLINUX_64,       "linuxPreGlibc25.iso")  \
    GOSL(STR_OS_ASIANUX "4",                  GUEST_OS_OTHER26XLINUX,          "linuxPreGlibc25.iso")  \
