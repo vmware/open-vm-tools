@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998,2005-2012,2014-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998,2005-2012,2014-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -161,6 +161,11 @@
  *    Intel XHCI (Lynx Point / Intel 8 Series)
  */
 #define PCI_DEVICE_ID_INTEL_LYNXPOINT_XHCI 0x8c31
+
+/*
+ * Intel Volume Management Device (VMD)
+ */
+#define PCI_DEVICE_ID_INTEL_VMD_V1           0x201d
 
 /*
  * Intel Quickassist (QAT) devices.
