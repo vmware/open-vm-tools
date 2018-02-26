@@ -35,6 +35,7 @@
 #include <sys/time.h>
 #include <pwd.h>
 #include <pthread.h>
+#include <time.h>
 #include <sys/resource.h>
 #if defined(sun)
 #include <sys/systeminfo.h>
@@ -100,7 +101,6 @@
 #include "hostType.h"
 #include "hostinfo.h"
 #include "hostinfoInt.h"
-#include "safetime.h"
 #include "str.h"
 #include "err.h"
 #include "msg.h"

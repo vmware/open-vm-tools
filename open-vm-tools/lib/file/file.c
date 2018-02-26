@@ -35,7 +35,6 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <errno.h>
-#include "safetime.h"
 #if defined(_WIN32)
 #include <io.h>
 #define S_IXUSR    0100
@@ -44,6 +43,7 @@
 #include <unistd.h>
 #endif
 #include <string.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <fcntl.h>
 
