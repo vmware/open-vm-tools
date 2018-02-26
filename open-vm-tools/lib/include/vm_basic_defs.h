@@ -565,29 +565,6 @@ typedef int pid_t;
 #endif
 #endif
 
-#if defined __linux__ && !defined __KERNEL__ && !defined MODULE && \
-                         !defined VMM && !defined FROBOS && !defined __ANDROID__
-#include <features.h>
-#if __GLIBC_PREREQ(2, 1) && !defined GLIBC_VERSION_21
-#define GLIBC_VERSION_21
-#endif
-#if __GLIBC_PREREQ(2, 2) && !defined GLIBC_VERSION_22
-#define GLIBC_VERSION_22
-#endif
-#if __GLIBC_PREREQ(2, 3) && !defined GLIBC_VERSION_23
-#define GLIBC_VERSION_23
-#endif
-#if __GLIBC_PREREQ(2, 4) && !defined GLIBC_VERSION_24
-#define GLIBC_VERSION_24
-#endif
-#if __GLIBC_PREREQ(2, 5) && !defined GLIBC_VERSION_25
-#define GLIBC_VERSION_25
-#endif
-#if __GLIBC_PREREQ(2, 12) && !defined GLIBC_VERSION_212
-#define GLIBC_VERSION_212
-#endif
-#endif
-
 /*
  * Convenience definitions of unicode characters.
  */
