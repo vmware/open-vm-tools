@@ -566,22 +566,30 @@ FileGetSafeTmpDir(Bool useConf,  // IN: Use configuration variables?
    }
 
    if (tmpDir != NULL) {
-      /*
-       * We have successfully created a temporary directory, remember it for
-       * future calls.
-       */
+      char *newDir = Util_SafeStrdup(tmpDir);
 
-      testSafeDir = Util_SafeStrdup(tmpDir);
-
-      if (addPid) {
-         Posix_Free(cachedPidDir);
-         cachedPidDir = testSafeDir;
+      if (euid == cachedEuid) {
+         if (addPid) {
+            Posix_Free(cachedPidDir);
+            cachedPidDir = newDir;
+         } else {
+            Posix_Free(cachedDir);
+            cachedDir = newDir;
+         }
       } else {
+         Posix_Free(cachedPidDir);
          Posix_Free(cachedDir);
-         cachedDir = testSafeDir;
-      }
 
-      cachedEuid = euid;
+         if (addPid) {
+            cachedPidDir = newDir;
+            cachedDir = NULL;
+         } else {
+            cachedDir = newDir;
+            cachedPidDir = NULL;
+         }
+
+         cachedEuid = euid;
+      }
    }
 
 exit:
