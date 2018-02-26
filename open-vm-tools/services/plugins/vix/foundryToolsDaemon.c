@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -593,7 +593,8 @@ ToolsDaemonTcloSyncDriverFreeze(RpcInData *data)
                                                 FALSE);
 
    /* Perform the actual freeze. */
-   if (!SyncDriver_Freeze(driveList, enableNullDriver, &gSyncDriverHandle) ||
+   if (!SyncDriver_Freeze(driveList, enableNullDriver, &gSyncDriverHandle,
+                          NULL) ||
        SyncDriver_QueryStatus(gSyncDriverHandle, INFINITE) != SYNCDRIVER_IDLE) {
       g_warning("%s: Failed to Freeze drives '%s'\n",
                 __FUNCTION__, driveList);

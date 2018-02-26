@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -327,6 +327,7 @@ VmBackupFinalize(void)
    g_free(gBackupState->scriptArg);
    g_free(gBackupState->volumes);
    g_free(gBackupState->snapshots);
+   g_free(gBackupState->excludedFileSystems);
    g_free(gBackupState->errorMsg);
    g_free(gBackupState);
    gBackupState = NULL;
@@ -965,6 +966,13 @@ VmBackupStartCommon(RpcInData *data,
            gBackupState->allowHWProvider, gBackupState->execScripts,
            (gBackupState->scriptArg != NULL) ? gBackupState->scriptArg : "",
            gBackupState->timeout, gBackupState->enableNullDriver, forceQuiesce);
+#if defined(__linux__)
+   gBackupState->excludedFileSystems =
+         VMBACKUP_CONFIG_GET_STR(ctx->config, "excludedFileSystems", NULL);
+   g_debug("Using excludedFileSystems = \"%s\"\n",
+           (gBackupState->excludedFileSystems != NULL) ?
+            gBackupState->excludedFileSystems : "(null)");
+#endif
    g_debug("Quiescing volumes: %s",
            (gBackupState->volumes) ? gBackupState->volumes : "(null)");
 

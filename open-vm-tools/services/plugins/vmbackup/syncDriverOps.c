@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -236,7 +236,8 @@ VmBackupNewDriverOp(VmBackupState *state,       // IN
       success = SyncDriver_Freeze(op->volumes,
                                   useNullDriverPrefs ?
                                   state->enableNullDriver : FALSE,
-                                  op->syncHandle);
+                                  op->syncHandle,
+                                  state->excludedFileSystems);
    } else {
       op->manifest = SyncNewManifest(state, *op->syncHandle);
       success = VmBackupDriverThaw(op->syncHandle);
