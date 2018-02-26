@@ -271,6 +271,7 @@
 #define VIEW_CLIENT_VERSION_NUMBER "4.5.1"
 #define VIEW_CLIENT_VERSION "4.7.0"
 #define VHSESDK_VERSION "1.0.0"
+#define VIEWVC_VERSION "14.0.0"
 
 /*
  * All of these components should follow the current version of View.

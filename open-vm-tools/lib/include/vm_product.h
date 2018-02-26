@@ -204,7 +204,7 @@
       || defined(VMX86_VMCF) \
       || defined(VMX86_GANTRY) \
       || defined(VMX86_VMRC))
-#   if defined(_WIN32) || defined(__APPLE__)
+#   if defined(_WIN32) || defined(__APPLE__) || defined(__linux__)
       /*
        * XXX Make the product be Workstation by default if none of the defines
        * XXX above are not defined in defs-globaldefs.mk -- Edward A. Waugh
