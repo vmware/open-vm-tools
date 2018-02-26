@@ -286,6 +286,7 @@
 #define MKSVCHANDEV_VERSION "7.5.0"
 #define TSMMRDEV_VERSION "7.5.0"
 #define VIEWMPDEV_VERSION "7.5.0"
+#define RDF_VERSION "7.5.0"
 
 
 #ifndef MAKESTR
