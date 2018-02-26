@@ -50,10 +50,19 @@ static const char *gRemoteFSTypes[] = {
    "vmhgfs"
 };
 
-static const char *gRemoteDevPrefixes[] = {
-   "https://",
-   "http://"
+typedef struct {
+   const char *prefix;
+   size_t len;
+} RemoteDevPrefix;
+
+#define DEF_DEV_PREFIX(a) {(a), sizeof((a)) - 1}
+
+static RemoteDevPrefix gRemoteDevPrefixes[] = {
+   DEF_DEV_PREFIX("https://"),
+   DEF_DEV_PREFIX("http://")
 };
+
+#undef DEF_DEV_PREFIX
 
 
 /*
@@ -85,8 +94,9 @@ SyncDriverIsRemoteFS(const MNTINFO *mntinfo)
    }
 
    for (i = 0; i < ARRAYSIZE(gRemoteDevPrefixes); i++) {
-      if (Str_Strncasecmp(gRemoteDevPrefixes[i], MNTINFO_NAME(mntinfo),
-                          strlen(gRemoteDevPrefixes[i])) == 0) {
+      if (Str_Strncasecmp(gRemoteDevPrefixes[i].prefix,
+                          MNTINFO_NAME(mntinfo),
+                          gRemoteDevPrefixes[i].len) == 0) {
          return TRUE;
       }
    }
