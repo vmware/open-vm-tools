@@ -23,9 +23,7 @@ public:
 
    bool preConfigureListener();
 
-   bool isListenerPreConfigured() {
-      return _listenerPreConfigured;
-   }
+   bool isListenerPreConfigured();
 
    bool followTunnel(std::string& listenerStartupType);
 

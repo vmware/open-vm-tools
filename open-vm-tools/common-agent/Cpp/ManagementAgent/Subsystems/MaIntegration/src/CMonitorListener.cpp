@@ -189,6 +189,11 @@ void CMonitorListener::listenerPreConfigured(
    FileSystemUtils::saveTextFile(_listenerPreConfiguredPath, reason);
 }
 
-
-
+bool CMonitorListener::isListenerPreConfigured() {
+   // Invalidate the flag
+   if (!_listenerPreConfigured) {
+      _listenerPreConfigured = FileSystemUtils::doesFileExist(_listenerPreConfiguredPath);
+   }
+   return _listenerPreConfigured;
+}
 
