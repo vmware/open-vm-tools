@@ -335,6 +335,6 @@
 	<monitor-inbound-channel-adapter
 		id="monitorInboundChannelAdapterId"
 		channel="nullChannel">
-		<poller fixed-rate="5000"/>
+		<poller fixed-rate="300000"/>
 	</monitor-inbound-channel-adapter>
 </caf:beans>

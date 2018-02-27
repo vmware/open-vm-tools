@@ -36,6 +36,7 @@ void CMonitorListener::initialize() {
             "listener_ctrl_preconfigure") ? true : false;
       _listenerCtrlFollowTunnel = AppConfigUtils::getRequiredUint32("monitor",
             "listener_ctrl_follow_tunnel") ? true : false;
+      _listenerPreConfigured = FileSystemUtils::doesFileExist(_listenerPreConfiguredPath) ? true : false;
 
       _scriptOutputDir = AppConfigUtils::getRequiredString(_sConfigTmpDir);
       const std::string installDir = AppConfigUtils::getRequiredString("install_dir");
@@ -188,9 +189,6 @@ void CMonitorListener::listenerPreConfigured(
    FileSystemUtils::saveTextFile(_listenerPreConfiguredPath, reason);
 }
 
-bool CMonitorListener::isListenerPreConfigured() {
-   return FileSystemUtils::doesFileExist(_listenerPreConfiguredPath) ? true : false;
-}
 
 
 
