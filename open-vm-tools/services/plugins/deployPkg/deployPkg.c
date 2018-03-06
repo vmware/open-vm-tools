@@ -46,6 +46,12 @@ extern "C" {
 }
 #endif
 
+#ifdef __cplusplus
+// deployPkg.c is compiled using c++ in Windows.
+// For c++, LogLevel enum is defined in ImgCustCommon namespace.
+using namespace ImgCustCommon;
+#endif
+
 static char *DeployPkgGetTempDir(void);
 
 
@@ -78,7 +84,7 @@ DeployPkgDeployPkgInGuest(const char* pkgFile, // IN: the package filename
    DeployPkgLog_Open();
    DeployPkg_SetLogger(DeployPkgLog_Log);
 
-   DeployPkgLog_Log(0, "Deploying %s", pkgFile);
+   DeployPkgLog_Log(log_debug, "Deploying %s", pkgFile);
 
 #ifdef _WIN32
    /*
@@ -92,7 +98,7 @@ DeployPkgDeployPkgInGuest(const char* pkgFile, // IN: the package filename
    if (tempFileName == NULL) {
       Str_Snprintf(errBuf, errBufSize,
                    "Package deploy failed in Unicode_GetAllocBytes");
-      DeployPkgLog_Log(3, errBuf);
+      DeployPkgLog_Log(log_error, errBuf);
       ret = TOOLSDEPLOYPKG_ERROR_DEPLOY_FAILED;
       goto ExitPoint;
    }
@@ -102,11 +108,11 @@ DeployPkgDeployPkgInGuest(const char* pkgFile, // IN: the package filename
    if (0 != DeployPkg_DeployPackageFromFile(pkgFile)) {
       Str_Snprintf(errBuf, errBufSize,
                    "Package deploy failed in DeployPkg_DeployPackageFromFile");
-      DeployPkgLog_Log(3, errBuf);
+      DeployPkgLog_Log(log_error, errBuf);
       ret = TOOLSDEPLOYPKG_ERROR_DEPLOY_FAILED;
       goto ExitPoint;
    }
-   DeployPkgLog_Log(0, "Ran DeployPkg_DeployPackageFromFile successfully");
+   DeployPkgLog_Log(log_debug, "Ran DeployPkg_DeployPackageFromFile successfully");
 
 ExitPoint:
    free(tempFileName);

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -23,6 +23,8 @@
  */
 
 #include "deployPkgInt.h"
+#include "imgcust-common/log.h"
+#include <glib.h>
 #include "util.h"
 #include "file.h"
 #include "str.h"
@@ -78,7 +80,7 @@ DeployPkgLog_Open()
 #ifndef _WIN32
          setlinebuf(_file);
 #endif
-         fprintf(_file, "## Starting deploy pkg operation\n");
+         DeployPkgLog_Log(log_debug, "## Starting deploy pkg operation");
       }
    }
 }
@@ -104,10 +106,57 @@ void
 DeployPkgLog_Close()
 {
    if (_file != NULL) {
-      fprintf(_file, "## Closing log\n");
+      DeployPkgLog_Log(log_debug, "## Closing log");
       fclose(_file);
       _file = NULL;
    }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * DeployPkgLogGetTimeAsString --
+ *
+ *    Returns the current UTC timestamp information that should be printed
+ *    at the beginning of each log message.
+ *
+ *    Ex: "2018-02-22T21:17:38.517Z"
+ *
+ *    The caller must free the return value using g_free
+ *
+ * Results:
+ *    Properly formatted string that contains the timestamp.
+ *    NULL if the timestamp cannot be retrieved.
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static gchar*
+DeployPkgLogGetTimeAsString()
+{
+   gchar *timePrefix = NULL;
+   GDateTime *utcTime = g_date_time_new_now_utc();
+
+   if (utcTime != NULL) {
+      gchar *dateFormat = g_date_time_format(utcTime, "%FT%T");
+
+      if (dateFormat != NULL) {
+         gint msec = g_date_time_get_microsecond(utcTime) / 1000;
+
+         timePrefix = g_strdup_printf("%s.%03dZ", dateFormat, msec);
+
+         g_free(dateFormat);
+         dateFormat = NULL;
+      }
+
+      g_date_time_unref(utcTime);
+   }
+
+   return timePrefix;
 }
 
 
@@ -129,19 +178,43 @@ DeployPkgLog_Close()
 
 void
 DeployPkgLog_Log(int level,          // IN
-                 const char *fmtstr, // IN  
+                 const char *fmtstr, // IN
                  ...)                // IN
 {
    va_list args;
+   gchar *tstamp;
+   const char *logLevel;
 
    /* Make sure init succeeded */
    if (_file == NULL) {
       return;
    }
 
+   switch (level) {
+      case log_debug:
+         logLevel = "debug";
+         break;
+      case log_info:
+         logLevel = "info";
+         break;
+      case log_warning:
+         logLevel = "warning";
+         break;
+      case log_error:
+         logLevel = "error";
+         break;
+      default:
+         logLevel = "unknown";
+         break;
+   }
+
    va_start(args, fmtstr);
+   tstamp = DeployPkgLogGetTimeAsString();
+   fprintf(_file, "[%s] [%8s] ",
+           (tstamp != NULL) ? tstamp : "no time", logLevel);
    vfprintf(_file, fmtstr, args);
    fprintf(_file, "\n");
+   g_free(tstamp);
    va_end(args);
 }
 
