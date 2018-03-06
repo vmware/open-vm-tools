@@ -232,6 +232,44 @@ VMToolsAsprintf(gchar **string,
 
 
 /**
+ * VMTools_GetTimeAsString --
+ *
+ *    Returns the current UTC timestamp information
+ *
+ *    Ex: "2018-02-22T21:17:38.517Z"
+ *
+ *    The caller must free the return value using g_free
+ *
+ * @return Properly formatted string that contains the timestamp.
+ *         NULL if the timestamp cannot be retrieved.
+ */
+
+gchar *
+VMTools_GetTimeAsString(void)
+{
+   gchar *timePrefix = NULL;
+   GDateTime *utcTime = g_date_time_new_now_utc();
+
+   if (utcTime != NULL) {
+      gchar *dateFormat = g_date_time_format(utcTime, "%FT%T");
+
+      if (dateFormat != NULL) {
+         gint msec = g_date_time_get_microsecond(utcTime) / 1000;
+
+         timePrefix = g_strdup_printf("%s.%03dZ", dateFormat, msec);
+
+         g_free(dateFormat);
+         dateFormat = NULL;
+      }
+
+      g_date_time_unref(utcTime);
+   }
+
+   return timePrefix;
+}
+
+
+/**
  * Creates a formatted message to be logged. The format of the message will be:
  *
  *    [timestamp] [domain] [level] Log message
@@ -258,7 +296,7 @@ VMToolsLogFormat(const gchar *message,
    size_t len = 0;
    gboolean shared = TRUE;
    gboolean addsTimestamp = TRUE;
-   char *tstamp;
+   gchar *tstamp;
 
    if (domain == NULL) {
       domain = gLogDomain;
@@ -306,7 +344,7 @@ VMToolsLogFormat(const gchar *message,
       addsTimestamp = data->logger->addsTimestamp;
    }
 
-   tstamp = System_GetTimeAsString();
+   tstamp = VMTools_GetTimeAsString();
 
    if (!addsTimestamp) {
       if (shared) {
@@ -339,7 +377,7 @@ VMToolsLogFormat(const gchar *message,
       }
    }
 
-   free(tstamp);
+   g_free(tstamp);
 
    /*
     * The log messages from glib itself (and probably other libraries based

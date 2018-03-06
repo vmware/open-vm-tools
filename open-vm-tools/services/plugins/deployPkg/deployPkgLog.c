@@ -24,10 +24,10 @@
 
 #include "deployPkgInt.h"
 #include "imgcust-common/log.h"
-#include <glib.h>
 #include "util.h"
 #include "file.h"
 #include "str.h"
+#include "vmware/tools/utils.h"
 
 #include <stdio.h>
 
@@ -116,53 +116,6 @@ DeployPkgLog_Close()
 /*
  *----------------------------------------------------------------------
  *
- * DeployPkgLogGetTimeAsString --
- *
- *    Returns the current UTC timestamp information that should be printed
- *    at the beginning of each log message.
- *
- *    Ex: "2018-02-22T21:17:38.517Z"
- *
- *    The caller must free the return value using g_free
- *
- * Results:
- *    Properly formatted string that contains the timestamp.
- *    NULL if the timestamp cannot be retrieved.
- *
- * Side effects:
- *    None
- *
- *----------------------------------------------------------------------
- */
-
-static gchar*
-DeployPkgLogGetTimeAsString()
-{
-   gchar *timePrefix = NULL;
-   GDateTime *utcTime = g_date_time_new_now_utc();
-
-   if (utcTime != NULL) {
-      gchar *dateFormat = g_date_time_format(utcTime, "%FT%T");
-
-      if (dateFormat != NULL) {
-         gint msec = g_date_time_get_microsecond(utcTime) / 1000;
-
-         timePrefix = g_strdup_printf("%s.%03dZ", dateFormat, msec);
-
-         g_free(dateFormat);
-         dateFormat = NULL;
-      }
-
-      g_date_time_unref(utcTime);
-   }
-
-   return timePrefix;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * DeployPkgLog_Log --
  *
  *    If the log file was opened successfully, write to it.
@@ -209,7 +162,7 @@ DeployPkgLog_Log(int level,          // IN
    }
 
    va_start(args, fmtstr);
-   tstamp = DeployPkgLogGetTimeAsString();
+   tstamp = VMTools_GetTimeAsString();
    fprintf(_file, "[%s] [%8s] ",
            (tstamp != NULL) ? tstamp : "no time", logLevel);
    vfprintf(_file, fmtstr, args);
