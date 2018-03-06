@@ -160,18 +160,11 @@
 #endif
 
 #if defined(__cplusplus) && __cplusplus >= 201103L || \
+    defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L || \
     defined(__APPLE__) || defined(HAVE_STDINT_H)
 /*
- * TODO: C99 a.k.a. defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
- * really should be in the above conditional. However, a non-trivial amount
- * of code tries to compile in C99 mode with broken stdint.h headers, so
- * C99 will need to use the fallback for now.
- */
-
-/*
- * We're using stdint.h instead of cstdint below because of libstdcpp.cpp.
- * It looks like a C++ file. When being preprocessed all the C++ specific
- * defines(e.g. __cplusplus) are set, but the C++ include paths are not.
+ * We're using <stdint.h> instead of <cstdint> below because some C++ code
+ * deliberately compiles without C++ include paths.
  */
 #include <stdint.h>
 
