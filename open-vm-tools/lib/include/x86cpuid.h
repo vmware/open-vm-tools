@@ -528,7 +528,8 @@ FLAG(   7,  0, ECX, 30,  1, SGX_LC,                            YES, 15, FALSE) \
 FLAG(   7,  0, EDX,  2,  1, AVX512QVNNIW,                      YES, 15, TRUE)  \
 FLAG(   7,  0, EDX,  3,  1, AVX512QFMAPS,                      YES, 15, TRUE)  \
 FLAG(   7,  0, EDX, 26,  1, IBRSIBPB,                          ANY,  9, FALSE) \
-FLAG(   7,  0, EDX, 27,  1, STIBP,                             YES,  9, FALSE)
+FLAG(   7,  0, EDX, 27,  1, STIBP,                             YES,  9, FALSE) \
+FLAG(   7,  0, EDX, 29,  1, ARCH_CAPABILITIES,                 ANY,  9, FALSE)
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,             MON SUPP, HWV, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_A                                               \
