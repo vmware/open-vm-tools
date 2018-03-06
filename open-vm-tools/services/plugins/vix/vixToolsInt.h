@@ -143,7 +143,7 @@ char *VixToolsGetEnvFromUserEnvironment(const VixToolsUserEnvironment *env,
 
 void VixToolsDestroyUserEnvironment(VixToolsUserEnvironment *env);
 
-VixError VixToolsValidateEnviron(char const * const *environ);
+VixError VixToolsValidateEnviron(char const * const *env);
 
 char *VixToolsGetEnvVarFromEnvBlock(const wchar_t *envBlock,
                                     const char *envVarName);
@@ -160,7 +160,7 @@ VixError VixToolsGetEnvBlock(void *userToken,
 
 Bool VixToolsDestroyEnvironmentBlock(wchar_t *envBlock);
 
-VixError VixToolsEnvironToEnvBlock(char const * const *environ,
+VixError VixToolsEnvironToEnvBlock(char const * const *env,
                                    wchar_t **envBlock);
 
 VixError VixToolsGetUserTmpDir(void *userToken,
