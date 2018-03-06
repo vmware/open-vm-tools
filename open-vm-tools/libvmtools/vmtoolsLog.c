@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -54,6 +54,7 @@
 #include "str.h"
 #include "system.h"
 #include "vmware/tools/log.h"
+#include "err.h"
 
 #define LOGGING_GROUP         "logging"
 
@@ -112,14 +113,6 @@
    }                                               \
 } while (0)
 
-
-#if defined(G_PLATFORM_WIN32)
-static void
-VMToolsLogOutputDebugString(const gchar *domain,
-                            GLogLevelFlags level,
-                            const gchar *message,
-                            gpointer _data);
-#endif
 
 typedef struct LogHandler {
    GlibLogger    *logger;
@@ -1402,7 +1395,12 @@ Debug(const char *fmt, ...)
    if (gGuestSDKMode) {
       GuestSDK_Debug(fmt, args);
    } else {
-      VMToolsLogWrapper(G_LOG_LEVEL_DEBUG, fmt, args);
+      /*
+       * Preserve errno/lastError.
+       * This keeps compatibility with bora/lib Log(), preventing
+       * Log() calls in bora/lib code from clobbering errno/lastError.
+       */
+      WITH_ERRNO(err, VMToolsLogWrapper(G_LOG_LEVEL_DEBUG, fmt, args));
    }
    va_end(args);
 }
@@ -1422,7 +1420,12 @@ Log(const char *fmt, ...)
    if (gGuestSDKMode) {
       GuestSDK_Log(fmt, args);
    } else {
-      VMToolsLogWrapper(G_LOG_LEVEL_INFO, fmt, args);
+      /*
+       * Preserve errno/lastError.
+       * This keeps compatibility with bora/lib Log(), preventing
+       * Log() calls in bora/lib code from clobbering errno/lastError.
+       */
+      WITH_ERRNO(err, VMToolsLogWrapper(G_LOG_LEVEL_INFO, fmt, args));
    }
    va_end(args);
 }
@@ -1471,7 +1474,12 @@ LogV(uint32 routing,
       glevel = G_LOG_LEVEL_DEBUG;
    }
 
-   VMToolsLogWrapper(glevel, fmt, args);
+   /*
+    * Preserve errno/lastError.
+    * This keeps compatibility with bora/lib Log(), preventing
+    * Log() calls in bora/lib code from clobbering errno/lastError.
+    */
+   WITH_ERRNO(err, VMToolsLogWrapper(glevel, fmt, args));
 }
 
 
@@ -1537,7 +1545,12 @@ Warning(const char *fmt, ...)
    if (gGuestSDKMode) {
       GuestSDK_Warning(fmt, args);
    } else {
-      VMToolsLogWrapper(G_LOG_LEVEL_WARNING, fmt, args);
+      /*
+       * Preserve errno/lastError.
+       * This keeps compatibility with bora/lib Log(), preventing
+       * Log() calls in bora/lib code from clobbering errno/lastError.
+       */
+      WITH_ERRNO(err, VMToolsLogWrapper(G_LOG_LEVEL_WARNING, fmt, args));
    }
    va_end(args);
 }
