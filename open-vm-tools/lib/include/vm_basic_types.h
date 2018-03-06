@@ -610,6 +610,11 @@ typedef uint64 PPN64;
 typedef uint64 MA64;
 typedef uint64 MPN;
 
+/*
+ * Remove after PPN->PPN64 conversion is finished.
+ */
+#define PPN64_2_PPN(_ppn)     ((PPN)_ppn)
+
 #define FMTPPN ""
 
 /*
