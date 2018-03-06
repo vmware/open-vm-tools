@@ -761,7 +761,7 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
          amazonMinor = 0;
       }
 
-      Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_AMAZON,
+      Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_AMAZON_LINUX,
                   amazonMajor);
    } else if (strstr(distroLower, "annvix")) {
       Str_Strcpy(distroShort, STR_OS_ANNVIX, distroShortSize);
