@@ -204,11 +204,9 @@ FileGetUserName(uid_t uid)  // IN:
    memPoolSize = _PASSWORD_LEN;
 #else
    memPoolSize = sysconf(_SC_GETPW_R_SIZE_MAX);
-
-   if (memPoolSize <= 0) {
-      Warning("%s: sysconf(_SC_GETPW_R_SIZE_MAX) failed.\n", __FUNCTION__);
-
-      return NULL;
+   if (memPoolSize == -1) {
+      /* Use a default size if there is no hard limit suggested by sysconf() */
+      memPoolSize = 1024;
    }
 #endif
 

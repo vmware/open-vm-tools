@@ -264,14 +264,19 @@ AuthAllocateToken(void)
 {
    AuthTokenInternal *ati;
    size_t bufSize;
+   long maxSize;
 
    /*
     * We need to get the maximum size buffer needed by getpwuid_r from
     * sysconf. Multiply by 4 to compensate for the conversion to UTF-8
     * by the Posix_Get*_r() wrappers.
     */
-
-   bufSize = (size_t) sysconf(_SC_GETPW_R_SIZE_MAX) * 4;
+   maxSize = sysconf(_SC_GETPW_R_SIZE_MAX);
+   if (maxSize == -1) {
+      /* Use a default size if there is no hard limit suggested by sysconf() */
+      maxSize = 1024;
+   }
+   bufSize = (size_t) maxSize * 4;
 
    ati = Util_SafeMalloc(sizeof *ati + bufSize);
    ati->bufSize = bufSize;

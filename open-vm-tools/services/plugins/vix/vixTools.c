@@ -10132,6 +10132,7 @@ abort:
    struct passwd *ppwd = &pwd;
    char *buffer = NULL; // a pool of memory for Posix_Getpwnam_r() to use.
    size_t bufferSize;
+   long maxSize;
 
    /*
     * For POSIX systems, look up the uid of 'username', and compare
@@ -10144,7 +10145,12 @@ abort:
     * Multiply by 4 to compensate for the conversion to UTF-8 by
     * the Posix_Getpwnam_r() wrapper.
     */
-   bufferSize = (size_t) sysconf(_SC_GETPW_R_SIZE_MAX) * 4;
+   maxSize = sysconf(_SC_GETPW_R_SIZE_MAX);
+   if (maxSize == -1) {
+      /* Use a default size if there is no hard limit suggested by sysconf() */
+      maxSize = 1024;
+   }
+   bufferSize = (size_t) maxSize * 4;
 
    buffer = Util_SafeMalloc(bufferSize);
 
