@@ -1257,8 +1257,8 @@ if test "$os" = "linux"; then
    if test "$osVersion" -lt 303000; then
       MODULES="$MODULES vmxnet"
    fi
-   # See if we need vmhgfs module. Starting with 4.0.0 we use FUSE
-   if test "$osVersion" -lt 400000; then
+   # See if we need vmhgfs module. Starting with 3.10.0 we use FUSE
+   if test "$osVersion" -lt 310000; then
       MODULES="$MODULES vmhgfs"
    fi
    # See if we need vmci and vsock modules. Starting with 3.9 they made
