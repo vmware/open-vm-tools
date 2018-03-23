@@ -108,38 +108,6 @@ GetPowerOfTwo(uint32 x)
 }
 
 
-/*
- *----------------------------------------------------------------------
- *
- * IsFinite --
- * IsInf --
- * IsNan --
- *
- *    Portability macros that test floats against -/+Inf and NaN.
- *
- *----------------------------------------------------------------------
- */
-
-#ifdef _WIN32
-#include <float.h>
-
-#define IsFinite(x) _finite(x)
-#define IsNan(x)    _isnan(x)
-
-static INLINE Bool
-IsInf(double x)
-{
-   return !_finite(x) && !_isnan(x);
-}
-#else
-#include <math.h>
-
-#define IsFinite(x) isfinite(x)
-#define IsInf(x)    isinf(x)
-#define IsNan(x)    isnan(x)
-#endif
-
-
 #if !defined(_WIN32) && !defined(_WIN64)
 /*
  *-----------------------------------------------------------------------------
