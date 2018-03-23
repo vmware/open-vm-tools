@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -849,7 +849,7 @@ FileIO_AtomicUpdateEx(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
 
    if (HostType_OSIsVMK()) {
 #if defined(VMX86_SERVER)
-      FS_SwapFilesArgsUW *args = NULL;
+      FS_SwapFilesArgsUW args = { 0 };
       char *dirName = NULL;
       char *fileName = NULL;
       char *dstDirName = NULL;
@@ -890,9 +890,8 @@ FileIO_AtomicUpdateEx(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
          goto swapdone;
       }
 
-      args = Util_SafeCalloc(1, sizeof *args);
-      args->fd = currFD->posix;
-      if (ioctl(newFD->posix, IOCTLCMD_VMFS_SWAP_FILES, args) != 0) {
+      args.fd = currFD->posix;
+      if (ioctl(newFD->posix, IOCTLCMD_VMFS_SWAP_FILES, &args) != 0) {
          savedErrno = errno;
          if (errno != ENOSYS && errno != ENOTTY) {
             Log("%s: ioctl failed %d.\n", __FUNCTION__, errno);
@@ -942,7 +941,6 @@ FileIO_AtomicUpdateEx(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
       }
 
 swapdone:
-      Posix_Free(args);
       Posix_Free(dirName);
       Posix_Free(fileName);
       Posix_Free(dstDirName);
