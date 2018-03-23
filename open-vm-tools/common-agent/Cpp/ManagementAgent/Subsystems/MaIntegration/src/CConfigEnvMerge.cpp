@@ -2,7 +2,7 @@
  *	 Author: bwilliams
  *  Created: Oct 22, 2010
  *
- *	Copyright (C) 2010-2016 VMware, Inc.  All rights reserved. -- VMware Confidential
+ *	Copyright (C) 2010-2018 VMware, Inc.  All rights reserved. -- VMware Confidential
  */
 
 #include "stdafx.h"
@@ -242,6 +242,10 @@ bool CConfigEnvMerge::isTunnelEnabledFunc() {
 		}
 
 		rc = (0 == ::connect(socketFd, (SOCKADDR*) &socketClient, sizeof(socketClient)));
+
+		if (socketFd != INVALID_SOCKET) {
+			::closesocket(socketFd);
+		}
 	}
 	CAF_CM_CATCH_CAF
 	CAF_CM_CATCH_DEFAULT
