@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -99,7 +99,7 @@ extern "C" {
 #define   BDOOR_CMD_STOPCATCHUP              24
 #define   BDOOR_CMD_PUTCHR                   25 /* Disabled by default. */
 #define   BDOOR_CMD_ENABLE_MSG               26 /* Devel only. */
-#define   BDOOR_CMD_GOTO_TCL                 27 /* Devel only. */
+//#define BDOOR_CMD_GOTO_TCL                 27 /* Not in use. Was devel only */
 #define   BDOOR_CMD_INITPCIOPROM             28 /* CPL 0 only. */
 //#define BDOOR_CMD_INT13                    29 /* Not in use. */
 #define   BDOOR_CMD_MESSAGE                  30
