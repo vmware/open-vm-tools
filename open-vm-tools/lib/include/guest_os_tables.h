@@ -532,6 +532,7 @@ extern "C" {
    GOKM("vmkernel5",                            vmkernel5Guest,          TRUE) \
    GOKM("vmkernel6",                            vmkernel6Guest,          TRUE) \
    GOKM("vmkernel65",                           vmkernel65Guest,         TRUE) \
+   GOKM("vmkernel7",                            vmkernel7Guest,          TRUE) \
    /* Other guests */ \
    GOKM("dos",                                  dosGuest,                TRUE) \
    GOKM("os2",                                  os2Guest,                TRUE) \
