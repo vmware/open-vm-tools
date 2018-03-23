@@ -190,7 +190,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
                               BS(AMAZONLINUX2_64)
 
 #define ALLVMKERNEL           BS(VMKERNEL), BS(VMKERNEL5), BS(VMKERNEL6), \
-                              BS(VMKERNEL65)
+                              BS(VMKERNEL65), BS(VMKERNEL7)
 
 #define ALLLINUX32            BS(OTHER24XLINUX), ALL26XLINUX32, ALL3XLINUX32, \
                               ALL4XLINUX32, BS(OTHERLINUX), BS(VMKERNEL)

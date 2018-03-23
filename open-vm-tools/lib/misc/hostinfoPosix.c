@@ -635,7 +635,7 @@ HostinfoESX(struct utsname *buf)  // IN:
    char osNameFull[MAX_OS_FULLNAME_LEN];
 
    /* The most recent osName always goes here. */
-   Str_Strcpy(osName, "vmkernel65", sizeof osName);
+   Str_Strcpy(osName, "vmkernel7", sizeof osName);
 
    /* Handle any special cases */
    if ((buf->release[0] <= '4') && (buf->release[1] == '.')) {
@@ -645,6 +645,8 @@ HostinfoESX(struct utsname *buf)  // IN:
    } else if ((buf->release[0] >= '6') && (buf->release[1] == '.')) {
       if (buf->release[2] < '5') {
          Str_Strcpy(osName, "vmkernel6", sizeof osName);
+      } else {
+         Str_Strcpy(osName, "vmkernel65", sizeof osName);
       }
    }
 

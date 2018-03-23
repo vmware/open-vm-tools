@@ -109,6 +109,7 @@ extern "C" {
    GOT(GUEST_OS_VMKERNEL5)         /* ESX 5.x */                           \
    GOT(GUEST_OS_VMKERNEL6)         /* ESX 6 */                             \
    GOT(GUEST_OS_VMKERNEL65)        /* ESX 6.5 and later */                 \
+   GOT(GUEST_OS_VMKERNEL7)         /* ESX 7 and later */                   \
    GOT(GUEST_OS_PHOTON_64)         /* VMware Photon IA 64-bit */           \
    GOT(GUEST_OS_ORACLE)                                                    \
    GOT(GUEST_OS_ORACLE_64)                                                 \
@@ -258,6 +259,7 @@ extern "C" {
    GOSL("vmkernel5",                         GUEST_OS_VMKERNEL5,              NULL)                   \
    GOSL("vmkernel6",                         GUEST_OS_VMKERNEL6,              NULL)                   \
    GOSL("vmkernel65",                        GUEST_OS_VMKERNEL65,             NULL)                   \
+   GOSL("vmkernel7",                         GUEST_OS_VMKERNEL7,              NULL)                   \
    GOSL(STR_OS_PHOTON "-64",                 GUEST_OS_PHOTON_64,              NULL)                   \
    GOSL("whistler",                          GUEST_OS_WINXP,                  "winPreVista.iso") /* old */ \
    GOSL("win2000",                           GUEST_OS_WIN2000,                "winPreVista.iso") /* old */ \
