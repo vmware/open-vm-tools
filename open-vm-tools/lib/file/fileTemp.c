@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -186,9 +186,9 @@ FileMakeTempEx2Work(const char *dir,                              // IN:
       }
 
       if (errno != EEXIST) {
-         Log(LGPFX" Failed to create temporary %s \"%s\": %s.\n",
+         Log(LGPFX" Failed to create temporary %s \"%s\", errno: %d.\n",
              createTempFile ? "file" : "directory",
-             path, Err_Errno2String(errno));
+             path, errno);
          goto exit;
       }
    }
