@@ -753,14 +753,11 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
    } else if (strstr(distroLower, "sun")) {
       Str_Strcpy(distroShort, STR_OS_SUN_DESK, distroShortSize);
    } else if (strstr(distroLower, "amazon")) {
-      int amazonMinor = 0;
       int amazonMajor = 0;
 
-      if (sscanf(distroLower, "Amazon Linux %d.%d", &amazonMajor,
-                 &amazonMinor) != 2) {
+      if (sscanf(distroLower, "amazon linux %d", &amazonMajor) != 1) {
          /* Oldest known good release */
          amazonMajor = 2;
-         amazonMinor = 0;
       }
 
       Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_AMAZON_LINUX,
