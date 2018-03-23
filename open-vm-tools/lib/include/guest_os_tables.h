@@ -255,11 +255,11 @@ extern "C" {
    GOSL(STR_OS_UBUNTU,                       GUEST_OS_UBUNTU,                 "linux.iso")            \
    GOSL(STR_OS_UBUNTU "-64",                 GUEST_OS_OTHER26XLINUX_64,       "linux.iso")            \
    GOSL("unixware7",                         GUEST_OS_UNIXWARE7,              NULL)                   \
-   GOSL("vmkernel",                          GUEST_OS_VMKERNEL,               NULL)                   \
-   GOSL("vmkernel5",                         GUEST_OS_VMKERNEL5,              NULL)                   \
-   GOSL("vmkernel6",                         GUEST_OS_VMKERNEL6,              NULL)                   \
-   GOSL("vmkernel65",                        GUEST_OS_VMKERNEL65,             NULL)                   \
-   GOSL("vmkernel7",                         GUEST_OS_VMKERNEL7,              NULL)                   \
+   GOSL(STR_OS_VMKERNEL,                     GUEST_OS_VMKERNEL,               NULL)                   \
+   GOSL(STR_OS_VMKERNEL "5",                 GUEST_OS_VMKERNEL5,              NULL)                   \
+   GOSL(STR_OS_VMKERNEL "6",                 GUEST_OS_VMKERNEL6,              NULL)                   \
+   GOSL(STR_OS_VMKERNEL "65",                GUEST_OS_VMKERNEL65,             NULL)                   \
+   GOSL(STR_OS_VMKERNEL "7",                 GUEST_OS_VMKERNEL7,              NULL)                   \
    GOSL(STR_OS_PHOTON "-64",                 GUEST_OS_PHOTON_64,              NULL)                   \
    GOSL("whistler",                          GUEST_OS_WINXP,                  "winPreVista.iso") /* old */ \
    GOSL("win2000",                           GUEST_OS_WIN2000,                "winPreVista.iso") /* old */ \
