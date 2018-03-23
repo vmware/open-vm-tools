@@ -480,7 +480,7 @@ FLAG(   6,  0, ECX,  3,  1, ENERGY_PERF_BIAS,                  NO,   0, FALSE)
 #define CPUID_FIELD_DATA_LEVEL_7                                               \
 FLAG(   7,  0, EBX,  0,  1, FSGSBASE,                          YES,  9, FALSE) \
 FLAG(   7,  0, EBX,  1,  1, TSC_ADJUST,                        ANY, 11, FALSE) \
-FLAG(   7,  0, EBX,  2,  1, SGX,                               YES, 15, FALSE) \
+FLAG(   7,  0, EBX,  2,  1, SGX,                               YES, 16, FALSE) \
 FLAG(   7,  0, EBX,  3,  1, BMI1,                              YES,  9, TRUE)  \
 FLAG(   7,  0, EBX,  4,  1, HLE,                               YES, 11, TRUE)  \
 FLAG(   7,  0, EBX,  5,  1, AVX2,                              YES, 11, TRUE)  \
@@ -499,10 +499,10 @@ FLAG(   7,  0, EBX, 17,  1, AVX512DQ,                          YES, 13, TRUE)  \
 FLAG(   7,  0, EBX, 18,  1, RDSEED,                            YES, 11, TRUE)  \
 FLAG(   7,  0, EBX, 19,  1, ADX,                               YES, 11, TRUE)  \
 FLAG(   7,  0, EBX, 20,  1, SMAP,                              YES, 11, FALSE) \
-FLAG(   7,  0, EBX, 21,  1, AVX512IFMA,                        YES, 15, TRUE)  \
+FLAG(   7,  0, EBX, 21,  1, AVX512IFMA,                        YES, 16, TRUE)  \
 FLAG(   7,  0, EBX, 23,  1, CLFLUSHOPT,                        YES, 13, TRUE)  \
 FLAG(   7,  0, EBX, 24,  1, CLWB,                              YES, 13, TRUE)  \
-FLAG(   7,  0, EBX, 25,  1, PT,                                YES, 15, FALSE) \
+FLAG(   7,  0, EBX, 25,  1, PT,                                YES, 16, FALSE) \
 FLAG(   7,  0, EBX, 26,  1, AVX512PF,                          YES, 13, TRUE)  \
 FLAG(   7,  0, EBX, 27,  1, AVX512ER,                          YES, 13, TRUE)  \
 FLAG(   7,  0, EBX, 28,  1, AVX512CD,                          YES, 13, TRUE)  \
@@ -510,7 +510,7 @@ FLAG(   7,  0, EBX, 29,  1, SHA,                               YES, 14, TRUE)  \
 FLAG(   7,  0, EBX, 30,  1, AVX512BW,                          YES, 13, TRUE)  \
 FLAG(   7,  0, EBX, 31,  1, AVX512VL,                          YES, 13, TRUE)  \
 FLAG(   7,  0, ECX,  0,  1, PREFETCHWT1,                       YES, 13, TRUE)  \
-FLAG(   7,  0, ECX,  1,  1, AVX512VBMI,                        YES, 15, TRUE)  \
+FLAG(   7,  0, ECX,  1,  1, AVX512VBMI,                        YES, 16, TRUE)  \
 FLAG(   7,  0, ECX,  2,  1, UMIP,                              NO,   0, FALSE) \
 FLAG(   7,  0, ECX,  3,  1, PKU,                               YES, 13, TRUE)  \
 FLAG(   7,  0, ECX,  4,  1, OSPKE,                             ANY, 13, TRUE)  \
@@ -524,7 +524,7 @@ FLAG(   7,  0, ECX, 14,  1, AVX512VPOPCNTDQ,                   YES, 15, TRUE)  \
 FLAG(   7,  0, ECX, 16,  1, VA57,                              NO,   0, TRUE)  \
 FIELD(  7,  0, ECX, 17,  5, MAWA,                              NO,   0, TRUE)  \
 FLAG(   7,  0, ECX, 22,  1, RDPID,                             NO,   0, TRUE)  \
-FLAG(   7,  0, ECX, 30,  1, SGX_LC,                            YES, 15, FALSE) \
+FLAG(   7,  0, ECX, 30,  1, SGX_LC,                            YES, 16, FALSE) \
 FLAG(   7,  0, EDX,  2,  1, AVX512QVNNIW,                      YES, 15, TRUE)  \
 FLAG(   7,  0, EDX,  3,  1, AVX512QFMAPS,                      YES, 15, TRUE)  \
 FLAG(   7,  0, EDX, 26,  1, IBRSIBPB,                          ANY,  9, FALSE) \
@@ -655,22 +655,22 @@ FIELD( 10,  1, EDX,  0, 16, MAX_COS_NUMBER,                    NO,   0, FALSE)
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,             MON SUPP, HWV, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_12                                              \
-FLAG(  12,  0, EAX,  0,  1, SGX1,                              YES, 15, FALSE) \
+FLAG(  12,  0, EAX,  0,  1, SGX1,                              YES, 16, FALSE) \
 FLAG(  12,  0, EAX,  1,  1, SGX2,                              NO,   0, FALSE) \
-FLAG(  12,  0, EBX,  0,  1, SGX_MISCSELECT_EXINFO,             YES, 15, FALSE) \
+FLAG(  12,  0, EBX,  0,  1, SGX_MISCSELECT_EXINFO,             YES, 16, FALSE) \
 FIELD( 12,  0, EBX,  1, 31, SGX_MISCSELECT_RSVD,               NO,   0, FALSE) \
-FIELD( 12,  0, EDX,  0,  8, MAX_ENCLAVE_SIZE_NOT64,            YES, 15, FALSE) \
-FIELD( 12,  0, EDX,  8,  8, MAX_ENCLAVE_SIZE_64,               YES, 15, FALSE) \
-FIELD( 12,  1, EAX,  0, 32, SECS_ATTRIBUTES0,                  YES, 15, FALSE) \
-FIELD( 12,  1, EBX,  0, 32, SECS_ATTRIBUTES1,                  YES, 15, FALSE) \
-FIELD( 12,  1, ECX,  0, 32, SECS_ATTRIBUTES2,                  YES, 15, FALSE) \
-FIELD( 12,  1, EDX,  0, 32, SECS_ATTRIBUTES3,                  YES, 15, FALSE) \
-FIELD( 12,  2, EAX,  0, 15, EPC00_VALID,                       YES, 15, FALSE) \
-FIELD( 12,  2, EAX, 12, 20, EPC00_BASE_LOW,                    YES, 15, FALSE) \
-FIELD( 12,  2, EBX,  0, 20, EPC00_BASE_HIGH,                   YES, 15, FALSE) \
-FIELD( 12,  2, ECX,  0, 15, EPC00_PROTECTED,                   YES, 15, FALSE) \
-FIELD( 12,  2, ECX, 12, 20, EPC00_SIZE_LOW,                    YES, 15, FALSE) \
-FIELD( 12,  2, EDX,  0, 20, EPC00_SIZE_HIGH,                   YES, 15, FALSE) \
+FIELD( 12,  0, EDX,  0,  8, MAX_ENCLAVE_SIZE_NOT64,            YES, 16, FALSE) \
+FIELD( 12,  0, EDX,  8,  8, MAX_ENCLAVE_SIZE_64,               YES, 16, FALSE) \
+FIELD( 12,  1, EAX,  0, 32, SECS_ATTRIBUTES0,                  YES, 16, FALSE) \
+FIELD( 12,  1, EBX,  0, 32, SECS_ATTRIBUTES1,                  YES, 16, FALSE) \
+FIELD( 12,  1, ECX,  0, 32, SECS_ATTRIBUTES2,                  YES, 16, FALSE) \
+FIELD( 12,  1, EDX,  0, 32, SECS_ATTRIBUTES3,                  YES, 16, FALSE) \
+FIELD( 12,  2, EAX,  0, 15, EPC00_VALID,                       YES, 16, FALSE) \
+FIELD( 12,  2, EAX, 12, 20, EPC00_BASE_LOW,                    YES, 16, FALSE) \
+FIELD( 12,  2, EBX,  0, 20, EPC00_BASE_HIGH,                   YES, 16, FALSE) \
+FIELD( 12,  2, ECX,  0, 15, EPC00_PROTECTED,                   YES, 16, FALSE) \
+FIELD( 12,  2, ECX, 12, 20, EPC00_SIZE_LOW,                    YES, 16, FALSE) \
+FIELD( 12,  2, EDX,  0, 20, EPC00_SIZE_HIGH,                   YES, 16, FALSE) \
 FIELD( 12,  3, EAX,  0,  4, EPC01_VALID,                       NO,   0, FALSE) \
 FIELD( 12,  3, EAX, 12, 20, EPC01_BASE_LOW,                    NO,   0, FALSE) \
 FIELD( 12,  3, EBX,  0, 20, EPC01_BASE_HIGH,                   NO,   0, FALSE) \
@@ -680,20 +680,20 @@ FIELD( 12,  3, EDX,  0, 20, EPC01_SIZE_HIGH,                   NO,   0, FALSE)
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,             MON SUPP, HWV, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_14                                              \
-FIELD( 14,  0, EAX,  0, 32, MAX_PT_SUB_LEAF,                   YES, 15, FALSE) \
-FLAG(  14,  0, EBX,  0,  1, CR3FTR_AND_MATCHMSR_AVAILABLE,     YES, 15, FALSE) \
-FLAG(  14,  0, EBX,  1,  1, PSB_AND_CYCLE_ACCURATE_MODE,       YES, 15, FALSE) \
-FLAG(  14,  0, EBX,  2,  1, IP_TRACESTOP_FTR_PTMSR_PERSIST,    YES, 15, FALSE) \
-FLAG(  14,  0, EBX,  3,  1, MTC_PKT_GENERATION_SUPPORTED,      YES, 15, FALSE) \
-FLAG(  14,  0, ECX,  0,  1, TOPA_OUTPUT_SUPPORTED,             YES, 15, FALSE) \
-FLAG(  14,  0, ECX,  1,  1, TOPA_ALLOW_MULTIPLE_ENTRIES,       YES, 15, FALSE) \
-FLAG(  14,  0, ECX,  2,  1, SINGLE_RANGE_OUTPUT_SCHEME,        YES, 15, FALSE) \
+FIELD( 14,  0, EAX,  0, 32, MAX_PT_SUB_LEAF,                   YES, 16, FALSE) \
+FLAG(  14,  0, EBX,  0,  1, CR3FTR_AND_MATCHMSR_AVAILABLE,     YES, 16, FALSE) \
+FLAG(  14,  0, EBX,  1,  1, PSB_AND_CYCLE_ACCURATE_MODE,       YES, 16, FALSE) \
+FLAG(  14,  0, EBX,  2,  1, IP_TRACESTOP_FTR_PTMSR_PERSIST,    YES, 16, FALSE) \
+FLAG(  14,  0, EBX,  3,  1, MTC_PKT_GENERATION_SUPPORTED,      YES, 16, FALSE) \
+FLAG(  14,  0, ECX,  0,  1, TOPA_OUTPUT_SUPPORTED,             YES, 16, FALSE) \
+FLAG(  14,  0, ECX,  1,  1, TOPA_ALLOW_MULTIPLE_ENTRIES,       YES, 16, FALSE) \
+FLAG(  14,  0, ECX,  2,  1, SINGLE_RANGE_OUTPUT_SCHEME,        YES, 16, FALSE) \
 FLAG(  14,  0, ECX,  3,  1, TRACE_TRANSPORT_SUBSYSTEM,         NO,   0, FALSE) \
-FLAG(  14,  0, ECX, 31,  1, LIP_PRESENT_FOR_IP_PAYLOADS,       YES, 15, FALSE) \
-FIELD( 14,  1, EAX,  0,  2, NUM_ADDR_RANGE_FOR_FILTERING,      YES, 15, FALSE) \
-FIELD( 14,  1, EAX, 16, 16, SUPPORTED_MTC_ENCODINGS,           YES, 15, FALSE) \
-FIELD( 14,  1, EBX,  0, 16, SUPPORTED_CYCLE_THRESHOLD_ENCODINGS, YES,15,FALSE) \
-FIELD( 14,  1, EBX, 16, 16, SUPPORTED_PSB_FREQ_ENCODINGS,      YES, 15, FALSE) \
+FLAG(  14,  0, ECX, 31,  1, LIP_PRESENT_FOR_IP_PAYLOADS,       YES, 16, FALSE) \
+FIELD( 14,  1, EAX,  0,  2, NUM_ADDR_RANGE_FOR_FILTERING,      YES, 16, FALSE) \
+FIELD( 14,  1, EAX, 16, 16, SUPPORTED_MTC_ENCODINGS,           YES, 16, FALSE) \
+FIELD( 14,  1, EBX,  0, 16, SUPPORTED_CYCLE_THRESHOLD_ENCODINGS, YES,16,FALSE) \
+FIELD( 14,  1, EBX, 16, 16, SUPPORTED_PSB_FREQ_ENCODINGS,      YES, 16, FALSE) \
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,             MON SUPP, HWV, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_15                                              \
