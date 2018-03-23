@@ -608,6 +608,7 @@ typedef uint64 LA64;
 typedef uint64 LPN64;
 typedef uint64 PA64;
 typedef uint64 PPN64;
+typedef uint64 TPPN64;
 typedef uint64 MA64;
 typedef uint64 MPN;
 
