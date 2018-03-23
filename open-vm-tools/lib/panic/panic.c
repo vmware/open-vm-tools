@@ -622,7 +622,7 @@ Panic_Panic(const char *format,
     */
    Log("Exiting\n");
 
-   exit(-1);
+   Util_ExitProcessAbruptly(-1);
    NOT_REACHED();
 }
 
