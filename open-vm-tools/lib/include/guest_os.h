@@ -219,7 +219,10 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
  */
 
 /* vmkernel (ESX) */
-#define STR_OS_VMKERNEL            "vmkernel"
+#define STR_OS_ESX_4               "VMware ESX/ESXi 4.x"
+#define STR_OS_ESX_5               "VMware ESXi 5.x"
+#define STR_OS_ESX_6               "VMware ESXi 6.0"
+#define STR_OS_ESX_65              "VMware ESXi 6.5"
 
 /* Linux */
 #define STR_OS_AMAZON_LINUX        "amazonlinux"
