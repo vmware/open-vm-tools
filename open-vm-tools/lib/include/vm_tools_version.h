@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1453,9 +1453,16 @@ TOOLS_VERSION_UINT_TO_COMPONENTS(const ToolsVersion toolsVersion,   // IN
 #define   TOOLS_VERSION_CHAINSAW_RELEASE_V_MNR  2
 #define   TOOLS_VERSION_CHAINSAW_RELEASE_V_BASE 0
 
-#define   TOOLS_VERSION_CURRENT        TOOLS_VERSION_CHAINSAW_RELEASE
-#define   TOOLS_VERSION_CURRENT_STR    TOOLS_VERSION_TO_STR(TOOLS_VERSION_CHAINSAW_RELEASE)
-#define   TOOLS_VERSION_CURRENT_CSV    TOOLS_VERSION_TO_CSV(TOOLS_VERSION_CHAINSAW_RELEASE)
+#ifndef RC_INVOKED
+#define   TOOLS_VERSION_CHAINSAW_UPDATE1 TOOLS_VERSION_TO_UINT(TOOLS_VERSION_CHAINSAW_UPDATE1_V)
+#endif /* RC_INVOKED */
+#define   TOOLS_VERSION_CHAINSAW_UPDATE1_V_MJR  10
+#define   TOOLS_VERSION_CHAINSAW_UPDATE1_V_MNR  2
+#define   TOOLS_VERSION_CHAINSAW_UPDATE1_V_BASE 5
+
+#define   TOOLS_VERSION_CURRENT        TOOLS_VERSION_CHAINSAW_UPDATE1
+#define   TOOLS_VERSION_CURRENT_STR    TOOLS_VERSION_TO_STR(TOOLS_VERSION_CHAINSAW_UPDATE1)
+#define   TOOLS_VERSION_CURRENT_CSV    TOOLS_VERSION_TO_CSV(TOOLS_VERSION_CHAINSAW_UPDATE1)
 
 /*
  * The extended Tools version is the current Tools version with the

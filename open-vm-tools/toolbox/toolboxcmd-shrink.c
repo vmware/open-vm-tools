@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -143,7 +143,7 @@ ShrinkGetMountPoints(WiperPartition_List *pl) // OUT: Known mount points
       break;
 
    case WIPER_ENABLED:
-      if (WiperPartition_Open(pl)) {
+      if (WiperPartition_Open(pl, TRUE)) {
          return TRUE;
       }
 

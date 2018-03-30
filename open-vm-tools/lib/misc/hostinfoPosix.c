@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -151,23 +151,28 @@ struct hostinfoOSVersion {
 
 static Atomic_Ptr hostinfoOSVersion;
 
-#define DISTRO_BUF_SIZE 255
+#define DISTRO_BUF_SIZE 1024
 
 #if !defined __APPLE__ && !defined USERWORLD
-typedef struct lsb_distro_info {
+typedef struct {
    char *name;
-   char *scanstring;
-} LSBDistroInfo;
+   char *scanString;
+} DistroNameScan;
 
-static const LSBDistroInfo lsbFields[] = {
-   {"DISTRIB_ID=",          "DISTRIB_ID=%s"},
-   {"DISTRIB_RELEASE=",     "DISTRIB_RELEASE=%s"},
-   {"DISTRIB_CODENAME=",    "DISTRIB_CODENAME=%s"},
-   {"DISTRIB_DESCRIPTION=", "DISTRIB_DESCRIPTION=%s"},
-   {NULL, NULL},
+static const DistroNameScan lsbFields[] = {
+   {"DISTRIB_ID=",          "DISTRIB_ID=%s"          },
+   {"DISTRIB_RELEASE=",     "DISTRIB_RELEASE=%s"     },
+   {"DISTRIB_CODENAME=",    "DISTRIB_CODENAME=%s"    },
+   {"DISTRIB_DESCRIPTION=", "DISTRIB_DESCRIPTION=%s" },
+   {NULL,                   NULL                     },
 };
 
-typedef struct distro_info {
+static const DistroNameScan osReleaseFields[] = {
+   {"PRETTY_NAME=",        "PRETTY_NAME=%s"          },
+   {NULL,                   NULL                     },
+};
+
+typedef struct {
    char *name;
    char *filename;
 } DistroInfo;
@@ -461,6 +466,202 @@ Hostinfo_GetSystemBitness(void)
 }
 
 
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HostinfoPostData --
+ *
+ *      Post the OS name data to their cached values.
+ *
+ * Return value:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HostinfoPostData(const char *osName,  // IN:
+                 char *osNameFull)    // IN:
+{
+   unsigned int lastCharPos;
+   static Atomic_uint32 mutex = {0};
+
+   /*
+    * Before returning, truncate the newline character at the end of the full
+    * name.
+    */
+
+   lastCharPos = strlen(osNameFull) - 1;
+   if (osNameFull[lastCharPos] == '\n') {
+      osNameFull[lastCharPos] = '\0';
+   }
+
+   /*
+    * Serialize access. Collisions should be rare - plus the value will get
+    * cached and this won't get called anymore.
+    */
+
+   while (Atomic_ReadWrite(&mutex, 1)); // Spinlock.
+
+   if (!HostinfoOSNameCacheValid) {
+      Str_Strcpy(HostinfoCachedOSName, osName, sizeof HostinfoCachedOSName);
+      Str_Strcpy(HostinfoCachedOSFullName, osNameFull,
+                 sizeof HostinfoCachedOSFullName);
+      HostinfoOSNameCacheValid = TRUE;
+   }
+
+   Atomic_Write(&mutex, 0);  // unlock
+}
+
+
+#if defined(__APPLE__) // MacOS
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HostinfoMacOS --
+ *
+ *      Determine the specifics concerning MacOS.
+ *
+ * Return value:
+ *      Returns TRUE on success and FALSE on failure.
+ *
+ * Side effects:
+ *      Cache values are set when returning TRUE.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+HostinfoMacOS(struct utsname *buf)  // IN:
+{
+   int len;
+   unsigned int i;
+   char *productName;
+   char *productVersion;
+   char *productBuildVersion;
+   char osName[MAX_OS_NAME_LEN];
+   char osNameFull[MAX_OS_FULLNAME_LEN];
+   Bool haveVersion = FALSE;
+   static char const *versionPlists[] = {
+      "/System/Library/CoreServices/ServerVersion.plist",
+      "/System/Library/CoreServices/SystemVersion.plist"
+   };
+
+   /*
+    * Read the version info from ServerVersion.plist or SystemVersion.plist.
+    * Mac OS Server (10.6 and earlier) has both files, and the product name in
+    * ServerVersion.plist is "Mac OS X Server". Client versions of Mac OS only
+    * have SystemVersion.plist with the name "Mac OS X".
+    *
+    * This is better than executing system_profiler or sw_vers, or using the
+    * deprecated Gestalt() function (which only gets version numbers).
+    * All of those methods just read the same plist files anyway.
+    */
+
+   for (i = 0; !haveVersion && i < ARRAYSIZE(versionPlists); i++) {
+      CFDictionaryRef versionDict =
+         UtilMacos_CreateCFDictionaryWithContentsOfFile(versionPlists[i]);
+      if (versionDict != NULL) {
+         haveVersion = UtilMacos_ReadSystemVersion(versionDict,
+                                                   &productName,
+                                                   &productVersion,
+                                                   &productBuildVersion);
+         CFRelease(versionDict);
+      }
+   }
+
+   if (haveVersion) {
+      len = Str_Snprintf(osNameFull, sizeof osNameFull,
+                         "%s %s (%s) %s %s", productName, productVersion,
+                         productBuildVersion, buf->sysname, buf->release);
+
+      free(productName);
+      free(productVersion);
+      free(productBuildVersion);
+   } else {
+      Log("%s: Failed to read system version plist.\n", __FUNCTION__);
+
+      len = Str_Snprintf(osNameFull, sizeof osNameFull, "%s %s", buf->sysname,
+                         buf->release);
+   }
+
+   if (len != -1) {
+      if (Hostinfo_GetSystemBitness() == 64) {
+         len = Str_Snprintf(osName, sizeof osName, "%s%d%s", STR_OS_MACOS,
+                            Hostinfo_OSVersion(0), STR_OS_64BIT_SUFFIX);
+      } else {
+         len = Str_Snprintf(osName, sizeof osName, "%s%d", STR_OS_MACOS,
+                            Hostinfo_OSVersion(0));
+      }
+   }
+
+   if (len == -1) {
+      Warning("%s: Error: buffer too small\n", __FUNCTION__);
+   } else {
+      HostinfoPostData(osName, osNameFull);
+   }
+
+   return (len != -1);
+}
+#endif
+
+
+#if defined(USERWORLD)  // ESXi
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HostinfoESX --
+ *
+ *      Determine the specifics concerning ESXi.
+ *
+ * Return value:
+ *      TRUE   Success
+ *      FALSE  Failure
+ *
+ * Side effects:
+ *      Cache values are set when returning TRUE.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+HostinfoESX(struct utsname *buf)  // IN:
+{
+   int len;
+   char osName[MAX_OS_NAME_LEN];
+   char osNameFull[MAX_OS_FULLNAME_LEN];
+
+   /* The most recent osName always goes here. */
+   Str_Strcpy(osName, "vmkernel65", sizeof osName);
+
+   /* Handle any special cases */
+   if ((buf->release[0] <= '4') && (buf->release[1] == '.')) {
+      Str_Strcpy(osName, "vmkernel", sizeof osName);
+   } else if ((buf->release[0] == '5') && (buf->release[1] == '.')) {
+      Str_Strcpy(osName, "vmkernel5", sizeof osName);
+   } else if ((buf->release[0] >= '6') && (buf->release[1] == '.')) {
+      if (buf->release[2] < '5') {
+         Str_Strcpy(osName, "vmkernel6", sizeof osName);
+      }
+   }
+
+   len = Str_Snprintf(osNameFull, sizeof osNameFull, "VMware ESXi %s",
+                      buf->release);
+
+   if (len == -1) {
+      Warning("%s: Error: buffer too small\n", __FUNCTION__);
+   } else {
+      HostinfoPostData(osName, osNameFull);
+   }
+
+   return (len != -1);
+}
+#endif
+
+
 #if !defined __APPLE__ && !defined USERWORLD
 /*
  *-----------------------------------------------------------------------------
@@ -501,7 +702,7 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
          int release = 0;
          char *releaseStart = strstr(distroLower, "release");
 
-         if (releaseStart) {
+         if (releaseStart != NULL) {
             sscanf(releaseStart, "release %d", &release);
             if (release > 0) {
                snprintf(distroShort, distroShortSize, STR_OS_RED_HAT_EN"%d",
@@ -510,8 +711,6 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
          }
 
          if (release <= 0) {
-            Warning("%s: could not read Red Hat Enterprise release version\n",
-                  __FUNCTION__);
             Str_Strcpy(distroShort, STR_OS_RED_HAT_EN, distroShortSize);
          }
 
@@ -551,6 +750,16 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
       Str_Strcpy(distroShort, STR_OS_TURBO, distroShortSize);
    } else if (strstr(distroLower, "sun")) {
       Str_Strcpy(distroShort, STR_OS_SUN_DESK, distroShortSize);
+   } else if (strstr(distroLower, "amazon")) {
+      int amazonMajor = 0;
+
+      if (sscanf(distroLower, "amazon linux %d", &amazonMajor) != 1) {
+         /* Oldest known good release */
+         amazonMajor = 2;
+      }
+
+      Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_AMAZON,
+                  amazonMajor);
    } else if (strstr(distroLower, "annvix")) {
       Str_Strcpy(distroShort, STR_OS_ANNVIX, distroShortSize);
    } else if (strstr(distroLower, "arch")) {
@@ -669,12 +878,16 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
  *
  * HostinfoReadDistroFile --
  *
- *      Look for a distro version file /etc/xxx-release.
- *      Once found, read the file in and figure out which distribution.
+ *      Attempt to open and read the specified distro identification file.
+ *      If the file has data and can be read, attempt to identify the distro.
+ *
+ *      os-release rules require strict compliance. No data unless things
+ *      are perfect. For the LSB, we will return the contents of the file
+ *      even if things aren't strictly compliant.
  *
  * Return value:
- *      Returns TRUE on success and FALSE on failure.
- *      Returns distro information verbatium from /etc/xxx-release (distro).
+ *      TRUE   Success.
+ *      FALSE  Failure.
  *
  * Side effects:
  *      None
@@ -683,18 +896,18 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
  */
 
 static Bool
-HostinfoReadDistroFile(char *filename,  // IN: distro version file name
-                       int distroSize,  // IN: size of OS distro name buffer
-                       char *distro)    // OUT: full distro name
+HostinfoReadDistroFile(Bool osReleaseRules,           // IN: osRelease rules
+                       char *filename,                // IN: distro file
+                       const DistroNameScan *values,  // IN: search strings
+                       int distroSize,                // IN: length of distro
+                       char *distro)                  // OUT: full distro name
 {
-   int fd = -1;
+   int i;
    int buf_sz;
    struct stat st;
+   int fd = -1;
    Bool ret = FALSE;
    char *distroOrig = NULL;
-   char distroPart[DISTRO_BUF_SIZE];
-   char *tmpDistroPos = NULL;
-   int i = 0;
 
    /* It's OK for the file to not exist, don't warn for this.  */
    if ((fd = Posix_Open(filename, O_RDONLY)) == -1) {
@@ -733,20 +946,23 @@ HostinfoReadDistroFile(char *filename,  // IN: distro version file name
    distroOrig[buf_sz - 1] = '\0';
 
    /*
-    * For the case where we do have a release file in the LSB format,
-    * but there is no LSB module, let's parse the LSB file for possible fields.
+    * Attempt to parse a file with one name=value pair per line. Values are
+    * expected to embedded in double quotes.
     */
 
    distro[0] = '\0';
 
-   for (i = 0; lsbFields[i].name != NULL; i++) {
-      tmpDistroPos = strstr(distroOrig, lsbFields[i].name);
-      if (tmpDistroPos) {
-         sscanf(tmpDistroPos, lsbFields[i].scanstring, distroPart);
+   for (i = 0; values[i].name != NULL; i++) {
+      const char *tmpDistroPos = strstr(distroOrig, values[i].name);
+
+      if (tmpDistroPos != NULL) {
+         char distroPart[DISTRO_BUF_SIZE];
+
+         sscanf(tmpDistroPos, values[i].scanString, distroPart);
          if (distroPart[0] == '"') {
             char *tmpMakeNull;
 
-            tmpDistroPos += strlen(lsbFields[i].name) + 1;
+            tmpDistroPos += strlen(values[i].name) + 1;
             tmpMakeNull = strchr(tmpDistroPos + 1 , '"');
             if (tmpMakeNull != NULL) {
                *tmpMakeNull = '\0';
@@ -761,11 +977,31 @@ HostinfoReadDistroFile(char *filename,  // IN: distro version file name
    }
 
    if (distro[0] == '\0') {
-      /* Copy original string. What we got wasn't LSB compliant. */
-      Str_Strcpy(distro, distroOrig, distroSize);
-   }
+      /*
+       * The distro identification file was not standards compliant.
+       */
 
-   ret = TRUE;
+      if (osReleaseRules) {
+         /*
+          * We must strictly comply with the os-release standard. Error.
+          */
+
+         ret = FALSE;
+      } else {
+         /*
+          * Our old code played fast and loose with the LSB standard. If there
+          * was a distro identification file but the contents were not LSB
+          * compliant (e.g. RH 7.2), we returned success along with the
+          * contents "as is"... in the hopes that the available data would
+          * be "good enough". Continue the practice to maximize compatibility.
+          */
+
+         Str_Strcpy(distro, distroOrig, distroSize);
+         ret = TRUE;
+      }
+   } else {
+      ret = TRUE;
+   }
 
 out:
    if (fd != -1) {
@@ -863,6 +1099,392 @@ HostinfoGetCmdOutput(const char *cmd)  // IN:
    }
    return out;
 }
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HostinfoOsRelease --
+ *
+ *      Attempt to determine the distro string via the os-release standard.
+ *
+ * Return value:
+ *      TRUE   Success
+ *      FALSE  Failure
+ *
+ * Side effects:
+ *      distro is set on success.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+HostinfoOsRelease(char *distro,       // OUT:
+                  size_t distroSize)  // IN:
+{
+   Bool success = HostinfoReadDistroFile(TRUE, "/etc/os-release",
+                                         &osReleaseFields[0],
+                                         distroSize, distro);
+
+   if (!success) {
+      success = HostinfoReadDistroFile(TRUE, "/usr/lib/os-release",
+                                       &osReleaseFields[0],
+                                       distroSize, distro);
+   }
+
+   return success;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HostinfoLsb --
+ *
+ *      Attempt to determine the distro string via the LSB standard.
+ *
+ * Return value:
+ *      TRUE   Success
+ *      FALSE  Failure
+ *
+ * Side effects:
+ *      distro is set on success.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+HostinfoLsb(char *distro,       // OUT:
+            size_t distroSize)  // IN:
+{
+   char *lsbOutput;
+   Bool success = FALSE;
+
+   /*
+    * Try to get OS detailed information from the lsb_release command.
+    */
+
+   lsbOutput = HostinfoGetCmdOutput("/usr/bin/lsb_release -sd 2>/dev/null");
+
+   if (lsbOutput == NULL) {
+      int i;
+
+      /*
+       * Try to get more detailed information from the version file.
+       */
+
+      for (i = 0; distroArray[i].filename != NULL; i++) {
+         if (HostinfoReadDistroFile(FALSE, distroArray[i].filename,
+                                    &lsbFields[0], distroSize, distro)) {
+            success = TRUE;
+            break;
+         }
+      }
+
+      /*
+       * If we failed to read every distro file, exit now, before calling
+       * strlen on the distro buffer (which wasn't set).
+       */
+
+      if (distroArray[i].filename == NULL) {
+         Log("%s: Error: no distro file found\n", __FUNCTION__);
+      }
+   } else {
+      char *lsbStart = lsbOutput;
+      char *quoteEnd = NULL;
+
+      if (lsbStart[0] == '"') {
+         lsbStart++;
+         quoteEnd = strchr(lsbStart, '"');
+         if (quoteEnd) {
+            *quoteEnd = '\0';
+         }
+      }
+      Str_Strcpy(distro, lsbStart, distroSize);
+      free(lsbOutput);
+      success = TRUE;
+   }
+
+   return success;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HostinfoDefaultLinux --
+ *
+ *      Build and return generic data about the Linux disto. Only return what
+ *      has been required - short description (i.e. guestOS string), long
+ *      description (nice looking string).
+ *
+ * Return value:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HostinfoDefaultLinux(char *distro,            // OUT/OPT:
+                     size_t distroSize,       // IN:
+                     char *distroShort,       // OUT/OPT:
+                     size_t distroShortSize)  // IN:
+{
+   char generic[128];
+   char *distroOut = NULL;
+   char *distroShortOut = NULL;
+   int majorVersion = Hostinfo_OSVersion(0);
+   int minorVersion = Hostinfo_OSVersion(1);
+
+   switch (majorVersion) {
+   case 1:
+      distroOut = STR_OS_OTHER_FULL;
+      distroShortOut = STR_OS_OTHER;
+      break;
+
+   case 2:
+      if (minorVersion < 4) {
+         distroOut = STR_OS_OTHER_FULL;
+         distroShortOut = STR_OS_OTHER;
+      } else if (minorVersion < 6) {
+         distroOut = STR_OS_OTHER_24_FULL;
+         distroShortOut = STR_OS_OTHER_24;
+      } else {
+         distroOut = STR_OS_OTHER_26_FULL;
+         distroShortOut = STR_OS_OTHER_26;
+      }
+
+      break;
+
+   case 3:
+      distroOut = STR_OS_OTHER_3X_FULL;
+      distroShortOut = STR_OS_OTHER_3X;
+      break;
+
+   case 4:
+      distroOut = STR_OS_OTHER_4X_FULL;
+      distroShortOut = STR_OS_OTHER_4X;
+      break;
+
+   default:
+      /*
+       * Anything newer than this code explicitly handles returns the
+       * "highest" known short description and a dynamically created,
+       * appropriate long description.
+       */
+
+      Str_Sprintf(generic, sizeof generic, "Other Linux %d.%d kernel",
+                  majorVersion, minorVersion);
+      distroOut = &generic[0];
+      distroShortOut = STR_OS_OTHER_4X;
+   }
+
+   if (distro != NULL) {
+      ASSERT(distroOut != NULL);
+      Str_Strcpy(distro, distroOut, distroSize);
+   }
+
+   if (distroShort != NULL) {
+      ASSERT(distroShortOut != NULL);
+      Str_Strcpy(distroShort, distroShortOut, distroShortSize);
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HostinfoLinux --
+ *
+ *      Determine the specifics concerning Linux.
+ *
+ * Return value:
+ *      TRUE   Success
+ *      FALSE  Failure
+ *
+ * Side effects:
+ *      Cache values are set when returning TRUE
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+HostinfoLinux(struct utsname *buf)  // IN:
+{
+   int len;
+   char distro[DISTRO_BUF_SIZE];
+   char distroShort[DISTRO_BUF_SIZE];
+   char osName[MAX_OS_NAME_LEN];
+   char osNameFull[MAX_OS_FULLNAME_LEN];
+
+   /* Try the LSB standard first, this maximizes compatibility */
+   if (HostinfoLsb(distro, sizeof distro)) {
+      HostinfoDefaultLinux(NULL, 0, distroShort, sizeof distroShort);
+      HostinfoGetOSShortName(distro, distroShort, sizeof distroShort);
+      goto bail;
+   }
+
+   /* No LSB compliance, try the os-release standard */
+   if (HostinfoOsRelease(distro, sizeof distro)) {
+      HostinfoDefaultLinux(NULL, 0, distroShort, sizeof distroShort);
+      HostinfoGetOSShortName(distro, distroShort, sizeof distroShort);
+      goto bail;
+   }
+
+   /* Not LSB or os-release compliant. Report something generic. */
+   HostinfoDefaultLinux(distro, sizeof distro,
+                        distroShort, sizeof distroShort);
+
+bail:
+
+   len = Str_Snprintf(osNameFull, sizeof osNameFull, "%s %s %s", buf->sysname,
+                      buf->release, distro);
+
+   if (len != -1) {
+      if (Hostinfo_GetSystemBitness() == 64) {
+         len = Str_Snprintf(osName, sizeof osName, "%s%s", distroShort,
+                            STR_OS_64BIT_SUFFIX);
+      } else {
+         len = Str_Snprintf(osName, sizeof osName, "%s", distroShort);
+      }
+   }
+
+   if (len == -1) {
+      Warning("%s: Error: buffer too small\n", __FUNCTION__);
+   } else {
+      HostinfoPostData(osName, osNameFull);
+   }
+
+   return (len != -1);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HostinfoBSD --
+ *
+ *      Determine the specifics concerning BSD.
+ *
+ * Return value:
+ *      TRUE   Success
+ *      FALSE  Failure
+ *
+ * Side effects:
+ *      Cache values are set when returning TRUE
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+HostinfoBSD(struct utsname *buf)  // IN:
+{
+   int len;
+   int majorVersion;
+   char distroShort[DISTRO_BUF_SIZE];
+   char osName[MAX_OS_NAME_LEN];
+   char osNameFull[MAX_OS_FULLNAME_LEN];
+
+   /*
+    * FreeBSD releases report their version as "x.y-RELEASE".
+    */
+
+   majorVersion = Hostinfo_OSVersion(0);
+
+   /*
+    * FreeBSD 11 and later are identified using a different guest ID.
+    */
+   if (majorVersion >= 11) {
+      if (majorVersion >= 12) {
+         Str_Strcpy(distroShort, STR_OS_FREEBSD12, sizeof distroShort);
+      } else {
+         Str_Strcpy(distroShort, STR_OS_FREEBSD11, sizeof distroShort);
+      }
+   } else {
+      Str_Strcpy(distroShort, STR_OS_FREEBSD, sizeof distroShort);
+   }
+
+   len = Str_Snprintf(osNameFull, sizeof osNameFull, "%s %s", buf->sysname,
+                      buf->release);
+
+   if (len != -1) {
+      if (Hostinfo_GetSystemBitness() == 64) {
+         len = Str_Snprintf(osName, sizeof osName, "%s%s", distroShort,
+                            STR_OS_64BIT_SUFFIX);
+      } else {
+         len = Str_Snprintf(osName, sizeof osName, "%s", distroShort);
+      }
+   }
+
+   if (len == -1) {
+      Warning("%s: Error: buffer too small\n", __FUNCTION__);
+   } else {
+      HostinfoPostData(osName, osNameFull);
+   }
+
+   return (len != -1);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HostinfoSun --
+ *
+ *      Determine the specifics concerning Sun.
+ *
+ * Return value:
+ *      TRUE   Success
+ *      FALSE  Failure
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+HostinfoSun(struct utsname *buf)  // IN:
+{
+   int len;
+   char osName[MAX_OS_NAME_LEN];
+   char osNameFull[MAX_OS_FULLNAME_LEN];
+   char solarisRelease[3] = "";
+
+   /*
+    * Solaris releases report their version as "x.y". For our supported
+    * releases it seems that x is always "5", and is ignored in favor of "y"
+    * for the version number.
+    */
+
+   if (sscanf(buf->release, "5.%2[0-9]", solarisRelease) != 1) {
+      return FALSE;
+   }
+
+   len = Str_Snprintf(osNameFull, sizeof osNameFull, "%s %s", buf->sysname,
+                      buf->release);
+
+   if (len != -1) {
+      if (Hostinfo_GetSystemBitness() == 64) {
+         len = Str_Snprintf(osName, sizeof osName, "%s%s%s", STR_OS_SOLARIS,
+                            solarisRelease, STR_OS_64BIT_SUFFIX);
+      } else {
+         len = Str_Snprintf(osName, sizeof osName, "%s%s", STR_OS_SOLARIS,
+                            solarisRelease);
+      }
+   }
+
+   if (len == -1) {
+      Warning("%s: Error: buffer too small\n", __FUNCTION__);
+   } else {
+      HostinfoPostData(osName, osNameFull);
+   }
+
+   return (len != -1);
+}
 #endif // !defined __APPLE__ && !defined USERWORLD
 
 
@@ -874,7 +1496,8 @@ HostinfoGetCmdOutput(const char *cmd)  // IN:
  *      Determine the OS short (.vmx format) and long names.
  *
  * Return value:
- *      Returns TRUE on success and FALSE on failure.
+ *      TRUE   Success
+ *      FALSE  Failure
  *
  * Side effects:
  *      Cache values are set when returning TRUE.
@@ -885,11 +1508,8 @@ HostinfoGetCmdOutput(const char *cmd)  // IN:
 Bool
 HostinfoOSData(void)
 {
+   Bool success;
    struct utsname buf;
-   unsigned int lastCharPos;
-   char osName[MAX_OS_NAME_LEN];
-   char osNameFull[MAX_OS_FULLNAME_LEN];
-   static Atomic_uint32 mutex = {0};
 
    /*
     * Use uname to get complete OS information.
@@ -901,283 +1521,23 @@ HostinfoOSData(void)
       return FALSE;
    }
 
-   if (strlen(buf.sysname) + strlen(buf.release) + 3 > sizeof osNameFull) {
-      Warning("%s: Error: buffer too small\n", __FUNCTION__);
-
-      return FALSE;
-   }
-
-   Str_Strcpy(osName, STR_OS_EMPTY, sizeof osName);
-   Str_Sprintf(osNameFull, sizeof osNameFull, "%s %s", buf.sysname,
-               buf.release);
-
-#if defined USERWORLD
-   /* The most recent osName always goes here. */
-   Str_Strcpy(osName, "vmkernel65", sizeof osName);
-
-   /* Handle any special cases */
-   if ((buf.release[0] <= '4') && (buf.release[1] == '.')) {
-      Str_Strcpy(osName, "vmkernel", sizeof osName);
-   } else if ((buf.release[0] == '5') && (buf.release[1] == '.')) {
-      Str_Strcpy(osName, "vmkernel5", sizeof osName);
-   } else if ((buf.release[0] >= '6') && (buf.release[1] == '.')) {
-      if (buf.release[2] < '5') {
-         Str_Strcpy(osName, "vmkernel6", sizeof osName);
-      }
-   }
-
-   Str_Snprintf(osNameFull, sizeof osNameFull, "VMware ESXi %s", buf.release);
-#elif defined __APPLE__
-   {
-      /*
-       * Read the version info from ServerVersion.plist or SystemVersion.plist.
-       * Mac OS Server (10.6 and earlier) has both files, and the product
-       * name in ServerVersion.plist is "Mac OS X Server". Client versions
-       * of Mac OS only have SystemVersion.plist with the name "Mac OS X".
-       *
-       * This is better than executing system_profiler or sw_vers, or using
-       * the deprecated Gestalt() function (which only gets version numbers).
-       * All of those methods just read the same plist files anyway.
-       */
-      static char const *versionPlists[] = {
-         "/System/Library/CoreServices/ServerVersion.plist",
-         "/System/Library/CoreServices/SystemVersion.plist"
-      };
-      unsigned int i;
-      char *productName;
-      char *productVersion;
-      char *productBuildVersion;
-      Bool haveVersion = FALSE;
-
-      for (i = 0; !haveVersion && i < ARRAYSIZE(versionPlists); i++) {
-         CFDictionaryRef versionDict =
-            UtilMacos_CreateCFDictionaryWithContentsOfFile(versionPlists[i]);
-         if (versionDict != NULL) {
-            haveVersion = UtilMacos_ReadSystemVersion(versionDict,
-                                                      &productName,
-                                                      &productVersion,
-                                                      &productBuildVersion);
-            CFRelease(versionDict);
-         }
-      }
-
-      if (haveVersion) {
-         Str_Sprintf(osNameFull, sizeof osNameFull, "%s %s (%s) %s %s",
-                     productName, productVersion, productBuildVersion,
-                     buf.sysname, buf.release);
-         free(productName);
-         free(productVersion);
-         free(productBuildVersion);
-      } else {
-         Log("%s: Failed to read system version plist.\n", __FUNCTION__);
-         /* Fall back to returning the original osNameFull. */
-      }
-
-      Str_Snprintf(osName, sizeof osName, "%s%d", STR_OS_MACOS,
-                   Hostinfo_OSVersion(0));
-   }
+#if defined(USERWORLD)  // ESXi
+   success = HostinfoESX(&buf);
+#elif defined(__APPLE__) // MacOS
+   success = HostinfoMacOS(&buf);
 #else
-   // XXX Use compile-time instead of run-time checks for these as well.
-   if (strstr(osNameFull, "Linux")) {
-      char distro[DISTRO_BUF_SIZE];
-      char distroShort[DISTRO_BUF_SIZE];
-      static int const distroSize = sizeof distro;
-      char *lsbOutput;
-      int majorVersion;
-
-      /*
-       * Write default distro string depending on the kernel version. If
-       * later we find more detailed information this will get overwritten.
-       */
-
-      majorVersion = Hostinfo_OSVersion(0);
-      if (majorVersion < 2) {
-         Str_Strcpy(distro, STR_OS_OTHER_FULL, distroSize);
-         Str_Strcpy(distroShort, STR_OS_OTHER, distroSize);
-      } else if (majorVersion == 2) {
-          if (Hostinfo_OSVersion(1) < 4) {
-            Str_Strcpy(distro, STR_OS_OTHER_FULL, distroSize);
-            Str_Strcpy(distroShort, STR_OS_OTHER, distroSize);
-         } else if (Hostinfo_OSVersion(1) < 6) {
-            Str_Strcpy(distro, STR_OS_OTHER_24_FULL, distroSize);
-            Str_Strcpy(distroShort, STR_OS_OTHER_24, distroSize);
-         } else {
-            Str_Strcpy(distro, STR_OS_OTHER_26_FULL, distroSize);
-            Str_Strcpy(distroShort, STR_OS_OTHER_26, distroSize);
-         }
-      } else if (majorVersion == 3) {
-         Str_Strcpy(distro, STR_OS_OTHER_3X_FULL, distroSize);
-         Str_Strcpy(distroShort, STR_OS_OTHER_3X, distroSize);
-      } else if (majorVersion == 4) {
-         Str_Strcpy(distro, STR_OS_OTHER_4X_FULL, distroSize);
-         Str_Strcpy(distroShort, STR_OS_OTHER_4X, distroSize);
-      } else {
-         /*
-          * Anything newer than this code explicitly handles returns the
-          * "highest" known short description and a dynamically created,
-          * appropriate long description.
-          */
-
-         Str_Sprintf(distro, sizeof distro, "Other Linux %d.%d kernel",
-                     majorVersion, Hostinfo_OSVersion(1));
-         Str_Strcpy(distroShort, STR_OS_OTHER_4X, distroSize);
-      }
-
-      /*
-       * Try to get OS detailed information from the lsb_release command.
-       */
-
-      lsbOutput = HostinfoGetCmdOutput("/usr/bin/lsb_release -sd 2>/dev/null");
-      if (lsbOutput == NULL) {
-         int i;
-
-         /*
-          * Try to get more detailed information from the version file.
-          */
-
-         for (i = 0; distroArray[i].filename != NULL; i++) {
-            if (HostinfoReadDistroFile(distroArray[i].filename, distroSize,
-                                       distro)) {
-               break;
-            }
-         }
-
-         /*
-          * If we failed to read every distro file, exit now, before calling
-          * strlen on the distro buffer (which wasn't set).
-          */
-
-         if (distroArray[i].filename == NULL) {
-            Warning("%s: Error: no distro file found\n", __FUNCTION__);
-
-            return FALSE;
-         }
-      } else {
-         char *lsbStart = lsbOutput;
-         char *quoteEnd = NULL;
-
-         if (lsbStart[0] == '"') {
-            lsbStart++;
-            quoteEnd = strchr(lsbStart, '"');
-            if (quoteEnd) {
-               *quoteEnd = '\0';
-            }
-         }
-         Str_Strcpy(distro, lsbStart, distroSize);
-         free(lsbOutput);
-      }
-
-      HostinfoGetOSShortName(distro, distroShort, distroSize);
-
-      if (strlen(distro) + strlen(osNameFull) + 2 > sizeof osNameFull) {
-         Warning("%s: Error: buffer too small\n", __FUNCTION__);
-
-         return FALSE;
-      }
-
-      Str_Strcat(osNameFull, " ", sizeof osNameFull);
-      Str_Strcat(osNameFull, distro, sizeof osNameFull);
-
-      if (strlen(distroShort) + 1 > sizeof osName) {
-         Warning("%s: Error: buffer too small\n", __FUNCTION__);
-
-         return FALSE;
-      }
-
-      Str_Strcpy(osName, distroShort, sizeof osName);
-   } else if (strstr(osNameFull, "FreeBSD")) {
-      char distroShort[DISTRO_BUF_SIZE];
-      int majorVersion;
-
-      /*
-       * FreeBSD releases report their version as "x.y-RELEASE".
-       */
-
-      majorVersion = Hostinfo_OSVersion(0);
-
-      /*
-       * FreeBSD 11 and later are identified using a different guestId.
-       */
-      if (majorVersion >= 11) {
-         if (majorVersion >= 12) {
-            Str_Strcpy(distroShort, STR_OS_FREEBSD12, sizeof distroShort);
-         } else {
-            Str_Strcpy(distroShort, STR_OS_FREEBSD11, sizeof distroShort);
-         }
-      } else {
-         Str_Strcpy(distroShort, STR_OS_FREEBSD, sizeof distroShort);
-      }
-
-      if (strlen(distroShort) + 1 > sizeof osName) {
-         Warning("%s: Error: buffer too small\n", __FUNCTION__);
-
-         return FALSE;
-      }
-
-      Str_Strcpy(osName, distroShort, sizeof osName);
-   } else if (strstr(osNameFull, "SunOS")) {
-      size_t nameLen = sizeof STR_OS_SOLARIS - 1;
-      size_t releaseLen = 0;
-      char solarisRelease[3] = "";
-
-      /*
-       * Solaris releases report their version as "x.y". For our supported
-       * releases it seems that x is always "5", and is ignored in favor of
-       * "y" for the version number.
-       */
-
-      if (sscanf(buf.release, "5.%2[0-9]", solarisRelease) == 1) {
-         releaseLen = strlen(solarisRelease);
-      }
-
-      if (nameLen + releaseLen + 1 > sizeof osName) {
-         Warning("%s: Error: buffer too small\n", __FUNCTION__);
-
-         return FALSE;
-      }
-
-      Str_Snprintf(osName, sizeof osName, "%s%s", STR_OS_SOLARIS,
-                   solarisRelease);
+   if (strstr(buf.sysname, "Linux")) {
+      success = HostinfoLinux(&buf);
+   } else if (strstr(buf.sysname, "FreeBSD")) {
+      success = HostinfoBSD(&buf);
+   } else if (strstr(buf.sysname, "SunOS")) {
+      success = HostinfoSun(&buf);
+   } else {
+      success = FALSE;  // Unknown to us
    }
 #endif
 
-#ifndef USERWORLD
-   if (Hostinfo_GetSystemBitness() == 64) {
-      if (strlen(osName) + sizeof STR_OS_64BIT_SUFFIX > sizeof osName) {
-         Warning("%s: Error: buffer too small\n", __FUNCTION__);
-
-         return FALSE;
-      }
-      Str_Strcat(osName, STR_OS_64BIT_SUFFIX, sizeof osName);
-   }
-#endif
-
-   /*
-    * Before returning, truncate the \n character at the end of the full name.
-    */
-
-   lastCharPos = strlen(osNameFull) - 1;
-   if (osNameFull[lastCharPos] == '\n') {
-      osNameFull[lastCharPos] = '\0';
-   }
-
-   /*
-    * Serialize access. Collisions should be rare - plus the value will
-    * get cached and this won't get called anymore.
-    */
-
-   while (Atomic_ReadWrite(&mutex, 1)); // Spinlock.
-
-   if (!HostinfoOSNameCacheValid) {
-      Str_Strcpy(HostinfoCachedOSName, osName, sizeof HostinfoCachedOSName);
-      Str_Strcpy(HostinfoCachedOSFullName, osNameFull,
-                 sizeof HostinfoCachedOSFullName);
-      HostinfoOSNameCacheValid = TRUE;
-   }
-
-   Atomic_Write(&mutex, 0);  // unlock
-
-   return TRUE;
+   return success;
 }
 
 

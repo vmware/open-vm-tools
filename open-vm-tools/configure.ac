@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2007-2017 VMware, Inc.  All rights reserved.
+### Copyright (C) 2007-2018 VMware, Inc.  All rights reserved.
 ###
 ### Configure script for building the VMware OSS Tools.
 ###
@@ -35,10 +35,10 @@
 ### Initialization
 ###
 
-TOOLS_VERSION="10.2.0"
+TOOLS_VERSION="10.2.5"
 AC_INIT(
    [open-vm-tools],
-   [10.2.0],
+   [10.2.5],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
@@ -152,9 +152,9 @@ if test "x$enable_glibc_check" != "xno" ; then
       libc_ver_mnr=`expr "$libc_ver" : "[[0-9]]*\.\([[0-9]]*\)"`
       libc_ver_num=`expr $libc_ver_mjr \* 1000 + $libc_ver_mnr`
 
-      if test "$libc_ver_num" -lt 2012; then
+      if test "$libc_ver_num" -lt 2011; then
          AC_MSG_ERROR(["glibc version $libc_ver detected.
-This version of open-vm-tools requires glibc version 2.12 or later.
+This version of open-vm-tools requires glibc version 2.11 or later.
 Please use an older version of open-vm-tools for this system."])
       fi
    fi
@@ -193,6 +193,10 @@ if test "$with_kernel_modules" = "yes"; then
    esac
 fi
 
+# Locates X includes and lib, adds --without-x option,
+# and sets no_x.
+AC_PATH_XTRA
+
 # Arguments for disabling individual open-vm-tools features or libraries.
 AC_ARG_ENABLE(
    multimon,
@@ -219,26 +223,31 @@ AC_ARG_WITH(
    [with_gtk2="auto"])
 
 
-if test "$with_gtk2" = "auto" ; then
-   if test "$with_gtk3" = "auto" ; then
-      with_gtk2="no"
-      with_gtk3="yes"
-   elif test "$with_gtk3" = "no" ; then
-      with_gtk2="yes"
-   elif test "$with_gtk3" = "yes" ; then
-      with_gtk2="no"
-   fi
-elif test "$with_gtk2" = "no" ; then
-   if test "$with_gtk3" = "auto" ; then
-      with_gtk3="yes"
-   elif test "$with_gtk3" = "no" ; then
-      AC_MSG_ERROR('need either gtk2 or gtk3 or build with --without-x to disable building desktop plugins')
-   fi
-elif test "$with_gtk2" = "yes"  ; then
-   if test "$with_gtk3" = "auto" ; then
-      with_gtk3="no"
-   elif test "$with_gtk3" = "yes" ; then
-      AC_MSG_ERROR('cannot set both --with-gtk2 and --with-gtk3')
+if test "$no_x" = "yes" ; then
+   with_gtk2="no"
+   with_gtk3="no"
+else
+   if test "$with_gtk2" = "auto" ; then
+      if test "$with_gtk3" = "auto" ; then
+         with_gtk2="no"
+         with_gtk3="yes"
+      elif test "$with_gtk3" = "no" ; then
+         with_gtk2="yes"
+      elif test "$with_gtk3" = "yes" ; then
+         with_gtk2="no"
+      fi
+   elif test "$with_gtk2" = "no" ; then
+      if test "$with_gtk3" = "auto" ; then
+         with_gtk3="yes"
+      elif test "$with_gtk3" = "no" ; then
+         AC_MSG_ERROR('need either gtk2 or gtk3 or build with --without-x to disable building desktop plugins')
+      fi
+   elif test "$with_gtk2" = "yes"  ; then
+      if test "$with_gtk3" = "auto" ; then
+         with_gtk3="no"
+      elif test "$with_gtk3" = "yes" ; then
+         AC_MSG_ERROR('cannot set both --with-gtk2 and --with-gtk3')
+      fi
    fi
 fi
 
@@ -355,8 +364,6 @@ fi
 ###
 ### Libraries
 ###
-
-AC_PATH_XTRA
 
 #
 # Check for libintl.h. When configuring using "--without-x", /usr/local/include
@@ -598,55 +605,55 @@ fi
 
 if test "$enable_vgauth" = "yes"; then
    CPPFLAGS="$CPPFLAGS -DUSE_VGAUTH"
-if test "$use_xmlsec1" = "yes"; then
-   AC_VMW_DEFAULT_FLAGS([XML2])
-   AC_VMW_CHECK_LIB([xml2],
-                    [XML2],
-                    [],
-                    [],
-                    [],
-                    [],
-                    [],
-                    [],
-                    [AC_VMW_LIB_ERROR([XML2], [xml2])])
+   if test "$use_xmlsec1" = "yes"; then
+      AC_VMW_DEFAULT_FLAGS([XML2])
+      AC_VMW_CHECK_LIB([xml2],
+                       [XML2],
+                       [],
+                       [],
+                       [],
+                       [],
+                       [],
+                       [],
+                       [AC_VMW_LIB_ERROR([XML2], [xml2])])
 
-# Multiple distros built xmlsec1 with -DXMLSEC_NO_SIZE_T but
-# their xmlssec1-config --cflags doesn't properly report it,
-# so force it on.
-   AC_VMW_DEFAULT_FLAGS([XMLSEC1])
-   AC_VMW_CHECK_LIB([xmlsec1],
-                    [XMLSEC1],
-                    [],
-                    [xmlsec1-config],
-                    [],
-                    [xmlsec/xmlsec.h],
-                    [xmlSecCheckVersion],
-                    [XMLSEC1_CPPFLAGS="$XMLSEC1_CPPFLAGS -DXMLSEC_NO_SIZE_T"],
-                    [AC_VMW_LIB_ERROR([XMLSEC1], [xmlsec1])])
+   # Multiple distros built xmlsec1 with -DXMLSEC_NO_SIZE_T but
+   # their xmlssec1-config --cflags doesn't properly report it,
+   # so force it on.
+      AC_VMW_DEFAULT_FLAGS([XMLSEC1])
+      AC_VMW_CHECK_LIB([xmlsec1],
+                       [XMLSEC1],
+                       [],
+                       [xmlsec1-config],
+                       [],
+                       [xmlsec/xmlsec.h],
+                       [xmlSecCheckVersion],
+                       [XMLSEC1_CPPFLAGS="$XMLSEC1_CPPFLAGS -DXMLSEC_NO_SIZE_T"],
+                       [AC_VMW_LIB_ERROR([XMLSEC1], [xmlsec1])])
 
-else
-   AC_VMW_DEFAULT_FLAGS([XERCES])
-   AC_VMW_CHECK_LIB([xerces-c],
-                    [XERCES],
-                    [],
-                    [],
-                    [],
-                    [],
-                    [],
-                    [],
-                    [AC_VMW_LIB_ERROR([XERCES], [xerces])])
+   else
+      AC_VMW_DEFAULT_FLAGS([XERCES])
+      AC_VMW_CHECK_LIB([xerces-c],
+                       [XERCES],
+                       [],
+                       [],
+                       [],
+                       [],
+                       [],
+                       [],
+                       [AC_VMW_LIB_ERROR([XERCES], [xerces])])
 
-   AC_VMW_DEFAULT_FLAGS([XMLSECURITY])
-   AC_VMW_CHECK_LIB([xml-security-c],
-                    [XMLSECURITY],
-                    [],
-                    [],
-                    [],
-                    [],
-                    [],
-                    [],
-                    [AC_VMW_LIB_ERROR([XMLSECURITY], [xmlsecurity])])
-fi
+      AC_VMW_DEFAULT_FLAGS([XMLSECURITY])
+      AC_VMW_CHECK_LIB([xml-security-c],
+                       [XMLSECURITY],
+                       [],
+                       [],
+                       [],
+                       [],
+                       [],
+                       [],
+                       [AC_VMW_LIB_ERROR([XMLSECURITY], [xmlsecurity])])
+   fi
 else
    enable_caf=no
 fi
@@ -948,7 +955,7 @@ if test "$with_dnet" = "yes"; then
    if test $have_dnet = "no"; then
 		AC_MSG_ERROR(
 		   [dnet-config was not found on your PATH. Please configure without dnet (using --without-dnet) or install dnet - http://libdnet.sourceforge.net])
-	fi
+   fi
 fi
 
 if test "$with_dnet" != "yes"; then
@@ -962,22 +969,33 @@ AC_ARG_WITH([icu],
             [with_icu=yes])
 
 if test "$have_x" = "yes" -o "$with_icu" = "yes"; then
-   AC_CHECK_TOOL([have_cxx], [$CXX], [no])
+   # AC_CHECK_PROG fails to locate CXX if it's set to an absolute
+   # path and it includes arguments, which is often the case when
+   # cross compling.  Try to handle this case directly.
+   case "$CXX" in
+      [/*])
+         AS_IF(test -x ${CXX%% *}, [have_cxx=yes], [have_cxx=no])
+         ;;
+      [*])
+         AC_CHECK_PROG([have_cxx], [$CXX], [yes], [no])
+         ;;
+   esac
    if test "$have_cxx" = "no"; then
       AC_MSG_ERROR([C++ compiler not found. Make sure you have a C++ compiler installed or configure without X11 (using --without-x) and without ICU (using --without-icu).])
    fi
 fi
 
 if test "$with_icu" = "yes"; then
-   AC_VMW_CHECK_LIBXX([icuuc],
+   AC_VMW_CHECK_LIBXX([icui18n],
                       [ICU],
-                      [],
+                      [icu-i18n],
                       [icu-config],
                       [],
                       [unicode/utf.h],
                       [],
                       [ICU_CPPFLAGS="$ICU_CPPFLAGS -DUSE_ICU"],
                       [AC_MSG_ERROR([ICU library not found. Please configure without ICU (using --without-icu) or install ICU - http://www.icu-project.org])])
+
    # Check whether we have ICU >= 3.8.
    AC_LANG_PUSH([C++])
    AC_MSG_CHECKING([for ucasemap_utf8ToTitle in ICU])

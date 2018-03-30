@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -96,11 +96,11 @@ typedef struct WiperInitData {
 } WiperInitData;
 
 Bool Wiper_Init(WiperInitData *clientData);
-Bool WiperPartition_Open(WiperPartition_List *pl);
+Bool WiperPartition_Open(WiperPartition_List *pl, Bool shrinkableOnly);
 void WiperPartition_Close(WiperPartition_List *pl);
 
 WiperPartition *WiperSinglePartition_Allocate(void);
-WiperPartition *WiperSinglePartition_Open(const char *mntpt);
+WiperPartition *WiperSinglePartition_Open(const char *mntpt, Bool shrinkableOnly);
 void WiperSinglePartition_Close(WiperPartition *);
 Bool Wiper_IsWipeSupported(const WiperPartition *);
 

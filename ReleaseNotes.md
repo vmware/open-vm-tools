@@ -1,68 +1,76 @@
-# open-vm-tools 10.2.0 Release Notes
+**Updated on: 29 MAR 2018**
 
-Updated on 14 Dec 2017
-##What's in the Release Notes
-The release notes cover the following topics: 
+open-vm-tools | 29 MAR 2018 | Build 8068406
 
-- What's New
-- Internationalization
-- Compatibility
-- Installation and Upgrades for This Release
-- Known Issues
+Check for additions and updates to these release notes.
 
-## What's New
+What's in the Release Notes
+---------------------------
 
-- **FreeBSD support**: freebsd.iso is not available for VMware Tools 10.2.0 and later as it has been discontinued in favor of open-vm-tools. For more information, see Compatibility Notes section of this release notes.
+The release notes cover the following topics:
 
-## Internationalization 
-open-vm-tools 10.2.0 supports the following languages:
+*   [What's New](#whatsnew)
+*   [Before You Begin](#beforeyoubegin)
+*   [Internationalization](#i18n)
+*   [Compatibility Notes](#compatibility)
+*   [Resolved Issues](#resolvedissues)
+*   [Known Issues](#knownissues)
 
-- English 
-- French 
-- German 
-- Spanish 
-- Italian 
-- Japanese 
-- Korean 
-- Simplified Chinese 
-- Traditional Chinese
+What's New
+----------
 
-## Compatibility 
-- open-vm-tools 10.2.0 is compatible with all supported versions of VMware vSphere ESXi 5.5 and later, VMware Workstation 14.0 and VMware Fusion 10.0. See VMware Compatibility Guide for more information.
-- Starting with VMware Tools version 10.2.0, Perl script based VMware Tools installation for FreeBSD has been discontinued. Going forward, FreeBSD systems are supported only through the open-vm-tools packages directly available from FreeBSD package repositories. FreeBSD packages for open-vm-tools 10.1.0 and later are available from FreeBSD package repositories.
+*   **Quiesced snapshots**: Ability to exclude specific file systems from quiesced snapshots on Linux guest operating systems. This configuration can be set in the tools configuration file. For more details, see the VMware Tools [Documentation](https://docs.vmware.com/en/VMware-Tools/index.html) page.
+*   **Disable display mode setting**: A configuration option is introduced to disable normal display mode setting functionality using open-vm-tools. For more details, see [KB 53572](https://kb.vmware.com/s/article/53572).
+*   **Resolved Issues: **This release of open-vm-tools resolves few issues which are documented in the [Resolved Issues](#resolvedissues) section of this release notes.
 
-## Installation and Upgrades for This Release 
-The steps to install open-vm-tools vary depending on your VMware product and the guest operating system you have installed. For general steps to install open-vm-tools in most VMware products, see https://github.com/vmware/open-vm-tools/blob/master/README.md
+Before You Begin
+----------------
 
-## Resolved Issues 
+Important note about upgrading to ESXi 5.5 Update 3b or later
 
-* **Summary page of the VM does not list the IP address of the VMs in the right order**
+Resolution on incompatibility and general guidelines: While upgrading ESXi hosts to ESXi 5.5 Update 3b or ESXi 6.0 Update 1 or later, and using older versions of Horizon View Agent, refer to the knowledge base articles:
 
-    The configuration option to exclude network interfaces from GuestInfo and set primary and low priority network interfaces is added to the tools.conf configuration file.
-This issue is resolved in this release.
+*   [Connecting to View desktops with Horizon View Agent 5.3.5 or earlier hosted on ESXi 5.5 Update 3b or later fails with a black screen.](http://kb.vmware.com/kb/2144438)
+*   [Connecting to View desktops with Horizon View Agent 6.0.x or 6.1.x hosted on ESXi 5.5 Update 3b or later fails with a black screen.](http://kb.vmware.com/kb/2144518)
+*   [Connecting to View desktops with Horizon View Agent 6.1.x hosted on ESXi 6.0 Update 1 or later fails with a black screen.](http://kb.vmware.com/kb/2144453)
 
-* **Guest authentication fails with a SystemError fault when the requested password is expired**
+Internationalization
+--------------------
 
-    Attempting to authenticate with an expired password, for example when attempting Guest Operations, fails with a SystemError fault.
-This issue is resolved in this release. Authentication with an expired password now fails with an InvalidGuestLogin fault in order to provide a more precise error code for such a case.
+open-vm-tools 10.2.5 is available in the following languages:
 
-* **The free space reported in vim.vm.GuestInfo.DiskInfo for a Linux guest does not match with df command in the guest**
+*   English
+*   French
+*   German
+*   Spanish
+*   Italian
+*   Japanese
+*   Korean
+*   Simplified Chinese
+*   Traditional Chinese
 
-    Prior to VMware Tools version 10.2.0, the free space reported in vim.vm.GuestInfo.DiskInfo for a Linux guest included file system specific reserved blocks. This led to guest file system usage in vSphere clients reporting more free space than what was reported by df command in the guest. This issue has been resolved in this release by not including the file system specific reserved blocks in the free space reported in vim.vm.GuestInfo.DiskInfo for Linux guests by default. The default behavior can be reversed with a configuration in ```/etc/vmware-tools/tools.conf``` file in the Linux guest operating systems:
-```
-    [guestinfo] 
-    diskinfo-include-reserved=true
-```
+Compatibility Notes
+-------------------
 
-* **VMware user process might not restart after upgrades of open-vm-tools**
+*   open-vm-tools 10.2.5 is compatible with supported versions of VMware vSphere ESXi 5.5 and later, VMware Workstation 14.0 and VMware Fusion 10.0. See [VMware Compatibility Guide](http://www.vmware.com/resources/compatibility/search.php) for more information.
+*   Starting with open-vm-tools version 10.2.0, Perl script-based open-vm-tools installation for FreeBSD has been discontinued. FreeBSD systems are supported only through the open-vm-tools packages directly available from FreeBSD package repositories. FreeBSD packages for open-vm-tools 10.1.0 and later are available from FreeBSD package repositories.
 
-    When the VMware user process receives a SIGUSR2, it restarts itself by executing vmware-user and terminates itself. This is used on upgrades to ensure that the latest version of vmtoolsd is running. vmware-user was not available in open-vm-tools..
-This issue is fixed in this release.
+### Guest Operating System Customization Support
 
-## Known Issues
+The [Guest OS Customization Support Matrix](http://partnerweb.vmware.com/programs/guestOS/guest-os-customization-matrix.pdf) provides details about the guest operating systems supported for customization.
 
-* **Shared folder shows empty on Ubuntu 17.04 with open-vm-tools**.
-    On rebooting Ubuntu 17.04 with open-vm-tools installed, the shared folders /mnt directory is empty. This issue is observed even after installing Ubuntu 17.04 using easy install, enabling shared folders in VM settings and selecting Always Enabled.
-Workaround: Disable Shared Folders in the interface and enable after the VM is powered on with VMware Tools running.
+Resolved Issues
+---------------
 
+*   **open-vm-tools 10.2.0 does not recognize UFS filesystem partitions**
+    
+    open-vm-tools 10.2.0 has dropped UFS from the list of known file system type. As a result, the default filesystem of Solaris and FreeBSD is not recognized. open-vm-tools Services in the GuestInfo for the virtual machine do not report these filesystems. You might not be able to monitor the disk usage of UFS filesystems with vRealize Operations or vCenter Managed Object Browser.
+    
+    This issue is resolved in this release.
+    
+*   **Information about non-existing device mounted to a file system was not reported**
+    
+    Few Linux guest operating systems might have a non-existing device mounted to a filesystem. For example /dev/root/. open-vm-tools does not report this information.
+    
+    This issue is resolved in this release.
 

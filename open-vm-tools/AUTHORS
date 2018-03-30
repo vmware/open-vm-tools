@@ -13,3 +13,15 @@ Josh Paetzel    Add support for 64-bit inodes in FreeBSD 12
 
 Sebastian Parschauer    Add support to properly report SLES12-SAP
                 - https://github.com/vmware/open-vm-tools/pull/123
+
+Andrew Stormont Fix finding C++ compiler for cross-compiling
+                - https://github.com/vmware/open-vm-tools/pull/206
+
+Josh Paetzel    Fix compilation error in clang 6.0
+                - https://github.com/vmware/open-vm-tools/pull/221
+
+Mike Latimer    Restrict udev rules to disk devices only
+                - https://github.com/vmware/open-vm-tools/pull/216
+
+Thomas Mueller  Ignore ENXIO errors with SyncDriver
+                - https://github.com/vmware/open-vm-tools/pull/218

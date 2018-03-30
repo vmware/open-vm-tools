@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -36,7 +36,7 @@
  * The following strings may be incorporated into MSGID strings.  Updating
  * them therefore may require updating translations and vmsg auditing files.
  */
-#define COPYRIGHT_YEARS    "1998-2017"
+#define COPYRIGHT_YEARS    "1998-2018"
 #define COPYRIGHT_STRING   "Copyright (C) " COPYRIGHT_YEARS " " COMPANY_NAME
 #define RIGHT_RESERVED     "All rights reserved."
 
