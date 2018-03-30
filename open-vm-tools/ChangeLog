@@ -1,3 +1,242 @@
+commit 98f04ea660b66e2775b0d4d700346033fc74dc1a
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Mar 21 12:55:37 2018 -0700
+
+    Disable CAF for 10.2.5 release; added logic on Windows to close the socket
+    opened when checking if the tunnel has been enabled.
+
+commit 8175417110ca646cd79433c352b209164dd266e8
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Mar 21 12:55:37 2018 -0700
+
+    Update Tools OSL to 10.2.5
+
+commit 799b14b030f2c54d1b2a7e59788bc64b86e5cec4
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Mar 7 15:35:47 2018 -0800
+
+    Fix a typo in the sscanf format string for Amazon Linux
+
+commit 477ed7490a0c8376b050b49af84a07e82490fbe6
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon Feb 26 12:35:36 2018 -0800
+
+    Skip specified file systems when doing a quiesced snapshot on Linux
+    
+    Add a tools.conf setting "excludedFileSystems" that specifies one or
+    more file system mount points to be skipped over when performing a
+    quiesced snapshot on Linux guests.  The value of excludedFileSystems
+    is a comma-separated list of glob-style patterns as recognized by the
+    glib routines described here:
+    
+    https://developer.gnome.org/glib/stable/glib-Glob-style-pattern-matching.html
+    
+    With this change, when performing a quiesced snapshot, the sync driver
+    freeze routine removes from the list of mount points it is to process
+    any path that matches a pattern in the excludedFileSystems list.
+    
+    In the course of testing the change, a bug was found in SyncDriverFreeze
+    in which it returned SD_ERROR rather than FALSE when the path list is
+    empty.
+    
+    This change also includes some whitespace cleanup in syncDriverWin32.c.
+
+commit 43a25b412defcecde3379440969af926aae7554c
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon Feb 26 12:35:36 2018 -0800
+
+    Skip davfs mount points during quiescing
+    
+    The davfs2 is a Linux filesystem that allows mounting a Web Distributed
+    Authoring and Versioning (WebDAV) network resource as a local filesystem.
+    On some Linux releases, the FREEZE ioctl() is rejected and quiescing
+    these filesystems is not attempted.  On others, however, the FREEZE is
+    not rejected and there exists the potential of a quiescing deadlock
+    if the davfs2 attempts to write to its cache in /var which has already
+    been quiesced.
+    
+    This fix is to avoid a potential deadlock by excluding davfs2 mounts
+    as the networking filesystem they are.  Since davfs2 may be implemented
+    on the Linux fuse (default) or coda filesystem kernel module,
+    the detection of these network mounts must be based upon detection
+    of the URL prefix of the mounted device name.
+    
+    The static function SyncDriverIsRemoteFSType() is being updated to
+    not only exclude remote filesystems based on filesystem type but also
+    to exclude davfs2 remote filesystems by the "http://" or "https://"
+    URL prefix on the device name.  The function name is being changed
+    to SyncDriverIsRemoteFS().
+
+commit f14358943289c29fc2a0374d7e258ca9d498225d
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon Feb 26 12:35:36 2018 -0800
+
+    Use a unique random temp directory for vmtoolsd on Linux.
+    
+    The temporay directory currently used by vmtoolsd and its plugins
+    on Linux is of the form /tmp/vmware-<user>.  Since it is used to
+    upload VMware Tools upgrade and GOS customization scripts and commands,
+    that name predictability may make it susceptible to attack.  This
+    change adds a new function File_GetSafeRandomTmpDir() in
+    bora/lib/file/fileTempPosix.c to both add the PID to the user name
+    and add a random number suffix to the temp directory path.
+    
+        /tmp/vmware-<user>_<pid>-nnnnnn
+    
+    VMware Tools commands and plugins are being updated to use this random
+    temp directory.
+
+commit 17457802242a0ba4c8988c66575ef9b4f276a728
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon Feb 26 12:35:35 2018 -0800
+
+    Add new gos definition "amazon2-64" for Amazon Linux 2 in VMware Tools 10.2.5
+
+commit 9af84874a5294d0e9886156a07b539f3c93d2982
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon Feb 26 12:35:35 2018 -0800
+
+    open-vm-tools: ignore with/without gtk2/3 options when building without X
+    
+    When building without X support, we should ignore the options to enable/disable
+    gtk2 and gtk3. This was reported in gthub issue
+    https://github.com/vmware/open-vm-tools/issues/228 .
+
+commit 6559b7dfd9f6f40c2df76e1b1e785fa3eb1c1da4
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon Feb 26 12:35:35 2018 -0800
+
+    Ignore ENXIO errors with SyncDriver
+    
+    A quiesced snapshot fails when the target VM has a bind mount.  The
+    problem is that the syncDriver gets an ENXIO error when it tries to
+    open the mount point.  To fix the problem, let the quiesce operation
+    skip a mount point when opening it results in an ENXIO error.
+    
+    This change is based on pull request
+    https://github.com/vmware/open-vm-tools/pull/218 .
+
+commit 564328f29e5caf03b4a1248cb1706909a0b9fb89
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon Feb 26 12:35:35 2018 -0800
+
+    open-vm-tools: use pkg-config for building with icu
+    
+    icu uses pkg-config in recent versions, and no longer ships with
+    icu-config in most recent versions. Make the configure script
+    use pkg-config for icu if available, and icu-config if not. For
+    pkg-config we need to specify 'icui18n' which returns the same result
+    as icu-config did to link with icui18n.
+
+commit fda46f3a795755b48d5136eca375c349a3f32b56
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon Jan 29 16:52:19 2018 -0800
+
+    open-vm-tools: use ENV{DEVTYPE}=="disk" in udev scsi rule
+
+commit ba507b34ac72d538e0bdaec8abc14b9779e3ffbf
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon Jan 29 16:52:19 2018 -0800
+
+    Update copyright year to 2018.
+    
+    10.2.5 will be released in 2018. bora/public/vm_tools_version.h has
+    been modified since OVT 10.2.0. Update the copyright year
+    to 2018.
+
+commit d3bdff6d2ba3dff26ab4b18dd9da9d1aa42f8fcd
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon Jan 29 16:52:19 2018 -0800
+
+    Restore "ufs" to the list of known filesystems
+    
+    "ufs" was mistakenly removed from the the list of known filesystems in
+    vmware tools 10.2.0.   Correct that mistake.
+
+commit 3046437d0990e875a653e4889f2bdbfd23bb50b6
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon Jan 29 16:52:19 2018 -0800
+
+    Fix error reported by clang 6.0.0 - comparison 'int' <= 4294967295 is always true
+    
+    This patch is a slightly modified version of the patch submitted by
+    Josh Paetzel in pull request:
+      https://github.com/vmware/open-vm-tools/pull/221
+
+commit 05247ceca97fe995e4f5590740c5c454c3c29707
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon Jan 29 16:52:19 2018 -0800
+
+    Update tools copyright to 2018
+
+commit c72ec858663e7863b5acf795d561b526c3e1737f
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon Jan 29 16:52:19 2018 -0800
+
+    Get rid of convertutf and bsd_printf for all non-Win VMware Tools
+
+commit 0e58c8406370aa0c163fef548804130c5b454e50
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon Jan 29 16:52:19 2018 -0800
+
+    Set x11 as backend for gtk3 of open-vm-tools
+    
+    Open-vm-tools defaults to gtk3, if available.  For distros where wayland is
+    the default display server, plugins will try to use wayland as the backend
+    of gtk3.  As a result, gdk_display_get_default() returns a wayland display,
+    and gdk_display_get_default_group() also returns a wayland window.  Then,
+    applying GDK_WINDOW_XID() on the wayland window will result in crashes.
+    
+    As x11-specific code is widely used in tools plugins, as a compromized
+    solution, force plugins to run on XWayland, which is the compatible mode
+    of wayland for legacy X11 clients.
+    
+    gdk_set_allowed_backends() only applies when flag GTK3 is defined,
+    and the gtk version is over 3.10.
+
+commit 7d912c7d754df19c4580382c20e9e7701afd5eaa
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon Jan 29 16:52:18 2018 -0800
+
+    open-vm-tools: fix finding C++ compiler for cross-compiling
+    
+    Patch contributed by Andrew Stormont (andy-js) on github:
+     https://github.com/vmware/open-vm-tools/pull/206 and
+     https://github.com/vmware/open-vm-tools/issues/92.
+
+commit 97e001504a19fd51aac49acd87be837194ce2cd2
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon Jan 29 16:52:18 2018 -0800
+
+    GuestInfo: skip check for shrinkable disk when gathering disk info
+
+commit fd5cd39f8eb28421b2f280ebfac30ee7d15a4cd4
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon Jan 29 16:52:18 2018 -0800
+
+    Change the glibc constraint to 2.11 from 2.12.
+    
+    Earlier, a change was made to stop building open-vm-tools
+    for LINUX systems with glibc < 2.12 But SLES 11 SP4 which is
+    supported comes with glibc 2.11.3 The check will
+    block SLES 11 SP4 from moving to OVT 10.2.x To fix it, this change
+    relaxes the glibc constraint to 2.11.
+
+commit 2d110a3e7953986c2562dbf9870e0b3b62212083
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon Jan 29 16:52:18 2018 -0800
+
+    Bump tools version to 10.2.5 on the vmtools-prod-cpd branch
+    
+    Set the version for VMware Tools 10.2.x, Update 1 to 10.2.5.
+    This bump is to allow versions numbers for hot patches which may
+    be issued before the update is GA.
+
+commit a9668e035cf1b5e0e33ddd55de7a7bcd32794425
+Author: johnwvmw <jwolfe@vmware.com>
+Date:   Thu Dec 21 18:25:08 2017 -0500
+
+    Add FreeBSD 10.x and later releases to the list of operating systems with open-vm-tools.
 commit b6b01435c5d2eaaa66734392d0de754509b655fb
 Author: Oliver Kurth <okurth@vmware.com>
 Date:   Thu Dec 14 13:46:57 2017 -0800
