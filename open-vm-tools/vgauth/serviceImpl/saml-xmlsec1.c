@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2016-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2016-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -17,7 +17,7 @@
  *********************************************************/
 
 /**
- * @file saml-xmlsec1.cpp
+ * @file saml-xmlsec1.c
  *
  * Code for authenticating users based on SAML tokens.
  */
@@ -174,8 +174,8 @@ LoadCatalogAndSchema(void)
        * check in ../ in case we're in a dev environment.
        */
       schemaDir = g_build_filename(gInstallDir, "schemas", NULL);
-      if (!(g_file_test(dir, G_FILE_TEST_EXISTS) &&
-            g_file_test(dir, G_FILE_TEST_IS_DIR))) {
+      if (!(g_file_test(schemaDir, G_FILE_TEST_EXISTS) &&
+            g_file_test(schemaDir, G_FILE_TEST_IS_DIR))) {
 
          gchar *newDir = g_build_filename(gInstallDir, "..", "schemas", NULL);
 
@@ -1331,7 +1331,7 @@ VerifySAMLToken(const gchar *token,
                            strlen(token),
                            NULL, NULL, 0);
 #else
-   doc = xmlParseMemory(token, strlen(token));
+   doc = xmlParseMemory(token, (int)strlen(token));
 #endif
    if ((NULL == doc) || (xmlDocGetRootElement(doc) == NULL)) {
       g_warning("Failed to parse document\n");
