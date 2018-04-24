@@ -511,6 +511,7 @@ typedef uint64    BPN;
 typedef uint32    PageCnt;
 typedef uint64    PgCnt64;
 typedef uint32    PageNum;
+typedef uint64    PgNum64;
 typedef unsigned      MemHandle;
 typedef unsigned int  IoHandle;
 typedef int32     World_ID;
