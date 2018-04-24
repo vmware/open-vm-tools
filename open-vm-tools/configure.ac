@@ -402,7 +402,7 @@ if test "$enable_deploypkg" = "yes"; then
                    [],
                    [0.0.20040308alpha],
                    [mspack.h],
-                   [],
+                   [mspack_version],
                    [],
                    [AC_MSG_ERROR([mspack >= 0.0.20040308alpha is required.])])
 fi
@@ -438,7 +438,7 @@ AC_VMW_CHECK_LIB([gmodule-2.0],
                  [],
                  [2.34.0],
                  [],
-                 [],
+                 [g_module_open],
                  [],
                  [AC_MSG_ERROR([gmodule >= 2.34.0 is required.])])
 AC_VMW_CHECK_LIB([gobject-2.0],
@@ -447,7 +447,7 @@ AC_VMW_CHECK_LIB([gobject-2.0],
                  [],
                  [2.34.0],
                  [glib-object.h],
-                 [],
+                 [g_object_new],
                  [],
                  [AC_MSG_ERROR([gobject >= 2.34.0 is required.])])
 AC_VMW_CHECK_LIB([gthread-2.0],
@@ -456,7 +456,7 @@ AC_VMW_CHECK_LIB([gthread-2.0],
                  [],
                  [2.34.0],
                  [],
-                 [],
+                 [g_thread_new],
                  [],
                  [AC_MSG_ERROR([gthread >= 2.34.0 is required.])])
 AC_CHECK_PROG([have_genmarshal],
@@ -639,7 +639,7 @@ if test "$enable_vgauth" = "yes"; then
                        [],
                        [],
                        [],
-                       [],
+                       [_ZN11xercesc_3_117AbstractDOMParser11getDocumentEv],
                        [],
                        [AC_VMW_LIB_ERROR([XERCES], [xerces])])
 
@@ -650,7 +650,7 @@ if test "$enable_vgauth" = "yes"; then
                        [],
                        [],
                        [],
-                       [],
+                       [_ZN12XSECProviderC1Ev],
                        [],
                        [AC_VMW_LIB_ERROR([XMLSECURITY], [xmlsecurity])])
    fi
@@ -782,9 +782,9 @@ else
                     [GDK_PIXBUF_XLIB2],
                     [gdk-pixbuf-xlib-2.0],
                     [],
-                    [],
+                    [2.21.0],
                     [gdk-pixbuf-xlib/gdk-pixbuf-xlib.h],
-                    [],
+                    [gdk_pixbuf_xlib_init],
                     [],
                     [AC_MSG_ERROR([gdk-pixbuf-xlib-2.0 not found. Please configure without X11 (using --without-x) or install the gdk-pixbuf-xlib-2.0 devel package.])])
 
@@ -827,8 +827,8 @@ else
                             [gtkmm-3.0],
                             [],
                             [3.0.0],
-                            [],
-                            [],
+                            [gtkmm.h],
+                            [_ZN3Gtk4Main3runEv],
                             [GTKMM_CPPFLAGS="$GTKMM_CPPFLAGS -DHAVE_GTKMM"],
                             [AC_MSG_ERROR([gtkmm3 library not found. Please install the libgtkmm devel package(s), or re-configure using --without-gtkmm3.])])
 
@@ -840,7 +840,7 @@ else
                             [],
                             [2.4.0],
                             [gtkmm.h],
-                            [],
+                            [_ZN3Gtk4Main3runEv],
                             [GTKMM_CPPFLAGS="$GTKMM_CPPFLAGS -DHAVE_GTKMM"],
                             [AC_MSG_ERROR([gtkmm library not found. Please install the libgtkmm devel package(s), or re-configure using --without-gtkmm.])])
       fi
@@ -1445,7 +1445,7 @@ VMTOOLS_LIBS="$BUILDDIR/libvmtools/libvmtools.la $GLIB2_LIBS"
 VMTOOLS_CPPFLAGS="-DVMTOOLS_USE_GLIB $GLIB2_CPPFLAGS"
 
 PLUGIN_CPPFLAGS="$VMTOOLS_CPPFLAGS $PLUGIN_CPPFLAGS"
-PLUGIN_LDFLAGS="-Wl,-z,defs -Wl,-lc -shared -module -avoid-version"
+PLUGIN_LDFLAGS="-Wl,-z,defs -Wl,-lc -Wl,--as-needed -shared -module -avoid-version"
 
 # In Solaris, the XDR-related functions are not in libc like in Linux and
 # FreeBSD, so binaries need to be linked to some extra libraries.
