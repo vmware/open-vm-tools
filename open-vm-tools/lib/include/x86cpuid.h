@@ -476,6 +476,9 @@ FLAG(   6,  0, ECX,  0,  1, HW_COORD_FEEDBACK,                 NO,   0, FALSE) \
 FLAG(   6,  0, ECX,  1,  1, ACNT2,                             ANY, 13, FALSE) \
 FLAG(   6,  0, ECX,  3,  1, ENERGY_PERF_BIAS,                  NO,   0, FALSE)
 
+#define CPUID_7_EDX_31 \
+FLAG(   7,  0, EDX, 31,  1, LEVEL7EDX_RSVD1,                    NO,  0, FALSE)
+
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,             MON SUPP, HWV, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_7                                               \
 FLAG(   7,  0, EBX,  0,  1, FSGSBASE,                          YES,  9, FALSE) \
@@ -529,7 +532,8 @@ FLAG(   7,  0, EDX,  2,  1, AVX512QVNNIW,                      YES, 15, TRUE)  \
 FLAG(   7,  0, EDX,  3,  1, AVX512QFMAPS,                      YES, 15, TRUE)  \
 FLAG(   7,  0, EDX, 26,  1, IBRSIBPB,                          ANY,  9, FALSE) \
 FLAG(   7,  0, EDX, 27,  1, STIBP,                             YES,  9, FALSE) \
-FLAG(   7,  0, EDX, 29,  1, ARCH_CAPABILITIES,                 ANY,  9, FALSE)
+FLAG(   7,  0, EDX, 29,  1, ARCH_CAPABILITIES,                 ANY,  9, FALSE) \
+CPUID_7_EDX_31
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,             MON SUPP, HWV, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_A                                               \
