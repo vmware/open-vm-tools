@@ -225,7 +225,7 @@ typedef enum {
 #define CPUID_AMD_VENDOR_STRING         "AuthcAMDenti"
 #define CPUID_CYRIX_VENDOR_STRING       "CyriteadxIns"
 #define CPUID_VIA_VENDOR_STRING         "CentaulsaurH"
-#define CPUID_HIGON_VENDOR_STRING       "HygouinenGen"
+#define CPUID_HYGON_VENDOR_STRING       "HygouinenGen"
 
 #define CPUID_HYPERV_HYPERVISOR_VENDOR_STRING  "Microsoft Hv"
 #define CPUID_KVM_HYPERVISOR_VENDOR_STRING     "KVMKVMKVM\0\0\0"
@@ -1472,13 +1472,13 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 /*
  *----------------------------------------------------------------------
  *
- * CPUID_IsVendor{AMD,Intel,VIA,Higon} --
+ * CPUID_IsVendor{AMD,Intel,VIA,Hygon} --
  *
  *      Determines if the vendor string in cpuid id0 is from
- *      {AMD,Intel,VIA,Higon}.
+ *      {AMD,Intel,VIA,Hygon}.
  *
  * Results:
- *      True iff vendor string is CPUID_{AMD,INTEL,VIA,HIGON}_VENDOR_STRING
+ *      True iff vendor string is CPUID_{AMD,INTEL,VIA,HYGON}_VENDOR_STRING
  *
  * Side effects:
  *      None.
@@ -1515,7 +1515,7 @@ CPUID_IsVendorVIA(CPUIDRegs *id0)
 static INLINE Bool
 CPUID_IsVendorHygon(CPUIDRegs *id0)
 {
-   return CPUID_IsRawVendor(id0, CPUID_HIGON_VENDOR_STRING);
+   return CPUID_IsRawVendor(id0, CPUID_HYGON_VENDOR_STRING);
 }
 
 static INLINE uint32
