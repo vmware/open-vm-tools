@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -20,12 +20,14 @@
 /*
  * main.c --
  *
- *      This program is run as root to prepare the system for vmware-user.  It
- *      unmounts the vmblock file system, unloads the vmblock module, then
- *      reloads the module, mounts the file system, and opens a file descriptor
- *      that vmware-user can use to add and remove blocks.  This must all
- *      happen as root since we cannot allow any random process to add and
- *      remove blocks in the blocking file system.
+ *      This program is run as root to prepare the system for vmware-user.
+ *      - It unmounts the vmblock file system, unloads the vmblock module, then
+ *        reloads the module, mounts the file system, and opens a file descriptor
+ *        that vmware-user can use to add and remove blocks.
+ *        This must all happen as root since we cannot allow any random process
+ *        to add and remove blocks in the blocking file system.
+ *      - It opens the uinput device file and passes the file descriptor to
+ *        vmware-user.
  */
 
 #if !defined(sun) && !defined(__FreeBSD__) && !defined(__linux__)
@@ -173,11 +175,16 @@ StartVMwareUser(char *const envp[])
    pid_t pid;
    uid_t uid;
    gid_t gid;
-   int fd = -1;
+   int blockFd = -1;
+   char blockFdStr[8];
+   int uinputFd = -1;
+   char uinputFdStr[8];
    int ret;
    char path[MAXPATHLEN];
-   char *argv[6];
+   char *argv[8];
    size_t idx = 0;
+   char *xdgSessionType;
+   Bool useWayland = FALSE;
 
    if (!BuildExecPath(path, sizeof path)) {
       return FALSE;
@@ -198,15 +205,28 @@ StartVMwareUser(char *const envp[])
 
    /* Child */
 
+   xdgSessionType = getenv("XDG_SESSION_TYPE");
+   if (   (xdgSessionType != NULL)
+       && (strstr(xdgSessionType, "wayland") != NULL)) {
+      useWayland = TRUE;
+   }
+
    /*
     * We know the file system is mounted and want to keep this suid
     * root wrapper as small as possible, so here we directly open(2) the
     * "device" instead of calling DnD_InitializeBlocking() and bringing along
     * a whole host of libs.
     */
-   fd = open(VMBLOCK_FUSE_DEVICE, VMBLOCK_FUSE_DEVICE_MODE);
-   if (fd < 0) {
-      fd = open(VMBLOCK_DEVICE, VMBLOCK_DEVICE_MODE);
+   blockFd = open(VMBLOCK_FUSE_DEVICE, VMBLOCK_FUSE_DEVICE_MODE);
+   if (blockFd < 0) {
+      blockFd = open(VMBLOCK_DEVICE, VMBLOCK_DEVICE_MODE);
+   }
+
+   if (useWayland) {
+      uinputFd = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
+      if (uinputFd < 0) {
+         uinputFd = open("/dev/input/uinput", O_WRONLY | O_NONBLOCK);
+      }
    }
 
    uid = getuid();
@@ -215,8 +235,13 @@ StartVMwareUser(char *const envp[])
    if ((setreuid(uid, uid) != 0) ||
        (setregid(gid, gid) != 0)) {
       Error("could not drop privileges: %s\n", strerror(errno));
-      if (fd != -1) {
-         close(fd);
+      if (blockFd != -1) {
+         close(blockFd);
+      }
+      if (useWayland) {
+         if (uinputFd != -1) {
+            close(uinputFd);
+         }
       }
       return FALSE;
    }
@@ -231,17 +256,29 @@ StartVMwareUser(char *const envp[])
    argv[idx++] = "-n";
    argv[idx++] = "vmusr";
 
-   if (fd < 0) {
+   if (blockFd < 0) {
       Error("could not open %s\n", VMBLOCK_DEVICE);
    } else {
-      char fdStr[8];
-
-      ret = snprintf(fdStr, sizeof fdStr, "%d", fd);
-      if (ret == 0 || ret >= sizeof fdStr) {
-         Error("could not parse file descriptor (%d)\n", fd);
+      ret = snprintf(blockFdStr, sizeof blockFdStr, "%d", blockFd);
+      if (ret == 0 || ret >= sizeof blockFdStr) {
+         Error("could not parse file descriptor (%d)\n", blockFd);
       } else {
          argv[idx++] = "--blockFd";
-         argv[idx++] = fdStr;
+         argv[idx++] = blockFdStr;
+      }
+   }
+
+   if (useWayland) {
+      if (uinputFd < 0) {
+         Error("could not open uinput device\n");
+      } else {
+         ret = snprintf(uinputFdStr, sizeof uinputFdStr, "%d", uinputFd);
+         if (ret == 0 || ret >= sizeof uinputFdStr) {
+            Error("could not parse uinput file descriptor (%d)\n", uinputFd);
+         } else {
+            argv[idx++] = "--uinputFd";
+            argv[idx++] = uinputFdStr;
+         }
       }
    }
 

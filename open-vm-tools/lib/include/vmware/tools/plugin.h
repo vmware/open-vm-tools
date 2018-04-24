@@ -259,6 +259,8 @@ typedef struct ToolsAppCtx {
 #else
    /** The FD to access the VMware blocking fs. -1 if no FD available. */
    int               blockFD;
+   /** The FD to access the uinput. -1 if no FD available. */
+   int               uinputFD;
    /** The native environment (without any VMware modifications). */
    const char      **envp;
 #endif
