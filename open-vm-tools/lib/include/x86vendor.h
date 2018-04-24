@@ -1,4 +1,3 @@
-
 /*********************************************************
  * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
@@ -48,8 +47,5 @@ typedef enum {
    CPUID_VENDOR_HYGON,
    CPUID_NUM_VENDORS
 } CpuidVendor;
-
-//XXX Temporary until rename is complete
-#define CPUID_VENDOR_HIGON CPUID_VENDOR_HYGON
 
 #endif
