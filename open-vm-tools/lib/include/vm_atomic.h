@@ -1643,7 +1643,7 @@ Atomic_Sub32(Atomic_uint32 *var, // IN/OUT
 #endif /* VM_X86_ANY */
 #elif defined _MSC_VER
 #if _MSC_VER >= 1310
-   _InterlockedExchangeAdd((long *)&var->value, (long)-val);
+   _InterlockedExchangeAdd((long *)&var->value, -(long)val);
 #else
    __asm mov eax, val
    __asm mov ebx, var
@@ -2382,7 +2382,7 @@ Atomic_ReadSub64(Atomic_uint64 *var, // IN/OUT
 #if defined VM_ARM_64
    return _VMATOM_X(ROP, 64, TRUE, &var->value, sub, val);
 #else
-   return Atomic_ReadAdd64(var, -val);
+   return Atomic_ReadAdd64(var, -(int64)val);
 #endif
 }
 
@@ -2429,7 +2429,7 @@ Atomic_ReadInc64(Atomic_uint64 *var) // IN/OUT
 static INLINE uint64
 Atomic_ReadDec64(Atomic_uint64 *var) // IN/OUT
 {
-   return Atomic_ReadAdd64(var, CONST64U(-1));
+   return Atomic_ReadAdd64(var, (uint64)CONST64(-1));
 }
 
 

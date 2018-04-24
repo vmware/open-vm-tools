@@ -7337,8 +7337,13 @@ HgfsServerRename(HgfsInputParam *input)  // IN: Input params
    const char *cpNewName;
    size_t cpNewNameLen;
    HgfsInternalStatus status;
-   fileDesc srcFileDesc;
-   fileDesc targetFileDesc;
+#ifdef _WIN32
+   fileDesc srcFileDesc = INVALID_HANDLE_VALUE;
+   fileDesc targetFileDesc = INVALID_HANDLE_VALUE;
+#else
+   fileDesc srcFileDesc = -1;
+   fileDesc targetFileDesc = -1;
+#endif
    HgfsHandle srcFile;
    HgfsHandle targetFile;
    HgfsRenameHint hints;

@@ -28,6 +28,7 @@
 /*
  * Common data structures and definitions used by Guest/Host Integration.
  */
+#define GHI_HGFS_SHARE_URL_SCHEME_UTF8 "x-vmware-share"
 #define GHI_HGFS_SHARE_URL_UTF8 "x-vmware-share://"
 #define GHI_HGFS_SHARE_URL      _T(GHI_HGFS_SHARE_URL_UTF8)
 
