@@ -1711,6 +1711,7 @@ CPUID_UARCH_IS_SKYLAKE(uint32 v) // IN: %eax from CPUID with %eax=1.
            CPUID_MODEL_IS_SKYLAKE(v));
 }
 
+
 static INLINE Bool
 CPUID_UARCH_IS_HASWELL(uint32 v) // IN: %eax from CPUID with %eax=1.
 {
