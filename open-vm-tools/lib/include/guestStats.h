@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -32,6 +32,8 @@
 
 #include "vm_assert.h"
 #include "vm_basic_types.h"
+
+#define PUBLISH_EXPERIMENTAL_STATS   0
 
 /*
  * Version 1: Legacy data
@@ -244,7 +246,7 @@ typedef enum {
 
 /*
  * Defined stat IDs for guest tools builtin query.
- * See vmx/vigorapi/guestStats.java for documentation
+ * See vmx/vigorapi/GuestStats.java for documentation
  *
  * NOTE: These IDs are relative to GUEST_TOOLS_NAMESPACE
  * NOTE: DO NOT re-order or remove the IDs. IDs can only be added to the end,
@@ -252,7 +254,7 @@ typedef enum {
  *       of bumping the namespace version.
  */
 #define GUEST_STAT_TOOLS_IDS \
-   /* 2015u1 stats */ \
+   /* 6.0u1 stats */ \
    DEFINE_GUEST_STAT(GuestStatID_Invalid,                         0,  "__INVALID__") \
    DEFINE_GUEST_STAT(GuestStatID_None,                            1,  "__NONE__") \
    DEFINE_GUEST_STAT(GuestStatID_ContextSwapRate,                 2,  "guest.contextSwapRate") \
@@ -266,7 +268,7 @@ typedef enum {
    DEFINE_GUEST_STAT(GuestStatID_PhysicalPageSize,                10, "guest.page.size") \
    DEFINE_GUEST_STAT(GuestStatID_HugePageSize,                    11, "guest.hugePage.size") \
    DEFINE_GUEST_STAT(GuestStatID_Linux_HugePagesTotal,            12, "guest.hugePage.total") \
-   /* 2016 stats */ \
+   /* 6.5 stats */ \
    DEFINE_GUEST_STAT(GuestStatID_MemNeededReservation,            13, "guest.mem.neededReservation") \
    DEFINE_GUEST_STAT(GuestStatID_PageSwapInRate,                  14, "guest.swap.pageInRate") \
    DEFINE_GUEST_STAT(GuestStatID_PageSwapOutRate,                 15, "guest.swap.pageOutRate") \
@@ -315,7 +317,14 @@ typedef enum {
    DEFINE_GUEST_STAT(GuestStatID_Windows_DiskWriteRate,           58, "guest.disk.writeRate") \
    DEFINE_GUEST_STAT(GuestStatID_Windows_AutomaticSwapFileMax,    59, "guest.swap.automaticFileMax") \
    DEFINE_GUEST_STAT(GuestStatID_Linux_MemTotal,                  60, "guest.mem.total") \
-   DEFINE_GUEST_STAT(GuestStatID_Max,                             61, "__MAX__")
+   /* (6.7, ] stats */ \
+   DEFINE_GUEST_STAT(GuestStatID_Linux_CpuRunQueue,               61, "guest.cpu.runQueue") \
+   DEFINE_GUEST_STAT(GuestStatID_Linux_DiskRequestQueue,          62, "guest.disk.requestQueue") \
+   DEFINE_GUEST_STAT(GuestStatID_Linux_DiskRequestQueueAvg,       63, "guest.disk.requestQueueAvg") \
+   DEFINE_GUEST_STAT(GuestStatID_Windows_ProcessorQueue,          64, "guest.processor.queue") \
+   DEFINE_GUEST_STAT(GuestStatID_Windows_DiskQueue,               65, "guest.disk.queue") \
+   DEFINE_GUEST_STAT(GuestStatID_Windows_DiskQueueAvg,            66, "guest.disk.queueAvg") \
+   DEFINE_GUEST_STAT(GuestStatID_Max,                             67, "__MAX__")
 
 /*
  * Define stats enumeration
