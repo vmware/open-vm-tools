@@ -46,6 +46,7 @@ rotate_logfile
 
 # redirect stdio
 exec > $logfile 2>&1
+chmod 0600 $logfile
 
 
 echo `date` ": Executing '$0 $*'"
