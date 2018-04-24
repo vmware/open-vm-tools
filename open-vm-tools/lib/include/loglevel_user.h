@@ -325,7 +325,8 @@
    LOGLEVEL_VAR(hbr), \
    LOGLEVEL_VAR(vvtd), \
    LOGLEVEL_VAR(amdIommu), \
-   LOGLEVEL_VAR(vmOvhd)
+   LOGLEVEL_VAR(vmOvhd), \
+   LOGLEVEL_VAR(assignHw)
 
    /* end of list */
 
