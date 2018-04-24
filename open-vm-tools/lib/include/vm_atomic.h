@@ -148,10 +148,7 @@ typedef struct Atomic_uint128 {
 /*
  * Prototypes for msft atomics.  These are defined & inlined by the
  * compiler so no function definition is needed.  The prototypes are
- * needed for C++.  Since amd64 compiler doesn't support inline asm we
- * have to use these.  Unfortunately, we still have to use some inline asm
- * for the 32 bit code since the and/or/xor implementations didn't show up
- * until XP or 2k3.
+ * needed for C++.
  *
  * The declarations for the intrinsic functions were taken from ntddk.h
  * in the DDK. The declarations must match otherwise the 64-bit C++
@@ -160,7 +157,7 @@ typedef struct Atomic_uint128 {
  * Windows typedefs. This avoids having to include windows header files
  * to get to the windows types.
  */
-#if defined _MSC_VER && _MSC_VER >= 1310 && !defined BORA_NO_WIN32_INTRINS
+#if defined _MSC_VER && !defined BORA_NO_WIN32_INTRINS
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -1012,19 +1009,7 @@ Atomic_ReadWrite32(Atomic_uint32 *var, // IN/OUT
    return val;
 #endif /* VM_X86_ANY */
 #elif defined _MSC_VER
-#if _MSC_VER >= 1310
    return _InterlockedExchange((long *)&var->value, (long)val);
-#else
-#pragma warning(push)
-#pragma warning(disable : 4035)         // disable no-return warning
-   {
-      __asm mov eax, val
-      __asm mov ebx, var
-      __asm xchg [ebx]Atomic_uint32.value, eax
-      // eax is the return value, this is documented to work - edward
-   }
-#pragma warning(pop)
-#endif // _MSC_VER >= 1310
 #else
 #error No compiler defined for Atomic_ReadWrite
 #endif // __GNUC__
@@ -1174,22 +1159,9 @@ Atomic_ReadIfEqualWrite32(Atomic_uint32 *var, // IN/OUT
    return val;
 #endif /* VM_X86_ANY */
 #elif defined _MSC_VER
-#if _MSC_VER >= 1310
    return _InterlockedCompareExchange((long *)&var->value,
                                       (long)newVal,
                                       (long)oldVal);
-#else
-#pragma warning(push)
-#pragma warning(disable : 4035)         // disable no-return warning
-   {
-      __asm mov eax, oldVal
-      __asm mov ebx, var
-      __asm mov ecx, newVal
-      __asm lock cmpxchg [ebx]Atomic_uint32.value, ecx
-      // eax is the return value, this is documented to work - edward
-   }
-#pragma warning(pop)
-#endif
 #else
 #error No compiler defined for Atomic_ReadIfEqualWrite
 #endif
@@ -1577,13 +1549,7 @@ Atomic_Add32(Atomic_uint32 *var, // IN/OUT
    );
 #endif /* VM_X86_ANY */
 #elif defined _MSC_VER
-#if _MSC_VER >= 1310
    _InterlockedExchangeAdd((long *)&var->value, (long)val);
-#else
-   __asm mov eax, val
-   __asm mov ebx, var
-   __asm lock add [ebx]Atomic_uint32.value, eax
-#endif
 #else
 #error No compiler defined for Atomic_Add
 #endif
@@ -1642,13 +1608,7 @@ Atomic_Sub32(Atomic_uint32 *var, // IN/OUT
    );
 #endif /* VM_X86_ANY */
 #elif defined _MSC_VER
-#if _MSC_VER >= 1310
    _InterlockedExchangeAdd((long *)&var->value, -(long)val);
-#else
-   __asm mov eax, val
-   __asm mov ebx, var
-   __asm lock sub [ebx]Atomic_uint32.value, eax
-#endif
 #else
 #error No compiler defined for Atomic_Sub
 #endif
@@ -1688,12 +1648,7 @@ Atomic_Inc32(Atomic_uint32 *var) // IN/OUT
    );
 #endif /* VM_X86_ANY */
 #elif defined _MSC_VER
-#if _MSC_VER >= 1310
    _InterlockedIncrement((long *)&var->value);
-#else
-   __asm mov ebx, var
-   __asm lock inc [ebx]Atomic_uint32.value
-#endif
 #else
 #error No compiler defined for Atomic_Inc
 #endif
@@ -1733,12 +1688,7 @@ Atomic_Dec32(Atomic_uint32 *var) // IN/OUT
    );
 #endif /* VM_X86_ANY */
 #elif defined _MSC_VER
-#if _MSC_VER >= 1310
    _InterlockedDecrement((long *)&var->value);
-#else
-   __asm mov ebx, var
-   __asm lock dec [ebx]Atomic_uint32.value
-#endif
 #else
 #error No compiler defined for Atomic_Dec
 #endif
@@ -1950,18 +1900,7 @@ Atomic_ReadAdd32(Atomic_uint32 *var, // IN/OUT
    return val;
 #endif /* VM_X86_ANY */
 #elif defined _MSC_VER
-#if _MSC_VER >= 1310
    return _InterlockedExchangeAdd((long *)&var->value, (long)val);
-#else
-#pragma warning(push)
-#pragma warning(disable : 4035)         // disable no-return warning
-   {
-      __asm mov eax, val
-      __asm mov ebx, var
-      __asm lock xadd [ebx]Atomic_uint32.value, eax
-   }
-#pragma warning(pop)
-#endif
 #else
 #error No compiler defined for Atomic_ReadAdd32
 #endif
