@@ -709,17 +709,6 @@ typedef int pid_t;
 #define USER_ONLY(x) x
 #endif
 
-/* VMVISOR ifdef only allowed in the vmkernel */
-#ifdef VMKERNEL
-#ifdef VMVISOR
-#define vmvisor 1
-#define VMVISOR_ONLY(x) x
-#else
-#define vmvisor 0
-#define VMVISOR_ONLY(x)
-#endif
-#endif
-
 #ifdef _WIN32
 #define VMW_INVALID_HANDLE INVALID_HANDLE_VALUE
 #else
