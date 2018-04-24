@@ -426,39 +426,39 @@ AC_VMW_CHECK_LIB([glib-2.0],
                  [GLIB2],
                  [glib-2.0],
                  [],
-                 [2.14.0],
+                 [2.34.0],
                  [glib.h],
                  [g_key_file_new],
                  [],
-                 [AC_MSG_ERROR([glib2 >= 2.14.0 is required.])])
+                 [AC_MSG_ERROR([glib2 >= 2.34.0 is required.])])
 
 AC_VMW_CHECK_LIB([gmodule-2.0],
                  [GMODULE],
                  [gmodule-2.0],
                  [],
-                 [2.14.0],
+                 [2.34.0],
                  [],
                  [],
                  [],
-                 [AC_MSG_ERROR([gmodule >= 2.14.0 is required.])])
+                 [AC_MSG_ERROR([gmodule >= 2.34.0 is required.])])
 AC_VMW_CHECK_LIB([gobject-2.0],
                  [GOBJECT],
                  [gobject-2.0],
                  [],
-                 [2.14.0],
+                 [2.34.0],
                  [glib-object.h],
                  [],
                  [],
-                 [AC_MSG_ERROR([gobject >= 2.14.0 is required.])])
+                 [AC_MSG_ERROR([gobject >= 2.34.0 is required.])])
 AC_VMW_CHECK_LIB([gthread-2.0],
                  [GTHREAD],
                  [gthread-2.0],
                  [],
-                 [2.14.0],
+                 [2.34.0],
                  [],
                  [],
                  [],
-                 [AC_MSG_ERROR([glib >= 2.14.0 is required.])])
+                 [AC_MSG_ERROR([gthread >= 2.34.0 is required.])])
 AC_CHECK_PROG([have_genmarshal],
               [glib-genmarshal],
               [yes],
