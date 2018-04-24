@@ -388,8 +388,8 @@ RDTSC_BARRIER(void)
  * Thanks for pasting this whole comment into every architecture header.
  *
  * On x86, we only need to care specifically about store-load reordering on
- * normal memory types. In other cases, only a compiler barrier is needed. The
- * ST_LD barrier is implemented with a locked xor operation (instead of the
+ * normal memory types. In other cases, only a compiler barrier is needed.
+ * SMP_W_BARRIER_R is implemented with a locked xor operation (instead of the
  * mfence instruction) for performance reasons. See PR 1674199 for more
  * details.
  *
@@ -403,19 +403,17 @@ SMP_W_BARRIER_R(void)
 {
    volatile long temp;
 
-   COMPILER_MEM_BARRIER();
 #if defined __GNUC__
    __asm__ __volatile__ (
-      "lock xorl $1, %0\n"
+      "lock xorl $1, %0"
       : "+m" (temp)
       : /* no additional inputs */
-      : "cc");
+      : "cc", "memory");
 #elif defined _MSC_VER
    _InterlockedXor(&temp, 1);
 #else
 #error SMP_W_BARRIER_R not defined for this compiler
 #endif
-   COMPILER_MEM_BARRIER();
 }
 
 #define SMP_R_BARRIER_R()     COMPILER_READ_BARRIER()
