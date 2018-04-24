@@ -144,7 +144,7 @@
 
 /* The Solaris 9 cross-compiler complains about these not being used */
 #ifndef sun
-static INLINE int 
+static INLINE int
 Min(int a, int b)
 {
    return a < b ? a : b;
@@ -156,7 +156,7 @@ Min(int a, int b)
 #endif
 
 #ifndef sun
-static INLINE int 
+static INLINE int
 Max(int a, int b)
 {
    return a > b ? a : b;
@@ -211,7 +211,7 @@ Max(int a, int b)
 #endif
 
 
-/* 
+/*
  * Token concatenation
  *
  * The C preprocessor doesn't prescan arguments when they are
@@ -423,7 +423,7 @@ Max(int a, int b)
 #ifdef _MSC_VER
 #ifdef __cplusplus
 extern "C"
-#endif 
+#endif
 void *_ReturnAddress(void);
 #pragma intrinsic(_ReturnAddress)
 #define GetReturnAddress() _ReturnAddress()
@@ -556,7 +556,7 @@ typedef int pid_t;
  * driver.
  */
 
-#ifdef _WIN32
+#if defined(_WIN32) && defined(_MSC_VER)
 #define PATH_MAX 256
 #ifndef strcasecmp
 #define strcasecmp(_s1,_s2)   _stricmp((_s1),(_s2))
@@ -638,7 +638,7 @@ typedef int pid_t;
 #define RELEASE_ONLY(x) x
 #else
 #define vmx86_release   0
-#define RELEASE_ONLY(x) 
+#define RELEASE_ONLY(x)
 #endif
 
 #ifdef VMX86_SERVER
