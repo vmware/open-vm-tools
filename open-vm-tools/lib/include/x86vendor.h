@@ -45,8 +45,11 @@ typedef enum {
    CPUID_VENDOR_AMD,
    CPUID_VENDOR_CYRIX,
    CPUID_VENDOR_VIA,
-   CPUID_VENDOR_HIGON,
+   CPUID_VENDOR_HYGON,
    CPUID_NUM_VENDORS
 } CpuidVendor;
+
+//XXX Temporary until rename is complete
+#define CPUID_VENDOR_HIGON CPUID_VENDOR_HYGON
 
 #endif

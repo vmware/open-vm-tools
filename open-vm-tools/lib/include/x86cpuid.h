@@ -1513,7 +1513,7 @@ CPUID_IsVendorVIA(CPUIDRegs *id0)
 }
 
 static INLINE Bool
-CPUID_IsVendorHigon(CPUIDRegs *id0)
+CPUID_IsVendorHygon(CPUIDRegs *id0)
 {
    return CPUID_IsRawVendor(id0, CPUID_HIGON_VENDOR_STRING);
 }
