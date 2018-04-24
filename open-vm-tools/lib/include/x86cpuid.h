@@ -1381,8 +1381,8 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 /* Effective VIA CPU Families */
 #define CPUID_FAMILY_C7               6
 
-/* Effective Higon CPU Families */
-#define CPUID_FAMILY_DHYANA           1
+/* Effective Hygon CPU Families. */
+#define CPUID_FAMILY_DHYANA          0x18
 
 /* Intel model information */
 #define CPUID_MODEL_PPRO              1
@@ -1466,8 +1466,8 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 /* VIA model information */
 #define CPUID_MODEL_NANO                15 // Isaiah
 
-/* Higon model information */
-#define CPUID_MODEL_DHYANA_A0            0 // Dhyana A0
+/* Hygon model information. */
+#define CPUID_MODEL_DHYANA_A             0 // Dhyana A
 
 /*
  *----------------------------------------------------------------------
@@ -2008,10 +2008,10 @@ CPUID_FAMILY_IS_DHYANA(uint32 eax)
 
 
 static INLINE Bool
-CPUID_MODEL_IS_DHYANA_A0(uint32 eax)
+CPUID_MODEL_IS_DHYANA_A(uint32 eax)
 {
    return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_DHYANA &&
-          CPUID_EFFECTIVE_MODEL(eax)  == CPUID_MODEL_DHYANA_A0;
+          CPUID_EFFECTIVE_MODEL(eax)  == CPUID_MODEL_DHYANA_A;
 }
 
 
