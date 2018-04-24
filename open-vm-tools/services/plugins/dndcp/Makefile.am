@@ -27,6 +27,7 @@ libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/dnd
 libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/dndGuest
 libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/stringxx
 libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/xutils
+libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/fakeMouse
 libdndcp_la_CPPFLAGS += -I$(top_srcdir)/include
 
 # Passing C++ related flags to CPPFLAGS generates error.
@@ -74,6 +75,8 @@ libdndcp_la_SOURCES += dndGuest/dndCPTransportGuestRpc.cpp
 
 libdndcp_la_SOURCES += stringxx/string.cc
 libdndcp_la_SOURCES += xutils/xutils.cc
+
+libdndcp_la_SOURCES += fakeMouseWayland/fakeMouseWayland.cpp
 
 libdndcp_la_SOURCES += copyPasteCompat.c
 libdndcp_la_SOURCES += copyPasteCompatX11.c
