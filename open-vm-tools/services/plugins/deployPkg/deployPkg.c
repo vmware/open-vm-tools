@@ -31,7 +31,6 @@
 #include "deployPkg/linuxDeployment.h"
 #endif
 
-#include "vm_assert.h"
 #include "file.h"
 #include "str.h"
 #include "util.h"
@@ -199,13 +198,13 @@ DeployPkgExecDeploy(ToolsAppCtx *ctx,   // IN: app context
    }
 
    /* Attempt to delete the package file and tempdir. */
-   Log("Deleting file %s\n", pkgNameStr);
+   g_debug("Deleting file %s\n", pkgNameStr);
    if (File_Unlink(pkgNameStr) == 0) {
       char *vol, *dir, *path;
       File_SplitName(pkgNameStr, &vol, &dir, NULL);
       path = Str_Asprintf(NULL, "%s%s", vol, dir);
       if (path != NULL) {
-         Log("Deleting directory %s\n", path);
+         g_debug("Deleting directory %s\n", path);
          File_DeleteEmptyDirectory(path);
          free(path);
       }
