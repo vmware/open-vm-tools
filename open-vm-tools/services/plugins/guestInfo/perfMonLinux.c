@@ -888,7 +888,6 @@ GuestInfoAppendMemNeeded(GuestInfoCollector *current,  // IN: current collection
       memNeeded = memPhysUsable->value - memAvailable;
    } else {
       memNeeded = 0;
-      memNeededReservation = 0;
    }
 
    GuestInfoAppendStat(0,
