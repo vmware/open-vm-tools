@@ -2111,7 +2111,6 @@ Posix_Getmntent_r(FILE *fp,          // IN:
          goto exit;
       }
       m->mnt_opts = memcpy(buf + n, opts, len);
-      n += len;
    }
    ret = 0;
 
