@@ -2206,7 +2206,6 @@ ProcMgr_ImpersonateUserStart(const char *user,  // IN: UTF-8 encoded user name
        * according to POSIX 1003.1-2003, so patch up the errno.
        */
       if (error == 0) {
-         error = ENOENT;
       }
       return FALSE;
    }
