@@ -439,7 +439,6 @@ ShrinkDoWipeAndShrink(char *mountPoint,         // IN: mount point
             ToolsCmd_PrintErr(SU_(error.message, "Error: %s\n"), err);
          }
 
-         rc = EX_TEMPFAIL;
          break;
       }
 
