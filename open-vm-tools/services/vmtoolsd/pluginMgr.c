@@ -922,7 +922,9 @@ ToolsCore_UnloadPlugins(ToolsServiceState *state)
       ToolsPlugin *plugin = g_ptr_array_index(state->plugins, state->plugins->len - 1);
       GArray *regs = (plugin->data != NULL) ? plugin->data->regs : NULL;
 
-      g_message("Unloading plugin '%s'.\n", plugin->data->name);
+      if(plugin->data != NULL) {
+         g_message("Unloading plugin '%s'.\n", plugin->data->name);
+      }
 
       if (regs != NULL) {
          guint i;
