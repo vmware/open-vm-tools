@@ -281,8 +281,6 @@ VmCheck_IsVirtualWorld(void)
     * already detected that we are on a VMware hypervisor. See PR 1035346.
     */
    hypervisorSig = Hostinfo_HypervisorCPUIDSig();
-   Debug("%s: HypervisorCPUIDSig = \"%s\".\n", __FUNCTION__,
-         hypervisorSig == NULL ? "NULL" : hypervisorSig);
    if (hypervisorSig == NULL ||
          Str_Strcmp(hypervisorSig, CPUID_VMWARE_HYPERVISOR_VENDOR_STRING) != 0) {
       if (hypervisorSig != NULL) {
