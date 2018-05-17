@@ -36,7 +36,6 @@
 #include "panic.h"
 #include "slashProc.h"
 #include "slashProcNetInt.h"
-#include "netutil.h"
 
 
 /*

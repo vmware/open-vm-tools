@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -29,16 +29,13 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "vmware.h"
-#include "debug.h"
-#include "rpcout.h"
-#include "str.h"
 #include "strutil.h"
 
-#include "xdrutil.h"
 #include "vmware/guestrpc/tclodefs.h"
 #include "vmware/tools/plugin.h"
 #include "vmware/tools/utils.h"
