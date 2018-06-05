@@ -422,7 +422,7 @@ MXUserHistoDump(MXUserHisto *histo,    // IN:
       for (i = 0; i < TOPOWNERS; i++) {
          if (histo->ownerArray[i].address != NULL) {
             uint32 len;
-            char binEntry[32];
+            char binEntry[44];
 
             /* Use a debugger to change the address to a symbol */
             len = Str_Sprintf(binEntry, sizeof binEntry, " %p-%"FMT64"u\n",
