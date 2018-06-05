@@ -521,7 +521,7 @@ typedef struct VMCIQueueHeader {
 
 
 static INLINE PPN32
-VMCI_PPN64_TO_PPN32(PPN64 ppn)
+VMCI_PPN64_TO_PPN32(PPN ppn)
 {
    ASSERT(ppn <= MAX_UINT32);
    return (PPN32)ppn;

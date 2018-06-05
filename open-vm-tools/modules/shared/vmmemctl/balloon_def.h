@@ -306,7 +306,7 @@ Balloon_BatchSetStatus(BalloonBatchPage *batchPage,      // IN
    PA64 pa = Balloon_BatchGetPA(batchPage, idx);
    ASSERT(idx < BALLOON_BATCH_MAX_ENTRIES);
    ASSERT(error <= BALLOON_ERROR_BUSY && error >= BALLOON_FAILURE);
-   batchPage->entries[idx] = pa | (PPN64)error;
+   batchPage->entries[idx] = pa | (PPN)error;
 }
 
 MY_ASSERTS(BALLOON_BATCH_SIZE,
