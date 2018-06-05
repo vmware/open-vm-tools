@@ -224,8 +224,9 @@
 #     define _SIZE_T
       typedef __SIZE_TYPE__ size_t;
 #endif
-#  if !defined(_SSIZE_T_DEFINED)
+#  if !defined(_SSIZE_T_DEFINED) && !defined(_SSIZE_T)
 #     define _SSIZE_T_DEFINED
+#     define _SSIZE_T
       typedef int64_t ssize_t;
 #  endif
 #elif defined(__linux__) && defined(__KERNEL__)
