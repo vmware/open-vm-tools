@@ -168,6 +168,7 @@ extern "C" {
 #  define BDOOR_CMD_FE_EXCEPTION              1
 #  define BDOOR_CMD_FE_SGX                    2
 #  define BDOOR_CMD_FE_PCI_MMIO               3
+#  define BDOOR_CMD_FE_GMM                    4
 #define   BDOOR_CMD_VMK_INFO                 72
 #define   BDOOR_CMD_EFI_BOOT_CONFIG          73 /* CPL 0 only. */
 #  define BDOOR_CMD_EBC_LEGACYBOOT_ENABLED        0
@@ -232,7 +233,11 @@ extern "C" {
 #  define BDOOR_CMD_FUZZER_INIT               0
 #  define BDOOR_CMD_FUZZER_NEXT               1
 #define   BDOOR_CMD_PUTCHR12                 95
-#define   BDOOR_CMD_MAX                      96
+#define   BDOOR_CMD_GMM                      96
+#  define  BDOOR_CMD_GMM_GET_SIZE             0
+#  define BDOOR_CMD_GMM_MAP_MEMORY            1
+#  define BDOOR_CMD_GMM_GET_PPN_AND_SZ        2 /* Devel only. */
+#define   BDOOR_CMD_MAX                      97
 
 
 /*
