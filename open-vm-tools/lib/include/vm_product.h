@@ -158,6 +158,10 @@
 #define PRODUCT_NETDUMP_NAME PRODUCT_VMVISOR_NAME " dump collector"
 #endif
 
+#define PRODUCT_INTEGRITY_SHORT_NAME "VUM"
+#define PRODUCT_INTEGRITY_NAME MAKE_NAME("Update Manager")
+#define PRODUCT_INTEGRITY_DISPLAY_NAME MAKE_NAME("vSphere Update Manager")
+
 /*
  * VMware USB Arbitration Service version definitions
  */
@@ -265,6 +269,8 @@
 # define PRODUCT_SHORT_NAME PRODUCT_VIEW_NAME
 #elif defined(VMX86_VMCF)
 # define PRODUCT_SHORT_NAME PRODUCT_VMCF_NAME
+#elif defined(VMX86_INTEGRITY)
+# define PRODUCT_SHORT_NAME PRODUCT_INTEGRITY_NAME
 // VMX86_DESKTOP must be last because it is the default and is always defined.
 #elif defined(VMX86_DESKTOP)
 # if defined(__APPLE__)
