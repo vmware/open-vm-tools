@@ -67,6 +67,8 @@ uint32 Auth_RetrieveAccountInformationForVM(const char *filename, uint32 *attrib
 
 AuthToken Auth_GetPwnam(const char *user);
 AuthToken Auth_AuthenticateSelf(void);
+AuthToken Auth_AuthenticateUserPAM(const char *user, const char *pass,
+                                   const char *service);
 
 #endif
 
