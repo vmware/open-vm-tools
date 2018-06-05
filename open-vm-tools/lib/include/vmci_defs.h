@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -65,6 +65,7 @@ extern "C" {
 #define VMCI_CAPS_GUESTCALL     0x2
 #define VMCI_CAPS_DATAGRAM      0x4
 #define VMCI_CAPS_NOTIFICATIONS 0x8
+#define VMCI_CAPS_PPN64         0x10
 
 /* Interrupt Cause register bits. */
 #define VMCI_ICR_DATAGRAM      0x1
@@ -518,6 +519,13 @@ typedef struct VMCIQueueHeader {
           TypeSafe_Atomic_Write32((void *)(x), (uint32)(y))
 #endif	/* __x86_64__  */
 
+
+static INLINE PPN32
+VMCI_PPN64_TO_PPN32(PPN64 ppn)
+{
+   ASSERT(ppn <= MAX_UINT32);
+   return (PPN32)ppn;
+}
 
 /*
  *-----------------------------------------------------------------------------
