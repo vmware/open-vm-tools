@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2000-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2000-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1141,7 +1141,7 @@ BalloonLock(Balloon *b,       // IN/OUT
             int isLargePage,  // IN
             uint32 *target)   // OUT
 {
-   PPN pagePPN;
+   PPNTMP pagePPN;
    BalloonChunk *chunk;
    int status;
 
@@ -1216,7 +1216,7 @@ BalloonUnlock(Balloon *b,      // IN/OUT
               int isLargePage, // IN
               uint32 *target)  // OUT
 {
-   PPN pagePPN = PA_2_PPN(OS_ReservedPageGetPA(b->pageHandle));
+   PPNTMP pagePPN = PA_2_PPN(OS_ReservedPageGetPA(b->pageHandle));
    int status = Backdoor_MonitorUnlockPage(b, pagePPN, target);
 
    ASSERT(!isLargePage);

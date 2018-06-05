@@ -490,10 +490,9 @@ typedef uintptr_t VA;
 typedef uintptr_t VPN;
 
 typedef uint64    PA;
-typedef uint32    PPN;
+typedef uint32    PPNTMP;
 
 typedef uint64    TPA;
-typedef uint32    TPPN;
 
 typedef uint64    PhysMemOff;
 typedef uint64    PhysMemSize;
@@ -508,9 +507,7 @@ typedef uint64    BPN;
 #define UINT64_2_BPN(u) ((BPN)(u))
 #define BPN_2_UINT64(b) ((uint64)(b))
 
-typedef uint32    PageCnt;
 typedef uint64    PgCnt64;
-typedef uint32    PageNum;
 typedef uint64    PgNum64;
 typedef unsigned      MemHandle;
 typedef unsigned int  IoHandle;
@@ -662,7 +659,7 @@ typedef void * UserVA;
 #define INVALID_LPN       ((LPN)-1)
 #define INVALID_VPN       ((VPN)-1)
 #define INVALID_LPN64     ((LPN64)-1)
-#define INVALID_PAGENUM   ((PageNum)-1)
+#define INVALID_PAGENUM   ((uint32)-1)
 
 /*
  * Format modifier for printing VA, LA, and VPN.
