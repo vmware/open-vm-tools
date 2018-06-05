@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2007-2016 VMware, Inc.  All rights reserved.
+### Copyright (C) 2007-2018 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -19,4 +19,10 @@ noinst_LTLIBRARIES = libNetUtil.la
 
 libNetUtil_la_SOURCES =
 libNetUtil_la_SOURCES += netUtilLinux.c
+
+libNetUtil_la_CPPFLAGS =
+libNetUtil_la_CPPFLAGS += @XDR_CPPFLAGS@
+
+libNetUtil_la_LIBADD =
+libNetUtil_la_LIBADD += @XDR_LIBS@
 

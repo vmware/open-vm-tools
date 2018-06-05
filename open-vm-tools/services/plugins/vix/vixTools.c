@@ -91,7 +91,6 @@
 #include "str.h"
 #include "file.h"
 #include "err.h"
-#include "guestInfo.h"  // MAX_VALUE_LEN
 #include "hostinfo.h"
 #include "guest_os.h"
 #include "guest_msg_def.h"

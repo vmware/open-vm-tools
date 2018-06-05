@@ -586,6 +586,11 @@ AC_ARG_WITH([xml2],
    [enable_vgauth=no],
    [with_xml2=yes])
 
+AC_ARG_WITH([tirpc],
+   [AS_HELP_STRING([--without-tirpc],
+     [compiles with/without libtirpc.])],
+   [],
+   [with_tirpc=auto])
 
 # Make sure we are building with openssl 1.0.1 and above so that
 # we use only TLSv1_2.
@@ -1066,10 +1071,74 @@ if test "$enable_caf" = "yes"; then
 
 fi
 
+if test "$with_tirpc" != "no"; then
+   AC_VMW_CHECK_LIB([libtirpc],
+                    [TIRPC],
+                    [libtirpc],
+                    [],
+                    [],
+                    [],
+                    [],
+                    [have_tirpc="yes"],
+                    [have_tirpc="no"])
+fi
+
+if test "$with_tirpc" != "yes"; then
+   AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+      #include <rpc/types.h>
+      #include <rpc/xdr.h>
+
+      int main()
+      {
+         struct xdr_ops xdr;
+#if defined(__GLIBC__)
+         xdr.x_putint32(NULL, NULL);
+#endif
+         return 0;
+      }
+      ]])], [need_tirpc="no"], [need_tirpc="yes"])
+   AC_MSG_NOTICE([tirpc is needed: $need_tirpc])
+fi
+
+if test "$with_tirpc" = "no"; then
+   if test "$need_tirpc" = "yes"; then
+      AC_MSG_ERROR([libtirpc is required but it is disabled.])
+   fi
+   use_tirpc="no"
+elif test "$with_tirpc" = "auto"; then
+   if test "$need_tirpc" = "yes" -a "$have_tirpc" = "no"; then
+      AC_MSG_ERROR([cannot find libtirpc but it is required.])
+   fi
+   use_tirpc=$need_tirpc
+elif test "$with_tirpc" = "yes"; then
+   if test "$have_tirpc" = "no"; then
+      AC_MSG_ERROR([cannot build with libtirpc because it cannot be found.])
+   fi
+   use_tirpc="yes"
+fi
+
+XDR_LIBS=
+XDR_CPPFLAGS=
+if test "$use_tirpc" = "yes"; then
+   AC_MSG_NOTICE([building with libtirpc])
+   XDR_LIBS="$TIRPC_LIBS"
+   XDR_CPPFLAGS="-DUSE_TIRPC $TIRPC_CPPFLAGS"
+else
+   AC_MSG_NOTICE([building without libtirpc])
+   # In Solaris, the XDR-related functions are not in libc like in Linux and
+   # FreeBSD, so binaries need to be linked to some extra libraries.
+   if test "$os" = "solaris"; then
+      XDR_LIBS="-lnsl -lrpcsvc"
+   fi
+fi
+
 AC_PATH_PROG(
    [RPCGEN],
    [rpcgen],
-   [ AC_MSG_ERROR([rpcgen not found. Please install the libc devel package.]) ])
+   [not_found])
+if test "$RPCGEN" == "not_found"; then
+   AC_MSG_ERROR([rpcgen not found.])
+fi
 
 ###
 ### Headers
@@ -1389,7 +1458,6 @@ AM_CONDITIONAL(HAVE_XSM, test "$have_xsm" = "yes")
 AM_CONDITIONAL(HAVE_XCOMPOSITE, test "$have_xcomposite" = "yes")
 AM_CONDITIONAL(ENABLE_TESTS, test "$have_cunit" = "yes")
 AM_CONDITIONAL(WITH_ROOT_PRIVILEGES, test "$with_root_privileges" = "yes")
-AM_CONDITIONAL(HAVE_DNET, test "$have_dnet" = "yes")
 AM_CONDITIONAL(HAVE_DOXYGEN, test "$have_doxygen" = "yes")
 AM_CONDITIONAL(HAVE_FUSE, test "$have_fuse" = "yes")
 AM_CONDITIONAL(HAVE_GNU_LD, test "$with_gnu_ld" = "yes")
@@ -1447,13 +1515,6 @@ VMTOOLS_CPPFLAGS="-DVMTOOLS_USE_GLIB $GLIB2_CPPFLAGS"
 PLUGIN_CPPFLAGS="$VMTOOLS_CPPFLAGS $PLUGIN_CPPFLAGS"
 PLUGIN_LDFLAGS="-Wl,-z,defs -Wl,-lc -Wl,--as-needed -shared -module -avoid-version"
 
-# In Solaris, the XDR-related functions are not in libc like in Linux and
-# FreeBSD, so binaries need to be linked to some extra libraries.
-XDR_LIBS=
-if test "$os" = "solaris"; then
-   XDR_LIBS="-lnsl -lrpcsvc"
-fi
-
 # Installation directories for core services plugins.
 TEST_PLUGIN_INSTALLDIR=$datadir/open-vm-tools/tests
 COMMON_PLUGIN_INSTALLDIR=$libdir/open-vm-tools/plugins/common
@@ -1494,6 +1555,7 @@ AC_SUBST([VMTOOLS_LIBS])
 AC_SUBST([THREAD_LIBS])
 AC_SUBST([RPCGENFLAGS])
 AC_SUBST([XDR_LIBS])
+AC_SUBST([XDR_CPPFLAGS])
 AC_SUBST([TEST_PLUGIN_INSTALLDIR])
 AC_SUBST([COMMON_PLUGIN_INSTALLDIR])
 AC_SUBST([VMSVC_PLUGIN_INSTALLDIR])
