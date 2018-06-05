@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -45,8 +45,6 @@ typedef struct {
    uint64  timeValue;
 } TopOwner;
 
-#define TOPOWNERS 10
-
 struct MXUserHisto {
    char     *typeName;               // Type (name) of histogram
    uint64   *binData;                // Hash table bins
@@ -54,7 +52,6 @@ struct MXUserHisto {
    uint64    minValue;               // Min value allowed
    uint64    maxValue;               // Max value allowed
    uint32    numBins;                // Number of histogram bins
-   TopOwner  ownerArray[TOPOWNERS];  // List of top owners
 };
 
 static Bool    mxUserTrackHeldTimes = FALSE;
@@ -267,10 +264,9 @@ MXUserHistoSample(MXUserHisto *histo,  // IN/OUT:
                   uint64 durationNS,   // IN:
                   void *ownerRetAddr)  // IN:
 {
-   uint32 i;
    uint32 index;
 
-   ASSERT(histo);
+   ASSERT(histo != NULL);
 
    histo->totalSamples++;
 
@@ -287,25 +283,6 @@ MXUserHistoSample(MXUserHisto *histo,  // IN/OUT:
    ASSERT(index < histo->numBins);
 
    histo->binData[index]++;
-
-   index = 0;
-
-   for (i = 0; i < TOPOWNERS; i++) {
-      if (histo->ownerArray[i].address == ownerRetAddr) {
-         index = i;
-         break;
-      }
-
-      if (histo->ownerArray[i].timeValue <
-          histo->ownerArray[index].timeValue) {
-         index = i;
-      }
-   }
-
-   if (durationNS > histo->ownerArray[index].timeValue) {
-      histo->ownerArray[index].address = ownerRetAddr;
-      histo->ownerArray[index].timeValue = durationNS;
-   }
 }
 
 
@@ -331,7 +308,7 @@ MXUserStatsLog(const char *fmt,  // IN:
 {
    va_list ap;
 
-   ASSERT(mxUserStatsFunc);
+   ASSERT(mxUserStatsFunc != NULL);
 
    va_start(ap, fmt);
    (*mxUserStatsFunc)(mxUserStatsContext, fmt, ap);
@@ -359,15 +336,15 @@ void
 MXUserHistoDump(MXUserHisto *histo,    // IN:
                 MXUserHeader *header)  // IN:
 {
-   ASSERT(header);
-   ASSERT(histo);
+   ASSERT(header != NULL);
+   ASSERT(histo != NULL);
 
    if (histo->totalSamples) {
       char *p;
       uint32 i;
       uint32 spaceLeft;
 
-      ASSERT(mxUserHistoLine);
+      ASSERT(mxUserHistoLine != NULL);
 
       i = Str_Sprintf(mxUserHistoLine, mxUserMaxLineLength,
                       "MXUser: h l=%u t=%s min=%"FMT64"u max=%"FMT64"u\n",
@@ -395,43 +372,6 @@ MXUserHistoDump(MXUserHisto *histo,    // IN:
             if (len < spaceLeft) {
                /*
                 * Append the bin number, bin count pair to the end of the
-                * string. This includes the terminating "\n\0". Update the
-                * pointer to the next free place to point to the '\n'. If
-                * another entry is made, things work out properly. If not
-                * the string is properly terminated as a line.
-                */
-
-               Str_Strcpy(p, binEntry, len + 1);
-               p += len - 1;
-               spaceLeft -= len;
-            } else {
-               break;
-            }
-         }
-      }
-
-      MXUserStatsLog("%s", mxUserHistoLine);
-
-      i = Str_Sprintf(mxUserHistoLine, mxUserMaxLineLength,
-                      "MXUser: ht l=%u t=%s\n", header->bits.serialNumber,
-                      histo->typeName);
-
-      p = &mxUserHistoLine[i - 1];
-      spaceLeft = mxUserMaxLineLength - i - 2;
-
-      for (i = 0; i < TOPOWNERS; i++) {
-         if (histo->ownerArray[i].address != NULL) {
-            uint32 len;
-            char binEntry[44];
-
-            /* Use a debugger to change the address to a symbol */
-            len = Str_Sprintf(binEntry, sizeof binEntry, " %p-%"FMT64"u\n",
-                              histo->ownerArray[i].address,
-                              histo->ownerArray[i].timeValue);
-
-            if (len < spaceLeft) {
-               /*
-                * Append the address, time value pair to the end of the
                 * string. This includes the terminating "\n\0". Update the
                 * pointer to the next free place to point to the '\n'. If
                 * another entry is made, things work out properly. If not
