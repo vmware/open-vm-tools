@@ -231,6 +231,10 @@ private:
     * composite overlay window.
     */
    Gdk::Point mOrigin;
+
+   bool mUseUInput;
+   int mScreenWidth;
+   int mScreenHeight;
 };
 
 #endif // __DND_UI_X11_H__
