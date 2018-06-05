@@ -618,8 +618,6 @@ typedef uint64 MPN;
  */
 #define PPN64_2_PPN(_ppn)     ((PPN)_ppn)
 
-#define FMTPPN ""
-
 /*
  * IO device DMA virtual address and page number (translated by IOMMU to
  * MA/MPN). IOPN can be in the inclusive range 0 -> MAX_IOPN.
@@ -642,12 +640,14 @@ typedef void * UserVA;
 #endif
 
 
+/* Maximal observable PPN value. */
 #define MAX_PPN_BITS      31
-#define MAX_PPN           (((PPN)1 << MAX_PPN_BITS) - 1) /* Maximal observable PPN value. */
-#define INVALID_PPN       ((PPN)0xffffffff)
+#define MAX_PPN           (((PPN64)1 << MAX_PPN_BITS) - 1)
+
+#define INVALID_PPN       ((PPN64)0xffffffff)
 #define INVALID_PPN32     ((PPN32)0xffffffff)
 #define INVALID_PPN64     ((PPN64)0xffffffffffffffffull)
-#define APIC_INVALID_PPN  ((PPN)0xfffffffe)
+#define APIC_INVALID_PPN  ((PPN64)0xfffffffe)
 
 #define INVALID_BPN       ((BPN)0x000000ffffffffffull)
 
