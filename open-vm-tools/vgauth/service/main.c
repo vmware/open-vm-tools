@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -22,6 +22,7 @@
  *    Entry point for the GuestAuth service.
  */
 
+#include <locale.h>
 #include "serviceInt.h"
 #include "service.h"
 #ifdef _WIN32
@@ -135,6 +136,7 @@ ServiceStartAndRun(void)
                                       VGAUTH_PREF_GROUP_NAME_LOCALIZATION,
                                       VGAUTH_PREF_DEFAULT_LOCALIZATION_CATALOG);
 
+   setlocale(LC_ALL, "");
    I18n_BindTextDomain(VMW_TEXT_DOMAIN, NULL, msgCatalog);
    g_free(msgCatalog);
 
