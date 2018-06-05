@@ -629,12 +629,12 @@ typedef void * UserVA;
 
 /* Maximal observable PPN value. */
 #define MAX_PPN_BITS      31
-#define MAX_PPN           (((PPN64)1 << MAX_PPN_BITS) - 1)
+#define MAX_PPN           (((PPN)1 << MAX_PPN_BITS) - 1)
 
-#define INVALID_PPN       ((PPN64)0xffffffff)
+#define INVALID_PPN       ((PPN)0x000fffffffffffffull)
 #define INVALID_PPN32     ((PPN32)0xffffffff)
-#define INVALID_PPN64     ((PPN64)0xffffffffffffffffull)
-#define APIC_INVALID_PPN  ((PPN64)0xfffffffe)
+#define INVALID_PPN64     ((PPN)0xffffffffffffffffull)
+#define APIC_INVALID_PPN  ((PPN)0xfffffffe)
 
 #define INVALID_BPN       ((BPN)0x000000ffffffffffull)
 
