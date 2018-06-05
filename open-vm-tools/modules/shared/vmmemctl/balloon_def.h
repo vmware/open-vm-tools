@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2000-2012,2014,2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2000-2012,2014,2017-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -144,6 +144,7 @@ typedef enum {
    BALLOON_BATCHED_CMDS         = (1 << 2),
    BALLOON_BATCHED_2M_CMDS      = (1 << 3),
    BALLOON_SIGNALED_WAKEUP_CMD  = (1 << 4),
+   BALLOON_64_BIT_TARGET        = (1 << 5),
 } BalloonCapabilities;
 
 /* use config value for max balloon size */
