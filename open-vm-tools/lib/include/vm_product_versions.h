@@ -167,6 +167,8 @@
 
 #define GANTRY_VERSION "1.0.0"
 
+#define THINPRINT_VERSION "1.0.0"
+
 /*
  * In the *-main branches, FUSION_VERSION should always be set to "e.x.p".
  * In a Fusion release branch, when you modify FUSION_VERSION, check that the
