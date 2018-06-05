@@ -45,6 +45,7 @@ libdndcp_la_LIBADD += @GTK_LIBS@
 libdndcp_la_LIBADD += @GTKMM_LIBS@
 libdndcp_la_LIBADD += @VMTOOLS_LIBS@
 libdndcp_la_LIBADD += @HGFS_LIBS@
+libdndcp_la_LIBADD += @THREAD_LIBS@
 libdndcp_la_LIBADD += $(top_builddir)/lib/hgfsUri/hgfsUriPosix.lo
 
 libdndcp_la_SOURCES =
