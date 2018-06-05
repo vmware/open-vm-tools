@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -27,7 +27,7 @@
 #include <string.h>
 
 #if defined(__i386__) || defined(__x86_64__)
-#include "cpuid_info.h"
+#include "x86cpuid_asm.h"
 #endif
 #include "hostinfo.h"
 #include "hostinfoInt.h"
@@ -185,64 +185,38 @@ Bool
 Hostinfo_GetCpuid(HostinfoCpuIdInfo *info) // OUT
 {
 #if defined(__i386__) || defined(__x86_64__)
-   CPUIDSummary cpuid;
-   CPUIDRegs id0;
+   CPUIDRegs regs = {0};
 
-   /*
-    * Can't do cpuid = {0} as an initializer above because gcc throws
-    * some idiotic warning.
-    */
+   /* Get basic and extended CPUID info. */
 
-   memset(&cpuid, 0, sizeof(cpuid));
-
-   /*
-    * Get basic and extended CPUID info.
-    */
-
-   __GET_CPUID(0, &id0);
-
-   cpuid.id0.numEntries = id0.eax;
-
-   if (cpuid.id0.numEntries == 0) {
+   __GET_CPUID(0, &regs);
+   if (regs.eax == 0) {
       Warning(LGPFX" No CPUID information available.\n");
-
       return FALSE;
    }
 
-   *(uint32*)(cpuid.id0.name + 0)  = id0.ebx;
-   *(uint32*)(cpuid.id0.name + 4)  = id0.edx;
-   *(uint32*)(cpuid.id0.name + 8)  = id0.ecx;
-   *(uint32*)(cpuid.id0.name + 12) = 0;
+   /* Calculate vendor information. */
 
-   __GET_CPUID(1,          (CPUIDRegs*)&cpuid.id1);
-   __GET_CPUID(0xa,        (CPUIDRegs*)&cpuid.ida);
-   __GET_CPUID(0x80000000, (CPUIDRegs*)&cpuid.id80);
-   __GET_CPUID(0x80000001, (CPUIDRegs*)&cpuid.id81);
-   __GET_CPUID(0x80000008, (CPUIDRegs*)&cpuid.id88);
-
-   /*
-    * Calculate vendor information.
-    */
-
-   if (0 == strcmp(cpuid.id0.name, CPUID_INTEL_VENDOR_STRING_FIXED)) {
+   if (memcmp(&regs.ebx, CPUID_INTEL_VENDOR_STRING, 12) == 0) {
       info->vendor = CPUID_VENDOR_INTEL;
-   } else if (strcmp(cpuid.id0.name, CPUID_AMD_VENDOR_STRING_FIXED) == 0) {
+   } else if (memcmp(&regs.ebx, CPUID_AMD_VENDOR_STRING, 12) == 0) {
       info->vendor = CPUID_VENDOR_AMD;
+   } else if (memcmp(&regs.ebx, CPUID_HYGON_VENDOR_STRING, 12) == 0) {
+      info->vendor = CPUID_VENDOR_HYGON;
    } else {
       info->vendor = CPUID_VENDOR_UNKNOWN;
    }
-   /*
-    * Pull out versioning and feature information.
-    */
 
-   info->version = cpuid.id1.version;
-   info->family = CPUID_GET(1, EAX, FAMILY, cpuid.id1.version);
-   info->model = CPUID_GET(1, EAX, MODEL, cpuid.id1.version);
-   info->stepping = CPUID_GET(1, EAX, STEPPING, cpuid.id1.version);
-   info->type = (cpuid.id1.version >> 12) & 0x0003;
+   /* Pull out versioning and feature information. */
 
-   info->extfeatures = cpuid.id1.ecxFeatures;
-   info->features = cpuid.id1.edxFeatures;
+   __GET_CPUID(1, &regs);
+   info->version = regs.eax;
+   info->family = CPUID_GET(1, EAX, FAMILY, regs.eax);
+   info->model = CPUID_GET(1, EAX, MODEL, regs.eax);
+   info->stepping = CPUID_GET(1, EAX, STEPPING, regs.eax);
+   info->type = CPUID_GET(1, EAX, TYPE, regs.eax);
+   info->extfeatures = regs.ecx;
+   info->features = regs.edx;
 
    return TRUE;
 #else // defined(__i386__) || defined(__x86_64__)
