@@ -35,6 +35,8 @@
 #include "hgfsServerManager.h"
 #include "vm_basic_defs.h"
 #include "vm_assert.h"
+#include "vm_vmx_type.h"
+#include "vmcheck.h"
 #include "vmware/guestrpc/tclodefs.h"
 #include "vmware/tools/log.h"
 #include "vmware/tools/plugin.h"
@@ -1079,24 +1081,35 @@ ToolsOnLoad(ToolsAppCtx *ctx)
       NULL
    };
    HgfsServerMgrData *mgrData;
+   uint32 vmxVersion = 0;
+   uint32 vmxType = VMX_TYPE_UNSET;
 
    if (!TOOLS_IS_MAIN_SERVICE(ctx) && !TOOLS_IS_USER_SERVICE(ctx)) {
       g_info("Unknown container '%s', not loading HGFS plugin.", ctx->name);
       return NULL;
    }
 
-   if (TOOLS_IS_MAIN_SERVICE(ctx)) {
-      /* Start the Shared Folders redirector client. */
-      HgfsServerClientRdrStart();
-   } else if (TOOLS_IS_USER_SERVICE(ctx)) {
-      /*
-       * If Explorer recreated the mapped drives prior to the client being up and
-       * running by the main service, we will need to reconnect the Shared Folders
-       * drives.
-       */
-      HgfsServerClientRdrConnectDrives();
+   /*
+    * Check for VM is running in a hosted environment and if so initialize
+    * the Shared Folders HGFS client redirector.
+    */
+   if (VmCheck_GetVersion(&vmxVersion, &vmxType) &&
+       vmxType != VMX_TYPE_SCALABLE_SERVER) {
+      if (TOOLS_IS_MAIN_SERVICE(ctx)) {
+         /* Start the Shared Folders redirector client. */
+         HgfsServerClientRdrStart();
+      } else if (TOOLS_IS_USER_SERVICE(ctx)) {
+         /*
+          * If Explorer recreated the mapped drives prior to the client being up and
+          * running by the main service, we will need to reconnect the Shared Folders
+          * drives.
+          */
+         HgfsServerClientRdrConnectDrives();
+      } else {
+         NOT_REACHED();
+      }
    } else {
-      NOT_REACHED();
+      g_debug("VM is not running in a hosted product skip HGFS client redirector initialization.");
    }
 
    mgrData = g_malloc0(sizeof *mgrData);
