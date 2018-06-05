@@ -319,6 +319,8 @@ Log_InitWithSyslogSimple(const char *syslogID,
    return Log_InitWithSyslogSimpleInt(appPrefix, Log_CfgInterface(), syslogID);
 }
 
+char *Log_SyslogHash(const char *configPath);
+
 LogOutput *Log_InitWithStdioSimpleInt(const char *appPrefix,
                                       struct CfgInterface *cfgIf,
                                       const char *minLevel,
