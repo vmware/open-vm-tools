@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -310,6 +310,36 @@ DynBuf_Enlarge(DynBuf *b,       // IN/OUT:
    }
 
    return DynBufRealloc(b, newAllocated);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * DynBuf_SafeInternalEnlarge --
+ *
+ *      Enlarge a dynamic buffer. Memory allocation failure is handled the
+ *      same way as Util_SafeMalloc, that is to say, with a Panic.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+DynBuf_SafeInternalEnlarge(DynBuf *b,           // IN/OUT:
+                           size_t minSize,      // IN:
+                           char const *file,    // IN:
+                           unsigned int lineno) // IN:
+{
+   if (!DynBuf_Enlarge(b, minSize)) {
+      Panic("Unrecoverable memory allocation failure at %s:%u\n",
+            file, lineno);
+   }
 }
 
 
