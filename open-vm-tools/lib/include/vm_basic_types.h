@@ -483,16 +483,18 @@ typedef uint8 *TCA;  /* Pointer into TC (usually). */
  * Type big enough to hold an integer between 0..100
  */
 typedef uint8 Percent;
-#define AsPercent(v)	((Percent)(v))
+#define AsPercent(v) ((Percent)(v))
 
 
 typedef uintptr_t VA;
 typedef uintptr_t VPN;
 
 typedef uint64    PA;
+typedef uint64    PPN;
 typedef uint32    PPNTMP;
 
 typedef uint64    TPA;
+typedef uint64    TPPN;
 
 typedef uint64    PhysMemOff;
 typedef uint64    PhysMemSize;
@@ -508,9 +510,11 @@ typedef uint64    BPN;
 #define BPN_2_UINT64(b) ((uint64)(b))
 
 typedef uint64    PgCnt64;
+typedef uint64    PageCnt;
 typedef uint64    PgNum64;
-typedef unsigned      MemHandle;
-typedef unsigned int  IoHandle;
+typedef uint64    PageNum;
+typedef unsigned  MemHandle;
+typedef unsigned  IoHandle;
 typedef int32     World_ID;
 
 /* !! do not alter the definition of INVALID_WORLD_ID without ensuring
