@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2002-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2002-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -133,6 +133,28 @@
  */
 
 #define CONFNAME_GUESTINFO_EXCLUDENICS "exclude-nics"
+
+/**
+ * Define a custom max IPv4 routes to gather.
+ *
+ * @note Illegal values result in a @c g_warning and fallback to the default
+ * NICINFO_MAX_ROUTES.
+ *
+ * @param int   User-defined max routes with range [0, NICINFO_MAX_ROUTES].
+ *              Set to 0 to disable gathering.
+ */
+#define CONFNAME_GUESTINFO_MAXIPV4ROUTES "max-ipv4-routes"
+
+/**
+ * Define a custom max IPv6 routes to gather.
+ *
+ * @note Illegal values result in a @c g_warning and fallback to the default
+ * NICINFO_MAX_ROUTES.
+ *
+ * @param int   User-defined max routes with range [0, NICINFO_MAX_ROUTES].
+ *              Set to 0 to disable gathering.
+ */
+#define CONFNAME_GUESTINFO_MAXIPV6ROUTES "max-ipv6-routes"
 
 /**
  * Lets user include reserved space in diskInfo space metrics on Linux.
