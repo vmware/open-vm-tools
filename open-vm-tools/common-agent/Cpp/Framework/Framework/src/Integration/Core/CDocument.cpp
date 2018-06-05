@@ -2,10 +2,11 @@
  *	Author: bwilliams
  *  Created: Oct 20, 2011
  *
- *	Copyright (C) 2011-2016 VMware, Inc.  All rights reserved. -- VMware Confidential
+ *	Copyright (C) 2011-2018 VMware, Inc.  All rights reserved. -- VMware Confidential
  */
 
 #include "stdafx.h"
+#include <iterator>
 
 #include "Integration/IDocument.h"
 #include "Xml/XmlUtils/CXmlElement.h"
