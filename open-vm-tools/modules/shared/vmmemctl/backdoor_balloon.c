@@ -246,19 +246,16 @@ Backdoor_MonitorGetTarget(Balloon *b,     // IN/OUT
    limit = OS_ReservedPageGetLimit();
 
    if (!BackdoorHasCapability(b, BALLOON_64_BIT_TARGET)) {
-      uint32 limit32;
-      /* Ensure limit fits in 32-bits */
-      limit32 = (uint32)limit;
-      if (limit32 != limit) {
-         return BALLOON_FAILURE;
+      if (limit != (uint32)limit) {
+         limit = (uint32)limit;
       }
    }
 
    status = BackdoorCmd(BALLOON_BDOOR_CMD_TARGET, limit, 0, target,
                         &b->resetFlag);
 
-   if (!BackdoorHasCapability(b, BALLOON_64_BIT_TARGET)) {
-      *target = MAX(MAX_UINT32, *target);
+   if (target != NULL && !BackdoorHasCapability(b, BALLOON_64_BIT_TARGET)) {
+      *target = MIN(MAX_UINT32, *target);
    }
 
    /* update stats */
@@ -307,8 +304,8 @@ Backdoor_MonitorLockPage(Balloon *b,     // IN/OUT
 
    status = BackdoorCmd(BALLOON_BDOOR_CMD_LOCK, ppn, 0, target,
                         &b->resetFlag);
-   if (!BackdoorHasCapability(b, BALLOON_64_BIT_TARGET)) {
-      *target = MAX(MAX_UINT32, *target);
+   if (target != NULL && !BackdoorHasCapability(b, BALLOON_64_BIT_TARGET)) {
+      *target = MIN(MAX_UINT32, *target);
    }
 
    /* update stats */
@@ -357,8 +354,8 @@ Backdoor_MonitorUnlockPage(Balloon *b,     // IN/OUT
 
    status = BackdoorCmd(BALLOON_BDOOR_CMD_UNLOCK, ppn, 0, target,
                         &b->resetFlag);
-   if (!BackdoorHasCapability(b, BALLOON_64_BIT_TARGET)) {
-      *target = MAX(MAX_UINT32, *target);
+   if (target != NULL && !BackdoorHasCapability(b, BALLOON_64_BIT_TARGET)) {
+      *target = MIN(MAX_UINT32, *target);
    }
 
    /* update stats */
@@ -403,8 +400,8 @@ Backdoor_MonitorLockPagesBatched(Balloon *b,      // IN/OUT
    }
 
    status = BackdoorCmd(cmd, (size_t)ppn, nPages, target, &b->resetFlag);
-   if (!BackdoorHasCapability(b, BALLOON_64_BIT_TARGET)) {
-      *target = MAX(MAX_UINT32, *target);
+   if (target != NULL && !BackdoorHasCapability(b, BALLOON_64_BIT_TARGET)) {
+      *target = MIN(MAX_UINT32, *target);
    }
 
    /* update stats */
@@ -449,8 +446,8 @@ Backdoor_MonitorUnlockPagesBatched(Balloon *b,      // IN/OUT
    }
 
    status = BackdoorCmd(cmd, (size_t)ppn, nPages, target, &b->resetFlag);
-   if (!BackdoorHasCapability(b, BALLOON_64_BIT_TARGET)) {
-      *target = MAX(MAX_UINT32, *target);
+   if (target != NULL && !BackdoorHasCapability(b, BALLOON_64_BIT_TARGET)) {
+      *target = MIN(MAX_UINT32, *target);
    }
 
    /* update stats */
