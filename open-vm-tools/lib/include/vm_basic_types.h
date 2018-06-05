@@ -102,18 +102,9 @@
  * - VM_<arch>_32 for the 32-bit variant.
  * - VM_<arch>_64 for the 64-bit variant.
  * - VM_<arch>_ANY for any variant of <arch>.
- *
- * VM_X86_ANY is synonymous with the confusing and deprecated VM_I386 (which
- * should really be VM_X86_32).
  */
 
 #ifdef __i386__
-/*
- * VM_I386 is historically synonymous with VM_X86_ANY in bora, but misleading,
- * since it is confused with the __i386__ gcc but defined for both 32- and
- * 64-bit x86. We retain it here for legacy compatibility.
- */
-#define VM_I386
 #define VM_X86_32
 #define VM_X86_ANY
 #define VM_32BIT
@@ -122,7 +113,6 @@
 #ifdef __x86_64__
 #define VM_X86_64
 #define vm_x86_64 1
-#define VM_I386
 #define VM_X86_ANY
 #define VM_64BIT
 #else

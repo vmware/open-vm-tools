@@ -248,7 +248,7 @@ Max(int a, int b)
  */
 
 #ifndef PAGE_SHIFT // {
-#if defined VM_I386
+#if defined __x86_64__ || defined __i386__
    #define PAGE_SHIFT    12
 #elif defined __APPLE__
    #define PAGE_SHIFT    12
