@@ -816,8 +816,8 @@ vmmemctl_sysctl(SYSCTL_HANDLER_ARGS)
 
    /* format size info */
    len += snprintf(buf + len, sizeof(buf) - len,
-                   "target:             %8d pages\n"
-                   "current:            %8d pages\n",
+                   "target:             %8"FMT64"u pages\n"
+                   "current:            %8"FMT64"u pages\n",
                    stats->nPagesTarget,
                    stats->nPages);
 
