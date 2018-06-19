@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2015-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -114,16 +114,58 @@ InfoUpdateNetwork(void)
    GuestNicProto msg = { 0 };
    GuestInfoType type = INFO_IPADDRESS_V3;
 
+   GKeyFile *confDict = NULL;
+   int maxIPv4RoutesToGather = NICINFO_MAX_ROUTES;
+   int maxIPv6RoutesToGather = NICINFO_MAX_ROUTES;
+
 #ifdef _WIN32
    DWORD dwRet = NetUtil_LoadIpHlpApiDll();
    if (dwRet != ERROR_SUCCESS) {
-      g_warning("NetUtil_LoadIpHlpApiDll() failed\n");
+      g_warning("NetUtil_LoadIpHlpApiDll() failed.\n");
       return EXIT_FAILURE;
    }
 #endif
 
-   if (!GuestInfo_GetNicInfo(&info)) {
-      g_warning("Failed to get nic info\n");
+   // Get the config options of max IPv4/IPv6 routes to gather
+   VMTools_LoadConfig(NULL, G_KEY_FILE_NONE, &confDict, NULL);
+
+   if (confDict != NULL) {
+      maxIPv4RoutesToGather =
+               VMTools_ConfigGetInteger(confDict,
+                                        CONFGROUPNAME_GUESTINFO,
+                                        CONFNAME_GUESTINFO_MAXIPV4ROUTES,
+                                        NICINFO_MAX_ROUTES);
+      if (maxIPv4RoutesToGather < 0 ||
+          maxIPv4RoutesToGather > NICINFO_MAX_ROUTES) {
+         g_warning("Invalid %s.%s value: %d. Using default %u.\n",
+                   CONFGROUPNAME_GUESTINFO,
+                   CONFNAME_GUESTINFO_MAXIPV4ROUTES,
+                   maxIPv4RoutesToGather,
+                   NICINFO_MAX_ROUTES);
+         maxIPv4RoutesToGather = NICINFO_MAX_ROUTES;
+      }
+
+      maxIPv6RoutesToGather =
+               VMTools_ConfigGetInteger(confDict,
+                                        CONFGROUPNAME_GUESTINFO,
+                                        CONFNAME_GUESTINFO_MAXIPV6ROUTES,
+                                        NICINFO_MAX_ROUTES);
+      if (maxIPv6RoutesToGather < 0 ||
+          maxIPv6RoutesToGather > NICINFO_MAX_ROUTES) {
+         g_warning("Invalid %s.%s value: %d. Using default %u.\n",
+                   CONFGROUPNAME_GUESTINFO,
+                   CONFNAME_GUESTINFO_MAXIPV6ROUTES,
+                   maxIPv6RoutesToGather,
+                   NICINFO_MAX_ROUTES);
+         maxIPv6RoutesToGather = NICINFO_MAX_ROUTES;
+      }
+      g_key_file_free(confDict);
+   }
+
+   if (!GuestInfo_GetNicInfo(maxIPv4RoutesToGather,
+                             maxIPv6RoutesToGather,
+                             &info)) {
+      g_warning("Failed to get nic info.\n");
       ret = EXIT_FAILURE;
       goto done;
    }
