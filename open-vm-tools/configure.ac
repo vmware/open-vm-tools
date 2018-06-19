@@ -639,7 +639,7 @@ if test "$enable_vgauth" = "yes"; then
                        [],
                        [],
                        [],
-                       [_ZN11xercesc_3_117AbstractDOMParser11getDocumentEv],
+                       [],
                        [],
                        [AC_VMW_LIB_ERROR([XERCES], [xerces])])
 
@@ -650,7 +650,7 @@ if test "$enable_vgauth" = "yes"; then
                        [],
                        [],
                        [],
-                       [_ZN12XSECProviderC1Ev],
+                       [],
                        [],
                        [AC_VMW_LIB_ERROR([XMLSECURITY], [xmlsecurity])])
    fi
@@ -828,7 +828,7 @@ else
                             [],
                             [3.0.0],
                             [gtkmm.h],
-                            [_ZN3Gtk4Main3runEv],
+                            [],
                             [GTKMM_CPPFLAGS="$GTKMM_CPPFLAGS -DHAVE_GTKMM"],
                             [AC_MSG_ERROR([gtkmm3 library not found. Please install the libgtkmm devel package(s), or re-configure using --without-gtkmm3.])])
 
@@ -840,7 +840,7 @@ else
                             [],
                             [2.4.0],
                             [gtkmm.h],
-                            [_ZN3Gtk4Main3runEv],
+                            [],
                             [GTKMM_CPPFLAGS="$GTKMM_CPPFLAGS -DHAVE_GTKMM"],
                             [AC_MSG_ERROR([gtkmm library not found. Please install the libgtkmm devel package(s), or re-configure using --without-gtkmm.])])
       fi
