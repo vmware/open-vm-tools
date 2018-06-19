@@ -509,27 +509,27 @@ AC_ARG_ENABLE([vgauth],
      [do not build vgauth.])],
    [
     enable_vgauth="$enableval"
-    use_xmlsec1=no
+    use_xmlsec1=yes
    ],
    [
     if test "$os" = "linux"; then
        enable_vgauth=yes
-       use_xmlsec1=no
+       use_xmlsec1=yes
     else
        enable_vgauth=no
-       use_xmlsec1=no
+       use_xmlsec1=yes
     fi
    ])
 
 AC_ARG_ENABLE([xmlsec1],
    [AS_HELP_STRING([--enable-xmlsec1],
-     [build vgauth with xmlsec1 instead of xml-security-c (off by default).])],
+     [build vgauth with xmlsec1 instead of xml-security-c (on by default).])],
    [use_xmlsec1="$enableval"],
-   [use_xmlsec1=no])
+   [use_xmlsec1=yes])
 
 AC_ARG_ENABLE([xmlsecurity],
    [AS_HELP_STRING([--enable-xmlsecurity],
-     [build vgauth with xml-security-c instead of xmlsec1 (on by default).])],
+     [build vgauth with xml-security-c instead of xmlsec1 (off by default).])],
    [
     if test "$enableval" = "yes"; then
        use_xmlsec1="no"
@@ -632,7 +632,7 @@ if test "$enable_vgauth" = "yes"; then
                        [xmlsec1-config],
                        [],
                        [xmlsec/xmlsec.h],
-                       [xmlSecCheckVersion],
+                       [xmlSecCheckVersionExt],
                        [XMLSEC1_CPPFLAGS="$XMLSEC1_CPPFLAGS -DXMLSEC_NO_SIZE_T"],
                        [AC_VMW_LIB_ERROR([XMLSEC1], [xmlsec1])])
 
