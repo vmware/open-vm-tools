@@ -58,6 +58,10 @@ cmdline.rpcerror = "Befehl konnte nicht an VMware-Hypervisor gesendet werden."
 
 cmdline.state = "Führt einen Dump des internen Zustands der Instanz eines laufenden Dienstes in die Protokolle aus."
 
+cmdline.uinputfd = "Dateideskriptor für das Eingabegerät"
+
+cmdline.uinputfd.fd = "fd"
+
 cmdline.uninstall = "Deinstalliert den Dienst vom Service Control Manager (SCM)."
 
 cmdline.version = "Druckt die Version des Daemons und wird beendet."
