@@ -351,10 +351,11 @@ if test "$ac_cv_prog_AR" = false; then
 fi
 
 # We use pkg-config to set up the cflags and libs for gtk.
-AC_CHECK_TOOL(
-   [PKG_CONFIG],
+AC_CHECK_PROG(
+   [HAVE_PKG_CONFIG],
    [pkg-config],
-   [not_found])
+   [yes],
+   [no])
 
 if test "$GCC" != "yes"; then
    AC_MSG_ERROR([Only GCC is currently supported. Please put gcc in the path.])
@@ -1436,8 +1437,8 @@ if test "$os" = "linux"; then
                 [UDEVRULESDIR="$withval"],
                 [
                     UDEVRULESDIR="/lib/udev/rules.d"
-                    if test "$PKG_CONFIG" != "not_found"; then
-                        udevdir=$($PKG_CONFIG udev --variable=udevdir)
+                    if test $HAVE_PKG_CONFIG = "yes"; then
+                        udevdir=$(pkg-config udev --variable=udevdir)
                         if test "x$udevdir" != "x"; then
                             UDEVRULESDIR="$udevdir/rules.d"
                         fi

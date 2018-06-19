@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2009-2018 VMware, Inc.  All rights reserved.
+### Copyright (C) 2009-2016 VMware, Inc.  All rights reserved.
 ###
 ### VMware-specific macros for use with autoconf.
 ###
@@ -108,15 +108,15 @@ AC_DEFUN([AC_VMW_CHECK_LIB],[
    fi
 
    # If that didn't work, try with pkg-config.
-   if test $ac_vmw_have_lib -eq 0 && test "$PKG_CONFIG" != "not_found" && test -n "$3"; then
+   if test $ac_vmw_have_lib -eq 0 && test "$HAVE_PKG_CONFIG" = "yes" && test -n "$3"; then
       if test -n "$5"; then
          AC_MSG_CHECKING([for $3 >= $5 (via pkg-config)])
-         if $PKG_CONFIG --exists '$3 >= $5'; then
+         if pkg-config --exists '$3 >= $5'; then
             ac_vmw_have_lib=1
          fi
       else
          AC_MSG_CHECKING([for $3 (via pkg-config)])
-         if $PKG_CONFIG --exists '$3'; then
+         if pkg-config --exists '$3'; then
             ac_vmw_have_lib=1
          fi
       fi
@@ -124,9 +124,9 @@ AC_DEFUN([AC_VMW_CHECK_LIB],[
       if test $ac_vmw_have_lib -eq 1; then
          # Sometimes pkg-config might fail; for example, "pkg-config gtk+-2.0 --cflags"
          # fails on OpenSolaris B71. So be pessimistic.
-         ac_vmw_cppflags="`$PKG_CONFIG --cflags $3`"
+         ac_vmw_cppflags="`pkg-config --cflags $3`"
          ac_vmw_ret1=$?
-         ac_vmw_libs="`$PKG_CONFIG --libs $3`"
+         ac_vmw_libs="`pkg-config --libs $3`"
          ac_vmw_ret2=$?
          if test $ac_vmw_ret1 -eq 0 && test $ac_vmw_ret2 -eq 0; then
             AC_MSG_RESULT([yes])
@@ -141,16 +141,16 @@ AC_DEFUN([AC_VMW_CHECK_LIB],[
    fi
 
    # If we still haven't found the lib, try with the library's custom "config" script.
-   # Before checking, flush the AC_PATH_TOOL cached variable.
+   # Before checking, flush the AC_PATH_PROG cached variable.
    unset ac_cv_path_ac_vmw_lib_cfg
    unset ac_vmw_lib_cfg
    if test $ac_vmw_have_lib -eq 0 && test -n "$4"; then
-      AC_PATH_TOOL([ac_vmw_lib_cfg], [$4], [not_found])
-      if test "$ac_vmw_lib_cfg" != "not_found"; then
+      AC_PATH_PROG([ac_vmw_lib_cfg], [$4], [no])
+      if test "$ac_vmw_lib_cfg" != "no"; then
          # XXX: icu-config does not follow the "--cflags" and "--libs" convention,
          # so single it out here to avoid having to replicate all the rest of the
          # logic elsewhere.
-         if test "$4" = "icu-config"; then
+         if test `basename "$ac_vmw_lib_cfg"` = "icu-config"; then
             $2_CPPFLAGS="`$ac_vmw_lib_cfg --cppflags`"
             $2_LIBS="`$ac_vmw_lib_cfg --ldflags`"
          else
