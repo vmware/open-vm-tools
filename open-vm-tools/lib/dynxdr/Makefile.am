@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2008-2016 VMware, Inc.  All rights reserved.
+### Copyright (C) 2008-2018 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -17,7 +17,13 @@
 
 noinst_LTLIBRARIES = libDynxdr.la
 
-libDynxdr_la_SOURCES = 
+libDynxdr_la_SOURCES =
 libDynxdr_la_SOURCES += dynxdr.c
 libDynxdr_la_SOURCES += xdrutil.c
+
+libDynxdr_la_CPPFLAGS =
+libDynxdr_la_CPPFLAGS += @XDR_CPPFLAGS@
+
+libDynxdr_la_LIBADD =
+libDynxdr_la_LIBADD += @XDR_LIBS@
 

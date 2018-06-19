@@ -29,6 +29,7 @@ libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/stringxx
 libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/xutils
 libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/fakeMouse
 libdndcp_la_CPPFLAGS += -I$(top_srcdir)/include
+libdndcp_la_CPPFLAGS += @XDR_CPPFLAGS@
 
 # Passing C++ related flags to CPPFLAGS generates error.
 # So, we need to pass these to C++ compilation only.
@@ -46,6 +47,7 @@ libdndcp_la_LIBADD += @GTKMM_LIBS@
 libdndcp_la_LIBADD += @VMTOOLS_LIBS@
 libdndcp_la_LIBADD += @HGFS_LIBS@
 libdndcp_la_LIBADD += $(top_builddir)/lib/hgfsUri/hgfsUriPosix.lo
+libdndcp_la_LIBADD += @XDR_LIBS@
 
 libdndcp_la_SOURCES =
 
