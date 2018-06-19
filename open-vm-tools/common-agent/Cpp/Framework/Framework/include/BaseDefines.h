@@ -2,7 +2,7 @@
  *	 Author: mdonahue
  *  Created: Jan 12, 2011
  *
- *	Copyright (C) 2011-2016 VMware, Inc.  All rights reserved. -- VMware Confidential
+ *	Copyright (C) 2011-2018 VMware, Inc.  All rights reserved. -- VMware Confidential
  */
 
 #ifndef SYS_INC_BASEDEFINES_H_

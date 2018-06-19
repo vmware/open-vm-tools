@@ -2,12 +2,19 @@
  *	 Author: mdonahue
  *  Created: Jan 13, 2011
  *
- *	Copyright (C) 2011-2016 VMware, Inc.  All rights reserved. -- VMware Confidential
+ *	Copyright (C) 2011-2018 VMware, Inc.  All rights reserved. -- VMware Confidential
  */
 
 #ifndef CCAFEXCEPTION_H_
 #define CCAFEXCEPTION_H_
 
+#ifdef WIN32
+/*
+ *  * Disable the 'std::basic_string<> needs to have dll-interface to be used by
+ *   * clients of class 'Caf::CCafException' warning.
+ *    */
+#pragma warning(disable : 4251)
+#endif
 
 #include "ICafObject.h"
 
