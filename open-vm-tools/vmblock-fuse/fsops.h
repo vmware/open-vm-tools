@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -47,6 +47,8 @@
 #define REDIRECT_DIR "/" VMBLOCK_CONTROL_MOUNTPOINT
 #define TARGET_DIR "/tmp/VMwareDnD"
 #define CONTROL_FILE "/" VMBLOCK_DEVICE_NAME
+#define NOTIFY_DIR_NAME VMBLOCK_FUSE_NOTIFY_MNTPNT
+#define NOTIFY_DIR "/" NOTIFY_DIR_NAME
 
 /*
  * FS operation functions
@@ -69,7 +71,8 @@ extern struct fuse_operations vmblockOperations;
 
 int RealReadLink(const char *path, char *buf, size_t bufSize);
 void SetTimesToNow(struct stat *statBuf);
-int ExternalReadDir(const char *path, void *buf, fuse_fill_dir_t filler,
+int ExternalReadDir(const char *blockPath, const char *realPath,
+                    void *buf, fuse_fill_dir_t filler,
                     off_t offset, struct fuse_file_info *fileInfo);
 size_t StripExtraPathSeparators(char *path);
 

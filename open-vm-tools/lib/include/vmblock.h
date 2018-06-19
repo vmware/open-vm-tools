@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -120,6 +120,8 @@ extern "C" {
 #define VMBLOCK_FUSE_FS_ROOT           VMBLOCK_FUSE_MOUNT_POINT "/" VMBLOCK_FUSE_CTRL_MNTPNT
 #define VMBLOCK_FUSE_DEVICE_NAME       "dev"
 #define VMBLOCK_FUSE_DEVICE            VMBLOCK_FUSE_MOUNT_POINT "/" VMBLOCK_FUSE_DEVICE_NAME
+#define VMBLOCK_FUSE_NOTIFY_MNTPNT     "notifydir"
+#define VMBLOCK_FUSE_NOTIFY_ROOT       VMBLOCK_FUSE_MOUNT_POINT "/" VMBLOCK_FUSE_NOTIFY_MNTPNT
 #define VMBLOCK_FUSE_DEVICE_MODE       O_RDWR
 
 /* Commands for the control half of vmblock driver */

@@ -77,6 +77,7 @@ void BlockCleanup(void);
 int BlockAddFileBlock(const char *filename, const os_blocker_id_t blocker);
 int BlockRemoveFileBlock(const char *filename, const os_blocker_id_t blocker);
 unsigned int BlockRemoveAllBlocks(const os_blocker_id_t blocker);
+int BlockWaitFileBlock(const char *filename, const os_blocker_id_t blocker);
 int BlockWaitOnFile(const char *filename, BlockHandle cookie);
 BlockHandle BlockLookup(const char *filename, const os_blocker_id_t blocker);
 #ifdef VMX86_DEVEL
