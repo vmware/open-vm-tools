@@ -904,14 +904,14 @@ if test "$os" = "freebsd" -a "$osVersion" -ge 600000; then
    AC_CHECK_LIB(
       [thr],
       [pthread_mutex_init],
-      [THREAD_LIB=-lthr],
+      [THREAD_LIBS=-lthr],
       [AC_MSG_ERROR(
          [Unable to locate required threading library libthr.])])
 else
    AC_CHECK_LIB(
       [pthread],
       [pthread_mutex_init],
-      [THREAD_LIB=-lpthread],
+      [THREAD_LIBS=-lpthread],
       [AC_MSG_ERROR(
          [libpthread not found. Please install the libc/libpthread devel package(s).])])
 fi
@@ -1515,8 +1515,8 @@ if test "$HAVE_CRYPT" = "yes"; then
 fi
 
 
-LIBVMTOOLS_LIBADD="$LIBVMTOOLS_LIBADD $THREAD_LIB"
-VIX_LIBADD="$VIX_LIBADD $THREAD_LIB"
+LIBVMTOOLS_LIBADD="$LIBVMTOOLS_LIBADD $THREAD_LIBS"
+VIX_LIBADD="$VIX_LIBADD $THREAD_LIBS"
 
 ### Core Services definitions.
 
@@ -1565,6 +1565,7 @@ AC_SUBST([PLUGIN_CPPFLAGS])
 AC_SUBST([PLUGIN_LDFLAGS])
 AC_SUBST([VMTOOLS_CPPFLAGS])
 AC_SUBST([VMTOOLS_LIBS])
+AC_SUBST([THREAD_LIBS])
 AC_SUBST([RPCGENFLAGS])
 AC_SUBST([XDR_LIBS])
 AC_SUBST([XDR_CPPFLAGS])
