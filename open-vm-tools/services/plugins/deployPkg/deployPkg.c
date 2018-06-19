@@ -325,12 +325,34 @@ DeployPkgGetTempDir(void)
    char *dir = NULL;
    char *newDir = NULL;
    Bool found = FALSE;
+#ifndef _WIN32
+   /*
+    * PR 2115630. On Linux, use /var/run or /run directory
+    * to hold the package.
+    */
+   const char *runDir = "/run";
+   const char *varRunDir = "/var/run";
+
+   if (File_IsDirectory(varRunDir)) {
+      dir = strdup(varRunDir);
+      if (dir == NULL) {
+         g_warning("%s: strdup failed\n", __FUNCTION__);
+         goto exit;
+      }
+   } else if (File_IsDirectory(runDir)) {
+      dir = strdup(runDir);
+      if (dir == NULL) {
+         g_warning("%s: strdup failed\n", __FUNCTION__);
+         goto exit;
+      }
+   }
+#endif
 
    /*
     * Get system temporary directory.
     */
 
-   if ((dir = File_GetSafeRandomTmpDir(TRUE)) == NULL) {
+   if (dir == NULL && (dir = File_GetSafeRandomTmpDir(TRUE)) == NULL) {
       g_warning("%s: File_GetSafeRandomTmpDir failed\n", __FUNCTION__);
       goto exit;
    }
