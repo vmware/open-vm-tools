@@ -1164,6 +1164,13 @@ AC_CHECK_HEADERS([sys/user.h],
    ])
 AC_CHECK_HEADERS([sys/vfs.h])
 AC_CHECK_HEADERS([syslimits.h])
+
+# On Freebsd, the unwind.h header file is available in the libunwind
+# package, but the necessary functions are only available if __GNU_SOURCE
+# is defined to enable "all" GCC extensions.
+if test "$os" = "freebsd"; then
+   ac_cv_header_unwind_h="no"
+fi
 AC_CHECK_HEADERS([unwind.h])
 
 AC_CHECK_HEADER(
@@ -1212,6 +1219,12 @@ AC_C_VOLATILE
 ### General flags / actions
 CFLAGS="$CFLAGS -Wall"
 CFLAGS="$CFLAGS -Werror"
+
+# Suppress warnings from clang when taking the address of packed struct
+# member fields when compiling hgfsServer.c
+if $CC --version | $GREP -i "clang" > /dev/null; then
+   CFLAGS="$CFLAGS -Wno-address-of-packed-member"
+fi
 
 # -Wno-unknown-pragmas is due to gcc not understanding '#pragma ident'
 # in Xlib.h on OpenSolaris.
