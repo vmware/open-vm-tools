@@ -35,6 +35,7 @@
 #include "unicodeTypes.h"
 #include "unicodeBase.h"
 #include "codeset.h"
+#include "err.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -125,14 +126,7 @@ char *Posix_MkTemp(const char *pathName);
  *-----------------------------------------------------------------------------
  */
 
-static INLINE void
-Posix_Free(void *p)  // IN
-{
-   int err = errno;
-   free(p);
-   errno = err;
-}
-
+#define Posix_Free(p) WITH_ERRNO_FREE(p)
 
 #if !defined(_WIN32)
 /*

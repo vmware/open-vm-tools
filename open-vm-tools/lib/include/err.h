@@ -137,6 +137,8 @@ char *Err_SanitizeMessage(const char *msg);
    } while (0)
 #endif
 
+#define WITH_ERRNO_FREE(p) WITH_ERRNO(__errNum__, free((void *)p))
+
 #if defined(__cplusplus)
 }  // extern "C"
 #endif
