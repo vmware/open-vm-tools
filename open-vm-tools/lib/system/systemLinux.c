@@ -162,11 +162,13 @@ System_GetTimeMonotonic(void)
 
    return base + (last = current);
 #else  // VM_X86_64
-#ifdef sun
-   /* Solaris has a bug where times() can return a lower value than in
-    * a previous call, see bug #1710952, so we make sure to never
-    * return a lower value, by saving the old value and compare.
-    * We also make that thread safe. */
+#if defined sun || defined __APPLE__
+   /*
+    * PR 1710952 and PR 2136820
+    * times() on Solaris & Mac can return a lower value than the
+    * one in a previous call. As a workaround, we return the last
+    * cached value when we get a lower value from times().
+    */
    static Atomic_uint64 last = { 0 };
 
    while (1) {
