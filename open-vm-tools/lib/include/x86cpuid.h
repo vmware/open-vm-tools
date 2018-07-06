@@ -1446,6 +1446,8 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 #define CPUID_STEPPING_KABYLAKE_ES     0x8  // Kabylake S/H/U/Y ES
 #define CPUID_STEPPING_COFFEELAKE_A    0xA  // Coffeelake U/S/H
 #define CPUID_STEPPING_COFFEELAKE_B    0xB  // Coffeelake S/H
+#define CPUID_STEPPING_CASCADELAKE_A   0x5  // Cascade Lake A-step
+#define CPUID_STEPPING_CASCADELAKE_B   0x6  // Cascade Lake B-step
 
 #define CPUID_MODEL_PIII_07    7
 #define CPUID_MODEL_PIII_08    8
@@ -1670,6 +1672,15 @@ CPUID_MODEL_IS_HASWELL(uint32 v) // IN: %eax from CPUID with %eax=1.
            effectiveModel == CPUID_MODEL_HASWELL_46);
 }
 
+static INLINE Bool
+CPUID_MODEL_IS_CASCADELAKE(uint32 v) // IN: %eax from CPUID with %eax=1.
+{
+      /* Assumes the CPU manufacturer is Intel. */
+   return CPUID_FAMILY_IS_P6(v) &&
+          CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_SKYLAKE_55 &&
+          (CPUID_EFFECTIVE_STEPPING(v) == CPUID_STEPPING_CASCADELAKE_A ||
+           CPUID_EFFECTIVE_STEPPING(v) == CPUID_STEPPING_CASCADELAKE_B);
+}
 
 static INLINE Bool
 CPUID_MODEL_IS_SKYLAKE(uint32 v) // IN: %eax from CPUID with %eax=1.
@@ -1678,7 +1689,8 @@ CPUID_MODEL_IS_SKYLAKE(uint32 v) // IN: %eax from CPUID with %eax=1.
    return CPUID_FAMILY_IS_P6(v) &&
           ((CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_SKYLAKE_5E &&
             CPUID_EFFECTIVE_STEPPING(v) != CPUID_STEPPING_KABYLAKE_ES) ||
-            CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_SKYLAKE_55 ||
+           (CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_SKYLAKE_55 &&
+            !CPUID_MODEL_IS_CASCADELAKE(v))                            ||
            (CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_SKYLAKE_4E &&
             CPUID_EFFECTIVE_STEPPING(v) != CPUID_STEPPING_KABYLAKE_ES));
 }
@@ -1713,10 +1725,10 @@ static INLINE Bool
 CPUID_UARCH_IS_SKYLAKE(uint32 v) // IN: %eax from CPUID with %eax=1.
 {
    /* Assumes the CPU manufacturer is Intel. */
-   return CPUID_FAMILY_IS_P6(v) &&
-          (CPUID_MODEL_IS_COFFEELAKE(v) ||
-           CPUID_MODEL_IS_KABYLAKE(v)   ||
-           CPUID_MODEL_IS_SKYLAKE(v));
+   return CPUID_MODEL_IS_COFFEELAKE(v)  ||
+          CPUID_MODEL_IS_KABYLAKE(v)    ||
+          CPUID_MODEL_IS_CASCADELAKE(v) ||
+          CPUID_MODEL_IS_SKYLAKE(v);
 }
 
 
