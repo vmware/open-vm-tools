@@ -37,8 +37,6 @@ typedef enum {
    StdIO_Success,
 } StdIO_Status;
 
-void
-StdIO_ToggleSnowMotionLogging(Bool setting);
 
 StdIO_Status
 StdIO_ReadNextLine(FILE *stream,         // IN
