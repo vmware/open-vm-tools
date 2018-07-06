@@ -621,7 +621,7 @@ typedef void * UserVA;
 #define MAX_PPN_BITS      31
 #define MAX_PPN           (((PPN)1 << MAX_PPN_BITS) - 1)
 
-#define INVALID_PPN       ((PPN)0xffffffff)
+#define INVALID_PPN       ((PPN)0x000fffffffffffffull)
 #define INVALID_PPN32     ((PPN32)0xffffffff)
 #define INVALID_PPN64     ((PPN)0xffffffffffffffffull)
 #define APIC_INVALID_PPN  ((PPN)0x000ffffffffffffeull)
