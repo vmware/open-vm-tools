@@ -34,6 +34,7 @@
 #include "vm_basic_types.h"
 
 #define PUBLISH_EXPERIMENTAL_STATS   0
+#define ADD_NEW_STATS                0
 
 /*
  * Version 1: Legacy data

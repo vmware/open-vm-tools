@@ -58,7 +58,9 @@ static Bool gInternal = FALSE;
 #if PUBLISH_EXPERIMENTAL_STATS
 static Bool gExperimental = PUBLISH_EXPERIMENTAL_STATS;
 #endif
+#if ADD_NEW_STATS
 static Bool gUnstable = FALSE;
+#endif
 
 #define DECLARE_STAT(publish, file, isRegExp, locatorString, reportID, units, dataType) \
    { file, publish, isRegExp, locatorString, reportID, units, dataType }
@@ -128,9 +130,9 @@ GuestInfoQuery guestInfoQuerySpecTable[] = {
    DECLARE_STAT(&gExperimental,  STAT_FILE,       FALSE, "processes",       GuestStatID_ProcessCreationRate,       GuestUnitsNumberPerSecond, GuestTypeDouble),
 #endif
 
-   DECLARE_STAT(&gUnstable,  STAT_FILE,       FALSE, "procs_running",   GuestStatID_Linux_CpuRunQueue,         GuestUnitsNumber,          GuestTypeUint64),
-   DECLARE_STAT(&gUnstable,  NULL,            FALSE, NULL,              GuestStatID_Linux_DiskRequestQueue,    GuestUnitsNumber,          GuestTypeUint64),
-   DECLARE_STAT(&gUnstable,  NULL,            FALSE, NULL,              GuestStatID_Linux_DiskRequestQueueAvg, GuestUnitsNumber,          GuestTypeDouble),
+   DECLARE_STAT(&gReleased,  STAT_FILE,       FALSE, "procs_running",   GuestStatID_Linux_CpuRunQueue,         GuestUnitsNumber,          GuestTypeUint64),
+   DECLARE_STAT(&gReleased,  NULL,            FALSE, NULL,              GuestStatID_Linux_DiskRequestQueue,    GuestUnitsNumber,          GuestTypeUint64),
+   DECLARE_STAT(&gReleased,  NULL,            FALSE, NULL,              GuestStatID_Linux_DiskRequestQueueAvg, GuestUnitsNumber,          GuestTypeDouble),
 };
 
 #define N_QUERIES (sizeof guestInfoQuerySpecTable / sizeof(GuestInfoQuery))
@@ -869,10 +871,8 @@ GuestInfoCollect(GuestInfoCollector *collector)  // IN/OUT:
    }
 
    GuestInfoDeriveMemNeeded(collector);
-   if (gUnstable) {
-      GuestInfoDecreaseCpuRunQueueByOne(collector);
-      GuestInfoProcDiskStatsData(collector);
-   }
+   GuestInfoDecreaseCpuRunQueueByOne(collector);
+   GuestInfoProcDiskStatsData(collector);
 }
 
 
@@ -1528,10 +1528,12 @@ GuestInfo_StatProviderPoll(gpointer data)
 
    g_debug("Entered guest info stats gather.\n");
 
+#if ADD_NEW_STATS
    gUnstable = g_key_file_get_boolean(ctx->config,
                                       CONFGROUPNAME_GUESTINFO,
                                       "enable-unstable-stats",
                                       NULL);
+#endif
 
    /* Send the vmstats to the VMX. */
    DynBuf_Init(&stats);
