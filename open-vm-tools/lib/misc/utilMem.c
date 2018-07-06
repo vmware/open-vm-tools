@@ -491,6 +491,39 @@ Util_Memcpy(void *dest,      // OUT:
 /*
  *-----------------------------------------------------------------------------
  *
+ * Util_Memfree --
+ *
+ *      Frees the memory space pointed to by ptr.
+ *
+ *      The reason why this function is externally visible (not static)
+ *      is to avoid freeing memory across dll boundary.
+ *      In vmwarebase, we have many API that return newly allocated memory
+ *      to the caller. If the caller linked against a different msvc runtime
+ *      (for example, vmrest linked against msvcrt.dll), we will crash.
+ *      Using Util_Memfree() can avoid this kind of problem, since it sits
+ *      inside vmwarebase too. It will call the right free(), the one that
+ *      match the malloc() used in vmwarebase.
+ *
+ * Results:
+ *      The memory space pointed to by ptr will be freed.
+ *      If ptr is NULL, no operation is performed.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+Util_Memfree(void *ptr) // IN:
+{
+   free(ptr);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * UtilConstTimeMemDiff --
  *
  *       The implementation of a constant time memory comparison.  Unlike

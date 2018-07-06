@@ -302,6 +302,7 @@ char *UtilSafeStrndup1(const char *s, size_t n,
 
 void *Util_Memdup(const void *src, size_t size);
 void *Util_Memcpy(void *dest, const void *src, size_t count);
+void  Util_Memfree(void *ptr);
 
 Bool Util_ConstTimeMemDiff(const void *secret, const void *guess, size_t len);
 Bool Util_ConstTimeStrDiff(const char *secret, const char *guess);
