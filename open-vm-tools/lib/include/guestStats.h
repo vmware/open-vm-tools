@@ -52,7 +52,9 @@
 #define GUESTMEMINFO_V5 5
 
 /*
- * Flags for legacy GuestMemInfo
+ * Flags for GuestMemInfoLegacy
+ *
+ * !!! DON'T ADD/CHANGE FLAGS !!!
  *
  * This is deprecated. All new values are returned via a GuestStat list.
  */
@@ -70,16 +72,19 @@
 #define MEMINFO_HUGEPAGESTOTAL   (1 << 10)
 #define MEMINFO_DEPRECATED10     (1 << 11)
 #define MEMINFO_DEPRECATED11     (1 << 12)
+#define MEMINFO_MEMNEEDED        (1 << 13)
 
 /*
  * Legacy GuestMemInfo structure.
+ *
+ * !!! DON'T CHANGE IT !!!
  *
  * It should stay the same to ensure binary compatibility.
  */
 
 typedef
 #include "vmware_pack_begin.h"
-struct GuestMemInfo {
+struct GuestMemInfoLegacy {
    uint32 version;            ///< MemInfo structure version.
    uint32 flags;              ///< Indicates which stats are valid.
    uint64 memTotal;           ///< Total physical memory in Kb.
@@ -88,7 +93,7 @@ struct GuestMemInfo {
    uint64 deprecated2[2];     ///< No longer used.
 }
 #include "vmware_pack_end.h"
-GuestMemInfo;
+GuestMemInfoLegacy;
 
 /*
  * A stat begins with a header. The header has a mask which says what data

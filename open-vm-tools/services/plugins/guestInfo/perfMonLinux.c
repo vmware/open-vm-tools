@@ -894,7 +894,7 @@ GuestInfoCollect(GuestInfoCollector *collector)  // IN/OUT:
 
 static void
 GuestInfoLegacy(GuestInfoCollector *current,  // IN: current collection
-                GuestMemInfo *legacy)         // OUT: data filled out
+                GuestMemInfoLegacy *legacy)   // OUT: data filled out
 {
    GuestInfoStat *stat;
 
@@ -1288,7 +1288,7 @@ GuestInfoEncodeStats(GuestInfoCollector *current,   // IN: current collection
                      DynBuf *statBuf)               // IN/OUT: stats data
 {
    uint32 i;
-   GuestMemInfo legacy;
+   GuestMemInfoLegacy legacy;
    Bool emitNameSpace = TRUE;
 
    /* Provide legacy data for backwards compatibility */
