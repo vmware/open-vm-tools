@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -37,7 +37,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <glib/gstdio.h>
+#include <glib.h>
 #ifdef _WIN32
 #  include <windows.h>
 #else
@@ -91,116 +91,37 @@ Service_SetLogOnStdout(gboolean flag)
 }
 
 
-#ifdef _WIN32
 /*
  ******************************************************************************
  * GetTimeAsString --                                                    */ /**
  *
  * Returns the current time in human-readable format with millisecond
- * precision.
+ * precision in UTC.
  *
  * @return The current time as a string.  Must be gfree'd by caller.
  ******************************************************************************
  */
 
-gchar *
+static gchar *
 GetTimeAsString(void)
 {
-   /*
-    * Max abbreviated month length is 80:
-    * http://msdn.microsoft.com/en-us/library/dd373831%28VS.85%29.aspx
-    */
-   char date[128];
-   char time[64];
-   SYSTEMTIME localTime;
-   gchar *output = NULL;
+   gchar *retStr = NULL;
+   GDateTime *utcTime = g_date_time_new_now_utc();
 
-   GetLocalTime(&localTime);
+   if (NULL != utcTime) {
+      gchar *fmt = g_date_time_format(utcTime, "%FT%T");
 
-   /* 1: Build the string containing the current date. */
-   if (GetDateFormatA(LOCALE_USER_DEFAULT, 0, &localTime,
-                      "MMM dd", date, sizeof date) == 0) {
-      goto out;
-   }
-
-   /* 2: Build the string containing the current time. */
-   if (GetTimeFormatA(LOCALE_USER_DEFAULT, 0, &localTime,
-                      "HH':'mm':'ss" , time, sizeof time) == 0) {
-      goto out;
-   }
-
-   /*
-    * 3: Join the date and time strings together, and append the milliseconds
-    *    field from the local time. This produces the completed timestamp.
-    */
-   output = g_strdup_printf("%s %s.%03d", date, time, localTime.wMilliseconds);
-
-out:
-   return output;
-}
-
-#else
-
-/*
- ******************************************************************************
- * GetTimeAsString --                                                    */ /**
- *
- * Returns the current time in human-readable format with millisecond
- * precision.
- *
- * @return The current time as a string.  Must be gfree'd by caller.
- ******************************************************************************
- */
-
-gchar *
-GetTimeAsString(void)
-{
-   struct timeval tv;
-   time_t sec;
-   int msec;
-   size_t charsWritten;
-   size_t bufSize = 8; // Multiplied by 2 for the initial allocation.
-   gchar *buf = NULL;
-   gchar *output = NULL;
-
-   if (gettimeofday(&tv, NULL)) {
-      goto out;
-   }
-   sec = tv.tv_sec;
-   msec = tv.tv_usec / 1000;
-
-   /*
-    * Loop repeatedly trying to format the time into a buffer, doubling the
-    * buffer with each failure. This should be safe as the manpage for
-    * strftime(3) seems to suggest that it only fails if the buffer isn't large
-    * enough.
-    *
-    * The resultant string is encoded according to the current locale.
-    */
-   do {
-      gchar *newBuf;
-      bufSize *= 2;
-
-      newBuf = g_realloc(buf, bufSize);
-      if (newBuf == NULL) {
-         goto out;
+      if (NULL != fmt) {
+         gint usec = g_date_time_get_microsecond(utcTime)/1000;
+         retStr = g_strdup_printf("%s.%03dZ", fmt, usec);
+         g_free(fmt);
       }
-      buf = newBuf;
-      charsWritten = strftime(buf, bufSize, "%b %d %H:%M:%S", localtime(&sec));
-   } while (charsWritten == 0);
 
-   /*
-    * Append the milliseconds field, but only after converting the date/time
-    * string from encoding specified in the current locale to an opaque type.
-    */
-   output = g_strdup_printf("%s.%03d", buf, msec);
-
-  out:
-   g_free(buf);
-   return output;
+      g_date_time_unref(utcTime);
+   }
+   return retStr;
 }
 
-#endif // !WIN32
 
 /*
  ******************************************************************************
@@ -268,9 +189,6 @@ ServiceLogFormat(const gchar *message,
       slevel = "unknown";
    }
 
-   /*
-    * XXX Use g_date_time_format when we move to glib 2.26
-    */
    tstamp = GetTimeAsString();
 
    msg = g_strdup_printf("[%s] [%8s] [%s] %s\n",

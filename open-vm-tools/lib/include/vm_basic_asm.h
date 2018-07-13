@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1070,7 +1070,7 @@ ClearBitVector(void *var, int32 index)
       "setc %0"
       : "=qQm" (bit), "+m" (*(uint32 *)var)
       : "rI" (index)
-      : "cc"
+      : "memory", "cc"
    );
    return bit;
 #elif defined(_MSC_VER)
@@ -1092,7 +1092,7 @@ ComplementBitVector(void *var, int32 index)
       "setc %0"
       : "=qQm" (bit), "+m" (*(uint32 *)var)
       : "rI" (index)
-      : "cc"
+      : "memory", "cc"
    );
    return bit;
 #elif defined(_MSC_VER)

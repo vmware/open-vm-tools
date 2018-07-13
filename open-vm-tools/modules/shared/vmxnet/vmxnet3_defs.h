@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2014,2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -140,6 +140,7 @@ typedef enum {
    VMXNET3_CMD_GET_TXDATA_DESC_SIZE,
    VMXNET3_CMD_GET_COALESCE,
    VMXNET3_CMD_GET_RSS_FIELDS,
+   VMXNET3_CMD_GET_ENCAP_DSTPORT,
 } Vmxnet3_Cmd;
 
 /* Adaptive Ring Info Flags */
@@ -148,14 +149,14 @@ typedef enum {
 /*
  *	Little Endian layout of bitfields -
  *	Byte 0 :	7.....len.....0
- *	Byte 1 :	rsvd gen 13.len.8
+ *	Byte 1 :	oco gen 13.len.8
  *	Byte 2 : 	5.msscof.0 ext1  dtype
  *	Byte 3 : 	13...msscof...6
  *
  *	Big Endian layout of bitfields -
  *	Byte 0:		13...msscof...6
  *	Byte 1 : 	5.msscof.0 ext1  dtype
- *	Byte 2 :	rsvd gen 13.len.8
+ *	Byte 2 :	oco gen 13.len.8
  *	Byte 3 :	7.....len.....0
  *
  *	Thus, le32_to_cpu on the dword will allow the big endian driver to read
@@ -172,13 +173,13 @@ struct Vmxnet3_TxDesc {
    uint32 msscof:14;  /* MSS, checksum offset, flags */
    uint32 ext1:1;
    uint32 dtype:1;    /* descriptor type */
-   uint32 rsvd:1;
+   uint32 oco:1;      /* Outer csum offload */
    uint32 gen:1;      /* generation bit */
    uint32 len:14;
 #else
    uint32 len:14;
    uint32 gen:1;      /* generation bit */
-   uint32 rsvd:1;
+   uint32 oco:1;      /* Outer csum offload */
    uint32 dtype:1;    /* descriptor type */
    uint32 ext1:1;
    uint32 msscof:14;  /* MSS, checksum offset, flags */
@@ -206,9 +207,10 @@ struct Vmxnet3_TxDesc {
 Vmxnet3_TxDesc;
 
 /* TxDesc.OM values */
-#define VMXNET3_OM_NONE  0
-#define VMXNET3_OM_CSUM  2
-#define VMXNET3_OM_TSO   3
+#define VMXNET3_OM_NONE  0          /* 0b00 */
+#define VMXNET3_OM_ENCAP 1          /* 0b01 */
+#define VMXNET3_OM_CSUM  2          /* 0b10 */
+#define VMXNET3_OM_TSO   3          /* 0b11 */
 
 /* fields in TxDesc we access w/o using bit fields */
 #define VMXNET3_TXD_EOP_SHIFT 12
@@ -361,7 +363,15 @@ struct Vmxnet3_RxCompDescExt {
    uint8  segCnt;       /* Number of aggregated packets */
    uint8  dupAckCnt;    /* Number of duplicate Acks */
    __le16 tsDelta;      /* TCP timestamp difference */
-   __le32 dword2;
+
+#ifdef __BIG_ENDIAN_BITFIELD
+   uint32 encap:1;      /* LRO info refers to inner pkt */
+   uint32 reserved:31;
+#else
+   uint32 reserved:31;
+   uint32 encap:1;      /* LRO info refers to inner pkt */
+#endif  /* __BIG_ENDIAN_BITFIELD */
+
 #ifdef __BIG_ENDIAN_BITFIELD
    uint32 gen:1;        /* generation bit */
    uint32 type:7;       /* completion type */
@@ -856,6 +866,15 @@ typedef enum Vmxnet3_RSSField {
    VMXNET3_RSS_FIELDS_ESPIP6 = 0x0020,
 } Vmxnet3_RSSField;
 
+typedef
+#include "vmware_pack_begin.h"
+struct Vmxnet3_EncapDstPort {
+   __le16            geneveDstPort;
+   __le16            vxlanDstPort;
+}
+#include "vmware_pack_end.h"
+Vmxnet3_EncapDstPort;
+
 /*
  * If a command data does not exceed 16 bytes, it can use
  * the shared memory directly. Otherwise use variable length
@@ -867,6 +886,7 @@ union Vmxnet3_CmdInfo {
    Vmxnet3_VariableLenConfDesc varConf;
    Vmxnet3_SetPolling          setPolling;
    Vmxnet3_RSSField            setRSSFields;
+   Vmxnet3_EncapDstPort        encapDstPort;
    __le64                      data[2];
 }
 #include "vmware_pack_end.h"

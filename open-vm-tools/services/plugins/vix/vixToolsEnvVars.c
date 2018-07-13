@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -54,7 +54,7 @@ struct VixToolsEnvIterator {
          wchar_t *currEnvVar;
       } eb;
       /* Used when envType is VIX_TOOLS_ENV_TYPE_ENVIRON. */
-      wchar_t **environ;
+      wchar_t **env;
    } data;
 #else
    char **environ;
@@ -130,7 +130,7 @@ VixToolsNewEnvIterator(void *userToken,                  // IN
        * or system's environment made after the process is running?
        */
       it->envType = VIX_TOOLS_ENV_TYPE_ENVIRON;
-      it->data.environ = _wenviron;
+      it->data.env = _wenviron;
    }
 #elif defined(__APPLE__)
    it->environ = *_NSGetEnviron();
@@ -184,11 +184,11 @@ VixToolsGetNextEnvVar(VixToolsEnvIterator *envItr)    // IN
          while(*envItr->data.eb.currEnvVar++);
       }
    } else if (VIX_TOOLS_ENV_TYPE_ENVIRON == envItr->envType) {
-      if (NULL == *envItr->data.environ) {
+      if (NULL == *envItr->data.env) {
          envVar = NULL;
       } else {
-         envVar = Unicode_AllocWithUTF16(*envItr->data.environ);
-         envItr->data.environ++;
+         envVar = Unicode_AllocWithUTF16(*envItr->data.env);
+         envItr->data.env++;
       }
    } else {
       /* Is someone using uninitialized memory? */
@@ -391,7 +391,7 @@ VixToolsDestroyUserEnvironment(VixToolsUserEnvironment *env)   // IN
  */
 
 VixError
-VixToolsEnvironToEnvBlock(char const * const *environ,    // IN: UTF-8
+VixToolsEnvironToEnvBlock(char const * const *env,        // IN: UTF-8
                           wchar_t **envBlock)             // OUT
 {
    VixError err;
@@ -401,15 +401,15 @@ VixToolsEnvironToEnvBlock(char const * const *environ,    // IN: UTF-8
 
    DynBuf_Init(&buf);
 
-   if ((NULL == environ) || (NULL == envBlock)) {
+   if ((NULL == env) || (NULL == envBlock)) {
       err = VIX_E_FAIL;
       goto abort;
    }
 
    *envBlock = NULL;
 
-   while (NULL != *environ) {
-      wchar_t *envVar = Unicode_GetAllocUTF16(*environ);
+   while (NULL != *env) {
+      wchar_t *envVar = Unicode_GetAllocUTF16(*env);
 
       res = DynBuf_Append(&buf, envVar,
                           (wcslen(envVar) + 1) * sizeof(*envVar));
@@ -418,7 +418,7 @@ VixToolsEnvironToEnvBlock(char const * const *environ,    // IN: UTF-8
          err = VIX_E_OUT_OF_MEMORY;
          goto abort;
       }
-      environ++;
+      env++;
    }
 
    /*
@@ -463,21 +463,21 @@ abort:
  */
 
 VixError
-VixToolsValidateEnviron(char const * const *environ)   // IN
+VixToolsValidateEnviron(char const * const *env)   // IN
 {
-   if (NULL == environ) {
+   if (NULL == env) {
       return VIX_E_FAIL;
    }
 
-   while (NULL != *environ) {
+   while (NULL != *env) {
       /*
        * Each string should contain at least one '=', to delineate between
        * the name and the value.
        */
-      if (NULL == Str_Strchr(*environ, '=')) {
+      if (NULL == Str_Strchr(*env, '=')) {
          return VIX_E_INVALID_ARG;
       }
-      environ++;
+      env++;
    }
 
    return VIX_OK;

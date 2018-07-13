@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -56,11 +56,14 @@ static vmblockSpecialDirEntry specialDirEntries[] = {
    { "/",               S_IFDIR | 0555, 3, DIR_SIZE },
    { CONTROL_FILE,      S_IFREG | 0600, 1, 0 },
    { REDIRECT_DIR,      S_IFDIR | 0555, 3, DIR_SIZE },
+   { NOTIFY_DIR,        S_IFDIR | 0555, 3, DIR_SIZE },
    { NULL,              0,              0, 0 }
 };
 static vmblockSpecialDirEntry symlinkDirEntry =
    { REDIRECT_DIR "/*", S_IFLNK | 0777, 1, -1 };
 
+static vmblockSpecialDirEntry notifyDirEntry =
+   { NOTIFY_DIR "/*",   S_IFREG | 0444, 1, 0 };
 
 /*
  *-----------------------------------------------------------------------------
@@ -282,6 +285,14 @@ VMBlockGetAttr(const char *path,        // IN: File to get attributes of.
       SetTimesToNow(statBuf);
       return 0;
    }
+   if (strncmp(path, NOTIFY_DIR, strlen(NOTIFY_DIR)) == 0) {
+      memset(statBuf, 0, sizeof *statBuf);
+      statBuf->st_mode = notifyDirEntry.mode;
+      statBuf->st_nlink = notifyDirEntry.nlink;
+      statBuf->st_size = notifyDirEntry.size;
+      SetTimesToNow(statBuf);
+      return 0;
+   }
    return -ENOENT;
 }
 
@@ -311,7 +322,8 @@ VMBlockGetAttr(const char *path,        // IN: File to get attributes of.
  */
 
 int
-ExternalReadDir(const char *path,                // IN: Full (real) path to
+ExternalReadDir(const char *blockPath,           // IN:
+                const char *realPath,            // IN: Full (real) path to
                                                  //     directory to read.
                 void *buf,                       // OUT: Destination for
                                                  //      directory listing.
@@ -327,8 +339,8 @@ ExternalReadDir(const char *path,                // IN: Full (real) path to
    struct stat statBuf;
    DIR *dir = NULL;
 
-   LOG(4, "%s: path: %s\n", __func__, path);
-   dir = opendir(path);
+   LOG(4, "%s: blockPath: %s, realPath: %s\n", __func__, blockPath, realPath);
+   dir = opendir(realPath);
    if (dir == NULL) {
       return -errno;
    }
@@ -340,17 +352,22 @@ ExternalReadDir(const char *path,                // IN: Full (real) path to
     */
 
    memset(&statBuf, 0, sizeof statBuf);
-   statBuf.st_mode = S_IFLNK;
+   if (strncmp(blockPath, NOTIFY_DIR, strlen(NOTIFY_DIR)) == 0) {
+      statBuf.st_mode = S_IFREG;
+   } else {
+      statBuf.st_mode = S_IFLNK;
+   }
 
    /* Clear errno because readdir won't change it if it succeeds. */
-
    errno = 0;
+
    while ((dentry = readdir(dir)) != NULL) {
       status = filler(buf, dentry->d_name, &statBuf, 0);
       if (status == 1) {
          break;
       }
    }
+
    if (errno != 0) {
       return -errno;
    }
@@ -419,10 +436,12 @@ VMBlockReadDir(const char *path,                // IN: Directory to read.
       (void)(filler(buf, ".", &dirStat, 0) ||
              filler(buf, "..", &dirStat, 0) ||
              filler(buf, VMBLOCK_DEVICE_NAME, &fileStat, 0) ||
-             filler(buf, REDIRECT_DIR_NAME, &dirStat, 0));
+             filler(buf, REDIRECT_DIR_NAME, &dirStat, 0) ||
+             filler(buf, NOTIFY_DIR_NAME, &dirStat, 0));
       return 0;
-   } else if (strcmp(path, REDIRECT_DIR) == 0) {
-      return ExternalReadDir(TARGET_DIR, buf, filler, offset, fileInfo);
+   } else if (   (strcmp(path, REDIRECT_DIR) == 0)
+              || (strcmp(path, NOTIFY_DIR) == 0)) {
+      return ExternalReadDir(path, TARGET_DIR, buf, filler, offset, fileInfo);
    } else {
       return -ENOENT;
    }
@@ -472,7 +491,8 @@ VMBlockOpen(const char *path,                   // IN
 
    char *uniqueValue = NULL;
 
-   if (strcmp(path, CONTROL_FILE) != 0) {
+   if (   (strcmp(path, CONTROL_FILE) != 0)
+       && (strncmp(path, NOTIFY_DIR, strlen(NOTIFY_DIR)) != 0)) {
       return -ENOENT;
    }
 
@@ -655,18 +675,38 @@ VMBlockRead(const char *path,                 // IN: Must be control file.
             off_t offset,                     // IN: Ignored.
             struct fuse_file_info *fileInfo)  // IN: Ignored.
 {
+   char target[PATH_MAX+1];
+   char targetLink[PATH_MAX+1];
+   const char redirectPrefix[] = REDIRECT_DIR "/";
+   const char redirectPrefixLength = sizeof redirectPrefix - 1;
+   const char notifyPrefix[] = NOTIFY_DIR "/";
+   const char notifyPrefixLength = sizeof notifyPrefix - 1;
+   const char *relativePath = path + notifyPrefixLength;
+
    LOG(4, "%s: path: %s, size: %"FMTSZ"u\n", __func__, path, size);
    LOG(4, "%s: fileInfo->fh: %p\n", __func__,
        FuseFileHandleToCharPointer(fileInfo->fh));
-   ASSERT(strcmp(path, CONTROL_FILE) == 0);
 
-   if (size < sizeof VMBLOCK_FUSE_READ_RESPONSE) {
-      return -EINVAL;
+   if (strcmp(path, CONTROL_FILE) == 0) {
+      if (size < sizeof VMBLOCK_FUSE_READ_RESPONSE) {
+         return -EINVAL;
+      }
+      memcpy(buf, VMBLOCK_FUSE_READ_RESPONSE, sizeof VMBLOCK_FUSE_READ_RESPONSE);
+      return sizeof VMBLOCK_FUSE_READ_RESPONSE;
    }
 
-   memcpy(buf, VMBLOCK_FUSE_READ_RESPONSE, sizeof VMBLOCK_FUSE_READ_RESPONSE);
+   if (strncmp(path, NOTIFY_DIR, strlen(NOTIFY_DIR)) == 0) {
+      strlcpy(target, redirectPrefix, sizeof target);
+      strlcpy(target + redirectPrefixLength,
+              relativePath,
+              sizeof target - redirectPrefixLength);
+      if (RealReadLink(target, targetLink, sizeof targetLink) < 0) {
+         return -EINVAL;
+      }
+      return BlockWaitFileBlock(targetLink, OS_UNKNOWN_BLOCKER);
+   }
 
-   return sizeof VMBLOCK_FUSE_READ_RESPONSE;
+   return -EINVAL;
 }
 
 /*
@@ -695,9 +735,11 @@ VMBlockRelease(const char *path,                   // IN: Must be control file.
 
    ASSERT(path);
    ASSERT(fileInfo);
-   ASSERT(strcmp(path, CONTROL_FILE) == 0);
-   ASSERT(blockerId != NULL);
-   BlockRemoveAllBlocks(blockerId);
+
+   if (strcmp(path, CONTROL_FILE) == 0) {
+      ASSERT(blockerId != NULL);
+      BlockRemoveAllBlocks(blockerId);
+   }
    free(blockerId);
    blockerId = NULL;
    fileInfo->fh = CharPointerToFuseFileHandle(NULL);

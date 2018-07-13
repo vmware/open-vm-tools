@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -302,6 +302,9 @@ char *UtilSafeStrndup1(const char *s, size_t n,
 
 void *Util_Memdup(const void *src, size_t size);
 void *Util_Memcpy(void *dest, const void *src, size_t count);
+
+Bool Util_ConstTimeMemDiff(const void *secret, const void *guess, size_t len);
+Bool Util_ConstTimeStrDiff(const char *secret, const char *guess);
 
 
 #ifndef VMKBOOT

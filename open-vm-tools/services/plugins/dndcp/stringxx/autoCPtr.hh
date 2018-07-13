@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2014 VMware, Inc. All rights reserved.
+ * Copyright (C) 2014-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -44,8 +44,8 @@ private:
    typedef AutoCPtr<T, FreeFunc> SelfType;
 
 public:
-   AutoCPtr(T* p = NULL,            // IN/OPT
-            FreeFunc f = std::free) // IN/OPT
+   explicit AutoCPtr(T* p = NULL,            // IN/OPT
+                     FreeFunc f = std::free) // IN/OPT
       : mP(p),
         mFree(f)
    {

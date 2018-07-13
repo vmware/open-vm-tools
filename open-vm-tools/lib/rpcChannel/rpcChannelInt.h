@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016,2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -27,10 +27,19 @@
 
 #include "vmware/tools/guestrpc.h"
 
+#if defined(USE_RPCI_ONLY)
+
+#undef NEED_RPCIN
+
+#else
+
+#define NEED_RPCIN
+
 /** Max amount of time (in .01s) that the RpcIn loop will sleep for. */
 #define RPCIN_MAX_DELAY    10
 
 struct RpcIn;
+#endif
 
 /** a list of interface functions for a channel implementation */
 typedef struct _RpcChannelFuncs{
@@ -55,18 +64,19 @@ typedef struct _RpcChannelFuncs{
 struct _RpcChannel {
    const RpcChannelFuncs     *funcs;
    gpointer                  _private;
+#if defined(NEED_RPCIN)
    GMainContext              *mainCtx;
    const char                *appName;
    gpointer                  appCtx;
+#endif
    GStaticMutex              outLock;
+#if defined(NEED_RPCIN)
    struct RpcIn              *in;
    gboolean                  inStarted;
+#endif
    gboolean                  outStarted;
 };
 
-void
-RpcChannel_Error(void *_state,
-                 char const *status);
 RpcChannel *VSockChannel_New(void);
 RpcChannel *BackdoorChannel_New(void);
 gboolean

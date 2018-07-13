@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -292,3 +292,31 @@ RpcVMX_ConfigGetLong(int32 defval, const char *var)
    return ret;
 }
 
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * RpcVMX_ReportDriverVersion --
+ *
+ *      Report driver name and driver version to vmx to store the key-value in
+ *      GuestVars, and write a log in vmware.log using RpcVMX_Log.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+void
+RpcVMX_ReportDriverVersion(const char *drivername, const char *versionString)
+{
+   char setVersionCmd[128];
+   Str_Sprintf(setVersionCmd, sizeof(setVersionCmd),
+               "info-set guestinfo.driver.%s.version %s",
+               drivername, versionString);
+   RpcOut_sendOne(NULL, NULL, setVersionCmd);
+   RpcVMX_Log("Driver=%s, Version=%s", drivername, versionString);
+}

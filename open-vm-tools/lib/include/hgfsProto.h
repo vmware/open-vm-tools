@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1699,36 +1699,63 @@ struct HgfsHeader {
 #include "vmware_pack_end.h"
 HgfsHeader;
 
+typedef uint32 HgfsOpCapFlags;
+
 /*
+ * The operation capability flags.
+ *
+ * These flags apply to all operations and occupy the least significant
+ * 16 bits of the HgfsOpCapFlags type.
+ */
+
+/*
+ * HGFS_OP_CAPFLAG_NOT_SUPPORTED
  * If no flags are set then the capability is not supported by the host.
  */
-#define HGFS_REQUEST_NOT_SUPPORTED              0
+#define HGFS_OP_CAPFLAG_NOT_SUPPORTED           0
+
 /*
- * Flag HGFS_REQUEST_SUPPORTED is set for every requests that are supported by the host.
+ * HGFS_OP_CAPFLAG_IS_SUPPORTED
+ * Set for each request that is supported by a host or client.
+ * To be set for an Hgfs session both host and client must have the capability.
  */
-#define HGFS_REQUEST_SUPPORTED                  (1 << 0)
+#define HGFS_OP_CAPFLAG_IS_SUPPORTED            (1 << 0)
+
+/*
+ * HGFS_OP_CAPFLAG_ASYNCHRONOUS
+ * Set for each request that can be handled asynchronously by a host or client.
+ * By default all operations are handled synchronously but if this flag is set
+ * by a client and a host then the operation can be handled in an asynchronous manner too.
+ */
+#define HGFS_OP_CAPFLAG_ASYNCHRONOUS            (1 << 1)
+
+/*
+ * The operation specific capability flags.
+ *
+ * These flags apply only to the operation given by the name and occupy the
+ * most significant 16 bits of the HgfsOpCapFlags type.
+ */
 
 /*
  * Following flags define which optional parameters for file open
  * requests are supported by the host.
- * HGFS_OPENV4_SUPPORTS_EA - host is capable of setting EA when creating
- *                           a new file.
- * HGFS_OPENV4_SUPPORTS_ACL - host is capable of setting ACLs when creating
- *                           a new file.
- * HGFS_OPENV4_SUPPORTS_NAMED_STREAMS - opening/enumerating named streams
- *                                      is supported.
- * HGFS_OPENV4_SUPPORTS_SHARED_ACCESS - host supports file sharing restrictions.
- * HGFS_OPENV4_SUPPORTS_UNIX_PERMISSIONS - host stores POSIX permissions with
- *                                         file.
- * HGFS_OPENV4_POSIX_FILE_DELETION - host supports POSIX file deletion semantics.
+ * HGFS_OP_CAPFLAG_OPENV4_EA - host is capable of setting EA when creating
+ *                             a new file.
+ * HGFS_OP_CAPFLAG_OPENV4_ACL - host is capable of setting ACLs when creating
+ *                              a new file.
+ * HGFS_OP_CAPFLAG_OPENV4_NAMED_STREAMS - opening/enumerating named streams
+ *                                        is supported.
+ * HGFS_OP_CAPFLAG_OPENV4_SHARED_ACCESS - host supports file sharing restrictions.
+ * HGFS_OP_CAPFLAG_OPENV4_UNIX_PERMISSIONS - host stores POSIX permissions with
+ *                                           file.
+ * HGFS_OP_CAPFLAG_OPENV4_POSIX_DELETION - host supports POSIX file deletion semantics.
  */
-typedef uint32 HgfsOpenV4Capabilities;
-#define HGFS_OPENV4_SUPPORTS_EA                 (1 << 1)
-#define HGFS_OPENV4_SUPPORTS_ACL                (1 << 2)
-#define HGFS_OPENV4_SUPPORTS_NAMED_STREAMS      (1 << 3)
-#define HGFS_OPENV4_SUPPORTS_SHARED_ACCESS      (1 << 4)
-#define HGFS_OPENV4_SUPPORTS_UNIX_PERMISSIONS   (1 << 5)
-#define HGFS_OPENV4_POSIX_FILE_DELETION         (1 << 6)
+#define HGFS_OP_CAPFLAG_OPENV4_EA                 (1 << 16)
+#define HGFS_OP_CAPFLAG_OPENV4_ACL                (1 << 17)
+#define HGFS_OP_CAPFLAG_OPENV4_NAMED_STREAMS      (1 << 18)
+#define HGFS_OP_CAPFLAG_OPENV4_SHARED_ACCESS      (1 << 19)
+#define HGFS_OP_CAPFLAG_OPENV4_UNIX_PERMISSIONS   (1 << 20)
+#define HGFS_OP_CAPFLAG_OPENV4_POSIX_DELETION     (1 << 21)
 
 /*
  *  There is a significant difference in byte range locking semantics between Windows
@@ -1746,42 +1773,39 @@ typedef uint32 HgfsOpenV4Capabilities;
  *  Following flags define various capabilities of byte range lock implementation on
  *  the host.
  *
- *  HGFS_BYTE_RANGE_LOCKS_SUPPORTS_64 means that server is capable of locking 64 bit
- *                                    length ranges.
- *  HGFS_BYTE_RANGE_LOCKS_SUPPORTS_32 means that server is limited to 32-bit ranges.
- *  HGFS_BYTE_RANGE_LOCKS_SUPPORTS_MANDATORY means that server is capable of enforcing
- *                                           read/write restrictions for locked ranges.
- *  HGFS_BYTE_RANGE_LOCKS_SUPPORTS_ADVISORY means that server supports advisory locking;
- *                                          locks are validated only for other bytes
- *                                          range locking and are not enforced
- *                                          for read/write operations.
+ *  HGFS_OP_CAPFLAG_BYTE_RANGE_LOCKS_64 means that server is capable of locking 64 bit
+ *                                      length ranges.
+ *  HGFS_OP_CAPFLAG_BYTE_RANGE_LOCKS_32 means that server is limited to 32-bit ranges.
+ *  HGFS_OP_CAPFLAG_BYTE_RANGE_LOCKS_MANDATORY means that server is capable of enforcing
+ *                                             read/write restrictions for locked ranges.
+ *  HGFS_OP_CAPFLAG_BYTE_RANGE_LOCKS_ADVISORY means that server supports advisory locking;
+ *                                            locks are validated only for other bytes
+ *                                            range locking and are not enforced
+ *                                            for read/write operations.
  */
-typedef uint32 HgfsByteRangeLockingCapabilities;
-#define HGFS_BYTE_RANGE_LOCKS_SUPPORTS_64               (1 << 1)
-#define HGFS_BYTE_RANGE_LOCKS_SUPPORTS_32               (1 << 2)
-#define HGFS_BYTE_RANGE_LOCKS_SUPPORTS_MANDATORY        (1 << 3)
-#define HGFS_BYTE_RANGE_LOCKS_SUPPORTS_ADVISORY         (1 << 4)
+#define HGFS_OP_CAPFLAG_BYTE_RANGE_LOCKS_64               (1 << 16)
+#define HGFS_OP_CAPFLAG_BYTE_RANGE_LOCKS_32               (1 << 17)
+#define HGFS_OP_CAPFLAG_BYTE_RANGE_LOCKS_MANDATORY        (1 << 18)
+#define HGFS_OP_CAPFLAG_BYTE_RANGE_LOCKS_ADVISORY         (1 << 19)
 
 /* HGFS_SUPPORTS_HARD_LINKS is set when the host supports hard links. */
-typedef uint32 HgfsLinkMoveCapabilities;
-#define HGFS_SUPPORTS_HARD_LINKS                        (1 << 1)
+#define HGFS_OP_CAPFLAG_LINKMOVE_HARD_LINKS               (1 << 16)
 
  /*
   * HGFS_SET_WATCH_SUPPORTS_FINE_GRAIN_EVENTS is set when host supports
   * fine grain event reporting for directory notification.
   */
-typedef uint32 HgfsSetWatchCapabilities;
-#define HGFS_SET_WATCH_SUPPORTS_FINE_GRAIN_EVENTS       (1 << 1)
+#define HGFS_OP_CAPFLAG_SET_WATCH_FINE_GRAIN_EVENTS       (1 << 16)
 
 
 typedef
 #include "vmware_pack_begin.h"
-struct HgfsCapability {
-   HgfsOp op;            /* Op. */
-   uint32 flags;         /* Flags. */
+struct HgfsOpCapability {
+   HgfsOp op;                         /* Op. */
+   HgfsOpCapFlags flags;              /* Flags. */
 }
 #include "vmware_pack_end.h"
-HgfsCapability;
+HgfsOpCapability;
 
 typedef HgfsFileName HgfsUserName;
 typedef HgfsFileName HgfsGroupName;
@@ -1820,7 +1844,7 @@ struct HgfsRequestCreateSessionV4 {
    uint32 maxPacketSize;              /* Maximum packet size supported. */
    HgfsSessionFlags flags;            /* Session capability flags. */
    uint32 reserved;                   /* Reserved for future use. */
-   HgfsCapability capabilities[1];    /* Array of HgfsCapabilities. */
+   HgfsOpCapability capabilities[1];    /* Array of HgfsCapabilities. */
 }
 #include "vmware_pack_end.h"
 HgfsRequestCreateSessionV4;
@@ -1834,7 +1858,7 @@ struct HgfsReplyCreateSessionV4 {
    uint32 identityOffset;             /* Offset to HgfsIdentity or 0 if no identity. */
    HgfsSessionFlags flags;            /* Flags. */
    uint32 reserved;                   /* Reserved for future use. */
-   HgfsCapability capabilities[1];    /* Array of HgfsCapabilities. */
+   HgfsOpCapability capabilities[1];    /* Array of HgfsCapabilities. */
 }
 #include "vmware_pack_end.h"
 HgfsReplyCreateSessionV4;

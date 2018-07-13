@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -301,7 +301,7 @@ VThreadBase_CurID(void)
  *-----------------------------------------------------------------------------
  */
 
-#ifdef __linux__
+#if defined(__linux__) && !defined(__ANDROID__)
 static pid_t
 vmw_pthread_getthreadid_np(void)
 {
@@ -562,6 +562,10 @@ VThreadBase_SetNamePrefix(const char *prefix)  // IN: name prefix
 void
 VThreadBase_ForgetSelf(void)
 {
+#if !defined VMW_HAVE_TLS
+   char *buf;
+#endif
+
    if (vmx86_debug) {
       Log("Forgetting VThreadID %" FMTPD "d (\"%s\").\n",
           VThread_CurID(), VThread_CurName());
@@ -574,8 +578,6 @@ VThreadBase_ForgetSelf(void)
 #if defined VMW_HAVE_TLS
    memset(vthreadName, '\0', sizeof vthreadName);
 #else
-   char *buf;
-
    ASSERT(vthreadNameKey != 0);
    ASSERT(!VThreadBase_IsInSignal());
 

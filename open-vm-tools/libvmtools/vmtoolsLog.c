@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -54,6 +54,7 @@
 #include "str.h"
 #include "system.h"
 #include "vmware/tools/log.h"
+#include "err.h"
 
 #define LOGGING_GROUP         "logging"
 
@@ -112,14 +113,6 @@
    }                                               \
 } while (0)
 
-
-#if defined(G_PLATFORM_WIN32)
-static void
-VMToolsLogOutputDebugString(const gchar *domain,
-                            GLogLevelFlags level,
-                            const gchar *message,
-                            gpointer _data);
-#endif
 
 typedef struct LogHandler {
    GlibLogger    *logger;
@@ -239,6 +232,44 @@ VMToolsAsprintf(gchar **string,
 
 
 /**
+ * VMTools_GetTimeAsString --
+ *
+ *    Returns the current UTC timestamp information
+ *
+ *    Ex: "2018-02-22T21:17:38.517Z"
+ *
+ *    The caller must free the return value using g_free
+ *
+ * @return Properly formatted string that contains the timestamp.
+ *         NULL if the timestamp cannot be retrieved.
+ */
+
+gchar *
+VMTools_GetTimeAsString(void)
+{
+   gchar *timePrefix = NULL;
+   GDateTime *utcTime = g_date_time_new_now_utc();
+
+   if (utcTime != NULL) {
+      gchar *dateFormat = g_date_time_format(utcTime, "%FT%T");
+
+      if (dateFormat != NULL) {
+         gint msec = g_date_time_get_microsecond(utcTime) / 1000;
+
+         timePrefix = g_strdup_printf("%s.%03dZ", dateFormat, msec);
+
+         g_free(dateFormat);
+         dateFormat = NULL;
+      }
+
+      g_date_time_unref(utcTime);
+   }
+
+   return timePrefix;
+}
+
+
+/**
  * Creates a formatted message to be logged. The format of the message will be:
  *
  *    [timestamp] [domain] [level] Log message
@@ -265,7 +296,7 @@ VMToolsLogFormat(const gchar *message,
    size_t len = 0;
    gboolean shared = TRUE;
    gboolean addsTimestamp = TRUE;
-   char *tstamp;
+   gchar *tstamp;
 
    if (domain == NULL) {
       domain = gLogDomain;
@@ -313,7 +344,7 @@ VMToolsLogFormat(const gchar *message,
       addsTimestamp = data->logger->addsTimestamp;
    }
 
-   tstamp = System_GetTimeAsString();
+   tstamp = VMTools_GetTimeAsString();
 
    if (!addsTimestamp) {
       if (shared) {
@@ -346,7 +377,7 @@ VMToolsLogFormat(const gchar *message,
       }
    }
 
-   free(tstamp);
+   g_free(tstamp);
 
    /*
     * The log messages from glib itself (and probably other libraries based
@@ -1402,7 +1433,12 @@ Debug(const char *fmt, ...)
    if (gGuestSDKMode) {
       GuestSDK_Debug(fmt, args);
    } else {
-      VMToolsLogWrapper(G_LOG_LEVEL_DEBUG, fmt, args);
+      /*
+       * Preserve errno/lastError.
+       * This keeps compatibility with bora/lib Log(), preventing
+       * Log() calls in bora/lib code from clobbering errno/lastError.
+       */
+      WITH_ERRNO(err, VMToolsLogWrapper(G_LOG_LEVEL_DEBUG, fmt, args));
    }
    va_end(args);
 }
@@ -1422,7 +1458,12 @@ Log(const char *fmt, ...)
    if (gGuestSDKMode) {
       GuestSDK_Log(fmt, args);
    } else {
-      VMToolsLogWrapper(G_LOG_LEVEL_INFO, fmt, args);
+      /*
+       * Preserve errno/lastError.
+       * This keeps compatibility with bora/lib Log(), preventing
+       * Log() calls in bora/lib code from clobbering errno/lastError.
+       */
+      WITH_ERRNO(err, VMToolsLogWrapper(G_LOG_LEVEL_INFO, fmt, args));
    }
    va_end(args);
 }
@@ -1471,7 +1512,12 @@ LogV(uint32 routing,
       glevel = G_LOG_LEVEL_DEBUG;
    }
 
-   VMToolsLogWrapper(glevel, fmt, args);
+   /*
+    * Preserve errno/lastError.
+    * This keeps compatibility with bora/lib Log(), preventing
+    * Log() calls in bora/lib code from clobbering errno/lastError.
+    */
+   WITH_ERRNO(err, VMToolsLogWrapper(glevel, fmt, args));
 }
 
 
@@ -1537,7 +1583,12 @@ Warning(const char *fmt, ...)
    if (gGuestSDKMode) {
       GuestSDK_Warning(fmt, args);
    } else {
-      VMToolsLogWrapper(G_LOG_LEVEL_WARNING, fmt, args);
+      /*
+       * Preserve errno/lastError.
+       * This keeps compatibility with bora/lib Log(), preventing
+       * Log() calls in bora/lib code from clobbering errno/lastError.
+       */
+      WITH_ERRNO(err, VMToolsLogWrapper(G_LOG_LEVEL_WARNING, fmt, args));
    }
    va_end(args);
 }

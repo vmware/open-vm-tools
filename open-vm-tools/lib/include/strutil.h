@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -61,6 +61,7 @@ size_t StrUtil_GetLongestLineLength(const char *buf, size_t bufLength);
 Bool StrUtil_StartsWith(const char *s, const char *prefix);
 Bool StrUtil_CaselessStartsWith(const char *s, const char *prefix);
 Bool StrUtil_EndsWith(const char *s, const char *suffix);
+Bool StrUtil_CaselessEndsWith(const char *s, const char *suffix);
 Bool StrUtil_IsASCII(const char *s);
 
 Bool StrUtil_VDynBufPrintf(struct DynBuf *b, const char *fmt, va_list args);

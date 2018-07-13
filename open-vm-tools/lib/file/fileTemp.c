@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -79,7 +79,7 @@ FileTempNum(Bool createTempFile,  // IN:
 /*
  *----------------------------------------------------------------------
  *
- *  File_MakeTempEx2 --
+ *  FileMakeTempEx2Work --
  *
  *      Create a temporary file or a directory.
  *      If a temporary file is created successfully, then return an open file
@@ -90,6 +90,10 @@ FileTempNum(Bool createTempFile,  // IN:
  *
  *      'createTempFile', if TRUE, then a temporary file will be created. If
  *      FALSE, then a temporary directory will be created.
+ *
+ *      'makeSubdirSafe', if TRUE, then if a directory is requested,
+ *      the directory will be made "safe". This also requires that
+ *      'dir' already be safe (the code will check this).
  *
  *      'createNameFunc' specifies the user-specified callback function that
  *      will be called to construct the fileName. 'createNameFuncData' will be
@@ -114,12 +118,13 @@ FileTempNum(Bool createTempFile,  // IN:
  *----------------------------------------------------------------------
  */
 
-int
-File_MakeTempEx2(const char *dir,                              // IN:
-                 Bool createTempFile,                          // IN:
-                 File_MakeTempCreateNameFunc *createNameFunc,  // IN:
-                 void *createNameFuncData,                     // IN:
-                 char **presult)                               // OUT:
+static int
+FileMakeTempEx2Work(const char *dir,                              // IN:
+                    Bool createTempFile,                          // IN:
+                    Bool makeSubdirSafe,                          // IN:
+                    File_MakeTempCreateNameFunc *createNameFunc,  // IN:
+                    void *createNameFuncData,                     // IN:
+                    char **presult)                               // OUT:
 {
    uint32 i;
 
@@ -158,15 +163,21 @@ File_MakeTempEx2(const char *dir,                              // IN:
       ASSERT(fileName);
 
       /* construct base full pathname to use */
-      path = Unicode_Join(dir, DIRSEPS, fileName, NULL);
-
-      Posix_Free(fileName);
-
       if (createTempFile) {
+         path = File_PathJoin(dir, fileName);
          fd = Posix_Open(path, O_CREAT | O_EXCL | O_BINARY | O_RDWR, 0600);
       } else {
-         fd = Posix_Mkdir(path, 0700);
+         if (makeSubdirSafe) {
+            path = File_MakeSafeTempSubdir(dir, fileName);
+            if (path != NULL) {
+               fd = 0;
+            }
+         } else {
+            path = File_PathJoin(dir, fileName);
+            fd = Posix_Mkdir(path, 0700);
+         }
       }
+      Posix_Free(fileName);
 
       if (fd != -1) {
          *presult = path;
@@ -175,9 +186,9 @@ File_MakeTempEx2(const char *dir,                              // IN:
       }
 
       if (errno != EEXIST) {
-         Log(LGPFX" Failed to create temporary %s \"%s\": %s.\n",
+         Log(LGPFX" Failed to create temporary %s \"%s\", errno: %d.\n",
              createTempFile ? "file" : "directory",
-             path, Err_Errno2String(errno));
+             path, errno);
          goto exit;
       }
    }
@@ -194,6 +205,35 @@ File_MakeTempEx2(const char *dir,                              // IN:
    Posix_Free(path);
 
    return fd;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ *  File_MakeTempEx2 --
+ *
+ *      Same as FileMakeTempEx2Int, defaulting 'makeSubdirSafe' to
+ *      FALSE.
+ *
+ * Results:
+ *      See FileMakeTempEx2Int.
+ *
+ * Side effects:
+ *      See FileMakeTempEx2Int.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+File_MakeTempEx2(const char *dir,                              // IN:
+                 Bool createTempFile,                          // IN:
+                 File_MakeTempCreateNameFunc *createNameFunc,  // IN:
+                 void *createNameFuncData,                     // IN:
+                 char **presult)                               // OUT:
+{
+   return FileMakeTempEx2Work(dir, createTempFile, FALSE, createNameFunc,
+                              createNameFuncData, presult);
 }
 
 
@@ -296,8 +336,8 @@ File_MakeSafeTempDir(const char *prefix)  // IN:
    if (dir != NULL) {
       const char *effectivePrefix = (prefix == NULL) ? "safeDir" : prefix;
 
-      File_MakeTempEx2(dir, FALSE, FileMakeTempExCreateNameFunc,
-                       (void *) effectivePrefix, &result);
+      FileMakeTempEx2Work(dir, FALSE, TRUE, FileMakeTempExCreateNameFunc,
+                          (void *) effectivePrefix, &result);
 
       Posix_Free(dir);
    }

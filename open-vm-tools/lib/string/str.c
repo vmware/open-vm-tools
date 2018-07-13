@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -726,7 +726,7 @@ Str_SafeVasprintf(size_t *length,       // OUT/OPT
    return StrVasprintfInternal(length, format, arguments, TRUE);
 }
 
-#if defined(_WIN32) || defined(__linux__)
+#if defined(_WIN32) // {
 
 /*
  *----------------------------------------------------------------------
@@ -739,7 +739,7 @@ Str_SafeVasprintf(size_t *length,       // OUT/OPT
  *      Returns the number of wchar_ts stored in 'buf'.
  *
  * WARNING:
- *      Behavior of this function is guaranteed only if HAS_BSD_WPRINTF is
+ *      Behavior of this function is guaranteed only if HAS_BSD_PRINTF is
  *      enabled.
  *
  * Side effects:
@@ -783,7 +783,7 @@ Str_Swprintf(wchar_t *buf,       // OUT
  *      NB: on overflow the buffer WILL be NUL terminated
  *
  * WARNING:
- *      Behavior of this function is guaranteed only if HAS_BSD_WPRINTF is
+ *      Behavior of this function is guaranteed only if HAS_BSD_PRINTF is
  *      enabled.
  *
  *      See the warning at the top of this file for proper va_list usage.
@@ -802,7 +802,7 @@ Str_Vsnwprintf(wchar_t *str,          // OUT
 {
    int retval;
 
-#if defined HAS_BSD_WPRINTF
+#if defined HAS_BSD_PRINTF
    retval = bsd_vsnwprintf(&str, size, format, ap);
 #elif defined(_WIN32)
    /*
@@ -992,78 +992,6 @@ Str_Wcsncat(wchar_t *buf,       // IN/OUT
     */
 
    return wcsncat(buf, src, n);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Str_Mbscpy --
- *
- *    Wrapper for _mbscpy that checks for buffer overruns.
- *
- * Results:
- *    Same as strcpy.
- *
- * Side effects:
- *    None.
- *
- *----------------------------------------------------------------------
- */
-
-unsigned char *
-Str_Mbscpy(char *buf,        // OUT
-           const char *src,  // IN
-           size_t maxSize)   // IN
-{
-   size_t len;
-
-   len = strlen(src);
-   if (len >= maxSize) {
-      Panic("%s:%d Buffer too small\n", __FILE__, __LINE__);
-   }
-   return memcpy(buf, src, len + 1);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Str_Mbscat --
- *
- *    Wrapper for _mbscat that checks for buffer overruns.
- *
- *    The Microsoft _mbscat may or may not deal with tailing
- *    partial multibyte sequence in buf.  We don't.
- *
- * Results:
- *    Same as strcat.
- *
- * Side effects:
- *    None.
- *
- *----------------------------------------------------------------------
- */
-
-unsigned char *
-Str_Mbscat(char *buf,        // IN/OUT
-           const char *src,  // IN
-           size_t maxSize)   // IN
-{
-   size_t bufLen;
-   size_t srcLen;
-
-   bufLen = strlen(buf);
-   srcLen = strlen(src);
-
-   /* The first comparison checks for numeric overflow */
-   if (bufLen + srcLen < srcLen || bufLen + srcLen >= maxSize) {
-      Panic("%s:%d Buffer too small\n", __FILE__, __LINE__);
-   }
-
-   memcpy(buf + bufLen, src, srcLen + 1);
-
-   return (unsigned char *)buf;
 }
 
 
@@ -1259,7 +1187,7 @@ Str_SafeVaswprintf(size_t *length,         // OUT/OPT
    return StrVaswprintfInternal(length, format, arguments, TRUE);
 }
 
-#endif // defined(_WIN32) || defined(__linux__)
+#endif // } defined(_WIN32)
 
 #ifndef _WIN32
 
@@ -1382,7 +1310,7 @@ CheckWPrintf(const wchar_t *expected, // IN
              const wchar_t *fmt,      // IN
              ...)                     // IN
 {
-#if !defined HAS_BSD_WPRINTF
+#if !defined HAS_BSD_PRINTF
    NOT_TESTED_ONCE();
 #else
    wchar_t buf[1024] = L"";

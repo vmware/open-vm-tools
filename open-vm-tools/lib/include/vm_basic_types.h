@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -76,24 +76,6 @@
 #define INCLUDE_ALLOW_DISTRIBUTE
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
-
-/* STRICT ANSI means the Xserver build and X defines Bool differently. */
-#if !defined(_XTYPEDEF_BOOL) && \
-    (!defined(__STRICT_ANSI__) || defined(__FreeBSD__) || \
-      defined(__MINGW32__) || defined(__APPLE__))
-#define _XTYPEDEF_BOOL
-typedef char           Bool;
-#endif
-
-#ifndef FALSE
-#define FALSE          0
-#endif
-
-#ifndef TRUE
-#define TRUE           1
-#endif
-
-#define IS_BOOL(x)     (((x) & ~1) == 0)
 
 /*
  * Macros __i386__ and __ia64 are intrinsically defined by GCC
@@ -177,16 +159,14 @@ typedef char           Bool;
 
 #endif
 
-#if defined(__linux__) && defined(__cplusplus) && __cplusplus >= 201103L
-
+#if defined(__cplusplus) && __cplusplus >= 201103L || \
+    defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L || \
+    defined(__APPLE__) || defined(HAVE_STDINT_H)
 /*
- * We're using stdint.h instead of cstdint below because of libstdcpp.cpp.
- * It looks like a C++ file. When being preprocessed all the C++ specific
- * defines(e.g. __cplusplus) are set, but the C++ include paths are not.
+ * We're using <stdint.h> instead of <cstdint> below because some C++ code
+ * deliberately compiles without C++ include paths.
  */
 #include <stdint.h>
-
-typedef char          Bool;
 
 typedef uint64_t    uint64;
 typedef  int64_t     int64;
@@ -197,56 +177,25 @@ typedef  int16_t     int16;
 typedef  uint8_t     uint8;
 typedef   int8_t      int8;
 
-typedef uint64 BA;
-typedef uint64 MA;
-typedef uint32 MPN32;
-
-#elif defined(__APPLE__) || defined(HAVE_STDINT_H)
-
-/*
- * TODO: This is a C99 standard header.  We should be able to test for
- * #if __STDC_VERSION__ >= 199901L, but that breaks the Netware build
- * (which doesn't have stdint.h).
- */
-
-#include <stdint.h>
-
-typedef uint64_t    uint64;
-typedef  int64_t     int64;
-typedef uint32_t    uint32;
-typedef  int32_t     int32;
-typedef uint16_t    uint16;
-typedef  int16_t     int16;
-typedef  uint8_t    uint8;
-typedef   int8_t     int8;
-
-/*
- * Note: C does not specify whether char is signed or unsigned, and
- * both gcc and msvc implement processor-specific signedness.  With
- * three types:
- * typeof(char) != typeof(signed char) != typeof(unsigned char)
- *
- * Be careful here, because gcc (4.0.1 and others) likes to warn about
- * conversions between signed char * and char *.
- */
-
 #else /* !HAVE_STDINT_H */
 
+/* Pre-c99 or pre-c++11; use compiler extension to get 64-bit types */
 #ifdef _MSC_VER
 
 typedef unsigned __int64 uint64;
 typedef signed __int64 int64;
 
 #elif __GNUC__
-/* The Xserver source compiles with -ansi -pendantic */
-#   if !defined(__STRICT_ANSI__) || defined(__FreeBSD__)
-#      if defined(VM_X86_64) || defined(VM_ARM_64)
+#   if defined(VM_X86_64) || defined(VM_ARM_64)
 typedef unsigned long uint64;
 typedef long int64;
-#      else
+#   else
+/*
+ * Only strict c90 (without extensions) lacks a 'long long' type.
+ * If this declaration fails ... use -std=c99 or -std=gnu90.
+ */
 typedef unsigned long long uint64;
 typedef long long int64;
-#      endif
 #   endif
 #else
 #   error - Need compiler define for int64/uint64
@@ -261,6 +210,36 @@ typedef short              int16;
 typedef signed char        int8;
 
 #endif /* HAVE_STDINT_H */
+
+
+/*
+ * The _XTYPEDEF_BOOL guard prevents colliding with:
+ * <X11/Xlib.h> #define Bool int
+ * <X11/Xdefs.h> typedef int Bool;
+ * If using this header AND X11 headers, be sure to #undef Bool and
+ * be careful about the different size.
+ */
+#if !defined(_XTYPEDEF_BOOL)
+#define _XTYPEDEF_BOOL
+/*
+ * C does not specify whether char is signed or unsigned, and
+ * both gcc and msvc implement it as a non-signed, non-unsigned type.
+ * Thus, (uint8_t *)&Bool and (int8_t *)&Bool are possible compile errors.
+ * This is intentional.
+ */
+typedef char           Bool;
+#endif
+
+#ifndef FALSE
+#define FALSE          0
+#endif
+
+#ifndef TRUE
+#define TRUE           1
+#endif
+
+#define IS_BOOL(x)     (((x) & ~1) == 0)
+
 
 /*
  * FreeBSD (for the tools build) unconditionally defines these in
@@ -386,6 +365,7 @@ typedef int64 VmTimeVirtualClock;  /* Virtual Clock kept in CPU cycles */
  */
 
 #ifdef _MSC_VER
+   /* MSVC added C99-compatible formatting in vs2015. */
    #define FMT64      "I64"
    #ifdef VM_X86_64
       #define FMTSZ      "I64"
@@ -397,53 +377,29 @@ typedef int64 VmTimeVirtualClock;  /* Virtual Clock kept in CPU cycles */
       #define FMTH       "I"
    #endif
 #elif defined __APPLE__
-   /* Mac OS hosts use the same formatters for 32- and 64-bit. */
-   #define FMT64 "ll"
+   /* macOS hosts use the same formatters for 32- and 64-bit. */
+   #define FMT64         "ll"
    #if KERNEL
-      #define FMTSZ "l"
+      /* macOS osfmk/kern added 'z' length specifier in 10.13 */
+      #define FMTSZ      "l"
    #else
-      #define FMTSZ "z"
+      #define FMTSZ      "z"
    #endif
-   #define FMTPD "l"
-   #define FMTH ""
-#elif __GNUC__
-   #define FMTH ""
-   #if defined(sun)
-      #if defined(VM_X86_64) || defined(VM_ARM_64)
-         #define FMTSZ  "l"
-         #define FMTPD  "l"
-      #else
-         #define FMTSZ  ""
-         #define FMTPD  ""
-      #endif
-   #elif defined(__linux__) || \
-        (defined(__FreeBSD__) && (__FreeBSD__ + 0))\
-      || (defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112L) \
-      || (defined(_POSIX_VERSION) && _POSIX_VERSION >= 200112L) \
-      || (defined(_POSIX2_VERSION) && _POSIX2_VERSION >= 200112L)
-      /* BSD, Linux */
-      #define FMTSZ     "z"
-
-      #if defined(VM_X86_64) || defined(VM_ARM_64)
-         #define FMTPD  "l"
-      #else
-         #define FMTPD  ""
-      #endif
-   #else
-      /* Systems with a pre-C99 libc */
-      #define FMTSZ     "Z"
-      #if defined(VM_X86_64) || defined(VM_ARM_64)
-         #define FMTPD  "l"
-      #else
-         #define FMTPD  ""
-      #endif
-   #endif
+   #define FMTPD         "l"
+   #define FMTH          ""
+#elif defined __GNUC__
+   /*
+    * Every POSIX system we target has C99-compatible printf
+    * (supports 'z' for size_t and 'll' for long long).
+    */
+   #define FMTH          ""
+   #define FMTSZ         "z"
    #if defined(VM_X86_64) || defined(VM_ARM_64)
-      #define FMT64     "l"
-   #elif defined(sun) || defined(__FreeBSD__) || defined(__ANDROID__)
-      #define FMT64     "ll"
+      #define FMT64      "l"
+      #define FMTPD      "l"
    #else
-      #define FMT64     "L"
+      #define FMT64      "ll"
+      #define FMTPD      ""
    #endif
 #else
    #error - Need compiler define for FMT64 and FMTSZ
@@ -542,11 +498,7 @@ typedef uint32    TPPN;
 typedef uint64    PhysMemOff;
 typedef uint64    PhysMemSize;
 
-/* The Xserver source compiles with -ansi -pendantic */
-#ifndef __STRICT_ANSI__
 typedef uint64    BA;
-#endif
-
 #ifdef VMKERNEL
 typedef void     *BPN;
 #else
@@ -556,7 +508,10 @@ typedef uint64    BPN;
 #define UINT64_2_BPN(u) ((BPN)(u))
 #define BPN_2_UINT64(b) ((uint64)(b))
 
+typedef uint32    PageCnt;
+typedef uint64    PgCnt64;
 typedef uint32    PageNum;
+typedef uint64    PgNum64;
 typedef unsigned      MemHandle;
 typedef unsigned int  IoHandle;
 typedef int32     World_ID;
@@ -602,11 +557,8 @@ typedef uint128 UReg128;
 typedef  Reg64  Reg;
 typedef UReg64 UReg;
 #endif
-/* The Xserver source compiles with -ansi -pendantic */
-#ifndef __STRICT_ANSI__
 typedef uint64 MA;
 typedef uint32 MPN32;
-#endif
 
 /*
  * This type should be used for variables that contain sector
@@ -657,8 +609,16 @@ typedef uint64 LA64;
 typedef uint64 LPN64;
 typedef uint64 PA64;
 typedef uint64 PPN64;
+typedef uint64 TPPN64;
 typedef uint64 MA64;
 typedef uint64 MPN;
+
+/*
+ * Remove after PPN->PPN64 conversion is finished.
+ */
+#define PPN64_2_PPN(_ppn)     ((PPN)_ppn)
+
+#define FMTPPN ""
 
 /*
  * IO device DMA virtual address and page number (translated by IOMMU to
@@ -685,6 +645,8 @@ typedef void * UserVA;
 #define MAX_PPN_BITS      31
 #define MAX_PPN           (((PPN)1 << MAX_PPN_BITS) - 1) /* Maximal observable PPN value. */
 #define INVALID_PPN       ((PPN)0xffffffff)
+#define INVALID_PPN32     ((PPN32)0xffffffff)
+#define INVALID_PPN64     ((PPN64)0xffffffffffffffffull)
 #define APIC_INVALID_PPN  ((PPN)0xfffffffe)
 
 #define INVALID_BPN       ((BPN)0x000000ffffffffffull)
@@ -797,6 +759,14 @@ typedef void * UserVA;
 #error "gcc version is too old to compile assembly, need gcc-3.3 or better"
 #endif
 
+/*
+ * Similarly, we require a compiler that is at least vc80 (vs2005).
+ * Enforce this here.
+ */
+#if defined _MSC_VER && _MSC_VER < 1400
+#error "cl.exe version is too old, need vc80 or better"
+#endif
+
 
 /*
  * Consider the following reasons functions are inlined:
@@ -825,7 +795,7 @@ typedef void * UserVA;
 #define INLINE_SINGLE_CALLER INLINE_ALWAYS
 
 /*
- * Used when a hard guaranteed of no inlining is needed. Very few
+ * Used when a hard guarantee of no inlining is needed. Very few
  * instances need this since the absence of INLINE is a good hint
  * that gcc will not do inlining.
  */
@@ -1126,33 +1096,6 @@ typedef void * UserVA;
 #   endif
 #else
 # define FMTMODE "o"
-#endif
-
-/*
- * Format modifier for printing time_t. Most platforms define a time_t to be
- * a long int, but on FreeBSD (as of 5.0, it seems), the time_t is a signed
- * size quantity. Refer to the definition of FMTSZ to see why we need silly
- * preprocessor arithmetic.
- * Use this like this: printf("The mode is %" FMTTIME ".\n", time);
- */
-#if defined(__FreeBSD__) && (__FreeBSD__ + 0) && ((__FreeBSD__ + 0) >= 5)
-#   define FMTTIME FMTSZ"d"
-#else
-#   if defined(_MSC_VER)
-#      ifndef _SAFETIME_H_
-#         if (_MSC_VER < 1400) || defined(_USE_32BIT_TIME_T)
-#             define FMTTIME "ld"
-#         else
-#             define FMTTIME FMT64"d"
-#         endif
-#      else
-#         ifndef FMTTIME
-#            error "safetime.h did not define FMTTIME"
-#         endif
-#      endif
-#   else
-#      define FMTTIME "ld"
-#   endif
 #endif
 
 #ifdef __APPLE__

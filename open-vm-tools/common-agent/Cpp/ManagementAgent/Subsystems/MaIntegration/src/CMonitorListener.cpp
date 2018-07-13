@@ -1,5 +1,5 @@
 /*
- *   Copyright (C) 2010-2017 VMware, Inc.  All rights reserved. -- VMware Confidential
+ *   Copyright (C) 2010-2018 VMware, Inc.  All rights reserved. -- VMware Confidential
  */
 
 #include "stdafx.h"
@@ -189,6 +189,11 @@ void CMonitorListener::listenerPreConfigured(
    FileSystemUtils::saveTextFile(_listenerPreConfiguredPath, reason);
 }
 
-
-
+bool CMonitorListener::isListenerPreConfigured() {
+   // Invalidate the flag
+   if (!_listenerPreConfigured) {
+      _listenerPreConfigured = FileSystemUtils::doesFileExist(_listenerPreConfiguredPath);
+   }
+   return _listenerPreConfigured;
+}
 

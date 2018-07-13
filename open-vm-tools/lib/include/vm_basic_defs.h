@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -144,7 +144,7 @@
 
 /* The Solaris 9 cross-compiler complains about these not being used */
 #ifndef sun
-static INLINE int 
+static INLINE int
 Min(int a, int b)
 {
    return a < b ? a : b;
@@ -156,7 +156,7 @@ Min(int a, int b)
 #endif
 
 #ifndef sun
-static INLINE int 
+static INLINE int
 Max(int a, int b)
 {
    return a > b ? a : b;
@@ -211,7 +211,7 @@ Max(int a, int b)
 #endif
 
 
-/* 
+/*
  * Token concatenation
  *
  * The C preprocessor doesn't prescan arguments when they are
@@ -299,7 +299,8 @@ Max(int a, int b)
 #endif
 
 #ifndef MBYTES_2_PAGES
-#define MBYTES_2_PAGES(_nbytes) ((_nbytes) << (MBYTES_SHIFT - PAGE_SHIFT))
+#define MBYTES_2_PAGES(_nbytes) \
+   ((uint64)(_nbytes) << (MBYTES_SHIFT - PAGE_SHIFT))
 #endif
 
 #ifndef PAGES_2_MBYTES
@@ -317,7 +318,7 @@ Max(int a, int b)
 #endif
 
 #ifndef GBYTES_2_PAGES
-#define GBYTES_2_PAGES(_nbytes) ((_nbytes) << (30 - PAGE_SHIFT))
+#define GBYTES_2_PAGES(_nbytes) ((uint64)(_nbytes) << (30 - PAGE_SHIFT))
 #endif
 
 #ifndef PAGES_2_GBYTES
@@ -422,7 +423,7 @@ Max(int a, int b)
 #ifdef _MSC_VER
 #ifdef __cplusplus
 extern "C"
-#endif 
+#endif
 void *_ReturnAddress(void);
 #pragma intrinsic(_ReturnAddress)
 #define GetReturnAddress() _ReturnAddress()
@@ -464,22 +465,6 @@ void *_ReturnAddress(void);
 
 
 #ifdef USERLEVEL // {
-
-/*
- * Note this might be a problem on NT b/c while sched_yield guarantees it
- * moves you to the end of your priority list, Sleep(0) offers no such
- * guarantee.  Bummer.  --Jeremy.
- */
-
-#if defined(_WIN32)
-#      define YIELD()		Sleep(0)
-#elif defined(VMKERNEL)
-/* We don't have a YIELD macro in the vmkernel */
-#else
-#      include <sched.h>        // For sched_yield.  Don't ask.  --Jeremy.
-#      define YIELD()		sched_yield()
-#endif 
-
 
 /*
  * Standardize some Posix names on Windows.
@@ -571,36 +556,13 @@ typedef int pid_t;
  * driver.
  */
 
-#ifdef _WIN32
+#if defined(_WIN32) && defined(_MSC_VER)
 #define PATH_MAX 256
 #ifndef strcasecmp
 #define strcasecmp(_s1,_s2)   _stricmp((_s1),(_s2))
 #endif
 #ifndef strncasecmp
 #define strncasecmp(_s1,_s2,_n)   _strnicmp((_s1),(_s2),(_n))
-#endif
-#endif
-
-#if defined __linux__ && !defined __KERNEL__ && !defined MODULE && \
-                         !defined VMM && !defined FROBOS && !defined __ANDROID__
-#include <features.h>
-#if __GLIBC_PREREQ(2, 1) && !defined GLIBC_VERSION_21
-#define GLIBC_VERSION_21
-#endif
-#if __GLIBC_PREREQ(2, 2) && !defined GLIBC_VERSION_22
-#define GLIBC_VERSION_22
-#endif
-#if __GLIBC_PREREQ(2, 3) && !defined GLIBC_VERSION_23
-#define GLIBC_VERSION_23
-#endif
-#if __GLIBC_PREREQ(2, 4) && !defined GLIBC_VERSION_24
-#define GLIBC_VERSION_24
-#endif
-#if __GLIBC_PREREQ(2, 5) && !defined GLIBC_VERSION_25
-#define GLIBC_VERSION_25
-#endif
-#if __GLIBC_PREREQ(2, 12) && !defined GLIBC_VERSION_212
-#define GLIBC_VERSION_212
 #endif
 #endif
 
@@ -676,7 +638,7 @@ typedef int pid_t;
 #define RELEASE_ONLY(x) x
 #else
 #define vmx86_release   0
-#define RELEASE_ONLY(x) 
+#define RELEASE_ONLY(x)
 #endif
 
 #ifdef VMX86_SERVER
@@ -729,6 +691,12 @@ typedef int pid_t;
 #define vmw_apple_sandbox 0
 #endif
 
+#if defined(__APPLE__) && defined(VMW_APPLE_APP_STORE)
+#define vmw_apple_app_store 1
+#else
+#define vmw_apple_app_store 0
+#endif
+
 #ifdef VMM
 #define VMM_ONLY(x) x
 #else
@@ -739,17 +707,6 @@ typedef int pid_t;
 #define USER_ONLY(x)
 #else
 #define USER_ONLY(x) x
-#endif
-
-/* VMVISOR ifdef only allowed in the vmkernel */
-#ifdef VMKERNEL
-#ifdef VMVISOR
-#define vmvisor 1
-#define VMVISOR_ONLY(x) x
-#else
-#define vmvisor 0
-#define VMVISOR_ONLY(x)
-#endif
 #endif
 
 #ifdef _WIN32

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2014-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2014-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -52,7 +52,7 @@
 #include <openssl/rand.h>
 #include <openssl/engine.h>
 
-#define SSL_LOG(x) Debug x
+#define SSL_LOG(x) WITH_ERRNO(_e, Debug x)
 
 struct SSLSockStruct {
    SSL *sslCnx;
@@ -401,7 +401,14 @@ SSL_Read(SSLSock ssl,   // IN
    }
 
    if (ssl->encrypted) {
-      int result = SSL_read(ssl->sslCnx, buf, (int)num);
+      int result;
+
+      /*
+       * Need to clear the thread error queue before calling SSL_xxx function
+       * See bug 1982292 and man SSL_get_error(3) for details.
+       */
+      ERR_clear_error();
+      result = SSL_read(ssl->sslCnx, buf, (int)num);
 
       ssl->sslIOError = SSLSetErrorState(ssl->sslCnx, result);
       if (ssl->sslIOError != SSL_ERROR_NONE) {
@@ -500,7 +507,10 @@ SSL_RecvDataAndFd(SSLSock ssl,    // IN/OUT: socket
    return SSL_Read(ssl, buf, num);
 #else
    if (ssl->encrypted) {
-      int result = SSL_read(ssl->sslCnx, buf, (int)num);
+      int result;
+
+      ERR_clear_error();
+      result = SSL_read(ssl->sslCnx, buf, (int)num);
 
       ssl->sslIOError = SSLSetErrorState(ssl->sslCnx, result);
       if (ssl->sslIOError != SSL_ERROR_NONE) {
@@ -572,7 +582,10 @@ SSL_Write(SSLSock ssl,   // IN
       goto end;
    }
    if (ssl->encrypted) {
-      int result = SSL_write(ssl->sslCnx, buf, (int)num);
+      int result;
+
+      ERR_clear_error();
+      result = SSL_write(ssl->sslCnx, buf, (int)num);
 
       ssl->sslIOError = SSLSetErrorState(ssl->sslCnx, result);
       if (ssl->sslIOError != SSL_ERROR_NONE) {

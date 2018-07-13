@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -65,17 +65,26 @@ extern "C" {
  * from a given XDR array.
  */
 #ifdef __GNUC__
-#   define XDRUTIL_ARRAYAPPEND(ptr, field, cnt)                 \
-       (typeof ((ptr)->field.field##_val))                      \
-       XdrUtil_ArrayAppend((void **) &(ptr)->field.field##_val, \
-                           &(ptr)->field.field##_len,           \
-                           sizeof *(ptr)->field.field##_val,    \
-                           (cnt))
+#   if defined(__cpp_decltype) || defined(__GXX_EXPERIMENTAL_CXX0X__)
+#      define XDRUTIL_ARRAYAPPEND(ptr, field, cnt)                      \
+          (decltype ((ptr)->field.field##_val))                         \
+          XdrUtil_ArrayAppend((void **) &(ptr)->field.field##_val,      \
+                              &(ptr)->field.field##_len,                \
+                              sizeof *(ptr)->field.field##_val,         \
+                              (cnt))
+#   else
+#      define XDRUTIL_ARRAYAPPEND(ptr, field, cnt)                      \
+          (typeof ((ptr)->field.field##_val))                           \
+          XdrUtil_ArrayAppend((void **) &(ptr)->field.field##_val,      \
+                              &(ptr)->field.field##_len,                \
+                              sizeof *(ptr)->field.field##_val,         \
+                              (cnt))
+#   endif
 #else
-#   define XDRUTIL_ARRAYAPPEND(ptr, field, cnt)                 \
-       XdrUtil_ArrayAppend((void **) &(ptr)->field.field##_val, \
-                           &(ptr)->field.field##_len,           \
-                           sizeof *(ptr)->field.field##_val,    \
+#   define XDRUTIL_ARRAYAPPEND(ptr, field, cnt)                         \
+       XdrUtil_ArrayAppend((void **) &(ptr)->field.field##_val,         \
+                           &(ptr)->field.field##_len,                   \
+                           sizeof *(ptr)->field.field##_val,            \
                            (cnt))
 #endif
 

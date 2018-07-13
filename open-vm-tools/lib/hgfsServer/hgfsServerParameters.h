@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -307,7 +307,7 @@ HgfsPackDestroySessionReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
                             size_t *payloadSize,       // OUT: size of packet
                             HgfsSessionInfo *session); // IN: Session Info
 void
-HgfsServerGetDefaultCapabilities(HgfsCapability *capabilities,   // OUT:
+HgfsServerGetDefaultCapabilities(HgfsOpCapability *capabilities, // OUT:
                                  uint32 *numberOfCapabilities);  // OUT:
 Bool
 HgfsUnpackSetWatchRequest(const void *packet,      // IN: HGFS packet

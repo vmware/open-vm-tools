@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -95,8 +95,9 @@ int32 Config_GetTriState(int32 defaultValue,
 double Config_GetDouble(double defaultValue,
                         const char *fmt, ...) PRINTF_DECL(2, 3);
 Bool Config_NotSet(const char *fmt, ...) PRINTF_DECL(1, 2);
-void Config_Unset(const char *fmt, ...) PRINTF_DECL(1, 2);
-void Config_UnsetWithPrefix(const char *fmt, ...) PRINTF_DECL(1, 2);
+Bool Config_Unset(const char *fmt, ...) PRINTF_DECL(1, 2);
+Bool Config_UnsetWithPrefix(const char *fmt, ...) PRINTF_DECL(1, 2);
+Bool Config_NeedSave(void);
 
 void Config_Set(void *value, int type,
                 const char *fmt, ...) PRINTF_DECL(3, 4);

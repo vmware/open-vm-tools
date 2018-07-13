@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -23,9 +23,11 @@
  */
 
 #include "deployPkgInt.h"
+#include "imgcust-common/log.h"
 #include "util.h"
 #include "file.h"
 #include "str.h"
+#include "vmware/tools/utils.h"
 
 #include <stdio.h>
 
@@ -78,7 +80,7 @@ DeployPkgLog_Open()
 #ifndef _WIN32
          setlinebuf(_file);
 #endif
-         fprintf(_file, "## Starting deploy pkg operation\n");
+         DeployPkgLog_Log(log_debug, "## Starting deploy pkg operation");
       }
    }
 }
@@ -104,7 +106,7 @@ void
 DeployPkgLog_Close()
 {
    if (_file != NULL) {
-      fprintf(_file, "## Closing log\n");
+      DeployPkgLog_Log(log_debug, "## Closing log");
       fclose(_file);
       _file = NULL;
    }
@@ -129,19 +131,43 @@ DeployPkgLog_Close()
 
 void
 DeployPkgLog_Log(int level,          // IN
-                 const char *fmtstr, // IN  
+                 const char *fmtstr, // IN
                  ...)                // IN
 {
    va_list args;
+   gchar *tstamp;
+   const char *logLevel;
 
    /* Make sure init succeeded */
    if (_file == NULL) {
       return;
    }
 
+   switch (level) {
+      case log_debug:
+         logLevel = "debug";
+         break;
+      case log_info:
+         logLevel = "info";
+         break;
+      case log_warning:
+         logLevel = "warning";
+         break;
+      case log_error:
+         logLevel = "error";
+         break;
+      default:
+         logLevel = "unknown";
+         break;
+   }
+
    va_start(args, fmtstr);
+   tstamp = VMTools_GetTimeAsString();
+   fprintf(_file, "[%s] [%8s] ",
+           (tstamp != NULL) ? tstamp : "no time", logLevel);
    vfprintf(_file, fmtstr, args);
    fprintf(_file, "\n");
+   g_free(tstamp);
    va_end(args);
 }
 

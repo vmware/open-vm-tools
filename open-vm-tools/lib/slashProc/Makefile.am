@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2007-2016 VMware, Inc.  All rights reserved.
+### Copyright (C) 2007-2018 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -22,6 +22,5 @@ libSlashProc_la_SOURCES += net.c
 
 libSlashProc_la_CPPFLAGS =
 libSlashProc_la_CPPFLAGS += @GLIB2_CPPFLAGS@
-
-AM_CFLAGS = $(DNET_CPPFLAGS)
+libSlashProc_la_CPPFLAGS += @DNET_CPPFLAGS@
 

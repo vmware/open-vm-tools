@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2016,2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -28,22 +28,28 @@
 
 #include "vm_api.h"
 
-#ifdef LIB_EXPORT_SOURCE
-   #define LIB_EXPORT VMW_LIB_DYNAMIC
-#else
-   #define LIB_EXPORT VMW_LIB_CLIENT
+#ifndef LIB_EXPORT
+   #ifdef LIB_EXPORT_SOURCE
+      #define LIB_EXPORT VMW_LIB_DYNAMIC
+   #else
+      #define LIB_EXPORT VMW_LIB_CLIENT
+   #endif
 #endif
 
-#ifdef LIB_EXPORT_WUI_SOURCE
-   #define LIB_EXPORT_WUI VMW_LIB_DYNAMIC
-#else
-   #define LIB_EXPORT_WUI VMW_LIB_CLIENT
+#ifndef LIB_EXPORT_WUI
+   #ifdef LIB_EXPORT_WUI_SOURCE
+      #define LIB_EXPORT_WUI VMW_LIB_DYNAMIC
+   #else
+      #define LIB_EXPORT_WUI VMW_LIB_CLIENT
+   #endif
 #endif
 
-#ifdef VMSTRING_EXPORT_SOURCE
-   #define VMSTRING_EXPORT VMW_LIB_DYNAMIC
-#else
-   #define VMSTRING_EXPORT VMW_LIB_CLIENT
+#ifndef VMSTRING_EXPORT
+   #ifdef VMSTRING_EXPORT_SOURCE
+      #define VMSTRING_EXPORT VMW_LIB_DYNAMIC
+   #else
+      #define VMSTRING_EXPORT VMW_LIB_CLIENT
+   #endif
 #endif
 
 #endif // LIB_EXPORT_HH

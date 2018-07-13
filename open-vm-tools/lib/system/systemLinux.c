@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -162,11 +162,13 @@ System_GetTimeMonotonic(void)
 
    return base + (last = current);
 #else  // VM_X86_64
-#ifdef sun
-   /* Solaris has a bug where times() can return a lower value than in
-    * a previous call, see bug #1710952, so we make sure to never
-    * return a lower value, by saving the old value and compare.
-    * We also make that thread safe. */
+#if defined sun || defined __APPLE__
+   /*
+    * PR 1710952 and PR 2136820
+    * times() on Solaris & Mac can return a lower value than the
+    * one in a previous call. As a workaround, we return the last
+    * cached value when we get a lower value from times().
+    */
    static Atomic_uint64 last = { 0 };
 
    while (1) {
@@ -280,82 +282,6 @@ System_Uptime(void)
 #endif
 
    return uptime;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * System_GetTimeAsString --
- *
- *      Returns the current time as a formatted string, useful for prepending
- *      to debugging output.
- *
- *      For example: "Oct 05 18:03:24.948"
- *
- * Results:
- *      On success, allocates and returns a string containing the formatted
- *      time.
- *      On failure, returns NULL.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-char *
-System_GetTimeAsString(void)
-{
-   struct timeval tv;
-   time_t sec;
-   int msec;
-   size_t charsWritten;
-   size_t bufSize = 8; // Multiplied by 2 for the initial allocation.
-   char *buf = NULL;
-   char *dateTime = NULL;
-   char *output = NULL;
-
-   if (gettimeofday(&tv, NULL)) {
-      goto out;
-   }
-   sec = tv.tv_sec;
-   msec = tv.tv_usec / 1000;
-
-   /*
-    * Loop repeatedly trying to format the time into a buffer, doubling the
-    * buffer with each failure. This should be safe as the manpage for
-    * strftime(3) seems to suggest that it only fails if the buffer isn't large
-    * enough.
-    *
-    * The resultant string is encoded according to the current locale.
-    */
-   do {
-      char *newBuf;
-      bufSize *= 2;
-
-      newBuf = realloc(buf, bufSize);
-      if (newBuf == NULL) {
-         goto out;
-      }
-      buf = newBuf;
-      charsWritten = strftime(buf, bufSize, "%b %d %H:%M:%S", localtime(&sec));
-   } while (charsWritten == 0);
-
-   /*
-    * Append the milliseconds field, but only after converting the date/time
-    * string from encoding specified in the current locale to an opaque type.
-    */
-   dateTime = Unicode_Alloc(buf, STRING_ENCODING_DEFAULT);
-   if (dateTime == NULL) {
-      goto out;
-   }
-   output = Unicode_Format("%s.%03d", dateTime, msec);
-
-  out:
-   free(buf);
-   free(dateTime);
-   return output;
 }
 
 

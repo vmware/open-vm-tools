@@ -35,10 +35,10 @@
 ### Initialization
 ###
 
-TOOLS_VERSION="10.2.5"
+TOOLS_VERSION="10.3.0"
 AC_INIT(
    [open-vm-tools],
-   [10.2.5],
+   [10.3.0],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
@@ -402,7 +402,7 @@ if test "$enable_deploypkg" = "yes"; then
                    [],
                    [0.0.20040308alpha],
                    [mspack.h],
-                   [],
+                   [mspack_version],
                    [],
                    [AC_MSG_ERROR([mspack >= 0.0.20040308alpha is required.])])
 fi
@@ -426,39 +426,39 @@ AC_VMW_CHECK_LIB([glib-2.0],
                  [GLIB2],
                  [glib-2.0],
                  [],
-                 [2.14.0],
+                 [2.34.0],
                  [glib.h],
                  [g_key_file_new],
                  [],
-                 [AC_MSG_ERROR([glib2 >= 2.14.0 is required.])])
+                 [AC_MSG_ERROR([glib2 >= 2.34.0 is required.])])
 
 AC_VMW_CHECK_LIB([gmodule-2.0],
                  [GMODULE],
                  [gmodule-2.0],
                  [],
-                 [2.14.0],
+                 [2.34.0],
                  [],
+                 [g_module_open],
                  [],
-                 [],
-                 [AC_MSG_ERROR([gmodule >= 2.14.0 is required.])])
+                 [AC_MSG_ERROR([gmodule >= 2.34.0 is required.])])
 AC_VMW_CHECK_LIB([gobject-2.0],
                  [GOBJECT],
                  [gobject-2.0],
                  [],
-                 [2.14.0],
+                 [2.34.0],
                  [glib-object.h],
+                 [g_object_new],
                  [],
-                 [],
-                 [AC_MSG_ERROR([gobject >= 2.14.0 is required.])])
+                 [AC_MSG_ERROR([gobject >= 2.34.0 is required.])])
 AC_VMW_CHECK_LIB([gthread-2.0],
                  [GTHREAD],
                  [gthread-2.0],
                  [],
-                 [2.14.0],
+                 [2.34.0],
                  [],
+                 [g_thread_new],
                  [],
-                 [],
-                 [AC_MSG_ERROR([glib >= 2.14.0 is required.])])
+                 [AC_MSG_ERROR([gthread >= 2.34.0 is required.])])
 AC_CHECK_PROG([have_genmarshal],
               [glib-genmarshal],
               [yes],
@@ -509,27 +509,27 @@ AC_ARG_ENABLE([vgauth],
      [do not build vgauth.])],
    [
     enable_vgauth="$enableval"
-    use_xmlsec1=no
+    use_xmlsec1=yes
    ],
    [
     if test "$os" = "linux"; then
        enable_vgauth=yes
-       use_xmlsec1=no
+       use_xmlsec1=yes
     else
        enable_vgauth=no
-       use_xmlsec1=no
+       use_xmlsec1=yes
     fi
    ])
 
 AC_ARG_ENABLE([xmlsec1],
    [AS_HELP_STRING([--enable-xmlsec1],
-     [build vgauth with xmlsec1 instead of xml-security-c (off by default).])],
+     [build vgauth with xmlsec1 instead of xml-security-c (on by default).])],
    [use_xmlsec1="$enableval"],
-   [use_xmlsec1=no])
+   [use_xmlsec1=yes])
 
 AC_ARG_ENABLE([xmlsecurity],
    [AS_HELP_STRING([--enable-xmlsecurity],
-     [build vgauth with xml-security-c instead of xmlsec1 (on by default).])],
+     [build vgauth with xml-security-c instead of xmlsec1 (off by default).])],
    [
     if test "$enableval" = "yes"; then
        use_xmlsec1="no"
@@ -586,6 +586,11 @@ AC_ARG_WITH([xml2],
    [enable_vgauth=no],
    [with_xml2=yes])
 
+AC_ARG_WITH([tirpc],
+   [AS_HELP_STRING([--without-tirpc],
+     [compiles with/without libtirpc.])],
+   [],
+   [with_tirpc=auto])
 
 # Make sure we are building with openssl 1.0.1 and above so that
 # we use only TLSv1_2.
@@ -627,7 +632,7 @@ if test "$enable_vgauth" = "yes"; then
                        [xmlsec1-config],
                        [],
                        [xmlsec/xmlsec.h],
-                       [xmlSecCheckVersion],
+                       [xmlSecCheckVersionExt],
                        [XMLSEC1_CPPFLAGS="$XMLSEC1_CPPFLAGS -DXMLSEC_NO_SIZE_T"],
                        [AC_VMW_LIB_ERROR([XMLSEC1], [xmlsec1])])
 
@@ -782,9 +787,9 @@ else
                     [GDK_PIXBUF_XLIB2],
                     [gdk-pixbuf-xlib-2.0],
                     [],
-                    [],
+                    [2.21.0],
                     [gdk-pixbuf-xlib/gdk-pixbuf-xlib.h],
-                    [],
+                    [gdk_pixbuf_xlib_init],
                     [],
                     [AC_MSG_ERROR([gdk-pixbuf-xlib-2.0 not found. Please configure without X11 (using --without-x) or install the gdk-pixbuf-xlib-2.0 devel package.])])
 
@@ -827,7 +832,7 @@ else
                             [gtkmm-3.0],
                             [],
                             [3.0.0],
-                            [],
+                            [gtkmm.h],
                             [],
                             [GTKMM_CPPFLAGS="$GTKMM_CPPFLAGS -DHAVE_GTKMM"],
                             [AC_MSG_ERROR([gtkmm3 library not found. Please install the libgtkmm devel package(s), or re-configure using --without-gtkmm3.])])
@@ -899,14 +904,14 @@ if test "$os" = "freebsd" -a "$osVersion" -ge 600000; then
    AC_CHECK_LIB(
       [thr],
       [pthread_mutex_init],
-      [THREAD_LIB=-lthr],
+      [THREAD_LIBS=-lthr],
       [AC_MSG_ERROR(
          [Unable to locate required threading library libthr.])])
 else
    AC_CHECK_LIB(
       [pthread],
       [pthread_mutex_init],
-      [THREAD_LIB=-lpthread],
+      [THREAD_LIBS=-lpthread],
       [AC_MSG_ERROR(
          [libpthread not found. Please install the libc/libpthread devel package(s).])])
 fi
@@ -1066,10 +1071,74 @@ if test "$enable_caf" = "yes"; then
 
 fi
 
+if test "$with_tirpc" != "no"; then
+   AC_VMW_CHECK_LIB([libtirpc],
+                    [TIRPC],
+                    [libtirpc],
+                    [],
+                    [],
+                    [],
+                    [],
+                    [have_tirpc="yes"],
+                    [have_tirpc="no"])
+fi
+
+if test "$with_tirpc" != "yes"; then
+   AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+      #include <rpc/types.h>
+      #include <rpc/xdr.h>
+
+      int main()
+      {
+         struct xdr_ops xdr;
+#if defined(__GLIBC__)
+         xdr.x_putint32(NULL, NULL);
+#endif
+         return 0;
+      }
+      ]])], [need_tirpc="no"], [need_tirpc="yes"])
+   AC_MSG_NOTICE([tirpc is needed: $need_tirpc])
+fi
+
+if test "$with_tirpc" = "no"; then
+   if test "$need_tirpc" = "yes"; then
+      AC_MSG_ERROR([libtirpc is required but it is disabled.])
+   fi
+   use_tirpc="no"
+elif test "$with_tirpc" = "auto"; then
+   if test "$need_tirpc" = "yes" -a "$have_tirpc" = "no"; then
+      AC_MSG_ERROR([cannot find libtirpc but it is required.])
+   fi
+   use_tirpc=$need_tirpc
+elif test "$with_tirpc" = "yes"; then
+   if test "$have_tirpc" = "no"; then
+      AC_MSG_ERROR([cannot build with libtirpc because it cannot be found.])
+   fi
+   use_tirpc="yes"
+fi
+
+XDR_LIBS=
+XDR_CPPFLAGS=
+if test "$use_tirpc" = "yes"; then
+   AC_MSG_NOTICE([building with libtirpc])
+   XDR_LIBS="$TIRPC_LIBS"
+   XDR_CPPFLAGS="-DUSE_TIRPC $TIRPC_CPPFLAGS"
+else
+   AC_MSG_NOTICE([building without libtirpc])
+   # In Solaris, the XDR-related functions are not in libc like in Linux and
+   # FreeBSD, so binaries need to be linked to some extra libraries.
+   if test "$os" = "solaris"; then
+      XDR_LIBS="-lnsl -lrpcsvc"
+   fi
+fi
+
 AC_PATH_PROG(
    [RPCGEN],
    [rpcgen],
-   [ AC_MSG_ERROR([rpcgen not found. Please install the libc devel package.]) ])
+   [not_found])
+if test "$RPCGEN" == "not_found"; then
+   AC_MSG_ERROR([rpcgen not found.])
+fi
 
 ###
 ### Headers
@@ -1095,6 +1164,13 @@ AC_CHECK_HEADERS([sys/user.h],
    ])
 AC_CHECK_HEADERS([sys/vfs.h])
 AC_CHECK_HEADERS([syslimits.h])
+
+# On Freebsd, the unwind.h header file is available in the libunwind
+# package, but the necessary functions are only available if __GNU_SOURCE
+# is defined to enable "all" GCC extensions.
+if test "$os" = "freebsd"; then
+   ac_cv_header_unwind_h="no"
+fi
 AC_CHECK_HEADERS([unwind.h])
 
 AC_CHECK_HEADER(
@@ -1143,6 +1219,12 @@ AC_C_VOLATILE
 ### General flags / actions
 CFLAGS="$CFLAGS -Wall"
 CFLAGS="$CFLAGS -Werror"
+
+# Suppress warnings from clang when taking the address of packed struct
+# member fields when compiling hgfsServer.c
+if $CC --version | $GREP -i "clang" > /dev/null; then
+   CFLAGS="$CFLAGS -Wno-address-of-packed-member"
+fi
 
 # -Wno-unknown-pragmas is due to gcc not understanding '#pragma ident'
 # in Xlib.h on OpenSolaris.
@@ -1257,8 +1339,8 @@ if test "$os" = "linux"; then
    if test "$osVersion" -lt 303000; then
       MODULES="$MODULES vmxnet"
    fi
-   # See if we need vmhgfs module. Starting with 4.0.0 we use FUSE
-   if test "$osVersion" -lt 400000; then
+   # See if we need vmhgfs module. Starting with 3.10.0 we use FUSE
+   if test "$osVersion" -lt 310000; then
       MODULES="$MODULES vmhgfs"
    fi
    # See if we need vmci and vsock modules. Starting with 3.9 they made
@@ -1389,7 +1471,6 @@ AM_CONDITIONAL(HAVE_XSM, test "$have_xsm" = "yes")
 AM_CONDITIONAL(HAVE_XCOMPOSITE, test "$have_xcomposite" = "yes")
 AM_CONDITIONAL(ENABLE_TESTS, test "$have_cunit" = "yes")
 AM_CONDITIONAL(WITH_ROOT_PRIVILEGES, test "$with_root_privileges" = "yes")
-AM_CONDITIONAL(HAVE_DNET, test "$have_dnet" = "yes")
 AM_CONDITIONAL(HAVE_DOXYGEN, test "$have_doxygen" = "yes")
 AM_CONDITIONAL(HAVE_FUSE, test "$have_fuse" = "yes")
 AM_CONDITIONAL(HAVE_GNU_LD, test "$with_gnu_ld" = "yes")
@@ -1434,8 +1515,8 @@ if test "$HAVE_CRYPT" = "yes"; then
 fi
 
 
-LIBVMTOOLS_LIBADD="$LIBVMTOOLS_LIBADD $THREAD_LIB"
-VIX_LIBADD="$VIX_LIBADD $THREAD_LIB"
+LIBVMTOOLS_LIBADD="$LIBVMTOOLS_LIBADD $THREAD_LIBS"
+VIX_LIBADD="$VIX_LIBADD $THREAD_LIBS"
 
 ### Core Services definitions.
 
@@ -1445,14 +1526,7 @@ VMTOOLS_LIBS="$BUILDDIR/libvmtools/libvmtools.la $GLIB2_LIBS"
 VMTOOLS_CPPFLAGS="-DVMTOOLS_USE_GLIB $GLIB2_CPPFLAGS"
 
 PLUGIN_CPPFLAGS="$VMTOOLS_CPPFLAGS $PLUGIN_CPPFLAGS"
-PLUGIN_LDFLAGS="-Wl,-z,defs -Wl,-lc -shared -module -avoid-version"
-
-# In Solaris, the XDR-related functions are not in libc like in Linux and
-# FreeBSD, so binaries need to be linked to some extra libraries.
-XDR_LIBS=
-if test "$os" = "solaris"; then
-   XDR_LIBS="-lnsl -lrpcsvc"
-fi
+PLUGIN_LDFLAGS="-Wl,-z,defs -Wl,-lc -Wl,--as-needed -shared -module -avoid-version"
 
 # Installation directories for core services plugins.
 TEST_PLUGIN_INSTALLDIR=$datadir/open-vm-tools/tests
@@ -1491,8 +1565,10 @@ AC_SUBST([PLUGIN_CPPFLAGS])
 AC_SUBST([PLUGIN_LDFLAGS])
 AC_SUBST([VMTOOLS_CPPFLAGS])
 AC_SUBST([VMTOOLS_LIBS])
+AC_SUBST([THREAD_LIBS])
 AC_SUBST([RPCGENFLAGS])
 AC_SUBST([XDR_LIBS])
+AC_SUBST([XDR_CPPFLAGS])
 AC_SUBST([TEST_PLUGIN_INSTALLDIR])
 AC_SUBST([COMMON_PLUGIN_INSTALLDIR])
 AC_SUBST([VMSVC_PLUGIN_INSTALLDIR])

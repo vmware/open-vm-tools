@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2007-2016 VMware, Inc.  All rights reserved.
+### Copyright (C) 2007-2018 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -22,6 +22,7 @@ AM_CFLAGS += -I$(top_srcdir)/include
 
 libguestlib_la_LIBADD =
 libguestlib_la_LIBADD += @VMTOOLS_LIBS@
+libguestlib_la_LIBADD += @XDR_LIBS@
 
 libguestlib_la_SOURCES =
 libguestlib_la_SOURCES += guestlibV3_xdr.c
@@ -56,6 +57,7 @@ CFLAGS += -Wno-unused
 libguestlib_la_CPPFLAGS =
 libguestlib_la_CPPFLAGS += -DVMTOOLS_USE_GLIB
 libguestlib_la_CPPFLAGS += @GLIB2_CPPFLAGS@
+libguestlib_la_CPPFLAGS += @XDR_CPPFLAGS@
 
 EXTRA_DIST = vmguestlib.pc.in
 

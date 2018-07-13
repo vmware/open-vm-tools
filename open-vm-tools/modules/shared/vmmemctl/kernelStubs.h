@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -99,9 +99,13 @@
 #      include "vm_basic_defs.h"
 #      include "vm_assert.h"
 #   elif KRNL_STUBS_DRIVER_TYPE == KRNL_STUBS_DRIVER_TYPE_NDIS
-#      include "vm_basic_types.h"
 #      include <ntddk.h>
+#      include <stdio.h>    /* for _vsnprintf, vsprintf */
+#      include <stdarg.h>   /* for va_start stuff */
+#      include "vm_basic_defs.h"
+#      include "vm_assert.h"
 #      include "kernelStubsFloorFixes.h"
+#pragma warning(disable:4201) // unnamed struct/union
 #      include <ndis.h>
 #   elif KRNL_STUBS_DRIVER_TYPE == KRNL_STUBS_DRIVER_TYPE_WDM
 #      include "vm_basic_types.h"
@@ -278,7 +282,8 @@ char *Str_Asprintf(
 
 // For now (vsphere-2015), we don't implement Panic, Warning, or Debug in the
 // GDI case.
-#if KRNL_STUBS_DRIVER_TYPE != KRNL_STUBS_DRIVER_TYPE_GDI
+#if (KRNL_STUBS_DRIVER_TYPE != KRNL_STUBS_DRIVER_TYPE_GDI) &&\
+    (KRNL_STUBS_DRIVER_TYPE != KRNL_STUBS_DRIVER_TYPE_NDIS)
 
 /*
  * Stub functions we provide.

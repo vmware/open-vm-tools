@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -30,7 +30,6 @@
 #endif
 
 #include "vm_ctype.h"
-#include "safetime.h"
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -49,6 +48,7 @@
 #endif
 
 #if defined(__APPLE__)
+#include <sys/stat.h>
 #include <CoreFoundation/CoreFoundation.h>
 #endif
 
@@ -508,7 +508,7 @@ UtilDoTildeSubst(const char *user)  // IN: name of user
    }
    if (str == NULL && pwd != NULL) {
       str = UtilGetHomeDirectory(pwd);
-      endpwent();
+      Posix_Endpwent();
       if (str == NULL) {
          Log("Could not get home directory for user.\n");
       }
@@ -673,7 +673,7 @@ Util_ExpandString(const char *fileName) // IN  file path to expand
 #if !defined(_WIN32)
          struct passwd *pwd = Posix_Getpwuid(getuid());
          expand = UtilGetLoginName(pwd);
-         endpwent();
+         Posix_Endpwent();
 #else
 	 DWORD n = ARRAYSIZE(bufW);
 	 if (GetUserNameW(bufW, &n)) {

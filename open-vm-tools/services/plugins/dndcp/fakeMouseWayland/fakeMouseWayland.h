@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -16,48 +16,21 @@
  *
  *********************************************************/
 
-#ifndef _TIMESYNC_INT_H_
-#define _TIMESYNC_INT_H_
-
 /**
- * @file timeSync.h
+ * @file fakeMouseWayland.h
  *
- * Functions and definitions related to syncing time.
+ *    Implement the methods that simulates the mouse motion.
+ *
  */
 
-#define G_LOG_DOMAIN "timeSync"
-#include "vm_basic_types.h"
+#ifndef __FAKE_MOUSE_WAYLAND_H__
+#define __FAKE_MOUSE_WAYLAND_H__
 
-#define US_PER_SEC 1000000
+bool FakeMouse_Init(int fd, int width, int height);
+bool FakeMouse_IsInit();
+bool FakeMouse_Update(int width, int height);
+void FakeMouse_Destory();
+bool FakeMouse_Move(int x, int y);
+bool FakeMouse_Click(bool down);
 
-Bool
-TimeSync_GetCurrentTime(int64 *now);
-
-Bool
-TimeSync_AddToCurrentTime(int64 delta);
-
-Bool
-TimeSync_Slew(int64 delta,
-              int64 timeSyncPeriod,
-              int64 *remaining);
-
-Bool
-TimeSync_DisableTimeSlew(void);
-
-Bool
-TimeSync_PLLUpdate(int64 offset);
-
-Bool
-TimeSync_PLLSetFrequency(int64 ppmCorrection);
-
-Bool
-TimeSync_PLLSupported(void);
-
-Bool
-TimeSync_IsGuestSyncServiceRunning(void);
-
-Bool
-TimeSync_DoGuestResync(void *_ctx);
-
-#endif /* _TIMESYNC_INT_H_ */
-
+#endif // __FAKE_MOUSE_WAYLAND_H__

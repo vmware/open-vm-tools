@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016,2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -36,7 +36,6 @@
 
 uint64 System_GetTimeMonotonic(void);
 uint64 System_Uptime(void);
-char *System_GetTimeAsString(void);
 void System_Shutdown(Bool reboot);
 Bool System_GetNodeName(size_t outBufSize, char *outBuf);
 
@@ -68,8 +67,6 @@ typedef struct MonListNode {
 #define VM_SERVICE_STATE_UNKNOWN 0xffffffff
 
 BOOL System_SetProcessPrivilege(wchar_t *privName, Bool enable);
-int32 System_GetSPVersion(void);
-Bool System_IsLoginScreenActive(void);
 Bool System_IsScreenSaverActive(void);
 Bool System_IsScreenSaverRunning(void);
 Bool System_IsSecureDesktopActive(void);

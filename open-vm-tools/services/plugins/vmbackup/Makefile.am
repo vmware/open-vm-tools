@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2009-2017 VMware, Inc.  All rights reserved.
+### Copyright (C) 2009-2018 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -20,6 +20,7 @@ plugin_LTLIBRARIES = libvmbackup.la
 
 libvmbackup_la_CPPFLAGS =
 libvmbackup_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
+libvmbackup_la_CPPFLAGS += @XDR_CPPFLAGS@
 
 libvmbackup_la_LDFLAGS =
 libvmbackup_la_LDFLAGS += @PLUGIN_LDFLAGS@
@@ -27,6 +28,7 @@ libvmbackup_la_LDFLAGS += @PLUGIN_LDFLAGS@
 libvmbackup_la_LIBADD =
 libvmbackup_la_LIBADD += @GOBJECT_LIBS@
 libvmbackup_la_LIBADD += @VMTOOLS_LIBS@
+libvmbackup_la_LIBADD += @XDR_LIBS@
 
 libvmbackup_la_SOURCES =
 libvmbackup_la_SOURCES += nullProvider.c

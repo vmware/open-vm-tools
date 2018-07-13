@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2007-2016 VMware, Inc.  All rights reserved.
+### Copyright (C) 2007-2018 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -20,9 +20,11 @@ bin_PROGRAMS = vmware-toolbox-cmd
 vmware_toolbox_cmd_LDADD =
 vmware_toolbox_cmd_LDADD += ../libguestlib/libguestlib.la
 vmware_toolbox_cmd_LDADD += @VMTOOLS_LIBS@
+vmware_toolbox_cmd_LDADD += @XDR_LIBS@
 
 vmware_toolbox_cmd_CPPFLAGS =
 vmware_toolbox_cmd_CPPFLAGS += @VMTOOLS_CPPFLAGS@
+vmware_toolbox_cmd_CPPFLAGS += @XDR_CPPFLAGS@
 
 vmware_toolbox_cmd_SOURCES =
 vmware_toolbox_cmd_SOURCES += toolbox-cmd.c

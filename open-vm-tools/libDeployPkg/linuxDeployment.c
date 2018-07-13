@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -43,8 +43,8 @@
 #include "imgcust-guest/guestcust-events.h"
 #include "linuxDeploymentUtilities.h"
 #include "mspackWrapper.h"
-#include "rpcout.h"
-#include "toolsDeployPkg.h"
+#include "vmware/guestrpc/deploypkg.h"
+#include "vmware/tools/guestrpc.h"
 #include <strutil.h>
 #include <util.h>
 
@@ -108,10 +108,6 @@ static const int CUST_NETWORK_ERROR = 254;
 static const int CUST_NIC_ERROR     = 253;
 static const int CUST_DNS_ERROR     = 252;
 
-// Common return values
-static const int  DEPLOY_SUCCESS   = 0;
-static const int  DEPLOY_ERROR     = -1;
-
 /*
  * Linked list definition
  *
@@ -136,12 +132,12 @@ static Bool ExtractZipPackage(const char* pkg, const char* dest);
 static void Init(void);
 static struct List* AddToList(struct List* head, const char* token);
 static int ListSize(struct List* head);
-static int Touch(const char*  state);
-static int UnTouch(const char* state);
-static int TransitionState(const char* stateFrom, const char* stateTo);
+static DeployPkgStatus Touch(const char*  state);
+static DeployPkgStatus UnTouch(const char* state);
+static DeployPkgStatus TransitionState(const char* stateFrom, const char* stateTo);
 static bool CopyFileToDirectory(const char* srcPath, const char* destPath,
                                 const char* fileName);
-static int Deploy(const char* pkgName);
+static DeployPkgStatus Deploy(const char* pkgName);
 static char** GetFormattedCommandLine(const char* command);
 int ForkExecAndWaitCommand(const char* command);
 static void SetDeployError(const char* format, ...);
@@ -258,12 +254,12 @@ SetCustomizationStatusInVmxEx(int customizationState,
       strcpy (msg, CABCOMMANDLOG);
    }
 
-   success = RpcOut_sendOne(vmxResponse != NULL ? &response : NULL,
-                            vmxResponse != NULL ? &responseLength : NULL,
-                            "deployPkg.update.state %d %d %s",
-                            customizationState,
-                            errCode,
-                            msg);
+   success = RpcChannel_SendOne(vmxResponse != NULL ? &response : NULL,
+                                vmxResponse != NULL ? &responseLength : NULL,
+                                "deployPkg.update.state %d %d %s",
+                                customizationState,
+                                errCode,
+                                msg);
    free (msg);
 
    if (vmxResponse != NULL) {
@@ -478,7 +474,7 @@ AddToList(struct List* head, const char* token)
  *    Return the size of the specified linked list.
  *
  * @param      head  [in]  Head of the linked list.
- * @preturns   DEPLOY_SUCCESS on success and DEPLOY_ERROR on failure.
+ * @returns  The total size of the linked list.
  *
  **/
 static int
@@ -615,10 +611,11 @@ GetPackageInfo(const char* packageName,
  * Create a lock file.
  *
  * @param   [IN]  state   The state of the system
- * @returns DEPLOY_SUCCESS on success and DEPLOY_ERROR on error
+ * @returns DEPLOYPKG_STATUS_SUCCESS on success
+ *          DEPLOYPKG_STATUS_ERROR on error
  *
  **/
-static int
+static DeployPkgStatus
 Touch(const char*  state)
 {
    char* fileName = malloc(strlen(BASEFILENAME) + 1 + strlen(state) + 1);
@@ -627,7 +624,7 @@ Touch(const char*  state)
    sLog(log_info, "ENTER STATE %s \n", state);
    if (!fileName) {
       SetDeployError("Error allocatin memory.");
-      return DEPLOY_ERROR;
+      return DEPLOYPKG_STATUS_ERROR;
    }
 
    strcpy(fileName, BASEFILENAME);
@@ -639,13 +636,13 @@ Touch(const char*  state)
    if (fd < 0) {
       SetDeployError("Error creating lock file %s.(%s)", fileName, strerror(errno));
       free (fileName);
-      return DEPLOY_ERROR;
+      return DEPLOYPKG_STATUS_ERROR;
    }
 
    close(fd);
    free (fileName);
 
-   return DEPLOY_SUCCESS;
+   return DEPLOYPKG_STATUS_SUCCESS;
 }
 
 //......................................................................................
@@ -655,10 +652,11 @@ Touch(const char*  state)
  * Delete a lock file.
  *
  * @param   [IN]  state   The state of the system
- * @returns DEPLOY_SUCCESS on success and DEPLOY_ERROR on error
+ * @returns DEPLOYPKG_STATUS_SUCCESS on success
+ *          DEPLOYPKG_STATUS_ERROR on error
  *
  **/
-static int
+static DeployPkgStatus
 UnTouch(const char* state)
 {
    char* fileName = malloc(strlen(BASEFILENAME) + 1 + strlen(state) + 1);
@@ -667,7 +665,7 @@ UnTouch(const char* state)
    sLog(log_info, "EXIT STATE %s \n", state);
    if (!fileName) {
       SetDeployError("Error allocating memory.");
-      return DEPLOY_ERROR;
+      return DEPLOYPKG_STATUS_ERROR;
    }
 
    strcpy(fileName, BASEFILENAME);
@@ -679,11 +677,11 @@ UnTouch(const char* state)
    if (result < 0) {
       SetDeployError("Error removing lock %s (%s)", fileName, strerror(errno));
       free (fileName);
-      return DEPLOY_ERROR;
+      return DEPLOYPKG_STATUS_ERROR;
    }
 
    free (fileName);
-   return DEPLOY_SUCCESS;
+   return DEPLOYPKG_STATUS_SUCCESS;
 }
 
 //......................................................................................
@@ -698,31 +696,32 @@ UnTouch(const char* state)
  *
  * @param   [IN] stateFrom  The state from which the transition happens
  * @param   [IN] stateTo    The state to which the transition happens
- * @returns DEPLOY_SUCCESS on success and DEPLOY_ERROR on error
+ * @returns DEPLOYPKG_STATUS_SUCCESS on success
+ *          DEPLOYPKG_STATUS_ERROR on error
  *
  **/
-static int
+static DeployPkgStatus
 TransitionState(const char* stateFrom, const char* stateTo)
 {
    sLog(log_info, "Transitioning from state %s to state %s. \n", stateFrom, stateTo);
 
    // Create a file to indicate state to
    if (stateTo) {
-      if (Touch(stateTo) == DEPLOY_ERROR) {
+      if (Touch(stateTo) == DEPLOYPKG_STATUS_ERROR) {
          SetDeployError("Error creating new state %s. (%s)", stateTo, GetDeployError());
-         return DEPLOY_ERROR;
+         return DEPLOYPKG_STATUS_ERROR;
       }
    }
 
    // Remove the old state file
    if (stateFrom) {
-      if (UnTouch(stateFrom) == DEPLOY_ERROR) {
+      if (UnTouch(stateFrom) == DEPLOYPKG_STATUS_ERROR) {
          SetDeployError("Error deleting old state %s.(%s)", stateFrom, GetDeployError());
-         return DEPLOY_ERROR;
+         return DEPLOYPKG_STATUS_ERROR;
       }
    }
 
-   return DEPLOY_SUCCESS;
+   return DEPLOYPKG_STATUS_SUCCESS;
 }
 
 /**
@@ -901,14 +900,15 @@ _DeployPkg_SkipReboot(bool skip)
  * - cust.cfg to a predefined location.
  *
  * @param   [IN]  tmpDirPath  Path where nics.txt and cust.cfg exist
- * @returns DEPLOY_SUCCESS on success and DEPLOY_ERROR on error
+ * @returns DEPLOYPKG_STATUS_CLOUD_INIT_DELEGATED on success
+ *          DEPLOYPKG_STATUS_ERROR on error
  *
  *----------------------------------------------------------------------------
  * */
-static int
+static DeployPkgStatus
 CloudInitSetup(const char *tmpDirPath)
 {
-   int deployStatus = DEPLOY_ERROR;
+   DeployPkgStatus deployPkgStatus = DEPLOYPKG_STATUS_ERROR;
    static const char *cloudInitTmpDirPath = "/var/run/vmware-imc";
    int forkExecResult;
    char command[1024];
@@ -977,11 +977,11 @@ CloudInitSetup(const char *tmpDirPath)
       goto done;
    }
 
-   deployStatus = DEPLOY_SUCCESS;
+   deployPkgStatus = DEPLOYPKG_STATUS_CLOUD_INIT_DELEGATED;
 
 done:
    free(customScriptName);
-   if (DEPLOY_SUCCESS == deployStatus) {
+   if (DEPLOYPKG_STATUS_CLOUD_INIT_DELEGATED == deployPkgStatus) {
       sLog(log_info, "Deployment for cloud-init succeeded.");
       TransitionState(INPROGRESS, DONE);
    } else {
@@ -1001,7 +1001,7 @@ done:
       TransitionState(INPROGRESS, ERRORED);
    }
 
-   return deployStatus;
+   return deployPkgStatus;
 }
 
 
@@ -1112,13 +1112,16 @@ UseCloudInitWorkflow(const char* dirPath)
  * - execution of the command embedded in the cabinet header
  *
  * @param   [IN[  packageName  Package file to be used for deployment
- * @returns DEPLOY_SUCCESS on success and DEPLOY_ERROR on error
+ * @returns DEPLOYPKG_STATUS_SUCCESS on success
+ *          DEPLOYPKG_STATUS_CLOUD_INIT_DELEGATED if customization task is
+ *          delegated to cloud-init.
+ *          DEPLOYPKG_STATUS_ERROR on error
  *
  **/
-static int
+static DeployPkgStatus
 Deploy(const char* packageName)
 {
-   int deployStatus = DEPLOY_SUCCESS;
+   DeployPkgStatus deployPkgStatus = DEPLOYPKG_STATUS_SUCCESS;
    char* pkgCommand = NULL;
    char* command = NULL;
    int deploymentResult = 0;
@@ -1139,7 +1142,7 @@ Deploy(const char* packageName)
    tmpDirPath = mkdtemp((char *)Util_SafeStrdup(TMP_DIR_PATH_PATTERN));
    if (tmpDirPath == NULL) {
       SetDeployError("Error creating tmp dir: %s", strerror(errno));
-      return DEPLOY_ERROR;
+      return DEPLOYPKG_STATUS_ERROR;
    }
 
    sLog(log_info, "Reading cabinet file %s. \n", packageName);
@@ -1149,7 +1152,7 @@ Deploy(const char* packageName)
       SetDeployError("Error extracting package header information. (%s)",
                      GetDeployError());
       free(tmpDirPath);
-      return DEPLOY_ERROR;
+      return DEPLOYPKG_STATUS_CAB_ERROR;
    }
 
    sLog(log_info, "Flags in the header: %d\n", (int) flags);
@@ -1168,13 +1171,13 @@ Deploy(const char* packageName)
       if (!ExtractCabPackage(packageName, tmpDirPath)) {
          free(tmpDirPath);
          free(command);
-         return DEPLOY_ERROR;
+         return DEPLOYPKG_STATUS_CAB_ERROR;
       }
    } else if (archiveType == VMWAREDEPLOYPKG_PAYLOAD_TYPE_ZIP) {
       if (!ExtractZipPackage(packageName, tmpDirPath)) {
          free(tmpDirPath);
          free(command);
-         return DEPLOY_ERROR;
+         return DEPLOYPKG_STATUS_CAB_ERROR;
       }
    }
 
@@ -1188,7 +1191,7 @@ Deploy(const char* packageName)
       sLog(log_info, "Executing cloud-init workflow");
       sSkipReboot = TRUE;
       free(command);
-      deployStatus =  CloudInitSetup(tmpDirPath);
+      deployPkgStatus = CloudInitSetup(tmpDirPath);
    } else {
       sLog(log_info, "Executing traditional GOSC workflow");
       deploymentResult = ForkExecAndWaitCommand(command);
@@ -1215,7 +1218,7 @@ Deploy(const char* packageName)
 
          TransitionState(INPROGRESS, ERRORED);
 
-         deployStatus = DEPLOY_ERROR;
+         deployPkgStatus = DEPLOYPKG_STATUS_ERROR;
          SetDeployError("Deployment failed. "
                         "The forked off process returned error code.");
          sLog(log_error, "Deployment failed. "
@@ -1241,7 +1244,7 @@ Deploy(const char* packageName)
 
          TransitionState(INPROGRESS, DONE);
 
-         deployStatus = DEPLOY_SUCCESS;
+         deployPkgStatus = DEPLOYPKG_STATUS_SUCCESS;
          sLog(log_info, "Deployment succeeded. \n");
       }
    }
@@ -1250,7 +1253,7 @@ Deploy(const char* packageName)
    if (!cleanupCommand) {
       SetDeployError("Error allocating memory.");
       free(tmpDirPath);
-      return DEPLOY_ERROR;
+      return DEPLOYPKG_STATUS_ERROR;
    }
 
    strcpy(cleanupCommand, CLEANUPCMD);
@@ -1295,7 +1298,7 @@ Deploy(const char* packageName)
       }
    }
 
-   return deployStatus;
+   return deployPkgStatus;
 }
 
 /**
@@ -1497,7 +1500,7 @@ GetFormattedCommandLine(const char* command)
  * fork-and-exec.
  *
  * @param   [IN]  command  Command to execute
- * @return  Return code from the process (or DEPLOY_ERROR)
+ * @return  Return code from the process (or -1)
  *
  **/
 int
@@ -1535,20 +1538,21 @@ ForkExecAndWaitCommand(const char* command)
 
 /**
  *
- * The only public function in this shared library, and the only
- * part of the DeployPkg_ interface implemented in Linux.
  * Decodes a package from a file, extracts its payload,
  * expands the payload into a temporary directory, and then executes
  * the command specified in the package.
  *
  * @param   [IN]  file  The package file
- * @retutns DEPLOY_SUCCESS on success and DEPLOY_ERROR on error
+ * @returns DEPLOYPKG_STATUS_SUCCESS on success
+ *          DEPLOYPKG_STATUS_CLOUD_INIT_DELEGATED if customization task is
+ *          delegated to cloud-init.
+ *          DEPLOYPKG_STATUS_ERROR on error
  *
  **/
-int
-DeployPkg_DeployPackageFromFile(const char* file)
+DeployPkgStatus
+DeployPkg_DeployPackageFromFileEx(const char* file)
 {
-   int retStatus;
+   DeployPkgStatus retStatus;
 
    sLog(log_info, "Initializing deployment module. \n");
    Init();
@@ -1556,12 +1560,52 @@ DeployPkg_DeployPackageFromFile(const char* file)
    sLog(log_info, "Deploying cabinet file %s. \n", file);
    retStatus = Deploy(file);
 
-   if (retStatus != DEPLOY_SUCCESS) {
+   if (retStatus != DEPLOYPKG_STATUS_SUCCESS &&
+       retStatus != DEPLOYPKG_STATUS_CLOUD_INIT_DELEGATED) {
       sLog(log_error, "Deploy error: %s \n", GetDeployError());
    }
 
    free(gDeployError);
    gDeployError = NULL;
+
+   return retStatus;
+}
+
+//.............................................................................
+
+/**
+ *
+ * Decodes a package from a file, extracts its payload,
+ * expands the payload into a temporary directory, and then executes
+ * the command specified in the package.
+ *
+ * @param   [IN]  file  The package file
+ * @returns 0 on success and -1 on error
+ *
+ **/
+int
+DeployPkg_DeployPackageFromFile(const char* file)
+{
+   DeployPkgStatus deployPkgStatus = DeployPkg_DeployPackageFromFileEx(file);
+   int retStatus;
+
+   switch (deployPkgStatus) {
+      case DEPLOYPKG_STATUS_CLOUD_INIT_DELEGATED:
+         /*
+          * The return code from DeployPkg_DeployPackageFromFile should
+          * be either 0 (for success) or -1 (for failure).
+          * DEPLOYPKG_STATUS_CLOUD_INIT_DELEGATED should be treated as
+          * success. So fallback to DEPLOYPKG_STATUS_SUCCESS.
+          */
+         sLog(log_info,
+              "Deployment delegated to Cloud-init. Returning success. \n");
+      case DEPLOYPKG_STATUS_SUCCESS:
+         retStatus = 0;
+         break;
+      default:
+         retStatus = -1;
+         break;
+   }
 
    return retStatus;
 }

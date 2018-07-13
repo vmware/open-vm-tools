@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -64,6 +64,17 @@ extern "C" {
 #include <gdk/gdkx.h>
 #include "vmware/guestrpc/tclodefs.h"
 
+class CopyPasteUIX11;
+
+struct ThreadParams
+{
+   pthread_mutex_t fileBlockMutex;
+   pthread_cond_t fileBlockCond;
+   bool fileBlockCondExit;
+   CopyPasteUIX11 *cp;
+   utf::string fileBlockName;
+};
+
 class CopyPasteUIX11 : public sigc::trackable
 {
 public:
@@ -78,6 +89,10 @@ public:
    void SetBlockControl(DnDBlockControl *blockCtrl)
       { Debug("Setting mBlockCtrl to %p\n", blockCtrl);
         mBlockCtrl = blockCtrl; }
+   bool IsBlockAdded() const
+   { return mBlockAdded; }
+   void RequestFiles()
+   { mCP->SrcUIRequestFiles(); }
 
 private:
 
@@ -105,6 +120,9 @@ private:
 
    VmTimeType GetCurrentTime(void);
 
+   static void* FileBlockMonitorThread(void *arg);
+   void TerminateThread();
+
    // Member variables
    GuestCopyPasteMgr *mCP;
    bool mClipboardEmpty;
@@ -116,6 +134,8 @@ private:
    uint64 mLastTimestamp;
    GdkAtom mGHSelection;
    CPClipboard mClipboard;
+   ThreadParams mThreadParams;
+   pthread_t mThread;
 
    /* File vars. */
    VmTimeType mHGGetListTime;

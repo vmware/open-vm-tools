@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -40,8 +40,11 @@
 #endif
 
 static NORETURN void UtilAllocationFailure0(void);
-static NORETURN void UtilAllocationFailure1(int bugNumber, 
+static NORETURN void UtilAllocationFailure1(int bugNumber,
                                             const char *file, int lineno);
+
+Bool UtilConstTimeMemDiff(const void *secret, const void *guess, size_t len, size_t *diffCount);
+Bool UtilConstTimeStrDiff(const char *secret, const char *guess, size_t *diffCount);
 
 
 static void
@@ -482,4 +485,170 @@ Util_Memcpy(void *dest,      // OUT:
 
    memcpy(dest, src, count);
    return dest;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * UtilConstTimeMemDiff --
+ *
+ *       The implementation of a constant time memory comparison.  Unlike
+ *       memcmp, this function does not return early if it finds a mismatch.
+ *       It always examines the entire 'secret' and 'guess' buffers, so that
+ *       the time spent in this function is constant for buffers of the same
+ *       given 'len'.  (We don't attempt to make the time invariant for
+ *       different buffer lengths.)
+ *
+ *       The reason why this function is externally visible (not static)
+ *       and has a 'diffCount' argument is to try to prevent aggressive
+ *       compiler optimization levels from short-circuiting the inner loop.
+ *       The possibility of a call from outside this module with a non-NULL
+ *       diffCount pointer prevents that optimization.  If we didn't have
+ *       to worry about that then we wouldn't need this function; we could
+ *       have put the implementation directly into Util_ConstTimeMemDiff.
+ *
+ * Results:
+ *       Returns true if the buffers differ, false if they are identical.
+ *       If diffCount is non-NULL, sets *diffCount to the total number of
+ *       differences between the buffers.
+ *
+ * Side Effects:
+ *       None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+UtilConstTimeMemDiff(const void *secret,    // IN
+                     const void *guess,     // IN
+                     size_t len,            // IN
+                     size_t *diffCount)     // OUT: optional
+{
+   const char *secretChar = secret;
+   const char *guessChar = guess;
+
+   size_t numDiffs = 0;
+
+   while (len--) {
+      numDiffs += !!(*secretChar ^ *guessChar);
+      ++secretChar;
+      ++guessChar;
+   }
+
+   if (diffCount != NULL) {
+      *diffCount = numDiffs;
+   }
+   return numDiffs != 0;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Util_ConstTimeMemDiff --
+ *
+ *       Performs a constant time memory comparison.
+ *
+ *       The return values are chosen to make this as close as possible to
+ *       a drop-in replacement for memcmp, so we return false (0) if the
+ *       buffers match (ie there are zero differences) and true (1) if the
+ *       buffers differ.
+ *
+ * Results:
+ *       Returns zero if the buffers are identical, 1 if they differ.
+ *
+ * Side Effects:
+ *       None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+Util_ConstTimeMemDiff(const void *secret,  // IN
+                      const void *guess,   // IN
+                      size_t len)          // IN
+{
+   return UtilConstTimeMemDiff(secret, guess, len, NULL);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * UtilConstTimeStrDiff --
+ *
+ *       The implementation of a constant time string comparison.  Unlike
+ *       strcmp, this function does not return early if it finds a mismatch.
+ *       It always compares the entire 'secret' string against however much
+ *       of the 'guess' string is required for that comparison, so that the
+ *       time spent in this function is constant for secrets of the same
+ *       length.  (We don't attempt to make the time invariant for secrets
+ *       of different lengths.)
+ *
+ *       The reason why this function is externally visible (not static)
+ *       and has a 'diffCount' argument is to try to prevent aggressive
+ *       compiler optimization levels from short-circuiting the inner
+ *       loop.  The possibility of a call from outside this module with a
+ *       non-NULL diffCount pointer prevents that optimization.  If we
+ *       didn't have to worry about that then we wouldn't need this
+ *       function; we could have put the implementation directly into
+ *       Util_ConstTimeStrDiff.
+ *
+ * Results:
+ *       Returns true if the strings differ, false if they are identical.
+ *       If diffCount is non-NULL, sets *diffCount to the total number of
+ *       differences between the strings.
+ *
+ * Side Effects:
+ *       None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+UtilConstTimeStrDiff(const char *secret,    // IN
+                     const char *guess,     // IN
+                     size_t *diffCount)     // OUT: optional
+{
+   size_t numDiffs = 0;
+
+   do {
+      numDiffs += !!(*secret ^ *guess);
+      guess += !!(*guess);
+   } while (*secret++);
+
+   if (diffCount != NULL) {
+      *diffCount = numDiffs;
+   }
+   return numDiffs != 0;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Util_ConstTimeStrDiff --
+ *
+ *       The implementation of a constant time string comparison.
+ *
+ *       The return values are chosen to make this as close as possible
+ *       to a drop-in replacement for strcmp, so we return 0 if
+ *       the buffers match (ie there are zero differences) and 1
+ *       if the buffers differ.
+ *
+ * Results:
+ *       Returns zero if the strings are identical, 1 if they differ.
+ *
+ * Side Effects:
+ *       None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+Util_ConstTimeStrDiff(const char *secret,  // IN
+                      const char *guess)   // IN
+{
+   return UtilConstTimeStrDiff(secret, guess, NULL);
 }

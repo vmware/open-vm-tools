@@ -35,7 +35,6 @@
 
 #include "vmBackupInt.h"
 
-#include "dynxdr.h"
 #include <glib-object.h>
 #include <gmodule.h>
 #include "guestApp.h"

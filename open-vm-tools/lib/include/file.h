@@ -87,42 +87,26 @@ typedef char *File_MakeTempCreateNameFunc(uint32 num,
                                           void *data);
 
 #if defined(__APPLE__)
-typedef enum {
-   FILEMACOS_UNMOUNT_SUCCESS,
-   FILEMACOS_UNMOUNT_SUCCESS_ALREADY,
-   FILEMACOS_UNMOUNT_ERROR,
-} FileMacosUnmountStatus;
-
-FileMacosUnmountStatus FileMacos_UnmountDev(char const *bsdDev,
-                                            Bool wholeDev,
-                                            Bool eject,
-                                            Bool su);
-
-void FileMacos_MountDevAsyncNoResult(char const *bsdDev,
-                                     Bool su);
-
 Bool FileMacos_IsOnSparseDmg(int fd);
-Bool FileMacos_IsSliceDevice(char const *bsdDev);
 
-char *FileMacos_DiskDevToUserFriendlyName(char const *bsdDiskDev);
-char *FileMacos_DiskDevToVolumeName(char const *bsdDiskDev);
-
-char *FileMacos_DiskDeviceToUniqueID(char const *bsdPath);
-char *FileMacos_UniqueIDToDiskDevice(char const *identifier);
 Bool FileMacOS_MakeSecureLibraryCopies(const char   *inDir,
                                        const char  **dylibName,
                                        unsigned      numDylibs,
                                        char        **outDir);
+
 #elif defined VMX86_SERVER
 struct FS_PartitionListResult;
 
 int File_GetVMFSAttributes(const char *pathName,
                            struct FS_PartitionListResult **fsAttrs);
+
 int File_GetVMFSFSType(const char *pathName,
                        int fd,
                        uint16 *fsTypeNum);
+
 int File_GetVMFSVersion(const char *pathName,
                         uint32 *versionNum);
+
 int File_GetVMFSBlockSize(const char *pathName,
                           uint32 *blockSize);
 
@@ -172,9 +156,12 @@ char *File_PathJoin(const char *dirName,
 Bool File_CreateDirectory(const char *pathName);
 
 Bool File_CreateDirectoryEx(const char *pathName,
-                            int mask);
+                            int mode);
 
 Bool File_EnsureDirectory(const char *pathName);
+
+Bool File_EnsureDirectoryEx(const char *pathName,
+                            int mode);
 
 Bool File_DeleteEmptyDirectory(const char *pathName);
 
@@ -182,7 +169,7 @@ Bool File_CreateDirectoryHierarchy(const char *pathName,
                                    char **topmostCreated);
 
 Bool File_CreateDirectoryHierarchyEx(const char *pathName,
-                                     int mask,
+                                     int mode,
                                      char **topmostCreated);
 
 Bool File_DeleteDirectoryContent(const char *pathName);
@@ -247,6 +234,7 @@ int File_MakeTempEx2(const char *dir,
                      char **presult);
 
 char *File_MakeSafeTempDir(const char *prefix);
+char *File_MakeSafeTempSubdir(const char *safeDir, const char *subdirName);
 
 int64 File_GetModTime(const char *pathName);
 
@@ -254,7 +242,8 @@ char *File_GetModTimeString(const char *pathName);
 
 char *File_GetUniqueFileSystemID(const char *pathName);
 
-char *File_GetMountPath(const char *pathName, Bool checkEntirePath);
+char *File_GetMountPath(const char *pathName,
+                        Bool checkEntirePath);
 
 #ifdef _WIN32
 char *File_GetVolumeGUID(const char *pathName);

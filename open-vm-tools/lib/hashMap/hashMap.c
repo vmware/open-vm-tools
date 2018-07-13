@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -38,6 +38,7 @@
 
 #include "hashMap.h"
 #include "clamped.h"
+#include "util.h"
 #ifdef VMX86_SERVER
 #include "aioMgr.h"
 #include "iovector.h"
@@ -139,8 +140,9 @@ static Bool InitMap(struct HashMap *map, uint32 numEntries, uint32 alpha,
 static void CalculateEntrySize(struct HashMap *map);
 static void GetEntry(struct HashMap *map, uint32 index, HashMapEntryHeader **header, void **key, void **data);
 static uint32 ComputeHash(struct HashMap *map, const void *key);
-static Bool LookupKey(struct HashMap* map, const void *key, HashMapEntryHeader **header, void **data, uint32 *freeIndex);
+static Bool LookupKey(struct HashMap* map, const void *key, Bool constTimeLookup, HashMapEntryHeader **header, void **data, uint32 *freeIndex);
 static Bool CompareKeys(struct HashMap *map, const void *key, const void *compare);
+static Bool ConstTimeCompareKeys(struct HashMap *map, const void *key, const void *compare);
 static Bool NeedsResize(struct HashMap *map);
 static void Resize(struct HashMap *map);
 INLINE void EnsureSanity(HashMap *map);
@@ -370,13 +372,13 @@ HashMap_Put(struct HashMap *map,    // IN
    HashMapEntryHeader *header;
    void *tableData;
 
-   if (!LookupKey(map, key, &header, &tableData, &freeIndex)) {
+   if (!LookupKey(map, key, FALSE, &header, &tableData, &freeIndex)) {
       uint32 hash = ComputeHash(map, key);
       void *tableKey;
 
       if (NeedsResize(map)) {
          Resize(map);
-         if (LookupKey(map, key, &header, &tableData, &freeIndex)) {
+         if (LookupKey(map, key, FALSE, &header, &tableData, &freeIndex)) {
             /*
              * Somehow our key appeared after resizing the table.
              */
@@ -432,7 +434,44 @@ HashMap_Get(struct HashMap *map,    // IN
    uint32 freeIndex;
    HashMapEntryHeader *header;
 
-   if (LookupKey(map, key, &header, &data, &freeIndex)) {
+   if (LookupKey(map, key, FALSE, &header, &data, &freeIndex)) {
+      return data;
+   }
+
+   return NULL;
+}
+
+
+/*
+ * ----------------------------------------------------------------------------
+ *
+ * HashMap_ConstTimeGet --
+ *
+ *    Timing attack safe version of HashMap_Get. This will call LookupKey with
+ *    the constTime flag set to 1 which will do the memory comparison with
+ *    Util_ConstTimeMemDiff instead of memcmp. Note that there is a bit of a
+ *    time penalty associated with this so only use this if you are looking up
+ *    sensitive information.
+ *
+ * Results:
+ *    Returns a pointer to the data that was previously stored by HashMap_Put or
+ *    NULL if the key wasn't found.
+ *
+ * Side Effects:
+ *    None.
+ *
+ * ----------------------------------------------------------------------------
+ */
+
+void *
+HashMap_ConstTimeGet(struct HashMap *map,    // IN
+                     const void *key)        // IN
+{
+   void *data;
+   uint32 freeIndex;
+   HashMapEntryHeader *header;
+
+   if (LookupKey(map, key, TRUE, &header, &data, &freeIndex)) {
       return data;
    }
 
@@ -499,7 +538,7 @@ HashMap_Remove(struct HashMap *map,   // IN
    HashMapEntryHeader *header;
    void *tableData;
 
-   if (!LookupKey(map, key, &header, &tableData, &freeIndex)) {
+   if (!LookupKey(map, key, FALSE, &header, &tableData, &freeIndex)) {
       return FALSE;
    }
 
@@ -583,6 +622,9 @@ CalculateEntrySize(struct HashMap *map) // IN
  *    Use linear probing to find a free space in the table or the data that
  *    we're interested in.
  *
+ *    Call this function with constTimeLookup = TRUE to use a timing attack
+ *    safe version of memcmp while comparing keys.
+ *
  * Returns:
  *    - TRUE if the key was found in the table, FALSE otherwise.
  *    - Returns the entry header on header, data pointer on data and the first
@@ -599,6 +641,7 @@ CalculateEntrySize(struct HashMap *map) // IN
 Bool
 LookupKey(struct HashMap* map,          // IN
           const void *key,              // IN
+          Bool constTimeLookup,         // IN
           HashMapEntryHeader **header,  // OUT
           void **data,                  // OUT
           uint32 *freeIndex)            // OUT
@@ -639,7 +682,16 @@ LookupKey(struct HashMap* map,          // IN
          break;
       case HashMapState_FILLED:
          if ((*header)->hash == hash) {
-            found = CompareKeys(map, key, tableKey);
+            /*
+             * There is some performance penalty to doing a constant time
+             * comparison, so only use that version if it's been explicitly
+             * asked for.
+             */
+            if (constTimeLookup) {
+               found = ConstTimeCompareKeys(map, key, tableKey);
+            } else {
+               found = CompareKeys(map, key, tableKey);
+            }
             if (found) {
                done = TRUE;
             }
@@ -768,6 +820,34 @@ CompareKeys(struct HashMap *map,    // IN
 /*
  * ----------------------------------------------------------------------------
  *
+ * ConstTimeCompareKeys --
+ *
+ *    Timing attack safe version of CompareKeys. Instead of calling memcmp,
+ *    which will return after the first character that doesn't match, this
+ *    calls a constant time memory comparison function.
+ *
+ * Results:
+ *    Returns TRUE if the two keys are binary equal over the length specified
+ *    in the map.  FALSE if the two keys are different.
+ *
+ * Side Effects:
+ *    None.
+ *
+ * ----------------------------------------------------------------------------
+ */
+
+Bool
+ConstTimeCompareKeys(struct HashMap *map,    // IN
+                     const void *key,        // IN
+                     const void *compare)    // IN
+{
+   return Util_ConstTimeMemDiff(key, compare, map->keySize) == 0;
+}
+
+
+/*
+ * ----------------------------------------------------------------------------
+ *
  * NeedsResize --
  *
  *    Determine if adding another element to the map will require that the map
@@ -871,7 +951,7 @@ Resize(struct HashMap *map)   // IN
       case HashMapState_DELETED:
          continue;
       case HashMapState_FILLED:
-         if (!LookupKey(map, oldKey, &newHeader, &newData, &freeIndex)) {
+         if (!LookupKey(map, oldKey, FALSE, &newHeader, &newData, &freeIndex)) {
             GetEntry(map, freeIndex, &newHeader, &newKey, &newData);
 
             newHeader->hash = oldHeader->hash;

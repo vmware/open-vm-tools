@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013-2016,2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -28,7 +28,6 @@
 
 #include "simpleSocket.h"
 #include "rpcChannelInt.h"
-#include "rpcin.h"
 #include "util.h"
 #include "debug.h"
 
@@ -345,7 +344,9 @@ VSockChannelStart(RpcChannel *chan)    // IN
    gboolean ret = TRUE;
    VSockChannel *vsock = chan->_private;
 
+#if defined(NEED_RPCIN)
    ret = chan->in == NULL || chan->inStarted;
+#endif
 
    if (ret) {
       ret = VSockOutStart(vsock->out);
@@ -580,7 +581,9 @@ VSockChannel_New(void)
    vsock->out = VSockOutConstruct();
    ASSERT(vsock->out != NULL);
 
+#if defined(NEED_RPCIN)
    chan->inStarted = FALSE;
+#endif
    chan->outStarted = FALSE;
 
    chan->_private = vsock;

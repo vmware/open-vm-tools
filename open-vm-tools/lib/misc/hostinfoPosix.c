@@ -35,6 +35,7 @@
 #include <sys/time.h>
 #include <pwd.h>
 #include <pthread.h>
+#include <time.h>
 #include <sys/resource.h>
 #if defined(sun)
 #include <sys/systeminfo.h>
@@ -100,7 +101,6 @@
 #include "hostType.h"
 #include "hostinfo.h"
 #include "hostinfoInt.h"
-#include "safetime.h"
 #include "str.h"
 #include "err.h"
 #include "msg.h"
@@ -635,16 +635,18 @@ HostinfoESX(struct utsname *buf)  // IN:
    char osNameFull[MAX_OS_FULLNAME_LEN];
 
    /* The most recent osName always goes here. */
-   Str_Strcpy(osName, "vmkernel65", sizeof osName);
+   Str_Strcpy(osName, STR_OS_VMKERNEL "7", sizeof osName);
 
    /* Handle any special cases */
    if ((buf->release[0] <= '4') && (buf->release[1] == '.')) {
-      Str_Strcpy(osName, "vmkernel", sizeof osName);
+      Str_Strcpy(osName, STR_OS_VMKERNEL, sizeof osName);
    } else if ((buf->release[0] == '5') && (buf->release[1] == '.')) {
-      Str_Strcpy(osName, "vmkernel5", sizeof osName);
+      Str_Strcpy(osName, STR_OS_VMKERNEL "5", sizeof osName);
    } else if ((buf->release[0] >= '6') && (buf->release[1] == '.')) {
       if (buf->release[2] < '5') {
-         Str_Strcpy(osName, "vmkernel6", sizeof osName);
+         Str_Strcpy(osName, STR_OS_VMKERNEL "6", sizeof osName);
+      } else {
+         Str_Strcpy(osName, STR_OS_VMKERNEL "65", sizeof osName);
       }
    }
 
@@ -758,7 +760,7 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
          amazonMajor = 2;
       }
 
-      Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_AMAZON,
+      Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_AMAZON_LINUX,
                   amazonMajor);
    } else if (strstr(distroLower, "annvix")) {
       Str_Strcpy(distroShort, STR_OS_ANNVIX, distroShortSize);

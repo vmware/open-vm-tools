@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -55,7 +55,7 @@ typedef struct DynXdrData {
  * Mac OS X, FreeBSD and Solaris don't take a const parameter to the
  * "x_getpostn" function.
  */
-#if defined(__APPLE__) || defined(__FreeBSD__) || defined(sun)
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(sun) || defined(USE_TIRPC)
 #  define DYNXDR_GETPOS_CONST
 #else
 #  define DYNXDR_GETPOS_CONST const
@@ -172,7 +172,11 @@ DynXdrSetPos(XDR *xdrs, // IN
 }
 
 
-#if defined(__GLIBC__) || (defined(sun) && (defined(_LP64) || defined(_KERNEL)))
+#if !defined(USE_TIRPC) &&    \
+     defined(__GLIBC__) ||    \
+     (defined(sun) &&         \
+        (defined(_LP64) ||    \
+           defined(_KERNEL)))
 /*
  *-----------------------------------------------------------------------------
  *
@@ -322,11 +326,11 @@ DynXdr_Create(XDR *in)  // IN
       DynXdrSetPos,     /* x_setpostn */
       DynXdrInline,     /* x_inline */
       NULL,             /* x_destroy */
-#if defined(__GLIBC__)
+#if defined(__APPLE__) || defined(USE_TIRPC)
+      NULL,             /* x_control */
+#elif defined(__GLIBC__)
       NULL,             /* x_getint32 */
       DynXdrPutInt32,   /* x_putint32 */
-#elif defined(__APPLE__)
-      NULL,             /* x_control */
 #elif defined(sun) && (defined(_LP64) || defined(_KERNEL))
       NULL,             /* x_control */
       NULL,             /* x_getint32 */

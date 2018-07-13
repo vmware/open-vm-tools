@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016,2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -22,20 +22,27 @@
  *    Common functions to all RPC channel implementations.
  */
 
+#include <stdlib.h>
 #include <string.h>
-#include "vm_assert.h"
-#include "dynxdr.h"
+#include "debug.h"
 #include "rpcChannelInt.h"
-#include "str.h"
-#include "strutil.h"
+
+#if defined(NEED_RPCIN)
+#include "dynxdr.h"
 #include "vmxrpc.h"
 #include "xdrutil.h"
 #include "rpcin.h"
-#include "debug.h"
+#endif
+
+#include "str.h"
+#include "strutil.h"
+#include "util.h"
+#include "vm_assert.h"
 
 /** Internal state of a channel. */
 typedef struct RpcChannelInt {
    RpcChannel              impl;
+#if defined(NEED_RPCIN)
    gchar                  *appName;
    GHashTable             *rpcs;
    GMainContext           *mainCtx;
@@ -46,19 +53,10 @@ typedef struct RpcChannelInt {
    gpointer                resetData;
    gboolean                rpcError;
    guint                   rpcErrorCount;
+#endif
 } RpcChannelInt;
 
-/** Max number of times to attempt a channel restart. */
-#define RPCIN_MAX_RESTARTS 60
-
 #define LGPFX "RpcChannel: "
-
-static gboolean
-RpcChannelPing(RpcInData *data);
-
-static RpcChannelCallback gRpcHandlers[] =  {
-   { "ping", RpcChannelPing, NULL, NULL, NULL, 0 }
-};
 
 static gboolean gUseBackdoorOnly = FALSE;
 
@@ -70,6 +68,18 @@ static gboolean gUseBackdoorOnly = FALSE;
 static gboolean gVSocketFailed = FALSE;
 
 static void RpcChannelStopNoLock(RpcChannel *chan);
+
+
+#if defined(NEED_RPCIN)
+/** Max number of times to attempt a channel restart. */
+#define RPCIN_MAX_RESTARTS 60
+
+static gboolean
+RpcChannelPing(RpcInData *data);
+
+static RpcChannelCallback gRpcHandlers[] =  {
+   { "ping", RpcChannelPing, NULL, NULL, NULL, 0 }
+};
 
 /**
  * Handler for a "ping" message. Does nothing.
@@ -346,26 +356,6 @@ exit:
 
 
 /**
- * Creates a new RpcChannel without any implementation.
- *
- * This is mainly for use of code that is implementing a custom RpcChannel.
- * Such implementations should provide their own "constructor"-type function
- * which should then call this function to get an RpcChannel instance. They
- * should then fill in the function pointers that provide the implementation
- * for the channel before making the channel available to the callers.
- *
- * @return A new RpcChannel instance.
- */
-
-RpcChannel *
-RpcChannel_Create(void)
-{
-   RpcChannelInt *chan = g_new0(RpcChannelInt, 1);
-   return &chan->impl;
-}
-
-
-/**
  * Dispatches the given RPC to the registered handler. This mimics the behavior
  * of the RpcIn library (but is not tied to that particular implementation of
  * an RPC channel).
@@ -426,84 +416,6 @@ exit:
 
 
 /**
- * Shuts down an RPC channel and release any held resources.
- *
- * @param[in]  chan     The RPC channel.
- *
- * @return  Whether the channel was shut down successfully.
- */
-
-gboolean
-RpcChannel_Destroy(RpcChannel *chan)
-{
-   size_t i;
-   RpcChannelInt *cdata = (RpcChannelInt *) chan;
-
-   if (cdata->impl.funcs != NULL && cdata->impl.funcs->shutdown != NULL) {
-      cdata->impl.funcs->shutdown(chan);
-   }
-
-   RpcChannel_UnregisterCallback(chan, &cdata->resetReg);
-   for (i = 0; i < ARRAYSIZE(gRpcHandlers); i++) {
-      RpcChannel_UnregisterCallback(chan, &gRpcHandlers[i]);
-   }
-
-   if (cdata->rpcs != NULL) {
-      g_hash_table_destroy(cdata->rpcs);
-      cdata->rpcs = NULL;
-   }
-
-   cdata->resetCb = NULL;
-   cdata->resetData = NULL;
-   cdata->appCtx = NULL;
-
-   g_free(cdata->appName);
-   cdata->appName = NULL;
-
-   if (cdata->mainCtx != NULL) {
-      g_main_context_unref(cdata->mainCtx);
-      cdata->mainCtx = NULL;
-   }
-
-   if (cdata->resetCheck != NULL) {
-      g_source_destroy(cdata->resetCheck);
-      cdata->resetCheck = NULL;
-   }
-
-   g_free(cdata);
-   return TRUE;
-}
-
-
-/**
- * Error handling function for the RPC channel. Enqueues the "check reset"
- * function for running later, if it's not yet enqueued.
- *
- * @param[in]  _chan       The RPC channel.
- * @param[in]  status      Error description.
- */
-
-void
-RpcChannel_Error(void *_chan,
-                 char const *status)
-{
-   RpcChannelInt *chan = _chan;
-   chan->rpcError = TRUE;
-   /*
-    * XXX: Workaround for PR 935520.
-    * Revert the log call to Warning() after fixing PR 955746.
-    */
-   Debug(LGPFX "Error in the RPC receive loop: %s.\n", status);
-
-   if (chan->resetCheck == NULL) {
-      chan->resetCheck = g_idle_source_new();
-      g_source_set_callback(chan->resetCheck, RpcChannelCheckReset, chan, NULL);
-      g_source_attach(chan->resetCheck, chan->mainCtx);
-   }
-}
-
-
-/**
  * Initializes the RPC channel for inbound operations.
  *
  * This function must be called before starting the channel if the application
@@ -553,6 +465,154 @@ RpcChannel_Setup(RpcChannel *chan,
       chan->in = RpcIn_Construct(mainCtx, RpcChannel_Dispatch, chan);
       ASSERT(chan->in != NULL);
    }
+}
+
+
+/**
+ * Registers a new RPC handler in the given RPC channel. This function is
+ * not thread-safe.
+ *
+ * @param[in]  chan     The channel instance.
+ * @param[in]  rpc      Info about the RPC being registered.
+ */
+
+void
+RpcChannel_RegisterCallback(RpcChannel *chan,
+                            RpcChannelCallback *rpc)
+{
+   RpcChannelInt *cdata = (RpcChannelInt *) chan;
+   ASSERT(rpc->name != NULL && strlen(rpc->name) > 0);
+   ASSERT(rpc->callback);
+   ASSERT(rpc->xdrIn == NULL || rpc->xdrInSize > 0);
+   if (cdata->rpcs == NULL) {
+      cdata->rpcs = g_hash_table_new(g_str_hash, g_str_equal);
+   }
+   if (g_hash_table_lookup(cdata->rpcs, rpc->name) != NULL) {
+      Panic("Trying to overwrite existing RPC registration for %s!\n", rpc->name);
+   }
+   g_hash_table_insert(cdata->rpcs, (gpointer) rpc->name, rpc);
+}
+
+
+/**
+ * Unregisters a new RPC handler from the given RPC channel. This function is
+ * not thread-safe.
+ *
+ * @param[in]  chan     The channel instance.
+ * @param[in]  rpc      Info about the RPC being unregistered.
+ */
+
+void
+RpcChannel_UnregisterCallback(RpcChannel *chan,
+                              RpcChannelCallback *rpc)
+{
+   RpcChannelInt *cdata = (RpcChannelInt *) chan;
+   if (cdata->rpcs != NULL) {
+      g_hash_table_remove(cdata->rpcs, rpc->name);
+   }
+}
+
+
+/**
+ * Error handling function for the RPC channel. Enqueues the "check reset"
+ * function for running later, if it's not yet enqueued.
+ *
+ * @param[in]  _chan       The RPC channel.
+ * @param[in]  status      Error description.
+ */
+
+static void
+RpcChannelError(void *_chan,
+                 char const *status)
+{
+   RpcChannelInt *chan = _chan;
+   chan->rpcError = TRUE;
+   /*
+    * XXX: Workaround for PR 935520.
+    * Revert the log call to Warning() after fixing PR 955746.
+    */
+   Debug(LGPFX "Error in the RPC receive loop: %s.\n", status);
+
+   if (chan->resetCheck == NULL) {
+      chan->resetCheck = g_idle_source_new();
+      g_source_set_callback(chan->resetCheck, RpcChannelCheckReset, chan, NULL);
+      g_source_attach(chan->resetCheck, chan->mainCtx);
+   }
+}
+#endif
+
+
+/**
+ * Creates a new RpcChannel without any implementation.
+ *
+ * This is mainly for use of code that is implementing a custom RpcChannel.
+ * Such implementations should provide their own "constructor"-type function
+ * which should then call this function to get an RpcChannel instance. They
+ * should then fill in the function pointers that provide the implementation
+ * for the channel before making the channel available to the callers.
+ *
+ * @return A new RpcChannel instance.
+ */
+
+RpcChannel *
+RpcChannel_Create(void)
+{
+   RpcChannelInt *chan = g_new0(RpcChannelInt, 1);
+   return &chan->impl;
+}
+
+
+/**
+ * Shuts down an RPC channel and release any held resources.
+ *
+ * @param[in]  chan     The RPC channel.
+ *
+ * @return  Whether the channel was shut down successfully.
+ */
+
+gboolean
+RpcChannel_Destroy(RpcChannel *chan)
+{
+#if defined(NEED_RPCIN)
+   size_t i;
+#endif
+   RpcChannelInt *cdata = (RpcChannelInt *) chan;
+
+   if (cdata->impl.funcs != NULL && cdata->impl.funcs->shutdown != NULL) {
+      cdata->impl.funcs->shutdown(chan);
+   }
+
+#if defined(NEED_RPCIN)
+   RpcChannel_UnregisterCallback(chan, &cdata->resetReg);
+   for (i = 0; i < ARRAYSIZE(gRpcHandlers); i++) {
+      RpcChannel_UnregisterCallback(chan, &gRpcHandlers[i]);
+   }
+
+   if (cdata->rpcs != NULL) {
+      g_hash_table_destroy(cdata->rpcs);
+      cdata->rpcs = NULL;
+   }
+
+   cdata->resetCb = NULL;
+   cdata->resetData = NULL;
+   cdata->appCtx = NULL;
+
+   g_free(cdata->appName);
+   cdata->appName = NULL;
+
+   if (cdata->mainCtx != NULL) {
+      g_main_context_unref(cdata->mainCtx);
+      cdata->mainCtx = NULL;
+   }
+
+   if (cdata->resetCheck != NULL) {
+      g_source_destroy(cdata->resetCheck);
+      cdata->resetCheck = NULL;
+   }
+#endif
+
+   g_free(cdata);
+   return TRUE;
 }
 
 
@@ -610,51 +670,6 @@ RpcChannel_SetRetValsF(RpcInData *data,
 
 
 /**
- * Registers a new RPC handler in the given RPC channel. This function is
- * not thread-safe.
- *
- * @param[in]  chan     The channel instance.
- * @param[in]  rpc      Info about the RPC being registered.
- */
-
-void
-RpcChannel_RegisterCallback(RpcChannel *chan,
-                            RpcChannelCallback *rpc)
-{
-   RpcChannelInt *cdata = (RpcChannelInt *) chan;
-   ASSERT(rpc->name != NULL && strlen(rpc->name) > 0);
-   ASSERT(rpc->callback);
-   ASSERT(rpc->xdrIn == NULL || rpc->xdrInSize > 0);
-   if (cdata->rpcs == NULL) {
-      cdata->rpcs = g_hash_table_new(g_str_hash, g_str_equal);
-   }
-   if (g_hash_table_lookup(cdata->rpcs, rpc->name) != NULL) {
-      Panic("Trying to overwrite existing RPC registration for %s!\n", rpc->name);
-   }
-   g_hash_table_insert(cdata->rpcs, (gpointer) rpc->name, rpc);
-}
-
-
-/**
- * Unregisters a new RPC handler from the given RPC channel. This function is
- * not thread-safe.
- *
- * @param[in]  chan     The channel instance.
- * @param[in]  rpc      Info about the RPC being unregistered.
- */
-
-void
-RpcChannel_UnregisterCallback(RpcChannel *chan,
-                              RpcChannelCallback *rpc)
-{
-   RpcChannelInt *cdata = (RpcChannelInt *) chan;
-   if (cdata->rpcs != NULL) {
-      g_hash_table_remove(cdata->rpcs, rpc->name);
-   }
-}
-
-
-/**
  * Force to create backdoor channels only.
  * This provides a kill-switch to disable vsocket channels if needed.
  * This needs to be called before RpcChannel_New to take effect.
@@ -706,6 +721,7 @@ RpcChannel_Shutdown(RpcChannel *chan)
    }
 
    if (chan != NULL && chan->funcs != NULL && chan->funcs->shutdown != NULL) {
+#if defined(NEED_RPCIN)
       if (chan->in != NULL) {
          if (chan->inStarted) {
             RpcIn_stop(chan->in);
@@ -720,6 +736,7 @@ RpcChannel_Shutdown(RpcChannel *chan)
       if (chan->mainCtx != NULL) {
          g_main_context_unref(chan->mainCtx);
       }
+#endif
       chan->funcs->shutdown(chan);
    }
 }
@@ -745,15 +762,19 @@ RpcChannel_Start(RpcChannel *chan)
    }
 
    if (chan->outStarted) {
+#if defined(NEED_RPCIN)
       /* Already started. Make sure both channels are in sync and return. */
       ASSERT(chan->in == NULL || chan->inStarted);
+#endif
       return TRUE;
    }
 
+#if defined(NEED_RPCIN)
    if (chan->in != NULL && !chan->inStarted) {
-      ok = RpcIn_start(chan->in, RPCIN_MAX_DELAY, RpcChannel_Error, chan);
+      ok = RpcIn_start(chan->in, RPCIN_MAX_DELAY, RpcChannelError, chan);
       chan->inStarted = ok;
    }
+#endif
 
    funcs = chan->funcs;
    ok = funcs->start(chan);
@@ -784,12 +805,13 @@ RpcChannel_Start(RpcChannel *chan)
 static void
 RpcChannelStopNoLock(RpcChannel *chan)
 {
-   g_return_if_fail(chan != NULL);
-   g_return_if_fail(chan->funcs != NULL);
-   g_return_if_fail(chan->funcs->stop != NULL);
+   if (chan == NULL || chan->funcs == NULL || chan->funcs->stop == NULL) {
+      return;
+   }
 
    chan->funcs->stop(chan);
 
+#if defined(NEED_RPCIN)
    if (chan->in != NULL) {
       if (chan->inStarted) {
          RpcIn_stop(chan->in);
@@ -798,6 +820,7 @@ RpcChannelStopNoLock(RpcChannel *chan)
    } else {
       ASSERT(!chan->inStarted);
    }
+#endif
 }
 
 

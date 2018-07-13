@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -56,14 +56,10 @@ typedef enum {
 } UUIDStyle;
 
 /* Scheme control */
-#define UUID_CREATE_WS4     0  /* the "original", WS4 and earlier scheme */
-#define UUID_CREATE_WS5     1  /* the WS5 scheme */
-#define UUID_CREATE_WS6     2  /* the WS6 scheme - "native" path */
-#define UUID_CREATE_ESX50   3  /* the scheme to allow location generated using
-                                  host UUID with wrong endianness as reported by
-                                  pre-ESX 5.0 U2. See PR 861271 for details. */
-#define UUID_CREATE_WS65    4  /* the WS65 scheme - UTF-8 path */
-#define UUID_CREATE_CURRENT 4  /* the current scheme - always the latest */
+#define UUID_CREATE_WS6      0  /* the WS6 scheme - "native" path */
+#define UUID_CREATE_WS65     1  /* the WS65 scheme - UTF-8 path */
+#define UUID_CREATE_ESXi2018 2  /* UTF-8 path, no host UUID for >= 2018 ESXi */
+#define UUID_CREATE_CURRENT  2  /* the current scheme - always the latest */
 
 
 /*
@@ -154,8 +150,8 @@ void UUID_ConvertToTextBuf(const uint8 id[UUID_SIZE],
                            char *buffer,
                            size_t len);
 
-char *UUID_Create(const char *configFileFullPath,
-                  int schemeControl);
+char *UUID_CreateLocation(const char *configFileFullPath,
+                          int schemeControl);
 
 char *UUID_CreateRandom(void);
 
@@ -171,7 +167,7 @@ Bool UUID_IsUUIDGeneratedByThatVpxd(const uint8 *id,
 
 char *UUID_PackText(const char *text,
                     char *pack,
-                    int packLen);
+                    size_t packLen);
 
 char *UUID_ProperHostUUID(void);
 
@@ -179,9 +175,11 @@ char *UUID_GetHostUUID(void);
 
 UUIDStyle UUID_GetStyle(const uint8 *id);
 
-/* like UUID_GetHostUUID, except gets actual host UUID */
+Bool UUID_Equal(const uint8 id1[UUID_SIZE],
+                const uint8 id2[UUID_SIZE]);
+
+/* Like UUID_GetHostUUID, except gets actual host UUID */
 char *UUID_GetRealHostUUID(void);
-Bool UUID_Equal(const uint8 id1[UUID_SIZE], const uint8 id2[UUID_SIZE]);
 
 #if defined(__cplusplus)
 }  // extern "C"

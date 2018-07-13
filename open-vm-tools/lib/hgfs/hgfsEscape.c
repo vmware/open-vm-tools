@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -67,7 +67,7 @@
 
 /* These characters are illegal in Windows file names. */
 const char* HGFS_ILLEGAL_CHARS = "/\\*?:\"<>|";
-const char* HGFS_SUBSTITUTE_CHARS = "!@#$^&(){}";
+const char* HGFS_SUBSTITUTE_CHARS = "!@#$^&(){";
 /* Last character of a file name in Windows can be neither dot nor space. */
 const char* HGFS_ILLEGAL_LAST_CHARS = ". ";
 

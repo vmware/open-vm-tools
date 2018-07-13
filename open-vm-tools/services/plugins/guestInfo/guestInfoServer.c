@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -481,6 +481,8 @@ GuestInfoGather(gpointer data)
    ToolsAppCtx *ctx = data;
    Bool primaryChanged;
    Bool lowPriorityChanged;
+   int maxIPv4RoutesToGather;
+   int maxIPv6RoutesToGather;
 
    g_debug("Entered guest info gather.\n");
 
@@ -548,7 +550,42 @@ GuestInfoGather(gpointer data)
    lowPriorityChanged = GuestInfoResetNicLowPriorityList(ctx);
    GuestInfoResetNicExcludeList(ctx);
 
-   if (!GuestInfo_GetNicInfo(&nicInfo)) {
+   /*
+    * Check the config registry for max IPv4/6 routes to gather
+    */
+   maxIPv4RoutesToGather =
+         VMTools_ConfigGetInteger(ctx->config,
+                                  CONFGROUPNAME_GUESTINFO,
+                                  CONFNAME_GUESTINFO_MAXIPV4ROUTES,
+                                  NICINFO_MAX_ROUTES);
+   if (maxIPv4RoutesToGather < 0 ||
+       maxIPv4RoutesToGather > NICINFO_MAX_ROUTES) {
+      g_warning("Invalid %s.%s value: %d. Using default %u.\n",
+                CONFGROUPNAME_GUESTINFO,
+                CONFNAME_GUESTINFO_MAXIPV4ROUTES,
+                maxIPv4RoutesToGather,
+                NICINFO_MAX_ROUTES);
+      maxIPv4RoutesToGather = NICINFO_MAX_ROUTES;
+   }
+
+   maxIPv6RoutesToGather =
+         VMTools_ConfigGetInteger(ctx->config,
+                                  CONFGROUPNAME_GUESTINFO,
+                                  CONFNAME_GUESTINFO_MAXIPV6ROUTES,
+                                  NICINFO_MAX_ROUTES);
+   if (maxIPv6RoutesToGather < 0 ||
+       maxIPv6RoutesToGather > NICINFO_MAX_ROUTES) {
+      g_warning("Invalid %s.%s value: %d. Using default %u.\n",
+                CONFGROUPNAME_GUESTINFO,
+                CONFNAME_GUESTINFO_MAXIPV6ROUTES,
+                maxIPv6RoutesToGather,
+                NICINFO_MAX_ROUTES);
+      maxIPv6RoutesToGather = NICINFO_MAX_ROUTES;
+   }
+
+   if (!GuestInfo_GetNicInfo(maxIPv4RoutesToGather,
+                             maxIPv6RoutesToGather,
+                             &nicInfo)) {
       g_warning("Failed to get nic info.\n");
       /*
        * Return an empty nic info.
@@ -1700,7 +1737,7 @@ GuestInfoServerShutdown(gpointer src,
       gatherStatsTimeoutSource = NULL;
    }
 
-#if !defined(__APPLE__)
+#if defined(__linux__) || defined(USERWORLD) || defined(_WIN32)
    GuestInfo_StatProviderShutdown();
 #endif
 

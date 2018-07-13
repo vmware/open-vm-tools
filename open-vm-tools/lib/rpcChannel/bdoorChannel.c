@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016,2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -25,7 +25,9 @@
 
 #include "vm_assert.h"
 #include "rpcChannelInt.h"
+#if defined(NEED_RPCIN)
 #include "rpcin.h"
+#endif
 #include "rpcout.h"
 #include "util.h"
 #include "debug.h"
@@ -51,6 +53,7 @@ BkdoorChannelStart(RpcChannel *chan)
    gboolean ret = TRUE;
    BackdoorChannel *bdoor = chan->_private;
 
+#if defined(NEED_RPCIN)
    ret = chan->in == NULL || chan->inStarted;
    if (ret) {
       ret = RpcOut_start(bdoor->out);
@@ -61,6 +64,9 @@ BkdoorChannelStart(RpcChannel *chan)
          }
       }
    }
+#else
+   ret = RpcOut_start(bdoor->out);
+#endif
    chan->outStarted = ret;
    return ret;
 }
@@ -258,7 +264,9 @@ BackdoorChannel_New(void)
    bdoor->out = RpcOut_Construct();
    ASSERT(bdoor->out != NULL);
 
+#if defined(NEED_RPCIN)
    ret->inStarted = FALSE;
+#endif
    ret->outStarted = FALSE;
 
    BackdoorChannelSetCallbacks(ret);
