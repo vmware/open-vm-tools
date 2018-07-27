@@ -156,7 +156,7 @@
  *   (and defines uintptr_t since 2.6.24, but not intptr_t)
  * - Solaris collides with gcc <stdint.h>, but has <sys/stdint.h>
  * - VMKernel + FreeBSD collides with gcc <stdint.h>, but has <sys/stdint.h>
- * - VMKernel + VMM (+DECODERLIB) share macros with Linux kernel
+ * - VMKernel (+DECODERLIB) share macros with Linux kernel
  * - Windows only added <stdint.h> in vc10/vs2010 (MSC ver 1600),
  *   and WDKs lack it.
  *
@@ -165,7 +165,7 @@
  * - Linux kernel uses 'long long' uint64_t
  * - Linux userlevel uses 'long' uint64_t
  */
-#if !defined(VMKERNEL) && !defined(VMM) && !defined(DECODERLIB) && \
+#if !defined(VMKERNEL) && !defined(DECODERLIB) && \
     defined(__linux__) && defined(__KERNEL__)
 #  include <linux/types.h>
 #  include <linux/version.h>
@@ -355,8 +355,7 @@ typedef int64 VmTimeVirtualClock;  /* Virtual Clock kept in CPU cycles */
       #define FMTPD      "I"
       #define FMTH       "I"
    #endif
-#elif defined __APPLE__ || (!defined VMKERNEL && !defined VMM && \
-                            !defined DECODERLIB && \
+#elif defined __APPLE__ || (!defined VMKERNEL && !defined DECODERLIB && \
                             defined __linux__ && defined __KERNEL__)
    /* semi-LLP64 targets; 'long' is 64-bit, but uint64_t is 'long long' */
    #define FMT64         "ll"
