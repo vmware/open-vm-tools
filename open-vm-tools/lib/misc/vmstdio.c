@@ -166,7 +166,7 @@ SuperFgets(FILE *stream,   // IN:
    *count = size;
 
    if (snowMotionLogger != NULL) {
-      snowMotionLogger(buf);
+      snowMotionLogger(buf, *count);
    }
 
    return buf;

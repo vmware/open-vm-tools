@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -37,7 +37,7 @@ typedef enum {
    StdIO_Success,
 } StdIO_Status;
 
-typedef void (*SnowMotionLogger)(char *buf);
+typedef void (*SnowMotionLogger)(char *buf, size_t count);
 
 void
 StdIO_ToggleSnowMotionLogging(SnowMotionLogger logger);
