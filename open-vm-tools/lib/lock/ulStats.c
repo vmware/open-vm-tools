@@ -347,8 +347,9 @@ MXUserHistoDump(MXUserHisto *histo,    // IN:
       ASSERT(mxUserHistoLine != NULL);
 
       i = Str_Sprintf(mxUserHistoLine, mxUserMaxLineLength,
-                      "MXUser: h l=%u t=%s min=%"FMT64"u max=%"FMT64"u\n",
-                      header->bits.serialNumber, histo->typeName,
+                      "MXUser: h l=%"FMT64"u t=%s min=%"FMT64"u "
+                      "max=%"FMT64"u\n",
+                      header->serialNumber, histo->typeName,
                       histo->minValue, histo->maxValue);
 
       /*
@@ -525,9 +526,9 @@ MXUserDumpBasicStats(MXUserBasicStats *stats,  // IN:
       stdDev = (variance < 0.0) ? 0 : (uint64) (MXUserSqrt(variance) + 0.5);
    }
 
-   MXUserStatsLog("MXUser: e l=%u t=%s c=%"FMT64"u min=%"FMT64"u "
+   MXUserStatsLog("MXUser: e l=%"FMT64"u t=%s c=%"FMT64"u min=%"FMT64"u "
                   "max=%"FMT64"u mean=%"FMT64"u sd=%"FMT64"u\n",
-                  header->bits.serialNumber, stats->typeName,
+                  header->serialNumber, stats->typeName,
                   stats->numSamples, stats->minTime, stats->maxTime,
                   stats->timeSum/stats->numSamples, stdDev);
 }
@@ -658,9 +659,9 @@ MXUserDumpAcquisitionStats(MXUserAcquisitionStats *stats,  // IN:
          MXUserDumpBasicStats(&stats->basicStats, header);
       }
 
-      MXUserStatsLog("MXUser: ce l=%u a=%"FMT64"u s=%"FMT64"u sc=%"FMT64"u "
-                     "sct=%"FMT64"u t=%"FMT64"u\n",
-                     header->bits.serialNumber,
+      MXUserStatsLog("MXUser: ce l=%"FMT64"u a=%"FMT64"u s=%"FMT64"u "
+                     "sc=%"FMT64"u sct=%"FMT64"u t=%"FMT64"u\n",
+                     header->serialNumber,
                      stats->numAttempts,
                      stats->numSuccesses,
                      stats->numSuccessesContended,
@@ -1018,8 +1019,8 @@ MXUser_PerLockData(void)
 
    if (listLock && MXRecLockTryAcquire(listLock)) {
       ListItem *entry;
-      uint32 highestSerialNumber;
-      static uint32 lastReportedSerialNumber = 0;
+      uint64 highestSerialNumber;
+      static uint64 lastReportedSerialNumber = 0;
 
       highestSerialNumber = lastReportedSerialNumber;
 
@@ -1027,12 +1028,12 @@ MXUser_PerLockData(void)
          MXUserHeader *header = CIRC_LIST_CONTAINER(entry, MXUserHeader, item);
 
          /* Log the ID information for a lock that did exist previously */
-         if (header->bits.serialNumber > lastReportedSerialNumber) {
-            MXUserStatsLog("MXUser: n n=%s l=%d r=0x%x\n", header->name,
-                           header->bits.serialNumber, header->rank);
+         if (header->serialNumber > lastReportedSerialNumber) {
+            MXUserStatsLog("MXUser: n n=%s l=%"FMT64"u r=0x%x\n", header->name,
+                           header->serialNumber, header->rank);
 
-            if (header->bits.serialNumber > highestSerialNumber) {
-               highestSerialNumber = header->bits.serialNumber;
+            if (header->serialNumber > highestSerialNumber) {
+               highestSerialNumber = header->serialNumber;
             }
          }
 
@@ -1070,21 +1071,16 @@ MXUser_PerLockData(void)
  *-----------------------------------------------------------------------------
  */
 
-uint32
+uint64
 MXUserAllocSerialNumber(void)
 {
-   uint32 value;
+   uint64 value;
 
-   static Atomic_uint32 firstFreeSerialNumber = { 1 };  // must start not zero
+   static Atomic_uint64 firstFreeSerialNumber = { 1 };  // must start not zero
 
-   value = Atomic_ReadInc32(&firstFreeSerialNumber);
+   value = Atomic_ReadInc64(&firstFreeSerialNumber);
 
-   /*
-    * The serial number must be able to fit into the serial number field
-    * (see ulInt.h).
-    */
-
-   if (value > 0xFFFFFF) {
+   if (value == 0) {  // We wrapped! Zounds!
       Panic("%s: too many locks!\n", __FUNCTION__);
    }
 
