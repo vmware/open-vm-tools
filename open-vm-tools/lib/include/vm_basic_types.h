@@ -489,9 +489,7 @@ typedef uint64    BPN;
 #define UINT64_2_BPN(u) ((BPN)(u))
 #define BPN_2_UINT64(b) ((uint64)(b))
 
-typedef uint64    PgCnt64;
 typedef uint64    PageCnt;
-typedef uint64    PgNum64;
 typedef uint64    PageNum;
 typedef unsigned  MemHandle;
 typedef unsigned  IoHandle;
