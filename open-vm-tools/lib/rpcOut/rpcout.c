@@ -439,7 +439,9 @@ RpcOutSendOneRawWork(void *request,         // IN: RPCI command
          memcpy(callerReply, myReply, s);
          callerReply[s] = '\0';
       }
-
+      if (reply != NULL) {
+         *reply = NULL;
+      }
       return FALSE;
    }
 
