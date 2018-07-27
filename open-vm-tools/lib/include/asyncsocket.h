@@ -337,7 +337,16 @@ typedef enum {
     *
     * Default: FALSE.
     */
-   ASYNC_SOCKET_OPT_SEND_LOW_LATENCY_MODE
+   ASYNC_SOCKET_OPT_SEND_LOW_LATENCY_MODE,
+   /*
+    * This socket config option provides a way to set DSCP value
+    * on the TOS field of IP packet which is a 6 bit value.
+    * Permissible values to configure are 0x0 to 0x3F, although
+    * there are only subset of these values which are widely used.
+    *
+    * Default: 0.
+    */
+   ASYNC_SOCKET_OPT_DSCP
 } AsyncSocket_OptID;
 
 /*
