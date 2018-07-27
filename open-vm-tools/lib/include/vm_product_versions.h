@@ -158,8 +158,8 @@
  */
 #define WORKSTATION_VERSION_NUMBER "15.0.0" /* this version number should always match real WS version number */
 #define WORKSTATION_VERSION "15.0.0"
-#define PLAYER_VERSION_NUMBER "14.0.0" /* this version number should always match real Player version number */
-#define PLAYER_VERSION "e.x.p"
+#define PLAYER_VERSION_NUMBER "15.0.0" /* this version number should always match real Player version number */
+#define PLAYER_VERSION "15.0.0"
 #define VMRC_VERSION_NUMBER "10.0.3" /* this version number should always match real VMRC version number */
 #define VMRC_VERSION "10.0.3"
 #define FLEX_CLIENT_VERSION_NUMBER "8.0.0"
@@ -390,7 +390,7 @@
  * file.
  */
 #define PRODUCT_MAC_DESKTOP_VERSION_STRING_FOR_LICENSE "11.0"
-#define PRODUCT_PLAYER_VERSION_STRING_FOR_LICENSE "14.0"
+#define PRODUCT_PLAYER_VERSION_STRING_FOR_LICENSE "15.0"
 #define PRODUCT_VMRC_VERSION_STRING_FOR_LICENSE "10.0"
 #define PRODUCT_FLEX_VERSION_STRING_FOR_LICENSE "8.0"
 
