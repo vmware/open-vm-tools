@@ -37,6 +37,10 @@ typedef enum {
    StdIO_Success,
 } StdIO_Status;
 
+typedef void (*SnowMotionLogger)(char *buf);
+
+void
+StdIO_ToggleSnowMotionLogging(SnowMotionLogger logger);
 
 StdIO_Status
 StdIO_ReadNextLine(FILE *stream,         // IN
