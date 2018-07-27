@@ -141,21 +141,19 @@ AC_DEFUN([AC_VMW_CHECK_LIB],[
    fi
 
    # If we still haven't found the lib, try with the library's custom "config" script.
-   # Before checking, flush the AC_PATH_TOOL cached variable.
-   unset ac_cv_path_ac_vmw_lib_cfg
-   unset ac_vmw_lib_cfg
    if test $ac_vmw_have_lib -eq 0 && test -n "$4"; then
-      AC_PATH_TOOL([ac_vmw_lib_cfg], [$4], [not_found])
-      if test "$ac_vmw_lib_cfg" != "not_found"; then
+      unset ac_vmw_lib_cfg_$2
+      AC_PATH_TOOL([ac_vmw_lib_cfg_$2], [$4], [not_found])
+      if test "${ac_vmw_lib_cfg_$2}" != "not_found"; then
          # XXX: icu-config does not follow the "--cflags" and "--libs" convention,
          # so single it out here to avoid having to replicate all the rest of the
          # logic elsewhere.
          if test "$4" = "icu-config"; then
-            $2_CPPFLAGS="`$ac_vmw_lib_cfg --cppflags`"
-            $2_LIBS="`$ac_vmw_lib_cfg --ldflags`"
+            $2_CPPFLAGS="`${ac_vmw_lib_cfg_$2} --cppflags`"
+            $2_LIBS="`${ac_vmw_lib_cfg_$2} --ldflags`"
          else
-            $2_CPPFLAGS="`$ac_vmw_lib_cfg --cflags`"
-            $2_LIBS="`$ac_vmw_lib_cfg --libs`"
+            $2_CPPFLAGS="`${ac_vmw_lib_cfg_$2} --cflags`"
+            $2_LIBS="`${ac_vmw_lib_cfg_$2} --libs`"
          fi
          ac_vmw_have_lib=1
       fi
