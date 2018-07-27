@@ -394,6 +394,14 @@ Socket_ConnectVMCI(unsigned int cid,                  // IN
          --localPort;
          continue;
       }
+      if (apiErr == SOCKERR_CONNECT && sysErr == SYSERR_ETIMEDOUT) {
+         /*
+          * ETIMEDOUT on connect due to timeout.
+          * Simply try next port.
+          */
+         --localPort;
+         continue;
+      }
       if (apiErr == SOCKERR_CONNECT && sysErr == SYSERR_EINTR) {
          /*
           * EINTR on connect due to signal.

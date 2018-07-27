@@ -53,6 +53,7 @@ typedef enum {
 #define SYSERR_EACCESS           WSAEACCES
 #define SYSERR_EINTR             WSAEINTR
 #define SYSERR_ECONNRESET        WSAECONNRESET
+#define SYSERR_ETIMEDOUT         WSAETIMEDOUT
 
 typedef int socklen_t;
 
@@ -62,6 +63,7 @@ typedef int socklen_t;
 #define SYSERR_EACCESS           EACCES
 #define SYSERR_EINTR             EINTR
 #define SYSERR_ECONNRESET        ECONNRESET
+#define SYSERR_ETIMEDOUT         ETIMEDOUT
 
 typedef int SOCKET;
 #define SOCKET_ERROR              (-1)
