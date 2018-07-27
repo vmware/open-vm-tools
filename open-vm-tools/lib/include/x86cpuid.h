@@ -1458,6 +1458,7 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 #define CPUID_STEPPING_COFFEELAKE_B    0xB  // Coffee Lake S/H
 #define CPUID_STEPPING_CASCADELAKE_A   0x5  // Cascade Lake A-step
 #define CPUID_STEPPING_CASCADELAKE_B   0x6  // Cascade Lake B-step
+#define CPUID_STEPPING_WHISKEYLAKE     0xB  // Whiskey Lake U
 
 #define CPUID_MODEL_PIII_07    7
 #define CPUID_MODEL_PIII_08    8
@@ -1718,13 +1719,22 @@ CPUID_MODEL_IS_COFFEELAKE(uint32 v) // IN: %eax from CPUID with %eax=1.
 }
 
 static INLINE Bool
+CPUID_MODEL_IS_WHISKEYLAKE(uint32 v) // IN: %eax from CPUID with %eax=1.
+{
+   /* Assumes the CPU manufacturer is Intel. */
+   return CPUID_FAMILY_IS_P6(v) &&
+          CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_KABYLAKE_8E &&
+          CPUID_EFFECTIVE_STEPPING(v) == CPUID_STEPPING_WHISKEYLAKE;
+}
+
+static INLINE Bool
 CPUID_MODEL_IS_KABYLAKE(uint32 v) // IN: %eax from CPUID with %eax=1.
 {
    /* Assumes the CPU manufacturer is Intel. */
    return CPUID_FAMILY_IS_P6(v) &&
-          !CPUID_MODEL_IS_COFFEELAKE(v) &&
           (CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_KABYLAKE_9E         ||
-           CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_KABYLAKE_8E         ||
+           (CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_KABYLAKE_8E &&
+            CPUID_EFFECTIVE_STEPPING(v) < CPUID_STEPPING_COFFEELAKE_A) ||
            (CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_SKYLAKE_5E &&
             CPUID_EFFECTIVE_STEPPING(v) == CPUID_STEPPING_KABYLAKE_ES) ||
            (CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_SKYLAKE_4E &&
@@ -1746,6 +1756,7 @@ CPUID_UARCH_IS_SKYLAKE(uint32 v) // IN: %eax from CPUID with %eax=1.
    return CPUID_MODEL_IS_SKYLAKE(v)     ||
           CPUID_MODEL_IS_KABYLAKE(v)    ||
           CPUID_MODEL_IS_COFFEELAKE(v)  ||
+          CPUID_MODEL_IS_WHISKEYLAKE(v) ||
           CPUID_MODEL_IS_CASCADELAKE(v) ||
           CPUID_MODEL_IS_CANNONLAKE(v);
 }
