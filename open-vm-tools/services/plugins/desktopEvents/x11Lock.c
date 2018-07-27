@@ -162,6 +162,43 @@ QueryX11Lock(Display *dpy,
 
 
 /*
+ *-----------------------------------------------------------------------------
+ *
+ * FetchNameErrorHandler --
+ *
+ *      According to XFetchName document, XFetchName may generate a BadWindow
+ *      error. In this case, the pointer we pass to XFetchName doesn't name a
+ *      defined window. X is asynchronous, there isn't a gurantee that the
+ *      window is still alive between the time the window is obtained and
+ *      the time a event is sent to the window. So, for this scenario, since
+ *      the window doesn't exist, we can ignore checking its name. This can
+ *      avoid this plugin from crashing. Refer to PR 1871141 for details.
+ *
+ * Results:
+ *      Logs error.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+FetchNameErrorHandler(Display *display,
+                      XErrorEvent *error)
+{
+   /* 256 is enough for the error description. */
+   char msg[256];
+   XGetErrorText(display, error->error_code, msg, sizeof(msg));
+
+   g_warning("X Error %d (%s): request %d.%d\n",
+             error->error_code, msg, error->request_code, error->minor_code);
+
+   return 0;
+}
+
+
+/*
  ******************************************************************************
  * AcquireDisplayLock --                                                */ /**
  *
@@ -281,14 +318,23 @@ AcquireDisplayLock(void)
     */
    for (index = 0; (index < nchildren) && !alreadyLocked; index++) {
       char *name = NULL;
+      /* Use customized error handler to suppress BadWindow error. */
+      int (*oldXErrorHandler)(Display*, XErrorEvent*) =
+         XSetErrorHandler(FetchNameErrorHandler);
 
       /* Skip unless window is named vmware-user. */
       if ((XFetchName(defaultDisplay, children[index], &name) == 0) ||
           (name == NULL) ||
           strcmp(name, VMUSER_TITLE)) {
          XFree(name);
+
+         /* Restore default error handler. */
+         XSetErrorHandler(oldXErrorHandler);
          continue;
       }
+
+      /* Restore default error handler. */
+      XSetErrorHandler(oldXErrorHandler);
 
       /*
        * Query the window for the "vmware-user-lock" property.
