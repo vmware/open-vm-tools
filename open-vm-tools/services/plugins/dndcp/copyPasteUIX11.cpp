@@ -243,10 +243,10 @@ CopyPasteUIX11::~CopyPasteUIX11()
    if (mBlockAdded) {
       g_debug("%s: removing block for %s\n", __FUNCTION__, mHGStagingDir.c_str());
       /* We need to make sure block subsystem has not been shut off. */
+      mBlockAdded = false;
       if (DnD_BlockIsReady(mBlockCtrl)) {
          mBlockCtrl->RemoveBlock(mBlockCtrl->fd, mHGStagingDir.c_str());
       }
-      mBlockAdded = false;
    }
 
    TerminateThread();
@@ -1198,9 +1198,9 @@ CopyPasteUIX11::GetRemoteClipboardCB(const CPClipboard *clip) // IN
    }
 
    if (mBlockAdded) {
+      mBlockAdded = false;
       if (DnD_BlockIsReady(mBlockCtrl)) {
          mBlockCtrl->RemoveBlock(mBlockCtrl->fd, mHGStagingDir.c_str());
-         mBlockAdded = false;
       }
    }
 
@@ -1552,10 +1552,10 @@ CopyPasteUIX11::GetLocalFilesDone(bool success)
    if (mBlockAdded) {
       g_debug("%s: removing block for %s\n", __FUNCTION__, mHGStagingDir.c_str());
       /* We need to make sure block subsystem has not been shut off. */
+      mBlockAdded = false;
       if (DnD_BlockIsReady(mBlockCtrl)) {
          mBlockCtrl->RemoveBlock(mBlockCtrl->fd, mHGStagingDir.c_str());
       }
-      mBlockAdded = false;
    }
 
    mHGGetFileStatus = DND_FILE_TRANSFER_FINISHED;
