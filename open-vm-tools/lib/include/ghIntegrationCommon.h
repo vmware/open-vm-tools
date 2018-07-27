@@ -33,17 +33,19 @@
 #define GHI_HGFS_SHARE_URL      _T(GHI_HGFS_SHARE_URL_UTF8)
 
 /*
- * A GHI/Unity request from the host to the guest can be sent to different
- * TCLO channels of guestRPC (refer to tclodefs.h). Mostly we use TOOLS_DND_NAME
- * channel and only a few may use TOOLS_DAEMON_NAME.
- *
- * Besides, the view remote MKS has some messages that are grouped
- * into different categories and are handled with different modules.
+ * Messages over different channels will be handled by
+ * different modules.
  */
-#define GHI_CHANNEL_USER_SERVICE                0  // TOOLS_DND_NAME TCLO channel
-#define GHI_CHANNEL_MAIN_SERVICE                1  // TOOLS_DAEMON_NAME TCLO channel
-#define GHI_CHANNEL_VIEW_REMOTE_SHARED_FOLDER   2  // For vdpSharedFolderMgr messages
-#define GHI_CHANNEL_MAX                         3
+#define GHI_CHANNEL_TOOLS_USER                  0  // Handled by tools module
+                                                   // in local VM (TOOLS_DND_NAME guestRPC)
+                                                   // or by VDPUnityMKSControl module
+                                                   // in View RMKS
+#define GHI_CHANNEL_TOOLS_MAIN                  1  // Handled by tools module
+                                                   // in local VM (TOOLS_DAEMON_NAME guestRPC)
+#define GHI_CHANNEL_VIEW_REMOTE_SHARED_FOLDER   2  // VDPSharedFolderMgrMKSControl module
+                                                   // in View RMKS
+#define GHI_CHANNEL_DND                         3  // DnD for both local VM and View RMKS.
+#define GHI_CHANNEL_MAX                         4
 typedef uint32 GHIChannelType;
 
 #define GHI_REQUEST_SUCCESS_OK       0  // Guest returns OK.
