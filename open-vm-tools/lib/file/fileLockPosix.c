@@ -1137,7 +1137,6 @@ FileLock_Lock(const char *filePath,          // IN:
    FileLockToken *tokenPtr;
 
    ASSERT(filePath != NULL);
-   ASSERT(err != NULL);
 
    normalizedPath = FileLockNormalizePath(filePath);
 
