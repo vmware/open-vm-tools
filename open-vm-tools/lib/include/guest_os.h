@@ -530,6 +530,9 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 /* Solaris */
 #define STR_OS_SOLARIS "solaris"
 
+/* Netware */
+#define STR_OS_NETWARE "netware"
+
 /* Mac OS */
 #define STR_OS_MACOS "darwin"
 
