@@ -636,6 +636,7 @@ string::empty()
  * Results:
  *      Returns the length of this string, in characters (code points),
  *      excluding NUL.
+ *      If length in bytes is wanted, please refer to bytes() method.
  *
  * Side effects:
  *      None
