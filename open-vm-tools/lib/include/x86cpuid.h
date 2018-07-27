@@ -1429,23 +1429,23 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 #define CPUID_MODEL_ATOM_4A        0x4a  // Future Silvermont
 #define CPUID_MODEL_ATOM_4C        0x4c  // Airmont
 #define CPUID_MODEL_ATOM_4D        0x4d  // Avoton
-#define CPUID_MODEL_SKYLAKE_4E     0x4e  // Skylake-Y / Kabylake U/Y ES
+#define CPUID_MODEL_SKYLAKE_4E     0x4e  // Skylake-Y / Kaby Lake U/Y ES
 #define CPUID_MODEL_BROADWELL_4F   0x4f  // Broadwell EP/EN/EX
 #define CPUID_MODEL_SKYLAKE_55     0x55  // Skylake EP/EN/EX
 #define CPUID_MODEL_BROADWELL_56   0x56  // Broadwell DE
 #define CPUID_MODEL_KNL_57         0x57  // Knights Landing
 #define CPUID_MODEL_ATOM_5A        0x5a  // Future Silvermont
 #define CPUID_MODEL_ATOM_5D        0x5d  // Future Silvermont
-#define CPUID_MODEL_SKYLAKE_5E     0x5e  // Skylake-S / Kabylake S/H ES
+#define CPUID_MODEL_SKYLAKE_5E     0x5e  // Skylake-S / Kaby Lake S/H ES
 #define CPUID_MODEL_ATOM_5F        0x5f  // Denverton
 #define CPUID_MODEL_KNM_85         0x85  // Knights Mill
-#define CPUID_MODEL_KABYLAKE_8E    0x8e  // Kabylake U/Y QS
-#define CPUID_MODEL_KABYLAKE_9E    0x9e  // Kabylake S/H QS
+#define CPUID_MODEL_KABYLAKE_8E    0x8e  // Kaby Lake U/Y QS
+#define CPUID_MODEL_KABYLAKE_9E    0x9e  // Kaby Lake S/H QS
 
 /* Intel stepping information */
-#define CPUID_STEPPING_KABYLAKE_ES     0x8  // Kabylake S/H/U/Y ES
-#define CPUID_STEPPING_COFFEELAKE_A    0xA  // Coffeelake U/S/H
-#define CPUID_STEPPING_COFFEELAKE_B    0xB  // Coffeelake S/H
+#define CPUID_STEPPING_KABYLAKE_ES     0x8  // Kaby Lake S/H/U/Y ES
+#define CPUID_STEPPING_COFFEELAKE_A    0xA  // Coffee Lake U/S/H
+#define CPUID_STEPPING_COFFEELAKE_B    0xB  // Coffee Lake S/H
 #define CPUID_STEPPING_CASCADELAKE_A   0x5  // Cascade Lake A-step
 #define CPUID_STEPPING_CASCADELAKE_B   0x6  // Cascade Lake B-step
 
@@ -1700,10 +1700,10 @@ CPUID_MODEL_IS_COFFEELAKE(uint32 v) // IN: %eax from CPUID with %eax=1.
 {
    /* Assumes the CPU manufacturer is Intel. */
    return CPUID_FAMILY_IS_P6(v) &&
-          ((CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_KABYLAKE_9E           &&
-            (CPUID_EFFECTIVE_STEPPING(v) == CPUID_STEPPING_COFFEELAKE_A   ||
+          ((CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_KABYLAKE_9E &&
+            (CPUID_EFFECTIVE_STEPPING(v) == CPUID_STEPPING_COFFEELAKE_A ||
              CPUID_EFFECTIVE_STEPPING(v) == CPUID_STEPPING_COFFEELAKE_B)) ||
-           (CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_KABYLAKE_8E           &&
+           (CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_KABYLAKE_8E &&
             CPUID_EFFECTIVE_STEPPING(v) == CPUID_STEPPING_COFFEELAKE_A));
 }
 
@@ -1715,9 +1715,9 @@ CPUID_MODEL_IS_KABYLAKE(uint32 v) // IN: %eax from CPUID with %eax=1.
           !CPUID_MODEL_IS_COFFEELAKE(v) &&
           (CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_KABYLAKE_9E         ||
            CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_KABYLAKE_8E         ||
-           (CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_SKYLAKE_5E         &&
+           (CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_SKYLAKE_5E &&
             CPUID_EFFECTIVE_STEPPING(v) == CPUID_STEPPING_KABYLAKE_ES) ||
-           (CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_SKYLAKE_4E         &&
+           (CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_SKYLAKE_4E &&
             CPUID_EFFECTIVE_STEPPING(v) == CPUID_STEPPING_KABYLAKE_ES));
 }
 
