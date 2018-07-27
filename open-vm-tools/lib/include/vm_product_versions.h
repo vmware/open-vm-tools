@@ -157,9 +157,9 @@
  * lmclient.h has a FLEX_VERSION struct so the versionPrefix can't be FLEX
  */
 #define WORKSTATION_VERSION_NUMBER "15.0.0" /* this version number should always match real WS version number */
-#define WORKSTATION_VERSION "15.0.0"
+#define WORKSTATION_VERSION "e.x.p"
 #define PLAYER_VERSION_NUMBER "15.0.0" /* this version number should always match real Player version number */
-#define PLAYER_VERSION "15.0.0"
+#define PLAYER_VERSION "e.x.p"
 #define VMRC_VERSION_NUMBER "10.0.3" /* this version number should always match real VMRC version number */
 #define VMRC_VERSION "10.0.3"
 #define FLEX_CLIENT_VERSION_NUMBER "8.0.0"
