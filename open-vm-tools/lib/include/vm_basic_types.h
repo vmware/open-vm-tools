@@ -623,7 +623,6 @@ typedef void * UserVA;
 
 #define INVALID_PPN       ((PPN)0x000fffffffffffffull)
 #define INVALID_PPN32     ((PPN32)0xffffffff)
-#define INVALID_PPN64     ((PPN)0xffffffffffffffffull)
 #define APIC_INVALID_PPN  ((PPN)0x000ffffffffffffeull)
 
 #define INVALID_BPN       ((BPN)0x0000ffffffffffffull)
