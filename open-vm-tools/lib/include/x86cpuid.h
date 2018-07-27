@@ -1447,6 +1447,7 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 #define CPUID_MODEL_ATOM_5D        0x5d  // Future Silvermont
 #define CPUID_MODEL_SKYLAKE_5E     0x5e  // Skylake-S / Kaby Lake S/H ES
 #define CPUID_MODEL_ATOM_5F        0x5f  // Denverton
+#define CPUID_MODEL_CANNONLAKE_66  0x66  // Cannon Lake
 #define CPUID_MODEL_KNM_85         0x85  // Knights Mill
 #define CPUID_MODEL_KABYLAKE_8E    0x8e  // Kaby Lake U/Y QS
 #define CPUID_MODEL_KABYLAKE_9E    0x9e  // Kaby Lake S/H QS
@@ -1731,13 +1732,22 @@ CPUID_MODEL_IS_KABYLAKE(uint32 v) // IN: %eax from CPUID with %eax=1.
 }
 
 static INLINE Bool
+CPUID_MODEL_IS_CANNONLAKE(uint32 v) // IN: %eax from CPUID with %eax=1.
+{
+   /* Assumes the CPU manufacturer is Intel. */
+   return CPUID_FAMILY_IS_P6(v) &&
+          CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_CANNONLAKE_66;
+}
+
+static INLINE Bool
 CPUID_UARCH_IS_SKYLAKE(uint32 v) // IN: %eax from CPUID with %eax=1.
 {
    /* Assumes the CPU manufacturer is Intel. */
-   return CPUID_MODEL_IS_COFFEELAKE(v)  ||
+   return CPUID_MODEL_IS_SKYLAKE(v)     ||
           CPUID_MODEL_IS_KABYLAKE(v)    ||
+          CPUID_MODEL_IS_COFFEELAKE(v)  ||
           CPUID_MODEL_IS_CASCADELAKE(v) ||
-          CPUID_MODEL_IS_SKYLAKE(v);
+          CPUID_MODEL_IS_CANNONLAKE(v);
 }
 
 
