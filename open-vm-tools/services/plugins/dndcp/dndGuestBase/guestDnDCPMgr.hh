@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -29,29 +29,26 @@
 #include "guestCopyPaste.hh"
 #include "guestFileTransfer.hh"
 
-extern "C" {
-   #include "vmware/tools/guestrpc.h"
-   #include "vmware/tools/plugin.h"
-}
-
 struct DblLnkLst_Links;
+struct ToolsAppCtx;
 
 class GuestDnDCPMgr
 {
 public:
-   ~GuestDnDCPMgr();
-   static GuestDnDCPMgr *GetInstance();
+   virtual ~GuestDnDCPMgr();
+   static GuestDnDCPMgr *GetInstance(void);
    static void Destroy();
-   GuestDnDMgr *GetDnDMgr(void);
-   GuestCopyPasteMgr *GetCopyPasteMgr(void);
-   DnDCPTransport *GetTransport(void);
+   virtual GuestDnDMgr *GetDnDMgr(void) { return NULL; }
+   virtual GuestCopyPasteMgr *GetCopyPasteMgr(void) { return NULL; }
+   virtual DnDCPTransport *GetTransport(void) { return NULL; }
    void StartLoop();
    void EndLoop();
    void IterateLoop();
-   void Init(ToolsAppCtx *ctx);
+   virtual void Init(ToolsAppCtx *ctx) { }
    void SetCaps(uint32 caps) {mLocalCaps = caps;};
    uint32 GetCaps() {return mLocalCaps;};
-private:
+
+protected:
    /* We're a singleton, so it is a compile time error to call these. */
    GuestDnDCPMgr(void);
    GuestDnDCPMgr(const GuestDnDCPMgr &mgr);
@@ -62,7 +59,6 @@ private:
    GuestCopyPasteMgr *mCPMgr;
    GuestFileTransfer *mFileTransfer;
    DnDCPTransport *mTransport;
-   ToolsAppCtx *mToolsAppCtx;
    uint32 mLocalCaps;
 };
 

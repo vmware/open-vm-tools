@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -23,7 +23,13 @@
  */
 
 #include "guestDnDCPMgr.hh"
-#include "dndCPTransportGuestRpc.hpp"
+
+// The MACRO DND_VM is only used for WS/FS
+#ifdef DND_VM
+#include "vmGuestDnDCPMgr.hh"
+#else
+#include "crtGuestDnDCPMgr.hh"
+#endif
 
 extern "C" {
    #include "debug.h"
@@ -43,7 +49,6 @@ GuestDnDCPMgr::GuestDnDCPMgr()
      mCPMgr(NULL),
      mFileTransfer(NULL),
      mTransport(NULL),
-     mToolsAppCtx(NULL),
      mLocalCaps(0xffffffff)
 {
 }
@@ -56,12 +61,6 @@ GuestDnDCPMgr::GuestDnDCPMgr()
 GuestDnDCPMgr::~GuestDnDCPMgr(void)
 {
    g_debug("%s: enter\n", __FUNCTION__);
-   delete mDnDMgr;
-   mDnDMgr = NULL;
-   delete mFileTransfer;
-   mFileTransfer = NULL;
-   delete mTransport;
-   mTransport = NULL;
 }
 
 
@@ -76,7 +75,11 @@ GuestDnDCPMgr *
 GuestDnDCPMgr::GetInstance(void)
 {
    if (!m_instance) {
-      m_instance = new GuestDnDCPMgr;
+#ifdef DND_VM
+      m_instance = VMGuestDnDCPMgr::CreateInstance();
+#else
+      m_instance = CRTGuestDnDCPMgr::CreateInstance();
+#endif
    }
    return m_instance;
 }
@@ -93,79 +96,6 @@ GuestDnDCPMgr::Destroy(void)
       delete m_instance;
       m_instance = NULL;
    }
-}
-
-
-/**
- * Initialize the GuestDnDCPMgr object. All owner should call this first before
- * calling any other function.
- *
- * @param[in] ctx ToolsAppCtx
- */
-
-void
-GuestDnDCPMgr::Init(ToolsAppCtx *ctx)
-{
-   mToolsAppCtx = ctx;
-
-   ASSERT(mToolsAppCtx);
-
-   if (mFileTransfer) {
-      delete mFileTransfer;
-   }
-   mFileTransfer = new GuestFileTransfer(GetTransport());
-}
-
-
-/**
- * Get the GuestDnDCPMgr object.
- *
- * @return a pointer to the GuestDnDCPMgr instance.
- */
-
-GuestDnDMgr *
-GuestDnDCPMgr::GetDnDMgr(void)
-{
-   if (!mDnDMgr) {
-      /* mEventQueue must be set before this call. */
-      mDnDMgr = new GuestDnDMgr(GetTransport(), mToolsAppCtx);
-   }
-   return mDnDMgr;
-}
-
-
-/**
- * Get the GuestCopyPasteMgr object.
- *
- * @return a pointer to the GuestCopyPasteMgr instance.
- */
-
-GuestCopyPasteMgr *
-GuestDnDCPMgr::GetCopyPasteMgr(void)
-{
-   if (!mCPMgr) {
-      mCPMgr = new GuestCopyPasteMgr(GetTransport());
-   }
-   return mCPMgr;
-}
-
-
-/**
- * Get the DnDCPTransport object.
- *
- * XXX Implementation here is temporary and should be replaced with rpcChannel.
- *
- * @return a pointer to the manager's DnDCPTransport instance.
- */
-
-DnDCPTransport *
-GuestDnDCPMgr::GetTransport(void)
-{
-   if (!mTransport) {
-      ASSERT(mToolsAppCtx);
-      mTransport = new DnDCPTransportGuestRpc(mToolsAppCtx->rpc);
-   }
-   return mTransport;
 }
 
 

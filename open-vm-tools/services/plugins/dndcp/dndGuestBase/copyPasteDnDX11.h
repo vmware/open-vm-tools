@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -27,7 +27,6 @@
 #define __COPYPASTEDNDX11_H__
 
 #include "dnd.h"     /* for DnDBlockControl */
-#include "copyPasteUIX11.h"
 #include "dndUIX11.h"
 #include <gtk/gtk.h>
 #include "vm_basic_types.h"
@@ -36,6 +35,8 @@
 extern "C" {
 void CopyPasteDnDWrapper_SetUnityMode(Bool mode);
 }
+
+class CopyPasteUIX11;
 
 class CopyPasteDnDX11 : public CopyPasteDnDImpl
 {

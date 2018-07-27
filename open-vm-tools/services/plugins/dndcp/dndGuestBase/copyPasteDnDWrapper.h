@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -33,7 +33,7 @@
 class CopyPasteDnDWrapper
 {
 public:
-   ~CopyPasteDnDWrapper();
+   virtual ~CopyPasteDnDWrapper();
    static CopyPasteDnDWrapper *GetInstance();
    static void Destroy();
    gboolean RegisterCP();
@@ -41,9 +41,9 @@ public:
    gboolean RegisterDnD();
    void UnregisterDnD();
    void SetDnDVersion(int version) {m_dndVersion = version;};
-   int GetDnDVersion();
+   virtual int GetDnDVersion();
    void SetCPVersion(int version) {m_cpVersion = version;};
-   int GetCPVersion();
+   virtual int GetCPVersion();
    void SetCPIsRegistered(gboolean isRegistered);
    gboolean IsCPRegistered();
    void SetDnDIsRegistered(gboolean isRegistered);
@@ -53,21 +53,26 @@ public:
    void SetCPIsEnabled(gboolean isEnabled);
    gboolean IsCPEnabled();
    void OnReset();
-   void OnResetInternal();
-   void OnCapReg(gboolean set);
-   gboolean OnSetOption(const char *option, const char *value);
-   void Init(ToolsAppCtx *ctx);
+   virtual void OnResetInternal();
+   virtual void OnCapReg(gboolean set);
+   virtual gboolean OnSetOption(const char *option, const char *value);
+   virtual void Init(ToolsAppCtx *ctx);
    void PointerInit(void);
-   ToolsAppCtx *GetToolsAppCtx() {return m_ctx;};
+   virtual ToolsAppCtx *GetToolsAppCtx() {return NULL;};
    uint32 GetCaps();
-private:
+
+protected:
    /*
     * We're a singleton, so it is a compile time error to call these.
     */
    CopyPasteDnDWrapper();
    CopyPasteDnDWrapper(const CopyPasteDnDWrapper &wrapper);
    CopyPasteDnDWrapper& operator=(const CopyPasteDnDWrapper &wrapper);
-private:
+
+protected:
+   virtual void AddDnDPluginResetTimer(void) { }
+
+protected:
    gboolean m_isCPEnabled;
    gboolean m_isDnDEnabled;
    gboolean m_isCPRegistered;
@@ -75,7 +80,6 @@ private:
    int m_cpVersion;
    int m_dndVersion;
    static CopyPasteDnDWrapper *m_instance;
-   ToolsAppCtx *m_ctx;
    CopyPasteDnDImpl *m_pimpl;
 };
 

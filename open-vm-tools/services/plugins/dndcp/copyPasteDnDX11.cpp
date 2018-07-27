@@ -26,6 +26,7 @@
 
 #include "copyPasteDnDWrapper.h"
 #include "copyPasteDnDX11.h"
+#include "copyPasteUIX11.h"
 #include "dndPluginIntX11.h"
 #include "tracer.hh"
 

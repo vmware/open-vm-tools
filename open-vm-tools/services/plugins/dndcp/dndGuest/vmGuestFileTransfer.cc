@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -17,13 +17,13 @@
  *********************************************************/
 
 /**
- * @guestFileTransfer.cc --
+ * @vmGuestFileTransfer.cc --
  *
- * Implementation of common layer file transfer object for guest.
+ * VM side implementation of file transfer object for guest.
  */
 
-#include "guestFileTransfer.hh"
 #include "fileTransferRpcV4.hh"
+#include "vmGuestFileTransfer.hh"
 
 extern "C" {
    #include "debug.h"
@@ -38,13 +38,14 @@ extern "C" {
  * @param[in] transport pointer to a transport object.
  */
 
-GuestFileTransfer::GuestFileTransfer(DnDCPTransport *transport)
+VMGuestFileTransfer::VMGuestFileTransfer(DnDCPTransport *transport)
+   : GuestFileTransfer(transport)
 {
    ASSERT(transport);
    mRpc = new FileTransferRpcV4(transport);
    mRpc->Init();
    mRpc->HgfsPacketReceived.connect(
-      sigc::mem_fun(this, &GuestFileTransfer::OnRpcRecvHgfsPacket));
+      sigc::mem_fun(this, &VMGuestFileTransfer::OnRpcRecvHgfsPacket));
    HgfsServerManager_DataInit(&mHgfsServerMgrData,
                               "DnDGuestHgfsMgr",
                               NULL,
@@ -56,11 +57,14 @@ GuestFileTransfer::GuestFileTransfer(DnDCPTransport *transport)
 /**
  * Destructor.
  */
-GuestFileTransfer::~GuestFileTransfer(void)
+VMGuestFileTransfer::~VMGuestFileTransfer(void)
 {
-   delete mRpc;
-   mRpc = NULL;
    HgfsServerManager_Unregister(&mHgfsServerMgrData);
+
+   if (NULL != mRpc) {
+      delete mRpc;
+      mRpc = NULL;
+   }
 }
 
 
@@ -73,9 +77,9 @@ GuestFileTransfer::~GuestFileTransfer(void)
  */
 
 void
-GuestFileTransfer::OnRpcRecvHgfsPacket(uint32 sessionId,
-                                       const uint8 *packet,
-                                       size_t packetSize)
+VMGuestFileTransfer::OnRpcRecvHgfsPacket(uint32 sessionId,
+                                         const uint8 *packet,
+                                         size_t packetSize)
 {
    char replyPacket[HGFS_LARGE_PACKET_MAX];
    size_t replyPacketSize;
@@ -91,4 +95,3 @@ GuestFileTransfer::OnRpcRecvHgfsPacket(uint32 sessionId,
                                    &replyPacketSize);
    mRpc->SendHgfsReply(sessionId, (const uint8 *)replyPacket, replyPacketSize);
 }
-

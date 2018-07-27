@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -39,6 +39,10 @@ extern "C" {
    #include "vmware/tools/plugin.h"
 }
 
+#define UNGRAB_TIMEOUT 500        // 0.5s
+#define HIDE_DET_WND_TIMER 500    // 0.5s
+#define UNITY_DND_DET_TIMEOUT 500 // 0.5s
+
 enum GUEST_DND_STATE {
    GUEST_DND_INVALID = 0,
    GUEST_DND_READY,
@@ -62,7 +66,7 @@ class GuestDnDMgr
 public:
    GuestDnDMgr(DnDCPTransport *transport,
                ToolsAppCtx *ctx);
-   ~GuestDnDMgr(void);
+   virtual ~GuestDnDMgr(void);
 
    sigc::signal<void, int, int> moveMouseChanged;
    sigc::signal<void, bool, int, int> updateDetWndChanged;
@@ -107,7 +111,12 @@ public:
    void VmxDnDVersionChanged(uint32 version);
    bool IsDragEnterAllowed(void);
    Bool CheckCapability(uint32 capsRequest);
-private:
+
+   static gboolean DnDUngrabTimeout(void *clientData);
+   static gboolean DnDHideDetWndTimer(void *clientData);
+   static gboolean DnDUnityDetTimeout(void *clientData);
+
+protected:
    void OnRpcSrcDragBegin(uint32 sessionId,
                           const CPClipboard *clip);
    void OnRpcQueryExiting(uint32 sessionId, int32 x, int32 y);
@@ -119,6 +128,11 @@ private:
                        int32 y);
    void OnPingReply(uint32 capabilities);
 
+   virtual void AddDnDUngrabTimeoutEvent() = 0;
+   virtual void AddUnityDnDDetTimeoutEvent() = 0;
+   virtual void AddHideDetWndTimerEvent() = 0;
+   virtual void CreateDnDRpcWithVersion(uint32 version) = 0;
+
    GuestDnDSrc *mSrc;
    GuestDnDDest *mDest;
    DnDRpc *mRpc;
@@ -127,7 +141,6 @@ private:
    GSource *mHideDetWndTimer;
    GSource *mUnityDnDDetTimeout;
    GSource *mUngrabTimeout;
-   ToolsAppCtx *mToolsAppCtx;
    bool mDnDAllowed;
    DnDCPTransport *mDnDTransport;
    uint32 mCapabilities;
@@ -139,14 +152,14 @@ class GuestDnDSrc
 {
 public:
    GuestDnDSrc(GuestDnDMgr *mgr);
-   ~GuestDnDSrc(void);
+   virtual ~GuestDnDSrc(void);
 
    /* Common DnD layer API exposed to UI (all platforms) for DnD source. */
    void UIDragBeginDone(void);
    void UIUpdateFeedback(DND_DROPEFFECT feedback);
    void OnRpcDragBegin(const CPClipboard *clip);
 
-private:
+protected:
    /* Callbacks from rpc for DnD source. */
    void OnRpcUpdateMouse(uint32 sessionId, int32 x, int32 y);
    void OnRpcDrop(uint32 sessionId, int32 x, int32 y);
@@ -155,7 +168,8 @@ private:
                           bool success,
                           const uint8 *stagingDirCP,
                           uint32 sz);
-   const std::string& SetupDestDir(const std::string &destDir);
+   virtual const std::string& SetupDestDir(const std::string &destDir);
+   virtual void CleanStagingFiles(bool fileTransferResult) { }
 
    GuestDnDMgr *mMgr;
    DnDRpc *mRpc;

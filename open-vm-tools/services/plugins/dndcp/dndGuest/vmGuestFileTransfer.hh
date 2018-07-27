@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -17,35 +17,35 @@
  *********************************************************/
 
 /**
- * @guestFileTransfer.hh --
+ * @vmGuestFileTransfer.hh --
  *
- * File transfer object for guest.
+ * VM side implementation of file transfer object for guest.
  */
 
-#ifndef GUEST_FILE_TRANSFER_HH
-#define GUEST_FILE_TRANSFER_HH
+#ifndef VM_GUEST_FILE_TRANSFER_HH
+#define VM_GUEST_FILE_TRANSFER_HH
 
 #include <sigc++/trackable.h>
 #include "fileTransferRpc.hh"
 #include "dndCPTransport.h"
+#include "guestFileTransfer.hh"
 extern "C" {
 #include "hgfsServerManager.h"
 }
 
-class GuestFileTransfer
-   : public sigc::trackable
+class VMGuestFileTransfer
+   : public GuestFileTransfer
 {
 public:
-   GuestFileTransfer(DnDCPTransport *transport);
-   ~GuestFileTransfer(void);
+   VMGuestFileTransfer(DnDCPTransport *transport);
+   ~VMGuestFileTransfer(void);
 
 private:
    void OnRpcRecvHgfsPacket(uint32 sessionId,
                             const uint8 *packet,
                             size_t packetSize);
 
-   FileTransferRpc *mRpc;
    HgfsServerMgrData mHgfsServerMgrData;
 };
 
-#endif // GUEST_FILE_TRANSFER_HH
+#endif // VM_GUEST_FILE_TRANSFER_HH

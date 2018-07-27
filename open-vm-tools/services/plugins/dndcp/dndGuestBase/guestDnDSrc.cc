@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -248,11 +248,8 @@ GuestDnDSrc::OnRpcGetFilesDone(uint32 sessionId,
                                const uint8 *stagingDirCP,
                                uint32 sz)
 {
-   if (!success && !mStagingDir.empty()) {
-      /* Delete all files if host canceled the file transfer. */
-      DnD_DeleteStagingFiles(mStagingDir.c_str(), FALSE);
-      mStagingDir.clear();
-   }
+   CleanStagingFiles(success);
+
    /* UI should remove block with this signal. */
    mMgr->getFilesDoneChanged.emit(success);
    mMgr->HideDetWnd();
@@ -273,36 +270,5 @@ GuestDnDSrc::OnRpcGetFilesDone(uint32 sessionId,
 const std::string &
 GuestDnDSrc::SetupDestDir(const std::string &destDir)
 {
-   mStagingDir = "";
-
-   if (!destDir.empty() && File_Exists(destDir.c_str())) {
-      mStagingDir = destDir;
-      const char *lastSep = Str_Strrchr(mStagingDir.c_str(), DIRSEPC);
-      if (lastSep && lastSep[1] != '\0') {
-         mStagingDir += DIRSEPS;
-      }
-
-      return mStagingDir;
-   } else {
-      char *newDir;
-
-      newDir = DnD_CreateStagingDirectory();
-      if (newDir != NULL) {
-         mStagingDir = newDir;
-
-         char *lastSep = Str_Strrchr(newDir, DIRSEPC);
-         if (lastSep && lastSep[1] != '\0') {
-            mStagingDir += DIRSEPS;
-         }
-         free(newDir);
-         g_debug("%s: destdir: %s", __FUNCTION__, mStagingDir.c_str());
-
-         return mStagingDir;
-      } else {
-         g_debug("%s: destdir not created", __FUNCTION__);
-         return mStagingDir;
-      }
-   }
+   return mStagingDir;
 }
-
-

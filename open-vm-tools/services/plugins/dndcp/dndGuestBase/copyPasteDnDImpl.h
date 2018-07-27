@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -28,11 +28,13 @@
 #define __COPYPASTEDNDIMPL_H__
 
 #include "vmware.h"
+#include "vm_basic_types.h"
 
 extern "C" {
 #include "vmware/tools/plugin.h"
 }
 
+typedef struct ToolsAppCtx ToolsAppCtx;
 class CopyPasteDnDImpl
 {
 public:

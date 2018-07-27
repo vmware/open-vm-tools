@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -32,23 +32,27 @@
 
 #if defined(WIN32)
 #include "copyPasteDnDWin32.h"
+#ifdef DND_VM
+#include "vmCopyPasteDnDWin32.h"
+#else
+#include "crtCopyPasteDnDWin32.h"
+#endif
 #endif
 
 #if defined(__APPLE__)
 #include "copyPasteDnDMac.h"
 #endif
 
+#ifdef DND_VM
+#include "vmCopyPasteDnDWrapper.h"
+#else
+#include "crtCopyPasteDnDWrapper.h"
+#endif
+
 #include "copyPasteDnDWrapper.h"
 #include "guestDnDCPMgr.hh"
 #include "vmware.h"
 
-extern "C" {
-#include "rpcout.h"
-#include "vmware/guestrpc/tclodefs.h"
-#include "vmware/tools/plugin.h"
-#include "vmware/tools/utils.h"
-#include <string.h>
-}
 
 /**
  * CopyPasteDnDWrapper is a singleton, here is a pointer to its only instance.
@@ -68,7 +72,11 @@ CopyPasteDnDWrapper *
 CopyPasteDnDWrapper::GetInstance()
 {
    if (!m_instance) {
-      m_instance = new CopyPasteDnDWrapper;
+#ifdef DND_VM
+      m_instance = VMCopyPasteDnDWrapper::CreateInstance();
+#else
+      m_instance = CRTCopyPasteDnDWrapper::CreateInstance();
+#endif
    }
    ASSERT(m_instance);
    return m_instance;
@@ -103,7 +111,6 @@ CopyPasteDnDWrapper::CopyPasteDnDWrapper() :
    m_isDnDRegistered(FALSE),
    m_cpVersion(0),
    m_dndVersion(0),
-   m_ctx(NULL),
    m_pimpl(NULL)
 {
 }
@@ -136,8 +143,6 @@ CopyPasteDnDWrapper::PointerInit()
 void
 CopyPasteDnDWrapper::Init(ToolsAppCtx *ctx)
 {
-   m_ctx = ctx;
-
    GuestDnDCPMgr *p = GuestDnDCPMgr::GetInstance();
    ASSERT(p);
    p->Init(ctx);
@@ -147,11 +152,16 @@ CopyPasteDnDWrapper::Init(ToolsAppCtx *ctx)
       m_pimpl = new CopyPasteDnDX11();
 #endif
 #if defined(WIN32)
-      m_pimpl = new CopyPasteDnDWin32();
+#ifdef DND_VM
+      m_pimpl = new VMCopyPasteDnDWin32();
+#else
+      m_pimpl = new CRTCopyPasteDnDWin32();
+#endif
 #endif
 #if defined(__APPLE__)
       m_pimpl = new CopyPasteDnDMac();
 #endif
+
       if (m_pimpl) {
          m_pimpl->Init(ctx);
          /*
@@ -170,7 +180,7 @@ CopyPasteDnDWrapper::Init(ToolsAppCtx *ctx)
 
 CopyPasteDnDWrapper::~CopyPasteDnDWrapper()
 {
-   g_debug("%s: enter\n", __FUNCTION__);
+   g_debug("%s: enter.\n", __FUNCTION__);
    if (m_pimpl) {
       if (IsCPRegistered()) {
          m_pimpl->UnregisterCP();
@@ -195,7 +205,7 @@ CopyPasteDnDWrapper::~CopyPasteDnDWrapper()
 gboolean
 CopyPasteDnDWrapper::RegisterCP()
 {
-   g_debug("%s: enter\n", __FUNCTION__);
+   g_debug("%s: enter.\n", __FUNCTION__);
    ASSERT(m_pimpl);
    if (IsCPEnabled()) {
       return m_pimpl->RegisterCP();
@@ -214,7 +224,7 @@ CopyPasteDnDWrapper::RegisterCP()
 gboolean
 CopyPasteDnDWrapper::RegisterDnD()
 {
-   g_debug("%s: enter\n", __FUNCTION__);
+   g_debug("%s: enter.\n", __FUNCTION__);
    ASSERT(m_pimpl);
    if (IsDnDEnabled()) {
       return m_pimpl->RegisterDnD();
@@ -231,7 +241,7 @@ CopyPasteDnDWrapper::RegisterDnD()
 void
 CopyPasteDnDWrapper::UnregisterCP()
 {
-   g_debug("%s: enter\n", __FUNCTION__);
+   g_debug("%s: enter.\n", __FUNCTION__);
    ASSERT(m_pimpl);
    return m_pimpl->UnregisterCP();
 }
@@ -245,7 +255,7 @@ CopyPasteDnDWrapper::UnregisterCP()
 void
 CopyPasteDnDWrapper::UnregisterDnD()
 {
-   g_debug("%s: enter\n", __FUNCTION__);
+   g_debug("%s: enter.\n", __FUNCTION__);
    ASSERT(m_pimpl);
    return m_pimpl->UnregisterDnD();
 }
@@ -261,23 +271,7 @@ CopyPasteDnDWrapper::UnregisterDnD()
 int
 CopyPasteDnDWrapper::GetCPVersion()
 {
-   g_debug("%s: enter\n", __FUNCTION__);
-   if (IsCPRegistered()) {
-      char *reply = NULL;
-      size_t replyLen;
-
-      ToolsAppCtx *ctx = GetToolsAppCtx();
-      if (!RpcChannel_Send(ctx->rpc, QUERY_VMX_COPYPASTE_VERSION,
-                           strlen(QUERY_VMX_COPYPASTE_VERSION), &reply, &replyLen)) {
-         g_debug("%s: could not get VMX copyPaste "
-               "version capability: %s\n", __FUNCTION__, reply ? reply : "NULL");
-         m_cpVersion = 1;
-      } else {
-         m_cpVersion = atoi(reply);
-      }
-      free(reply);
-   }
-   g_debug("%s: got version %d\n", __FUNCTION__, m_cpVersion);
+   g_debug("%s: enter.\n", __FUNCTION__);
    return m_cpVersion;
 }
 
@@ -292,23 +286,7 @@ CopyPasteDnDWrapper::GetCPVersion()
 int
 CopyPasteDnDWrapper::GetDnDVersion()
 {
-   g_debug("%s: enter\n", __FUNCTION__);
-   if (IsDnDRegistered()) {
-      char *reply = NULL;
-      size_t replyLen;
-
-      ToolsAppCtx *ctx = GetToolsAppCtx();
-      if (!RpcChannel_Send(ctx->rpc, QUERY_VMX_DND_VERSION,
-                           strlen(QUERY_VMX_DND_VERSION), &reply, &replyLen)) {
-         g_debug("%s: could not get VMX dnd "
-               "version capability: %s\n", __FUNCTION__, reply ? reply : "NULL");
-         m_dndVersion = 1;
-      } else {
-         m_dndVersion = atoi(reply);
-      }
-      free(reply);
-   }
-   g_debug("%s: got version %d\n", __FUNCTION__, m_dndVersion);
+   g_debug("%s: enter.\n", __FUNCTION__);
    return m_dndVersion;
 }
 
@@ -324,7 +302,7 @@ CopyPasteDnDWrapper::GetDnDVersion()
 void
 CopyPasteDnDWrapper::SetCPIsRegistered(gboolean isRegistered)
 {
-   g_debug("%s: enter\n", __FUNCTION__);
+   g_debug("%s: enter.\n", __FUNCTION__);
    m_isCPRegistered = isRegistered;
 }
 
@@ -340,7 +318,7 @@ CopyPasteDnDWrapper::SetCPIsRegistered(gboolean isRegistered)
 gboolean
 CopyPasteDnDWrapper::IsCPRegistered()
 {
-   g_debug("%s: enter\n", __FUNCTION__);
+   g_debug("%s: enter.\n", __FUNCTION__);
    return m_isCPRegistered;
 }
 
@@ -386,7 +364,7 @@ CopyPasteDnDWrapper::IsDnDRegistered()
 void
 CopyPasteDnDWrapper::SetCPIsEnabled(gboolean isEnabled)
 {
-   g_debug("%s: enter\n", __FUNCTION__);
+   g_debug("%s: enter.\n", __FUNCTION__);
    m_isCPEnabled = isEnabled;
    if (!isEnabled && IsCPRegistered()) {
       UnregisterCP();
@@ -421,6 +399,7 @@ CopyPasteDnDWrapper::IsCPEnabled()
 void
 CopyPasteDnDWrapper::SetDnDIsEnabled(gboolean isEnabled)
 {
+   g_debug("%s: enter.\n", __FUNCTION__);
    m_isDnDEnabled = isEnabled;
    if (!isEnabled && IsDnDRegistered()) {
       UnregisterDnD();
@@ -446,71 +425,13 @@ CopyPasteDnDWrapper::IsDnDEnabled()
 
 /**
  *
- * Timer callback for reset. Handle it by calling the member function
- * that handles reset.
- *
- * @param[in] clientData pointer to the CopyPasteDnDWrapper instance that
- * issued the timer.
- *
- * @return FALSE always.
- */
-
-static gboolean
-DnDPluginResetSent(void *clientData)
-{
-   CopyPasteDnDWrapper *p = reinterpret_cast<CopyPasteDnDWrapper *>(clientData);
-
-   ASSERT(p);
-   p->OnResetInternal();
-   return FALSE;
-}
-
-
-/**
- *
  * Handle reset.
  */
 
 void
 CopyPasteDnDWrapper::OnResetInternal()
 {
-   g_debug("%s: enter\n", __FUNCTION__);
-
-   /*
-    * Reset DnD/Copy/Paste only if vmx said we can. The reason is that
-    * we may also get reset request from vmx when user is taking snapshot
-    * or recording. If there is an ongoing DnD/copy/paste, we should not
-    * reset here. For details please refer to bug 375928.
-    */
-   char *reply = NULL;
-   size_t replyLen;
-   ToolsAppCtx *ctx = GetToolsAppCtx();
-   if (RpcChannel_Send(ctx->rpc, "dnd.is.active",
-                       strlen("dnd.is.active"), &reply, &replyLen) &&
-       (1 == atoi(reply))) {
-      g_debug("%s: ignore reset while file transfer is busy.\n", __FUNCTION__);
-      goto exit;
-   }
-
-   if (IsDnDRegistered()) {
-      UnregisterDnD();
-   }
-   if (IsCPRegistered()) {
-      UnregisterCP();
-   }
-   if (IsCPEnabled() && !IsCPRegistered()) {
-      RegisterCP();
-   }
-   if (IsDnDEnabled() && !IsDnDRegistered()) {
-      RegisterDnD();
-   }
-   if (!IsDnDRegistered() || !IsCPRegistered()) {
-      g_debug("%s: unable to reset fully DnD %d CP %d!\n",
-            __FUNCTION__, IsDnDRegistered(), IsCPRegistered());
-   }
-
-exit:
-   free(reply);
+   g_debug("%s: enter.\n", __FUNCTION__);
 }
 
 
@@ -526,14 +447,8 @@ exit:
 void
 CopyPasteDnDWrapper::OnReset()
 {
-   GSource *src;
-
-   g_debug("%s: enter\n", __FUNCTION__);
-   src = VMTools_CreateTimer(RPC_POLL_TIME * 30);
-   if (src) {
-      VMTOOLSAPP_ATTACH_SOURCE(m_ctx, src, DnDPluginResetSent, this, NULL);
-      g_source_unref(src);
-   }
+   g_debug("%s: enter.\n", __FUNCTION__);
+   AddDnDPluginResetTimer();
 }
 
 
@@ -546,108 +461,7 @@ CopyPasteDnDWrapper::OnReset()
 void
 CopyPasteDnDWrapper::OnCapReg(gboolean set)
 {
-   g_debug("%s: enter\n", __FUNCTION__);
-   char *reply = NULL;
-   size_t replyLen;
-   const char *toolsDnDVersion = TOOLS_DND_VERSION_4;
-   char *toolsCopyPasteVersion = NULL;
-   int version;
-
-   ToolsAppCtx *ctx = GetToolsAppCtx();
-   if (ctx) {
-      /*
-       * First DnD.
-       */
-      if (!RpcChannel_Send(ctx->rpc, toolsDnDVersion, strlen(toolsDnDVersion),
-                           NULL, NULL)) {
-         g_debug("%s: could not set guest dnd version capability\n",
-               __FUNCTION__);
-         version = 1;
-         SetDnDVersion(version);
-      } else {
-         char const *vmxDnDVersion = QUERY_VMX_DND_VERSION;
-
-         if (!RpcChannel_Send(ctx->rpc, vmxDnDVersion,
-                              strlen(vmxDnDVersion), &reply, &replyLen)) {
-            g_debug("%s: could not get VMX dnd version capability, assuming v1\n",
-                  __FUNCTION__);
-            version = 1;
-            SetDnDVersion(version);
-         } else {
-            int version = atoi(reply);
-            ASSERT(version >= 1);
-            SetDnDVersion(version);
-            g_debug("%s: VMX is dnd version %d\n", __FUNCTION__, GetDnDVersion());
-            if (version == 3) {
-               /*
-                * VMDB still has version 4 in it, which will cause a V3
-                * host to fail. So, change to version 3. Since we don't
-                * support any other version, we only do this for V3.
-                */
-               toolsDnDVersion = TOOLS_DND_VERSION_3;
-               if (!RpcChannel_Send(ctx->rpc, toolsDnDVersion,
-                                    strlen(toolsDnDVersion), NULL, NULL)) {
-
-                  g_debug("%s: could not set VMX dnd version capability, assuming v1\n",
-                           __FUNCTION__);
-                  version = 1;
-                  SetDnDVersion(version);
-               }
-            }
-         }
-         vm_free(reply);
-         reply = NULL;
-       }
-
-      /*
-       * Now CopyPaste.
-       */
-
-      toolsCopyPasteVersion = g_strdup_printf(TOOLS_COPYPASTE_VERSION" %d", 4);
-      if (!RpcChannel_Send(ctx->rpc, toolsCopyPasteVersion,
-                           strlen(toolsCopyPasteVersion),
-                           NULL, NULL)) {
-         g_debug("%s: could not set guest copypaste version capability\n",
-               __FUNCTION__);
-         version = 1;
-         SetCPVersion(version);
-      } else {
-         char const *vmxCopyPasteVersion = QUERY_VMX_COPYPASTE_VERSION;
-
-         if (!RpcChannel_Send(ctx->rpc, vmxCopyPasteVersion,
-                              strlen(vmxCopyPasteVersion), &reply, &replyLen)) {
-            g_debug("%s: could not get VMX copypaste version capability, assuming v1\n",
-                  __FUNCTION__);
-            version = 1;
-            SetCPVersion(version);
-         } else {
-            version = atoi(reply);
-            ASSERT(version >= 1);
-            SetCPVersion(version);
-            g_debug("%s: VMX is copypaste version %d\n", __FUNCTION__,
-                  GetCPVersion());
-            if (version == 3) {
-               /*
-                * VMDB still has version 4 in it, which will cause a V3
-                * host to fail. So, change to version 3. Since we don't
-                * support any other version, we only do this for V3.
-                */
-               g_free(toolsCopyPasteVersion);
-               toolsCopyPasteVersion = g_strdup_printf(TOOLS_COPYPASTE_VERSION" %d", 3);
-               if (!RpcChannel_Send(ctx->rpc, toolsCopyPasteVersion,
-                                    strlen(toolsCopyPasteVersion), NULL, NULL)) {
-
-                  g_debug("%s: could not set VMX copypaste version, assuming v1\n",
-                           __FUNCTION__);
-                  version = 1;
-                  SetCPVersion(version);
-               }
-            }
-         }
-         vm_free(reply);
-      }
-      g_free(toolsCopyPasteVersion);
-   }
+   g_debug("%s: enter.\n", __FUNCTION__);
 }
 
 
@@ -659,23 +473,8 @@ CopyPasteDnDWrapper::OnCapReg(gboolean set)
 gboolean
 CopyPasteDnDWrapper::OnSetOption(const char *option, const char *value)
 {
-   gboolean ret = false;
-   bool bEnable;
-
-   ASSERT(option);
-   ASSERT(value);
-
-   bEnable = strcmp(value, "1") ? false : true;
-   g_debug("%s: setting option '%s' to '%s'\n", __FUNCTION__, option, value);
-   if (strcmp(option, TOOLSOPTION_ENABLEDND) == 0) {
-      SetDnDIsEnabled(bEnable);
-      ret = true;
-   } else if (strcmp(option, TOOLSOPTION_COPYPASTE) == 0) {
-      SetCPIsEnabled(bEnable);
-      ret = true;
-   }
-
-   return ret;
+   g_debug("%s: enter.\n", __FUNCTION__);
+   return TRUE;
 }
 
 
@@ -690,5 +489,6 @@ CopyPasteDnDWrapper::GetCaps()
 {
    ASSERT(m_pimpl);
 
+   g_debug("%s: enter.\n", __FUNCTION__);
    return m_pimpl->GetCaps();
 }

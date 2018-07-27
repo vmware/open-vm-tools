@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -24,82 +24,16 @@
 
 #include "tracer.hh"
 #include "guestDnD.hh"
-#include "dndRpcV4.hh"
-#include "dndRpcV3.hh"
 #include "guestDnDCPMgr.hh"
+
+#ifdef DND_VM
+#include "vmGuestDnDSrc.hh"
+#else
+#include "crtGuestDnDSrc.hh"
+#endif
 
 extern "C" {
    #include "debug.h"
-}
-
-
-#define UNGRAB_TIMEOUT 500        // 0.5s
-#define HIDE_DET_WND_TIMER 500    // 0.5s
-#define UNITY_DND_DET_TIMEOUT 500 // 0.5s
-
-
-/**
- * Callback for DnDUngrab timeout. This will be called if there is no pending
- * GH DnD when user dragged leaving the guest.
- *
- * @param[in] clientData
- *
- * @return FALSE always
- */
-
-static gboolean
-DnDUngrabTimeout(void *clientData)
-{
-   TRACE_CALL();
-
-   ASSERT(clientData);
-   GuestDnDMgr *dnd = (GuestDnDMgr *)clientData;
-   /* Call actual callback. */
-   dnd->UngrabTimeout();
-   return FALSE;
-}
-
-
-/**
- * Callback for HideDetWndTimer.
- *
- * @param[in] clientData
- *
- * @return FALSE always
- */
-
-
-static gboolean
-DnDHideDetWndTimer(void *clientData)
-{
-   TRACE_CALL();
-
-   ASSERT(clientData);
-   GuestDnDMgr *dnd = (GuestDnDMgr *)clientData;
-   dnd->SetHideDetWndTimer(NULL);
-   dnd->HideDetWnd();
-   return FALSE;
-}
-
-
-/**
- * Callback for UnityDnDDetTimeout.
- *
- * @param[in] clientData
- *
- * @return FALSE always
- */
-
-
-static gboolean
-DnDUnityDetTimeout(void *clientData)
-{
-   TRACE_CALL();
-
-   ASSERT(clientData);
-   GuestDnDMgr *dnd = (GuestDnDMgr *)clientData;
-   dnd->UnityDnDDetTimeout();
-   return FALSE;
 }
 
 
@@ -120,13 +54,11 @@ GuestDnDMgr::GuestDnDMgr(DnDCPTransport *transport,
    mHideDetWndTimer(NULL),
    mUnityDnDDetTimeout(NULL),
    mUngrabTimeout(NULL),
-   mToolsAppCtx(ctx),
    mDnDAllowed(false),
    mDnDTransport(transport),
    mCapabilities(0xffffffff)
 {
    ASSERT(transport);
-   ASSERT(mToolsAppCtx);
 }
 
 
@@ -310,7 +242,12 @@ GuestDnDMgr::OnRpcSrcDragBegin(uint32 sessionId,
    SetSessionId(sessionId);
 
    ASSERT(clip);
-   mSrc = new GuestDnDSrc(this);
+
+#ifdef DND_VM
+   mSrc = new VMGuestDnDSrc(this);
+#else
+   mSrc = new CRTGuestDnDSrc(this);
+#endif
 
    mSrc->OnRpcDragBegin(clip);
 }
@@ -354,12 +291,7 @@ GuestDnDMgr::OnRpcQueryExiting(uint32 sessionId,
     * this is here in case the drag isn't picked up by our drag detection window
     * for some reason.
     */
-   if (NULL == mUngrabTimeout) {
-      g_debug("%s: adding UngrabTimeout\n", __FUNCTION__);
-      mUngrabTimeout = g_timeout_source_new(UNGRAB_TIMEOUT);
-      VMTOOLSAPP_ATTACH_SOURCE(mToolsAppCtx, mUngrabTimeout, DnDUngrabTimeout, this, NULL);
-      g_source_unref(mUngrabTimeout);
-   }
+   AddDnDUngrabTimeoutEvent();
 }
 
 
@@ -431,13 +363,7 @@ GuestDnDMgr::OnRpcUpdateUnityDetWnd(uint32 sessionId,
        * this window to accept drop in cancel case.
        */
       UpdateDetWnd(show, 1, 1);
-      mUnityDnDDetTimeout = g_timeout_source_new(UNITY_DND_DET_TIMEOUT);
-      VMTOOLSAPP_ATTACH_SOURCE(mToolsAppCtx,
-                               mUnityDnDDetTimeout,
-                               DnDUnityDetTimeout,
-                               this,
-                               NULL);
-      g_source_unref(mUnityDnDDetTimeout);
+      AddUnityDnDDetTimeoutEvent();
       SetSessionId(sessionId);
    } else {
       /*
@@ -536,15 +462,7 @@ GuestDnDMgr::DelayHideDetWnd(void)
 {
    TRACE_CALL();
 
-   if (NULL == mHideDetWndTimer) {
-      g_debug("%s: add timer to hide detection window.\n", __FUNCTION__);
-      mHideDetWndTimer = g_timeout_source_new(HIDE_DET_WND_TIMER);
-      VMTOOLSAPP_ATTACH_SOURCE(mToolsAppCtx, mHideDetWndTimer,
-                               DnDHideDetWndTimer, this, NULL);
-      g_source_unref(mHideDetWndTimer);
-   } else {
-      g_debug("%s: mHideDetWndTimer is not NULL, quit.\n", __FUNCTION__);
-   }
+   AddHideDetWndTimerEvent();
 }
 
 
@@ -642,17 +560,8 @@ GuestDnDMgr::VmxDnDVersionChanged(uint32 version)
       mRpc = NULL;
    }
 
-   switch(version) {
-   case 4:
-      mRpc = new DnDRpcV4(mDnDTransport);
-      break;
-   case 3:
-      mRpc = new DnDRpcV3(mDnDTransport);
-      break;
-   default:
-      g_debug("%s: unsupported DnD version\n", __FUNCTION__);
-      break;
-   }
+   CreateDnDRpcWithVersion(version);
+
    if (mRpc) {
       mRpc->pingReplyChanged.connect(
          sigc::mem_fun(this, &GuestDnDMgr::OnPingReply));
@@ -707,5 +616,68 @@ GuestDnDMgr::OnPingReply(uint32 capabilities)
 
    g_debug("%s: dnd ping reply caps are %x\n", __FUNCTION__, capabilities);
    mCapabilities = capabilities;
+}
+
+
+/**
+ * Callback for DnDUngrab timeout. This will be called if there is no pending
+ * GH DnD when user dragged leaving the guest.
+ *
+ * @param[in] clientData
+ *
+ * @return FALSE always
+ */
+
+gboolean
+GuestDnDMgr::DnDUngrabTimeout(void *clientData)
+{
+   TRACE_CALL();
+
+   ASSERT(clientData);
+   GuestDnDMgr *dnd = (GuestDnDMgr *)clientData;
+   /* Call actual callback. */
+   dnd->UngrabTimeout();
+   return FALSE;
+}
+
+
+/**
+ * Callback for HideDetWndTimer.
+ *
+ * @param[in] clientData
+ *
+ * @return FALSE always
+ */
+
+gboolean
+GuestDnDMgr::DnDHideDetWndTimer(void *clientData)
+{
+   TRACE_CALL();
+
+   ASSERT(clientData);
+   GuestDnDMgr *dnd = (GuestDnDMgr *)clientData;
+   dnd->SetHideDetWndTimer(NULL);
+   dnd->HideDetWnd();
+   return FALSE;
+}
+
+
+/**
+ * Callback for UnityDnDDetTimeout.
+ *
+ * @param[in] clientData
+ *
+ * @return FALSE always
+ */
+
+gboolean
+GuestDnDMgr::DnDUnityDetTimeout(void *clientData)
+{
+   TRACE_CALL();
+
+   ASSERT(clientData);
+   GuestDnDMgr *dnd = (GuestDnDMgr *)clientData;
+   dnd->UnityDnDDetTimeout();
+   return FALSE;
 }
 
