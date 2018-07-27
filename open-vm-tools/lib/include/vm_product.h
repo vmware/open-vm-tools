@@ -93,9 +93,6 @@
 #define PRODUCT_GANTRY_NAME MAKE_NAME(PRODUCT_GANTRY_BRIEF_NAME)
 #define PRODUCT_GANTRY_NAME_FOR_LICENSE PRODUCT_GANTRY_NAME
 
-#define PRODUCT_VMLS_SHORT_NAME "VMLS"
-#define PRODUCT_VMLS_NAME MAKE_NAME("License Server")
-
 #define PRODUCT_VLICENSE_SHORT_NAME "VLICENSE"
 #define PRODUCT_VLICENSE_NAME MAKE_NAME("License Infrastructure")
 
@@ -195,7 +192,6 @@
       || defined(VMX86_TOOLS)    \
       || defined(VMX86_V2V)      \
       || defined(VMX86_SYSIMAGE) \
-      || defined(VMX86_VMLS)     \
       || defined(VMX86_VLICENSE) \
       || defined(VMX86_P2V)      \
       || defined(VMX86_DDK)      \
@@ -253,8 +249,6 @@
 # define PRODUCT_SHORT_NAME PRODUCT_V2V_NAME
 #elif defined(VMX86_SYSIMAGE)
 # define PRODUCT_SHORT_NAME PRODUCT_SYSIMAGE_NAME
-#elif defined(VMX86_VMLS)
-# define PRODUCT_SHORT_NAME PRODUCT_VMLS_NAME
 #elif defined(VMX86_VLICENSE)
 # define PRODUCT_SHORT_NAME PRODUCT_VLICENSE_NAME
 #elif defined(VMX86_DDK)
