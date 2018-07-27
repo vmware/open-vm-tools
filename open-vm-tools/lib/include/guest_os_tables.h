@@ -270,6 +270,7 @@ extern "C" {
    GOSL(STR_OS_WIN_31,                       GUEST_OS_WIN31,                  "winPre2k.iso")         \
    GOSL(STR_OS_WIN_95,                       GUEST_OS_WIN95,                  "winPre2k.iso")         \
    GOSL(STR_OS_WIN_98,                       GUEST_OS_WIN98,                  "winPre2k.iso")         \
+   GOSL(STR_OS_WIN_2019SRV_X64,              GUEST_OS_WIN_2019SRV_64,         "windows.iso")          \
    GOSL(STR_OS_WIN_SEVEN,                    GUEST_OS_WINSEVEN,               "windows.iso")          \
    GOSL(STR_OS_WIN_SEVEN_X64,                GUEST_OS_WINSEVEN_64,            "windows.iso")          \
    GOSL("windows7Server64Guest",             GUEST_OS_WIN2008R2_64,           "windows.iso")          \
@@ -280,7 +281,6 @@ extern "C" {
    GOSL(STR_OS_WIN_TEN,                      GUEST_OS_WINTEN,                 "windows.iso")          \
    GOSL(STR_OS_WIN_TEN_X64,                  GUEST_OS_WINTEN_64,              "windows.iso")          \
    GOSL(STR_OS_WIN_2016SRV_X64,              GUEST_OS_WIN_2016SRV_64,         "windows.iso")          \
-   GOSL(STR_OS_WIN_2019SRV_X64,              GUEST_OS_WIN_2019SRV_64,         "windows.iso")          \
    GOSL(STR_OS_HYPER_V,                      GUEST_OS_HYPER_V,                NULL)                   \
    GOSL("winLonghorn64Guest",                GUEST_OS_LONGHORN_64,            "windows.iso")          \
    GOSL("winLonghornGuest",                  GUEST_OS_LONGHORN,               "windows.iso")          \
