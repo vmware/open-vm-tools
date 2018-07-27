@@ -45,7 +45,7 @@
 #endif
 #endif
 #if defined __ANDROID__
-#include <syscall-android.h>
+#include <bits/glibc-syscalls.h>
 #endif
 
 #include "vmware.h"

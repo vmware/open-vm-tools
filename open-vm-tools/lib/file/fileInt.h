@@ -46,7 +46,8 @@
  * So they make sense only for Linux build. If you need them on other OSes,
  * think once more.
  */
-
+#define HFSPLUS_SUPER_MAGIC   0x482B
+#if !defined(__ANDROID__)
 #define ADFS_SUPER_MAGIC      0xadf5
 #define AFFS_SUPER_MAGIC      0xADFF
 #define EXT_SUPER_MAGIC       0x137D
@@ -54,7 +55,6 @@
 #define EXT2_SUPER_MAGIC      0xEF53
 #define EXT3_SUPER_MAGIC      0xEF53
 #define EXT4_SUPER_MAGIC      0xEF53
-#define HFSPLUS_SUPER_MAGIC   0x482B
 #define NFS_SUPER_MAGIC       0x6969
 #define SMB_SUPER_MAGIC       0x517B
 #define ISOFS_SUPER_MAGIC     0x9660
@@ -63,6 +63,7 @@
 #define OPENPROM_SUPER_MAGIC  0x9fa1
 #define USBDEVICE_SUPER_MAGIC 0x9fa2
 #define AUTOFS_SUPER_MAGIC    0x0187
+#endif
 
 #if !defined(MSDOS_SUPER_MAGIC)
 #define MSDOS_SUPER_MAGIC     0x4D44
