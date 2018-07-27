@@ -116,7 +116,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 #define ALLWINEIGHT           ALLWINEIGHTSERVER, ALLWINEIGHTCLIENT
 
-#define ALLWINTENSERVER64     BS(WINTENSERVER_64)
+#define ALLWINTENSERVER64     BS(WIN_2016SRV_64), BS(WIN_2019SRV_64)
 #define ALLWINTENSERVER       ALLWINTENSERVER64
 
 #define ALLWINTENCLIENT32     BS(WINTEN)
@@ -498,7 +498,11 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 /* Windows Server 2016 */
 
-#define STR_OS_WIN_TENSERVER_X64 "windows9srv-64"
+#define STR_OS_WIN_2016SRV_X64 "windows9srv-64"
+
+/* Windows Server 2019 */
+
+#define STR_OS_WIN_2019SRV_X64 "windows2019srv-64"
 
 /* THIS SPACE FOR RENT (Windows 10 official server variant names) */
 

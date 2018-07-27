@@ -53,7 +53,8 @@ extern "C" {
    GOT(GUEST_OS_WINEIGHTSERVER_64) /* Windows 8 Server X64 */              \
    GOT(GUEST_OS_WINTEN)            /* Windows 10 */                        \
    GOT(GUEST_OS_WINTEN_64)         /* Windows 10 x64 */                    \
-   GOT(GUEST_OS_WINTENSERVER_64)   /* Windows 10 Server X64 */             \
+   GOT(GUEST_OS_WIN_2016SRV_64)    /* Windows Server 2016 X64 */           \
+   GOT(GUEST_OS_WIN_2019SRV_64)    /* Windows Server 2019 X64 */           \
    GOT(GUEST_OS_HYPER_V)           /* Microsoft Hyper-V */                 \
    GOT(GUEST_OS_OS2)                                                       \
    GOT(GUEST_OS_ECOMSTATION)       /* OS/2 variant; 1.x */                 \
@@ -108,7 +109,7 @@ extern "C" {
    GOT(GUEST_OS_VMKERNEL)          /* ESX 4.x */                           \
    GOT(GUEST_OS_VMKERNEL5)         /* ESX 5.x */                           \
    GOT(GUEST_OS_VMKERNEL6)         /* ESX 6 */                             \
-   GOT(GUEST_OS_VMKERNEL65)        /* ESX 6.5 and later */                 \
+   GOT(GUEST_OS_VMKERNEL65)        /* ESX 6.5 */                           \
    GOT(GUEST_OS_VMKERNEL7)         /* ESX 7 and later */                   \
    GOT(GUEST_OS_PHOTON_64)         /* VMware Photon IA 64-bit */           \
    GOT(GUEST_OS_ORACLE)                                                    \
@@ -278,7 +279,8 @@ extern "C" {
    GOSL(STR_OS_WIN_EIGHTSERVER_X64,          GUEST_OS_WINEIGHTSERVER_64,      "windows.iso")          \
    GOSL(STR_OS_WIN_TEN,                      GUEST_OS_WINTEN,                 "windows.iso")          \
    GOSL(STR_OS_WIN_TEN_X64,                  GUEST_OS_WINTEN_64,              "windows.iso")          \
-   GOSL(STR_OS_WIN_TENSERVER_X64,            GUEST_OS_WINTENSERVER_64,        "windows.iso")          \
+   GOSL(STR_OS_WIN_2016SRV_X64,              GUEST_OS_WIN_2016SRV_64,         "windows.iso")          \
+   GOSL(STR_OS_WIN_2019SRV_X64,              GUEST_OS_WIN_2019SRV_64,         "windows.iso")          \
    GOSL(STR_OS_HYPER_V,                      GUEST_OS_HYPER_V,                NULL)                   \
    GOSL("winLonghorn64Guest",                GUEST_OS_LONGHORN_64,            "windows.iso")          \
    GOSL("winLonghornGuest",                  GUEST_OS_LONGHORN,               "windows.iso")          \
