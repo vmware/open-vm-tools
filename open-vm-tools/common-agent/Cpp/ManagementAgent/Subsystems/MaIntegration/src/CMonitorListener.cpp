@@ -1,5 +1,5 @@
 /*
- *   Copyright (C) 2010-2017 VMware, Inc.  All rights reserved. -- VMware Confidential
+ *   Copyright (C) 2010-2018 VMware, Inc.  All rights reserved. -- VMware Confidential
  */
 
 #include "stdafx.h"
