@@ -471,16 +471,18 @@ FLAG(   6,  0, EAX,  9,  1, HWP_ACTIVITY_WINDOW,               NO,   0, FALSE) \
 FLAG(   6,  0, EAX, 10,  1, HWP_ENERGY_PERFORMANCE_PREFERENCE, NO,   0, FALSE) \
 FLAG(   6,  0, EAX, 11,  1, HWP_PACKAGE_LEVEL_REQUEST,         NO,   0, FALSE) \
 FLAG(   6,  0, EAX, 13,  1, HDC,                               NO,   0, FALSE) \
+FLAG(   6,  0, EAX, 19,  1, HW_FEEDBACK,                       NO,   0, FALSE) \
 FIELD(  6,  0, EBX,  0,  4, NUM_INTR_THRESHOLDS,               NO,   0, FALSE) \
 FLAG(   6,  0, ECX,  0,  1, HW_COORD_FEEDBACK,                 NO,   0, FALSE) \
 FLAG(   6,  0, ECX,  1,  1, ACNT2,                             ANY, 13, FALSE) \
-FLAG(   6,  0, ECX,  3,  1, ENERGY_PERF_BIAS,                  NO,   0, FALSE)
+FLAG(   6,  0, ECX,  3,  1, ENERGY_PERF_BIAS,                  NO,   0, FALSE) \
+FLAG(   6,  0, EDX,  0,  1, PERF_CAP_REPORTING,                NO,   0, FALSE) \
+FLAG(   6,  0, EDX,  1,  1, ENERGY_CAP_REPORTING,              NO,   0, FALSE) \
+FIELD(  6,  0, EDX,  8,  4, HW_FEEDBACK_SIZE,                  NO,   0, FALSE) \
+FIELD(  6,  0, EDX, 16, 16, HW_FEEDBACK_INDEX,                 NO,   0, FALSE)
 
 #define CPUID_7_EDX_28 \
 FLAG(   7,  0, EDX, 28,  1, LEVEL7EDX_RSVD1,                    NO,  0, FALSE)
-
-#define CPUID_7_EDX_31 \
-FLAG(   7,  0, EDX, 31,  1, LEVEL7EDX_RSVD2,                    NO,  0, FALSE)
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,             MON SUPP, HWV, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_7                                               \
@@ -520,6 +522,7 @@ FLAG(   7,  0, ECX,  1,  1, AVX512VBMI,                        YES, 17, TRUE)  \
 FLAG(   7,  0, ECX,  2,  1, UMIP,                              NO,   0, FALSE) \
 FLAG(   7,  0, ECX,  3,  1, PKU,                               YES, 13, TRUE)  \
 FLAG(   7,  0, ECX,  4,  1, OSPKE,                             ANY, 13, TRUE)  \
+FLAG(   7,  0, ECX,  5,  1, WAITPKG,                           NO,   0, TRUE)  \
 FLAG(   7,  0, ECX,  6,  1, AVX512VBMI2,                       NO,   0, TRUE)  \
 FLAG(   7,  0, ECX,  8,  1, GFNI,                              NO,   0, TRUE)  \
 FLAG(   7,  0, ECX,  9,  1, VAES,                              NO,   0, TRUE)  \
@@ -530,14 +533,19 @@ FLAG(   7,  0, ECX, 14,  1, AVX512VPOPCNTDQ,                   YES, 16, TRUE)  \
 FLAG(   7,  0, ECX, 16,  1, VA57,                              NO,   0, TRUE)  \
 FIELD(  7,  0, ECX, 17,  5, MAWA,                              NO,   0, TRUE)  \
 FLAG(   7,  0, ECX, 22,  1, RDPID,                             NO,   0, TRUE)  \
+FLAG(   7,  0, ECX, 25,  1, CLDEMOTE,                          NO,   0, TRUE)  \
+FLAG(   7,  0, ECX, 27,  1, MOVDIRI,                           NO,   0, TRUE)  \
+FLAG(   7,  0, ECX, 28,  1, MOVDIR64B,                         NO,   0, TRUE)  \
 FLAG(   7,  0, ECX, 30,  1, SGX_LC,                            YES, 17, FALSE) \
 FLAG(   7,  0, EDX,  2,  1, AVX512QVNNIW,                      YES, 16, TRUE)  \
 FLAG(   7,  0, EDX,  3,  1, AVX512QFMAPS,                      YES, 16, TRUE)  \
+FLAG(   7,  0, EDX,  4,  1, FAST_SHORT_REPMOV,                 NO ,  0, TRUE)  \
+FLAG(   7,  0, EDX, 18,  1, PCONFIG,                           NO ,  0, FALSE) \
 FLAG(   7,  0, EDX, 26,  1, IBRSIBPB,                          ANY,  9, FALSE) \
 FLAG(   7,  0, EDX, 27,  1, STIBP,                             YES,  9, FALSE) \
 CPUID_7_EDX_28                                                                 \
 FLAG(   7,  0, EDX, 29,  1, ARCH_CAPABILITIES,                 ANY,  9, FALSE) \
-CPUID_7_EDX_31
+FLAG(   7,  0, EDX, 31,  1, SSBD,                              YES,  9, FALSE)
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,             MON SUPP, HWV, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_A                                               \
@@ -1003,6 +1011,7 @@ FIELD( 88,  0, EAX, 16,  8, GUEST_PHYS_ADDR_SZ,                YES,  8, FALSE) \
 FLAG(  88,  0, EBX,  0,  1, CLZERO,                            YES, 14, TRUE)  \
 FLAG(  88,  0, EBX,  1,  1, IRPERF,                            NO,   0, FALSE) \
 FLAG(  88,  0, EBX,  2,  1, XSAVE_ERR_PTR,                     NO,   0, FALSE) \
+FLAG(  88,  0, EBX,  9,  1, WBNOINVD,                          NO,   0, FALSE) \
 FLAG(  88,  0, EBX, 12,  1, LEAF88_IBPB,                       ANY,  9, FALSE) \
 CPUID_88_EBX_14 \
 CPUID_88_EBX_15 \
