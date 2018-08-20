@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -64,6 +64,7 @@
 #define TOOLSOPTION_MAP_ROOT_HGFS_SHARE           "mapRootHgfsShare"
 #define TOOLSOPTION_LINK_ROOT_HGFS_SHARE          "linkRootHgfsShare"
 #define TOOLSOPTION_ENABLE_MESSAGE_BUS_TUNNEL     "enableMessageBusTunnel"
+#define TOOLSOPTION_GUEST_LOG_LEVEL               "guestLogLevel"
 
 /*
  * Auto-upgrade commands.
