@@ -1151,21 +1151,17 @@ FileLock_Lock(const char *filePath,          // IN:
       Posix_Free(normalizedPath);
    }
 
-   if (err != NULL) {
-      *err = res;
-   }
-
    if (tokenPtr == NULL) {
-      int errnoValue;
-
       if (res == 0) {
-         errnoValue = EAGAIN;  // Thank you for playing; try again
+         res = EAGAIN;  // Thank you for playing; try again
          /* Failed to acquire the lock; another has possession of it */
-      } else {
-         errnoValue = res;
       }
 
-      FileLockAppendMessage(msgs, errnoValue);
+      FileLockAppendMessage(msgs, res);
+   }
+
+   if (err != NULL) {
+      *err = res;
    }
 
    return tokenPtr;
