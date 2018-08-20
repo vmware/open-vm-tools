@@ -52,12 +52,12 @@ extern "C" {
 
 /*
  * If you want to add a new low-level backdoor call for a guest userland
- * application, please consider using the GuestRpc mechanism instead. --hpreg
+ * application, please consider using the GuestRpc mechanism instead.
  */
 
 #define BDOOR_MAGIC 0x564D5868
 
-/* Low-bandwidth backdoor port. --hpreg */
+/* Low-bandwidth backdoor port. */
 
 #define BDOOR_PORT 0x5658
 
@@ -66,13 +66,12 @@ extern "C" {
  * BDOOR_CMD_APMFUNCTION is used by:
  *
  * o The FrobOS code, which instead should either program the virtual chipset
- *   (like the new BIOS code does, matthias offered to implement that), or not
- *   use any VM-specific code (which requires that we correctly implement
- *   "power off on CLI HLT" for SMP VMs, boris offered to implement that)
+ *   (like the new BIOS code does, Matthias Hausner offered to implement that),
+ *   or not use any VM-specific code (which requires that we correctly
+ *   implement "power off on CLI HLT" for SMP VMs, Boris Weissman offered to
+ *   implement that)
  *
  * o The old BIOS code, which will soon be jettisoned
- *
- *  --hpreg
  */
 #define   BDOOR_CMD_APMFUNCTION               2 /* CPL0 only. */
 #define   BDOOR_CMD_GETDISKGEO                3
@@ -267,9 +266,10 @@ extern "C" {
 #define BDOOR_SECUREBOOT_STATUS_APPROVED  1
 #define BDOOR_SECUREBOOT_STATUS_DENIED    2
 
-/* High-bandwidth backdoor port. --hpreg */
+/* High-bandwidth backdoor port. */
 
 #define BDOORHB_PORT 0x5659
+
 #define BDOORHB_CMD_MESSAGE 0
 #define BDOORHB_CMD_VASSERT 1
 #define BDOORHB_CMD_MAX 2
@@ -344,9 +344,120 @@ Backdoor_CmdRequiresFullyValidVCPU(unsigned cmd)
 
 #ifdef VM_ARM_64
 
+/*
+ * VMware x86 I/O space virtualization on arm.
+ *
+ * Implementation goal
+ * ---
+ * The goal of this implementation is to precisely mimic the semantics of the
+ * "VMware x86 I/O space virtualization on x86", in particular:
+ *
+ * o A vCPU can perform an N-byte access to an I/O port address that is not
+ *   N-byte aligned.
+ *
+ * o A vCPU can perform an N-byte access to I/O port address A without
+ *   impacting I/O port addresses [ A + 1; A + N ).
+ *
+ * o A vCPU can access the I/O space when running 32-bit or 64-bit code.
+ *
+ * o A vCPU running in unprivileged mode can use the backdoor.
+ *
+ * As a result, VMware virtual device drivers that were initially developed for
+ * x86 can trivially be ported to arm.
+ *
+ * Mechanism
+ * ---
+ * In this section, we call W<n> the 32-bit register which aliases the low 32
+ * bits of the 64-bit register X<n>.
+ *
+ * A vCPU which wishes to use the "VMware x86 I/O space virtualization on arm"
+ * must follow these 4 steps:
+ *
+ * 1) Write to general-purpose registers specific to the x86 I/O space
+ *    instruction.
+ *
+ * The vCPU writes to the arm equivalent of general-purpose x86 registers (see
+ * the BDOOR_ARG* mapping below) that are used by the x86 I/O space instruction
+ * it is about to perform.
+ *
+ * Examples:
+ * o For an IN instruction without DX register, there is nothing to do.
+ * o For an OUT instruction with DX register, the vCPU places the I/O port
+ *   address in bits W3<15:0> and the value to write in W0<7:0> (1 byte access)
+ *   or W0<15:0> (2 bytes access) or W0 (4 bytes access).
+ * o For an REP OUTS instruction, the vCPU places the I/O port address in bits
+ *   W3<15:0>, the source virtual address in W4 (32-bit code) or X4 (64-bit
+ *   code) and the number of repetitions in W2 (32-bit code) or X2 (64-bit
+ *   code).
+ *
+ * 2) Write the x86 I/O space instruction to perform.
+ *
+ * The vCPU sets a value in W7, as described below:
+ *
+ * Transfer size, bits [1:0]
+ *    00: 1 byte
+ *    01: 2 bytes
+ *    10: 4 bytes
+ *    11: Invalid value
+ *
+ * Transfer direction, bit [2]
+ *    0: Write (OUT/OUTS/REP OUTS instructions)
+ *    1: Read (IN/INS/REP INS instructions)
+ *
+ * Instruction type, bits [4:3]
+ *    00: Non-string instruction (IN/OUT) without DX register
+ *        The port address (8-bit immediate) is set in W7<12:5>.
+ *
+ *    01: Non-string instruction (IN/OUT) with DX register
+ *
+ *    10: String instruction without REP prefix (INS/OUTS)
+ *        The direction flag (EFLAGS.DF) is set in W7<5>.
+ *
+ *    11: String instruction with REP prefix (REP INS/REP OUTS)
+ *        The direction flag (EFLAGS.DF) is set in W7<5>.
+ *
+ * All other bits not described above are reserved for future use and must be
+ * set to 0.
+ *
+ * 3) Perform the x86 I/O space instruction.
+ *
+ * The vCPU executes the BKPT (32-bit code) or BRK (64-bit code) instruction
+ * with the immediate X86_IO_BRK_IMM. Note that T32 code requires an 8-bit
+ * immediate.
+ *
+ * 4) Read from general-purpose registers specific to the x86 I/O space
+ *    instruction.
+ *
+ * The vCPU reads from the arm equivalent of general-purpose x86 registers (see
+ * the BDOOR_ARG* mapping below) that are used by the x86 I/O space instruction
+ * it has just performed.
+ *
+ * Examples:
+ * o For an OUT instruction, there is nothing to do.
+ * o For an IN instruction, retrieve the value that was read from W0<7:0> (1
+ *   byte access) or W0<15:0> (2 bytes access) or W0 (4 bytes access).
+ */
+
+#define X86_IO_BRK_IMM        0x86
+
+#define X86_IO_W7_SIZE_SHIFT  0
+#define X86_IO_W7_SIZE_MASK   (0x3 << X86_IO_W7_SIZE_SHIFT)
+#define X86_IO_W7_DIR         (1 << 2)
+#define X86_IO_W7_WITH        (1 << 3)
+#define X86_IO_W7_STR         (1 << 4)
+#define X86_IO_W7_DF          (1 << 5)
+#define X86_IO_W7_IMM_SHIFT   5
+#define X86_IO_W7_IMM_MASK    (0xff << X86_IO_W7_IMM_SHIFT)
+
+/*
+ * These 3 defines provide support for the guest to access the backdoor from
+ * EL1 only using the HVC instruction. This legacy mechanism will be deprecated
+ * soon.
+ */
+
 #define BDOOR_ARM64_LB_PORT      (BDOOR_PORT)
 #define BDOOR_ARM64_HB_PORT_IN   (BDOORHB_PORT)
-#define BDOOR_ARM64_HB_PORT_OUT  (BDOORHB_PORT +1)
+#define BDOOR_ARM64_HB_PORT_OUT  (BDOORHB_PORT + 1)
 
 #define BDOOR_ARG0 REG_X0
 #define BDOOR_ARG1 REG_X1
