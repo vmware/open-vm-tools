@@ -63,6 +63,9 @@ typedef uint32 GHIRequestResult;
  */
 #define GHI_DND_DND_HOST_GUEST_CMD              "ghi.dnd.dnd.hostguest"
 #define GHI_DND_COPYPASTE_HOST_GUEST_CMD        "ghi.dnd.copypaste.hostguest"
+#define GHI_DND_HOST_GET_FILES_CMD              "ghi.dnd.host.getfiles"
+#define GHI_DND_HOST_GET_FILES_CANCEL_CMD       "ghi.dnd.host.getfiles.cancel"
+#define GHI_DND_HOST_GET_FILES_ANSWER_OVERWRITE "ghi.dnd.host.getfiles.answer.overwrite"
 
 #define GHI_DND_GUEST_RET_MAX_LEN               64
 #define GHI_DND_GUEST_RET_ERROR                 "error"
