@@ -79,7 +79,7 @@ InfoSendNetworkXdr(GuestNicProto *message,
          g_warning("%s: update failed: request \"%s\", reply \"%s\".\n",
                     __FUNCTION__, request, reply);
       }
-      vm_free(reply);
+      ToolsCmd_FreeRPC(reply);
    }
    DynXdr_Destroy(&xdrs, TRUE);
 
