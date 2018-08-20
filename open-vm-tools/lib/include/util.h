@@ -67,8 +67,12 @@ int Util_HasAdminPriv(void);
 #if defined _WIN32 && defined USERLEVEL
 int Util_TokenHasAdminPriv(HANDLE token);
 #endif
+
 Bool Util_Data2Buffer(char *buf, size_t bufSize, const void *data0,
                       size_t dataSize);
+Bool Util_Data2BufferEx(char *buf, size_t bufSize, const void *data0,
+                        size_t dataSize, char sep);
+
 char *Util_GetCanonicalPath(const char *path);
 #ifdef _WIN32
 char *Util_CompatGetCanonicalPath(const char *path);
