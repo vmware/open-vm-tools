@@ -1,6 +1,6 @@
 
 /*********************************************************
- * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -244,6 +244,30 @@ ToolsCmd_SendRPC(const char *rpc,      // IN
 exit:
    RpcChannel_Destroy(chan);
    return ret;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * ToolsCmd_FreeRPC --
+ *
+ *    Free the memory allocated for the results from
+ *    ToolsCmd_SendRPC calls.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+ToolsCmd_FreeRPC(void *ptr)      // IN
+{
+   RpcChannel_Free(ptr);
 }
 
 

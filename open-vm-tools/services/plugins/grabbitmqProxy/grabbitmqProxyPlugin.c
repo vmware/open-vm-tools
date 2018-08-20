@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2012-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2012-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1590,7 +1590,7 @@ static char *
 GetVmVcUuidFromVmx(void)
 {
    char *vcUuid;
-   char *reply;
+   char *reply = NULL;
    size_t replyLen;
    gboolean ok;
    gchar *msg = "xrabbitmqProxy.getVmVcUuid";
@@ -1601,12 +1601,14 @@ GetVmVcUuidFromVmx(void)
    if (!ok) {
       g_warning("Guest rpc call to VMX failed, "
                 "cannot retrieve vc uuid from vmx.\n");
+      RpcChannel_Free(reply);
       return NULL;
    }
 
    if (replyLen > VC_UUID_SIZE) {
       g_warning("Guest rpc call to VMX failed, "
                 "the returned vc uuid too large.\n");
+      RpcChannel_Free(reply);
       return NULL;
    }
 
@@ -1616,6 +1618,7 @@ GetVmVcUuidFromVmx(void)
    g_info("Guest rpc call to VMX, retrieved vc uuid %s\n",
           vcUuid);
 
+   RpcChannel_Free(reply);
    return vcUuid;
 }
 
