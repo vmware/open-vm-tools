@@ -159,7 +159,7 @@ struct HgfsTransportSessionInfo {
    HgfsServerChannelData channelCapabilities;
 };
 
-/* The input request paramaters object. */
+/* The input request parameters object. */
 typedef struct HgfsInputParam {
    const void *request;          /* Hgfs header followed by operation request */
    size_t requestSize;           /* Size of Hgfs header and operation request */
@@ -2682,8 +2682,8 @@ HgfsSearchHandle2Search(HgfsHandle handle,         // IN: handle
  *    None
  *
  * Side effects:
- *    If there isnt enough memory to accomodate the new names, those file nodes
- *    that couldnt be updated are deleted.
+ *    If there isn't enough memory to accommodate the new names, those file nodes
+ *    that couldn't be updated are deleted.
  *
  *-----------------------------------------------------------------------------
  */
@@ -3399,7 +3399,7 @@ HgfsServerSessionReceive(HgfsPacket *packet,      // IN: Hgfs Packet
 
    /* Send error if we fail to process the op. */
    if (HGFS_ERROR_SUCCESS != status) {
-      LOG(4, ("Error %d occured parsing the packet\n", (uint32)status));
+      LOG(4, ("Error %d occurred parsing the packet\n", (uint32)status));
       HgfsServerCompleteRequest(status, 0, input);
    }
 }
@@ -4131,7 +4131,7 @@ HgfsServerSetSessionCapability(HgfsOp op,                  // IN: operation code
          result = TRUE;
       }
    }
-   LOG(4, ("%s: Setting capabilitiy flags %x for op code %d %s\n",
+   LOG(4, ("%s: Setting capability flags %x for op code %d %s\n",
            __FUNCTION__, flags, op, result ? "succeeded" : "failed"));
 
    return result;
@@ -4143,7 +4143,7 @@ HgfsServerSetSessionCapability(HgfsOp op,                  // IN: operation code
  *
  * HgfsServerResEnumInit --
  *
- *    Initialize an enumeration of all exisitng resources.
+ *    Initialize an enumeration of all existing resources.
  *
  * Results:
  *    The enumeration state object.
@@ -4239,7 +4239,7 @@ HgfsServerResEnumExit(void *enumState)           // IN/OUT: enumeration state
  *
  * HgfsServerEnumerateSharedFolders --
  *
- *    Enumerates all exisitng shared folders and registers shared folders with
+ *    Enumerates all existing shared folders and registers shared folders with
  *    directory notification package.
  *
  * Results:
