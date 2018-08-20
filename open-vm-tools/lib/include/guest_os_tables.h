@@ -101,6 +101,7 @@ extern "C" {
    GOT(GUEST_OS_DARWIN16_64)       /* Mac OS 10.12 */                      \
    GOT(GUEST_OS_DARWIN17_64)       /* Mac OS 10.13 */                      \
    GOT(GUEST_OS_DARWIN18_64)       /* Mac OS 10.14 */                      \
+   GOT(GUEST_OS_DARWIN19_64)       /* Mac OS 10.15 */                      \
    GOT(GUEST_OS_OPENSERVER_5_AND_6)                                        \
    GOT(GUEST_OS_UNIXWARE7)                                                 \
    GOT(GUEST_OS_NETWARE4)                                                  \
@@ -161,6 +162,7 @@ extern "C" {
    GOSL(STR_OS_MACOS "16-64",                GUEST_OS_DARWIN16_64,            "darwin.iso")           \
    GOSL(STR_OS_MACOS "17-64",                GUEST_OS_DARWIN17_64,            "darwin.iso")           \
    GOSL(STR_OS_MACOS "18-64",                GUEST_OS_DARWIN18_64,            "darwin.iso")           \
+   GOSL(STR_OS_MACOS "19-64",                GUEST_OS_DARWIN19_64,            "darwin.iso")           \
    GOSL(STR_OS_DEBIAN_10,                    GUEST_OS_DEBIAN,                 "linux.iso")            \
    GOSL(STR_OS_DEBIAN_10 "-64",              GUEST_OS_DEBIAN_64,              "linux.iso")            \
    GOSL(STR_OS_DEBIAN_4,                     GUEST_OS_DEBIAN,                 "linuxPreGlibc25.iso")  \
