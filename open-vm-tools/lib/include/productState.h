@@ -38,8 +38,7 @@ typedef uint64 ProductMask;
                             PRODUCT_PLAYER      |\
                             PRODUCT_CVP         |\
                             PRODUCT_FUSION      |\
-                            PRODUCT_VMRC        |\
-                            PRODUCT_GANTRY)
+                            PRODUCT_VMRC)
 
 typedef uint64 ProductCaps;
 /*

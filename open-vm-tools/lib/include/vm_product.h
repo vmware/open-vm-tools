@@ -66,7 +66,6 @@
 #define PRODUCT_PLAYER_BRIEF_NAME "Player"
 #define PRODUCT_MAC_DESKTOP_BRIEF_NAME "Fusion"
 #define PRODUCT_VMRC_BRIEF_NAME "Remote Console"
-#define PRODUCT_GANTRY_BRIEF_NAME "AppCatalyst"
 
 
 /*
@@ -90,8 +89,6 @@
 #define PRODUCT_MAC_DESKTOP_NAME_FOR_LICENSE "VMware Fusion for Mac OS"
 #define PRODUCT_VMRC_NAME MAKE_NAME(PRODUCT_VMRC_BRIEF_NAME)
 #define PRODUCT_VMRC_NAME_FOR_LICENSE PRODUCT_VMRC_NAME
-#define PRODUCT_GANTRY_NAME MAKE_NAME(PRODUCT_GANTRY_BRIEF_NAME)
-#define PRODUCT_GANTRY_NAME_FOR_LICENSE PRODUCT_GANTRY_NAME
 
 #define PRODUCT_VLICENSE_SHORT_NAME "VLICENSE"
 #define PRODUCT_VLICENSE_NAME MAKE_NAME("License Infrastructure")
@@ -199,7 +196,6 @@
       || defined(VMX86_NETDUMP) \
       || defined(VMX86_HBR_SERVER) \
       || defined(VMX86_VMCF) \
-      || defined(VMX86_GANTRY) \
       || defined(VMX86_VMRC))
 #   if defined(_WIN32) || defined(__APPLE__) || defined(__linux__)
       /*
@@ -217,8 +213,6 @@
 # define PRODUCT_SHORT_NAME PRODUCT_ESXI_NAME
 #elif defined(VMX86_VMRC) /* check VMX86_VMRC before VMX86_DESKTOP */
 # define PRODUCT_SHORT_NAME PRODUCT_VMRC_NAME
-#elif defined(VMX86_GANTRY)
-# define PRODUCT_SHORT_NAME PRODUCT_GANTRY_NAME
 #elif defined(VMX86_TOOLS)
 # define PRODUCT_SHORT_NAME VMWARE_TOOLS_SHORT_NAME
 #elif defined(VMX86_VPX)
@@ -323,8 +317,6 @@
 #      define PRODUCT_NAME_FOR_LICENSE "VMware ESX Server"
 #   elif defined(VMX86_VMRC) /* check VMX86_VMRC before VMX86_DESKTOP */
 #      define PRODUCT_NAME_FOR_LICENSE PRODUCT_VMRC_NAME_FOR_LICENSE
-#   elif defined(VMX86_GANTRY)
-#      define PRODUCT_NAME_FOR_LICENSE PRODUCT_GANTRY_NAME_FOR_LICENSE
 #   elif defined(VMX86_VPX)
 #      define PRODUCT_NAME_FOR_LICENSE PRODUCT_NAME " Server"
 #   elif defined(VMX86_SYSIMAGE)
@@ -347,10 +339,7 @@
  * DEFAULT_LIBDIRECTORY is the default for the 'libdir' config variable.
  */
 #   if defined(__APPLE__)
-#      if defined VMX86_GANTRY
-#         define VMWARE_HOST_DIRECTORY_PREFIX \
-             "/Library/Preferences/" PRODUCT_SHORT_NAME
-#      elif defined VMX86_DESKTOP
+#      if defined VMX86_DESKTOP
 #         define VMWARE_HOST_DIRECTORY_PREFIX \
              "/Library/Preferences/" PRODUCT_SHORT_NAME
 #      else
