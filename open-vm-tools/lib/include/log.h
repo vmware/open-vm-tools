@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -180,6 +180,16 @@ Log_Trivia(const char *fmt,
 struct Dictionary;
 struct CfgInterface;
 
+/*
+ * Structure contains all the pointers to where value can be updated
+ * Making VmxStats as a struct has its own advantage, such as updating
+ * 'droppedChars' from the struct instead within LogFile.
+ */
+typedef struct {
+   uint64*     droppedChars;
+} VmxStatsInfo;
+
+
 typedef struct LogOutput LogOutput;
 
 struct CfgInterface *Log_CfgInterface(void);
@@ -219,6 +229,9 @@ Bool Log_ReplaceOutput(LogOutput *fromOutput,
 
 int32 Log_SetOutputLevel(LogOutput *output,
                          int32 level);
+
+Bool Log_SetVmxStatsData(LogOutput *output,
+                         VmxStatsInfo *vmxStats);
 
 /*
  * The most common Log Facility client usage is via the "InitWith" functions.
@@ -350,6 +363,8 @@ const char *Log_GetOutputFileName(LogOutput *output);
 void Log_SkipLocking(Bool skipLocking);
 
 void Log_DisableThrottling(void);
+
+void Log_DisableVmxStats(void);
 
 uint32 Log_MaxLineLength(void);
 
