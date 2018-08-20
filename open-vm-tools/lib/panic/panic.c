@@ -602,7 +602,7 @@ Panic_Panic(const char *format,
 
    Panic_DumpGuiResources();
 
-#if (defined(_WIN32) || !defined(VMX86_TOOLS)) && !defined(__ANDROID__)
+#if (defined(_WIN32) || !defined(VMX86_TOOLS)) && !defined(__ANDROID__) && !(TARGET_OS_IPHONE)
    if (Panic_GetCoreDumpOnPanic()) {
       CoreDump_CoreDump();
    }
@@ -621,8 +621,11 @@ Panic_Panic(const char *format,
     * Bye
     */
    Log("Exiting\n");
-
+#if TARGET_OS_IPHONE
+    __builtin_trap();
+#else
    Util_ExitProcessAbruptly(-1);
+#endif
    NOT_REACHED();
 }
 
