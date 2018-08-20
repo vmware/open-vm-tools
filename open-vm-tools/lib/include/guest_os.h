@@ -187,7 +187,6 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 #define ALL4XLINUX64          BS(OTHER4XLINUX_64), BS(PHOTON_64), \
                               BS(CENTOS8_64), BS(ORACLE8_64), \
-                              BS(CRXSYS1_64), BS(CRXPOD1_64), \
                               BS(AMAZONLINUX2_64)
 
 #define ALLVMKERNEL           BS(VMKERNEL), BS(VMKERNEL5), BS(VMKERNEL6), \
@@ -239,8 +238,6 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_CENTOS6             "centos6"
 #define STR_OS_CENTOS7             "centos7"
 #define STR_OS_CENTOS8             "centos8"
-#define STR_OS_CRXPOD              "CRXPod"
-#define STR_OS_CRXSYS              "CRXSys"
 #define STR_OS_COBALT              "Cobalt"
 #define STR_OS_CONECTIVA           "Conectiva"
 #define STR_OS_DEBIAN              "Debian"

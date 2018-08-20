@@ -124,9 +124,7 @@ extern "C" {
    GOT(GUEST_OS_CENTOS6_64)                                                \
    GOT(GUEST_OS_CENTOS7_64)                                                \
    GOT(GUEST_OS_CENTOS8_64)                                                \
-   GOT(GUEST_OS_AMAZONLINUX2_64)                                           \
-   GOT(GUEST_OS_CRXSYS1_64)        /* VMware CRX system VM 1.0 64-bit */   \
-   GOT(GUEST_OS_CRXPOD1_64)        /* VMware CRX pod VM 1.0 64-bit */
+   GOT(GUEST_OS_AMAZONLINUX2_64)
 
 
 /* This list must be sorted alphabetically (non-case-sensitive) by gos name. */
@@ -146,8 +144,6 @@ extern "C" {
    GOSL(STR_OS_CENTOS "7-64",                GUEST_OS_CENTOS7_64,             "linux.iso")            \
    GOSL(STR_OS_CENTOS "8-64",                GUEST_OS_CENTOS8_64,             "linux.iso")            \
    GOSL("coreos-64",                         GUEST_OS_OTHER3XLINUX_64,        NULL)                   \
-   GOSL(STR_OS_CRXPOD "1-64",                GUEST_OS_CRXPOD1_64,             NULL)                   \
-   GOSL(STR_OS_CRXSYS "1-64",                GUEST_OS_CRXSYS1_64,             NULL)                   \
    GOSL(STR_OS_MACOS,                        GUEST_OS_DARWIN9,                "darwinPre15.iso")      \
    GOSL(STR_OS_MACOS "-64",                  GUEST_OS_DARWIN9_64,             "darwinPre15.iso")      \
    GOSL(STR_OS_MACOS "10",                   GUEST_OS_DARWIN10,               "darwinPre15.iso")      \
