@@ -258,9 +258,9 @@ GetCallerEFlags(void)
 
 /* Sequence recommended by Intel for the Pentium 4. */
 #define INTEL_MICROCODE_VERSION() (             \
-   __SET_MSR(MSR_BIOS_SIGN_ID, 0),              \
+   X86MSR_SetMSR(MSR_BIOS_SIGN_ID, 0),          \
    __GET_EAX_FROM_CPUID(1),                     \
-   __GET_MSR(MSR_BIOS_SIGN_ID))
+   X86MSR_GetMSR(MSR_BIOS_SIGN_ID))
 
 /*
  *-----------------------------------------------------------------------------
