@@ -1018,6 +1018,9 @@ CPUID_88_EBX_15 \
 CPUID_88_EBX_16 \
 CPUID_88_EBX_17 \
 CPUID_88_EBX_18 \
+FLAG(  88,  0, EBX, 24,  1, LEAF88_SSBD_SPEC_CTRL,             ANY,  9, FALSE) \
+FLAG(  88,  0, EBX, 25,  1, LEAF88_SSBD_VIRT_SPEC_CTRL,        ANY,  9, FALSE) \
+FLAG(  88,  0, EBX, 26,  1, LEAF88_SSBD_NOT_NEEDED,            NO,   0, FALSE) \
 FIELD( 88,  0, ECX,  0,  8, LEAF88_CORE_COUNT,                 YES,  4, FALSE) \
 FIELD( 88,  0, ECX, 12,  4, APICID_COREID_SIZE,                YES,  7, FALSE) \
 FIELD( 88,  0, ECX, 16,  2, PERFTSC_SIZE,                      NO,   0, FALSE)
