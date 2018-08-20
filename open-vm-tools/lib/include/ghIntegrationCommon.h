@@ -58,4 +58,16 @@ typedef uint32 GHIChannelType;
                                         // MKSCONTROL_GHI_REQUEST_SUCCESS_OK.
 typedef uint32 GHIRequestResult;
 
+/*
+ * Message names - DnD.
+ */
+#define GHI_DND_DND_HOST_GUEST_CMD              "ghi.dnd.dnd.hostguest"
+#define GHI_DND_COPYPASTE_HOST_GUEST_CMD        "ghi.dnd.copypaste.hostguest"
+
+#define GHI_DND_GUEST_RET_MAX_LEN               64
+#define GHI_DND_GUEST_RET_ERROR                 "error"
+#define GHI_DND_GUEST_RET_INPROGRESS            "inProgress"
+#define GHI_DND_GUEST_RET_DONE                  "done"
+
+
 #endif // ifndef _GHINTEGRATIONCOMMON_H_
