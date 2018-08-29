@@ -519,7 +519,7 @@ FLAG(   7,  0, EBX, 30,  1, AVX512BW,                          YES, 13, TRUE)  \
 FLAG(   7,  0, EBX, 31,  1, AVX512VL,                          YES, 13, TRUE)  \
 FLAG(   7,  0, ECX,  0,  1, PREFETCHWT1,                       YES, 13, TRUE)  \
 FLAG(   7,  0, ECX,  1,  1, AVX512VBMI,                        YES, 17, TRUE)  \
-FLAG(   7,  0, ECX,  2,  1, UMIP,                              NO,   0, FALSE) \
+FLAG(   7,  0, ECX,  2,  1, UMIP,                              YES, 17, FALSE) \
 FLAG(   7,  0, ECX,  3,  1, PKU,                               YES, 13, TRUE)  \
 FLAG(   7,  0, ECX,  4,  1, OSPKE,                             ANY, 13, TRUE)  \
 FLAG(   7,  0, ECX,  5,  1, WAITPKG,                           NO,   0, TRUE)  \

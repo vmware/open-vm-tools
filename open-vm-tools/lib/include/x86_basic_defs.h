@@ -89,6 +89,7 @@
 #define CR4_PCE        0x00000100
 #define CR4_OSFXSR     0x00000200 // CPU/OS supports SIMD insts
 #define CR4_OSXMMEXCPT 0x00000400 // #XF exception enable PIII only
+#define CR4_UMIP       0x00000800
 #define CR4_LA57       0x00001000
 #define CR4_VMXE       0x00002000
 #define CR4_SMXE       0x00004000
@@ -98,7 +99,7 @@
 #define CR4_SMEP       0x00100000
 #define CR4_SMAP       0x00200000
 #define CR4_PKE        0x00400000
-#define CR4_RESERVED   CONST64U(0xffffffffff889800)
+#define CR4_RESERVED   CONST64U(0xffffffffff889000)
 #define CR8_RESERVED   CONST64U(0xfffffffffffffff0)
 
 /*
