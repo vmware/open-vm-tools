@@ -524,10 +524,8 @@ FileIO_CloseAndUnlink(FileIODescriptor *fd)  // IN:
    path = Unicode_Duplicate(fd->fileName);
 
    ret = FileIO_Close(fd);
-   if (FileIO_IsSuccess(ret)) {
-      if (File_UnlinkIfExists(path) == -1) {
-         ret = FILEIO_ERROR;
-      }
+   if ((File_UnlinkIfExists(path) == -1) && FileIO_IsSuccess(ret)) {
+      ret = FILEIO_ERROR;
    }
 
    Posix_Free(path);
