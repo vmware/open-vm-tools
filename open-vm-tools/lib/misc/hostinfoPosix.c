@@ -160,19 +160,19 @@ typedef struct {
 } DistroNameScan;
 
 static const DistroNameScan lsbFields[] = {
-   {"DISTRIB_ID=",          "DISTRIB_ID=%s"          },
-   {"DISTRIB_RELEASE=",     "DISTRIB_RELEASE=%s"     },
-   {"DISTRIB_CODENAME=",    "DISTRIB_CODENAME=%s"    },
-   {"DISTRIB_DESCRIPTION=", "DISTRIB_DESCRIPTION=%s" },
-   {NULL,                   NULL                     },
+   { "DISTRIB_ID=",          "DISTRIB_ID=%s"          },
+   { "DISTRIB_RELEASE=",     "DISTRIB_RELEASE=%s"     },
+   { "DISTRIB_CODENAME=",    "DISTRIB_CODENAME=%s"    },
+   { "DISTRIB_DESCRIPTION=", "DISTRIB_DESCRIPTION=%s" },
+   { NULL,                   NULL                     },
 };
 
 static const DistroNameScan osReleaseFields[] = {
-   {"PRETTY_NAME=",        "PRETTY_NAME=%s"          },
-   {"NAME=",               "NAME=%s"                 },
-   {"VERSION_ID=",         "VERSION_ID=%s"           },
-   {"BUILD_ID=",           "BUILD_ID=%s"             },
-   {NULL,                  NULL                      },
+   { "PRETTY_NAME=",        "PRETTY_NAME=%s" },
+   { "NAME=",               "NAME=%s"        },
+   { "VERSION_ID=",         "VERSION_ID=%s"  },
+   { "BUILD_ID=",           "BUILD_ID=%s"    },
+   { NULL,                  NULL             },
 };
 
 typedef struct {
@@ -182,59 +182,59 @@ typedef struct {
 
 /* KEEP SORTED! (sort -d) */
 static const DistroInfo distroArray[] = {
-   {"Annvix",             "/etc/annvix-release"},
-   {"Arch",               "/etc/arch-release"},
-   {"Arklinux",           "/etc/arklinux-release"},
-   {"Aurox",              "/etc/aurox-release"},
-   {"BlackCat",           "/etc/blackcat-release"},
-   {"Cobalt",             "/etc/cobalt-release"},
-   {"Conectiva",          "/etc/conectiva-release"},
-   {"Debian",             "/etc/debian_release"},
-   {"Debian",             "/etc/debian_version"},
-   {"Fedora Core",        "/etc/fedora-release"},
-   {"Gentoo",             "/etc/gentoo-release"},
-   {"Immunix",            "/etc/immunix-release"},
-   {"Knoppix",            "/etc/knoppix_version"},
-   {"Linux-From-Scratch", "/etc/lfs-release"},
-   {"Linux-PPC",          "/etc/linuxppc-release"},
-   {"Mandrake",           "/etc/mandrakelinux-release"},
-   {"Mandrake",           "/etc/mandrake-release"},
-   {"Mandriva",           "/etc/mandriva-release"},
-   {"MkLinux",            "/etc/mklinux-release"},
-   {"Novell",             "/etc/nld-release"},
-   {"OracleLinux",        "/etc/oracle-release"},
-   {"Photon",             "/etc/lsb-release"},
-   {"PLD",                "/etc/pld-release"},
-   {"RedHat",             "/etc/redhat-release"},
-   {"RedHat",             "/etc/redhat_version"},
-   {"Slackware",          "/etc/slackware-release"},
-   {"Slackware",          "/etc/slackware-version"},
-   {"SMEServer",          "/etc/e-smith-release"},
-   {"Solaris",            "/etc/release"},
-   {"Sun",                "/etc/sun-release"},
-   {"SuSE",               "/etc/novell-release"},
-   {"SuSE",               "/etc/sles-release"},
-   {"SuSE",               "/etc/SuSE-release"},
-   {"Tiny Sofa",          "/etc/tinysofa-release"},
-   {"TurboLinux",         "/etc/turbolinux-release"},
-   {"Ubuntu",             "/etc/lsb-release"},
-   {"UltraPenguin",       "/etc/ultrapenguin-release"},
-   {"UnitedLinux",        "/etc/UnitedLinux-release"},
-   {"VALinux",            "/etc/va-release"},
-   {"Yellow Dog",         "/etc/yellowdog-release"},
-   {NULL, NULL},
+   { "Annvix",             "/etc/annvix-release"        },
+   { "Arch",               "/etc/arch-release"          },
+   { "Arklinux",           "/etc/arklinux-release"      },
+   { "Aurox",              "/etc/aurox-release"         },
+   { "BlackCat",           "/etc/blackcat-release"      },
+   { "Cobalt",             "/etc/cobalt-release"        },
+   { "Conectiva",          "/etc/conectiva-release"     },
+   { "Debian",             "/etc/debian_release"        },
+   { "Debian",             "/etc/debian_version"        },
+   { "Fedora Core",        "/etc/fedora-release"        },
+   { "Gentoo",             "/etc/gentoo-release"        },
+   { "Immunix",            "/etc/immunix-release"       },
+   { "Knoppix",            "/etc/knoppix_version"       },
+   { "Linux-From-Scratch", "/etc/lfs-release"           },
+   { "Linux-PPC",          "/etc/linuxppc-release"      },
+   { "Mandrake",           "/etc/mandrakelinux-release" },
+   { "Mandrake",           "/etc/mandrake-release"      },
+   { "Mandriva",           "/etc/mandriva-release"      },
+   { "MkLinux",            "/etc/mklinux-release"       },
+   { "Novell",             "/etc/nld-release"           },
+   { "OracleLinux",        "/etc/oracle-release"        },
+   { "Photon",             "/etc/lsb-release"           },
+   { "PLD",                "/etc/pld-release"           },
+   { "RedHat",             "/etc/redhat-release"        },
+   { "RedHat",             "/etc/redhat_version"        },
+   { "Slackware",          "/etc/slackware-release"     },
+   { "Slackware",          "/etc/slackware-version"     },
+   { "SMEServer",          "/etc/e-smith-release"       },
+   { "Solaris",            "/etc/release"               },
+   { "Sun",                "/etc/sun-release"           },
+   { "SuSE",               "/etc/novell-release"        },
+   { "SuSE",               "/etc/sles-release"          },
+   { "SuSE",               "/etc/SuSE-release"          },
+   { "Tiny Sofa",          "/etc/tinysofa-release"      },
+   { "TurboLinux",         "/etc/turbolinux-release"    },
+   { "Ubuntu",             "/etc/lsb-release"           },
+   { "UltraPenguin",       "/etc/ultrapenguin-release"  },
+   { "UnitedLinux",        "/etc/UnitedLinux-release"   },
+   { "VALinux",            "/etc/va-release"            },
+   { "Yellow Dog",         "/etc/yellowdog-release"     },
+   { NULL,                 NULL                         },
 };
 #endif
 
-/* Must be sorted. Keep in same ordering as StructuredFieldType*/
+/* Must be sorted. Keep in the same ordering as StructuredFieldType */
 StructuredField structuredFields[] = {
    { "bitness",       "" },  // "32" or "64"
-   { "buildNumber",   "" },  // Always present for MacOS. Present for some Linux distros.
+   { "buildNumber",   "" },  // Present for MacOS and some Linux distros.
    { "distroName",    "" },  // Defaults to uname -s
-   { "distroVersion", "" },  // Always present for MacOS. Read from distro files for Linux.
+   { "distroVersion", "" },  // Present for MacOS. Read from distro files for Linux.
    { "familyName",    "" },  // Defaults to uname -s
    { "kernelVersion", "" },  // Defaults to uname -r
-   { "prettyName",    "" },  // Always present for MacOS. Read from distro files for Linux.
+   { "prettyName",    "" },  // Present for MacOS. Read from distro files for Linux.
    { NULL,            "" },  // MUST BE LAST
 };
 
@@ -275,7 +275,7 @@ HostinfoOSVersionInit(void)
       return;
    }
 
-   if (uname(&u) < 0) {
+   if (uname(&u) == -1) {
       Warning("%s: unable to get host OS version (uname): %s\n",
 	      __FUNCTION__, Err_Errno2String(errno));
       NOT_IMPLEMENTED();
@@ -555,27 +555,27 @@ HostinfoOSStructuredString(void)
    StructuredField *field;
 
    /* Clear the string cache */
-   memset(HostinfoCachedStructuredString, 0,
+   memset(HostinfoCachedStructuredString, '\0',
           sizeof HostinfoCachedStructuredString);
 
    for (field = structuredFields; field->name != NULL; field++) {
       if (field->value[0] != '\0') {
-         /* Account for escape char and null char */
-         char escapedString[MAX_STRUCTURED_FIELD_LEN * 2 + 1];
-         char fieldString[MAX_STRUCTURED_FIELD_LEN];
-         int i = 0;
+         /* Account for the escape and NUL char */
          int len;
          const char *c;
+         char escapedString[2 * MAX_STRUCTURED_FIELD_LEN + 1];
+         char fieldString[MAX_STRUCTURED_FIELD_LEN];
+         uint32 i = 0;
 
-         /* escape single quotes and backslash from value */
+         /* Escape single quotes and back slashes in the value. */
          for (c = field->value; *c != '\0'; c++) {
             if (*c == '\'' || *c == '\\') {
-               escapedString[i] = '\\';
-               i++;
+               escapedString[i++] = '\\';
             }
-            escapedString[i] = *c;
-            i++;
+
+            escapedString[i++] = *c;
          }
+
          escapedString[i] = '\0';
 
          len = Str_Snprintf(fieldString, sizeof fieldString, "%s='%s'",
@@ -583,10 +583,11 @@ HostinfoOSStructuredString(void)
          if (len == -1) {
             Warning("%s: Error: structured info field too large\n",
                     __FUNCTION__);
-            memset(HostinfoCachedStructuredString, 0,
+            memset(HostinfoCachedStructuredString, '\0',
                    sizeof HostinfoCachedStructuredString);
             return;
          }
+
          Str_Strcat(HostinfoCachedStructuredString, fieldString,
                     sizeof HostinfoCachedStructuredString);
 
@@ -599,7 +600,7 @@ HostinfoOSStructuredString(void)
       }
    }
 
-   Log("structured string = \"%s\"\n", HostinfoCachedStructuredString);
+   Log("structured string = '%s'\n", HostinfoCachedStructuredString);
 }
 
 
