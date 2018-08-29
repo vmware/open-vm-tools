@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -203,6 +203,12 @@
 #define EXC_XF           19  // SIMD exception.
 #define EXC_VE           20  // Virtualization exception - VT only.
 #define EXC_SX           30  // Security exception (SVM only).
+
+/* Bitmap of the exception vectors that have associated error codes. */
+#define EXC_WITH_ERR_CODE_MASK ((1u << EXC_DF) | (1u << EXC_TS) | \
+                                (1u << EXC_NP) | (1u << EXC_SS) | \
+                                (1u << EXC_GP) | (1u << EXC_PF) | \
+                                (1u << EXC_AC))
 
 /*
  * eflag/rflag definitions.
