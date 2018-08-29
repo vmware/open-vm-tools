@@ -401,7 +401,7 @@ RDTSC_BARRIER(void)
 static INLINE void
 SMP_W_BARRIER_R(void)
 {
-   volatile long temp;
+   volatile long temp = 0;
 
 #if defined __GNUC__
    __asm__ __volatile__ (
