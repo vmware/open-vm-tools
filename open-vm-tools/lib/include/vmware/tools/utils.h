@@ -176,12 +176,6 @@ VMTools_AcquireLogStateLock(void);
 void
 VMTools_ReleaseLogStateLock(void);
 
-void
-VMTools_StopLogging(void);
-
-void
-VMTools_RestartLogging(void);
-
 gchar *
 VMTools_GetTimeAsString(void);
 

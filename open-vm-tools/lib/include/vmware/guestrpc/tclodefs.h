@@ -88,6 +88,12 @@
 
 #define DESKTOP_AUTOLOCK_CMD        "Autolock_Desktop"
 
+/*
+ * Guest log commands.
+ */
+
+#define GUEST_LOG_STATE_CMD "guest.log.state"
+#define GUEST_LOG_TEXT_CMD "guest.log.text"
 
 /*
  * The max selection buffer length has to be less than the

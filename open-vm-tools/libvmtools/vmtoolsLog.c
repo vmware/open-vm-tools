@@ -54,6 +54,8 @@
 #include "str.h"
 #include "system.h"
 #include "vmware/tools/log.h"
+#include "vmware/tools/guestrpc.h"
+#include "vmware/guestrpc/tclodefs.h"
 #include "err.h"
 
 #define LOGGING_GROUP         "logging"
@@ -155,11 +157,96 @@ static LogHandler *gErrorData;
 static LogHandler *gErrorSyslog;
 static GPtrArray *gDomains = NULL;
 static gboolean gLogInitialized = FALSE;
-static GStaticRecMutex gLogStateMutex = G_STATIC_REC_MUTEX_INIT;
-static gboolean gLoggingStopped = FALSE;
+/* This lock protects the gGlibLoggingStopped and gLogHandlerEnabled flags */
+static GRecMutex gLogStateMutex;
+/* Whether to stop logging using glib logging functions */
+static gboolean gGlibLoggingStopped = FALSE;
+/* Whether to enable proxy messages to log handler */
+static gboolean gLogHandlerEnabled = TRUE;
+
 static gboolean gLogIOSuspended = FALSE;
 
+/* Data structures for the VMX guest logger */
+
+/*
+ * The gUseVmxGuestLog flag is turned on once and never modified later
+ * Therefore, the flag can be read without a lock.
+ */
+static gboolean gUseVmxGuestLog;
+static gchar *gAppName;
+
+/*
+ * This lock protects the gChannel, gLevelMask and gRpcMode
+ */
+static GRecMutex gVmxGuestLogMutex;
+static RpcChannel *gChannel; /* either NULL or allocated AND started */
+
+/*
+ * 1) VMX supports guest.log.* RPCs, use the query result of guest.log.state
+ * 2) Otherwise, use the tools.conf vmx handler level setting.
+ */
+static GLogLevelFlags gLevelMask;
+
+static enum RpcMode {
+   RPC_OFF = 0,
+   RPC_GUEST_LOG_TEXT,
+   RPC_LOG_FALLBACK
+} gRpcMode;
+
+
+/* Forward function declarations */
+
+static void VmxGuestLog(const gchar *domain,
+                        GLogLevelFlags level,
+                        const gchar *message);
+void Debug(const char *fmt, ...);
+
 /* Internal functions. */
+
+/**
+ * Convert log level flag to its string representation.
+ *
+ * @param[in] level        Log level.
+ *
+ * @return a string constant that corresponds to the log level.
+ *         Should NOT be g_free()'d.
+ */
+
+static const char *
+VMToolsLogLevelString(GLogLevelFlags level) {
+   const char *slevel;
+
+   switch (level & G_LOG_LEVEL_MASK) {
+   case G_LOG_LEVEL_ERROR:
+      slevel = "error";
+      break;
+
+   case G_LOG_LEVEL_CRITICAL:
+      slevel = "critical";
+      break;
+
+   case G_LOG_LEVEL_WARNING:
+      slevel = "warning";
+      break;
+
+   case G_LOG_LEVEL_MESSAGE:
+      slevel = "message";
+      break;
+
+   case G_LOG_LEVEL_INFO:
+      slevel = "info";
+      break;
+
+   case G_LOG_LEVEL_DEBUG:
+      slevel = "debug";
+      break;
+
+   default:
+      slevel = "unknown";
+   }
+
+   return slevel;
+}
 
 
 /**
@@ -310,34 +397,7 @@ VMToolsLogFormat(const gchar *message,
       message = "<null>";
    }
 
-   switch (level & G_LOG_LEVEL_MASK) {
-   case G_LOG_LEVEL_ERROR:
-      slevel = "error";
-      break;
-
-   case G_LOG_LEVEL_CRITICAL:
-      slevel = "critical";
-      break;
-
-   case G_LOG_LEVEL_WARNING:
-      slevel = "warning";
-      break;
-
-   case G_LOG_LEVEL_MESSAGE:
-      slevel = "message";
-      break;
-
-   case G_LOG_LEVEL_INFO:
-      slevel = "info";
-      break;
-
-   case G_LOG_LEVEL_DEBUG:
-      slevel = "debug";
-      break;
-
-   default:
-      slevel = "unknown";
-   }
+   slevel = VMToolsLogLevelString(level);
 
    if (data->logger != NULL) {
       shared = data->logger->shared;
@@ -455,7 +515,64 @@ VMToolsLogMsg(gpointer _data, gpointer userData)
 
 
 /**
- * Log handler function that does the common processing of log messages,
+ * This is called to avoid nested glib logging.
+ * For example the VMX logger calls RpcChannel code which calls
+ * Debug(), Warning() functions which calls the VMToolsLogWrapper()
+ * function. This variable controls whether the code path there can call
+ * glib logging function or not.
+ * Log messages can still be handled using lower level functions.
+ * NOTE: This must be called after acquiring LogState lock.
+ */
+
+static void
+StopGlibLogging(void)
+{
+   gGlibLoggingStopped = TRUE;
+}
+
+
+/**
+ * This is called to reset the state so that glib logging can be used again.
+ * NOTE: This must be called after acquiring LogState lock.
+ */
+
+static void
+RestartGlibLogging(void)
+{
+   gGlibLoggingStopped = FALSE;
+}
+
+
+/**
+ * This is called to avoid nested infinite logging loop.
+ * We set the flag in the log handler proxy function, Otherwise
+ * if there log handler might call another Debug()/Warning() function
+ * which would end up calling the log handler again, causing an infinite loop,
+ * eventually overflow the stack.
+ * NOTE: This must be called after acquiring LogState lock.
+ */
+
+static void
+DisableLogHandler(void)
+{
+   gLogHandlerEnabled = FALSE;
+}
+
+
+/**
+ * This is called to reset the state so that we can now call a log handler.
+ * NOTE: This must be called after acquiring LogState lock.
+ */
+
+static void
+EnableLogHandler(void)
+{
+   gLogHandlerEnabled = TRUE;
+}
+
+
+/**
+ * Internal Log handler function that does the common processing of logs,
  * and delegates the actual printing of the message to the given handler.
  *
  * @param[in] domain    Log domain.
@@ -465,12 +582,18 @@ VMToolsLogMsg(gpointer _data, gpointer userData)
  */
 
 static void
-VMToolsLog(const gchar *domain,
-           GLogLevelFlags level,
-           const gchar *message,
-           gpointer _data)
+VMToolsLogInt(const gchar *domain,
+              GLogLevelFlags level,
+              const gchar *message,
+              gpointer _data)
 {
    LogHandler *data = _data;
+
+   if (!gLogHandlerEnabled) {
+      return;
+   }
+
+   DisableLogHandler();
 
    if (SHOULD_LOG(level, data)) {
       LogEntry *entry;
@@ -549,6 +672,71 @@ exit:
    if (IS_FATAL(level)) {
       VMToolsLogPanic();
    }
+
+   EnableLogHandler();
+}
+
+
+/**
+ * Log handler function that glib invokes on each g_xxx(...) invocation.
+ *
+ * @param[in] domain    Log domain.
+ * @param[in] level     Log level.
+ * @param[in] message   Message to log.
+ * @param[in] _data     LogHandler pointer.
+ */
+
+static void
+VMToolsLog(const gchar *domain,
+           GLogLevelFlags level,
+           const gchar *message,
+           gpointer _data)
+{
+   if (!gLogEnabled) {
+      return;
+   }
+   /*
+    * To avoid nested logging inside of RpcChannel, we need to disable
+    * logging here. See bug 1069390.
+    * This actually stop the glib based logging only. However,
+    * log messages are saved directly to the file system using a lower
+    * level function.
+    */
+   VMTools_AcquireLogStateLock();
+   StopGlibLogging();
+
+   if (gUseVmxGuestLog) {
+
+      /*
+       * Protect the RPC channel and friends data race
+       * Other thread might call g_xxx() or reinitialize the vmx guest logger.
+       *
+       * Recursive mutex is required as the set up function might calls
+       * g_xxx() functions to log messages which would call this function here.
+       *
+       * Always acquire the log state mutex first followed by
+       * the vmxGuestLog mutex to avoid a deadlock.
+       *
+       * This is because Debug()/Warning() functions call VMToolsLogWrapper()
+       * which acquire the log state mutex and call g_xxx function which ends
+       * up here.
+       *
+       * If the order is reversed here, we could end up deadlock
+       * between two threads, one calling g_xxx(), and the other calling
+       * Debug()/Warning()
+       */
+
+      g_rec_mutex_lock(&gVmxGuestLogMutex);
+      VmxGuestLog(NULL == domain ? gLogDomain : domain,
+                  level, message);
+      g_rec_mutex_unlock(&gVmxGuestLogMutex);
+   }
+
+   /* Proxy to the LogHandler object pointed by _data. */
+   VMToolsLogInt(domain, level, message, _data);
+
+   RestartGlibLogging();
+   VMTools_ReleaseLogStateLock();
 }
 
 
@@ -574,11 +762,15 @@ VMToolsDefaultLogFilePath(const gchar *domain)
 
    Win32U_ExpandEnvironmentStrings(DEFAULT_LOGFILE_DIR,
                                    (LPSTR) winDir, sizeof winDir);
-   path = g_strdup_printf("%s%sTemp%s%s-%s.log",
+   path = g_strdup_printf("%s%sTemp%s%s-%s-%s.log",
                           winDir, DIRSEPS, DIRSEPS,
-                          DEFAULT_LOGFILE_NAME_PREFIX, domain);
+                          DEFAULT_LOGFILE_NAME_PREFIX,
+                          domain,
+                          g_get_user_name());
 #else
-   path = g_strdup_printf("%s-%s.log", DEFAULT_LOGFILE_NAME_PREFIX, domain);
+   path = g_strdup_printf("%s-%s-%s.log", DEFAULT_LOGFILE_NAME_PREFIX,
+                          domain,
+                          g_get_user_name());
 #endif
    return path;
 }
@@ -768,6 +960,33 @@ VMToolsGetLogHandler(const gchar *handler,
 
 
 /**
+ * Determine if the domain can only use vmx logging.
+ * Some domain such as vmvss cannot use file logger since the disk
+ * is frozen.
+ *
+ * @param[in]  domain      Name of domain being configured.
+ * @return     TRUE if the domain can only use vmx logging.
+ *             FALSE otherwise.
+ */
+
+static gboolean
+IsDomainVmxLoggingOnly(const gchar *domain)
+{
+   static const gchar *restricted[] = { "vmvss",
+                                       NULL };
+   unsigned int i;
+
+   for(i = 0; restricted[i] != NULL; ++i) {
+      if (strcmp(restricted[i], domain) == 0) {
+         return TRUE;
+      }
+   }
+
+   return FALSE;
+}
+
+
+/**
  * Configures the given log domain based on the data provided in the given
  * dictionary. If the log domain being configured doesn't match the default, and
  * no specific handler is defined for the domain, the handler is inherited from
@@ -820,6 +1039,25 @@ VMToolsConfigLogDomain(const gchar *domain,
 
    g_snprintf(key, sizeof key, "%s.data", domain);
    confData = g_key_file_get_string(cfg, LOGGING_GROUP, key, NULL);
+
+   /*
+    * Disable the old vmx handler if we are setting up the vmx guest logger
+    * This avoids sending duplicate messages to VMX and also makes the
+    * file logger always available, e.g. logging errors when we cannot
+    * send a message over the vmx guest logger.
+    * Make an exception for vmvss where it might not be able to use a file
+    * system log handler at all, e.g. dllhost.exe.
+    * TBD: Create a no-op LogHandler type so as not to send vmx logs
+    * twice for vmvss.
+    */
+   if (gUseVmxGuestLog && handler != NULL &&
+       !IsDomainVmxLoggingOnly(domain) &&
+       strcmp(handler, "vmx") == 0) {
+      g_free(handler);
+      handler = g_strdup(DEFAULT_HANDLER);
+      g_info("Switched %s log handler from vmx to " DEFAULT_HANDLER ".\n",
+             domain);
+   }
 
    if (handler == NULL && isDefault) {
       /*
@@ -1017,6 +1255,22 @@ VMTools_AttachConsole(void)
 
 
 /**
+ * Mark log system initialized.
+ *
+ * Also initialize the log state lock.
+ */
+
+static void
+MarkLogInitialized(void)
+{
+   if (!gLogInitialized) {
+      gLogInitialized = TRUE;
+      g_rec_mutex_init(&gLogStateMutex);
+   }
+}
+
+
+/**
  * Configures the logging system to log to the STDIO.
  *
  * @param[in] defaultDomain   Name of the default log domain.
@@ -1044,12 +1298,9 @@ VMTools_ConfigLogToStdio(const gchar *domain)
 
    g_log_set_handler(gLogDomain, ~0, VMToolsLog, gStdLogHandler);
 
-   if (!gLogInitialized) {
-      gLogInitialized = TRUE;
-      g_static_rec_mutex_init(&gLogStateMutex);
-   }
-
    gLogEnabled = TRUE;
+
+   MarkLogInitialized();
 
 exit:
    g_key_file_free(cfg);
@@ -1155,10 +1406,7 @@ VMTools_ConfigLogging(const gchar *defaultDomain,
     * can also log messages.
     */
    gLogEnabled |= force;
-   if (!gLogInitialized) {
-      gLogInitialized = TRUE;
-      g_static_rec_mutex_init(&gLogStateMutex);
-   }
+   MarkLogInitialized();
 
    gMaxCacheEntries = g_key_file_get_integer(cfg, LOGGING_GROUP,
                                              "maxCacheEntries", &err);
@@ -1268,7 +1516,10 @@ VMTools_ConfigLogging(const gchar *defaultDomain,
 
 /* Wrappers for VMware's logging functions. */
 
-/**
+/*
+ *******************************************************************************
+ * VMToolsLogWrapper --                                                   */ /**
+ *
  * Generic wrapper for VMware log functions.
  *
  * CoreDump_CoreDump() may log, and glib doesn't like recursive log calls. So
@@ -1277,6 +1528,8 @@ VMTools_ConfigLogging(const gchar *defaultDomain,
  * @param[in]  level    Log level.
  * @param[in]  fmt      Message format.
  * @param[in]  args     Message arguments.
+ *
+ *******************************************************************************
  */
 
 static void
@@ -1294,24 +1547,347 @@ VMToolsLogWrapper(GLogLevelFlags level,
    }
 
    VMTools_AcquireLogStateLock();
-   if (gLoggingStopped) {
-      /* This is to avoid nested logging in vmxLogger */
-      VMTools_ReleaseLogStateLock();
-      return;
-   }
-   VMTools_ReleaseLogStateLock();
 
    if (gPanicCount == 0) {
       char *msg = Str_Vasprintf(NULL, fmt, args);
+
       if (msg != NULL) {
-         g_log(gLogDomain, level, "%s", msg);
+
+         if (gGlibLoggingStopped) {
+            /*
+             * Stop logging using glib logging functions such as g_log()
+             * This is to avoid nested logging in vmxLogger
+             * However, we should still directly call the lower level
+             * primitive to directly write to the guest file system.
+             */
+            VMToolsLogInt(gLogDomain, level, msg, gDefaultData);
+         } else {
+            g_log(gLogDomain, level, "%s", msg);
+         }
+
          free(msg);
       }
    } else {
       /* Try to avoid malloc() since we're aborting. */
       gchar msg[256];
       Str_Vsnprintf(msg, sizeof msg, fmt, args);
-      VMToolsLog(gLogDomain, level, msg, gDefaultData);
+      VMToolsLogInt(gLogDomain, level, msg, gDefaultData);
+   }
+
+   VMTools_ReleaseLogStateLock();
+}
+
+
+/*
+ *******************************************************************************
+ * CreateRpcChannel --                                                    */ /**
+ *
+ * Create the dedicated RPCI channel for querying the guest level setting
+ * and sending logs.
+ *
+ * @return TRUE if the RPCI channel is ready.
+ *         FALSE otherwise.
+ *
+ *******************************************************************************
+ */
+
+static gboolean
+CreateRpcChannel(void)
+{
+   if (NULL != gChannel) {
+      return TRUE; // already created and started
+   }
+
+   gChannel = BackdoorChannel_New();
+   if (NULL == gChannel) {
+      g_warning("Failed to create the RPCI channel for logging.\n");
+      return FALSE;
+   }
+
+   if (!RpcChannel_Start(gChannel)) {
+      g_warning("Failed to start the RPCI channel for logging.\n");
+      RpcChannel_Destroy(gChannel);
+      gChannel = NULL;
+      return FALSE;
+   }
+
+   g_debug("RPCI Channel for logging is created successfully.\n");
+
+   return TRUE;
+}
+
+
+/*
+ *******************************************************************************
+ * DestroyRpcChannel --                                                   */ /**
+ *
+ * Destroy the dedicated RPCI channel.
+ *
+ *******************************************************************************
+ */
+
+static void
+DestroyRpcChannel(void)
+{
+   if (NULL == gChannel) {
+      return;
+   }
+
+   RpcChannel_Stop(gChannel);
+   RpcChannel_Destroy(gChannel);
+
+   gChannel = NULL;
+
+   g_debug("RPCI Channel for logging is destroyed successfully.\n");
+}
+
+
+/*
+ *******************************************************************************
+ * LevelMask --                                                           */ /**
+ *
+ * Convert level string to a level mask value.
+ *
+ * @return the level mask
+ *
+ *******************************************************************************
+ */
+
+static GLogLevelFlags
+LevelMask(const gchar *level)
+{
+   GLogLevelFlags result;
+
+   /* level to glib log mask translation */
+
+   if (strcmp(level, "error") == 0) {
+      result = G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL;
+   } else if (strcmp(level, "warning") == 0) {
+      result = G_LOG_LEVEL_ERROR |
+         G_LOG_LEVEL_CRITICAL |
+         G_LOG_LEVEL_WARNING;
+   } else if (strcmp(level, "notice") == 0 ||
+              strcmp(level, "info") == 0 ||
+              strcmp(level, "message") == 0) {
+      result = G_LOG_LEVEL_ERROR |
+         G_LOG_LEVEL_CRITICAL |
+         G_LOG_LEVEL_WARNING |
+         G_LOG_LEVEL_MESSAGE |
+         G_LOG_LEVEL_INFO;
+   } else if (strcmp(level, "verbose") == 0 ||
+              strcmp(level, "debug") == 0 ||
+              strcmp(level, "trivia") == 0) {
+      result = G_LOG_LEVEL_MASK;
+   } else {
+      /* treated as off */
+      result = 0;
+   }
+
+   return result;
+}
+
+
+/*
+ *******************************************************************************
+ * LoadFallbackSetting --                                                 */ /**
+ *
+ * Load the log fallback setting from a tools config object.
+ *
+ * TBD: Extend this function load the vmx handler setting into a dictionary
+ * of [domain, level] mapping instead of just a single level from the default
+ * domain. The Log handler code can use the dictonary vs a single level mask.
+ * The VMX side can also be extended to return an dictionary of [domain, level]
+ * mapping as well. For now, let us stick with the simple.
+ *
+ * @param [in] cfg    a tools config object.
+ *
+ *******************************************************************************
+ */
+
+static void
+LoadFallbackSetting(GKeyFile *cfg)
+{
+   gchar *handler;
+   gchar *level;
+   gchar key[128];
+
+   ASSERT(NULL != cfg);
+
+   g_snprintf(key, sizeof key, "%s.handler", gLogDomain);
+   handler = g_key_file_get_string(cfg, LOGGING_GROUP, key, NULL);
+
+   if (NULL == handler) {
+      g_debug("%s.handler not present in config file.\n", gLogDomain);
+      return;
+   }
+
+   if (strcmp(handler, "vmx") != 0) {
+      g_debug("%s.handler is not a vmx handler in config file.\n", gLogDomain);
+      g_free(handler);
+      return;
+   }
+
+   g_free(handler);
+
+   /* The tools.conf use the vmx handler, let us continue to load the level */
+   g_snprintf(key, sizeof key, "%s.level", gLogDomain);
+   level = g_key_file_get_string(cfg, LOGGING_GROUP, key, NULL);
+   if (NULL == level) {
+      level = g_strdup(VMTOOLS_LOGGING_LEVEL_DEFAULT);
+   }
+
+   gLevelMask = LevelMask(level);
+
+   g_free(level);
+
+   if (gLevelMask != 0) {
+      gRpcMode = RPC_LOG_FALLBACK;
+   } else {
+      gRpcMode = RPC_OFF;
+   }
+}
+
+
+/*
+ *******************************************************************************
+ * SetupLogLevelAndRpcMode --                                             */ /**
+ *
+ * Query the host to set up the log level and the RPC mode.
+ * If the host does not support the guest.log.state guest RPC, we fallback
+ * load the config and use the log RPC.
+ *
+ * @param[in/opt]  cfg                  tools config file object.
+ * @param[in/opt]  level                log level string from vmx
+ * @return         TRUE  if RPC channel is created and ready to send log.
+ *                 FALSE otherwise.
+ *
+ *******************************************************************************
+ */
+
+static gboolean
+SetupLogLevelAndRpcMode(GKeyFile *cfg,
+                        const gchar *level)
+{
+   gRpcMode = RPC_OFF;
+
+   if (NULL == gChannel) {
+      /*
+       * Channel could be broken due to a VMX channel reinitialize
+       * This needs to be tolerated, but we cannot log right now...
+       * A later reset handler would refresh the channel.
+       */
+      g_info("The LOG RPC channel is not up, skip query log state.\n");
+      goto done;
+   }
+
+   if (NULL == level) {
+      char *result = NULL;
+      size_t resultLen;
+
+      if (!RpcChannel_Send(gChannel, GUEST_LOG_STATE_CMD,
+                           sizeof GUEST_LOG_STATE_CMD,
+                           &result, &resultLen)) {
+         g_warning("Failed to send " GUEST_LOG_STATE_CMD " command to VMX.\n");
+         LoadFallbackSetting(cfg);
+         RpcChannel_Free(result);
+         goto done;
+      }
+
+      /* The RpcChannel_Send() NULL terminate the response */
+      g_info("Received host log level '%s'.\n", result);
+
+      gLevelMask = LevelMask(result);
+
+      RpcChannel_Free(result);
+   } else {
+      gLevelMask = LevelMask(level);
+   }
+
+   if (gLevelMask != 0) {
+      gRpcMode = RPC_GUEST_LOG_TEXT;
+   } else {
+      gRpcMode = RPC_OFF;
+   }
+
+done:
+
+   if (RPC_OFF == gRpcMode || NULL == gChannel) {
+      /*
+       * No need to keep around the RPC channel,
+       * VMX can give it to other apps.
+       */
+      DestroyRpcChannel();
+      return FALSE;
+   }
+
+   return TRUE;
+}
+
+
+/*
+ *******************************************************************************
+ * VmxGuestLog --                                                         */ /**
+ *
+ * Logs a message to the VMX using RpcChannel.
+ *
+ * @param[in] domain    Unused.
+ * @param[in] level     Log level.
+ * @param[in] message   Message to log.
+ *
+ *******************************************************************************
+ */
+
+static void
+VmxGuestLog(const gchar *domain,
+            GLogLevelFlags level,
+            const gchar *message)
+{
+   if (!(gLevelMask & level)) { /* level is not sufficient */
+      return;
+   }
+
+   if (NULL == gChannel) {
+      /* This could happen upon a toolsd reset, e.g. vMotion */
+      Debug("The LOG RPC channel is not up, skip logging.\n");
+      return;
+   }
+
+   if (RPC_GUEST_LOG_TEXT == gRpcMode) {
+      gchar *msg = NULL;
+      gint len = VMToolsAsprintf(&msg, GUEST_LOG_TEXT_CMD
+                                 " [%s] [%s] [%s] %s", gAppName,
+                                 VMToolsLogLevelString(level), domain, message);
+      if (NULL == msg) {
+         VMToolsLogPanic();
+      }
+
+      if (!RpcChannel_Send(gChannel, msg, len, NULL, NULL)) {
+         Warning("Failed to send " GUEST_LOG_TEXT_CMD " command to VMX.\n");
+         /* Transition to the fallback mode */
+         gRpcMode = RPC_LOG_FALLBACK;
+      }
+      g_free(msg);
+   }
+
+   if (RPC_LOG_FALLBACK == gRpcMode) {
+      gchar *msg = NULL;
+      gint len = VMToolsAsprintf(&msg,
+                                 "log [%s] [%s] %s",
+                                 VMToolsLogLevelString(level), domain, message);
+      if (NULL == msg) {
+         VMToolsLogPanic();
+      }
+
+      if (!RpcChannel_Send(gChannel, msg, len, NULL, NULL)) {
+         Warning("Failed to send log command to VMX.\n");
+         /*
+          * VMX might have done a channel reset. This needs to be tolerated.
+          * Transition to the off mode, let the tools reset handle the rest
+          */
+         gRpcMode = RPC_OFF;
+         DestroyRpcChannel();
+      }
+      g_free(msg);
    }
 }
 
@@ -1323,7 +1899,7 @@ VMToolsLogWrapper(GLogLevelFlags level,
 void
 VMTools_AcquireLogStateLock(void)
 {
-   g_static_rec_mutex_lock(&gLogStateMutex);
+   g_rec_mutex_lock(&gLogStateMutex);
 }
 
 
@@ -1334,31 +1910,7 @@ VMTools_AcquireLogStateLock(void)
 void
 VMTools_ReleaseLogStateLock(void)
 {
-   g_static_rec_mutex_unlock(&gLogStateMutex);
-}
-
-
-/**
- * This is called to avoid nested logging in vmxLogger.
- * NOTE: This must be called after acquiring LogState lock.
- */
-
-void
-VMTools_StopLogging(void)
-{
-   gLoggingStopped = TRUE;
-}
-
-
-/**
- * This is called to reset logging in vmxLogger.
- * NOTE: This must be called after acquiring LogState lock.
- */
-
-void
-VMTools_RestartLogging(void)
-{
-   gLoggingStopped = FALSE;
+   g_rec_mutex_unlock(&gLogStateMutex);
 }
 
 
@@ -1521,12 +2073,17 @@ LogV(uint32 routing,
 }
 
 
-/**
+/*
+ *******************************************************************************
+ * Panic --                                                               */ /**
+ *
  * Logs a message using the G_LOG_LEVEL_ERROR level. In the default
  * configuration, this will cause the application to terminate and,
  * if enabled, to dump core.
  *
  * @param[in] fmt Log message format.
+ *
+ *******************************************************************************
  */
 
 void
@@ -1569,10 +2126,15 @@ Panic(const char *fmt, ...)
 }
 
 
-/**
+/*
+ *******************************************************************************
+ * Warning --                                                             */ /**
+ *
  * Logs a message using the G_LOG_LEVEL_WARNING level.
  *
  * @param[in] fmt Log message format.
+ *
+ *******************************************************************************
  */
 
 void
@@ -1595,9 +2157,8 @@ Warning(const char *fmt, ...)
 
 
 /*
- *----------------------------------------------------------------------
- *
- * VMTools_ChangeLogFilePath --
+ *******************************************************************************
+ * VMTools_ChangeLogFilePath --                                           */ /**
  *
  *     This function gets the log file location given in the config file
  *     and appends the string provided just before the delimiter specified.
@@ -1621,7 +2182,7 @@ Warning(const char *fmt, ...)
  * Side effects:
  *     Appends a string into the log file location.
  *
- *----------------------------------------------------------------------
+ *******************************************************************************
  */
 
 gboolean
@@ -1670,4 +2231,146 @@ exit:
    }
 
    return retVal;
+}
+
+
+/*
+ *******************************************************************************
+ * VMTools_UseVmxGuestLog --                                              */ /**
+ *
+ * Set up a global flag that indicates we shall use the vmx guest logger.
+ * You might wonder why this function and the VMTools_SetVmxGuestLog() are NOT
+ * one. This is because we need to call VMTools_SetupVmxGuestLog() after
+ * VMTools_ConfigLogging() since if we failed to setup the vmx guest logger,
+ * we can leverage the file system logging facility to log those setup failures.
+ * However, VMTools_ConfigLogging() code path needs to know whether to disable
+ * the old vmx log handler or not. Not all tools app have migrated to the new
+ * vmx guest logger. To keep the compatibility we should not mess up with
+ * the VMTools_ConfigLogging() code path by restructuring it yet.
+ *
+ * @param[in]   appName   the application name, also serves as a routing tag
+ *                        of the log message for the host side.
+ *
+ *******************************************************************************
+ */
+
+void
+VMTools_UseVmxGuestLog(const gchar *appName)
+{
+   if (!gUseVmxGuestLog) {
+      gAppName = g_strdup(appName);
+      g_rec_mutex_init(&gVmxGuestLogMutex);
+      gUseVmxGuestLog = TRUE;
+   }
+}
+
+
+/*
+ *******************************************************************************
+ * SetupVmxGuestLogInt --                                                 */ /**
+ *
+ * Initialize the Vmx Guest Logging.
+ * If the guest.log.* RPC is supported, set the level from the RPC query.
+ * Otherwise, check the vmx handler setting from the cfg.
+ *
+ * @param[in]      refreshRpcChannel    whether to create a new RPC channel.
+ * @param[in]      cfg                  tools config file object.
+ * @param[in/opt]  level                log level string from vmx
+ *
+ *******************************************************************************
+ */
+
+
+static void
+SetupVmxGuestLogInt(gboolean refreshRpcChannel,   // IN
+                    GKeyFile *cfg,                // IN
+                    const gchar *level)           // IN
+{
+   gboolean disabled = g_key_file_get_boolean(cfg, LOGGING_GROUP,
+                                             "vmxGuestLogDisabled", NULL);
+
+   if (disabled) {
+      g_info("Vmx guest logger is disabled in tools configuration");
+      gRpcMode = RPC_OFF;
+      DestroyRpcChannel();
+      return;
+   }
+
+   if (refreshRpcChannel) {
+      DestroyRpcChannel();
+   }
+
+   if (CreateRpcChannel() && SetupLogLevelAndRpcMode(cfg, level)) {
+      g_info("Initialized the vmx guest logger.\n");
+   }
+}
+
+
+/*
+ *******************************************************************************
+ * VMTools_SetupVmxGuestLog --                                            */ /**
+ *
+ * Initialize the Vmx Guest Logging.
+ * If the guest.log.* RPC is supported, set the level from the RPC query.
+ * Otherwise, read tools.conf for the vmx handler setting.
+ * This function is called from the tools initialization, tools reset,
+ * and the tools options handler code path.
+ *
+ * @param[in]      refreshRpcChannel    whether to create a new RPC channel.
+ * @param[in/opt]  cfg                  tools config file object.
+ * @param[in/opt]  level                log level string from vmx
+ *
+ *******************************************************************************
+ */
+
+void
+VMTools_SetupVmxGuestLog(gboolean refreshRpcChannel,   // IN
+                         GKeyFile *cfg,                // IN
+                         const gchar *level)           // IN
+{
+   /*
+    * Callers need to call VMTools_UseVmxGuestLog() first.
+    * See the function header of VMTools_UseVmxGuestLog for details.
+    */
+
+   VERIFY(gUseVmxGuestLog);
+
+   /*
+    * Always acquire the log state mutex first followed by
+    * the vmxGuestLog mutex to avoid a deadlock.
+    * This is because Debug()/Warning() functions call VMToolsLogWrapper()
+    * which acquire the log state mutex and call g_xxx function.
+    *
+    * If the order is reversed here, we could end up deadlock between
+    * two threads, one calling this function, and the other calling
+    * Debug()/Warning()
+    *
+    */
+   VMTools_AcquireLogStateLock();
+
+   /*
+    * Recursive mutex is required as the set up function might call
+    * g_xxx() functions to log messages which would call VMToolsLog()
+    * which acquires the same mutex.
+    */
+   g_rec_mutex_lock(&gVmxGuestLogMutex);
+
+   /* Load config for the kill switch in tools.conf */
+   if (NULL == cfg) {
+      if (!VMTools_LoadConfig(NULL, G_KEY_FILE_NONE, &cfg, NULL)) {
+         g_warning("Failed to load the tools config file.\n");
+         goto done;
+      }
+
+      SetupVmxGuestLogInt(refreshRpcChannel, cfg, level);
+      g_key_file_free(cfg);
+      goto done;
+   }
+
+   SetupVmxGuestLogInt(refreshRpcChannel, cfg, level);
+
+done:
+   g_rec_mutex_unlock(&gVmxGuestLogMutex);
+
+   VMTools_ReleaseLogStateLock();
 }

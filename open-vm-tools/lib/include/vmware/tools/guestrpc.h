@@ -208,6 +208,9 @@ RpcChannel_New(void);
 void
 RpcChannel_SetBackdoorOnly(void);
 
+RpcChannel *
+BackdoorChannel_New(void);
+
 G_END_DECLS
 
 /** @} */

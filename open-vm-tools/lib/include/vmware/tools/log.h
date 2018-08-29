@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -324,6 +324,13 @@ VMTools_ConfigLogging(const gchar *defaultDomain,
                       GKeyFile *cfg,
                       gboolean force,
                       gboolean reset);
+
+void
+VMTools_UseVmxGuestLog(const gchar *appName);
+
+void
+VMTools_SetupVmxGuestLog(gboolean refreshRpcChannel, GKeyFile *cfg,
+                         const gchar *level);
 
 G_END_DECLS
 

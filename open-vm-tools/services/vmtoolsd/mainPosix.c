@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -183,7 +183,11 @@ main(int argc,
    }
 
    setlocale(LC_ALL, "");
-   VMTools_ConfigLogging(G_LOG_DOMAIN, NULL, FALSE, FALSE);
+
+   VMTools_UseVmxGuestLog(VMTOOLS_APP_NAME);
+   VMTools_ConfigLogging(G_LOG_DOMAIN, NULL, TRUE, FALSE);
+   VMTools_SetupVmxGuestLog(FALSE, NULL, NULL);
+
    VMTools_BindTextDomain(VMW_TEXT_DOMAIN, NULL, NULL);
 
    if (!ToolsCore_ParseCommandLine(&gState, argc, argvCopy)) {

@@ -49,6 +49,8 @@
 #  define G_MODULE_SUFFIX "dylib"
 #endif
 
+#define VMTOOLS_APP_NAME "vmtools"
+
 /** State of app providers. */
 typedef enum {
    TOOLS_PROVIDER_IDLE,
