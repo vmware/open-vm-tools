@@ -58,8 +58,23 @@ typedef uint32 GHIChannelType;
                                         // MKSCONTROL_GHI_REQUEST_SUCCESS_OK.
 typedef uint32 GHIRequestResult;
 
+#define GHI_GUEST_CHANNEL_BITS(channel)   ((channel) << 24)
+#define GHI_GUEST_GET_MSG_CHANNEL(msg)    (((msg) >> 24) & 0xff)
+typedef uint32 GHIGuestToHostMessageType;
+
+
 /*
- * Message names - DnD.
+ * MKS->UI messages over GHI_CHANNEL_VIEW_REMOTE_SHARED_FOLDER.
+ *
+ * Only for View product.
+ */
+#define GHI_CHANNEL_VIEW_REMOTE_SHARED_FOLDER_BITS \
+        GHI_GUEST_CHANNEL_BITS(GHI_CHANNEL_VIEW_REMOTE_SHARED_FOLDER)
+#define GHI_GUEST_RDPDR_CAP   (GHI_CHANNEL_VIEW_REMOTE_SHARED_FOLDER_BITS | 0x000001)
+
+
+/*
+ * UI->MKS Messages over GHI_CHANNEL_DND.
  */
 #define GHI_DND_DND_HOST_GUEST_CMD              "ghi.dnd.dnd.hostguest"
 #define GHI_DND_COPYPASTE_HOST_GUEST_CMD        "ghi.dnd.copypaste.hostguest"
@@ -71,10 +86,23 @@ typedef uint32 GHIRequestResult;
 #define GHI_DND_HOST_ADDBLOCK_CMD               "ghi.dnd.host.addblock"
 #define GHI_DND_HOST_REMOVEBLOCK_CMD            "ghi.dnd.host.removeblock"
 
+/*
+ * Results of UI->MKS Messages over GHI_CHANNEL_DND.
+ */
 #define GHI_DND_GUEST_RET_MAX_LEN               64
 #define GHI_DND_GUEST_RET_ERROR                 "error"
 #define GHI_DND_GUEST_RET_INPROGRESS            "inProgress"
 #define GHI_DND_GUEST_RET_DONE                  "done"
+
+/*
+ * MKS->UI messages over GHI_CHANNEL_DND.
+ */
+#define GHI_CHANNEL_DND_BITS                          GHI_GUEST_CHANNEL_BITS(GHI_CHANNEL_DND)
+#define GHI_GUEST_DND_DND_CMD                         (GHI_CHANNEL_DND_BITS | 0x000001)
+#define GHI_GUEST_DND_COPYPASTE_CMD                   (GHI_CHANNEL_DND_BITS | 0x000002)
+#define GHI_GUEST_DND_NOTIFY_BLOCKROOT                (GHI_CHANNEL_DND_BITS | 0x000003)
+#define GHI_GUEST_DND_TRANSFERFILES_PROGRESS          (GHI_CHANNEL_DND_BITS | 0x000004)
+#define GHI_GUEST_DND_GETFILE_OVERWRITE_QUESTION      (GHI_CHANNEL_DND_BITS | 0x000005)
 
 
 #endif // ifndef _GHINTEGRATIONCOMMON_H_
