@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -71,6 +71,7 @@ typedef enum {
    INFO_MEMORY,
    INFO_IPADDRESS_V2,
    INFO_IPADDRESS_V3,
+   INFO_OS_STRUCTURED,
    INFO_MAX
 } GuestInfoType;
 

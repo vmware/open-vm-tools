@@ -114,10 +114,11 @@ typedef enum NicInfoMethod {
 
 typedef struct _GuestInfoCache {
    /* Stores values of all key-value pairs. */
-   char          *value[INFO_MAX];
-   NicInfoV3     *nicInfo;
-   GuestDiskInfo *diskInfo;
-   NicInfoMethod  method;
+   char                      *value[INFO_MAX];
+   HostinfoStructuredHeader  *structuredOSInfo;
+   NicInfoV3                 *nicInfo;
+   GuestDiskInfo             *diskInfo;
+   NicInfoMethod              method;
 } GuestInfoCache;
 
 
@@ -456,7 +457,54 @@ GuestInfoResetNicExcludeList(ToolsAppCtx *ctx)
 
 /*
  ******************************************************************************
- * GuestInfoGather --                                                    */ /**
+ * GuestInfoStructuredInfoIsEqual --
+ *
+ *    Compares two HostinfoStructuredHeader and the structured string that
+ *    follows each header.
+ *
+ * @returns True if equal
+ *
+ ******************************************************************************
+ */
+
+static Bool
+GuestInfoStructuredInfoIsEqual(const HostinfoStructuredHeader *info1,  // IN:
+                               const HostinfoStructuredHeader *info2)  // IN:
+{
+   ASSERT(info1 != NULL);
+   ASSERT(info2 != NULL);
+
+   return (strncmp(info1->shortName, info2->shortName,
+                   sizeof info1->shortName) == 0 &&
+           strncmp(info1->fullName, info2->fullName,
+                   sizeof info1->fullName) == 0 &&
+           strcmp((char *)info1 + sizeof *info1,
+                  (char *)info2 + sizeof *info2) == 0);
+}
+
+
+/*
+ ******************************************************************************
+ * GuestInfoFreeStructuredInfo --
+ *
+ * Free the HostinfoStructuredHeader and space allocated for the structured
+ * string.
+ *
+ * @returns None
+ *
+ ******************************************************************************
+ */
+
+static void
+GuestInfoFreeStructuredInfo(HostinfoStructuredHeader *info)  // IN/OUT:
+{
+   free(info);
+}
+
+
+/*
+ ******************************************************************************
+ * GuestInfoGather --
  *
  * Collects all the desired guest information and updates the VMX.
  *
@@ -472,7 +520,6 @@ GuestInfoGather(gpointer data)
 {
    char name[256];  // Size is derived from the SUS2 specification
                     // "Host names are limited to 255 bytes"
-   char *osString = NULL;
 #if !defined(USERWORLD)
    gboolean disableQueryDiskInfo;
    GuestDiskInfo *diskInfo = NULL;
@@ -521,26 +568,91 @@ GuestInfoGather(gpointer data)
 
    /* Only use override if at least the short OS name is provided */
    if (osNameOverride == NULL) {
-      /* Gather all the relevant guest information. */
-      osString = Hostinfo_GetOSName();
-      if (osString == NULL) {
-         g_warning("Failed to get OS info.\n");
-      } else {
-         if (!GuestInfoUpdateVmdb(ctx, INFO_OS_NAME_FULL, osString, 0)) {
-            g_warning("Failed to update VMDB\n");
-         }
-      }
-      free(osString);
+      Bool sendOsNames = FALSE;
+      static Bool sendStructuredOsInfo = FALSE;
+      char *osName = NULL;
+      char *osFullName = NULL;
+      char *structuredString = NULL;
 
-      osString = Hostinfo_GetOSGuestString();
-      if (osString == NULL) {
-         g_warning("Failed to get OS info.\n");
+      /* Gather all the relevant guest information. */
+      osFullName = Hostinfo_GetOSName();
+      osName = Hostinfo_GetOSGuestString();
+
+      if (sendStructuredOsInfo) {
+         structuredString = Hostinfo_GetOSStructuredString();
+      }
+      if (structuredString == NULL) {
+         sendOsNames = TRUE;
+         sendStructuredOsInfo = FALSE;
       } else {
-         if (!GuestInfoUpdateVmdb(ctx, INFO_OS_NAME, osString, 0)) {
-            g_warning("Failed to update VMDB\n");
+         /* Build and attempt to send the structured data */
+         HostinfoStructuredHeader *structuredInfoHeader = NULL;
+         size_t infoHeaderSize;
+         size_t structuredStringLen;
+         size_t infoSize;
+
+         g_message("Sending structured OS info.\n");
+         structuredStringLen = strlen(structuredString);
+         infoHeaderSize = sizeof *structuredInfoHeader;
+         infoSize = infoHeaderSize + structuredStringLen + 1; // add 1 for '\0'
+         structuredInfoHeader = g_malloc(infoSize);
+         /* Clear struct and memory allocated for structured string */
+         memset(structuredInfoHeader, 0, infoSize);
+
+         /* Set the version of the structured header used */
+         structuredInfoHeader->version = HOSTINFO_STRUCT_HEADER_VERSION;
+
+         if (osName == NULL) {
+            g_warning("Failed to get OS name.\n");
+         } else {
+            Str_Strcpy(structuredInfoHeader->shortName, osName,
+                       sizeof structuredInfoHeader->shortName);
+         }
+         if (osFullName == NULL) {
+            g_warning("Failed to get OS full name.\n");
+         } else {
+            Str_Strcpy(structuredInfoHeader->fullName, osFullName,
+                       sizeof structuredInfoHeader->fullName);
+         }
+
+         Str_Strcpy((char *)structuredInfoHeader + infoHeaderSize,
+                    structuredString, infoSize - infoHeaderSize);
+
+         if (GuestInfoUpdateVmdb(ctx, INFO_OS_STRUCTURED, structuredInfoHeader,
+                                 infoSize)) {
+            g_debug("Structured OS info sent successfully.\n");
+            GuestInfoFreeStructuredInfo(gInfoCache.structuredOSInfo);
+            gInfoCache.structuredOSInfo = structuredInfoHeader;
+         } else {
+            /* Only send the OS Name if the VMX failed to receive the
+             * structured os info. */
+            sendStructuredOsInfo = FALSE;
+            sendOsNames = TRUE;
+            g_warning("Failed to update VMX for structured OS info\n");
          }
       }
-      free(osString);
+
+      if (sendOsNames) {
+         g_warning("Sending the short and long name\n");
+         if (osFullName == NULL) {
+            g_warning("Failed to get OS info.\n");
+         } else {
+            if (!GuestInfoUpdateVmdb(ctx, INFO_OS_NAME_FULL, osFullName, 0)) {
+               g_warning("Failed to update VMDB\n");
+            }
+         }
+         if (osName == NULL) {
+            g_warning("Failed to get OS info.\n");
+         } else {
+            if (!GuestInfoUpdateVmdb(ctx, INFO_OS_NAME, osName, 0)) {
+               g_warning("Failed to update VMDB\n");
+            }
+         }
+      }
+
+      free(structuredString);
+      free(osFullName);
+      free(osName);
    } else {
       /* Use osName and osNameFull provided in config file */
       if (osNameFullOverride == NULL) {
@@ -1127,6 +1239,23 @@ GuestInfoUpdateVmdb(ToolsAppCtx *ctx,       // IN: Application context
       gInfoCache.value[infoType] = Util_SafeStrdup((char *) info);
       break;
 
+   case INFO_OS_STRUCTURED:
+      {
+         if (gInfoCache.structuredOSInfo != NULL &&
+             GuestInfoStructuredInfoIsEqual(gInfoCache.structuredOSInfo,
+                                            (HostinfoStructuredHeader *)info)) {
+            /* The value has not changed */
+            g_debug("Value unchanged for structuredOSInfo.\n");
+            break;
+         }
+
+         if (!GuestInfoSendData(ctx, info, infoSize, INFO_OS_STRUCTURED)) {
+            g_warning("Failed to update structured os information.\n");
+            return FALSE;
+         }
+         break;
+      }
+
    case INFO_IPADDRESS:
       {
          if (!GuestInfoSendNicInfo(ctx, (NicInfoV3 *) info)) {
@@ -1440,6 +1569,9 @@ GuestInfoClearCache(void)
       free(gInfoCache.value[i]);
       gInfoCache.value[i] = NULL;
    }
+
+   GuestInfoFreeStructuredInfo(gInfoCache.structuredOSInfo);
+   gInfoCache.structuredOSInfo = NULL;
 
    GuestInfo_FreeDiskInfo(gInfoCache.diskInfo);
    gInfoCache.diskInfo = NULL;

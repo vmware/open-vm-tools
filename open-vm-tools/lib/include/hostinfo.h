@@ -39,6 +39,9 @@
 extern "C" {
 #endif
 
+#define MAX_OS_NAME_LEN 128
+#define MAX_OS_FULLNAME_LEN 512
+
 typedef enum {
    HOSTINFO_PROCESS_QUERY_DEAD,    // Procss is dead (does not exist)
    HOSTINFO_PROCESS_QUERY_ALIVE,   // Process is alive (does exist)
@@ -47,10 +50,25 @@ typedef enum {
 
 HostinfoProcessQuery Hostinfo_QueryProcessExistence(int pid);
 
-char *Hostinfo_NameGet(void);           // Don't free result
-char *Hostinfo_HostName(void);          // free result
-char *Hostinfo_GetOSName(void);         // free result
-char *Hostinfo_GetOSGuestString(void);  // free result
+/* This macro defines the current version of the structured header. */
+#define HOSTINFO_STRUCT_HEADER_VERSION 1
+
+/*
+ * This struct is used to build a structured OS data. The structured data will
+ * be composed of two parts. The first part is the header and the second part
+ * will be a structured string that is appended to this header in memory.
+ */
+typedef struct HostinfoStructuredHeader {
+   uint32  version;
+   char    shortName[MAX_OS_NAME_LEN + 1];
+   char    fullName[MAX_OS_FULLNAME_LEN + 1];
+} HostinfoStructuredHeader;
+
+char *Hostinfo_NameGet(void);                // Don't free result
+char *Hostinfo_HostName(void);               // free result
+char *Hostinfo_GetOSName(void);              // free result
+char *Hostinfo_GetOSGuestString(void);       // free result
+char *Hostinfo_GetOSStructuredString(void);  // free result
 
 void Hostinfo_MachineID(uint32 *hostNameHash,
                         uint64 *hostHardwareID);

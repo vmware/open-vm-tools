@@ -169,7 +169,10 @@ static const DistroNameScan lsbFields[] = {
 
 static const DistroNameScan osReleaseFields[] = {
    {"PRETTY_NAME=",        "PRETTY_NAME=%s"          },
-   {NULL,                   NULL                     },
+   {"NAME=",               "NAME=%s"                 },
+   {"VERSION_ID=",         "VERSION_ID=%s"           },
+   {"BUILD_ID=",           "BUILD_ID=%s"             },
+   {NULL,                  NULL                      },
 };
 
 typedef struct {
@@ -222,6 +225,18 @@ static const DistroInfo distroArray[] = {
    {NULL, NULL},
 };
 #endif
+
+/* Must be sorted. Keep in same ordering as StructuredFieldType*/
+StructuredField structuredFields[] = {
+   {"BITNESS", ""},         // "32" or "64"
+   {"BUILD_NUMBER", ""},    // Always present for MacOS. Present for some Linux distros.
+   {"DISTRO_NAME", ""},     // Defaults to uname -s
+   {"DISTRO_VERSION", ""},  // Always present for MacOS. Read from distro files for Linux.
+   {"FAMILY_NAME", ""},     // Defaults to uname -s
+   {"KERNEL_VERSION", ""},  // Defaults to uname -r
+   {"PRETTY_NAME", ""},     // Always present for MacOS. Read from distro files for Linux.
+   {NULL},
+};
 
 #if defined __ANDROID__
 /*
@@ -517,6 +532,76 @@ HostinfoPostData(const char *osName,  // IN:
 }
 
 
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HostinfoOSStructuredString --
+ *
+ *    Builds, escapes, and stores the structured string into the cache.
+ *
+ * Return value:
+ *      TRUE   Success
+ *      FALSE  Failure
+ *
+ * Side effects:
+ *      Cache values are set when returning TRUE
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HostinfoOSStructuredString(void)
+{
+   StructuredField *field;
+
+   /* Clear the string cache */
+   memset(HostinfoCachedStructuredString, 0,
+          sizeof HostinfoCachedStructuredString);
+
+   for (field = structuredFields; field->name != NULL; field++) {
+      if (field->value != NULL && *field->value != '\0') {
+         /* Account for escape char and null char */
+         char escapedString[MAX_STRUCTURED_FIELD_LEN * 2 + 1];
+         char fieldString[MAX_STRUCTURED_FIELD_LEN];
+         int i = 0;
+         int len;
+         const char *c;
+
+         /* escape single quotes and backslash from value */
+         for (c = field->value; *c != '\0'; c++) {
+            if (*c == '\'' || *c == '\\') {
+               escapedString[i] = '\\';
+               i++;
+            }
+            escapedString[i] = *c;
+            i++;
+         }
+         escapedString[i] = '\0';
+
+         len = Str_Snprintf(fieldString, sizeof fieldString, "%s='%s'",
+                            field->name, escapedString);
+         if (len == -1) {
+            Warning("%s: Error: structured info field too large\n",
+                    __FUNCTION__);
+            memset(HostinfoCachedStructuredString, 0,
+                   sizeof HostinfoCachedStructuredString);
+            return;
+         }
+         Str_Strcat(HostinfoCachedStructuredString, fieldString,
+                    sizeof HostinfoCachedStructuredString);
+
+         /* Add delimiter between properties */
+         if ((field + 1)->name != NULL) {
+            Str_Strcat(HostinfoCachedStructuredString,
+                       STRUCTURED_STRING_DELIMITER,
+                       sizeof HostinfoCachedStructuredString);
+         }
+      }
+   }
+   Log("structuredstring = \"%s\"\n", HostinfoCachedStructuredString);
+}
+
+
 #if defined(__APPLE__) // MacOS
 /*
  *-----------------------------------------------------------------------------
@@ -572,6 +657,13 @@ HostinfoMacOS(struct utsname *buf)  // IN:
          CFRelease(versionDict);
       }
    }
+
+   Str_Strcpy(structuredFields[DISTRO_NAME].value, productName,
+              sizeof structuredFields[DISTRO_NAME].value);
+   Str_Strcpy(structuredFields[DISTRO_VERSION].value, productVersion,
+              sizeof structuredFields[DISTRO_VERSION].value);
+   Str_Strcpy(structuredFields[BUILD_NUMBER].value, productBuildVersion,
+              sizeof structuredFields[BUILD_NUMBER].value);
 
    if (haveVersion) {
       len = Str_Snprintf(osNameFull, sizeof osNameFull,
@@ -1124,17 +1216,71 @@ static Bool
 HostinfoOsRelease(char *distro,       // OUT:
                   size_t distroSize)  // IN:
 {
-   Bool success = HostinfoReadDistroFile(TRUE, "/etc/os-release",
+   char distroName[DISTRO_BUF_SIZE] = "";
+   char distroBuild[DISTRO_BUF_SIZE] = "";
+   char distroRelease[DISTRO_BUF_SIZE] = "";
+   char *fileName = "/etc/os-release";
+
+   Bool success = HostinfoReadDistroFile(TRUE, fileName,
                                          &osReleaseFields[0],
                                          distroSize, distro);
-
    if (!success) {
-      success = HostinfoReadDistroFile(TRUE, "/usr/lib/os-release",
-                                       &osReleaseFields[0],
-                                       distroSize, distro);
+      fileName = "/usr/lib/os-release";
    }
+   success = HostinfoReadDistroFile(TRUE, fileName,
+                                    &osReleaseFields[0],
+                                    distroSize, distro);
+
+   /* These are used for the structured string. They can fail */
+   HostinfoReadDistroFile(TRUE, fileName, &osReleaseFields[1],
+                          sizeof distroName, distroName);
+   HostinfoReadDistroFile(TRUE, fileName, &osReleaseFields[2],
+                          sizeof distroRelease, distroRelease);
+   HostinfoReadDistroFile(TRUE, fileName, &osReleaseFields[3],
+                          sizeof distroBuild, distroBuild);
+
+   Str_Strcpy(structuredFields[PRETTY_NAME].value, distro,
+              sizeof structuredFields[PRETTY_NAME].value);
+   Str_Strcpy(structuredFields[DISTRO_NAME].value, distroName,
+              sizeof structuredFields[DISTRO_NAME].value);
+   Str_Strcpy(structuredFields[BUILD_NUMBER].value, distroBuild,
+              sizeof structuredFields[BUILD_NUMBER].value);
+   Str_Strcpy(structuredFields[DISTRO_VERSION].value, distroRelease,
+              sizeof structuredFields[DISTRO_VERSION].value);
 
    return success;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HostinfoLsbRemoveQuotes --
+ *
+ *      If present, removes 1 set of double quotes around a LSB output.
+ *
+ * Return value:
+ *      Pointer to a substring of the input
+ *
+ * Side effects:
+ *      Replaces second double quote with a null character.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static char *
+HostinfoLsbRemoveQuotes(char *lsbOutput)  // IN/OUT:
+{
+   char *lsbStart = lsbOutput;
+
+   if (lsbStart[0] == '"') {
+      char *quoteEnd = strchr(++lsbStart, '"');
+      if (quoteEnd != NULL) {
+         *quoteEnd = '\0';
+      }
+   }
+
+   return lsbStart;
 }
 
 
@@ -1161,6 +1307,9 @@ HostinfoLsb(char *distro,       // OUT:
 {
    char *lsbOutput;
    Bool success = FALSE;
+   char distroName[DISTRO_BUF_SIZE] = "";
+   char distroRelease[DISTRO_BUF_SIZE] = "";
+   char distroDescription[DISTRO_BUF_SIZE] = "";
 
    /*
     * Try to get OS detailed information from the lsb_release command.
@@ -1178,7 +1327,6 @@ HostinfoLsb(char *distro,       // OUT:
       for (i = 0; distroArray[i].filename != NULL; i++) {
          if (HostinfoReadDistroFile(FALSE, distroArray[i].filename,
                                     &lsbFields[0], distroSize, distro)) {
-            success = TRUE;
             break;
          }
       }
@@ -1187,24 +1335,56 @@ HostinfoLsb(char *distro,       // OUT:
        * If we failed to read every distro file, exit now, before calling
        * strlen on the distro buffer (which wasn't set).
        */
-
       if (distroArray[i].filename == NULL) {
          Log("%s: Error: no distro file found\n", __FUNCTION__);
+      } else {
+         if (!HostinfoReadDistroFile(FALSE, distroArray[i].filename,
+                                     &lsbFields[1], sizeof distroRelease,
+                                     distroRelease)) {
+            return FALSE;
+         }
+         if (!HostinfoReadDistroFile(FALSE, distroArray[i].filename,
+                                     &lsbFields[3], sizeof distroDescription,
+                                     distroDescription)) {
+            return FALSE;
+         }
+         /* When using distro files the distro is filled in by the distrib_id */
+         Str_Strcpy(distroName, distro, sizeof distroName);
+         success = TRUE;
       }
    } else {
-      char *lsbStart = lsbOutput;
-      char *quoteEnd = NULL;
+      /* LSB Description (pretty name) */
+      char *lsbStart = HostinfoLsbRemoveQuotes(lsbOutput);
 
-      if (lsbStart[0] == '"') {
-         lsbStart++;
-         quoteEnd = strchr(lsbStart, '"');
-         if (quoteEnd) {
-            *quoteEnd = '\0';
-         }
-      }
       Str_Strcpy(distro, lsbStart, distroSize);
       free(lsbOutput);
+
+      /* LSB Release */
+      lsbOutput = HostinfoGetCmdOutput("/usr/bin/lsb_release -sr 2>/dev/null");
+      lsbStart = HostinfoLsbRemoveQuotes(lsbOutput);
+      Str_Strcpy(distroRelease, lsbStart, sizeof distroRelease);
+      free(lsbOutput);
+
+      /* LSB Distributor */
+      lsbOutput = HostinfoGetCmdOutput("/usr/bin/lsb_release -si 2>/dev/null");
+      lsbStart = HostinfoLsbRemoveQuotes(lsbOutput);
+      Str_Strcpy(distroName, lsbStart, sizeof distroName);
+      free(lsbOutput);
+
+      /* When using lsb_release, the distro is filled in by the discription
+       * (pretty name) */
+      Str_Strcpy(distroDescription, distro, sizeof distroDescription);
+
       success = TRUE;
+   }
+
+   if (success) {
+      Str_Strcpy(structuredFields[DISTRO_NAME].value, distroName,
+                 sizeof structuredFields[DISTRO_NAME].value);
+      Str_Strcpy(structuredFields[DISTRO_VERSION].value, distroRelease,
+                 sizeof structuredFields[DISTRO_VERSION].value);
+      Str_Strcpy(structuredFields[PRETTY_NAME].value, distroDescription,
+                 sizeof structuredFields[PRETTY_NAME].value);
    }
 
    return success;
@@ -1512,6 +1692,7 @@ HostinfoOSData(void)
 {
    Bool success;
    struct utsname buf;
+   const char *bitness;
 
    /*
     * Use uname to get complete OS information.
@@ -1522,6 +1703,22 @@ HostinfoOSData(void)
 
       return FALSE;
    }
+
+   Str_Strcpy(structuredFields[FAMILY_NAME].value, buf.sysname,
+              sizeof structuredFields[FAMILY_NAME].value);
+   Str_Strcpy(structuredFields[KERNEL_VERSION].value, buf.release,
+              sizeof structuredFields[KERNEL_VERSION].value);
+   /* Default distro name is set to uname's sysname field */
+   Str_Strcpy(structuredFields[DISTRO_NAME].value, buf.sysname,
+              sizeof structuredFields[DISTRO_NAME].value);
+
+#if defined(USERWORLD)  // ESXi
+   bitness = "64";
+#else
+   bitness = (Hostinfo_GetSystemBitness() == 64) ? "64" : "32";
+#endif
+   Str_Strcpy(structuredFields[BITNESS].value, bitness,
+              sizeof structuredFields[BITNESS].value);
 
 #if defined(USERWORLD)  // ESXi
    success = HostinfoESX(&buf);
@@ -1538,6 +1735,9 @@ HostinfoOSData(void)
       success = FALSE;  // Unknown to us
    }
 #endif
+
+   /* Build structured string */
+   HostinfoOSStructuredString();
 
    return success;
 }

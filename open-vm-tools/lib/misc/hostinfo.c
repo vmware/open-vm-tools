@@ -50,6 +50,7 @@
 volatile Bool HostinfoOSNameCacheValid = FALSE;
 char HostinfoCachedOSName[MAX_OS_NAME_LEN];
 char HostinfoCachedOSFullName[MAX_OS_FULLNAME_LEN];
+char HostinfoCachedStructuredString[MAX_STRUCTURED_STRING_LEN];
 
 
 #if defined(__i386__) || defined(__x86_64__)
@@ -268,7 +269,6 @@ Hostinfo_GetOSName(void)
 }
 
 
-
 /*
  *-----------------------------------------------------------------------------
  *
@@ -302,3 +302,37 @@ Hostinfo_GetOSGuestString(void)
    return name;
 }
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Hostinfo_GetOSStructuredString --
+ *
+ *      Query the operating system and build a string of property list
+ *      containing detailed information about the guest OS. The returned string
+ *      is written into the VM's .vmx file
+ *
+ * Return value:
+ *      NULL  Unable to obtain the structured string.
+ *     !NULL  The structured string. The caller is responsible for freeing it.
+ *
+ * Side effects:
+ *      Memory is allocated.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+char *
+Hostinfo_GetOSStructuredString(void)
+{
+   char *structuredString;
+   Bool data = HostinfoOSNameCacheValid ? TRUE : HostinfoOSData();
+
+   if (data) {
+      structuredString = Util_SafeStrdup(HostinfoCachedStructuredString);
+   } else {
+      structuredString = NULL;
+   }
+
+   return structuredString;
+}
