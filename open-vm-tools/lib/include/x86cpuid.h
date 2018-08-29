@@ -2095,6 +2095,13 @@ CPUID_MODEL_IS_DHYANA_A(uint32 eax)
 #define CPUID_TOPOLOGY_LEVEL_TYPE_SMT       1
 #define CPUID_TOPOLOGY_LEVEL_TYPE_CORE      2
 
+#define CPUID_LEAF85_L1_CACHE_FULLY_ASSOC     0xff
+#define CPUID_LEAF86_L2_L3_CACHE_FULLY_ASSOC  0x0f
+
+#define CPUID_LEAF81D_CACHE_TYPE_NULL   0
+#define CPUID_LEAF81D_CACHE_TYPE_DATA   1
+#define CPUID_LEAF81D_CACHE_TYPE_INST   2
+#define CPUID_LEAF81D_CACHE_TYPE_UNIF   3
 
 /*
  * For certain AMD processors, an lfence instruction is necessary at various
