@@ -21,6 +21,7 @@
 
 #define GOBUILD_TOOLS_VERSION_USED
 #include "vmtools_version.h"
+#undef GOBUILD_TOOLS_VERSION_USED
 
 #else
 
