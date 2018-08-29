@@ -922,11 +922,17 @@ AC_ARG_WITH([pam-prefix],
 	    [PAM_PREFIX="$withval"],
 	    [if test "$os" = "freebsd" ; then PAM_PREFIX='$(sysconfdir)'; else PAM_PREFIX='/etc'; fi])
 
+if test "$os" = "linux"; then
+   with_dnet_dflt="no"
+else
+   with_dnet_dflt="yes"
+fi
+
 AC_ARG_WITH([dnet],
-	    [AS_HELP_STRING([--without-dnet],
-	    [compiles without libdnet (disables support for nicinfo)])],
+	    [AS_HELP_STRING([--with-dnet],
+	    [specifies whether to build with libdnet - the default is without for Linux, and with it otherwise])],
 	    [],
-	    [with_dnet=yes])
+	    [with_dnet="$with_dnet_dflt"])
 
 have_dnet="no"
 if test "$with_dnet" = "yes"; then
@@ -958,7 +964,7 @@ if test "$with_dnet" = "yes"; then
 
    if test $have_dnet = "no"; then
 		AC_MSG_ERROR(
-		   [dnet-config was not found on your PATH. Please configure without dnet (using --without-dnet) or install dnet - http://libdnet.sourceforge.net])
+		   [dnet-config was not found on your PATH. Please configure without dnet or install dnet - http://libdnet.sourceforge.net])
    fi
 fi
 
