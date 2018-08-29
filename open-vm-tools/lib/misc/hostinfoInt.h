@@ -25,7 +25,6 @@
 #ifndef _HOSTINFOINT_H_
 #define _HOSTINFOINT_H_
 
-
 #define MAX_OS_NAME_LEN 128
 #define MAX_OS_FULLNAME_LEN 512
 #define MAX_STRUCTURED_FIELD_LEN 1024
@@ -39,7 +38,7 @@
 
 typedef struct {
    char  *name;
-   char  value[MAX_STRUCTURED_FIELD_LEN];
+   char   value[MAX_STRUCTURED_FIELD_LEN];
 } StructuredField;
 
 /* Must be sorted. Keep in same ordering as structuredFields */
@@ -53,24 +52,23 @@ typedef enum {
    PRETTY_NAME
 } StructuredFieldType;
 
-/* Must be sorted. Keep in same ordering as StructuredFieldType. Defined in
- * hostinfoPosix.c */
+/*
+ * Must be sorted. Keep in same ordering as StructuredFieldType. Defined in
+ * hostinfoPosix.c
+ */
 extern StructuredField structuredFields[];
 
 #define MAX_STRUCTURED_STRING_LEN MAX_STRUCTURED_FIELD_LEN * 10
-
 
 extern volatile Bool HostinfoOSNameCacheValid;
 extern char HostinfoCachedOSName[MAX_OS_NAME_LEN];
 extern char HostinfoCachedOSFullName[MAX_OS_FULLNAME_LEN];
 extern char HostinfoCachedStructuredString[MAX_STRUCTURED_STRING_LEN];
 
-
 /*
  * Global functions
  */
 
 extern Bool HostinfoOSData(void);
-
 
 #endif // ifndef _HOSTINFOINT_H_

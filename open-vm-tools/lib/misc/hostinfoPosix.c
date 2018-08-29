@@ -145,7 +145,7 @@
        sizeof SYSTEM_BITNESS_64_LINUX))
 
 struct hostinfoOSVersion {
-   int hostinfoOSVersion[4];
+   int   hostinfoOSVersion[4];
    char *hostinfoOSVersionString;
 };
 
@@ -228,14 +228,14 @@ static const DistroInfo distroArray[] = {
 
 /* Must be sorted. Keep in same ordering as StructuredFieldType*/
 StructuredField structuredFields[] = {
-   {"BITNESS", ""},         // "32" or "64"
-   {"BUILD_NUMBER", ""},    // Always present for MacOS. Present for some Linux distros.
-   {"DISTRO_NAME", ""},     // Defaults to uname -s
-   {"DISTRO_VERSION", ""},  // Always present for MacOS. Read from distro files for Linux.
-   {"FAMILY_NAME", ""},     // Defaults to uname -s
-   {"KERNEL_VERSION", ""},  // Defaults to uname -r
-   {"PRETTY_NAME", ""},     // Always present for MacOS. Read from distro files for Linux.
-   {NULL},
+   { "bitness",       "" },  // "32" or "64"
+   { "buildNumber",   "" },  // Always present for MacOS. Present for some Linux distros.
+   { "distroName",    "" },  // Defaults to uname -s
+   { "distroVersion", "" },  // Always present for MacOS. Read from distro files for Linux.
+   { "familyName",    "" },  // Defaults to uname -s
+   { "kernelVersion", "" },  // Defaults to uname -r
+   { "prettyName",    "" },  // Always present for MacOS. Read from distro files for Linux.
+   { NULL,            "" },  // MUST BE LAST
 };
 
 #if defined __ANDROID__
@@ -559,7 +559,7 @@ HostinfoOSStructuredString(void)
           sizeof HostinfoCachedStructuredString);
 
    for (field = structuredFields; field->name != NULL; field++) {
-      if (field->value != NULL && *field->value != '\0') {
+      if (field->value[0] != '\0') {
          /* Account for escape char and null char */
          char escapedString[MAX_STRUCTURED_FIELD_LEN * 2 + 1];
          char fieldString[MAX_STRUCTURED_FIELD_LEN];
@@ -598,7 +598,8 @@ HostinfoOSStructuredString(void)
          }
       }
    }
-   Log("structuredstring = \"%s\"\n", HostinfoCachedStructuredString);
+
+   Log("structured string = \"%s\"\n", HostinfoCachedStructuredString);
 }
 
 
