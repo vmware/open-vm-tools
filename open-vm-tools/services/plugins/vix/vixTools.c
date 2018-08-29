@@ -2522,10 +2522,10 @@ VixTools_GetToolsPropertiesImpl(GKeyFile *confDictRef,            // IN
    char *guestName;
    int osFamily;
    char *packageList = NULL;
-   const char *powerOffScript = NULL;
-   const char *powerOnScript = NULL;
-   const char *resumeScript = NULL;
-   const char *suspendScript = NULL;
+   char *powerOffScript = NULL;
+   char *powerOnScript = NULL;
+   char *resumeScript = NULL;
+   char *suspendScript = NULL;
    char *osName = NULL;
    char *osNameFull = NULL;
    Bool foundHostName;
@@ -2726,6 +2726,10 @@ abort:
    free(tempDir);
    free(osName);
    free(osNameFull);
+   free(suspendScript);
+   free(resumeScript);
+   free(powerOnScript);
+   free(powerOffScript);
 #else
    /*
     * FreeBSD. We do not require all the properties above.
@@ -11583,7 +11587,7 @@ GuestAuthPasswordAuthenticateImpersonate(
 
 #ifdef _WIN32
    // this is making a copy of the token, be sure to close it
-   err = VGAuth_UserHandleAccessToken(ctx, newHandle, userToken);
+   vgErr = VGAuth_UserHandleAccessToken(ctx, newHandle, userToken);
    if (VGAUTH_FAILED(vgErr)) {
       err = VixToolsTranslateVGAuthError(vgErr);
       goto done;
@@ -11599,6 +11603,10 @@ done:
    free(username);
    Util_ZeroFreeString(password);
 
+   if (VIX_OK != err) {
+      VGAuth_UserHandleFree(newHandle);
+      newHandle = NULL;
+   }
    return err;
 #else
    return VIX_E_NOT_SUPPORTED;
@@ -11729,7 +11737,7 @@ impersonate:
 
 #ifdef _WIN32
    // this is making a copy of the token, be sure to close it
-   err = VGAuth_UserHandleAccessToken(ctx, newHandle, userToken);
+   vgErr = VGAuth_UserHandleAccessToken(ctx, newHandle, userToken);
    if (VGAUTH_FAILED(vgErr)) {
       err = VixToolsTranslateVGAuthError(vgErr);
       goto done;
