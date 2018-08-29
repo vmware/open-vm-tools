@@ -168,10 +168,10 @@ static Bool gVMResumed;
  */
 
 
-static Bool GuestInfoUpdateVmdb(ToolsAppCtx *ctx,
-                                GuestInfoType infoType,
-                                void *info,
-                                size_t infoSize);
+static Bool GuestInfoUpdateVMX(ToolsAppCtx *ctx,
+                               GuestInfoType infoType,
+                               void *info,
+                               size_t infoSize);
 static Bool SetGuestInfo(ToolsAppCtx *ctx, GuestInfoType key,
                          const char *value);
 static void SendUptime(ToolsAppCtx *ctx);
@@ -538,7 +538,7 @@ GuestInfoGather(gpointer data)
    GuestInfoCheckIfRunningSlow(ctx);
 
    /* Send tools version. */
-   if (!GuestInfoUpdateVmdb(ctx, INFO_BUILD_NUMBER, BUILD_NUMBER, 0)) {
+   if (!GuestInfoUpdateVMX(ctx, INFO_BUILD_NUMBER, BUILD_NUMBER, 0)) {
       /*
        * An older vmx talking to new tools wont be able to handle
        * this message. Continue, if thats the case.
@@ -618,8 +618,8 @@ GuestInfoGather(gpointer data)
          Str_Strcpy((char *)structuredInfoHeader + infoHeaderSize,
                     structuredString, infoSize - infoHeaderSize);
 
-         if (GuestInfoUpdateVmdb(ctx, INFO_OS_STRUCTURED, structuredInfoHeader,
-                                 infoSize)) {
+         if (GuestInfoUpdateVMX(ctx, INFO_OS_STRUCTURED, structuredInfoHeader,
+                                infoSize)) {
             g_debug("Structured OS info sent successfully.\n");
             GuestInfoFreeStructuredInfo(gInfoCache.structuredOSInfo);
             gInfoCache.structuredOSInfo = structuredInfoHeader;
@@ -637,14 +637,14 @@ GuestInfoGather(gpointer data)
          if (osFullName == NULL) {
             g_warning("Failed to get OS info.\n");
          } else {
-            if (!GuestInfoUpdateVmdb(ctx, INFO_OS_NAME_FULL, osFullName, 0)) {
+            if (!GuestInfoUpdateVMX(ctx, INFO_OS_NAME_FULL, osFullName, 0)) {
                g_warning("Failed to update VMDB\n");
             }
          }
          if (osName == NULL) {
             g_warning("Failed to get OS info.\n");
          } else {
-            if (!GuestInfoUpdateVmdb(ctx, INFO_OS_NAME, osName, 0)) {
+            if (!GuestInfoUpdateVMX(ctx, INFO_OS_NAME, osName, 0)) {
                g_warning("Failed to update VMDB\n");
             }
          }
@@ -659,15 +659,16 @@ GuestInfoGather(gpointer data)
          g_warning(CONFNAME_GUESTOSINFO_LONGNAME " was not set in "
                    "tools.conf, using empty string.\n");
       }
-      if (!GuestInfoUpdateVmdb(ctx,
-                               INFO_OS_NAME_FULL,
-                               (osNameFullOverride == NULL) ? "" : osNameFullOverride,
-                               0)) {
+      if (!GuestInfoUpdateVMX(ctx,
+                              INFO_OS_NAME_FULL,
+                              (osNameFullOverride == NULL) ? "" :
+                                                             osNameFullOverride,
+                              0)) {
          g_warning("Failed to update VMDB\n");
       }
       g_free(osNameFullOverride);
 
-      if (!GuestInfoUpdateVmdb(ctx, INFO_OS_NAME, osNameOverride, 0)) {
+      if (!GuestInfoUpdateVMX(ctx, INFO_OS_NAME, osNameOverride, 0)) {
          g_warning("Failed to update VMDB\n");
       }
       g_free(osNameOverride);
@@ -682,7 +683,7 @@ GuestInfoGather(gpointer data)
       if ((diskInfo = GuestInfo_GetDiskInfo(ctx)) == NULL) {
          g_warning("Failed to get disk info.\n");
       } else {
-         if (GuestInfoUpdateVmdb(ctx, INFO_DISK_FREE_SPACE, diskInfo, 0)) {
+         if (GuestInfoUpdateVMX(ctx, INFO_DISK_FREE_SPACE, diskInfo, 0)) {
             GuestInfo_FreeDiskInfo(gInfoCache.diskInfo);
             gInfoCache.diskInfo = diskInfo;
          } else {
@@ -695,7 +696,7 @@ GuestInfoGather(gpointer data)
 
    if (!System_GetNodeName(sizeof name, name)) {
       g_warning("Failed to get netbios name.\n");
-   } else if (!GuestInfoUpdateVmdb(ctx, INFO_DNS_NAME, name, 0)) {
+   } else if (!GuestInfoUpdateVMX(ctx, INFO_DNS_NAME, name, 0)) {
       g_warning("Failed to update VMDB.\n");
    }
 
@@ -758,7 +759,7 @@ GuestInfoGather(gpointer data)
        GuestInfo_IsEqual_NicInfoV3(nicInfo, gInfoCache.nicInfo)) {
       g_debug("Nic info not changed.\n");
       GuestInfo_FreeNicInfo(nicInfo);
-   } else if (GuestInfoUpdateVmdb(ctx, INFO_IPADDRESS, nicInfo, 0)) {
+   } else if (GuestInfoUpdateVMX(ctx, INFO_IPADDRESS, nicInfo, 0)) {
       /*
        * Since the update succeeded, free the old cached object, and assign
        * ours to the cache.
@@ -1172,7 +1173,7 @@ GuestInfoSendNicInfo(ToolsAppCtx *ctx,             // IN
 
 /*
  ******************************************************************************
- * GuestInfoUpdateVmdb --                                                */ /**
+ * GuestInfoUpdateVMX --
  *
  * Push singular GuestInfo snippets to the VMX.
  *
@@ -1198,7 +1199,7 @@ GuestInfoSendNicInfo(ToolsAppCtx *ctx,             // IN
 #endif
 
 static Bool
-GuestInfoUpdateVmdb(ToolsAppCtx *ctx,       // IN: Application context
+GuestInfoUpdateVMX(ToolsAppCtx *ctx,       // IN: Application context
                     GuestInfoType infoType, // IN: guest information type
                     void *info,             // IN: type specific information
                     size_t infoSize)        // IN: size of *info
@@ -1388,7 +1389,7 @@ SendUptime(ToolsAppCtx *ctx)
 {
    gchar *uptime = g_strdup_printf("%"FMT64"u", System_Uptime());
    g_debug("Setting guest uptime to '%s'\n", uptime);
-   GuestInfoUpdateVmdb(ctx, INFO_UPTIME, uptime, 0);
+   GuestInfoUpdateVMX(ctx, INFO_UPTIME, uptime, 0);
    g_free(uptime);
 }
 
@@ -1816,14 +1817,13 @@ TweakGatherLoops(ToolsAppCtx *ctx,
  */
 
 Bool
-GuestInfo_ServerReportStats(
-   ToolsAppCtx *ctx,  // IN
-   DynBuf *stats)     // IN
+GuestInfo_ServerReportStats(ToolsAppCtx *ctx,  // IN
+                            DynBuf *stats)     // IN
 {
-   return GuestInfoUpdateVmdb(ctx,
-                              INFO_MEMORY,
-                              DynBuf_Get(stats),
-                              DynBuf_GetSize(stats));
+   return GuestInfoUpdateVMX(ctx,
+                             INFO_MEMORY,
+                             DynBuf_Get(stats),
+                             DynBuf_GetSize(stats));
 }
 
 
