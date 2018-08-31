@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2009-2016 VMware, Inc.  All rights reserved.
+### Copyright (C) 2009-2018 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -27,3 +27,8 @@ endif
 
 libRpcChannel_la_CPPFLAGS =
 libRpcChannel_la_CPPFLAGS += @VMTOOLS_CPPFLAGS@
+libRpcChannel_la_CPPFLAGS += @XDR_CPPFLAGS@
+
+libRpcChannel_la_LIBADD =
+libRpcChannel_la_LIBADD += @XDR_LIBS@
+

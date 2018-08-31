@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -574,11 +574,12 @@ File_StripFwdSlashes(const char *pathName)  // IN:
  *      path of "." is the current working directory, ".." is parent
  *      directory and so on. If the path is NULL or "", this routine
  *      returns the current working directory.
- *      There are mainly two use cases for this function. To find the
- *      canonical path of a file or directory that exists, or when we
- *      are about to create a child in an existing parent directory.
- *      For other uses cases, this routine is not guaranteed to return
- *      a canonical path.
+ *
+ *      On FreeBSD and Sun platforms, this routine will only work if
+ *      the path exists, or when we are about to create a child in an
+ *      existing parent directory. This is because on these platforms,
+ *      we cannot rely on finding existing ancestor and such because
+ *      those functions are not compiled.
  *
  * Results:
  *      NULL if error (reported to the user)
@@ -619,18 +620,41 @@ File_FullPath(const char *pathName)  // IN:
       if (ret == NULL) {
          char *dir;
          char *file;
+#if defined(__FreeBSD__) || defined(sun)
          char *realDir;
+#else
+         char *ancestorPath;
+         char *ancestorRealPath;
+#endif
 
          File_GetPathName(path, &dir, &file);
+#if defined(__FreeBSD__) || defined(sun)
          realDir = Posix_RealPath(dir);
          if (realDir == NULL) {
             realDir = File_StripFwdSlashes(dir);
          }
 
          ret = Unicode_Join(realDir, DIRSEPS, file, NULL);
+         Posix_Free(realDir);
+#else
+         ancestorPath = FilePosixNearestExistingAncestor(dir);
+         ancestorRealPath = Posix_RealPath(ancestorPath);
+
+         /*
+          * Check if the ancestor was deleted before we could compute its
+          * realPath
+          */
+         if (ancestorRealPath == NULL) {
+            ret = File_StripFwdSlashes(path);
+         } else {
+            ret = File_PathJoin(ancestorRealPath, path + strlen(ancestorPath));
+            Posix_Free(ancestorRealPath);
+         }
+
+         Posix_Free(ancestorPath);
+#endif
          Posix_Free(dir);
          Posix_Free(file);
-         Posix_Free(realDir);
       }
 
       Posix_Free(path);

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -259,6 +259,8 @@ typedef struct ToolsAppCtx {
 #else
    /** The FD to access the VMware blocking fs. -1 if no FD available. */
    int               blockFD;
+   /** The FD to access the uinput. -1 if no FD available. */
+   int               uinputFD;
    /** The native environment (without any VMware modifications). */
    const char      **envp;
 #endif

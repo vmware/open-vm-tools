@@ -1,5 +1,5 @@
 ##########################################################
-# Copyright (C) 2010 VMware, Inc. All rights reserved.
+# Copyright (C) 2010-2018 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -57,6 +57,10 @@ cmdline.rpc.command = "명령"
 cmdline.rpcerror = "VMware 하이퍼바이저에 명령을 보낼 수 없습니다."
 
 cmdline.state = "실행 중인 서비스 인스턴스의 내부 상태를 로그에 덤프합니다."
+
+cmdline.uinputfd = "uinput 장치에 대한 파일 설명자입니다."
+
+cmdline.uinputfd.fd = "fd"
 
 cmdline.uninstall = "서비스 제어 관리자에서 서비스를 제거합니다."
 

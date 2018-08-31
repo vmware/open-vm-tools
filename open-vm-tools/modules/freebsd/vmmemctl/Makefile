@@ -1,6 +1,6 @@
 #!/usr/bin/make -f
 ##########################################################
-# Copyright (C) 2007 VMware, Inc. All rights reserved.
+# Copyright (C) 2007-2018 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -46,6 +46,7 @@ NO_OBJ  = 1
    CFLAGS += -I$(OVT_SOURCE_DIR)/lib/backdoor
    CFLAGS += -I$(OVT_SOURCE_DIR)/modules/freebsd/shared
    CFLAGS += -I$(OVT_SOURCE_DIR)/modules/shared/vmmemctl
+   CFLAGS += -isystem /usr/include
    VPATH  := $(OVT_SOURCE_DIR)/lib/backdoor
    VPATH  := $(VPATH):$(OVT_SOURCE_DIR)/modules/shared/vmmemctl
 .else

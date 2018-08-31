@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -107,10 +107,17 @@ typedef enum PollClass {
    POLL_CLASS_CPT,
    POLL_CLASS_MKS,
    POLL_FIXED_CLASSES,
+   POLL_DEFAULT_FIXED_CLASSES,
    /* Size enum to maximum */
    POLL_MAX_CLASSES = 31,
 } PollClass;
 
+/*
+ * Do not use; Special pseudo private poll class supported by
+ * PollDefault only
+ */
+#define POLL_DEFAULT_CLASS_NET POLL_FIXED_CLASSES
+#define POLL_DEFAULT_CS_NET    PollClassSet_Singleton(POLL_DEFAULT_CLASS_NET)
 
 /*
  * Each callback is registered in a set of classes

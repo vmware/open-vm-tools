@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -35,10 +35,10 @@
 EXTERN GHashTable *SlashProcNet_GetSnmp(void);
 EXTERN GHashTable *SlashProcNet_GetSnmp6(void);
 
-EXTERN GPtrArray  *SlashProcNet_GetRoute(void);
+EXTERN GPtrArray  *SlashProcNet_GetRoute(unsigned int, unsigned short);
 EXTERN void        SlashProcNet_FreeRoute(GPtrArray *);
 
-EXTERN GPtrArray  *SlashProcNet_GetRoute6(void);
+EXTERN GPtrArray  *SlashProcNet_GetRoute6(unsigned int, unsigned int);
 EXTERN void        SlashProcNet_FreeRoute6(GPtrArray *);
 
 #endif // ifndef _SLASHPROC_H_

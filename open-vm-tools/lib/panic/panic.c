@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -602,7 +602,7 @@ Panic_Panic(const char *format,
 
    Panic_DumpGuiResources();
 
-#if defined(_WIN32) ||  !defined(VMX86_TOOLS)
+#if (defined(_WIN32) || !defined(VMX86_TOOLS)) && !defined(__ANDROID__)
    if (Panic_GetCoreDumpOnPanic()) {
       CoreDump_CoreDump();
    }
@@ -622,7 +622,7 @@ Panic_Panic(const char *format,
     */
    Log("Exiting\n");
 
-   exit(-1);
+   Util_ExitProcessAbruptly(-1);
    NOT_REACHED();
 }
 

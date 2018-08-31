@@ -31,7 +31,6 @@
 #include "deployPkg/linuxDeployment.h"
 #endif
 
-#include "vm_assert.h"
 #include "file.h"
 #include "str.h"
 #include "util.h"
@@ -44,6 +43,12 @@ extern "C" {
    #include "vmware/tools/threadPool.h"
 #ifdef __cplusplus
 }
+#endif
+
+#ifdef __cplusplus
+// deployPkg.c is compiled using c++ in Windows.
+// For c++, LogLevel enum is defined in ImgCustCommon namespace.
+using namespace ImgCustCommon;
 #endif
 
 static char *DeployPkgGetTempDir(void);
@@ -78,7 +83,7 @@ DeployPkgDeployPkgInGuest(const char* pkgFile, // IN: the package filename
    DeployPkgLog_Open();
    DeployPkg_SetLogger(DeployPkgLog_Log);
 
-   DeployPkgLog_Log(0, "Deploying %s", pkgFile);
+   DeployPkgLog_Log(log_debug, "Deploying %s", pkgFile);
 
 #ifdef _WIN32
    /*
@@ -92,7 +97,7 @@ DeployPkgDeployPkgInGuest(const char* pkgFile, // IN: the package filename
    if (tempFileName == NULL) {
       Str_Snprintf(errBuf, errBufSize,
                    "Package deploy failed in Unicode_GetAllocBytes");
-      DeployPkgLog_Log(3, errBuf);
+      DeployPkgLog_Log(log_error, errBuf);
       ret = TOOLSDEPLOYPKG_ERROR_DEPLOY_FAILED;
       goto ExitPoint;
    }
@@ -102,11 +107,11 @@ DeployPkgDeployPkgInGuest(const char* pkgFile, // IN: the package filename
    if (0 != DeployPkg_DeployPackageFromFile(pkgFile)) {
       Str_Snprintf(errBuf, errBufSize,
                    "Package deploy failed in DeployPkg_DeployPackageFromFile");
-      DeployPkgLog_Log(3, errBuf);
+      DeployPkgLog_Log(log_error, errBuf);
       ret = TOOLSDEPLOYPKG_ERROR_DEPLOY_FAILED;
       goto ExitPoint;
    }
-   DeployPkgLog_Log(0, "Ran DeployPkg_DeployPackageFromFile successfully");
+   DeployPkgLog_Log(log_debug, "Ran DeployPkg_DeployPackageFromFile successfully");
 
 ExitPoint:
    free(tempFileName);
@@ -193,13 +198,13 @@ DeployPkgExecDeploy(ToolsAppCtx *ctx,   // IN: app context
    }
 
    /* Attempt to delete the package file and tempdir. */
-   Log("Deleting file %s\n", pkgNameStr);
+   g_debug("Deleting file %s\n", pkgNameStr);
    if (File_Unlink(pkgNameStr) == 0) {
       char *vol, *dir, *path;
       File_SplitName(pkgNameStr, &vol, &dir, NULL);
       path = Str_Asprintf(NULL, "%s%s", vol, dir);
       if (path != NULL) {
-         Log("Deleting directory %s\n", path);
+         g_debug("Deleting directory %s\n", path);
          File_DeleteEmptyDirectory(path);
          free(path);
       }
@@ -320,12 +325,34 @@ DeployPkgGetTempDir(void)
    char *dir = NULL;
    char *newDir = NULL;
    Bool found = FALSE;
+#ifndef _WIN32
+   /*
+    * PR 2115630. On Linux, use /var/run or /run directory
+    * to hold the package.
+    */
+   const char *runDir = "/run";
+   const char *varRunDir = "/var/run";
+
+   if (File_IsDirectory(varRunDir)) {
+      dir = strdup(varRunDir);
+      if (dir == NULL) {
+         g_warning("%s: strdup failed\n", __FUNCTION__);
+         goto exit;
+      }
+   } else if (File_IsDirectory(runDir)) {
+      dir = strdup(runDir);
+      if (dir == NULL) {
+         g_warning("%s: strdup failed\n", __FUNCTION__);
+         goto exit;
+      }
+   }
+#endif
 
    /*
     * Get system temporary directory.
     */
 
-   if ((dir = File_GetSafeRandomTmpDir(TRUE)) == NULL) {
+   if (dir == NULL && (dir = File_GetSafeRandomTmpDir(TRUE)) == NULL) {
       g_warning("%s: File_GetSafeRandomTmpDir failed\n", __FUNCTION__);
       goto exit;
    }

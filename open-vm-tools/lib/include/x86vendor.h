@@ -1,6 +1,5 @@
-
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -45,6 +44,7 @@ typedef enum {
    CPUID_VENDOR_AMD,
    CPUID_VENDOR_CYRIX,
    CPUID_VENDOR_VIA,
+   CPUID_VENDOR_HYGON,
    CPUID_NUM_VENDORS
 } CpuidVendor;
 

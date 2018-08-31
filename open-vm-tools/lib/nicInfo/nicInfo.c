@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2014-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2014-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -281,7 +281,9 @@ GuestInfo_GetFqdn(int outBufLen,
  *
  * @brief Returns guest networking configuration (and some runtime state).
  *
- * @param[out] nicInfo  Will point to a newly allocated NicInfo.
+ * @param[in]  maxIPv4Routes  Max IPv4 routes to gather.
+ * @param[in]  maxIPv6Routes  Max IPv6 routes to gather.
+ * @param[out] nicInfo        Will point to a newly allocated NicInfo.
  *
  * @note
  * Caller is responsible for freeing @a nicInfo with GuestInfo_FreeNicInfo.
@@ -293,13 +295,15 @@ GuestInfo_GetFqdn(int outBufLen,
  */
 
 Bool
-GuestInfo_GetNicInfo(NicInfoV3 **nicInfo)
+GuestInfo_GetNicInfo(unsigned int maxIPv4Routes,
+                     unsigned int maxIPv6Routes,
+                     NicInfoV3 **nicInfo)
 {
    Bool retval = FALSE;
 
    *nicInfo = Util_SafeCalloc(1, sizeof (struct NicInfoV3));
 
-   retval = GuestInfoGetNicInfo(*nicInfo);
+   retval = GuestInfoGetNicInfo(maxIPv4Routes, maxIPv6Routes, *nicInfo);
    if (!retval) {
       GuestInfo_FreeNicInfo(*nicInfo);
       *nicInfo = NULL;

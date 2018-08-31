@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -36,7 +36,6 @@
 #include "panic.h"
 #include "slashProc.h"
 #include "slashProcNetInt.h"
-#include "netutil.h"
 
 
 /*
@@ -495,14 +494,14 @@ SlashProcNet_GetSnmp6(void)
  ******************************************************************************
  * SlashProcNet_GetRoute --                                             */ /**
  *
- * @brief Reads @ref pathToNetRoute and returns a @c GPtrArray of
- *        <tt>struct rtentry</tt>s.
+ * @brief Reads the first @c maxRoutes lines of @ref pathToNetRoute and
+ *        returns a @c GPtrArray of <tt>struct rtentry</tt>s.
  *
  * Example usage:
  * @code
  * GPtrArray *rtArray;
  * guint i;
- * rtArray = SlashProcNet_GetRoute();
+ * rtArray = SlashProcNet_GetRoute(NICINFO_MAX_ROUTES, RTF_UP);
  * for (i = 0; i < rtArray->len; i++) {
  *    struct rtentry *myRoute = g_ptr_array_index(rtArray, i);
  *    // Do something with myRoute->rt_dst.
@@ -514,6 +513,10 @@ SlashProcNet_GetSnmp6(void)
  *              SlashProcNet_FreeRoute.
  * @note        This routine creates persistent GLib GRegexs.
  *
+ * @param[in]   maxRoutes       Max routes to gather.
+ * @param[in]   rtFilterFlags   Route flags used to filter out what we want.
+ *                              Set ~0 if want everything.
+ *
  * @return      On failure, NULL.  On success, a valid @c GPtrArray.
  * @todo        Consider init/cleanup routines to not "leak" GRegexs.
  * @todo        Consider rewriting, integrating with libdnet.
@@ -522,16 +525,20 @@ SlashProcNet_GetSnmp6(void)
  */
 
 GPtrArray *
-SlashProcNet_GetRoute(void)
+SlashProcNet_GetRoute(unsigned int maxRoutes,
+                      unsigned short rtFilterFlags)
 {
    GIOChannel *myChannel = NULL;
    GIOStatus myIoStatus;
    GPtrArray *myArray = NULL;
    gchar *myLine = NULL;
    int fd = -1;
+   unsigned int lineCount = 0;
 
    static GRegex *myFieldsRE = NULL;
    static GRegex *myValuesRE = NULL;
+
+   ASSERT(maxRoutes > 0);
 
    if (myFieldsRE == NULL) {
       myFieldsRE = g_regex_new("^Iface\\s+Destination\\s+Gateway\\s+Flags\\s+"
@@ -579,8 +586,9 @@ SlashProcNet_GetRoute(void)
     * 3.  For each line...
     */
 
-   while ((myIoStatus = g_io_channel_read_line(myChannel, &myLine, NULL, NULL,
-                                               NULL)) == G_IO_STATUS_NORMAL) {
+   while (lineCount < maxRoutes &&
+             (myIoStatus = g_io_channel_read_line(myChannel,
+                  &myLine, NULL, NULL, NULL)) == G_IO_STATUS_NORMAL) {
       GMatchInfo *myMatchInfo = NULL;
       struct rtentry *myEntry = NULL;
       struct sockaddr_in *sin = NULL;
@@ -591,7 +599,7 @@ SlashProcNet_GetRoute(void)
        */
       if (!g_regex_match(myValuesRE, myLine, 0, &myMatchInfo)) {
          parseError = TRUE;
-         goto badIteration;
+         goto iterationCleanup;
       }
 
       /*
@@ -599,7 +607,6 @@ SlashProcNet_GetRoute(void)
        *     code path.
        */
       myEntry = g_new0(struct rtentry, 1);
-      g_ptr_array_add(myArray, myEntry);
 
       /*
        * 3c. Copy contents to new struct rtentry.
@@ -623,7 +630,16 @@ SlashProcNet_GetRoute(void)
       myEntry->rt_mtu = MatchToGuint64(myMatchInfo, 7, 10);
       myEntry->rt_irtt = MatchToGuint64(myMatchInfo, 8, 10);
 
-badIteration:
+      if (rtFilterFlags == (unsigned short)~0 ||
+          (myEntry->rt_flags & rtFilterFlags) != 0) {
+         g_ptr_array_add(myArray, myEntry);
+         lineCount++;
+      } else {
+         g_free(myEntry->rt_dev);
+         g_free(myEntry);
+      }
+
+iterationCleanup:
       g_free(myLine);
       myLine = NULL;
 
@@ -631,13 +647,13 @@ badIteration:
       myMatchInfo = NULL;
 
       if (parseError) {
+         /* Return NULL to signal parsing error */
+         if (myArray) {
+            SlashProcNet_FreeRoute(myArray);
+            myArray = NULL;
+         }
          break;
       }
-   }
-
-   if (myArray && myIoStatus != G_IO_STATUS_EOF) {
-      SlashProcNet_FreeRoute(myArray);
-      myArray = NULL;
    }
 
 out:
@@ -685,24 +701,28 @@ SlashProcNet_FreeRoute(GPtrArray *routeArray)
  ******************************************************************************
  * SlashProcNet_GetRoute6 --                                            */ /**
  *
- * @brief Reads @ref pathToNetRoute6 and returns a @c GPtrArray of
- *        <tt>struct in6_rtmsg</tt>s.
+ * @brief Reads the first @c maxRoutes lines of @ref pathToNetRoute6 and
+ *        returns a @c GPtrArray of <tt>struct in6_rtmsg</tt>s.
  *
  * Example usage:
  * @code
  * GPtrArray *rtArray;
  * guint i;
- * rtArray = SlashProcNet_GetRoute6();
+ * rtArray = SlashProcNet_GetRoute6(NICINFO_MAX_ROUTES, RTF_UP);
  * for (i = 0; i < rtArray->len; i++) {
  *    struct in6_rtmsg *myRoute = g_ptr_array_index(rtArray, i);
  *    // Do something with myRoute->rtmsg_dst.
  * }
- * SlashProcNet_FreeRoute6(rtArray, TRUE);
+ * SlashProcNet_FreeRoute6(rtArray);
  * @endcode
  *
  * @note        Caller is responsible for freeing the @c GPtrArray with
  *              SlashProcNet_FreeRoute6.
  * @note        This routine creates persistent GLib GRegexs.
+ *
+ * @param[in]   maxRoutes       Max routes to gather.
+ * @param[in]   rtFilterFlags   Route flags used to filter out what we want.
+ *                              Set ~0 if want everything.
  *
  * @return      On failure, NULL.  On success, a valid @c GPtrArray.
  * @todo        Consider init/cleanup routines to not "leak" GRegexs.
@@ -712,7 +732,8 @@ SlashProcNet_FreeRoute(GPtrArray *routeArray)
  */
 
 GPtrArray *
-SlashProcNet_GetRoute6(void)
+SlashProcNet_GetRoute6(unsigned int maxRoutes,
+                       unsigned int rtFilterFlags)
 {
    GIOChannel *myChannel = NULL;
    GIOStatus myIoStatus;
@@ -720,8 +741,11 @@ SlashProcNet_GetRoute6(void)
    gchar *myLine = NULL;
    Bool parseError = FALSE;
    int fd = -1;
+   unsigned int lineCount = 0;
 
    static GRegex *myValuesRE = NULL;
+
+   ASSERT(maxRoutes > 0);
 
    if (myValuesRE == NULL) {
       myValuesRE = g_regex_new("^([[:xdigit:]]{32}) ([[:xdigit:]]{2}) "
@@ -738,7 +762,7 @@ SlashProcNet_GetRoute6(void)
     */
 
    if ((fd = g_open(pathToNetRoute6, O_RDONLY)) == -1) {
-      Warning("%s: open(%s): %s\n", __func__, pathToNetRoute,
+      Warning("%s: open(%s): %s\n", __func__, pathToNetRoute6,
               g_strerror(errno));
       return NULL;
    }
@@ -747,18 +771,18 @@ SlashProcNet_GetRoute6(void)
 
    myArray = g_ptr_array_new();
 
-   while ((myIoStatus = g_io_channel_read_line(myChannel, &myLine, NULL, NULL,
-                                               NULL)) == G_IO_STATUS_NORMAL) {
+   while (lineCount < maxRoutes &&
+               (myIoStatus = g_io_channel_read_line(myChannel,
+                     &myLine, NULL, NULL, NULL)) == G_IO_STATUS_NORMAL) {
       struct in6_rtmsg *myEntry = NULL;
       GMatchInfo *myMatchInfo = NULL;
 
       if (!g_regex_match(myValuesRE, myLine, 0, &myMatchInfo)) {
          parseError = TRUE;
-         goto badIteration;
+         goto iterationCleanup;
       }
 
       myEntry = g_new0(struct in6_rtmsg, 1);
-      g_ptr_array_add(myArray, myEntry);
 
       MATCHEXPR(myMatchInfo, 1, Ip6StringToIn6Addr(MATCH, &myEntry->rtmsg_dst));
       MATCHEXPR(myMatchInfo, 3, Ip6StringToIn6Addr(MATCH, &myEntry->rtmsg_src));
@@ -771,7 +795,15 @@ SlashProcNet_GetRoute6(void)
 
       MATCHEXPR(myMatchInfo, 8, myEntry->rtmsg_ifindex = if_nametoindex(MATCH));
 
-badIteration:
+      if (rtFilterFlags == (uint)~0 ||
+          (myEntry->rtmsg_flags & rtFilterFlags) != 0) {
+         g_ptr_array_add(myArray, myEntry);
+         lineCount++;
+      } else {
+         g_free(myEntry);
+      }
+
+iterationCleanup:
       g_free(myLine);
       myLine = NULL;
 
@@ -779,13 +811,13 @@ badIteration:
       myMatchInfo = NULL;
 
       if (parseError) {
+         /* Return NULL to signal parsing error */
+         if (myArray) {
+            SlashProcNet_FreeRoute6(myArray);
+            myArray = NULL;
+         }
          break;
       }
-   }
-
-   if (myArray && myIoStatus != G_IO_STATUS_EOF) {
-      SlashProcNet_FreeRoute6(myArray);
-      myArray = NULL;
    }
 
    g_free(myLine);

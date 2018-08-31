@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -25,15 +25,18 @@
 
 #include "vm_basic_defs.h"
 #include "vmware.h"
+#include "str.h"
 #include "strutil.h"
 #include "debug.h"
 #include "guestInfoInt.h"
 #include "guestStats.h"
 #include "posix.h"
 #include "hashTable.h"
+#include "conf.h"
 
 #define GUEST_INFO_PREALLOC_SIZE 4096
 #define INT_AS_HASHKEY(x) ((const void *)(uintptr_t)(x))
+#define KEY_FORMAT  "%s|%s"
 
 #define STAT_FILE        "/proc/stat"
 #define VMSTAT_FILE      "/proc/vmstat"
@@ -41,22 +44,30 @@
 #define MEMINFO_FILE     "/proc/meminfo"
 #define ZONEINFO_FILE    "/proc/zoneinfo"
 #define SWAPPINESS_FILE  "/proc/sys/vm/swappiness"
+#define DISKSTATS_FILE   "/proc/diskstats"
 
+#define SYSFS_BLOCK_FOLDER  "/sys/block"
 
 /*
  * For now, all data collection is of uint64 values. Rates are always returned
  * as a double, derived from the uint64 data.
- *
- * TODO: Deal with collected and reported data types being different.
  */
 
-#define DECLARE_STAT(collect, publish, file, isRegExp, locatorString, reportID, units, dataType) \
-   { file, collect, publish, isRegExp, locatorString, reportID, units, dataType }
+static Bool gReleased = TRUE;
+static Bool gInternal = FALSE;
+#if PUBLISH_EXPERIMENTAL_STATS
+static Bool gExperimental = PUBLISH_EXPERIMENTAL_STATS;
+#endif
+#if ADD_NEW_STATS
+static Bool gUnstable = FALSE;
+#endif
+
+#define DECLARE_STAT(publish, file, isRegExp, locatorString, reportID, units, dataType) \
+   { file, publish, isRegExp, locatorString, reportID, units, dataType }
 
 typedef struct {
    const char         *sourceFile;
-   Bool                collect;
-   Bool                publish;
+   const Bool         *publish;
    Bool                isRegExp;
    const char         *locatorString;
    GuestStatToolsID    reportID;
@@ -65,28 +76,63 @@ typedef struct {
 } GuestInfoQuery;
 
 GuestInfoQuery guestInfoQuerySpecTable[] = {
-   DECLARE_STAT(TRUE, TRUE, MEMINFO_FILE, FALSE, "Hugepagesize",    GuestStatID_HugePageSize,             GuestUnitsKiB, GuestTypeUint64),
-   DECLARE_STAT(TRUE, TRUE, ZONEINFO_FILE,TRUE,  "present",         GuestStatID_MemPhysUsable,            GuestUnitsKiB, GuestTypeUint64),
-   DECLARE_STAT(TRUE, TRUE, MEMINFO_FILE, FALSE, "MemFree",         GuestStatID_MemFree,                  GuestUnitsKiB, GuestTypeUint64),
-   DECLARE_STAT(TRUE, TRUE, MEMINFO_FILE, FALSE, "Active(file)",    GuestStatID_MemActiveFileCache,       GuestUnitsKiB, GuestTypeUint64),
-   DECLARE_STAT(TRUE, TRUE, MEMINFO_FILE, FALSE, "SwapFree",        GuestStatID_SwapSpaceRemaining,       GuestUnitsKiB, GuestTypeUint64),
-   DECLARE_STAT(TRUE, TRUE, MEMINFO_FILE, FALSE, "HugePages_Total", GuestStatID_Linux_HugePagesTotal,     GuestUnitsHugePages, GuestTypeUint64),
-   DECLARE_STAT(TRUE, TRUE, VMSTAT_FILE,  FALSE, "pgpgin",          GuestStatID_PageInRate,               GuestUnitsPagesPerSecond,  GuestTypeDouble),
-   DECLARE_STAT(TRUE, TRUE, VMSTAT_FILE,  FALSE, "pgpgout",         GuestStatID_PageOutRate,              GuestUnitsPagesPerSecond,  GuestTypeDouble),
-   DECLARE_STAT(TRUE, TRUE, STAT_FILE,    FALSE, "ctxt",            GuestStatID_ContextSwapRate,          GuestUnitsNumberPerSecond, GuestTypeDouble),
-   DECLARE_STAT(TRUE, TRUE, NULL,         FALSE, NULL,              GuestStatID_PhysicalPageSize,         GuestUnitsBytes, GuestTypeUint64),
+   DECLARE_STAT(&gReleased,  MEMINFO_FILE,    FALSE, "Hugepagesize",    GuestStatID_HugePageSize,              GuestUnitsKiB,             GuestTypeUint64),
+   DECLARE_STAT(&gReleased,  ZONEINFO_FILE,   TRUE,  "present",         GuestStatID_MemPhysUsable,             GuestUnitsKiB,             GuestTypeUint64),
+   DECLARE_STAT(&gReleased,  MEMINFO_FILE,    FALSE, "MemFree",         GuestStatID_MemFree,                   GuestUnitsKiB,             GuestTypeUint64),
+   DECLARE_STAT(&gReleased,  MEMINFO_FILE,    FALSE, "Active(file)",    GuestStatID_MemActiveFileCache,        GuestUnitsKiB,             GuestTypeUint64),
+   DECLARE_STAT(&gReleased,  MEMINFO_FILE,    FALSE, "SwapFree",        GuestStatID_SwapSpaceRemaining,        GuestUnitsKiB,             GuestTypeUint64),
+   DECLARE_STAT(&gReleased,  MEMINFO_FILE,    FALSE, "HugePages_Total", GuestStatID_Linux_HugePagesTotal,      GuestUnitsHugePages,       GuestTypeUint64),
+   DECLARE_STAT(&gReleased,  VMSTAT_FILE,     FALSE, "pgpgin",          GuestStatID_PageInRate,                GuestUnitsPagesPerSecond,  GuestTypeDouble),
+   DECLARE_STAT(&gReleased,  VMSTAT_FILE,     FALSE, "pgpgout",         GuestStatID_PageOutRate,               GuestUnitsPagesPerSecond,  GuestTypeDouble),
+   DECLARE_STAT(&gReleased,  STAT_FILE,       FALSE, "ctxt",            GuestStatID_ContextSwapRate,           GuestUnitsNumberPerSecond, GuestTypeDouble),
+   DECLARE_STAT(&gReleased,  NULL,            FALSE, NULL,              GuestStatID_PhysicalPageSize,          GuestUnitsBytes,           GuestTypeUint64),
+   DECLARE_STAT(&gReleased,  NULL,            FALSE, NULL,              GuestStatID_MemNeeded,                 GuestUnitsKiB,             GuestTypeUint64),
 
-   DECLARE_STAT(TRUE, FALSE, MEMINFO_FILE, FALSE, "MemAvailable",    GuestStatID_Linux_MemAvailable,       GuestUnitsKiB, GuestTypeUint64),
-   DECLARE_STAT(TRUE, FALSE, MEMINFO_FILE, FALSE, "Inactive(file)",  GuestStatID_Linux_MemInactiveFile,    GuestUnitsKiB, GuestTypeUint64),
-   DECLARE_STAT(TRUE, FALSE, MEMINFO_FILE, FALSE, "SReclaimable",    GuestStatID_Linux_MemSlabReclaim,     GuestUnitsKiB, GuestTypeUint64),
-   DECLARE_STAT(TRUE, FALSE, MEMINFO_FILE, FALSE, "Buffers",         GuestStatID_Linux_MemBuffers,         GuestUnitsKiB, GuestTypeUint64),
-   DECLARE_STAT(TRUE, FALSE, MEMINFO_FILE, FALSE, "Cached",          GuestStatID_Linux_MemCached,          GuestUnitsKiB, GuestTypeUint64),
-   DECLARE_STAT(TRUE, FALSE, NULL,         FALSE, NULL,              GuestStatID_SwapSpaceUsed,            GuestUnitsKiB, GuestTypeUint64),
+   DECLARE_STAT(&gReleased,  NULL,            FALSE, NULL,              GuestStatID_MemNeededReservation,      GuestUnitsKiB,             GuestTypeUint64),
 
-   DECLARE_STAT(TRUE, FALSE, MEMINFO_FILE,  FALSE, "MemTotal",       GuestStatID_Linux_MemTotal,           GuestUnitsKiB, GuestTypeUint64),
-   DECLARE_STAT(TRUE, FALSE, MEMINFO_FILE,  FALSE, "SwapTotal",      GuestStatID_SwapFilesCurrent,         GuestUnitsKiB, GuestTypeUint64),
-   DECLARE_STAT(TRUE, FALSE, NULL,          FALSE,  NULL,            GuestStatID_SwapFilesMax,             GuestUnitsKiB, GuestTypeUint64),
-   DECLARE_STAT(TRUE, FALSE, ZONEINFO_FILE, TRUE,  "low",            GuestStatID_Linux_LowWaterMark,       GuestUnitsPages, GuestTypeUint64),
+   DECLARE_STAT(&gInternal,  MEMINFO_FILE,    FALSE, "MemAvailable",    GuestStatID_Linux_MemAvailable,        GuestUnitsKiB,             GuestTypeUint64),
+   DECLARE_STAT(&gInternal,  MEMINFO_FILE,    FALSE, "Inactive(file)",  GuestStatID_Linux_MemInactiveFile,     GuestUnitsKiB,             GuestTypeUint64),
+   DECLARE_STAT(&gInternal,  MEMINFO_FILE,    FALSE, "SReclaimable",    GuestStatID_Linux_MemSlabReclaim,      GuestUnitsKiB,             GuestTypeUint64),
+   DECLARE_STAT(&gInternal,  MEMINFO_FILE,    FALSE, "Buffers",         GuestStatID_Linux_MemBuffers,          GuestUnitsKiB,             GuestTypeUint64),
+   DECLARE_STAT(&gInternal,  MEMINFO_FILE,    FALSE, "Cached",          GuestStatID_Linux_MemCached,           GuestUnitsKiB,             GuestTypeUint64),
+   DECLARE_STAT(&gInternal,  ZONEINFO_FILE,   TRUE,  "low",             GuestStatID_Linux_LowWaterMark,        GuestUnitsPages,           GuestTypeUint64),
+   DECLARE_STAT(&gInternal,  MEMINFO_FILE,    FALSE, "MemTotal",        GuestStatID_Linux_MemTotal,            GuestUnitsKiB,             GuestTypeUint64),
+
+#if PUBLISH_EXPERIMENTAL_STATS
+   DECLARE_STAT(&gExperimental,  MEMINFO_FILE,    FALSE, "SwapTotal",       GuestStatID_SwapFilesCurrent,          GuestUnitsKiB,             GuestTypeUint64),
+   /* GuestStatID_SwapSpaceUsed depends on GuestStatID_SwapFilesCurrent */
+   DECLARE_STAT(&gExperimental,  NULL,            FALSE, NULL,              GuestStatID_SwapSpaceUsed,             GuestUnitsKiB,             GuestTypeUint64),
+   /* GuestStatID_SwapFilesMax depends on GuestStatID_SwapFilesCurrent */
+   DECLARE_STAT(&gExperimental,  NULL,            FALSE, NULL,              GuestStatID_SwapFilesMax,              GuestUnitsKiB,             GuestTypeUint64),
+
+   DECLARE_STAT(&gExperimental,  MEMINFO_FILE,    FALSE, "Active(anon)",    GuestStatID_Linux_MemActiveAnon,       GuestUnitsKiB,             GuestTypeUint64),
+   DECLARE_STAT(&gExperimental,  MEMINFO_FILE,    FALSE, "Inactive(anon)",  GuestStatID_Linux_MemInactiveAnon,     GuestUnitsKiB,             GuestTypeUint64),
+   DECLARE_STAT(&gExperimental,  MEMINFO_FILE,    FALSE, "Inactive",        GuestStatID_Linux_MemInactive,         GuestUnitsKiB,             GuestTypeUint64),
+   DECLARE_STAT(&gExperimental,  MEMINFO_FILE,    FALSE, "Active",          GuestStatID_Linux_MemActive,           GuestUnitsKiB,             GuestTypeUint64),
+   DECLARE_STAT(&gExperimental,  MEMINFO_FILE,    FALSE, "Unevictable",     GuestStatID_Linux_MemPinned,           GuestUnitsKiB,             GuestTypeUint64),
+   DECLARE_STAT(&gExperimental,  MEMINFO_FILE,    FALSE, "Dirty",           GuestStatID_Linux_MemDirty,            GuestUnitsKiB,             GuestTypeUint64),
+   DECLARE_STAT(&gExperimental,  VMSTAT_FILE,     FALSE, "pswpin",          GuestStatID_PageSwapInRate,            GuestUnitsPagesPerSecond,  GuestTypeDouble),
+   DECLARE_STAT(&gExperimental,  VMSTAT_FILE,     FALSE, "pswpout",         GuestStatID_PageSwapOutRate,           GuestUnitsPagesPerSecond,  GuestTypeDouble),
+   /* Not implemented
+   DECLARE_STAT(&gExperimental,  NULL,            FALSE, NULL,              GuestStatID_ThreadCreationRate,        GuestUnitsNumberPerSecond, GuestTypeDouble),
+    */
+   DECLARE_STAT(&gExperimental,  SWAPPINESS_FILE, FALSE, NULL,              GuestStatID_Linux_Swappiness,          GuestUnitsPercent,         GuestTypeUint64),
+
+   DECLARE_STAT(&gExperimental,  MEMINFO_FILE,    FALSE, "SwapCached",      GuestStatID_Linux_MemSwapCached,       GuestUnitsKiB,             GuestTypeUint64),
+   DECLARE_STAT(&gExperimental,  MEMINFO_FILE,    FALSE, "Committed_AS",    GuestStatID_Linux_MemCommitted,        GuestUnitsKiB,             GuestTypeUint64),
+   DECLARE_STAT(&gExperimental,  MEMINFO_FILE,    FALSE, "HugePages_Free",  GuestStatID_Linux_HugePagesFree,       GuestUnitsHugePages,       GuestTypeUint64),
+   DECLARE_STAT(&gExperimental,  VMSTAT_FILE,     FALSE, "pgfault",         GuestStatID_Linux_PageFaultRate,       GuestUnitsPagesPerSecond,  GuestTypeDouble),
+   DECLARE_STAT(&gExperimental,  VMSTAT_FILE,     FALSE, "pgmajfault",      GuestStatID_Linux_PageMajorFaultRate,  GuestUnitsPagesPerSecond,  GuestTypeDouble),
+   DECLARE_STAT(&gExperimental,  VMSTAT_FILE,     FALSE, "pgfree",          GuestStatID_Linux_PageFreeRate,        GuestUnitsPagesPerSecond,  GuestTypeDouble),
+   DECLARE_STAT(&gExperimental,  VMSTAT_FILE,     TRUE,  "pgsteal_",        GuestStatID_Linux_PageStealRate,       GuestUnitsPagesPerSecond,  GuestTypeDouble),
+   DECLARE_STAT(&gExperimental,  VMSTAT_FILE,     TRUE,  "pgscan_kswapd_",  GuestStatID_Linux_PageSwapScanRate,    GuestUnitsPagesPerSecond,  GuestTypeDouble),
+   DECLARE_STAT(&gExperimental,  VMSTAT_FILE,     TRUE,  "pgscan_direct_",  GuestStatID_Linux_PageDirectScanRate,  GuestUnitsPagesPerSecond,  GuestTypeDouble),
+   DECLARE_STAT(&gExperimental,  STAT_FILE,       FALSE, "processes",       GuestStatID_ProcessCreationRate,       GuestUnitsNumberPerSecond, GuestTypeDouble),
+#endif
+
+   DECLARE_STAT(&gReleased,  STAT_FILE,       FALSE, "procs_running",   GuestStatID_Linux_CpuRunQueue,         GuestUnitsNumber,          GuestTypeUint64),
+   DECLARE_STAT(&gReleased,  NULL,            FALSE, NULL,              GuestStatID_Linux_DiskRequestQueue,    GuestUnitsNumber,          GuestTypeUint64),
+   DECLARE_STAT(&gReleased,  NULL,            FALSE, NULL,              GuestStatID_Linux_DiskRequestQueueAvg, GuestUnitsNumber,          GuestTypeDouble),
 };
 
 #define N_QUERIES (sizeof guestInfoQuerySpecTable / sizeof(GuestInfoQuery))
@@ -112,6 +158,78 @@ typedef struct {
    Bool             timeData;
    double           timeStamp;
 } GuestInfoCollector;
+
+static GuestInfoCollector *gCurrentCollector = NULL;
+static GuestInfoCollector *gPreviousCollector = NULL;
+
+static void
+GuestInfoDeriveMemNeeded(GuestInfoCollector *collector);
+
+typedef struct GuestInfoDiskStatsList {
+   struct GuestInfoDiskStatsList *next;
+   char                          *diskName;
+   unsigned int                   weightedTime[2];  // In milliseconds
+} GuestInfoDiskStatsList;
+
+static GuestInfoDiskStatsList *gDiskStatsList = NULL;
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * GuestInfoDeleteDiskStatsList --
+ *
+ *      Delete disk device stats list.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+GuestInfoDeleteDiskStatsList(GuestInfoDiskStatsList *head)  // IN/OUT:
+{
+   GuestInfoDiskStatsList *curr = head;
+
+   while (curr != NULL) {
+      GuestInfoDiskStatsList *next = curr->next;
+      free(curr->diskName);
+      free(curr);
+      curr = next;
+   }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * GuestInfoIsBlockDevice --
+ *
+ *      Verify block device name.
+ *
+ * Results:
+ *      TRUE   name is block device name
+ *      FALSE  otherwise
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static Bool
+GuestInfoIsBlockDevice(const char *name)  // IN:
+{
+   char path[PATH_MAX]; // PATH_MAX is defined to 4096
+
+   Str_Sprintf(path, sizeof path, "%s/%s", SYSFS_BLOCK_FOLDER, name);
+
+   return (access(path, F_OK) == 0);
+}
 
 
 /*
@@ -142,7 +260,7 @@ GuestInfoGetUpTime(double *now)  // OUT:
       return result;
    }
 
-   if (fgets(line, sizeof line, fp) != NULL) {
+   if (fgets(line, sizeof line, fp) == line) {
       double idle;
 
       if (sscanf(line, "%lf %lf", now, &idle) == 2) {
@@ -173,40 +291,67 @@ GuestInfoGetUpTime(double *now)  // OUT:
  */
 
 static void
-GuestInfoStoreStat(const char *pathName,  // IN: file stat is in
-                   GuestInfoStat *stat,   // IN/OUT: stat
+GuestInfoStoreStat(GuestInfoStat *stat,   // IN/OUT: stat
                    uint64 value)          // IN: value to be added to stat
 {
    ASSERT(stat);
-   ASSERT(stat->query);
 
    // TODO: consider supporting regexp here.
-   if (strcmp(stat->query->sourceFile, pathName) == 0) {
-      switch (stat->err) {
-      case 0:
-         ASSERT(stat->count != 0);
+   switch (stat->err) {
+   case 0:
+      ASSERT(stat->count != 0);
 
-         if (((stat->count + 1) < stat->count) ||
-             ((stat->value + value) < stat->value)) {
-            stat->err = EOVERFLOW;
-         } else {
-            stat->count++;
-            stat->value += value;
-         }
-         break;
-
-      case ENOENT:
-         ASSERT(stat->count == 0);
-
-         stat->err = 0;
-         stat->count = 1;
-         stat->value = value;
-         break;
-
-      default:  // Some sort of error - sorry, thank you for playing...
-         break;
+      if (((stat->count + 1) < stat->count) ||
+          ((stat->value + value) < stat->value)) {
+         stat->err = EOVERFLOW;
+      } else {
+         stat->count++;
+         stat->value += value;
       }
+      break;
+
+   case ENOENT:
+      ASSERT(stat->count == 0);
+
+      stat->err = 0;
+      stat->count = 1;
+      stat->value = value;
+      break;
+
+   default:  // Some sort of error - sorry, thank you for playing...
+      break;
    }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * GuestInfoStoreStatByID --
+ *
+ *      Store a stat value by its ID.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+GuestInfoStoreStatByID(GuestStatToolsID reportID,      // IN:
+                       GuestInfoCollector *collector,  // IN/OUT:
+                       uint64 value)                   // IN:
+{
+   GuestInfoStat *stat = NULL;
+
+   HashTable_Lookup(collector->reportMap,
+                    INT_AS_HASHKEY(reportID),
+                    (void **) &stat);
+
+   GuestInfoStoreStat(stat, value);
 }
 
 
@@ -218,8 +363,7 @@ GuestInfoStoreStat(const char *pathName,  // IN: file stat is in
  *      Collect a stat.
  *
  *      NOTE: Exact match data cannot be used in a regExp. This is a
- *            performance choice. We can discuss this when we have full
- *            programmability.
+ *            performance choice.
  *
  * Results:
  *      None.
@@ -237,81 +381,27 @@ GuestInfoCollectStat(const char *pathName,           // IN:
                      uint64 value)                   // IN:
 {
    GuestInfoStat *stat = NULL;
+   char *key = Str_SafeAsprintf(NULL, KEY_FORMAT, pathName, fieldName);
 
-   if (!HashTable_Lookup(collector->exactMatches, fieldName, (void **) &stat)) {
+   if (!HashTable_Lookup(collector->exactMatches, key, (void **) &stat)) {
       uint32 i;
 
       for (i = 0; i < collector->numRegExps; i++) {
          GuestInfoStat *thisOne = collector->regExps[i];
 
-         if (StrUtil_StartsWith(fieldName, thisOne->query->locatorString)) {
+         if (strcmp(pathName, thisOne->query->sourceFile) == 0 &&
+             StrUtil_StartsWith(fieldName, thisOne->query->locatorString)) {
             stat = thisOne;
+            break;
          }
       }
    }
 
+   free(key);
+
    if (stat != NULL) {
-      GuestInfoStoreStat(pathName, stat, value);
+      GuestInfoStoreStat(stat, value);
    }
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * GuestInfoReadProcMemInfoData --
- *
- *      Reads /proc/meminfo to contribute to a collection.
- *
- * Results:
- *      TRUE   Success!
- *      FALSE  Failure!
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-static Bool
-GuestInfoProcMemInfoData(GuestInfoCollector *collector)  // IN:
-{
-   char line[512];
-   FILE *fp = Posix_Fopen(MEMINFO_FILE, "r");
-
-   if (fp == NULL) {
-      g_warning("%s: Error opening " MEMINFO_FILE ".\n", __FUNCTION__);
-      return FALSE;
-   }
-
-   while (fgets(line, sizeof line, fp) == line) {
-      char *p;
-      uint64 value = 0;
-      char *fieldName = strtok(line, " \t");
-      char *fieldData = strtok(NULL, " \t");
-
-      if (fieldName == NULL) {
-         continue;
-      }
-
-      p = strrchr(fieldName, ':');
-      if (p == NULL) {
-         continue;
-      } else {
-        *p = '\0';
-      }
-
-      if ((fieldData == NULL) ||
-          (sscanf(fieldData, "%"FMT64"u", &value) != 1)) {
-         continue;
-      }
-
-      GuestInfoCollectStat(MEMINFO_FILE, collector, fieldName, value);
-   }
-
-   fclose(fp);
-
-   return TRUE;
 }
 
 
@@ -320,7 +410,11 @@ GuestInfoProcMemInfoData(GuestInfoCollector *collector)  // IN:
  *
  * GuestInfoProcData --
  *
- *      Reads a "stat file" and contribute to the collection.
+ *      Reads a "stat file" and contributes to the collection.
+ *
+ *      NOTE: If caller specifies a fieldSeparator, it has to be present
+ *            in the fieldName being parsed. '\0' represents an unspecified
+ *            fieldSeparator.
  *
  * Results:
  *      TRUE   Success!
@@ -334,9 +428,10 @@ GuestInfoProcMemInfoData(GuestInfoCollector *collector)  // IN:
 
 static Bool
 GuestInfoProcData(const char *pathName,           // IN: path name
-                  GuestInfoCollector *collector)  // IN:
+                  char fieldSeparator,            // IN/OPT:
+                  GuestInfoCollector *collector)  // IN/OUT:
 {
-   char line[4096];
+   char line[4096];  // Close to length of /proc/stat intr line
    FILE *fp = Posix_Fopen(pathName, "r");
 
    if (fp == NULL) {
@@ -344,13 +439,32 @@ GuestInfoProcData(const char *pathName,           // IN: path name
       return FALSE;
    }
 
-   while (fgets(line, sizeof line, fp) != NULL) {
+   /*
+    * If a line inside the file is longer than what the buffer can hold,
+    * fgets still succeeds, the next fgets call continues at the previously
+    * stopped location in the line.
+    */
+   while (fgets(line, sizeof line, fp) == line) {
       uint64 value = 0;
-      char *fieldName = strtok(line, " \t");
-      char *fieldData = strtok(NULL, " \t");
+      char *savedPtr = NULL;
+      char *fieldName = strtok_r(line, " \t", &savedPtr);
+      char *fieldData = strtok_r(NULL, " \t", &savedPtr);
 
       if (fieldName == NULL) {
          continue;
+      }
+
+      if (fieldSeparator != '\0') {
+         char *p = strrchr(fieldName, fieldSeparator);
+         if (p == NULL) {
+            /*
+             * When fieldSeparator is specified, fieldName is expected
+             * to have it.
+             */
+            continue;
+         } else {
+            *p = '\0';
+         }
       }
 
       if ((fieldData == NULL) ||
@@ -370,6 +484,69 @@ GuestInfoProcData(const char *pathName,           // IN: path name
 /*
  *----------------------------------------------------------------------
  *
+ * GuestInfoProcSimpleValue --
+ *
+ *      Reads the stat /proc file, extracts a single, simple value and
+ *      adds it to the collection.
+ *
+ * Results:
+ *      TRUE   Success!
+ *      FALSE  Failure!
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+#if PUBLISH_EXPERIMENTAL_STATS
+
+static Bool
+GuestInfoProcSimpleValue(GuestStatToolsID reportID,      // IN:
+                         GuestInfoCollector *collector)  // IN/OUT:
+{
+   char line[512];
+   uint64 value;
+   FILE *fp;
+   Bool success = FALSE;
+   GuestInfoStat *stat = NULL;
+
+   HashTable_Lookup(collector->reportMap, INT_AS_HASHKEY(reportID),
+                    (void **) &stat);
+   ASSERT(stat);
+   if (stat == NULL) {
+      g_warning("%s: Error stat ID %d not found.\n", __FUNCTION__, reportID);
+      return success;
+   }
+
+   ASSERT(stat->query->sourceFile);
+   fp = Posix_Fopen(stat->query->sourceFile, "r");
+   if (fp == NULL) {
+      g_warning("%s: Error opening %s.\n",
+                __FUNCTION__, stat->query->sourceFile);
+      return success;
+   }
+
+   if (fgets(line, sizeof line, fp) == line) {
+      value = 0;
+      if (sscanf(line, "%"FMT64"u", &value) == 1) {
+         stat->err = 0;
+         stat->count = 1;
+         stat->value = value;
+
+         success = TRUE;
+      }
+   }
+
+   fclose(fp);
+
+   return success;
+}
+#endif
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * GuestInfoDeriveSwapData --
  *
  *      Update the swap stats that are calculated rather than fetched.
@@ -382,9 +559,10 @@ GuestInfoProcData(const char *pathName,           // IN: path name
  *
  *----------------------------------------------------------------------
  */
+#if PUBLISH_EXPERIMENTAL_STATS
 
 static void
-GuestInfoDeriveSwapData(GuestInfoCollector *collector)  // IN: current collection
+GuestInfoDeriveSwapData(GuestInfoCollector *collector)  // IN/OUT:
 {
    uint64 swapFree = 0;
    uint64 swapTotal = 0;
@@ -433,7 +611,6 @@ GuestInfoDeriveSwapData(GuestInfoCollector *collector)  // IN: current collectio
 
          ASSERT(swapTotal >= swapFree);
          swapUsed = (swapTotal >= swapFree) ? swapTotal - swapFree : 0;
-
          if ((swapSpaceUsed != NULL) && (swapSpaceUsed->err != 0)) {
             swapSpaceUsed->value = swapUsed;
             swapSpaceUsed->count = 1;
@@ -441,6 +618,177 @@ GuestInfoDeriveSwapData(GuestInfoCollector *collector)  // IN: current collectio
          }
       }
    }
+}
+#endif
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * GuestInfoDecreaseCpuRunQueueByOne --
+ *
+ *      Exclude the collector thread, make the result be consistent with
+ *      "sar -q".
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+GuestInfoDecreaseCpuRunQueueByOne(GuestInfoCollector *collector)  // IN/OUT:
+{
+   GuestInfoStat *stat = NULL;
+
+   HashTable_Lookup(collector->reportMap,
+                    INT_AS_HASHKEY(GuestStatID_Linux_CpuRunQueue),
+                    (void **) &stat);
+
+   ASSERT(stat != NULL);
+   ASSERT(stat->err == 0);
+   ASSERT(stat->count == 1);
+   if (stat != NULL && stat->err == 0 && stat->count == 1) {
+      if (stat->value > 0) {
+         stat->value--;
+      }
+   }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * GuestInfoProcDiskStatsData --
+ *
+ *      Reads /proc/diskstats, extract disk request queue stats and
+ *      adds them to the collection.
+ *
+ * Results:
+ *      TRUE   Success!
+ *      FALSE  Failure!
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static Bool
+GuestInfoProcDiskStatsData(GuestInfoCollector *collector)  // IN/OUT:
+{
+   static int curr = 0;
+
+   int prev;
+   GuestInfoDiskStatsList **listItem;
+   uint64 inflightIOsSum;
+   Bool setStats; // Only when no disk device change in between
+
+   char line[512];
+   FILE *fp = Posix_Fopen(DISKSTATS_FILE, "r");
+
+   if (fp == NULL) {
+      g_warning("%s: Error opening " DISKSTATS_FILE ".\n", __FUNCTION__);
+      return FALSE;
+   }
+
+   prev = curr ^ 1;  // curr = 0 => prev = 1; curr = 1 => prev = 0
+   listItem = &gDiskStatsList;
+   inflightIOsSum = 0;
+   setStats = (gDiskStatsList != NULL) ? TRUE : FALSE;
+
+   while (fgets(line, sizeof line, fp) == line) {
+      /*
+       * Linux kernel diskstats_show format string:
+       * "%4d %7d %s %lu %lu %lu %u %lu %lu %lu %u %u %u %u\n"
+       *
+       * Matching data types are selected to calculate accumulating fields'
+       * increment correctly in case of overflow for both 32 and 64 bit
+       * Linux systems.
+       */
+      int assignedCount;
+      char diskName[NAME_MAX + 1]; // NAME_MAX is defined to 255
+      long unsigned int readIOs;   // # of reads completed
+      long unsigned int writeIOs;  // # of writes completed
+      unsigned int inflightIOs;    // # of I/Os currently in progress
+      unsigned int weightedTime;   // Weighted # of milliseconds
+                                   // spent in doing I/Os
+      assignedCount = sscanf(line,
+                             "%*d %*d %" XSTR(NAME_MAX) "s "
+                             "%lu %*u %*u %*u "
+                             "%lu %*u %*u %*u "
+                             "%u %*u %u",
+                             diskName, // '\0' is added automatically
+                             &readIOs,
+                             &writeIOs,
+                             &inflightIOs, &weightedTime);
+      if (assignedCount != 5 ||
+          (readIOs == 0 && writeIOs == 0) ||
+          !GuestInfoIsBlockDevice(diskName)) {
+         continue;
+      }
+
+      inflightIOsSum += inflightIOs;
+
+      if (*listItem != NULL) {
+         if (strcmp((*listItem)->diskName, diskName) == 0) {
+            (*listItem)->weightedTime[curr] = weightedTime;
+         } else {
+            /* Disk hot plug/unplug, rebuild the rest of the list. */
+            GuestInfoDeleteDiskStatsList(*listItem);
+            *listItem = NULL;
+         }
+      }
+
+      if (*listItem == NULL) {
+         *listItem = (GuestInfoDiskStatsList *)
+                         Util_SafeMalloc(sizeof **listItem);
+         (*listItem)->next = NULL;
+         (*listItem)->diskName = Util_SafeStrdup(diskName);
+         (*listItem)->weightedTime[curr] = weightedTime;
+         (*listItem)->weightedTime[prev] = 0;
+
+         /* Also covers disk hot plug at the end of the list. */
+         setStats = FALSE;
+      }
+
+      listItem = &((*listItem)->next);
+   }
+
+   fclose(fp);
+
+   if (listItem == &gDiskStatsList // No qualified disk device found
+       || *listItem != NULL) {     // Disk hot unplug at the end of the list
+      GuestInfoDeleteDiskStatsList(*listItem);
+      *listItem = NULL;
+      setStats = FALSE;
+   }
+
+   if (setStats) {
+      GuestInfoDiskStatsList *currDiskStats = gDiskStatsList;
+      uint64 weightedTimeDeltaSum = 0;
+
+      while (currDiskStats != NULL) {
+         unsigned int weightedTimeDelta = currDiskStats->weightedTime[curr] -
+                                          currDiskStats->weightedTime[prev];
+         weightedTimeDeltaSum += weightedTimeDelta;
+         currDiskStats = currDiskStats->next;
+      }
+
+      GuestInfoStoreStatByID(GuestStatID_Linux_DiskRequestQueue,
+                             collector,
+                             inflightIOsSum);
+      GuestInfoStoreStatByID(GuestStatID_Linux_DiskRequestQueueAvg,
+                             collector,
+                             weightedTimeDeltaSum);
+   }
+
+   curr = prev;
+
+   return TRUE;
 }
 
 
@@ -461,7 +809,7 @@ GuestInfoDeriveSwapData(GuestInfoCollector *collector)  // IN: current collectio
  */
 
 static void
-GuestInfoCollect(GuestInfoCollector *collector)  // IN:
+GuestInfoCollect(GuestInfoCollector *collector)  // IN/OUT:
 {
    uint32 i;
    GuestInfoStat *stat;
@@ -477,28 +825,23 @@ GuestInfoCollect(GuestInfoCollector *collector)  // IN:
    }
 
    /* Collect new values */
-   GuestInfoProcMemInfoData(collector);
-   GuestInfoProcData(VMSTAT_FILE, collector);
-   GuestInfoProcData(STAT_FILE, collector);
-   GuestInfoProcData(ZONEINFO_FILE, collector);
+   GuestInfoProcData(MEMINFO_FILE, ':', collector);
+   GuestInfoProcData(VMSTAT_FILE, '\0', collector);
+   GuestInfoProcData(STAT_FILE, '\0', collector);
+   GuestInfoProcData(ZONEINFO_FILE, '\0', collector);
+#if PUBLISH_EXPERIMENTAL_STATS
+   GuestInfoProcSimpleValue(GuestStatID_Linux_Swappiness, collector);
    GuestInfoDeriveSwapData(collector);
+#endif
 
    collector->timeData = GuestInfoGetUpTime(&collector->timeStamp);
 
    /*
     * We make sure physical page size is always present.
     */
-
-   stat = NULL;
-   HashTable_Lookup(collector->reportMap,
-                    INT_AS_HASHKEY(GuestStatID_PhysicalPageSize),
-                    (void **) &stat);
-
-   if ((stat != NULL) && (stat->err != 0)) {
-      stat->value = pageSize;
-      stat->count = 1;
-      stat->err = 0;
-   }
+   GuestInfoStoreStatByID(GuestStatID_PhysicalPageSize,
+                          collector,
+                          pageSize);
 
    /*
     * Attempt to fix up memPhysUsable if it is not available.
@@ -526,6 +869,10 @@ GuestInfoCollect(GuestInfoCollector *collector)  // IN:
          stat->value = memTotal->value;
       }
    }
+
+   GuestInfoDeriveMemNeeded(collector);
+   GuestInfoDecreaseCpuRunQueueByOne(collector);
+   GuestInfoProcDiskStatsData(collector);
 }
 
 
@@ -547,7 +894,7 @@ GuestInfoCollect(GuestInfoCollector *collector)  // IN:
 
 static void
 GuestInfoLegacy(GuestInfoCollector *current,  // IN: current collection
-                GuestMemInfo *legacy)         // OUT: data filled out
+                GuestMemInfoLegacy *legacy)   // OUT: data filled out
 {
    GuestInfoStat *stat;
 
@@ -706,7 +1053,7 @@ GuestInfoAppendStat(int errnoValue,                // IN:
 
 static void
 GuestInfoAppendRate(Bool emitNameSpace,             // IN:
-                    GuestStatToolsID reportID,      // IN: Id of the stat
+                    GuestStatToolsID reportID,      // IN: ID of the stat
                     GuestInfoCollector *current,    // IN: current collection
                     GuestInfoCollector *previous,   // IN: previous collection
                     DynBuf *statBuf)                // IN/OUT: stat data
@@ -729,9 +1076,28 @@ GuestInfoAppendRate(Bool emitNameSpace,             // IN:
        ((currentStat != NULL) && (currentStat->err == 0)) &&
        ((previousStat != NULL) && (previousStat->err == 0))) {
       double timeDelta = current->timeStamp - previous->timeStamp;
-      double valueDelta = currentStat->value - previousStat->value;
+      double valueDelta;
+
+      /*
+       * DiskRequestQueueAvg GuestInfoStat::value is weighted number of
+       * milliseconds delta in uint64 type, need to divide it by 1000 to
+       * turn the number in seconds.
+       *
+       * Host side drops the fraction part of double data type. Therefore,
+       * we preserve 2 decimal points by scaling up the value 100x.
+       * The consumers of this stat need to divide it by 100 to retrieve
+       * two digits after decimal point.
+       *
+       * (value / 1000) * 100 = value / 10
+       */
+      if (reportID == GuestStatID_Linux_DiskRequestQueueAvg) {
+         valueDelta = ((double)(currentStat->value)) / 10;
+      } else {
+         valueDelta = currentStat->value - previousStat->value;
+      }
 
       valueDouble = valueDelta / timeDelta;
+
       errnoValue = 0;
    }
 
@@ -764,9 +1130,10 @@ GuestInfoAppendRate(Bool emitNameSpace,             // IN:
 /*
  *----------------------------------------------------------------------
  *
- * GuestInfoAppendMemNeeded --
+ * GuestInfoDeriveMemNeeded --
  *
- *      Synthesize memNeeded and append it to the stat buffer.
+ *      Update memory needed stats that are calculated
+ *      rather than fetched.
  *
  * Results:
  *      None.
@@ -778,9 +1145,7 @@ GuestInfoAppendRate(Bool emitNameSpace,             // IN:
  */
 
 static void
-GuestInfoAppendMemNeeded(GuestInfoCollector *current,  // IN: current collection
-                         Bool emitNameSpace,           // IN:
-                         DynBuf *statBuf)              // IN/OUT: stats data
+GuestInfoDeriveMemNeeded(GuestInfoCollector *collector)  // IN/OUT:
 {
    uint64 memNeeded;
    uint64 memNeededReservation;
@@ -788,13 +1153,13 @@ GuestInfoAppendMemNeeded(GuestInfoCollector *current,  // IN: current collection
    GuestInfoStat *memAvail = NULL;
    GuestInfoStat *memPhysUsable = NULL;
 
-   HashTable_Lookup(current->reportMap,
+   HashTable_Lookup(collector->reportMap,
                     INT_AS_HASHKEY(GuestStatID_MemPhysUsable),
                     (void **) &memPhysUsable);
 
    ASSERT(memPhysUsable != NULL);
 
-   HashTable_Lookup(current->reportMap,
+   HashTable_Lookup(collector->reportMap,
                     INT_AS_HASHKEY(GuestStatID_Linux_MemAvailable),
                     (void **) &memAvail);
 
@@ -809,25 +1174,25 @@ GuestInfoAppendMemNeeded(GuestInfoCollector *current,  // IN: current collection
       GuestInfoStat *memInactiveFile = NULL;
       GuestInfoStat *lowWaterMark = NULL;
 
-      HashTable_Lookup(current->reportMap,
+      HashTable_Lookup(collector->reportMap,
                        INT_AS_HASHKEY(GuestStatID_MemFree),
                        (void **) &memFree);
-      HashTable_Lookup(current->reportMap,
+      HashTable_Lookup(collector->reportMap,
                        INT_AS_HASHKEY(GuestStatID_Linux_MemCached),
                        (void **) &memCache);
-      HashTable_Lookup(current->reportMap,
+      HashTable_Lookup(collector->reportMap,
                        INT_AS_HASHKEY(GuestStatID_Linux_MemBuffers),
                        (void **) &memBuffers);
-      HashTable_Lookup(current->reportMap,
+      HashTable_Lookup(collector->reportMap,
                        INT_AS_HASHKEY(GuestStatID_MemActiveFileCache),
                        (void **) &memActiveFile);
-      HashTable_Lookup(current->reportMap,
+      HashTable_Lookup(collector->reportMap,
                        INT_AS_HASHKEY(GuestStatID_Linux_MemSlabReclaim),
                        (void **) &memSlabReclaim);
-      HashTable_Lookup(current->reportMap,
+      HashTable_Lookup(collector->reportMap,
                        INT_AS_HASHKEY(GuestStatID_Linux_MemInactiveFile),
                        (void **) &memInactiveFile);
-      HashTable_Lookup(current->reportMap,
+      HashTable_Lookup(collector->reportMap,
                        INT_AS_HASHKEY(GuestStatID_Linux_LowWaterMark),
                        (void **) &lowWaterMark);
 
@@ -891,39 +1256,13 @@ GuestInfoAppendMemNeeded(GuestInfoCollector *current,  // IN: current collection
       memNeededReservation = 0;
    }
 
-   GuestInfoAppendStat(0,
-                       emitNameSpace,
-                       GuestStatID_MemNeeded,
-                       GuestUnitsKiB, GuestTypeUint64,
-                       &memNeeded,
-                       GuestInfoBytesNeededUIntDatum(memNeeded),
-                       statBuf);
+   GuestInfoStoreStatByID(GuestStatID_MemNeeded,
+                          collector,
+                          memNeeded);
 
-   emitNameSpace = FALSE;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * GuestInfoIsRate --
- *
- *      Is the specified unit a rate?
- *
- * Results:
- *      TRUE  Yes
- *      FALSE No
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-static Bool
-GuestInfoIsRate(GuestValueUnits units)  // IN:
-{
-   return ((units & GuestUnitsModifier_Rate) != 0);
+   GuestInfoStoreStatByID(GuestStatID_MemNeededReservation,
+                          collector,
+                          memNeededReservation);
 }
 
 
@@ -949,7 +1288,7 @@ GuestInfoEncodeStats(GuestInfoCollector *current,   // IN: current collection
                      DynBuf *statBuf)               // IN/OUT: stats data
 {
    uint32 i;
-   GuestMemInfo legacy;
+   GuestMemInfoLegacy legacy;
    Bool emitNameSpace = TRUE;
 
    /* Provide legacy data for backwards compatibility */
@@ -961,16 +1300,16 @@ GuestInfoEncodeStats(GuestInfoCollector *current,   // IN: current collection
    for (i = 0; i < current->numStats; i++) {
       GuestInfoStat *stat = &current->stats[i];
 
-      if (!stat->query->publish) {
+      if (!*(stat->query->publish)) {
          continue;
       }
 
-      if (GuestInfoIsRate(stat->query->units)) {
-         ASSERT(stat->query->dataType == GuestTypeDouble);
+      if (stat->query->dataType == GuestTypeDouble) {
          GuestInfoAppendRate(emitNameSpace, stat->query->reportID,
                              current, previous, statBuf);
       } else {
          ASSERT(stat->query->dataType == GuestTypeUint64);
+         ASSERT((stat->query->units & GuestUnitsModifier_Rate) == 0);
          GuestInfoAppendStat(stat->err,
                              emitNameSpace,
                              stat->query->reportID,
@@ -983,8 +1322,6 @@ GuestInfoEncodeStats(GuestInfoCollector *current,   // IN: current collection
 
       emitNameSpace = FALSE; // use the smallest representation
    }
-
-   GuestInfoAppendMemNeeded(current, emitNameSpace, statBuf);
 }
 
 
@@ -1040,7 +1377,7 @@ GuestInfoConstructCollector(GuestInfoQuery *queries,  // IN:
 {
    uint32 i;
    uint32 regExp = 0;
-   GuestInfoCollector *collector = calloc(1, sizeof *collector);
+   GuestInfoCollector *collector = Util_SafeCalloc(1, sizeof *collector);
 
    if (collector == NULL) {
       return NULL;
@@ -1054,14 +1391,15 @@ GuestInfoConstructCollector(GuestInfoQuery *queries,  // IN:
 
    collector->numRegExps = 0;
    for (i = 0; i < numQueries; i++) {
-      if (queries[i].isRegExp && queries[i].collect) {
+      if (queries[i].isRegExp) {
          collector->numRegExps++;
       }
    }
 
    collector->numStats = numQueries;
-   collector->stats = calloc(numQueries, sizeof *collector->stats);
-   collector->regExps = calloc(collector->numRegExps, sizeof(GuestInfoStat *));
+   collector->stats = Util_SafeCalloc(numQueries, sizeof *collector->stats);
+   collector->regExps = Util_SafeCalloc(collector->numRegExps,
+                                        sizeof(GuestInfoStat *));
 
    if ((collector->exactMatches == NULL) ||
        (collector->reportMap == NULL) ||
@@ -1081,18 +1419,17 @@ GuestInfoConstructCollector(GuestInfoQuery *queries,  // IN:
 
       stat->query = query;
 
-      if (!query->collect) {
-         continue;
-      }
-
       if (query->isRegExp) {
+         ASSERT(query->sourceFile);
          ASSERT(query->locatorString);
 
          collector->regExps[regExp++] = stat;
       } else {
-         if (query->locatorString != NULL) {
-            HashTable_Insert(collector->exactMatches, query->locatorString,
-                              stat);
+         if (query->sourceFile != NULL && query->locatorString != NULL) {
+            char *key = Str_SafeAsprintf(NULL, KEY_FORMAT, query->sourceFile,
+                                         query->locatorString);
+            HashTable_Insert(collector->exactMatches, key, stat);
+            free(key);
          }
       }
 
@@ -1126,8 +1463,6 @@ Bool
 GuestInfoTakeSample(DynBuf *statBuf)  // IN/OUT: inited, ready to fill
 {
    GuestInfoCollector *temp;
-   static GuestInfoCollector *current = NULL;
-   static GuestInfoCollector *previous = NULL;
 
    ASSERT(statBuf && DynBuf_GetSize(statBuf) == 0);
 
@@ -1137,33 +1472,33 @@ GuestInfoTakeSample(DynBuf *statBuf)  // IN/OUT: inited, ready to fill
    }
 
    /* First time through, allocate all necessary memory */
-   if (previous == NULL) {
-      current = GuestInfoConstructCollector(guestInfoQuerySpecTable,
+   if (gPreviousCollector == NULL) {
+      gCurrentCollector = GuestInfoConstructCollector(guestInfoQuerySpecTable,
                                             N_QUERIES);
 
-      previous = GuestInfoConstructCollector(guestInfoQuerySpecTable,
+      gPreviousCollector = GuestInfoConstructCollector(guestInfoQuerySpecTable,
                                              N_QUERIES);
    }
 
-   if ((current == NULL) ||
-       (previous == NULL)) {
-      GuestInfoDestroyCollector(current);
-      current = NULL;
-      GuestInfoDestroyCollector(previous);
-      previous = NULL;
+   if ((gCurrentCollector == NULL) ||
+       (gPreviousCollector == NULL)) {
+      GuestInfoDestroyCollector(gCurrentCollector);
+      gCurrentCollector = NULL;
+      GuestInfoDestroyCollector(gPreviousCollector);
+      gPreviousCollector = NULL;
       return FALSE;
    }
 
    /* Collect the current data */
-   GuestInfoCollect(current);
+   GuestInfoCollect(gCurrentCollector);
 
    /* Encode the captured data */
-   GuestInfoEncodeStats(current, previous, statBuf);
+   GuestInfoEncodeStats(gCurrentCollector, gPreviousCollector, statBuf);
 
    /* Switch the collections for next time. */
-   temp = current;
-   current = previous;
-   previous = temp;
+   temp = gCurrentCollector;
+   gCurrentCollector = gPreviousCollector;
+   gPreviousCollector = temp;
 
    return TRUE;
 }
@@ -1192,6 +1527,13 @@ GuestInfo_StatProviderPoll(gpointer data)
    DynBuf stats;
 
    g_debug("Entered guest info stats gather.\n");
+
+#if ADD_NEW_STATS
+   gUnstable = g_key_file_get_boolean(ctx->config,
+                                      CONFGROUPNAME_GUESTINFO,
+                                      "enable-unstable-stats",
+                                      NULL);
+#endif
 
    /* Send the vmstats to the VMX. */
    DynBuf_Init(&stats);
@@ -1227,5 +1569,11 @@ GuestInfo_StatProviderPoll(gpointer data)
 void
 GuestInfo_StatProviderShutdown(void)
 {
-   // Nothing to do here for now
+   GuestInfoDeleteDiskStatsList(gDiskStatsList);
+   gDiskStatsList = NULL;
+
+   GuestInfoDestroyCollector(gCurrentCollector);
+   gCurrentCollector = NULL;
+   GuestInfoDestroyCollector(gPreviousCollector);
+   gPreviousCollector = NULL;
 }

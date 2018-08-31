@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -29,9 +29,7 @@
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
-#if !defined(_WIN32)
 #include <errno.h>
-#endif
 #include "vm_basic_defs.h"
 
 #if defined(__cplusplus)
@@ -123,11 +121,21 @@ char *Err_SanitizeMessage(const char *msg);
  *----------------------------------------------------------------------
  */
 
+#if defined(_WIN32)
+#define WITH_ERRNO(e, body) do { \
+      Err_Number e = Err_Errno(); \
+      int __win__##e = errno; \
+      body; \
+      Err_SetErrno(e); \
+      errno = __win__##e; \
+   } while (0)
+#else
 #define WITH_ERRNO(e, body) do { \
       Err_Number e = Err_Errno(); \
       body; \
       Err_SetErrno(e); \
-   } while (FALSE)
+   } while (0)
+#endif
 
 #if defined(__cplusplus)
 }  // extern "C"

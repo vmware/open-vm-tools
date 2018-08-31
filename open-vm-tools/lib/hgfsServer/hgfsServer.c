@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -349,7 +349,6 @@ static HgfsHandle HgfsFileNode2Handle(HgfsFileNode const *fileNode);
 static HgfsFileNode *HgfsHandle2FileNode(HgfsHandle handle,
                                          HgfsSessionInfo *session);
 static void HgfsServerExitSessionInternal(HgfsSessionInfo *session);
-static Bool HgfsIsShareRoot(char const *cpName, size_t cpNameSize);
 static void HgfsServerCompleteRequest(HgfsInternalStatus status,
                                       size_t replyPayloadSize,
                                       HgfsInputParam *input);
@@ -4120,7 +4119,7 @@ HgfsGenerateSessionId(void)
 
 Bool
 HgfsServerSetSessionCapability(HgfsOp op,                  // IN: operation code
-                               uint32 flags,               // IN: flags that describe level of support
+                               HgfsOpCapFlags flags,       // IN: flags that describe level of support
                                HgfsSessionInfo *session)   // INOUT: session to update
 {
    int i;
@@ -4683,29 +4682,29 @@ HgfsServerAllocateSession(HgfsTransportSessionInfo *transportSession, // IN:
 
    if (transportSession->channelCapabilities.flags & HGFS_CHANNEL_SHARED_MEM) {
       HgfsServerSetSessionCapability(HGFS_OP_READ_FAST_V4,
-                                     HGFS_REQUEST_SUPPORTED, session);
+                                     HGFS_OP_CAPFLAG_IS_SUPPORTED, session);
       HgfsServerSetSessionCapability(HGFS_OP_WRITE_FAST_V4,
-                                     HGFS_REQUEST_SUPPORTED, session);
+                                     HGFS_OP_CAPFLAG_IS_SUPPORTED, session);
       if (gHgfsDirNotifyActive) {
          LOG(8, ("%s: notify is enabled\n", __FUNCTION__));
          if (HgfsServerEnumerateSharedFolders()) {
             HgfsServerSetSessionCapability(HGFS_OP_SET_WATCH_V4,
-                                           HGFS_REQUEST_SUPPORTED, session);
+                                           HGFS_OP_CAPFLAG_IS_SUPPORTED, session);
             HgfsServerSetSessionCapability(HGFS_OP_REMOVE_WATCH_V4,
-                                           HGFS_REQUEST_SUPPORTED, session);
+                                           HGFS_OP_CAPFLAG_IS_SUPPORTED, session);
             session->flags |= HGFS_SESSION_CHANGENOTIFY_ENABLED;
          } else {
             HgfsServerSetSessionCapability(HGFS_OP_SET_WATCH_V4,
-                                           HGFS_REQUEST_NOT_SUPPORTED, session);
+                                           HGFS_OP_CAPFLAG_NOT_SUPPORTED, session);
             HgfsServerSetSessionCapability(HGFS_OP_REMOVE_WATCH_V4,
-                                           HGFS_REQUEST_NOT_SUPPORTED, session);
+                                           HGFS_OP_CAPFLAG_NOT_SUPPORTED, session);
          }
          LOG(8, ("%s: session notify capability is %s\n", __FUNCTION__,
                  (session->flags & HGFS_SESSION_CHANGENOTIFY_ENABLED ? "enabled" :
                                                                        "disabled")));
       }
       HgfsServerSetSessionCapability(HGFS_OP_SEARCH_READ_V4,
-                                     HGFS_REQUEST_SUPPORTED, session);
+                                     HGFS_OP_CAPFLAG_IS_SUPPORTED, session);
    }
 
    *sessionData = session;
@@ -7338,8 +7337,13 @@ HgfsServerRename(HgfsInputParam *input)  // IN: Input params
    const char *cpNewName;
    size_t cpNewNameLen;
    HgfsInternalStatus status;
-   fileDesc srcFileDesc;
-   fileDesc targetFileDesc;
+#ifdef _WIN32
+   fileDesc srcFileDesc = INVALID_HANDLE_VALUE;
+   fileDesc targetFileDesc = INVALID_HANDLE_VALUE;
+#else
+   fileDesc srcFileDesc = -1;
+   fileDesc targetFileDesc = -1;
+#endif
    HgfsHandle srcFile;
    HgfsHandle targetFile;
    HgfsRenameHint hints;
@@ -7466,63 +7470,78 @@ HgfsServerCreateDir(HgfsInputParam *input)  // IN: Input params
 
    HGFS_ASSERT_INPUT(input);
 
-   if (HgfsUnpackCreateDirRequest(input->payload, input->payloadSize,
-                                  input->op, &info)) {
-      nameStatus = HgfsServerGetLocalNameInfo(info.cpName, info.cpNameSize, info.caseFlags,
-                                              &shareInfo, &utf8Name, &utf8NameLen);
-      if (HGFS_NAME_STATUS_COMPLETE == nameStatus) {
-         ASSERT(utf8Name);
+   if (!HgfsUnpackCreateDirRequest(input->payload, input->payloadSize,
+                                   input->op, &info)) {
+      status = HGFS_ERROR_PROTOCOL;
+      goto exit;
+   }
 
-         LOG(4, ("%s: making dir \"%s\"", __FUNCTION__, utf8Name));
-         /*
-          * For read-only shares we must never attempt to create a directory.
-          * However the error code must be different depending on the existence
-          * of the file with the same name.
-          */
-         if (shareInfo.writePermissions) {
-            status = HgfsPlatformCreateDir(&info, utf8Name);
-            if (HGFS_ERROR_SUCCESS == status) {
-               if (!HgfsPackCreateDirReply(input->packet, input->request, info.requestType,
-                                           &replyPayloadSize, input->session)) {
-                  status = HGFS_ERROR_PROTOCOL;
-               }
-            }
-         } else {
-            status = HgfsPlatformFileExists(utf8Name);
-            if (HGFS_ERROR_SUCCESS == status) {
-               status = HGFS_ERROR_FILE_EXIST;
-            } else if (HGFS_ERROR_FILE_NOT_FOUND == status) {
-               status = HGFS_ERROR_ACCESS_DENIED;
+   nameStatus = HgfsServerGetLocalNameInfo(info.cpName, info.cpNameSize, info.caseFlags,
+                                           &shareInfo, &utf8Name, &utf8NameLen);
+   if (HGFS_NAME_STATUS_COMPLETE == nameStatus) {
+      ASSERT(utf8Name);
+
+      /*
+       * Check if the guest is attempting to create a directory as a new
+       * share in our virtual root folder. If so, then it exists as we have found
+       * the share. This should error as a file exists whereas access denied is for
+       * new folders that do not collide.
+       * The virtual root folder is read-only for guests and new shares can only be
+       * created from the host.
+       */
+      if (HgfsServerIsSharedFolderOnly(info.cpName, info.cpNameSize)) {
+         /* Disallow creating a subfolder matching the share in the virtual folder. */
+         LOG(4, ("%s: Collision: cannot create a folder which is a share\n", __FUNCTION__));
+         status = HGFS_ERROR_FILE_EXIST;
+         goto exit;
+      }
+      /*
+       * For read-only shares we must never attempt to create a directory.
+       * However the error code must be different depending on the existence
+       * of the file with the same name.
+       */
+      if (shareInfo.writePermissions) {
+         status = HgfsPlatformCreateDir(&info, utf8Name);
+         if (HGFS_ERROR_SUCCESS == status) {
+            if (!HgfsPackCreateDirReply(input->packet, input->request, info.requestType,
+                                        &replyPayloadSize, input->session)) {
+               status = HGFS_ERROR_PROTOCOL;
             }
          }
       } else {
-         /*
-          * Check if the name does not exist - the share was not found.
-          * Then it could one of two things: the share was removed/disabled;
-          * or we could be in the root share itself and have a new name.
-          * To return the correct error, if we are in the root share,
-          * we must check the open mode too - creation of new files/folders
-          * should fail access denied, for anything else "not found" is acceptable.
-          */
-         if (nameStatus == HGFS_NAME_STATUS_DOES_NOT_EXIST) {
-             if (HgfsServerIsSharedFolderOnly(info.cpName,
-                                              info.cpNameSize)) {
-               nameStatus = HGFS_NAME_STATUS_ACCESS_DENIED;
-               LOG(4, ("%s: New file creation in share root not allowed\n", __FUNCTION__));
-            } else {
-               LOG(4, ("%s: Shared folder not found\n", __FUNCTION__));
-            }
-         } else {
-            LOG(4, ("%s: Shared folder access error %u\n", __FUNCTION__, nameStatus));
+         status = HgfsPlatformFileExists(utf8Name);
+         if (HGFS_ERROR_SUCCESS == status) {
+            status = HGFS_ERROR_FILE_EXIST;
+         } else if (HGFS_ERROR_FILE_NOT_FOUND == status) {
+            status = HGFS_ERROR_ACCESS_DENIED;
          }
-
-         status = HgfsPlatformConvertFromNameStatus(nameStatus);
+      }
+   } else {
+      /*
+       * Check if the name does not exist - the share was not found.
+       * Then it could one of two things: the share was removed/disabled;
+       * or we could be in the root share itself and have a new name.
+       * To return the correct error, if we are in the root share,
+       * we must check the open mode too - creation of new files/folders
+       * should fail access denied, for anything else "not found" is acceptable.
+       */
+      if (nameStatus == HGFS_NAME_STATUS_DOES_NOT_EXIST) {
+         if (HgfsServerIsSharedFolderOnly(info.cpName,
+                                          info.cpNameSize)) {
+            nameStatus = HGFS_NAME_STATUS_ACCESS_DENIED;
+            LOG(4, ("%s: disallow new folder creation in virtual share root.\n",
+                    __FUNCTION__));
+         } else {
+            LOG(4, ("%s: Shared folder not found\n", __FUNCTION__));
+         }
+      } else {
+         LOG(4, ("%s: Shared folder access error %u\n", __FUNCTION__, nameStatus));
       }
 
-   } else {
-      status = HGFS_ERROR_PROTOCOL;
+      status = HgfsPlatformConvertFromNameStatus(nameStatus);
    }
 
+exit:
    HgfsServerCompleteRequest(status, replyPayloadSize, input);
    free(utf8Name);
 }
@@ -8197,7 +8216,7 @@ HgfsServerGetattr(HgfsInputParam *input)  // IN: Input params
                 * Replace it with a more appropriate error code: no such device.
                 */
                if (status == HGFS_ERROR_FILE_NOT_FOUND &&
-                   HgfsIsShareRoot(cpName, cpNameSize)) {
+                   HgfsServerIsSharedFolderOnly(cpName, cpNameSize)) {
                   status = HGFS_ERROR_IO;
                }
             }
@@ -9374,38 +9393,6 @@ exit:
    }
 }
 
-
-/*
- *-----------------------------------------------------------------------------
- *
- * HgfsIsShareRoot --
- *
- *    Checks if the cpName represents the root directory for a share.
- *    Components in CPName format are separated by NUL characters.
- *    CPName for the root of a share contains only one component thus
- *    it does not have any embedded '\0' characters in the name.
- *
- * Results:
- *    TRUE if it is the root directory, FALSE otherwise.
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-static Bool
-HgfsIsShareRoot(char const *cpName,         // IN: name to test
-                size_t cpNameSize)          // IN: length of the name
-{
-   size_t i;
-   for (i = 0; i < cpNameSize; i++) {
-      if (cpName[i] == '\0') {
-         return FALSE;
-      }
-   }
-   return TRUE;
-}
 
 /*
  * more testing

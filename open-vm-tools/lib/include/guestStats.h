@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -33,6 +33,9 @@
 #include "vm_assert.h"
 #include "vm_basic_types.h"
 
+#define PUBLISH_EXPERIMENTAL_STATS   0
+#define ADD_NEW_STATS                0
+
 /*
  * Version 1: Legacy data
  * Version 2: Dead
@@ -49,7 +52,9 @@
 #define GUESTMEMINFO_V5 5
 
 /*
- * Flags for legacy GuestMemInfo
+ * Flags for GuestMemInfoLegacy
+ *
+ * !!! DON'T ADD/CHANGE FLAGS !!!
  *
  * This is deprecated. All new values are returned via a GuestStat list.
  */
@@ -67,16 +72,19 @@
 #define MEMINFO_HUGEPAGESTOTAL   (1 << 10)
 #define MEMINFO_DEPRECATED10     (1 << 11)
 #define MEMINFO_DEPRECATED11     (1 << 12)
+#define MEMINFO_MEMNEEDED        (1 << 13)
 
 /*
  * Legacy GuestMemInfo structure.
+ *
+ * !!! DON'T CHANGE IT !!!
  *
  * It should stay the same to ensure binary compatibility.
  */
 
 typedef
 #include "vmware_pack_begin.h"
-struct GuestMemInfo {
+struct GuestMemInfoLegacy {
    uint32 version;            ///< MemInfo structure version.
    uint32 flags;              ///< Indicates which stats are valid.
    uint64 memTotal;           ///< Total physical memory in Kb.
@@ -85,7 +93,7 @@ struct GuestMemInfo {
    uint64 deprecated2[2];     ///< No longer used.
 }
 #include "vmware_pack_end.h"
-GuestMemInfo;
+GuestMemInfoLegacy;
 
 /*
  * A stat begins with a header. The header has a mask which says what data
@@ -247,6 +255,7 @@ typedef enum {
  *       of bumping the namespace version.
  */
 #define GUEST_STAT_TOOLS_IDS \
+   /* 6.0u1 stats */ \
    DEFINE_GUEST_STAT(GuestStatID_Invalid,                         0,  "__INVALID__") \
    DEFINE_GUEST_STAT(GuestStatID_None,                            1,  "__NONE__") \
    DEFINE_GUEST_STAT(GuestStatID_ContextSwapRate,                 2,  "guest.contextSwapRate") \
@@ -260,7 +269,63 @@ typedef enum {
    DEFINE_GUEST_STAT(GuestStatID_PhysicalPageSize,                10, "guest.page.size") \
    DEFINE_GUEST_STAT(GuestStatID_HugePageSize,                    11, "guest.hugePage.size") \
    DEFINE_GUEST_STAT(GuestStatID_Linux_HugePagesTotal,            12, "guest.hugePage.total") \
-   DEFINE_GUEST_STAT(GuestStatID_Max,                             13, "__MAX__")
+   /* 6.5 stats */ \
+   DEFINE_GUEST_STAT(GuestStatID_MemNeededReservation,            13, "guest.mem.neededReservation") \
+   DEFINE_GUEST_STAT(GuestStatID_PageSwapInRate,                  14, "guest.swap.pageInRate") \
+   DEFINE_GUEST_STAT(GuestStatID_PageSwapOutRate,                 15, "guest.swap.pageOutRate") \
+   DEFINE_GUEST_STAT(GuestStatID_ProcessCreationRate,             16, "guest.processCreationRate") \
+   DEFINE_GUEST_STAT(GuestStatID_SwapSpaceUsed,                   17, "guest.swap.used") \
+   DEFINE_GUEST_STAT(GuestStatID_SwapFilesCurrent,                18, "guest.swap.filesCurrent") \
+   DEFINE_GUEST_STAT(GuestStatID_SwapFilesMax,                    19, "guest.swap.filesMax") \
+   DEFINE_GUEST_STAT(GuestStatID_ThreadCreationRate,              20, "guest.threadCreationRate") \
+   DEFINE_GUEST_STAT(GuestStatID_Linux_HugePagesFree,             21, "guest.hugePage.free") \
+   DEFINE_GUEST_STAT(GuestStatID_Linux_LowWaterMark,              22, "guest.mem.lowWaterMark") \
+   DEFINE_GUEST_STAT(GuestStatID_Linux_MemActive,                 23, "guest.mem.active") \
+   DEFINE_GUEST_STAT(GuestStatID_Linux_MemActiveAnon,             24, "guest.mem.activeAnon") \
+   DEFINE_GUEST_STAT(GuestStatID_Linux_MemAvailable,              25, "guest.mem.available") \
+   DEFINE_GUEST_STAT(GuestStatID_Linux_MemBuffers,                26, "guest.mem.buffers") \
+   DEFINE_GUEST_STAT(GuestStatID_Linux_MemCached,                 27, "guest.mem.cached") \
+   DEFINE_GUEST_STAT(GuestStatID_Linux_MemCommitted,              28, "guest.mem.committed") \
+   DEFINE_GUEST_STAT(GuestStatID_Linux_MemDirty,                  29, "guest.mem.dirty") \
+   DEFINE_GUEST_STAT(GuestStatID_Linux_MemInactive,               30, "guest.mem.inactive") \
+   DEFINE_GUEST_STAT(GuestStatID_Linux_MemInactiveAnon,           31, "guest.mem.inactiveAnon") \
+   DEFINE_GUEST_STAT(GuestStatID_Linux_MemInactiveFile,           32, "guest.mem.inactiveFile") \
+   DEFINE_GUEST_STAT(GuestStatID_Linux_MemPinned,                 33, "guest.mem.pinned") \
+   DEFINE_GUEST_STAT(GuestStatID_Linux_MemSlabReclaim,            34, "guest.mem.slabReclaim") \
+   DEFINE_GUEST_STAT(GuestStatID_Linux_MemSwapCached,             35, "guest.mem.swap.cached") \
+   DEFINE_GUEST_STAT(GuestStatID_Linux_PageDirectScanRate,        36, "guest.page.directScanRate") \
+   DEFINE_GUEST_STAT(GuestStatID_Linux_PageFaultRate,             37, "guest.page.faultRate") \
+   DEFINE_GUEST_STAT(GuestStatID_Linux_PageFreeRate,              38, "guest.page.freeRate") \
+   DEFINE_GUEST_STAT(GuestStatID_Linux_PageMajorFaultRate,        39, "guest.page.majorFaultRate") \
+   DEFINE_GUEST_STAT(GuestStatID_Linux_PageStealRate,             40, "guest.page.stealRate") \
+   DEFINE_GUEST_STAT(GuestStatID_Linux_PageSwapScanRate,          41, "guest.page.swapScanRate") \
+   DEFINE_GUEST_STAT(GuestStatID_Linux_Swappiness,                42, "guest.swappiness") \
+   DEFINE_GUEST_STAT(GuestStatID_Windows_MemModifiedPages,        43, "guest.mem.modifiedPages") \
+   DEFINE_GUEST_STAT(GuestStatID_Windows_MemAvailableToMm,        44, "guest.mem.availableToMm") \
+   DEFINE_GUEST_STAT(GuestStatID_Windows_MemStandbyCore,          45, "guest.mem.standby.core") \
+   DEFINE_GUEST_STAT(GuestStatID_Windows_MemStandbyNormal,        46, "guest.mem.standby.normal") \
+   DEFINE_GUEST_STAT(GuestStatID_Windows_MemStandbyReserve,       47, "guest.mem.standby.reserve") \
+   DEFINE_GUEST_STAT(GuestStatID_Windows_MemPagedPoolResident,    48, "guest.mem.pagedPool.resident") \
+   DEFINE_GUEST_STAT(GuestStatID_Windows_MemSystemCodeResident,   49, "guest.system.codeResident") \
+   DEFINE_GUEST_STAT(GuestStatID_Windows_MemSystemDriverResident, 50, "guest.system.driverResident") \
+   DEFINE_GUEST_STAT(GuestStatID_Windows_MemNonPagedPool,         51, "guest.mem.nonPagedPool.size") \
+   DEFINE_GUEST_STAT(GuestStatID_Windows_MemCache,                52, "guest.mem.cache") \
+   DEFINE_GUEST_STAT(GuestStatID_Windows_FreeSystemPtes,          53, "guest.system.freePtes") \
+   DEFINE_GUEST_STAT(GuestStatID_Windows_MemCommitLimit,          54, "guest.mem.commitLimit") \
+   DEFINE_GUEST_STAT(GuestStatID_Windows_MemCommitted,            55, "guest.mem.committed") \
+   DEFINE_GUEST_STAT(GuestStatID_Windows_MemPrivateWorkingSet,    56, "guest.mem.privateWorkingSet") \
+   DEFINE_GUEST_STAT(GuestStatID_Windows_DiskReadRate,            57, "guest.disk.readRate") \
+   DEFINE_GUEST_STAT(GuestStatID_Windows_DiskWriteRate,           58, "guest.disk.writeRate") \
+   DEFINE_GUEST_STAT(GuestStatID_Windows_AutomaticSwapFileMax,    59, "guest.swap.automaticFileMax") \
+   DEFINE_GUEST_STAT(GuestStatID_Linux_MemTotal,                  60, "guest.mem.total") \
+   /* (6.7, ] stats */ \
+   DEFINE_GUEST_STAT(GuestStatID_Linux_CpuRunQueue,               61, "guest.cpu.runQueue") \
+   DEFINE_GUEST_STAT(GuestStatID_Linux_DiskRequestQueue,          62, "guest.disk.requestQueue") \
+   DEFINE_GUEST_STAT(GuestStatID_Linux_DiskRequestQueueAvg,       63, "guest.disk.requestQueueAvg") \
+   DEFINE_GUEST_STAT(GuestStatID_Windows_ProcessorQueue,          64, "guest.processor.queue") \
+   DEFINE_GUEST_STAT(GuestStatID_Windows_DiskQueue,               65, "guest.disk.queue") \
+   DEFINE_GUEST_STAT(GuestStatID_Windows_DiskQueueAvg,            66, "guest.disk.queueAvg") \
+   DEFINE_GUEST_STAT(GuestStatID_Max,                             67, "__MAX__")
 
 /*
  * Define stats enumeration

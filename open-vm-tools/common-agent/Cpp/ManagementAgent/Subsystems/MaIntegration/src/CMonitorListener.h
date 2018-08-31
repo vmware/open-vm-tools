@@ -1,5 +1,5 @@
 /*
- *   Copyright (C) 2017 VMware, Inc.  All rights reserved. -- VMware Confidential
+ *   Copyright (C) 2017-2018 VMware, Inc.  All rights reserved. -- VMware Confidential
  */
 
 #ifndef _MaIntegration_CMonitorListener_h_
@@ -23,9 +23,7 @@ public:
 
    bool preConfigureListener();
 
-   bool isListenerPreConfigured() {
-      return _listenerPreConfigured;
-   }
+   bool isListenerPreConfigured();
 
    bool followTunnel(std::string& listenerStartupType);
 

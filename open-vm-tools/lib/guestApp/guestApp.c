@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -27,6 +27,14 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifdef _MSC_VER
+#include <windows.h>
+#include <shlobj.h>
+#include "productState.h"
+#include "winregistry.h"
+#include "windowsUtil.h"
+#endif
+
 #include "vmware.h"
 #include "vm_version.h"
 #include "vm_tools_version.h"
@@ -42,14 +50,6 @@
 #include "file.h"
 #include "posix.h"
 #include "vmware/guestrpc/tclodefs.h"
-
-#ifdef _MSC_VER
-#include <windows.h>
-#include <shlobj.h>
-#include "productState.h"
-#include "winregistry.h"
-#include "windowsUtil.h"
-#endif
 
 /*
  * For Netware/Linux/BSD/Solaris, the install path

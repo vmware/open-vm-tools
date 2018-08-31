@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006,2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006,2017-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -80,6 +80,7 @@ typedef struct BlockInfo {
    os_atomic_t refcount;
    os_blocker_id_t blocker;
    os_completion_t completion;
+   os_completion_t notification;
    char filename[OS_PATH_MAX];
 } BlockInfo;
 
@@ -193,6 +194,7 @@ AllocBlock(os_kmem_cache_t *cache,        // IN: cache to allocate from
    DblLnkLst_Init(&block->links);
    os_atomic_set(&block->refcount, 1);
    os_completion_init(&block->completion);
+   os_completion_init(&block->notification);
    block->blocker = blocker;
 
    return block;
@@ -229,6 +231,7 @@ FreeBlock(os_kmem_cache_t *cache,       // IN: cache block was allocated from
    }
 
    os_completion_destroy(&block->completion);
+   os_completion_destroy(&block->notification);
    os_kmem_cache_free(cache, block);
 }
 
@@ -365,6 +368,7 @@ BlockDoRemoveBlock(BlockInfo *block)
    LOG(4, "Completing block on [%s] (%d waiters)\n",
        block->filename, os_atomic_read(&block->refcount) - 1);
    os_complete_all(&block->completion);
+   os_complete_all(&block->notification);
 
    /* Now drop our reference */
    BlockDropReference(block);
@@ -520,6 +524,47 @@ BlockRemoveAllBlocks(const os_blocker_id_t blocker)  // IN: blocker to remove bl
 /*
  *----------------------------------------------------------------------------
  *
+ * BlockWaitFileBlock --
+ *
+ *    The caller will be blocked until any other thread accesses the file
+ *    specified by the filename or the block on the file is removed.
+ *
+ * Results:
+ *    Zero on success, error code on failure.
+ *
+ * Side effects:
+ *    None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+BlockWaitFileBlock(const char *filename,          // IN: block to wait
+                   const os_blocker_id_t blocker) // IN: blocker
+{
+   BlockInfo *block;
+   int retval = 0;
+
+   ASSERT(filename);
+
+   os_write_lock(&blockedFilesLock);
+   block = GetBlock(filename, blocker);
+   os_write_unlock(&blockedFilesLock);
+
+   if (!block) {
+      retval = OS_ENOENT;
+      return retval;
+   }
+
+   os_wait_for_completion(&block->notification);
+
+   return retval;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * BlockWaitOnFile --
  *
  *    Searches for a block on the provided filename.  If one exists, this
@@ -571,6 +616,9 @@ BlockWaitOnFile(const char *filename,   // IN: file to block on
        */
       block = cookie;
    }
+
+   // Call the callback
+   os_complete_all(&block->notification);
 
    LOG(4, "(%"OS_FMTTID") Waiting for completion on [%s]\n", os_threadid, filename);
    error = os_wait_for_completion(&block->completion);

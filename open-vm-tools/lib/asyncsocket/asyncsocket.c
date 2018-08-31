@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -93,6 +93,7 @@
 #include "util.h"
 #include "msg.h"
 #include "posix.h"
+#include "vm_basic_asm.h"
 #include "vmci_sockets.h"
 #ifndef VMX86_TOOLS
 #include "vmdblib.h"
@@ -219,7 +220,6 @@ typedef struct AsyncTCPSocket {
 
    uint8 inIPollCb;
    Bool inRecvLoop;
-   Bool inDoOneMsg;
    uint32 inBlockingRecv;
 
    struct AsyncTCPSocket *listenAsock4;
@@ -2046,7 +2046,7 @@ AsyncTCPSocketConnect(struct sockaddr_storage *addr,         // IN
    asock->clientData = clientData;
 
    /* Store a copy of the sockaddr_storage so we can look it up later. */
-   asock->remoteAddr = *addr;
+   memcpy(&(asock->remoteAddr), addr, addrLen);
    asock->remoteAddrLen = addrLen;
 
    AsyncTCPSocketUnlock(asock);
@@ -2410,7 +2410,7 @@ AsyncTCPSocketRecv(AsyncSocket *base,   // IN:
       return ASOCKERR_NOTCONNECTED;
    }
 
-   if (asock->inBlockingRecv) {
+   if (asock->inBlockingRecv && !asock->inRecvLoop) {
       TCPSOCKWARN(asock, ("Recv called while a blocking recv is pending.\n"));
       return ASOCKERR_INVAL;
    }
@@ -3310,10 +3310,13 @@ AsyncTCPSocketFillRecvBuffer(AsyncTCPSocket *s)         // IN
                           s->base.recvPos,
                           needed);
       }
-      TCPSOCKLOG(3, s, ("need\t%d\trecv\t%d\tremain\t%d\n", needed, recvd,
-                        needed - recvd));
-
+      /*
+       * Do NOT make any system call directly or indirectly here
+       * unless you can preserve the system error number
+       */
       if (recvd > 0) {
+         TCPSOCKLOG(3, s, ("need\t%d\trecv\t%d\tremain\t%d\n", needed, recvd,
+                           needed - recvd));
          s->sslConnected = TRUE;
          s->base.recvPos += recvd;
          if (AsyncSocketCheckAndDispatchRecv(&s->base, &result)) {
@@ -3478,10 +3481,13 @@ AsyncTCPSocketWriteBuffers(AsyncTCPSocket *s)         // IN
 
       sent = SSL_Write(s->sslSock,
                        (uint8 *) head->buf + s->sendPos, left);
-
-      TCPSOCKLOG(3, s, ("left\t%d\tsent\t%d\tremain\t%d\n",
-                      left, sent, left - sent));
+      /*
+       * Do NOT make any system call directly or indirectly here
+       * unless you can preserve the system error number
+       */
       if (sent > 0) {
+         TCPSOCKLOG(3, s, ("left\t%d\tsent\t%d\tremain\t%d\n",
+                        left, sent, left - sent));
          s->sendBufFull = FALSE;
          s->sslConnected = TRUE;
          if ((s->sendPos += sent) == sizeToSend) {
@@ -3889,10 +3895,12 @@ out:
  * Results:
  *      ASOCKERR_SUCCESS if it worked, ASOCKERR_GENERIC on system call
  *         failures
+ *      ASOCKERR_BUSY if another thread is in the read callback.
  *      ASOCKERR_TIMEOUT if nothing happened in the allotted time.
  *
  * Side effects:
  *      None.
+ *
  *----------------------------------------------------------------------------
  */
 
@@ -3934,7 +3942,6 @@ AsyncTCPSocketDoOneMsg(AsyncSocket *base, // IN
 
       s->inBlockingRecv++;
       retVal = AsyncTCPSocketPoll(s, read, timeoutMS, &asock);
-      s->inBlockingRecv--;
       if (retVal != ASOCKERR_SUCCESS) {
          if (retVal == ASOCKERR_GENERIC) {
             TCPSOCKWARN(s, ("%s: failed to poll on the socket during read.\n",
@@ -3942,10 +3949,9 @@ AsyncTCPSocketDoOneMsg(AsyncSocket *base, // IN
          }
       } else {
          ASSERT(asock == s);
-         s->inDoOneMsg = TRUE;
          retVal = AsyncTCPSocketFillRecvBuffer(s);
-         s->inDoOneMsg = FALSE;
       }
+      s->inBlockingRecv--;
 
       /*
        * If socket got closed in AsyncTCPSocketFillRecvBuffer, we
@@ -3963,6 +3969,8 @@ AsyncTCPSocketDoOneMsg(AsyncSocket *base, // IN
          s->recvCb = FALSE;  /* For re-registering the poll callback. */
          if (retVal == ASOCKERR_SUCCESS || retVal == ASOCKERR_TIMEOUT) {
             retVal = AsyncTCPSocketRegisterRecvCb(s);
+            Log("SOCKET reregister recvCb after DoOneMsg (ref %d)\n",
+                BaseSocket(s)->refCount);
          }
          if (retVal != ASOCKERR_SUCCESS) {
             s->base.recvBuf = NULL;
@@ -3984,6 +3992,142 @@ AsyncTCPSocketDoOneMsg(AsyncSocket *base, // IN
       AsyncTCPSocketRelease(s);
    }
 
+   return retVal;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocket_TCPDrainRecv --
+ *
+ *      This function can be used to drain all the messages from a socket
+ *      disconnected on the remote end.  It spins a socket until the specified
+ *      amount of time has elapsed or an error is encountered, with backoff
+ *      between read attempts if there is a conflict with another thread.  The
+ *      recv callback is restored at the end of this only if not all the
+ *      messages have been read, the socket is still connected and recv callack
+ *      has not been cancelled.
+ *
+ * Results:
+ *      ASOCKERR_SUCCESS if all messages are have been read, or if the callback
+ *      has canceled the recv, or if the socket is closed
+ *      ASOCKERR_GENERIC on system call failures
+ *      ASOCKERR_TIMEOUT if there may still be unread messages at the end of
+ *      the speccified time.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+AsyncSocket_TCPDrainRecv(AsyncSocket *base, // IN
+                         int timeoutMS)     // IN
+{
+   AsyncTCPSocket *s = TCPSocket(base);
+   int retVal;
+   Bool cbRemoved = FALSE;
+   Bool releaseLock = FALSE;
+   unsigned count = 0;
+   VmTimeType startMS = Hostinfo_SystemTimerMS();
+   VmTimeType nowMS;
+
+   ASSERT(AsyncTCPSocketGetState(s) == AsyncSocketConnected);
+   ASSERT(s->recvCb); /* We are supposed to call someone... */
+
+   if (!AsyncTCPSocketIsLocked(s) || !Poll_LockingEnabled()) {
+      AsyncTCPSocketLock(s);
+      releaseLock = TRUE;
+   }
+   AsyncTCPSocketAddRef(s);
+
+   while (TRUE) {
+      AsyncTCPSocket *asock = NULL;
+
+      count++;
+      if (s->inRecvLoop) {
+         /*
+          * The recv loop would read the data if there is any and it is
+          * not safe to proceed and race with the recv loop.
+          */
+         TCPSOCKLG0(s, ("busy: another thread in recv loop\n"));
+         retVal = ASOCKERR_BUSY;
+         /* Add a bit of backoff. */
+         AsyncTCPSocketUnlock(s);
+         Util_Usleep(MIN(100 << (mssb32(count) / 2), timeoutMS));
+         AsyncTCPSocketLock(s);
+         goto retry;
+      }
+
+      if (!cbRemoved) {
+         /*
+          * Cancel the recv callback, but pretend that it is still registered
+          * so we know if the callback cancel recv.
+          */
+         AsyncTCPSocketCancelRecvCb(s);
+         s->recvCb = TRUE;
+         cbRemoved = TRUE;
+      }
+
+      s->inBlockingRecv++;
+      retVal = AsyncTCPSocketPoll(s, TRUE, 0, &asock);
+      if (retVal != ASOCKERR_SUCCESS) {
+         if (retVal == ASOCKERR_GENERIC) {
+            TCPSOCKWARN(s, ("%s: failed to poll on the socket during read.\n",
+                       __FUNCTION__));
+         }
+      } else if (AsyncTCPSocketGetState(s) == AsyncSocketConnected) {
+         ASSERT(asock == s);
+         retVal = AsyncTCPSocketFillRecvBuffer(s);
+      }
+      s->inBlockingRecv--;
+
+retry:
+      if (retVal == ASOCKERR_REMOTE_DISCONNECT ||
+          AsyncTCPSocketGetState(s) == AsyncSocketClosed ||
+          !s->recvCb) {
+         /* No more messages to recv. */
+         retVal = ASOCKERR_SUCCESS;
+         break;
+      }
+      if (retVal == ASOCKERR_GENERIC) {
+         break;
+      }
+
+      nowMS = Hostinfo_SystemTimerMS();
+      if (nowMS >= startMS + timeoutMS) {
+         retVal = ASOCKERR_TIMEOUT;
+         break;
+      }
+      timeoutMS -= nowMS - startMS;
+      startMS = nowMS;
+      ASSERT(AsyncTCPSocketGetState(s) == AsyncSocketConnected && s->recvCb);
+   }
+
+   if (cbRemoved) {
+      s->recvCb = FALSE;
+      /*
+       * If AsyncTCPSocketPoll or AsyncTCPSocketFillRecvBuffer fails, do not
+       * add the recv callback as it may never fire.
+       */
+      if (retVal == ASOCKERR_TIMEOUT) {
+         ASSERT(AsyncTCPSocketGetState(s) == AsyncSocketConnected);
+         ASSERT(s->base.refCount > 1); /* We better not be the last user */
+         retVal = AsyncTCPSocketRegisterRecvCb(s);
+         Log("SOCKET reregister recvCb after DrainRecv (ref %d)\n",
+             BaseSocket(s)->refCount);
+      }
+   }
+   if (!s->recvCb) {
+      s->base.recvBuf = NULL;
+   }
+
+   AsyncTCPSocketRelease(s);
+   if (releaseLock) {
+      AsyncTCPSocketUnlock(s);
+   }
    return retVal;
 }
 
@@ -4167,7 +4311,7 @@ AsyncTCPSocketCancelRecvCb(AsyncTCPSocket *asock)  // IN:
       removed = AsyncTCPSocketPollRemove(asock, TRUE,
                                          POLL_FLAG_READ | POLL_FLAG_PERIODIC,
                                          asock->internalRecvFn);
-      VERIFY(removed || AsyncTCPSocketPollParams(asock)->iPoll);
+      ASSERT(removed || AsyncTCPSocketPollParams(asock)->iPoll);
       asock->recvCb = FALSE;
    }
 }
@@ -4247,7 +4391,7 @@ AsyncTCPSocketCancelCbForClose(AsyncSocket *base)  // IN:
                                          asock->internalRecvFn);
       /* Callback might be temporarily removed in AsyncSocket_DoOneMsg. */
       ASSERT_NOT_TESTED(removed ||
-                        asock->inDoOneMsg ||
+                        asock->inBlockingRecv ||
                         AsyncTCPSocketPollParams(asock)->iPoll);
 
       asock->recvCb = FALSE;
@@ -4755,38 +4899,34 @@ AsyncTCPSocketIPollRecvCallback(void *clientData)  // IN:
 
    AsyncTCPSocketLock(asock);
    if (asock->recvCbTimer) {
-      /* IVmdbPoll only has periodic callbacks. */
+      /* IVmdbPoll only has periodic timer callbacks. */
       AsyncTCPSocketIPollRemove(asock, FALSE, 0, asock->internalRecvFn);
       asock->recvCbTimer = FALSE;
    }
-   asock->inIPollCb |= IN_IPOLL_RECV;
    lock = AsyncTCPSocketPollParams(asock)->lock;
    if (asock->recvCb && asock->inBlockingRecv == 0) {
+      asock->inIPollCb |= IN_IPOLL_RECV;
+      AsyncTCPSocketRecvCallback(clientData);
+      asock->inIPollCb &= ~IN_IPOLL_RECV;
       /*
-       * There is no need to take a reference here -- the fact that this
-       * callback is running means AsyncsocketIPollRemove would not release a
-       * reference if it is called.
+       * Re-register the callback if it has not been canceled.  Lock may have
+       * been dropped to fire recv callback so re-check inBlockingRecv.
        */
-      int error = AsyncTCPSocketFillRecvBuffer(asock);
-
-      if (error == ASOCKERR_GENERIC || error == ASOCKERR_REMOTE_DISCONNECT) {
-         AsyncTCPSocketHandleError(asock, error);
+      if (asock->recvCb && asock->inBlockingRecv == 0) {
+         AsyncTCPSocketIPollAdd(asock, TRUE, POLL_FLAG_READ,
+                                asock->internalRecvFn, asock->fd);
       }
+   } else {
+      TCPSOCKLG0(asock, ("Skip recv because %s\n",
+                         asock->recvCb ? "blocking recv is in progress"
+                                       : "recv callback is cancelled"));
    }
 
-   asock->inIPollCb &= ~IN_IPOLL_RECV;
-   if (asock->recvCb) {
-      AsyncTCPSocketUnlock(asock);
-   } else {
-      /*
-       * Callback has been unregistered.  Per above, we need to release the
-       * reference explicitly.
-       */
-      AsyncTCPSocketRelease(asock);
-      AsyncTCPSocketUnlock(asock);
-      if (lock != NULL) {
-         MXUser_DecRefRecLock(lock);
-      }
+   /* This is a one-shot callback so we always release the reference taken. */
+   AsyncTCPSocketRelease(asock);
+   AsyncTCPSocketUnlock(asock);
+   if (lock != NULL) {
+      MXUser_DecRefRecLock(lock);
    }
 #endif
 }
@@ -4894,21 +5034,15 @@ AsyncTCPSocketIPollSendCallback(void *clientData)  // IN:
    AsyncTCPSocketLock(s);
    s->inIPollCb |= IN_IPOLL_SEND;
    lock = AsyncTCPSocketPollParams(s)->lock;
+   if (s->sendCbTimer) {
+      /* IVmdbPoll only has periodic timer callback. */
+      AsyncTCPSocketIPollRemove(s, FALSE, 0, AsyncTCPSocketIPollSendCallback);
+      s->sendCbTimer = FALSE;
+   }
    if (s->sendCb) {
-      /*
-       * Unregister this callback as we want the non-periodic behavior.  There
-       * is no need to take a reference here -- the fact that this callback is
-       * running means AsyncsocketIPollRemove would not release a reference.
-       * We would release that reference at the end.
-       */
-      if (s->sendCbTimer) {
-         AsyncTCPSocketIPollRemove(s, FALSE, 0, AsyncTCPSocketIPollSendCallback);
-      } else {
-         AsyncTCPSocketIPollRemove(s, TRUE, POLL_FLAG_WRITE,
-                                   AsyncTCPSocketIPollSendCallback);
-      }
-
       AsyncTCPSocketSendCallback(s);
+   } else {
+      TCPSOCKLG0(s, ("cancelled send callback fired\n"));
    }
 
    s->inIPollCb &= ~IN_IPOLL_SEND;
@@ -5062,8 +5196,9 @@ AsyncTCPSocketIPollAdd(AsyncTCPSocket *asock,         // IN
    poll = AsyncTCPSocketPollParams(asock)->iPoll;
 
    if (socket) {
-      int pollFlags = (flags & POLL_FLAG_READ) != 0 ? VMDB_PRF_READ
-                                                    : VMDB_PRF_WRITE;
+      int pollFlags = VMDB_PRF_ONE_SHOT |
+                      ((flags & POLL_FLAG_READ) != 0 ? VMDB_PRF_READ
+                                                     : VMDB_PRF_WRITE);
 
       ret = poll->Register(poll, pollFlags, callback, asock, info);
    } else {
@@ -5121,8 +5256,9 @@ AsyncTCPSocketIPollRemove(AsyncTCPSocket *asock,         // IN
    poll = AsyncTCPSocketPollParams(asock)->iPoll;
 
    if (socket) {
-      int pollFlags = (flags & POLL_FLAG_READ) != 0 ? VMDB_PRF_READ
-                                                    : VMDB_PRF_WRITE;
+      int pollFlags = VMDB_PRF_ONE_SHOT |
+                      ((flags & POLL_FLAG_READ) != 0 ? VMDB_PRF_READ
+                                                     : VMDB_PRF_WRITE);
 
       ret = poll->Unregister(poll, pollFlags, callback, asock);
    } else {
@@ -5189,7 +5325,7 @@ AsyncTCPSocketCancelRecv(AsyncSocket *base,          // IN
       return ASOCKERR_INVAL;
    }
 
-   if (asock->inBlockingRecv) {
+   if (asock->inBlockingRecv && !asock->inRecvLoop) {
       Warning(ASOCKPREFIX "Cannot cancel request while a blocking recv is "
                           "pending.\n");
       return ASOCKERR_INVAL;

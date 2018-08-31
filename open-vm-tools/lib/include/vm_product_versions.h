@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -37,7 +37,7 @@
  * versioning is correct.
  */
 #if defined(VMX86_VIEWCLIENT)
-   #define PRODUCT_VERSION    4,6,0,PRODUCT_BUILD_NUMBER_NUMERIC
+   #define PRODUCT_VERSION    4,7,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_VMRC) /* check VMX86_VMRC before VMX86_DESKTOP */
    #define PRODUCT_VERSION    10,0,2,PRODUCT_BUILD_NUMBER_NUMERIC   /* VMRC_VERSION_NUMBER below has to match this */
 #elif defined(VMX86_FLEX) /* check VMX86_FLEX before VMX86_DESKTOP */
@@ -48,13 +48,16 @@
    #define PRODUCT_VERSION    1,1,5,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_VPX)
    /* this should be kept in sync with the corresponding vpx branch. */
-   #define PRODUCT_VERSION    6,6,3,PRODUCT_BUILD_NUMBER_NUMERIC
+   #define PRODUCT_VERSION    6,8,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_HORIZON_VIEW)
    #define PRODUCT_VERSION    0,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
 // VMX86_DESKTOP must be last because it is the default and is always defined.
 #elif defined(VMX86_DESKTOP)
    // WORKSTATION_VERSION_NUMBER below has to match this
    #define PRODUCT_VERSION    14,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
+#elif defined(VMX86_SYSIMAGE)
+   // SYSIMAGE_VERSION below has to match this
+   #define PRODUCT_VERSION    8,4,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #else
    /* Generic catch-all. */
    #define PRODUCT_VERSION    0,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
@@ -128,8 +131,8 @@
  * 4.0.0-1.8: patch 3
  */
 #define ESX_VERSION_MAJOR "6"
-#define ESX_VERSION_MINOR "6"
-#define ESX_VERSION_MAINT "3"
+#define ESX_VERSION_MINOR "8"
+#define ESX_VERSION_MAINT "0"
 #define ESX_VERSION ESX_VERSION_MAJOR "." ESX_VERSION_MINOR "." \
                     ESX_VERSION_MAINT
 #define ESX_VERSION_THIRD_PARTY ESX_VERSION_MAJOR ESX_VERSION_MINOR \
@@ -162,7 +165,7 @@
 #define FLEX_CLIENT_VERSION_NUMBER "8.0.0"
 #define FLEX_CLIENT_VERSION "e.x.p"
 
-#define GANTRY_VERSION "e.x.p"
+#define GANTRY_VERSION "1.0.0"
 
 /*
  * In the *-main branches, FUSION_VERSION should always be set to "e.x.p".
@@ -173,11 +176,12 @@
  */
 #define FUSION_VERSION "e.x.p"
 
-// These must match VIE_FILEVERSION above
-#define SYSIMAGE_VERSION "8.3.0"
-#define SYSIMAGE_FILE_VERSION VIE_FILEVERSION
+// These must match PRODUCT_VERSION for VMX86_SYSIMAGE above
+#define SYSIMAGE_VERSION "8.4.0"
+#define SYSIMAGE_VERSION_EXT_STR \
+   SYSIMAGE_VERSION "." PRODUCT_BUILD_NUMBER_NUMERIC_STRING
 
-#define VIM_VERSION "6.6.3"
+#define VIM_VERSION "6.8.0"
 /*
  *For smooth version bump up for quaterly releases, we need to have a fallback
  *mechanism to previous version in all those components which perform version
@@ -207,27 +211,27 @@
 6.0.0,\
 6.5.0"
 // Put VPX_VERSION first, because vpx/make/defs.mk doesn't check for suffix.
-#define VPX_VERSION "6.6.3"
+#define VPX_VERSION "6.8.0"
 #define VPX_VERSION_MAJOR "6"
-#define VPX_VERSION_MINOR "6"
-#define VPX_VERSION_MAINT "3"
+#define VPX_VERSION_MINOR "8"
+#define VPX_VERSION_MAINT "0"
 #define VPX_VERSION_THIRD_PARTY VPX_VERSION_MAJOR VPX_VERSION_MINOR \
                                 VPX_VERSION_MAINT
-#define VPX_VERSION_NUMERIC 6,6,3,PRODUCT_BUILD_NUMBER_NUMERIC
+#define VPX_VERSION_NUMERIC 6,8,0,PRODUCT_BUILD_NUMBER_NUMERIC
 
 // Last supported ESX version by VC.
 #define VPX_MIN_HOST_VERSION "6.0.0"
 
 #define MAX_SUPPORTED_VI_VERSION "6.6" //from ovfTool/src/supportedVersions.h
-#define VCDB_CURRENT_SCHEMA_VERSION           663 // from PitCADatabase.h
+#define VCDB_CURRENT_SCHEMA_VERSION           680 // from PitCADatabase.h
 
 #define VPX_RELEASE_UPDATE "0" /* 0 = Pre-release/GA, 1 = Update 1 */
 #define VPX_RELEASE_PATCH "0"  /* 0 = experimental */
 #define VPX_RELEASE VPX_RELEASE_UPDATE "." VPX_RELEASE_PATCH
 
 /* expected database version for current release */
-#define VPXD_VDB_DB_VERSION_ID            663
-#define VPXD_VDB_DB_VERSION_VALUE         "VirtualCenter Database 6.6"
+#define VPXD_VDB_DB_VERSION_ID            680
+#define VPXD_VDB_DB_VERSION_VALUE         "VirtualCenter Database 6.8"
 
 // Virtual Appliance Patch Version Number
 // This is the last component of the VCSA w.x.y.z version number
@@ -245,13 +249,13 @@
 #define VMLS_VERSION "e.x.p"
 #define VLICENSE_VERSION "1.1.5"
 #define DDK_VERSION "e.x.p"
-#define VIPERL_VERSION "6.5.0"
-#define RCLI_VERSION "6.5.0"
+#define VIPERL_VERSION "6.7.0"
+#define RCLI_VERSION "6.7.0"
 #define VDM_VERSION "e.x.p"
 #define NETDUMP_VERSION        "5.1.0"
 #define NETDUMP_FILE_VERSION    5,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
-#define VDDK_VERSION          "6.5.0"
-#define VDDK_FILE_VERSION      6,5,0,PRODUCT_BUILD_NUMBER_NUMERIC
+#define VDDK_VERSION          "6.8.0"
+#define VDDK_FILE_VERSION      6,8,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #define OVFTOOL_VERSION "4.3.0"
 #define VCSA_INSTALLER_VERSION "1.0.0"
 #define OVFTOOL_FILE_VERSION 4,3,0,PRODUCT_BUILD_NUMBER_NUMERIC
@@ -261,20 +265,30 @@
 #define VIEWY_VERSION "e.x.p"
 #define VMCFSDK_VERSION "e.x.p"
 #define PCOIP_VERSION "e.x.p"
-#define VIEW_VERSION "7.2.0"
 #define HOSTD_VERSION "e.x.p"
 #define RECOVERYLIBS_VERSION "2.0.0"
 #define PRECHECK_VERSION "e.x.p"
-#define VIEW_FEATUREPACK_VERSION "5.2.0"
-#define VIEW_CLIENT_VERSION_NUMBER "4.5.1"
-#define VIEW_CLIENT_VERSION "4.6.0"
+#define VIEW_CLIENT_VERSION "4.8.0"
+#define VIEW_CLIENT_VERSION_NUMBER VIEW_CLIENT_VERSION
 #define VHSESDK_VERSION "1.0.0"
-#define RDE_RFT_ALL_VERSION "4.0.0"
-#define RDESDK_VERSION "2.0.0"
-#define RDESDKREL_VERSION "2.0.0"
-#define MKSVCHANDEV_VERSION "1.0.0"
-#define TSMMRDEV_VERSION "1.0.0"
-#define VIEWMPDEV_VERSION "1.0.0"
+#define VIEWVC_VERSION "14.0.0"
+
+/*
+ * All of these components should follow the current version of View, except
+ * Horizon DaaS Agent which has its own version.
+ * SCons parsing code requires that each line have a version string, so we
+ * can't just do something like #define RDESDK_VERSION VIEW_VERSION"
+ */
+#define VIEW_VERSION "7.5.0"
+#define VIEW_FEATUREPACK_VERSION "7.5.0"
+#define RDE_RFT_ALL_VERSION "7.5.0"
+#define RDESDK_VERSION "7.5.0"
+#define RDESDKREL_VERSION "7.5.0"
+#define MKSVCHANDEV_VERSION "7.5.0"
+#define TSMMRDEV_VERSION "7.5.0"
+#define VIEWMPDEV_VERSION "7.5.0"
+#define RDF_VERSION "7.5.0"
+#define HORIZON_DAAS_AGENT_VERSION "18.2.0"
 
 
 #ifndef MAKESTR
@@ -416,7 +430,7 @@
 #  define PRODUCT_VERSION_STRING_FOR_LICENSE PRODUCT_LICENSE_VERSION
 #endif
 #define PRODUCT_ESX_LICENSE_VERSION "6.0"
-#define PRODUCT_ESX_LICENSE_FILE_VERSION "6.6.0.2"
+#define PRODUCT_ESX_LICENSE_FILE_VERSION "6.7.0.0"
 
 /*
  * The configuration file version string should be changed
@@ -470,6 +484,7 @@
 #define PRODUCT_VERSION_SCALABLE_SERVER_55 PRODUCT_ESXI_BRIEF_NAME " 5.5"
 #define PRODUCT_VERSION_SCALABLE_SERVER_60 PRODUCT_ESXI_BRIEF_NAME " 6.0"
 #define PRODUCT_VERSION_SCALABLE_SERVER_65 PRODUCT_ESXI_BRIEF_NAME " 6.5"
+#define PRODUCT_VERSION_SCALABLE_SERVER_67 PRODUCT_ESXI_BRIEF_NAME " 6.7"
 #define PRODUCT_VERSION_WGS_1 "Server 1.x"
 #define PRODUCT_VERSION_WGS_2 "Server 2.x"
 #define PRODUCT_VERSION_GSX_3 "GSX Server 3.x"
@@ -484,7 +499,7 @@
 #define PRODUCT_VERSION_WORKSTATION_110 PRODUCT_WORKSTATION_BRIEF_NAME " 11.x"
 #define PRODUCT_VERSION_WORKSTATION_120 PRODUCT_WORKSTATION_BRIEF_NAME " 12.x"
 // Workstation 13.x is skipped.
-#define PRODUCT_VERSION_WORKSTATION_140 PRODUCT_WORKSTATION_BRIEF_NAME " Tech Preview 2017"
+#define PRODUCT_VERSION_WORKSTATION_140 PRODUCT_WORKSTATION_BRIEF_NAME " 14.x"
 #define PRODUCT_VERSION_PLAYER_1 PRODUCT_PLAYER_BRIEF_NAME " 1.x"
 #define PRODUCT_VERSION_MAC_DESKTOP_1 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 1.1"
 #define PRODUCT_VERSION_MAC_DESKTOP_2 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 2.x"
@@ -495,7 +510,7 @@
 #define PRODUCT_VERSION_MAC_DESKTOP_70 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 7.x"
 #define PRODUCT_VERSION_MAC_DESKTOP_80 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 8.x"
 // Fusion 9.x is skipped.
-#define PRODUCT_VERSION_MAC_DESKTOP_100 PRODUCT_MAC_DESKTOP_BRIEF_NAME " Tech Preview 2017"
+#define PRODUCT_VERSION_MAC_DESKTOP_100 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 10.x"
 
 /*
  * VDFS Versions

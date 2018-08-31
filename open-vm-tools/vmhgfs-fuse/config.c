@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2015-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2015-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -349,7 +349,7 @@ SysCompatCheck(char *prog_name)  // IN
       release = KERNEL_RELEASE(k[0], k[1], k[2]);
    }
 
-   if (release < KERNEL_RELEASE(4, 0, 0)) {
+   if (release < KERNEL_RELEASE(3, 10, 0)) {
       fprintf(stderr, "%s: incompatible kernel version %02d.%02d.%02d\n",
               __func__, k[0], k[1], k[2]);
       goto exit;

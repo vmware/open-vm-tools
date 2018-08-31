@@ -33,12 +33,13 @@
 
 
 /*
- * The following strings may be incorporated into MSGID strings.  Updating
- * them therefore may require updating translations and vmsg auditing files.
+ * NOTE: The following strings may be incorporated into MSGID strings.
+ * Updating them therefore may require updating translations and vmsg
+ * auditing files in bora/messages/ to avoid breaking the build.
  */
-#define COPYRIGHT_YEARS    "1998-2018"
-#define COPYRIGHT_STRING   "Copyright (C) " COPYRIGHT_YEARS " " COMPANY_NAME
-#define RIGHT_RESERVED     "All rights reserved."
+#define COPYRIGHT_YEARS  "1998-2018" /* See the note above when changing. */
+#define COPYRIGHT_STRING "Copyright (C) " COPYRIGHT_YEARS " " COMPANY_NAME
+#define RIGHT_RESERVED   "All rights reserved."
 
 /*
  * Use UTF8_COPYRIGHT_STRING_BASE when the COMPANY_NAME must be separated out

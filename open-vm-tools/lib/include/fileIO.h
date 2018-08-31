@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -317,6 +317,12 @@ typedef enum {
 
 } FileIOResult;
 
+#if defined(__APPLE__)
+typedef int (FileIOPrivilegedOpener)(const char *path,
+                                     int flags);
+#endif
+
+
 const char *FileIO_MsgError(FileIOResult status);
 
 void FileIO_Invalidate(FileIODescriptor *file);
@@ -521,6 +527,10 @@ Bool FileIO_IsSuccess(FileIOResult res);
 
 Bool FileIO_SupportsPrealloc(const char *pathName,
                              Bool fsCheck);
+
+#if defined(__APPLE__)
+void FileIO_SetPrivilegedOpener(FileIOPrivilegedOpener *opener);
+#endif
 
 #if defined(__cplusplus)
 }  // extern "C"

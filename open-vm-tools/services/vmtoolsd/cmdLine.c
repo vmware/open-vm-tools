@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -260,6 +260,9 @@ ToolsCore_ParseCommandLine(ToolsServiceState *state,
       { "blockFd", '\0', 0, G_OPTION_ARG_INT, &state->ctx.blockFD,
          SU_(cmdline.blockfd, "File descriptor for the VMware blocking fs."),
          SU_(cmdline.blockfd.fd, "fd") },
+      { "uinputFd", '\0', 0, G_OPTION_ARG_INT, &state->ctx.uinputFD,
+         SU_(cmdline.uinputfd, "File descriptor for the uinput device."),
+         SU_(cmdline.uinputfd.fd, "fd") },
 #endif
       { "config", 'c', 0, G_OPTION_ARG_FILENAME, &state->configFile,
          SU_(cmdline.config, "Uses the config file at the given path."),
@@ -280,6 +283,7 @@ ToolsCore_ParseCommandLine(ToolsServiceState *state,
 
 #if !defined(G_PLATFORM_WIN32)
    state->ctx.blockFD = -1;
+   state->ctx.uinputFD = -1;
 #endif
 
    /*
@@ -344,12 +348,17 @@ ToolsCore_ParseCommandLine(ToolsServiceState *state,
       exit(ToolsCoreSignalEvent(state->name, DUMP_STATE_EVENT_NAME_FMT) ? 0 : 1);
    }
 #else
-   /* If not running the "vmusr" service, ignore the blockFd parameter. */
+   /* If not running the "vmusr" service, ignore the blockFd and uinputFd parameter. */
    if (!TOOLS_IS_USER_SERVICE(state)) {
       if (state->ctx.blockFD >= 0) {
          close(state->ctx.blockFD);
       }
       state->ctx.blockFD = -1;
+
+      if (state->ctx.uinputFD >= 0) {
+         close(state->ctx.uinputFD);
+      }
+      state->ctx.uinputFD = -1;
    }
 #endif
 

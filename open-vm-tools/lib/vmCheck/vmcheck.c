@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -30,9 +30,15 @@
 #   include <ntddk.h>
 #endif
 
+#if (!defined(WINNT_DDK) && defined(_WIN32))
+// include windows.h, otherwise DWORD type used in hostinfo.h is not defined
+#  include "windows.h"
+#endif
+
 #include "vmware.h"
 #include "vm_version.h"
 #include "vm_tools_version.h"
+
 #if !defined(WINNT_DDK)
 #  include "hostinfo.h"
 #  include "str.h"
@@ -57,13 +63,25 @@
 #include "backdoor_def.h"
 #include "debug.h"
 
-
-typedef Bool (*SafeCheckFn)(void);
-
 #if !defined(_WIN32)
 #   include "vmsignal.h"
 #   include "setjmp.h"
+#endif
 
+typedef Bool (*SafeCheckFn)(void);
+
+#if !defined(WINNT_DDK)
+static const struct {
+   const char *vendorSig;
+   const char *hypervisorName;
+} gHvVendor[] = {
+   {CPUID_KVM_HYPERVISOR_VENDOR_STRING, "Linux KVM"},
+   {CPUID_XEN_HYPERVISOR_VENDOR_STRING, "Xen"},
+};
+#endif
+
+
+#if !defined(_WIN32)
 static sigjmp_buf jmpBuf;
 static Bool       jmpIsSet;
 
@@ -256,6 +274,7 @@ VmCheck_IsVirtualWorld(void)
 
 #if !defined(WINNT_DDK)
    char *hypervisorSig;
+   uint32 i;
 
    /*
     * Check for other environments like Xen and VirtualPC only if we haven't
@@ -264,6 +283,16 @@ VmCheck_IsVirtualWorld(void)
    hypervisorSig = Hostinfo_HypervisorCPUIDSig();
    if (hypervisorSig == NULL ||
          Str_Strcmp(hypervisorSig, CPUID_VMWARE_HYPERVISOR_VENDOR_STRING) != 0) {
+      if (hypervisorSig != NULL) {
+         for (i = 0; i < ARRAYSIZE(gHvVendor); i++) {
+            if (Str_Strcmp(hypervisorSig, gHvVendor[i].vendorSig) == 0) {
+               Debug("%s: detected %s.\n", __FUNCTION__,
+                     gHvVendor[i].hypervisorName);
+               free(hypervisorSig);
+               return FALSE;
+            }
+         }
+      }
 
       free(hypervisorSig);
 
@@ -277,13 +306,13 @@ VmCheck_IsVirtualWorld(void)
          return FALSE;
       }
 
-      if (!VmCheckSafe(Hostinfo_TouchBackDoor)) {
-         Debug("%s: backdoor not detected.\n", __FUNCTION__);
-         return FALSE;
-      }
-
    } else {
       free(hypervisorSig);
+   }
+
+   if (!VmCheckSafe(Hostinfo_TouchBackDoor)) {
+      Debug("%s: backdoor not detected.\n", __FUNCTION__);
+      return FALSE;
    }
 
    /* It should be safe to use the backdoor without a crash handler now. */

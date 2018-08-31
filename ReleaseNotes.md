@@ -1,6 +1,9 @@
-**Updated on: 29 MAR 2018**
+open-vm-tools 10.3.0 Release Notes
+==================================
 
-open-vm-tools | 29 MAR 2018 | Build 8068406
+**Updated on: 12 JUL 2018**
+
+open-vm-tools | 12 JUL 2018 | Build 8931395
 
 Check for additions and updates to these release notes.
 
@@ -19,16 +22,15 @@ The release notes cover the following topics:
 What's New
 ----------
 
-*   **Quiesced snapshots**: Ability to exclude specific file systems from quiesced snapshots on Linux guest operating systems. This configuration can be set in the tools configuration file. For more details, see the VMware Tools [Documentation](https://docs.vmware.com/en/VMware-Tools/index.html) page.
-*   **Disable display mode setting**: A configuration option is introduced to disable normal display mode setting functionality using open-vm-tools. For more details, see [KB 53572](https://kb.vmware.com/s/article/53572).
-*   **Resolved Issues: **This release of open-vm-tools resolves few issues which are documented in the [Resolved Issues](#resolvedissues) section of this release notes.
+*   Starting with 10.3.0, open-vm-tools builds with xmlsec1 by default (instead of building with xml-security). To revert to the old behavior and build with xml-security, use the option
+    '--enable-xmlsecurity' for the ./configure command.
 
 Before You Begin
 ----------------
 
-Important note about upgrading to ESXi 5.5 Update 3b or later
+**Important note about upgrading to ESXi 5.5 Update 3b or later**
 
-Resolution on incompatibility and general guidelines: While upgrading ESXi hosts to ESXi 5.5 Update 3b or ESXi 6.0 Update 1 or later, and using older versions of Horizon View Agent, refer to the knowledge base articles:
+General guidelines: While upgrading ESXi hosts to ESXi 5.5 Update 3b or ESXi 6.0 Update 1 or later, and using older versions of Horizon View Agent, refer to the knowledge base articles:
 
 *   [Connecting to View desktops with Horizon View Agent 5.3.5 or earlier hosted on ESXi 5.5 Update 3b or later fails with a black screen.](http://kb.vmware.com/kb/2144438)
 *   [Connecting to View desktops with Horizon View Agent 6.0.x or 6.1.x hosted on ESXi 5.5 Update 3b or later fails with a black screen.](http://kb.vmware.com/kb/2144518)
@@ -37,7 +39,7 @@ Resolution on incompatibility and general guidelines: While upgrading ESXi hosts
 Internationalization
 --------------------
 
-open-vm-tools 10.2.5 is available in the following languages:
+open-vm-tools 10.3.0 is available in the following languages:
 
 *   English
 *   French
@@ -52,25 +54,54 @@ open-vm-tools 10.2.5 is available in the following languages:
 Compatibility Notes
 -------------------
 
-*   open-vm-tools 10.2.5 is compatible with supported versions of VMware vSphere ESXi 5.5 and later, VMware Workstation 14.0 and VMware Fusion 10.0. See [VMware Compatibility Guide](http://www.vmware.com/resources/compatibility/search.php) for more information.
-*   Starting with open-vm-tools version 10.2.0, Perl script-based open-vm-tools installation for FreeBSD has been discontinued. FreeBSD systems are supported only through the open-vm-tools packages directly available from FreeBSD package repositories. FreeBSD packages for open-vm-tools 10.1.0 and later are available from FreeBSD package repositories.
+*   As of tools release 10.2.0, FreeBSD guests are supported only by open-vm-tools; support for the VM Tools binary package supplied directly by VMware has been discontinued for FreeBSD.  Binary packages for open-vm-tools 10.1.0 and later are available from FreeBSD package repositories.
 
 ### Guest Operating System Customization Support
 
-The [Guest OS Customization Support Matrix](http://partnerweb.vmware.com/programs/guestOS/guest-os-customization-matrix.pdf) provides details about the guest operating systems supported for customization.
+The [Guest OS Customization Support Matrix](http://partnerweb.vmware.com/programs/guestOS/guest-os-customization-matrix.pdf) provides details about the guest operating systems supported for customization.
+
 
 Resolved Issues
 ---------------
 
-*   **open-vm-tools 10.2.0 does not recognize UFS filesystem partitions**
+*   **The open-vm-tools process might take a long time and consume 100% CPU of a core in a Linux OS with many IPv6 routes**
     
-    open-vm-tools 10.2.0 has dropped UFS from the list of known file system type. As a result, the default filesystem of Solaris and FreeBSD is not recognized. open-vm-tools Services in the GuestInfo for the virtual machine do not report these filesystems. You might not be able to monitor the disk usage of UFS filesystems with vRealize Operations or vCenter Managed Object Browser.
+    Prior to open-vm-tools 10.3.0, gathering network adapter information in a Linux guest OS with many IPv6 routes was a time-consuming process with 100% use of the CPU of a core. The exported data contained only a maximum of 100 routes. IPv4 routes took precedence over IPv6, leading to data loss in reporting IPv6 routes. If there were more than 100 IPv4 routes, IPv6 routes were not reported.
+    
+    This performance issue has been resolved in this release. The default routes gathering behavior can be overridden by configuring the values in the /etc/vmware-tools/tools.conf file:  
+      
+    \[guestinfo\]  
+    max-ipv4-routes=0  
+    max-ipv6-routes=0  
+      
+    Note: If they are not manually set, or an invalid value (over 100 or less than 0) is set, 'max-ipv4-routes' and 'max-ipv6-routes' are set to 100 by default. They can be set to 0 to disable the data collection.
     
     This issue is resolved in this release.
     
-*   **Information about non-existing device mounted to a file system was not reported**
+*   **Installation of the libvmtools package might fail the installation of VMware Tools**
     
-    Few Linux guest operating systems might have a non-existing device mounted to a filesystem. For example /dev/root/. open-vm-tools does not report this information.
+    When the package "libvmtools0" is installed in SUSE Linux 12 and open-vm-tools is not installed, the VMware Tools installer fails. This is done to prevent an incomplete installation. Users have to uninstall both open-vm-tools and libvmtools0 packages to install VMware Tools.
     
-    This issue is resolved in this release.
+Known Issues
+------------
 
+*   **Drag and Drop  functionality fails to work in Ubuntu**
+    
+    Drag and Drop functionality fails to work in Ubuntu 16.04.4 32-bit virtual machines installed using easy install. Also, failure of copy and paste functionality is observed in the same system.
+    
+    Workaround:
+    
+    *   Add the modprobe.blacklist=vmwgfx linux kernel boot option.
+    *   To gain access to larger resolutions, remove svga.guestBackedPrimaryAware = "TRUE" option from the VMX file.
+
+*   **Shared Folders mount is unavailable on Linux VM**
+    
+    If the **Shared Folders** feature is enabled on a Linux VM while it is powered off, shared folders mount is not available upon restart.
+    
+    Workaround: If the VM is powered on, disable and enable the **Shared Folders** feature from the interface.
+    
+    For resolving the issue permanently, edit **/etc/fstab** and add an entry to mount the Shared Folders automatically on boot.
+    
+    For example, add the line:
+    
+    vmhgfs-fuse   /mnt/hgfs    fuse    defaults,allow_other    0    0

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -235,6 +235,39 @@ Posix_Getpwent(void)
    return GetpwInternal(pw);
 #endif
 }
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Posix_Endpwent --
+ *
+ *      POSIX endpwent()
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+Posix_Endpwent(void)
+{
+#if defined(__ANDROID__)
+   /*
+    * endpwent() not avail until Android O
+    * TODO: When Android O(Oreo) becomes mainstream, we can remove this #if
+    * Refer https://github.com/android-ndk/ndk/issues/77
+    */
+   return;
+#else
+   endpwent();
+#endif
+}
+
 
 #if !defined(VM_SYSTEM_HAS_GETPWNAM_R) || \
    !defined(VM_SYSTEM_HAS_GETPWUID_R) || \

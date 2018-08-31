@@ -35,12 +35,16 @@
 //
 //  Created: Wednesday, August 07, 2002 2:27:39 PM
 //  
-//	Copyright (C) 2011-2016 VMware, Inc.  All rights reserved. -- VMware Confidential
+//	Copyright (C) 2011-2018 VMware, Inc.  All rights reserved. -- VMware Confidential
 //	-- VMware Confidential
 //  
 //////////////////////////////////////////////////////////////////////////////
 #ifndef _TDynamicArray_H_
 #define _TDynamicArray_H_
+
+#ifdef WIN32
+#pragma warning( disable : 4244 ) //Disabling unnecessary conversion warning
+#endif
 
 #include <string.h>
 #include "Exception/CCafException.h"
@@ -906,7 +910,7 @@ private:
 		_sentinelBits = reinterpret_cast<const uint64>(_data)
 			^ gs_ulDynamicArraySentinelBitPattern;
 #else
-		_sentinelBits = reinterpret_cast<const uint32>(_data) ^ gs_ulDynamicArraySentinelBitPattern;
+		_sentinelBits = reinterpret_cast<const uintptr_t>(_data) ^ gs_ulDynamicArraySentinelBitPattern;
 #endif
 
 		// Initialize the new buffer.
@@ -1003,7 +1007,7 @@ protected:
 			if ((_sentinelBits ^ reinterpret_cast<const uint64>(_data))
 				!= gs_ulDynamicArraySentinelBitPattern)
 #else
-				if ((_sentinelBits ^ reinterpret_cast<const uint32>(_data)) !=
+				if ((_sentinelBits ^ reinterpret_cast<const uintptr_t>(_data)) !=
 					gs_ulDynamicArraySentinelBitPattern)
 #endif
 				{

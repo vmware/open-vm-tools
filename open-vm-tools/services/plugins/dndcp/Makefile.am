@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2009-2016 VMware, Inc.  All rights reserved.
+### Copyright (C) 2009-2018 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -28,6 +28,7 @@ libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/dndGuest
 libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/stringxx
 libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/xutils
 libdndcp_la_CPPFLAGS += -I$(top_srcdir)/include
+libdndcp_la_CPPFLAGS += @XDR_CPPFLAGS@
 
 # Passing C++ related flags to CPPFLAGS generates error.
 # So, we need to pass these to C++ compilation only.
@@ -44,7 +45,9 @@ libdndcp_la_LIBADD += @GTK_LIBS@
 libdndcp_la_LIBADD += @GTKMM_LIBS@
 libdndcp_la_LIBADD += @VMTOOLS_LIBS@
 libdndcp_la_LIBADD += @HGFS_LIBS@
+libdndcp_la_LIBADD += @THREAD_LIBS@
 libdndcp_la_LIBADD += $(top_builddir)/lib/hgfsUri/hgfsUriPosix.lo
+libdndcp_la_LIBADD += @XDR_LIBS@
 
 libdndcp_la_SOURCES =
 
@@ -84,6 +87,12 @@ libdndcp_la_SOURCES += dndUIX11.cpp
 libdndcp_la_SOURCES += dndcp.cpp
 libdndcp_la_SOURCES += dragDetWndX11.cpp
 libdndcp_la_SOURCES += pointer.cpp
+
+if LINUX
+libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/fakeMouse
+libdndcp_la_SOURCES  += fakeMouseWayland/fakeMouseWayland.cpp
+libdndcp_la_CPPFLAGS += -DUSE_UINPUT
+endif
 
 if HAVE_MKDTEMP
 libdndcp_la_CPPFLAGS += -DDND_IS_XDG

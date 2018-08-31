@@ -25,3 +25,14 @@ Mike Latimer    Restrict udev rules to disk devices only
 
 Thomas Mueller  Ignore ENXIO errors with SyncDriver
                 - https://github.com/vmware/open-vm-tools/pull/218
+
+Germán M. Bravo FreeBSD: Improper use of sysconf() for getpwent buffer size
+                leads to vmtoolsd crash.
+                - https://github.com/vmware/open-vm-tools/pull/238
+
+Ed Schouten     Use standard SYSCTL_ADD_OID() macro to access the
+                sysctl_add_oid() function across supported FreeBSD releases.
+                - https://github.com/vmware/open-vm-tools/pull/125
+
+Steve Wills     Fix vmmemctl.ko driver build for supported FreeBSD releases.
+                - https://github.com/vmware/open-vm-tools/pull/140

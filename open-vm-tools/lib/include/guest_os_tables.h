@@ -109,6 +109,7 @@ extern "C" {
    GOT(GUEST_OS_VMKERNEL5)         /* ESX 5.x */                           \
    GOT(GUEST_OS_VMKERNEL6)         /* ESX 6 */                             \
    GOT(GUEST_OS_VMKERNEL65)        /* ESX 6.5 and later */                 \
+   GOT(GUEST_OS_VMKERNEL7)         /* ESX 7 and later */                   \
    GOT(GUEST_OS_PHOTON_64)         /* VMware Photon IA 64-bit */           \
    GOT(GUEST_OS_ORACLE)                                                    \
    GOT(GUEST_OS_ORACLE_64)                                                 \
@@ -122,12 +123,12 @@ extern "C" {
    GOT(GUEST_OS_CENTOS6_64)                                                \
    GOT(GUEST_OS_CENTOS7_64)                                                \
    GOT(GUEST_OS_CENTOS8_64)                                                \
-   GOT(GUEST_OS_AMAZON2_64)
+   GOT(GUEST_OS_AMAZONLINUX2_64)
 
 
 /* This list must be sorted alphabetically (non-case-sensitive) by gos name. */
 #define GUEST_OS_LIST_GEN                                                                             \
-   GOSL(STR_OS_AMAZON "2-64",                GUEST_OS_AMAZON2_64,             NULL)                   \
+   GOSL(STR_OS_AMAZON_LINUX "2-64",          GUEST_OS_AMAZONLINUX2_64,        NULL)                   \
    GOSL(STR_OS_ASIANUX "3",                  GUEST_OS_OTHER26XLINUX,          "linuxPreGlibc25.iso")  \
    GOSL(STR_OS_ASIANUX "3-64",               GUEST_OS_OTHER26XLINUX_64,       "linuxPreGlibc25.iso")  \
    GOSL(STR_OS_ASIANUX "4",                  GUEST_OS_OTHER26XLINUX,          "linuxPreGlibc25.iso")  \
@@ -254,10 +255,11 @@ extern "C" {
    GOSL(STR_OS_UBUNTU,                       GUEST_OS_UBUNTU,                 "linux.iso")            \
    GOSL(STR_OS_UBUNTU "-64",                 GUEST_OS_OTHER26XLINUX_64,       "linux.iso")            \
    GOSL("unixware7",                         GUEST_OS_UNIXWARE7,              NULL)                   \
-   GOSL("vmkernel",                          GUEST_OS_VMKERNEL,               NULL)                   \
-   GOSL("vmkernel5",                         GUEST_OS_VMKERNEL5,              NULL)                   \
-   GOSL("vmkernel6",                         GUEST_OS_VMKERNEL6,              NULL)                   \
-   GOSL("vmkernel65",                        GUEST_OS_VMKERNEL65,             NULL)                   \
+   GOSL(STR_OS_VMKERNEL,                     GUEST_OS_VMKERNEL,               NULL)                   \
+   GOSL(STR_OS_VMKERNEL "5",                 GUEST_OS_VMKERNEL5,              NULL)                   \
+   GOSL(STR_OS_VMKERNEL "6",                 GUEST_OS_VMKERNEL6,              NULL)                   \
+   GOSL(STR_OS_VMKERNEL "65",                GUEST_OS_VMKERNEL65,             NULL)                   \
+   GOSL(STR_OS_VMKERNEL "7",                 GUEST_OS_VMKERNEL7,              NULL)                   \
    GOSL(STR_OS_PHOTON "-64",                 GUEST_OS_PHOTON_64,              NULL)                   \
    GOSL("whistler",                          GUEST_OS_WINXP,                  "winPreVista.iso") /* old */ \
    GOSL("win2000",                           GUEST_OS_WIN2000,                "winPreVista.iso") /* old */ \
@@ -499,6 +501,7 @@ extern "C" {
    GOKM("otherlinux",                           otherLinuxGuest,         TRUE) \
    GOKM("otherlinux-64",                        otherLinux64Guest,       TRUE) \
    GOKM("genericlinux",                         genericLinuxGuest,       TRUE) \
+   GOKM("amazonlinux2-64",                      amazonlinux2_64Guest,    TRUE) \
    /* Netware guests */ \
    GOKM("netware4",                             netware4Guest,           TRUE) \
    GOKM("netware5",                             netware5Guest,           TRUE) \
@@ -530,6 +533,7 @@ extern "C" {
    GOKM("vmkernel5",                            vmkernel5Guest,          TRUE) \
    GOKM("vmkernel6",                            vmkernel6Guest,          TRUE) \
    GOKM("vmkernel65",                           vmkernel65Guest,         TRUE) \
+   GOKM("vmkernel7",                            vmkernel7Guest,          TRUE) \
    /* Other guests */ \
    GOKM("dos",                                  dosGuest,                TRUE) \
    GOKM("os2",                                  os2Guest,                TRUE) \

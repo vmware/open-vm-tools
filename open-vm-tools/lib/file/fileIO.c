@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -849,11 +849,12 @@ FileIO_AtomicUpdateEx(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
 
    if (HostType_OSIsVMK()) {
 #if defined(VMX86_SERVER)
-      FS_SwapFilesArgsUW *args = NULL;
+      FS_SwapFilesArgsUW args = { 0 };
       char *dirName = NULL;
       char *fileName = NULL;
       char *dstDirName = NULL;
       char *dstFileName = NULL;
+      Bool isSame;
 
       currPath = File_FullPath(FileIO_Filename(currFD));
       if (currPath == NULL) {
@@ -875,14 +876,22 @@ FileIO_AtomicUpdateEx(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
       File_GetPathName(currPath, &dstDirName, &dstFileName);
 
       ASSERT(dirName != NULL);
-      ASSERT(fileName && *fileName);
+      ASSERT(fileName != NULL && *fileName != '\0');
       ASSERT(dstDirName != NULL);
-      ASSERT(dstFileName && *dstFileName);
-      ASSERT(File_IsSameFile(dirName, dstDirName));
+      ASSERT(dstFileName != NULL && *dstFileName != '\0');
 
-      args = Util_SafeCalloc(1, sizeof *args);
-      args->fd = currFD->posix;
-      if (ioctl(newFD->posix, IOCTLCMD_VMFS_SWAP_FILES, args) != 0) {
+      errno = 0;
+      isSame = File_IsSameFile(dirName, dstDirName);
+      if (errno == 0) {
+         ASSERT(isSame);
+      } else {
+         savedErrno = errno;
+         Log("%s: File_IsSameFile failed (errno = %d).\n", __FUNCTION__, errno);
+         goto swapdone;
+      }
+
+      args.fd = currFD->posix;
+      if (ioctl(newFD->posix, IOCTLCMD_VMFS_SWAP_FILES, &args) != 0) {
          savedErrno = errno;
          if (errno != ENOSYS && errno != ENOTTY) {
             Log("%s: ioctl failed %d.\n", __FUNCTION__, errno);
@@ -932,7 +941,6 @@ FileIO_AtomicUpdateEx(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
       }
 
 swapdone:
-      Posix_Free(args);
       Posix_Free(dirName);
       Posix_Free(fileName);
       Posix_Free(dstDirName);
@@ -1027,7 +1035,7 @@ swapdone:
  *
  * FileIO_AtomicUpdate --
  *
- *      Wrapper around FileIO_AtomicUpdateEx that derfaults 'renameOnNFS' to
+ *      Wrapper around FileIO_AtomicUpdateEx that defaults 'renameOnNFS' to
  *      TRUE.
  *
  * Results:

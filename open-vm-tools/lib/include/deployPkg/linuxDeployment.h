@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2016,2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -30,6 +30,12 @@
 #include "imgcust-common/log.h"
 #include "imgcust-common/imgcust-api.h"
 
+typedef enum {
+   DEPLOYPKG_STATUS_SUCCESS,
+   DEPLOYPKG_STATUS_CLOUD_INIT_DELEGATED,
+   DEPLOYPKG_STATUS_ERROR,
+   DEPLOYPKG_STATUS_CAB_ERROR
+} DeployPkgStatus;
 
 /*
  *------------------------------------------------------------------------------
@@ -50,6 +56,28 @@ DeployPkg_SetLogger(LogFunction log);
 /*
  *------------------------------------------------------------------------------
  *
+ * DeployPkg_DeployPackageFromFileEx --
+ *
+ *      C-style wrapper to decode a package from a file, extract its payload,
+ *      expand the payload into a temporary directory, and then execute
+ *      the command specified in the package.
+ *
+ * @param file IN: the package file
+ * @return DEPLOYPKG_STATUS_SUCCESS on success
+ *         DEPLOYPKG_STATUS_CLOUD_INIT_DELEGATED if customization task is
+ *         delegated to cloud-init
+ *         DEPLOYPKG_STATUS_ERROR on failure
+ *
+ *------------------------------------------------------------------------------
+ */
+
+IMGCUST_API DeployPkgStatus
+DeployPkg_DeployPackageFromFileEx(const char* file);
+
+
+/*
+ *------------------------------------------------------------------------------
+ *
  * DeployPkg_DeployPackageFromFile --
  *
  *      C-style wrapper to decode a package from a file, extract its payload,
@@ -57,7 +85,7 @@ DeployPkg_SetLogger(LogFunction log);
  *      the command specified in the package.
  *
  * @param file IN: the package file
- * @return 0 on success
+ * @return 0 on success, -1 on failure
  *
  *------------------------------------------------------------------------------
  */

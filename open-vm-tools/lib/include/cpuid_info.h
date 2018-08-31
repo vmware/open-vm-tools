@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -68,33 +68,6 @@ typedef struct CPUIDSummary {
    CPUID81 id81;
    CPUIDRegs id88, id8a;
 } CPUIDSummary;
-
-
-/*
- *----------------------------------------------------------------------
- *
- * CPUIDSummary_RegsFromCpuid0 --
- *
- *      Fills in the given CPUIDRegs struct with the values from the CPUID0 struct.
- *
- * Results:
- *      Returns the CPUIDRegs pointer passed in.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-static INLINE CPUIDRegs*
-CPUIDSummary_RegsFromCpuid0(CPUID0* id0In,
-                            CPUIDRegs* id0Out)
-{
-   id0Out->eax = id0In->numEntries;
-   id0Out->ebx = *(uint32 *) (id0In->name + 0);
-   id0Out->edx = *(uint32 *) (id0In->name + 4);
-   id0Out->ecx = *(uint32 *) (id0In->name + 8);
-   return id0Out;
-}
 
 
 #if defined __cplusplus

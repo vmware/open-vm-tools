@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -47,8 +47,10 @@ typedef enum {
 
 HostinfoProcessQuery Hostinfo_QueryProcessExistence(int pid);
 
-char *Hostinfo_NameGet(void);	/* don't free result */
-char *Hostinfo_HostName(void);	/* free result */
+char *Hostinfo_NameGet(void);           // Don't free result
+char *Hostinfo_HostName(void);          // free result
+char *Hostinfo_GetOSName(void);         // free result
+char *Hostinfo_GetOSGuestString(void);  // free result
 
 void Hostinfo_MachineID(uint32 *hostNameHash,
                         uint64 *hostHardwareID);
@@ -93,6 +95,7 @@ enum {
    HOSTINFO_OS_VERSION_MACOS_10_10 = 14,
    HOSTINFO_OS_VERSION_MACOS_10_11 = 15,
    HOSTINFO_OS_VERSION_MACOS_10_12 = 16,
+   HOSTINFO_OS_VERSION_MACOS_10_13 = 17,
 };
 
 int Hostinfo_OSVersion(unsigned int i);
@@ -106,8 +109,6 @@ char *Hostinfo_GetOSGuestString(void);
 Bool Hostinfo_OSIsWinNT(void);
 Bool Hostinfo_OSIsWow64(void);
 Bool Hostinfo_TSCInvariant(void);
-DWORD Hostinfo_OpenProcessBits(void);
-DWORD Hostinfo_OpenThreadBits(void);
 int Hostinfo_EnumerateAllProcessPids(uint32 **processIds);
 #else
 void Hostinfo_ResetProcessState(const int *keepFds,

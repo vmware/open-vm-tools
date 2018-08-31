@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -134,6 +134,10 @@ static const int FileIO_OpenActions[] = {
    O_CREAT | O_EXCL,
    O_CREAT | O_TRUNC,
 };
+
+#ifdef __APPLE__
+static FileIOPrivilegedOpener *privilegedOpenerFunc = NULL;
+#endif
 
 /*
  * Options for FileCoalescing performance optimization
@@ -772,6 +776,36 @@ PosixFileOpener(const char *pathName,  // IN:
    return useProxy ? ProxyOpen(pathName, flags, mode) :
                      Posix_Open(pathName, flags, mode);
 }
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * FileIO_SetPrivilegedOpener --
+ *
+ *      Set the function to be used when opening files with privilege,
+ *      overriding the default behavior. See FileIO_PrivilegedPosixOpen.
+ *
+ *      Setting the privileged opener to NULL will restore default
+ *      behavior.
+ *
+ *      This function is not thread safe.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+FileIO_SetPrivilegedOpener(FileIOPrivilegedOpener *opener) // IN
+{
+   ASSERT(privilegedOpenerFunc == NULL || opener == NULL);
+   privilegedOpenerFunc = opener;
+}
 #endif
 
 
@@ -803,7 +837,6 @@ FileIOCreateRetry(FileIODescriptor *file,   // OUT:
                   int mode,                 // IN: mode_t for creation
                   uint32 maxWaitTimeMsec)   // IN: Ignored
 {
-   uid_t uid = -1;
    int fd = -1;
    int flags = 0;
    int error;
@@ -924,19 +957,37 @@ FileIOCreateRetry(FileIODescriptor *file,   // OUT:
 
    file->flags = access;
 
+#if defined(__APPLE__)
    if (access & FILEIO_OPEN_PRIVILEGED) {
-      uid = Id_BeginSuperUser();
+      // We only support privileged opens, not creates or truncations.
+      if ((flags & (O_CREAT | O_TRUNC)) != 0) {
+         fd = -1;
+         errno = EACCES;
+      } else {
+         fd = FileIO_PrivilegedPosixOpen(pathName, flags);
+      }
+   } else {
+      fd = PosixFileOpener(pathName, flags, mode);
    }
+#else
+   {
+      uid_t uid = -1;
 
-   fd = PosixFileOpener(pathName, flags, mode);
+      if (access & FILEIO_OPEN_PRIVILEGED) {
+         uid = Id_BeginSuperUser();
+      }
 
-   error = errno;
+      fd = PosixFileOpener(pathName, flags, mode);
 
-   if (access & FILEIO_OPEN_PRIVILEGED) {
-      Id_EndSuperUser(uid);
+      error = errno;
+
+      if (access & FILEIO_OPEN_PRIVILEGED) {
+         Id_EndSuperUser(uid);
+      }
+
+      errno = error;
    }
-
-   errno = error;
+#endif
 
    if (fd == -1) {
       ret = FileIOErrno2Result(errno);
@@ -2648,8 +2699,6 @@ FileIO_PrivilegedPosixOpen(const char *pathName,  // IN:
                            int flags)             // IN:
 {
    int fd;
-   Bool suDone;
-   uid_t uid = -1;
 
    if (pathName == NULL) {
       errno = EFAULT;
@@ -2665,22 +2714,31 @@ FileIO_PrivilegedPosixOpen(const char *pathName,  // IN:
 
    ASSERT((flags & (O_CREAT | O_TRUNC)) == 0);
 
-   if (Id_IsSuperUser()) {
-      suDone = FALSE;
-   } else {
-      uid = Id_BeginSuperUser();
-      suDone = TRUE;
+#if defined(__APPLE__)
+   if (privilegedOpenerFunc != NULL) {
+      fd = privilegedOpenerFunc(pathName, flags);
+   } else
+#endif
+   {
+      Bool suDone;
+      uid_t uid = -1;
+
+      if (Id_IsSuperUser()) {
+         suDone = FALSE;
+      } else {
+         uid = Id_BeginSuperUser();
+         suDone = TRUE;
+      }
+
+      fd = Posix_Open(pathName, flags, 0);
+
+      if (suDone) {
+         int error = errno;
+
+         Id_EndSuperUser(uid);
+         errno = error;
+      }
    }
-
-   fd = Posix_Open(pathName, flags, 0);
-
-   if (suDone) {
-      int error = errno;
-
-      Id_EndSuperUser(uid);
-      errno = error;
-   }
-
 
    return fd;
 }

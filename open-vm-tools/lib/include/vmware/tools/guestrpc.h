@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008,2014-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008,2014-2016,2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -144,22 +144,13 @@ RpcChannel_Send(RpcChannel *chan,
 void
 RpcChannel_Free(void *ptr);
 
+#if !defined(USE_RPCI_ONLY)
 gboolean
 RpcChannel_BuildXdrCommand(const char *cmd,
                            void *xdrProc,
                            void *xdrData,
                            char **result,
                            size_t *resultLen);
-
-RpcChannel *
-RpcChannel_Create(void);
-
-void
-RpcChannel_Shutdown(RpcChannel *chan);
-
-gboolean
-RpcChannel_Destroy(RpcChannel *chan);
-
 gboolean
 RpcChannel_Dispatch(RpcInData *data);
 
@@ -175,6 +166,20 @@ void
 RpcChannel_RegisterCallback(RpcChannel *chan,
                             RpcChannelCallback *rpc);
 
+void
+RpcChannel_UnregisterCallback(RpcChannel *chan,
+                              RpcChannelCallback *rpc);
+#endif
+
+RpcChannel *
+RpcChannel_Create(void);
+
+void
+RpcChannel_Shutdown(RpcChannel *chan);
+
+gboolean
+RpcChannel_Destroy(RpcChannel *chan);
+
 gboolean
 RpcChannel_SetRetVals(RpcInData *data,
                       char const *result,
@@ -184,10 +189,6 @@ gboolean
 RpcChannel_SetRetValsF(RpcInData *data,
                        char *result,
                        gboolean retVal);
-
-void
-RpcChannel_UnregisterCallback(RpcChannel *chan,
-                              RpcChannelCallback *rpc);
 
 gboolean
 RpcChannel_SendOneRaw(const char *data,

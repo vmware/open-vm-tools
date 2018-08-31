@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -36,7 +36,7 @@
 #include "str.h"
 #include "strutil.h"
 #include "toolsCoreInt.h"
-#include "vm_tools_version.h"
+#include "vmtoolsd_version.h"
 #include "vmware/tools/utils.h"
 #include "vmware/tools/log.h"
 #include "vm_version.h"
@@ -81,10 +81,11 @@ ToolsCoreCheckReset(RpcChannel *chan,
 
       if (!version_sent) {
          /*
-          * Log the Tools build number to the VMX log file. We don't really care
+          * Log the Tools version to the VMX log file. We don't really care
           * if sending the message fails.
           */
-         msg = g_strdup_printf("log %s: Version: %s", app, BUILD_NUMBER);
+         msg = g_strdup_printf("log %s: Version: %s (%s)",
+                               app, VMTOOLSD_VERSION_STRING, BUILD_NUMBER);
          RpcChannel_Send(state->ctx.rpc, msg, strlen(msg) + 1, NULL, NULL);
          g_free(msg);
          /* send message only once to prevent log spewing: */
