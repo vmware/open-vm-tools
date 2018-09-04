@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -299,11 +299,26 @@ FileLoggerOpen(FileLogger *data)
    }
 
    logfile = g_io_channel_new_file(path, data->append ? "a" : "w", NULL);
-   g_free(path);
 
    if (logfile != NULL) {
       g_io_channel_set_encoding(logfile, NULL, NULL);
+#ifdef VMX86_TOOLS
+      /*
+       * Make the logfile readable only by user and root/administrator.
+       */
+#ifdef _WIN32
+      /*
+       * XXX TODO: Set the ACLs properly for Windows.
+       */
+#else
+      /*
+       * Can't do anything if it fails, so ignore return.
+       */
+      (void) chmod(path, 0600);
+#endif
+#endif // VMX86_TOOLS
    }
+   g_free(path);
 
    return logfile;
 }
