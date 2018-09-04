@@ -599,8 +599,6 @@ HostinfoOSStructuredString(void)
          }
       }
    }
-
-   Log("structured string = '%s'\n", HostinfoCachedStructuredString);
 }
 
 

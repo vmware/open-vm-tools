@@ -141,6 +141,13 @@ time_t gGuestInfoLastGatherTime = 0;
  */
 int guestInfoStatsInterval = 0;
 
+/*
+ * Structured guest OS identification data sending. Reset on channel reset
+ * (e.g. vMotion, suspend-resume, snapshot).
+ */
+
+static Bool gSendStructuredOsInfo = TRUE;
+
 /**
  * GuestInfo gather loop timeout source.
  */
@@ -573,7 +580,6 @@ GuestInfoGather(gpointer data)
    /* Only use override if at least the short OS name is provided */
    if (osNameOverride == NULL) {
       Bool sendOsNames = FALSE;
-      Bool sendStructuredOsInfo = FALSE;
       char *osName = NULL;
       char *osFullName = NULL;
       char *structuredString = NULL;
@@ -582,13 +588,13 @@ GuestInfoGather(gpointer data)
       osFullName = Hostinfo_GetOSName();
       osName = Hostinfo_GetOSGuestString();
 
-      if (sendStructuredOsInfo) {
+      if (gSendStructuredOsInfo) {
          structuredString = Hostinfo_GetOSStructuredString();
       }
       if (structuredString == NULL) {
          g_message("No structured data.\n");
          sendOsNames = TRUE;
-         sendStructuredOsInfo = FALSE;
+         gSendStructuredOsInfo = FALSE;
       } else {
          /* Build and attempt to send the structured data */
          HostinfoStructuredHeader *structuredInfoHeader = NULL;
@@ -630,15 +636,15 @@ GuestInfoGather(gpointer data)
             g_debug("Structured OS info sent successfully.\n");
          } else {
             /* Only send the OS Name if the VMX failed to receive the
-             * structured os info. */
-            sendStructuredOsInfo = FALSE;
+             * structured OS info. */
+            gSendStructuredOsInfo = FALSE;
             sendOsNames = TRUE;
             g_debug("Structured OS info was not sent successfully.\n");
          }
       }
 
       if (sendOsNames) {
-         g_warning("Sending the short and long name\n");
+         g_debug("Sending the short and long name\n");
          if (osFullName == NULL) {
             g_warning("Failed to get OS info.\n");
          } else {
@@ -1951,6 +1957,9 @@ GuestInfoServerReset(gpointer src,
 
    /* Reset the last gather time */
    gGuestInfoLastGatherTime = 0;
+
+   /* Reset structure guest OS data sending */
+   gSendStructuredOsInfo = TRUE;
 }
 
 
