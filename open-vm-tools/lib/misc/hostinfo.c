@@ -312,7 +312,7 @@ Hostinfo_GetOSGuestString(void)
  *      detailed information about the guest OS.
  *
  * Return value:
- *      NULL  Unable to obtain the structured string.
+ *      NULL  Unable to obtain the detailed data.
  *     !NULL  The detailed data string. The caller must free it.
  *
  * Side effects:

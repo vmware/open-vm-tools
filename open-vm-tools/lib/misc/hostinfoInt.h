@@ -29,7 +29,7 @@
 #define MAX_OS_FULLNAME_LEN 512
 #define MAX_DETAILED_FIELD_LEN 1024
 
-#define DETAILED_STRING_DELIMITER " "
+#define DETAILED_DATA_DELIMITER " "
 
 
 /*
@@ -41,7 +41,7 @@ typedef struct {
    char   value[MAX_DETAILED_FIELD_LEN];
 } DetailedDataField;
 
-/* Must be sorted. Keep in same ordering as structuredFields */
+/* Must be sorted. Keep in same ordering as detailedDataFields */
 typedef enum {
    BITNESS,
    BUILD_NUMBER,

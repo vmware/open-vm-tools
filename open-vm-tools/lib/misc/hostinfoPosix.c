@@ -581,7 +581,7 @@ HostinfoOSDetailedData(void)
          len = Str_Snprintf(fieldString, sizeof fieldString, "%s='%s'",
                             field->name, escapedString);
          if (len == -1) {
-            Warning("%s: Error: structured info field too large\n",
+            Warning("%s: Error: detailed data field too large\n",
                     __FUNCTION__);
             memset(hostinfoCachedDetailedData, '\0',
                    sizeof hostinfoCachedDetailedData);
@@ -594,7 +594,7 @@ HostinfoOSDetailedData(void)
          /* Add delimiter between properties */
          if ((field + 1)->name != NULL) {
             Str_Strcat(hostinfoCachedDetailedData,
-                       DETAILED_STRING_DELIMITER,
+                       DETAILED_DATA_DELIMITER,
                        sizeof hostinfoCachedDetailedData);
          }
       }
@@ -1231,7 +1231,7 @@ HostinfoOsRelease(char *distro,       // OUT:
                                     &osReleaseFields[0],
                                     distroSize, distro);
 
-   /* These are used for the structured string. They can fail */
+   /* These are used for the detailed data. They can fail */
    HostinfoReadDistroFile(TRUE, fileName, &osReleaseFields[1],
                           sizeof distroName, distroName);
    HostinfoReadDistroFile(TRUE, fileName, &osReleaseFields[2],
@@ -1736,7 +1736,7 @@ HostinfoOSData(void)
    }
 #endif
 
-   /* Build structured string */
+   /* Build detailed data */
    HostinfoOSDetailedData();
 
    return success;

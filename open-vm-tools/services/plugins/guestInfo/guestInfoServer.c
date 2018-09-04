@@ -468,7 +468,7 @@ GuestInfoResetNicExcludeList(ToolsAppCtx *ctx)
  ******************************************************************************
  * GuestInfoDetailedDataIsEqual --
  *
- *    Compares two HostinfoDetailedDataHeader and the structured string that
+ *    Compares two HostinfoDetailedDataHeader and the detailed data that
  *    follows each header.
  *
  * @returns True if equal
@@ -496,8 +496,8 @@ GuestInfoDetailedDataIsEqual(const HostinfoDetailedDataHeader *info1,  // IN:
  ******************************************************************************
  * GuestInfoFreeDetailedData --
  *
- * Free the HostinfoStructuredHeader and space allocated for the structured
- * string.
+ * Free the HostinfoStructuredHeader and space allocated for the detailed
+ * data.
  *
  * @returns None
  *
@@ -592,26 +592,26 @@ GuestInfoGather(gpointer data)
       }
 
       if (detailedGosData == NULL) {
-         g_message("No structured data.\n");
+         g_debug("No detailed data.\n");
          sendOsNames = TRUE;
          gSendDetailedGosData = FALSE;
       } else {
-         /* Build and attempt to send the structured data */
+         /* Build and attempt to send the detailed data */
          HostinfoDetailedDataHeader *detailedDataHeader = NULL;
          size_t infoHeaderSize;
          size_t detailedGosDataLen;
          size_t infoSize;
 
-         g_message("Sending structured OS info.\n");
+         g_debug("Sending detailed data.\n");
          detailedGosDataLen = strlen(detailedGosData);
          infoHeaderSize = sizeof *detailedDataHeader;
          infoSize = infoHeaderSize + detailedGosDataLen + 1; // cover NUL
 
          detailedDataHeader = g_malloc(infoSize);
-         /* Clear struct and memory allocated for structured string */
+         /* Clear struct and memory allocated for detailed data */
          memset(detailedDataHeader, 0, infoSize);
 
-         /* Set the version of the structured header used */
+         /* Set the version of the detailed data header used */
          detailedDataHeader->version = HOSTINFO_STRUCT_HEADER_VERSION;
 
          if (osName == NULL) {
@@ -636,8 +636,10 @@ GuestInfoGather(gpointer data)
             gInfoCache.detailedData = detailedDataHeader;
             g_debug("Detailed data was sent successfully.\n");
          } else {
-            /* Only send the OS Name if the VMX failed to receive the
-             * structured OS info. */
+            /*
+             * Only send the OS Name if the VMX failed to receive the detailed
+             * data
+             */
             gSendDetailedGosData = FALSE;
             sendOsNames = TRUE;
             g_debug("Detailed data was not sent successfully.\n");
@@ -1264,7 +1266,7 @@ GuestInfoUpdateVMX(ToolsAppCtx *ctx,        // IN: Application context
          }
 
          if (!GuestInfoSendData(ctx, info, infoSize, INFO_OS_DETAILED)) {
-            g_warning("Failed to update structured OS information.\n");
+            g_warning("Failed to update detailed data");
             return FALSE;
          }
          break;
