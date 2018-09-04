@@ -1333,9 +1333,9 @@ VmBackupDumpState(gpointer src,
 
 
 /**
- * Reset callback. Currently does nothing.
+ * Reset callback.
  *
- * @param[in]  src      The source object.
+ * @param[in]  src      The source object.  Unused.
  * @param[in]  ctx      Unused.
  * @param[in]  data     Unused.
  */
@@ -1345,6 +1345,7 @@ VmBackupReset(gpointer src,
               ToolsAppCtx *ctx,
               gpointer data)
 {
+   VmBackup_SyncDriverReset();
 }
 
 

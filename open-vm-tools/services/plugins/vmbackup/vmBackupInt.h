@@ -295,5 +295,8 @@ VmBackup_SendEvent(const char *event,
                    const uint32 code,
                    const char *desc);
 
+void
+VmBackup_SyncDriverReset(void);
+
 #endif /* _VMBACKUPINT_H_*/
 
