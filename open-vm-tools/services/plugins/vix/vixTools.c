@@ -11550,6 +11550,7 @@ GuestAuthPasswordAuthenticateImpersonate(
    VGAuthError vgErr;
    VGAuthUserHandle *newHandle = NULL;
    VGAuthExtraParams extraParams[1];
+   Bool impersonated = FALSE;
 
    extraParams[0].name = VGAUTH_PARAM_LOAD_USER_PROFILE;
    extraParams[0].value = VGAUTH_PARAM_VALUE_TRUE;
@@ -11585,6 +11586,8 @@ GuestAuthPasswordAuthenticateImpersonate(
       goto done;
    }
 
+   impersonated = TRUE;
+
 #ifdef _WIN32
    // this is making a copy of the token, be sure to close it
    vgErr = VGAuth_UserHandleAccessToken(ctx, newHandle, userToken);
@@ -11604,6 +11607,10 @@ done:
    Util_ZeroFreeString(password);
 
    if (VIX_OK != err) {
+      if (impersonated) {
+         vgErr = VGAuth_EndImpersonation(ctx);
+         ASSERT(vgErr == VGAUTH_E_OK);
+      }
       VGAuth_UserHandleFree(newHandle);
       newHandle = NULL;
    }
@@ -11638,12 +11645,13 @@ GuestAuthSAMLAuthenticateAndImpersonate(
 {
 #if SUPPORT_VGAUTH
    VixError err;
-   char *token;
-   char *username;
+   char *token = NULL;
+   char *username = NULL;
    VGAuthContext *ctx = NULL;
    VGAuthError vgErr;
    VGAuthUserHandle *newHandle = NULL;
    VGAuthExtraParams extraParams[1];
+   Bool impersonated = FALSE;
 
    extraParams[0].name = VGAUTH_PARAM_LOAD_USER_PROFILE;
    extraParams[0].value = VGAUTH_PARAM_VALUE_TRUE;
@@ -11735,6 +11743,8 @@ impersonate:
       goto done;
    }
 
+   impersonated = TRUE;
+
 #ifdef _WIN32
    // this is making a copy of the token, be sure to close it
    vgErr = VGAuth_UserHandleAccessToken(ctx, newHandle, userToken);
@@ -11750,6 +11760,17 @@ impersonate:
    err = VIX_OK;
 
 done:
+   Util_ZeroFreeString(token);
+   Util_ZeroFreeString(username);
+
+   if (VIX_OK != err) {
+      if (impersonated) {
+         vgErr = VGAuth_EndImpersonation(ctx);
+         ASSERT(vgErr == VGAUTH_E_OK);
+      }
+      VGAuth_UserHandleFree(newHandle);
+      newHandle = NULL;
+   }
 
    return err;
 #else
