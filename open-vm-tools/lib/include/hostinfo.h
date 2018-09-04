@@ -54,21 +54,21 @@ HostinfoProcessQuery Hostinfo_QueryProcessExistence(int pid);
 #define HOSTINFO_STRUCT_HEADER_VERSION 1
 
 /*
- * This struct is used to build a structured OS data. The structured data will
+ * This struct is used to build a detailed OS data. The detailed OS data will
  * be composed of two parts. The first part is the header and the second part
- * will be a structured string that is appended to this header in memory.
+ * will be a string that is appended to this header in memory.
  */
-typedef struct HostinfoStructuredHeader {
+typedef struct HostinfoDetailedDataHeader {
    uint32  version;
    char    shortName[MAX_OS_NAME_LEN + 1];
    char    fullName[MAX_OS_FULLNAME_LEN + 1];
-} HostinfoStructuredHeader;
+} HostinfoDetailedDataHeader;
 
-char *Hostinfo_NameGet(void);                // Don't free result
-char *Hostinfo_HostName(void);               // free result
-char *Hostinfo_GetOSName(void);              // free result
-char *Hostinfo_GetOSGuestString(void);       // free result
-char *Hostinfo_GetOSStructuredString(void);  // free result
+char *Hostinfo_NameGet(void);            // Don't free result
+char *Hostinfo_HostName(void);           // free result
+char *Hostinfo_GetOSName(void);          // free result
+char *Hostinfo_GetOSGuestString(void);   // free result
+char *Hostinfo_GetOSDetailedData(void);  // free result
 
 void Hostinfo_MachineID(uint32 *hostNameHash,
                         uint64 *hostHardwareID);

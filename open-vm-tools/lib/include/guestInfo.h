@@ -71,7 +71,7 @@ typedef enum {
    INFO_MEMORY,
    INFO_IPADDRESS_V2,
    INFO_IPADDRESS_V3,
-   INFO_OS_STRUCTURED,
+   INFO_OS_DETAILED,
    INFO_MAX
 } GuestInfoType;
 

@@ -27,9 +27,9 @@
 
 #define MAX_OS_NAME_LEN 128
 #define MAX_OS_FULLNAME_LEN 512
-#define MAX_STRUCTURED_FIELD_LEN 1024
+#define MAX_DETAILED_FIELD_LEN 1024
 
-#define STRUCTURED_STRING_DELIMITER " "
+#define DETAILED_STRING_DELIMITER " "
 
 
 /*
@@ -38,8 +38,8 @@
 
 typedef struct {
    char  *name;
-   char   value[MAX_STRUCTURED_FIELD_LEN];
-} StructuredField;
+   char   value[MAX_DETAILED_FIELD_LEN];
+} DetailedDataField;
 
 /* Must be sorted. Keep in same ordering as structuredFields */
 typedef enum {
@@ -50,20 +50,20 @@ typedef enum {
    FAMILY_NAME,
    KERNEL_VERSION,
    PRETTY_NAME
-} StructuredFieldType;
+} DetailedDataFieldType;
 
 /*
  * Must be sorted. Keep in same ordering as StructuredFieldType. Defined in
  * hostinfoPosix.c
  */
-extern StructuredField structuredFields[];
+extern DetailedDataField detailedDataFields[];
 
-#define MAX_STRUCTURED_STRING_LEN MAX_STRUCTURED_FIELD_LEN * 10
+#define MAX_DETAILED_STRING_LEN (10 * MAX_DETAILED_FIELD_LEN)
 
-extern volatile Bool HostinfoOSNameCacheValid;
-extern char HostinfoCachedOSName[MAX_OS_NAME_LEN];
-extern char HostinfoCachedOSFullName[MAX_OS_FULLNAME_LEN];
-extern char HostinfoCachedStructuredString[MAX_STRUCTURED_STRING_LEN];
+extern volatile Bool hostinfoCacheValid;
+extern char          hostinfoCachedOSName[MAX_OS_NAME_LEN];
+extern char          hostinfoCachedOSFullName[MAX_OS_FULLNAME_LEN];
+extern char          hostinfoCachedDetailedData[MAX_DETAILED_STRING_LEN];
 
 /*
  * Global functions

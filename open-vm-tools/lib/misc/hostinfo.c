@@ -47,10 +47,10 @@
  * HostinfoOSData caches its returned value.
  */
 
-volatile Bool HostinfoOSNameCacheValid = FALSE;
-char HostinfoCachedOSName[MAX_OS_NAME_LEN];
-char HostinfoCachedOSFullName[MAX_OS_FULLNAME_LEN];
-char HostinfoCachedStructuredString[MAX_STRUCTURED_STRING_LEN];
+volatile Bool hostinfoCacheValid = FALSE;
+char          hostinfoCachedOSName[MAX_OS_NAME_LEN];
+char          hostinfoCachedOSFullName[MAX_OS_FULLNAME_LEN];
+char          hostinfoCachedDetailedData[MAX_DETAILED_STRING_LEN];
 
 
 #if defined(__i386__) || defined(__x86_64__)
@@ -257,10 +257,10 @@ char *
 Hostinfo_GetOSName(void)
 {
    char *name;
-   Bool data = HostinfoOSNameCacheValid ? TRUE : HostinfoOSData();
+   Bool data = hostinfoCacheValid ? TRUE : HostinfoOSData();
 
    if (data) {
-       name = Util_SafeStrdup(HostinfoCachedOSFullName);
+       name = Util_SafeStrdup(hostinfoCachedOSFullName);
    } else {
       name = NULL;
    }
@@ -291,10 +291,10 @@ char *
 Hostinfo_GetOSGuestString(void)
 {
    char *name;
-   Bool data = HostinfoOSNameCacheValid ? TRUE : HostinfoOSData();
+   Bool data = hostinfoCacheValid ? TRUE : HostinfoOSData();
 
    if (data) {
-       name = Util_SafeStrdup(HostinfoCachedOSName);
+       name = Util_SafeStrdup(hostinfoCachedOSName);
    } else {
       name = NULL;
    }
@@ -306,15 +306,14 @@ Hostinfo_GetOSGuestString(void)
 /*
  *-----------------------------------------------------------------------------
  *
- * Hostinfo_GetOSStructuredString --
+ * Hostinfo_GetOSDetailedData --
  *
- *      Query the operating system and build a string of property list
- *      containing detailed information about the guest OS. The returned string
- *      is written into the VM's .vmx file
+ *      Query the operating system and build a property list containing
+ *      detailed information about the guest OS.
  *
  * Return value:
  *      NULL  Unable to obtain the structured string.
- *     !NULL  The structured string. The caller is responsible for freeing it.
+ *     !NULL  The detailed data string. The caller must free it.
  *
  * Side effects:
  *      Memory is allocated.
@@ -323,16 +322,16 @@ Hostinfo_GetOSGuestString(void)
  */
 
 char *
-Hostinfo_GetOSStructuredString(void)
+Hostinfo_GetOSDetailedData(void)
 {
-   char *structuredString;
-   Bool data = HostinfoOSNameCacheValid ? TRUE : HostinfoOSData();
+   char *detailedData;
+   Bool data = hostinfoCacheValid ? TRUE : HostinfoOSData();
 
    if (data) {
-      structuredString = Util_SafeStrdup(HostinfoCachedStructuredString);
+      detailedData = Util_SafeStrdup(hostinfoCachedDetailedData);
    } else {
-      structuredString = NULL;
+      detailedData = NULL;
    }
 
-   return structuredString;
+   return detailedData;
 }

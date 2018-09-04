@@ -226,8 +226,8 @@ static const DistroInfo distroArray[] = {
 };
 #endif
 
-/* Must be sorted. Keep in the same ordering as StructuredFieldType */
-StructuredField structuredFields[] = {
+/* Must be sorted. Keep in the same ordering as DetailedDataFieldType */
+DetailedDataField detailedDataFields[] = {
    { "bitness",       "" },  // "32" or "64"
    { "buildNumber",   "" },  // Present for MacOS and some Linux distros.
    { "distroName",    "" },  // Defaults to uname -s
@@ -521,11 +521,11 @@ HostinfoPostData(const char *osName,  // IN:
 
    while (Atomic_ReadWrite(&mutex, 1)); // Spinlock.
 
-   if (!HostinfoOSNameCacheValid) {
-      Str_Strcpy(HostinfoCachedOSName, osName, sizeof HostinfoCachedOSName);
-      Str_Strcpy(HostinfoCachedOSFullName, osNameFull,
-                 sizeof HostinfoCachedOSFullName);
-      HostinfoOSNameCacheValid = TRUE;
+   if (!hostinfoCacheValid) {
+      Str_Strcpy(hostinfoCachedOSName, osName, sizeof hostinfoCachedOSName);
+      Str_Strcpy(hostinfoCachedOSFullName, osNameFull,
+                 sizeof hostinfoCachedOSFullName);
+      hostinfoCacheValid = TRUE;
    }
 
    Atomic_Write(&mutex, 0);  // unlock
@@ -535,9 +535,9 @@ HostinfoPostData(const char *osName,  // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * HostinfoOSStructuredString --
+ * HostinfoOSDetailedData --
  *
- *    Builds, escapes, and stores the structured string into the cache.
+ *    Builds, escapes, and stores the detailed data into the cache.
  *
  * Return value:
  *      TRUE   Success
@@ -550,21 +550,21 @@ HostinfoPostData(const char *osName,  // IN:
  */
 
 static void
-HostinfoOSStructuredString(void)
+HostinfoOSDetailedData(void)
 {
-   StructuredField *field;
+   DetailedDataField *field;
 
    /* Clear the string cache */
-   memset(HostinfoCachedStructuredString, '\0',
-          sizeof HostinfoCachedStructuredString);
+   memset(hostinfoCachedDetailedData, '\0',
+          sizeof hostinfoCachedDetailedData);
 
-   for (field = structuredFields; field->name != NULL; field++) {
+   for (field = detailedDataFields; field->name != NULL; field++) {
       if (field->value[0] != '\0') {
          /* Account for the escape and NUL char */
          int len;
          const char *c;
-         char escapedString[2 * MAX_STRUCTURED_FIELD_LEN + 1];
-         char fieldString[MAX_STRUCTURED_FIELD_LEN];
+         char escapedString[2 * MAX_DETAILED_FIELD_LEN + 1];
+         char fieldString[MAX_DETAILED_FIELD_LEN];
          uint32 i = 0;
 
          /* Escape single quotes and back slashes in the value. */
@@ -583,19 +583,19 @@ HostinfoOSStructuredString(void)
          if (len == -1) {
             Warning("%s: Error: structured info field too large\n",
                     __FUNCTION__);
-            memset(HostinfoCachedStructuredString, '\0',
-                   sizeof HostinfoCachedStructuredString);
+            memset(hostinfoCachedDetailedData, '\0',
+                   sizeof hostinfoCachedDetailedData);
             return;
          }
 
-         Str_Strcat(HostinfoCachedStructuredString, fieldString,
-                    sizeof HostinfoCachedStructuredString);
+         Str_Strcat(hostinfoCachedDetailedData, fieldString,
+                    sizeof hostinfoCachedDetailedData);
 
          /* Add delimiter between properties */
          if ((field + 1)->name != NULL) {
-            Str_Strcat(HostinfoCachedStructuredString,
-                       STRUCTURED_STRING_DELIMITER,
-                       sizeof HostinfoCachedStructuredString);
+            Str_Strcat(hostinfoCachedDetailedData,
+                       DETAILED_STRING_DELIMITER,
+                       sizeof hostinfoCachedDetailedData);
          }
       }
    }
@@ -658,12 +658,12 @@ HostinfoMacOS(struct utsname *buf)  // IN:
       }
    }
 
-   Str_Strcpy(structuredFields[DISTRO_NAME].value, productName,
-              sizeof structuredFields[DISTRO_NAME].value);
-   Str_Strcpy(structuredFields[DISTRO_VERSION].value, productVersion,
-              sizeof structuredFields[DISTRO_VERSION].value);
-   Str_Strcpy(structuredFields[BUILD_NUMBER].value, productBuildVersion,
-              sizeof structuredFields[BUILD_NUMBER].value);
+   Str_Strcpy(detailedDataFields[DISTRO_NAME].value, productName,
+              sizeof detailedDataFields[DISTRO_NAME].value);
+   Str_Strcpy(detailedDataFields[DISTRO_VERSION].value, productVersion,
+              sizeof detailedDataFields[DISTRO_VERSION].value);
+   Str_Strcpy(detailedDataFields[BUILD_NUMBER].value, productBuildVersion,
+              sizeof detailedDataFields[BUILD_NUMBER].value);
 
    if (haveVersion) {
       len = Str_Snprintf(osNameFull, sizeof osNameFull,
@@ -1239,14 +1239,14 @@ HostinfoOsRelease(char *distro,       // OUT:
    HostinfoReadDistroFile(TRUE, fileName, &osReleaseFields[3],
                           sizeof distroBuild, distroBuild);
 
-   Str_Strcpy(structuredFields[PRETTY_NAME].value, distro,
-              sizeof structuredFields[PRETTY_NAME].value);
-   Str_Strcpy(structuredFields[DISTRO_NAME].value, distroName,
-              sizeof structuredFields[DISTRO_NAME].value);
-   Str_Strcpy(structuredFields[BUILD_NUMBER].value, distroBuild,
-              sizeof structuredFields[BUILD_NUMBER].value);
-   Str_Strcpy(structuredFields[DISTRO_VERSION].value, distroRelease,
-              sizeof structuredFields[DISTRO_VERSION].value);
+   Str_Strcpy(detailedDataFields[PRETTY_NAME].value, distro,
+              sizeof detailedDataFields[PRETTY_NAME].value);
+   Str_Strcpy(detailedDataFields[DISTRO_NAME].value, distroName,
+              sizeof detailedDataFields[DISTRO_NAME].value);
+   Str_Strcpy(detailedDataFields[BUILD_NUMBER].value, distroBuild,
+              sizeof detailedDataFields[BUILD_NUMBER].value);
+   Str_Strcpy(detailedDataFields[DISTRO_VERSION].value, distroRelease,
+              sizeof detailedDataFields[DISTRO_VERSION].value);
 
    return success;
 }
@@ -1379,12 +1379,12 @@ HostinfoLsb(char *distro,       // OUT:
    }
 
    if (success) {
-      Str_Strcpy(structuredFields[DISTRO_NAME].value, distroName,
-                 sizeof structuredFields[DISTRO_NAME].value);
-      Str_Strcpy(structuredFields[DISTRO_VERSION].value, distroRelease,
-                 sizeof structuredFields[DISTRO_VERSION].value);
-      Str_Strcpy(structuredFields[PRETTY_NAME].value, distroDescription,
-                 sizeof structuredFields[PRETTY_NAME].value);
+      Str_Strcpy(detailedDataFields[DISTRO_NAME].value, distroName,
+                 sizeof detailedDataFields[DISTRO_NAME].value);
+      Str_Strcpy(detailedDataFields[DISTRO_VERSION].value, distroRelease,
+                 sizeof detailedDataFields[DISTRO_VERSION].value);
+      Str_Strcpy(detailedDataFields[PRETTY_NAME].value, distroDescription,
+                 sizeof detailedDataFields[PRETTY_NAME].value);
    }
 
    return success;
@@ -1704,21 +1704,21 @@ HostinfoOSData(void)
       return FALSE;
    }
 
-   Str_Strcpy(structuredFields[FAMILY_NAME].value, buf.sysname,
-              sizeof structuredFields[FAMILY_NAME].value);
-   Str_Strcpy(structuredFields[KERNEL_VERSION].value, buf.release,
-              sizeof structuredFields[KERNEL_VERSION].value);
+   Str_Strcpy(detailedDataFields[FAMILY_NAME].value, buf.sysname,
+              sizeof detailedDataFields[FAMILY_NAME].value);
+   Str_Strcpy(detailedDataFields[KERNEL_VERSION].value, buf.release,
+              sizeof detailedDataFields[KERNEL_VERSION].value);
    /* Default distro name is set to uname's sysname field */
-   Str_Strcpy(structuredFields[DISTRO_NAME].value, buf.sysname,
-              sizeof structuredFields[DISTRO_NAME].value);
+   Str_Strcpy(detailedDataFields[DISTRO_NAME].value, buf.sysname,
+              sizeof detailedDataFields[DISTRO_NAME].value);
 
 #if defined(USERWORLD)  // ESXi
    bitness = "64";
 #else
    bitness = (Hostinfo_GetSystemBitness() == 64) ? "64" : "32";
 #endif
-   Str_Strcpy(structuredFields[BITNESS].value, bitness,
-              sizeof structuredFields[BITNESS].value);
+   Str_Strcpy(detailedDataFields[BITNESS].value, bitness,
+              sizeof detailedDataFields[BITNESS].value);
 
 #if defined(USERWORLD)  // ESXi
    success = HostinfoESX(&buf);
@@ -1737,7 +1737,7 @@ HostinfoOSData(void)
 #endif
 
    /* Build structured string */
-   HostinfoOSStructuredString();
+   HostinfoOSDetailedData();
 
    return success;
 }

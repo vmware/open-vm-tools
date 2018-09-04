@@ -114,11 +114,11 @@ typedef enum NicInfoMethod {
 
 typedef struct _GuestInfoCache {
    /* Stores values of all key-value pairs. */
-   char                      *value[INFO_MAX];
-   HostinfoStructuredHeader  *structuredOSInfo;
-   NicInfoV3                 *nicInfo;
-   GuestDiskInfo             *diskInfo;
-   NicInfoMethod              method;
+   char                        *value[INFO_MAX];
+   HostinfoDetailedDataHeader  *detailedData;
+   NicInfoV3                   *nicInfo;
+   GuestDiskInfo               *diskInfo;
+   NicInfoMethod                method;
 } GuestInfoCache;
 
 
@@ -142,11 +142,10 @@ time_t gGuestInfoLastGatherTime = 0;
 int guestInfoStatsInterval = 0;
 
 /*
- * Structured guest OS identification data sending. Reset on channel reset
- * (e.g. vMotion, suspend-resume, snapshot).
+ * Detailed guest OS data sending. Reset on channel reset.
  */
 
-static Bool gSendStructuredOsInfo = TRUE;
+static Bool gSendDetailedGosData = TRUE;
 
 /**
  * GuestInfo gather loop timeout source.
@@ -467,9 +466,9 @@ GuestInfoResetNicExcludeList(ToolsAppCtx *ctx)
 
 /*
  ******************************************************************************
- * GuestInfoStructuredInfoIsEqual --
+ * GuestInfoDetailedDataIsEqual --
  *
- *    Compares two HostinfoStructuredHeader and the structured string that
+ *    Compares two HostinfoDetailedDataHeader and the structured string that
  *    follows each header.
  *
  * @returns True if equal
@@ -478,8 +477,8 @@ GuestInfoResetNicExcludeList(ToolsAppCtx *ctx)
  */
 
 static Bool
-GuestInfoStructuredInfoIsEqual(const HostinfoStructuredHeader *info1,  // IN:
-                               const HostinfoStructuredHeader *info2)  // IN:
+GuestInfoDetailedDataIsEqual(const HostinfoDetailedDataHeader *info1,  // IN:
+                             const HostinfoDetailedDataHeader *info2)  // IN:
 {
    ASSERT(info1 != NULL);
    ASSERT(info2 != NULL);
@@ -495,7 +494,7 @@ GuestInfoStructuredInfoIsEqual(const HostinfoStructuredHeader *info1,  // IN:
 
 /*
  ******************************************************************************
- * GuestInfoFreeStructuredInfo --
+ * GuestInfoFreeDetailedData --
  *
  * Free the HostinfoStructuredHeader and space allocated for the structured
  * string.
@@ -506,7 +505,7 @@ GuestInfoStructuredInfoIsEqual(const HostinfoStructuredHeader *info1,  // IN:
  */
 
 static void
-GuestInfoFreeStructuredInfo(HostinfoStructuredHeader *info)  // IN/OUT:
+GuestInfoFreeDetailedData(HostinfoDetailedDataHeader *info)  // IN/OUT:
 {
    free(info);
 }
@@ -582,64 +581,66 @@ GuestInfoGather(gpointer data)
       Bool sendOsNames = FALSE;
       char *osName = NULL;
       char *osFullName = NULL;
-      char *structuredString = NULL;
+      char *detailedGosData = NULL;
 
       /* Gather all the relevant guest information. */
       osFullName = Hostinfo_GetOSName();
       osName = Hostinfo_GetOSGuestString();
 
-      if (gSendStructuredOsInfo) {
-         structuredString = Hostinfo_GetOSStructuredString();
+      if (gSendDetailedGosData) {
+         detailedGosData = Hostinfo_GetOSDetailedData();
       }
-      if (structuredString == NULL) {
+
+      if (detailedGosData == NULL) {
          g_message("No structured data.\n");
          sendOsNames = TRUE;
-         gSendStructuredOsInfo = FALSE;
+         gSendDetailedGosData = FALSE;
       } else {
          /* Build and attempt to send the structured data */
-         HostinfoStructuredHeader *structuredInfoHeader = NULL;
+         HostinfoDetailedDataHeader *detailedDataHeader = NULL;
          size_t infoHeaderSize;
-         size_t structuredStringLen;
+         size_t detailedGosDataLen;
          size_t infoSize;
 
          g_message("Sending structured OS info.\n");
-         structuredStringLen = strlen(structuredString);
-         infoHeaderSize = sizeof *structuredInfoHeader;
-         infoSize = infoHeaderSize + structuredStringLen + 1; // add 1 for '\0'
-         structuredInfoHeader = g_malloc(infoSize);
+         detailedGosDataLen = strlen(detailedGosData);
+         infoHeaderSize = sizeof *detailedDataHeader;
+         infoSize = infoHeaderSize + detailedGosDataLen + 1; // cover NUL
+
+         detailedDataHeader = g_malloc(infoSize);
          /* Clear struct and memory allocated for structured string */
-         memset(structuredInfoHeader, 0, infoSize);
+         memset(detailedDataHeader, 0, infoSize);
 
          /* Set the version of the structured header used */
-         structuredInfoHeader->version = HOSTINFO_STRUCT_HEADER_VERSION;
+         detailedDataHeader->version = HOSTINFO_STRUCT_HEADER_VERSION;
 
          if (osName == NULL) {
             g_warning("Failed to get OS name.\n");
          } else {
-            Str_Strcpy(structuredInfoHeader->shortName, osName,
-                       sizeof structuredInfoHeader->shortName);
+            Str_Strcpy(detailedDataHeader->shortName, osName,
+                       sizeof detailedDataHeader->shortName);
          }
          if (osFullName == NULL) {
             g_warning("Failed to get OS full name.\n");
          } else {
-            Str_Strcpy(structuredInfoHeader->fullName, osFullName,
-                       sizeof structuredInfoHeader->fullName);
+            Str_Strcpy(detailedDataHeader->fullName, osFullName,
+                       sizeof detailedDataHeader->fullName);
          }
 
-         Str_Strcpy((char *)structuredInfoHeader + infoHeaderSize,
-                    structuredString, infoSize - infoHeaderSize);
+         Str_Strcpy((char *)detailedDataHeader + infoHeaderSize,
+                    detailedGosData, infoSize - infoHeaderSize);
 
-         if (GuestInfoUpdateVMX(ctx, INFO_OS_STRUCTURED, structuredInfoHeader,
+         if (GuestInfoUpdateVMX(ctx, INFO_OS_DETAILED, detailedDataHeader,
                                 infoSize)) {
-            GuestInfoFreeStructuredInfo(gInfoCache.structuredOSInfo);
-            gInfoCache.structuredOSInfo = structuredInfoHeader;
-            g_debug("Structured OS info sent successfully.\n");
+            GuestInfoFreeDetailedData(gInfoCache.detailedData);
+            gInfoCache.detailedData = detailedDataHeader;
+            g_debug("Detailed data was sent successfully.\n");
          } else {
             /* Only send the OS Name if the VMX failed to receive the
              * structured OS info. */
-            gSendStructuredOsInfo = FALSE;
+            gSendDetailedGosData = FALSE;
             sendOsNames = TRUE;
-            g_debug("Structured OS info was not sent successfully.\n");
+            g_debug("Detailed data was not sent successfully.\n");
          }
       }
 
@@ -661,7 +662,7 @@ GuestInfoGather(gpointer data)
          }
       }
 
-      free(structuredString);
+      free(detailedGosData);
       free(osFullName);
       free(osName);
    } else {
@@ -1252,17 +1253,17 @@ GuestInfoUpdateVMX(ToolsAppCtx *ctx,        // IN: Application context
       gInfoCache.value[infoType] = Util_SafeStrdup((char *) info);
       break;
 
-   case INFO_OS_STRUCTURED:
+   case INFO_OS_DETAILED:
       {
-         if (gInfoCache.structuredOSInfo != NULL &&
-             GuestInfoStructuredInfoIsEqual(gInfoCache.structuredOSInfo,
-                                            (HostinfoStructuredHeader *)info)) {
+         if (gInfoCache.detailedData != NULL &&
+             GuestInfoDetailedDataIsEqual(gInfoCache.detailedData,
+                                          (HostinfoDetailedDataHeader *)info)) {
             /* The value has not changed */
-            g_debug("Value unchanged for structuredOSInfo.\n");
+            g_debug("Value unchanged for detailedData.\n");
             break;
          }
 
-         if (!GuestInfoSendData(ctx, info, infoSize, INFO_OS_STRUCTURED)) {
+         if (!GuestInfoSendData(ctx, info, infoSize, INFO_OS_DETAILED)) {
             g_warning("Failed to update structured OS information.\n");
             return FALSE;
          }
@@ -1584,8 +1585,8 @@ GuestInfoClearCache(void)
       gInfoCache.value[i] = NULL;
    }
 
-   GuestInfoFreeStructuredInfo(gInfoCache.structuredOSInfo);
-   gInfoCache.structuredOSInfo = NULL;
+   GuestInfoFreeDetailedData(gInfoCache.detailedData);
+   gInfoCache.detailedData = NULL;
 
    GuestInfo_FreeDiskInfo(gInfoCache.diskInfo);
    gInfoCache.diskInfo = NULL;
@@ -1958,8 +1959,8 @@ GuestInfoServerReset(gpointer src,
    /* Reset the last gather time */
    gGuestInfoLastGatherTime = 0;
 
-   /* Reset structure guest OS data sending */
-   gSendStructuredOsInfo = TRUE;
+   /* Reset detailed guest OS data sending */
+   gSendDetailedGosData = TRUE;
 }
 
 
