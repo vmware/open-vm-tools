@@ -25,6 +25,7 @@
 #include <locale.h>
 #include "serviceInt.h"
 #include "service.h"
+#include "buildNumber.h"
 #ifdef _WIN32
 #include <tchar.h>
 #include "winCoreDump.h"
@@ -143,6 +144,10 @@ ServiceStartAndRun(void)
    Audit_Init(VGAUTH_SERVICE_NAME, auditSuccess);
 
    Log("INIT SERVICE\n");
+
+   VMXLog_Init();
+   VMXLog_Log(VMXLOG_LEVEL_INFO, "%s %s starting up",
+              VGAUTH_SERVICE_NAME, BUILD_NUMBER);
 
 #ifdef _WIN32
    if (ServiceOldInstanceExists()) {
