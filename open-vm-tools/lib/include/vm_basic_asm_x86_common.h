@@ -410,6 +410,11 @@ SMP_W_BARRIER_R(void)
       : /* no additional inputs */
       : "cc", "memory");
 #elif defined _MSC_VER
+   /*
+    * Ignore warning about _InterlockedXor operation on a local variable; we are
+    * using the operation for its side-effects only.
+    */
+   #pragma warning(suppress:28113)
    _InterlockedXor(&temp, 1);
 #else
 #error SMP_W_BARRIER_R not defined for this compiler
