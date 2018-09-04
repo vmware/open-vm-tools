@@ -203,6 +203,7 @@
 #define EXC_MC           18
 #define EXC_XF           19  // SIMD exception.
 #define EXC_VE           20  // Virtualization exception - VT only.
+#define EXC_VC           29  // VMM communication exception (SVM / SEV-ES only).
 #define EXC_SX           30  // Security exception (SVM only).
 
 /* Bitmap of the exception vectors that have associated error codes. */
