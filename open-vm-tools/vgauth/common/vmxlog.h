@@ -34,9 +34,10 @@ void VMXLog_Shutdown(void);
 void VMXLog_Log(int level, const char *fmt, ...) PRINTF_DECL(2, 3);
 
 /*
- * XXX placeholder until we define levels for the new log RPC
+ * * XXX Future-proofing -- currently unused.
  */
-#define VMXLOG_LEVEL_INFO  1
+#define VMXLOG_LEVEL_INFO     1
+#define VMXLOG_LEVEL_WARNING  2
 
 void VMXLog_LogV(int level, const char *fmt, va_list args);
 

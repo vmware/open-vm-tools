@@ -44,6 +44,7 @@
 #include "prefs.h"
 #include "serviceInt.h"
 #include "certverify.h"
+#include "vmxlog.h"
 
 static int gClockSkewAdjustment = VGAUTH_PREF_DEFAULT_CLOCK_SKEW_SECS;
 static xmlSchemaPtr gParsedSchemas = NULL;
@@ -766,6 +767,10 @@ CheckTimeAttr(const xmlNodePtr node,
       g_warning("%s: FAILED SAML assertion (timeStamp %s, delta %d) %s.\n",
                 __FUNCTION__, timeAttr, (int) diff,
                 notBefore ? "is not yet valid" : "has expired");
+      VMXLog_Log(VMXLOG_LEVEL_WARNING,
+                 "%s: FAILED SAML assertion (timeStamp %s, delta %d) %s.\n",
+                __FUNCTION__, timeAttr, (int) diff,
+                notBefore ? "is not yet valid" : "has expired");
       retVal = FALSE;
       goto done;
    }
@@ -1263,6 +1268,8 @@ VerifySignature(xmlDocPtr doc,
     */
    if (dsigCtx->status != xmlSecDSigStatusSucceeded) {
       g_warning("Signature is INVALID\n");
+      VMXLog_Log(VMXLOG_LEVEL_WARNING,
+                 "%s: signature is invalid\n", __FUNCTION__);
       goto done;
    }
 

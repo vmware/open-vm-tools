@@ -186,13 +186,12 @@ struct sockaddr_vm {
 /* end code copied from vmci_sockets.h */
 
 
-#if !defined(_MSC_VER) || _MSC_VER <= 1900
 /*
- * htonll() for older compilers and non-Windows.
+ * Local version of htonll() which is missing in many environments.
  * Assumes the host is little-endian.
  */
 static uint64
-htonll(uint64 s)
+_vmxlog_htonll(uint64 s)
 {
    uint64 out;
    unsigned char *buf = (unsigned char *) &out;
@@ -208,7 +207,6 @@ htonll(uint64 s)
 
    return out;
 }
-#endif
 
 
 /*
@@ -259,7 +257,7 @@ MakePacket(const char *cmd,
    /* network byte order is important here */
    hdr.type = htonl(1);         // DMFIELDTYPE_INT64
    hdr.fieldId = htonl(1);      // GUESTRPCPKT_FIELD_TYPE
-   hdr.value = htonll(1);       // GUESTRPCPKT_TYPE_DATA
+   hdr.value = _vmxlog_htonll(1);       // GUESTRPCPKT_TYPE_DATA
 
    /*
     * this part of the data doesn't seem to care about network byte
@@ -438,13 +436,18 @@ SendRpciPacket(const char *packet,
     *
     * Possible optimization -- every N minutes, retry the new RPC.
     */
-   buf[ret] = '\0';
-   reply = &buf[18];
-   g_debug("%s: RPC returned '%s'\n", __FUNCTION__, reply);
-   if (g_strcmp0(reply, "disabled") == 0 ||
-       g_strcmp0(reply, "Unknown") == 0) {
-      g_warning("%s: RPC unknown or disabled\n", __FUNCTION__);
-      retVal = VMX_RPC_UNKNOWN;
+   if (ret >= 18 && ret < sizeof buf) {
+      buf[ret] = '\0';
+      reply = &buf[18];
+      g_debug("%s: RPC returned '%s'\n", __FUNCTION__, reply);
+      if (g_strcmp0(reply, "disabled") == 0 ||
+          g_strcmp0(reply, "Unknown") == 0) {
+         g_warning("%s: RPC unknown or disabled\n", __FUNCTION__);
+         retVal = VMX_RPC_UNKNOWN;
+      }
+   } else {
+      g_warning("%s: recv() returned %d\n", __FUNCTION__, ret);
+      retVal = VMX_RPC_ERROR;
    }
 
 done:
