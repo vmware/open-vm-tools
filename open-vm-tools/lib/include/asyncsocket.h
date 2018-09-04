@@ -521,7 +521,6 @@ AsyncSocket_CreateNamedPipe(const char *pipeName,
                             DWORD openMode,
                             DWORD pipeMode,
                             uint32 numInstances,
-                            Bool safeAccess,
                             AsyncSocketPollParams *pollParams,
                             int *error);
 #endif
