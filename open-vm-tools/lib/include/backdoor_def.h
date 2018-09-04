@@ -340,6 +340,23 @@ Backdoor_CmdRequiresFullyValidVCPU(unsigned cmd)
           cmd == BDOOR_CMD_SGDT ||
           cmd == BDOOR_CMD_SLDT_STR;
 }
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Backdoor_CmdRequiresValidSegments --
+ *
+ *    Returns TRUE if a backdoor command requires access to segment selectors.
+ *
+ *----------------------------------------------------------------------
+ */
+static INLINE Bool
+Backdoor_CmdRequiresValidSegments(unsigned cmd)
+{
+   return cmd == BDOOR_CMD_INITPCIOPROM ||
+          cmd == BDOOR_CMD_GETMHZ;
+}
 #endif
 
 #ifdef VM_ARM_64
