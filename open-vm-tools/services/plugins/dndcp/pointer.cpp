@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -26,6 +26,9 @@
 
 #if defined(WIN32)
 #include "dndPluginInt.h"
+#elif defined(__APPLE__)
+extern void PointerGetMacCursorPos(int *rootX, int *rootY);
+extern void PointerSetMacCursorPos(int x, int y);
 #else
 #include "dndPluginIntX11.h"
 #endif
@@ -102,7 +105,7 @@ PointerGetAbsoluteMouseState(void)
 }
 
 
-#if !defined(WIN32)
+#if !defined(WIN32) && !defined(__APPLE__)
 /*
  *-----------------------------------------------------------------------------
  *
@@ -244,6 +247,12 @@ PointerGrabbed(void)
    PointerGetPos(&hostPosX, &hostPosY);
 #if defined(WIN32)
    SetCursorPos(hostPosX, hostPosY);
+#elif defined(__APPLE__)
+   if (!CopyPaste_IsRpcCPSupported()) {
+      if(absoluteMouseState != ABSMOUSE_AVAILABLE) {
+        PointerSetMacCursorPos(hostPosX, hostPosY);
+      }
+   }
 #else
    PointerSetXCursorPos(hostPosX, hostPosY);
 #endif
@@ -349,6 +358,15 @@ PointerUpdatePointerLoop(gpointer clientData) // IN: unused
                PointerSetPos(guestPos.x, guestPos.y);
             }
          }
+#elif defined(__APPLE__)
+         if (!CopyPaste_IsRpcCPSupported()) {
+            if(absoluteMouseState != ABSMOUSE_AVAILABLE) {
+                PointerGetMacCursorPos(&guestX, &guestY);
+                if ( hostPosX != guestX || hostPosY != guestY) {
+                    PointerSetPos(guestX, guestY);
+                }
+            }
+         }
 #else
          PointerGetXCursorPos(&guestX, &guestY);
          if ( hostPosX != guestX || hostPosY != guestY) {
@@ -360,7 +378,7 @@ PointerUpdatePointerLoop(gpointer clientData) // IN: unused
          if (gHostClipboardTries > 0) {
             gHostClipboardTries--;
             if (wrapper->IsCPEnabled() && gHostClipboardTries < 6 &&
-                CopyPaste_GetBackdoorSelections()) {
+               CopyPaste_GetBackdoorSelections()) {
                gHostClipboardTries = 0;
             }
          }
@@ -414,6 +432,10 @@ void
 Pointer_Init(ToolsAppCtx *ctx)
 {
    absoluteMouseState = PointerGetAbsoluteMouseState();
+   g_debug("%s:absoluteMouseState:%s\n", __FUNCTION__,
+           ((absoluteMouseState == ABSMOUSE_UNAVAILABLE)?
+           "ABSMOUSE_UNAVAILABLE":((absoluteMouseState == ABSMOUSE_AVAILABLE)?
+           "ABSMOUSE_AVAILABLE":"ABSMOUSE_UNKNOWN")));
    PointerUpdatePointerLoop(NULL);
    mouseIsGrabbed = FALSE;
 }
