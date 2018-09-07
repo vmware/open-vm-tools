@@ -34,6 +34,7 @@
 #include <errno.h>
 #include "util.h"
 #include "unicodeTypes.h"
+#include "err.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -348,11 +349,7 @@ const char *Unicode_GetStatic(const char *asciiBytes,
  */
 #if defined(_WIN32)
    #define UNICODE_GET_UTF16(s)     Unicode_GetAllocUTF16(s)
-   #define UNICODE_RELEASE_UTF16(s) do { \
-         int err = errno; \
-         free((utf16_t *)s); \
-         errno = err; \
-      } while (0)
+   #define UNICODE_RELEASE_UTF16(s) WITH_ERRNO_FREE(s)
 #endif
 
 #if defined(__cplusplus)
