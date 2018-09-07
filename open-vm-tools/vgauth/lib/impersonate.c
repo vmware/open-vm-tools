@@ -319,9 +319,9 @@ VGAuth_UserHandleFree(VGAuthUserHandle *handle)
       VGAuth_FreeAliasInfoContents(&(handle->details.val.samlData.aliasInfo));
    }
 
-   g_free(handle);
+   Debug("%s: Freeing handle %p\n", __FUNCTION__, handle);
 
-   Debug("%s: Freed handle %p\n", __FUNCTION__, handle);
+   g_free(handle);
 }
 
 
