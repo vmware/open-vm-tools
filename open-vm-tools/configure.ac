@@ -1370,9 +1370,6 @@ if test "$os" = "freebsd" || test "$os" = "kfreebsd-gnu"; then
    if test "$osVersion" -ge 302000; then
       MODULES="$MODULES vmmemctl"
    fi
-   if test "$osVersion" -ge 409000; then
-      MODULES="$MODULES vmxnet"
-   fi
    if test "$osVersion" -ge 600000; then
       MODULES="$MODULES vmblock"
    fi
