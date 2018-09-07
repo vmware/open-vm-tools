@@ -642,3 +642,26 @@ VmBackup_NewSyncDriverOnlyProvider(void)
 }
 
 #endif
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VmBackup_SyncDriverReset --
+ *
+ *    Reset function
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    Whatever are the side effects of what it calls.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+VmBackup_SyncDriverReset(void)
+{
+   SyncManifestReset();
+}
