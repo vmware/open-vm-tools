@@ -147,6 +147,32 @@
  */
 
 
+/**
+ ******************************************************************************
+ * BEGIN GuestOSInfo goodies.
+ */
+
+/**
+ * Defines the string used for the GuestOSInfo config file group.
+ */
+#define CONFGROUPNAME_GUESTOSINFO "guestosinfo"
+
+/**
+ * Lets users override the short OS name sent by Tools.
+ */
+#define CONFNAME_GUESTOSINFO_SHORTNAME "short-name"
+
+/**
+ * Lets users override the long OS name sent by Tools.
+ */
+#define CONFNAME_GUESTOSINFO_LONGNAME "long-name"
+
+/*
+ * END GuestOSInfo goodies.
+ ******************************************************************************
+ */
+
+
 /*
  ******************************************************************************
  * BEGIN Unity goodies.
@@ -157,7 +183,7 @@
  */
 #define CONFGROUPNAME_UNITY "unity"
 
-/**
+/*
  * Lets users override system decisions about whether unity should be available.
  */
 #define CONFNAME_UNITY_FORCEENABLE "forceEnable"
