@@ -1094,7 +1094,18 @@ GuestInfoAppendRate(Bool emitNameSpace,             // IN:
       if (reportID == GuestStatID_Linux_DiskRequestQueueAvg) {
          valueDelta = ((double)(currentStat->value)) / 10;
       } else {
-         valueDelta = currentStat->value - previousStat->value;
+         /*
+          * The /proc FS stat can be uint32 type in the kernel on both x86
+          * and x64 Linux, it is parsed and stored as uint64 in tools, so we
+          * also need to handle uint32 overflow here.
+          */
+         if (currentStat->value < previousStat->value &&
+             previousStat->value <= MAX_UINT32) {
+            valueDelta = (uint32)(currentStat->value) -
+                         (uint32)(previousStat->value);
+         } else {
+            valueDelta = currentStat->value - previousStat->value;
+         }
       }
 
       valueDouble = valueDelta / timeDelta;
