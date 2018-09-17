@@ -729,8 +729,14 @@ GuestInfoAppendRate(Bool emitNameSpace,             // IN:
        ((currentStat != NULL) && (currentStat->err == 0)) &&
        ((previousStat != NULL) && (previousStat->err == 0))) {
       double timeDelta = current->timeStamp - previous->timeStamp;
-      double valueDelta = currentStat->value - previousStat->value;
+      double valueDelta;
 
+      if (currentStat->value < previousStat->value &&
+          previousStat->value <= MAX_UINT32) {
+        valueDelta = (uint32)(currentStat->value) - (uint32)(previousStat->value);
+      } else {
+        valueDelta = currentStat->value - previousStat->value;
+      }
       valueDouble = valueDelta / timeDelta;
       errnoValue = 0;
    }
