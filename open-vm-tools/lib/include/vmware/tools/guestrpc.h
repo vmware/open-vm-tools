@@ -125,6 +125,15 @@ typedef void (*RpcChannelResetCb)(RpcChannel *chan,
                                   gboolean success,
                                   gpointer data);
 
+/**
+ * Signature for the application callback function when unable to establish
+ * an RpcChannel connection.
+ *
+ * @param[in]  _state     Client data.
+ */
+typedef void (*RpcChannelFailureCb)(gpointer _state);
+
+
 gboolean
 RpcChannel_Start(RpcChannel *chan);
 
@@ -160,7 +169,9 @@ RpcChannel_Setup(RpcChannel *chan,
                  GMainContext *mainCtx,
                  gpointer appCtx,
                  RpcChannelResetCb resetCb,
-                 gpointer resetData);
+                 gpointer resetData,
+                 RpcChannelFailureCb failureCb,
+                 guint maxFailures);
 
 void
 RpcChannel_RegisterCallback(RpcChannel *chan,
