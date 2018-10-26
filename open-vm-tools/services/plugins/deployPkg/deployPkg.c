@@ -295,6 +295,7 @@ DeployPkg_TcloDeploy(RpcInData *data)  // IN
                    TOOLSDEPLOYPKG_ERROR_DEPLOY_FAILED);
       }
       g_free(msg);
+      free(pkgName);
    }
 
    free(argCopy);
