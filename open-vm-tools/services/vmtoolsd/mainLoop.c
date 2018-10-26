@@ -534,7 +534,7 @@ ToolsCore_GetVmusrLimit(ToolsServiceState *state)      // IN
 
    if (TOOLS_IS_USER_SERVICE(state)) {
       errorLimit = VMTools_ConfigGetInteger(state->ctx.config,
-                                            state->ctx.name,
+                                            state->name,
                                             CONFNAME_MAX_CHANNEL_ATTEMPTS,
                                             VMUSR_CHANNEL_ERR_DEFAULT);
 
@@ -547,7 +547,7 @@ ToolsCore_GetVmusrLimit(ToolsServiceState *state)      // IN
            errorLimit > VMUSR_CHANNEL_ERR_MAX)) {
          g_warning("%s: Invalid %s: %s (%d) specified in tools configuration; "
                    "using default value (%d)\n", __FUNCTION__,
-                   state->ctx.name, CONFNAME_MAX_CHANNEL_ATTEMPTS,
+                   state->name, CONFNAME_MAX_CHANNEL_ATTEMPTS,
                    errorLimit, VMUSR_CHANNEL_ERR_DEFAULT);
          errorLimit = VMUSR_CHANNEL_ERR_DEFAULT;
       }
