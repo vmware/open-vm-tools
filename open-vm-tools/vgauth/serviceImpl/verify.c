@@ -171,6 +171,9 @@ ServiceVerifyAndCheckTrustCertChainForSubject(int numCerts,
                    g_strcmp0(queryUserName, maList[j].userName) != 0) {
                   Warning("%s: found more than one user in map file chain\n",
                           __FUNCTION__);
+                  VMXLog_Log(VMXLOG_LEVEL_WARNING,
+                             "%s: found more than one user in map file chain\n",
+                          __FUNCTION__);
                   err = VGAUTH_E_MULTIPLE_MAPPINGS;
                   goto done;
                }

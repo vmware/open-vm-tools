@@ -67,6 +67,7 @@ static gboolean gDisableVMXLogging = TRUE;
 #define VMX_RPC_UNKNOWN  0                    // RPC disabled or not supported
 #define VMX_RPC_ERROR   -1                    // failed to send RPC
 
+#define VMXLOG_SERVICE_NAME      "[vgauthservice]"
 /*
  * Some typedefs for portability.
  */
@@ -590,9 +591,9 @@ again:
     */
    if (useNewRpc) {
       /* XXX TODO use the level */
-      cmd = g_strdup_printf("%s %s", LOG_RPC_CMD_NEW, msg);
+      cmd = g_strdup_printf("%s " VMXLOG_SERVICE_NAME " %s", LOG_RPC_CMD_NEW, msg);
    } else {
-      cmd = g_strdup_printf("%s %s", LOG_RPC_CMD, msg);
+      cmd = g_strdup_printf("%s " VMXLOG_SERVICE_NAME " %s", LOG_RPC_CMD, msg);
    }
 
    ret = SendString(cmd);

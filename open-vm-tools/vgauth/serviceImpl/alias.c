@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -40,6 +40,7 @@
 #include "serviceInt.h"
 #include "certverify.h"
 #include "VGAuthProto.h"
+#include "vmxlog.h"
 
 // puts the identity store in an easy to find place
 #undef WIN_TEST_MODE
@@ -2679,6 +2680,11 @@ check_map:
                  SU_(alias.addid,
                      "Alias added to Alias store owned by '%s' by user '%s'"),
                  userName, reqUserName);
+      VMXLog_Log(VMXLOG_LEVEL_WARNING,
+                 "%s: alias added for user '%s' with Subject '%s'",
+                 __FUNCTION__,
+                 (userName != NULL) ? userName : "<UNKNOWN>",
+                 (ai->type == SUBJECT_TYPE_ANY) ? "<ANY>" : ai->name);
    }
 
 done:
@@ -2947,6 +2953,18 @@ update:
                  SU_(alias.removeid,
                      "Alias removed from Alias store owned by '%s' by user '%s'"),
                  userName, reqUserName);
+      if (removeAll) {
+         VMXLog_Log(VMXLOG_LEVEL_WARNING,
+                    "%s: all aliases removed for user '%s'",
+                    __FUNCTION__,
+                    (userName != NULL) ? userName : "<UNKNOWN>");
+      } else {
+         VMXLog_Log(VMXLOG_LEVEL_WARNING,
+                    "%s: alias removed for user '%s' with Subject '%s'",
+                    __FUNCTION__,
+                    (userName != NULL) ? userName : "<UNKNOWN>",
+                    (subj->type == SUBJECT_TYPE_ANY) ? "<ANY>" : subj->name);
+      }
    }
 
 done:
