@@ -264,7 +264,7 @@
 #define VCSA_INSTALLER_VERSION "1.0.0"
 #define OVFTOOL_FILE_VERSION 4,3,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #define VDM_CLIENT_VERSION "4.5.1"
-#define VGAUTH_VERSION "e.x.p"
+#define VGAUTH_VERSION "1.0.0"
 #define COMMON_AGENT_VERSION "e.x.p"
 #define VIEWY_VERSION "e.x.p"
 #define VMCFSDK_VERSION "e.x.p"
@@ -359,7 +359,9 @@
 #  define PRODUCT_VERSION_NUMBER VIEW_VERSION
 #elif defined(VMX86_INTEGRITY)
 #  define PRODUCT_VERSION_NUMBER INTEGRITY_VERSION
-// VMX86_DESKTOP must be last because it is the default and is always defined.
+#elif defined(VMX86_VGAUTH)
+#  define PRODUCT_VERSION_NUMBER VGAUTH_VERSION
+ // VMX86_DESKTOP must be last because it is the default and is always defined.
 #elif defined(VMX86_DESKTOP)
 #  if defined(__APPLE__)
 #    define PRODUCT_VERSION_NUMBER FUSION_VERSION
