@@ -466,16 +466,6 @@ Backdoor_CmdRequiresValidSegments(unsigned cmd)
 #define X86_IO_W7_IMM_SHIFT   5
 #define X86_IO_W7_IMM_MASK    (0xff << X86_IO_W7_IMM_SHIFT)
 
-/*
- * These 3 defines provide support for the guest to access the backdoor from
- * EL1 only using the HVC instruction. This legacy mechanism will be deprecated
- * soon.
- */
-
-#define BDOOR_ARM64_LB_PORT      (BDOOR_PORT)
-#define BDOOR_ARM64_HB_PORT_IN   (BDOORHB_PORT)
-#define BDOOR_ARM64_HB_PORT_OUT  (BDOORHB_PORT + 1)
-
 #define BDOOR_ARG0 REG_X0
 #define BDOOR_ARG1 REG_X1
 #define BDOOR_ARG2 REG_X2
