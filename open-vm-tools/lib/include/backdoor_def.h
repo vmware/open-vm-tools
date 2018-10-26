@@ -233,9 +233,10 @@ extern "C" {
 #  define BDOOR_CMD_FUZZER_NEXT               1
 #define   BDOOR_CMD_PUTCHR12                 95
 #define   BDOOR_CMD_GMM                      96
-#  define  BDOOR_CMD_GMM_GET_SIZE             0
+#  define BDOOR_CMD_GMM_GET_SIZE              0
 #  define BDOOR_CMD_GMM_MAP_MEMORY            1
 #  define BDOOR_CMD_GMM_GET_PPN_AND_SZ        2 /* Devel only. */
+#  define BDOOR_CMD_GMM_ENTER                 3
 #define   BDOOR_CMD_MAX                      97
 
 
@@ -338,7 +339,8 @@ Backdoor_CmdRequiresFullyValidVCPU(unsigned cmd)
 {
    return cmd == BDOOR_CMD_SIDT ||
           cmd == BDOOR_CMD_SGDT ||
-          cmd == BDOOR_CMD_SLDT_STR;
+          cmd == BDOOR_CMD_SLDT_STR ||
+          cmd == BDOOR_CMD_GMM;
 }
 
 
