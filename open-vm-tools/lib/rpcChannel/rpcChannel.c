@@ -576,8 +576,8 @@ RpcChannelError(void *_chan,
        chan->rpcMaxFailures > 0 &&
        ++chan->rpcFailureCount >= chan->rpcMaxFailures) {
       /* Maximum number of channel errors has been reached. */
-      Warning(LGPFX "RpcChannel failure limit reached; calling the failure "
-            "callback function.\n");
+      Warning(LGPFX "RpcChannel failure count %d; calling the failure "
+                    "callback function.\n", chan->rpcFailureCount);
       chan->rpcFailureCb(chan->resetData);
    }
 
