@@ -7246,8 +7246,8 @@ HgfsValidateRenameFile(Bool useHandle,            // IN:
       if (HGFS_ERROR_SUCCESS != status) {
          LOG(4, ("%s: could not map cached handle %d, error %u\n",
                  __FUNCTION__, fileHandle, status));
-      } else if (!HgfsHandle2FileNameMode(fileHandle, session, &shareInfo->writePermissions,
-                                          &shareInfo->readPermissions, localFileName,
+      } else if (!HgfsHandle2FileNameMode(fileHandle, session, &shareInfo->readPermissions,
+                                          &shareInfo->writePermissions, localFileName,
                                           localNameLength)) {
          /*
           * HgfsPlatformRename requires valid source file name even when file handle

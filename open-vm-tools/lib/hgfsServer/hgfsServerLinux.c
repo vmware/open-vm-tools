@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -4583,8 +4583,8 @@ HgfsPlatformDeleteFileByHandle(HgfsHandle file,          // IN: File being delet
    char *localName;
    size_t localNameSize;
 
-   if (HgfsHandle2FileNameMode(file, session, &writePermissions,
-                               &readPermissions, &localName, &localNameSize)) {
+   if (HgfsHandle2FileNameMode(file, session, &readPermissions, &writePermissions,
+                               &localName, &localNameSize)) {
       if (writePermissions && readPermissions) {
          status = HgfsPlatformDeleteFileByName(localName);
       } else {
@@ -4665,8 +4665,8 @@ HgfsPlatformDeleteDirByHandle(HgfsHandle file,          // IN: File being delete
    char *localName;
    size_t localNameSize;
 
-   if (HgfsHandle2FileNameMode(file, session, &writePermissions,
-                               &readPermissions, &localName, &localNameSize)) {
+   if (HgfsHandle2FileNameMode(file, session, &readPermissions, &writePermissions,
+                               &localName, &localNameSize)) {
       if (writePermissions && readPermissions) {
          status = HgfsPlatformDeleteDirByName(localName);
       } else {
