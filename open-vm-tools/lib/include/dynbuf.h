@@ -283,6 +283,34 @@ DynBuf_AppendString(DynBuf *buf,         // IN/OUT
 /*
  *----------------------------------------------------------------------------
  *
+ * DynBuf_SafeAppendString --
+ *
+ *     "Safe" version of the above that does not fail.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      DynBuf may change its size or allocate additional memory.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+#if defined(SWIG)
+static void
+#else
+static INLINE void
+#endif
+DynBuf_SafeAppendString(DynBuf *buf,         // IN/OUT
+                        const char *string)  // IN
+{
+   DynBuf_SafeAppend(buf, string, strlen(string) + 1 /* NUL */);
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * DynBuf_Strcat --
  *
  *      A DynBuf version of strcat.  Unlike DynBuf_AppendString, does NOT
