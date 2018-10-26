@@ -481,9 +481,6 @@ FLAG(   6,  0, EDX,  1,  1, ENERGY_CAP_REPORTING,              NO,   0, FALSE) \
 FIELD(  6,  0, EDX,  8,  4, HW_FEEDBACK_SIZE,                  NO,   0, FALSE) \
 FIELD(  6,  0, EDX, 16, 16, HW_FEEDBACK_INDEX,                 NO,   0, FALSE)
 
-#define CPUID_7_EDX_28 \
-FLAG(   7,  0, EDX, 28,  1, LEVEL7EDX_RSVD1,                    NO,  0, FALSE)
-
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,             MON SUPP, HWV, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_7                                               \
 FLAG(   7,  0, EBX,  0,  1, FSGSBASE,                          YES,  9, FALSE) \
@@ -543,7 +540,7 @@ FLAG(   7,  0, EDX,  4,  1, FAST_SHORT_REPMOV,                 NO ,  0, TRUE)  \
 FLAG(   7,  0, EDX, 18,  1, PCONFIG,                           NO ,  0, FALSE) \
 FLAG(   7,  0, EDX, 26,  1, IBRSIBPB,                          ANY,  9, FALSE) \
 FLAG(   7,  0, EDX, 27,  1, STIBP,                             YES,  9, FALSE) \
-CPUID_7_EDX_28                                                                 \
+FLAG(   7,  0, EDX, 28,  1, FCMD,                              YES,  9, FALSE) \
 FLAG(   7,  0, EDX, 29,  1, ARCH_CAPABILITIES,                 ANY,  9, FALSE) \
 FLAG(   7,  0, EDX, 31,  1, SSBD,                              YES,  9, FALSE)
 
