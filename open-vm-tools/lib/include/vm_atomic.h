@@ -1317,7 +1317,7 @@ Atomic_And32(Atomic_uint32 *var, // IN/OUT
 #else
    __asm mov eax, val
    __asm mov ebx, var
-   __asm lock and [ebx]Atomic_uint32.value, eax
+   __asm lock And [ebx]Atomic_uint32.value, eax
 #endif
 #else
 #error No compiler defined for Atomic_And
@@ -1382,7 +1382,7 @@ Atomic_Or32(Atomic_uint32 *var, // IN/OUT
 #else
    __asm mov eax, val
    __asm mov ebx, var
-   __asm lock or [ebx]Atomic_uint32.value, eax
+   __asm lock Or [ebx]Atomic_uint32.value, eax
 #endif
 #else
 #error No compiler defined for Atomic_Or
@@ -1447,7 +1447,7 @@ Atomic_Xor32(Atomic_uint32 *var, // IN/OUT
 #else
    __asm mov eax, val
    __asm mov ebx, var
-   __asm lock xor [ebx]Atomic_uint32.value, eax
+   __asm lock Xor [ebx]Atomic_uint32.value, eax
 #endif
 #else
 #error No compiler defined for Atomic_Xor

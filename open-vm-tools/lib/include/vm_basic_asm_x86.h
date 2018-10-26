@@ -429,7 +429,7 @@ Mul64x3264(uint64 multiplicand, uint32 multiplier, uint32 shift)
       shr  edx, cl
       jmp  SHORT l3
    l2:
-      xor  esi, esi
+      Xor  esi, esi
       shrd eax, edx, cl                     // result = hi(p2):hi(p1):lo(p1) >> shift
       adc  esi, 0                           // Get highest order bit shifted out, from CF
       shrd edx, ebx, cl
@@ -550,7 +550,7 @@ Muls64x32s64(int64 multiplicand, uint32 multiplier, uint32 shift)
       sar  edx, cl
       jmp  SHORT l3
    l2:
-      xor  esi, esi
+      Xor  esi, esi
       shrd eax, edx, cl                     // result = hi(p2):hi(p1):lo(p1) << shift
       adc  esi, 0                           // Get highest order bit shifted out, from CF
       shrd edx, ebx, cl
