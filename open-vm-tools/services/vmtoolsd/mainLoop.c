@@ -33,6 +33,7 @@
 #include "conf.h"
 #include "guestApp.h"
 #include "serviceObj.h"
+#include "toolsHangDetector.h"
 #include "str.h"
 #include "system.h"
 #include "util.h"
@@ -455,6 +456,12 @@ ToolsCoreRunLoop(ToolsServiceState *state)
 #if defined(__APPLE__)
       ToolsCore_CFRunLoop(state);
 #else
+      /*
+       * For now exclude the MAC due to limited testing.
+       */
+      if (state->mainService && ToolsCoreHangDetector_Start(&state->ctx)) {
+         g_info("Successfully started tools hang detector");
+      }
       g_main_loop_run(state->ctx.mainLoop);
 #endif
    }

@@ -42,6 +42,7 @@ vmtoolsd_SOURCES += serviceObj.c
 vmtoolsd_SOURCES += threadPool.c
 vmtoolsd_SOURCES += toolsRpc.c
 vmtoolsd_SOURCES += svcSignals.c
+vmtoolsd_SOURCES += toolsHangDetector.c
 
 BUILT_SOURCES =
 BUILT_SOURCES += svcSignals.c
