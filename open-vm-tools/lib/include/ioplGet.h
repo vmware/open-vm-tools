@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2012-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2012-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -33,7 +33,7 @@
 extern "C" {
 #endif
 
-#define Iopl_Get() ((GetCallerEFlags() >> EFLAGS_IOPL_SHIFT) && 0x3)
+#define Iopl_Get() ((GetCallerEFlags() >> EFLAGS_IOPL_SHIFT) & 0x3)
 
 #if defined(__cplusplus)
 }  // extern "C"
