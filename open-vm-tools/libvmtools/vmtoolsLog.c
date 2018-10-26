@@ -144,6 +144,12 @@ typedef struct LogEntry {
 } LogEntry;
 
 
+static gboolean gLogInitialized = FALSE;
+/*
+ * This lock protects most of the static global below.
+ * Note statically allocated GRecMutex does not need an explicit initialization.
+ */
+static GRecMutex gLogStateMutex;
 static gchar *gLogDomain = NULL;
 static GPtrArray *gCachedLogs = NULL;
 static guint gDroppedLogCount = 0;
@@ -156,9 +162,6 @@ static LogHandler *gDefaultData;
 static LogHandler *gErrorData;
 static LogHandler *gErrorSyslog;
 static GPtrArray *gDomains = NULL;
-static gboolean gLogInitialized = FALSE;
-/* This lock protects the gGlibLoggingStopped and gLogHandlerEnabled flags */
-static GRecMutex gLogStateMutex;
 /* Whether to stop logging using glib logging functions */
 static gboolean gGlibLoggingStopped = FALSE;
 /* Whether to enable proxy messages to log handler */
@@ -678,6 +681,99 @@ exit:
 
 
 /**
+ * Helper function to acquire locks and log to host side.
+ *
+ * @param[in] domain    Log domain.
+ * @param[in] level     Log level.
+ * @param[in] message   Message to log.
+ */
+
+static void
+LogToHost(const gchar *domain,
+          GLogLevelFlags level,
+          const gchar *message)
+{
+   if (!gLogEnabled || !gUseVmxGuestLog) {
+      return;
+   }
+
+   /*
+    * To avoid nested logging, such as a RpcChannel error, we need to disable
+    * logging here. See bug 1069390.
+    * This actually stop the glib based logging only. However,
+    * log messages are saved directly to the file system using a lower
+    * level function.
+    */
+   VMTools_AcquireLogStateLock();
+   StopGlibLogging();
+
+   /*
+    * Protect the RPC channel and friends data race
+    * Other thread might call g_xxx() or reinitialize the vmx guest logger.
+    *
+    * Recursive mutex is required as the set up function might calls
+    * g_xxx() functions to log messages which would call this function here.
+    *
+    * Always acquire the log state mutex first followed by
+    * the vmxGuestLog mutex to avoid a deadlock.
+    *
+    * This is because Debug()/Warning() functions call VMToolsLogWrapper()
+    * which acquire the log state mutex and call g_xxx function which ends
+    * up here.
+    *
+    * If the order is reversed here, we could end up deadlock
+    * between two threads, one calling g_xxx(), and the other calling
+    * Debug()/Warning()
+    */
+
+   g_rec_mutex_lock(&gVmxGuestLogMutex);
+   VmxGuestLog(NULL == domain ? gLogDomain : domain,
+               level, message);
+   g_rec_mutex_unlock(&gVmxGuestLogMutex);
+
+   RestartGlibLogging();
+   VMTools_ReleaseLogStateLock();
+}
+
+
+/**
+ * Helper function to acquire lock and log on the guest side.
+ *
+ * @param[in] domain    Log domain.
+ * @param[in] level     Log level.
+ * @param[in] message   Message to log.
+ * @param[in] _data     LogHandler pointer.
+ */
+
+static void
+LogToGuest(const gchar *domain,
+           GLogLevelFlags level,
+           const gchar *message,
+           gpointer _data)
+{
+   if (!gLogEnabled) {
+      return;
+   }
+
+   /*
+    * Disable glib logging as this function could be invoked from the glib
+    * log handler.
+    * This is OK since the function is called either directly with no intention
+    * of writing log to host or we shall write the same log to the host
+    * seprately using the LogToHost() function.
+    */
+   VMTools_AcquireLogStateLock();
+   StopGlibLogging();
+
+   /* Proxy to the LogHandler object pointed by _data. */
+   VMToolsLogInt(domain, level, message, _data);
+
+   RestartGlibLogging();
+   VMTools_ReleaseLogStateLock();
+}
+
+
+/**
  * Log handler function that glib invokes on each g_xxx(...) invocation.
  *
  * @param[in] domain    Log domain.
@@ -692,51 +788,8 @@ VMToolsLog(const gchar *domain,
            const gchar *message,
            gpointer _data)
 {
-   if (!gLogEnabled) {
-      return;
-   }
-   /*
-    * To avoid nested logging inside of RpcChannel, we need to disable
-    * logging here. See bug 1069390.
-    * This actually stop the glib based logging only. However,
-    * log messages are saved directly to the file system using a lower
-    * level function.
-    */
-   VMTools_AcquireLogStateLock();
-   StopGlibLogging();
-
-   if (gUseVmxGuestLog) {
-
-      /*
-       * Protect the RPC channel and friends data race
-       * Other thread might call g_xxx() or reinitialize the vmx guest logger.
-       *
-       * Recursive mutex is required as the set up function might calls
-       * g_xxx() functions to log messages which would call this function here.
-       *
-       * Always acquire the log state mutex first followed by
-       * the vmxGuestLog mutex to avoid a deadlock.
-       *
-       * This is because Debug()/Warning() functions call VMToolsLogWrapper()
-       * which acquire the log state mutex and call g_xxx function which ends
-       * up here.
-       *
-       * If the order is reversed here, we could end up deadlock
-       * between two threads, one calling g_xxx(), and the other calling
-       * Debug()/Warning()
-       */
-
-      g_rec_mutex_lock(&gVmxGuestLogMutex);
-      VmxGuestLog(NULL == domain ? gLogDomain : domain,
-                  level, message);
-      g_rec_mutex_unlock(&gVmxGuestLogMutex);
-   }
-
-   /* Proxy to the LogHandler object pointed by _data. */
-   VMToolsLogInt(domain, level, message, _data);
-
-   RestartGlibLogging();
-   VMTools_ReleaseLogStateLock();
+   LogToHost(domain, level, message);
+   LogToGuest(domain, level, message, _data);
 }
 
 
@@ -1265,7 +1318,6 @@ MarkLogInitialized(void)
 {
    if (!gLogInitialized) {
       gLogInitialized = TRUE;
-      g_rec_mutex_init(&gLogStateMutex);
    }
 }
 
@@ -1308,6 +1360,7 @@ exit:
 
 
 /**
+ * Internal Helper function without holding the state lock.
  * Configures the logging system according to the configuration in the given
  * dictionary.
  *
@@ -1323,11 +1376,11 @@ exit:
  * @param[in] reset           Whether to reset the logging subsystem first.
  */
 
-void
-VMTools_ConfigLogging(const gchar *defaultDomain,
-                      GKeyFile *cfg,
-                      gboolean force,
-                      gboolean reset)
+static void
+VMToolsConfigLoggingInt(const gchar *defaultDomain,
+                        GKeyFile *cfg,
+                        gboolean force,
+                        gboolean reset)
 {
    gboolean allocDict = (cfg == NULL);
    gchar **list;
@@ -1511,6 +1564,36 @@ VMTools_ConfigLogging(const gchar *defaultDomain,
    if (allocDict) {
       g_key_file_free(cfg);
    }
+}
+
+
+/**
+ * Configures the logging system according to the configuration in the given
+ * dictionary.
+ *
+ * Optionally, it's possible to reset the logging subsystem; this will shut
+ * down all log handlers managed by the vmtools library before configuring
+ * the log system, which means that logging will behave as if the application
+ * was just started. A visible side-effect of this is that log files may be
+ * rotated (if they're not configure for appending).
+ *
+ * @param[in] defaultDomain   Name of the default log domain.
+ * @param[in] cfg             The configuration data. May be NULL.
+ * @param[in] force           Whether to force logging to be enabled.
+ * @param[in] reset           Whether to reset the logging subsystem first.
+ */
+
+void
+VMTools_ConfigLogging(const gchar *defaultDomain,
+                      GKeyFile *cfg,
+                      gboolean force,
+                      gboolean reset)
+{
+   VMTools_AcquireLogStateLock();
+
+   VMToolsConfigLoggingInt(defaultDomain, cfg, force, reset);
+
+   VMTools_ReleaseLogStateLock();
 }
 
 
@@ -2373,4 +2456,108 @@ done:
    g_rec_mutex_unlock(&gVmxGuestLogMutex);
 
    VMTools_ReleaseLogStateLock();
+}
+
+
+/**
+ * Helper function to return the matching LogHandler for a domain name
+ *
+ * @param[in] domain    Log domain.
+ * @return              The matching LogHandler if found or
+ *                      the default LogHandler.
+ */
+
+static LogHandler *
+GetLogHandlerByDomain(const gchar *domain)
+{
+   guint i;
+
+   if (NULL == gDomains) {
+      return gDefaultData;
+   }
+
+   for (i = 0; i < gDomains->len; i++) {
+      LogHandler *data = g_ptr_array_index(gDomains, i);
+
+      if (0 == strcmp(data->domain, domain)) {
+         return data;
+      }
+   }
+
+   return gDefaultData;
+}
+
+
+/**
+ * Helper function to plumb the log to either host or guest.
+ *
+ * @param[in] where     where the log should go.
+ * @param[in] level     Log level.
+ * @param[in] domain    Log domain.
+ * @param[in] fmt       Log message output format.
+ * @param[in] args      variadic format parameter list.
+ */
+
+static void
+LogWhereLevelV(LogWhere where,
+               GLogLevelFlags level,
+               const gchar *domain,
+               const gchar *fmt,
+               va_list args)
+{
+   gchar buf[4096];
+
+   g_vsnprintf(buf, sizeof buf, fmt, args);
+   buf[sizeof buf - 1] = '\0';
+
+   domain = (NULL != domain) ? domain : gLogDomain;
+   ASSERT(NULL != domain);
+
+   switch (where) {
+   case TO_HOST:
+      LogToHost(domain, level, buf);
+      break;
+
+   case IN_GUEST: {
+      LogHandler *data = GetLogHandlerByDomain(domain);
+
+      if (NULL != data) {
+         LogToGuest(domain, level, buf, data);
+      }
+      break;
+   }
+   default:
+      NOT_REACHED();
+   }
+}
+
+
+/**
+ *******************************************************************************
+ * VMTools_Log --                                                         */ /**
+ *
+ * Entry log function.
+ *
+ * Use this function to log different log messages on host and in guest. Usually
+ * a macro is defined to invoke this function once for the host side logging and
+ * the second time for the guest side logging.
+ *
+ * @param[in] where     where the log should go.
+ * @param[in] level     Log level.
+ * @param[in] domain    Log domain.
+ * @param[in] fmt       Log message output format.
+ */
+
+void
+VMTools_Log(LogWhere where,
+            GLogLevelFlags level,
+            const gchar *domain,
+            const gchar *fmt,
+            ...)
+{
+   va_list args;
+
+   va_start(args, fmt);
+   LogWhereLevelV(where, level, domain, fmt, args);
+   va_end(args);
 }

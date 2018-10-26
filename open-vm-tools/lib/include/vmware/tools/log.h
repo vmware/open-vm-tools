@@ -332,9 +332,44 @@ void
 VMTools_SetupVmxGuestLog(gboolean refreshRpcChannel, GKeyFile *cfg,
                          const gchar *level);
 
+typedef enum {
+   TO_HOST,
+   IN_GUEST
+} LogWhere;
+
+void
+VMTools_Log(LogWhere where,
+            GLogLevelFlags level,
+            const gchar *domain,
+            const gchar *fmt,
+            ...);
+
 G_END_DECLS
+
+#define host_warning(fmt, ...)                                          \
+   VMTools_Log(TO_HOST, G_LOG_LEVEL_WARNING, G_LOG_DOMAIN, fmt, ## __VA_ARGS__)
+
+#define guest_warning(fmt, ...)                                         \
+   VMTools_Log(IN_GUEST, G_LOG_LEVEL_WARNING, G_LOG_DOMAIN, fmt, ## __VA_ARGS__)
+
+#define host_message(fmt, ...)                                          \
+   VMTools_Log(TO_HOST, G_LOG_LEVEL_MESSAGE, G_LOG_DOMAIN, fmt, ## __VA_ARGS__)
+
+#define guest_message(fmt, ...)                                         \
+   VMTools_Log(IN_GUEST, G_LOG_LEVEL_MESSAGE, G_LOG_DOMAIN, fmt, ## __VA_ARGS__)
+
+#define host_info(fmt, ...)                                     \
+   VMTools_Log(TO_HOST, G_LOG_LEVEL_INFO, G_LOG_DOMAIN, fmt, ## __VA_ARGS__)
+
+#define guest_info(fmt, ...)                                    \
+   VMTools_Log(IN_GUEST, G_LOG_LEVEL_INFO, G_LOG_DOMAIN, fmt, ## __VA_ARGS__)
+
+#define host_debug(fmt, ...)                                            \
+   VMTools_Log(TO_HOST, G_LOG_LEVEL_DEBUG, G_LOG_DOMAIN, fmt, ## __VA_ARGS__)
+
+#define guest_debug(fmt, ...)                                           \
+   VMTools_Log(IN_GUEST, G_LOG_LEVEL_DEBUG, G_LOG_DOMAIN, fmt, ## __VA_ARGS__)
 
 /** @} */
 
 #endif /* _VMTOOLS_LOG_H_ */
-
