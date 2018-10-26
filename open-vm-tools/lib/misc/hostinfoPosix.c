@@ -565,7 +565,7 @@ HostinfoOSDetailedData(void)
          const char *c;
          char escapedString[2 * MAX_DETAILED_FIELD_LEN + 1];
          char fieldString[MAX_DETAILED_FIELD_LEN];
-         uint32 i = 0;
+         int32 i = 0;
 
          /* Escape single quotes and back slashes in the value. */
          for (c = field->value; *c != '\0'; c++) {
@@ -577,6 +577,11 @@ HostinfoOSDetailedData(void)
          }
 
          escapedString[i] = '\0';
+
+         /* No trailing spaces */
+         while (--i >= 0 && isspace(escapedString[i])) {
+            escapedString[i] = '\0';
+         }
 
          len = Str_Snprintf(fieldString, sizeof fieldString, "%s='%s'",
                             field->name, escapedString);
