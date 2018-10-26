@@ -1147,7 +1147,7 @@ FLAG( 81F,  0, EAX,  0,  1, SME,                               NO,   0, FALSE) \
 FLAG( 81F,  0, EAX,  1,  1, SEV,                               NO,   0, FALSE) \
 FLAG( 81F,  0, EAX,  2,  1, PAGE_FLUSH_MSR,                    NO,   0, FALSE) \
 FLAG( 81F,  0, EAX,  3,  1, SEV_ES,                            NO,   0, FALSE) \
-FIELD(81F,  0, EBX,  0,  5, SME_PAGE_TABLE_BIT_NUM,            NO,   0, FALSE) \
+FIELD(81F,  0, EBX,  0,  6, SME_PAGE_TABLE_BIT_NUM,            NO,   0, FALSE) \
 FIELD(81F,  0, EBX,  6,  6, SME_PHYS_ADDR_SPACE_REDUCTION,     NO,   0, FALSE) \
 FIELD(81F,  0, ECX,  0, 32, NUM_ENCRYPTED_GUESTS,              NO,   0, FALSE) \
 FIELD(81F,  0, EDX,  0, 32, SEV_MIN_ASID,                      NO,   0, FALSE)
