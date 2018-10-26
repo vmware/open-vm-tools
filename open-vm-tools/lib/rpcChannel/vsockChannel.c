@@ -316,8 +316,8 @@ VSockChannelOnStartErr(RpcChannel *chan)    // IN
 {
    VSockChannel *vsock = chan->_private;
 
-   /* destroy VSockOut part only */
    VSockOutDestruct(vsock->out);
+   g_free(vsock);
    chan->_private = NULL;
 }
 
@@ -382,8 +382,8 @@ VSockChannelStop(RpcChannel *chan)   // IN
    if (vsock->out != NULL) {
       if (chan->outStarted) {
          VSockOutStop(vsock->out);
+         chan->outStarted = FALSE;
       }
-      chan->outStarted = FALSE;
    } else {
       ASSERT(!chan->outStarted);
    }

@@ -91,8 +91,8 @@ BkdoorChannelStop(RpcChannel *chan)
    if (bdoor->out != NULL) {
       if (chan->outStarted) {
          RpcOut_stop(bdoor->out);
+         chan->outStarted = FALSE;
       }
-      chan->outStarted = FALSE;
    } else {
       ASSERT(!chan->outStarted);
    }

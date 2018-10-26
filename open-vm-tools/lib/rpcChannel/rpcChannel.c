@@ -52,6 +52,7 @@ typedef struct RpcChannelInt {
    RpcChannelResetCb       resetCb;
    gpointer                resetData;
    gboolean                rpcError;
+   guint                   rpcErrorCount;
    guint                   rpcResetErrorCount;  /* channel reset failures */
    /*
     * The rpcFailureCount is a cumulative count of calls made to
@@ -61,6 +62,7 @@ typedef struct RpcChannelInt {
    guint                   rpcFailureCount;  /* cumulative channel failures */
    RpcChannelFailureCb     rpcFailureCb;
    guint                   rpcMaxFailures;
+   gboolean                rpcInInitialized;
 #endif
 } RpcChannelInt;
 
@@ -453,6 +455,8 @@ RpcChannel_Setup(RpcChannel *chan,
    size_t i;
    RpcChannelInt *cdata = (RpcChannelInt *) chan;
 
+   ASSERT(!cdata->rpcInInitialized);
+
    cdata->appName = g_strdup(appName);
    cdata->appCtx = appCtx;
    cdata->mainCtx = g_main_context_ref(mainCtx);
@@ -479,6 +483,64 @@ RpcChannel_Setup(RpcChannel *chan,
       chan->in = RpcIn_Construct(mainCtx, RpcChannel_Dispatch, chan);
       ASSERT(chan->in != NULL);
    }
+
+   cdata->rpcInInitialized = TRUE;
+}
+
+
+/**
+ * Undo the RpcChannel_Setup() function if it was called earlier
+ *
+ * Note the outLock is initialized in the RpcChannel_New() function,
+ * and should only be freed in the corresponding RpcChannel_Destroy() function.
+ *
+ * @param[in]  chan        The RPC channel instance.
+ */
+
+static void
+RpcChannelTeardown(RpcChannel *chan)
+{
+   size_t i;
+   RpcChannelInt *cdata = (RpcChannelInt *) chan;
+
+   if (NULL == cdata || !cdata->rpcInInitialized) {
+      return;
+   }
+
+   RpcChannel_UnregisterCallback(chan, &cdata->resetReg);
+   for (i = 0; i < ARRAYSIZE(gRpcHandlers); i++) {
+      RpcChannel_UnregisterCallback(chan, &gRpcHandlers[i]);
+   }
+
+   if (cdata->rpcs != NULL) {
+      g_hash_table_destroy(cdata->rpcs);
+      cdata->rpcs = NULL;
+   }
+
+   cdata->resetCb = NULL;
+   cdata->resetData = NULL;
+   cdata->appCtx = NULL;
+   cdata->rpcFailureCb = NULL;
+
+   g_free(cdata->appName);
+   cdata->appName = NULL;
+
+   if (chan->mainCtx != NULL) {
+      g_main_context_unref(chan->mainCtx);
+      chan->mainCtx = NULL;
+   }
+
+   if (cdata->mainCtx != NULL) {
+      g_main_context_unref(cdata->mainCtx);
+      cdata->mainCtx = NULL;
+   }
+
+   if (cdata->resetCheck != NULL) {
+      g_source_destroy(cdata->resetCheck);
+      cdata->resetCheck = NULL;
+   }
+
+   cdata->rpcInInitialized = FALSE;
 }
 
 
@@ -613,55 +675,39 @@ RpcChannel_Create(void)
 /**
  * Shuts down an RPC channel and release any held resources.
  *
+ * We use the outLock to protect the chan->inStarted and chan->in as well,
+ * even though a separate lock is more desirable in theory to reduce contention.
+ * See RpcChannel_Stop() and RpcChannelStopNoLock() where it is done same.
+ *
  * @param[in]  chan     The RPC channel.
  *
- * @return  Whether the channel was shut down successfully.
  */
 
-gboolean
+void
 RpcChannel_Destroy(RpcChannel *chan)
 {
-#if defined(NEED_RPCIN)
-   size_t i;
-#endif
-   RpcChannelInt *cdata = (RpcChannelInt *) chan;
+   if (NULL == chan) {
+      return;
+   }
 
-   if (cdata->impl.funcs != NULL && cdata->impl.funcs->shutdown != NULL) {
-      cdata->impl.funcs->shutdown(chan);
+   g_static_mutex_lock(&chan->outLock);
+
+   RpcChannelStopNoLock(chan);
+
+   if (chan->funcs != NULL && chan->funcs->shutdown != NULL) {
+      /* backend shutdown function also frees backend resources */
+      chan->funcs->shutdown(chan);
    }
 
 #if defined(NEED_RPCIN)
-   RpcChannel_UnregisterCallback(chan, &cdata->resetReg);
-   for (i = 0; i < ARRAYSIZE(gRpcHandlers); i++) {
-      RpcChannel_UnregisterCallback(chan, &gRpcHandlers[i]);
-   }
-
-   if (cdata->rpcs != NULL) {
-      g_hash_table_destroy(cdata->rpcs);
-      cdata->rpcs = NULL;
-   }
-
-   cdata->resetCb = NULL;
-   cdata->resetData = NULL;
-   cdata->appCtx = NULL;
-   cdata->rpcFailureCb = NULL;
-
-   g_free(cdata->appName);
-   cdata->appName = NULL;
-
-   if (cdata->mainCtx != NULL) {
-      g_main_context_unref(cdata->mainCtx);
-      cdata->mainCtx = NULL;
-   }
-
-   if (cdata->resetCheck != NULL) {
-      g_source_destroy(cdata->resetCheck);
-      cdata->resetCheck = NULL;
-   }
+   RpcChannelTeardown(chan);
 #endif
 
-   g_free(cdata);
-   return TRUE;
+   g_static_mutex_unlock(&chan->outLock);
+
+   g_static_mutex_free(&chan->outLock);
+
+   g_free(chan);
 }
 
 
@@ -757,41 +803,6 @@ RpcChannel_New(void)
 
 
 /**
- * Wrapper for the shutdown function of an RPC channel struct.
- *
- * @param[in]  chan        The RPC channel instance.
- */
-
-void
-RpcChannel_Shutdown(RpcChannel *chan)
-{
-   if (chan != NULL) {
-      g_static_mutex_free(&chan->outLock);
-   }
-
-   if (chan != NULL && chan->funcs != NULL && chan->funcs->shutdown != NULL) {
-#if defined(NEED_RPCIN)
-      if (chan->in != NULL) {
-         if (chan->inStarted) {
-            RpcIn_stop(chan->in);
-         }
-         chan->inStarted = FALSE;
-         RpcIn_Destruct(chan->in);
-         chan->in = NULL;
-      } else {
-         ASSERT(!chan->inStarted);
-      }
-
-      if (chan->mainCtx != NULL) {
-         g_main_context_unref(chan->mainCtx);
-      }
-#endif
-      chan->funcs->shutdown(chan);
-   }
-}
-
-
-/**
  * Start an RPC channel. We may fallback to backdoor channel when other type
  * of channel fails to start.
  *
@@ -865,8 +876,8 @@ RpcChannelStopNoLock(RpcChannel *chan)
    if (chan->in != NULL) {
       if (chan->inStarted) {
          RpcIn_stop(chan->in);
+         chan->inStarted = FALSE;
       }
-      chan->inStarted = FALSE;
    } else {
       ASSERT(!chan->inStarted);
    }

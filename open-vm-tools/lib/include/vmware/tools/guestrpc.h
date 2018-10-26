@@ -186,9 +186,6 @@ RpcChannel *
 RpcChannel_Create(void);
 
 void
-RpcChannel_Shutdown(RpcChannel *chan);
-
-gboolean
 RpcChannel_Destroy(RpcChannel *chan);
 
 gboolean
