@@ -136,6 +136,27 @@ void SHA1MultiBuffer(uint32 numBuffers,
 
 #endif // defined __APPLE__ && defined USERLEVEL
 
+#if !defined VMKBOOT && !defined VMKERNEL
+
+/* OpenSSL opaque type for hashing. Opaque as of openssl-1.1.0. */
+struct env_md_ctx_st;
+
+typedef struct {
+#ifdef __APPLE__
+   CC_SHA1_CTX cc_ctx;
+#else
+   struct env_md_ctx_st *md;  /* OpenSSL EVP_MD_CTX */
+#endif
+} CryptoSHA1_CTX;
+
+void CryptoSHA1_Init(CryptoSHA1_CTX *ctx);
+void CryptoSHA1_Update(CryptoSHA1_CTX *ctx,
+                       const unsigned char *data,
+                       size_t len);
+void CryptoSHA1_Final(unsigned char digest[SHA1_HASH_LEN],
+                      CryptoSHA1_CTX *ctx);
+#endif
+
 #if defined(__cplusplus)
 }  // extern "C"
 #endif
