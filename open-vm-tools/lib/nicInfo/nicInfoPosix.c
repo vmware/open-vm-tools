@@ -277,12 +277,21 @@ GuestInfoGetInterface(struct ifaddrs *ifaddrs,
 
       if (sll != NULL && sll->sll_family == AF_PACKET) {
          char macAddress[NICINFO_MAC_LEN];
+
+         /*
+          * PR 2193804:
+          * On ESXi, AF_PACKET family is reported for vmk* interfaces only
+          * and its ifa_flags is reported as 0. No AF_PACKET family ifaddrs
+          * is reported for loopback interface.
+          */
+#if !defined(USERWORLD)
          /*
           * Ignore loopback and downed devices.
           */
          if (!(pkt->ifa_flags & IFF_UP) || pkt->ifa_flags & IFF_LOOPBACK) {
             continue;
          }
+#endif
 
          Str_Sprintf(macAddress, sizeof macAddress,
                      "%02x:%02x:%02x:%02x:%02x:%02x",
