@@ -514,6 +514,13 @@ AsyncSocket_ConnectNamedPipe(const char *pipeName,
                              AsyncSocketPollParams *pollParams,
                              int *outError);
 
+#define ASOCK_NAMEDPIPE_ALLOW_DEFAULT             (0)
+#define ASOCK_NAMEDPIPE_ALLOW_ADMIN_USER_VMWARE   (SDPRIV_GROUP_ADMIN  |   \
+                                                   SDPRIV_USER_CURRENT |   \
+                                                   SDPRIV_GROUP_VMWARE)
+#define ASOCK_NAMEDPIPE_ALLOW_ADMIN_USER          (SDPRIV_GROUP_ADMIN  |   \
+                                                   SDPRIV_USER_CURRENT)
+
 AsyncSocket*
 AsyncSocket_CreateNamedPipe(const char *pipeName,
                             AsyncSocketConnectFn connectFn,
@@ -521,7 +528,7 @@ AsyncSocket_CreateNamedPipe(const char *pipeName,
                             DWORD openMode,
                             DWORD pipeMode,
                             uint32 numInstances,
-                            Bool safeAccess,
+                            DWORD accessType,
                             AsyncSocketPollParams *pollParams,
                             int *error);
 #endif
