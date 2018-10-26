@@ -48,14 +48,15 @@
 #define GHI_CHANNEL_MAX                         4
 typedef uint32 GHIChannelType;
 
-#define GHI_REQUEST_SUCCESS_OK       0  // Guest returns OK.
-#define GHI_REQUEST_SUCCESS_ERROR    1  // Guest returns ERROR.
-#define GHI_REQUEST_GUEST_RPC_FAILED 2  // Not sent to guest
-                                        // or guest failed to return,
-                                        // including timeout.
-#define GHI_REQUEST_GENERAL_ERROR    3  // General error, can be any
-                                        // situation except
-                                        // MKSCONTROL_GHI_REQUEST_SUCCESS_OK.
+#define GHI_REQUEST_SUCCESS_OK                  0  // Guest received the message and returned OK.
+#define GHI_REQUEST_SUCCESS_ERROR               1  // Guest received the message but returned ERROR.
+#define GHI_REQUEST_GUEST_RPC_FAILED            2  // Not sent to guest
+                                                   // or guest failed to return,
+                                                   // including timeout.
+#define GHI_REQUEST_GENERAL_ERROR               3  // General error, can be guest error
+                                                   // or prc error.
+#define GHI_REQUEST_FAILED_WITH_UTF8_MESSAGE    4  // Failed and with utf8 error message returned.
+
 typedef uint32 GHIRequestResult;
 
 #define GHI_GUEST_CHANNEL_BITS(channel)   ((channel) << 24)
