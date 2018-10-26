@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -33,6 +33,8 @@ extern "C" {
 
 typedef void RpcIn_ErrorFunc(void *clientData, char const *status);
 
+typedef void RpcIn_ClearErrorFunc(void *clientData);
+
 typedef struct RpcIn RpcIn;
 
 #if defined(VMTOOLS_USE_GLIB) /* { */
@@ -44,7 +46,9 @@ RpcIn *RpcIn_Construct(GMainContext *mainCtx,
                        gpointer clientData);
 
 Bool RpcIn_start(RpcIn *in, unsigned int delay,
-                 RpcIn_ErrorFunc *errorFunc, void *errorData);
+                 RpcIn_ErrorFunc *errorFunc,
+                 RpcIn_ClearErrorFunc *clearErrorFunc,
+                 void *errorData);
 
 #else /* } { */
 
@@ -66,7 +70,10 @@ RpcIn *RpcIn_Construct(DblLnkLst_Links *eventQueue);
 
 Bool RpcIn_start(RpcIn *in, unsigned int delay,
                  RpcIn_Callback resetCallback, void *resetClientData,
-                 RpcIn_ErrorFunc *errorFunc, void *errorData);
+                 RpcIn_ErrorFunc *errorFunc,
+                 RpcIn_ClearErrorFunc *clearErrorFunc,
+                 void *errorData);
+
 
 /*
  * Don't use this function anymore - it's here only for backwards compatibility.

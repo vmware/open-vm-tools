@@ -33,6 +33,7 @@
 #include "conf.h"
 #include "guestApp.h"
 #include "serviceObj.h"
+#include "str.h"
 #include "system.h"
 #include "util.h"
 #include "vmcheck.h"
@@ -42,6 +43,34 @@
 #include "vmware/tools/log.h"
 #include "vmware/tools/utils.h"
 #include "vmware/tools/vmbackup.h"
+
+
+/*
+ * Establish the default and maximum vmusr RPC channel error limits
+ * that will be used to detect that the single allowed toolbox-dnd channel
+ * is not available.
+ */
+
+/*
+ * Lowest number of RPC channel errors to reasonably indicate that the
+ * single allowed toolbox-dnd channel is currently in use by another
+ * process.
+ */
+#define VMUSR_CHANNEL_ERR_MIN 3        /* approximately 3 secs. */
+
+/*
+ * The default number of vmusr channel errors before quitting the vmusr
+ * process start-up.
+ */
+#define VMUSR_CHANNEL_ERR_DEFAULT 5    /* approximately 5  secs. */
+
+/*
+ * Arbitrary upper vmusr channel error count limit.
+ */
+#define VMUSR_CHANNEL_ERR_MAX 15       /* approximately 15 secs. */
+
+#define CONFNAME_MAX_CHANNEL_ATTEMPTS "maxChannelAttempts"
+
 
 /*
  ******************************************************************************
@@ -487,6 +516,44 @@ ToolsCore_DumpState(ToolsServiceState *state)
    g_signal_emit_by_name(state->ctx.serviceObj,
                          TOOLS_CORE_SIG_DUMP_STATE,
                          &state->ctx);
+}
+
+
+/**
+ * Return the RpcChannel failure threshold for the tools user service.
+ *
+ * @param[in]      state       The service state.
+ *
+ * @return  The RpcChannel failure limit for the user tools service.
+ */
+
+guint
+ToolsCore_GetVmusrLimit(ToolsServiceState *state)      // IN
+{
+   gint errorLimit = 0;      /* Special value 0 means no error threshold. */
+
+   if (TOOLS_IS_USER_SERVICE(state)) {
+      errorLimit = VMTools_ConfigGetInteger(state->ctx.config,
+                                            state->ctx.name,
+                                            CONFNAME_MAX_CHANNEL_ATTEMPTS,
+                                            VMUSR_CHANNEL_ERR_DEFAULT);
+
+      /*
+       * A zero value is allowed and will disable the single vmusr
+       * process restriction.
+       */
+      if (errorLimit != 0 &&
+          (errorLimit < VMUSR_CHANNEL_ERR_MIN ||
+           errorLimit > VMUSR_CHANNEL_ERR_MAX)) {
+         g_warning("%s: Invalid %s: %s (%d) specified in tools configuration; "
+                   "using default value (%d)\n", __FUNCTION__,
+                   state->ctx.name, CONFNAME_MAX_CHANNEL_ATTEMPTS,
+                   errorLimit, VMUSR_CHANNEL_ERR_DEFAULT);
+         errorLimit = VMUSR_CHANNEL_ERR_DEFAULT;
+      }
+   }
+
+   return errorLimit;
 }
 
 

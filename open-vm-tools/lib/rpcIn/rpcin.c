@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -178,6 +178,13 @@ struct RpcIn {
     */
    Bool inLoop;     // RpcInLoop is running.
    Bool shouldStop; // Stop the channel the next time RpcInLoop exits.
+
+   /*
+    * RpcInConnErrorHandler called; cleared when a non "reset" reply has been
+    * received.
+    */
+   Bool errStatus;
+   RpcIn_ClearErrorFunc *clearErrorFunc;
 };
 
 static Bool RpcInSend(RpcIn *in, int flags);
@@ -1070,6 +1077,8 @@ RpcInConnErrorHandler(int err,             // IN
    Debug("RpcIn: Error in socket %d, closing connection: %s.\n",
          AsyncSocket_GetFd(asock), AsyncSocket_Err2String(err));
 
+   in->errStatus = TRUE;
+
    if (conn->connected) {
       RpcInCloseChannel(conn->in, errmsg);
    } else { /* the connection never gets connected */
@@ -1490,6 +1499,26 @@ exit:
 
 
 /*
+ * RpcInClearErrorStatus --
+ *
+ *      Clear the errStatus indicator and if a callback has been registered,
+ *      notify the RpcChannel layer that an error condition has been cleared.
+ */
+
+static void
+RpcInClearErrorStatus(RpcIn *in) // IN
+{
+   if (in->errStatus) {
+      Debug("RpcIn: %s: Clearing errStatus\n", __FUNCTION__);
+      in->errStatus = FALSE;
+      if (in->clearErrorFunc != NULL) {
+         in->clearErrorFunc(in->errorData);
+      }
+   }
+}
+
+
+/*
  *-----------------------------------------------------------------------------
  *
  * RpcInLoop --
@@ -1569,6 +1598,12 @@ RpcInLoop(void *clientData) // IN
    if (repLen) {
       char *s = ByteDump(reply, repLen);
       Debug("RpcIn: received %d bytes, content:\"%s\"\n", (int) repLen, s);
+
+      /* If reply is not a "reset", the channel is functioning. */
+      if (in->errStatus && strcmp(s, "reset") != 0) {
+         RpcInClearErrorStatus(in);
+      }
+
       if (!RpcInExecRpc(in, reply, repLen, &errmsg)) {
          goto error;
       }
@@ -1582,6 +1617,11 @@ RpcInLoop(void *clientData) // IN
           */
          Debug("RpcIn: received 0 bytes, empty TCLO poll\n");
          lastPrintMilli = now;
+      }
+
+      /* RpcIn connection is working - receiving. */
+      if (in->errStatus) {
+         RpcInClearErrorStatus(in);
       }
 
       /*
@@ -1792,18 +1832,21 @@ error:
 
 #if defined(VMTOOLS_USE_GLIB)
 Bool
-RpcIn_start(RpcIn *in,                    // IN
-            unsigned int delay,           // IN
-            RpcIn_ErrorFunc *errorFunc,   // IN
-            void *errorData)              // IN
+RpcIn_start(RpcIn *in,                                // IN
+            unsigned int delay,                       // IN
+            RpcIn_ErrorFunc *errorFunc,               // IN
+            RpcIn_ClearErrorFunc *clearErrorFunc,     // IN
+            void *errorData)                          // IN
+
 #else
 Bool
-RpcIn_start(RpcIn *in,                    // IN
-            unsigned int delay,           // IN
-            RpcIn_Callback resetCallback, // IN
-            void *resetClientData,        // IN
-            RpcIn_ErrorFunc *errorFunc,   // IN
-            void *errorData)              // IN
+RpcIn_start(RpcIn *in,                                // IN
+            unsigned int delay,                       // IN
+            RpcIn_Callback resetCallback,             // IN
+            void *resetClientData,                    // IN
+            RpcIn_ErrorFunc *errorFunc,               // IN
+            RpcIn_ClearErrorFunc *clearErrorFunc,     // IN
+            void *errorData)                          // IN
 #endif
 {
    ASSERT(in);
@@ -1811,6 +1854,7 @@ RpcIn_start(RpcIn *in,                    // IN
    in->delay = 0;
    in->maxDelay = delay;
    in->errorFunc = errorFunc;
+   in->clearErrorFunc = clearErrorFunc;
    in->errorData = errorData;
 
    /* No initial result */
