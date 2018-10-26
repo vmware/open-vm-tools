@@ -602,19 +602,21 @@ IdAuthCreateWithFork(void)
       VERIFY(result == child);
    } else {
       // Child: use fds[1]
+      OSStatus ret;
 
-      data.success = AuthorizationCreate(NULL, kAuthorizationEmptyEnvironment,
-                                         kAuthorizationFlagDefaults, &auth)
-                     == errAuthorizationSuccess;
+      ret = AuthorizationCreate(NULL, kAuthorizationEmptyEnvironment,
+                                kAuthorizationFlagDefaults, &auth);
+      data.success = ret == errAuthorizationSuccess;
       if (data.success) {
-         data.success = AuthorizationMakeExternalForm(auth, &data.ext)
-                        == errAuthorizationSuccess;
+         ret = AuthorizationMakeExternalForm(auth, &data.ext);
+         data.success = ret == errAuthorizationSuccess;
          if (!data.success) {
-            Warning("%s: child AuthorizationMakeExternalForm() failed.\n",
-                    __func__);
+            Warning("%s: child AuthorizationMakeExternalForm() failed: %d.\n",
+                    __func__, (int32)ret);
          }
       } else {
-         Warning("%s: child AuthorizationCreate() failed.\n", __func__);
+         Warning("%s: child AuthorizationCreate() failed: %d.\n",
+                 __func__, (int32)ret);
       }
 
       // Tell the parent it can now create a process ref to the auth session.
@@ -675,6 +677,8 @@ static Atomic_Ptr procAuth = { 0 };
 static AuthorizationRef
 IdAuthGet(void)
 {
+   AuthorizationRef authRef;
+
    if (UNLIKELY(Atomic_ReadPtr(&procAuth) == NULL)) {
       AuthorizationRef newProcAuth = IdAuthCreate();
 
@@ -684,9 +688,12 @@ IdAuthGet(void)
       }
    }
 
-   ASSERT(Atomic_ReadPtr(&procAuth) != NULL);
+   authRef = Atomic_ReadPtr(&procAuth);
+   if (authRef == NULL) {
+      Log("%s: Failed to obtain an AuthorizationRef.\n", __func__);
+   }
 
-   return Atomic_ReadPtr(&procAuth);
+   return authRef;
 }
 
 
