@@ -63,6 +63,7 @@ typedef struct RpcChannelInt {
    RpcChannelFailureCb     rpcFailureCb;
    guint                   rpcMaxFailures;
    gboolean                rpcInInitialized;
+   GSource                *restartTimer; /* Channel restart timer */
 #endif
 } RpcChannelInt;
 
@@ -122,6 +123,8 @@ RpcChannelRestart(gpointer _chan)
 
    /* Synchronize with any RpcChannel_Send calls by other threads. */
    g_static_mutex_lock(&chan->impl.outLock);
+   g_source_unref(chan->restartTimer);
+   chan->restartTimer = NULL;
 
    RpcChannelStopNoLock(&chan->impl);
 
@@ -161,7 +164,6 @@ RpcChannelCheckReset(gpointer _chan)
 
    /* Check the channel state. */
    if (chan->rpcError) {
-      GSource *src;
 
       if (++(chan->rpcResetErrorCount) > channelTimeoutAttempts) {
          Warning("Failed to reset channel after %u attempts\n",
@@ -174,10 +176,10 @@ RpcChannelCheckReset(gpointer _chan)
 
       /* Schedule the channel restart for 1 sec in the future. */
       Debug(LGPFX "Resetting channel [%u]\n", chan->rpcResetErrorCount);
-      src = g_timeout_source_new(1000);
-      g_source_set_callback(src, RpcChannelRestart, chan, NULL);
-      g_source_attach(src, chan->mainCtx);
-      g_source_unref(src);
+      ASSERT(chan->restartTimer == NULL);
+      chan->restartTimer = g_timeout_source_new(1000);
+      g_source_set_callback(chan->restartTimer, RpcChannelRestart, chan, NULL);
+      g_source_attach(chan->restartTimer, chan->mainCtx);
       goto exit;
    }
 
@@ -505,6 +507,15 @@ RpcChannelTeardown(RpcChannel *chan)
 
    if (NULL == cdata || !cdata->rpcInInitialized) {
       return;
+   }
+
+   /*
+    * Stop the restartTimer.
+    */
+   if (cdata->restartTimer) {
+      g_source_destroy(cdata->restartTimer);
+      g_source_unref(cdata->restartTimer);
+      cdata->restartTimer = NULL;
    }
 
    RpcChannel_UnregisterCallback(chan, &cdata->resetReg);
