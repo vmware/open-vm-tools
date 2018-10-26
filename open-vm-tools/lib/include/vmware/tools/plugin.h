@@ -156,6 +156,15 @@ ToolsCore_LogState(guint level,
 #define TOOLS_CORE_SIG_RESET  "tcs_reset"
 
 /**
+ * Signal sent when RpcChannel is going to be destroyed.
+ *
+ * @param[in]  src      The source object.
+ * @param[in]  ctx      ToolsAppCtx *: The application context.
+ * @param[in]  data     Client data.
+ */
+#define TOOLS_CORE_SIG_NO_RPC  "tcs_no_rpc"
+
+/**
  * Signal sent when a "set option" RPC message arrives.
  *
  * @param[in]  src      The source object.

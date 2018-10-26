@@ -105,6 +105,9 @@ ToolsCoreSigUsrHandler(const siginfo_t *info,
 
    if (TOOLS_IS_USER_SERVICE(&gState.ctx)) {
       g_info("Shutting down guestrpc on signal USR1 ...\n");
+      g_signal_emit_by_name(gState.ctx.serviceObj,
+                            TOOLS_CORE_SIG_NO_RPC,
+                            &gState.ctx);
       RpcChannel_Destroy(gState.ctx.rpc);
       gState.ctx.rpc = NULL;
    }

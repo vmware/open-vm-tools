@@ -53,6 +53,7 @@ public:
    void SetCPIsEnabled(gboolean isEnabled);
    gboolean IsCPEnabled();
    void OnReset();
+   void OnNoRpc();
    virtual void OnResetInternal();
    virtual void OnCapReg(gboolean set);
    virtual gboolean OnSetOption(const char *option, const char *value);
@@ -60,6 +61,7 @@ public:
    void PointerInit(void);
    virtual ToolsAppCtx *GetToolsAppCtx() {return NULL;};
    uint32 GetCaps();
+   virtual void RemoveDnDPluginResetTimer(void) { }
 
 protected:
    /*

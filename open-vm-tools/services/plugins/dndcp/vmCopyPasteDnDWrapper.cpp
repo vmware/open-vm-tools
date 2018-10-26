@@ -22,6 +22,8 @@
  * The inherited implementation of common class CopyPasteDnDWrapper in VM side.
  */
 
+#define G_LOG_DOMAIN "dndcp"
+
 #include "guestDnDCPMgr.hh"
 #include "vmCopyPasteDnDWrapper.h"
 #include "vmware.h"
@@ -40,7 +42,7 @@ extern "C" {
  * Timer callback for reset. Handle it by calling the member function
  * that handles reset.
  *
- * @param[in] clientData pointer to the CopyPasteDnDWrapper instance that
+ * @param[in] clientData pointer to the VMCopyPasteDnDWrapper instance that
  * issued the timer.
  *
  * @return FALSE always.
@@ -49,10 +51,12 @@ extern "C" {
 static gboolean
 DnDPluginResetSent(void *clientData)
 {
-   CopyPasteDnDWrapper *p = reinterpret_cast<CopyPasteDnDWrapper *>(clientData);
+   VMCopyPasteDnDWrapper *p = reinterpret_cast<VMCopyPasteDnDWrapper *>(clientData);
 
+   g_debug("%s: enter\n", __FUNCTION__);
    ASSERT(p);
    p->OnResetInternal();
+   p->RemoveDnDPluginResetTimer();
    return FALSE;
 }
 
@@ -96,13 +100,31 @@ VMCopyPasteDnDWrapper::Init(ToolsAppCtx *ctx)
 void
 VMCopyPasteDnDWrapper::AddDnDPluginResetTimer(void)
 {
-   GSource *src;
-
    g_debug("%s: enter\n", __FUNCTION__);
-   src = VMTools_CreateTimer(RPC_POLL_TIME * 30);
-   if (src) {
-      VMTOOLSAPP_ATTACH_SOURCE(m_ctx, src, DnDPluginResetSent, this, NULL);
-      g_source_unref(src);
+
+   ASSERT(m_resetTimer == NULL);
+
+   m_resetTimer = VMTools_CreateTimer(RPC_POLL_TIME * 30);
+   if (m_resetTimer) {
+      VMTOOLSAPP_ATTACH_SOURCE(m_ctx, m_resetTimer,
+                               DnDPluginResetSent, this, NULL);
+   }
+}
+
+
+/**
+ *
+ * Remove the DnD plugin reset timer.
+ */
+
+void
+VMCopyPasteDnDWrapper::RemoveDnDPluginResetTimer(void)
+{
+   g_debug("%s: enter\n", __FUNCTION__);
+   if (m_resetTimer) {
+      g_source_destroy(m_resetTimer);
+      g_source_unref(m_resetTimer);
+      m_resetTimer = NULL;
    }
 }
 

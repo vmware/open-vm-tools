@@ -454,6 +454,21 @@ CopyPasteDnDWrapper::OnReset()
 
 /**
  *
+ * Handle no_rpc.
+ *
+ * Remove any actions that would need RPC channel.
+ */
+
+void
+CopyPasteDnDWrapper::OnNoRpc()
+{
+   g_debug("%s: enter.\n", __FUNCTION__);
+   RemoveDnDPluginResetTimer();
+}
+
+
+/**
+ *
  * Handle cap reg. This is cross-platform so handle here instead of the
  * platform implementation.
  */

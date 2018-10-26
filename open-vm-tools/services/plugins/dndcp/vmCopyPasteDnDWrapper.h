@@ -41,17 +41,19 @@ public:
    virtual int GetDnDVersion();
    virtual void OnResetInternal();
    virtual gboolean OnSetOption(const char *option, const char *value);
+   void RemoveDnDPluginResetTimer(void);
 
 protected:
    void AddDnDPluginResetTimer(void);
 
 private:
-   VMCopyPasteDnDWrapper() : m_ctx(NULL) { }
+   VMCopyPasteDnDWrapper() : m_ctx(NULL), m_resetTimer(NULL) { }
    VMCopyPasteDnDWrapper(const VMCopyPasteDnDWrapper &wrapper);
    VMCopyPasteDnDWrapper& operator=(const VMCopyPasteDnDWrapper &wrapper);
 
 private:
    ToolsAppCtx *m_ctx;
+   GSource *m_resetTimer;
 };
 
 #endif // __VM_COPYPASTEDNDWRAPPER_H__
