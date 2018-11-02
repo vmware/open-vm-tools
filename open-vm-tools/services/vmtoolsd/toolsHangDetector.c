@@ -30,6 +30,11 @@
 #include "toolsHangDetector.h"
 
 
+#define SLEEP_INTERVAL 1         /* approximately 1 second */
+#define CHECKIN_INTERVAL 1       /* approximately 1 second */
+#define COUNTER_RESET_VALUE 5    /* approximately 5 seconds */
+#define STARVE_THRESHOLD 1.5
+
 typedef enum {
    NORMAL,
    HUNG
@@ -44,13 +49,15 @@ typedef struct HangDetectorState {
    gint atomic;
    DetectedMode mode;
    GSource *checkinTimer;
+   /*
+    * Each slot records the time when the matched counter value is seen.
+    * This helps figure out whether the detector thread was running under
+    * a resource contention.
+    */
+   gint64 timeSeq[COUNTER_RESET_VALUE+1];
 } HangDetectorState;
 
 static HangDetectorState gDetectorState;
-
-#define SLEEP_INTERVAL 1         /* approximately 1 second */
-#define CHECKIN_INTERVAL 1       /* approximately 1 second */
-#define COUNTER_RESET_VALUE 5    /* approximately 5 seconds */
 
 
 /*
@@ -148,6 +155,52 @@ UpdateVmx(const char *event)
 
 /*
  ******************************************************************************
+ * GetTimeSeqString --                                                   */ /**
+ *
+ * The time sequence string is a sequence of elapsed time how long the detector
+ * waited to run in the past.
+ *
+ * This is mainly for debugging right now.
+ *
+ * @return    the time sequence string in a statically allocated location.
+ *            Do not free.
+ *
+ ******************************************************************************
+ */
+
+static const gchar *
+GetTimeSeqString(void) {
+   static gchar TimeSequence[COUNTER_RESET_VALUE * 8];
+   gulong used = 0;
+   gint i;
+   HangDetectorState *state = &gDetectorState;
+
+   for (i = 0; i < COUNTER_RESET_VALUE; ++i) {
+      double elapsed = (state->timeSeq[i] - state->timeSeq[i+1])
+         / (double)G_TIME_SPAN_SECOND;
+      gulong left =  sizeof TimeSequence - used;
+      gint ret;
+
+      if (i == 0) {
+         ret = g_snprintf(&TimeSequence[used], left, "%.2fs", elapsed);
+      } else {
+         ret = g_snprintf(&TimeSequence[used], left, ", %.2fs", elapsed);
+      }
+
+      if (ret < 0 || ret >= left) {
+         TimeSequence[used] = '\0';
+         break;
+      }
+
+      used += ret;
+   }
+
+   return TimeSequence;
+}
+
+
+/*
+ ******************************************************************************
  * UpdateStateToHung --                                                  */ /**
  *
  * Update the current state to HUNG, and notify VMX
@@ -159,12 +212,24 @@ static void
 UpdateStateToHung(void)
 {
    HangDetectorState *state = &gDetectorState;
+   double elapsed;
 
    state->mode = HUNG;
 
-   g_info("tools service hung.");
+   elapsed = (state->timeSeq[0] - state->timeSeq[COUNTER_RESET_VALUE]) /
+      (double)G_TIME_SPAN_SECOND;
 
-   UpdateVmx("hang");
+   g_info("tools hang detector time sequence %s.", GetTimeSeqString());
+
+   if (elapsed > SLEEP_INTERVAL * COUNTER_RESET_VALUE * STARVE_THRESHOLD) {
+      g_info("tools service was slow for the last %.2f seconds.", elapsed);
+
+      UpdateVmx("slow");
+   } else {
+      g_info("tools service hung.");
+
+      UpdateVmx("hang");
+   }
 }
 
 
@@ -197,14 +262,20 @@ UpdateStateToNormal(void)
  * Check the counter value and send proper updates to VMX
  *
  * @param[in] value   Counter value
+ * @param[in] now     The current time stamp
  *
  ******************************************************************************
  */
 
 static void
-DetectorUpdate(gint value)
+DetectorUpdate(gint value,
+               gint64 now)
 {
    HangDetectorState *state = &gDetectorState;
+
+   if (value >= 0 && value <= COUNTER_RESET_VALUE) {
+      state->timeSeq[value] = now;
+   }
 
    if (state->mode == NORMAL) {
       if (value <= 0) {
@@ -222,9 +293,9 @@ DetectorUpdate(gint value)
  ******************************************************************************
  * SleepToExit --                                                        */ /**
  *
- * Sleep for the time specified, or return if the caller should terminate.
+ * Sleep until the time specified, or return if the caller should terminate.
  *
- * @param[in] time    Time in seconds to sleep
+ * @param[in] endTime  The end time stamp to sleep up to.
  *
  * @return TRUE if the caller should terminate, e.g. signaled by a terminator
  *         FALSE otherwise
@@ -233,10 +304,9 @@ DetectorUpdate(gint value)
  */
 
 static gboolean
-SleepToExit(gint time)
+SleepToExit(gint64 endTime)
 {
    HangDetectorState *state = &gDetectorState;
-   gint64 endTime = g_get_monotonic_time() + time * G_TIME_SPAN_SECOND;
    gboolean ret;
 
    g_mutex_lock(&state->mutex);
@@ -279,9 +349,13 @@ DetectorThread(ToolsAppCtx *ctx,
 
    while (1) {
       gint old = g_atomic_int_add(&state->atomic, -1);
-      DetectorUpdate(old);
+      gint64 now = g_get_monotonic_time();
+      gint64 endTime;
 
-      if (SleepToExit(SLEEP_INTERVAL)) {
+      DetectorUpdate(old, now);
+
+      endTime = now + SLEEP_INTERVAL * G_TIME_SPAN_SECOND;
+      if (SleepToExit(endTime)) {
          break;
       }
    }
