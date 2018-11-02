@@ -22,6 +22,7 @@
  *    Implementation of the tools hang detection and reporting
  */
 
+#include <string.h>
 #include <glib.h>
 
 #include "vmware.h"
