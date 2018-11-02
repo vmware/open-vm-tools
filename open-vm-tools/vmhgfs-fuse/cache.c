@@ -55,7 +55,10 @@ struct HgfsAttrCache attrList;
 
 /*Lock for accessing the attribute cache*/
 static pthread_mutex_t HgfsAttrCacheLock = PTHREAD_MUTEX_INITIALIZER;
+
+#if !defined(__FreeBSD__) && !defined(__SOLARIS__)
 static void HgfsInvalidateParentsChildren(const char* parent);
+#endif
 
 /*
  * Lists are used to manage attribute cache in Solaris and FreeBSD,
