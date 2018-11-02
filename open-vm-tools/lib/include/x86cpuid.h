@@ -1483,9 +1483,13 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 #define CPUID_MODEL_EXCAVATOR_60      0x60 // family == CPUID_FAMILY_BULLDOZER
 #define CPUID_MODEL_EXCAVATOR_6F      0x6F // Max Excavator model defined in BKDG
 #define CPUID_MODEL_ZEN_00            0x00 // family == CPUID_FAMILY_ZEN
+#define CPUID_MODEL_ZEN_NAPLES_01     0x01 // family == CPUID_FAMILY_ZEN
 #define CPUID_MODEL_ZEN_1F            0x1F // Max Zen model defined in BKDG
 #define CPUID_MODEL_ZEN2_30           0x30 // family == CPUID_FAMILY_ZEN
 #define CPUID_MODEL_ZEN2_3F           0x3F // Max Zen2 model
+
+/* AMD stepping information */
+#define CPUID_STEPPING_ZEN_NAPLES_B2  0x02 // Zen Naples ZP-B2
 
 /* VIA model information */
 #define CPUID_MODEL_NANO                15 // Isaiah
