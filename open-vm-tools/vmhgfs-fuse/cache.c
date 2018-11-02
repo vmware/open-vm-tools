@@ -55,6 +55,7 @@ struct HgfsAttrCache attrList;
 
 /*Lock for accessing the attribute cache*/
 static pthread_mutex_t HgfsAttrCacheLock = PTHREAD_MUTEX_INITIALIZER;
+static void HgfsInvalidateParentsChildren(const char* parent);
 
 /*
  * Lists are used to manage attribute cache in Solaris and FreeBSD,
@@ -414,9 +415,54 @@ HgfsInvalidateAttrCache(const char* path)      //IN: Path to file
    tmp = (HgfsAttrCache *)g_hash_table_lookup(g_hash_table, path);
    if (tmp != NULL) {
       tmp->changeTime = 0;
+      if (tmp->attr.type == HGFS_FILE_TYPE_DIRECTORY) {
+         HgfsInvalidateParentsChildren(tmp->path);
+      }
    }
    pthread_mutex_unlock(&HgfsAttrCacheLock);
 }
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HgfsInvalidateParentsChildren
+ *
+ *    This routine is called by the general function to invalidate a cache
+ *    entry. If the entry is a directory this function is called to invalidate
+ *    any cached children.
+ *
+ * Results:
+ *    None
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+HgfsInvalidateParentsChildren(const char* parent)      //IN: parent
+{
+   gpointer key, value;
+   GHashTableIter iter;
+   size_t parentLen = Str_Strlen(parent, PATH_MAX);
+
+   LOG(4, ("Invalidating cache children for parent = %s\n",
+           parent));
+
+   g_hash_table_iter_init(&iter, g_hash_table);
+
+   while (g_hash_table_iter_next(&iter, &key, &value)) {
+      HgfsAttrCache *child = (HgfsAttrCache *)value;
+
+      if (Str_Strncasecmp(parent, child->path, parentLen) == 0) {
+         LOG(10, ("Invalidating cache child = %s\n", child->path));
+         child->changeTime = 0;
+      }
+   }
+}
+
 
 /*
  *----------------------------------------------------------------------

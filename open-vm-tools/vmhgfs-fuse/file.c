@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013,2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013,2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1068,7 +1068,7 @@ retry:
          }
          break;
       default:
-         LOG(4, ("failed with result %d\n", result));
+         LOG(4, ("Server protocol result %d\n", result));
       }
       break;
    default:
