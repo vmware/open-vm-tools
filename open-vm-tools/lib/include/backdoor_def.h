@@ -235,10 +235,11 @@ extern "C" {
 #define   BDOOR_CMD_GMM                      96
 #  define BDOOR_CMD_GMM_GET_SIZE              0
 #  define BDOOR_CMD_GMM_MAP_MEMORY            1
-#  define BDOOR_CMD_GMM_GET_PPN_AND_SZ        2 /* Devel only. */
-#  define BDOOR_CMD_GMM_ENTER_INIT            3
-#  define BDOOR_CMD_GMM_ENTER_EVENT           4
-#  define BDOOR_CMD_GMM_ONESHOT_TIMER         5
+#  define BDOOR_CMD_GMM_GET_PA                2 /* Devel only. */
+#  define BDOOR_CMD_GMM_GET_SIZE_DEVEL        3 /* Devel only. */
+#  define BDOOR_CMD_GMM_ENTER_INIT            4
+#  define BDOOR_CMD_GMM_ENTER_EVENT           5
+#  define BDOOR_CMD_GMM_ONESHOT_TIMER         6
 #define   BDOOR_CMD_MAX                      97
 
 
