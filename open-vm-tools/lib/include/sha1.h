@@ -119,6 +119,7 @@ void SHA1Update(SHA1_CTX* context,
                 size_t len);
 void SHA1Final(unsigned char digest[SHA1_HASH_LEN], SHA1_CTX* context);
 
+#if defined VMKBOOT || defined VMKERNEL
 void SHA1RawBufferHash(const void *data,
                        uint32 size,
                        uint32 result[5]);
@@ -133,6 +134,7 @@ void SHA1MultiBuffer(uint32 numBuffers,
                      uint32 len,
                      const void *data[],
                      unsigned char *digests[]);
+#endif
 
 #endif // defined __APPLE__ && defined USERLEVEL
 
