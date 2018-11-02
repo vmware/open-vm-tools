@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -167,6 +167,44 @@ exit:
 /*
  *-----------------------------------------------------------------------------
  *
+ * DnD_AppendPrefixToStagingDir --
+ *
+ *    Append prefix to a DnD staging directory
+ *
+ * Results:
+ *    Return new DnD staging directory for success, NULL otherwise.
+ *
+ * Side effects:
+ *    Caller must free the retrun string with free
+ *
+ *-----------------------------------------------------------------------------
+ */
+char *
+DnD_AppendPrefixToStagingDir(const char *stagingDir, // IN:
+                             const char *prefix)     // IN:
+{
+   const char *dndRoot = NULL;
+   char *newDir = NULL;
+
+   dndRoot = DnD_GetFileRoot();
+   if (Unicode_Find(stagingDir, dndRoot) == UNICODE_INDEX_NOT_FOUND) {
+      // incorrect staging directory
+      Log("%s: Not find root = %s\n", __FUNCTION__, dndRoot);
+      return NULL;
+   }
+
+   newDir = Unicode_Insert(stagingDir, Unicode_LengthInCodePoints(dndRoot), prefix);
+   if (0 != File_Rename(stagingDir, newDir)) {
+      free(newDir);
+      newDir = NULL;
+   }
+   return newDir;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * DnD_DeleteStagingFiles --
  *
  *    Attempts to delete all files in the staging directory. This does not
@@ -213,6 +251,8 @@ DnD_DeleteStagingFiles(const char *stagingDir,  // IN:
 
       if (numFiles == -1) {
          return FALSE;
+      } else if (numFiles == 0) {
+         return TRUE;
       }
 
       /* delete everything in the directory */
@@ -237,8 +277,71 @@ DnD_DeleteStagingFiles(const char *stagingDir,  // IN:
       }
 
       free(base);
+      Util_FreeStringList(fileList, numFiles);
    }
 
+   return ret;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * DnD_RemoveTempDirs --
+ *
+ *    Remove all directories with the specific prefix in the staging directory.
+ *
+ * Results:
+ *    TRUE if the specific directories were deleted. FALSE if there was an error.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+DnD_RemoveTempDirs(const char *dndTempDir,  // IN:
+                   const char *prefix)      // IN:
+{
+   Bool ret = TRUE;
+   int i = 0;
+   int numFiles = 0;
+   char *base = NULL;
+   char **fileList = NULL;
+
+   ASSERT(dndTempDir);
+
+   if (!File_Exists(dndTempDir)) {
+      /* The dndTempDir doesn't exist. */
+      return TRUE;
+   }
+
+   if (!File_IsDirectory(dndTempDir)) {
+      return FALSE;
+   }
+
+   /* get list of files in current directory */
+   numFiles = File_ListDirectory(dndTempDir, &fileList);
+   if (numFiles == -1) {
+      return FALSE;
+   } else if (numFiles == 0) {
+      return TRUE;
+   }
+
+   base = Unicode_Append(dndTempDir, DIRSEPS);
+   for (i = 0; i < numFiles; i++) {
+      char *curPath = Unicode_Append(base, fileList[i]);
+      if (File_IsDirectory(curPath) &&
+          (UNICODE_INDEX_NOT_FOUND != Unicode_Find(curPath, prefix))) {
+         if (!File_DeleteDirectoryTree(curPath)) {
+            ret = FALSE;
+         }
+      }
+      free(curPath);
+   }
+   free(base);
+   Util_FreeStringList(fileList, numFiles);
    return ret;
 }
 
