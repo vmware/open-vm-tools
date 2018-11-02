@@ -46,6 +46,15 @@
 
 
 /*
+ * VMware's Internet Assigned Numbers Authority Private Enterprise Number.
+ * https://www.iana.org/assignments/enterprise-numbers/enterprise-numbers.
+ */
+#define VMW_IANA_PEN       6876
+#define VMW_IANA_PEN_STR "6876"
+#define VMW_IANA_PEN_LEN      4
+
+
+/*
  * This generic name should be used when referring to any product of the
  * VMware product line, like VMware Workstation, VMware Server, and so
  * on...
