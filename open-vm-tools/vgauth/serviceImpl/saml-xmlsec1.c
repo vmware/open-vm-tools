@@ -94,6 +94,7 @@ XmlErrorHandler(void *ctx,
     * Treat all as warning.
     */
    g_warning("XML Error: %s", msgStr);
+   VMXLog_Log(VMXLOG_LEVEL_WARNING, "XML Error: %s", msgStr);
 }
 
 
@@ -124,14 +125,20 @@ XmlSecErrorHandler(const char *file,
                    const char *msg)
 {
    /*
-    * Treat all as warning.
-    */
+    * Treat all as warning.  */
    g_warning("XMLSec Error: %s:%s(line %d) object %s"
              " subject %s reason: %d, msg: %s",
              file, func, line,
              errorObject ? errorObject : "<UNSET>",
              errorSubject ? errorSubject : "<UNSET>",
              reason, msg);
+   VMXLog_Log(VMXLOG_LEVEL_WARNING,
+              "XMLSec Error: %s:%s(line %d) object %s"
+              " subject %s reason: %d, msg: %s",
+              file, func, line,
+              errorObject ? errorObject : "<UNSET>",
+              errorSubject ? errorSubject : "<UNSET>",
+              reason, msg);
 }
 
 
@@ -385,6 +392,11 @@ SAML_Init(void)
                   "Make sure that you have xmlsec1-openssl installed and\n"
                   "check shared libraries path\n"
                   "(LD_LIBRARY_PATH) environment variable.\n");
+        VMXLog_Log(VMXLOG_LEVEL_WARNING,
+                   "Error: unable to load openssl xmlsec-crypto library.\n "
+                   "Make sure that you have xmlsec1-openssl installed and\n"
+                   "check shared libraries path\n"
+                   "(LD_LIBRARY_PATH) environment variable.\n");
       return VGAUTH_E_FAIL;
     }
 #endif /* XMLSEC_CRYPTO_DYNAMIC_LOADING */
@@ -415,6 +427,10 @@ SAML_Init(void)
    Log("%s: Using xmlsec1 %d.%d.%d for XML signature support\n",
        __FUNCTION__, XMLSEC_VERSION_MAJOR, XMLSEC_VERSION_MINOR,
        XMLSEC_VERSION_SUBMINOR);
+   VMXLog_Log(VMXLOG_LEVEL_WARNING,
+              "%s: Using xmlsec1 %d.%d.%d for XML signature support\n",
+              __FUNCTION__, XMLSEC_VERSION_MAJOR, XMLSEC_VERSION_MINOR,
+              XMLSEC_VERSION_SUBMINOR);
 
    return VGAUTH_E_OK;
 }
@@ -1108,7 +1124,11 @@ BuildCertChain(xmlNodePtr x509Node,
                                                   xmlSecKeyDataFormatPem,
                                                   xmlSecKeyDataTypeTrusted);
       if (ret < 0) {
-         g_warning("Failed to add cert to key manager\n");
+         g_warning("%s: Failed to add cert to key manager\n", __FUNCTION__);
+         g_warning("PEM cert: %s\n", pemCert);
+         VMXLog_Log(VMXLOG_LEVEL_WARNING,
+                    "%s: Failed to add cert to key manager\n", __FUNCTION__);
+         VMXLog_Log(VMXLOG_LEVEL_WARNING, "PEM cert: %s\n", pemCert);
          goto done;
       }
 
@@ -1370,6 +1390,7 @@ VerifySAMLToken(const gchar *token,
    bRet = VerifySignature(doc, numCerts, certChain);
    if (FALSE == bRet) {
       g_warning("Failed to verify Signature\n");
+      // XXX Can we log the token at this point without risking security?
       goto done;
    }
 

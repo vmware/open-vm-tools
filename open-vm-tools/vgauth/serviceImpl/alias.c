@@ -2680,10 +2680,10 @@ check_map:
                  SU_(alias.addid,
                      "Alias added to Alias store owned by '%s' by user '%s'"),
                  userName, reqUserName);
+      // security -- don't expose username
       VMXLog_Log(VMXLOG_LEVEL_WARNING,
-                 "%s: alias added for user '%s' with Subject '%s'",
+                 "%s: alias added with Subject '%s'",
                  __FUNCTION__,
-                 (userName != NULL) ? userName : "<UNKNOWN>",
                  (ai->type == SUBJECT_TYPE_ANY) ? "<ANY>" : ai->name);
    }
 
@@ -2954,15 +2954,15 @@ update:
                      "Alias removed from Alias store owned by '%s' by user '%s'"),
                  userName, reqUserName);
       if (removeAll) {
+         // security -- don't expose username
          VMXLog_Log(VMXLOG_LEVEL_WARNING,
-                    "%s: all aliases removed for user '%s'",
-                    __FUNCTION__,
-                    (userName != NULL) ? userName : "<UNKNOWN>");
+                    "%s: all aliases removed for requested username",
+                    __FUNCTION__);
       } else {
+         // security -- don't expose username
          VMXLog_Log(VMXLOG_LEVEL_WARNING,
-                    "%s: alias removed for user '%s' with Subject '%s'",
+                    "%s: alias removed with Subject '%s'",
                     __FUNCTION__,
-                    (userName != NULL) ? userName : "<UNKNOWN>",
                     (subj->type == SUBJECT_TYPE_ANY) ? "<ANY>" : subj->name);
       }
    }

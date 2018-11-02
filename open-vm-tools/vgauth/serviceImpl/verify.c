@@ -147,9 +147,11 @@ ServiceVerifyAndCheckTrustCertChainForSubject(int numCerts,
          /*
           * No username, no mapped certs, no chance.
           */
-         Warning("%s: no mapping entries or userName\n", __FUNCTION__);
+         Warning("%s: no mapping entries or specified userName\n",
+                 __FUNCTION__);
          VMXLog_Log(VMXLOG_LEVEL_WARNING,
-                    "%s: no mapping entries or userName\n", __FUNCTION__);
+                    "%s: no mapping entries or specified userName\n",
+                    __FUNCTION__);
          err = VGAUTH_E_AUTHENTICATION_DENIED;
          goto done;
       }
@@ -215,7 +217,7 @@ ServiceVerifyAndCheckTrustCertChainForSubject(int numCerts,
    if (!UsercheckUserExists(queryUserName)) {
       Warning("%s: User '%s' doesn't exist\n", __FUNCTION__, queryUserName);
       VMXLog_Log(VMXLOG_LEVEL_WARNING,
-                 "%s: User '%s' doesn't exist\n", __FUNCTION__, queryUserName);
+                 "%s: User doesn't exist\n", __FUNCTION__);
       err = VGAUTH_E_AUTHENTICATION_DENIED;
       goto done;
    }
