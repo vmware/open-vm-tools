@@ -670,6 +670,7 @@ FIELD( 10,  1, EDX,  0, 16, MAX_COS_NUMBER,                    NO,   0, FALSE)
 #define CPUID_FIELD_DATA_LEVEL_12                                              \
 FLAG(  12,  0, EAX,  0,  1, SGX1,                              YES, 17, FALSE) \
 FLAG(  12,  0, EAX,  1,  1, SGX2,                              YES, 17, FALSE) \
+FLAG(  12,  0, EAX,  6,  1, SGX_OVERSUB_ENCLS,                 YES, 17, FALSE) \
 FLAG(  12,  0, EBX,  0,  1, SGX_MISCSELECT_EXINFO,             YES, 17, FALSE) \
 FIELD( 12,  0, EBX,  1, 31, SGX_MISCSELECT_RSVD,               NO,   0, FALSE) \
 FIELD( 12,  0, EDX,  0,  8, MAX_ENCLAVE_SIZE_NOT64,            YES, 17, FALSE) \
