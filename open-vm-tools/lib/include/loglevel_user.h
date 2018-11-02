@@ -135,6 +135,7 @@
    LOGLEVEL_VAR(mksSWB), \
    LOGLEVEL_VAR(mksClient), \
    LOGLEVEL_VAR(mksServer), \
+   LOGLEVEL_VAR(mksControl), \
    LOGLEVEL_VAR(mksKeyboard), \
    LOGLEVEL_VAR(keymap), \
    LOGLEVEL_VAR(mksMouse), \
