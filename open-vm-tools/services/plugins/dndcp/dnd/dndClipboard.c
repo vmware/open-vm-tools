@@ -715,16 +715,20 @@ CPClipboard_Unserialize(CPClipboard *clip, // OUT: the clipboard
    maxFmt = MIN(CPFORMAT_MAX, maxFmt);
 
    for (fmt = CPFORMAT_MIN; fmt < maxFmt; ++fmt) {
-      Bool exists;
-      uint32 size;
+      Bool exists = FALSE;
+      uint32 size = 0;
 
       if (!DnDReadBuffer(&r, &exists, sizeof exists) ||
           !DnDReadBuffer(&r, &size, sizeof size)) {
+         Log("%s: Error: exists:%d, size:%d, format:%d.\n", __FUNCTION__,
+             exists, size, (int)fmt);
          goto error;
       }
 
       if (exists && size) {
          if (size > r.unreadLen) {
+            Log("%s: Error: size:%d, unreadLen:%d, format:%d.\n", __FUNCTION__,
+                size, (int)r.unreadLen, (int)fmt);
             goto error;
          }
 
