@@ -28,7 +28,8 @@
 #include "vmware/tools/log.h"
 #include "vmware/tools/threadPool.h"
 #include "toolsHangDetector.h"
-
+#include "vmware/guestrpc/tclodefs.h"
+#include "vmware/tools/guestrpc.h"
 
 #define SLEEP_INTERVAL 1         /* approximately 1 second */
 #define CHECKIN_INTERVAL 1       /* approximately 1 second */
@@ -55,6 +56,7 @@ typedef struct HangDetectorState {
     * a resource contention.
     */
    gint64 timeSeq[COUNTER_RESET_VALUE+1];
+   gboolean vmxRejectedHealthUpdate;
 } HangDetectorState;
 
 static HangDetectorState gDetectorState;
@@ -80,6 +82,7 @@ DetectorInit(void)
 
    state->terminate = FALSE;
    state->mode = NORMAL;
+   state->vmxRejectedHealthUpdate = FALSE;
    g_atomic_int_set(&state->atomic, COUNTER_RESET_VALUE);
 }
 
@@ -149,7 +152,36 @@ DetectorTerminate(ToolsAppCtx *ctx,
 static void
 UpdateVmx(const char *event)
 {
-   /* TBD */
+   HangDetectorState *state = &gDetectorState;
+   RpcChannel *chan;
+   gchar *msg;
+
+   if (state->vmxRejectedHealthUpdate) {
+      return;
+   }
+
+   chan = BackdoorChannel_New();
+   if (NULL == chan) {
+      g_warning("Failed to create a RPCI channel to send tools health event.\n");
+      return;
+   }
+
+   if (!RpcChannel_Start(chan)) {
+      g_warning("Failed to start a RPCI channel to send tools health event.\n");
+      RpcChannel_Destroy(chan);
+      return;
+   }
+
+   msg = g_strdup_printf("%s %s", UPDATE_TOOLS_HEALTH_CMD, event);
+   ASSERT(NULL != msg);
+
+   if(!RpcChannel_Send(chan, msg, strlen(msg), NULL, NULL)) {
+      g_warning("Failed to send RPCI message: %s\n", msg);
+      state->vmxRejectedHealthUpdate = TRUE;
+   }
+
+   g_free(msg);
+   RpcChannel_Destroy(chan);
 }
 
 
@@ -224,11 +256,11 @@ UpdateStateToHung(void)
    if (elapsed > SLEEP_INTERVAL * COUNTER_RESET_VALUE * STARVE_THRESHOLD) {
       g_info("tools service was slow for the last %.2f seconds.", elapsed);
 
-      UpdateVmx("slow");
+      UpdateVmx(TOOLS_HEALTH_GUEST_SLOW_KEY);
    } else {
       g_info("tools service hung.");
 
-      UpdateVmx("hang");
+      UpdateVmx(TOOLS_HEALTH_HUNG_KEY);
    }
 }
 
@@ -251,7 +283,7 @@ UpdateStateToNormal(void)
 
    g_info("tools service recovered from a hang.");
 
-   UpdateVmx("recover");
+   UpdateVmx(TOOLS_HEALTH_NORMAL_KEY);
 }
 
 
@@ -476,4 +508,25 @@ ToolsCoreHangDetector_Start(ToolsAppCtx *ctx)
 exit:
 
    return ret;
+}
+
+
+/*
+ ******************************************************************************
+ * ToolsCoreHangDetector_RpcReset --                                     */ /**
+ *
+ * Rpc Reset Handler for the tools hang detector module.
+ * Just reset the vmxRejectedHealthUpdate boolean flag in case
+ * the VM is migrated to a newer version of host that now supports the
+ * health update.
+ *
+ ******************************************************************************
+ */
+
+void
+ToolsCoreHangDetector_RpcReset(void)
+{
+   HangDetectorState *state = &gDetectorState;
+
+   state->vmxRejectedHealthUpdate = FALSE;
 }

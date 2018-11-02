@@ -26,5 +26,6 @@
  */
 
 gboolean ToolsCoreHangDetector_Start(ToolsAppCtx *ctx);
+void ToolsCoreHangDetector_RpcReset(void);
 
 #endif /* _TOOLS_HANG_DETECTOR_H_ */

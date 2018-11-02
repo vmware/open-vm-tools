@@ -355,6 +355,8 @@ ToolsCoreResetSignalCb(gpointer src,          // IN
 {
    g_info("Reinitialize the Vmx Guest Logger with a new RPC channel.\n");
    VMTools_SetupVmxGuestLog(TRUE, ctx->config, NULL); /* New RPC channel */
+   g_info("Clear out the tools hang detector RPC cache state\n");
+   ToolsCoreHangDetector_RpcReset();
 }
 
 
