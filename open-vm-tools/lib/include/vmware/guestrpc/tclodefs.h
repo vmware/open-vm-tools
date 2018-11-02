@@ -96,6 +96,14 @@
 #define GUEST_LOG_TEXT_CMD "guest.log.text"
 
 /*
+ *  Update tools health command.
+ */
+#define UPDATE_TOOLS_HEALTH_CMD "update.tools.health"
+#define TOOLS_HEALTH_NORMAL_KEY "normal"
+#define TOOLS_HEALTH_HUNG_KEY "hung"
+#define TOOLS_HEALTH_GUEST_SLOW_KEY "guest_slow"
+
+/*
  * The max selection buffer length has to be less than the
  * ipc msg max size b/c the selection is transferred from mks -> vmx
  * and then through the backdoor to the tools. Also, leave
