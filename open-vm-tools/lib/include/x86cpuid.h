@@ -522,7 +522,7 @@ FLAG(   7,  0, ECX,  4,  1, OSPKE,                             ANY, 13, TRUE)  \
 FLAG(   7,  0, ECX,  5,  1, WAITPKG,                           NO,   0, TRUE)  \
 FLAG(   7,  0, ECX,  6,  1, AVX512VBMI2,                       YES, 17, TRUE)  \
 FLAG(   7,  0, ECX,  8,  1, GFNI,                              NO,   0, TRUE)  \
-FLAG(   7,  0, ECX,  9,  1, VAES,                              NO,   0, TRUE)  \
+FLAG(   7,  0, ECX,  9,  1, VAES,                              YES, 17, TRUE)  \
 FLAG(   7,  0, ECX, 10,  1, VPCLMULQDQ,                        YES, 17, TRUE)  \
 FLAG(   7,  0, ECX, 11,  1, AVX512VNNI,                        YES, 17, TRUE)  \
 FLAG(   7,  0, ECX, 12,  1, AVX512BITALG,                      YES, 17, TRUE)  \
