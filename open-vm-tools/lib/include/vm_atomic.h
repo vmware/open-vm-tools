@@ -122,21 +122,25 @@ extern "C" {
 
 
 /* Basic atomic types: 8, 16, 32, 64 and 128 bits */
+ALIGN_PREFIX(1)
 typedef struct Atomic_uint8 {
    volatile uint8 value;
-} Atomic_uint8 ALIGNED(1);
+} Atomic_uint8 ALIGN_SUFFIX(1);
 
+ALIGN_PREFIX(2)
 typedef struct Atomic_uint16 {
    volatile uint16 value;
-} Atomic_uint16 ALIGNED(2);
+} Atomic_uint16 ALIGN_SUFFIX(2);
 
+ALIGN_PREFIX(4)
 typedef struct Atomic_uint32 {
    volatile uint32 value;
-} Atomic_uint32 ALIGNED(4);
+} Atomic_uint32 ALIGN_SUFFIX(4);
 
+ALIGN_PREFIX(8)
 typedef struct Atomic_uint64 {
    volatile uint64 value;
-} Atomic_uint64 ALIGNED(8);
+} Atomic_uint64 ALIGN_SUFFIX(8);
 
 #if defined __GNUC__ && defined VM_64BIT && \
      (defined __GCC_HAVE_SYNC_COMPARE_AND_SWAP_16 || defined VM_ARM_64)
