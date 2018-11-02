@@ -26,6 +26,7 @@
 #include "dndRpcV4.hh"
 #include "tracer.hh"
 #include "vmGuestDnDMgr.hh"
+#include "vmGuestDnDSrc.hh"
 
 extern "C" {
 #include "debug.h"
@@ -121,4 +122,45 @@ VMGuestDnDMgr::CreateDnDRpcWithVersion(uint32 version)
       g_debug("%s: unsupported DnD version\n", __FUNCTION__);
       break;
    }
+}
+
+
+/**
+ * Got srcDragBegin from rpc with valid data. Create mSrc if the state machine
+ * is ready.
+ *
+ * @param[in] sessionId active DnD session id
+ * @param[in] capability controller capability
+ * @param[in] clip cross-platform clipboard data.
+ */
+
+void
+VMGuestDnDMgr::OnRpcSrcDragBegin(uint32 sessionId,
+                                 const CPClipboard *clip)
+{
+   TRACE_CALL();
+
+   if (!mDnDAllowed) {
+      g_debug("%s: DnD is not allowed.\n", __FUNCTION__);
+      return;
+   }
+
+   if (GUEST_DND_READY != mDnDState) {
+      g_debug("%s: Bad state: %d, reset\n", __FUNCTION__, mDnDState);
+      ResetDnD();
+      return;
+   }
+
+   if (mSrc) {
+      g_debug("%s: mSrc is not NULL\n", __FUNCTION__);
+      delete mSrc;
+      mSrc = NULL;
+   }
+
+   SetSessionId(sessionId);
+
+   ASSERT(clip);
+
+   mSrc = new VMGuestDnDSrc(this);
+   mSrc->OnRpcDragBegin(clip);
 }

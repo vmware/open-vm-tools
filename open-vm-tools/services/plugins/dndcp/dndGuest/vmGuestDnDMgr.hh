@@ -43,6 +43,8 @@ protected:
    virtual void AddUnityDnDDetTimeoutEvent();
    virtual void AddHideDetWndTimerEvent();
    virtual void CreateDnDRpcWithVersion(uint32 version);
+   virtual void OnRpcSrcDragBegin(uint32 sessionId,
+                                  const CPClipboard *clip);
 
 private:
    ToolsAppCtx *mToolsAppCtx;

@@ -117,8 +117,8 @@ public:
    static gboolean DnDUnityDetTimeout(void *clientData);
 
 protected:
-   void OnRpcSrcDragBegin(uint32 sessionId,
-                          const CPClipboard *clip);
+   virtual void OnRpcSrcDragBegin(uint32 sessionId,
+                                  const CPClipboard *clip) = 0;
    void OnRpcQueryExiting(uint32 sessionId, int32 x, int32 y);
    void OnRpcUpdateUnityDetWnd(uint32 sessionId,
                                bool show,
@@ -163,7 +163,7 @@ protected:
    /* Callbacks from rpc for DnD source. */
    void OnRpcUpdateMouse(uint32 sessionId, int32 x, int32 y);
    void OnRpcDrop(uint32 sessionId, int32 x, int32 y);
-   void OnRpcCancel(uint32 sessionId);
+   virtual void OnRpcCancel(uint32 sessionId);
    void OnRpcGetFilesDone(uint32 sessionId,
                           bool success,
                           const uint8 *stagingDirCP,

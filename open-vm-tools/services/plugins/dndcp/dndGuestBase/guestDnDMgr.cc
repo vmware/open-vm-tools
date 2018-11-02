@@ -26,12 +26,6 @@
 #include "guestDnD.hh"
 #include "guestDnDCPMgr.hh"
 
-#ifdef DND_VM
-#include "vmGuestDnDSrc.hh"
-#else
-#include "crtGuestDnDSrc.hh"
-#endif
-
 extern "C" {
    #include "debug.h"
 }
@@ -204,52 +198,6 @@ GuestDnDMgr::DestUIDragEnter(const CPClipboard *clip)
    ASSERT(clip);
    mDest = new GuestDnDDest(this);
    mDest->UIDragEnter(clip);
-}
-
-
-/**
- * Got srcDragBegin from rpc with valid data. Create mSrc if the state machine
- * is ready.
- *
- * @param[in] sessionId active DnD session id
- * @param[in] capability controller capability
- * @param[in] clip cross-platform clipboard data.
- */
-
-void
-GuestDnDMgr::OnRpcSrcDragBegin(uint32 sessionId,
-                               const CPClipboard *clip)
-{
-   TRACE_CALL();
-
-   if (!mDnDAllowed) {
-      g_debug("%s: DnD is not allowed.\n", __FUNCTION__);
-      return;
-   }
-
-   if  (GUEST_DND_READY != mDnDState) {
-      g_debug("%s: Bad state: %d, reset\n", __FUNCTION__, mDnDState);
-      ResetDnD();
-      return;
-   }
-
-   if (mSrc) {
-      g_debug("%s: mSrc is not NULL\n", __FUNCTION__);
-      delete mSrc;
-      mSrc = NULL;
-   }
-
-   SetSessionId(sessionId);
-
-   ASSERT(clip);
-
-#ifdef DND_VM
-   mSrc = new VMGuestDnDSrc(this);
-#else
-   mSrc = new CRTGuestDnDSrc(this);
-#endif
-
-   mSrc->OnRpcDragBegin(clip);
 }
 
 
