@@ -529,7 +529,7 @@ FLAG(   7,  0, ECX, 12,  1, AVX512BITALG,                      YES, 17, TRUE)  \
 FLAG(   7,  0, ECX, 14,  1, AVX512VPOPCNTDQ,                   YES, 16, TRUE)  \
 FLAG(   7,  0, ECX, 16,  1, VA57,                              NO,   0, TRUE)  \
 FIELD(  7,  0, ECX, 17,  5, MAWA,                              NO,   0, TRUE)  \
-FLAG(   7,  0, ECX, 22,  1, RDPID,                             NO,   0, TRUE)  \
+FLAG(   7,  0, ECX, 22,  1, RDPID,                             YES, 17, TRUE)  \
 FLAG(   7,  0, ECX, 25,  1, CLDEMOTE,                          NO,   0, TRUE)  \
 FLAG(   7,  0, ECX, 27,  1, MOVDIRI,                           NO,   0, TRUE)  \
 FLAG(   7,  0, ECX, 28,  1, MOVDIR64B,                         NO,   0, TRUE)  \
