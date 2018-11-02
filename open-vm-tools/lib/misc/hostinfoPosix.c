@@ -553,6 +553,7 @@ static void
 HostinfoOSDetailedData(void)
 {
    DetailedDataField *field;
+   Bool first = TRUE;
 
    /* Clear the string cache */
    memset(hostinfoCachedDetailedData, '\0',
@@ -566,6 +567,13 @@ HostinfoOSDetailedData(void)
          char escapedString[2 * MAX_DETAILED_FIELD_LEN + 1];
          char fieldString[MAX_DETAILED_FIELD_LEN];
          int32 i = 0;
+
+         /* Add delimiter between properties - after the first one */
+         if (!first) {
+            Str_Strcat(hostinfoCachedDetailedData,
+                       DETAILED_DATA_DELIMITER,
+                       sizeof hostinfoCachedDetailedData);
+         }
 
          /* Escape single quotes and back slashes in the value. */
          for (c = field->value; *c != '\0'; c++) {
@@ -596,12 +604,7 @@ HostinfoOSDetailedData(void)
          Str_Strcat(hostinfoCachedDetailedData, fieldString,
                     sizeof hostinfoCachedDetailedData);
 
-         /* Add delimiter between properties */
-         if ((field + 1)->name != NULL) {
-            Str_Strcat(hostinfoCachedDetailedData,
-                       DETAILED_DATA_DELIMITER,
-                       sizeof hostinfoCachedDetailedData);
-         }
+         first = FALSE;
       }
    }
 }
@@ -985,8 +988,11 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
  *      even if things aren't strictly compliant.
  *
  * Return value:
- *      TRUE   Success.
- *      FALSE  Failure.
+ *     !NULL  Success. A pointer to an dynamically allocated array of pointers
+ *                     to dynamically allocated strings, one for each field
+ *                     corresponding to the values argument plus one which
+ *                     contains a concatenation of all discovered data.
+ *      NULL  Failure.
  *
  * Side effects:
  *      None
@@ -994,18 +1000,19 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
  *-----------------------------------------------------------------------------
  */
 
-static Bool
+static char **
 HostinfoReadDistroFile(Bool osReleaseRules,           // IN: osRelease rules
                        char *filename,                // IN: distro file
-                       const DistroNameScan *values,  // IN: search strings
-                       int distroSize,                // IN: length of distro
-                       char *distro)                  // OUT: full distro name
+                       const DistroNameScan *values)  // IN: search strings
 {
    int i;
-   int buf_sz;
+   DynBuf b;
+   int bufSize;
    struct stat st;
    int fd = -1;
-   Bool ret = FALSE;
+   uint32 nArgs = 0;
+   Bool success = FALSE;
+   char **result = NULL;
    char *distroOrig = NULL;
 
    /* It's OK for the file to not exist, don't warn for this.  */
@@ -1013,8 +1020,10 @@ HostinfoReadDistroFile(Bool osReleaseRules,           // IN: osRelease rules
       return FALSE;
    }
 
+   DynBuf_Init(&b);
+
    if (fstat(fd, &st)) {
-      Warning("%s: could not stat the file %s: %d\n", __FUNCTION__, filename,
+      Warning("%s: could not stat file '%s': %d\n", __FUNCTION__, filename,
            errno);
       goto out;
    }
@@ -1024,38 +1033,40 @@ HostinfoReadDistroFile(Bool osReleaseRules,           // IN: osRelease rules
       goto out;
    }
 
-   buf_sz = st.st_size;
-   if (buf_sz >= distroSize) {
-      Warning("%s: input buffer too small\n", __FUNCTION__);
-      goto out;
-   }
-   distroOrig = calloc(distroSize, sizeof *distroOrig);
+   bufSize = st.st_size;
 
-   if (distroOrig == NULL) {
-      Warning("%s: could not allocate memory\n", __FUNCTION__);
-      goto out;
-   }
+   distroOrig = Util_SafeCalloc(bufSize + 1, sizeof *distroOrig);
 
-   if (read(fd, distroOrig, buf_sz) != buf_sz) {
-      Warning("%s: could not read file %s: %d\n", __FUNCTION__, filename,
+   if (read(fd, distroOrig, bufSize) != bufSize) {
+      Warning("%s: could not read file '%s': %d\n", __FUNCTION__, filename,
               errno);
       goto out;
    }
 
-   distroOrig[buf_sz - 1] = '\0';
+   distroOrig[bufSize] = '\0';
 
    /*
     * Attempt to parse a file with one name=value pair per line. Values are
     * expected to embedded in double quotes.
     */
 
-   distro[0] = '\0';
+   nArgs = 0;
+   for (i = 0; values[i].name != NULL; i++) {
+      nArgs++;
+   }
+   nArgs++;  // For the appended version of the data
+
+   result = Util_SafeCalloc(nArgs, sizeof(char *));
 
    for (i = 0; values[i].name != NULL; i++) {
       const char *tmpDistroPos = strstr(distroOrig, values[i].name);
 
       if (tmpDistroPos != NULL) {
          char distroPart[DISTRO_BUF_SIZE];
+
+         if (i != 0) {
+            DynBuf_Strcat(&b, " ");
+         }
 
          sscanf(tmpDistroPos, values[i].scanString, distroPart);
          if (distroPart[0] == '"') {
@@ -1065,17 +1076,18 @@ HostinfoReadDistroFile(Bool osReleaseRules,           // IN: osRelease rules
             tmpMakeNull = strchr(tmpDistroPos + 1 , '"');
             if (tmpMakeNull != NULL) {
                *tmpMakeNull = '\0';
-               Str_Strcat(distro, tmpDistroPos, distroSize);
+               DynBuf_Strcat(&b, tmpDistroPos);
+               result[i] = Util_SafeStrdup(tmpDistroPos);
                *tmpMakeNull = '"' ;
             }
          } else {
-            Str_Strcat(distro, distroPart, distroSize);
+            DynBuf_Strcat(&b, distroPart);
+            result[i] = Util_SafeStrdup(distroPart);
          }
-         Str_Strcat(distro, " ", distroSize);
       }
    }
 
-   if (distro[0] == '\0') {
+   if (DynBuf_GetSize(&b) == 0) {
       /*
        * The distro identification file was not standards compliant.
        */
@@ -1085,7 +1097,7 @@ HostinfoReadDistroFile(Bool osReleaseRules,           // IN: osRelease rules
           * We must strictly comply with the os-release standard. Error.
           */
 
-         ret = FALSE;
+         success = FALSE;
       } else {
          /*
           * Our old code played fast and loose with the LSB standard. If there
@@ -1095,20 +1107,37 @@ HostinfoReadDistroFile(Bool osReleaseRules,           // IN: osRelease rules
           * be "good enough". Continue the practice to maximize compatibility.
           */
 
-         Str_Strcpy(distro, distroOrig, distroSize);
-         ret = TRUE;
+         DynBuf_Strcat(&b, distroOrig);
+         DynBuf_Append(&b, "\0", 1);  // Terminate the string
+
+         success = TRUE;
       }
    } else {
-      ret = TRUE;
+      DynBuf_Append(&b, "\0", 1);  // Terminate the string
+
+      success = TRUE;
    }
 
 out:
    if (fd != -1) {
       close(fd);
    }
+
    free(distroOrig);
 
-   return ret;
+   if (success) {
+      result[nArgs - 1] = DynBuf_Detach(&b);
+   } else {
+      if (nArgs != 0) {
+         Util_FreeStringList(result, nArgs);
+      }
+
+      result = NULL;
+   }
+
+   DynBuf_Destroy(&b);
+
+   return result;
 }
 
 
@@ -1196,6 +1225,7 @@ HostinfoGetCmdOutput(const char *cmd)  // IN:
    if (isSuperUser) {
       Id_BeginSuperUser();
    }
+
    return out;
 }
 
@@ -1221,39 +1251,44 @@ static Bool
 HostinfoOsRelease(char *distro,       // OUT:
                   size_t distroSize)  // IN:
 {
-   char distroName[DISTRO_BUF_SIZE] = "";
-   char distroBuild[DISTRO_BUF_SIZE] = "";
-   char distroRelease[DISTRO_BUF_SIZE] = "";
-   char *fileName = "/etc/os-release";
+   size_t fields = ARRAYSIZE(osReleaseFields) - 1;  // Exclude terminator
+   char **args = HostinfoReadDistroFile(TRUE, "/etc/os-release",
+                                        &osReleaseFields[0]);
 
-   Bool success = HostinfoReadDistroFile(TRUE, fileName,
-                                         &osReleaseFields[0],
-                                         distroSize, distro);
-   if (!success) {
-      fileName = "/usr/lib/os-release";
+   if (args == NULL) {
+      args = HostinfoReadDistroFile(TRUE, "/usr/lib/os-release",
+                                    &osReleaseFields[0]);
    }
-   success = HostinfoReadDistroFile(TRUE, fileName,
-                                    &osReleaseFields[0],
-                                    distroSize, distro);
 
-   /* These are used for the detailed data. They can fail */
-   HostinfoReadDistroFile(TRUE, fileName, &osReleaseFields[1],
-                          sizeof distroName, distroName);
-   HostinfoReadDistroFile(TRUE, fileName, &osReleaseFields[2],
-                          sizeof distroRelease, distroRelease);
-   HostinfoReadDistroFile(TRUE, fileName, &osReleaseFields[3],
-                          sizeof distroBuild, distroBuild);
+   if (args != NULL) {
+      if (args[0] != NULL) {
+         Str_Strcpy(detailedDataFields[PRETTY_NAME].value, args[0],
+                    sizeof detailedDataFields[PRETTY_NAME].value);
+      }
 
-   Str_Strcpy(detailedDataFields[PRETTY_NAME].value, distro,
-              sizeof detailedDataFields[PRETTY_NAME].value);
-   Str_Strcpy(detailedDataFields[DISTRO_NAME].value, distroName,
-              sizeof detailedDataFields[DISTRO_NAME].value);
-   Str_Strcpy(detailedDataFields[BUILD_NUMBER].value, distroBuild,
-              sizeof detailedDataFields[BUILD_NUMBER].value);
-   Str_Strcpy(detailedDataFields[DISTRO_VERSION].value, distroRelease,
-              sizeof detailedDataFields[DISTRO_VERSION].value);
+      if (args[1] != NULL) {
+         Str_Strcpy(detailedDataFields[DISTRO_NAME].value, args[1],
+                    sizeof detailedDataFields[DISTRO_NAME].value);
+      }
 
-   return success;
+      if (args[2] != NULL) {
+         Str_Strcpy(detailedDataFields[DISTRO_VERSION].value, args[2],
+                    sizeof detailedDataFields[DISTRO_VERSION].value);
+      }
+
+      if (args[3] != NULL) {
+         Str_Strcpy(detailedDataFields[BUILD_NUMBER].value, args[3],
+                    sizeof detailedDataFields[BUILD_NUMBER].value);
+      }
+
+      if (args[fields] != NULL) {
+         Str_Strcpy(distro, args[fields], distroSize);
+      }
+
+      Util_FreeStringList(args, fields + 1);
+   }
+
+   return args != NULL;
 }
 
 
@@ -1280,6 +1315,7 @@ HostinfoLsbRemoveQuotes(char *lsbOutput)  // IN/OUT:
 
    if (lsbStart[0] == '"') {
       char *quoteEnd = strchr(++lsbStart, '"');
+
       if (quoteEnd != NULL) {
          *quoteEnd = '\0';
       }
@@ -1311,10 +1347,9 @@ HostinfoLsb(char *distro,       // OUT:
             size_t distroSize)  // IN:
 {
    char *lsbOutput;
+   char **args = NULL;
    Bool success = FALSE;
-   char distroName[DISTRO_BUF_SIZE] = "";
-   char distroRelease[DISTRO_BUF_SIZE] = "";
-   char distroDescription[DISTRO_BUF_SIZE] = "";
+   size_t fields = ARRAYSIZE(lsbFields) - 1;  // Exclude terminator
 
    /*
     * Try to get OS detailed information from the lsb_release command.
@@ -1330,31 +1365,37 @@ HostinfoLsb(char *distro,       // OUT:
        */
 
       for (i = 0; distroArray[i].filename != NULL; i++) {
-         if (HostinfoReadDistroFile(FALSE, distroArray[i].filename,
-                                    &lsbFields[0], distroSize, distro)) {
+         args = HostinfoReadDistroFile(FALSE, distroArray[i].filename,
+                                       &lsbFields[0]);
+
+         if (args != NULL) {
             break;
          }
       }
 
       /*
-       * If we failed to read every distro file, exit now, before calling
-       * strlen on the distro buffer (which wasn't set).
+       * If we failed to read every distro file, exit now.
        */
-      if (distroArray[i].filename == NULL) {
+
+      if (args == NULL) {
          Log("%s: Error: no distro file found\n", __FUNCTION__);
       } else {
-         if (!HostinfoReadDistroFile(FALSE, distroArray[i].filename,
-                                     &lsbFields[1], sizeof distroRelease,
-                                     distroRelease)) {
-            return FALSE;
+         if (args[1] != NULL) {  // Release
+            Str_Strcpy(detailedDataFields[DISTRO_VERSION].value, args[1],
+                       sizeof detailedDataFields[DISTRO_VERSION].value);
          }
-         if (!HostinfoReadDistroFile(FALSE, distroArray[i].filename,
-                                     &lsbFields[3], sizeof distroDescription,
-                                     distroDescription)) {
-            return FALSE;
+
+         if (args[3] != NULL) {  // Description
+            Str_Strcpy(detailedDataFields[PRETTY_NAME].value, args[3],
+                       sizeof detailedDataFields[PRETTY_NAME].value);
          }
-         /* When using distro files the distro is filled in by the distrib_id */
-         Str_Strcpy(distroName, distro, sizeof distroName);
+
+         if (args[fields] != NULL) {
+            Str_Strcpy(distro, args[fields], distroSize);
+         }
+
+         Util_FreeStringList(args, fields + 1);
+
          success = TRUE;
       }
    } else {
@@ -1367,29 +1408,24 @@ HostinfoLsb(char *distro,       // OUT:
       /* LSB Release */
       lsbOutput = HostinfoGetCmdOutput("/usr/bin/lsb_release -sr 2>/dev/null");
       lsbStart = HostinfoLsbRemoveQuotes(lsbOutput);
-      Str_Strcpy(distroRelease, lsbStart, sizeof distroRelease);
+      Str_Strcpy(detailedDataFields[DISTRO_VERSION].value, lsbStart,
+                 sizeof detailedDataFields[DISTRO_VERSION].value);
       free(lsbOutput);
 
       /* LSB Distributor */
       lsbOutput = HostinfoGetCmdOutput("/usr/bin/lsb_release -si 2>/dev/null");
       lsbStart = HostinfoLsbRemoveQuotes(lsbOutput);
-      Str_Strcpy(distroName, lsbStart, sizeof distroName);
+      Str_Strcpy(detailedDataFields[DISTRO_NAME].value, lsbStart,
+                 sizeof detailedDataFields[DISTRO_NAME].value);
       free(lsbOutput);
 
       /* When using lsb_release, the distro is filled in by the discription
-       * (pretty name) */
-      Str_Strcpy(distroDescription, distro, sizeof distroDescription);
+       * (pretty name).
+       */
+      Str_Strcpy(detailedDataFields[PRETTY_NAME].value, distro,
+                 sizeof detailedDataFields[PRETTY_NAME].value);
 
       success = TRUE;
-   }
-
-   if (success) {
-      Str_Strcpy(detailedDataFields[DISTRO_NAME].value, distroName,
-                 sizeof detailedDataFields[DISTRO_NAME].value);
-      Str_Strcpy(detailedDataFields[DISTRO_VERSION].value, distroRelease,
-                 sizeof detailedDataFields[DISTRO_VERSION].value);
-      Str_Strcpy(detailedDataFields[PRETTY_NAME].value, distroDescription,
-                 sizeof detailedDataFields[PRETTY_NAME].value);
    }
 
    return success;
