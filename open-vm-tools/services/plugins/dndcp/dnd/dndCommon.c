@@ -194,7 +194,7 @@ DnD_AppendPrefixToStagingDir(const char *stagingDir, // IN:
    }
 
    newDir = Unicode_Insert(stagingDir, Unicode_LengthInCodePoints(dndRoot), prefix);
-   if (0 != File_Rename(stagingDir, newDir)) {
+   if (!File_Move(stagingDir, newDir, NULL)) {
       free(newDir);
       newDir = NULL;
    }
