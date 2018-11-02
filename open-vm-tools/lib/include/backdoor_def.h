@@ -237,6 +237,7 @@ extern "C" {
 #  define BDOOR_CMD_GMM_MAP_MEMORY            1
 #  define BDOOR_CMD_GMM_GET_PPN_AND_SZ        2 /* Devel only. */
 #  define BDOOR_CMD_GMM_ENTER                 3
+#  define BDOOR_CMD_GMM_ONESHOT_TIMER         4
 #define   BDOOR_CMD_MAX                      97
 
 
