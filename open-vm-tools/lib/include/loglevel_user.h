@@ -330,7 +330,8 @@
    LOGLEVEL_VAR(amdIommu), \
    LOGLEVEL_VAR(vmOvhd), \
    LOGLEVEL_VAR(assignHw), \
-   LOGLEVEL_VAR(directBoot)
+   LOGLEVEL_VAR(directBoot), \
+   LOGLEVEL_VAR(vwdt),
 
    /* end of list */
 
