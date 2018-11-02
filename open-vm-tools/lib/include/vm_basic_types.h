@@ -854,7 +854,7 @@ typedef void * UserVA;
  * will convert any !=0 to a 1.
  */
 #define LIKELY(_exp)     __builtin_expect(!!(_exp), 1)
-#define UNLIKELY(_exp)   __builtin_expect((_exp), 0)
+#define UNLIKELY(_exp)   __builtin_expect(!!(_exp), 0)
 #else
 #define LIKELY(_exp)      (_exp)
 #define UNLIKELY(_exp)    (_exp)
