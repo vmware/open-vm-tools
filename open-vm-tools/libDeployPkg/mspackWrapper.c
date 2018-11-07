@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -78,6 +78,7 @@ DefaultLog(int logLevel, const char* fmtstr, ...)
    va_list args;
    va_start(args, fmtstr);
    printf(fmtstr, args);
+   va_end(args);
 }
 
 

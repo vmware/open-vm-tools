@@ -139,7 +139,7 @@ static bool CopyFileToDirectory(const char* srcPath, const char* destPath,
                                 const char* fileName);
 static DeployPkgStatus Deploy(const char* pkgName);
 static char** GetFormattedCommandLine(const char* command);
-int ForkExecAndWaitCommand(const char* command);
+int ForkExecAndWaitCommand(const char* command, bool ignoreStdErr);
 static void SetDeployError(const char* format, ...);
 static const char* GetDeployError(void);
 static void NoLogging(int level, const char* fmtstr, ...);
@@ -172,6 +172,7 @@ Panic(const char *fmtstr, ...)
 
    va_start(args, fmtstr);
    vsprintf(tmp, fmtstr, args);
+   va_end(args);
 
    sLog(log_error, "Panic callback invoked: %s\n", tmp);
 
@@ -202,6 +203,7 @@ Debug(const char *fmtstr, ...)
 
    va_start(args, fmtstr);
    vsprintf(tmp, fmtstr, args);
+   va_end(args);
 
    sLog(log_debug, "Debug callback invoked: %s\n", tmp);
 
@@ -376,6 +378,7 @@ SetDeployError(const char* format, ...)
    if (tmp) {
       va_start(args, format);
       vsprintf(tmp, format, args);
+      va_end(args);
    }
 
    if (gDeployError) {
@@ -920,7 +923,7 @@ CloudInitSetup(const char *tmpDirPath)
             "/bin/mkdir -p %s", cloudInitTmpDirPath);
    command[sizeof(command) - 1] = '\0';
 
-   forkExecResult = ForkExecAndWaitCommand(command);
+   forkExecResult = ForkExecAndWaitCommand(command, false);
    if (forkExecResult != 0) {
       SetDeployError("Error creating %s dir: %s",
                      cloudInitTmpDirPath,
@@ -937,7 +940,7 @@ CloudInitSetup(const char *tmpDirPath)
             "/usr/bin/test -f %s/nics.txt", tmpDirPath);
    command[sizeof(command) - 1] = '\0';
 
-   forkExecResult = ForkExecAndWaitCommand(command);
+   forkExecResult = ForkExecAndWaitCommand(command, false);
 
    /*
     * /usr/bin/test -f returns 0 if the file exists
@@ -946,7 +949,7 @@ CloudInitSetup(const char *tmpDirPath)
     */
    if (forkExecResult == 0) {
       sLog(log_info, "nics.txt file exists. Copying..");
-      if(!CopyFileToDirectory(tmpDirPath, cloudInitTmpDirPath, "nics.txt")) {
+      if (!CopyFileToDirectory(tmpDirPath, cloudInitTmpDirPath, "nics.txt")) {
          goto done;
        }
    }
@@ -973,7 +976,7 @@ CloudInitSetup(const char *tmpDirPath)
    }
 
    sLog(log_info, "Copying main configuration file cust.cfg");
-   if(!CopyFileToDirectory(tmpDirPath, cloudInitTmpDirPath, "cust.cfg")) {
+   if (!CopyFileToDirectory(tmpDirPath, cloudInitTmpDirPath, "cust.cfg")) {
       goto done;
    }
 
@@ -992,7 +995,7 @@ done:
                   "/bin/rm -rf %s",
                   cloudInitTmpDirPath);
          command[sizeof(command) - 1] = '\0';
-         ForkExecAndWaitCommand(command);
+         ForkExecAndWaitCommand(command, false);
       }
       sLog(log_error, "Setting generic error status in vmx. \n");
       SetCustomizationStatusInVmx(TOOLSDEPLOYPKG_RUNNING,
@@ -1016,7 +1019,7 @@ CopyFileToDirectory(const char* srcPath, const char* destPath,
    snprintf(command, sizeof(command), "/bin/cp %s/%s %s/%s.tmp", srcPath,
             fileName, destPath, fileName);
    command[sizeof(command) - 1] = '\0';
-   forkExecResult = ForkExecAndWaitCommand(command);
+   forkExecResult = ForkExecAndWaitCommand(command, false);
    if (forkExecResult != 0) {
       SetDeployError("Error while copying file %s: %s", fileName,
                      strerror(errno));
@@ -1026,7 +1029,7 @@ CopyFileToDirectory(const char* srcPath, const char* destPath,
             fileName, destPath, fileName);
    command[sizeof(command) - 1] = '\0';
 
-   forkExecResult = ForkExecAndWaitCommand(command);
+   forkExecResult = ForkExecAndWaitCommand(command, false);
    if (forkExecResult != 0) {
       SetDeployError("Error while renaming temp file %s: %s", fileName,
                      strerror(errno));
@@ -1090,7 +1093,7 @@ UseCloudInitWorkflow(const char* dirPath)
       sLog(log_info, "cust.cfg is found in '%s' directory.", dirPath);
    }
 
-   forkExecResult = ForkExecAndWaitCommand(cloudInitCommand);
+   forkExecResult = ForkExecAndWaitCommand(cloudInitCommand, true);
    if (forkExecResult != 0) {
       sLog(log_info, "cloud-init is not installed");
       free(cfgFullPath);
@@ -1194,7 +1197,7 @@ Deploy(const char* packageName)
       deployPkgStatus = CloudInitSetup(tmpDirPath);
    } else {
       sLog(log_info, "Executing traditional GOSC workflow");
-      deploymentResult = ForkExecAndWaitCommand(command);
+      deploymentResult = ForkExecAndWaitCommand(command, false);
       free(command);
 
       if (deploymentResult != CUST_SUCCESS) {
@@ -1260,7 +1263,7 @@ Deploy(const char* packageName)
    strcat(cleanupCommand, tmpDirPath);
 
    sLog(log_info, "Launching cleanup. \n");
-   if (ForkExecAndWaitCommand(cleanupCommand) != 0) {
+   if (ForkExecAndWaitCommand(cleanupCommand, false) != 0) {
       sLog(log_warning, "Error while clean up tmp directory %s: (%s)",
            tmpDirPath, strerror (errno));
    }
@@ -1289,7 +1292,7 @@ Deploy(const char* packageName)
          int rebootComandResult = 0;
          do {
             sLog(log_info, "Rebooting\n");
-            rebootComandResult = ForkExecAndWaitCommand("/sbin/telinit 6");
+            rebootComandResult = ForkExecAndWaitCommand("/sbin/telinit 6", false);
             sleep(1);
          } while (rebootComandResult == 0);
          sLog(log_error, "telinit returned error %d\n", rebootComandResult);
@@ -1499,12 +1502,13 @@ GetFormattedCommandLine(const char* command)
  * Fork off the command and wait for it to finish. Classical Linux/Unix
  * fork-and-exec.
  *
- * @param   [IN]  command  Command to execute
+ * @param   [IN]  command       Command to execute
+ * @param   [IN]  ignoreStdErr  If we ignore stderr when cmd's return code is 0
  * @return  Return code from the process (or -1)
  *
  **/
 int
-ForkExecAndWaitCommand(const char* command)
+ForkExecAndWaitCommand(const char* command, bool ignoreStdErr)
 {
    ProcessHandle hp;
    int retval;
@@ -1522,14 +1526,30 @@ ForkExecAndWaitCommand(const char* command)
 
    Process_RunToComplete(hp, 100);
    sLog(log_info, "Customization command output: %s\n", Process_GetStdout(hp));
+   retval = Process_GetExitCode(hp);
 
-   if(Process_GetExitCode(hp) == 0 && strlen(Process_GetStderr(hp)) > 0) {
-      // Assume command failed if it wrote to stderr, even if exitCode is 0
-      sLog(log_error, "Customization command failed: %s\n", Process_GetStderr(hp));
-      retval = -1;
+   if (retval == 0) {
+      if (strlen(Process_GetStderr(hp)) > 0) {
+         if (!ignoreStdErr) {
+            // Assume command failed if it wrote to stderr, even if exitCode is 0
+            sLog(log_error,
+                 "Customization command failed with stderr: %s\n",
+                 Process_GetStderr(hp));
+            retval = -1;
+         } else {
+            // If we choose to ignore stderr, we do not return -1 when return
+            // code is 0. e.g, PR2148977, "cloud-init -v" will return 0
+            // even there is output in stderr
+            sLog(log_info, "Ignoring stderr output: %s\n", Process_GetStderr(hp));
+         }
+      }
    } else {
-      retval = Process_GetExitCode(hp);
+      sLog(log_error,
+           "Customization command failed with exitcode: %d, stderr: %s\n",
+           retval,
+           Process_GetStderr(hp));
    }
+
    Process_Destroy(hp);
    return retval;
 }
