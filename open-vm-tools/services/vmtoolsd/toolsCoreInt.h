@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -110,6 +110,9 @@ ToolsCore_DumpPluginInfo(ToolsServiceState *state);
 
 void
 ToolsCore_DumpState(ToolsServiceState *state);
+
+guint
+ToolsCore_GetVmusrLimit(ToolsServiceState *state);
 
 const char *
 ToolsCore_GetTcloName(ToolsServiceState *state);

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -373,7 +373,7 @@ HgfsSetAttrCache(const char* path,         //IN: Path of file or directory
 
    tmp = malloc(sizeof(HgfsAttrCache) + strlen(path) + 1);
    if (tmp == NULL) {
-      return -ENOMEM;
+      res = -ENOMEM;
       goto out;
    }
 

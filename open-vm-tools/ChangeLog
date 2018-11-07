@@ -1,3 +1,339 @@
+commit 583fc02dbee4ba88a20c67a0f5e5a9b023b551ea
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Nov 6 17:14:40 2018 -0800
+
+    bump version and build number
+
+commit d51ec15038c43472e9bc48de7081b0954a122f97
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Nov 6 17:13:04 2018 -0800
+
+    sync deploypkg files
+
+commit b4b07f53c71a83beed8fdc11f2dfeeb43aa20fda
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Fri Oct 5 13:55:27 2018 -0700
+
+    Use bitwise AND operation while fetching current IOPL.
+    
+    Iopl_Get() was using logical AND operation which could result
+    in wrong IOPL value. We should be using bitwise AND instead.
+
+commit 87593b29e5c337141be65e4430fb95a4f1741afb
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Fri Oct 5 13:55:27 2018 -0700
+
+    Optional override for short and long OS names sent from Tools
+    
+    Added support for customers to override the returned long and short OS
+    names through the tools config file. If the setting is present, then names
+    gathered by hostinfo will be ignored. The user is responsible for setting
+    the appropriate names.
+    
+    The override will be ignored if the short-name setting is not present in
+    tools.conf.
+    
+    An empty string will be sent for the long OS name if only the short-name
+    setting is present.
+    
+    Appropriate warning msg will be generated in both cases.
+    
+    Example of the conf setting:
+    
+    [guestosinfo]
+    short-name = centos6-64
+    long-name = some long name
+
+commit b08cd0da457263f80e84ca95348c2a97cb7e22a5
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon Sep 17 16:41:19 2018 -0700
+
+    Hgfs Server Linux: fix the share permissions on a file rename or delete
+    
+    Coverity found that the argumeents to obtain the share permissions
+    on a file rename were swapped. Even though they are tested together
+    in an if statement which is not an issue, it could be in the future.
+    
+    Reverse arguments so the share read and write permissions are correct.
+
+commit bdde701699212ca7fb118f3a49a9bbc7fb06df68
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon Sep 17 16:41:18 2018 -0700
+
+    Hgfs FUSE Client: fix missing pthread_mutex_unlock call
+    
+    Fix missing pthread_mutex_unlock call in HgfsSetAttrCache when
+    updating the cached attributes on a file and a memory allocation
+    fails.
+
+commit 01376aca4d4bee5efed9b4b2597d141722a7feb5
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon Sep 17 16:41:18 2018 -0700
+
+    Bump up the SYSIMAGE_VERSION for VMware Tools 10.3.5
+
+commit 7fc13e2b58dc91627d4ff78fd532b77898adf2d2
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon Sep 17 16:41:18 2018 -0700
+
+    Update the copyright year for OVT bundled files modified since 10.3.2
+
+commit c7a186e204cdff46b5e02bcb5208ef8979eaf261
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon Sep 17 16:41:18 2018 -0700
+
+    Handle Linux kernel /proc FS uint32 type stat overflow when calculating
+    tools rate stats.
+    
+    On both 32-bit and 64-bit Linux, tools always parses Linux kernel /proc
+    FS stats as uint64 values.  For rate stats, current - previous can handle
+    uint64 type stat overflow, but not uint32 type.
+
+commit 064d0a3458991f0c34a397664b6b5cd8cc00e5b3
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon Sep 17 16:41:18 2018 -0700
+
+    nicinfo: skip loopback devices
+    
+    When libdnet isn't used, loopback devices were reported. This change
+    skips these interfaces. Also skip interfaces that are down.
+    
+    The interface was visible with vim-cmd, but not in the VC or
+    ESX UI. It did not contain any IP addresses.
+
+commit 8979f11f78ef7fdbb51afa298896e06b4d874e5b
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon Sep 17 16:41:18 2018 -0700
+
+    Allow only a single instance of vmusr when multiple users are logged into a VM
+    
+    When a vmusr process gets the "channel conflict" error while attempting
+    to open the toolbox-dnd channel, a channel reset is triggered.  That
+    reset results in the channel being restarted and a subsequent conflict
+    and reset occurs - every second until the channel becomes available.
+    
+    For *nix guests:
+    The fix is making use of the repetitive channel resets where the only
+    RpcIn message received is a "reset" to catch this channel "permanently"
+    unavailable state.  If other RpcIn messages are received, a channel
+    is considered to be working and the cumulative error count is cleared..
+    
+    lib/rpcin/rpcin.c:
+    - struct RpcIn: Added error status boolean and callback function to
+                    notify the dependent layer that a channel error has been
+                    resolved.
+    - RpcInLoop(): If a non "reset" message is received, clear any channel
+                   error status.  This will also notify the dependent layer
+                   that the channel is functioning.
+    - RpcIn_start(): Added additional argument for new callback; NULL if
+                     not needed.
+    
+    lib/rpcChannel/rpcChannel.c:
+    - struct rpcChannelInt:
+      - Renamed "rpcErrorCount" to "rpcResetErrorCount" since it is actually
+        a count of the consecutive channel reset failures and not a count
+        of RpcChannel errors.
+      - Added counter "rpcFailureCount" for the cumulative channel errors.
+      - Added "rpcFailureCb" for optional callback to notify the app of a
+        "permanent" channel failure.
+    - New function RpcChannelClearError() for RpcIn to notify when the
+      channel is working; to clear the rpcFailureCount .
+    - RpcChannel_Setup() - added two arguments for (1) an optional function
+                           to be called when there is a channel failure
+                           and (2) a failure count threshold.
+                           These optional values are stored in the
+                           RpcChannel structure being created.
+    - RpcChannelError(): Added logic to notify the calling app if the error
+                         threshold has been reached and notify the app if a
+                         callback was provided. A zero threshold signifies
+                         the single vmusr limit should not be enforced.
+                         (fix disable switch).
+    
+    services/vmtoolsd/mainLoop.c:
+    - New function ToolsCore_GetVmusrLimit() to retrieve the channel error
+      threshold default or over-ride from tools.conf.
+    
+    services/vmtoolsd/toolsRpc.c:
+    - Added ToolsCoreAppChannelFail(): Callback for "permanent" channel
+      connection failure.  A warning is logged based on whether another
+      "vmtoolsd -n vmusr" is running or not and the process is terminated.
+      On Mac OS, the process is terminated with exit(1) as an indication
+      to launchd that the vmusr process should not automatically be
+      restarted.
+    
+    The current implementation uses the error callback only for the vmusr
+    server on Linux (*nix).
+    The default channel error limit is 5 (approx. 5 second), but is user
+    configurable in tools.conf.
+    
+       [vmusr]
+       maxChannelAttempts = n    # where allowed n = 0, 3-15
+    
+    When "maxChannelAttempts = 0" is used, the restriction to a single
+    running vmusr process is not enforced.   The existing behavior is
+    restored with all the accompanying VMX log spew.  This is essentially
+    a user configurable feature disablement switch.
+
+commit 0c34a86b232a9904941f825ce8b16320cadaace1
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon Sep 17 16:41:17 2018 -0700
+
+    Changes to common header files not directly applicable to open-vm-tools
+    
+    VGAuth Windows: fix file properties product version and file version
+    
+    Product name of the VGAuth binaries are set to VMware Workstation and
+    the Product version set to experimental (e.x.p).
+    
+    Experimental version has the e.x.p build number in the Product Version
+    field of each of the shipped binaries. Now that we are WHQL signing a DLL too
+    for security it does make sense for the feature to use an official version.
+    
+    This changes the Product name and version fields from
+    Product name -> VMware Workstation
+    Product version -> e.x.p build-4013326
+    
+    to
+    Product name -> VMware Guest Authentication
+    Product version -> 1.0.0 build-4013326
+
+commit 5f5a7f4a0984ee35ce79d736426a5335c91da332
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Fri Sep 7 15:53:28 2018 -0700
+
+    Remove vmxnet and vmxnet3 drivers from FreeBSD builds and open-vm-tools
+    
+    The vmxnet (version 1) network driver is not supported by any currently
+    supported VMware virtualization platform. Removing the FreeBSD
+    specific vmxnet source and deleting the vmxnet.ko driver build from
+    the tools and the open-vm-tools builds.
+    
+    FreeBSD has their own vmxnet3 network driver based on community source
+    and has never made use of the vmxnet3 source code or drivers from
+    VMware.  Removing the unneeded FreeBSD vmxnet3 source and builds
+
+commit 1a413064fee53ac3e334e96c546886e60724d07a
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Fri Sep 7 15:53:27 2018 -0700
+
+    Update SSL configuration with more secure settings.
+    
+    Due to SSL issues in the past, The preference is to have default
+    settings to be more secure than compatible.  This change mainly
+    inherits the default settings from ssl.c.
+
+commit 450aca9f244b5e56bcef130df1a06137fd1f07e0
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Fri Sep 7 15:53:27 2018 -0700
+
+    Add virbr* interfaces on RHEL to the default exclude-nics.
+
+commit 5a6e8bc0ef8af2eedbbc4dc1973cb7fe18afa939
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Fri Sep 7 15:53:27 2018 -0700
+
+    Fix a gcc-8 compiler warning in lib/misc/vthreadBase.c
+    
+    gcc-8 generates a stringop-truncation warning when it's possible
+    for strncpy to exclude the trailing nul.  The code was fine, we never
+    touch the last byte in the buffer and it's a static, but explicitly
+    set a nul at the end of the buffer so gcc sees it.
+    
+    This is needed for open-vm-tools to build on Suse Tumbleweed.
+
+commit 5200ba3a770463e5c6a9e9d7e7a6a949857332ec
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Fri Sep 7 15:53:27 2018 -0700
+
+    Return proper vix error code when guest op VIX_COMMAND_DELETE_GUEST_DIRECTORY_EX fails.
+
+commit 8ffda7dbae4b916b28e3f903554bc37db1d5f974
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Fri Sep 7 15:53:27 2018 -0700
+
+    Make Tools logfiles readable only by owner and root
+
+commit b0e2fab2787fbc511d240c4ce0f52a74b55152fe
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Fri Sep 7 15:53:27 2018 -0700
+
+    Reduce quiesced snapshot warning messages when running on older hosts.
+    
+    vSphere 6.7 added a new interface on the host side that allows tools
+    to send a "generic" backup manifest during a quiesced snapshot on
+    Linux guests. VMTools 10.2.0 or later will try to send the manifest
+    file and if the host is unable to field it, then VMTools logs this
+    information and continues with the quiesced snapshot in the older
+    fashion.  This change reduces the logging that is done in this case.
+
+commit a4b4c338f1202d161e8cad2eb7cf78d44f2fd302
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Fri Sep 7 15:53:27 2018 -0700
+
+    Common source file change not directly applicable to open-vm-tools
+    
+    Verify existence of the returned path, retry the guest OP
+    CreateTemporaryFileInGuest/CreateTemporaryDirectoryInGuest using system
+    temp folder if the path disappears.
+
+commit b6c450d123141a752bd4805263b7d476f5b1f26b
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Fri Sep 7 15:53:27 2018 -0700
+
+    Fix coverity complaint; not a real bug
+
+commit 23bd37544bb9ae4069002d73cb1c1b40e221d36a
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Fri Sep 7 15:53:27 2018 -0700
+
+    Common source file change not directly applicable to open-vm-tools.
+
+commit c2dd430ea5c8c9309700d25548513469dae68c9b
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Fri Sep 7 15:53:26 2018 -0700
+
+    Disable hgfsServer plugin when not running in a VMware VM.
+    
+    VmCheck_GetVersion() accesses Backdoor in an unsafe manner
+    which is not expected to work on non-VMware environments
+    including physical machines. So, we need to make sure that
+    VmCheck_GetVersion() is called only when we are running in
+    a VMware VM.
+
+commit 31a60ab3529a8dad8d602a524d194013d90abeec
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Fri Sep 7 15:53:26 2018 -0700
+
+    Expose more guest stats for vROPS to report the exact physical memory
+    stats as the guest OS UI does.
+    
+    Windows:
+    guest.mem.modifiedPages (Win32_PerfRawData_PerfOS_Memory#ModifiedPageListBytes)
+    guest.mem.standby.core (Win32_PerfRawData_PerfOS_Memory#StandbyCacheCoreBytes)
+    guest.mem.standby.normal (Win32_PerfRawData_PerfOS_Memory#StandbyCacheNormalPriorityBytes)
+    guest.mem.standby.reserve (Win32_PerfRawData_PerfOS_Memory#StandbyCacheReserveBytes)
+    
+    Linux:
+    guest.mem.total (/proc/meminfo#MemTotal)
+    guest.mem.buffers (/proc/meminfo#Buffers)
+    guest.mem.cached (/proc/meminfo#Cached)
+    guest.mem.slabReclaim (/proc/meminfo#SReclaimable)
+    guest.mem.available (/proc/meminfo#MemAvailable since Linux 3.14, emulated by VMTools for kernels 2.6.27+)
+
+commit 0b01aefe3ee960c6035863bcf4fd7e2ff654b99b
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Fri Sep 7 15:53:26 2018 -0700
+
+    Update the tools version to 10.3.5
+    
+    Set the tools version in vm_tools_version.h to be
+    TOOLS_VERSION_JACKHAMMER_UPDATE1 = 10.3.5.
+
+commit 2147df6aabe639fc5ff423ed791a8e7f02bf8d0a
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Fri Jul 13 11:54:23 2018 -0700
+
+    prepare for 10.3.0 release
 commit a30d7aaa4d10fbce4b7d262487fffaf1dc32d949
 Author: Oliver Kurth <okurth@vmware.com>
 Date:   Fri Jul 6 14:31:55 2018 -0700

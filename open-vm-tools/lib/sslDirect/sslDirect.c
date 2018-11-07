@@ -810,9 +810,63 @@ SSL_TryCompleteAccept(SSLSock ssl) // IN
  *
  * For the VMware Product Security Policy approved ciphers, see
  * https://wiki.eng.vmware.com/VSECR/vSDL/PSP/PSPRequirements#.C2.A0.C2.A0.5B3.3.E2.80.93M.5D_TLS_Cipher-Suites
+ *
+ * This list is tweaked to sort by GCM instead of by key size, as GCM adds
+ * much more value than a large AES key.
  */
 #define SSL_CIPHER_LIST \
-   "!aNULL:kECDH+AES:ECDH+AES:RSA+AES:@STRENGTH"
+   "!aNULL:kECDH+AESGCM:ECDH+AESGCM:RSA+AESGCM:kECDH+AES:ECDH+AES:RSA+AES"
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * SSLGetDefaultProtocolFlags --
+ *
+ *      Configured default SSL_CTX options (protocol subset).
+ *
+ * Results:
+ *      Value suitable for SSL_CTX_set_options()
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static long
+SSLGetDefaultProtocolFlags(void)
+{
+   static long sslProtocolFlags;
+
+   if (UNLIKELY(sslProtocolFlags == 0)) {
+      /* Configuration is idempotent, so allow racy init */
+      long flags;
+
+      /*
+       * Default disable ALL protocols.
+       */
+#ifdef SSL_OP_NO_SSL_MASK
+      /*
+       * openssl-1.0.2 adds SSL_OP_NO_SSL_MASK.
+       */
+      flags = SSL_OP_NO_SSL_MASK;
+#else
+      /*
+       * Pre-openssl-1.0.2 don't have SSL_OP_NO_SSL_MASK
+       * which is this logical or for older versions.
+       */
+      flags = SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 |
+              SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2;
+#endif
+
+      /*
+       * TLSv1.2 is the recommended minimum.
+       */
+      flags &= ~SSL_OP_NO_TLSv1_2;
+
+      sslProtocolFlags = flags;
+      ASSERT(sslProtocolFlags != 0); // self-init logic expects SSL_OP_NO_SSLv2
+   }
+   return sslProtocolFlags;
+}
 
 
 /*
@@ -829,7 +883,7 @@ void *
 SSL_NewContext(void)
 {
    SSL_CTX *ctx;
-   long ctxOptions;
+   long options;
 
    ctx = SSL_CTX_new(SSLv23_method());
 
@@ -840,25 +894,38 @@ SSL_NewContext(void)
    }
 
    /*
-    * Disable SSLv2/SSLv3 and enable all known bug workarounds.
+    * Avoid using SSL_OP_ALL. Though it has workarounds for old/buggy
+    * implementations and "should be safe", some of the workarounds
+    * are known to allow certain attacks.
+    *
+    * DONT_INSERT_EMPTY_FRAGMENTS is necessary as some clients (e.g. Java)
+    * are unable to cope with this SSLv3 BEAST mitigation.
     */
-   ctxOptions = SSL_OP_ALL | SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 |
-                SSL_OP_SINGLE_DH_USE |
-                SSL_OP_CIPHER_SERVER_PREFERENCE;
+   options = SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS;
+
+   /* Protocols are handled separately. */
+   options |= SSLGetDefaultProtocolFlags();
 
    /*
-    * Also turn off support for TLS ticket-based session resumption (RFC 4507)
-    * since this will cause connections to older versions of OpenSSL to fail.
-    * This was enabled by default starting with OpenSSL 0.9.8j.
+    * CVE-2016-0701: OpenSSL now internally sets SSL_OP_SINGLE_DH_USE
+    * as of 1.0.2f/1.0.1r, making the flag a no-op.
     */
-   ctxOptions |= SSL_OP_NO_TICKET;
+   options |= SSL_OP_SINGLE_DH_USE | SSL_OP_SINGLE_ECDH_USE;
 
-   /* SSL compression can be disabled per-context starting in OpenSSL 1.0.0 */
-#ifdef SSL_OP_NO_COMPRESSION
-      ctxOptions |= SSL_OP_NO_COMPRESSION;
-#endif
+   /*
+    * Server preference for cipher, not client preference. Allows
+    * properly-configured servers to enforce secure communication despite
+    * misconfigured clients.
+    */
+   options |= SSL_OP_CIPHER_SERVER_PREFERENCE;
 
-   SSL_CTX_set_options(ctx, ctxOptions);
+   /* Do not make use of TLS ticket-based session resumption (RFC 4507) */
+   options |= SSL_OP_NO_TICKET;
+
+   /* SSL compression is a security risk (see: CRIME), removed in TLSv1.3 */
+   options |= SSL_OP_NO_COMPRESSION;
+
+   SSL_CTX_set_options(ctx, options);
 
    /*
     * Automatically retry an operation that failed with

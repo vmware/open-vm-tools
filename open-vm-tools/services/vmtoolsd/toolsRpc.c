@@ -110,6 +110,73 @@ ToolsCoreCheckReset(RpcChannel *chan,
 }
 
 
+#if !defined(_WIN32)
+/**
+ * ToolsCoreAppChannelFail --
+ *
+ * Call-back function for RpcChannel to report that the RPC channel for the
+ * toolbox-dnd (vmusr) application cannot be acquired. This would signify
+ * that the channel is currently in use by another vmusr process.
+ *
+ * @param[in]  _state   The service state.
+ */
+
+static void
+ToolsCoreAppChannelFail(UNUSED_PARAM(gpointer _state))
+{
+   char *cmdGrepVmusrTools;
+#if !defined(__APPLE__)
+   ToolsServiceState *state = _state;
+#endif
+#if defined(__linux__) || defined(__FreeBSD__) || defined(sun)
+   static const char  *vmusrGrepExpr = "'vmtoolsd.*vmusr'";
+#if defined(sun)
+   static const char *psCmd = "ps -aef";
+#else
+   static const char *psCmd = "ps ax";     /* using BSD syntax */
+#endif
+#else  /* Mac OS */
+   static const char  *vmusrGrepExpr = "'vmware-tools-daemon.*vmusr'";
+   static const char *psCmd = "ps -ex";
+#endif
+
+   cmdGrepVmusrTools = Str_Asprintf(NULL, "%s | egrep %s | egrep -v 'grep|%d'",
+                                    psCmd, vmusrGrepExpr, (int) getpid());
+
+   /*
+    * Check if there is another vmtoolsd vmusr process running on the
+    * system and log the appropriate warning message before terminating
+    * this vmusr process.
+    */
+   if (system(cmdGrepVmusrTools) == 0) {
+      g_warning("Exiting the vmusr process. Another vmusr process is "
+                "currently running.\n");
+   } else {
+      g_warning("Exiting the vmusr process; unable to acquire the channel.\n");
+   }
+   free(cmdGrepVmusrTools);
+
+#if !defined(__APPLE__)
+   if (g_main_loop_is_running(state->ctx.mainLoop)) {
+      g_warning("Calling g_main_loop_quit() to terminate the process.\n");
+      g_main_loop_quit(state->ctx.mainLoop);
+   } else {
+      g_warning("Exiting the process.\n");
+      exit(1);
+   }
+#else  /* Mac OS */
+   /*
+    * On Mac OS X, always exit with non-zero status. This is a signal to
+    * launchd that the vmusr process had a "permanent" failure and should
+    * not be automatically restarted for this user session.
+    */
+   g_warning("Exiting the process.\n");
+   exit(1);
+#endif
+}
+#endif
+
+
 /**
  * Checks all loaded plugins for their capabilities, and sends the data to the
  * host. The code will try to send all capabilities, just logging errors as
@@ -322,12 +389,31 @@ ToolsCore_InitRpc(ToolsServiceState *state)
    }
 
    if (state->ctx.rpc) {
+
+      /*
+       * Default tools RpcChannel setup: No channel error threshold limit and
+       *                                 no notification callback function.
+       */
+      RpcChannelFailureCb failureCb = NULL;
+      guint errorLimit = 0;
+
+#if !defined(_WIN32)
+
+      /* For the *nix user service app. */
+      if (TOOLS_IS_USER_SERVICE(state)) {
+         failureCb = ToolsCoreAppChannelFail;
+         errorLimit = ToolsCore_GetVmusrLimit(state);
+      }
+#endif
+
       RpcChannel_Setup(state->ctx.rpc,
                        app,
                        mainCtx,
                        &state->ctx,
                        ToolsCoreCheckReset,
-                       state);
+                       state,
+                       failureCb,
+                       errorLimit);
 
       /* Register the "built in" RPCs. */
       for (i = 0; i < ARRAYSIZE(rpcs); i++) {

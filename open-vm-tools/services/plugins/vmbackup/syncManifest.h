@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2017-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -45,6 +45,9 @@ SyncManifestSend(SyncManifest *manifest);
 void
 SyncManifestRelease(SyncManifest *manifest);
 
+void
+SyncManifestReset(void);
+
 #else /* !defined(__linux__) */
 
 typedef void SyncManifest;
@@ -52,6 +55,7 @@ typedef void SyncManifest;
 #define SyncNewManifest(s, h)            (NULL)
 #define SyncManifestSend(m)              (TRUE)
 #define SyncManifestRelease(m)           ASSERT(m == NULL)
+#define SyncManifestReset()
 
 #endif /* defined(__linux__) */
 

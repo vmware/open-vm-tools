@@ -487,6 +487,7 @@ static const char *fileExtendedInfoLinuxFormatString = "<fxi>"
 
 static VixError VixToolsGetTempFile(VixCommandRequestHeader *requestMsg,
                                     void *userToken,
+                                    Bool useSystemTemp,
                                     char **tempFile,
                                     int *tempFileFd);
 
@@ -515,6 +516,10 @@ static VixError VixToolsMoveObject(VixCommandRequestHeader *requestMsg);
 
 static VixError VixToolsCreateTempFile(VixCommandRequestHeader *requestMsg,
                                        char **result);
+
+static VixError VixToolsCreateTempFileInt(VixCommandRequestHeader *requestMsg,
+                                          Bool useSystemTemp,
+                                          char **result);
 
 static VixError VixToolsReadVariable(VixCommandRequestHeader *requestMsg,
                                      char **result);
@@ -3731,7 +3736,7 @@ abort:
  *
  * VixToolsCreateTempFile --
  *
- *    Create a temporary file on the guest.
+ *    Wrapper to call VixToolsCreateTempFileInt.
  *
  * Return value:
  *    VixError
@@ -3745,6 +3750,52 @@ abort:
 VixError
 VixToolsCreateTempFile(VixCommandRequestHeader *requestMsg,   // IN
                        char **result)                         // OUT: UTF-8
+{
+   VixError err = VixToolsCreateTempFileInt(requestMsg, FALSE, result);
+#ifdef _WIN32
+   /*
+    * PR 2155708: CreateTemporaryFileInGuest succeeds and returns a file
+    * path that does not exist when using user name format "domain\user"
+    * if the user does not have a profile folder created before, such as
+    * by interactively logging onto Windows. What happens here is that
+    * Win32 API UnloadUserProfile() deletes the temp user profile folder
+    * "C:\Users\TEMP" in the end.
+    * Verify existence of the returned path, retry the guest OP using
+    * system temp folder if the path disappears.
+    */
+   if (VIX_SUCCEEDED(err) && *result != NULL && !File_Exists(*result)) {
+      g_warning("%s: '%s' does not exist, retry using system temp.\n",
+                __FUNCTION__, *result);
+      free(*result);
+      *result = NULL;
+      err = VixToolsCreateTempFileInt(requestMsg, TRUE, result);
+   }
+#endif
+
+   return err;
+} // VixToolsCreateTempFile
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixToolsCreateTempFileInt --
+ *
+ *    Create a temporary file on the guest.
+ *
+ * Return value:
+ *    VixError
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixError
+VixToolsCreateTempFileInt(VixCommandRequestHeader *requestMsg,   // IN
+                          Bool useSystemTemp,                    // IN
+                          char **result)                         // OUT: UTF-8
 {
    VixError err = VIX_OK;
    char *filePathName = NULL;
@@ -3771,7 +3822,8 @@ VixToolsCreateTempFile(VixCommandRequestHeader *requestMsg,   // IN
    g_debug("%s: User: %s\n",
            __FUNCTION__, IMPERSONATED_USERNAME);
 
-   err = VixToolsGetTempFile(requestMsg, userToken, &filePathName, &fd);
+   err = VixToolsGetTempFile(requestMsg, userToken, useSystemTemp,
+                             &filePathName, &fd);
    if (VIX_FAILED(err)) {
       goto abort;
    }
@@ -3803,7 +3855,7 @@ abort:
              requestMsg->opCode, err);
 
    return err;
-} // VixToolsCreateTempFile
+} // VixToolsCreateTempFileInt
 
 
 /*
@@ -8215,6 +8267,7 @@ abort:
 static VixError
 VixToolsGetTempFile(VixCommandRequestHeader *requestMsg,   // IN
                     void *userToken,                       // IN
+                    Bool useSystemTemp,                    // IN
                     char **tempFile,                       // OUT
                     int *tempFileFd)                       // OUT
 {
@@ -8311,7 +8364,20 @@ VixToolsGetTempFile(VixCommandRequestHeader *requestMsg,   // IN
       if (!(strcmp(directoryPath, ""))) {
          free(directoryPath);
          directoryPath = NULL;
-         err = VixToolsGetUserTmpDir(userToken, &directoryPath);
+         if (useSystemTemp) {
+            wchar_t tempPath[MAX_PATH];
+            DWORD dwRet = GetTempPathW(ARRAYSIZE(tempPath), tempPath);
+            if (0 < dwRet && dwRet < ARRAYSIZE(tempPath)) {
+               directoryPath = Unicode_AllocWithUTF16(tempPath);
+               err = VIX_OK;
+            } else {
+               g_warning("%s: unable to get temp path: windows error code %d\n",
+                         __FUNCTION__, GetLastError());
+               err = VIX_E_FAIL;
+            }
+         } else {
+            err = VixToolsGetUserTmpDir(userToken, &directoryPath);
+         }
       } else {
          /*
           * Initially, when 'err' variable is defined, it is initialized to

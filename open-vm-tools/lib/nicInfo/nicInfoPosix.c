@@ -277,6 +277,22 @@ GuestInfoGetInterface(struct ifaddrs *ifaddrs,
 
       if (sll != NULL && sll->sll_family == AF_PACKET) {
          char macAddress[NICINFO_MAC_LEN];
+
+         /*
+          * PR 2193804:
+          * On ESXi, AF_PACKET family is reported for vmk* interfaces only
+          * and its ifa_flags is reported as 0. No AF_PACKET family ifaddrs
+          * is reported for loopback interface.
+          */
+#if !defined(USERWORLD)
+         /*
+          * Ignore loopback and downed devices.
+          */
+         if (!(pkt->ifa_flags & IFF_UP) || pkt->ifa_flags & IFF_LOOPBACK) {
+            continue;
+         }
+#endif
+
          Str_Sprintf(macAddress, sizeof macAddress,
                      "%02x:%02x:%02x:%02x:%02x:%02x",
                      sll->sll_addr[0], sll->sll_addr[1], sll->sll_addr[2],
@@ -301,6 +317,8 @@ GuestInfoGetInterface(struct ifaddrs *ifaddrs,
                unsigned nBits = 0;
                /*
                 * Ignore any loopback addresses.
+                * A loopback address would indicate a misconfiguration, since
+                * this is not a loopback device (we checked for that above).
                 */
                if (family == AF_INET) {
                   struct sockaddr_in *sin = (struct sockaddr_in *)sa;

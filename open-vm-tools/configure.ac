@@ -35,10 +35,10 @@
 ### Initialization
 ###
 
-TOOLS_VERSION="10.3.0"
+TOOLS_VERSION="10.3.5"
 AC_INIT(
    [open-vm-tools],
-   [10.3.0],
+   [10.3.5],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
@@ -1369,9 +1369,6 @@ if test "$os" = "freebsd" || test "$os" = "kfreebsd-gnu"; then
 
    if test "$osVersion" -ge 302000; then
       MODULES="$MODULES vmmemctl"
-   fi
-   if test "$osVersion" -ge 409000; then
-      MODULES="$MODULES vmxnet"
    fi
    if test "$osVersion" -ge 600000; then
       MODULES="$MODULES vmblock"

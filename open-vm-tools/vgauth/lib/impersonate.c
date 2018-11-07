@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -319,9 +319,9 @@ VGAuth_UserHandleFree(VGAuthUserHandle *handle)
       VGAuth_FreeAliasInfoContents(&(handle->details.val.samlData.aliasInfo));
    }
 
-   g_free(handle);
+   Debug("%s: Freeing handle %p\n", __FUNCTION__, handle);
 
-   Debug("%s: Freed handle %p\n", __FUNCTION__, handle);
+   g_free(handle);
 }
 
 

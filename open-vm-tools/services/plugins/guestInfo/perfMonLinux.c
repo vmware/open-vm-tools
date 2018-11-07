@@ -90,13 +90,14 @@ GuestInfoQuery guestInfoQuerySpecTable[] = {
 
    DECLARE_STAT(&gReleased,  NULL,            FALSE, NULL,              GuestStatID_MemNeededReservation,      GuestUnitsKiB,             GuestTypeUint64),
 
-   DECLARE_STAT(&gInternal,  MEMINFO_FILE,    FALSE, "MemAvailable",    GuestStatID_Linux_MemAvailable,        GuestUnitsKiB,             GuestTypeUint64),
+   DECLARE_STAT(&gReleased,  MEMINFO_FILE,    FALSE, "MemAvailable",    GuestStatID_Linux_MemAvailable,        GuestUnitsKiB,             GuestTypeUint64),
+   DECLARE_STAT(&gReleased,  MEMINFO_FILE,    FALSE, "SReclaimable",    GuestStatID_Linux_MemSlabReclaim,      GuestUnitsKiB,             GuestTypeUint64),
+   DECLARE_STAT(&gReleased,  MEMINFO_FILE,    FALSE, "Buffers",         GuestStatID_Linux_MemBuffers,          GuestUnitsKiB,             GuestTypeUint64),
+   DECLARE_STAT(&gReleased,  MEMINFO_FILE,    FALSE, "Cached",          GuestStatID_Linux_MemCached,           GuestUnitsKiB,             GuestTypeUint64),
+   DECLARE_STAT(&gReleased,  MEMINFO_FILE,    FALSE, "MemTotal",        GuestStatID_Linux_MemTotal,            GuestUnitsKiB,             GuestTypeUint64),
+
    DECLARE_STAT(&gInternal,  MEMINFO_FILE,    FALSE, "Inactive(file)",  GuestStatID_Linux_MemInactiveFile,     GuestUnitsKiB,             GuestTypeUint64),
-   DECLARE_STAT(&gInternal,  MEMINFO_FILE,    FALSE, "SReclaimable",    GuestStatID_Linux_MemSlabReclaim,      GuestUnitsKiB,             GuestTypeUint64),
-   DECLARE_STAT(&gInternal,  MEMINFO_FILE,    FALSE, "Buffers",         GuestStatID_Linux_MemBuffers,          GuestUnitsKiB,             GuestTypeUint64),
-   DECLARE_STAT(&gInternal,  MEMINFO_FILE,    FALSE, "Cached",          GuestStatID_Linux_MemCached,           GuestUnitsKiB,             GuestTypeUint64),
    DECLARE_STAT(&gInternal,  ZONEINFO_FILE,   TRUE,  "low",             GuestStatID_Linux_LowWaterMark,        GuestUnitsPages,           GuestTypeUint64),
-   DECLARE_STAT(&gInternal,  MEMINFO_FILE,    FALSE, "MemTotal",        GuestStatID_Linux_MemTotal,            GuestUnitsKiB,             GuestTypeUint64),
 
 #if PUBLISH_EXPERIMENTAL_STATS
    DECLARE_STAT(&gExperimental,  MEMINFO_FILE,    FALSE, "SwapTotal",       GuestStatID_SwapFilesCurrent,          GuestUnitsKiB,             GuestTypeUint64),
@@ -1093,7 +1094,18 @@ GuestInfoAppendRate(Bool emitNameSpace,             // IN:
       if (reportID == GuestStatID_Linux_DiskRequestQueueAvg) {
          valueDelta = ((double)(currentStat->value)) / 10;
       } else {
-         valueDelta = currentStat->value - previousStat->value;
+         /*
+          * The /proc FS stat can be uint32 type in the kernel on both x86
+          * and x64 Linux, it is parsed and stored as uint64 in tools, so we
+          * also need to handle uint32 overflow here.
+          */
+         if (currentStat->value < previousStat->value &&
+             previousStat->value <= MAX_UINT32) {
+            valueDelta = (uint32)(currentStat->value) -
+                         (uint32)(previousStat->value);
+         } else {
+            valueDelta = currentStat->value - previousStat->value;
+         }
       }
 
       valueDouble = valueDelta / timeDelta;
@@ -1230,6 +1242,10 @@ GuestInfoDeriveMemNeeded(GuestInfoCollector *collector)  // IN/OUT:
          if ((int64)memAvailable < 0) {
             memAvailable = 0;
          }
+
+         GuestInfoStoreStatByID(GuestStatID_Linux_MemAvailable,
+                                collector,
+                                memAvailable);
       }
    }
 

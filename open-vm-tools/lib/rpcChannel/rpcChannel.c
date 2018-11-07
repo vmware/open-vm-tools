@@ -52,7 +52,15 @@ typedef struct RpcChannelInt {
    RpcChannelResetCb       resetCb;
    gpointer                resetData;
    gboolean                rpcError;
-   guint                   rpcErrorCount;
+   guint                   rpcResetErrorCount;  /* channel reset failures */
+   /*
+    * The rpcFailureCount is a cumulative count of calls made to
+    * RpcChannelError().  When getting repeated channel failures,
+    * the channel is constantly stopped and restarted.
+    */
+   guint                   rpcFailureCount;  /* cumulative channel failures */
+   RpcChannelFailureCb     rpcFailureCb;
+   guint                   rpcMaxFailures;
 #endif
 } RpcChannelInt;
 
@@ -122,7 +130,7 @@ RpcChannelRestart(gpointer _chan)
    chanStarted = RpcChannel_Start(&chan->impl);
    g_static_mutex_unlock(&chan->impl.outLock);
    if (!chanStarted) {
-      Warning("Channel restart failed [%d]\n", chan->rpcErrorCount);
+      Warning("Channel restart failed [%d]\n", chan->rpcResetErrorCount);
       if (chan->resetCb != NULL) {
          chan->resetCb(&chan->impl, FALSE, chan->resetData);
       }
@@ -153,9 +161,9 @@ RpcChannelCheckReset(gpointer _chan)
    if (chan->rpcError) {
       GSource *src;
 
-      if (++(chan->rpcErrorCount) > channelTimeoutAttempts) {
+      if (++(chan->rpcResetErrorCount) > channelTimeoutAttempts) {
          Warning("Failed to reset channel after %u attempts\n",
-                 chan->rpcErrorCount - 1);
+                 chan->rpcResetErrorCount - 1);
          if (chan->resetCb != NULL) {
             chan->resetCb(&chan->impl, FALSE, chan->resetData);
          }
@@ -163,7 +171,7 @@ RpcChannelCheckReset(gpointer _chan)
       }
 
       /* Schedule the channel restart for 1 sec in the future. */
-      Debug(LGPFX "Resetting channel [%u]\n", chan->rpcErrorCount);
+      Debug(LGPFX "Resetting channel [%u]\n", chan->rpcResetErrorCount);
       src = g_timeout_source_new(1000);
       g_source_set_callback(src, RpcChannelRestart, chan, NULL);
       g_source_attach(src, chan->mainCtx);
@@ -173,7 +181,7 @@ RpcChannelCheckReset(gpointer _chan)
 
    /* Reset was successful. */
    Debug(LGPFX "Channel was reset successfully.\n");
-   chan->rpcErrorCount = 0;
+   chan->rpcResetErrorCount = 0;
    Debug(LGPFX "Clearing backdoor behavior ...\n");
    gVSocketFailed = FALSE;
 
@@ -428,6 +436,8 @@ exit:
  * @param[in]  appCtx      Application context.
  * @param[in]  resetCb     Callback for when a reset occurs.
  * @param[in]  resetData   Client data for the reset callback.
+ * @param[in]  failureCB   Callback for when the channel failure limit is hit.
+ * @param[in]  maxFailures Maximum channel failures allowed.
  */
 
 void
@@ -436,7 +446,9 @@ RpcChannel_Setup(RpcChannel *chan,
                  GMainContext *mainCtx,
                  gpointer appCtx,
                  RpcChannelResetCb resetCb,
-                 gpointer resetData)
+                 gpointer resetData,
+                 RpcChannelFailureCb failureCb,
+                 guint maxFailures)
 {
    size_t i;
    RpcChannelInt *cdata = (RpcChannelInt *) chan;
@@ -446,6 +458,8 @@ RpcChannel_Setup(RpcChannel *chan,
    cdata->mainCtx = g_main_context_ref(mainCtx);
    cdata->resetCb = resetCb;
    cdata->resetData = resetData;
+   cdata->rpcFailureCb = failureCb;
+   cdata->rpcMaxFailures = maxFailures;
 
    cdata->resetReg.name = "reset";
    cdata->resetReg.callback = RpcChannelReset;
@@ -514,6 +528,24 @@ RpcChannel_UnregisterCallback(RpcChannel *chan,
 
 
 /**
+ * Callback function to clear the cumulative channel error count when RpcIn
+ * is able to establish a working connection following an error or reset.
+ *
+ * @param[in]  _chan       The RPC channel.
+ */
+
+static void
+RpcChannelClearError(void *_chan)
+{
+   RpcChannelInt *chan = _chan;
+
+   Debug(LGPFX " %s: Clearing cumulative RpcChannel error count; was %d\n",
+         __FUNCTION__, chan->rpcFailureCount);
+   chan->rpcFailureCount = 0;
+}
+
+
+/**
  * Error handling function for the RPC channel. Enqueues the "check reset"
  * function for running later, if it's not yet enqueued.
  *
@@ -523,15 +555,31 @@ RpcChannel_UnregisterCallback(RpcChannel *chan,
 
 static void
 RpcChannelError(void *_chan,
-                 char const *status)
+                char const *status)
 {
    RpcChannelInt *chan = _chan;
+
    chan->rpcError = TRUE;
+
    /*
     * XXX: Workaround for PR 935520.
     * Revert the log call to Warning() after fixing PR 955746.
     */
    Debug(LGPFX "Error in the RPC receive loop: %s.\n", status);
+
+   /*
+    * If an RPC failure callback has been registered and the failure limit
+    * check has not been suppressed, check whether the RpcChannel failure
+    * limit has been reached.
+    */
+   if (chan->rpcFailureCb != NULL &&
+       chan->rpcMaxFailures > 0 &&
+       ++chan->rpcFailureCount >= chan->rpcMaxFailures) {
+      /* Maximum number of channel errors has been reached. */
+      Warning(LGPFX "RpcChannel failure count %d; calling the failure "
+                    "callback function.\n", chan->rpcFailureCount);
+      chan->rpcFailureCb(chan->resetData);
+   }
 
    if (chan->resetCheck == NULL) {
       chan->resetCheck = g_idle_source_new();
@@ -596,6 +644,7 @@ RpcChannel_Destroy(RpcChannel *chan)
    cdata->resetCb = NULL;
    cdata->resetData = NULL;
    cdata->appCtx = NULL;
+   cdata->rpcFailureCb = NULL;
 
    g_free(cdata->appName);
    cdata->appName = NULL;
@@ -771,7 +820,8 @@ RpcChannel_Start(RpcChannel *chan)
 
 #if defined(NEED_RPCIN)
    if (chan->in != NULL && !chan->inStarted) {
-      ok = RpcIn_start(chan->in, RPCIN_MAX_DELAY, RpcChannelError, chan);
+      ok = RpcIn_start(chan->in, RPCIN_MAX_DELAY, RpcChannelError,
+                       RpcChannelClearError, chan);
       chan->inStarted = ok;
    }
 #endif

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2016-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2016-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -24,7 +24,6 @@
 #include <regex.h>
 #include "linuxDeploymentUtilities.h"
 
-extern int ForkExecAndWaitCommand(const char* command);
 extern LogFunction sLog;
 
 /**
@@ -102,7 +101,6 @@ bool
 HasCustomScript(const char* dirPath, char** scriptName)
 {
    bool hasScript = false;
-   size_t scriptSize;
    static const char *customScriptRegex = "^script[A-Za-z0-9]*\\.bat";
    DIR *tempDir;
    struct dirent *dir;
@@ -124,16 +122,13 @@ HasCustomScript(const char* dirPath, char** scriptName)
    }
    while ((dir = readdir(tempDir)) != NULL) {
       if (!regexec(&scriptRegex, dir->d_name, 0, NULL, 0)) {
-         scriptSize = strlen(dir->d_name);
-         *scriptName = malloc(sizeof(char) * scriptSize + 1);
+         *scriptName = strdup(dir->d_name);
          if (*scriptName == NULL) {
             sLog(log_warning, "Could not allocate memory for scriptName: %s",
                  strerror(errno));
             closedir(tempDir);
             goto done;
          }
-         **scriptName = '\0';
-         strncat(*scriptName, dir->d_name, scriptSize);
          hasScript = true;
       }
    }

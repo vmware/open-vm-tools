@@ -57,7 +57,7 @@
    #define PRODUCT_VERSION    14,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_SYSIMAGE)
    // SYSIMAGE_VERSION below has to match this
-   #define PRODUCT_VERSION    8,4,0,PRODUCT_BUILD_NUMBER_NUMERIC
+   #define PRODUCT_VERSION    8,4,1,PRODUCT_BUILD_NUMBER_NUMERIC
 #else
    /* Generic catch-all. */
    #define PRODUCT_VERSION    0,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
@@ -177,7 +177,7 @@
 #define FUSION_VERSION "e.x.p"
 
 // These must match PRODUCT_VERSION for VMX86_SYSIMAGE above
-#define SYSIMAGE_VERSION "8.4.0"
+#define SYSIMAGE_VERSION "8.4.1"
 #define SYSIMAGE_VERSION_EXT_STR \
    SYSIMAGE_VERSION "." PRODUCT_BUILD_NUMBER_NUMERIC_STRING
 
@@ -260,7 +260,7 @@
 #define VCSA_INSTALLER_VERSION "1.0.0"
 #define OVFTOOL_FILE_VERSION 4,3,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #define VDM_CLIENT_VERSION "4.5.1"
-#define VGAUTH_VERSION "e.x.p"
+#define VGAUTH_VERSION "1.0.0"
 #define COMMON_AGENT_VERSION "e.x.p"
 #define VIEWY_VERSION "e.x.p"
 #define VMCFSDK_VERSION "e.x.p"
@@ -355,7 +355,9 @@
 #  define PRODUCT_VERSION_NUMBER ESX_VERSION
 #elif defined(VMX86_HORIZON_VIEW)
 #  define PRODUCT_VERSION_NUMBER VIEW_VERSION
-// VMX86_DESKTOP must be last because it is the default and is always defined.
+#elif defined(VMX86_VGAUTH)
+#  define PRODUCT_VERSION_NUMBER VGAUTH_VERSION
+ // VMX86_DESKTOP must be last because it is the default and is always defined.
 #elif defined(VMX86_DESKTOP)
 #  if defined(__APPLE__)
 #    define PRODUCT_VERSION_NUMBER FUSION_VERSION

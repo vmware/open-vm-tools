@@ -1090,6 +1090,13 @@ ToolsOnLoad(ToolsAppCtx *ctx)
    }
 
    /*
+    * If not running in a VMware VM, return NULL to disable the plugin.
+    */
+   if (!ctx->isVMware) {
+      return NULL;
+   }
+
+   /*
     * Check for VM is running in a hosted environment and if so initialize
     * the Shared Folders HGFS client redirector.
     */
