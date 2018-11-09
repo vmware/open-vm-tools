@@ -1128,7 +1128,19 @@ BuildCertChain(xmlNodePtr x509Node,
          g_warning("PEM cert: %s\n", pemCert);
          VMXLog_Log(VMXLOG_LEVEL_WARNING,
                     "%s: Failed to add cert to key manager\n", __FUNCTION__);
-         VMXLog_Log(VMXLOG_LEVEL_WARNING, "PEM cert: %s\n", pemCert);
+         /*
+          * XXX
+          *
+          * Certificates can have data (eg email addresses)
+          * we don't want to log those to the VMX due to privacy concerns.
+          * So let's not log to VMX at all until we have a reliable way to
+          * cleanse them -- assuming that doesn't make them worthless
+          * since the data won't match anything in the aliasStore
+          * or a SAML token.
+          */
+#if 0
+           VMXLog_Log(VMXLOG_LEVEL_WARNING, "PEM cert: %s\n", pemCert);
+#endif
          goto done;
       }
 
