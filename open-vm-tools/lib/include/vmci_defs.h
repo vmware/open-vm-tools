@@ -428,6 +428,7 @@ typedef uint32 VMCIPrivilegeFlags;
 #define VMCI_DOMAIN_NAME_MAXLEN  32
 
 #define VMCI_LGPFX "VMCI: "
+#define VMCI_DRIVER_NAME "vmci"
 
 
 /*
