@@ -65,15 +65,6 @@ if WITH_KERNEL_MODULES
 endif
 SUBDIRS += docs
 
-if ENABLE_CAF
-   SUBDIRS += common-agent/Cpp/Framework
-   SUBDIRS += common-agent/Cpp/ManagementAgent
-   SUBDIRS += common-agent/Cpp/Communication
-   SUBDIRS += common-agent/Cpp/ProviderFx
-   SUBDIRS += common-agent/Cpp/InternalProviders
-   SUBDIRS += common-agent/input
-   SUBDIRS += common-agent/etc
-endif
 
 if HAVE_UDEV
    SUBDIRS += udev

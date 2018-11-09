@@ -538,26 +538,16 @@ AC_ARG_ENABLE([xmlsecurity],
    ],
    [])
 
-if test "$enable_vgauth" = "yes" ; then
-   AC_ARG_ENABLE([caf],
-      [AS_HELP_STRING([--disable-caf],
-        [do not build CAF (Common Agent Framework).])],
-      [],
-      [enable_caf=no])
-else
-   enable_caf=no
-fi
 
 #
 # Check for openssl, xerces-c and xml-security-c
 #
 AC_ARG_WITH([ssl],
    [AS_HELP_STRING([--without-ssl],
-     [compiles without openssl support (disables grabbitmqproxy, vgauth and CAF).])],
+     [compiles without openssl support (disables grabbitmqproxy and vgauth).])],
    [
      enable_grabbitmqproxy=no
      enable_vgauth=no
-     enable_caf=no
    ],
    [with_ssl=yes])
 
@@ -658,8 +648,6 @@ if test "$enable_vgauth" = "yes"; then
                        [],
                        [AC_VMW_LIB_ERROR([XMLSECURITY], [xmlsecurity])])
    fi
-else
-   enable_caf=no
 fi
 
 #
@@ -1030,51 +1018,6 @@ else
    CPPFLAGS="$CPPFLAGS -DNO_ICU"
 fi
 
-if test "$enable_caf" = "yes"; then
-    AC_VMW_CHECK_LIBXX([log4cpp],
-                       [LOG4CPP],
-                       [],
-                       [log4cpp-config],
-                       [],
-                       [Appender.hh],
-                       [],
-                       [have_log4cpp="yes"],
-                       [AC_VMW_LIB_ERROR([LOG4CPP], [log4cpp])])
-
-    AC_VMW_CHECK_LIB([rabbitmq],
-                       [LIBRABBITMQ],
-                       [librabbitmq],
-                       [],
-                       [0.8.0],
-                       [amqp_tcp_socket.h],
-                       [],
-                       [have_librabbitmq="yes"],
-                       [AC_VMW_LIB_ERROR([LIBRABBITMQ], [librabbitmq])])
-
-    #
-    # CAF requires glib 2.34 or greater.
-    #
-    AC_VMW_CHECK_LIB([glib-2.0],
-                     [GLIB2],
-                     [glib-2.0],
-                     [],
-                     [2.34.0],
-                     [glib.h],
-                     [g_key_file_new],
-                     [],
-                     [AC_MSG_ERROR([glib2 >= 2.34.0 is required.])])
-
-    AC_VMW_CHECK_LIB([gthread-2.0],
-                     [GTHREAD],
-                     [gthread-2.0],
-                     [],
-                     [2.34.0],
-                     [],
-                     [],
-                     [],
-                     [AC_MSG_ERROR([glib >= 2.34.0 is required.])])
-
-fi
 
 if test "$with_tirpc" != "no"; then
    AC_VMW_CHECK_LIB([libtirpc],
@@ -1483,7 +1426,6 @@ AM_CONDITIONAL(ENABLE_DEPLOYPKG, test "$enable_deploypkg" = "yes")
 AM_CONDITIONAL(ENABLE_GRABBITMQPROXY, test "$enable_grabbitmqproxy" = "yes")
 AM_CONDITIONAL(ENABLE_VGAUTH, test "$enable_vgauth" = "yes")
 AM_CONDITIONAL(USE_XMLSEC1, test "$use_xmlsec1" = "yes")
-AM_CONDITIONAL(ENABLE_CAF, test "$enable_caf" = "yes")
 AM_CONDITIONAL(HAVE_VSOCK, test "$os" = "linux")
 AM_CONDITIONAL(HAVE_MKDTEMP, test "$have_mkdtemp" = "yes")
 AM_CONDITIONAL(HAVE_UDEV, test "$have_udev" = "yes")
@@ -1536,14 +1478,6 @@ COMMON_PLUGIN_INSTALLDIR=$libdir/open-vm-tools/plugins/common
 VMSVC_PLUGIN_INSTALLDIR=$libdir/open-vm-tools/plugins/vmsvc
 VMUSR_PLUGIN_INSTALLDIR=$libdir/open-vm-tools/plugins/vmusr
 
-# Installation directories for caf binary/so files
-#CAF_PME_BIN_DIR=${sbindir}/vmware-caf/pme/bin
-CAF_PME_BIN_DIR=${libdir}/open-vm-tools/vmware-caf/pme/bin
-CAF_PME_LIB_DIR=${libdir}/open-vm-tools/vmware-caf/pme/lib
-
-# Installation directories for caf subsys so files
-CAF_SUBSYS_DIR=${libdir}/open-vm-tools/vmware-caf/pme/lib
-CAF_SUBSYS_LDFLAGS="-Wl,-z,defs -Wl,-lc -shared -module -avoid-version"
 
 # General definitions
 INSTVMSG='$(SHELL) $(top_srcdir)/scripts/build/instvmsg.sh'
@@ -1575,10 +1509,6 @@ AC_SUBST([TEST_PLUGIN_INSTALLDIR])
 AC_SUBST([COMMON_PLUGIN_INSTALLDIR])
 AC_SUBST([VMSVC_PLUGIN_INSTALLDIR])
 AC_SUBST([VMUSR_PLUGIN_INSTALLDIR])
-AC_SUBST([CAF_SUBSYS_DIR])
-AC_SUBST([CAF_SUBSYS_LDFLAGS])
-AC_SUBST([CAF_PME_BIN_DIR])
-AC_SUBST([CAF_PME_LIB_DIR])
 if test "$os" = "freebsd" -a -n "$SYSDIR"; then
    # If SYSDIR is not defined, AC_SUBST expands to nothing, so we need something
    # inside this block.
@@ -1691,18 +1621,6 @@ AC_CONFIG_FILES([                      \
    libDeployPkg/libDeployPkg.pc        \
    libhgfs/Makefile                    \
    libvmtools/Makefile                 \
-   common-agent/Cpp/Framework/Makefile \
-   common-agent/Cpp/Communication/Makefile \
-   common-agent/Cpp/InternalProviders/Makefile \
-   common-agent/Cpp/ManagementAgent/Makefile \
-   common-agent/Cpp/ProviderFx/Makefile \
-   common-agent/input/Makefile         \
-   common-agent/input/invokers/Makefile \
-   common-agent/input/providerReg/Makefile \
-   common-agent/etc/Makefile           \
-   common-agent/etc/config/Makefile    \
-   common-agent/etc/scripts/Makefile   \
-   common-agent/etc/install/Makefile   \
    xferlogs/Makefile                   \
    modules/Makefile                    \
    vmblock-fuse/Makefile               \
