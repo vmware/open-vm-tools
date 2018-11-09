@@ -1010,7 +1010,7 @@ FIELD( 88,  0, EAX, 16,  8, GUEST_PHYS_ADDR_SZ,                YES,  8, FALSE) \
 FLAG(  88,  0, EBX,  0,  1, CLZERO,                            YES, 14, TRUE)  \
 FLAG(  88,  0, EBX,  1,  1, IRPERF,                            NO,   0, FALSE) \
 FLAG(  88,  0, EBX,  2,  1, XSAVE_ERR_PTR,                     NO,   0, FALSE) \
-FLAG(  88,  0, EBX,  9,  1, WBNOINVD,                          NO,   0, FALSE) \
+FLAG(  88,  0, EBX,  9,  1, WBNOINVD,                          YES, 17, FALSE) \
 FLAG(  88,  0, EBX, 12,  1, LEAF88_IBPB,                       ANY,  9, FALSE) \
 CPUID_88_EBX_14 \
 CPUID_88_EBX_15 \
