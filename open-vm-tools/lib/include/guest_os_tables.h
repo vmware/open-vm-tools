@@ -211,6 +211,7 @@ extern "C" {
    GOKM("winServer2008StorageStandard-64",      winLonghorn64Guest,      FALSE) \
    GOKM("winServer2008StorageWorkgroup-64",     winLonghorn64Guest,      FALSE) \
    GOKM("winServer2008Web-64",                  winLonghorn64Guest,      FALSE) \
+   GOKM("windows2019srv-64",                    windows2019srv_64Guest,  FALSE) \
    GOKM("winVistaUltimate-32",                  winVistaGuest,           FALSE) \
    GOKM("winVistaHomePremium-32",               winVistaGuest,           FALSE) \
    GOKM("winVistaHomeBasic-32",                 winVistaGuest,           FALSE) \
