@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2007-2016 VMware, Inc.  All rights reserved.
+### Copyright (C) 2007-2016,2018 VMware, Inc.  All rights reserved.
 ###
 ### Top-level Makefile for building the VMware OSS Tools.
 ###
@@ -64,6 +64,9 @@ if WITH_KERNEL_MODULES
    SUBDIRS += modules
 endif
 SUBDIRS += docs
+if ENABLE_LIBAPPMONITOR
+   SUBDIRS += libappmonitor
+endif
 
 if ENABLE_CAF
    SUBDIRS += common-agent/Cpp/Framework

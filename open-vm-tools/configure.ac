@@ -407,6 +407,14 @@ if test "$enable_deploypkg" = "yes"; then
                    [AC_MSG_ERROR([mspack >= 0.0.20040308alpha is required.])])
 fi
 
+AC_ARG_ENABLE([libappmonitor],
+   [AS_HELP_STRING([--enable-libappmonitor],
+     [Build the libappmonitor library.])],
+   [],
+   [
+    enable_libappmonitor=no
+   ])
+
 AC_ARG_ENABLE([grabbitmqproxy],
    [AS_HELP_STRING([--disable-grabbitmqproxy],
      [do not build grabbitmqproxy plugin.])],
@@ -1484,6 +1492,7 @@ AM_CONDITIONAL(HAVE_MKDTEMP, test "$have_mkdtemp" = "yes")
 AM_CONDITIONAL(HAVE_UDEV, test "$have_udev" = "yes")
 AM_CONDITIONAL(ENABLE_RESOLUTIONKMS, test "x$enable_resolutionkms" = "xyes")
 AM_CONDITIONAL(VGAUTH_USE_CXX, test "$with_icu" = "yes" -o "$use_xmlsec1" != "yes")
+AM_CONDITIONAL(ENABLE_LIBAPPMONITOR, test "$enable_libappmonitor" = "yes")
 
 if test "$have_xsm" != "yes"; then
 AC_DEFINE([NO_XSM], 1, [])
@@ -1713,6 +1722,8 @@ AC_CONFIG_FILES([                      \
    scripts/Makefile                    \
    scripts/build/rpcgen_wrapper.sh     \
    udev/Makefile                       \
+   libappmonitor/Makefile              \
+   libappmonitor/appmonitor.pc         \
 ])
 
 ###
