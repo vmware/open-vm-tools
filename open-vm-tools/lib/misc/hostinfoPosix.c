@@ -1380,6 +1380,11 @@ HostinfoLsb(char *distro,       // OUT:
       if (args == NULL) {
          Log("%s: Error: no distro file found\n", __FUNCTION__);
       } else {
+         if (args[0] != NULL) {  // Name
+            Str_Strcpy(detailedDataFields[DISTRO_NAME].value, args[0],
+                       sizeof detailedDataFields[DISTRO_NAME].value);
+         }
+
          if (args[1] != NULL) {  // Release
             Str_Strcpy(detailedDataFields[DISTRO_VERSION].value, args[1],
                        sizeof detailedDataFields[DISTRO_VERSION].value);
