@@ -1731,13 +1731,17 @@ DestroyRpcChannel(void)
  *
  * Convert level string to a level mask value.
  *
+ * @param[in] level           the input level.
+ * @param[in] allowDebugLog   the switch that controls whether we allow sending
+ *                            debug level log messages.
  * @return the level mask
  *
  *******************************************************************************
  */
 
 static GLogLevelFlags
-LevelMask(const gchar *level)
+LevelMask(const gchar *level,
+          gboolean allowDebugLog)
 {
    GLogLevelFlags result;
 
@@ -1761,6 +1765,9 @@ LevelMask(const gchar *level)
               strcmp(level, "debug") == 0 ||
               strcmp(level, "trivia") == 0) {
       result = G_LOG_LEVEL_MASK;
+      if (!allowDebugLog) {
+         result &= ~G_LOG_LEVEL_DEBUG;
+      }
    } else {
       /* treated as off */
       result = 0;
@@ -1819,7 +1826,8 @@ LoadFallbackSetting(GKeyFile *cfg)
       level = g_strdup(VMTOOLS_LOGGING_LEVEL_DEFAULT);
    }
 
-   gLevelMask = LevelMask(level);
+   /* If guest admin allows debug log messages sent to host, honor it. */
+   gLevelMask = LevelMask(level, TRUE);
 
    g_free(level);
 
@@ -1851,6 +1859,19 @@ static gboolean
 SetupLogLevelAndRpcMode(GKeyFile *cfg,
                         const gchar *level)
 {
+   gboolean isDebugLogAllowed;
+
+   /*
+    * Perhaps it is better to have tools.conf switch that allow log debug
+    * message to the host. However, this might confuse the user by allowing
+    * the configuration on both sides. TBD.
+    */
+#ifdef ALLOW_DEBUG_LOG_TO_HOST
+   isDebugLogAllowed = TRUE;
+#else
+   isDebugLogAllowed = FALSE;
+#endif
+
    gRpcMode = RPC_OFF;
 
    if (NULL == gChannel) {
@@ -1879,11 +1900,11 @@ SetupLogLevelAndRpcMode(GKeyFile *cfg,
       /* The RpcChannel_Send() NULL terminate the response */
       g_info("Received host log level '%s'.\n", result);
 
-      gLevelMask = LevelMask(result);
+      gLevelMask = LevelMask(result, isDebugLogAllowed);
 
       RpcChannel_Free(result);
    } else {
-      gLevelMask = LevelMask(level);
+      gLevelMask = LevelMask(level, isDebugLogAllowed);
    }
 
    if (gLevelMask != 0) {
