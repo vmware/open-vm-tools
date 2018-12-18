@@ -741,12 +741,6 @@ typedef int pid_t;
 #endif
 #endif // _WIN32
 
-#ifdef HOSTED_LG_PG
-#define hosted_lg_pg 1
-#else
-#define hosted_lg_pg 0
-#endif
-
 /*
  * Use to initialize cbSize for this structure to preserve < Vista
  * compatibility.
