@@ -69,7 +69,7 @@ struct _RpcChannel {
    const char                *appName;
    gpointer                  appCtx;
 #endif
-   GStaticMutex              outLock;
+   GMutex                    outLock;
 #if defined(NEED_RPCIN)
    struct RpcIn              *in;
    gboolean                  inStarted;

@@ -304,9 +304,7 @@ ToolsCore_ParseCommandLine(ToolsServiceState *state,
    }
 
    context = g_option_context_new(NULL);
-#if GLIB_CHECK_VERSION(2, 12, 0)
    g_option_context_set_summary(context, N_("Runs the VMware Tools daemon."));
-#endif
    g_option_context_add_main_entries(context, clOptions, NULL);
    g_option_group_set_error_hook(g_option_context_get_main_group(context),
                                  ToolsCoreCmdLineError);

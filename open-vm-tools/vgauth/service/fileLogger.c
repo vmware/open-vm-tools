@@ -74,11 +74,7 @@ ServiceFileLoggerOpen(FileLoggerData *data)
 
    if (g_file_test(path, G_FILE_TEST_EXISTS)) {
       /* GStatBuf was added in 2.26. */
-#if GLIB_CHECK_VERSION(2, 26, 0)
       GStatBuf fstats;
-#else
-      struct stat fstats;
-#endif
 
       if (g_stat(path, &fstats) > -1) {
          g_atomic_int_set(&data->logSize, (gint) fstats.st_size);

@@ -122,7 +122,7 @@ RpcChannelRestart(gpointer _chan)
    gboolean chanStarted;
 
    /* Synchronize with any RpcChannel_Send calls by other threads. */
-   g_static_mutex_lock(&chan->impl.outLock);
+   g_mutex_lock(&chan->impl.outLock);
    g_source_unref(chan->restartTimer);
    chan->restartTimer = NULL;
 
@@ -133,7 +133,7 @@ RpcChannelRestart(gpointer _chan)
    gVSocketFailed = FALSE;
 
    chanStarted = RpcChannel_Start(&chan->impl);
-   g_static_mutex_unlock(&chan->impl.outLock);
+   g_mutex_unlock(&chan->impl.outLock);
    if (!chanStarted) {
       Warning("Channel restart failed [%d]\n", chan->rpcResetErrorCount);
       if (chan->resetCb != NULL) {
@@ -701,7 +701,7 @@ RpcChannel_Destroy(RpcChannel *chan)
       return;
    }
 
-   g_static_mutex_lock(&chan->outLock);
+   g_mutex_lock(&chan->outLock);
 
    RpcChannelStopNoLock(chan);
 
@@ -714,9 +714,9 @@ RpcChannel_Destroy(RpcChannel *chan)
    RpcChannelTeardown(chan);
 #endif
 
-   g_static_mutex_unlock(&chan->outLock);
+   g_mutex_unlock(&chan->outLock);
 
-   g_static_mutex_free(&chan->outLock);
+   g_mutex_clear(&chan->outLock);
 
    g_free(chan);
 }
@@ -807,7 +807,7 @@ RpcChannel_New(void)
    chan = BackdoorChannel_New();
 #endif
    if (chan) {
-      g_static_mutex_init(&chan->outLock);
+      g_mutex_init(&chan->outLock);
    }
    return chan;
 }
@@ -905,9 +905,9 @@ RpcChannelStopNoLock(RpcChannel *chan)
 void
 RpcChannel_Stop(RpcChannel *chan)
 {
-   g_static_mutex_lock(&chan->outLock);
+   g_mutex_lock(&chan->outLock);
    RpcChannelStopNoLock(chan);
-   g_static_mutex_unlock(&chan->outLock);
+   g_mutex_unlock(&chan->outLock);
 }
 
 
@@ -974,7 +974,7 @@ RpcChannel_Send(RpcChannel *chan,
 
    ASSERT(chan && chan->funcs);
 
-   g_static_mutex_lock(&chan->outLock);
+   g_mutex_lock(&chan->outLock);
 
    funcs = chan->funcs;
    ASSERT(funcs->send);
@@ -1025,7 +1025,7 @@ done:
    }
 
 exit:
-   g_static_mutex_unlock(&chan->outLock);
+   g_mutex_unlock(&chan->outLock);
    return ok && rpcStatus;
 }
 

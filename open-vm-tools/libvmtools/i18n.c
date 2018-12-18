@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -54,7 +54,7 @@ typedef struct MsgCatalog {
 
 typedef struct MsgState {
    HashTable     *domains; /* List of text domains. */
-   GStaticMutex   lock;    /* Mutex to protect shared state. */
+   GMutex         lock;    /* Mutex to protect shared state. */
 } MsgState;
 
 
@@ -133,7 +133,7 @@ MsgInitState(gpointer unused)
 {
    ASSERT(gMsgState == NULL);
    gMsgState = g_new0(MsgState, 1);
-   g_static_mutex_init(&gMsgState->lock);
+   g_mutex_init(&gMsgState->lock);
    return NULL;
 }
 
@@ -344,7 +344,7 @@ MsgGetString(const char *domain,
     * This lock is pretty coarse-grained, but a lot of the code below just runs
     * in exceptional situations, so it should be OK.
     */
-   g_static_mutex_lock(&state->lock);
+   g_mutex_lock(&state->lock);
 
    catalog = MsgGetCatalog(domain);
    if (catalog != NULL) {
@@ -415,7 +415,7 @@ MsgGetString(const char *domain,
       }
    }
 
-   g_static_mutex_unlock(&state->lock);
+   g_mutex_unlock(&state->lock);
 
    return strp;
 }
@@ -682,7 +682,7 @@ VMToolsMsgCleanup(void)
       if (gMsgState->domains != NULL) {
          HashTable_Free(gMsgState->domains);
       }
-      g_static_mutex_free(&gMsgState->lock);
+      g_mutex_clear(&gMsgState->lock);
       g_free(gMsgState);
    }
 }
@@ -775,9 +775,9 @@ VMTools_BindTextDomain(const char *domain,
                    "catalog dir '%s'.\n", domain, lang, catdir);
       }
    } else {
-      g_static_mutex_lock(&state->lock);
+      g_mutex_lock(&state->lock);
       MsgSetCatalog(domain, catalog);
-      g_static_mutex_unlock(&state->lock);
+      g_mutex_unlock(&state->lock);
    }
    g_free(file);
    free(dfltdir);

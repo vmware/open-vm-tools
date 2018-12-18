@@ -497,6 +497,7 @@ ToolsCoreHangDetector_Start(ToolsAppCtx *ctx)
    }
 
    ret = ToolsCorePool_StartThread(ctx,
+                                   "HangDetector",
                                    DetectorThread,
                                    DetectorTerminate,
                                    NULL,

@@ -656,10 +656,6 @@ ToolsCore_Setup(ToolsServiceState *state)
    GMainContext *gctx;
    ToolsServiceProperty ctxProp = { TOOLS_CORE_PROP_CTX };
 
-   if (!g_thread_supported()) {
-      g_thread_init(NULL);
-   }
-
    /*
     * Useful for debugging purposes. Log the vesion and build information.
     */

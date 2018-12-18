@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -330,11 +330,7 @@ VMTools_LoadConfig(const gchar *path,
    gchar *defaultPath = NULL;
    gchar *localPath = NULL;
    /* GStatBuf was added in 2.26. */
-#if GLIB_CHECK_VERSION(2, 26, 0)
    GStatBuf confStat;
-#else
-   struct stat confStat;
-#endif
    GHashTable *old = NULL;
    GError *err = NULL;
    GKeyFile *cfg = NULL;

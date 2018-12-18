@@ -415,7 +415,7 @@ AC_ARG_ENABLE([libappmonitor],
    ])
 
 #
-# Check for glib 2.6.14 or greater.
+# Check for glib 2.34.0 or greater.
 #
 AC_VMW_CHECK_LIB([glib-2.0],
                  [GLIB2],

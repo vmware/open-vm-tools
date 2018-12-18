@@ -299,12 +299,12 @@ VmBackupFinalize(void)
       g_source_unref(gBackupState->abortTimer);
    }
 
-   g_static_mutex_lock(&gBackupState->opLock);
+   g_mutex_lock(&gBackupState->opLock);
    if (gBackupState->currentOp != NULL) {
       VmBackup_Cancel(gBackupState->currentOp);
       VmBackup_Release(gBackupState->currentOp);
    }
-   g_static_mutex_unlock(&gBackupState->opLock);
+   g_mutex_unlock(&gBackupState->opLock);
 
    VmBackup_SendEvent(VMBACKUP_EVENT_REQUESTOR_DONE, VMBACKUP_SUCCESS, "");
 
@@ -322,7 +322,7 @@ VmBackupFinalize(void)
    if (gBackupState->completer != NULL) {
       gBackupState->completer->release(gBackupState->completer);
    }
-   g_static_mutex_free(&gBackupState->opLock);
+   g_mutex_clear(&gBackupState->opLock);
    g_free(gBackupState->scriptArg);
    g_free(gBackupState->volumes);
    g_free(gBackupState->snapshots);
@@ -444,13 +444,13 @@ VmBackupDoAbort(void)
        gBackupState->machineState != VMBACKUP_MSTATE_SYNC_ERROR) {
       const char *eventMsg = "Quiesce aborted.";
       /* Mark the current operation as cancelled. */
-      g_static_mutex_lock(&gBackupState->opLock);
+      g_mutex_lock(&gBackupState->opLock);
       if (gBackupState->currentOp != NULL) {
          VmBackup_Cancel(gBackupState->currentOp);
          VmBackup_Release(gBackupState->currentOp);
          gBackupState->currentOp = NULL;
       }
-      g_static_mutex_unlock(&gBackupState->opLock);
+      g_mutex_unlock(&gBackupState->opLock);
 
 #ifdef __linux__
       /* Thaw the guest if already quiesced */
@@ -516,7 +516,7 @@ VmBackupPostProcessCurrentOp(gboolean *pending)
 
    *pending = FALSE;
 
-   g_static_mutex_lock(&gBackupState->opLock);
+   g_mutex_lock(&gBackupState->opLock);
 
    if (gBackupState->currentOp != NULL) {
       g_debug("%s: checking %s\n", __FUNCTION__, gBackupState->currentOpName);
@@ -583,7 +583,7 @@ VmBackupPostProcessCurrentOp(gboolean *pending)
    }
 
 exit:
-   g_static_mutex_unlock(&gBackupState->opLock);
+   g_mutex_unlock(&gBackupState->opLock);
    return retVal;
 }
 
@@ -953,7 +953,7 @@ VmBackupStartCommon(RpcInData *data,
    gBackupState->provider = provider;
    gBackupState->completer = completer;
    gBackupState->needsPriv = FALSE;
-   g_static_mutex_init(&gBackupState->opLock);
+   g_mutex_init(&gBackupState->opLock);
    gBackupState->enableNullDriver = VMBACKUP_CONFIG_GET_BOOL(ctx->config,
                                                              "enableNullDriver",
                                                              TRUE);

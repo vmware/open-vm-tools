@@ -37,9 +37,7 @@ void *g_malloc0(size_t s) { return Util_SafeCalloc(1, s); }
 void *g_malloc0_n(size_t n, size_t s) { return Util_SafeCalloc(n, s); }
 void g_free(void *p) { free(p); }
 
-GMutex* g_static_mutex_get_mutex_impl(GStaticMutex *mutex) { return NULL; }
-
-void g_static_mutex_free(GStaticMutex *mutex) { }
-void g_static_mutex_init(GStaticMutex *mutex) { }
+void g_mutex_init(GMutex *mutex) { }
+void g_mutex_clear(GMutex *mutex) { }
 void g_mutex_lock(GMutex *mutex) { }
 void g_mutex_unlock(GMutex *mutex) { }
