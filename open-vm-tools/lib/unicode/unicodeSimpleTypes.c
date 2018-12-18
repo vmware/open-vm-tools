@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -63,7 +63,7 @@ static struct xRef {
    StringEncoding encoding;       // ICU encoding enum
    Bool isSupported;              // VMware supported encoding
    int preferredMime;             // Index of preferred MIME name 
-   char *names[MAXCHARSETNAMES];  // Encoding name and aliases
+   const char *names[MAXCHARSETNAMES];  // Encoding name and aliases
 } xRef[] = {
    /*
     * Source: ECMA registry

@@ -766,7 +766,7 @@ TimeUtil_ProductExpiration(TimeUtil_Expiration *e)  // OUT:
     * determine if a build is set to expire or not.
     */
 #ifdef HARD_EXPIRE
-   static char *hard_expire = "Expire";
+   static char hard_expire[] = "Expire";
    (void)hard_expire;
 
    ASSERT(e);
@@ -785,7 +785,7 @@ TimeUtil_ProductExpiration(TimeUtil_Expiration *e)  // OUT:
 
    e->daysLeft = TimeUtil_DaysLeft(&e->when);
 #else
-   static char *hard_expire = "No Expire";
+   static char hard_expire[] = "No Expire";
    (void) hard_expire;
 
    ASSERT(e);
