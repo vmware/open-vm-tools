@@ -28,9 +28,9 @@
 /*
  * Common data structures and definitions used by Guest/Host Integration.
  */
-#define GHI_HGFS_SHARE_URL_SCHEME_UTF8 "x-vmware-share"
-#define GHI_HGFS_SHARE_URL_UTF8 "x-vmware-share://"
-#define GHI_HGFS_SHARE_URL      _T(GHI_HGFS_SHARE_URL_UTF8)
+#define GHI_HGFS_SHARE_URL_SCHEME_UTF8    "x-vmware-share"
+#define GHI_HGFS_SHARE_URL_UTF8           "x-vmware-share://"
+#define GHI_HGFS_SHARE_URL                _T(GHI_HGFS_SHARE_URL_UTF8)
 
 /*
  * Messages over different channels will be handled by
@@ -45,7 +45,9 @@
 #define GHI_CHANNEL_VIEW_REMOTE_SHARED_FOLDER   2  // VDPSharedFolderMgrMKSControl module
                                                    // in View RMKS
 #define GHI_CHANNEL_DND                         3  // DnD for both local VM and View RMKS.
-#define GHI_CHANNEL_MAX                         4
+#define GHI_CHANNEL_VIEW_REMOTE_RDE_COMMON      4  // VDPRdeCommonMKSControl module
+                                                   // in View RMKS
+#define GHI_CHANNEL_MAX                         5
 typedef uint32 GHIChannelType;
 
 #define GHI_REQUEST_SUCCESS_OK                  0  // Guest received the message and returned OK.
@@ -70,7 +72,7 @@ typedef uint32 GHIGuestToHostMessageType;
  * Only for View product.
  */
 #define GHI_CHANNEL_VIEW_REMOTE_SHARED_FOLDER_BITS \
-        GHI_GUEST_CHANNEL_BITS(GHI_CHANNEL_VIEW_REMOTE_SHARED_FOLDER)
+            GHI_GUEST_CHANNEL_BITS(GHI_CHANNEL_VIEW_REMOTE_SHARED_FOLDER)
 #define GHI_GUEST_RDPDR_CAP   (GHI_CHANNEL_VIEW_REMOTE_SHARED_FOLDER_BITS | 0x000001)
 
 
@@ -105,6 +107,16 @@ typedef uint32 GHIGuestToHostMessageType;
 #define GHI_GUEST_DND_TRANSFERFILES_PROGRESS          (GHI_CHANNEL_DND_BITS | 0x000004)
 #define GHI_GUEST_DND_GETFILE_OVERWRITE_QUESTION      (GHI_CHANNEL_DND_BITS | 0x000005)
 #define GHI_GUEST_DND_CAPABILITY                      (GHI_CHANNEL_DND_BITS | 0x000006)
+
+/*
+ * MKS->UI messages over GHI_CHANNEL_VIEW_REMOTE_RDE_COMMON.
+ */
+#define GHI_CHANNEL_VIEW_REMOTE_RDE_COMMON_BITS \
+            GHI_GUEST_CHANNEL_BITS(GHI_CHANNEL_VIEW_REMOTE_RDE_COMMON)
+#define GHI_GUEST_RDE_COMMON_HOST_SET_DPI \
+            (GHI_CHANNEL_VIEW_REMOTE_RDE_COMMON_BITS | 0x000001)
+#define GHI_GUEST_RDE_COMMON_UNLOCK_DESKTOP \
+            (GHI_CHANNEL_VIEW_REMOTE_RDE_COMMON_BITS | 0x000002)
 
 
 #endif // ifndef _GHINTEGRATIONCOMMON_H_
