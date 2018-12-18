@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -16,20 +16,20 @@
  *
  *********************************************************/
 
-/*
- * guestcust-events.h --
- *
- *      Definitions related to the GOSC events.
+/*!
+ * @file guestcust-events.h --
  */
 
-#ifndef IMGCUST_COMMON_GOSC_EVENTS_H
-#define IMGCUST_COMMON_GOSC_EVENTS_H
+#ifndef _GUESTCUST_EVENTS_H
+#define _GUESTCUST_EVENTS_H
 
 /*
  * Customization-specific events generated in the guest and handled by
- * hostd. They are sent via the vmx/guestTools/deployPkgState/ vmdb path.
- * We start these at 100 to avoid conflict with the deployPkg error
- * codes listed in vmx/public/toolsDeployPkg.h.
+ * hostd. They are sent via the Tools/deployPkgState/error VIGOR path.
+ * The error(int) field is overloaded for both the deploy pkg errors
+ * and the deploy pkg events.
+ * Therefore, We start these at 100 to avoid conflict with the deployPkg error
+ * codes listed in bora/guestABI/include/vmware/guestrpc/deploypkg.h
  */
 typedef enum {
    GUESTCUST_EVENT_CUSTOMIZE_FAILED = 100,
@@ -39,4 +39,4 @@ typedef enum {
    GUESTCUST_EVENT_QUERY_NICS
 } GuestCustEvent;
 
-#endif // IMGCUST_COMMON_GOSC_EVENTS_H
+#endif // _GUESTCUST_EVENTS_H
