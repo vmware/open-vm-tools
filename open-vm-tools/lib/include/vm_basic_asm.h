@@ -1331,7 +1331,7 @@ PopCount64(uint64 value)
    value += value >> 8;
    value += value >> 16;
    value += value >> 32;
-   return value & 0xff;
+   return (unsigned) (value & 0xff);
 }
 
 
