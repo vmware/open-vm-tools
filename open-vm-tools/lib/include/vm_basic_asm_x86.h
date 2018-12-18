@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -66,16 +66,18 @@ extern "C" {
  * XTEST
  *     Return TRUE if processor is in transaction region.
  *
+ *  Using condition codes as output values (=@ccnz) requires gcc6 or
+ *  above.
+ *
  */
 #if defined(__GNUC__) && (defined(VMM) || defined(VMKERNEL) || defined(FROBOS))
 static INLINE Bool
 xtest(void)
 {
-   uint8 al;
-   __asm__ __volatile__(".byte 0x0f, 0x01, 0xd6    # xtest \n"
-                        "setnz %%al\n"
-                        : "=a"(al) : : "cc");
-   return al;
+   Bool result;
+   __asm__ __volatile__("xtest"
+                        : "=@ccnz" (result) : : "cc");
+   return result;
 }
 
 #endif /* __GNUC__ */
