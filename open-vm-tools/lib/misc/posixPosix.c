@@ -2075,7 +2075,7 @@ Posix_Getmntent_r(FILE *fp,          // IN:
    n = 0;
 
    if (fsname) {
-      int len = strlen(fsname) + 1;
+      size_t len = strlen(fsname) + 1;
 
       if (n + len > size || n + len < n) {
          goto exit;
@@ -2085,7 +2085,7 @@ Posix_Getmntent_r(FILE *fp,          // IN:
    }
 
    if (dir != NULL) {
-      int len = strlen(dir) + 1;
+      size_t len = strlen(dir) + 1;
 
       if (n + len > size || n + len < n) {
          goto exit;
@@ -2095,7 +2095,7 @@ Posix_Getmntent_r(FILE *fp,          // IN:
    }
 
    if (type) {
-      int len = strlen(type) + 1;
+      size_t len = strlen(type) + 1;
 
       if (n + len > size || n + len < n) {
          goto exit;
@@ -2128,7 +2128,7 @@ exit:
    }
 
    return m;
-#endif // defined __ANDROID__
+#endif // NO_GETMNTENT_R
 }
 
 
