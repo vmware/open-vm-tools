@@ -293,17 +293,9 @@ typedef struct VixToolsRunProgramState {
 
 /*
  * State of a single asynch startProgram.
- *
- * On Windows, keep the user's token and profile HANDLEs around
- * so the profile isn't unloaded until the program exits.
  */
 typedef struct VixToolsStartProgramState {
    ProcMgr_AsyncProc    *procState;
-
-#if defined(_WIN32) && SUPPORT_VGAUTH
-   HANDLE hToken;
-   HANDLE hProfile;
-#endif
 
    void                 *eventQueue;
 } VixToolsStartProgramState;
@@ -700,10 +692,6 @@ static Bool VixToolsCheckIfAuthenticationTypeEnabled(GKeyFile *confDictRef,
 #if SUPPORT_VGAUTH
 
 VGAuthError TheVGAuthContext(VGAuthContext **ctx);
-
-#ifdef _WIN32
-static void GuestAuthUnloadUserProfileAndToken(HANDLE hToken, HANDLE hProfile);
-#endif
 
 #endif
 
@@ -1641,12 +1629,6 @@ VixToolsStartProgramImpl(const char *requestName,            // IN
    Bool envBlockFromMalloc = TRUE;
 #endif
    GSource *timer;
-#if defined(_WIN32) && SUPPORT_VGAUTH
-   HANDLE hToken = INVALID_HANDLE_VALUE;
-   HANDLE hProfile = INVALID_HANDLE_VALUE;
-   VGAuthError vgErr;
-   VGAuthContext *ctx;
-#endif
 
    /*
     * Initialize this here so we can call free on its member variables in abort
@@ -1806,42 +1788,6 @@ VixToolsStartProgramImpl(const char *requestName,            // IN
    procArgs.envp = (char **)envVars;
 #endif
 
-#if defined(_WIN32) && SUPPORT_VGAUTH
-   /*
-    * Special case profile handling for StartProgram.  It should stay loaded
-    * until the program exits, so copy the profile and user handles for
-    * later cleanup, and clobber the profile handle so that it's not unloaded
-    * when the impersonation ends.
-    */
-   if (GuestAuthEnabled()) {
-      asyncState->hToken = INVALID_HANDLE_VALUE;
-      asyncState->hProfile = INVALID_HANDLE_VALUE;
-      vgErr = TheVGAuthContext(&ctx);
-      if (VGAUTH_FAILED(vgErr)) {
-         err = VixToolsTranslateVGAuthError(vgErr);
-         g_warning("%s: Couldn't get the vgauth context\n", __FUNCTION__);
-         goto abort;
-      }
-
-      vgErr = VGAuth_UserHandleAccessToken(ctx, currentUserHandle, &hToken);
-      if (VGAUTH_FAILED(vgErr)) {
-         err = VixToolsTranslateVGAuthError(vgErr);
-         g_warning("%s: Failed to get user token\n", __FUNCTION__);
-         goto abort;
-      }
-      vgErr = VGAuth_UserHandleGetUserProfile(ctx, currentUserHandle,
-                                              &hProfile);
-      if (VGAUTH_FAILED(vgErr)) {
-         err = VixToolsTranslateVGAuthError(vgErr);
-         g_warning("%s: Failed to get user profile\n", __FUNCTION__);
-         CloseHandle(hToken);
-         goto abort;
-      }
-      asyncState->hToken = hToken;
-      asyncState->hProfile = hProfile;
-   }
-#endif
-
    asyncState->procState = ProcMgr_ExecAsync(fullCommandLine, &procArgs);
 
 #if defined(_WIN32)
@@ -1862,25 +1808,6 @@ VixToolsStartProgramImpl(const char *requestName,            // IN
    g_debug("%s: started '%s', pid %"FMT64"d\n",
            __FUNCTION__, fullCommandLine, *pid);
 
-#if defined(_WIN32) && SUPPORT_VGAUTH
-   /*
-    * Clobber the profile handle before un-impersonation.
-    */
-   if (GuestAuthEnabled()) {
-      vgErr = VGAuth_UserHandleSetUserProfile(ctx, currentUserHandle,
-                                              INVALID_HANDLE_VALUE);
-      if (VGAUTH_FAILED(vgErr)) {
-         err = VixToolsTranslateVGAuthError(vgErr);
-         g_warning("%s: Failed to clobber user profile\n", __FUNCTION__);
-         // EndImpersonate will take care of profile, close hToken
-         CloseHandle(asyncState->hToken);
-         asyncState->hToken = INVALID_HANDLE_VALUE;
-         asyncState->hProfile = INVALID_HANDLE_VALUE;
-         goto abort;
-      }
-   }
-#endif
-
    /*
     * Start a periodic procedure to check the app periodically
     */
@@ -1895,7 +1822,6 @@ VixToolsStartProgramImpl(const char *requestName,            // IN
     * finishes.
     */
    asyncState = NULL;
-
 
 abort:
    free(tempCommandLine);
@@ -2197,7 +2123,6 @@ done:
  *
  *-----------------------------------------------------------------------------
  */
-
 static void
 VixToolsUpdateStartedProgramList(VixToolsStartedProgramState *state)        // IN
 {
@@ -2221,9 +2146,6 @@ VixToolsUpdateStartedProgramList(VixToolsStartedProgramState *state)        // I
             spList->exitCode = state->exitCode;
             spList->endTime = state->endTime;
             spList->isRunning = FALSE;
-
-            g_debug("%s: started program '%s' has completed, exitCode %d\n",
-                    __FUNCTION__, spList->fullCommandLine, spList->exitCode);
 
             /*
              * Don't let the procState be free'd on Windows to
@@ -8270,16 +8192,6 @@ VixToolsFreeStartProgramState(VixToolsStartProgramState *asyncState) // IN
    if (NULL == asyncState) {
       return;
    }
-#if defined(_WIN32) && SUPPORT_VGAUTH
-   /*
-    * Unload the user profile if saved.
-    */
-   if (asyncState->hProfile != INVALID_HANDLE_VALUE &&
-       asyncState->hToken != INVALID_HANDLE_VALUE) {
-      GuestAuthUnloadUserProfileAndToken(asyncState->hToken,
-                                         asyncState->hProfile);
-   }
-#endif
 
    free(asyncState);
 } // VixToolsFreeStartProgramState
@@ -11942,41 +11854,4 @@ TheVGAuthContext(VGAuthContext **ctx) // OUT
    *ctx = vgaCtx;
    return vgaCode;
 }
-
-
-#ifdef _WIN32
-/*
- *-----------------------------------------------------------------------------
- *
- * GuestAuthUnloadUserProfileAndToken --
- *
- *    Unload user profile and close user token.
- *
- *    Helper to handle StartProgram cleanup.
- *
- * Return value:
- *    None
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-static void
-GuestAuthUnloadUserProfileAndToken(HANDLE hToken,
-                                   HANDLE hProfile)
-{
-   if (GuestAuthEnabled()) {
-      g_debug("%s: special-case profile unload %p\n", __FUNCTION__, hProfile);
-      if (!UnloadUserProfile(hToken, hProfile)) {
-         g_warning("%s: UnloadUserProfile() failed %d\n",
-                    __FUNCTION__, GetLastError());
-      }
-      CloseHandle(hToken);
-   }
-}
-#endif // _WIN32
-
-#endif // SUPPORT_VGAUTH
-
+#endif
