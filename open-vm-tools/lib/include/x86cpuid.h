@@ -789,13 +789,15 @@ FLAG( 403,  0, EBX, 11,  1, DEBUGGING_FLAG,                    NA,   0, FALSE) \
 FLAG( 403,  0, EBX, 12,  1, CPU_MANAGEMENT_FLAG,               NA,   0, FALSE) \
 FLAG( 403,  0, EBX, 13,  1, CONFIGURE_PROFILER_FLAG,           NA,   0, FALSE) \
 FLAG( 403,  0, EBX, 14,  1, ENABLE_EXPANDED_STACKWALKING_FLAG, NA,   0, FALSE) \
+FLAG( 403,  0, EBX, 16,  1, ACCESS_VSM,                        NA,   0, FALSE) \
+FLAG( 403,  0, EBX, 17,  1, ACCESS_VP_REGISTERS,               NA,   0, FALSE) \
 FIELD(403,  0, ECX,  0,  4, MAX_POWER_STATE,                   NA,   0, FALSE) \
 FLAG( 403,  0, ECX,  4,  1, HPET_NEEDED_FOR_C3,                NA,   0, FALSE) \
 FLAG( 403,  0, EDX,  0,  1, MWAIT_AVAIL,                       NA,   0, FALSE) \
 FLAG( 403,  0, EDX,  1,  1, GUEST_DEBUGGING_AVAIL,             NA,   0, FALSE) \
 FLAG( 403,  0, EDX,  2,  1, PERFORMANCE_MONITOR_AVAIL,         NA,   0, FALSE) \
 FLAG( 403,  0, EDX,  3,  1, CPU_DYN_PARTITIONING_AVAIL,        NA,   0, FALSE) \
-FLAG( 403,  0, EDX,  4,  1, XMM_REGISTERS_FOR_HYPERCALL_AVAIL, NA,   0, FALSE) \
+FLAG( 403,  0, EDX,  4,  1, XMM_REGS_FOR_HYPERCALL_INPUT,      NA,   0, FALSE) \
 FLAG( 403,  0, EDX,  5,  1, GUEST_IDLE_AVAIL,                  NA,   0, FALSE) \
 FLAG( 403,  0, EDX,  6,  1, HYPERVISOR_SLEEP_STATE_AVAIL,      NA,   0, FALSE) \
 FLAG( 403,  0, EDX,  7,  1, NUMA_DISTANCE_QUERY_AVAIL,         NA,   0, FALSE) \
@@ -804,7 +806,8 @@ FLAG( 403,  0, EDX,  9,  1, SYNTH_MACHINE_CHECK_AVAIL,         NA,   0, FALSE) \
 FLAG( 403,  0, EDX, 10,  1, GUEST_CRASH_MSRS_AVAIL,            NA,   0, FALSE) \
 FLAG( 403,  0, EDX, 11,  1, DEBUG_MSRS_AVAIL,                  NA,   0, FALSE) \
 FLAG( 403,  0, EDX, 12,  1, NPIEP1_AVAIL,                      NA,   0, FALSE) \
-FLAG( 403,  0, EDX, 13,  1, DISABLE_HYPERVISOR_AVAIL,          NA,   0, FALSE)
+FLAG( 403,  0, EDX, 13,  1, DISABLE_HYPERVISOR_AVAIL,          NA,   0, FALSE) \
+FLAG( 403,  0, EDX, 15,  1, XMM_REGS_FOR_HYPERCALL_OUTPUT,     NA,   0, FALSE)
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,             MON SUPP, HWV, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_404                                             \
