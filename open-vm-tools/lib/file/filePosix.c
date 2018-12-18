@@ -2871,14 +2871,19 @@ File_ListDirectory(const char *dirName,  // IN:
 
       if (err == 0) {
          count = HashTable_GetNumElements(context->hash);
+
          if (ids) {
-            ListParams params;
+            if (count == 0) {
+               *ids = NULL;
+            } else {
+               ListParams params;
 
-            params.fileNames = Util_SafeCalloc(count, sizeof(char *));
-            params.pos = 0;
+               params.fileNames = Util_SafeCalloc(count, sizeof(char *));
+               params.pos = 0;
 
-            HashTable_ForEach(context->hash, FileNameArray, &params);
-            *ids = params.fileNames;
+               HashTable_ForEach(context->hash, FileNameArray, &params);
+               *ids = params.fileNames;
+            }
          }
       }
 
