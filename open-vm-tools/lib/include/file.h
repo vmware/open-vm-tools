@@ -176,7 +176,7 @@ Bool File_DeleteDirectoryContent(const char *pathName);
 
 Bool File_DeleteDirectoryTree(const char *pathName);
 
-int File_ListDirectory(const char *pathName,
+int File_ListDirectory(const char *dirName,
                        char ***ids);
 
 Bool File_IsOsfsVolumeEmpty(const char *pathName);
@@ -189,10 +189,10 @@ char * File_StripFwdSlashes(const char *pathName);
  * Simple file-system walk.
  */
 
-WalkDirContext File_WalkDirectoryStart(const char *parentPath);
+WalkDirContext File_WalkDirectoryStart(const char *dirName);
 
 Bool File_WalkDirectoryNext(WalkDirContext context,
-                            char **path);
+                            char **fileName);
 
 void File_WalkDirectoryEnd(WalkDirContext context);
 
