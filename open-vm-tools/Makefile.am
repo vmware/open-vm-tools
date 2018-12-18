@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2007-2016,2018 VMware, Inc.  All rights reserved.
+### Copyright (C) 2007-2018 VMware, Inc.  All rights reserved.
 ###
 ### Top-level Makefile for building the VMware OSS Tools.
 ###
@@ -40,9 +40,6 @@ if ENABLE_DEPLOYPKG
 endif
 SUBDIRS += rpctool
 SUBDIRS += namespacetool
-if ENABLE_GRABBITMQPROXY
-   SUBDIRS += guestproxycerttool
-endif
 SUBDIRS += scripts
 SUBDIRS += services
 SUBDIRS += toolbox

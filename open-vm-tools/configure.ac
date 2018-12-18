@@ -414,18 +414,6 @@ AC_ARG_ENABLE([libappmonitor],
     enable_libappmonitor=no
    ])
 
-AC_ARG_ENABLE([grabbitmqproxy],
-   [AS_HELP_STRING([--disable-grabbitmqproxy],
-     [do not build grabbitmqproxy plugin.])],
-   [],
-   [
-    if test "$os" = "linux"; then
-       enable_grabbitmqproxy=yes
-    else
-       enable_grabbitmqproxy=no
-    fi
-   ])
-
 #
 # Check for glib 2.6.14 or greater.
 #
@@ -552,9 +540,8 @@ AC_ARG_ENABLE([xmlsecurity],
 #
 AC_ARG_WITH([ssl],
    [AS_HELP_STRING([--without-ssl],
-     [compiles without openssl support (disables grabbitmqproxy and vgauth).])],
+     [compiles without openssl support (disables vgauth).])],
    [
-     enable_grabbitmqproxy=no
      enable_vgauth=no
    ],
    [with_ssl=yes])
@@ -592,7 +579,7 @@ AC_ARG_WITH([tirpc],
 # Make sure we are building with openssl 1.0.1 and above so that
 # we use only TLSv1_2.
 
-if test "$enable_vgauth" = "yes" -o "$enable_grabbitmqproxy" = "yes"; then
+if test "$enable_vgauth" = "yes" ; then
    AC_VMW_DEFAULT_FLAGS([SSL])
    AC_VMW_CHECK_LIB([ssl],
                     [SSL],
@@ -1431,7 +1418,6 @@ AM_CONDITIONAL(HAVE_GTKMM, test "$have_x" = "yes" -a \( "$with_gtkmm" = "yes" -o
 AM_CONDITIONAL(HAVE_PAM, test "$with_pam" = "yes")
 AM_CONDITIONAL(USE_SLASH_PROC, test "$os" = "linux")
 AM_CONDITIONAL(ENABLE_DEPLOYPKG, test "$enable_deploypkg" = "yes")
-AM_CONDITIONAL(ENABLE_GRABBITMQPROXY, test "$enable_grabbitmqproxy" = "yes")
 AM_CONDITIONAL(ENABLE_VGAUTH, test "$enable_vgauth" = "yes")
 AM_CONDITIONAL(USE_XMLSEC1, test "$use_xmlsec1" = "yes")
 AM_CONDITIONAL(HAVE_VSOCK, test "$os" = "linux")
@@ -1601,7 +1587,6 @@ AC_CONFIG_FILES([                      \
    services/plugins/Makefile           \
    services/plugins/desktopEvents/Makefile \
    services/plugins/dndcp/Makefile     \
-   services/plugins/grabbitmqProxy/Makefile \
    services/plugins/guestInfo/Makefile \
    services/plugins/hgfsServer/Makefile \
    services/plugins/powerOps/Makefile  \
@@ -1617,7 +1602,6 @@ AC_CONFIG_FILES([                      \
    hgfsmounter/Makefile                \
    checkvm/Makefile                    \
    rpctool/Makefile                    \
-   guestproxycerttool/Makefile         \
    vgauth/Makefile                     \
    vgauth/lib/Makefile                 \
    namespacetool/Makefile              \
