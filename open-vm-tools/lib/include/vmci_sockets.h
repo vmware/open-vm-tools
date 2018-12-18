@@ -39,7 +39,7 @@
 #  if defined(__APPLE__)
 #    include <sys/socket.h>
 #    include <string.h>
-#  elif defined(__FreeBSD__)
+#  elif defined(__FreeBSD__) && !defined(__VMKTCPIP__)
 #     include <sys/socket.h>
 #  endif // __FreeBSD__
 #endif // linux && !VMKERNEL
