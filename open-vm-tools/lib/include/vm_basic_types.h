@@ -149,6 +149,10 @@
 
 #endif
 
+#if defined(__FreeBSD__) && (__FreeBSD__ + 0 < 5)
+#  error FreeBSD detected without major version (PR 2116887)
+#endif
+
 /*
  * C99 <stdint.h> or equivalent
  * Special cases:
