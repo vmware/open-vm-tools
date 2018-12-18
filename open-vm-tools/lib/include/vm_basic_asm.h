@@ -1240,6 +1240,101 @@ RoundUpPow2_32(uint32 value)
 }
 
 
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * PopulationCount32 --
+ *
+ *     Counts "1" bits in a uint32.
+ *
+ * Results:
+ *     Returns the number of bits set to 1.
+ *
+ * Side effects:
+ *     None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE unsigned
+PopulationCount32(uint32 value)
+{
+   /*
+    * Attribution:
+    *     This algorithm was copied from:
+    *         http://www.aggregate.org/MAGIC#Population Count (Ones Count)
+    *
+    *     A virtually identical version (but in assembly) appears in an
+    *     AMD reference manual.
+    *
+    *     No license appears in the original code, but the website
+    *     header states:
+    *
+    *     "None of the following coding tricks came from proprietary
+    *     sources; further, we believe that each of the tricks we did
+    *     not invent is essentially "standard engineering practice" in
+    *     the specialized niche where it applies. Thus, although we
+    *     have not conducted patent searches, etc., to confirm it, we
+    *     believe that these are tricks that freely can be used for
+    *     any purpose. Of course, The Aggregate accepts no
+    *     responsibility for your use of these tricks; you must
+    *     confirm that the trick does what you want and that you can
+    *     use it as you intend. That said, we do intend to maintain
+    *     this page by adding new algorithms and/or correcting
+    *     existing entries. If you have any comments, please contact
+    *     Professor Hank Dietz, http://aggregate.org/hankd/"
+    *
+    *     "This document should be cited using something like the following
+    *      bibtex entry:"      (most recent retrieval date added)
+    *
+    *     @techreport{magicalgorithms,
+    *     author={Henry Gordon Dietz},
+    *     title={{The Aggregate Magic Algorithms}},
+    *     institution={University of Kentucky},
+    *     howpublished={Aggregate.Org online technical report},
+    *     URL={http://aggregate.org/MAGIC/},
+    *     urldate={2016-01-27}
+    *     }
+    */
+   value -= ((value >> 1) & 0x55555555);
+   value = (((value >> 2) & 0x33333333) + (value & 0x33333333));
+   value = (((value >> 4) + value) & 0x0f0f0f0f);
+   value += (value >> 8);
+   value += (value >> 16);
+   return value & 0x0000003f;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * PopulationCount64 --
+ *
+ *     Counts "1" bits in a uint64.
+ *
+ * Results:
+ *     Returns the number of bits set to 1.
+ *
+ * Side effects:
+ *     None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE unsigned
+PopulationCount64(uint64 value)
+{
+   value -= (value >> 1) & 0x5555555555555555ULL;
+   value = ((value >> 2) & 0x3333333333333333ULL) +
+           (value & 0x3333333333333333ULL);
+   value = ((value >> 4) + value) & 0x0f0f0f0f0f0f0f0fULL;
+   value += value >> 8;
+   value += value >> 16;
+   value += value >> 32;
+   return value & 0xff;
+}
+
+
 #if defined __cplusplus
 } // extern "C"
 #endif
