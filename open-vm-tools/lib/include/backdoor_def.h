@@ -238,6 +238,8 @@ extern "C" {
 #  define BDOOR_CMD_GMM_ENTER_INIT            2
 #  define BDOOR_CMD_GMM_ENTER_EVENT           3
 #  define BDOOR_CMD_GMM_ONESHOT_TIMER         4
+#  define BDOOR_CMD_GMM_WATCH_PPNS_START      5
+#  define BDOOR_CMD_GMM_WATCH_PPNS_STOP       6
 #define   BDOOR_CMD_MAX                      97
 
 
