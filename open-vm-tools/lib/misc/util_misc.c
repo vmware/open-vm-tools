@@ -719,8 +719,8 @@ Util_ExpandString(const char *fileName) // IN  file path to expand
       ASSERT(!freeChunk[i]);
       chunks[i] = expand;
       if (chunks[i] == NULL) {
-	 Log("%s: Cannot allocate memory to expand \"%s\" in \"%s\".\n",
-             __FUNCTION__, expand, fileName);
+	 Log("%s: Cannot allocate memory to expand in \"%s\".\n",
+             __FUNCTION__, fileName);
 	 goto out;
       }
       chunkSize[i] = strlen(expand);
