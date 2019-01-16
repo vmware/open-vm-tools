@@ -59,8 +59,8 @@ static char   *mxUserHistoLine = NULL;
 static uint32  mxUserMaxLineLength = 0;
 static void   *mxUserStatsContext = NULL;
 static void  (*mxUserStatsFunc)(void *context,
-                               const char *fmt,
-                               va_list ap) = NULL;
+                                const char *fmt,
+                                va_list ap) = NULL;
 
 
 /*
