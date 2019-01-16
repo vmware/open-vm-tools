@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -129,38 +129,38 @@ uint64 __shiftright128(uint64 lowPart, uint64 highPart, uint8 shift);
  */
 #if defined(__GNUC__)
 
-static INLINE void 
+static INLINE void
 FXSAVE_ES1(void *save)
 {
    __asm__ __volatile__ ("fxsaveq %0  \n" : "=m" (*(uint8 *)save) : : "memory");
 }
 
-static INLINE void 
+static INLINE void
 FXSAVE_COMPAT_ES1(void *save)
 {
    __asm__ __volatile__ ("fxsave %0  \n" : "=m" (*(uint8 *)save) : : "memory");
 }
 
-static INLINE void 
+static INLINE void
 FXRSTOR_ES1(const void *load)
 {
    __asm__ __volatile__ ("fxrstorq %0 \n"
                          : : "m" (*(const uint8 *)load) : "memory");
 }
 
-static INLINE void 
+static INLINE void
 FXRSTOR_COMPAT_ES1(const void *load)
 {
    __asm__ __volatile__ ("fxrstor %0 \n"
                          : : "m" (*(const uint8 *)load) : "memory");
 }
 
-static INLINE void 
+static INLINE void
 FXRSTOR_AMD_ES0(const void *load)
 {
    uint64 dummy = 0;
 
-   __asm__ __volatile__ 
+   __asm__ __volatile__
        ("fnstsw  %%ax    \n"     // Grab x87 ES bit
         "bt      $7,%%ax \n"     // Test ES bit
         "jnc     1f      \n"     // Jump if ES=0
@@ -186,7 +186,7 @@ FXRSTOR_AMD_ES0(const void *load)
  */
 #if defined(__GNUC__) && (defined(VMM) || defined(VMKERNEL) || defined(FROBOS))
 
-static INLINE void 
+static INLINE void
 XSAVE_ES1(void *save, uint64 mask)
 {
 #if __GNUC__ < 4 || __GNUC__ == 4 && __GNUC_MINOR__ == 1
@@ -204,7 +204,7 @@ XSAVE_ES1(void *save, uint64 mask)
 #endif
 }
 
-static INLINE void 
+static INLINE void
 XSAVE_COMPAT_ES1(void *save, uint64 mask)
 {
 #if __GNUC__ < 4 || __GNUC__ == 4 && __GNUC_MINOR__ == 1
@@ -222,7 +222,7 @@ XSAVE_COMPAT_ES1(void *save, uint64 mask)
 #endif
 }
 
-static INLINE void 
+static INLINE void
 XSAVEOPT_ES1(void *save, uint64 mask)
 {
    __asm__ __volatile__ (
@@ -232,7 +232,7 @@ XSAVEOPT_ES1(void *save, uint64 mask)
         : "memory");
 }
 
-static INLINE void 
+static INLINE void
 XRSTOR_ES1(const void *load, uint64 mask)
 {
 #if __GNUC__ < 4 || __GNUC__ == 4 && __GNUC_MINOR__ == 1
@@ -252,7 +252,7 @@ XRSTOR_ES1(const void *load, uint64 mask)
 #endif
 }
 
-static INLINE void 
+static INLINE void
 XRSTOR_COMPAT_ES1(const void *load, uint64 mask)
 {
 #if __GNUC__ < 4 || __GNUC__ == 4 && __GNUC_MINOR__ == 1
@@ -272,12 +272,12 @@ XRSTOR_COMPAT_ES1(const void *load, uint64 mask)
 #endif
 }
 
-static INLINE void 
+static INLINE void
 XRSTOR_AMD_ES0(const void *load, uint64 mask)
 {
    uint64 dummy = 0;
 
-   __asm__ __volatile__ 
+   __asm__ __volatile__
        ("fnstsw  %%ax    \n"     // Grab x87 ES bit
         "bt      $7,%%ax \n"     // Test ES bit
         "jnc     1f      \n"     // Jump if ES=0
@@ -307,16 +307,25 @@ XRSTOR_AMD_ES0(const void *load, uint64 mask)
  * XTEST
  *     Return TRUE if processor is in transaction region.
  *
+ *  Using condition codes as output values (=@ccnz) requires gcc6 or
+ *  above.  Clang does not support condition codes as output
+ *  constraints.
+ *
  */
 #if defined(__GNUC__) && (defined(VMM) || defined(VMKERNEL) || defined(FROBOS))
 static INLINE Bool
 xtest(void)
 {
-   uint8 al;
-   __asm__ __volatile__(".byte 0x0f, 0x01, 0xd6    # xtest \n"
-                        "setnz %%al\n"
-                        : "=a"(al) : : "cc"); 
-   return al;
+   Bool result;
+#if defined(__clang__)
+   __asm__ __volatile__("xtest\n"
+                        "setnz %%al"
+                        : "=a" (result) : : "cc");
+#else
+   __asm__ __volatile__("xtest"
+                        : "=@ccnz" (result) : : "cc");
+#endif
+   return result;
 }
 
 #endif /* __GNUC__ */
@@ -328,7 +337,7 @@ xtest(void)
  *
  *    Unsigned integer by fixed point multiplication, with rounding:
  *       result = floor(multiplicand * multiplier * 2**(-shift) + 0.5)
- * 
+ *
  *       Unsigned 64-bit integer multiplicand.
  *       Unsigned 64-bit fixed point multiplier, represented as
  *         (multiplier, shift), where shift < 64.
@@ -410,7 +419,7 @@ Mul64x6464(uint64 multiplicand,
  *
  *    Signed integer by fixed point multiplication, with rounding:
  *       result = floor(multiplicand * multiplier * 2**(-shift) + 0.5)
- * 
+ *
  *       Signed 64-bit integer multiplicand.
  *       Unsigned 64-bit fixed point multiplier, represented as
  *         (multiplier, shift), where shift < 64.
@@ -495,7 +504,7 @@ Muls64x64s64(int64 multiplicand,
  *
  *    Unsigned integer by fixed point multiplication, with rounding:
  *       result = floor(multiplicand * multiplier * 2**(-shift) + 0.5)
- * 
+ *
  *       Unsigned 64-bit integer multiplicand.
  *       Unsigned 32-bit fixed point multiplier, represented as
  *         (multiplier, shift), where shift < 64.
@@ -519,7 +528,7 @@ Mul64x3264(uint64 multiplicand, uint32 multiplier, uint32 shift)
  *
  *    Signed integer by fixed point multiplication, with rounding:
  *       result = floor(multiplicand * multiplier * 2**(-shift) + 0.5)
- * 
+ *
  *       Signed 64-bit integer multiplicand.
  *       Unsigned 32-bit fixed point multiplier, represented as
  *         (multiplier, shift), where shift < 64.
