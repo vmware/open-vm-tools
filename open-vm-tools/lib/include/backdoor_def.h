@@ -235,11 +235,10 @@ extern "C" {
 #define   BDOOR_CMD_GMM                      96
 #  define BDOOR_CMD_GMM_GET_SIZE              0 /* Depends on firmware. */
 #  define BDOOR_CMD_GMM_MAP_MEMORY            1 /* Depends on firmware. */
-#  define BDOOR_CMD_GMM_ENTER_INIT            2
-#  define BDOOR_CMD_GMM_ENTER_EVENT           3
-#  define BDOOR_CMD_GMM_ONESHOT_TIMER         4
-#  define BDOOR_CMD_GMM_WATCH_PPNS_START      5
-#  define BDOOR_CMD_GMM_WATCH_PPNS_STOP       6
+#  define BDOOR_CMD_GMM_ENTER                 2
+#  define BDOOR_CMD_GMM_ONESHOT_TIMER         3
+#  define BDOOR_CMD_GMM_WATCH_PPNS_START      4
+#  define BDOOR_CMD_GMM_WATCH_PPNS_STOP       5
 #define   BDOOR_CMD_MAX                      97
 
 
