@@ -47,7 +47,10 @@
 #define GHI_CHANNEL_DND                         3  // DnD for both local VM and View RMKS.
 #define GHI_CHANNEL_VIEW_REMOTE_RDE_COMMON      4  // VDPRdeCommonMKSControl module
                                                    // in View RMKS
-#define GHI_CHANNEL_MAX                         5
+// VDPUsbRedirectionMKSControl module in View RMKS
+#define GHI_CHANNEL_VIEW_USB_REDIRECTION        5
+#define GHI_CHANNEL_MAX                         6
+
 typedef uint32 GHIChannelType;
 
 #define GHI_REQUEST_SUCCESS_OK                  0  // Guest received the message and returned OK.
@@ -118,5 +121,19 @@ typedef uint32 GHIGuestToHostMessageType;
 #define GHI_GUEST_RDE_COMMON_UNLOCK_DESKTOP \
             (GHI_CHANNEL_VIEW_REMOTE_RDE_COMMON_BITS | 0x000002)
 
+/*
+ * MKS->UI messages over GHI_CHANNEL_VIEW_USB_REDIRECTION.
+ */
+#define GHI_CHANNEL_VIEW_USB_REDIRECTION_BITS \
+            GHI_GUEST_CHANNEL_BITS(GHI_CHANNEL_VIEW_USB_REDIRECTION)
+#define GHI_GUEST_USB_REDIRECTION_USB_INSTANCE_ID \
+            (GHI_CHANNEL_VIEW_USB_REDIRECTION_BITS | 0x000001)
+#define GHI_GUEST_USB_REDIRECTION_DEVICES_FILTER_STATUS \
+            (GHI_CHANNEL_VIEW_USB_REDIRECTION_BITS | 0x000002)
+
+/*
+ * UI->MKS messages over GHI_CHANNEL_VIEW_USB_REDIRECTION.
+ */
+#define GHI_HOST_USB_REDIRECTION_STARTUSBD_CMD  "ghi.usb.redirection.startusbd"
 
 #endif // ifndef _GHINTEGRATIONCOMMON_H_
