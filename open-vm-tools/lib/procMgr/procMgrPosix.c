@@ -80,12 +80,14 @@
 #include "strutil.h"
 #include "codeset.h"
 #include "unicode.h"
+#include "logToHost.h"
 
 #ifdef USERWORLD
 #include <vm_basic_types.h>
 #include <vmkuserstatus.h>
 #include <vmkusercompat.h>
 #endif
+
 
 /*
  * All signals that:
@@ -2238,13 +2240,15 @@ ProcMgr_ImpersonateUserStart(const char *user,  // IN: UTF-8 encoded user name
    ret = setresgid(ppw->pw_gid, ppw->pw_gid, root_gid);
 #endif
    if (ret < 0) {
-      Warning("Failed to set gid for user %s\n", user);
+      WarningToGuest("Failed to set gid for user %s\n", user);
+      WarningToHost("Failed to set gid\n");
       return FALSE;
    }
 #ifndef USERWORLD
    ret = initgroups(ppw->pw_name, ppw->pw_gid);
    if (ret < 0) {
-      Warning("Failed to initgroups() for user %s\n", user);
+      WarningToGuest("Failed to initgroups() for user %s\n", user);
+      WarningToHost("Failed to initgroups()\n");
       goto failure;
    }
 #endif
@@ -2257,7 +2261,8 @@ ProcMgr_ImpersonateUserStart(const char *user,  // IN: UTF-8 encoded user name
    ret = setresuid(ppw->pw_uid, ppw->pw_uid, 0);
 #endif
    if (ret < 0) {
-      Warning("Failed to set uid for user %s\n", user);
+      WarningToGuest("Failed to set uid for user %s\n", user);
+      WarningToHost("Failed to set uid\n");
       goto failure;
    }
 

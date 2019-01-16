@@ -57,6 +57,7 @@
 #include "vmware/tools/guestrpc.h"
 #include "vmware/guestrpc/tclodefs.h"
 #include "err.h"
+#include "logToHost.h"
 
 #define LOGGING_GROUP         "logging"
 
@@ -203,6 +204,11 @@ static void VmxGuestLog(const gchar *domain,
                         GLogLevelFlags level,
                         const gchar *message);
 void Debug(const char *fmt, ...);
+static void LogWhereLevelV(LogWhere where,
+                           GLogLevelFlags level,
+                           const gchar *domain,
+                           const gchar *fmt,
+                           va_list args);
 
 /* Internal functions. */
 
@@ -2255,6 +2261,96 @@ Warning(const char *fmt, ...)
        * Log() calls in bora/lib code from clobbering errno/lastError.
        */
       WITH_ERRNO(err, VMToolsLogWrapper(G_LOG_LEVEL_WARNING, fmt, args));
+   }
+   va_end(args);
+}
+
+
+/*
+ *******************************************************************************
+ * VmwareLogWrapper --                                                    */ /**
+ *
+ * Generic wrapper for VMware log functions to directly log to either guest
+ * or host.
+ *
+ * @param[in]  where    Log to host or guest.
+ * @param[in]  level    Log level.
+ * @param[in]  fmt      Message format.
+ * @param[in]  args     Message arguments.
+ *
+ *******************************************************************************
+ */
+
+static void
+VmwareLogWrapper(LogWhere where,
+                 GLogLevelFlags level,
+                 const char *fmt,
+                 va_list args)
+{
+   if (!gLogInitialized && !IS_FATAL(level)) {
+      /*
+       * Avoid logging without initialization because
+       * it leads to spamming of the console output.
+       * Fatal messages are exception.
+       */
+      return;
+   }
+
+   VMTools_AcquireLogStateLock();
+
+   LogWhereLevelV(where, level, gLogDomain, fmt, args);
+
+   VMTools_ReleaseLogStateLock();
+}
+
+
+/*
+ *******************************************************************************
+ * WarningToHost --                                                       */ /**
+ *
+ * Logs a message at the host side using the G_LOG_LEVEL_WARNING level
+ *
+ * @param[in] fmt Log message format.
+ *
+ *******************************************************************************
+ */
+
+void
+WarningToHost(const char *fmt, ...)
+{
+   va_list args;
+   va_start(args, fmt);
+   if (gGuestSDKMode) {
+      GuestSDK_Warning(fmt, args);
+   } else {
+      WITH_ERRNO(err,
+         VmwareLogWrapper(TO_HOST, G_LOG_LEVEL_WARNING, fmt, args));
+   }
+   va_end(args);
+}
+
+
+/*
+ *******************************************************************************
+ * WarningToGuest --                                                      */ /**
+ *
+ * Logs a message at the guest side using the G_LOG_LEVEL_WARNING level
+ *
+ * @param[in] fmt Log message format.
+ *
+ *******************************************************************************
+ */
+
+void
+WarningToGuest(const char *fmt, ...)
+{
+   va_list args;
+   va_start(args, fmt);
+   if (gGuestSDKMode) {
+      GuestSDK_Warning(fmt, args);
+   } else {
+      WITH_ERRNO(err,
+         VmwareLogWrapper(IN_GUEST, G_LOG_LEVEL_WARNING, fmt, args));
    }
    va_end(args);
 }
