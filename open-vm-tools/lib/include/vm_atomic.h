@@ -2303,7 +2303,10 @@ Atomic_ReadAdd64(Atomic_uint64 *var, // IN/OUT
  *
  * Atomic_ReadSub64 --
  *
- *      Atomically subtracts a 64-bit integer to another
+ *      Atomically subtracts a 64-bit integer from another.
+ *
+ *      Note: It is expected that val <= var.  If untrue, the result
+ *            cannot be represented in an unsigned type.
  *
  * Results:
  *      Returns the old value just prior to the subtraction
@@ -2321,7 +2324,7 @@ Atomic_ReadSub64(Atomic_uint64 *var, // IN/OUT
 #if defined VM_ARM_64
    return _VMATOM_X(ROP, 64, TRUE, &var->value, sub, val);
 #else
-   return Atomic_ReadAdd64(var, -(int64)val);
+   return Atomic_ReadAdd64(var, (uint64)-(int64)val);
 #endif
 }
 
@@ -3618,7 +3621,7 @@ Atomic_ReadInc16(Atomic_uint16 *var) // IN/OUT
 static INLINE uint16
 Atomic_ReadDec16(Atomic_uint16 *var) // IN/OUT
 {
-   return Atomic_ReadAdd16(var, -1);
+   return Atomic_ReadAdd16(var, (uint16)-1);
 }
 #endif
 

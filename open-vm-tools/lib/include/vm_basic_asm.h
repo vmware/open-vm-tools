@@ -235,8 +235,9 @@ mssb64_0(const uint64 value)
 #endif
 
 static INLINE int
-lssb32_0(uint32 value)
+lssb32_0(uint32 v)
 {
+   int value = (int)v;
 #ifdef USE_ARCH_X86_CUSTOM
    if (!__builtin_constant_p(value)) {
       if (UNLIKELY(value == 0)) {
@@ -276,8 +277,10 @@ mssb32_0(uint32 value)
 }
 
 static INLINE int
-lssb64_0(const uint64 value)
+lssb64_0(const uint64 v)
 {
+   int64 value = (int64)v;
+
 #ifdef USE_ARCH_X86_CUSTOM
    if (!__builtin_constant_p(value)) {
       if (UNLIKELY(value == 0)) {
@@ -1184,7 +1187,9 @@ RoundUpPow2C32(uint32 value)
    if (value <= 1 || value > (1U << 31)) {
       return 1; // Match the assembly's undefined value for large inputs.
    } else {
-      return (2 << mssb32_0(value - 1));
+      int mssb32 = mssb32_0(value - 1);
+      /* invariant: mssb32 >= 0 */
+      return (2U << (uint32)mssb32);
    }
 }
 
