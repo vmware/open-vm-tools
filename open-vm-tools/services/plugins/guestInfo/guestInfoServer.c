@@ -1186,6 +1186,142 @@ GuestInfoSendNicInfo(ToolsAppCtx *ctx,             // IN
 }
 
 
+#if defined(_WIN64) && (_MSC_VER == 1500) && GLIB_CHECK_VERSION(2, 46, 0)
+/*
+ * Turn off optimizer for this compiler, since something with new glib
+ * makes it go into an infinite loop, only on 64bit.
+ */
+#pragma optimize("", off)
+#endif
+
+/*
+ ******************************************************************************
+ * GuestInfoSendDiskInfoV0 --
+ *
+ * Push updated Disk info to the VMX, using the binary INFO_DISK_FREE_SPACE
+ * format.
+ *
+ * @param[in] ctx       Application context.
+ * @param[in] pdi       GuestDiskInfo *
+ * @param[in] infoSize  Size of disk info.
+ *
+ * @retval TRUE  Update sent successfully.
+ * @retval FALSE Had trouble with serialization or transmission.
+ *
+ ******************************************************************************
+ */
+
+static Bool
+GuestInfoSendDiskInfoV0(ToolsAppCtx *ctx,             // IN
+                        GuestDiskInfo *pdi,           // IN
+                        size_t infoSize)              // IN
+{
+   /*
+    * 2 accounts for the digits of infotype and 3 for the three
+    * spaces.
+    */
+   unsigned int requestSize = sizeof GUEST_INFO_COMMAND + 2 +
+                              3 * sizeof (char);
+   uint8 partitionCount;
+   size_t offset;
+   char *request;
+   char *reply;
+   size_t replyLen;
+   Bool status;
+
+   ASSERT((pdi->numEntries && pdi->partitionList) ||
+          (!pdi->numEntries && !pdi->partitionList));
+
+   /* partitionCount is a uint8 and cannot be larger than UCHAR_MAX. */
+   if (pdi->numEntries > UCHAR_MAX) {
+      g_message("%s: Too many local filesystems (%d); truncating to %d entries\n",
+                __FUNCTION__, pdi->numEntries, UCHAR_MAX);
+      partitionCount = UCHAR_MAX;
+   } else {
+      partitionCount = pdi->numEntries;
+   }
+
+   requestSize += sizeof partitionCount +
+                  sizeof *pdi->partitionList * partitionCount;
+   request = Util_SafeCalloc(requestSize, sizeof *request);
+
+   Str_Sprintf(request, requestSize, "%s  %d ", GUEST_INFO_COMMAND,
+               INFO_DISK_FREE_SPACE);
+
+   offset = strlen(request);
+
+   /*
+    * Construct the disk information message to send to the host.  This
+    * contains a single byte indicating the number partitions followed by
+    * the PartitionEntry structure for each one.
+    *
+    * Note that the use of a uint8 to specify the partitionCount is the
+    * result of a bug (see bug 117224) but should not cause a problem
+    * since UCHAR_MAX is 255.  Also note that PartitionEntry is packed so
+    * it's safe to send it from 64-bit Tools to a 32-bit VMX, etc.
+    */
+   memcpy(request + offset, &partitionCount, sizeof partitionCount);
+
+   /*
+    * Conditioned because memcpy(dst, NULL, 0) -may- lead to undefined
+    * behavior.
+    */
+   if (pdi->partitionList) {
+      memcpy(request + offset + sizeof partitionCount, pdi->partitionList,
+             sizeof *pdi->partitionList * partitionCount);
+   }
+
+   g_debug("%s: sizeof request is %d\n", __FUNCTION__, requestSize);
+   status = RpcChannel_Send(ctx->rpc, request, requestSize, &reply,
+                            &replyLen);
+   if (status) {
+      status = (*reply == '\0');
+      if (!status) {
+         g_debug("%s: unexpected reply '%s'\n", __FUNCTION__, reply);
+      }
+   }
+
+   vm_free(request);
+   vm_free(reply);
+
+   if (!status) {
+      return FALSE;
+   }
+
+   return TRUE;
+}
+
+
+/*
+ ******************************************************************************
+ * GuestInfoSendDiskInfo --
+ *
+ * Push updated Disk info to the VMX.
+ *
+ * @param[in] ctx       Application context.
+ * @param[in] info      GuestDiskInfo *
+ * @param[in] infoSize  Size of disk info.
+ *
+ * @retval TRUE  Update sent successfully.
+ * @retval FALSE Had trouble with serialization or transmission.
+ *
+ ******************************************************************************
+ */
+
+static Bool
+GuestInfoSendDiskInfo(ToolsAppCtx *ctx,             // IN
+                      GuestDiskInfo *info,          // IN
+                      size_t infoSize)              // IN
+{
+   /* XXX try new format */
+
+   /* fail over to old */
+   g_debug("%s: using old diskinfo format\n", __FUNCTION__);
+
+   return GuestInfoSendDiskInfoV0(ctx, info, infoSize);
+}
+
+
 /*
  ******************************************************************************
  * GuestInfoUpdateVMX --
@@ -1203,15 +1339,6 @@ GuestInfoSendNicInfo(ToolsAppCtx *ctx,             // IN
  *
  ******************************************************************************
  */
-
-
-#if defined(_WIN64) && (_MSC_VER == 1500) && GLIB_CHECK_VERSION(2, 46, 0)
-/*
- * Turn off optimizer for this compiler, since something with new glib
- * makes it go into an infinite loop, only on 64bit.
- */
-#pragma optimize("", off)
-#endif
 
 static Bool
 GuestInfoUpdateVMX(ToolsAppCtx *ctx,        // IN: Application context
@@ -1292,78 +1419,12 @@ GuestInfoUpdateVMX(ToolsAppCtx *ctx,        // IN: Application context
 
    case INFO_DISK_FREE_SPACE:
       {
-         /*
-          * 2 accounts for the digits of infotype and 3 for the three
-          * spaces.
-          */
-         unsigned int requestSize = sizeof GUEST_INFO_COMMAND + 2 +
-                                    3 * sizeof (char);
-         uint8 partitionCount;
-         size_t offset;
-         char *request;
-         char *reply;
-         size_t replyLen;
-         Bool status;
-         GuestDiskInfo *pdi = info;
-
-         if (!DiskInfoChanged(pdi)) {
+         if (!DiskInfoChanged(info)) {
             g_debug("Disk info not changed.\n");
             break;
          }
 
-         ASSERT((pdi->numEntries && pdi->partitionList) ||
-                (!pdi->numEntries && !pdi->partitionList));
-
-         /* partitionCount is a uint8 and cannot be larger than UCHAR_MAX. */
-         if (pdi->numEntries > UCHAR_MAX) {
-            g_message("%s: Too many local filesystems (%d); truncating to %d entries\n",
-                      __FUNCTION__, pdi->numEntries, UCHAR_MAX);
-            partitionCount = UCHAR_MAX;
-         } else {
-            partitionCount = pdi->numEntries;
-         }
-
-         requestSize += sizeof partitionCount +
-                        sizeof *pdi->partitionList * partitionCount;
-         request = Util_SafeCalloc(requestSize, sizeof *request);
-
-         Str_Sprintf(request, requestSize, "%s  %d ", GUEST_INFO_COMMAND,
-                     INFO_DISK_FREE_SPACE);
-
-         offset = strlen(request);
-
-         /*
-          * Construct the disk information message to send to the host.  This
-          * contains a single byte indicating the number partitions followed by
-          * the PartitionEntry structure for each one.
-          *
-          * Note that the use of a uint8 to specify the partitionCount is the
-          * result of a bug (see bug 117224) but should not cause a problem
-          * since UCHAR_MAX is 255.  Also note that PartitionEntry is packed so
-          * it's safe to send it from 64-bit Tools to a 32-bit VMX, etc.
-          */
-         memcpy(request + offset, &partitionCount, sizeof partitionCount);
-
-         /*
-          * Conditioned because memcpy(dst, NULL, 0) -may- lead to undefined
-          * behavior.
-          */
-         if (pdi->partitionList) {
-            memcpy(request + offset + sizeof partitionCount, pdi->partitionList,
-                   sizeof *pdi->partitionList * partitionCount);
-         }
-
-         g_debug("sizeof request is %d\n", requestSize);
-         status = RpcChannel_Send(ctx->rpc, request, requestSize, &reply,
-                                  &replyLen);
-         if (status) {
-            status = (*reply == '\0');
-         }
-
-         vm_free(request);
-         vm_free(reply);
-
-         if (!status) {
+         if (!GuestInfoSendDiskInfo(ctx, info, infoSize)) {
             g_warning("Failed to update disk information.\n");
             return FALSE;
          }
