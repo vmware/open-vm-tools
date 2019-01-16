@@ -65,9 +65,9 @@
 #include "ubstr_t.hh"
 #endif
 
-#include "libExport.hh"
+#include <libExport.hh>
 
-#include "unicodeTypes.h"
+#include <unicodeTypes.h>
 
 #ifdef _WIN32
 /*

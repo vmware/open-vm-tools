@@ -36,8 +36,8 @@
 
 #include "autoCPtr.hh"
 
-#include "unicode.h"
-#include "util.h"
+#include <unicode.h>
+#include <util.h>
 
 
 #ifdef I_LOVE_BSTR_T_CLASSIC
