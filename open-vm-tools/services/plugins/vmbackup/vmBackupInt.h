@@ -72,6 +72,12 @@ typedef enum {
    VMBACKUP_MSTATE_SYNC_ERROR
 } VmBackupMState;
 
+typedef enum {
+   VMBACKUP_RPC_STATE_NORMAL,
+   VMBACKUP_RPC_STATE_ERROR,
+   VMBACKUP_RPC_STATE_IGNORE
+} VmBackupRpcState;
+
 /**
  * This is a "base struct" for asynchronous operations monitored by the
  * state machine. Each implementation should provide these three functions
@@ -138,6 +144,7 @@ typedef struct VmBackupState {
    Bool           vssBootableSystemState;
    Bool           vssPartialFileSupport;
    Bool           vssUseDefault;
+   VmBackupRpcState rpcState;
 } VmBackupState;
 
 typedef Bool (*VmBackupCallback)(VmBackupState *);
