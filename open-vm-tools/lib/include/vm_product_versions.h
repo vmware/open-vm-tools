@@ -37,7 +37,7 @@
  * versioning is correct.
  */
 #if defined(VMX86_VIEWCLIENT)
-   #define PRODUCT_VERSION    4,11,0,PRODUCT_BUILD_NUMBER_NUMERIC   /* VIEW_CLIENT_VERSION_NUMBER below has to match this */
+   #define PRODUCT_VERSION    4,7,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_VMRC) /* check VMX86_VMRC before VMX86_DESKTOP */
    #define PRODUCT_VERSION    11,0,0,PRODUCT_BUILD_NUMBER_NUMERIC   /* VMRC_VERSION_NUMBER below has to match this */
 #elif defined(VMX86_FLEX) /* check VMX86_FLEX before VMX86_DESKTOP */
@@ -319,7 +319,7 @@
 #define VIM_WS_PRODUCT_LINE_ID "ws"
 
 #if defined(VMX86_VIEWCLIENT)
-#  define PRODUCT_VERSION_NUMBER VIEW_CLIENT_VERSION
+#  define PRODUCT_VERSION_NUMBER VDM_CLIENT_VERSION
 #elif defined(VMX86_VMRC) /* check VMX86_VMRC before VMX86_DESKTOP */
 #  define PRODUCT_VERSION_NUMBER VMRC_VERSION
 #elif defined(VMX86_FLEX) /* check VMX86_FLEX before VMX86_DESKTOP */
