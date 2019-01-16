@@ -884,7 +884,8 @@ FileIO_AtomicUpdateEx(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
          ASSERT(isSame);
       } else {
          savedErrno = errno;
-         Log("%s: File_IsSameFile failed (errno = %d).\n", __FUNCTION__, errno);
+         Log("%s: File_IsSameFile of ('%s', '%s') failed: %d\n", __FUNCTION__,
+             dirName, dstDirName, errno);
          goto swapdone;
       }
 
