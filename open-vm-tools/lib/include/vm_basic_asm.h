@@ -390,10 +390,10 @@ lssbPtr_0(const uintptr_t value)
 #endif
 }
 
-static INLINE int
+static INLINE unsigned
 lssbPtr(const uintptr_t value)
 {
-   return lssbPtr_0(value) + 1;
+   return (unsigned)lssbPtr_0(value) + 1;
 }
 
 static INLINE int
@@ -406,34 +406,34 @@ mssbPtr_0(const uintptr_t value)
 #endif
 }
 
-static INLINE int
+static INLINE unsigned
 mssbPtr(const uintptr_t value)
 {
-   return mssbPtr_0(value) + 1;
+   return (unsigned)mssbPtr_0(value) + 1;
 }
 
-static INLINE int
+static INLINE unsigned
 lssb32(const uint32 value)
 {
-   return lssb32_0(value) + 1;
+   return (unsigned)lssb32_0(value) + 1;
 }
 
-static INLINE int
+static INLINE unsigned
 mssb32(const uint32 value)
 {
-   return mssb32_0(value) + 1;
+   return (unsigned)mssb32_0(value) + 1;
 }
 
-static INLINE int
+static INLINE unsigned
 lssb64(const uint64 value)
 {
-   return lssb64_0(value) + 1;
+   return (unsigned)lssb64_0(value) + 1;
 }
 
-static INLINE int
+static INLINE unsigned
 mssb64(const uint64 value)
 {
-   return mssb64_0(value) + 1;
+   return (unsigned)mssb64_0(value) + 1;
 }
 
 #ifdef __GNUC__
