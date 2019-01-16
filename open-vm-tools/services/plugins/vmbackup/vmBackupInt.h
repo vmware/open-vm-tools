@@ -156,6 +156,7 @@ typedef struct VmBackupSyncProvider {
    VmBackupProviderCallback start;
 #else
    ToolsCorePoolCb start;
+   VmBackupProviderCallback undo;
 #endif
    VmBackupProviderCallback snapshotDone;
    void (*release)(struct VmBackupSyncProvider *);
