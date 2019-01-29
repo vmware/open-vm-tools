@@ -2205,9 +2205,8 @@ ProcMgr_ImpersonateUserStart(const char *user,  // IN: UTF-8 encoded user name
        * set the return pointer (ppw) if there's no entry for the user,
        * according to POSIX 1003.1-2003, so patch up the errno.
        */
-      if (error == 0) {
-         errno = ENOENT;
-      }
+      Warning("Failed to lookup user with uid: %" FMTUID ". Reason: %s\n", 0,
+              error == 0 ? "entry not found" : Err_Errno2String(error));
       return FALSE;
    }
 
@@ -2220,16 +2219,15 @@ ProcMgr_ImpersonateUserStart(const char *user,  // IN: UTF-8 encoded user name
        return FALSE;
    }
 
-   error = getpwnam_r(userLocal, &pw, buffer, sizeof buffer, &ppw);
-
-   free(userLocal);
-
-   if (error != 0 || !ppw) {
-      if (error == 0) {
-         error = ENOENT;
-      }
+   if ((error = getpwnam_r(userLocal, &pw, buffer, sizeof buffer, &ppw)) != 0 ||
+       !ppw) {
+      Warning("Failed to lookup user name %s. Reason: %s\n", userLocal,
+              error == 0 ? "entry not found" : Err_Errno2String(error));
+      free(userLocal);
       return FALSE;
    }
+
+   free(userLocal);
 
    // first change group
 #if defined(USERWORLD)
@@ -2306,9 +2304,8 @@ ProcMgr_ImpersonateUserStop(void)
 
    if ((error = getpwuid_r(0, &pw, buffer, sizeof buffer, &ppw)) != 0 ||
        !ppw) {
-      if (error == 0) {
-         error = ENOENT;
-      }
+      Warning("Failed to lookup user with uid: %" FMTUID ". Reason: %s\n", 0,
+              error == 0 ? "entry not found" : Err_Errno2String(error));
       return FALSE;
    }
 
@@ -2432,9 +2429,8 @@ ProcMgr_GetImpersonatedUserInfo(char **userName,            // OUT
        * set the return pointer (ppw) if there's no entry for the user,
        * according to POSIX 1003.1-2003, so patch up the errno.
        */
-      if (error == 0) {
-         error = ENOENT;
-      }
+      Warning("Failed to lookup user with uid: %" FMTUID ". Reason: %s\n", uid,
+              error == 0 ? "entry not found" : Err_Errno2String(error));
       return FALSE;
    }
 
