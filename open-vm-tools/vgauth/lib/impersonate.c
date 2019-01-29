@@ -115,7 +115,7 @@ VGAuth_CreateHandleForUsername(VGAuthContext *ctx,
 
 #ifdef _WIN32
    newHandle->token = token;
-   newHandle->hProfile = NULL;
+   newHandle->hProfile = INVALID_HANDLE_VALUE;
 #endif
 
    newHandle->refCount = 1;
