@@ -453,12 +453,13 @@ VmBackupDoAbort(void)
       g_static_mutex_unlock(&gBackupState->opLock);
 
 #ifdef __linux__
-      /* Thaw the guest if already quiesced */
+      /* If quiescing has been completed, then undo it.  */
       if (gBackupState->machineState == VMBACKUP_MSTATE_SYNC_FREEZE) {
-         g_debug("Guest already quiesced, thawing for abort\n");
-         if (!gBackupState->provider->snapshotDone(gBackupState,
+         g_debug("Aborting with file system already quiesced, undo quiescing "
+                 "operation.\n");
+         if (!gBackupState->provider->undo(gBackupState,
                                       gBackupState->provider->clientData)) {
-            g_debug("Thaw during abort failed\n");
+            g_debug("Quiescing undo failed.\n");
             eventMsg = "Quiesce could not be aborted.";
          }
       }
