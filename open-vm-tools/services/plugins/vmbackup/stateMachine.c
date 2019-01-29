@@ -224,6 +224,7 @@ VmBackup_SendEvent(const char *event,
    if (gBackupState->keepAlive != NULL) {
       g_source_destroy(gBackupState->keepAlive);
       g_source_unref(gBackupState->keepAlive);
+      gBackupState->keepAlive = NULL;
    }
 
    msg = g_strdup_printf(VMBACKUP_PROTOCOL_EVENT_SET" %s %u %s",
@@ -267,19 +268,27 @@ VmBackup_SendEvent(const char *event,
                              &result, &resultLen);
 #endif
 
-   if (!success) {
+   if (success) {
+      ASSERT(gBackupState->keepAlive == NULL);
+      gBackupState->keepAlive =
+         g_timeout_source_new(VMBACKUP_KEEP_ALIVE_PERIOD / 2);
+      VMTOOLSAPP_ATTACH_SOURCE(gBackupState->ctx,
+                               gBackupState->keepAlive,
+                               VmBackupKeepAliveCallback,
+                               NULL,
+                               NULL);
+   } else {
       g_warning("Failed to send vmbackup event: %s, result: %s.\n",
                 msg, result);
+      if (gBackupState->rpcState != VMBACKUP_RPC_STATE_IGNORE) {
+         g_debug("Changing rpcState from %d to %d\n",
+                 gBackupState->rpcState, VMBACKUP_RPC_STATE_ERROR);
+         gBackupState->rpcState = VMBACKUP_RPC_STATE_ERROR;
+      }
    }
    vm_free(result);
    g_free(msg);
 
-   gBackupState->keepAlive = g_timeout_source_new(VMBACKUP_KEEP_ALIVE_PERIOD / 2);
-   VMTOOLSAPP_ATTACH_SOURCE(gBackupState->ctx,
-                            gBackupState->keepAlive,
-                            VmBackupKeepAliveCallback,
-                            NULL,
-                            NULL);
    return success;
 }
 
@@ -440,6 +449,12 @@ VmBackupDoAbort(void)
 {
    g_debug("*** %s\n", __FUNCTION__);
    ASSERT(gBackupState != NULL);
+
+   /*
+    * Once we abort the operation, we don't care about RPC state.
+    */
+   gBackupState->rpcState = VMBACKUP_RPC_STATE_IGNORE;
+
    if (gBackupState->machineState != VMBACKUP_MSTATE_SCRIPT_ERROR &&
        gBackupState->machineState != VMBACKUP_MSTATE_SYNC_ERROR) {
       const char *eventMsg = "Quiesce aborted.";
@@ -621,6 +636,17 @@ VmBackupAsyncCallback(void *clientData)
        * has not finished yet.
        */
       if (opPending) {
+         goto exit;
+      }
+
+      /*
+       * VMX state might have changed when we were processing
+       * currentOp. This is usually detected by failures in
+       * sending backup event to the host.
+       */
+      if (gBackupState->rpcState == VMBACKUP_RPC_STATE_ERROR) {
+         g_warning("Aborting backup operation due to RPC errors.");
+         VmBackupDoAbort();
          goto exit;
       }
    }
@@ -958,6 +984,7 @@ VmBackupStartCommon(RpcInData *data,
    gBackupState->enableNullDriver = VMBACKUP_CONFIG_GET_BOOL(ctx->config,
                                                              "enableNullDriver",
                                                              TRUE);
+   gBackupState->rpcState = VMBACKUP_RPC_STATE_NORMAL;
 
    g_debug("Using quiesceApps = %d, quiesceFS = %d, allowHWProvider = %d,"
            " execScripts = %d, scriptArg = %s, timeout = %u,"
