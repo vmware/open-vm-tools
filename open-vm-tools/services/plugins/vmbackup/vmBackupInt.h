@@ -303,8 +303,11 @@ VmBackup_SendEvent(const char *event,
                    const uint32 code,
                    const char *desc);
 
-void
-VmBackup_SyncDriverReset(void);
+
+Bool
+VmBackup_SendEventNoAbort(const char *event,
+                          const uint32 code,
+                          const char *desc);
 
 #endif /* _VMBACKUPINT_H_*/
 
