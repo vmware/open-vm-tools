@@ -201,17 +201,19 @@ VmBackupPrivSendMsg(gchar *msg,
  * Sends a command to the VMX asking it to update VMDB about a new backup event.
  * This will restart the keep-alive timer.
  *
+ * As the name implies, does not abort the quiesce operation on failure.
+ *
  * @param[in]  event    The event to set.
  * @param[in]  code     Error code.
- * @param[in]  dest     Error description.
+ * @param[in]  desc     Error description.
  *
  * @return TRUE on success.
  */
 
 Bool
-VmBackup_SendEvent(const char *event,
-                   const uint32 code,
-                   const char *desc)
+VmBackup_SendEventNoAbort(const char *event,
+                          const uint32 code,
+                          const char *desc)
 {
    Bool success;
    char *result = NULL;
@@ -280,14 +282,39 @@ VmBackup_SendEvent(const char *event,
    } else {
       g_warning("Failed to send vmbackup event: %s, result: %s.\n",
                 msg, result);
-      if (gBackupState->rpcState != VMBACKUP_RPC_STATE_IGNORE) {
-         g_debug("Changing rpcState from %d to %d\n",
-                 gBackupState->rpcState, VMBACKUP_RPC_STATE_ERROR);
-         gBackupState->rpcState = VMBACKUP_RPC_STATE_ERROR;
-      }
    }
    vm_free(result);
    g_free(msg);
+
+   return success;
+}
+
+
+/**
+ * Sends a command to the VMX asking it to update VMDB about a new backup event.
+ * This will restart the keep-alive timer.
+ *
+ * Aborts the quiesce operation on RPC failure.
+ *
+ * @param[in]  event    The event to set.
+ * @param[in]  code     Error code.
+ * @param[in]  desc     Error description.
+ *
+ * @return TRUE on success.
+ */
+
+Bool
+VmBackup_SendEvent(const char *event,
+                   const uint32 code,
+                   const char *desc)
+{
+   Bool success = VmBackup_SendEventNoAbort(event, code, desc);
+
+   if (!success  && gBackupState->rpcState != VMBACKUP_RPC_STATE_IGNORE) {
+      g_debug("Changing rpcState from %d to %d\n",
+              gBackupState->rpcState, VMBACKUP_RPC_STATE_ERROR);
+      gBackupState->rpcState = VMBACKUP_RPC_STATE_ERROR;
+   }
 
    return success;
 }
@@ -1361,7 +1388,7 @@ VmBackupDumpState(gpointer src,
 
 
 /**
- * Reset callback.
+ * Reset callback.  Currently does nothing.
  *
  * @param[in]  src      The source object.  Unused.
  * @param[in]  ctx      Unused.
@@ -1373,7 +1400,7 @@ VmBackupReset(gpointer src,
               ToolsAppCtx *ctx,
               gpointer data)
 {
-   VmBackup_SyncDriverReset();
+
 }
 
 
