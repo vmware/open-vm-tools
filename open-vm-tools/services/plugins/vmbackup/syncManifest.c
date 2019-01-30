@@ -27,6 +27,7 @@
 #include "syncDriver.h"
 #include "syncManifest.h"
 #include "vm_tools_version.h"
+#include "vmware/tools/log.h"
 
 #include <unistd.h>
 #include <stdio.h>
