@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -790,11 +790,11 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
    } else if (strstr(distroLower, "cobalt")) {
       Str_Strcpy(distroShort, STR_OS_COBALT, distroShortSize);
    } else if (StrUtil_StartsWith(distroLower, "centos")) {
-      if (strstr(distroLower, "6.")) {
+      if (strstr(distroLower, " 6.")) {
          Str_Strcpy(distroShort, STR_OS_CENTOS6, distroShortSize);
-      } else if (strstr(distroLower, "7.")) {
+      } else if (strstr(distroLower, " 7.")) {
          Str_Strcpy(distroShort, STR_OS_CENTOS7, distroShortSize);
-      } else if (strstr(distroLower, "8.")) {
+      } else if (strstr(distroLower, " 8.")) {
          Str_Strcpy(distroShort, STR_OS_CENTOS8, distroShortSize);
       } else {
          Str_Strcpy(distroShort, STR_OS_CENTOS, distroShortSize);
