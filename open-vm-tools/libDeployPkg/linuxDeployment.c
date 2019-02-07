@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -45,6 +45,7 @@
 #include "mspackWrapper.h"
 #include "vmware/guestrpc/deploypkg.h"
 #include "vmware/tools/guestrpc.h"
+#include <file.h>
 #include <strutil.h>
 #include <util.h>
 
@@ -74,9 +75,9 @@ VM_EMBED_VERSION(SYSIMAGE_VERSION_EXT_STR);
 #define IMC_TMP_PATH_VAR "@@IMC_TMP_PATH_VAR@@"
 #endif
 
-// '/tmp' below will be addressed by PR 1601405.
-#ifndef TMP_DIR_PATH_PATTERN
-#define TMP_DIR_PATH_PATTERN "/tmp/.vmware-imgcust-dXXXXXX"
+// Use it to create random name folder for extracting the package
+#ifndef IMC_DIR_PATH_PATTERN
+#define IMC_DIR_PATH_PATTERN "/.vmware-imgcust-dXXXXXX"
 #endif
 
 #ifndef BASEFILENAME
@@ -100,6 +101,9 @@ static const char  BACKSLASH       = '\\';
 static const char* INPROGRESS      = "INPROGRESS";
 static const char* DONE            = "Done";
 static const char* ERRORED         = "ERRORED";
+static const char* RUNDIR          = "/run";
+static const char* VARRUNDIR       = "/var/run";
+static const char* TMPDIR          = "/tmp";
 
 // Possible return codes from perl script
 static const int CUST_SUCCESS       = 0;
@@ -902,14 +906,14 @@ _DeployPkg_SkipReboot(bool skip)
  * - nics.tx
  * - cust.cfg to a predefined location.
  *
- * @param   [IN]  tmpDirPath  Path where nics.txt and cust.cfg exist
+ * @param   [IN]  imcDirPath Path where nics.txt and cust.cfg exist
  * @returns DEPLOYPKG_STATUS_CLOUD_INIT_DELEGATED on success
  *          DEPLOYPKG_STATUS_ERROR on error
  *
  *----------------------------------------------------------------------------
  * */
 static DeployPkgStatus
-CloudInitSetup(const char *tmpDirPath)
+CloudInitSetup(const char *imcDirPath)
 {
    DeployPkgStatus deployPkgStatus = DEPLOYPKG_STATUS_ERROR;
    static const char *cloudInitTmpDirPath = "/var/run/vmware-imc";
@@ -937,7 +941,7 @@ CloudInitSetup(const char *tmpDirPath)
    // rename in order to avoid race conditions with partial writes.
    sLog(log_info, "Check if nics.txt exists. Copy if exists, skip otherwise");
    snprintf(command, sizeof(command),
-            "/usr/bin/test -f %s/nics.txt", tmpDirPath);
+            "/usr/bin/test -f %s/nics.txt", imcDirPath);
    command[sizeof(command) - 1] = '\0';
 
    forkExecResult = ForkExecAndWaitCommand(command, false);
@@ -949,18 +953,19 @@ CloudInitSetup(const char *tmpDirPath)
     */
    if (forkExecResult == 0) {
       sLog(log_info, "nics.txt file exists. Copying..");
-      if (!CopyFileToDirectory(tmpDirPath, cloudInitTmpDirPath, "nics.txt")) {
+      if (!CopyFileToDirectory(imcDirPath, cloudInitTmpDirPath, "nics.txt")) {
          goto done;
        }
    }
 
    // Get custom script name.
-   if (HasCustomScript(tmpDirPath, &customScriptName)) {
+   customScriptName = GetCustomScript(imcDirPath);
+   if (customScriptName != NULL) {
       char scriptPath[1024];
 
       sLog(log_info, "Custom script present.");
       sLog(log_info, "Copying script to execute post customization.");
-      snprintf(scriptPath, sizeof(scriptPath), "%s/scripts", tmpDirPath);
+      snprintf(scriptPath, sizeof(scriptPath), "%s/scripts", imcDirPath);
       scriptPath[sizeof(scriptPath) - 1] = '\0';
       if (!CopyFileToDirectory(scriptPath, cloudInitTmpDirPath,
                                "post-customize-guest.sh")) {
@@ -969,14 +974,14 @@ CloudInitSetup(const char *tmpDirPath)
 
       sLog(log_info, "Copying user uploaded custom script %s",
            customScriptName);
-      if (!CopyFileToDirectory(tmpDirPath, cloudInitTmpDirPath,
+      if (!CopyFileToDirectory(imcDirPath, cloudInitTmpDirPath,
                                customScriptName)) {
          goto done;
       }
    }
 
    sLog(log_info, "Copying main configuration file cust.cfg");
-   if (!CopyFileToDirectory(tmpDirPath, cloudInitTmpDirPath, "cust.cfg")) {
+   if (!CopyFileToDirectory(imcDirPath, cloudInitTmpDirPath, "cust.cfg")) {
       goto done;
    }
 
@@ -1133,7 +1138,8 @@ Deploy(const char* packageName)
    uint8 archiveType;
    uint8 flags;
    bool forceSkipReboot = false;
-   char *tmpDirPath;
+   const char *baseDirPath = NULL;
+   char *imcDirPath = NULL;
    bool useCloudInitWorkflow = false;
 
    TransitionState(NULL, INPROGRESS);
@@ -1142,19 +1148,40 @@ Deploy(const char* packageName)
    SetCustomizationStatusInVmx(TOOLSDEPLOYPKG_RUNNING,
                                TOOLSDEPLOYPKG_ERROR_SUCCESS,
                                NULL);
-   tmpDirPath = mkdtemp((char *)Util_SafeStrdup(TMP_DIR_PATH_PATTERN));
-   if (tmpDirPath == NULL) {
-      SetDeployError("Error creating tmp dir: %s", strerror(errno));
+
+   // PR 2127543, Use /var/run or /run but /tmp firstly
+   if (File_IsDirectory(VARRUNDIR)) {
+      baseDirPath = VARRUNDIR;
+   } else if (File_IsDirectory(RUNDIR)) {
+      baseDirPath = RUNDIR;
+   } else {
+      baseDirPath = TMPDIR;
+   }
+
+   // Create a random name dir under base dir path
+   imcDirPath = malloc(strlen(baseDirPath) + strlen(IMC_DIR_PATH_PATTERN) + 1);
+   if (imcDirPath == NULL) {
+      SetDeployError("Error allocating memory to create imc dir.");
+      return DEPLOYPKG_STATUS_ERROR;
+   }
+   strcpy(imcDirPath, baseDirPath);
+   strcat(imcDirPath, IMC_DIR_PATH_PATTERN);
+   if (mkdtemp(imcDirPath) == NULL) {
+      free(imcDirPath);
+      SetDeployError("Error creating imc dir: %s", strerror(errno));
       return DEPLOYPKG_STATUS_ERROR;
    }
 
-   sLog(log_info, "Reading cabinet file %s. \n", packageName);
+   sLog(log_info,
+        "Reading cabinet file %s and will extract it to %s. \n",
+         packageName,
+         imcDirPath);
 
    // Get the command to execute
    if (!GetPackageInfo(packageName, &pkgCommand, &archiveType, &flags)) {
       SetDeployError("Error extracting package header information. (%s)",
                      GetDeployError());
-      free(tmpDirPath);
+      free(imcDirPath);
       return DEPLOYPKG_STATUS_CAB_ERROR;
    }
 
@@ -1162,30 +1189,30 @@ Deploy(const char* packageName)
 
    sLog(log_info, "Original deployment command: %s\n", pkgCommand);
    if (strstr(pkgCommand, IMC_TMP_PATH_VAR) != NULL) {
-      command = StrUtil_ReplaceAll(pkgCommand, IMC_TMP_PATH_VAR, tmpDirPath);
+      command = StrUtil_ReplaceAll(pkgCommand, IMC_TMP_PATH_VAR, imcDirPath);
    } else {
-      command = StrUtil_ReplaceAll(pkgCommand, TMP_PATH_VAR, tmpDirPath);
+      command = StrUtil_ReplaceAll(pkgCommand, TMP_PATH_VAR, imcDirPath);
    }
    free(pkgCommand);
 
    sLog(log_info, "Actual deployment command: %s\n", command);
 
    if (archiveType == VMWAREDEPLOYPKG_PAYLOAD_TYPE_CAB) {
-      if (!ExtractCabPackage(packageName, tmpDirPath)) {
-         free(tmpDirPath);
+      if (!ExtractCabPackage(packageName, imcDirPath)) {
+         free(imcDirPath);
          free(command);
          return DEPLOYPKG_STATUS_CAB_ERROR;
       }
    } else if (archiveType == VMWAREDEPLOYPKG_PAYLOAD_TYPE_ZIP) {
-      if (!ExtractZipPackage(packageName, tmpDirPath)) {
-         free(tmpDirPath);
+      if (!ExtractZipPackage(packageName, imcDirPath)) {
+         free(imcDirPath);
          free(command);
          return DEPLOYPKG_STATUS_CAB_ERROR;
       }
    }
 
    if (!(flags & VMWAREDEPLOYPKG_HEADER_FLAGS_IGNORE_CLOUD_INIT)) {
-      useCloudInitWorkflow = UseCloudInitWorkflow(tmpDirPath);
+      useCloudInitWorkflow = UseCloudInitWorkflow(imcDirPath);
    } else {
       sLog(log_info, "Ignoring cloud-init.");
    }
@@ -1194,7 +1221,7 @@ Deploy(const char* packageName)
       sLog(log_info, "Executing cloud-init workflow");
       sSkipReboot = TRUE;
       free(command);
-      deployPkgStatus = CloudInitSetup(tmpDirPath);
+      deployPkgStatus = CloudInitSetup(imcDirPath);
    } else {
       sLog(log_info, "Executing traditional GOSC workflow");
       deploymentResult = ForkExecAndWaitCommand(command, false);
@@ -1227,7 +1254,7 @@ Deploy(const char* packageName)
          sLog(log_error, "Deployment failed. "
                          "The forked off process returned error code. \n");
       } else {
-         nics = GetNicsToEnable(tmpDirPath);
+         nics = GetNicsToEnable(imcDirPath);
          if (nics) {
             // XXX: Sleep before the last SetCustomizationStatusInVmx
             //      This is a temporary-hack for PR 422790
@@ -1252,23 +1279,23 @@ Deploy(const char* packageName)
       }
    }
 
-   cleanupCommand = malloc(strlen(CLEANUPCMD) + strlen(tmpDirPath) + 1);
+   cleanupCommand = malloc(strlen(CLEANUPCMD) + strlen(imcDirPath) + 1);
    if (!cleanupCommand) {
       SetDeployError("Error allocating memory.");
-      free(tmpDirPath);
+      free(imcDirPath);
       return DEPLOYPKG_STATUS_ERROR;
    }
 
    strcpy(cleanupCommand, CLEANUPCMD);
-   strcat(cleanupCommand, tmpDirPath);
+   strcat(cleanupCommand, imcDirPath);
 
    sLog(log_info, "Launching cleanup. \n");
    if (ForkExecAndWaitCommand(cleanupCommand, false) != 0) {
-      sLog(log_warning, "Error while clean up tmp directory %s: (%s)",
-           tmpDirPath, strerror (errno));
+      sLog(log_warning, "Error while cleaning up imc directory %s: (%s)",
+           imcDirPath, strerror (errno));
    }
    free (cleanupCommand);
-   free(tmpDirPath);
+   free(imcDirPath);
 
    if (flags & VMWAREDEPLOYPKG_HEADER_FLAGS_SKIP_REBOOT) {
       forceSkipReboot = true;
