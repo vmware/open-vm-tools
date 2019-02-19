@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2014-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2014-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -241,6 +241,39 @@ CountNetmaskBitsV6(struct sockaddr *netmask)
 
 /*
  ******************************************************************************
+ * IpEntryMatchesDevice --                                               */ /**
+ *
+ * @brief Check if the IP entry matches the network device.
+ *
+ * @param[in]   devName the device name
+ * @param[in]   label   the IP entry name
+ *
+ * @retval      TRUE if the IP entry name matches the device name
+ *              FALSE otherwise.
+ *
+ ******************************************************************************
+ */
+
+static Bool
+IpEntryMatchesDevice(const char *devName,
+                     const char *label)
+{
+   char *p;
+   size_t n;
+
+   if ((p = strchr(label, ':')) != NULL) {
+      n = p - label;
+   } else {
+      n = strlen(label);
+   }
+
+   /* compare sub string label[0, n) with a null terminated string devName */
+   return (0 == strncmp(devName, label, n) && '\0' == devName[n]);
+}
+
+
+/*
+ ******************************************************************************
  * GuestInfoGetInterface --                                              */ /**
  *
  * @brief Gather IP addresses from ifaddrs and put into NicInfo, filtered
@@ -305,13 +338,13 @@ GuestInfoGetInterface(struct ifaddrs *ifaddrs,
             break;
          }
          /*
-          * Now look for all IPv4 and IPv6 interfaces with the same
-          * interface name as the current AF_PACKET interface.
+          * Now look for all IPv4 and IPv6 interfaces that match
+          * the current AF_PACKET interface.
           */
          for (ip = ifaddrs; ip != NULL; ip = ip->ifa_next) {
             struct sockaddr *sa = (struct sockaddr *)ip->ifa_addr;
             if (sa != NULL &&
-                strncmp(ip->ifa_name, pkt->ifa_name, IFNAMSIZ) == 0) {
+                IpEntryMatchesDevice(pkt->ifa_name, ip->ifa_name)) {
                int family = sa->sa_family;
                Bool goodAddress = FALSE;
                unsigned nBits = 0;
