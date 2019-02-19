@@ -240,8 +240,8 @@ extern "C" {
 #  define BDOOR_CMD_GMM_WATCH_PPNS_START      4
 #  define BDOOR_CMD_GMM_WATCH_PPNS_STOP       5
 #  define BDOOR_CMD_GMM_RESYNC_RUNTIME_INFO   6
-#define   BDOOR_CMD_HYPERCLOCK               97
-#  define BDOOR_CMD_HYPERCLOCK_GETTIME        0
+#define   BDOOR_CMD_PTPCLOCK                 97
+#  define BDOOR_CMD_PTPCLOCK_GETTIME          0
 #define   BDOOR_CMD_MAX                      98
 
 

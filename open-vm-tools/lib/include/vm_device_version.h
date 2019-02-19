@@ -347,8 +347,8 @@
 /************* QAT implementation limits ********************/
 #define MAX_QAT_PCI_DEVICES 4
 
-/************* HyperClock implementation limits ********************/
-#define MAX_HYPERCLOCK_DEVICES 1
+/************* PTPClock implementation limits ********************/
+#define MAX_PTPCLOCK_DEVICES 1
 
 /************* Strings for Host USB Driver *******************************/
 
