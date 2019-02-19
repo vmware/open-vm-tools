@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2014-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2014-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -241,6 +241,59 @@ CountNetmaskBitsV6(struct sockaddr *netmask)
 
 /*
  ******************************************************************************
+ * IsIpEntryMatchDevice --                                               */ /**
+ *
+ * @brief Check if the IP entry matches the network device.
+ *
+ * @param[in]   devName the device name
+ * @param[in]   devMac  the device MAC address
+ * @param[in]   ip      an ifaddrs structure of the provided IP entry.
+ *
+ ******************************************************************************
+ */
+
+
+static Bool
+IsIpEntryMatchDevice(const char *devName,
+                     unsigned char *devMac,
+                     struct ifaddrs *ip)
+{
+#if defined(USERWORLD)
+   return 0 == strncmp(devName, ip->ifa_name, IFNAMSIZ);
+#else
+   struct ifreq ifr;
+   struct sockaddr *sa = (struct sockaddr *)ip->ifa_addr;
+   int family = sa->sa_family;
+   int fd = socket(AF_UNIX, SOCK_DGRAM, 0);
+   unsigned char *myMac;
+
+   if (fd < 0) {
+      g_warning("%s: socket() failed\n", __FUNCTION__);
+      /* out of file descriptor ? this is very bad, so fail safe */
+      return FALSE;
+   }
+
+   ifr.ifr_addr.sa_family = family;
+
+   ASSERT(strlen(ip->ifa_name) < IFNAMSIZ);
+   strncpy(ifr.ifr_name, ip->ifa_name, IFNAMSIZ);
+
+   ioctl(fd, SIOCGIFHWADDR, &ifr);
+   close(fd);
+
+   myMac = (unsigned char *)ifr.ifr_hwaddr.sa_data;
+#define NUM_OF_MAC_BYTES 6
+   if (0 == memcmp(devMac, myMac, NUM_OF_MAC_BYTES)) {
+      return TRUE;
+   } else {
+      return FALSE;
+   }
+#endif
+}
+
+
+/*
+ ******************************************************************************
  * GuestInfoGetInterface --                                              */ /**
  *
  * @brief Gather IP addresses from ifaddrs and put into NicInfo, filtered
@@ -305,13 +358,13 @@ GuestInfoGetInterface(struct ifaddrs *ifaddrs,
             break;
          }
          /*
-          * Now look for all IPv4 and IPv6 interfaces with the same
-          * interface name as the current AF_PACKET interface.
+          * Now look for all IPv4 and IPv6 interfaces that matches
+          * the current AF_PACKET interface.
           */
          for (ip = ifaddrs; ip != NULL; ip = ip->ifa_next) {
             struct sockaddr *sa = (struct sockaddr *)ip->ifa_addr;
             if (sa != NULL &&
-                strncmp(ip->ifa_name, pkt->ifa_name, IFNAMSIZ) == 0) {
+                IsIpEntryMatchDevice(pkt->ifa_name, sll->sll_addr, ip)) {
                int family = sa->sa_family;
                Bool goodAddress = FALSE;
                unsigned nBits = 0;
