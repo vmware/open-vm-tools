@@ -557,8 +557,14 @@ FLAG(   A,  0, EBX,  3,  1, PMC_LAST_LVL_CREF,                 NA,   0, FALSE) \
 FLAG(   A,  0, EBX,  4,  1, PMC_LAST_LVL_CMISS,                NA,   0, FALSE) \
 FLAG(   A,  0, EBX,  5,  1, PMC_BR_INST_RETIRED,               NA,   0, FALSE) \
 FLAG(   A,  0, EBX,  6,  1, PMC_BR_MISS_RETIRED,               NA,   0, FALSE) \
+FLAG(   A,  0, EBX,  7,  1, PMC_TOPDOWN_SLOTS,                 NA,   0, FALSE) \
+FLAG(   A,  0, ECX,  0,  1, PMC_FIXED0,                        NA,   0, FALSE) \
+FLAG(   A,  0, ECX,  1,  1, PMC_FIXED1,                        NA,   0, FALSE) \
+FLAG(   A,  0, ECX,  2,  1, PMC_FIXED2,                        NA,   0, FALSE) \
+FLAG(   A,  0, ECX,  3,  1, PMC_FIXED3,                        NA,   0, FALSE) \
 FIELD(  A,  0, EDX,  0,  5, PMC_NUM_FIXED,                     NA,   0, FALSE) \
-FIELD(  A,  0, EDX,  5,  8, PMC_WIDTH_FIXED,                   NA,   0, FALSE)
+FIELD(  A,  0, EDX,  5,  8, PMC_WIDTH_FIXED,                   NA,   0, FALSE) \
+FLAG(   A,  0, EDX, 15,  1, PMC_ANYTHREAD_DEPRECATED,          NA,   0, FALSE)
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,             MON SUPP, HWV, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_B                                               \
