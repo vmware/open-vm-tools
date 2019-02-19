@@ -1462,7 +1462,7 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 #define CPUID_STEPPING_COFFEELAKE_A    0xA  // Coffee Lake U/S/H
 #define CPUID_STEPPING_COFFEELAKE_C    0xC  // Last Coffee Lake stepping
 #define CPUID_STEPPING_CASCADELAKE_A   0x5  // Cascade Lake A-step
-#define CPUID_STEPPING_CASCADELAKE_B   0x6  // Cascade Lake B-step
+#define CPUID_STEPPING_CASCADELAKE_B1  0x7  // Cascade Lake B1-step
 #define CPUID_STEPPING_WHISKEYLAKE     0xB  // Whiskey Lake U
 
 #define CPUID_MODEL_PIII_07    7
@@ -1700,8 +1700,8 @@ CPUID_MODEL_IS_CASCADELAKE(uint32 v) // IN: %eax from CPUID with %eax=1.
       /* Assumes the CPU manufacturer is Intel. */
    return CPUID_FAMILY_IS_P6(v) &&
           CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_SKYLAKE_55 &&
-          (CPUID_EFFECTIVE_STEPPING(v) == CPUID_STEPPING_CASCADELAKE_A ||
-           CPUID_EFFECTIVE_STEPPING(v) == CPUID_STEPPING_CASCADELAKE_B);
+          CPUID_EFFECTIVE_STEPPING(v) >= CPUID_STEPPING_CASCADELAKE_A &&
+          CPUID_EFFECTIVE_STEPPING(v) <= CPUID_STEPPING_CASCADELAKE_B1;
 }
 
 static INLINE Bool
