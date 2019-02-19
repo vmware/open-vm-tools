@@ -501,38 +501,74 @@ fi
 
 AC_ARG_ENABLE([vgauth],
    [AS_HELP_STRING([--disable-vgauth],
-     [do not build vgauth])],
+     [do not build vgauth.])],
    [
     enable_vgauth="$enableval"
+    use_xmlsec1=yes
    ],
    [
     if test "$os" = "linux"; then
        enable_vgauth=yes
+       use_xmlsec1=yes
     else
        enable_vgauth=no
+       use_xmlsec1=yes
     fi
    ])
 
+AC_ARG_ENABLE([xmlsec1],
+   [AS_HELP_STRING([--enable-xmlsec1],
+     [build vgauth with xmlsec1 instead of xml-security-c (on by default).])],
+   [use_xmlsec1="$enableval"],
+   [use_xmlsec1=yes])
+
+AC_ARG_ENABLE([xmlsecurity],
+   [AS_HELP_STRING([--enable-xmlsecurity],
+     [build vgauth with xml-security-c instead of xmlsec1 (off by default).])],
+   [
+    if test "$enableval" = "yes"; then
+       use_xmlsec1="no"
+    else
+       use_xmlsec1="yes"
+    fi
+   ],
+   [])
+
+
 #
-# Check for openssl, xmlsec1, xml2
+# Check for openssl, xerces-c and xml-security-c
 #
 AC_ARG_WITH([ssl],
    [AS_HELP_STRING([--without-ssl],
-     [compiles without openssl (disables vgauth)])],
-   [if test "$withval" = "no"; then enable_vgauth="no"; fi],
-   [with_ssl="yes"])
+     [compiles without openssl support (disables vgauth).])],
+   [
+     enable_vgauth=no
+   ],
+   [with_ssl=yes])
+
+AC_ARG_WITH([xmlsecurity],
+   [AS_HELP_STRING([--without-xmlsecurity],
+     [compiles without xml-security-c support (disables vgauth).])],
+   [enable_vgauth=no],
+   [with_xmlsecurity=yes])
+
+AC_ARG_WITH([xerces],
+   [AS_HELP_STRING([--without-xerces],
+     [compiles without xerces support (disables vgauth).])],
+   [enable_vgauth=no],
+   [with_xerces=yes])
 
 AC_ARG_WITH([xmlsec1],
    [AS_HELP_STRING([--without-xmlsec1],
-     [compiles without xmlsec1 (disables vgauth)])],
-   [if test "$withval" = "no"; then enable_vgauth="no"; fi],
-   [with_xmlsec1="yes"])
+     [compiles without xmlsec1 support (disables vgauth).])],
+   [enable_vgauth=no],
+   [with_xmlsec1=yes])
 
 AC_ARG_WITH([xml2],
    [AS_HELP_STRING([--without-xml2],
-     [compiles without xml2 (disables vgauth)])],
-   [if test "$withval" = "no"; then enable_vgauth="no"; fi],
-   [with_xml2="yes"])
+     [compiles without xml2 support (disables vgauth).])],
+   [enable_vgauth=no],
+   [with_xml2=yes])
 
 AC_ARG_WITH([tirpc],
    [AS_HELP_STRING([--without-tirpc],
@@ -543,7 +579,7 @@ AC_ARG_WITH([tirpc],
 # Make sure we are building with openssl 1.0.1 and above so that
 # we use only TLSv1_2.
 
-if test "$enable_vgauth" = "yes"; then
+if test "$enable_vgauth" = "yes" ; then
    AC_VMW_DEFAULT_FLAGS([SSL])
    AC_VMW_CHECK_LIB([ssl],
                     [SSL],
@@ -554,32 +590,59 @@ if test "$enable_vgauth" = "yes"; then
                     [BIO_new_file],
                     [],
                     [AC_VMW_LIB_ERROR([SSL], [ssl])])
+fi
 
+if test "$enable_vgauth" = "yes"; then
    CPPFLAGS="$CPPFLAGS -DUSE_VGAUTH"
-   AC_VMW_DEFAULT_FLAGS([XML2])
-   AC_VMW_CHECK_LIB([xml2],
-                    [XML2],
-                    [],
-                    [],
-                    [],
-                    [],
-                    [],
-                    [],
-                    [AC_VMW_LIB_ERROR([XML2], [xml2])])
+   if test "$use_xmlsec1" = "yes"; then
+      AC_VMW_DEFAULT_FLAGS([XML2])
+      AC_VMW_CHECK_LIB([xml2],
+                       [XML2],
+                       [],
+                       [],
+                       [],
+                       [],
+                       [],
+                       [],
+                       [AC_VMW_LIB_ERROR([XML2], [xml2])])
 
    # Multiple distros built xmlsec1 with -DXMLSEC_NO_SIZE_T but
    # their xmlssec1-config --cflags doesn't properly report it,
    # so force it on.
-   AC_VMW_DEFAULT_FLAGS([XMLSEC1])
-   AC_VMW_CHECK_LIB([xmlsec1],
-                    [XMLSEC1],
-                    [],
-                    [xmlsec1-config],
-                    [],
-                    [xmlsec/xmlsec.h],
-                    [xmlSecCheckVersionExt],
-                    [XMLSEC1_CPPFLAGS="$XMLSEC1_CPPFLAGS -DXMLSEC_NO_SIZE_T"],
-                    [AC_VMW_LIB_ERROR([XMLSEC1], [xmlsec1])])
+      AC_VMW_DEFAULT_FLAGS([XMLSEC1])
+      AC_VMW_CHECK_LIB([xmlsec1],
+                       [XMLSEC1],
+                       [],
+                       [xmlsec1-config],
+                       [],
+                       [xmlsec/xmlsec.h],
+                       [xmlSecCheckVersionExt],
+                       [XMLSEC1_CPPFLAGS="$XMLSEC1_CPPFLAGS -DXMLSEC_NO_SIZE_T"],
+                       [AC_VMW_LIB_ERROR([XMLSEC1], [xmlsec1])])
+
+   else
+      AC_VMW_DEFAULT_FLAGS([XERCES])
+      AC_VMW_CHECK_LIB([xerces-c],
+                       [XERCES],
+                       [],
+                       [],
+                       [],
+                       [],
+                       [],
+                       [],
+                       [AC_VMW_LIB_ERROR([XERCES], [xerces])])
+
+      AC_VMW_DEFAULT_FLAGS([XMLSECURITY])
+      AC_VMW_CHECK_LIB([xml-security-c],
+                       [XMLSECURITY],
+                       [],
+                       [],
+                       [],
+                       [],
+                       [],
+                       [],
+                       [AC_VMW_LIB_ERROR([XMLSECURITY], [xmlsecurity])])
+   fi
 fi
 
 #
@@ -1356,11 +1419,12 @@ AM_CONDITIONAL(HAVE_PAM, test "$with_pam" = "yes")
 AM_CONDITIONAL(USE_SLASH_PROC, test "$os" = "linux")
 AM_CONDITIONAL(ENABLE_DEPLOYPKG, test "$enable_deploypkg" = "yes")
 AM_CONDITIONAL(ENABLE_VGAUTH, test "$enable_vgauth" = "yes")
+AM_CONDITIONAL(USE_XMLSEC1, test "$use_xmlsec1" = "yes")
 AM_CONDITIONAL(HAVE_VSOCK, test "$os" = "linux")
 AM_CONDITIONAL(HAVE_MKDTEMP, test "$have_mkdtemp" = "yes")
 AM_CONDITIONAL(HAVE_UDEV, test "$have_udev" = "yes")
 AM_CONDITIONAL(ENABLE_RESOLUTIONKMS, test "x$enable_resolutionkms" = "xyes")
-AM_CONDITIONAL(VGAUTH_USE_CXX, test "$with_icu" = "yes")
+AM_CONDITIONAL(VGAUTH_USE_CXX, test "$with_icu" = "yes" -o "$use_xmlsec1" != "yes")
 AM_CONDITIONAL(ENABLE_LIBAPPMONITOR, test "$enable_libappmonitor" = "yes")
 
 if test "$have_xsm" != "yes"; then
