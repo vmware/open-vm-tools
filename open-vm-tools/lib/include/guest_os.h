@@ -188,7 +188,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define ALL4XLINUX64          BS(OTHER4XLINUX_64), BS(PHOTON_64), \
                               BS(CENTOS8_64), BS(ORACLE8_64), \
                               BS(CRXSYS1_64), BS(CRXPOD1_64), \
-                              BS(AMAZONLINUX2_64)
+                              BS(AMAZONLINUX2_64), BS(LINUX_MINT_64)
 
 #define ALLVMKERNEL           BS(VMKERNEL), BS(VMKERNEL5), BS(VMKERNEL6), \
                               BS(VMKERNEL65), BS(VMKERNEL7)
@@ -259,6 +259,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_LINUX               "linux"
 #define STR_OS_LINUX_FROM_SCRATCH "Linux-From-Scratch"
 #define STR_OS_LINUX_FULL         "Other Linux"
+#define STR_OS_LINUX_MINT         "linuxMint"
 #define STR_OS_LINUX_PPC          "Linux-PPC"
 #define STR_OS_MANDRAKE           "mandrake"
 #define STR_OS_MANDRAKE_FULL      "Mandrake Linux"
