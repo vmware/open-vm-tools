@@ -188,6 +188,7 @@ static const DistroInfo distroArray[] = {
    { "Aurox",              "/etc/aurox-release"         },
    { "BlackCat",           "/etc/blackcat-release"      },
    { "Cobalt",             "/etc/cobalt-release"        },
+   { "CentOS",             "/etc/centos-release"        },
    { "Conectiva",          "/etc/conectiva-release"     },
    { "Debian",             "/etc/debian_release"        },
    { "Debian",             "/etc/debian_version"        },
@@ -783,39 +784,54 @@ HostinfoESX(struct utsname *buf)  // IN:
  */
 
 static void
-HostinfoGetOSShortName(char *distro,         // IN: full distro name
-                       char *distroShort,    // OUT: short distro name
-                       int distroShortSize)  // IN: size of short distro name
+HostinfoGetOSShortName(const char *distro,      // IN: full distro name
+                       const char *versionStr,  // IN/OPT: distro version
+                       char *distroShort,       // OUT: short distro name
+                       int distroShortSize)     // IN: size of short distro name
 
 {
-   char *distroLower = Util_SafeStrdup(distro);
+   uint32 version;
+   char *distroLower;
 
-   distroLower = Str_ToLower(distroLower);
+   ASSERT(distro != NULL);
+   ASSERT(distroShort != NULL);
 
+   /* Come up with a distro version */
+
+   if (versionStr == NULL) {
+      const char *p = distro;
+
+      /* The first digit in the distro string is the version */
+      while (*p != '\0') {
+         if (isdigit(*p)) {
+            versionStr = p;
+            break;
+         }
+
+         p++;
+      }
+   }
+
+   if (versionStr == NULL) {
+      version = 0;
+   } else {
+      if (sscanf(versionStr, "%u", &version) != 1) {
+         version = 0;
+      }
+   }
+
+   /* Normalize the distro string */
+   distroLower = Str_ToLower(Util_SafeStrdup(distro));
+
+   /* Attempt to match the distro against the "usual suspects". */
    if (strstr(distroLower, "red hat")) {
       if (strstr(distroLower, "enterprise")) {
-
-         /*
-          * Looking for "release x" here instead of "x" as there could be
-          * build version which can be misleading. For example Red Hat
-          * Enterprise Linux ES release 4 (Nahant Update 3)
-          */
-
-         int release = 0;
-         char *releaseStart = strstr(distroLower, "release");
-
-         if (releaseStart != NULL) {
-            sscanf(releaseStart, "release %d", &release);
-            if (release > 0) {
-               snprintf(distroShort, distroShortSize, STR_OS_RED_HAT_EN"%d",
-                        release);
-            }
-         }
-
-         if (release <= 0) {
+         if (version == 0) {
             Str_Strcpy(distroShort, STR_OS_RED_HAT_EN, distroShortSize);
+         } else {
+            Str_Sprintf(distroShort, distroShortSize, "%s%d",
+                        STR_OS_RED_HAT_EN, version);
          }
-
       } else {
          Str_Strcpy(distroShort, STR_OS_RED_HAT, distroShortSize);
       }
@@ -853,15 +869,12 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
    } else if (strstr(distroLower, "sun")) {
       Str_Strcpy(distroShort, STR_OS_SUN_DESK, distroShortSize);
    } else if (strstr(distroLower, "amazon")) {
-      int amazonMajor = 0;
-
-      if (sscanf(distroLower, "amazon linux %d", &amazonMajor) != 1) {
-         /* Oldest known good release */
-         amazonMajor = 2;
+      if (version < 2) {
+         version = 2;
       }
 
       Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_AMAZON_LINUX,
-                  amazonMajor);
+                  version);
    } else if (strstr(distroLower, "annvix")) {
       Str_Strcpy(distroShort, STR_OS_ANNVIX, distroShortSize);
    } else if (strstr(distroLower, "arch")) {
@@ -890,32 +903,20 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
    } else if (strstr(distroLower, "cobalt")) {
       Str_Strcpy(distroShort, STR_OS_COBALT, distroShortSize);
    } else if (StrUtil_StartsWith(distroLower, "centos")) {
-      if (strstr(distroLower, "6.")) {
-         Str_Strcpy(distroShort, STR_OS_CENTOS6, distroShortSize);
-      } else if (strstr(distroLower, "7.")) {
-         Str_Strcpy(distroShort, STR_OS_CENTOS7, distroShortSize);
-      } else if (strstr(distroLower, "8.")) {
-         Str_Strcpy(distroShort, STR_OS_CENTOS8, distroShortSize);
-      } else {
+      if (version < 6) {
          Str_Strcpy(distroShort, STR_OS_CENTOS, distroShortSize);
+      } else {
+         Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_CENTOS,
+                     version);
       }
    } else if (strstr(distroLower, "conectiva")) {
       Str_Strcpy(distroShort, STR_OS_CONECTIVA, distroShortSize);
    } else if (strstr(distroLower, "debian")) {
-      if (strstr(distroLower, "4.0")) {
+      if (version <= 4) {
          Str_Strcpy(distroShort, STR_OS_DEBIAN_4, distroShortSize);
-      } else if (strstr(distroLower, "5.0")) {
-         Str_Strcpy(distroShort, STR_OS_DEBIAN_5, distroShortSize);
-      } else if (strstr(distroLower, "6.0")) {
-         Str_Strcpy(distroShort, STR_OS_DEBIAN_6, distroShortSize);
-      } else if (strstr(distroLower, "7.")) {
-         Str_Strcpy(distroShort, STR_OS_DEBIAN_7, distroShortSize);
-      } else if (strstr(distroLower, "8.")) {
-         Str_Strcpy(distroShort, STR_OS_DEBIAN_8, distroShortSize);
-      } else if (strstr(distroLower, "9.")) {
-         Str_Strcpy(distroShort, STR_OS_DEBIAN_9, distroShortSize);
-      } else if (strstr(distroLower, "10.")) {
-         Str_Strcpy(distroShort, STR_OS_DEBIAN_10, distroShortSize);
+      } else {
+         Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_DEBIAN,
+                     version);
       }
    } else if (StrUtil_StartsWith(distroLower, "enterprise linux") ||
               StrUtil_StartsWith(distroLower, "oracle")) {
@@ -926,14 +927,11 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
        * Not sure why they didn't brand their releases as "Oracle Enterprise
        * Linux". Oh well. It's fixed in 6.0, though.
        */
-      if (strstr(distroLower, "6.")) {
-         Str_Strcpy(distroShort, STR_OS_ORACLE6, distroShortSize);
-      } else if (strstr(distroLower, "7.")) {
-         Str_Strcpy(distroShort, STR_OS_ORACLE7, distroShortSize);
-      } else if (strstr(distroLower, "8.")) {
-         Str_Strcpy(distroShort, STR_OS_ORACLE8, distroShortSize);
-      } else {
+      if (version == 0) {
          Str_Strcpy(distroShort, STR_OS_ORACLE, distroShortSize);
+      } else {
+         Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_ORACLE,
+                     version);
       }
    } else if (strstr(distroLower, "fedora")) {
       Str_Strcpy(distroShort, STR_OS_FEDORA, distroShortSize);
@@ -1002,7 +1000,7 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
 
 static char **
 HostinfoReadDistroFile(Bool osReleaseRules,           // IN: osRelease rules
-                       char *filename,                // IN: distro file
+                       const char *filename,          // IN: distro file
                        const DistroNameScan *values)  // IN: search strings
 {
    int i;
@@ -1236,7 +1234,7 @@ HostinfoGetCmdOutput(const char *cmd)  // IN:
  * HostinfoOsRelease --
  *
  *      Attempt to return the distro identification data we're interested in
- *      from the os-release standard file(s). Look for the os-release data in
+ *      from the os-release standard file(s). Look for the os-release data by
  *      following the priority order established by the os-release standard.
  *
  *      The fields of interest are found in osReleaseFields above.
@@ -1552,7 +1550,7 @@ HostinfoBestScore(char *distro,            // OUT:
       }
 
       HostinfoDefaultLinux(NULL, 0, distroShort, distroShortSize);
-      HostinfoGetOSShortName(distro, distroShort, distroShortSize);
+      HostinfoGetOSShortName(distro, lsbData[1], distroShort, distroShortSize);
 
       goto bail;
    }
@@ -1585,7 +1583,8 @@ HostinfoBestScore(char *distro,            // OUT:
       }
 
       HostinfoDefaultLinux(NULL, 0, distroShort, distroShortSize);
-      HostinfoGetOSShortName(distro, distroShort, distroShortSize);
+      HostinfoGetOSShortName(distro, osReleaseData[2],
+                             distroShort, distroShortSize);
 
       goto bail;
    }
