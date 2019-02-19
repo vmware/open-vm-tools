@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2016,2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -267,9 +267,18 @@ VMGuestLibError VMGuestLib_GetMemLimitMB(VMGuestLibHandle handle, // IN
 
 /*
  * Retrieves the number of memory shares allocated to the virtual machine.
+ * This API returns an error if the memory shares exceeds the maximum
+ * value of 32-bit unsigned integer (0xFFFFFFFF). Therefore,
+ * VMGuestLib_GetMemShares64 API should be used instead of this API.
  */
 VMGuestLibError VMGuestLib_GetMemShares(VMGuestLibHandle handle, // IN
                                         uint32 *memShares);      // OUT
+
+/*
+ * Retrieves the number of memory shares allocated to the virtual machine.
+ */
+VMGuestLibError VMGuestLib_GetMemShares64(VMGuestLibHandle handle, // IN
+                                          uint64 *memShares64);    // OUT
 
 /*
  * Retrieves the mapped memory size of this virtual machine. This

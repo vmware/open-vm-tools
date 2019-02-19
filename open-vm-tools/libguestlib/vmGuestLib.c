@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005-2016,2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1757,6 +1757,48 @@ VMGuestLib_GetMemBalloonMaxMB(VMGuestLibHandle handle,    // IN
    VMGUESTLIB_GETSTAT_V3(handle, error,
                          memBalloonMaxMB, memBalloonMaxMB,
                          GUESTLIB_MEM_BALLOON_MAX_MB);
+   return error;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VMGuestLib_GetMemShares64 --
+ *
+ *      Retrieve memory shares.
+ *
+ * Results:
+ *      VMGuestLibError
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VMGuestLibError
+VMGuestLib_GetMemShares64(VMGuestLibHandle handle, // IN
+                          uint64 *memShares64)     // OUT
+{
+   VMGuestLibError error = VMGUESTLIB_ERROR_OTHER;
+   VMGUESTLIB_GETSTAT_V3(handle, error,
+                         memShares64, memShares64,
+                         GUESTLIB_MEM_SHARES_64);
+   if (VMGUESTLIB_ERROR_UNSUPPORTED_VERSION == error) {
+      /*
+       * GUESTLIB_MEM_SHARES_64 is available only from ESX 7.0.
+       * If the host is older, then return the value of GUESTLIB_MEM_SHARES.
+       */
+      uint32 memShares = 0;
+      if (VMGUESTLIB_ERROR_SUCCESS !=
+         VMGuestLib_GetMemShares(handle, &memShares)) {
+         return error;
+      } else {
+         *memShares64 = memShares;
+         return VMGUESTLIB_ERROR_SUCCESS;
+      }
+   }
    return error;
 }
 
