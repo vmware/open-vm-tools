@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -47,9 +47,10 @@
 #define GHI_CHANNEL_DND                         3  // DnD for both local VM and View RMKS.
 #define GHI_CHANNEL_VIEW_REMOTE_RDE_COMMON      4  // VDPRdeCommonMKSControl module
                                                    // in View RMKS
-// VDPUsbRedirectionMKSControl module in View RMKS
-#define GHI_CHANNEL_VIEW_USB_REDIRECTION        5
-#define GHI_CHANNEL_MAX                         6
+#define GHI_CHANNEL_VIEW_USB_REDIRECTION        5  // VDPUsbRedirectionMKSControl module in
+                                                   // View RMKS
+#define GHI_CHANNEL_VIEW_REMOTE_VDP_COMMON      6  // Handled by View VDP core module
+#define GHI_CHANNEL_MAX                         7
 
 typedef uint32 GHIChannelType;
 
@@ -135,5 +136,30 @@ typedef uint32 GHIGuestToHostMessageType;
  * UI->MKS messages over GHI_CHANNEL_VIEW_USB_REDIRECTION.
  */
 #define GHI_HOST_USB_REDIRECTION_STARTUSBD_CMD  "ghi.usb.redirection.startusbd"
+
+
+/*
+ * MKS->UI messages over GHI_CHANNEL_VIEW_REMOTE_VDP_COMMON.
+ */
+#define GHI_CHANNEL_VIEW_REMOTE_VDP_COMMON_BITS \
+           GHI_GUEST_CHANNEL_BITS(GHI_CHANNEL_VIEW_REMOTE_VDP_COMMON)
+#define GHI_GUEST_VDP_COMMON_CAP_FEATURES \
+           (GHI_CHANNEL_VIEW_REMOTE_VDP_COMMON_BITS | 0x000001)
+#define GHI_GUEST_VDP_COMMON_CAP_RECEIVED \
+           (GHI_CHANNEL_VIEW_REMOTE_VDP_COMMON_BITS | 0x000002)
+
+/*
+ * UI->MKS messages over GHI_CHANNEL_VIEW_REMOTE_VDP_COMMON.
+ */
+#define GHI_HOST_VDP_COMMON_SYNC_GUEST_LEDS_CMD  "ghi.mks.common.sync.guest.leds"
+#define GHI_HOST_VDP_COMMON_GET_GUEST_CAPS_CMD   "ghi.mks.common.get.guest.caps"
+
+/*
+ * Capabilities for the message GHI_GUEST_VDP_COMMON_CAP_FEATURES
+ */
+typedef enum {
+   VDP_COMMON_SET_KEYBOARD_STATE_CAP = 0,
+   VDP_COMMON_CAP_ITEM_COUNT
+} VDPCommonCapType;
 
 #endif // ifndef _GHINTEGRATIONCOMMON_H_
