@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -35,6 +35,7 @@
 #include "str.h"
 #include "util.h"
 #include "unicodeBase.h"
+#include "conf.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -72,12 +73,16 @@ static char *DeployPkgGetTempDir(void);
  */
 
 static ToolsDeployPkgError
-DeployPkgDeployPkgInGuest(const char* pkgFile, // IN: the package filename
+DeployPkgDeployPkgInGuest(ToolsAppCtx *ctx,    // IN: app context
+                          const char* pkgFile, // IN: the package filename
                           char* errBuf,        // OUT: buffer for msg on fail
                           int errBufSize)      // IN: size of errBuf
 {
    char *tempFileName = NULL;
    ToolsDeployPkgError ret = TOOLSDEPLOYPKG_ERROR_SUCCESS;
+#ifndef _WIN32
+   int processTimeout;
+#endif
 
    /* Init the logger */
    DeployPkgLog_Open();
@@ -102,6 +107,30 @@ DeployPkgDeployPkgInGuest(const char* pkgFile, // IN: the package filename
       goto ExitPoint;
    }
    pkgFile = tempFileName;
+#else
+   /*
+    * Get processTimeout from tools.conf.
+    * Only when we get valid 'timeout' value from tools.conf, we will call
+    * DeployPkg_SetProcessTimeout to over-write the processTimeout in deployPkg
+    *
+    */
+   processTimeout =
+        VMTools_ConfigGetInteger(ctx->config,
+                                 CONFGROUPNAME_DEPLOYPKG,
+                                 CONFNAME_DEPLOYPKG_PROCESSTIMEOUT,
+                                 0);
+   if (processTimeout > 0 && processTimeout <= MAX_UINT16) {
+      DeployPkgLog_Log(log_debug, "%s.%s in tools.conf: %d\n",
+                       CONFGROUPNAME_DEPLOYPKG,
+                       CONFNAME_DEPLOYPKG_PROCESSTIMEOUT,
+                       processTimeout);
+      DeployPkg_SetProcessTimeout(processTimeout);
+   } else {
+      DeployPkgLog_Log(log_debug, "No valid value from tools.conf %s.%s",
+                       CONFGROUPNAME_DEPLOYPKG,
+                       CONFNAME_DEPLOYPKG_PROCESSTIMEOUT);
+      DeployPkgLog_Log(log_info, "The valid timeout value range: 1 ~ 65535\n");
+   }
 #endif
 
    if (0 != DeployPkg_DeployPackageFromFile(pkgFile)) {
@@ -182,7 +211,7 @@ DeployPkgExecDeploy(ToolsAppCtx *ctx,   // IN: app context
    g_debug("%s: Deploypkg deploy task started.\n", __FUNCTION__);
 
    /* Unpack the package and run the command. */
-   ret = DeployPkgDeployPkgInGuest(pkgNameStr, errMsg, sizeof errMsg);
+   ret = DeployPkgDeployPkgInGuest(ctx, pkgNameStr, errMsg, sizeof errMsg);
    if (ret != TOOLSDEPLOYPKG_ERROR_SUCCESS) {
       msg = g_strdup_printf("deployPkg.update.state %d %d %s",
                             TOOLSDEPLOYPKG_DEPLOYING,

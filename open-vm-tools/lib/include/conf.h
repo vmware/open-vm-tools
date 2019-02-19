@@ -233,6 +233,28 @@
  */
 
 
+/*
+ ******************************************************************************
+ * BEGIN deployPkg goodies.
+ */
+
+/**
+ * Defines the string used for the deployPkg config file group.
+ */
+#define CONFGROUPNAME_DEPLOYPKG "deployPkg"
+
+/**
+ * Lets users configure the process timeout value in deployPkg
+ * Valid value range: 0x01 ~ 0xFF
+ */
+#define CONFNAME_DEPLOYPKG_PROCESSTIMEOUT "process-timeout"
+
+/*
+ * END deployPkg goodies.
+ ******************************************************************************
+ */
+
+
 /** Where to find Tools data in the Win32 registry. */
 #define CONF_VMWARE_TOOLS_REGKEY    "Software\\VMware, Inc.\\VMware Tools"
 

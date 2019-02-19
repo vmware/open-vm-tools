@@ -155,6 +155,40 @@ static void NoLogging(int level, const char* fmtstr, ...);
 
 static char* gDeployError = NULL;
 LogFunction sLog = NoLogging;
+static uint16 gProcessTimeout = DEPLOYPKG_PROCESSTIMEOUT_DEFAULT;
+
+// .....................................................................................
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ * DeployPkg_SetTimeout --
+ *
+ *      Give the deploy package an application specific timeout value.
+ *      Package deployment engines such as tools-deployPkg-plugin or standalone program
+ * linuxDeployPkg can call this API to set gProcessTimeout.
+ *      This API should be called before DeployPkg_DeployPackageFromFile or
+ * DeployPkg_DeployPackageFromFileEx.
+ *      If the package header includs valid 'timeout' value, then that value will
+ * overwrite gProcessTimeout.
+ *      If no valid 'timeout' value from both package header and deployment engine, then
+ * default value 100s will be used.
+ *
+ * @param logger [in]
+ *      timeout value to be used for process execution period control
+ *
+ *------------------------------------------------------------------------------
+ */
+
+void
+DeployPkg_SetProcessTimeout(uint16 timeout)
+{
+   if (timeout > 0) {
+      gProcessTimeout = timeout;
+      sLog(log_debug, "Process timeout value from deployment launcher: %u\n",
+           gProcessTimeout);
+   }
+}
 
 // .....................................................................................
 
@@ -609,6 +643,15 @@ GetPackageInfo(const char* packageName,
    *flags = hdr.reserved;
 
    //TODO hdr->command[VMWAREDEPLOYPKG_CMD_LENGTH - 1] = '\0';
+
+   // Get process timeout value from client
+   if (hdr.pkgProcessTimeout > 0 && hdr.pkgProcessTimeout <= MAX_UINT16) {
+      gProcessTimeout = hdr.pkgProcessTimeout;
+      sLog(log_info, "Process timeout value in header: %u\n",
+             hdr.pkgProcessTimeout);
+   } else {
+      sLog(log_info, "No valid timeout value from package header");
+   }
 
    return TRUE;
 }
@@ -1424,7 +1467,7 @@ ExtractZipPackage(const char* pkgName,
    args[5] = NULL;
    Process_Create(&h, args, sLog);
    free(destCopy);
-   Process_RunToComplete(h, 100);
+   Process_RunToComplete(h, gProcessTimeout);
 
    sLog(log_info, "unzip output: %s\n", Process_GetStdout(h));
 
@@ -1558,7 +1601,7 @@ ForkExecAndWaitCommand(const char* command, bool ignoreStdErr)
    }
    free(args);
 
-   Process_RunToComplete(hp, 100);
+   Process_RunToComplete(hp, gProcessTimeout);
    sLog(log_info, "Customization command output: %s\n", Process_GetStdout(hp));
    retval = Process_GetExitCode(hp);
 

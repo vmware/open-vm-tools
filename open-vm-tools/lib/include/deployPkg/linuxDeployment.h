@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2016,2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -30,12 +30,39 @@
 #include "imgcust-common/log.h"
 #include "imgcust-common/imgcust-api.h"
 
+#define DEPLOYPKG_PROCESSTIMEOUT_DEFAULT 100
+
 typedef enum {
    DEPLOYPKG_STATUS_SUCCESS,
    DEPLOYPKG_STATUS_CLOUD_INIT_DELEGATED,
    DEPLOYPKG_STATUS_ERROR,
    DEPLOYPKG_STATUS_CAB_ERROR
 } DeployPkgStatus;
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ * DeployPkg_SetTimeout --
+ *
+ *      Give the deploy package an application specific timeout value.
+ *      Package deployment engines such as tools-deployPkg-plugin or standalone program
+ * linuxDeployPkg can call this API to set gProcessTimeout.
+ *      This API should be called before DeployPkg_DeployPackageFromFile or
+ * DeployPkg_DeployPackageFromFileEx.
+ *      If the package header includs valid 'timeout' value, then that value will
+ * overwrite gProcessTimeout.
+ *      If no valid 'timeout' value from both package header and deployment engine, then
+ * default value 100s will be used.
+ *
+ * @param logger [in]
+ *      timeout value to be used for process execution period control
+ *
+ *------------------------------------------------------------------------------
+ */
+
+IMGCUST_API void
+DeployPkg_SetProcessTimeout(uint16 timeout);
+
 
 /*
  *------------------------------------------------------------------------------
