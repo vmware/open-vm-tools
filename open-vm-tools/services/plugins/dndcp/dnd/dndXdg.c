@@ -318,12 +318,11 @@ CreateApparentRootDirectory(void)
    }
 
    if (File_Exists(root)) {
-      if (   !DnDRootDirUsable(root)
-          && !DnDSetPermissionsOnRootDir(root)) {
+      if (!DnDRootDirUsable(root)) {
          /*
-          * The directory already exists and its permissions are wrong and
-          * cannot be set, so there's not much we can do.
+          * The directory already exists and its permissions are wrong.
           */
+         Log_Trivia("dnd: The root dir is not usable.\n");
          return NULL;
       }
    } else {
