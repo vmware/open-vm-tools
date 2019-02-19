@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998,2005-2012,2014-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998,2005-2012,2014-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -346,6 +346,9 @@
 
 /************* QAT implementation limits ********************/
 #define MAX_QAT_PCI_DEVICES 4
+
+/************* HyperClock implementation limits ********************/
+#define MAX_HYPERCLOCK_DEVICES 1
 
 /************* Strings for Host USB Driver *******************************/
 
