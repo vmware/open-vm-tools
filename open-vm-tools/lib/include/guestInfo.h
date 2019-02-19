@@ -47,6 +47,7 @@
 #include "guestrpc/nicinfo.h"
 
 #define GUEST_INFO_COMMAND "SetGuestInfo"
+#define GUEST_DISK_INFO_COMMAND "SetGuestDiskInfo"
 #define MAX_VALUE_LEN 100
 
 #define MAX_NICS     16
@@ -105,6 +106,8 @@ typedef struct _DiskInfo {
    unsigned int numEntries;
    PPartitionEntry partitionList;
 } GuestDiskInfo, *PGuestDiskInfo;
+
+#define DISK_INFO_VERSION_1 1
 
 /**
  * @}

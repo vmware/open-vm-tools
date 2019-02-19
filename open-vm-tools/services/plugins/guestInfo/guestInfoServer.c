@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -54,6 +54,7 @@
 #include "util.h"
 #include "xdrutil.h"
 #include "vmsupport.h"
+#include "dynbuf.h"
 #include "vmware/guestrpc/tclodefs.h"
 #include "vmware/tools/log.h"
 #include "vmware/tools/plugin.h"
@@ -117,8 +118,9 @@ typedef struct _GuestInfoCache {
    char                        *value[INFO_MAX];
    HostinfoDetailedDataHeader  *detailedData;
    NicInfoV3                   *nicInfo;
-   GuestDiskInfo               *diskInfo;
    NicInfoMethod                method;
+   GuestDiskInfo               *diskInfo;
+   Bool                         diskInfoUseJson;
 } GuestInfoCache;
 
 
@@ -1186,6 +1188,92 @@ GuestInfoSendNicInfo(ToolsAppCtx *ctx,             // IN
 }
 
 
+/*
+ ******************************************************************************
+ * GuestInfoSendDiskInfoV1 --
+ *
+ * Push updated Disk info to the VMX, using the json GUEST_DISK_INFO_COMMAND
+ * RPC
+ *
+ * @param[in] ctx       Application context.
+ * @param[in] pdi       GuestDiskInfo *
+ * @param[in] infoSize  Size of disk info.
+ *
+ * @retval TRUE  Update sent successfully.
+ * @retval FALSE Had trouble with serialization or transmission.
+ *
+ ******************************************************************************
+ */
+
+static Bool
+GuestInfoSendDiskInfoV1(ToolsAppCtx *ctx,             // IN
+                        GuestDiskInfo *pdi,           // IN
+                        size_t infoSize)              // IN
+{
+   DynBuf dynBuffer;
+   char tmpBuf[1024];
+   int len;
+   char *infoReq;
+   char *reply = NULL;
+   size_t replyLen;
+   Bool status;
+   /*
+    * Currently this format is fixed; the order should not be changed.
+    * If a change is required, then DISK_INFO_VERSION must be bumped.
+    * Older versions cannot be removed to maintain backwards compatibility
+    * with older VMXs.
+    */
+   static char headerFmt[] = "%s {\n"
+                             "\"version\":\"%d\",\n"
+                             "\"disks\":[\n";
+   static char jsonPerDiskFmt[] = "{"
+                                  "\"name\":\"%s\","
+                                  "\"free\":\"%"FMT64"u\","
+                                  "\"size\":\"%"FMT64"u\"},\n";
+   static char jsonSuffix[] = "]}";
+   int i;
+
+   // 20 bytes per numbr for ascii representation
+   ASSERT_ON_COMPILE(sizeof tmpBuf > sizeof jsonPerDiskFmt +
+                     PARTITION_NAME_SIZE + 20 + 20);
+
+   DynBuf_Init(&dynBuffer);
+
+   len = Str_Snprintf(tmpBuf, sizeof tmpBuf, headerFmt,
+                      GUEST_DISK_INFO_COMMAND, DISK_INFO_VERSION_1);
+   DynBuf_Append(&dynBuffer, tmpBuf, len);
+   for (i = 0; i < pdi->numEntries; i++) {
+      len = Str_Snprintf(tmpBuf, sizeof tmpBuf, jsonPerDiskFmt,
+                         pdi->partitionList[i].name,
+                         pdi->partitionList[i].freeBytes,
+                         pdi->partitionList[i].totalBytes);
+      DynBuf_Append(&dynBuffer, tmpBuf, len);
+   }
+   DynBuf_Append(&dynBuffer, jsonSuffix, sizeof jsonSuffix);
+
+   infoReq = DynBuf_GetString(&dynBuffer);
+
+   g_debug("%s: sending diskInfo RPC: '%s'\n", __FUNCTION__, infoReq);
+
+   status = RpcChannel_Send(ctx->rpc, infoReq, strlen(infoReq) + 1, &reply,
+                            &replyLen);
+   if (status) {
+      status = (*reply == '\0');
+      if (!status) {
+         g_debug("%s: unexpected reply '%s'\n", __FUNCTION__, reply);
+      }
+   } else {
+      g_debug("%s: RPC failed (%d) reply '%s'\n",
+              __FUNCTION__, status, reply ? reply : "");
+   }
+
+   DynBuf_Destroy(&dynBuffer);
+   vm_free(reply);
+
+   return status;
+}
+
+
 #if defined(_WIN64) && (_MSC_VER == 1500) && GLIB_CHECK_VERSION(2, 46, 0)
 /*
  * Turn off optimizer for this compiler, since something with new glib
@@ -1284,11 +1372,7 @@ GuestInfoSendDiskInfoV0(ToolsAppCtx *ctx,             // IN
    vm_free(request);
    vm_free(reply);
 
-   if (!status) {
-      return FALSE;
-   }
-
-   return TRUE;
+   return status;
 }
 
 
@@ -1313,10 +1397,15 @@ GuestInfoSendDiskInfo(ToolsAppCtx *ctx,             // IN
                       GuestDiskInfo *info,          // IN
                       size_t infoSize)              // IN
 {
-   /* XXX try new format */
+   if (gInfoCache.diskInfoUseJson &&
+       GuestInfoSendDiskInfoV1(ctx, info, infoSize)) {
+      return TRUE;
+   } else {
+      gInfoCache.diskInfoUseJson = FALSE;
+   }
 
-   /* fail over to old */
-   g_debug("%s: using old diskinfo format\n", __FUNCTION__);
+   /* fail over to unversioned format */
+   g_debug("%s: using V0 (unversioned) diskinfo format\n", __FUNCTION__);
 
    return GuestInfoSendDiskInfoV0(ctx, info, infoSize);
 }
@@ -1653,6 +1742,7 @@ GuestInfoClearCache(void)
 
    GuestInfo_FreeDiskInfo(gInfoCache.diskInfo);
    gInfoCache.diskInfo = NULL;
+   gInfoCache.diskInfoUseJson = TRUE;
 
    GuestInfo_FreeNicInfo(gInfoCache.nicInfo);
    gInfoCache.nicInfo = NULL;
