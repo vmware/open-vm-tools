@@ -239,8 +239,7 @@ extern "C" {
 #  define BDOOR_CMD_GMM_ONESHOT_TIMER         3
 #  define BDOOR_CMD_GMM_WATCH_PPNS_START      4
 #  define BDOOR_CMD_GMM_WATCH_PPNS_STOP       5
-#  define BDOOR_CMD_GMM_WATCH_CALL_CODE       6
-#  define BDOOR_CMD_GMM_WATCH_CALL_CODE_STOP  7
+#  define BDOOR_CMD_GMM_RESYNC_RUNTIME_INFO   6
 #define   BDOOR_CMD_MAX                      97
 
 
