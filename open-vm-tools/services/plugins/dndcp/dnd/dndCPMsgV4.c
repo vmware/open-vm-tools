@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -67,14 +67,17 @@ DnDCPMsgV4IsPacketValid(const uint8 *packet,
       return FALSE;
    }
 
-   /* Payload should be smaller than the whole binary
+   /*
+    * For Workstation/Fusion Payload should be smaller than the whole binary
     * and should not be put beyond the binary tail.
     *
     * binarySize should be smaller than DND_CP_MSG_MAX_BINARY_SIZE_V4, so that
     * integer overflow is not possible since DND_CP_MSG_MAX_BINARY_SIZE_V4 * 2
-    * is guaranteed to be less than MAX_UINT32.
+    * is guaranteed to be less than MAX_UINT32. Horizon removes this limitation
     */
+#ifndef VMX86_HORIZON_VIEW
    ASSERT_ON_COMPILE(DND_CP_MSG_MAX_BINARY_SIZE_V4 <= MAX_UINT32 / 2);
+#endif
    if (msgHdr->payloadOffset > msgHdr->binarySize ||
        msgHdr->payloadSize > msgHdr->binarySize ||
        msgHdr->payloadOffset + msgHdr->payloadSize > msgHdr->binarySize) {

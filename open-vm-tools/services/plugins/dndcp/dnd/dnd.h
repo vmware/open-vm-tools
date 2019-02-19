@@ -52,9 +52,15 @@ extern "C" {
 #define DND_MAX_PATH        6144
 
 #define DNDMSG_HEADERSIZE_V3 ((3 * sizeof (uint32)) + (1 * sizeof (uint8)))
-/* Hard limits we never want to exceed */
-/* The maximum size of a serializied DnDMsg. Close to 4M. */
+/*
+ * Hard limits we never want to exceed. The maximum size of a serializied
+ * DnDMsg. Close to 4M for Workstion/Fusion, 4G for Horzion.
+ */
+#ifdef VMX86_HORIZON_VIEW
+#define DNDMSG_MAX_ARGSZ (0xffffffff - DNDMSG_HEADERSIZE_V3)
+#else
 #define DNDMSG_MAX_ARGSZ ((1 << 22) - DNDMSG_HEADERSIZE_V3)
+#endif
 /* The maximum number of arguments we can hold */
 #define DNDMSG_MAX_ARGS 64
 
