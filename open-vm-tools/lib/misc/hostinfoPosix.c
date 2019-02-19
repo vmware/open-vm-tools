@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1235,60 +1235,56 @@ HostinfoGetCmdOutput(const char *cmd)  // IN:
  *
  * HostinfoOsRelease --
  *
- *      Attempt to determine the distro string via the os-release standard.
+ *      Attempt to return the distro identification data we're interested in
+ *      from the os-release standard file(s). Look for the os-release data in
+ *      following the priority order established by the os-release standard.
+ *
+ *      The fields of interest are found in osReleaseFields above.
+ *
+ *      https://www.linux.org/docs/man5/os-release.html
  *
  * Return value:
- *      TRUE   Success
- *      FALSE  Failure
+ *      -1     Failure. No data returned.
+ *      0..n   Success. A "score", the number of interesting pieces of data
+ *             found. The strings found, in the order specified by the
+ *             search table above, are returned in args as an array of pointers
+ *             to dynamically allocated strings.
  *
  * Side effects:
- *      distro is set on success.
+ *      None
  *
  *-----------------------------------------------------------------------------
  */
 
-static Bool
-HostinfoOsRelease(char *distro,       // OUT:
-                  size_t distroSize)  // IN:
+static int
+HostinfoOsRelease(char ***args)  // OUT:
 {
-   size_t fields = ARRAYSIZE(osReleaseFields) - 1;  // Exclude terminator
-   char **args = HostinfoReadDistroFile(TRUE, "/etc/os-release",
-                                        &osReleaseFields[0]);
+   int score;
 
-   if (args == NULL) {
-      args = HostinfoReadDistroFile(TRUE, "/usr/lib/os-release",
-                                    &osReleaseFields[0]);
+   *args = HostinfoReadDistroFile(TRUE, "/etc/os-release",
+                                  &osReleaseFields[0]);
+
+   if (*args == NULL) {
+      *args = HostinfoReadDistroFile(TRUE, "/usr/lib/os-release",
+                                     &osReleaseFields[0]);
    }
 
-   if (args != NULL) {
-      if (args[0] != NULL) {
-         Str_Strcpy(detailedDataFields[PRETTY_NAME].value, args[0],
-                    sizeof detailedDataFields[PRETTY_NAME].value);
-      }
+   if (*args == NULL) {
+      score = -1;
+   } else {
+      uint32 i;
+      size_t fields = ARRAYSIZE(osReleaseFields) - 1;  // Exclude terminator
 
-      if (args[1] != NULL) {
-         Str_Strcpy(detailedDataFields[DISTRO_NAME].value, args[1],
-                    sizeof detailedDataFields[DISTRO_NAME].value);
-      }
+      score = 0;
 
-      if (args[2] != NULL) {
-         Str_Strcpy(detailedDataFields[DISTRO_VERSION].value, args[2],
-                    sizeof detailedDataFields[DISTRO_VERSION].value);
+      for (i = 0; i < fields; i++) {
+         if ((*args)[i] != NULL) {
+            score++;
+         }
       }
-
-      if (args[3] != NULL) {
-         Str_Strcpy(detailedDataFields[BUILD_NUMBER].value, args[3],
-                    sizeof detailedDataFields[BUILD_NUMBER].value);
-      }
-
-      if (args[fields] != NULL) {
-         Str_Strcpy(distro, args[fields], distroSize);
-      }
-
-      Util_FreeStringList(args, fields + 1);
    }
 
-   return args != NULL;
+   return score;
 }
 
 
@@ -1303,7 +1299,7 @@ HostinfoOsRelease(char *distro,       // OUT:
  *      Pointer to a substring of the input
  *
  * Side effects:
- *      Replaces second double quote with a null character.
+ *      Replaces second double quote with a NUL character.
  *
  *-----------------------------------------------------------------------------
  */
@@ -1330,25 +1326,32 @@ HostinfoLsbRemoveQuotes(char *lsbOutput)  // IN/OUT:
  *
  * HostinfoLsb --
  *
- *      Attempt to determine the distro string via the LSB standard.
+ *      Attempt to return the distro identification data we're interested in
+ *      from the LSB standard file.
+ *
+ *      The fields of interest are found in lsbFields above.
+ *
+ *      https://refspecs.linuxfoundation.org/lsb.shtml
  *
  * Return value:
- *      TRUE   Success
- *      FALSE  Failure
+ *      -1     Failure. No data returned.
+ *      0..n   Success. A "score", the number of interesting pieces of data
+ *             found. The strings found, in the order specified by the
+ *             search table above, are returned in args as an array of pointers
+ *             to dynamically allocated strings.
  *
  * Side effects:
- *      distro is set on success.
+ *      None
  *
  *-----------------------------------------------------------------------------
  */
 
-static Bool
-HostinfoLsb(char *distro,       // OUT:
-            size_t distroSize)  // IN:
+static int
+HostinfoLsb(char ***args)  // OUT:
 {
+   uint32 i;
+   int score;
    char *lsbOutput;
-   char **args = NULL;
-   Bool success = FALSE;
    size_t fields = ARRAYSIZE(lsbFields) - 1;  // Exclude terminator
 
    /*
@@ -1358,82 +1361,53 @@ HostinfoLsb(char *distro,       // OUT:
    lsbOutput = HostinfoGetCmdOutput("/usr/bin/lsb_release -sd 2>/dev/null");
 
    if (lsbOutput == NULL) {
-      int i;
-
       /*
        * Try to get more detailed information from the version file.
        */
 
       for (i = 0; distroArray[i].filename != NULL; i++) {
-         args = HostinfoReadDistroFile(FALSE, distroArray[i].filename,
-                                       &lsbFields[0]);
+         *args = HostinfoReadDistroFile(FALSE, distroArray[i].filename,
+                                        &lsbFields[0]);
 
-         if (args != NULL) {
+         if (*args != NULL) {
             break;
          }
       }
-
-      /*
-       * If we failed to read every distro file, exit now.
-       */
-
-      if (args == NULL) {
-         Log("%s: Error: no distro file found\n", __FUNCTION__);
-      } else {
-         if (args[0] != NULL) {  // Name
-            Str_Strcpy(detailedDataFields[DISTRO_NAME].value, args[0],
-                       sizeof detailedDataFields[DISTRO_NAME].value);
-         }
-
-         if (args[1] != NULL) {  // Release
-            Str_Strcpy(detailedDataFields[DISTRO_VERSION].value, args[1],
-                       sizeof detailedDataFields[DISTRO_VERSION].value);
-         }
-
-         if (args[3] != NULL) {  // Description
-            Str_Strcpy(detailedDataFields[PRETTY_NAME].value, args[3],
-                       sizeof detailedDataFields[PRETTY_NAME].value);
-         }
-
-         if (args[fields] != NULL) {
-            Str_Strcpy(distro, args[fields], distroSize);
-         }
-
-         Util_FreeStringList(args, fields + 1);
-
-         success = TRUE;
-      }
    } else {
+      *args = Util_SafeCalloc(fields + 1, sizeof(char *));
+
       /* LSB Description (pretty name) */
-      char *lsbStart = HostinfoLsbRemoveQuotes(lsbOutput);
-
-      Str_Strcpy(distro, lsbStart, distroSize);
-      free(lsbOutput);
-
-      /* LSB Release */
-      lsbOutput = HostinfoGetCmdOutput("/usr/bin/lsb_release -sr 2>/dev/null");
-      lsbStart = HostinfoLsbRemoveQuotes(lsbOutput);
-      Str_Strcpy(detailedDataFields[DISTRO_VERSION].value, lsbStart,
-                 sizeof detailedDataFields[DISTRO_VERSION].value);
+      (*args)[fields] = Util_SafeStrdup(HostinfoLsbRemoveQuotes(lsbOutput));
       free(lsbOutput);
 
       /* LSB Distributor */
       lsbOutput = HostinfoGetCmdOutput("/usr/bin/lsb_release -si 2>/dev/null");
-      lsbStart = HostinfoLsbRemoveQuotes(lsbOutput);
-      Str_Strcpy(detailedDataFields[DISTRO_NAME].value, lsbStart,
-                 sizeof detailedDataFields[DISTRO_NAME].value);
+      (*args)[0] = Util_SafeStrdup(HostinfoLsbRemoveQuotes(lsbOutput));
       free(lsbOutput);
 
-      /* When using lsb_release, the distro is filled in by the discription
-       * (pretty name).
-       */
-      Str_Strcpy(detailedDataFields[PRETTY_NAME].value, distro,
-                 sizeof detailedDataFields[PRETTY_NAME].value);
+      /* LSB Release */
+      lsbOutput = HostinfoGetCmdOutput("/usr/bin/lsb_release -sr 2>/dev/null");
+      (*args)[1] = Util_SafeStrdup(HostinfoLsbRemoveQuotes(lsbOutput));
+      free(lsbOutput);
 
-      success = TRUE;
+      /* LSB Description */
+      (*args)[3] = Util_SafeStrdup((*args)[fields]);
    }
 
-   return success;
+   if (*args == NULL) {
+      score = -1;
+   } else {
+      score = 0;
+
+      for (i = 0; i < fields; i++) {
+         if ((*args)[i] != NULL) {
+            score++;
+         }
+      }
+   }
+
+
+   return score;
 }
 
 
@@ -1525,6 +1499,115 @@ HostinfoDefaultLinux(char *distro,            // OUT/OPT:
 /*
  *-----------------------------------------------------------------------------
  *
+ * HostinfoBestScore --
+ *
+ *      Return the best distro and distroShort data possible. Do this by
+ *      examining the LSB and os-release data and choosing the "best fit".
+ *      The "best fit" is determined inspecting the available information
+ *      returned by distro identification methods. If none is available,
+ *      return a safe, generic result. Otherwise, use the method that has
+ *      the highest score (of valid, useful data).
+ *
+ * Return value:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HostinfoBestScore(char *distro,            // OUT:
+                  size_t distroSize,       // IN:
+                  char *distroShort,       // OUT:
+                  size_t distroShortSize)  // IN:
+{
+   char **lsbData = NULL;
+   char **osReleaseData = NULL;
+   int lsbScore = HostinfoLsb(&lsbData);
+   int osReleaseScore = HostinfoOsRelease(&osReleaseData);
+
+   /* We prefer the LSB so as to maintain the best backwards compatibility. */
+   if ((lsbScore > 0) && (lsbScore >= osReleaseScore)) {
+      size_t fields = ARRAYSIZE(lsbFields) - 1;  // Exclude terminator
+
+      if (lsbData[0] != NULL) {  // Name
+         Str_Strcpy(detailedDataFields[DISTRO_NAME].value, lsbData[0],
+                    sizeof detailedDataFields[DISTRO_NAME].value);
+      }
+
+      if (lsbData[1] != NULL) {  // Release
+         Str_Strcpy(detailedDataFields[DISTRO_VERSION].value, lsbData[1],
+                    sizeof detailedDataFields[DISTRO_VERSION].value);
+      }
+
+      if (lsbData[3] != NULL) {  // Description
+         Str_Strcpy(detailedDataFields[PRETTY_NAME].value, lsbData[3],
+                    sizeof detailedDataFields[PRETTY_NAME].value);
+      }
+
+      if (lsbData[fields] != NULL) {
+         Str_Strcpy(distro, lsbData[fields], distroSize);
+      }
+
+      HostinfoDefaultLinux(NULL, 0, distroShort, distroShortSize);
+      HostinfoGetOSShortName(distro, distroShort, distroShortSize);
+
+      goto bail;
+   }
+
+   if (osReleaseScore > 0) {
+      size_t fields = ARRAYSIZE(osReleaseFields) - 1;  // Exclude terminator
+
+      if (osReleaseData[0] != NULL) {
+         Str_Strcpy(detailedDataFields[PRETTY_NAME].value, osReleaseData[0],
+                    sizeof detailedDataFields[PRETTY_NAME].value);
+      }
+
+      if (osReleaseData[1] != NULL) {
+         Str_Strcpy(detailedDataFields[DISTRO_NAME].value, osReleaseData[1],
+                    sizeof detailedDataFields[DISTRO_NAME].value);
+      }
+
+      if (osReleaseData[2] != NULL) {
+         Str_Strcpy(detailedDataFields[DISTRO_VERSION].value, osReleaseData[2],
+                    sizeof detailedDataFields[DISTRO_VERSION].value);
+      }
+
+      if (osReleaseData[3] != NULL) {
+         Str_Strcpy(detailedDataFields[BUILD_NUMBER].value, osReleaseData[3],
+                    sizeof detailedDataFields[BUILD_NUMBER].value);
+      }
+
+      if (osReleaseData[fields] != NULL) {
+         Str_Strcpy(distro, osReleaseData[fields], distroSize);
+      }
+
+      HostinfoDefaultLinux(NULL, 0, distroShort, distroShortSize);
+      HostinfoGetOSShortName(distro, distroShort, distroShortSize);
+
+      goto bail;
+   }
+
+   /* Not LSB or os-release compliant. Report something generic. */
+   HostinfoDefaultLinux(distro, distroSize, distroShort, distroShortSize);
+
+bail:
+
+   if (lsbData != NULL) {
+      Util_FreeStringList(lsbData, ARRAYSIZE(lsbFields));
+   }
+
+   if (osReleaseData != NULL) {
+      Util_FreeStringList(osReleaseData, ARRAYSIZE(osReleaseFields));
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * HostinfoLinux --
  *
  *      Determine the specifics concerning Linux.
@@ -1548,25 +1631,7 @@ HostinfoLinux(struct utsname *buf)  // IN:
    char osName[MAX_OS_NAME_LEN];
    char osNameFull[MAX_OS_FULLNAME_LEN];
 
-   /* Try the LSB standard first, this maximizes compatibility */
-   if (HostinfoLsb(distro, sizeof distro)) {
-      HostinfoDefaultLinux(NULL, 0, distroShort, sizeof distroShort);
-      HostinfoGetOSShortName(distro, distroShort, sizeof distroShort);
-      goto bail;
-   }
-
-   /* No LSB compliance, try the os-release standard */
-   if (HostinfoOsRelease(distro, sizeof distro)) {
-      HostinfoDefaultLinux(NULL, 0, distroShort, sizeof distroShort);
-      HostinfoGetOSShortName(distro, distroShort, sizeof distroShort);
-      goto bail;
-   }
-
-   /* Not LSB or os-release compliant. Report something generic. */
-   HostinfoDefaultLinux(distro, sizeof distro,
-                        distroShort, sizeof distroShort);
-
-bail:
+   HostinfoBestScore(distro, sizeof distro, distroShort, sizeof distroShort);
 
    len = Str_Snprintf(osNameFull, sizeof osNameFull, "%s %s %s", buf->sysname,
                       buf->release, distro);
