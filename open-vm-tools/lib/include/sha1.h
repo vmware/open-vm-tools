@@ -132,6 +132,8 @@ void SHA1RawInit(uint32 state[5]);
 
 void SHA1MultiBuffer(uint32 numBuffers,
                      uint32 len,
+                     const void *salt,
+                     uint32 saltLen,
                      const void *data[],
                      unsigned char *digests[]);
 #endif
