@@ -266,11 +266,8 @@
 #elif defined(VMX86_HBR_SERVER)
 # define PRODUCT_SHORT_NAME PRODUCT_HBR_SERVER_NAME
 #elif defined(VMX86_HORIZON_VIEW)
-# if defined(VDM_CLIENT)
-#  define PRODUCT_SHORT_NAME PRODUCT_VDM_CLIENT_NAME
-# else
-#  define PRODUCT_SHORT_NAME PRODUCT_VIEW_NAME
-# endif
+// Do not change product name; many consumers depend on it.
+# define PRODUCT_SHORT_NAME PRODUCT_VIEW_NAME
 #elif defined(VMX86_VMCF)
 # define PRODUCT_SHORT_NAME PRODUCT_VMCF_NAME
 #elif defined(VMX86_INTEGRITY)
