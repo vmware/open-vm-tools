@@ -105,7 +105,6 @@
  *         system.  Also, if VERSION_MAJOR, VERSION_MINOR, and
  *         VERSION_MAINT macros are defined, they override the
  *         VERSION macro in the build system.
- *
  */
 
 /*
