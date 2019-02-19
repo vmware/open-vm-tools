@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -588,7 +588,7 @@ FLAG(   D,  0, EDX, 30,  1, XCR0_MASTER_LWP,                   NO,   0, FALSE) \
 FLAG(   D,  0, EDX, 31,  1, XCR0_MASTER_EXTENDED_XSAVE,        NO,   0, FALSE) \
 FLAG(   D,  1, EAX,  0,  1, XSAVEOPT,                          YES, 11, FALSE) \
 FLAG(   D,  1, EAX,  1,  1, XSAVEC,                            YES, 13, FALSE) \
-FLAG(   D,  1, EAX,  2,  1, XGETBV_ECX1,                       NO,   0, FALSE) \
+FLAG(   D,  1, EAX,  2,  1, XGETBV_ECX1,                       YES, 17, FALSE) \
 FLAG(   D,  1, EAX,  3,  1, XSAVES,                            YES, 13, FALSE) \
 FIELD(  D,  1, EBX,  0, 32, XSAVES_ENABLED_SIZE,               ANY, 13, FALSE) \
 FIELD(  D,  1, ECX,  0,  7, XSS_XCR0_USED0,                    NO,   0, FALSE) \
