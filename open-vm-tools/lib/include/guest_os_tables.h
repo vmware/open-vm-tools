@@ -102,6 +102,7 @@ extern "C" {
    GOT(GUEST_OS_DARWIN17_64)       /* Mac OS 10.13 */                      \
    GOT(GUEST_OS_DARWIN18_64)       /* Mac OS 10.14 */                      \
    GOT(GUEST_OS_DARWIN19_64)       /* Mac OS 10.15 */                      \
+   GOT(GUEST_OS_DARWIN20_64)       /* Mac OS 10.16 */                      \
    GOT(GUEST_OS_OPENSERVER_5_AND_6)                                        \
    GOT(GUEST_OS_UNIXWARE7)                                                 \
    GOT(GUEST_OS_NETWARE4)                                                  \
