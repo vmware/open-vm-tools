@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016,2018 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -33,7 +33,7 @@
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 #include "vm_product.h"
-#if defined(VMX86_TOOLS) || defined(VMX86_SYSIMAGE)
+#if defined(VMX86_TOOLS)
 #include "vm_tools_version.h"
 #endif
 #include "vm_vmx_type.h"
