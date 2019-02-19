@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -228,6 +228,8 @@ size_t DnD_LocalStringToCPString(utf16_t *bufIn,
                                  char **bufOut);
 Bool DnD_SetCPClipboardFromLocalText(CPClipboard *clip,
                                      utf16_t *bufIn);
+Bool DnD_SetCPClipboardAndTruncateLocalText(CPClipboard *clip,
+                                            utf16_t *bufIn);
 Bool DnD_SetCPClipboardFromLocalRtf(CPClipboard *clip,
                                     char *bufIn);
 Bool DnD_SetCPClipboardFromSpecifiedFormat(CPClipboard *clip,

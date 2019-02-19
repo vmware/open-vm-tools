@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -276,11 +276,15 @@ CPClipboard_SetItem(CPClipboard *clip,          // IN/OUT: the clipboard
    CPClipItem *item;
    uint8 *newBuf = NULL;
    /*
-    * Microsoft Office Text Effects i.e. HTML Format, image, rtf and text may
-    * be put into a clipboard at same time, and total size may be more than
-    * limit. HTML format will be first dropped, then image and then rtf data.
+    * Microsoft Office Text Effects i.e. HTML Format, BIFF, GVML, image, rtf
+    * and text may be put into a clipboard at same time, and total size may be
+    * more than limit. The order in filterList determines the order in which
+    * the format will be fiiltered, e.g. HTML format will be first dropped,
+    * then GVML,..., at last TEXT
     */
    DND_CPFORMAT filterList[] = {CPFORMAT_HTML_FORMAT,
+                                CPFORMAT_ART_GVML_CLIPFORMAT,
+                                CPFORMAT_BIFF12,
                                 CPFORMAT_IMG_PNG,
                                 CPFORMAT_RTF,
                                 CPFORMAT_TEXT};
