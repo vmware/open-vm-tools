@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -69,7 +69,7 @@
  */
 #define PRODUCT_SCALABLE_SERVER_BRIEF_NAME "ESX"
 #define PRODUCT_ESXI_BRIEF_NAME "ESXi"
-#define PRODUCT_VMVISOR_BRIEF_NAME PRODUCT_ESXI_BRIEF_NAME 
+#define PRODUCT_VMVISOR_BRIEF_NAME PRODUCT_ESXI_BRIEF_NAME
 #define PRODUCT_WORKSTATION_BRIEF_NAME "Workstation"
 #define PRODUCT_WORKSTATION_SERVER_BRIEF_NAME "Workstation Server"
 #define PRODUCT_PLAYER_BRIEF_NAME "Player"
@@ -266,7 +266,11 @@
 #elif defined(VMX86_HBR_SERVER)
 # define PRODUCT_SHORT_NAME PRODUCT_HBR_SERVER_NAME
 #elif defined(VMX86_HORIZON_VIEW)
-# define PRODUCT_SHORT_NAME PRODUCT_VIEW_NAME
+# if defined(VDM_CLIENT)
+#  define PRODUCT_SHORT_NAME PRODUCT_VDM_CLIENT_NAME
+# else
+#  define PRODUCT_SHORT_NAME PRODUCT_VIEW_NAME
+# endif
 #elif defined(VMX86_VMCF)
 # define PRODUCT_SHORT_NAME PRODUCT_VMCF_NAME
 #elif defined(VMX86_INTEGRITY)

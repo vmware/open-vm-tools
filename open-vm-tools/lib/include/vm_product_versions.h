@@ -32,13 +32,8 @@
  * When building the Tools, we make an effort to follow the "internal" Tools
  * version. Otherwise we use a hard-coded value for Workstation and a different
  * hard-coded value for every other product.
- *
- * Note: VMX86_VIEWCLIENT must be before VMX86_DESKTOP so that crtbora
- * versioning is correct.
  */
-#if defined(VMX86_VIEWCLIENT)
-   #define PRODUCT_VERSION    4,7,0,PRODUCT_BUILD_NUMBER_NUMERIC
-#elif defined(VMX86_VMRC) /* check VMX86_VMRC before VMX86_DESKTOP */
+#if defined(VMX86_VMRC) /* check VMX86_VMRC before VMX86_DESKTOP */
    #define PRODUCT_VERSION    11,0,0,PRODUCT_BUILD_NUMBER_NUMERIC   /* VMRC_VERSION_NUMBER below has to match this */
 #elif defined(VMX86_FLEX) /* check VMX86_FLEX before VMX86_DESKTOP */
    #define PRODUCT_VERSION    8,0,0,PRODUCT_BUILD_NUMBER_NUMERIC   /* FLEX_VERSION_NUMBER below has to match this */
@@ -50,7 +45,11 @@
    /* this should be kept in sync with the corresponding vpx branch. */
    #define PRODUCT_VERSION    6,8,4,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_HORIZON_VIEW)
-   #define PRODUCT_VERSION    0,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
+   #if defined(VDM_CLIENT)
+      #define PRODUCT_VERSION    5,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
+   #else
+      #define PRODUCT_VERSION    7,8,0,PRODUCT_BUILD_NUMBER_NUMERIC
+   #endif
 // VMX86_DESKTOP must be last because it is the default and is always defined.
 #elif defined(VMX86_DESKTOP)
    // WORKSTATION_VERSION_NUMBER below has to match this
@@ -263,7 +262,6 @@
 #define OVFTOOL_VERSION "4.3.0"
 #define VCSA_INSTALLER_VERSION "1.0.0"
 #define OVFTOOL_FILE_VERSION 4,3,0,PRODUCT_BUILD_NUMBER_NUMERIC
-#define VDM_CLIENT_VERSION "5.0.0"
 #define VGAUTH_VERSION "1.0.0"
 #define COMMON_AGENT_VERSION "e.x.p"
 #define VIEWY_VERSION "e.x.p"
@@ -318,9 +316,7 @@
 #define VIM_ESX_PRODUCT_LINE_ID "esx"
 #define VIM_WS_PRODUCT_LINE_ID "ws"
 
-#if defined(VMX86_VIEWCLIENT)
-#  define PRODUCT_VERSION_NUMBER VDM_CLIENT_VERSION
-#elif defined(VMX86_VMRC) /* check VMX86_VMRC before VMX86_DESKTOP */
+#if defined(VMX86_VMRC) /* check VMX86_VMRC before VMX86_DESKTOP */
 #  define PRODUCT_VERSION_NUMBER VMRC_VERSION
 #elif defined(VMX86_FLEX) /* check VMX86_FLEX before VMX86_DESKTOP */
 #  define PRODUCT_VERSION_NUMBER FLEX_VERSION
@@ -357,7 +353,11 @@
 #elif defined(VMX86_HBR_SERVER)
 #  define PRODUCT_VERSION_NUMBER ESX_VERSION
 #elif defined(VMX86_HORIZON_VIEW)
-#  define PRODUCT_VERSION_NUMBER VIEW_VERSION
+#  if defined(VDM_CLIENT)
+#    define PRODUCT_VERSION_NUMBER VIEW_CLIENT_VERSION
+#  else
+#    define PRODUCT_VERSION_NUMBER VIEW_VERSION
+#  endif
 #elif defined(VMX86_INTEGRITY)
 #  define PRODUCT_VERSION_NUMBER INTEGRITY_VERSION
 #elif defined(VMX86_VGAUTH)
