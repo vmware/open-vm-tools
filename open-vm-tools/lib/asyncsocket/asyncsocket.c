@@ -4311,7 +4311,15 @@ AsyncTCPSocketCancelRecvCb(AsyncTCPSocket *asock)  // IN:
       removed = AsyncTCPSocketPollRemove(asock, TRUE,
                                          POLL_FLAG_READ | POLL_FLAG_PERIODIC,
                                          asock->internalRecvFn);
-      ASSERT(removed || AsyncTCPSocketPollParams(asock)->iPoll);
+
+      /*
+       * A recv callback registered on a bad FD can be deleted by
+       * PollHandleInvalidFd if POLL_FLAG_ACCEPT_INVALID_FDS flag
+       * is added to asyncsocket.
+       */
+      ASSERT(removed || AsyncTCPSocketPollParams(asock)->iPoll ||
+             (AsyncTCPSocketPollParams(asock)->flags &
+              POLL_FLAG_ACCEPT_INVALID_FDS) != 0);
       asock->recvCb = FALSE;
    }
 }
