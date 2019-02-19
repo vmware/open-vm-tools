@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -111,6 +111,7 @@ public:
    void VmxDnDVersionChanged(uint32 version);
    bool IsDragEnterAllowed(void);
    Bool CheckCapability(uint32 capsRequest);
+   virtual bool NeedDoMouseCoordinateConversion() { return true; }
 
    static gboolean DnDUngrabTimeout(void *clientData);
    static gboolean DnDHideDetWndTimer(void *clientData);
