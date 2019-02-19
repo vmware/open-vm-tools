@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2014-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2014-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -51,7 +51,7 @@
  */
 
 void
-GuestInfo_FreeDiskInfo(GuestDiskInfo *di)
+GuestInfo_FreeDiskInfo(GuestDiskInfoInt *di)
 {
    if (di) {
       free(di->partitionList);
@@ -71,13 +71,13 @@ GuestInfo_FreeDiskInfo(GuestDiskInfo *di)
  *
  * Uses wiper library to enumerate fixed volumes and lookup utilization data.
  *
- * @return Pointer to a GuestDiskInfo structure on success or NULL on failure.
- *         Caller should free returned pointer with GuestInfoFreeDiskInfo.
+ * @return Pointer to a GuestDiskInfoInt structure on success or NULL on failure.
+ *         Caller should free returned pointer with GuestInfo_FreeDiskInfo.
  *
  ******************************************************************************
  */
 
-GuestDiskInfo *
+GuestDiskInfoInt *
 GuestInfoGetDiskInfoWiper(Bool includeReserved)  // IN
 {
    WiperPartition_List pl;
@@ -87,7 +87,7 @@ GuestInfoGetDiskInfoWiper(Bool includeReserved)  // IN
    uint64 totalBytes = 0;
    unsigned int partNameSize = 0;
    Bool success = FALSE;
-   GuestDiskInfo *di;
+   GuestDiskInfoInt *di;
 
    /* Get partition list. */
    if (!WiperPartition_Open(&pl, FALSE)) {
@@ -102,8 +102,8 @@ GuestInfoGetDiskInfoWiper(Bool includeReserved)  // IN
       WiperPartition *part = DblLnkLst_Container(curr, WiperPartition, link);
 
       if (part->type != PARTITION_UNSUPPORTED) {
-         PPartitionEntry newPartitionList;
-         PPartitionEntry partEntry;
+         PartitionEntryInt *newPartitionList;
+         PartitionEntryInt *partEntry;
          unsigned char *error;
          if (includeReserved) {
             error = WiperSinglePartition_GetSpace(part, NULL,

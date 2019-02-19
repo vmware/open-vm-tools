@@ -119,7 +119,7 @@ typedef struct _GuestInfoCache {
    HostinfoDetailedDataHeader  *detailedData;
    NicInfoV3                   *nicInfo;
    NicInfoMethod                method;
-   GuestDiskInfo               *diskInfo;
+   GuestDiskInfoInt            *diskInfo;
    Bool                         diskInfoUseJson;
 } GuestInfoCache;
 
@@ -184,7 +184,7 @@ static Bool SetGuestInfo(ToolsAppCtx *ctx,
                          GuestInfoType key,
                          const char *value);
 static void SendUptime(ToolsAppCtx *ctx);
-static Bool DiskInfoChanged(const GuestDiskInfo *diskInfo);
+static Bool DiskInfoChanged(const GuestDiskInfoInt *diskInfo);
 static void GuestInfoClearCache(void);
 static GuestNicList *NicInfoV3ToV2(const NicInfoV3 *infoV3);
 static void TweakGatherLoops(ToolsAppCtx *ctx,
@@ -533,7 +533,7 @@ GuestInfoGather(gpointer data)
                     // "Host names are limited to 255 bytes"
 #if !defined(USERWORLD)
    gboolean disableQueryDiskInfo;
-   GuestDiskInfo *diskInfo = NULL;
+   GuestDiskInfoInt *diskInfo = NULL;
 #endif
    NicInfoV3 *nicInfo = NULL;
    ToolsAppCtx *ctx = data;
@@ -1196,7 +1196,7 @@ GuestInfoSendNicInfo(ToolsAppCtx *ctx,             // IN
  * RPC
  *
  * @param[in] ctx       Application context.
- * @param[in] pdi       GuestDiskInfo *
+ * @param[in] pdi       GuestDiskInfoInt *
  * @param[in] infoSize  Size of disk info.
  *
  * @retval TRUE  Update sent successfully.
@@ -1207,7 +1207,7 @@ GuestInfoSendNicInfo(ToolsAppCtx *ctx,             // IN
 
 static Bool
 GuestInfoSendDiskInfoV1(ToolsAppCtx *ctx,             // IN
-                        GuestDiskInfo *pdi,           // IN
+                        GuestDiskInfoInt *pdi,        // IN
                         size_t infoSize)              // IN
 {
    DynBuf dynBuffer;
@@ -1233,7 +1233,7 @@ GuestInfoSendDiskInfoV1(ToolsAppCtx *ctx,             // IN
    static char jsonSuffix[] = "]}";
    int i;
 
-   // 20 bytes per numbr for ascii representation
+   // 20 bytes per number for ascii representation
    ASSERT_ON_COMPILE(sizeof tmpBuf > sizeof jsonPerDiskFmt +
                      PARTITION_NAME_SIZE + 20 + 20);
 
@@ -1290,7 +1290,7 @@ GuestInfoSendDiskInfoV1(ToolsAppCtx *ctx,             // IN
  * format.
  *
  * @param[in] ctx       Application context.
- * @param[in] pdi       GuestDiskInfo *
+ * @param[in] pdiInt    GuestDiskInfoInt *
  * @param[in] infoSize  Size of disk info.
  *
  * @retval TRUE  Update sent successfully.
@@ -1301,7 +1301,7 @@ GuestInfoSendDiskInfoV1(ToolsAppCtx *ctx,             // IN
 
 static Bool
 GuestInfoSendDiskInfoV0(ToolsAppCtx *ctx,             // IN
-                        GuestDiskInfo *pdi,           // IN
+                        GuestDiskInfoInt *pdiInt,     // IN
                         size_t infoSize)              // IN
 {
    /*
@@ -1316,9 +1316,27 @@ GuestInfoSendDiskInfoV0(ToolsAppCtx *ctx,             // IN
    char *reply;
    size_t replyLen;
    Bool status;
+   GuestDiskInfo *pdi;
+   int i;
 
-   ASSERT((pdi->numEntries && pdi->partitionList) ||
-          (!pdi->numEntries && !pdi->partitionList));
+   ASSERT((pdiInt->numEntries && pdiInt->partitionList) ||
+          (!pdiInt->numEntries && !pdiInt->partitionList));
+
+   /*
+    * Build a GuestDiskInfo structure to provide the expected binary
+    * format for the binary RPC, copying out the V0 elements.
+    */
+   pdi = Util_SafeCalloc(1, sizeof *pdi);
+   pdi->numEntries = pdiInt->numEntries;
+   pdi->partitionList = Util_SafeCalloc(pdi->numEntries,
+                                        sizeof *pdi->partitionList);
+   for (i = 0; i < pdi->numEntries; i++) {
+      pdi->partitionList[i].freeBytes = pdiInt->partitionList[i].freeBytes;
+      pdi->partitionList[i].totalBytes = pdiInt->partitionList[i].totalBytes;
+      Str_Strcpy(pdi->partitionList[i].name,
+                 pdiInt->partitionList[i].name,
+                 PARTITION_NAME_SIZE);
+   }
 
    /* partitionCount is a uint8 and cannot be larger than UCHAR_MAX. */
    if (pdi->numEntries > UCHAR_MAX) {
@@ -1372,6 +1390,9 @@ GuestInfoSendDiskInfoV0(ToolsAppCtx *ctx,             // IN
    vm_free(request);
    vm_free(reply);
 
+   vm_free(pdi->partitionList);
+   vm_free(pdi);
+
    return status;
 }
 
@@ -1383,7 +1404,7 @@ GuestInfoSendDiskInfoV0(ToolsAppCtx *ctx,             // IN
  * Push updated Disk info to the VMX.
  *
  * @param[in] ctx       Application context.
- * @param[in] info      GuestDiskInfo *
+ * @param[in] info      GuestDiskInfoInt *
  * @param[in] infoSize  Size of disk info.
  *
  * @retval TRUE  Update sent successfully.
@@ -1394,7 +1415,7 @@ GuestInfoSendDiskInfoV0(ToolsAppCtx *ctx,             // IN
 
 static Bool
 GuestInfoSendDiskInfo(ToolsAppCtx *ctx,             // IN
-                      GuestDiskInfo *info,          // IN
+                      GuestDiskInfoInt *info,       // IN
                       size_t infoSize)              // IN
 {
    if (gInfoCache.diskInfoUseJson &&
@@ -1661,13 +1682,13 @@ GuestInfoFindMacAddress(NicInfoV3 *nicInfo,     // IN/OUT
  */
 
 static Bool
-DiskInfoChanged(const GuestDiskInfo *diskInfo)
+DiskInfoChanged(const GuestDiskInfoInt *diskInfo)
 {
    int index;
    char *name;
    int i;
    int matchedPartition;
-   PGuestDiskInfo cachedDiskInfo;
+   GuestDiskInfoInt *cachedDiskInfo;
 
    cachedDiskInfo = gInfoCache.diskInfo;
 

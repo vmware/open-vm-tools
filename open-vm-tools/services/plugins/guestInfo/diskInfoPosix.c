@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2014-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2014-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -34,13 +34,13 @@
  *
  * Uses wiper library to enumerate fixed volumes and lookup utilization data.
  *
- * @return Pointer to a GuestDiskInfo structure on success or NULL on failure.
- *         Caller should free returned pointer with GuestInfoFreeDiskInfo.
+ * @return Pointer to a GuestDiskInfoInt structure on success or NULL on failure.
+ *         Caller should free returned pointer with GuestInfo_FreeDiskInfo.
  *
  ******************************************************************************
  */
 
-GuestDiskInfo *
+GuestDiskInfoInt *
 GuestInfo_GetDiskInfo(const ToolsAppCtx *ctx)
 {
    gboolean includeReserved;
