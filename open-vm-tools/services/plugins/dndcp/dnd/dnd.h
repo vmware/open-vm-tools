@@ -199,8 +199,18 @@ typedef struct DnDTransportBuffer {
 } DnDTransportBuffer;
 
 #define DND_TRANSPORT_PACKET_HEADER_SIZE      (5 * sizeof(uint32))
+#ifdef VMX86_HORIZON_VIEW
+/*
+ * For Horizon DnD, expand the message size to almost 1M, which is the
+ * mkscontrol message limitation. Leave 100 bytes for mkscontrol message
+ * overhead (message header + length of message name)
+ */
+#define DND_MAX_TRANSPORT_PACKET_SIZE         ((1 << 20) - 100)
+#else
 /* Close to 64k (maximum guestRpc message size). Leave some space for guestRpc header. */
 #define DND_MAX_TRANSPORT_PACKET_SIZE         ((1 << 16) - 100)
+#endif
+
 #define DND_MAX_TRANSPORT_PACKET_PAYLOAD_SIZE (DND_MAX_TRANSPORT_PACKET_SIZE - \
                                                DND_TRANSPORT_PACKET_HEADER_SIZE)
 #define DND_MAX_TRANSPORT_LATENCY_TIME        3 * 1000000 /* 3 seconds. */
