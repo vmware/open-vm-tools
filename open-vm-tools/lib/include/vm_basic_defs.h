@@ -711,6 +711,12 @@ typedef int pid_t;
 #define ULM_ONLY(x)
 #endif
 
+#if defined(VMM) || defined(ULVMM)
+#define MONITOR_ONLY(x) x
+#else
+#define MONITOR_ONLY(x)
+#endif
+
 #if defined(VMM) || defined(VMKERNEL)
 #define USER_ONLY(x)
 #else
@@ -759,7 +765,7 @@ typedef int pid_t;
 /* This is not intended to be thread-safe. */
 #define DO_ONCE(code)                                                   \
    do {                                                                 \
-      static VMM_ONLY(PERVCPU) Bool _doOnceDone = FALSE;                \
+      static MONITOR_ONLY(PERVCPU) Bool _doOnceDone = FALSE;            \
       if (UNLIKELY(!_doOnceDone)) {                                     \
          _doOnceDone = TRUE;                                            \
          code;                                                          \

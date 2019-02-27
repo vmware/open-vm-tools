@@ -241,7 +241,7 @@ void WarningThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
 
 #define NOT_TESTED_1024()                                               \
    do {                                                                 \
-      static VMM_ONLY(PERVCPU) uint16 count = 0;                        \
+      static MONITOR_ONLY(PERVCPU) uint16 count = 0;                    \
       if (UNLIKELY(count == 0)) { NOT_TESTED(); }                       \
       count = (count + 1) & 1023;                                       \
    } while (0)
