@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -83,11 +83,14 @@ GuestDnDSrc::OnRpcDragBegin(const CPClipboard *clip)
    ASSERT(clip);
 
    g_debug("%s: state is %d\n", __FUNCTION__, mMgr->GetState());
-   /* Setup staging directory. */
-   mStagingDir = SetupDestDir("");
-   if (mStagingDir.empty()) {
-      g_debug("%s: SetupDestDir failed.\n", __FUNCTION__);
-      return;
+
+   if (NeedSetupDestDir(clip)) {
+      /* Setup staging directory. */
+      mStagingDir = SetupDestDir("");
+      if (mStagingDir.empty()) {
+         g_debug("%s: SetupDestDir failed.\n", __FUNCTION__);
+         return;
+      }
    }
 
    /* Show detection window in (0, 0). */

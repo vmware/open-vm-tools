@@ -171,6 +171,7 @@ protected:
                           uint32 sz);
    virtual const std::string& SetupDestDir(const std::string &destDir);
    virtual void CleanStagingFiles(bool fileTransferResult) { }
+   virtual bool NeedSetupDestDir(const CPClipboard *clip) { return true; }
 
    GuestDnDMgr *mMgr;
    DnDRpc *mRpc;
