@@ -8595,15 +8595,15 @@ abort:
  * VixToolsProcessHgfsPacket --
  *
  *    This sends a packet to the HGFS server in the guest.
- *    We pass in the user credential type and authenication
+ *    We parse the user credential type and authentication
  *    information as strings, followed by the actual HGFS packet
- *    to send to the HGFS Server in the guest Tools.
- *    The recipient of this string is ToolsDaemonHgfsImpersonated,
- *    which lives in foundryToolsDaemon.c.  It parses the authentication
- *    information, impersonates a user in the guest using
- *    ToolsDaemonImpersonateUser, and then calls HgfsServerManager_ProcessPacket
- *    to issue the HGFS packet to the HGFS Server.  The HGFS Server
- *    replies with an HGFS packet, which will be forwarded back to
+ *    that is to be sent to the HGFS Server in the guest Tools.
+ *
+ *    The authentication information is used to impersonate a user
+ *    in the guest using VixToolsImpersonateUser, and then calls
+ *    HgfsServerManager_ProcessPacket to issue the HGFS packet to
+ *    the HGFS Server. The HGFS Server reply is contained in the
+ *    HGFS reply packet, which will be returned back to
  *    us and handled in VMAutomationOnBackdoorCallReturns.
  *
  * Results:

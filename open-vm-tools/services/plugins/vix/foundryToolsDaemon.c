@@ -924,10 +924,6 @@ exit:
 } // ToolsDaemonTcloMountHGFS
 
 
-#undef STRLEN_OF_MAX_64_BIT_NUMBER_AS_STRING
-#undef OTHER_TEXT_SIZE
-
-
 /*
  *-----------------------------------------------------------------------------
  *
