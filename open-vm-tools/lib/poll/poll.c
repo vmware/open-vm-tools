@@ -2224,10 +2224,6 @@ PollUnitTest_StateMachine(void *clientData) // IN: Unused
 
       MXUser_DestroyRecLock(cbLock);
       cbLock = NULL;
-      realTimeCount = 0;
-      mainLoopCount = 0;
-      deviceRCount = 0;
-      deviceWCount = 0;
       rtCbRace = 0;
       mlCbRace = 0;
       drCbRace = 0;
