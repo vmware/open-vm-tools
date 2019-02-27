@@ -666,9 +666,8 @@ FLAG(   F,  1, EDX,  0,  1, PQM_CMT_OCCUPANCY,                 NO,   0, FALSE)
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,             MON SUPP, HWV, CPL3 */
 #define CPUID_FIELD_DATA_LEVEL_10                                              \
 FLAG(  10,  0, EBX,  1,  1, PQE_L3,                            NO,   0, FALSE) \
-FIELD( 10,  1, EAX,  0,  4, PQE_L3_MASK_LENGTH,                NO,   0, FALSE) \
+FIELD( 10,  1, EAX,  0,  5, PQE_L3_MASK_LENGTH,                NO,   0, FALSE) \
 FIELD( 10,  1, EBX,  0, 32, PQE_L3_ISOLATION_UNIT_MAP,         NO,   0, FALSE) \
-FLAG(  10,  1, ECX,  1,  1, PQE_L3_INFREQUENT_COS_UPDATE,      NO,   0, FALSE) \
 FLAG(  10,  1, ECX,  2,  1, PQE_L3_CDP,                        NO,   0, FALSE) \
 FIELD( 10,  1, EDX,  0, 16, PQE_L3_MAX_COS_NUMBER,             NO,   0, FALSE)
 
