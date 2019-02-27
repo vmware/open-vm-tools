@@ -759,7 +759,7 @@ typedef int pid_t;
 /* This is not intended to be thread-safe. */
 #define DO_ONCE(code)                                                   \
    do {                                                                 \
-      static Bool _doOnceDone = FALSE;                                  \
+      static VMM_ONLY(PERVCPU) Bool _doOnceDone = FALSE;                \
       if (UNLIKELY(!_doOnceDone)) {                                     \
          _doOnceDone = TRUE;                                            \
          code;                                                          \
