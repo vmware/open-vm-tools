@@ -52,6 +52,9 @@ extern "C" {
 using namespace ImgCustCommon;
 #endif
 
+// Using 3600s as the upper limit of timeout value in tools.conf.
+#define MAX_TIMEOUT_FROM_TOOLCONF 3600
+
 static char *DeployPkgGetTempDir(void);
 
 
@@ -112,24 +115,26 @@ DeployPkgDeployPkgInGuest(ToolsAppCtx *ctx,    // IN: app context
     * Get processTimeout from tools.conf.
     * Only when we get valid 'timeout' value from tools.conf, we will call
     * DeployPkg_SetProcessTimeout to over-write the processTimeout in deployPkg
-    *
+    * Using 0 as the default value of CONFNAME_DEPLOYPKG_PROCESSTIMEOUT in tools.conf
     */
    processTimeout =
         VMTools_ConfigGetInteger(ctx->config,
                                  CONFGROUPNAME_DEPLOYPKG,
                                  CONFNAME_DEPLOYPKG_PROCESSTIMEOUT,
                                  0);
-   if (processTimeout > 0 && processTimeout <= MAX_UINT16) {
-      DeployPkgLog_Log(log_debug, "%s.%s in tools.conf: %d\n",
+   if (processTimeout > 0 && processTimeout <= MAX_TIMEOUT_FROM_TOOLCONF) {
+      DeployPkgLog_Log(log_debug, "[%s] %s in tools.conf: %d",
                        CONFGROUPNAME_DEPLOYPKG,
                        CONFNAME_DEPLOYPKG_PROCESSTIMEOUT,
                        processTimeout);
       DeployPkg_SetProcessTimeout(processTimeout);
-   } else {
-      DeployPkgLog_Log(log_debug, "No valid value from tools.conf %s.%s",
+   } else if (processTimeout != 0) {
+      DeployPkgLog_Log(log_debug, "Invalid value %d from tools.conf [%s] %s",
+                       processTimeout,
                        CONFGROUPNAME_DEPLOYPKG,
                        CONFNAME_DEPLOYPKG_PROCESSTIMEOUT);
-      DeployPkgLog_Log(log_info, "The valid timeout value range: 1 ~ 65535\n");
+      DeployPkgLog_Log(log_debug, "The valid timeout value range: 1 ~ %d",
+                       MAX_TIMEOUT_FROM_TOOLCONF);
    }
 #endif
 
