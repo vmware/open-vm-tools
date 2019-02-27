@@ -116,6 +116,7 @@
 #include "vixOpenSource.h"
 #include "vixToolsInt.h"
 #include "vmware/tools/plugin.h"
+#include "vmware/tools/log.h"
 
 #ifdef _WIN32
 #include "registryWin32.h"
@@ -1383,7 +1384,7 @@ abort:
 
    free((char **) envVars);
 
-   g_debug("%s: returning '%s'\n", __FUNCTION__, resultBuffer);
+   guest_debug("%s: returning '%s'\n", __FUNCTION__, resultBuffer);
 
    g_message("%s: opcode %d returning %"FMT64"d\n", __FUNCTION__,
              requestMsg->opCode, err);
@@ -1860,8 +1861,8 @@ VixToolsStartProgramImpl(const char *requestName,            // IN
       *pid = (int64) ProcMgr_GetPid(asyncState->procState);
    }
 
-   g_debug("%s: started '%s', pid %"FMT64"d\n",
-           __FUNCTION__, fullCommandLine, *pid);
+   guest_debug("%s: started '%s', pid %"FMT64"d\n",
+               __FUNCTION__, fullCommandLine, *pid);
 
 #if defined(_WIN32) && SUPPORT_VGAUTH
    /*
@@ -2223,8 +2224,9 @@ VixToolsUpdateStartedProgramList(VixToolsStartedProgramState *state)        // I
             spList->endTime = state->endTime;
             spList->isRunning = FALSE;
 
-            g_debug("%s: started program '%s' has completed, exitCode %d\n",
-                    __FUNCTION__, spList->fullCommandLine, spList->exitCode);
+            guest_debug("%s: started program '%s' has completed, "
+                        "exitCode %d\n", __FUNCTION__,
+                        spList->fullCommandLine, spList->exitCode);
 
             /*
              * Don't let the procState be free'd on Windows to
@@ -3303,7 +3305,7 @@ abort:
    }
    *result = valueStr;
 
-   g_debug("%s: returning '%s'\n", __FUNCTION__, valueStr);
+   guest_debug("%s: returning '%s'\n", __FUNCTION__, valueStr);
 
    g_message("%s: opcode %d returning %"FMT64"d\n", __FUNCTION__,
              requestMsg->opCode, err);
@@ -3805,7 +3807,7 @@ abort:
    Str_Sprintf(resultBuffer, sizeof(resultBuffer), "%d", resultInt);
    *result = resultBuffer;
 
-   g_debug("%s: returning '%s'\n", __FUNCTION__, resultBuffer);
+   guest_debug("%s: returning '%s'\n", __FUNCTION__, resultBuffer);
 
    g_message("%s: opcode %d returning %"FMT64"d\n", __FUNCTION__,
              requestMsg->opCode, err);
@@ -3847,8 +3849,10 @@ VixToolsCreateTempFile(VixCommandRequestHeader *requestMsg,   // IN
     * system temp folder if the path disappears.
     */
    if (VIX_SUCCEEDED(err) && *result != NULL && !File_Exists(*result)) {
-      g_warning("%s: '%s' does not exist, retry using system temp.\n",
-                __FUNCTION__, *result);
+      host_warning("%s: retry using system temp.\n",
+                   __FUNCTION__);
+      guest_warning("%s: '%s' does not exist, retry using system temp.\n",
+                    __FUNCTION__, *result);
       free(*result);
       *result = NULL;
       err = VixToolsCreateTempFileInt(requestMsg, TRUE, result);
@@ -3926,7 +3930,7 @@ VixToolsCreateTempFileInt(VixCommandRequestHeader *requestMsg,   // IN
 
    *result = filePathName;
 
-   g_debug("%s: returning '%s'\n", __FUNCTION__, filePathName);
+   guest_debug("%s: returning '%s'\n", __FUNCTION__, filePathName);
 
 abort:
    if (impersonatingVMWareUser) {
@@ -4033,7 +4037,7 @@ VixToolsReadVariable(VixCommandRequestHeader *requestMsg,   // IN
 
    *result = value;
 
-   g_debug("%s: returning '%s'\n", __FUNCTION__, value);
+   guest_debug("%s: returning '%s'\n", __FUNCTION__, value);
 
 abort:
    if (impersonatingVMWareUser) {
@@ -4165,7 +4169,7 @@ VixToolsReadEnvVariables(VixCommandRequestHeader *requestMsg,   // IN
 
    *result = results;
 
-   g_debug("%s: returning '%s'\n", __FUNCTION__, results);
+   guest_debug("%s: returning '%s'\n", __FUNCTION__, results);
 
 abort:
    if (impersonatingVMWareUser) {
@@ -4840,7 +4844,7 @@ abort:
    }
    *result = resultBuffer;
 
-   g_debug("%s: returning '%s'\n", __FUNCTION__, resultBuffer);
+   guest_debug("%s: returning '%s'\n", __FUNCTION__, resultBuffer);
 
    g_message("%s: opcode %d returning %"FMT64"d\n", __FUNCTION__,
              requestMsg->opCode, err);
@@ -6785,7 +6789,7 @@ abort:
    }
    *result = resultBuffer;
 
-   g_debug("%s: returning '%s'\n", __FUNCTION__, resultBuffer);
+   guest_debug("%s: returning '%s'\n", __FUNCTION__, resultBuffer);
 
    g_message("%s: opcode %d returning %"FMT64"d\n", __FUNCTION__,
              requestMsg->opCode, err);
@@ -7662,7 +7666,7 @@ abort:
    Str_Sprintf(resultBuffer, sizeof(resultBuffer), "%"FMT64"d", pid);
    *result = resultBuffer;
 
-   g_debug("%s: returning '%s'\n", __FUNCTION__, resultBuffer);
+   guest_debug("%s: returning '%s'\n", __FUNCTION__, resultBuffer);
 
    g_message("%s: opcode %d returning %"FMT64"d\n", __FUNCTION__,
              requestMsg->opCode, err);
