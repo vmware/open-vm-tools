@@ -110,7 +110,7 @@
    LOGLEVEL_VAR(qat), \
    LOGLEVEL_VAR(vtpm), \
    LOGLEVEL_VAR(mor), \
-   LOGLEVEL_VAR(ptpclock), \
+   LOGLEVEL_VAR(precisionclock), \
    \
    /* user/disk */ \
    LOGLEVEL_VAR(aioMgr), \
