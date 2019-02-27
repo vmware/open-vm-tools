@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -6536,11 +6536,13 @@ HgfsServerRead(HgfsInputParam *input)  // IN: Input params
             payload = &reply->payload[0];
          }
          if (payload) {
+            uint32 actualSize = 0;
             status = HgfsPlatformReadFile(readFd, input->session, offset,
                                           requiredSize, payload,
-                                          &reply->actualSize);
+                                          &actualSize);
             if (HGFS_ERROR_SUCCESS == status) {
                reply->reserved = 0;
+               reply->actualSize = actualSize;
                replyPayloadSize = sizeof *reply;
 
                if (readUseDataBuffer) {
@@ -6556,11 +6558,13 @@ HgfsServerRead(HgfsInputParam *input)  // IN: Input params
          break;
       }
    case HGFS_OP_READ: {
+         uint32 actualSize = 0;
          HgfsReplyRead *reply = replyRead;
 
          status = HgfsPlatformReadFile(readFd, input->session, offset, requiredSize,
-                                       reply->payload, &reply->actualSize);
+                                       reply->payload, &actualSize);
          if (HGFS_ERROR_SUCCESS == status) {
+            reply->actualSize = actualSize;
             replyPayloadSize = sizeof *reply + reply->actualSize;
          } else {
             LOG(4, ("%s: V1 Failed to read-> %d.\n", __FUNCTION__, status));
