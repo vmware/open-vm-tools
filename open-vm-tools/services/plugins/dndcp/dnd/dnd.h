@@ -292,6 +292,10 @@ Bool DnD_CPNameListToDynBufArray(char *fileList,
                                  DynBufArray *dynBufArray);
 char *DnD_GetLastDirName(const char *str);
 
+void DnD_SetCPClipboardAndTruncateText(CPClipboard *clip,
+                                       char *destBuf,
+                                       size_t len);
+
 /* vmblock support functions. */
 Bool DnD_InitializeBlocking(DnDBlockControl *blkCtrl);
 Bool DnD_UninitializeBlocking(DnDBlockControl *blkCtrl);

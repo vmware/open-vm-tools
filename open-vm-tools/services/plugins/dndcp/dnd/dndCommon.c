@@ -29,8 +29,10 @@
 #include <limits.h>
 
 #include "vmware.h"
+#include "codeset.h"
 #include "dndInt.h"
 #include "dnd.h"
+#include "dndClipboard.h"
 #include "file.h"
 #include "str.h"
 #include "random.h"
@@ -669,6 +671,46 @@ DnD_GetLastDirName(const char *str) // IN
 
    res = end - start;
    return Unicode_AllocWithLength(str + start, res, STRING_ENCODING_UTF8);
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * DnD_SetCPClipboardAndTruncateText --
+ *
+ *    Truncate the text if the size exceeds the maximum size and then put it
+ *    into clip.
+ *
+ * Results:
+ *    None
+ *
+ * Side effects:
+ *    The destBuf should be released by the caller where the destBuf allocated.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+DnD_SetCPClipboardAndTruncateText(CPClipboard *clip, // IN/OUT
+                                  char *destBuf,     // IN
+                                  size_t len)        // IN
+{
+   size_t bytesLeft = clip->maxSize - CPClipboard_GetTotalSize(clip) - 1;
+
+   // Truncate if the length is greater than max allowed.
+   if (len > bytesLeft) {
+      size_t boundaryPoint =
+         CodeSet_Utf8FindCodePointBoundary(destBuf, bytesLeft - 1);
+      destBuf[boundaryPoint] = '\0';
+      ASSERT(Unicode_IsBufferValid(destBuf, -1, STRING_ENCODING_UTF8));
+      Log("%s: Truncating text from %" FMTSZ "d chars to %" FMTSZ "d chars.\n",
+          __FUNCTION__, len - 1, boundaryPoint);
+      len = boundaryPoint + 1;
+   }
+
+   CPClipboard_SetItem(clip, CPFORMAT_TEXT, destBuf, len);
+   Log("%s: retrieved text (%" FMTSZ "d bytes) from clipboard.\n",
+      __FUNCTION__, len);
 }
 
 
