@@ -116,7 +116,7 @@
    LOGLEVEL_VAR(aioMgr), \
    LOGLEVEL_VAR(aioWin32), \
    LOGLEVEL_VAR(aioWin32Completion), \
-   LOGLEVEL_VAR(aioLinux), \
+   LOGLEVEL_VAR(aioKernel), \
    LOGLEVEL_VAR(aioHttp), \
    LOGLEVEL_VAR(aioGeneric), \
    LOGLEVEL_VAR(cdrom), \
