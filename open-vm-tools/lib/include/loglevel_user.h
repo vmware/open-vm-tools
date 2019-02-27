@@ -164,6 +164,7 @@
    LOGLEVEL_VAR(vaBasicOps), \
    LOGLEVEL_VAR(vdpPlugin), \
    LOGLEVEL_VAR(vncServer), \
+   LOGLEVEL_VAR(viewClient), \
   \
    /* user/sound */ \
    LOGLEVEL_VAR(sound), \
