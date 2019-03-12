@@ -182,6 +182,7 @@ static const DistroInfo distroArray[] = {
    {"Annvix",             "/etc/annvix-release"},
    {"Arch",               "/etc/arch-release"},
    {"Arklinux",           "/etc/arklinux-release"},
+   {"Asianux",            "/etc/asianux-release"},
    {"Aurox",              "/etc/aurox-release"},
    {"BlackCat",           "/etc/blackcat-release"},
    {"Cobalt",             "/etc/cobalt-release"},
