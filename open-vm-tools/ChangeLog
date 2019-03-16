@@ -1,3 +1,307 @@
+commit 4826a76513b6f8254132f664e07fa70ed18f22c4
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Sat Mar 16 10:40:23 2019 -0700
+
+    update version and build number
+
+commit 990cc40de10f257d1d3c01b69fe476c233afb950
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Sat Mar 16 10:39:48 2019 -0700
+
+    correct verson numbers
+
+commit f6a274cf64eebfd574e8cf587b4ebaf1c579267f
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Sat Mar 16 10:27:03 2019 -0700
+
+    Update release notes for 10.3.10
+
+commit 640bd4f9c012b201ad1d45a131dad2e804f53766
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Feb 6 16:47:22 2019 -0800
+
+    sync deploypkg files
+
+commit 182eda3bc5f371339114241f0581f446e72def6d
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Feb 5 17:36:53 2019 -0800
+
+    Update copyright year to 2019 for OVT 10.3.10 files.
+    
+    * Few dnd related files have been modified since 10.3.5 OVT and
+    we just missed updating the copyright year to 2019.
+    
+    * Updated the copyright year accordingly.
+
+commit ba83c29fcd703ecb6a13a7767bad180033234aea
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Jan 29 17:24:44 2019 -0800
+
+    Fix CentOS 7.6 detection
+    
+    The version information in /etc/centos-release has 3 parts,
+    in particular for CentOS 7.6:
+    
+    CentOS Linux release 7.6.1810 (Core)
+    
+    This was misidentified as CentOS 6 because the substring "6."
+    was matched before matching "7.". This change fixes this by
+    requiring a space before the major version.
+
+commit f4708f4b5a9d24b122237875ce6a542f267caab3
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Jan 29 17:24:44 2019 -0800
+
+    Include vmware/tools/log.h to define g_info.
+    
+    A recent change added a call to g_info from syncManifest.c.  This
+    in turn is causing open-vm-tools builds to fail because g_info is
+    not available on SLES 12sp1.
+    
+    To fix the problem, include vmware/tools/log.h in syncManifest.c.
+    log.h defines g_info as a macro.
+
+commit 139a21cab79d971e9fe3ea5b8e993646b2e6cb48
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Jan 29 17:24:44 2019 -0800
+
+    Always send VMBACKUP_EVENT_GENERIC_MANIFEST during quiesced snapshots.
+    
+    vSphere 6.7 added a host-side interface that allows VMTools to send
+    a "generic" backup manifest during a quiesced snapshot on Linux guests.
+    VMTools 10.2.0 or later tries to notify the host of the backup manifest
+    file through a vmbackup event message VMBACKUP_EVENT_GENERIC_MANIFEST.
+    If the host is unable to field the message, then VMTools logs the
+    failure and then continues with the quiesced snapshot in the older
+    fashion, without the backup manifest.
+    
+    An earlier change attempted to reduce the amount of logging done when
+    running on older hosts that don't support VMBACKUP_EVENT_GENERIC_MANIFEST
+    by detecting when sending VMBACKUP_EVENT_GENERIC_MANIFEST fails and
+    not sending the message again for subsequent quiesced snapshots.
+    However, subsequent stress testing has uncovered problems with this
+    approach when running on newer hosts; specifically, errors may sometimes
+    be encountered on newer hosts when sending VMBACKUP_EVENT_GENERIC_MANIFEST.
+    Therefore this change backs out that earlier change.
+    
+    Note that the need to solve the problem that that earlier change was
+    intended to solve has been reduced because support for
+    VMBACKUP_EVENT_GENERIC_MANIFEST has been backported to vSphere 6.5
+    P03, which is available, and vSphere 6.0 P08, which is scheduled for
+    release later this year.  ESXi 5.5 is out of general support.
+    
+    This change also addresses an issue that surfaced when testing on a
+    host without support for VMBACKUP_EVENT_GENERIC_MANIFEST.
+    If VMTools fails to send VMBACKUP_EVENT_GENERIC_MANIFEST, the quiesced
+    snapshot operation will be aborted rather than continuing as it should.
+    To address this, create a new function, VmBackup_SendEventNoAbort,
+    which does not abort the quiesced snapshot on failure, and call that
+    function rather than VmBackup_SendEvent when sending
+    VMBACKUP_EVENT_GENERIC_MANIFEST.
+
+commit f9a93010ac532ab8eaaeba7f1de5c0c3e732554a
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Jan 29 17:24:43 2019 -0800
+
+    Update copyright year to 2019.
+
+commit 74d165bab17132b50d909b7f2e5cb19f3f140a01
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Jan 29 14:03:19 2019 -0800
+
+    Fix some bad derefs in primary NIC gather code
+    
+    Found by user in https://github.com/vmware/open-vm-tools/issues/272
+    
+    Debug code tries to access a struct field that may not be init'd.
+    Pointer deref'd without a sanity check.
+
+commit e88f91b00a715b79255de6576506d80ecfdb064c
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Jan 29 14:03:19 2019 -0800
+
+    Fix possible security issue with the permissions of the intermediate
+    staging directory and path
+    
+    /tmp/VMwareDnD is a staging directory used for DnD and CnP.  It should be
+    a regular directory, but malicious code or user may create the /tmp/VMwareDnD
+    as a symbolic link which points elsewhere on the system.  This may provide
+    user access to user B's files.
+    
+    Do not set the permission of the root directory if the root directory
+    already exists and has the wrong permission.  The permission of the directory
+    must be 1777 if it is created by the VMToolsi.  If not, then the directory
+    has been created or modified by malicious code or user, so just cancel the
+    host to guest DnD or CnP operation.
+
+commit bfa5e5d27a8a96a9c71fbe581f3fe32dcd2e55fd
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Jan 29 14:03:19 2019 -0800
+
+    CONSTANT_EXPRESSION_RESULT in TimeUtil_StringToDate().
+    
+    Red Hat ran coverity scan on open-vm-tools and found an occurrence
+    of CONSTANT_EXPRESSION_RESULT in TimeUtil_StringToDate().
+
+commit 4bba1dcd28806eff0cb3795cbfeea32f91fb1c40
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Jan 29 14:03:19 2019 -0800
+
+    Bail out vmtoolsd early when there are RPC errors.
+    
+    VMX state machine could give up quiescing operation for various
+    reasons when vmtoolsd is busy performing necessary state transitions.
+    Once VMX gives up quiescing operation, there is no point in
+    vmtoolsd continuing with it. vmtoolsd should also give up the
+    operation asap. vmtoolsd can detect VMX state machine change
+    when it gets errors sending VMBACKUP_PROTOCOL_EVENT_SET RPC.
+    
+    RPC errors are only used as a trigger to abort the operation.
+    We ignore the RPC errors that might occur after aborting the
+    operation.
+
+commit 0cb7f7a903015e5e711fa6eb5b41748f797ce794
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Jan 29 14:03:19 2019 -0800
+
+    [10.3.10] Update copyright year to 2019.
+    
+    Update the copyright year to 2019 for ALL open-vm-tools destined files
+    modified since the release of 10.3.5.
+
+commit e569c47f85fa8520f0834148d6774c1cb66df68c
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Jan 29 14:03:19 2019 -0800
+
+    Don't send a backup manifest when aborting a Linux quiesced snapshot.
+    
+    When taking a Linux quiesced snapshot, communication failures between
+    VMX and VMTools may result in VMTools sending a genericManifest event
+    message after the quiesced snapshot operation has been aborted.  If
+    this happens, VMX will send an error back to VMTools, which in turn
+    causes VMTools not to send genericManifest messages on subsequent
+    quiesced snapshots even if the host supports such messages.
+    
+    One aspect of the implementation that gives rise to this behavior is
+    the use of the sync provider's snapshotDone function to undo a
+    quiescing operation.  Specifically, if VMTools aborts a quiesced
+    snapshot when the file system is quiesced, the quiescing must be
+    undone.  Currently, this is handled by calling the sync provider's
+    snapshotDone function.  This is the same function that is called to
+    complete the quiescing snapshot protocol when it is successful.  In
+    some respects this makes sense, since in either case snapshotDone
+    unquiesces the file system.  However, architecturally and conceptually,
+    it seems useful to distinguish between the action to be taken in the
+    successful case versus the aborting case.  It's also useful to do so
+    in practice, because the successful case sends the genericManifest
+    event to notify the host there is a backup manifest file, while the
+    aborting case should not do that.
+    
+    To address the issue, add an "undo" function for the Linux sync
+    provider.  The undo function is called instead of snapshotDone as
+    part of aborting a quiesced snapshot in which the file system is
+    quiesced at the time of the abort.
+
+commit 81835cd72369b5b75fc5b0bed761f3b75cb7146b
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Jan 29 14:03:18 2019 -0800
+
+    Special-case profile loading for StartProgram
+    
+    Keep the user's profile loaded for the life of the
+    program, to avoid races where its unloaded too quickly.
+
+commit d3515adb2a1617dcde4b65a6a9ab72ee8624454b
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Jan 29 14:03:18 2019 -0800
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit 4d3e3183bc04517cf75ab590a12e14224207eb6d
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Jan 29 14:03:18 2019 -0800
+
+    Bump up the SYSIMAGE_VERSION for VMware tools 10.3.10
+    
+    The last released deploypkg version for 'VMware Tools' 10.3.5 is 8.4.1.
+    Bumping up the CBS version to 8.4.10.
+
+commit 8f3630e77bcf647c22c40093bb37500f3032e578
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Jan 29 14:03:18 2019 -0800
+
+    Deploypkg log files of linux should not be world readable.
+
+commit 4470d99e5eaf19cea741e6fa6f46c72acd57b3e1
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Jan 29 14:03:18 2019 -0800
+
+    General code clean-up.
+    
+    bora/lib/misc/posixPosix.c:
+      Treat local variables "len" consistently as "size_t" type in
+      Posix_Getmntent_r()
+    
+    bora-vmsoft/apps/toolbox-cmd/toolboxcmd-shrink.c:
+      Improve readability of error handling logic in ShrinkDoWipeAndShrink()
+      and remove another line of dead code.
+    
+    bora-vmsoft/lib/procMgr/procMgrPosix.c:
+      Recent discussions about setting "errno" to ENOENT when either
+      getpwuid_r() or getpwnam_r() return 0 (success) if there is no passwd
+      entry for the user have vacillated.
+    
+      Since none of the current callers of the routines in procMgrPosix.c
+      query the contents of "errno", the current consensus is to simply log
+      a warning message along with reason for the failure.
+
+commit 5f3f6ccd3ad143d64f2927bd19791a6148e1e2ba
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Jan 29 14:03:18 2019 -0800
+
+    Fix NULL pointer dereference and remove three lines of dead code.
+    
+    QbitLogic has run [Code]Ai on the open-vm-tools source code and
+    and notified VMware of a potential NULL pointer reference and four
+    pieces of dead code.
+    
+    See https://github.com/vmware/open-vm-tools/pull/247
+    
+    bora-vmsoft/services/vmtoolsd/pluginMgr.c
+      The proposed fix conditionally emitted a log message.  That fix has
+      been reworked to consistently emit a log message with conditional
+      content.
+    
+    bora/lib/misc/posixPosix.c
+    bora-vmsoft/apps/toolbox-cmd/toolboxcmd-shrink.c
+      Remove one line of dead code from each source file.
+    
+    bora-vmsoft/lib/procMgr/procMgrPosix.c:
+      Suggested dead code fix actually pointed to a bug where errno
+      was not getting updated as intended.
+    
+    bora-vmsoft/services/plugins/guestInfo/perfMonLinux.c:
+      Suggested dead code is no longer dead; change not applicable.
+
+commit f10780bc3d7119d90bf72c0cf2f07066955d7d98
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Jan 29 14:03:18 2019 -0800
+
+    Bump VMware Tools version to 10.3.10 for the next scheduled update release
+    
+    Set the VMware Tools version as TOOLS_VERSION_JACKHAMMER_UPDATE2 = 10.3.10
+
+commit f2ff192717375b95a6b7e278fb47dbb3d3bc56d1
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Nov 7 15:00:09 2018 -0800
+
+    release notes for 10.3.5
+
+commit 8f98dbc87304546cbb75756bbad8ba0dbc0221a4
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Nov 7 14:13:03 2018 -0800
+
+    add 10.3.5 changes to ChangeLog
 commit 583fc02dbee4ba88a20c67a0f5e5a9b023b551ea
 Author: Oliver Kurth <okurth@vmware.com>
 Date:   Tue Nov 6 17:14:40 2018 -0800
