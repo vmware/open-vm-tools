@@ -40,7 +40,7 @@ Resolution on incompatibility and general guidelines: While upgrading ESXi hosts
 Internationalization
 --------------------
 
-open-vm-tools 10.3.5 is available in the following languages:
+open-vm-tools 10.3.10 is available in the following languages:
 
 *   English
 *   French
@@ -56,8 +56,8 @@ End of Feature Support Notice
 -----------------------------
 
 *   Support for Common Agent Framework (CAF) will be removed in the next major release of open-vm-tools.
-*   VMware Tools 10.3.10 freezes feature support for tar tools and OSPs   
-    The tar tools (linux.iso) and OSPs shipped with open-vm-tools 10.3.10 release will continue to be supported. However, releases after VMware Tools 10.3.10 will only include critical and security fixes and no new feature support in these types of open-vm-tools (tar tools and OSP's). It is recommended that customers use open-vm-tools for those operating systems that support open-vm-tools. For more information on different types of open-vm-tools, see [https://blogs.vmware.com/vsphere/2016/02/understanding-the-three-types-of-vm-tools.html](https://blogs.vmware.com/vsphere/2016/02/understanding-the-three-types-of-vm-tools.html)
+*   VMware Tools 10.3.5 freezes feature support for tar tools and OSPs   
+    The tar tools (linux.iso) and OSPs shipped with open-vm-tools 10.3.5 release will continue to be supported. However, releases after VMware Tools 10.3.5 will only include critical and security fixes and no new feature support in these types of open-vm-tools (tar tools and OSP's). It is recommended that customers use open-vm-tools for those operating systems that support open-vm-tools. For more information on different types of open-vm-tools, see [https://blogs.vmware.com/vsphere/2016/02/understanding-the-three-types-of-vm-tools.html](https://blogs.vmware.com/vsphere/2016/02/understanding-the-three-types-of-vm-tools.html)
 
 Guest Operating System Customization Support
 --------------------------------------------
