@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -57,7 +57,7 @@
    #define PRODUCT_VERSION    14,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_SYSIMAGE)
    // SYSIMAGE_VERSION below has to match this
-   #define PRODUCT_VERSION    8,4,1,PRODUCT_BUILD_NUMBER_NUMERIC
+   #define PRODUCT_VERSION    8,4,10,PRODUCT_BUILD_NUMBER_NUMERIC
 #else
    /* Generic catch-all. */
    #define PRODUCT_VERSION    0,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
@@ -177,7 +177,7 @@
 #define FUSION_VERSION "e.x.p"
 
 // These must match PRODUCT_VERSION for VMX86_SYSIMAGE above
-#define SYSIMAGE_VERSION "8.4.1"
+#define SYSIMAGE_VERSION "8.4.10"
 #define SYSIMAGE_VERSION_EXT_STR \
    SYSIMAGE_VERSION "." PRODUCT_BUILD_NUMBER_NUMERIC_STRING
 

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2016-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2016-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -48,93 +48,100 @@ IsCloudInitEnabled(const char *cloudFilePath)
    FILE *cloudFile;
    char line[256];
    regex_t regex;
-   // Expected regex in cloud.cfg file
-   const char *cloudInitRegex = "^\\s*disable_vmware_customization\\s*:\\s*false\\s*$";
-   int reti = regcomp(&regex, cloudInitRegex, 0);
-   if (reti) {
-      char buf[256];
-      regerror(reti, &regex, buf, sizeof(buf));
-      sLog(log_warning, "Error compiling regex for cloud-init flag: %s", buf);
-      return isEnabled;
-   }
+   const char *cloudInitRegex =
+               "^\\s*disable_vmware_customization\\s*:\\s*false\\s*$";
+   int reti;
 
    sLog(log_info, "Checking if cloud.cfg exists and if cloud-init is enabled.");
-   // Read cloud.cfg file and find expected string.
    cloudFile = fopen(cloudFilePath, "r");
    if (cloudFile == NULL) {
       sLog(log_info, "Could not open file: %s", strerror(errno));
+      return isEnabled;
+   }
+
+   reti = regcomp(&regex, cloudInitRegex, 0);
+   if (reti != 0) {
+      char buf[256];
+      regerror(reti, &regex, buf, sizeof(buf));
+      sLog(log_error, "Error compiling regex for cloud-init flag: %s", buf);
       goto done;
    }
-   while(fgets(line, sizeof(line), cloudFile)) {
-      if (!regexec(&regex, line, 0, NULL, 0)) {
+
+   while (fgets(line, sizeof(line), cloudFile) != NULL) {
+      if (regexec(&regex, line, 0, NULL, 0) == 0) {
          isEnabled = true;
          break;
       }
    }
-   if (ferror(cloudFile)) {
+   if (ferror(cloudFile) != 0) {
       sLog(log_warning, "Error reading file: %s", strerror(errno));
       isEnabled = false;
    }
-   fclose(cloudFile);
+   regfree(&regex);
 
 done:
-   regfree(&regex);
+   fclose(cloudFile);
    return isEnabled;
 }
 
 /**
  *-----------------------------------------------------------------------------
  *
- * HasCustomScript
+ * GetCustomScript
  *
- * Get custom script name if it exists.
+ * Get custom script name if it exists.  Returns the first script found.
  *
  * @param   [IN]      dirPath     path to extracted cab files
- * @param   [IN/OUT]  scriptName  name of the user uploaded custom script.
- *                                scriptName will be set only if custom script
- *                                exists.
- * @returns TRUE if custom script exists in dirPath
+ *
+ * @returns the script name of the user uploaded custom script if it
+ *          is found in dirPath.  Must be freed by caller.
+ *
+ *          NULL on failure or if the script does not exist
  *
  * ----------------------------------------------------------------------------
  **/
-bool
-HasCustomScript(const char* dirPath, char** scriptName)
+char *
+GetCustomScript(const char* dirPath)
 {
-   bool hasScript = false;
+   char *scriptName = NULL;
    static const char *customScriptRegex = "^script[A-Za-z0-9]*\\.bat";
    DIR *tempDir;
    struct dirent *dir;
    regex_t scriptRegex;
-   int ret = regcomp(&scriptRegex, customScriptRegex, 0);
-   if (ret) {
-      char buf[256];
-      regerror(ret, &scriptRegex, buf, sizeof(buf));
-      sLog(log_warning, "Error compiling regex for custom script: %s",
-           buf);
-      return hasScript;
-   }
+   int regRet;
+
    sLog(log_info, "Check if custom script(pre/post customization) exists.");
    tempDir = opendir(dirPath);
    if (tempDir == NULL) {
       sLog(log_warning, "Could not open directory %s: error: %s", dirPath,
            strerror(errno));
+      return scriptName;
+   }
+
+   regRet = regcomp(&scriptRegex, customScriptRegex, 0);
+   if (regRet != 0) {
+      char buf[256];
+
+      regerror(regRet, &scriptRegex, buf, sizeof(buf));
+      sLog(log_error, "Error compiling regex for custom script: %s", buf);
       goto done;
    }
+
    while ((dir = readdir(tempDir)) != NULL) {
-      if (!regexec(&scriptRegex, dir->d_name, 0, NULL, 0)) {
-         *scriptName = strdup(dir->d_name);
-         if (*scriptName == NULL) {
+      if (regexec(&scriptRegex, dir->d_name, 0, NULL, 0) == 0) {
+         scriptName = strdup(dir->d_name);
+         if (scriptName == NULL) {
             sLog(log_warning, "Could not allocate memory for scriptName: %s",
                  strerror(errno));
-            closedir(tempDir);
-            goto done;
+            break;
          }
-         hasScript = true;
+         break;
       }
    }
-   closedir(tempDir);
-done:
    regfree(&scriptRegex);
-   return hasScript;
+
+done:
+   closedir(tempDir);
+   return scriptName;
 }
 

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -35,15 +35,52 @@
 #include <process.h>
 #endif
 
+/*
+ * Define an enumeration type VmBackupOpType and a corresponding array
+ * VmBackupOpName whose entries provide the printable names of the
+ * enumeration ids in VmBackupOpType.
+ *
+ * VmBackupOpType and VmBackupOpName are each defined as an invocation
+ * of a macro VMBACKUP_OPLIST.  VMBACKUP_OPLIST specifies a list of
+ * enumeration ids using a macro VMBACKUP_OP that must be defined before
+ * invoking VMBACKUP_OPLIST.  VMBACKUP_OP takes a single argument, which
+ * should be an enumeration id, and is defined to generate from the id
+ * either the id itself or a string to be used as its printable name.  The
+ * result is that an invocation of VMBACKUP_OPLIST generates either the
+ * list of enumeration ids or the list of their printable names.
+ */
+#define VMBACKUP_OPLIST         \
+    VMBACKUP_OP(OP_FREEZE),     \
+    VMBACKUP_OP(OP_THAW),       \
+    VMBACKUP_OP(OP_UNDO),
+
+#define VMBACKUP_OPID(id)       id
+#define VMBACKUP_OPNAME(id)     #id
+
+#undef VMBACKUP_OP
+#define VMBACKUP_OP(id)       VMBACKUP_OPID(id)
+
+typedef enum {
+   VMBACKUP_OPLIST
+} VmBackupOpType;
+
+#undef VMBACKUP_OP
+#define VMBACKUP_OP(id)       VMBACKUP_OPNAME(id)
+
+static const char *VmBackupOpName[] = {
+   VMBACKUP_OPLIST
+};
+
+#undef VMBACKUP_OP
+
 typedef struct VmBackupDriverOp {
    VmBackupOp callbacks;
    const char *volumes;
-   Bool freeze;
+   VmBackupOpType opType;
    Bool canceled;
    SyncDriverHandle *syncHandle;
    SyncManifest *manifest;
 } VmBackupDriverOp;
-
 
 /*
  *-----------------------------------------------------------------------------
@@ -97,7 +134,7 @@ VmBackupDriverOpQuery(VmBackupOp *_op) // IN
    VmBackupDriverOp *op = (VmBackupDriverOp *) _op;
    VmBackupOpStatus ret;
 
-   if (op->freeze) {
+   if (op->opType == OP_FREEZE) {
       SyncDriverStatus st = SyncDriver_QueryStatus(*op->syncHandle, 0);
 
       g_debug("SyncDriver status: %d\n", st);
@@ -208,7 +245,7 @@ VmBackupDriverOpCancel(VmBackupOp *_op)   // IN
 
 static VmBackupDriverOp *
 VmBackupNewDriverOp(VmBackupState *state,       // IN
-                    Bool freeze,                // IN
+                    VmBackupOpType opType,      // IN
                     SyncDriverHandle *handle,   // IN
                     const char *volumes,        // IN
                     Bool useNullDriverPrefs)    // IN
@@ -216,8 +253,9 @@ VmBackupNewDriverOp(VmBackupState *state,       // IN
    Bool success;
    VmBackupDriverOp *op = NULL;
 
-   g_return_val_if_fail((handle == NULL || *handle == SYNCDRIVER_INVALID_HANDLE) ||
-                        !freeze,
+   g_return_val_if_fail((handle == NULL ||
+                         *handle == SYNCDRIVER_INVALID_HANDLE) ||
+                        opType != OP_FREEZE,
                         NULL);
 
    op = Util_SafeMalloc(sizeof *op);
@@ -226,24 +264,32 @@ VmBackupNewDriverOp(VmBackupState *state,       // IN
    op->callbacks.queryFn = VmBackupDriverOpQuery;
    op->callbacks.cancelFn = VmBackupDriverOpCancel;
    op->callbacks.releaseFn = VmBackupDriverOpRelease;
-   op->freeze = freeze;
+   op->opType = opType;
    op->volumes = volumes;
 
    op->syncHandle = g_new0(SyncDriverHandle, 1);
    *op->syncHandle = (handle != NULL) ? *handle : SYNCDRIVER_INVALID_HANDLE;
 
-   if (freeze) {
-      success = SyncDriver_Freeze(op->volumes,
-                                  useNullDriverPrefs ?
-                                  state->enableNullDriver : FALSE,
-                                  op->syncHandle,
-                                  state->excludedFileSystems);
-   } else {
-      op->manifest = SyncNewManifest(state, *op->syncHandle);
-      success = VmBackupDriverThaw(op->syncHandle);
+   switch (opType) {
+      case OP_FREEZE:
+         success = SyncDriver_Freeze(op->volumes,
+                                     useNullDriverPrefs ?
+                                        state->enableNullDriver : FALSE,
+                                     op->syncHandle,
+                                     state->excludedFileSystems);
+         break;
+      case OP_THAW:
+         op->manifest = SyncNewManifest(state, *op->syncHandle);
+         success = VmBackupDriverThaw(op->syncHandle);
+         break;
+      default:
+         ASSERT(opType == OP_UNDO);
+         success = VmBackupDriverThaw(op->syncHandle);
+         break;
    }
    if (!success) {
-      g_warning("Error %s filesystems.", freeze ? "freezing" : "thawing");
+      g_warning("Error trying to perform %s on filesystems.",
+                VmBackupOpName[opType]);
       g_free(op->syncHandle);
       SyncManifestRelease(op->manifest);
       free(op);
@@ -329,7 +375,7 @@ VmBackupSyncDriverStart(VmBackupState *state,
    VmBackupDriverOp *op;
 
    g_debug("*** %s\n", __FUNCTION__);
-   op = VmBackupNewDriverOp(state, TRUE, NULL, state->volumes, TRUE);
+   op = VmBackupNewDriverOp(state, OP_FREEZE, NULL, state->volumes, TRUE);
 
    if (op != NULL) {
       state->clientData = op->syncHandle;
@@ -366,7 +412,7 @@ VmBackupSyncDriverOnlyStart(VmBackupState *state,
    VmBackupDriverOp *op;
 
    g_debug("*** %s\n", __FUNCTION__);
-   op = VmBackupNewDriverOp(state, TRUE, NULL, state->volumes, FALSE);
+   op = VmBackupNewDriverOp(state, OP_FREEZE, NULL, state->volumes, FALSE);
 
    if (op != NULL) {
       state->clientData = op->syncHandle;
@@ -404,7 +450,7 @@ VmBackupSyncDriverStart(ToolsAppCtx *ctx,
    VmBackupState *state = (VmBackupState*) clientData;
 
    g_debug("*** %s\n", __FUNCTION__);
-   op = VmBackupNewDriverOp(state, TRUE, NULL, state->volumes, TRUE);
+   op = VmBackupNewDriverOp(state, OP_FREEZE, NULL, state->volumes, TRUE);
 
    if (op != NULL) {
       state->clientData = op->syncHandle;
@@ -442,7 +488,7 @@ VmBackupSyncDriverOnlyStart(ToolsAppCtx *ctx,
    VmBackupState *state = (VmBackupState*) clientData;
 
    g_debug("*** %s\n", __FUNCTION__);
-   op = VmBackupNewDriverOp(state, TRUE, NULL, state->volumes, FALSE);
+   op = VmBackupNewDriverOp(state, OP_FREEZE, NULL, state->volumes, FALSE);
 
    if (op != NULL) {
       state->clientData = op->syncHandle;
@@ -480,7 +526,7 @@ VmBackupSyncDriverSnapshotDone(VmBackupState *state,
 
    g_debug("*** %s\n", __FUNCTION__);
 
-   op = VmBackupNewDriverOp(state, FALSE, state->clientData, NULL, TRUE);
+   op = VmBackupNewDriverOp(state, OP_THAW, state->clientData, NULL, TRUE);
    g_free(state->clientData);
    state->clientData = NULL;
 
@@ -513,12 +559,78 @@ VmBackupSyncDriverOnlySnapshotDone(VmBackupState *state,
 
    g_debug("*** %s\n", __FUNCTION__);
 
-   op = VmBackupNewDriverOp(state, FALSE, state->clientData, NULL, FALSE);
+   op = VmBackupNewDriverOp(state, OP_THAW, state->clientData, NULL, FALSE);
    g_free(state->clientData);
    state->clientData = NULL;
 
    return VmBackup_SetCurrentOp(state, (VmBackupOp *) op, NULL, __FUNCTION__);
 }
+
+
+#if defined(__linux__)
+/*
+ *-----------------------------------------------------------------------------
+ *
+ *  VmBackupSyncDriverUndo --
+ *
+ *    Undo a completed quiescing operation.
+ *
+ * Result
+ *    TRUE, unless an error occurs.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+VmBackupSyncDriverUndo(VmBackupState *state,
+                       void *clientData)
+{
+   VmBackupDriverOp *op;
+
+   g_debug("*** %s\n", __FUNCTION__);
+
+   op = VmBackupNewDriverOp(state, OP_UNDO, state->clientData, NULL, TRUE);
+   g_free(state->clientData);
+   state->clientData = NULL;
+
+   return VmBackup_SetCurrentOp(state, (VmBackupOp *) op, NULL, __FUNCTION__);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ *  VmBackupSyncDriverOnlyUndo --
+ *
+ *    Undo a completed quiescing operation.
+ *
+ * Result
+ *    TRUE, unless an error occurs.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+VmBackupSyncDriverOnlyUndo(VmBackupState *state,
+                           void *clientData)
+{
+   VmBackupDriverOp *op;
+
+   g_debug("*** %s\n", __FUNCTION__);
+
+   op = VmBackupNewDriverOp(state, OP_UNDO, state->clientData, NULL, FALSE);
+   g_free(state->clientData);
+   state->clientData = NULL;
+
+   return VmBackup_SetCurrentOp(state, (VmBackupOp *) op, NULL, __FUNCTION__);
+}
+#endif
 
 
 /*
@@ -579,10 +691,17 @@ VmBackup_NewSyncDriverProviderInternal(Bool useNullDriverPrefs)
    if (useNullDriverPrefs) {
       provider->start = VmBackupSyncDriverStart;
       provider->snapshotDone = VmBackupSyncDriverSnapshotDone;
+#if defined(__linux__)
+      provider->undo = VmBackupSyncDriverUndo;
+#endif
    } else {
       provider->start = VmBackupSyncDriverOnlyStart;
       provider->snapshotDone = VmBackupSyncDriverOnlySnapshotDone;
+#if defined(__linux__)
+      provider->undo = VmBackupSyncDriverOnlyUndo;
+#endif
    }
+
    provider->release = VmBackupSyncDriverRelease;
    provider->clientData = NULL;
 
@@ -642,26 +761,3 @@ VmBackup_NewSyncDriverOnlyProvider(void)
 }
 
 #endif
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * VmBackup_SyncDriverReset --
- *
- *    Reset function
- *
- * Results:
- *    None.
- *
- * Side effects:
- *    Whatever are the side effects of what it calls.
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-VmBackup_SyncDriverReset(void)
-{
-   SyncManifestReset();
-}

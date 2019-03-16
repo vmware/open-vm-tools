@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -2075,7 +2075,7 @@ Posix_Getmntent_r(FILE *fp,          // IN:
    n = 0;
 
    if (fsname) {
-      int len = strlen(fsname) + 1;
+      size_t len = strlen(fsname) + 1;
 
       if (n + len > size || n + len < n) {
          goto exit;
@@ -2085,7 +2085,7 @@ Posix_Getmntent_r(FILE *fp,          // IN:
    }
 
    if (dir != NULL) {
-      int len = strlen(dir) + 1;
+      size_t len = strlen(dir) + 1;
 
       if (n + len > size || n + len < n) {
          goto exit;
@@ -2095,7 +2095,7 @@ Posix_Getmntent_r(FILE *fp,          // IN:
    }
 
    if (type) {
-      int len = strlen(type) + 1;
+      size_t len = strlen(type) + 1;
 
       if (n + len > size || n + len < n) {
          goto exit;
@@ -2111,7 +2111,6 @@ Posix_Getmntent_r(FILE *fp,          // IN:
          goto exit;
       }
       m->mnt_opts = memcpy(buf + n, opts, len);
-      n += len;
    }
    ret = 0;
 
@@ -2129,7 +2128,7 @@ exit:
    }
 
    return m;
-#endif // defined __ANDROID__
+#endif // NO_GETMNTENT_R
 }
 
 

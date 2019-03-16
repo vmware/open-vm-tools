@@ -1,9 +1,9 @@
-open-vm-tools 10.3.5 Release Notes
+open-vm-tools 10.3.10 Release Notes
 =================================
 
-**Updated on: 01 Nov 2018**
+**Updated on: 14 MAR 2019**
 
-open-vm-tools | 01 NOV 2018 | Build 10430147
+open-vm-tools | 14 MAR 2019 | Build 12406962
 
 Check for additions and updates to these release notes.
 
@@ -40,7 +40,7 @@ Resolution on incompatibility and general guidelines: While upgrading ESXi hosts
 Internationalization
 --------------------
 
-open-vm-tools 10.3.5 is available in the following languages:
+open-vm-tools 10.3.10 is available in the following languages:
 
 *   English
 *   French
@@ -56,8 +56,8 @@ End of Feature Support Notice
 -----------------------------
 
 *   Support for Common Agent Framework (CAF) will be removed in the next major release of open-vm-tools.
-*   open-vm-tools 10.3.5 freezes feature support for tar tools and OSPs   
-    The tar tools (linux.iso) and OSPs shipped with open-vm-tools 10.3.5 release will continue to be supported. However, releases after open-vm-tools 10.3.5 will only include critical and security fixes and no new feature support in these types of open-vm-tools (tar tools and OSP's). It is recommended that customers use open-vm-tools for those operating systems that support open-vm-tools. For more information on different types of open-vm-tools, see [https://blogs.vmware.com/vsphere/2016/02/understanding-the-three-types-of-vm-tools.html](https://blogs.vmware.com/vsphere/2016/02/understanding-the-three-types-of-vm-tools.html)
+*   VMware Tools 10.3.5 freezes feature support for tar tools and OSPs   
+    The tar tools (linux.iso) and OSPs shipped with open-vm-tools 10.3.5 release will continue to be supported. However, releases after VMware Tools 10.3.5 will only include critical and security fixes and no new feature support in these types of open-vm-tools (tar tools and OSP's). It is recommended that customers use open-vm-tools for those operating systems that support open-vm-tools. For more information on different types of open-vm-tools, see [https://blogs.vmware.com/vsphere/2016/02/understanding-the-three-types-of-vm-tools.html](https://blogs.vmware.com/vsphere/2016/02/understanding-the-three-types-of-vm-tools.html)
 
 Guest Operating System Customization Support
 --------------------------------------------
@@ -72,50 +72,11 @@ The [VMware Product Interoperability Matrix](http://partnerweb.vmware.com/comp_
 Resolved Issues
 ---------------
 
-*   **While running a quiesced snapshot of a Linux guest on the vSphere hosts earlier than version 6.7, open-vm-tools logs warning messages.**
-    
-    open-vm-tools logs warning messages like the following:
-    
-    \[<date> <time>\] \[ warning\] \[vmbackup\] Failed to send vmbackup event: vmbackup.eventSet req.genericManifest 0 /etc/vmware-tools/quiesce\_manifest.xml, result: Error processing event.
-    
-    \[<date> <time>\] \[ warning\] \[vmbackup\] Error trying to send VMBACKUP\_EVENT\_GENERIC\_MANIFEST
-    
-    The warning messages are logged by default or if vmsvc.level is set to warning or higher in the tools.conf file. Note that this is purely a logging issue and that quiesced snapshot still works even when these messages appear.
-    
-    This issue is fixed in this release. The warning message has been reworded for clarity and is no longer logged on every quiesced snapshot, but instead only on the first quiesced snapshot after a power on or vMotion.
-    
-*   **CreateTemporaryFileInGuest/CreateTemporaryDirectoryInGuest returns a file path that does not exist.**
-    
-    When guest authentication user name is set to <domain>\\<user> and the user's profile directory does not exist in the guest file system, Win32 LoadUserProfile() creates a temporary user profile directory "C:\\Users\\TEMP" when the guest operation starts. After the guest operation completes, Win32 UnloadUserProfile() deletes this directory and the temporary file in the said directory.
-    
-    This issue is fixed in this release. CreateTemporaryFileInGuest/CreateTemporaryDirectoryInGuest now returns "C:\\Windows\\TEMP\\xxxxxx".
-    
-*   **Excessive spikes of the Memory/Workload percentage metric, in a vRealize Operations cluster.**
-    
-    Guest statistics "Guest | Page in rate per second" provided by open-vm-tools is not properly handling 32-bit unsigned integer overflow on 32-bit Linux guests.
-    
+*   **In certain cases, quiesced snapshots on Linux guests do not include backup manifests.**
+
+    On a Linux guest, if VMware Tools 10.3.5 gets an error when notifying the ESXi host of a quiesced snapshot's backup manifest file, VMware Tools logs an error and does not notify the ESXi host of the backup manifest file on subsequent quiesced snapshots. As a result, some quiesced snapshots do not include the backup manifest file, that would otherwise be available on the ESXi host. Such snapshots are not identified as quiesced by vSphere clients.
+
     This issue is fixed in this release.
-    
-*   **open-vm-tools Service running as vmusr crashes on Linux systems which are not running on the VMware platform.**
-    
-    When a user logs in to the Linux desktop UI of a Linux OS that packages open-vm-tools and is not running on the VMware platform, "/usr/bin/vmtoolsd -n vmusr" process generates a coredump.
-    
-    This issue is fixed in this release.
-
-
-FreeBSD Drivers
----------------
-
-*   **vmxnet and vmxnet3 drivers have been removed from open-vm-tools for FreeBSD**
-
-    The vmxnet (version 1) network driver is not supported by any currently
-    supported VMware virtualization platform and has been removed for
-    FreeBSD from the open-vm-tools source.
-
-    FreeBSD has their own vmxnet3 network driver based on community source
-    and has never made use of the vmxnet3 source code or drivers from
-    VMware. The unneeded FreeBSD vmxnet3 source has been removed from open-vm-tools.
-
 
 Known Issues
 ------------

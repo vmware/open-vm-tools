@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -438,8 +438,7 @@ ShrinkDoWipeAndShrink(char *mountPoint,         // IN: mount point
          } else {
             ToolsCmd_PrintErr(SU_(error.message, "Error: %s\n"), err);
          }
-
-         rc = EX_TEMPFAIL;
+         /* progress < 100 will result in "rc" of EX_TEMPFAIL */
          break;
       }
 
@@ -461,14 +460,14 @@ ShrinkDoWipeAndShrink(char *mountPoint,         // IN: mount point
    }
 #endif
 
-   rc = EXIT_SUCCESS;
    g_print("\n");
-   if (progress >= 100 && performShrink) {
-      rc = ShrinkDiskSendRPC();
-   } else if (progress < 100) {
+   if (progress < 100) {
       rc = EX_TEMPFAIL;
+   } else if (performShrink) {
+      rc = ShrinkDiskSendRPC();
    } else {
-      g_debug("Shrinking skipped.\n");
+      rc = EXIT_SUCCESS;
+      g_debug("Shrink skipped.\n");
    }
 
    if (rc != EXIT_SUCCESS) {

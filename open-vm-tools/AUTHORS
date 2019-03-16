@@ -36,3 +36,7 @@ Ed Schouten     Use standard SYSCTL_ADD_OID() macro to access the
 
 Steve Wills     Fix vmmemctl.ko driver build for supported FreeBSD releases.
                 - https://github.com/vmware/open-vm-tools/pull/140
+
+[Code]Ai        Highlighted a potential NULL pointer dereference and four
+                pieces of dead code.
+                - https://github.com/vmware/open-vm-tools/pull/247

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -922,7 +922,8 @@ ToolsCore_UnloadPlugins(ToolsServiceState *state)
       ToolsPlugin *plugin = g_ptr_array_index(state->plugins, state->plugins->len - 1);
       GArray *regs = (plugin->data != NULL) ? plugin->data->regs : NULL;
 
-      g_message("Unloading plugin '%s'.\n", plugin->data->name);
+      g_message("Unloading plugin '%s'.\n",
+                plugin->data != NULL ? plugin->data->name : "unknown");
 
       if (regs != NULL) {
          guint i;

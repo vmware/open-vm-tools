@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -72,6 +72,12 @@ typedef enum {
    VMBACKUP_MSTATE_SYNC_ERROR
 } VmBackupMState;
 
+typedef enum {
+   VMBACKUP_RPC_STATE_NORMAL,
+   VMBACKUP_RPC_STATE_ERROR,
+   VMBACKUP_RPC_STATE_IGNORE
+} VmBackupRpcState;
+
 /**
  * This is a "base struct" for asynchronous operations monitored by the
  * state machine. Each implementation should provide these three functions
@@ -138,6 +144,7 @@ typedef struct VmBackupState {
    Bool           vssBootableSystemState;
    Bool           vssPartialFileSupport;
    Bool           vssUseDefault;
+   VmBackupRpcState rpcState;
 } VmBackupState;
 
 typedef Bool (*VmBackupCallback)(VmBackupState *);
@@ -156,6 +163,7 @@ typedef struct VmBackupSyncProvider {
    VmBackupProviderCallback start;
 #else
    ToolsCorePoolCb start;
+   VmBackupProviderCallback undo;
 #endif
    VmBackupProviderCallback snapshotDone;
    void (*release)(struct VmBackupSyncProvider *);
@@ -295,8 +303,11 @@ VmBackup_SendEvent(const char *event,
                    const uint32 code,
                    const char *desc);
 
-void
-VmBackup_SyncDriverReset(void);
+
+Bool
+VmBackup_SendEventNoAbort(const char *event,
+                          const uint32 code,
+                          const char *desc);
 
 #endif /* _VMBACKUPINT_H_*/
 

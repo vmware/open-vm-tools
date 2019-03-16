@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -276,12 +276,11 @@ DnDCreateRootStagingDirectory(void)
    }
 
    if (File_Exists(root)) {
-      if (!DnDRootDirUsable(root) &&
-          !DnDSetPermissionsOnRootDir(root)) {
+      if (!DnDRootDirUsable(root)) {
          /*
-          * The directory already exists and its permissions are wrong and
-          * cannot be set, so there's not much we can do.
+          * The directory already exists and its permissions are wrong.
           */
+         Log("%s: The root dir is not usable.\n", __FUNCTION__);
          return NULL;
       }
    } else {

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2014-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2014-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -377,7 +377,7 @@ GuestInfoGetNicInfo(unsigned int maxIPv4Routes,
 
    /* Get a handle to read the network interface configuration details. */
    if ((intf = intf_open()) == NULL) {
-      g_debug("Error, failed NULL result from intf_open()\n");
+      g_warning("%s: intf_open() failed\n", __FUNCTION__);
       return FALSE;
    }
 
@@ -484,7 +484,15 @@ GuestInfoGetPrimaryIP(void)
     * the first non-loopback, internet interface in the interface list.
     */
    for (curr = ifaces; curr != NULL; curr = curr->ifa_next) {
-      int currFamily = ((struct sockaddr_storage *)curr->ifa_addr)->ss_family;
+      int currFamily;
+
+      /*
+       * Some interfaces ("tun") have no ifa_addr, so ignore them.
+       */
+      if (NULL == curr->ifa_addr) {
+         continue;
+      }
+      currFamily = ((struct sockaddr_storage *)curr->ifa_addr)->ss_family;
 
       if (!(curr->ifa_flags & IFF_UP) || curr->ifa_flags & IFF_LOOPBACK) {
          continue;
@@ -518,6 +526,7 @@ GuestInfoGetPrimaryIP(void)
 }
 
 #else
+
 #ifndef NO_DNET
 
 char *
@@ -526,20 +535,24 @@ GuestInfoGetPrimaryIP(void)
    GuestInfoIpPriority ipp;
    intf_t *intf = intf_open();
 
-   if (intf != NULL) {
-      ipp.ipstr = NULL;
-      for (ipp.priority = NICINFO_PRIORITY_PRIMARY;
-          ipp.priority < NICINFO_PRIORITY_MAX;
-          ipp.priority++){
-         intf_loop(intf, GuestInfoGetIntf, &ipp);
-         if (ipp.ipstr != NULL) {
-            break;
-         }
-      }
-      intf_close(intf);
+   if (NULL == intf) {
+      g_warning("%s: intf_open() failed\n", __FUNCTION__);
+      return NULL;
    }
 
-   g_debug("%s: returning '%s'", __FUNCTION__, ipp.ipstr);
+   ipp.ipstr = NULL;
+   for (ipp.priority = NICINFO_PRIORITY_PRIMARY;
+       ipp.priority < NICINFO_PRIORITY_MAX;
+       ipp.priority++){
+      intf_loop(intf, GuestInfoGetIntf, &ipp);
+      if (ipp.ipstr != NULL) {
+         break;
+      }
+   }
+   intf_close(intf);
+
+   g_debug("%s: returning '%s'",
+           __FUNCTION__, ipp.ipstr ? ipp.ipstr : "<null>");
 
    return ipp.ipstr;
 }

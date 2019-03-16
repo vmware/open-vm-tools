@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2017-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2017-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -27,6 +27,7 @@
 #include "syncDriver.h"
 #include "syncManifest.h"
 #include "vm_tools_version.h"
+#include "vmware/tools/log.h"
 
 #include <unistd.h>
 #include <stdio.h>
@@ -48,12 +49,6 @@ static const char syncManifestFmt[] = {
  * tools.conf switch to enable manifest generation
  */
 static const char syncManifestSwitch[] = "enableXmlManifest";
-
-/*
- * If TRUE, indicates that VMTools should try to generate the backup
- * manifest and send it to VMX; if FALSE, it won't try to do so.
- */
-static Bool gSyncManifestTrySend = TRUE;
 
 
 /*
@@ -92,12 +87,6 @@ SyncNewManifest(VmBackupState *state,          // IN
    if (!providerQuiesces) {
       g_debug("No backup manifest needed since using "
               "non-quiescing backend.\n");
-      return NULL;
-   }
-
-   if (!gSyncManifestTrySend) {
-      g_debug("No backup manifest generated since previous"
-              " attempt to send one to host failed.\n");
       return NULL;
    }
 
@@ -173,37 +162,14 @@ SyncManifestSend(SyncManifest *manifest)       // IN
       return FALSE;
    }
 
-   if (!VmBackup_SendEvent(VMBACKUP_EVENT_GENERIC_MANIFEST,
-                           VMBACKUP_SUCCESS, manifest->path)) {
-      g_warning("Host doesn't appear to support backup manifests "
-                "for Linux guests.\n");
-      gSyncManifestTrySend = FALSE;
+   if (!VmBackup_SendEventNoAbort(VMBACKUP_EVENT_GENERIC_MANIFEST,
+                                  VMBACKUP_SUCCESS, manifest->path)) {
+      /* VmBackup_SendEventNoAbort logs the error */
+      g_info("Non-fatal error occurred while sending %s, continuing "
+             "with the operation", VMBACKUP_EVENT_GENERIC_MANIFEST);
       return FALSE;
    }
 
    g_debug("Backup manifest was sent successfully.\n");
    return TRUE;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * SyncManifestReset --
- *
- *    Reset SyncManifest global state
- *
- * Results:
- *    None
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-SyncManifestReset(void)
-{
-   gSyncManifestTrySend = TRUE;
 }

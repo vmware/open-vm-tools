@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -80,9 +80,22 @@ VGAuthError VGAuth_UserHandleUsername(VGAuthContext *ctx,
                                       char **userName);                // OUT
 
 #ifdef _WIN32
+/*
+ * Special accessor functions for Windows to set and get user and
+ * profile handles.
+ */
+
 VGAuthError VGAuth_UserHandleAccessToken(VGAuthContext *ctx,
                                          VGAuthUserHandle *handle,
                                          HANDLE *authToken);
+
+VGAuthError VGAuth_UserHandleGetUserProfile(VGAuthContext *ctx,
+                                            VGAuthUserHandle *handle,
+                                            HANDLE *hProfile);
+
+VGAuthError VGAuth_UserHandleSetUserProfile(VGAuthContext *ctx,
+                                            VGAuthUserHandle *handle,
+                                            HANDLE hProfile);
 #endif
 
 

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2016-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2016-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -26,7 +26,7 @@
 IMGCUST_API bool
 IsCloudInitEnabled(const char* configFile);
 
-IMGCUST_API bool
-HasCustomScript(const char* dirPath, char** scriptName);
+IMGCUST_API char *
+GetCustomScript(const char* dirPath);
 #endif //_LINUXDEPLOYMENTUTILITIES_H_
 
