@@ -198,6 +198,7 @@ static const DistroInfo distroArray[] = {
    {"Mandrake",           "/etc/mandrake-release"},
    {"Mandriva",           "/etc/mandriva-release"},
    {"MkLinux",            "/etc/mklinux-release"},
+   {"NixOS",              "/etc/os-release"},
    {"Novell",             "/etc/nld-release"},
    {"OracleLinux",        "/etc/oracle-release"},
    {"Photon",             "/etc/lsb-release"},
@@ -849,6 +850,8 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
       Str_Strcpy(distroShort, STR_OS_MANDRIVA, distroShortSize);
    } else if (strstr(distroLower, "mklinux")) {
       Str_Strcpy(distroShort, STR_OS_MKLINUX, distroShortSize);
+   } else if (strstr(distroLower, "nixos")) {
+      Str_Strcpy(distroShort, STR_OS_NIXOS, distroShortSize);
    } else if (strstr(distroLower, "pld")) {
       Str_Strcpy(distroShort, STR_OS_PLD, distroShortSize);
    } else if (strstr(distroLower, "slackware")) {
