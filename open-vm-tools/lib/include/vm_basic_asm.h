@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -953,41 +953,15 @@ ClearBit32(uint32 *var, uint32 index)
 }
 
 static INLINE void
-SetBit64(uint64 *var, uint64 index)
+SetBit64(uint64 *var, unsigned index)
 {
-#if defined(VM_64BIT) && !defined(VM_ARM_64)
-#ifdef __GNUC__
-   __asm__ (
-      "bts %1, %0"
-      : "+mr" (*var)
-      : "rJ" (index)
-      : "cc"
-   );
-#elif defined(_MSC_VER)
-   _bittestandset64((__int64 *)var, index);
-#endif
-#else
-   *var |= ((uint64)1 << index);
-#endif
+   *var |= CONST64U(1) << index;
 }
 
 static INLINE void
-ClearBit64(uint64 *var, uint64 index)
+ClearBit64(uint64 *var, unsigned index)
 {
-#if defined(VM_64BIT) && !defined(VM_ARM_64)
-#ifdef __GNUC__
-   __asm__ (
-      "btrq %1, %0"
-      : "+mr" (*var)
-      : "rJ" (index)
-      : "cc"
-   );
-#elif defined(_MSC_VER)
-   _bittestandreset64((__int64 *)var, index);
-#endif
-#else
-   *var &= ~((uint64)1 << index);
-#endif
+   *var &= ~(CONST64U(1) << index);
 }
 
 static INLINE Bool
@@ -1009,21 +983,9 @@ TestBit32(const uint32 *var, uint32 index)
 }
 
 static INLINE Bool
-TestBit64(const uint64 *var, uint64 index)
+TestBit64(const uint64 *var, unsigned index)
 {
-#if defined __GNUC__ && defined VM_X86_64
-   Bool bit;
-   __asm__ (
-      "bt %[index], %[var] \n"
-      "setc %[bit]"
-      : [bit] "=qQm" (bit)
-      : [index] "rJ" (index), [var] "r" (*var)
-      : "cc"
-   );
-   return bit;
-#else
    return (*var & (CONST64U(1) << index)) != 0;
-#endif
 }
 
 /*
