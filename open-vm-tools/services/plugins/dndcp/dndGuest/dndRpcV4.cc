@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -835,4 +835,17 @@ void
 DnDRpcV4::RemoveRpcSentListener(DnDRpcListener *obj)
 {
    mUtil.RemoveRpcSentListener(obj);
+}
+
+
+/**
+ * Set the max transport packet size of RPC messages.
+ *
+ * @param[in] size the new max packet size.
+ */
+
+void
+DnDRpcV4::SetMaxTransportPacketSize(const uint32 size)
+{
+   mUtil.SetMaxTransportPacketSize(size);
 }

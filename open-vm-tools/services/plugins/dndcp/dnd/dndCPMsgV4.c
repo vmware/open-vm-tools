@@ -168,6 +168,17 @@ DnDCPMsgV4_Serialize(DnDCPMsgV4 *msg,
                      uint8 **packet,
                      size_t *packetSize)
 {
+   return DnDCPMsgV4_SerializeWithInputPayloadSizeCheck(
+      msg, packet, packetSize, DND_CP_PACKET_MAX_PAYLOAD_SIZE_V4);
+}
+
+
+Bool
+DnDCPMsgV4_SerializeWithInputPayloadSizeCheck(DnDCPMsgV4 *msg,
+                                              uint8 **packet,
+                                              size_t *packetSize,
+                                              const uint32 maxPacketPayloadSize)
+{
    size_t payloadSize = 0;
 
    ASSERT(msg);
@@ -175,7 +186,7 @@ DnDCPMsgV4_Serialize(DnDCPMsgV4 *msg,
    ASSERT(packetSize);
    ASSERT(msg->hdr.binarySize >= msg->hdr.payloadOffset);
 
-   if (msg->hdr.binarySize <= DND_CP_PACKET_MAX_PAYLOAD_SIZE_V4) {
+   if (msg->hdr.binarySize <= maxPacketPayloadSize) {
       /*
        * One single packet is enough for the message. For short message, the
        * payloadOffset should always be 0.
@@ -184,8 +195,8 @@ DnDCPMsgV4_Serialize(DnDCPMsgV4 *msg,
       payloadSize = msg->hdr.binarySize;
    } else {
       /* For big message, payloadOffset means binary size we already sent out. */
-      if (msg->hdr.binarySize - msg->hdr.payloadOffset > DND_CP_PACKET_MAX_PAYLOAD_SIZE_V4) {
-         payloadSize = DND_CP_PACKET_MAX_PAYLOAD_SIZE_V4;
+      if (msg->hdr.binarySize - msg->hdr.payloadOffset > maxPacketPayloadSize) {
+         payloadSize = maxPacketPayloadSize;
       } else {
          payloadSize = msg->hdr.binarySize - msg->hdr.payloadOffset;
       }

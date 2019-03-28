@@ -244,6 +244,8 @@ DnDCPMsgPacketType DnDCPMsgV4_GetPacketType(const uint8 *packet,
 Bool DnDCPMsgV4_Serialize(DnDCPMsgV4 *msg,
                           uint8 **packet,
                           size_t *packetSize);
+Bool DnDCPMsgV4_SerializeWithInputPayloadSizeCheck(DnDCPMsgV4 *msg,
+   uint8 **packet, size_t *packetSize, const uint32 maxPacketPayloadSize);
 Bool DnDCPMsgV4_UnserializeSingle(DnDCPMsgV4 *msg,
                                   const uint8 *packet,
                                   size_t packetSize);

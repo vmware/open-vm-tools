@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -84,6 +84,8 @@ public:
    bool AddRpcSentListener(const DnDRpcListener *obj);
    bool RemoveRpcSentListener(const DnDRpcListener *obj);
 
+   void SetMaxTransportPacketSize(const uint32 size);
+
 private:
    void FireRpcReceivedCallbacks(uint32 cmd, uint32 src, uint32 session);
    void FireRpcSentCallbacks(uint32 cmd, uint32 dest, uint32 session);
@@ -107,6 +109,7 @@ private:
    uint32 mMsgSrc;
    DblLnkLst_Links mRpcSentListeners;
    DblLnkLst_Links mRpcReceivedListeners;
+   uint32 mMaxTransportPacketPayloadSize;
 };
 
 #endif // RPC_V4_UTIL_HPP
