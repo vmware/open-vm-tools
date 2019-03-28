@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -530,6 +530,10 @@ int
 main(int argc,
      char *argv[])
 {
+#ifdef _WIN32
+   WinUtil_EnableSafePathSearching();
+#endif
+
    gPrefs = Pref_Init(VGAUTH_PREF_CONFIG_FILENAME);
 
    /*

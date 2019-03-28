@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -55,6 +55,9 @@
 
 #include "xferlogs_version.h"
 #include "vm_version.h"
+#ifdef _WIN32
+#include "vmware/tools/win32util.h"
+#endif
 #include "embed_version.h"
 VM_EMBED_VERSION(XFERLOGS_VERSION_STRING);
 
@@ -284,6 +287,10 @@ main(int argc,
      char *argv[])
 {
    int status;
+
+#ifdef _WIN32
+   WinUtil_EnableSafePathSearching(TRUE);
+#endif
 
    if (argc == 2 &&
        (!strncmp(argv[1], "-h", 2) ||

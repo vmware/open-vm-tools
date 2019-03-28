@@ -1,6 +1,6 @@
 
 /*********************************************************
- * Copyright (C) 2008-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -38,6 +38,10 @@
 #include "vmware/tools/i18n.h"
 #include "vmware/tools/log.h"
 #include "vmware/tools/utils.h"
+#if defined(_WIN32)
+#include "vmware/tools/win32util.h"
+#endif
+
 #include "vm_version.h"
 #include "vm_product_versions.h"
 
@@ -447,6 +451,9 @@ main(int argc,    // IN: length of command line arguments
 
 #if defined(_WIN32)
    char **argv;
+
+   WinUtil_EnableSafePathSearching(TRUE);
+
    Unicode_InitW(argc, wargv, NULL, &argv, NULL);
 #else
    Unicode_Init(argc, &argv, NULL);
