@@ -905,7 +905,7 @@ RDTSC(void)
  *
  * {Clear,Set,Test}Bit{32,64} --
  *
- *    Sets or clears a specified single bit in the provided variable.
+ *    Sets tests or clears a specified single bit in the provided variable.
  *
  *    The index input value specifies which bit to modify and is 0-based.
  *    Index is truncated by hardware to a 5-bit or 6-bit offset for the
@@ -919,37 +919,15 @@ RDTSC(void)
  */
 
 static INLINE void
-SetBit32(uint32 *var, uint32 index)
+SetBit32(uint32 *var, unsigned index)
 {
-#if defined(__GNUC__) && defined(VM_X86_ANY)
-   __asm__ (
-      "bts %1, %0"
-      : "+mr" (*var)
-      : "rI" (index)
-      : "cc"
-   );
-#elif defined(_MSC_VER)
-   _bittestandset((long *)var, index);
-#else
-   *var |= (1 << index);
-#endif
+   *var |= 1 << index;
 }
 
 static INLINE void
-ClearBit32(uint32 *var, uint32 index)
+ClearBit32(uint32 *var, unsigned index)
 {
-#if defined(__GNUC__) && defined(VM_X86_ANY)
-   __asm__ (
-      "btr %1, %0"
-      : "+mr" (*var)
-      : "rI" (index)
-      : "cc"
-   );
-#elif defined(_MSC_VER)
-   _bittestandreset((long *)var, index);
-#else
    *var &= ~(1 << index);
-#endif
 }
 
 static INLINE void
@@ -965,21 +943,9 @@ ClearBit64(uint64 *var, unsigned index)
 }
 
 static INLINE Bool
-TestBit32(const uint32 *var, uint32 index)
+TestBit32(const uint32 *var, unsigned index)
 {
-#if defined(__GNUC__) && defined(VM_X86_ANY)
-   Bool bit;
-   __asm__ (
-      "bt %[index], %[var] \n"
-      "setc %[bit]"
-      : [bit] "=qQm" (bit)
-      : [index] "rI" (index), [var] "r" (*var)
-      : "cc"
-   );
-   return bit;
-#else
    return (*var & (1 << index)) != 0;
-#endif
 }
 
 static INLINE Bool
