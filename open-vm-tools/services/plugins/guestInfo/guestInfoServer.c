@@ -1217,6 +1217,13 @@ GuestInfoSendDiskInfoV1(ToolsAppCtx *ctx,             // IN
    char *reply = NULL;
    size_t replyLen;
    Bool status;
+#ifdef _WIN32
+   Bool reportUUID = VMTools_ConfigGetBoolean(ctx->config,
+                                              CONFGROUPNAME_GUESTINFO,
+                                              CONFNAME_DISKINFO_REPORT_UUID,
+                                              CONFIG_GUESTINFO_REPORT_UUID_DEFAULT);
+#endif
+
    /*
     * Currently this format is fixed; the order should not be changed.
     * If a change is required, then DISK_INFO_VERSION must be bumped.
@@ -1229,13 +1236,18 @@ GuestInfoSendDiskInfoV1(ToolsAppCtx *ctx,             // IN
    static char jsonPerDiskFmt[] = "{"
                                   "\"name\":\"%s\","
                                   "\"free\":\"%"FMT64"u\","
-                                  "\"size\":\"%"FMT64"u\"},\n";
+                                  "\"size\":\"%"FMT64"u\"";
+#ifdef _WIN32
+   static char jsonPerDiskUUIDFmt[] = ",\"uuid\":\"%s\"";
+#endif
+   static char jsonPerDiskFmtFooter[] = "},\n";
    static char jsonSuffix[] = "]}";
    int i;
 
    // 20 bytes per number for ascii representation
+   // PARTITION_NAME_SIZE * 2 for name and (optional) uuid
    ASSERT_ON_COMPILE(sizeof tmpBuf > sizeof jsonPerDiskFmt +
-                     PARTITION_NAME_SIZE + 20 + 20);
+                     PARTITION_NAME_SIZE * 2 + 20 + 20);
 
    DynBuf_Init(&dynBuffer);
 
@@ -1243,13 +1255,33 @@ GuestInfoSendDiskInfoV1(ToolsAppCtx *ctx,             // IN
                       GUEST_DISK_INFO_COMMAND, DISK_INFO_VERSION_1);
    DynBuf_Append(&dynBuffer, tmpBuf, len);
    for (i = 0; i < pdi->numEntries; i++) {
+      /*
+       * The '\' in Windows drive names needs escaping for json,
+       * so use base64 since its simple and will cover other weird
+       * cases like quotes, as well as avoid any utf-8 concerns.
+       */
+      gchar *b64name = g_base64_encode(pdi->partitionList[i].name,
+                                       strlen(pdi->partitionList[i].name));
+
       len = Str_Snprintf(tmpBuf, sizeof tmpBuf, jsonPerDiskFmt,
-                         pdi->partitionList[i].name,
+                         b64name,
                          pdi->partitionList[i].freeBytes,
                          pdi->partitionList[i].totalBytes);
       DynBuf_Append(&dynBuffer, tmpBuf, len);
+      g_free(b64name);
+#ifdef _WIN32
+      if (reportUUID) {
+         if (pdi->partitionList[i].uuid[0] != '\0') {
+            len = Str_Snprintf(tmpBuf, sizeof tmpBuf, jsonPerDiskUUIDFmt,
+                               pdi->partitionList[i].uuid);
+            DynBuf_Append(&dynBuffer, tmpBuf, len);
+         }
+      }
+#endif
+      DynBuf_Append(&dynBuffer, jsonPerDiskFmtFooter,
+                    sizeof jsonPerDiskFmtFooter - 1);
    }
-   DynBuf_Append(&dynBuffer, jsonSuffix, sizeof jsonSuffix);
+   DynBuf_Append(&dynBuffer, jsonSuffix, sizeof jsonSuffix - 1);
 
    infoReq = DynBuf_GetString(&dynBuffer);
 

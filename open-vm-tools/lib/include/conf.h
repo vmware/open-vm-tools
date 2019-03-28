@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2002-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2002-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -162,6 +162,13 @@
  * @param boolean Set to true to include reserved space.
  */
 #define CONFNAME_DISKINFO_INCLUDERESERVED "diskinfo-include-reserved"
+
+/**
+ * Report UUID of disks for vmdk mapping via vim.
+ *
+ * @param boolean Set to true to report UUID to VMX.
+ */
+#define CONFNAME_DISKINFO_REPORT_UUID  "diskinfo-report-uuid"
 
 /*
  * END GuestInfo goodies.
