@@ -956,10 +956,10 @@ AC_DEFINE([NO_DNET], 1, [Define to 1 if building without libdnet.])
 fi
 
 AC_ARG_WITH([icu],
-            [AS_HELP_STRING([--without-icu],
-              [disables support for ICU])],
+            [AS_HELP_STRING([--with-icu],
+              [enables support for ICU])],
             [],
-            [with_icu=yes])
+            [with_icu=no])
 
 if test "$have_x" = "yes" -o "$with_icu" = "yes"; then
    # AC_CHECK_PROG fails to locate CXX if it's set to an absolute
