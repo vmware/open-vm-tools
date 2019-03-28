@@ -785,12 +785,14 @@ static INLINE void
 PAUSE(void)
 #if defined(__GNUC__) || defined(VM_ARM_32)
 {
-#ifdef VM_ARM_ANY
+#ifdef VM_ARM_64
+   __asm__ __volatile__("yield");
+#elif defined VM_ARM_32
    /*
-    * ARM has no instruction to execute "spin-wait loop", just leave it
-    * empty.
+    * YIELD is available in ARMv6K and above, so we could probably refine this
+    * instead of leaving it empty.
     */
-#else
+#else // x86
    __asm__ __volatile__( "pause" :);
 #endif
 }
