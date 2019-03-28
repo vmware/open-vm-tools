@@ -369,7 +369,7 @@ RpcV4Util::OnRecvPacket(uint32 srcId,
    DnDCPMsgPacketType packetType = DND_CP_MSG_PACKET_TYPE_INVALID;
 
    if (packetSize <= mMaxTransportPacketPayloadSize + DND_CP_MSG_HEADERSIZE_V4) {
-      packetType = DnDCPMsgV4_GetPacketType(packet, packetSize);
+      packetType = DnDCPMsgV4_GetPacketType(packet, packetSize, mMaxTransportPacketPayloadSize);
    }
 
    switch (packetType) {

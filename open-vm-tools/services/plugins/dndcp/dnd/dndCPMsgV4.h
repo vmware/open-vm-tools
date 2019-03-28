@@ -240,7 +240,8 @@ typedef struct DnDCPMsgV4 {
 void DnDCPMsgV4_Init(DnDCPMsgV4 *msg);
 void DnDCPMsgV4_Destroy(DnDCPMsgV4 *msg);
 DnDCPMsgPacketType DnDCPMsgV4_GetPacketType(const uint8 *packet,
-                                            size_t packetSize);
+                                            size_t packetSize,
+                                            const uint32 maxPacketPayloadSize);
 Bool DnDCPMsgV4_Serialize(DnDCPMsgV4 *msg,
                           uint8 **packet,
                           size_t *packetSize);

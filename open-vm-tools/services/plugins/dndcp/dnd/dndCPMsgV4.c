@@ -122,12 +122,14 @@ DnDCPMsgV4_Destroy(DnDCPMsgV4 *msg)
  *
  * @param[in] packet
  * @param[in] packetSize
+ * @param[in] allowed max packet Size
  *
  * @return DnDCPMsgPacketType
  */
 
 DnDCPMsgPacketType DnDCPMsgV4_GetPacketType(const uint8 *packet,
-                                            size_t packetSize)
+                                            size_t packetSize,
+                                            const uint32 maxPacketPayloadSize)
 {
    DnDCPMsgHdrV4 *msgHdr = NULL;
    ASSERT(packet);
@@ -137,7 +139,7 @@ DnDCPMsgPacketType DnDCPMsgV4_GetPacketType(const uint8 *packet,
    }
 
    msgHdr = (DnDCPMsgHdrV4 *)packet;
-   if (msgHdr->binarySize <= DND_CP_PACKET_MAX_PAYLOAD_SIZE_V4) {
+   if (msgHdr->binarySize <= maxPacketPayloadSize) {
       return DND_CP_MSG_PACKET_TYPE_SINGLE;
    }
 
