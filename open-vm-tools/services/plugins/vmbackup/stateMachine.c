@@ -359,6 +359,7 @@ VmBackupFinalize(void)
       gBackupState->completer->release(gBackupState->completer);
    }
    g_mutex_clear(&gBackupState->opLock);
+   vm_free(gBackupState->configDir);
    g_free(gBackupState->scriptArg);
    g_free(gBackupState->volumes);
    g_free(gBackupState->snapshots);
@@ -1086,6 +1087,7 @@ error:
    if (gBackupState->completer) {
       gBackupState->completer->release(gBackupState->completer);
    }
+   vm_free(gBackupState->configDir);
    g_free(gBackupState->scriptArg);
    g_free(gBackupState->volumes);
    g_free(gBackupState);

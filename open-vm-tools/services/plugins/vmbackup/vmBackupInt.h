@@ -132,7 +132,7 @@ typedef struct VmBackupState {
    guint          timeout;
    gpointer       clientData;
    void          *scripts;
-   const char    *configDir;
+   char          *configDir;
    ssize_t        currentScript;
    gchar         *errorMsg;
    VmBackupMState machineState;
