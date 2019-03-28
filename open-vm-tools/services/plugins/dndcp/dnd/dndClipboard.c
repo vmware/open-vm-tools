@@ -281,8 +281,11 @@ CPClipboard_SetItem(CPClipboard *clip,          // IN/OUT: the clipboard
     * more than limit. The order in filterList determines the order in which
     * the format will be fiiltered, e.g. HTML format will be first dropped,
     * then GVML,..., at last TEXT
+    * File content won't appear tegother with other formats, if exceeding size
+    * limit, the format will be dropped
     */
-   DND_CPFORMAT filterList[] = {CPFORMAT_HTML_FORMAT,
+   DND_CPFORMAT filterList[] = {CPFORMAT_FILECONTENTS,
+                                CPFORMAT_HTML_FORMAT,
                                 CPFORMAT_ART_GVML_CLIPFORMAT,
                                 CPFORMAT_BIFF12,
                                 CPFORMAT_IMG_PNG,
