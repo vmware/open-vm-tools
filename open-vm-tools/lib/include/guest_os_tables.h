@@ -59,16 +59,18 @@ extern "C" {
    GOT(GUEST_OS_OS2)                                                       \
    GOT(GUEST_OS_ECOMSTATION)       /* OS/2 variant; 1.x */                 \
    GOT(GUEST_OS_ECOMSTATION2)      /* OS/2 variant; 2.x */                 \
+   GOT(GUEST_OS_OTHERLINUX)                                                \
+   GOT(GUEST_OS_OTHERLINUX_64)                                             \
    GOT(GUEST_OS_OTHER24XLINUX)                                             \
    GOT(GUEST_OS_OTHER24XLINUX_64)                                          \
    GOT(GUEST_OS_OTHER26XLINUX)                                             \
    GOT(GUEST_OS_OTHER26XLINUX_64)                                          \
    GOT(GUEST_OS_OTHER3XLINUX)      /* Linux 3.x */                         \
    GOT(GUEST_OS_OTHER3XLINUX_64)   /* Linux 3.x X64 */                     \
-   GOT(GUEST_OS_OTHER4XLINUX)      /* Linux 4.x and later */               \
-   GOT(GUEST_OS_OTHER4XLINUX_64)   /* Linux 4.x and later X64 */           \
-   GOT(GUEST_OS_OTHERLINUX)                                                \
-   GOT(GUEST_OS_OTHERLINUX_64)                                             \
+   GOT(GUEST_OS_OTHER4XLINUX)      /* Linux 4.x */                         \
+   GOT(GUEST_OS_OTHER4XLINUX_64)   /* Linux 4.x X64 */                     \
+   GOT(GUEST_OS_OTHER5XLINUX)      /* Linux 5.x and later */               \
+   GOT(GUEST_OS_OTHER5XLINUX_64)   /* Linux 5.x and later X64 */           \
    GOT(GUEST_OS_OTHER)                                                     \
    GOT(GUEST_OS_OTHER_64)                                                  \
    GOT(GUEST_OS_UBUNTU)                                                    \

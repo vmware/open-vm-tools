@@ -190,15 +190,26 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
                               BS(CRXSYS1_64), BS(CRXPOD1_64), \
                               BS(AMAZONLINUX2_64), BS(LINUX_MINT_64)
 
+#define ALL5XLINUX32          BS(OTHER5XLINUX)
+
+#define ALL5XLINUX64          BS(OTHER5XLINUX_64)
+
 #define ALLVMKERNEL           BS(VMKERNEL), BS(VMKERNEL5), BS(VMKERNEL6), \
                               BS(VMKERNEL65), BS(VMKERNEL7)
 
-#define ALLLINUX32            BS(OTHER24XLINUX), ALL26XLINUX32, ALL3XLINUX32, \
-                              ALL4XLINUX32, BS(OTHERLINUX), BS(VMKERNEL)
-#define ALLLINUX64            BS(OTHER24XLINUX_64), ALL26XLINUX64, \
-                              ALL3XLINUX64, ALL4XLINUX64, BS(OTHERLINUX_64)
+#define ALLLINUX32            BS(VMKERNEL), BS(OTHERLINUX), \
+                              BS(OTHER24XLINUX), \
+                              ALL26XLINUX32, ALL3XLINUX32, ALL4XLINUX32, \
+                              ALL5XLINUX32
+
+#define ALLLINUX64            BS(OTHERLINUX_64), BS(OTHER24XLINUX_64), \
+                              ALL26XLINUX64, ALL3XLINUX64, ALL4XLINUX64, \
+                              ALL5XLINUX64
+
 #define ALLLINUX              ALLLINUX32, ALLLINUX64
+
 #define ALLDARWIN32           BS(DARWIN9), BS(DARWIN10), BS(DARWIN11)
+
 #define ALLDARWIN64           BS(DARWIN9_64),  BS(DARWIN10_64), \
                               BS(DARWIN11_64), BS(DARWIN12_64), \
                               BS(DARWIN13_64), BS(DARWIN14_64), \
@@ -207,6 +218,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
                               BS(DARWIN19_64), BS(DARWIN20_64)
 
 #define ALLDARWIN             ALLDARWIN32, ALLDARWIN64
+
 #define ALL64                 ALLWIN64, ALLLINUX64,               \
                               BS(SOLARIS10_64), BS(SOLARIS11_64), \
                               BS(FREEBSD_64), BS(FREEBSD11_64),   \
@@ -214,6 +226,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
                               ALLDARWIN64, ALLVMKERNEL
 
 #define ALLECOMSTATION        BS(ECOMSTATION), BS(ECOMSTATION2)
+
 #define ALLOS2                BS(OS2), ALLECOMSTATION
 
 /*
@@ -280,7 +293,9 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_OTHER_3X           "other3xlinux"
 #define STR_OS_OTHER_3X_FULL      "Other Linux 3.x kernel"
 #define STR_OS_OTHER_4X           "other4xlinux"
-#define STR_OS_OTHER_4X_FULL      "Other Linux 4.x or later kernel"
+#define STR_OS_OTHER_4X_FULL      "Other Linux 4.x"
+#define STR_OS_OTHER_5X           "other5xlinux"
+#define STR_OS_OTHER_5X_FULL      "Other Linux 5.x or later kernel"
 #define STR_OS_PHOTON             "vmware-photon"
 #define STR_OS_PHOTON_FULL        "VMware Photon OS"
 #define STR_OS_PLD                "PLD"
