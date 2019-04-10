@@ -701,7 +701,7 @@ FLAG(  14,  0, ECX,  1,  1, PT_TOPA_MULTI,                      YES, FUT ) \
 FLAG(  14,  0, ECX,  2,  1, PT_SRO,                             YES, FUT ) \
 FLAG(  14,  0, ECX,  3,  1, PT_TRACE_TRANS,                     NO,    0 ) \
 FLAG(  14,  0, ECX, 31,  1, PT_LIP,                             YES, FUT ) \
-FIELD( 14,  1, EAX,  0,  2, PT_NUM_ADDR_RANGES,                 YES, FUT ) \
+FIELD( 14,  1, EAX,  0,  3, PT_NUM_ADDR_RANGES,                 YES, FUT ) \
 FIELD( 14,  1, EAX, 16, 16, PT_AVAIL_MTC_ENCS,                  YES, FUT ) \
 FIELD( 14,  1, EBX,  0, 16, PT_AVAIL_CYC_THRESH_ENCS,           YES, FUT ) \
 FIELD( 14,  1, EBX, 16, 16, PT_AVAIL_PSB_FREQ_ENCS,             YES, FUT ) \
