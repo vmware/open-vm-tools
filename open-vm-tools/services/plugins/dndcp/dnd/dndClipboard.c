@@ -285,9 +285,9 @@ CPClipboard_SetItem(CPClipboard *clip,          // IN/OUT: the clipboard
     * limit, the format will be dropped
     */
    DND_CPFORMAT filterList[] = {CPFORMAT_FILECONTENTS,
-                                CPFORMAT_HTML_FORMAT,
                                 CPFORMAT_ART_GVML_CLIPFORMAT,
                                 CPFORMAT_BIFF12,
+                                CPFORMAT_HTML_FORMAT,
                                 CPFORMAT_IMG_PNG,
                                 CPFORMAT_RTF,
                                 CPFORMAT_TEXT};
