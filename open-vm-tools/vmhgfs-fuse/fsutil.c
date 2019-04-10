@@ -209,19 +209,18 @@ HgfsPackGetattrRequest(HgfsReq *req,            // IN/OUT: Request buffer
       requestV3->reserved = 0;
       reqSize = sizeof(*requestV3) + HgfsGetRequestHeaderSize();
       reqBufferSize = HGFS_NAME_BUFFER_SIZET(HGFS_LARGE_PACKET_MAX, reqSize);
-      if (requestV3->fileName.name != NULL) {
-         /* Convert to CP name. */
-         result = CPName_ConvertTo(path,
-                                   reqBufferSize,
-                                   requestV3->fileName.name);
-         LOG(8, ("Converted path %s\n", requestV3->fileName.name));
-         if (result < 0) {
-            LOG(8, ("CP conversion failed.\n"));
-            result = -EINVAL;
-            goto out;
-         }
-         requestV3->fileName.length = result;
+
+      /* Convert to CP name. */
+      result = CPName_ConvertTo(path,
+                                reqBufferSize,
+                                requestV3->fileName.name);
+      LOG(8, ("Converted path %s\n", requestV3->fileName.name));
+      if (result < 0) {
+         LOG(8, ("CP conversion failed.\n"));
+         result = -EINVAL;
+         goto out;
       }
+      requestV3->fileName.length = result;
       break;
    }
 
@@ -234,19 +233,18 @@ HgfsPackGetattrRequest(HgfsReq *req,            // IN/OUT: Request buffer
       requestV2->hints = 0;
       reqSize = sizeof *requestV2;
       reqBufferSize = HGFS_NAME_BUFFER_SIZE(HGFS_LARGE_PACKET_MAX, requestV2);
-      if (requestV2->fileName.name != NULL) {
-         /* Convert to CP name. */
-         result = CPName_ConvertTo(path,
-                                   reqBufferSize,
-                                   requestV2->fileName.name);
-         LOG(8, ("Converted path %s\n", requestV2->fileName.name));
-         if (result < 0) {
-            LOG(8, ("CP conversion failed.\n"));
-            result = -EINVAL;
-            goto out;
-         }
-         requestV2->fileName.length = result;
+
+      /* Convert to CP name. */
+      result = CPName_ConvertTo(path,
+                                reqBufferSize,
+                                requestV2->fileName.name);
+      LOG(8, ("Converted path %s\n", requestV2->fileName.name));
+      if (result < 0) {
+         LOG(8, ("CP conversion failed.\n"));
+         result = -EINVAL;
+         goto out;
       }
+      requestV2->fileName.length = result;
       break;
    }
 
@@ -255,19 +253,18 @@ HgfsPackGetattrRequest(HgfsReq *req,            // IN/OUT: Request buffer
       requestV1 = (HgfsRequestGetattr *)(HGFS_REQ_PAYLOAD(req));
       reqSize = sizeof *requestV1;
       reqBufferSize = HGFS_NAME_BUFFER_SIZE(HGFS_LARGE_PACKET_MAX, requestV1);
-      if (requestV1->fileName.name != NULL) {
-         /* Convert to CP name. */
-         result = CPName_ConvertTo(path,
-                                   reqBufferSize,
-                                   requestV1->fileName.name);
-         LOG(8, ("Converted path %s\n", requestV1->fileName.name));
-         if (result < 0) {
-            LOG(8, ("CP conversion failed.\n"));
-            result = -EINVAL;
-            goto out;
-         }
-         requestV1->fileName.length = result;
+
+      /* Convert to CP name. */
+      result = CPName_ConvertTo(path,
+                                reqBufferSize,
+                                requestV1->fileName.name);
+      LOG(8, ("Converted path %s\n", requestV1->fileName.name));
+      if (result < 0) {
+         LOG(8, ("CP conversion failed.\n"));
+         result = -EINVAL;
+         goto out;
       }
+      requestV1->fileName.length = result;
       break;
    }
 
