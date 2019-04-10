@@ -4990,6 +4990,17 @@ VixToolsInitiateFileTransferToGuest(VixCommandRequestHeader *requestMsg)  // IN
       goto abort;
    }
 
+#ifndef _WIN32
+   if ('\0' == *dirName && '/' == *guestPathName) {
+      /*
+       * dirName is empty and represents root directory
+       * For *nix like paths, changing dirName to '/'
+       */
+      free(dirName);
+      dirName = Util_SafeStrdup("/");
+   }
+#endif
+
    if (!File_IsDirectory(dirName)) {
 #ifdef _WIN32
       DWORD sysErr = GetLastError();
