@@ -100,7 +100,7 @@
 #undef INCLUDE_ALLOW_VMX
 
 #if defined USERLEVEL && !defined VMX86_VMX && !defined VMCORE && \
-    !defined ULVMM && !defined INCLUDE_ALLOW_USERLEVEL && \
+    !defined ULM && !defined INCLUDE_ALLOW_USERLEVEL && \
     !defined INCLUDE_ALLOW_MKS
 #error "The surrounding include file is not allowed at userlevel."
 #endif

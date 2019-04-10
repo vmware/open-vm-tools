@@ -535,7 +535,7 @@ typedef uint128 UReg128;
 #endif
 
 #if defined(VMM) || defined(COREQUERY) || defined(EXTDECODER) ||  \
-    defined (VMKERNEL) || defined (VMKBOOT) || defined (ULVMM)
+    defined (VMKERNEL) || defined (VMKBOOT) || defined (ULM)
 typedef  Reg64  Reg;
 typedef UReg64 UReg;
 #endif
