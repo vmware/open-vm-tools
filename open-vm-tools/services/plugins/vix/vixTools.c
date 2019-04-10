@@ -4980,11 +4980,7 @@ VixToolsInitiateFileTransferToGuest(VixCommandRequestHeader *requestMsg)  // IN
       goto abort;
    }
 
-#ifdef _WIN32
    File_GetPathName(guestPathName, &dirName, &baseName);
-#else
-   File_SplitName(guestPathName, NULL, &dirName, &baseName);
-#endif
    if ((NULL == dirName) || (NULL == baseName)) {
       g_debug("%s: File_GetPathName failed for '%s', dirName='%s', "
               "baseName='%s'.\n", __FUNCTION__, guestPathName,
@@ -4993,19 +4989,6 @@ VixToolsInitiateFileTransferToGuest(VixCommandRequestHeader *requestMsg)  // IN
       err = VIX_E_FILE_NAME_INVALID;
       goto abort;
    }
-
-/*
-#ifndef _WIN32
-   if ('\0' == *dirName && '/' == *guestPathName) {
-      *
-       * dirName is empty and represents root directory
-       * For *nix like paths, changing dirName to '/'
-       *
-      free(dirName);
-      dirName = Util_SafeStrdup("/");
-   }
-#endif
-*/
 
    if (!File_IsDirectory(dirName)) {
 #ifdef _WIN32
