@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016, 2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -100,7 +100,8 @@
 #undef INCLUDE_ALLOW_VMX
 
 #if defined USERLEVEL && !defined VMX86_VMX && !defined VMCORE && \
-    !defined INCLUDE_ALLOW_USERLEVEL && !defined INCLUDE_ALLOW_MKS
+    !defined ULVMM && !defined INCLUDE_ALLOW_USERLEVEL && \
+    !defined INCLUDE_ALLOW_MKS
 #error "The surrounding include file is not allowed at userlevel."
 #endif
 #undef INCLUDE_ALLOW_USERLEVEL
