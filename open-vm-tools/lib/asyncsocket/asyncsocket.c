@@ -3054,10 +3054,16 @@ AsyncTCPSocketSend(AsyncSocket *base,         // IN
           * consumers of asyncsocket are not expecting the completion
           * callback to be invoked prior to the call to
           * AsyncTCPSocket_Send() returning.
+          *
+          * Add and release asock reference around the send callback
+          * since asock may be closed by a callback invoked during
+          * the send workflow.
           */
+         AsyncTCPSocketAddRef(asock);
          asock->inLowLatencySendCb++;
          asock->internalSendFn((void *)asock);
          asock->inLowLatencySendCb--;
+         AsyncTCPSocketRelease(asock);
       } else {
 #ifdef _WIN32
          /*
