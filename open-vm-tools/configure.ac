@@ -1163,12 +1163,6 @@ AC_C_VOLATILE
 CFLAGS="$CFLAGS -Wall"
 CFLAGS="$CFLAGS -Werror"
 
-# Suppress warnings from clang when taking the address of packed struct
-# member fields when compiling hgfsServer.c
-if $CC --version | $GREP -i "clang" > /dev/null; then
-   CFLAGS="$CFLAGS -Wno-address-of-packed-member"
-fi
-
 # -Wno-unknown-pragmas is due to gcc not understanding '#pragma ident'
 # in Xlib.h on OpenSolaris.
 # Glib2 keep changing mutex APIs so we also need to disable 'deprecated'
