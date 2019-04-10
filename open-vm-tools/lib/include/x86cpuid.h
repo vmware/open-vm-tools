@@ -689,22 +689,22 @@ FIELD( 12,  3, EDX,  0, 20, EPC01_SIZE_HIGH,                     NO,    0 )
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_14                                           \
-FIELD( 14,  0, EAX,  0, 32, MAX_PT_SUB_LEAF,                     YES, FUT ) \
-FLAG(  14,  0, EBX,  0,  1, CR3FTR_AND_MATCHMSR_AVAILABLE,       YES, FUT ) \
-FLAG(  14,  0, EBX,  1,  1, PSB_AND_CYCLE_ACCURATE_MODE,         YES, FUT ) \
-FLAG(  14,  0, EBX,  2,  1, IP_TRACESTOP_FTR_PTMSR_PERSIST,      YES, FUT ) \
-FLAG(  14,  0, EBX,  3,  1, MTC_PKT_GENERATION_SUPPORTED,        YES, FUT ) \
-FLAG(  14,  0, EBX,  4,  1, PT_PTWRITE,                          NO,    0 ) \
-FLAG(  14,  0, EBX,  5,  1, PT_POWER_EVENT,                      NO,    0 ) \
-FLAG(  14,  0, ECX,  0,  1, TOPA_OUTPUT_SUPPORTED,               YES, FUT ) \
-FLAG(  14,  0, ECX,  1,  1, TOPA_ALLOW_MULTIPLE_ENTRIES,         YES, FUT ) \
-FLAG(  14,  0, ECX,  2,  1, SINGLE_RANGE_OUTPUT_SCHEME,          YES, FUT ) \
-FLAG(  14,  0, ECX,  3,  1, TRACE_TRANSPORT_SUBSYSTEM,           NO,    0 ) \
-FLAG(  14,  0, ECX, 31,  1, LIP_PRESENT_FOR_IP_PAYLOADS,         YES, FUT ) \
-FIELD( 14,  1, EAX,  0,  2, NUM_ADDR_RANGE_FOR_FILTERING,        YES, FUT ) \
-FIELD( 14,  1, EAX, 16, 16, SUPPORTED_MTC_ENCODINGS,             YES, FUT ) \
-FIELD( 14,  1, EBX,  0, 16, SUPPORTED_CYCLE_THRESHOLD_ENCODINGS, YES, FUT ) \
-FIELD( 14,  1, EBX, 16, 16, SUPPORTED_PSB_FREQ_ENCODINGS,        YES, FUT ) \
+FIELD( 14,  0, EAX,  0, 32, PT_MAX_SUBLEAF,                     YES, FUT ) \
+FLAG(  14,  0, EBX,  0,  1, PT_CR3_FILTER,                      YES, FUT ) \
+FLAG(  14,  0, EBX,  1,  1, PT_CFG_PSB_CYC,                     YES, FUT ) \
+FLAG(  14,  0, EBX,  2,  1, PT_IP_FILTER_PERSIST_MSR,           YES, FUT ) \
+FLAG(  14,  0, EBX,  3,  1, PT_MTC,                             YES, FUT ) \
+FLAG(  14,  0, EBX,  4,  1, PT_PTWRITE,                         NO,    0 ) \
+FLAG(  14,  0, EBX,  5,  1, PT_POWER_EVENT,                     NO,    0 ) \
+FLAG(  14,  0, ECX,  0,  1, PT_TOPA,                            YES, FUT ) \
+FLAG(  14,  0, ECX,  1,  1, PT_TOPA_MULTI,                      YES, FUT ) \
+FLAG(  14,  0, ECX,  2,  1, PT_SRO,                             YES, FUT ) \
+FLAG(  14,  0, ECX,  3,  1, PT_TRACE_TRANS,                     NO,    0 ) \
+FLAG(  14,  0, ECX, 31,  1, PT_LIP,                             YES, FUT ) \
+FIELD( 14,  1, EAX,  0,  2, PT_NUM_ADDR_RANGES,                 YES, FUT ) \
+FIELD( 14,  1, EAX, 16, 16, PT_AVAIL_MTC_ENCS,                  YES, FUT ) \
+FIELD( 14,  1, EBX,  0, 16, PT_AVAIL_CYC_THRESH_ENCS,           YES, FUT ) \
+FIELD( 14,  1, EBX, 16, 16, PT_AVAIL_PSB_FREQ_ENCS,             YES, FUT ) \
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_15                                           \
