@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016,2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -114,6 +114,7 @@ RandomFastImpl(uint64 *rs,  // IN/OUT:
  *-----------------------------------------------------------------------------
  *
  * Random_Fast --
+ * Random_Fast64 --
  * Random_FastStream --
  * Random_FastStreamSeed --
  *
@@ -154,6 +155,12 @@ Random_Fast(uint64 *rs)  // IN/OUT:
 {
    uint64 inc = (uintptr_t)(void *)rs | 0x1;  // stream selector, must be odd
    return RandomFastImpl(rs, inc);
+}
+
+uint64
+Random_Fast64(uint64 *rs)  // IN/OUT:
+{
+   return QWORD(Random_Fast(rs), Random_Fast(rs)) ;
 }
 
 uint32
