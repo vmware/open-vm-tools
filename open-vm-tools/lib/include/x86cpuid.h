@@ -694,6 +694,8 @@ FLAG(  14,  0, EBX,  0,  1, CR3FTR_AND_MATCHMSR_AVAILABLE,       YES, FUT ) \
 FLAG(  14,  0, EBX,  1,  1, PSB_AND_CYCLE_ACCURATE_MODE,         YES, FUT ) \
 FLAG(  14,  0, EBX,  2,  1, IP_TRACESTOP_FTR_PTMSR_PERSIST,      YES, FUT ) \
 FLAG(  14,  0, EBX,  3,  1, MTC_PKT_GENERATION_SUPPORTED,        YES, FUT ) \
+FLAG(  14,  0, EBX,  4,  1, PT_PTWRITE,                          NO,    0 ) \
+FLAG(  14,  0, EBX,  5,  1, PT_POWER_EVENT,                      NO,    0 ) \
 FLAG(  14,  0, ECX,  0,  1, TOPA_OUTPUT_SUPPORTED,               YES, FUT ) \
 FLAG(  14,  0, ECX,  1,  1, TOPA_ALLOW_MULTIPLE_ENTRIES,         YES, FUT ) \
 FLAG(  14,  0, ECX,  2,  1, SINGLE_RANGE_OUTPUT_SCHEME,          YES, FUT ) \
