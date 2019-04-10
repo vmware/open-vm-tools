@@ -102,8 +102,10 @@ static const char  BACKSLASH       = '\\';
 static const char* INPROGRESS      = "INPROGRESS";
 static const char* DONE            = "Done";
 static const char* ERRORED         = "ERRORED";
+#ifndef IMGCUST_UNITTEST
 static const char* RUNDIR          = "/run";
 static const char* VARRUNDIR       = "/var/run";
+#endif
 static const char* TMPDIR          = "/tmp";
 
 // Possible return codes from perl script
@@ -1222,6 +1224,11 @@ Deploy(const char* packageName)
                                TOOLSDEPLOYPKG_ERROR_SUCCESS,
                                NULL);
 
+   // Add this macro definition to enable using '/tmp' instead of '/var/run' as
+   // the cab file deployment directory in unit test.
+#ifdef IMGCUST_UNITTEST
+   baseDirPath = TMPDIR;
+#else
    // PR 2127543, Use /var/run or /run but /tmp firstly
    if (File_IsDirectory(VARRUNDIR)) {
       baseDirPath = VARRUNDIR;
@@ -1230,6 +1237,7 @@ Deploy(const char* packageName)
    } else {
       baseDirPath = TMPDIR;
    }
+#endif
 
    // Create a random name dir under base dir path
    imcDirPathSize = strlen(baseDirPath) + strlen(IMC_DIR_PATH_PATTERN) + 1;
