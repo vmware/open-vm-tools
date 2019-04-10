@@ -475,7 +475,6 @@ typedef uintptr_t VPN;
 
 typedef uint64    PA;
 typedef uint64    PPN;
-typedef uint32    PPNTMP;
 
 typedef uint64    TPA;
 typedef uint64    TPPN;
