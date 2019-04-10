@@ -697,6 +697,13 @@ DnD_SetCPClipboardAndTruncateText(CPClipboard *clip, // IN/OUT
 {
    size_t bytesLeft = clip->maxSize - CPClipboard_GetTotalSize(clip) - 1;
 
+   if (bytesLeft < 2 || len == 1) {
+      /*
+       * Less than 2 bytes left ( 1 byte needed for ending NULL ) or
+       * input buffer only contains ending NULL
+       */
+      return;
+   }
    // Truncate if the length is greater than max allowed.
    if (len > bytesLeft) {
       size_t boundaryPoint =
