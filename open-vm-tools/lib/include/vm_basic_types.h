@@ -744,27 +744,6 @@ typedef void * UserVA;
 #error "cl.exe version is too old, need vc80 or better"
 #endif
 
-/* PR 2317063: work towards a baseline of vc130/vs2015 */
-#if defined _MSC_VER && _MSC_VER < 1500
-#error "cl.exe version is too old, need vc90 or better, update bug 2317063"
-#endif
-#if defined _MSC_VER && _MSC_VER < 1600
-#error "cl.exe version is too old, need vs2010 or better, update bug 2317063"
-#endif
-#if defined _MSC_VER && _MSC_VER < 1700
-#error "cl.exe version is too old, need vs2012 or better, update bug 2317063"
-#endif
-#if 0
-/* vs2013 is still in widespread use */
-#if defined _MSC_VER && _MSC_VER < 1800
-#error "cl.exe version is too old, need vs2013 or better, update bug 2317063"
-#endif
-#if defined _MSC_VER && _MSC_VER < 1900
-#error "cl.exe version is too old, need vs2015 or better, update bug 2317063"
-#endif
-#endif
-
-
 
 /*
  * Consider the following reasons functions are inlined:
