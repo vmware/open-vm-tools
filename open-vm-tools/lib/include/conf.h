@@ -268,4 +268,20 @@
 /* Wait 5 seconds between polls to see if the conf file has changed */
 #define CONF_POLL_TIME     5
 
+/*
+ ******************************************************************************
+ * BEGIN upgrader goodies.
+ */
+
+#define CONFGROUPNAME_AUTOUPGRADE "autoupgrade"
+
+#define CONFNAME_AUTOUPGRADE_ALLOW_UPGRADE "allow-upgrade"
+#define CONFNAME_AUTOUPGRADE_ALLOW_ADD_FEATURE "allow-add-feature"
+#define CONFNAME_AUTOUPGRADE_ALLOW_REMOVE_FEATURE "allow-remove-feature"
+
+/*
+ * END upgrader goodies.
+ ******************************************************************************
+ */
+
 #endif /* __CONF_H__ */
