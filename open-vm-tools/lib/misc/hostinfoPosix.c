@@ -127,7 +127,7 @@
 #include "rateconv.h"
 #endif
 
-#if defined(VMX86_SERVER)
+#if defined(VMX86_SERVER) || defined(USERWORLD)
 #include "uwvmkAPI.h"
 #include "uwvmk.h"
 #include "vmkSyscall.h"
@@ -153,7 +153,7 @@ static Atomic_Ptr hostinfoOSVersion;
 
 #define DISTRO_BUF_SIZE 1024
 
-#if !defined __APPLE__ && !defined USERWORLD
+#if !defined(__APPLE__) && !defined(VMX86_SERVER) && !defined(USERWORLD)
 typedef struct {
    char *name;
    char *scanString;
@@ -710,7 +710,7 @@ HostinfoMacOS(struct utsname *buf)  // IN:
 #endif
 
 
-#if defined(USERWORLD)  // ESXi
+#if defined(VMX86_SERVER) || defined(USERWORLD)  // ESXi
 /*
  *-----------------------------------------------------------------------------
  *
@@ -765,7 +765,7 @@ HostinfoESX(struct utsname *buf)  // IN:
 #endif
 
 
-#if !defined __APPLE__ && !defined USERWORLD
+#if !defined(__APPLE__) && !defined(VMX86_SERVER) && !defined(USERWORLD)
 /*
  *-----------------------------------------------------------------------------
  *
@@ -1777,7 +1777,7 @@ HostinfoSun(struct utsname *buf)  // IN:
 
    return (len != -1);
 }
-#endif // !defined __APPLE__ && !defined USERWORLD
+#endif // !defined(__APPLE__) && !defined(VMX86_SERVER) && !defined(USERWORLD)
 
 
 /*
@@ -1822,7 +1822,7 @@ HostinfoOSData(void)
    Str_Strcpy(detailedDataFields[DISTRO_NAME].value, buf.sysname,
               sizeof detailedDataFields[DISTRO_NAME].value);
 
-#if defined(USERWORLD)  // ESXi
+#if defined(VMX86_SERVER) || defined(USERWORLD)  // ESXi
    bitness = "64";
 #else
    bitness = (Hostinfo_GetSystemBitness() == 64) ? "64" : "32";
@@ -1830,7 +1830,7 @@ HostinfoOSData(void)
    Str_Strcpy(detailedDataFields[BITNESS].value, bitness,
               sizeof detailedDataFields[BITNESS].value);
 
-#if defined(USERWORLD)  // ESXi
+#if defined(VMX86_SERVER) || defined(USERWORLD)  // ESXi
    success = HostinfoESX(&buf);
 #elif defined(__APPLE__) // MacOS
    success = HostinfoMacOS(&buf);
