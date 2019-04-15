@@ -284,4 +284,21 @@
  ******************************************************************************
  */
 
+/*
+ ******************************************************************************
+ * BEGIN logging goodies.
+ */
+
+/**
+ * Defines the string used for the logging config file group.
+ */
+#define CONFGROUPNAME_LOGGING "logging"
+
+#define CONFNAME_LOGGING_INSTALL_VMXGUESTLOGDISABLED "install-vmxGuestLogDisabled"
+
+/*
+ * END logging goodies.
+ ******************************************************************************
+ */
+
 #endif /* __CONF_H__ */

@@ -283,8 +283,10 @@ VMTools_ConfigGetBoolean(GKeyFile *config,
          g_warning("%s: Failed to get value for '[%s] %s': %s (err=%d).\n",
                    __FUNCTION__, section, key, err->message, err->code);
       }
-      g_debug("%s: Returning default value for '[%s] %s'=%s.\n",
-              __FUNCTION__, section, key, defValue ? "TRUE" : "FALSE");
+      g_debug("%s: Returning default value for '[%s] %s'=%s "
+              "(Not found err=%d).\n",
+              __FUNCTION__, section, key, defValue ? "TRUE" : "FALSE",
+              err->code);
       value = defValue;
       g_clear_error(&err);
    }
