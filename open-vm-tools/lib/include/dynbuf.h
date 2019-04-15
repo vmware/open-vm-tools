@@ -49,6 +49,10 @@ DynBuf_InitWithMemory(DynBuf *b,
                       void *data);
 
 void
+DynBuf_InitWithString(DynBuf *b,
+                      char *str);
+
+void
 DynBuf_Destroy(DynBuf *b); // IN
 
 void

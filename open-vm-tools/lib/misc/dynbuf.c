@@ -93,6 +93,36 @@ DynBuf_InitWithMemory(DynBuf *b,        // IN/OUT:
 /*
  *-----------------------------------------------------------------------------
  *
+ * DynBuf_InitWithString --
+ *
+ *      Initialize buffer with a pre-allocated string.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+DynBuf_InitWithString(DynBuf *b, // IN/OUT
+                      char *str) // IN
+{
+   if (str != NULL) {
+      int len = strlen(str);
+      DynBuf_InitWithMemory(b, len + 1, str);
+      DynBuf_SetSize(b, len);
+   } else {
+      DynBuf_Init(b);
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * DynBuf_Destroy --
  *
  *      Dynamic buffer destructor --hpreg
