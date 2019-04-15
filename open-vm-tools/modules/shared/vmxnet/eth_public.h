@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2014,2017-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005-2014,2017-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -829,7 +829,7 @@ Eth_FillVlanTag(Eth_802_1pq_Tag *tag,
    ASSERT(priority < 8);
 
    tag->typeNBO = ETH_TYPE_802_1PQ_NBO;
-   tag->priority = priority;
+   tag->priority = (uint16)priority;
    tag->canonical = 0;                  // bit order (should be 0)
    tag->vidHi = vlanId >> 8;
    tag->vidLo = vlanId & 0xff;
@@ -934,7 +934,7 @@ Eth_FrameGetPriority(const Eth_Header *eh)
 {
    ASSERT(Eth_IsFrameTagged(eh));
 
-   return eh->e802_1pq.tag.priority;
+   return (uint8)eh->e802_1pq.tag.priority;
 }
 
 
