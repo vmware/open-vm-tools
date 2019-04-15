@@ -134,6 +134,8 @@ PISECURITY_DESCRIPTOR AppUtil_AllocateLowIntegritySD(void);
 LPSTR  AppUtil_ToLowerUtf8(LPCSTR s);
 LPWSTR AppUtil_ToLowerUtf16(LPCWSTR s);
 
+Bool AppUtil_IsHorizonVDIAppRemotingMode();
+
 #ifdef __cplusplus
 };
 #endif // __cplusplus
