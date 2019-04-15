@@ -279,15 +279,15 @@
  * SCons parsing code requires that each line have a version string, so we
  * can't just do something like #define RDESDK_VERSION VIEW_VERSION"
  */
-#define VIEW_VERSION "7.9.0"
-#define RDE_RFT_ALL_VERSION "7.9.0"
-#define RDESDK_VERSION "7.9.0"
-#define RDESDKREL_VERSION "7.9.0"
+#define VIEW_VERSION "7.10.0"
+#define RDE_RFT_ALL_VERSION "7.10.0"
+#define RDESDK_VERSION "7.10.0"
+#define RDESDKREL_VERSION "7.10.0"
 #define MKSVCHANDEV_VERSION "14.2.0"
-#define TSMMRDEV_VERSION "7.9.0"
-#define VIEWMPDEV_VERSION "7.9.0"
-#define RDF_VERSION "7.9.0"
-#define HORIZON_DAAS_AGENT_VERSION "19.2.0"
+#define TSMMRDEV_VERSION "7.10.0"
+#define VIEWMPDEV_VERSION "7.10.0"
+#define RDF_VERSION "7.10.0"
+#define HORIZON_DAAS_AGENT_VERSION "19.3.0"
 #define HORIZON_USB_AGENT_VERSION "10.16.0"
 
 
