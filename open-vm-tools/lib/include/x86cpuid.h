@@ -338,7 +338,7 @@ FIELD(  1,  0, EBX,  8,  8, CLFL_SIZE,                           ANY,   4 ) \
 FIELD(  1,  0, EBX, 16,  8, LCPU_COUNT,                          ANY,   4 ) \
 FIELD(  1,  0, EBX, 24,  8, APICID,                              ANY,   4 ) \
 FLAG(   1,  0, ECX,  0,  1, SSE3,                                YES,   4 ) \
-FLAG(   1,  0, ECX,  1,  1, PCLMULQDQ,                           YES,   7 ) \
+FLAG(   1,  0, ECX,  1,  1, PCLMULQDQ,                           YES,   4 ) \
 FLAG(   1,  0, ECX,  2,  1, DTES64,                              NO,    0 ) \
 FLAG(   1,  0, ECX,  3,  1, MWAIT,                               YES,   4 ) \
 FLAG(   1,  0, ECX,  4,  1, DSCPL,                               NO,    0 ) \
@@ -358,10 +358,10 @@ FLAG(   1,  0, ECX, 18,  1, DCA,                                 NO,    0 ) \
 FLAG(   1,  0, ECX, 19,  1, SSE41,                               YES,   4 ) \
 FLAG(   1,  0, ECX, 20,  1, SSE42,                               YES,   4 ) \
 FLAG(   1,  0, ECX, 21,  1, x2APIC,                              ANY,   9 ) \
-FLAG(   1,  0, ECX, 22,  1, MOVBE,                               YES,   7 ) \
+FLAG(   1,  0, ECX, 22,  1, MOVBE,                               YES,   4 ) \
 FLAG(   1,  0, ECX, 23,  1, POPCNT,                              YES,   4 ) \
 FLAG(   1,  0, ECX, 24,  1, TSC_DEADLINE,                        ANY,  11 ) \
-FLAG(   1,  0, ECX, 25,  1, AES,                                 YES,   7 ) \
+FLAG(   1,  0, ECX, 25,  1, AES,                                 YES,   4 ) \
 FLAG(   1,  0, ECX, 26,  1, XSAVE,                               YES,   8 ) \
 FLAG(   1,  0, ECX, 27,  1, OSXSAVE,                             ANY,   8 ) \
 FLAG(   1,  0, ECX, 28,  1, AVX,                                 YES,   8 ) \
@@ -450,7 +450,7 @@ FIELD(  5,  0, EDX, 16,  4, MWAIT_C4_SUBSTATE,                   NA,    0 )
 #define CPUID_FIELD_DATA_LEVEL_6                                            \
 FLAG(   6,  0, EAX,  0,  1, THERMAL_SENSOR,                      NO,    0 ) \
 FLAG(   6,  0, EAX,  1,  1, TURBO_MODE,                          NO,    0 ) \
-FLAG(   6,  0, EAX,  2,  1, APIC_INVARIANT,                      ANY,  13 ) \
+FLAG(   6,  0, EAX,  2,  1, APIC_INVARIANT,                      ANY,   4 ) \
 FLAG(   6,  0, EAX,  4,  1, PLN,                                 NO,    0 ) \
 FLAG(   6,  0, EAX,  5,  1, ECMD,                                NO,    0 ) \
 FLAG(   6,  0, EAX,  6,  1, PTM,                                 NO,    0 ) \
@@ -478,7 +478,7 @@ FLAG(   7,  0, EBX,  2,  1, SGX,                                 YES, FUT ) \
 FLAG(   7,  0, EBX,  3,  1, BMI1,                                YES,   9 ) \
 FLAG(   7,  0, EBX,  4,  1, HLE,                                 YES,  11 ) \
 FLAG(   7,  0, EBX,  5,  1, AVX2,                                YES,  11 ) \
-FLAG(   7,  0, EBX,  6,  1, FDP_EXCPTN_ONLY,                     ANY,  13 ) \
+FLAG(   7,  0, EBX,  6,  1, FDP_EXCPTN_ONLY,                     ANY,   4 ) \
 FLAG(   7,  0, EBX,  7,  1, SMEP,                                YES,   9 ) \
 FLAG(   7,  0, EBX,  8,  1, BMI2,                                YES,  11 ) \
 FLAG(   7,  0, EBX,  9,  1, ENFSTRG,                             YES,   9 ) \
@@ -591,8 +591,8 @@ FLAG(   D,  1, ECX,  8,  1, XSS_PT,                              NO,    0 ) \
 FIELD(  D,  1, ECX,  9,  1, XSS_XCR0_USED1,                      NO,    0 ) \
 FIELD(  D,  1, ECX,  10,22, XSS_RSVD0,                           NO,    0 ) \
 FIELD(  D,  1, EDX,  0, 32, XSS_RSVD1,                           NO,    0 ) \
-FIELD(  D,  2, EAX,  0, 32, XSAVE_YMM_SIZE,                      YES,   9 ) \
-FIELD(  D,  2, EBX,  0, 32, XSAVE_YMM_OFFSET,                    YES,   9 ) \
+FIELD(  D,  2, EAX,  0, 32, XSAVE_YMM_SIZE,                      YES,   8 ) \
+FIELD(  D,  2, EBX,  0, 32, XSAVE_YMM_OFFSET,                    YES,   8 ) \
 FLAG(   D,  2, ECX,  0,  1, XSAVE_YMM_SUP_BY_XSS,                NO,    0 ) \
 FLAG(   D,  2, ECX,  1,  1, XSAVE_YMM_ALIGN,                     YES,  13 ) \
 FIELD(  D,  2, ECX,  2, 30, XSAVE_YMM_RSVD1,                     NO,    0 ) \
@@ -864,7 +864,7 @@ FLAG(  81,  0, ECX,  1,  1, CMPLEGACY,                           ANY,   9 ) \
 FLAG(  81,  0, ECX,  2,  1, SVM,                                 YES,   7 ) \
 FLAG(  81,  0, ECX,  3,  1, EXTAPICSPC,                          YES,   4 ) \
 FLAG(  81,  0, ECX,  4,  1, CR8AVAIL,                            YES,   4 ) \
-FLAG(  81,  0, ECX,  5,  1, ABM,                                 YES,   7 ) \
+FLAG(  81,  0, ECX,  5,  1, ABM,                                 YES,   4 ) \
 FLAG(  81,  0, ECX,  6,  1, SSE4A,                               YES,   4 ) \
 FLAG(  81,  0, ECX,  7,  1, MISALIGNED_SSE,                      YES,   4 ) \
 FLAG(  81,  0, ECX,  8,  1, 3DNPREFETCH,                         YES,   4 ) \
