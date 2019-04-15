@@ -1509,9 +1509,9 @@ static INLINE Bool
 CPUID_IsRawVendor(CPUIDRegs *id0, const char* vendor)
 {
    // hard to get strcmp() in some environments, so do it in the raw
-   return (id0->ebx == *(const uint32 *) (vendor + 0) &&
-           id0->ecx == *(const uint32 *) (vendor + 4) &&
-           id0->edx == *(const uint32 *) (vendor + 8));
+   return (id0->ebx == *(const uint32 *)(uintptr_t) (vendor + 0) &&
+           id0->ecx == *(const uint32 *)(uintptr_t) (vendor + 4) &&
+           id0->edx == *(const uint32 *)(uintptr_t) (vendor + 8));
 }
 
 static INLINE Bool
