@@ -471,6 +471,10 @@ FIELD(  6,  0, EDX,  8,  4, HW_FEEDBACK_SIZE,                    NO,    0 ) \
 FIELD(  6,  0, EDX, 16, 16, HW_FEEDBACK_INDEX,                   NO,    0 )
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
+#define CPUID_7_EDX_10 \
+FLAG(   7,  0, EDX, 10,  1, LEAF7_RSVD,                          NO,    0 )
+
+/*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_7                                            \
 FLAG(   7,  0, EBX,  0,  1, FSGSBASE,                            YES,   9 ) \
 FLAG(   7,  0, EBX,  1,  1, TSC_ADJUST,                          ANY,  11 ) \
@@ -526,6 +530,7 @@ FLAG(   7,  0, ECX, 30,  1, SGX_LC,                              YES, FUT ) \
 FLAG(   7,  0, EDX,  2,  1, AVX512QVNNIW,                        YES,  16 ) \
 FLAG(   7,  0, EDX,  3,  1, AVX512QFMAPS,                        YES,  16 ) \
 FLAG(   7,  0, EDX,  4,  1, FAST_SHORT_REPMOV,                   NO,    0 ) \
+CPUID_7_EDX_10 \
 FLAG(   7,  0, EDX, 18,  1, PCONFIG,                             NO,    0 ) \
 FLAG(   7,  0, EDX, 26,  1, IBRSIBPB,                            ANY,   9 ) \
 FLAG(   7,  0, EDX, 27,  1, STIBP,                               YES,   9 ) \
