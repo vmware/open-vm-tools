@@ -101,9 +101,27 @@ extern int LOGLEVEL_THRESHOLD;
 /* Blocksize to be set in superblock. (XXX how is this used?) */
 #define HGFS_BLOCKSIZE 1024
 
+/* if st_mtime is a define, assume the higher resolution st_mtim is available */
+#ifdef st_mtime
+#define HGFS_HIGHRES_TIMESTAMPS
+#endif
+
+#ifdef HGFS_HIGHRES_TIMESTAMPS
+#define HGFS_SET_TIME(unixtm,nttime) HgfsConvertFromNtTimeNsec(&unixtm, nttime)
+//#define HGFS_GET_TIME(unixtm) HgfsConvertToNtTime(unixtm, 0L)
+static INLINE uint64
+HGFS_GET_CURRENT_TIME()
+{
+   struct timespec unixTime;
+   clock_gettime(CLOCK_REALTIME, &unixTime);
+   return HgfsConvertToNtTime(unixTime.tv_sec, unixTime.tv_nsec);
+}
+#else
 #define HGFS_SET_TIME(unixtm,nttime) HgfsConvertFromNtTime(&unixtm, nttime)
-#define HGFS_GET_TIME(unixtm) HgfsConvertToNtTime(unixtm, 0L)
+//#define HGFS_GET_TIME(unixtm) HgfsConvertToNtTime(unixtm, 0L)
 #define HGFS_GET_CURRENT_TIME() HGFS_GET_TIME(time(NULL))
+#endif
+
 /*
  * Global synchronization primitives.
  */
