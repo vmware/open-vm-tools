@@ -115,13 +115,13 @@ HgfsGetAttrCache(const char* path,   //IN: Path of file or directory
 
    pthread_mutex_lock(&HgfsAttrCacheLock);
 
-   attrList.changeTime = HGFS_GET_TIME(time(NULL));
+   attrList.changeTime = HGFS_GET_CURRENT_TIME();
    list_for_each_entry(tmp, &attrList.list, list) {
       LOG(4, ("tmp->path = %d\n", tmp->path));
       if (strcmp(path, tmp->path) == 0) {
          LOG(4, ("cache hit. path = %s\n", tmp->path));
 
-         diff = (HGFS_GET_TIME(time(NULL)) - tmp->changeTime) / 10000000;
+         diff = (HGFS_GET_CURRENT_TIME() - tmp->changeTime) / 10000000;
 
          LOG(4, ("time since last updated is %d seconds\n", diff));
          if (diff <= CACHE_TIMEOUT) {
@@ -162,11 +162,11 @@ HgfsSetAttrCache(const char* path,   //IN: Path of file or directory
 
    pthread_mutex_lock(&HgfsAttrCacheLock);
 
-   attrList.changeTime = HGFS_GET_TIME(time(NULL));
+   attrList.changeTime = HGFS_GET_CURRENT_TIME();
    list_for_each_entry (tmp, &attrList.list, list) {
       if (strcmp(path, tmp->path) == 0) {
          tmp->attr = *attr;
-         tmp->changeTime = HGFS_GET_TIME(time(NULL));
+         tmp->changeTime = HGFS_GET_CURRENT_TIME();
          LOG(4, ("cache entry updated. path = %s\n", tmp->path));
          goto out;
       }
@@ -180,7 +180,7 @@ HgfsSetAttrCache(const char* path,   //IN: Path of file or directory
    INIT_LIST_HEAD(&tmp->list);
    Str_Strcpy(tmp->path, path, strlen(path) + 1);
    tmp->attr = *attr;
-   tmp->changeTime = HGFS_GET_TIME(time(NULL));
+   tmp->changeTime = HGFS_GET_CURRENT_TIME();
    list_add(&tmp->list, &attrList.list);
    LOG(4, ("cache entry added. path = %s\n", tmp->path));
 
@@ -256,7 +256,7 @@ HgfsPurgeCache(void* unused) //IN: Thread argument
       pthread_mutex_lock(&HgfsAttrCacheLock);
 
       list_for_each_entry_safe (tmp, prev, &attrList.list, list) {
-         diff = (HGFS_GET_TIME(time(NULL)) - tmp->changeTime) / 10000000;
+         diff = (HGFS_GET_CURRENT_TIME() - tmp->changeTime) / 10000000;
          if (diff > CACHE_PURGE_TIME) {
             list_del (&tmp->list);
             free (tmp);
@@ -326,7 +326,7 @@ HgfsGetAttrCache(const char* path,   //IN: Path of file or directory
    if (tmp != NULL) {
       LOG(4, ("cache hit. path = %s\n", tmp->path));
 
-      diff = (HGFS_GET_TIME(time(NULL)) - tmp->changeTime) / 10000000;
+      diff = (HGFS_GET_CURRENT_TIME() - tmp->changeTime) / 10000000;
       LOG(4, ("time since last updated is %d seconds\n", diff));
       if ( diff <= CACHE_TIMEOUT ) {
          *attr = tmp->attr;
@@ -367,7 +367,7 @@ HgfsSetAttrCache(const char* path,         //IN: Path of file or directory
    tmp = (HgfsAttrCache *)g_hash_table_lookup(g_hash_table, path);
    if (tmp != NULL) {
       tmp->attr = *attr;
-      tmp->changeTime = HGFS_GET_TIME(time(NULL));
+      tmp->changeTime = HGFS_GET_CURRENT_TIME();
       goto out;
    }
 
@@ -379,7 +379,7 @@ HgfsSetAttrCache(const char* path,         //IN: Path of file or directory
 
    Str_Strcpy(tmp->path, path, strlen(path) + 1);
    tmp->attr = *attr;
-   tmp->changeTime = HGFS_GET_TIME(time(NULL));
+   tmp->changeTime = HGFS_GET_CURRENT_TIME();
 
    g_hash_table_insert(g_hash_table, (gpointer)tmp->path, (gpointer)tmp);
 

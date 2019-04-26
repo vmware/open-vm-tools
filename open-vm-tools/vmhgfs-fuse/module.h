@@ -103,7 +103,7 @@ extern int LOGLEVEL_THRESHOLD;
 
 #define HGFS_SET_TIME(unixtm,nttime) HgfsConvertFromNtTime(&unixtm, nttime)
 #define HGFS_GET_TIME(unixtm) HgfsConvertToNtTime(unixtm, 0L)
-#define HGFS_GET_CURRENT_TIME() HgfsConvertToNtTime(CURRENT_TIME, 0L)
+#define HGFS_GET_CURRENT_TIME() HGFS_GET_TIME(time(NULL))
 /*
  * Global synchronization primitives.
  */
