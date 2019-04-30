@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -275,7 +275,7 @@ Unicode_ToLower(const char *str,    // IN
     */
 
    // Most lower-case operations don't change the length of the string.
-   utf8Dest = (char *)Util_SafeMalloc(destCapacity);
+   utf8Dest = Util_SafeMalloc(destCapacity);
 
    caseMap = ucasemap_open(locale, 0, &status);
    if (U_FAILURE(status)) {
@@ -295,7 +295,7 @@ Unicode_ToLower(const char *str,    // IN
 
    // If we need a bigger buffer, then reallocate and retry.
    destCapacity = destLen + 1;
-   utf8Dest = (char *)Util_SafeRealloc(utf8Dest, destCapacity);
+   utf8Dest = Util_SafeRealloc(utf8Dest, destCapacity);
 
    status = U_ZERO_ERROR;
    destLen = ucasemap_utf8ToLower(caseMap,
@@ -311,8 +311,9 @@ Unicode_ToLower(const char *str,    // IN
    if (U_SUCCESS(status) && status != U_STRING_NOT_TERMINATED_WARNING) {
       result = utf8Dest;
    } else {
-      ASSERT(U_SUCCESS(status));
-      ASSERT(status != U_STRING_NOT_TERMINATED_WARNING);
+      DEBUG_ONLY(Warning("%s: Invalid UTF-8 string detected.\n",
+                         __FUNCTION__));
+      free(utf8Dest);
    }
 
    return result;
@@ -356,7 +357,7 @@ Unicode_ToUpper(const char *str,    // IN
    char *result = NULL;
 
    // Most upper-case operations don't change the length of the string.
-   utf8Dest = (char *)Util_SafeMalloc(destCapacity);
+   utf8Dest = Util_SafeMalloc(destCapacity);
 
    caseMap = ucasemap_open(locale, 0, &status);
    if (U_FAILURE(status)) {
@@ -376,7 +377,7 @@ Unicode_ToUpper(const char *str,    // IN
 
    // If we need a bigger buffer, then reallocate and retry.
    destCapacity = destLen + 1;
-   utf8Dest = (char *)Util_SafeRealloc(utf8Dest, destCapacity);
+   utf8Dest = Util_SafeRealloc(utf8Dest, destCapacity);
 
    status = U_ZERO_ERROR;
    destLen = ucasemap_utf8ToUpper(caseMap,
@@ -392,12 +393,14 @@ Unicode_ToUpper(const char *str,    // IN
    if (U_SUCCESS(status) && status != U_STRING_NOT_TERMINATED_WARNING) {
       result = utf8Dest;
    } else {
-      ASSERT(U_SUCCESS(status));
-      ASSERT(status != U_STRING_NOT_TERMINATED_WARNING);
+      DEBUG_ONLY(Warning("%s: Invalid UTF-8 string detected.\n",
+                         __FUNCTION__));
+      free(utf8Dest);
    }
 
    return result;
 }
+
 
 /*
  * "ucasemap_utf8ToTitle" is not in version 3.6 of the ICU library,
@@ -447,7 +450,7 @@ Unicode_ToTitle(const char *str,    // IN
    char *result = NULL;
 
    // Most title-case operations don't change the length of the string.
-   utf8Dest = (char *)Util_SafeMalloc(destCapacity);
+   utf8Dest = Util_SafeMalloc(destCapacity);
 
    caseMap = ucasemap_open(locale, 0, &status);
    if (U_FAILURE(status)) {
@@ -467,7 +470,7 @@ Unicode_ToTitle(const char *str,    // IN
 
    // If we need a bigger buffer, then reallocate and retry.
    destCapacity = destLen + 1;
-   utf8Dest = (char *)Util_SafeRealloc(utf8Dest, destCapacity);
+   utf8Dest = Util_SafeRealloc(utf8Dest, destCapacity);
 
    status = U_ZERO_ERROR;
    destLen = ucasemap_utf8ToTitle(caseMap,
@@ -483,8 +486,9 @@ Unicode_ToTitle(const char *str,    // IN
    if (U_SUCCESS(status) && status != U_STRING_NOT_TERMINATED_WARNING) {
       result = utf8Dest;
    } else {
-      ASSERT(U_SUCCESS(status));
-      ASSERT(status != U_STRING_NOT_TERMINATED_WARNING);
+      DEBUG_ONLY(Warning("%s: Invalid UTF-8 string detected.\n",
+                         __FUNCTION__));
+      free(utf8Dest);
    }
 
    return result;
