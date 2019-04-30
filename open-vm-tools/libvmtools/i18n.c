@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -604,7 +604,7 @@ MsgLoadCatalog(const char *path)
 
          /*
           * If not a continuation line and we have a name, break out of the
-          * inner loop to update the dictionaty.
+          * inner loop to update the dictionary.
           */
          if (!cont && name != NULL) {
             g_free(line);
@@ -624,6 +624,8 @@ MsgLoadCatalog(const char *path)
       }
 
       if (error) {
+         free(name);
+         free(value);
          break;
       }
 
@@ -634,6 +636,8 @@ MsgLoadCatalog(const char *path)
              !Unicode_IsBufferValid(value, strlen(value) + 1, STRING_ENCODING_UTF8)) {
             g_warning("Invalid UTF-8 string in message catalog (key = %s)\n", name);
             error = TRUE;
+            free(name);
+            free(value);
             break;
          }
 
@@ -641,8 +645,6 @@ MsgLoadCatalog(const char *path)
          HashTable_ReplaceOrInsert(dict, name, g_strdup(value));
          free(name);
          free(value);
-         name = NULL;
-         value = NULL;
       }
 
       if (eof) {

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -571,7 +571,6 @@ MsgLoadCatalog(const char *path)
                                 g_free,
                                 g_free);
    for (;;) {
-      gboolean eof = FALSE;
       char *name = NULL;
       char *value = NULL;
       gchar *line;
@@ -593,7 +592,7 @@ MsgLoadCatalog(const char *path)
       }
 
       if (line == NULL) {
-         eof = TRUE;
+         /* This signifies EOF. */
          break;
       }
 
@@ -619,6 +618,10 @@ MsgLoadCatalog(const char *path)
       g_free(line);
 
       if (error) {
+         /*
+          * If the local DictLL_UnmarshalLine() returns NULL, name and value
+          * will remain NULL pointers.  No malloc'ed memory to free here.
+          */
          break;
       }
 
@@ -630,6 +633,8 @@ MsgLoadCatalog(const char *path)
              !g_utf8_validate(value, -1, NULL)) {
             g_warning("Invalid UTF-8 string in message catalog (key = %s)\n", name);
             error = TRUE;
+            g_free(name);
+            g_free(value);
             break;
          }
 
@@ -637,14 +642,8 @@ MsgLoadCatalog(const char *path)
          val = g_strcompress(value);
          g_free(value);
 
-         // the hashtable takes ownership of the memory for 'name' and 'value'
+         // the hashtable takes ownership of the memory for 'name' and 'val'
          g_hash_table_insert(dict, name, val);
-         name = NULL;
-         value = NULL;
-      }
-
-      if (eof) {
-         break;
       }
    }
 
