@@ -118,6 +118,6 @@ UPT1_RSSConf;
 #define UPT1_F_RSS         0x0002
 #define UPT1_F_RXVLAN      0x0004   /* VLAN tag stripping */
 #define UPT1_F_LRO         0x0008
-#define UPT1_F_INNER_LRO   0x0010   /* LRO for Geneve/VXLAN encap packets */
+#define UPT1_F_INNEROFLD   0x0010   /* Geneve/VXLAN offloading */
 
 #endif
