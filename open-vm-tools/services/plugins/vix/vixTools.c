@@ -431,6 +431,7 @@ static HashTable *userEnvironmentTable = NULL;
 static HgfsServerMgrData gVixHgfsBkdrConn;
 
 #define SECONDS_BETWEEN_INVALIDATING_HGFS_SESSIONS    120
+#define SECONDS_BETWEEN_INVALIDATING_PROC_HANDLES      60
 
 static VixError VixToolsGetFileInfo(VixCommandRequestHeader *requestMsg,
                                     char **result);
@@ -444,6 +445,11 @@ static gboolean VixToolsInvalidateInactiveHGFSSessions(void *clientData);
 
 static GSource *gHgfsSessionInvalidatorTimer = NULL;
 static guint gHgfsSessionInvalidatorTimerId;
+
+static GSource *gProcHandleInvalidatorTimer = NULL;
+static guint gProcHandleInvalidatorTimerId;
+static void VixToolsRegisterProcHandleInvalidator(void *clientData);
+static gboolean VixToolsInvalidateStaleProcHandles(void *clientData);
 
 static void VixToolsPrintFileInfo(const char *filePathName,
                                   char *fileName,
@@ -814,6 +820,14 @@ VixTools_Uninitialize(void) // IN
       gHgfsSessionInvalidatorTimer = NULL;
       gHgfsSessionInvalidatorTimerId = 0;
       g_message("%s: HGFS session Invalidator detached\n", __FUNCTION__);
+   }
+
+   if (NULL != gProcHandleInvalidatorTimer) {
+      g_source_remove(gProcHandleInvalidatorTimerId);
+      g_source_unref(gProcHandleInvalidatorTimer);
+      gProcHandleInvalidatorTimer = NULL;
+      gProcHandleInvalidatorTimerId = 0;
+      g_debug("%s: Process Handle Invalidator detached\n", __FUNCTION__);
    }
 
    HgfsServerManager_Unregister(&gVixHgfsBkdrConn);
@@ -1371,6 +1385,14 @@ VixTools_StartProgram(VixCommandRequestHeader *requestMsg, // IN
 
       // add it to the list of started programs
       VixToolsUpdateStartedProgramList(spState);
+   }
+
+   if (NULL != eventQueue) {
+      /*
+       * Register a timer to periodically invalidate any stale
+       * process handles.
+       */
+      VixToolsRegisterProcHandleInvalidator(eventQueue);
    }
 
 abort:
@@ -2016,6 +2038,45 @@ cleanup:
 /*
  *----------------------------------------------------------------------------
  *
+ * VixToolsInvalidateStaleProcHandles --
+ *
+ *    Remove stale proc handles from started programs list.
+ *
+ * Return value:
+ *    TRUE if the timer needs to be re-registerd.
+ *    FALSE if the timer needs to be deleted.
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static gboolean
+VixToolsInvalidateStaleProcHandles(void *clientData)   // IN:
+{
+   VixToolsUpdateStartedProgramList(NULL);
+
+   if (startedProcessList != NULL) {
+      /*
+       * There are still proc handles on the list, so keep the periodic timer
+       * registered.
+       */
+      return TRUE;
+   } else {
+      g_source_unref(gProcHandleInvalidatorTimer);
+      gProcHandleInvalidatorTimer = NULL;
+      gProcHandleInvalidatorTimerId = 0;
+      g_debug("%s: Process Handle Invalidator is successfully detached\n",
+              __FUNCTION__);
+      return FALSE;
+   }
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * VixToolsInvalidateInactiveHGFSSessions --
  *
  *    Send a request to HGFS server to invalidate inactive sessions.
@@ -2050,6 +2111,51 @@ VixToolsInvalidateInactiveHGFSSessions(void *clientData)   // IN:
       gHgfsSessionInvalidatorTimerId = 0;
       return FALSE;
    }
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * VixToolsRegisterProcHandleInvalidator --
+ *
+ *    Check bug 2308222 for more details. This function is designed to
+ *    cleanup any garbage proc handles in the Started Process List.
+ *
+ *    If there is a timer already registered, then this function doesn't
+ *    do anything.
+ *
+ * Return value:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static void
+VixToolsRegisterProcHandleInvalidator(void *clientData)    // IN:
+{
+   ASSERT(clientData);
+
+   if (NULL != gProcHandleInvalidatorTimer) {
+      return;
+   }
+
+   gProcHandleInvalidatorTimer =
+         g_timeout_source_new(SECONDS_BETWEEN_INVALIDATING_PROC_HANDLES * 1000);
+
+   g_source_set_callback(gProcHandleInvalidatorTimer,
+                         VixToolsInvalidateStaleProcHandles,
+                         NULL,
+                         NULL);
+
+   gProcHandleInvalidatorTimerId =
+         g_source_attach(gProcHandleInvalidatorTimer,
+                         g_main_loop_get_context((GMainLoop *) clientData));
+
+   g_debug("%s: Process Handle Invalidator registered\n", __FUNCTION__);
 }
 
 
