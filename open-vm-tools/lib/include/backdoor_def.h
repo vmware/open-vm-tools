@@ -243,7 +243,8 @@ extern "C" {
 #  define BDOOR_CMD_GMM_RESYNC_RUNTIME_INFO   6
 #define   BDOOR_CMD_PRECISIONCLOCK           97
 #  define BDOOR_CMD_PRECISIONCLOCK_GETTIME    0
-#define   BDOOR_CMD_MAX                      98
+#define   BDOOR_CMD_COREDUMP_UNSYNC          98 /* Devel only. For VMM cores */
+#define   BDOOR_CMD_MAX                      99
 
 
 /*
