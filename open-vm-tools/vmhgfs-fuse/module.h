@@ -102,11 +102,7 @@ extern int LOGLEVEL_THRESHOLD;
 #define HGFS_BLOCKSIZE 1024
 
 /* if st_mtime is a define, assume the higher resolution st_mtim is available */
-#ifdef st_mtime
-#define HGFS_HIGHRES_TIMESTAMPS
-#endif
-
-#ifdef HGFS_HIGHRES_TIMESTAMPS
+#if HAVE_STRUCT_STAT_ST_MTIMESPEC || HAVE_STRUCT_STAT_ST_MTIM
 #define HGFS_SET_TIME(unixtm,nttime) HgfsConvertFromNtTimeNsec(&unixtm, nttime)
 //#define HGFS_GET_TIME(unixtm) HgfsConvertToNtTime(unixtm, 0L)
 static INLINE uint64

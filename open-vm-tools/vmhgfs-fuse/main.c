@@ -198,21 +198,27 @@ hgfs_getattr(const char *path,    //IN: path of a file/directory
    stbuf->st_rdev = 0;
 
    if (attr->mask & HGFS_ATTR_VALID_ACCESS_TIME) {
-#ifdef HGFS_HIGHRES_TIMESTAMPS
+#if HAVE_STRUCT_STAT_ST_MTIMESPEC
+      HGFS_SET_TIME(stbuf->st_atimespec, attr->accessTime);
+#elif HAVE_STRUCT_STAT_ST_MTIM
       HGFS_SET_TIME(stbuf->st_atim, attr->accessTime);
 #else
       HGFS_SET_TIME(stbuf->st_atime, attr->accessTime);
 #endif
    }
    if (attr->mask & HGFS_ATTR_VALID_WRITE_TIME) {
-#ifdef HGFS_HIGHRES_TIMESTAMPS
+#if HAVE_STRUCT_STAT_ST_MTIMESPEC
+      HGFS_SET_TIME(stbuf->st_mtimespec, attr->writeTime);
+#elif HAVE_STRUCT_STAT_ST_MTIM
       HGFS_SET_TIME(stbuf->st_mtim, attr->writeTime);
 #else
       HGFS_SET_TIME(stbuf->st_mtime, attr->writeTime);
 #endif
    }
    if (attr->mask & HGFS_ATTR_VALID_CHANGE_TIME) {
-#ifdef HGFS_HIGHRES_TIMESTAMPS
+#if HAVE_STRUCT_STAT_ST_MTIMESPEC
+      HGFS_SET_TIME(stbuf->st_ctimespec, attr->attrChangeTime);
+#elif HAVE_STRUCT_STAT_ST_MTIM
       HGFS_SET_TIME(stbuf->st_ctim, attr->attrChangeTime);
 #else
       HGFS_SET_TIME(stbuf->st_ctime, attr->attrChangeTime);
