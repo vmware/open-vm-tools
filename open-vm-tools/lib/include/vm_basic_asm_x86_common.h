@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -306,6 +306,63 @@ RDTSC_BARRIER(void)
    _ReadWriteBarrier();
 #else
 #error No compiler defined for RDTSC_BARRIER
+#endif
+}
+
+static INLINE void
+MFENCE(void)
+{
+#ifdef __GNUC__
+   __asm__ __volatile__(
+      "mfence"
+      ::: "memory"
+   );
+#elif defined _MSC_VER
+   _ReadWriteBarrier();
+   _mm_mfence();
+   _ReadWriteBarrier();
+#else
+#error No compiler defined for MFENCE
+#endif
+}
+
+
+static INLINE void
+LFENCE(void)
+{
+#ifdef __GNUC__
+   __asm__ __volatile__(
+      "lfence"
+      : : : "memory"
+   );
+#elif defined _MSC_VER
+   _ReadWriteBarrier();
+   _mm_lfence();
+   _ReadWriteBarrier();
+#else
+#error No compiler defined for LFENCE
+#endif
+}
+
+
+static INLINE void
+SFENCE(void)
+{
+#ifdef __GNUC__
+   __asm__ __volatile__(
+      "sfence"
+      : : : "memory"
+   );
+#elif defined _MSC_VER
+   _ReadWriteBarrier();
+#if defined VM_X86_32
+   __asm sfence;
+#else
+   _mm_sfence();
+#endif
+   _ReadWriteBarrier();
+#else
+#error No compiler defined for SFENCE
 #endif
 }
 
