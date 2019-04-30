@@ -101,6 +101,7 @@ typedef struct {
 } RandomFastContext;
 
 uint32 Random_FastStream(RandomFastContext *rfc);
+uint64 Random_FastStream64(RandomFastContext *rfc);
 void Random_FastStreamSeed(RandomFastContext *rfc, uint64 seed, uint64 seq);
 
 /*

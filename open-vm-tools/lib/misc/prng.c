@@ -169,6 +169,13 @@ Random_FastStream(RandomFastContext *rfc)  // IN/OUT:
    return RandomFastImpl(&rfc->state, rfc->sequence);
 }
 
+uint64
+Random_FastStream64(RandomFastContext *rfc)  // IN/OUT:
+{
+   return QWORD(RandomFastImpl(&rfc->state, rfc->sequence),
+                RandomFastImpl(&rfc->state, rfc->sequence));
+}
+
 void
 Random_FastStreamSeed(RandomFastContext *rfc,  // OUT:
                       uint64 seed,             // IN:
