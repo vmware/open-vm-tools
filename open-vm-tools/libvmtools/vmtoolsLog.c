@@ -1866,7 +1866,11 @@ SetupLogLevelAndRpcMode(GKeyFile *cfg,
                         const gchar *level)
 {
    gboolean isDebugLogAllowed;
+   gboolean useLogTextRpc = g_key_file_get_boolean(cfg, LOGGING_GROUP,
+                                                   "useLogTextRpc", NULL);
 
+   g_info("Configuration %s.useLogTextRpc is %s\n", LOGGING_GROUP,
+          useLogTextRpc ? "TRUE" : "FALSE");
    /*
     * Perhaps it is better to have tools.conf switch that allow log debug
     * message to the host. However, this might confuse the user by allowing
@@ -1880,12 +1884,16 @@ SetupLogLevelAndRpcMode(GKeyFile *cfg,
 
    gRpcMode = RPC_OFF;
 
-   if (NULL == gChannel) {
-      /*
-       * Channel could be broken due to a VMX channel reinitialize
-       * This needs to be tolerated, but we cannot log right now...
-       * A later reset handler would refresh the channel.
-       */
+   if (!useLogTextRpc) {
+      LoadFallbackSetting(cfg);
+      if (gRpcMode != RPC_OFF) {
+         CreateRpcChannel();
+      }
+      goto done;
+   }
+
+   /* Following are when useLogTextRpc is TRUE */
+   if (!CreateRpcChannel()) {
       g_info("The LOG RPC channel is not up, skip query log state.\n");
       goto done;
    }
@@ -1921,7 +1929,11 @@ SetupLogLevelAndRpcMode(GKeyFile *cfg,
 
 done:
 
-   if (RPC_OFF == gRpcMode || NULL == gChannel) {
+   if (NULL == gChannel) {
+      gRpcMode = RPC_OFF;
+   }
+
+   if (RPC_OFF == gRpcMode) {
       /*
        * No need to keep around the RPC channel,
        * VMX can give it to other apps.
@@ -2486,21 +2498,11 @@ SetupVmxGuestLogInt(gboolean refreshRpcChannel,   // IN
                     GKeyFile *cfg,                // IN
                     const gchar *level)           // IN
 {
-   gboolean disabled = g_key_file_get_boolean(cfg, LOGGING_GROUP,
-                                             "vmxGuestLogDisabled", NULL);
-
-   if (disabled) {
-      g_info("Vmx guest logger is disabled in tools configuration");
-      gRpcMode = RPC_OFF;
-      DestroyRpcChannel();
-      return;
-   }
-
    if (refreshRpcChannel) {
       DestroyRpcChannel();
    }
 
-   if (CreateRpcChannel() && SetupLogLevelAndRpcMode(cfg, level)) {
+   if (SetupLogLevelAndRpcMode(cfg, level)) {
       g_info("Initialized the vmx guest logger.\n");
    }
 }
