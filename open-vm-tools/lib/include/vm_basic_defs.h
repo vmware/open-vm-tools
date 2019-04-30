@@ -129,14 +129,8 @@
  * Simple macros
  */
 
-
-/* Historical name. Deprecated. TODO: switch to offsetof */
-#ifndef vmw_offsetof
-#define vmw_offsetof(TYPE, MEMBER) offsetof(TYPE, MEMBER)
-#endif
-
 #define VMW_CONTAINER_OF(ptr, type, member) \
-   ((type *)((char *)(ptr) - vmw_offsetof(type, member)))
+   ((type *)((char *)(ptr) - offsetof(type, member)))
 
 #ifndef ARRAYSIZE
 #define ARRAYSIZE(a) (sizeof (a) / sizeof *(a))
