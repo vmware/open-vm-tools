@@ -83,12 +83,44 @@
 #endif
 #define __IS_FREEBSD_VER__(ver) (__IS_FREEBSD__ && __FreeBSD_version >= (ver))
 
+/*
+ * <stddef.h> provides definitions for:
+ *   NULL, offsetof
+ * References:
+ *   C90 7.17, C99 7.19, C11 7.19
+ */
+#if !defined(VMKERNEL)
+#  include <stddef.h>
+#else
+   /*
+    * Vmkernel's bogus __FreeBSD__ value causes gcc <stddef.h> to break.
+    * Work around by doing similar things. Bug 2116887 and 2229647.
+    */
+#  ifndef offsetof
+      /*
+       * We use the builtin offset for gcc/clang, except when we're running
+       * under the vmkernel's GDB macro preprocessor, since gdb doesn't
+       * understand __builtin_offsetof.
+       */
+#     if defined VMKERNEL_GDB_MACRO_BUILDER
+#        define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
+#     else
+#        define offsetof __builtin_offsetof
+#     endif
+#  endif
+
+#  ifndef NULL
+#     ifdef  __cplusplus
+#        define NULL    0
+#     else
+#        define NULL    ((void *)0)
+#     endif
+#  endif
+
+#endif  // VMKERNEL
+
 #if defined _WIN32 && defined USERLEVEL
-   #include <stddef.h>  /*
-                         * We redefine offsetof macro from stddef; make
-                         * sure that it's already defined before we do that.
-                         */
-   #include <windows.h>	// for Sleep() and LOWORD() etc.
+   #include <windows.h> // for Sleep() and LOWORD() etc.
    #undef GetFreeSpace  // Unpollute preprocessor namespace.
 #endif
 
@@ -97,39 +129,11 @@
  * Simple macros
  */
 
+
+/* Historical name. Deprecated. TODO: switch to offsetof */
 #ifndef vmw_offsetof
-#define vmw_offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
+#define vmw_offsetof(TYPE, MEMBER) offsetof(TYPE, MEMBER)
 #endif
-
-#if (defined __APPLE__ || defined __FreeBSD__) && \
-    (!defined KERNEL && !defined _KERNEL && !defined VMKERNEL && !defined __KERNEL__)
-#   include <stddef.h>
-#else
-#ifndef offsetof
-#define VMW_DEFINED_OFFSETOF
-
-/*
- * XXX While the _WIN32 implementation appears to be identical to vmw_offsetof
- * in terms of behavior, they need to be separate to match verbatim the
- * definition used by the respective compilers, to avoid a redefinition warning.
- *
- * This is necessary until we eliminate the inclusion of <windows.h> above.
- */
-#ifdef _WIN32
-#define offsetof(s,m)   (size_t)&(((s *)0)->m)
-/*
- * We use the builtin offset for gcc/clang, except when we're running under the
- * vmkernel's GDB macro preprocessor, since gdb doesn't understand
- * __builtin_offsetof.
- */
-#elif defined __GNUC__ && !defined VMKERNEL_GDB_MACRO_BUILDER
-#define offsetof __builtin_offsetof
-#else
-#define offsetof vmw_offsetof
-#endif
-
-#endif // offsetof
-#endif // __APPLE__
 
 #define VMW_CONTAINER_OF(ptr, type, member) \
    ((type *)((char *)(ptr) - vmw_offsetof(type, member)))
@@ -197,18 +201,6 @@ Max(int a, int b)
 #define QWORD_ALIGN(x)          ((((x) + 7) >> 3) << 3)
 
 #define IMPLIES(a,b) (!(a) || (b))
-
-/*
- * Not everybody (e.g., the monitor) has NULL
- */
-
-#ifndef NULL
-#ifdef  __cplusplus
-#define NULL    0
-#else
-#define NULL    ((void *)0)
-#endif
-#endif
 
 
 /*
