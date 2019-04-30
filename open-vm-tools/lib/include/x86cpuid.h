@@ -310,6 +310,12 @@ typedef enum {
  *     See lib/cpuidcompat/cpuidcompat.c for any possible overrides to
  *     these defaults.
  */
+
+/*
+ * XSAVEOPT was incorrectly missed until HWv11. See comment for
+ * DisableReqHWVersion in vmFeatureCPUID.c for more detail.
+ */
+
 typedef enum {
    CPUID_FIELD_SUPPORTED_NO,
    CPUID_FIELD_SUPPORTED_YES,
@@ -342,7 +348,7 @@ FLAG(   1,  0, ECX,  1,  1, PCLMULQDQ,                           YES,   4 ) \
 FLAG(   1,  0, ECX,  2,  1, DTES64,                              NO,    0 ) \
 FLAG(   1,  0, ECX,  3,  1, MWAIT,                               YES,   4 ) \
 FLAG(   1,  0, ECX,  4,  1, DSCPL,                               NO,    0 ) \
-FLAG(   1,  0, ECX,  5,  1, VMX,                                 YES,   4 ) \
+FLAG(   1,  0, ECX,  5,  1, VMX,                                 YES,   8 ) \
 FLAG(   1,  0, ECX,  6,  1, SMX,                                 YES, FUT ) \
 FLAG(   1,  0, ECX,  7,  1, EIST,                                NO,    0 ) \
 FLAG(   1,  0, ECX,  8,  1, TM2,                                 NO,    0 ) \
@@ -353,7 +359,7 @@ FLAG(   1,  0, ECX, 12,  1, FMA,                                 YES,   8 ) \
 FLAG(   1,  0, ECX, 13,  1, CMPXCHG16B,                          YES,   4 ) \
 FLAG(   1,  0, ECX, 14,  1, xTPR,                                NO,    0 ) \
 FLAG(   1,  0, ECX, 15,  1, PDCM,                                NO,    0 ) \
-FLAG(   1,  0, ECX, 17,  1, PCID,                                YES,   8 ) \
+FLAG(   1,  0, ECX, 17,  1, PCID,                                YES,   9 ) \
 FLAG(   1,  0, ECX, 18,  1, DCA,                                 NO,    0 ) \
 FLAG(   1,  0, ECX, 19,  1, SSE41,                               YES,   4 ) \
 FLAG(   1,  0, ECX, 20,  1, SSE42,                               YES,   4 ) \
@@ -866,9 +872,9 @@ FIELD( 81,  0, EBX,  0, 16, LEAF81_BRAND_ID,                     ANY,   4 ) \
 FIELD( 81,  0, EBX, 16, 16, UNDEF,                               ANY,   4 ) \
 FLAG(  81,  0, ECX,  0,  1, LAHF64,                              YES,   4 ) \
 FLAG(  81,  0, ECX,  1,  1, CMPLEGACY,                           ANY,   9 ) \
-FLAG(  81,  0, ECX,  2,  1, SVM,                                 YES,   7 ) \
+FLAG(  81,  0, ECX,  2,  1, SVM,                                 YES,   8 ) \
 FLAG(  81,  0, ECX,  3,  1, EXTAPICSPC,                          YES,   4 ) \
-FLAG(  81,  0, ECX,  4,  1, CR8AVAIL,                            YES,   4 ) \
+FLAG(  81,  0, ECX,  4,  1, CR8AVAIL,                            YES,   9 ) \
 FLAG(  81,  0, ECX,  5,  1, ABM,                                 YES,   4 ) \
 FLAG(  81,  0, ECX,  6,  1, SSE4A,                               YES,   4 ) \
 FLAG(  81,  0, ECX,  7,  1, MISALIGNED_SSE,                      YES,   4 ) \
@@ -912,7 +918,7 @@ FLAG(  81,  0, EDX, 22,  1, MMXEXT,                              YES,   4 ) \
 FLAG(  81,  0, EDX, 23,  1, LEAF81_MMX,                          YES,   4 ) \
 FLAG(  81,  0, EDX, 24,  1, LEAF81_FXSR,                         YES,   4 ) \
 FLAG(  81,  0, EDX, 25,  1, FFXSR,                               YES,   4 ) \
-FLAG(  81,  0, EDX, 26,  1, PDPE1GB,                             YES,   7 ) \
+FLAG(  81,  0, EDX, 26,  1, PDPE1GB,                             YES,   9 ) \
 FLAG(  81,  0, EDX, 27,  1, RDTSCP,                              YES,   4 ) \
 FLAG(  81,  0, EDX, 29,  1, LM,                                  YES,   4 ) \
 FLAG(  81,  0, EDX, 30,  1, 3DNOWPLUS,                           YES,   4 ) \
