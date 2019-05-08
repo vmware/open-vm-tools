@@ -83,8 +83,12 @@ extern "C" {
 /* FCP target used in KDE. */
 #define FCP_TARGET_NAME_URI_LIST             "text/uri-list"
 #define FCP_TARGET_INFO_URI_LIST             1
+/* FCP target used for nautilus 3.30 or later. */
+#define FCP_TARGET_NAME_NAUTILUS_FILES       "UTF8_STRING"
+#define FCP_TARGET_MIME_NAUTILUS_FILES       "x-special/nautilus-clipboard"
+#define FCP_TARGET_INFO_NAUTILUS_FILES       2
 /* Number of FCP targets. */
-#define NR_FCP_TARGETS                       2
+#define NR_FCP_TARGETS                       3
 
 #define VMWARE_TARGET                        "vmware-target"
 
