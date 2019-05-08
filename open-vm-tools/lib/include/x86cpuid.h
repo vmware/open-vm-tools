@@ -484,7 +484,7 @@ FLAG(   7,  0, EDX, 10,  1, LEAF7_RSVD,                          NO,    0 )
 #define CPUID_FIELD_DATA_LEVEL_7                                            \
 FLAG(   7,  0, EBX,  0,  1, FSGSBASE,                            YES,   9 ) \
 FLAG(   7,  0, EBX,  1,  1, TSC_ADJUST,                          ANY,  11 ) \
-FLAG(   7,  0, EBX,  2,  1, SGX,                                 YES,  17 ) \
+FLAG(   7,  0, EBX,  2,  1, SGX,                                 ANY,  17 ) \
 FLAG(   7,  0, EBX,  3,  1, BMI1,                                YES,   9 ) \
 FLAG(   7,  0, EBX,  4,  1, HLE,                                 YES,  11 ) \
 FLAG(   7,  0, EBX,  5,  1, AVX2,                                YES,  11 ) \
@@ -532,7 +532,7 @@ FLAG(   7,  0, ECX, 22,  1, RDPID,                               YES,  17 ) \
 FLAG(   7,  0, ECX, 25,  1, CLDEMOTE,                            NO,    0 ) \
 FLAG(   7,  0, ECX, 27,  1, MOVDIRI,                             NO,    0 ) \
 FLAG(   7,  0, ECX, 28,  1, MOVDIR64B,                           NO,    0 ) \
-FLAG(   7,  0, ECX, 30,  1, SGX_LC,                              YES,  17 ) \
+FLAG(   7,  0, ECX, 30,  1, SGX_LC,                              ANY,  17 ) \
 FLAG(   7,  0, EDX,  2,  1, AVX512QVNNIW,                        YES,  16 ) \
 FLAG(   7,  0, EDX,  3,  1, AVX512QFMAPS,                        YES,  16 ) \
 FLAG(   7,  0, EDX,  4,  1, FAST_SHORT_REPMOV,                   NO,    0 ) \
@@ -673,24 +673,24 @@ FIELD( 10,  1, EDX,  0, 16, PQE_L3_MAX_COS_NUMBER,               NO,    0 )
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_12                                           \
-FLAG(  12,  0, EAX,  0,  1, SGX1,                                YES,  17 ) \
-FLAG(  12,  0, EAX,  1,  1, SGX2,                                YES, FUT ) \
-FLAG(  12,  0, EAX,  5,  1, SGX_OVERSUB_ENCLV,                   YES, FUT ) \
-FLAG(  12,  0, EAX,  6,  1, SGX_OVERSUB_ENCLS,                   YES, FUT ) \
-FLAG(  12,  0, EBX,  0,  1, SGX_MISCSELECT_EXINFO,               YES, FUT ) \
+FLAG(  12,  0, EAX,  0,  1, SGX1,                                ANY,  17 ) \
+FLAG(  12,  0, EAX,  1,  1, SGX2,                                ANY, FUT ) \
+FLAG(  12,  0, EAX,  5,  1, SGX_OVERSUB_ENCLV,                   ANY, FUT ) \
+FLAG(  12,  0, EAX,  6,  1, SGX_OVERSUB_ENCLS,                   ANY, FUT ) \
+FLAG(  12,  0, EBX,  0,  1, SGX_MISCSELECT_EXINFO,               ANY, FUT ) \
 FIELD( 12,  0, EBX,  1, 31, SGX_MISCSELECT_RSVD,                 NO,    0 ) \
-FIELD( 12,  0, EDX,  0,  8, MAX_ENCLAVE_SIZE_NOT64,              YES,  17 ) \
-FIELD( 12,  0, EDX,  8,  8, MAX_ENCLAVE_SIZE_64,                 YES,  17 ) \
-FIELD( 12,  1, EAX,  0, 32, SECS_ATTRIBUTES0,                    YES,  17 ) \
-FIELD( 12,  1, EBX,  0, 32, SECS_ATTRIBUTES1,                    YES,  17 ) \
-FIELD( 12,  1, ECX,  0, 32, SECS_ATTRIBUTES2,                    YES,  17 ) \
-FIELD( 12,  1, EDX,  0, 32, SECS_ATTRIBUTES3,                    YES,  17 ) \
-FIELD( 12,  2, EAX,  0, 15, EPC00_VALID,                         YES,  17 ) \
-FIELD( 12,  2, EAX, 12, 20, EPC00_BASE_LOW,                      YES,  17 ) \
-FIELD( 12,  2, EBX,  0, 20, EPC00_BASE_HIGH,                     YES,  17 ) \
-FIELD( 12,  2, ECX,  0, 15, EPC00_PROTECTED,                     YES,  17 ) \
-FIELD( 12,  2, ECX, 12, 20, EPC00_SIZE_LOW,                      YES,  17 ) \
-FIELD( 12,  2, EDX,  0, 20, EPC00_SIZE_HIGH,                     YES,  17 ) \
+FIELD( 12,  0, EDX,  0,  8, MAX_ENCLAVE_SIZE_NOT64,              ANY,  17 ) \
+FIELD( 12,  0, EDX,  8,  8, MAX_ENCLAVE_SIZE_64,                 ANY,  17 ) \
+FIELD( 12,  1, EAX,  0, 32, SECS_ATTRIBUTES0,                    ANY,  17 ) \
+FIELD( 12,  1, EBX,  0, 32, SECS_ATTRIBUTES1,                    ANY,  17 ) \
+FIELD( 12,  1, ECX,  0, 32, SECS_ATTRIBUTES2,                    ANY,  17 ) \
+FIELD( 12,  1, EDX,  0, 32, SECS_ATTRIBUTES3,                    ANY,  17 ) \
+FIELD( 12,  2, EAX,  0, 15, EPC00_VALID,                         ANY,  17 ) \
+FIELD( 12,  2, EAX, 12, 20, EPC00_BASE_LOW,                      ANY,  17 ) \
+FIELD( 12,  2, EBX,  0, 20, EPC00_BASE_HIGH,                     ANY,  17 ) \
+FIELD( 12,  2, ECX,  0, 15, EPC00_PROTECTED,                     ANY,  17 ) \
+FIELD( 12,  2, ECX, 12, 20, EPC00_SIZE_LOW,                      ANY,  17 ) \
+FIELD( 12,  2, EDX,  0, 20, EPC00_SIZE_HIGH,                     ANY,  17 ) \
 FIELD( 12,  3, EAX,  0,  4, EPC01_VALID,                         NO,    0 ) \
 FIELD( 12,  3, EAX, 12, 20, EPC01_BASE_LOW,                      NO,    0 ) \
 FIELD( 12,  3, EBX,  0, 20, EPC01_BASE_HIGH,                     NO,    0 ) \
