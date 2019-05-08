@@ -387,10 +387,7 @@ ProcMgr_ListProcesses(void)
       }
 
       if (numRead > 0) {
-         /*
-          * Stop before we hit the final '\0'; want to leave it alone.
-          */
-         for (replaceLoop = 0 ; replaceLoop < (numRead - 1) ; replaceLoop++) {
+         for (replaceLoop = 0 ; replaceLoop < numRead ; replaceLoop++) {
             if ('\0' == cmdLineTemp[replaceLoop]) {
                if (cmdNameLookup) {
                   /*
@@ -410,7 +407,16 @@ ProcMgr_ListProcesses(void)
                   procInfo.procCmdName = Unicode_Alloc(cmdNameBegin, STRING_ENCODING_DEFAULT);
                   cmdNameLookup = FALSE;
                }
-               cmdLineTemp[replaceLoop] = ' ';
+
+               /*
+                * In /proc/{PID}/cmdline file, the command and the
+                * arguments are separated by '\0'. We need to replace
+                * only the intermediate '\0' with ' ' and not the trailing
+                * NUL characer.
+                */
+               if (replaceLoop < (numRead - 1)) {
+                  cmdLineTemp[replaceLoop] = ' ';
+               }
             }
          }
       } else {
