@@ -256,6 +256,12 @@ HgfsStatfs(const char* path,            // IN : Path to the file
          stat->f_blocks = (totalBytes + HGFS_BLOCKSIZE - 1) / HGFS_BLOCKSIZE;
          stat->f_bfree = (freeBytes + HGFS_BLOCKSIZE - 1) / HGFS_BLOCKSIZE;
          stat->f_bavail = stat->f_bfree;
+
+         /*
+          * Files application requires this field see bug 2287577.
+          * This is using the same as the GNU C Library defined NAME_MAX
+          */
+         stat->f_namemax = NAME_MAX;
          break;
 
       case -EPERM:
