@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -56,6 +56,7 @@
 #define MAC_ADDR_SIZE 19
 #define IP_ADDR_SIZE 16
 #define PARTITION_NAME_SIZE MAX_VALUE_LEN
+#define FSTYPE_SIZE 260 // Windows fs types can be up to MAX_PATH chars
 
 /* Value to be used when "primary" IP address is indeterminable. */
 #define GUESTINFO_IP_UNKNOWN "unknown"
@@ -108,6 +109,15 @@ typedef struct _DiskInfo {
 } GuestDiskInfo, *PGuestDiskInfo;
 
 #define DISK_INFO_VERSION_1 1
+
+/* Disk info json keys */
+#define DISK_INFO_KEY_VERSION          "version"
+#define DISK_INFO_KEY_DISKS            "disks"
+#define DISK_INFO_KEY_DISK_NAME        "name"
+#define DISK_INFO_KEY_DISK_FREE        "free"
+#define DISK_INFO_KEY_DISK_SIZE        "size"
+#define DISK_INFO_KEY_DISK_UUID        "uuid"
+#define DISK_INFO_KEY_DISK_FSTYPE      "fstype"
 
 /**
  * @}

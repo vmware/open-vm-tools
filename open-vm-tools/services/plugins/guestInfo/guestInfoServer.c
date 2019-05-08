@@ -1231,14 +1231,15 @@ GuestInfoSendDiskInfoV1(ToolsAppCtx *ctx,             // IN
     * with older VMXs.
     */
    static char headerFmt[] = "%s {\n"
-                             "\"version\":\"%d\",\n"
-                             "\"disks\":[\n";
+                             "\"" DISK_INFO_KEY_VERSION "\":\"%d\",\n"
+                             "\"" DISK_INFO_KEY_DISKS "\":[\n";
    static char jsonPerDiskFmt[] = "{"
-                                  "\"name\":\"%s\","
-                                  "\"free\":\"%"FMT64"u\","
-                                  "\"size\":\"%"FMT64"u\"";
+                                  "\"" DISK_INFO_KEY_DISK_NAME "\":\"%s\","
+                                  "\"" DISK_INFO_KEY_DISK_FREE "\":\"%"FMT64"u\","
+                                  "\"" DISK_INFO_KEY_DISK_SIZE "\":\"%"FMT64"u\"";
 #ifdef _WIN32
-   static char jsonPerDiskUUIDFmt[] = ",\"uuid\":\"%s\"";
+   static char jsonPerDiskUUIDFmt[] = ",\"" DISK_INFO_KEY_DISK_UUID "\":\"%s\"";
+   static char jsonPerDiskFsTypeFmt[] = ",\"" DISK_INFO_KEY_DISK_FSTYPE "\":\"%s\"";
 #endif
    static char jsonPerDiskFmtFooter[] = "},\n";
    static char jsonSuffix[] = "]}";
@@ -1276,6 +1277,12 @@ GuestInfoSendDiskInfoV1(ToolsAppCtx *ctx,             // IN
                                pdi->partitionList[i].uuid);
             DynBuf_Append(&dynBuffer, tmpBuf, len);
          }
+      }
+
+      if (pdi->partitionList[i].fsType[0] != '\0') {
+         len = Str_Snprintf(tmpBuf, sizeof tmpBuf, jsonPerDiskFsTypeFmt,
+                            pdi->partitionList[i].fsType);
+         DynBuf_Append(&dynBuffer, tmpBuf, len);
       }
 #endif
       DynBuf_Append(&dynBuffer, jsonPerDiskFmtFooter,
