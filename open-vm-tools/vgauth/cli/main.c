@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -660,6 +660,7 @@ next:
    }
 
    VGAuth_Shutdown(ctx);
+   Pref_Shutdown(prefs);
    g_free(appName);
    return (err == VGAUTH_E_OK) ? 0 : -1;
 }
