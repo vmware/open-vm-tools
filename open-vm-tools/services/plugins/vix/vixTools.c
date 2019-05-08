@@ -9741,7 +9741,6 @@ VixToolsListAuthAliases(VixCommandRequestHeader *requestMsg, // IN
    char *destPtr;
    char *endDestPtr;
    char *tmpBuf = NULL;
-   char *tmpBuf2 = NULL;
    char *recordBuf;
    size_t recordSize;
    char *escapedStr = NULL;
@@ -9806,15 +9805,17 @@ VixToolsListAuthAliases(VixCommandRequestHeader *requestMsg, // IN
          err = VIX_E_OUT_OF_MEMORY;
          goto abort;
       }
-      tmpBuf2 = Str_Asprintf(NULL, "<record><pemCert>%s</pemCert>",
-                             escapedStr);
+      tmpBuf = Str_Asprintf(NULL, "<record><pemCert>%s</pemCert>",
+                            escapedStr);
       free(escapedStr);
       escapedStr = NULL;
-      if (tmpBuf2 == NULL) {
+      if (tmpBuf == NULL) {
          err = VIX_E_OUT_OF_MEMORY;
          goto abort;
       }
       for (j = 0; j < uaList[i].numInfos; j++) {
+         char *nextBuf;
+
          if (uaList[i].infos[j].comment) {
             escapedStr = VixToolsEscapeXMLString(uaList[i].infos[j].comment);
             if (escapedStr == NULL) {
@@ -9829,25 +9830,26 @@ VixToolsListAuthAliases(VixCommandRequestHeader *requestMsg, // IN
                goto abort;
             }
          }
-         tmpBuf = Str_Asprintf(NULL,
-                               "%s"
-                               "<alias>"
-                               "<type>%d</type>"
-                               "<name>%s</name>"
-                               "<comment>%s</comment>"
-                               "</alias>",
-                               tmpBuf2,
-                               (uaList[i].infos[j].subject.type == VGAUTH_SUBJECT_NAMED)
-                                  ? VIX_GUEST_AUTH_SUBJECT_TYPE_NAMED :
-                                  VIX_GUEST_AUTH_SUBJECT_TYPE_ANY,
-                               escapedStr2 ? escapedStr2 : "",
-                               escapedStr ? escapedStr : "");
-         if (tmpBuf == NULL) {
+         nextBuf = Str_Asprintf(NULL,
+                                "%s"
+                                "<alias>"
+                                "<type>%d</type>"
+                                "<name>%s</name>"
+                                "<comment>%s</comment>"
+                                "</alias>",
+                                tmpBuf,
+                                (uaList[i].infos[j].subject.type ==
+                                   VGAUTH_SUBJECT_NAMED) ?
+                                      VIX_GUEST_AUTH_SUBJECT_TYPE_NAMED :
+                                      VIX_GUEST_AUTH_SUBJECT_TYPE_ANY,
+                                escapedStr2 ? escapedStr2 : "",
+                                escapedStr ? escapedStr : "");
+         if (nextBuf == NULL) {
             err = VIX_E_OUT_OF_MEMORY;
             goto abort;
          }
-         free(tmpBuf2);
-         tmpBuf2 = tmpBuf;
+         free(tmpBuf);
+         tmpBuf = nextBuf;
          free(escapedStr);
          escapedStr = NULL;
          free(escapedStr2);
@@ -9857,7 +9859,7 @@ VixToolsListAuthAliases(VixCommandRequestHeader *requestMsg, // IN
                                "%s</record>",
                                tmpBuf);
       free(tmpBuf);
-      tmpBuf = tmpBuf2 = NULL;
+      tmpBuf = NULL;
       if (recordBuf == NULL) {
          err = VIX_E_OUT_OF_MEMORY;
          goto abort;
@@ -9877,7 +9879,6 @@ VixToolsListAuthAliases(VixCommandRequestHeader *requestMsg, // IN
 
 abort:
    free(tmpBuf);
-   free(tmpBuf2);
    free(escapedStr);
    free(escapedStr2);
    VGAuth_FreeUserAliasList(num, uaList);
@@ -9937,7 +9938,6 @@ VixToolsListMappedAliases(VixCommandRequestHeader *requestMsg, // IN
    char *destPtr;
    char *endDestPtr;
    char *tmpBuf = NULL;
-   char *tmpBuf2 = NULL;
    char *recordBuf;
    char *escapedStr = NULL;
    char *escapedStr2 = NULL;
@@ -10001,19 +10001,21 @@ VixToolsListMappedAliases(VixCommandRequestHeader *requestMsg, // IN
          err = VIX_E_OUT_OF_MEMORY;
          goto abort;
       }
-      tmpBuf2 = Str_Asprintf(NULL, "<record><pemCert>%s</pemCert>"
-                             "<userName>%s</userName>",
-                             escapedStr,
-                             escapedStr2);
+      tmpBuf = Str_Asprintf(NULL, "<record><pemCert>%s</pemCert>"
+                            "<userName>%s</userName>",
+                            escapedStr,
+                            escapedStr2);
       g_free(escapedStr2);
       g_free(escapedStr);
       escapedStr = NULL;
       escapedStr2 = NULL;
-      if (tmpBuf2 == NULL) {
+      if (tmpBuf == NULL) {
          err = VIX_E_OUT_OF_MEMORY;
          goto abort;
       }
       for (j = 0; j < maList[i].numSubjects; j++) {
+         char *nextBuf;
+
          if (maList[i].subjects[j].type == VGAUTH_SUBJECT_NAMED) {
             escapedStr = VixToolsEscapeXMLString(maList[i].subjects[j].val.name);
             if (escapedStr == NULL) {
@@ -10021,23 +10023,24 @@ VixToolsListMappedAliases(VixCommandRequestHeader *requestMsg, // IN
                goto abort;
             }
          }
-         tmpBuf = Str_Asprintf(NULL,
-                               "%s"
-                               "<alias>"
-                               "<type>%d</type>"
-                               "<name>%s</name>"
-                               "</alias>",
-                               tmpBuf2,
-                               (maList[i].subjects[j].type == VGAUTH_SUBJECT_NAMED)
-                                  ? VIX_GUEST_AUTH_SUBJECT_TYPE_NAMED :
-                                  VIX_GUEST_AUTH_SUBJECT_TYPE_ANY,
+         nextBuf = Str_Asprintf(NULL,
+                                "%s"
+                                "<alias>"
+                                "<type>%d</type>"
+                                "<name>%s</name>"
+                                "</alias>",
+                                tmpBuf,
+                                (maList[i].subjects[j].type ==
+                                   VGAUTH_SUBJECT_NAMED) ?
+                                      VIX_GUEST_AUTH_SUBJECT_TYPE_NAMED :
+                                      VIX_GUEST_AUTH_SUBJECT_TYPE_ANY,
                                 escapedStr ? escapedStr : "");
-         if (tmpBuf == NULL) {
+         if (nextBuf == NULL) {
             err = VIX_E_OUT_OF_MEMORY;
             goto abort;
          }
-         free(tmpBuf2);
-         tmpBuf2 = tmpBuf;
+         free(tmpBuf);
+         tmpBuf = nextBuf;
          free(escapedStr);
          escapedStr = NULL;
       }
@@ -10045,7 +10048,7 @@ VixToolsListMappedAliases(VixCommandRequestHeader *requestMsg, // IN
                                "%s</record>",
                                tmpBuf);
       free(tmpBuf);
-      tmpBuf = tmpBuf2 = NULL;
+      tmpBuf = NULL;
       if (recordBuf == NULL) {
          err = VIX_E_OUT_OF_MEMORY;
          goto abort;
@@ -10065,7 +10068,6 @@ VixToolsListMappedAliases(VixCommandRequestHeader *requestMsg, // IN
 
 abort:
    free(tmpBuf);
-   free(tmpBuf2);
    free(escapedStr);
    free(escapedStr2);
    VGAuth_FreeMappedAliasList(num, maList);
