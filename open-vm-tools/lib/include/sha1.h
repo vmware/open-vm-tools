@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -143,13 +143,13 @@ void SHA1MultiBuffer(uint32 numBuffers,
 #if !defined VMKBOOT && !defined VMKERNEL
 
 /* OpenSSL opaque type for hashing. Opaque as of openssl-1.1.0. */
-struct env_md_ctx_st;
+struct evp_md_ctx_st;
 
 typedef struct {
 #ifdef __APPLE__
    CC_SHA1_CTX cc_ctx;
 #else
-   struct env_md_ctx_st *md;  /* OpenSSL EVP_MD_CTX */
+   struct evp_md_ctx_st *md;  /* OpenSSL EVP_MD_CTX */
 #endif
 } CryptoSHA1_CTX;
 
