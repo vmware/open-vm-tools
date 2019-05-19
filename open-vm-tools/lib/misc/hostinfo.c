@@ -228,6 +228,8 @@ Hostinfo_GetCpuid(HostinfoCpuIdInfo *info) // OUT
       info->vendor = CPUID_VENDOR_INTEL;
    } else if (strcmp(cpuid.id0.name, CPUID_AMD_VENDOR_STRING_FIXED) == 0) {
       info->vendor = CPUID_VENDOR_AMD;
+   } else if (strcmp(cpuid.id0.name, CPUID_HYGON_VENDOR_STRING_FIXED) == 0) {
+      info->vendor = CPUID_VENDOR_HYGON;
    } else {
       info->vendor = CPUID_VENDOR_UNKNOWN;
    }
