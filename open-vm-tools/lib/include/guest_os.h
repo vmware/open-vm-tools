@@ -526,7 +526,12 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 /* THIS SPACE FOR RENT (Windows 10 official server variant names) */
 
-#define STR_OS_WIN_TENSERVER_GENERIC_FULL        "Windows Server 2016"
+#define STR_OS_WIN_TENSERVER_2016_GENERIC_FULL "Windows Server 2016"
+#define STR_OS_WIN_TENSERVER_2019_GENERIC_FULL "Windows Server 2019"
+
+/* Win 10 server versions are distinguished by major build number */
+#define WIN10SERVER2016_BUILD14393 14393
+#define WIN10SERVER2019_BUILD17763 17763
 
 /* Microsoft Hyper-V */
 #define STR_OS_HYPER_V "winHyperV"
