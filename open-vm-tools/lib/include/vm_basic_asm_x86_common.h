@@ -641,4 +641,164 @@ LOCKED_INSN_BARRIER(void)
 #define MMIO_RW_BARRIER_W()   SFENCE()
 #define MMIO_RW_BARRIER_RW()  MFENCE()
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * MMIORead8 --
+ *
+ *      IO read from address "addr".
+ *
+ * Results:
+ *      8-bit value at given location.
+ *
+ *----------------------------------------------------------------------
+ */
+static INLINE uint8
+MMIORead8(const volatile void *addr)
+{
+   volatile uint8 *addr8 = (volatile uint8 *) addr;
+
+   return *addr8;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * MMIOWrite8 --
+ *
+ *      IO write to address "addr".
+ *
+ *----------------------------------------------------------------------
+ */
+static INLINE void
+MMIOWrite8(volatile void *addr, // IN
+           uint8 val)           // IN
+{
+   volatile uint8 *addr8 = (volatile uint8 *) addr;
+
+   *addr8 = val;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * MMIORead16 --
+ *
+ *      IO read from address "addr".
+ *
+ * Results:
+ *      16-bit value at given location.
+ *
+ *----------------------------------------------------------------------
+ */
+static INLINE uint16
+MMIORead16(const volatile void *addr)
+{
+   volatile uint16 *addr16 = (volatile uint16 *) addr;
+
+   return *addr16;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * MMIOWrite16 --
+ *
+ *      IO write to address "addr".
+ *
+ *----------------------------------------------------------------------
+ */
+static INLINE void
+MMIOWrite16(volatile void *addr,  // IN
+            uint16 val)           // IN
+{
+   volatile uint16 *addr16 = (volatile uint16 *) addr;
+
+   *addr16 = val;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * MMIORead32 --
+ *
+ *      IO read from address "addr".
+ *
+ * Results:
+ *      32-bit value at given location.
+ *
+ *----------------------------------------------------------------------
+ */
+static INLINE uint32
+MMIORead32(const volatile void *addr)
+{
+   volatile uint32 *addr32 = (volatile uint32 *) addr;
+
+   return *addr32;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * MMIOWrite32 --
+ *
+ *      IO write to address "addr".
+ *
+ *----------------------------------------------------------------------
+ */
+static INLINE void
+MMIOWrite32(volatile void *addr, // OUT
+            uint32 val)
+{
+   volatile uint32 *addr32 = (volatile uint32 *) addr;
+
+   *addr32 = val;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * MMIORead64 --
+ *
+ *      IO read from address "addr".
+ *
+ * Results:
+ *      64-bit value at given location.
+ *
+ *----------------------------------------------------------------------
+ */
+static INLINE uint64
+MMIORead64(const volatile void *addr)
+{
+   volatile uint64 *addr64 = (volatile uint64 *) addr;
+
+   return *addr64;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * MMIOWrite64 --
+ *
+ *      IO write to address "addr".
+ *
+ *----------------------------------------------------------------------
+ */
+static INLINE void
+MMIOWrite64(volatile void *addr, // OUT
+            uint64 val)
+{
+   volatile uint64 *addr64 = (volatile uint64 *) addr;
+
+   *addr64 = val;
+}
+
 #endif // _VM_BASIC_ASM_X86_COMMON_H_
