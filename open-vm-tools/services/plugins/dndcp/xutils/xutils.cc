@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1385,6 +1385,73 @@ GetPointerLocation(const Glib::RefPtr<Gdk::Window>& window, // IN
 #else
    window->get_display()->get_pointer(x, y, mask);
 #endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * xutils::GetXWindowSize --
+ *
+ *      Get the width and height of the given window.
+ *
+ * Results:
+ *      true if success, false otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+bool GetXWindowSize(const Glib::RefPtr<Gdk::Window>& window, // IN
+                    int& width,                              // OUT
+                    int& height)                             // OUT
+{
+   Glib::RefPtr<Gdk::Display> display = Gdk::Display::get_default();
+   ::Display *xdisplay = GDK_DISPLAY_XDISPLAY(display->gobj());
+   XWindowAttributes attr;
+   GdkWindow *gdkwin = const_cast<GdkWindow *>(window->gobj());
+
+   if (XGetWindowAttributes(xdisplay, GDK_WINDOW_XID(gdkwin), &attr)) {
+      width = attr.width;
+      height = attr.height;
+      return true;
+   }
+   return false;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * xutils::GetXWindowOrigin --
+ *
+ *      Get the x and y of the given window.
+ *
+ * Results:
+ *      true if success, false otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+bool GetXWindowOrigin(const Glib::RefPtr<Gdk::Window>& window, // IN
+                      int& x,                                  // OUT
+                      int& y)                                  // OUT
+{
+   Glib::RefPtr<Gdk::Display> display = Gdk::Display::get_default();
+   ::Display *xdisplay = GDK_DISPLAY_XDISPLAY(display->gobj());
+   GdkWindow *gdkwin = const_cast<GdkWindow *>(window->gobj());
+   Window child;
+   if (XTranslateCoordinates(xdisplay, GDK_WINDOW_XID(gdkwin),
+                             XDefaultRootWindow(xdisplay), 0, 0, &x, &y,
+                             &child)) {
+      return true;
+   }
+   return false;
 }
 
 

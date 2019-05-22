@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -110,7 +110,9 @@ void GetPointerLocation(const Glib::RefPtr<Gdk::Window>& window,
 
 extern sigc::signal<void, Glib::RefPtr<Gdk::Screen> > workAreaChanged;
 
-
+bool GetXWindowSize(const Glib::RefPtr<Gdk::Window>& window, int& width,
+                    int& height);
+bool GetXWindowOrigin(const Glib::RefPtr<Gdk::Window>& window, int& x, int& y);
 } // namespace xutils
 
 
