@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -29,6 +29,7 @@
 #if defined(G_PLATFORM_WIN32)
 #  include <process.h>
 #  include <windows.h>
+#  include "win32Access.h"
 #else
 #  include <fcntl.h>
 #  include <unistd.h>
@@ -305,15 +306,11 @@ FileLoggerOpen(FileLogger *data)
 #ifdef VMX86_TOOLS
       /*
        * Make the logfile readable only by user and root/administrator.
-       */
-#ifdef _WIN32
-      /*
-       * XXX TODO: Set the ACLs properly for Windows.
-       */
-#else
-      /*
        * Can't do anything if it fails, so ignore return.
        */
+#ifdef _WIN32
+      (void) Win32Access_SetFileOwnerRW(path);
+#else
       (void) chmod(path, 0600);
 #endif
 #endif // VMX86_TOOLS
