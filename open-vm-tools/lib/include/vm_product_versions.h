@@ -48,7 +48,7 @@
    #if defined(VDM_CLIENT)
       #define PRODUCT_VERSION    5,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
    #else
-      #define PRODUCT_VERSION    7,8,0,PRODUCT_BUILD_NUMBER_NUMERIC
+      #define PRODUCT_VERSION    7,10,0,PRODUCT_BUILD_NUMBER_NUMERIC
    #endif
 // VMX86_DESKTOP must be last because it is the default and is always defined.
 #elif defined(VMX86_DESKTOP)
