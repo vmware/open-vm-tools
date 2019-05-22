@@ -1237,9 +1237,9 @@ GuestInfoSendDiskInfoV1(ToolsAppCtx *ctx,             // IN
                                   "\"" DISK_INFO_KEY_DISK_NAME "\":\"%s\","
                                   "\"" DISK_INFO_KEY_DISK_FREE "\":\"%"FMT64"u\","
                                   "\"" DISK_INFO_KEY_DISK_SIZE "\":\"%"FMT64"u\"";
+   static char jsonPerDiskFsTypeFmt[] = ",\"" DISK_INFO_KEY_DISK_FSTYPE "\":\"%s\"";
 #ifdef _WIN32
    static char jsonPerDiskUUIDFmt[] = ",\"" DISK_INFO_KEY_DISK_UUID "\":\"%s\"";
-   static char jsonPerDiskFsTypeFmt[] = ",\"" DISK_INFO_KEY_DISK_FSTYPE "\":\"%s\"";
 #endif
    static char jsonPerDiskFmtFooter[] = "},\n";
    static char jsonSuffix[] = "]}";
@@ -1270,6 +1270,12 @@ GuestInfoSendDiskInfoV1(ToolsAppCtx *ctx,             // IN
                          pdi->partitionList[i].totalBytes);
       DynBuf_Append(&dynBuffer, tmpBuf, len);
       g_free(b64name);
+
+      if (pdi->partitionList[i].fsType[0] != '\0') {
+         len = Str_Snprintf(tmpBuf, sizeof tmpBuf, jsonPerDiskFsTypeFmt,
+                            pdi->partitionList[i].fsType);
+         DynBuf_Append(&dynBuffer, tmpBuf, len);
+      }
 #ifdef _WIN32
       if (reportUUID) {
          if (pdi->partitionList[i].uuid[0] != '\0') {
@@ -1277,12 +1283,6 @@ GuestInfoSendDiskInfoV1(ToolsAppCtx *ctx,             // IN
                                pdi->partitionList[i].uuid);
             DynBuf_Append(&dynBuffer, tmpBuf, len);
          }
-      }
-
-      if (pdi->partitionList[i].fsType[0] != '\0') {
-         len = Str_Snprintf(tmpBuf, sizeof tmpBuf, jsonPerDiskFsTypeFmt,
-                            pdi->partitionList[i].fsType);
-         DynBuf_Append(&dynBuffer, tmpBuf, len);
       }
 #endif
       DynBuf_Append(&dynBuffer, jsonPerDiskFmtFooter,

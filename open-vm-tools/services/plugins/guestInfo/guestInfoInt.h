@@ -46,11 +46,10 @@ typedef struct _PartitionEntryInt {
    uint64 freeBytes;
    uint64 totalBytes;
    char name[PARTITION_NAME_SIZE];
+   char fsType[FSTYPE_SIZE];
 #ifdef _WIN32
    /* UUID of the disk, if known.  Currently only Windows */
    char uuid[PARTITION_NAME_SIZE];
-   /* filesystem type.  Currently only Windows */
-   char fsType[FSTYPE_SIZE];
 #endif
 } PartitionEntryInt;
 

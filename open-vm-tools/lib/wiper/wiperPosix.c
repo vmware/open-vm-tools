@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -435,6 +435,8 @@ WiperPartitionFilter(WiperPartition *item,         // IN/OUT
    size_t i;
 
    item->type = PARTITION_UNSUPPORTED;
+   item->fsType = Util_SafeStrdup(MNTINFO_FSTYPE(mnt));
+   item->fsName = Util_SafeStrdup(MNTINFO_NAME(mnt));
 
    for (i = 0; i < ARRAYSIZE(gKnownPartitions); i++) {
       info = &gKnownPartitions[i];

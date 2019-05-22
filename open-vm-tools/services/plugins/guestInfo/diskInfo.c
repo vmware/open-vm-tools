@@ -131,10 +131,14 @@ GuestInfoGetDiskInfoWiper(Bool includeReserved)  // IN
          Str_Strcpy(partEntry->name, part->mountPoint, partNameSize);
          partEntry->freeBytes = freeBytes;
          partEntry->totalBytes = totalBytes;
+         Str_Strncpy(partEntry->fsType, sizeof (di->partitionList)[0].fsType,
+                     part->fsType, strlen(part->fsType));
 
          di->partitionList = newPartitionList;
-         g_debug("%s added partition #%d %s type %d free %"FMT64"u total %"FMT64"u\n",
+         g_debug("%s added partition #%d %s type %d fstype %s (mount point %s) "
+                 "free %"FMT64"u total %"FMT64"u\n",
                  __FUNCTION__, partCount, partEntry->name, part->type,
+                 partEntry->fsType, part->fsName,
                  partEntry->freeBytes, partEntry->totalBytes);
       } else {
          g_debug("%s ignoring unsupported partition %s %s\n",
