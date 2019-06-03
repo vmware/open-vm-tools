@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -3053,7 +3053,8 @@ File_WalkDirectoryNext(WalkDirContext context,  // IN:
          allocName = Unicode_Alloc(entry->d_name, STRING_ENCODING_DEFAULT);
 #endif
       } else {
-         char *id = Unicode_EscapeBuffer(fileName, -1, STRING_ENCODING_DEFAULT);
+         char *id = Unicode_EscapeBuffer(entry->d_name, -1,
+                                         STRING_ENCODING_DEFAULT);
 
          Warning("%s: file '%s' in directory '%s' cannot be converted to "
                  "UTF8\n", __FUNCTION__, context->dirName, id);
