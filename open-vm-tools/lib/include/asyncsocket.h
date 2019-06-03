@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -492,6 +492,14 @@ AsyncSocket *AsyncSocket_Connect(const char *hostname,
                                  AsyncSocketConnectFlags flags,
                                  AsyncSocketPollParams *pollParams,
                                  int *error);
+AsyncSocket *AsyncSocket_ConnectWithFd(const char *hostname,
+                                       unsigned int port,
+                                       int tcpSocketFd,
+                                       AsyncSocketConnectFn connectFn,
+                                       void *clientData,
+                                       AsyncSocketConnectFlags flags,
+                                       AsyncSocketPollParams *pollParams,
+                                       int *error);
 AsyncSocket *AsyncSocket_ConnectVMCI(unsigned int cid, unsigned int port,
                                      AsyncSocketConnectFn connectFn,
                                      void *clientData,
