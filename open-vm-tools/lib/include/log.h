@@ -141,13 +141,37 @@ Log_Error(const char *fmt,
 
 
 static INLINE void PRINTF_DECL(1, 2)
+Log_Warning(const char *fmt,
+            ...)
+{
+   va_list ap;
+
+   va_start(ap, fmt);
+   LogV(VMW_LOG_WARNING, fmt, ap);
+   va_end(ap);
+}
+
+
+static INLINE void PRINTF_DECL(1, 2)
 Log_Notice(const char *fmt,
-          ...)
+           ...)
 {
    va_list ap;
 
    va_start(ap, fmt);
    LogV(VMW_LOG_NOTICE, fmt, ap);
+   va_end(ap);
+}
+
+
+static INLINE void PRINTF_DECL(1, 2)
+Log_Info(const char *fmt,
+         ...)
+{
+   va_list ap;
+
+   va_start(ap, fmt);
+   LogV(VMW_LOG_INFO, fmt, ap);
    va_end(ap);
 }
 
