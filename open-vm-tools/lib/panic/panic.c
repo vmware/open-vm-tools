@@ -562,9 +562,8 @@ Panic_Panic(const char *format,
     *	 beyond second time - just exit
     */
 
-   switch (count++) {
-   case 0:
-      Log_DisableThrottling(); // Make sure Panic gets logged
+   switch (count++) {  // Try HARD to not put code in here!
+   case 0:  // case 0 stuff is below
       break;
    case 1:
       Log("PANIC: %s", buf);
@@ -574,6 +573,8 @@ Panic_Panic(const char *format,
       Util_ExitProcessAbruptly(1);
       NOT_REACHED();
    }
+
+   Log_DisableThrottling(); // Make sure Panic gets logged
 
 #ifdef _WIN32
    /*
