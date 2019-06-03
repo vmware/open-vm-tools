@@ -611,7 +611,15 @@ SNEBuildHash(const char **compatEnviron)
          value = NULL;
          HashTable_ReplaceOrInsert(environTable, realKey, realValue);
       } else {
-         HashTable_LookupOrInsert(environTable, key, value);
+         void *hashed = HashTable_LookupOrInsert(environTable, key, value);
+         if (hashed != value) {
+            /*
+             * The key already exists in the hashtable and its value was
+             * not replaced. We need to free the memory allocated for 'value'.
+             */
+            free(value);
+            value = NULL;
+         }
       }
 
       /*
