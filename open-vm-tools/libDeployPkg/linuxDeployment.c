@@ -158,6 +158,7 @@ static void NoLogging(int level, const char* fmtstr, ...);
 static char* gDeployError = NULL;
 LogFunction sLog = NoLogging;
 static uint16 gProcessTimeout = DEPLOYPKG_PROCESSTIMEOUT_DEFAULT;
+static bool gProcessTimeoutSetByLauncher = false;
 
 // .....................................................................................
 
@@ -171,8 +172,8 @@ static uint16 gProcessTimeout = DEPLOYPKG_PROCESSTIMEOUT_DEFAULT;
  * linuxDeployPkg can call this API to set gProcessTimeout.
  *      This API should be called before DeployPkg_DeployPackageFromFile or
  * DeployPkg_DeployPackageFromFileEx.
- *      If the package header includs valid 'timeout' value, then that value will
- * overwrite gProcessTimeout.
+ *      If the package header includes valid 'timeout' value, then that value will be
+ * ignored because 'timeout' value has been provided by the package deployment engines.
  *      If no valid 'timeout' value from both package header and deployment engine, then
  * default value 100s will be used.
  *
@@ -189,6 +190,7 @@ DeployPkg_SetProcessTimeout(uint16 timeout)
       gProcessTimeout = timeout;
       sLog(log_debug, "Process timeout value from deployment launcher: %u.\n",
            gProcessTimeout);
+      gProcessTimeoutSetByLauncher = true;
    }
 }
 
@@ -662,12 +664,20 @@ GetPackageInfo(const char* packageName,
    //TODO hdr->command[VMWAREDEPLOYPKG_CMD_LENGTH - 1] = '\0';
 
    // Get process timeout value from client
+   // If gProcessTimeout has been provided by deployment launcher, then
+   // ignore the value from client.
    if (hdr.pkgProcessTimeout > 0 && hdr.pkgProcessTimeout <= MAX_UINT16) {
-      gProcessTimeout = hdr.pkgProcessTimeout;
-      sLog(log_info, "Process timeout value in header: %u.\n",
+      if (!gProcessTimeoutSetByLauncher) {
+          sLog(log_info, "Process timeout value %u in header will be used.\n",
              hdr.pkgProcessTimeout);
-   } else {
-      sLog(log_info, "No valid timeout value from package header.\n");
+          gProcessTimeout = hdr.pkgProcessTimeout;
+      } else {
+          sLog(log_info, "Process timeout value %u in header is ignored.\n",
+             hdr.pkgProcessTimeout);
+      }
+   } else if (hdr.pkgProcessTimeout != 0) {
+      sLog(log_error, "Invalid process timeout value in header: %d.\n",
+             hdr.pkgProcessTimeout);
    }
 
    return TRUE;
