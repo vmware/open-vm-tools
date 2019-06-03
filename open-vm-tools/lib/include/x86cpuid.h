@@ -1355,18 +1355,6 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
              CPUID_INTERNAL_SHIFT_##field);                             \
    } while (0)
 
-#define CPUID_SETTO_SAFE(eaxIn, reg, field, dataPtr, val)               \
-   do {                                                                 \
-      uint32 _v = val &                                                 \
-         (CPUID_INTERNAL_MASK_##field >> CPUID_INTERNAL_SHIFT_##field); \
-      uint32 *_d = dataPtr;                                             \
-      ASSERT_ON_COMPILE(                                                \
-         (uint32)eaxIn   == (uint32)CPUID_INTERNAL_EAXIN_##field &&     \
-         CPUID_REG_##reg == (CpuidReg)CPUID_INTERNAL_REG_##field);      \
-      *_d = (*_d & ~CPUID_INTERNAL_MASK_##field) |                      \
-         (_v << CPUID_INTERNAL_SHIFT_##field);                          \
-   } while (0)
-
 
 /*
  * Definitions of various fields' values and more complicated
