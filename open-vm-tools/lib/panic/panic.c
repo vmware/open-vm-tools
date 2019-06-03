@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -540,8 +540,8 @@ Panic_Panic(const char *format,
     * panic loop detection.  In particular, try not to call
     * any of our functions (that may call Panic()).
     */
-
    fputs(buf, stderr);
+
 #ifdef _WIN32
    /*
     * This would nominally be Win32U_OutputDebugString.  However,
@@ -556,11 +556,6 @@ Panic_Panic(const char *format,
 #endif
 
    /*
-    * Make sure Panic gets logged
-    */
-   Log_DisableThrottling();
-
-   /*
     * Panic loop detection:
     *	 first time - do the whole report and shutdown sequence
     *	 second time - log and exit
@@ -569,6 +564,7 @@ Panic_Panic(const char *format,
 
    switch (count++) {
    case 0:
+      Log_DisableThrottling(); // Make sure Panic gets logged
       break;
    case 1:
       Log("PANIC: %s", buf);
