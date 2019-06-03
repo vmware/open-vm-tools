@@ -335,7 +335,13 @@ extern Eth_Address netEthBroadcastAddr;
 #define ETH_MIN_FRAME_LEN                    60
 #define ETH_MAX_STD_MTU                      1500
 #define ETH_MAX_STD_FRAMELEN                 (ETH_MAX_STD_MTU + ETH_MAX_HEADER_LEN)
-#define ETH_MAX_JUMBO_MTU                    9000
+/*
+ * ENS_MBUF_SLAB_9K_ALLOC_SIZE and PKT_SLAB_JUMBO_SIZE both use 9216 for L2
+ * MTU. And ETH_MAX_JUMBO_MTU is L3 MTU. It is required to have
+ * (ETH_MAX_JUMBO_MTU + ETH_MAX_HEADER_LEN) <= 9216 and ETH_MAX_HEADER_LEN is
+ * 26. So the maximal possible ETH_MAX_JUMBO_MTU = 9216 - 26 = 9190.
+ */
+#define ETH_MAX_JUMBO_MTU                    9190
 #define ETH_MAX_JUMBO_FRAMELEN               (ETH_MAX_JUMBO_MTU + ETH_MAX_HEADER_LEN)
 
 #define ETH_DEFAULT_MTU                      1500
