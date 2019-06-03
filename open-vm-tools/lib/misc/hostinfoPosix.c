@@ -185,6 +185,7 @@ static const DistroInfo distroArray[] = {
    { "Annvix",             "/etc/annvix-release"        },
    { "Arch",               "/etc/arch-release"          },
    { "Arklinux",           "/etc/arklinux-release"      },
+   { "Asianux",            "/etc/asianux-release"       },
    { "Aurox",              "/etc/aurox-release"         },
    { "BlackCat",           "/etc/blackcat-release"      },
    { "Cobalt",             "/etc/cobalt-release"        },
@@ -890,11 +891,11 @@ HostinfoGetOSShortName(const char *distro,      // IN: full distro name
    } else if (strstr(distroLower, "asianux server 5") ||
               strstr(distroLower, "asianux client 5")) {
       Str_Strcpy(distroShort, STR_OS_ASIANUX_7, distroShortSize);
-   } else if (strstr(distroLower, "asianux server 7") ||
-              strstr(distroLower, "asianux client 7")) {
+   } else if (strstr(distroLower, "asianux server release 7") ||
+              strstr(distroLower, "asianux client release 7")) {
       Str_Strcpy(distroShort, STR_OS_ASIANUX_7, distroShortSize);
-   } else if (strstr(distroLower, "asianux server 8") ||
-              strstr(distroLower, "asianux client 8")) {
+   } else if (strstr(distroLower, "asianux server release 8") ||
+              strstr(distroLower, "asianux client release 8")) {
       Str_Strcpy(distroShort, STR_OS_ASIANUX_8, distroShortSize);
    } else if (strstr(distroLower, "aurox")) {
       Str_Strcpy(distroShort, STR_OS_AUROX, distroShortSize);
