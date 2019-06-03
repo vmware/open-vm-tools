@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -186,7 +186,9 @@ struct CfgInterface;
  * 'droppedChars' from the struct instead within LogFile.
  */
 typedef struct {
-   uint64*     droppedChars;
+   uint64 *numTimesDrop; // total time char dropped
+   uint64 *droppedChars; // Number of drop char
+   uint64 *bytesLogged;  // Total logged
 } VmxStatsInfo;
 
 
