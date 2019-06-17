@@ -1,4 +1,3 @@
-
 /*********************************************************
  * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
  *
@@ -101,23 +100,26 @@ ToolboxCmdHelp(const char *progName,
  * The commands table.
  * Must go after function declarations
  */
+#if defined(_WIN32)
+#include "toolboxCmdTableWin32.h"
+#else
 static CmdTable commands[] = {
-   { "timesync",  TimeSync_Command, TRUE,    FALSE,   TimeSync_Help},
-   { "script",    Script_Command,   FALSE,   TRUE,    Script_Help},
+   { "timesync",   TimeSync_Command,   TRUE,  FALSE, TimeSync_Help},
+   { "script",     Script_Command,     FALSE, TRUE,  Script_Help},
 #if !defined(USERWORLD)
-   { "disk",      Disk_Command,     TRUE,    TRUE,    Disk_Help},
+   { "disk",       Disk_Command,       TRUE,  TRUE,  Disk_Help},
 #endif
-   { "stat",      Stat_Command,     TRUE,    FALSE,   Stat_Help},
-   { "device",    Device_Command,   TRUE,    FALSE,   Device_Help},
-#if defined(_WIN32) || \
-   (defined(__linux__) && !defined(OPEN_VM_TOOLS) && !defined(USERWORLD))
-   { "upgrade",   Upgrade_Command,  TRUE,    TRUE,   Upgrade_Help},
+   { "stat",       Stat_Command,       TRUE,  FALSE, Stat_Help},
+   { "device",     Device_Command,     TRUE,  FALSE, Device_Help},
+#if defined(__linux__) && !defined(OPEN_VM_TOOLS) && !defined(USERWORLD)
+   { "upgrade",    Upgrade_Command,    TRUE,  TRUE,  Upgrade_Help},
 #endif
-   { "logging",   Logging_Command,  TRUE,    TRUE,    Logging_Help},
-   { "info",      Info_Command,     TRUE,    TRUE,    Info_Help},
-   { "config",    Config_Command,   TRUE,    TRUE,    Config_Help},
-   { "help",      HelpCommand,      FALSE,   FALSE,   ToolboxCmdHelp},
+   { "logging",    Logging_Command,    TRUE,  TRUE,  Logging_Help},
+   { "info",       Info_Command,       TRUE,  TRUE,  Info_Help},
+   { "config",     Config_Command,     TRUE,  TRUE,  Config_Help},
+   { "help",       HelpCommand,        FALSE, FALSE, ToolboxCmdHelp},
 };
+#endif
 
 
 /*
@@ -316,6 +318,9 @@ ToolsCmd_UnknownEntityError(const char *name,    // IN: command name (argv[0])
  *-----------------------------------------------------------------------------
  */
 
+#if defined(_WIN32)
+#include "toolboxCmdHelpWin32.h"
+#else
 static void
 ToolboxCmdHelp(const char *progName,   // IN
                const char *cmd)        // IN
@@ -337,6 +342,7 @@ ToolboxCmdHelp(const char *progName,   // IN
                           "   upgrade (not available on all operating systems)\n"),
            progName, progName, cmd, progName);
 }
+#endif
 
 
 /*
