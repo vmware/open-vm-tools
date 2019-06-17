@@ -139,23 +139,25 @@
  *    Intel 82545EM (e1000, server adapter, single port)
  *    Intel 82546EB (e1000, server adapter, dual port)
  *    Intel HECI (as embedded in ich9m)
- *    Intel XHCI (Panther Point / Intel 7 Series)
+ *    Intel XHCI (Panther Point / Intel 7 Series, 5Gbps)
+ *    Intel XHCI (Cannon Lake / Intel 300 Series, 10Gbps)
  */
-#define PCI_VENDOR_ID_INTEL             0x8086
-#define PCI_DEVICE_ID_INTEL_82439TX     0x7100
-#define PCI_DEVICE_ID_INTEL_82371AB_0   0x7110
-#define PCI_DEVICE_ID_INTEL_82371AB_2   0x7112
-#define PCI_DEVICE_ID_INTEL_82371AB_3   0x7113
-#define PCI_DEVICE_ID_INTEL_82371AB     0x7111
-#define PCI_DEVICE_ID_INTEL_82443BX     0x7190
-#define PCI_DEVICE_ID_INTEL_82443BX_1   0x7191
-#define PCI_DEVICE_ID_INTEL_82443BX_2   0x7192 /* Used when no AGP support */
-#define PCI_DEVICE_ID_INTEL_82545EM     0x100f
-#define PCI_DEVICE_ID_INTEL_82546EB     0x1010
-#define PCI_DEVICE_ID_INTEL_82574       0x10d3
-#define PCI_DEVICE_ID_INTEL_82574_APPLE 0x10f6
-#define PCI_DEVICE_ID_INTEL_HECI        0x2a74
+#define PCI_VENDOR_ID_INTEL                   0x8086
+#define PCI_DEVICE_ID_INTEL_82439TX           0x7100
+#define PCI_DEVICE_ID_INTEL_82371AB_0         0x7110
+#define PCI_DEVICE_ID_INTEL_82371AB_2         0x7112
+#define PCI_DEVICE_ID_INTEL_82371AB_3         0x7113
+#define PCI_DEVICE_ID_INTEL_82371AB           0x7111
+#define PCI_DEVICE_ID_INTEL_82443BX           0x7190
+#define PCI_DEVICE_ID_INTEL_82443BX_1         0x7191
+#define PCI_DEVICE_ID_INTEL_82443BX_2         0x7192 /* Used when no AGP support */
+#define PCI_DEVICE_ID_INTEL_82545EM           0x100f
+#define PCI_DEVICE_ID_INTEL_82546EB           0x1010
+#define PCI_DEVICE_ID_INTEL_82574             0x10d3
+#define PCI_DEVICE_ID_INTEL_82574_APPLE       0x10f6
+#define PCI_DEVICE_ID_INTEL_HECI              0x2a74
 #define PCI_DEVICE_ID_INTEL_PANTHERPOINT_XHCI 0x1e31
+#define PCI_DEVICE_ID_INTEL_CANNONLAKE_XHCI   0xa36d
 
 /*
  *  From drivers/usb/host/xhci-pci.c:
