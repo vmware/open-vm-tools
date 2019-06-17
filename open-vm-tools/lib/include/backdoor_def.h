@@ -57,9 +57,19 @@ extern "C" {
 
 #define BDOOR_MAGIC 0x564D5868
 
-/* Low-bandwidth backdoor port. */
+/* Low-bandwidth backdoor port number for the IN/OUT interface. */
 
-#define BDOOR_PORT 0x5658
+#define BDOOR_PORT        0x5658
+
+/* Flags used by the hypercall interface. */
+
+#define BDOOR_FLAGS_HB    (1<<0)
+#define BDOOR_FLAGS_WRITE (1<<1)
+
+#define BDOOR_IS_LB(_flags)    (((_flags) & BDOOR_FLAGS_HB) == 0)
+#define BDOOR_IS_HB(_flags)    !BDOOR_IS_LB(_flags)
+#define BDOOR_IS_READ(_flags)  (((_flags) & BDOOR_FLAGS_WRITE) == 0)
+#define BDOOR_IS_WRITE(_flags) !BDOOR_IS_READ(_flags)
 
 #define   BDOOR_CMD_GETMHZ                    1
 /*
