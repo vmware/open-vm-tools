@@ -258,6 +258,7 @@ ProcMgr_ListProcesses(void)
    procList = Util_SafeCalloc(1, sizeof *procList);
    ProcMgrProcInfoArray_Init(procList, 0);
    procInfo.procCmdName = NULL;
+   procInfo.procCmdAbsPath = NULL;
    procInfo.procCmdLine = NULL;
    procInfo.procOwner = NULL;
 
@@ -386,6 +387,21 @@ ProcMgr_ListProcesses(void)
          continue;
       }
 
+      if (snprintf(cmdFilePath,
+                   sizeof cmdFilePath,
+                   "/proc/%s/exe",
+                   ent->d_name) != -1) {
+         int exeLen;
+         char exeRealPath[1024];
+
+         exeLen = readlink(cmdFilePath, exeRealPath, sizeof exeRealPath -1);
+         if (exeLen != -1) {
+            exeRealPath[exeLen] = '\0';
+            procInfo.procCmdAbsPath =
+               Unicode_Alloc(exeRealPath, STRING_ENCODING_DEFAULT);
+         }
+      }
+
       if (numRead > 0) {
          for (replaceLoop = 0 ; replaceLoop < numRead ; replaceLoop++) {
             if ('\0' == cmdLineTemp[replaceLoop]) {
@@ -405,6 +421,11 @@ ProcMgr_ListProcesses(void)
                      cmdNameBegin++;
                   }
                   procInfo.procCmdName = Unicode_Alloc(cmdNameBegin, STRING_ENCODING_DEFAULT);
+                  if (procInfo.procCmdAbsPath != NULL &&
+                      cmdLineTemp[0] == '/') {
+                     procInfo.procCmdAbsPath =
+                        Unicode_Alloc(cmdLineTemp, STRING_ENCODING_DEFAULT);
+                  }
                   cmdNameLookup = FALSE;
                }
 
@@ -470,6 +491,10 @@ ProcMgr_ListProcesses(void)
              * Store the command name.
              */
             procInfo.procCmdName = Unicode_Alloc(cmdLineTemp, STRING_ENCODING_DEFAULT);
+            if (procInfo.procCmdAbsPath != NULL &&
+                cmdLineTemp[0] == '/') {
+               procInfo.procCmdAbsPath = Unicode_Alloc(cmdLineTemp, STRING_ENCODING_DEFAULT);
+            }
          }
       }
 
@@ -543,6 +568,17 @@ ProcMgr_ListProcesses(void)
        * Store the command line string pointer in dynbuf.
        */
       if (cmdLineTemp) {
+         int i;
+
+         /*
+          * Chop off the trailing whitespace characters.
+          */
+         for (i = strlen(cmdLineTemp) - 1 ;
+              i >= 0 && cmdLineTemp[i] == ' ' ;
+              i--) {
+            cmdLineTemp[i] = '\0';
+         }
+
          procInfo.procCmdLine = Unicode_Alloc(cmdLineTemp, STRING_ENCODING_DEFAULT);
       } else {
          procInfo.procCmdLine = Unicode_Alloc("", STRING_ENCODING_UTF8);
@@ -572,13 +608,21 @@ ProcMgr_ListProcesses(void)
       if (!ProcMgrProcInfoArray_Push(procList, procInfo)) {
          Warning("%s: failed to expand DynArray - out of memory\n",
                  __FUNCTION__);
+         free(cmdLineTemp);
+         free(cmdStatTemp);
          goto abort;
       }
       procInfo.procCmdName = NULL;
+      procInfo.procCmdAbsPath = NULL;
       procInfo.procCmdLine = NULL;
       procInfo.procOwner = NULL;
 
 next_entry:
+      free(procInfo.procCmdName);
+      procInfo.procCmdName = NULL;
+      free(procInfo.procCmdAbsPath);
+      procInfo.procCmdAbsPath = NULL;
+
       free(cmdLineTemp);
       free(cmdStatTemp);
    } // while readdir
@@ -591,6 +635,7 @@ abort:
    closedir(dir);
 
    free(procInfo.procCmdName);
+   free(procInfo.procCmdAbsPath);
    free(procInfo.procCmdLine);
    free(procInfo.procOwner);
 
@@ -1195,6 +1240,9 @@ ProcMgr_FreeProcList(ProcMgrProcInfoArray *procList)
    for (i = 0; i < procCount; i++) {
       ProcMgrProcInfo *procInfo = ProcMgrProcInfoArray_AddressOf(procList, i);
       free(procInfo->procCmdName);
+#if defined(__linux__)
+      free(procInfo->procCmdAbsPath);
+#endif
       free(procInfo->procCmdLine);
       free(procInfo->procOwner);
    }
