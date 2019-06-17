@@ -3014,7 +3014,7 @@ HgfsServerGetRequest(HgfsPacket *packet,                        // IN: packet
    HgfsSessionInfo *session = NULL;
    uint64 sessionId = HGFS_INVALID_SESSION_ID;
    Bool sessionEnabled = FALSE;
-   uint32 requestId;
+   uint32 requestId = 0;
    HgfsOp opcode;
    const void *request;
    size_t requestSize;
@@ -3348,6 +3348,8 @@ HgfsServerSessionReceive(HgfsPacket *packet,      // IN: Hgfs Packet
    }
 
    HGFS_ASSERT_MINIMUM_OP(input->op);
+   HGFS_ASSERT_CLIENT(input->op);
+
    if (HGFS_ERROR_SUCCESS == status) {
       HGFS_ASSERT_INPUT(input);
       if ((input->op < ARRAYSIZE(handlers)) &&
@@ -3395,7 +3397,6 @@ HgfsServerSessionReceive(HgfsPacket *packet,      // IN: Hgfs Packet
                  __LINE__));
       }
    }
-   HGFS_ASSERT_CLIENT(input->op);
 
    /* Send error if we fail to process the op. */
    if (HGFS_ERROR_SUCCESS != status) {
