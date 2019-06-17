@@ -280,6 +280,10 @@ Max(int a, int b)
 #define PAGES_2_BYTES(_npages)  (((uint64)(_npages)) << PAGE_SHIFT)
 #endif
 
+#ifndef KBYTES_SHIFT
+#define KBYTES_SHIFT 10
+#endif
+
 #ifndef MBYTES_SHIFT
 #define MBYTES_SHIFT 20
 #endif
@@ -309,6 +313,14 @@ Max(int a, int b)
 
 #ifndef PAGES_2_GBYTES
 #define PAGES_2_GBYTES(_npages) ((_npages) >> (30 - PAGE_SHIFT))
+#endif
+
+#ifndef BYTES_2_KBYTES
+#define BYTES_2_KBYTES(_nbytes) ((_nbytes) >> KBYTES_SHIFT)
+#endif
+
+#ifndef KBYTES_2_BYTES
+#define KBYTES_2_BYTES(_nbytes) ((uint64)(_nbytes) << KBYTES_SHIFT)
 #endif
 
 #ifndef BYTES_2_MBYTES
