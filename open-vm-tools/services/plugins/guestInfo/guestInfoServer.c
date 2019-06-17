@@ -1240,6 +1240,12 @@ GuestInfoSendDiskInfoV1(ToolsAppCtx *ctx,             // IN
    static char jsonPerDiskFsTypeFmt[] = ",\"" DISK_INFO_KEY_DISK_FSTYPE "\":\"%s\"";
 #ifdef _WIN32
    static char jsonPerDiskUUIDFmt[] = ",\"" DISK_INFO_KEY_DISK_UUID "\":\"%s\"";
+#else
+   static char jsonPerDiskDevArrHdrFmt[] =
+                                    ",\"" DISK_INFO_KEY_DISK_DEVICE_ARR "\":[";
+   static char jsonPerDiskDeviceFmt[] = "%s\"%s\"";
+   static char jsonPerDiskDeviceSep[] = ",";
+   static char jsonPerDiskDevArrFmtFooter[] = "]";
 #endif
    static char jsonPerDiskFmtFooter[] = "},\n";
    static char jsonSuffix[] = "]}";
@@ -1283,6 +1289,24 @@ GuestInfoSendDiskInfoV1(ToolsAppCtx *ctx,             // IN
                                pdi->partitionList[i].uuid);
             DynBuf_Append(&dynBuffer, tmpBuf, len);
          }
+      }
+#else
+      if (pdi->partitionList[i].diskDevCnt > 0) {
+         int idx;
+
+         DynBuf_Append(&dynBuffer, jsonPerDiskDevArrHdrFmt,
+                       sizeof jsonPerDiskDevArrHdrFmt - 1);
+         len = Str_Snprintf(tmpBuf, sizeof tmpBuf, jsonPerDiskDeviceFmt,
+                            "", pdi->partitionList[i].diskDevNames[0]);
+         DynBuf_Append(&dynBuffer, tmpBuf, len);
+         for (idx = 1; idx < pdi->partitionList[i].diskDevCnt; idx++) {
+            len = Str_Snprintf(tmpBuf, sizeof tmpBuf, jsonPerDiskDeviceFmt,
+                               jsonPerDiskDeviceSep,
+                               pdi->partitionList[i].diskDevNames[idx]);
+            DynBuf_Append(&dynBuffer, tmpBuf, len);
+         }
+         DynBuf_Append(&dynBuffer, jsonPerDiskDevArrFmtFooter,
+                       sizeof jsonPerDiskDevArrFmtFooter - 1);
       }
 #endif
       DynBuf_Append(&dynBuffer, jsonPerDiskFmtFooter,

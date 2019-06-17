@@ -44,6 +44,7 @@ GuestDiskInfoInt *
 GuestInfo_GetDiskInfo(const ToolsAppCtx *ctx)
 {
    gboolean includeReserved;
+   gboolean reportDevices;
 
    /*
     * In order to be consistent with the way 'df' reports
@@ -60,5 +61,16 @@ GuestInfo_GetDiskInfo(const ToolsAppCtx *ctx)
       g_debug("Excluding reserved space from diskInfo stats.\n");
    }
 
-   return GuestInfoGetDiskInfoWiper(includeReserved);
+   reportDevices = VMTools_ConfigGetBoolean(ctx->config,
+                                            CONFGROUPNAME_GUESTINFO,
+                                            CONFNAME_DISKINFO_REPORT_DEVICE,
+                                            CONFIG_GUESTINFO_REPORT_DEVICE_DEFAULT);
+
+   /*
+    * TODO: Future performance consideration.  If the ESX host cannot accept
+    *       the new DiskInfo V1, then there really is no value to collecting
+    *       disk device names.  Consider factoring in the setting of
+    *       gInfoCache.diskInfoUseJson in guestInfoServer.c
+    */
+   return GuestInfoGetDiskInfoWiper(includeReserved, reportDevices);
 }

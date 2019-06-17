@@ -57,6 +57,7 @@
 #define IP_ADDR_SIZE 16
 #define PARTITION_NAME_SIZE MAX_VALUE_LEN
 #define FSTYPE_SIZE 260 // Windows fs types can be up to MAX_PATH chars
+#define DISK_DEVICE_NAME_SIZE 15 // Max size for disk device name - scsi?:?
 
 /* Value to be used when "primary" IP address is indeterminable. */
 #define GUESTINFO_IP_UNKNOWN "unknown"
@@ -118,6 +119,7 @@ typedef struct _DiskInfo {
 #define DISK_INFO_KEY_DISK_SIZE        "size"
 #define DISK_INFO_KEY_DISK_UUID        "uuid"
 #define DISK_INFO_KEY_DISK_FSTYPE      "fstype"
+#define DISK_INFO_KEY_DISK_DEVICE_ARR  "devices"
 
 /**
  * @}

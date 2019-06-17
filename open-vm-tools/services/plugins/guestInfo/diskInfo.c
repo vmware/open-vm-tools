@@ -24,19 +24,69 @@
 
 #include <stdlib.h>
 #include <string.h>
-
-#if defined _WIN32
-#   include <ws2tcpip.h>
-#endif
-
 #include "vm_assert.h"
 #include "debug.h"
 #include "guestInfoInt.h"
 #include "str.h"
+#include "posix.h"
+#include "file.h"
 #include "util.h"
-#include "xdrutil.h"
-#include "netutil.h"
 #include "wiper.h"
+
+/*
+ * TODO: A general reorganization of or removal of diskInfo.c is needed
+ *
+ * Presumably diskInfo.c is meant to contain routines common to both Windows
+ * and *nix guests; but that has not been the case.  Up until the addition
+ * of OS disk device mapping, this source file contained only two functions.
+ *
+ *  GuestInfo_FreeDiskInfo() -    4 line function called for Windows and *nix
+ *                                to free the partitionList used to collect
+ *                                disk information in the guest.
+ *  GuestInfoGetDiskInfoWiper() - Function only called from diskInfoPosix.c
+ *                                to use the disk wiper routines to query
+ *                                "known" file systems on a *nix guest.
+ *
+ * As a result, the Windows guestInfo plugin has included the unreferenced
+ * GuestInfoGetDiskInfoWiper() function in releases.
+ *
+ * As of this change, diskInfoWin32.c has its own copy of
+ * GuestInfo_FreeDiskInfo() as that function has changed for *nix disk
+ * info.  Only non-Windows tools builds will include diskInfo.c.
+ *
+ * As device-based disc mapping is implemented for FreeBSD, MacOS and
+ * Solaris, diskInfo.c could be folded into diskInfoPosix.c.  Disk device
+ * lookup could be separate modules based on OS type or implemented
+ * with conditional compilation.  Both methods have been used elsewhere
+ * in tools.
+ *
+ * PR 2350224 has been filed to track this TODO item.
+ */
+
+#if defined (__linux__)
+#ifndef PATH_MAX
+   # define PATH_MAX 1024
+#endif
+
+#define LINUX_SYS_BLOCK_DIR "/sys/class/block"
+
+#define PCI_IDE         0x010100
+#define PCI_SATA_AHCI_1 0x010601
+
+#define PCI_SUBCLASS    0xFFFF00
+#endif
+
+#define COMP_STATIC_REGEX(gregex, mypattern, gerr, errorout)        \
+   if (gregex == NULL) {                                            \
+      gregex = g_regex_new(mypattern, 0, 0, &gerr);                 \
+      if (gregex == NULL) {                                         \
+         g_warning("%s: bad regex pattern \"" mypattern "\" (%s);"  \
+                   " failing with INVALID_ARG\n",  __FUNCTION__,    \
+                   gerr != NULL ? gerr->message : "");              \
+         goto errorout;                                             \
+      }                                                             \
+   }
+
 
 
 /*
@@ -54,6 +104,11 @@ void
 GuestInfo_FreeDiskInfo(GuestDiskInfoInt *di)
 {
    if (di) {
+      int indx;
+
+      for (indx = 0; indx < di->numEntries; indx++) {
+         free(di->partitionList[indx].diskDevNames);
+      }
       free(di->partitionList);
       free(di);
    }
@@ -63,6 +118,582 @@ GuestInfo_FreeDiskInfo(GuestDiskInfoInt *di)
 /*
  * Private library functions.
  */
+
+#if defined (__linux__)
+
+/*
+ ******************************************************************************
+ * GuestInfoAddDeviceName --                                             */ /**
+ *
+ * Add the disk device name into the array of anticipated devices for
+ * the specified filesystem.
+ *
+ * @param[in]     devName    The device name being added.  May be an empty
+ *                           string.
+ * @param[in/out] partEntry  Pointer to the PartitionEntryInt structure to
+ *                           receive the disk device names.
+ * @param[in]     devNum     The number of the DiskDevName to be updated.
+ *                           The diskDevNames is numbered  1, 2, ... as opposed
+ *                           to array indexes which start at 0.
+ *
+ ******************************************************************************
+ */
+
+static void
+GuestInfoAddDeviceName(char *devName,
+                       PartitionEntryInt *partEntry,
+                       int devNum)
+{
+   ASSERT(devName);
+   ASSERT(partEntry);
+
+   /* Add the device name to the device name array at the specified slot. */
+   Str_ToLower(devName);
+   if (devNum > partEntry->diskDevCnt) {
+      partEntry->diskDevCnt = devNum;
+      partEntry->diskDevNames = Util_SafeRealloc(partEntry->diskDevNames,
+                                                 devNum *
+                                                 sizeof *partEntry->diskDevNames);
+   }
+   Str_Strncpy(partEntry->diskDevNames[devNum - 1],
+               sizeof *partEntry->diskDevNames,
+               devName, strlen(devName));
+
+   if (devName[0] == '\0') {
+      g_debug("Empty disk device name in slot %d\n", devNum);
+   }
+}
+
+
+/*
+ ******************************************************************************
+ * GuestInfoGetPCIName --                                                */ /**
+ *
+ * Extract the controller class and controller number from the "label" of
+ * the specified PCI device.  Combine these with the previously determined
+ * device or unit number.  The device name will be constructed in the format of
+ * <class> <controller> : <unit> such as scsi0:0 or sata0:0.  The devName
+ * will be left "blank" if unable to process the contents of the "label" file.
+ *
+ * @param[in]  pciDevPath  Path of the PCI device of interest.
+ * @param[in]  unit        Disk unit or device number (previously determined).
+ * @param[out] devName     Address of the buffer to receive device name.
+ * @param[in]  devMaxLen   Maximum length of the device buffer available.
+ *
+ ******************************************************************************
+ */
+
+static void
+GuestInfoGetPCIName(const char *pciDevPath,
+                    const char *unit,
+                    char *devName,
+                    unsigned int devMaxLen)
+{
+   char labelPath[PATH_MAX];
+   FILE *labelFile;
+   char buffer[25];
+   char *cPtr;
+
+   Str_Snprintf(labelPath, PATH_MAX, "%s/%s", pciDevPath, "label");
+
+   if ((labelFile = fopen(labelPath, "r")) == NULL) {
+      g_debug("%s: unable to open \"label\" file for device %s.\n",
+              __FUNCTION__, pciDevPath);
+      return;
+   }
+   if (fgets(buffer, sizeof buffer, labelFile) == NULL) {
+      g_debug("%s: unable to read \"label\" file for device %s.\n",
+              __FUNCTION__, pciDevPath);
+      goto exit;
+   }
+
+   /*
+    * The "label" contents should already be in the form of SCSIn or satan.
+    * A '\0' is stored after the last character in the buffer by fgets().
+    * Check if the last character read is a new line and strip if found. */
+   cPtr = &buffer[strlen(buffer) -1];
+   if (*cPtr == '\n') {
+      *cPtr = '\0';
+   }
+   Str_Snprintf (devName, devMaxLen, "%s:%s", buffer, unit);
+
+exit:
+   fclose(labelFile);
+}
+
+
+/*
+ ******************************************************************************
+ * GuestInfoGetIdeSataDev --                                             */ /**
+ *
+ * Determine the IDE controller or the SATA device number of the specified disk
+ * device.
+ *
+ * @param[in]  tgtHostPath  Path of the PCI device of interest.
+ * @param[in]  pciDevPath   Path of the PCI device of interest.
+ *
+ * @return   The unit number of the specified disk device.  A return value
+ *           of -1 indicates that the unit number could not be determined.
+ *
+ ******************************************************************************
+ */
+
+static int
+GuestInfoGetIdeSataDev(const char *tgtHostPath,
+                       const char *pciDevPath)
+{
+   char *realPath = NULL;
+   char **fileNameList = NULL;
+   static GRegex *regexHostPath = NULL;
+   static GRegex *regexHost = NULL;
+   GError *gErr = NULL;
+   GMatchInfo *matchInfo = NULL;
+   char *charHost = NULL;
+   int result = -1;
+   int numFiles = 0;
+
+   /*
+    * Only once, compile the regular expressions that will be needed.
+    */
+   COMP_STATIC_REGEX(regexHostPath, "^.*/host(\\d+)$", gErr, exit)
+   COMP_STATIC_REGEX(regexHost, "^host(\\d+)$", gErr, exit)
+
+
+   realPath = Posix_RealPath(tgtHostPath);
+   if (g_regex_match(regexHostPath, realPath, 0, &matchInfo)) {
+      int number = 0;
+      int fileNum;
+      int host;
+
+      charHost = g_match_info_fetch(matchInfo, 1);
+      if (sscanf(charHost, "%d", &host) != 1) {
+         g_debug("%s: Unable to read host number.\n", __FUNCTION__);
+         goto exit;
+      }
+
+      numFiles = File_ListDirectory(pciDevPath, &fileNameList);
+      if (numFiles < 0) {
+         g_debug("%s: Unable to list files in \"%s\" directory.\n",
+                 __FUNCTION__, pciDevPath);
+      }
+      for (fileNum = 0; fileNum < numFiles; fileNum++) {
+         int currHost;
+
+         if (g_regex_match(regexHost, fileNameList[fileNum], 0, &matchInfo)) {
+            g_free(charHost);
+            charHost = g_match_info_fetch(matchInfo, 1);
+            if (sscanf(charHost, "%d", &currHost) != 1) {
+               g_debug("%s: Unable to read current host number.\n",
+                       __FUNCTION__);
+               goto exit;
+            }
+            if (currHost < host) {
+               number++;
+            }
+         }
+      }
+      result = number;
+    }
+
+exit:
+   g_match_info_free(matchInfo);
+   g_free(charHost);
+   g_clear_error(&gErr);
+   if (fileNameList != NULL) {
+      Util_FreeStringList(fileNameList, numFiles);
+   }
+   free(realPath);
+   return result;
+}
+
+
+/*
+ ******************************************************************************
+ * GuestInfoGetDevClass --                                               */ /**
+ *
+ * Extract the class value from the "class" file of the specified disk device.
+ *
+ * @param[in]  pciDevPath  Path to the IDE, SCSI or SAS disk device of interest.
+ *
+ * @return     The disk device class value.
+ *
+ ******************************************************************************
+ */
+
+static unsigned int
+GuestInfoGetDevClass(const char *pciDevPath)
+{
+   char devClassPath[PATH_MAX];
+   FILE *devClass = NULL;
+   unsigned int classValue = 0;
+
+   ASSERT(pciDevPath);
+   Str_Snprintf(devClassPath, PATH_MAX, "%s/%s", pciDevPath, "class");
+   devClass = fopen((const char *)devClassPath, "r");
+   if (devClass == NULL) {
+      g_debug("%s: Error opening device 'class' file.\n", __FUNCTION__);
+      goto exit;
+   }
+   if (fscanf(devClass, "%x", &classValue) != 1) {
+      classValue = 0;
+      g_debug("%s: Unable to read expected hex class setting.\n", __FUNCTION__);
+   }
+   fclose(devClass);
+
+exit:
+   return classValue;
+}
+
+
+/*
+ ******************************************************************************
+ * GuestInfoCheckSASDevice --                                            */ /**
+ *
+ * Check if the referenced disk device is a SAS device and if so, recalulate
+ * the device (unit) number and update the paths as needed to continue
+ * processing a SAS device.
+ *
+ * @param[in/out] pciDevPath  Path of the disk device to be checked.
+ * @param[out]    tgtHostPath Address of the "host" path to be updated if this
+ *                            is a SAS device.
+ * @param[out]    unit        Pointer to the address of the unit buffer to be
+ *                            updated if this is a SAS device.
+ *
+ ******************************************************************************
+ */
+
+static void
+GuestInfoCheckSASDevice(char *pciDevPath,
+                        char *tgtHostPath,
+                        char **unit)
+{
+   char sas_portPath[PATH_MAX];
+   char **fileNameList = NULL;
+   static GRegex *regexSas = NULL;
+   GError *gErr = NULL;
+   GMatchInfo *matchInfo = NULL;
+   int numFiles = 0;
+   int fileNum;
+
+   Str_Snprintf(sas_portPath, PATH_MAX, "%s/%s", pciDevPath, "sas_port");
+   if (!File_IsDirectory(sas_portPath)) {
+      return;
+   }
+   g_debug("%s: located a \"sas_port\" directory - %s.\n", __FUNCTION__,
+           sas_portPath);
+
+   /* Expecting to find a new "unit" number; scribble over old value.. */
+   **unit = '?';
+   COMP_STATIC_REGEX(regexSas, "^phy-\\d+:(\\d+)$", gErr, exit)
+
+   numFiles = File_ListDirectory(pciDevPath, &fileNameList);
+   if (numFiles < 0) {
+      g_debug("%s: Unable to list files in \"%s\" directory.\n", __FUNCTION__,
+              pciDevPath);
+   }
+   for (fileNum = 0; fileNum < numFiles; fileNum++) {
+      if (g_regex_match(regexSas, fileNameList[fileNum], 0, &matchInfo)) {
+         free(*unit);     /* free previous "unit" string */
+         *unit = g_match_info_fetch(matchInfo, 1);
+         break;
+      }
+   }
+
+   /*
+    * Adjust the tgtHostPath and pciDevPath for continued processing of
+    * a SAS disk device.
+    */
+   Str_Snprintf(tgtHostPath, PATH_MAX, "%s/..", pciDevPath);
+   Str_Snprintf(pciDevPath, PATH_MAX, "%s/..", tgtHostPath);
+
+exit:
+   g_match_info_free(matchInfo);
+   g_clear_error(&gErr);
+   if (fileNameList != NULL) {
+      Util_FreeStringList(fileNameList, numFiles);
+   }
+}
+
+
+/*
+ ******************************************************************************
+ * GuestInfoLinuxBlockDevice --                                          */ /**
+ *
+ * Determine if this is a block device and if so add the disk device name
+ * to the specified PartitionEntryInt structure.  If the startDevPath
+ * represents a full disk, i.e. no partition table on the disk, the
+ * "device" file will be in the starting directory.  For filesystems
+ * created on a disk partition, the "device" file will be in the parent node.
+ *
+ * @param[in]     startPath  Starting path to begin the search for the "device"
+ *                           file.
+ * @param[in/out] partEntry  Pointer to the PartitionEntryInt structure to
+ *                           receive the disk device names.
+ * @param[in]     devNum     The number of the DiskDevName to be updated.
+ *                           The diskDevNames is numbered  1, 2, ... as opposed
+ *                           to array indexes which start at 0.
+ *
+ ******************************************************************************
+ */
+
+static void
+GuestInfoLinuxBlockDevice(char *startPath,
+                          PartitionEntryInt *partEntry,
+                          int devNum)
+{
+   char devPath[PATH_MAX];
+   char pciDevPath[PATH_MAX];
+   char *realPath = NULL;
+   static GRegex *regex = NULL;
+   GError *gErr = NULL;
+   GMatchInfo *matchInfo = NULL;
+   char *unit = NULL;
+   unsigned int devClass;
+   char devName[DISK_DEVICE_NAME_SIZE];
+
+   ASSERT(startPath);
+   ASSERT(partEntry);
+   ASSERT(devNum > 0);
+   devName[0] = '\0';   /* Empty string for the device name until determined. */
+   g_debug("%s: looking up device for file system on \"%s\"\n", __FUNCTION__,
+           startPath);
+
+   /* Check for "device" file in the starting path provided. */
+   Str_Snprintf(devPath, PATH_MAX,  "%s/device", startPath);
+   if (!File_Exists(devPath)) {
+      /*
+       * If working with a filesystem on a disk partition, we will need
+       * to check in the parent node.
+       */
+      Str_Snprintf(devPath, PATH_MAX,  "%s/../device", startPath);
+      if (!File_Exists(devPath)) {
+         goto finished;
+      }
+   }
+
+   realPath = Posix_RealPath(devPath);
+   COMP_STATIC_REGEX(regex, "^.*/\\d+:\\d+:(\\d+):\\d+$", gErr, finished)
+
+   if (!g_regex_match(regex, realPath, 0, &matchInfo)) {
+      g_debug("%s: block disk device pattern not found\n", __FUNCTION__);
+      goto finished;
+   }
+   unit = g_match_info_fetch(matchInfo, 1);
+
+   Str_Strcat(devPath, "/../..", PATH_MAX);
+   Str_Snprintf(pciDevPath, PATH_MAX, "%s/%s", devPath, "..");
+   /*
+    * Check if this is a SAS device.  The contents of "unit", "devPath" and
+    * "pciDevPath" will be altered if a SAS device is detected..
+    */
+   GuestInfoCheckSASDevice(pciDevPath, devPath, &unit);
+
+   /* Getting the disk device class. */
+   devClass = GuestInfoGetDevClass(pciDevPath);
+
+   /*
+    * IDE and SATA devices need different handling.
+    */
+   if ((devClass & PCI_SUBCLASS) == PCI_IDE || devClass == PCI_SATA_AHCI_1) {
+      int cnt;
+
+      cnt = GuestInfoGetIdeSataDev(devPath, pciDevPath);
+      if (cnt < 0) {
+         g_debug("%s: ERROR, unable to determine IDE controller or SATA "
+                 "device.\n", __FUNCTION__);
+         goto finished;
+      }
+      if ((devClass & PCI_SUBCLASS) == PCI_IDE) {
+         /* IDE - full device representation can be constructed. */
+         Str_Snprintf(devName, sizeof devName, "ide%d:%s", cnt, unit);
+      } else {
+         /* SATA - The "host cnt" obtained becomes the "unit" number. */
+         g_free(unit);
+         unit = g_strdup_printf("%d", cnt);
+      }
+   }
+
+   /* At this point only IDE disks would have a completed device name. */
+   if (devName[0] == '\0') {
+      /* Access the PCI device "label" file for the controller name. */
+      GuestInfoGetPCIName(pciDevPath, unit, devName, sizeof devName);
+   }
+
+finished:
+   /*
+    * Add the device name, whether found or not, to the device list for
+    * this mounted file system.  After processing the single partition of
+    * a file system mounted on a block device or all the slave devices of
+    * an LVM, the presence of a zero-length name indicates not all devices
+    * have been correctly determined.
+    */
+   GuestInfoAddDeviceName(devName, partEntry, devNum);
+
+   g_match_info_free(matchInfo);
+   g_clear_error(&gErr);
+   g_free(unit);
+   free(realPath);
+   g_debug("%s: Filesystem of interest found on device \"%s\"\n",
+          __FUNCTION__, devName[0] == '\0' ? "** unknown **" : devName);
+}
+
+
+/*
+ ******************************************************************************
+ * GuestInfoIsLinuxLvmDevice --                                          */ /**
+ *
+ * Determine if the fsName is a Linux LVM and if so, determine the disk
+ * device or devices associated with this LVM based filesystem.  If for
+ * any reason the full set of LVM "slaves" cannot be determined, an
+ * incomplete list of disk device names will not be provided.
+ *
+ * @param[in]     fsName     Name of the block device or LVM mapper name of
+ *                           the filesystem of interest.
+ * @param[in/out] partEntry  Pointer to the PartitionEntryInt structure to
+ *                           receive the disk device names.
+ * @return TRUE if the "slaves" directory has been located.  It does not
+ *         indicate that LVM processing was successful, only that this
+ *         does appear to be an LVM filesystem.  If the disk device names
+ *         for all slaves cannot be located, partial disk mapping is not
+ *         reported.
+ *
+ ******************************************************************************
+ */
+
+static Bool
+GuestInfoIsLinuxLvmDevice(const char *fsName,
+                          PartitionEntryInt *partEntry)
+{
+   char *realPath;
+   char **fileNameList = NULL;
+   int numFiles = 0;
+   int devIndx;
+   char slavesPath[PATH_MAX];
+   char devPath[PATH_MAX];
+
+   /*
+    * If a logical volume, the fsName will be a symbolic link to the
+    * /dev/dm-<n>.  Use the "dm-<n>" name to access the logical volume
+    * entry in the sysfs/device manager (/sys/class/block).
+    */
+   if ((realPath = Posix_RealPath(fsName)) == NULL) {
+      return FALSE;
+   }
+   Str_Snprintf(slavesPath, PATH_MAX, "%s/%s/slaves", LINUX_SYS_BLOCK_DIR,
+                strrchr(realPath, '/') + 1);
+   free(realPath);
+   if (!File_IsDirectory(slavesPath)) {
+      return FALSE;
+   }
+   numFiles = File_ListDirectory(slavesPath, &fileNameList);
+   if (numFiles == 0) {
+      /* An empty "slaves" directory happens at a disk device node; this
+       * certainly is not an LVM.
+       */
+      return FALSE;
+   }
+   if (numFiles < 0) {
+      g_debug("%s: Unable to list entries in \"%s\" directory.\n", __FUNCTION__,
+              slavesPath);
+      return TRUE;
+   }
+
+   /* Create a device name entry for each slave device found. */
+   partEntry->diskDevCnt = numFiles;
+   partEntry->diskDevNames = Util_SafeRealloc(partEntry->diskDevNames,
+                                              numFiles *
+                                              sizeof *partEntry->diskDevNames);
+
+   for (devIndx = 0; devIndx < numFiles; devIndx++) {
+      /*
+       * Each slave device will be based on the disk or disk partition of
+       * a virtual disk device.  Start the block device search from the
+       * "slaves" path.
+       */
+      Str_Snprintf(devPath, PATH_MAX, "%s/%s", slavesPath,
+                   fileNameList[devIndx]);
+      GuestInfoLinuxBlockDevice(devPath, partEntry, devIndx + 1);
+   }
+
+   if (fileNameList != NULL) {
+      Util_FreeStringList(fileNameList, numFiles);
+   }
+   return TRUE;
+}
+
+#endif /* __linux__ */
+
+/*
+ ******************************************************************************
+ * GuestInfoGetDiskDevice --                                             */ /**
+ *
+ * Determine the OS disk device for the block device or the disk devices of
+ * the logical volume mapper name provided.
+ *
+ * @param[in]     fsName     Name of the block device or LVM mapper name of
+ *                           the filesystem of interest.
+ * @param[in/out] partEntry  Pointer to the PartitionEntryInt structure to
+ *                           receive the disk device names.
+ *
+ * Currently only processing disks on a Linux guest.
+ *
+ * TODO: Other available controllers and their importance on vSphere hosted
+ *       guests were discussed in review board posting:
+ *          https://reviewboard.eng.vmware.com/r/1520060/
+ *       PR 2356195 has been filed to track these issues post 11.0.0 FC.
+ ******************************************************************************
+ */
+
+static void
+GuestInfoGetDiskDevice(const char *fsName,
+                       PartitionEntryInt *partEntry)
+{
+#if defined (__linux__)
+   int indx;
+#endif /* __linux__ */
+
+   ASSERT(fsName);
+   ASSERT(partEntry);
+   g_debug("%s: looking up device(s) for file system on \"%s\".\n",
+           __FUNCTION__, fsName);
+
+#if defined (__linux__)
+   /*
+    * Determine if this is a filesystem on a block device or on a logical
+    * volume (such as /dev/mapper/...).
+    */
+
+   /* Check first for an LVM filesystem. */
+   if (!GuestInfoIsLinuxLvmDevice(fsName, partEntry)) {
+
+      /* Not an LVM; check if a basic block device. */
+      char blockDevPath[PATH_MAX];
+
+      Str_Snprintf(blockDevPath, PATH_MAX,  "%s/%s", LINUX_SYS_BLOCK_DIR,
+                   strrchr(fsName, '/') + 1);
+      GuestInfoLinuxBlockDevice(blockDevPath, partEntry, 1 /* first and only*/);
+   }
+
+   /*
+    * Check that all expected devices have been found.  If not, reset the
+    * device count to zero so that partial disk mapping will not happen.
+    */
+   for (indx = 0; indx < partEntry->diskDevCnt; indx++) {
+      if (partEntry->diskDevNames[indx][0] == '\0') {
+         g_warning("%s: Missing disk device name; VMDK mapping unavailable "
+                   "for \"%s\", fsName: \"%s\"\n", __FUNCTION__,
+                   partEntry->name, fsName);
+         partEntry->diskDevCnt = 0;
+         free(partEntry->diskDevNames);
+         partEntry->diskDevNames = NULL;
+         break;
+      }
+   }
+#endif /* __linux__ */
+
+   g_debug("%s: found %d devices(s) for file system on \"%s\".\n",
+           __FUNCTION__, partEntry->diskDevCnt, fsName);
+}
 
 
 /*
@@ -78,7 +709,8 @@ GuestInfo_FreeDiskInfo(GuestDiskInfoInt *di)
  */
 
 GuestDiskInfoInt *
-GuestInfoGetDiskInfoWiper(Bool includeReserved)  // IN
+GuestInfoGetDiskInfoWiper(Bool includeReserved,  // IN
+                          Bool reportDevices)    // IN
 {
    WiperPartition_List pl;
    DblLnkLst_Links *curr;
@@ -133,6 +765,14 @@ GuestInfoGetDiskInfoWiper(Bool includeReserved)  // IN
          partEntry->totalBytes = totalBytes;
          Str_Strncpy(partEntry->fsType, sizeof (di->partitionList)[0].fsType,
                      part->fsType, strlen(part->fsType));
+
+         /* Start with an empty set of disk device names. */
+         partEntry->diskDevCnt = 0;
+         partEntry->diskDevNames = NULL;
+
+         if (reportDevices) {
+            GuestInfoGetDiskDevice(part->fsName, partEntry);
+         }
 
          di->partitionList = newPartitionList;
          g_debug("%s added partition #%d %s type %d fstype %s (mount point %s) "

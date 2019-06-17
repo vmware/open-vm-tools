@@ -33,7 +33,10 @@
 #include "dynbuf.h"
 
 /* Default for whether to query and report disk UUIDs */
-#define  CONFIG_GUESTINFO_REPORT_UUID_DEFAULT  FALSE
+#define CONFIG_GUESTINFO_REPORT_UUID_DEFAULT FALSE
+
+/* Default for whether to query and report disk devices */
+#define CONFIG_GUESTINFO_REPORT_DEVICE_DEFAULT FALSE
 
 /*
  * Plugin-specific data structures for the DiskGuestInfo.
@@ -41,6 +44,8 @@
  * These expand upon the GuestDiskInfo in bora/public/guestInfo.h,
  * but are not shared and need not maintain any version compatibility.
  */
+
+typedef char DiskDevName[DISK_DEVICE_NAME_SIZE];
 
 typedef struct _PartitionEntryInt {
    uint64 freeBytes;
@@ -50,6 +55,10 @@ typedef struct _PartitionEntryInt {
 #ifdef _WIN32
    /* UUID of the disk, if known.  Currently only Windows */
    char uuid[PARTITION_NAME_SIZE];
+#else
+   /* Linux LVM mounted filesystems can span multiple disk devices. */
+   int diskDevCnt;
+   DiskDevName *diskDevNames;
 #endif
 } PartitionEntryInt;
 
@@ -67,8 +76,11 @@ GuestInfo_ServerReportStats(ToolsAppCtx *ctx,  // IN
 gboolean
 GuestInfo_StatProviderPoll(gpointer data);
 
+#ifndef _WIN32
 GuestDiskInfoInt *
-GuestInfoGetDiskInfoWiper(Bool includeReserved);
+GuestInfoGetDiskInfoWiper(Bool includeReserved,
+                          Bool reportDevices);
+#endif
 
 GuestDiskInfoInt *
 GuestInfo_GetDiskInfo(const ToolsAppCtx *ctx);

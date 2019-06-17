@@ -168,7 +168,14 @@
  *
  * @param boolean Set to true to report UUID to VMX.
  */
-#define CONFNAME_DISKINFO_REPORT_UUID  "diskinfo-report-uuid"
+#define CONFNAME_DISKINFO_REPORT_UUID "diskinfo-report-uuid"
+
+/**
+ * Report Linux disk device for vmdk mapping via vim.
+ *
+ * @param boolean Set to true to report devices to VMX.
+ */
+#define CONFNAME_DISKINFO_REPORT_DEVICE "diskinfo-report-device"
 
 /*
  * END GuestInfo goodies.
