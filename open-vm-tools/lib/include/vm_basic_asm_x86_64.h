@@ -217,6 +217,16 @@ XSAVEOPT_ES1(void *save, uint64 mask)
 }
 
 static INLINE void
+XSAVEC_COMPAT_ES1(void *save, uint64 mask)
+{
+   __asm__ __volatile__ (
+        "xsavec %0 \n"
+        : "=m" (*(uint8 *)save)
+        : "a" ((uint32)mask), "d" ((uint32)(mask >> 32))
+        : "memory");
+}
+
+static INLINE void
 XRSTOR_ES1(const void *load, uint64 mask)
 {
    __asm__ __volatile__ (
