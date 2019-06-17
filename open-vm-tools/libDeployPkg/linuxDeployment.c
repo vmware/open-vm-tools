@@ -1408,15 +1408,27 @@ Deploy(const char* packageName)
 
          // Repeatedly try to reboot to workaround PR 530641 where
          // telinit 6 is overwritten by a telinit 2
-         int rebootComandResult = 0;
+         int rebootCommandResult;
+         bool isRebooting = false;
+         sLog(log_info, "Trigger reboot.\n");
          do {
-            sLog(log_info, "Rebooting.\n");
-            rebootComandResult = ForkExecAndWaitCommand("/sbin/telinit 6", false);
+            if (isRebooting) {
+               sLog(log_info, "Rebooting.\n");
+            }
+            rebootCommandResult =
+               ForkExecAndWaitCommand("/sbin/telinit 6", false);
+            isRebooting = (rebootCommandResult == 0) ?
+			   true : isRebooting;
             sleep(1);
-         } while (rebootComandResult == 0);
-         sLog(log_error, "telinit returned error %d.\n", rebootComandResult);
-
-         exit (127);
+         } while (rebootCommandResult == 0);
+         if (!isRebooting) {
+            sLog(log_error,
+                 "Failed to reboot, telinit returned error %d.\n",
+                 rebootCommandResult);
+            exit (127);
+         } else {
+            sLog(log_info, "Reboot has been triggered.\n");
+         }
       }
    }
 
