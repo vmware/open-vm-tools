@@ -164,7 +164,7 @@
 #define FLEX_CLIENT_VERSION_NUMBER "8.0.0"
 #define FLEX_CLIENT_VERSION "e.x.p"
 
-#define THINPRINT_VERSION "1.0.0"
+#define THINPRINT_VERSION "1.1.0"
 
 /*
  * In the *-main branches, FUSION_VERSION should always be set to "e.x.p".
