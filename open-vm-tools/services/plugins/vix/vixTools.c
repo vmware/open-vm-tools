@@ -664,6 +664,7 @@ static HRESULT VixToolsEnableStaticOnPrimary(const char *ipAddr,
 static VixError VixToolsImpersonateUserImplEx(char const *credentialTypeStr,
                                               int credentialType,
                                               char const *obfuscatedNamePassword,
+                                              Bool loadUserProfile,
                                               void **userToken);
 
 static VixError VixToolsDoesUsernameMatchCurrentUser(const char *username);
@@ -693,10 +694,12 @@ static Bool GuestAuthEnabled(void);
 
 VixError GuestAuthPasswordAuthenticateImpersonate(
    char const *obfuscatedNamePassword,
+   Bool loadUserProfile,
    void **userToken);
 
 VixError GuestAuthSAMLAuthenticateAndImpersonate(
    char const *obfuscatedNamePassword,
+   Bool loadUserProfile,
    void **userToken);
 
 void GuestAuthUnimpersonate();
@@ -1164,7 +1167,7 @@ VixTools_RunProgram(VixCommandRequestHeader *requestMsg, // IN
 #endif
 
    if (NULL == userToken) {
-      err = VixToolsImpersonateUser(requestMsg, &userToken);
+      err = VixToolsImpersonateUser(requestMsg, TRUE, &userToken);
       if (VIX_OK != err) {
          goto abort;
       }
@@ -1302,7 +1305,7 @@ VixTools_StartProgram(VixCommandRequestHeader *requestMsg, // IN
       }
    }
 
-   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   err = VixToolsImpersonateUser(requestMsg, TRUE, &userToken);
    if (VIX_OK != err) {
       goto abort;
    }
@@ -3357,7 +3360,7 @@ VixToolsReadRegistry(VixCommandRequestHeader *requestMsg,  // IN
       goto abort;
    }
 
-   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   err = VixToolsImpersonateUser(requestMsg, TRUE, &userToken);
    if (VIX_OK != err) {
       goto abort;
    }
@@ -3477,7 +3480,7 @@ VixToolsWriteRegistry(VixCommandRequestHeader *requestMsg) // IN
       goto abort;
    }
 
-   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   err = VixToolsImpersonateUser(requestMsg, TRUE, &userToken);
    if (VIX_OK != err) {
       goto abort;
    }
@@ -3586,7 +3589,7 @@ VixToolsDeleteObject(VixCommandRequestHeader *requestMsg)  // IN
       goto abort;
    }
 
-   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   err = VixToolsImpersonateUser(requestMsg, TRUE, &userToken);
    if (VIX_OK != err) {
       goto abort;
    }
@@ -3748,7 +3751,7 @@ VixToolsDeleteDirectory(VixCommandRequestHeader *requestMsg)  // IN
 
    recursive = deleteDirectoryRequest->recursive;
 
-   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   err = VixToolsImpersonateUser(requestMsg, TRUE, &userToken);
    if (VIX_OK != err) {
       goto abort;
    }
@@ -3862,7 +3865,7 @@ VixToolsObjectExists(VixCommandRequestHeader *requestMsg,  // IN
       goto abort;
    }
 
-   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   err = VixToolsImpersonateUser(requestMsg, TRUE, &userToken);
    if (VIX_OK != err) {
       goto abort;
    }
@@ -4006,7 +4009,7 @@ VixToolsCreateTempFileInt(VixCommandRequestHeader *requestMsg,   // IN
       goto abort;
    }
 
-   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   err = VixToolsImpersonateUser(requestMsg, TRUE, &userToken);
    if (VIX_OK != err) {
       goto abort;
    }
@@ -4095,7 +4098,7 @@ VixToolsReadVariable(VixCommandRequestHeader *requestMsg,   // IN
       goto abort;
    }
 
-   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   err = VixToolsImpersonateUser(requestMsg, TRUE, &userToken);
    if (VIX_OK != err) {
       goto abort;
    }
@@ -4239,7 +4242,7 @@ VixToolsReadEnvVariables(VixCommandRequestHeader *requestMsg,   // IN
    }
 
    readRequest = (VixMsgReadEnvironmentVariablesRequest *) requestMsg;
-   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   err = VixToolsImpersonateUser(requestMsg, TRUE, &userToken);
    if (VIX_OK != err) {
       goto abort;
    }
@@ -4564,7 +4567,7 @@ VixToolsWriteVariable(VixCommandRequestHeader *requestMsg)   // IN
       goto abort;
    }
 
-   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   err = VixToolsImpersonateUser(requestMsg, TRUE, &userToken);
    if (VIX_OK != err) {
       goto abort;
    }
@@ -4719,7 +4722,7 @@ VixToolsMoveObject(VixCommandRequestHeader *requestMsg)        // IN
       goto abort;
    }
 
-   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   err = VixToolsImpersonateUser(requestMsg, TRUE, &userToken);
    if (VIX_OK != err) {
       goto abort;
    }
@@ -4912,7 +4915,7 @@ VixToolsInitiateFileTransferFromGuest(VixCommandRequestHeader *requestMsg,    //
       goto abort;
    }
 
-   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   err = VixToolsImpersonateUser(requestMsg, TRUE, &userToken);
    if (VIX_OK != err) {
       goto abort;
    }
@@ -5042,7 +5045,7 @@ VixToolsInitiateFileTransferToGuest(VixCommandRequestHeader *requestMsg)  // IN
    }
 #endif
 
-   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   err = VixToolsImpersonateUser(requestMsg, TRUE, &userToken);
    if (VIX_OK != err) {
       goto abort;
    }
@@ -5250,7 +5253,7 @@ VixToolsListProcesses(VixCommandRequestHeader *requestMsg, // IN
    destPtr = resultBuffer;
    *destPtr = 0;
 
-   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   err = VixToolsImpersonateUser(requestMsg, TRUE, &userToken);
    if (VIX_OK != err) {
       goto abort;
    }
@@ -5683,7 +5686,7 @@ VixToolsListProcessesEx(VixCommandRequestHeader *requestMsg, // IN
 
    listRequest = (VixMsgListProcessesExRequest *) requestMsg;
 
-   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   err = VixToolsImpersonateUser(requestMsg, TRUE, &userToken);
    if (VIX_OK != err) {
       goto abort;
    }
@@ -6027,7 +6030,7 @@ VixToolsKillProcess(VixCommandRequestHeader *requestMsg) // IN
    int sysErrno;
 #endif
 
-   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   err = VixToolsImpersonateUser(requestMsg, TRUE, &userToken);
    if (VIX_OK != err) {
       goto abort;
    }
@@ -6221,7 +6224,7 @@ VixToolsCreateDirectory(VixCommandRequestHeader *requestMsg)  // IN
       goto abort;
    }
 
-   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   err = VixToolsImpersonateUser(requestMsg, TRUE, &userToken);
    if (VIX_OK != err) {
       goto abort;
    }
@@ -6347,7 +6350,7 @@ VixToolsListDirectory(VixCommandRequestHeader *requestMsg,    // IN
       goto abort;
    }
 
-   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   err = VixToolsImpersonateUser(requestMsg, TRUE, &userToken);
    if (VIX_OK != err) {
       goto abort;
    }
@@ -6562,7 +6565,7 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
       goto abort;
    }
 
-   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   err = VixToolsImpersonateUser(requestMsg, TRUE, &userToken);
    if (VIX_OK != err) {
       goto abort;
    }
@@ -6867,7 +6870,7 @@ VixToolsGetFileInfo(VixCommandRequestHeader *requestMsg,    // IN
       goto abort;
    }
 
-   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   err = VixToolsImpersonateUser(requestMsg, TRUE, &userToken);
    if (VIX_OK != err) {
       goto abort;
    }
@@ -7015,7 +7018,7 @@ VixToolsSetFileAttributes(VixCommandRequestHeader *requestMsg)    // IN
    }
 #endif
 
-   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   err = VixToolsImpersonateUser(requestMsg, TRUE, &userToken);
    if (VIX_OK != err) {
       goto abort;
    }
@@ -7424,7 +7427,7 @@ VixToolsCheckUserAccount(VixCommandRequestHeader *requestMsg) // IN
    Bool impersonatingVMWareUser = FALSE;
    void *userToken = NULL;
 
-   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   err = VixToolsImpersonateUser(requestMsg, TRUE, &userToken);
    if (VIX_OK != err) {
       goto abort;
    }
@@ -7518,7 +7521,7 @@ VixToolsRunScript(VixCommandRequestHeader *requestMsg,  // IN
       goto abort;
    }
 
-   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   err = VixToolsImpersonateUser(requestMsg, TRUE, &userToken);
    if (VIX_OK != err) {
       goto abort;
    }
@@ -7808,6 +7811,7 @@ abort:
 
 VixError
 VixToolsImpersonateUser(VixCommandRequestHeader *requestMsg,   // IN
+                        Bool loadUserProfile,                  // IN
                         void **userToken)                      // OUT
 {
    VixError err = VIX_OK;
@@ -7837,6 +7841,7 @@ VixToolsImpersonateUser(VixCommandRequestHeader *requestMsg,   // IN
       err = VixToolsImpersonateUserImplEx(NULL,
                                           credentialType,
                                           credentialField,
+                                          loadUserProfile,
                                           userToken);
       break;
    }
@@ -7860,6 +7865,7 @@ VixToolsImpersonateUser(VixCommandRequestHeader *requestMsg,   // IN
       err = VixToolsImpersonateUserImplEx(NULL,
                                           credentialType,
                                           NULL,
+                                          loadUserProfile,
                                           userToken);
       break;
    case VIX_USER_CREDENTIAL_NAME_PASSWORD:
@@ -7873,6 +7879,7 @@ VixToolsImpersonateUser(VixCommandRequestHeader *requestMsg,   // IN
       err = VixToolsImpersonateUserImplEx(NULL,
                                           credentialType,
                                           credentialField,
+                                          loadUserProfile,
                                           userToken);
       if ((VIX_OK != err)
           && ((VIX_USER_CREDENTIAL_NAME_PASSWORD_OBFUSCATED == credentialType)
@@ -7904,6 +7911,7 @@ VixToolsImpersonateUser(VixCommandRequestHeader *requestMsg,   // IN
       err = VixToolsImpersonateUserImplEx(NULL,
                                           credentialType,
                                           credentialField,
+                                          loadUserProfile,
                                           userToken);
       break;
    }
@@ -7957,6 +7965,7 @@ VixToolsImpersonateUserImpl(char const *credentialTypeStr,         // IN
    return(VIX_OK == VixToolsImpersonateUserImplEx(credentialTypeStr,
                                                   credentialType,
                                                   obfuscatedNamePassword,
+                                                  TRUE,
                                                   userToken));
 } // VixToolsImpersonateUserImpl
 
@@ -7989,6 +7998,7 @@ VixError
 VixToolsImpersonateUserImplEx(char const *credentialTypeStr,         // IN
                               int credentialType,                    // IN
                               char const *obfuscatedNamePassword,    // IN
+                              Bool loadUserProfile,                  // IN
                               void **userToken)                      // OUT
 {
    VixError err = VIX_E_INVALID_LOGIN_CREDENTIALS;
@@ -8112,6 +8122,7 @@ VixToolsImpersonateUserImplEx(char const *credentialTypeStr,         // IN
            VIX_USER_CREDENTIAL_NAME_PASSWORD_OBFUSCATED == credentialType)) {
          err =
             GuestAuthPasswordAuthenticateImpersonate(obfuscatedNamePassword,
+                                                     loadUserProfile,
                                                      userToken);
       }
 
@@ -8119,6 +8130,7 @@ VixToolsImpersonateUserImplEx(char const *credentialTypeStr,         // IN
       else if (VIX_USER_CREDENTIAL_SAML_BEARER_TOKEN == credentialType) {
          if (GuestAuthEnabled()) {
             err = GuestAuthSAMLAuthenticateAndImpersonate(obfuscatedNamePassword,
+                                                          loadUserProfile,
                                                           userToken);
          } else {
             err = VIX_E_NOT_SUPPORTED;
@@ -8762,7 +8774,13 @@ VixToolsProcessHgfsPacket(VixCommandHgfsSendPacket *requestMsg,   // IN
       goto abort;
    }
 
+   /*
+    * When transferring file to/from guest, VixToolsProcessHgfsPacket is
+    * repeatedly called. Skip loading user profile, which is unnecessary
+    * here, to minimize performance impact.
+    */
    err = VixToolsImpersonateUser((VixCommandRequestHeader *) requestMsg,
+                                 FALSE, // Do not load user profile
                                  &userToken);
    if (VIX_OK != err) {
       goto abort;
@@ -8861,7 +8879,7 @@ VixToolsListFileSystems(VixCommandRequestHeader *requestMsg, // IN
    *destPtr = 0;
    endDestPtr = resultBuffer + sizeof(resultBuffer);
 
-   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   err = VixToolsImpersonateUser(requestMsg, TRUE, &userToken);
    if (VIX_OK != err) {
       goto abort;
    }
@@ -9091,6 +9109,7 @@ VixToolsValidateCredentials(VixCommandRequestHeader *requestMsg)    // IN
    }
 
    err = VixToolsImpersonateUser((VixCommandRequestHeader *) requestMsg,
+                                 TRUE,
                                  &userToken);
    if (VIX_OK != err) {
       goto abort;
@@ -9324,7 +9343,7 @@ VixToolsSetGuestNetworkingConfig(VixCommandRequestHeader *requestMsg)    // IN
    ipAddr[0] = '\0';
    subnetMask[0] = '\0';
 
-   err = VixToolsImpersonateUser(requestMsg, &userToken);
+   err = VixToolsImpersonateUser(requestMsg, TRUE, &userToken);
    if (VIX_OK != err) {
       goto abort;
    }
@@ -9516,6 +9535,7 @@ VixToolsAddAuthAlias(VixCommandRequestHeader *requestMsg)    // IN
    }
 
    err = VixToolsImpersonateUser((VixCommandRequestHeader *) requestMsg,
+                                 TRUE,
                                  &userToken);
    if (VIX_OK != err) {
       goto abort;
@@ -9645,6 +9665,7 @@ VixToolsRemoveAuthAlias(VixCommandRequestHeader *requestMsg)    // IN
    }
 
    err = VixToolsImpersonateUser((VixCommandRequestHeader *) requestMsg,
+                                 TRUE,
                                  &userToken);
    if (VIX_OK != err) {
       goto abort;
@@ -9771,6 +9792,7 @@ VixToolsListAuthAliases(VixCommandRequestHeader *requestMsg, // IN
    }
 
    err = VixToolsImpersonateUser((VixCommandRequestHeader *) requestMsg,
+                                 TRUE,
                                  &userToken);
    if (VIX_OK != err) {
       goto abort;
@@ -9956,6 +9978,7 @@ VixToolsListMappedAliases(VixCommandRequestHeader *requestMsg, // IN
 
    req = (VixMsgListMappedAliasesRequest *) requestMsg;
    err = VixToolsImpersonateUser((VixCommandRequestHeader *) requestMsg,
+                                 TRUE,
                                  &userToken);
    if (VIX_OK != err) {
       goto abort;
@@ -11663,6 +11686,7 @@ GuestAuthEnabled(void)
 VixError
 GuestAuthPasswordAuthenticateImpersonate(
    char const *obfuscatedNamePassword, // IN
+   Bool loadUserProfile,               // IN
    void **userToken)                   // OUT
 {
 #if SUPPORT_VGAUTH
@@ -11676,7 +11700,8 @@ GuestAuthPasswordAuthenticateImpersonate(
    Bool impersonated = FALSE;
 
    extraParams[0].name = VGAUTH_PARAM_LOAD_USER_PROFILE;
-   extraParams[0].value = VGAUTH_PARAM_VALUE_TRUE;
+   extraParams[0].value = loadUserProfile ? VGAUTH_PARAM_VALUE_TRUE :
+                                            VGAUTH_PARAM_VALUE_FALSE;
 
    err = VixMsg_DeObfuscateNamePassword(obfuscatedNamePassword,
                                         &username,
@@ -11764,6 +11789,7 @@ done:
 VixError
 GuestAuthSAMLAuthenticateAndImpersonate(
    char const *obfuscatedNamePassword, // IN
+   Bool loadUserProfile,               // IN
    void **userToken)                   // OUT
 {
 #if SUPPORT_VGAUTH
@@ -11777,7 +11803,8 @@ GuestAuthSAMLAuthenticateAndImpersonate(
    Bool impersonated = FALSE;
 
    extraParams[0].name = VGAUTH_PARAM_LOAD_USER_PROFILE;
-   extraParams[0].value = VGAUTH_PARAM_VALUE_TRUE;
+   extraParams[0].value = loadUserProfile ? VGAUTH_PARAM_VALUE_TRUE :
+                                            VGAUTH_PARAM_VALUE_FALSE;
 
    err = VixMsg_DeObfuscateNamePassword(obfuscatedNamePassword,
                                         &token,
