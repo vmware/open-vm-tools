@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -158,49 +158,32 @@ FXRSTOR_AMD_ES0(const void *load)
 static INLINE void 
 XSAVE_ES1(void *save, uint64 mask)
 {
-#if __GNUC__ < 4 || __GNUC__ == 4 && __GNUC_MINOR__ == 1
-   __asm__ __volatile__ (
-        ".byte 0x0f, 0xae, 0x21 \n"
-        :
-        : "c" ((uint8 *)save), "a" ((uint32)mask), "d" ((uint32)(mask >> 32))
-        : "memory");
-#else
    __asm__ __volatile__ (
         "xsave %0 \n"
         : "=m" (*(uint8 *)save)
         : "a" ((uint32)mask), "d" ((uint32)(mask >> 32))
         : "memory");
-#endif
 }
 
 static INLINE void 
 XSAVEOPT_ES1(void *save, uint64 mask)
 {
    __asm__ __volatile__ (
-        ".byte 0x0f, 0xae, 0x31 \n"
-        :
-        : "c" ((uint8 *)save), "a" ((uint32)mask), "d" ((uint32)(mask >> 32))
+        "xsaveopt %0 \n"
+        : "=m" (*(uint8 *)save)
+        : "a" ((uint32)mask), "d" ((uint32)(mask >> 32))
         : "memory");
 }
 
 static INLINE void 
 XRSTOR_ES1(const void *load, uint64 mask)
 {
-#if __GNUC__ < 4 || __GNUC__ == 4 && __GNUC_MINOR__ == 1
-   __asm__ __volatile__ (
-        ".byte 0x0f, 0xae, 0x29 \n"
-        :
-        : "c" ((const uint8 *)load),
-          "a" ((uint32)mask), "d" ((uint32)(mask >> 32))
-        : "memory");
-#else
    __asm__ __volatile__ (
         "xrstor %0 \n"
         :
         : "m" (*(const uint8 *)load),
           "a" ((uint32)mask), "d" ((uint32)(mask >> 32))
         : "memory");
-#endif
 }
 
 static INLINE void 
@@ -218,17 +201,10 @@ XRSTOR_AMD_ES0(const void *load, uint64 mask)
         "fildl   %0      \n"     // Dummy Load from "safe address" changes all
                                  // x87 exception pointers.
         "mov %%ebx, %%eax \n"
-#if __GNUC__ < 4 || __GNUC__ == 4 && __GNUC_MINOR__ == 1
-        ".byte 0x0f, 0xae, 0x29 \n"
-        :
-        : "m" (dummy), "c" ((const uint8 *)load),
-          "b" ((uint32)mask), "d" ((uint32)(mask >> 32))
-#else
         "xrstor %1 \n"
         :
         : "m" (dummy), "m" (*(const uint8 *)load),
           "b" ((uint32)mask), "d" ((uint32)(mask >> 32))
-#endif
         : "eax", "memory");
 }
 #endif /* __GNUC__ */
