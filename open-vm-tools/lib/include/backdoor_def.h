@@ -447,8 +447,23 @@ Backdoor_CmdRequiresValidSegments(unsigned cmd)
  *
  * 3) Perform the x86 I/O space instruction.
  *
- * The vCPU executes the BKPT (32-bit code) or BRK (64-bit code) instruction
- * with the immediate X86_IO_BRK_IMM. Note that T32 code requires an 8-bit
+ * Several mechanisms are available:
+ *
+ * o From EL1
+ * The vCPU executes the HVC (64-bit code) instruction with the immediate
+ * X86_IO_MAGIC. This is the mechanism to favor from EL1 because it is
+ * architectural.
+ *
+ * o From EL1 and EL0
+ * 64-bit code: The vCPU sets X7<63:32> to X86_IO_MAGIC and executes the
+ *              MRS XZR, MDCCSR_EL0 instruction.
+ * 32-bit code: To be defined...
+ * This is the mechanism to favor from EL0 because it has a negligible impact
+ * on vCPU performance.
+ *
+ * o From EL1 and EL0
+ * The vCPU executes the BRK (64-bit code) or BKPT (32-bit code) instruction
+ * with the immediate X86_IO_MAGIC. Note that T32 code requires an 8-bit
  * immediate.
  *
  * 4) Read from general-purpose registers specific to the x86 I/O space
@@ -464,7 +479,7 @@ Backdoor_CmdRequiresValidSegments(unsigned cmd)
  *   byte access) or W0<15:0> (2 bytes access) or W0 (4 bytes access).
  */
 
-#define X86_IO_BRK_IMM        0x86
+#define X86_IO_MAGIC          0x86
 
 #define X86_IO_W7_SIZE_SHIFT  0
 #define X86_IO_W7_SIZE_MASK   (0x3 << X86_IO_W7_SIZE_SHIFT)
