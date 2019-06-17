@@ -71,6 +71,14 @@ extern "C" {
 #define BDOOR_IS_READ(_flags)  (((_flags) & BDOOR_FLAGS_WRITE) == 0)
 #define BDOOR_IS_WRITE(_flags) !BDOOR_IS_READ(_flags)
 
+/*
+ * Max number of BPNs that can be passed in a single call from monitor->VMX with
+ * a HB backdoor request.  This should be kept in parity with
+ * IOSPACE_MAX_REP_BPNS to keep performance between the two HB backdoor
+ * interfaces comparable.
+ */
+#define BDOOR_HB_MAX_BPNS  513
+
 #define   BDOOR_CMD_GETMHZ                    1
 /*
  * BDOOR_CMD_APMFUNCTION is used by:
