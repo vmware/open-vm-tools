@@ -403,7 +403,8 @@ ProcMgr_ListProcesses(void)
 
       if (numRead > 0) {
          for (replaceLoop = 0 ; replaceLoop < numRead ; replaceLoop++) {
-            if ('\0' == cmdLineTemp[replaceLoop]) {
+            if ('\0' == cmdLineTemp[replaceLoop] ||
+                replaceLoop == numRead - 1) {
                if (cmdNameLookup) {
                   /*
                    * Store the command name.
