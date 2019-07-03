@@ -176,6 +176,7 @@ extern "C" {
    GOKM("windows9",                             windows9Guest,           TRUE) \
    GOKM("windows9-64",                          windows9_64Guest,        TRUE) \
    GOKM("windows9srv-64",                       windows9Server64Guest,   TRUE) \
+   GOKM("windows2019srv-64",                    windows2019srv_64Guest,  TRUE) \
    GOKM("winHyperV",                            windowsHyperVGuest,      TRUE) \
    GOKM("winServer2008Cluster-32",              winLonghornGuest,        FALSE) \
    GOKM("winServer2008Datacenter-32",           winLonghornGuest,        FALSE) \
@@ -215,7 +216,6 @@ extern "C" {
    GOKM("winServer2008StorageStandard-64",      winLonghorn64Guest,      FALSE) \
    GOKM("winServer2008StorageWorkgroup-64",     winLonghorn64Guest,      FALSE) \
    GOKM("winServer2008Web-64",                  winLonghorn64Guest,      FALSE) \
-   GOKM("windows2019srv-64",                    windows2019srv_64Guest,  FALSE) \
    GOKM("winVistaUltimate-32",                  winVistaGuest,           FALSE) \
    GOKM("winVistaHomePremium-32",               winVistaGuest,           FALSE) \
    GOKM("winVistaHomeBasic-32",                 winVistaGuest,           FALSE) \
