@@ -751,8 +751,8 @@ GuestInfoGetDiskInfoWiper(Bool includeReserved,  // IN
          }
 
          if (strlen(part->mountPoint) + 1 > partNameSize) {
-            g_warning("GetDiskInfo: ERROR: Partition name buffer too small\n");
-            goto out;
+            g_debug("GetDiskInfo: Partition name '%s' too large, truncating\n",
+                    part->mountPoint);
          }
 
          newPartitionList = Util_SafeRealloc(di->partitionList,
@@ -760,7 +760,8 @@ GuestInfoGetDiskInfoWiper(Bool includeReserved,  // IN
                                              sizeof *di->partitionList);
 
          partEntry = &newPartitionList[partCount++];
-         Str_Strcpy(partEntry->name, part->mountPoint, partNameSize);
+         Str_Strncpy(partEntry->name, partNameSize,
+                     part->mountPoint, partNameSize - 1);
          partEntry->freeBytes = freeBytes;
          partEntry->totalBytes = totalBytes;
          Str_Strncpy(partEntry->fsType, sizeof (di->partitionList)[0].fsType,
