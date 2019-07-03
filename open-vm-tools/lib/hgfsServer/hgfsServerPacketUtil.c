@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -788,14 +788,10 @@ HSPUMapBuf(HgfsChannelMapVirtAddrFunc mapVa,    // IN: map virtual address funct
         iovIndex < iovCount && remainingSize > 0;
         iovIndex++, mappedIovCount++) {
 
-      iov[iovIndex].context = NULL;
-
       /* Check: Iov in VMCI should never cross page boundary */
       ASSERT(iov[iovIndex].len <= (PAGE_SIZE - PAGE_OFFSET(iov[iovIndex].pa)));
 
-      iov[iovIndex].va = mapVa(iov[iovIndex].pa,
-                               iov[iovIndex].len,
-                               &iov[iovIndex].context);
+      iov[iovIndex].va = mapVa(&iov[iovIndex]);
       if (NULL == iov[iovIndex].va) {
          /* Failed to map the physical address. */
          break;
@@ -842,9 +838,7 @@ HSPUUnmapBuf(HgfsChannelUnmapVirtAddrFunc unmapVa, // IN/OUT: Hgfs Packet
    for (iovIndex = startIndex, endIndex = startIndex + *mappedCount;
         iovIndex < endIndex;
         iovIndex++) {
-      ASSERT(iov[iovIndex].context);
       unmapVa(&iov[iovIndex].context);
-      iov[iovIndex].context = NULL;
       iov[iovIndex].va = NULL;
    }
    *mappedCount = 0;
