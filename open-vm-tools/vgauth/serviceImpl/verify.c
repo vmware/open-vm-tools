@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -43,15 +43,9 @@
 VGAuthError
 ServiceInitVerify(void)
 {
-   VGAuthError err;
 
    CertVerify_Init();
-   err = SAML_Init();
-   if (err != VGAUTH_E_OK) {
-      goto done;
-   }
-done:
-   return err;
+   return SAML_Init();
 }
 
 
