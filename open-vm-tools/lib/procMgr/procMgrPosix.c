@@ -340,7 +340,6 @@ ProcMgr_ListProcesses(void)
       unsigned long long dummy;
       unsigned long long relativeStartTime;
       char *stringBegin;
-      char *cmdNameBegin;
       Bool cmdNameLookup = TRUE;
 
       /*
@@ -410,15 +409,22 @@ ProcMgr_ListProcesses(void)
                    * Store the command name.
                    * Find the last path separator, to get the cmd name.
                    * If no separator is found, then use the whole name.
+                   * This needs to be done only if there is an absolute
+                   * path for the binary. Else, the parsing may result
+                   * in incorrect results. Following are few examples:
+                   *
+                   *   sshd: root@pts/1
+                   *   gdm-session-worker [pam/gdm-autologin]
+                   *
                    */
-                  cmdNameBegin = strrchr(cmdLineTemp, '/');
-                  if (NULL == cmdNameBegin) {
-                     cmdNameBegin = cmdLineTemp;
-                  } else {
+                  char *cmdNameBegin = strrchr(cmdLineTemp, '/');
+                  if (NULL != cmdNameBegin && cmdLineTemp[0] == '/') {
                      /*
                       * Skip over the last separator.
                       */
                      cmdNameBegin++;
+                  } else {
+                     cmdNameBegin = cmdLineTemp;
                   }
                   procInfo.procCmdName = Unicode_Alloc(cmdNameBegin, STRING_ENCODING_DEFAULT);
                   if (procInfo.procCmdAbsPath != NULL &&
