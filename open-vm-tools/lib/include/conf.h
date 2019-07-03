@@ -54,6 +54,42 @@
 #define CONFNAME_HIDETOOLSVERSION         "hide-tools-version"
 #define CONFNAME_DISABLEPMTIMERWARNING    "disable-pmtimerwarning"
 
+/*
+ ******************************************************************************
+ * BEGIN AppInfo goodies.
+ */
+
+/**
+ * Defines the string used for the AppInfo config file group.
+ */
+#define CONFGROUPNAME_APPINFO "appinfo"
+
+/**
+ * Define a custom AppInfo poll interval (in seconds).
+ *
+ * @note Illegal values result in a @c g_warning and fallback to the default
+ * poll interval.
+ *
+ * @param int   User-defined poll interval.  Set to 0 to disable polling.
+ */
+#define CONFNAME_APPINFO_POLLINTERVAL "poll-interval"
+
+/**
+ * Defines the configuration to publish the application information or not.
+ *
+ * @note Illegal values result in a @c g_warning and fallback to the default
+ * value.
+ *
+ * @param boolean Set to TRUE to disable publishing.
+ *                Set to FALSE to enable publishing.
+ */
+#define CONFNAME_APPINFO_DISABLED "disabled"
+
+/*
+ * END AppInfo goodies.
+ ******************************************************************************
+ */
+
 
 /*
  ******************************************************************************
