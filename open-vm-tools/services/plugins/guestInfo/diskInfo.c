@@ -19,7 +19,7 @@
 /**
  * @file diskInfo.c
  *
- *	Get disk information.
+ *      Get disk information.
  */
 
 #include <stdlib.h>
@@ -246,54 +246,70 @@ GuestInfoGetIdeSataDev(const char *tgtHostPath,
    char **fileNameList = NULL;
    static GRegex *regexHostPath = NULL;
    static GRegex *regexHost = NULL;
+   static GRegex *regexAtaPath = NULL;
+   static GRegex *regexAta = NULL;
+   GRegex *regexAtaOrHost;
    GError *gErr = NULL;
    GMatchInfo *matchInfo = NULL;
    char *charHost = NULL;
    int result = -1;
    int numFiles = 0;
+   int number = 0;
+   int fileNum;
+   int host;
 
    /*
-    * Only once, compile the regular expressions that will be needed.
+    * Depending on the Linux kernel version, the IDE device or SATA
+    * controller notation may begin with "host" or "ata".  More recent
+    * Linux releases are using "ata".
     */
-   COMP_STATIC_REGEX(regexHostPath, "^.*/host(\\d+)$", gErr, exit)
-   COMP_STATIC_REGEX(regexHost, "^host(\\d+)$", gErr, exit)
-
-
+   COMP_STATIC_REGEX(regexAtaPath, "^.*/ata(\\d+)$", gErr, exit)
    realPath = Posix_RealPath(tgtHostPath);
-   if (g_regex_match(regexHostPath, realPath, 0, &matchInfo)) {
-      int number = 0;
-      int fileNum;
-      int host;
+   if (g_regex_match(regexAtaPath, realPath, 0, &matchInfo)) {
+      COMP_STATIC_REGEX(regexAta, "^ata(\\d+)$", gErr, exit)
+      regexAtaOrHost = regexAta;
 
-      charHost = g_match_info_fetch(matchInfo, 1);
-      if (sscanf(charHost, "%d", &host) != 1) {
-         g_debug("%s: Unable to read host number.\n", __FUNCTION__);
+   } else {
+      COMP_STATIC_REGEX(regexHostPath, "^.*/host(\\d+)$", gErr, exit)
+      if (g_regex_match(regexHostPath, realPath, 0, &matchInfo)) {
+         COMP_STATIC_REGEX(regexHost, "^host(\\d+)$", gErr, exit)
+         regexAtaOrHost = regexHost;
+
+      } else {
+         g_debug("%s: Unable to locate IDE/SATA \"ata\" or \"host\" node "
+                 "directory.\n", __FUNCTION__);
          goto exit;
       }
+   }
 
-      numFiles = File_ListDirectory(pciDevPath, &fileNameList);
-      if (numFiles < 0) {
-         g_debug("%s: Unable to list files in \"%s\" directory.\n",
-                 __FUNCTION__, pciDevPath);
-      }
-      for (fileNum = 0; fileNum < numFiles; fileNum++) {
-         int currHost;
+   charHost = g_match_info_fetch(matchInfo, 1);
+   if (sscanf(charHost, "%d", &host) != 1) {
+      g_debug("%s: Unable to read host number.\n", __FUNCTION__);
+      goto exit;
+   }
 
-         if (g_regex_match(regexHost, fileNameList[fileNum], 0, &matchInfo)) {
-            g_free(charHost);
-            charHost = g_match_info_fetch(matchInfo, 1);
-            if (sscanf(charHost, "%d", &currHost) != 1) {
-               g_debug("%s: Unable to read current host number.\n",
-                       __FUNCTION__);
-               goto exit;
-            }
-            if (currHost < host) {
-               number++;
-            }
+   numFiles = File_ListDirectory(pciDevPath, &fileNameList);
+   if (numFiles < 0) {
+      g_debug("%s: Unable to list files in \"%s\" directory.\n",
+              __FUNCTION__, pciDevPath);
+   }
+   for (fileNum = 0; fileNum < numFiles; fileNum++) {
+      int currHost;
+
+      if (g_regex_match(regexAtaOrHost, fileNameList[fileNum], 0, &matchInfo)) {
+         g_free(charHost);
+         charHost = g_match_info_fetch(matchInfo, 1);
+         if (sscanf(charHost, "%d", &currHost) != 1) {
+            g_debug("%s: Unable to read current host number.\n",
+                    __FUNCTION__);
+            goto exit;
+         }
+         if (currHost < host) {
+            number++;
          }
       }
-      result = number;
-    }
+   }
+   result = number;
 
 exit:
    g_match_info_free(matchInfo);
@@ -311,9 +327,18 @@ exit:
  ******************************************************************************
  * GuestInfoGetDevClass --                                               */ /**
  *
- * Extract the class value from the "class" file of the specified disk device.
+ * Locate and extract the value from the "class" file of the specified disk
+ * device.  This file is typically located in the directory provided by the
+ * parameter "pciDevPath".
  *
- * @param[in]  pciDevPath  Path to the IDE, SCSI or SAS disk device of interest.
+ * An IDE device layout change that occurred between 2.x and 3.x Linux kernels
+ * may require a check in the parent directory.  If that is necessary, the
+ * "pciDevPath" and "devPath" will be updated to reflect that difference.
+ *
+ * @param[in/out]  pciDevPath  Path to the IDE, SCSI or SAS disk device of
+ *                             interest; expecting "class" file.
+ * @param[in/out]  devPath     Associated directory which will need to be
+ *                             adjusted if pciDevPath is altered.
  *
  * @return     The disk device class value.
  *
@@ -321,7 +346,8 @@ exit:
  */
 
 static unsigned int
-GuestInfoGetDevClass(const char *pciDevPath)
+GuestInfoGetDevClass(char *pciDevPath,
+                     char *devPath)
 {
    char devClassPath[PATH_MAX];
    FILE *devClass = NULL;
@@ -329,6 +355,19 @@ GuestInfoGetDevClass(const char *pciDevPath)
 
    ASSERT(pciDevPath);
    Str_Snprintf(devClassPath, PATH_MAX, "%s/%s", pciDevPath, "class");
+   if (!File_Exists(devClassPath)) {
+      /* Check if "class" exists in the parent directory. */
+      Str_Snprintf(devClassPath, PATH_MAX, "%s/../%s", pciDevPath, "class");
+      if (File_Exists(devClassPath)) {
+         /* "class" found in parent directory; probably IDE/SATA device.*/
+         Str_Strcat(pciDevPath, "/..", PATH_MAX);
+         Str_Strcat(devPath, "/..", PATH_MAX);
+      } else {
+         g_debug("%s: Unable to locate device 'class' file.\n", __FUNCTION__);
+         goto exit;
+      }
+   }
+
    devClass = fopen((const char *)devClassPath, "r");
    if (devClass == NULL) {
       g_debug("%s: Error opening device 'class' file.\n", __FUNCTION__);
@@ -417,6 +456,112 @@ exit:
 
 /*
  ******************************************************************************
+ * GuestInfoNvmeDevice --                                                */ /**
+ *
+ * Extract the NVMe disk unit number for the specified disk device.  In
+ * Linux kernels 3.x and later, the NVME device is contained in the "nsid"
+ * file in the sysfs filesystem.  On earlier kernels such as 2.6, the NVME
+ * device number is the last number group in the node name.
+ *
+ * NVMe devices are number 1 and up; the "physical" disk unit numbering
+ * starts at zero.
+ *
+ *  @param[in]    devPath    Path of the "device" file for this NVMe device.
+ *                           The "nsid" file, if it exists, will be in the
+ *                           same directory.
+ * @param[out]    pciDevPath Path to be updated with the directory containing
+ *                           the device "label" file.   This path will also
+ *                           contain the device "class" file.
+ * @param[out]    unit       Pointer to receive the address of the disk device
+ *                           number dereived from the contents of the "nsid"
+ *                           file or from the node name in 2.6 Linux kernels.
+ *
+ * @return TRUE if the NVMe disk device number has been determined and the
+ *         device number is passed back as a character string through "unit".
+ *         The "pciDevPath will be updated (replaced) with the directory which
+ *         should contain the device "label" file.
+ *
+ ******************************************************************************
+ */
+
+static Bool
+GuestInfoNvmeDevice(const char *devPath,
+                    char *pciDevPath,
+                    char **unit)
+{
+   char nsidPath[PATH_MAX];
+   FILE *devNsid = NULL;
+   int dirPathLen;
+   int nsid;
+
+   ASSERT(devPath);
+   ASSERT(pciDevPath);
+   dirPathLen = strrchr(devPath, '/') - devPath;
+   Str_Strncpy(nsidPath, sizeof nsidPath, devPath, dirPathLen);
+   Str_Strcat(nsidPath, "/nsid", PATH_MAX);
+   if (File_Exists(nsidPath)) {
+      devNsid = fopen((const char *)nsidPath, "r");
+      if (devNsid == NULL) {
+         g_debug("%s: Error opening NVMe device \"nsid\" file.\n",
+                 __FUNCTION__);
+         return FALSE;
+      }
+      if (fscanf(devNsid, "%d", &nsid) != 1) {
+         g_debug("%s: Unable to read the nsid device number.\n", __FUNCTION__);
+         fclose(devNsid);
+         return FALSE;
+      }
+      fclose(devNsid);
+   } else {
+      static GRegex *regexNvmeNode = NULL;
+      GError *gErr = NULL;
+      GMatchInfo *matchInfo = NULL;
+      char *nsidStr = NULL;
+      char * realPath;
+      Bool match_result = FALSE;
+
+      /*
+       * Earlier NVMe kernel implementation; no "nsid" file available.
+       * The nsid equivalent can be derived from the last number in the
+       * directory containing the "device" symbolic link.  Need real path
+       * name.
+       */
+      Str_Strncpy(nsidPath, sizeof nsidPath, devPath, dirPathLen);
+      realPath = Posix_RealPath(nsidPath);
+
+      /* Check for NVMe device. */
+      COMP_STATIC_REGEX(regexNvmeNode, "^.*/nvme\\d+n(\\d+)$", gErr, finished)
+
+      if (!g_regex_match(regexNvmeNode, realPath, 0, &matchInfo)) {
+         goto finished;
+      }
+      nsidStr = g_match_info_fetch(matchInfo, 1);
+      nsid = atoi(nsidStr);
+      match_result = TRUE;
+
+finished:
+      /* Some clean-up for this block before possibly returning FALSE. */
+      g_match_info_free(matchInfo);
+      g_clear_error(&gErr);
+      g_free(nsidStr);
+      free(realPath);
+
+      if (!match_result) {
+         return FALSE;
+      }
+   }
+
+   /* NVMe device numbers start at 1; hardware device numbers start at zero. */
+   *unit = g_strdup_printf("%d", nsid - 1);
+
+   /* Set the pciDevPath to the directory containing the "label" file, */
+   Str_Snprintf(pciDevPath, PATH_MAX, "%s/%s", devPath, "../..");
+   return TRUE;
+}
+
+
+/*
+ ******************************************************************************
  * GuestInfoLinuxBlockDevice --                                          */ /**
  *
  * Determine if this is a block device and if so add the disk device name
@@ -437,7 +582,7 @@ exit:
  */
 
 static void
-GuestInfoLinuxBlockDevice(char *startPath,
+GuestInfoLinuxBlockDevice(const char *startPath,
                           PartitionEntryInt *partEntry,
                           int devNum)
 {
@@ -445,6 +590,7 @@ GuestInfoLinuxBlockDevice(char *startPath,
    char pciDevPath[PATH_MAX];
    char *realPath = NULL;
    static GRegex *regex = NULL;
+   static GRegex *regexNvme = NULL;
    GError *gErr = NULL;
    GMatchInfo *matchInfo = NULL;
    char *unit = NULL;
@@ -474,42 +620,53 @@ GuestInfoLinuxBlockDevice(char *startPath,
    realPath = Posix_RealPath(devPath);
    COMP_STATIC_REGEX(regex, "^.*/\\d+:\\d+:(\\d+):\\d+$", gErr, finished)
 
-   if (!g_regex_match(regex, realPath, 0, &matchInfo)) {
-      g_debug("%s: block disk device pattern not found\n", __FUNCTION__);
-      goto finished;
-   }
-   unit = g_match_info_fetch(matchInfo, 1);
+   if (g_regex_match(regex, realPath, 0, &matchInfo)) {
+      unit = g_match_info_fetch(matchInfo, 1);
 
-   Str_Strcat(devPath, "/../..", PATH_MAX);
-   Str_Snprintf(pciDevPath, PATH_MAX, "%s/%s", devPath, "..");
-   /*
-    * Check if this is a SAS device.  The contents of "unit", "devPath" and
-    * "pciDevPath" will be altered if a SAS device is detected..
-    */
-   GuestInfoCheckSASDevice(pciDevPath, devPath, &unit);
+      Str_Strcat(devPath, "/../..", PATH_MAX);
+      Str_Snprintf(pciDevPath, PATH_MAX, "%s/%s", devPath, "..");
+      /*
+       * Check if this is a SAS device.  The contents of "unit", "devPath" and
+       * "pciDevPath" will be altered if a SAS device is detected..
+       */
+      GuestInfoCheckSASDevice(pciDevPath, devPath, &unit);
 
-   /* Getting the disk device class. */
-   devClass = GuestInfoGetDevClass(pciDevPath);
+      /* Getting the disk device class. */
+      devClass = GuestInfoGetDevClass(pciDevPath, devPath);
 
-   /*
-    * IDE and SATA devices need different handling.
-    */
-   if ((devClass & PCI_SUBCLASS) == PCI_IDE || devClass == PCI_SATA_AHCI_1) {
-      int cnt;
+      /*
+       * IDE and SATA devices need different handling.
+       */
+      if ((devClass & PCI_SUBCLASS) == PCI_IDE || devClass == PCI_SATA_AHCI_1) {
+         int cnt;
 
-      cnt = GuestInfoGetIdeSataDev(devPath, pciDevPath);
-      if (cnt < 0) {
-         g_debug("%s: ERROR, unable to determine IDE controller or SATA "
-                 "device.\n", __FUNCTION__);
+         cnt = GuestInfoGetIdeSataDev(devPath, pciDevPath);
+         if (cnt < 0) {
+            g_debug("%s: ERROR, unable to determine IDE controller or SATA "
+                    "device.\n", __FUNCTION__);
+            goto finished;
+         }
+         if ((devClass & PCI_SUBCLASS) == PCI_IDE) {
+            /* IDE - full device representation can be constructed. */
+            Str_Snprintf(devName, sizeof devName, "ide%d:%s", cnt, unit);
+         } else {
+            /* SATA - The "host cnt" obtained becomes the "unit" number. */
+            g_free(unit);
+            unit = g_strdup_printf("%d", cnt);
+         }
+      }
+   } else {
+      /* Check for NVMe device. */
+      COMP_STATIC_REGEX(regexNvme, "^.*/nvme\\d+$", gErr, finished)
+
+      if (!g_regex_match(regexNvme, realPath, 0, &matchInfo)) {
+         g_debug("%s: block disk device pattern not found\n", __FUNCTION__);
          goto finished;
       }
-      if ((devClass & PCI_SUBCLASS) == PCI_IDE) {
-         /* IDE - full device representation can be constructed. */
-         Str_Snprintf(devName, sizeof devName, "ide%d:%s", cnt, unit);
-      } else {
-         /* SATA - The "host cnt" obtained becomes the "unit" number. */
-         g_free(unit);
-         unit = g_strdup_printf("%d", cnt);
+      if (!GuestInfoNvmeDevice(devPath, pciDevPath, &unit)) {
+         g_debug("%s: NVMe disk device could not be determined.\n",
+                 __FUNCTION__);
+         goto finished;
       }
    }
 
