@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -3236,6 +3236,8 @@ ServiceValidateAliases(void)
 next:
       ServiceAliasFreeAliasList(numIds, aList);
       if (!foundMatch) {
+         /* badSubj should always have a value because maList won't be empty */
+         /* coverity[var_deref_op] */
          Warning("%s: orphaned mapped alias: user %s subj %s cert %s\n",
                  __FUNCTION__, maList[i].userName,
                  (badSubj->type == SUBJECT_TYPE_NAMED ? badSubj->name : "ANY"),
