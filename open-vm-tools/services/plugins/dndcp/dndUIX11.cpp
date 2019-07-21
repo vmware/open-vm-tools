@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -936,7 +936,7 @@ DnDUIX11::OnGtkDragMotion(
 
    mDragCtx = dc->gobj();
 
-   if (target != "") {
+   if (target != Gdk::AtomString::to_cpp_type(GDK_NONE)) {
       /*
        * We give preference to the suggested action from the source, and prefer
        * copy over move.
@@ -1374,7 +1374,7 @@ DnDUIX11::OnGtkDragDrop(
    g_debug("%s: calling drag_finish\n", __FUNCTION__);
    dc->drag_finish(true, false, time);
 
-   if (target == "") {
+   if (target == Gdk::AtomString::to_cpp_type(GDK_NONE)) {
       g_debug("%s: No valid data on clipboard.\n", __FUNCTION__);
       return false;
    }
@@ -1579,6 +1579,8 @@ DnDUIX11::RequestData(
    CPClipboard_Clear(&mClipboard);
    mNumPendingRequest = 0;
 
+   Glib::ustring noneType = Gdk::AtomString::to_cpp_type(GDK_NONE);
+
    /*
     * First check file list. If file list is available, all other formats will
     * be ignored.
@@ -1586,7 +1588,7 @@ DnDUIX11::RequestData(
    targets->add(Glib::ustring(DRAG_TARGET_NAME_URI_LIST));
    Glib::ustring target = mDetWnd->GetWnd()->drag_dest_find_target(dc, targets);
    targets->remove(Glib::ustring(DRAG_TARGET_NAME_URI_LIST));
-   if (target != "") {
+   if (target != noneType) {
       mDetWnd->GetWnd()->drag_get_data(dc, target, time);
       mNumPendingRequest++;
       return true;
@@ -1602,7 +1604,7 @@ DnDUIX11::RequestData(
    targets->remove(Glib::ustring(TARGET_NAME_TEXT_PLAIN));
    targets->remove(Glib::ustring(TARGET_NAME_UTF8_STRING));
    targets->remove(Glib::ustring(TARGET_NAME_COMPOUND_TEXT));
-   if (target != "") {
+   if (target != noneType) {
       mDetWnd->GetWnd()->drag_get_data(dc, target, time);
       mNumPendingRequest++;
    }
@@ -1615,7 +1617,7 @@ DnDUIX11::RequestData(
    targets->remove(Glib::ustring(TARGET_NAME_APPLICATION_RTF));
    targets->remove(Glib::ustring(TARGET_NAME_TEXT_RICHTEXT));
    targets->remove(Glib::ustring(TARGET_NAME_TEXT_RTF));
-   if (target != "") {
+   if (target != noneType) {
       mDetWnd->GetWnd()->drag_get_data(dc, target, time);
       mNumPendingRequest++;
    }
