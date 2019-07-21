@@ -1676,10 +1676,11 @@ CopyPasteUIX11::FileBlockMonitorThread(void *arg)   // IN
       }
 
       int fd = open(params->fileBlockName.c_str(), O_RDONLY);
-      if (fd <= 0) {
-         g_debug("%s: Failed to open %s\n",
+      if (fd < 0) {
+         g_debug("%s: Failed to open %s, errno is %d\n",
                  __FUNCTION__,
-                 params->fileBlockName.c_str());
+                 params->fileBlockName.c_str(),
+                 errno);
          continue;
       }
 
@@ -1699,6 +1700,13 @@ CopyPasteUIX11::FileBlockMonitorThread(void *arg)   // IN
          params->cp->RequestFiles();
       } else {
          g_debug("%s: Block is not added\n", __FUNCTION__);
+      }
+
+      if (close(fd) < 0) {
+         g_debug("%s: Failed to close %s, errno is %d\n",
+                 __FUNCTION__,
+                 params->fileBlockName.c_str(),
+                 errno);
       }
    }
    pthread_mutex_unlock(&params->fileBlockMutex);
