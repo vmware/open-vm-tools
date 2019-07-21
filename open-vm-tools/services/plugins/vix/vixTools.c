@@ -124,7 +124,7 @@
 #endif /* _WIN32 */
 #include "hgfsHelper.h"
 
-#ifdef linux
+#ifdef __linux__
 #include "mntinfo.h"
 #include <sys/vfs.h>
 #endif
@@ -8869,7 +8869,7 @@ VixToolsListFileSystems(VixCommandRequestHeader *requestMsg, // IN
    char *fileSystemType;
    int i;
 #endif
-#ifdef linux
+#ifdef __linux__
    MNTHANDLE fp;
    DECLARE_MNTINFO(mnt);
    const char *mountfile = NULL;

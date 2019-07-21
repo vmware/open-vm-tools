@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2018-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -77,7 +77,7 @@ typedef unsigned __int32 uint32;
 typedef unsigned __int64 uint64;
 
 #endif
-#ifdef linux
+#ifdef __linux__
 typedef __uint32_t uint32;
 typedef __uint64_t uint64;
 

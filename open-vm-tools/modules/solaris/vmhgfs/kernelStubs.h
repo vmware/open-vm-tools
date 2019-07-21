@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2019 VMware, Inc. All rights reserved.
  *
  * The contents of this file are subject to the terms of the Common
  * Development and Distribution License (the "License") version 1.0
@@ -40,7 +40,7 @@
 #  endif
 #endif
 
-#ifdef linux
+#ifdef __linux__
 #   ifndef __KERNEL__
 #      error "__KERNEL__ is not defined"
 #   endif
@@ -113,7 +113,7 @@
 
 #if defined(__linux__) || defined(__APPLE__) || defined (sun)
 
-#  ifdef linux                               /* if (linux) { */
+#  ifdef __linux__                           /* if (__linux__) { */
 char *strdup(const char *source);
 #  endif
 
