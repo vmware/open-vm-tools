@@ -201,6 +201,7 @@ enum {
 #define CPUID_SGX_FEATURES         0x12
 #define CPUID_PT_FEATURES          0x14
 #define CPUID_HYPERVISOR_LEVEL_0   0x40000000
+#define CPUID_VMW_FEATURES         0x40000010
 #define CPUID_SVM_FEATURES         0x8000000a
 #define CPUID_SEV_INFO             0x8000001f
 
