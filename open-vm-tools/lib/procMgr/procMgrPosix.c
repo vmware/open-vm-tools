@@ -428,7 +428,7 @@ ProcMgr_ListProcesses(void)
                      cmdNameBegin = cmdLineTemp;
                   }
                   procInfo.procCmdName = Unicode_Alloc(cmdNameBegin, STRING_ENCODING_DEFAULT);
-                  if (procInfo.procCmdAbsPath != NULL &&
+                  if (procInfo.procCmdAbsPath == NULL &&
                       cmdLineTemp[0] == '/') {
                      procInfo.procCmdAbsPath =
                         Unicode_Alloc(cmdLineTemp, STRING_ENCODING_DEFAULT);
@@ -498,7 +498,7 @@ ProcMgr_ListProcesses(void)
              * Store the command name.
              */
             procInfo.procCmdName = Unicode_Alloc(cmdLineTemp, STRING_ENCODING_DEFAULT);
-            if (procInfo.procCmdAbsPath != NULL &&
+            if (procInfo.procCmdAbsPath == NULL &&
                 cmdLineTemp[0] == '/') {
                procInfo.procCmdAbsPath = Unicode_Alloc(cmdLineTemp, STRING_ENCODING_DEFAULT);
             }
