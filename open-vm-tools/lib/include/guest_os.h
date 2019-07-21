@@ -266,6 +266,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_DEBIAN_8            "debian8"
 #define STR_OS_DEBIAN_9            "debian9"
 #define STR_OS_DEBIAN_10           "debian10"
+#define STR_OS_DEBIAN_11           "debian11"
 #define STR_OS_FEDORA              "Fedora"
 #define STR_OS_GENTOO              "Gentoo"
 #define STR_OS_IMMUNIX             "Immunix"
