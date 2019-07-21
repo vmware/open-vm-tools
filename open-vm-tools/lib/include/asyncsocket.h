@@ -748,6 +748,8 @@ Bool AsyncSocket_WebSocketParseURL(const char *url, char **hostname,
 char *AsyncSocket_WebSocketGetHttpHeader(const char *request,
                                          const char *webKey);
 
+unsigned AsyncSocket_WebSocketGetNumAccepted(AsyncSocket *asock);
+
 /*
  * Some logging macros for convenience
  */
