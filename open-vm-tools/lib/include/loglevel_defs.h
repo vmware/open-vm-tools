@@ -70,15 +70,10 @@ LOGLEVEL_EXTERN_C_BEGIN
 
 #ifdef VMX86_LOG
 
-
 /*
  * Cross extension
  */
 
-#define LOGLEVEL_BYEXTNAME_SET(_ext, _mod, _val) \
-        LogLevel_Set(XSTR(_ext), XSTR(_mod), _val)
-
-const int8 *LogLevel_LookUpVar(const char *extension, const char *module);
 int LogLevel_Set(const char *extension, const char *module, int val);
 
 /*
@@ -105,11 +100,9 @@ int LogLevel_Set(const char *extension, const char *module, int val);
 
 #else /* VMX86_LOG */
 
-#define LOGLEVEL_BYEXTNAME_SET(_ext, _mod, _val) do {} while (0)
-
 #define LOGLEVEL_BYNAME(_mod)           0
 #define DOLOG_BYNAME(_mod, _min)        (FALSE)
-#define LOG_BYNAME(_mod, _min, ...)     do {} while (0)
+#define LOG_BYNAME(_mod, _min, ...)
 
 #define LOGLEVEL()      0
 #define DOLOG(_min)     (FALSE)
