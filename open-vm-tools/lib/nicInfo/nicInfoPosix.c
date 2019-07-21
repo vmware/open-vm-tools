@@ -499,7 +499,6 @@ GuestInfoGetPrimaryIP(void)
 {
    struct ifaddrs *ifaces;
    struct ifaddrs *curr;
-   char *ipstr = NULL;
    char *currIpstr = NULL;
    NicInfoPriority currPri = NICINFO_PRIORITY_MAX;
 
@@ -508,7 +507,7 @@ GuestInfoGetPrimaryIP(void)
     * to traverse and places a pointer to it in ifaces.
     */
    if (getifaddrs(&ifaces) < 0) {
-      return ipstr;
+      return NULL;
    }
 
    /*
@@ -517,6 +516,7 @@ GuestInfoGetPrimaryIP(void)
     * the first non-loopback, internet interface in the interface list.
     */
    for (curr = ifaces; curr != NULL; curr = curr->ifa_next) {
+      char *ipstr = NULL;
       int currFamily;
 
       /*
@@ -542,13 +542,15 @@ GuestInfoGetPrimaryIP(void)
          if (pri < currPri) {
             g_debug("%s: ifa_name=%s, pri=%d, currPri=%d, ipstr=%s",
                     __FUNCTION__, curr->ifa_name, pri, currPri, ipstr);
-            g_free(currIpstr);
+            free(currIpstr);
             currIpstr = ipstr;
             currPri = pri;
             if (pri == NICINFO_PRIORITY_PRIMARY) {
                /* not going to find anything better than that */
                break;
             }
+         } else {
+            free(ipstr);
          }
       }
    }
