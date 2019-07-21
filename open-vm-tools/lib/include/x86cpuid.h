@@ -2247,22 +2247,6 @@ CPUID_IsValid7Subleaf(uint32 eax, uint32 subleaf)  // IN: %eax = cpuid.7.0.eax
 /*
  *----------------------------------------------------------------------
  *
- * CPUID_IsValidDSubleaf --
- *
- *    It is the caller's repsonsibility to determine if the processor
- *    supports XSAVE and therefore has D sub-leaves.
- *
- *----------------------------------------------------------------------
- */
-static INLINE Bool
-CPUID_IsValidDSubleaf(uint32 subleaf)  // IN: subleaf to check
-{
-   return subleaf <= 63;
-}
-
-/*
- *----------------------------------------------------------------------
- *
  * CPUID_SupportsMsrPlatformInfo --
  *
  *    Uses vendor and cpuid.1.0.eax to determine if the processor
