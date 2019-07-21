@@ -593,10 +593,10 @@ typedef int pid_t;
 #undef DEBUG_ONLY
 #ifdef VMX86_DEBUG
 #define vmx86_debug      1
-#define DEBUG_ONLY(x)    x
+#define DEBUG_ONLY(...)  __VA_ARGS__
 #else
 #define vmx86_debug      0
-#define DEBUG_ONLY(x)
+#define DEBUG_ONLY(...)
 #endif
 
 #ifdef VMX86_STATS
