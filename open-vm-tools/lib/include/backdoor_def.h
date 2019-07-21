@@ -481,10 +481,13 @@ Backdoor_CmdRequiresValidSegments(unsigned cmd)
  * This is the mechanism to favor from EL0 because it has a negligible impact
  * on vCPU performance.
  *
- * o From EL1 and EL0
+ * o From EL1 and EL0, only when monitor_control.hv_hypercall = "TRUE"
  * The vCPU executes the BRK (64-bit code) or BKPT (32-bit code) instruction
  * with the immediate X86_IO_MAGIC. Note that T32 code requires an 8-bit
  * immediate.
+ * Pro: This mechanism cannot be intercepted by EL3 code.
+ * Con: This mechanism has a significant impact on vCPU performance when
+ *      running a debugger in the guest.
  *
  * 4) Read from general-purpose registers specific to the x86 I/O space
  *    instruction.
