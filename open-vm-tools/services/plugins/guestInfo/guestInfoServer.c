@@ -1322,9 +1322,11 @@ GuestInfoSendDiskInfoV1(ToolsAppCtx *ctx,             // IN
       }
 #endif
    }
-   /* Terminate the last element of the disk partition JSON array. */
-   DynBuf_Append(&dynBuffer, jsonPerDiskFmtFooterLast,
-                 sizeof jsonPerDiskFmtFooterLast - 1);
+   if (pdi->numEntries > 0) {
+      /* Terminate the last element of the disk partition JSON array. */
+      DynBuf_Append(&dynBuffer, jsonPerDiskFmtFooterLast,
+                    sizeof jsonPerDiskFmtFooterLast - 1);
+   }
 
    DynBuf_Append(&dynBuffer, jsonSuffix, sizeof jsonSuffix - 1);
 
