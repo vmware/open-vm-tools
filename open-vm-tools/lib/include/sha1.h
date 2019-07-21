@@ -151,14 +151,14 @@ typedef struct {
 #else
    struct evp_md_ctx_st *md;  /* OpenSSL EVP_MD_CTX */
 #endif
-} CryptoSHA1_CTX;
+} CryptoHash_SHA1_CTX;
 
-void CryptoSHA1_Init(CryptoSHA1_CTX *ctx);
-void CryptoSHA1_Update(CryptoSHA1_CTX *ctx,
-                       const unsigned char *data,
-                       size_t len);
-void CryptoSHA1_Final(unsigned char digest[SHA1_HASH_LEN],
-                      CryptoSHA1_CTX *ctx);
+void CryptoHash_InitSHA1(CryptoHash_SHA1_CTX *ctx);
+void CryptoHash_UpdateSHA1(CryptoHash_SHA1_CTX *ctx,
+                           const void *data,
+                           size_t len);
+void CryptoHash_FinalSHA1(CryptoHash_SHA1_CTX *ctx,
+                          unsigned char digest[SHA1_HASH_LEN]);
 void CryptoHash_ComputeSHA1(const void *data, size_t len,
                             unsigned char digest[SHA1_HASH_LEN]);
 #endif
