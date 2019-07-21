@@ -1248,6 +1248,7 @@ GuestInfoSendDiskInfoV1(ToolsAppCtx *ctx,             // IN
    static char jsonPerDiskDevArrFmtFooter[] = "]";
 #endif
    static char jsonPerDiskFmtFooter[] = "},\n";
+   static char jsonPerDiskFmtFooterLast[] = "}\n";
    static char jsonSuffix[] = "]}";
    int i;
 
@@ -1262,13 +1263,24 @@ GuestInfoSendDiskInfoV1(ToolsAppCtx *ctx,             // IN
                       GUEST_DISK_INFO_COMMAND, DISK_INFO_VERSION_1);
    DynBuf_Append(&dynBuffer, tmpBuf, len);
    for (i = 0; i < pdi->numEntries; i++) {
+      gchar *b64name;
+
+      /*
+       * If more than a single disk partition or filesystem to be reported,
+       * terminate the previous partition element in the disk array.
+       */
+      if (i != 0) {
+         DynBuf_Append(&dynBuffer, jsonPerDiskFmtFooter,
+                       sizeof jsonPerDiskFmtFooter - 1);
+      }
+
       /*
        * The '\' in Windows drive names needs escaping for json,
        * so use base64 since its simple and will cover other weird
        * cases like quotes, as well as avoid any utf-8 concerns.
        */
-      gchar *b64name = g_base64_encode(pdi->partitionList[i].name,
-                                       strlen(pdi->partitionList[i].name));
+      b64name = g_base64_encode(pdi->partitionList[i].name,
+                                strlen(pdi->partitionList[i].name));
 
       len = Str_Snprintf(tmpBuf, sizeof tmpBuf, jsonPerDiskFmt,
                          b64name,
@@ -1309,9 +1321,13 @@ GuestInfoSendDiskInfoV1(ToolsAppCtx *ctx,             // IN
                        sizeof jsonPerDiskDevArrFmtFooter - 1);
       }
 #endif
-      DynBuf_Append(&dynBuffer, jsonPerDiskFmtFooter,
-                    sizeof jsonPerDiskFmtFooter - 1);
    }
+   if (pdi->numEntries > 0) {
+      /* Terminate the last element of the disk partition JSON array. */
+      DynBuf_Append(&dynBuffer, jsonPerDiskFmtFooterLast,
+                    sizeof jsonPerDiskFmtFooterLast - 1);
+   }
+
    DynBuf_Append(&dynBuffer, jsonSuffix, sizeof jsonSuffix - 1);
 
    infoReq = DynBuf_GetString(&dynBuffer);
