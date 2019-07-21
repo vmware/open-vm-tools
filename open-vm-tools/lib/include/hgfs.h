@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016,2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -53,11 +53,22 @@
 #include "includeCheck.h"
 #include "vm_assert.h"
 
+/* Page size for HGFS packet (4K). */
+#define HGFS_PAGE_SIZE 4096
+
+/*
+ * Maximum allowed header size in bytes.
+ */
+#define HGFS_HEADER_SIZE_MAX 2048
+
 /*
  * Maximum number of pages to transfer to/from the HGFS server for V3 protocol
  * operations that support large requests/replies, e.g. reads and writes.
  */
 #define HGFS_LARGE_IO_MAX_PAGES  15
+
+/* Maximum number of bytes to read or write to a hgfs server in a single packet. */
+#define HGFS_IO_MAX HGFS_PAGE_SIZE
 
 /*
  * Maximum allowed packet size in bytes. All hgfs code should be made
@@ -65,19 +76,74 @@
  */
 #define HGFS_PACKET_MAX 6144
 
+/* Maximum number of bytes to read or write to a V3 server in a single hgfs packet. */
+#define HGFS_LARGE_IO_MAX (HGFS_PAGE_SIZE * HGFS_LARGE_IO_MAX_PAGES)
+
 /*
  * The HGFS_LARGE_PACKET_MAX size is used to allow guests to make
  * read / write requests of sizes larger than HGFS_PACKET_MAX. The larger size
  * can only be used with server operations that are specified to be large packet
  * capable in hgfsProto.h.
  */
-#define HGFS_LARGE_PACKET_MAX ((4096 * HGFS_LARGE_IO_MAX_PAGES) + 2048)
+#define HGFS_LARGE_PACKET_MAX (HGFS_LARGE_IO_MAX + HGFS_HEADER_SIZE_MAX)
 
-/* Maximum number of bytes to read or write to a hgfs server in a single packet. */
-#define HGFS_IO_MAX 4096
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsLargeIoMax --
+ *
+ *    Gets the maximum number of bytes to read or write to a V3 server in a
+ *    single hgfs packet.
+ *    By default, a caller should pass useLegacy=FALSE to get its value with the
+ *    control of feature switch. Passing useLegacy=TRUE means you want to
+ *    directly use the legacy value.
+ *
+ * Results:
+ *    Returns the maximum number of bytes to read or write to a V3 server in a
+ *    single hgfs packet.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
 
-/* Maximum number of bytes to read or write to a V3 server in a single hgfs packet. */
-#define HGFS_LARGE_IO_MAX (HGFS_LARGE_IO_MAX_PAGES * 4096)
+static INLINE size_t HgfsLargeIoMax(Bool useLegacy) // IN
+{
+   if (useLegacy) {
+      // TODO: Return the legacy value
+   }
+   return HGFS_LARGE_IO_MAX;
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsLargePacketMax --
+ *
+ *    Gets the maximum number of bytes to allow guests to make read / write
+ *    requests.
+ *    By default, a caller should pass useLegacy=FALSE to get its value with the
+ *    control of feature switch. Passing useLegacy=TRUE means you want to
+ *    directly use the legacy value.
+ *
+ * Results:
+ *    Returns the maximum number of bytes to allow guests to make read / write
+ *    requests.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE size_t HgfsLargePacketMax(Bool useLegacy) // IN
+{
+   if (useLegacy) {
+      // TODO: Return the legacy value
+   }
+   return HGFS_LARGE_PACKET_MAX;
+}
 
 /*
  * File type

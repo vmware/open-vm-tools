@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013,2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -166,7 +166,7 @@ HgfsBdChannelSend(HgfsTransportChannel *channel, // IN: Channel
 
    ASSERT(req);
    ASSERT(req->state == HGFS_REQ_STATE_UNSENT);
-   ASSERT(req->payloadSize <= HGFS_LARGE_PACKET_MAX);
+   ASSERT(req->payloadSize <= HgfsLargePacketMax(FALSE));
 
    pthread_mutex_lock(&channel->connLock);
 

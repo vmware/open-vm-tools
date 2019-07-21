@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2015-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2015-2016,2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -52,7 +52,7 @@ HgfsPackCreateSessionRequest(HgfsOp opUsed, // IN: Op to be used
       HgfsRequestCreateSessionV4 *requestV4 = HgfsGetRequestPayload(req);
 
       requestV4->numCapabilities = 0;
-      requestV4->maxPacketSize = HGFS_LARGE_PACKET_MAX;
+      requestV4->maxPacketSize = HgfsLargePacketMax(FALSE);
       requestV4->reserved = 0;
 
       req->payloadSize = sizeof(*requestV4) + HgfsGetRequestHeaderSize();

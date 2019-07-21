@@ -92,7 +92,7 @@ HgfsPackOpenRequest(const char *path,          // IN: Path to file
 
       /* Convert to CP name. */
       result = CPName_ConvertTo(path,
-                                HGFS_LARGE_PACKET_MAX - (reqSize - 1),
+                                HgfsLargePacketMax(FALSE) - (reqSize - 1),
                                 requestV3->fileName.name);
       if (result < 0) {
          LOG(4, ("CP conversion failed.\n"));
@@ -136,7 +136,7 @@ HgfsPackOpenRequest(const char *path,          // IN: Path to file
 
       /* Convert to CP name. */
       result = CPName_ConvertTo(path,
-                                HGFS_LARGE_PACKET_MAX - (reqSize - 1),
+                                HgfsLargePacketMax(FALSE) - (reqSize - 1),
                                 requestV2->fileName.name);
       if (result < 0) {
          LOG(4, ("CP conversion failed.\n"));
@@ -170,7 +170,7 @@ HgfsPackOpenRequest(const char *path,          // IN: Path to file
 
       /* Convert to CP name. */
       result = CPName_ConvertTo(path,
-                                HGFS_LARGE_PACKET_MAX - (reqSize - 1),
+                                HgfsLargePacketMax(FALSE) - (reqSize - 1),
                                 request->fileName.name);
       if (result < 0) {
          LOG(4, ("CP conversion failed.\n"));
@@ -694,8 +694,8 @@ HgfsRead(struct fuse_file_info *fi,  // IN:  File info struct
            fi->fh, count, offset));
 
     do {
-      nextCount = (remainingCount > HGFS_LARGE_IO_MAX) ?
-                                     HGFS_LARGE_IO_MAX : remainingCount;
+      nextCount = (remainingCount > HgfsLargeIoMax(FALSE)) ?
+                                     HgfsLargeIoMax(FALSE) : remainingCount;
       LOG(4, ("Issue DoRead(0x%"FMT64"x 0x%"FMTSZ"x bytes @ 0x%"FMT64"x)\n",
               fi->fh, nextCount, curOffset));
       result = HgfsDoRead(fi->fh, buffer, nextCount, curOffset);
@@ -880,8 +880,8 @@ HgfsWrite(struct fuse_file_info *fi,  // IN: File info structure
            fi->fh, count, offset));
 
    do {
-      nextCount = (remainingCount > HGFS_LARGE_IO_MAX) ?
-                                     HGFS_LARGE_IO_MAX : remainingCount;
+      nextCount = (remainingCount > HgfsLargeIoMax(FALSE)) ?
+                                     HgfsLargeIoMax(FALSE) : remainingCount;
 
       LOG(4, ("Issue DoWrite(0x%"FMT64"x 0x%"FMTSZ"x bytes @ 0x%"FMT64"x)\n",
               fi->fh, nextCount, curOffset));
@@ -958,7 +958,7 @@ retry:
       reqSize = sizeof(*requestV3) + HgfsGetRequestHeaderSize();
       /* Convert old name to CP format. */
       result = CPName_ConvertTo(from,
-                                HGFS_NAME_BUFFER_SIZET(HGFS_LARGE_PACKET_MAX, reqSize),
+                                HGFS_NAME_BUFFER_SIZET(HgfsLargePacketMax(FALSE), reqSize),
                                 requestV3->oldName.name);
       if (result < 0) {
          LOG(4, ("oldName CP conversion failed\n"));
@@ -974,7 +974,7 @@ retry:
       reqSize = sizeof *request;
       /* Convert old name to CP format. */
       result = CPName_ConvertTo(from,
-                                HGFS_NAME_BUFFER_SIZET(HGFS_LARGE_PACKET_MAX, reqSize),
+                                HGFS_NAME_BUFFER_SIZET(HgfsLargePacketMax(FALSE), reqSize),
                                 request->oldName.name);
       if (result < 0) {
          LOG(4, ("oldName CP conversion failed\n"));
@@ -1004,7 +1004,7 @@ retry:
 
       /* Convert new name to CP format. */
       result = CPName_ConvertTo(to,
-                                HGFS_NAME_BUFFER_SIZET(HGFS_LARGE_PACKET_MAX, reqSize) - result,
+                                HGFS_NAME_BUFFER_SIZET(HgfsLargePacketMax(FALSE), reqSize) - result,
                                 newNameP->name);
       if (result < 0) {
          LOG(4, ("newName CP conversion failed\n"));
@@ -1026,7 +1026,7 @@ retry:
 
       /* Convert new name to CP format. */
       result = CPName_ConvertTo(to,
-                                HGFS_NAME_BUFFER_SIZET(HGFS_LARGE_PACKET_MAX, reqSize) - result,
+                                HGFS_NAME_BUFFER_SIZET(HgfsLargePacketMax(FALSE), reqSize) - result,
                                 newNameP->name);
       if (result < 0) {
          LOG(4, ("newName CP conversion failed\n"));
@@ -1170,7 +1170,7 @@ HgfsPackSetattrRequest(const char *path,   // IN:  path to file
       requestV3->fileName.flags = 0;
       requestV3->reserved = 0;
       reqSize = sizeof(*requestV3) + HgfsGetRequestHeaderSize();
-      reqBufferSize = HGFS_NAME_BUFFER_SIZET(HGFS_LARGE_PACKET_MAX, reqSize);
+      reqBufferSize = HGFS_NAME_BUFFER_SIZET(HgfsLargePacketMax(FALSE), reqSize);
       result = CPName_ConvertTo(path,
                                 reqBufferSize,
                                 requestV3->fileName.name);
@@ -1228,7 +1228,7 @@ HgfsPackSetattrRequest(const char *path,   // IN:  path to file
       requestV2->hints = 0;
 
       reqSize = sizeof *requestV2;
-      reqBufferSize = HGFS_NAME_BUFFER_SIZE(HGFS_LARGE_PACKET_MAX, requestV2);
+      reqBufferSize = HGFS_NAME_BUFFER_SIZE(HgfsLargePacketMax(FALSE), requestV2);
       result = CPName_ConvertTo(path,
                                 reqBufferSize,
                                 requestV2->fileName.name);
@@ -1278,7 +1278,7 @@ HgfsPackSetattrRequest(const char *path,   // IN:  path to file
       update = &request->update;
 
       reqSize = sizeof *request;
-      reqBufferSize = HGFS_NAME_BUFFER_SIZE(HGFS_LARGE_PACKET_MAX, request);
+      reqBufferSize = HGFS_NAME_BUFFER_SIZE(HgfsLargePacketMax(FALSE), request);
       result = CPName_ConvertTo(path,
                                 reqBufferSize,
                                 request->fileName.name);
