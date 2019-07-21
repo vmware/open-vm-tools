@@ -159,6 +159,8 @@ void CryptoSHA1_Update(CryptoSHA1_CTX *ctx,
                        size_t len);
 void CryptoSHA1_Final(unsigned char digest[SHA1_HASH_LEN],
                       CryptoSHA1_CTX *ctx);
+void CryptoHash_ComputeSHA1(const void *data, size_t len,
+                            unsigned char digest[SHA1_HASH_LEN]);
 #endif
 
 #if defined(__cplusplus)
