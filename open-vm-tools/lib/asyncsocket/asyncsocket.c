@@ -312,9 +312,11 @@ static int AsyncTCPSocketGetINETIPStr(AsyncSocket *asock, int socketFamily,
 static unsigned int AsyncTCPSocketGetPort(AsyncSocket *asock);
 static Bool AsyncTCPSocketConnectSSL(AsyncSocket *asock,
                                      struct _SSLVerifyParam *verifyParam,
+                                     const char *hostname,
                                      void *sslContext);
 static int AsyncTCPSocketStartSslConnect(AsyncSocket *asock,
                                          SSLVerifyParam *verifyParam,
+                                         const char *hostname,
                                          void *sslCtx,
                                          AsyncSocketSslConnectFn sslConnectFn,
                                          void *clientData);
@@ -5566,6 +5568,7 @@ AsyncTCPSocketGetReceivedFd(AsyncSocket *base)      // IN
 static Bool
 AsyncTCPSocketConnectSSL(AsyncSocket *base,           // IN
                          SSLVerifyParam *verifyParam, // IN/OPT
+                         const char *hostname,        // IN/OPT
                          void *sslContext)            // IN/OPT
 {
 #ifndef USE_SSL_DIRECT
@@ -5577,7 +5580,7 @@ AsyncTCPSocketConnectSSL(AsyncSocket *base,           // IN
    }
 
    return SSL_ConnectAndVerifyWithContext(asock->sslSock, verifyParam,
-                                          sslContext);
+                                          hostname, sslContext);
 #else
    return FALSE;
 #endif
@@ -5709,6 +5712,7 @@ AsyncTCPSocketSslConnectCallback(void *clientData)  // IN
 static int
 AsyncTCPSocketStartSslConnect(AsyncSocket *base,                    // IN
                               SSLVerifyParam *verifyParam,          // IN/OPT
+                              const char *hostname,                 // IN/OPT
                               void *sslCtx,                         // IN
                               AsyncSocketSslConnectFn sslConnectFn, // IN
                               void *clientData)                     // IN
@@ -5728,7 +5732,7 @@ AsyncTCPSocketStartSslConnect(AsyncSocket *base,                    // IN
    }
 
    ok = SSL_SetupConnectAndVerifyWithContext(asock->sslSock, verifyParam,
-                                             sslCtx);
+                                             hostname, sslCtx);
    if (!ok) {
       /* Something went wrong already */
       (*sslConnectFn)(FALSE, BaseSocket(asock), clientData);

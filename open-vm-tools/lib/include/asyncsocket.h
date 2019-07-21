@@ -558,9 +558,11 @@ AsyncSocket_ConnectWebSocket(const char *url,
  */
 Bool AsyncSocket_ConnectSSL(AsyncSocket *asock,
                             struct _SSLVerifyParam *verifyParam,
+                            const char *hostname,
                             void *sslContext);
 int AsyncSocket_StartSslConnect(AsyncSocket *asock,
                                 struct _SSLVerifyParam *verifyParam,
+                                const char *hostname,
                                 void *sslCtx,
                                 AsyncSocketSslConnectFn sslConnectFn,
                                 void *clientData);
