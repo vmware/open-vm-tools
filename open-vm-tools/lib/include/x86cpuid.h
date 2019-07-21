@@ -850,7 +850,9 @@ FLAG( 406,  0, EAX,  6,  1, MEMORY_PATROL_SCRUBBER,              NA,    0 )
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_410                                          \
 FIELD(410,  0, EAX,  0, 32, TSC_HZ,                              NA,    0 ) \
-FIELD(410,  0, EBX,  0, 32, APICBUS_HZ,                          NA,    0 )
+FIELD(410,  0, EBX,  0, 32, APICBUS_HZ,                          NA,    0 ) \
+FLAG( 410,  0, ECX,  0,  1, VMMCALL_BACKDOOR,                    NA,    0 ) \
+FLAG( 410,  0, ECX,  1,  1, VMCALL_BACKDOOR,                     NA,    0 )
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_80                                           \
