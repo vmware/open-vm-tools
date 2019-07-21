@@ -4122,12 +4122,13 @@ AsyncTCPSocketDoOneMsg(AsyncSocket *base, // IN
           */
          s->recvCb = FALSE;  /* For re-registering the poll callback. */
          if (retVal == ASOCKERR_SUCCESS || retVal == ASOCKERR_TIMEOUT) {
-            retVal = AsyncTCPSocketRegisterRecvCb(s);
+            int ret = AsyncTCPSocketRegisterRecvCb(s);
             Log("SOCKET reregister recvCb after DoOneMsg (ref %d)\n",
                 BaseSocket(s)->refCount);
-         }
-         if (retVal != ASOCKERR_SUCCESS) {
-            s->base.recvBuf = NULL;
+            if (ret != ASOCKERR_SUCCESS) {
+               s->base.recvBuf = NULL;
+               retVal = ret;
+            }
          }
       }
       AsyncTCPSocketRelease(s);
