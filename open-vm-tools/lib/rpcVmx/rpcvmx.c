@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2018,2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -16,16 +16,20 @@
  *
  *********************************************************/
 
-#include <stdio.h>
-#include <stdarg.h>
-#include <string.h>
-#include <stdlib.h>
+#if defined(__KERNEL__) || defined(_KERNEL) || defined(KERNEL)
+#   include "kernelStubs.h"
+#else
+#   include <stdio.h>
+#   include <stdarg.h>
+#   include <string.h>
+#   include <stdlib.h>
+#   include "str.h"
+#endif
 
 #include "guest_msg_def.h"
 #include "message.h"
 #include "rpcout.h"
 #include "rpcvmx.h"
-#include "str.h"
 
 
 typedef struct {
