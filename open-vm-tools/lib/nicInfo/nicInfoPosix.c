@@ -838,6 +838,7 @@ RecordResolverInfo(NicInfoV3 *nicInfo)  // OUT
    char **s;
    struct __res_state res;
 
+   memset(&res, 0, sizeof res);
    if (res_ninit(&res) == -1) {
       g_warning("%s: Resolver res_init failed.\n", __FUNCTION__);
       return FALSE;
