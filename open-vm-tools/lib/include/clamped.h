@@ -377,7 +377,9 @@ Clamped_UMul64(uint64 *out,  // OUT
    uint32 bL = b & MASK64(32);
    uint32 bH = b >> 32;
 
-   if (aH > 0 && bH > 0) {
+   ASSERT(out != NULL);
+
+   if (UNLIKELY(aH > 0 && bH > 0)) {
       *out = MAX_UINT64;
       return FALSE;
    } else {
@@ -385,13 +387,46 @@ Clamped_UMul64(uint64 *out,  // OUT
       uint64 s2 = (aL * (uint64)bH) << 32;
       uint64 s3 = (aL * (uint64)bL);
       uint64 sum;
-      Bool clamped = FALSE;
+      Bool clamped;
 
-      clamped |= !Clamped_UAdd64(&sum, s1, s2);
-      clamped |= !Clamped_UAdd64(&sum, sum, s3);
+      ASSERT(s1 == 0 || s2 == 0);
+      sum = s1 + s2;
+      clamped = !Clamped_UAdd64(&sum, sum, s3);
 
       *out = sum;
       return !clamped;
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Clamped_USub64 --
+ *
+ *      Unsigned 64-bit subtraction.
+ *      Compute (a - b), and clamp to 0 if the result would have underflowed.
+ *
+ * Results:
+ *      On success, returns TRUE. If the result would have underflowed
+ *      and we clamped it to 0, returns FALSE.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE Bool
+Clamped_USub64(uint64 *out,  // OUT
+               uint64 a,     // IN
+               uint64 b)     // IN
+{
+   ASSERT(out != NULL);
+
+   if (UNLIKELY(b > a)) {
+      *out = 0;
+      return FALSE;
+   } else {
+      *out = a - b;
+      return TRUE;
    }
 }
 
