@@ -77,7 +77,7 @@
  * ISC, OTOH, provided accessing IPv6 servers via a res_getservers API.
  * TTBOMK, this went public with BIND 8.3.0.  Unfortunately __RES wasn't
  * bumped for this release, so instead I'm going to assume that appearance with
- * that release of a new macro, RES_F_DNS0ERR, implies this API is available.
+ * that release of a new macro, RES_F_EDNS0ERR, implies this API is available.
  * (For internal builds, we'll know instantly when a build breaks.  The down-
  * side is that this could cause some trouble for open-vm-tools users. ,_,)
  *
@@ -163,7 +163,11 @@ static char *ValidateConvertAddress(const struct sockaddr *addr);
 
 #ifdef USE_RESOLVE
 static Bool RecordResolverInfo(NicInfoV3 *nicInfo);
-static void RecordResolverNS(DnsConfigInfo *dnsConfigInfo);
+static void RecordResolverNS(res_state resp, DnsConfigInfo *dnsConfigInfo);
+static int AddResolverNSInfo(DnsConfigInfo *dnsConfigInfo, struct sockaddr *sap);
+#   ifndef RESOLVER_IPV6_GETSERVERS
+static void PrintResolverNSInfo(res_state resp);
+#   endif
 #endif
 
 
@@ -424,7 +428,7 @@ GuestInfoGetNicInfo(unsigned int maxIPv4Routes,
        intf_loop(intf, ReadInterfaceDetailsNormal, nicInfo) < 0 ||
        intf_loop(intf, ReadInterfaceDetailsLowPriority, nicInfo) < 0) {
       intf_close(intf);
-      g_debug("Error, negative result from intf_loop\n");
+      g_debug("%s: Error, negative result from intf_loop\n", __FUNCTION__);
       return FALSE;
    }
 
@@ -832,8 +836,10 @@ RecordResolverInfo(NicInfoV3 *nicInfo)  // OUT
    DnsConfigInfo *dnsConfigInfo = NULL;
    char namebuf[DNSINFO_MAX_ADDRLEN + 1];
    char **s;
+   struct __res_state res;
 
-   if (res_init() == -1) {
+   if (res_ninit(&res) == -1) {
+      g_warning("%s: Resolver res_init failed.\n", __FUNCTION__);
       return FALSE;
    }
 
@@ -854,17 +860,17 @@ RecordResolverInfo(NicInfoV3 *nicInfo)  // OUT
     */
    dnsConfigInfo->domainName =
       Util_SafeCalloc(1, sizeof *dnsConfigInfo->domainName);
-   *dnsConfigInfo->domainName = Util_SafeStrdup(_res.defdname);
+   *dnsConfigInfo->domainName = Util_SafeStrdup(res.defdname);
 
    /*
     * Name servers.
     */
-   RecordResolverNS(dnsConfigInfo);
+   RecordResolverNS(&res, dnsConfigInfo);
 
    /*
     * Search suffixes.
     */
-   for (s = _res.dnsrch; *s; s++) {
+   for (s = res.dnsrch; *s; s++) {
       DnsHostname *suffix;
 
       /* Check to see if we're going above our limit. See bug 605821. */
@@ -884,11 +890,15 @@ RecordResolverInfo(NicInfoV3 *nicInfo)  // OUT
     */
    nicInfo->dnsConfigInfo = dnsConfigInfo;
 
+   res_nclose(&res);
+
    return TRUE;
 
 fail:
    VMX_XDR_FREE(xdr_DnsConfigInfo, dnsConfigInfo);
    free(dnsConfigInfo);
+   res_nclose(&res);
+
    return FALSE;
 }
 
@@ -899,90 +909,326 @@ fail:
  *
  * @brief Copies name servers used by resolver(3) to @a dnsConfigInfo.
  *
+ * @param[in]  resp             res_state, pointer to a resolver(3) state
+ *                              structure.
  * @param[out] dnsConfigInfo    Destination DnsConfigInfo container.
  *
  ******************************************************************************
  */
 
 static void
-RecordResolverNS(DnsConfigInfo *dnsConfigInfo) // IN
+RecordResolverNS(res_state resp, DnsConfigInfo *dnsConfigInfo) // IN
 {
    int i;
 
 #if defined RESOLVER_IPV6_GETSERVERS
    {
       union res_sockaddr_union *ns;
-      ns = Util_SafeCalloc(_res.nscount, sizeof *ns);
-      if (res_getservers(&_res, ns, _res.nscount) != _res.nscount) {
-         g_warning("%s: res_getservers failed.\n", __func__);
-         return;
-      }
-      for (i = 0; i < _res.nscount; i++) {
-         struct sockaddr *sa = (struct sockaddr *)&ns[i];
-         if (sa->sa_family == AF_INET || sa->sa_family == AF_INET6) {
-            TypedIpAddress *ip;
-
-            /* Check to see if we're going above our limit. See bug 605821. */
-            if (dnsConfigInfo->serverList.serverList_len == DNSINFO_MAX_SERVERS) {
-               g_message("%s: dns server limit (%d) reached, skipping overflow.",
-                         __FUNCTION__, DNSINFO_MAX_SERVERS);
+      ns = Util_SafeCalloc(resp->nscount, sizeof *ns);
+      if (res_getservers(resp, ns, resp->nscount) != resp->nscount) {
+         g_warning("%s: res_getservers failed.\n", __FUNCTION__);
+         /* fallthrough to free & return */
+      } else {
+         for (i = 0; i < resp->nscount; i++) {
+            if (0 == AddResolverNSInfo(
+                        dnsConfigInfo,
+                        (struct sockaddr *)&ns[i])) {
+               /* Can't add more DNS entries to dnsConfigInfo, break loop */
                break;
             }
-
-            ip = XDRUTIL_ARRAYAPPEND(dnsConfigInfo, serverList, 1);
-            ASSERT_MEM_ALLOC(ip);
-            GuestInfoSockaddrToTypedIpAddress(sa, ip);
+            /* Else: if < 0, reason already logged in AddResolverNSInfo */
          }
       }
+
+      /* free and return */
+      free(ns);
    }
 #else                                   // if defined RESOLVER_IPV6_GETSERVERS
    {
       /*
-       * Name servers (IPv4).
+       * GLIBC resolv implementation details to consider...
+       *
+       * In mixed mode, where both IPv4 and IPv6 nameserver are configured,
+       * both arrays (__res_state.nsaddr_list, __res_state._u._ext.nsaddrs) are
+       * combined to for the list of nameservers.
+       *
+       * The __res_state.nscount value is limited to MAXNS and represent the
+       * current number of 'managed' or 'valid' nameserver entries across
+       * both list.
+       *
+       * However, not everyone manages the arrays the same way (of course...).
+       *
+       * Assume resolv.conf:
+       *    nameserver A (IPv4)
+       *    nameserver B (IPv6)
+       *    nameserver C (IPv4)
+       *
+       * Case 1: front-loaded
+       *         IPv4 entries are front-loaded in __res_state.nsaddr_list[] and
+       *         IPv6 entries are positional in __res_state._u._ext.nsaddrs[]
+       *         position matches /etc/resolv.conf order
+       *           __res_state.nsaddr_list | __res_state._u._ext.nsaddrs
+       *                  -----------------+--------------------
+       *                          A        |       -
+       *                          C        |       B
+       *                          -        |       -
+       *
+       * Case 2: staggered / positional
+       *         IPv4 entries are staggered with IPv6 entries, thus positional
+       *         in both arrays relative to each other.
+       *           __res_state.nsaddr_list | __res_state._u._ext.nsaddrs
+       *                  -----------------+--------------------
+       *                          A        |       -
+       *                          -        |       B
+       *                          C        |       -
+       *
+       * Both cases are enhanced by different IPv4 data management features:
+       *    Variation 1: IPv4 sin_family is not cleared.
+       *    Variation 2: IPv4 sin_family is cleared (set to 0)
+       *
+       * Distro+release | nscount6 |  Case      | sin_family  |
+       * =======================================================================
+       *  RHEL 6.10     |   yes    | front-load | not cleared |
+       *  RHEL 7.2      |   yes    | front-load | not cleared |
+       *  RHEL 7.6      |   no     | staggered  |  post-fix   |
+       * -----------------------------------------------------------------------
+       *  SLES 11-sp3   |   yes    | staggered  | not cleared | **bad
+       *  SLES 12       |   no     | staggered  |   cleared   |
+       * -----------------------------------------------------------------------
+       *  FreeBSD 11    |  -na-    |    -na-    |     -na-    | res_getservers
+       * -----------------------------------------------------------------------
+       *  Ubuntu 12.04  |   yes    | staggered  | not cleared | **bad
+       *  Ubuntu 14.04  |   yes    | staggered  | not cleared | **bad
+       *  Ubuntu 18.04  |   no     | staggered  |   cleared   |
+       * -----------------------------------------------------------------------
+       *  Fedora 24     |   no     | staggered  |   cleared   |
+       * =======================================================================
+       *
+       * Restarting the process (service: vmtoolsd) resets the IPv4 array and
+       * fixes issues that arise with "staggered + not cleared" combos, as well
+       * as clearing out DNS reporting info issues for ealier versions.
+       *
+       * Fix for PR 2302591:
+       *  - Move away from using the _res global __res_state var and instead use
+       *    a locally allocated __res_state structure.
+       *     *  Ensures the IPv4 data is reset every time we collect DNS info.
+       *     *  Calling res_nclose on the resolver structure and freeing it at
+       *        the end of the configuration update ensure the IPv6 structure
+       *        are not leaked (see: RecordResolverInfo())
+       *  - Log the res_state nameserver configuration for debugging.
+       *  - Validate and compute nscount4, nscount6 values
+       *  - Pick DNS entries from both list, with the IPv6 array driving the
+       *    order of the entries. Increment the '4 or '6 count when a DNS entry
+       *    is selected.
+       *
+       * Clearing the IPv4 sin_family is REQUIRED to support all cases.
+       * Otherwise the "staggered+'not cleared'" and "front-load" scenarios are
+       * indistinguishable.
+       *
+       * Manually clearing the IPv4 sin_family field can be done after close if
+       * continued use of res_init() and the _res global is desirable.
        */
-      for (i = 0; i < MAXNS; i++) {
-         struct sockaddr_in *sin = &_res.nsaddr_list[i];
-         if (sin->sin_family == AF_INET) {
-            TypedIpAddress *ip;
+      int addRC;
+      int nscount4 = 0; /* number of IPv4 entries collected */
+      int nscount6 = 0; /* number of IPv6 entries collected */
 
-            /* Check to see if we're going above our limit. See bug 605821. */
-            if (dnsConfigInfo->serverList.serverList_len == DNSINFO_MAX_SERVERS) {
-               g_message("%s: dns server limit (%d) reached, skipping overflow.",
-                         __FUNCTION__, DNSINFO_MAX_SERVERS);
-               break;
-            }
+      PrintResolverNSInfo(resp);
 
-            ip = XDRUTIL_ARRAYAPPEND(dnsConfigInfo, serverList, 1);
-            ASSERT_MEM_ALLOC(ip);
-            GuestInfoSockaddrToTypedIpAddress((struct sockaddr *)sin, ip);
-         }
-      }
-#   if defined RESOLVER_IPV6_EXT
       /*
-       * Name servers (IPv6).
+       * Collect DNS entries
+       *   There are up to __res_state.nscount valid entries, and nscount is
+       *   limited to the array size (MAXNS).
+       *   Loop up to __res_state.nscount, or until the target number of entries
+       *   (IPv4 and IPv6) are collected.
+       *   Requires IPv4 sin_family to be set to 0 for unused entries in
+       *   __res_state.nsaddr_list[].
        */
-      for (i = 0; i < MAXNS; i++) {
-         struct sockaddr_in6 *sin6 = _res._u._ext.nsaddrs[i];
-         if (sin6) {
-            TypedIpAddress *ip;
-
-            /* Check to see if we're going above our limit. See bug 605821. */
-            if (dnsConfigInfo->serverList.serverList_len == DNSINFO_MAX_SERVERS) {
-               g_message("%s: dns server limit (%d) reached, skipping overflow.",
-                         __FUNCTION__, DNSINFO_MAX_SERVERS);
+      for (i = 0; i < resp->nscount && ((nscount4 + nscount6) < resp->nscount); i++) {
+#   if defined RESOLVER_IPV6_EXT
+         /*
+          * IPv6 list is authoritative at a given index, process it first
+          */
+         if (resp->_u._ext.nsaddrs[i]) {
+            /* Has IPv6 nameserver at index */
+            addRC = AddResolverNSInfo(
+                       dnsConfigInfo,
+                       (struct sockaddr *)resp->_u._ext.nsaddrs[i]);
+            if (addRC == 0) {
+               /* Can't add more DNS entries to dnsConfigInfo, break loop */
                break;
+            } else if (addRC > 0) {
+               /* update count only if added */
+               nscount6++;
             }
-
-            ip = XDRUTIL_ARRAYAPPEND(dnsConfigInfo, serverList, 1);
-            ASSERT_MEM_ALLOC(ip);
-            GuestInfoSockaddrToTypedIpAddress((struct sockaddr *)sin6, ip);
+            /* Else: IPv6.sin6_family != AF_INET6 or other issues already
+             *       logged in AddResolverNSInfo
+             */
          }
+         /* Else: null entry indicates no IPv6 at that position */
+#   endif
+
+         if (resp->nsaddr_list[i].sin_family == AF_INET) {
+            /* Has IPv4 nameserver at index */
+            addRC = AddResolverNSInfo(
+                       dnsConfigInfo,
+                       (struct sockaddr *)(&resp->nsaddr_list[i]));
+            if (addRC == 0){
+               /* Can't add more DNS entries to dnsConfigInfo, break loop */
+               break;
+            } else if (addRC > 0) {
+               /* update count only if added */
+               nscount4++;
+            }
+            /* Else: issue logged in AddResolverNSInfo */
+         }
+         /* Else: IPv4.sin_family == 0, it means a 'free' slot. */
+      } /* for nscount and one of the total count is < nscount */
+
+      if ((nscount4 + nscount6) < resp->nscount) {
+         /*
+          * Not all expected nameserver entries were collected
+          */
+         g_warning(
+            "%s: dns update aborted, index=%d, ns=%d, IPv4=%d, IPv6=%d",
+            __FUNCTION__,
+            i, resp->nscount, nscount4, nscount6);
       }
-#   endif                               //    if defined RESOLVER_IPV6_EXT
    }
 #endif                                  // if !defined RESOLVER_IPV6_GETSERVERS
 }
 
+/*
+ ******************************************************************************
+ * AddResolverNSInfo --                                                  */ /**
+ *
+ * @brief Add a nameserver IP address from resolver(3) subsystem to the
+ *        DnsConfigInfo container.
+ *
+ * @param[out] dnsConfigInfo  Destination DnsConfigInfo container.
+ * @param[in]  sap            The sockaddr structure containing the IP address
+ *
+ * @retval -1    IP address not added due to wrong or invalid parameter.
+ * @retval  0    IP address not added due to limit reached @a dnsConfigInfo.
+ * @retval  1    IP address added to @a dnsConfigInfo or otherwise.
+ *
+ ******************************************************************************
+ */
+static int
+AddResolverNSInfo(DnsConfigInfo *dnsConfigInfo, struct sockaddr *sap)
+{
+   TypedIpAddress *ip;
+
+   ASSERT(sap != NULL);
+   ASSERT(dnsConfigInfo != NULL);
+
+   if (sap->sa_family != AF_INET
+       && sap->sa_family != AF_INET6) {
+      /* Not a supported address family */
+      g_debug("%s: unhandled address family (%d)", __FUNCTION__, sap->sa_family);
+      return -1;
+   }
+
+   /* Check to see if we're going above our limit. See bug 605821. */
+   if (dnsConfigInfo->serverList.serverList_len == DNSINFO_MAX_SERVERS) {
+      g_message("%s: dns server limit (%d) reached, skipping overflow.",
+         __FUNCTION__, DNSINFO_MAX_SERVERS);
+      return 0;
+   }
+
+   ip = XDRUTIL_ARRAYAPPEND(dnsConfigInfo, serverList, 1);
+   ASSERT_MEM_ALLOC(ip);
+   GuestInfoSockaddrToTypedIpAddress(sap, ip);
+   return 1;
+}
+
+#   ifndef RESOLVER_IPV6_GETSERVERS
+/*
+ ******************************************************************************
+ * PrintResolverNSInfo --                                                */ /**
+ *
+ * @brief log the resolver(3) subsystem state about nameservers
+ *
+ * @param[in] resp    res_state, pointer to a resolver(3) state structure.
+ *
+ ******************************************************************************
+ */
+static void
+PrintResolverNSInfo(res_state resp)
+{
+   /*
+    * Init IPv6 state for unsupported case
+    * Keep the message short < INET_ADDRSTRLEN for both v4 & v6
+    */
+   char ipv6Buff[INET6_ADDRSTRLEN+1] = "no-support";
+   char ipv4Buff[INET_ADDRSTRLEN+1];
+   int nscount = 0;
+   int nscount6 = 0;
+   int nscount4 = 0;
+   int i;
+
+   /* Split the counts per GLIBC 2.11+ source */
+   nscount = resp->nscount;
+#   ifdef RESOLVER_IPV6_EXT
+   nscount6 = resp->_u._ext.nscount6;
+#   endif
+   nscount4 = nscount - nscount6;
+
+   g_debug(
+      "Resolver State: id=%d Count=%d, IPv4=%d, IPv6=%d",
+       resp->id, nscount, nscount4, nscount6);
+
+   for (i = 0; i < MAXNS; i++) {
+#   ifdef RESOLVER_IPV6_EXT
+      /*
+       * Set IPv6 entry status
+       */
+      if (resp->_u._ext.nsaddrs[i] != NULL) {
+         if (resp->_u._ext.nsaddrs[i]->sin6_family == AF_INET6) {
+            const char *cvRes = inet_ntop(AF_INET6,
+                             &resp->_u._ext.nsaddrs[i]->sin6_addr,
+                             ipv6Buff, INET6_ADDRSTRLEN);
+            if (cvRes == NULL) {
+               /* Failed to output IPv6 address to buffer */
+               int errsv = errno;
+               /* Keep the message short < INET_ADDRSTRLEN for both v4 & v6 */
+               Str_Sprintf(ipv6Buff, sizeof ipv6Buff, "ntop-fail:%d", errsv);
+            }
+         } else {
+            /* Keep the message short < INET_ADDRSTRLEN for both v4 & v6 */
+            Str_Sprintf(ipv6Buff, sizeof ipv6Buff, "AF:%02d",
+              resp->_u._ext.nsaddrs[i]->sin6_family);
+         }
+      } else {
+         /* Keep the message short < INET_ADDRSTRLEN for both v4 & v6 */
+         Str_Sprintf(ipv6Buff, sizeof ipv6Buff, "no-entry");
+      }
+#   endif
+
+      /*
+       * Set IPv4 entry status
+       */
+      if (resp->nsaddr_list[i].sin_family == AF_INET) {
+         const char *cvRes = inet_ntop(AF_INET,
+                          &resp->nsaddr_list[i].sin_addr,
+                          ipv4Buff, INET_ADDRSTRLEN);
+         if (cvRes == NULL) {
+            /* Failed to output IPv4 address to buffer */
+            int errsv = errno;
+            /* Keep the message short < INET_ADDRSTRLEN for both v4 & v6 */
+            Str_Sprintf(ipv4Buff, sizeof ipv4Buff, "ntop-fail:%d", errsv);
+         }
+      } else {
+         /* Keep the message short < INET_ADDRSTRLEN for both v4 & v6 */
+         Str_Sprintf(ipv4Buff, sizeof ipv4Buff, "AF:%02d",
+           resp->nsaddr_list[i].sin_family);
+      }
+
+      g_debug(
+         "Resolver State: id=%d Lists[%d] - IPv4(%s) - IPv6(%s)",
+         resp->id, i, ipv4Buff, ipv6Buff);
+   }
+}
+#   endif // ifndef RESOLVER_IPV6_GETSERVERS
 #endif // USE_RESOLVE
 
 
