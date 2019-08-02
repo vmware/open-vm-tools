@@ -45,12 +45,17 @@
 
 
 #ifndef _HGFS_H_
-# define _HGFS_H_
+#define _HGFS_H_
 
 #define INCLUDE_ALLOW_USERLEVEL
 #define INCLUDE_ALLOW_MODULE
 #define INCLUDE_ALLOW_DISTRIBUTE
 #include "includeCheck.h"
+#ifdef VMX86_TOOLS
+#   include "rpcvmx.h"
+#else
+#   include "config.h"
+#endif
 #include "vm_assert.h"
 
 /* Page size for HGFS packet (4K). */
@@ -65,7 +70,7 @@
  * Maximum number of pages to transfer to/from the HGFS server for V3 protocol
  * operations that support large requests/replies, e.g. reads and writes.
  */
-#define HGFS_LARGE_IO_MAX_PAGES  15
+#define HGFS_LARGE_IO_MAX_PAGES 127
 
 /* Maximum number of bytes to read or write to a hgfs server in a single packet. */
 #define HGFS_IO_MAX HGFS_PAGE_SIZE
@@ -86,6 +91,18 @@
  * capable in hgfsProto.h.
  */
 #define HGFS_LARGE_PACKET_MAX (HGFS_LARGE_IO_MAX + HGFS_HEADER_SIZE_MAX)
+
+/*
+ * Legacy definitions for HGFS_LARGE_IO_MAX_PAGES, HGFS_LARGE_IO_MAX and
+ * HGFS_LARGE_PACKET_MAX. They are used both in Windows client and hgFileCopy
+ * library for performing vmrun CopyFileFromHostToGuest/GuestToHost.
+ */
+#define HGFS_LEGACY_LARGE_IO_MAX_PAGES 15
+#define HGFS_LEGACY_LARGE_IO_MAX       (HGFS_PAGE_SIZE * HGFS_LEGACY_LARGE_IO_MAX_PAGES)
+#define HGFS_LEGACY_LARGE_PACKET_MAX   (HGFS_LEGACY_LARGE_IO_MAX + HGFS_HEADER_SIZE_MAX)
+
+static size_t gHgfsLargeIoMax = 0;
+static size_t gHgfsLargePacketMax = 0;
 
 /*
  *-----------------------------------------------------------------------------
@@ -111,9 +128,21 @@
 static INLINE size_t HgfsLargeIoMax(Bool useLegacy) // IN
 {
    if (useLegacy) {
-      // TODO: Return the legacy value
+      return HGFS_LEGACY_LARGE_IO_MAX;
    }
-   return HGFS_LARGE_IO_MAX;
+   if (gHgfsLargeIoMax > 0) {
+      return gHgfsLargeIoMax;
+   }
+#ifdef VMX86_TOOLS
+   if (!RpcVMX_ConfigGetBool(FALSE, "hgfs.packetSize.large")) {
+#else
+   if (!Config_GetBool(FALSE, "hgfs.packetSize.large")) {
+#endif
+      gHgfsLargeIoMax = HGFS_LEGACY_LARGE_IO_MAX;
+   } else {
+      gHgfsLargeIoMax = HGFS_LARGE_IO_MAX;
+   }
+   return gHgfsLargeIoMax;
 }
 
 /*
@@ -140,9 +169,21 @@ static INLINE size_t HgfsLargeIoMax(Bool useLegacy) // IN
 static INLINE size_t HgfsLargePacketMax(Bool useLegacy) // IN
 {
    if (useLegacy) {
-      // TODO: Return the legacy value
+      return HGFS_LEGACY_LARGE_PACKET_MAX;
    }
-   return HGFS_LARGE_PACKET_MAX;
+   if (gHgfsLargePacketMax > 0) {
+      return gHgfsLargePacketMax;
+   }
+#ifdef VMX86_TOOLS
+   if (!RpcVMX_ConfigGetBool(FALSE, "hgfs.packetSize.large")) {
+#else
+   if (!Config_GetBool(FALSE, "hgfs.packetSize.large")) {
+#endif
+      gHgfsLargePacketMax = HGFS_LEGACY_LARGE_PACKET_MAX;
+   } else {
+      gHgfsLargePacketMax = HGFS_LARGE_PACKET_MAX;
+   }
+   return gHgfsLargePacketMax;
 }
 
 /*
