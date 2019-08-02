@@ -301,11 +301,13 @@ struct Vmxnet3_RxCompDesc {
    uint32 rqID:10;      /* rx queue/ring ID */
    uint32 sop:1;        /* Start of Packet */
    uint32 eop:1;        /* End of Packet */
-   uint32 ext1:2;
+   uint32 isInnerHdr:1; /* indicating v4/v6/.. is for inner header */
+   uint32 isInnerRss:1; /* indicating rssType is based on inner header */
    uint32 rxdIdx:12;    /* Index of the RxDesc */
 #else
    uint32 rxdIdx:12;    /* Index of the RxDesc */
-   uint32 ext1:2;
+   uint32 isInnerRss:1; /* indicating rssType is based on inner header */
+   uint32 isInnerHdr:1; /* indicating v4/v6/.. is for inner header */
    uint32 eop:1;        /* End of Packet */
    uint32 sop:1;        /* Start of Packet */
    uint32 rqID:10;      /* rx queue/ring ID */
@@ -964,12 +966,21 @@ struct Vmxnet3_MemRegs {
 Vmxnet3_MemRegs;
 
 typedef enum Vmxnet3_RSSField {
-   VMXNET3_RSS_FIELDS_TCPIP4 = 0x0001,
-   VMXNET3_RSS_FIELDS_TCPIP6 = 0x0002,
-   VMXNET3_RSS_FIELDS_UDPIP4 = 0x0004,
-   VMXNET3_RSS_FIELDS_UDPIP6 = 0x0008,
-   VMXNET3_RSS_FIELDS_ESPIP4 = 0x0010,
-   VMXNET3_RSS_FIELDS_ESPIP6 = 0x0020,
+   VMXNET3_RSS_FIELDS_TCPIP4 = 0x1UL,
+   VMXNET3_RSS_FIELDS_TCPIP6 = 0x2UL,
+   VMXNET3_RSS_FIELDS_UDPIP4 = 0x4UL,
+   VMXNET3_RSS_FIELDS_UDPIP6 = 0x8UL,
+   VMXNET3_RSS_FIELDS_ESPIP4 = 0x10UL,
+   VMXNET3_RSS_FIELDS_ESPIP6 = 0x20UL,
+
+   VMXNET3_RSS_FIELDS_INNER_IP4 = 0x100UL,
+   VMXNET3_RSS_FIELDS_INNER_TCPIP4 = 0x200UL,
+   VMXNET3_RSS_FIELDS_INNER_IP6 = 0x400UL,
+   VMXNET3_RSS_FIELDS_INNER_TCPIP6 = 0x800UL,
+   VMXNET3_RSS_FIELDS_INNER_UDPIP4 = 0x1000UL,
+   VMXNET3_RSS_FIELDS_INNER_UDPIP6 = 0x2000UL,
+   VMXNET3_RSS_FIELDS_INNER_ESPIP4 = 0x4000UL,
+   VMXNET3_RSS_FIELDS_INNER_ESPIP6 = 0x8000UL,
 } Vmxnet3_RSSField;
 
 typedef
