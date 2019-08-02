@@ -663,7 +663,9 @@ FIELD(  F,  0, EBX,  0, 32, PQM_MAX_RMID,                        NO,    0 ) \
 FLAG(   F,  0, EDX,  1,  1, PQM_CMT_SUPPORT,                     NO,    0 ) \
 FIELD(  F,  1, EBX,  0, 32, PQM_CMT_CONV,                        NO,    0 ) \
 FIELD(  F,  1, ECX,  0, 32, PQM_CMT_NUM_RMID,                    NO,    0 ) \
-FLAG(   F,  1, EDX,  0,  1, PQM_CMT_OCCUPANCY,                   NO,    0 )
+FLAG(   F,  1, EDX,  0,  1, PQM_CMT_OCCUPANCY,                   NO,    0 ) \
+FLAG(   F,  1, EDX,  1,  1, PQM_MBM_TOTAL,                       NO,    0 ) \
+FLAG(   F,  1, EDX,  2,  1, PQM_MBM_LOCAL,                       NO,    0 )
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_10                                          \
