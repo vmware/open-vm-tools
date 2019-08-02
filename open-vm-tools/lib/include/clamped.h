@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -43,6 +43,7 @@
 
 #include "vm_basic_types.h"
 #include "vm_assert.h"
+#include "vm_basic_defs.h"
 
 #if defined __cplusplus
 extern "C" {
@@ -349,6 +350,49 @@ Clamped_URoundUpBits32(uint32 *out,  // OUT
 
    *out = c;
    return TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Clamped_UMul64 --
+ *
+ *      Unsigned 64-bit multiplication.
+ *
+ * Results:
+ *      On success, returns TRUE. If the result would have overflowed
+ *      and we clamped it to MAX_UINT64, returns FALSE.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE Bool
+Clamped_UMul64(uint64 *out,  // OUT
+               uint64 a,     // IN
+               uint64 b)     // IN
+{
+   uint32 aL = a & MASK64(32);
+   uint32 aH = a >> 32;
+   uint32 bL = b & MASK64(32);
+   uint32 bH = b >> 32;
+
+   if (aH > 0 && bH > 0) {
+      *out = MAX_UINT64;
+      return FALSE;
+   } else {
+      uint64 s1 = (aH * (uint64)bL) << 32;
+      uint64 s2 = (aL * (uint64)bH) << 32;
+      uint64 s3 = (aL * (uint64)bL);
+      uint64 sum;
+      Bool clamped = FALSE;
+
+      clamped |= !Clamped_UAdd64(&sum, s1, s2);
+      clamped |= !Clamped_UAdd64(&sum, sum, s3);
+
+      *out = sum;
+      return !clamped;
+   }
 }
 
 
