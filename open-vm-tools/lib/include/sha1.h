@@ -143,11 +143,11 @@ void SHA1MultiBuffer(uint32 numBuffers,
 #if !defined VMKBOOT && !defined VMKERNEL
 
 /* Opaque handle */
-typedef struct {
-#if defined __APPLE__
-   uint8 _private[96];  // sizeof CC_SHA1_CTX
-#else
+typedef union {
    void *_private;
+#if defined __APPLE__
+   uint8 _pad[104 + 8];  // sizeof CC_SHA256_CTX + extra field,
+                         // where SHA256 is largest CTX
 #endif
 } CryptoHash_SHA1_CTX;
 
