@@ -76,7 +76,7 @@
 #define THREAD_LOG(fmt, args...)   lprintf(" (%lx) " fmt, (unsigned long)pthread_self(), ## args)
 #define THREAD_ERROR(fmt, args...) lfprintf(stderr, " (%"FMTPID") " fmt, getpid(), ## args)
 
-#if defined (linux) || defined(__FreeBSD__)
+#if defined (__linux__) || defined(__FreeBSD__)
 # define os_thread_yield()      sched_yield()
 #elif defined(sun)
 # define os_thread_yield()      yield()
