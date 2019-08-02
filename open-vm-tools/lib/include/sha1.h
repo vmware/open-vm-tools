@@ -148,6 +148,8 @@ typedef union {
 #if defined __APPLE__
    uint8 _pad[104 + 8];  // sizeof CC_SHA256_CTX + extra field,
                          // where SHA256 is largest CTX
+#elif defined _WIN32
+   uint8 _pad[384];      // see CryptoHashInitCommon
 #endif
 } CryptoHash_SHA1_CTX;
 
