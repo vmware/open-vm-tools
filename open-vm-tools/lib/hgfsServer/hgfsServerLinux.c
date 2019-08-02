@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -85,7 +85,7 @@
 #include <sys/vnode.h>      // for VERG / VDIR
 #endif
 
-#ifdef linux
+#ifdef __linux__
 typedef struct DirectoryEntry {
    uint64 d_ino;
    uint64 d_off;
@@ -4193,7 +4193,7 @@ HgfsPlatformReadFile(fileDesc file,               // IN: file descriptor
    if (sequentialOpen) {
       error = 0; // No error from seek
    } else {
-#   ifdef linux
+#   ifdef __linux__
       {
          uint64 res;
 #      if !defined(VM_X86_64)
@@ -4296,7 +4296,7 @@ HgfsPlatformWriteFile(fileDesc writeFd,            // IN: file descriptor
 
    MXUser_AcquireExclLock(session->fileIOLock);
    if (!writeSequential) {
-#   ifdef linux
+#   ifdef __linux__
       {
          uint64 res;
 #      if !defined(VM_X86_64)
