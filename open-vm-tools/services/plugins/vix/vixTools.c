@@ -7684,7 +7684,7 @@ VixToolsRunScript(VixCommandRequestHeader *requestMsg,  // IN
       goto abort;
    }
 
-   if ((NULL != interpreterName) && (*interpreterName)) {
+   if (*interpreterName) {
       fullCommandLine = Str_SafeAsprintf(NULL, // resulting string length
                                      "\"%s\" %s \"%s\"",
                                      interpreterName,
@@ -9098,29 +9098,14 @@ abort:
 VixError
 VixToolsValidateCredentials(VixCommandRequestHeader *requestMsg)    // IN
 {
-   VixError err = VIX_OK;
+   VixError err;
    void *userToken = NULL;
-   Bool impersonatingVMWareUser = FALSE;
-
-   if (NULL == requestMsg) {
-      ASSERT(0);
-      err = VIX_E_FAIL;
-      goto abort;
-   }
 
    err = VixToolsImpersonateUser((VixCommandRequestHeader *) requestMsg,
                                  TRUE,
                                  &userToken);
-   if (VIX_OK != err) {
-      goto abort;
-   }
-   impersonatingVMWareUser = TRUE;
-
-   g_debug("%s: User: %s\n",
-           __FUNCTION__, IMPERSONATED_USERNAME);
-
-abort:
-   if (impersonatingVMWareUser) {
+   if (VIX_OK == err) {
+      g_debug("%s: User: %s\n", __FUNCTION__, IMPERSONATED_USERNAME);
       VixToolsUnimpersonateUser(userToken);
    }
    VixToolsLogoutUser(userToken);
