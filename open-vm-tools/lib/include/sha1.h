@@ -144,12 +144,13 @@ void SHA1MultiBuffer(uint32 numBuffers,
 
 /* Opaque handle */
 typedef union {
-   void *_private;
 #if defined __APPLE__
-   uint8 _pad[104 + 8];  // sizeof CC_SHA256_CTX + extra field,
-                         // where SHA256 is largest CTX
+   uint8 _private[104 + 8];  // sizeof CC_SHA256_CTX + extra field,
+                             // where SHA256 is largest CTX
 #elif defined _WIN32
-   uint8 _pad[384];      // see CryptoHashInitCommon
+   uint8 _private[384];      // see CryptoHashInitCommon
+#else
+   uintptr_t _private;
 #endif
 } CryptoHash_SHA1_CTX;
 
