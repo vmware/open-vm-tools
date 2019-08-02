@@ -158,13 +158,6 @@
 char *strdup(const char *source);
 #  endif
 
-#  ifdef __APPLE__                           /* if (__APPLE__) { */
-#  define Str_Strcasecmp(s1, s2) strcasecmp(s1, s2)
-#  define M_TEMP 80 /* misc temporary data buffers */
-char *STRDUP(const char *, int);
-int atoi(const char *);
-#endif
-
 /* Shared between Linux and Apple kernel stubs. */
 void *malloc(size_t size);
 void free(void *mem);
