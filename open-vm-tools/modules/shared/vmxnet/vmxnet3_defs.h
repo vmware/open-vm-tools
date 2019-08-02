@@ -291,6 +291,9 @@ Vmxnet3_RxDesc;
 #define VMXNET3_RXD_BTYPE_SHIFT  14
 #define VMXNET3_RXD_GEN_SHIFT    31
 
+#define VMXNET3_RCD_HDR_INNER_SHIFT  13
+#define VMXNET3_RCD_RSS_INNER_SHIFT  12
+
 typedef
 #include "vmware_pack_begin.h"
 struct Vmxnet3_RxCompDesc {
@@ -301,13 +304,13 @@ struct Vmxnet3_RxCompDesc {
    uint32 rqID:10;      /* rx queue/ring ID */
    uint32 sop:1;        /* Start of Packet */
    uint32 eop:1;        /* End of Packet */
-   uint32 isInnerHdr:1; /* indicating v4/v6/.. is for inner header */
-   uint32 isInnerRss:1; /* indicating rssType is based on inner header */
+   uint32 ext1:2;       /* bit 0: indicating v4/v6/.. is for inner header */
+                        /* bit 1: indicating rssType is based on inner header */
    uint32 rxdIdx:12;    /* Index of the RxDesc */
 #else
    uint32 rxdIdx:12;    /* Index of the RxDesc */
-   uint32 isInnerRss:1; /* indicating rssType is based on inner header */
-   uint32 isInnerHdr:1; /* indicating v4/v6/.. is for inner header */
+   uint32 ext1:2;       /* bit 0: indicating v4/v6/.. is for inner header */
+                        /* bit 1: indicating rssType is based on inner header */
    uint32 eop:1;        /* End of Packet */
    uint32 sop:1;        /* Start of Packet */
    uint32 rqID:10;      /* rx queue/ring ID */
