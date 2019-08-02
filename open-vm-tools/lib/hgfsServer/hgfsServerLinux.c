@@ -2054,7 +2054,7 @@ HgfsGetSequentialOnlyFlagFromName(const char *fileName,        // IN
                                   Bool followSymlinks,         // IN: If true then follow symlink
                                   HgfsFileAttrInfo *attr)      // IN/OUT
 {
-#if defined(__linux) || defined(__APPLE__)
+#if defined(__linux__) || defined(__APPLE__)
    int fd;
    int openFlags;
 
@@ -2120,7 +2120,7 @@ static void
 HgfsGetSequentialOnlyFlagFromFd(int fd,                     // IN
                                 HgfsFileAttrInfo *attr)     // IN/OUT
 {
-#if defined(__linux) || defined(__APPLE__)
+#if defined(__linux__) || defined(__APPLE__)
    int error;
    char buffer[2];
    struct stat stats;
