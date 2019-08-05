@@ -33,10 +33,10 @@
 #include "dynbuf.h"
 
 /* Default for whether to query and report disk UUIDs */
-#define CONFIG_GUESTINFO_REPORT_UUID_DEFAULT FALSE
+#define CONFIG_GUESTINFO_REPORT_UUID_DEFAULT TRUE
 
 /* Default for whether to query and report disk devices */
-#define CONFIG_GUESTINFO_REPORT_DEVICE_DEFAULT FALSE
+#define CONFIG_GUESTINFO_REPORT_DEVICE_DEFAULT TRUE
 
 /*
  * Plugin-specific data structures for the DiskGuestInfo.
