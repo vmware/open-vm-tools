@@ -68,3 +68,8 @@ endif
 if HAVE_UDEV
    SUBDIRS += udev
 endif
+
+install-data-local:
+	$(INSTALL) -d $(DESTDIR)/etc/vmware-tools/
+	$(INSTALL) $(srcdir)/tools.conf $(DESTDIR)/etc/vmware-tools/tools.conf.example
+
