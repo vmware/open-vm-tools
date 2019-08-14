@@ -814,7 +814,7 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
          Str_Strcpy(distroShort, STR_OS_DEBIAN_8, distroShortSize);
       } else if (strstr(distroLower, "9.")) {
          Str_Strcpy(distroShort, STR_OS_DEBIAN_9, distroShortSize);
-      } else if (strstr(distroLower, "10.")) {
+      } else if (strstr(distroLower, " 10 ")) {
          Str_Strcpy(distroShort, STR_OS_DEBIAN_10, distroShortSize);
       }
    } else if (StrUtil_StartsWith(distroLower, "enterprise linux") ||
