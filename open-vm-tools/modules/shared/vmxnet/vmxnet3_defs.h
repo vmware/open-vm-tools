@@ -678,7 +678,7 @@ Vmxnet3_CoalesceScheme;
 typedef
 #include "vmware_pack_begin.h"
 struct Vmxnet3_IntrConf {
-   Bool   autoMask;
+   uint8  autoMask;      /* on/off flag */
    uint8  numIntrs;      /* # of interrupts */
    uint8  eventIntrIdx;
    uint8  modLevels[VMXNET3_MAX_INTRS]; /* moderation level for each intr */
@@ -694,7 +694,7 @@ Vmxnet3_IntrConf;
 typedef
 #include "vmware_pack_begin.h"
 struct Vmxnet3_QueueStatus {
-   Bool    stopped;
+   uint8   stopped;    /* on/off flag */
    uint8   _pad[3];
    __le32  error;
 }
@@ -714,7 +714,7 @@ Vmxnet3_TxQueueCtrl;
 typedef
 #include "vmware_pack_begin.h"
 struct Vmxnet3_RxQueueCtrl {
-   Bool    updateRxProd;
+   uint8   updateRxProd;   /* on/off flag */
    uint8   _pad[7];
    __le64  reserved;
 }
