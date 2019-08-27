@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2012-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2012-2017,2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1400,6 +1400,8 @@ VGAuth_SendConnectRequest(VGAuthContext *ctx)
    pid = Convert_UnsignedInt32ToText(dwPid);
 #endif
 
+   /* Value of pid is always NULL on non-Windows platforms */
+   /* coverity[dead_error_line] */
    packet = g_markup_printf_escaped(VGAUTH_CONNECT_REQUEST_FORMAT,
                                     ctx->comm.sequenceNumber,
                                     pid ? pid : "");
@@ -1806,6 +1808,8 @@ VGAuth_SendCreateTicketRequest(VGAuthContext *ctx,
       Convert_UnsignedInt32ToText((unsigned int)(size_t)userHandle->token);
 #endif
 
+   /* Value of tokenInText is always NULL on non-Windows platforms */
+   /* coverity[dead_error_line] */
    packet = g_markup_printf_escaped(VGAUTH_CREATETICKET_REQUEST_FORMAT_START,
                                     ctx->comm.sequenceNumber,
                                     userHandle->userName,

@@ -1572,8 +1572,12 @@ ServiceProtoHandleConnection(ServiceConnection *conn,
 #endif
 
    if (err != VGAUTH_E_OK) {
+      /* Value of err is always VGAUTH_E_OK on non-Windows platforms */
+      /* coverity[dead_error_line] */
       packet = Proto_MakeErrorReply(conn, req, err, "connect failed");
    } else {
+      /* Value of event is always NULL on non-Windows platforms */
+      /* coverity[dead_error_line] */
       packet = g_markup_printf_escaped(VGAUTH_CONNECT_REPLY_FORMAT,
                                        req->sequenceNumber,
                                        event ? event : "");
@@ -1995,6 +1999,8 @@ ServiceProtoValidateTicket(ServiceConnection *conn,
    if (err != VGAUTH_E_OK) {
       packet = Proto_MakeErrorReply(conn, req, err, "validateTicket failed");
    } else {
+      /* Value of token is always NULL on non-Windows platforms */
+      /* coverity[dead_error_line] */
       packet = g_markup_printf_escaped(VGAUTH_VALIDATETICKET_REPLY_FORMAT_START,
                                        req->sequenceNumber,
                                        userName,
@@ -2165,6 +2171,8 @@ ServiceProtoValidateSamlBearerToken(ServiceConnection *conn,
                   SU_(validate.samlBearer.success,
                       "Validated SAML bearer token for user '%s'"),
                   userName);
+      /* Value of tokenStr is always NULL on non-Windows platforms */
+      /* coverity[dead_error_line] */
       packet = g_markup_printf_escaped(VGAUTH_VALIDATESAMLBEARERTOKEN_REPLY_FORMAT_START,
                                        req->sequenceNumber,
                                        userName ? userName : "",
