@@ -253,6 +253,35 @@ DynBuf_GetAllocatedSize(DynBuf const *b) // IN
 
 
 /*
+ *-----------------------------------------------------------------------------
+ *
+ * DynBuf_GetAvailableSize --
+ *
+ *      Returns the current available space in the dynamic buffer.
+ *
+ * Results:
+ *      Current available space in dynamic buffer
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+#if defined(SWIG)
+static size_t
+#else
+static INLINE size_t
+#endif
+DynBuf_GetAvailableSize(DynBuf const *b) // IN
+{
+   ASSERT(b);
+
+   return b->allocated - b->size;
+}
+
+
+/*
  *----------------------------------------------------------------------------
  *
  * DynBuf_AppendString --
@@ -357,6 +386,35 @@ DynBuf_Strcat(DynBuf *buf,         // IN/OUT
    return success;
 }
 
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * DynBuf_GrowToFit --
+ *
+ *      GrowToFit that dynbuf has enough room.
+ *
+ * Results:
+ *      TRUE on success
+ *      FALSE on failure (not enough memory)
+ *
+ * Side effects:
+ *      DynBuf may change its size or allocate additional memory.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+#if defined(SWIG)
+static Bool
+#else
+static INLINE Bool
+#endif
+DynBuf_GrowToFit(DynBuf *buf, // IN/OUT
+                 uint32 size) // IN
+{
+   return buf->allocated >= size ?
+      TRUE : DynBuf_Enlarge(buf, size - buf->allocated);
+}
 
 #if defined(__cplusplus)
 }  // extern "C"
