@@ -558,6 +558,7 @@ GetOldMachineID(void)
              sizeof hardwareID);
 
       /* Base 64 encode the binary data to obtain printable characters */
+      /* coverity[check_return] */
       Base64_Encode(rawMachineID, sizeof rawMachineID, encodedMachineID,
                     sizeof encodedMachineID, NULL);
 
@@ -1437,6 +1438,7 @@ File_MoveTree(const char *srcName,    // IN:
              * Only clean up if we created the directory.  Not attempting to
              * clean up partial failures.
              */
+            /* coverity[check_return] */
             File_DeleteDirectoryTree(dstName);
          }
       }
@@ -2186,6 +2188,7 @@ File_ExpandAndCheckDir(const char *dirName)  // IN:
 
          return edirName;
       }
+      free(edirName);
    }
 
    return NULL;
