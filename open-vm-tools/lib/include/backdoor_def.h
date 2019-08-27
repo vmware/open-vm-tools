@@ -345,7 +345,7 @@ extern "C" {
 #define BDOOR_GUEST_PAGE_HINTS_TYPE_PSHARE   (0)
 #define BDOOR_GUEST_PAGE_HINTS_TYPE(reg)     (((reg) >> 16) & 0xffff)
 
-#ifdef VMM
+#if defined(VMM) || defined(ULM)
 /*
  *----------------------------------------------------------------------
  *
@@ -386,7 +386,7 @@ Backdoor_CmdRequiresValidSegments(unsigned cmd)
    return cmd == BDOOR_CMD_INITPCIOPROM ||
           cmd == BDOOR_CMD_GETMHZ;
 }
-#endif
+#endif // defined(VMM) || defined(ULM)
 
 #ifdef VM_ARM_64
 
