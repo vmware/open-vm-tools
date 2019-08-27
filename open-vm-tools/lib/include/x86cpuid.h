@@ -139,6 +139,7 @@ CPUIDQuery;
    CPUIDLEVEL(FALSE, 5,   5,          0,  0)        \
    CPUIDLEVEL(TRUE,  6,   6,          0,  0)        \
    CPUIDLEVEL(TRUE,  7,   7,          1,  0)        \
+   CPUIDLEVEL(TRUE,  9,   9,          0, 17)        \
    CPUIDLEVEL(FALSE, A,   0xA,        0,  0)        \
    CPUIDLEVEL(FALSE, B,   0xB,        2,  0)        \
    CPUIDLEVEL(TRUE,  D,   0xD,       10,  0)        \
@@ -149,6 +150,9 @@ CPUIDQuery;
    CPUIDLEVEL(TRUE,  15,  0x15,       0, 13)        \
    CPUIDLEVEL(TRUE,  16,  0x16,       0, 13)        \
    CPUIDLEVEL(TRUE,  17,  0x17,       4, 14)        \
+   CPUIDLEVEL(TRUE,  18,  0x18,       7, 17)        \
+   CPUIDLEVEL(TRUE,  1B,  0x1B,       1, 17)        \
+   CPUIDLEVEL(TRUE,  1F,  0x1F,       5, 17)        \
    CPUIDLEVEL(FALSE, 400, 0x40000000, 0,  0)        \
    CPUIDLEVEL(FALSE, 401, 0x40000001, 0,  0)        \
    CPUIDLEVEL(FALSE, 402, 0x40000002, 0,  0)        \
@@ -547,6 +551,10 @@ FLAG(   7,  0, EDX, 29,  1, ARCH_CAPABILITIES,                   ANY,   9 ) \
 FLAG(   7,  0, EDX, 31,  1, SSBD,                                YES,   9 )
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
+#define CPUID_FIELD_DATA_LEVEL_9                                            \
+FIELD(  9,  0, EAX,  0, 32, IA32_PLATFORM_DCA_CAP_VAL,           NO,    0 )
+
+/*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_A                                            \
 FIELD(  A,  0, EAX,  0,  8, PMC_VERSION,                         NA,    0 ) \
 FIELD(  A,  0, EAX,  8,  8, PMC_NUM_GEN,                         NA,    0 ) \
@@ -753,7 +761,37 @@ FIELD( 17,  3, ECX,  0, 32, SOC_VENDOR_BRAND_STRING_3_2,         NO,    0 ) \
 FIELD( 17,  3, EDX,  0, 32, SOC_VENDOR_BRAND_STRING_3_3,         NO,    0 ) \
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
-#define CPUID_FIELD_DATA_LEVEL_400                                         \
+#define CPUID_FIELD_DATA_LEVEL_18                                           \
+FIELD( 18,  0, EAX,  0, 32, TLB_INFO_MAX_SUBLEAF,                NO,    0 ) \
+FLAG(  18,  0, EBX,  0,  1, TLB_INFO_LEVEL_SIZE_4K,              NO,    0 ) \
+FLAG(  18,  0, EBX,  1,  1, TLB_INFO_LEVEL_SIZE_2M,              NO,    0 ) \
+FLAG(  18,  0, EBX,  2,  1, TLB_INFO_LEVEL_SIZE_4M,              NO,    0 ) \
+FLAG(  18,  0, EBX,  3,  1, TLB_INFO_LEVEL_SIZE_1G,              NO,    0 ) \
+FIELD( 18,  0, EBX,  8,  3, TLB_INFO_PARTITIONING,               NO,    0 ) \
+FIELD( 18,  0, EBX, 16, 16, TLB_INFO_NUM_WAYS,                   NO,    0 ) \
+FIELD( 18,  0, ECX,  0, 32, TLB_INFO_NUM_SETS,                   NO,    0 ) \
+FIELD( 18,  0, EDX,  0,  5, TLB_INFO_TYPE,                       NO,    0 ) \
+FIELD( 18,  0, EDX,  5,  3, TLB_INFO_LEVEL,                      NO,    0 ) \
+FLAG(  18,  0, EDX,  8,  1, TLB_INFO_FULLY_ASSOCIATIVE,          NO,    0 ) \
+FIELD( 18,  0, EDX, 14, 12, TLB_INFO_MAX_ADDRESSABLE_IDS,        NO,    0 )
+
+/*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
+#define CPUID_FIELD_DATA_LEVEL_1B                                           \
+FIELD( 1B,  0, EAX,  0, 12, PCONFIG_SUBLEAF_TYPE,                NO,    0 ) \
+FIELD( 1B,  0, EBX,  0, 32, PCONFIG_TARGET_ID1,                  NO,    0 ) \
+FIELD( 1B,  0, ECX,  0, 32, PCONFIG_TARGET_ID2,                  NO,    0 ) \
+FIELD( 1B,  0, EDX,  0, 32, PCONFIG_TARGET_ID3,                  NO,    0 )
+
+/*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
+#define CPUID_FIELD_DATA_LEVEL_1F                                           \
+FIELD( 1F,  0, EAX,  0,  5, TOPOLOGY_V2_MASK_WIDTH,              NO,    0 ) \
+FIELD( 1F,  0, EBX,  0, 16, TOPOLOGY_V2_CPUS_SHARING_LEVEL,      NO,    0 ) \
+FIELD( 1F,  0, ECX,  0,  8, TOPOLOGY_V2_LEVEL_NUMBER,            NO,    0 ) \
+FIELD( 1F,  0, ECX,  8,  8, TOPOLOGY_V2_LEVEL_TYPE,              NO,    0 ) \
+FIELD( 1F,  0, EDX,  0, 32, TOPOLOGY_V2_X2APIC_ID,               NO,    0 )
+
+/*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
+#define CPUID_FIELD_DATA_LEVEL_400                                          \
 FIELD(400,  0, EAX,  0, 32, MAX_HYP_LEVEL,                       NA,    0 ) \
 FIELD(400,  0, EBX,  0, 32, HYPERVISOR_VENDOR0,                  NA,    0 ) \
 FIELD(400,  0, ECX,  0, 32, HYPERVISOR_VENDOR1,                  NA,    0 ) \
@@ -1174,6 +1212,7 @@ FIELD(81F,  0, EDX,  0, 32, SEV_MIN_ASID,                        NO,    0 )
    CPUID_FIELD_DATA_LEVEL_5                                           \
    CPUID_FIELD_DATA_LEVEL_6                                           \
    CPUID_FIELD_DATA_LEVEL_7                                           \
+   CPUID_FIELD_DATA_LEVEL_9                                           \
    CPUID_FIELD_DATA_LEVEL_A                                           \
    CPUID_FIELD_DATA_LEVEL_B                                           \
    CPUID_FIELD_DATA_LEVEL_D                                           \
@@ -1184,6 +1223,9 @@ FIELD(81F,  0, EDX,  0, 32, SEV_MIN_ASID,                        NO,    0 )
    CPUID_FIELD_DATA_LEVEL_15                                          \
    CPUID_FIELD_DATA_LEVEL_16                                          \
    CPUID_FIELD_DATA_LEVEL_17                                          \
+   CPUID_FIELD_DATA_LEVEL_18                                          \
+   CPUID_FIELD_DATA_LEVEL_1B                                          \
+   CPUID_FIELD_DATA_LEVEL_1F                                          \
    CPUID_FIELD_DATA_LEVEL_400                                         \
    CPUID_FIELD_DATA_LEVEL_401                                         \
    CPUID_FIELD_DATA_LEVEL_402                                         \
