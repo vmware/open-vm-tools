@@ -11747,6 +11747,12 @@ done:
 
    if (VIX_OK != err) {
       if (impersonated) {
+
+         /*
+          * Coverity flags this as dead code on non-Windows platforms,
+          * where impersonated can't be TRUE if VIX_OK != err.
+          */
+         /* coverity[dead_error_begin] */
          vgErr = VGAuth_EndImpersonation(ctx);
          ASSERT(vgErr == VGAUTH_E_OK);
       }
@@ -11906,6 +11912,12 @@ done:
 
    if (VIX_OK != err) {
       if (impersonated) {
+
+         /*
+          * Coverity flags this as dead code on non-Windows platforms,
+          * where impersonated can't be TRUE if VIX_OK != err.
+          */
+         /* coverity[dead_error_begin] */
          vgErr = VGAuth_EndImpersonation(ctx);
          ASSERT(vgErr == VGAUTH_E_OK);
       }

@@ -640,6 +640,12 @@ FileLockGetMachineID(void)
       if (q == NULL) {
          p = Util_SafeStrdup(GetOldMachineID());
       } else {
+
+         /*
+          * Coverity flags this as dead code on Non-Windows, non-Apple
+          * Platforms, since q will be NULL and this code not reached.
+          */
+         /* coverity[dead_error_begin] */
          p = Str_SafeAsprintf(NULL, "uuid=%s", q);
          Posix_Free(q);
 

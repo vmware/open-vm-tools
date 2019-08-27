@@ -710,6 +710,11 @@ struct uuid_2_cid {
          *outFd = fd;
       }
 
+      /*
+       * The above comment explains why fd is left open even when outFd
+       * is NULL.
+       */
+      /* coverity[leaked_handle] */
       return family;
    }
 
