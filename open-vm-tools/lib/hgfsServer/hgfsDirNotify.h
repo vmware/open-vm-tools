@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -50,8 +50,6 @@ typedef enum {
 } HgfsNotifyActivateReason;
 
 /* These are the callbacks that are implemented in hgfsServer.c */
-typedef void (*HgfsNotifyRegisterThreadCb)(struct HgfsSessionInfo *session);
-typedef void (*HgfsNotifyUnregisterThreadCb)(struct HgfsSessionInfo *session);
 typedef void (*HgfsNotifyEventReceiveCb)(HgfsSharedFolderHandle sharedFolder,
                                          HgfsSubscriberHandle subscriber,
                                          char *name,
@@ -59,8 +57,6 @@ typedef void (*HgfsNotifyEventReceiveCb)(HgfsSharedFolderHandle sharedFolder,
                                          struct HgfsSessionInfo *session);
 
 typedef struct HgfsServerNotifyCallbacks {
-   HgfsNotifyRegisterThreadCb     registerThread;
-   HgfsNotifyUnregisterThreadCb   unregisterThread;
    HgfsNotifyEventReceiveCb       eventReceive;
 } HgfsServerNotifyCallbacks;
 

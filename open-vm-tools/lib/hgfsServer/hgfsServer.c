@@ -246,8 +246,6 @@ static const HgfsServerCallbacks gHgfsServerCBTable = {
 };
 
 
-static void HgfsServerNotifyRegisterThreadCb(struct HgfsSessionInfo *session);
-static void HgfsServerNotifyUnregisterThreadCb(struct HgfsSessionInfo *session);
 static void HgfsServerNotifyReceiveEventCb(HgfsSharedFolderHandle sharedFolder,
                                            HgfsSubscriberHandle subscriber,
                                            char* fileName,
@@ -258,8 +256,6 @@ static void HgfsServerNotifyReceiveEventCb(HgfsSharedFolderHandle sharedFolder,
  * Callback table passed to the directory change notification component.
  */
 static const HgfsServerNotifyCallbacks gHgfsServerNotifyCBTable = {
-   HgfsServerNotifyRegisterThreadCb,
-   HgfsServerNotifyUnregisterThreadCb,
    HgfsServerNotifyReceiveEventCb,
 };
 
@@ -9224,76 +9220,6 @@ HgfsServerGetTargetRelativePath(const char* source,    // IN: source file name
       memcpy(currentPosition, relativeTarget, strlen(relativeTarget) + sizeof '\0');
    }
    return result;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * HgfsServerNotifyRegisterThreadCb --
- *
- *    The callback is invoked by the file system change notification component
- *    thread for generating change notification events.
- *    This simply calls back to the channel's register thread function, if present,
- *    which does the actual work.
- *
- * Results:
- *    None.
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-static void
-HgfsServerNotifyRegisterThreadCb(struct HgfsSessionInfo *session)     // IN: session info
-{
-   HgfsTransportSessionInfo *transportSession;
-
-   ASSERT(session);
-   transportSession = session->transportSession;
-
-   LOG(4, ("%s: Registering thread on session %"FMT64"x\n", __FUNCTION__, session->sessionId));
-
-   if (transportSession->channelCbTable->registerThread != NULL) {
-      transportSession->channelCbTable->registerThread();
-   }
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * HgfsServerNotifyUnregisterThreadCb --
- *
- *    The callback is invoked by the file system change notification component
- *    thread for generating change notification events.
- *    This simply calls back to the channel's unregister thread function, if present,
- *    which does the actual work.
- *
- * Results:
- *    None.
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-static void
-HgfsServerNotifyUnregisterThreadCb(struct HgfsSessionInfo *session)     // IN: session info
-{
-   HgfsTransportSessionInfo *transportSession;
-
-   ASSERT(session);
-   transportSession = session->transportSession;
-
-   LOG(4, ("%s: Unregistering thread on session %"FMT64"x\n", __FUNCTION__, session->sessionId));
-
-   if (transportSession->channelCbTable->unregisterThread != NULL) {
-      transportSession->channelCbTable->unregisterThread();
-   }
 }
 
 

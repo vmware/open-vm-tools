@@ -186,8 +186,6 @@ typedef void (*HgfsChannelRegisterThreadFunc)(void);
 typedef void (*HgfsChannelUnregisterThreadFunc)(void);
 
 typedef struct HgfsServerChannelCallbacks {
-   HgfsChannelRegisterThreadFunc registerThread;
-   HgfsChannelUnregisterThreadFunc unregisterThread;
    HgfsChannelMapVirtAddrFunc getReadVa;
    HgfsChannelMapVirtAddrFunc getWriteVa;
    HgfsChannelUnmapVirtAddrFunc putVa;
