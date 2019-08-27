@@ -2208,30 +2208,6 @@ CPUID_RequiresFence(CpuidVendor vendor, // IN
 
 
 /*
- * The following low-level functions compute the number of
- * cores per cpu.  They should be used cautiously because
- * they do not necessarily work on all types of CPUs.
- * High-level functions that are correct for all CPUs are
- * available elsewhere: see lib/cpuidInfo/cpuidInfo.c.
- */
-
-static INLINE uint32
-CPUID_IntelCoresPerPackage(uint32 v) /* %eax from CPUID with %eax=4 and %ecx=0. */
-{
-   // Note: This is not guaranteed to work on older Intel CPUs.
-   return 1 + CPUID_GET(4, EAX, LEAF4_CORE_COUNT, v);
-}
-
-
-static INLINE uint32
-CPUID_AMDCoresPerPackage(uint32 v) /* %ecx from CPUID with %eax=0x80000008. */
-{
-   // Note: This is not guaranteed to work on older AMD CPUs.
-   return 1 + CPUID_GET(0x80000008, ECX, LEAF88_CORE_COUNT, v);
-}
-
-
-/*
  * Hypervisor CPUID space is 0x400000XX.
  */
 static INLINE Bool
