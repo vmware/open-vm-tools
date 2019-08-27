@@ -8969,6 +8969,12 @@ VixToolsListFileSystems(VixCommandRequestHeader *requestMsg, // IN
          goto abort;
       }
    }
+   /*
+    * Coverity flags this invocation of CLOSE_MNTFILE because the macro does
+    * a test whose results are ignored.  However, it also has a needed side
+    * effect, so this invocation is correct.
+    */
+   /* coverity[no_effect_test] */
    CLOSE_MNTFILE(fp);
 #else
    err = VIX_E_NOT_SUPPORTED;

@@ -882,6 +882,11 @@ VMToolsGetLogFilePath(const gchar *key,
    if (len == 0) {
       g_warning("Invalid path for domain '%s'.", domain);
       g_free(origPath);
+      /*
+       * Coverity flags this as a possible copy-paste error but assigning
+       * to path rather than origPath is correct.
+       */
+      /* coverity[copy_paste_error] */
       path = NULL;
    } else {
       /* Drop the trailing '"' chars */
