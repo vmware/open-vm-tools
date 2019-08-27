@@ -512,7 +512,7 @@ AsyncTCPSocketPollParams(AsyncTCPSocket *asock)
    return AsyncSocketGetPollParams(BaseSocket(asock));
 }
 
-static INLINE Bool
+static INLINE AsyncSocketState
 AsyncTCPSocketGetState(AsyncTCPSocket *asock)
 {
    return AsyncSocketGetState(BaseSocket(asock));
