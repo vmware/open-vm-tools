@@ -471,7 +471,13 @@ FLAG(   6,  0, EAX,  9,  1, HWP_ACTIVITY_WINDOW,                 NO,    0 ) \
 FLAG(   6,  0, EAX, 10,  1, HWP_ENERGY_PERFORMANCE_PREFERENCE,   NO,    0 ) \
 FLAG(   6,  0, EAX, 11,  1, HWP_PACKAGE_LEVEL_REQUEST,           NO,    0 ) \
 FLAG(   6,  0, EAX, 13,  1, HDC,                                 NO,    0 ) \
+FLAG(   6,  0, EAX, 14,  1, TURBO_BOOST_MAX_3,                   NO,    0 ) \
+FLAG(   6,  0, EAX, 15,  1, HWP_CAPABILITIES,                    NO,    0 ) \
+FLAG(   6,  0, EAX, 16,  1, HWP_PECI,                            NO,    0 ) \
+FLAG(   6,  0, EAX, 17,  1, HWP_FLEXIBLE,                        NO,    0 ) \
+FLAG(   6,  0, EAX, 18,  1, HWP_FAST_ACCESS,                     NO,    0 ) \
 FLAG(   6,  0, EAX, 19,  1, HW_FEEDBACK,                         NO,    0 ) \
+FLAG(   6,  0, EAX, 20,  1, HWP_IGNORE_IDLE_REQUEST,             NO,    0 ) \
 FIELD(  6,  0, EBX,  0,  4, NUM_INTR_THRESHOLDS,                 NO,    0 ) \
 FLAG(   6,  0, ECX,  0,  1, HW_COORD_FEEDBACK,                   NO,    0 ) \
 FLAG(   6,  0, ECX,  1,  1, ACNT2,                               ANY,  13 ) \
@@ -525,6 +531,7 @@ FLAG(   7,  0, ECX,  3,  1, PKU,                                 YES,  13 ) \
 FLAG(   7,  0, ECX,  4,  1, OSPKE,                               ANY,  13 ) \
 FLAG(   7,  0, ECX,  5,  1, WAITPKG,                             NO,    0 ) \
 FLAG(   7,  0, ECX,  6,  1, AVX512VBMI2,                         YES,  17 ) \
+FLAG(   7,  0, ECX,  7,  1, CET_SS,                              NO,    0 ) \
 FLAG(   7,  0, ECX,  8,  1, GFNI,                                YES,  17 ) \
 FLAG(   7,  0, ECX,  9,  1, VAES,                                YES,  17 ) \
 FLAG(   7,  0, ECX, 10,  1, VPCLMULQDQ,                          YES,  17 ) \
@@ -537,17 +544,21 @@ FLAG(   7,  0, ECX, 22,  1, RDPID,                               YES,  17 ) \
 FLAG(   7,  0, ECX, 25,  1, CLDEMOTE,                            NO,    0 ) \
 FLAG(   7,  0, ECX, 27,  1, MOVDIRI,                             NO,    0 ) \
 FLAG(   7,  0, ECX, 28,  1, MOVDIR64B,                           NO,    0 ) \
+FLAG(   7,  0, ECX, 29,  1, ENQCMD,                              NO,    0 ) \
 FLAG(   7,  0, ECX, 30,  1, SGX_LC,                              ANY,  17 ) \
 FLAG(   7,  0, EDX,  2,  1, AVX512QVNNIW,                        YES,  16 ) \
 FLAG(   7,  0, EDX,  3,  1, AVX512QFMAPS,                        YES,  16 ) \
 FLAG(   7,  0, EDX,  4,  1, FAST_SHORT_REPMOV,                   NO,    0 ) \
+FLAG(   7,  0, EDX,  8,  1, AVX512VP2INTERSECT,                  NO,    0 ) \
 CPUID_7_EDX_10 \
 FLAG(   7,  0, EDX, 13,  1, TSX_MICROCODE_UPDATE,                NO,    0 ) \
 FLAG(   7,  0, EDX, 18,  1, PCONFIG,                             NO,    0 ) \
+FLAG(   7,  0, EDX, 20,  1, CET_IBT,                             NO,    0 ) \
 FLAG(   7,  0, EDX, 26,  1, IBRSIBPB,                            ANY,   9 ) \
 FLAG(   7,  0, EDX, 27,  1, STIBP,                               YES,   9 ) \
 FLAG(   7,  0, EDX, 28,  1, FCMD,                                YES,   9 ) \
 FLAG(   7,  0, EDX, 29,  1, ARCH_CAPABILITIES,                   ANY,   9 ) \
+FLAG(   7,  0, EDX, 30,  1, CORE_CAPABILITIES,                   NO,    0 ) \
 FLAG(   7,  0, EDX, 31,  1, SSBD,                                YES,   9 )
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
@@ -733,6 +744,7 @@ FIELD( 14,  1, EBX, 16, 16, PT_AVAIL_PSB_FREQ_ENCS,             YES, FUT ) \
 #define CPUID_FIELD_DATA_LEVEL_15                                           \
 FIELD( 15,  0, EAX,  0, 32, DENOM_TSC_TO_CORE_CRYSTAL_CLK,       NO,    0 ) \
 FIELD( 15,  0, EBX,  0, 32, NUMER_TSC_TO_CORE_CRYSTAL_CLK,       NO,    0 ) \
+FIELD( 15,  0, ECX,  0, 32, CORE_CRYSTAL_CLK_FREQ,               NO,    0 ) \
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_16                                           \
