@@ -96,6 +96,7 @@ HgfsCreateSessionProcessResult(const char *result,  // IN: Reply packet
    uint64 sessionId = HGFS_INVALID_SESSION_ID;
    uint8 headerVersion = HGFS_HEADER_VERSION_1;
    Bool sessionIdPresent = FALSE;
+   uint32 maxPacketSize = HgfsLargePacketMax(TRUE);
 
    uint32 information;
    HgfsHandle requestId;
@@ -145,12 +146,14 @@ HgfsCreateSessionProcessResult(const char *result,  // IN: Reply packet
        */
       sessionId = createSessionReply->sessionId;
       sessionIdPresent = TRUE;
+      maxPacketSize = createSessionReply->maxPacketSize;
    }
 
 out:
    gState->sessionId = sessionId;
    gState->headerVersion = headerVersion;
    gState->sessionEnabled = sessionIdPresent;
+   gState->maxPacketSize = maxPacketSize;
 
    LOG(4, ("Exit(%d)\n", status));
    return status;
@@ -336,6 +339,7 @@ HgfsDestroySessionProcessResult(const char *result,  // IN: Reply packet
 out:
    gState->sessionId = HGFS_INVALID_SESSION_ID;
    gState->sessionEnabled = FALSE;
+   gState->maxPacketSize = HgfsLargePacketMax(TRUE);
 
    LOG(4, ("Exit(%d)\n", status));
    return status;

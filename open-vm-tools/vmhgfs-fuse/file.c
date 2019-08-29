@@ -662,6 +662,34 @@ out:
 /*
  *----------------------------------------------------------------------
  *
+ * HgfsMaxIOSize --
+ *
+ *    Get the maximum IO size based on the agreed maximum packet size.
+ *
+ * Results:
+ *    The maximum IO size.
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static uint32
+HgfsMaxIOSize(void)
+{
+   uint32 maxIOSize = gState->maxPacketSize - HGFS_HEADER_SIZE_MAX;
+
+   if (maxIOSize > 0 && maxIOSize < HgfsLargeIoMax(FALSE)) {
+      return maxIOSize;
+   }
+   return HgfsLargeIoMax(FALSE);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * HgfsRead --
  *
  *    Called whenever a process reads from a file in our filesystem.
@@ -686,6 +714,7 @@ HgfsRead(struct fuse_file_info *fi,  // IN:  File info struct
    char *buffer = buf;
    loff_t curOffset = offset;
    size_t nextCount, remainingCount = count;
+   uint32 maxIOSize = HgfsMaxIOSize();
 
    ASSERT(NULL != fi);
    ASSERT(NULL != buf);
@@ -694,8 +723,7 @@ HgfsRead(struct fuse_file_info *fi,  // IN:  File info struct
            fi->fh, count, offset));
 
     do {
-      nextCount = (remainingCount > HgfsLargeIoMax(FALSE)) ?
-                                     HgfsLargeIoMax(FALSE) : remainingCount;
+      nextCount = (remainingCount > maxIOSize) ? maxIOSize : remainingCount;
       LOG(4, ("Issue DoRead(0x%"FMT64"x 0x%"FMTSZ"x bytes @ 0x%"FMT64"x)\n",
               fi->fh, nextCount, curOffset));
       result = HgfsDoRead(fi->fh, buffer, nextCount, curOffset);
@@ -872,6 +900,7 @@ HgfsWrite(struct fuse_file_info *fi,  // IN: File info structure
    loff_t curOffset = offset;
    size_t nextCount, remainingCount = count;
    ssize_t bytesWritten = 0;
+   uint32 maxIOSize = HgfsMaxIOSize();
 
    ASSERT(NULL != buf);
    ASSERT(NULL != fi);
@@ -880,9 +909,7 @@ HgfsWrite(struct fuse_file_info *fi,  // IN: File info structure
            fi->fh, count, offset));
 
    do {
-      nextCount = (remainingCount > HgfsLargeIoMax(FALSE)) ?
-                                     HgfsLargeIoMax(FALSE) : remainingCount;
-
+      nextCount = (remainingCount > maxIOSize) ? maxIOSize : remainingCount;
       LOG(4, ("Issue DoWrite(0x%"FMT64"x 0x%"FMTSZ"x bytes @ 0x%"FMT64"x)\n",
               fi->fh, nextCount, curOffset));
 
