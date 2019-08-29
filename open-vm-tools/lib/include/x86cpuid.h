@@ -1065,7 +1065,7 @@ FIELD( 88,  0, EAX, 16,  8, GUEST_PHYS_ADDR_SZ,                  YES,   8 ) \
 FLAG(  88,  0, EBX,  0,  1, CLZERO,                              YES,  14 ) \
 FLAG(  88,  0, EBX,  1,  1, IRPERF,                              NO,    0 ) \
 FLAG(  88,  0, EBX,  2,  1, XSAVE_ERR_PTR,                       NO,    0 ) \
-FLAG(  88,  0, EBX,  9,  1, WBNOINVD,                            YES, FUT ) \
+FLAG(  88,  0, EBX,  9,  1, WBNOINVD,                            YES,  17 ) \
 FLAG(  88,  0, EBX, 12,  1, LEAF88_IBPB,                         ANY,   9 ) \
 FLAG(  88,  0, EBX, 14,  1, LEAF88_IBRS,                         NO,    0 ) \
 FLAG(  88,  0, EBX, 15,  1, LEAF88_STIBP,                        NO,    0 ) \
