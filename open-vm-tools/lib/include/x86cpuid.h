@@ -670,11 +670,8 @@ FIELD(  D,  9, EBX,  0, 32, XSAVE_PKRU_OFFSET,                   YES,  13 ) \
 FLAG(   D,  9, ECX,  0,  1, XSAVE_PKRU_SUP_BY_XSS,               NO,    0 ) \
 FLAG(   D,  9, ECX,  1,  1, XSAVE_PKRU_ALIGN,                    YES,  13 ) \
 FIELD(  D,  9, ECX,  2, 30, XSAVE_PKRU_RSVD1,                    NO,    0 ) \
-FIELD(  D,  9, EDX,  0, 32, XSAVE_PKRU_RSVD2,                    NO,    0 ) \
-FIELD(  D, 62, EAX,  0, 32, XSAVE_LWP_SIZE,                      NO,    0 ) \
-FIELD(  D, 62, EBX,  0, 32, XSAVE_LWP_OFFSET,                    NO,    0 ) \
-FIELD(  D, 62, ECX,  0, 32, XSAVE_LWP_RSVD1,                     NO,    0 ) \
-FIELD(  D, 62, EDX,  0, 32, XSAVE_LWP_RSVD2,                     NO,    0 )
+FIELD(  D,  9, EDX,  0, 32, XSAVE_PKRU_RSVD2,                    NO,    0 )
+/* D, 62: AMD LWP leaf on BD, PD, SR. Dropped in Zen. Never referenced. */
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_F                                            \
