@@ -81,8 +81,8 @@ VM_EMBED_VERSION(SYSIMAGE_VERSION_EXT_STR);
 #define IMC_DIR_PATH_PATTERN "/.vmware-imgcust-dXXXXXX"
 #endif
 
-#ifndef BASEFILENAME
-#define BASEFILENAME "/tmp/.vmware-deploy"
+#ifndef STATE_FILE_PATH_BASENAME
+#define STATE_FILE_PATH_BASENAME "/var/log/.vmware-deploy"
 #endif
 
 #ifndef CABCOMMANDLOG
@@ -319,7 +319,7 @@ SetCustomizationStatusInVmxEx(int customizationState,
                                 customizationState,
                                 errCode,
                                 msg);
-   free (msg);
+   free(msg);
 
    if (vmxResponse != NULL) {
       if (response != NULL) {
@@ -415,7 +415,7 @@ NoLogging(int level, const char* fmtstr, ...)
  *
  * SetDeployError
  *
- *    Sets the deployment error in a verbose style. Can be queried using
+ *    Set the deployment error in a verbose style. Can be queried using
  *    GetDeployError.
  *
  * @param   format   [in]  Format string to follow.
@@ -596,7 +596,7 @@ static void
 Init(void)
 {
    // Clean up if there is any deployment locks/status before
-   sLog(log_info, "Cleaning old state file from tmp directory.\n");
+   sLog(log_info, "Cleaning old state files.\n");
    UnTouch(INPROGRESS);
    UnTouch(DONE);
    UnTouch(ERRORED);
@@ -695,32 +695,33 @@ GetPackageInfo(const char* packageName,
  *
  **/
 static DeployPkgStatus
-Touch(const char*  state)
+Touch(const char* state)
 {
-   int fileNameSize = strlen(BASEFILENAME) + 1 + strlen(state) + 1;
+   int fileNameSize = strlen(STATE_FILE_PATH_BASENAME) + 1 /* For '.' */ +
+                      strlen(state) + 1;
    char* fileName = malloc(fileNameSize);
    int fd;
 
    sLog(log_info, "ENTER STATE '%s'.\n", state);
    if (!fileName) {
-      SetDeployError("Error allocatin memory.");
+      SetDeployError("Error allocating memory.");
       return DEPLOYPKG_STATUS_ERROR;
    }
 
-   strcpy(fileName, BASEFILENAME);
-   Str_Strcat(fileName, ".", fileNameSize);
-   Str_Strcat(fileName, state, fileNameSize);
+   Str_Snprintf(fileName, fileNameSize, "%s.%s", STATE_FILE_PATH_BASENAME,
+                state);
 
    fd = open(fileName, O_WRONLY|O_CREAT|O_EXCL, 0644);
 
    if (fd < 0) {
-      SetDeployError("Error creating lock file '%s'.(%s)", fileName, strerror(errno));
-      free (fileName);
+      SetDeployError("Error creating lock file '%s'.(%s)", fileName,
+                     strerror(errno));
+      free(fileName);
       return DEPLOYPKG_STATUS_ERROR;
    }
 
    close(fd);
-   free (fileName);
+   free(fileName);
 
    return DEPLOYPKG_STATUS_SUCCESS;
 }
@@ -739,7 +740,8 @@ Touch(const char*  state)
 static DeployPkgStatus
 UnTouch(const char* state)
 {
-   int fileNameSize = strlen(BASEFILENAME) + 1 + strlen(state) + 1;
+   int fileNameSize = strlen(STATE_FILE_PATH_BASENAME) + 1 /* For '.' */ +
+                      strlen(state) + 1;
    char* fileName = malloc(fileNameSize);
    int result;
 
@@ -749,19 +751,19 @@ UnTouch(const char* state)
       return DEPLOYPKG_STATUS_ERROR;
    }
 
-   strcpy(fileName, BASEFILENAME);
-   Str_Strcat(fileName, ".", fileNameSize);
-   Str_Strcat(fileName, state, fileNameSize);
+   Str_Snprintf(fileName, fileNameSize, "%s.%s", STATE_FILE_PATH_BASENAME,
+                state);
 
    result = remove(fileName);
 
    if (result < 0) {
-      SetDeployError("Error removing lock '%s'.(%s)", fileName, strerror(errno));
-      free (fileName);
+      SetDeployError("Error removing lock '%s'.(%s)", fileName,
+                     strerror(errno));
+      free(fileName);
       return DEPLOYPKG_STATUS_ERROR;
    }
 
-   free (fileName);
+   free(fileName);
    return DEPLOYPKG_STATUS_SUCCESS;
 }
 
@@ -1386,7 +1388,7 @@ Deploy(const char* packageName)
       sLog(log_warning, "Error while cleaning up imc directory '%s'. (%s)\n",
            imcDirPath, strerror (errno));
    }
-   free (cleanupCommand);
+   free(cleanupCommand);
    free(imcDirPath);
 
    if (flags & VMWAREDEPLOYPKG_HEADER_FLAGS_SKIP_REBOOT) {
