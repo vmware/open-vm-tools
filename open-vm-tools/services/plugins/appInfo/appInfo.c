@@ -228,11 +228,14 @@ AppInfoGatherTask(ToolsAppCtx *ctx,
 
    tstamp = VMTools_GetTimeAsString();
 
-
    len = Str_Snprintf(tmpBuf, sizeof tmpBuf, headerFmt,
                       APP_INFO_VERSION_1,
                       counter,
                       tstamp != NULL ? tstamp : "");
+   if (len <= 0) {
+      g_warning("Insufficient space for the header.\n");
+      goto abort;
+   }
 
    DynBuf_Append(&dynBuffer, tmpBuf, len);
 
