@@ -610,14 +610,9 @@ VMToolsLogInt(const gchar *domain,
       data = data->inherited ? gDefaultData : data;
 
       entry = g_malloc0(sizeof(LogEntry));
-      if (entry) {
-         entry->domain = domain ? g_strdup(domain) : NULL;
-         if (domain && !entry->domain) {
-            VMToolsLogPanic();
-         }
-         entry->handler = data;
-         entry->level = level;
-      }
+      entry->domain = g_strdup(domain);
+      entry->handler = data;
+      entry->level = level;
 
       if (gLogIOSuspended && data->needsFileIO) {
          if (gMaxCacheEntries == 0) {
@@ -1016,7 +1011,7 @@ VMToolsGetLogHandler(const gchar *handler,
    logger->type = strdup(handler);
    logger->needsFileIO = needsFileIO;
    logger->isSysLog = isSysLog;
-   logger->confData = (path != NULL ? g_strdup(path) : NULL);
+   logger->confData = g_strdup(path);
    g_free(path);
 
    return logger;
