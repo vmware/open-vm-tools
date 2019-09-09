@@ -1842,6 +1842,12 @@ VMGuestLibIoctl(const GuestLibIoctlParam *param,
    }
    ret = RpcChannel_SendOneRaw(DynXdr_Get(&xdrs), xdr_getpos(&xdrs),
                                reply, replySize);
+
+   /*
+    * DynXdr_Destroy only tries to free storage returned by a call to
+    * DynXdr_Create(NULL).
+    */
+   /* coverity[address_free] */
    DynXdr_Destroy(&xdrs, TRUE);
    return ret;
 }

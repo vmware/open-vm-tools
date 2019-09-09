@@ -675,6 +675,14 @@ ServiceLoadFileContentsPosix(const gchar *fileName,
 
    *fileSize = 0;
    *contents = NULL;
+
+   /*
+    * No time-of-check to time-of-use issue between this lstat() call and the
+    * subsequent open() since the open() is followed by fstat() and a series
+    * of checks of the fstat results against the lstat results to ensure that
+    * key file attributes did not change between the lstat() and the open().
+    */
+   /* coverity[fs_check_call] */
    ret = g_lstat(fileName, &lstatBuf);
    if (ret != 0) {
       Warning("%s: lstat(%s) failed (%d %d)\n",

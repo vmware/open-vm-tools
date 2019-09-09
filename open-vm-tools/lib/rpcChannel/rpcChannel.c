@@ -296,6 +296,12 @@ RpcChannelXdrWrapper(RpcInData *data,
 
       if (!xdrProc(&xdrs, copy.result, 0)) {
          ret = RPCIN_SETRETVALS(data, "XDR serialization failed.", FALSE);
+
+         /*
+          * DynXdr_Destroy only tries to free storage returned by a call to
+          * DynXdr_Create(NULL).
+          */
+         /* coverity[address_free] */
          DynXdr_Destroy(&xdrs, TRUE);
          goto exit;
       }
@@ -306,6 +312,12 @@ RpcChannelXdrWrapper(RpcInData *data,
       data->result = DynXdr_Get(&xdrs);
       data->resultLen = XDR_GETPOS(&xdrs);
       data->freeResult = TRUE;
+
+      /*
+       * DynXdr_Destroy only tries to free storage returned by a call to
+       * DynXdr_Create(NULL).
+       */
+      /* coverity[address_free] */
       DynXdr_Destroy(&xdrs, FALSE);
    }
 
@@ -362,6 +374,12 @@ RpcChannel_BuildXdrCommand(const char *cmd,
    ret = TRUE;
 
 exit:
+
+   /*
+    * DynXdr_Destroy only tries to free storage returned by a call to
+    * DynXdr_Create(NULL).
+    */
+   /* coverity[address_free] */
    DynXdr_Destroy(&xdrs, !ret);
    return ret;
 }

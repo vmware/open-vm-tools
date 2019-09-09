@@ -3399,6 +3399,13 @@ HgfsServerSessionReceive(HgfsPacket *packet,      // IN: Hgfs Packet
       LOG(4, ("Error %d occurred parsing the packet\n", (uint32)status));
       HgfsServerCompleteRequest(status, 0, input);
    }
+
+   /*
+    * Storage pointed at by the variable input was freed either by
+    * HgfsServerProcessRequest at the end of request processing
+    * or by HgfsServerCompleteRequest if there was a protocol error.
+    */
+   /* coverity[leaked_storage] */
 }
 
 
