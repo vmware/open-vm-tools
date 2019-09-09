@@ -143,7 +143,6 @@ typedef enum {
    VMXNET3_CMD_GET_RSS_FIELDS,
    VMXNET3_CMD_GET_ENCAP_DSTPORT,
    VMXNET3_CMD_GET_PKTSTEERING, /* 0xF00D000E */
-   VMXNET3_CMD_GET_MAX_QUEUES_CONF,
 } Vmxnet3_Cmd;
 
 /* Adaptive Ring Info Flags */
@@ -632,13 +631,6 @@ enum vmxnet3_intr_type {
 /* addition 1 for events */
 #define VMXNET3_MAX_INTRS      25
 
-/* Version 6 and later will use below macros */
-#define VMXNET3_EXT_MAX_TX_QUEUES  32
-#define VMXNET3_EXT_MAX_RX_QUEUES  32
-/* addition 1 for events */
-#define VMXNET3_EXT_MAX_INTRS      65
-#define VMXNET3_FIRST_SET_INTRS    64
-
 /* value of intrCtrl */
 #define VMXNET3_IC_DISABLE_ALL  0x1   /* bit 0 */
 
@@ -695,21 +687,6 @@ struct Vmxnet3_IntrConf {
 }
 #include "vmware_pack_end.h"
 Vmxnet3_IntrConf;
-
-typedef
-#include "vmware_pack_begin.h"
-struct Vmxnet3_IntrConfExt {
-   uint8  autoMask;
-   uint8  numIntrs;      /* # of interrupts */
-   uint8  eventIntrIdx;
-   uint8  reserved;
-   __le32 intrCtrl;
-   __le32 reserved1;
-   uint8  modLevels[VMXNET3_EXT_MAX_INTRS]; /* moderation level for each intr */
-   uint8  reserved2[3];
-}
-#include "vmware_pack_end.h"
-Vmxnet3_IntrConfExt;
 
 /* one bit per VLAN ID, the size is in the units of uint32 */
 #define VMXNET3_VFT_SIZE  (4096 / (sizeof(uint32) * 8))
@@ -922,15 +899,6 @@ Vmxnet3_DSDevRead;
 
 typedef
 #include "vmware_pack_begin.h"
-struct Vmxnet3_DSDevReadExt {
-   /* read-only region for device, read by dev in response to a SET cmd */
-   Vmxnet3_IntrConfExt     intrConfExt;
-}
-#include "vmware_pack_end.h"
-Vmxnet3_DSDevReadExt;
-
-typedef
-#include "vmware_pack_begin.h"
 struct Vmxnet3_TxQueueDesc {
    Vmxnet3_TxQueueCtrl ctrl;
    Vmxnet3_TxQueueConf conf;
@@ -1058,7 +1026,6 @@ struct Vmxnet3_DriverShared {
                                   * command.
                                   */
    } cu;
-   Vmxnet3_DSDevReadExt devReadExt;
 }
 #include "vmware_pack_end.h"
 Vmxnet3_DriverShared;
