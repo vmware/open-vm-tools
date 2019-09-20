@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -2452,6 +2452,7 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
    File_GetPathName(fullPathNoExt, &baseDir, &baseName);
 
    if ((baseDir == NULL) || (*baseDir == '\0')) {
+      free(baseDir);
       baseDir = Unicode_Duplicate(DIRSEPS);
    }
 

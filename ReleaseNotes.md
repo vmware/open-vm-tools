@@ -1,9 +1,6 @@
-open-vm-tools 10.3.10 Release Notes
-=================================
+**Updated on: 19 SEPT 2019**
 
-**Updated on: 14 MAR 2019**
-
-open-vm-tools | 14 MAR 2019 | Build 12406962
+VMware Tools | 19 SEP 2019 | Build 14549434
 
 Check for additions and updates to these release notes.
 
@@ -15,16 +12,18 @@ The release notes cover the following topics:
 *   [What's New](#whatsnew)
 *   [Before You Begin](#beforeyoubegin)
 *   [Internationalization](#i18n)
+*   [Product Support Notice](#productsupport)
 *   [End of Feature Support Notice](#endoffeaturesupport)
+*   [Compatibility Notes](#compatibility)
 *   [Guest Operating System Customization Support](#guestop)
 *   [Interoperability Matrix](#interop)
-*   [Resolved Issues](#resolvedissues)
 *   [Known Issues](#knownissues)
 
 What's New
 ----------
 
-*   **Resolved Issues: **There are some issues that are resolved in this release of open-vm-tools which are documented in the [Resolved Issues](#resolvedissues) section of this release notes.
+*   Added appInfo to publish information about running applications inside the guest. For more details, see [VMware Tools Services](https://docs.vmware.com/en/VMware-Tools/11.0.0/com.vmware.vsphere.vmwaretools.doc/GUID-0BD592B1-A300-4C09-808A-BB447FAE2C2A.html).
+*   Provided sample tool.conf for ease of administration. For details, see [Configuration File Location](https://docs.vmware.com/en/VMware-Tools/11.0.0/com.vmware.vsphere.vmwaretools.doc/GUID-EA16729B-43C9-4DF9-B780-9B358E71B4AB.html).
 
 Before You Begin
 ----------------
@@ -40,7 +39,7 @@ Resolution on incompatibility and general guidelines: While upgrading ESXi hosts
 Internationalization
 --------------------
 
-open-vm-tools 10.3.10 is available in the following languages:
+open-vm-tools 11.0.0 is available in the following languages:
 
 *   English
 *   French
@@ -55,9 +54,12 @@ open-vm-tools 10.3.10 is available in the following languages:
 End of Feature Support Notice
 -----------------------------
 
-*   Support for Common Agent Framework (CAF) will be removed in the next major release of open-vm-tools.
-*   VMware Tools 10.3.5 freezes feature support for tar tools and OSPs   
-    The tar tools (linux.iso) and OSPs shipped with open-vm-tools 10.3.5 release will continue to be supported. However, releases after VMware Tools 10.3.5 will only include critical and security fixes and no new feature support in these types of open-vm-tools (tar tools and OSP's). It is recommended that customers use open-vm-tools for those operating systems that support open-vm-tools. For more information on different types of open-vm-tools, see [https://blogs.vmware.com/vsphere/2016/02/understanding-the-three-types-of-vm-tools.html](https://blogs.vmware.com/vsphere/2016/02/understanding-the-three-types-of-vm-tools.html)
+*   The tar tools (linux.iso) and OSPs shipped with VMware Tools 10.3.5 release will continue to be supported. However, releases after VMware Tools 10.3.5 will only include critical and security fixes and no new feature support in these types of VMware Tools (tar tools and OSP's). It is recommended that customers use open-vm-tools for those operating systems that support open-vm-tools. For more information on different types of VMware Tools, see [https://blogs.vmware.com/vsphere/2016/02/understanding-the-three-types-of-vm-tools.html](https://blogs.vmware.com/vsphere/2016/02/understanding-the-three-types-of-vm-tools.html)
+
+Compatibility Notes
+-------------------
+
+*   Starting with VMware Tools version 10.2.0, Perl script-based VMware Tools installation for FreeBSD has been discontinued. FreeBSD systems are supported only through the open-vm-tools packages directly available from FreeBSD package repositories. FreeBSD packages for open-vm-tools 10.1.0 and later are available from FreeBSD package repositories.
 
 Guest Operating System Customization Support
 --------------------------------------------
@@ -69,38 +71,49 @@ Interoperability Matrix
 
 The [VMware Product Interoperability Matrix](http://partnerweb.vmware.com/comp_guide2/sim/interop_matrix.php) provides details about the compatibility of current and earlier versions of VMware Products. 
 
-Resolved Issues
----------------
-
-*   **In certain cases, quiesced snapshots on Linux guests do not include backup manifests.**
-
-    On a Linux guest, if VMware Tools 10.3.5 gets an error when notifying the ESXi host of a quiesced snapshot's backup manifest file, VMware Tools logs an error and does not notify the ESXi host of the backup manifest file on subsequent quiesced snapshots. As a result, some quiesced snapshots do not include the backup manifest file, that would otherwise be available on the ESXi host. Such snapshots are not identified as quiesced by vSphere clients.
-
-    This issue is fixed in this release.
-
 Known Issues
 ------------
 
+*   **Suspend Guest of Linux VM using any version of open-vm-tools may fail with some versions of SELinux.**
+    
+    A "Suspend Guest" operation on a Linux guest running any version of open-vm-tools and with SELinux enabled may stall and ultimately fail.
+    
+    The failure may appear as:  
+      - a "Failed to suspend the virtual machine" message display.  
+      - nothing happened and the "Suspend Guest" button is reactivated. IPv4 connections may be closed.  
+      - a delayed suspend happens but the IPv4 addresses are lost when the VM is resumed.
+    
+    Even an apparent "stall" which exceeds 30 seconds is an indication of the problem.
+    
+    For more details, see [KB 74722](https://kb.vmware.com/s/article/74722).
+    
+    Workaround:
+    
+    Update the selinux-policy and selinux-policy-targeted packages to the latest version available from the Linux vendor.  If package updates are not available or if the issue persists, then consider the following workaround:
+    
+    Create an exemption for the vmtools/NetworkManager denied access by using the audit2allow command to generate a local loadable SELinux policy module as outlined in [KB 74722](https://kb.vmware.com/s/article/74722).
+    
 *   **Drag functionality fails to work in Ubuntu.**
     
     Drag functionality fails to work in Ubuntu 16.04.4 32-bit virtual machine installed using easy install. Also, failure of copy and paste functionality is observed in the same system.
+    
+    Note: This issue is applicable for open-vm-tools running on Workstation and Fusion.
     
     Workaround:
     
     *   Add the modprobe.blacklist=vmwgfx linux kernel boot option.
     *   To gain access to larger resolutions, remove svga.guestBackedPrimaryAware = "TRUE" option from the VMX file.
-
 *   **Shared Folders mount is unavailable on Linux VM.**
     
     If the **Shared Folders** feature is enabled on a Linux VM while it is powered off, shared folders mount is not available on restart.
     
+    Note: This issue is applicable for open-vm-tools running on Workstation and Fusion.
+    
     Workaround:
     
-    If the VM is powered on, disable and enable the **Shared Folders** feature from the interface.
-    
-    For resolving the issue permanently, edit **/etc/fstab** and add an entry to mount the Shared Folders automatically on boot.
-    
-    For example, add the line:
-    
+    If the VM is powered on, disable and enable the **Shared Folders** feature from the interface.  
+    For resolving the issue permanently, edit **/etc/fstab** and add an entry to mount the Shared Folders automatically on boot.  
+    For example, add the line:  
     vmhgfs-fuse   /mnt/hgfs    fuse    defaults,allow\_other    0    0
     
+

@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2014-2017 VMware, Inc.  All rights reserved.
+### Copyright (C) 2014-2019 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -46,6 +46,7 @@ VGAuthService_SOURCES += ../common/prefs.c
 VGAuthService_SOURCES += ../common/usercheck.c
 VGAuthService_SOURCES += ../common/VGAuthLog.c
 VGAuthService_SOURCES += ../common/VGAuthUtil.c
+VGAuthService_SOURCES += ../common/vmxlog.c
 
 VGAuthServicedir = /etc/vmware-tools/vgauth/schemas
 VGAuthService_SCRIPTS =

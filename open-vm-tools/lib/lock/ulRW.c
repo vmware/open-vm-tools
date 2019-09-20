@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -352,7 +352,7 @@ MXUserDumpRWLock(MXUserHeader *header)  // IN:
    Warning("\tsignature 0x%X\n", lock->header.signature);
    Warning("\tname %s\n", lock->header.name);
    Warning("\trank 0x%X\n", lock->header.rank);
-   Warning("\tserial number %u\n", lock->header.bits.serialNumber);
+   Warning("\tserial number %"FMT64"u\n", lock->header.serialNumber);
 
    if (LIKELY(lock->useNative)) {
       Warning("\taddress of native lock 0x%p\n", &lock->nativeLock);
@@ -413,7 +413,7 @@ MXUser_CreateRWLock(const char *userName,  // IN:
    lock->header.signature = MXUserGetSignature(MXUSER_TYPE_RW);
    lock->header.name = properName;
    lock->header.rank = rank;
-   lock->header.bits.serialNumber = MXUserAllocSerialNumber();
+   lock->header.serialNumber = MXUserAllocSerialNumber();
    lock->header.dumpFunc = MXUserDumpRWLock;
 
    /*

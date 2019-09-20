@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2016, 2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -54,6 +54,8 @@ WiperSinglePartition_Allocate(void)
    if (p != NULL) {
       memset(p->mountPoint, 0, sizeof p->mountPoint);
       p->type = PARTITION_UNSUPPORTED;
+      p->fsType = NULL;
+      p->fsName = NULL;
       p->comment = NULL;
       p->attemptUnmaps = TRUE;
       DblLnkLst_Init(&p->link);
@@ -86,6 +88,8 @@ WiperSinglePartition_Close(WiperPartition *p)      // IN
 {
    if (p) {
       free((char *)p->comment); /* Casting away constness */
+      free((char *)p->fsType);  /* Casting away constness */
+      free((char *)p->fsName);  /* Casting away constness */
       free(p);
    }
 }

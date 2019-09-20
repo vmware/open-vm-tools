@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1999-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1999-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -39,7 +39,8 @@
 #ifndef _BACKDOOR_TYPES_H_
 #define _BACKDOOR_TYPES_H_
 
-#ifndef VM_I386
+#if !defined(__i386__) && !defined(__x86_64__) && \
+    !defined(_M_IX86) && !defined(_M_X64)
 #error The backdoor protocol is only supported on x86 architectures.
 #endif
 

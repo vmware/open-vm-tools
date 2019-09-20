@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013-2016,2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013-2016,2018-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -316,8 +316,8 @@ VSockChannelOnStartErr(RpcChannel *chan)    // IN
 {
    VSockChannel *vsock = chan->_private;
 
-   /* destroy VSockOut part only */
    VSockOutDestruct(vsock->out);
+   g_free(vsock);
    chan->_private = NULL;
 }
 
@@ -382,8 +382,8 @@ VSockChannelStop(RpcChannel *chan)   // IN
    if (vsock->out != NULL) {
       if (chan->outStarted) {
          VSockOutStop(vsock->out);
+         chan->outStarted = FALSE;
       }
-      chan->outStarted = FALSE;
    } else {
       ASSERT(!chan->outStarted);
    }
@@ -588,6 +588,7 @@ VSockChannel_New(void)
 
    chan->_private = vsock;
    chan->funcs = &funcs;
+   g_mutex_init(&chan->outLock);
 
    return chan;
 }

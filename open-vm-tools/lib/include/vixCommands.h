@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -2397,7 +2397,6 @@ enum {
 #define VIX_BACKDOORCOMMAND_SYNCDRIVER_FREEZE      VIX_BACKDOOR_COMMAND_VERSION"SyncDriver_Freeze"
 #define VIX_BACKDOORCOMMAND_SYNCDRIVER_THAW        VIX_BACKDOOR_COMMAND_VERSION"SyncDriver_Thaw"
 #define VIX_BACKDOORCOMMAND_GET_PROPERTIES         VIX_BACKDOOR_COMMAND_VERSION"Get_ToolsProperties"
-#define VIX_BACKDOORCOMMAND_SEND_HGFS_PACKET       VIX_BACKDOOR_COMMAND_VERSION"Send_Hgfs_Packet"
 #define VIX_BACKDOORCOMMAND_UNRECOGNIZED_COMMAND   VIX_BACKDOOR_COMMAND_VERSION"Unrecognized_Command"
 #define VIX_BACKDOORCOMMAND_COMMAND                VIX_BACKDOOR_COMMAND_VERSION"Relayed_Command"
 #define VIX_BACKDOORCOMMAND_MOUNT_VOLUME_LIST      VIX_BACKDOOR_COMMAND_VERSION"Mount_Volumes"

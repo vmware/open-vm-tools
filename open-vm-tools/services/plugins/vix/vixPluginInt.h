@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -41,9 +41,6 @@ FoundryToolsDaemon_RestrictVixCommands(ToolsAppCtx *ctx, gboolean restricted);
 
 gboolean
 FoundryToolsDaemonGetToolsProperties(RpcInData *data);
-
-gboolean
-ToolsDaemonHgfsImpersonated(RpcInData *data);
 
 gboolean
 ToolsDaemonTcloMountHGFS(RpcInData *data);

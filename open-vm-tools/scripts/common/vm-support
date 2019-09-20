@@ -1,6 +1,6 @@
 #!/bin/sh
 ##########################################################
-# Copyright (C) 2006-2016 VMware, Inc. All rights reserved.
+# Copyright (C) 2006-2019 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -192,7 +192,6 @@ stageLinux()
    addfile /etc/cron.weekly
    addfile /etc/crontab
    addfile /etc/ntp.conf
-   addfile /etc/security
    addfile /etc/services
    addfile /proc/interrupts
    addfile /proc/irq
@@ -334,6 +333,9 @@ addfiles /var/log/messages*
 addfiles /var/log/syslog*
 addfiles /var/log/vmware-*
 addfiles /var/run/vmware-*
+addfile /var/log/cloud-init.log
+addfile /var/log/cloud-init-output.log
+addfile /etc/cloud/cloud.cfg
 
 runcmd "/tmp/df.txt" df
 runcmd "/tmp/ifconfig.txt" ifconfig -a

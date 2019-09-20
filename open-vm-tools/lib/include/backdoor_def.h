@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -52,27 +52,44 @@ extern "C" {
 
 /*
  * If you want to add a new low-level backdoor call for a guest userland
- * application, please consider using the GuestRpc mechanism instead. --hpreg
+ * application, please consider using the GuestRpc mechanism instead.
  */
 
 #define BDOOR_MAGIC 0x564D5868
 
-/* Low-bandwidth backdoor port. --hpreg */
+/* Low-bandwidth backdoor port number for the IN/OUT interface. */
 
-#define BDOOR_PORT 0x5658
+#define BDOOR_PORT        0x5658
+
+/* Flags used by the hypercall interface. */
+
+#define BDOOR_FLAGS_HB    (1<<0)
+#define BDOOR_FLAGS_WRITE (1<<1)
+
+#define BDOOR_IS_LB(_flags)    (((_flags) & BDOOR_FLAGS_HB) == 0)
+#define BDOOR_IS_HB(_flags)    !BDOOR_IS_LB(_flags)
+#define BDOOR_IS_READ(_flags)  (((_flags) & BDOOR_FLAGS_WRITE) == 0)
+#define BDOOR_IS_WRITE(_flags) !BDOOR_IS_READ(_flags)
+
+/*
+ * Max number of BPNs that can be passed in a single call from monitor->VMX with
+ * a HB backdoor request.  This should be kept in parity with
+ * IOSPACE_MAX_REP_BPNS to keep performance between the two HB backdoor
+ * interfaces comparable.
+ */
+#define BDOOR_HB_MAX_BPNS  513
 
 #define   BDOOR_CMD_GETMHZ                    1
 /*
  * BDOOR_CMD_APMFUNCTION is used by:
  *
  * o The FrobOS code, which instead should either program the virtual chipset
- *   (like the new BIOS code does, matthias offered to implement that), or not
- *   use any VM-specific code (which requires that we correctly implement
- *   "power off on CLI HLT" for SMP VMs, boris offered to implement that)
+ *   (like the new BIOS code does, Matthias Hausner offered to implement that),
+ *   or not use any VM-specific code (which requires that we correctly
+ *   implement "power off on CLI HLT" for SMP VMs, Boris Weissman offered to
+ *   implement that)
  *
  * o The old BIOS code, which will soon be jettisoned
- *
- *  --hpreg
  */
 #define   BDOOR_CMD_APMFUNCTION               2 /* CPL0 only. */
 #define   BDOOR_CMD_GETDISKGEO                3
@@ -168,6 +185,7 @@ extern "C" {
 #  define BDOOR_CMD_FE_EXCEPTION              1
 #  define BDOOR_CMD_FE_SGX                    2
 #  define BDOOR_CMD_FE_PCI_MMIO               3
+#  define BDOOR_CMD_FE_GMM                    4
 #define   BDOOR_CMD_VMK_INFO                 72
 #define   BDOOR_CMD_EFI_BOOT_CONFIG          73 /* CPL 0 only. */
 #  define BDOOR_CMD_EBC_LEGACYBOOT_ENABLED        0
@@ -176,6 +194,7 @@ extern "C" {
 #  define BDOOR_CMD_EBC_GET_NETWORK_BOOT_PROTOCOL 3
 #  define BDOOR_CMD_EBC_QUICKBOOT_ENABLED         4
 #  define BDOOR_CMD_EBC_GET_PXE_ARCH              5
+#  define BDOOR_CMD_EBC_SKIP_DELAYS               6
 #define   BDOOR_CMD_GET_HW_MODEL             74 /* CPL 0 only. */
 #define   BDOOR_CMD_GET_SVGA_CAPABILITIES    75 /* CPL 0 only. */
 #define   BDOOR_CMD_GET_FORCE_X2APIC         76 /* CPL 0 only  */
@@ -232,7 +251,20 @@ extern "C" {
 #  define BDOOR_CMD_FUZZER_INIT               0
 #  define BDOOR_CMD_FUZZER_NEXT               1
 #define   BDOOR_CMD_PUTCHR12                 95
-#define   BDOOR_CMD_MAX                      96
+#define   BDOOR_CMD_GMM                      96
+#  define BDOOR_CMD_GMM_GET_SIZE              0 /* Depends on firmware. */
+#  define BDOOR_CMD_GMM_MAP_MEMORY            1 /* Depends on firmware. */
+#  define BDOOR_CMD_GMM_ENTER                 2
+#  define BDOOR_CMD_GMM_ONESHOT_TIMER         3
+#  define BDOOR_CMD_GMM_WATCH_PPNS_START      4
+#  define BDOOR_CMD_GMM_WATCH_PPNS_STOP       5
+#  define BDOOR_CMD_GMM_RESYNC_RUNTIME_INFO   6
+#  define BDOOR_CMD_GMM_INVS_BRK_POINT        7
+#  define BDOOR_CMD_GMM_GET_CAPABILITY        8
+#define   BDOOR_CMD_PRECISIONCLOCK           97
+#  define BDOOR_CMD_PRECISIONCLOCK_GETTIME    0
+#define   BDOOR_CMD_COREDUMP_UNSYNC          98 /* Devel only. For VMM cores */
+#define   BDOOR_CMD_MAX                      99
 
 
 /*
@@ -262,9 +294,10 @@ extern "C" {
 #define BDOOR_SECUREBOOT_STATUS_APPROVED  1
 #define BDOOR_SECUREBOOT_STATUS_DENIED    2
 
-/* High-bandwidth backdoor port. --hpreg */
+/* High-bandwidth backdoor port. */
 
 #define BDOORHB_PORT 0x5659
+
 #define BDOORHB_CMD_MESSAGE 0
 #define BDOORHB_CMD_VASSERT 1
 #define BDOORHB_CMD_MAX 2
@@ -333,15 +366,149 @@ Backdoor_CmdRequiresFullyValidVCPU(unsigned cmd)
 {
    return cmd == BDOOR_CMD_SIDT ||
           cmd == BDOOR_CMD_SGDT ||
-          cmd == BDOOR_CMD_SLDT_STR;
+          cmd == BDOOR_CMD_SLDT_STR ||
+          cmd == BDOOR_CMD_GMM;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Backdoor_CmdRequiresValidSegments --
+ *
+ *    Returns TRUE if a backdoor command requires access to segment selectors.
+ *
+ *----------------------------------------------------------------------
+ */
+static INLINE Bool
+Backdoor_CmdRequiresValidSegments(unsigned cmd)
+{
+   return cmd == BDOOR_CMD_INITPCIOPROM ||
+          cmd == BDOOR_CMD_GETMHZ;
 }
 #endif
 
 #ifdef VM_ARM_64
 
-#define BDOOR_ARM64_LB_PORT      (BDOOR_PORT)
-#define BDOOR_ARM64_HB_PORT_IN   (BDOORHB_PORT)
-#define BDOOR_ARM64_HB_PORT_OUT  (BDOORHB_PORT +1)
+/*
+ * VMware x86 I/O space virtualization on arm.
+ *
+ * Implementation goal
+ * ---
+ * The goal of this implementation is to precisely mimic the semantics of the
+ * "VMware x86 I/O space virtualization on x86", in particular:
+ *
+ * o A vCPU can perform an N-byte access to an I/O port address that is not
+ *   N-byte aligned.
+ *
+ * o A vCPU can perform an N-byte access to I/O port address A without
+ *   impacting I/O port addresses [ A + 1; A + N ).
+ *
+ * o A vCPU can access the I/O space when running 32-bit or 64-bit code.
+ *
+ * o A vCPU running in unprivileged mode can use the backdoor.
+ *
+ * As a result, VMware virtual device drivers that were initially developed for
+ * x86 can trivially be ported to arm.
+ *
+ * Mechanism
+ * ---
+ * In this section, we call W<n> the 32-bit register which aliases the low 32
+ * bits of the 64-bit register X<n>.
+ *
+ * A vCPU which wishes to use the "VMware x86 I/O space virtualization on arm"
+ * must follow these 4 steps:
+ *
+ * 1) Write to general-purpose registers specific to the x86 I/O space
+ *    instruction.
+ *
+ * The vCPU writes to the arm equivalent of general-purpose x86 registers (see
+ * the BDOOR_ARG* mapping below) that are used by the x86 I/O space instruction
+ * it is about to perform.
+ *
+ * Examples:
+ * o For an IN instruction without DX register, there is nothing to do.
+ * o For an OUT instruction with DX register, the vCPU places the I/O port
+ *   address in bits W3<15:0> and the value to write in W0<7:0> (1 byte access)
+ *   or W0<15:0> (2 bytes access) or W0 (4 bytes access).
+ * o For an REP OUTS instruction, the vCPU places the I/O port address in bits
+ *   W3<15:0>, the source virtual address in W4 (32-bit code) or X4 (64-bit
+ *   code) and the number of repetitions in W2 (32-bit code) or X2 (64-bit
+ *   code).
+ *
+ * 2) Write the x86 I/O space instruction to perform.
+ *
+ * The vCPU sets a value in W7, as described below:
+ *
+ * Transfer size, bits [1:0]
+ *    00: 1 byte
+ *    01: 2 bytes
+ *    10: 4 bytes
+ *    11: Invalid value
+ *
+ * Transfer direction, bit [2]
+ *    0: Write (OUT/OUTS/REP OUTS instructions)
+ *    1: Read (IN/INS/REP INS instructions)
+ *
+ * Instruction type, bits [4:3]
+ *    00: Non-string instruction (IN/OUT) without DX register
+ *        The port address (8-bit immediate) is set in W7<12:5>.
+ *
+ *    01: Non-string instruction (IN/OUT) with DX register
+ *
+ *    10: String instruction without REP prefix (INS/OUTS)
+ *        The direction flag (EFLAGS.DF) is set in W7<5>.
+ *
+ *    11: String instruction with REP prefix (REP INS/REP OUTS)
+ *        The direction flag (EFLAGS.DF) is set in W7<5>.
+ *
+ * All other bits not described above are reserved for future use and must be
+ * set to 0.
+ *
+ * 3) Perform the x86 I/O space instruction.
+ *
+ * Several mechanisms are available:
+ *
+ * o From EL1
+ * The vCPU executes the HVC (64-bit code) instruction with the immediate
+ * X86_IO_MAGIC. This is the mechanism to favor from EL1 because it is
+ * architectural.
+ *
+ * o From EL1 and EL0
+ * 64-bit code: The vCPU sets X7<63:32> to X86_IO_MAGIC and executes the
+ *              MRS XZR, MDCCSR_EL0 instruction.
+ * 32-bit code: To be defined...
+ * This is the mechanism to favor from EL0 because it has a negligible impact
+ * on vCPU performance.
+ *
+ * o From EL1 and EL0
+ * The vCPU executes the BRK (64-bit code) or BKPT (32-bit code) instruction
+ * with the immediate X86_IO_MAGIC. Note that T32 code requires an 8-bit
+ * immediate.
+ *
+ * 4) Read from general-purpose registers specific to the x86 I/O space
+ *    instruction.
+ *
+ * The vCPU reads from the arm equivalent of general-purpose x86 registers (see
+ * the BDOOR_ARG* mapping below) that are used by the x86 I/O space instruction
+ * it has just performed.
+ *
+ * Examples:
+ * o For an OUT instruction, there is nothing to do.
+ * o For an IN instruction, retrieve the value that was read from W0<7:0> (1
+ *   byte access) or W0<15:0> (2 bytes access) or W0 (4 bytes access).
+ */
+
+#define X86_IO_MAGIC          0x86
+
+#define X86_IO_W7_SIZE_SHIFT  0
+#define X86_IO_W7_SIZE_MASK   (0x3 << X86_IO_W7_SIZE_SHIFT)
+#define X86_IO_W7_DIR         (1 << 2)
+#define X86_IO_W7_WITH        (1 << 3)
+#define X86_IO_W7_STR         (1 << 4)
+#define X86_IO_W7_DF          (1 << 5)
+#define X86_IO_W7_IMM_SHIFT   5
+#define X86_IO_W7_IMM_MASK    (0xff << X86_IO_W7_IMM_SHIFT)
 
 #define BDOOR_ARG0 REG_X0
 #define BDOOR_ARG1 REG_X1

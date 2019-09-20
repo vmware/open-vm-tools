@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -154,6 +154,15 @@ ToolsCore_LogState(guint level,
  * @param[in]  data     Client data.
  */
 #define TOOLS_CORE_SIG_RESET  "tcs_reset"
+
+/**
+ * Signal sent when RpcChannel is going to be destroyed.
+ *
+ * @param[in]  src      The source object.
+ * @param[in]  ctx      ToolsAppCtx *: The application context.
+ * @param[in]  data     Client data.
+ */
+#define TOOLS_CORE_SIG_NO_RPC  "tcs_no_rpc"
 
 /**
  * Signal sent when a "set option" RPC message arrives.

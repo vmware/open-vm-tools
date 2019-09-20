@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -266,6 +266,7 @@ static unsigned int AsyncTCPSocketGetPortFromAddr(
    struct sockaddr_storage *addr);
 static AsyncTCPSocket *AsyncTCPSocketConnect(struct sockaddr_storage *addr,
                                              socklen_t addrLen,
+                                             int socketFd,
                                              AsyncSocketConnectFn connectFn,
                                              void *clientData,
                                              AsyncSocketConnectFlags flags,
@@ -1657,6 +1658,7 @@ static AsyncTCPSocket *
 AsyncTCPSocketConnectImpl(int socketFamily,                  // IN
                           const char *hostname,              // IN
                           unsigned int port,                 // IN
+                          int tcpSocketFd,                   // IN
                           AsyncSocketConnectFn connectFn,    // IN
                           void *clientData,                  // IN
                           AsyncSocketConnectFlags flags,     // IN
@@ -1688,7 +1690,8 @@ AsyncTCPSocketConnectImpl(int socketFamily,                  // IN
        socketFamily == AF_INET ? "IPv4" : "IPv6", ipString, hostname);
    free(ipString);
 
-   asock = AsyncTCPSocketConnect(&addr, addrLen, connectFn, clientData,
+   asock = AsyncTCPSocketConnect(&addr, addrLen, tcpSocketFd,
+                                 connectFn, clientData,
                                  flags, pollParams, &error);
    if (!asock) {
       Warning(ASOCKPREFIX "%s connection attempt failed: %s\n",
@@ -1737,6 +1740,49 @@ AsyncSocket_Connect(const char *hostname,                // IN
                     AsyncSocketPollParams *pollParams,   // IN
                     int *outError)                       // OUT: optional
 {
+   return AsyncSocket_ConnectWithFd(hostname,
+                                    port,
+                                    -1,
+                                    connectFn,
+                                    clientData,
+                                    flags,
+                                    pollParams,
+                                    outError);
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocket_ConnectWithFd --
+ *
+ *      AsyncTCPSocket connect using an existing socket descriptor.
+ *      Connection is attempted with AF_INET socket
+ *      family, when that fails AF_INET6 is attempted.
+ *
+ *      Limitation: The ConnectWithFd functionality is currently Windows only.
+ *                  Non-Windows platforms & windows-UWP are not supported.
+ *
+ * Results:
+ *      AsyncTCPSocket * on success and NULL on failure.
+ *      On failure, error is returned in *outError.
+ *
+ * Side effects:
+ *      Allocates an AsyncTCPSocket, registers a poll callback.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+AsyncSocket *
+AsyncSocket_ConnectWithFd(const char *hostname,                // IN
+                          unsigned int port,                   // IN
+                          int tcpSocketFd,                     // IN
+                          AsyncSocketConnectFn connectFn,      // IN
+                          void *clientData,                    // IN
+                          AsyncSocketConnectFlags flags,       // IN
+                          AsyncSocketPollParams *pollParams,   // IN
+                          int *outError)                       // OUT: optional
+{
    int error = ASOCKERR_CONNECT;
    AsyncTCPSocket *asock = NULL;
 
@@ -1746,11 +1792,13 @@ AsyncSocket_Connect(const char *hostname,                // IN
       goto error;
    }
 
-   asock = AsyncTCPSocketConnectImpl(AF_INET, hostname, port, connectFn,
-                                  clientData, flags, pollParams, &error);
+   asock = AsyncTCPSocketConnectImpl(AF_INET, hostname, port,
+                                     tcpSocketFd, connectFn, clientData,
+                                     flags, pollParams, &error);
    if (!asock) {
-      asock = AsyncTCPSocketConnectImpl(AF_INET6, hostname, port, connectFn,
-                                     clientData, flags, pollParams, &error);
+      asock = AsyncTCPSocketConnectImpl(AF_INET6, hostname, port,
+                                        tcpSocketFd, connectFn, clientData,
+                                        flags, pollParams, &error);
    }
 
 error:
@@ -1801,7 +1849,7 @@ AsyncSocket_ConnectVMCI(unsigned int cid,                  // IN
    Log(ASOCKPREFIX "creating new socket, connecting to %u:%u\n", cid, port);
 
    asock = AsyncTCPSocketConnect((struct sockaddr_storage *)&addr,
-                                 sizeof addr, connectFn, clientData,
+                                 sizeof addr, -1, connectFn, clientData,
                                  flags, pollParams, outError);
 
    VMCISock_ReleaseAFValueFd(vsockDev);
@@ -1851,7 +1899,7 @@ AsyncSocket_ConnectUnixDomain(const char *path,                  // IN
    Log(ASOCKPREFIX "creating new socket, connecting to %s\n", path);
 
    asock = AsyncTCPSocketConnect((struct sockaddr_storage *)&addr,
-                              sizeof addr, connectFn, clientData,
+                              sizeof addr, -1, connectFn, clientData,
                               flags, pollParams, outError);
 
    return BaseSocket(asock);
@@ -1923,6 +1971,79 @@ AsyncTCPSocketConnectErrorCheck(void *data)  // IN: AsyncTCPSocket *
 /*
  *----------------------------------------------------------------------------
  *
+ * SocketProtocolAndTypeMatches --
+ *
+ *      Discover whether a given socket has the specified protocol family
+ *      (PF_INET, PF_INET6, ...) and data transfer type (SOCK_STREAM,
+ *      SOCK_DGRAM, ...).
+ *
+ *      For now, this is supported only on non-UWP Windows platforms.
+ *      Other platforms always receive a FALSE result.
+ *
+ * Results:
+ *      True if the socket has the specified family and type, false
+ *      otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static Bool
+SocketProtocolAndTypeMatches(int socketFd,   // IN
+                             int protocol,   // IN
+                             int type)       // IN
+{
+#if defined( _WIN32) && !defined(VM_WIN_UWP)
+   int ret;
+   WSAPROTOCOL_INFO protocolInfo;
+   int protocolInfoLen = sizeof protocolInfo;
+
+   ret = getsockopt(socketFd, SOL_SOCKET, SO_PROTOCOL_INFO,
+                    (void*)&protocolInfo, &protocolInfoLen);
+   if (ret != 0) {
+      Warning(ASOCKPREFIX "SO_PROTOCOL_INFO failed on sockFd %d, ",
+              "error 0x%x\n",
+              socketFd, ASOCK_LASTERROR());
+      return FALSE;
+   }
+
+   /*
+    * Windows is confused about protocol families (the "domain" of the
+    * socket, passed as the first argument to the socket() call) and
+    * address families (specified in the xx_family member of a sockaddr_xx
+    * argument passed to bind()).  The protocol family of the socket is
+    * reported in the iAddressFamily of the WSAPROTOCOL_INFO structure.
+    */
+   return ((protocol == protocolInfo.iAddressFamily) &&
+           (type == protocolInfo.iSocketType));
+#else
+
+   /*
+    * If we need to implement this for other platforms then we can use
+    * getsockopt(SO_TYPE) to retrieve the socket type, and on Linux we can
+    * use getsockopt(SO_DOMAIN) to retrieve the protocol family, but other
+    * platforms might not have SO_DOMAIN.  On those platforms we might be
+    * able to infer the protocol family by attempting sockopt calls that
+    * only work on certain families.
+    *
+    * BTW, Linux has thrown in the towel on the distinction between
+    * protocol families and address families.  Its socket() man page shows
+    * AF_* literals being used for the 'domain' argument instead of PF_*
+    * literals.  This works because AF_XX is defined to have the same
+    * numeric value as PF_XX for all values of XX.
+    */
+   Warning(ASOCKPREFIX "discovery of socket protocol and type is "
+           "not implemented on this platform\n");
+   NOT_IMPLEMENTED();
+#endif // defined(_WIN32)
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * AsyncTCPSocketConnect --
  *
  *      Internal AsyncTCPSocket constructor.
@@ -1939,6 +2060,7 @@ AsyncTCPSocketConnectErrorCheck(void *data)  // IN: AsyncTCPSocket *
 static AsyncTCPSocket *
 AsyncTCPSocketConnect(struct sockaddr_storage *addr,         // IN
                       socklen_t addrLen,                     // IN
+                      int socketFd,                          // IN: optional
                       AsyncSocketConnectFn connectFn,        // IN
                       void *clientData,                      // IN
                       AsyncSocketConnectFlags flags,         // IN
@@ -1960,9 +2082,33 @@ AsyncTCPSocketConnect(struct sockaddr_storage *addr,         // IN
    }
 
    /*
-    * Create a new IP socket
+    * If we were given a socket, verify that it is of the required
+    * protocol family and type before using it.  If no socket was given,
+    * create a new socket of the appropriate family.  (For the sockets
+    * we care about, the required protocol family is numerically the
+    * same as the address family provided in the given destination
+    * sockaddr, so we can use addr->ss_family whenever we need to
+    * specify a protocol family.)
+    *
+    * For now, passing in a socket is supported only on non-UWP Windows
+    * platforms.  The SocketProtocolAndTypeMatches() call will fail on
+    * other platforms.
     */
-   if ((fd = socket(addr->ss_family, SOCK_STREAM, 0)) == -1) {
+   if (-1 != socketFd) {
+      int protocolFamily = addr->ss_family;
+      // XXX Logging here is excessive, remove after testing
+      if (SocketProtocolAndTypeMatches(socketFd, protocolFamily,
+                                       SOCK_STREAM)) {
+         Warning(ASOCKPREFIX "using passed-in socket, family %d\n",
+                 protocolFamily);
+         fd = socketFd;
+      } else {
+         Warning(ASOCKPREFIX "rejecting passed-in socket, wanted family %d\n",
+                 protocolFamily);
+         error = ASOCKERR_INVAL;
+         goto error;
+      }
+   } else if ((fd = socket(addr->ss_family, SOCK_STREAM, 0)) == -1) {
       sysErr = ASOCK_LASTERROR();
       Warning(ASOCKPREFIX "failed to create socket, error %d: %s\n",
               sysErr, Err_Errno2String(sysErr));
@@ -3054,10 +3200,16 @@ AsyncTCPSocketSend(AsyncSocket *base,         // IN
           * consumers of asyncsocket are not expecting the completion
           * callback to be invoked prior to the call to
           * AsyncTCPSocket_Send() returning.
+          *
+          * Add and release asock reference around the send callback
+          * since asock may be closed by a callback invoked during
+          * the send workflow.
           */
+         AsyncTCPSocketAddRef(asock);
          asock->inLowLatencySendCb++;
          asock->internalSendFn((void *)asock);
          asock->inLowLatencySendCb--;
+         AsyncTCPSocketRelease(asock);
       } else {
 #ifdef _WIN32
          /*
@@ -4311,7 +4463,15 @@ AsyncTCPSocketCancelRecvCb(AsyncTCPSocket *asock)  // IN:
       removed = AsyncTCPSocketPollRemove(asock, TRUE,
                                          POLL_FLAG_READ | POLL_FLAG_PERIODIC,
                                          asock->internalRecvFn);
-      ASSERT(removed || AsyncTCPSocketPollParams(asock)->iPoll);
+
+      /*
+       * A recv callback registered on a bad FD can be deleted by
+       * PollHandleInvalidFd if POLL_FLAG_ACCEPT_INVALID_FDS flag
+       * is added to asyncsocket.
+       */
+      ASSERT(removed || AsyncTCPSocketPollParams(asock)->iPoll ||
+             (AsyncTCPSocketPollParams(asock)->flags &
+              POLL_FLAG_ACCEPT_INVALID_FDS) != 0);
       asock->recvCb = FALSE;
    }
 }

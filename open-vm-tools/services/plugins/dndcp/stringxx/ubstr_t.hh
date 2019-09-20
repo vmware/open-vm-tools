@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -36,8 +36,8 @@
 
 #include "autoCPtr.hh"
 
-#include "unicode.h"
-#include "util.h"
+#include <unicode.h>
+#include <util.h>
 
 
 #ifdef I_LOVE_BSTR_T_CLASSIC

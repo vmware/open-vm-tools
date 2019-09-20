@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -159,7 +159,7 @@ struct HgfsTransportSessionInfo {
    HgfsServerChannelData channelCapabilities;
 };
 
-/* The input request paramaters object. */
+/* The input request parameters object. */
 typedef struct HgfsInputParam {
    const void *request;          /* Hgfs header followed by operation request */
    size_t requestSize;           /* Size of Hgfs header and operation request */
@@ -2682,8 +2682,8 @@ HgfsSearchHandle2Search(HgfsHandle handle,         // IN: handle
  *    None
  *
  * Side effects:
- *    If there isnt enough memory to accomodate the new names, those file nodes
- *    that couldnt be updated are deleted.
+ *    If there isn't enough memory to accommodate the new names, those file nodes
+ *    that couldn't be updated are deleted.
  *
  *-----------------------------------------------------------------------------
  */
@@ -3014,7 +3014,7 @@ HgfsServerGetRequest(HgfsPacket *packet,                        // IN: packet
    HgfsSessionInfo *session = NULL;
    uint64 sessionId = HGFS_INVALID_SESSION_ID;
    Bool sessionEnabled = FALSE;
-   uint32 requestId;
+   uint32 requestId = 0;
    HgfsOp opcode;
    const void *request;
    size_t requestSize;
@@ -3348,6 +3348,8 @@ HgfsServerSessionReceive(HgfsPacket *packet,      // IN: Hgfs Packet
    }
 
    HGFS_ASSERT_MINIMUM_OP(input->op);
+   HGFS_ASSERT_CLIENT(input->op);
+
    if (HGFS_ERROR_SUCCESS == status) {
       HGFS_ASSERT_INPUT(input);
       if ((input->op < ARRAYSIZE(handlers)) &&
@@ -3395,11 +3397,10 @@ HgfsServerSessionReceive(HgfsPacket *packet,      // IN: Hgfs Packet
                  __LINE__));
       }
    }
-   HGFS_ASSERT_CLIENT(input->op);
 
    /* Send error if we fail to process the op. */
    if (HGFS_ERROR_SUCCESS != status) {
-      LOG(4, ("Error %d occured parsing the packet\n", (uint32)status));
+      LOG(4, ("Error %d occurred parsing the packet\n", (uint32)status));
       HgfsServerCompleteRequest(status, 0, input);
    }
 }
@@ -4131,7 +4132,7 @@ HgfsServerSetSessionCapability(HgfsOp op,                  // IN: operation code
          result = TRUE;
       }
    }
-   LOG(4, ("%s: Setting capabilitiy flags %x for op code %d %s\n",
+   LOG(4, ("%s: Setting capability flags %x for op code %d %s\n",
            __FUNCTION__, flags, op, result ? "succeeded" : "failed"));
 
    return result;
@@ -4143,7 +4144,7 @@ HgfsServerSetSessionCapability(HgfsOp op,                  // IN: operation code
  *
  * HgfsServerResEnumInit --
  *
- *    Initialize an enumeration of all exisitng resources.
+ *    Initialize an enumeration of all existing resources.
  *
  * Results:
  *    The enumeration state object.
@@ -4239,7 +4240,7 @@ HgfsServerResEnumExit(void *enumState)           // IN/OUT: enumeration state
  *
  * HgfsServerEnumerateSharedFolders --
  *
- *    Enumerates all exisitng shared folders and registers shared folders with
+ *    Enumerates all existing shared folders and registers shared folders with
  *    directory notification package.
  *
  * Results:
@@ -6536,11 +6537,13 @@ HgfsServerRead(HgfsInputParam *input)  // IN: Input params
             payload = &reply->payload[0];
          }
          if (payload) {
+            uint32 actualSize = 0;
             status = HgfsPlatformReadFile(readFd, input->session, offset,
                                           requiredSize, payload,
-                                          &reply->actualSize);
+                                          &actualSize);
             if (HGFS_ERROR_SUCCESS == status) {
                reply->reserved = 0;
+               reply->actualSize = actualSize;
                replyPayloadSize = sizeof *reply;
 
                if (readUseDataBuffer) {
@@ -6556,11 +6559,13 @@ HgfsServerRead(HgfsInputParam *input)  // IN: Input params
          break;
       }
    case HGFS_OP_READ: {
+         uint32 actualSize = 0;
          HgfsReplyRead *reply = replyRead;
 
          status = HgfsPlatformReadFile(readFd, input->session, offset, requiredSize,
-                                       reply->payload, &reply->actualSize);
+                                       reply->payload, &actualSize);
          if (HGFS_ERROR_SUCCESS == status) {
+            reply->actualSize = actualSize;
             replyPayloadSize = sizeof *reply + reply->actualSize;
          } else {
             LOG(4, ("%s: V1 Failed to read-> %d.\n", __FUNCTION__, status));

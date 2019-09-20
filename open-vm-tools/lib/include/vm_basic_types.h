@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -102,18 +102,9 @@
  * - VM_<arch>_32 for the 32-bit variant.
  * - VM_<arch>_64 for the 64-bit variant.
  * - VM_<arch>_ANY for any variant of <arch>.
- *
- * VM_X86_ANY is synonymous with the confusing and deprecated VM_I386 (which
- * should really be VM_X86_32).
  */
 
 #ifdef __i386__
-/*
- * VM_I386 is historically synonymous with VM_X86_ANY in bora, but misleading,
- * since it is confused with the __i386__ gcc but defined for both 32- and
- * 64-bit x86. We retain it here for legacy compatibility.
- */
-#define VM_I386
 #define VM_X86_32
 #define VM_X86_ANY
 #define VM_32BIT
@@ -122,7 +113,6 @@
 #ifdef __x86_64__
 #define VM_X86_64
 #define vm_x86_64 1
-#define VM_I386
 #define VM_X86_ANY
 #define VM_64BIT
 #else
@@ -159,14 +149,91 @@
 
 #endif
 
-#if defined(__cplusplus) && __cplusplus >= 201103L || \
-    defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L || \
-    defined(__APPLE__) || defined(HAVE_STDINT_H)
+#if defined(__FreeBSD__) && (__FreeBSD__ + 0 < 5)
+#  error FreeBSD detected without major version (PR 2116887)
+#endif
+
 /*
- * We're using <stdint.h> instead of <cstdint> below because some C++ code
- * deliberately compiles without C++ include paths.
+ * C99 <stdint.h> or equivalent
+ * Special cases:
+ * - Linux kernel lacks <stdint.h>, preferring <linux/types.h>
+ *   (and defines uintptr_t since 2.6.24, but not intptr_t)
+ * - Solaris collides with gcc <stdint.h>, but has <sys/stdint.h>
+ * - VMKernel + FreeBSD collides with gcc <stdint.h>, but has <sys/stdint.h>
+ * - VMKernel (+DECODERLIB) share macros with Linux kernel
+ * - Windows only added <stdint.h> in vc10/vs2010 (MSC ver 1600),
+ *   and WDKs lack it.
+ *
+ * NB about LLP64 in LP64 environments:
+ * - Apple uses 'long long' uint64_t
+ * - Linux kernel uses 'long long' uint64_t
+ * - Linux userlevel uses 'long' uint64_t
  */
-#include <stdint.h>
+#if !defined(VMKERNEL) && !defined(DECODERLIB) && \
+    defined(__linux__) && defined(__KERNEL__)
+#  include <linux/types.h>
+#  include <linux/version.h>
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 24)
+   typedef unsigned long uintptr_t;
+#endif
+   typedef   signed long  intptr_t;
+#elif (defined(__sun__) && defined(_KERNEL)) || \
+      (defined(VMKERNEL) && defined(__FreeBSD__)) || \
+      defined(_SYS_STDINT_H_)
+#  include <sys/stdint.h>
+#elif !defined(_MSC_VER)
+   /* Common case */
+#  include <stdint.h>
+#else
+   /* COMPAT: until pre-vc10 is retired */
+#  include <crtdefs.h>  // uintptr_t
+   typedef unsigned __int64   uint64_t;
+   typedef unsigned int       uint32_t;
+   typedef unsigned short     uint16_t;
+   typedef unsigned char      uint8_t;
+
+   typedef __int64            int64_t;
+   typedef int                int32_t;
+   typedef short              int16_t;
+   typedef signed char        int8_t;
+#endif
+
+/*
+ * size_t and ssize_t, or equivalent
+ * Options:
+ * C90+ <stddef.h> has size_t, but is incompatible with many kernels.
+ * POSIX <sys/types.h> has size_t and ssize_t, is always available at
+ *    userlevel but is missing from some kernels.
+ *
+ * Special cases:
+ * - Linux kernel (again) does everything via <linux/types.h>
+ * - VMKernel may or may not have POSIX headers (tcpip only)
+ * - VMM does not have POSIX headers
+ * - Windows <sys/types.h> does not define ssize_t
+ */
+#if defined(VMKERNEL) || defined(VMM) || defined(DECODERLIB)
+   /* Guard against FreeBSD <sys/types.h> collison. */
+#  if !defined(_SIZE_T_DEFINED) && !defined(_SIZE_T)
+#     define _SIZE_T_DEFINED
+#     define _SIZE_T
+      typedef __SIZE_TYPE__ size_t;
+#endif
+#  if !defined(_SSIZE_T_DEFINED) && !defined(_SSIZE_T)
+#     define _SSIZE_T_DEFINED
+#     define _SSIZE_T
+      typedef int64_t ssize_t;
+#  endif
+#elif defined(__linux__) && defined(__KERNEL__)
+   /* <linux/types.h> provided size_t, ssize_t. */
+#else
+#  include <sys/types.h>
+#  if defined(_WIN64)
+      typedef int64_t ssize_t;
+#  elif defined(_WIN32)
+      typedef int32_t ssize_t;
+#  endif
+#endif
+
 
 typedef uint64_t    uint64;
 typedef  int64_t     int64;
@@ -176,40 +243,6 @@ typedef uint16_t    uint16;
 typedef  int16_t     int16;
 typedef  uint8_t     uint8;
 typedef   int8_t      int8;
-
-#else /* !HAVE_STDINT_H */
-
-/* Pre-c99 or pre-c++11; use compiler extension to get 64-bit types */
-#ifdef _MSC_VER
-
-typedef unsigned __int64 uint64;
-typedef signed __int64 int64;
-
-#elif __GNUC__
-#   if defined(VM_X86_64) || defined(VM_ARM_64)
-typedef unsigned long uint64;
-typedef long int64;
-#   else
-/*
- * Only strict c90 (without extensions) lacks a 'long long' type.
- * If this declaration fails ... use -std=c99 or -std=gnu90.
- */
-typedef unsigned long long uint64;
-typedef long long int64;
-#   endif
-#else
-#   error - Need compiler define for int64/uint64
-#endif /* _MSC_VER */
-
-typedef unsigned int       uint32;
-typedef unsigned short     uint16;
-typedef unsigned char      uint8;
-
-typedef int                int32;
-typedef short              int16;
-typedef signed char        int8;
-
-#endif /* HAVE_STDINT_H */
 
 
 /*
@@ -242,23 +275,12 @@ typedef char           Bool;
 
 
 /*
- * FreeBSD (for the tools build) unconditionally defines these in
- * sys/inttypes.h so don't redefine them if this file has already
- * been included. [greg]
- *
- * This applies to Solaris as well.
- */
-
-/*
  * Before trying to do the includes based on OS defines, see if we can use
  * feature-based defines to get as much functionality as possible
  */
 
 #ifdef HAVE_INTTYPES_H
 #include <inttypes.h>
-#endif
-#ifdef HAVE_SYS_TYPES_H
-#include <sys/types.h>
 #endif
 #ifdef HAVE_SYS_INTTYPES_H
 #include <sys/inttypes.h>
@@ -273,14 +295,11 @@ typedef char           Bool;
 
 #if !defined(USING_AUTOCONF)
 #   if defined(__FreeBSD__) || defined(sun)
-#      ifdef KLD_MODULE
-#         include <sys/types.h>
-#      else
+#      ifndef KLD_MODULE
 #         if __FreeBSD_version >= 500043
 #            if !defined(VMKERNEL)
 #               include <inttypes.h>
 #            endif
-#            include <sys/types.h>
 #         else
 #            include <sys/inttypes.h>
 #         endif
@@ -288,46 +307,10 @@ typedef char           Bool;
 #   elif defined __APPLE__
 #      if KERNEL
 #         include <sys/unistd.h>
-#         include <sys/types.h> /* mostly for size_t */
-#         include <stdint.h>
 #      else
 #         include <unistd.h>
 #         include <inttypes.h>
 #         include <stdlib.h>
-#         include <stdint.h>
-#      endif
-#   elif defined __ANDROID__
-#      include <stdint.h>
-#   else
-#      if !defined(__intptr_t_defined) && !defined(intptr_t)
-#         ifdef VM_I386
-#            define __intptr_t_defined
-#            if defined(VM_X86_64)
-typedef int64     intptr_t;
-#            else
-typedef int32     intptr_t;
-#            endif
-#         elif defined(VM_ARM_64)
-#            define __intptr_t_defined
-typedef int64     intptr_t;
-#         elif defined(__arm__)
-#            define __intptr_t_defined
-typedef int32     intptr_t;
-#         endif
-#      endif
-
-#      ifndef _STDINT_H
-#         ifdef VM_I386
-#            if defined(VM_X86_64)
-typedef uint64    uintptr_t;
-#            else
-typedef uint32    uintptr_t;
-#            endif
-#         elif defined(VM_ARM_64)
-typedef uint64    uintptr_t;
-#         elif defined(__arm__)
-typedef uint32    uintptr_t;
-#         endif
 #      endif
 #   endif
 #endif
@@ -376,10 +359,11 @@ typedef int64 VmTimeVirtualClock;  /* Virtual Clock kept in CPU cycles */
       #define FMTPD      "I"
       #define FMTH       "I"
    #endif
-#elif defined __APPLE__
-   /* macOS hosts use the same formatters for 32- and 64-bit. */
+#elif defined __APPLE__ || (!defined VMKERNEL && !defined DECODERLIB && \
+                            defined __linux__ && defined __KERNEL__)
+   /* semi-LLP64 targets; 'long' is 64-bit, but uint64_t is 'long long' */
    #define FMT64         "ll"
-   #if KERNEL
+   #if defined(__APPLE__) && KERNEL
       /* macOS osfmk/kern added 'z' length specifier in 10.13 */
       #define FMTSZ      "l"
    #else
@@ -483,17 +467,17 @@ typedef uint8 *TCA;  /* Pointer into TC (usually). */
  * Type big enough to hold an integer between 0..100
  */
 typedef uint8 Percent;
-#define AsPercent(v)	((Percent)(v))
+#define AsPercent(v) ((Percent)(v))
 
 
 typedef uintptr_t VA;
 typedef uintptr_t VPN;
 
 typedef uint64    PA;
-typedef uint32    PPN;
+typedef uint64    PPN;
 
 typedef uint64    TPA;
-typedef uint32    TPPN;
+typedef uint64    TPPN;
 
 typedef uint64    PhysMemOff;
 typedef uint64    PhysMemSize;
@@ -508,12 +492,10 @@ typedef uint64    BPN;
 #define UINT64_2_BPN(u) ((BPN)(u))
 #define BPN_2_UINT64(b) ((uint64)(b))
 
-typedef uint32    PageCnt;
-typedef uint64    PgCnt64;
-typedef uint32    PageNum;
-typedef uint64    PgNum64;
-typedef unsigned      MemHandle;
-typedef unsigned int  IoHandle;
+typedef uint64    PageCnt;
+typedef uint64    PageNum;
+typedef unsigned  MemHandle;
+typedef unsigned  IoHandle;
 typedef int32     World_ID;
 
 /* !! do not alter the definition of INVALID_WORLD_ID without ensuring
@@ -553,7 +535,7 @@ typedef uint128 UReg128;
 #endif
 
 #if defined(VMM) || defined(COREQUERY) || defined(EXTDECODER) ||  \
-    defined (VMKERNEL) || defined (VMKBOOT)
+    defined (VMKERNEL) || defined (VMKBOOT) || defined (ULM)
 typedef  Reg64  Reg;
 typedef UReg64 UReg;
 #endif
@@ -614,13 +596,6 @@ typedef uint64 MA64;
 typedef uint64 MPN;
 
 /*
- * Remove after PPN->PPN64 conversion is finished.
- */
-#define PPN64_2_PPN(_ppn)     ((PPN)_ppn)
-
-#define FMTPPN ""
-
-/*
  * IO device DMA virtual address and page number (translated by IOMMU to
  * MA/MPN). IOPN can be in the inclusive range 0 -> MAX_IOPN.
  */
@@ -642,14 +617,15 @@ typedef void * UserVA;
 #endif
 
 
-#define MAX_PPN_BITS      31
-#define MAX_PPN           (((PPN)1 << MAX_PPN_BITS) - 1) /* Maximal observable PPN value. */
-#define INVALID_PPN       ((PPN)0xffffffff)
-#define INVALID_PPN32     ((PPN32)0xffffffff)
-#define INVALID_PPN64     ((PPN64)0xffffffffffffffffull)
-#define APIC_INVALID_PPN  ((PPN)0xfffffffe)
+/* Maximal observable PPN value. */
+#define MAX_PPN_BITS      33
+#define MAX_PPN           (((PPN)1 << MAX_PPN_BITS) - 1)
 
-#define INVALID_BPN       ((BPN)0x000000ffffffffffull)
+#define INVALID_PPN       ((PPN)0x000fffffffffffffull)
+#define INVALID_PPN32     ((PPN32)0xffffffff)
+#define APIC_INVALID_PPN  ((PPN)0x000ffffffffffffeull)
+
+#define INVALID_BPN       ((BPN)0x0000ffffffffffffull)
 
 #define MPN38_MASK        ((1ull << 38) - 1)
 
@@ -667,7 +643,8 @@ typedef void * UserVA;
 #define INVALID_LPN       ((LPN)-1)
 #define INVALID_VPN       ((VPN)-1)
 #define INVALID_LPN64     ((LPN64)-1)
-#define INVALID_PAGENUM   ((PageNum)-1)
+#define INVALID_PAGENUM   ((PageNum)0x000000ffffffffffull)
+#define INVALID_PAGENUM32 ((uint32)-1)
 
 /*
  * Format modifier for printing VA, LA, and VPN.
@@ -880,7 +857,7 @@ typedef void * UserVA;
  * will convert any !=0 to a 1.
  */
 #define LIKELY(_exp)     __builtin_expect(!!(_exp), 1)
-#define UNLIKELY(_exp)   __builtin_expect((_exp), 0)
+#define UNLIKELY(_exp)   __builtin_expect(!!(_exp), 0)
 #else
 #define LIKELY(_exp)      (_exp)
 #define UNLIKELY(_exp)    (_exp)
@@ -976,82 +953,6 @@ typedef void * UserVA;
  */
 
 #define INFINITE_LOOP()           do { } while (1)
-
-/*
- * On FreeBSD (for the tools build), size_t is typedef'd if _BSD_SIZE_T_
- * is defined. Use the same logic here so we don't define it twice. [greg]
- */
-#ifdef __FreeBSD__
-#   ifdef _BSD_SIZE_T_
-#      undef _BSD_SIZE_T_
-#      ifdef VM_I386
-#         ifdef VM_X86_64
-             typedef uint64 size_t;
-#         else
-             typedef uint32 size_t;
-#         endif
-#      endif /* VM_I386 */
-#   endif
-
-#   ifdef _BSD_SSIZE_T_
-#      undef _BSD_SSIZE_T_
-#      ifdef VM_I386
-#         ifdef VM_X86_64
-             typedef int64 ssize_t;
-#         else
-             typedef int32 ssize_t;
-#         endif
-#      endif /* VM_I386 */
-#   endif
-
-#else
-#   if !defined(_SIZE_T) && !defined(_SIZE_T_DEFINED)
-#      ifdef VM_I386
-#         define _SIZE_T
-#         ifdef VM_X86_64
-             typedef uint64 size_t;
-#         else
-             typedef uint32 size_t;
-#         endif
-#      elif defined(VM_ARM_64)
-#         define _SIZE_T
-          typedef uint64 size_t;
-#      elif defined(__arm__)
-#         define _SIZE_T
-          typedef uint32 size_t;
-#      endif
-#   endif
-
-#   if !defined(FROBOS) && !defined(_SSIZE_T) && !defined(_SSIZE_T_) && \
-       !defined(ssize_t) && !defined(__ssize_t_defined) && \
-       !defined(_SSIZE_T_DECLARED) && !defined(_SSIZE_T_DEFINED) && \
-       !defined(_SSIZE_T_DEFINED_)
-#      ifdef VM_I386
-#         define _SSIZE_T
-#         define __ssize_t_defined
-#         define _SSIZE_T_DECLARED
-#         define _SSIZE_T_DEFINED_
-#         ifdef VM_X86_64
-             typedef int64 ssize_t;
-#         else
-             typedef int32 ssize_t;
-#         endif
-#      elif defined(VM_ARM_64)
-#         define _SSIZE_T
-#         define __ssize_t_defined
-#         define _SSIZE_T_DECLARED
-#         define _SSIZE_T_DEFINED_
-          typedef int64 ssize_t;
-#      elif defined(__arm__)
-#         define _SSIZE_T
-#         define __ssize_t_defined
-#         define _SSIZE_T_DECLARED
-#         define _SSIZE_T_DEFINED_
-             typedef int32 ssize_t;
-#      endif
-#   endif
-
-#endif
 
 /*
  * Format modifier for printing pid_t.  On sun the pid_t is a ulong, but on

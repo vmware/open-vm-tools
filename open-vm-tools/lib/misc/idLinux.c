@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -45,7 +45,7 @@
 #endif
 #endif
 #if defined __ANDROID__
-#include <syscall-android.h>
+#include <bits/glibc-syscalls.h>
 #endif
 
 #include "vmware.h"
@@ -470,7 +470,14 @@ IdAuthCreate(void)
    gid_t thread_gid;
    int ret;
 
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
    ret = syscall(SYS_gettid, &thread_uid, &thread_gid);
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 
    if (ret != -1) {
       /*
@@ -602,19 +609,21 @@ IdAuthCreateWithFork(void)
       VERIFY(result == child);
    } else {
       // Child: use fds[1]
+      OSStatus ret;
 
-      data.success = AuthorizationCreate(NULL, kAuthorizationEmptyEnvironment,
-                                         kAuthorizationFlagDefaults, &auth)
-                     == errAuthorizationSuccess;
+      ret = AuthorizationCreate(NULL, kAuthorizationEmptyEnvironment,
+                                kAuthorizationFlagDefaults, &auth);
+      data.success = ret == errAuthorizationSuccess;
       if (data.success) {
-         data.success = AuthorizationMakeExternalForm(auth, &data.ext)
-                        == errAuthorizationSuccess;
+         ret = AuthorizationMakeExternalForm(auth, &data.ext);
+         data.success = ret == errAuthorizationSuccess;
          if (!data.success) {
-            Warning("%s: child AuthorizationMakeExternalForm() failed.\n",
-                    __func__);
+            Warning("%s: child AuthorizationMakeExternalForm() failed: %d.\n",
+                    __func__, (int32)ret);
          }
       } else {
-         Warning("%s: child AuthorizationCreate() failed.\n", __func__);
+         Warning("%s: child AuthorizationCreate() failed: %d.\n",
+                 __func__, (int32)ret);
       }
 
       // Tell the parent it can now create a process ref to the auth session.
@@ -675,6 +684,8 @@ static Atomic_Ptr procAuth = { 0 };
 static AuthorizationRef
 IdAuthGet(void)
 {
+   AuthorizationRef authRef;
+
    if (UNLIKELY(Atomic_ReadPtr(&procAuth) == NULL)) {
       AuthorizationRef newProcAuth = IdAuthCreate();
 
@@ -684,9 +695,12 @@ IdAuthGet(void)
       }
    }
 
-   ASSERT(Atomic_ReadPtr(&procAuth) != NULL);
+   authRef = Atomic_ReadPtr(&procAuth);
+   if (authRef == NULL) {
+      Log("%s: Failed to obtain an AuthorizationRef.\n", __func__);
+   }
 
-   return Atomic_ReadPtr(&procAuth);
+   return authRef;
 }
 
 
@@ -931,7 +945,14 @@ Id_BeginSuperUser(void)
 #if TARGET_OS_IPHONE
       Warning("XXXIOS: implement %s\n", __func__);
 #else
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
       syscall(SYS_settid, KAUTH_UID_NONE, KAUTH_GID_NONE /* Ignored. */);
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 #endif
 #else
       Id_SetRESUid((uid_t) -1, (uid_t) 0, (uid_t) -1); // effectively root
@@ -967,7 +988,14 @@ Id_EndSuperUser(uid_t uid)  // IN:
       ASSERT(uid != 0);  // Don't allow cheating like this
 
 #if defined(__APPLE__)
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
       if (syscall(SYS_settid, uid, getgid()) == -1) {
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
          Log("Failed to release super user privileges.\n");
       }
 #else

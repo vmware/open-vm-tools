@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -47,23 +47,31 @@
  */
 
 #ifndef EX_USAGE
-#define EX_USAGE 64
+#define EX_USAGE 64 /* command line usage error */
 #endif
 
 #ifndef EX_UNAVAILABLE
-#define EX_UNAVAILABLE 69
+#define EX_UNAVAILABLE 69 /* service unavailable */
+#endif
+
+#ifndef EX_SOFTWARE
+#define EX_SOFTWARE 70 /* internal software error */
+#endif
+
+#ifndef EX_OSERR
+#define EX_OSERR 71 /* system error (e.g., can't fork) */
 #endif
 
 #ifndef EX_OSFILE
-#define EX_OSFILE 72
+#define EX_OSFILE 72 /* critical OS file missing */
 #endif
 
 #ifndef EX_TEMPFAIL
-#define EX_TEMPFAIL 75
+#define EX_TEMPFAIL 75 /* temp failure; user is invited to retry */
 #endif
 
 #ifndef EX_NOPERM
-#define EX_NOPERM 77
+#define EX_NOPERM 77 /* permission denied */
 #endif
 
 /*
@@ -103,6 +111,9 @@ ToolsCmd_SendRPC(const char *rpc,
                  size_t rpcLen,
                  char **result,
                  size_t *resultLen);
+
+void
+ToolsCmd_FreeRPC(void *ptr);
 
 /*
  * Command declarations.

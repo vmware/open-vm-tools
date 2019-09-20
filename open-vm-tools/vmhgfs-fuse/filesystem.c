@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013,2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -123,36 +123,50 @@ HgfsPackQueryVolumeRequest(const char *path,        // IN: File pointer for this
                            HgfsOp opUsed,           // IN: Op to be used.
                            HgfsReq *req)            // IN/OUT: Packet to write into
 {
-   char *name;
-   uint32 *nameLength;
    size_t requestSize;
-   int result;
+
 
    ASSERT(req);
 
    switch (opUsed) {
    case HGFS_OP_QUERY_VOLUME_INFO_V3: {
+      int result;
       HgfsRequestQueryVolumeV3 *requestV3 = HgfsGetRequestPayload(req);
 
-      /* We'll use these later. */
-      name = requestV3->fileName.name;
-      nameLength = &requestV3->fileName.length;
       requestV3->fileName.flags = 0;
       requestV3->fileName.fid = HGFS_INVALID_HANDLE;
       requestV3->fileName.caseType = HGFS_FILE_NAME_CASE_SENSITIVE;
       requestV3->reserved = 0;
       requestSize = sizeof(*requestV3) + HgfsGetRequestHeaderSize();
+      /* Convert to CP name. */
+      result = CPName_ConvertTo(path,
+                                HGFS_LARGE_PACKET_MAX - (requestSize - 1),
+                                requestV3->fileName.name);
+      if (result < 0) {
+         LOG(4, ("CP conversion failed.\n"));
+         return -EINVAL;
+      }
+      requestV3->fileName.length = result;
+      requestSize += result;
       break;
    }
    case HGFS_OP_QUERY_VOLUME_INFO: {
+      int result;
       HgfsRequestQueryVolume *request;
 
       request = (HgfsRequestQueryVolume *)(HGFS_REQ_PAYLOAD(req));
 
-      /* We'll use these later. */
-      name = request->fileName.name;
-      nameLength = &request->fileName.length;
       requestSize = sizeof *request;
+      /* Convert to CP name. */
+      result = CPName_ConvertTo(path,
+                                HGFS_LARGE_PACKET_MAX - (requestSize - 1),
+                                request->fileName.name);
+      if (result < 0) {
+         LOG(4, ("CP conversion failed.\n"));
+         return -EINVAL;
+      }
+      request->fileName.length = result;
+      requestSize += result;
       break;
    }
    default:
@@ -160,17 +174,7 @@ HgfsPackQueryVolumeRequest(const char *path,        // IN: File pointer for this
       return -EPROTO;
    }
 
-   /* Convert to CP name. */
-   result = CPName_ConvertTo(path,
-                             HGFS_LARGE_PACKET_MAX - (requestSize - 1),
-                             name);
-   if (result < 0) {
-      LOG(4, ("CP conversion failed.\n"));
-      return -EINVAL;
-   }
-
-   *nameLength = (uint32) result;
-   req->payloadSize = requestSize + result;
+   req->payloadSize = requestSize;
 
    /* Fill in header here as payloadSize needs to be there. */
    HgfsPackHeader(req, opUsed);
@@ -252,6 +256,12 @@ HgfsStatfs(const char* path,            // IN : Path to the file
          stat->f_blocks = (totalBytes + HGFS_BLOCKSIZE - 1) / HGFS_BLOCKSIZE;
          stat->f_bfree = (freeBytes + HGFS_BLOCKSIZE - 1) / HGFS_BLOCKSIZE;
          stat->f_bavail = stat->f_bfree;
+
+         /*
+          * Files application requires this field see bug 2287577.
+          * This is using the same as the GNU C Library defined NAME_MAX
+          */
+         stat->f_namemax = NAME_MAX;
          break;
 
       case -EPERM:

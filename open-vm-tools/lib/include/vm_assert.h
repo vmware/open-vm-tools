@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017,2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -241,7 +241,7 @@ void WarningThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
 
 #define NOT_TESTED_1024()                                               \
    do {                                                                 \
-      static uint16 count = 0;                                          \
+      static MONITOR_ONLY(PERVCPU) uint16 count = 0;                    \
       if (UNLIKELY(count == 0)) { NOT_TESTED(); }                       \
       count = (count + 1) & 1023;                                       \
    } while (0)

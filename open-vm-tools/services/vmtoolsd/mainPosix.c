@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -103,9 +103,12 @@ ToolsCoreSigUsrHandler(const siginfo_t *info,
 {
    ToolsCore_DumpState(&gState);
 
-   g_info("Shutting down guestrpc on signal USR1 ...\n");
    if (TOOLS_IS_USER_SERVICE(&gState.ctx)) {
-      RpcChannel_Shutdown(gState.ctx.rpc);
+      g_info("Shutting down guestrpc on signal USR1 ...\n");
+      g_signal_emit_by_name(gState.ctx.serviceObj,
+                            TOOLS_CORE_SIG_NO_RPC,
+                            &gState.ctx);
+      RpcChannel_Destroy(gState.ctx.rpc);
       gState.ctx.rpc = NULL;
    }
 
@@ -183,7 +186,11 @@ main(int argc,
    }
 
    setlocale(LC_ALL, "");
-   VMTools_ConfigLogging(G_LOG_DOMAIN, NULL, FALSE, FALSE);
+
+   VMTools_UseVmxGuestLog(VMTOOLS_APP_NAME);
+   VMTools_ConfigLogging(G_LOG_DOMAIN, NULL, TRUE, FALSE);
+   VMTools_SetupVmxGuestLog(FALSE, NULL, NULL);
+
    VMTools_BindTextDomain(VMW_TEXT_DOMAIN, NULL, NULL);
 
    if (!ToolsCore_ParseCommandLine(&gState, argc, argvCopy)) {

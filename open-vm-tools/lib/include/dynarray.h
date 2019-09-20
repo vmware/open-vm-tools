@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -315,6 +315,22 @@ DynArray_Copy(DynArray *src,        // IN
       }                                                                 \
       *T##Array_AddressOf(a, count) = val;                              \
       return TRUE;                                                      \
+   }                                                                    \
+                                                                        \
+   static INLINE Bool                                                   \
+   T##Array_PushFront(T##Array *a, TYPE val)                            \
+   {                                                                    \
+      unsigned int count = T##Array_Count(a);                           \
+      if (!T##Array_SetCount(a, count + 1)) {                           \
+         return FALSE;                                                  \
+      } else {                                                          \
+         unsigned int i;                                                \
+         for (i = count; i > 0; --i) {                                  \
+            *T##Array_AddressOf(a, i) = *T##Array_AddressOf(a, i-1);    \
+         }                                                              \
+         *T##Array_AddressOf(a, 0) = val;                               \
+         return TRUE;                                                   \
+      }                                                                 \
    }                                                                    \
                                                                         \
    static INLINE unsigned int                                           \

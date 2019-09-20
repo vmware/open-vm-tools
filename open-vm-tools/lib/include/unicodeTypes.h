@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2017, 2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -455,6 +455,8 @@ void Unicode_InitEx(int argc, char ***argv, char ***envp,
 void Unicode_InitW(int argc, utf16_t **wargv, utf16_t **wenvp,
                    char ***argv, char ***envp);
 #endif
+
+void Unicode_Shutdown(int argc, char **argv, char **envp);
 
 StringEncoding Unicode_GetCurrentEncoding(void);
 StringEncoding Unicode_ResolveEncoding(StringEncoding encoding);

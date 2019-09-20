@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -141,13 +141,37 @@ Log_Error(const char *fmt,
 
 
 static INLINE void PRINTF_DECL(1, 2)
+Log_Warning(const char *fmt,
+            ...)
+{
+   va_list ap;
+
+   va_start(ap, fmt);
+   LogV(VMW_LOG_WARNING, fmt, ap);
+   va_end(ap);
+}
+
+
+static INLINE void PRINTF_DECL(1, 2)
 Log_Notice(const char *fmt,
-          ...)
+           ...)
 {
    va_list ap;
 
    va_start(ap, fmt);
    LogV(VMW_LOG_NOTICE, fmt, ap);
+   va_end(ap);
+}
+
+
+static INLINE void PRINTF_DECL(1, 2)
+Log_Info(const char *fmt,
+         ...)
+{
+   va_list ap;
+
+   va_start(ap, fmt);
+   LogV(VMW_LOG_INFO, fmt, ap);
    va_end(ap);
 }
 
@@ -179,6 +203,18 @@ Log_Trivia(const char *fmt,
 /* Forward decl */
 struct Dictionary;
 struct CfgInterface;
+
+/*
+ * Structure contains all the pointers to where value can be updated
+ * Making VmxStats as a struct has its own advantage, such as updating
+ * 'droppedChars' from the struct instead within LogFile.
+ */
+typedef struct {
+   uint64 *numTimesDrop; // total time char dropped
+   uint64 *droppedChars; // Number of drop char
+   uint64 *bytesLogged;  // Total logged
+} VmxStatsInfo;
+
 
 typedef struct LogOutput LogOutput;
 
@@ -219,6 +255,9 @@ Bool Log_ReplaceOutput(LogOutput *fromOutput,
 
 int32 Log_SetOutputLevel(LogOutput *output,
                          int32 level);
+
+Bool Log_SetVmxStatsData(LogOutput *output,
+                         VmxStatsInfo *vmxStats);
 
 /*
  * The most common Log Facility client usage is via the "InitWith" functions.
@@ -348,6 +387,8 @@ const char *Log_GetOutputFileName(LogOutput *output);
 void Log_SkipLocking(Bool skipLocking);
 
 void Log_DisableThrottling(void);
+
+void Log_DisableVmxStats(void);
 
 uint32 Log_MaxLineLength(void);
 

@@ -111,7 +111,7 @@ typedef struct VmBackupState {
    ToolsAppCtx   *ctx;
    VmBackupOp    *currentOp;
    const char    *currentOpName;
-   GStaticMutex   opLock; // See note above
+   GMutex         opLock;          // See note above
    char          *volumes;
    char          *snapshots;
    guint          pollPeriod;
@@ -132,7 +132,7 @@ typedef struct VmBackupState {
    guint          timeout;
    gpointer       clientData;
    void          *scripts;
-   const char    *configDir;
+   char          *configDir;
    ssize_t        currentScript;
    gchar         *errorMsg;
    VmBackupMState machineState;
@@ -207,14 +207,14 @@ VmBackup_SetCurrentOp(VmBackupState *state,
    ASSERT(state->currentOp == NULL);
    ASSERT(currentOpName != NULL);
 
-   g_static_mutex_lock(&state->opLock);
+   g_mutex_lock(&state->opLock);
 
    state->currentOp = op;
    state->callback = callback;
    state->currentOpName = currentOpName;
    state->forceRequeue = (callback != NULL && op == NULL);
 
-   g_static_mutex_unlock(&state->opLock);
+   g_mutex_unlock(&state->opLock);
 
    return (op != NULL);
 }

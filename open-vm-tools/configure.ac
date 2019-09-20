@@ -35,10 +35,10 @@
 ### Initialization
 ###
 
-TOOLS_VERSION="10.3.10"
+TOOLS_VERSION="11.0.0"
 AC_INIT(
    [open-vm-tools],
-   [10.3.10],
+   [11.0.0],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
@@ -351,11 +351,10 @@ if test "$ac_cv_prog_AR" = false; then
 fi
 
 # We use pkg-config to set up the cflags and libs for gtk.
-AC_CHECK_PROG(
-   [HAVE_PKG_CONFIG],
+AC_CHECK_TOOL(
+   [PKG_CONFIG],
    [pkg-config],
-   [yes],
-   [no])
+   [not_found])
 
 if test "$GCC" != "yes"; then
    AC_MSG_ERROR([Only GCC is currently supported. Please put gcc in the path.])
@@ -407,20 +406,16 @@ if test "$enable_deploypkg" = "yes"; then
                    [AC_MSG_ERROR([mspack >= 0.0.20040308alpha is required.])])
 fi
 
-AC_ARG_ENABLE([grabbitmqproxy],
-   [AS_HELP_STRING([--disable-grabbitmqproxy],
-     [do not build grabbitmqproxy plugin.])],
+AC_ARG_ENABLE([libappmonitor],
+   [AS_HELP_STRING([--enable-libappmonitor],
+     [Build the libappmonitor library.])],
    [],
    [
-    if test "$os" = "linux"; then
-       enable_grabbitmqproxy=yes
-    else
-       enable_grabbitmqproxy=no
-    fi
+    enable_libappmonitor=no
    ])
 
 #
-# Check for glib 2.6.14 or greater.
+# Check for glib 2.34.0 or greater.
 #
 AC_VMW_CHECK_LIB([glib-2.0],
                  [GLIB2],
@@ -539,26 +534,15 @@ AC_ARG_ENABLE([xmlsecurity],
    ],
    [])
 
-if test "$enable_vgauth" = "yes" ; then
-   AC_ARG_ENABLE([caf],
-      [AS_HELP_STRING([--disable-caf],
-        [do not build CAF (Common Agent Framework).])],
-      [],
-      [enable_caf=no])
-else
-   enable_caf=no
-fi
 
 #
 # Check for openssl, xerces-c and xml-security-c
 #
 AC_ARG_WITH([ssl],
    [AS_HELP_STRING([--without-ssl],
-     [compiles without openssl support (disables grabbitmqproxy, vgauth and CAF).])],
+     [compiles without openssl support (disables vgauth).])],
    [
-     enable_grabbitmqproxy=no
      enable_vgauth=no
-     enable_caf=no
    ],
    [with_ssl=yes])
 
@@ -595,7 +579,7 @@ AC_ARG_WITH([tirpc],
 # Make sure we are building with openssl 1.0.1 and above so that
 # we use only TLSv1_2.
 
-if test "$enable_vgauth" = "yes" -o "$enable_grabbitmqproxy" = "yes"; then
+if test "$enable_vgauth" = "yes" ; then
    AC_VMW_DEFAULT_FLAGS([SSL])
    AC_VMW_CHECK_LIB([ssl],
                     [SSL],
@@ -659,8 +643,6 @@ if test "$enable_vgauth" = "yes"; then
                        [],
                        [AC_VMW_LIB_ERROR([XMLSECURITY], [xmlsecurity])])
    fi
-else
-   enable_caf=no
 fi
 
 #
@@ -923,11 +905,17 @@ AC_ARG_WITH([pam-prefix],
 	    [PAM_PREFIX="$withval"],
 	    [if test "$os" = "freebsd" ; then PAM_PREFIX='$(sysconfdir)'; else PAM_PREFIX='/etc'; fi])
 
+if test "$os" = "linux"; then
+   with_dnet_dflt="no"
+else
+   with_dnet_dflt="yes"
+fi
+
 AC_ARG_WITH([dnet],
-	    [AS_HELP_STRING([--without-dnet],
-	    [compiles without libdnet (disables support for nicinfo)])],
+	    [AS_HELP_STRING([--with-dnet],
+	    [specifies whether to build with libdnet - the default is without for Linux, and with it otherwise])],
 	    [],
-	    [with_dnet=yes])
+	    [with_dnet="$with_dnet_dflt"])
 
 have_dnet="no"
 if test "$with_dnet" = "yes"; then
@@ -959,7 +947,7 @@ if test "$with_dnet" = "yes"; then
 
    if test $have_dnet = "no"; then
 		AC_MSG_ERROR(
-		   [dnet-config was not found on your PATH. Please configure without dnet (using --without-dnet) or install dnet - http://libdnet.sourceforge.net])
+		   [dnet-config was not found on your PATH. Please configure without dnet or install dnet - http://libdnet.sourceforge.net])
    fi
 fi
 
@@ -968,10 +956,10 @@ AC_DEFINE([NO_DNET], 1, [Define to 1 if building without libdnet.])
 fi
 
 AC_ARG_WITH([icu],
-            [AS_HELP_STRING([--without-icu],
-              [disables support for ICU])],
+            [AS_HELP_STRING([--with-icu],
+              [enables support for ICU])],
             [],
-            [with_icu=yes])
+            [with_icu=no])
 
 if test "$have_x" = "yes" -o "$with_icu" = "yes"; then
    # AC_CHECK_PROG fails to locate CXX if it's set to an absolute
@@ -1025,50 +1013,66 @@ else
    CPPFLAGS="$CPPFLAGS -DNO_ICU"
 fi
 
-if test "$enable_caf" = "yes"; then
-    AC_VMW_CHECK_LIBXX([log4cpp],
-                       [LOG4CPP],
-                       [],
-                       [log4cpp-config],
-                       [],
-                       [Appender.hh],
-                       [],
-                       [have_log4cpp="yes"],
-                       [AC_VMW_LIB_ERROR([LOG4CPP], [log4cpp])])
 
-    AC_VMW_CHECK_LIB([rabbitmq],
-                       [LIBRABBITMQ],
-                       [librabbitmq],
-                       [],
-                       [0.8.0],
-                       [amqp_tcp_socket.h],
-                       [],
-                       [have_librabbitmq="yes"],
-                       [AC_VMW_LIB_ERROR([LIBRABBITMQ], [librabbitmq])])
+if test "$with_tirpc" != "no"; then
+   AC_VMW_CHECK_LIB([libtirpc],
+                    [TIRPC],
+                    [libtirpc],
+                    [],
+                    [],
+                    [],
+                    [],
+                    [have_tirpc="yes"],
+                    [have_tirpc="no"])
+fi
 
-    #
-    # CAF requires glib 2.34 or greater.
-    #
-    AC_VMW_CHECK_LIB([glib-2.0],
-                     [GLIB2],
-                     [glib-2.0],
-                     [],
-                     [2.34.0],
-                     [glib.h],
-                     [g_key_file_new],
-                     [],
-                     [AC_MSG_ERROR([glib2 >= 2.34.0 is required.])])
+if test "$with_tirpc" != "yes"; then
+   AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+      #include <rpc/types.h>
+      #include <rpc/xdr.h>
 
-    AC_VMW_CHECK_LIB([gthread-2.0],
-                     [GTHREAD],
-                     [gthread-2.0],
-                     [],
-                     [2.34.0],
-                     [],
-                     [],
-                     [],
-                     [AC_MSG_ERROR([glib >= 2.34.0 is required.])])
+      int main()
+      {
+         struct xdr_ops xdr;
+#if defined(__GLIBC__)
+         xdr.x_putint32(NULL, NULL);
+#endif
+         return 0;
+      }
+      ]])], [need_tirpc="no"], [need_tirpc="yes"])
+   AC_MSG_NOTICE([tirpc is needed: $need_tirpc])
+fi
 
+if test "$with_tirpc" = "no"; then
+   if test "$need_tirpc" = "yes"; then
+      AC_MSG_ERROR([libtirpc is required but it is disabled.])
+   fi
+   use_tirpc="no"
+elif test "$with_tirpc" = "auto"; then
+   if test "$need_tirpc" = "yes" -a "$have_tirpc" = "no"; then
+      AC_MSG_ERROR([cannot find libtirpc but it is required.])
+   fi
+   use_tirpc=$need_tirpc
+elif test "$with_tirpc" = "yes"; then
+   if test "$have_tirpc" = "no"; then
+      AC_MSG_ERROR([cannot build with libtirpc because it cannot be found.])
+   fi
+   use_tirpc="yes"
+fi
+
+XDR_LIBS=
+XDR_CPPFLAGS=
+if test "$use_tirpc" = "yes"; then
+   AC_MSG_NOTICE([building with libtirpc])
+   XDR_LIBS="$TIRPC_LIBS"
+   XDR_CPPFLAGS="-DUSE_TIRPC $TIRPC_CPPFLAGS"
+else
+   AC_MSG_NOTICE([building without libtirpc])
+   # In Solaris, the XDR-related functions are not in libc like in Linux and
+   # FreeBSD, so binaries need to be linked to some extra libraries.
+   if test "$os" = "solaris"; then
+      XDR_LIBS="-lnsl -lrpcsvc"
+   fi
 fi
 
 if test "$with_tirpc" != "no"; then
@@ -1434,8 +1438,8 @@ if test "$os" = "linux"; then
                 [UDEVRULESDIR="$withval"],
                 [
                     UDEVRULESDIR="/lib/udev/rules.d"
-                    if test $HAVE_PKG_CONFIG = "yes"; then
-                        udevdir=$(pkg-config udev --variable=udevdir)
+                    if test "$PKG_CONFIG" != "not_found"; then
+                        udevdir=$($PKG_CONFIG udev --variable=udevdir)
                         if test "x$udevdir" != "x"; then
                             UDEVRULESDIR="$udevdir/rules.d"
                         fi
@@ -1475,15 +1479,14 @@ AM_CONDITIONAL(HAVE_GTKMM, test "$have_x" = "yes" -a \( "$with_gtkmm" = "yes" -o
 AM_CONDITIONAL(HAVE_PAM, test "$with_pam" = "yes")
 AM_CONDITIONAL(USE_SLASH_PROC, test "$os" = "linux")
 AM_CONDITIONAL(ENABLE_DEPLOYPKG, test "$enable_deploypkg" = "yes")
-AM_CONDITIONAL(ENABLE_GRABBITMQPROXY, test "$enable_grabbitmqproxy" = "yes")
 AM_CONDITIONAL(ENABLE_VGAUTH, test "$enable_vgauth" = "yes")
 AM_CONDITIONAL(USE_XMLSEC1, test "$use_xmlsec1" = "yes")
-AM_CONDITIONAL(ENABLE_CAF, test "$enable_caf" = "yes")
 AM_CONDITIONAL(HAVE_VSOCK, test "$os" = "linux")
 AM_CONDITIONAL(HAVE_MKDTEMP, test "$have_mkdtemp" = "yes")
 AM_CONDITIONAL(HAVE_UDEV, test "$have_udev" = "yes")
 AM_CONDITIONAL(ENABLE_RESOLUTIONKMS, test "x$enable_resolutionkms" = "xyes")
 AM_CONDITIONAL(VGAUTH_USE_CXX, test "$with_icu" = "yes" -o "$use_xmlsec1" != "yes")
+AM_CONDITIONAL(ENABLE_LIBAPPMONITOR, test "$enable_libappmonitor" = "yes")
 
 if test "$have_xsm" != "yes"; then
 AC_DEFINE([NO_XSM], 1, [])
@@ -1531,14 +1534,6 @@ COMMON_PLUGIN_INSTALLDIR=$libdir/open-vm-tools/plugins/common
 VMSVC_PLUGIN_INSTALLDIR=$libdir/open-vm-tools/plugins/vmsvc
 VMUSR_PLUGIN_INSTALLDIR=$libdir/open-vm-tools/plugins/vmusr
 
-# Installation directories for caf binary/so files
-#CAF_PME_BIN_DIR=${sbindir}/vmware-caf/pme/bin
-CAF_PME_BIN_DIR=${libdir}/open-vm-tools/vmware-caf/pme/bin
-CAF_PME_LIB_DIR=${libdir}/open-vm-tools/vmware-caf/pme/lib
-
-# Installation directories for caf subsys so files
-CAF_SUBSYS_DIR=${libdir}/open-vm-tools/vmware-caf/pme/lib
-CAF_SUBSYS_LDFLAGS="-Wl,-z,defs -Wl,-lc -shared -module -avoid-version"
 
 # General definitions
 INSTVMSG='$(SHELL) $(top_srcdir)/scripts/build/instvmsg.sh'
@@ -1570,10 +1565,6 @@ AC_SUBST([TEST_PLUGIN_INSTALLDIR])
 AC_SUBST([COMMON_PLUGIN_INSTALLDIR])
 AC_SUBST([VMSVC_PLUGIN_INSTALLDIR])
 AC_SUBST([VMUSR_PLUGIN_INSTALLDIR])
-AC_SUBST([CAF_SUBSYS_DIR])
-AC_SUBST([CAF_SUBSYS_LDFLAGS])
-AC_SUBST([CAF_PME_BIN_DIR])
-AC_SUBST([CAF_PME_LIB_DIR])
 if test "$os" = "freebsd" -a -n "$SYSDIR"; then
    # If SYSDIR is not defined, AC_SUBST expands to nothing, so we need something
    # inside this block.
@@ -1657,7 +1648,6 @@ AC_CONFIG_FILES([                      \
    services/plugins/Makefile           \
    services/plugins/desktopEvents/Makefile \
    services/plugins/dndcp/Makefile     \
-   services/plugins/grabbitmqProxy/Makefile \
    services/plugins/guestInfo/Makefile \
    services/plugins/hgfsServer/Makefile \
    services/plugins/powerOps/Makefile  \
@@ -1673,7 +1663,6 @@ AC_CONFIG_FILES([                      \
    hgfsmounter/Makefile                \
    checkvm/Makefile                    \
    rpctool/Makefile                    \
-   guestproxycerttool/Makefile         \
    vgauth/Makefile                     \
    vgauth/lib/Makefile                 \
    namespacetool/Makefile              \
@@ -1686,18 +1675,6 @@ AC_CONFIG_FILES([                      \
    libDeployPkg/libDeployPkg.pc        \
    libhgfs/Makefile                    \
    libvmtools/Makefile                 \
-   common-agent/Cpp/Framework/Makefile \
-   common-agent/Cpp/Communication/Makefile \
-   common-agent/Cpp/InternalProviders/Makefile \
-   common-agent/Cpp/ManagementAgent/Makefile \
-   common-agent/Cpp/ProviderFx/Makefile \
-   common-agent/input/Makefile         \
-   common-agent/input/invokers/Makefile \
-   common-agent/input/providerReg/Makefile \
-   common-agent/etc/Makefile           \
-   common-agent/etc/config/Makefile    \
-   common-agent/etc/scripts/Makefile   \
-   common-agent/etc/install/Makefile   \
    xferlogs/Makefile                   \
    modules/Makefile                    \
    vmblock-fuse/Makefile               \
@@ -1713,6 +1690,8 @@ AC_CONFIG_FILES([                      \
    scripts/Makefile                    \
    scripts/build/rpcgen_wrapper.sh     \
    udev/Makefile                       \
+   libappmonitor/Makefile              \
+   libappmonitor/appmonitor.pc         \
 ])
 
 ###

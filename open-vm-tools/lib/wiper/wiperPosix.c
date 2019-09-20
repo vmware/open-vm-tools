@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -435,6 +435,8 @@ WiperPartitionFilter(WiperPartition *item,         // IN/OUT
    size_t i;
 
    item->type = PARTITION_UNSUPPORTED;
+   item->fsType = Util_SafeStrdup(MNTINFO_FSTYPE(mnt));
+   item->fsName = Util_SafeStrdup(MNTINFO_NAME(mnt));
 
    for (i = 0; i < ARRAYSIZE(gKnownPartitions); i++) {
       info = &gKnownPartitions[i];
@@ -485,6 +487,50 @@ WiperPartitionFilter(WiperPartition *item,         // IN/OUT
 /*
  *-----------------------------------------------------------------------------
  *
+ * WiperOpenMountFile --
+ *
+ *      Open mount file /etc/mtab or /proc/mounts.
+ *
+ * Results:
+ *      MNTHANDLE on success.
+ *      NULL on failure.
+ *
+ * Side Effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static MNTHANDLE
+WiperOpenMountFile(void)
+{
+   MNTHANDLE fp;
+
+   fp = OPEN_MNTFILE("r");
+   if (fp == NULL) {
+#if defined(__linux__)
+#define PROC_MOUNTS     "/proc/mounts"
+      if (errno == ENOENT && strcmp(MNTFILE, PROC_MOUNTS) != 0) {
+         /*
+          * Try /proc/mounts if /etc/mtab is not available.
+          */
+         fp = Posix_Setmntent(PROC_MOUNTS, "r");
+         if (fp == NULL) {
+            Log("Could not open %s (%d)\n", PROC_MOUNTS, errno);
+         }
+         return fp;
+      }
+#endif
+      Log("Could not open %s (%d)\n", MNTFILE, errno);
+   }
+
+   return fp;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * WiperSinglePartition_Open --
  *
  *      Return information about the input 'mountPoint' partition.
@@ -511,9 +557,8 @@ WiperSinglePartition_Open(const char *mountPoint,      // IN
 
    ASSERT(initDone);
 
-   fp = OPEN_MNTFILE("r");
+   fp = WiperOpenMountFile();
    if (fp == NULL) {
-      Log("Could not open %s\n", MNTFILE);
       return NULL;
    }
 
@@ -664,10 +709,9 @@ WiperPartition_Open(WiperPartition_List *pl,
 
    DblLnkLst_Init(&pl->link);
 
-   /* Basically call functions to parse /etc/mtab ... */
-   fp = OPEN_MNTFILE("r");
+   /* Basically call functions to parse mounts table */
+   fp = WiperOpenMountFile();
    if (fp == NULL) {
-      Log("Unable to open mount file.\n");
       return FALSE;
    }
 

@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2008-2016 VMware, Inc.  All rights reserved.
+### Copyright (C) 2008-2019 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -57,11 +57,6 @@ libvmtools_la_LIBADD += ../lib/misc/libMisc.la
 libvmtools_la_LIBADD += @LIBVMTOOLS_LIBADD@
 libvmtools_la_LIBADD += @GLIB2_LIBS@
 libvmtools_la_LIBADD += @ICU_LIBS@
-
-if ENABLE_GRABBITMQPROXY
-   libvmtools_la_LIBADD += @SSL_LIBS@
-   libvmtools_la_LIBADD += -lcrypto
-endif
 
 if USE_SLASH_PROC
 libvmtools_la_LIBADD += ../lib/slashProc/libSlashProc.la

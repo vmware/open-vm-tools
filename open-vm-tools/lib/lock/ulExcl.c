@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -304,7 +304,7 @@ MXUserDumpExclLock(MXUserHeader *header)  // IN:
    Warning("\tsignature 0x%X\n", lock->header.signature);
    Warning("\tname %s\n", lock->header.name);
    Warning("\trank 0x%X\n", lock->header.rank);
-   Warning("\tserial number %u\n", lock->header.bits.serialNumber);
+   Warning("\tserial number %"FMT64"u\n", lock->header.serialNumber);
 
    Warning("\tlock count %d\n", MXRecLockCount(&lock->recursiveLock));
 
@@ -350,7 +350,7 @@ MXUser_CreateExclLock(const char *userName,  // IN:
    lock->header.signature = MXUserGetSignature(MXUSER_TYPE_EXCL);
    lock->header.name = properName;
    lock->header.rank = rank;
-   lock->header.bits.serialNumber = MXUserAllocSerialNumber();
+   lock->header.serialNumber = MXUserAllocSerialNumber();
    lock->header.dumpFunc = MXUserDumpExclLock;
 
    statsMode = MXUserStatsMode();

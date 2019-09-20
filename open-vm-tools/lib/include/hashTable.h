@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2017,2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -151,7 +151,7 @@ typedef struct PtrHashEntry {
  */
 
 #define PTRHASH_CONTAINER(ptr, type, member) \
-   ((type *)((char *)(ptr) - vmw_offsetof(type, member)))
+   ((type *)((char *)(ptr) - offsetof(type, member)))
 
 typedef int (*PtrHashForEachCallback)(PtrHashEntry *entry,
                                       const void *clientData);

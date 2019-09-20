@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -439,7 +439,9 @@ RpcOutSendOneRawWork(void *request,         // IN: RPCI command
          memcpy(callerReply, myReply, s);
          callerReply[s] = '\0';
       }
-
+      if (reply != NULL) {
+         *reply = NULL;
+      }
       return FALSE;
    }
 

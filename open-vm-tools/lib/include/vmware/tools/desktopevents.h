@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -55,6 +55,13 @@
  * shut down the vmusr instance.
  */
 #define DESKTOP_EVENTS_SHUTDOWN "VMdesktopEventsShutdownMsg"
+
+
+/**
+ * Name of the message that can be sent to the vm3dservice user daemons
+ * for shutdown.
+ */
+#define DESKTOP_VM3DSERVICE_SHUTDOWN "VMdesktopEventsVM3DServiceShutdownMsg"
 
 #else   // !WIN32
 

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -67,6 +67,8 @@ uint32 Auth_RetrieveAccountInformationForVM(const char *filename, uint32 *attrib
 
 AuthToken Auth_GetPwnam(const char *user);
 AuthToken Auth_AuthenticateSelf(void);
+AuthToken Auth_AuthenticateUserPAM(const char *user, const char *pass,
+                                   const char *service);
 
 #endif
 

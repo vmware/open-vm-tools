@@ -241,6 +241,39 @@ CountNetmaskBitsV6(struct sockaddr *netmask)
 
 /*
  ******************************************************************************
+ * IpEntryMatchesDevice --                                               */ /**
+ *
+ * @brief Check if the IP entry matches the network device.
+ *
+ * @param[in]   devName the device name
+ * @param[in]   label   the IP entry name
+ *
+ * @retval      TRUE if the IP entry name matches the device name
+ *              FALSE otherwise.
+ *
+ ******************************************************************************
+ */
+
+static Bool
+IpEntryMatchesDevice(const char *devName,
+                     const char *label)
+{
+   char *p;
+   size_t n;
+
+   if ((p = strchr(label, ':')) != NULL) {
+      n = p - label;
+   } else {
+      n = strlen(label);
+   }
+
+   /* compare sub string label[0, n) with a null terminated string devName */
+   return (0 == strncmp(devName, label, n) && '\0' == devName[n]);
+}
+
+
+/*
+ ******************************************************************************
  * GuestInfoGetInterface --                                              */ /**
  *
  * @brief Gather IP addresses from ifaddrs and put into NicInfo, filtered
@@ -305,13 +338,13 @@ GuestInfoGetInterface(struct ifaddrs *ifaddrs,
             break;
          }
          /*
-          * Now look for all IPv4 and IPv6 interfaces with the same
-          * interface name as the current AF_PACKET interface.
+          * Now look for all IPv4 and IPv6 interfaces that match
+          * the current AF_PACKET interface.
           */
          for (ip = ifaddrs; ip != NULL; ip = ip->ifa_next) {
             struct sockaddr *sa = (struct sockaddr *)ip->ifa_addr;
             if (sa != NULL &&
-                strncmp(ip->ifa_name, pkt->ifa_name, IFNAMSIZ) == 0) {
+                IpEntryMatchesDevice(pkt->ifa_name, ip->ifa_name)) {
                int family = sa->sa_family;
                Bool goodAddress = FALSE;
                unsigned nBits = 0;
@@ -466,7 +499,6 @@ GuestInfoGetPrimaryIP(void)
 {
    struct ifaddrs *ifaces;
    struct ifaddrs *curr;
-   char *ipstr = NULL;
    char *currIpstr = NULL;
    NicInfoPriority currPri = NICINFO_PRIORITY_MAX;
 
@@ -475,7 +507,7 @@ GuestInfoGetPrimaryIP(void)
     * to traverse and places a pointer to it in ifaces.
     */
    if (getifaddrs(&ifaces) < 0) {
-      return ipstr;
+      return NULL;
    }
 
    /*
@@ -484,6 +516,7 @@ GuestInfoGetPrimaryIP(void)
     * the first non-loopback, internet interface in the interface list.
     */
    for (curr = ifaces; curr != NULL; curr = curr->ifa_next) {
+      char *ipstr = NULL;
       int currFamily;
 
       /*
@@ -509,13 +542,15 @@ GuestInfoGetPrimaryIP(void)
          if (pri < currPri) {
             g_debug("%s: ifa_name=%s, pri=%d, currPri=%d, ipstr=%s",
                     __FUNCTION__, curr->ifa_name, pri, currPri, ipstr);
-            g_free(currIpstr);
+            free(currIpstr);
             currIpstr = ipstr;
             currPri = pri;
             if (pri == NICINFO_PRIORITY_PRIMARY) {
                /* not going to find anything better than that */
                break;
             }
+         } else {
+            free(ipstr);
          }
       }
    }

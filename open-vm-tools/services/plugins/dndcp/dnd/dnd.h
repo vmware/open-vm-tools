@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -52,9 +52,15 @@ extern "C" {
 #define DND_MAX_PATH        6144
 
 #define DNDMSG_HEADERSIZE_V3 ((3 * sizeof (uint32)) + (1 * sizeof (uint8)))
-/* Hard limits we never want to exceed */
-/* The maximum size of a serializied DnDMsg. Close to 4M. */
+/*
+ * Hard limits we never want to exceed. The maximum size of a serializied
+ * DnDMsg. Close to 4M for Workstion/Fusion, 4G for Horzion.
+ */
+#ifdef VMX86_HORIZON_VIEW
+#define DNDMSG_MAX_ARGSZ (0xffffffff - DNDMSG_HEADERSIZE_V3)
+#else
 #define DNDMSG_MAX_ARGSZ ((1 << 22) - DNDMSG_HEADERSIZE_V3)
+#endif
 /* The maximum number of arguments we can hold */
 #define DNDMSG_MAX_ARGS 64
 
@@ -77,8 +83,12 @@ extern "C" {
 /* FCP target used in KDE. */
 #define FCP_TARGET_NAME_URI_LIST             "text/uri-list"
 #define FCP_TARGET_INFO_URI_LIST             1
+/* FCP target used for nautilus 3.30 or later. */
+#define FCP_TARGET_NAME_NAUTILUS_FILES       "UTF8_STRING"
+#define FCP_TARGET_MIME_NAUTILUS_FILES       "x-special/nautilus-clipboard"
+#define FCP_TARGET_INFO_NAUTILUS_FILES       2
 /* Number of FCP targets. */
-#define NR_FCP_TARGETS                       2
+#define NR_FCP_TARGETS                       3
 
 #define VMWARE_TARGET                        "vmware-target"
 
@@ -193,8 +203,18 @@ typedef struct DnDTransportBuffer {
 } DnDTransportBuffer;
 
 #define DND_TRANSPORT_PACKET_HEADER_SIZE      (5 * sizeof(uint32))
+#ifdef VMX86_HORIZON_VIEW
+/*
+ * For Horizon DnD, expand the message size to almost 16M, which provides
+ * better DnD Performance on text/rich text/image etc. dragging and dropping
+ * per current performance tuning.
+ */
+#define DND_MAX_TRANSPORT_PACKET_SIZE         ((1 << 24) - 100)
+#else
 /* Close to 64k (maximum guestRpc message size). Leave some space for guestRpc header. */
 #define DND_MAX_TRANSPORT_PACKET_SIZE         ((1 << 16) - 100)
+#endif
+
 #define DND_MAX_TRANSPORT_PACKET_PAYLOAD_SIZE (DND_MAX_TRANSPORT_PACKET_SIZE - \
                                                DND_TRANSPORT_PACKET_HEADER_SIZE)
 #define DND_MAX_TRANSPORT_LATENCY_TIME        3 * 1000000 /* 3 seconds. */
@@ -228,6 +248,8 @@ size_t DnD_LocalStringToCPString(utf16_t *bufIn,
                                  char **bufOut);
 Bool DnD_SetCPClipboardFromLocalText(CPClipboard *clip,
                                      utf16_t *bufIn);
+Bool DnD_SetCPClipboardAndTruncateLocalText(CPClipboard *clip,
+                                            utf16_t *bufIn);
 Bool DnD_SetCPClipboardFromLocalRtf(CPClipboard *clip,
                                     char *bufIn);
 Bool DnD_SetCPClipboardFromSpecifiedFormat(CPClipboard *clip,
@@ -273,7 +295,9 @@ Bool DnD_UriIsNonFileSchemes(char const *uri);
  */
 const char *DnD_GetFileRoot(void);
 char *DnD_CreateStagingDirectory(void);
+char *DnD_AppendPrefixToStagingDir(const char *oldName, const char *newName);
 Bool DnD_DeleteStagingFiles(const char *stagingDir, Bool onReboot);
+Bool DnD_RemoveTempDirs(const char *dndTempDir, const char *prefix);
 int DnD_LegacyConvertToCPName(const char *nameIn,
                               size_t bufOutSize,
                               char *bufOut);
@@ -281,6 +305,10 @@ Bool DnD_CPNameListToDynBufArray(char *fileList,
                                  size_t listSize,
                                  DynBufArray *dynBufArray);
 char *DnD_GetLastDirName(const char *str);
+
+void DnD_SetCPClipboardAndTruncateText(CPClipboard *clip,
+                                       char *destBuf,
+                                       size_t len);
 
 /* vmblock support functions. */
 Bool DnD_InitializeBlocking(DnDBlockControl *blkCtrl);

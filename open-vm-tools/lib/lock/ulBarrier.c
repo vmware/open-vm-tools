@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -67,7 +67,7 @@ MXUserDumpBarrier(MXUserHeader *header)  // IN:
    Warning("\tsignature 0x%X\n", barrier->header.signature);
    Warning("\tname %s\n", barrier->header.name);
    Warning("\trank 0x%X\n", barrier->header.rank);
-   Warning("\tserial number %u\n", barrier->header.bits.serialNumber);
+   Warning("\tserial number %"FMT64"u\n", barrier->header.serialNumber);
 
    Warning("\tlock 0x%p\n", barrier->lock);
    Warning("\tconfigured count %u\n", barrier->configCount);
@@ -136,7 +136,7 @@ MXUser_CreateBarrier(const char *userName,  // IN: shall be known as
    barrier->header.signature = MXUserGetSignature(MXUSER_TYPE_BARRIER);
    barrier->header.name = properName;
    barrier->header.rank = rank;
-   barrier->header.bits.serialNumber = MXUserAllocSerialNumber();
+   barrier->header.serialNumber = MXUserAllocSerialNumber();
    barrier->header.dumpFunc = MXUserDumpBarrier;
    barrier->header.statsFunc = NULL;
 

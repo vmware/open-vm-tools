@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -49,6 +49,10 @@ DynBuf_InitWithMemory(DynBuf *b,
                       void *data);
 
 void
+DynBuf_InitWithString(DynBuf *b,
+                      char *str);
+
+void
 DynBuf_Destroy(DynBuf *b); // IN
 
 void
@@ -87,6 +91,15 @@ DynBuf_SafeInternalAppend(DynBuf *b,            // IN/OUT
 
 #define DynBuf_SafeAppend(_buf, _data, _size) \
    DynBuf_SafeInternalAppend(_buf, _data, _size, __FILE__, __LINE__)
+
+void
+DynBuf_SafeInternalEnlarge(DynBuf *b,            // IN/OUT
+                           size_t min_size,      // IN
+                           char const *file,     // IN
+                           unsigned int lineno); // IN
+
+#define DynBuf_SafeEnlarge(_buf, _min_size) \
+   DynBuf_SafeInternalEnlarge(_buf,  _min_size, __FILE__, __LINE__)
 
 
 /*
@@ -268,6 +281,34 @@ DynBuf_AppendString(DynBuf *buf,         // IN/OUT
                     const char *string)  // IN
 {
    return DynBuf_Append(buf, string, strlen(string) + 1 /* NUL */);
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * DynBuf_SafeAppendString --
+ *
+ *     "Safe" version of the above that does not fail.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      DynBuf may change its size or allocate additional memory.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+#if defined(SWIG)
+static void
+#else
+static INLINE void
+#endif
+DynBuf_SafeAppendString(DynBuf *buf,         // IN/OUT
+                        const char *string)  // IN
+{
+   DynBuf_SafeAppend(buf, string, strlen(string) + 1 /* NUL */);
 }
 
 

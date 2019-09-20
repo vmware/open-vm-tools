@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2002-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2002-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -56,6 +56,9 @@ typedef struct ProcMgr_AsyncProc ProcMgr_AsyncProc;
 typedef struct ProcMgrProcInfo {
    ProcMgr_Pid procId;
    char *procCmdName;             // UTF-8
+#if defined(__linux__) || defined(_WIN32)
+   char *procCmdAbsPath;          // UTF-8
+#endif
    char *procCmdLine;             // UTF-8
    char *procOwner;               // UTF-8
 #if defined(_WIN32)
@@ -134,6 +137,11 @@ typedef int Selectable;
 #endif
 
 ProcMgrProcInfoArray *ProcMgr_ListProcesses(void);
+
+#if defined(_WIN32)
+ProcMgrProcInfoArray *ProcMgr_ListProcessesEx(void);
+#endif
+
 void ProcMgr_FreeProcList(ProcMgrProcInfoArray *procList);
 Bool ProcMgr_KillByPid(ProcMgr_Pid procId);
 

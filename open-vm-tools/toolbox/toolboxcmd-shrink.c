@@ -105,7 +105,7 @@ ShrinkGetWiperState(void)
          state = WIPER_DISABLED;
       }
    }
-   free(result);
+   ToolsCmd_FreeRPC(result);
    return state;
 }
 
@@ -234,8 +234,9 @@ ShrinkList(void)
 static int
 ShrinkDiskSendRPC(void)
 {
-   char *result;
+   char *result = NULL;
    size_t resultLen;
+   int retVal;
 
    ToolsCmd_PrintErr("\n");
 
@@ -243,11 +244,15 @@ ShrinkDiskSendRPC(void)
                         &result, &resultLen)) {
       ToolsCmd_Print("%s",
                      SU_(disk.shrink.complete, "Disk shrinking complete.\n"));
-      return EXIT_SUCCESS;
+      retVal =  EXIT_SUCCESS;
+   } else {
+      ToolsCmd_PrintErr(SU_(disk.shrink.error,
+                        "Error while shrinking: %s\n"), result);
+      retVal =  EX_TEMPFAIL;
    }
 
-   ToolsCmd_PrintErr(SU_(disk.shrink.error, "Error while shrinking: %s\n"), result);
-   return EX_TEMPFAIL;
+   ToolsCmd_FreeRPC(result);
+   return retVal;
 }
 
 

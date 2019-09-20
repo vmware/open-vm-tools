@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -176,7 +176,7 @@ Bool File_DeleteDirectoryContent(const char *pathName);
 
 Bool File_DeleteDirectoryTree(const char *pathName);
 
-int File_ListDirectory(const char *pathName,
+int File_ListDirectory(const char *dirName,
                        char ***ids);
 
 Bool File_IsOsfsVolumeEmpty(const char *pathName);
@@ -189,10 +189,10 @@ char * File_StripFwdSlashes(const char *pathName);
  * Simple file-system walk.
  */
 
-WalkDirContext File_WalkDirectoryStart(const char *parentPath);
+WalkDirContext File_WalkDirectoryStart(const char *dirName);
 
 Bool File_WalkDirectoryNext(WalkDirContext context,
-                            char **path);
+                            char **fileName);
 
 void File_WalkDirectoryEnd(WalkDirContext context);
 
@@ -222,6 +222,10 @@ uint64 File_GetFreeSpace(const char *pathName,
                          Bool doNotAscend);
 
 uint64 File_GetCapacity(const char *pathName);
+
+#ifdef _WIN32
+char *File_GetNTGlobalFinalPath(const char *pathName);
+#endif
 
 int File_MakeTempEx(const char *dir,
                     const char *pathName,
