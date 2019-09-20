@@ -1908,25 +1908,6 @@ VixToolsStartProgramImpl(const char *requestName,            // IN
    }
 #endif
 
-#if defined(_WIN32) && SUPPORT_VGAUTH
-   /*
-    * Clobber the profile handle before un-impersonation.
-    */
-   if (GuestAuthEnabled() && PROCESS_CREATOR_USER_TOKEN != userToken) {
-      vgErr = VGAuth_UserHandleSetUserProfile(ctx, currentUserHandle,
-                                              INVALID_HANDLE_VALUE);
-      if (VGAUTH_FAILED(vgErr)) {
-         err = VixToolsTranslateVGAuthError(vgErr);
-         g_warning("%s: Failed to clobber user profile\n", __FUNCTION__);
-         // VGAuth_EndImpersonation will take care of profile, close hToken
-         CloseHandle(asyncState->hToken);
-         asyncState->hToken = INVALID_HANDLE_VALUE;
-         asyncState->hProfile = INVALID_HANDLE_VALUE;
-         goto abort;
-      }
-   }
-#endif
-
    /*
     * Start a periodic procedure to check the app periodically
     */

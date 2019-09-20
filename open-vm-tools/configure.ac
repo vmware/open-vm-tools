@@ -1075,67 +1075,6 @@ else
    fi
 fi
 
-if test "$with_tirpc" != "no"; then
-   AC_VMW_CHECK_LIB([libtirpc],
-                    [TIRPC],
-                    [libtirpc],
-                    [],
-                    [],
-                    [],
-                    [],
-                    [have_tirpc="yes"],
-                    [have_tirpc="no"])
-fi
-
-if test "$with_tirpc" != "yes"; then
-   AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-      #include <rpc/types.h>
-      #include <rpc/xdr.h>
-
-      int main()
-      {
-         struct xdr_ops xdr;
-#if defined(__GLIBC__)
-         xdr.x_putint32(NULL, NULL);
-#endif
-         return 0;
-      }
-      ]])], [need_tirpc="no"], [need_tirpc="yes"])
-   AC_MSG_NOTICE([tirpc is needed: $need_tirpc])
-fi
-
-if test "$with_tirpc" = "no"; then
-   if test "$need_tirpc" = "yes"; then
-      AC_MSG_ERROR([libtirpc is required but it is disabled.])
-   fi
-   use_tirpc="no"
-elif test "$with_tirpc" = "auto"; then
-   if test "$need_tirpc" = "yes" -a "$have_tirpc" = "no"; then
-      AC_MSG_ERROR([cannot find libtirpc but it is required.])
-   fi
-   use_tirpc=$need_tirpc
-elif test "$with_tirpc" = "yes"; then
-   if test "$have_tirpc" = "no"; then
-      AC_MSG_ERROR([cannot build with libtirpc because it cannot be found.])
-   fi
-   use_tirpc="yes"
-fi
-
-XDR_LIBS=
-XDR_CPPFLAGS=
-if test "$use_tirpc" = "yes"; then
-   AC_MSG_NOTICE([building with libtirpc])
-   XDR_LIBS="$TIRPC_LIBS"
-   XDR_CPPFLAGS="-DUSE_TIRPC $TIRPC_CPPFLAGS"
-else
-   AC_MSG_NOTICE([building without libtirpc])
-   # In Solaris, the XDR-related functions are not in libc like in Linux and
-   # FreeBSD, so binaries need to be linked to some extra libraries.
-   if test "$os" = "solaris"; then
-      XDR_LIBS="-lnsl -lrpcsvc"
-   fi
-fi
-
 AC_PATH_PROG(
    [RPCGEN],
    [rpcgen],
@@ -1223,12 +1162,6 @@ AC_C_VOLATILE
 ### General flags / actions
 CFLAGS="$CFLAGS -Wall"
 CFLAGS="$CFLAGS -Werror"
-
-# Suppress warnings from clang when taking the address of packed struct
-# member fields when compiling hgfsServer.c
-if $CC --version | $GREP -i "clang" > /dev/null; then
-   CFLAGS="$CFLAGS -Wno-address-of-packed-member"
-fi
 
 # -Wno-unknown-pragmas is due to gcc not understanding '#pragma ident'
 # in Xlib.h on OpenSolaris.
