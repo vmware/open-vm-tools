@@ -948,7 +948,7 @@ FileIOCreateRetry(FileIODescriptor *file,   // OUT:
 #endif
 
 #if defined(__linux__) && defined(O_CLOEXEC)
-   if (flags & FILEIO_OPEN_CLOSE_ON_EXEC) {
+   if (access & FILEIO_OPEN_CLOSE_ON_EXEC) {
       flags |= O_CLOEXEC;
    }
 #endif
