@@ -840,4 +840,15 @@ typedef int pid_t;
 #define END_PTR_TO_ALIGNED_VAR \
    } while (0)
 
+
+/*
+ * -Wswitch means that when you pass switch an enum that it's looking for
+ * all values from that enum, and only that enum, to be accounted for.
+ * "default:;" is fine for catching values you don't care about. But today
+ * we have a bunch of code that uses internal and external enum values, or
+ * in other words combines two enums into a single variable. This cast is
+ * the workaround, but we really need to fix this mess.
+ */
+#define UNCHECKED_SWITCH__FIXME(x) switch ((uint64)(x))
+
 #endif // ifndef _VM_BASIC_DEFS_H_
