@@ -744,7 +744,7 @@ HostinfoESX(struct utsname *buf)  // IN:
       Str_Strcpy(osName, STR_OS_VMKERNEL, sizeof osName);
    } else if ((buf->release[0] == '5') && (buf->release[1] == '.')) {
       Str_Strcpy(osName, STR_OS_VMKERNEL "5", sizeof osName);
-   } else if ((buf->release[0] >= '6') && (buf->release[1] == '.')) {
+   } else if ((buf->release[0] == '6') && (buf->release[1] == '.')) {
       if (buf->release[2] < '5') {
          Str_Strcpy(osName, STR_OS_VMKERNEL "6", sizeof osName);
       } else {
