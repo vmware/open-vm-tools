@@ -134,9 +134,9 @@ static INLINE size_t HgfsLargeIoMax(Bool useLegacy) // IN
       return gHgfsLargeIoMax;
    }
 #ifdef VMX86_TOOLS
-   if (!RpcVMX_ConfigGetBool(FALSE, "hgfs.packetSize.large")) {
+   if (!RpcVMX_ConfigGetBool(TRUE, "hgfs.packetSize.large")) {
 #else
-   if (!Config_GetBool(FALSE, "hgfs.packetSize.large")) {
+   if (!Config_GetBool(TRUE, "hgfs.packetSize.large")) {
 #endif
       gHgfsLargeIoMax = HGFS_LEGACY_LARGE_IO_MAX;
    } else {
@@ -175,9 +175,9 @@ static INLINE size_t HgfsLargePacketMax(Bool useLegacy) // IN
       return gHgfsLargePacketMax;
    }
 #ifdef VMX86_TOOLS
-   if (!RpcVMX_ConfigGetBool(FALSE, "hgfs.packetSize.large")) {
+   if (!RpcVMX_ConfigGetBool(TRUE, "hgfs.packetSize.large")) {
 #else
-   if (!Config_GetBool(FALSE, "hgfs.packetSize.large")) {
+   if (!Config_GetBool(TRUE, "hgfs.packetSize.large")) {
 #endif
       gHgfsLargePacketMax = HGFS_LEGACY_LARGE_PACKET_MAX;
    } else {
