@@ -22,9 +22,12 @@ defaultscripts += resume-vm-default
 
 confdir = /etc/vmware-tools
 
-conf_SCRIPTS = ./common/vm-support
-conf_SCRIPTS += ./common/statechange.subr
+conf_SCRIPTS = ./common/statechange.subr
 conf_SCRIPTS += $(defaultscripts)
+
+vmsupportdir = /usr/bin
+
+vmsupport_SCRIPTS = ./common/vm-support
 
 vmwsrcdir = $(confdir)/scripts/vmware
 
