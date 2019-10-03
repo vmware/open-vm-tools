@@ -9753,7 +9753,6 @@ VixToolsListAuthAliases(VixCommandRequestHeader *requestMsg, // IN
    char *destPtr;
    char *endDestPtr;
    char *tmpBuf = NULL;
-   char *recordBuf;
    size_t recordSize;
    char *escapedStr = NULL;
    char *escapedStr2 = NULL;
@@ -9813,6 +9812,8 @@ VixToolsListAuthAliases(VixCommandRequestHeader *requestMsg, // IN
    destPtr += Str_Sprintf(destPtr, endDestPtr - destPtr, "%s",
                           VIX_XML_ESCAPED_TAG);
    for (i = 0; i < num; i++) {
+      char *recordBuf = NULL;
+
       escapedStr = VixToolsEscapeXMLString(uaList[i].pemCert);
       if (escapedStr == NULL) {
          err = VIX_E_OUT_OF_MEMORY;
@@ -9886,6 +9887,8 @@ VixToolsListAuthAliases(VixCommandRequestHeader *requestMsg, // IN
          Log("%s: ListAuth list results too large, truncating", __FUNCTION__);
          goto abort;
       }
+      free(recordBuf);
+      recordBuf = NULL;
    }
 
    *result = resultBuffer;
@@ -9951,7 +9954,6 @@ VixToolsListMappedAliases(VixCommandRequestHeader *requestMsg, // IN
    char *destPtr;
    char *endDestPtr;
    char *tmpBuf = NULL;
-   char *recordBuf;
    char *escapedStr = NULL;
    char *escapedStr2 = NULL;
    size_t recordSize;
@@ -10005,6 +10007,8 @@ VixToolsListMappedAliases(VixCommandRequestHeader *requestMsg, // IN
    destPtr += Str_Sprintf(destPtr, endDestPtr - destPtr, "%s",
                           VIX_XML_ESCAPED_TAG);
    for (i = 0; i < num; i++) {
+      char *recordBuf = NULL;
+
       escapedStr = VixToolsEscapeXMLString(maList[i].pemCert);
       if (escapedStr == NULL) {
          err = VIX_E_OUT_OF_MEMORY;
@@ -10076,6 +10080,8 @@ VixToolsListMappedAliases(VixCommandRequestHeader *requestMsg, // IN
          Log("%s: ListMapped results too large, truncating", __FUNCTION__);
          goto abort;
       }
+      free(recordBuf);
+      recordBuf = NULL;
    }
 
    *result = resultBuffer;
