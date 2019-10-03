@@ -61,11 +61,12 @@
 #   endif
 #endif
 
+#define MAX_STACK_DEPTH_APPLE 128
+
 #ifdef UTIL_BACKTRACE_USE_UNWIND
 #include <unwind.h>
 
 #define MAX_SKIPPED_FRAMES 10
-#define MAX_STACK_DEPTH_APPLE 128
 
 struct UtilBacktraceFromPointerData {
    uintptr_t        basePtr;
