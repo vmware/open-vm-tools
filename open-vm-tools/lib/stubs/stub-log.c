@@ -29,17 +29,15 @@
 #include <ctype.h>
 #include "str.h"
 #include "log.h"
-#include "dynbuf.h"
-#include "util.h"
-#include "strutil.h"
+
 
 /*
  * XXX: the check is a hack to work around stupid libraries, like
  * bora/lib/install, that provide implementations for only some of
  * the functions of the real library, but not all.
  */
-
 #if !defined(NO_LOG_STUB)
+
 void
 LogV(uint32 unused,
      const char *fmt,
@@ -119,6 +117,8 @@ Log_HexDump(const char *prefix,  // IN: prefix for each log line
    Log_HexDumpLevel(VMW_LOG_INFO, prefix, data, size);
 }
 
+#endif
+
 
 void
 Log_DisableThrottling(void)
@@ -132,46 +132,3 @@ Log_GetFileName(void)
 {
    return NULL;
 }
-
-
-void *
-Log_BufBegin(void)
-{
-   DynBuf *b = Util_SafeCalloc(1, sizeof *b);
-
-   DynBuf_Init(b);
-
-   return b;
-}
-
-void
-Log_BufAppend(void *acc,
-              const char *fmt,
-              ...)
-{
-   va_list args;
-   Bool success;
-
-   ASSERT(acc != NULL);
-   ASSERT(fmt != NULL);
-
-   va_start(args, fmt);
-   success = StrUtil_VDynBufPrintf((DynBuf *) acc, fmt, args);
-   va_end(args);
-
-   VERIFY(success);
-}
-
-void
-Log_BufEndLevel(void *acc,
-                uint32 routing)
-{
-   ASSERT(acc != NULL);
-
-   Log_Level(routing, "%s", (char *) DynBuf_Get((DynBuf *) acc));
-
-   DynBuf_Destroy((DynBuf *) acc);
-}
-
-#endif
-
