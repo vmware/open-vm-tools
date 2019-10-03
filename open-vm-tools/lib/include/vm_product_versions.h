@@ -398,7 +398,7 @@
 #  define PRODUCT_LICENSE_VERSION "0.0"
 #else
 #  if defined(VMX86_SERVER)
-#    define PRODUCT_LICENSE_VERSION "6.0"
+#    define PRODUCT_LICENSE_VERSION "7.0"
 #  elif defined(VMX86_VMRC) /* check VMX86_VMRC before VMX86_DESKTOP */
 #    define PRODUCT_LICENSE_VERSION PRODUCT_VMRC_VERSION_STRING_FOR_LICENSE
 #  elif defined(VMX86_FLEX) /* check VMX86_FLEX before VMX86_DESKTOP */
@@ -408,8 +408,8 @@
 #  elif defined(VMX86_WGS)
 #    define PRODUCT_LICENSE_VERSION "3.0"
 #  elif defined(VMX86_VPX)
-#    define PRODUCT_LICENSE_VERSION "6.0"
-#    define PRODUCT_LICENSE_FILE_VERSION "6.6.0.0"
+#    define PRODUCT_LICENSE_VERSION "7.0"
+#    define PRODUCT_LICENSE_FILE_VERSION "7.0.0.0"
 #  elif defined(VMX86_WBC)
 #    define PRODUCT_LICENSE_VERSION "1.0"
 #  elif defined(VMX86_SDK)
@@ -428,8 +428,8 @@
 #  endif
 #  define PRODUCT_VERSION_STRING_FOR_LICENSE PRODUCT_LICENSE_VERSION
 #endif
-#define PRODUCT_ESX_LICENSE_VERSION "6.0"
-#define PRODUCT_ESX_LICENSE_FILE_VERSION "6.8.0.7"
+#define PRODUCT_ESX_LICENSE_VERSION "7.0"
+#define PRODUCT_ESX_LICENSE_FILE_VERSION "7.0.0.0"
 
 /*
  * The configuration file version string should be changed
