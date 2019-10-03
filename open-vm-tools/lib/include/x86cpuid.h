@@ -2229,37 +2229,6 @@ CPUID_LevelUsesEcx(uint32 level) {
 /*
  *----------------------------------------------------------------------
  *
- * CPUID_IsValid*Subleaf --
- *
- *      Functions to determine the last subleaf for the level specified
- *
- *----------------------------------------------------------------------
- */
-
-static INLINE Bool
-CPUID_IsValidBSubleaf(uint32 ebx)  // IN: %ebx = cpuid.b.sublevel.ebx
-{
-   return ebx != 0;
-}
-
-static INLINE Bool
-CPUID_IsValid4Subleaf(uint32 eax)  // IN: %eax = cpuid.4.sublevel.eax
-{
-   return eax != 0;
-}
-
-static INLINE Bool
-CPUID_IsValid7Subleaf(uint32 eax, uint32 subleaf)  // IN: %eax = cpuid.7.0.eax
-{
-   /*
-    * cpuid.7.0.eax is the max ecx (subleaf) index
-    */
-   return subleaf <= eax;
-}
-
-/*
- *----------------------------------------------------------------------
- *
  * CPUID_SupportsMsrPlatformInfo --
  *
  *    Uses vendor and cpuid.1.0.eax to determine if the processor
