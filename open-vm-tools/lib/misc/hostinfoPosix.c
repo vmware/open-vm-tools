@@ -733,23 +733,49 @@ static Bool
 HostinfoESX(struct utsname *buf)  // IN:
 {
    int len;
+   uint32 major;
+   uint32 minor;
    char osName[MAX_OS_NAME_LEN];
    char osNameFull[MAX_OS_FULLNAME_LEN];
 
-   /* The most recent osName always goes here. */
-   Str_Strcpy(osName, STR_OS_VMKERNEL "7", sizeof osName);
+   if (sscanf(buf->release, "%u.%u", &major, &minor) != 2) {
+      if (sscanf(buf->release, "%u", &major) != 1) {
+         major = 0;
+      }
 
-   /* Handle any special cases */
-   if ((buf->release[0] <= '4') && (buf->release[1] == '.')) {
+      minor = 0;
+   }
+
+   switch (major) {
+   case 0:
+   case 1:
+   case 2:
+   case 3:
+   case 4:
       Str_Strcpy(osName, STR_OS_VMKERNEL, sizeof osName);
-   } else if ((buf->release[0] == '5') && (buf->release[1] == '.')) {
+      break;
+
+   case 5:
       Str_Strcpy(osName, STR_OS_VMKERNEL "5", sizeof osName);
-   } else if ((buf->release[0] == '6') && (buf->release[1] == '.')) {
-      if (buf->release[2] < '5') {
+      break;
+
+   case 6:
+      if (minor < 5) {
          Str_Strcpy(osName, STR_OS_VMKERNEL "6", sizeof osName);
       } else {
          Str_Strcpy(osName, STR_OS_VMKERNEL "65", sizeof osName);
       }
+      break;
+
+   case 7:
+   default:
+      /*
+       * New osName are created IFF the VMX/monitor requires them (rare),
+       * not (simply) with every ESXi release.
+       */
+
+      Str_Strcpy(osName, STR_OS_VMKERNEL "7", sizeof osName);
+      break;
    }
 
    len = Str_Snprintf(osNameFull, sizeof osNameFull, "VMware ESXi %s",
