@@ -2234,7 +2234,10 @@ updateMap:
          Debug("%s: removed empty map file '%s'\n", __FUNCTION__, mapFilename);
          g_free(mapFilename);
 
-         goto done;
+         if (emptyAliasFile) {
+            goto done;
+         }
+         goto rename;
       }
 
       tmpMapFilename = g_strdup_printf("%s"DIRSEP"%sXXXXXX",
@@ -2328,6 +2331,7 @@ updateMap:
 #endif
    }
 
+rename:
    /*
     * Make the tmpfiles become the real in a way we can try to recover from.
     */
