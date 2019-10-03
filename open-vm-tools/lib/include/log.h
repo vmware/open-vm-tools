@@ -416,6 +416,20 @@ Bool Log_BoundNumFiles(struct LogOutput *output,
 
 
 /*
+ * Assemble a line.
+ */
+
+void *Log_BufBegin(void);
+
+void Log_BufAppend(void *acc,
+                   const char *fmt,
+                   ...) PRINTF_DECL(2, 3);
+
+void Log_BufEndLevel(void *acc,
+                     uint32 routing);
+
+
+/*
  * Debugging
  */
 
