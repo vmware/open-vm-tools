@@ -2180,39 +2180,12 @@ CPUID_MODEL_IS_DHYANA_A(uint32 eax)
  */
 
 static INLINE Bool
-CPUID_VendorRequiresFence(CpuidVendor vendor)
-{
-   return vendor == CPUID_VENDOR_AMD;
-}
-
-static INLINE Bool
-CPUID_VersionRequiresFence(uint32 version)
-{
-   return CPUID_EFFECTIVE_FAMILY(version) == CPUID_FAMILY_K8 &&
-          CPUID_EFFECTIVE_MODEL(version) < 0x40;
-}
-
-static INLINE Bool
-CPUID_ID0RequiresFence(CPUIDRegs *id0)
-{
-   if (id0->eax == 0) {
-      return FALSE;
-   }
-   return CPUID_IsVendorAMD(id0);
-}
-
-static INLINE Bool
-CPUID_ID1RequiresFence(CPUIDRegs *id1)
-{
-   return CPUID_VersionRequiresFence(id1->eax);
-}
-
-static INLINE Bool
 CPUID_RequiresFence(CpuidVendor vendor, // IN
-                    uint32 version)      // IN: %eax from CPUID with %eax=1.
+                    uint32 version)     // IN: %eax from CPUID with %eax=1.
 {
-   return CPUID_VendorRequiresFence(vendor) &&
-          CPUID_VersionRequiresFence(version);
+   return vendor == CPUID_VENDOR_AMD &&
+          CPUID_EFFECTIVE_FAMILY(version) == CPUID_FAMILY_K8 &&
+          CPUID_EFFECTIVE_MODEL(version) < 0x40;
 }
 
 
