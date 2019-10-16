@@ -17,5 +17,5 @@
 
 install-data-local:
 	$(INSTALL) -d $(DESTDIR)$(UDEVRULESDIR)
-	$(INSTALL) $(srcdir)/99-vmware-scsi-udev.rules $(DESTDIR)$(UDEVRULESDIR)
+	$(INSTALL) -m 0644 $(srcdir)/99-vmware-scsi-udev.rules $(DESTDIR)$(UDEVRULESDIR)
 
