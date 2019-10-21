@@ -1,6 +1,6 @@
-**Updated on: 19 SEPT 2019**
+**Updated on: 17 OCT 2019**
 
-VMware Tools | 19 SEP 2019 | Build 14549434
+VMware Tools | 17 OCT 2019 | Build 14773994
 
 Check for additions and updates to these release notes.
 
@@ -22,24 +22,23 @@ The release notes cover the following topics:
 What's New
 ----------
 
-*   Added appInfo to publish information about running applications inside the guest. For more details, see [VMware Tools Services](https://docs.vmware.com/en/VMware-Tools/11.0.0/com.vmware.vsphere.vmwaretools.doc/GUID-0BD592B1-A300-4C09-808A-BB447FAE2C2A.html).
-*   Provided sample tool.conf for ease of administration. For details, see [Configuration File Location](https://docs.vmware.com/en/VMware-Tools/11.0.0/com.vmware.vsphere.vmwaretools.doc/GUID-EA16729B-43C9-4DF9-B780-9B358E71B4AB.html).
+*   It is highly recommended to upgrade to this version of VMware Tools, if you are using the native service discovery feature in vRealize Operations Manager 8.0, or using the vRealize Operations Service Discovery Management Pack with previous releases of vRealize Operations Manager (7.x or before). For more details, refer [KB 75122](https://kb.vmware.com/s/article/75122).
 
 Before You Begin
 ----------------
 
-**Important note about upgrading to ESXi 5.5 Update 3b or later**
+**Important note about upgrading to ESXi 6.0 or later**
 
-Resolution on incompatibility and general guidelines: While upgrading ESXi hosts to ESXi 5.5 Update 3b or ESXi 6.0 Update 1 or later, and using older versions of Horizon View Agent, refer to the knowledge base articles:
+Resolution on incompatibility and general guidelines: While upgrading ESXi hosts to ESXi 6.0 or later, and using older versions of Horizon View Agent, refer to the knowledge base articles:
 
-*   [Connecting to View desktops with Horizon View Agent 5.3.5 or earlier hosted on ESXi 5.5 Update 3b or later fails with a black screen.](http://kb.vmware.com/kb/2144438)
-*   [Connecting to View desktops with Horizon View Agent 6.0.x or 6.1.x hosted on ESXi 5.5 Update 3b or later fails with a black screen.](http://kb.vmware.com/kb/2144518)
-*   [Connecting to View desktops with Horizon View Agent 6.1.x hosted on ESXi 6.0 Update 1 or later fails with a black screen.](http://kb.vmware.com/kb/2144453)
+*   [Connecting to View desktops with Horizon View Agent 5.3.5 or earlier hosted on ESXi 6.0 or later fails with a black screen.](http://kb.vmware.com/kb/2144438)
+*   [Connecting to View desktops with Horizon View Agent 6.0.x or 6.1.x hosted on ESXi 6.0 or later fails with a black screen.](http://kb.vmware.com/kb/2144518)
+*   [Connecting to View desktops with Horizon View Agent 6.1.x hosted on ESXi 6.0 or later fails with a black screen.](http://kb.vmware.com/kb/2144453)
 
 Internationalization
 --------------------
 
-open-vm-tools 11.0.0 is available in the following languages:
+open-vm-tools 11.0.1 is available in the following languages:
 
 *   English
 *   French
@@ -70,6 +69,15 @@ Interoperability Matrix
 -----------------------
 
 The [VMware Product Interoperability Matrix](http://partnerweb.vmware.com/comp_guide2/sim/interop_matrix.php) provides details about the compatibility of current and earlier versions of VMware Products. 
+
+Resolved Issues
+---------------
+
+*   **Memory leak in vmtoolsd.**
+
+    vmtoolsd leaks memory when the vSphere APIs ListGuestAliases and ListGuestMappedAliasers are used.
+
+    This issue is fixed in this release.
 
 Known Issues
 ------------
