@@ -50,6 +50,7 @@
 
 /* Recognition token for Xorg driver version scanner */
 #define RESOLUTION_XORG_VERSTRING "version="
+#define RESOLUTION_X11
 
 /*
  * Xorg driver file names to scan for. Only the first found will be

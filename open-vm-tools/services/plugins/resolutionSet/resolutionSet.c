@@ -76,18 +76,19 @@ ResolutionInfoType resolutionInfo;
  * Initialize the guest resolution library.
  *
  * @param[in] handle  Back-end specific handle, if needed.
+ * @param[in] ctx     The app context.
  * @return TRUE on success, FALSE on failure
  */
 
 static Bool
-ResolutionInit(InitHandle handle)
+ResolutionInit(InitHandle handle, ToolsAppCtx *ctx)
 {
    // Shorter-named convenience alias.  I expect this to be optimized out.
    ResolutionInfoType *resInfo = &resolutionInfo;
 
    ASSERT(resInfo->initialized == FALSE);
 
-   if (!ResolutionBackendInit(handle)) {
+   if (!ResolutionBackendInit(handle, ctx)) {
       return FALSE;
    }
 
@@ -584,7 +585,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)
     */
    handle = ResolutionToolkitInit(ctx);
 
-   if (!ResolutionInit(handle))
+   if (!ResolutionInit(handle, ctx))
       return NULL;
 
    regs[0].data = VMTools_WrapArray(rpcs, sizeof *rpcs, ARRAYSIZE(rpcs));

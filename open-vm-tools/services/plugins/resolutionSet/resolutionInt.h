@@ -86,7 +86,7 @@ extern ResolutionInfoType resolutionInfo;
  */
 
 /* Functions defined by back-end. */
-Bool ResolutionBackendInit(InitHandle handle);
+Bool ResolutionBackendInit(InitHandle handle, ToolsAppCtx *ctx);
 InitHandle ResolutionToolkitInit(ToolsAppCtx *ctx);
 void ResolutionBackendCleanup(void);
 Bool ResolutionSetResolution(uint32 width, uint32 height);
