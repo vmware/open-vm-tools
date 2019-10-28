@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -202,12 +202,14 @@ File_SplitName(const char *pathName,  // IN:
    char *vol;
    char *dir;
    char *bas;
+   size_t len;
    char *baseBegin;
    char *volEnd;
    int volLen, dirLen;
-   int len = strlen(pathName);
 
    ASSERT(pathName != NULL);
+
+   len = strlen(pathName);
 
    /*
     * Get volume.
