@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2012-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2012-2017,2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1719,12 +1719,12 @@ DataMap_Copy(const DataMap *src,  // IN
    ClientData clientData;
    ErrorCode res;
 
-   ASSERT(src->map != NULL);
-   ASSERT(src->cookie == magic_cookie);
-
    if (src == NULL || dst == NULL) {
       return  DMERR_INVALID_ARGS;
    }
+
+   ASSERT(src->map != NULL);
+   ASSERT(src->cookie == magic_cookie);
 
    /* init dst map */
    res = DataMap_Create(dst);
