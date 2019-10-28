@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016,2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -29,6 +29,9 @@
 #include <ctype.h>
 #include "str.h"
 #include "log.h"
+#include "util.h"
+#include "dynbuf.h"
+#include "strutil.h"
 
 
 /*
@@ -36,8 +39,8 @@
  * bora/lib/install, that provide implementations for only some of
  * the functions of the real library, but not all.
  */
-#if !defined(NO_LOG_STUB)
 
+#if !defined(NO_LOG_STUB)
 void
 LogV(uint32 unused,
      const char *fmt,
@@ -115,6 +118,100 @@ Log_HexDump(const char *prefix,  // IN: prefix for each log line
             size_t size)         // IN: number of bytes
 {
    Log_HexDumpLevel(VMW_LOG_INFO, prefix, data, size);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Log_BufBegin --
+ *
+ *      Obtain a line accumulator.
+ *
+ * Results:
+ *      A pointer to the line accumulator, a DynBuf.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void *
+Log_BufBegin(void)
+{
+   DynBuf *b = Util_SafeCalloc(1, sizeof *b);
+
+   DynBuf_Init(b);
+
+   return b;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Log_BufAppend --
+ *
+ *      Append data to the specified line accumulator.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+Log_BufAppend(void *acc,        // IN/OUT:
+              const char *fmt,  // IN:
+              ...)              // IN/OUT:
+{
+   va_list args;
+   Bool success;
+
+   ASSERT(acc != NULL);
+   ASSERT(fmt != NULL);
+
+   va_start(args, fmt);
+   success = StrUtil_VDynBufPrintf((DynBuf *) acc, fmt, args);
+   va_end(args);
+
+   VERIFY(success);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Log_BufEndLevel --
+ *
+ *      Issue the contents of the specified line accumulator to the Log
+ *      Facility using the specified routing information.
+ *
+ *      The line accumulator is destroyed.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+Log_BufEndLevel(void *acc,       // IN/OUT:
+                uint32 routing)  // IN:
+{
+   ASSERT(acc != NULL);
+
+   Log_Level(routing, "%s", (char *) DynBuf_GetString((DynBuf *) acc));
+
+   DynBuf_Destroy((DynBuf *) acc);
+   free(acc);
 }
 
 #endif
