@@ -90,6 +90,64 @@
  ******************************************************************************
  */
 
+/*
+******************************************************************************
+* BEGIN GuestStore upgrader goodies.
+*/
+
+/**
+ * Defines the string used for the GuestStore upgrade config file group.
+ */
+#define CONFGROUPNAME_GUESTSTOREUPGRADE "guestStoreUpgrade"
+
+/**
+ * Define a custom GuestStore Upgrade poll interval (in seconds).
+ *
+ * @note Illegal values result in a @c g_warning and fallback to the default
+ * poll interval.
+ *
+ * @param int   User-defined poll interval.  Set to 0 to disable polling.
+ */
+#define CONFNAME_GUESTSTOREUPGRADE_POLLINTERVAL "poll-interval"
+
+/**
+ * Defines the value for GuestStore upgrade feature to be enabled or not.
+ *
+ * @note Illegal values result in a @c g_warning and fallback to the default
+ * value.
+ *
+ * @param boolean Set to TRUE to disable publishing.
+ *                Set to FALSE to enable publishing.
+ */
+#define CONFNAME_GUESTSTOREUPGRADE_DISABLED "disabled"
+
+/**
+ * Defines the value for GuestStore upgrade to upgrade or not.
+ *
+ * @note Illegal values result in a @c g_warning and fallback to the default
+ * value.
+ *
+ * @param boolean Set to TRUE to disable publishing.
+ *                Set to FALSE to enable publishing.
+ */
+#define CONFNAME_GUESTSTOREUPGRADE_ALLOW_UPGRADE "allow-upgrade"
+
+/**
+ * Defines the value for GuestStore upgrade to add or remove features or not.
+ *
+ * @note Illegal values result in a @c g_warning and fallback to the default
+ * value.
+ *
+ * @param boolean Set to TRUE to disable publishing.
+ *                Set to FALSE to enable publishing.
+ */
+#define CONFNAME_GUESTSTOREUPGRADE_ALLOW_ADDREMOVE_FEATURE "allow-addremove-feature"
+
+/*
+* END GuestStore upgrader goodies.
+******************************************************************************
+*/
+
 
 /*
  ******************************************************************************
