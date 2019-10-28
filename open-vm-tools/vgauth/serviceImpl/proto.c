@@ -1833,10 +1833,7 @@ ServiceProtoQueryMappedAliases(ServiceConnection *conn,
 {
    VGAuthError err;
    gchar *packet;
-   gchar *endPacket;
    int num;
-   int i;
-   int j;
    ServiceMappedAlias *maList;
 
    /*
@@ -1848,10 +1845,14 @@ ServiceProtoQueryMappedAliases(ServiceConnection *conn,
    if (err != VGAUTH_E_OK) {
       packet = Proto_MakeErrorReply(conn, req, err, "queryMappedIds failed");
    } else {
+      int i;
+      gchar *endPacket;
+
       packet = g_markup_printf_escaped(VGAUTH_QUERYMAPPEDALIASES_REPLY_FORMAT_START,
                                        req->sequenceNumber);
       for (i = 0; i < num; i++) {
          gchar *tPacket;
+         int j;
 
          tPacket = g_markup_printf_escaped(VGAUTH_MAPPEDALIASES_FORMAT_START,
                                            maList[i].userName,

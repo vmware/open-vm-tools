@@ -1733,9 +1733,11 @@ AsyncSocket_WaitForReadMultiple(AsyncSocket **asock,  // IN
                                 int timeoutMS,        // IN
                                 int *outIdx)          // OUT
 {
-   int i;
    int ret;
+
    if (numSock > 0 && VALID(asock[0], waitForReadMultiple)) {
+      int i;
+
       for (i = 0; i < numSock; i++) {
          AsyncSocketLock(asock[i]);
       }

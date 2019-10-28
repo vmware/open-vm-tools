@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017,2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -758,11 +758,13 @@ CodeSetOld_GetCurrentCodeSet(void)
 
    if (!cachedCodeset) {
       char *gFilenameEncoding = getenv("G_FILENAME_ENCODING");
-      char *p;
 
       if (gFilenameEncoding && *gFilenameEncoding) {
+         char *p;
+
          gFilenameEncoding = Util_SafeStrdup(gFilenameEncoding);
          p = strchr(gFilenameEncoding, ',');
+
          if (p) {
             *p = '\0';
          }

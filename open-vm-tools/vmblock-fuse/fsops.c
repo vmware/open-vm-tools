@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -252,7 +252,6 @@ int
 VMBlockGetAttr(const char *path,        // IN: File to get attributes of.
                struct stat *statBuf)    // OUT: Where to put the attributes.
 {
-   int status;
    char target[PATH_MAX + 1];
    vmblockSpecialDirEntry *dirEntry;
    ASSERT(path != NULL);
@@ -273,7 +272,8 @@ VMBlockGetAttr(const char *path,        // IN: File to get attributes of.
       }
    }
    if (strncmp(path, REDIRECT_DIR, strlen(REDIRECT_DIR)) == 0) {
-      status = RealReadLink(path, target, sizeof target);
+      int status = RealReadLink(path, target, sizeof target);
+
       LOG(4, "%s: Called RealReadLink which returned: %d\n", __func__, status);
       if (status != 0) {
          return status;
@@ -675,8 +675,6 @@ VMBlockRead(const char *path,                 // IN: Must be control file.
             off_t offset,                     // IN: Ignored.
             struct fuse_file_info *fileInfo)  // IN: Ignored.
 {
-   char target[PATH_MAX+1];
-   char targetLink[PATH_MAX+1];
    const char redirectPrefix[] = REDIRECT_DIR "/";
    const char redirectPrefixLength = sizeof redirectPrefix - 1;
    const char notifyPrefix[] = NOTIFY_DIR "/";
@@ -696,6 +694,9 @@ VMBlockRead(const char *path,                 // IN: Must be control file.
    }
 
    if (strncmp(path, NOTIFY_DIR, strlen(NOTIFY_DIR)) == 0) {
+      char target[PATH_MAX+1];
+      char targetLink[PATH_MAX+1];
+
       strlcpy(target, redirectPrefix, sizeof target);
       strlcpy(target + redirectPrefixLength,
               relativePath,

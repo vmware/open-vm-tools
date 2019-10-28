@@ -211,13 +211,14 @@ UtilGetLegacyEncodedString(const char *path)  // IN: UTF-8
 
    if (cpath != NULL) {
       char *apath = NULL;
-      int retlen;
       WCHAR *wcpath = Unicode_GetAllocUTF16(cpath);
 
       /* First get the length of multibyte string */
       int alen = WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, wcpath, -1,
                                      NULL, 0, NULL, NULL);
       if (alen > 0) {
+         int retlen;
+
          /* Now get the converted string */
          ret = Util_SafeMalloc(alen);
          retlen = WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, wcpath, -1,

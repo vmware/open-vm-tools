@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1341,7 +1341,6 @@ StrUtil_ReplaceAll(const char *orig, // IN
     char *tmp;
     size_t lenWhat;
     size_t lenWith;
-    size_t lenBefore;
     size_t occurrences = 0;
     size_t lenNew;
 
@@ -1363,6 +1362,8 @@ StrUtil_ReplaceAll(const char *orig, // IN
     result = tmp;
 
     while (occurrences--) {
+       size_t lenBefore;
+
        current = strstr(orig, what);
        lenBefore = current - orig;
        tmp = memcpy(tmp, orig, lenBefore);

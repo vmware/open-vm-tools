@@ -543,7 +543,6 @@ File_MapPathPrefix(const char *oldPath,       // IN:
    size_t oldPathLen = strlen(oldPath);
 
    for (i = 0; i < numPrefixes; i++) {
-      char *newPath;
       char *oldPrefix;
       char *newPrefix;
       size_t oldPrefixLen;
@@ -576,6 +575,7 @@ File_MapPathPrefix(const char *oldPath,       // IN:
               (oldPath[oldPrefixLen] == '\0'))) {
          size_t newPrefixLen = strlen(newPrefix);
          size_t newPathLen = (oldPathLen - oldPrefixLen) + newPrefixLen;
+         char *newPath;
 
          ASSERT(newPathLen > 0);
          ASSERT(oldPathLen >= oldPrefixLen);

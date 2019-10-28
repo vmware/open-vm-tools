@@ -1161,8 +1161,6 @@ HgfsPackSetattrRequest(const char *path,   // IN:  path to file
                        HgfsReq *req)       // IN/OUT: req packet
 {
    HgfsAttrV2 *attrV2;
-   HgfsAttr *attrV1;
-   HgfsAttrChanges *update;
    size_t reqBufferSize;
    size_t reqSize;
    ASSERT(req);
@@ -1297,10 +1295,11 @@ HgfsPackSetattrRequest(const char *path,   // IN:  path to file
    }
    case HGFS_OP_SETATTR: {
       int result;
+      HgfsAttr *attrV1;
       HgfsRequestSetattr *request;
+      HgfsAttrChanges *update;
 
       request = (HgfsRequestSetattr *)(HGFS_REQ_PAYLOAD(req));
-
       attrV1 = &request->attr;
       update = &request->update;
 

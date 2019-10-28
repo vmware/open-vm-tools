@@ -489,10 +489,6 @@ AppUtil_CollectIconArray(const char *iconName,        // IN
             GdkPixbuf *pixbuf;
             int width;
             int height;
-            int x;
-            int y;
-            int rowstride;
-            guchar *pixels;
 
             ASSERT((nitems - i) >= 2);
             width = value[i];
@@ -500,8 +496,10 @@ AppUtil_CollectIconArray(const char *iconName,        // IN
             i += 2;
             pixbuf = gdk_pixbuf_new(GDK_COLORSPACE_RGB, TRUE, 8, width, height);
             if (pixbuf) {
-               pixels = gdk_pixbuf_get_pixels(pixbuf);
-               rowstride = gdk_pixbuf_get_rowstride(pixbuf);
+               int x;
+               int y;
+               int rowstride = gdk_pixbuf_get_rowstride(pixbuf);
+               guchar *pixels = gdk_pixbuf_get_pixels(pixbuf);
 
                for (y = 0; y < height; y++) {
                   for (x = 0; x < width && i < nitems; x++, i++) {

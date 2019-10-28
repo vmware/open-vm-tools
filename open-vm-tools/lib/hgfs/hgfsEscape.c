@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -875,7 +875,6 @@ HgfsEscapeUndoComponent(char   *bufIn,             // IN: Characters to be unesc
                         uint32 *unprocessedLength) // IN: Unprocessed characters
                                                    //     in the whole name
 {
-   size_t offset;
    size_t sizeIn;
    char* curOutBuffer;
    char* escapePointer;
@@ -886,7 +885,8 @@ HgfsEscapeUndoComponent(char   *bufIn,             // IN: Characters to be unesc
    sizeIn = strlen(curOutBuffer);
    escapePointer = strchr(curOutBuffer, HGFS_ESCAPE_CHAR);
    while (escapePointer != NULL) {
-      offset = escapePointer - bufIn;
+      size_t offset = escapePointer - bufIn;
+
       if (HgfsIsEscapeSequence(bufIn, offset, sizeIn)) {
          char* substitute = strchr(HGFS_SUBSTITUTE_CHARS, bufIn[offset - 1]);
          if (substitute != NULL) {

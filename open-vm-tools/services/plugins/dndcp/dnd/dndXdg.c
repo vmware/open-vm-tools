@@ -85,10 +85,11 @@ const char *
 Xdg_GetCacheHome(void)
 {
    static char *result = NULL;
-   struct passwd *pw;
 
    if (result == NULL) {
       do {
+         struct passwd *pw;
+
          if (!Id_IsSetUGid()) {
             const char *base = NULL;
 

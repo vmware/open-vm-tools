@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2018-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -138,15 +138,18 @@ VMCopyPasteDnDWrapper::RemoveDnDPluginResetTimer(void)
 void
 VMCopyPasteDnDWrapper::OnCapReg(gboolean set)
 {
-   g_debug("%s: enter\n", __FUNCTION__);
-   char *reply = NULL;
-   size_t replyLen;
-   const char *toolsDnDVersion = TOOLS_DND_VERSION_4;
-   char *toolsCopyPasteVersion = NULL;
-   int version;
+   ToolsAppCtx *ctx;
 
-   ToolsAppCtx *ctx = GetToolsAppCtx();
+   g_debug("%s: enter\n", __FUNCTION__);
+
+   ctx = GetToolsAppCtx();
    if (ctx) {
+      char *reply = NULL;
+      size_t replyLen;
+      const char *toolsDnDVersion = TOOLS_DND_VERSION_4;
+      char *toolsCopyPasteVersion = NULL;
+      int version;
+
       /*
        * First DnD.
        */

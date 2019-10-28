@@ -2453,7 +2453,6 @@ DataMap_ToString(const DataMap *that,               // IN
 {
    ClientData clientData;
    char *buffPtr;
-   const char *truncStr = " DATA TRUNCATED!!!\n";
 
    /* This API is for debugging only, so we use hard coded buffer size */
    const int32 maxBuffSize = 10 * 1024;
@@ -2496,6 +2495,8 @@ DataMap_ToString(const DataMap *that,               // IN
    ASSERT(buffPtr + maxBuffSize >= clientData.buffer);
 
    if (clientData.result == DMERR_BUFFER_TOO_SMALL) {
+      const char truncStr[] = " DATA TRUNCATED!!!\n";
+
       ASSERT(maxBuffSize > strlen(truncStr));
       Str_Strcpy(buffPtr + maxBuffSize - strlen(truncStr) - 1, truncStr,
 	         strlen(truncStr) + 1);

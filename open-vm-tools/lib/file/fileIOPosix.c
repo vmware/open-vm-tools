@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -536,7 +536,6 @@ ProxyReceiveResults(int sock_fd,      // IN:
    int err;
    struct iovec iov;
    struct msghdr msg;
-   struct cmsghdr *cmsg;
    uint8_t cmsgBuf[CMSG_SPACE(sizeof(int))];
 
    iov.iov_base = recv_errno;
@@ -561,7 +560,7 @@ ProxyReceiveResults(int sock_fd,      // IN:
    if (msg.msg_controllen == 0) {
       *recv_fd = -1;
    } else {
-      cmsg = CMSG_FIRSTHDR(&msg);
+      struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
 
       if ((cmsg->cmsg_level == SOL_SOCKET) &&
           (cmsg->cmsg_type == SCM_RIGHTS)) {

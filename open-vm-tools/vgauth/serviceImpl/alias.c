@@ -1087,7 +1087,6 @@ AliasStartElement(GMarkupParseContext *parseContext,
 {
    AliasParseList *list = (AliasParseList *) userData;
    ServiceAliasInfo *infos;
-   int n;
 
    ASSERT(list);
 
@@ -1132,6 +1131,8 @@ AliasStartElement(GMarkupParseContext *parseContext,
       break;
    case ALIAS_PARSE_STATE_ALIASINFOS:
       if (g_strcmp0(elementName, ALIASINFO_ALIASINFO_ELEMENT_NAME) == 0) {
+         int n;
+
          list->state = ALIAS_PARSE_STATE_ALIASINFO;
 
          // grow

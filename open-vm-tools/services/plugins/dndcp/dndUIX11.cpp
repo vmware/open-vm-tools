@@ -1079,7 +1079,6 @@ DnDUIX11::OnGtkDragDataGet(
    guint info,                                  // UNUSED
    guint time)                                  // IN: event timestamp
 {
-   size_t index = 0;
    std::string str;
    std::string uriList;
    std::string stagingDirName;
@@ -1105,6 +1104,7 @@ DnDUIX11::OnGtkDragDataGet(
 
    if (   target == DRAG_TARGET_NAME_URI_LIST
        && CPClipboard_GetItem(&mClipboard, CPFORMAT_FILELIST, &buf, &sz)) {
+      size_t index = 0;
 
       /* Provide path within vmblock file system instead of actual path. */
       stagingDirName = GetLastDirName(mHGStagingDir);
@@ -1413,10 +1413,6 @@ DnDUIX11::OnGtkDragDrop(
 bool
 DnDUIX11::SetCPClipboardFromGtk(const Gtk::SelectionData& sd) // IN
 {
-   char *newPath;
-   char *newRelPath;
-   size_t newPathLen;
-   size_t index = 0;
    DnDFileList fileList;
    DynBuf buf;
    uint64 totalSize = 0;
@@ -1431,6 +1427,10 @@ DnDUIX11::SetCPClipboardFromGtk(const Gtk::SelectionData& sd) // IN
        * one for just the last path component.
        */
       utf::string source = sd.get_data_as_string().c_str();
+      size_t index = 0;
+      char *newPath;
+      size_t newPathLen;
+
       g_debug("%s: Got file list: [%s]\n", __FUNCTION__, source.c_str());
 
       if (sd.get_data_as_string().length() == 0) {
@@ -1458,6 +1458,8 @@ DnDUIX11::SetCPClipboardFromGtk(const Gtk::SelectionData& sd) // IN
       while ((newPath = DnD_UriListGetNextFile(source.c_str(),
                                                &index,
                                                &newPathLen)) != NULL) {
+         char *newRelPath;
+
 #if defined(__linux__)
          if (DnD_UriIsNonFileSchemes(newPath)) {
             /* Try to get local file path for non file uri. */

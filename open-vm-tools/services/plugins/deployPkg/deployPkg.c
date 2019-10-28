@@ -175,12 +175,13 @@ ExitPoint:
 gboolean
 DeployPkg_TcloBegin(RpcInData *data)   // IN
 {
-   static char resultBuffer[FILE_MAXPATH];
    char *tempDir = DeployPkgGetTempDir();
 
    g_debug("DeployPkgTcloBegin got call\n");
 
    if (tempDir) {
+      static char resultBuffer[FILE_MAXPATH];
+
       Str_Strcpy(resultBuffer, tempDir, sizeof resultBuffer);
       free(tempDir);
       return RPCIN_SETRETVALS(data, resultBuffer, TRUE);
@@ -210,7 +211,6 @@ DeployPkgExecDeploy(ToolsAppCtx *ctx,   // IN: app context
 {
    char errMsg[2048];
    ToolsDeployPkgError ret;
-   gchar *msg;
    char *pkgNameStr = (char *) pkgName;
 
    g_debug("%s: Deploypkg deploy task started.\n", __FUNCTION__);
@@ -218,10 +218,11 @@ DeployPkgExecDeploy(ToolsAppCtx *ctx,   // IN: app context
    /* Unpack the package and run the command. */
    ret = DeployPkgDeployPkgInGuest(ctx, pkgNameStr, errMsg, sizeof errMsg);
    if (ret != TOOLSDEPLOYPKG_ERROR_SUCCESS) {
-      msg = g_strdup_printf("deployPkg.update.state %d %d %s",
-                            TOOLSDEPLOYPKG_DEPLOYING,
-                            TOOLSDEPLOYPKG_ERROR_DEPLOY_FAILED,
-                            errMsg);
+      gchar *msg = g_strdup_printf("deployPkg.update.state %d %d %s",
+                                   TOOLSDEPLOYPKG_DEPLOYING,
+                                   TOOLSDEPLOYPKG_ERROR_DEPLOY_FAILED,
+                                   errMsg);
+
       if (!RpcChannel_Send(ctx->rpc, msg, strlen(msg), NULL, NULL)) {
          g_warning("%s: failed to send error code %d for state TOOLSDEPLOYPKG_DEPLOYING\n",
                    __FUNCTION__,

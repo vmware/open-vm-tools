@@ -1219,7 +1219,6 @@ Deploy(const char* packageName)
    char* pkgCommand = NULL;
    char* command = NULL;
    int deploymentResult = 0;
-   char *nics;
    char* cleanupCommand;
    uint8 archiveType;
    uint8 flags;
@@ -1348,7 +1347,8 @@ Deploy(const char* packageName)
          sLog(log_error, "Deployment failed."
                          "The forked off process returned error code.\n");
       } else {
-         nics = GetNicsToEnable(imcDirPath);
+         char *nics = GetNicsToEnable(imcDirPath);
+
          if (nics) {
             // XXX: Sleep before the last SetCustomizationStatusInVmx
             //      This is a temporary-hack for PR 422790

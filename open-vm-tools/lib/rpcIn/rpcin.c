@@ -1071,7 +1071,6 @@ RpcInConnErrorHandler(int err,             // IN
                       void *clientData)    // IN
 {
    ConnInfo *conn = (ConnInfo *)clientData;
-   char const *errmsg ="RpcIn: vsocket connection error";
    RpcIn *in = conn->in;
 
    Debug("RpcIn: Error in socket %d, closing connection: %s.\n",
@@ -1080,7 +1079,7 @@ RpcInConnErrorHandler(int err,             // IN
    in->errStatus = TRUE;
 
    if (conn->connected) {
-      RpcInCloseChannel(conn->in, errmsg);
+      RpcInCloseChannel(conn->in, "RpcIn: vsocket connection error");
    } else { /* the connection never gets connected */
       RpcInCloseConn(conn);
       Debug("RpcIn: falling back to use backdoor ...\n");

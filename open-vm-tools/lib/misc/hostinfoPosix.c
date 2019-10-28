@@ -2962,10 +2962,11 @@ HostinfoGetCpuInfo(int nCpu,    // IN:
    while (cpu <= nCpu &&
           StdIO_ReadNextLine(f, &line, 0, NULL) == StdIO_Success) {
       char *s;
-      char *e;
 
       if ((s = strstr(line, name)) &&
           (s = strchr(s, ':'))) {
+         char *e;
+
          s++;
          e = s + strlen(s);
 

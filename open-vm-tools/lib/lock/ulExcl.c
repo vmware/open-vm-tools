@@ -451,7 +451,6 @@ MXUser_AcquireExclLock(MXUserExclLock *lock)  // IN/OUT:
 
    if (vmx86_stats) {
       VmTimeType value = 0;
-      MXUserHeldStats *heldStats;
       MXUserAcquireStats *acquireStats;
 
       acquireStats = Atomic_ReadPtr(&lock->acquireStatsMem);
@@ -461,6 +460,7 @@ MXUser_AcquireExclLock(MXUserExclLock *lock)  // IN/OUT:
 
       if (LIKELY(acquireStats != NULL)) {
          MXUserHisto *histo;
+         MXUserHeldStats *heldStats;
 
          MXUserAcquisitionSample(&acquireStats->data, TRUE,
                             value > acquireStats->data.contentionDurationFloor,

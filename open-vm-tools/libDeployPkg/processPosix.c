@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2016,2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -259,7 +259,6 @@ ProcessRead(ProcessInternal *p, ReadStatus *status, Bool stdout, Bool readToEof)
 {
    char buf[1024];
    size_t currSize, newSize;
-   ssize_t count;
    char** saveTo;
    int fd;
    char* stdstr = stdout ? "stdout" : "stderr";
@@ -270,7 +269,8 @@ ProcessRead(ProcessInternal *p, ReadStatus *status, Bool stdout, Bool readToEof)
 
    // if there's output waiting, read it out. FDs should already be non-blocking
    do {
-      count = read(fd, buf, sizeof buf);
+      ssize_t count = read(fd, buf, sizeof buf);
+
       if (count > 0) {
          // save output
          currSize = strlen(*saveTo);

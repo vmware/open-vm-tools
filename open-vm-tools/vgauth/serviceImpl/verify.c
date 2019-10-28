@@ -118,10 +118,8 @@ ServiceVerifyAndCheckTrustCertChainForSubject(int numCerts,
     * Dump the token cert chain for debugging purposes.
     */
    if (gVerboseLogging) {
-      gchar *chainx509;
-
       for (i = 0; i < numCerts; i++) {
-         chainx509 = CertVerify_CertToX509String(pemCertChain[i]);
+         gchar *chainx509 = CertVerify_CertToX509String(pemCertChain[i]);
          Debug("%s: Token chain cert #%d:\n%s", __FUNCTION__, i, chainx509);
          g_free(chainx509);
       }
@@ -225,12 +223,11 @@ ServiceVerifyAndCheckTrustCertChainForSubject(int numCerts,
     * Dump the store cert chain for debugging purposes.
     */
    if (gVerboseLogging) {
-      gchar *storex509;
-
       Debug("%s: %d certs in store for user %s\n",  __FUNCTION__,
             numStoreCerts, queryUserName);
       for (i = 0; i < numStoreCerts; i++) {
-         storex509 = CertVerify_CertToX509String(aList[i].pemCert);
+         gchar *storex509 = CertVerify_CertToX509String(aList[i].pemCert);
+
          Debug("%s: Store chain cert #%d:\n%s", __FUNCTION__, i, storex509);
          g_free(storex509);
       }
