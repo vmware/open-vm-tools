@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -37,13 +37,14 @@ extern "C" {
    #include "debug.h"
    #include "rpcout.h"
    #include "rpcin.h"
-   #define LOG(level, msg) (Debug msg)
+   #define LOG(level, ...) Debug(__VA_ARGS__)
 #else
    #include "dndCPInt.h"
    #include "guest_rpc.h"
    #include "tclodefs.h"
 
    #define LOGLEVEL_MODULE dnd
+   #define LOGLEVEL_VARIADIC
    #include "loglevel_user.h"
 #endif
 }
@@ -65,7 +66,7 @@ extern "C" {
 static gboolean
 RecvMsgCB(RpcInData *data) // IN/OUT
 {
-   LOG(4, ("%s: receiving\n", __FUNCTION__));
+   LOG(4, "%s: receiving\n", __FUNCTION__);
 
    const uint8 *packet = (const uint8 *)(data->args + 1);
    size_t packetSize = data->argsSize - 1;
@@ -280,14 +281,16 @@ DnDCPTransportGuestRpc::RegisterRpc(RpcBase *rpc,
                                     TransportInterfaceType type)
 {
    if (mTables.GetRpc(type)) {
-      LOG(0, ("%s: the type %d is already registered\n", __FUNCTION__, type));
+      LOG(0, "%s: the type %d is already registered\n", __FUNCTION__, type);
       UnregisterRpc(type);
    }
    const char *cmdStr = (const char *)mTables.GetCmdStr(type);
    const char *disableStr = mTables.GetDisableStr(type);
 
    if (!cmdStr || !disableStr) {
-      LOG(0, ("%s: can not find valid cmd for %d, cmdStr %s disableStr %s\n", __FUNCTION__, type, (cmdStr ? cmdStr : "NULL"), (disableStr ? disableStr : "NULL")));
+      LOG(0, "%s: can not find valid cmd for %d, cmdStr %s disableStr %s\n",
+          __FUNCTION__, type, (cmdStr ? cmdStr : "NULL"),
+          (disableStr ? disableStr : "NULL"));
       return false;
    }
 
@@ -295,7 +298,7 @@ DnDCPTransportGuestRpc::RegisterRpc(RpcBase *rpc,
    ASSERT(type == TRANSPORT_GUEST_CONTROLLER_DND ||
           type == TRANSPORT_GUEST_CONTROLLER_CP ||
           type == TRANSPORT_GUEST_CONTROLLER_FT);
-   LOG(4, ("%s: for %s\n", __FUNCTION__, cmdStr));
+   LOG(4, "%s: for %s\n", __FUNCTION__, cmdStr);
 
 #ifdef VMX86_TOOLS
    ASSERT(mRpcChannel);
@@ -327,7 +330,7 @@ bool
 DnDCPTransportGuestRpc::UnregisterRpc(TransportInterfaceType type)
 {
    if (!mTables.GetRpc(type)) {
-      LOG(0, ("%s: the type %d is not registered\n", __FUNCTION__, type));
+      LOG(0, "%s: the type %d is not registered\n", __FUNCTION__, type);
       return false;
    }
 #ifdef VMX86_TOOLS
@@ -365,7 +368,7 @@ DnDCPTransportGuestRpc::SendPacket(uint32 destId,
    bool ret = true;
 
    if (!cmd) {
-      LOG(0, ("%s: can not find valid cmd for %d\n", __FUNCTION__, type));
+      LOG(0, "%s: can not find valid cmd for %d\n", __FUNCTION__, type);
       return false;
    }
    rpcSize = strlen(cmd) + 1 + length;
@@ -381,7 +384,7 @@ DnDCPTransportGuestRpc::SendPacket(uint32 destId,
    ret = (TRUE == RpcChannel_Send(mRpcChannel, rpc, rpcSize, NULL, NULL));
 
    if (!ret) {
-      LOG(0, ("%s: failed to send msg to host\n", __FUNCTION__));
+      LOG(0, "%s: failed to send msg to host\n", __FUNCTION__);
    }
 
    free(rpc);
@@ -410,7 +413,7 @@ DnDCPTransportGuestRpc::OnRecvPacket(TransportInterfaceType type,
 {
    RpcBase *rpc = mTables.GetRpc(type);
    if (!rpc) {
-      LOG(0, ("%s: can not find valid rpc for %d\n", __FUNCTION__, type));
+      LOG(0, "%s: can not find valid rpc for %d\n", __FUNCTION__, type);
       return;
    }
    rpc->OnRecvPacket(DEFAULT_CONNECTION_ID, packet, packetSize);
