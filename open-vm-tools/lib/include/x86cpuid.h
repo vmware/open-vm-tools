@@ -72,6 +72,7 @@ typedef struct CPUIDRegs {
 typedef union CPUIDRegsUnion {
    uint32 array[4];
    CPUIDRegs regs;
+   uint64 force8byteAlign[2]; /* See CpuidInfoNodePtr on Apple Mac. */
 } CPUIDRegsUnion;
 
 /*
