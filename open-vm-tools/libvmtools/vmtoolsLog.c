@@ -52,9 +52,6 @@
 #  include "windowsu.h"
 #endif
 #include "str.h"
-#include "util.h"
-#include "dynbuf.h"
-#include "strutil.h"
 #include "system.h"
 #include "vmware/tools/log.h"
 #include "vmware/tools/guestrpc.h"
@@ -2195,129 +2192,6 @@ LogV(uint32 routing,
     */
    WITH_ERRNO(err, VMToolsLogWrapper(glevel, fmt, args));
 }
-
-/*
- *----------------------------------------------------------------------
- *
- * Log_Level --
- *
- *   Write a message via a printf style string and arguments using the
- *   specified routing.
- *
- * Results:
- *   None
- *
- * Side effects:
- *   The log is written
- *
- *----------------------------------------------------------------------
- */
-
-void
-Log_Level(uint32 routing,   // IN:
-          const char *fmt,  // IN:
-          ...)              // IN or OUT: depends on 'fmt'
-{
-   va_list ap;
-
-   va_start(ap, fmt);
-   LogV(routing, fmt, ap);
-   va_end(ap);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Log_BufBegin --
- *
- *      Obtain a line accumulator.
- *
- * Results:
- *      A pointer to the line accumulator, a DynBuf.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-void *
-Log_BufBegin(void)
-{
-   DynBuf *b = Util_SafeCalloc(1, sizeof *b);
-
-   DynBuf_Init(b);
-
-   return b;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Log_BufAppend --
- *
- *      Append data to the specified line accumulator.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-Log_BufAppend(void *acc,        // IN/OUT:
-              const char *fmt,  // IN:
-              ...)              // IN/OUT:
-{
-   va_list args;
-   Bool success;
-
-   ASSERT(acc != NULL);
-   ASSERT(fmt != NULL);
-
-   va_start(args, fmt);
-   success = StrUtil_VDynBufPrintf((DynBuf *) acc, fmt, args);
-   va_end(args);
-
-   VERIFY(success);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Log_BufEndLevel --
- *
- *      Issue the contents of the specified line accumulator to the Log
- *      Facility using the specified routing information.
- *
- *      The line accumulator is destroyed.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-Log_BufEndLevel(void *acc,       // IN/OUT:
-                uint32 routing)  // IN:
-{
-   ASSERT(acc != NULL);
-
-   Log_Level(routing, "%s", (char *) DynBuf_GetString((DynBuf *) acc));
-
-   DynBuf_Destroy((DynBuf *) acc);
-}
-
 
 
 /*

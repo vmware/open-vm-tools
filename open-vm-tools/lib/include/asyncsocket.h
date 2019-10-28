@@ -56,7 +56,6 @@
 #endif
 
 #include "includeCheck.h"
-#include "log.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -756,40 +755,28 @@ unsigned AsyncSocket_WebSocketGetNumAccepted(AsyncSocket *asock);
  */
 #define ASOCKPREFIX "SOCKET "
 
-#define ASOCKWARN(_asock, ...)                   \
-   do {                                          \
-      void *acc = Log_BufBegin();                \
-                                                 \
-      Log_BufAppend(acc, ASOCKPREFIX "%d (%d) ", \
-                    AsyncSocket_GetID(_asock),   \
-                    AsyncSocket_GetFd(_asock));  \
-      Log_BufAppend(acc, __VA_ARGS__);           \
-      Log_BufEndLevel(acc, VMW_LOG_WARNING);     \
+#define ASOCKWARN(_asock, _warnargs)                                 \
+   do {                                                              \
+      Warning(ASOCKPREFIX "%d (%d) ",                                \
+              AsyncSocket_GetID(_asock), AsyncSocket_GetFd(_asock)); \
+      Warning _warnargs;                                             \
    } while (0)
 
-#define ASOCKLG0(_asock, ...)                    \
-   do {                                          \
-      void *acc = Log_BufBegin();                \
-                                                 \
-      Log_BufAppend(acc, ASOCKPREFIX "%d (%d) ", \
-                    AsyncSocket_GetID(_asock),   \
-                    AsyncSocket_GetFd(_asock));  \
-      Log_BufAppend(acc, __VA_ARGS__);           \
-      Log_BufEndLevel(acc, VMW_LOG_INFO);        \
+#define ASOCKLG0(_asock, _logargs)                               \
+   do {                                                          \
+      Log(ASOCKPREFIX "%d (%d) ",                                \
+          AsyncSocket_GetID(_asock), AsyncSocket_GetFd(_asock)); \
+      Log _logargs;                                              \
    } while (0)
 
-#define ASOCKLOG(_level, _asock, ...)                               \
-   do {                                                             \
-      if (((_level) == 0) || DOLOG_BYNAME(asyncsocket, (_level))) { \
-         void *acc = Log_BufBegin();                                \
-                                                                    \
-         Log_BufAppend(acc, ASOCKPREFIX "%d (%d) ",                 \
-                       AsyncSocket_GetID(_asock),                   \
-                       AsyncSocket_GetFd(_asock));                  \
-         Log_BufAppend(acc, __VA_ARGS__);                           \
-         Log_BufEndLevel(acc, VMW_LOG_INFO);                        \
-      }                                                             \
-   } while (0)
+#define ASOCKLOG(_level, _asock, _logargs)                            \
+   do {                                                               \
+      if (((_level) == 0) || DOLOG_BYNAME(asyncsocket, (_level))) {   \
+         Log(ASOCKPREFIX "%d (%d) ",                                  \
+             AsyncSocket_GetID((_asock)), AsyncSocket_GetFd(_asock)); \
+         Log _logargs;                                                \
+      }                                                               \
+   } while(0)
 
 #if defined(__cplusplus)
 }  // extern "C"
