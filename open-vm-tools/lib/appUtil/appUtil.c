@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -53,8 +53,7 @@ AppUtil_SendGuestCaps(const GuestCapabilities *caps, // IN: array of capabilitie
                       size_t numCaps,                // IN: number of capabilities
                       Bool enabled)                  // IN: capabilities status
 {
-   char *capsStr = NULL;
-   char *capsTemp = NULL;
+   char *capsStr;
    size_t capIdx;
 
    ASSERT(caps);
@@ -62,6 +61,7 @@ AppUtil_SendGuestCaps(const GuestCapabilities *caps, // IN: array of capabilitie
 
    capsStr = strdup(GUEST_CAP_FEATURES);
    for (capIdx = 0; capIdx < numCaps; capIdx++) {
+      char *capsTemp;
       if (!capsStr) {
          Debug("%s: Not enough memory to create capabilities string\n", __FUNCTION__);
          return;

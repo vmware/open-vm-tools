@@ -398,7 +398,7 @@ exit:
 gboolean
 RpcChannel_Dispatch(RpcInData *data)
 {
-   char *name = NULL;
+   char *name;
    unsigned int index = 0;
    size_t nameLen;
    Bool status;

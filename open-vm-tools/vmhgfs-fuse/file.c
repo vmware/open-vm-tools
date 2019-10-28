@@ -953,7 +953,7 @@ out:
 int
 HgfsRename(const char* from, const char* to)
 {
-   HgfsReq *req = NULL;
+   HgfsReq *req;
    int result = 0;
    uint32 reqSize;
    HgfsOp opUsed;
@@ -1467,7 +1467,7 @@ HgfsRelease(HgfsHandle handle)  //IN:File handle to close
    HgfsReq *req;
    HgfsOp opUsed;
    HgfsStatus replyStatus;
-   int result = 0;
+   int result;
 
    LOG(6, ("Entry(handle = %u)\n", handle));
 

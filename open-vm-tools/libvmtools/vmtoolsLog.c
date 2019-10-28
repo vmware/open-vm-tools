@@ -851,10 +851,9 @@ VMToolsGetLogFilePath(const gchar *key,
                       GKeyFile *cfg)
 {
    gsize len = 0;
-   gchar *path = NULL;
    gchar *origPath = NULL;
+   gchar *path = g_key_file_get_string(cfg, LOGGING_GROUP, key, NULL);
 
-   path = g_key_file_get_string(cfg, LOGGING_GROUP, key, NULL);
    if (path == NULL) {
       return VMToolsDefaultLogFilePath(domain);
    }

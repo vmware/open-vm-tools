@@ -270,9 +270,7 @@ ProcMgr_ListProcesses(void)
     * with the seconds since epoch that the system booted up.
     */
    if (0 == hostStartTime) {
-      FILE *uptimeFile = NULL;
-
-      uptimeFile = fopen("/proc/uptime", "r");
+      FILE *uptimeFile = fopen("/proc/uptime", "r");
       if (NULL != uptimeFile) {
          double secondsSinceBoot;
          char *realLocale;
@@ -1387,7 +1385,7 @@ ProcMgr_ExecSyncWithExitCode(char const *cmd,                  // IN: UTF-8 comm
                              Bool *validExitCode,              // OUT: exit code is valid
                              int *exitCode)                    // OUT: exit code
 {
-   Bool result = FALSE;
+   Bool result;
 
    ASSERT(exitCode != NULL && validExitCode != NULL);
 

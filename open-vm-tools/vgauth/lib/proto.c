@@ -1043,9 +1043,7 @@ static GMarkupParser wireParser = {
 ProtoReply *
 Proto_NewReply(ProtoReplyType expectedReplyType)
 {
-   ProtoReply *reply = NULL;
-
-   reply = g_malloc0(sizeof(ProtoReply));
+   ProtoReply *reply = g_malloc0(sizeof(ProtoReply));
    reply->parseState = PARSE_STATE_NONE;
    reply->complete = FALSE;
    reply->errorCode = VGAUTH_E_OK;
@@ -1200,10 +1198,10 @@ VGAuth_ReadAndParseResponse(VGAuthContext *ctx,
                             ProtoReply **wireReply)
 {
    VGAuthError err = VGAUTH_E_OK;
-   GMarkupParseContext *parseContext = NULL;
+   GMarkupParseContext *parseContext;
    gsize len;
    gchar *rawReply = NULL;
-   ProtoReply *reply = NULL;
+   ProtoReply *reply;
    gboolean bRet;
    GError *gErr = NULL;
 
@@ -1306,7 +1304,7 @@ VGAuth_SendSessionRequest(VGAuthContext *ctx,
                           const char *userName,
                           char **pipeName)                  // OUT
 {
-   VGAuthError err = VGAUTH_E_OK;
+   VGAuthError err;
    gchar *packet;
    ProtoReply *reply = NULL;
 

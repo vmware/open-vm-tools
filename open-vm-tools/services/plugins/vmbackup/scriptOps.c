@@ -436,7 +436,7 @@ VmBackup_NewScriptOp(VmBackupScriptType type, // IN
 {
    Bool fail = FALSE;
    char **fileList = NULL;
-   char *scriptDir = NULL;
+   char *scriptDir;
    int numFiles = 0;
    size_t i;
    VmBackupScriptOp *op = NULL;

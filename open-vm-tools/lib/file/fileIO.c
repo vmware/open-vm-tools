@@ -695,7 +695,7 @@ FileIOResult
 FileIO_AtomicTempFile(FileIODescriptor *fileFD,  // IN:
                       FileIODescriptor *tempFD)  // OUT:
 {
-   char *tempPath = NULL;
+   char *tempPath;
    int permissions;
    FileIOResult status;
 #if !defined(_WIN32)

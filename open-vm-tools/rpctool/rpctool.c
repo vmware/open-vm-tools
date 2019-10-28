@@ -182,9 +182,8 @@ int
 RpcToolCommand(int argc, char *argv[])
 {
    char *result = NULL;
-   Bool status = FALSE;
+   Bool status = RpcOut_sendOne(&result, NULL, "%s", argv[0]);
 
-   status = RpcOut_sendOne(&result, NULL, "%s", argv[0]);
    if (!status) {
       fprintf(stderr, "%s\n", result ? result : "NULL");
    } else {

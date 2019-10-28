@@ -256,8 +256,7 @@ static Bool
 GetValueFromFile(const char *filePath, char **fileContents, gsize *length)
 {
    GError *gErr = NULL;
-   Bool retVal = FALSE;
-   retVal = g_file_get_contents(filePath, fileContents, length, &gErr);
+   Bool retVal = g_file_get_contents(filePath, fileContents, length, &gErr);
    if (retVal == FALSE) {
       fprintf(stderr, "%s: %s: %s\n", gAppName,
               (gErr != NULL ? gErr->message : "Failed while reading file"),

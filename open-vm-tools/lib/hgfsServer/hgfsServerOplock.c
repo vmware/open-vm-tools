@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2012-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2012-2016,2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -133,7 +133,7 @@ HgfsHandle2ServerLock(HgfsHandle handle,        // IN: Hgfs file handle
 {
 #ifdef HGFS_OPLOCKS
    Bool found = FALSE;
-   HgfsFileNode *fileNode = NULL;
+   HgfsFileNode *fileNode;
 
    ASSERT(lock);
 

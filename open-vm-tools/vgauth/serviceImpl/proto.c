@@ -953,9 +953,8 @@ static GMarkupParser wireParser = {
 ProtoRequest *
 Proto_NewRequest(void)
 {
-   ProtoRequest *req = NULL;
+   ProtoRequest *req = g_malloc0(sizeof(ProtoRequest));
 
-   req = g_malloc0(sizeof(ProtoRequest));
    req->parseState = PARSE_STATE_NONE;
    req->complete = FALSE;
 #if VGAUTH_PROTO_TRACE
@@ -2104,7 +2103,7 @@ static VGAuthError
 ServiceProtoValidateSamlBearerToken(ServiceConnection *conn,
                                     ProtoRequest *req)
 {
-   VGAuthError err = VGAUTH_E_FAIL;
+   VGAuthError err;
    gchar *packet;
    gchar *sPacket;
    char *userName = NULL;

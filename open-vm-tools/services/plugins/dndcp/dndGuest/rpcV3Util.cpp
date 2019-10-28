@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2017,2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -104,7 +104,7 @@ bool
 RpcV3Util::SendMsg(uint32 cmd)
 {
    DnDMsg msg;
-   bool ret = false;
+   bool ret;
 
    DnDMsg_Init(&msg);
    DnDMsg_SetCmd(&msg, cmd);

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2017,2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -162,14 +162,13 @@ ServiceResetProcessState(int *keepFds,
 gboolean
 ServiceSuicide(const char *pidPath)
 {
-   FILE *pidPathFp = NULL;
    char pidBuf[32];
    int pid;
    int ret;
    int errCode;
    gboolean bRet = FALSE;
+   FILE *pidPathFp = g_fopen(pidPath, "r");
 
-   pidPathFp = g_fopen(pidPath, "r");
    if (NULL == pidPathFp) {
       Warning("%s: failed to open pid file '%s', error %u\n",
               __FUNCTION__, pidPath, errno);

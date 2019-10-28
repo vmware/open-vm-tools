@@ -247,7 +247,7 @@ HgfsReadDirFromReply(uint32 *f_pos,     // IN/OUT: Offset
    uint32 replyCount;
    HgfsAttrInfo attr;
    HgfsDirEntry *hgfsDirent = NULL; /* Only for V3. */
-   char *escName = NULL;            /* Buffer for escaped version of name */
+   char *escName;                   /* Buffer for escaped version of name */
    size_t escNameLength = NAME_MAX + 1;
    int result = 0;
 

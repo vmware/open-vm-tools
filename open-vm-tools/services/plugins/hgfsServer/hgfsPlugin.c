@@ -302,7 +302,7 @@ static DWORD
 HgfsServerClientRedirectorExecOpImpl(HgfsClientRdrServiceOp serviceOp,
                                      DWORD accessFlags)
 {
-   SC_HANDLE   serviceControlManager = NULL;
+   SC_HANDLE   serviceControlManager;
    PCWSTR      serviceName = HGFS_SERVICE_NAME_U;
    DWORD       result = ERROR_SUCCESS;
 
@@ -801,7 +801,7 @@ HgfsServerDestroyClientRdrSA(PSID *everyoneSID,
 static DWORD
 HgfsServerClientRdrCreateEvent(LPCWSTR syncEventName)
 {
-   DWORD result = ERROR_SUCCESS;
+   DWORD result;
    PSID everyoneSID = NULL, adminSID = NULL;
    PACL accessControlList = NULL;
    PSECURITY_DESCRIPTOR securityDescriptor = NULL;

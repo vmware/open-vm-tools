@@ -54,9 +54,7 @@ pthread_mutex_t hgfsIdLock = PTHREAD_MUTEX_INITIALIZER;
 HgfsReq *
 HgfsGetNewRequest(void)
 {
-   HgfsReq *req = NULL;
-
-   req = (HgfsReq*)malloc(sizeof(HgfsReq));
+   HgfsReq *req = (HgfsReq*) malloc(sizeof(HgfsReq));
    if (req == NULL) {
       LOG(4, ("Can't allocate memory.\n"));
       return NULL;

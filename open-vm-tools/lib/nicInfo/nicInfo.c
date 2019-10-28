@@ -299,7 +299,7 @@ GuestInfo_GetNicInfo(unsigned int maxIPv4Routes,
                      unsigned int maxIPv6Routes,
                      NicInfoV3 **nicInfo)
 {
-   Bool retval = FALSE;
+   Bool retval;
 
    *nicInfo = Util_SafeCalloc(1, sizeof (struct NicInfoV3));
 

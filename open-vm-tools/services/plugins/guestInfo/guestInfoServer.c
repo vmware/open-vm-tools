@@ -210,8 +210,8 @@ GuestInfoVMSupport(RpcInData *data)
 #if defined(_WIN32)
 
     char vmSupportCmd[] = "vm-support.vbs";
-    char *vmSupportPath = NULL;
-    gchar *vmSupport = NULL;
+    char *vmSupportPath;
+    gchar *vmSupport;
 
     SECURITY_ATTRIBUTES saProcess = {0}, saThread = {0};
 
@@ -1035,7 +1035,7 @@ GuestInfoSendData(ToolsAppCtx *ctx,                // IN
    Bool status;
    gchar *request;
    u_int msgLength = infoLength;
-   gchar *message = NULL;
+   gchar *message;
    char *reply = NULL;
    size_t replyLen;
 

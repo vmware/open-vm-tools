@@ -1437,7 +1437,7 @@ AliasLoadAliases(const gchar *userName,
       NULL,
       NULL,
    };
-   GMarkupParseContext *context = NULL;
+   GMarkupParseContext *context;
    gboolean bRet;
    gchar *fileContents = NULL;
    gsize fileSize;

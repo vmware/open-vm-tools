@@ -550,7 +550,7 @@ UtilDoTildeSubst(const char *user)  // IN: name of user
 char *
 Util_ExpandString(const char *fileName) // IN  file path to expand
 {
-   char *copy = NULL;
+   char *copy;
    char *result = NULL;
    int nchunk = 0;
    char *chunks[UTIL_MAX_PATH_CHUNKS];

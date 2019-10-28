@@ -162,7 +162,7 @@ static Bool thisProcessRunsAsRoot = FALSE;
 gboolean
 FoundryToolsDaemonRunProgram(RpcInData *data) // IN
 {
-   VixError err = VIX_OK;
+   VixError err;
    char *requestName = NULL;
    char *commandLine = NULL;
    char *commandLineArgs = NULL;
@@ -283,7 +283,7 @@ abort:
 gboolean
 FoundryToolsDaemonGetToolsProperties(RpcInData *data) // IN
 {
-   VixError err = VIX_OK;
+   VixError err;
    int additionalError = 0;
    static char resultBuffer[DEFAULT_RESULT_MSG_MAX_LENGTH];
    char *serializedBuffer = NULL;
@@ -494,12 +494,13 @@ ToolsDaemonTcloGetEncodedQuotedString(const char *args,      // IN
                                       const char **endOfArg, // OUT
                                       char **result)         // OUT
 {
-   VixError err = VIX_OK;
+   VixError err;
    char *rawResultStr = NULL;
    char *resultStr = NULL;
 
    rawResultStr = ToolsDaemonTcloGetQuotedString(args, endOfArg);
    if (NULL == rawResultStr) {
+      err = VIX_OK;
       goto abort;
    }
 
@@ -536,8 +537,8 @@ ToolsDaemonTcloSyncDriverFreeze(RpcInData *data)
 {
    static char resultBuffer[DEFAULT_RESULT_MSG_MAX_LENGTH];
    VixError err = VIX_OK;
-   char *driveList = NULL;
-   char *timeout = NULL;
+   char *driveList;
+   char *timeout;
    int timeoutVal;
    DECLARE_SYNCDRIVER_ERROR(sysError);
    ToolsAppCtx *ctx = data->appCtx;
