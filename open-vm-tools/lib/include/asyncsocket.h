@@ -755,28 +755,40 @@ unsigned AsyncSocket_WebSocketGetNumAccepted(AsyncSocket *asock);
  */
 #define ASOCKPREFIX "SOCKET "
 
-#define ASOCKWARN(_asock, _warnargs)                                 \
-   do {                                                              \
-      Warning(ASOCKPREFIX "%d (%d) ",                                \
-              AsyncSocket_GetID(_asock), AsyncSocket_GetFd(_asock)); \
-      Warning _warnargs;                                             \
-   } while (0)
+/* gcc needs special syntax to handle zero-length variadic arguments */
+#if defined(_MSC_VER)
+#define ASOCKWARN(_asock, fmt, ...)                               \
+   Warning(ASOCKPREFIX "%d (%d) " fmt, AsyncSocket_GetID(_asock), \
+           AsyncSocket_GetFd(_asock), __VA_ARGS__)
 
-#define ASOCKLG0(_asock, _logargs)                               \
-   do {                                                          \
-      Log(ASOCKPREFIX "%d (%d) ",                                \
-          AsyncSocket_GetID(_asock), AsyncSocket_GetFd(_asock)); \
-      Log _logargs;                                              \
-   } while (0)
+#define ASOCKLG0(_asock, fmt, ...)                            \
+   Log(ASOCKPREFIX "%d (%d) " fmt, AsyncSocket_GetID(_asock), \
+       AsyncSocket_GetFd(_asock), __VA_ARGS__)
 
-#define ASOCKLOG(_level, _asock, _logargs)                            \
-   do {                                                               \
-      if (((_level) == 0) || DOLOG_BYNAME(asyncsocket, (_level))) {   \
-         Log(ASOCKPREFIX "%d (%d) ",                                  \
-             AsyncSocket_GetID((_asock)), AsyncSocket_GetFd(_asock)); \
-         Log _logargs;                                                \
-      }                                                               \
-   } while(0)
+#define ASOCKLOG(_level, _asock, fmt, ...)                          \
+   do {                                                             \
+      if (((_level) == 0) || DOLOG_BYNAME(asyncsocket, (_level))) { \
+         Log(ASOCKPREFIX "%d (%d) " fmt, AsyncSocket_GetID(_asock), \
+             AsyncSocket_GetFd(_asock), __VA_ARGS__);               \
+      }                                                             \
+   } while (0)
+#else
+#define ASOCKWARN(_asock, fmt, ...)                               \
+   Warning(ASOCKPREFIX "%d (%d) " fmt, AsyncSocket_GetID(_asock), \
+           AsyncSocket_GetFd(_asock), ##__VA_ARGS__)
+
+#define ASOCKLG0(_asock, fmt, ...)                            \
+   Log(ASOCKPREFIX "%d (%d) " fmt, AsyncSocket_GetID(_asock), \
+       AsyncSocket_GetFd(_asock), ##__VA_ARGS__)
+
+#define ASOCKLOG(_level, _asock, fmt, ...)                          \
+   do {                                                             \
+      if (((_level) == 0) || DOLOG_BYNAME(asyncsocket, (_level))) { \
+         Log(ASOCKPREFIX "%d (%d) " fmt, AsyncSocket_GetID(_asock), \
+             AsyncSocket_GetFd(_asock), ##__VA_ARGS__);             \
+      }                                                             \
+   } while (0)
+#endif
 
 #if defined(__cplusplus)
 }  // extern "C"
