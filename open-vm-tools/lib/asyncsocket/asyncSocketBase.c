@@ -778,6 +778,15 @@ AsyncSocket_MsgError(int asyncSockError)   // IN
       break;
    case ASOCKERR_BUSY:
       result = MSGID(asyncsocket.busy) "Concurrent operations on socket";
+      break;
+   case ASOCKERR_PROXY_NEEDS_AUTHENTICATION:
+      result = MSGID(asyncsocket.proxyneedsauthentication)
+                     "Proxy needs authentication";
+      break;
+   case ASOCKERR_PROXY_CONNECT_FAILED:
+      result = MSGID(asyncsocket.proxyconnectfailed)
+                     "Connection failed through proxy";
+      break;
    }
 
    if (!result) {

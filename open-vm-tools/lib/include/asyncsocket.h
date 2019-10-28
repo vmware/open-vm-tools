@@ -81,6 +81,8 @@ extern "C" {
 #define ASOCKERR_NETUNREACH        14
 #define ASOCKERR_ADDRUNRESV        15
 #define ASOCKERR_BUSY              16
+#define ASOCKERR_PROXY_NEEDS_AUTHENTICATION 17
+#define ASOCKERR_PROXY_CONNECT_FAILED       18
 
 /*
  * Cross-platform codes for AsyncSocket_GetGenericError():
@@ -95,6 +97,7 @@ extern "C" {
 #define ASOCK_ECONNRESET        WSAECONNRESET
 #define ASOCK_ECONNABORTED      WSAECONNABORTED
 #define ASOCK_EPIPE             ERROR_NO_DATA
+#define ASOCK_EHOSTUNREACH      WSAEHOSTUNREACH
 #else
 #define ASOCK_ENOTCONN          ENOTCONN
 #define ASOCK_ENOTSOCK          ENOTSOCK
@@ -105,6 +108,7 @@ extern "C" {
 #define ASOCK_ECONNRESET        ECONNRESET
 #define ASOCK_ECONNABORTED      ECONNABORTED
 #define ASOCK_EPIPE             EPIPE
+#define ASOCK_EHOSTUNREACH      EHOSTUNREACH
 #endif
 
 /*

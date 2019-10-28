@@ -2179,11 +2179,13 @@ AsyncTCPSocketConnect(struct sockaddr_storage *addr,         // IN
              sysErr, Err_Errno2String(sysErr));
 
          /*
-          * If "network unreachable" error happens, explicitly propogate
+          * If "network unreachable" or "No route to host"
+          * errors happens, explicitly propogate
           * the error to trigger the reconnection if possible.
           */
-         error = (sysErr == ASOCK_ENETUNREACH) ? ASOCKERR_NETUNREACH :
-                                                 ASOCKERR_CONNECT;
+         error = (sysErr == ASOCK_ENETUNREACH ||
+                  sysErr == ASOCK_EHOSTUNREACH) ? ASOCKERR_NETUNREACH :
+                                                  ASOCKERR_CONNECT;
          goto errorHaveAsock;
       }
    } else {
@@ -3852,8 +3854,11 @@ AsyncTCPSocketConnectInternal(AsyncTCPSocket *s)         // IN
    if (optval != 0) {
       s->genericErrno = optval;
       TCPSOCKLOG(1, s, "connection SO_ERROR: %s\n", Err_Errno2String(optval));
-
-      return ASOCKERR_GENERIC;
+      if (optval == ASOCK_ENETUNREACH || optval == ASOCK_EHOSTUNREACH) {
+         return ASOCKERR_NETUNREACH;
+      } else {
+         return ASOCKERR_CONNECT;
+      }
    }
 
    s->localAddrLen = sizeof s->localAddr;
@@ -4988,7 +4993,9 @@ AsyncTCPSocketConnectCallback(void *clientData)         // IN
    AsyncTCPSocketAddRef(asock);
    retval = AsyncTCPSocketConnectInternal(asock);
    if (retval != ASOCKERR_SUCCESS) {
-      ASSERT(retval == ASOCKERR_GENERIC); /* Only one we're expecting */
+      ASSERT(retval == ASOCKERR_GENERIC ||
+             retval == ASOCKERR_NETUNREACH ||
+             retval == ASOCKERR_CONNECT);
       AsyncTCPSocketHandleError(asock, retval);
    }
    AsyncTCPSocketRelease(asock);
