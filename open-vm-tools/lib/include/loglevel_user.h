@@ -160,6 +160,7 @@
    LOGLEVEL_VAR(mksDX11ShimOps), \
    LOGLEVEL_VAR(mksMTLRenderer), \
    LOGLEVEL_VAR(mksVulkanRenderer), \
+   LOGLEVEL_VAR(mvnc), \
    LOGLEVEL_VAR(vaBasicOps), \
    LOGLEVEL_VAR(vdpPlugin), \
    LOGLEVEL_VAR(vncServer), \
