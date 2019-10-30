@@ -108,6 +108,7 @@
 
 
 #define LOGLEVEL_MODULE asyncsocket
+#define LOGLEVEL_VARIADIC
 #include "loglevel_user.h"
 
 #ifdef VMX86_SERVER
@@ -3236,7 +3237,7 @@ AsyncTCPSocketSendWithFd(AsyncSocket *base,         // IN:
       return ASOCKERR_INVAL;
    }
 
-   LOG(2, ("%s: sending %d bytes\n", __FUNCTION__, len));
+   LOG(2, "%s: sending %d bytes\n", __FUNCTION__, len);
 
    ASSERT(AsyncTCPSocketIsLocked(asock));
 
