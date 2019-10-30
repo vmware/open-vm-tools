@@ -39,9 +39,9 @@
 #ifndef _BACKDOOR_TYPES_H_
 #define _BACKDOOR_TYPES_H_
 
-#if !defined(__i386__) && !defined(__x86_64__) && \
-    !defined(_M_IX86) && !defined(_M_X64)
-#error The backdoor protocol is only supported on x86 architectures.
+
+#if !(defined __i386__ || defined __x86_64__  || defined __aarch64__ || defined _M_IX86  || defined _M_X64)
+#error The backdoor protocol is only supported on x86 and aarch64 architectures.
 #endif
 
 /*
