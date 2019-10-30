@@ -53,7 +53,7 @@
 // VMX86_DESKTOP must be last because it is the default and is always defined.
 #elif defined(VMX86_DESKTOP)
    // WORKSTATION_VERSION_NUMBER below has to match this
-   #define PRODUCT_VERSION    15,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
+   #define PRODUCT_VERSION    15,5,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_SYSIMAGE)
    #define PRODUCT_VERSION    TOOLS_VERSION_EXT_CURRENT_CSV
    #define SYSIMAGE_VERSION TOOLS_VERSION_CURRENT_STR
@@ -155,9 +155,9 @@
  * ALSO, leave FOO_VERSION at e.x.p on all EXCEPT release branches.
  * lmclient.h has a FLEX_VERSION struct so the versionPrefix can't be FLEX
  */
-#define WORKSTATION_VERSION_NUMBER "15.0.0" /* this version number should always match real WS version number */
+#define WORKSTATION_VERSION_NUMBER "15.5.0" /* this version number should always match real WS version number */
 #define WORKSTATION_VERSION "e.x.p"
-#define PLAYER_VERSION_NUMBER "15.0.0" /* this version number should always match real Player version number */
+#define PLAYER_VERSION_NUMBER "15.5.0" /* this version number should always match real Player version number */
 #define PLAYER_VERSION "e.x.p"
 #define VMRC_VERSION_NUMBER "11.0.0" /* this version number should always match real VMRC version number */
 #define VMRC_VERSION "11.0.0"
