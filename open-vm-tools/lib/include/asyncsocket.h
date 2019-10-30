@@ -672,6 +672,8 @@ int AsyncSocket_SendBlocking(AsyncSocket *asock,
  */
 int AsyncSocket_Send(AsyncSocket *asock, void *buf, int len,
                       AsyncSocketSendFn sendFn, void *clientData);
+int AsyncSocket_SendWithFd(AsyncSocket *asock, void *buf, int len, int passFd,
+                           AsyncSocketSendFn sendFn, void *clientData);
 
 int AsyncSocket_IsSendBufferFull(AsyncSocket *asock);
 int AsyncSocket_GetNetworkStats(AsyncSocket *asock,

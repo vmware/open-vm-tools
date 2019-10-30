@@ -162,6 +162,7 @@ typedef struct SendBufList {
    struct SendBufList   *next;
    void                 *buf;
    int                   len;
+   int                   passFd;
    AsyncSocketSendFn     sendFn;
    void                 *clientData;
 } SendBufList;
@@ -334,6 +335,9 @@ static int AsyncTCPSocketRecvPassedFd(AsyncSocket *asock, void *buf, int len,
 static int AsyncTCPSocketGetReceivedFd(AsyncSocket *asock);
 static int AsyncTCPSocketSend(AsyncSocket *asock, void *buf, int len,
                               AsyncSocketSendFn sendFn, void *clientData);
+static int AsyncTCPSocketSendWithFd(AsyncSocket *asock, void *buf, int len,
+                                    int fd, AsyncSocketSendFn sendFn,
+                                    void *clientData);
 static int AsyncTCPSocketIsSendBufferFull(AsyncSocket *asock);
 static int AsyncTCPSocketClose(AsyncSocket *asock);
 static int AsyncTCPSocketCancelRecv(AsyncSocket *asock, int *partialRecvd,
@@ -3140,17 +3144,83 @@ AsyncTCPSocketBlockingWork(AsyncTCPSocket *s,  // IN:
  */
 
 static int
-AsyncTCPSocketSend(AsyncSocket *base,         // IN
+AsyncTCPSocketSend(AsyncSocket *asock,        // IN
                    void *buf,                 // IN
                    int len,                   // IN
                    AsyncSocketSendFn sendFn,  // IN
                    void *clientData)          // IN
+{
+   return AsyncTCPSocketSendWithFd(asock, buf, len, -1, sendFn, clientData);
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocket_SendWithFd --
+ *
+ *      Like the regular AsyncSocket_Send, with the addition of passing a
+ *      file descriptor to the recipient.
+ *
+ * Results:
+ *      ASOCKERR_*.
+ *
+ * Side effects:
+ *      May register poll callback or perform I/O.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+AsyncSocket_SendWithFd(AsyncSocket *asock,        // IN:
+                       void *buf,                 // IN:
+                       int len,                   // IN:
+                       int passFd,                // IN:
+                       AsyncSocketSendFn sendFn,  // IN:
+                       void *clientData)          // IN:
+{
+   int ret;
+
+   AsyncSocketLock(asock);
+   ret = AsyncTCPSocketSendWithFd(asock, buf, len, passFd, sendFn, clientData);
+   AsyncSocketUnlock(asock);
+
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncTCPSocketSendWithFd --
+ *
+ *      The meat of queueing a packet to send, optionally also passing a
+ *      file descriptor.
+ *
+ * Results:
+ *      ASOCKERR_*.
+ *
+ * Side effects:
+ *      See callers.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static int
+AsyncTCPSocketSendWithFd(AsyncSocket *base,         // IN:
+                         void *buf,                 // IN:
+                         int len,                   // IN:
+                         int passFd,                // IN:
+                         AsyncSocketSendFn sendFn,  // IN:
+                         void *clientData)          // IN:
 {
    AsyncTCPSocket *asock = TCPSocket(base);
    int retVal;
    Bool bufferListWasEmpty = FALSE;
    SendBufList **pcur;
    SendBufList *newBuf;
+
+   ASSERT(base->vt == &asyncTCPSocketVTable);
 
    /*
     * Note: I think it should be fine to send with a length of zero and a
@@ -3192,14 +3262,25 @@ AsyncTCPSocketSend(AsyncSocket *base,         // IN
    newBuf = Util_SafeCalloc(1, sizeof *newBuf);
    newBuf->buf = buf;
    newBuf->len = len;
-   newBuf->sendFn = sendFn;
-   newBuf->clientData = clientData;
+   newBuf->passFd = -1;
+   if (passFd == -1) {
+      newBuf->sendFn = sendFn;
+      newBuf->clientData = clientData;
+   } else {
+      SendBufList *fdBuf = Util_SafeCalloc(1, sizeof *fdBuf);
+      fdBuf->passFd = passFd;
+      /* Fire callback after both are sent. */
+      fdBuf->len = len;
+      fdBuf->sendFn = sendFn;
+      fdBuf->clientData = clientData;
+      newBuf->next = fdBuf;
+   }
 
    /*
     * Append new send buffer to the tail of list.
     */
    *asock->sendBufTail = newBuf;
-   asock->sendBufTail = &(newBuf->next);
+   asock->sendBufTail = passFd == -1 ? &(newBuf->next) : &(newBuf->next->next);
    bufferListWasEmpty = (asock->sendBufList == newBuf);
 
    if (bufferListWasEmpty && !asock->sendCb) {
@@ -3274,10 +3355,14 @@ outUndoAppend:
       if (!bufferListWasEmpty) {
          do {
             pcur = &((*pcur)->next);
-         } while ((*pcur)->next != NULL);
+         } while ((*pcur)->next != NULL && (*pcur)->buf != buf);
       }
 
       if ((*pcur)->buf == buf) {
+         if (passFd != -1) {
+            /* Free the entry for the fd being passed. */
+            free((*pcur)->next);
+         }
          free(*pcur);
          *pcur = NULL;
          asock->sendBufTail = pcur;
@@ -3601,6 +3686,57 @@ AsyncTCPSocketDispatchSentBuffer(AsyncTCPSocket *s)         // IN
 /*
  *----------------------------------------------------------------------------
  *
+ * AsyncTCPSocketPassFd --
+ *
+ *      Send a file descriptor on the TCP socket.
+ *
+ * Results:
+ *      1 if successful, -1 if not.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static int
+AsyncTCPSocketPassFd(int socket,  // IN:
+                     int passFd)  // IN:
+{
+#ifndef _WIN32
+   static unsigned char byte = 0;
+   union {
+      struct cmsghdr cmsghdr;
+      char cbuf[CMSG_SPACE(sizeof passFd)];
+   } cbuf_un;
+   struct msghdr msghdr = {0};
+   struct cmsghdr *cmsghdr;
+   struct iovec iov[1];
+   int ret;
+
+   iov[0].iov_base = &byte;
+   iov[0].iov_len = sizeof byte;
+   msghdr.msg_control = cbuf_un.cbuf;
+   msghdr.msg_controllen = sizeof cbuf_un.cbuf;
+   msghdr.msg_iov = iov;
+   msghdr.msg_iovlen = 1;
+   cmsghdr = CMSG_FIRSTHDR(&msghdr);
+   cmsghdr->cmsg_len = CMSG_LEN(sizeof passFd);
+   cmsghdr->cmsg_level = SOL_SOCKET;
+   cmsghdr->cmsg_type = SCM_RIGHTS;
+   *(int *)CMSG_DATA(cmsghdr) = passFd;
+
+   ret = sendmsg(socket, &msghdr, 0);
+   return ret > 0 ? 1 : -1;
+#else
+   NOT_IMPLEMENTED();
+#endif
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * AsyncTCPSocketWriteBuffers --
  *
  *      The meat of AsyncTCPSocket's sending functionality.  This function
@@ -3617,7 +3753,7 @@ AsyncTCPSocketDispatchSentBuffer(AsyncTCPSocket *s)         // IN
  */
 
 static int
-AsyncTCPSocketWriteBuffers(AsyncTCPSocket *s)         // IN
+AsyncTCPSocketWriteBuffers(AsyncTCPSocket *s)  // IN
 {
    int result;
 
@@ -3641,8 +3777,13 @@ AsyncTCPSocketWriteBuffers(AsyncTCPSocket *s)         // IN
       int left = head->len - s->sendPos;
       int sizeToSend = head->len;
 
-      sent = SSL_Write(s->sslSock,
-                       (uint8 *) head->buf + s->sendPos, left);
+      if (head->passFd == -1) {
+         sent = SSL_Write(s->sslSock,
+                          (uint8 *) head->buf + s->sendPos, left);
+      } else {
+         sizeToSend = 1;
+         sent = AsyncTCPSocketPassFd(s->fd, head->passFd);
+      }
       /*
        * Do NOT make any system call directly or indirectly here
        * unless you can preserve the system error number
