@@ -32,6 +32,7 @@
 #endif
 
 #include "file.h"
+#include "random.h"
 #include "str.h"
 #include "util.h"
 #include "unicodeBase.h"
@@ -361,6 +362,7 @@ DeployPkgGetTempDir(void)
    char *dir = NULL;
    char *newDir = NULL;
    Bool found = FALSE;
+   int randIndex;
 #ifndef _WIN32
    /*
     * PR 2115630. On Linux, use /var/run or /run directory
@@ -396,8 +398,12 @@ DeployPkgGetTempDir(void)
    /* Make a temporary directory to hold the package. */
    while (!found && i < 10) {
       free(newDir);
+      if (!Random_Crypto(sizeof(randIndex), &randIndex)) {
+         g_warning("%s: Random_Crypto failed\n", __FUNCTION__);
+         goto exit;
+      }
       newDir = Str_Asprintf(NULL, "%s%s%08x%s",
-                            dir, DIRSEPS, rand(), DIRSEPS);
+                            dir, DIRSEPS, randIndex, DIRSEPS);
       if (newDir == NULL) {
          g_warning("%s: Str_Asprintf failed\n", __FUNCTION__);
          goto exit;
