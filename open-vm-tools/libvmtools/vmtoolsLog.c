@@ -858,6 +858,8 @@ VMToolsGetLogFilePath(const gchar *key,
       return VMToolsDefaultLogFilePath(domain);
    }
 
+   g_strchomp(path);
+
    len = strlen(path);
    origPath = path;
 
@@ -987,6 +989,9 @@ VMToolsGetLogHandler(const gchar *handler,
       /* Always get the facility from the default domain, since syslog is shared. */
       g_snprintf(key, sizeof key, "%s.facility", gLogDomain);
       facility = g_key_file_get_string(cfg, LOGGING_GROUP, key, NULL);
+      if (facility != NULL) {
+         g_strchomp(facility);
+      }
       glogger = GlibUtils_CreateSysLogger(domain, facility);
       /*
        * Older versions of Linux make synchronous call to syslog.
@@ -1089,14 +1094,22 @@ VMToolsConfigLogDomain(const gchar *domain,
    level = g_key_file_get_string(cfg, LOGGING_GROUP, key, NULL);
    if (level == NULL) {
       level = g_strdup(VMTOOLS_LOGGING_LEVEL_DEFAULT);
+   } else {
+      g_strchomp(level);
    }
 
    /* Parse the handler information. */
    g_snprintf(key, sizeof key, "%s.handler", domain);
    handler = g_key_file_get_string(cfg, LOGGING_GROUP, key, NULL);
+   if (handler != NULL) {
+      g_strchomp(handler);
+   }
 
    g_snprintf(key, sizeof key, "%s.data", domain);
    confData = g_key_file_get_string(cfg, LOGGING_GROUP, key, NULL);
+   if (confData != NULL) {
+      g_strchomp(confData);
+   }
 
    /*
     * Disable the old vmx handler if we are setting up the vmx guest logger
@@ -1816,6 +1829,8 @@ LoadFallbackSetting(GKeyFile *cfg)
       return;
    }
 
+   g_strchomp(handler);
+
    if (strcmp(handler, "vmx") != 0) {
       g_debug("%s.handler is not a vmx handler in config file.\n", gLogDomain);
       g_free(handler);
@@ -1829,6 +1844,8 @@ LoadFallbackSetting(GKeyFile *cfg)
    level = g_key_file_get_string(cfg, LOGGING_GROUP, key, NULL);
    if (NULL == level) {
       level = g_strdup(VMTOOLS_LOGGING_LEVEL_DEFAULT);
+   } else {
+      g_strchomp(level);
    }
 
    /* If guest admin allows debug log messages sent to host, honor it. */
