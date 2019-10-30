@@ -2063,7 +2063,7 @@ map_space_found:
     */
    macInfo = gld_mac_alloc(dip);
    if (!macInfo) {
-      cmn_err(CE_WARN, "%s%d: Vxn_Attach: gld_mac_alloc failed", 
+      cmn_err(CE_WARN, "%s%d: Vxn_Attach: gld_mac_alloc failed",
               drvName, unit);
       goto err_gld_mac_alloc;
    }
@@ -2075,12 +2075,16 @@ map_space_found:
     * Get interrupt cookie
     */
    if (ddi_get_iblock_cookie(dip, 0, &dp->iblockCookie) != DDI_SUCCESS) {
-      cmn_err(CE_WARN, "%s%d: Vxn_Attach: ddi_get_iblock_cookie failed", 
+      cmn_err(CE_WARN, "%s%d: Vxn_Attach: ddi_get_iblock_cookie failed",
               drvName, unit);
       goto err_get_iblock_cookie;
    }
 
-   strncpy(dp->drvName, drvName, SOLVMXNET_MAXNAME);
+   /*
+    * kmem_zalloc above memsets drvName to 0. Use array size - 1 below
+    * to ensure NUL termination.
+    */
+   strncpy(dp->drvName, drvName, sizeof dp->drvName - 1);
    dp->unit = unit;
    dp->dip = dip;
    dp->macInfo = macInfo;
