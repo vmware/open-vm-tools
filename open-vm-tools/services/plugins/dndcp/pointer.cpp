@@ -215,7 +215,7 @@ PointerSetPos(uint16 x, // IN
    Backdoor_proto bp;
 
    bp.in.cx.halfs.low = BDOOR_CMD_SETPTRLOCATION;
-   bp.in.size = (x << 16) | y;
+   bp.in.size = (uint32) ((x << 16) | y);
    Backdoor(&bp);
 }
 
