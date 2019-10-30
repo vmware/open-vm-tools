@@ -49,3 +49,7 @@ Josh Paetzel    Additional changes to vmmemctl.ko for FreeBSD 12.0 API changes.
 
 Haruki Tsurumoto        Fix Asianux identification
                 - https://github.com/vmware/open-vm-tools/pull/325
+
+MilhouseVH      stop systemd-243 udev complaints
+                - https://github.com/vmware/open-vm-tools/pull/371
+
