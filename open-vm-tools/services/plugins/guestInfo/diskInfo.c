@@ -825,10 +825,19 @@ GuestInfoGetDiskDevice(const char *fsName,
 
       /* Not an LVM; check if a basic block device. */
       char blockDevPath[PATH_MAX];
+      const char *baseDevName = strrchr(fsName, '/');
 
-      Str_Snprintf(blockDevPath, PATH_MAX,  "%s/%s", LINUX_SYS_BLOCK_DIR,
-                   strrchr(fsName, '/') + 1);
-      GuestInfoLinuxBlockDevice(blockDevPath, partEntry, 1 /* first and only*/);
+      /*
+       * ZFS pools are not currently handled and may consist of a simple file
+       * name.  Neither situation can currently be handled in the PCI device
+       * lookup; avoid at this time.
+       */
+      if (baseDevName != NULL && strcmp(partEntry->fsType, "zfs") != 0) {
+         Str_Snprintf(blockDevPath, PATH_MAX,  "%s/%s", LINUX_SYS_BLOCK_DIR,
+                      baseDevName + 1);
+         /* First and only disk device. */
+         GuestInfoLinuxBlockDevice(blockDevPath, partEntry, 1);
+      }
    }
 
    /*
