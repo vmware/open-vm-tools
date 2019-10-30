@@ -53,7 +53,8 @@ extern "C" {
  */
 
 RpcV3Util::RpcV3Util(void)
-   : mVersionMajor(3),
+   : mRpc(NULL),
+     mVersionMajor(3),
      mVersionMinor(0),
      mSeqNum(1)
 {

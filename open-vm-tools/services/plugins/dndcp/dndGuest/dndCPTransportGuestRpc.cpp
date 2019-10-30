@@ -263,6 +263,9 @@ DnDCPTransportGuestRpc::DnDCPTransportGuestRpc(void)
    for (int i = 0; i < TRANSPORT_INTERFACE_MAX; i++) {
       mCBCtx[i].transport = this;
       mCBCtx[i].type = (TransportInterfaceType)i;
+#ifdef VMX86_TOOLS
+      mRpcChanCBList[i].xdrInSize = 0;
+#endif
    }
 }
 

@@ -83,6 +83,7 @@ DnDUIX11::DnDUIX11(ToolsAppCtx *ctx)
       mBlockAdded(false),
       mGHDnDInProgress(false),
       mGHDnDDataReceived(false),
+      mGHDnDDropOccurred(false),
       mUnityMode(false),
       mInHGDrag(false),
       mEffect(DROP_NONE),
