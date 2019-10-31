@@ -48,7 +48,7 @@
 #include "hgfsServerOplock.h"
 #include "hgfsDirNotify.h"
 #include "userlock.h"
-#include "poll.h"
+#include "vm_poll.h"
 #include "mutexRankLib.h"
 #include "vm_basic_asm.h"
 #include "unicodeOperations.h"

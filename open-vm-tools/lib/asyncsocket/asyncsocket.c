@@ -69,8 +69,8 @@
 #else
 #include <stddef.h>
 #include <ctype.h>
+#include <poll.h>
 #include <sys/types.h>
-#include <sys/poll.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <netdb.h>
@@ -86,7 +86,7 @@
 #include "random.h"
 #include "asyncsocket.h"
 #include "asyncSocketBase.h"
-#include "poll.h"
+#include "vm_poll.h"
 #include "log.h"
 #include "err.h"
 #include "hostinfo.h"
