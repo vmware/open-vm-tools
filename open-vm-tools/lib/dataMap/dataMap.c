@@ -1519,10 +1519,14 @@ CopyStringListEntry(DMKeyType fieldId,                  // IN
    }
 
    newList = (char **)calloc(listSize + 1, sizeof(char *));
+   if (newList == NULL) {
+      return DMERR_INSUFFICIENT_MEM;
+   }
+
    newLens = (int32 *)malloc(sizeof(int32) * listSize);
 
-   if (newList == NULL || newLens == NULL) {
-      FreeStringList(newList, newLens);
+   if (newLens == NULL) {
+      free(newList);
       return DMERR_INSUFFICIENT_MEM;
    }
 

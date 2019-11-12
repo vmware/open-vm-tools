@@ -1141,10 +1141,14 @@ VixMsg_DeObfuscateNamePassword(const char *packagedName,   // IN
       }
    }
 
-   *userNameResult = userName;
-   userName = NULL;
-   *passwordResult = passwd;
-   passwd = NULL;
+   if (NULL != userNameResult) {
+      *userNameResult = userName;
+      userName = NULL;
+   }
+   if (NULL != passwordResult) {
+      *passwordResult = passwd;
+      passwd = NULL;
+   }
 
 abort:
    Util_ZeroFree(packedString, packedStringLength);
@@ -1182,6 +1186,14 @@ VixMsg_EncodeString(const char *str,  // IN
       str = "";
    }
 
+   /*
+    * Coverity flags this as a buffer overrun in the case where str is
+    * assigned the empty string above, claiming that the underlying
+    * Base64_Encode function directly indexes the array str at index 2;
+    * however, that indexing is only done if the string length is greater
+    * than 2, and clearly strlen("") is 0.
+    */
+   /* coverity[overrun-buffer-val] */
    return VixMsgEncodeBuffer(str, strlen(str), TRUE, result);
 } // VixMsg_EncodeString
 

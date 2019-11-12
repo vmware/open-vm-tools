@@ -813,6 +813,8 @@ StrUtil_GetLongestLineLength(const char *buf,   //IN
        const char *next;
        size_t len;
 
+       ASSERT(buf != NULL);
+       /* coverity[var_deref_model] */
        next = memchr(buf, '\n', bufLength);
        if (next) {
           next++;
