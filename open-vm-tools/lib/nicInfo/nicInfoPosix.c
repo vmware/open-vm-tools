@@ -34,6 +34,7 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <errno.h>
+#include <limits.h>
 #if defined(__FreeBSD__) || defined(__APPLE__)
 # include <sys/sysctl.h>
 # include <ifaddrs.h>
@@ -904,6 +905,63 @@ fail:
    return FALSE;
 }
 
+/*
+ ******************************************************************************
+ * RecordResolverNSResolvConf                                            */ /**
+ *
+ * @brief Parses file in resolv.conf format, and copies name servers to
+ * @a dnsConfigInfo.
+ *
+ * @param[in]  file             path of file to read
+ * @param[out] dnsConfigInfo    Destination DnsConfigInfo container
+ *
+ ******************************************************************************
+ */
+
+static void
+RecordResolverNSResolvConf(const char *file, DnsConfigInfo *dnsConfigInfo)
+{
+   FILE *fptr;
+
+   fptr = fopen(file, "rt");
+   if (fptr != NULL) {
+      char line[256];
+      while (fgets(line, sizeof(line), fptr)) {
+         char *tok, *saveptr = NULL;
+         tok = strtok_r(line, " \t", &saveptr);
+         if ((tok != NULL) && (strcmp(tok, "nameserver") == 0)) {
+            char *val;
+            struct sockaddr_in sa4;
+            struct sockaddr_in6 sa6;
+            val = strtok_r(NULL, " \t\r\n", &saveptr);
+            if (val == NULL) {
+               g_warning("%s: no value for nameserver in %s\n",
+                         __FUNCTION__, file);
+            } else if (inet_pton(AF_INET, val, &sa4.sin_addr)) {
+               sa4.sin_family = AF_INET;
+               if (0 == AddResolverNSInfo(dnsConfigInfo,
+                                          (struct sockaddr *) &sa4)) {
+                  /* Can't add more DNS entries to dnsConfigInfo, break loop */
+                  break;
+               }
+            } else if (inet_pton(AF_INET6, val, &sa6.sin6_addr)) {
+               sa6.sin6_family = AF_INET6;
+               if (0 == AddResolverNSInfo(dnsConfigInfo,
+                                          (struct sockaddr *) &sa6)) {
+                  /* Can't add more DNS entries to dnsConfigInfo, break loop */
+                  break;
+               }
+            } else {
+               g_warning("%s: invalid IP address '%s' in %s ignored\n",
+                         __FUNCTION__, val, file);
+            }
+         }
+      }
+      fclose(fptr);
+   } else {
+      g_warning("%s: could not open file '%s': %s\n", __FUNCTION__, file, strerror(errno));
+   }
+}
 
 /*
  ******************************************************************************
@@ -922,6 +980,28 @@ static void
 RecordResolverNS(res_state resp, DnsConfigInfo *dnsConfigInfo) // IN
 {
    int i;
+   char resolvConf[PATH_MAX];
+
+   /*
+    * If systemd-resolved is used we want to report the external DNS
+    * server, not the locally installed one. We detect this by checking
+    * if /etc/resolv.conf is a link to /run/systemd/resolve/stub-resolv.conf.
+    * In that case, /run/systemd/resolve/resolv.conf will hold the actual
+    * DNS server. See
+    * https://www.freedesktop.org/software/systemd/man/systemd-resolved.service.html
+    */
+   if (realpath("/etc/resolv.conf", resolvConf) != NULL) {
+      if (strcmp(resolvConf, "/run/systemd/resolve/stub-resolv.conf") == 0) {
+         const char *file = "/run/systemd/resolve/resolv.conf";
+         if (access(file, R_OK) != -1) {
+            RecordResolverNSResolvConf(file, dnsConfigInfo);
+            return;
+         } else {
+            g_debug("%s: could not access %s for reading: %s\n",
+                    __FUNCTION__, file, strerror(errno));
+         }
+      }
+   }
 
 #if defined RESOLVER_IPV6_GETSERVERS
    {
