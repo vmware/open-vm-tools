@@ -46,6 +46,7 @@
 #endif
 
 #define LOGLEVEL_MODULE auth
+#define LOGLEVEL_VARIADIC
 #include "loglevel_user.h"
 
 typedef struct {
