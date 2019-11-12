@@ -2368,7 +2368,7 @@ AsyncTCPSocketAttachToFd(int fd,                             // IN
       if (outError) {
          *outError = ENOMEM;
       }
-      LOG(0, (ASOCKPREFIX "failed to create SSL socket object\n"));
+      LOG(0, ASOCKPREFIX "failed to create SSL socket object\n");
 
       return NULL;
    }
