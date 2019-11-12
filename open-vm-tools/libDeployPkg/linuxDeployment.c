@@ -1094,7 +1094,11 @@ done:
                   "/bin/rm -rf %s",
                   cloudInitTmpDirPath);
          command[sizeof(command) - 1] = '\0';
-         ForkExecAndWaitCommand(command, false);
+         if (ForkExecAndWaitCommand(command, false) != 0) {
+            sLog(log_warning,
+                 "Error while removing temporary folder '%s'. (%s)\n",
+                 cloudInitTmpDirPath, strerror(errno));
+         }
       }
       sLog(log_error, "Setting generic error status in vmx.\n");
       SetCustomizationStatusInVmx(TOOLSDEPLOYPKG_RUNNING,
@@ -1512,10 +1516,23 @@ ExtractZipPackage(const char* pkgName,
       close(pkgFd);
       return FALSE;;
    }
-   lseek(pkgFd, sizeof(VMwareDeployPkgHdr), 0);
-   while((rdCount = read(pkgFd, copyBuf, sizeof copyBuf)) > 0) {
+   if (lseek(pkgFd, sizeof(VMwareDeployPkgHdr), 0) == (off_t) -1) {
+      sLog(log_error,
+           "Failed to set the offset for the package file '%s'. (%s)\n",
+           pkgName, strerror(errno));
+      close(pkgFd);
+      close(zipFd);
+      ret = FALSE;
+      goto done;
+   }
+   while ((rdCount = read(pkgFd, copyBuf, sizeof copyBuf)) > 0) {
       if (write(zipFd, copyBuf, rdCount) < 0) {
-         sLog(log_warning, "write() failed.\n");
+         sLog(log_error, "Failed to write the zip file '%s'. (%s)\n", zipName,
+              strerror(errno));
+         close(pkgFd);
+         close(zipFd);
+         ret = FALSE;
+         goto done;
       }
    }
 
@@ -1543,6 +1560,12 @@ ExtractZipPackage(const char* pkgName,
    }
 
    Process_Destroy(h);
+done:
+   // Clean up the temporary zip file
+   if (remove(zipName) != 0) {
+      sLog(log_warning, "Failed to remove the temporary zip file '%s'. (%s)\n",
+           zipName, strerror(errno));
+   }
 
    return ret;
 }

@@ -196,11 +196,17 @@ Process_RunToComplete(ProcessHandle h, unsigned long timeoutSec)
 
    p->stdoutFd = stdout[0];
    flags = fcntl(p->stdoutFd, F_GETFL);
-   fcntl(p->stdoutFd, F_SETFL, flags | O_NONBLOCK);
+   if (fcntl(p->stdoutFd, F_SETFL, flags | O_NONBLOCK) == -1) {
+      p->log(log_warning, "Failed to set stdoutFd status flags, (%s)",
+             strerror(errno));
+   }
 
    p->stderrFd = stderr[0];
    flags = fcntl(p->stderrFd, F_GETFL);
-   fcntl(p->stderrFd, F_SETFL, flags | O_NONBLOCK);
+   if (fcntl(p->stderrFd, F_SETFL, flags | O_NONBLOCK) == -1) {
+      p->log(log_warning, "Failed to set stderrFd status flags, (%s)",
+             strerror(errno));
+   }
 
    elapsedTimeLoopSleeps = 0;
 
