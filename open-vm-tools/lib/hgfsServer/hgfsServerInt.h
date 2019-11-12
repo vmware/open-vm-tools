@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -44,6 +44,7 @@ struct DirectoryEntry;
 #ifndef VMX86_TOOLS
 
 #define LOGLEVEL_MODULE hgfsServer
+#define LOGLEVEL_VARIADIC
 #include "loglevel_user.h"
 
 #else // VMX86_TOOLS
@@ -81,13 +82,22 @@ struct DirectoryEntry;
 
 #define DOLOG(_min)     ((_min) <= LGLEVEL)
 
-#define LOG(_level, args)                                  \
-   do {                                                    \
-      if (DOLOG(_level)) {                                 \
-         Debug(LGPFX_FMT, LGPFX, __FUNCTION__);            \
-         Debug args;                                       \
-      }                                                    \
+/* gcc needs special syntax to handle zero-length variadic arguments */
+#if defined(_MSC_VER)
+#define LOG(_level, fmt, ...)                                     \
+   do {                                                           \
+      if (DOLOG(_level)) {                                        \
+         Debug(LGPFX_FMT fmt, LGPFX , __FUNCTION__, __VA_ARGS__); \
+      }                                                           \
    } while (0)
+#else
+#define LOG(_level, fmt, ...)                                      \
+   do {                                                            \
+      if (DOLOG(_level)) {                                         \
+         Debug(LGPFX_FMT fmt, LGPFX, __FUNCTION__, ##__VA_ARGS__); \
+      }                                                            \
+   } while (0)
+#endif
 
 #endif // VNMX86_TOOLS
 
