@@ -52,8 +52,10 @@ extern "C" {
  */
 
 RpcV4Util::RpcV4Util(void)
-   : mVersionMajor(4),
+   : mRpc(NULL),
+     mVersionMajor(4),
      mVersionMinor(0),
+     mMsgType(0),
      mMsgSrc(0),
      mMaxTransportPacketPayloadSize(DND_CP_PACKET_MAX_PAYLOAD_SIZE_V4)
 {

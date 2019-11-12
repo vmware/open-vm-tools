@@ -78,6 +78,7 @@ DnDUIX11::DnDUIX11(ToolsAppCtx *ctx)
     : mCtx(ctx),
       mDnD(NULL),
       mDetWnd(NULL),
+      mClipboard(),
       mBlockCtrl(NULL),
       mHGGetFileStatus(DND_FILE_TRANSFER_NOT_STARTED),
       mBlockAdded(false),
@@ -94,7 +95,9 @@ DnDUIX11::DnDUIX11(ToolsAppCtx *ctx)
       mDestDropTime(0),
       mTotalFileSize(0),
       mOrigin(0, 0),
-      mUseUInput(false)
+      mUseUInput(false),
+      mScreenWidth(0),
+      mScreenHeight(0)
 {
    TRACE_CALL();
 
