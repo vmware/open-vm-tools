@@ -38,6 +38,7 @@
 #include "backdoor_def.h"
 
 #define LOGLEVEL_MODULE hostinfo
+#define LOGLEVEL_VARIADIC
 #include "loglevel_user.h"
 
 #define LGPFX "HOSTINFO:"

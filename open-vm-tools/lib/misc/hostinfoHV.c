@@ -33,7 +33,9 @@
 #include "util.h"
 
 #define LGPFX "HOSTINFO:"
+
 #define LOGLEVEL_MODULE hostinfo
+#define LOGLEVEL_VARIADIC
 #include "loglevel_user.h"
 
 

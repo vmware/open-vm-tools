@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2017,2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -46,6 +46,7 @@
 #include "vm_atomic.h"
 
 #define LOGLEVEL_MODULE main
+#define LOGLEVEL_VARIADIC
 #include "loglevel_user.h"
 
 #if defined(_WIN32)	// Windows
