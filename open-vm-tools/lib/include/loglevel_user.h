@@ -110,6 +110,7 @@
    LOGLEVEL_VAR(vtpm), \
    LOGLEVEL_VAR(mor), \
    LOGLEVEL_VAR(precisionclock), \
+   LOGLEVEL_VAR(deviceThread), \
    \
    /* user/disk */ \
    LOGLEVEL_VAR(aioMgr), \
