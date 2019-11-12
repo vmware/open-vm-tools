@@ -400,6 +400,7 @@ DeployPkgGetTempDir(void)
       free(newDir);
       if (!Random_Crypto(sizeof(randIndex), &randIndex)) {
          g_warning("%s: Random_Crypto failed\n", __FUNCTION__);
+         newDir = NULL;
          goto exit;
       }
       newDir = Str_Asprintf(NULL, "%s%s%08x%s",
@@ -412,9 +413,10 @@ DeployPkgGetTempDir(void)
       i++;
    }
 
-   if (found == FALSE) {
+   if (!found) {
       g_warning("%s: could not create temp directory\n", __FUNCTION__);
-      goto exit;
+      free(newDir);
+      newDir = NULL;
    }
 exit:
    free(dir);
