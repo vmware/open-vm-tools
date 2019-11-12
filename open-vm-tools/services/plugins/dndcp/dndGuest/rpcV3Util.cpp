@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2017,2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -33,10 +33,16 @@
 #ifdef VMX86_TOOLS
 extern "C" {      
    #include "debug.h"
-   #define LOG(level, msg) (Debug msg)
+   /* gcc needs special syntax to handle zero-length variadic arguments */
+   #if defined(_MSC_VER)
+   #define LOG(level, fmt, ...) Debug(fmt, __VA_ARGS__)
+   #else
+   #define LOG(level, fmt, ...) Debug(fmt, ##__VA_ARGS__)
+   #endif
 }
 #else
    #define LOGLEVEL_MODULE dnd
+   #define LOGLEVEL_VARIADIC
    #include "loglevel_user.h"
 #endif
 
@@ -139,14 +145,14 @@ RpcV3Util::SendMsg(uint32 cmd,
 
    /* Serialize clip and output into buf. */
    if (!CPClipboard_Serialize(clip, &buf)) {
-      LOG(0, ("%s: CPClipboard_Serialize failed.\n", __FUNCTION__));
+      LOG(0, "%s: CPClipboard_Serialize failed.\n", __FUNCTION__);
       goto exit;
    }
 
    /* Construct msg with both cmd CP_HG_SET_CLIPBOARD and buf. */
    DnDMsg_SetCmd(&msg, cmd);
    if (!DnDMsg_AppendArg(&msg, DynBuf_Get(&buf), DynBuf_GetSize(&buf))) {
-      LOG(0, ("%s: DnDMsg_AppendData failed.\n", __FUNCTION__));
+      LOG(0, "%s: DnDMsg_AppendData failed.\n", __FUNCTION__);
       goto exit;
    }
 
@@ -184,7 +190,7 @@ RpcV3Util::SendMsg(uint32 cmd,
 
    if (!DnDMsg_AppendArg(&msg, &x, sizeof x) ||
        !DnDMsg_AppendArg(&msg, &y, sizeof y)) {
-      LOG(0, ("%s: DnDMsg_AppendData failed.\n", __FUNCTION__));
+      LOG(0, "%s: DnDMsg_AppendData failed.\n", __FUNCTION__);
       goto exit;
    }
 
@@ -214,7 +220,7 @@ RpcV3Util::SendMsg(const DnDMsg *msg)
 
    /* Serialize msg and output to buf. */
    if (!DnDMsg_Serialize((DnDMsg *)msg, &buf)) {
-      LOG(0, ("%s: DnDMsg_Serialize failed.\n", __FUNCTION__));
+      LOG(0, "%s: DnDMsg_Serialize failed.\n", __FUNCTION__);
       goto exit;
    }
 
@@ -244,11 +250,11 @@ RpcV3Util::SendMsg(const uint8 *binary,
    bool ret = FALSE;
 
    if (binarySize > DNDMSG_MAX_ARGSZ) {
-      LOG(1, ("%s: message is too big, quit.\n", __FUNCTION__));
+      LOG(1, "%s: message is too big, quit.\n", __FUNCTION__);
       return false;
    }
 
-   LOG(4, ("%s: got message, size %d.\n", __FUNCTION__, binarySize));
+   LOG(4, "%s: got message, size %d.\n", __FUNCTION__, binarySize);
 
    if (binarySize <= DND_MAX_TRANSPORT_PACKET_PAYLOAD_SIZE) {
       /*
@@ -271,8 +277,8 @@ RpcV3Util::SendMsg(const uint8 *binary,
 
          if ((Hostinfo_SystemTimerUS() - mSendBuf.lastUpdateTime) <
              DND_MAX_TRANSPORT_LATENCY_TIME) {
-            LOG(1, ("%s: got a big buffer, but there is another pending one, drop it\n",
-                    __FUNCTION__));
+            LOG(1, "%s: got a big buffer, but there is another pending one, drop it\n",
+                __FUNCTION__);
             return false;
          }
       }
@@ -329,7 +335,8 @@ RpcV3Util::OnRecvPacket(uint32 srcId,
          if (packetV3->payloadSize ||
              packetV3->seqNum != mSendBuf.seqNum ||
              packetV3->offset != mSendBuf.offset) {
-            LOG(0, ("%s: received packet does not match local buffer.\n", __FUNCTION__));
+            LOG(0, "%s: received packet does not match local buffer.\n",
+                __FUNCTION__);
             return;
          }
 
@@ -340,7 +347,7 @@ RpcV3Util::OnRecvPacket(uint32 srcId,
              * Not needed to reset mSendBuf because DnD_TransportBufGetPacket already
              * did that.
              */
-            LOG(0, ("%s: DnD_TransportBufGetPacket failed.\n", __FUNCTION__));
+            LOG(0, "%s: DnD_TransportBufGetPacket failed.\n", __FUNCTION__);
             return;
          }
 
@@ -383,7 +390,7 @@ RpcV3Util::OnRecvPacket(uint32 srcId,
 
       /* Received next packet for big binary buffer. */
       if (!DnD_TransportBufAppendPacket(&mRecvBuf, packetV3, packetSize)) {
-         LOG(0, ("%s: DnD_TransportBufAppendPacket failed.\n", __FUNCTION__));
+         LOG(0, "%s: DnD_TransportBufAppendPacket failed.\n", __FUNCTION__);
          return;
       }
 
@@ -402,7 +409,7 @@ RpcV3Util::OnRecvPacket(uint32 srcId,
          replyPacketSize = DnD_TransportReqPacket(&mRecvBuf, &replyPacket);
 
          if (!replyPacketSize) {
-            LOG(0, ("%s: DnD_TransportReqPacket failed.\n", __FUNCTION__));
+            LOG(0, "%s: DnD_TransportReqPacket failed.\n", __FUNCTION__);
             return;
          }
 
@@ -413,12 +420,12 @@ RpcV3Util::OnRecvPacket(uint32 srcId,
       }
       break;
    default:
-      LOG(0, ("%s: unknown packet.\n", __FUNCTION__));
+      LOG(0, "%s: unknown packet.\n", __FUNCTION__);
       break;
    }
 
 invalid_packet:
-   LOG(0, ("%s: received invalid data.\n", __FUNCTION__));
+   LOG(0, "%s: received invalid data.\n", __FUNCTION__);
 }
 
 

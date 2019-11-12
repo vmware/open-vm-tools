@@ -45,6 +45,7 @@
 #include "hostinfo.h"
 
 #define LOGLEVEL_MODULE dnd
+#define LOGLEVEL_VARIADIC
 #include "loglevel_user.h"
 
 #define WIN_DIRSEPC     '\\'
@@ -476,7 +477,7 @@ DnD_LegacyConvertToCPName(const char *nameIn,   // IN:  Buffer to convert
    memcpy(fullName + partialNameLen + partialNameSuffixLen, nameIn, nameSize);
    fullName[fullNameSize] = '\0';
 
-   LOG(4, ("%s: generated name is \"%s\"\n", __FUNCTION__, fullName));
+   LOG(4, "%s: generated name is \"%s\"\n", __FUNCTION__, fullName);
 
    /*
     * CPName_ConvertTo implementation is performed here without calling any
@@ -546,8 +547,8 @@ DnD_LegacyConvertToCPName(const char *nameIn,   // IN:  Buffer to convert
        * logging
        */
 
-      LOG(4, ("%s: CPName is \"%s\"\n", __FUNCTION__, 
-              CPName_Print(origOut, result)));
+      LOG(4, "%s: CPName is \"%s\"\n", __FUNCTION__, 
+          CPName_Print(origOut, result));
    }
 
 out:

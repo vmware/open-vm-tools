@@ -34,10 +34,16 @@
 #ifdef VMX86_TOOLS
 extern "C" {
    #include "debug.h"
-   #define LOG(level, msg) (Debug msg)
+   /* gcc needs special syntax to handle zero-length variadic arguments */
+   #if defined(_MSC_VER)
+   #define LOG(level, fmt, ...) Debug(fmt, __VA_ARGS__)
+   #else
+   #define LOG(level, fmt, ...) Debug(fmt, ##__VA_ARGS__)
+   #endif
 }
 #else
    #define LOGLEVEL_MODULE dnd
+   #define LOGLEVEL_VARIADIC
    #include "loglevel_user.h"
 #endif
 
@@ -144,7 +150,7 @@ RpcV4Util::SendMsg(RpcParams *params,
    DynBuf_Init(&buf);
 
    if (!CPClipboard_Serialize(clip, &buf)) {
-      LOG(0, ("%s: CPClipboard_Serialize failed.\n", __FUNCTION__));
+      LOG(0, "%s: CPClipboard_Serialize failed.\n", __FUNCTION__);
       goto exit;
    }
 
@@ -341,7 +347,7 @@ RpcV4Util::SendMsg(DnDCPMsgV4 *msg)
 
    if (!DnDCPMsgV4_SerializeWithInputPayloadSizeCheck(msg, &packet,
       &packetSize, mMaxTransportPacketPayloadSize)) {
-      LOG(1, ("%s: DnDCPMsgV4_Serialize failed. \n", __FUNCTION__));
+      LOG(1, "%s: DnDCPMsgV4_Serialize failed. \n", __FUNCTION__);
       return false;
    }
 
@@ -385,7 +391,7 @@ RpcV4Util::OnRecvPacket(uint32 srcId,
       HandlePacket(srcId, packet, packetSize, packetType);
       break;
    default:
-      LOG(1, ("%s: invalid packet. \n", __FUNCTION__));
+      LOG(1, "%s: invalid packet. \n", __FUNCTION__);
       SendCmdReplyMsg(srcId, DNDCP_CMD_INVALID, DND_CP_MSG_STATUS_INVALID_PACKET);
       break;
    }
@@ -410,7 +416,7 @@ RpcV4Util::HandlePacket(uint32 srcId,
    DnDCPMsgV4_Init(&msgIn);
 
    if (!DnDCPMsgV4_UnserializeSingle(&msgIn, packet, packetSize)) {
-      LOG(1, ("%s: invalid packet. \n", __FUNCTION__));
+      LOG(1, "%s: invalid packet. \n", __FUNCTION__);
       SendCmdReplyMsg(srcId, DNDCP_CMD_INVALID, DND_CP_MSG_STATUS_INVALID_PACKET);
       return;
    }
@@ -438,7 +444,7 @@ RpcV4Util::HandlePacket(uint32 srcId,
                     DnDCPMsgPacketType packetType)
 {
    if (!DnDCPMsgV4_UnserializeMultiple(&mBigMsgIn, packet, packetSize)) {
-      LOG(1, ("%s: invalid packet. \n", __FUNCTION__));
+      LOG(1, "%s: invalid packet. \n", __FUNCTION__);
       SendCmdReplyMsg(srcId, DNDCP_CMD_INVALID, DND_CP_MSG_STATUS_INVALID_PACKET);
       goto cleanup;
    }
@@ -451,7 +457,7 @@ RpcV4Util::HandlePacket(uint32 srcId,
     */
    if (DND_CP_MSG_PACKET_TYPE_MULTIPLE_END != packetType) {
       if (!RequestNextPacket()) {
-         LOG(1, ("%s: RequestNextPacket failed.\n", __FUNCTION__));
+         LOG(1, "%s: RequestNextPacket failed.\n", __FUNCTION__);
          goto cleanup;
       }
       /*
@@ -490,7 +496,7 @@ RpcV4Util::HandleMsg(DnDCPMsgV4 *msgIn)
       bool ret = SendMsg(&mBigMsgOut);
 
       if (!ret) {
-         LOG(1, ("%s: SendMsg failed. \n", __FUNCTION__));
+         LOG(1, "%s: SendMsg failed. \n", __FUNCTION__);
       }
 
       /*
@@ -693,8 +699,8 @@ RpcV4Util::SetMaxTransportPacketSize(const uint32 size)
        * if the new size is stricter than the default one.
        */
       mMaxTransportPacketPayloadSize = newProposedPayloadSize;
-      LOG(1, ("%s: The packet size is set to %u. \n", __FUNCTION__,
-              mMaxTransportPacketPayloadSize));
+      LOG(1, "%s: The packet size is set to %u. \n", __FUNCTION__,
+          mMaxTransportPacketPayloadSize);
    }
 }
 
