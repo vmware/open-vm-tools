@@ -127,7 +127,7 @@ typedef struct Poll {
 } Poll;
 
 static Poll *pollState;
-
+static volatile gsize inited = 0;
 
 static VMwareStatus
 PollGtkCallback(PollClassSet classSet,   // IN
@@ -297,6 +297,7 @@ PollGtkExit(void)
 
    g_free(poll);
    pollState = NULL;
+   inited = 0;
 }
 
 
@@ -1473,8 +1474,6 @@ PollGtkBasicCallback(gpointer data) // IN: The eventEntry
 void
 Poll_InitGtk(void)
 {
-   static volatile gsize inited = 0;
-
    static const PollImpl gtkImpl =
    {
       PollGtkInit,
