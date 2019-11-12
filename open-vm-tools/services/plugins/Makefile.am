@@ -16,7 +16,9 @@
 ################################################################################
 
 SUBDIRS =
-SUBDIRS += appInfo
+if LINUX
+   SUBDIRS += appInfo
+endif
 if HAVE_X11
    SUBDIRS += desktopEvents
 endif
