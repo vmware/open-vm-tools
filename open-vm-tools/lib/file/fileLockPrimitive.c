@@ -58,6 +58,7 @@
 #include "unicodeOperations.h"
 
 #define LOGLEVEL_MODULE main
+#define LOGLEVEL_VARIADIC
 #include "loglevel_user.h"
 
 #define LOCK_SHARED     "S"
@@ -993,7 +994,7 @@ FileUnlockIntrinsic(FileLockToken *tokenPtr)  // IN:
 
    ASSERT(tokenPtr && (tokenPtr->signature == FILELOCK_TOKEN_SIGNATURE));
 
-   LOG(1, ("Requesting unlock on %s\n", tokenPtr->pathName));
+   LOG(1, "Requesting unlock on %s\n", tokenPtr->pathName);
 
    if (tokenPtr->portable) {
       /*
@@ -1041,9 +1042,8 @@ FileUnlockIntrinsic(FileLockToken *tokenPtr)  // IN:
           *    ENOENT: other locked + unlocked (w/ implicit unlink) file
           */
          if (Err_Errno() == EBUSY || Err_Errno() == ENOENT) {
-            LOG(0, ("Tolerating %s on unlink of advisory lock at %s\n",
-                    Err_Errno() == EBUSY ? "EBUSY" : "ENOENT",
-                    tokenPtr->pathName));
+            LOG(0, "Tolerating %s on unlink of advisory lock at %s\n",
+                Err_Errno() == EBUSY ? "EBUSY" : "ENOENT", tokenPtr->pathName);
          } else {
             err = Err_Errno();
             if (vmx86_debug) {
@@ -1873,8 +1873,8 @@ FileLockIntrinsic(const char *pathName,    // IN:
    myValues.maxWaitTimeMsec = maxWaitTimeMsec;
 
    if (File_SupportsMandatoryLock(pathName)) {
-      LOG(1, ("Requesting %s lock on %s (mandatory, %u).\n",
-          myValues.lockType, pathName, myValues.maxWaitTimeMsec));
+      LOG(1, "Requesting %s lock on %s (mandatory, %u).\n",
+          myValues.lockType, pathName, myValues.maxWaitTimeMsec);
 
       tokenPtr = FileLockIntrinsicMandatory(pathName, lockBase, &myValues, err);
    } else {
@@ -1884,9 +1884,9 @@ FileLockIntrinsic(const char *pathName,    // IN:
       myValues.locationChecksum = FileLockLocationChecksum(lockBase); // free this!
       myValues.memberName = NULL;
 
-      LOG(1, ("Requesting %s lock on %s (%s, %s, %u).\n",
+      LOG(1, "Requesting %s lock on %s (%s, %s, %u).\n",
           myValues.lockType, pathName, myValues.machineID,
-          myValues.executionID, myValues.maxWaitTimeMsec));
+          myValues.executionID, myValues.maxWaitTimeMsec);
 
       tokenPtr = FileLockIntrinsicPortable(pathName, lockBase, &myValues, err);
 

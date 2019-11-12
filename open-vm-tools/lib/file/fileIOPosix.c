@@ -1534,8 +1534,8 @@ FileIOCoalesce(
    }
 
    // XXX: Wouldn't it be nice if we could log from here!
-   //LOG(5, ("FILE: Coalescing %s of %d elements and %d size\n",
-   //        isWrite ? "write" : "read", inCount, inTotalSize));
+   //LOG(5, "FILE: Coalescing %s of %d elements and %d size\n",
+   //    isWrite ? "write" : "read", inCount, inTotalSize);
 
    if (filePosixOptions.aligned || flags & FILEIO_OPEN_UNBUFFERED) {
       cBuf = FileIOAligned_Malloc(sizeof(uint8) * inTotalSize);

@@ -73,6 +73,7 @@
 #endif
 
 #define LOGLEVEL_MODULE main
+#define LOGLEVEL_VARIADIC
 #include "loglevel_user.h"
 
 #include "unicodeOperations.h"
@@ -2525,9 +2526,9 @@ FileVMKGetMaxOrSupportsFileSize(const char *pathName,  // IN:
    /*
     * Try the old way if IOCTL failed.
     */
-   LOG(0, (LGPFX" %s: Failed to figure out max file size via "
-           "IOCTLCMD_VMFS_GET_MAX_FILE_SIZE. Falling back to old method.\n",
-           __func__));
+   LOG(0, LGPFX" %s: Failed to figure out max file size via "
+       "IOCTLCMD_VMFS_GET_MAX_FILE_SIZE. Falling back to old method.\n",
+       __func__);
    maxFileSize = -1;
 
    if (File_GetVMFSAttributes(pathName, &fsAttrs) < 0) {

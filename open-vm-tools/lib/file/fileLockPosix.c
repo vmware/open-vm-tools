@@ -60,6 +60,7 @@
 #include "unicodeOperations.h"
 
 #define LOGLEVEL_MODULE main
+#define LOGLEVEL_VARIADIC
 #include "loglevel_user.h"
 
 #define DEVICE_LOCK_DIR "/var/lock"
@@ -468,8 +469,7 @@ FileLock_LockDevice(const char *deviceName)  // IN:
    lockFileLink = Str_SafeAsprintf(NULL, "%s/LTMP..%s.t%05d", DEVICE_LOCK_DIR,
                                    deviceName, getpid());
 
-   LOG(1, ("Requesting lock %s (temp = %s).\n", lockFileName,
-           lockFileLink));
+   LOG(1, "Requesting lock %s (temp = %s).\n", lockFileName, lockFileLink);
 
    hostID = FileLockGetMachineID();
    Str_Sprintf(uniqueID, sizeof uniqueID, "%d %s\n",
@@ -552,7 +552,7 @@ FileLock_UnlockDevice(const char *deviceName)  // IN:
 
    path = Str_SafeAsprintf(NULL, "%s/LCK..%s", DEVICE_LOCK_DIR, deviceName);
 
-   LOG(1, ("Releasing lock %s.\n", path));
+   LOG(1, "Releasing lock %s.\n", path);
 
    uid = Id_BeginSuperUser();
    ret = unlink(path);
