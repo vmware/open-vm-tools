@@ -28,6 +28,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/wait.h>
+#include <stdlib.h>
 
 #include "util.h"
 
@@ -67,13 +68,26 @@ ProcessError
 Process_Create(ProcessHandle *h, char *args[], void *logPtr)
 {
    int i, numArgs;
+   int err = -1;
    ProcessInternal *p;
    LogFunction log = (LogFunction)logPtr;
    log(log_info, "sizeof ProcessInternal is %d\n", sizeof(ProcessInternal));
-   p = Util_SafeMalloc(sizeof(ProcessInternal));
-   p->stdoutStr = Util_SafeMalloc(sizeof(char));
+   p = (ProcessInternal*) calloc(1, sizeof(ProcessInternal));
+   if (p == NULL) {
+      log(log_error, "Error allocating memory for process\n");
+      goto error;
+   }
+   p->stdoutStr = malloc(sizeof(char));
+   if (p->stdoutStr == NULL) {
+      log(log_error, "Error allocating memory for process stdout\n");
+      goto error;
+   }
    p->stdoutStr[0] = '\0';
-   p->stderrStr = Util_SafeMalloc(sizeof(char));
+   p->stderrStr = malloc(sizeof(char));
+   if (p->stderrStr == NULL) {
+      log(log_error, "Error allocating memory for process stderr\n");
+      goto error;
+   }
    p->stderrStr[0] = '\0';
 
    p->stdoutFd = -1;
@@ -84,13 +98,30 @@ Process_Create(ProcessHandle *h, char *args[], void *logPtr)
       numArgs++;
    }
 
-   p->args = Util_SafeMalloc((1 + numArgs) * sizeof(char*));
-   for (i = 0; i < numArgs; i++) {
-      p->args[i] = Util_SafeStrdup(args[i]);
+   p->args = malloc((1 + numArgs) * sizeof(char*));
+   if (p->args == NULL) {
+      log(log_error, "Error allocating memory for process args\n");
+      goto error;
    }
-   p->args[numArgs] = (char*)0;
+   for (i = 0; i < numArgs; i++) {
+      p->args[i] = strdup(args[i]);
+      if (p->args[i] == NULL) {
+         log(log_error, "Error allocating memory for duplicate args\n");
+         goto error;
+      }
+   }
+   p->args[numArgs] = NULL;
    p->log = log;
    *h = (ProcessHandle)p;
+   err = 0;
+
+error:
+   if (err != 0) {
+      if (p != NULL) {
+         Process_Destroy((ProcessHandle)p);
+      }
+      exit(1);
+   }
    return PROCESS_SUCCESS;
 }
 
@@ -150,7 +181,7 @@ Process_RunToComplete(ProcessHandle h, unsigned long timeoutSec)
    } else if (p->pid == 0) {
       // we're in the child. close the read ends of the pipes and exec
       close(stdout[0]);
-      close(stderr[0]);  
+      close(stderr[0]);
       dup2(stdout[1], STDOUT_FILENO);
       dup2(stderr[1], STDERR_FILENO);
       execv(p->args[0], p->args);
@@ -395,10 +426,12 @@ Process_Destroy(ProcessHandle h)
    }
    free(p->stdoutStr);
    free(p->stderrStr);
-   for (i = 0; p->args[i] != NULL; i++) {
-      free(p->args[i]);
+   if (p->args != NULL) {
+      for (i = 0; p->args[i] != NULL; i++) {
+         free(p->args[i]);
+      }
+      free(p->args);
    }
-   free(p->args);
    free(p);
    return PROCESS_SUCCESS;
 }

@@ -211,15 +211,19 @@ Panic(const char *fmtstr, ...)
 {
    va_list args;
 
-   char *tmp = Util_SafeMalloc(MAXSTRING);
+   char *tmp = malloc(MAXSTRING);
 
-   va_start(args, fmtstr);
-   Str_Vsnprintf(tmp, MAXSTRING, fmtstr, args);
-   va_end(args);
+   if (tmp != NULL) {
+      va_start(args, fmtstr);
+      Str_Vsnprintf(tmp, MAXSTRING, fmtstr, args);
+      va_end(args);
 
-   sLog(log_error, "Panic callback invoked: '%s'.\n", tmp);
+      sLog(log_error, "Panic callback invoked: '%s'.\n", tmp);
 
-   free(tmp);
+      free(tmp);
+   } else {
+      sLog(log_error, "Error allocating memory to log panic messages\n");
+   }
 
    exit(1);
 }
@@ -242,15 +246,19 @@ Debug(const char *fmtstr, ...)
 #ifdef VMX86_DEBUG
    va_list args;
 
-   char *tmp = Util_SafeMalloc(MAXSTRING);
+   char *tmp = malloc(MAXSTRING);
 
-   va_start(args, fmtstr);
-   Str_Vsnprintf(tmp, MAXSTRING, fmtstr, args);
-   va_end(args);
+   if (tmp != NULL) {
+      va_start(args, fmtstr);
+      Str_Vsnprintf(tmp, MAXSTRING, fmtstr, args);
+      va_end(args);
 
-   sLog(log_debug, "Debug callback invoked: '%s'.\n", tmp);
+      sLog(log_debug, "Debug callback invoked: '%s'.\n", tmp);
 
-   free(tmp);
+      free(tmp);
+   } else {
+      sLog(log_error, "Error allocating memory to log debug messages\n");
+   }
 #endif
 }
 
@@ -289,7 +297,7 @@ SetCustomizationStatusInVmxEx(int customizationState,
    size_t  responseLength = 0;
    Bool success;
 
-   if (errMsg) {
+   if (errMsg != NULL) {
       int msg_size = strlen(CABCOMMANDLOG) + 1 + strlen(errMsg) + 1;
       msg = malloc(msg_size);
       if (msg == NULL) {
@@ -432,13 +440,13 @@ SetDeployError(const char* format, ...)
 
    char* tmp = malloc(MAXSTRING);
 
-   if (tmp) {
+   if (tmp != NULL) {
       va_start(args, format);
       Str_Vsnprintf(tmp, MAXSTRING, format, args);
       va_end(args);
    }
 
-   if (gDeployError) {
+   if (gDeployError != NULL) {
       free(gDeployError);
       gDeployError = NULL;
    }
@@ -497,7 +505,7 @@ AddToList(struct List* head, const char* token)
    sLog(log_debug, "Adding to list '%s'.\n", token);
 #endif
    data = malloc(strlen(token) + 1);
-   if (!data) {
+   if (data == NULL) {
       SetDeployError("Error allocating memory. (%s)", strerror(errno));
       return NULL;
    }
@@ -505,7 +513,7 @@ AddToList(struct List* head, const char* token)
    strcpy(data, token);
 
    l = malloc(sizeof(struct List));
-   if (!l) {
+   if (l == NULL) {
       SetDeployError("Error allocating memory. (%s)", strerror(errno));
       // clear allocated resource
       free(data);
@@ -520,7 +528,7 @@ AddToList(struct List* head, const char* token)
       tail = tail->next;
    }
 
-   if (tail) {
+   if (tail != NULL) {
       tail->next = l;
    }
 
@@ -652,7 +660,7 @@ GetPackageInfo(const char* packageName,
 
    // Create space and copy the command
    *command = malloc(VMWAREDEPLOYPKG_CMD_LENGTH);
-   if (!*command) {
+   if (*command == NULL) {
       SetDeployError("Error allocating memory.");
       return FALSE;
    }
@@ -703,7 +711,7 @@ Touch(const char* state)
    int fd;
 
    sLog(log_info, "ENTER STATE '%s'.\n", state);
-   if (!fileName) {
+   if (fileName == NULL) {
       SetDeployError("Error allocating memory.");
       return DEPLOYPKG_STATUS_ERROR;
    }
@@ -746,7 +754,7 @@ UnTouch(const char* state)
    int result;
 
    sLog(log_info, "EXIT STATE '%s'.\n", state);
-   if (!fileName) {
+   if (fileName == NULL) {
       SetDeployError("Error allocating memory.");
       return DEPLOYPKG_STATUS_ERROR;
    }
@@ -789,7 +797,7 @@ TransitionState(const char* stateFrom, const char* stateTo)
    sLog(log_info, "Transitioning from state '%s' to state '%s'.\n", stateFrom, stateTo);
 
    // Create a file to indicate state to
-   if (stateTo) {
+   if (stateTo != NULL) {
       if (Touch(stateTo) == DEPLOYPKG_STATUS_ERROR) {
          SetDeployError("Error creating new state '%s'.(%s)", stateTo, GetDeployError());
          return DEPLOYPKG_STATUS_ERROR;
@@ -797,7 +805,7 @@ TransitionState(const char* stateFrom, const char* stateTo)
    }
 
    // Remove the old state file
-   if (stateFrom) {
+   if (stateFrom != NULL) {
       if (UnTouch(stateFrom) == DEPLOYPKG_STATUS_ERROR) {
          SetDeployError("Error deleting old state '%s'.(%s)", stateFrom, GetDeployError());
          return DEPLOYPKG_STATUS_ERROR;
@@ -1349,7 +1357,7 @@ Deploy(const char* packageName)
       } else {
          char *nics = GetNicsToEnable(imcDirPath);
 
-         if (nics) {
+         if (nics != NULL) {
             // XXX: Sleep before the last SetCustomizationStatusInVmx
             //      This is a temporary-hack for PR 422790
             sleep(5);
@@ -1374,7 +1382,7 @@ Deploy(const char* packageName)
    }
    cleanupCommandSize = strlen(CLEANUPCMD) + strlen(imcDirPath) + 1;
    cleanupCommand = malloc(cleanupCommandSize);
-   if (!cleanupCommand) {
+   if (cleanupCommand == NULL) {
       SetDeployError("Error allocating memory.");
       free(imcDirPath);
       return DEPLOYPKG_STATUS_ERROR;
@@ -1458,7 +1466,7 @@ ExtractCabPackage(const char* cabFileName,
    }
 
    // check if cab file is set
-   if (!cabFileName) {
+   if (cabFileName == NULL) {
       SetDeployError("Cab file not set.");
       return FALSE;
    }
@@ -1599,7 +1607,7 @@ GetFormattedCommandLine(const char* command)
 
    // prefixing the start path for the commands
    args = malloc((ListSize(commandTokens) + 1) * sizeof(char*));
-   if (!args) {
+   if (args == NULL) {
       SetDeployError("Error allocating memory.");
       // clear resources
       DeleteList(commandTokens);
@@ -1608,7 +1616,7 @@ GetFormattedCommandLine(const char* command)
 
    for(l = commandTokens, i = 0; l; l = l->next, i++) {
       char* arg = malloc(strlen(l->data) + 1);
-      if (!arg) {
+      if (arg == NULL) {
          unsigned int j;
          SetDeployError("Error allocating memory. (%s)", strerror(errno));
          // free allocated memories in previous iterations if any
