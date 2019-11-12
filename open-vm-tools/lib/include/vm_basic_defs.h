@@ -851,4 +851,19 @@ typedef int pid_t;
  */
 #define UNCHECKED_SWITCH__FIXME(x) switch ((uint64)(x))
 
+
+/*
+ * When clang static analyzer parses source files, it implicitly defines
+ * __clang_analyzer__ macro. We use this to define our custom macro to stop
+ * its execution for the current path of analysis by calling a function that
+ * doesn't return, making it think that it hit a failed assertion.
+ *
+ * DO NOT use to silence the analyzer! See PR2447238.
+ */
+#ifdef __clang_analyzer__
+#define VMW_CLANG_ANALYZER_NORETURN() Panic("Disable Clang static analyzer")
+#else
+#define VMW_CLANG_ANALYZER_NORETURN() ((void)0)
+#endif
+
 #endif // ifndef _VM_BASIC_DEFS_H_
