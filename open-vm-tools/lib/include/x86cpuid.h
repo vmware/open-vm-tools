@@ -1081,8 +1081,6 @@ FIELD( 88,  0, ECX, 16,  2, PERFTSC_SIZE,                        NO,    0 )
 FLAG(  8A,  0, EDX, 11,  1, SVMEDX_RSVD1,                        NO,    0 )
 #define CPUID_8A_EDX_14 \
 FLAG(  8A,  0, EDX, 14,  1, SVMEDX_RSVD2,                        NO,    0 )
-#define CPUID_8A_EDX_17 \
-FLAG(  8A,  0, EDX, 17,  1, SVMEDX_RSVD3,                        NO,    0 )
 
 /*    LEVEL, REG, POS, SIZE, NAME,                          MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_8A                                           \
@@ -1107,7 +1105,7 @@ FLAG(  8A,  0, EDX, 13,  1, SVM_AVIC,                            NO,    0 ) \
 CPUID_8A_EDX_14 \
 FLAG(  8A,  0, EDX, 15,  1, SVM_V_VMSAVE_VMLOAD,                 NO,    0 ) \
 FLAG(  8A,  0, EDX, 16,  1, SVM_VGIF,                            NO,    0 ) \
-CPUID_8A_EDX_17 \
+FLAG(  8A,  0, EDX, 17,  1, SVM_GMET,                            YES,  17 ) \
 FIELD( 8A,  0, EDX, 18, 14, SVMEDX_RSVD,                         NO,    0 )
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
