@@ -205,6 +205,7 @@ enum {
 #define CPUID_FEATURE_INFORMATION  0x01
 #define CPUID_PROCESSOR_TOPOLOGY   4
 #define CPUID_MWAIT_FEATURES       5
+#define CPUID_PMC_FEATURES         0xa
 #define CPUID_XSAVE_FEATURES       0xd
 #define CPUID_SGX_FEATURES         0x12
 #define CPUID_PT_FEATURES          0x14
@@ -611,7 +612,7 @@ FLAG(   D,  0, EAX,  6,  1, XCR0_MASTER_ZMM_H,                   YES,  13 ) \
 FLAG(   D,  0, EAX,  7,  1, XCR0_MASTER_HI16_ZMM,                YES,  13 ) \
 FLAG(   D,  0, EAX,  8,  1, XCR0_MASTER_XSS,                     NO,    0 ) \
 FLAG(   D,  0, EAX,  9,  1, XCR0_MASTER_PKRU,                    YES,  13 ) \
-FIELD(  D,  0, EAX,  10,22, XCR0_MASTER_LOWER,                   NO,    0 ) \
+FIELD(  D,  0, EAX, 10, 22, XCR0_MASTER_LOWER,                   NO,    0 ) \
 FIELD(  D,  0, EBX,  0, 32, XSAVE_ENABLED_SIZE,                  ANY,   8 ) \
 FIELD(  D,  0, ECX,  0, 32, XSAVE_MAX_SIZE,                      YES,   8 ) \
 FIELD(  D,  0, EDX,  0, 29, XCR0_MASTER_UPPER,                   NO,    0 ) \
@@ -625,7 +626,7 @@ FIELD(  D,  1, EBX,  0, 32, XSAVES_ENABLED_SIZE,                 ANY,  13 ) \
 FIELD(  D,  1, ECX,  0,  7, XSS_XCR0_USED0,                      NO,    0 ) \
 FLAG(   D,  1, ECX,  8,  1, XSS_PT,                              NO,    0 ) \
 FIELD(  D,  1, ECX,  9,  1, XSS_XCR0_USED1,                      NO,    0 ) \
-FIELD(  D,  1, ECX,  10,22, XSS_RSVD0,                           NO,    0 ) \
+FIELD(  D,  1, ECX, 10, 22, XSS_RSVD0,                           NO,    0 ) \
 FIELD(  D,  1, EDX,  0, 32, XSS_RSVD1,                           NO,    0 ) \
 FIELD(  D,  2, EAX,  0, 32, XSAVE_YMM_SIZE,                      YES,   8 ) \
 FIELD(  D,  2, EBX,  0, 32, XSAVE_YMM_OFFSET,                    YES,   8 ) \
