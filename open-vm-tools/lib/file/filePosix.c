@@ -52,6 +52,9 @@
 #if defined(__linux__)
 #   include <pwd.h>
 #endif
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#endif
 
 #include "vmware.h"
 #include "posix.h"
@@ -1046,7 +1049,7 @@ File_GetParent(char **canPath)  // IN/OUT: Canonical file path
 }
 
 
-#if !defined(__APPLE__)
+#if !defined(__APPLE__) || TARGET_OS_IPHONE
 /*
  *----------------------------------------------------------------------
  *
