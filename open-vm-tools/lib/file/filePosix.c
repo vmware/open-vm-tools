@@ -1964,6 +1964,13 @@ retry:
                   Str_Strcpy(canPath, ptr, sizeof canPath);
                }
             } else {
+
+               /*
+                * This is coded as it is in order to document clearly that
+                * the function does not handle bind mount correctly (it
+                * always assumes rbind).
+                */
+               /* coverity[dead_error_line] */
                Str_Strcpy(canPath, ptr, sizeof canPath);
             }
 

@@ -2058,6 +2058,12 @@ FileIOPreadvInternal(
       ssize_t retval = 0;
 
       ASSERT(numVec > 0);
+
+      /*
+       * This is needed to deal with old libraries.  Once we're over
+       * the library horizon this can go away.
+       */
+      /* coverity[func_conv] */
       if (preadv64 == NULL) {
          fret = FileIOPreadvCoalesced(fd, entries, numEntries, offset,
                                       totalSize, &bytesRead);
@@ -2193,6 +2199,12 @@ FileIOPwritevInternal(
       ssize_t retval = 0;
 
       ASSERT(numVec > 0);
+
+      /*
+       * This is needed to deal with old libraries.  Once we're over
+       * the library horizon this can go away.
+       */
+      /* coverity[func_conv] */
       if (pwritev64 == NULL) {
          fret = FileIOPwritevCoalesced(fd, entries, numEntries, offset,
                                        totalSize, &bytesWritten);
