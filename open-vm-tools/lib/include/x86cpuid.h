@@ -543,7 +543,7 @@ FLAG(   7,  0, ECX, 16,  1, VA57,                                NO,    0 ) \
 FIELD(  7,  0, ECX, 17,  5, MAWA,                                NO,    0 ) \
 FLAG(   7,  0, ECX, 22,  1, RDPID,                               YES,  17 ) \
 FLAG(   7,  0, ECX, 25,  1, CLDEMOTE,                            NO,    0 ) \
-FLAG(   7,  0, ECX, 27,  1, MOVDIRI,                             NO,    0 ) \
+FLAG(   7,  0, ECX, 27,  1, MOVDIRI,                             YES, FUT ) \
 FLAG(   7,  0, ECX, 28,  1, MOVDIR64B,                           NO,    0 ) \
 FLAG(   7,  0, ECX, 29,  1, ENQCMD,                              NO,    0 ) \
 FLAG(   7,  0, ECX, 30,  1, SGX_LC,                              ANY,  17 ) \
