@@ -220,6 +220,14 @@ RpcV4Util::SendMsg(RpcParams *params,
       memcpy(msgOut->binary, binary,binarySize);
    }
 
+   /*
+    * Coverity reports a potential null dereference on msgOut->binary
+    * in DnDCPMsgV4_SerializeWithInputPayloadSizeCheck, which is called
+    * from RPCV4Util::SendMsg.  However, it's a false positive, since
+    * msgOut->binary is dereferenced only if msgOut->hdr.binarySize > 0,
+    * which in turn guarantees msgOut->binary will be non-NULL.
+    */
+   /* coverity[var_deref_model] */
    ret = SendMsg(msgOut);
    /* The mBigMsgOut is destroyed when the message sending was failed. */
    if (!ret && msgOut == &mBigMsgOut) {
@@ -544,6 +552,13 @@ RpcV4Util::AddRpcReceivedListener(const DnDRpcListener *listener)
    DblLnkLst_Init(&node->l);
    node->listener = listener;
    DblLnkLst_LinkLast(&mRpcReceivedListeners, &node->l);
+
+   /*
+    * Storage of node is not leaking since the above call to
+    * DblLnkLst_LinkLast adds it to the end of the
+    * mRpcReceivedListeners list.
+    */
+   /* coverity[leaked_storage] */
    return true;
 }
 
@@ -622,6 +637,13 @@ RpcV4Util::AddRpcSentListener(const DnDRpcListener *listener)
    DblLnkLst_Init(&node->l);
    node->listener = listener;
    DblLnkLst_LinkLast(&mRpcSentListeners, &node->l);
+
+   /*
+    * Storage of node is not leaking since the above call to
+    * DblLnkLst_LinkLast adds it to the end of the
+    * mRpcSentListeners list.
+    */
+   /* coverity[leaked_storage] */
    return true;
 }
 
