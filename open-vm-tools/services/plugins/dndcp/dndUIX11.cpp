@@ -1657,7 +1657,14 @@ std::string
 DnDUIX11::GetLastDirName(const std::string &str)
 {
    char *baseName;
-   File_GetPathName(str.c_str(), NULL, &baseName);
+   std::string stripSlash = str;
+   char *path = File_StripSlashes(stripSlash.c_str());
+   if (path) {
+      stripSlash = path;
+      free(path);
+   }
+
+   File_GetPathName(stripSlash.c_str(), NULL, &baseName);
    if (baseName) {
       std::string s(baseName);
       free(baseName);
