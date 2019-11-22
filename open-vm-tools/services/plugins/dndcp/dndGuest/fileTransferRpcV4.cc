@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -35,9 +35,17 @@ extern "C" {
 
 #if defined VMX86_TOOLS
    #include "debug.h"
-   #define LOG(level, msg) (Debug msg)
+
+/* gcc needs special syntax to handle zero-length variadic arguments */
+#if defined(_MSC_VER)
+   #define LOG(level, fmt, ...) Debug(fmt, __VA_ARGS__)
+#else
+   #define LOG(level, fmt, ...) Debug(fmt, ##__VA_ARGS__)
+#endif
+
 #else
    #define LOGLEVEL_MODULE dnd
+   #define LOGLEVEL_VARIADIC
    #include "loglevel_user.h"
 #endif
 }
@@ -168,9 +176,9 @@ FileTransferRpcV4::HandleMsg(RpcParams *params,
 {
    ASSERT(params);
 
-   LOG(4, ("%s: Got %s[%d], sessionId %d, srcId %d, binary size %d.\n",
-           __FUNCTION__, DnDCPMsgV4_LookupCmd(params->cmd), params->cmd,
-           params->sessionId, params->addrId, binarySize));
+   LOG(4, "%s: Got %s[%d], sessionId %d, srcId %d, binary size %d.\n",
+       __FUNCTION__, DnDCPMsgV4_LookupCmd(params->cmd), params->cmd,
+       params->sessionId, params->addrId, binarySize);
 
    switch (params->cmd) {
    case FT_CMD_HGFS_REQUEST:
@@ -182,7 +190,7 @@ FileTransferRpcV4::HandleMsg(RpcParams *params,
    case DNDCP_CMD_PING_REPLY:
       break;
    default:
-      LOG(0, ("%s: Got unknown command %d.\n", __FUNCTION__, params->cmd));
+      LOG(0, "%s: Got unknown command %d.\n", __FUNCTION__, params->cmd);
       break;
    }
 }
