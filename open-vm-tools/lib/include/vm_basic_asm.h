@@ -62,7 +62,6 @@
 #define MUL64_NO_ASM 1
 #include "mul64.h"
 #elif defined VM_ARM_64
-#include "arm64_basic_defs.h"
 #include "vm_basic_asm_arm64.h"
 #else
 #define MUL64_NO_ASM 1
