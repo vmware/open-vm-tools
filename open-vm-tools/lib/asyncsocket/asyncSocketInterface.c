@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2016-2017,2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2016-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -64,6 +64,7 @@
 #include "log.h"
 
 #define LOGLEVEL_MODULE asyncsocket
+#define LOGLEVEL_VARIADIC
 #include "loglevel_user.h"
 
 
