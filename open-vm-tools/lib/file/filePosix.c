@@ -992,7 +992,7 @@ File_SetFilePermissions(const char *pathName,  // IN:
  *-----------------------------------------------------------------------------
  */
 
-static Bool
+Bool
 FilePosixGetParent(char **canPath)  // IN/OUT: Canonical file path
 {
    char *pathName;
@@ -1049,6 +1049,7 @@ File_GetParent(char **canPath)  // IN/OUT: Canonical file path
 }
 
 
+#if !defined(__APPLE__) || TARGET_OS_IPHONE
 /*
  *----------------------------------------------------------------------
  *
@@ -1140,6 +1141,7 @@ File_GetFreeSpace(const char *pathName,  // IN: File name
 
    return ret;
 }
+#endif
 
 
 #if defined(VMX86_SERVER)
@@ -1622,25 +1624,7 @@ File_SupportsOptimisticLock(const char *pathName)  // IN:
 uint64
 File_GetCapacity(const char *pathName)  // IN: Path name
 {
-   uint64 ret;
-   char *fullPath;
-   struct statfs statfsbuf;
-
-   fullPath = File_FullPath(pathName);
-   if (fullPath == NULL) {
-      return -1;
-   }
-
-   if (FileGetStats(fullPath, FALSE, &statfsbuf)) {
-      ret = (uint64) statfsbuf.f_blocks * statfsbuf.f_bsize;
-   } else {
-      Warning(LGPFX" %s: Couldn't statfs\n", __func__);
-      ret = -1;
-   }
-
-   Posix_Free(fullPath);
-
-   return ret;
+   return File_GetFreeSpace(pathName, FALSE);
 }
 
 
