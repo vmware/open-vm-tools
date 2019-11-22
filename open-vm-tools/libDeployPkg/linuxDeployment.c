@@ -834,17 +834,18 @@ TransitionState(const char* stateFrom, const char* stateTo)
  *
  *-----------------------------------------------------------------------------
  */
-static char*
-GetNicsToEnable(const char* dir)
+
+static char *
+GetNicsToEnable(const char *dir)
 {
    /*
-    * The file nics.txt will list ordinal number of all nics to enable separated by
-    * a ",". In current architecture we can have max 4 nics. So we just have to read
-    * maximum of 7 characters. This code uses 1024 chars to make sure any future
-    * needs are accomodated.
+    * The file nics.txt will list ordinal number of all nics to enable separated
+    * by a ",". In current architecture we can have max 4 nics. So we just have
+    * to read maximum of 7 characters. This code uses 1024 chars to make sure
+    * any future needs are accomodated.
     */
    static const unsigned int NICS_SIZE = 1024;
-   static const char* nicFile = "/nics.txt";
+   static const char *nicFile = "/nics.txt";
 
    FILE *file;
 
@@ -862,7 +863,9 @@ GetNicsToEnable(const char* dir)
    if (file) {
       ret = malloc(NICS_SIZE);
       if (ret == NULL) {
-         SetDeployError("Error allocating memory to read nic file '%s'", fileName);
+         SetDeployError("Error allocating memory to read nic file '%s'",
+                        fileName);
+         fclose(file);
          free(fileName);
          return ret;
       }
@@ -872,7 +875,8 @@ GetNicsToEnable(const char* dir)
 
       // Check various error condition
       if (ferror(file)) {
-         SetDeployError("Error reading nic file '%s'.(%s)", fileName, strerror(errno));
+         SetDeployError("Error reading nic file '%s'.(%s)", fileName,
+                        strerror(errno));
          free(ret);
          ret = NULL;
       }
@@ -889,6 +893,7 @@ GetNicsToEnable(const char* dir)
    free(fileName);
    return ret;
 }
+
 
 /**
  *------------------------------------------------------------------------------
