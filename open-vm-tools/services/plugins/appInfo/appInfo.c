@@ -499,23 +499,11 @@ ToolsOnLoad(ToolsAppCtx *ctx)
       NULL
    };
 
-   uint32 vmxVersion = 0;
-   uint32 vmxType = VMX_TYPE_UNSET;
-
    /*
     * Return NULL to disable the plugin if not running in a VMware VM.
     */
    if (!ctx->isVMware) {
       g_info("Not running in a VMware VM.\n");
-      return NULL;
-   }
-
-   /*
-    * Return NULL to disable the plugin if VM is not running on ESX host.
-    */
-   if (!VmCheck_GetVersion(&vmxVersion, &vmxType) ||
-       vmxType != VMX_TYPE_SCALABLE_SERVER) {
-      g_info("VM is not running on ESX host.\n");
       return NULL;
    }
 
