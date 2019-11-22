@@ -1497,6 +1497,7 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 #define CPUID_MODEL_ATOM_5D        0x5d  // Future Silvermont
 #define CPUID_MODEL_SKYLAKE_5E     0x5e  // Skylake-S / Kaby Lake S/H ES
 #define CPUID_MODEL_ATOM_5F        0x5f  // Denverton
+#define CPUID_MODEL_ATOM_86        0x86  // Snow Ridge
 #define CPUID_MODEL_CANNONLAKE_66  0x66  // Cannon Lake
 #define CPUID_MODEL_KNM_85         0x85  // Knights Mill
 #define CPUID_MODEL_KABYLAKE_8E    0x8e  // Kaby Lake U/Y QS
@@ -1893,6 +1894,21 @@ CPUID_MODEL_IS_DENVERTON(uint32 v) // IN: %eax from CPUID with %eax=1.
 }
 
 static INLINE Bool
+CPUID_MODEL_IS_SNOWRIDGE(uint32 v) // IN: %eax from CPUID with %eax=1.
+{
+   /* Assumes the CPU manufacturer is Intel. */
+   return CPUID_FAMILY_IS_P6(v) &&
+          CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_ATOM_86;
+}
+
+static INLINE Bool
+CPUID_UARCH_IS_TREMONT(uint32 v) // IN: %eax from CPUID with %eax=1.
+{
+   /* Assumes the CPU manufacturer is Intel. */
+   return CPUID_FAMILY_IS_P6(v) && CPUID_MODEL_IS_SNOWRIDGE(v);
+}
+
+static INLINE Bool
 CPUID_MODEL_IS_WESTMERE(uint32 v) // IN: %eax from CPUID with %eax=1.
 {
    /* Assumes the CPU manufacturer is Intel. */
@@ -2260,8 +2276,9 @@ CPUID_SupportsMsrPlatformInfo(CpuidVendor vendor, uint32 version)
            CPUID_UARCH_IS_HASWELL(version)     ||
            CPUID_UARCH_IS_SKYLAKE(version)     ||
            CPUID_MODEL_IS_KNIGHTS_LANDING(version) ||
-           CPUID_MODEL_IS_DENVERTON(version) ||
-           CPUID_UARCH_IS_SILVERMONT(version));
+           CPUID_MODEL_IS_DENVERTON(version)   ||
+           CPUID_UARCH_IS_SILVERMONT(version)  ||
+           CPUID_UARCH_IS_TREMONT(version));
 }
 
 #ifdef _MSC_VER
