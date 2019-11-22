@@ -675,6 +675,15 @@ VmBackupAsyncCallback(void *clientData)
       if (gBackupState->rpcState == VMBACKUP_RPC_STATE_ERROR) {
          g_warning("Aborting backup operation due to RPC errors.");
          VmBackupDoAbort();
+
+         /*
+          * Check gBackupState, since the abort could cause a transition to
+          * VMBACKUP_MSTATE_IDLE, in which case the VmBackupState structure
+          * would be freed and gBackupState would be NULL.
+          */
+         if (gBackupState == NULL) {
+            return FALSE;
+         }
          goto exit;
       }
    }
