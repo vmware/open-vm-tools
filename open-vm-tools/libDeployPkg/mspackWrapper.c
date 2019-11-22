@@ -115,7 +115,6 @@ MspackWrapper_SetLogger(LogFunction log)
  **/
 unsigned int
 SetupPath (char* path) {
-   struct stat stats;
    char* token;
 
    // walk through the path (it employs in string replacement)
@@ -139,10 +138,10 @@ SetupPath (char* path) {
       sLog(log_debug, "Creating directory %s \n", path);
 #endif
 
-      // ignore if the directory exists
-      if (!((stat(path, &stats) == 0) && S_ISDIR(stats.st_mode))) {
-         // make directory and check error
-         if (mkdir(path, 0777) == -1) {
+      if (mkdir(path, 0777) == -1) {
+         struct stat stats;
+         // ignore if the directory exists
+         if (!((stat(path, &stats) == 0) && S_ISDIR(stats.st_mode))) {
             sLog(log_error, "Unable to create directory %s (%s)\n", path,
                  strerror(errno));
             return LINUXCAB_ERROR;
