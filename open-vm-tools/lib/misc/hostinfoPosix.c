@@ -1153,10 +1153,7 @@ out:
    if (success) {
       result[nArgs - 1] = DynBuf_Detach(&b);
    } else {
-      if (nArgs != 0) {
-         Util_FreeStringList(result, nArgs);
-      }
-
+      Util_FreeStringList(result, nArgs);
       result = NULL;
    }
 
@@ -2910,7 +2907,10 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
           * with another process attempting to daemonize and unlinking the
           * file it created instead.
           */
-         Posix_Unlink(pidPath);
+         if (Posix_Unlink(pidPath) != 0) {
+            Warning("%s: Unable to unlink %s: %u\n",
+                    __FUNCTION__, pidPath, errno);
+         }
       }
 
       errno = err;
