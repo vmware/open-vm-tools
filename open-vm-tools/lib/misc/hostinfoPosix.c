@@ -1308,7 +1308,7 @@ HostinfoLsbRemoveQuotes(char *lsbOutput)  // IN/OUT:
 {
    char *lsbStart = lsbOutput;
 
-   if (lsbStart[0] == '"') {
+   if (lsbOutput != NULL && strlen(lsbOutput) >= 0 && lsbStart[0] == '"') {
       char *quoteEnd = strchr(++lsbStart, '"');
 
       if (quoteEnd != NULL) {
