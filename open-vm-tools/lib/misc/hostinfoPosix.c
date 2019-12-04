@@ -1359,7 +1359,7 @@ HostinfoLsb(char ***args)  // OUT:
 
    lsbOutput = HostinfoGetCmdOutput("/usr/bin/lsb_release -sd 2>/dev/null");
 
-   if (lsbOutput == NULL) {
+   if (lsbOutput == NULL || strlen(lsbOutput) == 0) {
       /*
        * Try to get more detailed information from the version file.
        */
