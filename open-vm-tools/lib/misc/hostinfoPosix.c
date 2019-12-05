@@ -3207,16 +3207,16 @@ Hostinfo_Execute(const char *path,   // IN:
 
    if (wait) {
       for (;;) {
-	 if (waitpid(pid, &status, 0) == -1) {
-	    if (errno == ECHILD) {
-	       return 0;	// This sucks.  We really don't know.
-	    }
-	    if (errno != EINTR) {
-	       return -1;
-	    }
-	 } else {
-	    return status;
-	 }
+         if (waitpid(pid, &status, 0) == -1) {
+            if (errno == ECHILD) {
+               return 0;   // This sucks.  We really don't know.
+            }
+            if (errno != EINTR) {
+               return -1;
+            }
+         } else {
+            return status;
+         }
       }
    } else {
       return 0;
