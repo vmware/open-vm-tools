@@ -286,13 +286,13 @@ HostinfoOSVersionInit(void)
    }
 
    version = Util_SafeCalloc(1, sizeof *version);
-   version->hostinfoOSVersionString = Util_SafeStrndup(u.release, 
+   version->hostinfoOSVersionString = Util_SafeStrndup(u.release,
                                                        sizeof u.release);
 
    ASSERT(ARRAYSIZE(version->hostinfoOSVersion) >= 4);
 
    /*
-    * The first three numbers are separated by '.', if there is 
+    * The first three numbers are separated by '.', if there is
     * a fourth number, it's probably separated by '.' or '-',
     * but it could be preceded by anything.
     */
@@ -1334,6 +1334,8 @@ HostinfoLsbRemoveQuotes(char *lsbOutput)  // IN/OUT:
 {
    char *lsbStart = lsbOutput;
 
+   ASSERT(lsbStart != NULL);
+
    if (lsbStart[0] == '"') {
       char *quoteEnd = strchr(++lsbStart, '"');
 
@@ -1407,13 +1409,17 @@ HostinfoLsb(char ***args)  // OUT:
 
       /* LSB Distributor */
       lsbOutput = HostinfoGetCmdOutput("/usr/bin/lsb_release -si 2>/dev/null");
-      (*args)[0] = Util_SafeStrdup(HostinfoLsbRemoveQuotes(lsbOutput));
-      free(lsbOutput);
+      if (lsbOutput != NULL) {
+         (*args)[0] = Util_SafeStrdup(HostinfoLsbRemoveQuotes(lsbOutput));
+         free(lsbOutput);
+      }
 
       /* LSB Release */
       lsbOutput = HostinfoGetCmdOutput("/usr/bin/lsb_release -sr 2>/dev/null");
-      (*args)[1] = Util_SafeStrdup(HostinfoLsbRemoveQuotes(lsbOutput));
-      free(lsbOutput);
+      if (lsbOutput != NULL) {
+         (*args)[1] = Util_SafeStrdup(HostinfoLsbRemoveQuotes(lsbOutput));
+         free(lsbOutput);
+      }
 
       /* LSB Description */
       (*args)[3] = Util_SafeStrdup((*args)[fields]);
@@ -3499,7 +3505,7 @@ NOT_IMPLEMENTED();
  *----------------------------------------------------------------------
  */
 
-static Bool 
+static Bool
 HostinfoFindEntry(char *buffer,         // IN: Buffer
                   char *string,         // IN: String sought
                   unsigned int *value)  // OUT: Value
@@ -3582,7 +3588,7 @@ HostinfoGetMemInfo(char *name,           // IN:
  * HostinfoSysinfo --
  *
  *      Retrieve system information on a Linux system.
- *    
+ *
  * Results:
  *      TRUE on success: '*totalRam', '*freeRam', '*totalSwap' and '*freeSwap'
  *                       are set if not NULL
@@ -3628,7 +3634,7 @@ HostinfoSysinfo(uint64 *totalRam,  // OUT: Total RAM in bytes
    if (sysinfo((struct sysinfo *)&si) < 0) {
       return FALSE;
    }
-   
+
    if (si.mem_unit == 0) {
       /*
        * Kernel versions < 2.3.23. Those kernels used a smaller sysinfo
@@ -3683,10 +3689,10 @@ HostinfoGetLinuxMemoryInfoInPages(unsigned int *minSize,      // OUT:
                                   unsigned int *maxSize,      // OUT:
                                   unsigned int *currentSize)  // OUT:
 {
-   uint64 total; 
+   uint64 total;
    uint64 free;
    unsigned int cached = 0;
-   
+
    /*
     * Note that the free memory provided by linux does not include buffer and
     * cache memory. Linux tries to use the free memory to cache file. Most of
@@ -3753,7 +3759,7 @@ Bool
 Hostinfo_GetSwapInfoInPages(unsigned int *totalSwap,  // OUT:
                             unsigned int *freeSwap)   // OUT:
 {
-   uint64 total; 
+   uint64 total;
    uint64 free;
 
    if (HostinfoSysinfo(NULL, NULL, &total, &free) == FALSE) {
@@ -3842,7 +3848,7 @@ Hostinfo_GetMemoryInfoInPages(unsigned int *minSize,      // OUT:
    *maxSize = memsize / PAGE_SIZE;
    return TRUE;
 #elif defined(VMX86_SERVER)
-   uint64 total; 
+   uint64 total;
    uint64 free;
    VMK_ReturnStatus status;
 
