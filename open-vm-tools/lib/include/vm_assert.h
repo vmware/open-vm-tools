@@ -353,6 +353,17 @@ void WarningThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
       assertions                     \
    }
 
+/*
+ * Avoid generating extra code due to asserts which are required by
+ * Clang static analyzer, e.g. right before a statement would fail, using
+ * the __clang_analyzer__ macro defined only when clang SA is parsing files.
+ */
+#ifdef __clang_analyzer__
+#define ANALYZER_ASSERT(cond) ASSERT(cond)
+#else
+#define ANALYZER_ASSERT(cond) ((void)0)
+#endif
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
