@@ -1217,12 +1217,51 @@ UseCloudInitWorkflow(const char* dirPath)
 
 /**
  *
+ * Function which cleans up the deployment directory imcDirPath.
+ * This function is called when customization deployment is completed or
+ * any unexpected error happens before deployment begins.
+ *
+ * @param   [IN] imcDirPath  The deployment directory.
+ * @returns true if cleaning up succeeds, false if cleaning up fails.
+ *
+ **/
+static bool
+DeleteTempDeploymentDirectory(const char* imcDirPath)
+{
+   int cleanupCommandSize;
+   char* cleanupCommand;
+
+   cleanupCommandSize = strlen(CLEANUPCMD) + strlen(imcDirPath) + 1;
+   cleanupCommand = malloc(cleanupCommandSize);
+   if (cleanupCommand == NULL) {
+      SetDeployError("Error allocating memory."
+                     "Failed to clean up imc directory '%s'", imcDirPath);
+      return false;
+   }
+
+   strcpy(cleanupCommand, CLEANUPCMD);
+   Str_Strcat(cleanupCommand, imcDirPath, cleanupCommandSize);
+
+   sLog(log_info, "Launching cleanup.\n");
+   if (ForkExecAndWaitCommand(cleanupCommand, false) != 0) {
+      sLog(log_warning, "Error while cleaning up imc directory '%s'. (%s)\n",
+           imcDirPath, strerror(errno));
+      free(cleanupCommand);
+      return false;
+   }
+   free(cleanupCommand);
+   return true;
+}
+
+
+/**
+ *
  * Core function which takes care of deployment in Linux.
  * Essentially it does
  * - uncabing of the cabinet
  * - execution of the command embedded in the cabinet header
  *
- * @param   [IN[  packageName  Package file to be used for deployment
+ * @param   [IN]  packageName  Package file to be used for deployment
  * @returns DEPLOYPKG_STATUS_SUCCESS on success
  *          DEPLOYPKG_STATUS_CLOUD_INIT_DELEGATED if customization task is
  *          delegated to cloud-init.
@@ -1236,7 +1275,6 @@ Deploy(const char* packageName)
    char* pkgCommand = NULL;
    char* command = NULL;
    int deploymentResult = 0;
-   char* cleanupCommand;
    uint8 archiveType;
    uint8 flags;
    bool forceSkipReboot = false;
@@ -1244,7 +1282,6 @@ Deploy(const char* packageName)
    char *imcDirPath = NULL;
    bool useCloudInitWorkflow = false;
    int imcDirPathSize = 0;
-   int cleanupCommandSize = 0;
    TransitionState(NULL, INPROGRESS);
 
    // Notify the vpx of customization in-progress state
@@ -1291,6 +1328,9 @@ Deploy(const char* packageName)
    if (!GetPackageInfo(packageName, &pkgCommand, &archiveType, &flags)) {
       SetDeployError("Error extracting package header information. (%s)",
                      GetDeployError());
+      // Possible errors have been logged inside DeleteTempDeploymentDirectory.
+      // So no need to check its return value and log error here.
+      DeleteTempDeploymentDirectory(imcDirPath);
       free(imcDirPath);
       return DEPLOYPKG_STATUS_CAB_ERROR;
    }
@@ -1309,12 +1349,14 @@ Deploy(const char* packageName)
 
    if (archiveType == VMWAREDEPLOYPKG_PAYLOAD_TYPE_CAB) {
       if (!ExtractCabPackage(packageName, imcDirPath)) {
+         DeleteTempDeploymentDirectory(imcDirPath);
          free(imcDirPath);
          free(command);
          return DEPLOYPKG_STATUS_CAB_ERROR;
       }
    } else if (archiveType == VMWAREDEPLOYPKG_PAYLOAD_TYPE_ZIP) {
       if (!ExtractZipPackage(packageName, imcDirPath)) {
+         DeleteTempDeploymentDirectory(imcDirPath);
          free(imcDirPath);
          free(command);
          return DEPLOYPKG_STATUS_CAB_ERROR;
@@ -1389,23 +1431,11 @@ Deploy(const char* packageName)
          sLog(log_info, "Deployment succeeded.\n");
       }
    }
-   cleanupCommandSize = strlen(CLEANUPCMD) + strlen(imcDirPath) + 1;
-   cleanupCommand = malloc(cleanupCommandSize);
-   if (cleanupCommand == NULL) {
-      SetDeployError("Error allocating memory.");
+
+   if (!DeleteTempDeploymentDirectory(imcDirPath)) {
       free(imcDirPath);
       return DEPLOYPKG_STATUS_ERROR;
    }
-
-   strcpy(cleanupCommand, CLEANUPCMD);
-   Str_Strcat(cleanupCommand, imcDirPath, cleanupCommandSize);
-
-   sLog(log_info, "Launching cleanup.\n");
-   if (ForkExecAndWaitCommand(cleanupCommand, false) != 0) {
-      sLog(log_warning, "Error while cleaning up imc directory '%s'. (%s)\n",
-           imcDirPath, strerror (errno));
-   }
-   free(cleanupCommand);
    free(imcDirPath);
 
    if (flags & VMWAREDEPLOYPKG_HEADER_FLAGS_SKIP_REBOOT) {
