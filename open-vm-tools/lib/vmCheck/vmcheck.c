@@ -70,16 +70,6 @@
 
 typedef Bool (*SafeCheckFn)(void);
 
-#if !defined(WINNT_DDK)
-static const struct {
-   const char *vendorSig;
-   const char *hypervisorName;
-} gHvVendor[] = {
-   {CPUID_KVM_HYPERVISOR_VENDOR_STRING, "Linux KVM"},
-   {CPUID_XEN_HYPERVISOR_VENDOR_STRING, "Xen"},
-};
-#endif
-
 
 #if !defined(_WIN32)
 static sigjmp_buf jmpBuf;
@@ -285,10 +275,18 @@ VmCheck_IsVirtualWorld(void)
    if (hypervisorSig == NULL ||
          Str_Strcmp(hypervisorSig, CPUID_VMWARE_HYPERVISOR_VENDOR_STRING) != 0) {
       if (hypervisorSig != NULL) {
-         for (i = 0; i < ARRAYSIZE(gHvVendor); i++) {
-            if (Str_Strcmp(hypervisorSig, gHvVendor[i].vendorSig) == 0) {
+         static const struct {
+            const char *vendorSig;
+            const char *hypervisorName;
+         } hvVendors[] = {
+            { CPUID_KVM_HYPERVISOR_VENDOR_STRING, "Linux KVM" },
+            { CPUID_XEN_HYPERVISOR_VENDOR_STRING, "Xen" },
+         };
+
+         for (i = 0; i < ARRAYSIZE(hvVendors); i++) {
+            if (Str_Strcmp(hypervisorSig, hvVendors[i].vendorSig) == 0) {
                Debug("%s: detected %s.\n", __FUNCTION__,
-                     gHvVendor[i].hypervisorName);
+                     hvVendors[i].hypervisorName);
                free(hypervisorSig);
                return FALSE;
             }
