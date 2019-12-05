@@ -26,6 +26,8 @@
 #include "vmware.h"
 #if defined(__i386__) || defined(__x86_64__)
 #  include "x86cpuid_asm.h"
+#endif
+#if defined __i386__ || defined __x86_64__ || defined __aarch64__
 #  include "backdoor_def.h"
 #  include "backdoor_types.h"
 #endif
@@ -630,6 +632,26 @@ Hostinfo_TouchBackDoor(void)
    if (ebx == BDOOR_MAGIC) {
       return TRUE;
    }
+#elif defined __aarch64__
+   register uint32 w0 asm("w0") = BDOOR_MAGIC;
+   register uint32 w1 asm("w1") = ~BDOOR_MAGIC;
+   register uint32 w2 asm("w2") = BDOOR_CMD_GETVERSION;
+   register uint32 w3 asm("w3") = BDOOR_PORT;
+   register uint64 x7 asm("x7") = (uint64)X86_IO_MAGIC << 32 |
+                                  X86_IO_W7_WITH |
+                                  X86_IO_W7_DIR |
+                                  2 << X86_IO_W7_SIZE_SHIFT;
+   __asm__ __volatile__(
+      "mrs xzr, mdccsr_el0     \n\t"
+      : "+r" (w0),
+        "+r" (w1),
+        "+r" (w2)
+      : "r" (w3),
+        "r" (x7));
+
+   if (w1 == BDOOR_MAGIC) {
+      return TRUE;
+   }
 #endif
 
    return FALSE;
@@ -661,10 +683,9 @@ Hostinfo_TouchBackDoor(void)
 Bool
 Hostinfo_TouchVirtualPC(void)
 {
-#if defined vm_x86_64
+#if !defined VM_X86_32
    return FALSE;
 #else
-
    uint32 ebxval;
 
    __asm__ __volatile__ (

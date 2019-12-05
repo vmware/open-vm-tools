@@ -139,10 +139,12 @@
 #define SYSTEM_BITNESS_32 "i386"
 #define SYSTEM_BITNESS_64_SUN "amd64"
 #define SYSTEM_BITNESS_64_LINUX "x86_64"
+#define SYSTEM_BITNESS_64_ARM_LINUX "aarch64"
 #define SYSTEM_BITNESS_MAXLEN \
    MAX(sizeof SYSTEM_BITNESS_32, \
    MAX(sizeof SYSTEM_BITNESS_64_SUN, \
-       sizeof SYSTEM_BITNESS_64_LINUX))
+   MAX(sizeof SYSTEM_BITNESS_64_LINUX, \
+       sizeof SYSTEM_BITNESS_64_ARM_LINUX)))
 
 struct hostinfoOSVersion {
    int   hostinfoOSVersion[4];
@@ -240,7 +242,7 @@ DetailedDataField detailedDataFields[] = {
    { NULL,            "" },  // MUST BE LAST
 };
 
-#if defined __ANDROID__
+#if defined __ANDROID__ || defined __aarch64__
 /*
  * Android doesn't support getloadavg() or iopl().
  */
@@ -439,7 +441,8 @@ Hostinfo_GetSystemBitness(void)
       return -1;
    }
 
-   if (strstr(u.machine, SYSTEM_BITNESS_64_LINUX)) {
+   if (strstr(u.machine, SYSTEM_BITNESS_64_LINUX) ||
+       strstr(u.machine, SYSTEM_BITNESS_64_ARM_LINUX)) {
       return 64;
    } else {
       return 32;

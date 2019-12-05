@@ -73,10 +73,13 @@ AC_CANONICAL_BUILD
 # Quote the regular expressions
 case "$host_cpu" in
    [i[3456]86])
-      userSpaceBitness="32"
+      arch="x32"
       ;;
    [amd64|x86_64])
-      userSpaceBitness="64"
+      arch="x64"
+      ;;
+   [aarch64])
+      arch="arm64"
       ;;
    [*])
       AC_MSG_ERROR([Unknown architecture.])
@@ -1397,7 +1400,9 @@ AM_CONDITIONAL(SOLARIS, test "$os" = "solaris")
 AM_CONDITIONAL(FREEBSD, test "$os" = "freebsd" -o "$os" = "kfreebsd-gnu")
 AM_CONDITIONAL(FREEBSD_CUSTOM_SYSDIR,
                test \( "$os" = "freebsd" -o "$os" = "kfreebsd-gnu" \) -a -n "$SYSDIR")
-AM_CONDITIONAL(THIRTY_TWO_BIT_USERSPACE, test "$userSpaceBitness" = "32")
+AM_CONDITIONAL(ARCH_X32, test "$arch" = "x32")
+AM_CONDITIONAL(ARCH_X64, test "$arch" = "x64")
+AM_CONDITIONAL(ARCH_ARM64, test "$arch" = "arm64")
 AM_CONDITIONAL(HAVE_X11, test "$have_x" = "yes")
 AM_CONDITIONAL(HAVE_ICU, test "$with_icu" = "yes")
 AM_CONDITIONAL(WITH_KERNEL_MODULES, test "$with_kernel_modules" = "yes")

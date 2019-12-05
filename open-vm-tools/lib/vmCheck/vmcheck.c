@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -273,6 +273,7 @@ VmCheck_IsVirtualWorld(void)
    uint32 dummy;
 
 #if !defined(WINNT_DDK)
+#if defined VM_X86_ANY
    char *hypervisorSig;
    uint32 i;
 
@@ -309,6 +310,7 @@ VmCheck_IsVirtualWorld(void)
    } else {
       free(hypervisorSig);
    }
+#endif
 
    if (!VmCheckSafe(Hostinfo_TouchBackDoor)) {
       Debug("%s: backdoor not detected.\n", __FUNCTION__);
