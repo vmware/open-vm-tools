@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2016,2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -78,11 +78,5 @@ Bool RpcOut_SendOneRaw(void *request, size_t reqLen, char **reply, size_t *repLe
 
 Bool RpcOut_SendOneRawPreallocated(void *request, size_t reqLen, char *reply,
                                    size_t repLen);
-
-/*
- * As the above but must be run by admin/root to make the privileged
- * RPC call successfully.
- */
-Bool RpcOut_SendOneRawPriv(void *request, size_t reqLen, char **reply, size_t *repLen);
 
 #endif /* __RPCOUT_H__ */

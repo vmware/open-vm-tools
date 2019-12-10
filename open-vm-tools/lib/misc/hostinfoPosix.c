@@ -127,7 +127,7 @@
 #include "rateconv.h"
 #endif
 
-#if defined(VMX86_SERVER)
+#if defined(VMX86_SERVER) || defined(USERWORLD)
 #include "uwvmkAPI.h"
 #include "uwvmk.h"
 #include "vmkSyscall.h"
@@ -145,7 +145,7 @@
        sizeof SYSTEM_BITNESS_64_LINUX))
 
 struct hostinfoOSVersion {
-   int hostinfoOSVersion[4];
+   int   hostinfoOSVersion[4];
    char *hostinfoOSVersionString;
 };
 
@@ -153,23 +153,26 @@ static Atomic_Ptr hostinfoOSVersion;
 
 #define DISTRO_BUF_SIZE 1024
 
-#if !defined __APPLE__ && !defined USERWORLD
+#if !defined(__APPLE__) && !defined(VMX86_SERVER) && !defined(USERWORLD)
 typedef struct {
    char *name;
    char *scanString;
 } DistroNameScan;
 
 static const DistroNameScan lsbFields[] = {
-   {"DISTRIB_ID=",          "DISTRIB_ID=%s"          },
-   {"DISTRIB_RELEASE=",     "DISTRIB_RELEASE=%s"     },
-   {"DISTRIB_CODENAME=",    "DISTRIB_CODENAME=%s"    },
-   {"DISTRIB_DESCRIPTION=", "DISTRIB_DESCRIPTION=%s" },
-   {NULL,                   NULL                     },
+   { "DISTRIB_ID=",          "DISTRIB_ID=%s"          },
+   { "DISTRIB_RELEASE=",     "DISTRIB_RELEASE=%s"     },
+   { "DISTRIB_CODENAME=",    "DISTRIB_CODENAME=%s"    },
+   { "DISTRIB_DESCRIPTION=", "DISTRIB_DESCRIPTION=%s" },
+   { NULL,                   NULL                     },
 };
 
 static const DistroNameScan osReleaseFields[] = {
-   {"PRETTY_NAME=",        "PRETTY_NAME=%s"          },
-   {NULL,                   NULL                     },
+   { "PRETTY_NAME=",        "PRETTY_NAME=%s" },
+   { "NAME=",               "NAME=%s"        },
+   { "VERSION_ID=",         "VERSION_ID=%s"  },
+   { "BUILD_ID=",           "BUILD_ID=%s"    },
+   { NULL,                  NULL             },
 };
 
 typedef struct {
@@ -179,49 +182,63 @@ typedef struct {
 
 /* KEEP SORTED! (sort -d) */
 static const DistroInfo distroArray[] = {
-   {"Annvix",             "/etc/annvix-release"},
-   {"Arch",               "/etc/arch-release"},
-   {"Arklinux",           "/etc/arklinux-release"},
-   {"Aurox",              "/etc/aurox-release"},
-   {"BlackCat",           "/etc/blackcat-release"},
-   {"Cobalt",             "/etc/cobalt-release"},
-   {"Conectiva",          "/etc/conectiva-release"},
-   {"Debian",             "/etc/debian_release"},
-   {"Debian",             "/etc/debian_version"},
-   {"Fedora Core",        "/etc/fedora-release"},
-   {"Gentoo",             "/etc/gentoo-release"},
-   {"Immunix",            "/etc/immunix-release"},
-   {"Knoppix",            "/etc/knoppix_version"},
-   {"Linux-From-Scratch", "/etc/lfs-release"},
-   {"Linux-PPC",          "/etc/linuxppc-release"},
-   {"Mandrake",           "/etc/mandrakelinux-release"},
-   {"Mandrake",           "/etc/mandrake-release"},
-   {"Mandriva",           "/etc/mandriva-release"},
-   {"MkLinux",            "/etc/mklinux-release"},
-   {"Novell",             "/etc/nld-release"},
-   {"OracleLinux",        "/etc/oracle-release"},
-   {"Photon",             "/etc/lsb-release"},
-   {"PLD",                "/etc/pld-release"},
-   {"RedHat",             "/etc/redhat-release"},
-   {"RedHat",             "/etc/redhat_version"},
-   {"Slackware",          "/etc/slackware-release"},
-   {"Slackware",          "/etc/slackware-version"},
-   {"SMEServer",          "/etc/e-smith-release"},
-   {"Solaris",            "/etc/release"},
-   {"Sun",                "/etc/sun-release"},
-   {"SuSE",               "/etc/novell-release"},
-   {"SuSE",               "/etc/sles-release"},
-   {"SuSE",               "/etc/SuSE-release"},
-   {"Tiny Sofa",          "/etc/tinysofa-release"},
-   {"TurboLinux",         "/etc/turbolinux-release"},
-   {"Ubuntu",             "/etc/lsb-release"},
-   {"UltraPenguin",       "/etc/ultrapenguin-release"},
-   {"UnitedLinux",        "/etc/UnitedLinux-release"},
-   {"VALinux",            "/etc/va-release"},
-   {"Yellow Dog",         "/etc/yellowdog-release"},
-   {NULL, NULL},
+   { "Annvix",             "/etc/annvix-release"        },
+   { "Arch",               "/etc/arch-release"          },
+   { "Arklinux",           "/etc/arklinux-release"      },
+   { "Asianux",            "/etc/asianux-release"       },
+   { "Aurox",              "/etc/aurox-release"         },
+   { "BlackCat",           "/etc/blackcat-release"      },
+   { "Cobalt",             "/etc/cobalt-release"        },
+   { "CentOS",             "/etc/centos-release"        },
+   { "Conectiva",          "/etc/conectiva-release"     },
+   { "Debian",             "/etc/debian_release"        },
+   { "Debian",             "/etc/debian_version"        },
+   { "Fedora Core",        "/etc/fedora-release"        },
+   { "Gentoo",             "/etc/gentoo-release"        },
+   { "Immunix",            "/etc/immunix-release"       },
+   { "Knoppix",            "/etc/knoppix_version"       },
+   { "Linux-From-Scratch", "/etc/lfs-release"           },
+   { "Linux-PPC",          "/etc/linuxppc-release"      },
+   { "Mandrake",           "/etc/mandrakelinux-release" },
+   { "Mandrake",           "/etc/mandrake-release"      },
+   { "Mandriva",           "/etc/mandriva-release"      },
+   { "MkLinux",            "/etc/mklinux-release"       },
+   { "Novell",             "/etc/nld-release"           },
+   { "OracleLinux",        "/etc/oracle-release"        },
+   { "Photon",             "/etc/lsb-release"           },
+   { "PLD",                "/etc/pld-release"           },
+   { "RedHat",             "/etc/redhat-release"        },
+   { "RedHat",             "/etc/redhat_version"        },
+   { "Slackware",          "/etc/slackware-release"     },
+   { "Slackware",          "/etc/slackware-version"     },
+   { "SMEServer",          "/etc/e-smith-release"       },
+   { "Solaris",            "/etc/release"               },
+   { "Sun",                "/etc/sun-release"           },
+   { "SuSE",               "/etc/novell-release"        },
+   { "SuSE",               "/etc/sles-release"          },
+   { "SuSE",               "/etc/SuSE-release"          },
+   { "Tiny Sofa",          "/etc/tinysofa-release"      },
+   { "TurboLinux",         "/etc/turbolinux-release"    },
+   { "Ubuntu",             "/etc/lsb-release"           },
+   { "UltraPenguin",       "/etc/ultrapenguin-release"  },
+   { "UnitedLinux",        "/etc/UnitedLinux-release"   },
+   { "VALinux",            "/etc/va-release"            },
+   { "Yellow Dog",         "/etc/yellowdog-release"     },
+   { NULL,                 NULL                         },
 };
 #endif
+
+/* Must be sorted. Keep in the same ordering as DetailedDataFieldType */
+DetailedDataField detailedDataFields[] = {
+   { "bitness",       "" },  // "32" or "64"
+   { "buildNumber",   "" },  // Present for MacOS and some Linux distros.
+   { "distroName",    "" },  // Defaults to uname -s
+   { "distroVersion", "" },  // Present for MacOS. Read from distro files for Linux.
+   { "familyName",    "" },  // Defaults to uname -s
+   { "kernelVersion", "" },  // Defaults to uname -r
+   { "prettyName",    "" },  // Present for MacOS. Read from distro files for Linux.
+   { NULL,            "" },  // MUST BE LAST
+};
 
 #if defined __ANDROID__
 /*
@@ -260,7 +277,7 @@ HostinfoOSVersionInit(void)
       return;
    }
 
-   if (uname(&u) < 0) {
+   if (uname(&u) == -1) {
       Warning("%s: unable to get host OS version (uname): %s\n",
 	      __FUNCTION__, Err_Errno2String(errno));
       NOT_IMPLEMENTED();
@@ -506,14 +523,92 @@ HostinfoPostData(const char *osName,  // IN:
 
    while (Atomic_ReadWrite(&mutex, 1)); // Spinlock.
 
-   if (!HostinfoOSNameCacheValid) {
-      Str_Strcpy(HostinfoCachedOSName, osName, sizeof HostinfoCachedOSName);
-      Str_Strcpy(HostinfoCachedOSFullName, osNameFull,
-                 sizeof HostinfoCachedOSFullName);
-      HostinfoOSNameCacheValid = TRUE;
+   if (!hostinfoCacheValid) {
+      Str_Strcpy(hostinfoCachedOSName, osName, sizeof hostinfoCachedOSName);
+      Str_Strcpy(hostinfoCachedOSFullName, osNameFull,
+                 sizeof hostinfoCachedOSFullName);
+      hostinfoCacheValid = TRUE;
    }
 
    Atomic_Write(&mutex, 0);  // unlock
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HostinfoOSDetailedData --
+ *
+ *    Builds, escapes, and stores the detailed data into the cache.
+ *
+ * Return value:
+ *      TRUE   Success
+ *      FALSE  Failure
+ *
+ * Side effects:
+ *      Cache values are set when returning TRUE
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HostinfoOSDetailedData(void)
+{
+   DetailedDataField *field;
+   Bool first = TRUE;
+
+   /* Clear the string cache */
+   memset(hostinfoCachedDetailedData, '\0',
+          sizeof hostinfoCachedDetailedData);
+
+   for (field = detailedDataFields; field->name != NULL; field++) {
+      if (field->value[0] != '\0') {
+         /* Account for the escape and NUL char */
+         int len;
+         const char *c;
+         char escapedString[2 * MAX_DETAILED_FIELD_LEN + 1];
+         char fieldString[MAX_DETAILED_FIELD_LEN];
+         int32 i = 0;
+
+         /* Add delimiter between properties - after the first one */
+         if (!first) {
+            Str_Strcat(hostinfoCachedDetailedData,
+                       DETAILED_DATA_DELIMITER,
+                       sizeof hostinfoCachedDetailedData);
+         }
+
+         /* Escape single quotes and back slashes in the value. */
+         for (c = field->value; *c != '\0'; c++) {
+            if (*c == '\'' || *c == '\\') {
+               escapedString[i++] = '\\';
+            }
+
+            escapedString[i++] = *c;
+         }
+
+         escapedString[i] = '\0';
+
+         /* No trailing spaces */
+         while (--i >= 0 && isspace(escapedString[i])) {
+            escapedString[i] = '\0';
+         }
+
+         len = Str_Snprintf(fieldString, sizeof fieldString, "%s='%s'",
+                            field->name, escapedString);
+         if (len == -1) {
+            Warning("%s: Error: detailed data field too large\n",
+                    __FUNCTION__);
+            memset(hostinfoCachedDetailedData, '\0',
+                   sizeof hostinfoCachedDetailedData);
+            return;
+         }
+
+         Str_Strcat(hostinfoCachedDetailedData, fieldString,
+                    sizeof hostinfoCachedDetailedData);
+
+         first = FALSE;
+      }
+   }
 }
 
 
@@ -573,6 +668,13 @@ HostinfoMacOS(struct utsname *buf)  // IN:
       }
    }
 
+   Str_Strcpy(detailedDataFields[DISTRO_NAME].value, productName,
+              sizeof detailedDataFields[DISTRO_NAME].value);
+   Str_Strcpy(detailedDataFields[DISTRO_VERSION].value, productVersion,
+              sizeof detailedDataFields[DISTRO_VERSION].value);
+   Str_Strcpy(detailedDataFields[BUILD_NUMBER].value, productBuildVersion,
+              sizeof detailedDataFields[BUILD_NUMBER].value);
+
    if (haveVersion) {
       len = Str_Snprintf(osNameFull, sizeof osNameFull,
                          "%s %s (%s) %s %s", productName, productVersion,
@@ -609,7 +711,7 @@ HostinfoMacOS(struct utsname *buf)  // IN:
 #endif
 
 
-#if defined(USERWORLD)  // ESXi
+#if defined(VMX86_SERVER) || defined(USERWORLD)  // ESXi
 /*
  *-----------------------------------------------------------------------------
  *
@@ -664,7 +766,7 @@ HostinfoESX(struct utsname *buf)  // IN:
 #endif
 
 
-#if !defined __APPLE__ && !defined USERWORLD
+#if !defined(__APPLE__) && !defined(VMX86_SERVER) && !defined(USERWORLD)
 /*
  *-----------------------------------------------------------------------------
  *
@@ -683,39 +785,54 @@ HostinfoESX(struct utsname *buf)  // IN:
  */
 
 static void
-HostinfoGetOSShortName(char *distro,         // IN: full distro name
-                       char *distroShort,    // OUT: short distro name
-                       int distroShortSize)  // IN: size of short distro name
+HostinfoGetOSShortName(const char *distro,      // IN: full distro name
+                       const char *versionStr,  // IN/OPT: distro version
+                       char *distroShort,       // OUT: short distro name
+                       int distroShortSize)     // IN: size of short distro name
 
 {
-   char *distroLower = Util_SafeStrdup(distro);
+   uint32 version;
+   char *distroLower;
 
-   distroLower = Str_ToLower(distroLower);
+   ASSERT(distro != NULL);
+   ASSERT(distroShort != NULL);
 
+   /* Come up with a distro version */
+
+   if (versionStr == NULL) {
+      const char *p = distro;
+
+      /* The first digit in the distro string is the version */
+      while (*p != '\0') {
+         if (isdigit(*p)) {
+            versionStr = p;
+            break;
+         }
+
+         p++;
+      }
+   }
+
+   if (versionStr == NULL) {
+      version = 0;
+   } else {
+      if (sscanf(versionStr, "%u", &version) != 1) {
+         version = 0;
+      }
+   }
+
+   /* Normalize the distro string */
+   distroLower = Str_ToLower(Util_SafeStrdup(distro));
+
+   /* Attempt to match the distro against the "usual suspects". */
    if (strstr(distroLower, "red hat")) {
       if (strstr(distroLower, "enterprise")) {
-
-         /*
-          * Looking for "release x" here instead of "x" as there could be
-          * build version which can be misleading. For example Red Hat
-          * Enterprise Linux ES release 4 (Nahant Update 3)
-          */
-
-         int release = 0;
-         char *releaseStart = strstr(distroLower, "release");
-
-         if (releaseStart != NULL) {
-            sscanf(releaseStart, "release %d", &release);
-            if (release > 0) {
-               snprintf(distroShort, distroShortSize, STR_OS_RED_HAT_EN"%d",
-                        release);
-            }
-         }
-
-         if (release <= 0) {
+         if (version == 0) {
             Str_Strcpy(distroShort, STR_OS_RED_HAT_EN, distroShortSize);
+         } else {
+            Str_Sprintf(distroShort, distroShortSize, "%s%d",
+                        STR_OS_RED_HAT_EN, version);
          }
-
       } else {
          Str_Strcpy(distroShort, STR_OS_RED_HAT, distroShortSize);
       }
@@ -753,15 +870,12 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
    } else if (strstr(distroLower, "sun")) {
       Str_Strcpy(distroShort, STR_OS_SUN_DESK, distroShortSize);
    } else if (strstr(distroLower, "amazon")) {
-      int amazonMajor = 0;
-
-      if (sscanf(distroLower, "amazon linux %d", &amazonMajor) != 1) {
-         /* Oldest known good release */
-         amazonMajor = 2;
+      if (version < 2) {
+         version = 2;
       }
 
       Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_AMAZON_LINUX,
-                  amazonMajor);
+                  version);
    } else if (strstr(distroLower, "annvix")) {
       Str_Strcpy(distroShort, STR_OS_ANNVIX, distroShortSize);
    } else if (strstr(distroLower, "arch")) {
@@ -777,11 +891,11 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
    } else if (strstr(distroLower, "asianux server 5") ||
               strstr(distroLower, "asianux client 5")) {
       Str_Strcpy(distroShort, STR_OS_ASIANUX_7, distroShortSize);
-   } else if (strstr(distroLower, "asianux server 7") ||
-              strstr(distroLower, "asianux client 7")) {
+   } else if (strstr(distroLower, "asianux server release 7") ||
+              strstr(distroLower, "asianux client release 7")) {
       Str_Strcpy(distroShort, STR_OS_ASIANUX_7, distroShortSize);
-   } else if (strstr(distroLower, "asianux server 8") ||
-              strstr(distroLower, "asianux client 8")) {
+   } else if (strstr(distroLower, "asianux server release 8") ||
+              strstr(distroLower, "asianux client release 8")) {
       Str_Strcpy(distroShort, STR_OS_ASIANUX_8, distroShortSize);
    } else if (strstr(distroLower, "aurox")) {
       Str_Strcpy(distroShort, STR_OS_AUROX, distroShortSize);
@@ -790,32 +904,20 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
    } else if (strstr(distroLower, "cobalt")) {
       Str_Strcpy(distroShort, STR_OS_COBALT, distroShortSize);
    } else if (StrUtil_StartsWith(distroLower, "centos")) {
-      if (strstr(distroLower, " 6.")) {
-         Str_Strcpy(distroShort, STR_OS_CENTOS6, distroShortSize);
-      } else if (strstr(distroLower, " 7.")) {
-         Str_Strcpy(distroShort, STR_OS_CENTOS7, distroShortSize);
-      } else if (strstr(distroLower, " 8.")) {
-         Str_Strcpy(distroShort, STR_OS_CENTOS8, distroShortSize);
-      } else {
+      if (version < 6) {
          Str_Strcpy(distroShort, STR_OS_CENTOS, distroShortSize);
+      } else {
+         Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_CENTOS,
+                     version);
       }
    } else if (strstr(distroLower, "conectiva")) {
       Str_Strcpy(distroShort, STR_OS_CONECTIVA, distroShortSize);
    } else if (strstr(distroLower, "debian")) {
-      if (strstr(distroLower, "4.0")) {
+      if (version <= 4) {
          Str_Strcpy(distroShort, STR_OS_DEBIAN_4, distroShortSize);
-      } else if (strstr(distroLower, "5.0")) {
-         Str_Strcpy(distroShort, STR_OS_DEBIAN_5, distroShortSize);
-      } else if (strstr(distroLower, "6.0")) {
-         Str_Strcpy(distroShort, STR_OS_DEBIAN_6, distroShortSize);
-      } else if (strstr(distroLower, "7.")) {
-         Str_Strcpy(distroShort, STR_OS_DEBIAN_7, distroShortSize);
-      } else if (strstr(distroLower, "8.")) {
-         Str_Strcpy(distroShort, STR_OS_DEBIAN_8, distroShortSize);
-      } else if (strstr(distroLower, "9.")) {
-         Str_Strcpy(distroShort, STR_OS_DEBIAN_9, distroShortSize);
-      } else if (strstr(distroLower, "10.")) {
-         Str_Strcpy(distroShort, STR_OS_DEBIAN_10, distroShortSize);
+      } else {
+         Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_DEBIAN,
+                     version);
       }
    } else if (StrUtil_StartsWith(distroLower, "enterprise linux") ||
               StrUtil_StartsWith(distroLower, "oracle")) {
@@ -826,14 +928,11 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
        * Not sure why they didn't brand their releases as "Oracle Enterprise
        * Linux". Oh well. It's fixed in 6.0, though.
        */
-      if (strstr(distroLower, "6.")) {
-         Str_Strcpy(distroShort, STR_OS_ORACLE6, distroShortSize);
-      } else if (strstr(distroLower, "7.")) {
-         Str_Strcpy(distroShort, STR_OS_ORACLE7, distroShortSize);
-      } else if (strstr(distroLower, "8.")) {
-         Str_Strcpy(distroShort, STR_OS_ORACLE8, distroShortSize);
-      } else {
+      if (version == 0) {
          Str_Strcpy(distroShort, STR_OS_ORACLE, distroShortSize);
+      } else {
+         Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_ORACLE,
+                     version);
       }
    } else if (strstr(distroLower, "fedora")) {
       Str_Strcpy(distroShort, STR_OS_FEDORA, distroShortSize);
@@ -888,8 +987,11 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
  *      even if things aren't strictly compliant.
  *
  * Return value:
- *      TRUE   Success.
- *      FALSE  Failure.
+ *     !NULL  Success. A pointer to an dynamically allocated array of pointers
+ *                     to dynamically allocated strings, one for each field
+ *                     corresponding to the values argument plus one which
+ *                     contains a concatenation of all discovered data.
+ *      NULL  Failure.
  *
  * Side effects:
  *      None
@@ -897,18 +999,19 @@ HostinfoGetOSShortName(char *distro,         // IN: full distro name
  *-----------------------------------------------------------------------------
  */
 
-static Bool
+static char **
 HostinfoReadDistroFile(Bool osReleaseRules,           // IN: osRelease rules
-                       char *filename,                // IN: distro file
-                       const DistroNameScan *values,  // IN: search strings
-                       int distroSize,                // IN: length of distro
-                       char *distro)                  // OUT: full distro name
+                       const char *filename,          // IN: distro file
+                       const DistroNameScan *values)  // IN: search strings
 {
    int i;
-   int buf_sz;
+   DynBuf b;
+   int bufSize;
    struct stat st;
    int fd = -1;
-   Bool ret = FALSE;
+   uint32 nArgs = 0;
+   Bool success = FALSE;
+   char **result = NULL;
    char *distroOrig = NULL;
 
    /* It's OK for the file to not exist, don't warn for this.  */
@@ -916,8 +1019,10 @@ HostinfoReadDistroFile(Bool osReleaseRules,           // IN: osRelease rules
       return FALSE;
    }
 
+   DynBuf_Init(&b);
+
    if (fstat(fd, &st)) {
-      Warning("%s: could not stat the file %s: %d\n", __FUNCTION__, filename,
+      Warning("%s: could not stat file '%s': %d\n", __FUNCTION__, filename,
            errno);
       goto out;
    }
@@ -927,38 +1032,40 @@ HostinfoReadDistroFile(Bool osReleaseRules,           // IN: osRelease rules
       goto out;
    }
 
-   buf_sz = st.st_size;
-   if (buf_sz >= distroSize) {
-      Warning("%s: input buffer too small\n", __FUNCTION__);
-      goto out;
-   }
-   distroOrig = calloc(distroSize, sizeof *distroOrig);
+   bufSize = st.st_size;
 
-   if (distroOrig == NULL) {
-      Warning("%s: could not allocate memory\n", __FUNCTION__);
-      goto out;
-   }
+   distroOrig = Util_SafeCalloc(bufSize + 1, sizeof *distroOrig);
 
-   if (read(fd, distroOrig, buf_sz) != buf_sz) {
-      Warning("%s: could not read file %s: %d\n", __FUNCTION__, filename,
+   if (read(fd, distroOrig, bufSize) != bufSize) {
+      Warning("%s: could not read file '%s': %d\n", __FUNCTION__, filename,
               errno);
       goto out;
    }
 
-   distroOrig[buf_sz - 1] = '\0';
+   distroOrig[bufSize] = '\0';
 
    /*
     * Attempt to parse a file with one name=value pair per line. Values are
     * expected to embedded in double quotes.
     */
 
-   distro[0] = '\0';
+   nArgs = 0;
+   for (i = 0; values[i].name != NULL; i++) {
+      nArgs++;
+   }
+   nArgs++;  // For the appended version of the data
+
+   result = Util_SafeCalloc(nArgs, sizeof(char *));
 
    for (i = 0; values[i].name != NULL; i++) {
       const char *tmpDistroPos = strstr(distroOrig, values[i].name);
 
       if (tmpDistroPos != NULL) {
          char distroPart[DISTRO_BUF_SIZE];
+
+         if (i != 0) {
+            DynBuf_Strcat(&b, " ");
+         }
 
          sscanf(tmpDistroPos, values[i].scanString, distroPart);
          if (distroPart[0] == '"') {
@@ -968,17 +1075,18 @@ HostinfoReadDistroFile(Bool osReleaseRules,           // IN: osRelease rules
             tmpMakeNull = strchr(tmpDistroPos + 1 , '"');
             if (tmpMakeNull != NULL) {
                *tmpMakeNull = '\0';
-               Str_Strcat(distro, tmpDistroPos, distroSize);
+               DynBuf_Strcat(&b, tmpDistroPos);
+               result[i] = Util_SafeStrdup(tmpDistroPos);
                *tmpMakeNull = '"' ;
             }
          } else {
-            Str_Strcat(distro, distroPart, distroSize);
+            DynBuf_Strcat(&b, distroPart);
+            result[i] = Util_SafeStrdup(distroPart);
          }
-         Str_Strcat(distro, " ", distroSize);
       }
    }
 
-   if (distro[0] == '\0') {
+   if (DynBuf_GetSize(&b) == 0) {
       /*
        * The distro identification file was not standards compliant.
        */
@@ -988,7 +1096,7 @@ HostinfoReadDistroFile(Bool osReleaseRules,           // IN: osRelease rules
           * We must strictly comply with the os-release standard. Error.
           */
 
-         ret = FALSE;
+         success = FALSE;
       } else {
          /*
           * Our old code played fast and loose with the LSB standard. If there
@@ -998,20 +1106,37 @@ HostinfoReadDistroFile(Bool osReleaseRules,           // IN: osRelease rules
           * be "good enough". Continue the practice to maximize compatibility.
           */
 
-         Str_Strcpy(distro, distroOrig, distroSize);
-         ret = TRUE;
+         DynBuf_Strcat(&b, distroOrig);
+         DynBuf_Append(&b, "\0", 1);  // Terminate the string
+
+         success = TRUE;
       }
    } else {
-      ret = TRUE;
+      DynBuf_Append(&b, "\0", 1);  // Terminate the string
+
+      success = TRUE;
    }
 
 out:
    if (fd != -1) {
       close(fd);
    }
+
    free(distroOrig);
 
-   return ret;
+   if (success) {
+      result[nArgs - 1] = DynBuf_Detach(&b);
+   } else {
+      if (nArgs != 0) {
+         Util_FreeStringList(result, nArgs);
+      }
+
+      result = NULL;
+   }
+
+   DynBuf_Destroy(&b);
+
+   return result;
 }
 
 
@@ -1099,6 +1224,7 @@ HostinfoGetCmdOutput(const char *cmd)  // IN:
    if (isSuperUser) {
       Id_BeginSuperUser();
    }
+
    return out;
 }
 
@@ -1108,33 +1234,89 @@ HostinfoGetCmdOutput(const char *cmd)  // IN:
  *
  * HostinfoOsRelease --
  *
- *      Attempt to determine the distro string via the os-release standard.
+ *      Attempt to return the distro identification data we're interested in
+ *      from the os-release standard file(s). Look for the os-release data by
+ *      following the priority order established by the os-release standard.
+ *
+ *      The fields of interest are found in osReleaseFields above.
+ *
+ *      https://www.linux.org/docs/man5/os-release.html
  *
  * Return value:
- *      TRUE   Success
- *      FALSE  Failure
+ *      -1     Failure. No data returned.
+ *      0..n   Success. A "score", the number of interesting pieces of data
+ *             found. The strings found, in the order specified by the
+ *             search table above, are returned in args as an array of pointers
+ *             to dynamically allocated strings.
  *
  * Side effects:
- *      distro is set on success.
+ *      None
  *
  *-----------------------------------------------------------------------------
  */
 
-static Bool
-HostinfoOsRelease(char *distro,       // OUT:
-                  size_t distroSize)  // IN:
+static int
+HostinfoOsRelease(char ***args)  // OUT:
 {
-   Bool success = HostinfoReadDistroFile(TRUE, "/etc/os-release",
-                                         &osReleaseFields[0],
-                                         distroSize, distro);
+   int score;
 
-   if (!success) {
-      success = HostinfoReadDistroFile(TRUE, "/usr/lib/os-release",
-                                       &osReleaseFields[0],
-                                       distroSize, distro);
+   *args = HostinfoReadDistroFile(TRUE, "/etc/os-release",
+                                  &osReleaseFields[0]);
+
+   if (*args == NULL) {
+      *args = HostinfoReadDistroFile(TRUE, "/usr/lib/os-release",
+                                     &osReleaseFields[0]);
    }
 
-   return success;
+   if (*args == NULL) {
+      score = -1;
+   } else {
+      uint32 i;
+      size_t fields = ARRAYSIZE(osReleaseFields) - 1;  // Exclude terminator
+
+      score = 0;
+
+      for (i = 0; i < fields; i++) {
+         if ((*args)[i] != NULL) {
+            score++;
+         }
+      }
+   }
+
+   return score;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HostinfoLsbRemoveQuotes --
+ *
+ *      If present, removes 1 set of double quotes around a LSB output.
+ *
+ * Return value:
+ *      Pointer to a substring of the input
+ *
+ * Side effects:
+ *      Replaces second double quote with a NUL character.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static char *
+HostinfoLsbRemoveQuotes(char *lsbOutput)  // IN/OUT:
+{
+   char *lsbStart = lsbOutput;
+
+   if (lsbStart[0] == '"') {
+      char *quoteEnd = strchr(++lsbStart, '"');
+
+      if (quoteEnd != NULL) {
+         *quoteEnd = '\0';
+      }
+   }
+
+   return lsbStart;
 }
 
 
@@ -1143,24 +1325,33 @@ HostinfoOsRelease(char *distro,       // OUT:
  *
  * HostinfoLsb --
  *
- *      Attempt to determine the distro string via the LSB standard.
+ *      Attempt to return the distro identification data we're interested in
+ *      from the LSB standard file.
+ *
+ *      The fields of interest are found in lsbFields above.
+ *
+ *      https://refspecs.linuxfoundation.org/lsb.shtml
  *
  * Return value:
- *      TRUE   Success
- *      FALSE  Failure
+ *      -1     Failure. No data returned.
+ *      0..n   Success. A "score", the number of interesting pieces of data
+ *             found. The strings found, in the order specified by the
+ *             search table above, are returned in args as an array of pointers
+ *             to dynamically allocated strings.
  *
  * Side effects:
- *      distro is set on success.
+ *      None
  *
  *-----------------------------------------------------------------------------
  */
 
-static Bool
-HostinfoLsb(char *distro,       // OUT:
-            size_t distroSize)  // IN:
+static int
+HostinfoLsb(char ***args)  // OUT:
 {
+   uint32 i;
+   int score;
    char *lsbOutput;
-   Bool success = FALSE;
+   size_t fields = ARRAYSIZE(lsbFields) - 1;  // Exclude terminator
 
    /*
     * Try to get OS detailed information from the lsb_release command.
@@ -1169,45 +1360,53 @@ HostinfoLsb(char *distro,       // OUT:
    lsbOutput = HostinfoGetCmdOutput("/usr/bin/lsb_release -sd 2>/dev/null");
 
    if (lsbOutput == NULL) {
-      int i;
-
       /*
        * Try to get more detailed information from the version file.
        */
 
       for (i = 0; distroArray[i].filename != NULL; i++) {
-         if (HostinfoReadDistroFile(FALSE, distroArray[i].filename,
-                                    &lsbFields[0], distroSize, distro)) {
-            success = TRUE;
+         *args = HostinfoReadDistroFile(FALSE, distroArray[i].filename,
+                                        &lsbFields[0]);
+
+         if (*args != NULL) {
             break;
          }
       }
-
-      /*
-       * If we failed to read every distro file, exit now, before calling
-       * strlen on the distro buffer (which wasn't set).
-       */
-
-      if (distroArray[i].filename == NULL) {
-         Log("%s: Error: no distro file found\n", __FUNCTION__);
-      }
    } else {
-      char *lsbStart = lsbOutput;
-      char *quoteEnd = NULL;
+      *args = Util_SafeCalloc(fields + 1, sizeof(char *));
 
-      if (lsbStart[0] == '"') {
-         lsbStart++;
-         quoteEnd = strchr(lsbStart, '"');
-         if (quoteEnd) {
-            *quoteEnd = '\0';
-         }
-      }
-      Str_Strcpy(distro, lsbStart, distroSize);
+      /* LSB Description (pretty name) */
+      (*args)[fields] = Util_SafeStrdup(HostinfoLsbRemoveQuotes(lsbOutput));
       free(lsbOutput);
-      success = TRUE;
+
+      /* LSB Distributor */
+      lsbOutput = HostinfoGetCmdOutput("/usr/bin/lsb_release -si 2>/dev/null");
+      (*args)[0] = Util_SafeStrdup(HostinfoLsbRemoveQuotes(lsbOutput));
+      free(lsbOutput);
+
+      /* LSB Release */
+      lsbOutput = HostinfoGetCmdOutput("/usr/bin/lsb_release -sr 2>/dev/null");
+      (*args)[1] = Util_SafeStrdup(HostinfoLsbRemoveQuotes(lsbOutput));
+      free(lsbOutput);
+
+      /* LSB Description */
+      (*args)[3] = Util_SafeStrdup((*args)[fields]);
    }
 
-   return success;
+   if (*args == NULL) {
+      score = -1;
+   } else {
+      score = 0;
+
+      for (i = 0; i < fields; i++) {
+         if ((*args)[i] != NULL) {
+            score++;
+         }
+      }
+   }
+
+
+   return score;
 }
 
 
@@ -1299,6 +1498,116 @@ HostinfoDefaultLinux(char *distro,            // OUT/OPT:
 /*
  *-----------------------------------------------------------------------------
  *
+ * HostinfoBestScore --
+ *
+ *      Return the best distro and distroShort data possible. Do this by
+ *      examining the LSB and os-release data and choosing the "best fit".
+ *      The "best fit" is determined inspecting the available information
+ *      returned by distro identification methods. If none is available,
+ *      return a safe, generic result. Otherwise, use the method that has
+ *      the highest score (of valid, useful data).
+ *
+ * Return value:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HostinfoBestScore(char *distro,            // OUT:
+                  size_t distroSize,       // IN:
+                  char *distroShort,       // OUT:
+                  size_t distroShortSize)  // IN:
+{
+   char **lsbData = NULL;
+   char **osReleaseData = NULL;
+   int lsbScore = HostinfoLsb(&lsbData);
+   int osReleaseScore = HostinfoOsRelease(&osReleaseData);
+
+   /* We prefer the LSB so as to maintain the best backwards compatibility. */
+   if ((lsbScore > 0) && (lsbScore >= osReleaseScore)) {
+      size_t fields = ARRAYSIZE(lsbFields) - 1;  // Exclude terminator
+
+      if (lsbData[0] != NULL) {  // Name
+         Str_Strcpy(detailedDataFields[DISTRO_NAME].value, lsbData[0],
+                    sizeof detailedDataFields[DISTRO_NAME].value);
+      }
+
+      if (lsbData[1] != NULL) {  // Release
+         Str_Strcpy(detailedDataFields[DISTRO_VERSION].value, lsbData[1],
+                    sizeof detailedDataFields[DISTRO_VERSION].value);
+      }
+
+      if (lsbData[3] != NULL) {  // Description
+         Str_Strcpy(detailedDataFields[PRETTY_NAME].value, lsbData[3],
+                    sizeof detailedDataFields[PRETTY_NAME].value);
+      }
+
+      if (lsbData[fields] != NULL) {
+         Str_Strcpy(distro, lsbData[fields], distroSize);
+      }
+
+      HostinfoDefaultLinux(NULL, 0, distroShort, distroShortSize);
+      HostinfoGetOSShortName(distro, lsbData[1], distroShort, distroShortSize);
+
+      goto bail;
+   }
+
+   if (osReleaseScore > 0) {
+      size_t fields = ARRAYSIZE(osReleaseFields) - 1;  // Exclude terminator
+
+      if (osReleaseData[0] != NULL) {
+         Str_Strcpy(detailedDataFields[PRETTY_NAME].value, osReleaseData[0],
+                    sizeof detailedDataFields[PRETTY_NAME].value);
+      }
+
+      if (osReleaseData[1] != NULL) {
+         Str_Strcpy(detailedDataFields[DISTRO_NAME].value, osReleaseData[1],
+                    sizeof detailedDataFields[DISTRO_NAME].value);
+      }
+
+      if (osReleaseData[2] != NULL) {
+         Str_Strcpy(detailedDataFields[DISTRO_VERSION].value, osReleaseData[2],
+                    sizeof detailedDataFields[DISTRO_VERSION].value);
+      }
+
+      if (osReleaseData[3] != NULL) {
+         Str_Strcpy(detailedDataFields[BUILD_NUMBER].value, osReleaseData[3],
+                    sizeof detailedDataFields[BUILD_NUMBER].value);
+      }
+
+      if (osReleaseData[fields] != NULL) {
+         Str_Strcpy(distro, osReleaseData[fields], distroSize);
+      }
+
+      HostinfoDefaultLinux(NULL, 0, distroShort, distroShortSize);
+      HostinfoGetOSShortName(distro, osReleaseData[2],
+                             distroShort, distroShortSize);
+
+      goto bail;
+   }
+
+   /* Not LSB or os-release compliant. Report something generic. */
+   HostinfoDefaultLinux(distro, distroSize, distroShort, distroShortSize);
+
+bail:
+
+   if (lsbData != NULL) {
+      Util_FreeStringList(lsbData, ARRAYSIZE(lsbFields));
+   }
+
+   if (osReleaseData != NULL) {
+      Util_FreeStringList(osReleaseData, ARRAYSIZE(osReleaseFields));
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * HostinfoLinux --
  *
  *      Determine the specifics concerning Linux.
@@ -1322,25 +1631,7 @@ HostinfoLinux(struct utsname *buf)  // IN:
    char osName[MAX_OS_NAME_LEN];
    char osNameFull[MAX_OS_FULLNAME_LEN];
 
-   /* Try the LSB standard first, this maximizes compatibility */
-   if (HostinfoLsb(distro, sizeof distro)) {
-      HostinfoDefaultLinux(NULL, 0, distroShort, sizeof distroShort);
-      HostinfoGetOSShortName(distro, distroShort, sizeof distroShort);
-      goto bail;
-   }
-
-   /* No LSB compliance, try the os-release standard */
-   if (HostinfoOsRelease(distro, sizeof distro)) {
-      HostinfoDefaultLinux(NULL, 0, distroShort, sizeof distroShort);
-      HostinfoGetOSShortName(distro, distroShort, sizeof distroShort);
-      goto bail;
-   }
-
-   /* Not LSB or os-release compliant. Report something generic. */
-   HostinfoDefaultLinux(distro, sizeof distro,
-                        distroShort, sizeof distroShort);
-
-bail:
+   HostinfoBestScore(distro, sizeof distro, distroShort, sizeof distroShort);
 
    len = Str_Snprintf(osNameFull, sizeof osNameFull, "%s %s %s", buf->sysname,
                       buf->release, distro);
@@ -1487,7 +1778,7 @@ HostinfoSun(struct utsname *buf)  // IN:
 
    return (len != -1);
 }
-#endif // !defined __APPLE__ && !defined USERWORLD
+#endif // !defined(__APPLE__) && !defined(VMX86_SERVER) && !defined(USERWORLD)
 
 
 /*
@@ -1512,6 +1803,7 @@ HostinfoOSData(void)
 {
    Bool success;
    struct utsname buf;
+   const char *bitness;
 
    /*
     * Use uname to get complete OS information.
@@ -1523,7 +1815,23 @@ HostinfoOSData(void)
       return FALSE;
    }
 
-#if defined(USERWORLD)  // ESXi
+   Str_Strcpy(detailedDataFields[FAMILY_NAME].value, buf.sysname,
+              sizeof detailedDataFields[FAMILY_NAME].value);
+   Str_Strcpy(detailedDataFields[KERNEL_VERSION].value, buf.release,
+              sizeof detailedDataFields[KERNEL_VERSION].value);
+   /* Default distro name is set to uname's sysname field */
+   Str_Strcpy(detailedDataFields[DISTRO_NAME].value, buf.sysname,
+              sizeof detailedDataFields[DISTRO_NAME].value);
+
+#if defined(VMX86_SERVER) || defined(USERWORLD)  // ESXi
+   bitness = "64";
+#else
+   bitness = (Hostinfo_GetSystemBitness() == 64) ? "64" : "32";
+#endif
+   Str_Strcpy(detailedDataFields[BITNESS].value, bitness,
+              sizeof detailedDataFields[BITNESS].value);
+
+#if defined(VMX86_SERVER) || defined(USERWORLD)  // ESXi
    success = HostinfoESX(&buf);
 #elif defined(__APPLE__) // MacOS
    success = HostinfoMacOS(&buf);
@@ -1538,6 +1846,9 @@ HostinfoOSData(void)
       success = FALSE;  // Unknown to us
    }
 #endif
+
+   /* Build detailed data */
+   HostinfoOSDetailedData();
 
    return success;
 }

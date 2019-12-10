@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2016,2018-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -203,6 +203,9 @@ ServiceSigtermHandler(gpointer data)
    (void) ServiceEndMainLoop(NULL);
    Service_Shutdown();
    Log("END SERVICE");
+   VMXLog_Log(VMXLOG_LEVEL_INFO, "%s END SERVICE",
+              VGAUTH_SERVICE_NAME);
+   VMXLog_Shutdown();
 
    /*
     * It's safe to just exit here, since we've been called by the glib

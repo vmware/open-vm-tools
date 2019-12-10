@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -38,7 +38,7 @@ typedef struct SysLogger {
 
 
 static SysLogger *gSysLogger;
-static GStaticMutex gSysLoggerLock = G_STATIC_MUTEX_INIT;
+static GMutex gSysLoggerLock;
 
 
 /*
@@ -105,7 +105,7 @@ SysLoggerUnref(gpointer data)
 {
    g_return_if_fail(data == gSysLogger);
    g_return_if_fail(gSysLogger->refcount > 0);
-   g_static_mutex_lock(&gSysLoggerLock);
+   g_mutex_lock(&gSysLoggerLock);
    gSysLogger->refcount -= 1;
    if (gSysLogger->refcount == 0) {
       closelog();
@@ -113,7 +113,7 @@ SysLoggerUnref(gpointer data)
       g_free(gSysLogger);
       gSysLogger = NULL;
    }
-   g_static_mutex_unlock(&gSysLoggerLock);
+   g_mutex_unlock(&gSysLoggerLock);
 }
 
 
@@ -140,7 +140,7 @@ GlibLogger *
 GlibUtils_CreateSysLogger(const char *domain,
                           const char *facility)
 {
-   g_static_mutex_lock(&gSysLoggerLock);
+   g_mutex_lock(&gSysLoggerLock);
    if (gSysLogger == NULL) {
       int facid = LOG_USER;
 
@@ -203,7 +203,7 @@ GlibUtils_CreateSysLogger(const char *domain,
    } else {
       gSysLogger->refcount += 1;
    }
-   g_static_mutex_unlock(&gSysLoggerLock);
+   g_mutex_unlock(&gSysLoggerLock);
    return &gSysLogger->handler;
 }
 

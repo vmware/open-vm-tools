@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -188,11 +188,14 @@ CopyPasteUIX11::Init()
 
    Gtk::TargetEntry gnome(FCP_TARGET_NAME_GNOME_COPIED_FILES);
    Gtk::TargetEntry kde(FCP_TARGET_NAME_URI_LIST);
+   Gtk::TargetEntry nautilus(FCP_TARGET_NAME_NAUTILUS_FILES);
    gnome.set_info(FCP_TARGET_INFO_GNOME_COPIED_FILES);
    kde.set_info(FCP_TARGET_INFO_URI_LIST);
+   nautilus.set_info(FCP_TARGET_INFO_NAUTILUS_FILES);
 
    mListTargets.push_back(gnome);
    mListTargets.push_back(kde);
+   mListTargets.push_back(nautilus);
 
    mCP->srcRecvClipChanged.connect(
       sigc::mem_fun(this, &CopyPasteUIX11::GetRemoteClipboardCB));
@@ -448,6 +451,11 @@ CopyPasteUIX11::LocalGetFileRequestCB(Gtk::SelectionData& sd,        // IN:
       } else if (FCP_TARGET_INFO_URI_LIST == info) {
          pre = DND_URI_LIST_PRE_KDE;
          post = DND_URI_LIST_POST;
+      } else if (FCP_TARGET_INFO_NAUTILUS_FILES == info) {
+         mHGCopiedUriList =
+            utf::string(FCP_TARGET_MIME_NAUTILUS_FILES) + "\ncopy\n";
+         pre = FCP_GNOME_LIST_PRE;
+         post = FCP_GNOME_LIST_POST;
       } else {
          g_debug("%s: Unknown request target: %s\n", __FUNCTION__,
                sd.get_target().c_str());
@@ -928,6 +936,10 @@ CopyPasteUIX11::LocalGetFileContentsRequestCB(Gtk::SelectionData& sd, // IN
    } else if (FCP_TARGET_INFO_URI_LIST == info) {
       pre = DND_URI_LIST_PRE_KDE;
       post = DND_URI_LIST_POST;
+   } else if (FCP_TARGET_INFO_NAUTILUS_FILES == info) {
+      uriList = utf::string(FCP_TARGET_MIME_NAUTILUS_FILES) + "\ncopy\n";
+      pre = FCP_GNOME_LIST_PRE;
+      post = FCP_GNOME_LIST_POST;
    } else {
       g_debug("%s: Unknown request target: %s\n",
             __FUNCTION__, sd.get_target().c_str());
@@ -1664,10 +1676,11 @@ CopyPasteUIX11::FileBlockMonitorThread(void *arg)   // IN
       }
 
       int fd = open(params->fileBlockName.c_str(), O_RDONLY);
-      if (fd <= 0) {
-         g_debug("%s: Failed to open %s\n",
+      if (fd < 0) {
+         g_debug("%s: Failed to open %s, errno is %d\n",
                  __FUNCTION__,
-                 params->fileBlockName.c_str());
+                 params->fileBlockName.c_str(),
+                 errno);
          continue;
       }
 
@@ -1687,6 +1700,13 @@ CopyPasteUIX11::FileBlockMonitorThread(void *arg)   // IN
          params->cp->RequestFiles();
       } else {
          g_debug("%s: Block is not added\n", __FUNCTION__);
+      }
+
+      if (close(fd) < 0) {
+         g_debug("%s: Failed to close %s, errno is %d\n",
+                 __FUNCTION__,
+                 params->fileBlockName.c_str(),
+                 errno);
       }
    }
    pthread_mutex_unlock(&params->fileBlockMutex);

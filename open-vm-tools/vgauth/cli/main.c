@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <locale.h>
 #ifndef _WIN32
 #include <unistd.h>
 #include <errno.h>
@@ -486,6 +487,7 @@ mainRun(int argc,
    /*
     * Find the location of the i18n catalogs.
     */
+   setlocale(LC_ALL, "");
    prefs = Pref_Init(VGAUTH_PREF_CONFIG_FILENAME);
    msgCatalog = Pref_GetString(prefs,
                                VGAUTH_PREF_LOCALIZATION_DIR,
@@ -658,6 +660,7 @@ next:
    }
 
    VGAuth_Shutdown(ctx);
+   Pref_Shutdown(prefs);
    g_free(appName);
    return (err == VGAUTH_E_OK) ? 0 : -1;
 }

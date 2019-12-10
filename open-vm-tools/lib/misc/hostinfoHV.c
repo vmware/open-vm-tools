@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -25,7 +25,7 @@
 #include <string.h>
 #include "vmware.h"
 #if defined(__i386__) || defined(__x86_64__)
-#  include "cpuid_info.h"
+#  include "x86cpuid_asm.h"
 #  include "backdoor_def.h"
 #  include "backdoor_types.h"
 #endif

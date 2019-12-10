@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2017, 2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -697,6 +697,13 @@ struct uuid_2_cid {
          family = -1;
       }
 
+      /*
+       * fd is intentionally left open when outFd is NULL. Closing it here
+       * will break applications running on Linux without a fixed AF for
+       * vSockets. In such cases, the fd will be closed during cleanup when
+       * the application exits. Refer to the description of
+       * VMCISock_GetAFValue.
+       */
       if (family < 0) {
          close(fd);
       } else if (outFd) {

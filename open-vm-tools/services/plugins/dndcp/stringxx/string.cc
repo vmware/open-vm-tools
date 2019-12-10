@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -636,6 +636,7 @@ string::empty()
  * Results:
  *      Returns the length of this string, in characters (code points),
  *      excluding NUL.
+ *      If length in bytes is wanted, please refer to bytes() method.
  *
  * Side effects:
  *      None

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2002-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2002-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -53,6 +53,42 @@
 #define CONFNAME_DISABLETOOLSVERSION      "disable-tools-version"
 #define CONFNAME_HIDETOOLSVERSION         "hide-tools-version"
 #define CONFNAME_DISABLEPMTIMERWARNING    "disable-pmtimerwarning"
+
+/*
+ ******************************************************************************
+ * BEGIN AppInfo goodies.
+ */
+
+/**
+ * Defines the string used for the AppInfo config file group.
+ */
+#define CONFGROUPNAME_APPINFO "appinfo"
+
+/**
+ * Define a custom AppInfo poll interval (in seconds).
+ *
+ * @note Illegal values result in a @c g_warning and fallback to the default
+ * poll interval.
+ *
+ * @param int   User-defined poll interval.  Set to 0 to disable polling.
+ */
+#define CONFNAME_APPINFO_POLLINTERVAL "poll-interval"
+
+/**
+ * Defines the configuration to publish the application information or not.
+ *
+ * @note Illegal values result in a @c g_warning and fallback to the default
+ * value.
+ *
+ * @param boolean Set to TRUE to disable publishing.
+ *                Set to FALSE to enable publishing.
+ */
+#define CONFNAME_APPINFO_DISABLED "disabled"
+
+/*
+ * END AppInfo goodies.
+ ******************************************************************************
+ */
 
 
 /*
@@ -163,6 +199,20 @@
  */
 #define CONFNAME_DISKINFO_INCLUDERESERVED "diskinfo-include-reserved"
 
+/**
+ * Report UUID of disks for vmdk mapping via vim.
+ *
+ * @param boolean Set to true to report UUID to VMX.
+ */
+#define CONFNAME_DISKINFO_REPORT_UUID "diskinfo-report-uuid"
+
+/**
+ * Report Linux disk device for vmdk mapping via vim.
+ *
+ * @param boolean Set to true to report devices to VMX.
+ */
+#define CONFNAME_DISKINFO_REPORT_DEVICE "diskinfo-report-device"
+
 /*
  * END GuestInfo goodies.
  ******************************************************************************
@@ -233,10 +283,65 @@
  */
 
 
+/*
+ ******************************************************************************
+ * BEGIN deployPkg goodies.
+ */
+
+/**
+ * Defines the string used for the deployPkg config file group.
+ */
+#define CONFGROUPNAME_DEPLOYPKG "deployPkg"
+
+/**
+ * Lets users configure the process timeout value in deployPkg
+ * Valid value range: 0x01 ~ 0xFF
+ */
+#define CONFNAME_DEPLOYPKG_PROCESSTIMEOUT "process-timeout"
+
+/*
+ * END deployPkg goodies.
+ ******************************************************************************
+ */
+
+
 /** Where to find Tools data in the Win32 registry. */
 #define CONF_VMWARE_TOOLS_REGKEY    "Software\\VMware, Inc.\\VMware Tools"
 
 /* Wait 5 seconds between polls to see if the conf file has changed */
 #define CONF_POLL_TIME     5
+
+/*
+ ******************************************************************************
+ * BEGIN upgrader goodies.
+ */
+
+#define CONFGROUPNAME_AUTOUPGRADE "autoupgrade"
+
+#define CONFNAME_AUTOUPGRADE_ALLOW_UPGRADE "allow-upgrade"
+#define CONFNAME_AUTOUPGRADE_ALLOW_ADD_FEATURE "allow-add-feature"
+#define CONFNAME_AUTOUPGRADE_ALLOW_REMOVE_FEATURE "allow-remove-feature"
+
+/*
+ * END upgrader goodies.
+ ******************************************************************************
+ */
+
+/*
+ ******************************************************************************
+ * BEGIN logging goodies.
+ */
+
+/**
+ * Defines the string used for the logging config file group.
+ */
+#define CONFGROUPNAME_LOGGING "logging"
+
+#define CONFNAME_LOGGING_INSTALL_VMXGUESTLOGDISABLED "install-vmxGuestLogDisabled"
+
+/*
+ * END logging goodies.
+ ******************************************************************************
+ */
 
 #endif /* __CONF_H__ */

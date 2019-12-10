@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1137,7 +1137,6 @@ FileLock_Lock(const char *filePath,          // IN:
    FileLockToken *tokenPtr;
 
    ASSERT(filePath != NULL);
-   ASSERT(err != NULL);
 
    normalizedPath = FileLockNormalizePath(filePath);
 
@@ -1152,21 +1151,17 @@ FileLock_Lock(const char *filePath,          // IN:
       Posix_Free(normalizedPath);
    }
 
-   if (err != NULL) {
-      *err = res;
-   }
-
    if (tokenPtr == NULL) {
-      int errnoValue;
-
       if (res == 0) {
-         errnoValue = EAGAIN;  // Thank you for playing; try again
+         res = EAGAIN;  // Thank you for playing; try again
          /* Failed to acquire the lock; another has possession of it */
-      } else {
-         errnoValue = res;
       }
 
-      FileLockAppendMessage(msgs, errnoValue);
+      FileLockAppendMessage(msgs, res);
+   }
+
+   if (err != NULL) {
+      *err = res;
    }
 
    return tokenPtr;

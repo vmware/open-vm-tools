@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -36,6 +36,7 @@
 #include "vmcheck.h"
 #if defined(_WIN32)
 #include "getoptwin32.h"
+#include "vmware/tools/win32util.h"
 #endif
 
 #include "checkvm_version.h"
@@ -83,6 +84,10 @@ main(int argc,
    int width, height;
    uint32 screensize = 0;
    uint32 hwVersion;
+
+#if defined(_WIN32)
+   WinUtil_EnableSafePathSearching(TRUE);
+#endif
 
    if (!VmCheck_IsVirtualWorld()) {
       fprintf(stdout, "Not running in a virtual machine.\n");

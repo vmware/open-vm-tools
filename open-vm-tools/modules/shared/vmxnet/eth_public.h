@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2014,2017-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005-2014,2017-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -335,7 +335,13 @@ extern Eth_Address netEthBroadcastAddr;
 #define ETH_MIN_FRAME_LEN                    60
 #define ETH_MAX_STD_MTU                      1500
 #define ETH_MAX_STD_FRAMELEN                 (ETH_MAX_STD_MTU + ETH_MAX_HEADER_LEN)
-#define ETH_MAX_JUMBO_MTU                    9000
+/*
+ * ENS_MBUF_SLAB_9K_ALLOC_SIZE and PKT_SLAB_JUMBO_SIZE both use 9216 for L2
+ * MTU. And ETH_MAX_JUMBO_MTU is L3 MTU. It is required to have
+ * (ETH_MAX_JUMBO_MTU + ETH_MAX_HEADER_LEN) <= 9216 and ETH_MAX_HEADER_LEN is
+ * 26. So the maximal possible ETH_MAX_JUMBO_MTU = 9216 - 26 = 9190.
+ */
+#define ETH_MAX_JUMBO_MTU                    9190
 #define ETH_MAX_JUMBO_FRAMELEN               (ETH_MAX_JUMBO_MTU + ETH_MAX_HEADER_LEN)
 
 #define ETH_DEFAULT_MTU                      1500
@@ -829,7 +835,7 @@ Eth_FillVlanTag(Eth_802_1pq_Tag *tag,
    ASSERT(priority < 8);
 
    tag->typeNBO = ETH_TYPE_802_1PQ_NBO;
-   tag->priority = priority;
+   tag->priority = (uint16)priority;
    tag->canonical = 0;                  // bit order (should be 0)
    tag->vidHi = vlanId >> 8;
    tag->vidLo = vlanId & 0xff;
@@ -934,7 +940,7 @@ Eth_FrameGetPriority(const Eth_Header *eh)
 {
    ASSERT(Eth_IsFrameTagged(eh));
 
-   return eh->e802_1pq.tag.priority;
+   return (uint8)eh->e802_1pq.tag.priority;
 }
 
 

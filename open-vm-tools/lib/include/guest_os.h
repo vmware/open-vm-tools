@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -116,7 +116,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 #define ALLWINEIGHT           ALLWINEIGHTSERVER, ALLWINEIGHTCLIENT
 
-#define ALLWINTENSERVER64     BS(WINTENSERVER_64)
+#define ALLWINTENSERVER64     BS(WIN_2016SRV_64), BS(WIN_2019SRV_64)
 #define ALLWINTENSERVER       ALLWINTENSERVER64
 
 #define ALLWINTENCLIENT32     BS(WINTEN)
@@ -187,23 +187,38 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 #define ALL4XLINUX64          BS(OTHER4XLINUX_64), BS(PHOTON_64), \
                               BS(CENTOS8_64), BS(ORACLE8_64), \
-                              BS(AMAZONLINUX2_64)
+                              BS(CRXSYS1_64), BS(CRXPOD1_64), \
+                              BS(AMAZONLINUX2_64), BS(LINUX_MINT_64)
+
+#define ALL5XLINUX32          BS(OTHER5XLINUX)
+
+#define ALL5XLINUX64          BS(OTHER5XLINUX_64)
 
 #define ALLVMKERNEL           BS(VMKERNEL), BS(VMKERNEL5), BS(VMKERNEL6), \
                               BS(VMKERNEL65), BS(VMKERNEL7)
 
-#define ALLLINUX32            BS(OTHER24XLINUX), ALL26XLINUX32, ALL3XLINUX32, \
-                              ALL4XLINUX32, BS(OTHERLINUX), BS(VMKERNEL)
-#define ALLLINUX64            BS(OTHER24XLINUX_64), ALL26XLINUX64, \
-                              ALL3XLINUX64, ALL4XLINUX64, BS(OTHERLINUX_64)
+#define ALLLINUX32            BS(VMKERNEL), BS(OTHERLINUX), \
+                              BS(OTHER24XLINUX), \
+                              ALL26XLINUX32, ALL3XLINUX32, ALL4XLINUX32, \
+                              ALL5XLINUX32
+
+#define ALLLINUX64            BS(OTHERLINUX_64), BS(OTHER24XLINUX_64), \
+                              ALL26XLINUX64, ALL3XLINUX64, ALL4XLINUX64, \
+                              ALL5XLINUX64
+
 #define ALLLINUX              ALLLINUX32, ALLLINUX64
+
 #define ALLDARWIN32           BS(DARWIN9), BS(DARWIN10), BS(DARWIN11)
+
 #define ALLDARWIN64           BS(DARWIN9_64),  BS(DARWIN10_64), \
                               BS(DARWIN11_64), BS(DARWIN12_64), \
                               BS(DARWIN13_64), BS(DARWIN14_64), \
                               BS(DARWIN15_64), BS(DARWIN16_64), \
-                              BS(DARWIN17_64), BS(DARWIN18_64)
+                              BS(DARWIN17_64), BS(DARWIN18_64), \
+                              BS(DARWIN19_64), BS(DARWIN20_64)
+
 #define ALLDARWIN             ALLDARWIN32, ALLDARWIN64
+
 #define ALL64                 ALLWIN64, ALLLINUX64,               \
                               BS(SOLARIS10_64), BS(SOLARIS11_64), \
                               BS(FREEBSD_64), BS(FREEBSD11_64),   \
@@ -211,6 +226,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
                               ALLDARWIN64, ALLVMKERNEL
 
 #define ALLECOMSTATION        BS(ECOMSTATION), BS(ECOMSTATION2)
+
 #define ALLOS2                BS(OS2), ALLECOMSTATION
 
 /*
@@ -238,6 +254,8 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_CENTOS6             "centos6"
 #define STR_OS_CENTOS7             "centos7"
 #define STR_OS_CENTOS8             "centos8"
+#define STR_OS_CRXPOD              "CRXPod"
+#define STR_OS_CRXSYS              "CRXSys"
 #define STR_OS_COBALT              "Cobalt"
 #define STR_OS_CONECTIVA           "Conectiva"
 #define STR_OS_DEBIAN              "Debian"
@@ -245,7 +263,6 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_DEBIAN_5            "debian5"
 #define STR_OS_DEBIAN_6            "debian6"
 #define STR_OS_DEBIAN_7            "debian7"
-#define STR_OS_DEBIAN_7_1          "debian7"
 #define STR_OS_DEBIAN_8            "debian8"
 #define STR_OS_DEBIAN_9            "debian9"
 #define STR_OS_DEBIAN_10           "debian10"
@@ -255,6 +272,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_LINUX               "linux"
 #define STR_OS_LINUX_FROM_SCRATCH "Linux-From-Scratch"
 #define STR_OS_LINUX_FULL         "Other Linux"
+#define STR_OS_LINUX_MINT         "linuxMint"
 #define STR_OS_LINUX_PPC          "Linux-PPC"
 #define STR_OS_MANDRAKE           "mandrake"
 #define STR_OS_MANDRAKE_FULL      "Mandrake Linux"
@@ -275,7 +293,9 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_OTHER_3X           "other3xlinux"
 #define STR_OS_OTHER_3X_FULL      "Other Linux 3.x kernel"
 #define STR_OS_OTHER_4X           "other4xlinux"
-#define STR_OS_OTHER_4X_FULL      "Other Linux 4.x or later kernel"
+#define STR_OS_OTHER_4X_FULL      "Other Linux 4.x"
+#define STR_OS_OTHER_5X           "other5xlinux"
+#define STR_OS_OTHER_5X_FULL      "Other Linux 5.x or later kernel"
 #define STR_OS_PHOTON             "vmware-photon"
 #define STR_OS_PHOTON_FULL        "VMware Photon OS"
 #define STR_OS_PLD                "PLD"
@@ -498,11 +518,20 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 /* Windows Server 2016 */
 
-#define STR_OS_WIN_TENSERVER_X64 "windows9srv-64"
+#define STR_OS_WIN_2016SRV_X64 "windows9srv-64"
+
+/* Windows Server 2019 */
+
+#define STR_OS_WIN_2019SRV_X64 "windows2019srv-64"
 
 /* THIS SPACE FOR RENT (Windows 10 official server variant names) */
 
-#define STR_OS_WIN_TENSERVER_GENERIC_FULL        "Windows Server 2016"
+#define STR_OS_WIN_TENSERVER_2016_GENERIC_FULL "Windows Server 2016"
+#define STR_OS_WIN_TENSERVER_2019_GENERIC_FULL "Windows Server 2019"
+
+/* Win 10 server versions are distinguished by major build number */
+#define WIN10SERVER2016_BUILD14393 14393
+#define WIN10SERVER2019_BUILD17763 17763
 
 /* Microsoft Hyper-V */
 #define STR_OS_HYPER_V "winHyperV"
@@ -525,6 +554,9 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 /* Solaris */
 #define STR_OS_SOLARIS "solaris"
+
+/* Netware */
+#define STR_OS_NETWARE "netware"
 
 /* Mac OS */
 #define STR_OS_MACOS "darwin"

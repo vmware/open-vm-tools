@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -27,7 +27,7 @@
 #include <stdio.h>
 
 #if defined(_WIN32)
-static GStaticMutex gConsoleLock = G_STATIC_MUTEX_INIT;
+static GMutex gConsoleLock;
 static gint gRefCount = 0;
 #endif
 
@@ -66,12 +66,12 @@ StdLoggerLog(const gchar *domain,
    StdLogger *sdata = data;
 
    if (!sdata->attached) {
-      g_static_mutex_lock(&gConsoleLock);
+      g_mutex_lock(&gConsoleLock);
       if (gRefCount != 0 || GlibUtils_AttachConsole()) {
          gRefCount++;
          sdata->attached = TRUE;
       }
-      g_static_mutex_unlock(&gConsoleLock);
+      g_mutex_unlock(&gConsoleLock);
    }
 
    if (!sdata->attached) {
@@ -105,11 +105,11 @@ StdLoggerDestroy(gpointer data)
 {
 #if defined(_WIN32)
    StdLogger *sdata = data;
-   g_static_mutex_lock(&gConsoleLock);
+   g_mutex_lock(&gConsoleLock);
    if (sdata->attached && --gRefCount == 0) {
       FreeConsole();
    }
-   g_static_mutex_unlock(&gConsoleLock);
+   g_mutex_unlock(&gConsoleLock);
 #endif
    g_free(data);
 }

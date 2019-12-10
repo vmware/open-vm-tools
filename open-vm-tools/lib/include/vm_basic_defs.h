@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -83,12 +83,44 @@
 #endif
 #define __IS_FREEBSD_VER__(ver) (__IS_FREEBSD__ && __FreeBSD_version >= (ver))
 
+/*
+ * <stddef.h> provides definitions for:
+ *   NULL, offsetof
+ * References:
+ *   C90 7.17, C99 7.19, C11 7.19
+ */
+#if !defined(VMKERNEL)
+#  include <stddef.h>
+#else
+   /*
+    * Vmkernel's bogus __FreeBSD__ value causes gcc <stddef.h> to break.
+    * Work around by doing similar things. Bug 2116887 and 2229647.
+    */
+#  ifndef offsetof
+      /*
+       * We use the builtin offset for gcc/clang, except when we're running
+       * under the vmkernel's GDB macro preprocessor, since gdb doesn't
+       * understand __builtin_offsetof.
+       */
+#     if defined VMKERNEL_GDB_MACRO_BUILDER
+#        define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
+#     else
+#        define offsetof __builtin_offsetof
+#     endif
+#  endif
+
+#  ifndef NULL
+#     ifdef  __cplusplus
+#        define NULL    0
+#     else
+#        define NULL    ((void *)0)
+#     endif
+#  endif
+
+#endif  // VMKERNEL
+
 #if defined _WIN32 && defined USERLEVEL
-   #include <stddef.h>  /*
-                         * We redefine offsetof macro from stddef; make
-                         * sure that it's already defined before we do that.
-                         */
-   #include <windows.h>	// for Sleep() and LOWORD() etc.
+   #include <windows.h> // for Sleep() and LOWORD() etc.
    #undef GetFreeSpace  // Unpollute preprocessor namespace.
 #endif
 
@@ -97,42 +129,8 @@
  * Simple macros
  */
 
-#ifndef vmw_offsetof
-#define vmw_offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
-#endif
-
-#if (defined __APPLE__ || defined __FreeBSD__) && \
-    (!defined KERNEL && !defined _KERNEL && !defined VMKERNEL && !defined __KERNEL__)
-#   include <stddef.h>
-#else
-#ifndef offsetof
-#define VMW_DEFINED_OFFSETOF
-
-/*
- * XXX While the _WIN32 implementation appears to be identical to vmw_offsetof
- * in terms of behavior, they need to be separate to match verbatim the
- * definition used by the respective compilers, to avoid a redefinition warning.
- *
- * This is necessary until we eliminate the inclusion of <windows.h> above.
- */
-#ifdef _WIN32
-#define offsetof(s,m)   (size_t)&(((s *)0)->m)
-/*
- * We use the builtin offset for gcc/clang, except when we're running under the
- * vmkernel's GDB macro preprocessor, since gdb doesn't understand
- * __builtin_offsetof.
- */
-#elif defined __GNUC__ && !defined VMKERNEL_GDB_MACRO_BUILDER
-#define offsetof __builtin_offsetof
-#else
-#define offsetof vmw_offsetof
-#endif
-
-#endif // offsetof
-#endif // __APPLE__
-
 #define VMW_CONTAINER_OF(ptr, type, member) \
-   ((type *)((char *)(ptr) - vmw_offsetof(type, member)))
+   ((type *)((char *)(ptr) - offsetof(type, member)))
 
 #ifndef ARRAYSIZE
 #define ARRAYSIZE(a) (sizeof (a) / sizeof *(a))
@@ -198,18 +196,6 @@ Max(int a, int b)
 
 #define IMPLIES(a,b) (!(a) || (b))
 
-/*
- * Not everybody (e.g., the monitor) has NULL
- */
-
-#ifndef NULL
-#ifdef  __cplusplus
-#define NULL    0
-#else
-#define NULL    ((void *)0)
-#endif
-#endif
-
 
 /*
  * Token concatenation
@@ -248,7 +234,7 @@ Max(int a, int b)
  */
 
 #ifndef PAGE_SHIFT // {
-#if defined VM_I386
+#if defined __x86_64__ || defined __i386__
    #define PAGE_SHIFT    12
 #elif defined __APPLE__
    #define PAGE_SHIFT    12
@@ -294,6 +280,10 @@ Max(int a, int b)
 #define PAGES_2_BYTES(_npages)  (((uint64)(_npages)) << PAGE_SHIFT)
 #endif
 
+#ifndef KBYTES_SHIFT
+#define KBYTES_SHIFT 10
+#endif
+
 #ifndef MBYTES_SHIFT
 #define MBYTES_SHIFT 20
 #endif
@@ -323,6 +313,14 @@ Max(int a, int b)
 
 #ifndef PAGES_2_GBYTES
 #define PAGES_2_GBYTES(_npages) ((_npages) >> (30 - PAGE_SHIFT))
+#endif
+
+#ifndef BYTES_2_KBYTES
+#define BYTES_2_KBYTES(_nbytes) ((_nbytes) >> KBYTES_SHIFT)
+#endif
+
+#ifndef KBYTES_2_BYTES
+#define KBYTES_2_BYTES(_nbytes) ((uint64)(_nbytes) << KBYTES_SHIFT)
 #endif
 
 #ifndef BYTES_2_MBYTES
@@ -703,6 +701,20 @@ typedef int pid_t;
 #define VMM_ONLY(x)
 #endif
 
+#ifdef ULM
+#define vmx86_ulm 1
+#define ULM_ONLY(x) x
+#else
+#define vmx86_ulm 0
+#define ULM_ONLY(x)
+#endif
+
+#if defined(VMM) || defined(ULM)
+#define MONITOR_ONLY(x) x
+#else
+#define MONITOR_ONLY(x)
+#endif
+
 #if defined(VMM) || defined(VMKERNEL)
 #define USER_ONLY(x)
 #else
@@ -741,12 +753,6 @@ typedef int pid_t;
 #endif
 #endif // _WIN32
 
-#ifdef HOSTED_LG_PG
-#define hosted_lg_pg 1
-#else
-#define hosted_lg_pg 0
-#endif
-
 /*
  * Use to initialize cbSize for this structure to preserve < Vista
  * compatibility.
@@ -757,7 +763,7 @@ typedef int pid_t;
 /* This is not intended to be thread-safe. */
 #define DO_ONCE(code)                                                   \
    do {                                                                 \
-      static Bool _doOnceDone = FALSE;                                  \
+      static MONITOR_ONLY(PERVCPU) Bool _doOnceDone = FALSE;            \
       if (UNLIKELY(!_doOnceDone)) {                                     \
          _doOnceDone = TRUE;                                            \
          code;                                                          \

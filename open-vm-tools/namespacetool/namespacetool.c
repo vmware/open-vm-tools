@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2016-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -30,6 +30,9 @@
 #include "dynbuf.h"
 #include "vmware/tools/guestrpc.h"
 #include "vmware/tools/log.h"
+#if defined(_WIN32)
+#include "vmware/tools/win32util.h"
+#endif
 #include "debug.h"
 
 // Core Namespace commands
@@ -625,6 +628,10 @@ main(int argc, char *argv[])
         "the namespace for delete operation to proceed", "<old-value>"},
       { NULL }
    };
+
+#if defined(_WIN32)
+   WinUtil_EnableSafePathSearching(TRUE);
+#endif
 
    gAppName = g_path_get_basename(argv[0]);
    g_set_prgname(gAppName);

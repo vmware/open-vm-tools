@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -225,7 +225,8 @@ UtilBacktraceFromPointerCallback(struct _Unwind_Context *ctx, // IN: Unwind cont
    return _URC_END_OF_STACK;
 }
 
-#if !defined(_WIN32) && !defined(VMX86_TOOLS) && !defined(__ANDROID__)
+
+#if !defined(_WIN32) && !defined(VMX86_TOOLS)
 /*
  *-----------------------------------------------------------------------------
  *

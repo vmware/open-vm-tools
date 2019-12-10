@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -54,6 +54,7 @@
 #include "util.h"
 #include "xdrutil.h"
 #include "vmsupport.h"
+#include "dynbuf.h"
 #include "vmware/guestrpc/tclodefs.h"
 #include "vmware/tools/log.h"
 #include "vmware/tools/plugin.h"
@@ -95,10 +96,10 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 #endif
 
 /*
- * Define what guest info types and nic info versions could be sent
- * to update nic info at VMX. The order defines a sequence of fallback
- * paths to provide backward compatibility for ESX running with nic
- * info version older than the guest OS.
+ * Define what guest info types and NIC info versions could be sent to update
+ * the NIC info in the VMX. The order defines a sequence of fallback paths to
+ * provide backward compatibility for ESX running with NIC info version older
+ * than the guest OS.
  */
 typedef enum NicInfoMethod {
    NIC_INFO_V3_WITH_INFO_IPADDRESS_V3,
@@ -114,10 +115,12 @@ typedef enum NicInfoMethod {
 
 typedef struct _GuestInfoCache {
    /* Stores values of all key-value pairs. */
-   char          *value[INFO_MAX];
-   NicInfoV3     *nicInfo;
-   GuestDiskInfo *diskInfo;
-   NicInfoMethod  method;
+   char                        *value[INFO_MAX];
+   HostinfoDetailedDataHeader  *detailedData;
+   NicInfoV3                   *nicInfo;
+   NicInfoMethod                method;
+   GuestDiskInfoInt            *diskInfo;
+   Bool                         diskInfoUseJson;
 } GuestInfoCache;
 
 
@@ -139,6 +142,12 @@ time_t gGuestInfoLastGatherTime = 0;
  * This value is controlled by the guestinfo.stats-interval config file option.
  */
 int guestInfoStatsInterval = 0;
+
+/*
+ * Detailed guest OS data sending. Reset on channel reset.
+ */
+
+static Bool gSendDetailedGosData = TRUE;
 
 /**
  * GuestInfo gather loop timeout source.
@@ -167,22 +176,24 @@ static Bool gVMResumed;
  */
 
 
-static Bool GuestInfoUpdateVmdb(ToolsAppCtx *ctx,
-                                GuestInfoType infoType,
-                                void *info,
-                                size_t infoSize);
-static Bool SetGuestInfo(ToolsAppCtx *ctx, GuestInfoType key,
+static Bool GuestInfoUpdateVMX(ToolsAppCtx *ctx,
+                               GuestInfoType infoType,
+                               void *info,
+                               size_t infoSize);
+static Bool SetGuestInfo(ToolsAppCtx *ctx,
+                         GuestInfoType key,
                          const char *value);
 static void SendUptime(ToolsAppCtx *ctx);
-static Bool DiskInfoChanged(const GuestDiskInfo *diskInfo);
+static Bool DiskInfoChanged(const GuestDiskInfoInt *diskInfo);
 static void GuestInfoClearCache(void);
 static GuestNicList *NicInfoV3ToV2(const NicInfoV3 *infoV3);
-static void TweakGatherLoops(ToolsAppCtx *ctx, gboolean enable);
+static void TweakGatherLoops(ToolsAppCtx *ctx,
+                             gboolean enable);
 
 
 /*
  ******************************************************************************
- * GuestInfoVMSupport --                                                 */ /**
+ * GuestInfoVMSupport --
  *
  * Launches the vm-support process.  Data returned asynchronously via RPCI.
  *
@@ -268,7 +279,7 @@ GuestInfoVMSupport(RpcInData *data)
 
 /*
  ******************************************************************************
- * GuestInfoCheckIfRunningSlow --                                        */ /**
+ * GuestInfoCheckIfRunningSlow --
  *
  * Checks the time when the guestInfo was last collected.
  * Logs a warning message and sends a RPC message to the VMX if
@@ -304,7 +315,7 @@ GuestInfoCheckIfRunningSlow(ToolsAppCtx *ctx)
 
          if (!RpcChannel_Send(ctx->rpc, rpcMsg, strlen(rpcMsg) + 1,
                               NULL, NULL)) {
-            g_warning("%s: Error sending rpc message.\n", __FUNCTION__);
+            g_warning("%s: Error sending RPC message.\n", __FUNCTION__);
          }
 
          g_warning("%s", msg);
@@ -320,7 +331,7 @@ GuestInfoCheckIfRunningSlow(ToolsAppCtx *ctx)
 
 /*
  ******************************************************************************
- * GuestInfoSetConfigList --                                             */ /**
+ * GuestInfoSetConfigList --
  *
  * Gets a list setting from the config, and sets the list pointed to by pList.
  *
@@ -348,6 +359,7 @@ GuestInfoSetConfigList(ToolsAppCtx *ctx,
                                                configName, defaultValue);
    if (g_strcmp0(listString, *pCachedValue) != 0) {
       gchar **list = NULL;
+
       if (listString != NULL && listString[0] != '\0') {
          list = g_strsplit(listString, ",", 0);
       }
@@ -365,7 +377,7 @@ GuestInfoSetConfigList(ToolsAppCtx *ctx,
 
 /*
  * ****************************************************************************
- * GuestInfoResetNicPrimaryList --                                       */ /**
+ * GuestInfoResetNicPrimaryList --
  *
  * Gets primary-nics setting from the config, and sets the list of primary
  * patterns.
@@ -395,7 +407,7 @@ GuestInfoResetNicPrimaryList(ToolsAppCtx *ctx)
 
 /*
  * ****************************************************************************
- * GuestInfoResetNicLowPriorityList --                                   */ /**
+ * GuestInfoResetNicLowPriorityList --
  *
  * Gets low-priority-nics setting from the config, and sets the list of low
  * priority patterns.
@@ -425,7 +437,7 @@ GuestInfoResetNicLowPriorityList(ToolsAppCtx *ctx)
 
 /*
  * ****************************************************************************
- * GuestInfoResetNicExcludeList --                                       */ /**
+ * GuestInfoResetNicExcludeList --
  *
  * Gets exclude-nics setting from the config, and sets the list of exclude
  * patterns.
@@ -456,7 +468,54 @@ GuestInfoResetNicExcludeList(ToolsAppCtx *ctx)
 
 /*
  ******************************************************************************
- * GuestInfoGather --                                                    */ /**
+ * GuestInfoDetailedDataIsEqual --
+ *
+ *    Compares two HostinfoDetailedDataHeader and the detailed data that
+ *    follows each header.
+ *
+ * @returns True if equal
+ *
+ ******************************************************************************
+ */
+
+static Bool
+GuestInfoDetailedDataIsEqual(const HostinfoDetailedDataHeader *info1,  // IN:
+                             const HostinfoDetailedDataHeader *info2)  // IN:
+{
+   ASSERT(info1 != NULL);
+   ASSERT(info2 != NULL);
+
+   return (strncmp(info1->shortName, info2->shortName,
+                   sizeof info1->shortName) == 0 &&
+           strncmp(info1->fullName, info2->fullName,
+                   sizeof info1->fullName) == 0 &&
+           strcmp((char *)info1 + sizeof *info1,
+                  (char *)info2 + sizeof *info2) == 0);
+}
+
+
+/*
+ ******************************************************************************
+ * GuestInfoFreeDetailedData --
+ *
+ * Free the HostinfoStructuredHeader and space allocated for the detailed
+ * data.
+ *
+ * @returns None
+ *
+ ******************************************************************************
+ */
+
+static void
+GuestInfoFreeDetailedData(HostinfoDetailedDataHeader *info)  // IN/OUT:
+{
+   free(info);
+}
+
+
+/*
+ ******************************************************************************
+ * GuestInfoGather --
  *
  * Collects all the desired guest information and updates the VMX.
  *
@@ -472,10 +531,9 @@ GuestInfoGather(gpointer data)
 {
    char name[256];  // Size is derived from the SUS2 specification
                     // "Host names are limited to 255 bytes"
-   char *osString = NULL;
 #if !defined(USERWORLD)
    gboolean disableQueryDiskInfo;
-   GuestDiskInfo *diskInfo = NULL;
+   GuestDiskInfoInt *diskInfo = NULL;
 #endif
    NicInfoV3 *nicInfo = NULL;
    ToolsAppCtx *ctx = data;
@@ -491,13 +549,13 @@ GuestInfoGather(gpointer data)
    GuestInfoCheckIfRunningSlow(ctx);
 
    /* Send tools version. */
-   if (!GuestInfoUpdateVmdb(ctx, INFO_BUILD_NUMBER, BUILD_NUMBER, 0)) {
+   if (!GuestInfoUpdateVMX(ctx, INFO_BUILD_NUMBER, BUILD_NUMBER, 0)) {
       /*
        * An older vmx talking to new tools wont be able to handle
        * this message. Continue, if thats the case.
        */
 
-      g_warning("Failed to update VMDB with tools version.\n");
+      g_warning("Failed to update the VMX with tools version.\n");
    }
 
    /* Check for manual override of guest information in the config file */
@@ -505,6 +563,7 @@ GuestInfoGather(gpointer data)
                                             CONFGROUPNAME_GUESTOSINFO,
                                             CONFNAME_GUESTOSINFO_SHORTNAME,
                                             NULL);
+
    osNameFullOverride = VMTools_ConfigGetString(ctx->config,
                                                 CONFGROUPNAME_GUESTOSINFO,
                                                 CONFNAME_GUESTOSINFO_LONGNAME,
@@ -521,42 +580,112 @@ GuestInfoGather(gpointer data)
 
    /* Only use override if at least the short OS name is provided */
    if (osNameOverride == NULL) {
-      /* Gather all the relevant guest information. */
-      osString = Hostinfo_GetOSName();
-      if (osString == NULL) {
-         g_warning("Failed to get OS info.\n");
-      } else {
-         if (!GuestInfoUpdateVmdb(ctx, INFO_OS_NAME_FULL, osString, 0)) {
-            g_warning("Failed to update VMDB\n");
-         }
-      }
-      free(osString);
+      Bool sendOsNames = FALSE;
+      char *osName = NULL;
+      char *osFullName = NULL;
+      char *detailedGosData = NULL;
 
-      osString = Hostinfo_GetOSGuestString();
-      if (osString == NULL) {
-         g_warning("Failed to get OS info.\n");
+      /* Gather all the relevant guest information. */
+      osFullName = Hostinfo_GetOSName();
+      osName = Hostinfo_GetOSGuestString();
+
+      if (gSendDetailedGosData) {
+         detailedGosData = Hostinfo_GetOSDetailedData();
+      }
+
+      if (detailedGosData == NULL) {
+         g_debug("No detailed data.\n");
+         sendOsNames = TRUE;
+         gSendDetailedGosData = FALSE;
       } else {
-         if (!GuestInfoUpdateVmdb(ctx, INFO_OS_NAME, osString, 0)) {
-            g_warning("Failed to update VMDB\n");
+         /* Build and attempt to send the detailed data */
+         HostinfoDetailedDataHeader *detailedDataHeader = NULL;
+         size_t infoHeaderSize;
+         size_t detailedGosDataLen;
+         size_t infoSize;
+
+         g_debug("Sending detailed data.\n");
+         detailedGosDataLen = strlen(detailedGosData);
+         infoHeaderSize = sizeof *detailedDataHeader;
+         infoSize = infoHeaderSize + detailedGosDataLen + 1; // cover NUL
+
+         detailedDataHeader = g_malloc(infoSize);
+         /* Clear struct and memory allocated for detailed data */
+         memset(detailedDataHeader, 0, infoSize);
+
+         /* Set the version of the detailed data header used */
+         detailedDataHeader->version = HOSTINFO_STRUCT_HEADER_VERSION;
+
+         if (osName == NULL) {
+            g_warning("Failed to get OS name.\n");
+         } else {
+            Str_Strcpy(detailedDataHeader->shortName, osName,
+                       sizeof detailedDataHeader->shortName);
+         }
+         if (osFullName == NULL) {
+            g_warning("Failed to get OS full name.\n");
+         } else {
+            Str_Strcpy(detailedDataHeader->fullName, osFullName,
+                       sizeof detailedDataHeader->fullName);
+         }
+
+         Str_Strcpy((char *)detailedDataHeader + infoHeaderSize,
+                    detailedGosData, infoSize - infoHeaderSize);
+
+         if (GuestInfoUpdateVMX(ctx, INFO_OS_DETAILED, detailedDataHeader,
+                                infoSize)) {
+            GuestInfoFreeDetailedData(gInfoCache.detailedData);
+            gInfoCache.detailedData = detailedDataHeader;
+            g_debug("Detailed data was sent successfully.\n");
+         } else {
+            /*
+             * Only send the OS Name if the VMX failed to receive the detailed
+             * data
+             */
+            gSendDetailedGosData = FALSE;
+            sendOsNames = TRUE;
+            g_debug("Detailed data was not sent successfully.\n");
          }
       }
-      free(osString);
+
+      if (sendOsNames) {
+         g_debug("Sending the short and long name\n");
+         if (osFullName == NULL) {
+            g_warning("Failed to get OS info.\n");
+         } else {
+            if (!GuestInfoUpdateVMX(ctx, INFO_OS_NAME_FULL, osFullName, 0)) {
+               g_warning("Failed to update INFO_OS_NAME_FULL\n");
+            }
+         }
+         if (osName == NULL) {
+            g_warning("Failed to get OS info.\n");
+         } else {
+            if (!GuestInfoUpdateVMX(ctx, INFO_OS_NAME, osName, 0)) {
+               g_warning("Failed to update INFO_OS_NAME\n");
+            }
+         }
+      }
+
+      free(detailedGosData);
+      free(osFullName);
+      free(osName);
    } else {
       /* Use osName and osNameFull provided in config file */
       if (osNameFullOverride == NULL) {
          g_warning(CONFNAME_GUESTOSINFO_LONGNAME " was not set in "
                    "tools.conf, using empty string.\n");
       }
-      if (!GuestInfoUpdateVmdb(ctx,
-                               INFO_OS_NAME_FULL,
-                               (osNameFullOverride == NULL) ? "" : osNameFullOverride,
-                               0)) {
-         g_warning("Failed to update VMDB\n");
+      if (!GuestInfoUpdateVMX(ctx,
+                              INFO_OS_NAME_FULL,
+                              (osNameFullOverride == NULL) ? "" :
+                                                             osNameFullOverride,
+                              0)) {
+         g_warning("Failed to send INFO_OS_NAME_FULL\n");
       }
       g_free(osNameFullOverride);
 
-      if (!GuestInfoUpdateVmdb(ctx, INFO_OS_NAME, osNameOverride, 0)) {
-         g_warning("Failed to update VMDB\n");
+      if (!GuestInfoUpdateVMX(ctx, INFO_OS_NAME, osNameOverride, 0)) {
+         g_warning("Failed to send INFO_OS_NAME\n");
       }
       g_free(osNameOverride);
       g_debug("Using values in tools.conf to override OS Name.\n");
@@ -570,11 +699,11 @@ GuestInfoGather(gpointer data)
       if ((diskInfo = GuestInfo_GetDiskInfo(ctx)) == NULL) {
          g_warning("Failed to get disk info.\n");
       } else {
-         if (GuestInfoUpdateVmdb(ctx, INFO_DISK_FREE_SPACE, diskInfo, 0)) {
+         if (GuestInfoUpdateVMX(ctx, INFO_DISK_FREE_SPACE, diskInfo, 0)) {
             GuestInfo_FreeDiskInfo(gInfoCache.diskInfo);
             gInfoCache.diskInfo = diskInfo;
          } else {
-            g_warning("Failed to update VMDB\n.");
+            g_warning("Failed to update INFO_DISK_FREE_SPACE\n.");
             GuestInfo_FreeDiskInfo(diskInfo);
          }
       }
@@ -583,8 +712,8 @@ GuestInfoGather(gpointer data)
 
    if (!System_GetNodeName(sizeof name, name)) {
       g_warning("Failed to get netbios name.\n");
-   } else if (!GuestInfoUpdateVmdb(ctx, INFO_DNS_NAME, name, 0)) {
-      g_warning("Failed to update VMDB.\n");
+   } else if (!GuestInfoUpdateVMX(ctx, INFO_DNS_NAME, name, 0)) {
+      g_warning("Failed to update INFO_DNS_NAME.\n");
    }
 
    /* Get NIC information. */
@@ -629,24 +758,23 @@ GuestInfoGather(gpointer data)
    if (!GuestInfo_GetNicInfo(maxIPv4RoutesToGather,
                              maxIPv6RoutesToGather,
                              &nicInfo)) {
-      g_warning("Failed to get nic info.\n");
+      g_warning("Failed to get NIC info.\n");
       /*
-       * Return an empty nic info.
+       * Return an empty NIC info.
        */
       nicInfo = Util_SafeCalloc(1, sizeof (struct NicInfoV3));
    }
 
    /*
-    * We need to check if the setting for the primary interfaces or
-    * low priority nics have changed, because
-    * GuestInfo_IsEqual_NicInfoV3 does not detect a change in the
-    * order.
+    * We need to check if the setting for the primary interfaces or low
+    * priority NICs have changed, because GuestInfo_IsEqual_NicInfoV3 does not
+    * detect a change in the order.
     */
    if (!primaryChanged && !lowPriorityChanged &&
        GuestInfo_IsEqual_NicInfoV3(nicInfo, gInfoCache.nicInfo)) {
-      g_debug("Nic info not changed.\n");
+      g_debug("NIC info not changed.\n");
       GuestInfo_FreeNicInfo(nicInfo);
-   } else if (GuestInfoUpdateVmdb(ctx, INFO_IPADDRESS, nicInfo, 0)) {
+   } else if (GuestInfoUpdateVMX(ctx, INFO_IPADDRESS, nicInfo, 0)) {
       /*
        * Since the update succeeded, free the old cached object, and assign
        * ours to the cache.
@@ -654,11 +782,11 @@ GuestInfoGather(gpointer data)
       GuestInfo_FreeNicInfo(gInfoCache.nicInfo);
       gInfoCache.nicInfo = nicInfo;
    } else {
-      g_warning("Failed to update VMDB.\n");
+      g_warning("Failed to update INFO_IPADDRESS.\n");
       GuestInfo_FreeNicInfo(nicInfo);
    }
 
-   /* Send the uptime to VMX so that it can detect soft resets. */
+   /* Send the uptime to the VMX so that it can detect soft resets. */
    SendUptime(ctx);
 
    return TRUE;
@@ -821,9 +949,9 @@ GuestInfoSendMemoryInfo(ToolsAppCtx *ctx,  // IN: Application context
 
 /*
  ******************************************************************************
- * GuestInfoSendNicInfoXdr --                                            */ /**
+ * GuestInfoSendNicInfoXdr --
  *
- * Push updated nic info to VMX using XDR data format.
+ * Push updated nic info to the VMX using XDR data format.
  *
  * @param[in] ctx      Application context.
  * @param[in] message  The protocol for a 'nic info' message.
@@ -853,10 +981,10 @@ GuestInfoSendNicInfoXdr(ToolsAppCtx *ctx,          // IN
       goto exit;
    }
 
-   /* Write preamble and serialized nic info to XDR stream. */
+   /* Write preamble and serialized NIC info to XDR stream. */
    if (!DynXdr_AppendRaw(&xdrs, request, strlen(request)) ||
        !xdr_GuestNicProto(&xdrs, message)) {
-      g_warning("Error serializing nic info v%d data.", message->ver);
+      g_warning("Error serializing NIC info v%d data.", message->ver);
    } else {
       status = RpcChannel_Send(ctx->rpc, DynXdr_Get(&xdrs), xdr_getpos(&xdrs),
                                &reply, &replyLen);
@@ -876,10 +1004,10 @@ exit:
 
 /*
  ******************************************************************************
- * GuestInfoSendData --                                                  */ /**
+ * GuestInfoSendData --
  *
  * Push GuestInfo information to the VMX. So far, it is mainly used to
- * send the fixed nic info V1 data.
+ * send the fixed NIC info V1 data.
  *
  * @param[in] ctx         Application context.
  * @param[in] info        Guest information data.
@@ -970,9 +1098,9 @@ GuestNicInfoV3ToV3_64(NicInfoV3 *info)             // IN
 
 /*
  ******************************************************************************
- * GuestInfoSendNicInfo --                                               */ /**
+ * GuestInfoSendNicInfo --
  *
- * Push updated nic info to the VMX. Take care of failed transmissions or
+ * Push updated NIC info to the VMX. Take care of failed transmissions or
  * unknown guest information types. Use a fixed sequence of fallback paths
  * to retry.
  *
@@ -1016,6 +1144,7 @@ GuestInfoSendNicInfo(ToolsAppCtx *ctx,             // IN
          }
          {
             GuestNicList *nicList = NicInfoV3ToV2(info64);
+
             message.ver = NIC_INFO_V2;
             message.GuestNicProto_u.nicsV2 = nicList;
             if (GuestInfoSendNicInfoXdr(ctx, &message, INFO_IPADDRESS_V2)) {
@@ -1028,6 +1157,7 @@ GuestInfoSendNicInfo(ToolsAppCtx *ctx,             // IN
       case NIC_INFO_V1_WITH_INFO_IPADDRESS:
          {
             GuestNicInfoV1 infoV1;
+
             GuestInfoConvertNicInfoToNicInfoV1(info, &infoV1);
             if (GuestInfoSendData(ctx, &infoV1, sizeof(infoV1),
                                   INFO_IPADDRESS)) {
@@ -1060,7 +1190,330 @@ GuestInfoSendNicInfo(ToolsAppCtx *ctx,             // IN
 
 /*
  ******************************************************************************
- * GuestInfoUpdateVmdb --                                                */ /**
+ * GuestInfoSendDiskInfoV1 --
+ *
+ * Push updated Disk info to the VMX, using the json GUEST_DISK_INFO_COMMAND
+ * RPC
+ *
+ * @param[in] ctx       Application context.
+ * @param[in] pdi       GuestDiskInfoInt *
+ * @param[in] infoSize  Size of disk info.
+ *
+ * @retval TRUE  Update sent successfully.
+ * @retval FALSE Had trouble with serialization or transmission.
+ *
+ ******************************************************************************
+ */
+
+static Bool
+GuestInfoSendDiskInfoV1(ToolsAppCtx *ctx,             // IN
+                        GuestDiskInfoInt *pdi,        // IN
+                        size_t infoSize)              // IN
+{
+   DynBuf dynBuffer;
+   char tmpBuf[1024];
+   int len;
+   char *infoReq;
+   char *reply = NULL;
+   size_t replyLen;
+   Bool status;
+#ifdef _WIN32
+   Bool reportUUID = VMTools_ConfigGetBoolean(ctx->config,
+                                              CONFGROUPNAME_GUESTINFO,
+                                              CONFNAME_DISKINFO_REPORT_UUID,
+                                              CONFIG_GUESTINFO_REPORT_UUID_DEFAULT);
+#endif
+
+   /*
+    * Currently this format is fixed; the order should not be changed.
+    * If a change is required, then DISK_INFO_VERSION must be bumped.
+    * Older versions cannot be removed to maintain backwards compatibility
+    * with older VMXs.
+    */
+   static char headerFmt[] = "%s {\n"
+                             "\"" DISK_INFO_KEY_VERSION "\":\"%d\",\n"
+                             "\"" DISK_INFO_KEY_DISKS "\":[\n";
+   static char jsonPerDiskFmt[] = "{"
+                                  "\"" DISK_INFO_KEY_DISK_NAME "\":\"%s\","
+                                  "\"" DISK_INFO_KEY_DISK_FREE "\":\"%"FMT64"u\","
+                                  "\"" DISK_INFO_KEY_DISK_SIZE "\":\"%"FMT64"u\"";
+   static char jsonPerDiskFsTypeFmt[] = ",\"" DISK_INFO_KEY_DISK_FSTYPE "\":\"%s\"";
+#ifdef _WIN32
+   static char jsonPerDiskUUIDFmt[] = ",\"" DISK_INFO_KEY_DISK_UUID "\":\"%s\"";
+#else
+   static char jsonPerDiskDevArrHdrFmt[] =
+                                    ",\"" DISK_INFO_KEY_DISK_DEVICE_ARR "\":[";
+   static char jsonPerDiskDeviceFmt[] = "%s\"%s\"";
+   static char jsonPerDiskDeviceSep[] = ",";
+   static char jsonPerDiskDevArrFmtFooter[] = "]";
+#endif
+   static char jsonPerDiskFmtFooter[] = "},\n";
+   static char jsonPerDiskFmtFooterLast[] = "}\n";
+   static char jsonSuffix[] = "]}";
+   int i;
+
+   // 20 bytes per number for ascii representation
+   // PARTITION_NAME_SIZE * 2 for name and (optional) uuid
+   ASSERT_ON_COMPILE(sizeof tmpBuf > sizeof jsonPerDiskFmt +
+                     PARTITION_NAME_SIZE * 2 + 20 + 20);
+
+   DynBuf_Init(&dynBuffer);
+
+   len = Str_Snprintf(tmpBuf, sizeof tmpBuf, headerFmt,
+                      GUEST_DISK_INFO_COMMAND, DISK_INFO_VERSION_1);
+   DynBuf_Append(&dynBuffer, tmpBuf, len);
+   for (i = 0; i < pdi->numEntries; i++) {
+      gchar *b64name;
+
+      /*
+       * If more than a single disk partition or filesystem to be reported,
+       * terminate the previous partition element in the disk array.
+       */
+      if (i != 0) {
+         DynBuf_Append(&dynBuffer, jsonPerDiskFmtFooter,
+                       sizeof jsonPerDiskFmtFooter - 1);
+      }
+
+      /*
+       * The '\' in Windows drive names needs escaping for json,
+       * so use base64 since its simple and will cover other weird
+       * cases like quotes, as well as avoid any utf-8 concerns.
+       */
+      b64name = g_base64_encode(pdi->partitionList[i].name,
+                                strlen(pdi->partitionList[i].name));
+
+      len = Str_Snprintf(tmpBuf, sizeof tmpBuf, jsonPerDiskFmt,
+                         b64name,
+                         pdi->partitionList[i].freeBytes,
+                         pdi->partitionList[i].totalBytes);
+      DynBuf_Append(&dynBuffer, tmpBuf, len);
+      g_free(b64name);
+
+      if (pdi->partitionList[i].fsType[0] != '\0') {
+         len = Str_Snprintf(tmpBuf, sizeof tmpBuf, jsonPerDiskFsTypeFmt,
+                            pdi->partitionList[i].fsType);
+         DynBuf_Append(&dynBuffer, tmpBuf, len);
+      }
+#ifdef _WIN32
+      if (reportUUID) {
+         if (pdi->partitionList[i].uuid[0] != '\0') {
+            len = Str_Snprintf(tmpBuf, sizeof tmpBuf, jsonPerDiskUUIDFmt,
+                               pdi->partitionList[i].uuid);
+            DynBuf_Append(&dynBuffer, tmpBuf, len);
+         }
+      }
+#else
+      if (pdi->partitionList[i].diskDevCnt > 0) {
+         int idx;
+
+         DynBuf_Append(&dynBuffer, jsonPerDiskDevArrHdrFmt,
+                       sizeof jsonPerDiskDevArrHdrFmt - 1);
+         len = Str_Snprintf(tmpBuf, sizeof tmpBuf, jsonPerDiskDeviceFmt,
+                            "", pdi->partitionList[i].diskDevNames[0]);
+         DynBuf_Append(&dynBuffer, tmpBuf, len);
+         for (idx = 1; idx < pdi->partitionList[i].diskDevCnt; idx++) {
+            len = Str_Snprintf(tmpBuf, sizeof tmpBuf, jsonPerDiskDeviceFmt,
+                               jsonPerDiskDeviceSep,
+                               pdi->partitionList[i].diskDevNames[idx]);
+            DynBuf_Append(&dynBuffer, tmpBuf, len);
+         }
+         DynBuf_Append(&dynBuffer, jsonPerDiskDevArrFmtFooter,
+                       sizeof jsonPerDiskDevArrFmtFooter - 1);
+      }
+#endif
+   }
+   if (pdi->numEntries > 0) {
+      /* Terminate the last element of the disk partition JSON array. */
+      DynBuf_Append(&dynBuffer, jsonPerDiskFmtFooterLast,
+                    sizeof jsonPerDiskFmtFooterLast - 1);
+   }
+
+   DynBuf_Append(&dynBuffer, jsonSuffix, sizeof jsonSuffix - 1);
+
+   infoReq = DynBuf_GetString(&dynBuffer);
+
+   g_debug("%s: sending diskInfo RPC: '%s'\n", __FUNCTION__, infoReq);
+
+   status = RpcChannel_Send(ctx->rpc, infoReq, strlen(infoReq) + 1, &reply,
+                            &replyLen);
+   if (status) {
+      status = (*reply == '\0');
+      if (!status) {
+         g_debug("%s: unexpected reply '%s'\n", __FUNCTION__, reply);
+      }
+   } else {
+      g_debug("%s: RPC failed (%d) reply '%s'\n",
+              __FUNCTION__, status, reply ? reply : "");
+   }
+
+   DynBuf_Destroy(&dynBuffer);
+   vm_free(reply);
+
+   return status;
+}
+
+
+#if defined(_WIN64) && (_MSC_VER == 1500) && GLIB_CHECK_VERSION(2, 46, 0)
+/*
+ * Turn off optimizer for this compiler, since something with new glib
+ * makes it go into an infinite loop, only on 64bit.
+ */
+#pragma optimize("", off)
+#endif
+
+/*
+ ******************************************************************************
+ * GuestInfoSendDiskInfoV0 --
+ *
+ * Push updated Disk info to the VMX, using the binary INFO_DISK_FREE_SPACE
+ * format.
+ *
+ * @param[in] ctx       Application context.
+ * @param[in] pdiInt    GuestDiskInfoInt *
+ * @param[in] infoSize  Size of disk info.
+ *
+ * @retval TRUE  Update sent successfully.
+ * @retval FALSE Had trouble with serialization or transmission.
+ *
+ ******************************************************************************
+ */
+
+static Bool
+GuestInfoSendDiskInfoV0(ToolsAppCtx *ctx,             // IN
+                        GuestDiskInfoInt *pdiInt,     // IN
+                        size_t infoSize)              // IN
+{
+   /*
+    * 2 accounts for the digits of infotype and 3 for the three
+    * spaces.
+    */
+   unsigned int requestSize = sizeof GUEST_INFO_COMMAND + 2 +
+                              3 * sizeof (char);
+   uint8 partitionCount;
+   size_t offset;
+   char *request;
+   char *reply;
+   size_t replyLen;
+   Bool status;
+   GuestDiskInfo *pdi;
+   int i;
+
+   ASSERT((pdiInt->numEntries && pdiInt->partitionList) ||
+          (!pdiInt->numEntries && !pdiInt->partitionList));
+
+   /*
+    * Build a GuestDiskInfo structure to provide the expected binary
+    * format for the binary RPC, copying out the V0 elements.
+    */
+   pdi = Util_SafeCalloc(1, sizeof *pdi);
+   pdi->numEntries = pdiInt->numEntries;
+   pdi->partitionList = Util_SafeCalloc(pdi->numEntries,
+                                        sizeof *pdi->partitionList);
+   for (i = 0; i < pdi->numEntries; i++) {
+      pdi->partitionList[i].freeBytes = pdiInt->partitionList[i].freeBytes;
+      pdi->partitionList[i].totalBytes = pdiInt->partitionList[i].totalBytes;
+      Str_Strcpy(pdi->partitionList[i].name,
+                 pdiInt->partitionList[i].name,
+                 PARTITION_NAME_SIZE);
+   }
+
+   /* partitionCount is a uint8 and cannot be larger than UCHAR_MAX. */
+   if (pdi->numEntries > UCHAR_MAX) {
+      g_message("%s: Too many local filesystems (%d); truncating to %d entries\n",
+                __FUNCTION__, pdi->numEntries, UCHAR_MAX);
+      partitionCount = UCHAR_MAX;
+   } else {
+      partitionCount = pdi->numEntries;
+   }
+
+   requestSize += sizeof partitionCount +
+                  sizeof *pdi->partitionList * partitionCount;
+   request = Util_SafeCalloc(requestSize, sizeof *request);
+
+   Str_Sprintf(request, requestSize, "%s  %d ", GUEST_INFO_COMMAND,
+               INFO_DISK_FREE_SPACE);
+
+   offset = strlen(request);
+
+   /*
+    * Construct the disk information message to send to the host.  This
+    * contains a single byte indicating the number partitions followed by
+    * the PartitionEntry structure for each one.
+    *
+    * Note that the use of a uint8 to specify the partitionCount is the
+    * result of a bug (see bug 117224) but should not cause a problem
+    * since UCHAR_MAX is 255.  Also note that PartitionEntry is packed so
+    * it's safe to send it from 64-bit Tools to a 32-bit VMX, etc.
+    */
+   memcpy(request + offset, &partitionCount, sizeof partitionCount);
+
+   /*
+    * Conditioned because memcpy(dst, NULL, 0) -may- lead to undefined
+    * behavior.
+    */
+   if (pdi->partitionList) {
+      memcpy(request + offset + sizeof partitionCount, pdi->partitionList,
+             sizeof *pdi->partitionList * partitionCount);
+   }
+
+   g_debug("%s: sizeof request is %d\n", __FUNCTION__, requestSize);
+   status = RpcChannel_Send(ctx->rpc, request, requestSize, &reply,
+                            &replyLen);
+   if (status) {
+      status = (*reply == '\0');
+      if (!status) {
+         g_debug("%s: unexpected reply '%s'\n", __FUNCTION__, reply);
+      }
+   }
+
+   vm_free(request);
+   vm_free(reply);
+
+   vm_free(pdi->partitionList);
+   vm_free(pdi);
+
+   return status;
+}
+
+
+/*
+ ******************************************************************************
+ * GuestInfoSendDiskInfo --
+ *
+ * Push updated Disk info to the VMX.
+ *
+ * @param[in] ctx       Application context.
+ * @param[in] info      GuestDiskInfoInt *
+ * @param[in] infoSize  Size of disk info.
+ *
+ * @retval TRUE  Update sent successfully.
+ * @retval FALSE Had trouble with serialization or transmission.
+ *
+ ******************************************************************************
+ */
+
+static Bool
+GuestInfoSendDiskInfo(ToolsAppCtx *ctx,             // IN
+                      GuestDiskInfoInt *info,       // IN
+                      size_t infoSize)              // IN
+{
+   if (gInfoCache.diskInfoUseJson &&
+       GuestInfoSendDiskInfoV1(ctx, info, infoSize)) {
+      return TRUE;
+   } else {
+      gInfoCache.diskInfoUseJson = FALSE;
+   }
+
+   /* fail over to unversioned format */
+   g_debug("%s: using V0 (unversioned) diskinfo format\n", __FUNCTION__);
+
+   return GuestInfoSendDiskInfoV0(ctx, info, infoSize);
+}
+
+
+/*
+ ******************************************************************************
+ * GuestInfoUpdateVMX --
  *
  * Push singular GuestInfo snippets to the VMX.
  *
@@ -1076,23 +1529,14 @@ GuestInfoSendNicInfo(ToolsAppCtx *ctx,             // IN
  ******************************************************************************
  */
 
-
-#if defined(_WIN64) && (_MSC_VER == 1500) && GLIB_CHECK_VERSION(2, 46, 0)
-/*
- * Turn off optimizer for this compiler, since something with new glib
- * makes it go into an infinite loop, only on 64bit.
- */
-#pragma optimize("", off)
-#endif
-
 static Bool
-GuestInfoUpdateVmdb(ToolsAppCtx *ctx,       // IN: Application context
-                    GuestInfoType infoType, // IN: guest information type
-                    void *info,             // IN: type specific information
-                    size_t infoSize)        // IN: size of *info
+GuestInfoUpdateVMX(ToolsAppCtx *ctx,        // IN: Application context
+                   GuestInfoType infoType,  // IN: guest information type
+                   void *info,              // IN: type specific information
+                   size_t infoSize)         // IN: size of *info
 {
    ASSERT(info);
-   g_debug("Entered update vmdb: %d.\n", infoType);
+   g_debug("Entered update the VMX: %d.\n", infoType);
 
    if (gVMResumed) {
       gVMResumed = FALSE;
@@ -1127,10 +1571,27 @@ GuestInfoUpdateVmdb(ToolsAppCtx *ctx,       // IN: Application context
       gInfoCache.value[infoType] = Util_SafeStrdup((char *) info);
       break;
 
+   case INFO_OS_DETAILED:
+      {
+         if (gInfoCache.detailedData != NULL &&
+             GuestInfoDetailedDataIsEqual(gInfoCache.detailedData,
+                                          (HostinfoDetailedDataHeader *)info)) {
+            /* The value has not changed */
+            g_debug("Value unchanged for detailedData.\n");
+            break;
+         }
+
+         if (!GuestInfoSendData(ctx, info, infoSize, INFO_OS_DETAILED)) {
+            g_warning("Failed to update detailed data");
+            return FALSE;
+         }
+         break;
+      }
+
    case INFO_IPADDRESS:
       {
          if (!GuestInfoSendNicInfo(ctx, (NicInfoV3 *) info)) {
-            g_warning("Failed to update nic information.\n");
+            g_warning("Failed to update NIC information.\n");
             return FALSE;
          }
          break;
@@ -1147,78 +1608,12 @@ GuestInfoUpdateVmdb(ToolsAppCtx *ctx,       // IN: Application context
 
    case INFO_DISK_FREE_SPACE:
       {
-         /*
-          * 2 accounts for the digits of infotype and 3 for the three
-          * spaces.
-          */
-         unsigned int requestSize = sizeof GUEST_INFO_COMMAND + 2 +
-                                    3 * sizeof (char);
-         uint8 partitionCount;
-         size_t offset;
-         char *request;
-         char *reply;
-         size_t replyLen;
-         Bool status;
-         GuestDiskInfo *pdi = info;
-
-         if (!DiskInfoChanged(pdi)) {
+         if (!DiskInfoChanged(info)) {
             g_debug("Disk info not changed.\n");
             break;
          }
 
-         ASSERT((pdi->numEntries && pdi->partitionList) ||
-                (!pdi->numEntries && !pdi->partitionList));
-
-         /* partitionCount is a uint8 and cannot be larger than UCHAR_MAX. */
-         if (pdi->numEntries > UCHAR_MAX) {
-            g_message("%s: Too many local filesystems (%d); truncating to %d entries\n",
-                      __FUNCTION__, pdi->numEntries, UCHAR_MAX);
-            partitionCount = UCHAR_MAX;
-         } else {
-            partitionCount = pdi->numEntries;
-         }
-
-         requestSize += sizeof partitionCount +
-                        sizeof *pdi->partitionList * partitionCount;
-         request = Util_SafeCalloc(requestSize, sizeof *request);
-
-         Str_Sprintf(request, requestSize, "%s  %d ", GUEST_INFO_COMMAND,
-                     INFO_DISK_FREE_SPACE);
-
-         offset = strlen(request);
-
-         /*
-          * Construct the disk information message to send to the host.  This
-          * contains a single byte indicating the number partitions followed by
-          * the PartitionEntry structure for each one.
-          *
-          * Note that the use of a uint8 to specify the partitionCount is the
-          * result of a bug (see bug 117224) but should not cause a problem
-          * since UCHAR_MAX is 255.  Also note that PartitionEntry is packed so
-          * it's safe to send it from 64-bit Tools to a 32-bit VMX, etc.
-          */
-         memcpy(request + offset, &partitionCount, sizeof partitionCount);
-
-         /*
-          * Conditioned because memcpy(dst, NULL, 0) -may- lead to undefined
-          * behavior.
-          */
-         if (pdi->partitionList) {
-            memcpy(request + offset + sizeof partitionCount, pdi->partitionList,
-                   sizeof *pdi->partitionList * partitionCount);
-         }
-
-         g_debug("sizeof request is %d\n", requestSize);
-         status = RpcChannel_Send(ctx->rpc, request, requestSize, &reply,
-                                  &replyLen);
-         if (status) {
-            status = (*reply == '\0');
-         }
-
-         vm_free(request);
-         vm_free(reply);
-
-         if (!status) {
+         if (!GuestInfoSendDiskInfo(ctx, info, infoSize)) {
             g_warning("Failed to update disk information.\n");
             return FALSE;
          }
@@ -1259,20 +1654,20 @@ SendUptime(ToolsAppCtx *ctx)
 {
    gchar *uptime = g_strdup_printf("%"FMT64"u", System_Uptime());
    g_debug("Setting guest uptime to '%s'\n", uptime);
-   GuestInfoUpdateVmdb(ctx, INFO_UPTIME, uptime, 0);
+   GuestInfoUpdateVMX(ctx, INFO_UPTIME, uptime, 0);
    g_free(uptime);
 }
 
 
 /*
  ******************************************************************************
- * SetGuestInfo --                                                       */ /**
+ * SetGuestInfo --
  *
  * Sends a simple key-value update request to the VMX.
  *
  * @param[in] ctx       Application context.
- * @param[in] key       VMDB key to set
- * @param[in] value     GuestInfo data
+ * @param[in] key       Key sent to the VMX
+ * @param[in] value     GuestInfo data sent to the VMX
  *
  * @retval TRUE  RPCI succeeded.
  * @retval FALSE RPCI failed.
@@ -1281,9 +1676,9 @@ SendUptime(ToolsAppCtx *ctx)
  */
 
 Bool
-SetGuestInfo(ToolsAppCtx *ctx,
-             GuestInfoType key,
-             const char *value)
+SetGuestInfo(ToolsAppCtx *ctx,   // IN:
+             GuestInfoType key,  // IN:
+             const char *value)  // IN:
 {
    Bool status;
    char *reply;
@@ -1305,12 +1700,12 @@ SetGuestInfo(ToolsAppCtx *ctx,
    g_free(msg);
 
    if (!status) {
-      g_warning("Error sending rpc message: %s\n", reply ? reply : "NULL");
+      g_warning("Error sending RPC message: %s\n", reply ? reply : "NULL");
       vm_free(reply);
       return FALSE;
    }
 
-   /* The reply indicates whether the key,value pair was updated in VMDB. */
+   /* The reply indicates whether the key,value pair was updated in the VMX. */
    status = (*reply == '\0');
    vm_free(reply);
    return status;
@@ -1319,7 +1714,7 @@ SetGuestInfo(ToolsAppCtx *ctx,
 
 /*
  ******************************************************************************
- * GuestInfoFindMacAddress --                                            */ /**
+ * GuestInfoFindMacAddress --
  *
  * Locates a NIC with the given MAC address in the NIC list.
  *
@@ -1340,6 +1735,7 @@ GuestInfoFindMacAddress(NicInfoV3 *nicInfo,     // IN/OUT
 
    for (i = 0; i < nicInfo->nics.nics_len; i++) {
       GuestNicV3 *nic = &nicInfo->nics.nics_val[i];
+
       if (strncmp(nic->macAddress, macAddress, NICINFO_MAC_LEN) == 0) {
          return nic;
       }
@@ -1351,7 +1747,7 @@ GuestInfoFindMacAddress(NicInfoV3 *nicInfo,     // IN/OUT
 
 /*
  ******************************************************************************
- * DiskInfoChanged --                                                    */ /**
+ * DiskInfoChanged --
  *
  * Checks whether disk info information just obtained is different from the
  * information last sent to the VMX.
@@ -1365,13 +1761,13 @@ GuestInfoFindMacAddress(NicInfoV3 *nicInfo,     // IN/OUT
  */
 
 static Bool
-DiskInfoChanged(const GuestDiskInfo *diskInfo)
+DiskInfoChanged(const GuestDiskInfoInt *diskInfo)
 {
    int index;
    char *name;
    int i;
    int matchedPartition;
-   PGuestDiskInfo cachedDiskInfo;
+   GuestDiskInfoInt *cachedDiskInfo;
 
    cachedDiskInfo = gInfoCache.diskInfo;
 
@@ -1424,7 +1820,7 @@ DiskInfoChanged(const GuestDiskInfo *diskInfo)
 
 /*
  ******************************************************************************
- * GuestInfoClearCache --                                                */ /**
+ * GuestInfoClearCache --
  *
  * Clears the cached guest info data.
  *
@@ -1441,8 +1837,12 @@ GuestInfoClearCache(void)
       gInfoCache.value[i] = NULL;
    }
 
+   GuestInfoFreeDetailedData(gInfoCache.detailedData);
+   gInfoCache.detailedData = NULL;
+
    GuestInfo_FreeDiskInfo(gInfoCache.diskInfo);
    gInfoCache.diskInfo = NULL;
+   gInfoCache.diskInfoUseJson = TRUE;
 
    GuestInfo_FreeNicInfo(gInfoCache.nicInfo);
    gInfoCache.nicInfo = NULL;
@@ -1453,7 +1853,7 @@ GuestInfoClearCache(void)
 
 /*
  ***********************************************************************
- * NicInfoV3ToV2 --                                             */ /**
+ * NicInfoV3ToV2 --
  *
  * @brief Converts the NicInfoV3 NIC list to a GuestNicList.
  *
@@ -1473,17 +1873,16 @@ GuestInfoClearCache(void)
 static GuestNicList *
 NicInfoV3ToV2(const NicInfoV3 *infoV3)
 {
-   GuestNicList *nicList;
    unsigned int i, j;
-
-   nicList = Util_SafeCalloc(sizeof *nicList, 1);
+   GuestNicList *nicList = Util_SafeCalloc(sizeof *nicList, 1);
 
    (void)XDRUTIL_ARRAYAPPEND(nicList, nics, infoV3->nics.nics_len);
    XDRUTIL_FOREACH(i, infoV3, nics) {
       GuestNicV3 *nic = XDRUTIL_GETITEM(infoV3, nics, i);
       GuestNic *oldNic = XDRUTIL_GETITEM(nicList, nics, i);
 
-      Str_Strcpy(oldNic->macAddress, nic->macAddress, sizeof oldNic->macAddress);
+      Str_Strcpy(oldNic->macAddress, nic->macAddress,
+                 sizeof oldNic->macAddress);
 
       (void)XDRUTIL_ARRAYAPPEND(oldNic, ips, nic->ips.ips_len);
 
@@ -1494,7 +1893,7 @@ NicInfoV3ToV2(const NicInfoV3 *infoV3)
 
          /* XXX */
          oldIp->addressFamily = (ip->ipAddressAddrType == IAT_IPV4) ?
-            NICINFO_ADDR_IPV4 : NICINFO_ADDR_IPV6;
+                                NICINFO_ADDR_IPV4 : NICINFO_ADDR_IPV6;
 
          NetUtil_InetNToP(ip->ipAddressAddrType == IAT_IPV4 ?
                           AF_INET : AF_INET6,
@@ -1512,7 +1911,7 @@ NicInfoV3ToV2(const NicInfoV3 *infoV3)
 
 /*
  ******************************************************************************
- * TweakGatherLoop --                                                    */ /**
+ * TweakGatherLoop --
  *
  * @brief Start, stop, reconfigure a GuestInfoGather poll loop.
  *
@@ -1604,7 +2003,7 @@ TweakGatherLoop(ToolsAppCtx *ctx,
 
 /*
  ******************************************************************************
- * TweakGatherLoops --                                                   */ /**
+ * TweakGatherLoops --
  *
  * @brief Start, stop, reconfigure the GuestInfoGather loops.
  *
@@ -1675,7 +2074,7 @@ TweakGatherLoops(ToolsAppCtx *ctx,
  *      Report gathered stats.
  *
  * Results:
- *      Stats reported to VMX/VMDB. Returns FALSE on failure.
+ *      Stats reported to the VMX. Returns FALSE on failure.
  *
  * Side effects:
  *      None.
@@ -1684,14 +2083,13 @@ TweakGatherLoops(ToolsAppCtx *ctx,
  */
 
 Bool
-GuestInfo_ServerReportStats(
-   ToolsAppCtx *ctx,  // IN
-   DynBuf *stats)     // IN
+GuestInfo_ServerReportStats(ToolsAppCtx *ctx,  // IN
+                            DynBuf *stats)     // IN
 {
-   return GuestInfoUpdateVmdb(ctx,
-                              INFO_MEMORY,
-                              DynBuf_Get(stats),
-                              DynBuf_GetSize(stats));
+   return GuestInfoUpdateVMX(ctx,
+                             INFO_MEMORY,
+                             DynBuf_Get(stats),
+                             DynBuf_GetSize(stats));
 }
 
 
@@ -1703,7 +2101,7 @@ GuestInfo_ServerReportStats(
 
 /*
  ******************************************************************************
- * GuestInfoServerConfReload --                                          */ /**
+ * GuestInfoServerConfReload --
  *
  * @brief Reconfigures the poll loop interval upon config file reload.
  *
@@ -1725,7 +2123,7 @@ GuestInfoServerConfReload(gpointer src,
 
 /*
  ******************************************************************************
- * GuestInfoServerIOFreeze --                                           */ /**
+ * GuestInfoServerIOFreeze --
  *
  * IO freeze signal handler. Disables info gathering while I/O is frozen.
  * See bug 529653.
@@ -1750,7 +2148,7 @@ GuestInfoServerIOFreeze(gpointer src,
 
 /*
  ******************************************************************************
- * GuestInfoServerShutdown --                                            */ /**
+ * GuestInfoServerShutdown --
  *
  * Cleanup internal data on shutdown.
  *
@@ -1792,7 +2190,7 @@ GuestInfoServerShutdown(gpointer src,
 
 /*
  ******************************************************************************
- * GuestInfoServerReset --                                               */ /**
+ * GuestInfoServerReset --
  *
  * Reset callback - sets the internal flag that says we should purge all
  * caches.
@@ -1813,12 +2211,15 @@ GuestInfoServerReset(gpointer src,
 
    /* Reset the last gather time */
    gGuestInfoLastGatherTime = 0;
+
+   /* Reset detailed guest OS data sending */
+   gSendDetailedGosData = TRUE;
 }
 
 
 /*
  ******************************************************************************
- * GuestInfoServerSendCaps --                                            */ /**
+ * GuestInfoServerSendCaps --
  *
  * Send capabilities callback.  If setting capabilities, sends VM's uptime.
  *
@@ -1851,7 +2252,7 @@ GuestInfoServerSendCaps(gpointer src,
 
 /*
  ******************************************************************************
- * GuestInfoServerSetOption --                                           */ /**
+ * GuestInfoServerSetOption --
  *
  * Responds to a "broadcastIP" Set_Option command, by sending the primary IP
  * back to the VMX.
@@ -1903,7 +2304,7 @@ exit:
 
 /*
  ******************************************************************************
- * ToolsOnLoad --                                                        */ /**
+ * ToolsOnLoad --
  *
  * Plugin entry point. Initializes internal plugin state.
  *

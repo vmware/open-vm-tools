@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2000-2012,2014 VMware, Inc. All rights reserved.
+ * Copyright (C) 2000-2012,2014,2018-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -84,8 +84,8 @@ typedef enum BalloonPageAllocType {
 
 typedef struct {
    /* current status */
-   uint32 nPages;
-   uint32 nPagesTarget;
+   uint64 nPages;
+   uint64 nPagesTarget;
 
    /* adjustment rates */
    uint32 rateNoSleepAlloc;
@@ -147,10 +147,10 @@ typedef struct {
    BalloonGuest guestType;
 
    /* balloon size (in small pages) */
-   int nPages;
+   uint64 nPages;
 
    /* target balloon size (in small pages) */
-   int nPagesTarget;
+   uint64 nPagesTarget;
 
    /* reset flag */
    int resetFlag;
@@ -182,8 +182,8 @@ typedef struct {
 
 typedef struct BalloonOps {
    void (*addPage)(Balloon *b, uint16 idx, PageHandle entries);
-   int (*lock)(Balloon *b, uint16 nPages, int isLargePages, uint32 *target);
-   int (*unlock)(Balloon *b, uint16 nPages, int isLargePages, uint32 *target);
+   int (*lock)(Balloon *b, uint16 nPages, int isLargePages, uint64 *target);
+   int (*unlock)(Balloon *b, uint16 nPages, int isLargePages, uint64 *target);
 } BalloonOps;
 
 /*

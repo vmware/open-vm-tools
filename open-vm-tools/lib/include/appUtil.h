@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -133,6 +133,8 @@ PISECURITY_DESCRIPTOR AppUtil_AllocateLowIntegritySD(void);
 
 LPSTR  AppUtil_ToLowerUtf8(LPCSTR s);
 LPWSTR AppUtil_ToLowerUtf16(LPCWSTR s);
+
+Bool AppUtil_IsHorizonVDIAppRemotingMode();
 
 #ifdef __cplusplus
 };

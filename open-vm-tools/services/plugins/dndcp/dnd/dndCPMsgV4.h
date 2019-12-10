@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -218,7 +218,16 @@ DnDCPMsgHdrV4;
 #define DND_CP_MSG_HEADERSIZE_V4 (sizeof (DnDCPMsgHdrV4))
 #define DND_CP_PACKET_MAX_PAYLOAD_SIZE_V4 (DND_MAX_TRANSPORT_PACKET_SIZE - \
                                            DND_CP_MSG_HEADERSIZE_V4)
+#ifdef VMX86_HORIZON_VIEW
+/*
+ * Horizon has no hard limit, but the size field is type of uint32,
+ * 4G-1(0xffffffff) is the maximum size represented.
+ */
+#define DND_CP_MSG_MAX_BINARY_SIZE_V4 0xffffffff
+#else
+// Workstation/fusion have hard limit in size(4M) of DnD Msg, refer to dnd.h
 #define DND_CP_MSG_MAX_BINARY_SIZE_V4 (1 << 22)
+#endif
 
 /* DnD version 4 message. */
 typedef struct DnDCPMsgV4 {
@@ -231,10 +240,13 @@ typedef struct DnDCPMsgV4 {
 void DnDCPMsgV4_Init(DnDCPMsgV4 *msg);
 void DnDCPMsgV4_Destroy(DnDCPMsgV4 *msg);
 DnDCPMsgPacketType DnDCPMsgV4_GetPacketType(const uint8 *packet,
-                                            size_t packetSize);
+                                            size_t packetSize,
+                                            const uint32 maxPacketPayloadSize);
 Bool DnDCPMsgV4_Serialize(DnDCPMsgV4 *msg,
                           uint8 **packet,
                           size_t *packetSize);
+Bool DnDCPMsgV4_SerializeWithInputPayloadSizeCheck(DnDCPMsgV4 *msg,
+   uint8 **packet, size_t *packetSize, const uint32 maxPacketPayloadSize);
 Bool DnDCPMsgV4_UnserializeSingle(DnDCPMsgV4 *msg,
                                   const uint8 *packet,
                                   size_t packetSize);

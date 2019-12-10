@@ -29,8 +29,10 @@
 #include <limits.h>
 
 #include "vmware.h"
+#include "codeset.h"
 #include "dndInt.h"
 #include "dnd.h"
+#include "dndClipboard.h"
 #include "file.h"
 #include "str.h"
 #include "random.h"
@@ -167,6 +169,44 @@ exit:
 /*
  *-----------------------------------------------------------------------------
  *
+ * DnD_AppendPrefixToStagingDir --
+ *
+ *    Append prefix to a DnD staging directory
+ *
+ * Results:
+ *    Return new DnD staging directory for success, NULL otherwise.
+ *
+ * Side effects:
+ *    Caller must free the retrun string with free
+ *
+ *-----------------------------------------------------------------------------
+ */
+char *
+DnD_AppendPrefixToStagingDir(const char *stagingDir, // IN:
+                             const char *prefix)     // IN:
+{
+   const char *dndRoot = NULL;
+   char *newDir = NULL;
+
+   dndRoot = DnD_GetFileRoot();
+   if (Unicode_Find(stagingDir, dndRoot) == UNICODE_INDEX_NOT_FOUND) {
+      // incorrect staging directory
+      Log("%s: Not find root = %s\n", __FUNCTION__, dndRoot);
+      return NULL;
+   }
+
+   newDir = Unicode_Insert(stagingDir, Unicode_LengthInCodePoints(dndRoot), prefix);
+   if (!File_Move(stagingDir, newDir, NULL)) {
+      free(newDir);
+      newDir = NULL;
+   }
+   return newDir;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * DnD_DeleteStagingFiles --
  *
  *    Attempts to delete all files in the staging directory. This does not
@@ -213,6 +253,8 @@ DnD_DeleteStagingFiles(const char *stagingDir,  // IN:
 
       if (numFiles == -1) {
          return FALSE;
+      } else if (numFiles == 0) {
+         return TRUE;
       }
 
       /* delete everything in the directory */
@@ -237,8 +279,71 @@ DnD_DeleteStagingFiles(const char *stagingDir,  // IN:
       }
 
       free(base);
+      Util_FreeStringList(fileList, numFiles);
    }
 
+   return ret;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * DnD_RemoveTempDirs --
+ *
+ *    Remove all directories with the specific prefix in the staging directory.
+ *
+ * Results:
+ *    TRUE if the specific directories were deleted. FALSE if there was an error.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+DnD_RemoveTempDirs(const char *dndTempDir,  // IN:
+                   const char *prefix)      // IN:
+{
+   Bool ret = TRUE;
+   int i = 0;
+   int numFiles = 0;
+   char *base = NULL;
+   char **fileList = NULL;
+
+   ASSERT(dndTempDir);
+
+   if (!File_Exists(dndTempDir)) {
+      /* The dndTempDir doesn't exist. */
+      return TRUE;
+   }
+
+   if (!File_IsDirectory(dndTempDir)) {
+      return FALSE;
+   }
+
+   /* get list of files in current directory */
+   numFiles = File_ListDirectory(dndTempDir, &fileList);
+   if (numFiles == -1) {
+      return FALSE;
+   } else if (numFiles == 0) {
+      return TRUE;
+   }
+
+   base = Unicode_Append(dndTempDir, DIRSEPS);
+   for (i = 0; i < numFiles; i++) {
+      char *curPath = Unicode_Append(base, fileList[i]);
+      if (File_IsDirectory(curPath) &&
+          (UNICODE_INDEX_NOT_FOUND != Unicode_Find(curPath, prefix))) {
+         if (!File_DeleteDirectoryTree(curPath)) {
+            ret = FALSE;
+         }
+      }
+      free(curPath);
+   }
+   free(base);
+   Util_FreeStringList(fileList, numFiles);
    return ret;
 }
 
@@ -566,6 +671,53 @@ DnD_GetLastDirName(const char *str) // IN
 
    res = end - start;
    return Unicode_AllocWithLength(str + start, res, STRING_ENCODING_UTF8);
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * DnD_SetCPClipboardAndTruncateText --
+ *
+ *    Truncate the text if the size exceeds the maximum size and then put it
+ *    into clip.
+ *
+ * Results:
+ *    None
+ *
+ * Side effects:
+ *    The destBuf should be released by the caller where the destBuf allocated.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+DnD_SetCPClipboardAndTruncateText(CPClipboard *clip, // IN/OUT
+                                  char *destBuf,     // IN
+                                  size_t len)        // IN
+{
+   size_t bytesLeft = clip->maxSize - CPClipboard_GetTotalSize(clip) - 1;
+
+   if (bytesLeft < 2 || len == 1) {
+      /*
+       * Less than 2 bytes left ( 1 byte needed for ending NULL ) or
+       * input buffer only contains ending NULL
+       */
+      return;
+   }
+   // Truncate if the length is greater than max allowed.
+   if (len > bytesLeft) {
+      size_t boundaryPoint =
+         CodeSet_Utf8FindCodePointBoundary(destBuf, bytesLeft - 1);
+      destBuf[boundaryPoint] = '\0';
+      ASSERT(Unicode_IsBufferValid(destBuf, -1, STRING_ENCODING_UTF8));
+      Log("%s: Truncating text from %" FMTSZ "d chars to %" FMTSZ "d chars.\n",
+          __FUNCTION__, len - 1, boundaryPoint);
+      len = boundaryPoint + 1;
+   }
+
+   CPClipboard_SetItem(clip, CPFORMAT_TEXT, destBuf, len);
+   Log("%s: retrieved text (%" FMTSZ "d bytes) from clipboard.\n",
+      __FUNCTION__, len);
 }
 
 

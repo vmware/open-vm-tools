@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -38,8 +38,7 @@ typedef uint64 ProductMask;
                             PRODUCT_PLAYER      |\
                             PRODUCT_CVP         |\
                             PRODUCT_FUSION      |\
-                            PRODUCT_VMRC        |\
-                            PRODUCT_GANTRY)
+                            PRODUCT_VMRC)
 
 typedef uint64 ProductCaps;
 /*
@@ -76,7 +75,9 @@ void ProductState_Set(Product product,
                       const char *licenseName,
                       const char *licenseVersion,
                       const char *bundleIdentifier);
-
+void ProductState_SetProduct(uint64 product);
+void ProductState_SetName(const char *name);
+void ProductState_SetLicenseName(const char *licenseName);
 unsigned int  ProductState_GetBuildNumber(void);
 const char   *ProductState_GetBuildNumberString(void);
 const char   *ProductState_GetBundleIdentifier(void);

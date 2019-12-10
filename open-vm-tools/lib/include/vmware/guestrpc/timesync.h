@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -27,6 +27,8 @@
 
 #define TOOLSOPTION_SYNCTIME                        "synctime"
 #define TOOLSOPTION_SYNCTIME_PERIOD                 "synctime.period"
+#define TOOLSOPTION_SYNCTIME_ALLOW                \
+   "time.synchronize.allow"
 #define TOOLSOPTION_SYNCTIME_ENABLE               \
    "time.synchronize.tools.enable"
 #define TOOLSOPTION_SYNCTIME_STARTUP_BACKWARD     \

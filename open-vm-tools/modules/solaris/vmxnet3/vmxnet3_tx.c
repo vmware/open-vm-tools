@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007,2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007,2017-2019 VMware, Inc. All rights reserved.
  *
  * The contents of this file are subject to the terms of the Common
  * Development and Distribution License (the "License") version 1.0
@@ -204,7 +204,7 @@ vmxnet3_tx_one(vmxnet3_softc_t *dp,
    uint8_t sopGen, curGen;
    mblk_t *mblk;
 
-   mutex_enter(&dp->txLock);
+   ASSERT(mutex_owned(&dp->txLock));
 
    sopIdx = eopIdx = cmdRing->next2fill;
    sopGen = cmdRing->gen;
@@ -343,8 +343,6 @@ error:
    }
 
 done:
-   mutex_exit(&dp->txLock);
-
    return ret;
 }
 
@@ -375,6 +373,10 @@ vmxnet3_tx(void *data, mblk_t *mps)
    mblk_t *mp;
 
    ASSERT(mps != NULL);
+   mutex_enter(&dp->txLock);
+   if (!dp->devEnabled) {
+      goto done;
+   }
 
    do {
       vmxnet3_offload_t ol;
@@ -445,11 +447,12 @@ vmxnet3_tx(void *data, mblk_t *mps)
    }
 
    /* Notify the device */
-   mutex_enter(&dp->txLock);
    if (txqCtrl->txNumDeferred >= txqCtrl->txThreshold) {
       txqCtrl->txNumDeferred = 0;
       VMXNET3_BAR0_PUT32(dp, VMXNET3_REG_TXPROD, cmdRing->next2fill);
    }
+
+done:
    mutex_exit(&dp->txLock);
 
    return mps;

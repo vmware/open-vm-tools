@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -185,7 +185,15 @@ msgCatalog = /etc/vmware-tools/vgauth/messages
 
 #define VGAUTH_PREF_DEFAULT_SSPI_HANDSHAKE_TTL (10 * 60)
 
+/*
+ * Parent directory of 'messages', which has <lang>/<app>.vmsg
+ * below that.
+ */
+#ifdef _WIN32
 #define VGAUTH_PREF_DEFAULT_LOCALIZATION_CATALOG "."
+#else
+#define VGAUTH_PREF_DEFAULT_LOCALIZATION_CATALOG "/etc/vmware-tools"
+#endif
 
 #define VGAUTH_PREF_DEFAULT_MAX_DATA_CONNECTIONS_PER_USER 5
 

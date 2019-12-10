@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -48,6 +48,8 @@
 #  endif
 #  define G_MODULE_SUFFIX "dylib"
 #endif
+
+#define VMTOOLS_APP_NAME "vmtools"
 
 /** State of app providers. */
 typedef enum {

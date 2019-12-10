@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016,2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -56,6 +56,7 @@ OpenHandle(VMGuestLibHandle *glHandle, // OUT: The guestlib handle
       ToolsCmd_PrintErr(SU_(stat.openhandle.failed,
                             "OpenHandle failed: %s\n"),
                         VMGuestLib_GetErrorText(*glError));
+      *glHandle = NULL;
       return EX_UNAVAILABLE;
    }
    *glError = VMGuestLib_UpdateInfo(*glHandle);
@@ -63,6 +64,8 @@ OpenHandle(VMGuestLibHandle *glHandle, // OUT: The guestlib handle
       ToolsCmd_PrintErr(SU_(stat.update.failed,
                             "UpdateInfo failed: %s\n"),
                         VMGuestLib_GetErrorText(*glError));
+      VMGuestLib_CloseHandle(*glHandle);
+      *glHandle = NULL;
       return EX_TEMPFAIL;
    }
    return 0;  // We don't return EXIT_SUCCESSS to indicate that this is not
@@ -192,7 +195,7 @@ StatHostTime(void)
 static int
 StatGetSessionID(void)
 {
-   int exitStatus = EXIT_SUCCESS;
+   int exitStatus;
    uint64 session;
    VMGuestLibHandle glHandle;
    VMGuestLibError glError;
@@ -236,7 +239,7 @@ StatGetSessionID(void)
 static int
 StatGetMemoryBallooned(void)
 {
-   int exitStatus = EXIT_SUCCESS;
+   int exitStatus;
    uint32 memBallooned;
    VMGuestLibHandle glHandle;
    VMGuestLibError glError;
@@ -280,7 +283,7 @@ StatGetMemoryBallooned(void)
 static int
 StatGetMemoryReservation(void)
 {
-   int exitStatus = EXIT_SUCCESS;
+   int exitStatus;
    uint32  memReservation;
    VMGuestLibHandle glHandle;
    VMGuestLibError glError;
@@ -325,7 +328,7 @@ StatGetMemoryReservation(void)
 static int
 StatGetMemorySwapped(void)
 {
-   int exitStatus = EXIT_SUCCESS;
+   int exitStatus;
    uint32 memSwapped;
    VMGuestLibHandle glHandle;
    VMGuestLibError glError;
@@ -369,7 +372,7 @@ StatGetMemorySwapped(void)
 static int
 StatGetMemoryLimit(void)
 {
-   int exitStatus = EXIT_SUCCESS;
+   int exitStatus;
    uint32 memLimit;
    VMGuestLibHandle glHandle;
    VMGuestLibError glError;
@@ -413,7 +416,7 @@ StatGetMemoryLimit(void)
 static int
 StatGetCpuReservation(void)
 {
-   int exitStatus = EXIT_SUCCESS;
+   int exitStatus;
    uint32 cpuReservation;
    VMGuestLibHandle glHandle;
    VMGuestLibError glError;
@@ -457,7 +460,7 @@ StatGetCpuReservation(void)
 static int
 StatGetCpuLimit(void)
 {
-   int exitStatus = EXIT_SUCCESS;
+   int exitStatus;
    uint32 cpuLimit;
    VMGuestLibHandle glHandle;
    VMGuestLibError glError;

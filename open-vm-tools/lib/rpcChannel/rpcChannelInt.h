@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016,2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016,2018-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -69,7 +69,7 @@ struct _RpcChannel {
    const char                *appName;
    gpointer                  appCtx;
 #endif
-   GStaticMutex              outLock;
+   GMutex                    outLock;
 #if defined(NEED_RPCIN)
    struct RpcIn              *in;
    gboolean                  inStarted;
@@ -77,8 +77,6 @@ struct _RpcChannel {
    gboolean                  outStarted;
 };
 
-RpcChannel *VSockChannel_New(void);
-RpcChannel *BackdoorChannel_New(void);
 gboolean
 BackdoorChannel_Fallback(RpcChannel *chan);
 

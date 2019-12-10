@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -40,6 +40,7 @@
 #include "serviceInt.h"
 #include "certverify.h"
 #include "VGAuthProto.h"
+#include "vmxlog.h"
 
 // puts the identity store in an easy to find place
 #undef WIN_TEST_MODE
@@ -2679,6 +2680,11 @@ check_map:
                  SU_(alias.addid,
                      "Alias added to Alias store owned by '%s' by user '%s'"),
                  userName, reqUserName);
+      // security -- don't expose username
+      VMXLog_Log(VMXLOG_LEVEL_WARNING,
+                 "%s: alias added with Subject '%s'",
+                 __FUNCTION__,
+                 (ai->type == SUBJECT_TYPE_ANY) ? "<ANY>" : ai->name);
    }
 
 done:
@@ -2947,6 +2953,18 @@ update:
                  SU_(alias.removeid,
                      "Alias removed from Alias store owned by '%s' by user '%s'"),
                  userName, reqUserName);
+      if (removeAll) {
+         // security -- don't expose username
+         VMXLog_Log(VMXLOG_LEVEL_WARNING,
+                    "%s: all aliases removed for requested username",
+                    __FUNCTION__);
+      } else {
+         // security -- don't expose username
+         VMXLog_Log(VMXLOG_LEVEL_WARNING,
+                    "%s: alias removed with Subject '%s'",
+                    __FUNCTION__,
+                    (subj->type == SUBJECT_TYPE_ANY) ? "<ANY>" : subj->name);
+      }
    }
 
 done:
@@ -3218,6 +3236,8 @@ ServiceValidateAliases(void)
 next:
       ServiceAliasFreeAliasList(numIds, aList);
       if (!foundMatch) {
+         /* badSubj should always have a value because maList won't be empty */
+         /* coverity[var_deref_op] */
          Warning("%s: orphaned mapped alias: user %s subj %s cert %s\n",
                  __FUNCTION__, maList[i].userName,
                  (badSubj->type == SUBJECT_TYPE_NAMED ? badSubj->name : "ANY"),

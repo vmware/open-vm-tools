@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -514,11 +514,13 @@ ParseFmask(const char *option,         // IN:  option string along with value
            HgfsMountInfo *mountInfo,   // OUT: mount data
            int *flags)                 // OUT: mount flags
 {
+   unsigned short fmask = 0;
    ASSERT(option);
    ASSERT(mountInfo);
 
-   if (ParseMask(option, &mountInfo->fmask)) {
-      LOG("Setting mount fmask to %o\n", mountInfo->fmask);
+   if (ParseMask(option, &fmask)) {
+      LOG("Setting mount fmask to %o\n", fmask);
+      mountInfo->fmask = fmask;
       return TRUE;
    }
 
@@ -548,11 +550,13 @@ ParseDmask(const char *option,         // IN:  option string along with value
            HgfsMountInfo *mountInfo,   // OUT: mount data
            int *flags)                 // OUT: mount flags
 {
+   unsigned short dmask = 0;
    ASSERT(option);
    ASSERT(mountInfo);
 
-   if (ParseMask(option, &mountInfo->dmask)) {
-      LOG("Setting mount dmask to %o\n", mountInfo->dmask);
+   if (ParseMask(option, &dmask)) {
+      LOG("Setting mount dmask to %o\n", dmask);
+      mountInfo->dmask = dmask;
       return TRUE;
    }
 

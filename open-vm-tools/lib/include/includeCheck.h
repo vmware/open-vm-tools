@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -58,17 +58,17 @@
 /*
  * includeCheck.h --
  *
- *	Restrict include file use.
+ *      Restrict include file use.
  *
  * In every .h file, define one or more of these
  *
- *	INCLUDE_ALLOW_VMX 
- *	INCLUDE_ALLOW_USERLEVEL 
- *	INCLUDE_ALLOW_VMCORE
- *	INCLUDE_ALLOW_MODULE
- *	INCLUDE_ALLOW_VMKERNEL 
- *	INCLUDE_ALLOW_DISTRIBUTE
- *	INCLUDE_ALLOW_VMK_MODULE
+ *      INCLUDE_ALLOW_VMX
+ *      INCLUDE_ALLOW_USERLEVEL
+ *      INCLUDE_ALLOW_VMCORE
+ *      INCLUDE_ALLOW_MODULE
+ *      INCLUDE_ALLOW_VMKERNEL
+ *      INCLUDE_ALLOW_DISTRIBUTE
+ *      INCLUDE_ALLOW_VMK_MODULE
  *      INCLUDE_ALLOW_VMKDRIVERS
  *      INCLUDE_ALLOW_MKS
  *
@@ -78,24 +78,6 @@
  * be distributed in source form along with GPLed code.  Ensure
  * that this is acceptable.
  */
-
-
-/*
- * Declare a VMCORE-only variable to help classify object
- * files.  The variable goes in the common block and does
- * not create multiple definition link-time conflicts.
- */
-
-#if defined VMCORE && defined VMX86_DEVEL && defined VMX86_DEBUG && \
-    defined linux && !defined MODULE && \
-    !defined COMPILED_WITH_VMCORE
-#define COMPILED_WITH_VMCORE compiled_with_vmcore
-#ifdef ASM
-        .comm   compiled_with_vmcore, 0
-#else
-        asm(".comm compiled_with_vmcore, 0");
-#endif /* ASM */
-#endif
 
 
 #if defined VMCORE && \
@@ -118,7 +100,8 @@
 #undef INCLUDE_ALLOW_VMX
 
 #if defined USERLEVEL && !defined VMX86_VMX && !defined VMCORE && \
-    !defined INCLUDE_ALLOW_USERLEVEL && !defined INCLUDE_ALLOW_MKS
+    !defined ULM && !defined INCLUDE_ALLOW_USERLEVEL && \
+    !defined INCLUDE_ALLOW_MKS
 #error "The surrounding include file is not allowed at userlevel."
 #endif
 #undef INCLUDE_ALLOW_USERLEVEL

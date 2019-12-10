@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998,2005-2012,2014-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998,2005-2012,2014-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -54,6 +54,7 @@
  *    VMware HD Audio controller
  */
 #define PCI_VENDOR_ID_VMWARE                    0x15AD
+#define PCI_DEVICE_ID_VMWARE_SVGA3              0x0406
 #define PCI_DEVICE_ID_VMWARE_SVGA2              0x0405
 #define PCI_DEVICE_ID_VMWARE_SVGA               0x0710
 #define PCI_DEVICE_ID_VMWARE_VGA                0x0711
@@ -138,23 +139,24 @@
  *    Intel 82545EM (e1000, server adapter, single port)
  *    Intel 82546EB (e1000, server adapter, dual port)
  *    Intel HECI (as embedded in ich9m)
- *    Intel XHCI (Panther Point / Intel 7 Series)
+ *    Intel XHCI (Panther Point / Intel 7 Series, 5Gbps)
+ *    Intel XHCI (Cannon Lake / Intel 300 Series, 10Gbps)
  */
-#define PCI_VENDOR_ID_INTEL             0x8086
-#define PCI_DEVICE_ID_INTEL_82439TX     0x7100
-#define PCI_DEVICE_ID_INTEL_82371AB_0   0x7110
-#define PCI_DEVICE_ID_INTEL_82371AB_2   0x7112
-#define PCI_DEVICE_ID_INTEL_82371AB_3   0x7113
-#define PCI_DEVICE_ID_INTEL_82371AB     0x7111
-#define PCI_DEVICE_ID_INTEL_82443BX     0x7190
-#define PCI_DEVICE_ID_INTEL_82443BX_1   0x7191
-#define PCI_DEVICE_ID_INTEL_82443BX_2   0x7192 /* Used when no AGP support */
-#define PCI_DEVICE_ID_INTEL_82545EM     0x100f
-#define PCI_DEVICE_ID_INTEL_82546EB     0x1010
-#define PCI_DEVICE_ID_INTEL_82574       0x10d3
-#define PCI_DEVICE_ID_INTEL_82574_APPLE 0x10f6
-#define PCI_DEVICE_ID_INTEL_HECI        0x2a74
+#define PCI_VENDOR_ID_INTEL                   0x8086
+#define PCI_DEVICE_ID_INTEL_82439TX           0x7100
+#define PCI_DEVICE_ID_INTEL_82371AB_0         0x7110
+#define PCI_DEVICE_ID_INTEL_82371AB_2         0x7112
+#define PCI_DEVICE_ID_INTEL_82371AB_3         0x7113
+#define PCI_DEVICE_ID_INTEL_82371AB           0x7111
+#define PCI_DEVICE_ID_INTEL_82443BX           0x7190
+#define PCI_DEVICE_ID_INTEL_82443BX_1         0x7191
+#define PCI_DEVICE_ID_INTEL_82443BX_2         0x7192 /* Used when no AGP support */
+#define PCI_DEVICE_ID_INTEL_82545EM           0x100f
+#define PCI_DEVICE_ID_INTEL_82546EB           0x1010
+#define PCI_DEVICE_ID_INTEL_82574             0x10d3
+#define PCI_DEVICE_ID_INTEL_82574_APPLE       0x10f6
 #define PCI_DEVICE_ID_INTEL_PANTHERPOINT_XHCI 0x1e31
+#define PCI_DEVICE_ID_INTEL_CANNONLAKE_XHCI   0xa36d
 
 /*
  *  From drivers/usb/host/xhci-pci.c:
@@ -346,6 +348,9 @@
 
 /************* QAT implementation limits ********************/
 #define MAX_QAT_PCI_DEVICES 4
+
+/************* PrecisionClock implementation limits ********************/
+#define MAX_PRECISIONCLOCK_DEVICES 1
 
 /************* Strings for Host USB Driver *******************************/
 

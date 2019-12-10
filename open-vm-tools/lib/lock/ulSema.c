@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -418,7 +418,7 @@ MXUserDumpSemaphore(MXUserHeader *header)  // IN:
    Warning("\tsignature 0x%X\n", sema->header.signature);
    Warning("\tname %s\n", sema->header.name);
    Warning("\trank 0x%X\n", sema->header.rank);
-   Warning("\tserial number %u\n", sema->header.bits.serialNumber);
+   Warning("\tserial number %"FMT64"u\n", sema->header.serialNumber);
 
    Warning("\treference count %u\n", Atomic_Read(&sema->activeUserCount));
    Warning("\taddress of native semaphore %p\n", &sema->nativeSemaphore);
@@ -464,7 +464,7 @@ MXUser_CreateSemaphore(const char *userName,  // IN:
       sema->header.signature = MXUserGetSignature(MXUSER_TYPE_SEMA);
       sema->header.name = properName;
       sema->header.rank = rank;
-      sema->header.bits.serialNumber = MXUserAllocSerialNumber();
+      sema->header.serialNumber = MXUserAllocSerialNumber();
       sema->header.dumpFunc = MXUserDumpSemaphore;
 
       statsMode = MXUserStatsMode();

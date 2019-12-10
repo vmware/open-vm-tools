@@ -34,6 +34,7 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#include "win32Access.h"
 #endif
 
 static FILE* _file = NULL;
@@ -82,6 +83,8 @@ DeployPkgLog_Open()
 #ifndef _WIN32
          setlinebuf(_file);
          (void) chmod(logPath, 0600);
+#else
+         (void)Win32Access_SetFileOwnerRW(logPath);
 #endif
          DeployPkgLog_Log(log_debug, "## Starting deploy pkg operation");
       }

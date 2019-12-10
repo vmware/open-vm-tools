@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -25,25 +25,47 @@
 #ifndef _HOSTINFOINT_H_
 #define _HOSTINFOINT_H_
 
-
-#define MAX_OS_NAME_LEN 128
-#define MAX_OS_FULLNAME_LEN 512
+#define MAX_DETAILED_FIELD_LEN 1024
+#define DETAILED_DATA_DELIMITER " "
 
 
 /*
  * Global variables
  */
 
-extern volatile Bool HostinfoOSNameCacheValid;
-extern char HostinfoCachedOSName[MAX_OS_NAME_LEN];
-extern char HostinfoCachedOSFullName[MAX_OS_FULLNAME_LEN];
+typedef struct {
+   char  *name;
+   char   value[MAX_DETAILED_FIELD_LEN];
+} DetailedDataField;
 
+/* Must be sorted. Keep in same ordering as detailedDataFields */
+typedef enum {
+   BITNESS,
+   BUILD_NUMBER,
+   DISTRO_NAME,
+   DISTRO_VERSION,
+   FAMILY_NAME,
+   KERNEL_VERSION,
+   PRETTY_NAME
+} DetailedDataFieldType;
+
+/*
+ * Must be sorted. Keep in same ordering as StructuredFieldType. Defined in
+ * hostinfoPosix.c
+ */
+extern DetailedDataField detailedDataFields[];
+
+#define MAX_DETAILED_STRING_LEN (10 * MAX_DETAILED_FIELD_LEN)
+
+extern volatile Bool hostinfoCacheValid;
+extern char          hostinfoCachedOSName[MAX_OS_NAME_LEN];
+extern char          hostinfoCachedOSFullName[MAX_OS_FULLNAME_LEN];
+extern char          hostinfoCachedDetailedData[MAX_DETAILED_STRING_LEN];
 
 /*
  * Global functions
  */
 
 extern Bool HostinfoOSData(void);
-
 
 #endif // ifndef _HOSTINFOINT_H_

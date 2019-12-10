@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -34,6 +34,7 @@
 #include <stdarg.h>
 
 #include "vm_basic_types.h"
+#include "rpcvmxext.h"
 
 #define RPCVMX_MAX_LOG_LEN          (2048) /* 2kb max - make it dynamic? */
 
@@ -46,12 +47,6 @@ void RpcVMX_LogSetPrefix(const char *prefix);
  * Get the currently set prefix (returns empty string if no prefix set)
  */
 const char *RpcVMX_LogGetPrefix(const char *prefix);
-
-/*
- * Format the provided string with the provided arguments, and post it to the
- * VMX logfile via RPC.
- */
-void RpcVMX_Log(const char *fmt, ...) PRINTF_DECL(1, 2);
 
 /*
  * Save as RpcVMX_Log but takes a va_list instead of inline arguments.
@@ -76,12 +71,6 @@ int32 RpcVMX_ConfigGetLong(int32 defval, const char *key);
  * default value if the key was set but could not be converted.
  */
 Bool RpcVMX_ConfigGetBool(Bool defval, const char *key);
-
-/*
- * Report driver name and driver version to vmx to store the key-value in
- * GuestVars, and write a log in vmware.log using RpcVMX_Log.
- */
-void RpcVMX_ReportDriverVersion(const char *drivername, const char *versionString);
 
 #endif /* _VMXRPC_H_ */
 

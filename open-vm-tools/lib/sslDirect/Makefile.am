@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2013-2016 VMware, Inc.  All rights reserved.
+### Copyright (C) 2013-2019 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -18,13 +18,6 @@
 noinst_LTLIBRARIES = libSslDirect.la
 
 libSslDirect_la_CPPFLAGS =
-if ENABLE_GRABBITMQPROXY
-   libSslDirect_la_CPPFLAGS += @SSL_CPPFLAGS@
-endif
 
 libSslDirect_la_SOURCES =
-if ENABLE_GRABBITMQPROXY
-   libSslDirect_la_SOURCES += sslDirect.c
-else
-   libSslDirect_la_SOURCES += sslStubs.c
-endif
+libSslDirect_la_SOURCES += sslStubs.c

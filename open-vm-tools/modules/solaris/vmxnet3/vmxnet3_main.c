@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2014 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2019 VMware, Inc. All rights reserved.
  *
  * The contents of this file are subject to the terms of the Common
  * Development and Distribution License (the "License") version 1.0
@@ -771,14 +771,16 @@ vmxnet3_stop(void *data)
    VMXNET3_DEBUG(dp, 1, "stop()\n");
 
    /*
-    * Take the 2 locks related to asynchronous events.
+    * Take the 3 locks related to asynchronous events.
     * These events should always check dp->devEnabled before poking dp.
     */
    mutex_enter(&dp->intrLock);
    mutex_enter(&dp->rxPoolLock);
+   mutex_enter(&dp->txLock);
    VMXNET3_BAR0_PUT32(dp, VMXNET3_REG_IMR, 1);
    dp->devEnabled = B_FALSE;
    VMXNET3_BAR1_PUT32(dp, VMXNET3_REG_CMD, VMXNET3_CMD_QUIESCE_DEV);
+   mutex_exit(&dp->txLock);
    mutex_exit(&dp->rxPoolLock);
    mutex_exit(&dp->intrLock);
 

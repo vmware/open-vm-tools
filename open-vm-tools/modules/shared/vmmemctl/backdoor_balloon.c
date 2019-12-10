@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2012,2014 VMware, Inc. All rights reserved.
+ * Copyright (C) 2012,2014,2018-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -78,9 +78,9 @@
 
 static int
 BackdoorCmd(uint16 cmd,     // IN
-            size_t arg1,    // IN
+            uint64 arg1,    // IN
             uint32 arg2,    // IN
-            uint32 *out,    // OUT
+            uint64 *out,    // OUT
             int *resetFlag) // OUT
 {
    Backdoor_proto bp;
@@ -88,7 +88,8 @@ BackdoorCmd(uint16 cmd,     // IN
 
    /* prepare backdoor args */
    bp.in.cx.halfs.low = cmd;
-   bp.in.size = arg1;
+   bp.in.size = (size_t)arg1;
+   ASSERT(bp.in.size == arg1);
    bp.in.si.word = arg2;
 
    /* invoke backdoor */
@@ -103,11 +104,19 @@ BackdoorCmd(uint16 cmd,     // IN
    }
 
    if (out) {
+#ifdef VM_X86_64
+      if (cmd == BALLOON_BDOOR_CMD_START) {
+         *out = bp.out.cx.quad;
+      } else {
+         *out = bp.out.bx.quad;
+      }
+#else
       if (cmd == BALLOON_BDOOR_CMD_START) {
          *out = bp.out.cx.word;
       } else {
          *out = bp.out.bx.word;
       }
+#endif
    }
 
    return status;
@@ -134,7 +143,7 @@ int
 Backdoor_MonitorStart(Balloon *b,               // IN/OUT
                       uint32 protoVersion)      // IN
 {
-   uint32 capabilities;
+   uint64 capabilities;
    int status = BackdoorCmd(BALLOON_BDOOR_CMD_START, protoVersion, 0,
                             &capabilities, &b->resetFlag);
    /*
@@ -191,6 +200,14 @@ Backdoor_MonitorGuestType(Balloon *b) // IN/OUT
 }
 
 
+static Bool
+BackdoorHasCapability(Balloon *b,
+                      uint32 capability)
+{
+   return (b->hypervisorCapabilities & capability) == capability;
+}
+
+
 /*
  *----------------------------------------------------------------------
  *
@@ -221,22 +238,25 @@ Backdoor_MonitorGuestType(Balloon *b) // IN/OUT
 
 int
 Backdoor_MonitorGetTarget(Balloon *b,     // IN/OUT
-                          uint32 *target) // OUT
+                          uint64 *target) // OUT
 {
-   unsigned long limit;
-   uint32 limit32;
+   uint64 limit;
    int status;
 
    limit = OS_ReservedPageGetLimit();
 
-   /* Ensure limit fits in 32-bits */
-   limit32 = (uint32)limit;
-   if (limit32 != limit) {
-      return BALLOON_FAILURE;
+   if (!BackdoorHasCapability(b, BALLOON_64_BIT_TARGET)) {
+      if (limit != (uint32)limit) {
+         limit = (uint32)limit;
+      }
    }
 
    status = BackdoorCmd(BALLOON_BDOOR_CMD_TARGET, limit, 0, target,
                         &b->resetFlag);
+
+   if (target != NULL && !BackdoorHasCapability(b, BALLOON_64_BIT_TARGET)) {
+      *target = MIN(MAX_UINT32, *target);
+   }
 
    /* update stats */
    STATS_INC(b->stats.target);
@@ -270,18 +290,23 @@ Backdoor_MonitorGetTarget(Balloon *b,     // IN/OUT
 int
 Backdoor_MonitorLockPage(Balloon *b,     // IN/OUT
                          PPN64 ppn,      // IN
-                         uint32 *target) // OUT
+                         uint64 *target) // OUT
 {
    int status;
-   uint32 ppn32 = (uint32)ppn;
 
-   /* Ensure PPN fits in 32-bits, i.e. guest memory is limited to 16TB. */
-   if (ppn32 != ppn) {
-      return BALLOON_ERROR_PPN_INVALID;
+   if (!BackdoorHasCapability(b, BALLOON_64_BIT_TARGET)) {
+      uint32 ppn32 = (uint32)ppn;
+      /* Ensure PPN fits in 32-bits, i.e. guest memory is limited to 16TB. */
+      if (ppn32 != ppn) {
+         return BALLOON_ERROR_PPN_INVALID;
+      }
    }
 
-   status = BackdoorCmd(BALLOON_BDOOR_CMD_LOCK, ppn32, 0, target,
+   status = BackdoorCmd(BALLOON_BDOOR_CMD_LOCK, ppn, 0, target,
                         &b->resetFlag);
+   if (target != NULL && !BackdoorHasCapability(b, BALLOON_64_BIT_TARGET)) {
+      *target = MIN(MAX_UINT32, *target);
+   }
 
    /* update stats */
    STATS_INC(b->stats.lock[FALSE]);
@@ -314,18 +339,24 @@ Backdoor_MonitorLockPage(Balloon *b,     // IN/OUT
 int
 Backdoor_MonitorUnlockPage(Balloon *b,     // IN/OUT
                            PPN64 ppn,      // IN
-                           uint32 *target) // OUT
+                           uint64 *target) // OUT
 {
    int status;
-   uint32 ppn32 = (uint32)ppn;
 
-   /* Ensure PPN fits in 32-bits, i.e. guest memory is limited to 16TB. */
-   if (ppn32 != ppn) {
-      return BALLOON_ERROR_PPN_INVALID;
+   if (!BackdoorHasCapability(b, BALLOON_64_BIT_TARGET)) {
+      uint32 ppn32 = (uint32)ppn;
+
+      /* Ensure PPN fits in 32-bits, i.e. guest memory is limited to 16TB. */
+      if (ppn32 != ppn) {
+         return BALLOON_ERROR_PPN_INVALID;
+      }
    }
 
-   status = BackdoorCmd(BALLOON_BDOOR_CMD_UNLOCK, ppn32, 0, target,
+   status = BackdoorCmd(BALLOON_BDOOR_CMD_UNLOCK, ppn, 0, target,
                         &b->resetFlag);
+   if (target != NULL && !BackdoorHasCapability(b, BALLOON_64_BIT_TARGET)) {
+      *target = MIN(MAX_UINT32, *target);
+   }
 
    /* update stats */
    STATS_INC(b->stats.unlock[FALSE]);
@@ -357,7 +388,7 @@ Backdoor_MonitorLockPagesBatched(Balloon *b,      // IN/OUT
                                  PPN64 ppn,       // IN
                                  uint32 nPages,   // IN
                                  int isLargePage, // IN
-                                 uint32 *target)  // OUT
+                                 uint64 *target)  // OUT
 {
    int status;
    uint16 cmd;
@@ -369,6 +400,9 @@ Backdoor_MonitorLockPagesBatched(Balloon *b,      // IN/OUT
    }
 
    status = BackdoorCmd(cmd, (size_t)ppn, nPages, target, &b->resetFlag);
+   if (target != NULL && !BackdoorHasCapability(b, BALLOON_64_BIT_TARGET)) {
+      *target = MIN(MAX_UINT32, *target);
+   }
 
    /* update stats */
    STATS_INC(b->stats.lock[isLargePage]);
@@ -400,7 +434,7 @@ Backdoor_MonitorUnlockPagesBatched(Balloon *b,      // IN/OUT
                                    PPN64 ppn,       // IN
                                    uint32 nPages,   // IN
                                    int isLargePage, // IN
-                                   uint32 *target)  // OUT
+                                   uint64 *target)  // OUT
 {
    int status;
    uint16 cmd;
@@ -412,6 +446,9 @@ Backdoor_MonitorUnlockPagesBatched(Balloon *b,      // IN/OUT
    }
 
    status = BackdoorCmd(cmd, (size_t)ppn, nPages, target, &b->resetFlag);
+   if (target != NULL && !BackdoorHasCapability(b, BALLOON_64_BIT_TARGET)) {
+      *target = MIN(MAX_UINT32, *target);
+   }
 
    /* update stats */
    STATS_INC(b->stats.unlock[isLargePage]);

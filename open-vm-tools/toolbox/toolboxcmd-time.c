@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -28,7 +28,6 @@
 #include "vmware/guestrpc/tclodefs.h"
 #include "vmware/guestrpc/timesync.h"
 #include "vmware/tools/i18n.h"
-#include "vmware/tools/utils.h"
 
 
 /*
@@ -118,7 +117,7 @@ TimeSyncEnable(void)
       ret = EXIT_FAILURE;
    }
 
-   vm_free(reply);
+   ToolsCmd_FreeRPC(reply);
    return ret;
 }
 
@@ -154,7 +153,7 @@ TimeSyncDisable(void)
       ret = EXIT_FAILURE;
    }
 
-   vm_free(reply);
+   ToolsCmd_FreeRPC(reply);
    return ret;
 }
 

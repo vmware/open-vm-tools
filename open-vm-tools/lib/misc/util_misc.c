@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -719,8 +719,8 @@ Util_ExpandString(const char *fileName) // IN  file path to expand
       ASSERT(!freeChunk[i]);
       chunks[i] = expand;
       if (chunks[i] == NULL) {
-	 Log("%s: Cannot allocate memory to expand \"%s\" in \"%s\".\n",
-             __FUNCTION__, expand, fileName);
+	 Log("%s: Cannot allocate memory to expand $ in \"%s\".\n",
+             __FUNCTION__, fileName);
 	 goto out;
       }
       chunkSize[i] = strlen(expand);

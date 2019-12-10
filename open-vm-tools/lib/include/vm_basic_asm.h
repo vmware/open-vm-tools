@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -235,8 +235,9 @@ mssb64_0(const uint64 value)
 #endif
 
 static INLINE int
-lssb32_0(uint32 value)
+lssb32_0(uint32 v)
 {
+   int value = (int)v;
 #ifdef USE_ARCH_X86_CUSTOM
    if (!__builtin_constant_p(value)) {
       if (UNLIKELY(value == 0)) {
@@ -276,8 +277,10 @@ mssb32_0(uint32 value)
 }
 
 static INLINE int
-lssb64_0(const uint64 value)
+lssb64_0(const uint64 v)
 {
+   int64 value = (int64)v;
+
 #ifdef USE_ARCH_X86_CUSTOM
    if (!__builtin_constant_p(value)) {
       if (UNLIKELY(value == 0)) {
@@ -387,10 +390,10 @@ lssbPtr_0(const uintptr_t value)
 #endif
 }
 
-static INLINE int
+static INLINE unsigned
 lssbPtr(const uintptr_t value)
 {
-   return lssbPtr_0(value) + 1;
+   return (unsigned)lssbPtr_0(value) + 1;
 }
 
 static INLINE int
@@ -403,34 +406,34 @@ mssbPtr_0(const uintptr_t value)
 #endif
 }
 
-static INLINE int
+static INLINE unsigned
 mssbPtr(const uintptr_t value)
 {
-   return mssbPtr_0(value) + 1;
+   return (unsigned)mssbPtr_0(value) + 1;
 }
 
-static INLINE int
+static INLINE unsigned
 lssb32(const uint32 value)
 {
-   return lssb32_0(value) + 1;
+   return (unsigned)lssb32_0(value) + 1;
 }
 
-static INLINE int
+static INLINE unsigned
 mssb32(const uint32 value)
 {
-   return mssb32_0(value) + 1;
+   return (unsigned)mssb32_0(value) + 1;
 }
 
-static INLINE int
+static INLINE unsigned
 lssb64(const uint64 value)
 {
-   return lssb64_0(value) + 1;
+   return (unsigned)lssb64_0(value) + 1;
 }
 
-static INLINE int
+static INLINE unsigned
 mssb64(const uint64 value)
 {
-   return mssb64_0(value) + 1;
+   return (unsigned)mssb64_0(value) + 1;
 }
 
 #ifdef __GNUC__
@@ -782,12 +785,14 @@ static INLINE void
 PAUSE(void)
 #if defined(__GNUC__) || defined(VM_ARM_32)
 {
-#ifdef VM_ARM_ANY
+#ifdef VM_ARM_64
+   __asm__ __volatile__("yield");
+#elif defined VM_ARM_32
    /*
-    * ARM has no instruction to execute "spin-wait loop", just leave it
-    * empty.
+    * YIELD is available in ARMv6K and above, so we could probably refine this
+    * instead of leaving it empty.
     */
-#else
+#else // x86
    __asm__ __volatile__( "pause" :);
 #endif
 }
@@ -902,7 +907,7 @@ RDTSC(void)
  *
  * {Clear,Set,Test}Bit{32,64} --
  *
- *    Sets or clears a specified single bit in the provided variable.
+ *    Sets tests or clears a specified single bit in the provided variable.
  *
  *    The index input value specifies which bit to modify and is 0-based.
  *    Index is truncated by hardware to a 5-bit or 6-bit offset for the
@@ -916,111 +921,39 @@ RDTSC(void)
  */
 
 static INLINE void
-SetBit32(uint32 *var, uint32 index)
+SetBit32(uint32 *var, unsigned index)
 {
-#if defined(__GNUC__) && defined(VM_X86_ANY)
-   __asm__ (
-      "bts %1, %0"
-      : "+mr" (*var)
-      : "rI" (index)
-      : "cc"
-   );
-#elif defined(_MSC_VER)
-   _bittestandset((long *)var, index);
-#else
-   *var |= (1 << index);
-#endif
+   *var |= 1 << index;
 }
 
 static INLINE void
-ClearBit32(uint32 *var, uint32 index)
+ClearBit32(uint32 *var, unsigned index)
 {
-#if defined(__GNUC__) && defined(VM_X86_ANY)
-   __asm__ (
-      "btr %1, %0"
-      : "+mr" (*var)
-      : "rI" (index)
-      : "cc"
-   );
-#elif defined(_MSC_VER)
-   _bittestandreset((long *)var, index);
-#else
    *var &= ~(1 << index);
-#endif
 }
 
 static INLINE void
-SetBit64(uint64 *var, uint64 index)
+SetBit64(uint64 *var, unsigned index)
 {
-#if defined(VM_64BIT) && !defined(VM_ARM_64)
-#ifdef __GNUC__
-   __asm__ (
-      "bts %1, %0"
-      : "+mr" (*var)
-      : "rJ" (index)
-      : "cc"
-   );
-#elif defined(_MSC_VER)
-   _bittestandset64((__int64 *)var, index);
-#endif
-#else
-   *var |= ((uint64)1 << index);
-#endif
+   *var |= CONST64U(1) << index;
 }
 
 static INLINE void
-ClearBit64(uint64 *var, uint64 index)
+ClearBit64(uint64 *var, unsigned index)
 {
-#if defined(VM_64BIT) && !defined(VM_ARM_64)
-#ifdef __GNUC__
-   __asm__ (
-      "btrq %1, %0"
-      : "+mr" (*var)
-      : "rJ" (index)
-      : "cc"
-   );
-#elif defined(_MSC_VER)
-   _bittestandreset64((__int64 *)var, index);
-#endif
-#else
-   *var &= ~((uint64)1 << index);
-#endif
+   *var &= ~(CONST64U(1) << index);
 }
 
 static INLINE Bool
-TestBit32(const uint32 *var, uint32 index)
+TestBit32(const uint32 *var, unsigned index)
 {
-#if defined(__GNUC__) && defined(VM_X86_ANY)
-   Bool bit;
-   __asm__ (
-      "bt %[index], %[var] \n"
-      "setc %[bit]"
-      : [bit] "=qQm" (bit)
-      : [index] "rI" (index), [var] "r" (*var)
-      : "cc"
-   );
-   return bit;
-#else
    return (*var & (1 << index)) != 0;
-#endif
 }
 
 static INLINE Bool
-TestBit64(const uint64 *var, uint64 index)
+TestBit64(const uint64 *var, unsigned index)
 {
-#if defined __GNUC__ && defined VM_X86_64
-   Bool bit;
-   __asm__ (
-      "bt %[index], %[var] \n"
-      "setc %[bit]"
-      : [bit] "=qQm" (bit)
-      : [index] "rJ" (index), [var] "r" (*var)
-      : "cc"
-   );
-   return bit;
-#else
    return (*var & (CONST64U(1) << index)) != 0;
-#endif
 }
 
 /*
@@ -1184,7 +1117,9 @@ RoundUpPow2C32(uint32 value)
    if (value <= 1 || value > (1U << 31)) {
       return 1; // Match the assembly's undefined value for large inputs.
    } else {
-      return (2 << mssb32_0(value - 1));
+      int mssb32 = mssb32_0(value - 1);
+      /* invariant: mssb32 >= 0 */
+      return (2U << (uint32)mssb32);
    }
 }
 
@@ -1237,6 +1172,101 @@ RoundUpPow2_32(uint32 value)
 #else
    return RoundUpPow2C32(value);
 #endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * PopCount32 --
+ *
+ *     Counts "1" bits in a uint32.
+ *
+ * Results:
+ *     Returns the number of bits set to 1.
+ *
+ * Side effects:
+ *     None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE unsigned
+PopCount32(uint32 value)
+{
+   /*
+    * Attribution:
+    *     This algorithm was copied from:
+    *         http://www.aggregate.org/MAGIC#Population Count (Ones Count)
+    *
+    *     A virtually identical version (but in assembly) appears in an
+    *     AMD reference manual.
+    *
+    *     No license appears in the original code, but the website
+    *     header states:
+    *
+    *     "None of the following coding tricks came from proprietary
+    *     sources; further, we believe that each of the tricks we did
+    *     not invent is essentially "standard engineering practice" in
+    *     the specialized niche where it applies. Thus, although we
+    *     have not conducted patent searches, etc., to confirm it, we
+    *     believe that these are tricks that freely can be used for
+    *     any purpose. Of course, The Aggregate accepts no
+    *     responsibility for your use of these tricks; you must
+    *     confirm that the trick does what you want and that you can
+    *     use it as you intend. That said, we do intend to maintain
+    *     this page by adding new algorithms and/or correcting
+    *     existing entries. If you have any comments, please contact
+    *     Professor Hank Dietz, http://aggregate.org/hankd/"
+    *
+    *     "This document should be cited using something like the
+    *     following bibtex entry:" (most recent retrieval date added)
+    *
+    *     @techreport{magicalgorithms,
+    *     author={Henry Gordon Dietz},
+    *     title={{The Aggregate Magic Algorithms}},
+    *     institution={University of Kentucky},
+    *     howpublished={Aggregate.Org online technical report},
+    *     URL={http://aggregate.org/MAGIC/},
+    *     urldate={2016-01-27}
+    *     }
+    */
+   value -= ((value >> 1) & 0x55555555);
+   value = (((value >> 2) & 0x33333333) + (value & 0x33333333));
+   value = (((value >> 4) + value) & 0x0f0f0f0f);
+   value += (value >> 8);
+   value += (value >> 16);
+   return value & 0x0000003f;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * PopCount64 --
+ *
+ *     Counts "1" bits in a uint64.
+ *
+ * Results:
+ *     Returns the number of bits set to 1.
+ *
+ * Side effects:
+ *     None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE unsigned
+PopCount64(uint64 value)
+{
+   value -= (value >> 1) & 0x5555555555555555ULL;
+   value = ((value >> 2) & 0x3333333333333333ULL) +
+           (value & 0x3333333333333333ULL);
+   value = ((value >> 4) + value) & 0x0f0f0f0f0f0f0f0fULL;
+   value += value >> 8;
+   value += value >> 16;
+   value += value >> 32;
+   return (unsigned) (value & 0xff);
 }
 
 

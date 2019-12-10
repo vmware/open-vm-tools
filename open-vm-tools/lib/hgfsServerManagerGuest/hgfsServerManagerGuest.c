@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006,2014-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006,2014-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -31,17 +31,73 @@
 #include "hgfsServerManager.h"
 #include "vm_basic_defs.h"
 #include "vm_assert.h"
+#include "vm_atomic.h"
 #include "hgfs.h"
 
 /*
- * Local for now and will be used in conjuncutntion with the manager data passed
+ * Local for now and will be used in conjunction with the manager data passed
  * on registration.
  */
-static HgfsServerMgrCallbacks gHgfsServerManagerGuestData = {
-   {
-      NULL,    // Filled by the policy manager
+typedef struct HgfsServerMgrCountedCallbacks {
+   HgfsServerMgrCallbacks  serverMgrCBTable; /* Hgfs server policy manager entry points. */
+   Atomic_uint32           refCount;         /* Server data reference count. */
+} HgfsServerMgrCountedCallbacks;
+
+static HgfsServerMgrCountedCallbacks     gHgfsServerManagerGuestData;
+
+
+ /*
+ *----------------------------------------------------------------------------
+ *
+ * HgfsServerManagerGet --
+ *
+ *      Increment server manager reference count.
+ *
+ * Results:
+ *      The value of the reference count before the increment.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+uint32
+HgfsServerManagerGet(HgfsServerMgrCountedCallbacks *serverMgrData)   // IN/OUT: ref count
+{
+   ASSERT(NULL != serverMgrData);
+   return Atomic_ReadInc32(&serverMgrData->refCount);
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * HgfsServerManagerPut --
+ *
+ *      Decrement server manager reference count.
+ *
+ *      Teardown server manager object if removed the final reference.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static void
+HgfsServerManagerPut(HgfsServerMgrCountedCallbacks *serverMgrData)   // IN/OUT: ref count
+{
+   ASSERT(NULL != serverMgrData);
+   if (Atomic_ReadDec32(&serverMgrData->refCount) == 1) {
+      HgfsServerPolicy_Cleanup();
+      memset(serverMgrData, 0, sizeof *serverMgrData);
    }
-};
+}
+
 
 /*
  *----------------------------------------------------------------------------
@@ -95,6 +151,8 @@ Bool HgfsServerManager_ProcessPacket(HgfsServerMgrData *mgrData,  // IN: hgfs mg
 Bool
 HgfsServerManager_Register(HgfsServerMgrData *data)   // IN: RpcIn channel
 {
+   HgfsServerMgrCallbacks *serverMgrCallbacks = &gHgfsServerManagerGuestData.serverMgrCBTable;
+   uint32 serverMgrRefCount;
 
    ASSERT(data);
    ASSERT(data->appName);
@@ -102,19 +160,30 @@ HgfsServerManager_Register(HgfsServerMgrData *data)   // IN: RpcIn channel
    Debug("%s: Register %s.\n", __FUNCTION__, data->appName);
 
    /*
-    * Passing NULL here is safe because the shares maintained by the guest
-    * policy server never change, invalidating the need for an invalidate
-    * function.
-    * XXX - retrieve the enum of shares routines and will need to pass this
-    * down through the channel guest into the HGFS server directly.
+    * Reference the global server manager data. Initialize only for the first
+    * caller to register.
     */
-   if (!HgfsServerPolicy_Init(NULL,
-                              &gHgfsServerManagerGuestData.enumResources)) {
-      return FALSE;
+   serverMgrRefCount = HgfsServerManagerGet(&gHgfsServerManagerGuestData);
+   if (0 == serverMgrRefCount) {
+      Debug("%s: calling policy init %s.\n", __FUNCTION__, data->appName);
+      /*
+       * Passing NULL here is safe because the shares maintained by the guest
+       * policy server never change, eliminating the need for an invalidate
+       * function.
+       */
+      if (!HgfsServerPolicy_Init(NULL,
+                                 &serverMgrCallbacks->enumResources)) {
+         HgfsServerManagerPut(&gHgfsServerManagerGuestData);
+         return FALSE;
+      }
    }
 
-   if (!HgfsChannelGuest_Init(data, &gHgfsServerManagerGuestData)) {
-      HgfsServerPolicy_Cleanup();
+   /*
+    * The channel will reference count itself, initializing once, but store the
+    * channel in the manager data object passed to us and return it to the caller.
+    */
+   if (!HgfsChannelGuest_Init(data, serverMgrCallbacks)) {
+      HgfsServerManagerPut(&gHgfsServerManagerGuestData);
       return FALSE;
    }
 
@@ -175,6 +244,5 @@ HgfsServerManager_Unregister(HgfsServerMgrData *data)         // IN: RpcIn chann
    Debug("%s: Unregister %s.\n", __FUNCTION__, data->appName);
 
    HgfsChannelGuest_Exit(data);
-   HgfsServerPolicy_Cleanup();
-   memset(&gHgfsServerManagerGuestData, 0, sizeof gHgfsServerManagerGuestData);
+   HgfsServerManagerPut(&gHgfsServerManagerGuestData);
 }

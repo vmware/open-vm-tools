@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2018-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -219,6 +219,7 @@ FakeMouse_Destory()
    if (ioctl(uinput_fd, UI_DEV_DESTROY, 0) < 0) {
       g_debug("%s: Failed to destroy uinput device\n", __FUNCTION__);
    }
+   isInit = false;
 }
 
 
@@ -327,6 +328,6 @@ FakeMouse_Click(bool down)  // IN
     * Insert a pause here so that userspace has time to detect this event,
     * otherwise it will not notice the event we are about to send.
     */
-   usleep(10 * 1000);
+   usleep(100 * 1000);
    return retValue;
 }

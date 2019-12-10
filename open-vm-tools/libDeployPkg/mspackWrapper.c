@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -32,6 +32,7 @@
 #include <mspack.h>
 #include <stdarg.h>
 #include <errno.h>
+#include "str.h"
 
 /*
  * Template functions
@@ -184,7 +185,7 @@ ExtractFile (struct mscab_decompressor* deflator,
    sz = strlen(destDirectory)+ 1 + strlen(fileName)+ 1;
    {
       char outCabFile[sz];
-      sprintf (outCabFile, "%s/%s", destDirectory, fileName);
+      Str_Sprintf (outCabFile, sz,  "%s/%s", destDirectory, fileName);
 
       // set up the path if it does not exist
       if (SetupPath(outCabFile) != LINUXCAB_SUCCESS) {

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -55,6 +55,9 @@
 
 #include "xferlogs_version.h"
 #include "vm_version.h"
+#ifdef _WIN32
+#include "vmware/tools/win32util.h"
+#endif
 #include "embed_version.h"
 VM_EMBED_VERSION(XFERLOGS_VERSION_STRING);
 
@@ -184,8 +187,19 @@ extractFile(char *filename) //IN: vmx log filename e.g. vmware.log
             char tstamp[32];
             time_t now;
 
-            ASSERT(outfp == NULL);
-            ASSERT(state == NOT_IN_GUEST_LOGGING);
+            /*
+             * There could be multiple LOG_START_MARK in the log,
+             * close existing one before opening a new file.
+             */
+            if (outfp) {
+               ASSERT(state == IN_GUEST_LOGGING);
+               Warning("Found a new start mark before end mark for "
+                       "previous one\n");
+               fclose(outfp);
+               outfp = NULL;
+            } else {
+               ASSERT(state == NOT_IN_GUEST_LOGGING);
+            }
             DEBUG_ONLY(state = IN_GUEST_LOGGING);
 
             /*
@@ -234,23 +248,32 @@ extractFile(char *filename) //IN: vmx log filename e.g. vmware.log
                ver = ver + sizeof "ver - " - 1;
                version = strtol(ver, NULL, 0);
                if (version != LOG_VERSION) {
-                  Warning("input version %d doesnt match the\
+                  Warning("Input version %d doesn't match the\
                           version of this binary %d", version, LOG_VERSION);
                } else {
-                  printf("reading file %s to %s \n", logInpFilename, fname);
+                  printf("Reading file %s to %s \n", logInpFilename, fname);
                   if (!(outfp = fopen(fname, "wb"))) {
                      Warning("Error opening file %s\n", fname);
                   }
                }
             }
          } else if (strstr(buf, LOG_END_MARK)) { // close the output file.
-            ASSERT(state == IN_GUEST_LOGGING);
-            DEBUG_ONLY(state = NOT_IN_GUEST_LOGGING);
-            fclose(outfp);
-            outfp = NULL;
-         } else { // write to the output file
-            ASSERT(state == IN_GUEST_LOGGING);
+            /*
+             * Need to check outfp, because we might get LOG_END_MARK
+             * before LOG_START_MARK due to log rotation.
+             */
             if (outfp) {
+               ASSERT(state == IN_GUEST_LOGGING);
+               fclose(outfp);
+               outfp = NULL;
+            } else {
+               ASSERT(state == NOT_IN_GUEST_LOGGING);
+               Warning("Reached file end mark without start mark\n");
+            }
+            DEBUG_ONLY(state = NOT_IN_GUEST_LOGGING);
+         } else { // write to the output file
+            if (outfp) {
+               ASSERT(state == IN_GUEST_LOGGING);
                ptrStr = strstr(buf, LOG_GUEST_MARK);
                ptrStr += sizeof LOG_GUEST_MARK - 1;
                if (Base64_Decode(ptrStr, base64Out, BUF_OUT_SIZE, &lenOut)) {
@@ -260,9 +283,20 @@ extractFile(char *filename) //IN: vmx log filename e.g. vmware.log
                } else {
                   Warning("Error decoding output %s\n", ptrStr);
                }
+            } else {
+               ASSERT(state == NOT_IN_GUEST_LOGGING);
+               Warning("Missing file start mark\n");
             }
          }
       }
+   }
+
+   /*
+    * We may need to close file in case LOG_END_MARK is missing.
+    */
+   if (outfp) {
+      ASSERT(state == IN_GUEST_LOGGING);
+      fclose(outfp);
    }
    fclose(fp);
 }
@@ -284,6 +318,10 @@ main(int argc,
      char *argv[])
 {
    int status;
+
+#ifdef _WIN32
+   WinUtil_EnableSafePathSearching(TRUE);
+#endif
 
    if (argc == 2 &&
        (!strncmp(argv[1], "-h", 2) ||

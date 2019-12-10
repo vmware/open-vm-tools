@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -276,11 +276,18 @@ CPClipboard_SetItem(CPClipboard *clip,          // IN/OUT: the clipboard
    CPClipItem *item;
    uint8 *newBuf = NULL;
    /*
-    * Microsoft Office Text Effects i.e. HTML Format, image, rtf and text may
-    * be put into a clipboard at same time, and total size may be more than
-    * limit. HTML format will be first dropped, then image and then rtf data.
+    * Microsoft Office Text Effects i.e. HTML Format, BIFF, GVML, image, rtf
+    * and text may be put into a clipboard at same time, and total size may be
+    * more than limit. The order in filterList determines the order in which
+    * the format will be fiiltered, e.g. HTML format will be first dropped,
+    * then GVML,..., at last TEXT
+    * File content won't appear tegother with other formats, if exceeding size
+    * limit, the format will be dropped
     */
-   DND_CPFORMAT filterList[] = {CPFORMAT_HTML_FORMAT,
+   DND_CPFORMAT filterList[] = {CPFORMAT_FILECONTENTS,
+                                CPFORMAT_ART_GVML_CLIPFORMAT,
+                                CPFORMAT_BIFF12,
+                                CPFORMAT_HTML_FORMAT,
                                 CPFORMAT_IMG_PNG,
                                 CPFORMAT_RTF,
                                 CPFORMAT_TEXT};
@@ -715,16 +722,20 @@ CPClipboard_Unserialize(CPClipboard *clip, // OUT: the clipboard
    maxFmt = MIN(CPFORMAT_MAX, maxFmt);
 
    for (fmt = CPFORMAT_MIN; fmt < maxFmt; ++fmt) {
-      Bool exists;
-      uint32 size;
+      Bool exists = FALSE;
+      uint32 size = 0;
 
       if (!DnDReadBuffer(&r, &exists, sizeof exists) ||
           !DnDReadBuffer(&r, &size, sizeof size)) {
+         Log("%s: Error: exists:%d, size:%d, format:%d.\n", __FUNCTION__,
+             exists, size, (int)fmt);
          goto error;
       }
 
       if (exists && size) {
          if (size > r.unreadLen) {
+            Log("%s: Error: size:%d, unreadLen:%d, format:%d.\n", __FUNCTION__,
+                size, (int)r.unreadLen, (int)fmt);
             goto error;
          }
 

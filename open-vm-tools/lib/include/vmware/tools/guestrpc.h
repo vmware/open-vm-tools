@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008,2014-2016,2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008,2014-2016,2018-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -186,9 +186,6 @@ RpcChannel *
 RpcChannel_Create(void);
 
 void
-RpcChannel_Shutdown(RpcChannel *chan);
-
-gboolean
 RpcChannel_Destroy(RpcChannel *chan);
 
 gboolean
@@ -207,17 +204,41 @@ RpcChannel_SendOneRaw(const char *data,
                       char **result,
                       size_t *resultLen);
 
+#if defined(__linux__) || defined(_WIN32)
+gboolean
+RpcChannel_SendOneRawPriv(const char *data,
+                          size_t dataLen,
+                          char **result,
+                          size_t *resultLen);
+#endif
+
 gboolean
 RpcChannel_SendOne(char **reply,
                    size_t *repLen,
                    const char *reqFmt,
                    ...);
 
+#if defined(__linux__) || defined(_WIN32)
+gboolean
+RpcChannel_SendOnePriv(char **reply,
+                       size_t *repLen,
+                       const char *reqFmt,
+                       ...);
+#endif
+
 RpcChannel *
 RpcChannel_New(void);
 
+#if defined(__linux__) || defined(_WIN32)
+RpcChannel *
+VSockChannel_New(void);
+#endif
+
 void
 RpcChannel_SetBackdoorOnly(void);
+
+RpcChannel *
+BackdoorChannel_New(void);
 
 G_END_DECLS
 

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2000-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2000-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -103,19 +103,19 @@ extern "C" {
  * Balloon operations
  */
 static void BalloonPageFree(Balloon *b, int isLargePage);
-static void BalloonAdjustSize(Balloon *b, uint32 target);
+static void BalloonAdjustSize(Balloon *b, uint64 target);
 static void BalloonReset(Balloon *b);
 
 static void BalloonAddPage(Balloon *b, uint16 idx, PageHandle page);
 static void BalloonAddPageBatched(Balloon *b, uint16 idx, PageHandle page);
 static int  BalloonLock(Balloon *b, uint16 nPages, int isLargePage,
-                        uint32 *target);
+                        uint64 *target);
 static int  BalloonLockBatched(Balloon *b, uint16 nPages, int isLargePages,
-                               uint32 *target);
+                               uint64 *target);
 static int  BalloonUnlock(Balloon *b, uint16 nPages, int isLargePages,
-                          uint32 *target);
+                          uint64 *target);
 static int  BalloonUnlockBatched(Balloon *b, uint16 nPages, int IsLargePages,
-                                 uint32 *target);
+                                 uint64 *target);
 
 /*
  * Globals
@@ -429,7 +429,7 @@ void
 Balloon_QueryAndExecute(void)
 {
    Balloon *b = &globalBalloon;
-   uint32 target = 0; // Silence compiler warning.
+   uint64 target = 0; // Silence compiler warning.
    int status;
 
    /* update stats */
@@ -749,7 +749,7 @@ BalloonPageFree(Balloon *b,      // IN/OUT
 
 static void
 BalloonInflate(Balloon *b,      // IN/OUT
-               uint32 target)   // IN
+               uint64 target)   // IN
 {
    uint32 nEntries;
    unsigned int rate;
@@ -922,7 +922,7 @@ static int
 BalloonLockBatched(Balloon *b,       // IN/OUT
                    uint16 nEntries,  // IN
                    int isLargePages, // IN
-                   uint32 *target)   // OUT
+                   uint64 *target)   // OUT
 {
    int          status;
    uint32       i;
@@ -1037,7 +1037,7 @@ static int
 BalloonUnlockBatched(Balloon *b,       // IN/OUT
                      uint16 nEntries,  // IN
                      int isLargePages, // IN
-                     uint32 *target)   // OUT
+                     uint64 *target)   // OUT
 {
    uint32 i;
    int status = BALLOON_SUCCESS;
@@ -1139,9 +1139,9 @@ static int
 BalloonLock(Balloon *b,       // IN/OUT
             uint16 nPages,    // IN
             int isLargePage,  // IN
-            uint32 *target)   // OUT
+            uint64 *target)   // OUT
 {
-   PPN pagePPN;
+   PPN64 pagePPN;
    BalloonChunk *chunk;
    int status;
 
@@ -1214,9 +1214,9 @@ static int
 BalloonUnlock(Balloon *b,      // IN/OUT
               uint16 nPages,   // IN
               int isLargePage, // IN
-              uint32 *target)  // OUT
+              uint64 *target)  // OUT
 {
-   PPN pagePPN = PA_2_PPN(OS_ReservedPageGetPA(b->pageHandle));
+   PPN64 pagePPN = PA_2_PPN(OS_ReservedPageGetPA(b->pageHandle));
    int status = Backdoor_MonitorUnlockPage(b, pagePPN, target);
 
    ASSERT(!isLargePage);
@@ -1286,7 +1286,7 @@ BalloonAddPage(Balloon *b,            // IN/OUT
 
 static void
 BalloonDeflateInt(Balloon *b,       // IN/OUT
-                  uint32 target,    // IN
+                  uint64 target,    // IN
                   int isLargePages) // IN
 {
    int                  status = BALLOON_SUCCESS;
@@ -1378,7 +1378,7 @@ BalloonDeflateInt(Balloon *b,       // IN/OUT
 
 static void
 BalloonDeflate(Balloon *b,    // IN/OUT
-               uint32 target) // IN
+               uint64 target) // IN
 {
    /* Prefer to unlock small pages over unlocking large pages */
    BalloonDeflateInt(b, target, FALSE);
@@ -1405,7 +1405,7 @@ BalloonDeflate(Balloon *b,    // IN/OUT
 
 static void
 BalloonAdjustSize(Balloon *b,    // IN/OUT
-                  uint32 target) // IN
+                  uint64 target) // IN
 {
    /*
     * When we only deal with large pages it can happen that we overshoot our

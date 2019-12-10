@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -813,7 +813,7 @@ MXUserAcquisitionTracking(MXUserHeader *header,  // IN:
          header = perThread->lockArray[i];
 
          node = MXUserLockTreeAdd(node, header->name,
-                                  header->bits.serialNumber, header->rank);
+                                  header->serialNumber, header->rank);
       }
 
       MXUserLockTreeRelease();
@@ -930,12 +930,12 @@ MXUserValidateHeader(MXUserHeader *header,         // IN:
 {
    uint32 expected = MXUserGetSignature(objectType);
 
-   if (header->bits.badHeader == 1) {
+   if (header->badHeader) {
       return; // No need to panic on a bad header repeatedly...
    }
 
    if (header->signature != expected) {
-      header->bits.badHeader = 1;
+      header->badHeader = TRUE;
 
       MXUserDumpAndPanic(header,
                         "%s: signature failure! expected 0x%X observed 0x%X\n",
@@ -943,8 +943,8 @@ MXUserValidateHeader(MXUserHeader *header,         // IN:
 
    }
 
-   if (header->bits.serialNumber == 0) {
-      header->bits.badHeader = 1;
+   if (header->serialNumber == 0) {
+      header->badHeader = TRUE;
 
       MXUserDumpAndPanic(header, "%s: Invalid serial number!\n",
                          __FUNCTION__);
