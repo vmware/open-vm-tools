@@ -203,6 +203,7 @@ static const DistroInfo distroArray[] = {
    { "Mandrake",           "/etc/mandrake-release"      },
    { "Mandriva",           "/etc/mandriva-release"      },
    { "MkLinux",            "/etc/mklinux-release"       },
+   { "NixOS",              "/etc/os-release"            },
    { "Novell",             "/etc/nld-release"           },
    { "OracleLinux",        "/etc/oracle-release"        },
    { "Photon",             "/etc/lsb-release"           },
@@ -865,6 +866,8 @@ HostinfoGetOSShortName(const char *distro,      // IN: full distro name
       }
    } else if (strstr(distroLower, "mandrake")) {
       Str_Strcpy(distroShort, STR_OS_MANDRAKE, distroShortSize);
+   } else if (strstr(distroLower, "nixos")) {
+      Str_Strcpy(distroShort, STR_OS_NIXOS, distroShortSize);
    } else if (strstr(distroLower, "turbolinux")) {
       Str_Strcpy(distroShort, STR_OS_TURBO, distroShortSize);
    } else if (strstr(distroLower, "sun")) {
