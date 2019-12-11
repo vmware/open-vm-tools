@@ -1636,7 +1636,7 @@ DnDUIX11::RequestData(
  *      name, intended to isolate an individual DND operation's staging directory
  *      name.
  *
- *         E.g. /tmp/VMwareDnD/abcd137/foo → abcd137
+ *         E.g. /tmp/VMwareDnD/abcd137 → abcd137
  *
  * Results:
  *      Returns session directory name on success, empty string otherwise.
@@ -1650,26 +1650,15 @@ DnDUIX11::RequestData(
 std::string
 DnDUIX11::GetLastDirName(const std::string &str)
 {
-   std::string ret;
-   size_t start;
-   size_t end;
-
-   end = str.size() - 1;
-   if (end >= 0 && DIRSEPC == str[end]) {
-      end--;
+   char *baseName;
+   File_GetPathName(str.c_str(), NULL, &baseName);
+   if (baseName) {
+      std::string s(baseName);
+      free(baseName);
+      return s;
+   } else {
+      return std::string();
    }
-
-   if (end <= 0 || str[0] != DIRSEPC) {
-      return "";
-   }
-
-   start = end;
-
-   while (str[start] != DIRSEPC) {
-      start--;
-   }
-
-   return str.substr(start + 1, end - start);
 }
 
 
