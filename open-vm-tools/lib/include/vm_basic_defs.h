@@ -477,10 +477,6 @@ void *_ReturnAddress(void);
 
 #define strtok_r  strtok_s
 
-#if (_MSC_VER < 1500)
-#define	vsnprintf _vsnprintf
-#endif
-
 typedef int uid_t;
 typedef int gid_t;
 
@@ -504,20 +500,9 @@ typedef int pid_t;
 #define       W_OK          2
 #define       R_OK          4
 
-#endif // }
+#endif // } _WIN32
 
-/*
- * Macro for username comparison.
- */
-
-#ifdef _WIN32 // {
-#define USERCMP(x,y)  Str_Strcasecmp(x,y)
-#else
-#define USERCMP(x,y)  strcmp(x,y)
-#endif // }
-
-
-#endif // }
+#endif // } USERLEVEL
 
 #ifndef va_copy
 
@@ -738,7 +723,6 @@ typedef int pid_t;
  * display/printer drivers only.
  */
 #ifdef _WIN32
-#ifndef USES_OLD_WINDDK
 #if defined(VMX86_LOG)
 #ifdef _WIN64
 #define WinDrvPrint(arg, ...) DbgPrintEx(DPFLTR_IHVDRIVER_ID, (ULONG)~0, arg, __VA_ARGS__)
@@ -749,7 +733,6 @@ typedef int pid_t;
 #else
 #define WinDrvPrint(arg, ...)
 #define WinDrvEngPrint(arg, ...)
-#endif
 #endif
 #endif // _WIN32
 
