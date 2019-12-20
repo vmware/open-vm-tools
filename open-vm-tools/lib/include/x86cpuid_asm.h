@@ -54,15 +54,7 @@
 
 
 /*
- * x86-64 windows doesn't support inline asm so we have to use these
- * intrinsic functions defined in the compiler.  Not all of these are well
- * documented.  There is an array in the compiler dll (c1.dll) which has
- * an array of the names of all the intrinsics minus the leading
- * underscore.  Searching around in the ntddk.h file can also be helpful.
- *
- * The declarations for the intrinsic functions were taken from the DDK.
- * Our declarations must match the ddk's otherwise the 64-bit c++ compiler
- * will complain about second linkage of the intrinsic functions.
+ * The declarations for the intrinsic functions were taken from MSDN.
  * We define the intrinsic using the basic types corresponding to the
  * Windows typedefs. This avoids having to include windows header files
  * to get to the windows types.
@@ -73,18 +65,14 @@ extern "C" {
 #endif
 #ifdef VM_X86_64
 /*
- * intrinsic functions only supported by x86-64 windows as of 2k3sp1
- */
-void __cpuid(int regs[4], int eax);
-#pragma intrinsic(__cpuid)
-
-/*
+ * __cpuid has been supported since VS2003
  * __cpuidex has been supported since VS2008
  */
-#if _MSC_VER >= 1500
+void __cpuid(int regs[4], int eax);
 void __cpuidex(int regs[4], int eax, int ecx);
+#pragma intrinsic(__cpuid)
 #pragma intrinsic(__cpuidex)
-#endif /* _MSC_VER >= 1500 */
+
 #endif /* VM_X86_64 */
 
 #ifdef __cplusplus
@@ -231,22 +219,6 @@ __GET_EDX_FROM_CPUID(uint32 eax) // IN
 }
 
 
-static INLINE uint32
-__GET_EAX_FROM_CPUID4(uint32 ecx) // IN
-{
-   uint32 eax;
-   uint32 ebx;
-
-   __asm__ __volatile__(
-      VM_CPUID_BLOCK
-      : "=a" (eax), VM_EBX_OUT(ebx), "=c" (ecx)
-      : "a" (4), "c" (ecx)
-      : "memory", "%edx"
-   );
-
-   return eax;
-}
-
 #undef VM_CPUID_BLOCK
 #undef VM_EBX_OUT
 
@@ -280,28 +252,11 @@ __GET_CPUID(uint32 input, CPUIDRegs *regs)
 
 #ifdef VM_X86_64
 
-#if _MSC_VER >= 1500
-
-/*
- * __cpuidex has been supported since VS2008
- */
-
 static INLINE void
 __GET_CPUID2(uint32 inputEax, uint32 inputEcx, CPUIDRegs *regs)
 {
    __cpuidex((int *)regs, inputEax, inputEcx);
 }
-
-#else // _MSC_VER >= 1500
-
-/*
- * No inline assembly in Win64. Implemented in bora/lib/misc in
- * cpuidMasm64.asm.
- */
-
-extern void
-__GET_CPUID2(uint32 inputEax, uint32 inputEcx, CPUIDRegs *regs);
-#endif // _MSC_VER >= 1500
 
 #else // VM_X86_64
 
@@ -436,42 +391,6 @@ __GET_EDX_FROM_CPUID(uint32 input)
    return output;
 #endif
 }
-
-#ifdef VM_X86_64
-
-/*
- * No inline assembly in Win64. Implemented in bora/lib/misc in
- * cpuidMasm64.asm.
- */
-
-extern uint32
-__GET_EAX_FROM_CPUID4(uint32 inputEcx);
-
-#else // VM_X86_64
-
-static INLINE uint32
-__GET_EAX_FROM_CPUID4(uint32 inputEcx)
-{
-   uint32 output;
-
-   //NOT_TESTED();
-   __asm push ebx
-   __asm push ecx
-   __asm push edx
-
-   __asm mov  eax, 4
-   __asm mov  ecx, inputEcx
-   __asm _emit 0x0f __asm _emit 0xa2
-   __asm mov  output, eax
-
-   __asm pop edx
-   __asm pop ecx
-   __asm pop ebx
-
-   return output;
-}
-
-#endif // VM_X86_64
 
 #else // }
 #error
