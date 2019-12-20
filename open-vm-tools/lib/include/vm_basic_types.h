@@ -737,11 +737,11 @@ typedef void * UserVA;
 #endif
 
 /*
- * Similarly, we require a compiler that is at least vc80 (vs2005).
+ * Similarly, we require a compiler that is at least vc90 (vs2008).
  * Enforce this here.
  */
-#if defined _MSC_VER && _MSC_VER < 1400
-#error "cl.exe version is too old, need vc80 or better"
+#if defined _MSC_VER && _MSC_VER < 1500
+#error "cl.exe version is too old, need vc90 or better"
 #endif
 
 
