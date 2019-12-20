@@ -289,7 +289,7 @@
 
 /*
  * All of these components should follow the current version of View, except
- * Horizon DaaS Agent which has its own version.
+ * Horizon DaaS Agent and mfw which have their own version.
  * SCons parsing code requires that each line have a version string, so we
  * can't just do something like #define RDESDK_VERSION VIEW_VERSION"
  */
@@ -303,6 +303,7 @@
 #define RDF_VERSION "7.12.0"
 #define HORIZON_DAAS_AGENT_VERSION "20.1.0"
 #define HORIZON_USB_AGENT_VERSION "10.19.0"
+#define MFW_VERSION "16.0.0"
 
 
 #ifndef MAKESTR
