@@ -108,37 +108,52 @@
  *         VERSION macro in the build system.
  */
 
-/*
- * Rules for updating the ESX_RELEASE_* macros:
+/* ESX release versioning scheme:
  *
- * Set UPDATE to 0 for all experimental/prerelease/and initial major and minor
- * releases.  Increment update for each update release.
+ * <major>.<minor>.<update>-<quarter>.<patch>
  *
- * Set PATCH to 0 for all experimental builds.  Increment it for each build
- * that will be delivered externally.
+ * This maps to MACROs:
+ *
+ * <MAJOR>.<MINOR>.<MAINT>-<UPDATE>.<PATCH>
+ *
+ * The reason of the mismatches is that scons assumes all products would define
+ * macros in the same style.
+ *
+ * Rules for updating macros:
+ *
+ * Set MAINT (update) to 0 for all initial GA/pre-release build.  Increment for
+ * each on-prem update release.
+ *
+ * Set UPDATE (quarter) to 0 when MAJOR/MINOR changes.  Increment with each
+ * quarterly release.
+ *
+ * Set PATCH to 0 for all initial GA/experimental builds.  Increment it for
+ * each build that will be delivered externally.
  *
  * THEORETICAL EXAMPLES:
  *
- * 4.0.0-0.0: experimental version
- * 4.0.0-0.1: beta 1
- * 4.0.0-0.2: beta 2
- * 4.0.0-0.3; rc1
- * 4.0.0-0.4: GA
- * 4.0.0-0.5: patch 1
- * 4.0.0-0.6: patch 2
- * 4.0.0-1.7: update 1
- * 4.0.0-1.8: patch 3
+ * 7.0.0-0.0: Pe-release/GA
+ * 7.0.0-0.1: Patch 1
+ * 7.0.0-1.2: Patch 2 / quarterly release 1
+ * 7.0.1-2.3: Update 1 / quarterly release 2
+ * 7.0.1-3.4: Patch 3 / quarterly release 3
+ * 7.0.2-5.5: Update 2 / quarterly release 5
  */
 #define ESX_VERSION_MAJOR "7"
 #define ESX_VERSION_MINOR "0"
-#define ESX_VERSION_MAINT "0"
+#define ESX_VERSION_MAINT "0" // 0 = Pre-release/GA, 1 = Update 1
+#define ESX_VERSION_UPDATE ESX_VERSION_MAINT // ESX's own update level
+
 #define ESX_VERSION ESX_VERSION_MAJOR "." ESX_VERSION_MINOR "." \
-                    ESX_VERSION_MAINT
+                    ESX_VERSION_UPDATE
 #define ESX_VERSION_THIRD_PARTY ESX_VERSION_MAJOR ESX_VERSION_MINOR \
-                                ESX_VERSION_MAINT
-#define ESX_RELEASE_UPDATE "1" /* 0 = Pre-release/GA, 1 = Update 1 */
-#define ESX_RELEASE_PATCH "0"  /* 0 = experimental */
-#define ESX_RELEASE ESX_RELEASE_UPDATE "." ESX_RELEASE_PATCH
+                                ESX_VERSION_UPDATE
+
+#define ESX_RELEASE_UPDATE "1" // Quarterly release
+#define ESX_RELEASE_PATCH "0"  // 0 = experimental
+#define ESX_RELEASE_QUARTERLY ESX_RELEASE_UPDATE // ESX's own quarterly release
+#define ESX_RELEASE ESX_RELEASE_QUARTERLY "." ESX_RELEASE_PATCH
+
 #define WORKSTATION_RELEASE_DESCRIPTION ""
 #define WSX_SERVER_VERSION_NUMBER "1.0.0"
 #define WSX_SERVER_VERSION "e.x.p"
