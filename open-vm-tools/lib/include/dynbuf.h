@@ -410,10 +410,9 @@ static Bool
 static INLINE Bool
 #endif
 DynBuf_GrowToFit(DynBuf *buf, // IN/OUT
-                 uint32 size) // IN
+                 size_t size) // IN
 {
-   return buf->allocated >= size ?
-      TRUE : DynBuf_Enlarge(buf, size - buf->allocated);
+   return buf->allocated >= size ? TRUE : DynBuf_Enlarge(buf, size);
 }
 
 #if defined(__cplusplus)
