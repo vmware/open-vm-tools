@@ -136,7 +136,7 @@
                     ESX_VERSION_MAINT
 #define ESX_VERSION_THIRD_PARTY ESX_VERSION_MAJOR ESX_VERSION_MINOR \
                                 ESX_VERSION_MAINT
-#define ESX_RELEASE_UPDATE "0" /* 0 = Pre-release/GA, 1 = Update 1 */
+#define ESX_RELEASE_UPDATE "1" /* 0 = Pre-release/GA, 1 = Update 1 */
 #define ESX_RELEASE_PATCH "0"  /* 0 = experimental */
 #define ESX_RELEASE ESX_RELEASE_UPDATE "." ESX_RELEASE_PATCH
 #define WORKSTATION_RELEASE_DESCRIPTION ""
