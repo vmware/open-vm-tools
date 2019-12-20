@@ -1077,8 +1077,7 @@ FileGetStats(const char *pathName,       // IN:
    Bool retval = TRUE;
    char *dupPath = NULL;
 
-   while (Posix_Statfs(dupPath ? dupPath : pathName,
-                             pstatfsbuf) == -1) {
+   while (Posix_Statfs(dupPath ? dupPath : pathName, pstatfsbuf) == -1) {
       if (errno != ENOENT || doNotAscend) {
          retval = FALSE;
          break;

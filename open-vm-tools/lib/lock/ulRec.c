@@ -140,7 +140,7 @@ MXUser_EnableStatsRecLock(MXUserRecLock *lock,        // IN/OUT:
                           Bool trackAcquisitionTime,  // IN:
                           Bool trackHeldTime)         // IN:
 {
-   ASSERT(lock);
+   ASSERT(lock != NULL);
    MXUserValidateHeader(&lock->header, MXUSER_TYPE_REC);
 
    if (vmx86_stats) {
@@ -172,7 +172,7 @@ MXUser_EnableStatsRecLock(MXUserRecLock *lock,        // IN/OUT:
 Bool
 MXUser_DisableStatsRecLock(MXUserRecLock *lock)  // IN/OUT:
 {
-   ASSERT(lock);
+   ASSERT(lock != NULL);
    MXUserValidateHeader(&lock->header, MXUSER_TYPE_REC);
 
    if (vmx86_stats) {
@@ -206,7 +206,7 @@ MXUser_SetContentionRatioFloorRecLock(MXUserRecLock *lock,  // IN/OUT:
 {
    Bool result;
 
-   ASSERT(lock);
+   ASSERT(lock != NULL);
    MXUserValidateHeader(&lock->header, MXUSER_TYPE_REC);
 
    if (vmx86_stats) {
@@ -242,7 +242,7 @@ MXUser_SetContentionCountFloorRecLock(MXUserRecLock *lock,  // IN/OUT:
 {
    Bool result;
 
-   ASSERT(lock);
+   ASSERT(lock != NULL);
    MXUserValidateHeader(&lock->header, MXUSER_TYPE_REC);
 
    if (vmx86_stats) {
@@ -278,7 +278,7 @@ MXUser_SetContentionDurationFloorRecLock(MXUserRecLock *lock,  // IN/OUT:
 {
    Bool result;
 
-   ASSERT(lock);
+   ASSERT(lock != NULL);
    MXUserValidateHeader(&lock->header, MXUSER_TYPE_REC);
 
    if (vmx86_stats) {
@@ -430,7 +430,7 @@ MXUser_CreateRecLock(const char *userName,  // IN:
 static void
 MXUserCondDestroyRecLock(MXUserRecLock *lock)  // IN:
 {
-   ASSERT(lock);
+   ASSERT(lock != NULL);
    MXUserValidateHeader(&lock->header, MXUSER_TYPE_REC);
    ASSERT(Atomic_Read(&lock->refCount) > 0);
 
@@ -488,7 +488,7 @@ MXUser_DestroyRecLock(MXUserRecLock *lock)  // IN:
 void
 MXUser_AcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
 {
-   ASSERT(lock);
+   ASSERT(lock != NULL);
    MXUserValidateHeader(&lock->header, MXUSER_TYPE_REC);
    ASSERT(Atomic_Read(&lock->refCount) > 0);
 
@@ -557,7 +557,7 @@ MXUser_AcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
 void
 MXUser_ReleaseRecLock(MXUserRecLock *lock)  // IN/OUT:
 {
-   ASSERT(lock);
+   ASSERT(lock != NULL);
    MXUserValidateHeader(&lock->header, MXUSER_TYPE_REC);
    ASSERT(Atomic_Read(&lock->refCount) > 0);
 
@@ -639,7 +639,7 @@ MXUser_TryAcquireRecLock(MXUserRecLock *lock)  // IN/OUT:
 {
    Bool success;
 
-   ASSERT(lock);
+   ASSERT(lock != NULL);
    MXUserValidateHeader(&lock->header, MXUSER_TYPE_REC);
    ASSERT(Atomic_Read(&lock->refCount) > 0);
 
@@ -697,7 +697,7 @@ MXUser_IsCurThreadHoldingRecLock(MXUserRecLock *lock)  // IN:
 {
    Bool result;
 
-   ASSERT(lock);
+   ASSERT(lock != NULL);
    MXUserValidateHeader(&lock->header, MXUSER_TYPE_REC);
    ASSERT(Atomic_Read(&lock->refCount) > 0);
 
@@ -738,7 +738,7 @@ MXUser_CreateSingletonRecLockInt(Atomic_Ptr *lockStorage,  // IN/OUT:
 {
    MXUserRecLock *lock;
 
-   ASSERT(lockStorage);
+   ASSERT(lockStorage != NULL);
 
    lock = Atomic_ReadPtr(lockStorage);
 
@@ -780,7 +780,7 @@ MXUser_CreateCondVarRecLock(MXUserRecLock *lock)
 {
    MXUserCondVar *condVar;
 
-   ASSERT(lock);
+   ASSERT(lock != NULL);
    MXUserValidateHeader(&lock->header, MXUSER_TYPE_REC);
    ASSERT(lock->vmmLock == NULL);  // only unbound locks
 
@@ -813,7 +813,7 @@ void
 MXUser_WaitCondVarRecLock(MXUserRecLock *lock,     // IN:
                           MXUserCondVar *condVar)  // IN:
 {
-   ASSERT(lock);
+   ASSERT(lock != NULL);
    MXUserValidateHeader(&lock->header, MXUSER_TYPE_REC);
    ASSERT(lock->vmmLock == NULL);  // only unbound locks
 
@@ -846,7 +846,7 @@ MXUser_TimedWaitCondVarRecLock(MXUserRecLock *lock,     // IN:
                                MXUserCondVar *condVar,  // IN:
                                uint32 waitTimeMsec)     // IN:
 {
-   ASSERT(lock);
+   ASSERT(lock != NULL);
    MXUserValidateHeader(&lock->header, MXUSER_TYPE_REC);
    ASSERT(lock->vmmLock == NULL);  // only unbound locks
 
@@ -874,7 +874,7 @@ MXUser_TimedWaitCondVarRecLock(MXUserRecLock *lock,     // IN:
 void
 MXUser_DumpRecLock(MXUserRecLock *lock)  // IN:
 {
-   ASSERT(lock);
+   ASSERT(lock != NULL);
    MXUserValidateHeader(&lock->header, MXUSER_TYPE_REC);
 
    MXUserDumpRecLock(&lock->header);
@@ -900,7 +900,7 @@ MXUser_DumpRecLock(MXUserRecLock *lock)  // IN:
 struct MX_MutexRec *
 MXUser_GetRecLockVmm(MXUserRecLock *lock)  // IN:
 {
-   ASSERT(lock);
+   ASSERT(lock != NULL);
    MXUserValidateHeader(&lock->header, MXUSER_TYPE_REC);
 
    return lock->vmmLock;
@@ -926,7 +926,7 @@ MXUser_GetRecLockVmm(MXUserRecLock *lock)  // IN:
 MX_Rank
 MXUser_GetRecLockRank(MXUserRecLock *lock)  // IN:
 {
-   ASSERT(lock);
+   ASSERT(lock != NULL);
    MXUserValidateHeader(&lock->header, MXUSER_TYPE_REC);
 
    return lock->header.rank;
@@ -958,7 +958,7 @@ MXUser_BindMXMutexRec(struct MX_MutexRec *mutex,  // IN:
    char *name;
    MXUserRecLock *lock;
 
-   ASSERT(mutex);
+   ASSERT(mutex != NULL);
 
    /*
     * Cannot perform a binding unless MX_Init has been called. As a side
@@ -1026,7 +1026,7 @@ MXUser_BindMXMutexRec(struct MX_MutexRec *mutex,  // IN:
 void
 MXUser_IncRefRecLock(MXUserRecLock *lock)  // IN:
 {
-   ASSERT(lock);
+   ASSERT(lock != NULL);
    MXUserValidateHeader(&lock->header, MXUSER_TYPE_REC);
    ASSERT(Atomic_Read(&lock->refCount) > 0);
 
@@ -1054,7 +1054,7 @@ MXUser_IncRefRecLock(MXUserRecLock *lock)  // IN:
 void
 MXUser_DecRefRecLock(MXUserRecLock *lock)  // IN:
 {
-   ASSERT(lock);
+   ASSERT(lock != NULL);
    MXUserValidateHeader(&lock->header, MXUSER_TYPE_REC);
 
    MXUserCondDestroyRecLock(lock);

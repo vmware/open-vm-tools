@@ -524,7 +524,7 @@ MXUserAcquisition(MXUserRWLock *lock,  // IN/OUT:
 {
    HolderContext *myContext;
 
-   ASSERT(lock);
+   ASSERT(lock != NULL);
    MXUserValidateHeader(&lock->header, MXUSER_TYPE_RW);
 
    MXUserAcquisitionTracking(&lock->header, TRUE);
@@ -697,7 +697,7 @@ MXUser_IsCurThreadHoldingRWLock(MXUserRWLock *lock,  // IN:
 {
    HolderContext *myContext;
 
-   ASSERT(lock);
+   ASSERT(lock != NULL);
    MXUserValidateHeader(&lock->header, MXUSER_TYPE_RW);
 
    myContext = MXUserGetHolderContext(lock);
@@ -739,7 +739,7 @@ MXUser_ReleaseRWLock(MXUserRWLock *lock)  // IN/OUT:
 {
    HolderContext *myContext;
 
-   ASSERT(lock);
+   ASSERT(lock != NULL);
    MXUserValidateHeader(&lock->header, MXUSER_TYPE_RW);
 
    myContext = MXUserGetHolderContext(lock);
@@ -828,7 +828,7 @@ MXUser_CreateSingletonRWLockInt(Atomic_Ptr *lockStorage,  // IN/OUT:
 {
    MXUserRWLock *lock;
 
-   ASSERT(lockStorage);
+   ASSERT(lockStorage != NULL);
 
    lock = Atomic_ReadPtr(lockStorage);
 
