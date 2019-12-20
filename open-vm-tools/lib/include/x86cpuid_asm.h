@@ -63,7 +63,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#ifdef VM_X86_64
 /*
  * __cpuid has been supported since VS2003
  * __cpuidex has been supported since VS2008
@@ -72,8 +71,6 @@ void __cpuid(int regs[4], int eax);
 void __cpuidex(int regs[4], int eax, int ecx);
 #pragma intrinsic(__cpuid)
 #pragma intrinsic(__cpuidex)
-
-#endif /* VM_X86_64 */
 
 #ifdef __cplusplus
 }
@@ -91,33 +88,15 @@ void __cpuidex(int regs[4], int eax, int ecx);
  *
  */
 
-/*
- * %ebx is reserved on i386 PIC.  Apple's gcc-5493 (gcc 4.0) compiling
- * for x86_64 incorrectly errors out saying %ebx is reserved.  This is
- * Apple bug 7304232.
- */
-#if vm_x86_64 ? (defined __APPLE_CC__ && __APPLE_CC__ == 5493) : defined __PIC__
-#if vm_x86_64
-/*
- * Note that this generates movq %rbx,%rbx; cpuid; xchgq %rbx,%rbx ...
- * Unfortunately Apple's assembler does not have .ifnes, and I cannot
- * figure out how to do that with .if.   If we ever enable this code
- * on other 64bit systems, both movq & xchgq should be surrounded by
- * .ifnes \"%%rbx\", \"%q1\" & .endif
- */
-#define VM_CPUID_BLOCK  "movq %%rbx, %q1\n\t" \
-                        "cpuid\n\t"           \
-                        "xchgq %%rbx, %q1\n\t"
-#define VM_EBX_OUT(reg) "=&r"(reg)
+#if defined VM_X86_64 || !defined __PIC__
+#define VM_CPUID_BLOCK  "cpuid"
+#define VM_EBX_OUT(reg) "=b"(reg)
 #else
+/* %ebx is reserved on i386 PIC. */
 #define VM_CPUID_BLOCK  "movl %%ebx, %1\n\t" \
                         "cpuid\n\t"          \
                         "xchgl %%ebx, %1\n\t"
 #define VM_EBX_OUT(reg) "=&rm"(reg)
-#endif
-#else
-#define VM_CPUID_BLOCK  "cpuid"
-#define VM_EBX_OUT(reg) "=b"(reg)
 #endif
 
 static INLINE void
@@ -227,30 +206,8 @@ __GET_EDX_FROM_CPUID(uint32 eax) // IN
 static INLINE void
 __GET_CPUID(uint32 input, CPUIDRegs *regs)
 {
-#ifdef VM_X86_64
    __cpuid((int *)regs, input);
-#else
-   __asm push esi
-   __asm push ebx
-   __asm push ecx
-   __asm push edx
-
-   __asm mov  eax, input
-   __asm mov  esi, regs
-   __asm _emit 0x0f __asm _emit 0xa2
-   __asm mov 0x0[esi], eax
-   __asm mov 0x4[esi], ebx
-   __asm mov 0x8[esi], ecx
-   __asm mov 0xC[esi], edx
-
-   __asm pop edx
-   __asm pop ecx
-   __asm pop ebx
-   __asm pop esi
-#endif
 }
-
-#ifdef VM_X86_64
 
 static INLINE void
 __GET_CPUID2(uint32 inputEax, uint32 inputEcx, CPUIDRegs *regs)
@@ -258,138 +215,36 @@ __GET_CPUID2(uint32 inputEax, uint32 inputEcx, CPUIDRegs *regs)
    __cpuidex((int *)regs, inputEax, inputEcx);
 }
 
-#else // VM_X86_64
-
-static INLINE void
-__GET_CPUID2(uint32 inputEax, uint32 inputEcx, CPUIDRegs *regs)
-{
-   __asm push esi
-   __asm push ebx
-   __asm push ecx
-   __asm push edx
-
-   __asm mov  eax, inputEax
-   __asm mov  ecx, inputEcx
-   __asm mov  esi, regs
-   __asm _emit 0x0f __asm _emit 0xa2
-   __asm mov 0x0[esi], eax
-   __asm mov 0x4[esi], ebx
-   __asm mov 0x8[esi], ecx
-   __asm mov 0xC[esi], edx
-
-   __asm pop edx
-   __asm pop ecx
-   __asm pop ebx
-   __asm pop esi
-}
-#endif
-
 static INLINE uint32
 __GET_EAX_FROM_CPUID(uint32 input)
 {
-#ifdef VM_X86_64
    CPUIDRegs regs;
    __cpuid((int *)&regs, input);
    return regs.eax;
-#else
-   uint32 output;
-
-   //NOT_TESTED();
-   __asm push ebx
-   __asm push ecx
-   __asm push edx
-
-   __asm mov  eax, input
-   __asm _emit 0x0f __asm _emit 0xa2
-   __asm mov  output, eax
-
-   __asm pop edx
-   __asm pop ecx
-   __asm pop ebx
-
-   return output;
-#endif
 }
 
 static INLINE uint32
 __GET_EBX_FROM_CPUID(uint32 input)
 {
-#ifdef VM_X86_64
    CPUIDRegs regs;
    __cpuid((int *)&regs, input);
    return regs.ebx;
-#else
-   uint32 output;
-
-   //NOT_TESTED();
-   __asm push ebx
-   __asm push ecx
-   __asm push edx
-
-   __asm mov  eax, input
-   __asm _emit 0x0f __asm _emit 0xa2
-   __asm mov  output, ebx
-
-   __asm pop edx
-   __asm pop ecx
-   __asm pop ebx
-
-   return output;
-#endif
 }
 
 static INLINE uint32
 __GET_ECX_FROM_CPUID(uint32 input)
 {
-#ifdef VM_X86_64
    CPUIDRegs regs;
    __cpuid((int *)&regs, input);
    return regs.ecx;
-#else
-   uint32 output;
-
-   //NOT_TESTED();
-   __asm push ebx
-   __asm push ecx
-   __asm push edx
-
-   __asm mov  eax, input
-   __asm _emit 0x0f __asm _emit 0xa2
-   __asm mov  output, ecx
-
-   __asm pop edx
-   __asm pop ecx
-   __asm pop ebx
-
-   return output;
-#endif
 }
 
 static INLINE uint32
 __GET_EDX_FROM_CPUID(uint32 input)
 {
-#ifdef VM_X86_64
    CPUIDRegs regs;
    __cpuid((int *)&regs, input);
    return regs.edx;
-#else
-   uint32 output;
-
-   //NOT_TESTED();
-   __asm push ebx
-   __asm push ecx
-   __asm push edx
-
-   __asm mov  eax, input
-   __asm _emit 0x0f __asm _emit 0xa2
-   __asm mov  output, edx
-
-   __asm pop edx
-   __asm pop ecx
-   __asm pop ebx
-
-   return output;
-#endif
 }
 
 #else // }
