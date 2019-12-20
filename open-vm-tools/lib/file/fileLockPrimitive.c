@@ -757,8 +757,7 @@ FileLockScanDirectory(const char *lockDir,      // IN:
       Bool       myLockFile;
       LockValues memberValues;
 
-      if ((fileList[i] == NULL) ||
-          (*fileList[i] == 'E')) {
+      if ((fileList[i] == NULL) || (*fileList[i] == 'E')) {
          continue;
       }
 
@@ -769,7 +768,7 @@ FileLockScanDirectory(const char *lockDir,      // IN:
          /* It's me! No need to read or validate anything. */
          ptr = myValues;
       } else {
-         char       buffer[FILELOCK_DATA_SIZE];
+         char buffer[FILELOCK_DATA_SIZE];
 
          /* It's not me! Attempt to extract the member values. */
          err = FileLockMemberValues(lockDir, fileList[i], buffer,
@@ -1099,13 +1098,9 @@ FileLockWaitForPossession(const char *lockDir,       // IN:
                            myValues->memberName) < 0))) &&
         ((strcmp(memberValues->lockType, LOCK_EXCLUSIVE) == 0) ||
          (strcmp(myValues->lockType, LOCK_EXCLUSIVE) == 0))) {
-      char *path;
-      Bool   thisMachine;
-
-      thisMachine = FileLockMachineIDMatch(myValues->machineID,
-                                           memberValues->machineID);
-
-      path = Unicode_Join(lockDir, DIRSEPS, fileName, NULL);
+      Bool thisMachine = FileLockMachineIDMatch(myValues->machineID,
+                                                memberValues->machineID);
+      char *path = Unicode_Join(lockDir, DIRSEPS, fileName, NULL);
 
       while ((err = FileLockSleeper(myValues)) == 0) {
          /* still there? */
@@ -1140,10 +1135,10 @@ FileLockWaitForPossession(const char *lockDir,       // IN:
           (err == EAGAIN)) {
          if (thisMachine) {
             Log(LGPFX" %s timeout on '%s' due to a local process '%s'\n",
-                    __FUNCTION__, path, memberValues->executionID);
+                __FUNCTION__, path, memberValues->executionID);
          } else {
             Log(LGPFX" %s timeout on '%s' due to another machine '%s'\n",
-                    __FUNCTION__, path, memberValues->machineID);
+                __FUNCTION__, path, memberValues->machineID);
          }
       }
 
@@ -1291,7 +1286,7 @@ FileLockCreateEntryDirectory(const char *lockDir,    // IN:
             */
 
             Log(LGPFX" %s: '%s' exists; an old style lock file?\n",
-                      __FUNCTION__, lockDir);
+                __FUNCTION__, lockDir);
 
             err = EBUSY;
             break;
