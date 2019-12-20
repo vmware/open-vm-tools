@@ -390,9 +390,9 @@ DynBuf_Strcat(DynBuf *buf,         // IN/OUT
 /*
  *----------------------------------------------------------------------------
  *
- * DynBuf_GrowToFit --
+ * DynBuf_EnsureMinSize --
  *
- *      GrowToFit that dynbuf has enough room.
+ *      Ensure that the size of the DynBuf is at least 'size'.
  *
  * Results:
  *      TRUE on success
@@ -409,8 +409,8 @@ static Bool
 #else
 static INLINE Bool
 #endif
-DynBuf_GrowToFit(DynBuf *buf, // IN/OUT
-                 size_t size) // IN
+DynBuf_EnsureMinSize(DynBuf *buf, // IN/OUT
+                     size_t size) // IN
 {
    return buf->allocated >= size ? TRUE : DynBuf_Enlarge(buf, size);
 }
