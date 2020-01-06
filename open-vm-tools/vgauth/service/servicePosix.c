@@ -60,14 +60,6 @@
 #     define RLIMIT_AS RLIMIT_RSS
 #  endif
 #endif
-#else
-#if !defined(sun) && (!defined(USING_AUTOCONF) || (defined(HAVE_SYS_IO_H) && defined(HAVE_SYS_SYSINFO_H)))
-#include <sys/io.h>
-#include <sys/sysinfo.h>
-#ifndef HAVE_SYSINFO
-#define HAVE_SYSINFO 1
-#endif
-#endif
 #endif
 
 #if defined(__APPLE__) || defined(__FreeBSD__)
