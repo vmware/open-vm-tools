@@ -33,12 +33,7 @@
 #ifdef VMX86_TOOLS
 extern "C" {      
    #include "debug.h"
-   /* gcc needs special syntax to handle zero-length variadic arguments */
-   #if defined(_MSC_VER)
-   #define LOG(level, fmt, ...) Debug(fmt, __VA_ARGS__)
-   #else
-   #define LOG(level, fmt, ...) Debug(fmt, ##__VA_ARGS__)
-   #endif
+   #define LOG(level, ...) Debug(__VA_ARGS__)
 }
 #else
    #define LOGLEVEL_MODULE dnd
