@@ -253,23 +253,4 @@ __GET_EDX_FROM_CPUID(uint32 input)
 
 #define CPUID_FOR_SIDE_EFFECTS() ((void)__GET_EAX_FROM_CPUID(0))
 
-/* The first parameter is used as an rvalue and then as an lvalue. */
-#define GET_CPUID(_ax, _bx, _cx, _dx) { \
-   CPUIDRegs regs;                      \
-   __GET_CPUID(_ax, &regs);             \
-   _ax = regs.eax;                      \
-   _bx = regs.ebx;                      \
-   _cx = regs.ecx;                      \
-   _dx = regs.edx;                      \
-}
-
-#define GET_CPUID2(_ax, _bx, _cx, _dx) {\
-   CPUIDRegs regs;                      \
-   __GET_CPUID2(_ax, _cx, &regs);       \
-   _ax = regs.eax;                      \
-   _bx = regs.ebx;                      \
-   _cx = regs.ecx;                      \
-   _dx = regs.edx;                      \
-}
-
 #endif
