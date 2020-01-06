@@ -915,8 +915,8 @@ FileIOCreateRetry(FileIODescriptor *file,   // OUT:
       flags |= O_DIRECT;
 #elif !defined(__APPLE__) // Mac hosts need this access flag after opening.
       access &= ~FILEIO_OPEN_UNBUFFERED;
-      LOG_ONCE((LGPFX" %s reverting to buffered IO on %s.\n",
-                __FUNCTION__, pathName));
+      LOG_ONCE(LGPFX" %s reverting to buffered IO on %s.\n",
+               __FUNCTION__, pathName);
 #endif
    }
 
@@ -1971,8 +1971,8 @@ FileIOPwritevCoalesced(
              * already checked for retval == -1 above, so the cast
              * below should be OK. Refer to bug 817761.
              */
-            LOG_ONCE((LGPFX" %s wrote %"FMTSZ"u out of %"FMTSZ"u bytes.\n",
-                      __FUNCTION__, (size_t)retval, leftToWrite));
+            LOG_ONCE(LGPFX" %s wrote %"FMTSZ"u out of %"FMTSZ"u bytes.\n",
+                     __FUNCTION__, (size_t)retval, leftToWrite);
          }
 
          buf += retval;
@@ -3050,15 +3050,15 @@ void
 FileIOAligned_PoolExit(void)
 {
    if (!alignedPool.lock) {
-      LOG_ONCE(("%s called without FileIOAligned_Pool lock\n", __FUNCTION__));
+      LOG_ONCE("%s called without FileIOAligned_Pool lock\n", __FUNCTION__);
       return;
    }
 
    MXUser_AcquireExclLock(alignedPool.lock);
 
    if (alignedPool.numBusy > 0) {
-      LOG_ONCE(("%s: %d busy buffers!  Proceeding with trepidation.\n",
-		__FUNCTION__, alignedPool.numBusy));
+      LOG_ONCE("%s: %d busy buffers!  Proceeding with trepidation.\n",
+               __FUNCTION__, alignedPool.numBusy);
    }
    while (alignedPool.numAlloc > 0) {
       alignedPool.numAlloc--;
@@ -3098,7 +3098,7 @@ FileIOAligned_PoolMalloc(size_t size)  // IN:
    void *buf = NULL;
 
    if (!alignedPool.lock) {
-      LOG_ONCE(("%s called without FileIOAligned_Pool lock\n", __FUNCTION__));
+      LOG_ONCE("%s called without FileIOAligned_Pool lock\n", __FUNCTION__);
       return NULL;
    }
 
@@ -3160,7 +3160,7 @@ FileIOAligned_PoolFree(void *ptr)  // IN:
    VmTimeType now;
 
    if (!alignedPool.lock) {
-      LOG_ONCE(("%s called without FileIOAligned_Pool lock\n", __FUNCTION__));
+      LOG_ONCE("%s called without FileIOAligned_Pool lock\n", __FUNCTION__);
 
       return FALSE;
    }
