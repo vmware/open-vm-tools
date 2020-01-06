@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1569,6 +1569,8 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 #define CPUID_MODEL_ZEN_1F            0x1F // Max Zen model defined in BKDG
 #define CPUID_MODEL_ZEN2_30           0x30 // family == CPUID_FAMILY_ZEN
 #define CPUID_MODEL_ZEN2_3F           0x3F // Max Zen2 model
+#define CPUID_MODEL_ZEN2_70           0x70 // Ryzen3: family Zen, model Zen2
+#define CPUID_MODEL_ZEN2_7F           0x7F // Ryzen3: max model
 #define CPUID_MODEL_ZEN3_00           0x00 // family == CPUID_FAMILY_ZEN3
 #define CPUID_MODEL_ZEN3_0F           0x0F // Max Zen3 model
 
@@ -2188,8 +2190,10 @@ static INLINE Bool
 CPUID_MODEL_IS_ZEN2(uint32 eax)
 {
   return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_ZEN &&
-         (CPUID_EFFECTIVE_MODEL(eax) >= CPUID_MODEL_ZEN2_30 &&
-          CPUID_EFFECTIVE_MODEL(eax) <= CPUID_MODEL_ZEN2_3F);
+         ((CPUID_EFFECTIVE_MODEL(eax) >= CPUID_MODEL_ZEN2_30 &&
+           CPUID_EFFECTIVE_MODEL(eax) <= CPUID_MODEL_ZEN2_3F) ||
+          (CPUID_EFFECTIVE_MODEL(eax) >= CPUID_MODEL_ZEN2_70 &&
+           CPUID_EFFECTIVE_MODEL(eax) <= CPUID_MODEL_ZEN2_7F));
 }
 
 
