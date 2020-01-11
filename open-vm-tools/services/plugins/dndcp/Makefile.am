@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2009-2018 VMware, Inc.  All rights reserved.
+### Copyright (C) 2009-2019 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -25,6 +25,7 @@ libdndcp_la_CPPFLAGS += @GTK_CPPFLAGS@
 libdndcp_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
 libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/dnd
 libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/dndGuest
+libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/dndGuestBase
 libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/stringxx
 libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/xutils
 libdndcp_la_CPPFLAGS += -I$(top_srcdir)/include
@@ -57,18 +58,24 @@ libdndcp_la_SOURCES += dnd/dndCPMsgV4.c
 libdndcp_la_SOURCES += dnd/dndLinux.c
 libdndcp_la_SOURCES += dnd/dndMsg.c
 
+libdndcp_la_SOURCES += dndGuestBase/copyPasteDnDWrapper.cpp
+libdndcp_la_SOURCES += dndGuestBase/dndFileList.cc
+libdndcp_la_SOURCES += dndGuestBase/dndRpcV3.cc
+libdndcp_la_SOURCES += dndGuestBase/guestDnDCPMgr.cc
+libdndcp_la_SOURCES += dndGuestBase/guestDnDDest.cc
+libdndcp_la_SOURCES += dndGuestBase/guestDnDSrc.cc
+libdndcp_la_SOURCES += dndGuestBase/guestDnDMgr.cc
+libdndcp_la_SOURCES += dndGuestBase/guestFileTransfer.cc
+
 libdndcp_la_SOURCES += dndGuest/copyPasteRpcV3.cc
-libdndcp_la_SOURCES += dndGuest/dndFileList.cc
-libdndcp_la_SOURCES += dndGuest/dndRpcV3.cc
 libdndcp_la_SOURCES += dndGuest/guestCopyPasteDest.cc
 libdndcp_la_SOURCES += dndGuest/guestCopyPasteMgr.cc
 libdndcp_la_SOURCES += dndGuest/guestCopyPasteSrc.cc
-libdndcp_la_SOURCES += dndGuest/guestDnDCPMgr.cc
-libdndcp_la_SOURCES += dndGuest/guestDnDDest.cc
-libdndcp_la_SOURCES += dndGuest/guestDnDMgr.cc
-libdndcp_la_SOURCES += dndGuest/guestDnDSrc.cc
-libdndcp_la_SOURCES += dndGuest/guestFileTransfer.cc
+libdndcp_la_SOURCES += dndGuest/vmGuestDnDCPMgr.cc
+libdndcp_la_SOURCES += dndGuest/vmGuestFileTransfer.cc
+libdndcp_la_SOURCES += dndGuest/vmGuestDnDSrc.cc
 libdndcp_la_SOURCES += dndGuest/copyPasteRpcV4.cc
+libdndcp_la_SOURCES += dndGuest/vmGuestDnDMgr.cc
 libdndcp_la_SOURCES += dndGuest/dndRpcV4.cc
 libdndcp_la_SOURCES += dndGuest/fileTransferRpcV4.cc
 libdndcp_la_SOURCES += dndGuest/rpcV3Util.cpp
@@ -80,7 +87,7 @@ libdndcp_la_SOURCES += xutils/xutils.cc
 
 libdndcp_la_SOURCES += copyPasteCompat.c
 libdndcp_la_SOURCES += copyPasteCompatX11.c
-libdndcp_la_SOURCES += copyPasteDnDWrapper.cpp
+libdndcp_la_SOURCES += vmCopyPasteDnDWrapper.cpp
 libdndcp_la_SOURCES += copyPasteDnDX11.cpp
 libdndcp_la_SOURCES += copyPasteUIX11.cpp
 libdndcp_la_SOURCES += dndUIX11.cpp
@@ -98,6 +105,9 @@ if HAVE_MKDTEMP
 libdndcp_la_CPPFLAGS += -DDND_IS_XDG
 libdndcp_la_SOURCES  += dnd/dndXdg.c
 endif
+
+# DND_VM is used to distinguish the dnd feature between WS/FS and View
+libdndcp_la_CPPFLAGS += -DDND_VM
 
 BUILT_SOURCES =
 BUILT_SOURCES += cpFileContents.h

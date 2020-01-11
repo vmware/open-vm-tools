@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2016,2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1518,6 +1518,7 @@ ServiceProtoHandleSessionRequest(ServiceConnection *conn,
               atoi(VGAUTH_PROTOCOL_VERSION));
       packet = Proto_MakeErrorReply(conn, req, err,
                                     "sessionRequest failed; version mismatch");
+      goto send_err;
    }
 
    err = ServiceStartUserConnection(req->reqData.sessionReq.userName,
@@ -1530,6 +1531,7 @@ ServiceProtoHandleSessionRequest(ServiceConnection *conn,
                                        pipeName);
    }
 
+send_err:
    err = ServiceNetworkWriteData(conn, strlen(packet), packet);
    if (err != VGAUTH_E_OK) {
       Warning("%s: failed to send SessionReq reply\n", __FUNCTION__);

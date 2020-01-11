@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -33,6 +33,8 @@
 #include "conf.h"
 #include "guestApp.h"
 #include "serviceObj.h"
+#include "toolsHangDetector.h"
+#include "str.h"
 #include "system.h"
 #include "util.h"
 #include "vmcheck.h"
@@ -42,6 +44,34 @@
 #include "vmware/tools/log.h"
 #include "vmware/tools/utils.h"
 #include "vmware/tools/vmbackup.h"
+
+
+/*
+ * Establish the default and maximum vmusr RPC channel error limits
+ * that will be used to detect that the single allowed toolbox-dnd channel
+ * is not available.
+ */
+
+/*
+ * Lowest number of RPC channel errors to reasonably indicate that the
+ * single allowed toolbox-dnd channel is currently in use by another
+ * process.
+ */
+#define VMUSR_CHANNEL_ERR_MIN 3        /* approximately 3 secs. */
+
+/*
+ * The default number of vmusr channel errors before quitting the vmusr
+ * process start-up.
+ */
+#define VMUSR_CHANNEL_ERR_DEFAULT 5    /* approximately 5  secs. */
+
+/*
+ * Arbitrary upper vmusr channel error count limit.
+ */
+#define VMUSR_CHANNEL_ERR_MAX 15       /* approximately 15 secs. */
+
+#define CONFNAME_MAX_CHANNEL_ATTEMPTS "maxChannelAttempts"
+
 
 /*
  ******************************************************************************
@@ -257,6 +287,81 @@ ToolsCoreReportVersionData(ToolsServiceState *state)
 
 /*
  ******************************************************************************
+ * ToolsCoreSetOptionSignalCb --
+ *
+ *  The SET_OPTION signal callback. The signal was triggered from
+ *  ToolsCoreRpcSetOption. This function is needed to safely run code
+ *  outside of the TCLO RPC handler.
+ *
+ *  Check for TOOLSOPTION_GUEST_LOG_LEVEL,
+ *  and reinitialize the Vmx Guest Logger.
+ *
+ * @param[in]  src      The source object.
+ * @param[in]  ctx      The ToolsAppCtx for passing config.
+ * @param[in]  option   The option key.
+ * @param[in]  value    The option value.
+ * @param[in]  data     Unused.
+ *
+ * Result:
+ *      TRUE on success.
+ *
+ * Side-effects:
+ *      None
+ *
+ ******************************************************************************
+ */
+
+static gboolean
+ToolsCoreSetOptionSignalCb(gpointer src,               // IN
+                           ToolsAppCtx *ctx,           // IN
+                           const gchar *option,        // IN
+                           const gchar *value,         // IN
+                           gpointer data)              // IN
+{
+   if (strcmp(option, TOOLSOPTION_GUEST_LOG_LEVEL) == 0) {
+      ASSERT(value); /* Caller ensures */
+      g_info("Received the tools set option for the guest log level '%s'.\n",
+             value);
+
+      /* Reuse the existing RPC channel */
+      VMTools_SetupVmxGuestLog(FALSE, ctx->config, value);
+   }
+
+   return TRUE;
+}
+
+
+/*
+ ******************************************************************************
+ *
+ * ToolsCoreResetSignalCb --
+ *  The RESET signal callback. The signal was triggered from
+ *  ToolsCoreCheckReset. This function is needed to safely run code
+ *  outside of the RPC Channel reset code.
+ *
+ *  Reinitialize the Vmx Guest Logger.
+ *
+ * @param[in]  src      The source object.
+ * @param[in]  ctx      The ToolsAppCtx for passing the config.
+ * @param[in]  data     Unused.
+ *
+ ******************************************************************************
+ */
+
+static void
+ToolsCoreResetSignalCb(gpointer src,          // IN
+                       ToolsAppCtx *ctx,      // IN
+                       gpointer data)         // IN
+{
+   g_info("Reinitialize the Vmx Guest Logger with a new RPC channel.\n");
+   VMTools_SetupVmxGuestLog(TRUE, ctx->config, NULL); /* New RPC channel */
+   g_info("Clear out the tools hang detector RPC cache state\n");
+   ToolsCoreHangDetector_RpcReset();
+}
+
+
+/*
+ ******************************************************************************
  * ToolsCoreRunLoop --                                                  */ /**
  *
  * Loads and registers all plugins, and runs the service's main loop.
@@ -330,6 +435,22 @@ ToolsCoreRunLoop(ToolsServiceState *state)
                           state);
       }
 
+      if (g_signal_lookup(TOOLS_CORE_SIG_SET_OPTION,
+                          G_OBJECT_TYPE(state->ctx.serviceObj)) != 0) {
+         g_signal_connect(state->ctx.serviceObj,
+                          TOOLS_CORE_SIG_SET_OPTION,
+                          G_CALLBACK(ToolsCoreSetOptionSignalCb),
+                          NULL);
+      }
+
+      if (g_signal_lookup(TOOLS_CORE_SIG_RESET,
+                          G_OBJECT_TYPE(state->ctx.serviceObj)) != 0) {
+         g_signal_connect(state->ctx.serviceObj,
+                          TOOLS_CORE_SIG_RESET,
+                          G_CALLBACK(ToolsCoreResetSignalCb),
+                          NULL);
+      }
+
       state->configCheckTask = g_timeout_add(CONF_POLL_TIME * 1000,
                                              ToolsCoreConfFileCb,
                                              state);
@@ -337,6 +458,12 @@ ToolsCoreRunLoop(ToolsServiceState *state)
 #if defined(__APPLE__)
       ToolsCore_CFRunLoop(state);
 #else
+      /*
+       * For now exclude the MAC due to limited testing.
+       */
+      if (state->mainService && ToolsCoreHangDetector_Start(&state->ctx)) {
+         g_info("Successfully started tools hang detector");
+      }
       g_main_loop_run(state->ctx.mainLoop);
 #endif
    }
@@ -398,6 +525,44 @@ ToolsCore_DumpState(ToolsServiceState *state)
    g_signal_emit_by_name(state->ctx.serviceObj,
                          TOOLS_CORE_SIG_DUMP_STATE,
                          &state->ctx);
+}
+
+
+/**
+ * Return the RpcChannel failure threshold for the tools user service.
+ *
+ * @param[in]      state       The service state.
+ *
+ * @return  The RpcChannel failure limit for the user tools service.
+ */
+
+guint
+ToolsCore_GetVmusrLimit(ToolsServiceState *state)      // IN
+{
+   gint errorLimit = 0;      /* Special value 0 means no error threshold. */
+
+   if (TOOLS_IS_USER_SERVICE(state)) {
+      errorLimit = VMTools_ConfigGetInteger(state->ctx.config,
+                                            state->name,
+                                            CONFNAME_MAX_CHANNEL_ATTEMPTS,
+                                            VMUSR_CHANNEL_ERR_DEFAULT);
+
+      /*
+       * A zero value is allowed and will disable the single vmusr
+       * process restriction.
+       */
+      if (errorLimit != 0 &&
+          (errorLimit < VMUSR_CHANNEL_ERR_MIN ||
+           errorLimit > VMUSR_CHANNEL_ERR_MAX)) {
+         g_warning("%s: Invalid %s: %s (%d) specified in tools configuration; "
+                   "using default value (%d)\n", __FUNCTION__,
+                   state->name, CONFNAME_MAX_CHANNEL_ATTEMPTS,
+                   errorLimit, VMUSR_CHANNEL_ERR_DEFAULT);
+         errorLimit = VMUSR_CHANNEL_ERR_DEFAULT;
+      }
+   }
+
+   return errorLimit;
 }
 
 
@@ -467,6 +632,14 @@ ToolsCore_ReloadConfig(ToolsServiceState *state,
                             state->ctx.config,
                             TRUE,
                             reset);
+
+      /*
+       * Reinitialize the level setting of the VMX Guest Logger
+       * since either the config is changing or we are forcing a reload
+       * of the tools logging subsystem.
+       * However, reuse the RPC channel since it is not affected.
+       */
+      VMTools_SetupVmxGuestLog(FALSE, state->ctx.config, NULL);
    }
 }
 
@@ -482,10 +655,6 @@ ToolsCore_Setup(ToolsServiceState *state)
 {
    GMainContext *gctx;
    ToolsServiceProperty ctxProp = { TOOLS_CORE_PROP_CTX };
-
-   if (!g_thread_supported()) {
-      g_thread_init(NULL);
-   }
 
    /*
     * Useful for debugging purposes. Log the vesion and build information.

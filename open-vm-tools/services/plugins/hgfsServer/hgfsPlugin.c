@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1086,6 +1086,13 @@ ToolsOnLoad(ToolsAppCtx *ctx)
 
    if (!TOOLS_IS_MAIN_SERVICE(ctx) && !TOOLS_IS_USER_SERVICE(ctx)) {
       g_info("Unknown container '%s', not loading HGFS plugin.", ctx->name);
+      return NULL;
+   }
+
+   /*
+    * If not running in a VMware VM, return NULL to disable the plugin.
+    */
+   if (!ctx->isVMware) {
       return NULL;
    }
 

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2017,2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -233,7 +233,8 @@ main(int argc,
       }
 
 create_file:
-      strncpy(buf, files[i].blockerName, sizeof buf);
+      strncpy(buf, files[i].blockerName, sizeof buf - 1);
+      buf[sizeof buf - 1] = '\0';
       strncat(buf, FILENAME, sizeof buf - strlen(files[i].blockerName));
       err = stat(buf, &statbuf);
       if (!err) {

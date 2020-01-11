@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -59,6 +59,7 @@
    LOGLEVEL_VAR(chipset), \
    LOGLEVEL_VAR(smram), \
    LOGLEVEL_VAR(txt), \
+   LOGLEVEL_VAR(gmm), \
    LOGLEVEL_VAR(sgx), \
    LOGLEVEL_VAR(smc), \
    LOGLEVEL_VAR(ich7m), \
@@ -101,7 +102,6 @@
    LOGLEVEL_VAR(pci_vmxnet3), \
    LOGLEVEL_VAR(vcpuhotplug), \
    LOGLEVEL_VAR(vcpuNUMA), \
-   LOGLEVEL_VAR(heci), \
    LOGLEVEL_VAR(pciplugin), \
    LOGLEVEL_VAR(vsock), \
    LOGLEVEL_VAR(vrdma), \
@@ -109,12 +109,13 @@
    LOGLEVEL_VAR(qat), \
    LOGLEVEL_VAR(vtpm), \
    LOGLEVEL_VAR(mor), \
+   LOGLEVEL_VAR(precisionclock), \
    \
    /* user/disk */ \
    LOGLEVEL_VAR(aioMgr), \
    LOGLEVEL_VAR(aioWin32), \
    LOGLEVEL_VAR(aioWin32Completion), \
-   LOGLEVEL_VAR(aioLinux), \
+   LOGLEVEL_VAR(aioKernel), \
    LOGLEVEL_VAR(aioHttp), \
    LOGLEVEL_VAR(aioGeneric), \
    LOGLEVEL_VAR(cdrom), \
@@ -134,6 +135,7 @@
    LOGLEVEL_VAR(mksSWB), \
    LOGLEVEL_VAR(mksClient), \
    LOGLEVEL_VAR(mksServer), \
+   LOGLEVEL_VAR(mksControl), \
    LOGLEVEL_VAR(mksKeyboard), \
    LOGLEVEL_VAR(keymap), \
    LOGLEVEL_VAR(mksMouse), \
@@ -157,9 +159,11 @@
    LOGLEVEL_VAR(mksDX11ResourceView), \
    LOGLEVEL_VAR(mksDX11ShimOps), \
    LOGLEVEL_VAR(mksMTLRenderer), \
+   LOGLEVEL_VAR(mksVulkanRenderer), \
    LOGLEVEL_VAR(vaBasicOps), \
    LOGLEVEL_VAR(vdpPlugin), \
    LOGLEVEL_VAR(vncServer), \
+   LOGLEVEL_VAR(viewClient), \
   \
    /* user/sound */ \
    LOGLEVEL_VAR(sound), \
@@ -326,7 +330,10 @@
    LOGLEVEL_VAR(vvtd), \
    LOGLEVEL_VAR(amdIommu), \
    LOGLEVEL_VAR(vmOvhd), \
-   LOGLEVEL_VAR(assignHw)
+   LOGLEVEL_VAR(assignHw), \
+   LOGLEVEL_VAR(directBoot), \
+   LOGLEVEL_VAR(vwdt), \
+   LOGLEVEL_VAR(keypersist),
 
    /* end of list */
 

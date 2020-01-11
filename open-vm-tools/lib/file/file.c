@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1863,7 +1863,7 @@ FileDeleteDirectoryTree(const char *pathName,  // IN: directory to delete
    char *base;
 
    char **fileList = NULL;
-   Bool sawFileError = FALSE;
+   Err_Number fileError = 0;
 
    if (Posix_EuidAccess(pathName, F_OK) != 0) {
       /*
@@ -1909,7 +1909,7 @@ FileDeleteDirectoryTree(const char *pathName,  // IN: directory to delete
          case S_IFDIR:
             /* Directory, recurse */
             if (!FileDeleteDirectoryTree(curPath, FALSE)) {
-               sawFileError = TRUE;
+               fileError = Err_Errno();
             }
             break;
 
@@ -1917,7 +1917,7 @@ FileDeleteDirectoryTree(const char *pathName,  // IN: directory to delete
          case S_IFLNK:
             /* Delete symlink, not what it points to */
             if (FileDeletion(curPath, FALSE) != 0) {
-               sawFileError = TRUE;
+               fileError = Err_Errno();
             }
             break;
 #endif
@@ -1927,19 +1927,21 @@ FileDeleteDirectoryTree(const char *pathName,  // IN: directory to delete
 #if defined(_WIN32)
                if (File_SetFilePermissions(curPath, S_IWUSR)) {
                   if (FileDeletion(curPath, FALSE) != 0) {
-                     sawFileError = TRUE;
+                     fileError = Err_Errno();
                   }
                } else {
-                  sawFileError = TRUE;
+                  fileError = Err_Errno();
                }
 #else
-               sawFileError = TRUE;
+               fileError = Err_Errno();
 #endif
             }
             break;
          }
       } else {
-         sawFileError = TRUE;
+         fileError = Err_Errno();
+         Log(LGPFX" %s: Lstat of '%s' failed, errno = %d\n",
+             __FUNCTION__, curPath, errno);
       }
 
       Posix_Free(curPath);
@@ -1952,14 +1954,16 @@ FileDeleteDirectoryTree(const char *pathName,  // IN: directory to delete
        * Call File_DeleteEmptyDirectory() only if there is no prior error
        * while deleting the children.
        */
-      if (!sawFileError && !File_DeleteEmptyDirectory(pathName)) {
-         sawFileError = TRUE;
+      if (fileError == 0 && !File_DeleteEmptyDirectory(pathName)) {
+         fileError = Err_Errno();
       }
    }
 
    Util_FreeStringList(fileList, numFiles);
 
-   return !sawFileError;
+   Err_SetErrno(fileError);
+
+   return fileError == 0;
 }
 
 
@@ -2448,6 +2452,7 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
    File_GetPathName(fullPathNoExt, &baseDir, &baseName);
 
    if ((baseDir == NULL) || (*baseDir == '\0')) {
+      free(baseDir);
       baseDir = Unicode_Duplicate(DIRSEPS);
    }
 

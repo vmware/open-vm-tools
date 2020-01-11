@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -168,6 +168,8 @@ HgfsServerPolicy_Init(HgfsInvalidateObjectsFunc invalidateObjects,  // Unused
     */
    ASSERT(invalidateObjects == NULL);
 
+   LOG(8, ("HgfsServerPolicy_Init: enter\n"));
+
    DblLnkLst_Init(&myState.shares);
 
    /* For the guest, we hard code a "root" share */
@@ -204,6 +206,7 @@ HgfsServerPolicy_Init(HgfsInvalidateObjectsFunc invalidateObjects,  // Unused
    enumResources->get = HgfsServerPolicyEnumSharesGet;
    enumResources->exit = HgfsServerPolicyEnumSharesExit;
 
+   LOG(8, ("HgfsServerPolicy_Init: exit\n"));
    return TRUE;
 }
 
@@ -228,8 +231,10 @@ HgfsServerPolicy_Init(HgfsInvalidateObjectsFunc invalidateObjects,  // Unused
 Bool
 HgfsServerPolicy_Cleanup(void)
 {
+   LOG(8, ("HgfsServerPolicy_Cleanup: enter\n"));
    HgfsServerPolicyDestroyShares(&myState.shares);
 
+   LOG(8, ("HgfsServerPolicy_Cleanup: exit\n"));
    return TRUE;
 }
 

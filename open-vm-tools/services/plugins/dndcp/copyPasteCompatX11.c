@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -36,6 +36,8 @@
  *    asks for selection, CopyPasteSelectionGetCB will reply with host
  *    selection text.
  */
+
+#define G_LOG_DOMAIN "dndcp"
 
 #include "dndPluginIntX11.h"
 #include <stdlib.h>
@@ -579,50 +581,41 @@ CopyPasteSelectionGetCB(GtkWidget        *widget,         // IN: unused
       return;
    }
 
-   /* If it is text copy paste, return gHostClipboardBuf. */
+   GdkAtom target;
 #ifndef GTK3
-   if (GDK_SELECTION_TYPE_STRING == selection_data->target ||
-       GDK_SELECTION_TYPE_UTF8_STRING == selection_data->target) {
+   target = selection_data->target;
 #else
-   if (GDK_SELECTION_TYPE_STRING == gtk_selection_data_get_target(selection_data) ||
-       GDK_SELECTION_TYPE_UTF8_STRING == gtk_selection_data_get_target(selection_data)) {
+   target = gtk_selection_data_get_target(selection_data);
 #endif
+
+   /* If it is text copy paste, return gHostClipboardBuf. */
+   if (GDK_SELECTION_TYPE_STRING == target ||
+       GDK_SELECTION_TYPE_UTF8_STRING == target) {
       char *outBuf = gHostClipboardBuf;
+      char *outStringBuf = NULL;
       size_t len = strlen(gHostClipboardBuf);
 
       /*
        * If target is GDK_SELECTION_TYPE_STRING, assume encoding is local code
        * set. Convert from utf8 to local one.
        */
-#ifndef GTK3
-      if (GDK_SELECTION_TYPE_STRING == selection_data->target &&
-#else
-      if (GDK_SELECTION_TYPE_STRING == gtk_selection_data_get_target(selection_data) &&
-#endif
+      if (GDK_SELECTION_TYPE_STRING == target &&
           !CodeSet_Utf8ToCurrent(gHostClipboardBuf,
                                  strlen(gHostClipboardBuf),
-                                 &outBuf,
+                                 &outStringBuf,
                                  &len)) {
          g_debug("CopyPasteSelectionGetCB: can not convert to current codeset\n");
          return;
       }
 
-#ifndef GTK3
-      gtk_selection_data_set(selection_data, selection_data->target, 8,
-#else
-      gtk_selection_data_set(selection_data, gtk_selection_data_get_target(selection_data), 8,
-#endif
-                             outBuf, len);
-      g_debug("CopyPasteSelectionGetCB: Set text [%s]\n", outBuf);
-
-#ifndef GTK3
-      if (GDK_SELECTION_TYPE_STRING == selection_data->target) {
-#else
-      if (GDK_SELECTION_TYPE_STRING == gtk_selection_data_get_target(selection_data)) {
-#endif
-         free(outBuf);
+      if (outStringBuf != NULL) {
+         outBuf = outStringBuf;
       }
 
+      gtk_selection_data_set(selection_data, target, 8, outBuf, len);
+      g_debug("CopyPasteSelectionGetCB: Set text [%s]\n", outBuf);
+
+      free(outStringBuf);
       return;
    }
 }

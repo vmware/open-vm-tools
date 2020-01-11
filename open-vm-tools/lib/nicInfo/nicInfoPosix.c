@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2014-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2014-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -241,6 +241,39 @@ CountNetmaskBitsV6(struct sockaddr *netmask)
 
 /*
  ******************************************************************************
+ * IpEntryMatchesDevice --                                               */ /**
+ *
+ * @brief Check if the IP entry matches the network device.
+ *
+ * @param[in]   devName the device name
+ * @param[in]   label   the IP entry name
+ *
+ * @retval      TRUE if the IP entry name matches the device name
+ *              FALSE otherwise.
+ *
+ ******************************************************************************
+ */
+
+static Bool
+IpEntryMatchesDevice(const char *devName,
+                     const char *label)
+{
+   char *p;
+   size_t n;
+
+   if ((p = strchr(label, ':')) != NULL) {
+      n = p - label;
+   } else {
+      n = strlen(label);
+   }
+
+   /* compare sub string label[0, n) with a null terminated string devName */
+   return (0 == strncmp(devName, label, n) && '\0' == devName[n]);
+}
+
+
+/*
+ ******************************************************************************
  * GuestInfoGetInterface --                                              */ /**
  *
  * @brief Gather IP addresses from ifaddrs and put into NicInfo, filtered
@@ -277,6 +310,22 @@ GuestInfoGetInterface(struct ifaddrs *ifaddrs,
 
       if (sll != NULL && sll->sll_family == AF_PACKET) {
          char macAddress[NICINFO_MAC_LEN];
+
+         /*
+          * PR 2193804:
+          * On ESXi, AF_PACKET family is reported for vmk* interfaces only
+          * and its ifa_flags is reported as 0. No AF_PACKET family ifaddrs
+          * is reported for loopback interface.
+          */
+#if !defined(USERWORLD)
+         /*
+          * Ignore loopback and downed devices.
+          */
+         if (!(pkt->ifa_flags & IFF_UP) || pkt->ifa_flags & IFF_LOOPBACK) {
+            continue;
+         }
+#endif
+
          Str_Sprintf(macAddress, sizeof macAddress,
                      "%02x:%02x:%02x:%02x:%02x:%02x",
                      sll->sll_addr[0], sll->sll_addr[1], sll->sll_addr[2],
@@ -289,18 +338,20 @@ GuestInfoGetInterface(struct ifaddrs *ifaddrs,
             break;
          }
          /*
-          * Now look for all IPv4 and IPv6 interfaces with the same
-          * interface name as the current AF_PACKET interface.
+          * Now look for all IPv4 and IPv6 interfaces that match
+          * the current AF_PACKET interface.
           */
          for (ip = ifaddrs; ip != NULL; ip = ip->ifa_next) {
             struct sockaddr *sa = (struct sockaddr *)ip->ifa_addr;
             if (sa != NULL &&
-                strncmp(ip->ifa_name, pkt->ifa_name, IFNAMSIZ) == 0) {
+                IpEntryMatchesDevice(pkt->ifa_name, ip->ifa_name)) {
                int family = sa->sa_family;
                Bool goodAddress = FALSE;
                unsigned nBits = 0;
                /*
                 * Ignore any loopback addresses.
+                * A loopback address would indicate a misconfiguration, since
+                * this is not a loopback device (we checked for that above).
                 */
                if (family == AF_INET) {
                   struct sockaddr_in *sin = (struct sockaddr_in *)sa;
@@ -359,7 +410,7 @@ GuestInfoGetNicInfo(unsigned int maxIPv4Routes,
 
    /* Get a handle to read the network interface configuration details. */
    if ((intf = intf_open()) == NULL) {
-      g_debug("Error, failed NULL result from intf_open()\n");
+      g_warning("%s: intf_open() failed\n", __FUNCTION__);
       return FALSE;
    }
 
@@ -448,7 +499,6 @@ GuestInfoGetPrimaryIP(void)
 {
    struct ifaddrs *ifaces;
    struct ifaddrs *curr;
-   char *ipstr = NULL;
    char *currIpstr = NULL;
    NicInfoPriority currPri = NICINFO_PRIORITY_MAX;
 
@@ -457,7 +507,7 @@ GuestInfoGetPrimaryIP(void)
     * to traverse and places a pointer to it in ifaces.
     */
    if (getifaddrs(&ifaces) < 0) {
-      return ipstr;
+      return NULL;
    }
 
    /*
@@ -466,7 +516,16 @@ GuestInfoGetPrimaryIP(void)
     * the first non-loopback, internet interface in the interface list.
     */
    for (curr = ifaces; curr != NULL; curr = curr->ifa_next) {
-      int currFamily = ((struct sockaddr_storage *)curr->ifa_addr)->ss_family;
+      char *ipstr = NULL;
+      int currFamily;
+
+      /*
+       * Some interfaces ("tun") have no ifa_addr, so ignore them.
+       */
+      if (NULL == curr->ifa_addr) {
+         continue;
+      }
+      currFamily = ((struct sockaddr_storage *)curr->ifa_addr)->ss_family;
 
       if (!(curr->ifa_flags & IFF_UP) || curr->ifa_flags & IFF_LOOPBACK) {
          continue;
@@ -483,13 +542,15 @@ GuestInfoGetPrimaryIP(void)
          if (pri < currPri) {
             g_debug("%s: ifa_name=%s, pri=%d, currPri=%d, ipstr=%s",
                     __FUNCTION__, curr->ifa_name, pri, currPri, ipstr);
-            g_free(currIpstr);
+            free(currIpstr);
             currIpstr = ipstr;
             currPri = pri;
             if (pri == NICINFO_PRIORITY_PRIMARY) {
                /* not going to find anything better than that */
                break;
             }
+         } else {
+            free(ipstr);
          }
       }
    }
@@ -500,6 +561,7 @@ GuestInfoGetPrimaryIP(void)
 }
 
 #else
+
 #ifndef NO_DNET
 
 char *
@@ -508,20 +570,24 @@ GuestInfoGetPrimaryIP(void)
    GuestInfoIpPriority ipp;
    intf_t *intf = intf_open();
 
-   if (intf != NULL) {
-      ipp.ipstr = NULL;
-      for (ipp.priority = NICINFO_PRIORITY_PRIMARY;
-          ipp.priority < NICINFO_PRIORITY_MAX;
-          ipp.priority++){
-         intf_loop(intf, GuestInfoGetIntf, &ipp);
-         if (ipp.ipstr != NULL) {
-            break;
-         }
-      }
-      intf_close(intf);
+   if (NULL == intf) {
+      g_warning("%s: intf_open() failed\n", __FUNCTION__);
+      return NULL;
    }
 
-   g_debug("%s: returning '%s'", __FUNCTION__, ipp.ipstr);
+   ipp.ipstr = NULL;
+   for (ipp.priority = NICINFO_PRIORITY_PRIMARY;
+       ipp.priority < NICINFO_PRIORITY_MAX;
+       ipp.priority++){
+      intf_loop(intf, GuestInfoGetIntf, &ipp);
+      if (ipp.ipstr != NULL) {
+         break;
+      }
+   }
+   intf_close(intf);
+
+   g_debug("%s: returning '%s'",
+           __FUNCTION__, ipp.ipstr ? ipp.ipstr : "<null>");
 
    return ipp.ipstr;
 }

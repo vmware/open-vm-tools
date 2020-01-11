@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007,2014 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007,2014,2018-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -71,12 +71,12 @@
 
 int Backdoor_MonitorStart(Balloon *b, uint32 protoVersion);
 int Backdoor_MonitorGuestType(Balloon *b);
-int Backdoor_MonitorGetTarget(Balloon *b, uint32 *target);
-int Backdoor_MonitorLockPage(Balloon *b, PPN64 ppn, uint32 *target);
-int Backdoor_MonitorUnlockPage(Balloon *b, PPN64 ppn, uint32 *target);
+int Backdoor_MonitorGetTarget(Balloon *b, uint64 *target);
+int Backdoor_MonitorLockPage(Balloon *b, PPN64 ppn, uint64 *target);
+int Backdoor_MonitorUnlockPage(Balloon *b, PPN64 ppn, uint64 *target);
 int Backdoor_MonitorLockPagesBatched(Balloon *b, PPN64 ppn, uint32 nPages,
-                                     int isLargePages, uint32 *target);
+                                     int isLargePages, uint64 *target);
 int Backdoor_MonitorUnlockPagesBatched(Balloon *b, PPN64 ppn, uint32 nPages,
-                                       int isLargePages, uint32 *target);
+                                       int isLargePages, uint64 *target);
 
 #endif /* _BACKDOOR_BALLOON_H_ */

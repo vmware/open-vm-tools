@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2014-2018 VMware, Inc.  All rights reserved.
+### Copyright (C) 2014-2019 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -48,11 +48,11 @@ libDeployPkg_include_HEADERS += $(top_srcdir)/lib/include/includeCheck.h
 libDeployPkg_include_HEADERS += $(top_srcdir)/lib/include/imgcust-common/imgcust-api.h
 libDeployPkg_include_HEADERS += $(top_srcdir)/lib/include/imgcust-common/log.h
 libDeployPkg_include_HEADERS += $(top_srcdir)/lib/include/imgcust-common/process.h
-libDeployPkg_include_HEADERS += $(top_srcdir)/lib/include/imgcust-guest/guestcust-events.h
 libDeployPkg_include_HEADERS += $(top_srcdir)/lib/include/vm_basic_types.h
 libDeployPkg_include_HEADERS += $(top_srcdir)/lib/include/vmware/tools/guestrpc.h
 libDeployPkg_include_HEADERS += $(top_srcdir)/lib/include/deployPkg/linuxDeployment.h
 libDeployPkg_include_HEADERS += $(top_srcdir)/lib/include/vmware/guestrpc/deploypkg.h
+libDeployPkg_include_HEADERS += $(top_srcdir)/lib/include/vmware/guestrpc/guestcust-events.h
 
 EXTRA_DIST = libDeployPkg.pc.in
 

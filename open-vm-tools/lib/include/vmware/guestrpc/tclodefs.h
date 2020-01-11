@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -64,6 +64,7 @@
 #define TOOLSOPTION_MAP_ROOT_HGFS_SHARE           "mapRootHgfsShare"
 #define TOOLSOPTION_LINK_ROOT_HGFS_SHARE          "linkRootHgfsShare"
 #define TOOLSOPTION_ENABLE_MESSAGE_BUS_TUNNEL     "enableMessageBusTunnel"
+#define TOOLSOPTION_GUEST_LOG_LEVEL               "guestLogLevel"
 
 /*
  * Auto-upgrade commands.
@@ -87,6 +88,20 @@
 
 #define DESKTOP_AUTOLOCK_CMD        "Autolock_Desktop"
 
+/*
+ * Guest log commands.
+ */
+
+#define GUEST_LOG_STATE_CMD "guest.log.state"
+#define GUEST_LOG_TEXT_CMD "guest.log.text"
+
+/*
+ *  Update tools health command.
+ */
+#define UPDATE_TOOLS_HEALTH_CMD "update.tools.health"
+#define TOOLS_HEALTH_NORMAL_KEY "normal"
+#define TOOLS_HEALTH_HUNG_KEY "hung"
+#define TOOLS_HEALTH_GUEST_SLOW_KEY "guest_slow"
 
 /*
  * The max selection buffer length has to be less than the

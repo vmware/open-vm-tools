@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -152,8 +152,8 @@ TimeUtil_StringToDate(TimeUtil_Date *d,  // IN/OUT:
       /* 'YYYY/MM/DD' */
       char temp[16] = { 0 };
 
-      if (!(((date[4] != '/') || (date[7] != '/')) ||
-           ((date[4] != '-') || (date[7] != '-')))) {
+      if (!((date[4] == '/' && date[7] == '/') ||
+            (date[4] == '-' && date[7] == '-'))) {
          return FALSE;
       }
 
@@ -766,7 +766,7 @@ TimeUtil_ProductExpiration(TimeUtil_Expiration *e)  // OUT:
     * determine if a build is set to expire or not.
     */
 #ifdef HARD_EXPIRE
-   static char *hard_expire = "Expire";
+   static char hard_expire[] = "Expire";
    (void)hard_expire;
 
    ASSERT(e);
@@ -785,7 +785,7 @@ TimeUtil_ProductExpiration(TimeUtil_Expiration *e)  // OUT:
 
    e->daysLeft = TimeUtil_DaysLeft(&e->when);
 #else
-   static char *hard_expire = "No Expire";
+   static char hard_expire[] = "No Expire";
    (void) hard_expire;
 
    ASSERT(e);

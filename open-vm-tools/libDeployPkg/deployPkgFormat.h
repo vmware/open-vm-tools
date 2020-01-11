@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -103,11 +103,13 @@ typedef enum {
  *         +-------------------------+
  *         |      (seed+command)     |
  *         |         padding         |
- *         +-------------------------+      
+ *         +-------------------------+
  * </pre>
  */
 
-typedef struct
+typedef
+#include "vmware_pack_begin.h"
+struct
 {
    char signature[VMWAREDEPLOYPKG_SIGNATURE_LENGTH]; // Not null terminated.
    uint8 majorVersion;
@@ -115,34 +117,35 @@ typedef struct
    uint8 payloadType;
    uint8 reserved;
 
+   uint16 pkgProcessTimeout; // timeout value for process execution in deployPkg
+
    /*
     * Structs are aligned to word length. For 32 bit architecture it is 4 bytes
-    * aligned and for 64 bit it is 8 bytes aligned. To make sure 64 bit field
-    * "pkgLength" starts at the same place in both 32 and 64 bit architecture,
-    * we need to add a 4 byte padding. If the padding is not present, package
-    * created in 32 bit architecture will not be read correctly in 64 bit
-    * architecture and vice-versa.
-    *
-    * NOTE: Positioning and size of the pad will change if fields are
-    * added/removed.
+    * aligned and for 64 bit it is 8 bytes aligned. Need to make sure package
+    * created in 32 bit architecture can be read correctly in 64 bit architecture
+    * and vice-versa. So when adding or removing fields, a padding field maybe
+    * needed to enable the payload section to start at the same place in both 32
+    * and 64 bit architecture.
     */
-   uint32 archPadding;
+   uint16 archPadding;   // offset 22
 
-   uint64 pkgLength;     // Total length of package including header, offset 20.
-   uint64 payloadOffset; // Relative to beginning of header, offset 28.
-   uint64 payloadLength; // Length of payload, offset 36.
+   uint64 pkgLength;     // Total length of package including header, offset 24.
+   uint64 payloadOffset; // Relative to beginning of header, offset 32.
+   uint64 payloadLength; // Length of payload, offset 40.
 
    /*
-    * Command string and padding, null terminated, offset 44.
+    * Command string and padding, null terminated.
     * This padding makes the header sector-aligned, making it easier
     * to embed in disks and disk partitions.
     * This string may contain OS-specific env variables, e.g. %SYSTEMDRIVE%.
     */
 
-   char seed[VMWAREDEPLOYPKG_SEED_LENGTH];
-   char command[VMWAREDEPLOYPKG_CMD_LENGTH];
+   char seed[VMWAREDEPLOYPKG_SEED_LENGTH];   // offset 48
+   char command[VMWAREDEPLOYPKG_CMD_LENGTH]; // offset 56
 
-} VMwareDeployPkgHdr;
+}
+#include "vmware_pack_end.h"
+VMwareDeployPkgHdr;
 
 #ifdef _WIN32
 #include "poppack.h"

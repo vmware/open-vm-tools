@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -180,14 +180,14 @@ ToolsCoreServiceGetProperty(GObject *object,
 
    id -= 1;
 
-   g_mutex_lock(self->lock);
+   g_mutex_lock(&self->lock);
 
    if (id < self->props->len) {
       ServiceProperty *p = &g_array_index(self->props, ServiceProperty, id);
       g_value_set_pointer(value, p->value);
    }
 
-   g_mutex_unlock(self->lock);
+   g_mutex_unlock(&self->lock);
 }
 
 
@@ -217,14 +217,14 @@ ToolsCoreServiceSetProperty(GObject *object,
 
    id -= 1;
 
-   g_mutex_lock(self->lock);
+   g_mutex_lock(&self->lock);
 
    if (id < self->props->len) {
       p = &g_array_index(self->props, ServiceProperty, id);
       p->value = g_value_get_pointer(value);
    }
 
-   g_mutex_unlock(self->lock);
+   g_mutex_unlock(&self->lock);
 
    if (p != NULL) {
       g_object_notify(object, p->name);
@@ -260,7 +260,7 @@ ToolsCoreServiceCtor(GType type,
                                                                       params);
 
    self = TOOLSCORE_SERVICE(object);
-   self->lock = g_mutex_new();
+   g_mutex_init(&self->lock);
    self->props = g_array_new(FALSE, FALSE, sizeof (ServiceProperty));
 
    return object;
@@ -296,7 +296,7 @@ ToolsCoreServiceDtor(GObject *object)
    }
 
    g_array_free(self->props, TRUE);
-   g_mutex_free(self->lock);
+   g_mutex_clear(&self->lock);
 }
 
 
@@ -347,6 +347,16 @@ ToolsCore_Service_class_init(gpointer _klass,
                 1,
                 G_TYPE_POINTER);
    g_signal_new(TOOLS_CORE_SIG_RESET,
+                G_OBJECT_CLASS_TYPE(klass),
+                G_SIGNAL_RUN_LAST,
+                0,
+                NULL,
+                NULL,
+                g_cclosure_marshal_VOID__POINTER,
+                G_TYPE_NONE,
+                1,
+                G_TYPE_POINTER);
+   g_signal_new(TOOLS_CORE_SIG_NO_RPC,
                 G_OBJECT_CLASS_TYPE(klass),
                 G_SIGNAL_RUN_LAST,
                 0,
@@ -459,7 +469,7 @@ ToolsCoreService_RegisterProperty(ToolsCoreService *obj,
                                             prop->name,
                                             G_PARAM_READWRITE);
 
-   g_mutex_lock(obj->lock);
+   g_mutex_lock(&obj->lock);
 
    sprop.id = ++PROP_ID_SEQ;
    sprop.name = g_strdup(prop->name);
@@ -467,6 +477,6 @@ ToolsCoreService_RegisterProperty(ToolsCoreService *obj,
    g_array_append_val(obj->props, sprop);
    g_object_class_install_property(G_OBJECT_CLASS(klass), sprop.id, pspec);
 
-   g_mutex_unlock(obj->lock);
+   g_mutex_unlock(&obj->lock);
 }
 

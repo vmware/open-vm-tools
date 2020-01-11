@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -133,38 +133,45 @@ void __cpuidex(int regs[4], int eax, int ecx);
 #endif
 
 static INLINE void
-__GET_CPUID(int eax,         // IN
+__GET_CPUID(uint32     eax,  // IN
             CPUIDRegs *regs) // OUT
 {
    __asm__ __volatile__(
       VM_CPUID_BLOCK
-      : "=a" (regs->eax), VM_EBX_OUT(regs->ebx), "=c" (regs->ecx), "=d" (regs->edx)
+      : "=a" (regs->eax),
+        VM_EBX_OUT(regs->ebx),
+        "=c" (regs->ecx),
+        "=d" (regs->edx)
       : "a" (eax)
       : "memory"
    );
 }
 
 static INLINE void
-__GET_CPUID2(int eax,         // IN
-             int ecx,         // IN
+__GET_CPUID2(uint32 eax,      // IN
+             uint32 ecx,      // IN
              CPUIDRegs *regs) // OUT
 {
    __asm__ __volatile__(
       VM_CPUID_BLOCK
-      : "=a" (regs->eax), VM_EBX_OUT(regs->ebx), "=c" (regs->ecx), "=d" (regs->edx)
+      : "=a" (regs->eax),
+        VM_EBX_OUT(regs->ebx),
+        "=c" (regs->ecx),
+        "=d" (regs->edx)
       : "a" (eax), "c" (ecx)
       : "memory"
    );
 }
 
 static INLINE uint32
-__GET_EAX_FROM_CPUID(int eax) // IN
+__GET_EAX_FROM_CPUID(uint32 eax) // IN
 {
    uint32 ebx;
 
    __asm__ __volatile__(
       VM_CPUID_BLOCK
-      : "=a" (eax), VM_EBX_OUT(ebx)
+      : "=a" (eax),
+        VM_EBX_OUT(ebx)
       : "a" (eax)
       : "memory", "%ecx", "%edx"
    );
@@ -173,7 +180,7 @@ __GET_EAX_FROM_CPUID(int eax) // IN
 }
 
 static INLINE uint32
-__GET_EBX_FROM_CPUID(int eax) // IN
+__GET_EBX_FROM_CPUID(uint32 eax) // IN
 {
    uint32 ebx;
 
@@ -188,14 +195,16 @@ __GET_EBX_FROM_CPUID(int eax) // IN
 }
 
 static INLINE uint32
-__GET_ECX_FROM_CPUID(int eax) // IN
+__GET_ECX_FROM_CPUID(uint32 eax) // IN
 {
    uint32 ecx;
    uint32 ebx;
 
    __asm__ __volatile__(
       VM_CPUID_BLOCK
-      : "=a" (eax), VM_EBX_OUT(ebx), "=c" (ecx)
+      : "=a" (eax),
+        VM_EBX_OUT(ebx),
+        "=c" (ecx)
       : "a" (eax)
       : "memory", "%edx"
    );
@@ -204,14 +213,16 @@ __GET_ECX_FROM_CPUID(int eax) // IN
 }
 
 static INLINE uint32
-__GET_EDX_FROM_CPUID(int eax) // IN
+__GET_EDX_FROM_CPUID(uint32 eax) // IN
 {
    uint32 edx;
    uint32 ebx;
 
    __asm__ __volatile__(
       VM_CPUID_BLOCK
-      : "=a" (eax), VM_EBX_OUT(ebx), "=d" (edx)
+      : "=a" (eax),
+        VM_EBX_OUT(ebx),
+        "=d" (edx)
       : "a" (eax)
       : "memory", "%ecx"
    );
@@ -221,7 +232,7 @@ __GET_EDX_FROM_CPUID(int eax) // IN
 
 
 static INLINE uint32
-__GET_EAX_FROM_CPUID4(int ecx) // IN
+__GET_EAX_FROM_CPUID4(uint32 ecx) // IN
 {
    uint32 eax;
    uint32 ebx;
@@ -242,7 +253,7 @@ __GET_EAX_FROM_CPUID4(int ecx) // IN
 #elif defined(_MSC_VER) // } {
 
 static INLINE void
-__GET_CPUID(int input, CPUIDRegs *regs)
+__GET_CPUID(uint32 input, CPUIDRegs *regs)
 {
 #ifdef VM_X86_64
    __cpuid((int *)regs, input);
@@ -276,7 +287,7 @@ __GET_CPUID(int input, CPUIDRegs *regs)
  */
 
 static INLINE void
-__GET_CPUID2(int inputEax, int inputEcx, CPUIDRegs *regs)
+__GET_CPUID2(uint32 inputEax, uint32 inputEcx, CPUIDRegs *regs)
 {
    __cpuidex((int *)regs, inputEax, inputEcx);
 }
@@ -289,13 +300,13 @@ __GET_CPUID2(int inputEax, int inputEcx, CPUIDRegs *regs)
  */
 
 extern void
-__GET_CPUID2(int inputEax, int inputEcx, CPUIDRegs *regs);
+__GET_CPUID2(uint32 inputEax, uint32 inputEcx, CPUIDRegs *regs);
 #endif // _MSC_VER >= 1500
 
 #else // VM_X86_64
 
 static INLINE void
-__GET_CPUID2(int inputEax, int inputEcx, CPUIDRegs *regs)
+__GET_CPUID2(uint32 inputEax, uint32 inputEcx, CPUIDRegs *regs)
 {
    __asm push esi
    __asm push ebx
@@ -319,7 +330,7 @@ __GET_CPUID2(int inputEax, int inputEcx, CPUIDRegs *regs)
 #endif
 
 static INLINE uint32
-__GET_EAX_FROM_CPUID(int input)
+__GET_EAX_FROM_CPUID(uint32 input)
 {
 #ifdef VM_X86_64
    CPUIDRegs regs;
@@ -346,7 +357,7 @@ __GET_EAX_FROM_CPUID(int input)
 }
 
 static INLINE uint32
-__GET_EBX_FROM_CPUID(int input)
+__GET_EBX_FROM_CPUID(uint32 input)
 {
 #ifdef VM_X86_64
    CPUIDRegs regs;
@@ -373,7 +384,7 @@ __GET_EBX_FROM_CPUID(int input)
 }
 
 static INLINE uint32
-__GET_ECX_FROM_CPUID(int input)
+__GET_ECX_FROM_CPUID(uint32 input)
 {
 #ifdef VM_X86_64
    CPUIDRegs regs;
@@ -400,7 +411,7 @@ __GET_ECX_FROM_CPUID(int input)
 }
 
 static INLINE uint32
-__GET_EDX_FROM_CPUID(int input)
+__GET_EDX_FROM_CPUID(uint32 input)
 {
 #ifdef VM_X86_64
    CPUIDRegs regs;
@@ -434,12 +445,12 @@ __GET_EDX_FROM_CPUID(int input)
  */
 
 extern uint32
-__GET_EAX_FROM_CPUID4(int inputEcx);
+__GET_EAX_FROM_CPUID4(uint32 inputEcx);
 
 #else // VM_X86_64
 
 static INLINE uint32
-__GET_EAX_FROM_CPUID4(int inputEcx)
+__GET_EAX_FROM_CPUID4(uint32 inputEcx)
 {
    uint32 output;
 

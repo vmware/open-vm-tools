@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -201,17 +201,19 @@ VmBackupPrivSendMsg(gchar *msg,
  * Sends a command to the VMX asking it to update VMDB about a new backup event.
  * This will restart the keep-alive timer.
  *
+ * As the name implies, does not abort the quiesce operation on failure.
+ *
  * @param[in]  event    The event to set.
  * @param[in]  code     Error code.
- * @param[in]  dest     Error description.
+ * @param[in]  desc     Error description.
  *
  * @return TRUE on success.
  */
 
 Bool
-VmBackup_SendEvent(const char *event,
-                   const uint32 code,
-                   const char *desc)
+VmBackup_SendEventNoAbort(const char *event,
+                          const uint32 code,
+                          const char *desc)
 {
    Bool success;
    char *result = NULL;
@@ -224,6 +226,7 @@ VmBackup_SendEvent(const char *event,
    if (gBackupState->keepAlive != NULL) {
       g_source_destroy(gBackupState->keepAlive);
       g_source_unref(gBackupState->keepAlive);
+      gBackupState->keepAlive = NULL;
    }
 
    msg = g_strdup_printf(VMBACKUP_PROTOCOL_EVENT_SET" %s %u %s",
@@ -267,19 +270,52 @@ VmBackup_SendEvent(const char *event,
                              &result, &resultLen);
 #endif
 
-   if (!success) {
+   if (success) {
+      ASSERT(gBackupState->keepAlive == NULL);
+      gBackupState->keepAlive =
+         g_timeout_source_new(VMBACKUP_KEEP_ALIVE_PERIOD / 2);
+      VMTOOLSAPP_ATTACH_SOURCE(gBackupState->ctx,
+                               gBackupState->keepAlive,
+                               VmBackupKeepAliveCallback,
+                               NULL,
+                               NULL);
+   } else {
       g_warning("Failed to send vmbackup event: %s, result: %s.\n",
                 msg, result);
    }
    vm_free(result);
    g_free(msg);
 
-   gBackupState->keepAlive = g_timeout_source_new(VMBACKUP_KEEP_ALIVE_PERIOD / 2);
-   VMTOOLSAPP_ATTACH_SOURCE(gBackupState->ctx,
-                            gBackupState->keepAlive,
-                            VmBackupKeepAliveCallback,
-                            NULL,
-                            NULL);
+   return success;
+}
+
+
+/**
+ * Sends a command to the VMX asking it to update VMDB about a new backup event.
+ * This will restart the keep-alive timer.
+ *
+ * Aborts the quiesce operation on RPC failure.
+ *
+ * @param[in]  event    The event to set.
+ * @param[in]  code     Error code.
+ * @param[in]  desc     Error description.
+ *
+ * @return TRUE on success.
+ */
+
+Bool
+VmBackup_SendEvent(const char *event,
+                   const uint32 code,
+                   const char *desc)
+{
+   Bool success = VmBackup_SendEventNoAbort(event, code, desc);
+
+   if (!success  && gBackupState->rpcState != VMBACKUP_RPC_STATE_IGNORE) {
+      g_debug("Changing rpcState from %d to %d\n",
+              gBackupState->rpcState, VMBACKUP_RPC_STATE_ERROR);
+      gBackupState->rpcState = VMBACKUP_RPC_STATE_ERROR;
+   }
+
    return success;
 }
 
@@ -299,12 +335,12 @@ VmBackupFinalize(void)
       g_source_unref(gBackupState->abortTimer);
    }
 
-   g_static_mutex_lock(&gBackupState->opLock);
+   g_mutex_lock(&gBackupState->opLock);
    if (gBackupState->currentOp != NULL) {
       VmBackup_Cancel(gBackupState->currentOp);
       VmBackup_Release(gBackupState->currentOp);
    }
-   g_static_mutex_unlock(&gBackupState->opLock);
+   g_mutex_unlock(&gBackupState->opLock);
 
    VmBackup_SendEvent(VMBACKUP_EVENT_REQUESTOR_DONE, VMBACKUP_SUCCESS, "");
 
@@ -322,7 +358,8 @@ VmBackupFinalize(void)
    if (gBackupState->completer != NULL) {
       gBackupState->completer->release(gBackupState->completer);
    }
-   g_static_mutex_free(&gBackupState->opLock);
+   g_mutex_clear(&gBackupState->opLock);
+   vm_free(gBackupState->configDir);
    g_free(gBackupState->scriptArg);
    g_free(gBackupState->volumes);
    g_free(gBackupState->snapshots);
@@ -440,25 +477,32 @@ VmBackupDoAbort(void)
 {
    g_debug("*** %s\n", __FUNCTION__);
    ASSERT(gBackupState != NULL);
+
+   /*
+    * Once we abort the operation, we don't care about RPC state.
+    */
+   gBackupState->rpcState = VMBACKUP_RPC_STATE_IGNORE;
+
    if (gBackupState->machineState != VMBACKUP_MSTATE_SCRIPT_ERROR &&
        gBackupState->machineState != VMBACKUP_MSTATE_SYNC_ERROR) {
       const char *eventMsg = "Quiesce aborted.";
       /* Mark the current operation as cancelled. */
-      g_static_mutex_lock(&gBackupState->opLock);
+      g_mutex_lock(&gBackupState->opLock);
       if (gBackupState->currentOp != NULL) {
          VmBackup_Cancel(gBackupState->currentOp);
          VmBackup_Release(gBackupState->currentOp);
          gBackupState->currentOp = NULL;
       }
-      g_static_mutex_unlock(&gBackupState->opLock);
+      g_mutex_unlock(&gBackupState->opLock);
 
 #ifdef __linux__
-      /* Thaw the guest if already quiesced */
+      /* If quiescing has been completed, then undo it.  */
       if (gBackupState->machineState == VMBACKUP_MSTATE_SYNC_FREEZE) {
-         g_debug("Guest already quiesced, thawing for abort\n");
-         if (!gBackupState->provider->snapshotDone(gBackupState,
+         g_debug("Aborting with file system already quiesced, undo quiescing "
+                 "operation.\n");
+         if (!gBackupState->provider->undo(gBackupState,
                                       gBackupState->provider->clientData)) {
-            g_debug("Thaw during abort failed\n");
+            g_debug("Quiescing undo failed.\n");
             eventMsg = "Quiesce could not be aborted.";
          }
       }
@@ -516,7 +560,7 @@ VmBackupPostProcessCurrentOp(gboolean *pending)
 
    *pending = FALSE;
 
-   g_static_mutex_lock(&gBackupState->opLock);
+   g_mutex_lock(&gBackupState->opLock);
 
    if (gBackupState->currentOp != NULL) {
       g_debug("%s: checking %s\n", __FUNCTION__, gBackupState->currentOpName);
@@ -583,7 +627,7 @@ VmBackupPostProcessCurrentOp(gboolean *pending)
    }
 
 exit:
-   g_static_mutex_unlock(&gBackupState->opLock);
+   g_mutex_unlock(&gBackupState->opLock);
    return retVal;
 }
 
@@ -620,6 +664,17 @@ VmBackupAsyncCallback(void *clientData)
        * has not finished yet.
        */
       if (opPending) {
+         goto exit;
+      }
+
+      /*
+       * VMX state might have changed when we were processing
+       * currentOp. This is usually detected by failures in
+       * sending backup event to the host.
+       */
+      if (gBackupState->rpcState == VMBACKUP_RPC_STATE_ERROR) {
+         g_warning("Aborting backup operation due to RPC errors.");
+         VmBackupDoAbort();
          goto exit;
       }
    }
@@ -953,10 +1008,11 @@ VmBackupStartCommon(RpcInData *data,
    gBackupState->provider = provider;
    gBackupState->completer = completer;
    gBackupState->needsPriv = FALSE;
-   g_static_mutex_init(&gBackupState->opLock);
+   g_mutex_init(&gBackupState->opLock);
    gBackupState->enableNullDriver = VMBACKUP_CONFIG_GET_BOOL(ctx->config,
                                                              "enableNullDriver",
                                                              TRUE);
+   gBackupState->rpcState = VMBACKUP_RPC_STATE_NORMAL;
 
    g_debug("Using quiesceApps = %d, quiesceFS = %d, allowHWProvider = %d,"
            " execScripts = %d, scriptArg = %s, timeout = %u,"
@@ -1031,6 +1087,7 @@ error:
    if (gBackupState->completer) {
       gBackupState->completer->release(gBackupState->completer);
    }
+   vm_free(gBackupState->configDir);
    g_free(gBackupState->scriptArg);
    g_free(gBackupState->volumes);
    g_free(gBackupState);
@@ -1333,9 +1390,9 @@ VmBackupDumpState(gpointer src,
 
 
 /**
- * Reset callback. Currently does nothing.
+ * Reset callback.  Currently does nothing.
  *
- * @param[in]  src      The source object.
+ * @param[in]  src      The source object.  Unused.
  * @param[in]  ctx      Unused.
  * @param[in]  data     Unused.
  */
@@ -1345,6 +1402,7 @@ VmBackupReset(gpointer src,
               ToolsAppCtx *ctx,
               gpointer data)
 {
+
 }
 
 

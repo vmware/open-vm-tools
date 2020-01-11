@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1317,7 +1317,7 @@ Atomic_And32(Atomic_uint32 *var, // IN/OUT
 #else
    __asm mov eax, val
    __asm mov ebx, var
-   __asm lock and [ebx]Atomic_uint32.value, eax
+   __asm lock And [ebx]Atomic_uint32.value, eax
 #endif
 #else
 #error No compiler defined for Atomic_And
@@ -1382,7 +1382,7 @@ Atomic_Or32(Atomic_uint32 *var, // IN/OUT
 #else
    __asm mov eax, val
    __asm mov ebx, var
-   __asm lock or [ebx]Atomic_uint32.value, eax
+   __asm lock Or [ebx]Atomic_uint32.value, eax
 #endif
 #else
 #error No compiler defined for Atomic_Or
@@ -1447,7 +1447,7 @@ Atomic_Xor32(Atomic_uint32 *var, // IN/OUT
 #else
    __asm mov eax, val
    __asm mov ebx, var
-   __asm lock xor [ebx]Atomic_uint32.value, eax
+   __asm lock Xor [ebx]Atomic_uint32.value, eax
 #endif
 #else
 #error No compiler defined for Atomic_Xor
@@ -2303,7 +2303,10 @@ Atomic_ReadAdd64(Atomic_uint64 *var, // IN/OUT
  *
  * Atomic_ReadSub64 --
  *
- *      Atomically subtracts a 64-bit integer to another
+ *      Atomically subtracts a 64-bit integer from another.
+ *
+ *      Note: It is expected that val <= var.  If untrue, the result
+ *            cannot be represented in an unsigned type.
  *
  * Results:
  *      Returns the old value just prior to the subtraction
@@ -2321,7 +2324,7 @@ Atomic_ReadSub64(Atomic_uint64 *var, // IN/OUT
 #if defined VM_ARM_64
    return _VMATOM_X(ROP, 64, TRUE, &var->value, sub, val);
 #else
-   return Atomic_ReadAdd64(var, -(int64)val);
+   return Atomic_ReadAdd64(var, (uint64)-(int64)val);
 #endif
 }
 
@@ -3618,7 +3621,7 @@ Atomic_ReadInc16(Atomic_uint16 *var) // IN/OUT
 static INLINE uint16
 Atomic_ReadDec16(Atomic_uint16 *var) // IN/OUT
 {
-   return Atomic_ReadAdd16(var, -1);
+   return Atomic_ReadAdd16(var, (uint16)-1);
 }
 #endif
 

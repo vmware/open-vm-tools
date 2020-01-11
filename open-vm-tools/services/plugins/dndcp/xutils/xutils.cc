@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -980,14 +980,13 @@ GetMonitorWorkArea(Glib::RefPtr<Gdk::Screen> screen,    // IN:
     * need.
     */
    HostWindowList windows = GetHostWindowStack();
-
+   bool haveStrut = false;
    for (HostWindowList::const_iterator iter = windows.begin();
         iter != windows.end();
         iter++) {
 
       Glib::RefPtr<Gdk::Window> gdkWindow = *iter;
       std::vector<unsigned long> values;
-      bool haveStrut = false;
       NETWMStrutPartial strut = NETWMStrutPartial();
 
       if (monitor != screen->get_monitor_at_window(gdkWindow)) {
@@ -1115,8 +1114,26 @@ GetMonitorWorkArea(Glib::RefPtr<Gdk::Screen> screen,    // IN:
          workAreaRegion->subtract(rect);
       }
    }
-
-   rect = workAreaRegion->get_extents();
+   /* bug:2163225: _NET_WM_STRUT_PARTIAL and _NET_WM_STRUT could not be retrived in redhat 7.4,7.5,
+    * root cause unknown, have to use _NET_WORKAREA to get Work area directly in redhat 7.4,7.5, note
+    * this fix only works in single monitor.
+    */
+   int monitorNum = screen->get_n_monitors();
+   if ((!haveStrut) && (1 == monitorNum)) {
+      std::vector<unsigned long> values;
+      if (GetCardinalList(screen->get_root_window(), "_NET_WORKAREA", values) && values.size() >= 4 ) {
+         rect.x=values[0];
+         rect.y=values[1];
+         rect.width=values[2];
+         rect.height=values[3];
+      } else {
+         //Property: _NET_WORKAREA not found, workArea set keeps screen size
+         Log("Property:_NET_WORKAREA unable to get or in multi monitor.");
+         rect = workAreaRegion->get_extents();
+      }
+   } else {
+      rect = workAreaRegion->get_extents();
+   }
    workArea.set_x(rect.x);
    workArea.set_y(rect.y);
    workArea.set_width(rect.width);
@@ -1368,6 +1385,73 @@ GetPointerLocation(const Glib::RefPtr<Gdk::Window>& window, // IN
 #else
    window->get_display()->get_pointer(x, y, mask);
 #endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * xutils::GetXWindowSize --
+ *
+ *      Get the width and height of the given window.
+ *
+ * Results:
+ *      true if success, false otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+bool GetXWindowSize(const Glib::RefPtr<Gdk::Window>& window, // IN
+                    int& width,                              // OUT
+                    int& height)                             // OUT
+{
+   Glib::RefPtr<Gdk::Display> display = Gdk::Display::get_default();
+   ::Display *xdisplay = GDK_DISPLAY_XDISPLAY(display->gobj());
+   XWindowAttributes attr;
+   GdkWindow *gdkwin = const_cast<GdkWindow *>(window->gobj());
+
+   if (XGetWindowAttributes(xdisplay, GDK_WINDOW_XID(gdkwin), &attr)) {
+      width = attr.width;
+      height = attr.height;
+      return true;
+   }
+   return false;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * xutils::GetXWindowOrigin --
+ *
+ *      Get the x and y of the given window.
+ *
+ * Results:
+ *      true if success, false otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+bool GetXWindowOrigin(const Glib::RefPtr<Gdk::Window>& window, // IN
+                      int& x,                                  // OUT
+                      int& y)                                  // OUT
+{
+   Glib::RefPtr<Gdk::Display> display = Gdk::Display::get_default();
+   ::Display *xdisplay = GDK_DISPLAY_XDISPLAY(display->gobj());
+   GdkWindow *gdkwin = const_cast<GdkWindow *>(window->gobj());
+   Window child;
+   if (XTranslateCoordinates(xdisplay, GDK_WINDOW_XID(gdkwin),
+                             XDefaultRootWindow(xdisplay), 0, 0, &x, &y,
+                             &child)) {
+      return true;
+   }
+   return false;
 }
 
 

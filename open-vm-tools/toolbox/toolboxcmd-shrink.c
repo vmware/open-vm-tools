@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -105,7 +105,7 @@ ShrinkGetWiperState(void)
          state = WIPER_DISABLED;
       }
    }
-   free(result);
+   ToolsCmd_FreeRPC(result);
    return state;
 }
 
@@ -234,8 +234,9 @@ ShrinkList(void)
 static int
 ShrinkDiskSendRPC(void)
 {
-   char *result;
+   char *result = NULL;
    size_t resultLen;
+   int retVal;
 
    ToolsCmd_PrintErr("\n");
 
@@ -243,11 +244,15 @@ ShrinkDiskSendRPC(void)
                         &result, &resultLen)) {
       ToolsCmd_Print("%s",
                      SU_(disk.shrink.complete, "Disk shrinking complete.\n"));
-      return EXIT_SUCCESS;
+      retVal =  EXIT_SUCCESS;
+   } else {
+      ToolsCmd_PrintErr(SU_(disk.shrink.error,
+                        "Error while shrinking: %s\n"), result);
+      retVal =  EX_TEMPFAIL;
    }
 
-   ToolsCmd_PrintErr(SU_(disk.shrink.error, "Error while shrinking: %s\n"), result);
-   return EX_TEMPFAIL;
+   ToolsCmd_FreeRPC(result);
+   return retVal;
 }
 
 
@@ -438,8 +443,7 @@ ShrinkDoWipeAndShrink(char *mountPoint,         // IN: mount point
          } else {
             ToolsCmd_PrintErr(SU_(error.message, "Error: %s\n"), err);
          }
-
-         rc = EX_TEMPFAIL;
+         /* progress < 100 will result in "rc" of EX_TEMPFAIL */
          break;
       }
 
@@ -461,14 +465,14 @@ ShrinkDoWipeAndShrink(char *mountPoint,         // IN: mount point
    }
 #endif
 
-   rc = EXIT_SUCCESS;
    g_print("\n");
-   if (progress >= 100 && performShrink) {
-      rc = ShrinkDiskSendRPC();
-   } else if (progress < 100) {
+   if (progress < 100) {
       rc = EX_TEMPFAIL;
+   } else if (performShrink) {
+      rc = ShrinkDiskSendRPC();
    } else {
-      g_debug("Shrinking skipped.\n");
+      rc = EXIT_SUCCESS;
+      g_debug("Shrink skipped.\n");
    }
 
    if (rc != EXIT_SUCCESS) {

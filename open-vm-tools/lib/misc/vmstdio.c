@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -30,6 +30,36 @@
 #include "vmware.h"
 #include "dynbuf.h"
 #include "vmstdio.h"
+#include "posixInt.h"
+
+
+static SnowMotionLogger snowMotionLogger = NULL;
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StdIO_ToggleSnowMotionLogging --
+ *
+ *    SnowMotion-specific log toggling - as per PR#2121674 and 2108730, vmx
+ *    corruption appears to occur at some arbitrary point prior to VM powerOn,
+ *    but only in CAT - it has not been reproducible locally or via manually
+ *    triggered Nimbus testruns.
+ *
+ *    To try to isolate the corruption point, add a toggled logging mechanism
+ *    that will dump the results of SuperFGets for the interval between
+ *    main initializing and VM powerOn.
+ *
+ *    This is a strictly temporary mechanism to provide the necessary logging
+ *    to debug this issue.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+StdIO_ToggleSnowMotionLogging(SnowMotionLogger logger)   // IN:
+{
+   snowMotionLogger = logger;
+}
 
 
 /*
@@ -134,6 +164,10 @@ SuperFgets(FILE *stream,   // IN:
    }
 
    *count = size;
+
+   if (snowMotionLogger != NULL) {
+      snowMotionLogger(buf, *count);
+   }
 
    return buf;
 }

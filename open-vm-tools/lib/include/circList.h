@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017,2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -342,6 +342,34 @@ CircList_Push(ListItem *p,               // IN
 {
    CircList_Queue(p, headp);
    *headp = p;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * CircList_InsertAfter --
+ *
+ *      Adds a new member to the list after the provided item.  Assumes p
+ *      is not a member of a list already.
+ *
+ * Result:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static INLINE void
+CircList_InsertAfter(ListItem *p,      // IN:
+                     ListItem *after)  // IN:
+{
+   p->prev = after;
+   p->next = after->next;
+   p->next->prev = p;
+   after->next = p;
 }
 
 

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013,2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013,2018-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -66,10 +66,7 @@ HgfsPackOpenRequest(const char *path,          // IN: Path to file
                     HgfsOp opUsed,             // IN: Op to use
                     HgfsReq *req)              // IN/OUT: Packet to write into
 {
-   char *name;
-   uint32 *nameLength;
    size_t reqSize;
-   int result;
    int openMode, openFlags;
 
    ASSERT(path);
@@ -88,14 +85,22 @@ HgfsPackOpenRequest(const char *path,          // IN: Path to file
 
    switch (opUsed) {
     case HGFS_OP_OPEN_V3: {
+      int result;
       HgfsRequestOpenV3 *requestV3 = HgfsGetRequestPayload(req);
 
       reqSize = sizeof(*requestV3) + HgfsGetRequestHeaderSize();
 
-      /* We'll use these later. */
-      name = requestV3->fileName.name;
-      nameLength = &requestV3->fileName.length;
+      /* Convert to CP name. */
+      result = CPName_ConvertTo(path,
+                                HGFS_LARGE_PACKET_MAX - (reqSize - 1),
+                                requestV3->fileName.name);
+      if (result < 0) {
+         LOG(4, ("CP conversion failed.\n"));
+         return -EINVAL;
+      }
 
+      requestV3->fileName.length = result;
+      reqSize += result;
       /* Linux clients need case-sensitive lookups. */
       requestV3->fileName.flags = 0;
       requestV3->fileName.caseType = HGFS_FILE_NAME_CASE_SENSITIVE;
@@ -122,15 +127,24 @@ HgfsPackOpenRequest(const char *path,          // IN: Path to file
    }
 
    case HGFS_OP_OPEN_V2: {
+      int result;
       HgfsRequestOpenV2 *requestV2;
 
       requestV2 = (HgfsRequestOpenV2 *)(HGFS_REQ_PAYLOAD(req));
 
-      /* We'll use these later. */
-      name = requestV2->fileName.name;
-      nameLength = &requestV2->fileName.length;
       reqSize = sizeof *requestV2;
 
+      /* Convert to CP name. */
+      result = CPName_ConvertTo(path,
+                                HGFS_LARGE_PACKET_MAX - (reqSize - 1),
+                                requestV2->fileName.name);
+      if (result < 0) {
+         LOG(4, ("CP conversion failed.\n"));
+         return -EINVAL;
+      }
+
+      requestV2->fileName.length = result;
+      reqSize += result;
       requestV2->mask = mask;
       requestV2->mode = openMode;
       requestV2->flags = openFlags;
@@ -148,14 +162,23 @@ HgfsPackOpenRequest(const char *path,          // IN: Path to file
       break;
    }
    case HGFS_OP_OPEN: {
+      int result;
       HgfsRequestOpen *request;
 
       request = (HgfsRequestOpen *)(HGFS_REQ_PAYLOAD(req));
-      /* We'll use these later. */
-      name = request->fileName.name;
-      nameLength = &request->fileName.length;
       reqSize = sizeof *request;
 
+      /* Convert to CP name. */
+      result = CPName_ConvertTo(path,
+                                HGFS_LARGE_PACKET_MAX - (reqSize - 1),
+                                request->fileName.name);
+      if (result < 0) {
+         LOG(4, ("CP conversion failed.\n"));
+         return -EINVAL;
+      }
+
+      request->fileName.length = result;
+      reqSize += result;
       request->mode = openMode;
       request->flags = openFlags;
 
@@ -168,18 +191,7 @@ HgfsPackOpenRequest(const char *path,          // IN: Path to file
       return -EPROTO;
    }
 
-
-   /* Convert to CP name. */
-   result = CPName_ConvertTo(path,
-                             HGFS_LARGE_PACKET_MAX - (reqSize - 1),
-                             name);
-   if (result < 0) {
-      LOG(4, ("CP conversion failed.\n"));
-      return -EINVAL;
-   }
-
-   *nameLength = (uint32) result;
-   req->payloadSize = reqSize + result;
+   req->payloadSize = reqSize;
 
    /* Fill in header here as payloadSize needs to be there. */
    HgfsPackHeader(req, opUsed);
@@ -915,10 +927,6 @@ int
 HgfsRename(const char* from, const char* to)
 {
    HgfsReq *req = NULL;
-   char *oldName;
-   char *newName;
-   uint32 *oldNameLength;
-   uint32 *newNameLength;
    int result = 0;
    uint32 reqSize;
    HgfsOp opUsed;
@@ -942,33 +950,41 @@ retry:
    if (opUsed == HGFS_OP_RENAME_V3) {
       HgfsRequestRenameV3 *requestV3 = HgfsGetRequestPayload(req);
 
-      oldName = requestV3->oldName.name;
-      oldNameLength = &requestV3->oldName.length;
       requestV3->hints = 0;
       requestV3->oldName.flags = 0;
       requestV3->oldName.fid = HGFS_INVALID_HANDLE;
       requestV3->oldName.caseType = HGFS_FILE_NAME_CASE_SENSITIVE;
       requestV3->reserved = 0;
       reqSize = sizeof(*requestV3) + HgfsGetRequestHeaderSize();
+      /* Convert old name to CP format. */
+      result = CPName_ConvertTo(from,
+                                HGFS_NAME_BUFFER_SIZET(HGFS_LARGE_PACKET_MAX, reqSize),
+                                requestV3->oldName.name);
+      if (result < 0) {
+         LOG(4, ("oldName CP conversion failed\n"));
+         result = -EINVAL;
+         goto out;
+      }
+
+      requestV3->oldName.length = result;
+      reqSize += result;
    } else {
       HgfsRequestRename *request = (HgfsRequestRename *)HGFS_REQ_PAYLOAD(req);
 
-      oldName = request->oldName.name;
-      oldNameLength = &request->oldName.length;
       reqSize = sizeof *request;
-   }
-   /* Convert old name to CP format. */
-   result = CPName_ConvertTo(from,
-                             HGFS_NAME_BUFFER_SIZET(HGFS_LARGE_PACKET_MAX, reqSize),
-                             oldName);
-   if (result < 0) {
-      LOG(4, ("oldName CP conversion failed\n"));
-      result = -EINVAL;
-      goto out;
-   }
+      /* Convert old name to CP format. */
+      result = CPName_ConvertTo(from,
+                                HGFS_NAME_BUFFER_SIZET(HGFS_LARGE_PACKET_MAX, reqSize),
+                                request->oldName.name);
+      if (result < 0) {
+         LOG(4, ("oldName CP conversion failed\n"));
+         result = -EINVAL;
+         goto out;
+      }
 
-   *oldNameLength = result;
-   reqSize += result;
+      request->oldName.length = result;
+      reqSize += result;
+   }
 
    /*
     * Build full new name to send to server.
@@ -983,8 +999,20 @@ retry:
 
       newNameP = (HgfsFileNameV3 *)((char *)&requestV3->oldName +
                                     sizeof requestV3->oldName + result);
-      newName = newNameP->name;
-      newNameLength = &newNameP->length;
+
+      LOG(6, ("New name: \"%s\"\n", newNameP->name));
+
+      /* Convert new name to CP format. */
+      result = CPName_ConvertTo(to,
+                                HGFS_NAME_BUFFER_SIZET(HGFS_LARGE_PACKET_MAX, reqSize) - result,
+                                newNameP->name);
+      if (result < 0) {
+         LOG(4, ("newName CP conversion failed\n"));
+         result = -EINVAL;
+         goto out;
+      }
+      newNameP->length = result;
+      reqSize += result;
       newNameP->flags = 0;
       newNameP->fid = HGFS_INVALID_HANDLE;
       newNameP->caseType = HGFS_FILE_NAME_CASE_SENSITIVE;
@@ -993,24 +1021,22 @@ retry:
       HgfsFileName *newNameP;
       newNameP = (HgfsFileName *)((char *)&request->oldName +
                                   sizeof request->oldName + result);
-      newName = newNameP->name;
-      newNameLength = &newNameP->length;
+
+      LOG(6, ("New name: \"%s\"\n", newNameP->name));
+
+      /* Convert new name to CP format. */
+      result = CPName_ConvertTo(to,
+                                HGFS_NAME_BUFFER_SIZET(HGFS_LARGE_PACKET_MAX, reqSize) - result,
+                                newNameP->name);
+      if (result < 0) {
+         LOG(4, ("newName CP conversion failed\n"));
+         result = -EINVAL;
+         goto out;
+      }
+      newNameP->length = result;
+      reqSize += result;
    }
 
-   LOG(6, ("New name: \"%s\"\n", newName));
-
-   /* Convert new name to CP format. */
-   result = CPName_ConvertTo(to,
-                             HGFS_NAME_BUFFER_SIZET(HGFS_LARGE_PACKET_MAX, reqSize) - result,
-                             newName);
-   if (result < 0) {
-      LOG(4, ("newName CP conversion failed\n"));
-      result = -EINVAL;
-      goto out;
-   }
-
-   *newNameLength = result;
-   reqSize += result;
    req->payloadSize = reqSize;
 
    /* Fill in header here as payloadSize needs to be there. */
@@ -1068,7 +1094,7 @@ retry:
          }
          break;
       default:
-         LOG(4, ("failed with result %d\n", result));
+         LOG(4, ("Server protocol result %d\n", result));
       }
       break;
    default:
@@ -1109,21 +1135,17 @@ HgfsPackSetattrRequest(const char *path,   // IN:  path to file
 {
    HgfsAttrV2 *attrV2;
    HgfsAttr *attrV1;
-   HgfsAttrHint *hints;
    HgfsAttrChanges *update;
-   char *fileName = NULL;
-   uint32 *fileNameLength = NULL;
    size_t reqBufferSize;
    size_t reqSize;
-   int result = 0;
    ASSERT(req);
 
    switch (opUsed) {
    case HGFS_OP_SETATTR_V3: {
+      int result;
       HgfsRequestSetattrV3 *requestV3 = HgfsGetRequestPayload(req);
 
       attrV2 = &requestV3->attr;
-      hints = &requestV3->hints;
 
       /*
        * Clear attributes, mask, and hints before touching them.
@@ -1131,7 +1153,7 @@ HgfsPackSetattrRequest(const char *path,   // IN:  path to file
        * make sure to zero them all here.
        */
       memset(attrV2, 0, sizeof *attrV2);
-      memset(hints, 0, sizeof *hints);
+      requestV3->hints = 0;
 
       /*
        * When possible, issue a setattr using an existing handle. This will
@@ -1143,14 +1165,21 @@ HgfsPackSetattrRequest(const char *path,   // IN:  path to file
        * the times also requires write permissions on Windows, so we require it
        * here too. Otherwise, any handle will do.
        */
-      fileName = requestV3->fileName.name;
-      fileNameLength = &requestV3->fileName.length;
       requestV3->fileName.caseType = HGFS_FILE_NAME_CASE_SENSITIVE;
       requestV3->fileName.fid = HGFS_INVALID_HANDLE;
       requestV3->fileName.flags = 0;
       requestV3->reserved = 0;
       reqSize = sizeof(*requestV3) + HgfsGetRequestHeaderSize();
       reqBufferSize = HGFS_NAME_BUFFER_SIZET(HGFS_LARGE_PACKET_MAX, reqSize);
+      result = CPName_ConvertTo(path,
+                                reqBufferSize,
+                                requestV3->fileName.name);
+      if (result < 0) {
+         LOG(4, ("CP conversion failed.\n"));
+         return -EINVAL;
+      }
+      requestV3->fileName.length = result;
+      reqSize += result;
 
       attrV2->mask = attr->mask;
       if (attr->mask & (HGFS_ATTR_VALID_SPECIAL_PERMS |
@@ -1173,22 +1202,22 @@ HgfsPackSetattrRequest(const char *path,   // IN:  path to file
       }
       if (attr->mask & HGFS_ATTR_VALID_ACCESS_TIME) {
          attrV2->accessTime = attr->accessTime;
-         *hints |= HGFS_ATTR_HINT_SET_ACCESS_TIME;
+         requestV3->hints |= HGFS_ATTR_HINT_SET_ACCESS_TIME;
       }
       if (attr->mask & HGFS_ATTR_VALID_WRITE_TIME) {
          attrV2->writeTime = attr->writeTime;
-         *hints |= HGFS_ATTR_HINT_SET_WRITE_TIME;
+         requestV3->hints |= HGFS_ATTR_HINT_SET_WRITE_TIME;
       }
 
       break;
    }
    case HGFS_OP_SETATTR_V2: {
+      int result;
       HgfsRequestSetattrV2 *requestV2;
 
       requestV2 = (HgfsRequestSetattrV2 *)(HGFS_REQ_PAYLOAD(req));
 
       attrV2 = &requestV2->attr;
-      hints = &requestV2->hints;
 
       /*
        * Clear attributes, mask, and hints before touching them.
@@ -1196,13 +1225,19 @@ HgfsPackSetattrRequest(const char *path,   // IN:  path to file
        * make sure to zero them all here.
        */
       memset(attrV2, 0, sizeof *attrV2);
-      memset(hints, 0, sizeof *hints);
-
-      fileName = requestV2->fileName.name;
-      fileNameLength = &requestV2->fileName.length;
+      requestV2->hints = 0;
 
       reqSize = sizeof *requestV2;
       reqBufferSize = HGFS_NAME_BUFFER_SIZE(HGFS_LARGE_PACKET_MAX, requestV2);
+      result = CPName_ConvertTo(path,
+                                reqBufferSize,
+                                requestV2->fileName.name);
+      if (result < 0) {
+         LOG(4, ("CP conversion failed.\n"));
+         return -EINVAL;
+      }
+      requestV2->fileName.length = result;
+      reqSize += result;
 
       if (attr->mask & (HGFS_ATTR_VALID_SPECIAL_PERMS |
                           HGFS_ATTR_VALID_OWNER_PERMS |
@@ -1224,16 +1259,17 @@ HgfsPackSetattrRequest(const char *path,   // IN:  path to file
       }
       if (attr->mask & HGFS_ATTR_VALID_ACCESS_TIME) {
          attrV2->accessTime = attr->accessTime;
-         *hints |= HGFS_ATTR_HINT_SET_ACCESS_TIME;
+         requestV2->hints |= HGFS_ATTR_HINT_SET_ACCESS_TIME;
       }
       if (attr->mask & HGFS_ATTR_VALID_WRITE_TIME) {
          attrV2->writeTime = attr->writeTime;
-         *hints |= HGFS_ATTR_HINT_SET_WRITE_TIME;
+         requestV2->hints |= HGFS_ATTR_HINT_SET_WRITE_TIME;
       }
 
       break;
    }
    case HGFS_OP_SETATTR: {
+      int result;
       HgfsRequestSetattr *request;
 
       request = (HgfsRequestSetattr *)(HGFS_REQ_PAYLOAD(req));
@@ -1241,11 +1277,17 @@ HgfsPackSetattrRequest(const char *path,   // IN:  path to file
       attrV1 = &request->attr;
       update = &request->update;
 
-      /* We'll use these later. */
-      fileName = request->fileName.name;
-      fileNameLength = &request->fileName.length;
       reqSize = sizeof *request;
       reqBufferSize = HGFS_NAME_BUFFER_SIZE(HGFS_LARGE_PACKET_MAX, request);
+      result = CPName_ConvertTo(path,
+                                reqBufferSize,
+                                request->fileName.name);
+      if (result < 0) {
+         LOG(4, ("CP conversion failed.\n"));
+         return -EINVAL;
+      }
+      request->fileName.length = result;
+      reqSize += result;
 
       /*
        * Clear attributes before touching them.
@@ -1284,16 +1326,7 @@ HgfsPackSetattrRequest(const char *path,   // IN:  path to file
       return -EPROTO;
    }
 
-   result = CPName_ConvertTo(path,
-                             reqBufferSize,
-                             fileName);
-      if (result < 0) {
-         LOG(4, ("CP conversion failed.\n"));
-         return -EINVAL;
-   }
-
-   *fileNameLength = result;
-   req->payloadSize = reqSize + result;
+   req->payloadSize = reqSize;
 
    /* Fill in header here as payloadSize needs to be there. */
    HgfsPackHeader(req, opUsed);

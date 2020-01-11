@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -33,6 +33,8 @@
 #include "procMgr.h"
 #include "str.h"
 #include "util.h"
+#include "vmware/tools/log.h"
+
 
 /*
  * These are legacy scripts used before the vmbackup-based backups. To
@@ -163,7 +165,8 @@ VmBackupRunNextScript(VmBackupScriptOp *op)  // IN/OUT
                                scriptOp);
          }
          if (cmd != NULL) {
-            g_debug("Running script: %s\n", cmd);
+            host_debug("Running script: %s\n", scripts[index].path);
+            guest_debug("Running script: %s\n", cmd);
             scripts[index].proc = ProcMgr_ExecAsync(cmd, NULL);
          } else {
             g_debug("Failed to allocate memory to run script: %s\n",

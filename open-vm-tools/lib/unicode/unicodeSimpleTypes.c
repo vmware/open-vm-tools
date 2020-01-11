@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -63,7 +63,7 @@ static struct xRef {
    StringEncoding encoding;       // ICU encoding enum
    Bool isSupported;              // VMware supported encoding
    int preferredMime;             // Index of preferred MIME name 
-   char *names[MAXCHARSETNAMES];  // Encoding name and aliases
+   const char *names[MAXCHARSETNAMES];  // Encoding name and aliases
 } xRef[] = {
    /*
     * Source: ECMA registry
@@ -2779,6 +2779,9 @@ Unicode_IsEncodingValid(StringEncoding encoding)  // IN
  *      native code set name.  The cached name is used to resolve references
  *      to STRING_ENCODING_DEFAULT in unicode functions.
  *
+ *      argv/envp will be rewritten to point to newly allocated memory. This
+ *      memory should be freed by calling Unicode_Shutdown().
+ *
  *-----------------------------------------------------------------------------
  */
 
@@ -2910,6 +2913,37 @@ Unicode_Init(int argc,        // IN
              char ***envp)    // IN/OUT (OPT)
 {
    UnicodeInitInternal(argc, NULL, NULL, NULL, argv, envp);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Unicode_Shutdown --
+ *
+ *      Frees memory allocated by UnicodeInitInternal().
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+Unicode_Shutdown(int argc,              // IN
+                 char **argv,           // IN (OPT)
+                 char **envp)           // IN (OPT)
+{
+   if (argv != NULL) {
+      Util_FreeStringList(argv, argc + 1);
+   }
+
+   if (envp != NULL) {
+      Util_FreeStringList(envp, -1);
+   }
 }
 
 #ifdef TEST_CUSTOM_ICU_DATA_FILE

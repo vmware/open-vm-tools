@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -47,6 +47,7 @@
 #include "guestrpc/nicinfo.h"
 
 #define GUEST_INFO_COMMAND "SetGuestInfo"
+#define GUEST_DISK_INFO_COMMAND "SetGuestDiskInfo"
 #define MAX_VALUE_LEN 100
 
 #define MAX_NICS     16
@@ -55,6 +56,8 @@
 #define MAC_ADDR_SIZE 19
 #define IP_ADDR_SIZE 16
 #define PARTITION_NAME_SIZE MAX_VALUE_LEN
+#define FSTYPE_SIZE 260 // Windows fs types can be up to MAX_PATH chars
+#define DISK_DEVICE_NAME_SIZE 15 // Max size for disk device name - scsi?:?
 
 /* Value to be used when "primary" IP address is indeterminable. */
 #define GUESTINFO_IP_UNKNOWN "unknown"
@@ -71,6 +74,7 @@ typedef enum {
    INFO_MEMORY,
    INFO_IPADDRESS_V2,
    INFO_IPADDRESS_V3,
+   INFO_OS_DETAILED,
    INFO_MAX
 } GuestInfoType;
 
@@ -104,6 +108,18 @@ typedef struct _DiskInfo {
    unsigned int numEntries;
    PPartitionEntry partitionList;
 } GuestDiskInfo, *PGuestDiskInfo;
+
+#define DISK_INFO_VERSION_1 1
+
+/* Disk info json keys */
+#define DISK_INFO_KEY_VERSION          "version"
+#define DISK_INFO_KEY_DISKS            "disks"
+#define DISK_INFO_KEY_DISK_NAME        "name"
+#define DISK_INFO_KEY_DISK_FREE        "free"
+#define DISK_INFO_KEY_DISK_SIZE        "size"
+#define DISK_INFO_KEY_DISK_UUID        "uuid"
+#define DISK_INFO_KEY_DISK_FSTYPE      "fstype"
+#define DISK_INFO_KEY_DISK_DEVICE_ARR  "devices"
 
 /**
  * @}

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -125,6 +125,7 @@ typedef enum {
    VMXNET3_CMD_SET_COALESCE,
    VMXNET3_CMD_REGISTER_MEMREGS,
    VMXNET3_CMD_SET_RSS_FIELDS,
+   VMXNET3_CMD_SET_PKTSTEERING, /* 0xCAFE0011 */
 
    VMXNET3_CMD_FIRST_GET = 0xF00D0000,
    VMXNET3_CMD_GET_QUEUE_STATUS = VMXNET3_CMD_FIRST_GET,
@@ -141,6 +142,7 @@ typedef enum {
    VMXNET3_CMD_GET_COALESCE,
    VMXNET3_CMD_GET_RSS_FIELDS,
    VMXNET3_CMD_GET_ENCAP_DSTPORT,
+   VMXNET3_CMD_GET_PKTSTEERING, /* 0xF00D000E */
 } Vmxnet3_Cmd;
 
 /* Adaptive Ring Info Flags */
@@ -731,6 +733,110 @@ struct Vmxnet3_RxFilterConf {
 }
 #include "vmware_pack_end.h"
 Vmxnet3_RxFilterConf;
+
+#define ETH_ADDR_LENGTH 6
+
+#define VMXNET3_PKTSTEERING_VERSION_ONE    1
+#define VMXNET3_PKTSTEERING_CURRENT_VERSION    VMXNET3_PKTSTEERING_VERSION_ONE
+
+typedef uint8_t Eth_Address[ETH_ADDR_LENGTH];
+
+
+typedef enum {
+   VMXNET3_PKTSTEERING_NOACTION,
+   VMXNET3_PKTSTEERING_ACCEPT,
+   VMXNET3_PKTSTEERING_REJECT,
+   VMXNET3_PKTSTEERING_ACTION_MAX,
+} Vmxnet3_PktSteeringAction;
+
+typedef
+#include "vmware_pack_begin.h"
+struct Vmxnet3_PktSteeringActionData {
+   uint8_t      action; /* enum Vmxnet3PktSteeringAction */
+   uint8_t      rxQid;
+}
+#include "vmware_pack_end.h" 
+Vmxnet3_PktSteeringActionData;
+
+typedef
+#include "vmware_pack_begin.h"
+struct Vmxnet3_PktSteeringInput {
+   uint16_t     l3proto;
+   uint8_t      l4proto;
+   uint8_t      pad;
+
+   uint16_t     srcPort;
+   uint16_t     dstPort;
+
+   union {
+      struct {
+         uint32_t     srcIPv4;
+         uint32_t     dstIPv4;
+      };
+      struct {
+         uint8_t      srcIPv6[16];
+         uint8_t      dstIPv6[16];
+      };
+   };
+
+   Eth_Address  dstMAC;
+   Eth_Address  srcMAC;
+}
+#include "vmware_pack_end.h"
+Vmxnet3_PktSteeringInput;
+
+typedef
+#include "vmware_pack_begin.h"
+struct Vmxnet3_PktSteeringFilterConf {
+   uint8_t                            version;
+   uint8_t                            priority;
+   Vmxnet3_PktSteeringActionData      actionData;
+   Vmxnet3_PktSteeringInput           spec;
+   Vmxnet3_PktSteeringInput           mask;
+   uint8_t                            pad[4];
+}
+#include "vmware_pack_end.h"
+Vmxnet3_PktSteeringFilterConf;
+
+typedef
+#include "vmware_pack_begin.h"
+struct Vmxnet3_PktSteeringVerInfo {
+   uint8_t      version;
+   uint8_t      pad;
+   uint16_t     maxMasks;
+   uint32_t     maxFilters;
+}
+#include "vmware_pack_end.h"
+Vmxnet3_PktSteeringVerInfo;
+
+typedef
+#include "vmware_pack_begin.h"
+struct Vmxnet3_PktSteeringFilterStats {
+   uint64_t      packets;
+}
+#include "vmware_pack_end.h"
+Vmxnet3_PktSteeringFilterStats;
+
+typedef enum {
+   VMXNET3_PKTSTEERING_CMD_GET_VER = 0x0, /* start of GET commands */
+   VMXNET3_PKTSTEERING_CMD_GET_FILTER_STATS,
+
+   VMXNET3_PKTSTEERING_CMD_ADD_FILTER = 0x80, /*start of SET commands */
+   VMXNET3_PKTSTEERING_CMD_DEL_FILTER,
+   VMXNET3_PKTSTEERING_CMD_FLUSH,
+} Vmxnet3_PktSteeringCmd;
+
+typedef
+#include "vmware_pack_begin.h"
+struct Vmxnet3_PktSteeringCmdMsg {
+   uint16_t                       cmd; /* enum Vmxnet3PktSteeringCmd */
+   uint16_t                       msgSize;
+   uint32_t                       outputLen;
+   uint64_t                       outputPA;
+   Vmxnet3_PktSteeringFilterConf  fConf;
+}
+#include "vmware_pack_end.h"
+Vmxnet3_PktSteeringCmdMsg;
 
 #define VMXNET3_PM_MAX_FILTERS        6
 #define VMXNET3_PM_MAX_PATTERN_SIZE   128

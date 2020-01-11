@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -64,8 +64,14 @@ typedef struct WiperPartition {
 
    /* Type of the partition */
    WiperPartition_Type type;
-   
-   /* 
+
+   /* Filesystem name - testing */
+   const char *fsName;
+
+   /* Filesystem type (name) */
+   const char *fsType;
+
+   /*
     * Clients should specifically set this flag to TRUE to enable free space
     * reclamation using unmaps.
     */

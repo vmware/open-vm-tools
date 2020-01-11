@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -481,8 +481,15 @@ VThreadBase_SetName(const char *name)  // IN: new name
    }
 
 #if defined VMW_HAVE_TLS
-   /* Never copy last byte; this ensures NUL-term is always present */
+   /*
+    * Never copy last byte; this ensures NUL-term is always present.
+    * The NUL-term is always present because vthreadName is static,
+    * but gcc-8 generates a warning if it doesn't see it being explicilty
+    * set.
+    */
+
    strncpy(vthreadName, name, sizeof vthreadName - 1);
+   vthreadName[sizeof vthreadName - 1] = '\0';
 #else
    do {
       char *buf;

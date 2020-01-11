@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2017-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -27,6 +27,7 @@
 #include "syncDriver.h"
 #include "syncManifest.h"
 #include "vm_tools_version.h"
+#include "vmware/tools/log.h"
 
 #include <unistd.h>
 #include <stdio.h>
@@ -161,11 +162,14 @@ SyncManifestSend(SyncManifest *manifest)       // IN
       return FALSE;
    }
 
-   if (!VmBackup_SendEvent(VMBACKUP_EVENT_GENERIC_MANIFEST,
-                           VMBACKUP_SUCCESS, manifest->path)) {
-      g_warning("Error trying to send VMBACKUP_EVENT_GENERIC_MANIFEST.\n");
+   if (!VmBackup_SendEventNoAbort(VMBACKUP_EVENT_GENERIC_MANIFEST,
+                                  VMBACKUP_SUCCESS, manifest->path)) {
+      /* VmBackup_SendEventNoAbort logs the error */
+      g_info("Non-fatal error occurred while sending %s, continuing "
+             "with the operation", VMBACKUP_EVENT_GENERIC_MANIFEST);
       return FALSE;
    }
 
+   g_debug("Backup manifest was sent successfully.\n");
    return TRUE;
 }

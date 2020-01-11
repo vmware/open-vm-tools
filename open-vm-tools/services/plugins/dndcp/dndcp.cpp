@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -28,6 +28,8 @@
  */
 
 #include "vmware.h"
+
+#define G_LOG_DOMAIN "dndcp"
 
 extern "C" {
 #include "vmware/guestrpc/tclodefs.h"
@@ -80,6 +82,27 @@ DnDCPReset(gpointer src,
    CopyPasteDnDWrapper *p = CopyPasteDnDWrapper::GetInstance();
    if (p) {
       p->OnReset();
+   }
+}
+
+
+/**
+ * Handle a no_rpc signal.
+ *
+ * @param[in]  src      Unused.
+ * @param[in]  ctx      Unused.
+ * @param[in]  data     Unused.
+ */
+
+static void
+DnDCPNoRpc(gpointer src,
+           ToolsAppCtx *ctx,
+           gpointer data)
+{
+   g_debug("%s: enter\n", __FUNCTION__);
+   CopyPasteDnDWrapper *p = CopyPasteDnDWrapper::GetInstance();
+   if (p) {
+      p->OnNoRpc();
    }
 }
 
@@ -179,6 +202,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)
       ToolsPluginSignalCb sigs[] = {
          { TOOLS_CORE_SIG_CAPABILITIES, (void *) DnDCPCapabilities, NULL },
          { TOOLS_CORE_SIG_RESET, (void *) DnDCPReset, NULL },
+         { TOOLS_CORE_SIG_NO_RPC, (void *) DnDCPNoRpc, NULL },
          { TOOLS_CORE_SIG_SET_OPTION, (void *) DnDCPSetOption, NULL },
          { TOOLS_CORE_SIG_SHUTDOWN, (void *) DnDCPShutdown, NULL }
       };

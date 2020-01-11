@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -59,14 +59,6 @@ VMXLoggerLog(const gchar *domain,
 {
    VMXLoggerData *logger = data;
 
-   VMTools_AcquireLogStateLock();
-   /*
-    * To avoid nested logging inside of RpcChannel, we need to disable logging
-    * here. See bug 1069390.
-    */
-
-   VMTools_StopLogging();
-
    if (RpcChannel_Start(logger->chan)) {
       gchar *msg;
       gint cnt = VMToolsAsprintf(&msg, "log %s", message);
@@ -76,9 +68,6 @@ VMXLoggerLog(const gchar *domain,
       g_free(msg);
       RpcChannel_Stop(logger->chan);
    }
-
-   VMTools_RestartLogging();
-   VMTools_ReleaseLogStateLock();
 }
 
 

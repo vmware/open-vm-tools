@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -119,6 +119,7 @@ void SHA1Update(SHA1_CTX* context,
                 size_t len);
 void SHA1Final(unsigned char digest[SHA1_HASH_LEN], SHA1_CTX* context);
 
+#if defined VMKBOOT || defined VMKERNEL
 void SHA1RawBufferHash(const void *data,
                        uint32 size,
                        uint32 result[5]);
@@ -131,10 +132,34 @@ void SHA1RawInit(uint32 state[5]);
 
 void SHA1MultiBuffer(uint32 numBuffers,
                      uint32 len,
+                     const void *salt,
+                     uint32 saltLen,
                      const void *data[],
                      unsigned char *digests[]);
+#endif
 
 #endif // defined __APPLE__ && defined USERLEVEL
+
+#if !defined VMKBOOT && !defined VMKERNEL
+
+/* OpenSSL opaque type for hashing. Opaque as of openssl-1.1.0. */
+struct evp_md_ctx_st;
+
+typedef struct {
+#ifdef __APPLE__
+   CC_SHA1_CTX cc_ctx;
+#else
+   struct evp_md_ctx_st *md;  /* OpenSSL EVP_MD_CTX */
+#endif
+} CryptoSHA1_CTX;
+
+void CryptoSHA1_Init(CryptoSHA1_CTX *ctx);
+void CryptoSHA1_Update(CryptoSHA1_CTX *ctx,
+                       const unsigned char *data,
+                       size_t len);
+void CryptoSHA1_Final(unsigned char digest[SHA1_HASH_LEN],
+                      CryptoSHA1_CTX *ctx);
+#endif
 
 #if defined(__cplusplus)
 }  // extern "C"

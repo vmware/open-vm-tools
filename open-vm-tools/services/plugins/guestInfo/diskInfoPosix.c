@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2014-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2014-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -34,16 +34,17 @@
  *
  * Uses wiper library to enumerate fixed volumes and lookup utilization data.
  *
- * @return Pointer to a GuestDiskInfo structure on success or NULL on failure.
- *         Caller should free returned pointer with GuestInfoFreeDiskInfo.
+ * @return Pointer to a GuestDiskInfoInt structure on success or NULL on failure.
+ *         Caller should free returned pointer with GuestInfo_FreeDiskInfo.
  *
  ******************************************************************************
  */
 
-GuestDiskInfo *
+GuestDiskInfoInt *
 GuestInfo_GetDiskInfo(const ToolsAppCtx *ctx)
 {
    gboolean includeReserved;
+   gboolean reportDevices;
 
    /*
     * In order to be consistent with the way 'df' reports
@@ -60,5 +61,16 @@ GuestInfo_GetDiskInfo(const ToolsAppCtx *ctx)
       g_debug("Excluding reserved space from diskInfo stats.\n");
    }
 
-   return GuestInfoGetDiskInfoWiper(includeReserved);
+   reportDevices = VMTools_ConfigGetBoolean(ctx->config,
+                                            CONFGROUPNAME_GUESTINFO,
+                                            CONFNAME_DISKINFO_REPORT_DEVICE,
+                                            CONFIG_GUESTINFO_REPORT_DEVICE_DEFAULT);
+
+   /*
+    * TODO: Future performance consideration.  If the ESX host cannot accept
+    *       the new DiskInfo V1, then there really is no value to collecting
+    *       disk device names.  Consider factoring in the setting of
+    *       gInfoCache.diskInfoUseJson in guestInfoServer.c
+    */
+   return GuestInfoGetDiskInfoWiper(includeReserved, reportDevices);
 }

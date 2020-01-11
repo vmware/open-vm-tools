@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013,2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -51,36 +51,81 @@ HgfsPackSymlinkCreateRequest(const char* symlink,     // IN: path of the link
 {
    HgfsRequestSymlinkCreateV3 *requestV3 = NULL;
    HgfsRequestSymlinkCreate *request = NULL;
-   char *symlinkName;
-   uint32 *symlinkNameLength;
-   char *targetName;
-   uint32 *targetNameLength;
    size_t targetNameBytes;
-
    size_t requestSize;
-   int result;
+
+   targetNameBytes = strlen(symname) + 1;
 
    switch (opUsed) {
    case HGFS_OP_CREATE_SYMLINK_V3: {
+      int result;
+      HgfsFileNameV3 *fileNameP;
       requestV3 = HgfsGetRequestPayload(req);
 
-      /* We'll use these later. */
-      symlinkName = requestV3->symlinkName.name;
-      symlinkNameLength = &requestV3->symlinkName.length;
       requestV3->symlinkName.flags = 0;
       requestV3->symlinkName.fid = HGFS_INVALID_HANDLE;
       requestV3->symlinkName.caseType = HGFS_FILE_NAME_CASE_SENSITIVE;
       requestV3->reserved = 0;
       requestSize = sizeof(*requestV3) + HgfsGetRequestHeaderSize();
+      /* Convert symlink name to CP format. */
+      result = CPName_ConvertTo(symlink,
+                                HGFS_LARGE_PACKET_MAX - (requestSize - 1),
+                                requestV3->symlinkName.name);
+      if (result < 0) {
+         LOG(4, ("SymlinkName CP conversion failed.\n"));
+         return -EINVAL;
+      }
+      requestV3->symlinkName.length = result;
+      requestSize += result;
+
+      /* Copy target name into request packet. */
+      if (targetNameBytes > HGFS_LARGE_PACKET_MAX - (requestSize - 1)) {
+         LOG(4, ("Target name is too long.\n"));
+         return -EINVAL;
+      }
+
+      fileNameP = (HgfsFileNameV3 *)((char *)&requestV3->symlinkName +
+                                     sizeof requestV3->symlinkName + result);
+      memcpy(fileNameP->name, symname, targetNameBytes);
+      LOG(6, ("Target name: \"%s\"\n", fileNameP->name));
+      /* Convert target name to CPName-lite format. */
+      CPNameLite_ConvertTo(fileNameP->name, targetNameBytes - 1, '/');
+      fileNameP->length = targetNameBytes - 1;
+      fileNameP->flags = 0;
+      fileNameP->fid = HGFS_INVALID_HANDLE;
+      fileNameP->caseType = HGFS_FILE_NAME_CASE_SENSITIVE;
       break;
    }
    case HGFS_OP_CREATE_SYMLINK: {
+      int result;
+      HgfsFileName *fileNameP;
       request = (HgfsRequestSymlinkCreate *)(HGFS_REQ_PAYLOAD(req));
 
-      /* We'll use these later. */
-      symlinkName = request->symlinkName.name;
-      symlinkNameLength = &request->symlinkName.length;
       requestSize = sizeof *request;
+      /* Convert symlink name to CP format. */
+      result = CPName_ConvertTo(symlink,
+                                HGFS_LARGE_PACKET_MAX - (requestSize - 1),
+                                request->symlinkName.name);
+      if (result < 0) {
+         LOG(4, ("SymlinkName CP conversion failed.\n"));
+         return -EINVAL;
+      }
+      request->symlinkName.length = result;
+      requestSize += result;
+
+      /* Copy target name into request packet. */
+      if (targetNameBytes > HGFS_LARGE_PACKET_MAX - (requestSize - 1)) {
+         LOG(4, ("Target name is too long.\n"));
+         return -EINVAL;
+      }
+
+      fileNameP = (HgfsFileName *)((char *)&request->symlinkName +
+                                   sizeof request->symlinkName + result);
+      memcpy(fileNameP->name, symname, targetNameBytes);
+      LOG(6, ("Target name: \"%s\"\n", fileNameP->name));
+      /* Convert target name to CPName-lite format. */
+      CPNameLite_ConvertTo(fileNameP->name, targetNameBytes - 1, '/');
+      fileNameP->length = targetNameBytes - 1;
       break;
    }
    default:
@@ -88,59 +133,13 @@ HgfsPackSymlinkCreateRequest(const char* symlink,     // IN: path of the link
       return -EPROTO;
    }
 
-
-   /* Convert symlink name to CP format. */
-   result = CPName_ConvertTo(symlink,
-                             HGFS_LARGE_PACKET_MAX - (requestSize - 1),
-                             symlinkName);
-   if (result < 0) {
-      LOG(4, ("SymlinkName CP conversion failed.\n"));
-      return -EINVAL;
-   }
-
-   *symlinkNameLength = result;
-   req->payloadSize = requestSize + result;
+   req->payloadSize = requestSize;
 
    /*
-    * Note the different buffer length. This is because HgfsRequestSymlink
-    * contains two filenames, and once we place the first into the packet we
-    * must account for it when determining the amount of buffer available for
-    * the second.
-    *
-    * Also note that targetNameBytes accounts for the NUL character. Once
-    * we've converted it to CP name, it won't be NUL-terminated and the length
-    * of the string in the packet itself won't account for it.
+    * targetNameBytes accounts for the NUL character. Once we've converted
+    * it to CP name, it won't be NUL-terminated and the length of the string
+    * in the packet itself won't account for it.
     */
-   if (opUsed == HGFS_OP_CREATE_SYMLINK_V3) {
-      HgfsFileNameV3 *fileNameP;
-      fileNameP = (HgfsFileNameV3 *)((char *)&requestV3->symlinkName +
-                                     sizeof requestV3->symlinkName + result);
-      targetName = fileNameP->name;
-      targetNameLength = &fileNameP->length;
-      fileNameP->flags = 0;
-      fileNameP->fid = HGFS_INVALID_HANDLE;
-      fileNameP->caseType = HGFS_FILE_NAME_CASE_SENSITIVE;
-   } else {
-      HgfsFileName *fileNameP;
-      fileNameP = (HgfsFileName *)((char *)&request->symlinkName +
-                                   sizeof request->symlinkName + result);
-      targetName = fileNameP->name;
-      targetNameLength = &fileNameP->length;
-   }
-   targetNameBytes = strlen(symname) + 1;
-
-   /* Copy target name into request packet. */
-   if (targetNameBytes > HGFS_LARGE_PACKET_MAX - (requestSize - 1)) {
-      LOG(4, ("Target name is too long.\n"));
-      return -EINVAL;
-   }
-   memcpy(targetName, symname, targetNameBytes);
-   LOG(6, ("Target name: \"%s\"\n", targetName));
-
-   /* Convert target name to CPName-lite format. */
-   CPNameLite_ConvertTo(targetName, targetNameBytes - 1, '/');
-
-   *targetNameLength = targetNameBytes - 1;
    req->payloadSize += targetNameBytes - 1;
 
    /* Fill in header here as payloadSize needs to be there. */

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -35,16 +35,18 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include "str.h"
 
 #include "mspackWrapper.h"
 #include "deployPkgFormat.h"
 #include "deployPkg/linuxDeployment.h"
 #include "imgcust-common/process.h"
-#include "imgcust-guest/guestcust-events.h"
 #include "linuxDeploymentUtilities.h"
 #include "mspackWrapper.h"
 #include "vmware/guestrpc/deploypkg.h"
+#include "vmware/guestrpc/guestcust-events.h"
 #include "vmware/tools/guestrpc.h"
+#include <file.h>
 #include <strutil.h>
 #include <util.h>
 
@@ -74,9 +76,9 @@ VM_EMBED_VERSION(SYSIMAGE_VERSION_EXT_STR);
 #define IMC_TMP_PATH_VAR "@@IMC_TMP_PATH_VAR@@"
 #endif
 
-// '/tmp' below will be addressed by PR 1601405.
-#ifndef TMP_DIR_PATH_PATTERN
-#define TMP_DIR_PATH_PATTERN "/tmp/.vmware-imgcust-dXXXXXX"
+// Use it to create random name folder for extracting the package
+#ifndef IMC_DIR_PATH_PATTERN
+#define IMC_DIR_PATH_PATTERN "/.vmware-imgcust-dXXXXXX"
 #endif
 
 #ifndef BASEFILENAME
@@ -100,6 +102,11 @@ static const char  BACKSLASH       = '\\';
 static const char* INPROGRESS      = "INPROGRESS";
 static const char* DONE            = "Done";
 static const char* ERRORED         = "ERRORED";
+#ifndef IMGCUST_UNITTEST
+static const char* RUNDIR          = "/run";
+static const char* VARRUNDIR       = "/var/run";
+#endif
+static const char* TMPDIR          = "/tmp";
 
 // Possible return codes from perl script
 static const int CUST_SUCCESS       = 0;
@@ -139,7 +146,7 @@ static bool CopyFileToDirectory(const char* srcPath, const char* destPath,
                                 const char* fileName);
 static DeployPkgStatus Deploy(const char* pkgName);
 static char** GetFormattedCommandLine(const char* command);
-int ForkExecAndWaitCommand(const char* command);
+int ForkExecAndWaitCommand(const char* command, bool ignoreStdErr);
 static void SetDeployError(const char* format, ...);
 static const char* GetDeployError(void);
 static void NoLogging(int level, const char* fmtstr, ...);
@@ -150,6 +157,42 @@ static void NoLogging(int level, const char* fmtstr, ...);
 
 static char* gDeployError = NULL;
 LogFunction sLog = NoLogging;
+static uint16 gProcessTimeout = DEPLOYPKG_PROCESSTIMEOUT_DEFAULT;
+static bool gProcessTimeoutSetByLauncher = false;
+
+// .....................................................................................
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ * DeployPkg_SetTimeout --
+ *
+ *      Give the deploy package an application specific timeout value.
+ *      Package deployment engines such as tools-deployPkg-plugin or standalone program
+ * linuxDeployPkg can call this API to set gProcessTimeout.
+ *      This API should be called before DeployPkg_DeployPackageFromFile or
+ * DeployPkg_DeployPackageFromFileEx.
+ *      If the package header includes valid 'timeout' value, then that value will be
+ * ignored because 'timeout' value has been provided by the package deployment engines.
+ *      If no valid 'timeout' value from both package header and deployment engine, then
+ * default value 100s will be used.
+ *
+ * @param logger [in]
+ *      timeout value to be used for process execution period control
+ *
+ *------------------------------------------------------------------------------
+ */
+
+void
+DeployPkg_SetProcessTimeout(uint16 timeout)
+{
+   if (timeout > 0) {
+      gProcessTimeout = timeout;
+      sLog(log_debug, "Process timeout value from deployment launcher: %u.\n",
+           gProcessTimeout);
+      gProcessTimeoutSetByLauncher = true;
+   }
+}
 
 // .....................................................................................
 
@@ -171,9 +214,10 @@ Panic(const char *fmtstr, ...)
    char *tmp = Util_SafeMalloc(MAXSTRING);
 
    va_start(args, fmtstr);
-   vsprintf(tmp, fmtstr, args);
+   Str_Vsnprintf(tmp, MAXSTRING, fmtstr, args);
+   va_end(args);
 
-   sLog(log_error, "Panic callback invoked: %s\n", tmp);
+   sLog(log_error, "Panic callback invoked: '%s'.\n", tmp);
 
    free(tmp);
 
@@ -201,9 +245,10 @@ Debug(const char *fmtstr, ...)
    char *tmp = Util_SafeMalloc(MAXSTRING);
 
    va_start(args, fmtstr);
-   vsprintf(tmp, fmtstr, args);
+   Str_Vsnprintf(tmp, MAXSTRING, fmtstr, args);
+   va_end(args);
 
-   sLog(log_debug, "Debug callback invoked: %s\n", tmp);
+   sLog(log_debug, "Debug callback invoked: '%s'.\n", tmp);
 
    free(tmp);
 #endif
@@ -245,12 +290,26 @@ SetCustomizationStatusInVmxEx(int customizationState,
    Bool success;
 
    if (errMsg) {
-      msg = malloc(strlen(CABCOMMANDLOG) + 1 + strlen(errMsg) + 1);
+      int msg_size = strlen(CABCOMMANDLOG) + 1 + strlen(errMsg) + 1;
+      msg = malloc(msg_size);
+      if (msg == NULL) {
+         sLog(log_error,
+              "Error allocating memory to copy '%s' and '%s'.\n",
+              CABCOMMANDLOG,
+              errMsg);
+         return false;
+      }
       strcpy (msg, CABCOMMANDLOG);
-      strcat (msg, "@");
-      strcat (msg, errMsg);
+      Str_Strcat(msg, "@", msg_size);
+      Str_Strcat(msg, errMsg, msg_size);
    } else {
       msg = malloc(strlen(CABCOMMANDLOG) + 1);
+      if (msg == NULL) {
+         sLog(log_error,
+              "Error allocating memory to copy '%s'.\n",
+              CABCOMMANDLOG);
+         return false;
+      }
       strcpy (msg, CABCOMMANDLOG);
    }
 
@@ -264,10 +323,10 @@ SetCustomizationStatusInVmxEx(int customizationState,
 
    if (vmxResponse != NULL) {
       if (response != NULL) {
-         sLog(log_debug, "Got VMX response '%s'", response);
+         sLog(log_debug, "Got VMX response '%s'.\n", response);
          if (responseLength > responseBufferSize - 1) {
             sLog(log_warning,
-                 "The VMX response is too long (only %d chars are allowed)",
+                 "The VMX response is too long (only %d chars are allowed).\n",
                  responseBufferSize - 1);
             responseLength = responseBufferSize - 1;
          }
@@ -275,7 +334,7 @@ SetCustomizationStatusInVmxEx(int customizationState,
          free(response);
       }
       else {
-         sLog(log_debug, "Got no VMX response");
+         sLog(log_debug, "Got no VMX response.\n");
          responseLength = 0;
       }
       vmxResponse[responseLength] = 0;
@@ -375,7 +434,8 @@ SetDeployError(const char* format, ...)
 
    if (tmp) {
       va_start(args, format);
-      vsprintf(tmp, format, args);
+      Str_Vsnprintf(tmp, MAXSTRING, format, args);
+      va_end(args);
    }
 
    if (gDeployError) {
@@ -383,7 +443,7 @@ SetDeployError(const char* format, ...)
       gDeployError = NULL;
    }
 
-   sLog(log_debug, "Setting deploy error: %s \n", tmp);
+   sLog(log_debug, "Setting deploy error: '%s'.\n", tmp);
    gDeployError = tmp;
 }
 
@@ -434,7 +494,7 @@ AddToList(struct List* head, const char* token)
    char* data;
 
 #ifdef VMX86_DEBUG
-   sLog(log_debug, "Adding to list %s. \n", token);
+   sLog(log_debug, "Adding to list '%s'.\n", token);
 #endif
    data = malloc(strlen(token) + 1);
    if (!data) {
@@ -447,6 +507,8 @@ AddToList(struct List* head, const char* token)
    l = malloc(sizeof(struct List));
    if (!l) {
       SetDeployError("Error allocating memory. (%s)", strerror(errno));
+      // clear allocated resource
+      free(data);
       return NULL;
    }
 
@@ -485,7 +547,7 @@ ListSize(struct List* head)
 
    for(l = head; l; ++sz, l = l->next);
 #ifdef VMX86_DEBUG
-   sLog(log_debug, "Query: List size is %i. \n", sz);
+   sLog(log_debug, "Query: List size is %i.\n", sz);
 #endif
    return sz;
 }
@@ -507,7 +569,7 @@ DeleteList(struct List* head)
 {
    struct List* t = head;
 #ifdef VMX86_DEBUG
-   sLog(log_debug, "Cleaning the linked list. \n");
+   sLog(log_debug, "Cleaning the linked list.\n");
 #endif
 
    while(t) {
@@ -534,7 +596,7 @@ static void
 Init(void)
 {
    // Clean up if there is any deployment locks/status before
-   sLog(log_info, "Cleaning old state file from tmp directory. \n");
+   sLog(log_info, "Cleaning old state file from tmp directory.\n");
    UnTouch(INPROGRESS);
    UnTouch(DONE);
    UnTouch(ERRORED);
@@ -601,6 +663,23 @@ GetPackageInfo(const char* packageName,
 
    //TODO hdr->command[VMWAREDEPLOYPKG_CMD_LENGTH - 1] = '\0';
 
+   // Get process timeout value from client
+   // If gProcessTimeout has been provided by deployment launcher, then
+   // ignore the value from client.
+   if (hdr.pkgProcessTimeout > 0 && hdr.pkgProcessTimeout <= MAX_UINT16) {
+      if (!gProcessTimeoutSetByLauncher) {
+          sLog(log_info, "Process timeout value %u in header will be used.\n",
+             hdr.pkgProcessTimeout);
+          gProcessTimeout = hdr.pkgProcessTimeout;
+      } else {
+          sLog(log_info, "Process timeout value %u in header is ignored.\n",
+             hdr.pkgProcessTimeout);
+      }
+   } else if (hdr.pkgProcessTimeout != 0) {
+      sLog(log_error, "Invalid process timeout value in header: %d.\n",
+             hdr.pkgProcessTimeout);
+   }
+
    return TRUE;
 }
 
@@ -618,23 +697,24 @@ GetPackageInfo(const char* packageName,
 static DeployPkgStatus
 Touch(const char*  state)
 {
-   char* fileName = malloc(strlen(BASEFILENAME) + 1 + strlen(state) + 1);
+   int fileNameSize = strlen(BASEFILENAME) + 1 + strlen(state) + 1;
+   char* fileName = malloc(fileNameSize);
    int fd;
 
-   sLog(log_info, "ENTER STATE %s \n", state);
+   sLog(log_info, "ENTER STATE '%s'.\n", state);
    if (!fileName) {
       SetDeployError("Error allocatin memory.");
       return DEPLOYPKG_STATUS_ERROR;
    }
 
    strcpy(fileName, BASEFILENAME);
-   strcat(fileName, ".");
-   strcat(fileName, state);
+   Str_Strcat(fileName, ".", fileNameSize);
+   Str_Strcat(fileName, state, fileNameSize);
 
    fd = open(fileName, O_WRONLY|O_CREAT|O_EXCL, 0644);
 
    if (fd < 0) {
-      SetDeployError("Error creating lock file %s.(%s)", fileName, strerror(errno));
+      SetDeployError("Error creating lock file '%s'.(%s)", fileName, strerror(errno));
       free (fileName);
       return DEPLOYPKG_STATUS_ERROR;
    }
@@ -659,23 +739,24 @@ Touch(const char*  state)
 static DeployPkgStatus
 UnTouch(const char* state)
 {
-   char* fileName = malloc(strlen(BASEFILENAME) + 1 + strlen(state) + 1);
+   int fileNameSize = strlen(BASEFILENAME) + 1 + strlen(state) + 1;
+   char* fileName = malloc(fileNameSize);
    int result;
 
-   sLog(log_info, "EXIT STATE %s \n", state);
+   sLog(log_info, "EXIT STATE '%s'.\n", state);
    if (!fileName) {
       SetDeployError("Error allocating memory.");
       return DEPLOYPKG_STATUS_ERROR;
    }
 
    strcpy(fileName, BASEFILENAME);
-   strcat(fileName, ".");
-   strcat(fileName, state);
+   Str_Strcat(fileName, ".", fileNameSize);
+   Str_Strcat(fileName, state, fileNameSize);
 
    result = remove(fileName);
 
    if (result < 0) {
-      SetDeployError("Error removing lock %s (%s)", fileName, strerror(errno));
+      SetDeployError("Error removing lock '%s'.(%s)", fileName, strerror(errno));
       free (fileName);
       return DEPLOYPKG_STATUS_ERROR;
    }
@@ -703,12 +784,12 @@ UnTouch(const char* state)
 static DeployPkgStatus
 TransitionState(const char* stateFrom, const char* stateTo)
 {
-   sLog(log_info, "Transitioning from state %s to state %s. \n", stateFrom, stateTo);
+   sLog(log_info, "Transitioning from state '%s' to state '%s'.\n", stateFrom, stateTo);
 
    // Create a file to indicate state to
    if (stateTo) {
       if (Touch(stateTo) == DEPLOYPKG_STATUS_ERROR) {
-         SetDeployError("Error creating new state %s. (%s)", stateTo, GetDeployError());
+         SetDeployError("Error creating new state '%s'.(%s)", stateTo, GetDeployError());
          return DEPLOYPKG_STATUS_ERROR;
       }
    }
@@ -716,7 +797,7 @@ TransitionState(const char* stateFrom, const char* stateTo)
    // Remove the old state file
    if (stateFrom) {
       if (UnTouch(stateFrom) == DEPLOYPKG_STATUS_ERROR) {
-         SetDeployError("Error deleting old state %s.(%s)", stateFrom, GetDeployError());
+         SetDeployError("Error deleting old state '%s'.(%s)", stateFrom, GetDeployError());
          return DEPLOYPKG_STATUS_ERROR;
       }
    }
@@ -758,26 +839,36 @@ GetNicsToEnable(const char* dir)
    FILE *file;
 
    char *ret = NULL;
-   char *fileName = malloc(strlen(dir) + strlen(nicFile) + 1);
+   int fileNameSize = strlen(dir) + strlen(nicFile) + 1;
+   char *fileName = malloc(fileNameSize);
+   if (fileName == NULL) {
+      SetDeployError("Error allocating memory to copy '%s'", dir);
+      return ret;
+   }
    strcpy(fileName, dir);
-   strcat(fileName, nicFile);
+   Str_Strcat(fileName, nicFile, fileNameSize);
 
    file = fopen(fileName, "r");
    if (file) {
       ret = malloc(NICS_SIZE);
+      if (ret == NULL) {
+         SetDeployError("Error allocating memory to read nic file '%s'", fileName);
+         free(fileName);
+         return ret;
+      }
       if (fgets(ret, NICS_SIZE, file) == NULL) {
-         sLog(log_warning, "fgets() failed or reached EOF");
+         sLog(log_warning, "fgets() failed or reached EOF.\n");
       }
 
       // Check various error condition
       if (ferror(file)) {
-         SetDeployError("Error reading nic file %s (%s)", fileName, strerror(errno));
+         SetDeployError("Error reading nic file '%s'.(%s)", fileName, strerror(errno));
          free(ret);
          ret = NULL;
       }
 
       if (!feof(file)) {
-         SetDeployError("More than expected nics to enable. Nics: %s \n", ret);
+         SetDeployError("More than expected nics to enable. Nics: '%s'.", ret);
          free(ret);
          ret = NULL;
       }
@@ -820,7 +911,7 @@ TryToEnableNics(const char *nics)
 
    for (attempt = 0; attempt < enableNicsRetries; ++attempt) {
       sLog(log_debug,
-           "Trying to connect network interfaces, attempt %d",
+           "Trying to connect network interfaces, attempt %d.\n",
            attempt + 1);
 
       if (!SetCustomizationStatusInVmxEx(TOOLSDEPLOYPKG_RUNNING,
@@ -838,7 +929,7 @@ TryToEnableNics(const char *nics)
       // protect against potential vMotion during customization process in which
       // case the new VMX could be older, i.e. not that supportive :)
       if (strcmp(vmxResponse, QUERY_NICS_SUPPORTED) != 0) {
-         sLog(log_warning, "VMX doesn't support NICs connection status query");
+         sLog(log_warning, "VMX doesn't support NICs connection status query.\n");
          return;
       }
 
@@ -853,7 +944,7 @@ TryToEnableNics(const char *nics)
              strcmp(vmxResponse, NICS_STATUS_CONNECTED) == 0)
          {
             sLog(log_info,
-                 "The network interfaces are connected on %d second",
+                 "The network interfaces are connected on %d second.\n",
                  (attempt * enableNicsWaitCount + count) *
                  enableNicsWaitSeconds);
             return;
@@ -864,7 +955,7 @@ TryToEnableNics(const char *nics)
    }
 
    sLog(log_error,
-        "Can't connect network interfaces after %d attempts, giving up",
+        "Can't connect network interfaces after %d attempts, giving up.\n",
         enableNicsRetries);
 }
 
@@ -899,14 +990,14 @@ _DeployPkg_SkipReboot(bool skip)
  * - nics.tx
  * - cust.cfg to a predefined location.
  *
- * @param   [IN]  tmpDirPath  Path where nics.txt and cust.cfg exist
+ * @param   [IN]  imcDirPath Path where nics.txt and cust.cfg exist
  * @returns DEPLOYPKG_STATUS_CLOUD_INIT_DELEGATED on success
  *          DEPLOYPKG_STATUS_ERROR on error
  *
  *----------------------------------------------------------------------------
  * */
 static DeployPkgStatus
-CloudInitSetup(const char *tmpDirPath)
+CloudInitSetup(const char *imcDirPath)
 {
    DeployPkgStatus deployPkgStatus = DEPLOYPKG_STATUS_ERROR;
    static const char *cloudInitTmpDirPath = "/var/run/vmware-imc";
@@ -914,15 +1005,15 @@ CloudInitSetup(const char *tmpDirPath)
    char command[1024];
    Bool cloudInitTmpDirCreated = FALSE;
    char* customScriptName = NULL;
-   sLog(log_info, "Creating temp directory %s to copy customization files",
+   sLog(log_info, "Creating temp directory '%s' to copy customization files.\n",
         cloudInitTmpDirPath);
    snprintf(command, sizeof(command),
             "/bin/mkdir -p %s", cloudInitTmpDirPath);
    command[sizeof(command) - 1] = '\0';
 
-   forkExecResult = ForkExecAndWaitCommand(command);
+   forkExecResult = ForkExecAndWaitCommand(command, false);
    if (forkExecResult != 0) {
-      SetDeployError("Error creating %s dir: %s",
+      SetDeployError("Error creating '%s' dir.(%s)",
                      cloudInitTmpDirPath,
                      strerror(errno));
       goto done;
@@ -932,12 +1023,12 @@ CloudInitSetup(const char *tmpDirPath)
 
    // Copy required files for cloud-init to a temp name initially and then
    // rename in order to avoid race conditions with partial writes.
-   sLog(log_info, "Check if nics.txt exists. Copy if exists, skip otherwise");
+   sLog(log_info, "Check if nics.txt exists. Copy if exists, skip otherwise.\n");
    snprintf(command, sizeof(command),
-            "/usr/bin/test -f %s/nics.txt", tmpDirPath);
+            "/usr/bin/test -f %s/nics.txt", imcDirPath);
    command[sizeof(command) - 1] = '\0';
 
-   forkExecResult = ForkExecAndWaitCommand(command);
+   forkExecResult = ForkExecAndWaitCommand(command, false);
 
    /*
     * /usr/bin/test -f returns 0 if the file exists
@@ -945,35 +1036,36 @@ CloudInitSetup(const char *tmpDirPath)
     * We need to copy the nics.txt only if it exists.
     */
    if (forkExecResult == 0) {
-      sLog(log_info, "nics.txt file exists. Copying..");
-      if(!CopyFileToDirectory(tmpDirPath, cloudInitTmpDirPath, "nics.txt")) {
+      sLog(log_info, "nics.txt file exists. Copying...\n");
+      if (!CopyFileToDirectory(imcDirPath, cloudInitTmpDirPath, "nics.txt")) {
          goto done;
        }
    }
 
    // Get custom script name.
-   if (HasCustomScript(tmpDirPath, &customScriptName)) {
+   customScriptName = GetCustomScript(imcDirPath);
+   if (customScriptName != NULL) {
       char scriptPath[1024];
 
-      sLog(log_info, "Custom script present.");
-      sLog(log_info, "Copying script to execute post customization.");
-      snprintf(scriptPath, sizeof(scriptPath), "%s/scripts", tmpDirPath);
+      sLog(log_info, "Custom script present.\n");
+      sLog(log_info, "Copying script to execute post customization.\n");
+      snprintf(scriptPath, sizeof(scriptPath), "%s/scripts", imcDirPath);
       scriptPath[sizeof(scriptPath) - 1] = '\0';
       if (!CopyFileToDirectory(scriptPath, cloudInitTmpDirPath,
                                "post-customize-guest.sh")) {
          goto done;
       }
 
-      sLog(log_info, "Copying user uploaded custom script %s",
+      sLog(log_info, "Copying user uploaded custom script '%s'.\n",
            customScriptName);
-      if (!CopyFileToDirectory(tmpDirPath, cloudInitTmpDirPath,
+      if (!CopyFileToDirectory(imcDirPath, cloudInitTmpDirPath,
                                customScriptName)) {
          goto done;
       }
    }
 
-   sLog(log_info, "Copying main configuration file cust.cfg");
-   if(!CopyFileToDirectory(tmpDirPath, cloudInitTmpDirPath, "cust.cfg")) {
+   sLog(log_info, "Copying main configuration file cust.cfg.\n");
+   if (!CopyFileToDirectory(imcDirPath, cloudInitTmpDirPath, "cust.cfg")) {
       goto done;
    }
 
@@ -982,19 +1074,19 @@ CloudInitSetup(const char *tmpDirPath)
 done:
    free(customScriptName);
    if (DEPLOYPKG_STATUS_CLOUD_INIT_DELEGATED == deployPkgStatus) {
-      sLog(log_info, "Deployment for cloud-init succeeded.");
+      sLog(log_info, "Deployment for cloud-init succeeded.\n");
       TransitionState(INPROGRESS, DONE);
    } else {
-      sLog(log_error, "Deployment for cloud-init failed.");
+      sLog(log_error, "Deployment for cloud-init failed.\n");
       if (cloudInitTmpDirCreated) {
-         sLog(log_info, "Removing temporary folder %s", cloudInitTmpDirPath);
+         sLog(log_info, "Removing temporary folder '%s'.\n", cloudInitTmpDirPath);
          snprintf(command, sizeof(command),
                   "/bin/rm -rf %s",
                   cloudInitTmpDirPath);
          command[sizeof(command) - 1] = '\0';
-         ForkExecAndWaitCommand(command);
+         ForkExecAndWaitCommand(command, false);
       }
-      sLog(log_error, "Setting generic error status in vmx. \n");
+      sLog(log_error, "Setting generic error status in vmx.\n");
       SetCustomizationStatusInVmx(TOOLSDEPLOYPKG_RUNNING,
                                   GUESTCUST_EVENT_CUSTOMIZE_FAILED,
                                   NULL);
@@ -1016,9 +1108,9 @@ CopyFileToDirectory(const char* srcPath, const char* destPath,
    snprintf(command, sizeof(command), "/bin/cp %s/%s %s/%s.tmp", srcPath,
             fileName, destPath, fileName);
    command[sizeof(command) - 1] = '\0';
-   forkExecResult = ForkExecAndWaitCommand(command);
+   forkExecResult = ForkExecAndWaitCommand(command, false);
    if (forkExecResult != 0) {
-      SetDeployError("Error while copying file %s: %s", fileName,
+      SetDeployError("Error while copying file '%s'.(%s)", fileName,
                      strerror(errno));
       return false;
    }
@@ -1026,9 +1118,9 @@ CopyFileToDirectory(const char* srcPath, const char* destPath,
             fileName, destPath, fileName);
    command[sizeof(command) - 1] = '\0';
 
-   forkExecResult = ForkExecAndWaitCommand(command);
+   forkExecResult = ForkExecAndWaitCommand(command, false);
    if (forkExecResult != 0) {
-      SetDeployError("Error while renaming temp file %s: %s", fileName,
+      SetDeployError("Error while renaming temp file '%s'.(%s)", fileName,
                      strerror(errno));
       return false;
    }
@@ -1069,12 +1161,12 @@ UseCloudInitWorkflow(const char* dirPath)
       return false;
    }
 
-   sLog(log_debug, "Check if cust.cfg exists.");
+   sLog(log_debug, "Check if cust.cfg exists.\n");
 
    cfgFullPathSize = strlen(dirPath) + 1 /* For '/' */ + sizeof(cfgName);
    cfgFullPath = (char *) malloc(cfgFullPathSize);
    if (cfgFullPath == NULL) {
-      sLog(log_error, "Failed to allocate memory. (%s)", strerror(errno));
+      sLog(log_error, "Failed to allocate memory. (%s)\n", strerror(errno));
       return false;
    }
 
@@ -1082,21 +1174,21 @@ UseCloudInitWorkflow(const char* dirPath)
    cfgFullPath[cfgFullPathSize - 1] = '\0';
 
    if (access(cfgFullPath, R_OK) != 0) {
-      sLog(log_info, "cust.cfg is missing in '%s' directory. Error: (%s)",
+      sLog(log_info, "cust.cfg is missing in '%s' directory. Error: (%s)\n",
            dirPath, strerror(errno));
       free(cfgFullPath);
       return false;
    } else {
-      sLog(log_info, "cust.cfg is found in '%s' directory.", dirPath);
+      sLog(log_info, "cust.cfg is found in '%s' directory.\n", dirPath);
    }
 
-   forkExecResult = ForkExecAndWaitCommand(cloudInitCommand);
+   forkExecResult = ForkExecAndWaitCommand(cloudInitCommand, true);
    if (forkExecResult != 0) {
-      sLog(log_info, "cloud-init is not installed");
+      sLog(log_info, "cloud-init is not installed.\n");
       free(cfgFullPath);
       return false;
    } else {
-      sLog(log_info, "cloud-init is installed");
+      sLog(log_info, "cloud-init is installed.\n");
    }
 
    free(cfgFullPath);
@@ -1130,86 +1222,116 @@ Deploy(const char* packageName)
    uint8 archiveType;
    uint8 flags;
    bool forceSkipReboot = false;
-   char *tmpDirPath;
+   const char *baseDirPath = NULL;
+   char *imcDirPath = NULL;
    bool useCloudInitWorkflow = false;
-
+   int imcDirPathSize = 0;
+   int cleanupCommandSize = 0;
    TransitionState(NULL, INPROGRESS);
 
    // Notify the vpx of customization in-progress state
    SetCustomizationStatusInVmx(TOOLSDEPLOYPKG_RUNNING,
                                TOOLSDEPLOYPKG_ERROR_SUCCESS,
                                NULL);
-   tmpDirPath = mkdtemp((char *)Util_SafeStrdup(TMP_DIR_PATH_PATTERN));
-   if (tmpDirPath == NULL) {
-      SetDeployError("Error creating tmp dir: %s", strerror(errno));
+
+   // Add this macro definition to enable using '/tmp' instead of '/var/run' as
+   // the cab file deployment directory in unit test.
+#ifdef IMGCUST_UNITTEST
+   baseDirPath = TMPDIR;
+#else
+   // PR 2127543, Use /var/run or /run but /tmp firstly
+   if (File_IsDirectory(VARRUNDIR)) {
+      baseDirPath = VARRUNDIR;
+   } else if (File_IsDirectory(RUNDIR)) {
+      baseDirPath = RUNDIR;
+   } else {
+      baseDirPath = TMPDIR;
+   }
+#endif
+
+   // Create a random name dir under base dir path
+   imcDirPathSize = strlen(baseDirPath) + strlen(IMC_DIR_PATH_PATTERN) + 1;
+   imcDirPath = malloc(imcDirPathSize);
+   if (imcDirPath == NULL) {
+      SetDeployError("Error allocating memory to create imc dir.");
+      return DEPLOYPKG_STATUS_ERROR;
+   }
+   strcpy(imcDirPath, baseDirPath);
+   Str_Strcat(imcDirPath, IMC_DIR_PATH_PATTERN, imcDirPathSize);
+   if (mkdtemp(imcDirPath) == NULL) {
+      free(imcDirPath);
+      SetDeployError("Error creating imc dir. (%s)", strerror(errno));
       return DEPLOYPKG_STATUS_ERROR;
    }
 
-   sLog(log_info, "Reading cabinet file %s. \n", packageName);
+   sLog(log_info,
+        "Reading cabinet file '%s' and will extract it to '%s'.\n",
+         packageName,
+         imcDirPath);
 
    // Get the command to execute
    if (!GetPackageInfo(packageName, &pkgCommand, &archiveType, &flags)) {
       SetDeployError("Error extracting package header information. (%s)",
                      GetDeployError());
-      free(tmpDirPath);
+      free(imcDirPath);
       return DEPLOYPKG_STATUS_CAB_ERROR;
    }
 
-   sLog(log_info, "Flags in the header: %d\n", (int) flags);
+   sLog(log_info, "Flags in the header: %d.\n", (int) flags);
 
-   sLog(log_info, "Original deployment command: %s\n", pkgCommand);
+   sLog(log_info, "Original deployment command: '%s'.\n", pkgCommand);
    if (strstr(pkgCommand, IMC_TMP_PATH_VAR) != NULL) {
-      command = StrUtil_ReplaceAll(pkgCommand, IMC_TMP_PATH_VAR, tmpDirPath);
+      command = StrUtil_ReplaceAll(pkgCommand, IMC_TMP_PATH_VAR, imcDirPath);
    } else {
-      command = StrUtil_ReplaceAll(pkgCommand, TMP_PATH_VAR, tmpDirPath);
+      command = StrUtil_ReplaceAll(pkgCommand, TMP_PATH_VAR, imcDirPath);
    }
    free(pkgCommand);
 
-   sLog(log_info, "Actual deployment command: %s\n", command);
+   sLog(log_info, "Actual deployment command: '%s'.\n", command);
 
    if (archiveType == VMWAREDEPLOYPKG_PAYLOAD_TYPE_CAB) {
-      if (!ExtractCabPackage(packageName, tmpDirPath)) {
-         free(tmpDirPath);
+      if (!ExtractCabPackage(packageName, imcDirPath)) {
+         free(imcDirPath);
          free(command);
          return DEPLOYPKG_STATUS_CAB_ERROR;
       }
    } else if (archiveType == VMWAREDEPLOYPKG_PAYLOAD_TYPE_ZIP) {
-      if (!ExtractZipPackage(packageName, tmpDirPath)) {
-         free(tmpDirPath);
+      if (!ExtractZipPackage(packageName, imcDirPath)) {
+         free(imcDirPath);
          free(command);
          return DEPLOYPKG_STATUS_CAB_ERROR;
       }
    }
 
    if (!(flags & VMWAREDEPLOYPKG_HEADER_FLAGS_IGNORE_CLOUD_INIT)) {
-      useCloudInitWorkflow = UseCloudInitWorkflow(tmpDirPath);
+      useCloudInitWorkflow = UseCloudInitWorkflow(imcDirPath);
    } else {
-      sLog(log_info, "Ignoring cloud-init.");
+      sLog(log_info, "Ignoring cloud-init.\n");
    }
 
    if (useCloudInitWorkflow) {
-      sLog(log_info, "Executing cloud-init workflow");
+      sLog(log_info, "Executing cloud-init workflow.\n");
       sSkipReboot = TRUE;
       free(command);
-      deployPkgStatus = CloudInitSetup(tmpDirPath);
+      deployPkgStatus = CloudInitSetup(imcDirPath);
    } else {
-      sLog(log_info, "Executing traditional GOSC workflow");
-      deploymentResult = ForkExecAndWaitCommand(command);
+      sLog(log_info, "Executing traditional GOSC workflow.\n");
+      deploymentResult = ForkExecAndWaitCommand(command, false);
       free(command);
 
       if (deploymentResult != CUST_SUCCESS) {
-         sLog(log_error, "Customization process returned with error. \n");
-         sLog(log_debug, "Deployment result = %d \n", deploymentResult);
+         sLog(log_error, "Customization process returned with error.\n");
+         sLog(log_debug, "Deployment result = %d.\n", deploymentResult);
 
          if (deploymentResult == CUST_NETWORK_ERROR ||
              deploymentResult == CUST_NIC_ERROR ||
              deploymentResult == CUST_DNS_ERROR) {
-            sLog(log_info, "Setting network error status in vmx. \n");
+            sLog(log_info, "Setting network error status in vmx.\n");
             SetCustomizationStatusInVmx(TOOLSDEPLOYPKG_RUNNING,
                                         GUESTCUST_EVENT_NETWORK_SETUP_FAILED,
                                         NULL);
          } else {
-            sLog(log_info, "Setting %s error status in vmx. \n",
+            sLog(log_info, "Setting '%s' error status in vmx.\n",
                  deploymentResult == CUST_GENERIC_ERROR ? "generic" : "unknown");
             SetCustomizationStatusInVmx(TOOLSDEPLOYPKG_RUNNING,
                                         GUESTCUST_EVENT_CUSTOMIZE_FAILED,
@@ -1219,12 +1341,12 @@ Deploy(const char* packageName)
          TransitionState(INPROGRESS, ERRORED);
 
          deployPkgStatus = DEPLOYPKG_STATUS_ERROR;
-         SetDeployError("Deployment failed. "
+         SetDeployError("Deployment failed."
                         "The forked off process returned error code.");
-         sLog(log_error, "Deployment failed. "
-                         "The forked off process returned error code. \n");
+         sLog(log_error, "Deployment failed."
+                         "The forked off process returned error code.\n");
       } else {
-         nics = GetNicsToEnable(tmpDirPath);
+         nics = GetNicsToEnable(imcDirPath);
          if (nics) {
             // XXX: Sleep before the last SetCustomizationStatusInVmx
             //      This is a temporary-hack for PR 422790
@@ -1245,33 +1367,33 @@ Deploy(const char* packageName)
          TransitionState(INPROGRESS, DONE);
 
          deployPkgStatus = DEPLOYPKG_STATUS_SUCCESS;
-         sLog(log_info, "Deployment succeeded. \n");
+         sLog(log_info, "Deployment succeeded.\n");
       }
    }
-
-   cleanupCommand = malloc(strlen(CLEANUPCMD) + strlen(tmpDirPath) + 1);
+   cleanupCommandSize = strlen(CLEANUPCMD) + strlen(imcDirPath) + 1;
+   cleanupCommand = malloc(cleanupCommandSize);
    if (!cleanupCommand) {
       SetDeployError("Error allocating memory.");
-      free(tmpDirPath);
+      free(imcDirPath);
       return DEPLOYPKG_STATUS_ERROR;
    }
 
    strcpy(cleanupCommand, CLEANUPCMD);
-   strcat(cleanupCommand, tmpDirPath);
+   Str_Strcat(cleanupCommand, imcDirPath, cleanupCommandSize);
 
-   sLog(log_info, "Launching cleanup. \n");
-   if (ForkExecAndWaitCommand(cleanupCommand) != 0) {
-      sLog(log_warning, "Error while clean up tmp directory %s: (%s)",
-           tmpDirPath, strerror (errno));
+   sLog(log_info, "Launching cleanup.\n");
+   if (ForkExecAndWaitCommand(cleanupCommand, false) != 0) {
+      sLog(log_warning, "Error while cleaning up imc directory '%s'. (%s)\n",
+           imcDirPath, strerror (errno));
    }
    free (cleanupCommand);
-   free(tmpDirPath);
+   free(imcDirPath);
 
    if (flags & VMWAREDEPLOYPKG_HEADER_FLAGS_SKIP_REBOOT) {
       forceSkipReboot = true;
    }
    sLog(log_info,
-        "sSkipReboot: %s, forceSkipReboot %s\n",
+        "sSkipReboot: '%s', forceSkipReboot '%s'.\n",
         sSkipReboot ? "true" : "false",
         forceSkipReboot ? "true" : "false");
    sSkipReboot |= forceSkipReboot;
@@ -1280,21 +1402,33 @@ Deploy(const char* packageName)
    if (!sSkipReboot && !deploymentResult) {
       pid_t pid = fork();
       if (pid == -1) {
-         sLog(log_error, "Failed to fork: %s", strerror(errno));
+         sLog(log_error, "Failed to fork: '%s'.\n", strerror(errno));
       } else if (pid == 0) {
          // We're in the child
 
          // Repeatedly try to reboot to workaround PR 530641 where
          // telinit 6 is overwritten by a telinit 2
-         int rebootComandResult = 0;
+         int rebootCommandResult;
+         bool isRebooting = false;
+         sLog(log_info, "Trigger reboot.\n");
          do {
-            sLog(log_info, "Rebooting\n");
-            rebootComandResult = ForkExecAndWaitCommand("/sbin/telinit 6");
+            if (isRebooting) {
+               sLog(log_info, "Rebooting.\n");
+            }
+            rebootCommandResult =
+               ForkExecAndWaitCommand("/sbin/telinit 6", false);
+            isRebooting = (rebootCommandResult == 0) ?
+			   true : isRebooting;
             sleep(1);
-         } while (rebootComandResult == 0);
-         sLog(log_error, "telinit returned error %d\n", rebootComandResult);
-
-         exit (127);
+         } while (rebootCommandResult == 0);
+         if (!isRebooting) {
+            sLog(log_error,
+                 "Failed to reboot, telinit returned error %d.\n",
+                 rebootCommandResult);
+            exit (127);
+         } else {
+            sLog(log_info, "Reboot has been triggered.\n");
+         }
       }
    }
 
@@ -1310,7 +1444,7 @@ ExtractCabPackage(const char* cabFileName,
 {
    unsigned int error;
 
-   sLog(log_info, "Extracting package files. \n");
+   sLog(log_info, "Extracting package files.\n");
 
    // Set log function
    MspackWrapper_SetLogger(sLog);
@@ -1358,12 +1492,12 @@ ExtractZipPackage(const char* pkgName,
    snprintf(zipName, sizeof zipName, "%s/%x", destDir, (unsigned int)time(0));
    zipName[(sizeof zipName) - 1] = '\0';
    if ((pkgFd = open(pkgName, O_RDONLY)) < 0) {
-      sLog(log_error, "Failed to open package file %s for read: %s", pkgName,
+      sLog(log_error, "Failed to open package file '%s' for read. (%s)\n", pkgName,
            strerror(errno));
       return FALSE;
    }
    if ((zipFd = open(zipName, O_CREAT | O_WRONLY | O_TRUNC, 0700)) < 0) {
-      sLog(log_error, "Failed to create temporary zip file %s: %s", zipName,
+      sLog(log_error, "Failed to create temporary zip file '%s'. (%s)\n", zipName,
            strerror(errno));
       close(pkgFd);
       return FALSE;;
@@ -1371,7 +1505,7 @@ ExtractZipPackage(const char* pkgName,
    lseek(pkgFd, sizeof(VMwareDeployPkgHdr), 0);
    while((rdCount = read(pkgFd, copyBuf, sizeof copyBuf)) > 0) {
       if (write(zipFd, copyBuf, rdCount) < 0) {
-         sLog(log_warning, "write() failed");
+         sLog(log_warning, "write() failed.\n");
       }
    }
 
@@ -1387,14 +1521,14 @@ ExtractZipPackage(const char* pkgName,
    args[5] = NULL;
    Process_Create(&h, args, sLog);
    free(destCopy);
-   Process_RunToComplete(h, 100);
+   Process_RunToComplete(h, gProcessTimeout);
 
-   sLog(log_info, "unzip output: %s\n", Process_GetStdout(h));
+   sLog(log_info, "unzip output: '%s'.\n", Process_GetStdout(h));
 
    // Assume zip failed if it wrote to stderr
    stderr = Process_GetStderr(h);
    if (strlen(stderr) > 0) {
-      sLog(log_error, "Package unzip failed: %s\n", stderr);
+      sLog(log_error, "Package unzip failed: '%s'.\n", stderr);
       ret = FALSE;
    }
 
@@ -1465,13 +1599,23 @@ GetFormattedCommandLine(const char* command)
    args = malloc((ListSize(commandTokens) + 1) * sizeof(char*));
    if (!args) {
       SetDeployError("Error allocating memory.");
+      // clear resources
+      DeleteList(commandTokens);
       return NULL;
    }
 
    for(l = commandTokens, i = 0; l; l = l->next, i++) {
       char* arg = malloc(strlen(l->data) + 1);
       if (!arg) {
-         SetDeployError("Error allocating memory.(%s)", strerror(errno));
+         unsigned int j;
+         SetDeployError("Error allocating memory. (%s)", strerror(errno));
+         // free allocated memories in previous iterations if any
+         for (j = 0; j < i; j++) {
+            free(args[j]);
+         }
+         free(args);
+         // clear resources
+         DeleteList(commandTokens);
          return NULL;
       }
 
@@ -1479,7 +1623,7 @@ GetFormattedCommandLine(const char* command)
       args[i] = arg;
 
 #ifdef VMX86_DEBUG
-      sLog(log_debug, "Arg (address & value) : %p %s \n", args[i], args[i]);
+      sLog(log_debug, "Arg (address & value) : %p '%s'.\n", args[i], args[i]);
 #endif
    }
 
@@ -1499,19 +1643,20 @@ GetFormattedCommandLine(const char* command)
  * Fork off the command and wait for it to finish. Classical Linux/Unix
  * fork-and-exec.
  *
- * @param   [IN]  command  Command to execute
+ * @param   [IN]  command       Command to execute
+ * @param   [IN]  ignoreStdErr  If we ignore stderr when cmd's return code is 0
  * @return  Return code from the process (or -1)
  *
  **/
 int
-ForkExecAndWaitCommand(const char* command)
+ForkExecAndWaitCommand(const char* command, bool ignoreStdErr)
 {
    ProcessHandle hp;
    int retval;
    int i;
    char** args = GetFormattedCommandLine(command);
 
-   sLog(log_debug, "Command to exec : %s \n", args[0]);
+   sLog(log_debug, "Command to exec : '%s'.\n", args[0]);
    Process_Create(&hp, args, sLog);
 
    // Free args array as Process_Create has its own private copy now.
@@ -1520,16 +1665,32 @@ ForkExecAndWaitCommand(const char* command)
    }
    free(args);
 
-   Process_RunToComplete(hp, 100);
-   sLog(log_info, "Customization command output: %s\n", Process_GetStdout(hp));
+   Process_RunToComplete(hp, gProcessTimeout);
+   sLog(log_info, "Customization command output: '%s'.\n", Process_GetStdout(hp));
+   retval = Process_GetExitCode(hp);
 
-   if(Process_GetExitCode(hp) == 0 && strlen(Process_GetStderr(hp)) > 0) {
-      // Assume command failed if it wrote to stderr, even if exitCode is 0
-      sLog(log_error, "Customization command failed: %s\n", Process_GetStderr(hp));
-      retval = -1;
+   if (retval == 0) {
+      if (strlen(Process_GetStderr(hp)) > 0) {
+         if (!ignoreStdErr) {
+            // Assume command failed if it wrote to stderr, even if exitCode is 0
+            sLog(log_error,
+                 "Customization command failed with stderr: '%s'.\n",
+                 Process_GetStderr(hp));
+            retval = -1;
+         } else {
+            // If we choose to ignore stderr, we do not return -1 when return
+            // code is 0. e.g, PR2148977, "cloud-init -v" will return 0
+            // even there is output in stderr
+            sLog(log_info, "Ignoring stderr output: '%s'.\n", Process_GetStderr(hp));
+         }
+      }
    } else {
-      retval = Process_GetExitCode(hp);
+      sLog(log_error,
+           "Customization command failed with exitcode: %d, stderr: '%s'.\n",
+           retval,
+           Process_GetStderr(hp));
    }
+
    Process_Destroy(hp);
    return retval;
 }
@@ -1554,15 +1715,15 @@ DeployPkg_DeployPackageFromFileEx(const char* file)
 {
    DeployPkgStatus retStatus;
 
-   sLog(log_info, "Initializing deployment module. \n");
+   sLog(log_info, "Initializing deployment module.\n");
    Init();
 
-   sLog(log_info, "Deploying cabinet file %s. \n", file);
+   sLog(log_info, "Deploying cabinet file '%s'.\n", file);
    retStatus = Deploy(file);
 
    if (retStatus != DEPLOYPKG_STATUS_SUCCESS &&
        retStatus != DEPLOYPKG_STATUS_CLOUD_INIT_DELEGATED) {
-      sLog(log_error, "Deploy error: %s \n", GetDeployError());
+      sLog(log_error, "Deploy error: '%s'.\n", GetDeployError());
    }
 
    free(gDeployError);
@@ -1598,7 +1759,7 @@ DeployPkg_DeployPackageFromFile(const char* file)
           * success. So fallback to DEPLOYPKG_STATUS_SUCCESS.
           */
          sLog(log_info,
-              "Deployment delegated to Cloud-init. Returning success. \n");
+              "Deployment delegated to Cloud-init. Returning success.\n");
       case DEPLOYPKG_STATUS_SUCCESS:
          retStatus = 0;
          break;

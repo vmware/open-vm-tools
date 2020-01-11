@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -65,6 +65,11 @@ extern "C" {
 #define VMCI_CAPS_GUESTCALL     0x2
 #define VMCI_CAPS_DATAGRAM      0x4
 #define VMCI_CAPS_NOTIFICATIONS 0x8
+#define VMCI_CAPS_PPN64         0x10
+#define VMCI_CAPS_CLEAR_TO_ACK  (0x1 << 31)
+
+#define VMCI_CAPS_NOT_ACKED (VMCI_CAPS_HYPERCALL | VMCI_CAPS_GUESTCALL | \
+                             VMCI_CAPS_DATAGRAM | VMCI_CAPS_NOTIFICATIONS)
 
 /* Interrupt Cause register bits. */
 #define VMCI_ICR_DATAGRAM      0x1
@@ -96,9 +101,18 @@ typedef enum VMCIIntrType {
 
 /*
  * A single VMCI device has an upper limit of 128 MiB on the amount of
- * memory that can be used for queue pairs.
+ * memory that can be used for queue pairs. Since each queue pair
+ * consists of at least two pages, the memory limit also dictates the
+ * number of queue pairs a guest can create.
  */
 #define VMCI_MAX_GUEST_QP_MEMORY (128 * 1024 * 1024)
+#define VMCI_MAX_GUEST_QP_COUNT  (VMCI_MAX_GUEST_QP_MEMORY / PAGE_SIZE / 2)
+
+/*
+ * There can be at most PAGE_SIZE doorbells since there is one doorbell
+ * per byte in the doorbell bitmap page.
+ */
+#define VMCI_MAX_GUEST_DOORBELL_COUNT PAGE_SIZE
 
 /*
  * We have a fixed set of resource IDs available in the VMX.
@@ -423,6 +437,7 @@ typedef uint32 VMCIPrivilegeFlags;
 #define VMCI_DOMAIN_NAME_MAXLEN  32
 
 #define VMCI_LGPFX "VMCI: "
+#define VMCI_DRIVER_NAME "vmci"
 
 
 /*
@@ -518,6 +533,13 @@ typedef struct VMCIQueueHeader {
           TypeSafe_Atomic_Write32((void *)(x), (uint32)(y))
 #endif	/* __x86_64__  */
 
+
+static INLINE PPN32
+VMCI_PPN64_TO_PPN32(PPN ppn)
+{
+   ASSERT(ppn <= MAX_UINT32);
+   return (PPN32)ppn;
+}
 
 /*
  *-----------------------------------------------------------------------------

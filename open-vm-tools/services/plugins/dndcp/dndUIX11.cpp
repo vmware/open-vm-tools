@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -47,6 +47,9 @@ extern "C" {
 #include "rpcout.h"
 }
 
+#ifdef USE_UINPUT
+#include "fakeMouseWayland/fakeMouseWayland.h"
+#endif
 #include "dnd.h"
 #include "dndMsg.h"
 #include "hostinfo.h"
@@ -89,7 +92,8 @@ DnDUIX11::DnDUIX11(ToolsAppCtx *ctx)
       mNumPendingRequest(0),
       mDestDropTime(0),
       mTotalFileSize(0),
-      mOrigin(0, 0)
+      mOrigin(0, 0),
+      mUseUInput(false)
 {
    TRACE_CALL();
 
@@ -103,6 +107,20 @@ DnDUIX11::DnDUIX11(ToolsAppCtx *ctx)
     * corners for now.
     */
    OnWorkAreaChanged(Gdk::Screen::get_default());
+
+#ifdef USE_UINPUT
+   //Initialize the uinput device if available
+   if (ctx->uinputFD != -1) {
+      Screen * scrn = DefaultScreenOfDisplay(XOpenDisplay(NULL));
+      if (FakeMouse_Init(ctx->uinputFD, scrn->width, scrn->height)) {
+         mUseUInput = true;
+         mScreenWidth = scrn->width;
+         mScreenHeight = scrn->height;
+      }
+   }
+#endif
+
+   g_debug("%s: Use UInput? %d.\n", __FUNCTION__, mUseUInput);
 }
 
 
@@ -202,19 +220,19 @@ DnDUIX11::Init()
    CONNECT_SIGNAL(mDnD, updateUnityDetWndChanged, OnUpdateUnityDetWnd);
 
    /* Set Gtk+ callbacks for source. */
-   CONNECT_SIGNAL(mDetWnd, signal_drag_begin(),        OnGtkDragBegin);
-   CONNECT_SIGNAL(mDetWnd, signal_drag_data_get(),     OnGtkDragDataGet);
-   CONNECT_SIGNAL(mDetWnd, signal_drag_end(),          OnGtkDragEnd);
-   CONNECT_SIGNAL(mDetWnd, signal_enter_notify_event(), GtkEnterEventCB);
-   CONNECT_SIGNAL(mDetWnd, signal_leave_notify_event(), GtkLeaveEventCB);
-   CONNECT_SIGNAL(mDetWnd, signal_map_event(),         GtkMapEventCB);
-   CONNECT_SIGNAL(mDetWnd, signal_unmap_event(),       GtkUnmapEventCB);
-   CONNECT_SIGNAL(mDetWnd, signal_realize(),           GtkRealizeEventCB);
-   CONNECT_SIGNAL(mDetWnd, signal_unrealize(),         GtkUnrealizeEventCB);
-   CONNECT_SIGNAL(mDetWnd, signal_motion_notify_event(), GtkMotionNotifyEventCB);
-   CONNECT_SIGNAL(mDetWnd, signal_configure_event(),   GtkConfigureEventCB);
-   CONNECT_SIGNAL(mDetWnd, signal_button_press_event(), GtkButtonPressEventCB);
-   CONNECT_SIGNAL(mDetWnd, signal_button_release_event(), GtkButtonReleaseEventCB);
+   CONNECT_SIGNAL(mDetWnd->GetWnd(), signal_drag_begin(),        OnGtkDragBegin);
+   CONNECT_SIGNAL(mDetWnd->GetWnd(), signal_drag_data_get(),     OnGtkDragDataGet);
+   CONNECT_SIGNAL(mDetWnd->GetWnd(), signal_drag_end(),          OnGtkDragEnd);
+   CONNECT_SIGNAL(mDetWnd->GetWnd(), signal_enter_notify_event(), GtkEnterEventCB);
+   CONNECT_SIGNAL(mDetWnd->GetWnd(), signal_leave_notify_event(), GtkLeaveEventCB);
+   CONNECT_SIGNAL(mDetWnd->GetWnd(), signal_map_event(),         GtkMapEventCB);
+   CONNECT_SIGNAL(mDetWnd->GetWnd(), signal_unmap_event(),       GtkUnmapEventCB);
+   CONNECT_SIGNAL(mDetWnd->GetWnd(), signal_realize(),           GtkRealizeEventCB);
+   CONNECT_SIGNAL(mDetWnd->GetWnd(), signal_unrealize(),         GtkUnrealizeEventCB);
+   CONNECT_SIGNAL(mDetWnd->GetWnd(), signal_motion_notify_event(), GtkMotionNotifyEventCB);
+   CONNECT_SIGNAL(mDetWnd->GetWnd(), signal_configure_event(),   GtkConfigureEventCB);
+   CONNECT_SIGNAL(mDetWnd->GetWnd(), signal_button_press_event(), GtkButtonPressEventCB);
+   CONNECT_SIGNAL(mDetWnd->GetWnd(), signal_button_release_event(), GtkButtonReleaseEventCB);
 
 #undef CONNECT_SIGNAL
 
@@ -281,16 +299,16 @@ DnDUIX11::InitGtk()
     * but in our case, we will call drag_get_data during DragMotion, and
     * will cause X dead with DEST_DEFAULT_ALL. The reason is unclear.
     */
-   mDetWnd->drag_dest_set(targets, Gtk::DEST_DEFAULT_MOTION,
-                          Gdk::ACTION_COPY | Gdk::ACTION_MOVE);
+   mDetWnd->GetWnd()->drag_dest_set(targets, Gtk::DEST_DEFAULT_MOTION,
+                                    Gdk::ACTION_COPY | Gdk::ACTION_MOVE);
 
-   mDetWnd->signal_drag_leave().connect(
+   mDetWnd->GetWnd()->signal_drag_leave().connect(
       sigc::mem_fun(this, &DnDUIX11::OnGtkDragLeave));
-   mDetWnd->signal_drag_motion().connect(
+   mDetWnd->GetWnd()->signal_drag_motion().connect(
       sigc::mem_fun(this, &DnDUIX11::OnGtkDragMotion));
-   mDetWnd->signal_drag_drop().connect(
+   mDetWnd->GetWnd()->signal_drag_drop().connect(
       sigc::mem_fun(this, &DnDUIX11::OnGtkDragDrop));
-   mDetWnd->signal_drag_data_received().connect(
+   mDetWnd->GetWnd()->signal_drag_data_received().connect(
       sigc::mem_fun(this, &DnDUIX11::OnGtkDragDataReceived));
 }
 
@@ -351,19 +369,44 @@ DnDUIX11::OnSrcDragBegin(const CPClipboard *clip,       // IN
    Glib::RefPtr<Gtk::TargetList> targets;
    Gdk::DragAction actions;
    GdkEventMotion event;
+   int mouseX = mOrigin.get_x() + DRAG_DET_WINDOW_WIDTH / 2;
+   int mouseY = mOrigin.get_y() + DRAG_DET_WINDOW_WIDTH / 2;
 
    TRACE_CALL();
 
    CPClipboard_Clear(&mClipboard);
    CPClipboard_Copy(&mClipboard, clip);
 
+#ifdef USE_UINPUT
+   if (mUseUInput) {
+      /*
+       * Check if the screen size changes, if so then update the
+       * uinput device.
+       */
+      Screen * scrn = DefaultScreenOfDisplay(XOpenDisplay(NULL));
+      if (   (scrn->width != mScreenWidth)
+          || (scrn->height != mScreenHeight)) {
+         g_debug("%s: Update uinput device. prew:%d, preh:%d, w:%d, h:%d\n",
+                 __FUNCTION__,
+                 mScreenWidth,
+                 mScreenHeight,
+                 scrn->width,
+                 scrn->height);
+         mScreenWidth = scrn->width;
+         mScreenHeight = scrn->height;
+         FakeMouse_Update(mScreenWidth, mScreenHeight);
+      }
+   }
+#endif
+
    /*
     * Before the DnD, we should make sure that the mouse is released
     * otherwise it may be another DnD, not ours. Send a release, then
     * a press here to cover this case.
     */
-   SendFakeXEvents(false, true, false, false, false, 0, 0);
-   SendFakeXEvents(true, true, true, true, true, mOrigin.get_x(), mOrigin.get_y());
+
+   SendFakeXEvents(true, true, false, true, true, mouseX, mouseY);
+   SendFakeXEvents(false, true, true, false, true, mouseX, mouseY);
 
    /*
     * Construct the target and action list, as well as a fake motion notify
@@ -409,7 +452,7 @@ DnDUIX11::OnSrcDragBegin(const CPClipboard *clip,       // IN
 
    /* TODO set the x/y coords to the actual drag initialization point. */
    event.type = GDK_MOTION_NOTIFY;
-   event.window = mDetWnd->get_window()->gobj();
+   event.window = mDetWnd->GetWnd()->get_window()->gobj();
    event.send_event = false;
    event.time = GDK_CURRENT_TIME;
    event.x = 10;
@@ -427,7 +470,7 @@ DnDUIX11::OnSrcDragBegin(const CPClipboard *clip,       // IN
    event.y_root = mOrigin.get_y();
 
    /* Tell Gtk that a drag should be started from this widget. */
-   mDetWnd->drag_begin(targets, actions, 1, (GdkEvent *)&event);
+   mDetWnd->GetWnd()->drag_begin(targets, actions, 1, (GdkEvent *)&event);
    mBlockAdded = false;
    mHGGetFileStatus = DND_FILE_TRANSFER_NOT_STARTED;
    SourceDragStartDone();
@@ -464,9 +507,14 @@ DnDUIX11::OnSrcCancel()
     * flybacks when we cancel as user moves mouse in and out of destination
     * window in a H->G DnD.
     */
-   OnUpdateDetWnd(true, 0, 0);
-   SendFakeXEvents(true, true, false, true, true, mOrigin.get_x(), mOrigin.get_y());
+   OnUpdateDetWnd(true, mOrigin.get_x(), mOrigin.get_y());
+   SendFakeXEvents(true, true, false, true, true,
+                   mOrigin.get_x() + DRAG_DET_WINDOW_WIDTH / 2,
+                   mOrigin.get_y() + DRAG_DET_WINDOW_WIDTH / 2);
    OnUpdateDetWnd(false, 0, 0);
+   SendFakeXEvents(false, false, false, false, true,
+                   mMousePosX,
+                   mMousePosY);
    mInHGDrag = false;
    mHGGetFileStatus = DND_FILE_TRANSFER_NOT_STARTED;
    mEffect = DROP_NONE;
@@ -636,12 +684,12 @@ DnDUIX11::OnUpdateDetWnd(bool show,     // IN: show (true) or hide (false)
 {
    g_debug("%s: enter 0x%lx show %d x %d y %d\n",
          __FUNCTION__,
-         (unsigned long) mDetWnd->get_window()->gobj(), show, x, y);
+         (unsigned long) mDetWnd->GetWnd()->get_window()->gobj(), show, x, y);
 
    /* If the window is being shown, move it to the right place. */
    if (show) {
-      x = MAX(x - DRAG_DET_WINDOW_WIDTH / 2, 0);
-      y = MAX(y - DRAG_DET_WINDOW_WIDTH / 2, 0);
+      x = MAX(x - DRAG_DET_WINDOW_WIDTH / 2, mOrigin.get_x());
+      y = MAX(y - DRAG_DET_WINDOW_WIDTH / 2, mOrigin.get_y());
 
       mDetWnd->Show();
       mDetWnd->Raise();
@@ -686,7 +734,7 @@ DnDUIX11::OnUpdateUnityDetWnd(bool show,         // IN: show (true) or hide (fal
 {
    g_debug("%s: enter 0x%lx unityID 0x%x\n",
          __FUNCTION__,
-         (unsigned long) mDetWnd->get_window()->gobj(),
+         (unsigned long) mDetWnd->GetWnd()->get_window()->gobj(),
          unityWndId);
 
    if (show && ((unityWndId > 0) || bottom)) {
@@ -848,7 +896,7 @@ DnDUIX11::OnGtkDragMotion(
    Gdk::DragAction srcActions;
    Gdk::DragAction suggestedAction;
    Gdk::DragAction dndAction = (Gdk::DragAction)0;
-   Glib::ustring target = mDetWnd->drag_dest_find_target(dc);
+   Glib::ustring target = mDetWnd->GetWnd()->drag_dest_find_target(dc);
 
    if (!mDnD->IsDnDAllowed()) {
       g_debug("%s: No dnd allowed!\n", __FUNCTION__);
@@ -888,7 +936,7 @@ DnDUIX11::OnGtkDragMotion(
 
    mDragCtx = dc->gobj();
 
-   if (target != "") {
+   if (target != Gdk::AtomString::to_cpp_type(GDK_NONE)) {
       /*
        * We give preference to the suggested action from the source, and prefer
        * copy over move.
@@ -1322,11 +1370,11 @@ DnDUIX11::OnGtkDragDrop(
 
    Glib::ustring target;
 
-   target = mDetWnd->drag_dest_find_target(dc);
+   target = mDetWnd->GetWnd()->drag_dest_find_target(dc);
    g_debug("%s: calling drag_finish\n", __FUNCTION__);
    dc->drag_finish(true, false, time);
 
-   if (target == "") {
+   if (target == Gdk::AtomString::to_cpp_type(GDK_NONE)) {
       g_debug("%s: No valid data on clipboard.\n", __FUNCTION__);
       return false;
    }
@@ -1531,15 +1579,17 @@ DnDUIX11::RequestData(
    CPClipboard_Clear(&mClipboard);
    mNumPendingRequest = 0;
 
+   Glib::ustring noneType = Gdk::AtomString::to_cpp_type(GDK_NONE);
+
    /*
     * First check file list. If file list is available, all other formats will
     * be ignored.
     */
    targets->add(Glib::ustring(DRAG_TARGET_NAME_URI_LIST));
-   Glib::ustring target = mDetWnd->drag_dest_find_target(dc, targets);
+   Glib::ustring target = mDetWnd->GetWnd()->drag_dest_find_target(dc, targets);
    targets->remove(Glib::ustring(DRAG_TARGET_NAME_URI_LIST));
-   if (target != "") {
-      mDetWnd->drag_get_data(dc, target, time);
+   if (target != noneType) {
+      mDetWnd->GetWnd()->drag_get_data(dc, target, time);
       mNumPendingRequest++;
       return true;
    }
@@ -1549,13 +1599,13 @@ DnDUIX11::RequestData(
    targets->add(Glib::ustring(TARGET_NAME_STRING));
    targets->add(Glib::ustring(TARGET_NAME_TEXT_PLAIN));
    targets->add(Glib::ustring(TARGET_NAME_COMPOUND_TEXT));
-   target = mDetWnd->drag_dest_find_target(dc, targets);
+   target = mDetWnd->GetWnd()->drag_dest_find_target(dc, targets);
    targets->remove(Glib::ustring(TARGET_NAME_STRING));
    targets->remove(Glib::ustring(TARGET_NAME_TEXT_PLAIN));
    targets->remove(Glib::ustring(TARGET_NAME_UTF8_STRING));
    targets->remove(Glib::ustring(TARGET_NAME_COMPOUND_TEXT));
-   if (target != "") {
-      mDetWnd->drag_get_data(dc, target, time);
+   if (target != noneType) {
+      mDetWnd->GetWnd()->drag_get_data(dc, target, time);
       mNumPendingRequest++;
    }
 
@@ -1563,12 +1613,12 @@ DnDUIX11::RequestData(
    targets->add(Glib::ustring(TARGET_NAME_APPLICATION_RTF));
    targets->add(Glib::ustring(TARGET_NAME_TEXT_RICHTEXT));
    targets->add(Glib::ustring(TARGET_NAME_TEXT_RTF));
-   target = mDetWnd->drag_dest_find_target(dc, targets);
+   target = mDetWnd->GetWnd()->drag_dest_find_target(dc, targets);
    targets->remove(Glib::ustring(TARGET_NAME_APPLICATION_RTF));
    targets->remove(Glib::ustring(TARGET_NAME_TEXT_RICHTEXT));
    targets->remove(Glib::ustring(TARGET_NAME_TEXT_RTF));
-   if (target != "") {
-      mDetWnd->drag_get_data(dc, target, time);
+   if (target != noneType) {
+      mDetWnd->GetWnd()->drag_get_data(dc, target, time);
       mNumPendingRequest++;
    }
    return (mNumPendingRequest > 0);
@@ -1865,24 +1915,47 @@ DnDUIX11::SendFakeXEvents(
        * is okay since the window is invisible and hidden on cancels and DnD
        * finish.
        */
-      XMoveResizeWindow(dndXDisplay, dndXWindow, x - 5 , y - 5, 25, 25);
+      XMoveResizeWindow(dndXDisplay,
+                        dndXWindow,
+                        x - DRAG_DET_WINDOW_WIDTH / 2 ,
+                        y - DRAG_DET_WINDOW_WIDTH / 2,
+                        DRAG_DET_WINDOW_WIDTH,
+                        DRAG_DET_WINDOW_WIDTH);
       XRaiseWindow(dndXDisplay, dndXWindow);
-      g_debug("%s: move wnd to (%d, %d, %d, %d)\n", __FUNCTION__, x - 5, y - 5 , x + 25, y + 25);
+      g_debug("%s: move wnd to (%d, %d, %d, %d)\n",
+              __FUNCTION__,
+              x - DRAG_DET_WINDOW_WIDTH / 2 ,
+              y - DRAG_DET_WINDOW_WIDTH / 2,
+              DRAG_DET_WINDOW_WIDTH,
+              DRAG_DET_WINDOW_WIDTH);
    }
 
    /*
     * Generate mouse movements over the window.  The second one makes ungrabs
     * happen more reliably on KDE, but isn't necessary on GNOME.
     */
-   XTestFakeMotionEvent(dndXDisplay, -1, x, y, CurrentTime);
-   XTestFakeMotionEvent(dndXDisplay, -1, x + 1, y + 1, CurrentTime);
+   if (mUseUInput) {
+#ifdef USE_UINPUT
+      FakeMouse_Move(x, y);
+      FakeMouse_Move(x + 1, y + 1);
+#endif
+   } else {
+      XTestFakeMotionEvent(dndXDisplay, -1, x, y, CurrentTime);
+      XTestFakeMotionEvent(dndXDisplay, -1, x + 1, y + 1, CurrentTime);
+   }
    g_debug("%s: move mouse to (%d, %d) and (%d, %d)\n", __FUNCTION__, x, y, x + 1, y + 1);
 
    if (buttonEvent) {
       g_debug("%s: faking left mouse button %s\n", __FUNCTION__,
               buttonPress ? "press" : "release");
-      XTestFakeButtonEvent(dndXDisplay, 1, buttonPress, CurrentTime);
-      XSync(dndXDisplay, False);
+      if (mUseUInput) {
+#ifdef USE_UINPUT
+         FakeMouse_Click(buttonPress);
+#endif
+      } else {
+         XTestFakeButtonEvent(dndXDisplay, 1, buttonPress, CurrentTime);
+         XSync(dndXDisplay, False);
+      }
 
       if (!buttonPress) {
          /*
@@ -2039,15 +2112,14 @@ DnDUIX11::TryXTestFakeDeviceButtonEvent()
 GtkWidget *
 DnDUIX11::GetDetWndAsWidget()
 {
-   GtkInvisible *window;
    GtkWidget *widget = NULL;
 
    if (!mDetWnd) {
       return NULL;
    }
-   window = mDetWnd->gobj();
-   if (window) {
-      widget = GTK_WIDGET(window);
+
+   if (mDetWnd->GetWnd()->gobj()) {
+      widget = GTK_WIDGET(mDetWnd->GetWnd()->gobj());
    }
    return widget;
 }

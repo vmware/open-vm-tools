@@ -1,0 +1,13 @@
+# VMware AppMonitorLib pkgconfig data.
+
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name:          VMware AppMonitorLib
+Description:   Library for guest app agents to communicate with vSphere HA about the guest app's liveness
+Version:       @VERSION@
+Libs:          -L${libdir} -lappmonitor
+Cflags:        -I${includedir}/libappmonitor
+

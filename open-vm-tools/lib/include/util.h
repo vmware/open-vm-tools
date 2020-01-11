@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -67,8 +67,12 @@ int Util_HasAdminPriv(void);
 #if defined _WIN32 && defined USERLEVEL
 int Util_TokenHasAdminPriv(HANDLE token);
 #endif
+
 Bool Util_Data2Buffer(char *buf, size_t bufSize, const void *data0,
                       size_t dataSize);
+Bool Util_Data2BufferEx(char *buf, size_t bufSize, const void *data0,
+                        size_t dataSize, char sep);
+
 char *Util_GetCanonicalPath(const char *path);
 #ifdef _WIN32
 char *Util_CompatGetCanonicalPath(const char *path);
@@ -302,6 +306,7 @@ char *UtilSafeStrndup1(const char *s, size_t n,
 
 void *Util_Memdup(const void *src, size_t size);
 void *Util_Memcpy(void *dest, const void *src, size_t count);
+void  Util_Memfree(void *ptr);
 
 Bool Util_ConstTimeMemDiff(const void *secret, const void *guess, size_t len);
 Bool Util_ConstTimeStrDiff(const char *secret, const char *guess);

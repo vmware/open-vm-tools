@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -30,9 +30,11 @@
 #include "vmware/tools/utils.h"
 
 #include <stdio.h>
+#include <sys/stat.h>
 
 #ifdef _WIN32
 #include <windows.h>
+#include "win32Access.h"
 #endif
 
 static FILE* _file = NULL;
@@ -43,8 +45,9 @@ static FILE* _file = NULL;
  *
  * DeployPkgLog_Open --
  *
- *    Init the log. Creates a file in %temp%/vmware and 
- *    opens it for writing. On error, the file will not be opened and logging
+ *    Init the log. Creates a file in %temp%/vmware and
+ *    opens it for writing. On linux, only root own r/w right.
+ *    On error, the file will not be opened and logging
  *    will be disabled.
  *
  * Results:
@@ -67,7 +70,7 @@ DeployPkgLog_Open()
    if (ret == 0) {
       return;
    }
-   
+
    Str_Strcat(logPath, "vmware-imc", sizeof logPath);
 #else
    Str_Strcpy(logPath, "/var/log/vmware-imc", sizeof logPath);
@@ -79,6 +82,9 @@ DeployPkgLog_Open()
       if (_file != NULL) {
 #ifndef _WIN32
          setlinebuf(_file);
+         (void) chmod(logPath, 0600);
+#else
+         (void)Win32Access_SetFileOwnerRW(logPath);
 #endif
          DeployPkgLog_Log(log_debug, "## Starting deploy pkg operation");
       }

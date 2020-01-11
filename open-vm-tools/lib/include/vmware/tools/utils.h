@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -175,12 +175,6 @@ VMTools_AcquireLogStateLock(void);
 
 void
 VMTools_ReleaseLogStateLock(void);
-
-void
-VMTools_StopLogging(void);
-
-void
-VMTools_RestartLogging(void);
 
 gchar *
 VMTools_GetTimeAsString(void);

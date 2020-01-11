@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016,2018-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -177,6 +177,8 @@ PowerOpsStateChangeDone(PowerOpState *state,
                         gboolean success)
 {
    gchar *msg;
+   char *reply = NULL;
+   size_t repLen = 0;
 
    g_debug("State change complete, success = %d.\n", success);
 
@@ -198,10 +200,13 @@ PowerOpsStateChangeDone(PowerOpState *state,
    msg = g_strdup_printf("tools.os.statechange.status %d %d",
                          success,
                          state->stateChgInProgress);
-   if (!RpcChannel_Send(state->ctx->rpc, msg, strlen(msg) + 1, NULL, NULL)) {
-      g_warning("Unable to send the status RPC.");
+   if (!RpcChannel_Send(state->ctx->rpc, msg, strlen(msg) + 1,
+                        &reply, &repLen)) {
+      g_warning("Unable to send the status RPC. Reply: '%s', Reply len: '%" FMTSZ "u'",
+                (reply != NULL) ? reply : "(null)", repLen);
    }
 
+   RpcChannel_Free(reply);
    g_free(msg);
 
    /* Finally, perform the requested operation. */

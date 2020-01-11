@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -337,7 +337,16 @@ typedef enum {
     *
     * Default: FALSE.
     */
-   ASYNC_SOCKET_OPT_SEND_LOW_LATENCY_MODE
+   ASYNC_SOCKET_OPT_SEND_LOW_LATENCY_MODE,
+   /*
+    * This socket config option provides a way to set DSCP value
+    * on the TOS field of IP packet which is a 6 bit value.
+    * Permissible values to configure are 0x0 to 0x3F, although
+    * there are only subset of these values which are widely used.
+    *
+    * Default: 0.
+    */
+   ASYNC_SOCKET_OPT_DSCP
 } AsyncSocket_OptID;
 
 /*
@@ -483,6 +492,14 @@ AsyncSocket *AsyncSocket_Connect(const char *hostname,
                                  AsyncSocketConnectFlags flags,
                                  AsyncSocketPollParams *pollParams,
                                  int *error);
+AsyncSocket *AsyncSocket_ConnectWithFd(const char *hostname,
+                                       unsigned int port,
+                                       int tcpSocketFd,
+                                       AsyncSocketConnectFn connectFn,
+                                       void *clientData,
+                                       AsyncSocketConnectFlags flags,
+                                       AsyncSocketPollParams *pollParams,
+                                       int *error);
 AsyncSocket *AsyncSocket_ConnectVMCI(unsigned int cid, unsigned int port,
                                      AsyncSocketConnectFn connectFn,
                                      void *clientData,
@@ -505,6 +522,13 @@ AsyncSocket_ConnectNamedPipe(const char *pipeName,
                              AsyncSocketPollParams *pollParams,
                              int *outError);
 
+#define ASOCK_NAMEDPIPE_ALLOW_DEFAULT             (0)
+#define ASOCK_NAMEDPIPE_ALLOW_ADMIN_USER_VMWARE   (SDPRIV_GROUP_ADMIN  |   \
+                                                   SDPRIV_USER_CURRENT |   \
+                                                   SDPRIV_GROUP_VMWARE)
+#define ASOCK_NAMEDPIPE_ALLOW_ADMIN_USER          (SDPRIV_GROUP_ADMIN  |   \
+                                                   SDPRIV_USER_CURRENT)
+
 AsyncSocket*
 AsyncSocket_CreateNamedPipe(const char *pipeName,
                             AsyncSocketConnectFn connectFn,
@@ -512,6 +536,7 @@ AsyncSocket_CreateNamedPipe(const char *pipeName,
                             DWORD openMode,
                             DWORD pipeMode,
                             uint32 numInstances,
+                            DWORD accessType,
                             AsyncSocketPollParams *pollParams,
                             int *error);
 #endif

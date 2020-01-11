@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -376,13 +376,14 @@ Util_Throttle(uint32 count)  // IN:
  *
  * Util_Data2Buffer --
  *
- *	Format binary data for printing
+ *    Format binary data for printing.
+ *    Uses space as byte separator.
  *
  * Results:
- *	TRUE if all data fits into buffer, FALSE otherwise.
+ *    TRUE if all data fits into buffer, FALSE otherwise.
  *
  * Side effects:
- *	None
+ *    None
  *
  *----------------------------------------------------------------------
  */
@@ -393,15 +394,46 @@ Util_Data2Buffer(char *buf,         // OUT
                  const void *data0, // IN
                  size_t dataSize)   // IN
 {
-   size_t n;
+   return Util_Data2BufferEx(buf, bufSize, data0, dataSize, ' ');
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Util_Data2BufferEx --
+ *
+ *    Format binary data for printing.
+ *    Uses custom byte separator. None if set to '\0'.
+ *
+ * Results:
+ *    TRUE if all data fits into buffer, FALSE otherwise.
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+Util_Data2BufferEx(char *buf,         // OUT
+                   size_t bufSize,    // IN
+                   const void *data0, // IN
+                   size_t dataSize,   // IN
+                   char sep)          // IN
+{
+   size_t n; /* Chars to process from data0. */
+   const Bool useSeparator = sep != 0;
+
+   /* Number of processed chars that will fit in buf and leave space for trailing NUL. */
+   const size_t outChars = useSeparator ? bufSize / 3 : (bufSize - 1) / 2;
 
    /* At least 1 byte (for NUL) must be available. */
    if (!bufSize) {
       return FALSE;
    }
 
-   bufSize = bufSize / 3;
-   n = MIN(dataSize, bufSize);
+   n = MIN(dataSize, outChars);
    if (n != 0) {
       const uint8 *data = data0;
 
@@ -410,14 +442,18 @@ Util_Data2Buffer(char *buf,         // OUT
 
          *buf++ = digits[*data >> 4];
          *buf++ = digits[*data & 0xF];
-         *buf++ = ' ';
+         if (useSeparator) {
+            *buf++ = sep;
+         }
          data++;
          n--;
       }
-      buf--;
+      if (useSeparator) {
+         buf--; /* Overwrite the last separator with NUL. */
+      }
    }
    *buf = 0;
-   return dataSize <= bufSize;
+   return dataSize <= outChars;
 }
 
 

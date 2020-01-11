@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -39,6 +39,9 @@
 extern "C" {
 #endif
 
+#define MAX_OS_NAME_LEN 128
+#define MAX_OS_FULLNAME_LEN 512
+
 typedef enum {
    HOSTINFO_PROCESS_QUERY_DEAD,    // Procss is dead (does not exist)
    HOSTINFO_PROCESS_QUERY_ALIVE,   // Process is alive (does exist)
@@ -47,10 +50,25 @@ typedef enum {
 
 HostinfoProcessQuery Hostinfo_QueryProcessExistence(int pid);
 
-char *Hostinfo_NameGet(void);           // Don't free result
-char *Hostinfo_HostName(void);          // free result
-char *Hostinfo_GetOSName(void);         // free result
-char *Hostinfo_GetOSGuestString(void);  // free result
+/* This macro defines the current version of the structured header. */
+#define HOSTINFO_STRUCT_HEADER_VERSION 1
+
+/*
+ * This struct is used to build a detailed OS data. The detailed OS data will
+ * be composed of two parts. The first part is the header and the second part
+ * will be a string that is appended to this header in memory.
+ */
+typedef struct HostinfoDetailedDataHeader {
+   uint32  version;
+   char    shortName[MAX_OS_NAME_LEN + 1];
+   char    fullName[MAX_OS_FULLNAME_LEN + 1];
+} HostinfoDetailedDataHeader;
+
+char *Hostinfo_NameGet(void);            // Don't free result
+char *Hostinfo_HostName(void);           // free result
+char *Hostinfo_GetOSName(void);          // free result
+char *Hostinfo_GetOSGuestString(void);   // free result
+char *Hostinfo_GetOSDetailedData(void);  // free result
 
 void Hostinfo_MachineID(uint32 *hostNameHash,
                         uint64 *hostHardwareID);
@@ -96,6 +114,7 @@ enum {
    HOSTINFO_OS_VERSION_MACOS_10_11 = 15,
    HOSTINFO_OS_VERSION_MACOS_10_12 = 16,
    HOSTINFO_OS_VERSION_MACOS_10_13 = 17,
+   HOSTINFO_OS_VERSION_MACOS_10_14 = 18,
 };
 
 int Hostinfo_OSVersion(unsigned int i);
@@ -235,11 +254,6 @@ Bool Hostinfo_GetMhzOfProcessor(int32 processorNumber,
 uint64 Hostinfo_SystemIdleTime(void);
 Bool Hostinfo_GetAllCpuid(CPUIDQuery *query);
 
-static INLINE Bool
-Hostinfo_AtLeastVista(void)
-{
-   return (Hostinfo_GetOSType() >= OS_VISTA);
-}
 #endif
 void Hostinfo_LogLoadAverage(void);
 Bool Hostinfo_GetLoadAverage(uint32 *l);

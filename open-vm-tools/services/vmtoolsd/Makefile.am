@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2009-2016 VMware, Inc.  All rights reserved.
+### Copyright (C) 2009-2019 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -42,6 +42,7 @@ vmtoolsd_SOURCES += serviceObj.c
 vmtoolsd_SOURCES += threadPool.c
 vmtoolsd_SOURCES += toolsRpc.c
 vmtoolsd_SOURCES += svcSignals.c
+vmtoolsd_SOURCES += toolsHangDetector.c
 
 BUILT_SOURCES =
 BUILT_SOURCES += svcSignals.c

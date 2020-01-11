@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2002-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2002-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -35,6 +35,9 @@
 #include "rpcout.h"
 #include "str.h"
 #include "backdoor_def.h"
+#ifdef _WIN32
+#include "vmware/tools/win32util.h"
+#endif
 
 #define NOT_VMWARE_ERROR "Failed sending message to VMware.\n"
 
@@ -134,6 +137,10 @@ int
 main(int argc, char *argv[])
 {
    int ret = 1;
+
+#ifdef _WIN32
+   WinUtil_EnableSafePathSearching(TRUE);
+#endif
 
    if (argc <= 1) {
       PrintUsage();

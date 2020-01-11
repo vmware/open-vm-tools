@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -89,6 +89,8 @@
 #define CR4_PCE        0x00000100
 #define CR4_OSFXSR     0x00000200 // CPU/OS supports SIMD insts
 #define CR4_OSXMMEXCPT 0x00000400 // #XF exception enable PIII only
+#define CR4_UMIP       0x00000800
+#define CR4_LA57       0x00001000
 #define CR4_VMXE       0x00002000
 #define CR4_SMXE       0x00004000
 #define CR4_FSGSBASE   0x00010000
@@ -97,7 +99,7 @@
 #define CR4_SMEP       0x00100000
 #define CR4_SMAP       0x00200000
 #define CR4_PKE        0x00400000
-#define CR4_RESERVED   CONST64U(0xffffffffff889800)
+#define CR4_RESERVED   CONST64U(0xffffffffff889000)
 #define CR8_RESERVED   CONST64U(0xfffffffffffffff0)
 
 /*
@@ -201,7 +203,14 @@
 #define EXC_MC           18
 #define EXC_XF           19  // SIMD exception.
 #define EXC_VE           20  // Virtualization exception - VT only.
+#define EXC_VC           29  // VMM communication exception (SVM / SEV-ES only).
 #define EXC_SX           30  // Security exception (SVM only).
+
+/* Bitmap of the exception vectors that have associated error codes. */
+#define EXC_WITH_ERR_CODE_MASK ((1u << EXC_DF) | (1u << EXC_TS) | \
+                                (1u << EXC_NP) | (1u << EXC_SS) | \
+                                (1u << EXC_GP) | (1u << EXC_PF) | \
+                                (1u << EXC_AC))
 
 /*
  * eflag/rflag definitions.

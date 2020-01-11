@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -53,7 +53,8 @@ extern "C" {
 
 RpcV4Util::RpcV4Util(void)
    : mVersionMajor(4),
-     mVersionMinor(0)
+     mVersionMinor(0),
+     mMaxTransportPacketPayloadSize(DND_CP_PACKET_MAX_PAYLOAD_SIZE_V4)
 {
    DnDCPMsgV4_Init(&mBigMsgIn);
    DnDCPMsgV4_Init(&mBigMsgOut);
@@ -177,7 +178,7 @@ RpcV4Util::SendMsg(RpcParams *params,
 
    DnDCPMsgV4_Init(&shortMsg);
 
-   if (binarySize > DND_CP_PACKET_MAX_PAYLOAD_SIZE_V4) {
+   if (binarySize > mMaxTransportPacketPayloadSize) {
       /*
        * For big message, all information should be cached in mBigMsgOut
        * because multiple packets and sends are needed.
@@ -335,7 +336,8 @@ RpcV4Util::SendMsg(DnDCPMsgV4 *msg)
    size_t packetSize = 0;
    bool ret = false;
 
-   if (!DnDCPMsgV4_Serialize(msg, &packet, &packetSize)) {
+   if (!DnDCPMsgV4_SerializeWithInputPayloadSizeCheck(msg, &packet,
+      &packetSize, mMaxTransportPacketPayloadSize)) {
       LOG(1, ("%s: DnDCPMsgV4_Serialize failed. \n", __FUNCTION__));
       return false;
    }
@@ -364,7 +366,12 @@ RpcV4Util::OnRecvPacket(uint32 srcId,
                         const uint8 *packet,
                         size_t packetSize)
 {
-   DnDCPMsgPacketType packetType = DnDCPMsgV4_GetPacketType(packet, packetSize);
+   DnDCPMsgPacketType packetType = DND_CP_MSG_PACKET_TYPE_INVALID;
+
+   if (packetSize <= mMaxTransportPacketPayloadSize + DND_CP_MSG_HEADERSIZE_V4) {
+      packetType = DnDCPMsgV4_GetPacketType(packet, packetSize, mMaxTransportPacketPayloadSize);
+   }
+
    switch (packetType) {
    case DND_CP_MSG_PACKET_TYPE_SINGLE:
       HandlePacket(srcId, packet, packetSize);
@@ -664,5 +671,28 @@ RpcV4Util::FireRpcSentCallbacks(uint32 cmd,
    }
 }
 
+
+/**
+ * Set the max transport packet size of RPC messages.
+ *
+ * @param[in] size the new max packet size.
+ */
+
+void
+RpcV4Util::SetMaxTransportPacketSize(const uint32 size)
+{
+   ASSERT(size > DND_CP_MSG_HEADERSIZE_V4);
+
+   uint32 newProposedPayloadSize = size - DND_CP_MSG_HEADERSIZE_V4;
+   if (newProposedPayloadSize < DND_CP_PACKET_MAX_PAYLOAD_SIZE_V4) {
+      /*
+       * Reset the max transport packet payload size
+       * if the new size is stricter than the default one.
+       */
+      mMaxTransportPacketPayloadSize = newProposedPayloadSize;
+      LOG(1, ("%s: The packet size is set to %u. \n", __FUNCTION__,
+              mMaxTransportPacketPayloadSize));
+   }
+}
 
 

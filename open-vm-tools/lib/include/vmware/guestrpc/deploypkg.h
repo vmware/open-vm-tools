@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -45,6 +45,7 @@ typedef enum {
    TOOLSDEPLOYPKG_ERROR_RPC_INVALID,
    TOOLSDEPLOYPKG_ERROR_COPY_FAILED,
    TOOLSDEPLOYPKG_ERROR_DEPLOY_FAILED,
+   TOOLSDEPLOYPKG_ERROR_CUST_SCRIPT_DISABLED // User defined script is disabled
 } ToolsDeployPkgError;
 
 #define QUERY_NICS_SUPPORTED  "queryNicsSupported"
