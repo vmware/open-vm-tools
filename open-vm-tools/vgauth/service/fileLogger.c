@@ -76,6 +76,15 @@ ServiceFileLoggerOpen(FileLoggerData *data)
       /* GStatBuf was added in 2.26. */
       GStatBuf fstats;
 
+      /*
+       * In order to determine whether we should rotate the logs,
+       * we are calling the system call stat() to get the existing log file
+       * size.
+       * The time of check vs. time of use issue does not apply to this use
+       * case, as even the file size is increasing, it will not affect the log
+       * rotation decision. So Suppress the fs_check_call coverity warning.
+       */
+      /* coverity[fs_check_call] */
       if (g_stat(path, &fstats) > -1) {
          g_atomic_int_set(&data->logSize, (gint) fstats.st_size);
       }
@@ -112,6 +121,13 @@ ServiceFileLoggerOpen(FileLoggerData *data)
             if (!g_file_test(dest, G_FILE_TEST_IS_DIR) &&
                 (!g_file_test(dest, G_FILE_TEST_EXISTS) ||
                  g_unlink(dest) == 0)) {
+               /*
+                * We should ignore an unlikely rename() system call failure,
+                * as we should keep our service running with non-critical errors.
+                * We cannot log the error because we are already in the log
+                * handler context to avoid crash or recursive logging loop.
+                */
+               /* coverity[check_return] */
                g_rename(src, dest);
             } else {
                g_unlink(src);
@@ -128,6 +144,7 @@ ServiceFileLoggerOpen(FileLoggerData *data)
       }
    }
 
+   /* coverity[toctou] */
    logfile = g_fopen(path, data->append ? "a" : "w");
    /*
     * Make log readable only by root/Administrator.  Just log any error;

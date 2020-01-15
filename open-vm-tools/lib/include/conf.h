@@ -344,4 +344,32 @@
  ******************************************************************************
  */
 
+/*
+ ******************************************************************************
+ * BEGIN environment goodies.
+ */
+
+/**
+ * Defines the strings used for setenvironment and unsetenvironment
+ * config groups.
+ *
+ * These config groups are used for setting and unsetting environment
+ * variables for the service. The keys in this config group can be
+ * specified in following 2 formats:
+ *
+ * 1. <variableName> = <value>
+ * 2. <serviceName>.<variableName> = <value>
+ *
+ * Variables specified in format #1 are applied to all services reading
+ * the config file whereas variables specified in format #2 are applied
+ * only to the specified service.
+ */
+#define CONFGROUPNAME_SET_ENVIRONMENT "setenvironment"
+#define CONFGROUPNAME_UNSET_ENVIRONMENT "unsetenvironment"
+
+/*
+ * END environment goodies.
+ ******************************************************************************
+ */
+
 #endif /* __CONF_H__ */
