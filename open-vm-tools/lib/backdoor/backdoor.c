@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1999-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1999-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -64,7 +64,7 @@ extern "C" {
 #   include "debug.h"
 #endif
 #   include <stdio.h>
-#   define BACKDOOR_LOG(args) Debug args
+#   define BACKDOOR_LOG(...) Debug(__VA_ARGS__)
 #   define BACKDOOR_LOG_PROTO_STRUCT(x) BackdoorPrintProtoStruct((x))
 #   define BACKDOOR_LOG_HB_PROTO_STRUCT(x) BackdoorPrintHbProtoStruct((x))
 
@@ -166,7 +166,7 @@ BackdoorPrintHbProtoStruct(Backdoor_proto_hb *myBp)
 }
 
 #else
-#   define BACKDOOR_LOG(args)
+#   define BACKDOOR_LOG(...)
 #   define BACKDOOR_LOG_PROTO_STRUCT(x)
 #   define BACKDOOR_LOG_HB_PROTO_STRUCT(x)
 #endif
@@ -205,7 +205,7 @@ Backdoor(Backdoor_proto *myBp) // IN/OUT
    myBp->in.ax.word = BDOOR_MAGIC;
    myBp->in.dx.halfs.low = BDOOR_PORT;
 
-   BACKDOOR_LOG(("Backdoor: before "));
+   BACKDOOR_LOG("Backdoor: before ");
    BACKDOOR_LOG_PROTO_STRUCT(myBp);
 
 #ifdef USE_VALGRIND
@@ -214,7 +214,7 @@ Backdoor(Backdoor_proto *myBp) // IN/OUT
    Backdoor_InOut(myBp);
 #endif
 
-   BACKDOOR_LOG(("Backdoor: after "));
+   BACKDOOR_LOG("Backdoor: after ");
    BACKDOOR_LOG_PROTO_STRUCT(myBp);
 }
 
@@ -252,7 +252,7 @@ Backdoor_HbOut(Backdoor_proto_hb *myBp) // IN/OUT
    myBp->in.ax.word = BDOOR_MAGIC;
    myBp->in.dx.halfs.low = BDOORHB_PORT;
 
-   BACKDOOR_LOG(("Backdoor_HbOut: before "));
+   BACKDOOR_LOG("Backdoor_HbOut: before ");
    BACKDOOR_LOG_HB_PROTO_STRUCT(myBp);
 
 #ifdef USE_VALGRIND
@@ -261,7 +261,7 @@ Backdoor_HbOut(Backdoor_proto_hb *myBp) // IN/OUT
    BackdoorHbOut(myBp);
 #endif
 
-   BACKDOOR_LOG(("Backdoor_HbOut: after "));
+   BACKDOOR_LOG("Backdoor_HbOut: after ");
    BACKDOOR_LOG_HB_PROTO_STRUCT(myBp);
 }
 
@@ -299,7 +299,7 @@ Backdoor_HbIn(Backdoor_proto_hb *myBp) // IN/OUT
    myBp->in.ax.word = BDOOR_MAGIC;
    myBp->in.dx.halfs.low = BDOORHB_PORT;
 
-   BACKDOOR_LOG(("Backdoor_HbIn: before "));
+   BACKDOOR_LOG("Backdoor_HbIn: before ");
    BACKDOOR_LOG_HB_PROTO_STRUCT(myBp);
 
 #ifdef USE_VALGRIND
@@ -308,7 +308,7 @@ Backdoor_HbIn(Backdoor_proto_hb *myBp) // IN/OUT
    BackdoorHbIn(myBp);
 #endif
 
-   BACKDOOR_LOG(("Backdoor_HbIn: after "));
+   BACKDOOR_LOG("Backdoor_HbIn: after ");
    BACKDOOR_LOG_HB_PROTO_STRUCT(myBp);
 }
 
