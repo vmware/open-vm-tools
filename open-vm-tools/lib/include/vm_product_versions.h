@@ -445,7 +445,7 @@
 #  define PRODUCT_VERSION_STRING_FOR_LICENSE PRODUCT_LICENSE_VERSION
 #endif
 #define PRODUCT_ESX_LICENSE_VERSION "7.0"
-#define PRODUCT_ESX_LICENSE_FILE_VERSION "7.0.0.2"
+#define PRODUCT_ESX_LICENSE_FILE_VERSION "7.0.0.3"
 
 /*
  * The configuration file version string should be changed
