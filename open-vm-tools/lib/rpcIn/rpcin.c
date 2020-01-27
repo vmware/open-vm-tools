@@ -57,7 +57,7 @@
 
 #if defined(VMTOOLS_USE_VSOCKET)
 #  include <glib.h>
-#  include "poll.h"
+#  include "vm_poll.h"
 #  include "asyncsocket.h"
 #  include "vmci_defs.h"
 #include "dataMap.h"
