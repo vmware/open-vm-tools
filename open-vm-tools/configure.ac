@@ -1655,6 +1655,7 @@ AC_CONFIG_FILES([                      \
    services/Makefile                   \
    services/vmtoolsd/Makefile          \
    services/plugins/Makefile           \
+   services/plugins/appInfo/Makefile   \
    services/plugins/desktopEvents/Makefile \
    services/plugins/dndcp/Makefile     \
    services/plugins/grabbitmqProxy/Makefile \

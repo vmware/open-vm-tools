@@ -256,6 +256,7 @@ ProcMgr_ListProcesses(void)
    procList = Util_SafeCalloc(1, sizeof *procList);
    ProcMgrProcInfoArray_Init(procList, 0);
    procInfo.procCmdName = NULL;
+   procInfo.procCmdAbsPath = NULL;
    procInfo.procCmdLine = NULL;
    procInfo.procOwner = NULL;
 
@@ -337,7 +338,6 @@ ProcMgr_ListProcesses(void)
       unsigned long long dummy;
       unsigned long long relativeStartTime;
       char *stringBegin;
-      char *cmdNameBegin;
       Bool cmdNameLookup = TRUE;
 
       /*
@@ -384,31 +384,65 @@ ProcMgr_ListProcesses(void)
          continue;
       }
 
+      if (snprintf(cmdFilePath,
+                   sizeof cmdFilePath,
+                   "/proc/%s/exe",
+                   ent->d_name) != -1) {
+         int exeLen;
+         char exeRealPath[1024];
+
+         exeLen = readlink(cmdFilePath, exeRealPath, sizeof exeRealPath -1);
+         if (exeLen != -1) {
+            exeRealPath[exeLen] = '\0';
+            procInfo.procCmdAbsPath =
+               Unicode_Alloc(exeRealPath, STRING_ENCODING_DEFAULT);
+         }
+      }
+
       if (numRead > 0) {
-         /*
-          * Stop before we hit the final '\0'; want to leave it alone.
-          */
-         for (replaceLoop = 0 ; replaceLoop < (numRead - 1) ; replaceLoop++) {
-            if ('\0' == cmdLineTemp[replaceLoop]) {
+         for (replaceLoop = 0 ; replaceLoop < numRead ; replaceLoop++) {
+            if ('\0' == cmdLineTemp[replaceLoop] ||
+                replaceLoop == numRead - 1) {
                if (cmdNameLookup) {
                   /*
                    * Store the command name.
                    * Find the last path separator, to get the cmd name.
                    * If no separator is found, then use the whole name.
+                   * This needs to be done only if there is an absolute
+                   * path for the binary. Else, the parsing may result
+                   * in incorrect results. Following are few examples:
+                   *
+                   *   sshd: root@pts/1
+                   *   gdm-session-worker [pam/gdm-autologin]
+                   *
                    */
-                  cmdNameBegin = strrchr(cmdLineTemp, '/');
-                  if (NULL == cmdNameBegin) {
-                     cmdNameBegin = cmdLineTemp;
-                  } else {
+                  char *cmdNameBegin = strrchr(cmdLineTemp, '/');
+                  if (NULL != cmdNameBegin && cmdLineTemp[0] == '/') {
                      /*
                       * Skip over the last separator.
                       */
                      cmdNameBegin++;
+                  } else {
+                     cmdNameBegin = cmdLineTemp;
                   }
                   procInfo.procCmdName = Unicode_Alloc(cmdNameBegin, STRING_ENCODING_DEFAULT);
+                  if (procInfo.procCmdAbsPath == NULL &&
+                      cmdLineTemp[0] == '/') {
+                     procInfo.procCmdAbsPath =
+                        Unicode_Alloc(cmdLineTemp, STRING_ENCODING_DEFAULT);
+                  }
                   cmdNameLookup = FALSE;
                }
-               cmdLineTemp[replaceLoop] = ' ';
+
+               /*
+                * In /proc/{PID}/cmdline file, the command and the
+                * arguments are separated by '\0'. We need to replace
+                * only the intermediate '\0' with ' ' and not the trailing
+                * NUL characer.
+                */
+               if (replaceLoop < (numRead - 1)) {
+                  cmdLineTemp[replaceLoop] = ' ';
+               }
             }
          }
       } else {
@@ -462,6 +496,10 @@ ProcMgr_ListProcesses(void)
              * Store the command name.
              */
             procInfo.procCmdName = Unicode_Alloc(cmdLineTemp, STRING_ENCODING_DEFAULT);
+            if (procInfo.procCmdAbsPath == NULL &&
+                cmdLineTemp[0] == '/') {
+               procInfo.procCmdAbsPath = Unicode_Alloc(cmdLineTemp, STRING_ENCODING_DEFAULT);
+            }
          }
       }
 
@@ -535,6 +573,17 @@ ProcMgr_ListProcesses(void)
        * Store the command line string pointer in dynbuf.
        */
       if (cmdLineTemp) {
+         int i;
+
+         /*
+          * Chop off the trailing whitespace characters.
+          */
+         for (i = strlen(cmdLineTemp) - 1 ;
+              i >= 0 && cmdLineTemp[i] == ' ' ;
+              i--) {
+            cmdLineTemp[i] = '\0';
+         }
+
          procInfo.procCmdLine = Unicode_Alloc(cmdLineTemp, STRING_ENCODING_DEFAULT);
       } else {
          procInfo.procCmdLine = Unicode_Alloc("", STRING_ENCODING_UTF8);
@@ -564,13 +613,21 @@ ProcMgr_ListProcesses(void)
       if (!ProcMgrProcInfoArray_Push(procList, procInfo)) {
          Warning("%s: failed to expand DynArray - out of memory\n",
                  __FUNCTION__);
+         free(cmdLineTemp);
+         free(cmdStatTemp);
          goto abort;
       }
       procInfo.procCmdName = NULL;
+      procInfo.procCmdAbsPath = NULL;
       procInfo.procCmdLine = NULL;
       procInfo.procOwner = NULL;
 
 next_entry:
+      free(procInfo.procCmdName);
+      procInfo.procCmdName = NULL;
+      free(procInfo.procCmdAbsPath);
+      procInfo.procCmdAbsPath = NULL;
+
       free(cmdLineTemp);
       free(cmdStatTemp);
    } // while readdir
@@ -583,6 +640,7 @@ abort:
    closedir(dir);
 
    free(procInfo.procCmdName);
+   free(procInfo.procCmdAbsPath);
    free(procInfo.procCmdLine);
    free(procInfo.procOwner);
 
@@ -1187,6 +1245,9 @@ ProcMgr_FreeProcList(ProcMgrProcInfoArray *procList)
    for (i = 0; i < procCount; i++) {
       ProcMgrProcInfo *procInfo = ProcMgrProcInfoArray_AddressOf(procList, i);
       free(procInfo->procCmdName);
+#if defined(__linux__)
+      free(procInfo->procCmdAbsPath);
+#endif
       free(procInfo->procCmdLine);
       free(procInfo->procOwner);
    }
@@ -1582,8 +1643,6 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
    ProcMgr_AsyncProc *asyncProc = NULL;
    pid_t pid;
    int fds[2];
-   Bool validExitCode = FALSE;
-   int exitCode;
    pid_t resultPid;
    int readFd, writeFd;
 
@@ -1608,6 +1667,8 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
       int i, maxfd;
       Bool status = TRUE;
       pid_t childPid = -1;
+      Bool validExitCode = FALSE;
+      int exitCode = -1;
 
       /*
        * Child
