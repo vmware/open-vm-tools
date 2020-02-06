@@ -532,17 +532,12 @@ struct vop_generic_args {
     * Map the possible out-going vpp (Assumes that the lower layer always
     * returns a VREF'ed vpp unless it gets an error.)
     */
-   if (descp->vdesc_vpp_offset != VDESC_NO_OFFSET &&
-       !(descp->vdesc_flags & VDESC_NOMAP_VPP) &&
-       !error) {
+   if (descp->vdesc_vpp_offset != VDESC_NO_OFFSET && !error) {
       /*
        * XXX - even though some ops have vpp returned vp's, several ops
        * actually vrele this before returning.  We must avoid these ops.
        * (This should go away when these ops are regularized.)
        */
-      if (descp->vdesc_flags & VDESC_VPP_WILLRELE) {
-         goto out;
-      }
       vppp = VOPARG_OFFSETTO(struct vnode***, descp->vdesc_vpp_offset,ap);
       if (*vppp) {
          /* FIXME: set proper name for the vnode */
@@ -550,7 +545,6 @@ struct vop_generic_args {
       }
    }
 
-out:
    return error;
 }
 
