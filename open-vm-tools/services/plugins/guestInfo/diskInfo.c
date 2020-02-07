@@ -846,9 +846,9 @@ GuestInfoGetDiskDevice(const char *fsName,
     */
    for (indx = 0; indx < partEntry->diskDevCnt; indx++) {
       if (partEntry->diskDevNames[indx][0] == '\0') {
-         g_warning("%s: Missing disk device name; VMDK mapping unavailable "
-                   "for \"%s\", fsName: \"%s\"\n", __FUNCTION__,
-                   partEntry->name, fsName);
+         g_debug("%s: Missing disk device name; VMDK mapping unavailable "
+                 "for \"%s\", fsName: \"%s\"\n", __FUNCTION__,
+                 partEntry->name, fsName);
          partEntry->diskDevCnt = 0;
          free(partEntry->diskDevNames);
          partEntry->diskDevNames = NULL;
