@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -128,7 +128,7 @@
 /*
  * Linux versions can lack support for IPV6_V6ONLY while still supporting
  * V4MAPPED addresses. We check for a V4MAPPED address during accept to cover
- * this scenario. In case IN6_IS_ADDR_V4MAPPED is also not avaiable, define it.
+ * this scenario. In case IN6_IS_ADDR_V4MAPPED is also not available, define it.
  */
 #ifndef IN6_IS_ADDR_V4MAPPED
 #define IN6_IS_ADDR_V4MAPPED(a)                                   \
