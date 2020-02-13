@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -47,6 +47,7 @@
 #include "hgfsServerParameters.h"
 #include "hgfsServerOplock.h"
 #include "hgfsDirNotify.h"
+#include "hgfsThreadpool.h"
 #include "userlock.h"
 #include "poll.h"
 #include "mutexRankLib.h"
@@ -272,6 +273,13 @@ static DblLnkLst_Links gHgfsSharedFoldersList;
  */
 static Bool gHgfsDirNotifyActive = FALSE;
 
+/*
+ * Indicates if the threadpool is active. If so then all the asynchronous IO will be
+ * handled by worker thread in threadpool. If threadpool is not active, all the
+ * asynchronous IO will be handled by poll.
+ */
+static Bool gHgfsThreadpoolActive = FALSE;
+
 typedef struct HgfsSharedFolderProperties {
    DblLnkLst_Links links;
    char *name;                                /* Name of the share. */
@@ -287,6 +295,7 @@ HgfsServerAsyncInfoIncCount(HgfsAsyncRequestInfo *info);
 
 static Bool
 HgfsServerAllocateSession(HgfsTransportSessionInfo *transportSession,
+                          HgfsCreateSessionInfo createSessionInfo,
                           HgfsSessionInfo **sessionData);
 static HgfsInternalStatus
 HgfsServerTransportAddSessionToList(HgfsTransportSessionInfo *transportSession,
@@ -2891,8 +2900,8 @@ static struct {
     */
    { HgfsServerCreateSession,    sizeof (HgfsRequestCreateSessionV4),              REQ_SYNC},
    { HgfsServerDestroySession,   sizeof (HgfsRequestDestroySessionV4),             REQ_SYNC},
-   { HgfsServerRead,             sizeof (HgfsRequestReadV3),                       REQ_SYNC},
-   { HgfsServerWrite,            sizeof (HgfsRequestWriteV3),                      REQ_SYNC},
+   { HgfsServerRead,             sizeof (HgfsRequestReadV3),                       REQ_ASYNC},
+   { HgfsServerWrite,            sizeof (HgfsRequestWriteV3),                      REQ_ASYNC},
    { HgfsServerSetDirNotifyWatch,    sizeof (HgfsRequestSetWatchV4),               REQ_SYNC},
    { HgfsServerRemoveDirNotifyWatch, sizeof (HgfsRequestRemoveWatchV4),            REQ_SYNC},
    { NULL,                       0,                                                REQ_SYNC}, // No Op notify
@@ -3351,8 +3360,15 @@ HgfsServerSessionReceive(HgfsPacket *packet,      // IN: Hgfs Packet
           (handlers[input->op].handler != NULL) &&
           (input->requestSize >= handlers[input->op].minReqSize)) {
          /* Initial validation passed, process the client request now. */
+         /*
+          * Server will only handle the request asynchronously when both the
+          * server and client support asynchronous IO, this is indicated by
+          * bit HGFS_SESSION_ASYNC_IO_ENABLED in input->session->flags which
+          * is negotiated when the session is created.
+          */
          if ((handlers[input->op].reqType == REQ_ASYNC) &&
-             (transportSession->channelCapabilities.flags & HGFS_CHANNEL_ASYNC)) {
+             (transportSession->channelCapabilities.flags & HGFS_CHANNEL_ASYNC) &&
+             (input->session->flags & HGFS_SESSION_ASYNC_IO_ENABLED)) {
              packet->state |= HGFS_STATE_ASYNC_REQUEST;
          }
          if (0 != (packet->state & HGFS_STATE_ASYNC_REQUEST)) {
@@ -3366,14 +3382,21 @@ HgfsServerSessionReceive(HgfsPacket *packet,      // IN: Hgfs Packet
             input->request = NULL;
             HgfsServerAsyncInfoIncCount(&input->session->asyncRequestsInfo);
 
-            /* Remove pending requests during poweroff. */
-            Poll_Callback(POLL_CS_MAIN,
-                          POLL_FLAG_REMOVE_AT_POWEROFF,
-                          HgfsServerProcessRequest,
-                          input,
-                          POLL_REALTIME,
-                          1000,
-                          NULL);
+            if (gHgfsThreadpoolActive) {
+               if (!HgfsThreadpool_QueueWorkItem(HgfsServerProcessRequest, input)) {
+                  LOG(4, "%s: %d: failed to queue item.\n", __FUNCTION__, __LINE__);
+                  HgfsServerProcessRequest(input);
+               }
+            } else {
+                /* Remove pending requests during poweroff. */
+                Poll_Callback(POLL_CS_MAIN,
+                              POLL_FLAG_REMOVE_AT_POWEROFF,
+                              HgfsServerProcessRequest,
+                              input,
+                              POLL_REALTIME,
+                              1000,
+                              NULL);
+            }
 #else
             /* Tools code should never process request async. */
             ASSERT(0);
@@ -3480,7 +3503,7 @@ HgfsServerTransportGetDefaultSession(HgfsTransportSessionInfo *transportSession,
 {
    HgfsInternalStatus status = HGFS_ERROR_SUCCESS;
    HgfsSessionInfo *defaultSession;
-
+   HgfsCreateSessionInfo info = { 0 };
    defaultSession = HgfsServerTransportGetSessionInfo(transportSession,
                                                       transportSession->defaultSessionId);
    if (NULL != defaultSession) {
@@ -3492,6 +3515,7 @@ HgfsServerTransportGetDefaultSession(HgfsTransportSessionInfo *transportSession,
     * Create a new session if the default session doesn't exist.
     */
    if (!HgfsServerAllocateSession(transportSession,
+                                  info,
                                   &defaultSession)) {
       status = HGFS_ERROR_NOT_ENOUGH_MEMORY;
       goto exit;
@@ -3956,6 +3980,12 @@ HgfsServer_InitState(const HgfsServerCallbacks **callbackTable,   // IN/OUT: our
             gHgfsCfgSettings.flags &= ~HGFS_CONFIG_OPLOCK_ENABLED;
          }
       }
+      if (0 != (gHgfsCfgSettings.flags & HGFS_CONFIG_THREADPOOL_ENABLED)) {
+         gHgfsThreadpoolActive =
+            HgfsThreadpool_Init() == HGFS_STATUS_SUCCESS;
+         Log("%s: initialized threadpool %s.\n", __FUNCTION__,
+             (gHgfsThreadpoolActive ? "active" : "inactive"));
+      }
    } else {
       HgfsServer_ExitState(); // Cleanup partially initialized state
    }
@@ -4004,6 +4034,12 @@ HgfsServer_ExitState(void)
    if (NULL != gHgfsSharedFoldersLock) {
       MXUser_DestroyExclLock(gHgfsSharedFoldersLock);
       gHgfsSharedFoldersLock = NULL;
+   }
+
+   if (gHgfsThreadpoolActive) {
+      HgfsThreadpool_Exit();
+      gHgfsThreadpoolActive = FALSE;
+      Log("%s: exit threadpool - inactive.\n", __FUNCTION__);
    }
 
    HgfsPlatformDestroy();
@@ -4604,10 +4640,12 @@ HgfsServerAsyncInfoIncCount(HgfsAsyncRequestInfo *info) // IN/OUT: info
 
 static Bool
 HgfsServerAllocateSession(HgfsTransportSessionInfo *transportSession, // IN:
+                          HgfsCreateSessionInfo createSessionInfo,    // IN:
                           HgfsSessionInfo **sessionData)              // OUT:
 {
    int i;
    HgfsSessionInfo *session;
+   HgfsOpCapFlags flags;
 
    LOG(8, "%s: entered\n", __FUNCTION__);
 
@@ -4631,11 +4669,27 @@ HgfsServerAllocateSession(HgfsTransportSessionInfo *transportSession, // IN:
    session->sessionId = HgfsGenerateSessionId();
    session->state = HGFS_SESSION_STATE_OPEN;
    DblLnkLst_Init(&session->links);
-   session->maxPacketSize = transportSession->channelCapabilities.maxPacketSize;
-   session->flags |= HGFS_SESSION_MAXPACKETSIZE_VALID;
    session->isInactive = TRUE;
    session->transportSession = transportSession;
    session->numInvalidationAttempts = 0;
+
+   if (  createSessionInfo.maxPacketSize
+       < transportSession->channelCapabilities.maxPacketSize) {
+      session->maxPacketSize = createSessionInfo.maxPacketSize;
+   } else {
+      session->maxPacketSize = transportSession->channelCapabilities.maxPacketSize;
+   }
+   session->flags |= HGFS_SESSION_MAXPACKETSIZE_VALID;
+
+   /*
+    * If the server is enabled for processing oplocks and the client
+    * is requesting to use them, then report back to the client oplocks
+    * are enabled by propagating the session flag.
+    */
+   if ((0 != (createSessionInfo.flags & HGFS_SESSION_OPLOCK_ENABLED)) &&
+       (0 != (gHgfsCfgSettings.flags & HGFS_CONFIG_OPLOCK_ENABLED))) {
+      session->flags |= HGFS_SESSION_OPLOCK_ENABLED;
+   }
 
    /*
     * Initialize the node handling components.
@@ -4686,10 +4740,26 @@ HgfsServerAllocateSession(HgfsTransportSessionInfo *transportSession, // IN:
                                     &session->numberOfCapabilities);
 
    if (transportSession->channelCapabilities.flags & HGFS_CHANNEL_SHARED_MEM) {
+      flags = HGFS_OP_CAPFLAG_IS_SUPPORTED;
+      if (   (0 != (createSessionInfo.flags & HGFS_SESSION_ASYNC_IO_ENABLED))
+          && gHgfsThreadpoolActive) {
+         if (HgfsThreadpool_Activate()) {
+            session->flags |= HGFS_SESSION_ASYNC_IO_ENABLED;
+            flags |= HGFS_SESSION_ASYNC_IO_ENABLED;
+            LOG(8, "%s: threadpool is enabled\n", __FUNCTION__);
+         } else {
+            HgfsThreadpool_Exit();
+            gHgfsThreadpoolActive = FALSE;
+            Log("%s: failed to activate the threadpool\n", __FUNCTION__);
+         }
+      }
       HgfsServerSetSessionCapability(HGFS_OP_READ_FAST_V4,
-                                     HGFS_OP_CAPFLAG_IS_SUPPORTED, session);
+                                     flags,
+                                     session);
       HgfsServerSetSessionCapability(HGFS_OP_WRITE_FAST_V4,
-                                     HGFS_OP_CAPFLAG_IS_SUPPORTED, session);
+                                     flags,
+                                     session);
+
       if (gHgfsDirNotifyActive) {
          LOG(8, "%s: notify is enabled\n", __FUNCTION__);
          if (HgfsServerEnumerateSharedFolders()) {
@@ -4708,6 +4778,7 @@ HgfsServerAllocateSession(HgfsTransportSessionInfo *transportSession, // IN:
              (session->flags & HGFS_SESSION_CHANGENOTIFY_ENABLED ? "enabled" :
                                                                    "disabled"));
       }
+
       HgfsServerSetSessionCapability(HGFS_OP_SEARCH_READ_V4,
                                      HGFS_OP_CAPFLAG_IS_SUPPORTED, session);
    }
@@ -4916,6 +4987,10 @@ HgfsServerExitSessionInternal(HgfsSessionInfo *session)    // IN: session contex
 
    MXUser_ReleaseExclLock(session->searchArrayLock);
 
+   if (gHgfsThreadpoolActive) {
+      HgfsThreadpool_Deactivate();
+   }
+
    /* Teardown the locks for the sessions and destroy itself. */
    MXUser_DestroyExclLock(session->nodeArrayLock);
    MXUser_DestroyExclLock(session->searchArrayLock);
@@ -5049,6 +5124,15 @@ HgfsServerSessionQuiesce(void *clientData,         // IN: transport and session
       HgfsSessionInfo *session = DblLnkLst_Container(curr, HgfsSessionInfo, links);
 
       switch(quiesceOp) {
+      case HGFS_QUIESCE_CHANNEL_FREEZE:
+         /*
+          * The channel is still alive now, it's the right time to
+          * finish all asynchronous IO.
+          */
+         if (gHgfsThreadpoolActive) {
+            HgfsThreadpool_Deactivate();
+         }
+         break;
       case HGFS_QUIESCE_FREEZE:
          /* Suspend background activity. */
          LOG(8, "%s: Halt file system activity for session %p\n",
@@ -5056,6 +5140,10 @@ HgfsServerSessionQuiesce(void *clientData,         // IN: transport and session
 
          if (gHgfsDirNotifyActive) {
             HgfsNotify_Deactivate(HGFS_NOTIFY_REASON_SERVER_SYNC, session);
+         }
+
+         if (gHgfsThreadpoolActive) {
+            HgfsThreadpool_Deactivate();
          }
 
          HgfsServerAsyncWaitForAllRequestsDone(&session->asyncRequestsInfo);
@@ -5068,6 +5156,14 @@ HgfsServerSessionQuiesce(void *clientData,         // IN: transport and session
 
          if (gHgfsDirNotifyActive) {
             HgfsNotify_Activate(HGFS_NOTIFY_REASON_SERVER_SYNC, session);
+         }
+
+         if (gHgfsThreadpoolActive) {
+            if (!HgfsThreadpool_Activate()) {
+               HgfsThreadpool_Exit();
+               gHgfsThreadpoolActive = FALSE;
+               Log("%s: failed to resume the threadpool\n", __FUNCTION__);
+            }
          }
          break;
 
@@ -9044,6 +9140,7 @@ HgfsServerCreateSession(HgfsInputParam *input)  // IN: Input params
       LOG(4, "%s: create session\n", __FUNCTION__);
 
       if (!HgfsServerAllocateSession(input->transportSession,
+                                     info,
                                      &session)) {
          status = HGFS_ERROR_NOT_ENOUGH_MEMORY;
          goto abort;
@@ -9055,20 +9152,6 @@ HgfsServerCreateSession(HgfsInputParam *input)  // IN: Input params
             HgfsServerSessionPut(session);
             goto abort;
          }
-      }
-
-      if (info.maxPacketSize < session->maxPacketSize) {
-         session->maxPacketSize = info.maxPacketSize;
-      }
-
-      /*
-       * If the server is enabled for processing oplocks and the client
-       * is requesting to use them, then report back to the client oplocks
-       * are enabled by propagating the session flag.
-       */
-      if ((0 != (info.flags & HGFS_SESSION_OPLOCK_ENABLED)) &&
-          (0 != (gHgfsCfgSettings.flags & HGFS_CONFIG_OPLOCK_ENABLED))) {
-         session->flags |= HGFS_SESSION_OPLOCK_ENABLED;
       }
 
       if (HgfsPackCreateSessionReply(input->packet, input->request,
