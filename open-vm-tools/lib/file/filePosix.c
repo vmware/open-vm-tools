@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -3005,7 +3005,7 @@ File_WalkDirectoryStart(const char *dirName)  // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * File_WalkDirectoryNextEntry --
+ * File_WalkDirectoryNext --
  *
  *      Get the next file name during a directory traversal started with
  *      File_WalkDirectoryStart.
@@ -3079,15 +3079,15 @@ File_WalkDirectoryNext(WalkDirContext context,  // IN:
                                        UNICODE_SUBSTITUTION_CHAR);
       }
 
-      if (HashTable_Insert(context->hash, allocName, NULL)) {
+      if (HashTable_Insert(context->hash, allocName, NULL)) {  // Unique - good
          if (fileName != NULL) {
             *fileName = Util_SafeStrdup(allocName);
          }
 
          callAgain = TRUE;
          break;
-      } else {
-         /* Ignore duplicates */
+      } else {  // Duplicate - ignore
+         free(allocName);
          continue;
       }
    }
