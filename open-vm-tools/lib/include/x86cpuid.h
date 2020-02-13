@@ -130,67 +130,65 @@ CPUIDQuery;
  * The fifth parameter is the first hardware version that is *aware* of the
  * CPUID level (0 = existed since dawn of time), even though we may not expose
  * this level or parts of it to guest.
- *
- * The sixth parameter is a label for the leaf, such as: CPUID_MWAIT_FEATURES.
  */
 
-/*            MASKS, LVL, VAL,      CNT, HWV, NAME                     */
-#define CPUID_CACHED_LEVELS                                             \
-   CPUIDLEVEL(TRUE,  0,   0x0,        0,  0, CPUID_0)                   \
-   CPUIDLEVEL(TRUE,  1,   0x1,        0,  0, CPUID_FEATURE_INFORMATION) \
-   CPUIDLEVEL(FALSE, 2,   0x2,        0,  0, CPUID_2)                   \
-   CPUIDLEVEL(FALSE, 4,   0x4,        7,  0, CPUID_PROCESSOR_TOPOLOGY)  \
-   CPUIDLEVEL(FALSE, 5,   0x5,        0,  0, CPUID_MWAIT_FEATURES)      \
-   CPUIDLEVEL(TRUE,  6,   0x6,        0,  0, CPUID_6)                   \
-   CPUIDLEVEL(TRUE,  7,   0x7,        2,  0, CPUID_7)                   \
-   CPUIDLEVEL(TRUE,  9,   0x9,        0, 17, CPUID_9)                   \
-   CPUIDLEVEL(FALSE, A,   0xa,        0,  0, CPUID_PMC_FEATURES)        \
-   CPUIDLEVEL(FALSE, B,   0xb,        3,  0, CPUID_B)                   \
-   CPUIDLEVEL(TRUE,  D,   0xd,       10,  0, CPUID_XSAVE_FEATURES)      \
-   CPUIDLEVEL(TRUE,  F,   0xf,        2, 13, CPUID_F)                   \
-   CPUIDLEVEL(TRUE,  10,  0x10,       4, 13, CPUID_10)                  \
-   CPUIDLEVEL(TRUE,  12,  0x12,       4, 13, CPUID_SGX_FEATURES)        \
-   CPUIDLEVEL(TRUE,  14,  0x14,       2, 13, CPUID_14)                  \
-   CPUIDLEVEL(TRUE,  15,  0x15,       0, 13, CPUID_15)                  \
-   CPUIDLEVEL(TRUE,  16,  0x16,       0, 13, CPUID_16)                  \
-   CPUIDLEVEL(TRUE,  17,  0x17,       4, 14, CPUID_PT_FEATURES)         \
-   CPUIDLEVEL(TRUE,  18,  0x18,       8, 17, CPUID_18)                  \
-   CPUIDLEVEL(TRUE,  1A,  0x1a,       0, 17, CPUID_HYBRID_INFO)         \
-   CPUIDLEVEL(TRUE,  1B,  0x1b,       2, 17, CPUID_1B)                  \
-   CPUIDLEVEL(TRUE,  1F,  0x1f,       6, 17, CPUID_1F)                  \
-   CPUIDLEVEL(FALSE, 400, 0x40000000, 0,  0, CPUID_HYPERVISOR_LEVEL_0)  \
-   CPUIDLEVEL(FALSE, 401, 0x40000001, 0,  0, CPUID_401)                 \
-   CPUIDLEVEL(FALSE, 402, 0x40000002, 0,  0, CPUID_402)                 \
-   CPUIDLEVEL(FALSE, 403, 0x40000003, 0,  0, CPUID_403)                 \
-   CPUIDLEVEL(FALSE, 404, 0x40000004, 0,  0, CPUID_404)                 \
-   CPUIDLEVEL(FALSE, 405, 0x40000005, 0,  0, CPUID_405)                 \
-   CPUIDLEVEL(FALSE, 406, 0x40000006, 0,  0, CPUID_406)                 \
-   CPUIDLEVEL(FALSE, 410, 0x40000010, 0,  0, CPUID_VMW_FEATURES)        \
-   CPUIDLEVEL(FALSE, 80,  0x80000000, 0,  0, CPUID_80)                  \
-   CPUIDLEVEL(TRUE,  81,  0x80000001, 0,  0, CPUID_81)                  \
-   CPUIDLEVEL(FALSE, 82,  0x80000002, 0,  0, CPUID_82)                  \
-   CPUIDLEVEL(FALSE, 83,  0x80000003, 0,  0, CPUID_83)                  \
-   CPUIDLEVEL(FALSE, 84,  0x80000004, 0,  0, CPUID_84)                  \
-   CPUIDLEVEL(FALSE, 85,  0x80000005, 0,  0, CPUID_85)                  \
-   CPUIDLEVEL(FALSE, 86,  0x80000006, 0,  0, CPUID_86)                  \
-   CPUIDLEVEL(FALSE, 87,  0x80000007, 0,  0, CPUID_87)                  \
-   CPUIDLEVEL(TRUE,  88,  0x80000008, 0,  0, CPUID_88)                  \
-   CPUIDLEVEL(TRUE,  8A,  0x8000000a, 0,  0, CPUID_SVM_FEATURES)        \
-   CPUIDLEVEL(FALSE, 819, 0x80000019, 0,  0, CPUID_819)                 \
-   CPUIDLEVEL(FALSE, 81A, 0x8000001a, 0,  0, CPUID_81A)                 \
-   CPUIDLEVEL(FALSE, 81B, 0x8000001b, 0,  0, CPUID_81B)                 \
-   CPUIDLEVEL(FALSE, 81C, 0x8000001c, 0,  0, CPUID_81C)                 \
-   CPUIDLEVEL(FALSE, 81D, 0x8000001d, 5,  0, CPUID_81D)                 \
-   CPUIDLEVEL(FALSE, 81E, 0x8000001e, 0,  0, CPUID_81E)                 \
-   CPUIDLEVEL(TRUE,  81F, 0x8000001f, 0, 14, CPUID_SEV_INFO)            \
-   CPUIDLEVEL(TRUE,  820, 0x80000020, 2, 17, CPUID_MEM_QOS_AMD)         \
-   CPUIDLEVEL(TRUE,  821, 0x80000021, 0, 17, CPUID_820)
+/*            MASKS, LVL, VAL,      CNT, HWV */
+#define CPUID_CACHED_LEVELS                  \
+   CPUIDLEVEL(TRUE,  0,   0x0,        0,  0) \
+   CPUIDLEVEL(TRUE,  1,   0x1,        0,  0) \
+   CPUIDLEVEL(FALSE, 2,   0x2,        0,  0) \
+   CPUIDLEVEL(FALSE, 4,   0x4,        7,  0) \
+   CPUIDLEVEL(FALSE, 5,   0x5,        0,  0) \
+   CPUIDLEVEL(TRUE,  6,   0x6,        0,  0) \
+   CPUIDLEVEL(TRUE,  7,   0x7,        2,  0) \
+   CPUIDLEVEL(TRUE,  9,   0x9,        0, 17) \
+   CPUIDLEVEL(FALSE, A,   0xa,        0,  0) \
+   CPUIDLEVEL(FALSE, B,   0xb,        3,  0) \
+   CPUIDLEVEL(TRUE,  D,   0xd,       10,  0) \
+   CPUIDLEVEL(TRUE,  F,   0xf,        2, 13) \
+   CPUIDLEVEL(TRUE,  10,  0x10,       4, 13) \
+   CPUIDLEVEL(TRUE,  12,  0x12,       4, 13) \
+   CPUIDLEVEL(TRUE,  14,  0x14,       2, 13) \
+   CPUIDLEVEL(TRUE,  15,  0x15,       0, 13) \
+   CPUIDLEVEL(TRUE,  16,  0x16,       0, 13) \
+   CPUIDLEVEL(TRUE,  17,  0x17,       4, 14) \
+   CPUIDLEVEL(TRUE,  18,  0x18,       8, 17) \
+   CPUIDLEVEL(TRUE,  1A,  0x1a,       0, 17) \
+   CPUIDLEVEL(TRUE,  1B,  0x1b,       2, 17) \
+   CPUIDLEVEL(TRUE,  1F,  0x1f,       6, 17) \
+   CPUIDLEVEL(FALSE, 400, 0x40000000, 0,  0) \
+   CPUIDLEVEL(FALSE, 401, 0x40000001, 0,  0) \
+   CPUIDLEVEL(FALSE, 402, 0x40000002, 0,  0) \
+   CPUIDLEVEL(FALSE, 403, 0x40000003, 0,  0) \
+   CPUIDLEVEL(FALSE, 404, 0x40000004, 0,  0) \
+   CPUIDLEVEL(FALSE, 405, 0x40000005, 0,  0) \
+   CPUIDLEVEL(FALSE, 406, 0x40000006, 0,  0) \
+   CPUIDLEVEL(FALSE, 410, 0x40000010, 0,  0) \
+   CPUIDLEVEL(FALSE, 80,  0x80000000, 0,  0) \
+   CPUIDLEVEL(TRUE,  81,  0x80000001, 0,  0) \
+   CPUIDLEVEL(FALSE, 82,  0x80000002, 0,  0) \
+   CPUIDLEVEL(FALSE, 83,  0x80000003, 0,  0) \
+   CPUIDLEVEL(FALSE, 84,  0x80000004, 0,  0) \
+   CPUIDLEVEL(FALSE, 85,  0x80000005, 0,  0) \
+   CPUIDLEVEL(FALSE, 86,  0x80000006, 0,  0) \
+   CPUIDLEVEL(FALSE, 87,  0x80000007, 0,  0) \
+   CPUIDLEVEL(TRUE,  88,  0x80000008, 0,  0) \
+   CPUIDLEVEL(TRUE,  8A,  0x8000000a, 0,  0) \
+   CPUIDLEVEL(FALSE, 819, 0x80000019, 0,  0) \
+   CPUIDLEVEL(FALSE, 81A, 0x8000001a, 0,  0) \
+   CPUIDLEVEL(FALSE, 81B, 0x8000001b, 0,  0) \
+   CPUIDLEVEL(FALSE, 81C, 0x8000001c, 0,  0) \
+   CPUIDLEVEL(FALSE, 81D, 0x8000001d, 5,  0) \
+   CPUIDLEVEL(FALSE, 81E, 0x8000001e, 0,  0) \
+   CPUIDLEVEL(TRUE,  81F, 0x8000001f, 0, 14) \
+   CPUIDLEVEL(TRUE,  820, 0x80000020, 2, 17) \
+   CPUIDLEVEL(TRUE,  821, 0x80000021, 0, 17)
 
 #define CPUID_ALL_LEVELS CPUID_CACHED_LEVELS
 
 /* Define cached CPUID levels in the form: CPUID_LEVEL_<ShortName> */
 typedef enum {
-#define CPUIDLEVEL(t, s, v, c, h, n) CPUID_LEVEL_##s,
+#define CPUIDLEVEL(t, s, v, c, h) CPUID_LEVEL_##s,
    CPUID_CACHED_LEVELS
 #undef CPUIDLEVEL
    CPUID_NUM_CACHED_LEVELS
@@ -198,7 +196,7 @@ typedef enum {
 
 /* Enum to translate between shorthand name and actual CPUID level value. */
 enum {
-#define CPUIDLEVEL(t, s, v, c, h, n) CPUID_LEVEL_VAL_##s = v,
+#define CPUIDLEVEL(t, s, v, c, h) CPUID_LEVEL_VAL_##s = v,
    CPUID_ALL_LEVELS
 #undef CPUIDLEVEL
 };
@@ -2289,7 +2287,7 @@ CPUID_LevelUsesEcx(uint32 level) {
    switch (level)
    {
 
-#define CPUIDLEVEL(t, s, v, c, h, n)  \
+#define CPUIDLEVEL(t, s, v, c, h)     \
       case v:                         \
          return c != 0;
 
