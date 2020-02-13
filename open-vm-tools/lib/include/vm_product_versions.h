@@ -425,7 +425,7 @@
 #    define PRODUCT_LICENSE_VERSION "3.0"
 #  elif defined(VMX86_VPX)
 #    define PRODUCT_LICENSE_VERSION "7.0"
-#    define PRODUCT_LICENSE_FILE_VERSION "7.0.0.0"
+#    define PRODUCT_LICENSE_FILE_VERSION "7.0.0.1"
 #  elif defined(VMX86_WBC)
 #    define PRODUCT_LICENSE_VERSION "1.0"
 #  elif defined(VMX86_SDK)
