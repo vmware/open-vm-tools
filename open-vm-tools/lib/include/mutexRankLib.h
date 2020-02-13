@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -63,6 +63,8 @@ extern "C" {
 #define RANK_hgfsFileIOLock          (RANK_libLockBase + 0x4050)
 #define RANK_hgfsSearchArrayLock     (RANK_libLockBase + 0x4060)
 #define RANK_hgfsNodeArrayLock       (RANK_libLockBase + 0x4070)
+#define RANK_hgfsActivateLock        (RANK_libLockBase + 0x4080)
+#define RANK_hgfsThreadpoolLock      (RANK_libLockBase + 0x4090)
 
 /*
  * vigor (must be < VMDB range and < disklib, see bug 741290)
