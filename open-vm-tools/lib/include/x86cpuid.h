@@ -142,7 +142,7 @@ CPUIDQuery;
    CPUIDLEVEL(FALSE, 4,   0x4,        7,  0, CPUID_PROCESSOR_TOPOLOGY)  \
    CPUIDLEVEL(FALSE, 5,   0x5,        0,  0, CPUID_MWAIT_FEATURES)      \
    CPUIDLEVEL(TRUE,  6,   0x6,        0,  0, CPUID_6)                   \
-   CPUIDLEVEL(TRUE,  7,   0x7,        1,  0, CPUID_7)                   \
+   CPUIDLEVEL(TRUE,  7,   0x7,        2,  0, CPUID_7)                   \
    CPUIDLEVEL(TRUE,  9,   0x9,        0, 17, CPUID_9)                   \
    CPUIDLEVEL(FALSE, A,   0xa,        0,  0, CPUID_PMC_FEATURES)        \
    CPUIDLEVEL(FALSE, B,   0xb,        3,  0, CPUID_B)                   \
@@ -497,6 +497,7 @@ FIELD(  6,  0, EDX, 16, 16, HW_FEEDBACK_INDEX,                   NO,    0 )
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_7                                            \
+FIELD(  7,  0, EAX,  0, 32, LEAF_7_MAX_SUBLEVEL,                 YES, FUT ) \
 FLAG(   7,  0, EBX,  0,  1, FSGSBASE,                            YES,   9 ) \
 FLAG(   7,  0, EBX,  1,  1, TSC_ADJUST,                          ANY,  11 ) \
 FLAG(   7,  0, EBX,  2,  1, SGX,                                 ANY,  17 ) \
@@ -564,7 +565,8 @@ FLAG(   7,  0, EDX, 27,  1, STIBP,                               YES,   9 ) \
 FLAG(   7,  0, EDX, 28,  1, FCMD,                                YES,   9 ) \
 FLAG(   7,  0, EDX, 29,  1, ARCH_CAPABILITIES,                   ANY,   9 ) \
 FLAG(   7,  0, EDX, 30,  1, CORE_CAPABILITIES,                   NO,    0 ) \
-FLAG(   7,  0, EDX, 31,  1, SSBD,                                YES,   9 )
+FLAG(   7,  0, EDX, 31,  1, SSBD,                                YES,   9 ) \
+FLAG(   7,  1, EAX,  5,  1, AVX512BF16,                          YES, FUT )
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_9                                            \
