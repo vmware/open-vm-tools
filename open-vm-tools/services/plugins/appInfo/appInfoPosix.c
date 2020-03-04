@@ -34,7 +34,7 @@
 
 /*
  *----------------------------------------------------------------------
- * AppInfoGetAppInfo --
+ * AppInfo_GetAppInfo --
  *
  * Retrieves the application information for a specified process.
  *
@@ -48,7 +48,7 @@
  */
 
 AppInfo *
-AppInfoGetAppInfo(ProcMgrProcInfo *procInfo)   // IN
+AppInfo_GetAppInfo(ProcMgrProcInfo *procInfo)        // IN
 {
    AppInfo *appInfo = NULL;
 

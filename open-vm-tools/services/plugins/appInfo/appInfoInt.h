@@ -63,6 +63,6 @@ GSList *AppInfo_SortAppList(GSList *appList);
 
 void AppInfo_DestroyAppList(GSList *appList);
 
-AppInfo *AppInfoGetAppInfo(ProcMgrProcInfo *procInfo);
+AppInfo *AppInfo_GetAppInfo(ProcMgrProcInfo *procInfo);
 
 #endif /* _APPINFOINT_H_ */
