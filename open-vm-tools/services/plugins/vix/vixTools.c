@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1388,14 +1388,14 @@ VixTools_StartProgram(VixCommandRequestHeader *requestMsg, // IN
 
       // add it to the list of started programs
       VixToolsUpdateStartedProgramList(spState);
-   }
 
-   if (NULL != eventQueue) {
-      /*
-       * Register a timer to periodically invalidate any stale
-       * process handles.
-       */
-      VixToolsRegisterProcHandleInvalidator(eventQueue);
+      if (NULL != eventQueue) {
+         /*
+          * Register a timer to periodically invalidate any stale
+          * process handles.
+          */
+         VixToolsRegisterProcHandleInvalidator(eventQueue);
+      }
    }
 
 abort:
@@ -1668,10 +1668,9 @@ VixToolsStartProgramImpl(const char *requestName,            // IN
 #endif
    GSource *timer;
 #if defined(_WIN32) && SUPPORT_VGAUTH
-   HANDLE hToken = INVALID_HANDLE_VALUE;
-   HANDLE hProfile = INVALID_HANDLE_VALUE;
    VGAuthError vgErr;
    VGAuthContext *ctx;
+   Bool holdVGAuthUserProfile;
 #endif
 
    /*
@@ -1787,6 +1786,10 @@ VixToolsStartProgramImpl(const char *requestName,            // IN
     * Save some state for when it completes.
     */
    asyncState = Util_SafeCalloc(1, sizeof *asyncState);
+#if defined(_WIN32) && SUPPORT_VGAUTH
+   asyncState->hToken = INVALID_HANDLE_VALUE;
+   asyncState->hProfile = INVALID_HANDLE_VALUE;
+#endif
 
 #if defined(_WIN32)
    if (NULL != envVars) {
@@ -1839,10 +1842,20 @@ VixToolsStartProgramImpl(const char *requestName,            // IN
     * later cleanup, and clobber the profile handle so that it's not unloaded
     * when the impersonation ends.
     *
-    * Only do this when we've actually impersonated; its not
-    * needed when impersonation isn't done (eg vmusr or SYSTEM bypass).
+    * Only do this when we've actually impersonated via vgauth lib; it's not
+    * needed when impersonation isn't done (eg vmusr or SYSTEM bypass) or
+    * when impersonation is done via lib/impersonate (eg Credential type
+    * VIX_USER_CREDENTIAL_TICKETED_SESSION which is based on Windows
+    * Security Support Provider Interface (SSPI) and started by guestOp
+    * VIX_COMMAND_ACQUIRE_CREDENTIALS)
     */
-   if (GuestAuthEnabled() && PROCESS_CREATOR_USER_TOKEN != userToken) {
+   holdVGAuthUserProfile = GuestAuthEnabled() &&
+                           PROCESS_CREATOR_USER_TOKEN != userToken &&
+                           NULL != currentUserHandle;
+   if (holdVGAuthUserProfile) {
+      HANDLE hToken = INVALID_HANDLE_VALUE;
+      HANDLE hProfile = INVALID_HANDLE_VALUE;
+
       vgErr = TheVGAuthContext(&ctx);
       if (VGAUTH_FAILED(vgErr)) {
          err = VixToolsTranslateVGAuthError(vgErr);
@@ -1864,9 +1877,10 @@ VixToolsStartProgramImpl(const char *requestName,            // IN
          CloseHandle(hToken);
          goto abort;
       }
+
+      asyncState->hToken = hToken;
+      asyncState->hProfile = hProfile;
    }
-   asyncState->hToken = hToken;
-   asyncState->hProfile = hProfile;
 #endif
 
    asyncState->procState = ProcMgr_ExecAsync(fullCommandLine, &procArgs);
@@ -1893,7 +1907,7 @@ VixToolsStartProgramImpl(const char *requestName,            // IN
    /*
     * Clobber the profile handle before un-impersonation.
     */
-   if (GuestAuthEnabled() && PROCESS_CREATOR_USER_TOKEN != userToken) {
+   if (holdVGAuthUserProfile) {
       vgErr = VGAuth_UserHandleSetUserProfile(ctx, currentUserHandle,
                                               INVALID_HANDLE_VALUE);
       if (VGAUTH_FAILED(vgErr)) {
@@ -1903,6 +1917,7 @@ VixToolsStartProgramImpl(const char *requestName,            // IN
          CloseHandle(asyncState->hToken);
          asyncState->hToken = INVALID_HANDLE_VALUE;
          asyncState->hProfile = INVALID_HANDLE_VALUE;
+         ProcMgr_Free(asyncState->procState);
          goto abort;
       }
    }
@@ -2366,7 +2381,6 @@ VixToolsUpdateStartedProgramList(VixToolsStartedProgramState *state)        // I
    /*
     * Find and toss any old records.
     */
-   last = NULL;
    spList = startedProcessList;
    while (spList) {
       /*
@@ -2381,6 +2395,7 @@ VixToolsUpdateStartedProgramList(VixToolsStartedProgramState *state)        // I
                       __FUNCTION__);
          }
       }
+
       if (!spList->isRunning &&
           (spList->endTime < (now - VIX_TOOLS_EXITED_PROGRAM_REAP_TIME))) {
          if (last) {
