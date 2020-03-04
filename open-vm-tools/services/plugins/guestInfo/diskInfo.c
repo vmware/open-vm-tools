@@ -29,6 +29,7 @@
 #include "debug.h"
 #include "guestInfoInt.h"
 #include "str.h"
+#include "strutil.h"
 #include "posix.h"
 #include "file.h"
 #include "util.h"
@@ -170,6 +171,46 @@ GuestInfoAddDeviceName(char *devName,
 
 /*
  ******************************************************************************
+ * GuestInfoCheckPci0 --                                                */ /**
+ *
+ * Check if this PCI device path does not contain a "label" file and happens
+ * to be PCI bus 0.
+ *
+ * @param[in]  pciDevPath  Path of the PCI device of interest.
+ * @param[in]  unit        Disk unit or device number (previously determined).
+ * @param[out] devName     Address of the buffer to receive device name.
+ * @param[in]  devMaxLen   Maximum length of the device buffer available.
+ *
+ * @return True if this disk device is on PCI bus 0 and the devName has
+ *         been filled in as scsi0:unit.
+ *
+ ******************************************************************************
+ */
+
+static Bool
+GuestInfoCheckPci0(const char *pciDevPath,
+                   const char *unit,
+                   char *devName,
+                   size_t devMaxLen)
+{
+   char *realPath = NULL;
+   Bool result = FALSE;
+
+   if((realPath = Posix_RealPath(pciDevPath)) == NULL) {
+      goto exit;
+   }
+   if (StrUtil_EndsWith(realPath, "/0000:00:10.0")) {
+      Str_Snprintf (devName, devMaxLen, "scsi0:%s", unit);
+      result = TRUE;
+   }
+   free(realPath);
+exit:
+   return result;
+}
+
+
+/*
+ ******************************************************************************
  * GuestInfoGetPCIName --                                                */ /**
  *
  * Extract the controller class and controller number from the "label" of
@@ -190,7 +231,7 @@ static void
 GuestInfoGetPCIName(const char *pciDevPath,
                     const char *unit,
                     char *devName,
-                    unsigned int devMaxLen)
+                    size_t devMaxLen)
 {
    char labelPath[PATH_MAX];
    FILE *labelFile;
@@ -200,8 +241,15 @@ GuestInfoGetPCIName(const char *pciDevPath,
    Str_Snprintf(labelPath, PATH_MAX, "%s/%s", pciDevPath, "label");
 
    if ((labelFile = fopen(labelPath, "r")) == NULL) {
-      g_debug("%s: unable to open \"label\" file for device %s.\n",
-              __FUNCTION__, pciDevPath);
+      /*
+       * Need to check if this might be the LSI Logic Parallel or BusLogic
+       * SCSI controller on PCI bus 0, in which case "label" is not expected.
+       */
+      if (errno != ENOENT ||
+          !GuestInfoCheckPci0(pciDevPath, unit, devName, devMaxLen)) {
+         g_debug("%s: unable to open \"label\" file for device %s.\n",
+                 __FUNCTION__, pciDevPath);
+      }
       return;
    }
    if (fgets(buffer, sizeof buffer, labelFile) == NULL) {
@@ -968,7 +1016,7 @@ GuestInfoGetDiskInfoWiper(Bool includeReserved,  // IN
    unsigned int partCount = 0;
    uint64 freeBytes = 0;
    uint64 totalBytes = 0;
-   unsigned int partNameSize = 0;
+   size_t partNameSize = 0;
    Bool success = FALSE;
    GuestDiskInfoInt *di;
 
