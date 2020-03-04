@@ -56,3 +56,6 @@ MilhouseVH      stop systemd-243 udev complaints
 Josh Paetzel    Changes to vmmemctl.ko and vmblock.ko for FreeBSD 13.0 API changes.
                 - https://github.com/vmware/open-vm-tools/pull/398
 
+Josh Paetzel    FreeBSD has removed some vnops flags that have never been used.
+                - https://github.com/vmware/open-vm-tools/pull/403
+
