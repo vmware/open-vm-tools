@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -135,6 +135,9 @@ DeployPkgLog_Close()
  *    If the log file was opened successfully, write to it.
  *    Otherwise call the glib logger, messages are logged
  *    per tools logging configuration.
+ *    Note: since g_error() is always fatal and terminate the application,
+ *    log_error will be logged as g_warning to avoid terminating the
+ *    application.
  *
  * Results:
  *    None.
@@ -190,10 +193,8 @@ DeployPkgLog_Log(int level,          // IN
             glogLevel = G_LOG_LEVEL_INFO;
             break;
          case log_warning:
-            glogLevel = G_LOG_LEVEL_WARNING;
-            break;
          case log_error:
-            glogLevel = G_LOG_LEVEL_ERROR;
+            glogLevel = G_LOG_LEVEL_WARNING;
             break;
          default:
             glogLevel = G_LOG_LEVEL_INFO;
