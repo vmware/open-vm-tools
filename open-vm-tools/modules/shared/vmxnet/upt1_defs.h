@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -94,13 +94,19 @@ UPT1_RxStats;
 #define UPT1_RSS_HASH_TYPE_IPV6      0x04
 #define UPT1_RSS_HASH_TYPE_TCP_IPV6  0x08
 
-#define UPT1_RSS_HASH_FUNC_NONE      0x0
-#define UPT1_RSS_HASH_FUNC_TOEPLITZ  0x01
+typedef enum {
+   UPT1_RSS_HASH_FUNC_NONE      = 0x0000,
+   UPT1_RSS_HASH_FUNC_TOEPLITZ  = 0x0001,
+   UPT1_RSS_HASH_FUNC_CRC32     = 0x0002,
+
+   //upper bound on max hash functions supported
+   UPT1_RSS_HASH_FUNC_MAX       = 0xFFFF
+} Vmxnet3_RSSHashFunc;
 
 #define UPT1_RSS_MAX_KEY_SIZE        40
 #define UPT1_RSS_MAX_IND_TABLE_SIZE  128
 
-typedef 
+typedef
 #include "vmware_pack_begin.h"
 struct UPT1_RSSConf {
    uint16   hashType;

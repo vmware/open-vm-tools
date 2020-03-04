@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -144,6 +144,7 @@ typedef enum {
    VMXNET3_CMD_GET_ENCAP_DSTPORT,
    VMXNET3_CMD_GET_PKTSTEERING, /* 0xF00D000E */
    VMXNET3_CMD_GET_MAX_QUEUES_CONF,
+   VMXNET3_CMD_GET_RSS_HASH_FUNC,
 } Vmxnet3_Cmd;
 
 /* Adaptive Ring Info Flags */
