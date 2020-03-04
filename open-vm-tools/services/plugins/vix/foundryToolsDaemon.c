@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -577,10 +577,10 @@ ToolsDaemonTcloSyncDriverFreeze(RpcInData *data)
       goto abort;
    }
 
-   enableNullDriver = VixTools_ConfigGetBoolean(confDictRef,
-                                                "vmbackup",
-                                                "enableNullDriver",
-                                                FALSE);
+   enableNullDriver = VMTools_ConfigGetBoolean(confDictRef,
+                                               "vmbackup",
+                                               "enableNullDriver",
+                                               FALSE);
 
    /* Perform the actual freeze. */
    if (!SyncDriver_Freeze(driveList, enableNullDriver, &gSyncDriverHandle,

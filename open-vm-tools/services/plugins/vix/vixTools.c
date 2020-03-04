@@ -5600,12 +5600,12 @@ VixToolsListProcessesExGenerateData(uint32 numPids,          // IN
     * being clobbered.
     */
 #ifdef _WIN32
-   useRemoteThreadProcCmdLine = VixTools_ConfigGetBoolean(confDictRef,
+   useRemoteThreadProcCmdLine = VMTools_ConfigGetBoolean(confDictRef,
                      VIX_TOOLS_CONFIG_API_GROUPNAME,
                      VIXTOOLS_CONFIG_USE_REMOTE_THREAD_PROCESS_COMMAND_LINE,
                      USE_REMOTE_THREAD_PROCESS_COMMAND_LINE_DEFAULT);
 
-   useWMIProcCmdLine = VixTools_ConfigGetBoolean(confDictRef,
+   useWMIProcCmdLine = VMTools_ConfigGetBoolean(confDictRef,
                           VIX_TOOLS_CONFIG_API_GROUPNAME,
                           VIXTOOLS_CONFIG_USE_WMI_PROCESS_COMMAND_LINE,
                           USE_WMI_PROCESS_COMMAND_LINE_DEFAULT);
@@ -10847,10 +10847,10 @@ VixToolsCheckIfAuthenticationTypeEnabled(GKeyFile *confDictRef,     // IN
     * have the one typeName (VIX_TOOLS_CONFIG_AUTHTYPE_AGENTS), and default
     * it to VIX_TOOLS_CONFIG_INFRA_AGENT_DISABLED_DEFAULT.
     */
-   disabled = VixTools_ConfigGetBoolean(confDictRef,
-                                        VIX_TOOLS_CONFIG_API_GROUPNAME,
-                                        authnDisabledName,
-                                        VIX_TOOLS_CONFIG_INFRA_AGENT_DISABLED_DEFAULT);
+   disabled = VMTools_ConfigGetBoolean(confDictRef,
+                                       VIX_TOOLS_CONFIG_API_GROUPNAME,
+                                       authnDisabledName,
+                                       VIX_TOOLS_CONFIG_INFRA_AGENT_DISABLED_DEFAULT);
 
    return !disabled;
 }
@@ -11913,8 +11913,8 @@ GuestAuthSAMLAuthenticateAndImpersonate(
    /*
     * If the config is off, bypass the special-case.
     */
-   if (!VixTools_ConfigGetBoolean(gConfDictRef,
-                                  VIX_TOOLS_CONFIG_API_GROUPNAME,
+   if (!VMTools_ConfigGetBoolean(gConfDictRef,
+                      VIX_TOOLS_CONFIG_API_GROUPNAME,
                       VIXTOOLS_CONFIG_ALLOW_LOCAL_SYSTEM_IMPERSONATION_BYPASS,
                       ALLOW_LOCAL_SYSTEM_IMPERSONATION_BYPASS_DEFAULT)) {
       g_debug("%s: SAML authn failed, %s not set, skipping local SYSTEM check",
@@ -12039,54 +12039,6 @@ GuestAuthUnimpersonate(void)
 }
 
 
-/**
- *-----------------------------------------------------------------------------
- * VixTools_ConfigGetBoolean
- *
- *    Get boolean entry for the key from the config file.
- *
- * Return value:
- *    Value for the key if key is found; otherwise defValue.
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-gboolean
-VixTools_ConfigGetBoolean(GKeyFile *confDictRef,      // IN
-                          const char *group,          // IN
-                          const char *key,            // IN
-                          gboolean defValue)          // IN
-{
-   GError *gErr = NULL;
-   gboolean value = defValue;
-
-   ASSERT(confDictRef != NULL && group != NULL && key != NULL);
-
-   if (confDictRef == NULL || group == NULL || key == NULL) {
-      goto done;
-   }
-
-   value = g_key_file_get_boolean(confDictRef, group, key, &gErr);
-
-   /*
-    * g_key_file_get_boolean() will return FALSE and set an error
-    * if the value isn't in config, so use the default in that
-    * case.
-    */
-   if (!value && gErr != NULL) {
-      g_clear_error(&gErr);
-      value = defValue;
-   }
-
-done:
-
-   return value;
-}
-
-
 #if SUPPORT_VGAUTH
 /*
  *-----------------------------------------------------------------------------
@@ -12110,10 +12062,10 @@ QueryVGAuthConfig(GKeyFile *confDictRef)                       // IN
    gboolean retVal = USE_VGAUTH_DEFAULT;
 
    if (confDictRef != NULL) {
-      retVal = VixTools_ConfigGetBoolean(confDictRef,
-                                         VIX_TOOLS_CONFIG_API_GROUPNAME,
-                                         VIXTOOLS_CONFIG_USE_VGAUTH_NAME,
-                                         USE_VGAUTH_DEFAULT);
+      retVal = VMTools_ConfigGetBoolean(confDictRef,
+                                        VIX_TOOLS_CONFIG_API_GROUPNAME,
+                                        VIXTOOLS_CONFIG_USE_VGAUTH_NAME,
+                                        USE_VGAUTH_DEFAULT);
    }
 
    g_message("%s: vgauth usage is: %d\n", __FUNCTION__, retVal);
