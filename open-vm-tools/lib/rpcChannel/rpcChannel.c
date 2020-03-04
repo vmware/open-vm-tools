@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016,2018-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016,2018-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -808,6 +808,27 @@ RpcChannel_SetBackdoorOnly(void)
 
 
 /**
+ * Create a one-off RpcChannel instance using a prefered channel implementation,
+ * currently this is VSockChannel.
+ *
+ * @return  RpcChannel
+ */
+
+static RpcChannel *
+RpcChannel_NewOne(int flags)
+{
+   RpcChannel *chan;
+#if (defined(__linux__) && !defined(USERWORLD)) || defined(_WIN32)
+   chan = (gUseBackdoorOnly || gVSocketFailed) ?
+          BackdoorChannel_New() : VSockChannel_New(flags);
+#else
+   chan = BackdoorChannel_New();
+#endif
+   return chan;
+}
+
+
+/**
  * Create an RpcChannel instance using a prefered channel implementation,
  * currently this is VSockChannel.
  *
@@ -817,14 +838,7 @@ RpcChannel_SetBackdoorOnly(void)
 RpcChannel *
 RpcChannel_New(void)
 {
-   RpcChannel *chan;
-#if (defined(__linux__) && !defined(USERWORLD)) || defined(_WIN32)
-   chan = (gUseBackdoorOnly || gVSocketFailed) ?
-          BackdoorChannel_New() : VSockChannel_New();
-#else
-   chan = BackdoorChannel_New();
-#endif
-   return chan;
+   return RpcChannel_NewOne(0);
 }
 
 
@@ -1068,11 +1082,14 @@ RpcChannelSendOneRaw(const char *data,
 {
    RpcChannel *chan;
    gboolean status = FALSE;
+   int flags;
 
+   flags = RPCCHANNEL_FLAGS_SEND_ONE;
 #if (defined(__linux__) && !defined(USERWORLD)) || defined(_WIN32)
-   chan = priv ? VSockChannel_New() : RpcChannel_New();
+   flags |= RPCCHANNEL_FLAGS_FAST_CLOSE;
+   chan = priv ? VSockChannel_New(flags) : RpcChannel_NewOne(flags);
 #else
-   chan = RpcChannel_New();
+   chan = RpcChannel_NewOne(flags);
 #endif
 
    if (chan == NULL) {

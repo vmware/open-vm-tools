@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013-2016,2018-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013-2016,2018-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -38,6 +38,7 @@ typedef struct VSockOut {
    char *payload;
    int payloadLen;
    RpcChannelType type;
+   int flags;
 } VSockOut;
 
 typedef struct VSockChannel {
@@ -116,13 +117,14 @@ VSockCreateConn(gboolean *isPriv)        // OUT
  */
 
 static VSockOut *
-VSockOutConstruct(void)
+VSockOutConstruct(int flags)
 {
    VSockOut *out = calloc(1, sizeof *out);
 
    if (out != NULL) {
       out->fd = INVALID_SOCKET;
       out->type = RPCCHANNEL_TYPE_INACTIVE;
+      out->flags = flags;
    }
    return out;
 }
@@ -260,7 +262,8 @@ VSockOutSend(VSockOut *out,        // IN
    Debug(LGPFX "Sending request for conn %d,  reqLen=%d\n",
          out->fd, (int)reqLen);
 
-   if (!Socket_SendPacket(out->fd, request, reqLen)) {
+   if (!Socket_SendPacket(out->fd, request, reqLen,
+                          (out->flags & RPCCHANNEL_FLAGS_FAST_CLOSE))) {
       *reply = "VSockOut: Unable to send data for the RPCI command";
       goto error;
    }
@@ -559,7 +562,7 @@ VSockChannelStopRpcOut(RpcChannel *chan)
  */
 
 RpcChannel *
-VSockChannel_New(void)
+VSockChannel_New(int flags)
 {
    RpcChannel *chan;
    VSockChannel *vsock;
@@ -578,7 +581,7 @@ VSockChannel_New(void)
    chan = RpcChannel_Create();
    vsock = g_malloc0(sizeof *vsock);
 
-   vsock->out = VSockOutConstruct();
+   vsock->out = VSockOutConstruct(flags);
    ASSERT(vsock->out != NULL);
 
 #if defined(NEED_RPCIN)

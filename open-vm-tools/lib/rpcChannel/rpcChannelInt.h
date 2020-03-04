@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016,2018-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016,2018-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -40,6 +40,15 @@
 
 struct RpcIn;
 #endif
+
+/*
+ * Flags associated with the RPC Channel
+ */
+
+/* Channel will be usaed for a single RPC */
+#define RPCCHANNEL_FLAGS_SEND_ONE     0x1
+/* VMX should close channel after sending reply */
+#define RPCCHANNEL_FLAGS_FAST_CLOSE   0x2
 
 /** a list of interface functions for a channel implementation */
 typedef struct _RpcChannelFuncs{
