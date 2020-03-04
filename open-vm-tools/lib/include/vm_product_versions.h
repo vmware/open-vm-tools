@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -179,7 +179,7 @@
 #define FLEX_CLIENT_VERSION_NUMBER "8.0.0"
 #define FLEX_CLIENT_VERSION "e.x.p"
 
-#define THINPRINT_VERSION "1.1.1"
+#define THINPRINT_VERSION "1.1.2"
 
 /*
  * In the *-main branches, FUSION_VERSION should always be set to "e.x.p".
