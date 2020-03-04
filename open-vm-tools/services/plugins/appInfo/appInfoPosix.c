@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2019-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -28,15 +28,7 @@
 #   error This file should not be compiled.
 #endif
 
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include "appInfoInt.h"
-#include "procMgr.h"
-#include "vmware.h"
-#include "str.h"
 #include "util.h"
 
 
@@ -74,51 +66,4 @@ AppInfoGetAppInfo(ProcMgrProcInfo *procInfo)   // IN
    appInfo->version = Util_SafeStrdup("");
 
    return appInfo;
-}
-
-
-/*
- *----------------------------------------------------------------------
- * AppInfo_GetAppList --
- *
- * Generates the application information list.
- *
- * @retval Pointer to the newly allocated application list. The caller must
- *         free the memory using AppInfoDestroyAppList function.
- *         NULL if any error occurs.
- *
- *----------------------------------------------------------------------
- */
-
-GSList *
-AppInfo_GetAppList(void) {
-   GSList *appList = NULL;
-   int i;
-   ProcMgrProcInfoArray *procList = NULL;
-   size_t procCount;
-
-#if defined(_WIN32)
-   procList = ProcMgr_ListProcessesEx();
-#else
-   procList = ProcMgr_ListProcesses();
-#endif
-
-   if (procList == NULL) {
-      g_warning("Failed to get the list of processes.\n");
-      return appList;
-   }
-
-   procCount = ProcMgrProcInfoArray_Count(procList);
-   for (i = 0; i < procCount; i++) {
-      AppInfo *appInfo;
-      ProcMgrProcInfo *procInfo = ProcMgrProcInfoArray_AddressOf(procList, i);
-      appInfo = AppInfoGetAppInfo(procInfo);
-      if (NULL != appInfo) {
-         appList = g_slist_prepend(appList, appInfo);
-      }
-   }
-
-   ProcMgr_FreeProcList(procList);
-
-   return appList;
 }

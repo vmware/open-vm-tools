@@ -161,6 +161,32 @@
 static gboolean gSupportVGAuth = USE_VGAUTH_DEFAULT;
 static gboolean QueryVGAuthConfig(GKeyFile *confDictRef);
 
+#ifdef _WIN32
+/*
+ * Check bug 2508431 for more details. If an application is not built
+ * with proper flags, 'creating a remote thread' to get the process
+ * command line will crash the target process. To avoid any such crash,
+ * 'remote thread' approach is not used by default.
+ *
+ * But 'remote thread' approach can be turned on (for whatever reason)
+ * by setting the following option to true in the tools.conf file.
+ *
+ * For few processes, 'WMI' can provide detailed commandline information.
+ * But using 'WMI' is a heavy weight approach and may affect the CPU
+ * performance and hence it is disabled by default. It can always be
+ * turned on by a setting (as mentioned below) in the tools.conf file.
+ */
+#define VIXTOOLS_CONFIG_USE_REMOTE_THREAD_PROCESS_COMMAND_LINE  \
+      "useRemoteThreadForProcessCommandLine"
+
+#define VIXTOOLS_CONFIG_USE_WMI_PROCESS_COMMAND_LINE  \
+      "useWMIForProcessCommandLine"
+
+#define USE_REMOTE_THREAD_PROCESS_COMMAND_LINE_DEFAULT FALSE
+#define USE_WMI_PROCESS_COMMAND_LINE_DEFAULT FALSE
+
+#endif
+
 #if ALLOW_LOCAL_SYSTEM_IMPERSONATION_BYPASS
 static gchar *gCurrentUsername = NULL;
 
@@ -5484,9 +5510,10 @@ VixToolsListProcCacheCleanup(void *clientData) // IN
  *-----------------------------------------------------------------------------
  */
 
-VixError
+static VixError
 VixToolsListProcessesExGenerateData(uint32 numPids,          // IN
                                     const uint64 *pids,      // IN
+                                    GKeyFile *confDictRef,   // IN
                                     size_t *resultSize,      // OUT
                                     char **resultBuffer)     // OUT
 {
@@ -5500,6 +5527,11 @@ VixToolsListProcessesExGenerateData(uint32 numPids,          // IN
    int j;
    Bool bRet;
    size_t procCount;
+
+#ifdef _WIN32
+   gboolean useRemoteThreadProcCmdLine;
+   gboolean useWMIProcCmdLine;
+#endif
 
    DynBuf_Init(&dynBuffer);
 
@@ -5567,7 +5599,25 @@ VixToolsListProcessesExGenerateData(uint32 numPids,          // IN
     * return an error code so there's no risk of errno/LastError
     * being clobbered.
     */
+#ifdef _WIN32
+   useRemoteThreadProcCmdLine = VixTools_ConfigGetBoolean(confDictRef,
+                     VIX_TOOLS_CONFIG_API_GROUPNAME,
+                     VIXTOOLS_CONFIG_USE_REMOTE_THREAD_PROCESS_COMMAND_LINE,
+                     USE_REMOTE_THREAD_PROCESS_COMMAND_LINE_DEFAULT);
+
+   useWMIProcCmdLine = VixTools_ConfigGetBoolean(confDictRef,
+                          VIX_TOOLS_CONFIG_API_GROUPNAME,
+                          VIXTOOLS_CONFIG_USE_WMI_PROCESS_COMMAND_LINE,
+                          USE_WMI_PROCESS_COMMAND_LINE_DEFAULT);
+
+   g_debug("Options for process cmdline: useRemoeThread: %d, useWMI: %d\n",
+            useRemoteThreadProcCmdLine, useWMIProcCmdLine);
+
+   procList = ProcMgr_ListProcessesEx(useRemoteThreadProcCmdLine,
+                                      useWMIProcCmdLine);
+#else
    procList = ProcMgr_ListProcesses();
+#endif
    if (NULL == procList) {
       err = FoundryToolsDaemon_TranslateSystemErr();
       goto abort;
@@ -5660,9 +5710,10 @@ abort:
  *-----------------------------------------------------------------------------
  */
 
-VixError
+static VixError
 VixToolsListProcessesEx(VixCommandRequestHeader *requestMsg, // IN
                         size_t maxBufferSize,                // IN
+                        GKeyFile *confDictRef,               // IN
                         void *eventQueue,                    // IN
                         char **result)                       // OUT
 {
@@ -5798,7 +5849,7 @@ VixToolsListProcessesEx(VixCommandRequestHeader *requestMsg, // IN
          pids = (uint64 *)((char *)requestMsg + sizeof(*listRequest));
       }
 
-      err = VixToolsListProcessesExGenerateData(numPids, pids,
+      err = VixToolsListProcessesExGenerateData(numPids, pids, confDictRef,
                                                 &fullResultSize,
                                                 &fullResultBuffer);
 
@@ -10937,9 +10988,10 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
       ////////////////////////////////////
       case VIX_COMMAND_LIST_PROCESSES_EX:
          err = VixToolsListProcessesEx(requestMsg,
-                                      maxResultBufferSize,
-                                      eventQueue,
-                                      &resultValue);
+                                       maxResultBufferSize,
+                                       confDictRef,
+                                       eventQueue,
+                                       &resultValue);
          deleteResultValue = TRUE;
          break;
 
