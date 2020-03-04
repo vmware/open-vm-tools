@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2014-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2014-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -22,6 +22,7 @@
  *      Get disk information.
  */
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "vm_assert.h"
@@ -68,7 +69,9 @@
    # define PATH_MAX 1024
 #endif
 
-#define LINUX_SYS_BLOCK_DIR "/sys/class/block"
+#define LINUX_SYS_CLASS_BLOCK_DIR "/sys/class/block"
+#define LINUX_SYS_DEV_BLOCK_DIR "/sys/dev/block"
+#define LINUX_PROC_SELF_MOUNTINFO "/proc/self/mountinfo"
 
 #define PCI_IDE         0x010100
 #define PCI_SATA_AHCI_1 0x010601
@@ -577,11 +580,12 @@ finished:
  * @param[in]     devNum     The number of the DiskDevName to be updated.
  *                           The diskDevNames is numbered  1, 2, ... as opposed
  *                           to array indexes which start at 0.
+ * @return TRUE if the device name for the disk has been determined.
  *
  ******************************************************************************
  */
 
-static void
+static Bool
 GuestInfoLinuxBlockDevice(const char *startPath,
                           PartitionEntryInt *partEntry,
                           int devNum)
@@ -596,6 +600,7 @@ GuestInfoLinuxBlockDevice(const char *startPath,
    char *unit = NULL;
    unsigned int devClass;
    char devName[DISK_DEVICE_NAME_SIZE];
+   Bool devNameSet;
 
    ASSERT(startPath);
    ASSERT(partEntry);
@@ -690,8 +695,10 @@ finished:
    g_clear_error(&gErr);
    g_free(unit);
    free(realPath);
+   devNameSet = devName[0] != '\0';
    g_debug("%s: Filesystem of interest found on device \"%s\"\n",
-          __FUNCTION__, devName[0] == '\0' ? "** unknown **" : devName);
+           __FUNCTION__, devNameSet ? devName : "** unknown **");
+   return devNameSet;
 }
 
 
@@ -736,7 +743,7 @@ GuestInfoIsLinuxLvmDevice(const char *fsName,
    if ((realPath = Posix_RealPath(fsName)) == NULL) {
       return FALSE;
    }
-   Str_Snprintf(slavesPath, PATH_MAX, "%s/%s/slaves", LINUX_SYS_BLOCK_DIR,
+   Str_Snprintf(slavesPath, PATH_MAX, "%s/%s/slaves", LINUX_SYS_CLASS_BLOCK_DIR,
                 strrchr(realPath, '/') + 1);
    free(realPath);
    if (!File_IsDirectory(slavesPath)) {
@@ -776,6 +783,70 @@ GuestInfoIsLinuxLvmDevice(const char *fsName,
       Util_FreeStringList(fileNameList, numFiles);
    }
    return TRUE;
+}
+
+
+/*
+ ******************************************************************************
+ * GuestInfoCheckDevRoot --
+ *
+ * Disks mounted on /dev/root are setup at boot time before the OS enumerates
+ * the PCI devices in /sys/class/block.  The device for /dev/root does not
+ * appear there.   Instead the PCI device info needs to be accessed through
+ * /sys/dev/block and the major and minor device number.  That can be extracted
+ * from the contents of /proc/self/mountinfo.
+ *
+ * The format of the lines in /proc/self/mountinfo can vary between Linux
+ * versions.
+ *
+ *    Field
+ *    -----
+ *      3     The major and minor number of the device in "m:n" format.
+ *   9 or 10  The fsName for this specific entry.
+ *
+ * @param[in]  fsName       Name of the filesystem device - i.e. /dev/root
+ * @param[in]  pathLen      Maximum size including terminating NUL character
+ *                          for the starting search path.
+ * @param[out] blockDevPath Starting path to begin the search for the "device"
+ *                          file if the major and minor number can be found.
+ * @return TRUE if the device major and minor numbers have been located and
+ *         blockDevPath has been filled in.
+ *
+ ******************************************************************************
+ */
+
+static Bool
+GuestInfoCheckDevRoot(const char *fsName,
+                      int pathLen,
+                      char *blockDevPath)
+{
+   FILE *mountinfo;
+   char buffer[BUFSIZ];
+   char pattern[128];
+
+   if ((mountinfo = fopen(LINUX_PROC_SELF_MOUNTINFO, "r")) == NULL) {
+      g_debug("%s: unable to open \"" LINUX_PROC_SELF_MOUNTINFO
+              "\": (%d) %s\n", __FUNCTION__, errno, strerror(errno));
+      return FALSE;
+   }
+   snprintf(pattern, sizeof pattern, " %s ", fsName);
+   /* Locate the "/dev/root" entry in /proc/self/mountinfo. */
+   while ((fgets(buffer, sizeof buffer, mountinfo)) != NULL) {
+      if (strstr(buffer, pattern) != NULL) {
+         char *savedPtr = NULL;
+         const char *majMinNo;
+
+         (void) strtok_r(buffer, " ", &savedPtr);
+         (void) strtok_r(NULL, " ", &savedPtr);
+         majMinNo = strtok_r(NULL, " ", &savedPtr);
+         Str_Snprintf(blockDevPath, pathLen, "%s/%s", LINUX_SYS_DEV_BLOCK_DIR,
+                      majMinNo);
+         fclose(mountinfo);
+         return TRUE;
+      }
+   }
+   fclose(mountinfo);
+   return FALSE;
 }
 
 #endif /* __linux__ */
@@ -833,10 +904,24 @@ GuestInfoGetDiskDevice(const char *fsName,
        * lookup; avoid at this time.
        */
       if (baseDevName != NULL && strcmp(partEntry->fsType, "zfs") != 0) {
-         Str_Snprintf(blockDevPath, PATH_MAX,  "%s/%s", LINUX_SYS_BLOCK_DIR,
-                      baseDevName + 1);
-         /* First and only disk device. */
-         GuestInfoLinuxBlockDevice(blockDevPath, partEntry, 1);
+         /*
+          * Have a single disk device associated with this mount point.  The
+          * majority of these will be handled by the basic Linux block device
+          * lookup.
+          */
+         Str_Snprintf(blockDevPath, sizeof blockDevPath,  "%s/%s",
+                      LINUX_SYS_CLASS_BLOCK_DIR, baseDevName + 1);
+         if (!GuestInfoLinuxBlockDevice(blockDevPath, partEntry, 1)) {
+            /*
+             * No device name was located.  This may be a pseudo device
+             * such as Photon's /dev/root.  Try a lookup based on the device
+             * major and minor number.
+             */
+            if (GuestInfoCheckDevRoot(fsName, sizeof blockDevPath,
+                                      blockDevPath)) {
+               GuestInfoLinuxBlockDevice(blockDevPath, partEntry, 1);
+            }
+         }
       }
    }
 
