@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005-2016, 2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -116,6 +116,103 @@ Backdoor_InOut(Backdoor_proto *myBp) // IN/OUT
       "rcx", "rdx", "rsi", "rdi", "memory"
    );
 }
+
+
+#if defined(USE_HYPERCALL)
+void
+Backdoor_Vmcall(Backdoor_proto *myBp) // IN/OUT
+{
+   uint64 dummy;
+
+   __asm__ __volatile__(
+#ifdef __APPLE__
+        /*
+         * Save %rbx on the stack because the Mac OS GCC doesn't want us to
+         * clobber it - it erroneously thinks %rbx is the PIC register.
+         * (Radar bug 7304232)
+         */
+        "pushq %%rbx"           "\n\t"
+#endif
+        "pushq %%rax"           "\n\t"
+        "movq 40(%%rax), %%rdi" "\n\t"
+        "movq 32(%%rax), %%rsi" "\n\t"
+        "movq 24(%%rax), %%rdx" "\n\t"
+        "movq 16(%%rax), %%rcx" "\n\t"
+        "movq  8(%%rax), %%rbx" "\n\t"
+        "movq   (%%rax), %%rax" "\n\t"
+        "vmcall"                "\n\t"
+        "xchgq %%rax, (%%rsp)"  "\n\t"
+        "movq %%rdi, 40(%%rax)" "\n\t"
+        "movq %%rsi, 32(%%rax)" "\n\t"
+        "movq %%rdx, 24(%%rax)" "\n\t"
+        "movq %%rcx, 16(%%rax)" "\n\t"
+        "movq %%rbx,  8(%%rax)" "\n\t"
+        "popq          (%%rax)" "\n\t"
+#ifdef __APPLE__
+        "popq %%rbx"            "\n\t"
+#endif
+      : "=a" (dummy)
+      : "0" (myBp)
+      /*
+       * vmware can modify the whole VM state without the compiler knowing
+       * it. So far it does not modify EFLAGS. --hpreg
+       */
+      :
+#ifndef __APPLE__
+      /* %rbx is unchanged at the end of the function on Mac OS. */
+      "rbx",
+#endif
+      "rcx", "rdx", "rsi", "rdi", "memory"
+   );
+}
+
+void
+Backdoor_Vmmcall(Backdoor_proto *myBp) // IN/OUT
+{
+   uint64 dummy;
+
+   __asm__ __volatile__(
+#ifdef __APPLE__
+        /*
+         * Save %rbx on the stack because the Mac OS GCC doesn't want us to
+         * clobber it - it erroneously thinks %rbx is the PIC register.
+         * (Radar bug 7304232)
+         */
+        "pushq %%rbx"           "\n\t"
+#endif
+        "pushq %%rax"           "\n\t"
+        "movq 40(%%rax), %%rdi" "\n\t"
+        "movq 32(%%rax), %%rsi" "\n\t"
+        "movq 24(%%rax), %%rdx" "\n\t"
+        "movq 16(%%rax), %%rcx" "\n\t"
+        "movq  8(%%rax), %%rbx" "\n\t"
+        "movq   (%%rax), %%rax" "\n\t"
+        "vmmcall"               "\n\t"
+        "xchgq %%rax, (%%rsp)"  "\n\t"
+        "movq %%rdi, 40(%%rax)" "\n\t"
+        "movq %%rsi, 32(%%rax)" "\n\t"
+        "movq %%rdx, 24(%%rax)" "\n\t"
+        "movq %%rcx, 16(%%rax)" "\n\t"
+        "movq %%rbx,  8(%%rax)" "\n\t"
+        "popq          (%%rax)" "\n\t"
+#ifdef __APPLE__
+        "popq %%rbx"            "\n\t"
+#endif
+      : "=a" (dummy)
+      : "0" (myBp)
+      /*
+       * vmware can modify the whole VM state without the compiler knowing
+       * it. So far it does not modify EFLAGS. --hpreg
+       */
+      :
+#ifndef __APPLE__
+      /* %rbx is unchanged at the end of the function on Mac OS. */
+      "rbx",
+#endif
+      "rcx", "rdx", "rsi", "rdi", "memory"
+   );
+}
+#endif
 
 
 /*
@@ -237,7 +334,112 @@ BackdoorHbOut(Backdoor_proto_hb *myBp) // IN/OUT
    );
 }
 
+#if defined(USE_HYPERCALL)
+void
+BackdoorHbVmcall(Backdoor_proto_hb *myBp) // IN/OUT
+{
+   uint64 dummy;
+
+   __asm__ __volatile__(
+        "pushq %%rbp"           "\n\t"
+#ifdef __APPLE__
+        /*
+         * Save %rbx on the stack because the Mac OS GCC doesn't want us to
+         * clobber it - it erroneously thinks %rbx is the PIC register.
+         * (Radar bug 7304232)
+         */
+        "pushq %%rbx"           "\n\t"
+#endif
+        "pushq %%rax"           "\n\t"
+        "movq 48(%%rax), %%rbp" "\n\t"
+        "movq 40(%%rax), %%rdi" "\n\t"
+        "movq 32(%%rax), %%rsi" "\n\t"
+        "movq 24(%%rax), %%rdx" "\n\t"
+        "movq 16(%%rax), %%rcx" "\n\t"
+        "movq  8(%%rax), %%rbx" "\n\t"
+        "movq   (%%rax), %%rax" "\n\t"
+        "vmcall"                "\n\t"
+        "xchgq %%rax, (%%rsp)"  "\n\t"
+        "movq %%rbp, 48(%%rax)" "\n\t"
+        "movq %%rdi, 40(%%rax)" "\n\t"
+        "movq %%rsi, 32(%%rax)" "\n\t"
+        "movq %%rdx, 24(%%rax)" "\n\t"
+        "movq %%rcx, 16(%%rax)" "\n\t"
+        "movq %%rbx,  8(%%rax)" "\n\t"
+        "popq          (%%rax)" "\n\t"
+#ifdef __APPLE__
+        "popq %%rbx"            "\n\t"
+#endif
+        "popq %%rbp"
+      : "=a" (dummy)
+      : "0" (myBp)
+      /*
+       * vmware can modify the whole VM state without the compiler knowing
+       * it. --hpreg
+       */
+      :
+#ifndef __APPLE__
+      /* %rbx is unchanged at the end of the function on Mac OS. */
+      "rbx",
+#endif
+      "rcx", "rdx", "rsi", "rdi", "memory", "cc"
+   );
+}
+
+
+void
+BackdoorHbVmmcall(Backdoor_proto_hb *myBp) // IN/OUT
+{
+   uint64 dummy;
+
+   __asm__ __volatile__(
+        "pushq %%rbp"           "\n\t"
+#ifdef __APPLE__
+        /*
+         * Save %rbx on the stack because the Mac OS GCC doesn't want us to
+         * clobber it - it erroneously thinks %rbx is the PIC register.
+         * (Radar bug 7304232)
+         */
+        "pushq %%rbx"           "\n\t"
+#endif
+        "pushq %%rax"           "\n\t"
+        "movq 48(%%rax), %%rbp" "\n\t"
+        "movq 40(%%rax), %%rdi" "\n\t"
+        "movq 32(%%rax), %%rsi" "\n\t"
+        "movq 24(%%rax), %%rdx" "\n\t"
+        "movq 16(%%rax), %%rcx" "\n\t"
+        "movq  8(%%rax), %%rbx" "\n\t"
+        "movq   (%%rax), %%rax" "\n\t"
+        "vmmcall"               "\n\t"
+        "xchgq %%rax, (%%rsp)"  "\n\t"
+        "movq %%rbp, 48(%%rax)" "\n\t"
+        "movq %%rdi, 40(%%rax)" "\n\t"
+        "movq %%rsi, 32(%%rax)" "\n\t"
+        "movq %%rdx, 24(%%rax)" "\n\t"
+        "movq %%rcx, 16(%%rax)" "\n\t"
+        "movq %%rbx,  8(%%rax)" "\n\t"
+        "popq          (%%rax)" "\n\t"
+#ifdef __APPLE__
+        "popq %%rbx"            "\n\t"
+#endif
+        "popq %%rbp"
+      : "=a" (dummy)
+      : "0" (myBp)
+      /*
+       * vmware can modify the whole VM state without the compiler knowing
+       * it. --hpreg
+       */
+      :
+#ifndef __APPLE__
+      /* %rbx is unchanged at the end of the function on Mac OS. */
+      "rbx",
+#endif
+      "rcx", "rdx", "rsi", "rdi", "memory", "cc"
+   );
+}
+#endif
 
 #ifdef __cplusplus
 }
 #endif
+

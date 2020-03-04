@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -63,6 +63,8 @@ extern "C" {
 
 /* Flags used by the hypercall interface. */
 
+#define BDOOR_FLAGS_LB    0
+#define BDOOR_FLAGS_READ  0
 #define BDOOR_FLAGS_HB    (1<<0)
 #define BDOOR_FLAGS_WRITE (1<<1)
 
