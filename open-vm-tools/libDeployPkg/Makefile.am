@@ -25,6 +25,7 @@ AM_CFLAGS += @GLIB2_CPPFLAGS@
 
 libDeployPkg_la_LIBADD =
 libDeployPkg_la_LIBADD += @MSPACK_LIBS@
+libDeployPkg_la_LIBADD += @VMTOOLS_LIBS@
 
 libDeployPkg_la_SOURCES =
 libDeployPkg_la_SOURCES += deployPkgFormat.h
