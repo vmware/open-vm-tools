@@ -184,6 +184,7 @@ typedef struct {
 
 /* KEEP SORTED! (sort -d) */
 static const DistroInfo distroArray[] = {
+   { "ALT",                "/etc/altlinux-release"      },
    { "Annvix",             "/etc/annvix-release"        },
    { "Arch",               "/etc/arch-release"          },
    { "Arklinux",           "/etc/arklinux-release"      },
@@ -997,6 +998,8 @@ HostinfoGetOSShortName(const char *distro,      // IN: full distro name
       Str_Strcpy(distroShort, STR_OS_YELLOW_DOG, distroShortSize);
    } else if (strstr(distroLower, "vmware photon")) {
       Str_Strcpy(distroShort, STR_OS_PHOTON, distroShortSize);
+   } else if (strstr(distroLower, "alt")) {
+      Str_Strcpy(distroShort, STR_OS_ALT, distroShortSize);
    }
 
    free(distroLower);
