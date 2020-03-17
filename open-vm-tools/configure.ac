@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2007-2019 VMware, Inc.  All rights reserved.
+### Copyright (C) 2007-2020 VMware, Inc.  All rights reserved.
 ###
 ### Configure script for building the VMware OSS Tools.
 ###
@@ -199,6 +199,26 @@ fi
 # Locates X includes and lib, adds --without-x option,
 # and sets no_x.
 AC_PATH_XTRA
+
+AC_CHECK_HEADER([valgrind/valgrind.h],
+                [],
+                [have_valgrind=no],
+                [])
+
+AC_ARG_ENABLE(
+   valgrind,
+   AS_HELP_STRING(
+      [--enable-valgrind],
+      [enables building with valgrind]),
+   [enable_valgrind="$enableval"],
+   [enable_valgrind="no"])
+
+if test "$enable_valgrind" = "yes" ; then
+   if test "$have_valgrind" = "no" ; then
+      AC_MSG_ERROR([valgrind/valgrind.h not found. Make sure you have the valgrind headers installed.]),
+   fi
+   CPPFLAGS="$CPPFLAGS -DUSE_VALGRIND=1"
+fi
 
 # Arguments for disabling individual open-vm-tools features or libraries.
 AC_ARG_ENABLE(
