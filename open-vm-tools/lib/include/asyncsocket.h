@@ -750,7 +750,7 @@ const char * stristr(const char *s, const char *find);
  */
 Bool AsyncSocket_WebSocketParseURL(const char *url, char **hostname,
                                    unsigned int *port, Bool *useSSL,
-                                   char **relativeURL);
+                                   char **relativeURL, char **uriHostname);
 
 /*
  * Find and return the value for the given header key in the supplied buffer
