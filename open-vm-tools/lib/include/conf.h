@@ -383,6 +383,12 @@
  */
 #define CONFNAME_DEPLOYPKG_PROCESSTIMEOUT "process-timeout"
 
+/**
+ * The guest customization is allowed or not
+ * Valid value: true / false
+ */
+#define CONFNAME_DEPLOYPKG_ENABLE_CUST "enable-customization"
+
 /*
  * END deployPkg goodies.
  ******************************************************************************

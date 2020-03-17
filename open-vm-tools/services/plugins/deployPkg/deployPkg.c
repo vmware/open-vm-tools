@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -213,24 +213,56 @@ DeployPkgExecDeploy(ToolsAppCtx *ctx,   // IN: app context
    char errMsg[2048];
    ToolsDeployPkgError ret;
    char *pkgNameStr = (char *) pkgName;
+   Bool enableCust;
 
    g_debug("%s: Deploypkg deploy task started.\n", __FUNCTION__);
 
-   /* Unpack the package and run the command. */
-   ret = DeployPkgDeployPkgInGuest(ctx, pkgNameStr, errMsg, sizeof errMsg);
-   if (ret != TOOLSDEPLOYPKG_ERROR_SUCCESS) {
+   /*
+    * Check whether guest customization is enabled by VM Tools,
+    * by default it is enabled.
+    */
+   enableCust = VMTools_ConfigGetBoolean(ctx->config,
+                                         CONFGROUPNAME_DEPLOYPKG,
+                                         CONFNAME_DEPLOYPKG_ENABLE_CUST,
+                                         TRUE);
+   if (!enableCust) {
+      char *result = NULL;
+      size_t resultLen;
       gchar *msg = g_strdup_printf("deployPkg.update.state %d %d %s",
                                    TOOLSDEPLOYPKG_DEPLOYING,
-                                   TOOLSDEPLOYPKG_ERROR_DEPLOY_FAILED,
-                                   errMsg);
+                                   TOOLSDEPLOYPKG_ERROR_CUST_DISABLED,
+                                   "Customization is disabled by guest admin");
 
-      if (!RpcChannel_Send(ctx->rpc, msg, strlen(msg), NULL, NULL)) {
-         g_warning("%s: failed to send error code %d for state TOOLSDEPLOYPKG_DEPLOYING\n",
+      g_warning("%s: Customization is disabled by guest admin.\n",
+                __FUNCTION__);
+
+      if (!RpcChannel_Send(ctx->rpc, msg, strlen(msg), &result, &resultLen)) {
+         g_warning("%s: failed to send error code %d for state "
+                   "TOOLSDEPLOYPKG_DEPLOYING, result: %s\n",
                    __FUNCTION__,
-                   TOOLSDEPLOYPKG_ERROR_DEPLOY_FAILED);
+                   TOOLSDEPLOYPKG_ERROR_CUST_DISABLED,
+                   result != NULL ? result : "");
       }
       g_free(msg);
-      g_warning("DeployPkgInGuest failed, error = %d\n", ret);
+      vm_free(result);
+   } else {
+      /* Unpack the package and run the command. */
+      ret = DeployPkgDeployPkgInGuest(ctx, pkgNameStr, errMsg, sizeof errMsg);
+      if (ret != TOOLSDEPLOYPKG_ERROR_SUCCESS) {
+         gchar *msg = g_strdup_printf("deployPkg.update.state %d %d %s",
+                                      TOOLSDEPLOYPKG_DEPLOYING,
+                                      TOOLSDEPLOYPKG_ERROR_DEPLOY_FAILED,
+                                      errMsg);
+
+         if (!RpcChannel_Send(ctx->rpc, msg, strlen(msg), NULL, NULL)) {
+            g_warning("%s: failed to send error code %d for state "
+                      "TOOLSDEPLOYPKG_DEPLOYING\n",
+                      __FUNCTION__,
+                      TOOLSDEPLOYPKG_ERROR_DEPLOY_FAILED);
+         }
+         g_free(msg);
+         g_warning("DeployPkgInGuest failed, error = %d\n", ret);
+      }
    }
 
    /* Attempt to delete the package file and tempdir. */
