@@ -437,6 +437,16 @@ AC_ARG_ENABLE([libappmonitor],
     enable_libappmonitor=no
    ])
 
+AC_ARG_ENABLE([servicediscovery],
+   [AS_HELP_STRING([--enable-servicediscovery],
+     [Build the Service Discovery Plugin.])],
+   [
+    enable_servicediscovery=$enableval
+   ],
+   [
+    enable_servicediscovery=no
+   ])
+
 #
 # Check for glib 2.34.0 or greater.
 #
@@ -1445,6 +1455,7 @@ AM_CONDITIONAL(HAVE_UDEV, test "$have_udev" = "yes")
 AM_CONDITIONAL(ENABLE_RESOLUTIONKMS, test "x$enable_resolutionkms" = "xyes")
 AM_CONDITIONAL(VGAUTH_USE_CXX, test "$with_icu" = "yes" -o "$use_xmlsec1" != "yes")
 AM_CONDITIONAL(ENABLE_LIBAPPMONITOR, test "$enable_libappmonitor" = "yes")
+AM_CONDITIONAL(ENABLE_SDMP, test "$enable_servicediscovery" = "yes")
 
 if test "$have_xsm" != "yes"; then
 AC_DEFINE([NO_XSM], 1, [])
@@ -1605,6 +1616,7 @@ AC_CONFIG_FILES([                      \
    services/vmtoolsd/Makefile          \
    services/plugins/Makefile           \
    services/plugins/appInfo/Makefile   \
+   services/plugins/serviceDiscovery/Makefile   \
    services/plugins/desktopEvents/Makefile \
    services/plugins/dndcp/Makefile     \
    services/plugins/guestInfo/Makefile \

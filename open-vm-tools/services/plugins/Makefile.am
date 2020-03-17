@@ -19,6 +19,9 @@ SUBDIRS =
 if LINUX
    SUBDIRS += appInfo
 endif
+if ENABLE_SDMP
+   SUBDIRS += serviceDiscovery
+endif
 if HAVE_X11
    SUBDIRS += desktopEvents
 endif
