@@ -48,7 +48,7 @@ extern "C" {
  * at a later date. It is *ALWAYS* logged and *NEVER* outputs to the "standard
  * error".
  *
- * NOTE: The log levels must sequential values with no "holes" and start
+ * NOTE: The log levels must have sequential values with no "holes" and start
  *       with zero (0).
  *
  *      Level              Comments
@@ -75,6 +75,7 @@ typedef enum {
    VMW_LOG_DEBUG_09 = 17,
    VMW_LOG_DEBUG_10 = 18,  // Noisiest level
 } VmwLogLevel;
+
 #if defined(VMX86_DEBUG) || defined(VMX86_DEVEL)
    #define LOG_FILTER_DEFAULT_LEVEL VMW_LOG_VERBOSE
 #else
@@ -82,10 +83,12 @@ typedef enum {
 #endif
 
 /*
- * The "routing" parameter may contain other information.
+ * The "routing" parameter may contain other information. Be sure to
+ * use the VMW_LOG_LEVEL_MASK when checking for a level!
  */
 
-#define VMW_LOG_LEVEL_MASK 0x000000FF  // Log level bits are in the LOB
+#define VMW_LOG_LEVEL_BITS 5  // Log level bits (32 levels max)
+#define VMW_LOG_LEVEL_MASK ((int)(1 << VMW_LOG_LEVEL_BITS) - 1)
 
 void LogV(uint32 routing,
           const char *fmt,
