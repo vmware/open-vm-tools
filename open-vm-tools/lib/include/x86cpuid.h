@@ -921,8 +921,8 @@ FIELD( 80,  0, EBX,  0, 32, LEAF80_VENDOR1,                      NA,    0 ) \
 FIELD( 80,  0, ECX,  0, 32, LEAF80_VENDOR3,                      NA,    0 ) \
 FIELD( 80,  0, EDX,  0, 32, LEAF80_VENDOR2,                      NA,    0 )
 
-#define CPUID_81_EAX_14 \
-FLAG(  81,   0, ECX, 14,  1, LEAF81ECX_RSVD1,                    NO,    0 )
+#define CPUID_81_ECX_14 \
+FLAG(  81,  0, ECX, 14,  1, LEAF81ECX_RSVD1,                     NO,    0 )
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_81                                           \
