@@ -710,10 +710,10 @@ FIELD( 12,  1, EAX,  0, 32, SECS_ATTRIBUTES0,                    ANY,  17 ) \
 FIELD( 12,  1, EBX,  0, 32, SECS_ATTRIBUTES1,                    ANY,  17 ) \
 FIELD( 12,  1, ECX,  0, 32, SECS_ATTRIBUTES2,                    ANY,  17 ) \
 FIELD( 12,  1, EDX,  0, 32, SECS_ATTRIBUTES3,                    ANY,  17 ) \
-FIELD( 12,  2, EAX,  0, 15, EPC00_VALID,                         ANY,  17 ) \
+FIELD( 12,  2, EAX,  0,  4, EPC00_VALID,                         ANY,  17 ) \
 FIELD( 12,  2, EAX, 12, 20, EPC00_BASE_LOW,                      ANY,  17 ) \
 FIELD( 12,  2, EBX,  0, 20, EPC00_BASE_HIGH,                     ANY,  17 ) \
-FIELD( 12,  2, ECX,  0, 15, EPC00_PROTECTED,                     ANY,  17 ) \
+FIELD( 12,  2, ECX,  0,  4, EPC00_PROTECTED,                     ANY,  17 ) \
 FIELD( 12,  2, ECX, 12, 20, EPC00_SIZE_LOW,                      ANY,  17 ) \
 FIELD( 12,  2, EDX,  0, 20, EPC00_SIZE_HIGH,                     ANY,  17 ) \
 FIELD( 12,  3, EAX,  0,  4, EPC01_VALID,                         NO,    0 ) \
@@ -921,16 +921,17 @@ FIELD( 80,  0, EBX,  0, 32, LEAF80_VENDOR1,                      NA,    0 ) \
 FIELD( 80,  0, ECX,  0, 32, LEAF80_VENDOR3,                      NA,    0 ) \
 FIELD( 80,  0, EDX,  0, 32, LEAF80_VENDOR2,                      NA,    0 )
 
+#define CPUID_81_EAX_14 \
+FLAG(  81,   0, ECX, 14,  1, LEAF81ECX_RSVD1,                    NO,    0 )
+
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_81                                           \
-FIELD( 81,  0, EAX,  0, 32, UNKNOWN81EAX,                        ANY,   4 ) \
 FIELD( 81,  0, EAX,  0,  4, LEAF81_STEPPING,                     ANY,   4 ) \
 FIELD( 81,  0, EAX,  4,  4, LEAF81_MODEL,                        ANY,   4 ) \
 FIELD( 81,  0, EAX,  8,  4, LEAF81_FAMILY,                       ANY,   4 ) \
 FIELD( 81,  0, EAX, 12,  2, LEAF81_TYPE,                         ANY,   4 ) \
 FIELD( 81,  0, EAX, 16,  4, LEAF81_EXTENDED_MODEL,               ANY,   4 ) \
 FIELD( 81,  0, EAX, 20,  8, LEAF81_EXTENDED_FAMILY,              ANY,   4 ) \
-FIELD( 81,  0, EBX,  0, 32, UNKNOWN81EBX,                        ANY,   4 ) \
 FIELD( 81,  0, EBX,  0, 16, LEAF81_BRAND_ID,                     ANY,   4 ) \
 FIELD( 81,  0, EBX, 16, 16, UNDEF,                               ANY,   4 ) \
 FLAG(  81,  0, ECX,  0,  1, LAHF64,                              YES,   4 ) \
@@ -947,6 +948,7 @@ FLAG(  81,  0, ECX, 10,  1, IBS,                                 NO,    0 ) \
 FLAG(  81,  0, ECX, 11,  1, XOP,                                 YES,   8 ) \
 FLAG(  81,  0, ECX, 12,  1, SKINIT,                              NO,    0 ) \
 FLAG(  81,  0, ECX, 13,  1, WATCHDOG,                            NO,    0 ) \
+CPUID_81_ECX_14 \
 FLAG(  81,  0, ECX, 15,  1, LWP,                                 NO,    0 ) \
 FLAG(  81,  0, ECX, 16,  1, FMA4,                                YES,   8 ) \
 FLAG(  81,  0, ECX, 17,  1, TCE,                                 NO,    0 ) \
@@ -1241,10 +1243,6 @@ FIELD(820,  1, EDX,  0, 32, NUM_SERVICE_CLASSES,                 NO,    0 )
 
 #define CPUID_FIELD_DATA_LEVEL_821
 
-#define AMD_CPUID_FIELD_DATA
-
-#define INTEL_CPUID_FIELD_DATA
-
 #define CPUID_FIELD_DATA                                              \
    CPUID_FIELD_DATA_LEVEL_0                                           \
    CPUID_FIELD_DATA_LEVEL_1                                           \
@@ -1294,9 +1292,7 @@ FIELD(820,  1, EDX,  0, 32, NUM_SERVICE_CLASSES,                 NO,    0 )
    CPUID_FIELD_DATA_LEVEL_81E                                         \
    CPUID_FIELD_DATA_LEVEL_81F                                         \
    CPUID_FIELD_DATA_LEVEL_820                                         \
-   CPUID_FIELD_DATA_LEVEL_821                                         \
-   INTEL_CPUID_FIELD_DATA                                             \
-   AMD_CPUID_FIELD_DATA
+   CPUID_FIELD_DATA_LEVEL_821
 
 /*
  * Define all field and flag values as an enum.  The result is a full
