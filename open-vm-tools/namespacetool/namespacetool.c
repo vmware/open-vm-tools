@@ -234,6 +234,7 @@ GetValueFromStdin(gchar **data, gsize *length)
       *length = 0;
    }
    g_free(gErr);
+   g_io_channel_unref(iochannel);
    return retVal;
 }
 
