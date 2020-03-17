@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2002-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2002-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -87,6 +87,32 @@
 
 /*
  * END AppInfo goodies.
+ ******************************************************************************
+ */
+
+/*
+ ******************************************************************************
+ * BEGIN ServiceDiscovery goodies.
+ */
+
+/**
+ * Defines the string used for the ServiceDiscovery config file group.
+ */
+#define CONFGROUPNAME_SERVICEDISCOVERY "servicediscovery"
+
+/**
+ * Defines the configuration to perform service discovery or not.
+ *
+ * @note Illegal values result in a @c g_warning and fallback to the default
+ * value.
+ *
+ * @param boolean Set to TRUE to disable publishing.
+ *                Set to FALSE to enable publishing.
+ */
+#define CONFNAME_SERVICEDISCOVERY_DISABLED "disabled"
+
+/*
+ * END ServiceDiscovery goodies.
  ******************************************************************************
  */
 
