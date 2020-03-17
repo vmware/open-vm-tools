@@ -3584,7 +3584,7 @@ Atomic_ReadAdd16(Atomic_uint16 *var,  // IN/OUT
  *
  * Atomic_ReadInc16 --
  *
- *      Atomically increments a 64-bit integer
+ *      Atomically increments a 16-bit integer
  *
  * Results:
  *      Returns the old value just prior to incrementing
@@ -3607,7 +3607,7 @@ Atomic_ReadInc16(Atomic_uint16 *var) // IN/OUT
  *
  * Atomic_ReadDec16 --
  *
- *      Atomically decrements a 64-bit integer
+ *      Atomically decrements a 16-bit integer
  *
  * Results:
  *      Returns the old value just prior to decrementing
