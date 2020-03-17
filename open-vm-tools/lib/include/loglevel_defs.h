@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -87,7 +87,6 @@ int LogLevel_Set(const char *extension, const char *module, int val);
 #define DOLOG_BYNAME(_mod, _min) \
         UNLIKELY(LOGLEVEL_BYNAME(_mod) >= (_min))
 
-#ifdef LOGLEVEL_VARIADIC
 /*
  * Variadic macro wrinkle: C99 says "one or more arguments"; some compilers
  * (gcc+clang+msvc) support zero arguments, but differ in tolerating a trailing
@@ -101,11 +100,6 @@ int LogLevel_Set(const char *extension, const char *module, int val);
  */
 #define LOG_BYNAME(_mod, _min, ...) \
         (DOLOG_BYNAME(_mod, _min) ? Log(__VA_ARGS__) : (void) 0)
-
-#else
-#define LOG_BYNAME(_mod, _min, _log) \
-        (DOLOG_BYNAME(_mod, _min) ? (Log _log) : (void) 0)
-#endif
 
 /*
  * Default
@@ -130,11 +124,7 @@ int LogLevel_Set(const char *extension, const char *module, int val);
 
 
 #ifdef VMX86_DEVEL
-   #ifdef LOGLEVEL_VARIADIC
    #define LOG_DEVEL(...) Log(__VA_ARGS__)
-   #else
-   #define LOG_DEVEL(_x) (Log _x)
-   #endif
 #else
    #define LOG_DEVEL(...)
 #endif
