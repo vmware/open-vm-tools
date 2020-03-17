@@ -250,8 +250,9 @@ WriteData(ToolsAppCtx *ctx,
                                DynBuf_GetSize(&buf),
                                &result, &resultLen);
       if (!status) {
-         g_warning("%s: Failed to update %s, result = %s\n", __FUNCTION__,
-                   key, result);
+         g_warning("%s: Failed to update %s, result: %s resultLen: %" FMTSZ
+                   "u\n", __FUNCTION__, key, (result != NULL) ?
+                   result : "(null)", resultLen);
       }
 
       if (result != NULL) {
@@ -318,7 +319,9 @@ ReadData(ToolsAppCtx *ctx,
                             DynBuf_GetSize(&buf),
                             resultData, resultDataLen);
    if (!status) {
-      g_warning("%s: Read finished with status FALSE", __FUNCTION__);
+      g_warning("%s: Read over RPC failed, result: %s, resultDataLen: %" FMTSZ
+                "u\n", __FUNCTION__, (*resultData != NULL) ?
+                *resultData : "(null)", *resultDataLen);
    }
 done:
    DynBuf_Destroy(&buf);
