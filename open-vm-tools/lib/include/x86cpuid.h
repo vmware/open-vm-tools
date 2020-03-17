@@ -551,7 +551,7 @@ FLAG(   7,  0, ECX, 29,  1, ENQCMD,                              NO,    0 ) \
 FLAG(   7,  0, ECX, 30,  1, SGX_LC,                              ANY,  17 ) \
 FLAG(   7,  0, EDX,  2,  1, AVX512QVNNIW,                        YES,  16 ) \
 FLAG(   7,  0, EDX,  3,  1, AVX512QFMAPS,                        YES,  16 ) \
-FLAG(   7,  0, EDX,  4,  1, FAST_SHORT_REPMOV,                   NO,    0 ) \
+FLAG(   7,  0, EDX,  4,  1, FAST_SHORT_REPMOV,                   YES, FUT ) \
 FLAG(   7,  0, EDX,  8,  1, AVX512VP2INTERSECT,                  YES, FUT ) \
 FLAG(   7,  0, EDX, 10,  1, MDCLEAR,                             YES,   9 ) \
 FLAG(   7,  0, EDX, 13,  1, TSX_MICROCODE_UPDATE,                NO,    0 ) \
