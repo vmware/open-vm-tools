@@ -47,7 +47,6 @@
 #include "unicodeOperations.h"
 
 #define LOGLEVEL_MODULE main
-#define LOGLEVEL_VARIADIC
 #include "loglevel_user.h"
 
 #define LOG_MAX_PROC_NAME  64

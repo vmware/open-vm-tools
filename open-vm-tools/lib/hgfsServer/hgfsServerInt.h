@@ -44,7 +44,6 @@ struct DirectoryEntry;
 #ifndef VMX86_TOOLS
 
 #define LOGLEVEL_MODULE hgfsServer
-#define LOGLEVEL_VARIADIC
 #include "loglevel_user.h"
 
 #else // VMX86_TOOLS

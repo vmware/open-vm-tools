@@ -108,7 +108,6 @@
 
 
 #define LOGLEVEL_MODULE asyncsocket
-#define LOGLEVEL_VARIADIC
 #include "loglevel_user.h"
 
 #ifdef VMX86_SERVER

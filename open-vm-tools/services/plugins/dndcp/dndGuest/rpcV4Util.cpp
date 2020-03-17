@@ -38,7 +38,6 @@ extern "C" {
 }
 #else
    #define LOGLEVEL_MODULE dnd
-   #define LOGLEVEL_VARIADIC
    #include "loglevel_user.h"
 #endif
 

@@ -77,7 +77,6 @@
 #endif
 
 #define LOGLEVEL_MODULE main
-#define LOGLEVEL_VARIADIC
 #include "loglevel_user.h"
 
 #include "unicodeOperations.h"

@@ -54,7 +54,6 @@
 #include "localconfig.h"
 
 #define LOGLEVEL_MODULE util
-#define LOGLEVEL_VARIADIC
 #include "loglevel_user.h"
 
 

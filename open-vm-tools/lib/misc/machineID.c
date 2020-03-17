@@ -46,7 +46,6 @@
 #include "vm_atomic.h"
 
 #define LOGLEVEL_MODULE main
-#define LOGLEVEL_VARIADIC
 #include "loglevel_user.h"
 
 #if defined(_WIN32)	// Windows

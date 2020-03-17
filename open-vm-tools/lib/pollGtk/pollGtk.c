@@ -60,7 +60,6 @@
 #include "err.h"
 
 #define LOGLEVEL_MODULE poll
-#define LOGLEVEL_VARIADIC
 #include "loglevel_user.h"
 
 
