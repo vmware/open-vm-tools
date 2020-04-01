@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -2588,6 +2588,41 @@ VMTools_SetupVmxGuestLog(gboolean refreshRpcChannel,   // IN
    SetupVmxGuestLogInt(refreshRpcChannel, cfg, level);
 
 done:
+   g_rec_mutex_unlock(&gVmxGuestLogMutex);
+
+   VMTools_ReleaseLogStateLock();
+}
+
+
+/*
+ *******************************************************************************
+ * VMTools_TeardownVmxGuestLog --                                         */ /**
+ *
+ * Destroy the dedicated RPCI channel set up for the Vmx Guest Logging.
+ * This function is called from the tools process exit code path.
+ *
+ *******************************************************************************
+ */
+
+void
+VMTools_TeardownVmxGuestLog(void)
+{
+   /*
+    * In case VMTools_UseVmxGuestLog() is never called.
+    */
+   if (!gUseVmxGuestLog) {
+      return;
+   }
+
+   /*
+    * Acquire the same locks as VMTools_SetupVmxGuestLog.
+    */
+   VMTools_AcquireLogStateLock();
+
+   g_rec_mutex_lock(&gVmxGuestLogMutex);
+
+   DestroyRpcChannel();
+
    g_rec_mutex_unlock(&gVmxGuestLogMutex);
 
    VMTools_ReleaseLogStateLock();
