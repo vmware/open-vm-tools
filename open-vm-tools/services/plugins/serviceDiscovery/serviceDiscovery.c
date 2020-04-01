@@ -124,9 +124,9 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 #define SERVICE_DISCOVERY_WRITE_DELTA 60000
 
 /*
- * Time to wait in milliseconds before retrying RPC operation
+ * Time to wait in milliseconds before RPC operation
  */
-#define SERVICE_DISCOVERY_RPC_RETRY_WAIT_TIME 100
+#define SERVICE_DISCOVERY_RPC_WAIT_TIME 100
 
 
 typedef struct {
@@ -215,6 +215,7 @@ SendRpcMessage(ToolsAppCtx *ctx,
        * After the vmsvc RPC channel falls back to backdoor, it could not
        * send through privileged guest RPC any more.
        */
+      g_usleep(SERVICE_DISCOVERY_RPC_WAIT_TIME * 1000);
       status = RpcChannel_SendOneRawPriv(msg, msgLen, result, resultLen);
 
       /*
@@ -225,7 +226,7 @@ SendRpcMessage(ToolsAppCtx *ctx,
           strcmp(*result, "Permission denied") == 0) {
          g_debug("%s: Retrying RPC send", __FUNCTION__);
          free(*result);
-         g_usleep(SERVICE_DISCOVERY_RPC_RETRY_WAIT_TIME * 1000);
+         g_usleep(SERVICE_DISCOVERY_RPC_WAIT_TIME * 1000);
          status = RpcChannel_SendOneRawPriv(msg, msgLen, result, resultLen);
       }
    }
