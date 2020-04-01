@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -382,6 +382,44 @@ CliListMapped(VGAuthContext *ctx)
 
 /*
  ******************************************************************************
+ * InitMsgCatalog --                                                     */ /**
+ *
+ * Initialize language setting according to machine locale
+ *
+ ******************************************************************************
+ */
+
+static void
+InitMsgCatalog(void)
+{
+   PrefHandle prefs;
+   gchar *msgCatalog;
+
+   /*
+    * Do this first, so any noise from the locale setup is properly filtered.
+    */
+   VGAuth_SetLogHandler(CliLog, NULL, 0, NULL);
+
+   /*
+    * Find the location of the i18n catalogs.
+    */
+   setlocale(LC_ALL, "");
+   prefs = Pref_Init(VGAUTH_PREF_CONFIG_FILENAME);
+   msgCatalog = Pref_GetString(prefs,
+                               VGAUTH_PREF_LOCALIZATION_DIR,
+                               VGAUTH_PREF_GROUP_NAME_LOCALIZATION,
+                               VGAUTH_PREF_DEFAULT_LOCALIZATION_CATALOG);
+
+   I18n_BindTextDomain(VMW_TEXT_DOMAIN,    // domain -- base name of vmsg files
+                       NULL,               // locale -- let it figure it out
+                       msgCatalog);        // path to message catalogs
+   g_free(msgCatalog);
+   Pref_Shutdown(prefs);
+}
+
+
+/*
+ ******************************************************************************
  * mainRun --                                                            */ /**
  *
  * Initializes and parses commandline args.
@@ -422,14 +460,14 @@ mainRun(int argc,
    const gchar *lSubject = SU_(cmdline.summary.subject, "subject");
    const gchar *lPEMfile = SU_(cmdline.summary.pemfile, "PEM-file");
    const gchar *lComm = SU_(cmdline.summary.comm, "comment");
+
 #if (use_glib_parser == 0)
    int i;
    GOptionEntry *cmdOptions;
 #else
    GError *gErr = NULL;
 #endif
-   PrefHandle prefs;
-   gchar *msgCatalog = NULL;
+
    GOptionEntry listOptions[] = {
       { "username", 'u', 0, G_OPTION_ARG_STRING, &userName,
          SU_(listoptions.username,
@@ -478,26 +516,6 @@ mainRun(int argc,
     */
    argcCopy = argc;
    argvCopy = argv;
-
-   /*
-    * Do this first, so any noise form the locale setup is properly filtered.
-    */
-   VGAuth_SetLogHandler(CliLog, NULL, 0, NULL);
-
-   /*
-    * Find the location of the i18n catalogs.
-    */
-   setlocale(LC_ALL, "");
-   prefs = Pref_Init(VGAUTH_PREF_CONFIG_FILENAME);
-   msgCatalog = Pref_GetString(prefs,
-                               VGAUTH_PREF_LOCALIZATION_DIR,
-                               VGAUTH_PREF_GROUP_NAME_LOCALIZATION,
-                               VGAUTH_PREF_DEFAULT_LOCALIZATION_CATALOG);
-
-   I18n_BindTextDomain(VMW_TEXT_DOMAIN,    // domain -- base name of vmsg files
-                       NULL,               // locale -- let it figure it out
-                       msgCatalog);        // path to message catalogs
-   g_free(msgCatalog);
 
    /*
     * Set up the option parser
@@ -660,7 +678,6 @@ next:
    }
 
    VGAuth_Shutdown(ctx);
-   Pref_Shutdown(prefs);
    g_free(appName);
    return (err == VGAUTH_E_OK) ? 0 : -1;
 }
@@ -695,6 +712,8 @@ wmain(int argc,
    for (i = 0; i < argc; ++i) {
       CHK_UTF16_TO_UTF8(argvUtf8[i], argv[i], goto end);
    }
+
+   InitMsgCatalog();
 
    retval = mainRun(argc, argvUtf8);
 
@@ -731,6 +750,7 @@ int
 main(int argc,
      char *argv[])
 {
+   InitMsgCatalog();
    return mainRun(argc, argv);
 }
 
