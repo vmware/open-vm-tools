@@ -1,5 +1,5 @@
 ##########################################################
-# Copyright (C) 2011-2018 VMware, Inc. All rights reserved.
+# Copyright (C) 2011-2018,2020 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -31,7 +31,10 @@ addoptions.username = "Utente a cui viene aggiunto l'archivio certificati"
 
 addoptions.verbose = "Operazione Verbose"
 
-
+cmdline.help.appoption = "Application Options"
+cmdline.help.helpoption = "Help Options"
+cmdline.help.hint = "Show help options"
+cmdline.help.usage = "Usage"
 cmdline.parse = "Analisi della riga di comando non riuscita"
 
 cmdline.summary.pemfile = "File PEM"

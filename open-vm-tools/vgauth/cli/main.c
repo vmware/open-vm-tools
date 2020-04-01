@@ -47,6 +47,82 @@ static gchar *appName;
 static gboolean verbose = FALSE;
 
 
+#ifdef _WIN32
+
+
+/*
+ ******************************************************************************
+ * GetHelp --                                                            */ /**
+ *
+ * Get help message for CLI on windows
+ *
+ * @param[in] context      The GOptionContext for generating the message
+ * @param[in] paramStr     The command line operation arguments
+ * @param[in] cmdOptions   The command line options for given operation
+ *
+ ******************************************************************************
+ */
+
+static gchar *
+GetHelp(GOptionContext *context,
+        const char *paramStr,
+        const GOptionEntry *cmdOptions)
+{
+   gchar *helpMsg;
+   const gchar *lUsage = SU_(cmdline.help.usage, "Usage");
+   const gchar *lHelpOption = SU_(cmdline.help.helpoption, "Help Options");
+   const gchar *lAppOption = SU_(cmdline.help.appoption, "Application Options");
+   const gchar *lHint = SU_(cmdline.help.hint, "Show help options");
+
+   if (cmdOptions == NULL){
+      helpMsg = g_strdup_printf("%s:\n"
+                                "  %s %s\n\n"
+                                "%s\n\n"
+                                "%s:\n"
+                                "  -h, --help       %s\n",
+                                lUsage,
+                                appName, paramStr,
+                                g_option_context_get_summary(context),
+                                lHelpOption,
+                                lHint);
+   } else {
+      gchar *optionMsg;
+      GString *optStr;
+      int i;
+      optStr = g_string_new(NULL);
+      for (i = 0; cmdOptions[i].long_name != NULL; i++) {
+         g_string_append_printf(optStr,
+                                "  -%c, --%-8s    %s\n",
+                                cmdOptions[i].short_name,
+                                cmdOptions[i].long_name,
+                                cmdOptions[i].description);
+      }
+      optionMsg = g_string_free(optStr, FALSE);
+
+      helpMsg = g_strdup_printf("%s:\n"
+                                "  %s %s\n\n"
+                                "%s\n\n"
+                                "%s:\n"
+                                "  -h, --help       %s\n"
+                                "%s:\n"
+                                "%s",
+                                lUsage,
+                                appName, paramStr,
+                                g_option_context_get_summary(context),
+                                lHelpOption,
+                                lHint,
+                                lAppOption,
+                                optionMsg);
+      g_free(optionMsg);
+   }
+
+   return helpMsg;
+}
+
+#endif
+
+
+
 /*
  ******************************************************************************
  * Usage --                                                              */ /**
@@ -54,16 +130,24 @@ static gboolean verbose = FALSE;
  * Usage message for CLI
  *
  * @param[in] optContext   The GOptionContext for generating the message
+ * @param[in] paramStr     The command line operation arguments
+ * @param[in] cmdOptions   The command line options for given operation
  *
  ******************************************************************************
  */
 
 static void
-Usage(GOptionContext *optContext)
+Usage(GOptionContext *optContext,
+      const char *paramStr,
+      const GOptionEntry *cmdOptions)
 {
    gchar *usage;
-
+#ifdef _WIN32
+   usage = GetHelp(optContext, paramStr, cmdOptions);
+#else
    usage = g_option_context_get_help(optContext, TRUE, NULL);
+#endif
+
    g_printerr("%s", usage);
    g_free(usage);
    exit(-1);
@@ -456,6 +540,8 @@ mainRun(int argc,
    gchar *comment = NULL;
    gchar *summaryMsg;
    gchar *subject = NULL;
+   GOptionEntry *cmdOptions = NULL;
+   const gchar *paramStr = "[add | list | remove]\n";
    const gchar *lUsername = SU_(cmdline.summary.username, "username");
    const gchar *lSubject = SU_(cmdline.summary.subject, "subject");
    const gchar *lPEMfile = SU_(cmdline.summary.pemfile, "PEM-file");
@@ -463,7 +549,6 @@ mainRun(int argc,
 
 #if (use_glib_parser == 0)
    int i;
-   GOptionEntry *cmdOptions;
 #else
    GError *gErr = NULL;
 #endif
@@ -521,7 +606,7 @@ mainRun(int argc,
     * Set up the option parser
     */
    g_set_prgname(appName);
-   context = g_option_context_new("[add | list | remove]\n");
+   context = g_option_context_new(paramStr);
    summaryMsg = g_strdup_printf(
       "add --global --username=%s --file=%s --subject=%s "
              "[ --comment=%s ]\n"
@@ -534,7 +619,7 @@ mainRun(int argc,
    g_option_context_set_summary(context, summaryMsg);
    g_free(summaryMsg);
    if (argc < 2) {
-      Usage(context);
+      Usage(context, paramStr, cmdOptions);
    }
 
    /*
@@ -543,31 +628,25 @@ mainRun(int argc,
    if (strcmp(argvCopy[1], "add") == 0) {
       doAdd = TRUE;
       g_option_context_add_main_entries(context, addOptions, NULL);
-#if (use_glib_parser == 0)
       cmdOptions = addOptions;
-#endif
    } else if (strcmp(argvCopy[1], "remove") == 0) {
       doRemove = TRUE;
       g_option_context_add_main_entries(context, removeOptions, NULL);
-#if (use_glib_parser == 0)
       cmdOptions = removeOptions;
-#endif
    } else if (strcmp(argvCopy[1], "list") == 0) {
       doList = TRUE;
       g_option_context_add_main_entries(context, listOptions, NULL);
-#if (use_glib_parser == 0)
       cmdOptions = listOptions;
-#endif
    } else {
-      Usage(context);
+      Usage(context, paramStr, cmdOptions);
    }
 
 #if (use_glib_parser == 0)
    /*
-    * In Windows, g_option_context_parse() does the wrong thing for locale
-    * conversion of the incoming Unicode cmdline.  Modern glib (2.40 or
-    * later) solves this with g_option_context_parse_strv(), but we're stuck
-    * with an older glib for now.
+    * In Windows, g_option_context_parse() does the wrong thing for the
+    * incoming Unicode cmdline.  Modern glib (2.40 or later) solves this
+    * with g_option_context_parse_strv(), but we're stuck with an older
+    * glib for now.
     *
     * So instead lets do it all by hand.
     *
@@ -599,14 +678,14 @@ mainRun(int argc,
                   *(gchar **) e->arg_data = argv[++i];
                   match = TRUE;
                } else {
-                  Usage(context);
+                  Usage(context, paramStr, cmdOptions);
                }
             } else if (e->arg == G_OPTION_ARG_NONE) {
                *(gboolean *) e->arg_data = TRUE;
                match = TRUE;
             }
          } else if (strncmp(longName, argv[i], len) == 0 &&
-                    (argv[i][len] == '=' || argv[i][len] == '\0')) {
+                   (argv[i][len] == '=' || argv[i][len] == '\0')) {
             gchar *val = NULL;
 
             if (e->arg == G_OPTION_ARG_STRING) {
@@ -621,7 +700,7 @@ mainRun(int argc,
                *(gboolean *) e->arg_data = TRUE;
                match = TRUE;
             } else {
-               Usage(context);
+               Usage(context, paramStr, cmdOptions);
             }
          }
          if (match) {
@@ -631,7 +710,7 @@ mainRun(int argc,
       }
 next:
       if (!match) {
-         Usage(context);
+         Usage(context, paramStr, cmdOptions);
       }
    }
 #else
@@ -648,7 +727,7 @@ next:
     * XXX pull this if we use stdin for the cert contents.
     */
    if ((doAdd || doRemove) && !pemFilename) {
-      Usage(context);
+      Usage(context, paramStr, cmdOptions);
    }
 
    err = VGAuth_Init(appName, 0, NULL, &ctx);
