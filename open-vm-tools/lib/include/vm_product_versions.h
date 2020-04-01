@@ -286,6 +286,7 @@
 #define VIEWVC_VERSION "14.0.2"
 #define WCP_VERSION "0.0.1"
 #define VSTATS_VERSION "0.0.1"
+#define HDCS_VERSION "0.0.1"
 
 /*
  * All of these components should follow the current version of View, except
