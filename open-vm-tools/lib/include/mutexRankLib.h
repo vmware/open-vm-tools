@@ -120,6 +120,8 @@ extern "C" {
 #define RANK_nfcLibSessionListLock   (RANK_libLockBase + 0x4507)
 #define RANK_nfcLibAioCtxLock        (RANK_libLockBase + 0x4508)
 #define RANK_nfcLibAioLock           (RANK_libLockBase + 0x4509)
+#define RANK_nfcLibLastErrorLock     (RANK_libLockBase + 0x450A)
+
 
 /*
  * Policy lib lock
