@@ -123,6 +123,11 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
  */
 #define SERVICE_DISCOVERY_WRITE_DELTA 60000
 
+/*
+ * Time to wait in milliseconds before retrying RPC operation
+ */
+#define SERVICE_DISCOVERY_RPC_RETRY_WAIT_TIME 100
+
 
 typedef struct {
    gchar *keyName;
@@ -156,20 +161,76 @@ static volatile Bool gTaskSubmitted = FALSE;
 
 
 /*
-*****************************************************************************
-* GetGuestTimeInMillis --
-*
-* Get system current time in millis.
-*
-* @retval time in millis.
-*
-*****************************************************************************
-*/
+ *****************************************************************************
+ * GetGuestTimeInMillis --
+ *
+ * Get system current time in millis.
+ *
+ * @retval time in millis.
+ *
+ *****************************************************************************
+ */
 
 static gint64
 GetGuestTimeInMillis(void)
 {
    return g_get_real_time() / 1000;
+}
+
+
+/*
+ *****************************************************************************
+ * SendRpcMessage --
+ *
+ * Sends message over RPC channel.
+ *
+ * @param[in] ctx         Application context.
+ * @param[in] msg         Message to send
+ * @param[in] msgLen      Length of the message to send
+ * @param[out] result     Rpc operation result, freed by callers
+ * @param[out] resultLen  Length of Rpc operation result
+ *
+ * @retval TRUE  RPC message send succeeded.
+ * @retval FALSE RPC message send failed.
+ *
+ *****************************************************************************
+ */
+
+static Bool
+SendRpcMessage(ToolsAppCtx *ctx,
+               char const *msg,
+               size_t msgLen,
+               char **result,
+               size_t *resultLen)
+{
+   Bool status;
+   RpcChannelType rpcChannelType = RpcChannel_GetType(ctx->rpc);
+
+   g_debug("%s: Current RPC channel type: %d\n", __FUNCTION__, rpcChannelType);
+
+   if (rpcChannelType == RPCCHANNEL_TYPE_PRIV_VSOCK) {
+      status = RpcChannel_Send(ctx->rpc, msg, msgLen, result, resultLen);
+   } else {
+      /*
+       * After the vmsvc RPC channel falls back to backdoor, it could not
+       * send through privileged guest RPC any more.
+       */
+      status = RpcChannel_SendOneRawPriv(msg, msgLen, result, resultLen);
+
+      /*
+       * RpcChannel_SendOneRawPriv returns 'Permission denied' if the
+       * privileged vsocket can not be established.
+       */
+      if (!status && result != NULL &&
+          strcmp(*result, "Permission denied") == 0) {
+         g_debug("%s: Retrying RPC send", __FUNCTION__);
+         free(*result);
+         g_usleep(SERVICE_DISCOVERY_RPC_RETRY_WAIT_TIME * 1000);
+         status = RpcChannel_SendOneRawPriv(msg, msgLen, result, resultLen);
+      }
+   }
+
+   return status;
 }
 
 
@@ -246,9 +307,9 @@ WriteData(ToolsAppCtx *ctx,
    } else {
       char *result = NULL;
       size_t resultLen;
-      status = RpcChannel_Send(ctx->rpc, DynBuf_Get(&buf),
-                               DynBuf_GetSize(&buf),
-                               &result, &resultLen);
+
+      status = SendRpcMessage(ctx, DynBuf_Get(&buf), DynBuf_GetSize(&buf),
+                              &result, &resultLen);
       if (!status) {
          g_warning("%s: Failed to update %s, result: %s resultLen: %" FMTSZ
                    "u\n", __FUNCTION__, key, (result != NULL) ?
@@ -315,9 +376,9 @@ ReadData(ToolsAppCtx *ctx,
       g_warning("%s: Could not construct request buffer\n", __FUNCTION__);
       goto done;
     }
-   status = RpcChannel_Send(ctx->rpc, DynBuf_Get(&buf),
-                            DynBuf_GetSize(&buf),
-                            resultData, resultDataLen);
+
+   status = SendRpcMessage(ctx, DynBuf_Get(&buf), DynBuf_GetSize(&buf),
+                           resultData, resultDataLen);
    if (!status) {
       g_warning("%s: Read over RPC failed, result: %s, resultDataLen: %" FMTSZ
                 "u\n", __FUNCTION__, (*resultData != NULL) ?
@@ -330,19 +391,19 @@ done:
 
 
 /*
-*****************************************************************************
-* DeleteData --
-*
-* Deletes key/value from Namespace DB.
-*
-* @param[in] ctx       Application context.
-* @param[in] key       Key of entry to be deleted from the Namespace DB
-*
-* @retval TRUE  Namespace DB delete over RPC succeeded.
-* @retval FALSE Namespace DB delete over RPC failed.
-*
-*****************************************************************************
-*/
+ *****************************************************************************
+ * DeleteData --
+ *
+ * Deletes key/value from Namespace DB.
+ *
+ * @param[in] ctx       Application context.
+ * @param[in] key       Key of entry to be deleted from the Namespace DB
+ *
+ * @retval TRUE  Namespace DB delete over RPC succeeded.
+ * @retval FALSE Namespace DB delete over RPC failed.
+ *
+ *****************************************************************************
+ */
 
 static Bool
 DeleteData(ToolsAppCtx *ctx,
@@ -353,15 +414,15 @@ DeleteData(ToolsAppCtx *ctx,
 
 
 /*
-*****************************************************************************
-* CleanupNamespaceDB --
-*
-* Deletes all the chunks written to the Namespace DB in previous cycle.
-*
-* @param[in] ctx       Application context.
-*
-*****************************************************************************
-*/
+ *****************************************************************************
+ * CleanupNamespaceDB --
+ *
+ * Deletes all the chunks written to the Namespace DB in previous cycle.
+ *
+ * @param[in] ctx       Application context.
+ *
+ *****************************************************************************
+ */
 
 static void
 CleanupNamespaceDB(ToolsAppCtx *ctx) {
@@ -651,17 +712,17 @@ TweakDiscoveryLoop(ToolsAppCtx *ctx)
 
 
 /*
-******************************************************************************
-* ServiceDiscoveryServerConfReload --
-*
-* @brief Reconfigures the poll loop interval upon config file reload.
-*
-* @param[in]  src     Unused.
-* @param[in]  ctx     The application context.
-* @param[in]  data    Unused.
-*
-******************************************************************************
-*/
+ ******************************************************************************
+ * ServiceDiscoveryServerConfReload --
+ *
+ * @brief Reconfigures the poll loop interval upon config file reload.
+ *
+ * @param[in]  src     Unused.
+ * @param[in]  ctx     The application context.
+ * @param[in]  data    Unused.
+ *
+ ******************************************************************************
+ */
 
 static void
 ServiceDiscoveryServerConfReload(gpointer src,
@@ -686,17 +747,17 @@ ServiceDiscoveryServerConfReload(gpointer src,
 
 
 /*
-*****************************************************************************
-* ServiceDiscoveryServerShutdown --
-*
-* Cleanup internal data on shutdown.
-*
-* @param[in]  src     The source object.
-* @param[in]  ctx     Unused.
-* @param[in]  data    Unused.
-*
-*****************************************************************************
-*/
+ *****************************************************************************
+ * ServiceDiscoveryServerShutdown --
+ *
+ * Cleanup internal data on shutdown.
+ *
+ * @param[in]  src     The source object.
+ * @param[in]  ctx     Unused.
+ * @param[in]  data    Unused.
+ *
+ *****************************************************************************
+ */
 
 static void
 ServiceDiscoveryServerShutdown(gpointer src,
@@ -721,13 +782,13 @@ ServiceDiscoveryServerShutdown(gpointer src,
 
 
 /*
-*****************************************************************************
-* ConstructScriptPaths --
-*
-* Construct final paths of the scripts that will be used for execution.
-*
-*****************************************************************************
-*/
+ *****************************************************************************
+ * ConstructScriptPaths --
+ *
+ * Construct final paths of the scripts that will be used for execution.
+ *
+ *****************************************************************************
+ */
 
 static void
 ConstructScriptPaths(void)
