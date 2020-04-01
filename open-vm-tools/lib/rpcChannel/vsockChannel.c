@@ -364,17 +364,17 @@ VSockChannelStart(RpcChannel *chan)    // IN
       if (!ret && (vsock->out->flags & RPCCHANNEL_FLAGS_SEND_ONE) == 0) {
          int retryCnt = 0;
 
-         /*
-          * VMX may take some time to cleanup a previous vsocket, so delay
-          * the retry a little bit.  The retry is needed for the cases when
-          * there is a channel start attempt in quick succession and the
-          * first attempt failed because VMX was still cleaning up the
-          * previous vsocket.
-          *
-          * Take a 100 msec pause.
-          */
-         g_usleep(VSOCK_START_RETRY_WAIT_TIME * 1000);
          while (!ret && (retryCnt++ < VSOCK_CHANNEL_START_MAX_RETRIES)) {
+            /*
+             * VMX may take some time to cleanup a previous vsocket, so delay
+             * the retry a little bit.  The retry is needed for the cases when
+             * there is a channel start attempt in quick succession and the
+             * first attempt failed because VMX was still cleaning up the
+             * previous vsocket.
+             *
+             * Take a 100 msec pause.
+             */
+            g_usleep(VSOCK_START_RETRY_WAIT_TIME * 1000);
             Debug(LGPFX "VSockChannel Start - retry %d\n", retryCnt);
             ret = VSockOutStart(vsock->out);
          }
