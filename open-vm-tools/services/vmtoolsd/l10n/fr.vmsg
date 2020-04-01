@@ -1,0 +1,68 @@
+##########################################################
+# Copyright (C) 2010 VMware, Inc. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU Lesser General Public License as published
+# by the Free Software Foundation version 2.1 and no later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+# License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
+#
+##########################################################
+
+cmdline.background = "S'exécute en arrière-plan et crée un fichier PID."
+
+cmdline.background.pidfile = "pidfile"
+
+cmdline.blockfd = "Le descripteur de fichier pour le fs bloquant VMware."
+
+cmdline.blockfd.fd = "fd"
+
+cmdline.commonpath = "Chemin vers les répertoires de plug-ins communs."
+
+cmdline.config = "Utilise le fichier de config pour le chemin donné."
+
+cmdline.debug = "S'exécute en mode débogage à l'aide du module d'extension spécifié."
+
+cmdline.displayname = "Nom d'affichage du service (uniquement utilisé avec -i)."
+
+cmdline.displayname.argument = "nom"
+
+cmdline.install = "Installe le service avec le Service Control Manager."
+
+cmdline.install.args = "args"
+
+cmdline.kill = "Arrête une 'instance en cours d'exécution d'un service d'outils."
+
+cmdline.log = "Ignoré, conservé pour compatibilité descendante."
+
+cmdline.name = "Nom du service en cours de démarrage."
+
+cmdline.name.argument = "svcname"
+
+cmdline.path = "chemin"
+
+cmdline.pluginpath = "Chemin vers le répertoire des plug-ins."
+
+cmdline.rpc = "Envoie une commande d'appel de procédure à distance à l'hôte puis quitte l'application."
+
+cmdline.rpc.command = "commande"
+
+cmdline.rpcerror = "Impossible d'envoyer la commande à l'hyperviseur VMware."
+
+cmdline.state = "Transfère l'état interne d'un service en cours d'exécution dans les journaux."
+
+cmdline.uinputfd = "Descripteur de fichier pour le périphérique uinput."
+
+cmdline.uinputfd.fd = "fd"
+
+cmdline.uninstall = "Désinstalle le service du Gestionnaire de contrôle du service."
+
+cmdline.version = "Imprime la version démon et quitte l'application."
+
