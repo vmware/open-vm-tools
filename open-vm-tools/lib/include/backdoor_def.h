@@ -236,9 +236,11 @@ extern "C" {
 #  define BDOOR_CMD_GI_TEST_MAPPING         130
 #  define BDOOR_CMD_GI_TEST_PPN             131
 #  define BDOOR_CMD_GI_MAX                  131
-#define   BDOOR_CMD_MKSSTATS_SNAPSHOT        88 /* Devel only. */
-#  define BDOOR_CMD_MKSSTATS_START            0
-#  define BDOOR_CMD_MKSSTATS_STOP             1
+#define   BDOOR_CMD_MKSTEST                  88 /* Devel only. */
+#  define BDOOR_CMD_MKSTEST_STATS_START       0
+#  define BDOOR_CMD_MKSTEST_STATS_STOP        1
+#  define BDOOR_CMD_MKSTEST_CASE_START        2
+#  define BDOOR_CMD_MKSTEST_CASE_STOP         3
 #define   BDOOR_CMD_SECUREBOOT               89
 #define   BDOOR_CMD_COPY_PHYSMEM             90 /* Devel only. */
 #define   BDOOR_CMD_STEALCLOCK               91 /* CPL 0 only. */
