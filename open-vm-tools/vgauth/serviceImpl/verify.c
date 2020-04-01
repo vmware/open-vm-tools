@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -305,6 +305,7 @@ ServiceVerifyAndCheckTrustCertChainForSubject(int numCerts,
       numTrusted--;
       leafCert = trustedCerts[0];
       memmove(trustedCerts, &(trustedCerts[1]), sizeof(*trustedCerts) * numTrusted);
+   /* coverity[var_deref_op] */
    } else if (g_strcmp0(pemCertChain[0], untrustedCerts[0]) == 0) {
       numUntrusted--;
       leafCert = untrustedCerts[0];
