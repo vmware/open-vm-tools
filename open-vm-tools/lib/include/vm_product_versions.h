@@ -300,7 +300,12 @@
 #define HORIZON_DAAS_AGENT_VERSION "20.2.0"
 #define HORIZON_USB_AGENT_VERSION "11.0.0"
 #define MFW_VERSION "16.0.0"
-
+/*
+ * This is the Horizon Marketing version which is shared between
+ * Horizon Client, Agent and Server. It is set in the format of
+ * YYMM of the targeted release date.
+ */
+#define HORIZON_YYMM_VERSION "2006"
 
 #ifndef MAKESTR
 #define MAKESTR(x) #x
