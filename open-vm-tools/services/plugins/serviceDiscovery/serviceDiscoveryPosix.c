@@ -170,7 +170,9 @@ PublishScriptOutputToNamespaceDB(ToolsAppCtx *ctx,
    if (status) {
       gchar *chunkCount = g_strdup_printf("%d", i);
       status = WriteData(ctx, key, chunkCount, strlen(chunkCount));
-      g_debug("%s: Written key %s chunks %s\n", __FUNCTION__, key, chunkCount);
+      if (status) {
+         g_debug("%s: Written key %s chunks %s\n", __FUNCTION__, key, chunkCount);
+      }
       g_free(chunkCount);
    } else if (!stdoutIsEmpty) {
       g_warning("%s: Was not able to capture or store data\n", __FUNCTION__);

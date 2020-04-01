@@ -478,7 +478,7 @@ ServiceDiscoveryTask(ToolsAppCtx *ctx,
    for (i = 0; i < gFullPaths->len; i++) {
       KeyNameValue tmp = g_array_index(gFullPaths, KeyNameValue, i);
       if (!PublishScriptOutputToNamespaceDB(ctx, tmp.keyName, tmp.val)) {
-         g_debug("%s: Failed to execute script %s or script output was empty",
+         g_debug("%s: PublishScriptOutputToNamespaceDB failed for script %s\n",
                  __FUNCTION__, tmp.val);
       }
    }
