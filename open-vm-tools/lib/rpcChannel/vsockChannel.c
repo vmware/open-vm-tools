@@ -33,6 +33,14 @@
 
 #define LGPFX "VSockChan: "
 
+/*
+ * Time to wait in milliseconds before retrying a vsock RPC start
+ */
+#define VSOCK_START_RETRY_WAIT_TIME 100
+
+/* Maximum number of times to retry a failed vsock RPC Channel start. */
+#define VSOCK_CHANNEL_START_MAX_RETRIES  2
+
 typedef struct VSockOut {
    SOCKET fd;
    char *payload;
@@ -353,6 +361,24 @@ VSockChannelStart(RpcChannel *chan)    // IN
 
    if (ret) {
       ret = VSockOutStart(vsock->out);
+      if (!ret && (vsock->out->flags & RPCCHANNEL_FLAGS_SEND_ONE) == 0) {
+         int retryCnt = 0;
+
+         /*
+          * VMX may take some time to cleanup a previous vsocket, so delay
+          * the retry a little bit.  The retry is needed for the cases when
+          * there is a channel start attempt in quick succession and the
+          * first attempt failed because VMX was still cleaning up the
+          * previous vsocket.
+          *
+          * Take a 100 msec pause.
+          */
+         g_usleep(VSOCK_START_RETRY_WAIT_TIME * 1000);
+         while (!ret && (retryCnt++ < VSOCK_CHANNEL_START_MAX_RETRIES)) {
+            Debug(LGPFX "VSockChannel Start - retry %d\n", retryCnt);
+            ret = VSockOutStart(vsock->out);
+         }
+      }
    }
    chan->outStarted = ret;
 
