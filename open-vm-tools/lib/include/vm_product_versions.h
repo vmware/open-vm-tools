@@ -45,11 +45,7 @@
    /* this should be kept in sync with the corresponding vpx branch. */
    #define PRODUCT_VERSION    7,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_HORIZON_VIEW)
-   #if defined(VDM_CLIENT)
-      #define PRODUCT_VERSION    5,5,0,PRODUCT_BUILD_NUMBER_NUMERIC
-   #else
-      #define PRODUCT_VERSION    8,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
-   #endif
+   #define PRODUCT_VERSION    8,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
 // VMX86_DESKTOP must be last because it is the default and is always defined.
 #elif defined(VMX86_DESKTOP)
    // WORKSTATION_VERSION_NUMBER below has to match this
@@ -280,7 +276,7 @@
 #define HOSTD_VERSION "e.x.p"
 #define RECOVERYLIBS_VERSION "2.0.0"
 #define PRECHECK_VERSION "e.x.p"
-#define VIEW_CLIENT_VERSION "5.5.0"
+#define VIEW_CLIENT_VERSION "8.0.0"
 #define VIEW_CLIENT_VERSION_NUMBER VIEW_CLIENT_VERSION
 #define VHSESDK_VERSION "1.0.0"
 #define VIEWVC_VERSION "14.0.2"
