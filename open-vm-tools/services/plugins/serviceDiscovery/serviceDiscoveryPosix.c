@@ -156,8 +156,8 @@ PublishScriptOutputToNamespaceDB(ToolsAppCtx *ctx,
       g_debug("%s: readBytes = %" G_GSSIZE_FORMAT "\n", __FUNCTION__, readBytes);
 
       if (readBytes > 0) {
-         stdoutIsEmpty = FALSE;
          gchar* msg = g_strdup_printf("%s-%d", key, ++i);
+         stdoutIsEmpty = FALSE;
          status = WriteData(ctx, msg, buf, readBytes);
          g_free(msg);
       }
