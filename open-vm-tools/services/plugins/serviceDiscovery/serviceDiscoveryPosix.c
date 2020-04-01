@@ -34,18 +34,19 @@
 #include <errno.h>
 #include <unistd.h>
 
+
 /*
-*****************************************************************************
-* ReadFromHandle --
-*
-* Reads from handle and appends to provided buffer. Handle is closed inside the
-* function after read operation.
-*
-* @param[in] h             handle.
-* @param[out] out          output buffer.
-*
-*****************************************************************************
-*/
+ *****************************************************************************
+ * ReadFromHandle --
+ *
+ * Reads from handle and appends to provided buffer. Handle is closed inside the
+ * function after read operation.
+ *
+ * @param[in] h             handle.
+ * @param[out] out          output buffer.
+ *
+ *****************************************************************************
+ */
 
 static void
 ReadFromHandle(gint h,
