@@ -362,131 +362,6 @@ CliRemoveAlias(VGAuthContext *ctx,
 
 /*
  ******************************************************************************
- * CliRemoveAllAlias --                                                  */ /**
- *
- * Removes aliases for given subject and [userName].
- * If userName is not provided, only remove mapped aliases.
- *
- * @param[in]  ctx                  The VGAuthContext.
- * @param[in]  subject              The associated subject.
- * @param[in]  userName             The user whose store is being changed.
- *
- * @return VGAUTH_E_OK on success, VGAuthError on failure
- *
- ******************************************************************************
- */
-
-static VGAuthError
-CliRemoveAllAlias(VGAuthContext *ctx,
-                  const char *subject,
-                  const char *userName)
-{
-   VGAuthError err;
-   gboolean fail = FALSE;
-   int num = 0;
-   int i;
-   int j;
-
-   if (NULL != userName) {
-      VGAuthUserAlias *uaList = NULL;
-
-      /* get aliases by userName */
-      err = VGAuth_QueryUserAliases(ctx, userName, 0, NULL, &num, &uaList);
-      if (VGAUTH_E_OK != err) {
-         g_printerr(SU_(list.error,
-                        "%s: Failed to list aliases for user '%s': %s.\n"),
-                    appName, userName, VGAuth_GetErrorText(err, NULL));
-         return err;
-      }
-
-      /* find matched aliases, remove */
-      for(i = 0; i < num; i++) {
-         for(j = 0; j < uaList[i].numInfos; j++) {
-            if (!g_strcmp0(subject, uaList[i].infos[j].subject.val.name)) {
-               err = VGAuth_RemoveAlias(ctx,
-                                        userName,
-                                        uaList[i].pemCert,
-                                        &(uaList[i].infos[j].subject),
-                                        0,
-                                        NULL);
-               if (VGAUTH_E_OK != err) {
-                  g_printerr(SU_(removeall.removefail,
-                                 "%s: Failed to remove alias for user '%s'"
-                                 " subject '%s' pemCert '%s': %s.\n"),
-                             appName,
-                             userName,
-                             subject,
-                             uaList[i].pemCert,
-                             VGAuth_GetErrorText(err, NULL));
-                  fail = TRUE;
-               }
-
-               break;
-            }
-         }
-
-         if (fail){
-            break;
-         }
-      }
-
-      VGAuth_FreeUserAliasList(num, uaList);
-   } else {
-      VGAuthMappedAlias *maList = NULL;
-
-      /* no userName provided, so only can get mapped aliases */
-      err = VGAuth_QueryMappedAliases(ctx, 0, NULL, &num, &maList);
-      if (VGAUTH_E_OK != err) {
-         g_printerr(SU_(listmapped.error,
-                        "%s: Failed to list mapped aliases: %s.\n"),
-                     appName, VGAuth_GetErrorText(err, NULL));
-         return err;
-      }
-
-      /* find matched aliases, remove */
-      for(i = 0; i < num; i++) {
-         for(j = 0; j < maList[i].numSubjects; j++) {
-            if (!g_strcmp0(subject, maList[i].subjects[j].val.name)){
-               err = VGAuth_RemoveAlias(ctx,
-                                        maList[i].userName,
-                                        maList[i].pemCert,
-                                        &(maList[i].subjects[j]),
-                                        0,
-                                        NULL);
-               if (VGAUTH_E_OK != err) {
-                  g_printerr(SU_(removeall.removefail,
-                                 "%s: Failed to remove alias for user '%s'"
-                                 " subject '%s' pemCert '%s': %s.\n"),
-                             appName,
-                             maList[i].userName,
-                             subject,
-                             maList[i].pemCert,
-                             VGAuth_GetErrorText(err, NULL));
-                  fail = TRUE;
-               }
-
-               break;
-            }
-         }
-
-         if (fail){
-            break;
-         }
-      }
-
-      VGAuth_FreeMappedAliasList(num, maList);
-   }
-
-   if (VGAUTH_E_OK == err && verbose) {
-      g_print(SU_(removeall.success, "%s: all aliases removed\n"), appName);
-   }
-
-   return err;
-}
-
-
-/*
- ******************************************************************************
  * CliList --                                                            */ /**
  *
  * List all UserAliases for a user.
@@ -657,7 +532,6 @@ mainRun(int argc,
    gboolean doAdd = FALSE;
    gboolean doRemove = FALSE;
    gboolean doList = FALSE;
-   gboolean doRemoveAll = FALSE;
    gboolean addMapped = FALSE;
    gchar **argvCopy = NULL;
    int argcCopy;
@@ -665,7 +539,6 @@ mainRun(int argc,
    char *pemFilename = NULL;
    gchar *comment = NULL;
    gchar *summaryMsg;
-   gchar *noteMsg = NULL;
    gchar *subject = NULL;
    GOptionEntry *cmdOptions = NULL;
    const gchar *paramStr = "[add | list | remove]\n";
@@ -673,9 +546,6 @@ mainRun(int argc,
    const gchar *lSubject = SU_(cmdline.summary.subject, "subject");
    const gchar *lPEMfile = SU_(cmdline.summary.pemfile, "PEM-file");
    const gchar *lComm = SU_(cmdline.summary.comm, "comment");
-   const gchar *lNote = SU_(cmdline.summary.note,
-                            "Note: If no username is provided, "
-                            "%s only removes mapped aliases");
 
 #if (use_glib_parser == 0)
    int i;
@@ -721,16 +591,6 @@ mainRun(int argc,
          SU_(addoptions.verbose, "Verbose operation"), NULL },
       { NULL }
    };
-   GOptionEntry removeAllOptions[] = {
-      { "username", 'u', 0, G_OPTION_ARG_STRING, &userName,
-         SU_(removealloptions.username,
-             "User whose certificate store is being removed from"), NULL },
-      { "subject", 's', 0, G_OPTION_ARG_STRING, &subject,
-         SU_(removealloptions.subject, "The SAML subject"), NULL },
-      { "verbose", 'v', 0, G_OPTION_ARG_NONE, &verbose,
-         SU_(removealloptions.verbose, "Verbose operation"), NULL },
-      { NULL }
-   };
    GOptionContext *context;
 
    appName = g_path_get_basename(argv[0]);
@@ -746,24 +606,18 @@ mainRun(int argc,
     * Set up the option parser
     */
    g_set_prgname(appName);
-   noteMsg = g_strdup_printf(lNote, "removeAll");
    context = g_option_context_new(paramStr);
    summaryMsg = g_strdup_printf(
       "add --global --username=%s --file=%s --subject=%s "
              "[ --comment=%s ]\n"
       "remove --username=%s --file=%s [ --subject=%s ]\n"
-      "removeAll --subject=%s [ --username=%s ]\n"
-      "list [ --username=%s ]\n\n"
-      "%s",
+      "list [ --username=%s ]\n",
       lUsername, lPEMfile, lSubject, lComm,
       lUsername, lPEMfile, lSubject,
-      lSubject, lUsername,
-      lUsername,
-      noteMsg);
+      lUsername);
 
    g_option_context_set_summary(context, summaryMsg);
    g_free(summaryMsg);
-   g_free(noteMsg);
    if (argc < 2) {
       Usage(context, paramStr, cmdOptions);
    }
@@ -783,10 +637,6 @@ mainRun(int argc,
       doList = TRUE;
       g_option_context_add_main_entries(context, listOptions, NULL);
       cmdOptions = listOptions;
-   } else if (strcmp(argvCopy[1], "removeAll") == 0) {
-      doRemoveAll = TRUE;
-      g_option_context_add_main_entries(context, removeAllOptions, NULL);
-      cmdOptions = removeAllOptions;
    } else {
       Usage(context, paramStr, cmdOptions);
    }
@@ -876,7 +726,7 @@ next:
    /*
     * XXX pull this if we use stdin for the cert contents.
     */
-   if (((doAdd || doRemove) && !pemFilename) ||(doRemoveAll && !subject)) {
+   if ((doAdd || doRemove) && !pemFilename) {
       Usage(context, paramStr, cmdOptions);
    }
 
@@ -904,8 +754,6 @@ next:
       } else {
          err = CliListMapped(ctx);
       }
-   } else if (doRemoveAll) {
-      err = CliRemoveAllAlias(ctx, subject, userName);
    }
 
    VGAuth_Shutdown(ctx);

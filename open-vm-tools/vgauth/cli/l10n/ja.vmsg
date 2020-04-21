@@ -41,7 +41,6 @@ cmdline.summary.pemfile = "PEM ファイル"
 cmdline.summary.subject = "サブジェクト"
 cmdline.summary.username = "ユーザー名"
 cmdline.summary.comm = "コメント"
-cmdline.summary.note = "Note: If no username is provided, %1$s removes only the mapped aliases"
 
 list.comment = "コメント"
 list.count = "%1$s でユーザー '%3$s' のエイリアスが %2$d 個検出されました\n"
@@ -75,16 +74,5 @@ removeoptions.subject = "SAML サブジェクト"
 removeoptions.username = "次の場所から証明書ストアが削除されているユーザー"
 
 removeoptions.verbose = "詳細な操作"
-
-removeall.fail = "%1$s: Failed to remove alias for user '%2$s' subject '%3$s': %4$s.\n"
-
-removeall.removefail = "%1$s: Failed to remove alias for user '%2$s' subject '%3$s' pemCert '%4$s': %5$s.\n"
-
-removeall.success = "%1$s: all aliases removed\n"
-
-removealloptions.subject = "The SAML subject"
-removealloptions.username = "User whose certificate store is being removed from"
-
-removealloptions.verbose = "Verbose operation"
 
 vgauth.init.failed = "VGAuth を初期化できませんでした"
