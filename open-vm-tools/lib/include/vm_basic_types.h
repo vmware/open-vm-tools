@@ -140,6 +140,7 @@
 
 #pragma warning (3 :4505) // unreferenced local function
 #pragma warning (disable :4018) // signed/unsigned mismatch
+#pragma warning (suppress:4619) // suppress warning next line (C4761 was removed in vs2019u4)
 #pragma warning (disable :4761) // integral size mismatch in argument; conversion supplied
 #pragma warning (disable :4305) // truncation from 'const int' to 'short'
 #pragma warning (disable :4244) // conversion from 'unsigned short' to 'unsigned char'
