@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -45,6 +45,7 @@
 #include "vmware/tools/utils.h"
 #include "vmware/tools/vmbackup.h"
 #if defined(_WIN32)
+#  include "codeset.h"
 #  include "windowsu.h"
 #else
 #  include "posix.h"
@@ -676,6 +677,98 @@ ToolCoreGetLastErrorMsg(DWORD error)
    return msg;
 }
 
+
+/**
+ * Check the version for a file using GetFileVersionInfo method
+ *
+ * @param[in]  pluginPath        plugin path name.
+ * @param[in]  checkBuildNumber  inlcude check for build number.
+ *
+ * @return TRUE if plugin version matches the tools version,
+ *         FALSE in case of a mismatch.
+ */
+
+gboolean
+ToolsCore_CheckModuleVersion(const gchar *pluginPath,
+                             gboolean checkBuildNumber)
+{
+   WCHAR *pluginPathW = NULL;
+   void *buffer = NULL;
+   DWORD bufferLen = 0;
+   DWORD dummy = 0;
+   VS_FIXEDFILEINFO *fixedFileInfo = NULL;
+   UINT fixedFileInfoLen = 0;
+   ToolsVersionComponents toolsVer = {0};
+   uint32 pluginVersion[4] = {0};
+   gboolean result = FALSE;
+   static const uint32 toolsBuildNumber = PRODUCT_BUILD_NUMBER_NUMERIC;
+
+   if (!CodeSet_Utf8ToUtf16le(pluginPath,
+                              strlen(pluginPath),
+                              (char **)&pluginPathW,
+                              NULL)) {
+      g_debug("%s: Could not convert file %s to UTF-16\n",
+              __FUNCTION__, pluginPath);
+      goto exit;
+   }
+
+   bufferLen = GetFileVersionInfoSizeW(pluginPathW, &dummy);
+   if (bufferLen == 0) {
+      g_debug("%s: Failed to get info size from %s %u",
+              __FUNCTION__, pluginPath, GetLastError());
+      goto exit;
+   }
+
+   buffer = g_malloc(bufferLen);
+   if (!buffer) {
+      g_debug("%s: malloc failed for %s", __FUNCTION__, pluginPath);
+      goto exit;
+   }
+
+   if (!GetFileVersionInfoW(pluginPathW, 0, bufferLen, buffer)) {
+      g_debug("%s: Failed to get info size from %s %u",
+              __FUNCTION__, pluginPath, GetLastError());
+      goto exit;
+   }
+
+   if (!VerQueryValueW(buffer, L"\\", (void **)&fixedFileInfo, &fixedFileInfoLen)) {
+      g_debug("%s: Failed to get fixed file info from %s %u",
+              __FUNCTION__, pluginPath, GetLastError());
+      goto exit;
+   }
+
+   if (fixedFileInfoLen < sizeof *fixedFileInfo) {
+      g_debug("%s: Fixed file info from %s is too short: %d",
+                __FUNCTION__, pluginPath, fixedFileInfoLen);
+      goto exit;
+   }
+
+   /* Using Product version. File version is also available. */
+   pluginVersion[0] = (uint16)(fixedFileInfo->dwProductVersionMS >> 16);
+   pluginVersion[1] = (uint16)(fixedFileInfo->dwProductVersionMS >>  0);
+   pluginVersion[2] = (uint16)(fixedFileInfo->dwProductVersionLS >> 16);
+   pluginVersion[3] = (uint16)(fixedFileInfo->dwProductVersionLS >>  0);
+
+   TOOLS_VERSION_UINT_TO_COMPONENTS(TOOLS_VERSION_CURRENT, &toolsVer);
+
+   result = (pluginVersion[0] == toolsVer.major &&
+             pluginVersion[1] == toolsVer.minor &&
+             pluginVersion[2] == toolsVer.base);
+
+   if (result && checkBuildNumber) {
+      result =  pluginVersion[3] == toolsBuildNumber;
+   }
+
+exit:
+   if (!result) {
+      g_warning("%s: Failed or no version check %s : %u.%u.%u.%u",
+                __FUNCTION__, pluginPath, pluginVersion[0], pluginVersion[1],
+                pluginVersion[2], pluginVersion[3]);
+   }
+   g_free(buffer);
+   free(pluginPathW);
+   return result;
+}
 #endif
 
 
