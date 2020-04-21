@@ -85,6 +85,18 @@
  */
 #define CONFNAME_APPINFO_DISABLED "disabled"
 
+/**
+ * Defines the configuration to use the WMI for getting the application
+ * version information.
+ *
+ * @note Illegal values result in a @c g_warning and fallback to the default
+ * value.
+ *
+ * @param boolean Set to TRUE to use WMI.
+ *                Set to FALSE to use native Win32 APIs.
+ */
+#define CONFNAME_APPINFO_USE_WMI "useWMI"
+
 /*
  * END AppInfo goodies.
  ******************************************************************************
