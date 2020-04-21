@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -2056,7 +2056,7 @@ PollUnitTest_StateMachine(void *clientData) // IN: Unused
                     __FUNCTION__, i);
             break;
          }
-         send(socketPairs[i].fds[0], (const char *)fds, sizeof fds, 0);
+         retval = send(socketPairs[i].fds[0], (const char *)fds, sizeof fds, 0);
 #else
          int addrFamily = useVMCI ? VMCISock_GetAFValue(): AF_UNIX;
          socketPairs[i].fds[0] = -1;
@@ -2134,7 +2134,7 @@ PollUnitTest_StateMachine(void *clientData) // IN: Unused
             state ++;
             break;
          }
-         send(fds[0], (const char *)fds, sizeof fds, 0);
+         retval = send(fds[0], (const char *)fds, sizeof fds, 0);
    #else
          close(fds[0]);
          close(fds[1]);
@@ -2177,7 +2177,7 @@ PollUnitTest_StateMachine(void *clientData) // IN: Unused
             state += 3;
             break;
          }
-         send(fds[0], (const char *)fds, sizeof fds, 0);
+         retval = send(fds[0], (const char *)fds, sizeof fds, 0);
    #endif
          state = 0;
          break;
@@ -2217,7 +2217,7 @@ PollUnitTest_StateMachine(void *clientData) // IN: Unused
 
       /* Make fds[1] both readable and writable. */
    #ifdef _WIN32
-      send(fds[0], (const char *)fds, sizeof fds, 0);
+      retval = send(fds[0], (const char *)fds, sizeof fds, 0);
    #else
       retval = write(fds[0], fds, 1);
    #endif
