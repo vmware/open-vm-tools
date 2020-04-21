@@ -5610,8 +5610,8 @@ VixToolsListProcessesExGenerateData(uint32 numPids,          // IN
                           VIXTOOLS_CONFIG_USE_WMI_PROCESS_COMMAND_LINE,
                           USE_WMI_PROCESS_COMMAND_LINE_DEFAULT);
 
-   g_debug("Options for process cmdline: useRemoeThread: %d, useWMI: %d\n",
-            useRemoteThreadProcCmdLine, useWMIProcCmdLine);
+   g_debug("Options for process cmdline: useRemoteThread: %d, useWMI: %d\n",
+           useRemoteThreadProcCmdLine, useWMIProcCmdLine);
 
    procList = ProcMgr_ListProcessesEx(useRemoteThreadProcCmdLine,
                                       useWMIProcCmdLine);
