@@ -60,8 +60,7 @@ typedef struct _RpcChannelFuncs{
                  const char *appName, gpointer appCtx);
    void (*shutdown)(RpcChannel *);
    RpcChannelType (*getType)(RpcChannel *chan);
-   void (*onStartErr)(RpcChannel *);
-   gboolean (*stopRpcOut)(RpcChannel *);
+   void (*destroy)(RpcChannel *);
 } RpcChannelFuncs;
 
 /**
@@ -71,23 +70,39 @@ typedef struct _RpcChannelFuncs{
  * channels, their state (inStarted/outStarted) and _private data.
  */
 struct _RpcChannel {
-   const RpcChannelFuncs     *funcs;
-   gpointer                  _private;
+   const RpcChannelFuncs *funcs;
+   gpointer _private;
 #if defined(NEED_RPCIN)
-   GMainContext              *mainCtx;
-   const char                *appName;
-   gpointer                  appCtx;
+   GMainContext *mainCtx;
+   const char *appName;
+   gpointer appCtx;
+   struct RpcIn *in;
+   gboolean inStarted;
 #endif
-   GMutex                    outLock;
-#if defined(NEED_RPCIN)
-   struct RpcIn              *in;
-   gboolean                  inStarted;
-#endif
-   gboolean                  outStarted;
+   GMutex outLock;
+   gboolean outStarted;
+   int vsockChannelFlags;
+   /*
+    * Only vsocket channel is mutable as it can fallback to Backdoor.
+    * If a channel is created as Backdoor, it will not be mutable.
+    */
+   gboolean isMutable;
+   /*
+    * Track the last vsocket connection failure timestamp.
+    * Avoid using vsocket until a channel reset/restart
+    * occurs, the service restarts or retry delay has passed
+    * since the last failure.
+    */
+   uint64 vsockFailureTS;
+   /*
+    * Amount of time to delay next vsocket retry attempt.
+    * It varies between RPCCHANNEL_VSOCKET_RETRY_MIN_DELAY
+    * and RPCCHANNEL_VSOCKET_RETRY_MAX_DELAY.
+    */
+   uint32 vsockRetryDelay;
 };
 
-gboolean
-BackdoorChannel_Fallback(RpcChannel *chan);
+void BackdoorChannel_Fallback(RpcChannel *chan);
+void VSockChannel_Restore(RpcChannel *chan, int flags);
 
 #endif /* _RPCCHANNELINT_H_ */
-
