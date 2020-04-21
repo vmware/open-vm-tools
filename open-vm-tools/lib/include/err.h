@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -57,6 +57,8 @@ Err_Number Err_String2ErrnoDebug(const char *string);
 #if defined(_WIN32)
 char *Err_SanitizeMessage(const char *msg);
 #endif
+
+void Err_Exit(void);
 
 /*
  *----------------------------------------------------------------------
