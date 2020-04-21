@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -2684,3 +2684,48 @@ File_ContainSymLink(const char *pathName)  // IN:
 
    return retValue;
 }
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * File_IsSubPathOf --
+ *
+ *    Check if the argument path is a sub path for argument base.
+ *    The argument path will be converted to canonical path which doesn't
+ *    contain ".." and then check if this canonical path is a sub path for
+ *    argument base.
+ *    So, this function can correctly recognize that a path like
+ *    "/tmp/dir1/dir2/../../../bin/" is not a sub path for "/tmp/".
+ *
+ * Results:
+ *    True if the argument path is a sub path for argument base.
+ *
+ * Side effects:
+ *    None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+Bool
+File_IsSubPathOf(const char *base, // IN: the base path to test against.
+                 const char *path) // IN: the possible subpath to test.
+{
+   char *fullBase = File_FullPath(base);
+   char *fullPath = File_FullPath(path);
+   Bool isSubPath = TRUE;
+
+   ASSERT(fullBase);
+   ASSERT(fullPath);
+   if (   fullPath == NULL
+       || fullBase == NULL
+       || strncmp(fullPath, fullBase, strlen(fullBase)) != 0) {
+      isSubPath = FALSE;
+   }
+
+   free(fullBase);
+   free(fullPath);
+
+   return isSubPath;
+}
+

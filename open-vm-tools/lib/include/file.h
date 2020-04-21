@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -371,6 +371,8 @@ int File_MakeSafeTemp(const char *tag,
                       char **presult);
 
 Bool File_DoesVolumeSupportAcls(const char *pathName);
+
+Bool File_IsSubPathOf(const char *base, const char *path);
 
 /*
  *---------------------------------------------------------------------------
