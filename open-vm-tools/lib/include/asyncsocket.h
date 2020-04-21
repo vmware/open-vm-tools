@@ -760,6 +760,9 @@ char *AsyncSocket_WebSocketGetHttpHeader(const char *request,
 
 unsigned AsyncSocket_WebSocketGetNumAccepted(AsyncSocket *asock);
 
+Bool AsyncSocket_SetKeepAlive(AsyncSocket *asock, int keepIdle);
+
+
 /*
  * Some logging macros for convenience
  */

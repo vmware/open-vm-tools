@@ -230,6 +230,7 @@
    LOGLEVEL_VAR(numa), \
    LOGLEVEL_VAR(numaHost), \
    LOGLEVEL_VAR(remoteDevice), \
+   LOGLEVEL_VAR(vsockProxy), \
    LOGLEVEL_VAR(vncDecode), \
    LOGLEVEL_VAR(vncEncode), \
    LOGLEVEL_VAR(vncBlit),   \

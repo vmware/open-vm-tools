@@ -61,6 +61,7 @@
 #include <ws2tcpip.h>
 #include <wspiapi.h>
 #include <MSWSock.h>
+#include <mstcpip.h>
 #include <windows.h>
 #if !(defined(__GOT_SECURE_LIB__) && __GOT_SECURE_LIB__ >= 200402L)
 #undef strcpy
@@ -6372,4 +6373,92 @@ AsyncTCPSocketListenerError(int error,           // IN
    ASSERT(s);
 
    AsyncSocketHandleError(s, error);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * AsyncSocket_SetKeepAlive --
+ *
+ *      Set keep-alive socket option.
+ *
+ * Results:
+ *      TRUE if successful.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+AsyncSocket_SetKeepAlive(AsyncSocket *asock, // IN
+                         int keepIdle)       // IN
+{
+   int fd;
+
+   fd = AsyncSocket_GetFd(asock);
+#ifdef WIN32
+   {
+      struct tcp_keepalive keepalive = { 1, keepIdle * 1000, keepIdle * 10 };
+      DWORD ret;
+
+      if (WSAIoctl(fd, SIO_KEEPALIVE_VALS, &keepalive, sizeof keepalive,
+                   NULL, 0, &ret, NULL, NULL)) {
+         Err_Number sysErr = ASOCK_LASTERROR();
+         ASOCKLG0(asock, "Could not set keepalive options, error %d: %s\n",
+                  sysErr, Err_Errno2String(sysErr));
+      }
+   }
+#else
+   {
+      static const int keepAlive = 1;
+      if (keepIdle) {
+#  ifdef TCP_KEEPIDLE
+#     define VMTCP_KEEPIDLE TCP_KEEPIDLE
+#  else
+#     define VMTCP_KEEPIDLE TCP_KEEPALIVE
+#  endif
+         if (setsockopt(fd,
+                        IPPROTO_TCP,
+                        VMTCP_KEEPIDLE,
+                        (const char *)&keepIdle, sizeof keepIdle) != 0) {
+            Err_Number sysErr = ASOCK_LASTERROR();
+            ASOCKLG0(asock, "Could not set TCP_KEEPIDLE, error %d: %s\n",
+                     sysErr, Err_Errno2String(sysErr));
+            return FALSE;
+         }
+#  ifndef __APPLE__
+      {
+         /*
+          * Default TCP setting is 7200 sec idle, and 75 interval.  So let's
+          * divide keepIdle by 100 to get an interval.  For our 300 seconds
+          * default that is 3 seconds keepIdle.
+          */
+         int keepIntvl = keepIdle / 100;
+
+         if (keepIntvl < 1) {
+            keepIntvl = 1;
+         }
+         if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL,
+                        (const char *)&keepIntvl, sizeof keepIntvl) != 0) {
+            Err_Number sysErr = ASOCK_LASTERROR();
+            ASOCKLG0(asock, "Could not set TCP_KEEPIDLE, error %d: %s\n",
+                     sysErr, Err_Errno2String(sysErr));
+            return FALSE;
+         }
+      }
+#  endif /* __APPLE__ */
+      }
+      if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE,
+                     (const char *)&keepAlive, sizeof keepAlive) != 0) {
+         Err_Number sysErr = ASOCK_LASTERROR();
+         ASOCKLG0(asock, "Could not set TCP_KEEPIDLE, error %d: %s\n",
+                  sysErr, Err_Errno2String(sysErr));
+         return FALSE;
+      }
+   }
+#endif /* WIN32 */
+   return TRUE;
 }
