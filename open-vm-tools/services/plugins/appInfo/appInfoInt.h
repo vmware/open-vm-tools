@@ -58,11 +58,15 @@ typedef struct AppInfo {
 #endif
 } AppInfo;
 
-GSList *AppInfo_GetAppList(void);
+GSList *AppInfo_GetAppList(GKeyFile *config);
 GSList *AppInfo_SortAppList(GSList *appList);
 
 void AppInfo_DestroyAppList(GSList *appList);
 
+#if defined(WIN32)
+AppInfo *AppInfo_GetAppInfo(ProcMgrProcInfo *procInfo, Bool useWMI);
+#else
 AppInfo *AppInfo_GetAppInfo(ProcMgrProcInfo *procInfo);
+#endif
 
 #endif /* _APPINFOINT_H_ */

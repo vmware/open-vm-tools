@@ -60,9 +60,9 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 #define MAX_APP_INFO_SIZE (62 * 1024)
 
 /**
- * Default poll interval for appInfo is 30m
+ * Default poll interval for appInfo is 6 hours
  */
-#define APP_INFO_POLL_INTERVAL (30 * 60)
+#define APP_INFO_POLL_INTERVAL (360 * 60)
 
 /**
  * Default value for CONFNAME_APPINFO_DISABLED setting in
@@ -71,6 +71,15 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
  * FALSE will enable the plugin. TRUE will disable the plugin.
  */
 #define APP_INFO_CONF_DEFAULT_DISABLED_VALUE FALSE
+
+/**
+ * Default value for CONFNAME_APPINFO_USE_WMI setting in
+ * tools configuration file.
+ *
+ * TRUE will force the plugin to use WMI for getting
+ * the application version information.
+ */
+#define APP_INFO_CONF_USE_WMI_DEFAULT_VALUE    FALSE
 
 /**
  * Defines the current poll interval (in seconds).
@@ -191,6 +200,8 @@ SetGuestInfo(ToolsAppCtx *ctx,              // IN:
  *
  * Generates the application information list.
  *
+ * @param[in] config   Tools configuration dictionary.
+ *
  * @retval Pointer to the newly allocated application list. The caller must
  *         free the memory using AppInfoDestroyAppList function.
  *         NULL if any error occurs.
@@ -199,12 +210,16 @@ SetGuestInfo(ToolsAppCtx *ctx,              // IN:
  */
 
 GSList *
-AppInfo_GetAppList(void)
+AppInfo_GetAppList(GKeyFile *config)     // IN
 {
    GSList *appList = NULL;
    int i;
    ProcMgrProcInfoArray *procList = NULL;
    size_t procCount;
+
+#ifdef _WIN32
+   Bool useWMI;
+#endif
 
    procList = ProcMgr_ListProcesses();
 
@@ -213,11 +228,24 @@ AppInfo_GetAppList(void)
       return appList;
    }
 
+#ifdef _WIN32
+   useWMI =  VMTools_ConfigGetBoolean(config,
+                                      CONFGROUPNAME_APPINFO,
+                                      CONFNAME_APPINFO_USE_WMI,
+                                      APP_INFO_CONF_USE_WMI_DEFAULT_VALUE);
+
+   g_debug("%s: useWMI: %d", __FUNCTION__, useWMI);
+#endif
+
    procCount = ProcMgrProcInfoArray_Count(procList);
    for (i = 0; i < procCount; i++) {
       AppInfo *appInfo;
       ProcMgrProcInfo *procInfo = ProcMgrProcInfoArray_AddressOf(procList, i);
+#ifdef _WIN32
+      appInfo = AppInfo_GetAppInfo(procInfo, useWMI);
+#else
       appInfo = AppInfo_GetAppInfo(procInfo);
+#endif
       if (NULL != appInfo) {
          appList = g_slist_prepend(appList, appInfo);
       }
@@ -286,7 +314,7 @@ AppInfoGatherTask(ToolsAppCtx *ctx,    // IN
 
    DynBuf_Append(&dynBuffer, tmpBuf, len);
 
-   appList = AppInfo_SortAppList(AppInfo_GetAppList());
+   appList = AppInfo_SortAppList(AppInfo_GetAppList(ctx->config));
 
    for (appNode = appList; appNode != NULL; appNode = appNode->next) {
       size_t currentBufferSize = DynBuf_GetSize(&dynBuffer);
