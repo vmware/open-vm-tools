@@ -166,17 +166,14 @@ long  _InterlockedCompareExchange(long volatile*, long, long);
 long  _InterlockedExchangeAdd(long volatile*, long);
 long  _InterlockedDecrement(long volatile*);
 long  _InterlockedIncrement(long volatile*);
+char  _InterlockedExchange8(char volatile *, char);
+char  _InterlockedCompareExchange8(char volatile *, char, char);
 __int64  _InterlockedCompareExchange64(__int64 volatile*, __int64, __int64);
 #pragma intrinsic(_InterlockedExchange, _InterlockedCompareExchange)
 #pragma intrinsic(_InterlockedExchangeAdd, _InterlockedDecrement)
 #pragma intrinsic(_InterlockedIncrement)
-#pragma intrinsic(_InterlockedCompareExchange64)
-
-# if _MSC_VER >= 1600
-char     _InterlockedExchange8(char volatile *, char);
-char     _InterlockedCompareExchange8(char volatile *, char, char);
 #pragma intrinsic(_InterlockedCompareExchange8, _InterlockedCompareExchange8)
-#endif
+#pragma intrinsic(_InterlockedCompareExchange64)
 
 #if defined VM_X86_64
 long     _InterlockedAnd(long volatile*, long);
@@ -254,15 +251,6 @@ Atomic_VolatileToAtomic64(volatile uint64 *var)  // IN:
  * a full barrier, flushing any pending/cached state currently residing in
  * registers.
  */
-
-#if defined _MSC_VER && _MSC_VER < 1600 && defined __x86_64__
-uint8 VMWInterlockedExchange8(uint8 volatile *ptr,
-                              uint8 val);
-
-uint8 VMWInterlockedCompareExchange8(uint8 volatile *ptr,
-                                     uint8 newVal,
-                                     uint8 oldVal);
-#endif
 
 #if defined __GNUC__ && defined VM_ARM_32
 /* Force the link step to fail for unimplemented functions. */
@@ -405,19 +393,8 @@ Atomic_ReadWrite8(Atomic_uint8 *var,  // IN/OUT:
       : "memory"
    );
    return val;
-#elif defined _MSC_VER && _MSC_VER >= 1600
+#elif defined _MSC_VER
    return _InterlockedExchange8((volatile char *)&var->value, val);
-#elif defined _MSC_VER && defined __i386__
-#pragma warning(push)
-#pragma warning(disable : 4035)         // disable no-return warning
-   {
-      __asm movzx eax, val
-      __asm mov ebx, var
-      __asm xchg [ebx]Atomic_uint8.value, al
-   }
-#pragma warning(pop)
-#elif defined _MSC_VER && defined __x86_64__
-   return VMWInterlockedExchange8(&var->value, val);
 #else
 #error No compiler defined for Atomic_ReadWrite8
 #endif
@@ -500,23 +477,9 @@ Atomic_ReadIfEqualWrite8(Atomic_uint8 *var,  // IN/OUT:
    );
 
    return val;
-#elif defined _MSC_VER && _MSC_VER >= 1600
+#elif defined _MSC_VER
    return _InterlockedCompareExchange8((volatile char *)&var->value,
                                        newVal, oldVal);
-#elif defined _MSC_VER && defined __i386__
-#pragma warning(push)
-#pragma warning(disable : 4035)         // disable no-return warning
-   {
-      __asm mov al, oldVal
-      __asm mov ebx, var
-      __asm mov cl, newVal
-      __asm lock cmpxchg [ebx]Atomic_uint8.value, cl
-      __asm movzx eax, al
-      // eax is the return value, this is documented to work - edward
-   }
-#pragma warning(pop)
-#elif defined _MSC_VER && defined __x86_64__
-   return VMWInterlockedCompareExchange8(&var->value, newVal, oldVal);
 #else
 #error No compiler defined for Atomic_ReadIfEqualWrite8
 #endif
