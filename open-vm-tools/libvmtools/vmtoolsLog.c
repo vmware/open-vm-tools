@@ -1512,7 +1512,16 @@ VMToolsConfigLoggingInt(const gchar *defaultDomain,
    /* If needed, restore the old configuration. */
    if (!reset) {
       if (oldDomains != NULL) {
+         guint i;
+         for (i = 0; i < oldDomains->len; i++) {
+            LogHandler *old = g_ptr_array_index(oldDomains, i);
+            CLEAR_LOG_HANDLER(old);
+         }
          g_ptr_array_free(oldDomains, TRUE);
+      }
+      if (oldDefault != NULL && oldDefault != gDefaultData) {
+         CLEAR_LOG_HANDLER(oldDefault);
+         oldDefault = NULL;
       }
    }
 
