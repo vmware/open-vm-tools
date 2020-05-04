@@ -1,9 +1,12 @@
 /* **********************************************************
- * Copyright (C) 2007-2017 VMware, Inc.  All rights reserved.
+ * Copyright (C) 1998-2020 VMware, Inc.  All rights reserved. -- VMware Confidential
  * **********************************************************/
 
 /*
  * codeset.h --
+ *
+ *    Character set and encoding conversion functions --hpreg
+ *
  *
  *      UTF-16 handling macros. Based on utf16.h from ICU 1.8.1.
  *
@@ -46,6 +49,7 @@
  *      to promote the sale, use or other dealings in this Software
  *      without prior written authorization of the copyright holder.
  */
+
 #ifndef __CODESET_H__
 #   define __CODESET_H__
 
@@ -390,6 +394,9 @@ Bool CodeSet_IsValidUTF8(const char *bufIn,  // IN:
                          size_t sizeIn);     // IN:
 
 Bool CodeSet_IsStringValidUTF8(const char *string);  // IN:
+
+Bool CodeSet_IsValidUTF8String(const char *bufIn,  // IN:
+                               size_t sizeIn);     // IN:
 
 /*
  *-----------------------------------------------------------------------------
