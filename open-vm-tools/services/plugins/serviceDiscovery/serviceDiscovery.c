@@ -224,11 +224,11 @@ SendRpcMessage(ToolsAppCtx *ctx,
       status = RpcChannel_SendOneRawPriv(msg, msgLen, result, resultLen);
 
       /*
-       * RpcChannel_SendOneRawPriv returns 'Permission denied' if the
-       * privileged vsocket can not be established.
+       * RpcChannel_SendOneRawPriv returns RPCCHANNEL_SEND_PERMISSION_DENIED
+       * if the privileged vsocket can not be established.
        */
       if (!status && result != NULL &&
-          strcmp(*result, "Permission denied") == 0) {
+          strcmp(*result, RPCCHANNEL_SEND_PERMISSION_DENIED) == 0) {
          g_debug("%s: Retrying RPC send", __FUNCTION__);
          free(*result);
          g_usleep(SERVICE_DISCOVERY_RPC_WAIT_TIME * 1000);

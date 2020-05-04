@@ -1194,7 +1194,7 @@ RpcChannelSendOneRaw(const char *data,
       goto sent;
    } else if (priv && RpcChannel_GetType(chan) != RPCCHANNEL_TYPE_PRIV_VSOCK) {
       if (result != NULL) {
-         *result = Util_SafeStrdup("Permission denied");
+         *result = Util_SafeStrdup(RPCCHANNEL_SEND_PERMISSION_DENIED);
          if (resultLen != NULL) {
             *resultLen = strlen(*result);
          }
