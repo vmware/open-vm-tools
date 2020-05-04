@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016,2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016,2019-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -84,7 +84,10 @@ enum GuestLibV3TypeIds {
    GUESTLIB_HOST_MEM_USED_MB        = 25,
    GUESTLIB_HOST_MEM_PHYS_MB        = 26,
    GUESTLIB_HOST_MEM_PHYS_FREE_MB   = 27,
+
+   /* GUESTLIB_HOST_MEM_KERN_OVHD_MB is deprecated in ESXi from version 7.1 */
    GUESTLIB_HOST_MEM_KERN_OVHD_MB   = 28,
+
    GUESTLIB_HOST_MEM_MAPPED_MB      = 29,
    GUESTLIB_HOST_MEM_UNMAPPED_MB    = 30,
 
