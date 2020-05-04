@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -674,7 +674,7 @@ GetPackageInfo(const char* packageName,
    // Get process timeout value from client
    // If gProcessTimeout has been provided by deployment launcher, then
    // ignore the value from client.
-   if (hdr.pkgProcessTimeout > 0 && hdr.pkgProcessTimeout <= MAX_UINT16) {
+   if (hdr.pkgProcessTimeout > 0) {
       if (!gProcessTimeoutSetByLauncher) {
           sLog(log_info, "Process timeout value %u in header will be used.\n",
              hdr.pkgProcessTimeout);
@@ -683,9 +683,6 @@ GetPackageInfo(const char* packageName,
           sLog(log_info, "Process timeout value %u in header is ignored.\n",
              hdr.pkgProcessTimeout);
       }
-   } else if (hdr.pkgProcessTimeout != 0) {
-      sLog(log_error, "Invalid process timeout value in header: %d.\n",
-             hdr.pkgProcessTimeout);
    }
 
    return TRUE;
