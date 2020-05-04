@@ -43,7 +43,7 @@
    #define PRODUCT_VERSION    1,1,5,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_VPX)
    /* this should be kept in sync with the corresponding vpx branch. */
-   #define PRODUCT_VERSION    7,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
+   #define PRODUCT_VERSION    7,0,1,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_HORIZON_VIEW)
    #define PRODUCT_VERSION    8,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
 // VMX86_DESKTOP must be last because it is the default and is always defined.
@@ -137,7 +137,7 @@
  */
 #define ESX_VERSION_MAJOR "7"
 #define ESX_VERSION_MINOR "0"
-#define ESX_VERSION_MAINT "0" // 0 = Pre-release/GA, 1 = Update 1
+#define ESX_VERSION_MAINT "1" // 0 = Pre-release/GA, 1 = Update 1
 #define ESX_VERSION_UPDATE ESX_VERSION_MAINT // ESX's own update level
 
 #define ESX_VERSION ESX_VERSION_MAJOR "." ESX_VERSION_MINOR "." \
@@ -186,7 +186,7 @@
  */
 #define FUSION_VERSION "e.x.p"
 
-#define VIM_VERSION "7.0.0"
+#define VIM_VERSION "7.0.1"
 /*
  *For smooth version bump up for quaterly releases, we need to have a fallback
  *mechanism to previous version in all those components which perform version
@@ -216,26 +216,26 @@
 6.0.0,\
 6.5.0"
 // Put VPX_VERSION first, because vpx/make/defs.mk doesn't check for suffix.
-#define VPX_VERSION "7.0.0"
+#define VPX_VERSION "7.0.1"
 #define VPX_VERSION_MAJOR "7"
 #define VPX_VERSION_MINOR "0"
-#define VPX_VERSION_MAINT "0"
+#define VPX_VERSION_MAINT "1"
 #define VPX_VERSION_THIRD_PARTY VPX_VERSION_MAJOR VPX_VERSION_MINOR \
                                 VPX_VERSION_MAINT
-#define VPX_VERSION_NUMERIC 7,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
+#define VPX_VERSION_NUMERIC 7,0,1,PRODUCT_BUILD_NUMBER_NUMERIC
 
 // Last supported ESX version by VC.
 #define VPX_MIN_HOST_VERSION "6.5.0"
 
 #define MAX_SUPPORTED_VI_VERSION "6.6" //from ovfTool/src/supportedVersions.h
-#define VCDB_CURRENT_SCHEMA_VERSION           700 // from PitCADatabase.h
+#define VCDB_CURRENT_SCHEMA_VERSION           701 // from PitCADatabase.h
 
 #define VPX_RELEASE_UPDATE "0" /* 0 = Pre-release/GA, 1 = Update 1 */
 #define VPX_RELEASE_PATCH "0"  /* 0 = experimental */
 #define VPX_RELEASE VPX_RELEASE_UPDATE "." VPX_RELEASE_PATCH
 
 /* expected database version for current release */
-#define VPXD_VDB_DB_VERSION_ID            700
+#define VPXD_VDB_DB_VERSION_ID            701
 #define VPXD_VDB_DB_VERSION_VALUE         "VirtualCenter Database 7.0"
 
 // Virtual Appliance Patch Version Number
@@ -245,7 +245,7 @@
 // Changing the version is required when CPD releases an update.
 #define VA_PATCH_VERSION  "5100"
 
-#define INTEGRITY_VERSION "7.0.0" /* Should use VPX_VERSION? */
+#define INTEGRITY_VERSION "7.0.1" /* Should use VPX_VERSION? */
 #define SVA_VERSION "1.0.0"
 #define SSO_VERSION "1.0.0"
 #define WBC_VERSION "5.1.0"
@@ -259,10 +259,10 @@
 #define VDM_VERSION "e.x.p"
 #define NETDUMP_VERSION        "5.1.0"
 #define NETDUMP_FILE_VERSION    5,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
-#define VDDK_VERSION          "7.0.0"
+#define VDDK_VERSION          "7.0.1"
 #define VDDK_VERSION_MAJOR    7
 #define VDDK_VERSION_MINOR    0
-#define VDDK_VERSION_MAINT    0
+#define VDDK_VERSION_MAINT    1
 #define VDDK_FILE_VERSION     VDDK_VERSION_MAJOR,VDDK_VERSION_MINOR,\
                               VDDK_VERSION_MAINT,PRODUCT_BUILD_NUMBER_NUMERIC
 #define OVFTOOL_VERSION "4.4.0"
