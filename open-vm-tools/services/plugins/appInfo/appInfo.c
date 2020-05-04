@@ -93,7 +93,7 @@ static guint gAppInfoPollInterval = 0;
  */
 static GSource *gAppInfoTimeoutSource = NULL;
 
-static void TweakGatherLoop(ToolsAppCtx *ctx);
+static void TweakGatherLoop(ToolsAppCtx *ctx, gboolean force);
 
 
 /*
@@ -415,7 +415,7 @@ AppInfoGather(gpointer data)      // IN
                 "information\n", __FUNCTION__);
    }
 
-   TweakGatherLoop(ctx);
+   TweakGatherLoop(ctx, TRUE);
 
    return G_SOURCE_REMOVE;
 }
@@ -483,12 +483,16 @@ TweakGatherLoopEx(ToolsAppCtx *ctx,       // IN
  * AppInfo Gather loop timeout source.
  *
  * @param[in]     ctx           The application context.
+ * @param[in]     force         If set to TRUE, the poll loop will be
+ *                              tweaked even if the poll interval hasn't
+ *                              changed from the previous value.
  *
  *****************************************************************************
  */
 
 static void
-TweakGatherLoop(ToolsAppCtx *ctx)    // IN
+TweakGatherLoop(ToolsAppCtx *ctx,  // IN
+                gboolean force)    // IN
 {
    gboolean disabled =
       VMTools_ConfigGetBoolean(ctx->config,
@@ -511,11 +515,13 @@ TweakGatherLoop(ToolsAppCtx *ctx)    // IN
       }
    }
 
-   /*
-    * pollInterval can never be a negative value. Typecasting into
-    * guint should not be a problem.
-    */
-   TweakGatherLoopEx(ctx, (guint) pollInterval);
+   if (force || (gAppInfoPollInterval != pollInterval)) {
+      /*
+       * pollInterval can never be a negative value. Typecasting into
+       * guint should not be a problem.
+       */
+      TweakGatherLoopEx(ctx, (guint) pollInterval);
+   }
 }
 
 
@@ -539,7 +545,7 @@ AppInfoServerConfReload(gpointer src,       // IN
 {
    g_info("%s: Reloading the tools configuration.\n", __FUNCTION__);
 
-   TweakGatherLoop(ctx);
+   TweakGatherLoop(ctx, FALSE);
 }
 
 
@@ -692,7 +698,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)    // IN
       /*
        * Set up the AppInfo gather loop.
        */
-      TweakGatherLoop(ctx);
+      TweakGatherLoop(ctx, TRUE);
 
       return &regData;
    }
