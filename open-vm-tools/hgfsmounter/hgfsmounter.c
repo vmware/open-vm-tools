@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -224,7 +224,7 @@ GetPathMax(const char *path) // IN: path to check
 /*
  *-----------------------------------------------------------------------------
  *
- * IsValidShareName
+ * ParseShareName
  *
  *    A helper function to parse the share name from "host:share" format into
  *    two separate strings, reporting errors if any.
