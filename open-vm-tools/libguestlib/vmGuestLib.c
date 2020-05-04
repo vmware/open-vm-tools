@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2016,2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005-2016,2019-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -27,6 +27,7 @@
 #include "vmGuestLib.h"
 #include "vmGuestLibInt.h"
 #include "str.h"
+#include "vmware/guestrpc/tclodefs.h"
 #include "vmware/tools/guestrpc.h"
 #include "vmcheck.h"
 #include "util.h"
@@ -402,8 +403,9 @@ VMGuestLibUpdateInfo(VMGuestLibHandle handle) // IN
       Debug("Failed to retrieve info: %s\n", reply ? reply : "NULL");
 
       if (hostVersion == 2 ||
-          Str_Strncmp(reply, "Unknown command", sizeof "Unknown command") == 0) {
-         /* 
+          Str_Strncmp(reply, RPCI_UNKNOWN_COMMAND,
+                      sizeof RPCI_UNKNOWN_COMMAND) == 0) {
+         /*
           * Host does not support this feature. Older (v2) host would return
           * "Unsupported version" if it doesn't recognize the requested version.
           *

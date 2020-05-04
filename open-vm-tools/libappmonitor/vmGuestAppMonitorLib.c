@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -58,6 +58,7 @@
 #include "vmguestappmonitorlib_version.h"
 #include "vm_version.h"
 #include "embed_version.h"
+#include "vmware/guestrpc/tclodefs.h"
 #include "vmware/tools/guestrpc.h"
 
 VM_EMBED_VERSION(VMGUESTAPPMONITORLIB_VERSION_STRING);
@@ -362,8 +363,8 @@ RunGuestAppMonitorCmd(const char *cmd)
    if (!RpcChannel_Send(gChan, cmd, strlen(cmd), &reply, &replyLen)) {
       Debug("Failed to run %s command: %s\n", cmd, reply ? reply : "NULL");
 
-      if (Str_Strncmp(reply, "Unknown command",
-                      sizeof "Unknown command") == 0) {
+      if (Str_Strncmp(reply, RPCI_UNKNOWN_COMMAND,
+                      sizeof RPCI_UNKNOWN_COMMAND) == 0) {
          /* Host does not support application monitoring */
          rc = VMGUESTAPPMONITORLIB_ERROR_NOT_SUPPORTED;
       } else {
@@ -429,8 +430,8 @@ RunGuestAppMonitorCmdWithResult(const char *cmd,
    if (!RpcChannel_Send(gChan, cmd, strlen(cmd), &reply, &replyLen)) {
       Debug("Failed to run %s command: %s\n", cmd,  reply ? reply : "NULL");
 
-      if (Str_Strncmp(reply, "Unknown command",
-                      sizeof "Unknown command") == 0) {
+      if (Str_Strncmp(reply, RPCI_UNKNOWN_COMMAND,
+                      sizeof RPCI_UNKNOWN_COMMAND) == 0) {
          /* Host does not support application monitoring */
          rc = VMGUESTAPPMONITORLIB_ERROR_NOT_SUPPORTED;
       } else {
