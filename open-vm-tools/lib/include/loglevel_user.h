@@ -335,7 +335,8 @@
    LOGLEVEL_VAR(assignHw), \
    LOGLEVEL_VAR(directBoot), \
    LOGLEVEL_VAR(vwdt), \
-   LOGLEVEL_VAR(keypersist),
+   LOGLEVEL_VAR(keypersist), \
+   LOGLEVEL_VAR(llc),
 
    /* end of list */
 
