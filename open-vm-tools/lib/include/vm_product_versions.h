@@ -281,7 +281,7 @@
 #define WCP_VERSION "0.0.1"
 #define VSTATS_VERSION "0.0.1"
 #define HDCS_VERSION "0.0.1"
-
+#define XVP_VERSION "1.0.0"
 /*
  * All of these components should follow the current version of View, except
  * Horizon DaaS Agent and mfw which have their own version.
