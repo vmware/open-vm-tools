@@ -695,7 +695,7 @@ FileIOResult
 FileIO_AtomicTempFile(FileIODescriptor *fileFD,  // IN:
                       FileIODescriptor *tempFD)  // OUT:
 {
-   char *tempPath = NULL;
+   char *tempPath;
    int permissions;
    FileIOResult status;
 #if !defined(_WIN32)
@@ -836,8 +836,6 @@ FileIO_AtomicUpdateEx(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
    uint32 newAccess;
    FileIOResult status;
    FileIODescriptor tmpFD;
-#else
-   int fd;
 #endif
    int savedErrno = 0;
    int ret = 0;
@@ -909,6 +907,8 @@ FileIO_AtomicUpdateEx(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
        */
       if (savedErrno == ENOSYS || savedErrno == ENOTTY) {
          if (renameOnNFS) {
+            int fd;
+
             /*
              * NFS allows renames of locked files, even if both files
              * are locked.  The file lock follows the file handle, not
@@ -1015,6 +1015,8 @@ swapdone:
           __FUNCTION__, newPath, currPath, errno);
           savedErrno = errno;
    } else {
+      int fd;
+
       ret = TRUE;
       fd = newFD->posix;
       newFD->posix = currFD->posix;

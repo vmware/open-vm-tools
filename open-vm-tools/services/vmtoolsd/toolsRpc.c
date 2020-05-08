@@ -354,7 +354,6 @@ ToolsCore_InitRpc(ToolsServiceState *state)
       { "Set_Option", ToolsCoreRpcSetOption, NULL, NULL, NULL, 0 },
    };
 
-   size_t i;
    const gchar *app;
    GMainContext *mainCtx = g_main_loop_get_context(state->ctx.mainLoop);
 
@@ -396,6 +395,7 @@ ToolsCore_InitRpc(ToolsServiceState *state)
        */
       RpcChannelFailureCb failureCb = NULL;
       guint errorLimit = 0;
+      size_t i;
 
 #if !defined(_WIN32)
 

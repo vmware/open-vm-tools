@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017,2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -246,7 +246,7 @@ void WarningThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
       count = (count + 1) & 1023;                                       \
    } while (0)
 
-#define LOG_ONCE(_s) DO_ONCE(Log _s)
+#define LOG_ONCE(...) DO_ONCE(Log(__VA_ARGS__))
 
 
 /*
@@ -352,6 +352,17 @@ void WarningThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
    static INLINE void name(void) {   \
       assertions                     \
    }
+
+/*
+ * Avoid generating extra code due to asserts which are required by
+ * Clang static analyzer, e.g. right before a statement would fail, using
+ * the __clang_analyzer__ macro defined only when clang SA is parsing files.
+ */
+#ifdef __clang_analyzer__
+#define ANALYZER_ASSERT(cond) ASSERT(cond)
+#else
+#define ANALYZER_ASSERT(cond) ((void)0)
+#endif
 
 #ifdef __cplusplus
 } /* extern "C" */

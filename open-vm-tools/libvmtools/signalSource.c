@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016,2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -78,15 +78,19 @@ SignalSourceReadSigInfo(void)
    if (gHandler.wakeupFd.revents & G_IO_IN) {
       siginfo_t info;
       ssize_t nbytes = read(gHandler.wakeupFd.fd, &info, sizeof info);
+
       if (nbytes == -1) {
-         g_warning("Signal source: reading from wake up fd failed.");
+         g_warning("Signal source: reading from wake up fd failed.\n");
          return;
-      } else {
-         /* XXX: Maybe we should handle this in some other way? */
-         ASSERT(nbytes == sizeof info);
+      } else if (nbytes < sizeof info) {
+         g_warning("Signal source: reading from wake up fd returned %"FMTSZ"d,"
+                   " expected %"FMTSZ"u.\n", nbytes, sizeof info);
+         return;
+      } else if (info.si_signo < 0 || info.si_signo >= MAX_SIGNALS) {
+         g_warning("Signal source: bad signal number %d.\n", info.si_signo);
+         return;
       }
       memcpy(&gHandler.currSignal, &info, sizeof info);
-      ASSERT(0 <= info.si_signo && info.si_signo < MAX_SIGNALS);
       gHandler.signals[info.si_signo] = SIG_SRC_SIGNALED;
       gHandler.wakeupFd.revents = 0;
    }

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2019 VMware, Inc. All rights reserved.
  *
  * The contents of this file are subject to the terms of the Common
  * Development and Distribution License (the "License") version 1.0
@@ -40,7 +40,7 @@
 #  endif
 #endif
 
-#ifdef linux
+#ifdef __linux__
 #   ifndef __KERNEL__
 #      error "__KERNEL__ is not defined"
 #   endif
@@ -113,8 +113,20 @@
 
 #if defined(__linux__) || defined(__APPLE__) || defined (sun)
 
-#  ifdef linux                               /* if (linux) { */
+#  ifdef __linux__                           /* if (__linux__) { */
+#  define atoi(s) simple_strtol(((s != NULL) ? s : ""), NULL, 10)
+int strcasecmp(const char *s1, const char *s2);
 char *strdup(const char *source);
+#  endif
+
+#  ifdef __APPLE__                           /* if (__APPLE__) { */
+int atoi(const char *);
+char *STRDUP(const char *, int);
+#  define strdup(s) STRDUP(s, 80)
+#  endif
+
+#  if defined(__linux__) || defined(__APPLE__) /* if (__linux__ || __APPLE__) { */
+#  define Str_Strcasecmp(s1, s2) strcasecmp(s1, s2)
 #  endif
 
 /* Shared between Linux and Apple kernel stubs. */

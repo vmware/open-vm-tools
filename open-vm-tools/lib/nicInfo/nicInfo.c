@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2014-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2014-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -299,7 +299,7 @@ GuestInfo_GetNicInfo(unsigned int maxIPv4Routes,
                      unsigned int maxIPv6Routes,
                      NicInfoV3 **nicInfo)
 {
-   Bool retval = FALSE;
+   Bool retval;
 
    *nicInfo = Util_SafeCalloc(1, sizeof (struct NicInfoV3));
 
@@ -582,7 +582,7 @@ GuestInfoDupTypedIpAddress(TypedIpAddress *srcIp,   // IN
 #endif // if defined _WIN32
 
 
-#if defined linux || defined _WIN32
+#if defined __linux__ || defined _WIN32
 /*
  ******************************************************************************
  * GuestInfoGetNicInfoIfIndex --                                         */ /**
@@ -636,7 +636,7 @@ GuestInfoGetNicInfoIfIndex(NicInfoV3 *nicInfo,
 
    return ret;
 }
-#endif // if defined linux || defined _WIN32
+#endif // if defined __linux__ || defined _WIN32
 
 
 /*

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2017,2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -347,8 +347,6 @@ HgfsChannelGuestConnConnect(HgfsGuestConn *connData)  // IN: our connection data
       HGFS_LARGE_PACKET_MAX
    };
 
-   connData->channelCbTable.registerThread = NULL;
-   connData->channelCbTable.unregisterThread = NULL;
    connData->channelCbTable.getWriteVa = NULL;
    connData->channelCbTable.getReadVa = NULL;
    connData->channelCbTable.putVa = NULL;

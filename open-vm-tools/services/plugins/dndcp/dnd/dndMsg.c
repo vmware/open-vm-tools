@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -288,7 +288,6 @@ Bool
 DnDMsg_Serialize(DnDMsg *msg,   // IN/OUT: the message
                  DynBuf* buf)   // OUT: the output buffer
 {
-   DynBuf *curArg;
    uint32 nargs;
    uint32 i;
    uint32 serializeArgsSz = 0;
@@ -313,7 +312,8 @@ DnDMsg_Serialize(DnDMsg *msg,   // IN/OUT: the message
       uint32 curArgsSz;
 
       for (i = 0; i < nargs; i++) {
-         curArg = DynBufArray_AddressOf(&msg->args, i);
+         DynBuf *curArg = DynBufArray_AddressOf(&msg->args, i);
+
          curArgsSz = DynBuf_GetSize(curArg);
 
          if (!DynBuf_Append(buf, &curArgsSz, sizeof curArgsSz) ||

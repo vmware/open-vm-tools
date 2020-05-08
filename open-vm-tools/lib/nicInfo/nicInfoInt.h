@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2014-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2014-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -56,11 +56,11 @@ void GuestInfoDupTypedIpAddress(TypedIpAddress *srcIp,   // IN
                                 TypedIpAddress *destIp);  // OUT
 #endif // if defined _WIN32
 
-#if defined linux || defined _WIN32
+#if defined __linux__ || defined _WIN32
 Bool GuestInfoGetNicInfoIfIndex(NicInfoV3 *nicInfo,  // IN
                                 int ifIndex,         // IN
                                 int *nicIfIndex);    // OUT
-#endif // if defined linux || defined _WIN32
+#endif // if defined __linux__ || defined _WIN32
 void GuestInfoSockaddrToTypedIpAddress(const struct sockaddr *sa,    // IN
                                        TypedIpAddress *typedIp);     // OUT
 

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2016,2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -20,8 +20,8 @@
  * foundryMsg.c --
  *
  * This is a library for formatting and parsing the messages sent
- * between a foundry client and the VMX. It is a stand-alone library 
- * so it can be used by the VMX tree without also linking in the 
+ * between a foundry client and the VMX. It is a stand-alone library
+ * so it can be used by the VMX tree without also linking in the
  * entire foundry client-side library.
  */
 
@@ -631,7 +631,6 @@ VixMsg_AllocRequestMsg(size_t msgHeaderAndBodyLength,    // IN
    VixCommandRequestHeader *commandRequest = NULL;
    size_t providedCredentialLength = 0;
    size_t totalCredentialLength = 0;
-   char *destPtr;
 
    if ((VIX_USER_CREDENTIAL_NAME_PASSWORD == credentialType)
       || (VIX_USER_CREDENTIAL_HOST_CONFIG_SECRET == credentialType)
@@ -692,7 +691,8 @@ VixMsg_AllocRequestMsg(size_t msgHeaderAndBodyLength,    // IN
          || (VIX_USER_CREDENTIAL_TICKETED_SESSION == credentialType)
          || (VIX_USER_CREDENTIAL_SSPI == credentialType)
          || (VIX_USER_CREDENTIAL_SAML_BEARER_TOKEN == credentialType)) {
-      destPtr = (char *) commandRequest;
+      char *destPtr = (char *) commandRequest;
+
       destPtr += commandRequest->commonHeader.headerLength;
       destPtr += commandRequest->commonHeader.bodyLength;
       if (NULL != credential) {
@@ -1141,10 +1141,14 @@ VixMsg_DeObfuscateNamePassword(const char *packagedName,   // IN
       }
    }
 
-   *userNameResult = userName;
-   userName = NULL;
-   *passwordResult = passwd;
-   passwd = NULL;
+   if (NULL != userNameResult) {
+      *userNameResult = userName;
+      userName = NULL;
+   }
+   if (NULL != passwordResult) {
+      *passwordResult = passwd;
+      passwd = NULL;
+   }
 
 abort:
    Util_ZeroFree(packedString, packedStringLength);
@@ -1182,6 +1186,14 @@ VixMsg_EncodeString(const char *str,  // IN
       str = "";
    }
 
+   /*
+    * Coverity flags this as a buffer overrun in the case where str is
+    * assigned the empty string above, claiming that the underlying
+    * Base64_Encode function directly indexes the array str at index 2;
+    * however, that indexing is only done if the string length is greater
+    * than 2, and clearly strlen("") is 0.
+    */
+   /* coverity[overrun-buffer-val] */
    return VixMsgEncodeBuffer(str, strlen(str), TRUE, result);
 } // VixMsg_EncodeString
 

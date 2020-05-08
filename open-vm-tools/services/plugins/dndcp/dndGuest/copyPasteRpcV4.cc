@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -27,7 +27,8 @@
 extern "C" {
 #if defined VMX86_TOOLS
    #include "debug.h"
-   #define LOG(level, msg) (Debug msg)
+
+   #define LOG(level, ...) Debug(__VA_ARGS__)
 #else
    #define LOGLEVEL_MODULE dnd
    #include "loglevel_user.h"
@@ -263,20 +264,20 @@ CopyPasteRpcV4::HandleMsg(RpcParams *params,
 {
    ASSERT(params);
 
-   LOG(4, ("%s: Got %s[%d], sessionId %d, srcId %d, binary size %d.\n",
-           __FUNCTION__, DnDCPMsgV4_LookupCmd(params->cmd), params->cmd,
-           params->sessionId, params->addrId, binarySize));
+   LOG(4, "%s: Got %s[%d], sessionId %d, srcId %d, binary size %d.\n",
+       __FUNCTION__, DnDCPMsgV4_LookupCmd(params->cmd), params->cmd,
+       params->sessionId, params->addrId, binarySize);
 
    switch (params->cmd) {
    case CP_CMD_RECV_CLIPBOARD:
       CPClipboard clip;
       if (!binary || binarySize == 0) {
-         LOG(0, ("%s: invalid clipboard data.\n", __FUNCTION__));
+         LOG(0, "%s: invalid clipboard data.\n", __FUNCTION__);
          break;
       }
       CPClipboard_Init(&clip);
       if (!CPClipboard_Unserialize(&clip, (void *)binary, binarySize)) {
-         LOG(0, ("%s: CPClipboard_Unserialize failed.\n", __FUNCTION__));
+         LOG(0, "%s: CPClipboard_Unserialize failed.\n", __FUNCTION__);
          break;
       }
       srcRecvClipChanged.emit(params->sessionId,
@@ -301,11 +302,11 @@ CopyPasteRpcV4::HandleMsg(RpcParams *params,
       pingReplyChanged.emit(params->optional.version.capability);
       break;
    case DNDCP_CMP_REPLY:
-      LOG(0, ("%s: Got cmp reply command %d.\n", __FUNCTION__, params->cmd));
+      LOG(0, "%s: Got cmp reply command %d.\n", __FUNCTION__, params->cmd);
       cmdReplyChanged.emit(params->cmd, params->status);
       break;
    default:
-      LOG(0, ("%s: Got unknown command %d.\n", __FUNCTION__, params->cmd));
+      LOG(0, "%s: Got unknown command %d.\n", __FUNCTION__, params->cmd);
       break;
    }
 }

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -118,10 +118,8 @@ ServiceVerifyAndCheckTrustCertChainForSubject(int numCerts,
     * Dump the token cert chain for debugging purposes.
     */
    if (gVerboseLogging) {
-      gchar *chainx509;
-
       for (i = 0; i < numCerts; i++) {
-         chainx509 = CertVerify_CertToX509String(pemCertChain[i]);
+         gchar *chainx509 = CertVerify_CertToX509String(pemCertChain[i]);
          Debug("%s: Token chain cert #%d:\n%s", __FUNCTION__, i, chainx509);
          g_free(chainx509);
       }
@@ -225,12 +223,11 @@ ServiceVerifyAndCheckTrustCertChainForSubject(int numCerts,
     * Dump the store cert chain for debugging purposes.
     */
    if (gVerboseLogging) {
-      gchar *storex509;
-
       Debug("%s: %d certs in store for user %s\n",  __FUNCTION__,
             numStoreCerts, queryUserName);
       for (i = 0; i < numStoreCerts; i++) {
-         storex509 = CertVerify_CertToX509String(aList[i].pemCert);
+         gchar *storex509 = CertVerify_CertToX509String(aList[i].pemCert);
+
          Debug("%s: Store chain cert #%d:\n%s", __FUNCTION__, i, storex509);
          g_free(storex509);
       }
@@ -308,6 +305,7 @@ ServiceVerifyAndCheckTrustCertChainForSubject(int numCerts,
       numTrusted--;
       leafCert = trustedCerts[0];
       memmove(trustedCerts, &(trustedCerts[1]), sizeof(*trustedCerts) * numTrusted);
+   /* coverity[var_deref_op] */
    } else if (g_strcmp0(pemCertChain[0], untrustedCerts[0]) == 0) {
       numUntrusted--;
       leafCert = untrustedCerts[0];

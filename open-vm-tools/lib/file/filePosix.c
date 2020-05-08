@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -51,6 +51,10 @@
 #include <dirent.h>
 #if defined(__linux__)
 #   include <pwd.h>
+#endif
+
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
 #endif
 
 #include "vmware.h"
@@ -988,7 +992,7 @@ File_SetFilePermissions(const char *pathName,  // IN:
  *-----------------------------------------------------------------------------
  */
 
-static Bool
+Bool
 FilePosixGetParent(char **canPath)  // IN/OUT: Canonical file path
 {
    char *pathName;
@@ -1045,6 +1049,7 @@ File_GetParent(char **canPath)  // IN/OUT: Canonical file path
 }
 
 
+#if !defined(__APPLE__) || TARGET_OS_IPHONE
 /*
  *----------------------------------------------------------------------
  *
@@ -1064,7 +1069,7 @@ File_GetParent(char **canPath)  // IN/OUT: Canonical file path
  *----------------------------------------------------------------------
  */
 
-static Bool
+Bool
 FileGetStats(const char *pathName,       // IN:
              Bool doNotAscend,           // IN:
              struct statfs *pstatfsbuf)  // OUT:
@@ -1072,8 +1077,7 @@ FileGetStats(const char *pathName,       // IN:
    Bool retval = TRUE;
    char *dupPath = NULL;
 
-   while (Posix_Statfs(dupPath ? dupPath : pathName,
-                             pstatfsbuf) == -1) {
+   while (Posix_Statfs(dupPath ? dupPath : pathName, pstatfsbuf) == -1) {
       if (errno != ENOENT || doNotAscend) {
          retval = FALSE;
          break;
@@ -1126,7 +1130,7 @@ File_GetFreeSpace(const char *pathName,  // IN: File name
    }
 
    if (FileGetStats(fullPath, doNotAscend, &statfsbuf)) {
-      ret = (uint64) statfsbuf.f_bavail * statfsbuf.f_bsize;
+      ret = (uint64) statfsbuf.f_bavail * statfsbuf.f_bsize;  // available space
    } else {
       Warning("%s: Couldn't statfs %s\n", __func__, fullPath);
       ret = -1;
@@ -1136,6 +1140,7 @@ File_GetFreeSpace(const char *pathName,  // IN: File name
 
    return ret;
 }
+#endif
 
 
 #if defined(VMX86_SERVER)
@@ -1598,13 +1603,16 @@ File_SupportsOptimisticLock(const char *pathName)  // IN:
 }
 
 
+#if !defined(__APPLE__) || TARGET_OS_IPHONE
 /*
  *----------------------------------------------------------------------
  *
  * File_GetCapacity --
  *
- *      Return the total capacity (in bytes) available to the user on a disk
- *      where a file is or would be
+ *      Return the total capacity (in bytes) of the file system that the
+ *      specified file resides on. This is not be confused with the
+ *      amount of free space available in the file system the specified
+ *      file resides on.
  *
  * Results:
  *      -1 if error (reported to the user)
@@ -1628,7 +1636,7 @@ File_GetCapacity(const char *pathName)  // IN: Path name
    }
 
    if (FileGetStats(fullPath, FALSE, &statfsbuf)) {
-      ret = (uint64) statfsbuf.f_blocks * statfsbuf.f_bsize;
+      ret = (uint64) statfsbuf.f_blocks * statfsbuf.f_bsize; // FS size
    } else {
       Warning(LGPFX" %s: Couldn't statfs\n", __func__);
       ret = -1;
@@ -1638,6 +1646,7 @@ File_GetCapacity(const char *pathName)  // IN: Path name
 
    return ret;
 }
+#endif
 
 
 /*
@@ -1976,6 +1985,13 @@ retry:
                   Str_Strcpy(canPath, ptr, sizeof canPath);
                }
             } else {
+
+               /*
+                * This is coded as it is in order to document clearly that
+                * the function does not handle bind mount correctly (it
+                * always assumes rbind).
+                */
+               /* coverity[dead_error_line] */
                Str_Strcpy(canPath, ptr, sizeof canPath);
             }
 
@@ -2525,9 +2541,9 @@ FileVMKGetMaxOrSupportsFileSize(const char *pathName,  // IN:
    /*
     * Try the old way if IOCTL failed.
     */
-   LOG(0, (LGPFX" %s: Failed to figure out max file size via "
-           "IOCTLCMD_VMFS_GET_MAX_FILE_SIZE. Falling back to old method.\n",
-           __func__));
+   LOG(0, LGPFX" %s: Failed to figure out max file size via "
+       "IOCTLCMD_VMFS_GET_MAX_FILE_SIZE. Falling back to old method.\n",
+       __func__);
    maxFileSize = -1;
 
    if (File_GetVMFSAttributes(pathName, &fsAttrs) < 0) {
@@ -2992,7 +3008,7 @@ File_WalkDirectoryStart(const char *dirName)  // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * File_WalkDirectoryNextEntry --
+ * File_WalkDirectoryNext --
  *
  *      Get the next file name during a directory traversal started with
  *      File_WalkDirectoryStart.
@@ -3066,15 +3082,15 @@ File_WalkDirectoryNext(WalkDirContext context,  // IN:
                                        UNICODE_SUBSTITUTION_CHAR);
       }
 
-      if (HashTable_Insert(context->hash, allocName, NULL)) {
+      if (HashTable_Insert(context->hash, allocName, NULL)) {  // Unique - good
          if (fileName != NULL) {
             *fileName = Util_SafeStrdup(allocName);
          }
 
          callAgain = TRUE;
          break;
-      } else {
-         /* Ignore duplicates */
+      } else {  // Duplicate - ignore
+         free(allocName);
          continue;
       }
    }

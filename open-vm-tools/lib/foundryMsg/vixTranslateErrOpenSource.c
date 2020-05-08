@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2017,2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -108,7 +108,7 @@ Vix_TranslateGuestRegistryError(int systemError) // IN
 VixError
 Vix_TranslateSystemError(int systemError) // IN
 {
-   VixError err = VIX_E_FAIL;
+   VixError err;
 #ifdef _WIN32
    char *msg;
 

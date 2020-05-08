@@ -289,6 +289,8 @@ extern "C" {
    GOKM("debian9-64",                           debian9_64Guest,         TRUE) \
    GOKM("debian10",                             debian10Guest,           TRUE) \
    GOKM("debian10-64",                          debian10_64Guest,        TRUE) \
+   GOKM("debian11",                             debian11Guest,           TRUE) \
+   GOKM("debian11-64",                          debian11_64Guest,        TRUE) \
    GOKM("asianux3",                             asianux3Guest,           TRUE) \
    GOKM("asianux3-64",                          asianux3_64Guest,        TRUE) \
    GOKM("asianux4",                             asianux4Guest,           TRUE) \

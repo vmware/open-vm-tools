@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2017,2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -17,7 +17,7 @@
  *********************************************************/
 
 /*
- * @file resolutionX11.c 
+ * @file resolutionX11.c
  *
  * X11 backend for resolutionSet plugin.
  */
@@ -375,16 +375,18 @@ ResolutionCanSet(void)
     */
    if (major > 1 || (major == 1 && minor >= 2)) {
       XRRScreenResources* xrrRes;
-      XRROutputInfo* xrrOutput;
       unsigned int num;
-      int i;
 
       xrrRes = XRRGetScreenResources(resInfoX->display, resInfoX->rootWindow);
 
       if (xrrRes) {
+         int i;
+
          for (i = 0; i < xrrRes->noutput; i++) {
-            xrrOutput = XRRGetOutputInfo(resInfoX->display, xrrRes,
-                                         xrrRes->outputs[i]);
+            XRROutputInfo* xrrOutput =
+               XRRGetOutputInfo(resInfoX->display, xrrRes,
+                                xrrRes->outputs[i]);
+
             if (!xrrOutput) {
                break;
             }

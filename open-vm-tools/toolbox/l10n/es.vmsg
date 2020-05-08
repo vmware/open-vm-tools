@@ -1,0 +1,182 @@
+##########################################################
+# Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU Lesser General Public License as published
+# by the Free Software Foundation version 2.1 and no later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+# License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
+#
+##########################################################
+
+arg.command = "comando"
+
+arg.config.key = "clave de configuración"
+
+arg.config.operation = "operación de configuración"
+
+arg.config.section = "sección de configuración"
+
+arg.config.value = "valor de configuración"
+
+arg.devicename = "nombre de dispositivo"
+
+arg.info.class = "clase de información"
+
+arg.info.subcommand = "operación de información"
+
+arg.logging.level = "nivel de registro"
+
+arg.logging.service = "nombre del servicio de registro"
+
+arg.logging.subcommand = "operación de registro"
+
+arg.mountpoint = "punto de montaje"
+
+arg.scriptpath = "ruta del script"
+
+arg.scripttype = "tipo de script"
+
+arg.subcommand = "subcomando"
+
+device.connect.error = "No se puede conectar el dispositivo %1$s.\n"
+
+device.disconnect.error = "No se puede desconectar el dispositivo %1$s.\n"
+
+device.notfound = "Error al obtener la información de la interfaz: no se ha encontrado el dispositivo.\n"
+
+disk.shrink.canceled = "Se ha cancelado la reducción de disco.\n"
+
+disk.shrink.complete = "Reducción de disco completa.\n"
+
+disk.shrink.conflict = "Error. El cuadro de herramientas considera que la reducción de disco está habilitada mientras que el host cree que está deshabilitada.\n\n Cierre y vuelva a abrir el cuadro de herramientas para sincronizarlo con el host.\n"
+
+disk.shrink.disabled = "La reducción de disco está deshabilitada para esta máquina virtual.\n\nLa reducción está deshabilitada para clones vinculados, elementos primarios de clones vinculados, \ndiscos previamente asignados, instantáneas o debido a otros factores. \nConsulte el Manual del usuario para obtener más información.\n"
+
+disk.shrink.error = "Error durante la reducción: %1$s\n"
+
+disk.shrink.incomplete = "No se ha completado la reducción.\n"
+
+disk.shrink.partition.error = "No se pueden recopilar los datos de la partición.\n"
+
+disk.shrink.partition.notfound = "No se puede encontrar la partición %1$s\n"
+
+disk.shrink.partition.unsupported = "La partición %1$s no es reducible\n"
+
+disk.shrink.unavailable = "La característica de reducción no está disponible,\n\nya sea porque está ejecutando una versión antigua de un producto de VMware o porque hay abiertos demasiados canales de comunicación.\n\nSi está ejecutando una versión antigua de un producto de VMware, debería considerar la posibilidad de actualizarla.\n\nSi hay abiertos demasiados canales de comunicación, debería apagar la máquina virtual y volver a encenderla.\n"
+
+disk.shrink.ignoreFreeSpaceWarnings = "Ignore cualquier aviso sobre el espacio en disco durante el proceso de reducción.\n"
+
+disk.wipe.ignoreFreeSpaceWarnings = "Ignore cualquier aviso sobre el espacio en disco durante el proceso de borrado.\n"
+
+disk.wiper.file.error = "Error, no se puede crear un archivo wiper.\n"
+
+disk.wiper.progress = "\rProgreso: %1$d"
+
+error.message = "Error: %1$s\n"
+
+error.missing = "%1$s: Falta %2$s\n"
+
+error.noadmin.posix = "%1$s: Debe ser raíz para realizar operaciones %2$s.\n"
+
+error.noadmin.win = "%1$s: Se necesitan permisos de administrador para realizar operaciones de %2$s.\nUtilice un símbolo del sistema de administrador para completar estas tareas.\n"
+
+error.novirtual = "%1$s tiene que ejecutarse dentro de una máquina virtual.\n"
+
+error.unknown = "%1$s: %2$s '%3$s' desconocido\n"
+
+help.config = "%1$s: modifica la configuración de Tools\nUso: %2$s %3$s <subcomando>\n\nSubcomandos:\n   get <sección> <clave>: muestra el valor actual de <clave>\n   set <sección> <clave> <valor>: establece <clave> en <valor>\n\n   remove <sección> <clave>: elimina <clave>\n\n<sección> puede ser cualquier sección admitida como, por ejemplo, logging, guestoperations o guestinfo.\n<clave> puede ser cualquier clave de configuración.\n<valor> puede ser cualquier valor.\n"
+
+help.device = "%1$s: funciones relacionadas con los dispositivos de hardware de la máquina virtual\nUso: %2$s %3$s <subcomando> [argumentos]\ndev es el nombre del dispositivo.\n\nSubcomandos:\n   enable <dev>: habilita el dev del dispositivo\n   disable <dev>: deshabilita el dev del dispositivo\n   list: enumera todos los dispositivos disponibles\n   status <dev>: imprime el estado de un dispositivo\n"
+
+help.disk = "%1$s: realizar operaciones de reducción de disco\nUso: %2$s %3$s <subcomando> [argumentos]\n\nSubcomandos:\n   list: enumera las ubicaciones disponibles\n   shrink <ubicación>: borra y reduce un sistema de archivos en la ubicación en cuestión\n   shrinkonly: reduce todos los discos\n   wipe <ubicación>: borra un sistema de archivos en la ubicación en cuestión\n"
+
+help.hint = "Pruebe '%1$s %2$s%3$s%4$s' para obtener más información.\n"
+
+help.info = "%1$s: actualiza la información del invitado en el host\nUso: %2$s %3$s actualiza <claseinformación>\n\nSubcomandos:\n   actualización <claseinformación>: actualiza la información identificada por <claseinformación>\n<claseinformación> puede ser 'red'\n"
+
+help.logging = "%1$s: modifica el registro de herramientas\nUso: %2$s de nivel %3$s <subcomando> <nombreservicio> <nivel>\n\nSubcomandos:\n   get <nombreservicio>: muestra el nivel actual\n   set <nombreservicio> <nivel>: establece el nivel actual\n\n<nombreservicio> puede ser cualquier servicio admitido, como vmsvc o vmusr\n<nivel> puede ser un error, un fallo crítico, una advertencia, una información, un mensaje o una depuración\n   El valor predeterminado es %4$s\n"
+
+help.main = "Uso: %1$s <comando> [opciones] [subcomando]\nEscriba '%2$s %3$s <comando>' para obtener ayuda sobre un comando específico.\nEscriba '%4$s -v' para consultar la versión de VMware Tools.\nUtilice la opción '-q' para suprimir el resultado stdout.\La mayoría de comandos tiene un subcomando.\n\nComandos disponibles:\n   config\n   device\n   disk (no disponible en todos los sistemas operativos)\n   info\n   logging\n   script\n   stat\n   timesync\n   upgrade (no disponible en todos los sistemas operativos)\n"
+
+help.script = "%1$s: controlar la ejecución de secuencias de comandos en respuesta a operaciones de encendido\nUso: %2$s %3$s <power|resume|suspend|shutdown> <subcomando> [argumentos]\n\nSubcomandos:\n   enable: habilita la secuencia de comandos en cuestión y restaura la ruta de acceso predeterminada\n   disable: deshabilita la secuencia de comandos en cuestión\n   set <ruta de acceso completa>: establece la secuencia de comandos en cuestión en la ruta de acceso determinada\n   default: imprime la ruta de acceso predeterminada de la secuencia de comandos en cuestión\n   current: imprime la ruta de acceso actual de la secuencia de comandos en cuestión\n"
+
+help.stat = "%1$s: imprimir información útil sobre hosts e invitados\nUso: %2$s %3$s <subcomando>\n\nSubcomandos:\n   hosttime: imprime la hora del host\n   speed: imprime la velocidad de la CPU en MHz\nSubcomandos solo de invitados de ESX:\n   sessionid: imprime el identificador de sesión actual\n   balloon: imprime información de aumento de memoria\n   swap: imprime información de intercambio de memoria\n   memlimit: imprime información de límite de memoria\n   memres: imprime información de reserva de memoria\n   cpures: imprime información de reserva de la CPU\n   cpulimit: imprime información del límite de la CPU\n   raw [<codificación> <nombre de estadísticas>]: imprime información de estadísticas sin formato\n      <codificación> puede ser uno de  'text', 'json', 'xml', 'yaml'.\n      <nombre de estadísticas> incluye sesión, host, recursos, vscsi y\n      vnet (Algunas estadísticas como vscsi son dos palabras, por ejemplo, 'vscsi scsi0:0').\n      Imprime las estadísticas disponibles si no se han especificado los argumentos de <codificación> y <nombre de estadísticas>.\n"
+
+help.timesync = "%1$s: funciones para controlar la sincronización horaria en el SO invitado\nUso: %2$s %3$s <subcomando>\n\nSubcomandos:\n   enable: habilita la sincronización horaria\n   disable: deshabilita la sincronización horaria\n   status: imprime el estado de la sincronización horaria\n"
+
+help.upgrade = "%1$s: funciones relacionadas con la actualización de VMware Tools.\nUso: %2$s %3$s <subcomando> [argumentos]\nSubcomandos:\n   status: comprueba el estado de actualización de VMware Tools.\n   start: inicia la actualización automática de VMware Tools.\n\nPara que funcionen las actualizaciones, debe ejecutarse el servicio de VMware Tools.\n"
+
+option.disabled = "Desactivada"
+
+option.enabled = "Activada"
+
+script.notfound = "%1$s no existe.\n"
+
+script.operation = "operación"
+
+script.unknownop = "No existe un script para la operación %1$s.\n"
+
+script.write.error = "Error al escribir la configuración: %1$s\n"
+
+stat.balloon.failed = "Error al obtener la memoria inflada: %1$s\n"
+
+stat.cpumax.failed = "Error al obtener el límite de la CPU: %1$s\n"
+
+stat.cpumin.failed = "Error al obtener el mínimo de la CPU: %1$s\n"
+
+stat.formattime.failed = "No se puede formatear la hora del host.\n"
+
+stat.get.failed = "Error al obtener stat: %1$s\n"
+
+stat.getsession.failed = "Error al obtener identificador de sesión: %1$s\n"
+
+stat.getspeed.failed = "No se puede obtener la velocidad del procesador.\n"
+
+stat.gettime.failed = "No se puede obtener la hora del host.\n"
+
+stat.maxmem.failed = "Error al obtener el límite de memoria: %1$s\n"
+
+stat.memres.failed = "Error al obtener la reserva de memoria: %1$s\n"
+
+stat.memswap.failed = "Error al obtener la memoria intercambiada: %1$s\n"
+
+stat.openhandle.failed = "Error de OpenHandle: %1$s\n"
+
+stat.update.failed = "Error de UpdateInfo: %1$s\n"
+
+stat.processorSpeed.info = "%1$u MHz\n"
+
+stat.memoryBalloon.info = "%1$u MB\n"
+
+stat.memoryReservation.info = "%1$u MB\n"
+
+stat.memorySwapped.info = "%1$u MB\n"
+
+stat.memoryLimit.info = "%1$u MB\n"
+
+stat.cpuReservation.info = "%1$u MHz\n"
+
+stat.cpuLimit.info = "%1$u MHz\n"
+
+upgrade.available = "Está disponible una nueva versión de VMware Tools.\n"
+
+upgrade.error.check_error = "Error al comprobar la disponibilidad de la actualización.\n"
+
+upgrade.error.error = "Error al iniciar la actualización de VMware Tools.\n"
+
+upgrade.error.not_supported = "El host no es compatible con la actualización automática de VMware Tools.\n"
+
+upgrade.error.unknown_reply = "Respuesta de host inesperada: %1$s\n"
+
+upgrade.started = "Se ha iniciado la actualización.\n"
+
+upgrade.uptodate = "VMware Tools está actualizado.\n"
+

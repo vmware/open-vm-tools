@@ -991,7 +991,6 @@ CopyPasteUIX11::LocalGetSelectionFileList(const Gtk::SelectionData& sd)      // 
 {
    utf::string source;
    char *newPath;
-   char *newRelPath;
    size_t newPathLen;
    size_t index = 0;
    DnDFileList fileList;
@@ -1026,6 +1025,8 @@ CopyPasteUIX11::LocalGetSelectionFileList(const Gtk::SelectionData& sd)      // 
    while ((newPath = DnD_UriListGetNextFile(source.c_str(),
                                             &index,
                                             &newPathLen)) != NULL) {
+      char *newRelPath;
+
 #if defined(__linux__)
       if (DnD_UriIsNonFileSchemes(newPath)) {
          /* Try to get local file path for non file uri. */

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -124,7 +124,7 @@
 #endif /* _WIN32 */
 #include "hgfsHelper.h"
 
-#ifdef linux
+#ifdef __linux__
 #include "mntinfo.h"
 #include <sys/vfs.h>
 #endif
@@ -160,6 +160,32 @@
 
 static gboolean gSupportVGAuth = USE_VGAUTH_DEFAULT;
 static gboolean QueryVGAuthConfig(GKeyFile *confDictRef);
+
+#ifdef _WIN32
+/*
+ * Check bug 2508431 for more details. If an application is not built
+ * with proper flags, 'creating a remote thread' to get the process
+ * command line will crash the target process. To avoid any such crash,
+ * 'remote thread' approach is not used by default.
+ *
+ * But 'remote thread' approach can be turned on (for whatever reason)
+ * by setting the following option to true in the tools.conf file.
+ *
+ * For few processes, 'WMI' can provide detailed commandline information.
+ * But using 'WMI' is a heavy weight approach and may affect the CPU
+ * performance and hence it is disabled by default. It can always be
+ * turned on by a setting (as mentioned below) in the tools.conf file.
+ */
+#define VIXTOOLS_CONFIG_USE_REMOTE_THREAD_PROCESS_COMMAND_LINE  \
+      "useRemoteThreadForProcessCommandLine"
+
+#define VIXTOOLS_CONFIG_USE_WMI_PROCESS_COMMAND_LINE  \
+      "useWMIForProcessCommandLine"
+
+#define USE_REMOTE_THREAD_PROCESS_COMMAND_LINE_DEFAULT FALSE
+#define USE_WMI_PROCESS_COMMAND_LINE_DEFAULT FALSE
+
+#endif
 
 #if ALLOW_LOCAL_SYSTEM_IMPERSONATION_BYPASS
 static gchar *gCurrentUsername = NULL;
@@ -1388,14 +1414,14 @@ VixTools_StartProgram(VixCommandRequestHeader *requestMsg, // IN
 
       // add it to the list of started programs
       VixToolsUpdateStartedProgramList(spState);
-   }
 
-   if (NULL != eventQueue) {
-      /*
-       * Register a timer to periodically invalidate any stale
-       * process handles.
-       */
-      VixToolsRegisterProcHandleInvalidator(eventQueue);
+      if (NULL != eventQueue) {
+         /*
+          * Register a timer to periodically invalidate any stale
+          * process handles.
+          */
+         VixToolsRegisterProcHandleInvalidator(eventQueue);
+      }
    }
 
 abort:
@@ -1668,10 +1694,9 @@ VixToolsStartProgramImpl(const char *requestName,            // IN
 #endif
    GSource *timer;
 #if defined(_WIN32) && SUPPORT_VGAUTH
-   HANDLE hToken = INVALID_HANDLE_VALUE;
-   HANDLE hProfile = INVALID_HANDLE_VALUE;
    VGAuthError vgErr;
    VGAuthContext *ctx;
+   Bool holdVGAuthUserProfile;
 #endif
 
    /*
@@ -1787,6 +1812,10 @@ VixToolsStartProgramImpl(const char *requestName,            // IN
     * Save some state for when it completes.
     */
    asyncState = Util_SafeCalloc(1, sizeof *asyncState);
+#if defined(_WIN32) && SUPPORT_VGAUTH
+   asyncState->hToken = INVALID_HANDLE_VALUE;
+   asyncState->hProfile = INVALID_HANDLE_VALUE;
+#endif
 
 #if defined(_WIN32)
    if (NULL != envVars) {
@@ -1839,10 +1868,20 @@ VixToolsStartProgramImpl(const char *requestName,            // IN
     * later cleanup, and clobber the profile handle so that it's not unloaded
     * when the impersonation ends.
     *
-    * Only do this when we've actually impersonated; its not
-    * needed when impersonation isn't done (eg vmusr or SYSTEM bypass).
+    * Only do this when we've actually impersonated via vgauth lib; it's not
+    * needed when impersonation isn't done (eg vmusr or SYSTEM bypass) or
+    * when impersonation is done via lib/impersonate (eg Credential type
+    * VIX_USER_CREDENTIAL_TICKETED_SESSION which is based on Windows
+    * Security Support Provider Interface (SSPI) and started by guestOp
+    * VIX_COMMAND_ACQUIRE_CREDENTIALS)
     */
-   if (GuestAuthEnabled() && PROCESS_CREATOR_USER_TOKEN != userToken) {
+   holdVGAuthUserProfile = GuestAuthEnabled() &&
+                           PROCESS_CREATOR_USER_TOKEN != userToken &&
+                           NULL != currentUserHandle;
+   if (holdVGAuthUserProfile) {
+      HANDLE hToken = INVALID_HANDLE_VALUE;
+      HANDLE hProfile = INVALID_HANDLE_VALUE;
+
       vgErr = TheVGAuthContext(&ctx);
       if (VGAUTH_FAILED(vgErr)) {
          err = VixToolsTranslateVGAuthError(vgErr);
@@ -1864,9 +1903,10 @@ VixToolsStartProgramImpl(const char *requestName,            // IN
          CloseHandle(hToken);
          goto abort;
       }
+
+      asyncState->hToken = hToken;
+      asyncState->hProfile = hProfile;
    }
-   asyncState->hToken = hToken;
-   asyncState->hProfile = hProfile;
 #endif
 
    asyncState->procState = ProcMgr_ExecAsync(fullCommandLine, &procArgs);
@@ -1893,7 +1933,7 @@ VixToolsStartProgramImpl(const char *requestName,            // IN
    /*
     * Clobber the profile handle before un-impersonation.
     */
-   if (GuestAuthEnabled() && PROCESS_CREATOR_USER_TOKEN != userToken) {
+   if (holdVGAuthUserProfile) {
       vgErr = VGAuth_UserHandleSetUserProfile(ctx, currentUserHandle,
                                               INVALID_HANDLE_VALUE);
       if (VGAUTH_FAILED(vgErr)) {
@@ -1903,6 +1943,7 @@ VixToolsStartProgramImpl(const char *requestName,            // IN
          CloseHandle(asyncState->hToken);
          asyncState->hToken = INVALID_HANDLE_VALUE;
          asyncState->hProfile = INVALID_HANDLE_VALUE;
+         ProcMgr_Free(asyncState->procState);
          goto abort;
       }
    }
@@ -2366,7 +2407,6 @@ VixToolsUpdateStartedProgramList(VixToolsStartedProgramState *state)        // I
    /*
     * Find and toss any old records.
     */
-   last = NULL;
    spList = startedProcessList;
    while (spList) {
       /*
@@ -2381,6 +2421,7 @@ VixToolsUpdateStartedProgramList(VixToolsStartedProgramState *state)        // I
                       __FUNCTION__);
          }
       }
+
       if (!spList->isRunning &&
           (spList->endTime < (now - VIX_TOOLS_EXITED_PROGRAM_REAP_TIME))) {
          if (last) {
@@ -5469,9 +5510,10 @@ VixToolsListProcCacheCleanup(void *clientData) // IN
  *-----------------------------------------------------------------------------
  */
 
-VixError
+static VixError
 VixToolsListProcessesExGenerateData(uint32 numPids,          // IN
                                     const uint64 *pids,      // IN
+                                    GKeyFile *confDictRef,   // IN
                                     size_t *resultSize,      // OUT
                                     char **resultBuffer)     // OUT
 {
@@ -5485,6 +5527,11 @@ VixToolsListProcessesExGenerateData(uint32 numPids,          // IN
    int j;
    Bool bRet;
    size_t procCount;
+
+#ifdef _WIN32
+   gboolean useRemoteThreadProcCmdLine;
+   gboolean useWMIProcCmdLine;
+#endif
 
    DynBuf_Init(&dynBuffer);
 
@@ -5552,7 +5599,25 @@ VixToolsListProcessesExGenerateData(uint32 numPids,          // IN
     * return an error code so there's no risk of errno/LastError
     * being clobbered.
     */
+#ifdef _WIN32
+   useRemoteThreadProcCmdLine = VMTools_ConfigGetBoolean(confDictRef,
+                     VIX_TOOLS_CONFIG_API_GROUPNAME,
+                     VIXTOOLS_CONFIG_USE_REMOTE_THREAD_PROCESS_COMMAND_LINE,
+                     USE_REMOTE_THREAD_PROCESS_COMMAND_LINE_DEFAULT);
+
+   useWMIProcCmdLine = VMTools_ConfigGetBoolean(confDictRef,
+                          VIX_TOOLS_CONFIG_API_GROUPNAME,
+                          VIXTOOLS_CONFIG_USE_WMI_PROCESS_COMMAND_LINE,
+                          USE_WMI_PROCESS_COMMAND_LINE_DEFAULT);
+
+   g_debug("Options for process cmdline: useRemoeThread: %d, useWMI: %d\n",
+            useRemoteThreadProcCmdLine, useWMIProcCmdLine);
+
+   procList = ProcMgr_ListProcessesEx(useRemoteThreadProcCmdLine,
+                                      useWMIProcCmdLine);
+#else
    procList = ProcMgr_ListProcesses();
+#endif
    if (NULL == procList) {
       err = FoundryToolsDaemon_TranslateSystemErr();
       goto abort;
@@ -5645,9 +5710,10 @@ abort:
  *-----------------------------------------------------------------------------
  */
 
-VixError
+static VixError
 VixToolsListProcessesEx(VixCommandRequestHeader *requestMsg, // IN
                         size_t maxBufferSize,                // IN
+                        GKeyFile *confDictRef,               // IN
                         void *eventQueue,                    // IN
                         char **result)                       // OUT
 {
@@ -5783,7 +5849,7 @@ VixToolsListProcessesEx(VixCommandRequestHeader *requestMsg, // IN
          pids = (uint64 *)((char *)requestMsg + sizeof(*listRequest));
       }
 
-      err = VixToolsListProcessesExGenerateData(numPids, pids,
+      err = VixToolsListProcessesExGenerateData(numPids, pids, confDictRef,
                                                 &fullResultSize,
                                                 &fullResultBuffer);
 
@@ -7684,7 +7750,7 @@ VixToolsRunScript(VixCommandRequestHeader *requestMsg,  // IN
       goto abort;
    }
 
-   if ((NULL != interpreterName) && (*interpreterName)) {
+   if (*interpreterName) {
       fullCommandLine = Str_SafeAsprintf(NULL, // resulting string length
                                      "\"%s\" %s \"%s\"",
                                      interpreterName,
@@ -8869,7 +8935,7 @@ VixToolsListFileSystems(VixCommandRequestHeader *requestMsg, // IN
    char *fileSystemType;
    int i;
 #endif
-#ifdef linux
+#ifdef __linux__
    MNTHANDLE fp;
    DECLARE_MNTINFO(mnt);
    const char *mountfile = NULL;
@@ -8969,6 +9035,12 @@ VixToolsListFileSystems(VixCommandRequestHeader *requestMsg, // IN
          goto abort;
       }
    }
+   /*
+    * Coverity flags this invocation of CLOSE_MNTFILE because the macro does
+    * a test whose results are ignored.  However, it also has a needed side
+    * effect, so this invocation is correct.
+    */
+   /* coverity[no_effect_test] */
    CLOSE_MNTFILE(fp);
 #else
    err = VIX_E_NOT_SUPPORTED;
@@ -9098,29 +9170,14 @@ abort:
 VixError
 VixToolsValidateCredentials(VixCommandRequestHeader *requestMsg)    // IN
 {
-   VixError err = VIX_OK;
+   VixError err;
    void *userToken = NULL;
-   Bool impersonatingVMWareUser = FALSE;
-
-   if (NULL == requestMsg) {
-      ASSERT(0);
-      err = VIX_E_FAIL;
-      goto abort;
-   }
 
    err = VixToolsImpersonateUser((VixCommandRequestHeader *) requestMsg,
                                  TRUE,
                                  &userToken);
-   if (VIX_OK != err) {
-      goto abort;
-   }
-   impersonatingVMWareUser = TRUE;
-
-   g_debug("%s: User: %s\n",
-           __FUNCTION__, IMPERSONATED_USERNAME);
-
-abort:
-   if (impersonatingVMWareUser) {
+   if (VIX_OK == err) {
+      g_debug("%s: User: %s\n", __FUNCTION__, IMPERSONATED_USERNAME);
       VixToolsUnimpersonateUser(userToken);
    }
    VixToolsLogoutUser(userToken);
@@ -10790,10 +10847,10 @@ VixToolsCheckIfAuthenticationTypeEnabled(GKeyFile *confDictRef,     // IN
     * have the one typeName (VIX_TOOLS_CONFIG_AUTHTYPE_AGENTS), and default
     * it to VIX_TOOLS_CONFIG_INFRA_AGENT_DISABLED_DEFAULT.
     */
-   disabled = VixTools_ConfigGetBoolean(confDictRef,
-                                        VIX_TOOLS_CONFIG_API_GROUPNAME,
-                                        authnDisabledName,
-                                        VIX_TOOLS_CONFIG_INFRA_AGENT_DISABLED_DEFAULT);
+   disabled = VMTools_ConfigGetBoolean(confDictRef,
+                                       VIX_TOOLS_CONFIG_API_GROUPNAME,
+                                       authnDisabledName,
+                                       VIX_TOOLS_CONFIG_INFRA_AGENT_DISABLED_DEFAULT);
 
    return !disabled;
 }
@@ -10931,9 +10988,10 @@ VixTools_ProcessVixCommand(VixCommandRequestHeader *requestMsg,   // IN
       ////////////////////////////////////
       case VIX_COMMAND_LIST_PROCESSES_EX:
          err = VixToolsListProcessesEx(requestMsg,
-                                      maxResultBufferSize,
-                                      eventQueue,
-                                      &resultValue);
+                                       maxResultBufferSize,
+                                       confDictRef,
+                                       eventQueue,
+                                       &resultValue);
          deleteResultValue = TRUE;
          break;
 
@@ -11762,6 +11820,12 @@ done:
 
    if (VIX_OK != err) {
       if (impersonated) {
+
+         /*
+          * Coverity flags this as dead code on non-Windows platforms,
+          * where impersonated can't be TRUE if VIX_OK != err.
+          */
+         /* coverity[dead_error_begin] */
          vgErr = VGAuth_EndImpersonation(ctx);
          ASSERT(vgErr == VGAUTH_E_OK);
       }
@@ -11849,8 +11913,8 @@ GuestAuthSAMLAuthenticateAndImpersonate(
    /*
     * If the config is off, bypass the special-case.
     */
-   if (!VixTools_ConfigGetBoolean(gConfDictRef,
-                                  VIX_TOOLS_CONFIG_API_GROUPNAME,
+   if (!VMTools_ConfigGetBoolean(gConfDictRef,
+                      VIX_TOOLS_CONFIG_API_GROUPNAME,
                       VIXTOOLS_CONFIG_ALLOW_LOCAL_SYSTEM_IMPERSONATION_BYPASS,
                       ALLOW_LOCAL_SYSTEM_IMPERSONATION_BYPASS_DEFAULT)) {
       g_debug("%s: SAML authn failed, %s not set, skipping local SYSTEM check",
@@ -11921,6 +11985,12 @@ done:
 
    if (VIX_OK != err) {
       if (impersonated) {
+
+         /*
+          * Coverity flags this as dead code on non-Windows platforms,
+          * where impersonated can't be TRUE if VIX_OK != err.
+          */
+         /* coverity[dead_error_begin] */
          vgErr = VGAuth_EndImpersonation(ctx);
          ASSERT(vgErr == VGAUTH_E_OK);
       }
@@ -11969,54 +12039,6 @@ GuestAuthUnimpersonate(void)
 }
 
 
-/**
- *-----------------------------------------------------------------------------
- * VixTools_ConfigGetBoolean
- *
- *    Get boolean entry for the key from the config file.
- *
- * Return value:
- *    Value for the key if key is found; otherwise defValue.
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-gboolean
-VixTools_ConfigGetBoolean(GKeyFile *confDictRef,      // IN
-                          const char *group,          // IN
-                          const char *key,            // IN
-                          gboolean defValue)          // IN
-{
-   GError *gErr = NULL;
-   gboolean value = defValue;
-
-   ASSERT(confDictRef != NULL && group != NULL && key != NULL);
-
-   if (confDictRef == NULL || group == NULL || key == NULL) {
-      goto done;
-   }
-
-   value = g_key_file_get_boolean(confDictRef, group, key, &gErr);
-
-   /*
-    * g_key_file_get_boolean() will return FALSE and set an error
-    * if the value isn't in config, so use the default in that
-    * case.
-    */
-   if (!value && gErr != NULL) {
-      g_clear_error(&gErr);
-      value = defValue;
-   }
-
-done:
-
-   return value;
-}
-
-
 #if SUPPORT_VGAUTH
 /*
  *-----------------------------------------------------------------------------
@@ -12040,10 +12062,10 @@ QueryVGAuthConfig(GKeyFile *confDictRef)                       // IN
    gboolean retVal = USE_VGAUTH_DEFAULT;
 
    if (confDictRef != NULL) {
-      retVal = VixTools_ConfigGetBoolean(confDictRef,
-                                         VIX_TOOLS_CONFIG_API_GROUPNAME,
-                                         VIXTOOLS_CONFIG_USE_VGAUTH_NAME,
-                                         USE_VGAUTH_DEFAULT);
+      retVal = VMTools_ConfigGetBoolean(confDictRef,
+                                        VIX_TOOLS_CONFIG_API_GROUPNAME,
+                                        VIXTOOLS_CONFIG_USE_VGAUTH_NAME,
+                                        USE_VGAUTH_DEFAULT);
    }
 
    g_message("%s: vgauth usage is: %d\n", __FUNCTION__, retVal);

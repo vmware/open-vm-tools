@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016,2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -136,7 +136,7 @@ HgfsBd_GetBuf(void)
 char *
 HgfsBd_GetLargeBuf(void)
 {
-   return HgfsBdGetBufInt(HGFS_LARGE_PACKET_MAX);
+   return HgfsBdGetBufInt(HgfsLargePacketMax(FALSE));
 }
 
 
@@ -279,7 +279,7 @@ HgfsBd_Dispatch(RpcOut *out,            // IN: Channel to send on
       return -1;
    }
 
-   ASSERT(replyLen <= HGFS_LARGE_PACKET_MAX);
+   ASSERT(replyLen <= HgfsLargePacketMax(TRUE));
    *packetOut = reply;
    *packetSize = replyLen;
 
@@ -324,7 +324,7 @@ HgfsBd_Enabled(RpcOut *out,         // IN: RPCI Channel
                          HGFS_CLIENT_CMD_LEN,
                          &rpcStatus, &replyPacket, &replyLen);
    if (success && rpcStatus) {
-      ASSERT(replyLen <= HGFS_LARGE_PACKET_MAX);
+      ASSERT(replyLen <= HgfsLargePacketMax(TRUE));
    }
 
    return success && rpcStatus;

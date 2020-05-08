@@ -156,7 +156,6 @@ CopyPasteSelectionRemoveTarget(GtkWidget *widget,
                                GdkAtom target)
 {
    const char *selection_handler_key = "gtk-selection-handlers";
-   struct SelectionTargetList *targetList;
    GList *tempList;
    GList *selectionLists;
 
@@ -169,7 +168,7 @@ CopyPasteSelectionRemoveTarget(GtkWidget *widget,
    tempList = selectionLists;
    while (tempList) {
       /* Enumerate the list to find the selection. */
-      targetList = tempList->data;
+      struct SelectionTargetList *targetList = tempList->data;
       if (targetList->selection == selection) {
          /* Remove target. */
          gtk_target_list_remove(targetList->list, target);
@@ -681,11 +680,8 @@ void
 CopyPasteSetBackdoorSelections(void)
 {
    uint32 const *p;
-   size_t len;
-   size_t aligned_len;
    size_t primaryLen;
    size_t clipboardLen;
-   unsigned int i;
 
    primaryLen = strlen(gGuestSelPrimaryBuf);
    clipboardLen = strlen(gGuestSelClipboardBuf);
@@ -716,7 +712,10 @@ CopyPasteSetBackdoorSelections(void)
       CopyPaste_SetSelLength(0);
       g_debug("CopyPasteSetBackdoorSelections Set empty text.\n");
    } else {
-      len = strlen((char *)p);
+      size_t len = strlen((char *)p);
+      size_t aligned_len;
+      unsigned int i;
+
       g_debug("CopyPasteSetBackdoorSelections Set text [%s].\n", (char *)p);
       aligned_len = (len + 4) & ~3;
 

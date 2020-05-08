@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016,2018-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016,2018-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -72,11 +72,17 @@ typedef struct RpcChannelInt {
 static gboolean gUseBackdoorOnly = FALSE;
 
 /*
- * Track the vSocket connection failure, so that we can
- * avoid using vSockets until a channel reset/restart or
- * the service itself gets restarted.
+ * Delay in seconds before retrying vSocket after
+ * falling back to Backdoor (min=2sec, max=5min).
+ *
+ * Trying vSocket when it is not working can lead to
+ * futile attempts with almost each attempt taking 2s
+ * to timeout. To avoid this delay, don't attempt to use
+ * vSocket for a while.
  */
-static gboolean gVSocketFailed = FALSE;
+#define RPCCHANNEL_VSOCKET_RETRY_MIN_DELAY    (2)
+#define RPCCHANNEL_VSOCKET_RETRY_MAX_DELAY    (5 * 60)
+
 
 static void RpcChannelStopNoLock(RpcChannel *chan);
 
@@ -128,9 +134,12 @@ RpcChannelRestart(gpointer _chan)
 
    RpcChannelStopNoLock(&chan->impl);
 
-   /* Clear vSocket channel failure */
-   Log(LGPFX "Clearing backdoor behavior ...\n");
-   gVSocketFailed = FALSE;
+   if (chan->impl.vsockFailureTS != 0) {
+      /* Clear vSocket channel failure */
+      Log(LGPFX "Clearing backdoor behavior ...\n");
+      chan->impl.vsockFailureTS = 0;
+      chan->impl.vsockRetryDelay = RPCCHANNEL_VSOCKET_RETRY_MIN_DELAY;
+   }
 
    chanStarted = RpcChannel_Start(&chan->impl);
    g_mutex_unlock(&chan->impl.outLock);
@@ -186,8 +195,12 @@ RpcChannelCheckReset(gpointer _chan)
    /* Reset was successful. */
    Log(LGPFX "Channel was reset successfully.\n");
    chan->rpcResetErrorCount = 0;
-   Log(LGPFX "Clearing backdoor behavior ...\n");
-   gVSocketFailed = FALSE;
+
+   if (chan->impl.vsockFailureTS != 0) {
+      Log(LGPFX "Clearing backdoor behavior ...\n");
+      chan->impl.vsockFailureTS = 0;
+      chan->impl.vsockRetryDelay = RPCCHANNEL_VSOCKET_RETRY_MIN_DELAY;
+   }
 
    if (chan->resetCb != NULL) {
       chan->resetCb(&chan->impl, TRUE, chan->resetData);
@@ -296,6 +309,12 @@ RpcChannelXdrWrapper(RpcInData *data,
 
       if (!xdrProc(&xdrs, copy.result, 0)) {
          ret = RPCIN_SETRETVALS(data, "XDR serialization failed.", FALSE);
+
+         /*
+          * DynXdr_Destroy only tries to free storage returned by a call to
+          * DynXdr_Create(NULL).
+          */
+         /* coverity[address_free] */
          DynXdr_Destroy(&xdrs, TRUE);
          goto exit;
       }
@@ -306,6 +325,12 @@ RpcChannelXdrWrapper(RpcInData *data,
       data->result = DynXdr_Get(&xdrs);
       data->resultLen = XDR_GETPOS(&xdrs);
       data->freeResult = TRUE;
+
+      /*
+       * DynXdr_Destroy only tries to free storage returned by a call to
+       * DynXdr_Create(NULL).
+       */
+      /* coverity[address_free] */
       DynXdr_Destroy(&xdrs, FALSE);
    }
 
@@ -362,6 +387,12 @@ RpcChannel_BuildXdrCommand(const char *cmd,
    ret = TRUE;
 
 exit:
+
+   /*
+    * DynXdr_Destroy only tries to free storage returned by a call to
+    * DynXdr_Create(NULL).
+    */
+   /* coverity[address_free] */
    DynXdr_Destroy(&xdrs, !ret);
    return ret;
 }
@@ -380,7 +411,7 @@ exit:
 gboolean
 RpcChannel_Dispatch(RpcInData *data)
 {
-   char *name = NULL;
+   char *name;
    unsigned int index = 0;
    size_t nameLen;
    Bool status;
@@ -612,8 +643,8 @@ RpcChannelClearError(void *_chan)
 {
    RpcChannelInt *chan = _chan;
 
-   Debug(LGPFX " %s: Clearing cumulative RpcChannel error count; was %d\n",
-         __FUNCTION__, chan->rpcFailureCount);
+   Debug(LGPFX "Clearing cumulative RpcChannel error count; was %d\n",
+         chan->rpcFailureCount);
    chan->rpcFailureCount = 0;
 }
 
@@ -679,6 +710,7 @@ RpcChannel *
 RpcChannel_Create(void)
 {
    RpcChannelInt *chan = g_new0(RpcChannelInt, 1);
+   chan->impl.vsockRetryDelay = RPCCHANNEL_VSOCKET_RETRY_MIN_DELAY;
    return &chan->impl;
 }
 
@@ -790,6 +822,26 @@ RpcChannel_SetBackdoorOnly(void)
 
 
 /**
+ * Create a one-off RpcChannel instance using a prefered channel implementation,
+ * currently this is VSockChannel.
+ *
+ * @return  RpcChannel
+ */
+
+static RpcChannel *
+RpcChannel_NewOne(int flags)
+{
+   RpcChannel *chan;
+#if (defined(__linux__) && !defined(USERWORLD)) || defined(_WIN32)
+   chan = gUseBackdoorOnly ? BackdoorChannel_New() : VSockChannel_New(flags);
+#else
+   chan = BackdoorChannel_New();
+#endif
+   return chan;
+}
+
+
+/**
  * Create an RpcChannel instance using a prefered channel implementation,
  * currently this is VSockChannel.
  *
@@ -799,14 +851,7 @@ RpcChannel_SetBackdoorOnly(void)
 RpcChannel *
 RpcChannel_New(void)
 {
-   RpcChannel *chan;
-#if (defined(__linux__) && !defined(USERWORLD)) || defined(_WIN32)
-   chan = (gUseBackdoorOnly || gVSocketFailed) ?
-          BackdoorChannel_New() : VSockChannel_New();
-#else
-   chan = BackdoorChannel_New();
-#endif
-   return chan;
+   return RpcChannel_NewOne(0);
 }
 
 
@@ -846,18 +891,50 @@ RpcChannel_Start(RpcChannel *chan)
 #endif
 
    funcs = chan->funcs;
+
+#if (defined(__linux__) && !defined(USERWORLD)) || defined(_WIN32)
+   if (!gUseBackdoorOnly && chan->isMutable &&
+       funcs->getType(chan) == RPCCHANNEL_TYPE_BKDOOR) {
+      /*
+       * Try vsocket first for mutable channel.
+       * Existing channel needs to be destroyed before switching.
+       */
+      Log(LGPFX "Restore vsocket RpcOut channel ...\n");
+      funcs->destroy(chan);
+      VSockChannel_Restore(chan, chan->vsockChannelFlags);
+      funcs = chan->funcs;
+   }
+#endif
+
    ok = funcs->start(chan);
 
-   if (!ok && funcs->onStartErr != NULL) {
-      Log(LGPFX "Fallback to backdoor ...\n");
-      funcs->onStartErr(chan);
-      ok = BackdoorChannel_Fallback(chan);
+   /*
+    * Try to fallback to Backdoor channel if the failed
+    * channel is mutable and is not a Backdoor channel.
+    */
+   if (!ok && chan->isMutable &&
+       funcs->getType(chan) != RPCCHANNEL_TYPE_BKDOOR) {
+      Log(LGPFX "Fallback to backdoor RpcOut channel ...\n");
+      funcs->destroy(chan);
+      BackdoorChannel_Fallback(chan);
+      funcs = chan->funcs;
+      ok = funcs->start(chan);
+
       /*
        * As vSocket is not available, we stick the backdoor
-       * behavior until the channel is reset/restarted.
+       * behavior until the channel is reset/restarted or
+       * retry delay has passed.
        */
-      Log(LGPFX "Sticking backdoor behavior ...\n");
-      gVSocketFailed = TRUE;
+      chan->vsockFailureTS = time(NULL);
+      /*
+       * Backoff retry attempts. Cap the delay at max value.
+       */
+      chan->vsockRetryDelay *= 2;
+      if (chan->vsockRetryDelay > RPCCHANNEL_VSOCKET_RETRY_MAX_DELAY) {
+         chan->vsockRetryDelay = RPCCHANNEL_VSOCKET_RETRY_MAX_DELAY;
+      }
+      Log(LGPFX "Sticking backdoor RpcOut channel for %u seconds.\n",
+          chan->vsockRetryDelay);
    }
 
    return ok;
@@ -983,18 +1060,55 @@ RpcChannel_Send(RpcChannel *chan,
       *resultLen = 0;
    }
 
+#if (defined(__linux__) && !defined(USERWORLD)) || defined(_WIN32)
+   if (chan->isMutable &&
+       funcs->getType(chan) == RPCCHANNEL_TYPE_BKDOOR) {
+      /*
+       * Switch the channel type if it has been long enough
+       * time since last vsocket failure.
+       */
+      gboolean tryVSocket = (chan->vsockFailureTS == 0 ||
+                             (time(NULL) - chan->vsockFailureTS) >=
+                             chan->vsockRetryDelay);
+      if (tryVSocket && funcs->stop != NULL) {
+         Log(LGPFX "Stop backdoor RpcOut channel and try vsock again ...\n");
+         /*
+          * Stop existing RpcOut channel and start it again.
+          * RpcChannel_Start will switch it to vsocket when
+          * possible or fallback to Backdoor again.
+          */
+         funcs->stop(chan);
+         if (!RpcChannel_Start(chan)) {
+            ok = FALSE;
+            goto exit;
+         }
+         funcs = chan->funcs;
+         ASSERT(funcs->send);
+      }
+   }
+#endif
+
    ok = funcs->send(chan, data, dataLen, &rpcStatus, &res, &resLen);
 
    if (!ok && (funcs->getType(chan) != RPCCHANNEL_TYPE_BKDOOR) &&
-       (funcs->stopRpcOut != NULL)) {
+       (funcs->stop != NULL)) {
 
       free(res);
       res = NULL;
       resLen = 0;
 
       /* retry once */
-      Log(LGPFX "Stop RpcOut channel and try to send again ...\n");
-      funcs->stopRpcOut(chan);
+      Log(LGPFX "Stop vsock RpcOut channel and try to send again ...\n");
+      funcs->stop(chan);
+      /*
+       * This is first send failure on vsocket RpcOut channel.
+       * So, we re-init the failure timestamp and retry delay
+       * because RpcChannel_Start tries vsocket first. In case
+       * RpcChannel_Start falls back to Backdoor these will be
+       * set appropriately.
+       */
+      chan->vsockFailureTS = 0;
+      chan->vsockRetryDelay = RPCCHANNEL_VSOCKET_RETRY_MIN_DELAY;
       if (RpcChannel_Start(chan)) {
          /* The channel may get switched from vsocket to backdoor */
          funcs = chan->funcs;
@@ -1050,11 +1164,14 @@ RpcChannelSendOneRaw(const char *data,
 {
    RpcChannel *chan;
    gboolean status = FALSE;
+   int flags;
 
+   flags = RPCCHANNEL_FLAGS_SEND_ONE;
 #if (defined(__linux__) && !defined(USERWORLD)) || defined(_WIN32)
-   chan = priv ? VSockChannel_New() : RpcChannel_New();
+   flags |= RPCCHANNEL_FLAGS_FAST_CLOSE;
+   chan = priv ? VSockChannel_New(flags) : RpcChannel_NewOne(flags);
 #else
-   chan = RpcChannel_New();
+   chan = RpcChannel_NewOne(flags);
 #endif
 
    if (chan == NULL) {

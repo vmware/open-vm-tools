@@ -503,7 +503,7 @@ typedef struct VMCIQueueHeader {
 /* Architecture independent maximum queue size. */
 #define QP_MAX_QUEUE_SIZE_ARCH_ANY   CONST64U(0xffffffff)
 
-#ifdef __x86_64__
+#ifdef VM_64BIT
 #  define QP_MAX_QUEUE_SIZE_ARCH     CONST64U(0xffffffffffffffff)
 #  define QPAtomic_ReadOffset(x)     Atomic_Read64(x)
 #  define QPAtomic_WriteOffset(x, y) Atomic_Write64(x, y)

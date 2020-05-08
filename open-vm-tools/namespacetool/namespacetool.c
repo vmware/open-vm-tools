@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2016-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2016-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -154,10 +154,11 @@ ValidateNSCommands(const gchar *cmdName)
 static void
 PrintInternalCommand(const char *data, size_t dataSize)
 {
-   int readCounter = 0;
    char *tmp = NULL;
    char *printBuf = NULL;
    if (dataSize > 0) {
+      int readCounter = 0;
+
       printBuf = (char *) calloc((int)dataSize, sizeof(char));
       if (printBuf == NULL) {
          fprintf(stderr, "Out of memory error");
@@ -233,6 +234,7 @@ GetValueFromStdin(gchar **data, gsize *length)
       *length = 0;
    }
    g_free(gErr);
+   g_io_channel_unref(iochannel);
    return retVal;
 }
 
@@ -256,8 +258,7 @@ static Bool
 GetValueFromFile(const char *filePath, char **fileContents, gsize *length)
 {
    GError *gErr = NULL;
-   Bool retVal = FALSE;
-   retVal = g_file_get_contents(filePath, fileContents, length, &gErr);
+   Bool retVal = g_file_get_contents(filePath, fileContents, length, &gErr);
    if (retVal == FALSE) {
       fprintf(stderr, "%s: %s: %s\n", gAppName,
               (gErr != NULL ? gErr->message : "Failed while reading file"),
@@ -528,8 +529,8 @@ static gboolean
 PostVerifySetKeyOptions(GOptionContext *context, GOptionGroup *group,
                         gpointer data, GError **error)
 {
-   int usedOptions = 0;
    NamespaceOptionsState *nsOptions;
+
    ASSERT(data);
    nsOptions = (NamespaceOptionsState *) data;
 
@@ -544,6 +545,8 @@ PostVerifySetKeyOptions(GOptionContext *context, GOptionGroup *group,
       return FALSE;
    }
    if (g_strcmp0(nsOptions->cmdName, NSDB_SET_KEY_USER_CMD) == 0) {
+      int usedOptions = 0;
+
       if (nsOptions->keyName == NULL) {
          g_set_error(error, G_OPTION_ERROR, G_OPTION_ERROR_BAD_VALUE,
                      "Key name must be specified");

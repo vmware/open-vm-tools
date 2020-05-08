@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -69,16 +69,6 @@
 #endif
 
 typedef Bool (*SafeCheckFn)(void);
-
-#if !defined(WINNT_DDK)
-static const struct {
-   const char *vendorSig;
-   const char *hypervisorName;
-} gHvVendor[] = {
-   {CPUID_KVM_HYPERVISOR_VENDOR_STRING, "Linux KVM"},
-   {CPUID_XEN_HYPERVISOR_VENDOR_STRING, "Xen"},
-};
-#endif
 
 
 #if !defined(_WIN32)
@@ -273,6 +263,7 @@ VmCheck_IsVirtualWorld(void)
    uint32 dummy;
 
 #if !defined(WINNT_DDK)
+#if defined VM_X86_ANY
    char *hypervisorSig;
    uint32 i;
 
@@ -284,10 +275,18 @@ VmCheck_IsVirtualWorld(void)
    if (hypervisorSig == NULL ||
          Str_Strcmp(hypervisorSig, CPUID_VMWARE_HYPERVISOR_VENDOR_STRING) != 0) {
       if (hypervisorSig != NULL) {
-         for (i = 0; i < ARRAYSIZE(gHvVendor); i++) {
-            if (Str_Strcmp(hypervisorSig, gHvVendor[i].vendorSig) == 0) {
+         static const struct {
+            const char *vendorSig;
+            const char *hypervisorName;
+         } hvVendors[] = {
+            { CPUID_KVM_HYPERVISOR_VENDOR_STRING, "Linux KVM" },
+            { CPUID_XEN_HYPERVISOR_VENDOR_STRING, "Xen" },
+         };
+
+         for (i = 0; i < ARRAYSIZE(hvVendors); i++) {
+            if (Str_Strcmp(hypervisorSig, hvVendors[i].vendorSig) == 0) {
                Debug("%s: detected %s.\n", __FUNCTION__,
-                     gHvVendor[i].hypervisorName);
+                     hvVendors[i].hypervisorName);
                free(hypervisorSig);
                return FALSE;
             }
@@ -309,6 +308,7 @@ VmCheck_IsVirtualWorld(void)
    } else {
       free(hypervisorSig);
    }
+#endif
 
    if (!VmCheckSafe(Hostinfo_TouchBackDoor)) {
       Debug("%s: backdoor not detected.\n", __FUNCTION__);

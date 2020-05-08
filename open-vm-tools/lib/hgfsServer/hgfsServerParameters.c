@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -149,7 +149,7 @@ HgfsValidateReplySize(char const *packetIn,
 
    if (HGFS_OP_NEW_HEADER != request->op) {
       if (HGFS_OP_READ_V3 == op) {
-         result = packetSize <= HGFS_LARGE_PACKET_MAX;
+         result = packetSize <= HgfsLargePacketMax(FALSE);
       } else {
          result = packetSize <= HGFS_PACKET_MAX;
       }
@@ -157,7 +157,7 @@ HgfsValidateReplySize(char const *packetIn,
       result = TRUE;
    }
    if (!result) {
-      LOG(4, ("%s: Reply exceeded maximum support size!\n", __FUNCTION__));
+      LOG(4, "%s: Reply exceeded maximum support size!\n", __FUNCTION__);
    }
    return result;
 }
@@ -307,23 +307,23 @@ HgfsUnpackHeaderV4(const HgfsHeader *requestHeader,   // IN: request header
    HgfsInternalStatus status = HGFS_ERROR_SUCCESS;
 
    if (requestSize < sizeof *requestHeader) {
-      LOG(4, ("%s: Malformed HGFS packet received - header is too small!\n",
-              __FUNCTION__));
+      LOG(4, "%s: Malformed HGFS packet received - header is too small!\n",
+          __FUNCTION__);
       status = HGFS_ERROR_PROTOCOL;
       goto exit;
    }
 
    if (requestSize < requestHeader->packetSize ||
        requestHeader->packetSize < requestHeader->headerSize) {
-      LOG(4, ("%s: Malformed HGFS packet received - inconsistent header"
-              " and packet sizes!\n", __FUNCTION__));
+      LOG(4, "%s: Malformed HGFS packet received - inconsistent header "
+          "and packet sizes!\n", __FUNCTION__);
       status = HGFS_ERROR_PROTOCOL;
       goto exit;
    }
 
    if (HGFS_HEADER_VERSION_1 > requestHeader->version) {
-      LOG(4, ("%s: Malformed HGFS packet received - invalid header version!\n",
-              __FUNCTION__));
+      LOG(4, "%s: Malformed HGFS packet received - invalid header version!\n",
+          __FUNCTION__);
       status = HGFS_ERROR_PROTOCOL;
       goto exit;
    }
@@ -399,15 +399,15 @@ HgfsUnpackPacketParams(const void *packet,      // IN: HGFS packet
    ASSERT(NULL != packet);
 
    request = packet;
-   LOG(4, ("%s: Received a request with opcode %d.\n", __FUNCTION__, request->op));
+   LOG(4, "%s: Received a request with opcode %d.\n", __FUNCTION__, request->op);
 
    /*
     * Error out if less than HgfsRequest size.
     * We cannot continue any further with this packet.
     */
    if (packetSize < sizeof *request) {
-      LOG(4, ("%s: Received a request with opcode %"FMTSZ"u.\n",
-              __FUNCTION__, packetSize));
+      LOG(4, "%s: Received a request with opcode %"FMTSZ"u.\n",
+          __FUNCTION__, packetSize);
       unpackStatus = HGFS_ERROR_INTERNAL;
       goto exit;
    }
@@ -457,14 +457,14 @@ HgfsUnpackPacketParams(const void *packet,      // IN: HGFS packet
       }
 
    } else {
-      LOG(4, ("%s: HGFS packet - unknown opcode == newer client or malformed!\n",
-              __FUNCTION__));
+      LOG(4, "%s: HGFS packet - unknown opcode == newer client or malformed!\n",
+          __FUNCTION__);
       unpackStatus = HGFS_ERROR_INTERNAL;
    }
 
 exit:
-   LOG(4, ("%s: unpacked request(op %d, id %u) -> %u.\n", __FUNCTION__,
-           request->op, *requestId, unpackStatus));
+   LOG(4, "%s: unpacked request(op %d, id %u) -> %u.\n", __FUNCTION__,
+       request->op, *requestId, unpackStatus);
    return unpackStatus;
 }
 
@@ -496,7 +496,8 @@ HgfsUnpackOpenPayloadV1(const HgfsRequestOpen *requestV1, // IN: request payload
 
    /* Enforced by the dispatch function. */
    if (payloadSize < sizeof *requestV1) {
-      LOG(4, ("%s: Malformed HGFS packet received - payload too small\n", __FUNCTION__));
+      LOG(4, "%s: Malformed HGFS packet received - payload too small\n",
+          __FUNCTION__);
       return FALSE;
    }
 
@@ -508,7 +509,8 @@ HgfsUnpackOpenPayloadV1(const HgfsRequestOpen *requestV1, // IN: request payload
     */
    if (requestV1->fileName.length > extra) {
       /* The input packet is smaller than the request. */
-      LOG(4, ("%s: Malformed HGFS packet received - payload too small to hold file name\n", __FUNCTION__));
+      LOG(4, "%s: Malformed HGFS packet received - payload too small to hold file name\n",
+          __FUNCTION__);
       return FALSE;
    }
 
@@ -553,7 +555,8 @@ HgfsUnpackOpenPayloadV2(const HgfsRequestOpenV2 *requestV2, // IN: request paylo
 
    /* Enforced by the dispatch function. */
    if (payloadSize < sizeof *requestV2) {
-      LOG(4, ("%s: Malformed HGFS packet received - payload too small\n", __FUNCTION__));
+      LOG(4, "%s: Malformed HGFS packet received - payload too small\n",
+          __FUNCTION__);
       return FALSE;
    }
 
@@ -561,7 +564,8 @@ HgfsUnpackOpenPayloadV2(const HgfsRequestOpenV2 *requestV2, // IN: request paylo
 
    if (!(requestV2->mask & HGFS_OPEN_VALID_FILE_NAME)) {
       /* We do not support open requests without a valid file name. */
-      LOG(4, ("%s: Malformed HGFS packet received - invalid mask\n", __FUNCTION__));
+      LOG(4, "%s: Malformed HGFS packet received - invalid mask\n",
+          __FUNCTION__);
       return FALSE;
    }
 
@@ -571,7 +575,8 @@ HgfsUnpackOpenPayloadV2(const HgfsRequestOpenV2 *requestV2, // IN: request paylo
     */
    if (requestV2->fileName.length > extra) {
       /* The input packet is smaller than the request. */
-      LOG(4, ("%s: Malformed HGFS packet received - payload too small to hold file name\n", __FUNCTION__));
+      LOG(4, "%s: Malformed HGFS packet received - payload too small to hold file name\n",
+          __FUNCTION__);
       return FALSE;
    }
 
@@ -626,7 +631,8 @@ HgfsUnpackOpenPayloadV3(const HgfsRequestOpenV3 *requestV3, // IN: request paylo
 
    /* Enforced by the dispatch function. */
    if (payloadSize < sizeof *requestV3) {
-      LOG(4, ("%s: Malformed HGFS packet received - payload too small\n", __FUNCTION__));
+      LOG(4, "%s: Malformed HGFS packet received - payload too small\n",
+          __FUNCTION__);
       return FALSE;
    }
 
@@ -634,7 +640,8 @@ HgfsUnpackOpenPayloadV3(const HgfsRequestOpenV3 *requestV3, // IN: request paylo
 
    if (!(requestV3->mask & HGFS_OPEN_VALID_FILE_NAME)) {
       /* We do not support open requests without a valid file name. */
-      LOG(4, ("%s: Malformed HGFS packet received - incorrect mask\n", __FUNCTION__));
+      LOG(4, "%s: Malformed HGFS packet received - incorrect mask\n",
+          __FUNCTION__);
       return FALSE;
    }
 
@@ -644,7 +651,8 @@ HgfsUnpackOpenPayloadV3(const HgfsRequestOpenV3 *requestV3, // IN: request paylo
     */
    if (requestV3->fileName.length > extra) {
       /* The input packet is smaller than the request. */
-      LOG(4, ("%s: Malformed HGFS packet received - payload too small to hold file name\n", __FUNCTION__));
+      LOG(4, "%s: Malformed HGFS packet received - payload too small to hold file name\n",
+          __FUNCTION__);
       return FALSE;
    }
 
@@ -707,21 +715,21 @@ HgfsUnpackOpenRequest(const void *packet,         // IN: HGFS packet
    switch (op) {
    case HGFS_OP_OPEN_V3: {
          const HgfsRequestOpenV3 *requestV3 = packet;
-         LOG(4, ("%s: HGFS_OP_OPEN_V3\n", __FUNCTION__));
+         LOG(4, "%s: HGFS_OP_OPEN_V3\n", __FUNCTION__);
 
          result = HgfsUnpackOpenPayloadV3(requestV3, packetSize, openInfo);
          break;
       }
    case HGFS_OP_OPEN_V2: {
          const HgfsRequestOpenV2 *requestV2 = packet;
-         LOG(4, ("%s: HGFS_OP_OPEN_V2\n", __FUNCTION__));
+         LOG(4, "%s: HGFS_OP_OPEN_V2\n", __FUNCTION__);
 
          result = HgfsUnpackOpenPayloadV2(requestV2, packetSize, openInfo);
          break;
       }
    case HGFS_OP_OPEN: {
          const HgfsRequestOpen *requestV1 = packet;
-         LOG(4, ("%s: HGFS_OP_OPEN\n", __FUNCTION__));
+         LOG(4, "%s: HGFS_OP_OPEN\n", __FUNCTION__);
 
          result = HgfsUnpackOpenPayloadV1(requestV1, packetSize, openInfo);
          break;
@@ -732,7 +740,7 @@ HgfsUnpackOpenRequest(const void *packet,         // IN: HGFS packet
    }
 
    if (!result) {
-      LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+      LOG(4, "%s: Error decoding HGFS packet\n", __FUNCTION__);
    }
    return result;
 }
@@ -1043,7 +1051,7 @@ HgfsUnpackClosePayload(const HgfsRequestClose *request,   // IN: payload
                        size_t payloadSize,                // IN: payload size
                        HgfsHandle* file)                  // OUT: HGFS handle to close
 {
-   LOG(4, ("%s: HGFS_OP_CLOSE\n", __FUNCTION__));
+   LOG(4, "%s: HGFS_OP_CLOSE\n", __FUNCTION__);
    if (payloadSize >= sizeof *request) {
       *file = request->file;
       return TRUE;
@@ -1074,12 +1082,12 @@ HgfsUnpackClosePayloadV3(const HgfsRequestCloseV3 *requestV3, // IN: payload
                          size_t payloadSize,                  // IN: payload size
                          HgfsHandle* file)                    // OUT: HGFS handle to close
 {
-   LOG(4, ("%s: HGFS_OP_CLOSE_V3\n", __FUNCTION__));
+   LOG(4, "%s: HGFS_OP_CLOSE_V3\n", __FUNCTION__);
    if (payloadSize >= sizeof *requestV3) {
       *file = requestV3->file;
       return TRUE;
    }
-   LOG(4, ("%s: Too small HGFS packet\n", __FUNCTION__));
+   LOG(4, "%s: Too small HGFS packet\n", __FUNCTION__);
    return FALSE;
 }
 
@@ -1114,7 +1122,7 @@ HgfsUnpackCloseRequest(const void *packet,  // IN: request packet
       const HgfsRequestCloseV3 *requestV3 = packet;
 
       if (!HgfsUnpackClosePayloadV3(requestV3, packetSize, file)) {
-         LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+         LOG(4, "%s: Error decoding HGFS packet\n", __FUNCTION__);
          return FALSE;
       }
       break;
@@ -1123,7 +1131,7 @@ HgfsUnpackCloseRequest(const void *packet,  // IN: request packet
       const HgfsRequestClose *requestV1 = packet;
 
       if (!HgfsUnpackClosePayload(requestV1, packetSize, file)) {
-         LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+         LOG(4, "%s: Error decoding HGFS packet\n", __FUNCTION__);
          return FALSE;
       }
       break;
@@ -1216,12 +1224,12 @@ HgfsUnpackSearchClosePayload(const HgfsRequestSearchClose *request, // IN: paylo
                              size_t payloadSize,                    // IN: payload size
                              HgfsHandle* search)                    // OUT: search to close
 {
-   LOG(4, ("%s: HGFS_OP_SEARCH_CLOSE\n", __FUNCTION__));
+   LOG(4, "%s: HGFS_OP_SEARCH_CLOSE\n", __FUNCTION__);
    if (payloadSize >= sizeof *request) {
       *search = request->search;
       return TRUE;
    }
-   LOG(4, ("%s: Too small HGFS packet\n", __FUNCTION__));
+   LOG(4, "%s: Too small HGFS packet\n", __FUNCTION__);
    return FALSE;
 }
 
@@ -1249,12 +1257,12 @@ HgfsUnpackSearchClosePayloadV3(const HgfsRequestSearchCloseV3 *requestV3, // IN:
                                size_t payloadSize,                        // IN: payload size
                                HgfsHandle* search)                        // OUT: search
 {
-   LOG(4, ("%s: HGFS_OP_SEARCH_CLOSE_V3\n", __FUNCTION__));
+   LOG(4, "%s: HGFS_OP_SEARCH_CLOSE_V3\n", __FUNCTION__);
    if (payloadSize >= sizeof *requestV3) {
       *search = requestV3->search;
       return TRUE;
    }
-   LOG(4, ("%s: Too small HGFS packet\n", __FUNCTION__));
+   LOG(4, "%s: Too small HGFS packet\n", __FUNCTION__);
    return FALSE;
 }
 
@@ -1289,7 +1297,7 @@ HgfsUnpackSearchCloseRequest(const void *packet,   // IN: request packet
       const HgfsRequestSearchCloseV3 *requestV3 = packet;
 
       if (!HgfsUnpackSearchClosePayloadV3(requestV3, packetSize, search)) {
-         LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+         LOG(4, "%s: Error decoding HGFS packet\n", __FUNCTION__);
          return FALSE;
       }
       break;
@@ -1298,7 +1306,7 @@ HgfsUnpackSearchCloseRequest(const void *packet,   // IN: request packet
       const HgfsRequestSearchClose *requestV1 = packet;
 
       if (!HgfsUnpackSearchClosePayload(requestV1, packetSize, search)) {
-         LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+         LOG(4, "%s: Error decoding HGFS packet\n", __FUNCTION__);
          return FALSE;
       }
       break;
@@ -1454,7 +1462,8 @@ HgfsUnpackFileNameV3(const HgfsFileNameV3 *name,   // IN: file name
        */
       if (name->length > maxNameSize) {
          /* The input packet is smaller than the request */
-         LOG(4, ("%s: Error unpacking file name - buffer too small\n", __FUNCTION__));
+         LOG(4, "%s: Error unpacking file name - buffer too small\n",
+             __FUNCTION__);
          return FALSE;
       }
       *cpName = name->name;
@@ -1524,7 +1533,8 @@ HgfsUnpackDeletePayloadV3(const HgfsRequestDeleteV3 *requestV3, // IN: request p
    }
 
 exit:
-   LOG(8, ("%s: unpacking HGFS_OP_DELETE_DIR/FILE_V3 -> %d\n", __FUNCTION__, result));
+   LOG(8, "%s: unpacking HGFS_OP_DELETE_DIR/FILE_V3 -> %d\n", __FUNCTION__,
+       result);
    return result;
 }
 
@@ -1680,7 +1690,7 @@ HgfsUnpackDeleteRequest(const void *packet,      // IN: HGFS packet
                                      hints,
                                      file,
                                      caseFlags)) {
-         LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+         LOG(4, "%s: Error decoding HGFS packet\n", __FUNCTION__);
          return FALSE;
       }
       break;
@@ -1695,7 +1705,7 @@ HgfsUnpackDeleteRequest(const void *packet,      // IN: HGFS packet
                                      cpNameSize,
                                      hints,
                                      file)) {
-         LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+         LOG(4, "%s: Error decoding HGFS packet\n", __FUNCTION__);
          return FALSE;
       }
       break;
@@ -1708,14 +1718,14 @@ HgfsUnpackDeleteRequest(const void *packet,      // IN: HGFS packet
                                      packetSize,
                                      cpName,
                                      cpNameSize)) {
-         LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+         LOG(4, "%s: Error decoding HGFS packet\n", __FUNCTION__);
          return FALSE;
       }
       break;
    }
    default:
       NOT_REACHED();
-      LOG(4, ("%s: Invalid opcode\n", __FUNCTION__));
+      LOG(4, "%s: Invalid opcode\n", __FUNCTION__);
       return FALSE;
    }
 
@@ -1779,7 +1789,7 @@ HgfsPackDeleteReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
       break;
    }
    default:
-      LOG(4, ("%s: invalid op code %d\n", __FUNCTION__, op));
+      LOG(4, "%s: invalid op code %d\n", __FUNCTION__, op);
       result = FALSE;
       NOT_REACHED();
    }
@@ -1825,7 +1835,7 @@ HgfsUnpackRenamePayloadV3(const HgfsRequestRenameV3 *requestV3, // IN: request p
    const HgfsFileNameV3 *newName;
    Bool useHandle;
 
-   LOG(4, ("%s: HGFS_OP_RENAME_V3\n", __FUNCTION__));
+   LOG(4, "%s: HGFS_OP_RENAME_V3\n", __FUNCTION__);
 
    if (payloadSize < sizeof *requestV3) {
       return FALSE;
@@ -1857,7 +1867,7 @@ HgfsUnpackRenamePayloadV3(const HgfsRequestRenameV3 *requestV3, // IN: request p
                              cpOldNameLen,
                              srcFile,
                              oldCaseFlags)) {
-      LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+      LOG(4, "%s: Error decoding HGFS packet\n", __FUNCTION__);
       return FALSE;
    }
    if (useHandle) {
@@ -1874,14 +1884,14 @@ HgfsUnpackRenamePayloadV3(const HgfsRequestRenameV3 *requestV3, // IN: request p
                              cpNewNameLen,
                              targetFile,
                              newCaseFlags)) {
-      LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+      LOG(4, "%s: Error decoding HGFS packet\n", __FUNCTION__);
       return FALSE;
    }
    if (useHandle) {
       *hints |= HGFS_RENAME_HINT_USE_TARGETFILE_DESC;
    }
 
-   LOG(8, ("%s: unpacking HGFS_OP_RENAME_V3 -> success\n", __FUNCTION__));
+   LOG(8, "%s: unpacking HGFS_OP_RENAME_V3 -> success\n", __FUNCTION__);
    return TRUE;
 }
 
@@ -1922,7 +1932,7 @@ HgfsUnpackRenamePayloadV2(const HgfsRequestRenameV2 *requestV2, // IN: request p
 
    /* Enforced by the dispatch function. */
    if (payloadSize < sizeof *requestV2) {
-      LOG(4, ("%s: HGFS packet too small\n", __FUNCTION__));
+      LOG(4, "%s: HGFS packet too small\n", __FUNCTION__);
       return FALSE;
    }
    extra = payloadSize - sizeof *requestV2;
@@ -1944,7 +1954,8 @@ HgfsUnpackRenamePayloadV2(const HgfsRequestRenameV2 *requestV2, // IN: request p
                               extra,
                               cpOldName,
                               cpOldNameLen)) {
-         LOG(4, ("%s: Error decoding HGFS packet - not enough room for file name\n", __FUNCTION__));
+         LOG(4, "%s: Error decoding HGFS packet - not enough room for file name\n",
+             __FUNCTION__);
          return FALSE;
       }
       extra -= *cpOldNameLen;
@@ -1961,7 +1972,8 @@ HgfsUnpackRenamePayloadV2(const HgfsRequestRenameV2 *requestV2, // IN: request p
                               extra,
                               cpNewName,
                               cpNewNameLen)) {
-        LOG(4, ("%s: Error decoding HGFS packet - not enough room for file name\n", __FUNCTION__));
+        LOG(4, "%s: Error decoding HGFS packet - not enough room for file name\n",
+            __FUNCTION__);
         return FALSE;
       }
    }
@@ -2008,7 +2020,8 @@ HgfsUnpackRenamePayloadV1(const HgfsRequestRename *requestV1, // IN: request pay
                            extra,
                            cpOldName,
                            cpOldNameLen)) {
-      LOG(4, ("%s: Error decoding HGFS packet - not enough room for file name\n", __FUNCTION__));
+      LOG(4, "%s: Error decoding HGFS packet - not enough room for file name\n",
+          __FUNCTION__);
       return FALSE;
    }
 
@@ -2085,7 +2098,7 @@ HgfsUnpackRenameRequest(const void *packet,       // IN: HGFS packet
                                      targetFile,
                                      oldCaseFlags,
                                      newCaseFlags)) {
-         LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+         LOG(4, "%s: Error decoding HGFS packet\n", __FUNCTION__);
          return FALSE;
       }
       break;
@@ -2102,7 +2115,7 @@ HgfsUnpackRenameRequest(const void *packet,       // IN: HGFS packet
                                      hints,
                                      srcFile,
                                      targetFile)) {
-         LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+         LOG(4, "%s: Error decoding HGFS packet\n", __FUNCTION__);
          return FALSE;
       }
       break;
@@ -2117,14 +2130,14 @@ HgfsUnpackRenameRequest(const void *packet,       // IN: HGFS packet
                                      cpOldNameLen,
                                      cpNewName,
                                      cpNewNameLen)) {
-         LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+         LOG(4, "%s: Error decoding HGFS packet\n", __FUNCTION__);
          return FALSE;
       }
       break;
    }
 
    default:
-      LOG(4, ("%s: Invalid opcode %d\n", __FUNCTION__, op));
+      LOG(4, "%s: Invalid opcode %d\n", __FUNCTION__, op);
       NOT_REACHED();
       return FALSE;
    }
@@ -2187,7 +2200,7 @@ HgfsPackRenameReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
       break;
    }
    default:
-      LOG(4, ("%s: invalid op code %d\n", __FUNCTION__, op));
+      LOG(4, "%s: invalid op code %d\n", __FUNCTION__, op);
       result = FALSE;
       NOT_REACHED();
    }
@@ -2251,7 +2264,7 @@ HgfsUnpackGetattrPayloadV3(const HgfsRequestGetattrV3 *requestV3,// IN: request 
    }
 
 exit:
-   LOG(8, ("%s: unpacking HGFS_OP_GETATTR_V3 -> %d\n", __FUNCTION__, result));
+   LOG(8, "%s: unpacking HGFS_OP_GETATTR_V3 -> %d\n", __FUNCTION__, result);
    return result;
 }
 
@@ -2477,7 +2490,7 @@ HgfsPackGetattrReplyPayloadV3(HgfsFileAttrInfo *attr,     // IN: attr stucture
                               uint32 utf8TargetNameLen,   // IN: file name length
                               HgfsReplyGetattrV3 *reply) // OUT: payload
 {
-   LOG(4, ("%s: attr type: %u\n", __FUNCTION__, attr->type));
+   LOG(4, "%s: attr type: %u\n", __FUNCTION__, attr->type);
 
    HgfsPackAttrV2(attr, &reply->attr);
    reply->reserved = 0;
@@ -2629,10 +2642,10 @@ HgfsUnpackGetattrRequest(const void *packet,         // IN: HGFS packet
                                       hints,
                                       file,
                                       caseType)) {
-         LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+         LOG(4, "%s: Error decoding HGFS packet\n", __FUNCTION__);
          return FALSE;
       }
-      LOG(4, ("%s: HGFS_OP_GETATTR_V3: %u\n", __FUNCTION__, *caseType));
+      LOG(4, "%s: HGFS_OP_GETATTR_V3: %u\n", __FUNCTION__, *caseType);
       break;
    }
 
@@ -2645,7 +2658,7 @@ HgfsUnpackGetattrRequest(const void *packet,         // IN: HGFS packet
                                       cpNameSize,
                                       hints,
                                       file)) {
-         LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+         LOG(4, "%s: Error decoding HGFS packet\n", __FUNCTION__);
          return FALSE;
       }
       break;
@@ -2655,7 +2668,7 @@ HgfsUnpackGetattrRequest(const void *packet,         // IN: HGFS packet
       const HgfsRequestGetattr *requestV1 = packet;
 
       if (!HgfsUnpackGetattrPayloadV1(requestV1, packetSize, cpName, cpNameSize)) {
-         LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+         LOG(4, "%s: Error decoding HGFS packet\n", __FUNCTION__);
          return FALSE;
       }
       break;
@@ -2736,7 +2749,7 @@ HgfsPackGetattrReply(HgfsPacket *packet,         // IN/OUT: Hgfs Packet
    }
 
    default:
-      LOG(4, ("%s: Invalid GetAttr op.\n", __FUNCTION__));
+      LOG(4, "%s: Invalid GetAttr op.\n", __FUNCTION__);
       NOT_REACHED();
 
       result = FALSE;
@@ -3137,7 +3150,7 @@ HgfsUnpackSearchReadRequest(const void *packet,           // IN: request packet
       *inlineReplyDataSize = 0;
       ASSERT(*replyPayloadSize > 0);
 
-      LOG(4, ("%s: HGFS_OP_SEARCH_READ_V4\n", __FUNCTION__));
+      LOG(4, "%s: HGFS_OP_SEARCH_READ_V4\n", __FUNCTION__);
       break;
    }
 
@@ -3160,7 +3173,7 @@ HgfsUnpackSearchReadRequest(const void *packet,           // IN: request packet
       *replyPayloadSize = HGFS_PACKET_MAX - *baseReplySize;
       *inlineReplyDataSize = *replyPayloadSize;
 
-      LOG(4, ("%s: HGFS_OP_SEARCH_READ_V3\n", __FUNCTION__));
+      LOG(4, "%s: HGFS_OP_SEARCH_READ_V3\n", __FUNCTION__);
       break;
    }
 
@@ -3385,7 +3398,7 @@ HgfsPackSearchReadReplyHeader(HgfsSearchReadInfo *info,    // IN: request info
    }
 
    default: {
-      LOG(4, ("%s: Invalid SearchRead Op.", __FUNCTION__));
+      LOG(4, "%s: Invalid SearchRead Op.", __FUNCTION__);
       NOT_REACHED();
       result = FALSE;
    }
@@ -3453,7 +3466,7 @@ HgfsUnpackSetattrPayloadV3(const HgfsRequestSetattrV3 *requestV3,// IN: request 
    }
 
 exit:
-   LOG(8, ("%s: unpacking HGFS_OP_SETATTR_V3 -> %d\n", __FUNCTION__, result));
+   LOG(8, "%s: unpacking HGFS_OP_SETATTR_V3 -> %d\n", __FUNCTION__, result);
    return result;
 }
 
@@ -3494,7 +3507,7 @@ HgfsUnpackSetattrPayloadV2(const HgfsRequestSetattrV2 *requestV2,// IN: request 
       return FALSE;
    }
 
-   LOG(4, ("%s: unpacking HGFS_OP_SETATTR_V2\n", __FUNCTION__));
+   LOG(4, "%s: unpacking HGFS_OP_SETATTR_V2\n", __FUNCTION__);
 
    *file = HGFS_INVALID_HANDLE;
    *hints = requestV2->hints;
@@ -3541,7 +3554,7 @@ HgfsUnpackSetattrPayloadV1(const HgfsRequestSetattr *requestV1,  // IN: request 
                            size_t *cpNameSize,                   // OUT: cpName size
                            HgfsAttrHint *hints)                  // OUT: setattr hints
 {
-   LOG(4, ("%s: unpacking HGFS_OP_SETATTR\n", __FUNCTION__));
+   LOG(4, "%s: unpacking HGFS_OP_SETATTR\n", __FUNCTION__);
 
    attr->mask = 0;
    attr->mask |= requestV1->update & HGFS_ATTR_SIZE ? HGFS_ATTR_VALID_SIZE : 0;
@@ -3629,7 +3642,7 @@ HgfsUnpackSetattrRequest(const void *packet,       // IN: HGFS packet
                                        hints,
                                        file,
                                        caseType)) {
-         LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+         LOG(4, "%s: Error decoding HGFS packet\n", __FUNCTION__);
          return FALSE;
       }
       break;
@@ -3644,7 +3657,7 @@ HgfsUnpackSetattrRequest(const void *packet,       // IN: HGFS packet
                                        cpNameSize,
                                        hints,
                                        file)) {
-         LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+         LOG(4, "%s: Error decoding HGFS packet\n", __FUNCTION__);
          return FALSE;
       }
       break;
@@ -3657,13 +3670,13 @@ HgfsUnpackSetattrRequest(const void *packet,       // IN: HGFS packet
                                        cpName,
                                        cpNameSize,
                                        hints)) {
-         LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+         LOG(4, "%s: Error decoding HGFS packet\n", __FUNCTION__);
          return FALSE;
       }
       break;
    }
    default:
-      LOG(4, ("%s: Incorrect opcode %d\n", __FUNCTION__, op));
+      LOG(4, "%s: Incorrect opcode %d\n", __FUNCTION__, op);
       NOT_REACHED();
       return FALSE;
    }
@@ -3725,7 +3738,7 @@ HgfsPackSetattrReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
    }
    default:
       result = FALSE;
-      LOG(4, ("%s: invalid op code %d\n", __FUNCTION__, op));
+      LOG(4, "%s: invalid op code %d\n", __FUNCTION__, op);
       NOT_REACHED();
    }
 
@@ -3761,7 +3774,7 @@ HgfsUnpackCreateDirPayloadV3(const HgfsRequestCreateDirV3 *requestV3, // IN: req
     * carefully written to prevent wraparounds.
     */
 
-   LOG(4, ("%s: HGFS_OP_CREATE_DIR_V3\n", __FUNCTION__));
+   LOG(4, "%s: HGFS_OP_CREATE_DIR_V3\n", __FUNCTION__);
    ASSERT(payloadSize >= sizeof *requestV3);
    if (requestV3->fileName.length > payloadSize - sizeof *requestV3) {
       /* The input packet is smaller than the request. */
@@ -3769,7 +3782,7 @@ HgfsUnpackCreateDirPayloadV3(const HgfsRequestCreateDirV3 *requestV3, // IN: req
    }
    if (!(requestV3->mask & HGFS_CREATE_DIR_VALID_FILE_NAME)) {
       /* We do not support requests without a valid file name. */
-      LOG(4, ("%s: Incorrect mask %x\n", __FUNCTION__, (uint32)requestV3->mask));
+      LOG(4, "%s: Incorrect mask %x\n", __FUNCTION__, (uint32)requestV3->mask);
       return FALSE;
    }
 
@@ -3820,7 +3833,7 @@ HgfsUnpackCreateDirPayloadV2(const HgfsRequestCreateDirV2 *requestV2, // IN: req
     * carefully written to prevent wraparounds.
     */
 
-   LOG(4, ("%s: HGFS_OP_CREATE_DIR_V2\n", __FUNCTION__));
+   LOG(4, "%s: HGFS_OP_CREATE_DIR_V2\n", __FUNCTION__);
    ASSERT(payloadSize >= sizeof *requestV2);
    if (requestV2->fileName.length > payloadSize - sizeof *requestV2) {
       /* The input packet is smaller than the request. */
@@ -3828,7 +3841,7 @@ HgfsUnpackCreateDirPayloadV2(const HgfsRequestCreateDirV2 *requestV2, // IN: req
    }
    if (!(requestV2->mask & HGFS_CREATE_DIR_VALID_FILE_NAME)) {
       /* We do not support requests without a valid file name. */
-      LOG(4, ("%s: Incorrect mask %x\n", __FUNCTION__, (uint32)requestV2->mask));
+      LOG(4, "%s: Incorrect mask %x\n", __FUNCTION__, (uint32)requestV2->mask);
       return FALSE;
    }
 
@@ -3878,11 +3891,11 @@ HgfsUnpackCreateDirPayloadV1(const HgfsRequestCreateDir *requestV1, // IN: reque
     * carefully written to prevent wraparounds.
     */
 
-   LOG(4, ("%s: HGFS_OP_CREATE_DIR_V1\n", __FUNCTION__));
+   LOG(4, "%s: HGFS_OP_CREATE_DIR_V1\n", __FUNCTION__);
    ASSERT(payloadSize >= sizeof *requestV1);
    if (requestV1->fileName.length > payloadSize - sizeof *requestV1) {
       /* The input packet is smaller than the request. */
-      LOG(4, ("%s: HGFS packet too small for the file name\n", __FUNCTION__));
+      LOG(4, "%s: HGFS packet too small for the file name\n", __FUNCTION__);
       return FALSE;
    }
 
@@ -3934,7 +3947,7 @@ HgfsUnpackCreateDirRequest(const void *packet,      // IN: incoming packet
       if (!HgfsUnpackCreateDirPayloadV3(requestV3,
                                         packetSize,
                                         info)) {
-         LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+         LOG(4, "%s: Error decoding HGFS packet\n", __FUNCTION__);
          return FALSE;
       }
       break;
@@ -3945,7 +3958,7 @@ HgfsUnpackCreateDirRequest(const void *packet,      // IN: incoming packet
       if (!HgfsUnpackCreateDirPayloadV2(requestV2,
                                         packetSize,
                                         info)) {
-         LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+         LOG(4, "%s: Error decoding HGFS packet\n", __FUNCTION__);
          return FALSE;
       }
       break;
@@ -3955,13 +3968,13 @@ HgfsUnpackCreateDirRequest(const void *packet,      // IN: incoming packet
       if (!HgfsUnpackCreateDirPayloadV1(requestV1,
                                         packetSize,
                                         info)) {
-         LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+         LOG(4, "%s: Error decoding HGFS packet\n", __FUNCTION__);
          return FALSE;
       }
       break;
    }
    default:
-      LOG(4, ("%s: Incorrect opcode %d\n", __FUNCTION__, op));
+      LOG(4, "%s: Incorrect opcode %d\n", __FUNCTION__, op);
       NOT_REACHED();
       return FALSE;
    }
@@ -4026,7 +4039,7 @@ HgfsPackCreateDirReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
    }
    default:
       result = FALSE;
-      LOG(4, ("%s: invalid op code %d\n", __FUNCTION__, op));
+      LOG(4, "%s: invalid op code %d\n", __FUNCTION__, op);
       NOT_REACHED();
    }
 
@@ -4060,9 +4073,9 @@ HgfsUnpackWriteWin32StreamPayloadV3(const HgfsRequestWriteWin32StreamV3 *request
                                     size_t *dataSize,                               // OUT:
                                     Bool *doSecurity)                               // OUT:
 {
-   LOG(4, ("%s: HGFS_OP_WRITE_WIN32_STREAM_V3\n", __FUNCTION__));
+   LOG(4, "%s: HGFS_OP_WRITE_WIN32_STREAM_V3\n", __FUNCTION__);
    if (payloadSize < sizeof *requestV3) {
-      LOG(4, ("%s: HGFS packet too small\n", __FUNCTION__));
+      LOG(4, "%s: HGFS packet too small\n", __FUNCTION__);
       return FALSE;
    }
 
@@ -4074,7 +4087,7 @@ HgfsUnpackWriteWin32StreamPayloadV3(const HgfsRequestWriteWin32StreamV3 *request
       return TRUE;
    }
 
-   LOG(4, ("%s: HGFS packet too small - user data do not fit\n", __FUNCTION__));
+   LOG(4, "%s: HGFS packet too small - user data do not fit\n", __FUNCTION__);
    return FALSE;
 }
 
@@ -4113,7 +4126,7 @@ HgfsUnpackWriteWin32StreamRequest(const void *packet, // IN: incoming packet
 
    if (op != HGFS_OP_WRITE_WIN32_STREAM_V3) {
       /* The only supported version for the moment is V3. */
-      LOG(4, ("%s: Incorrect opcode %d\n", __FUNCTION__, op));
+      LOG(4, "%s: Incorrect opcode %d\n", __FUNCTION__, op);
       NOT_REACHED();
       return FALSE;
    }
@@ -4164,7 +4177,7 @@ HgfsPackWriteWin32StreamReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
       reply->actualSize = actualSize;
       *payloadSize = sizeof *reply;
    } else {
-      LOG(4, ("%s: Incorrect opcode %d\n", __FUNCTION__, op));
+      LOG(4, "%s: Incorrect opcode %d\n", __FUNCTION__, op);
       NOT_REACHED();
       result = FALSE;
    }
@@ -4198,14 +4211,14 @@ HgfsUnpackReadPayload(const HgfsRequestRead *request,    // IN: payload
                       uint64 *offset,                    // OUT: offset to read from
                       uint32 *length)                    // OUT: length of data to read
 {
-   LOG(4, ("%s: HGFS_OP_READ\n", __FUNCTION__));
+   LOG(4, "%s: HGFS_OP_READ\n", __FUNCTION__);
    if (payloadSize >= sizeof *request) {
       *file = request->file;
       *offset = request->offset;
       *length = request->requiredSize;
       return TRUE;
    }
-   LOG(4, ("%s: HGFS packet too small\n", __FUNCTION__));
+   LOG(4, "%s: HGFS packet too small\n", __FUNCTION__);
    return FALSE;
 }
 
@@ -4234,14 +4247,14 @@ HgfsUnpackReadPayloadV3(const HgfsRequestReadV3 *requestV3,  // IN: payload
                         uint64 *offset,                      // OUT: offset to read from
                         uint32 *length)                      // OUT: length of data to read
 {
-   LOG(4, ("%s: HGFS_OP_READ_V3\n", __FUNCTION__));
+   LOG(4, "%s: HGFS_OP_READ_V3\n", __FUNCTION__);
    if (payloadSize >= sizeof *requestV3) {
       *file = requestV3->file;
       *offset = requestV3->offset;
       *length = requestV3->requiredSize;
       return TRUE;
    }
-   LOG(4, ("%s: HGFS packet too small\n", __FUNCTION__));
+   LOG(4, "%s: HGFS packet too small\n", __FUNCTION__);
    return FALSE;
 }
 
@@ -4295,7 +4308,7 @@ HgfsUnpackReadRequest(const void *packet,     // IN: HGFS request
    }
 
    if (!result) {
-      LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+      LOG(4, "%s: Error decoding HGFS packet\n", __FUNCTION__);
    }
 
    return result;
@@ -4329,7 +4342,7 @@ HgfsUnpackWritePayload(const HgfsRequestWrite *request,    // IN: request payloa
                        HgfsWriteFlags *flags,              // OUT: write flags
                        const void **data)                  // OUT: data to be written
 {
-   LOG(4, ("%s: HGFS_OP_WRITE\n", __FUNCTION__));
+   LOG(4, "%s: HGFS_OP_WRITE\n", __FUNCTION__);
    if (payloadSize >= sizeof *request) {
       if (sizeof *request + request->requiredSize - 1 <= payloadSize) {
          *file = request->file;
@@ -4340,7 +4353,7 @@ HgfsUnpackWritePayload(const HgfsRequestWrite *request,    // IN: request payloa
          return TRUE;
       }
    }
-   LOG(4, ("%s: HGFS packet too small\n", __FUNCTION__));
+   LOG(4, "%s: HGFS packet too small\n", __FUNCTION__);
    return FALSE;
 }
 
@@ -4371,7 +4384,7 @@ HgfsUnpackWritePayloadV3(const HgfsRequestWriteV3 *requestV3, // IN: payload
                          HgfsWriteFlags *flags,               // OUT: write flags
                          const void **data)                   // OUT: data to be written
 {
-   LOG(4, ("%s: HGFS_OP_WRITE_V3\n", __FUNCTION__));
+   LOG(4, "%s: HGFS_OP_WRITE_V3\n", __FUNCTION__);
    if (payloadSize >= sizeof *requestV3) {
       if (sizeof *requestV3 + requestV3->requiredSize - 1 <= payloadSize) {
          *file = requestV3->file;
@@ -4382,7 +4395,7 @@ HgfsUnpackWritePayloadV3(const HgfsRequestWriteV3 *requestV3, // IN: payload
          return TRUE;
       }
    }
-   LOG(4, ("%s: HGFS packet too small\n", __FUNCTION__));
+   LOG(4, "%s: HGFS packet too small\n", __FUNCTION__);
    return FALSE;
 }
 
@@ -4414,7 +4427,7 @@ HgfsUnpackWriteFastPayloadV4(const HgfsRequestWriteV3 *requestV3, // IN: payload
                              uint32 *length,                      // OUT: size of data to write
                              HgfsWriteFlags *flags)               // OUT: write flags
 {
-   LOG(4, ("%s: HGFS_OP_WRITE_V3\n", __FUNCTION__));
+   LOG(4, "%s: HGFS_OP_WRITE_V3\n", __FUNCTION__);
    if (payloadSize >= sizeof *requestV3) {
       *file = requestV3->file;
       *flags = requestV3->flags;
@@ -4422,7 +4435,7 @@ HgfsUnpackWriteFastPayloadV4(const HgfsRequestWriteV3 *requestV3, // IN: payload
       *length = requestV3->requiredSize;
       return TRUE;
    }
-   LOG(4, ("%s: HGFS packet too small\n", __FUNCTION__));
+   LOG(4, "%s: HGFS packet too small\n", __FUNCTION__);
    return FALSE;
 }
 
@@ -4480,13 +4493,13 @@ HgfsUnpackWriteRequest(const void *writeRequest,// IN: write request params
       break;
    }
    default:
-      LOG(4, ("%s: Incorrect opcode %d\n", __FUNCTION__, writeOp));
+      LOG(4, "%s: Incorrect opcode %d\n", __FUNCTION__, writeOp);
       NOT_REACHED();
       result = FALSE;
    }
 
    if (!result) {
-      LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+      LOG(4, "%s: Error decoding HGFS packet\n", __FUNCTION__);
    }
 
    return result;
@@ -4575,14 +4588,14 @@ HgfsUnpackQueryVolumePayload(const HgfsRequestQueryVolume *request, // IN: reque
                              const char **fileName,                 // OUT: volume name
                              size_t *nameLength)                    // OUT: volume name length
 {
-   LOG(4, ("%s: HGFS_OP_QUERY_VOLUME_INFO\n", __FUNCTION__));
+   LOG(4, "%s: HGFS_OP_QUERY_VOLUME_INFO\n", __FUNCTION__);
    if (payloadSize >= sizeof *request) {
       return HgfsUnpackFileName(&request->fileName,
                                 payloadSize - sizeof *request + 1,
                                 fileName,
                                 nameLength);
    }
-   LOG(4, ("%s: HGFS packet too small\n", __FUNCTION__));
+   LOG(4, "%s: HGFS packet too small\n", __FUNCTION__);
    return FALSE;
 }
 
@@ -4613,7 +4626,7 @@ HgfsUnpackQueryVolumePayloadV3(const HgfsRequestQueryVolumeV3 *requestV3, // IN:
                                size_t *nameLength,                        // OUT: name length
                                uint32 * caseFlags)                        // OUT: case flags
 {
-   LOG(4, ("%s: HGFS_OP_QUERY_VOLUME_INFO_V3\n", __FUNCTION__));
+   LOG(4, "%s: HGFS_OP_QUERY_VOLUME_INFO_V3\n", __FUNCTION__);
    if (payloadSize >= sizeof *requestV3) {
       return HgfsUnpackFileNameV3(&requestV3->fileName,
                                   payloadSize - sizeof *requestV3 + 1,
@@ -4623,7 +4636,7 @@ HgfsUnpackQueryVolumePayloadV3(const HgfsRequestQueryVolumeV3 *requestV3, // IN:
                                   file,
                                   caseFlags);
    }
-   LOG(4, ("%s: HGFS packet too small\n", __FUNCTION__));
+   LOG(4, "%s: HGFS packet too small\n", __FUNCTION__);
    return FALSE;
 }
 
@@ -4664,7 +4677,7 @@ HgfsUnpackQueryVolumeRequest(const void *packet,     // IN: HGFS packet
 
       if (!HgfsUnpackQueryVolumePayloadV3(requestV3, packetSize, useHandle, file,
                                           fileName, fileNameLength, caseFlags)) {
-         LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+         LOG(4, "%s: Error decoding HGFS packet\n", __FUNCTION__);
          return FALSE;
       }
       break;
@@ -4674,7 +4687,7 @@ HgfsUnpackQueryVolumeRequest(const void *packet,     // IN: HGFS packet
 
       if (!HgfsUnpackQueryVolumePayload(requestV1, packetSize, fileName,
                                         fileNameLength)) {
-         LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+         LOG(4, "%s: Error decoding HGFS packet\n", __FUNCTION__);
          return FALSE;
       }
       *file = HGFS_INVALID_HANDLE;
@@ -4683,7 +4696,7 @@ HgfsUnpackQueryVolumeRequest(const void *packet,     // IN: HGFS packet
       break;
    }
    default:
-      LOG(4, ("%s: Incorrect opcode %d\n", __FUNCTION__, op));
+      LOG(4, "%s: Incorrect opcode %d\n", __FUNCTION__, op);
       NOT_REACHED();
       return FALSE;
    }
@@ -4745,7 +4758,7 @@ HgfsPackQueryVolumeReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
    }
    default:
       result = FALSE;
-      LOG(4, ("%s: invalid op code %d\n", __FUNCTION__, op));
+      LOG(4, "%s: invalid op code %d\n", __FUNCTION__, op);
       NOT_REACHED();
    }
 
@@ -4781,7 +4794,7 @@ HgfsUnpackSymlinkCreatePayload(const HgfsRequestSymlinkCreate *request, // IN: r
 {
    uint32 prefixSize;
 
-   LOG(4, ("%s: HGFS_OP_CREATE_SYMLINK_V3\n", __FUNCTION__));
+   LOG(4, "%s: HGFS_OP_CREATE_SYMLINK_V3\n", __FUNCTION__);
    prefixSize = offsetof(HgfsRequestSymlinkCreate, symlinkName.name);
    if (payloadSize >= prefixSize) {
       if (HgfsUnpackFileName(&request->symlinkName,
@@ -4835,7 +4848,7 @@ HgfsUnpackSymlinkCreatePayloadV3(const HgfsRequestSymlinkCreateV3 *requestV3, //
 {
    uint32 prefixSize;
 
-   LOG(4, ("%s: HGFS_OP_CREATE_SYMLINK_V3\n", __FUNCTION__));
+   LOG(4, "%s: HGFS_OP_CREATE_SYMLINK_V3\n", __FUNCTION__);
    prefixSize = offsetof(HgfsRequestSymlinkCreateV3, symlinkName.name);
    if (payloadSize >= prefixSize) {
       if (HgfsUnpackFileNameV3(&requestV3->symlinkName,
@@ -4913,7 +4926,7 @@ HgfsUnpackSymlinkCreateRequest(const void *packet,        // IN: HGFS packet
                                             srcFileName, srcFileNameLength, srcCaseFlags,
                                             tgUseHandle, tgFile,
                                             tgFileName, tgFileNameLength, tgCaseFlags)) {
-         LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+         LOG(4, "%s: Error decoding HGFS packet\n", __FUNCTION__);
          return FALSE;
       }
          break;
@@ -4923,7 +4936,7 @@ HgfsUnpackSymlinkCreateRequest(const void *packet,        // IN: HGFS packet
 
       if (!HgfsUnpackSymlinkCreatePayload(requestV1, packetSize, srcFileName,
                                           srcFileNameLength, tgFileName, tgFileNameLength)) {
-         LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+         LOG(4, "%s: Error decoding HGFS packet\n", __FUNCTION__);
          return FALSE;
       }
       *srcFile = HGFS_INVALID_HANDLE;
@@ -4935,7 +4948,7 @@ HgfsUnpackSymlinkCreateRequest(const void *packet,        // IN: HGFS packet
       break;
    }
    default:
-      LOG(4, ("%s: Incorrect opcode %d\n", __FUNCTION__, op));
+      LOG(4, "%s: Incorrect opcode %d\n", __FUNCTION__, op);
       NOT_REACHED();
       return FALSE;
    }
@@ -4994,7 +5007,7 @@ HgfsPackSymlinkCreateReply(HgfsPacket *packet,        // IN/OUT: Hgfs Packet
    }
    default:
       result = FALSE;
-      LOG(4, ("%s: invalid op code %d\n", __FUNCTION__, op));
+      LOG(4, "%s: invalid op code %d\n", __FUNCTION__, op);
       NOT_REACHED();
    }
 
@@ -5025,7 +5038,7 @@ HgfsUnpackSearchOpenPayload(const HgfsRequestSearchOpen *request, // IN: payload
                             const char **dirName,                 // OUT: directory name
                             size_t *dirNameLength)                // OUT: name length
 {
-   LOG(4, ("%s: HGFS_OP_SEARCH_OPEN\n", __FUNCTION__));
+   LOG(4, "%s: HGFS_OP_SEARCH_OPEN\n", __FUNCTION__);
    if (payloadSize >= sizeof *request) {
       if (sizeof *request + request->dirName.length - 1 <= payloadSize) {
          *dirName = request->dirName.name;
@@ -5033,7 +5046,7 @@ HgfsUnpackSearchOpenPayload(const HgfsRequestSearchOpen *request, // IN: payload
          return TRUE;
       }
    }
-   LOG(4, ("%s: HGFS packet too small\n", __FUNCTION__));
+   LOG(4, "%s: HGFS packet too small\n", __FUNCTION__);
    return FALSE;
 }
 
@@ -5064,7 +5077,7 @@ HgfsUnpackSearchOpenPayloadV3(const HgfsRequestSearchOpenV3 *requestV3, // IN: p
                               uint32 *caseFlags)                        // OUT: case flags
 {
    Bool result = FALSE;
-   LOG(4, ("%s: HGFS_OP_SEARCH_OPEN_V3\n", __FUNCTION__));
+   LOG(4, "%s: HGFS_OP_SEARCH_OPEN_V3\n", __FUNCTION__);
    if (payloadSize >= sizeof *requestV3) {
       uint32 prefixSize = offsetof(HgfsRequestSearchOpenV3, dirName.name);
       Bool useDirHandle;
@@ -5078,11 +5091,11 @@ HgfsUnpackSearchOpenPayloadV3(const HgfsRequestSearchOpenV3 *requestV3, // IN: p
                                     &dirHandle,
                                     caseFlags);
       if (useDirHandle) {
-         LOG(4, ("%s: client is trying to a handle %u\n", __FUNCTION__, dirHandle));
+         LOG(4, "%s: client is trying to a handle %u\n", __FUNCTION__, dirHandle);
          result = FALSE;
       }
    }
-   LOG(4, ("%s: returns %d\n", __FUNCTION__, result));
+   LOG(4, "%s: returns %d\n", __FUNCTION__, result);
    return result;
 }
 
@@ -5120,7 +5133,7 @@ HgfsUnpackSearchOpenRequest(const void *packet,      // IN: HGFS packet
 
          if (!HgfsUnpackSearchOpenPayloadV3(requestV3, packetSize, dirName,
                                             dirNameLength, caseFlags)) {
-            LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+            LOG(4, "%s: Error decoding HGFS packet\n", __FUNCTION__);
             return FALSE;
          }
          break;
@@ -5130,14 +5143,14 @@ HgfsUnpackSearchOpenRequest(const void *packet,      // IN: HGFS packet
 
          if (!HgfsUnpackSearchOpenPayload(requestV1, packetSize, dirName,
                                           dirNameLength)) {
-            LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+            LOG(4, "%s: Error decoding HGFS packet\n", __FUNCTION__);
             return FALSE;
          }
          *caseFlags = HGFS_FILE_NAME_DEFAULT_CASE;
          break;
       }
    default:
-      LOG(4, ("%s: Incorrect opcode %d\n", __FUNCTION__, op));
+      LOG(4, "%s: Incorrect opcode %d\n", __FUNCTION__, op);
       NOT_REACHED();
       return FALSE;
    }
@@ -5226,7 +5239,7 @@ HgfsUnpackCreateSessionPayloadV4(const HgfsRequestCreateSessionV4 *requestV4, //
                                  size_t payloadSize,                          // IN:
                                  HgfsCreateSessionInfo *info)                 // IN/OUT: info
 {
-   LOG(4, ("%s: HGFS_OP_CREATE_SESSION_V4\n", __FUNCTION__));
+   LOG(4, "%s: HGFS_OP_CREATE_SESSION_V4\n", __FUNCTION__);
    if (payloadSize  < offsetof(HgfsRequestCreateSessionV4, reserved)) {
       /* The input packet is smaller than the request. */
       return FALSE;
@@ -5235,7 +5248,7 @@ HgfsUnpackCreateSessionPayloadV4(const HgfsRequestCreateSessionV4 *requestV4, //
    if (requestV4->numCapabilities) {
       if (payloadSize < offsetof(HgfsRequestCreateSessionV4, capabilities) +
          requestV4->numCapabilities * sizeof(HgfsOpCapability)) {
-         LOG(4, ("%s: HGFS packet too small\n", __FUNCTION__));
+         LOG(4, "%s: HGFS packet too small\n", __FUNCTION__);
          return FALSE;
       }
    }
@@ -5280,7 +5293,7 @@ HgfsUnpackCreateSessionRequest(const void *packet,          // IN: HGFS packet
 
    requestV4 = packet;
    if (!HgfsUnpackCreateSessionPayloadV4(requestV4, packetSize, info)) {
-      LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+      LOG(4, "%s: Error decoding HGFS packet\n", __FUNCTION__);
       return FALSE;
    }
 
@@ -5557,13 +5570,13 @@ HgfsUnpackSetWatchRequest(const void *packet,      // IN: HGFS packet
       NOT_REACHED();
       result = FALSE;
    } else {
-      LOG(4, ("%s: HGFS_OP_SET_WATCH_V4\n", __FUNCTION__));
+      LOG(4, "%s: HGFS_OP_SET_WATCH_V4\n", __FUNCTION__);
       result = HgfsUnpackSetWatchPayloadV4(requestV4, packetSize, useHandle, flags,
                                            events, cpName, cpNameSize, dir, caseFlags);
    }
 
    if (!result) {
-      LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+      LOG(4, "%s: Error decoding HGFS packet\n", __FUNCTION__);
    }
    return result;
 }
@@ -5676,7 +5689,7 @@ HgfsUnpackRemoveWatchRequest(const void *packet,            // IN: HGFS packet
    if (HGFS_OP_REMOVE_WATCH_V4 != op) {
       return FALSE;
    } else if (!HgfsUnpackRemoveWatchPayloadV4(requestV4, packetSize, watchId)) {
-      LOG(4, ("%s: Error decoding HGFS packet\n", __FUNCTION__));
+      LOG(4, "%s: Error decoding HGFS packet\n", __FUNCTION__);
       return FALSE;
    }
 
@@ -5915,7 +5928,8 @@ HgfsUnpackOplockBreakAckReply(const void *packet,            // IN: HGFS packet
    }
 
    if (!result) {
-      LOG(4, ("%s: Error unpacking HGFS_OP_OPLOCK_BREAK_V4 packet\n", __FUNCTION__));
+      LOG(4, "%s: Error unpacking HGFS_OP_OPLOCK_BREAK_V4 packet\n",
+          __FUNCTION__);
    }
    return result;
 }
@@ -6096,8 +6110,8 @@ HgfsPackChangeNotifyRequestV4(HgfsSubscriberHandle watchId,  // IN: watch
    size_t notificationOffset;
 
    if (bufferSize < sizeof *reply) {
-      LOG(4, ("%s: Error HGFS_OP_NOTIFY_V4 buf size %"FMTSZ"u reply size %"FMTSZ"u\n",
-              __FUNCTION__, bufferSize, sizeof *reply));
+      LOG(4, "%s: Error HGFS_OP_NOTIFY_V4 buf size %"FMTSZ"u reply size %"FMTSZ"u\n",
+          __FUNCTION__, bufferSize, sizeof *reply);
       goto exit;
    }
    reply->watchId = watchId;
@@ -6174,11 +6188,11 @@ HgfsPackChangeNotificationRequest(void *packet,                    // IN/OUT: Hg
    ASSERT(session);
    ASSERT(bufferSize);
 
-   LOG(4, ("%s: HGFS_OP_NOTIFY_V4\n", __FUNCTION__));
+   LOG(4, "%s: HGFS_OP_NOTIFY_V4\n", __FUNCTION__);
 
    if (*bufferSize < sizeof *header) {
-      LOG(4, ("%s: Error HGFS_OP_NOTIFY_V4 buf size %"FMTSZ"u min %"FMTSZ"u\n",
-              __FUNCTION__, *bufferSize, sizeof *header));
+      LOG(4, "%s: Error HGFS_OP_NOTIFY_V4 buf size %"FMTSZ"u min %"FMTSZ"u\n",
+          __FUNCTION__, *bufferSize, sizeof *header);
       goto exit;
    }
 

@@ -304,8 +304,6 @@ GuestInfoGetInterface(struct ifaddrs *ifaddrs,
     * records are intermingled with AF_INET and AF_INET6 records.
     */
    for (pkt = ifaddrs; pkt != NULL; pkt = pkt->ifa_next) {
-      GuestNicV3 *nic;
-      struct ifaddrs *ip;
       struct sockaddr_ll *sll = (struct sockaddr_ll *)pkt->ifa_addr;
 
       if (GuestInfo_IfaceGetPriority(pkt->ifa_name) != priority ||
@@ -315,6 +313,8 @@ GuestInfoGetInterface(struct ifaddrs *ifaddrs,
 
       if (sll != NULL && sll->sll_family == AF_PACKET) {
          char macAddress[NICINFO_MAC_LEN];
+         GuestNicV3 *nic;
+         struct ifaddrs *ip;
 
          /*
           * PR 2193804:
@@ -673,8 +673,6 @@ ReadInterfaceDetails(const struct intf_entry *entry, // IN
 
    if (entry->intf_type == INTF_TYPE_ETH &&
        entry->intf_link_addr.addr_type == ADDR_TYPE_ETH) {
-      GuestNicV3 *nic = NULL;
-      char macAddress[NICINFO_MAC_LEN];
 
       /*
        * There is a race where the guest info plugin might be iterating over the
@@ -684,6 +682,9 @@ ReadInterfaceDetails(const struct intf_entry *entry, // IN
        * pick up any changes.
        */
       if (entry->intf_link_addr.addr_type == ADDR_TYPE_ETH) {
+         char macAddress[NICINFO_MAC_LEN];
+         GuestNicV3 *nic = NULL;
+
          Str_Sprintf(macAddress, sizeof macAddress, "%s",
                      addr_ntoa(&entry->intf_link_addr));
 

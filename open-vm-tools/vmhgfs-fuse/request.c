@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013,2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -54,9 +54,7 @@ pthread_mutex_t hgfsIdLock = PTHREAD_MUTEX_INITIALIZER;
 HgfsReq *
 HgfsGetNewRequest(void)
 {
-   HgfsReq *req = NULL;
-
-   req = (HgfsReq*)malloc(sizeof(HgfsReq));
+   HgfsReq *req = (HgfsReq*) malloc(sizeof(HgfsReq));
    if (req == NULL) {
       LOG(4, ("Can't allocate memory.\n"));
       return NULL;
@@ -311,7 +309,7 @@ HgfsSendRequest(HgfsReq *req)       // IN/OUT: Outgoing request
    int ret;
 
    ASSERT(req);
-   ASSERT(req->payloadSize <= HGFS_LARGE_PACKET_MAX);
+   ASSERT(req->payloadSize <= HgfsLargePacketMax(FALSE));
 
    req->state = HGFS_REQ_STATE_UNSENT;
 
@@ -437,7 +435,7 @@ HgfsCompleteReq(HgfsReq *req,       // IN: Request
 {
    ASSERT(req);
    ASSERT(reply);
-   ASSERT(replySize <= HGFS_LARGE_PACKET_MAX);
+   ASSERT(replySize <= HgfsLargePacketMax(FALSE));
 
    memcpy(HGFS_REQ_PAYLOAD(req), reply, replySize);
    req->payloadSize = replySize;

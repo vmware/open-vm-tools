@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005-2016, 2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -117,6 +117,90 @@ Backdoor_InOut(Backdoor_proto *myBp) // IN/OUT
    );
 }
 
+#if defined(USE_HYPERCALL)
+void
+Backdoor_Vmcall(Backdoor_proto *myBp) // IN/OUT
+{
+   uint32 dummy;
+
+   __asm__ __volatile__(
+#ifdef __PIC__
+        "pushl %%ebx"           "\n\t"
+#endif
+        "pushl %%eax"           "\n\t"
+        "movl 20(%%eax), %%edi" "\n\t"
+        "movl 16(%%eax), %%esi" "\n\t"
+        "movl 12(%%eax), %%edx" "\n\t"
+        "movl  8(%%eax), %%ecx" "\n\t"
+        "movl  4(%%eax), %%ebx" "\n\t"
+        "movl   (%%eax), %%eax" "\n\t"
+        "vmcall"                "\n\t"
+        "xchgl %%eax, (%%esp)"  "\n\t"
+        "movl %%edi, 20(%%eax)" "\n\t"
+        "movl %%esi, 16(%%eax)" "\n\t"
+        "movl %%edx, 12(%%eax)" "\n\t"
+        "movl %%ecx,  8(%%eax)" "\n\t"
+        "movl %%ebx,  4(%%eax)" "\n\t"
+        "popl          (%%eax)" "\n\t"
+#ifdef __PIC__
+        "popl %%ebx"            "\n\t"
+#endif
+      : "=a" (dummy)
+      : "0" (myBp)
+      /*
+       * vmware can modify the whole VM state without the compiler knowing
+       * it. So far it does not modify EFLAGS. --hpreg
+       */
+      :
+#ifndef __PIC__
+        "ebx",
+#endif
+        "ecx", "edx", "esi", "edi", "memory"
+   );
+}
+
+
+void
+Backdoor_Vmmcall(Backdoor_proto *myBp) // IN/OUT
+{
+   uint32 dummy;
+
+   __asm__ __volatile__(
+#ifdef __PIC__
+        "pushl %%ebx"           "\n\t"
+#endif
+        "pushl %%eax"           "\n\t"
+        "movl 20(%%eax), %%edi" "\n\t"
+        "movl 16(%%eax), %%esi" "\n\t"
+        "movl 12(%%eax), %%edx" "\n\t"
+        "movl  8(%%eax), %%ecx" "\n\t"
+        "movl  4(%%eax), %%ebx" "\n\t"
+        "movl   (%%eax), %%eax" "\n\t"
+        "vmmcall"               "\n\t"
+        "xchgl %%eax, (%%esp)"  "\n\t"
+        "movl %%edi, 20(%%eax)" "\n\t"
+        "movl %%esi, 16(%%eax)" "\n\t"
+        "movl %%edx, 12(%%eax)" "\n\t"
+        "movl %%ecx,  8(%%eax)" "\n\t"
+        "movl %%ebx,  4(%%eax)" "\n\t"
+        "popl          (%%eax)" "\n\t"
+#ifdef __PIC__
+        "popl %%ebx"            "\n\t"
+#endif
+      : "=a" (dummy)
+      : "0" (myBp)
+      /*
+       * vmware can modify the whole VM state without the compiler knowing
+       * it. So far it does not modify EFLAGS. --hpreg
+       */
+      :
+#ifndef __PIC__
+        "ebx",
+#endif
+        "ecx", "edx", "esi", "edi", "memory"
+   );
+}
+#endif
 
 /*
  *-----------------------------------------------------------------------------
@@ -176,9 +260,9 @@ BackdoorHbIn(Backdoor_proto_hb *myBp) // IN/OUT
        * vmware can modify the whole VM state without the compiler knowing
        * it. --hpreg
        */
-      : 
+      :
 #ifndef __PIC__
-        "ebx", 
+        "ebx",
 #endif
         "ecx", "edx", "esi", "edi", "memory", "cc"
    );
@@ -228,6 +312,104 @@ BackdoorHbOut(Backdoor_proto_hb *myBp) // IN/OUT
         "ecx", "edx", "esi", "edi", "memory", "cc"
    );
 }
+
+
+#if defined(USE_HYPERCALL)
+void
+BackdoorHbVmcall(Backdoor_proto_hb *myBp) // IN/OUT
+{
+   uint32 dummy;
+
+   __asm__ __volatile__(
+#ifdef __PIC__
+        "pushl %%ebx"           "\n\t"
+#endif
+        "pushl %%ebp"           "\n\t"
+
+        "pushl %%eax"           "\n\t"
+        "movl 24(%%eax), %%ebp" "\n\t"
+        "movl 20(%%eax), %%edi" "\n\t"
+        "movl 16(%%eax), %%esi" "\n\t"
+        "movl 12(%%eax), %%edx" "\n\t"
+        "movl  8(%%eax), %%ecx" "\n\t"
+        "movl  4(%%eax), %%ebx" "\n\t"
+        "movl   (%%eax), %%eax" "\n\t"
+        "vmcall"                "\n\t"
+        "xchgl %%eax, (%%esp)"  "\n\t"
+        "movl %%ebp, 24(%%eax)" "\n\t"
+        "movl %%edi, 20(%%eax)" "\n\t"
+        "movl %%esi, 16(%%eax)" "\n\t"
+        "movl %%edx, 12(%%eax)" "\n\t"
+        "movl %%ecx,  8(%%eax)" "\n\t"
+        "movl %%ebx,  4(%%eax)" "\n\t"
+        "popl          (%%eax)" "\n\t"
+
+        "popl %%ebp"            "\n\t"
+#ifdef __PIC__
+        "popl %%ebx"            "\n\t"
+#endif
+      : "=a" (dummy)
+      : "0" (myBp)
+      /*
+       * vmware can modify the whole VM state without the compiler knowing
+       * it. --hpreg
+       */
+      :
+#ifndef __PIC__
+        "ebx",
+#endif
+        "ecx", "edx", "esi", "edi", "memory", "cc"
+   );
+}
+
+
+void
+BackdoorHbVmmcall(Backdoor_proto_hb *myBp) // IN/OUT
+{
+   uint32 dummy;
+
+   __asm__ __volatile__(
+#ifdef __PIC__
+        "pushl %%ebx"           "\n\t"
+#endif
+        "pushl %%ebp"           "\n\t"
+
+        "pushl %%eax"           "\n\t"
+        "movl 24(%%eax), %%ebp" "\n\t"
+        "movl 20(%%eax), %%edi" "\n\t"
+        "movl 16(%%eax), %%esi" "\n\t"
+        "movl 12(%%eax), %%edx" "\n\t"
+        "movl  8(%%eax), %%ecx" "\n\t"
+        "movl  4(%%eax), %%ebx" "\n\t"
+        "movl   (%%eax), %%eax" "\n\t"
+        "vmmcall"               "\n\t"
+        "xchgl %%eax, (%%esp)"  "\n\t"
+        "movl %%ebp, 24(%%eax)" "\n\t"
+        "movl %%edi, 20(%%eax)" "\n\t"
+        "movl %%esi, 16(%%eax)" "\n\t"
+        "movl %%edx, 12(%%eax)" "\n\t"
+        "movl %%ecx,  8(%%eax)" "\n\t"
+        "movl %%ebx,  4(%%eax)" "\n\t"
+        "popl          (%%eax)" "\n\t"
+
+        "popl %%ebp"            "\n\t"
+#ifdef __PIC__
+        "popl %%ebx"            "\n\t"
+#endif
+      : "=a" (dummy)
+      : "0" (myBp)
+      /*
+       * vmware can modify the whole VM state without the compiler knowing
+       * it. --hpreg
+       */
+      :
+#ifndef __PIC__
+        "ebx",
+#endif
+        "ecx", "edx", "esi", "edi", "memory", "cc"
+   );
+}
+#endif
 
 #ifdef __cplusplus
 }

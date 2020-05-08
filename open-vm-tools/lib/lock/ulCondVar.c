@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -427,9 +427,9 @@ MXUserWaitCondVar(MXUserHeader *header,    // IN:
                   MXUserCondVar *condVar,  // IN/OUT:
                   uint32 waitTimeMsec)     // IN:
 {
-   ASSERT(header);
-   ASSERT(lock);
-   ASSERT(condVar);
+   ASSERT(header != NULL);
+   ASSERT(lock != NULL);
+   ASSERT(condVar != NULL);
    ASSERT(condVar->signature == MXUserGetSignature(MXUSER_TYPE_CONDVAR));
 
    if (condVar->ownerLock != lock) {
@@ -470,7 +470,7 @@ MXUser_SignalCondVar(MXUserCondVar *condVar)  // IN/OUT:
 {
    int err;
 
-   ASSERT(condVar);
+   ASSERT(condVar != NULL);
    ASSERT(condVar->signature == MXUserGetSignature(MXUSER_TYPE_CONDVAR));
 
    err = MXUserSignalInternal(condVar);
@@ -504,7 +504,7 @@ MXUser_BroadcastCondVar(MXUserCondVar *condVar)  // IN/OUT:
 {
    int err;
 
-   ASSERT(condVar);
+   ASSERT(condVar != NULL);
    ASSERT(condVar->signature == MXUserGetSignature(MXUSER_TYPE_CONDVAR));
 
    err = MXUserBroadcastInternal(condVar);

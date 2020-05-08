@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -322,7 +322,6 @@ static int
 ObtainHardwareID(uint64 *hardwareID)  // OUT:
 {
    uint32 i;
-   struct ifaddrs *p;
    struct ifaddrs *ifp;
 
    // Attempt to get the list of networking interfaces
@@ -337,7 +336,7 @@ ObtainHardwareID(uint64 *hardwareID)  // OUT:
 
    // search through a "reasonable" number of interfaces
    for (i = 0, *hardwareID = 0; i < 8; i++) {
-      p = CheckEthernet(ifp, i);
+      struct ifaddrs *p = CheckEthernet(ifp, i);
 
       if (p != NULL) {
          memcpy(hardwareID, LLADDR((struct sockaddr_dl *)p->ifa_addr), ETHER_ADDR_LEN);

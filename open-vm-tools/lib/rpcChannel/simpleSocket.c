@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013-2017,2019-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -173,11 +173,10 @@ Socket_Recv(SOCKET fd,      // IN
             int len)        // IN
 {
    int remaining = len;
-   int rv;
    int sysErr;
 
    while (remaining > 0) {
-      rv = recv(fd, buf , remaining, 0);
+      int rv = recv(fd, buf , remaining, 0);
       if (rv == 0) {
          Debug(LGPFX "Socket %d closed by peer.", fd);
          return FALSE;
@@ -377,6 +376,8 @@ Socket_ConnectVMCI(unsigned int cid,                  // IN
    /* We are required to use a privileged source port. */
    localPort = PRIVILEGED_PORT_MAX;
    while (localPort >= PRIVILEGED_PORT_MIN) {
+      int retryCount = 0;
+
       fd = SocketConnectVmciInternal(&addr, localPort, &apiErr, &sysErr);
       if (fd != INVALID_SOCKET) {
          goto done;
@@ -399,6 +400,23 @@ Socket_ConnectVMCI(unsigned int cid,                  // IN
           * EINTR on connect due to signal.
           * Try again using the same port.
           */
+         continue;
+      }
+
+      if (apiErr == SOCKERR_CONNECT && sysErr == SYSERR_ENOBUFS) {
+         /*
+          * ENOBUFS can happen if we're out of vsocks in the kernel.
+          * Delay a bit and try again using the same port.
+          * Have a retry count in case something has gone horribly wrong.
+          */
+         if (++retryCount > 5) {
+            goto done;
+         }
+#ifdef _WIN32
+         Sleep(1);
+#else
+         usleep(1000);
+#endif
          continue;
       }
       /* Unrecoverable error occurred */
@@ -509,6 +527,7 @@ error:
 static gboolean
 Socket_PackSendData(const char *buf,             // IN
                     int len,                     // IN
+                    Bool fastClose,              // IN
                     char **serBuf,               // OUT
                     int32 *serBufLen)            // OUT
 {
@@ -541,6 +560,13 @@ Socket_PackSendData(const char *buf,             // IN
    if (res != DMERR_SUCCESS) {
       free(newBuf);
       goto error;
+   }
+
+   if (fastClose) {
+      res = DataMap_SetInt64(&map, GUESTRPCPKT_FIELD_FAST_CLOSE, TRUE, TRUE);
+      if (res != DMERR_SUCCESS) {
+         goto error;
+      }
    }
 
    res = DataMap_Serialize(&map, serBuf, serBufLen);
@@ -643,13 +669,15 @@ Socket_RecvPacket(SOCKET sock,               // IN
 gboolean
 Socket_SendPacket(SOCKET sock,               // IN
                   const char *payload,       // IN
-                  int payloadLen)            // IN
+                  int payloadLen,            // IN
+                  Bool fastClose)            // IN
 {
    gboolean ok;
    char *sendBuf;
    int sendBufLen;
 
-   if (!Socket_PackSendData(payload, payloadLen, &sendBuf, &sendBufLen)) {
+   if (!Socket_PackSendData(payload, payloadLen, fastClose,
+                            &sendBuf, &sendBufLen)) {
       return FALSE;
    }
 

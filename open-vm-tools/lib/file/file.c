@@ -558,6 +558,7 @@ GetOldMachineID(void)
              sizeof hardwareID);
 
       /* Base 64 encode the binary data to obtain printable characters */
+      /* coverity[check_return] */
       Base64_Encode(rawMachineID, sizeof rawMachineID, encodedMachineID,
                     sizeof encodedMachineID, NULL);
 
@@ -639,6 +640,12 @@ FileLockGetMachineID(void)
       if (q == NULL) {
          p = Util_SafeStrdup(GetOldMachineID());
       } else {
+
+         /*
+          * Coverity flags this as dead code on Non-Windows, non-Apple
+          * Platforms, since q will be NULL and this code not reached.
+          */
+         /* coverity[dead_error_begin] */
          p = Str_SafeAsprintf(NULL, "uuid=%s", q);
          Posix_Free(q);
 
@@ -1437,6 +1444,7 @@ File_MoveTree(const char *srcName,    // IN:
              * Only clean up if we created the directory.  Not attempting to
              * clean up partial failures.
              */
+            /* coverity[check_return] */
             File_DeleteDirectoryTree(dstName);
          }
       }
@@ -2186,6 +2194,7 @@ File_ExpandAndCheckDir(const char *dirName)  // IN:
 
          return edirName;
       }
+      free(edirName);
    }
 
    return NULL;

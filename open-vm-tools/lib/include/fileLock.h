@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -77,10 +77,6 @@ Bool FileLock_Remove(const char *filePath,
 Bool FileLock_CleanupVM(const char *cfgfilePath,
                         int *err,
                         MsgList **msgs);
-
-/* Device locking functions, for compatibility */
-int FileLock_LockDevice(const char *device);
-Bool FileLock_UnlockDevice(const char *device);
 
 #if defined(__cplusplus)
 }  // extern "C"

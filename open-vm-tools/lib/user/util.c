@@ -205,13 +205,12 @@ Util_Checksumv(void *iov,      // IN
 {
    uint32 checksum = 0;
    struct UtilVector *vector = (struct UtilVector *) iov;
-   uint32 partialChecksum;
    int bytesSoFar = 0;
-   int rotate;
 
    while (numEntries-- > 0) {
-      partialChecksum = Util_Checksum(vector->base, vector->len);
-      rotate = (bytesSoFar & 3) * 8;
+      uint32 partialChecksum = Util_Checksum(vector->base, vector->len);
+      int rotate = (bytesSoFar & 3) * 8;
+
       checksum ^= ((partialChecksum << rotate) |
                    (partialChecksum >> (32 - rotate)));
       bytesSoFar += vector->len;

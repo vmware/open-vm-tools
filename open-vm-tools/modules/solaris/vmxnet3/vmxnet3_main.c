@@ -1200,7 +1200,6 @@ vmxnet3_get_prop(void *data,
 		void *prop_val)
 {
    vmxnet3_softc_t *dp = data;
-   int ret = 0;
 
    switch (prop_id) {
       case MAC_PROP_MTU: {
@@ -1210,7 +1209,6 @@ vmxnet3_get_prop(void *data,
       }
       default: {
          VMXNET3_WARN(dp, "vmxnet3_get_prop property %d not supported", prop_id);
-         ret = ENOTSUP;
       }
    }
    return (0);

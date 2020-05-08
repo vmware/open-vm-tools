@@ -352,6 +352,12 @@ GuestInfoStoreStatByID(GuestStatToolsID reportID,      // IN:
                     INT_AS_HASHKEY(reportID),
                     (void **) &stat);
 
+   /*
+    * Caller must not pass in a reportID that does not exist in the table.
+    */
+   ASSERT(stat != NULL);
+
+   /* coverity[var_deref_model] */
    GuestInfoStoreStat(stat, value);
 }
 
@@ -513,13 +519,15 @@ GuestInfoProcSimpleValue(GuestStatToolsID reportID,      // IN:
 
    HashTable_Lookup(collector->reportMap, INT_AS_HASHKEY(reportID),
                     (void **) &stat);
-   ASSERT(stat);
-   if (stat == NULL) {
-      g_warning("%s: Error stat ID %d not found.\n", __FUNCTION__, reportID);
-      return success;
-   }
 
+   /*
+    * Caller must not pass in a reportID that does not exist in the table.
+    */
+   ASSERT(stat != NULL);
+   ASSERT(stat->query != NULL);
    ASSERT(stat->query->sourceFile);
+
+   /* coverity[var_deref_op] */
    fp = Posix_Fopen(stat->query->sourceFile, "r");
    if (fp == NULL) {
       g_warning("%s: Error opening %s.\n",
@@ -589,14 +597,21 @@ GuestInfoDeriveSwapData(GuestInfoCollector *collector)  // IN/OUT:
                     INT_AS_HASHKEY(GuestStatID_SwapSpaceRemaining),
                     (void **) &swapSpaceRemaining);
 
+   ASSERT(swapFilesMax != NULL &&
+          swapFilesCurrent != NULL &&
+          swapSpaceUsed != NULL &&
+          swapSpaceRemaining != NULL);  // Must be in the table
+
    /*
     * Start by getting SwapTotal (from Id_SwapFilesCurrent).
     * Set Id_SwapFilesMax to that if it doesn't have its own opinion.
     */
-   if ((swapFilesCurrent != NULL) && (swapFilesCurrent->err == 0)) {
+   /* coverity[var_deref_op] */
+   if (swapFilesCurrent->err == 0) {
       swapTotal = swapFilesCurrent->value;
 
-      if ((swapFilesMax != NULL) && (swapFilesMax->err != 0)) {
+      /* coverity[var_deref_op] */
+      if (swapFilesMax->err != 0) {
          swapFilesMax->value = swapTotal;
          swapFilesMax->count = 1;
          swapFilesMax->err = 0;
@@ -607,12 +622,15 @@ GuestInfoDeriveSwapData(GuestInfoCollector *collector)  // IN/OUT:
        * Set Id_SwapSpaceUsed to SwapTotal-SwapFree if it doesn't have its
        * own opinion.
        */
-      if ((swapSpaceRemaining != NULL) && (swapSpaceRemaining->err == 0)) {
+      /* coverity[var_deref_op] */
+      if (swapSpaceRemaining->err == 0) {
          swapFree = swapSpaceRemaining->value;
 
          ASSERT(swapTotal >= swapFree);
          swapUsed = (swapTotal >= swapFree) ? swapTotal - swapFree : 0;
-         if ((swapSpaceUsed != NULL) && (swapSpaceUsed->err != 0)) {
+
+         /* coverity[var_deref_op] */
+         if (swapSpaceUsed->err != 0) {
             swapSpaceUsed->value = swapUsed;
             swapSpaceUsed->count = 1;
             swapSpaceUsed->err = 0;
@@ -649,13 +667,13 @@ GuestInfoDecreaseCpuRunQueueByOne(GuestInfoCollector *collector)  // IN/OUT:
                     INT_AS_HASHKEY(GuestStatID_Linux_CpuRunQueue),
                     (void **) &stat);
 
-   ASSERT(stat != NULL);
+   ASSERT(stat != NULL);  // Must be in the table
    ASSERT(stat->err == 0);
    ASSERT(stat->count == 1);
-   if (stat != NULL && stat->err == 0 && stat->count == 1) {
-      if (stat->value > 0) {
-         stat->value--;
-      }
+
+   /* coverity[var_deref_op] */
+   if (stat->value > 0) {
+      stat->value--;
    }
 }
 
@@ -818,7 +836,7 @@ GuestInfoCollect(GuestInfoCollector *collector)  // IN/OUT:
 
    /* Reset all values */
    for (i = 0; i < collector->numStats; i++) {
-      GuestInfoStat *stat = &collector->stats[i];
+      stat = &collector->stats[i];
 
       stat->err = ENOENT;  // There is no data here
       stat->count = 0;
@@ -853,8 +871,9 @@ GuestInfoCollect(GuestInfoCollector *collector)  // IN/OUT:
                     INT_AS_HASHKEY(GuestStatID_MemPhysUsable),
                     (void **) &stat);
 
-   ASSERT(stat != NULL);  // Must be in table
+   ASSERT(stat != NULL);  // Must be in the table
 
+   /* coverity[var_deref_op] */
    if (stat->err == 0) {
       stat->value *= (pageSize / 1024); // Convert pages to KiB
    } else {
@@ -864,7 +883,10 @@ GuestInfoCollect(GuestInfoCollector *collector)  // IN/OUT:
                        INT_AS_HASHKEY(GuestStatID_Linux_MemTotal),
                        (void **) &memTotal);
 
-      if ((memTotal != NULL) && (memTotal->err == 0)) {
+      ASSERT(memTotal != NULL);  // Must be in the table
+
+      /* coverity[var_deref_op] */
+      if (memTotal->err == 0) {
          stat->err = 0;
          stat->count = 1;
          stat->value = memTotal->value;
@@ -909,7 +931,10 @@ GuestInfoLegacy(GuestInfoCollector *current,  // IN: current collection
                     INT_AS_HASHKEY(GuestStatID_MemPhysUsable),
                     (void **) &stat);
 
-   if ((stat != NULL) && (stat->err == 0)) {
+   ASSERT(stat != NULL);  // Must be in the table
+
+   /* coverity[var_deref_op] */
+   if (stat->err == 0) {
       legacy->memTotal = stat->value;
       legacy->flags |= MEMINFO_MEMTOTAL;
    }
@@ -919,7 +944,10 @@ GuestInfoLegacy(GuestInfoCollector *current,  // IN: current collection
                     INT_AS_HASHKEY(GuestStatID_Linux_HugePagesTotal),
                     (void **) &stat);
 
-   if ((stat != NULL) && (stat->err == 0)) {
+   ASSERT(stat != NULL);  // Must be in the table
+
+   /* coverity[var_deref_op] */
+   if (stat->err == 0) {
       legacy->hugePagesTotal = stat->value;
       legacy->flags |= MEMINFO_HUGEPAGESTOTAL;
    }
@@ -1072,10 +1100,14 @@ GuestInfoAppendRate(Bool emitNameSpace,             // IN:
                     INT_AS_HASHKEY(reportID),
                     (void **) &previousStat);
 
+   ASSERT(currentStat != NULL &&
+          previousStat != NULL);  // Must be in the table
+
+   /* coverity[var_deref_op] */
    if (current->timeData &&
        previous->timeData &&
-       ((currentStat != NULL) && (currentStat->err == 0)) &&
-       ((previousStat != NULL) && (previousStat->err == 0))) {
+       currentStat->err == 0 &&
+       previousStat->err == 0) {
       double timeDelta = current->timeStamp - previous->timeStamp;
       double valueDelta;
 
@@ -1113,7 +1145,7 @@ GuestInfoAppendRate(Bool emitNameSpace,             // IN:
       errnoValue = 0;
    }
 
-   if (currentStat != NULL) {
+   {
       float valueFloat;
       void *valuePointer;
       size_t valueSize;
@@ -1166,16 +1198,13 @@ GuestInfoDeriveMemNeeded(GuestInfoCollector *collector)  // IN/OUT:
    GuestInfoStat *memPhysUsable = NULL;
 
    HashTable_Lookup(collector->reportMap,
-                    INT_AS_HASHKEY(GuestStatID_MemPhysUsable),
-                    (void **) &memPhysUsable);
-
-   ASSERT(memPhysUsable != NULL);
-
-   HashTable_Lookup(collector->reportMap,
                     INT_AS_HASHKEY(GuestStatID_Linux_MemAvailable),
                     (void **) &memAvail);
 
-   if ((memAvail != NULL) && (memAvail->err == 0)) {
+   ASSERT(memAvail != NULL);  // Must be in the table
+
+   /* coverity[var_deref_op] */
+   if (memAvail->err == 0) {
       memAvailable = memAvail->value;
    } else {
       GuestInfoStat *memFree = NULL;
@@ -1184,7 +1213,7 @@ GuestInfoDeriveMemNeeded(GuestInfoCollector *collector)  // IN/OUT:
       GuestInfoStat *memActiveFile = NULL;
       GuestInfoStat *memSlabReclaim = NULL;
       GuestInfoStat *memInactiveFile = NULL;
-      GuestInfoStat *lowWaterMark = NULL;
+      GuestInfoStat *memLowWaterMark = NULL;
 
       HashTable_Lookup(collector->reportMap,
                        INT_AS_HASHKEY(GuestStatID_MemFree),
@@ -1206,21 +1235,28 @@ GuestInfoDeriveMemNeeded(GuestInfoCollector *collector)  // IN/OUT:
                        (void **) &memInactiveFile);
       HashTable_Lookup(collector->reportMap,
                        INT_AS_HASHKEY(GuestStatID_Linux_LowWaterMark),
-                       (void **) &lowWaterMark);
+                       (void **) &memLowWaterMark);
 
-      if (((memFree != NULL) && (memFree->err == 0)) &&
-          ((memCache != NULL) && (memCache->err == 0)) &&
-          ((memBuffers != NULL) && (memBuffers->err == 0)) &&
-          (memActiveFile != NULL) &&
-          (memSlabReclaim != NULL) &&
-          (memInactiveFile != NULL) &&
-          ((lowWaterMark != NULL) && (lowWaterMark->err == 0))) {
+      ASSERT(memFree != NULL &&
+             memCache != NULL &&
+             memBuffers != NULL &&
+             memActiveFile != NULL &&
+             memSlabReclaim != NULL &&
+             memInactiveFile != NULL &&
+             memLowWaterMark != NULL);  // Must be in the table
+
+      /* coverity[var_deref_op] */
+      if (memFree->err == 0 &&
+          memCache->err == 0 &&
+          memBuffers->err == 0 &&
+          memLowWaterMark->err == 0) {
          uint64 pageCache;
          unsigned long kbPerPage = sysconf(_SC_PAGESIZE) / 1024UL;
-         uint64 lowWaterMarkValue = lowWaterMark->value * kbPerPage;
+         uint64 lowWaterMarkValue = memLowWaterMark->value * kbPerPage;
 
          memAvailable = memFree->value - lowWaterMarkValue;
 
+         /* coverity[var_deref_op] */
          if ((memActiveFile->err == 0) && (memInactiveFile->err == 0)) {
             pageCache = memActiveFile->value + memInactiveFile->value;
          } else {
@@ -1234,6 +1270,7 @@ GuestInfoDeriveMemNeeded(GuestInfoCollector *collector)  // IN/OUT:
          pageCache -= MIN(pageCache / 2, lowWaterMarkValue);
          memAvailable += pageCache;
 
+         /* coverity[var_deref_op] */
          if (memSlabReclaim->err == 0) {
             memAvailable += memSlabReclaim->value -
                             MIN(memSlabReclaim->value / 2, lowWaterMarkValue);
@@ -1249,6 +1286,13 @@ GuestInfoDeriveMemNeeded(GuestInfoCollector *collector)  // IN/OUT:
       }
    }
 
+   HashTable_Lookup(collector->reportMap,
+                    INT_AS_HASHKEY(GuestStatID_MemPhysUsable),
+                    (void **) &memPhysUsable);
+
+   ASSERT(memPhysUsable != NULL);  // Must be in the table
+
+   /* coverity[var_deref_op] */
    if (memPhysUsable->err == 0) {
       /*
        * Reserve 5% of physical RAM for surges.

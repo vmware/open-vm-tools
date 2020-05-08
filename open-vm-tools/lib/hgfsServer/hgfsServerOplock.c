@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2012-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2012-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -133,7 +133,7 @@ HgfsHandle2ServerLock(HgfsHandle handle,        // IN: Hgfs file handle
 {
 #ifdef HGFS_OPLOCKS
    Bool found = FALSE;
-   HgfsFileNode *fileNode = NULL;
+   HgfsFileNode *fileNode;
 
    ASSERT(lock);
 
@@ -200,7 +200,7 @@ HgfsFileHasServerLock(const char *utf8Name,             // IN: Name in UTF8
       if ((existingFileNode->state == FILENODE_STATE_IN_USE_CACHED) &&
           (existingFileNode->serverLock != HGFS_LOCK_NONE) &&
           (!stricmp(existingFileNode->utf8Name, utf8Name))) {
-         LOG(4, ("Found file with a lock: %s\n", utf8Name));
+         LOG(4, "Found file with a lock: %s\n", utf8Name);
          *serverLock = existingFileNode->serverLock;
          *fileDesc = existingFileNode->fileDesc;
          found = TRUE;
@@ -299,7 +299,7 @@ HgfsServerOplockBreak(ServerLockData *lockData)
    HgfsRequestServerLockChange *request;
    HgfsLockType lock;
 
-   LOG(4, ("%s: entered\n", __FUNCTION__));
+   LOG(4, "%s: entered\n", __FUNCTION__);
 
    /*
     * XXX: Just because the file in not in the cache on the server,
@@ -315,17 +315,17 @@ HgfsServerOplockBreak(ServerLockData *lockData)
     */
 
    if (!HgfsFileDesc2Handle(lockData->fileDesc, &hgfsHandle)) {
-      LOG(4, ("%s: file is not in the cache\n", __FUNCTION__));
+      LOG(4, "%s: file is not in the cache\n", __FUNCTION__);
       goto free_and_exit;
    }
 
    if (!HgfsHandle2ServerLock(hgfsHandle, &lock)) {
-      LOG(4, ("%s: could not retrieve node's lock info.\n", __FUNCTION__));
+      LOG(4, "%s: could not retrieve node's lock info.\n", __FUNCTION__);
       goto free_and_exit;
    }
 
    if (lock == HGFS_LOCK_NONE) {
-      LOG(4, ("%s: the file does not have a server lock.\n", __FUNCTION__));
+      LOG(4, "%s: the file does not have a server lock.\n", __FUNCTION__);
       goto free_and_exit;
    }
 
@@ -339,7 +339,7 @@ HgfsServerOplockBreak(ServerLockData *lockData)
 
    requestBuffer = malloc(sizeof *request + HGFS_CLIENT_CMD_LEN);
    if (requestBuffer == NULL) {
-      LOG(4, ("%s: could not allocate memory.\n", __FUNCTION__));
+      LOG(4, "%s: could not allocate memory.\n", __FUNCTION__);
       goto ack_and_exit;
    }
 

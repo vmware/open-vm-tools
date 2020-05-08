@@ -656,7 +656,7 @@ ToolsCore_LoadPlugins(ToolsServiceState *state)
 
 #ifdef USE_APPLOADER
    {
-      Bool ret = FALSE;
+      Bool ret;
       GModule *mainModule = g_module_open(NULL, G_MODULE_BIND_LAZY);
       ASSERT(mainModule);
 

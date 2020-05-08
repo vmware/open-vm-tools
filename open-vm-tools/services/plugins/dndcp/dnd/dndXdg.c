@@ -85,10 +85,11 @@ const char *
 Xdg_GetCacheHome(void)
 {
    static char *result = NULL;
-   struct passwd *pw;
 
    if (result == NULL) {
       do {
+         struct passwd *pw;
+
          if (!Id_IsSetUGid()) {
             const char *base = NULL;
 
@@ -422,11 +423,10 @@ CreateStagingDirectory(
    int i;
 
    for (i = 0; i < 10 && result == NULL; i++) {
-      char *realStagingDir = NULL;
       char *apparentStagingDir = NULL;
-
       // Reminder: mkdtemp updates its arg in-place.
-      realStagingDir = Str_SafeAsprintf(NULL, "%sXXXXXX", realRoot);
+      char *realStagingDir = Str_SafeAsprintf(NULL, "%sXXXXXX", realRoot);
+
       if (mkdtemp(realStagingDir) != NULL) {
          char *randomPart = strrchr(realStagingDir, '/') + 1;
          VERIFY(*randomPart != '\0');

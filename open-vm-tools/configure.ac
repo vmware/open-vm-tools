@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2007-2019 VMware, Inc.  All rights reserved.
+### Copyright (C) 2007-2020 VMware, Inc.  All rights reserved.
 ###
 ### Configure script for building the VMware OSS Tools.
 ###
@@ -35,10 +35,10 @@
 ### Initialization
 ###
 
-TOOLS_VERSION="11.0.5"
+TOOLS_VERSION="11.1.0"
 AC_INIT(
    [open-vm-tools],
-   [11.0.5],
+   [11.1.0],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
@@ -73,10 +73,13 @@ AC_CANONICAL_BUILD
 # Quote the regular expressions
 case "$host_cpu" in
    [i[3456]86])
-      userSpaceBitness="32"
+      arch="x32"
       ;;
    [amd64|x86_64])
-      userSpaceBitness="64"
+      arch="x64"
+      ;;
+   [aarch64])
+      arch="arm64"
       ;;
    [*])
       AC_MSG_ERROR([Unknown architecture.])
@@ -196,6 +199,26 @@ fi
 # Locates X includes and lib, adds --without-x option,
 # and sets no_x.
 AC_PATH_XTRA
+
+AC_CHECK_HEADER([valgrind/valgrind.h],
+                [],
+                [have_valgrind=no],
+                [])
+
+AC_ARG_ENABLE(
+   valgrind,
+   AS_HELP_STRING(
+      [--enable-valgrind],
+      [enables building with valgrind]),
+   [enable_valgrind="$enableval"],
+   [enable_valgrind="no"])
+
+if test "$enable_valgrind" = "yes" ; then
+   if test "$have_valgrind" = "no" ; then
+      AC_MSG_ERROR([valgrind/valgrind.h not found. Make sure you have the valgrind headers installed.]),
+   fi
+   CPPFLAGS="$CPPFLAGS -DUSE_VALGRIND=1"
+fi
 
 # Arguments for disabling individual open-vm-tools features or libraries.
 AC_ARG_ENABLE(
@@ -412,6 +435,16 @@ AC_ARG_ENABLE([libappmonitor],
    [],
    [
     enable_libappmonitor=no
+   ])
+
+AC_ARG_ENABLE([servicediscovery],
+   [AS_HELP_STRING([--enable-servicediscovery],
+     [Build the Service Discovery Plugin.])],
+   [
+    enable_servicediscovery=$enableval
+   ],
+   [
+    enable_servicediscovery=no
    ])
 
 #
@@ -1397,7 +1430,9 @@ AM_CONDITIONAL(SOLARIS, test "$os" = "solaris")
 AM_CONDITIONAL(FREEBSD, test "$os" = "freebsd" -o "$os" = "kfreebsd-gnu")
 AM_CONDITIONAL(FREEBSD_CUSTOM_SYSDIR,
                test \( "$os" = "freebsd" -o "$os" = "kfreebsd-gnu" \) -a -n "$SYSDIR")
-AM_CONDITIONAL(THIRTY_TWO_BIT_USERSPACE, test "$userSpaceBitness" = "32")
+AM_CONDITIONAL(ARCH_X32, test "$arch" = "x32")
+AM_CONDITIONAL(ARCH_X64, test "$arch" = "x64")
+AM_CONDITIONAL(ARCH_ARM64, test "$arch" = "arm64")
 AM_CONDITIONAL(HAVE_X11, test "$have_x" = "yes")
 AM_CONDITIONAL(HAVE_ICU, test "$with_icu" = "yes")
 AM_CONDITIONAL(WITH_KERNEL_MODULES, test "$with_kernel_modules" = "yes")
@@ -1420,6 +1455,7 @@ AM_CONDITIONAL(HAVE_UDEV, test "$have_udev" = "yes")
 AM_CONDITIONAL(ENABLE_RESOLUTIONKMS, test "x$enable_resolutionkms" = "xyes")
 AM_CONDITIONAL(VGAUTH_USE_CXX, test "$with_icu" = "yes" -o "$use_xmlsec1" != "yes")
 AM_CONDITIONAL(ENABLE_LIBAPPMONITOR, test "$enable_libappmonitor" = "yes")
+AM_CONDITIONAL(ENABLE_SDMP, test "$enable_servicediscovery" = "yes")
 
 if test "$have_xsm" != "yes"; then
 AC_DEFINE([NO_XSM], 1, [])
@@ -1579,6 +1615,8 @@ AC_CONFIG_FILES([                      \
    services/Makefile                   \
    services/vmtoolsd/Makefile          \
    services/plugins/Makefile           \
+   services/plugins/appInfo/Makefile   \
+   services/plugins/serviceDiscovery/Makefile   \
    services/plugins/desktopEvents/Makefile \
    services/plugins/dndcp/Makefile     \
    services/plugins/guestInfo/Makefile \

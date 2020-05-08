@@ -259,32 +259,32 @@ HgfsClient_PrintShares(void)
    int offset = 0;
    char escapedName[PATH_MAX + 1];
    HgfsHandle rootHandle;
-   HgfsFileName *fileName;
 
    if (!HgfsClient_Open(&rootHandle)) {
       return success;
    }
 
    while (TRUE) {
-      fileName = HgfsClient_Read(rootHandle, offset++);
+      HgfsFileName *fileName = HgfsClient_Read(rootHandle, offset++);
+
       if (fileName == NULL) {
          break;
       }
-  
+
       /* Are we done? */
       if (fileName->length == 0) {
          success = TRUE;
          break;
       }
 
-      /* 
+      /*
        * Escape this filename. If we get back a negative result, it means that
        * the escaped filename is too big, so skip this share.
        */
       if (HgfsEscape_Do(fileName->name, fileName->length,
                            sizeof escapedName, escapedName) < 0) {
-         continue;
-      } 
+        continue;
+      }
 
       /* Skip "." and ".." which can be returned. */
       if (strcmp(".", escapedName) == 0 ||
@@ -294,7 +294,7 @@ HgfsClient_PrintShares(void)
       printf("%s\n", escapedName);
 
    }
-   
+
    if (!HgfsClient_Close(rootHandle)) {
       success = FALSE;
    }

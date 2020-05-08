@@ -115,14 +115,12 @@ enum {
    HOSTINFO_OS_VERSION_MACOS_10_12 = 16,
    HOSTINFO_OS_VERSION_MACOS_10_13 = 17,
    HOSTINFO_OS_VERSION_MACOS_10_14 = 18,
+   HOSTINFO_OS_VERSION_MACOS_10_15 = 19,
 };
 
 int Hostinfo_OSVersion(unsigned int i);
 int Hostinfo_GetSystemBitness(void);
 const char *Hostinfo_OSVersionString(void);
-
-char *Hostinfo_GetOSName(void);
-char *Hostinfo_GetOSGuestString(void);
 
 #if defined(_WIN32)
 Bool Hostinfo_OSIsWinNT(void);

@@ -19,50 +19,35 @@
 /*
  * fileLockPosix.c --
  *
- *      Interface to host-specific locking function for Posix hosts.
+ *      Interface to host-specific file locking functions for POSIX hosts.
  */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h> /* Needed before sys/vfs.h with glibc 2.0 --hpreg */
-#if !defined(__FreeBSD__)
-#if defined(__APPLE__)
-#include <sys/param.h>
-#include <sys/mount.h>
-#include <sys/times.h>
-#include <sys/sysctl.h>
-#else
-#include <sys/vfs.h>
-#endif
-#endif
-#include <signal.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <sys/stat.h>
-#include <sys/file.h>
-#include <dirent.h>
+
+#if defined(__APPLE__)
+#include <sys/sysctl.h>
+#endif
 
 #include "vmware.h"
 #include "posix.h"
 #include "file.h"
-#include "fileIO.h"
 #include "fileLock.h"
 #include "fileInt.h"
 #include "util.h"
 #include "str.h"
 #include "err.h"
-#include "localconfig.h"
 #include "hostinfo.h"
-#include "su.h"
-#include "hostType.h"
 
 #include "unicodeOperations.h"
 
 #define LOGLEVEL_MODULE main
 #include "loglevel_user.h"
-
-#define DEVICE_LOCK_DIR "/var/lock"
 
 #define LOG_MAX_PROC_NAME  64
 
@@ -75,225 +60,6 @@
  * important, and should be presented directly to the user, not go silently
  * into the log file.
  */
-
-#if !defined(__FreeBSD__) && !defined(sun)
-/*
- *----------------------------------------------------------------------
- *
- * IsLinkingAvailable --
- *
- *      Check if linking is supported in the filesystem where we create
- *      the lock file.
- *
- * Results:
- *      TRUE is we're sure it's supported.  FALSE otherwise.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-static Bool
-IsLinkingAvailable(const char *fileName)  // IN:
-{
-   struct statfs buf;
-   int status;
-
-   ASSERT(fileName != NULL);
-
-   /*
-    * Don't use linking on ESX/VMFS... the overheads are expensive and this
-    * path really isn't used.
-    */
-
-   if (HostType_OSIsVMK()) {
-      return FALSE;
-   }
-
-   status = statfs(fileName, &buf);
-
-   if (status == -1) {
-      Log(LGPFX" Bad statfs using %s (%s).\n", fileName,
-          Err_Errno2String(errno));
-
-      return FALSE;
-   }
-
-#if defined(__APPLE__)
-   if ((Str_Strcasecmp(buf.f_fstypename, "hfs") == 0) ||
-       (Str_Strcasecmp(buf.f_fstypename, "nfs") == 0) ||
-       (Str_Strcasecmp(buf.f_fstypename, "ufs") == 0)) {
-      return TRUE;
-   }
-
-   if ((Str_Strcasecmp(buf.f_fstypename, "smbfs") != 0) &&
-       (Str_Strcasecmp(buf.f_fstypename, "afpfs") != 0)) {
-      Log(LGPFX" Unknown filesystem '%s'. Using non-linking file locking.\n",
-          buf.f_fstypename);
-   }
-#else
-   /* consult "table" of known filesystem types */
-   switch (buf.f_type) {
-   case AFFS_SUPER_MAGIC:
-   case EXT_SUPER_MAGIC:
-   case EXT2_OLD_SUPER_MAGIC:
-   case EXT2_SUPER_MAGIC:
-   // EXT3_SUPER_MAGIC is EXT2_SUPER_MAGIC
-   case HFSPLUS_SUPER_MAGIC:
-   case NFS_SUPER_MAGIC:
-   case XENIX_SUPER_MAGIC:
-   case SYSV4_SUPER_MAGIC:
-   case SYSV2_SUPER_MAGIC:
-   case COH_SUPER_MAGIC:
-   case UFS_SUPER_MAGIC:
-   case REISERFS_SUPER_MAGIC:
-   case XFS_SUPER_MAGIC:
-   case TMPFS_SUPER_MAGIC:
-   case JFS_SUPER_MAGIC:
-        return TRUE;                        // these are known to work
-   case SMB_SUPER_MAGIC:
-   case MSDOS_SUPER_MAGIC:
-        return FALSE;
-   }
-
-   /*
-    * Nothing is known about this filesystem. Play it safe and use
-    * non-link based locking.
-    */
-   Warning(LGPFX" Unknown filesystem 0x%x. Using non-linking locking.\n",
-           (unsigned int) buf.f_type);
-#endif
-
-   return FALSE;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * RemoveStaleLockFile --
- *
- *        Remove a stale lock file.
- *
- * Results:
- *        TRUE on success.
- *
- * Side effects:
- *        Unlink file.
- *
- *----------------------------------------------------------------------
- */
-
-static Bool
-RemoveStaleLockFile(const char *lockFileName)  // IN:
-{
-   uid_t uid;
-   int ret;
-   int saveErrno;
-
-   ASSERT(lockFileName != NULL);
-
-   /* stale lock */
-   Log(LGPFX" Found a previous instance of lock file '%s'. "
-       "It will be removed automatically.\n", lockFileName);
-
-   uid = Id_BeginSuperUser();
-   ret = unlink(lockFileName);
-   saveErrno = errno;
-   Id_EndSuperUser(uid);
-
-   if (ret < 0) {
-      Warning(LGPFX" Failed to remove stale lock file %s (%s).\n",
-              lockFileName, Err_Errno2String(saveErrno));
-
-      return FALSE;
-   }
-
-   return TRUE;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * GetLockFileValues --
- *
- *      Get host name and PID of locking process.
- *
- * Results:
- *      1 on success, 0 if file doesn't exist, -1 for all other errors.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-static int
-GetLockFileValues(const char *lockFileName,  // IN:
-                  int *pid,                  // OUT:
-                  char *hostID)              // OUT:
-{
-   char *p;
-   int  saveErrno;
-   FILE *lockFile;
-   char line[1000];
-   Bool deleteLockFile;
-   uid_t uid;
-   int status;
-
-   ASSERT(lockFileName != NULL);
-   ASSERT(pid != NULL);
-   ASSERT(hostID != NULL);
-
-   uid = Id_BeginSuperUser();
-   lockFile = Posix_Fopen(lockFileName, "r");
-   saveErrno = errno;
-   Id_EndSuperUser(uid);
-
-   if (lockFile == NULL) {
-      Warning(LGPFX" Failed to open existing lock file %s (%s).\n",
-              lockFileName, Err_Errno2String(saveErrno));
-
-      return (saveErrno == ENOENT) ? 0 : -1;
-   }
-
-   p = fgets(line, sizeof line, lockFile);
-   saveErrno = errno;
-
-   fclose(lockFile);
-
-   if (p == NULL) {
-      Warning(LGPFX" Failed to read line from lock file %s (%s).\n",
-              lockFileName, Err_Errno2String(saveErrno));
-
-      deleteLockFile = TRUE;
-   } else {
-      switch (sscanf(line, "%d %999s", pid, hostID)) {
-      case 2:
-         // Everything is OK
-         deleteLockFile = FALSE;
-         break;
-
-      case 1:
-      default:
-         Warning(LGPFX" Badly formatted lock file %s.\n", lockFileName);
-         deleteLockFile = TRUE;
-      }
-   }
-
-   status = 1;
-   if (deleteLockFile) {
-      status = 0;  // we're going to delete the file
-      if (!RemoveStaleLockFile(lockFileName)) {
-         status = -1;
-      }
-   }
-
-   return status;
-}
-
 
 /*
  *----------------------------------------------------------------------
@@ -322,254 +88,6 @@ FileLockIsValidProcess(int pid)  // IN:
    }
 
    return (value == HOSTINFO_PROCESS_QUERY_ALIVE) ? TRUE : FALSE;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * FileLockCreateLockFile --
- *
- *      Create a new lock file, either via a O_EXCL creat() call or
- *      through the linking method.
- *
- * Results:
- *      1 if we created our lock file successfully.
- *      0 if we should retry the creation.
- *     -1 if the process failed.
- *
- * Side effects:
- *      Change the host file system.
- *
- *----------------------------------------------------------------------
- */
-
-static int
-FileLockCreateLockFile(const char *lockFileName,  // IN:
-                       const char *lockFileLink,  // IN:
-                       const char *uniqueID)      // IN:
-{
-   int  err;
-   int  lockFD;
-   int  status = 1;
-   int  saveErrno;
-   Bool useLinking = IsLinkingAvailable(lockFileName);
-   uid_t uid;
-
-   if (useLinking) {
-      uid = Id_BeginSuperUser();
-      lockFD = creat(lockFileLink, 0444);
-      saveErrno = errno;
-      Id_EndSuperUser(uid);
-
-      if (lockFD == -1) {
-         Log(LGPFX" Failed to create new lock file %s (%s).\n",
-             lockFileLink, Err_Errno2String(saveErrno));
-
-         return (saveErrno == EEXIST) ? 0 : -1;
-      }
-   } else {
-      /*
-       * XXX
-       * Note that this option is racy, at least for SMB and FAT32 file
-       * systems. It appears, however, that by using a temporary lock
-       * file before getting the real, persistent lock file, the race
-       * can be eliminated. -- johnh
-       */
-
-      uid = Id_BeginSuperUser();
-      lockFD = Posix_Open(lockFileName, O_CREAT | O_EXCL | O_WRONLY,
-                                S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-      saveErrno = errno;
-      Id_EndSuperUser(uid);
-
-      if (lockFD == -1) {
-         Log(LGPFX" Failed to create new lock file %s (%s).\n",
-             lockFileName, Err_Errno2String(saveErrno));
-
-         return (saveErrno == EEXIST) ? 0 : -1;
-      }
-   }
-
-   err = write(lockFD, uniqueID, strlen(uniqueID));
-   saveErrno = errno;
-
-   close(lockFD);
-
-   if (err != strlen(uniqueID)) {
-      Warning(LGPFX" Failed to write to new lock file %s (%s).\n",
-              lockFileName, Err_Errno2String(saveErrno));
-      status = -1;
-      goto exit;
-   }
-
-   uid = Id_BeginSuperUser();
-
-   if (useLinking && (link(lockFileLink, lockFileName) < 0)) {
-      status = (errno == EEXIST) ? 0 : -1;
-   }
-
-   Id_EndSuperUser(uid);
-
-exit:
-   if (useLinking) {
-      uid = Id_BeginSuperUser();
-      err = unlink(lockFileLink);
-      Id_EndSuperUser(uid);
-
-      if (err < 0) {
-         Warning(LGPFX" Failed to remove temporary lock file %s (%s).\n",
-                 lockFileLink, Err_Errno2String(errno));
-      }
-
-   }
-
-   return status;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * FileLock_LockDevice --
- *
- *      Lock with a file.  Detect and remove stale locks
- *      when possible.
- *
- * Results:
- *      1 if got the lock, 0 if not, -1 for errors.
- *
- * Side effects:
- *      Change the host file system.
- *
- * Note:
- *      This locking method remains due to "minicom" and similar
- *      programs that use this locking method for access serialization
- *      of serial ports.
- *
- *----------------------------------------------------------------------
- */
-
-int
-FileLock_LockDevice(const char *deviceName)  // IN:
-{
-   const char *hostID;
-   char       uniqueID[1000];
-   char       *lockFileName;
-   char       *lockFileLink;
-
-   int  status = -1;
-
-   ASSERT(deviceName != NULL);
-
-   lockFileName = Str_SafeAsprintf(NULL, "%s/LCK..%s", DEVICE_LOCK_DIR,
-                                   deviceName);
-
-   lockFileLink = Str_SafeAsprintf(NULL, "%s/LTMP..%s.t%05d", DEVICE_LOCK_DIR,
-                                   deviceName, getpid());
-
-   LOG(1, ("Requesting lock %s (temp = %s).\n", lockFileName,
-           lockFileLink));
-
-   hostID = FileLockGetMachineID();
-   Str_Sprintf(uniqueID, sizeof uniqueID, "%d %s\n",
-               getpid(), hostID);
-
-   while ((status = FileLockCreateLockFile(lockFileName, lockFileLink,
-                                           uniqueID)) == 0) {
-      int  pid;
-      char fileID[1000];
-
-      /*
-       *  The lock file already exists. See if it is a stale lock.
-       *
-       *  We retry the link if the file is gone now (0 return).
-       */
-
-      switch (GetLockFileValues(lockFileName, &pid, fileID)) {
-      case 1:
-         break;
-      case 0:
-         continue;
-      case -1:
-         status = -1;
-         goto exit;
-      default:
-         NOT_REACHED();
-      }
-
-      if (strcmp(hostID, fileID) != 0) {
-         /* Lock was acquired by a different host. */
-         status = 0;
-         goto exit;
-      }
-
-      if (FileLockIsValidProcess(pid)) {
-         status = 0;
-         goto exit;
-      }
-
-      /* stale lock */
-     if (!RemoveStaleLockFile(lockFileName)) {
-         status = -1;
-         goto exit;
-      }
-      /* TRY AGAIN */
-   }
-
-exit:
-   Posix_Free(lockFileName);
-   Posix_Free(lockFileLink);
-   return status;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * FileLock_UnlockDevice --
- *
- *      Unlock a lock obtained by FileLock_LockDevice.
- *
- * Results:
- *      True if successful, FALSE otherwise.
- *
- * Side effects:
- *      Change the host file system.
- *
- *----------------------------------------------------------------------
- */
-
-Bool
-FileLock_UnlockDevice(const char *deviceName)  // IN:
-{
-   uid_t uid;
-   int ret;
-   int saveErrno;
-   char *path;
-
-   ASSERT(deviceName != NULL);
-
-   path = Str_SafeAsprintf(NULL, "%s/LCK..%s", DEVICE_LOCK_DIR, deviceName);
-
-   LOG(1, ("Releasing lock %s.\n", path));
-
-   uid = Id_BeginSuperUser();
-   ret = unlink(path);
-   saveErrno = errno;
-   Id_EndSuperUser(uid);
-
-   if (ret < 0) {
-      Log(LGPFX" Cannot remove lock file %s (%s).\n",
-          path, Err_Errno2String(saveErrno));
-      Posix_Free(path);
-
-      return FALSE;
-   }
-
-   Posix_Free(path);
-
-   return TRUE;
 }
 
 
@@ -805,9 +323,9 @@ FileLockProcessCreationTime(pid_t pid,                 // IN:
                             uint64 *procCreationTime)  // OUT:
 {
    int err;
+   int mib[4];
    size_t size;
    struct kinfo_proc info;
-   int mib[4];
 
    ASSERT(procCreationTime != NULL);
 
@@ -901,8 +419,15 @@ FileLockProcessDescriptor(pid_t pid)  // IN:
 static char *
 FileLockProcessDescriptor(pid_t pid)  // IN:
 {
-   return FileLockIsValidProcess(pid) ? Str_SafeAsprintf(NULL, "%d-0", pid) :
-                                        NULL;
+   char *value;
+
+   if (FileLockIsValidProcess(pid)) {
+      value = Str_SafeAsprintf(NULL, "%u-0", (uint32) pid);
+   } else {
+      value = NULL;
+   }
+
+   return value;
 }
 #endif
 
@@ -960,17 +485,21 @@ FileLockParseProcessDescriptor(const char *procDescriptor,  // IN:
                                pid_t *pid,                  // OUT:
                                uint64 *procCreationTime)    // OUT:
 {
+   uint32 tmp;
+
    ASSERT(procDescriptor != NULL);
    ASSERT(pid != NULL);
    ASSERT(procCreationTime != NULL);
 
-   if (sscanf(procDescriptor, "%d-%"FMT64"u", pid, procCreationTime) != 2) {
-      if (sscanf(procDescriptor, "%d", pid) == 1) {
+   if (sscanf(procDescriptor, "%u-%"FMT64"u", &tmp, procCreationTime) != 2) {
+      if (sscanf(procDescriptor, "%d", &tmp) == 1) {
          *procCreationTime = 0ULL;
       } else {
          return FALSE;
       }
    }
+
+   *pid = tmp;
 
    return *pid >= 0;
 }
@@ -1255,17 +784,3 @@ FileLock_Unlock(const FileLockToken *lockToken,  // IN:
 
    return (res == 0);
 }
-
-#else
-char *
-FileLockGetExecutionID(void)
-{
-   NOT_IMPLEMENTED();
-}
-
-Bool
-FileLockValidExecutionID(const char *executionID)  // IN:
-{
-   NOT_IMPLEMENTED();
-}
-#endif /* !__FreeBSD__ && !sun */

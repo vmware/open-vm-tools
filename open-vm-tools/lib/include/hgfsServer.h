@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -125,6 +125,7 @@ typedef uint32 HgfsConfigFlags;
 #define HGFS_CONFIG_VOL_INFO_MIN                     (1 << 2)
 #define HGFS_CONFIG_OPLOCK_ENABLED                   (1 << 3)
 #define HGFS_CONFIG_SHARE_ALL_HOST_DRIVES_ENABLED    (1 << 4)
+#define HGFS_CONFIG_THREADPOOL_ENABLED               (1 << 5)
 
 typedef struct HgfsServerConfig {
    HgfsConfigFlags flags;
@@ -167,6 +168,7 @@ typedef struct HgfsServerMgrCallbacks {
 } HgfsServerMgrCallbacks;
 
 typedef enum {
+   HGFS_QUIESCE_CHANNEL_FREEZE,  /*Op sent before the channel device quiesce*/
    HGFS_QUIESCE_FREEZE,
    HGFS_QUIESCE_THAW,
 } HgfsQuiesceOp;
@@ -186,8 +188,6 @@ typedef void (*HgfsChannelRegisterThreadFunc)(void);
 typedef void (*HgfsChannelUnregisterThreadFunc)(void);
 
 typedef struct HgfsServerChannelCallbacks {
-   HgfsChannelRegisterThreadFunc registerThread;
-   HgfsChannelUnregisterThreadFunc unregisterThread;
    HgfsChannelMapVirtAddrFunc getReadVa;
    HgfsChannelMapVirtAddrFunc getWriteVa;
    HgfsChannelUnmapVirtAddrFunc putVa;

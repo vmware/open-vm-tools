@@ -62,7 +62,6 @@
 #define MUL64_NO_ASM 1
 #include "mul64.h"
 #elif defined VM_ARM_64
-#include "arm64_basic_defs.h"
 #include "vm_basic_asm_arm64.h"
 #else
 #define MUL64_NO_ASM 1
@@ -1194,6 +1193,9 @@ RoundUpPow2_32(uint32 value)
 static INLINE unsigned
 PopCount32(uint32 value)
 {
+#if defined(__GNUC__) && !defined(FEWER_BUILTINS) && defined(__POPCNT__)
+   return __builtin_popcount(value);
+#else
    /*
     * Attribution:
     *     This algorithm was copied from:
@@ -1237,6 +1239,7 @@ PopCount32(uint32 value)
    value += (value >> 8);
    value += (value >> 16);
    return value & 0x0000003f;
+#endif
 }
 
 
@@ -1259,6 +1262,13 @@ PopCount32(uint32 value)
 static INLINE unsigned
 PopCount64(uint64 value)
 {
+#if defined(__GNUC__) && !defined(FEWER_BUILTINS) && defined(__POPCNT__)
+#if defined(VM_X86_64)
+   return __builtin_popcountll(value);
+#else
+   return PopCount32(value) + PopCount32(value >> 32);
+#endif
+#else
    value -= (value >> 1) & 0x5555555555555555ULL;
    value = ((value >> 2) & 0x3333333333333333ULL) +
            (value & 0x3333333333333333ULL);
@@ -1267,6 +1277,7 @@ PopCount64(uint64 value)
    value += value >> 16;
    value += value >> 32;
    return (unsigned) (value & 0xff);
+#endif
 }
 
 

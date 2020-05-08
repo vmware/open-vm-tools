@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1836,6 +1836,7 @@ typedef uint32 HgfsSessionFlags;
 #define HGFS_SESSION_MAXPACKETSIZE_VALID    (1 << 0)
 #define HGFS_SESSION_CHANGENOTIFY_ENABLED   (1 << 1)
 #define HGFS_SESSION_OPLOCK_ENABLED         (1 << 2)
+#define HGFS_SESSION_ASYNC_IO_ENABLED       (1 << 3)
 
 typedef
 #include "vmware_pack_begin.h"

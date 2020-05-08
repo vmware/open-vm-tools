@@ -71,7 +71,7 @@ HgfsPackDirOpenRequest(const char *path,    // IN: Path of the dir to open
       reqSize = sizeof(*requestV3) + HgfsGetRequestHeaderSize();
       /* Convert to CP name. */
       result = CPName_ConvertTo(path,
-                                HGFS_LARGE_PACKET_MAX - (reqSize - 1),
+                                HgfsLargePacketMax(FALSE) - (reqSize - 1),
                                 requestV3->dirName.name);
       if (result < 0) {
          LOG(4, ("CP conversion failed\n"));
@@ -92,7 +92,7 @@ HgfsPackDirOpenRequest(const char *path,    // IN: Path of the dir to open
       reqSize = sizeof *request;
       /* Convert to CP name. */
       result = CPName_ConvertTo(path,
-                                HGFS_LARGE_PACKET_MAX - (reqSize - 1),
+                                HgfsLargePacketMax(FALSE) - (reqSize - 1),
                                 request->dirName.name);
       if (result < 0) {
          LOG(4, ("CP conversion failed\n"));
@@ -247,7 +247,7 @@ HgfsReadDirFromReply(uint32 *f_pos,     // IN/OUT: Offset
    uint32 replyCount;
    HgfsAttrInfo attr;
    HgfsDirEntry *hgfsDirent = NULL; /* Only for V3. */
-   char *escName = NULL;            /* Buffer for escaped version of name */
+   char *escName;                   /* Buffer for escaped version of name */
    size_t escNameLength = NAME_MAX + 1;
    int result = 0;
 
@@ -638,7 +638,7 @@ HgfsPackCreateDirRequest(const char *path,
       requestV3->fileName.caseType = HGFS_FILE_NAME_CASE_SENSITIVE;
       /* Convert to CP name. */
       result = CPName_ConvertTo(path,
-                                HGFS_LARGE_PACKET_MAX - (reqSize - 1),
+                                HgfsLargePacketMax(FALSE) - (reqSize - 1),
                                 requestV3->fileName.name);
       if (result < 0) {
          LOG(4, ("CP conversion failed.\n"));
@@ -666,7 +666,7 @@ HgfsPackCreateDirRequest(const char *path,
 
       /* Convert to CP name. */
       result = CPName_ConvertTo(path,
-                                HGFS_LARGE_PACKET_MAX - (reqSize - 1),
+                                HgfsLargePacketMax(FALSE) - (reqSize - 1),
                                 requestV2->fileName.name);
       if (result < 0) {
          LOG(4, ("CP conversion failed.\n"));
@@ -692,7 +692,7 @@ HgfsPackCreateDirRequest(const char *path,
       reqSize = sizeof *request;
       /* Convert to CP name. */
       result = CPName_ConvertTo(path,
-                                HGFS_LARGE_PACKET_MAX - (reqSize - 1),
+                                HgfsLargePacketMax(FALSE) - (reqSize - 1),
                                 request->fileName.name);
       if (result < 0) {
          LOG(4, ("CP conversion failed.\n"));
@@ -867,7 +867,7 @@ HgfsDelete(const char* path,       // IN: Path to file
       request->hints = 0;
       /* Convert to CP name. */
       result = CPName_ConvertTo(path,
-                                HGFS_NAME_BUFFER_SIZET(HGFS_LARGE_PACKET_MAX, reqSize),
+                                HGFS_NAME_BUFFER_SIZET(HgfsLargePacketMax(FALSE), reqSize),
                                 request->fileName.name);
       if (result < 0) {
          LOG(4, ("CP conversion failed.\n"));
@@ -889,7 +889,7 @@ HgfsDelete(const char* path,       // IN: Path to file
       reqSize = sizeof *request;
       /* Convert to CP name. */
       result = CPName_ConvertTo(path,
-                                HGFS_NAME_BUFFER_SIZET(HGFS_LARGE_PACKET_MAX, reqSize),
+                                HGFS_NAME_BUFFER_SIZET(HgfsLargePacketMax(FALSE), reqSize),
                                 request->fileName.name);
       if (result < 0) {
          LOG(4, ("CP conversion failed.\n"));

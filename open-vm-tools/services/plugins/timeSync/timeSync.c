@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -459,9 +459,9 @@ TimeSyncSlewTime(TimeSyncData *data, int64 adjustment)
 
    int64 now;
    int64 remaining = 0;
-   int64 timeSyncPeriodUS = data->timeSyncPeriod * US_PER_SEC;
+   int64 timeSyncPeriodUS = (int64)data->timeSyncPeriod * US_PER_SEC;
    int64 slewDiff = (adjustment * data->slewPercentCorrection) / 100;
-   
+
    if (!TimeSync_GetCurrentTime(&now)) {
       return FALSE;
    }
@@ -537,7 +537,7 @@ static void
 TimeSyncResetSlew(TimeSyncData *data)
 {
    int64 remaining;
-   int64 timeSyncPeriodUS = data->timeSyncPeriod * US_PER_SEC;
+   int64 timeSyncPeriodUS = (int64)data->timeSyncPeriod * US_PER_SEC;
    data->slewState = TimeSyncUncalibrated;
    TimeSync_Slew(0, timeSyncPeriodUS, &remaining);
    if (TimeSync_PLLSupported()) {

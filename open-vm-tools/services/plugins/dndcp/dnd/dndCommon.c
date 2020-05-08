@@ -476,7 +476,7 @@ DnD_LegacyConvertToCPName(const char *nameIn,   // IN:  Buffer to convert
    memcpy(fullName + partialNameLen + partialNameSuffixLen, nameIn, nameSize);
    fullName[fullNameSize] = '\0';
 
-   LOG(4, ("%s: generated name is \"%s\"\n", __FUNCTION__, fullName));
+   LOG(4, "%s: generated name is \"%s\"\n", __FUNCTION__, fullName);
 
    /*
     * CPName_ConvertTo implementation is performed here without calling any
@@ -502,23 +502,18 @@ DnD_LegacyConvertToCPName(const char *nameIn,   // IN:  Buffer to convert
        */
 
       for (; *winNameIn != '\0' && bufOut < endOut; winNameIn++) {
-         if (ignores) {
-            char *currIgnore = ignores;
-            Bool ignore = FALSE;
+         char *currIgnore = ignores;
+         Bool ignore = FALSE;
 
-            while (*currIgnore != '\0') {
-               if (*winNameIn == *currIgnore) {
-                  ignore = TRUE;
-                  break;
-               }
-               currIgnore++;
+         while (*currIgnore != '\0') {
+            if (*winNameIn == *currIgnore) {
+               ignore = TRUE;
+               break;
             }
+            currIgnore++;
+         }
 
-            if (!ignore) {
-               *bufOut = (*winNameIn == pathSep) ? '\0' : *winNameIn;
-               bufOut++;
-            }
-         } else {
+         if (!ignore) {
             *bufOut = (*winNameIn == pathSep) ? '\0' : *winNameIn;
             bufOut++;
          }
@@ -551,8 +546,8 @@ DnD_LegacyConvertToCPName(const char *nameIn,   // IN:  Buffer to convert
        * logging
        */
 
-      LOG(4, ("%s: CPName is \"%s\"\n", __FUNCTION__, 
-              CPName_Print(origOut, result)));
+      LOG(4, "%s: CPName is \"%s\"\n", __FUNCTION__, 
+          CPName_Print(origOut, result));
    }
 
 out:

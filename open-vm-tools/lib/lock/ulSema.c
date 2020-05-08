@@ -578,7 +578,7 @@ MXUser_DownSemaphore(MXUserSemaphore *sema)  // IN/OUT:
 {
    int err;
 
-   ASSERT(sema);
+   ASSERT(sema != NULL);
    MXUserValidateHeader(&sema->header, MXUSER_TYPE_SEMA);
 
    Atomic_Inc(&sema->activeUserCount);
@@ -658,7 +658,7 @@ MXUser_TimedDownSemaphore(MXUserSemaphore *sema,  // IN/OUT:
    int err;
    Bool downOccurred = FALSE;
 
-   ASSERT(sema);
+   ASSERT(sema != NULL);
    MXUserValidateHeader(&sema->header, MXUSER_TYPE_SEMA);
 
    Atomic_Inc(&sema->activeUserCount);
@@ -747,7 +747,7 @@ MXUser_TryDownSemaphore(MXUserSemaphore *sema)  // IN/OUT:
    int err;
    Bool downOccurred = FALSE;
 
-   ASSERT(sema);
+   ASSERT(sema != NULL);
    MXUserValidateHeader(&sema->header, MXUSER_TYPE_SEMA);
 
    Atomic_Inc(&sema->activeUserCount);
@@ -798,7 +798,7 @@ MXUser_UpSemaphore(MXUserSemaphore *sema)  // IN/OUT:
 {
    int err;
 
-   ASSERT(sema);
+   ASSERT(sema != NULL);
    MXUserValidateHeader(&sema->header, MXUSER_TYPE_SEMA);
 
    /*
@@ -846,7 +846,7 @@ MXUser_CreateSingletonSemaphore(Atomic_Ptr *semaStorage,  // IN/OUT:
 {
    MXUserSemaphore *sema;
 
-   ASSERT(semaStorage);
+   ASSERT(semaStorage != NULL);
 
    sema = Atomic_ReadPtr(semaStorage);
 

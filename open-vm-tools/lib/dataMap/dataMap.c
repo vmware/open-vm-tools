@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2012-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2012-2017,2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1519,10 +1519,14 @@ CopyStringListEntry(DMKeyType fieldId,                  // IN
    }
 
    newList = (char **)calloc(listSize + 1, sizeof(char *));
+   if (newList == NULL) {
+      return DMERR_INSUFFICIENT_MEM;
+   }
+
    newLens = (int32 *)malloc(sizeof(int32) * listSize);
 
-   if (newList == NULL || newLens == NULL) {
-      FreeStringList(newList, newLens);
+   if (newLens == NULL) {
+      free(newList);
       return DMERR_INSUFFICIENT_MEM;
    }
 
@@ -1719,12 +1723,12 @@ DataMap_Copy(const DataMap *src,  // IN
    ClientData clientData;
    ErrorCode res;
 
-   ASSERT(src->map != NULL);
-   ASSERT(src->cookie == magic_cookie);
-
    if (src == NULL || dst == NULL) {
       return  DMERR_INVALID_ARGS;
    }
+
+   ASSERT(src->map != NULL);
+   ASSERT(src->cookie == magic_cookie);
 
    /* init dst map */
    res = DataMap_Create(dst);
@@ -2453,7 +2457,6 @@ DataMap_ToString(const DataMap *that,               // IN
 {
    ClientData clientData;
    char *buffPtr;
-   const char *truncStr = " DATA TRUNCATED!!!\n";
 
    /* This API is for debugging only, so we use hard coded buffer size */
    const int32 maxBuffSize = 10 * 1024;
@@ -2496,6 +2499,8 @@ DataMap_ToString(const DataMap *that,               // IN
    ASSERT(buffPtr + maxBuffSize >= clientData.buffer);
 
    if (clientData.result == DMERR_BUFFER_TOO_SMALL) {
+      const char truncStr[] = " DATA TRUNCATED!!!\n";
+
       ASSERT(maxBuffSize > strlen(truncStr));
       Str_Strcpy(buffPtr + maxBuffSize - strlen(truncStr) - 1, truncStr,
 	         strlen(truncStr) + 1);

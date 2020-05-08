@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -110,6 +110,7 @@
    LOGLEVEL_VAR(vtpm), \
    LOGLEVEL_VAR(mor), \
    LOGLEVEL_VAR(precisionclock), \
+   LOGLEVEL_VAR(deviceThread), \
    \
    /* user/disk */ \
    LOGLEVEL_VAR(aioMgr), \
@@ -160,6 +161,7 @@
    LOGLEVEL_VAR(mksDX11ShimOps), \
    LOGLEVEL_VAR(mksMTLRenderer), \
    LOGLEVEL_VAR(mksVulkanRenderer), \
+   LOGLEVEL_VAR(mvnc), \
    LOGLEVEL_VAR(vaBasicOps), \
    LOGLEVEL_VAR(vdpPlugin), \
    LOGLEVEL_VAR(vncServer), \
@@ -309,7 +311,6 @@
    LOGLEVEL_VAR(mirror), \
    LOGLEVEL_VAR(filtlib), \
    LOGLEVEL_VAR(epd), \
-   LOGLEVEL_VAR(ddecomd), \
    LOGLEVEL_VAR(vdfs), \
    LOGLEVEL_VAR(vdfs_9p), \
    LOGLEVEL_VAR(hostctl), \

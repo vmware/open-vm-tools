@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -47,6 +47,7 @@
 
 #define LOGLEVEL_MODULE dnd
 #include "loglevel_user.h"
+
 #include "unicodeOperations.h"
 
 
@@ -300,13 +301,13 @@ Bool
 DnD_AddBlockLegacy(int blockFd,                    // IN
                    const char *blockPath)          // IN
 {
-   LOG(1, ("%s: placing block on %s\n", __func__, blockPath));
+   LOG(1, "%s: placing block on %s\n", __func__, blockPath);
 
    ASSERT(blockFd >= 0);
 
    if (VMBLOCK_CONTROL(blockFd, VMBLOCK_ADD_FILEBLOCK, blockPath) != 0) {
-      LOG(1, ("%s: Cannot add block on %s (%s)\n",
-              __func__, blockPath, Err_Errno2String(errno)));
+      LOG(1, "%s: Cannot add block on %s (%s)\n",
+          __func__, blockPath, Err_Errno2String(errno));
 
       return FALSE;
    }
@@ -335,7 +336,7 @@ Bool
 DnD_RemoveBlockLegacy(int blockFd,                    // IN
                       const char *blockedPath)        // IN
 {
-   LOG(1, ("%s: removing block on %s\n", __func__, blockedPath));
+   LOG(1, "%s: removing block on %s\n", __func__, blockedPath);
 
    if (blockFd >= 0) {
       if (VMBLOCK_CONTROL(blockFd, VMBLOCK_DEL_FILEBLOCK, blockedPath) != 0) {
@@ -345,8 +346,8 @@ DnD_RemoveBlockLegacy(int blockFd,                    // IN
          return FALSE;
       }
    } else {
-      LOG(4, ("%s: Could not remove block on %s: "
-              "fd to vmblock no longer exists.\n", __func__, blockedPath));
+      LOG(4, "%s: Could not remove block on %s: "
+          "fd to vmblock no longer exists.\n", __func__, blockedPath);
    }
 
    return TRUE;
@@ -399,14 +400,14 @@ Bool
 DnD_AddBlockFuse(int blockFd,                    // IN
                  const char *blockPath)          // IN
 {
-   LOG(1, ("%s: placing block on %s\n", __func__, blockPath));
+   LOG(1, "%s: placing block on %s\n", __func__, blockPath);
 
    ASSERT(blockFd >= 0);
 
    if (VMBLOCK_CONTROL_FUSE(blockFd, VMBLOCK_FUSE_ADD_FILEBLOCK,
                             blockPath) != 0) {
-      LOG(1, ("%s: Cannot add block on %s (%s)\n",
-              __func__, blockPath, Err_Errno2String(errno)));
+      LOG(1, "%s: Cannot add block on %s (%s)\n",
+          __func__, blockPath, Err_Errno2String(errno));
 
       return FALSE;
    }
@@ -435,7 +436,7 @@ Bool
 DnD_RemoveBlockFuse(int blockFd,                    // IN
                     const char *blockedPath)        // IN
 {
-   LOG(1, ("%s: removing block on %s\n", __func__, blockedPath));
+   LOG(1, "%s: removing block on %s\n", __func__, blockedPath);
 
    if (blockFd >= 0) {
       if (VMBLOCK_CONTROL_FUSE(blockFd, VMBLOCK_FUSE_DEL_FILEBLOCK,
@@ -446,8 +447,8 @@ DnD_RemoveBlockFuse(int blockFd,                    // IN
          return FALSE;
       }
    } else {
-      LOG(4, ("%s: Could not remove block on %s: "
-              "fd to vmblock no longer exists.\n", __func__, blockedPath));
+      LOG(4, "%s: Could not remove block on %s: "
+          "fd to vmblock no longer exists.\n", __func__, blockedPath);
    }
 
    return TRUE;
@@ -479,8 +480,7 @@ DnD_CheckBlockFuse(int blockFd)                    // IN
 
    size = read(blockFd, buf, sizeof(VMBLOCK_FUSE_READ_RESPONSE));
    if (size < 0) {
-      LOG(4, ("%s: read failed, error %s.\n",
-              __func__, Err_Errno2String(errno)));
+      LOG(4, "%s: read failed, error %s.\n", __func__, Err_Errno2String(errno));
 
       return FALSE;
    }
@@ -489,16 +489,16 @@ DnD_CheckBlockFuse(int blockFd)                    // IN
       /*
        * Refer to bug 817761 of casting size to size_t.
        */
-      LOG(4, ("%s: Response too short (%"FMTSZ"u vs. %"FMTSZ"u).\n",
-              __func__, (size_t)size, sizeof(VMBLOCK_FUSE_READ_RESPONSE)));
+      LOG(4, "%s: Response too short (%"FMTSZ"u vs. %"FMTSZ"u).\n",
+          __func__, (size_t)size, sizeof(VMBLOCK_FUSE_READ_RESPONSE));
 
       return FALSE;
    }
 
    if (memcmp(buf, VMBLOCK_FUSE_READ_RESPONSE,
               sizeof(VMBLOCK_FUSE_READ_RESPONSE))) {
-      LOG(4, ("%s: Invalid response %.*s",
-              __func__, (int)sizeof(VMBLOCK_FUSE_READ_RESPONSE) - 1, buf));
+      LOG(4, "%s: Invalid response %.*s\n",
+          __func__, (int)sizeof(VMBLOCK_FUSE_READ_RESPONSE) - 1, buf);
 
       return FALSE;
    }
@@ -559,7 +559,7 @@ DnD_TryInitVmblock(const char *vmbFsName,          // IN
    /* Make sure the vmblock file system is mounted. */
    fp = OPEN_MNTFILE("r");
    if (fp == NULL) {
-      LOG(1, ("%s: could not open mount file\n", __func__));
+      LOG(1, "%s: could not open mount file\n", __func__);
       goto out;
    }
 
@@ -582,14 +582,13 @@ DnD_TryInitVmblock(const char *vmbFsName,          // IN
       /* Open device node for communication with vmblock. */
       blockFd = Posix_Open(vmbDevice, vmbDeviceMode);
       if (blockFd < 0) {
-         LOG(1, ("%s: Can not open blocker device (%s)\n",
-                 __func__, Err_Errno2String(errno)));
+         LOG(1, "%s: Can not open blocker device (%s)\n",
+             __func__, Err_Errno2String(errno));
       } else {
-         LOG(4, ("%s: Opened blocker device at %s\n",
-                 __func__, VMBLOCK_DEVICE));
+         LOG(4, "%s: Opened blocker device at %s\n", __func__, VMBLOCK_DEVICE);
          if (verifyBlock && !verifyBlock(blockFd)) {
-            LOG(4, ("%s: Blocker device at %s did not pass checks, closing.\n",
-                    __func__, VMBLOCK_DEVICE));
+            LOG(4, "%s: Blocker device at %s did not pass checks, closing.\n",
+                __func__, VMBLOCK_DEVICE);
             close(blockFd);
             blockFd = -1;
          }
@@ -655,7 +654,7 @@ DnD_InitializeBlocking(DnDBlockControl *blkCtrl)   // OUT
       goto out;
    }
 
-   LOG(4, ("%s: could not find vmblock mounted\n", __func__));
+   LOG(4, "%s: could not find vmblock mounted\n", __func__);
 out:
    Id_EndSuperUser(uid);
 

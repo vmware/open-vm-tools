@@ -39,7 +39,8 @@ extern "C" {
  */
 
 GuestCopyPasteDest::GuestCopyPasteDest(GuestCopyPasteMgr *mgr)
- : mMgr(mgr)
+ : mMgr(mgr),
+   mIsActive(false)
 {
    ASSERT(mMgr);
 }

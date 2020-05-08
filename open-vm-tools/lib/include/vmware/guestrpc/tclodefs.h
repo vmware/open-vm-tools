@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -141,7 +141,8 @@ enum {
 
 enum {
    GUESTRPCPKT_FIELD_TYPE = 1,
-   GUESTRPCPKT_FIELD_PAYLOAD
+   GUESTRPCPKT_FIELD_PAYLOAD,
+   GUESTRPCPKT_FIELD_FAST_CLOSE
 };
 
 #endif /* _TCLODEFS_H_ */
