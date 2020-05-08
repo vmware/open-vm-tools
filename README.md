@@ -38,7 +38,7 @@ The following components have been released as open source software:
 Yes. open-vm-tools packages for user space components are available with new versions of major Linux distributions, and are installed as part of the OS installation in several cases. Please refer to VMware KB article http://kb.vmware.com/kb/2073803 for details. All leading Linux vendors support open-vm-tools and bundle it with their products. For information about OS compatibility for open-vm-tools, see the 
 VMware Compatibility Guide at http://www.vmware.com/resources/compatibility
 Automatic installation of open-vm-tools along with the OS installation eliminates the need to separately install open-vm-tools in guests. If open-vm-tools is not installed automatically, you may be able to manually install it from the guest OS vendor's public repository. Installing open-vm-tools from the Linux vendor's repository reduces virtual machine downtime because future updates to open-vm-tools are included with the OS maintenance patches and updates.
-**NOTE**: Most of the Linux distributions ship two open-vm-tools packages, "open-vm-tools" and "open-vm-tools-desktop". "open-vm-tools" is the core package without any dependencies on X libraries and "open-vm-tools-desktop" is an additional package with dependencies on "open-vm-tools" core package and X libraries. The open-vm-tools packages available with Linux distributions do not include Linux drivers because Linux drivers are available as part of Linux kernel itself. Linux kernel versions 3.10 and later include all of the Linux drivers present in open-vm-tools except the vmhgfs driver. The vmhgfs driver is required for enabling shared folders feature.
+**NOTE**: Most of the Linux distributions ship two or more open-vm-tools packages. "open-vm-tools" is the core package without any dependencies on X libraries and "open-vm-tools-desktop" is an additional package with dependencies on "open-vm-tools" core package and X libraries. The "open-vm-tools-sdmp" package contains a plugin for Service Discovery. There may be additional packages, please refer to the documentation of the OS vendor. Note that the open-vm-tools packages available with Linux distributions do not include Linux drivers because Linux drivers are available as part of Linux kernel itself. Linux kernel versions 3.10 and later include all of the Linux drivers present in open-vm-tools except the vmhgfs driver. The vmhgfs driver was required for enabling shared folders feature, but is superseded by vmhgfs-fuse which does not require a kernel driver.
 
 ## Will there be continued support for VMware Tools and OSP? 
 VMware Tools will continue to be available under a commercial license. It is recommended that open-vm-tools be used for the Linux distributions where open-vm-tools is available. VMware will not provide OSPs for operating systems where open-vm-tools is available.
@@ -84,10 +84,15 @@ open-vm-tools uses the GNU Automake tool for generating Makefiles to build all s
 The following steps will work on most recent Linux distributions:
 ```
 autoreconf -i
-./configure --without-kernel-modules
+./configure
 make
 sudo make install
 sudo ldconfig
+```
+
+To build the optional sdmp (Service Discovery) plugin use the `--enable-servicediscovery` option to invoke the configure script:
+```
+./configure --enable-servicediscovery
 ```
 
 ## Getting configure options and help
