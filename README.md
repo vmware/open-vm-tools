@@ -146,7 +146,7 @@ The [Guest OS Customization Support Matrix](http://partnerweb.vmware.com/program
 
 The [VMware Product Interoperability Matrix](http://partnerweb.vmware.com/comp_guide2/sim/interop_matrix.php) provides details about the compatibility of different versions of VMware Tools (includes open-vm-tools) and other VMware Products.
 
-#Internationalization
+# Internationalization
 ## Which languages are supported?
 
 open-vm-tools supports the following languages:
