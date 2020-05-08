@@ -137,6 +137,29 @@ Fax to +1.650.427.5003, Attn: Product & Technology Law Group
 Scan and email it to oss-queries_at_vmware.com
 Agreement: http://open-vm-tools.sourceforge.net/files/vca.pdf
 
+# Compatibilty
+
+## What Operating Systems are supported for customization?
+The [Guest OS Customization Support Matrix](http://partnerweb.vmware.com/programs/guestOS/guest-os-customization-matrix.pdf) provides details about the guest operating systems supported for customization.
+
+## Which versions of open-vm-tools are compatible with other VMware products?
+
+The [VMware Product Interoperability Matrix](http://partnerweb.vmware.com/comp_guide2/sim/interop_matrix.php) provides details about the compatibility of different versions of VMware Tools (includes open-vm-tools) and other VMware Products.
+
+#Internationalization
+## Which languages are supported?
+
+open-vm-tools supports the following languages:
+- English
+- French
+- German
+- Spanish
+- Italian
+- Japanese
+- Korean
+- Simplified Chinese
+- Traditional Chinese
+
 # Other
 ## Mailing Lists
 Please send an email to one of these mailing lists based on the nature of your question.
