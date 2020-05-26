@@ -155,7 +155,7 @@ CPUIDQuery;
    CPUIDLEVEL(TRUE,  18,  0x18,       8, 17) \
    CPUIDLEVEL(TRUE,  1A,  0x1a,       0, 17) \
    CPUIDLEVEL(TRUE,  1B,  0x1b,       2, 17) \
-   CPUIDLEVEL(TRUE,  1F,  0x1f,       6, 17) \
+   CPUIDLEVEL(FALSE, 1F,  0x1f,       6, 17) \
    CPUIDLEVEL(FALSE, 400, 0x40000000, 0,  0) \
    CPUIDLEVEL(FALSE, 401, 0x40000001, 0,  0) \
    CPUIDLEVEL(FALSE, 402, 0x40000002, 0,  0) \
@@ -805,11 +805,11 @@ FIELD( 1B,  0, EDX,  0, 32, PCONFIG_TARGET_ID3,                  NO,    0 )
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_1F                                           \
-FIELD( 1F,  0, EAX,  0,  5, TOPOLOGY_V2_MASK_WIDTH,              NO,    0 ) \
-FIELD( 1F,  0, EBX,  0, 16, TOPOLOGY_V2_CPUS_SHARING_LEVEL,      NO,    0 ) \
-FIELD( 1F,  0, ECX,  0,  8, TOPOLOGY_V2_LEVEL_NUMBER,            NO,    0 ) \
-FIELD( 1F,  0, ECX,  8,  8, TOPOLOGY_V2_LEVEL_TYPE,              NO,    0 ) \
-FIELD( 1F,  0, EDX,  0, 32, TOPOLOGY_V2_X2APIC_ID,               NO,    0 )
+FIELD( 1F,  0, EAX,  0,  5, TOPOLOGY_V2_MASK_WIDTH,              NA,    0 ) \
+FIELD( 1F,  0, EBX,  0, 16, TOPOLOGY_V2_CPUS_SHARING_LEVEL,      NA,    0 ) \
+FIELD( 1F,  0, ECX,  0,  8, TOPOLOGY_V2_LEVEL_NUMBER,            NA,    0 ) \
+FIELD( 1F,  0, ECX,  8,  8, TOPOLOGY_V2_LEVEL_TYPE,              NA,    0 ) \
+FIELD( 1F,  0, EDX,  0, 32, TOPOLOGY_V2_X2APIC_ID,               NA,    0 )
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_400                                          \
