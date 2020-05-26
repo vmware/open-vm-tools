@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -232,6 +232,12 @@ typedef Bool (*PollerErrorFn)(const char *errorStr);
  *      implementations are distinct from the core poll code.
  */
 
+
+/* Socket pair created with non-blocking mode */
+#define POLL_OPTIONS_SOCKET_PAIR_NONBLOCK_CONN  0x01
+
+typedef unsigned int SocketSpecialOpts;
+
 typedef struct PollOptions {
    Bool locked;           // Use internal MXUser for locking
    Bool allowFullQueue;   // Don't assert when device event queue is full.
@@ -239,6 +245,7 @@ typedef struct PollOptions {
    PollerFireWrapper fireWrapperFn;  // optional; may be useful for stats
    void *fireWrapperData; // optional
    PollerErrorFn errorFn; // optional; called upon unrecoverable error
+   SocketSpecialOpts pollSocketOpts;
 } PollOptions;
 
 
@@ -251,7 +258,7 @@ void Poll_InitCF(void);  // On top of CoreFoundation for OSX
 /*
  * Functions
  */
-int Poll_SocketPair(Bool vmci, Bool stream, int fds[2]);
+int Poll_SocketPair(Bool vmci, Bool stream, int fds[2], SocketSpecialOpts opts);
 void Poll_Loop(Bool loop, Bool *exit, PollClass c);
 void Poll_LoopTimeout(Bool loop, Bool *exit, PollClass c, int timeout);
 Bool Poll_LockingEnabled(void);
