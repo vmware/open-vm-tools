@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -215,7 +215,8 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
                               BS(DARWIN13_64), BS(DARWIN14_64), \
                               BS(DARWIN15_64), BS(DARWIN16_64), \
                               BS(DARWIN17_64), BS(DARWIN18_64), \
-                              BS(DARWIN19_64), BS(DARWIN20_64)
+                              BS(DARWIN19_64), BS(DARWIN20_64), \
+                              BS(DARWIN21_64)
 
 #define ALLDARWIN             ALLDARWIN32, ALLDARWIN64
 

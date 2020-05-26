@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -105,6 +105,7 @@ extern "C" {
    GOT(GUEST_OS_DARWIN18_64)       /* Mac OS 10.14 */                      \
    GOT(GUEST_OS_DARWIN19_64)       /* Mac OS 10.15 */                      \
    GOT(GUEST_OS_DARWIN20_64)       /* Mac OS 10.16 */                      \
+   GOT(GUEST_OS_DARWIN21_64)       /* Mac OS 10.17 */                      \
    GOT(GUEST_OS_OPENSERVER_5_AND_6)                                        \
    GOT(GUEST_OS_UNIXWARE7)                                                 \
    GOT(GUEST_OS_NETWARE4)                                                  \
