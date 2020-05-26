@@ -913,19 +913,22 @@ HostinfoGetOSShortName(const char *distro,      // IN: full distro name
       Str_Strcpy(distroShort, STR_OS_ARKLINUX, distroShortSize);
    } else if (strstr(distroLower, "asianux server 3") ||
               strstr(distroLower, "asianux client 3")) {
-      Str_Strcpy(distroShort, STR_OS_ASIANUX_3, distroShortSize);
+      Str_Strcpy(distroShort, STR_OS_ASIANUX "3" , distroShortSize);
    } else if (strstr(distroLower, "asianux server 4") ||
               strstr(distroLower, "asianux client 4")) {
-      Str_Strcpy(distroShort, STR_OS_ASIANUX_4, distroShortSize);
+      Str_Strcpy(distroShort, STR_OS_ASIANUX "4", distroShortSize);
    } else if (strstr(distroLower, "asianux server 5") ||
               strstr(distroLower, "asianux client 5")) {
-      Str_Strcpy(distroShort, STR_OS_ASIANUX_7, distroShortSize);
+      Str_Strcpy(distroShort, STR_OS_ASIANUX "5", distroShortSize);
    } else if (strstr(distroLower, "asianux server release 7") ||
               strstr(distroLower, "asianux client release 7")) {
-      Str_Strcpy(distroShort, STR_OS_ASIANUX_7, distroShortSize);
+      Str_Strcpy(distroShort, STR_OS_ASIANUX "7", distroShortSize);
    } else if (strstr(distroLower, "asianux server release 8") ||
               strstr(distroLower, "asianux client release 8")) {
-      Str_Strcpy(distroShort, STR_OS_ASIANUX_8, distroShortSize);
+      Str_Strcpy(distroShort, STR_OS_ASIANUX "8", distroShortSize);
+   } else if (strstr(distroLower, "asianux server release 9") ||
+              strstr(distroLower, "asianux client release 9")) {
+      Str_Strcpy(distroShort, STR_OS_ASIANUX "9", distroShortSize);
    } else if (strstr(distroLower, "aurox")) {
       Str_Strcpy(distroShort, STR_OS_AUROX, distroShortSize);
    } else if (strstr(distroLower, "black cat")) {
@@ -943,7 +946,7 @@ HostinfoGetOSShortName(const char *distro,      // IN: full distro name
       Str_Strcpy(distroShort, STR_OS_CONECTIVA, distroShortSize);
    } else if (strstr(distroLower, "debian")) {
       if (version <= 4) {
-         Str_Strcpy(distroShort, STR_OS_DEBIAN_4, distroShortSize);
+         Str_Strcpy(distroShort, STR_OS_DEBIAN "4", distroShortSize);
       } else {
          Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_DEBIAN,
                      version);
@@ -1500,6 +1503,10 @@ HostinfoDefaultLinux(char *distro,            // OUT/OPT:
    case 4:
       distroOut = STR_OS_OTHER_4X_FULL;
       distroShortOut = STR_OS_OTHER_4X;
+
+   case 5:
+      distroOut = STR_OS_OTHER_5X_FULL;
+      distroShortOut = STR_OS_OTHER_5X;
       break;
 
    default:
