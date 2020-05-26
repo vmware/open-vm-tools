@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -939,15 +939,21 @@ FileLockScanner(const char *lockDir,     // IN:
          }
 
          if (remove) {
-            if (prev == NULL) {
-               myValues->lockList = ptr->next;
-            } else {
-               prev->next = ptr->next;
-            }
-         }
+            ActiveLock *temp = ptr;
 
-         prev = ptr;
-         ptr = ptr->next;
+            ptr = ptr->next;
+            Posix_Free(temp->dirName);
+            Posix_Free(temp);
+
+            if (prev == NULL) {
+               myValues->lockList = ptr;
+            } else {
+               prev->next = ptr;
+            }
+         } else {
+            prev = ptr;
+            ptr = ptr->next;
+         }
       }
 
       FileSleeper(FILELOCK_PROGRESS_SAMPLE,
