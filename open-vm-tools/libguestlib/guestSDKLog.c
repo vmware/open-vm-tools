@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013-2016,2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013-2015,2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -30,7 +30,7 @@
 /*
  *-----------------------------------------------------------------------------
  *
- * GuestSDK_Debug --
+ * Debug --
  *
  *    Log debug messages.
  *
@@ -38,13 +38,13 @@
  *    None.
  *
  * Side effects:
- *    Death.
+ *    Stderr.
  *
  *-----------------------------------------------------------------------------
  */
 
 void
-GuestSDK_Debug(const char *fmt, ...)
+Debug(const char *fmt, ...)
 {
 #ifdef VMX86_LOG /* only do logging on OBJ builds */
    va_list args;
@@ -59,7 +59,7 @@ GuestSDK_Debug(const char *fmt, ...)
 /*
  *-----------------------------------------------------------------------------
  *
- * GuestSDK_Log --
+ * Log --
  *
  *    Log messages.
  *
@@ -67,13 +67,13 @@ GuestSDK_Debug(const char *fmt, ...)
  *    None.
  *
  * Side effects:
- *    Death.
+ *    Stderr.
  *
  *-----------------------------------------------------------------------------
  */
 
 void
-GuestSDK_Log(const char *fmt, ...)
+Log(const char *fmt, ...)
 {
 #ifdef VMX86_LOG /* only do logging on OBJ builds */
    va_list args;
@@ -88,7 +88,7 @@ GuestSDK_Log(const char *fmt, ...)
 /*
  *-----------------------------------------------------------------------------
  *
- * GuestSDK_Warning --
+ * Warning --
  *
  *    Log warning messages.
  *
@@ -96,13 +96,13 @@ GuestSDK_Log(const char *fmt, ...)
  *    None.
  *
  * Side effects:
- *    Death.
+ *    Stderr.
  *
  *-----------------------------------------------------------------------------
  */
 
 void
-GuestSDK_Warning(const char *fmt, ...)
+Warning(const char *fmt, ...)
 {
 #ifdef VMX86_LOG /* only do logging on OBJ builds */
    va_list args;
@@ -117,7 +117,7 @@ GuestSDK_Warning(const char *fmt, ...)
 /*
  *-----------------------------------------------------------------------------
  *
- * GuestSDK_Panic --
+ * Panic --
  *
  *    Panic.  Apps have to implement this for themselves.
  *
@@ -131,7 +131,7 @@ GuestSDK_Warning(const char *fmt, ...)
  */
 
 void
-GuestSDK_Panic(const char *fmt, ...) // IN
+Panic(const char *fmt, ...) // IN
 {
    va_list args;
    char buffer[1024];
