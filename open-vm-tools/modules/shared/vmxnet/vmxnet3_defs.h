@@ -873,7 +873,9 @@ struct Vmxnet3_PktSteeringFilterConf {
       };
       uint32_t                    value;
    };
-   Vmxnet3_PktSteeringFilterConfExt extConf[];
+   /* Following this structure is Vmxnet3_PktSteeringFilterConfExt
+    * in case isExtValid is true.
+    */
 }
 #include "vmware_pack_end.h"
 Vmxnet3_PktSteeringFilterConf;
