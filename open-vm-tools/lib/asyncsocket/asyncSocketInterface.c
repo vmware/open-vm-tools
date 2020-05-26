@@ -245,6 +245,40 @@ AsyncSocket_GetRemoteIPStr(AsyncSocket *asock,      // IN
 /*
  *----------------------------------------------------------------------------
  *
+ * AsyncSocket_GetRemotePort --
+ *
+ *      Given an AsyncSocket object, returns the remote port associated
+ *      with it, or an error if the request is meaningless for the underlying
+ *      connection.
+ *
+ * Results:
+ *      ASOCKERR_SUCCESS or ASOCKERR_INVAL.
+ *
+ * Side effects:
+ *
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+AsyncSocket_GetRemotePort(AsyncSocket *asock,  // IN
+                          uint32 *port)        // OUT
+{
+   int ret;
+   if (VALID(asock, getRemotePort)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->getRemotePort(asock, port);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * AsyncSocket_GetINETIPStr --
  *
  *      Given an AsyncSocket object, returns the IP addresses associated with

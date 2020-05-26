@@ -81,6 +81,7 @@ typedef struct AsyncSocketVTable {
    int (*getGenericErrno)(AsyncSocket *s);
    int (*getFd)(AsyncSocket *asock);
    int (*getRemoteIPStr)(AsyncSocket *asock, const char **ipStr);
+   int (*getRemotePort)(AsyncSocket *asock, uint32 *port);
    int (*getINETIPStr)(AsyncSocket *asock, int socketFamily, char **ipRetStr);
    unsigned int (*getPort)(AsyncSocket *asock);
    int (*setCloseOptions)(AsyncSocket *asock, int flushEnabledMaxWaitMsec,

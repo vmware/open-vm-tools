@@ -388,6 +388,12 @@ int AsyncSocket_GetFd(AsyncSocket *asock);
 int AsyncSocket_GetRemoteIPStr(AsyncSocket *asock,
                                const char **ipStr);
 
+/*
+ * Return the remote port associated with this socket if applicable
+ */
+int AsyncSocket_GetRemotePort(AsyncSocket *asock,
+                              uint32 *port);
+
 int AsyncSocket_GetLocalVMCIAddress(AsyncSocket *asock,
                                     uint32 *cid, uint32 *port);
 int AsyncSocket_GetRemoteVMCIAddress(AsyncSocket *asock,

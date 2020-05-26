@@ -309,6 +309,7 @@ static int AsyncTCPSocketWaitForConnection(AsyncSocket *s, int timeoutMS);
 static int AsyncTCPSocketGetGenericErrno(AsyncSocket *s);
 static int AsyncTCPSocketGetFd(AsyncSocket *asock);
 static int AsyncTCPSocketGetRemoteIPStr(AsyncSocket *asock, const char **ipStr);
+static int AsyncTCPSocketGetRemotePort(AsyncSocket *asock, uint32 *port);
 static int AsyncTCPSocketGetINETIPStr(AsyncSocket *asock, int socketFamily,
                                       char **ipRetStr);
 static unsigned int AsyncTCPSocketGetPort(AsyncSocket *asock);
@@ -386,6 +387,7 @@ static const AsyncSocketVTable asyncTCPSocketVTable = {
    AsyncTCPSocketGetGenericErrno,
    AsyncTCPSocketGetFd,
    AsyncTCPSocketGetRemoteIPStr,
+   AsyncTCPSocketGetRemotePort,
    AsyncTCPSocketGetINETIPStr,
    AsyncTCPSocketGetPort,
    AsyncTCPSocketSetCloseOptions,
@@ -738,6 +740,46 @@ AsyncTCPSocketGetRemoteIPStr(AsyncSocket *base,      // IN
       } else {
          *ipRetStr = Util_SafeStrdup(addrBuf);
       }
+   }
+
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncTCPSocketGetRemotePort --
+ *
+ *      Given an AsyncTCPSocket object, returns the remote port
+ *      associated with it, or an error if the request is meaningless
+ *      for the underlying connection.
+ *
+ * Results:
+ *      ASOCKERR_SUCCESS or ASOCKERR_GENERIC.
+ *
+ * Side effects:
+ *
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static int
+AsyncTCPSocketGetRemotePort(AsyncSocket *base,  // IN
+                            uint32 *port)       // OUT
+{
+   AsyncTCPSocket *asock = TCPSocket(base);
+   int ret = ASOCKERR_SUCCESS;
+
+   ASSERT(asock);
+
+   if (asock == NULL ||
+      AsyncTCPSocketGetState(asock) != AsyncSocketConnected ||
+      (asock->remoteAddrLen != sizeof(struct sockaddr_in) &&
+       asock->remoteAddrLen != sizeof(struct sockaddr_in6))) {
+      ret = ASOCKERR_GENERIC;
+   } else {
+      *port = AsyncTCPSocketGetPortFromAddr(&asock->remoteAddr);
    }
 
    return ret;
