@@ -869,19 +869,22 @@ HostinfoGetOSShortName(const char *distro,      // IN: full distro name
       Str_Strcpy(distroShort, STR_OS_OPENSUSE, distroShortSize);
    } else if (strstr(distroLower, "suse")) {
       if (strstr(distroLower, "enterprise")) {
-         if (strstr(distroLower, "server 15") ||
+         if (strstr(distroLower, "server 16") ||
+             strstr(distroLower, "desktop 16")) {
+            Str_Strcpy(distroShort, STR_OS_SLES "16", distroShortSize);
+         } else if (strstr(distroLower, "server 15") ||
              strstr(distroLower, "desktop 15")) {
-            Str_Strcpy(distroShort, STR_OS_SLES_15, distroShortSize);
+            Str_Strcpy(distroShort, STR_OS_SLES "15", distroShortSize);
          } else if (strstr(distroLower, "server 12") ||
                     strstr(distroLower, "server for sap applications 12") ||
                     strstr(distroLower, "desktop 12")) {
-            Str_Strcpy(distroShort, STR_OS_SLES_12, distroShortSize);
+            Str_Strcpy(distroShort, STR_OS_SLES "12", distroShortSize);
          } else if (strstr(distroLower, "server 11") ||
                     strstr(distroLower, "desktop 11")) {
-            Str_Strcpy(distroShort, STR_OS_SLES_11, distroShortSize);
+            Str_Strcpy(distroShort, STR_OS_SLES "11", distroShortSize);
          } else if (strstr(distroLower, "server 10") ||
                     strstr(distroLower, "desktop 10")) {
-            Str_Strcpy(distroShort, STR_OS_SLES_10, distroShortSize);
+            Str_Strcpy(distroShort, STR_OS_SLES "10", distroShortSize);
          } else {
             Str_Strcpy(distroShort, STR_OS_SLES, distroShortSize);
          }
