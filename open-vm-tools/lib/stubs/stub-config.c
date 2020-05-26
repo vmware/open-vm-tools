@@ -117,3 +117,11 @@ Config_NotSet(const char *fmt, ...)
 {
    return FALSE;
 }
+
+int32
+Preference_GetLong(int32 defaultValue,
+                   const char *name)
+{
+   return defaultValue;
+}
+
