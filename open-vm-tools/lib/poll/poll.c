@@ -489,7 +489,7 @@ PollSocketPairConnect(Bool blocking,           // IN: blocking socket?
                       struct sockaddr *addr,   // IN: the address connected to
                       int addrlen,             // IN: length of struct sockaddr
                       SOCKET *s,               // IN: connecting socket
-                      SocketSpecialOpts opts)   // IN: socket special options
+                      SocketSpecialOpts opts)  // IN: socket special options
 {
    if (blocking && (opts & POLL_OPTIONS_SOCKET_PAIR_NONBLOCK_CONN)) {
       /* Change blocking socket to non-blocking socket for timeout */
@@ -609,13 +609,13 @@ PollSocketClose(SOCKET sock) {  // IN: the socket is being closed
  */
 
 static SOCKET
-PollSocketPairConnecting(sa_family_t sa_family,    // IN: socket family type
-                         int socketCommType,       // IN: SOCK_STREAM or SOCK_DGRAM?
-                         struct sockaddr *addr,    // IN: the address connected to
-                         int addrlen,              // IN: length of struct sockaddr
-                         Bool blocking,            // IN: blocking socket?
-                         SOCKET *s,                // OUT: connecting socket
-                         SocketSpecialOpts opts)   // IN: socket special options
+PollSocketPairConnecting(sa_family_t sa_family,  // IN: socket family type
+                         int socketCommType,     // IN: SOCK_STREAM or SOCK_DGRAM?
+                         struct sockaddr *addr,  // IN: the address connected to
+                         int addrlen,            // IN: length of struct sockaddr
+                         Bool blocking,          // IN: blocking socket?
+                         SOCKET *s,              // OUT: connecting socket
+                         SocketSpecialOpts opts) // IN: socket special options
 {
    SOCKET temp = INVALID_SOCKET;
 
@@ -678,9 +678,9 @@ out:
  */
 
 static SOCKET
-PollIPv4SocketPairStartConnecting(int socketCommType,  // IN: SOCK_STREAM or SOCK_DGRAM?
-                                  Bool blocking,       // IN: blocking socket?
-                                  SOCKET *s,           // OUT: connecting socket
+PollIPv4SocketPairStartConnecting(int socketCommType,     // IN: SOCK_STREAM or SOCK_DGRAM?
+                                  Bool blocking,          // IN: blocking socket?
+                                  SOCKET *s,              // OUT: connecting socket
                                   SocketSpecialOpts opts) // IN: socket special options
 {
    struct sockaddr_in iaddr;
@@ -718,10 +718,10 @@ PollIPv4SocketPairStartConnecting(int socketCommType,  // IN: SOCK_STREAM or SOC
  */
 
 static SOCKET
-PollIPv6SocketPairStartConnecting(int socketCommType,  // IN: SOCK_STREAM or SOCK_DGRAM?
-                                  Bool blocking,       // IN: blocking socket?
-                                  SOCKET *s,           // OUT: connecting socket
-                                  SocketSpecialOpts opts)  // IN: socket special options
+PollIPv6SocketPairStartConnecting(int socketCommType,     // IN: SOCK_STREAM or SOCK_DGRAM?
+                                  Bool blocking,          // IN: blocking socket?
+                                  SOCKET *s,              // OUT: connecting socket
+                                  SocketSpecialOpts opts) // IN: socket special options
 {
    struct sockaddr_in6 iaddr6;
    int addrlen;
@@ -798,11 +798,11 @@ PollVMCISocketPairStartConnecting(int socketCommType,  // IN: SOCK_STREAM or SOC
  */
 
 static SOCKET
-PollSocketPairStartConnecting(Bool vmci,      // IN: vmci socket?
-                              Bool stream,    // IN: stream socket?
-                              Bool blocking,  // IN: blocking socket?
-                              SOCKET *s,     // OUT: connecting socket
-                              SocketSpecialOpts opts)  // IN: socket special options
+PollSocketPairStartConnecting(Bool vmci,              // IN: vmci socket?
+                              Bool stream,            // IN: stream socket?
+                              Bool blocking,          // IN: blocking socket?
+                              SOCKET *s,              // OUT: connecting socket
+                              SocketSpecialOpts opts) // IN: socket special options
 {
    SOCKET temp = INVALID_SOCKET;
    int socketCommType = stream ? SOCK_STREAM : SOCK_DGRAM;
@@ -839,10 +839,10 @@ PollSocketPairStartConnecting(Bool vmci,      // IN: vmci socket?
  */
 
 int
-Poll_SocketPair(Bool vmci,     // IN: create vmci pair?
-                Bool stream,   // IN: stream socket?
-                int fds[2],    // OUT: 2 sockets connected to each other
-                SocketSpecialOpts opts)  // IN: socket special options
+Poll_SocketPair(Bool vmci,              // IN: create vmci pair?
+                Bool stream,            // IN: stream socket?
+                int fds[2],             // OUT: 2 sockets connected to each other
+                SocketSpecialOpts opts) // IN: socket special options
 {
    SOCKET temp = INVALID_SOCKET;
 
