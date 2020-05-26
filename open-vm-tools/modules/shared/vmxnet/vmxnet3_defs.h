@@ -126,7 +126,6 @@ typedef enum {
    VMXNET3_CMD_REGISTER_MEMREGS,
    VMXNET3_CMD_SET_RSS_FIELDS,
    VMXNET3_CMD_SET_PKTSTEERING, /* 0xCAFE0011 */
-   VMXNET3_CMD_SET_ESP_QUEUE_SELECTION_CONF,
 
    VMXNET3_CMD_FIRST_GET = 0xF00D0000,
    VMXNET3_CMD_GET_QUEUE_STATUS = VMXNET3_CMD_FIRST_GET,
@@ -153,14 +152,14 @@ typedef enum {
 
 /*
  *	Little Endian layout of bitfields -
- *      Byte 0 :        7.....len.....0
- *      Byte 1 :        oco gen 13.len.8
- *      Byte 2 :        5.msscof.0 ext1  dtype
- *      Byte 3 :        13...msscof...6
+ *	Byte 0 :	7.....len.....0
+ *	Byte 1 :	oco gen 13.len.8
+ *	Byte 2 : 	5.msscof.0 ext1  dtype
+ *	Byte 3 : 	13...msscof...6
  *
  *	Big Endian layout of bitfields -
  *	Byte 0:		13...msscof...6
- *      Byte 1 :        5.msscof.0 ext1  dtype
+ *	Byte 1 : 	5.msscof.0 ext1  dtype
  *	Byte 2 :	oco gen 13.len.8
  *	Byte 3 :	7.....len.....0
  *
@@ -785,7 +784,7 @@ struct Vmxnet3_PktSteeringActionData {
    uint8_t      action; /* enum Vmxnet3PktSteeringAction */
    uint8_t      rxQid;
 }
-#include "vmware_pack_end.h"
+#include "vmware_pack_end.h" 
 Vmxnet3_PktSteeringActionData;
 
 typedef
@@ -817,63 +816,13 @@ Vmxnet3_PktSteeringInput;
 
 typedef
 #include "vmware_pack_begin.h"
-struct Vmxnet3_PktSteeringGeneveInput {
-#ifdef __BIG_ENDIAN_BITFIELD
-   uint32   optionsLength:6;  /* Length of options (in 4 bytes multiple) */
-   uint32   version:2;        /* Geneve protocol version */
-   uint32   reserved1:6;       /* Reserved bits */
-   uint32   criticalOptions:1; /* Critical options present flag */
-   uint32   oamFrame:1;        /* OAM frame flag */
-   /* Protocol type of the following header using Ethernet type values */
-   uint32   protocolType:16;
-
-   uint32   virtualNetworkId:24; /* Virtual network identifier */
-   uint32   reserved2:8;         /* Reserved bits */
-#else
-   /* Protocol type of the following header using Ethernet type values */
-   uint32   protocolType:16;
-   uint32   oamFrame:1;        /* OAM frame flag */
-   uint32   criticalOptions:1; /* Critical options present flag */
-   uint32   reserved1:6;       /* Reserved bits */
-   uint32   version:2;        /* Geneve protocol version */
-   uint32   optionsLength:6;  /* Length of options (in 4 bytes multiple) */
-
-   uint32   reserved2:8;         /* Reserved bits */
-   uint32   virtualNetworkId:24; /* Virtual network identifier */
-#endif  /* __BIG_ENDIAN_BITFIELD */
-}
-#include "vmware_pack_end.h"
-Vmxnet3_PktSteeringGeneveInput;
-
-typedef
-#include "vmware_pack_begin.h"
-struct Vmxnet3_PktSteeringFilterConfExt {
-   Vmxnet3_PktSteeringGeneveInput ghSpec;  /* geneve hdr spec */
-   Vmxnet3_PktSteeringGeneveInput ghMask;  /* geneve hdr mask */
-   Vmxnet3_PktSteeringInput       ohSpec;  /* outer hdr spec */
-   Vmxnet3_PktSteeringInput       ohMask;  /* outer hdr mask */
-}
-#include "vmware_pack_end.h"
-Vmxnet3_PktSteeringFilterConfExt;
-
-typedef
-#include "vmware_pack_begin.h"
 struct Vmxnet3_PktSteeringFilterConf {
-   uint8_t                        version;
-   uint8_t                        priority;
-   Vmxnet3_PktSteeringActionData  actionData;
-   Vmxnet3_PktSteeringInput       spec;
-   Vmxnet3_PktSteeringInput       mask;
-   union {
-      uint8_t                     pad[4];
-      struct {
-         uint32_t                 isInnerHdr:1; // spec/mask is for inner header
-         uint32_t                 isExtValid:1; // is conf extention valid
-         uint32_t                 pad1:30;
-      };
-      uint32_t                    value;
-   };
-   Vmxnet3_PktSteeringFilterConfExt extConf[];
+   uint8_t                            version;
+   uint8_t                            priority;
+   Vmxnet3_PktSteeringActionData      actionData;
+   Vmxnet3_PktSteeringInput           spec;
+   Vmxnet3_PktSteeringInput           mask;
+   uint8_t                            pad[4];
 }
 #include "vmware_pack_end.h"
 Vmxnet3_PktSteeringFilterConf;
@@ -1080,40 +1029,6 @@ struct Vmxnet3_EncapDstPort {
 Vmxnet3_EncapDstPort;
 
 /*
- * Based on index from ESP SPI, how to map the index to the rx queue ID.
- * The following two algos are defined:
- *
- * VMXNET3_ESP_QS_IND_TABLE:  the index will be used to index the RSS
- * indirection table.
- *
- * VMXNET3_ESP_QS_QUEUE_MASK: the index will be used to index to the
- * preconfigured queue mask. The index itself is treated as queue ID. If
- * the relevant bit in queue mask is set, the packet will be forwarded
- * the queue with the index as queue ID. Otherwise, the packet will not
- * be treated as ESP packet for RSS purpose.
- */
-
-typedef enum Vmxnet3_ESPQueueSelectionAlgo {
-   VMXNET3_ESP_QS_IND_TABLE = 0x01,
-   VMXNET3_ESP_QS_QUEUE_MASK = 0x02,
-   VMXNET3_ESP_QS_MAX,
-} Vmxnet3_ESPQueueSelectionAlgo;
-
-typedef
-#include "vmware_pack_begin.h"
-struct Vmxnet3_ESPQueueSelectionConf {
-   uint8       spiStartBit;  /* from least significant bit of SPI. */
-   uint8       spiMaskWidth; /* how many bits in SPI will be used. */
-   uint16      qsAlgo;       /* see Vmxnet3_ESPQueueSelectionAlgo */
-   /* queue ID mask used for ESP RSS. Valid when
-    * qsAlgo is VMXNET3_ESP_QS_QUEUE_MASK.
-    */
-   uint32      espQueueMask;  /* max of 32 queues supported */
-}
-#include "vmware_pack_end.h"
-Vmxnet3_ESPQueueSelectionConf;
-
-/*
  * If a command data does not exceed 16 bytes, it can use
  * the shared memory directly. Otherwise use variable length
  * configuration descriptor to pass the data.
@@ -1125,7 +1040,6 @@ union Vmxnet3_CmdInfo {
    Vmxnet3_SetPolling          setPolling;
    Vmxnet3_RSSField            setRSSFields;
    Vmxnet3_EncapDstPort        encapDstPort;
-   Vmxnet3_ESPQueueSelectionConf espQSConf;
    __le64                      data[2];
 }
 #include "vmware_pack_end.h"
