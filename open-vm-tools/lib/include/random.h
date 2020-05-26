@@ -46,6 +46,13 @@ Bool Random_Crypto(size_t size,
                    void *buffer);
 
 /*
+ * The next call to Random_Crypto will fail after this function is called.
+ * This function does nothing in a release build.
+ */
+
+void Random_CryptoFail(void);
+
+/*
  * Research grade Mersenne Twister random number generator.
  *
  * Period: 2^800
