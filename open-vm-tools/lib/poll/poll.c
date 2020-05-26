@@ -42,7 +42,6 @@
    #include <winsock2.h>
    #include <ws2tcpip.h>
    #include "err.h"
-   #include "preference.h"
 #endif
 
 /*
@@ -502,9 +501,7 @@ PollSocketPairConnect(Bool blocking,           // IN: blocking socket?
 
       if (connect(*s, addr, addrlen) == SOCKET_ERROR) {
          WSAPOLLFD pollFds[1];
-         /* wait timeout seconds */
-         unsigned int timeout = Preference_GetLong(3,
-            "pref.wsa.socket.pair.connect.timeout.seconds") * 1000;
+         unsigned int timeout = 3 * 1000; /* wait 3 seconds */
          int ret = WSAGetLastError();
          if (ret != WSAEWOULDBLOCK) {
             /* connection failed */
