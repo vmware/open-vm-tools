@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1720,16 +1720,37 @@ HostinfoBSD(struct utsname *buf)  // IN:
    majorVersion = Hostinfo_OSVersion(0);
 
    /*
-    * FreeBSD 11 and later are identified using a different guest ID.
+    * FreeBSD 11 and later are identified using a different guest ID than
+    * older FreeBSD.
     */
-   if (majorVersion >= 11) {
-      if (majorVersion >= 12) {
-         Str_Strcpy(distroShort, STR_OS_FREEBSD12, sizeof distroShort);
-      } else {
-         Str_Strcpy(distroShort, STR_OS_FREEBSD11, sizeof distroShort);
-      }
-   } else {
+   switch (majorVersion) {
+   case 1:
+   case 2:
+   case 3:
+   case 4:
+   case 5:
+   case 6:
+   case 7:
+   case 8:
+   case 9:
+   case 10:
       Str_Strcpy(distroShort, STR_OS_FREEBSD, sizeof distroShort);
+      break;
+
+   case 11:
+      Str_Strcpy(distroShort, STR_OS_FREEBSD11, sizeof distroShort);
+      break;
+
+   case 12:
+      Str_Strcpy(distroShort, STR_OS_FREEBSD12, sizeof distroShort);
+      break;
+
+   default: // Unknown defaults to the highest known.
+      /* FALL THROUGH */
+
+   case 13:
+      Str_Strcpy(distroShort, STR_OS_FREEBSD13, sizeof distroShort);
+      break;
    }
 
    len = Str_Snprintf(osNameFull, sizeof osNameFull, "%s %s", buf->sysname,

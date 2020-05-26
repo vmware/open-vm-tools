@@ -86,7 +86,8 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 #define ALLFREEBSD            BS(FREEBSD),   BS(FREEBSD_64),   \
                               BS(FREEBSD11), BS(FREEBSD11_64), \
-                              BS(FREEBSD12), BS(FREEBSD12_64)
+                              BS(FREEBSD12), BS(FREEBSD12_64), \
+                              BS(FREEBSD13), BS(FREEBSD13_64)
 
 #define ALLWINNET32           BS(WINNET)
 #define ALLWINNET64           BS(WINNET_64)
@@ -555,6 +556,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_FREEBSD   "freeBSD"
 #define STR_OS_FREEBSD11 "freeBSD11"
 #define STR_OS_FREEBSD12 "freeBSD12"
+#define STR_OS_FREEBSD13 "freeBSD13"
 
 /* Solaris */
 #define STR_OS_SOLARIS "solaris"
