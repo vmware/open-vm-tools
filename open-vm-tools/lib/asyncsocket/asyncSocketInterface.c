@@ -1517,6 +1517,38 @@ AsyncSocket_GetWebSocketProtocol(AsyncSocket *asock)  // IN
 /*
  *----------------------------------------------------------------------------
  *
+ * AsyncSocket_SetDelayWebSocketUpgradeResponse --
+ *
+ *      Set a flag for whether or not to not automatically send the websocket
+ *      upgrade response upon receiving the websocket upgrade request.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+AsyncSocket_SetDelayWebSocketUpgradeResponse(AsyncSocket *asock,                  // IN
+                                             Bool delayWebSocketUpgradeResponse)  // IN
+{
+   int ret = ASOCKERR_GENERIC;
+   if (VALID(asock, setDelayWebSocketUpgradeResponse)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->setDelayWebSocketUpgradeResponse(asock,
+                                                        delayWebSocketUpgradeResponse);
+      AsyncSocketUnlock(asock);
+   }
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * AsyncSocket_RecvBlocking --
  *
  *      Implement "blocking + timeout" operations on the socket. These are

@@ -460,16 +460,18 @@ AsyncSocket *AsyncSocket_ListenWebSocket(const char *addrStr,
                                          AsyncSocketPollParams *pollParams,
                                          void *sslCtx,
                                          int *outError);
-AsyncSocket *AsyncSocket_ListenWebSocketEx(const char *addrStr,
-                                           unsigned int port,
-                                           Bool useSSL,
-                                           const char *protocols[],
-                                           AsyncSocketConnectFn connectFn,
-                                           void *clientData,
-                                           AsyncSocketPollParams *pollParams,
-                                           void *sslCtx,
-                                           AsyncWebSocketHandleUpgradeRequestFn handleUpgradeRequestFn,
-                                           int *outError);
+AsyncSocket *AsyncSocket_PrepareListenWebSocket(Bool useSSL,
+                                                 const char *protocols[],
+                                                 AsyncSocketConnectFn connectFn,
+                                                 void *clientData,
+                                                 AsyncSocketPollParams *pollParams,
+                                                 void *sslCtx,
+                                                 AsyncWebSocketHandleUpgradeRequestFn handleUpgradeRequestFn);
+AsyncSocket *AsyncSocket_RegisterListenWebSocket(AsyncSocket *asock,
+                                                 const char *addrStr,
+                                                 unsigned int port,
+                                                 AsyncSocketPollParams *pollParams,
+                                                 int *outError);
 
 #ifndef _WIN32
 AsyncSocket *AsyncSocket_ListenWebSocketUDS(const char *pipeName,
@@ -723,10 +725,10 @@ char *AsyncSocket_GetWebSocketCookie(AsyncSocket *asock);
 /*
  * Set the Cookie  for a websocket connection
  */
-int AsyncSocket_SetWebSocketCookie(AsyncSocket *asock,         // IN
-                                   void *clientData,           // IN
-                                   const char *path,           // IN
-                                   const char *sessionId);     // IN
+int AsyncSocket_SetWebSocketCookie(AsyncSocket *asock,
+                                   void *clientData,
+                                   const char *path,
+                                   const char *sessionId);
 
 /*
  * Retrieve the close status, if received, for a websocket connection
@@ -737,6 +739,19 @@ uint16 AsyncSocket_GetWebSocketCloseStatus(AsyncSocket *asock);
  * Get negotiated websocket protocol
  */
 const char *AsyncSocket_GetWebSocketProtocol(AsyncSocket *asock);
+
+/*
+ * Set the flag for whether or not to delay websocket upgrade response
+ */
+int AsyncSocket_SetDelayWebSocketUpgradeResponse(AsyncSocket *asock,
+                                                 Bool delayWebSocketUpgradeResponse);
+
+/*
+ * Send the websocket upgrade response
+ */
+void
+AsyncSocket_WebSocketServerSendUpgradeResponse(AsyncSocket *base,
+                                               char *httpResponseTemp);
 
 /*
  * Get error code for websocket failure

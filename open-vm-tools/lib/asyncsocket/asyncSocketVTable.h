@@ -120,6 +120,8 @@ typedef struct AsyncSocketVTable {
    const char *(*getWebSocketProtocol)(AsyncSocket *asock);
    int (*setWebSocketCookie)(AsyncSocket *asock, void *clientData,
                              const char *path, const char *sessionId);
+   int (*setDelayWebSocketUpgradeResponse)(AsyncSocket *asock,
+                                           Bool delayWebSocketUpgradeResponse);
    int (*recvBlocking)(AsyncSocket *s, void *buf, int len, int *received,
                       int timeoutMS);
    int (*recvPartialBlocking)(AsyncSocket *s, void *buf, int len,
