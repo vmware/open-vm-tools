@@ -783,6 +783,11 @@ unsigned AsyncSocket_WebSocketGetNumAccepted(AsyncSocket *asock);
 
 Bool AsyncSocket_SetKeepAlive(AsyncSocket *asock, int keepIdle);
 
+/*
+ * Send an HTTP error code, only valid on AsyncWebSockets
+ */
+void AsyncSocket_WebSocketServerSendError(AsyncSocket *asock, const char *text);
+
 
 /*
  * Some logging macros for convenience
