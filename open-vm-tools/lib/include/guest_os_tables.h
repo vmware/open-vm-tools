@@ -335,6 +335,7 @@ extern "C" {
    GOKM("otherlinux-64",                        otherLinux64Guest,       TRUE) \
    GOKM("genericlinux",                         genericLinuxGuest,       TRUE) \
    GOKM("amazonlinux2-64",                      amazonlinux2_64Guest,    TRUE) \
+   GOKM("amazonlinux3-64",                      amazonlinux3_64Guest,    TRUE) \
    GOKM("CRXPod1-64",                           crxPod1Guest,            TRUE) \
    /* Netware guests */ \
    GOKM("netware4",                             netware4Guest,           TRUE) \
