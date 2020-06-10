@@ -102,7 +102,7 @@
    LOGLEVEL_VAR(pci_vmxnet3), \
    LOGLEVEL_VAR(vcpuhotplug), \
    LOGLEVEL_VAR(vcpuNUMA), \
-   LOGLEVEL_VAR(pciplugin), \
+   LOGLEVEL_VAR(pciPlugin), \
    LOGLEVEL_VAR(vsock), \
    LOGLEVEL_VAR(vrdma), \
    LOGLEVEL_VAR(nvdimm), \
