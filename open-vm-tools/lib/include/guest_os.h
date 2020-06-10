@@ -190,7 +190,8 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define ALL4XLINUX64          BS(OTHER4XLINUX_64), BS(PHOTON_64), \
                               BS(CENTOS8_64), BS(ORACLE8_64), \
                               BS(CRXSYS1_64), BS(CRXPOD1_64), \
-                              BS(AMAZONLINUX2_64), BS(LINUX_MINT_64)
+                              BS(AMAZONLINUX2_64), BS(AMAZONLINUX3_64), \
+                              BS(LINUX_MINT_64)
 
 #define ALL5XLINUX32          BS(OTHER5XLINUX)
 
