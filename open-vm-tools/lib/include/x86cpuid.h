@@ -1079,21 +1079,29 @@ FIELD( 88,  0, EAX, 16,  8, GUEST_PHYS_ADDR_SZ,                  YES,   8 ) \
 FLAG(  88,  0, EBX,  0,  1, CLZERO,                              YES,  14 ) \
 FLAG(  88,  0, EBX,  1,  1, IRPERF,                              NO,    0 ) \
 FLAG(  88,  0, EBX,  2,  1, XSAVE_ERR_PTR,                       NO,    0 ) \
+FLAG(  88,  0, EBX,  3,  1, INVLPGB,                             NO,    0 ) \
 FLAG(  88,  0, EBX,  4,  1, RDPRU,                               NO,    0 ) \
 FLAG(  88,  0, EBX,  6,  1, MBE,                                 NO,    0 ) \
+FLAG(  88,  0, EBX,  8,  1, MCOMMIT,                             NO,    0 ) \
 FLAG(  88,  0, EBX,  9,  1, WBNOINVD,                            YES,  17 ) \
+FLAG(  88,  0, EBX, 10,  1, LBREXTN,                             NO,    0 ) \
 FLAG(  88,  0, EBX, 12,  1, LEAF88_IBPB,                         ANY,   9 ) \
+FLAG(  88,  0, EBX, 13,  1, WBINVD_INT,                          NO,    0 ) \
 FLAG(  88,  0, EBX, 14,  1, LEAF88_IBRS,                         NO,    0 ) \
 FLAG(  88,  0, EBX, 15,  1, LEAF88_STIBP,                        NO,    0 ) \
 FLAG(  88,  0, EBX, 16,  1, LEAF88_IBRS_ALWAYS,                  NO,    0 ) \
 FLAG(  88,  0, EBX, 17,  1, LEAF88_STIBP_ALWAYS,                 NO,    0 ) \
 FLAG(  88,  0, EBX, 18,  1, LEAF88_PREFER_IBRS,                  NO,    0 ) \
+FLAG(  88,  0, EBX, 19,  1, LEAF88_IBRS_SAME_MODE,               NO,    0 ) \
+FLAG(  88,  0, EBX, 20,  1, LMSLE_UNSUPPORTED,                   NO,    0 ) \
+FLAG(  88,  0, EBX, 23,  1, PPIN,                                NO,    0 ) \
 FLAG(  88,  0, EBX, 24,  1, LEAF88_SSBD_SPEC_CTRL,               ANY,   9 ) \
 FLAG(  88,  0, EBX, 25,  1, LEAF88_SSBD_VIRT_SPEC_CTRL,          ANY,   9 ) \
 FLAG(  88,  0, EBX, 26,  1, LEAF88_SSBD_NOT_NEEDED,              NO,    0 ) \
 FIELD( 88,  0, ECX,  0,  8, LEAF88_CORE_COUNT,                   YES,   4 ) \
 FIELD( 88,  0, ECX, 12,  4, APICID_COREID_SIZE,                  YES,   7 ) \
 FIELD( 88,  0, ECX, 16,  2, PERFTSC_SIZE,                        NO,    0 ) \
+FIELD( 88,  0, EDX,  0, 16, INVLPGB_MAX,                         NO,    0 ) \
 FIELD( 88,  0, EDX, 16,  8, RDPRU_MAX,                           NO,    0 )
 
 #define CPUID_8A_EDX_11 \
@@ -1127,7 +1135,9 @@ FLAG(  8A,  0, EDX, 16,  1, SVM_VGIF,                            NO,    0 ) \
 FLAG(  8A,  0, EDX, 17,  1, SVM_GMET,                            YES,  17 ) \
 FIELD( 8A,  0, EDX, 18,  2, SVMEDX_RSVD3,                        NO,    0 ) \
 FLAG(  8A,  0, EDX, 20,  1, SVM_GUEST_SPEC_CTRL,                 NO,    0 ) \
-FIELD( 8A,  0, EDX, 21, 11, SVMEDX_RSVD4,                        NO,    0 )
+FIELD( 8A,  0, EDX, 21,  3, SVMEDX_RSVD4,                        NO,    0 ) \
+FLAG(  8A,  0, EDX, 24,  1, SVM_TLB_CTL,                         NO,    0 ) \
+FIELD( 8A,  0, EDX, 25,  7, SVMEDX_RSVD5,                        NO,    0 )
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_819                                          \
@@ -1218,18 +1228,23 @@ FIELD(81E,  0, EBX,  8,  2, CORES_PER_COMPUTE_UNIT,              NA,    0 ) \
 FIELD(81E,  0, ECX,  0,  8, NODEID_VAL,                          NA,    0 ) \
 FIELD(81E,  0, ECX,  8,  3, NODES_PER_PKG,                       NA,    0 )
 
-#define CPUID_81F_EAX_10 \
-FLAG( 81F,  0, EAX, 10,  1, SVMEAX_RSVD1,                        NO,    0 )
-
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_81F                                          \
 FLAG( 81F,  0, EAX,  0,  1, SME,                                 NO,    0 ) \
 FLAG( 81F,  0, EAX,  1,  1, SEV,                                 YES,  17 ) \
 FLAG( 81F,  0, EAX,  2,  1, PAGE_FLUSH_MSR,                      NO,    0 ) \
 FLAG( 81F,  0, EAX,  3,  1, SEV_ES,                              YES,  17 ) \
-CPUID_81F_EAX_10 \
+FLAG( 81F,  0, EAX,  4,  1, SEV_SNP,                             NO,    0 ) \
+FLAG( 81F,  0, EAX,  5,  1, VMPL,                                NO,    0 ) \
+FLAG( 81F,  0, EAX, 10,  1, SEV_HEC,                             NO,    0 ) \
+FLAG( 81F,  0, EAX, 11,  1, SEV_64BIT_REQ,                       NO,    0 ) \
+FLAG( 81F,  0, EAX, 12,  1, SEV_RESTR_INJECTION,                 NO,    0 ) \
+FLAG( 81F,  0, EAX, 13,  1, SEV_ALT_INJECTION,                   NO,    0 ) \
+FLAG( 81F,  0, EAX, 14,  1, SEV_DEBUG_SWAP,                      NO,    0 ) \
+FLAG( 81F,  0, EAX, 15,  1, SEV_NO_HOST_IBS,                     NO,    0 ) \
 FIELD(81F,  0, EBX,  0,  6, SME_PAGE_TABLE_BIT_NUM,              YES,  17 ) \
 FIELD(81F,  0, EBX,  6,  6, SME_PHYS_ADDR_SPACE_REDUCTION,       NO,    0 ) \
+FIELD(81F,  0, EBX, 12,  4, NUM_VMPL,                            NO,    0 ) \
 FIELD(81F,  0, ECX,  0, 32, NUM_ENCRYPTED_GUESTS,                NO,    0 ) \
 FIELD(81F,  0, EDX,  0, 32, SEV_MIN_ASID,                        NO,    0 )
 
