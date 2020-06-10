@@ -2199,7 +2199,6 @@ AsyncTCPSocketConnect(struct sockaddr_storage *addr,         // IN
    AsyncTCPSocketLock(asock);
    if (connect(asock->fd, (struct sockaddr *)addr, addrLen) != 0) {
       if (ASOCK_LASTERROR() == ASOCK_ECONNECTING) {
-         ASSERT(!(vmx86_server && addr->ss_family == AF_UNIX));
          TCPSOCKLOG(1, asock,
                     "registering write callback for socket connect\n");
          pollStatus = AsyncTCPSocketPollAdd(asock, TRUE, POLL_FLAG_WRITE,
