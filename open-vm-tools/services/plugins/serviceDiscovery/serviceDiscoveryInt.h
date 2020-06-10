@@ -16,11 +16,11 @@
  *
  *********************************************************/
 
-#ifndef _SERVICEDISCOVERY_H_
-#define _SERVICEDISCOVERY_H_
+#ifndef _SERVICEDISCOVERYINT_H_
+#define _SERVICEDISCOVERYINT_H_
 
 /**
- * @file serviceDiscovery.h
+ * @file serviceDiscoveryInt.h
  *
  * Declares few constants for the serviceDiscovery plugin.
  */
@@ -45,4 +45,4 @@ Bool WriteData(ToolsAppCtx *ctx,
                const char *data,
                const size_t len);
 
-#endif /* _SERVICEDISCOVERY_H_ */
+#endif /* _SERVICEDISCOVERYINT_H_ */

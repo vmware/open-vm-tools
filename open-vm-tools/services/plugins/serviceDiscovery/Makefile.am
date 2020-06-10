@@ -34,7 +34,7 @@ libserviceDiscovery_la_LIBADD += @GOBJECT_LIBS@
 libserviceDiscovery_la_SOURCES =
 libserviceDiscovery_la_SOURCES += serviceDiscovery.c
 libserviceDiscovery_la_SOURCES += serviceDiscoveryPosix.c
-libserviceDiscovery_la_SOURCES += serviceDiscovery.h
+libserviceDiscovery_la_SOURCES += serviceDiscoveryInt.h
 
 install-data-local:
 	$(INSTALL) -d $(DESTDIR)/$(libdir)/open-vm-tools/serviceDiscovery/scripts/

@@ -27,7 +27,7 @@
 #   error This file should not be compiled.
 #endif
 
-#include "serviceDiscovery.h"
+#include "serviceDiscoveryInt.h"
 #include "dynbuf.h"
 
 #include <stdio.h>
