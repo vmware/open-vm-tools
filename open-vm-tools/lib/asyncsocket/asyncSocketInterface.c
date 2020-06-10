@@ -1474,7 +1474,7 @@ AsyncSocket_SetWebSocketCookie(AsyncSocket *asock,      // IN
                                const char *path,        // IN
                                const char *sessionId)   // IN
 {
-   int ret = ASOCKERR_GENERIC;
+   int ret = ASOCKERR_INVAL;
    if (VALID(asock, setWebSocketCookie)) {
       AsyncSocketLock(asock);
       ret = VT(asock)->setWebSocketCookie(asock, clientData, path, sessionId);
@@ -1569,7 +1569,7 @@ int
 AsyncSocket_SetDelayWebSocketUpgradeResponse(AsyncSocket *asock,                  // IN
                                              Bool delayWebSocketUpgradeResponse)  // IN
 {
-   int ret = ASOCKERR_GENERIC;
+   int ret = ASOCKERR_INVAL;
    if (VALID(asock, setDelayWebSocketUpgradeResponse)) {
       AsyncSocketLock(asock);
       ret = VT(asock)->setDelayWebSocketUpgradeResponse(asock,
