@@ -250,6 +250,7 @@ extern "C" {
    GOKM("rhel7",                                rhel7Guest,              TRUE) \
    GOKM("rhel7-64",                             rhel7_64Guest,           TRUE) \
    GOKM("rhel8-64",                             rhel8_64Guest,           TRUE) \
+   GOKM("rhel9-64",                             rhel9_64Guest,           TRUE) \
    GOKM("centos",                               centosGuest,             TRUE) \
    GOKM("centos-64",                            centos64Guest,           TRUE) \
    GOKM("centos6",                              centos6Guest,            TRUE) \
@@ -257,6 +258,7 @@ extern "C" {
    GOKM("centos7",                              centos7Guest,            FALSE) \
    GOKM("centos7-64",                           centos7_64Guest,         TRUE) \
    GOKM("centos8-64",                           centos8_64Guest,         TRUE) \
+   GOKM("centos9-64",                           centos9_64Guest,         TRUE) \
    GOKM("oraclelinux",                          oracleLinuxGuest,        TRUE) \
    GOKM("oraclelinux-64",                       oracleLinux64Guest,      TRUE) \
    GOKM("oraclelinux6",                         oracleLinux6Guest,       TRUE) \
@@ -264,6 +266,7 @@ extern "C" {
    GOKM("oraclelinux7",                         oracleLinux7Guest,       FALSE) \
    GOKM("oraclelinux7-64",                      oracleLinux7_64Guest,    TRUE) \
    GOKM("oraclelinux8-64",                      oracleLinux8_64Guest,    TRUE) \
+   GOKM("oraclelinux9-64",                      oracleLinux9_64Guest,    TRUE) \
    GOKM("suse",                                 suseGuest,               TRUE) \
    GOKM("suse-64",                              suse64Guest,             TRUE) \
    GOKM("sles",                                 slesGuest,               TRUE) \
@@ -307,6 +310,7 @@ extern "C" {
    GOKM("asianux5-64",                          asianux5_64Guest,        TRUE) \
    GOKM("asianux7-64",                          asianux7_64Guest,        TRUE) \
    GOKM("asianux8-64",                          asianux8_64Guest,        TRUE) \
+   GOKM("asianux9-64",                          asianux9_64Guest,        TRUE) \
    GOKM("nld9",                                 nld9Guest,               TRUE) \
    GOKM("oes",                                  oesGuest,                TRUE) \
    GOKM("sjds",                                 sjdsGuest,               TRUE) \
