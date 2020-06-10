@@ -30,6 +30,7 @@
  * The guest Variable name for the application information.
  */
 #define APP_INFO_GUESTVAR_KEY         "appInfo"
+#define APP_INFO_GUESTINFO_KEY        "guestinfo." APP_INFO_GUESTVAR_KEY
 
 #define APP_INFO_VERSION_1            1
 #define APP_INFO_KEY_VERSION          "version"
