@@ -1506,6 +1506,7 @@ HostinfoDefaultLinux(char *distro,            // OUT/OPT:
    case 4:
       distroOut = STR_OS_OTHER_4X_FULL;
       distroShortOut = STR_OS_OTHER_4X;
+      break;
 
    case 5:
       distroOut = STR_OS_OTHER_5X_FULL;
