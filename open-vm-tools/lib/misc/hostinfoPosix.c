@@ -184,6 +184,7 @@ typedef struct {
 
 /* KEEP SORTED! (sort -d) */
 static const DistroInfo distroArray[] = {
+   { "ALT",                "/etc/altlinux-release"      },
    { "Annvix",             "/etc/annvix-release"        },
    { "Arch",               "/etc/arch-release"          },
    { "Arklinux",           "/etc/arklinux-release"      },
@@ -804,8 +805,17 @@ HostinfoESX(struct utsname *buf)  // IN:
  *      Returns distro information based on .vmx format (distroShort).
  *
  * Return value:
- *      Overwrited the short name if we recognise the OS.
- *      Otherwise leave the short name as it is.
+ *      If the short name is officially supported (by VMware)- it's recognized
+ *      by the code - it will be overwritten with the official identifying
+ *      short name.
+ *
+ *      If the short name is not one of the officially support ones, there
+ *      is nothing to do. The default value is the officially supported
+ *      identification for a generic Linux (otherLinux). No need to change
+ *      any code.
+ *
+ *      The long string and detailed data will fully identify what Linux
+ *      is actually present.
  *
  * Side effects:
  *      None
