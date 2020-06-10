@@ -381,9 +381,9 @@ ReadData(ToolsAppCtx *ctx,
    status = SendRpcMessage(ctx, DynBuf_Get(&buf), DynBuf_GetSize(&buf),
                            resultData, resultDataLen);
    if (!status) {
-      g_warning("%s: Read over RPC failed, result: %s, resultDataLen: %" FMTSZ
-                "u\n", __FUNCTION__, (*resultData != NULL) ?
-                *resultData : "(null)", *resultDataLen);
+      g_debug("%s: Read over RPC failed, result: %s, resultDataLen: %" FMTSZ
+              "u\n", __FUNCTION__, (*resultData != NULL) ?
+              *resultData : "(null)", *resultDataLen);
    }
 done:
    DynBuf_Destroy(&buf);
