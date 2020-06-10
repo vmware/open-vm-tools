@@ -274,6 +274,7 @@ extern "C" {
    GOKM("sles12",                               sles12Guest,             TRUE) \
    GOKM("sles12-64",                            sles12_64Guest,          TRUE) \
    GOKM("sles15-64",                            sles15_64Guest,          TRUE) \
+   GOKM("sles16-64",                            sles16_64Guest,          TRUE) \
    GOKM("mandrake",                             mandrakeGuest,           TRUE) \
    GOKM("mandrake-64",                          mandriva64Guest,         FALSE) \
    GOKM("mandriva",                             mandrivaGuest,           TRUE) \
