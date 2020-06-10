@@ -41,7 +41,7 @@
 
 #define GUESTLIB_NAME "VMware Guest API"
 
-/* 
+/*
  * These are client side data structures, separate from the wire data formats
  * (VMGuestLibDataV[23]).
  */
@@ -61,7 +61,7 @@ typedef struct {
     * Statistics.
     *
     * dataSize is the size of the buffer pointed to by 'data'.
-    * For v2 protocol: 
+    * For v2 protocol:
     *   - 'data' points to VMGuestLibDataV2 struct,
     * For v3 protocol:
     *   - 'data' points to VMGuestLibStatisticsV3 struct.
@@ -354,7 +354,7 @@ VMGuestLibUpdateInfo(VMGuestLibHandle handle) // IN
    VMGuestLibError ret = VMGUESTLIB_ERROR_INVALID_ARG;
    uint32 hostVersion = HANDLE_VERSION(handle);
 
-   /* 
+   /*
     * Starting with the highest supported protocol (major) version, negotiate
     * down to the highest host supported version. Host supports minimum version
     * 2.
@@ -396,14 +396,19 @@ VMGuestLibUpdateInfo(VMGuestLibHandle handle) // IN
          break;
       }
 
-      /*
-       * Host is older and doesn't support the requested protocol version.
-       * Request the highest version the host supports.
-       */
       Debug("%s: Failed to retrieve info: %s\n",
             __FUNCTION__, reply ? reply : "NULL");
 
-      if (hostVersion == 2 ||
+      /*
+       * See why the request failed and either attempt a recovery action or
+       * set an appropriate error code.  If the problem is that the host
+       * is older and doesn't support the requested protocol version, then
+       * try to determine the highest version the host supports and use that.
+       */
+      if (reply == NULL) {
+         ret = VMGUESTLIB_ERROR_OTHER;
+         break;
+      } else if (hostVersion == 2 ||
           Str_Strncmp(reply, RPCI_UNKNOWN_COMMAND,
                       sizeof RPCI_UNKNOWN_COMMAND) == 0) {
          /*
@@ -417,18 +422,18 @@ VMGuestLibUpdateInfo(VMGuestLibHandle handle) // IN
          break;
       } else if (hostVersion == 3) {
          /*
-          * Host supports v2 at a minimum. If request for v3 fails, then just use
-          * v2, since v2 host does not send the highest supported version in the
-          * reply.
+          * Host supports v2 at a minimum. If request for v3 fails, then just
+          * use v2, since v2 host does not send the highest supported version
+          * in the reply.
           */
          hostVersion = 2;
          HANDLE_SESSIONID(handle) = 0;
          continue;
       } else if (!StrUtil_GetNextUintToken(&hostVersion, &index, reply, ":")) {
          /*
-          * v3 and onwards, the host returns the highest major version it supports,
-          * if the requested version is not supported. So parse out the host
-          * version from the reply and return error if it didn't.
+          * v3 and onwards, the host returns the highest major version it
+          * supports, if the requested version is not supported. So parse
+          * out the host version from the reply and return error if it didn't.
           */
          Debug("%s: Bad reply received from host.\n", __FUNCTION__);
          ret = VMGUESTLIB_ERROR_OTHER;
@@ -502,7 +507,7 @@ VMGuestLibUpdateInfo(VMGuestLibHandle handle) // IN
       HANDLE_VERSION(handle) = v3reply->hdr.version;
       HANDLE_SESSIONID(handle) = v3reply->hdr.sessionId;
 
-      /* 
+      /*
        * 1. Retrieve the length of the statistics array from the XDR encoded
        * part of the reply.
        */
@@ -513,7 +518,7 @@ VMGuestLibUpdateInfo(VMGuestLibHandle handle) // IN
          goto done;
       }
       if (count >= GUESTLIB_MAX_STATISTIC_ID) {
-         /* 
+         /*
           * Host has more than we can process. So process only what this side
           * can.
           */
@@ -547,7 +552,7 @@ VMGuestLibUpdateInfo(VMGuestLibHandle handle) // IN
       if (count >= v3stats->numStats) {
          ret = VMGUESTLIB_ERROR_SUCCESS;
       } else {
-         /* 
+         /*
           * Error while unmarshalling. Deep-free already unmarshalled
           * statistics and invalidate the data in the handle.
           */
@@ -673,7 +678,7 @@ VMGuestLibGetStatisticsV3(VMGuestLibHandle handle,   // IN
    VMGuestLibStatisticsV3 *stats = HANDLE_DATA(handle);
    uint32 statIdx = statId - 1;
 
-   /* 
+   /*
     * Check that the requested statistic is supported by the host. V3 host sends
     * all the available statistics, in order. So any statistics that were added
     * to this version of guestlib, but unsupported by the host, would not be
