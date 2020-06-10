@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -52,7 +52,8 @@
 #define GHI_CHANNEL_VIEW_REMOTE_VDP_COMMON      6  // Handled by View VDP core module
 #define GHI_CHANNEL_VIEW_PROTOCOL               7  // Interactions with different protocols
                                                    // in View RMKS
-#define GHI_CHANNEL_MAX                         8
+#define GHI_CHANNEL_FCP                         8  // FCP for View RMKS
+#define GHI_CHANNEL_COUNT                       9
 
 typedef uint32 GHIChannelType;
 
@@ -146,6 +147,12 @@ typedef uint32 GHIGuestToHostMessageType;
   */
 #define GHI_SET_BUFFER_WITHOUT_AUDIO_CMD \
         "ghi.view.protocol.set.buffer.without.audio"
+
+/*
+ * MKS->UI messages over GHI_CHANNEL_FCP, used by View FCP.
+ */
+#define GHI_CHANNEL_FCP_BITS                          GHI_GUEST_CHANNEL_BITS(GHI_CHANNEL_FCP)
+#define GHI_GUEST_FCP_TRANSFERFILES_PROGRESS          (GHI_CHANNEL_FCP_BITS | 0x000001)
 
 /*
  * MKS->UI messages over GHI_CHANNEL_VIEW_REMOTE_VDP_COMMON.
