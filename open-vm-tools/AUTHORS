@@ -59,3 +59,5 @@ Josh Paetzel    Changes to vmmemctl.ko and vmblock.ko for FreeBSD 13.0 API chang
 Josh Paetzel    FreeBSD has removed some vnops flags that have never been used.
                 - https://github.com/vmware/open-vm-tools/pull/403
 
+Alexey Shabalin Add recognition of ALT Linux distributions
+                - https://github.com/vmware/open-vm-tools/pull/431
