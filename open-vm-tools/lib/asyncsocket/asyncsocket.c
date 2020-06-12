@@ -6441,6 +6441,10 @@ AsyncSocket_SetKeepAlive(AsyncSocket *asock, // IN
    int fd;
 
    fd = AsyncSocket_GetFd(asock);
+   if (fd < 0) {
+      Log(ASOCKPREFIX "(%p) is not valid.\n", asock);
+      return FALSE;
+   }
 #ifdef WIN32
    {
       struct tcp_keepalive keepalive = { 1, keepIdle * 1000, keepIdle * 10 };
