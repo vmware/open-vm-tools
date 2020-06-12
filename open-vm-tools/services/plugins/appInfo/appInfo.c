@@ -589,14 +589,18 @@ AppInfoServerShutdown(gpointer src,          // IN
  *
  * AppInfoServerSetOption --
  *
- *      Handle TOOLSOPTION_ENABLE_APPINFO Set_Option callback.
+ * Handle TOOLSOPTION_ENABLE_APPINFO Set_Option callback.
  *
- * Results:
- *      TRUE on success.
+ * @param[in]  src      The source object.
+ * @param[in]  ctx      The app context.
+ * @param[in]  option   Option being set.
+ * @param[in]  value    Option value.
+ * @param[in]  plugin   Plugin registration data.
  *
- * Side-effects:
- *      None
- *
+ * @return  TRUE  if the specified option is TOOLSOPTION_ENABLE_APPINFO and
+ *                the AppInfo Gather poll loop is reconfigured.
+ *          FALSE if the specified option is not TOOLSOPTION_ENABLE_APPINFO
+ *                or AppInfo Gather poll loop is not reconfigured.
  *----------------------------------------------------------------------------
  */
 
@@ -610,8 +614,8 @@ AppInfoServerSetOption(gpointer src,         // IN
    gboolean retVal = FALSE;
 
    if (strcmp(option, TOOLSOPTION_ENABLE_APPINFO) == 0) {
-      g_debug("Tools set option %s=%s.\n",
-              TOOLSOPTION_ENABLE_APPINFO, value);
+      g_debug("%s: Tools set option %s=%s.\n",
+              __FUNCTION__, TOOLSOPTION_ENABLE_APPINFO, value);
 
       if (strcmp(value, "1") == 0 && !gAppInfoEnabledInHost) {
          gAppInfoEnabledInHost = TRUE;
@@ -620,12 +624,12 @@ AppInfoServerSetOption(gpointer src,         // IN
          gAppInfoEnabledInHost = FALSE;
          retVal = TRUE;
       }
-   }
 
-   if (retVal) {
-      g_info("%s: State of AppInfo is changed to '%s' at host side.\n",
-             __FUNCTION__, gAppInfoEnabledInHost ? "enabled" : "disabled");
-      TweakGatherLoop(ctx, TRUE);
+      if (retVal) {
+         g_info("%s: State of AppInfo is changed to '%s' at host side.\n",
+                __FUNCTION__, gAppInfoEnabledInHost ? "enabled" : "disabled");
+         TweakGatherLoop(ctx, TRUE);
+      }
    }
 
    return retVal;
