@@ -155,6 +155,11 @@ typedef uint32 GHIGuestToHostMessageType;
 #define GHI_GUEST_FCP_TRANSFERFILES_PROGRESS          (GHI_CHANNEL_FCP_BITS | 0x000001)
 
 /*
+ * UI->MKS Messages over GHI_CHANNEL_FCP, used by View FCP.
+ */
+#define GHI_FCP_HOST_TRANSFERFILES_CANCEL_CMD   "ghi.fcp.host.transferfiles.cancel"
+
+/*
  * MKS->UI messages over GHI_CHANNEL_VIEW_REMOTE_VDP_COMMON.
  */
 #define GHI_CHANNEL_VIEW_REMOTE_VDP_COMMON_BITS \
