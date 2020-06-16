@@ -21,4 +21,6 @@ libAppUtil_la_SOURCES =
 libAppUtil_la_SOURCES += appUtil.c
 libAppUtil_la_SOURCES += appUtilX11.c
 
-AM_CFLAGS = @GTK_CPPFLAGS@
+AM_CFLAGS =
+AM_CFLAGS += @GTK_CPPFLAGS@
+AM_CFLAGS += @GDK_PIXBUF_XLIB2_CPPFLAGS@
