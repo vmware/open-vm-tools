@@ -134,7 +134,7 @@ extern "C" {
 #define   BDOOR_CMD_ABSPOINTER_STATUS        40
 #define   BDOOR_CMD_ABSPOINTER_COMMAND       41
 //#define BDOOR_CMD_TIMER_SPONGE             42 /* Not in use. */
-#define   BDOOR_CMD_PATCH_ACPI_TABLES        43 /* CPL 0 only. */
+//#define BDOOR_CMD_PATCH_ACPI_TABLES        43 /* Not in use. */
 //#define BDOOR_CMD_DEVEL_FAKEHARDWARE       44 /* Not in use. */
 #define   BDOOR_CMD_GETHZ                    45
 #define   BDOOR_CMD_GETTIMEFULL              46
