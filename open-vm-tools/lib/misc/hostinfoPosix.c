@@ -245,10 +245,16 @@ DetailedDataField detailedDataFields[] = {
 
 #if defined __ANDROID__ || defined __aarch64__
 /*
- * Android doesn't support getloadavg() or iopl().
+ * Android and arm64 do not support iopl().
+ */
+#define NO_IOPL
+#endif
+
+#if defined __ANDROID__
+/*
+ * Android doesn't support getloadavg().
  */
 #define NO_GETLOADAVG
-#define NO_IOPL
 #endif
 
 
@@ -2526,6 +2532,7 @@ Hostinfo_ResetProcessState(const int *keepFds, // IN:
    }
 
 #ifdef __linux__
+#ifndef NO_IOPL
    /*
     * Drop iopl to its default value.
     * iopl() is not implemented in userworlds
@@ -2539,15 +2546,11 @@ Hostinfo_ResetProcessState(const int *keepFds, // IN:
          privileges --hpreg */
       ASSERT(euid != 0 || getuid() == 0);
       Id_SetEUid(0);
-#if defined NO_IOPL
-      NOT_IMPLEMENTED();
-      errno = ENOSYS;
-#else
       err = iopl(0);
-#endif
       Id_SetEUid(euid);
       VERIFY(err == 0);
    }
+#endif
 #endif
 }
 
