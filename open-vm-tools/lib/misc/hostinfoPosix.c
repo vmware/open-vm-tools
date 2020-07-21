@@ -182,7 +182,19 @@ typedef struct {
    char *filename;
 } DistroInfo;
 
-/* KEEP SORTED! (sort -d) */
+/*
+ * This the list of the locations of the distro identifying file used for
+ * the LSB standard. The LSB standard is an old standard, largely replaced
+ * by the superior os-release standard.
+ *
+ * If a distro *ALWAYS* supports the os-release standard (with or without an
+ * LSB identifying file), there is no need to add anything to this list. For
+ * distros that only support the LSB standard, feel free to add an entry to
+ * this table.
+ *
+ * KEEP SORTED! (sort -d)
+ */
+
 static const DistroInfo distroArray[] = {
    { "ALT",                "/etc/altlinux-release"      },
    { "Annvix",             "/etc/annvix-release"        },
