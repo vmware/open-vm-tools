@@ -657,10 +657,6 @@ checkForWrite(ToolsAppCtx *ctx)
       g_debug("%s: Failed to read necessary information from Namespace DB\n",
               __FUNCTION__);
    } else {
-      gint64 clientTimestamp;
-      int clientInterval;
-      gint64 currentTime;
-
       if ((signal != NULL) && (strcmp(signal, "")) && signalLen > 0) {
          char *token1;
          char *token2;
@@ -672,9 +668,9 @@ checkForWrite(ToolsAppCtx *ctx)
          token1 = strtok(signal, ",");
          token2 = strtok(NULL, ",");
          if (token1 != NULL && token2 != NULL) {
-            currentTime = GetGuestTimeInMillis();
-            clientInterval = (int) g_ascii_strtoll(token1, NULL, 10);
-            clientTimestamp = g_ascii_strtoll(token2, NULL, 10);
+            gint64 currentTime = GetGuestTimeInMillis();
+            int clientInterval = (int) g_ascii_strtoll(token1, NULL, 10);
+            gint64 clientTimestamp = g_ascii_strtoll(token2, NULL, 10);
 
             if (clientInterval == 0 || clientTimestamp == 0) {
                g_warning("%s: Wrong value of interval and timestamp",
