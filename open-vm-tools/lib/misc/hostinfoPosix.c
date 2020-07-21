@@ -1557,7 +1557,7 @@ HostinfoDefaultLinux(char *distro,            // OUT/OPT:
       Str_Sprintf(generic, sizeof generic, "Other Linux %d.%d kernel",
                   majorVersion, minorVersion);
       distroOut = &generic[0];
-      distroShortOut = STR_OS_OTHER_4X;
+      distroShortOut = STR_OS_OTHER_5X;
    }
 
    if (distro != NULL) {
