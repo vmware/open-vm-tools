@@ -34,7 +34,8 @@
  * hard-coded value for every other product.
  */
 #if defined(VMX86_VMRC) /* check VMX86_VMRC before VMX86_DESKTOP */
-   #define PRODUCT_VERSION    12,0,0,PRODUCT_BUILD_NUMBER_NUMERIC   /* VMRC_VERSION_NUMBER below has to match this */
+   /* VMRC_VERSION_NUMBER below has to match this */
+   #define PRODUCT_VERSION    12,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_FLEX) /* check VMX86_FLEX before VMX86_DESKTOP */
    #define PRODUCT_VERSION    8,0,0,PRODUCT_BUILD_NUMBER_NUMERIC   /* FLEX_VERSION_NUMBER below has to match this */
 #elif defined(VMX86_TOOLS)
@@ -166,11 +167,14 @@
  * ALSO, leave FOO_VERSION at e.x.p on all EXCEPT release branches.
  * lmclient.h has a FLEX_VERSION struct so the versionPrefix can't be FLEX
  */
-#define WORKSTATION_VERSION_NUMBER "15.5.0" /* this version number should always match real WS version number */
+/* this version number should always match real WS version number */
+#define WORKSTATION_VERSION_NUMBER "15.5.0"
 #define WORKSTATION_VERSION "e.x.p"
-#define PLAYER_VERSION_NUMBER "15.5.0" /* this version number should always match real Player version number */
+/* this version number should always match real Player version number */
+#define PLAYER_VERSION_NUMBER "15.5.0"
 #define PLAYER_VERSION "e.x.p"
-#define VMRC_VERSION_NUMBER "12.0.0" /* this version number should always match real VMRC version number */
+/* this version number should always match real VMRC version number */
+#define VMRC_VERSION_NUMBER "12.0.0"
 #define VMRC_VERSION "12.0.0"
 #define FLEX_CLIENT_VERSION_NUMBER "8.0.0"
 #define FLEX_CLIENT_VERSION "e.x.p"
@@ -516,6 +520,7 @@
 #define PRODUCT_VERSION_WORKSTATION_120 PRODUCT_WORKSTATION_BRIEF_NAME " 12.x"
 // Workstation 13.x is skipped.
 #define PRODUCT_VERSION_WORKSTATION_140 PRODUCT_WORKSTATION_BRIEF_NAME " 14.x"
+#define PRODUCT_VERSION_WORKSTATION_160 PRODUCT_WORKSTATION_BRIEF_NAME " 16.x"
 #define PRODUCT_VERSION_PLAYER_1 PRODUCT_PLAYER_BRIEF_NAME " 1.x"
 #define PRODUCT_VERSION_MAC_DESKTOP_1 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 1.1"
 #define PRODUCT_VERSION_MAC_DESKTOP_2 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 2.x"
@@ -527,6 +532,7 @@
 #define PRODUCT_VERSION_MAC_DESKTOP_80 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 8.x"
 // Fusion 9.x is skipped.
 #define PRODUCT_VERSION_MAC_DESKTOP_100 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 10.x"
+#define PRODUCT_VERSION_MAC_DESKTOP_120 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 12.x"
 
 /*
  * VDFS Versions
