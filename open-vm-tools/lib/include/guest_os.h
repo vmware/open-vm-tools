@@ -84,10 +84,13 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define ALLWINXP64            BS(WINXPPRO_64)
 #define ALLWINXP              ALLWINXP32, ALLWINXP64
 
-#define ALLFREEBSD            BS(FREEBSD),   BS(FREEBSD_64),   \
-                              BS(FREEBSD11), BS(FREEBSD11_64), \
-                              BS(FREEBSD12), BS(FREEBSD12_64), \
-                              BS(FREEBSD13), BS(FREEBSD13_64)
+#define ALLFREEBSD32          BS(FREEBSD),    BS(FREEBSD11),  \
+                              BS(FREEBSD12),  BS(FREEBSD13)
+
+#define ALLFREEBSD64          BS(FREEBSD_64),   BS(FREEBSD11_64), \
+                              BS(FREEBSD12_64), BS(FREEBSD13_64)
+
+#define ALLFREEBSD            ALLFREEBSD32, ALLFREEBSD64
 
 #define ALLWINNET32           BS(WINNET)
 #define ALLWINNET64           BS(WINNET_64)
@@ -224,11 +227,10 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 #define ALLDARWIN             ALLDARWIN32, ALLDARWIN64
 
-#define ALL64                 ALLWIN64, ALLLINUX64,               \
-                              BS(SOLARIS10_64), BS(SOLARIS11_64), \
-                              BS(FREEBSD_64), BS(FREEBSD11_64),   \
-                              BS(FREEBSD12_64), BS(OTHER_64),     \
-                              ALLDARWIN64, ALLVMKERNEL
+#define ALL64                 ALLLINUX64,       ALLFREEBSD64,      \
+                              ALLDARWIN64,      ALLVMKERNEL,       \
+                              BS(SOLARIS10_64), BS(SOLARIS11_64),  \
+                              ALLWIN64,         BS(OTHER_64)
 
 #define ALLECOMSTATION        BS(ECOMSTATION), BS(ECOMSTATION2)
 
