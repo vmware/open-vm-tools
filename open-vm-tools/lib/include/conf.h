@@ -495,4 +495,23 @@
  ******************************************************************************
  */
 
+/*
+ ******************************************************************************
+ * BEGIN CarbonBlack helper plugin goodies.
+ */
+
+/**
+ * Define the string used for cbhelper config file group
+ */
+#define CONFGROUPNAME_CBHELPER "cbhelper"
+
+/**
+ * Defines user-defined polling interval in seconds.
+ */
+#define CONFNAME_CBHELPER_POLLINTERVAL "poll-interval"
+
+/*
+ ******************************************************************************
+ * END CarbonBlack helper plugin goodies.
+ */
 #endif /* __CONF_H__ */
