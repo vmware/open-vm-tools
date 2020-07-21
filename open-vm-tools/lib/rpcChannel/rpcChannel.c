@@ -582,6 +582,11 @@ RpcChannelTeardown(RpcChannel *chan)
       cdata->resetCheck = NULL;
    }
 
+   if (chan->in != NULL) {
+      RpcIn_Destruct(chan->in);
+      chan->in = NULL;
+   }
+
    cdata->rpcInInitialized = FALSE;
 }
 
