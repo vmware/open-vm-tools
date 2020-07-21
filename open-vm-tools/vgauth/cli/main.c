@@ -668,7 +668,7 @@ mainRun(int argc,
    gchar *noteMsg = NULL;
    gchar *subject = NULL;
    GOptionEntry *cmdOptions = NULL;
-   const gchar *paramStr = "[add | list | remove]\n";
+   const gchar *paramStr = "[add | list | remove | removeAll]\n";
    const gchar *lUsername = SU_(cmdline.summary.username, "username");
    const gchar *lSubject = SU_(cmdline.summary.subject, "subject");
    const gchar *lPEMfile = SU_(cmdline.summary.pemfile, "PEM-file");
