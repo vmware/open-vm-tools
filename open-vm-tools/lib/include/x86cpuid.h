@@ -952,7 +952,7 @@ FLAG(  81,  0, ECX, 16,  1, FMA4,                                YES,   8 ) \
 FLAG(  81,  0, ECX, 17,  1, TCE,                                 NO,    0 ) \
 FLAG(  81,  0, ECX, 19,  1, NODEID_MSR,                          NO,    0 ) \
 FLAG(  81,  0, ECX, 21,  1, TBM,                                 YES,   9 ) \
-FLAG(  81,  0, ECX, 22,  1, TOPOLOGY,                            NO,    0 ) \
+FLAG(  81,  0, ECX, 22,  1, TOPOLOGY,                            ANY,  18 ) \
 FLAG(  81,  0, ECX, 23,  1, PERFCORE,                            ANY,   4 ) \
 FLAG(  81,  0, ECX, 24,  1, PERFNB,                              NO,    0 ) \
 FLAG(  81,  0, ECX, 26,  1, DATABK,                              NO,    0 ) \
