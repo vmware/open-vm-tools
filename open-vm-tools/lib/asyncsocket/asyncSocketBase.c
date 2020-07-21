@@ -791,6 +791,11 @@ AsyncSocket_MsgError(int asyncSockError)   // IN
       result = MSGID(asyncsocket.websocketupgradefailed)
                      "Upgrade to websocket error: NOT FOUND, status code 404";
       break;
+   case ASOCKERR_WEBSOCK_TOO_MANY_CONNECTION:
+      result = MSGID(asyncsocket.websockettoomanyconnection)
+                     "The server-side WebSocket connection limit has been exceeded,"
+                     " HTTP status code 429";
+      break;
    }
 
    if (!result) {
