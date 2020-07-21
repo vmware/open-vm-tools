@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2012-2017,2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2012-2017, 2019-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -2068,7 +2068,7 @@ VGAuth_SendValidateSamlBearerTokenRequest(VGAuthContext *ctx,
    *userHandle = NULL;
 
    /*
-    * ValidateSAMLBeraerToken has no security restrictions, so we don't care
+    * ValidateSAMLBearerToken has no security restrictions, so we don't care
     * what user is used.
     */
    if (!VGAuth_IsConnectedToServiceAsAnyUser(ctx)) {
