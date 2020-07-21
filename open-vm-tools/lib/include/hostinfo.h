@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -116,6 +116,7 @@ enum {
    HOSTINFO_OS_VERSION_MACOS_10_13 = 17,
    HOSTINFO_OS_VERSION_MACOS_10_14 = 18,
    HOSTINFO_OS_VERSION_MACOS_10_15 = 19,
+   HOSTINFO_OS_VERSION_MACOS_11    = 20,
 };
 
 int Hostinfo_OSVersion(unsigned int i);
