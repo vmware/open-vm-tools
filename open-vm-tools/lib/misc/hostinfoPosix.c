@@ -1783,18 +1783,18 @@ HostinfoBSD(struct utsname *buf)  // IN:
       break;
 
    case 11:
-      Str_Strcpy(distroShort, STR_OS_FREEBSD11, sizeof distroShort);
+      Str_Strcpy(distroShort, STR_OS_FREEBSD "11", sizeof distroShort);
       break;
 
    case 12:
-      Str_Strcpy(distroShort, STR_OS_FREEBSD12, sizeof distroShort);
+      Str_Strcpy(distroShort, STR_OS_FREEBSD "12", sizeof distroShort);
       break;
 
    default: // Unknown defaults to the highest known.
       /* FALL THROUGH */
 
    case 13:
-      Str_Strcpy(distroShort, STR_OS_FREEBSD13, sizeof distroShort);
+      Str_Strcpy(distroShort, STR_OS_FREEBSD "13", sizeof distroShort);
       break;
    }
 
