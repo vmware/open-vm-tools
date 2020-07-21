@@ -495,24 +495,4 @@
  ******************************************************************************
  */
 
-/*
- ******************************************************************************
- * BEGIN CarbonBlack goodies.
- */
-
-/**
- * Define the string used for carbonblack config file group
- */
-#define CONFGROUPNAME_CARBONBLACK "carbonblack"
-
-/**
- * Defines user-defined polling interval in seconds.
- */
-#define CONFNAME_CARBONBLACK_POLLINTERVAL "poll-interval"
-
-/*
- ******************************************************************************
- * END CarbonBlack goodies.
- */
-
 #endif /* __CONF_H__ */
