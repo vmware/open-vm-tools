@@ -815,8 +815,8 @@ HostinfoESX(struct utsname *buf)  // IN:
  *      the officially supported identification for a generic Linux
  *      (otherLinux).
  *
- *      If the distro is officially supported (by VMware)- it's recognized
- *      the code of this routine - the "short name" will be overwritten with
+ *      If the distro is officially supported (by VMware) - it's recognized
+ *      by the code of this routine - the "short name" will be overwritten with
  *      the officially supported "short name" of the distro. Only VMware adds
  *      distros and related codes to this routine.
  *
