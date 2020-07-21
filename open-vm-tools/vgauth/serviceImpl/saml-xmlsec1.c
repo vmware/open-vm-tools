@@ -1120,7 +1120,7 @@ BuildCertChain(xmlNodePtr x509Node,
        */
       ret = xmlSecCryptoAppKeysMngrCertLoadMemory(mgr,
                                                   pemCert,
-                                                  (xmlSecSize) strlen(pemCert),
+                                                  strlen(pemCert),
                                                   xmlSecKeyDataFormatPem,
                                                   xmlSecKeyDataTypeTrusted);
       if (ret < 0) {
