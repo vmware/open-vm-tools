@@ -115,6 +115,12 @@ typedef uint32 GHIGuestToHostMessageType;
 #define GHI_GUEST_DND_GETFILE_OVERWRITE_QUESTION      (GHI_CHANNEL_DND_BITS | 0x000005)
 #define GHI_GUEST_DND_CAPABILITY                      (GHI_CHANNEL_DND_BITS | 0x000006)
 
+
+/*
+ * UI->MKS Messages over GHI_CHANNEL_VIEW_REMOTE_RDE_COMMON.
+ */
+#define GHI_RDE_COMMON_GENERIC_CMD             "ghi.rde.generic"
+
 /*
  * MKS->UI messages over GHI_CHANNEL_VIEW_REMOTE_RDE_COMMON.
  */
