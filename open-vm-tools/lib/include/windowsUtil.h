@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -39,9 +39,10 @@ extern "C" {
 #ifdef _WIN32
 
 /* Defines */
-#define VMX_SHUTDOWN_ORDER    0x100    // Application reserved last shutdown range.
-#define UI_SHUTDOWN_ORDER     0x300    // Application reserved first shutdown range.
-#define TOOLS_SHUTDOWN_ORDER  0x100    // Application reserved last shutdown range
+#define VMX_SHUTDOWN_ORDER          0x101 // Application reserved last shutdown range.
+#define UI_SHUTDOWN_ORDER           0x300 // Application reserved first shutdown range.
+#define TOOLS_SHUTDOWN_ORDER        0x100 // Application reserved last shutdown range.
+#define MKS_SANDBOX_SHUTDOWN_ORDER  0x100 // Application reserved last shutdown range.
 
 #include <windows.h>
 
