@@ -61,3 +61,7 @@ Josh Paetzel    FreeBSD has removed some vnops flags that have never been used.
 
 Alexey Shabalin Add recognition of ALT Linux distributions
                 - https://github.com/vmware/open-vm-tools/pull/431
+
+Thom Leggett    Propagate new gdk-pixbuf-xlib include location
+                https://github.com/vmware/open-vm-tools/pull/438
+

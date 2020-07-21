@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2008-2016 VMware, Inc.  All rights reserved.
+### Copyright (C) 2008-2016,2020 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -21,4 +21,7 @@ libAppUtil_la_SOURCES =
 libAppUtil_la_SOURCES += appUtil.c
 libAppUtil_la_SOURCES += appUtilX11.c
 
-AM_CFLAGS = @GTK_CPPFLAGS@
+AM_CFLAGS =
+AM_CFLAGS += @GTK_CPPFLAGS@
+AM_CFLAGS += @GDK_PIXBUF_XLIB2_CPPFLAGS@
+
