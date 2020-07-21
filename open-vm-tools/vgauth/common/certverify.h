@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2016, 2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -27,6 +27,7 @@
 
 #include <glib.h>
 #include "VGAuthAuthentication.h"
+#include "openssl/opensslv.h"  // For OPENSSL_VERSION_NUMBER.
 
 /* new API from OpenSSL 1.1.0
  *      https://www.openssl.org/docs/manmaster/crypto/EVP_DigestInit.html
