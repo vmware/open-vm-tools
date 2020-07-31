@@ -18,7 +18,7 @@ get_version() {
   for p in $space_separated_pids
   do
     COMMAND=$(get_command_line $p | grep -Eo "$PATTERN")
-    [ ! -z "$COMMAND" ] && echo VERSIONSTART "$p" "$($COMMAND $VERSION_OPTION 2>&1)" VERSIONEND
+    [ ! -z "$COMMAND" ] && echo VERSIONSTART "$p" "$("${COMMAND%%[[:space:]]*}" $VERSION_OPTION 2>&1)" VERSIONEND
   done
 }
 
@@ -39,7 +39,7 @@ get_vcloud_director_version() {
   for p in $space_separated_pids
   do
     VCLOUD_HOME=$(get_command_line $p | grep -Eo "$PATTERN" | cut -d'=' -f2)
-    [ ! -z "$VCLOUD_HOME" ] && echo VERSIONSTART "$p" "$(grep product.version ${VCLOUD_HOME}/etc/global.properties 2>/dev/null | cut -d'=' -f2 2>/dev/null)" VERSIONEND
+    [ ! -z "$VCLOUD_HOME" ] && echo VERSIONSTART "$p" "$(grep product.version "${VCLOUD_HOME}/etc/global.properties" 2>/dev/null | cut -d'=' -f2 2>/dev/null)" VERSIONEND
   done
 }
 
@@ -49,7 +49,7 @@ get_weblogic_version() {
   do
     WEBLOGIC_HOME=$(get_command_line $p | grep -Eo "$PATTERN" | cut -d'=' -f2)
     WEBLOGIC_HOME="${WEBLOGIC_HOME%%/server/lib/weblogic.policy*}"
-    [ ! -z "$WEBLOGIC_HOME" ] && echo VERSIONSTART "$p" "$(java -cp ${WEBLOGIC_HOME}/server/lib/weblogic.jar weblogic.version 2>/dev/null)" VERSIONEND
+    [ ! -z "$WEBLOGIC_HOME" ] && echo VERSIONSTART "$p" "$(java -cp "${WEBLOGIC_HOME}/server/lib/weblogic.jar" weblogic.version 2>/dev/null)" VERSIONEND
   done
 }
 
@@ -59,7 +59,7 @@ get_apache_tomcat_version() {
   do
     TOMCAT_HOME=$(get_command_line $p | grep -Eo "$PATTERN")
     TOMCAT_HOME="${TOMCAT_HOME%%/bin/bootstrap.jar*}"
-    [ ! -z "$TOMCAT_HOME" ] && echo VERSIONSTART "$p" "$(java -cp ${TOMCAT_HOME}/lib/catalina.jar org.apache.catalina.util.ServerInfo 2>/dev/null)" VERSIONEND
+    [ ! -z "$TOMCAT_HOME" ] && echo VERSIONSTART "$p" "$(java -cp "${TOMCAT_HOME}/lib/catalina.jar" org.apache.catalina.util.ServerInfo 2>/dev/null)" VERSIONEND
   done
 }
 
@@ -68,7 +68,7 @@ get_jboss_version() {
   for p in $space_separated_pids
   do
     JBOSS_HOME=$(get_command_line $p | grep -Eo "$PATTERN" | cut -d'=' -f2)
-    [ ! -z "$JBOSS_HOME" ] && echo VERSIONSTART "$p" "$(${JBOSS_HOME}/bin/standalone.sh --version 2>/dev/null)" VERSIONEND
+    [ ! -z "$JBOSS_HOME" ] && echo VERSIONSTART "$p" "$("${JBOSS_HOME}/bin/standalone.sh" --version 2>/dev/null)" VERSIONEND
   done
 }
 
