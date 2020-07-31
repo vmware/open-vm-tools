@@ -85,6 +85,7 @@ extern "C" {
 #define ASOCKERR_PROXY_CONNECT_FAILED        18
 #define ASOCKERR_WEBSOCK_UPGRADE_NOT_FOUND   19
 #define ASOCKERR_WEBSOCK_TOO_MANY_CONNECTION 20
+#define ASOCKERR_PROXY_INVALID_OR_NOT_SUPPORTED 21
 
 /*
  * Cross-platform codes for AsyncSocket_GetGenericError():

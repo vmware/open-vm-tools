@@ -787,6 +787,10 @@ AsyncSocket_MsgError(int asyncSockError)   // IN
       result = MSGID(asyncsocket.proxyconnectfailed)
                      "Connection failed through proxy";
       break;
+   case ASOCKERR_PROXY_INVALID_OR_NOT_SUPPORTED:
+      result = MSGID(asyncsocket.proxyinvalidornotsupported)
+                     "Invalid or not supported type proxy";
+      break;
    case ASOCKERR_WEBSOCK_UPGRADE_NOT_FOUND:
       result = MSGID(asyncsocket.websocketupgradefailed)
                      "Upgrade to websocket error: NOT FOUND, status code 404";
