@@ -107,6 +107,7 @@
    LOGLEVEL_VAR(vrdma), \
    LOGLEVEL_VAR(nvdimm), \
    LOGLEVEL_VAR(qat), \
+   LOGLEVEL_VAR(dvx), \
    LOGLEVEL_VAR(vtpm), \
    LOGLEVEL_VAR(mor), \
    LOGLEVEL_VAR(precisionclock), \
