@@ -52,32 +52,6 @@
 #error "Should be included only in x86 builds"
 #endif
 
-#if defined(_MSC_VER) && !defined(BORA_NO_WIN32_INTRINS)
-#ifdef __cplusplus
-extern "C" {
-#endif
-/*
- * It seems x86 & x86-64 windows still implements these intrinsic
- * functions.  The documentation for the x86-64 suggest the
- * __inbyte/__outbyte intrinsics even though the _in/_out work fine and
- * __inbyte/__outbyte aren't supported on x86.
- * NB: vs2015 removed _inp and friends in favor of __inbyte and friends.
- * Declare these directly until we can convert to the new name.
- */
-int            _inp(unsigned short);
-unsigned short _inpw(unsigned short);
-unsigned long  _inpd(unsigned short);
-
-int            _outp(unsigned short, int);
-unsigned short _outpw(unsigned short, unsigned short);
-unsigned long  _outpd(uint16, unsigned long);
-#pragma intrinsic(_inp, _inpw, _inpd, _outp, _outpw, _outpw, _outpd)
-
-#ifdef __cplusplus
-}
-#endif
-#endif // _MSC_VER
-
 #ifdef __GNUC__
 /*
  * Checked against the Intel manual and GCC --hpreg
@@ -140,35 +114,35 @@ GetCallerEFlags(void)
 }
 
 #elif defined(_MSC_VER)
-static INLINE  uint8
+static INLINE uint8
 INB(uint16 port)
 {
-   return (uint8)_inp(port);
+   return __inbyte(port);
 }
 static INLINE void
 OUTB(uint16 port, uint8 value)
 {
-   _outp(port, value);
+   __outbyte(port, value);
 }
 static INLINE uint16
 INW(uint16 port)
 {
-   return _inpw(port);
+   return __inword(port);
 }
 static INLINE void
 OUTW(uint16 port, uint16 value)
 {
-   _outpw(port, value);
+   __outword(port, value);
 }
 static INLINE  uint32
 IN32(uint16 port)
 {
-   return _inpd(port);
+   return __indword(port);
 }
 static INLINE void
 OUT32(uint16 port, uint32 value)
 {
-   _outpd(port, value);
+   __outdword(port, value);
 }
 
 #ifndef VM_X86_64
