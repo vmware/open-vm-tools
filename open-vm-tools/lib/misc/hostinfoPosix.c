@@ -1220,8 +1220,6 @@ HostinfoSetSuseShortName(const ShortNameSet *entry, // IN:
  *
  * Some of the special logic - functions - use a subtable.
  * If you're not VMware, do not add anything to those tables either.
- *
- * Keep sorted! (sort -d)
  */
 
 static const ShortNameSet shortNameArray[] = {
@@ -1237,6 +1235,8 @@ static const ShortNameSet shortNameArray[] = {
 {"cobalt",              STR_OS_COBALT,             HostinfoGenericSetShortName},
 {"conectiva",           STR_OS_CONECTIVA,          HostinfoGenericSetShortName},
 {"debian",              NULL,                      HostinfoSetDebianShortName},
+{"red hat",             NULL,                      HostinfoSetRedHatShortName},
+/* Red Hat must come before the Enterprise Linux entry */
 {"enterprise linux",    NULL,                      HostinfoSetOracleShortName},
 {"fedora",              STR_OS_FEDORA,             HostinfoGenericSetShortName},
 {"gentoo",              STR_OS_GENTOO,             HostinfoGenericSetShortName},
@@ -1249,7 +1249,6 @@ static const ShortNameSet shortNameArray[] = {
 {"opensuse",            STR_OS_OPENSUSE,           HostinfoGenericSetShortName},
 {"oracle",              NULL,                      HostinfoSetOracleShortName},
 {"pld",                 STR_OS_PLD,                HostinfoGenericSetShortName},
-{"red hat",             NULL,                      HostinfoSetRedHatShortName},
 {"slackware",           STR_OS_SLACKWARE,          HostinfoGenericSetShortName},
 {"sme server",          STR_OS_SMESERVER,          HostinfoGenericSetShortName},
 {"suse",                NULL,                      HostinfoSetSuseShortName},
