@@ -1227,13 +1227,7 @@ Atomic_And32(Atomic_uint32 *var, // IN/OUT
    );
 #endif /* VM_X86_ANY */
 #elif defined _MSC_VER
-#if defined __x86_64__ || defined VM_ARM_32
    _InterlockedAnd((long *)&var->value, (long)val);
-#else
-   __asm mov eax, val
-   __asm mov ebx, var
-   __asm lock And [ebx]Atomic_uint32.value, eax
-#endif
 #else
 #error No compiler defined for Atomic_And
 #endif
@@ -1292,13 +1286,7 @@ Atomic_Or32(Atomic_uint32 *var, // IN/OUT
    );
 #endif /* VM_X86_ANY */
 #elif defined _MSC_VER
-#if defined __x86_64__ || defined VM_ARM_32
    _InterlockedOr((long *)&var->value, (long)val);
-#else
-   __asm mov eax, val
-   __asm mov ebx, var
-   __asm lock Or [ebx]Atomic_uint32.value, eax
-#endif
 #else
 #error No compiler defined for Atomic_Or
 #endif
@@ -1357,13 +1345,7 @@ Atomic_Xor32(Atomic_uint32 *var, // IN/OUT
    );
 #endif /* VM_X86_ANY */
 #elif defined _MSC_VER
-#if defined __x86_64__ || defined VM_ARM_32
    _InterlockedXor((long *)&var->value, (long)val);
-#else
-   __asm mov eax, val
-   __asm mov ebx, var
-   __asm lock Xor [ebx]Atomic_uint32.value, eax
-#endif
 #else
 #error No compiler defined for Atomic_Xor
 #endif
@@ -2102,18 +2084,13 @@ Atomic_Read64(Atomic_uint64 const *var) // IN
     */
    return var->value;
 #elif defined _MSC_VER && defined VM_ARM_32
+   /* MSVC + 32-bit ARM has add64 but no cmpxchg64 */
    return _InterlockedAdd64((__int64 *)&var->value, 0);
 #elif defined _MSC_VER && defined __i386__
-#   pragma warning(push)
-#   pragma warning(disable : 4035)      // disable no-return warning
-   {
-      __asm mov ecx, var
-      __asm mov edx, ecx
-      __asm mov eax, ebx
-      __asm lock cmpxchg8b [ecx]
-      // edx:eax is the return value; this is documented to work. --mann
-   }
-#   pragma warning(pop)
+   /* MSVC + 32-bit x86 has cmpxchg64 but no add64 */
+   return _InterlockedCompareExchange64((__int64 *)&var->value,
+                                        (__int64)255,  // Unlikely value to
+                                        (__int64)255); // not dirty cache
 #elif defined __GNUC__ && defined VM_ARM_V7
    __asm__ __volatile__(
       "ldrexd %[value], %H[value], [%[var]] \n\t"

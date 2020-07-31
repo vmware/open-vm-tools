@@ -102,9 +102,6 @@ __GCC_IN(l, uint32, IN32)
 #define OUTW(port, val) __GCC_OUT(w, w, port, val)
 #define OUT32(port, val) __GCC_OUT(l, , port, val)
 
-#define GET_CURRENT_EIP(_eip) \
-      __asm__ __volatile("call 0\n\tpopl %0" : "=r" (_eip): );
-
 static INLINE unsigned int
 GetCallerEFlags(void)
 {
@@ -150,11 +147,6 @@ OUT32(uint16 port, uint32 value)
 #undef NEAR
 #endif
 
-#define GET_CURRENT_EIP(_eip) do { \
-   __asm call NEAR PTR $+5 \
-   __asm pop eax \
-   __asm mov _eip, eax \
-} while (0)
 #endif // VM_X86_64
 
 static INLINE unsigned int
@@ -281,11 +273,7 @@ SFENCE(void)
    );
 #elif defined _MSC_VER
    _ReadWriteBarrier();
-#if defined VM_X86_32
-   __asm sfence;
-#else
    _mm_sfence();
-#endif
    _ReadWriteBarrier();
 #else
 #error No compiler defined for SFENCE

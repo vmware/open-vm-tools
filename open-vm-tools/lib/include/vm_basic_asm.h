@@ -654,21 +654,12 @@ uint32set(void *dst, uint32 val, size_t count)
 static INLINE void *
 uint16set(void *dst, uint16 val, size_t count)
 {
-#ifdef VM_X86_64
+#ifdef VM_X86_ANY
    __stosw((uint16*)dst, val, count);
-#elif defined(VM_ARM_32)
+#else
    size_t i;
    for (i = 0; i < count; i++) {
       ((uint16 *)dst)[i] = val;
-   }
-#else
-   __asm { pushf;
-           mov ax, val;
-           mov ecx, count;
-           mov edi, dst;
-           cld;
-           rep stosw;
-           popf;
    }
 #endif
    return dst;
@@ -677,21 +668,12 @@ uint16set(void *dst, uint16 val, size_t count)
 static INLINE void *
 uint32set(void *dst, uint32 val, size_t count)
 {
-#ifdef VM_X86_64
+#ifdef VM_X86_ANY
    __stosd((unsigned long*)dst, (unsigned long)val, count);
-#elif defined(VM_ARM_32)
+#else
    size_t i;
    for (i = 0; i < count; i++) {
       ((uint32 *)dst)[i] = val;
-   }
-#else
-   __asm { pushf;
-           mov eax, val;
-           mov ecx, count;
-           mov edi, dst;
-           cld;
-           rep stosd;
-           popf;
    }
 #endif
    return dst;
@@ -804,17 +786,9 @@ PAUSE(void)
 #endif
 }
 #elif defined(_MSC_VER)
-#ifdef VM_X86_64
 {
    _mm_pause();
 }
-#else /* VM_X86_64 */
-#pragma warning( disable : 4035)
-{
-   __asm _emit 0xf3 __asm _emit 0x90
-}
-#pragma warning (default: 4035)
-#endif /* VM_X86_64 */
 #else  /* __GNUC__  */
 #error No compiler defined for PAUSE
 #endif
@@ -862,11 +836,11 @@ RDTSC(void)
 #endif
 }
 #elif defined(_MSC_VER)
-#ifdef VM_X86_64
+#ifdef VM_X86_ANY
 {
    return __rdtsc();
 }
-#elif defined(VM_ARM_32)
+#else
 {
    /*
     * We need to do more inverstagetion here to find
@@ -875,13 +849,7 @@ RDTSC(void)
    NOT_IMPLEMENTED();
    return 0;
 }
-#else
-#pragma warning( disable : 4035)
-{
-   __asm _emit 0x0f __asm _emit 0x31
-}
-#pragma warning (default: 4035)
-#endif /* VM_X86_64 */
+#endif /* VM_X86_ANY */
 #else  /* __GNUC__  */
 #error No compiler defined for RDTSC
 #endif /* __GNUC__  */
