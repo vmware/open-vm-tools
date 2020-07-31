@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -51,31 +51,6 @@
 
 #include "vm_basic_asm.h"
 #include "x86cpuid.h"
-
-
-/*
- * The declarations for the intrinsic functions were taken from MSDN.
- * We define the intrinsic using the basic types corresponding to the
- * Windows typedefs. This avoids having to include windows header files
- * to get to the windows types.
- */
-#ifdef _MSC_VER
-#ifdef __cplusplus
-extern "C" {
-#endif
-/*
- * __cpuid has been supported since VS2003
- * __cpuidex has been supported since VS2008
- */
-void __cpuid(int regs[4], int eax);
-void __cpuidex(int regs[4], int eax, int ecx);
-#pragma intrinsic(__cpuid)
-#pragma intrinsic(__cpuidex)
-
-#ifdef __cplusplus
-}
-#endif
-#endif /* _MSC_VER */
 
 
 #ifdef __GNUC__ // {

@@ -41,6 +41,13 @@
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
+#if defined _MSC_VER && !defined BORA_NO_WIN32_INTRINS
+#pragma warning(push)
+#pragma warning(disable : 4255)      // disable no-prototype() to (void) warning
+#include <intrin.h>
+#pragma warning(pop)
+#endif
+
 #include "vm_basic_types.h"
 #include "vm_assert.h"
 
@@ -144,61 +151,6 @@ typedef ALIGNED(16) struct Atomic_uint128 {
    volatile uint128 value;
 } Atomic_uint128;
 #endif
-
-/*
- * Prototypes for msft atomics.  These are defined & inlined by the
- * compiler so no function definition is needed.  The prototypes are
- * needed for C++.
- *
- * The declarations for the intrinsic functions were taken from ntddk.h
- * in the DDK. The declarations must match otherwise the 64-bit C++
- * compiler will complain about second linkage of the intrinsic functions.
- * We define the intrinsic using the basic types corresponding to the
- * Windows typedefs. This avoids having to include windows header files
- * to get to the windows types.
- */
-#if defined _MSC_VER && !defined BORA_NO_WIN32_INTRINS
-#ifdef __cplusplus
-extern "C" {
-#endif
-long  _InterlockedExchange(long volatile*, long);
-long  _InterlockedCompareExchange(long volatile*, long, long);
-long  _InterlockedExchangeAdd(long volatile*, long);
-long  _InterlockedDecrement(long volatile*);
-long  _InterlockedIncrement(long volatile*);
-char  _InterlockedExchange8(char volatile *, char);
-char  _InterlockedCompareExchange8(char volatile *, char, char);
-__int64  _InterlockedCompareExchange64(__int64 volatile*, __int64, __int64);
-#pragma intrinsic(_InterlockedExchange, _InterlockedCompareExchange)
-#pragma intrinsic(_InterlockedExchangeAdd, _InterlockedDecrement)
-#pragma intrinsic(_InterlockedIncrement)
-#pragma intrinsic(_InterlockedCompareExchange8, _InterlockedCompareExchange8)
-#pragma intrinsic(_InterlockedCompareExchange64)
-
-#if defined VM_X86_64
-long     _InterlockedAnd(long volatile*, long);
-__int64  _InterlockedAnd64(__int64 volatile*, __int64);
-long     _InterlockedOr(long volatile*, long);
-__int64  _InterlockedOr64(__int64 volatile*, __int64);
-long     _InterlockedXor(long volatile*, long);
-__int64  _InterlockedXor64(__int64 volatile*, __int64);
-__int64  _InterlockedExchangeAdd64(__int64 volatile*, __int64);
-__int64  _InterlockedIncrement64(__int64 volatile*);
-__int64  _InterlockedDecrement64(__int64 volatile*);
-__int64  _InterlockedExchange64(__int64 volatile*, __int64);
-#if !defined _WIN64
-#pragma intrinsic(_InterlockedAnd, _InterlockedAnd64)
-#pragma intrinsic(_InterlockedOr, _InterlockedOr64)
-#pragma intrinsic(_InterlockedXor, _InterlockedXor64)
-#pragma intrinsic(_InterlockedExchangeAdd64, _InterlockedIncrement64)
-#pragma intrinsic(_InterlockedDecrement64, _InterlockedExchange64)
-#endif /* !_WIN64 */
-#endif /* __x86_64__ */
-
-#ifdef __cplusplus
-}
-#endif
-#endif /* _MSC_VER */
 
 #if defined __arm__
 /*

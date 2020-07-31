@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -52,20 +52,6 @@
 #error "Should be included only in x86 builds"
 #endif
 
-/*
- * x86-64 windows doesn't support inline asm so we have to use these
- * intrinsic functions defined in the compiler.  Not all of these are well
- * documented.  There is an array in the compiler dll (c1.dll) which has
- * an array of the names of all the intrinsics minus the leading
- * underscore.  Searching around in the ntddk.h file can also be helpful.
- *
- * The declarations for the intrinsic functions were taken from the DDK.
- * Our declarations must match the ddk's otherwise the 64-bit c++ compiler
- * will complain about second linkage of the intrinsic functions.
- * We define the intrinsic using the basic types corresponding to the
- * Windows typedefs. This avoids having to include windows header files
- * to get to the windows types.
- */
 #if defined(_MSC_VER) && !defined(BORA_NO_WIN32_INTRINS)
 #ifdef __cplusplus
 extern "C" {
@@ -75,6 +61,8 @@ extern "C" {
  * functions.  The documentation for the x86-64 suggest the
  * __inbyte/__outbyte intrinsics even though the _in/_out work fine and
  * __inbyte/__outbyte aren't supported on x86.
+ * NB: vs2015 removed _inp and friends in favor of __inbyte and friends.
+ * Declare these directly until we can convert to the new name.
  */
 int            _inp(unsigned short);
 unsigned short _inpw(unsigned short);
@@ -85,59 +73,6 @@ unsigned short _outpw(unsigned short, unsigned short);
 unsigned long  _outpd(uint16, unsigned long);
 #pragma intrinsic(_inp, _inpw, _inpd, _outp, _outpw, _outpw, _outpd)
 
-/*
- * Prevents compiler from re-ordering reads, writes and reads&writes.
- * These functions do not add any instructions thus only affect
- * the compiler ordering.
- *
- * See:
- * `Lockless Programming Considerations for Xbox 360 and Microsoft Windows'
- * http://msdn.microsoft.com/en-us/library/bb310595(VS.85).aspx
- */
-void _ReadBarrier(void);
-void _WriteBarrier(void);
-void _ReadWriteBarrier(void);
-#pragma intrinsic(_ReadBarrier, _WriteBarrier, _ReadWriteBarrier)
-
-void _mm_mfence(void);
-void _mm_lfence(void);
-#pragma intrinsic(_mm_mfence, _mm_lfence)
-
-long _InterlockedXor(long volatile *, long);
-#pragma intrinsic(_InterlockedXor)
-
-unsigned int __getcallerseflags(void);
-#pragma intrinsic(__getcallerseflags)
-
-#ifdef VM_X86_64
-/*
- * intrinsic functions only supported by x86-64 windows as of 2k3sp1
- */
-unsigned __int64 __rdtsc(void);
-void             __stosw(unsigned short *, unsigned short, size_t);
-void             __stosd(unsigned long *, unsigned long, size_t);
-void             _mm_pause(void);
-#pragma intrinsic(__rdtsc, __stosw, __stosd, _mm_pause)
-
-unsigned char  _BitScanForward64(unsigned long *, unsigned __int64);
-unsigned char  _BitScanReverse64(unsigned long *, unsigned __int64);
-#pragma intrinsic(_BitScanForward64, _BitScanReverse64)
-#endif /* VM_X86_64 */
-
-unsigned char  _BitScanForward(unsigned long *, unsigned long);
-unsigned char  _BitScanReverse(unsigned long *, unsigned long);
-#pragma intrinsic(_BitScanForward, _BitScanReverse)
-
-unsigned char  _bittest(const long *, long);
-unsigned char  _bittestandset(long *, long);
-unsigned char  _bittestandreset(long *, long);
-unsigned char  _bittestandcomplement(long *, long);
-#pragma intrinsic(_bittest, _bittestandset, _bittestandreset, _bittestandcomplement)
-#ifdef VM_X86_64
-unsigned char  _bittestandset64(__int64 *, __int64);
-unsigned char  _bittestandreset64(__int64 *, __int64);
-#pragma intrinsic(_bittestandset64, _bittestandreset64)
-#endif // VM_X86_64
 #ifdef __cplusplus
 }
 #endif

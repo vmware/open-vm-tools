@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -52,41 +52,6 @@
 #ifndef VM_X86_64
 #error "This file is x86-64 only!"
 #endif
-
-#if defined(_MSC_VER) && !defined(BORA_NO_WIN32_INTRINS)
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-uint64 _umul128(uint64 multiplier, uint64 multiplicand,
-                uint64 *highProduct);
-int64 _mul128(int64 multiplier, int64 multiplicand,
-              int64 *highProduct);
-uint64 __shiftright128(uint64 lowPart, uint64 highPart, uint8 shift);
-#ifdef ULM
-void _fxsave64(void *save);
-void _fxsave(void *save);
-void _fxrstor64(const void *load);
-void _fxrstor(const void *load);
-void _xsave64(void *save, uint64 mask);
-void _xsave(void *save, uint64 mask);
-void _xsaveopt64(void *save, uint64 mask);
-void _xsavec(void *save, uint64 mask);
-void _xrstor64(const void *load, uint64 mask);
-void _xrstor(const void *load, uint64 mask);
-#endif /* ULM */
-#ifdef __cplusplus
-}
-#endif
-
-#pragma intrinsic(_umul128, _mul128, __shiftright128)
-
-#ifdef ULM
-#pragma intrinsic(_fxsave64, _fxsave, _fxrstor64, _fxrstor, _xsave64, _xsave, \
-                  _xsaveopt64, _xsavec, _xrstor64, _xrstor)
-#endif /* ULM */
-
-#endif // _MSC_VER
 
 #if defined(__GNUC__)
 /*

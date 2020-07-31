@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -48,6 +48,13 @@
 #define INCLUDE_ALLOW_DISTRIBUTE
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
+
+#if defined _MSC_VER && !defined BORA_NO_WIN32_INTRINS
+#pragma warning(push)
+#pragma warning(disable : 4255)      // disable no-prototype() to (void) warning
+#include <intrin.h>
+#pragma warning(pop)
+#endif
 
 #include "vm_basic_types.h"
 
