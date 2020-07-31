@@ -183,13 +183,13 @@ typedef struct {
 } DistroInfo;
 
 /*
- * This the list of the locations of the distro identifying file used for
- * the LSB standard. The LSB standard is an old standard, largely replaced
- * by the superior os-release standard.
+ * This is the list of the location of the LSB standard distro identification
+ * file for the distros known to the code in this file. The LSB standard is an
+ * old standard, largely replaced by the superior os-release standard.
  *
  * If a distro *ALWAYS* supports the os-release standard (with or without an
  * LSB identifying file), there is no need to add anything to this list. For
- * distros that only support the LSB standard, feel free to add an entry to
+ * distros that *ONLY* support the LSB standard, feel free to add an entry to
  * this table.
  *
  * KEEP SORTED! (sort -d)
@@ -815,31 +815,30 @@ HostinfoESX(struct utsname *buf)  // IN:
 
 
 #if !defined(__APPLE__) && !defined(VMX86_SERVER) && !defined(USERWORLD)
+
+typedef struct ShortNameSet {
+   const char   *pattern;
+   const char   *shortName;
+   Bool        (*setFunc)(const struct ShortNameSet *entry, // IN:
+                          int version,                      // IN:
+                          const char *distroLower,          // IN:
+                          char *distroShort,                // OUT:
+                          int distroShortSize);             // IN:
+} ShortNameSet;
+
+
 /*
  *-----------------------------------------------------------------------------
  *
- * HostinfoGetOSShortName --
+ * HostinfoSearchShortNames --
  *
- *      Returns distro information based on .vmx format (distroShort).
+ *      Search a generic ShortNameSet table.
+ *      If a match is found execute the entry's setFunc and
+ *      return the result.
  *
  * Return value:
- *      The default value of the "short name", upon entry to this routine, is
- *      the officially supported identification for a generic Linux
- *      (otherLinux).
- *
- *      If the distro is officially supported (by VMware) - it's recognized
- *      by the code of this routine - the "short name" will be overwritten with
- *      the officially supported "short name" of the distro. Only VMware adds
- *      distros and related codes to this routine.
- *
- *      An unsupported "short name" will be ignored by the rest of the
- *      software stack.
- *
- *      If the short name is not one of the officially support ones, the
- *      default value will be left in place.
- *
- *      The "long name" and detailed data will fully identify what Linux
- *      is actually present.
+ *      TRUE    success; a match was found
+ *      FALSE   failure; no match was found
  *
  * Side effects:
  *      None
@@ -847,14 +846,451 @@ HostinfoESX(struct utsname *buf)  // IN:
  *-----------------------------------------------------------------------------
  */
 
-static void
-HostinfoGetOSShortName(const char *distro,      // IN: full distro name
-                       const char *versionStr,  // IN/OPT: distro version
-                       char *distroShort,       // OUT: short distro name
-                       int distroShortSize)     // IN: size of short distro name
+static Bool
+HostinfoSearchShortNames(const ShortNameSet *array, // IN:
+                         int  version,              // IN:
+                         const char *distroLower,   // IN:
+                         char *distroShort,         // OUT:
+                         int distroShortSize)       // IN:
+{
+   const ShortNameSet *p = array;
 
+   ASSERT(p != NULL);
+
+   while (p->pattern != NULL) {
+      ASSERT(p->setFunc != NULL);
+
+      if (strstr(distroLower, p->pattern) != NULL) {
+         return (*p->setFunc)(p, version, distroLower, distroShort,
+                              distroShortSize);
+      }
+
+      p++;
+   }
+
+   return FALSE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HostinfoGenericSetShortName --
+ *
+ *      Set the short name using the short name entry in the specified table
+ *      entry.
+ *
+ * Return value:
+ *      TRUE    success
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+HostinfoGenericSetShortName(const ShortNameSet *entry, // IN:
+                            int version,               // IN:
+                            const char *distroLower,   // IN:
+                            char *distroShort,         // OUT:
+                            int distroShortSize)       // IN:
+{
+   ASSERT(entry != NULL);
+   ASSERT(entry->shortName != NULL);
+
+   Str_Strcpy(distroShort, entry->shortName, distroShortSize);
+
+   return TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HostinfoSetAmazonShortName --
+ *
+ *      Set the short name for the Amazon distro.
+ *
+ * Return value:
+ *      TRUE    success
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+HostinfoSetAmazonShortName(const ShortNameSet *entry, // IN: Unused
+                           int version,               // IN:
+                           const char *distroLower,   // IN: Unused
+                           char *distroShort,         // OUT:
+                           int distroShortSize)       // IN:
+{
+   if (version < 2) {
+      version = 2;
+   }
+
+   Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_AMAZON_LINUX,
+               version);
+
+   return TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HostinfoSetAsianuxShortName --
+ *
+ *      Set short name for the Asianux distro.
+ *
+ * Return value:
+ *      TRUE    success
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+HostinfoSetAsianuxShortName(const ShortNameSet *entry, // IN: Unused
+                            int version,               // IN:
+                            const char *distroLower,   // IN: Unused
+                            char *distroShort,         // OUT:
+                            int distroShortSize)       // IN:
+{
+   if (version < 3) {
+      Str_Strcpy(distroShort, STR_OS_ASIANUX, distroShortSize);
+   } else {
+      Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_ASIANUX,
+                  version);
+   }
+
+   return TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HostinfoSetCentosShortName --
+ *
+ *      Set the short name for the CentOS distro.
+ *
+ * Return value:
+ *      TRUE    success
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+HostinfoSetCentosShortName(const ShortNameSet *entry, // IN: Unused
+                           int version,               // IN:
+                           const char *distroLower,   // IN: Unused
+                           char *distroShort,         // OUT:
+                           int distroShortSize)       // IN:
+{
+   if (version < 6) {
+      Str_Strcpy(distroShort, STR_OS_CENTOS, distroShortSize);
+   } else {
+      Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_CENTOS,
+                  version);
+   }
+
+   return TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HostinfoSetDebianShortName --
+ *
+ *      Set the short name for the Debian distro.
+ *
+ * Return value:
+ *      TRUE    success
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+HostinfoSetDebianShortName(const ShortNameSet *entry, // IN: Unused
+                           int version,               // IN:
+                           const char *distroLower,   // IN: Unused
+                           char *distroShort,         // OUT:
+                           int distroShortSize)       // IN:
+{
+   if (version <= 4) {
+      Str_Strcpy(distroShort, STR_OS_DEBIAN "4", distroShortSize);
+   } else {
+      Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_DEBIAN,
+                  version);
+   }
+
+   return TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HostinfoSetOracleShortName --
+ *
+ *      Set the short name for the Oracle distro.
+ *
+ * Return value:
+ *      TRUE    success
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+HostinfoSetOracleShortName(const ShortNameSet *entry, // IN: Unused
+                           int version,               // IN:
+                           const char *distroLower,   // IN: Unused
+                           char *distroShort,         // OUT:
+                           int distroShortSize)       // IN:
+{
+   /*
+    * [root@localhost ~]# lsb_release -sd
+    * "Enterprise Linux Enterprise Linux Server release 5.4 (Carthage)"
+    *
+    * Not sure why they didn't brand their releases as "Oracle Enterprise
+    * Linux". Oh well. It's fixed in 6.0, though.
+    */
+
+   if (version == 0) {
+      Str_Strcpy(distroShort, STR_OS_ORACLE, distroShortSize);
+   } else {
+      Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_ORACLE,
+                  version);
+   }
+
+   return TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HostinfoSetRedHatShortName --
+ *
+ *      Set short name of the RedHat distro.
+ *
+ * Return value:
+ *      TRUE    success
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+HostinfoSetRedHatShortName(const ShortNameSet *entry, // IN: Unused
+                           int version,               // IN:
+                           const char *distroLower,   // IN:
+                           char *distroShort,         // OUT:
+                           int distroShortSize)       // IN:
+{
+   if (strstr(distroLower, "enterprise") == NULL) {
+      Str_Strcpy(distroShort, STR_OS_RED_HAT, distroShortSize);
+   } else {
+      if (version == 0) {
+         Str_Strcpy(distroShort, STR_OS_RED_HAT_EN, distroShortSize);
+      } else {
+         Str_Sprintf(distroShort, distroShortSize, "%s%d",
+                     STR_OS_RED_HAT_EN, version);
+      }
+   }
+
+   return TRUE;
+}
+
+
+/*
+ *      Short name subarray for the SUSE Enterprise distro.
+ *
+ *      Keep in sorted order (sort -d)!
+ */
+
+#define SUSE_SAP_LINUX "server for sap applications 12"
+
+static const ShortNameSet suseEnterpriseShortNameArray[] = {
+   {"desktop 10",    STR_OS_SLES "10",  HostinfoGenericSetShortName},
+   {"desktop 11",    STR_OS_SLES "11",  HostinfoGenericSetShortName},
+   {"desktop 12",    STR_OS_SLES "12",  HostinfoGenericSetShortName},
+   {"desktop 15",    STR_OS_SLES "15",  HostinfoGenericSetShortName},
+   {"desktop 16",    STR_OS_SLES "16",  HostinfoGenericSetShortName},
+   {"server 10",     STR_OS_SLES "10",  HostinfoGenericSetShortName},
+   {"server 11",     STR_OS_SLES "11",  HostinfoGenericSetShortName},
+   {"server 12",     STR_OS_SLES "12",  HostinfoGenericSetShortName},
+   {"server 15",     STR_OS_SLES "15",  HostinfoGenericSetShortName},
+   {"server 16",     STR_OS_SLES "16",  HostinfoGenericSetShortName},
+   {SUSE_SAP_LINUX,  STR_OS_SLES "12",  HostinfoGenericSetShortName},
+   {NULL,            NULL,              NULL} // MUST BE LAST
+};
+
+
+/*
+ *      Short name array for the SUSE distro.
+ *
+ *      Keep in sorted order (sort -d)!
+ */
+
+static const ShortNameSet suseShortNameArray[] = {
+   {"sun",           STR_OS_SUN_DESK,  HostinfoGenericSetShortName},
+   {"novell",        STR_OS_NOVELL,    HostinfoGenericSetShortName},
+   {NULL,            NULL,             NULL} // MUST BE LAST
+};
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HostinfoSetSuseShortName --
+ *
+ *      Set the short name for the SUSE distros.
+ *
+ * Return value:
+ *      TRUE    success
+ *      FALSE   failure
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+HostinfoSetSuseShortName(const ShortNameSet *entry, // IN:
+                         int version,               // IN:
+                         const char *distroLower,   // IN:
+                         char *distroShort,         // OUT:
+                         int distroShortSize)       // IN:
+{
+   Bool found;
+
+   ASSERT(entry != NULL);
+
+   if (strstr(distroLower, "enterprise") == NULL) {
+      found = HostinfoSearchShortNames(suseShortNameArray, version,
+                                       distroLower, distroShort,
+                                       distroShortSize);
+      if (!found) {
+         Str_Strcpy(distroShort, STR_OS_SUSE, distroShortSize);
+      }
+   } else {
+      found = HostinfoSearchShortNames(suseEnterpriseShortNameArray, version,
+                                       distroLower, distroShort,
+                                       distroShortSize);
+      if (!found) {
+         Str_Strcpy(distroShort, STR_OS_SLES, distroShortSize);
+      }
+   }
+
+   return TRUE;
+}
+
+
+/*
+ * Table mapping from distro name to the offically recognized shortname.
+ *
+ * Only distros that are officially supported by VMware are present in
+ * this table. If you're not VMware, do not add anything to this table.
+ *
+ * A short name that is not officially supported by VMware will be ignored
+ * by the rest of the software stack.
+ *
+ * Some distros do not have a simple substitution and special logic is
+ * necessary to handle distros that do not have simple substitutions.
+ *
+ * Some of the special logic - functions - use a subtable.
+ * If you're not VMware, do not add anything to those tables either.
+ *
+ * Keep sorted! (sort -d)
+ */
+
+static const ShortNameSet shortNameArray[] = {
+/* Long distro name     Short distro name          Short name set function */
+{"amazon",              NULL,                      HostinfoSetAmazonShortName},
+{"annvix",              STR_OS_ANNVIX,             HostinfoGenericSetShortName},
+{"arch",                STR_OS_ARCH,               HostinfoGenericSetShortName},
+{"arklinux",            STR_OS_ARKLINUX,           HostinfoGenericSetShortName},
+{"asianux",             NULL,                      HostinfoSetAsianuxShortName},
+{"aurox",               STR_OS_AUROX,              HostinfoGenericSetShortName},
+{"black cat",           STR_OS_BLACKCAT,           HostinfoGenericSetShortName},
+{"centos",              NULL,                      HostinfoSetCentosShortName},
+{"cobalt",              STR_OS_COBALT,             HostinfoGenericSetShortName},
+{"conectiva",           STR_OS_CONECTIVA,          HostinfoGenericSetShortName},
+{"debian",              NULL,                      HostinfoSetDebianShortName},
+{"enterprise linux",    NULL,                      HostinfoSetOracleShortName},
+{"fedora",              STR_OS_FEDORA,             HostinfoGenericSetShortName},
+{"gentoo",              STR_OS_GENTOO,             HostinfoGenericSetShortName},
+{"immunix",             STR_OS_IMMUNIX,            HostinfoGenericSetShortName},
+{"linux-from-scratch",  STR_OS_LINUX_FROM_SCRATCH, HostinfoGenericSetShortName},
+{"linux-ppc",           STR_OS_LINUX_PPC,          HostinfoGenericSetShortName},
+{"mandrake",            STR_OS_MANDRAKE,           HostinfoGenericSetShortName},
+{"mandriva",            STR_OS_MANDRIVA,           HostinfoGenericSetShortName},
+{"mklinux",             STR_OS_MKLINUX,            HostinfoGenericSetShortName},
+{"opensuse",            STR_OS_OPENSUSE,           HostinfoGenericSetShortName},
+{"oracle",              NULL,                      HostinfoSetOracleShortName},
+{"pld",                 STR_OS_PLD,                HostinfoGenericSetShortName},
+{"red hat",             NULL,                      HostinfoSetRedHatShortName},
+{"slackware",           STR_OS_SLACKWARE,          HostinfoGenericSetShortName},
+{"sme server",          STR_OS_SMESERVER,          HostinfoGenericSetShortName},
+{"suse",                NULL,                      HostinfoSetSuseShortName},
+{"tiny sofa",           STR_OS_TINYSOFA,           HostinfoGenericSetShortName},
+{"turbolinux",          STR_OS_TURBO,              HostinfoGenericSetShortName},
+{"ubuntu",              STR_OS_UBUNTU,             HostinfoGenericSetShortName},
+{"ultra penguin",       STR_OS_ULTRAPENGUIN,       HostinfoGenericSetShortName},
+{"united linux",        STR_OS_UNITEDLINUX,        HostinfoGenericSetShortName},
+{"va linux",            STR_OS_VALINUX,            HostinfoGenericSetShortName},
+{"vmware photon",       STR_OS_PHOTON,             HostinfoGenericSetShortName},
+{"yellow dog",          STR_OS_YELLOW_DOG,         HostinfoGenericSetShortName},
+{NULL,                  NULL,                      NULL} // MUST BE LAST
+};
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HostinfoGetOSShortName --
+ *
+ *      Returns distro information based in .vmx format (distroShort).
+ *
+ * Return value:
+ *
+ *      True - we found the Short Name and copied it to distroShort
+ *      False - we did not find the short name for the specified versionStr
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+HostinfoGetOSShortName(const char *distro,     // IN: full distro name
+                       const char *versionStr, // IN/OPT: distro version
+                       char *distroShort,      // OUT: short distro name
+                       int distroShortSize)    // IN: size of short distro name
 {
    uint32 version;
+   Bool found;
    char *distroLower;
 
    ASSERT(distro != NULL);
@@ -887,159 +1323,13 @@ HostinfoGetOSShortName(const char *distro,      // IN: full distro name
    /* Normalize the distro string */
    distroLower = Str_ToLower(Util_SafeStrdup(distro));
 
-   /* Attempt to match the distro against the "usual suspects". */
-   if (strstr(distroLower, "red hat")) {
-      if (strstr(distroLower, "enterprise")) {
-         if (version == 0) {
-            Str_Strcpy(distroShort, STR_OS_RED_HAT_EN, distroShortSize);
-         } else {
-            Str_Sprintf(distroShort, distroShortSize, "%s%d",
-                        STR_OS_RED_HAT_EN, version);
-         }
-      } else {
-         Str_Strcpy(distroShort, STR_OS_RED_HAT, distroShortSize);
-      }
-   } else if (strstr(distroLower, "opensuse")) {
-      Str_Strcpy(distroShort, STR_OS_OPENSUSE, distroShortSize);
-   } else if (strstr(distroLower, "suse")) {
-      if (strstr(distroLower, "enterprise")) {
-         if (strstr(distroLower, "server 16") ||
-             strstr(distroLower, "desktop 16")) {
-            Str_Strcpy(distroShort, STR_OS_SLES "16", distroShortSize);
-         } else if (strstr(distroLower, "server 15") ||
-             strstr(distroLower, "desktop 15")) {
-            Str_Strcpy(distroShort, STR_OS_SLES "15", distroShortSize);
-         } else if (strstr(distroLower, "server 12") ||
-                    strstr(distroLower, "server for sap applications 12") ||
-                    strstr(distroLower, "desktop 12")) {
-            Str_Strcpy(distroShort, STR_OS_SLES "12", distroShortSize);
-         } else if (strstr(distroLower, "server 11") ||
-                    strstr(distroLower, "desktop 11")) {
-            Str_Strcpy(distroShort, STR_OS_SLES "11", distroShortSize);
-         } else if (strstr(distroLower, "server 10") ||
-                    strstr(distroLower, "desktop 10")) {
-            Str_Strcpy(distroShort, STR_OS_SLES "10", distroShortSize);
-         } else {
-            Str_Strcpy(distroShort, STR_OS_SLES, distroShortSize);
-         }
-      } else if (strstr(distroLower, "sun")) {
-         Str_Strcpy(distroShort, STR_OS_SUN_DESK, distroShortSize);
-      } else if (strstr(distroLower, "novell")) {
-         Str_Strcpy(distroShort, STR_OS_NOVELL, distroShortSize);
-      } else {
-         Str_Strcpy(distroShort, STR_OS_SUSE, distroShortSize);
-      }
-   } else if (strstr(distroLower, "mandrake")) {
-      Str_Strcpy(distroShort, STR_OS_MANDRAKE, distroShortSize);
-   } else if (strstr(distroLower, "turbolinux")) {
-      Str_Strcpy(distroShort, STR_OS_TURBO, distroShortSize);
-   } else if (strstr(distroLower, "sun")) {
-      Str_Strcpy(distroShort, STR_OS_SUN_DESK, distroShortSize);
-   } else if (strstr(distroLower, "amazon")) {
-      if (version < 2) {
-         version = 2;
-      }
-
-      Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_AMAZON_LINUX,
-                  version);
-   } else if (strstr(distroLower, "annvix")) {
-      Str_Strcpy(distroShort, STR_OS_ANNVIX, distroShortSize);
-   } else if (strstr(distroLower, "arch")) {
-      Str_Strcpy(distroShort, STR_OS_ARCH, distroShortSize);
-   } else if (strstr(distroLower, "arklinux")) {
-      Str_Strcpy(distroShort, STR_OS_ARKLINUX, distroShortSize);
-   } else if (strstr(distroLower, "asianux server 3") ||
-              strstr(distroLower, "asianux client 3")) {
-      Str_Strcpy(distroShort, STR_OS_ASIANUX "3" , distroShortSize);
-   } else if (strstr(distroLower, "asianux server 4") ||
-              strstr(distroLower, "asianux client 4")) {
-      Str_Strcpy(distroShort, STR_OS_ASIANUX "4", distroShortSize);
-   } else if (strstr(distroLower, "asianux server 5") ||
-              strstr(distroLower, "asianux client 5")) {
-      Str_Strcpy(distroShort, STR_OS_ASIANUX "5", distroShortSize);
-   } else if (strstr(distroLower, "asianux server release 7") ||
-              strstr(distroLower, "asianux client release 7")) {
-      Str_Strcpy(distroShort, STR_OS_ASIANUX "7", distroShortSize);
-   } else if (strstr(distroLower, "asianux server release 8") ||
-              strstr(distroLower, "asianux client release 8")) {
-      Str_Strcpy(distroShort, STR_OS_ASIANUX "8", distroShortSize);
-   } else if (strstr(distroLower, "asianux server release 9") ||
-              strstr(distroLower, "asianux client release 9")) {
-      Str_Strcpy(distroShort, STR_OS_ASIANUX "9", distroShortSize);
-   } else if (strstr(distroLower, "aurox")) {
-      Str_Strcpy(distroShort, STR_OS_AUROX, distroShortSize);
-   } else if (strstr(distroLower, "black cat")) {
-      Str_Strcpy(distroShort, STR_OS_BLACKCAT, distroShortSize);
-   } else if (strstr(distroLower, "cobalt")) {
-      Str_Strcpy(distroShort, STR_OS_COBALT, distroShortSize);
-   } else if (StrUtil_StartsWith(distroLower, "centos")) {
-      if (version < 6) {
-         Str_Strcpy(distroShort, STR_OS_CENTOS, distroShortSize);
-      } else {
-         Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_CENTOS,
-                     version);
-      }
-   } else if (strstr(distroLower, "conectiva")) {
-      Str_Strcpy(distroShort, STR_OS_CONECTIVA, distroShortSize);
-   } else if (strstr(distroLower, "debian")) {
-      if (version <= 4) {
-         Str_Strcpy(distroShort, STR_OS_DEBIAN "4", distroShortSize);
-      } else {
-         Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_DEBIAN,
-                     version);
-      }
-   } else if (StrUtil_StartsWith(distroLower, "enterprise linux") ||
-              StrUtil_StartsWith(distroLower, "oracle")) {
-      /*
-       * [root@localhost ~]# lsb_release -sd
-       * "Enterprise Linux Enterprise Linux Server release 5.4 (Carthage)"
-       *
-       * Not sure why they didn't brand their releases as "Oracle Enterprise
-       * Linux". Oh well. It's fixed in 6.0, though.
-       */
-      if (version == 0) {
-         Str_Strcpy(distroShort, STR_OS_ORACLE, distroShortSize);
-      } else {
-         Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_ORACLE,
-                     version);
-      }
-   } else if (strstr(distroLower, "fedora")) {
-      Str_Strcpy(distroShort, STR_OS_FEDORA, distroShortSize);
-   } else if (strstr(distroLower, "gentoo")) {
-      Str_Strcpy(distroShort, STR_OS_GENTOO, distroShortSize);
-   } else if (strstr(distroLower, "immunix")) {
-      Str_Strcpy(distroShort, STR_OS_IMMUNIX, distroShortSize);
-   } else if (strstr(distroLower, "linux-from-scratch")) {
-      Str_Strcpy(distroShort, STR_OS_LINUX_FROM_SCRATCH, distroShortSize);
-   } else if (strstr(distroLower, "linux-ppc")) {
-      Str_Strcpy(distroShort, STR_OS_LINUX_PPC, distroShortSize);
-   } else if (strstr(distroLower, "mandriva")) {
-      Str_Strcpy(distroShort, STR_OS_MANDRIVA, distroShortSize);
-   } else if (strstr(distroLower, "mklinux")) {
-      Str_Strcpy(distroShort, STR_OS_MKLINUX, distroShortSize);
-   } else if (strstr(distroLower, "pld")) {
-      Str_Strcpy(distroShort, STR_OS_PLD, distroShortSize);
-   } else if (strstr(distroLower, "slackware")) {
-      Str_Strcpy(distroShort, STR_OS_SLACKWARE, distroShortSize);
-   } else if (strstr(distroLower, "sme server")) {
-      Str_Strcpy(distroShort, STR_OS_SMESERVER, distroShortSize);
-   } else if (strstr(distroLower, "tiny sofa")) {
-      Str_Strcpy(distroShort, STR_OS_TINYSOFA, distroShortSize);
-   } else if (strstr(distroLower, "ubuntu")) {
-      Str_Strcpy(distroShort, STR_OS_UBUNTU, distroShortSize);
-   } else if (strstr(distroLower, "ultra penguin")) {
-      Str_Strcpy(distroShort, STR_OS_ULTRAPENGUIN, distroShortSize);
-   } else if (strstr(distroLower, "united linux")) {
-      Str_Strcpy(distroShort, STR_OS_UNITEDLINUX, distroShortSize);
-   } else if (strstr(distroLower, "va linux")) {
-      Str_Strcpy(distroShort, STR_OS_VALINUX, distroShortSize);
-   } else if (strstr(distroLower, "yellow dog")) {
-      Str_Strcpy(distroShort, STR_OS_YELLOW_DOG, distroShortSize);
-   } else if (strstr(distroLower, "vmware photon")) {
-      Str_Strcpy(distroShort, STR_OS_PHOTON, distroShortSize);
-   }
+   /* Search distroLower for a match */
+   found = HostinfoSearchShortNames(shortNameArray, version, distroLower,
+                                    distroShort, distroShortSize);
 
    free(distroLower);
+
+   return found;
 }
 
 
@@ -1556,7 +1846,7 @@ HostinfoDefaultLinux(char *distro,            // OUT/OPT:
 
       Str_Sprintf(generic, sizeof generic, "Other Linux %d.%d kernel",
                   majorVersion, minorVersion);
-      distroOut = &generic[0];
+      distroOut = generic;
       distroShortOut = STR_OS_OTHER_5X;
    }
 
@@ -1627,8 +1917,11 @@ HostinfoBestScore(char *distro,            // OUT:
          Str_Strcpy(distro, lsbData[fields], distroSize);
       }
 
-      HostinfoDefaultLinux(NULL, 0, distroShort, distroShortSize);
-      HostinfoGetOSShortName(distro, lsbData[1], distroShort, distroShortSize);
+      /* If this isn't a recognized distro, specify a default. */
+      if (!HostinfoGetOSShortName(distro, lsbData[1], distroShort,
+                                  distroShortSize)) {
+         HostinfoDefaultLinux(NULL, 0, distroShort, distroShortSize);
+      }
 
       goto bail;
    }
@@ -1660,9 +1953,11 @@ HostinfoBestScore(char *distro,            // OUT:
          Str_Strcpy(distro, osReleaseData[fields], distroSize);
       }
 
-      HostinfoDefaultLinux(NULL, 0, distroShort, distroShortSize);
-      HostinfoGetOSShortName(distro, osReleaseData[2],
-                             distroShort, distroShortSize);
+      /* If this isn't a recognized distro, specify a default. */
+      if (!HostinfoGetOSShortName(distro, osReleaseData[2],
+                                  distroShort, distroShortSize)){
+         HostinfoDefaultLinux(NULL, 0, distroShort, distroShortSize);
+      }
 
       goto bail;
    }
