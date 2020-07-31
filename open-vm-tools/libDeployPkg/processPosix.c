@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2016,2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -47,6 +47,7 @@ typedef enum _ReadStatus {
    READSTATUS_UNDEFINED,
    READSTATUS_DONE,
    READSTATUS_PENDING,
+   READSTATUS_WAITING_EOF,
    READSTATUS_ERROR
 } ReadStatus;
 
@@ -154,6 +155,8 @@ Process_RunToComplete(ProcessHandle h, unsigned long timeoutSec)
    ReadStatus res_stdout = READSTATUS_UNDEFINED;
    ReadStatus res_stderr = READSTATUS_UNDEFINED;
 
+   Bool processExitedAbnormally = FALSE;
+
    p = (ProcessInternal*)h;
 
    stdout[0] = stdout[1] = 0;
@@ -187,6 +190,8 @@ Process_RunToComplete(ProcessHandle h, unsigned long timeoutSec)
       execv(p->args[0], p->args);
 
       // exec failed
+      close(stdout[1]);
+      close(stderr[1]);
       exit(127);
    }
 
@@ -227,6 +232,7 @@ Process_RunToComplete(ProcessHandle h, unsigned long timeoutSec)
                    "Process exited abnormally after %d sec, uncaught signal %d",
                    elapsedTimeLoopSleeps * LoopSleepMicrosec / OneSecMicroSec,
                    WTERMSIG(processStatus));
+            processExitedAbnormally = TRUE;
          }
 
          break;
@@ -255,18 +261,20 @@ Process_RunToComplete(ProcessHandle h, unsigned long timeoutSec)
    }
 
    // Process completed. Now read all the output to EOF.
-   ProcessRead(p, &res_stdout, TRUE, TRUE);
+   // PR 2367614, set readToEof to TRUE only if process exits normally.
+   // Otherwise just empty the pipe to avoid being blocked by read operation.
+   ProcessRead(p, &res_stdout, TRUE, !processExitedAbnormally);
    if (res_stdout == READSTATUS_ERROR) {
-      p->log(log_error, "Error while reading process output, killing...");
+      p->log(log_error, "Error while reading process stdout, killing...");
    }
 
-   ProcessRead(p, &res_stderr, FALSE, TRUE);
+   ProcessRead(p, &res_stderr, FALSE, !processExitedAbnormally);
    if (res_stderr == READSTATUS_ERROR) {
-      p->log(log_error, "Error while reading process output, killing...");
+      p->log(log_error, "Error while reading process stderr, killing...");
    }
 
-   close(stdout[1]);
-   close(stderr[1]);
+   close(stdout[0]);
+   close(stderr[0]);
    return PROCESS_SUCCESS;
 }
 
@@ -326,10 +334,11 @@ ProcessRead(ProcessInternal *p, ReadStatus *status, Bool stdout, Bool readToEof)
          return;
       } else if (count < 0) {
          if (errno == EAGAIN && readToEof) {
-            if (*status != READSTATUS_PENDING) {
+            if (*status != READSTATUS_WAITING_EOF) {
                // waiting for more output, sleep briefly and try again
-               p->log(log_info, "Pending output from %s, trying again", stdstr);
-               *status = READSTATUS_PENDING;
+               p->log(log_info, "Pending output from %s till EOF, trying again",
+                  stdstr);
+               *status = READSTATUS_WAITING_EOF;
             }
 
             usleep(1000);

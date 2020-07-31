@@ -1720,6 +1720,7 @@ ForkExecAndWaitCommand(const char* command, bool ignoreStdErr)
    int retval;
    int i;
    char** args = GetFormattedCommandLine(command);
+   Bool isPerlCommand = (strcmp(args[0], "/usr/bin/perl") == 0) ? true : false;
 
    sLog(log_debug, "Command to exec : '%s'.\n", args[0]);
    Process_Create(&hp, args, sLog);
@@ -1731,7 +1732,15 @@ ForkExecAndWaitCommand(const char* command, bool ignoreStdErr)
    free(args);
 
    Process_RunToComplete(hp, gProcessTimeout);
-   sLog(log_info, "Customization command output: '%s'.\n", Process_GetStdout(hp));
+   if (isPerlCommand) {
+      sLog(log_info, "Customization command output:\n\n%s\n\n%s\n%s\n",
+         "=================== Perl script log start =================",
+         Process_GetStdout(hp),
+         "=================== Perl script log end =================");
+   } else {
+      sLog(log_info, "Customization command output:\n'%s'.\n",
+         Process_GetStdout(hp));
+   }
    retval = Process_GetExitCode(hp);
 
    if (retval == 0) {
