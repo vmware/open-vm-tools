@@ -494,9 +494,13 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_WIN_TEN           "windows9"
 #define STR_OS_WIN_TEN_X64       "windows9-64"
 
-/* THIS SPACE FOR RENT (Windows 10 official variant names) */
-
 #define STR_OS_WIN_TEN_GENERIC_FULL        "Windows 10"
+#define STR_OS_WIN_10_HOME_FULL            "Windows 10 Home"
+#define STR_OS_WIN_10_EDUCATION_FULL       "Windows 10 Education"
+#define STR_OS_WIN_10_ENTERPRISE_FULL      "Windows 10 Enterprise"
+#define STR_OS_WIN_10_PRO_WORKSTATION_FULL "Windows 10 Pro for Workstations"
+#define STR_OS_WIN_10_PRO_FULL             "Windows 10 Pro"
+#define STR_OS_WIN_10_IOTCORE_FULL         "Windows 10 IoT Core"
 
 /* Windows Server 2016 */
 
