@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2012-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2012-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -43,6 +43,8 @@
  * Local data
  */
 
+/* Indicates if the oplock module is initialized. */
+static Bool gOplockInit = FALSE;
 
 /*
  * Global data
@@ -59,10 +61,10 @@
  *
  * HgfsServerOplockInit --
  *
- *      Set up any state needed to start HGFS server.
+ *      Set up any oplock related state used for HGFS server.
  *
  * Results:
- *      None.
+ *      TRUE on success, FALSE on failure.
  *
  * Side effects:
  *      None.
@@ -73,11 +75,12 @@
 Bool
 HgfsServerOplockInit(void)
 {
-   Bool result = FALSE;
-#ifdef HGFS_OPLOCKS
-   result = HgfsPlatformOplockInit();
-#endif
-   return result;
+   if (gOplockInit) {
+      return TRUE;
+   }
+
+   gOplockInit = HgfsPlatformOplockInit();
+   return gOplockInit;
 }
 
 
@@ -100,10 +103,37 @@ HgfsServerOplockInit(void)
 void
 HgfsServerOplockDestroy(void)
 {
-#ifdef HGFS_OPLOCKS
+   if (!gOplockInit) {
+      return;
+   }
+
    /* Tear down oplock state, so we no longer catch signals. */
    HgfsPlatformOplockDestroy();
-#endif
+
+   gOplockInit = FALSE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsServerOplockIsInited --
+ *
+ *      Check if the oplock related state is set up.
+ *
+ * Results:
+ *      TRUE if the oplock related state is set up.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+HgfsServerOplockIsInited(void)
+{
+   return gOplockInit;
 }
 
 
@@ -374,4 +404,3 @@ HgfsServerOplockBreak(ServerLockData *lockData)
    free(lockData);
 }
 #endif
-
