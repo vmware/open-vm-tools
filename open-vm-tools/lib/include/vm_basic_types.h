@@ -727,16 +727,14 @@ typedef void * UserVA;
 
 /*
  * At present, we effectively require a compiler that is at least
- * gcc-4.1 (circa 2006).  Enforce this here, various things below
+ * gcc-3.3 (circa 2003).  Enforce this here, various things below
  * this line depend upon it.
  *
- * Current oldest compilers:
- * - guest tools: 4.1.2 (freebsd/solaris)
- * - buildhost compiler: 4.4.3
- * - hosted kernel modules: 4.5
+ * In practice, most things presently compile with gcc-4.1 or gcc-4.4.
+ * The various linux kernel modules may use older (gcc-3.3) compilers.
  */
-#if defined __GNUC__ && (__GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 1))
-#error "gcc version is too old to compile assembly, need gcc-4.1 or better"
+#if defined __GNUC__ && (__GNUC__ < 3 || (__GNUC__ == 3 && __GNUC_MINOR__ < 3))
+#error "gcc version is too old to compile assembly, need gcc-3.3 or better"
 #endif
 
 /*
