@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018, 2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -140,6 +140,9 @@ EFIGUID;
 
 Bool UUID_ConvertPackedToBin(EFIGUID *destID,
                              const char *text);
+
+Bool UUID_ConvertPackedToUUIDRFC4122(UUIDRFC4122 *destID,
+                                     const char *text);
 
 Bool UUID_ConvertToBin(uint8 dest_id[UUID_SIZE],
                        const char *text);
