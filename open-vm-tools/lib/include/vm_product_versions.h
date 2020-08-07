@@ -145,7 +145,7 @@
 #define ESX_VERSION_THIRD_PARTY ESX_VERSION_MAJOR ESX_VERSION_MINOR \
                                 ESX_VERSION_UPDATE
 
-#define ESX_RELEASE_UPDATE "0" // Quarterly release
+#define ESX_RELEASE_UPDATE "1" // Quarterly release
 #define ESX_RELEASE_PATCH "0"  // 0 = experimental
 #define ESX_RELEASE_QUARTERLY ESX_RELEASE_UPDATE // ESX's own quarterly release
 #define ESX_RELEASE ESX_RELEASE_QUARTERLY "." ESX_RELEASE_PATCH
