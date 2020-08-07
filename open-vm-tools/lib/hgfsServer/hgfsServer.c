@@ -46,6 +46,7 @@
 #include "hgfsServer.h"
 #include "hgfsServerParameters.h"
 #include "hgfsServerOplock.h"
+#include "hgfsServerOplockMonitor.h"
 #include "hgfsDirNotify.h"
 #include "hgfsThreadpool.h"
 #include "userlock.h"
@@ -3975,9 +3976,13 @@ HgfsServer_InitState(const HgfsServerCallbacks **callbackTable,   // IN/OUT: our
          Log("%s: initialized notification %s.\n", __FUNCTION__,
              (gHgfsDirNotifyActive ? "active" : "inactive"));
       }
-      if (0 != (gHgfsCfgSettings.flags & HGFS_CONFIG_OPLOCK_ENABLED)) {
+      if (   0 != (gHgfsCfgSettings.flags & HGFS_CONFIG_OPLOCK_ENABLED)
+          || 0 != (gHgfsCfgSettings.flags & HGFS_CONFIG_OPLOCK_MONITOR_ENABLED)) {
          if (!HgfsServerOplockInit()) {
+            Log("%s: failed to init oplock module.\n", __FUNCTION__);
+            HgfsServerOplockDestroy();
             gHgfsCfgSettings.flags &= ~HGFS_CONFIG_OPLOCK_ENABLED;
+            gHgfsCfgSettings.flags &= ~HGFS_CONFIG_OPLOCK_MONITOR_ENABLED;
          }
       }
       if (0 != (gHgfsCfgSettings.flags & HGFS_CONFIG_THREADPOOL_ENABLED)) {
@@ -3985,6 +3990,12 @@ HgfsServer_InitState(const HgfsServerCallbacks **callbackTable,   // IN/OUT: our
             HgfsThreadpool_Init() == HGFS_STATUS_SUCCESS;
          Log("%s: initialized threadpool %s.\n", __FUNCTION__,
              (gHgfsThreadpoolActive ? "active" : "inactive"));
+      }
+      if (0 != (gHgfsCfgSettings.flags & HGFS_CONFIG_OPLOCK_MONITOR_ENABLED)) {
+         if (!HgfsOplockMonitorInit()) {
+            Log("%s: failed to init oplock monitor module.\n", __FUNCTION__);
+            gHgfsCfgSettings.flags &= ~HGFS_CONFIG_OPLOCK_MONITOR_ENABLED;
+         }
       }
    } else {
       HgfsServer_ExitState(); // Cleanup partially initialized state
@@ -4017,7 +4028,11 @@ HgfsServer_InitState(const HgfsServerCallbacks **callbackTable,   // IN/OUT: our
 void
 HgfsServer_ExitState(void)
 {
-   if (0 != (gHgfsCfgSettings.flags & HGFS_CONFIG_OPLOCK_ENABLED)) {
+   if (0 != (gHgfsCfgSettings.flags & HGFS_CONFIG_OPLOCK_MONITOR_ENABLED)) {
+      HgfsOplockMonitorDestroy();
+   }
+   if (   0 != (gHgfsCfgSettings.flags & HGFS_CONFIG_OPLOCK_ENABLED)
+       || 0 != (gHgfsCfgSettings.flags & HGFS_CONFIG_OPLOCK_MONITOR_ENABLED)) {
       HgfsServerOplockDestroy();
    }
    if (gHgfsDirNotifyActive) {

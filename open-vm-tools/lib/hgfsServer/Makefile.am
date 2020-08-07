@@ -24,6 +24,7 @@ libHgfsServer_la_SOURCES += hgfsServerPacketUtil.c
 libHgfsServer_la_SOURCES += hgfsDirNotifyStub.c
 libHgfsServer_la_SOURCES += hgfsServerParameters.c
 libHgfsServer_la_SOURCES += hgfsServerOplock.c
+libHgfsServer_la_SOURCES += hgfsServerOplockMonitor.c
 libHgfsServer_la_SOURCES += hgfsServerOplockLinux.c
 libHgfsServer_la_SOURCES += hgfsThreadpoolStub.c
 
