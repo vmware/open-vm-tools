@@ -72,21 +72,21 @@ Process_Create(ProcessHandle *h, char *args[], void *logPtr)
    int err = -1;
    ProcessInternal *p;
    LogFunction log = (LogFunction)logPtr;
-   log(log_info, "sizeof ProcessInternal is %d\n", sizeof(ProcessInternal));
+   log(log_info, "sizeof ProcessInternal is %d", sizeof(ProcessInternal));
    p = (ProcessInternal*) calloc(1, sizeof(ProcessInternal));
    if (p == NULL) {
-      log(log_error, "Error allocating memory for process\n");
+      log(log_error, "Error allocating memory for process");
       goto error;
    }
    p->stdoutStr = malloc(sizeof(char));
    if (p->stdoutStr == NULL) {
-      log(log_error, "Error allocating memory for process stdout\n");
+      log(log_error, "Error allocating memory for process stdout");
       goto error;
    }
    p->stdoutStr[0] = '\0';
    p->stderrStr = malloc(sizeof(char));
    if (p->stderrStr == NULL) {
-      log(log_error, "Error allocating memory for process stderr\n");
+      log(log_error, "Error allocating memory for process stderr");
       goto error;
    }
    p->stderrStr[0] = '\0';
@@ -101,13 +101,13 @@ Process_Create(ProcessHandle *h, char *args[], void *logPtr)
 
    p->args = malloc((1 + numArgs) * sizeof(char*));
    if (p->args == NULL) {
-      log(log_error, "Error allocating memory for process args\n");
+      log(log_error, "Error allocating memory for process args");
       goto error;
    }
    for (i = 0; i < numArgs; i++) {
       p->args[i] = strdup(args[i]);
       if (p->args[i] == NULL) {
-         log(log_error, "Error allocating memory for duplicate args\n");
+         log(log_error, "Error allocating memory for duplicate args");
          goto error;
       }
    }
