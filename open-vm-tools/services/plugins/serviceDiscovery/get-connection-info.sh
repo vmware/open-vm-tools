@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# Copyright (C) 2020 VMware, Inc.  All rights reserved.
+
 # check if necesary commands exist
 command -v ss >/dev/null 2>&1 || { echo >&2 "ss doesn't exist"; exit 1; }
 command -v grep >/dev/null 2>&1 || { echo >&2 "grep doesn't exist"; exit 1; }
