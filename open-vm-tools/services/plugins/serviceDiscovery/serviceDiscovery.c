@@ -29,13 +29,9 @@
 #include "vmware.h"
 #include "conf.h"
 #include "dynbuf.h"
-#include "escape.h"
-#include "str.h"
 #include "util.h"
-#include "vm_atomic.h"
 #include "vmcheck.h"
 #include "vmware/guestrpc/serviceDiscovery.h"
-#include "vmware/tools/log.h"
 #include "vmware/tools/threadPool.h"
 #include "vmware/tools/utils.h"
 
