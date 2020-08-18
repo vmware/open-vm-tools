@@ -399,13 +399,13 @@ Mul64x6464(uint64 multiplicand,
     *      discarded by the shift.
     *    Return the low-order 64 bits of the above.
     */
-   uint64 tmplo, tmphi;
-   tmplo = _umul128(multiplicand, multiplier, &tmphi);
    if (shift == 0) {
-      return tmplo;
+      return multiplicand * multiplier;
    } else {
-      return __shiftright128(tmplo, tmphi, (uint8) shift) +
-         ((tmplo >> (shift - 1)) & 1);
+      uint64 lo, hi;
+
+      lo = _umul128(multiplicand, multiplier, &hi);
+      return __shiftright128(lo, hi, (uint8)shift) + (lo >> (shift - 1) & 1);
    }
 }
 
@@ -486,13 +486,13 @@ Muls64x64s64(int64 multiplicand,
     * Note: using an unsigned shift is correct because shift < 64 and
     * we return only the low 64 bits of the shifted result.
     */
-   int64 tmplo, tmphi;
-   tmplo = _mul128(multiplicand, multiplier, &tmphi);
    if (shift == 0) {
-      return tmplo;
+      return multiplicand * multiplier;
    } else {
-      return __shiftright128(tmplo, tmphi, (uint8) shift) +
-         ((tmplo >> (shift - 1)) & 1);
+      int64 lo, hi;
+
+      lo = _mul128(multiplicand, multiplier, &hi);
+      return __shiftright128(lo, hi, (uint8)shift) + (lo >> (shift - 1) & 1);
    }
 }
 

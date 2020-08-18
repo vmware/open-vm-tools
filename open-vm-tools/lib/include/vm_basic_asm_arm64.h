@@ -500,19 +500,16 @@ Mul64x6464(uint64 multiplicand,
            uint64 multiplier,
            uint32 shift)
 {
-   uint64 resLow, resHi;
-
-   asm("mul   %0, %2, %3" "\n\t"
-       "umulh %1, %2, %3"
-       : "=&r" (resLow), "=r" (resHi)
-       : "r" (multiplicand), "r" (multiplier));
-
    if (shift == 0) {
-      return resLow;
+      return multiplicand * multiplier;
    } else {
-      return (resLow >> shift) +
-         (resHi << (64 - shift)) +
-         ((resLow >> (shift - 1)) & 1);
+      uint64 lo, hi;
+
+      asm("mul   %0, %2, %3" "\n\t"
+          "umulh %1, %2, %3"
+          : "=&r" (lo), "=r" (hi)
+          : "r" (multiplicand), "r" (multiplier));
+      return (hi << (64 - shift) | lo >> shift) + (lo >> (shift - 1) & 1);
    }
 }
 
@@ -540,19 +537,16 @@ Muls64x64s64(int64 multiplicand,
              int64 multiplier,
              uint32 shift)
 {
-   uint64 resLow, resHi;
-
-   asm("mul   %0, %2, %3" "\n\t"
-       "smulh %1, %2, %3"
-       : "=&r" (resLow), "=r" (resHi)
-       : "r" (multiplicand), "r" (multiplier));
-
    if (shift == 0) {
-      return resLow;
+      return multiplicand * multiplier;
    } else {
-      return (resLow >> shift) +
-         (resHi << (64 - shift)) +
-         ((resLow >> (shift - 1)) & 1);
+      uint64 lo, hi;
+
+      asm("mul   %0, %2, %3" "\n\t"
+          "smulh %1, %2, %3"
+          : "=&r" (lo), "=r" (hi)
+          : "r" (multiplicand), "r" (multiplier));
+      return (hi << (64 - shift) | lo >> shift) + (lo >> (shift - 1) & 1);
    }
 }
 
