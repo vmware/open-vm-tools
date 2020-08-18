@@ -43,6 +43,7 @@
 #define PCI_DEVICE_ID_LSISAS1068        0x0054
 
 /* Our own PCI IDs
+ *    VMware SBX (Sandbox device for graphics driver VM)
  *    VMware SVGA II (Unified VGA)
  *    VMware SVGA (PCI Accelerator)
  *    VMware vmxnet (Idealized NIC)
@@ -54,6 +55,7 @@
  *    VMware HD Audio controller
  */
 #define PCI_VENDOR_ID_VMWARE                    0x15AD
+#define PCI_DEVICE_ID_VMWARE_SBX                0x0420
 #define PCI_DEVICE_ID_VMWARE_SVGA3              0x0406
 #define PCI_DEVICE_ID_VMWARE_SVGA2              0x0405
 #define PCI_DEVICE_ID_VMWARE_SVGA               0x0710

@@ -45,6 +45,7 @@
    LOGLEVEL_VAR(keyboard), \
    LOGLEVEL_VAR(vmmouse), \
    LOGLEVEL_VAR(timer), \
+   LOGLEVEL_VAR(sbx), \
    LOGLEVEL_VAR(vga), \
    LOGLEVEL_VAR(svga), \
    LOGLEVEL_VAR(svga_rect), \
