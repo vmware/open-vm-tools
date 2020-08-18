@@ -510,11 +510,6 @@
  */
 #define CONFNAME_CBHELPER_POLLINTERVAL "poll-interval"
 
-/**
- * Defines user-defined retry counter to execute cblauncher.exe on failure.
- */
-#define CONFNAME_CBHELPER_CBLAUNCHER_RETRY_COUNT "cblauncher-retry-count"
-
 /*
  ******************************************************************************
  * END CarbonBlack helper plugin goodies.
