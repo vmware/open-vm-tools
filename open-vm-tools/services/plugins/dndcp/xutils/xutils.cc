@@ -249,7 +249,7 @@ GetCardinal(Glib::RefPtr<const Gdk::Window> window, // IN: Window
 bool
 GetCardinalList(Glib::RefPtr<const Gdk::Window> window, // IN: Window
                 const utf::string& atomName,            // IN: Atom name
-                std::vector<unsigned long>& retValues)  // IN: Return values
+                std::vector<unsigned long>& retValues)         // IN: Return values
 {
    ASSERT(window);
    ASSERT(window->get_display());
@@ -302,62 +302,6 @@ GetCardinalList(Glib::RefPtr<const Gdk::Window> window, // IN: Window
       XFree(values);
    }
 
-   return false;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * xutils::CheckDockPanel --
- *
- *      Utility function to check dock or panel window.
- *
- * Results:
- *      true if the dock or panel window found.
- *      Otherwise false.
- *
- * Side effects:
- *      None.
- *
- *-----------------------------------------------------------------------------
- */
-bool CheckDockPanel(Glib::RefPtr<const Gdk::Window> window)
-{
-   ASSERT(window);
-   ASSERT(window->get_display());
-
-   GdkDisplay* display = const_cast<GdkDisplay*>(window->get_display()->gobj());
-   GdkWindow* gdkwin = const_cast<GdkWindow*>(window->gobj());
-
-   Atom atom = gdk_x11_get_xatom_by_name_for_display(display, "_NET_WM_WINDOW_TYPE");
-   Atom type;
-   int format;
-   ulong nitems;
-   ulong bytes_after;
-   uint8* values;
-
-   gdk_error_trap_push();
-   int ret = XGetWindowProperty(GDK_DISPLAY_XDISPLAY(display),
-                                GDK_WINDOW_XID(gdkwin),
-                                atom, 0, G_MAXLONG, False, AnyPropertyType, &type,
-                                &format, &nitems, &bytes_after, &values);
-   int err = gdk_error_trap_pop();
-   if (err) {
-      Log("Ignore xerror in XGetWindowProperty. Error code %d", err);
-      return false;
-   }
-   if (ret == Success && type == XA_ATOM
-       && format == 32 && values != NULL && nitems > 0) {
-      unsigned long* stack = (unsigned long*)values;
-      if (stack[0] == XInternAtom(GDK_DISPLAY_XDISPLAY(display),
-                                  "_NET_WM_WINDOW_TYPE_DOCK", false)) {
-         Log("found dock window: %ld.\n",GDK_WINDOW_XID(gdkwin));
-         XFree(values);
-         return true;
-      }
-   }
-   XFree(values);
    return false;
 }
 
