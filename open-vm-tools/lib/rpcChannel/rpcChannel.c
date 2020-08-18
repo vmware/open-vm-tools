@@ -32,6 +32,7 @@
 #include "vmxrpc.h"
 #include "xdrutil.h"
 #include "rpcin.h"
+#include "vmware/guestrpc/tclodefs.h"
 #endif
 
 #include "str.h"
@@ -431,7 +432,7 @@ RpcChannel_Dispatch(RpcInData *data)
 
    if (rpc == NULL) {
       Debug(LGPFX "Unknown Command '%s': Handler not registered.\n", name);
-      status = RPCIN_SETRETVALS(data, "Unknown Command", FALSE);
+      status = RPCIN_SETRETVALS(data, GUEST_RPC_UNKNOWN_COMMAND, FALSE);
       goto exit;
    }
 
