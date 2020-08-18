@@ -34,6 +34,7 @@
 #include "str.h"
 #include "cpName.h"
 #include "cpNameLite.h"
+#include "hashTable.h"
 #include "hgfsServerInt.h"
 #include "hgfsServerPolicy.h"
 #include "hgfsUtil.h"
@@ -372,6 +373,8 @@ static Bool HgfsPacketSend(HgfsPacket *packet,
                            HgfsTransportSessionInfo *transportSession,
                            HgfsSessionInfo *session,
                            HgfsSendFlags flags);
+
+static void HgfsCacheRemoveLRUCb(void *data);
 
 /*
  * Opcode handlers
@@ -3205,7 +3208,7 @@ HgfsServerGetReplyHeaderSize(Bool sessionEnabled,     // IN: session based reque
 static void
 HgfsServerCompleteRequest(HgfsInternalStatus status,   // IN: Status of the request
                           size_t replyPayloadSize,     // IN: sizeof the reply payload
-                          HgfsInputParam *input)       // INOUT: request context
+                          HgfsInputParam *input)       // IN/OUT: request context
 {
    void *reply;
    size_t replySize;
@@ -3695,7 +3698,7 @@ HgfsServerSharesDeleteStale(DblLnkLst_Links *newSharesList)  // IN: new list of 
 
 static HgfsSharedFolderHandle
 HgfsServerShareAddInternal(const char *shareName,   // IN: shared folder name
-                           const char *sharePath)   // IN: shared folder path)
+                           const char *sharePath)   // IN: shared folder path
 {
    HgfsSharedFolderHandle handle = HGFS_INVALID_FOLDER_HANDLE;
    DblLnkLst_Links *link, *nextElem;
@@ -3755,7 +3758,7 @@ HgfsServerShareAddInternal(const char *shareName,   // IN: shared folder name
 
 static HgfsSharedFolderHandle
 HgfsServerShareAdd(const char *shareName,   // IN: shared folder name
-                   const char *sharePath)   // IN: shared folder path)  // IN: List of new shares
+                   const char *sharePath)   // IN: shared folder path
 {
    HgfsSharedFolderHandle handle;
 
@@ -3976,8 +3979,7 @@ HgfsServer_InitState(const HgfsServerCallbacks **callbackTable,   // IN/OUT: our
          Log("%s: initialized notification %s.\n", __FUNCTION__,
              (gHgfsDirNotifyActive ? "active" : "inactive"));
       }
-      if (   0 != (gHgfsCfgSettings.flags & HGFS_CONFIG_OPLOCK_ENABLED)
-          || 0 != (gHgfsCfgSettings.flags & HGFS_CONFIG_OPLOCK_MONITOR_ENABLED)) {
+      if (0 != (gHgfsCfgSettings.flags & HGFS_CONFIG_OPLOCK_MONITOR_ENABLED)) {
          if (!HgfsServerOplockInit()) {
             Log("%s: failed to init oplock module.\n", __FUNCTION__);
             HgfsServerOplockDestroy();
@@ -4174,7 +4176,7 @@ HgfsGenerateSessionId(void)
 Bool
 HgfsServerSetSessionCapability(HgfsOp op,                  // IN: operation code
                                HgfsOpCapFlags flags,       // IN: flags that describe level of support
-                               HgfsSessionInfo *session)   // INOUT: session to update
+                               HgfsSessionInfo *session)   // IN/OUT: session to update
 {
    int i;
    Bool result = FALSE;
@@ -4798,6 +4800,14 @@ HgfsServerAllocateSession(HgfsTransportSessionInfo *transportSession, // IN:
                                      HGFS_OP_CAPFLAG_IS_SUPPORTED, session);
    }
 
+   if (0 != (gHgfsCfgSettings.flags & HGFS_CONFIG_OPLOCK_MONITOR_ENABLED)) {
+      /* Allocate symlink check status cache. */
+      session->symlinkCache = HgfsCache_Alloc(HgfsCacheRemoveLRUCb);
+
+      /* Allocate file attributes cache. */
+      session->fileAttrCache = HgfsCache_Alloc(HgfsCacheRemoveLRUCb);
+   }
+
    *sessionData = session;
 
    Log("%s: init session %p id %"FMT64"x\n", __FUNCTION__, session, session->sessionId);
@@ -5351,6 +5361,39 @@ HgfsInvalidateSessionObjects(DblLnkLst_Links *shares,  // IN: List of new shares
 
    MXUser_ReleaseExclLock(session->searchArrayLock);
 
+   HgfsCache* caches[] = {session->symlinkCache, session->fileAttrCache };
+   for (i = 0; i < sizeof(caches) / sizeof(caches[0]); i++) {
+      const void **keys = NULL;
+      size_t nkeys;
+      int keyIdx;
+
+      if (!caches[i]) {
+         continue;
+      }
+      MXUser_AcquireExclLock(caches[i]->lock);
+      HashTable_KeyArray(caches[i]->hashTable, &keys, &nkeys);
+      MXUser_ReleaseExclLock(caches[i]->lock);
+      for (keyIdx = 0; keyIdx < nkeys; keyIdx++) {
+         DblLnkLst_Links *l;
+         const char *name = (const char *)keys[keyIdx];
+         for (l = shares->next; l != shares; l = l->next) {
+            HgfsSharedFolder *share;
+
+            share = DblLnkLst_Container(l, HgfsSharedFolder, links);
+            if (strncmp(name, share->path, strlen(name)) == 0) {
+               break;
+            }
+         }
+
+         if (l == shares) {
+            LOG(4, "%s: Remove %s from cache\n", __FUNCTION__, name);
+            HgfsCache_Invalidate(caches[i], name);
+
+         }
+      }
+      free((void *)keys);
+   }
+
    LOG(4, "%s: Ending\n", __FUNCTION__);
 }
 
@@ -5546,6 +5589,63 @@ HgfsServerStatFs(const char *pathName, // IN: Path we're interested in
 /*
  *-----------------------------------------------------------------------------
  *
+ * HgfsOplockFileChangeCb --
+ *
+ *    The callback is invoked by the oplock when detecting file/directory is
+ *    changed.
+ *    This simply calls back to the cache's invalidate function.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+HgfsOplockFileChangeCb(HgfsSessionInfo *session, // IN: Session info
+                       void *data)               // IN: Path
+{
+   // There is no need to explicitly invoke HgfsOplockUnmonitorFileChange.
+   if (NULL != session->symlinkCache) {
+      HgfsCache_Invalidate(session->symlinkCache, data);
+   }
+   if (NULL != session->fileAttrCache) {
+      HgfsCache_Invalidate(session->fileAttrCache, data);
+   }
+   free(data);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsCacheRemoveLRUCb --
+ *
+ *    The callback is invoked by the cache when removing the LRU entry.
+ *    This simply calls back to the oplock to unmonitor the file/directory
+ *    change event.
+ *
+ * Results:
+ *    None.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HgfsCacheRemoveLRUCb(void *data) // IN
+{
+   HgfsOplockUnmonitorFileChange(((HOM_HANDLE *)data)[0]);
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * HgfsServerGetLocalNameInfo --
  *
  *    Construct local name based on the crossplatform CPName for the file and the
@@ -5568,6 +5668,7 @@ static HgfsNameStatus
 HgfsServerGetLocalNameInfo(const char *cpName,      // IN:  Cross-platform filename to check
                            size_t cpNameSize,       // IN:  Size of name cpName
                            uint32 caseFlags,        // IN:  Case-sensitivity flags
+                           HgfsSessionInfo *session,// IN:  Session info
                            HgfsShareInfo *shareInfo,// OUT: properties of the shared folder
                            char **bufOut,           // OUT: File name in local fs
                            size_t *outLen)          // OUT: Length of name out optional
@@ -5588,6 +5689,7 @@ HgfsServerGetLocalNameInfo(const char *cpName,      // IN:  Cross-platform filen
    char *tempPtr;
    uint32 startIndex = 0;
    HgfsShareOptions shareOptions;
+   HgfsSymlinkCacheEntry *entry;
 
    ASSERT(cpName);
    ASSERT(bufOut);
@@ -5810,17 +5912,38 @@ HgfsServerGetLocalNameInfo(const char *cpName,      // IN:  Cross-platform filen
    /* Check for symlinks if the followSymlinks option is not set. */
    if (!HgfsServerPolicy_IsShareOptionSet(shareOptions,
                                           HGFS_SHARE_FOLLOW_SYMLINKS)) {
-      /*
-       * Verify that either the path is same as share path or the path until the
-       * parent directory is within the share.
-       *
-       * XXX: Symlink check could become susceptible to TOCTOU (time-of-check,
-       * time-of-use) attack when we move to asynchrounous HGFS operations.
-       * We should use the resolved file path for further file system
-       * operations, instead of using the one passed from the client.
-       */
-      nameStatus = HgfsPlatformPathHasSymlink(myBufOut, myBufOutLen, shareInfo->rootDir,
-                                              shareInfo->rootDirLen);
+      if (NULL != session->symlinkCache &&
+          HgfsCache_Get(session->symlinkCache, myBufOut, (void **)&entry)) {
+         nameStatus = entry->nameStatus;
+      } else {
+         /*
+          * Verify that either the path is same as share path or the path until
+          * the parent directory is within the share.
+          *
+          * XXX: Symlink check could become susceptible to
+          * TOCTOU (time-of-check, time-of-use) attack when we move to
+          * asynchrounous HGFS operations.
+          * We should use the resolved file path for further file system
+          * operations, instead of using the one passed from the client.
+          */
+         nameStatus = HgfsPlatformPathHasSymlink(myBufOut, myBufOutLen,
+                                                 shareInfo->rootDir,
+                                                 shareInfo->rootDirLen);
+         if (NULL != session->symlinkCache) {
+            HOM_HANDLE handle =
+               HgfsOplockMonitorFileChange(myBufOut, session,
+                                           HgfsOplockFileChangeCb,
+                                           Util_SafeStrdup(myBufOut));
+            if (handle != HGFS_OPLOCK_INVALID_MONITOR_HANDLE) {
+               entry = Util_SafeCalloc(1, sizeof *entry);
+               entry->handle = handle;
+               entry->nameStatus = nameStatus;
+               HgfsCache_Put(session->symlinkCache, myBufOut,
+                             entry);
+            }
+         }
+      }
+
       if (nameStatus != HGFS_NAME_STATUS_COMPLETE) {
          LOG(4, "%s: parent path failed to be resolved: %d\n",
              __FUNCTION__, nameStatus);
@@ -6171,7 +6294,7 @@ exit:
  */
 
 Bool
-HgfsRemoveFromCache(HgfsHandle handle,	      // IN: Hgfs handle to the node
+HgfsRemoveFromCache(HgfsHandle handle,        // IN: Hgfs handle to the node
                     HgfsSessionInfo *session) // IN: Session info
 {
    Bool removed = FALSE;
@@ -6999,6 +7122,7 @@ HgfsServerQueryVolInt(HgfsSessionInfo *session,   // IN: session info
    nameStatus = HgfsServerGetLocalNameInfo(fileName,
                                            fileNameLength,
                                            caseFlags,
+                                           session,
                                            &shareInfo,
                                            &utf8Name,
                                            &utf8NameLen);
@@ -7162,6 +7286,7 @@ HgfsSymlinkCreate(HgfsSessionInfo *session, // IN: session info,
    nameStatus = HgfsServerGetLocalNameInfo(srcFileName,
                                            srcFileNameLength,
                                            srcCaseFlags,
+                                           session,
                                            &shareInfo,
                                            &localSymlinkName,
                                            &localSymlinkNameLen);
@@ -7308,7 +7433,8 @@ HgfsServerSearchOpen(HgfsInputParam *input)  // IN: Input params
    if (HgfsUnpackSearchOpenRequest(input->payload, input->payloadSize, input->op,
                                    &dirName, &dirNameLength, &caseFlags)) {
       nameStatus = HgfsServerGetLocalNameInfo(dirName, dirNameLength, caseFlags,
-                                              &shareInfo, &baseDir, &baseDirLen);
+                                              input->session, &shareInfo,
+                                              &baseDir, &baseDirLen);
       status = HgfsPlatformSearchDir(nameStatus, dirName, dirNameLength, caseFlags,
                                      &shareInfo, baseDir, baseDirLen,
                                      input->session, &search);
@@ -7389,6 +7515,7 @@ HgfsValidateRenameFile(Bool useHandle,            // IN:
       nameStatus = HgfsServerGetLocalNameInfo(cpName,
                                               cpNameLength,
                                               caseFlags,
+                                              session,
                                               shareInfo,
                                               localFileName,
                                               localNameLength);
@@ -7598,7 +7725,8 @@ HgfsServerCreateDir(HgfsInputParam *input)  // IN: Input params
       goto exit;
    }
 
-   nameStatus = HgfsServerGetLocalNameInfo(info.cpName, info.cpNameSize, info.caseFlags,
+   nameStatus = HgfsServerGetLocalNameInfo(info.cpName, info.cpNameSize,
+                                           info.caseFlags, input->session,
                                            &shareInfo, &utf8Name, &utf8NameLen);
    if (HGFS_NAME_STATUS_COMPLETE == nameStatus) {
       ASSERT(utf8Name);
@@ -7717,7 +7845,8 @@ HgfsServerDeleteFile(HgfsInputParam *input)  // IN: Input params
          char *utf8Name = NULL;
          size_t utf8NameLen;
 
-         nameStatus = HgfsServerGetLocalNameInfo(cpName, cpNameSize, caseFlags, &shareInfo,
+         nameStatus = HgfsServerGetLocalNameInfo(cpName, cpNameSize, caseFlags,
+                                                 input->session, &shareInfo,
                                                  &utf8Name, &utf8NameLen);
          if (nameStatus == HGFS_NAME_STATUS_COMPLETE) {
             /*
@@ -7827,7 +7956,8 @@ HgfsServerDeleteDir(HgfsInputParam *input)  // IN: Input params
          char *utf8Name = NULL;
          size_t utf8NameLen;
 
-         nameStatus = HgfsServerGetLocalNameInfo(cpName, cpNameSize, caseFlags, &shareInfo,
+         nameStatus = HgfsServerGetLocalNameInfo(cpName, cpNameSize, caseFlags,
+                                                 input->session, &shareInfo,
                                                  &utf8Name, &utf8NameLen);
          if (HGFS_NAME_STATUS_COMPLETE == nameStatus) {
             ASSERT(utf8Name);
@@ -8034,7 +8164,8 @@ HgfsServerSetDirWatchByName(HgfsInputParam *input,         // IN: Input params
 
    LOG(8, "%s: entered\n",__FUNCTION__);
 
-   nameStatus = HgfsServerGetLocalNameInfo(cpName, cpNameSize, caseFlags, &shareInfo,
+   nameStatus = HgfsServerGetLocalNameInfo(cpName, cpNameSize, caseFlags,
+                                           input->session, &shareInfo,
                                            &utf8Name, &utf8NameLen);
    if (HGFS_NAME_STATUS_COMPLETE == nameStatus) {
       char const *inEnd = cpName + cpNameSize;
@@ -8277,21 +8408,54 @@ HgfsServerGetattr(HgfsInputParam *input)  // IN: Input params
    size_t localNameLen;
    HgfsShareInfo shareInfo;
    size_t replyPayloadSize = 0;
+   HgfsSessionInfo *session;
+   HgfsFileAttrCacheEntry *entry;
 
    HGFS_ASSERT_INPUT(input);
+
+   session = input->session;
 
    if (HgfsUnpackGetattrRequest(input->payload, input->payloadSize, input->op, &attr,
                                 &hints, &cpName, &cpNameSize, &file, &caseFlags)) {
       /* Client wants us to reuse an existing handle. */
       if (hints & HGFS_ATTR_HINT_USE_FILE_DESC) {
          fileDesc fd;
+         HgfsFileNode node;
+         Bool found;
 
-         targetNameLen = 0;
-         status = HgfsPlatformGetFd(file, input->session, FALSE, &fd);
-         if (HGFS_ERROR_SUCCESS == status) {
-            status = HgfsPlatformGetattrFromFd(fd, input->session, &attr);
+         memset(&node, 0, sizeof node);
+         found = HgfsGetNodeCopy(file, session, TRUE, &node);
+
+         if (found && NULL != session->fileAttrCache &&
+             HgfsCache_Get(session->fileAttrCache, node.utf8Name,
+                           (void **)&entry)) {
+            attr = entry->attr;
+            status = HGFS_ERROR_SUCCESS;
          } else {
-            LOG(4, "%s: Could not get file descriptor\n", __FUNCTION__);
+            targetNameLen = 0;
+            status = HgfsPlatformGetFd(file, session, FALSE, &fd);
+            if (HGFS_ERROR_SUCCESS == status) {
+               status = HgfsPlatformGetattrFromFd(fd, session, &attr);
+               if (found && HGFS_ERROR_SUCCESS == status &&
+                   NULL != session->fileAttrCache) {
+                  HOM_HANDLE handle =
+                     HgfsOplockMonitorFileChange(node.utf8Name, session,
+                                                 HgfsOplockFileChangeCb,
+                                                 Util_SafeStrdup(node.utf8Name));
+                  if (handle != HGFS_OPLOCK_INVALID_MONITOR_HANDLE) {
+                     entry = Util_SafeCalloc(1, sizeof *entry);
+                     entry->handle = handle;
+                     entry->attr = attr;
+                     HgfsCache_Put(session->fileAttrCache, node.utf8Name,
+                                   entry);
+                  }
+               }
+            } else {
+               LOG(4, "%s: Could not get file descriptor\n", __FUNCTION__);
+            }
+         }
+         if (found) {
+            free(node.utf8Name);
          }
 
       } else {
@@ -8299,7 +8463,8 @@ HgfsServerGetattr(HgfsInputParam *input)  // IN: Input params
           * Depending on whether this file/dir is real or virtual, either
           * forge its attributes or look them up in the actual filesystem.
           */
-         nameStatus = HgfsServerGetLocalNameInfo(cpName, cpNameSize, caseFlags, &shareInfo,
+         nameStatus = HgfsServerGetLocalNameInfo(cpName, cpNameSize, caseFlags,
+                                                 session, &shareInfo,
                                                  &localName, &localNameLen);
          switch (nameStatus) {
          case HGFS_NAME_STATUS_INCOMPLETE_BASE:
@@ -8316,34 +8481,56 @@ HgfsServerGetattr(HgfsInputParam *input)  // IN: Input params
             /* This is a regular lookup; proceed as usual */
             ASSERT(localName);
 
-            /* Get the config options. */
-            nameStatus = HgfsServerPolicy_GetShareOptions(cpName, cpNameSize,
-                                                          &configOptions);
-            if (HGFS_NAME_STATUS_COMPLETE == nameStatus) {
-               status = HgfsPlatformGetattrFromName(localName, configOptions, (char *)cpName, &attr,
-                                                    &targetName);
+            if (NULL != session->fileAttrCache &&
+                HgfsCache_Get(session->fileAttrCache, localName,
+                              (void **)&entry)) {
+               attr = entry->attr;
+               status = HGFS_ERROR_SUCCESS;
             } else {
-               LOG(4, "%s: no matching share: %s.\n", __FUNCTION__, cpName);
-               status = HGFS_ERROR_FILE_NOT_FOUND;
-            }
+               /* Get the config options. */
+               nameStatus = HgfsServerPolicy_GetShareOptions(cpName, cpNameSize,
+                                                             &configOptions);
+               if (HGFS_NAME_STATUS_COMPLETE == nameStatus) {
+                  status = HgfsPlatformGetattrFromName(localName, configOptions,
+                                                       (char *)cpName, &attr,
+                                                       &targetName);
+                  if (HGFS_ERROR_SUCCESS == status &&
+                      NULL != session->fileAttrCache) {
+                     HOM_HANDLE handle =
+                        HgfsOplockMonitorFileChange(localName, session,
+                                                    HgfsOplockFileChangeCb,
+                                                    Util_SafeStrdup(localName));
+                     if (handle != HGFS_OPLOCK_INVALID_MONITOR_HANDLE) {
+                        entry = Util_SafeCalloc(1, sizeof *entry);
+                        entry->handle = handle;
+                        entry->attr = attr;
+                        HgfsCache_Put(session->fileAttrCache, localName,
+                                      entry);
+                     }
+                  }
+               } else {
+                  LOG(4, "%s: no matching share: %s.\n", __FUNCTION__, cpName);
+                  status = HGFS_ERROR_FILE_NOT_FOUND;
+               }
 
-            if (HGFS_ERROR_SUCCESS == status &&
-                !HgfsServer_ShareAccessCheck(HGFS_OPEN_MODE_READ_ONLY,
-                                             shareInfo.writePermissions,
-                                             shareInfo.readPermissions)) {
-               status = HGFS_ERROR_ACCESS_DENIED;
-            } else if (status != HGFS_ERROR_SUCCESS) {
-               /*
-                * If it is a dangling share server should not return
-                * HGFS_ERROR_FILE_NOT_FOUND
-                * to the client because it causes confusion: a name that is returned
-                * by directory enumeration should not produce "name not found"
-                * error.
-                * Replace it with a more appropriate error code: no such device.
-                */
-               if (status == HGFS_ERROR_FILE_NOT_FOUND &&
-                   HgfsServerIsSharedFolderOnly(cpName, cpNameSize)) {
-                  status = HGFS_ERROR_IO;
+               if (HGFS_ERROR_SUCCESS == status &&
+                   !HgfsServer_ShareAccessCheck(HGFS_OPEN_MODE_READ_ONLY,
+                                                shareInfo.writePermissions,
+                                                shareInfo.readPermissions)) {
+                      status = HGFS_ERROR_ACCESS_DENIED;
+               } else if (status != HGFS_ERROR_SUCCESS) {
+                  /*
+                   * If it is a dangling share server should not return
+                   * HGFS_ERROR_FILE_NOT_FOUND
+                   * to the client because it causes confusion: a name that is returned
+                   * by directory enumeration should not produce "name not found"
+                   * error.
+                   * Replace it with a more appropriate error code: no such device.
+                   */
+                  if (status == HGFS_ERROR_FILE_NOT_FOUND &&
+                      HgfsServerIsSharedFolderOnly(cpName, cpNameSize)) {
+                     status = HGFS_ERROR_IO;
+                  }
                }
             }
             break;
@@ -8356,7 +8543,7 @@ HgfsServerGetattr(HgfsInputParam *input)  // IN: Input params
       }
       if (HGFS_ERROR_SUCCESS == status) {
          if (!HgfsPackGetattrReply(input->packet, input->request, &attr, targetName,
-                                   targetNameLen, &replyPayloadSize, input->session)) {
+                                   targetNameLen, &replyPayloadSize, session)) {
             status = HGFS_ERROR_INTERNAL;
          }
       }
@@ -8431,6 +8618,7 @@ HgfsServerSetattr(HgfsInputParam *input)  // IN: Input params
          nameStatus = HgfsServerGetLocalNameInfo(cpName,
                                                  cpNameSize,
                                                  caseFlags,
+                                                 input->session,
                                                  &shareInfo,
                                                  &utf8Name,
                                                  &utf8NameLen);
@@ -8505,6 +8693,7 @@ HgfsServerSetattr(HgfsInputParam *input)  // IN: Input params
 
 static HgfsInternalStatus
 HgfsServerValidateOpenParameters(HgfsFileOpenInfo *openInfo, // IN/OUT: openfile info
+                                 HgfsSessionInfo *session,   // IN: Session info
                                  Bool *denyCreatingFile,     // OUT: No new files
                                  int *followSymlinks)        // OUT: Host resolves link
 {
@@ -8520,6 +8709,7 @@ HgfsServerValidateOpenParameters(HgfsFileOpenInfo *openInfo, // IN/OUT: openfile
       nameStatus = HgfsServerGetLocalNameInfo(openInfo->cpName,
                                               openInfo->cpNameSize,
                                               openInfo->caseFlags,
+                                              session,
                                               &openInfo->shareInfo,
                                               &openInfo->utf8Name,
                                               &utf8NameLen);
@@ -8622,7 +8812,8 @@ HgfsServerOpen(HgfsInputParam *input)  // IN: Input params
       int followSymlinks;
       Bool denyCreatingFile;
 
-      status = HgfsServerValidateOpenParameters(&openInfo, &denyCreatingFile,
+      status = HgfsServerValidateOpenParameters(&openInfo, input->session,
+                                                &denyCreatingFile,
                                                 &followSymlinks);
       if (HGFS_ERROR_SUCCESS == status) {
          ASSERT(openInfo.utf8Name);
@@ -9219,6 +9410,13 @@ HgfsServerDestroySession(HgfsInputParam *input)  // IN: Input params
       transportSession->defaultSessionId = HGFS_INVALID_SESSION_ID;
    }
 
+   if (0 != (gHgfsCfgSettings.flags & HGFS_CONFIG_OPLOCK_MONITOR_ENABLED)) {
+      HgfsCache_Destroy(session->symlinkCache);
+      session->symlinkCache = NULL;
+      HgfsCache_Destroy(session->fileAttrCache);
+      session->fileAttrCache = NULL;
+   }
+
    /*
     * Remove the session from the list. By doing that, the refcount of
     * the session will be decremented. Later, we will be invoking
@@ -9374,7 +9572,7 @@ HgfsServerNotifyReceiveEventCb(HgfsSharedFolderHandle sharedFolder, // IN: share
    size_t sizeNeeded;
    uint32 notifyFlags;
 
-   LOG(4, "%s:Entered shr hnd %u hnd %"FMT64"x file %s mask %u\n",
+   LOG(4, "%s: Entered shr hnd %u hnd %"FMT64"x file %s mask %u\n",
          __FUNCTION__, sharedFolder, subscriber, fileName, mask);
 
    if (session->state == HGFS_SESSION_STATE_CLOSED) {

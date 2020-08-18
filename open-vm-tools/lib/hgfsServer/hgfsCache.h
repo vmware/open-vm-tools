@@ -17,41 +17,31 @@
  *********************************************************/
 
 /*
- * hgfsServerOplockMonitor.h --
+ * hgfsCache.h --
  *
- *	Header file for public common data types used in the HGFS
- *	opportunistic lock monitoring subfeature.
+ *    A customized LRU cache which is built by combining two data structures:
+ *    a doubly linked list and a hash table.
  */
 
-#ifndef _HGFS_SERVER_OPLOCK_MONITOR_H_
-#define _HGFS_SERVER_OPLOCK_MONITOR_H_
+#ifndef _HGFS_CACHE_H_
+#define _HGFS_CACHE_H_
 
-#include "hgfsServerOplockInt.h"
+#include "dbllnklst.h"
+#include "userlock.h"
 
+typedef void(*HgfsCacheRemoveLRUCallback)(void *data);
 
-/*
- * Data structures
- */
+typedef struct HgfsCache {
+   void *hashTable;
+   DblLnkLst_Links links;
+   MXUserExclLock *lock;
+   HgfsCacheRemoveLRUCallback callback;
+} HgfsCache;
 
-/*
- * Global variables
- */
-#define HGFS_OPLOCK_INVALID_MONITOR_HANDLE 0
+HgfsCache *HgfsCache_Alloc(HgfsCacheRemoveLRUCallback callback);
+void HgfsCache_Destroy(HgfsCache *cache);
+void HgfsCache_Put(HgfsCache *cache, const char *key, void *data);
+Bool HgfsCache_Get(HgfsCache *cache, const char *key, void **data);
+Bool HgfsCache_Invalidate(HgfsCache *cache, const char *key);
 
-
-/*
- * Global functions
- */
-
-Bool
-HgfsOplockMonitorInit(void);
-void
-HgfsOplockMonitorDestroy(void);
-HOM_HANDLE
-HgfsOplockMonitorFileChange(char *utf8Name,
-                            HgfsSessionInfo *session,
-                            HgfsOplockCallback callback,
-                            void *data);
-void
-HgfsOplockUnmonitorFileChange(HOM_HANDLE handle);
-#endif // ifndef _HGFS_SERVER_OPLOCK_MONITOR_H_
+#endif // ifndef _HGFS_CACHE_H_

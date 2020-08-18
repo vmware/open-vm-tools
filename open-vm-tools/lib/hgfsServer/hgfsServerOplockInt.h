@@ -70,7 +70,7 @@ typedef struct {
  * The maximum count of oplocks that the server supports.
  * This value can be adjusted as necessary, but must be a power of 2.
  */
-#define HGFS_OPLOCK_MAX_COUNT 512
+#define HGFS_OPLOCK_MAX_COUNT 1024
 
 
 /*
