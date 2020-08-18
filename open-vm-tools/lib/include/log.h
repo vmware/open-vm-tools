@@ -455,6 +455,11 @@ void Log_Histogram(uint32 n,
                    int *count,
                    int limit);
 
+typedef Bool (GetOpId)(size_t maxStringLen,
+                       char *opId);
+
+void Log_RegisterOpIdFunction(GetOpId *getOpIdFunc);
+
 #endif /* !VMM */
 
 #if defined(__cplusplus)
