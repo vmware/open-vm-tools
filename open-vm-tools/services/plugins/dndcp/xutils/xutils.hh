@@ -41,6 +41,7 @@ bool GetCardinal(Glib::RefPtr<const Gdk::Window> window,
 bool GetCardinalList(Glib::RefPtr<const Gdk::Window> window,
                      const utf::string& atomName,
                      std::vector<unsigned long>& retValues);
+bool CheckDockPanel(Glib::RefPtr<const Gdk::Window> window);
 
 /*
  * Utility functions for virtual desktops.
