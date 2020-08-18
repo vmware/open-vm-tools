@@ -28,6 +28,7 @@
 #include "serviceDiscoveryInt.h"
 #include "vmware.h"
 #include "conf.h"
+#include "guestApp.h"
 #include "dynbuf.h"
 #include "util.h"
 #include "vmcheck.h"

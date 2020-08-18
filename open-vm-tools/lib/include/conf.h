@@ -27,8 +27,6 @@
 #ifndef __CONF_H__
 #define __CONF_H__
 
-#include "guestApp.h"
-
 #define CONF_FILE         "tools.conf"
 
 #if ! defined(_WIN32)
