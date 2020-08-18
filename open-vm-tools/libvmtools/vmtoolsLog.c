@@ -1747,7 +1747,8 @@ DestroyRpcChannel(void)
 
    gChannel = NULL;
 
-   g_debug("RPCI Channel for logging is destroyed successfully.\n");
+   /* Fix log recursion issue, check bug: 2607084 for more details */
+   Debug("RPCI Channel for logging is destroyed successfully.\n");
 }
 
 
