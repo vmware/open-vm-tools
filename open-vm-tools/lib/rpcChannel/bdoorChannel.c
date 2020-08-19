@@ -54,19 +54,25 @@ typedef struct BackdoorChannel {
 static gboolean
 BkdoorChannelStart(RpcChannel *chan)
 {
-   gboolean ret = TRUE;
+   gboolean ret;
    BackdoorChannel *bdoor = chan->_private;
 
 #if defined(NEED_RPCIN)
-   ret = chan->in == NULL || chan->inStarted;
-   if (ret) {
-      ret = RpcOut_start(bdoor->out);
-      if (!ret) {
-         if (chan->inStarted) {
-            RpcIn_stop(chan->in);
-            chan->inStarted = FALSE;
-         }
-      }
+   /*
+    * If the RpcIn channel exists, it should have been started before
+    * calling this routine.
+    */
+   ASSERT(chan->in == NULL || chan->inStarted);
+
+   ret = RpcOut_start(bdoor->out);
+   if (!ret && chan->in != NULL) {
+      /*
+       * If the output channel failed to start, stop the input channel
+       * if there is one.
+       */
+
+      RpcIn_stop(chan->in);
+      chan->inStarted = FALSE;
    }
 #else
    ret = RpcOut_start(bdoor->out);
