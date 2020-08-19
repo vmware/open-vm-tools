@@ -303,6 +303,15 @@
 #define CONFNAME_DISKINFO_REPORT_UUID "diskinfo-report-uuid"
 
 /**
+ * Avoid buggy USB driver when querying disks for UUID.
+ * Turning this on can result in a major delay if the vmdk is
+ * being replicated.  See PR 2575285, 26539.
+ *
+ * @param boolean Set to true to work around buggy 3rd party driver.
+ */
+#define CONFNAME_DISKINFO_DRIVER_WORKAROUND "diskinfo-usb-workaround"
+
+/**
  * Report Linux disk device for vmdk mapping via vim.
  *
  * @param boolean Set to true to report devices to VMX.
