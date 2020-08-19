@@ -1,8 +1,8 @@
-#open-vm-tools 11.1.0 Release Notes
+#open-vm-tools 11.1.5 Release Notes
 
-**Updated on: 07 MAY 2020**
+**Updated on: 18 AUG 2020**
 
-VMware Tools | 07 MAY 2020 | Build 16036546
+Open-vm-tools | 18 AUG 2020 | Build 16724464
 
 Check for additions and updates to these release notes.
 
@@ -12,51 +12,75 @@ What's in the Release Notes
 The release notes cover the following topics:
 
 *   [What's New](#whatsnew)
-*   [Product Support Notice](#productsupport)
 *   [End of Feature Support Notice](#endoffeaturesupport)
-*   [Compatibility Notes](#compatibility)
+*   [Guest Operating System Customization Support](#guestop)
+*   [Interoperability Matrix](#interop)
+*   [Resolved Issues](#resolvedissues)
 *   [Known Issues](#knownissues)
 
 What's New
 ----------
 
-*   open-vm-tools 11.1.0 includes a new 'Service Discovery' plugin, which connects with the vRealize Operations Manager product. Refer to the following links for more information on this feature:
-    [https://marketplace.vmware.com/vsx/solutions/vrealize-operations-service-discovery-management-pack?ref=search](https://marketplace.vmware.com/vsx/solutions/vrealize-operations-service-discovery-management-pack?ref=search)
-    [https://www.vmware.com/products/vrealize-operations.html](https://www.vmware.com/products/vrealize-operations.html)
-
-    The 'Service Discovery' plugin is installed and enabled by default in a Windows VM.
-    For information on open-vm-tools for Linux, refer to [https://github.com/vmware/open-vm-tools/blob/master/README.md](https://github.com/vmware/open-vm-tools/blob/master/README.md).
-    For more details on configuring this plugin, refer to [Configuring Service Discovery](https://docs.vmware.com/en/VMware-Tools/11.0.0/com.vmware.vsphere.vmwaretools.doc/GUID-ADC00685-CB08-4BE6-B815-6E87D5D3A379.html).
-*   In this release, a new tools.conf switch is added to enable and disable the guest customization in the guest virtual machine. By default, the guest customization is enabled. For more details, refer [KB 78903](https://kb.vmware.com/s/article/78903).
+*   For issues fixed in this version, refer to [Resolved Issues](#resolvedissues) section.
 
 End of Feature Support Notice
 -----------------------------
 
-*   The tar tools (linux.iso) and OSPs shipped with VMware Tools 10.3.5 release will continue to be supported. However, releases after VMware Tools 10.3.5 will only include critical and security fixes and no new feature support in these types of VMware Tools (tar tools and OSP's). It is recommended that customers use open-vm-tools for those operating systems that support open-vm-tools. For more information on different types of VMware Tools, see [https://blogs.vmware.com/vsphere/2016/02/understanding-the-three-types-of-vm-tools.html](https://blogs.vmware.com/vsphere/2016/02/understanding-the-three-types-of-vm-tools.html)
+*   The tar tools (linux.iso) and OSPs shipped with VMware Tools 10.3.x release will continue to be supported. However, releases after VMware Tools 10.3.5 will only include critical and security fixes; there will be no new feature support in these types of VMware Tools (tar tools and OSP's). It is recommended that customers use open-vm-tools for those operating systems that support open-vm-tools. For more information about different types of VMware Tools, see [https://blogs.vmware.com/vsphere/2016/02/understanding-the-three-types-of-vm-tools.html](https://blogs.vmware.com/vsphere/2016/02/understanding-the-three-types-of-vm-tools.html)
+
+Guest Operating System Customization Support
+--------------------------------------------
+
+The [Guest OS Customization Support Matrix](http://partnerweb.vmware.com/programs/guestOS/guest-os-customization-matrix.pdf) provides details about the guest operating systems supported for customization.
+
+Interoperability Matrix
+-----------------------
+
+The [VMware Product Interoperability Matrix](http://partnerweb.vmware.com/comp_guide2/sim/interop_matrix.php) provides details about the compatibility of current and earlier versions of VMware Products.
+
+Resolved Issues
+---------------
+
+*   **In open-vm-tools, the sdmp-plugin scripts are updated to use the 'ss' command instead of the 'netstat' command to get inter-service communication information.**
+    
+    The 'netstat' command is deprecated and is unavailable in some new releases of Linux VMs. The credential-less service discovery feature by the vRealize Operations Manager product cannot be used in such VMs. To avoid this issue, the sdmp-plugin scripts are now updated to use the 'ss' command instead of the 'netstat' command.
+    
+    This issue is fixed in this release.
+
+*   **The following issues reported on https://github.com/vmware/open-vm-tools/issues have been addressed:**
+
+        https://github.com/vmware/open-vm-tools/issues/451
+        https://github.com/vmware/open-vm-tools/issues/429
+        https://github.com/vmware/open-vm-tools/issues/428
+
+    These issues are fixed in this release.
 
 Known Issues
 ------------
 
-*   **Drag functionality fails to work in Ubuntu.**
+**Open-vm-tools Issues in VMware Workstation or Fusion**
 
-    Drag functionality fails to work in Ubuntu 16.04.4 32-bit virtual machine installed using easy install. Also, failure of copy and paste functionality is observed in the same system.
-
-    Note: This issue is applicable for open-vm-tools running on Workstation and Fusion.
-
+*   **Shared Folders mount is unavailable on Linux VM.**
+    
+    If the **Shared Folders** feature is enabled on a Linux VM while it is powered off, the shared folders mount is not available on restart.
+    
+    Note: This issue is applicable for open-vm-tools running on Workstation and Fusion.
+    
     Workaround:
-
+    
+    If the VM is powered on, disable and enable the **Shared Folders** feature from the interface.  
+    For resolving the issue permanently, edit **/etc/fstab** and add an entry to mount the Shared Folders automatically on boot.  
+    For example, add the line:  
+    vmhgfs-fuse   /mnt/hgfs    fuse    defaults,allow\_other    0    0
+    
+*   **Drag functionality fails to work in Ubuntu.**
+    
+    Drag functionality fails to work in Ubuntu 16.04.4 32-bit virtual machine installed using easy install. Also, failure of copy and paste functionality is observed in the same system.
+    
+    Note: This issue is applicable for open-vm-tools running on Workstation and Fusion.
+    
+    Workaround:
+    
     *   Add the modprobe.blacklist=vmwgfx linux kernel boot option.
     *   To gain access to larger resolutions, remove svga.guestBackedPrimaryAware = "TRUE" option from the VMX file.
 
-*   **Shared Folders mount is unavailable on Linux VM.**
-
-    If the **Shared Folders** feature is enabled on a Linux VM while it is powered off, shared folders mount is not available on restart.
-
-    Note: This issue is applicable for open-vm-tools running on Workstation and Fusion.
-
-    Workaround:
-
-    If the VM is powered on, disable and enable the **Shared Folders** feature from the interface.
-    For resolving the issue permanently, edit **/etc/fstab** and add an entry to mount the Shared Folders automatically on boot.
-    For example, add the line:
-    vmhgfs-fuse   /mnt/hgfs    fuse    defaults,allow\_other    0    0
