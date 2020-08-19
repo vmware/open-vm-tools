@@ -65,6 +65,7 @@
 #define TOOLSOPTION_LINK_ROOT_HGFS_SHARE          "linkRootHgfsShare"
 #define TOOLSOPTION_ENABLE_MESSAGE_BUS_TUNNEL     "enableMessageBusTunnel"
 #define TOOLSOPTION_GUEST_LOG_LEVEL               "guestLogLevel"
+#define TOOLSOPTION_ENABLE_APPINFO                "enableAppInfo"
 
 /*
  * Auto-upgrade commands.

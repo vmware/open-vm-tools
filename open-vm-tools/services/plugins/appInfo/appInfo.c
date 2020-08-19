@@ -38,6 +38,7 @@
 #include "util.h"
 #include "vm_atomic.h"
 #include "vmcheck.h"
+#include "vmware/guestrpc/tclodefs.h"
 #include "vmware/tools/log.h"
 #include "vmware/tools/threadPool.h"
 #include "vmware/tools/utils.h"
@@ -89,11 +90,16 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 static guint gAppInfoPollInterval = 0;
 
 /**
+ * Defines the state of the App Info at the host side.
+ */
+static gboolean gAppInfoEnabledInHost = TRUE;
+
+/**
  * AppInfo gather loop timeout source.
  */
 static GSource *gAppInfoTimeoutSource = NULL;
 
-static void TweakGatherLoop(ToolsAppCtx *ctx);
+static void TweakGatherLoop(ToolsAppCtx *ctx, gboolean force);
 
 
 /*
@@ -415,7 +421,7 @@ AppInfoGather(gpointer data)      // IN
                 "information\n", __FUNCTION__);
    }
 
-   TweakGatherLoop(ctx);
+   TweakGatherLoop(ctx, TRUE);
 
    return G_SOURCE_REMOVE;
 }
@@ -483,12 +489,16 @@ TweakGatherLoopEx(ToolsAppCtx *ctx,       // IN
  * AppInfo Gather loop timeout source.
  *
  * @param[in]     ctx           The application context.
+ * @param[in]     force         If set to TRUE, the poll loop will be
+ *                              tweaked even if the poll interval hasn't
+ *                              changed from the previous value.
  *
  *****************************************************************************
  */
 
 static void
-TweakGatherLoop(ToolsAppCtx *ctx)    // IN
+TweakGatherLoop(ToolsAppCtx *ctx,  // IN
+                gboolean force)    // IN
 {
    gboolean disabled =
       VMTools_ConfigGetBoolean(ctx->config,
@@ -496,9 +506,9 @@ TweakGatherLoop(ToolsAppCtx *ctx)    // IN
                                CONFNAME_APPINFO_DISABLED,
                                APP_INFO_CONF_DEFAULT_DISABLED_VALUE);
 
-   gint pollInterval = 0;
+   gint pollInterval;
 
-   if (!disabled) {
+   if (gAppInfoEnabledInHost && !disabled) {
       pollInterval = VMTools_ConfigGetInteger(ctx->config,
                                               CONFGROUPNAME_APPINFO,
                                               CONFNAME_APPINFO_POLLINTERVAL,
@@ -509,13 +519,17 @@ TweakGatherLoop(ToolsAppCtx *ctx)    // IN
                    __FUNCTION__, pollInterval, APP_INFO_POLL_INTERVAL);
          pollInterval = APP_INFO_POLL_INTERVAL;
       }
+   } else {
+      pollInterval = 0;
    }
 
-   /*
-    * pollInterval can never be a negative value. Typecasting into
-    * guint should not be a problem.
-    */
-   TweakGatherLoopEx(ctx, (guint) pollInterval);
+   if (force || (gAppInfoPollInterval != pollInterval)) {
+      /*
+       * pollInterval can never be a negative value. Typecasting into
+       * guint should not be a problem.
+       */
+      TweakGatherLoopEx(ctx, (guint) pollInterval);
+   }
 }
 
 
@@ -539,7 +553,7 @@ AppInfoServerConfReload(gpointer src,       // IN
 {
    g_info("%s: Reloading the tools configuration.\n", __FUNCTION__);
 
-   TweakGatherLoop(ctx);
+   TweakGatherLoop(ctx, FALSE);
 }
 
 
@@ -567,6 +581,58 @@ AppInfoServerShutdown(gpointer src,          // IN
    }
 
    SetGuestInfo(ctx, APP_INFO_GUESTVAR_KEY, "");
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AppInfoServerSetOption --
+ *
+ * Handle TOOLSOPTION_ENABLE_APPINFO Set_Option callback.
+ *
+ * @param[in]  src      The source object.
+ * @param[in]  ctx      The app context.
+ * @param[in]  option   Option being set.
+ * @param[in]  value    Option value.
+ * @param[in]  plugin   Plugin registration data.
+ *
+ * @return  TRUE  if the specified option is TOOLSOPTION_ENABLE_APPINFO and
+ *                the AppInfo Gather poll loop is reconfigured.
+ *          FALSE if the specified option is not TOOLSOPTION_ENABLE_APPINFO
+ *                or AppInfo Gather poll loop is not reconfigured.
+ *----------------------------------------------------------------------------
+ */
+
+static gboolean
+AppInfoServerSetOption(gpointer src,         // IN
+                       ToolsAppCtx *ctx,     // IN
+                       const gchar *option,  // IN
+                       const gchar *value,   // IN
+                       gpointer data)        // IN
+{
+   gboolean retVal = FALSE;
+
+   if (strcmp(option, TOOLSOPTION_ENABLE_APPINFO) == 0) {
+      g_debug("%s: Tools set option %s=%s.\n",
+              __FUNCTION__, TOOLSOPTION_ENABLE_APPINFO, value);
+
+      if (strcmp(value, "1") == 0 && !gAppInfoEnabledInHost) {
+         gAppInfoEnabledInHost = TRUE;
+         retVal = TRUE;
+      } else if (strcmp(value, "0") == 0 && gAppInfoEnabledInHost) {
+         gAppInfoEnabledInHost = FALSE;
+         retVal = TRUE;
+      }
+
+      if (retVal) {
+         g_info("%s: State of AppInfo is changed to '%s' at host side.\n",
+                __FUNCTION__, gAppInfoEnabledInHost ? "enabled" : "disabled");
+         TweakGatherLoop(ctx, TRUE);
+      }
+   }
+
+   return retVal;
 }
 
 
@@ -625,7 +691,18 @@ AppInfoServerReset(gpointer src,
 
       TweakGatherLoopEx(ctx, interval);
    } else {
-      g_debug("%s: Poll loop disabled. Ignoring.\n", __FUNCTION__);
+      /*
+       * Channel got reset. VM might have vMotioned to an older host
+       * that doesn't send the 'Set_Option enableAppInfo'.
+       * Set gAppInfoEnabledInHost to TRUE and tweak the gather loop.
+       * Else, the application information may never be captured.
+       */
+      if (!gAppInfoEnabledInHost) {
+         gAppInfoEnabledInHost = TRUE;
+         TweakGatherLoop(ctx, TRUE);
+      } else {
+         g_debug("%s: Poll loop disabled. Ignoring.\n", __FUNCTION__);
+      }
    }
 }
 
@@ -677,7 +754,8 @@ ToolsOnLoad(ToolsAppCtx *ctx)    // IN
       ToolsPluginSignalCb sigs[] = {
          { TOOLS_CORE_SIG_CONF_RELOAD, AppInfoServerConfReload, NULL },
          { TOOLS_CORE_SIG_SHUTDOWN, AppInfoServerShutdown, NULL },
-         { TOOLS_CORE_SIG_RESET, AppInfoServerReset, NULL }
+         { TOOLS_CORE_SIG_RESET, AppInfoServerReset, NULL },
+         { TOOLS_CORE_SIG_SET_OPTION, AppInfoServerSetOption, NULL }
       };
       ToolsAppReg regs[] = {
          { TOOLS_APP_SIGNALS,
@@ -692,7 +770,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)    // IN
       /*
        * Set up the AppInfo gather loop.
        */
-      TweakGatherLoop(ctx);
+      TweakGatherLoop(ctx, TRUE);
 
       return &regData;
    }

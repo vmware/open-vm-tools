@@ -128,6 +128,11 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
  */
 #define SERVICE_DISCOVERY_RPC_WAIT_TIME 100
 
+/*
+ * Maximum number of keys that can be deleted by one operation
+ */
+#define SERVICE_DISCOVERY_DELETE_CHUNK_SIZE 25
+
 
 typedef struct {
    gchar *keyName;
@@ -381,9 +386,9 @@ ReadData(ToolsAppCtx *ctx,
    status = SendRpcMessage(ctx, DynBuf_Get(&buf), DynBuf_GetSize(&buf),
                            resultData, resultDataLen);
    if (!status) {
-      g_warning("%s: Read over RPC failed, result: %s, resultDataLen: %" FMTSZ
-                "u\n", __FUNCTION__, (*resultData != NULL) ?
-                *resultData : "(null)", *resultDataLen);
+      g_debug("%s: Read over RPC failed, result: %s, resultDataLen: %" FMTSZ
+              "u\n", __FUNCTION__, (*resultData != NULL) ?
+              *resultData : "(null)", *resultDataLen);
    }
 done:
    DynBuf_Destroy(&buf);
@@ -395,22 +400,104 @@ done:
  *****************************************************************************
  * DeleteData --
  *
- * Deletes key/value from Namespace DB.
+ * Deletes keys/values from Namespace DB.
  *
  * @param[in] ctx       Application context.
- * @param[in] key       Key of entry to be deleted from the Namespace DB
+ * @param[in] keys      Keys of entries to be deleted from the Namespace DB
  *
  * @retval TRUE  Namespace DB delete over RPC succeeded.
- * @retval FALSE Namespace DB delete over RPC failed.
+ * @retval FALSE Namespace DB delete over RPC failed or command buffer has not
+ *               been constructed correctly.
  *
  *****************************************************************************
  */
 
 static Bool
 DeleteData(ToolsAppCtx *ctx,
-           const char *key)
+           const GPtrArray* keys)
 {
-   return WriteData(ctx, key, NULL, 0);
+   Bool status = FALSE;
+   DynBuf buf;
+   int i;
+   gchar *numKeys = g_strdup_printf("%d", keys->len);
+
+   DynBuf_Init(&buf);
+
+   /*
+    * Format is:
+    *
+    * namespace-set-keys <namespace>\0<numOps>\0<op>\0<key>\0<value>\0<oldVal>
+    *
+    */
+   if (!DynBuf_Append(&buf, NSDB_PRIV_SET_KEYS_CMD,
+                      strlen(NSDB_PRIV_SET_KEYS_CMD)) ||
+       !DynBuf_Append(&buf, " ", 1) ||
+       !DynBuf_AppendString(&buf, SERVICE_DISCOVERY_NAMESPACE_DB_NAME) ||
+       !DynBuf_AppendString(&buf, numKeys)) { // numOps
+      g_warning("%s: Could not construct buffer header\n", __FUNCTION__);
+      goto out;
+   }
+   for (i = 0; i < keys->len; ++i) {
+      const char *key = (const char *) g_ptr_array_index(keys, i);
+      g_debug("%s: Adding key %s to buffer\n", __FUNCTION__, key);
+      if (!DynBuf_AppendString(&buf, "0") ||
+          !DynBuf_AppendString(&buf, key) ||
+          !DynBuf_Append(&buf, "", 1) ||
+          !DynBuf_Append(&buf, "", 1)) {
+         g_warning("%s: Could not construct delete buffer\n", __FUNCTION__);
+         goto out;
+      }
+   }
+   if (!DynBuf_Append(&buf, "", 1)) {
+      g_warning("%s: Could not construct buffer footer\n", __FUNCTION__);
+      goto out;
+   } else {
+      char *result = NULL;
+      size_t resultLen;
+
+      status = SendRpcMessage(ctx, DynBuf_Get(&buf), DynBuf_GetSize(&buf),
+                              &result, &resultLen);
+      if (!status) {
+         g_warning("%s: Failed to delete keys, result: %s resultLen: %" FMTSZ
+                   "u\n", __FUNCTION__, (result != NULL) ? result : "(null)",
+                   resultLen);
+      }
+
+      free(result);
+   }
+
+out:
+   DynBuf_Destroy(&buf);
+   g_free(numKeys);
+   return status;
+}
+
+
+/*
+ *****************************************************************************
+ * DeleteDataAndFree --
+ *
+ * Deletes the specified keys in Namespace DB and frees memory
+ * for every key.
+ *
+ * @param[in] ctx           Application context.
+ * @param[in/out] keys      Keys to be deleted.
+ *
+ *****************************************************************************
+ */
+
+static void
+DeleteDataAndFree(ToolsAppCtx *ctx,
+                  GPtrArray *keys) {
+   int j;
+
+   if (!DeleteData(ctx, keys)) {
+      g_warning("%s: Failed to delete data\n", __FUNCTION__);
+   }
+   for (j = 0; j < keys->len; ++j) {
+      g_free((gchar *) g_ptr_array_index(keys, j));
+   }
+   g_ptr_array_set_size(keys, 0);
 }
 
 
@@ -428,6 +515,7 @@ DeleteData(ToolsAppCtx *ctx,
 static void
 CleanupNamespaceDB(ToolsAppCtx *ctx) {
    int i;
+   GPtrArray *keys = g_ptr_array_new();
 
    g_debug("%s: Performing cleanup of previous data\n", __FUNCTION__);
 
@@ -445,12 +533,9 @@ CleanupNamespaceDB(ToolsAppCtx *ctx) {
          char *token = NULL;
          g_debug("%s: Read %s from Namespace DB\n", __FUNCTION__, value);
 
-         /*
-         * Delete this key anyways, afterwards check for chunks
-         */
-         if (!DeleteData(ctx, tmp.keyName)) {
-            g_warning("%s: Not able to delete entry %s", __FUNCTION__,
-                      tmp.keyName);
+         g_ptr_array_add(keys, g_strdup(tmp.keyName));
+         if (keys->len >= SERVICE_DISCOVERY_DELETE_CHUNK_SIZE) {
+            DeleteDataAndFree(ctx, keys);
          }
 
          if (NULL == strtok(value, ",")) {
@@ -466,16 +551,13 @@ CleanupNamespaceDB(ToolsAppCtx *ctx) {
          if (token != NULL) {
             int count = (int) g_ascii_strtoll(token, NULL, 10);
             int j;
-            gchar *msg = NULL;
 
             for (j = 0; j < count; j++) {
-               msg = g_strdup_printf("%s-%d", tmp.keyName, j + 1);
-               g_debug("%s: Deleting entry %s",__FUNCTION__, msg);
-               if (!DeleteData(ctx, msg)) {
-                  g_warning("%s: Not able to delete entry %s",
-                            __FUNCTION__, msg);
+               gchar *msg = g_strdup_printf("%s-%d", tmp.keyName, j + 1);
+               g_ptr_array_add(keys, msg);
+               if (keys->len >= SERVICE_DISCOVERY_DELETE_CHUNK_SIZE) {
+                  DeleteDataAndFree(ctx, keys);
                }
-               g_free(msg);
             }
          } else {
             g_warning("%s: Chunk count has invalid value %s", __FUNCTION__,
@@ -485,12 +567,15 @@ CleanupNamespaceDB(ToolsAppCtx *ctx) {
          g_warning("%s: Key %s not found in Namespace DB\n", __FUNCTION__,
                    tmp.keyName);
       }
-
       if (value) {
          free(value);
          value = NULL;
       }
    }
+   if (keys->len >= 1) {
+      DeleteDataAndFree(ctx, keys);
+   }
+   g_ptr_array_free(keys, TRUE);
 }
 
 

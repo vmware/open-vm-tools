@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -95,14 +95,6 @@ extern "C" {
  */
 #ifndef GDK_SELECTION_CLIPBOARD
 GdkAtom GDK_SELECTION_CLIPBOARD;
-#endif
-
-#ifndef GDK_SELECTION_TYPE_TIMESTAMP
-GdkAtom GDK_SELECTION_TYPE_TIMESTAMP;
-#endif
-
-#ifndef GDK_SELECTION_TYPE_UTF8_STRING
-GdkAtom GDK_SELECTION_TYPE_UTF8_STRING;
 #endif
 
 

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -184,6 +184,7 @@ typedef struct {
 
 /* KEEP SORTED! (sort -d) */
 static const DistroInfo distroArray[] = {
+   { "ALT",                "/etc/altlinux-release"      },
    { "Annvix",             "/etc/annvix-release"        },
    { "Arch",               "/etc/arch-release"          },
    { "Arklinux",           "/etc/arklinux-release"      },
@@ -804,8 +805,23 @@ HostinfoESX(struct utsname *buf)  // IN:
  *      Returns distro information based on .vmx format (distroShort).
  *
  * Return value:
- *      Overwrited the short name if we recognise the OS.
- *      Otherwise leave the short name as it is.
+ *      The default value of the "short name", upon entry to this routine, is
+ *      the officially supported identification for a generic Linux
+ *      (otherLinux).
+ *
+ *      If the distro is officially supported (by VMware)- it's recognized
+ *      the code of this routine - the "short name" will be overwritten with
+ *      the officially supported "short name" of the distro. Only VMware adds
+ *      distros and related codes to this routine.
+ *
+ *      An unsupported "short name" will be ignored by the rest of the
+ *      software stack.
+ *
+ *      If the short name is not one of the officially support ones, the
+ *      default value will be left in place.
+ *
+ *      The "long name" and detailed data will fully identify what Linux
+ *      is actually present.
  *
  * Side effects:
  *      None

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -343,7 +343,8 @@ UtilBacktraceFromPointerWithFunc(uintptr_t *basePtr,       // IN:
                                i, x[0], x[1], dli.dli_sname, dli.dli_fname,
                                 dli.dli_fbase);
       } else {
-         outFunc(outFuncData, "SymBacktrace[%d] %#08x eip %#08x \n", i, x[0], x[1]);
+         outFunc(outFuncData, "SymBacktrace[%d] %#08x eip %#08x \n", i, x[0],
+                 x[1]);
       }
       x = (uintptr_t *) x[0];
    }
@@ -394,6 +395,7 @@ Util_Backtrace(int bugNr) // IN
  *-----------------------------------------------------------------------------
  */
 
+
 void
 Util_BacktraceWithFunc(int bugNr,                // IN:
                        Util_OutputFunc outFunc,  // IN:
@@ -413,7 +415,7 @@ Util_BacktraceWithFunc(int bugNr,                // IN:
    if (bugNr == 0) {
       outFunc(outFuncData, "Backtrace:\n");
    } else {
-      outFunc(outFuncData, "Backtrace for bugNr=%d\n",bugNr);
+      outFunc(outFuncData, "Backtrace for bugNr=%d\n", bugNr);
    }
    frames = backtrace(callstack, ARRAYSIZE(callstack));
    for (i = 0; i < frames; i++) {
@@ -431,13 +433,14 @@ Util_BacktraceWithFunc(int bugNr,                // IN:
       }
    }
 #else
-   uintptr_t *x = (uintptr_t *) &bugNr;
-
    if (bugNr == 0) {
       outFunc(outFuncData, "Backtrace:\n");
    } else {
-      outFunc(outFuncData, "Backtrace for bugNr=%d\n",bugNr);
+      outFunc(outFuncData, "Backtrace for bugNr=%d\n", bugNr);
    }
-   UtilBacktraceFromPointerWithFunc(&x[-2], outFunc, outFuncData);
+
+   UtilBacktraceFromPointerWithFunc(__builtin_frame_address(0), outFunc,
+                                    outFuncData);
 #endif
 }
+
