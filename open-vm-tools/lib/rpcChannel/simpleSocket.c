@@ -346,6 +346,7 @@ Socket_ConnectVMCI(unsigned int cid,                  // IN
    ApiError apiErr;
    int vsockDev = -1;
    int family = VMCISock_GetAFValueFd(&vsockDev);
+   int retryCount = 0;
 
    if (family == -1) {
       Warning(LGPFX "Couldn't get VMCI socket family info.");
@@ -376,8 +377,6 @@ Socket_ConnectVMCI(unsigned int cid,                  // IN
    /* We are required to use a privileged source port. */
    localPort = PRIVILEGED_PORT_MAX;
    while (localPort >= PRIVILEGED_PORT_MIN) {
-      int retryCount = 0;
-
       fd = SocketConnectVmciInternal(&addr, localPort, &apiErr, &sysErr);
       if (fd != INVALID_SOCKET) {
          goto done;
