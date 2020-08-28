@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -202,12 +202,14 @@ File_SplitName(const char *pathName,  // IN:
    char *vol;
    char *dir;
    char *bas;
+   size_t len;
    char *baseBegin;
    char *volEnd;
    int volLen, dirLen;
-   int len = strlen(pathName);
 
    ASSERT(pathName != NULL);
+
+   len = strlen(pathName);
 
    /*
     * Get volume.
@@ -541,7 +543,6 @@ File_MapPathPrefix(const char *oldPath,       // IN:
    size_t oldPathLen = strlen(oldPath);
 
    for (i = 0; i < numPrefixes; i++) {
-      char *newPath;
       char *oldPrefix;
       char *newPrefix;
       size_t oldPrefixLen;
@@ -574,6 +575,7 @@ File_MapPathPrefix(const char *oldPath,       // IN:
               (oldPath[oldPrefixLen] == '\0'))) {
          size_t newPrefixLen = strlen(newPrefix);
          size_t newPathLen = (oldPathLen - oldPrefixLen) + newPrefixLen;
+         char *newPath;
 
          ASSERT(newPathLen > 0);
          ASSERT(oldPathLen >= oldPrefixLen);

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017,2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -718,7 +718,7 @@ Escape_Unescape(char escByte,       // IN
 {
    DynBuf result;
    Bool escaped = FALSE;
-   char nullbyte = '\0';
+   char nulByte = '\0';
    int i;
 
    ASSERT(bufIn);
@@ -734,7 +734,7 @@ Escape_Unescape(char escByte,       // IN
       }
    }
 
-   DynBuf_Append(&result, &nullbyte, sizeof('\0'));
+   DynBuf_Append(&result, &nulByte, sizeof nulByte);
 
    return DynBuf_Get(&result);
 }

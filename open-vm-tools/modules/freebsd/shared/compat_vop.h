@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008, 2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -47,7 +47,11 @@
 #if __FreeBSD_version >= 800011
 #define COMPAT_THREAD_VAR(varname, varval)
 #define COMPAT_VOP_LOCK(vop, flags, threadvar) VOP_LOCK((vop), (flags))
+#if __FreeBSD_version >= 1300074
+#define COMPAT_VOP_UNLOCK(vop, flags, threadvar) VOP_UNLOCK((vop))
+#else
 #define COMPAT_VOP_UNLOCK(vop, flags, threadvar) VOP_UNLOCK((vop), (flags))
+#endif
 #define compat_lockstatus(lock, threadvar) lockstatus((lock))
 #define compat_lockmgr(lock, flags, randompointerparam, threadval) lockmgr((lock), (flags), (randompointerparam))
 #define compat_vn_lock(vp, flags, threadval) vn_lock((vp), (flags))

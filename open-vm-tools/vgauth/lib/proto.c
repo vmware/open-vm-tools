@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2012-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2012-2017,2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1043,9 +1043,7 @@ static GMarkupParser wireParser = {
 ProtoReply *
 Proto_NewReply(ProtoReplyType expectedReplyType)
 {
-   ProtoReply *reply = NULL;
-
-   reply = g_malloc0(sizeof(ProtoReply));
+   ProtoReply *reply = g_malloc0(sizeof(ProtoReply));
    reply->parseState = PARSE_STATE_NONE;
    reply->complete = FALSE;
    reply->errorCode = VGAUTH_E_OK;
@@ -1200,10 +1198,10 @@ VGAuth_ReadAndParseResponse(VGAuthContext *ctx,
                             ProtoReply **wireReply)
 {
    VGAuthError err = VGAUTH_E_OK;
-   GMarkupParseContext *parseContext = NULL;
+   GMarkupParseContext *parseContext;
    gsize len;
    gchar *rawReply = NULL;
-   ProtoReply *reply = NULL;
+   ProtoReply *reply;
    gboolean bRet;
    GError *gErr = NULL;
 
@@ -1306,7 +1304,7 @@ VGAuth_SendSessionRequest(VGAuthContext *ctx,
                           const char *userName,
                           char **pipeName)                  // OUT
 {
-   VGAuthError err = VGAUTH_E_OK;
+   VGAuthError err;
    gchar *packet;
    ProtoReply *reply = NULL;
 
@@ -1400,6 +1398,8 @@ VGAuth_SendConnectRequest(VGAuthContext *ctx)
    pid = Convert_UnsignedInt32ToText(dwPid);
 #endif
 
+   /* Value of pid is always NULL on non-Windows platforms */
+   /* coverity[dead_error_line] */
    packet = g_markup_printf_escaped(VGAUTH_CONNECT_REQUEST_FORMAT,
                                     ctx->comm.sequenceNumber,
                                     pid ? pid : "");
@@ -1806,6 +1806,8 @@ VGAuth_SendCreateTicketRequest(VGAuthContext *ctx,
       Convert_UnsignedInt32ToText((unsigned int)(size_t)userHandle->token);
 #endif
 
+   /* Value of tokenInText is always NULL on non-Windows platforms */
+   /* coverity[dead_error_line] */
    packet = g_markup_printf_escaped(VGAUTH_CREATETICKET_REQUEST_FORMAT_START,
                                     ctx->comm.sequenceNumber,
                                     userHandle->userName,

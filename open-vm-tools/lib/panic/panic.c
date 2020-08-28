@@ -568,6 +568,7 @@ Panic_Panic(const char *format,
    case 1:
       Log("PANIC: %s", buf);
       Log("Panic loop\n");
+      /* Fall through */
    default:
       fprintf(stderr, "Panic loop\n");
       Util_ExitProcessAbruptly(1);

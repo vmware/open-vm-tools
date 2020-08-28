@@ -116,7 +116,7 @@ MXUser_CreateBarrier(const char *userName,  // IN: shall be known as
    char *properName;
    MXUserBarrier *barrier;
 
-   ASSERT(count);
+   ASSERT(count != 0);
 
    barrier = Util_SafeCalloc(1, sizeof *barrier);
 
@@ -218,7 +218,7 @@ MXUser_EnterBarrier(MXUserBarrier *barrier)  // IN/OUT:
    BarrierContext *ptr;
    uint32 context;
 
-   ASSERT(barrier);
+   ASSERT(barrier != NULL);
    MXUserValidateHeader(&barrier->header, MXUSER_TYPE_BARRIER);
 
    MXUser_AcquireExclLock(barrier->lock);
@@ -288,7 +288,7 @@ MXUser_CreateSingletonBarrier(Atomic_Ptr *barrierStorage,  // IN/OUT:
 {
    MXUserBarrier *barrier;
 
-   ASSERT(barrierStorage);
+   ASSERT(barrierStorage != NULL);
 
    barrier = Atomic_ReadPtr(barrierStorage);
 

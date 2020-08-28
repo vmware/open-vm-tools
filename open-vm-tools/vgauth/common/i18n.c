@@ -817,9 +817,7 @@ I18n_GetString(const char *domain,
    }
 
    if (source != NULL) {
-      const void *retval = NULL;
-
-      retval = g_hash_table_lookup(source, idBuf);
+      const void *retval = g_hash_table_lookup(source, idBuf);
       if (NULL != retval) {
          strp = retval;
       }

@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2007-2016 VMware, Inc.  All rights reserved.
+### Copyright (C) 2007-2016,2019 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -19,9 +19,13 @@ noinst_LTLIBRARIES = libBackdoor.la
 
 libBackdoor_la_SOURCES =
 libBackdoor_la_SOURCES += backdoor.c
-if THIRTY_TWO_BIT_USERSPACE
+if ARCH_X32
    libBackdoor_la_SOURCES += backdoorGcc32.c
-else
+endif
+if ARCH_X64
    libBackdoor_la_SOURCES += backdoorGcc64.c
+endif
+if ARCH_ARM64
+   libBackdoor_la_SOURCES += backdoorGcc64_arm64.c
 endif
 

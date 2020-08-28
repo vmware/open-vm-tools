@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2017,2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -696,7 +696,7 @@ HgfsChannelGuest_Receive(HgfsServerMgrData *mgrData, // IN/OUT : conn manager
                          char *packetOut,            // OUT: outgoing packet
                          size_t *packetOutSize)      // IN/OUT: outgoing packet size
 {
-   HgfsChannelData *channel = NULL;
+   HgfsChannelData *channel;
    Bool result = FALSE;
 
    ASSERT(NULL != mgrData);
@@ -740,7 +740,7 @@ HgfsChannelGuest_Receive(HgfsServerMgrData *mgrData, // IN/OUT : conn manager
 uint32
 HgfsChannelGuest_InvalidateInactiveSessions(HgfsServerMgrData *mgrData) // IN: conn manager
 {
-   HgfsChannelData *channel = NULL;
+   HgfsChannelData *channel;
    uint32 result = 0;
 
    ASSERT(NULL != mgrData);

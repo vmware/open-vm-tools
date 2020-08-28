@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013,2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -37,6 +37,7 @@ typedef struct HgfsFuseState {
    Bool sessionEnabled;
    uint64 sessionId;
    uint8 headerVersion;
+   uint32 maxPacketSize;
    /*
     * When mount a subdirectory of hgfs shared directory, basePath holds
     * the prefix to the root. e.g. 'mount.vmhgfs .host:/shared/sub /hgfs',

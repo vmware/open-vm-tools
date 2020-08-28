@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1999-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1999-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -49,6 +49,12 @@ extern "C" {
 #include "backdoor.h"
 #include "backdoorInt.h"
 
+#if defined(USE_HYPERCALL)
+#include "vm_assert.h"
+#include "x86cpuid.h"
+#include "x86cpuid_asm.h"
+#endif
+
 #ifdef USE_VALGRIND
 /*
  * When running under valgrind, we need to ensure we have the correct register
@@ -64,7 +70,7 @@ extern "C" {
 #   include "debug.h"
 #endif
 #   include <stdio.h>
-#   define BACKDOOR_LOG(args) Debug args
+#   define BACKDOOR_LOG(...) Debug(__VA_ARGS__)
 #   define BACKDOOR_LOG_PROTO_STRUCT(x) BackdoorPrintProtoStruct((x))
 #   define BACKDOOR_LOG_HB_PROTO_STRUCT(x) BackdoorPrintHbProtoStruct((x))
 
@@ -166,9 +172,86 @@ BackdoorPrintHbProtoStruct(Backdoor_proto_hb *myBp)
 }
 
 #else
-#   define BACKDOOR_LOG(args)
+#   define BACKDOOR_LOG(...)
 #   define BACKDOOR_LOG_PROTO_STRUCT(x)
 #   define BACKDOOR_LOG_HB_PROTO_STRUCT(x)
+#endif
+
+#if defined(USE_HYPERCALL)
+/* Setting 'backdoorInterface' is idempotent, no atomic access is required. */
+static BackdoorInterface backdoorInterface = BACKDOOR_INTERFACE_NONE;
+
+static BackdoorInterface
+BackdoorGetInterface(void)
+{
+   if (UNLIKELY(backdoorInterface == BACKDOOR_INTERFACE_NONE)) {
+      CPUIDRegs regs;
+
+      /* Check whether we're on a VMware hypervisor that supports vmmcall. */
+      __GET_CPUID(1, &regs);
+      if (CPUID_ISSET(1, ECX, HYPERVISOR, regs.ecx)) {
+         __GET_CPUID(CPUID_HYPERVISOR_LEVEL_0, &regs);
+         if (CPUID_IsRawVendor(&regs, CPUID_VMWARE_HYPERVISOR_VENDOR_STRING)) {
+            if (__GET_EAX_FROM_CPUID(CPUID_HYPERVISOR_LEVEL_0) >=
+                                     CPUID_VMW_FEATURES) {
+               uint32 features = __GET_ECX_FROM_CPUID(CPUID_VMW_FEATURES);
+               if (CPUID_ISSET(CPUID_VMW_FEATURES, ECX,
+                               VMCALL_BACKDOOR, features)) {
+                  backdoorInterface = BACKDOOR_INTERFACE_VMCALL;
+                  BACKDOOR_LOG("Backdoor interface: vmcall\n");
+               } else if (CPUID_ISSET(CPUID_VMW_FEATURES, ECX,
+                                      VMMCALL_BACKDOOR, features)) {
+                  backdoorInterface = BACKDOOR_INTERFACE_VMMCALL;
+                  BACKDOOR_LOG("Backdoor interface: vmmcall\n");
+               }
+            }
+         }
+      }
+      if (backdoorInterface == BACKDOOR_INTERFACE_NONE) {
+         backdoorInterface = BACKDOOR_INTERFACE_IO;
+         BACKDOOR_LOG("Backdoor interface: I/O port\n");
+      }
+   }
+   return backdoorInterface;
+}
+#else
+static BackdoorInterface
+BackdoorGetInterface(void) {
+   return BACKDOOR_INTERFACE_IO;
+}
+#endif
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Backdoor_ForceLegacy --
+ *
+ *     In some cases, it may be desirable to use the legacy IO interface to
+ *     access the backdoor, even if CPUID reports support for the VMCALL/VMMCALL
+ *     interface.
+ *
+ * Params:
+ *     force  Set to TRUE to force the library to use the legacy IO interface
+ *            for dispatching backdoor calls; set to FALSE to use the
+ *            autodetected interface.
+ *
+ * Side-effects:
+ *      Changes the interface used to access the backdoor.
+ *
+ *-----------------------------------------------------------------------------
+ */
+#if defined(USE_HYPERCALL)
+void
+Backdoor_ForceLegacy(Bool force)
+{
+   if (force) {
+      backdoorInterface = BACKDOOR_INTERFACE_IO;
+   } else {
+      backdoorInterface = BACKDOOR_INTERFACE_NONE;
+      BackdoorGetInterface();
+   }
+}
 #endif
 
 
@@ -191,31 +274,175 @@ BackdoorPrintHbProtoStruct(Backdoor_proto_hb *myBp)
 
 #ifdef USE_VALGRIND
 static void
-Backdoor_InOutValgrind(uint16 tid, Backdoor_proto *myBp)
+BackdoorInOutValgrind(uint16 tid, Backdoor_proto *myBp)
 {
     Backdoor_InOut(myBp);
 }
+static void
+BackdoorHbInValgrind(uint16 tid, Backdoor_proto_hb *myBp)
+{
+    BackdoorHbIn(myBp);
+}
+static void
+BackdoorHbOutValgrind(uint16 tid, Backdoor_proto_hb *myBp)
+{
+    BackdoorHbOut(myBp);
+}
+#if defined(USE_HYPERCALL)
+static void
+BackdoorVmcallValgrind(uint16 tid, Backdoor_proto *myBp)
+{
+    Backdoor_Vmcall(myBp);
+}
+static void
+BackdoorVmmcallValgrind(uint16 tid, Backdoor_proto *myBp)
+{
+    Backdoor_Vmmcall(myBp);
+}
+static void
+BackdoorHbVmcallValgrind(uint16 tid, Backdoor_proto_hb *myBp)
+{
+    BackdoorHbVmcall(myBp);
+}
+static void
+BackdoorHbVmmcallValgrind(uint16 tid, Backdoor_proto_hb *myBp)
+{
+    BackdoorHbVmmcall(myBp);
+}
+#endif
 #endif
 
 void
 Backdoor(Backdoor_proto *myBp) // IN/OUT
 {
+   BackdoorInterface interface = BackdoorGetInterface();
    ASSERT(myBp);
 
    myBp->in.ax.word = BDOOR_MAGIC;
-   myBp->in.dx.halfs.low = BDOOR_PORT;
 
-   BACKDOOR_LOG(("Backdoor: before "));
-   BACKDOOR_LOG_PROTO_STRUCT(myBp);
-
-#ifdef USE_VALGRIND
-   VALGRIND_NON_SIMD_CALL1(Backdoor_InOutValgrind, myBp);
-#else
-   Backdoor_InOut(myBp);
+   switch (interface) {
+   case BACKDOOR_INTERFACE_IO:
+      myBp->in.dx.halfs.low = BDOOR_PORT;
+      break;
+#if defined(USE_HYPERCALL)
+   case BACKDOOR_INTERFACE_VMCALL:  // Fall through.
+   case BACKDOOR_INTERFACE_VMMCALL:
+      myBp->in.dx.halfs.low = BDOOR_FLAGS_LB | BDOOR_FLAGS_READ;
+      break;
 #endif
+   default:
+      ASSERT(FALSE);
+      break;
+   }
 
-   BACKDOOR_LOG(("Backdoor: after "));
+   BACKDOOR_LOG("Backdoor: before ");
    BACKDOOR_LOG_PROTO_STRUCT(myBp);
+
+   switch (interface) {
+   case BACKDOOR_INTERFACE_IO:
+#ifdef USE_VALGRIND
+      VALGRIND_NON_SIMD_CALL1(BackdoorInOutValgrind, myBp);
+#else
+      Backdoor_InOut(myBp);
+#endif
+      break;
+#if defined(USE_HYPERCALL)
+   case BACKDOOR_INTERFACE_VMCALL:
+#ifdef USE_VALGRIND
+      VALGRIND_NON_SIMD_CALL1(BackdoorVmcallValgrind, myBp);
+#else
+      Backdoor_Vmcall(myBp);
+#endif
+      break;
+   case BACKDOOR_INTERFACE_VMMCALL:
+#ifdef USE_VALGRIND
+      VALGRIND_NON_SIMD_CALL1(BackdoorVmmcallValgrind, myBp);
+#else
+      Backdoor_Vmmcall(myBp);
+#endif
+      break;
+#endif // defined(USE_HYPERCALL)
+   default:
+      ASSERT(FALSE);
+      break;
+   }
+
+   BACKDOOR_LOG("Backdoor: after ");
+   BACKDOOR_LOG_PROTO_STRUCT(myBp);
+}
+
+
+void
+BackdoorHb(Backdoor_proto_hb *myBp, // IN/OUT
+           Bool outbound)           // IN
+{
+   BackdoorInterface interface = BackdoorGetInterface();
+   ASSERT(myBp);
+
+   myBp->in.ax.word = BDOOR_MAGIC;
+
+   switch (interface) {
+   case BACKDOOR_INTERFACE_IO:
+      myBp->in.dx.halfs.low = BDOORHB_PORT;
+      break;
+#if defined(USE_HYPERCALL)
+   case BACKDOOR_INTERFACE_VMCALL:  // Fall through.
+   case BACKDOOR_INTERFACE_VMMCALL:
+      myBp->in.dx.halfs.low = BDOOR_FLAGS_HB;
+      if (outbound) {
+         myBp->in.dx.halfs.low |= BDOOR_FLAGS_WRITE;
+      } else {
+         myBp->in.dx.halfs.low |= BDOOR_FLAGS_READ;
+      }
+      break;
+#endif
+   default:
+      ASSERT(FALSE);
+      break;
+   }
+
+   BACKDOOR_LOG("BackdoorHb: before ");
+   BACKDOOR_LOG_HB_PROTO_STRUCT(myBp);
+
+   switch (interface) {
+   case BACKDOOR_INTERFACE_IO:
+      if (outbound) {
+#ifdef USE_VALGRIND
+         VALGRIND_NON_SIMD_CALL1(BackdoorHbOutValgrind, myBp);
+#else
+         BackdoorHbOut(myBp);
+#endif
+      } else {
+#ifdef USE_VALGRIND
+         VALGRIND_NON_SIMD_CALL1(BackdoorHbInValgrind, myBp);
+#else
+         BackdoorHbIn(myBp);
+#endif
+      }
+      break;
+#if defined(USE_HYPERCALL)
+   case BACKDOOR_INTERFACE_VMCALL:
+#ifdef USE_VALGRIND
+      VALGRIND_NON_SIMD_CALL1(BackdoorHbVmcallValgrind, myBp);
+#else
+      BackdoorHbVmcall(myBp);
+#endif
+      break;
+   case BACKDOOR_INTERFACE_VMMCALL:
+#ifdef USE_VALGRIND
+      VALGRIND_NON_SIMD_CALL1(BackdoorHbVmmcallValgrind, myBp);
+#else
+      BackdoorHbVmmcall(myBp);
+#endif
+      break;
+#endif
+   default:
+      ASSERT(FALSE);
+      break;
+   }
+
+   BACKDOOR_LOG("BackdoorHb: after ");
+   BACKDOOR_LOG_HB_PROTO_STRUCT(myBp);
 }
 
 
@@ -236,33 +463,12 @@ Backdoor(Backdoor_proto *myBp) // IN/OUT
  *-----------------------------------------------------------------------------
  */
 
-#ifdef USE_VALGRIND
-static void
-BackdoorHbOutValgrind(uint16 tid, Backdoor_proto_hb *myBp)
-{
-    BackdoorHbOut(myBp);
-}
-#endif
-
 void
 Backdoor_HbOut(Backdoor_proto_hb *myBp) // IN/OUT
 {
    ASSERT(myBp);
 
-   myBp->in.ax.word = BDOOR_MAGIC;
-   myBp->in.dx.halfs.low = BDOORHB_PORT;
-
-   BACKDOOR_LOG(("Backdoor_HbOut: before "));
-   BACKDOOR_LOG_HB_PROTO_STRUCT(myBp);
-
-#ifdef USE_VALGRIND
-   VALGRIND_NON_SIMD_CALL1(BackdoorHbOutValgrind, myBp);
-#else
-   BackdoorHbOut(myBp);
-#endif
-
-   BACKDOOR_LOG(("Backdoor_HbOut: after "));
-   BACKDOOR_LOG_HB_PROTO_STRUCT(myBp);
+   BackdoorHb(myBp, TRUE);
 }
 
 
@@ -283,33 +489,12 @@ Backdoor_HbOut(Backdoor_proto_hb *myBp) // IN/OUT
  *-----------------------------------------------------------------------------
  */
 
-#ifdef USE_VALGRIND
-static void
-BackdoorHbInValgrind(uint16 tid, Backdoor_proto_hb *myBp)
-{
-    BackdoorHbIn(myBp);
-}
-#endif
-
 void
 Backdoor_HbIn(Backdoor_proto_hb *myBp) // IN/OUT
 {
    ASSERT(myBp);
 
-   myBp->in.ax.word = BDOOR_MAGIC;
-   myBp->in.dx.halfs.low = BDOORHB_PORT;
-
-   BACKDOOR_LOG(("Backdoor_HbIn: before "));
-   BACKDOOR_LOG_HB_PROTO_STRUCT(myBp);
-
-#ifdef USE_VALGRIND
-   VALGRIND_NON_SIMD_CALL1(BackdoorHbInValgrind, myBp);
-#else
-   BackdoorHbIn(myBp);
-#endif
-
-   BACKDOOR_LOG(("Backdoor_HbIn: after "));
-   BACKDOOR_LOG_HB_PROTO_STRUCT(myBp);
+   BackdoorHb(myBp, FALSE);
 }
 
 #ifdef __cplusplus

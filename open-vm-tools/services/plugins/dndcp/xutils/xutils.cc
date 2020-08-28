@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -989,7 +989,13 @@ GetMonitorWorkArea(Glib::RefPtr<Gdk::Screen> screen,    // IN:
       std::vector<unsigned long> values;
       NETWMStrutPartial strut = NETWMStrutPartial();
 
+      gdk_error_trap_push();
       if (monitor != screen->get_monitor_at_window(gdkWindow)) {
+         continue;
+      }
+      int err = gdk_error_trap_pop();
+      if (err) {
+         Log("Ignore xerror in get_monitor_at_window. Error code %d", err);
          continue;
       }
 

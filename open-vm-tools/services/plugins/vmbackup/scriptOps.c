@@ -154,9 +154,9 @@ VmBackupRunNextScript(VmBackupScriptOp *op)  // IN/OUT
    }
 
    while (index >= 0 && scripts[index].path != NULL) {
-      char *cmd;
-
       if (File_IsFile(scripts[index].path)) {
+         char *cmd;
+
          if (op->state->scriptArg != NULL) {
             cmd = Str_Asprintf(NULL, "\"%s\" %s \"%s\"", scripts[index].path,
                                scriptOp, op->state->scriptArg);
@@ -345,11 +345,12 @@ exit:
 static void
 VmBackupScriptOpRelease(VmBackupOp *_op)  // IN
 {
-   size_t i;
    VmBackupScriptOp *op = (VmBackupScriptOp *) _op;
 
    if (op->type != VMBACKUP_SCRIPT_FREEZE && op->state->scripts != NULL) {
+      size_t i;
       VmBackupScript *scripts = op->state->scripts;
+
       for (i = 0; scripts[i].path != NULL; i++) {
          free(scripts[i].path);
          if (scripts[i].proc != NULL) {
@@ -436,7 +437,7 @@ VmBackup_NewScriptOp(VmBackupScriptType type, // IN
 {
    Bool fail = FALSE;
    char **fileList = NULL;
-   char *scriptDir = NULL;
+   char *scriptDir;
    int numFiles = 0;
    size_t i;
    VmBackupScriptOp *op = NULL;

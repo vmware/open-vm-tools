@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -40,12 +40,13 @@ typedef enum {
 
 typedef enum {
    TOOLSDEPLOYPKG_ERROR_SUCCESS = 0,
-   TOOLSDEPLOYPKG_ERROR_NOT_SUPPORT,       // Old tools do not support option
-   TOOLSDEPLOYPKG_ERROR_PKG_NOT_FOUND,     // Specified pkg is not found
+   TOOLSDEPLOYPKG_ERROR_NOT_SUPPORT,   // Old tools do not support option
+   TOOLSDEPLOYPKG_ERROR_PKG_NOT_FOUND, // Specified pkg is not found
    TOOLSDEPLOYPKG_ERROR_RPC_INVALID,
    TOOLSDEPLOYPKG_ERROR_COPY_FAILED,
    TOOLSDEPLOYPKG_ERROR_DEPLOY_FAILED,
-   TOOLSDEPLOYPKG_ERROR_CUST_SCRIPT_DISABLED // User defined script is disabled
+   TOOLSDEPLOYPKG_ERROR_CUST_SCRIPT_DISABLED, // User defined script is disabled
+   TOOLSDEPLOYPKG_ERROR_CUST_DISABLED         // Guest customization is disabled
 } ToolsDeployPkgError;
 
 #define QUERY_NICS_SUPPORTED  "queryNicsSupported"

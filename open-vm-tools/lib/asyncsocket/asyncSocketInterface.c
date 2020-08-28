@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2016-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2016-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -725,6 +725,7 @@ AsyncSocket_GetOption(AsyncSocket *asyncSocket,     // IN/OUT
 int
 AsyncSocket_StartSslConnect(AsyncSocket *asock,                   // IN
                             SSLVerifyParam *verifyParam,          // IN/OPT
+                            const char *hostname,                 // IN/OPT
                             void *sslCtx,                         // IN
                             AsyncSocketSslConnectFn sslConnectFn, // IN
                             void *clientData)                     // IN
@@ -732,8 +733,8 @@ AsyncSocket_StartSslConnect(AsyncSocket *asock,                   // IN
    int ret;
    if (VALID(asock, startSslConnect)) {
       AsyncSocketLock(asock);
-      ret = VT(asock)->startSslConnect(asock, verifyParam, sslCtx, sslConnectFn,
-                                       clientData);
+      ret = VT(asock)->startSslConnect(asock, verifyParam, hostname, sslCtx,
+                                       sslConnectFn, clientData);
       AsyncSocketUnlock(asock);
    } else {
       ret = ASOCKERR_INVAL;
@@ -762,12 +763,13 @@ AsyncSocket_StartSslConnect(AsyncSocket *asock,                   // IN
 Bool
 AsyncSocket_ConnectSSL(AsyncSocket *asock,          // IN
                        SSLVerifyParam *verifyParam, // IN/OPT
+                       const char *hostname,        // IN/OPT
                        void *sslContext)            // IN/OPT
 {
    Bool ret;
    if (VALID(asock, connectSSL)) {
       AsyncSocketLock(asock);
-      ret = VT(asock)->connectSSL(asock, verifyParam, sslContext);
+      ret = VT(asock)->connectSSL(asock, verifyParam, hostname, sslContext);
       AsyncSocketUnlock(asock);
    } else {
       ret = FALSE;
@@ -1731,9 +1733,11 @@ AsyncSocket_WaitForReadMultiple(AsyncSocket **asock,  // IN
                                 int timeoutMS,        // IN
                                 int *outIdx)          // OUT
 {
-   int i;
    int ret;
+
    if (numSock > 0 && VALID(asock[0], waitForReadMultiple)) {
+      int i;
+
       for (i = 0; i < numSock; i++) {
          AsyncSocketLock(asock[i]);
       }

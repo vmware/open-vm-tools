@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -83,7 +83,7 @@ DestroySecRpcChannel();
 static void
 DestroyChannel();
 
-#if defined(VMX86_DEBUG) && defined(linux)
+#if defined(VMX86_DEBUG) && defined(__linux__)
 static void
 LogChannelType(const char *filePath, const char *chanType);
 #endif
@@ -278,7 +278,7 @@ CreateSecRpcChannel()
        * VMAppmon unit tests. Changing this log message/file path
        * will break the unit tests.
        */
-      #if defined(VMX86_DEBUG) && defined(linux)
+      #if defined(VMX86_DEBUG) && defined(__linux__)
       LogChannelType("/tmp/chanType.txt", (RpcChannel_GetType(gChan) == RPCCHANNEL_TYPE_BKDOOR ? "BACKDOOR" : "VSOCK"));
       #endif
       return start;
@@ -305,7 +305,7 @@ DestroySecRpcChannel()
    }
 }
 
-#if defined(VMX86_DEBUG) && defined(linux)
+#if defined(VMX86_DEBUG) && defined(__linux__)
 /*
  ******************************************************************************
  * LogChannelType --                                               */ /**

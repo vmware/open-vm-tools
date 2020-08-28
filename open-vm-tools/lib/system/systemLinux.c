@@ -145,7 +145,7 @@ System_GetTimeMonotonic(void)
     */
    struct tms tp;
 
-#if !defined (VM_X86_64)
+#if !defined VM_64BIT
    static uint64 base = 0;
    static unsigned long last = 0;
    uint32  current;
@@ -161,7 +161,7 @@ System_GetTimeMonotonic(void)
    }
 
    return base + (last = current);
-#else  // VM_X86_64
+#else  // VM_64BIT
 #if defined sun || defined __APPLE__
    /*
     * PR 1710952 and PR 2136820

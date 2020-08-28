@@ -267,7 +267,6 @@ FileLoggerOpen(FileLogger *data)
           * will always be index "0"). When not rotating, "maxFiles" is 1, so we
           * always keep one backup.
           */
-         gchar *log;
          guint id;
          GPtrArray *logfiles = g_ptr_array_new();
 
@@ -277,7 +276,8 @@ FileLoggerOpen(FileLogger *data)
           * file, which may or may not exist.
           */
          for (id = 0; id < data->maxFiles; id++) {
-            log = FileLoggerGetPath(data, id);
+            gchar *log = FileLoggerGetPath(data, id);
+
             g_ptr_array_add(logfiles, log);
             if (!g_file_test(log, G_FILE_TEST_IS_REGULAR)) {
                break;

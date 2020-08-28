@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -536,7 +536,6 @@ ProxyReceiveResults(int sock_fd,      // IN:
    int err;
    struct iovec iov;
    struct msghdr msg;
-   struct cmsghdr *cmsg;
    uint8_t cmsgBuf[CMSG_SPACE(sizeof(int))];
 
    iov.iov_base = recv_errno;
@@ -561,7 +560,7 @@ ProxyReceiveResults(int sock_fd,      // IN:
    if (msg.msg_controllen == 0) {
       *recv_fd = -1;
    } else {
-      cmsg = CMSG_FIRSTHDR(&msg);
+      struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
 
       if ((cmsg->cmsg_level == SOL_SOCKET) &&
           (cmsg->cmsg_type == SCM_RIGHTS)) {
@@ -916,8 +915,8 @@ FileIOCreateRetry(FileIODescriptor *file,   // OUT:
       flags |= O_DIRECT;
 #elif !defined(__APPLE__) // Mac hosts need this access flag after opening.
       access &= ~FILEIO_OPEN_UNBUFFERED;
-      LOG_ONCE((LGPFX" %s reverting to buffered IO on %s.\n",
-                __FUNCTION__, pathName));
+      LOG_ONCE(LGPFX" %s reverting to buffered IO on %s.\n",
+               __FUNCTION__, pathName);
 #endif
    }
 
@@ -948,7 +947,7 @@ FileIOCreateRetry(FileIODescriptor *file,   // OUT:
 #endif
 
 #if defined(__linux__) && defined(O_CLOEXEC)
-   if (flags & FILEIO_OPEN_CLOSE_ON_EXEC) {
+   if (access & FILEIO_OPEN_CLOSE_ON_EXEC) {
       flags |= O_CLOEXEC;
    }
 #endif
@@ -1535,8 +1534,8 @@ FileIOCoalesce(
    }
 
    // XXX: Wouldn't it be nice if we could log from here!
-   //LOG(5, ("FILE: Coalescing %s of %d elements and %d size\n",
-   //        isWrite ? "write" : "read", inCount, inTotalSize));
+   //LOG(5, "FILE: Coalescing %s of %d elements and %d size\n",
+   //    isWrite ? "write" : "read", inCount, inTotalSize);
 
    if (filePosixOptions.aligned || flags & FILEIO_OPEN_UNBUFFERED) {
       cBuf = FileIOAligned_Malloc(sizeof(uint8) * inTotalSize);
@@ -1972,8 +1971,8 @@ FileIOPwritevCoalesced(
              * already checked for retval == -1 above, so the cast
              * below should be OK. Refer to bug 817761.
              */
-            LOG_ONCE((LGPFX" %s wrote %"FMTSZ"u out of %"FMTSZ"u bytes.\n",
-                      __FUNCTION__, (size_t)retval, leftToWrite));
+            LOG_ONCE(LGPFX" %s wrote %"FMTSZ"u out of %"FMTSZ"u bytes.\n",
+                     __FUNCTION__, (size_t)retval, leftToWrite);
          }
 
          buf += retval;
@@ -2059,6 +2058,12 @@ FileIOPreadvInternal(
       ssize_t retval = 0;
 
       ASSERT(numVec > 0);
+
+      /*
+       * This is needed to deal with old libraries.  Once we're over
+       * the library horizon this can go away.
+       */
+      /* coverity[func_conv] */
       if (preadv64 == NULL) {
          fret = FileIOPreadvCoalesced(fd, entries, numEntries, offset,
                                       totalSize, &bytesRead);
@@ -2194,6 +2199,12 @@ FileIOPwritevInternal(
       ssize_t retval = 0;
 
       ASSERT(numVec > 0);
+
+      /*
+       * This is needed to deal with old libraries.  Once we're over
+       * the library horizon this can go away.
+       */
+      /* coverity[func_conv] */
       if (pwritev64 == NULL) {
          fret = FileIOPwritevCoalesced(fd, entries, numEntries, offset,
                                        totalSize, &bytesWritten);
@@ -3039,15 +3050,15 @@ void
 FileIOAligned_PoolExit(void)
 {
    if (!alignedPool.lock) {
-      LOG_ONCE(("%s called without FileIOAligned_Pool lock\n", __FUNCTION__));
+      LOG_ONCE("%s called without FileIOAligned_Pool lock\n", __FUNCTION__);
       return;
    }
 
    MXUser_AcquireExclLock(alignedPool.lock);
 
    if (alignedPool.numBusy > 0) {
-      LOG_ONCE(("%s: %d busy buffers!  Proceeding with trepidation.\n",
-		__FUNCTION__, alignedPool.numBusy));
+      LOG_ONCE("%s: %d busy buffers!  Proceeding with trepidation.\n",
+               __FUNCTION__, alignedPool.numBusy);
    }
    while (alignedPool.numAlloc > 0) {
       alignedPool.numAlloc--;
@@ -3087,7 +3098,7 @@ FileIOAligned_PoolMalloc(size_t size)  // IN:
    void *buf = NULL;
 
    if (!alignedPool.lock) {
-      LOG_ONCE(("%s called without FileIOAligned_Pool lock\n", __FUNCTION__));
+      LOG_ONCE("%s called without FileIOAligned_Pool lock\n", __FUNCTION__);
       return NULL;
    }
 
@@ -3149,7 +3160,7 @@ FileIOAligned_PoolFree(void *ptr)  // IN:
    VmTimeType now;
 
    if (!alignedPool.lock) {
-      LOG_ONCE(("%s called without FileIOAligned_Pool lock\n", __FUNCTION__));
+      LOG_ONCE("%s called without FileIOAligned_Pool lock\n", __FUNCTION__);
 
       return FALSE;
    }

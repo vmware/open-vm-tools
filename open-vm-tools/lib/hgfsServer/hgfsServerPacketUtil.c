@@ -210,8 +210,8 @@ HSPU_GetReplyPacket(HgfsPacket *packet,                  // IN/OUT: Hgfs Packet
        * is a static buffer. Backdoor should always return from here.
        */
       packet->replyPacketDataSize = replyDataSize;
-      LOG(4, ("Existing reply packet %s %"FMTSZ"u %"FMTSZ"u\n", __FUNCTION__,
-              replyDataSize, packet->replyPacketSize));
+      LOG(4, "Existing reply packet %s %"FMTSZ"u %"FMTSZ"u\n", __FUNCTION__,
+          replyDataSize, packet->replyPacketSize);
       ASSERT(replyDataSize <= packet->replyPacketSize);
    } else if (chanCb != NULL && chanCb->getWriteVa != NULL) {
      /* Can we write directly into guest memory? */
@@ -224,7 +224,7 @@ HSPU_GetReplyPacket(HgfsPacket *packet,                  // IN/OUT: Hgfs Packet
           * This will change as it is grossly inefficient as the maximum size
           * is always mapped and copied no matter how much data it really contains.
           */
-         LOG(10, ("%s Using meta packet for reply packet\n", __FUNCTION__));
+         LOG(10, "%s Using meta packet for reply packet\n", __FUNCTION__);
          ASSERT(BUF_READWRITEABLE == packet->metaMappingType);
          ASSERT(replyDataSize <= packet->metaPacketSize);
 
@@ -245,7 +245,7 @@ HSPU_GetReplyPacket(HgfsPacket *packet,                  // IN/OUT: Hgfs Packet
       }
    } else {
       /* For sockets channel we always need to allocate buffer */
-      LOG(10, ("%s Allocating reply packet\n", __FUNCTION__));
+      LOG(10, "%s Allocating reply packet\n", __FUNCTION__);
       packet->replyPacket = Util_SafeMalloc(replyDataSize);
       packet->replyPacketIsAllocated = TRUE;
       packet->replyPacketDataSize = replyDataSize;
@@ -282,7 +282,7 @@ HSPU_PutReplyPacket(HgfsPacket *packet,                  // IN/OUT: Hgfs Packet
     * put on the metapacket.
     */
    if (packet->replyPacketIsAllocated) {
-      LOG(10, ("%s Freeing reply packet", __FUNCTION__));
+      LOG(10, "%s Freeing reply packet", __FUNCTION__);
       free(packet->replyPacket);
       packet->replyPacketIsAllocated = FALSE;
       packet->replyPacket = NULL;
@@ -479,7 +479,7 @@ HSPUGetBuf(HgfsServerChannelCallbacks *chanCb,  // IN: Channel callbacks
    /* More than one page was mapped. */
    ASSERT(iov[startIndex].len < bufSize);
 
-   LOG(10, ("%s: Hgfs Allocating buffer \n", __FUNCTION__));
+   LOG(10, "%s: Hgfs Allocating buffer \n", __FUNCTION__);
    *buf = Util_SafeMalloc(bufSize);
    *isAllocated = TRUE;
 
@@ -524,7 +524,7 @@ HSPU_PutMetaPacket(HgfsPacket *packet,                   // IN/OUT: Hgfs Packet
       return;
    }
 
-   LOG(4, ("%s Hgfs Putting Meta packet\n", __FUNCTION__));
+   LOG(4, "%s Hgfs Putting Meta packet\n", __FUNCTION__);
    HSPUPutBuf(chanCb,
               packet->metaMappingType,
               packet->iov,
@@ -586,7 +586,7 @@ HSPU_PutDataPacketBuf(HgfsPacket *packet,                   // IN/OUT: Hgfs Pack
       return;
    }
 
-   LOG(4, ("%s Hgfs Putting Data packet\n", __FUNCTION__));
+   LOG(4, "%s Hgfs Putting Data packet\n", __FUNCTION__);
    HSPUPutBuf(chanCb,
               packet->dataMappingType,
               packet->iov,
@@ -658,7 +658,7 @@ HSPUPutBuf(HgfsServerChannelCallbacks *chanCb,  // IN: Channel callbacks
 
 exit:
    if (*isAllocated) {
-      LOG(10, ("%s: Hgfs Freeing buffer \n", __FUNCTION__));
+      LOG(10, "%s: Hgfs Freeing buffer \n", __FUNCTION__);
       free(*buf);
       *isAllocated = FALSE;
    }

@@ -82,8 +82,13 @@ SignalHandler(int sig,
               void *data)
 {
    ucontext_t *ucp = (ucontext_t *) data;
-   uint16 port = SC_EDX(ucp) & 0xffff;
-   uint32 magic = SC_EAX(ucp) & 0xffffffff;
+#ifdef VM_ARM_64
+   uint16 port = SC_X(ucp, 3);
+   uint32 magic = SC_X(ucp, 0);
+#else
+   uint16 port = SC_EDX(ucp);
+   uint32 magic = SC_EAX(ucp);
+#endif
 
    if (magic == BDOOR_MAGIC &&
        (port == BDOORHB_PORT || port == BDOOR_PORT)) {
@@ -182,9 +187,8 @@ int
 RpcToolCommand(int argc, char *argv[])
 {
    char *result = NULL;
-   Bool status = FALSE;
+   Bool status = RpcOut_sendOne(&result, NULL, "%s", argv[0]);
 
-   status = RpcOut_sendOne(&result, NULL, "%s", argv[0]);
    if (!status) {
       fprintf(stderr, "%s\n", result ? result : "NULL");
    } else {

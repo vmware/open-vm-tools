@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2002-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2002-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -85,10 +85,106 @@
  */
 #define CONFNAME_APPINFO_DISABLED "disabled"
 
+/**
+ * Defines the configuration to use the WMI for getting the application
+ * version information.
+ *
+ * @note Illegal values result in a @c g_warning and fallback to the default
+ * value.
+ *
+ * @param boolean Set to TRUE to use WMI.
+ *                Set to FALSE to use native Win32 APIs.
+ */
+#define CONFNAME_APPINFO_USE_WMI "useWMI"
+
 /*
  * END AppInfo goodies.
  ******************************************************************************
  */
+
+/*
+ ******************************************************************************
+ * BEGIN ServiceDiscovery goodies.
+ */
+
+/**
+ * Defines the string used for the ServiceDiscovery config file group.
+ */
+#define CONFGROUPNAME_SERVICEDISCOVERY "servicediscovery"
+
+/**
+ * Defines the configuration to perform service discovery or not.
+ *
+ * @note Illegal values result in a @c g_warning and fallback to the default
+ * value.
+ *
+ * @param boolean Set to TRUE to disable publishing.
+ *                Set to FALSE to enable publishing.
+ */
+#define CONFNAME_SERVICEDISCOVERY_DISABLED "disabled"
+
+/*
+ * END ServiceDiscovery goodies.
+ ******************************************************************************
+ */
+
+/*
+******************************************************************************
+* BEGIN GuestStore upgrader goodies.
+*/
+
+/**
+ * Defines the string used for the GuestStore upgrade config file group.
+ */
+#define CONFGROUPNAME_GUESTSTOREUPGRADE "guestStoreUpgrade"
+
+/**
+ * Define a custom GuestStore Upgrade poll interval (in seconds).
+ *
+ * @note Illegal values result in a @c g_warning and fallback to the default
+ * poll interval.
+ *
+ * @param int   User-defined poll interval.  Set to 0 to disable polling.
+ */
+#define CONFNAME_GUESTSTOREUPGRADE_POLLINTERVAL "poll-interval"
+
+/**
+ * Defines the value for GuestStore upgrade feature to be enabled or not.
+ *
+ * @note Illegal values result in a @c g_warning and fallback to the default
+ * value.
+ *
+ * @param boolean Set to TRUE to disable publishing.
+ *                Set to FALSE to enable publishing.
+ */
+#define CONFNAME_GUESTSTOREUPGRADE_DISABLED "disabled"
+
+/**
+ * Defines the value for GuestStore upgrade to upgrade or not.
+ *
+ * @note Illegal values result in a @c g_warning and fallback to the default
+ * value.
+ *
+ * @param boolean Set to TRUE to disable publishing.
+ *                Set to FALSE to enable publishing.
+ */
+#define CONFNAME_GUESTSTOREUPGRADE_ALLOW_UPGRADE "allow-upgrade"
+
+/**
+ * Defines the value for GuestStore upgrade to add or remove features or not.
+ *
+ * @note Illegal values result in a @c g_warning and fallback to the default
+ * value.
+ *
+ * @param boolean Set to TRUE to disable publishing.
+ *                Set to FALSE to enable publishing.
+ */
+#define CONFNAME_GUESTSTOREUPGRADE_ALLOW_ADDREMOVE_FEATURE "allow-addremove-feature"
+
+/*
+* END GuestStore upgrader goodies.
+******************************************************************************
+*/
 
 
 /*
@@ -299,6 +395,12 @@
  */
 #define CONFNAME_DEPLOYPKG_PROCESSTIMEOUT "process-timeout"
 
+/**
+ * The guest customization is allowed or not
+ * Valid value: true / false
+ */
+#define CONFNAME_DEPLOYPKG_ENABLE_CUST "enable-customization"
+
 /*
  * END deployPkg goodies.
  ******************************************************************************
@@ -369,6 +471,18 @@
 
 /*
  * END environment goodies.
+ ******************************************************************************
+ */
+
+/*
+ ******************************************************************************
+ * BEGIN gitray goodies.
+ */
+
+#define CONFGROUPNAME_GITRAY "gitray"
+
+/*
+ * END gitray goodies.
  ******************************************************************************
  */
 

@@ -96,7 +96,6 @@ ServiceFileLoggerOpen(FileLoggerData *data)
           * will always be index "0"). When not rotating, "maxFiles" is 1, so we
           * always keep one backup.
           */
-         gchar *fname;
          guint id;
          GPtrArray *logfiles = g_ptr_array_new();
 
@@ -106,7 +105,8 @@ ServiceFileLoggerOpen(FileLoggerData *data)
           * file, which may or may not exist.
           */
          for (id = 0; id < data->maxFiles; id++) {
-            fname = g_strdup_printf("%s.%d", data->path, id);
+            gchar *fname = g_strdup_printf("%s.%d", data->path, id);
+
             g_ptr_array_add(logfiles, fname);
             if (!g_file_test(fname, G_FILE_TEST_IS_REGULAR)) {
                break;

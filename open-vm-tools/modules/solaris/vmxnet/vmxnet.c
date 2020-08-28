@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004,2019 VMware, Inc. All rights reserved.
  *
  * The contents of this file are subject to the terms of the Common
  * Development and Distribution License (the "License") version 1.0
@@ -405,9 +405,7 @@ Vxn_GetStats(gld_mac_info_t *macInfo, struct gld_stats *gs)
 static void
 Vxn_ApplyAddressFilter(vxn_softc_t *dp)
 {
-   uint8_t *ep;
    int i, j, bit, byte;
-   uint32_t crc, poly = CRC_POLYNOMIAL_LE;
    Vmxnet2_DriverData *dd = dp->driverData;
    volatile uint16_t *mcastTable = (uint16_t *)dd->LADRF;
 
@@ -418,8 +416,9 @@ Vxn_ApplyAddressFilter(vxn_softc_t *dp)
    dd->LADRF[1] = 0;
 
    for (i = 0; i < dp->multiCount; i++) {
-      crc = 0xffffffff;
-      ep = (uint8_t *)&dp->multicastList[i].ether_addr_octet;
+      uint32_t crc = 0xffffffff;
+      uint32_t poly = CRC_POLYNOMIAL_LE;
+      uint8_t *ep = (uint8_t *)&dp->multicastList[i].ether_addr_octet;
 
       for (byte = 0; byte < 6; byte++) {
          for (bit = *ep++, j = 0; j < 8; j++, bit >>= 1) {
@@ -1095,9 +1094,7 @@ Vxn_TxComplete(vxn_softc_t *dp, boolean_t *reschedp)
 static boolean_t
 Vxn_Receive(vxn_softc_t *dp)
 {
-   int ringnext;
-   short pktlen;
-   Vmxnet2_DriverData *dd = dp->driverData;   
+   Vmxnet2_DriverData *dd = dp->driverData;
    rx_dma_buf_t *rxDesc;
    rx_dma_buf_t *newRxDesc;
    mblk_t *mblk;
@@ -1109,17 +1106,18 @@ Vxn_Receive(vxn_softc_t *dp)
    ASSERT(MUTEX_HELD(&dp->intrlock));
 
    /*
-    * Walk receive ring looking for entries with ownership 
+    * Walk receive ring looking for entries with ownership
     * reverted back to driver
     */
    while (1) {
       Vmxnet2_RxRingEntry *rre;
       rx_dma_buf_t **rbuf;
+      short pktlen;
+      int ringnext = dd->rxDriverNext;
 
-      ringnext = dd->rxDriverNext;
       rre = &dp->rxRing[ringnext];
       rbuf = &dp->rxRingBuffPtr[ringnext];
-      
+
       if (rre->ownership != VMXNET2_OWNERSHIP_DRIVER) {
          break;
       }
@@ -2065,7 +2063,7 @@ map_space_found:
     */
    macInfo = gld_mac_alloc(dip);
    if (!macInfo) {
-      cmn_err(CE_WARN, "%s%d: Vxn_Attach: gld_mac_alloc failed", 
+      cmn_err(CE_WARN, "%s%d: Vxn_Attach: gld_mac_alloc failed",
               drvName, unit);
       goto err_gld_mac_alloc;
    }
@@ -2077,12 +2075,16 @@ map_space_found:
     * Get interrupt cookie
     */
    if (ddi_get_iblock_cookie(dip, 0, &dp->iblockCookie) != DDI_SUCCESS) {
-      cmn_err(CE_WARN, "%s%d: Vxn_Attach: ddi_get_iblock_cookie failed", 
+      cmn_err(CE_WARN, "%s%d: Vxn_Attach: ddi_get_iblock_cookie failed",
               drvName, unit);
       goto err_get_iblock_cookie;
    }
 
-   strncpy(dp->drvName, drvName, SOLVMXNET_MAXNAME);
+   /*
+    * kmem_zalloc above memsets drvName to 0. Use array size - 1 below
+    * to ensure NUL termination.
+    */
+   strncpy(dp->drvName, drvName, sizeof dp->drvName - 1);
    dp->unit = unit;
    dp->dip = dip;
    dp->macInfo = macInfo;

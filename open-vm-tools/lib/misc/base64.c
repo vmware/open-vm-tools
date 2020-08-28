@@ -271,7 +271,7 @@ main()
             bufMax = sizeof buf;
          }
 
-         printf("\nBuffer size %ld:\n", bufMax);
+         printf("\nBuffer size %"FMTSZ"u:\n", bufMax);
 
          test = tests;
          for (; test->in; ++test) {
@@ -280,14 +280,14 @@ main()
             r = Base64_Decode(test->in, buf, bufMax, &bufSize);
 
             if ((bufMax > strlen(test->out)) && (bufSize < strlen(test->out))) {
-               printf("Decoding of %s failed. Decoded size %ld < expected %ld\n",
+               printf("Decoding of %s failed. Decoded size %"FMTSZ"u < expected %"FMTSZ"u\n",
                       test->in, bufSize, strlen(test->out));
             }
             if (memcmp(test->out, buf, bufSize) != 0) {
-               printf("Decoding of %s failed.  Got %s (%ld), not %s\n",
+               printf("Decoding of %s failed.  Got %s (%"FMTSZ"u), not %s\n",
                       test->in, buf, bufSize, test->out);
             } else {
-               printf("Good: %s -> %s (%ld)\n", test->in, buf, bufSize);
+               printf("Good: %s -> %s (%"FMTSZ"u)\n", test->in, buf, bufSize);
             }
 
             r = Base64_Encode(test->out, strlen(test->out),
@@ -295,14 +295,14 @@ main()
             buf[bufMax] = 0;
 
             if (bufMax <= strlen(test->in) && r == 0) {
-               printf("Good: %s. Failed for bufMax %ld (required %ld)\n", test->out, bufMax, strlen(test->in));
+               printf("Good: %s. Failed for bufMax %"FMTSZ"u (required %"FMTSZ"u)\n", test->out, bufMax, strlen(test->in));
             } else {
                 if (!r || bufSize != strlen(test->in) ||
                     strncmp(test->in, buf, bufSize) != 0) {
-                   printf("Encoding of %s failed.  r = %d. Got %s (%ld), not %s\n",
+                   printf("Encoding of %s failed.  r = %d. Got %s (%"FMTSZ"u), not %s\n",
                           test->out, r, buf, bufSize, test->in);
                 } else {
-                   printf("Good: %s -> %s (%ld)\n", test->out, buf, bufSize);
+                   printf("Good: %s -> %s (%"FMTSZ"u)\n", test->out, buf, bufSize);
                 }
             }
          }

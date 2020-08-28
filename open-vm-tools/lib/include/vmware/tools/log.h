@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -331,6 +331,9 @@ VMTools_UseVmxGuestLog(const gchar *appName);
 void
 VMTools_SetupVmxGuestLog(gboolean refreshRpcChannel, GKeyFile *cfg,
                          const gchar *level);
+
+void
+VMTools_TeardownVmxGuestLog(void);
 
 typedef enum {
    TO_HOST,

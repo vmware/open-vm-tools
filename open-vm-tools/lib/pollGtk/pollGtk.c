@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -127,7 +127,7 @@ typedef struct Poll {
 } Poll;
 
 static Poll *pollState;
-
+static volatile gsize inited = 0;
 
 static VMwareStatus
 PollGtkCallback(PollClassSet classSet,   // IN
@@ -164,13 +164,13 @@ static void PollGtkRemoveOneCallback(gpointer data);
 #define LOG_ENTRY(_l, _str, _e, _isWrite)                                     \
    do {                                                                       \
       if (_isWrite) {                                                         \
-         LOG(_l, ("POLL: entry %p (wcb %p, data %p, flags %x, type %x)" _str, \
-                  (_e), (_e)->write.cb, (_e)->write.clientData,               \
-                  (_e)->write.flags, (_e)->type));                            \
+         LOG(_l, "POLL: entry %p (wcb %p, data %p, flags %x, type %x)" _str,  \
+             (_e), (_e)->write.cb, (_e)->write.clientData,                    \
+             (_e)->write.flags, (_e)->type);                                  \
       } else {                                                                \
-         LOG(_l, ("POLL: entry %p (rcb %p, data %p, flags %x, type %x)" _str, \
-                  (_e), (_e)->read.cb, (_e)->read.clientData,                 \
-                  (_e)->read.flags, (_e)->type));                             \
+         LOG(_l, "POLL: entry %p (rcb %p, data %p, flags %x, type %x)" _str,  \
+             (_e), (_e)->read.cb, (_e)->read.clientData,                      \
+             (_e)->read.flags, (_e)->type);                                   \
       }                                                                       \
    } while (0)
 
@@ -297,6 +297,7 @@ PollGtkExit(void)
 
    g_free(poll);
    pollState = NULL;
+   inited = 0;
 }
 
 
@@ -462,8 +463,8 @@ PollGtkFireSignaled(gpointer key,        // IN: PollDevHandle
    PollGtkEventCallbackWork(NULL, condition, entry, TRUE, &firedAll);
 
 exit:
-   LOG(4, ("POLL: entry %p %s\n", entry, entry && condition ?
-           (firedAll ? "fired" : "not all fired") : "not ready to fire"));
+   LOG(4, "POLL: entry %p %s\n", entry, entry && condition ?
+       (firedAll ? "fired" : "not all fired") : "not ready to fire");
    return firedAll;
 }
 
@@ -521,10 +522,10 @@ PollGtkFireSignaledList(gpointer data) // IN: unused
 
    /* Return TRUE to keep this function firing, FALSE to unregister. */
    if (g_hash_table_size(poll->signaledTable) > 0) {
-      LOG(5, ("POLL: not removing retry source\n"));
+      LOG(5, "POLL: not removing retry source\n");
       ret = TRUE;
    } else {
-      LOG(5, ("POLL: no retry remains; removing timer source\n"));
+      LOG(5, "POLL: no retry remains; removing timer source\n");
       poll->retrySource = 0;
       ret = FALSE;
    }
@@ -570,16 +571,16 @@ PollGtkAddToSignaledList(PollGtkEntry *entry)  // IN
    if (poll->signaledInUse) {
       if (!g_slist_find(poll->newSignaled, key)) {
          poll->newSignaled = g_slist_prepend(poll->newSignaled, key);
-         LOG(4, ("POLL: added entry %p event 0x%x to signaled list\n",
-                 entry, entry->event));
+         LOG(4, "POLL: added entry %p event 0x%x to signaled list\n",
+             entry, entry->event);
       }
    } else {
       g_hash_table_replace(poll->signaledTable, key, entry);
       if (poll->retrySource == 0) {
          poll->retrySource = g_timeout_add(0, PollGtkFireSignaledList, NULL);
       }
-      LOG(4, ("POLL: added entry %p event 0x%x to signaled hash table\n",
-              entry, entry->event));
+      LOG(4, "POLL: added entry %p event 0x%x to signaled hash table\n",
+          entry, entry->event);
    }
 }
 
@@ -651,8 +652,8 @@ PollGtkWritableSocketCheck(PollGtkEntry *entry)  // IN
    ret = send(entry->event, &c, 0, 0);
    if (ret == SOCKET_ERROR) {
       if (GetLastError() != WSAEWOULDBLOCK) {
-         LOG(1, ("POLL error while doing zero-byte send: %u %s\n",
-                 GetLastError(), Err_ErrString()));
+         LOG(1, "POLL error while doing zero-byte send: %u %s\n",
+             GetLastError(), Err_ErrString());
       }
       return FALSE;
    } else {
@@ -792,7 +793,7 @@ PollGtkCallbackRemoveEntry(PollGtkEntry *foundEntry,  // IN
       LOG_ENTRY(2, " to be removed\n", foundEntry, FALSE);
       if (!g_hash_table_remove(poll->timerTable,
                                (gpointer)(intptr_t)foundEntry->gtkInputId)) {
-         LOG(2, ("POLL: entry %p not found\n", foundEntry));
+         LOG(2, "POLL: entry %p not found\n", foundEntry);
       }
    }
 }
@@ -874,8 +875,8 @@ PollGtkCallbackRemoveInt(PollClassSet classSet,           // IN
          PollGtkCallbackRemoveEntry(foundEntry, FALSE);
       }
    } else {
-      LOG(1, ("POLL: no matching entry for cb %p, data %p, flags %x, type %x\n",
-              f, clientData, flags, type));
+      LOG(1, "POLL: no matching entry for cb %p, data %p, flags %x, type %x\n",
+          f, clientData, flags, type);
    }
 
    PollGtkUnlock();
@@ -1473,8 +1474,6 @@ PollGtkBasicCallback(gpointer data) // IN: The eventEntry
 void
 Poll_InitGtk(void)
 {
-   static volatile gsize inited = 0;
-
    static const PollImpl gtkImpl =
    {
       PollGtkInit,

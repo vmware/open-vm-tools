@@ -710,6 +710,11 @@ struct uuid_2_cid {
          *outFd = fd;
       }
 
+      /*
+       * The above comment explains why fd is left open even when outFd
+       * is NULL.
+       */
+      /* coverity[leaked_handle] */
       return family;
    }
 
@@ -874,7 +879,8 @@ struct uuid_2_cid {
          }
       }
 
-      strncpy(io.u2c_uuid_string, uuidString, sizeof io.u2c_uuid_string);
+      strncpy(io.u2c_uuid_string, uuidString, sizeof io.u2c_uuid_string - 1);
+      io.u2c_uuid_string[sizeof io.u2c_uuid_string - 1] = '\0';
       if (ioctl(fd, VMCI_SOCKETS_UUID_2_CID, &io) < 0) {
          io.u2c_context_id = VMADDR_CID_ANY;
       }

@@ -81,10 +81,9 @@
 
 
 #if defined VMCORE && \
-    !(defined VMX86_VMX || defined VMM || \
+    !(defined VMX86_VMX || defined VMM || defined ULM || \
       defined MONITOR_APP || defined VMMON)
-#error "Makefile problem: VMCORE without VMX86_VMX or \
-        VMM or MONITOR_APP or MODULE."
+#error "VMCORE without VMX86_VMX, VMM, ULM, MONITOR_APP, or VMMON."
 #endif
 
 #if defined VMCORE && !defined INCLUDE_ALLOW_VMCORE

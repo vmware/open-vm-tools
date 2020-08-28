@@ -42,7 +42,8 @@ extern "C" {
  */
 
 GuestDnDSrc::GuestDnDSrc(GuestDnDMgr *mgr)
- : mMgr(mgr)
+ : mMgr(mgr),
+   mRpc(NULL)
 {
    ASSERT(mMgr);
    mMgr->GetRpc()->srcDropChanged.connect(

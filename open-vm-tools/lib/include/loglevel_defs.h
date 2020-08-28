@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -15,7 +15,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
-   
+
 #ifndef _LOGLEVEL_DEFS_H_
 #define _LOGLEVEL_DEFS_H_
 
@@ -61,7 +61,7 @@ LOGLEVEL_EXTERN_C_BEGIN
  */
 
 #define LOGLEVEL_EXTENSION_DECLARE(list) \
-	LOGLEVEL_EXTERN_C_BEGIN \
+   LOGLEVEL_EXTERN_C_BEGIN \
    VMX86_EXTERN_DATA const int8 *logLevelPtr; \
    VMX86_EXTERN_DATA int LOGLEVEL_EXTOFFSET(LOGLEVEL_EXTENSION); \
    LOGLEVEL_EXTERN_C_END \
@@ -70,25 +70,11 @@ LOGLEVEL_EXTERN_C_BEGIN
 
 #ifdef VMX86_LOG
 
-
 /*
  * Cross extension
  */
 
-#define LOGLEVEL_BYEXTNAME(_ext, _mod) \
-        (*LogLevel_LookUpVar(XSTR(_ext), XSTR(_mod)))
-
-#define LOGLEVEL_BYEXTNAME_SET(_ext, _mod, _val) \
-	LogLevel_Set(XSTR(_ext), XSTR(_mod), _val)
-
-const int8 *LogLevel_LookUpVar(const char *extension, const char *module);
 int LogLevel_Set(const char *extension, const char *module, int val);
-
-#define DOLOG_BYEXTNAME(_ext, _mod, _min) \
-        UNLIKELY(LOGLEVEL_BYEXTNAME(_ext, _mod) >= (_min))
-
-#define LOG_BYEXTNAME(_ext, _mod, _min, _log) \
-	(DOLOG_BYEXTNAME(_ext, _mod, _min) ? (Log _log) : (void) 0)
 
 /*
  * Intra extension
@@ -96,57 +82,51 @@ int LogLevel_Set(const char *extension, const char *module, int val);
 
 #define LOGLEVEL_BYNAME(_mod) \
         logLevelPtr[LOGLEVEL_EXTOFFSET(LOGLEVEL_EXTENSION) + \
-		    LOGLEVEL_MODULEVAR(_mod)]
-
-#ifdef VMM
-#define LOGLEVEL_BYNAME_SET(_mod, _val) do { \
-	   monitorLogLevels[LOGLEVEL_EXTOFFSET(LOGLEVEL_EXTENSION) + \
-                            LOGLEVEL_MODULEVAR(_mod)] = _val;        \
-        } while (0)
-#endif
+                    LOGLEVEL_MODULEVAR(_mod)]
 
 #define DOLOG_BYNAME(_mod, _min) \
         UNLIKELY(LOGLEVEL_BYNAME(_mod) >= (_min))
 
-#define LOG_BYNAME(_mod, _min, _log) \
-	(DOLOG_BYNAME(_mod, _min) ? (Log _log) : (void) 0)
+/*
+ * Variadic macro wrinkle: C99 says "one or more arguments"; some compilers
+ * (gcc+clang+msvc) support zero arguments, but differ in tolerating a trailing
+ * comma. Solution: include format string in variadic arguments.
+ *
+ * C++2a introduces __VA_OPT__, which would allow this definition instead:
+ * define LOG_BYNAME(_mod, _min, _fmt, ...) \
+ *        (DOLOG_BYNAME(_mod, _min) ? Log(_fmt __VA_OPT__(,) __VA_ARGS__) \
+ *                                  : (void) 0)
+ * MSVC has always ignored a spurious trailing comma, so does not need this.
+ */
+#define LOG_BYNAME(_mod, _min, ...) \
+        (DOLOG_BYNAME(_mod, _min) ? Log(__VA_ARGS__) : (void) 0)
 
 /*
  * Default
  */
 
-#define LOGLEVEL() LOGLEVEL_BYNAME(LOGLEVEL_MODULE)
-
-#define DOLOG(_min) DOLOG_BYNAME(LOGLEVEL_MODULE, _min)
-
-#define LOG(_min, _log) LOG_BYNAME(LOGLEVEL_MODULE, _min, _log)
+#define LOGLEVEL()     LOGLEVEL_BYNAME(LOGLEVEL_MODULE)
+#define DOLOG(_min)    DOLOG_BYNAME(LOGLEVEL_MODULE, _min)
+#define LOG(_min, ...) LOG_BYNAME(LOGLEVEL_MODULE, _min, __VA_ARGS__)
 
 #else /* VMX86_LOG */
 
-#define LOGLEVEL_BYEXTNAME(_ext, _mod)           0
-#define LOGLEVEL_BYEXTNAME_SET(_ext, _mod, _val) do {} while (0)
-#define DOLOG_BYEXTNAME(_ext, _mod, _min)        (FALSE)
-#define LOG_BYEXTNAME(_ext, _mod, _min, _log)    do {} while (0)
-
 #define LOGLEVEL_BYNAME(_mod)           0
-#ifdef VMM
-#define LOGLEVEL_BYNAME_SET(_mod, _val) do {} while (0)
-#endif
 #define DOLOG_BYNAME(_mod, _min)        (FALSE)
-#define LOG_BYNAME(_mod, _min, _log)    do {} while (0)
+#define LOG_BYNAME(_mod, _min, ...)
 
 #define LOGLEVEL()      0
 #define DOLOG(_min)     (FALSE)
-#define LOG(_min, _log)
+#define LOG(_min, ...)
 
 
 #endif /* VMX86_LOG */
 
 
 #ifdef VMX86_DEVEL
-   #define LOG_DEVEL(_x) (Log _x)
+   #define LOG_DEVEL(...) Log(__VA_ARGS__)
 #else
-   #define LOG_DEVEL(_x)
+   #define LOG_DEVEL(...)
 #endif
 
 

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -26,6 +26,8 @@
 #include "vmware.h"
 #if defined(__i386__) || defined(__x86_64__)
 #  include "x86cpuid_asm.h"
+#endif
+#if defined __i386__ || defined __x86_64__ || defined __aarch64__
 #  include "backdoor_def.h"
 #  include "backdoor_types.h"
 #endif
@@ -33,9 +35,114 @@
 #include "util.h"
 
 #define LGPFX "HOSTINFO:"
+
 #define LOGLEVEL_MODULE hostinfo
 #include "loglevel_user.h"
 
+#if !defined(_WIN32)
+
+/*
+ * Are vmcall/vmmcall available in the compiler?
+ */
+#if defined(__linux__) && defined(__GNUC__)
+#define GCC_VERSION (__GNUC__ * 10000 + \
+                     __GNUC_MINOR__ * 100 + \
+                     __GNUC_PATCHLEVEL__)
+#if GCC_VERSION > 40803 && !defined(__aarch64__)
+#define USE_HYPERCALL
+#endif
+#endif
+
+#define BDOOR_FLAGS_LB_READ (BDOOR_FLAGS_LB | BDOOR_FLAGS_READ)
+
+#define Vmcall(cmd, result)              \
+   __asm__ __volatile__(                 \
+      "vmcall"                           \
+      : "=a" (result)                    \
+      : "0"  (BDOOR_MAGIC),              \
+        "c"  (cmd),                      \
+        "d"  (BDOOR_FLAGS_LB_READ)       \
+   )
+
+#define Vmmcall(cmd, result)             \
+   __asm__ __volatile__(                 \
+      "vmmcall"                          \
+      : "=a" (result)                    \
+      : "0"  (BDOOR_MAGIC),              \
+        "c"  (cmd),                      \
+        "d"  (BDOOR_FLAGS_LB_READ)       \
+   )
+
+#define Ioportcall(cmd, result)          \
+   __asm__ __volatile__(                 \
+      "inl %%dx, %%eax"                  \
+      : "=a" (result)                    \
+      : "0"  (BDOOR_MAGIC),              \
+        "c"  (cmd),                      \
+        "d"  (BDOOR_PORT)                \
+   )
+#endif
+
+/*
+ *----------------------------------------------------------------------
+ *
+ *  HostinfoBackdoorGetInterface --
+ *
+ *      Check whether hypercall is present or backdoor is being used.
+ *
+ * Results:
+ *      BACKDOOR_INTERFACE_VMCALL  - Intel hypercall is used.
+ *      BACKDOOR_INTERFACE_VMMCALL - AMD hypercall is used.
+ *      BACKDOOR_INTERFACE_IO      - Backdoor I/O Port is used.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+#if defined(__i386__) || defined(__x86_64__)
+static BackdoorInterface
+HostinfoBackdoorGetInterface(void)
+{
+#if defined(USE_HYPERCALL)
+   /* Setting 'interface' is idempotent, no atomic access is required. */
+   static BackdoorInterface interface = BACKDOOR_INTERFACE_NONE;
+
+   if (UNLIKELY(interface == BACKDOOR_INTERFACE_NONE)) {
+#if defined(__i386__) || defined(__x86_64__)
+      CPUIDRegs regs;
+
+      /* Check whether we're on a VMware hypervisor that supports vmmcall. */
+      __GET_CPUID(CPUID_FEATURE_INFORMATION, &regs);
+      if (CPUID_ISSET(CPUID_FEATURE_INFORMATION, ECX, HYPERVISOR, regs.ecx)) {
+         __GET_CPUID(CPUID_HYPERVISOR_LEVEL_0, &regs);
+         if (CPUID_IsRawVendor(&regs, CPUID_VMWARE_HYPERVISOR_VENDOR_STRING)) {
+            if (__GET_EAX_FROM_CPUID(CPUID_HYPERVISOR_LEVEL_0) >=
+                                     CPUID_VMW_FEATURES) {
+               uint32 features = __GET_ECX_FROM_CPUID(CPUID_VMW_FEATURES);
+               if (CPUID_ISSET(CPUID_VMW_FEATURES, ECX,
+                               VMCALL_BACKDOOR, features)) {
+                  interface = BACKDOOR_INTERFACE_VMCALL;
+               } else if (CPUID_ISSET(CPUID_VMW_FEATURES, ECX,
+                                      VMMCALL_BACKDOOR, features)) {
+                  interface = BACKDOOR_INTERFACE_VMMCALL;
+               }
+            }
+         }
+      }
+      if (interface == BACKDOOR_INTERFACE_NONE) {
+         interface = BACKDOOR_INTERFACE_IO;
+      }
+#else
+      interface = BACKDOOR_INTERFACE_IO;
+#endif
+   }
+   return interface;
+#else
+   return BACKDOOR_INTERFACE_IO;
+#endif
+}
+#endif // defined(__i386__) || defined(__x86_64__)
 
 /*
  *----------------------------------------------------------------------
@@ -61,8 +168,9 @@ Hostinfo_HypervisorPresent(void)
    CPUIDRegs regs;
 
    if (!hypervisorPresent) {
-      __GET_CPUID(1, &regs);
-      hypervisorPresent = CPUID_ISSET(1, ECX, HYPERVISOR, regs.ecx);
+      __GET_CPUID(CPUID_FEATURE_INFORMATION, &regs);
+      hypervisorPresent = CPUID_ISSET(CPUID_FEATURE_INFORMATION, ECX,
+                                      HYPERVISOR, regs.ecx);
    }
    return hypervisorPresent;
 }
@@ -391,16 +499,16 @@ Hostinfo_TouchBackDoor(void)
 #else // _WIN64
    _asm {
          push edx
-	 push ecx
-	 push ebx
-	 mov ecx, BDOOR_CMD_GETVERSION
+         push ecx
+         push ebx
+         mov ecx, BDOOR_CMD_GETVERSION
          mov ebx, ~BDOOR_MAGIC
          mov eax, BDOOR_MAGIC
          mov dx, BDOOR_PORT
          in eax, dx
-	 mov ebxval, ebx
-	 pop ebx
-	 pop ecx
+         mov ebxval, ebx
+         pop ebx
+         pop ecx
          pop edx
    }
 #endif // _WIN64
@@ -573,7 +681,7 @@ Hostinfo_VCPUInfoBackdoor(unsigned bit)
 }
 
 
-#else
+#else // !defined(_WIN32)
 
 /*
  *----------------------------------------------------------------------
@@ -587,11 +695,12 @@ Hostinfo_VCPUInfoBackdoor(unsigned bit)
  *      GP correctly and the process continues running returning garbage.
  *      In this case we check the EBX register which should be
  *      BDOOR_MAGIC if the IN was handled in a VM. Based on this we
- *      return either TRUE or FALSE.
+ *      return either TRUE or FALSE.  If hypercall support is present,
+ *      return TRUE without touching the backdoor.
  *
  * Results:
- *      TRUE if we succesfully accessed the backdoor, FALSE or segfault
- *      if not.
+ *      TRUE if we have hypercall support or succesfully accessed the
+ *      backdoor, FALSE or segfault if not.
  *
  * Side effects:
  *      Exception if not in a VM.
@@ -607,25 +716,55 @@ Hostinfo_TouchBackDoor(void)
    uint32 ebx;
    uint32 ecx;
 
-   __asm__ __volatile__(
-#   if defined __PIC__ && !vm_x86_64 // %ebx is reserved by the compiler.
-      "xchgl %%ebx, %1" "\n\t"
-      "inl %%dx, %%eax" "\n\t"
-      "xchgl %%ebx, %1"
-      : "=a" (eax),
-        "=&rm" (ebx),
-#   else
-      "inl %%dx, %%eax"
-      : "=a" (eax),
-        "=b" (ebx),
-#   endif
-        "=c" (ecx)
-      :	"0" (BDOOR_MAGIC),
-        "1" (~BDOOR_MAGIC),
-        "2" (BDOOR_CMD_GETVERSION),
-        "d" (BDOOR_PORT)
-   );
+   switch (HostinfoBackdoorGetInterface()) {
+#  if defined(USE_HYPERCALL)
+   case BACKDOOR_INTERFACE_VMCALL:  // Fall Through
+   case BACKDOOR_INTERFACE_VMMCALL:
+      return TRUE;
+      break;
+#  endif
+   default:
+      __asm__ __volatile__(
+#     if defined __PIC__ && !vm_x86_64 // %ebx is reserved by the compiler.
+         "xchgl %%ebx, %1" "\n\t"
+         "inl %%dx, %%eax" "\n\t"
+         "xchgl %%ebx, %1"
+         : "=a" (eax),
+           "=&rm" (ebx),
+#     else
+         "inl %%dx, %%eax"
+         : "=a" (eax),
+           "=b" (ebx),
+#     endif
+           "=c" (ecx)
+         : "0" (BDOOR_MAGIC),
+           "1" (~BDOOR_MAGIC),
+           "2" (BDOOR_CMD_GETVERSION),
+           "d" (BDOOR_PORT)
+      );
+      break;
+   }
    if (ebx == BDOOR_MAGIC) {
+      return TRUE;
+   }
+#elif defined __aarch64__
+   register uint32 w0 asm("w0") = BDOOR_MAGIC;
+   register uint32 w1 asm("w1") = ~BDOOR_MAGIC;
+   register uint32 w2 asm("w2") = BDOOR_CMD_GETVERSION;
+   register uint32 w3 asm("w3") = BDOOR_PORT;
+   register uint64 x7 asm("x7") = (uint64)X86_IO_MAGIC << 32 |
+                                  X86_IO_W7_WITH |
+                                  X86_IO_W7_DIR |
+                                  2 << X86_IO_W7_SIZE_SHIFT;
+   __asm__ __volatile__(
+      "mrs xzr, mdccsr_el0     \n\t"
+      : "+r" (w0),
+        "+r" (w1),
+        "+r" (w2)
+      : "r" (w3),
+        "r" (x7));
+
+   if (w1 == BDOOR_MAGIC) {
       return TRUE;
    }
 #endif
@@ -659,10 +798,9 @@ Hostinfo_TouchBackDoor(void)
 Bool
 Hostinfo_TouchVirtualPC(void)
 {
-#if defined vm_x86_64
+#if !defined VM_X86_32
    return FALSE;
 #else
-
    uint32 ebxval;
 
    __asm__ __volatile__ (
@@ -712,13 +850,19 @@ Hostinfo_NestingSupported(void)
    uint32 cmd = NESTING_CONTROL_QUERY << 16 | BDOOR_CMD_NESTING_CONTROL;
    uint32 result;
 
-   __asm__ __volatile__(
-      "inl %%dx, %%eax"
-      : "=a" (result)
-      :	"0"  (BDOOR_MAGIC),
-        "c"  (cmd),
-        "d"  (BDOOR_PORT)
-   );
+   switch (HostinfoBackdoorGetInterface()) {
+#  if defined(USE_HYPERCALL)
+   case BACKDOOR_INTERFACE_VMCALL:
+      Vmcall(cmd, result);
+      break;
+   case BACKDOOR_INTERFACE_VMMCALL:
+      Vmmcall(cmd, result);
+      break;
+#  endif
+   default:
+      Ioportcall(cmd, result);
+      break;
+   }
 
    if (result >= NESTING_CONTROL_QUERY && result != ~0U) {
       return TRUE;
@@ -755,13 +899,21 @@ Hostinfo_VCPUInfoBackdoor(unsigned bit)
 {
 #if defined(__i386__) || defined(__x86_64__)
    uint32 result;
-   __asm__ __volatile__(
-      "inl %%dx, %%eax"
-      : "=a" (result)
-      :	"0"  (BDOOR_MAGIC),
-        "c"  (BDOOR_CMD_GET_VCPU_INFO),
-        "d"  (BDOOR_PORT)
-   );
+   uint32 cmd = BDOOR_CMD_GET_VCPU_INFO;
+
+   switch (HostinfoBackdoorGetInterface()) {
+#  if defined(USE_HYPERCALL)
+   case BACKDOOR_INTERFACE_VMCALL:
+      Vmcall(cmd, result);
+      break;
+   case BACKDOOR_INTERFACE_VMMCALL:
+      Vmmcall(cmd, result);
+      break;
+#  endif
+   default:
+      Ioportcall(cmd, result);
+      break;
+   }
    /* If reserved bit is 1, this command wasn't implemented. */
    return (result & (1 << BDOOR_CMD_VCPU_RESERVED)) == 0 &&
           (result & (1 << bit))                     != 0;

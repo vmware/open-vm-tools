@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2012-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2012-2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -183,7 +183,7 @@ HgfsAcquireServerLock(fileDesc fileDesc,            // IN: OS handle
    } else if (desiredLock  == HGFS_LOCK_SHARED) {
       leaseType = F_RDLCK;
    } else {
-      LOG(4, ("%s: Unknown server lock\n", __FUNCTION__));
+      LOG(4, "%s: Unknown server lock\n", __FUNCTION__);
 
       return FALSE;
    }
@@ -198,24 +198,24 @@ HgfsAcquireServerLock(fileDesc fileDesc,            // IN: OS handle
          leaseType = F_RDLCK;
          if (fcntl(fileDesc, F_SETLEASE, leaseType)) {
             error = errno;
-            LOG(4, ("%s: Could not get any opportunistic lease for fd %d: %s\n",
-                    __FUNCTION__, fileDesc, Err_Errno2String(error)));
+            LOG(4, "%s: Could not get any opportunistic lease for fd %d: %s\n",
+                __FUNCTION__, fileDesc, Err_Errno2String(error));
 
             return FALSE;
          }
       } else {
          error = errno;
-         LOG(4, ("%s: Could not get %s lease for fd %d: %s\n",
-                 __FUNCTION__, leaseType == F_WRLCK ? "write" : "read",
-                 fileDesc, Err_Errno2String(errno)));
+         LOG(4, "%s: Could not get %s lease for fd %d: %s\n",
+             __FUNCTION__, leaseType == F_WRLCK ? "write" : "read",
+             fileDesc, Err_Errno2String(errno));
 
          return FALSE;
       }
    }
 
    /* Got a lease of some kind. */
-   LOG(4, ("%s: Got %s lease for fd %d\n", __FUNCTION__,
-           leaseType == F_WRLCK ? "write" : "read", fileDesc));
+   LOG(4, "%s: Got %s lease for fd %d\n", __FUNCTION__,
+       leaseType == F_WRLCK ? "write" : "read", fileDesc);
    *serverLock = leaseType == F_WRLCK ? HGFS_LOCK_EXCLUSIVE : HGFS_LOCK_SHARED;
    return TRUE;
 #else
@@ -255,7 +255,7 @@ HgfsAckOplockBreak(ServerLockData *lockData, // IN: server lock info
 
    ASSERT(lockData);
    fileDesc = lockData->fileDesc;
-   LOG(4, ("%s: Acknowledging break on fd %d\n", __FUNCTION__, fileDesc));
+   LOG(4, "%s: Acknowledging break on fd %d\n", __FUNCTION__, fileDesc);
 
    /*
     * The Linux server supports lock downgrading. We only downgrade to a shared
@@ -317,7 +317,7 @@ HgfsServerSigOplockBreak(int sigNum,       // IN: Signal number
    ASSERT(clientData == NULL);
 
    fd = info->si_fd;
-   LOG(4, ("%s: Received SIGIO for fd %d\n", __FUNCTION__, fd));
+   LOG(4, "%s: Received SIGIO for fd %d\n", __FUNCTION__, fd);
 
    /*
     * We've got all we need from the signal handler, let it continue handling

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -122,27 +122,27 @@ extern "C" {
 
 
 /* Basic atomic types: 8, 16, 32, 64 and 128 bits */
-typedef struct Atomic_uint8 {
+typedef ALIGNED(1) struct Atomic_uint8 {
    volatile uint8 value;
-} Atomic_uint8 ALIGNED(1);
+} Atomic_uint8;
 
-typedef struct Atomic_uint16 {
+typedef ALIGNED(2) struct Atomic_uint16 {
    volatile uint16 value;
-} Atomic_uint16 ALIGNED(2);
+} Atomic_uint16;
 
-typedef struct Atomic_uint32 {
+typedef ALIGNED(4) struct Atomic_uint32 {
    volatile uint32 value;
-} Atomic_uint32 ALIGNED(4);
+} Atomic_uint32;
 
-typedef struct Atomic_uint64 {
+typedef ALIGNED(8) struct Atomic_uint64 {
    volatile uint64 value;
-} Atomic_uint64 ALIGNED(8);
+} Atomic_uint64;
 
 #if defined __GNUC__ && defined VM_64BIT && \
      (defined __GCC_HAVE_SYNC_COMPARE_AND_SWAP_16 || defined VM_ARM_64)
-typedef struct Atomic_uint128 {
+typedef ALIGNED(16) struct Atomic_uint128 {
    volatile uint128 value;
-} Atomic_uint128 ALIGNED(16);
+} Atomic_uint128;
 #endif
 
 /*
@@ -3584,7 +3584,7 @@ Atomic_ReadAdd16(Atomic_uint16 *var,  // IN/OUT
  *
  * Atomic_ReadInc16 --
  *
- *      Atomically increments a 64-bit integer
+ *      Atomically increments a 16-bit integer
  *
  * Results:
  *      Returns the old value just prior to incrementing
@@ -3607,7 +3607,7 @@ Atomic_ReadInc16(Atomic_uint16 *var) // IN/OUT
  *
  * Atomic_ReadDec16 --
  *
- *      Atomically decrements a 64-bit integer
+ *      Atomically decrements a 16-bit integer
  *
  * Results:
  *      Returns the old value just prior to decrementing

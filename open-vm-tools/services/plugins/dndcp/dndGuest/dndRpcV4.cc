@@ -27,7 +27,8 @@
 extern "C" {
 #if defined VMX86_TOOLS
    #include "debug.h"
-   #define LOG(level, msg) (Debug msg)
+
+   #define LOG(level, ...) Debug(__VA_ARGS__)
 #else
    #define LOGLEVEL_MODULE dnd
    #include "loglevel_user.h"
@@ -647,20 +648,20 @@ DnDRpcV4::HandleMsg(RpcParams *params,
 {
    ASSERT(params);
 
-   LOG(4, ("%s: Got %s[%d], sessionId %d, srcId %d, binary size %d.\n",
-           __FUNCTION__, DnDCPMsgV4_LookupCmd(params->cmd), params->cmd,
-           params->sessionId, params->addrId, binarySize));
+   LOG(4, "%s: Got %s[%d], sessionId %d, srcId %d, binary size %d.\n",
+       __FUNCTION__, DnDCPMsgV4_LookupCmd(params->cmd), params->cmd,
+       params->sessionId, params->addrId, binarySize);
 
    switch (params->cmd) {
    case DND_CMD_SRC_DRAG_BEGIN:
       CPClipboard clip;
       if (!binary || binarySize == 0) {
-         LOG(0, ("%s: invalid clipboard data.\n", __FUNCTION__));
+         LOG(0, "%s: invalid clipboard data.\n", __FUNCTION__);
          break;
       }
       CPClipboard_Init(&clip);
       if (!CPClipboard_Unserialize(&clip, (void *)binary, binarySize)) {
-         LOG(0, ("%s: CPClipboard_Unserialize failed.\n", __FUNCTION__));
+         LOG(0, "%s: CPClipboard_Unserialize failed.\n", __FUNCTION__);
          break;
       }
       srcDragBeginChanged.emit(params->sessionId, &clip);
@@ -736,20 +737,19 @@ DnDRpcV4::HandleMsg(RpcParams *params,
    case DNDCP_CMD_TEST_BIG_BINARY:
    {
       if (binarySize != DND_CP_MSG_MAX_BINARY_SIZE_V4) {
-         LOG(0, ("%s: msg size is not right, should be %u.\n",
-                 __FUNCTION__, DND_CP_MSG_MAX_BINARY_SIZE_V4));
+         LOG(0, "%s: msg size is not right, should be %u.\n",
+             __FUNCTION__, DND_CP_MSG_MAX_BINARY_SIZE_V4);
       }
 
       uint32 *testBinary = (uint32 *)binary;
       for (uint32 i = 0; i < DND_CP_MSG_MAX_BINARY_SIZE_V4 / sizeof *testBinary; i++) {
          if (testBinary[i] != i) {
-            LOG(0, ("%s: msg wrong in position %u. Expect %u, but got %u.\n",
-                    __FUNCTION__, i, i, testBinary[i]));
+            LOG(0, "%s: msg wrong in position %u. Expect %u, but got %u.\n",
+                __FUNCTION__, i, i, testBinary[i]);
             return;
          }
       }
-      LOG(4, ("%s: successfully got big binary, sending back.\n",
-              __FUNCTION__));
+      LOG(4, "%s: successfully got big binary, sending back.\n", __FUNCTION__);
       RpcParams outParams;
       memset(&outParams, 0, sizeof outParams);
       outParams.addrId = params->addrId;
@@ -759,11 +759,11 @@ DnDRpcV4::HandleMsg(RpcParams *params,
       break;
    }
    case DNDCP_CMP_REPLY:
-      LOG(0, ("%s: Got cmp reply command %d.\n", __FUNCTION__, params->cmd));
+      LOG(0, "%s: Got cmp reply command %d.\n", __FUNCTION__, params->cmd);
       cmdReplyChanged.emit(params->cmd, params->status);
       break;
    default:
-      LOG(0, ("%s: Got unknown command %d.\n", __FUNCTION__, params->cmd));
+      LOG(0, "%s: Got unknown command %d.\n", __FUNCTION__, params->cmd);
       break;
    }
 }

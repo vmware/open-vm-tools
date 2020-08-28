@@ -139,10 +139,12 @@
 #define SYSTEM_BITNESS_32 "i386"
 #define SYSTEM_BITNESS_64_SUN "amd64"
 #define SYSTEM_BITNESS_64_LINUX "x86_64"
+#define SYSTEM_BITNESS_64_ARM_LINUX "aarch64"
 #define SYSTEM_BITNESS_MAXLEN \
    MAX(sizeof SYSTEM_BITNESS_32, \
    MAX(sizeof SYSTEM_BITNESS_64_SUN, \
-       sizeof SYSTEM_BITNESS_64_LINUX))
+   MAX(sizeof SYSTEM_BITNESS_64_LINUX, \
+       sizeof SYSTEM_BITNESS_64_ARM_LINUX)))
 
 struct hostinfoOSVersion {
    int   hostinfoOSVersion[4];
@@ -240,7 +242,7 @@ DetailedDataField detailedDataFields[] = {
    { NULL,            "" },  // MUST BE LAST
 };
 
-#if defined __ANDROID__
+#if defined __ANDROID__ || defined __aarch64__
 /*
  * Android doesn't support getloadavg() or iopl().
  */
@@ -439,7 +441,8 @@ Hostinfo_GetSystemBitness(void)
       return -1;
    }
 
-   if (strstr(u.machine, SYSTEM_BITNESS_64_LINUX)) {
+   if (strstr(u.machine, SYSTEM_BITNESS_64_LINUX) ||
+       strstr(u.machine, SYSTEM_BITNESS_64_ARM_LINUX)) {
       return 64;
    } else {
       return 32;
@@ -1153,10 +1156,7 @@ out:
    if (success) {
       result[nArgs - 1] = DynBuf_Detach(&b);
    } else {
-      if (nArgs != 0) {
-         Util_FreeStringList(result, nArgs);
-      }
-
+      Util_FreeStringList(result, nArgs);
       result = NULL;
    }
 
@@ -2916,7 +2916,10 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
           * with another process attempting to daemonize and unlinking the
           * file it created instead.
           */
-         Posix_Unlink(pidPath);
+         if (Posix_Unlink(pidPath) != 0) {
+            Warning("%s: Unable to unlink %s: %u\n",
+                    __FUNCTION__, pidPath, errno);
+         }
       }
 
       errno = err;
@@ -2968,10 +2971,11 @@ HostinfoGetCpuInfo(int nCpu,    // IN:
    while (cpu <= nCpu &&
           StdIO_ReadNextLine(f, &line, 0, NULL) == StdIO_Success) {
       char *s;
-      char *e;
 
       if ((s = strstr(line, name)) &&
           (s = strchr(s, ':'))) {
+         char *e;
+
          s++;
          e = s + strlen(s);
 
@@ -3212,16 +3216,16 @@ Hostinfo_Execute(const char *path,   // IN:
 
    if (wait) {
       for (;;) {
-	 if (waitpid(pid, &status, 0) == -1) {
-	    if (errno == ECHILD) {
-	       return 0;	// This sucks.  We really don't know.
-	    }
-	    if (errno != EINTR) {
-	       return -1;
-	    }
-	 } else {
-	    return status;
-	 }
+         if (waitpid(pid, &status, 0) == -1) {
+            if (errno == ECHILD) {
+               return 0;   // This sucks.  We really don't know.
+            }
+            if (errno != EINTR) {
+               return -1;
+            }
+         } else {
+            return status;
+         }
       }
    } else {
       return 0;

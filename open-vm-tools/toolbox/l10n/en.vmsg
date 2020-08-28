@@ -1,0 +1,182 @@
+##########################################################
+# Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU Lesser General Public License as published
+# by the Free Software Foundation version 2.1 and no later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+# License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
+#
+##########################################################
+
+arg.command = "command"
+
+arg.config.key = "config key"
+
+arg.config.operation = "config operation"
+
+arg.config.section = "config section"
+
+arg.config.value = "config value"
+
+arg.devicename = "device name"
+
+arg.info.class = "info infoclass"
+
+arg.info.subcommand = "info operation"
+
+arg.logging.level = "logging level"
+
+arg.logging.service = "logging servicename"
+
+arg.logging.subcommand = "logging operation"
+
+arg.mountpoint = "mount point"
+
+arg.scriptpath = "script path"
+
+arg.scripttype = "script type"
+
+arg.subcommand = "subcommand"
+
+device.connect.error = "Unable to connect device %1$s.\n"
+
+device.disconnect.error = "Unable to disconnect device %1$s.\n"
+
+device.notfound = "Error fetching interface information: device not found.\n"
+
+disk.shrink.canceled = "Disk shrink canceled.\n"
+
+disk.shrink.complete = "Disk shrinking complete.\n"
+
+disk.shrink.conflict = "Error, The Toolbox believes disk shrinking is enabled while the host believes it is disabled.\n\n Please close and reopen the Toolbox to synchronize it with the host.\n"
+
+disk.shrink.disabled = "Shrink disk is disabled for this virtual machine.\n\nShrinking is disabled for linked clones, parents of linked clones, \npre-allocated disks, snapshots, or due to other factors. \nSee the User's manual for more information.\n"
+
+disk.shrink.error = "Error while shrinking: %1$s\n"
+
+disk.shrink.incomplete = "Shrinking not completed.\n"
+
+disk.shrink.partition.error = "Unable to collect partition data.\n"
+
+disk.shrink.partition.notfound = "Unable to find partition %1$s\n"
+
+disk.shrink.partition.unsupported = "Partition %1$s is not shrinkable\n"
+
+disk.shrink.unavailable = "The shrink feature is not available,\n\neither because you are running an old version of a VMware product, or because too many communication channels are open.\n\nIf you are running an old version of a VMware product, you should consider upgrading.\n\nIf too many communication channels are open, you should power off your virtual machine and then power it back on.\n"
+
+disk.shrink.ignoreFreeSpaceWarnings = "Please disregard any warnings about disk space for the duration of shrink process.\n"
+
+disk.wipe.ignoreFreeSpaceWarnings = "Please disregard any warnings about disk space for the duration of wipe process.\n"
+
+disk.wiper.file.error = "Error, Unable to create wiper file.\n"
+
+disk.wiper.progress = "\rProgress: %1$d"
+
+error.message = "Error: %1$s\n"
+
+error.missing = "%1$s: Missing %2$s\n"
+
+error.noadmin.posix = "%1$s: You must be root to perform %2$s operations.\n"
+
+error.noadmin.win = "%1$s: Administrator permissions are needed to perform %2$s operations.\nUse an administrator command prompt to complete these tasks.\n"
+
+error.novirtual = "%1$s must be run inside a virtual machine.\n"
+
+error.unknown = "%1$s: Unknown %2$s '%3$s'\n"
+
+help.config = "%1$s: modify Tools configuration\nUsage: %2$s %3$s <subcommand>\n\nSubcommands:\n   get <section> <key>: display current value for <key>\n   set <section> <key> <value>: set <key> to <value>\n\n   remove <section> <key>: remove <key>\n\n<section> can be any supported section, such as logging, guestoperations or guestinfo.\n<key> can be any configuration key.\n<value> can be any value.\n"
+
+help.device = "%1$s: functions related to the virtual machine's hardware devices\nUsage: %2$s %3$s <subcommand> [args]\ndev is the name of the device.\n\nSubcommands:\n   enable <dev>: enable the device dev\n   disable <dev>: disable the device dev\n   list: list all available devices\n   status <dev>: print the status of a device\n"
+
+help.disk = "%1$s: perform disk shrink operations\nUsage: %2$s %3$s <subcommand> [args]\n\nSubcommands:\n   list: list available locations\n   shrink <location>: wipes and shrinks a file system at the given location\n   shrinkonly: shrinks all disks\n   wipe <location>: wipes a file system at the given location\n"
+
+help.hint = "Try '%1$s %2$s%3$s%4$s' for more information.\n"
+
+help.info = "%1$s: update guest information on the host\nUsage: %2$s %3$s update <infoclass>\n\nSubcommands:\n   update <infoclass>: update information identified by <infoclass>\n<infoclass> can be 'network'\n"
+
+help.logging = "%1$s: modify tools logging\nUsage: %2$s %3$s level <subcommand> <servicename> <level>\n\nSubcommands:\n   get <servicename>: display current level\n   set <servicename> <level>: set current level\n\n<servicename> can be any supported service, such as vmsvc or vmusr\n<level> can be one of error, critical, warning, info, message, debug\n   default is %4$s\n"
+
+help.main = "Usage: %1$s <command> [options] [subcommand]\nType '%2$s %3$s <command>' for help on a specific command.\nType '%4$s -v' to see the VMware Tools version.\nUse '-q' option to suppress stdout output.\nMost commands take a subcommand.\n\nAvailable commands:\n   config\n   device\n   disk (not available on all operating systems)\n   info\n   logging\n   script\n   stat\n   timesync\n   upgrade (not available on all operating systems)\n"
+
+help.script = "%1$s: control the scripts run in response to power operations\nUsage: %2$s %3$s <power|resume|suspend|shutdown> <subcommand> [args]\n\nSubcommands:\n   enable: enable the given script and restore its path to the default\n   disable: disable the given script\n   set <full_path>: set the given script to the given path\n   default: print the default path of the given script\n   current: print the current path of the given script\n"
+
+help.stat = "%1$s: print useful guest and host information\nUsage: %2$s %3$s <subcommand>\n\nSubcommands:\n   hosttime: print the host time\n   speed: print the CPU speed in MHz\nESX guests only subcommands:\n   sessionid: print the current session id\n   balloon: print memory ballooning information\n   swap: print memory swapping information\n   memlimit: print memory limit information\n   memres: print memory reservation information\n   cpures: print CPU reservation information\n   cpulimit: print CPU limit information\n   raw [<encoding> <stat name>]: print raw stat information\n      <encoding> can be one of 'text', 'json', 'xml', 'yaml'.\n      <stat name> includes session, host, resources, vscsi and\n      vnet (Some stats like vscsi are two words, e.g. 'vscsi scsi0:0').\n      Prints the available stats if <encoding> and <stat name>\n      arguments are not specified.\n"
+
+help.timesync = "%1$s: functions for controlling time synchronization on the guest OS\nUsage: %2$s %3$s <subcommand>\n\nSubcommands:\n   enable: enable time synchronization\n   disable: disable time synchronization\n   status: print the time synchronization status\n"
+
+help.upgrade = "%1$s: functions related to upgrading VMware Tools.\nUsage: %2$s %3$s <subcommand> [args]\nSubcommands:\n   status: check the VMware Tools upgrade status.\n   start: initiate an auto-upgrade of VMware Tools.\n\nFor upgrades to work, the VMware Tools service needs to be running.\n"
+
+option.disabled = "Disabled"
+
+option.enabled = "Enabled"
+
+script.notfound = "%1$s doesn't exist.\n"
+
+script.operation = "operation"
+
+script.unknownop = "No script for operation %1$s.\n"
+
+script.write.error = "Error writing config: %1$s\n"
+
+stat.balloon.failed = "Failed to get ballooned memory: %1$s\n"
+
+stat.cpumax.failed = "Failed to get CPU limit: %1$s\n"
+
+stat.cpumin.failed = "Failed to get CPU minimum: %1$s\n"
+
+stat.formattime.failed = "Unable to format host time.\n"
+
+stat.get.failed = "Failed to get stat: %1$s\n"
+
+stat.getsession.failed = "Failed to get session ID: %1$s\n"
+
+stat.getspeed.failed = "Unable to get processor speed.\n"
+
+stat.gettime.failed = "Unable to get host time.\n"
+
+stat.maxmem.failed = "Failed to get memory limit: %1$s\n"
+
+stat.memres.failed = "Failed to get memory reservation: %1$s\n"
+
+stat.memswap.failed = "Failed to get swapped memory: %1$s\n"
+
+stat.openhandle.failed = "OpenHandle failed: %1$s\n"
+
+stat.update.failed = "UpdateInfo failed: %1$s\n"
+
+stat.processorSpeed.info = "%1$u MHz\n"
+
+stat.memoryBalloon.info = "%1$u MB\n"
+
+stat.memoryReservation.info = "%1$u MB\n"
+
+stat.memorySwapped.info = "%1$u MB\n"
+
+stat.memoryLimit.info = "%1$u MB\n"
+
+stat.cpuReservation.info = "%1$u MHz\n"
+
+stat.cpuLimit.info = "%1$u MHz\n"
+
+upgrade.available = "A new version of VMware Tools is available.\n"
+
+upgrade.error.check_error = "Error checking upgrade availability.\n"
+
+upgrade.error.error = "Error starting VMware Tools upgrade.\n"
+
+upgrade.error.not_supported = "The host does not support auto upgrade of VMware Tools.\n"
+
+upgrade.error.unknown_reply = "Unexpected host reply: %1$s\n"
+
+upgrade.started = "The upgrade has started.\n"
+
+upgrade.uptodate = "VMware Tools are up-to-date.\n"
+

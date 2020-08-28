@@ -290,7 +290,7 @@ typedef struct ToolsAppCtx {
  *
  * @return TRUE if COM is initialized when the function returns.
  */
-G_INLINE_FUNC gboolean
+static inline gboolean
 ToolsCore_InitializeCOM(ToolsAppCtx *ctx)
 {
    if (!ctx->comInitialized) {

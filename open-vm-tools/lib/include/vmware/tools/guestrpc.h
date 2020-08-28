@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008,2014-2016,2018-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008,2014-2016,2018-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -231,7 +231,7 @@ RpcChannel_New(void);
 
 #if defined(__linux__) || defined(_WIN32)
 RpcChannel *
-VSockChannel_New(void);
+VSockChannel_New(int flags);
 #endif
 
 void

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -110,7 +110,7 @@ VMToolsCreateVMXLogger(void)
    data->handler.addsTimestamp = TRUE;
    data->handler.shared = TRUE;
    data->handler.dtor = VMXLoggerDestroy;
-   data->chan = RpcChannel_New();
+   data->chan = BackdoorChannel_New();
    return &data->handler;
 }
 

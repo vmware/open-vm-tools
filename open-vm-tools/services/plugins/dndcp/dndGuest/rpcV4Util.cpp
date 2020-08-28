@@ -34,7 +34,7 @@
 #ifdef VMX86_TOOLS
 extern "C" {
    #include "debug.h"
-   #define LOG(level, msg) (Debug msg)
+   #define LOG(level, ...) Debug(__VA_ARGS__)
 }
 #else
    #define LOGLEVEL_MODULE dnd
@@ -52,8 +52,11 @@ extern "C" {
  */
 
 RpcV4Util::RpcV4Util(void)
-   : mVersionMajor(4),
+   : mRpc(NULL),
+     mVersionMajor(4),
      mVersionMinor(0),
+     mMsgType(0),
+     mMsgSrc(0),
      mMaxTransportPacketPayloadSize(DND_CP_PACKET_MAX_PAYLOAD_SIZE_V4)
 {
    DnDCPMsgV4_Init(&mBigMsgIn);
@@ -141,7 +144,7 @@ RpcV4Util::SendMsg(RpcParams *params,
    DynBuf_Init(&buf);
 
    if (!CPClipboard_Serialize(clip, &buf)) {
-      LOG(0, ("%s: CPClipboard_Serialize failed.\n", __FUNCTION__));
+      LOG(0, "%s: CPClipboard_Serialize failed.\n", __FUNCTION__);
       goto exit;
    }
 
@@ -211,6 +214,14 @@ RpcV4Util::SendMsg(RpcParams *params,
       memcpy(msgOut->binary, binary,binarySize);
    }
 
+   /*
+    * Coverity reports a potential null dereference on msgOut->binary
+    * in DnDCPMsgV4_SerializeWithInputPayloadSizeCheck, which is called
+    * from RPCV4Util::SendMsg.  However, it's a false positive, since
+    * msgOut->binary is dereferenced only if msgOut->hdr.binarySize > 0,
+    * which in turn guarantees msgOut->binary will be non-NULL.
+    */
+   /* coverity[var_deref_model] */
    ret = SendMsg(msgOut);
    /* The mBigMsgOut is destroyed when the message sending was failed. */
    if (!ret && msgOut == &mBigMsgOut) {
@@ -338,7 +349,7 @@ RpcV4Util::SendMsg(DnDCPMsgV4 *msg)
 
    if (!DnDCPMsgV4_SerializeWithInputPayloadSizeCheck(msg, &packet,
       &packetSize, mMaxTransportPacketPayloadSize)) {
-      LOG(1, ("%s: DnDCPMsgV4_Serialize failed. \n", __FUNCTION__));
+      LOG(1, "%s: DnDCPMsgV4_Serialize failed. \n", __FUNCTION__);
       return false;
    }
 
@@ -382,7 +393,7 @@ RpcV4Util::OnRecvPacket(uint32 srcId,
       HandlePacket(srcId, packet, packetSize, packetType);
       break;
    default:
-      LOG(1, ("%s: invalid packet. \n", __FUNCTION__));
+      LOG(1, "%s: invalid packet. \n", __FUNCTION__);
       SendCmdReplyMsg(srcId, DNDCP_CMD_INVALID, DND_CP_MSG_STATUS_INVALID_PACKET);
       break;
    }
@@ -407,7 +418,7 @@ RpcV4Util::HandlePacket(uint32 srcId,
    DnDCPMsgV4_Init(&msgIn);
 
    if (!DnDCPMsgV4_UnserializeSingle(&msgIn, packet, packetSize)) {
-      LOG(1, ("%s: invalid packet. \n", __FUNCTION__));
+      LOG(1, "%s: invalid packet. \n", __FUNCTION__);
       SendCmdReplyMsg(srcId, DNDCP_CMD_INVALID, DND_CP_MSG_STATUS_INVALID_PACKET);
       return;
    }
@@ -435,7 +446,7 @@ RpcV4Util::HandlePacket(uint32 srcId,
                     DnDCPMsgPacketType packetType)
 {
    if (!DnDCPMsgV4_UnserializeMultiple(&mBigMsgIn, packet, packetSize)) {
-      LOG(1, ("%s: invalid packet. \n", __FUNCTION__));
+      LOG(1, "%s: invalid packet. \n", __FUNCTION__);
       SendCmdReplyMsg(srcId, DNDCP_CMD_INVALID, DND_CP_MSG_STATUS_INVALID_PACKET);
       goto cleanup;
    }
@@ -448,7 +459,7 @@ RpcV4Util::HandlePacket(uint32 srcId,
     */
    if (DND_CP_MSG_PACKET_TYPE_MULTIPLE_END != packetType) {
       if (!RequestNextPacket()) {
-         LOG(1, ("%s: RequestNextPacket failed.\n", __FUNCTION__));
+         LOG(1, "%s: RequestNextPacket failed.\n", __FUNCTION__);
          goto cleanup;
       }
       /*
@@ -487,7 +498,7 @@ RpcV4Util::HandleMsg(DnDCPMsgV4 *msgIn)
       bool ret = SendMsg(&mBigMsgOut);
 
       if (!ret) {
-         LOG(1, ("%s: SendMsg failed. \n", __FUNCTION__));
+         LOG(1, "%s: SendMsg failed. \n", __FUNCTION__);
       }
 
       /*
@@ -535,6 +546,13 @@ RpcV4Util::AddRpcReceivedListener(const DnDRpcListener *listener)
    DblLnkLst_Init(&node->l);
    node->listener = listener;
    DblLnkLst_LinkLast(&mRpcReceivedListeners, &node->l);
+
+   /*
+    * Storage of node is not leaking since the above call to
+    * DblLnkLst_LinkLast adds it to the end of the
+    * mRpcReceivedListeners list.
+    */
+   /* coverity[leaked_storage] */
    return true;
 }
 
@@ -613,6 +631,13 @@ RpcV4Util::AddRpcSentListener(const DnDRpcListener *listener)
    DblLnkLst_Init(&node->l);
    node->listener = listener;
    DblLnkLst_LinkLast(&mRpcSentListeners, &node->l);
+
+   /*
+    * Storage of node is not leaking since the above call to
+    * DblLnkLst_LinkLast adds it to the end of the
+    * mRpcSentListeners list.
+    */
+   /* coverity[leaked_storage] */
    return true;
 }
 
@@ -690,8 +715,8 @@ RpcV4Util::SetMaxTransportPacketSize(const uint32 size)
        * if the new size is stricter than the default one.
        */
       mMaxTransportPacketPayloadSize = newProposedPayloadSize;
-      LOG(1, ("%s: The packet size is set to %u. \n", __FUNCTION__,
-              mMaxTransportPacketPayloadSize));
+      LOG(1, "%s: The packet size is set to %u. \n", __FUNCTION__,
+          mMaxTransportPacketPayloadSize);
    }
 }
 

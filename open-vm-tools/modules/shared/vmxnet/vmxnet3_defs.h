@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -143,6 +143,8 @@ typedef enum {
    VMXNET3_CMD_GET_RSS_FIELDS,
    VMXNET3_CMD_GET_ENCAP_DSTPORT,
    VMXNET3_CMD_GET_PKTSTEERING, /* 0xF00D000E */
+   VMXNET3_CMD_GET_MAX_QUEUES_CONF,
+   VMXNET3_CMD_GET_RSS_HASH_FUNC,
 } Vmxnet3_Cmd;
 
 /* Adaptive Ring Info Flags */
@@ -291,6 +293,9 @@ Vmxnet3_RxDesc;
 #define VMXNET3_RXD_BTYPE_SHIFT  14
 #define VMXNET3_RXD_GEN_SHIFT    31
 
+#define VMXNET3_RCD_HDR_INNER_SHIFT  13
+#define VMXNET3_RCD_RSS_INNER_SHIFT  12
+
 typedef
 #include "vmware_pack_begin.h"
 struct Vmxnet3_RxCompDesc {
@@ -301,11 +306,13 @@ struct Vmxnet3_RxCompDesc {
    uint32 rqID:10;      /* rx queue/ring ID */
    uint32 sop:1;        /* Start of Packet */
    uint32 eop:1;        /* End of Packet */
-   uint32 ext1:2;
+   uint32 ext1:2;       /* bit 0: indicating v4/v6/.. is for inner header */
+                        /* bit 1: indicating rssType is based on inner header */
    uint32 rxdIdx:12;    /* Index of the RxDesc */
 #else
    uint32 rxdIdx:12;    /* Index of the RxDesc */
-   uint32 ext1:2;
+   uint32 ext1:2;       /* bit 0: indicating v4/v6/.. is for inner header */
+                        /* bit 1: indicating rssType is based on inner header */
    uint32 eop:1;        /* End of Packet */
    uint32 sop:1;        /* Start of Packet */
    uint32 rqID:10;      /* rx queue/ring ID */
@@ -626,6 +633,13 @@ enum vmxnet3_intr_type {
 /* addition 1 for events */
 #define VMXNET3_MAX_INTRS      25
 
+/* Version 6 and later will use below macros */
+#define VMXNET3_EXT_MAX_TX_QUEUES  32
+#define VMXNET3_EXT_MAX_RX_QUEUES  32
+/* addition 1 for events */
+#define VMXNET3_EXT_MAX_INTRS      65
+#define VMXNET3_FIRST_SET_INTRS    64
+
 /* value of intrCtrl */
 #define VMXNET3_IC_DISABLE_ALL  0x1   /* bit 0 */
 
@@ -673,7 +687,7 @@ Vmxnet3_CoalesceScheme;
 typedef
 #include "vmware_pack_begin.h"
 struct Vmxnet3_IntrConf {
-   Bool   autoMask;
+   uint8  autoMask;      /* on/off flag */
    uint8  numIntrs;      /* # of interrupts */
    uint8  eventIntrIdx;
    uint8  modLevels[VMXNET3_MAX_INTRS]; /* moderation level for each intr */
@@ -683,13 +697,28 @@ struct Vmxnet3_IntrConf {
 #include "vmware_pack_end.h"
 Vmxnet3_IntrConf;
 
+typedef
+#include "vmware_pack_begin.h"
+struct Vmxnet3_IntrConfExt {
+   uint8  autoMask;
+   uint8  numIntrs;      /* # of interrupts */
+   uint8  eventIntrIdx;
+   uint8  reserved;
+   __le32 intrCtrl;
+   __le32 reserved1;
+   uint8  modLevels[VMXNET3_EXT_MAX_INTRS]; /* moderation level for each intr */
+   uint8  reserved2[3];
+}
+#include "vmware_pack_end.h"
+Vmxnet3_IntrConfExt;
+
 /* one bit per VLAN ID, the size is in the units of uint32 */
 #define VMXNET3_VFT_SIZE  (4096 / (sizeof(uint32) * 8))
 
 typedef
 #include "vmware_pack_begin.h"
 struct Vmxnet3_QueueStatus {
-   Bool    stopped;
+   uint8   stopped;    /* on/off flag */
    uint8   _pad[3];
    __le32  error;
 }
@@ -709,7 +738,7 @@ Vmxnet3_TxQueueCtrl;
 typedef
 #include "vmware_pack_begin.h"
 struct Vmxnet3_RxQueueCtrl {
-   Bool    updateRxProd;
+   uint8   updateRxProd;   /* on/off flag */
    uint8   _pad[7];
    __le64  reserved;
 }
@@ -894,6 +923,15 @@ Vmxnet3_DSDevRead;
 
 typedef
 #include "vmware_pack_begin.h"
+struct Vmxnet3_DSDevReadExt {
+   /* read-only region for device, read by dev in response to a SET cmd */
+   Vmxnet3_IntrConfExt     intrConfExt;
+}
+#include "vmware_pack_end.h"
+Vmxnet3_DSDevReadExt;
+
+typedef
+#include "vmware_pack_begin.h"
 struct Vmxnet3_TxQueueDesc {
    Vmxnet3_TxQueueCtrl ctrl;
    Vmxnet3_TxQueueConf conf;
@@ -964,12 +1002,21 @@ struct Vmxnet3_MemRegs {
 Vmxnet3_MemRegs;
 
 typedef enum Vmxnet3_RSSField {
-   VMXNET3_RSS_FIELDS_TCPIP4 = 0x0001,
-   VMXNET3_RSS_FIELDS_TCPIP6 = 0x0002,
-   VMXNET3_RSS_FIELDS_UDPIP4 = 0x0004,
-   VMXNET3_RSS_FIELDS_UDPIP6 = 0x0008,
-   VMXNET3_RSS_FIELDS_ESPIP4 = 0x0010,
-   VMXNET3_RSS_FIELDS_ESPIP6 = 0x0020,
+   VMXNET3_RSS_FIELDS_TCPIP4 = 0x1UL,
+   VMXNET3_RSS_FIELDS_TCPIP6 = 0x2UL,
+   VMXNET3_RSS_FIELDS_UDPIP4 = 0x4UL,
+   VMXNET3_RSS_FIELDS_UDPIP6 = 0x8UL,
+   VMXNET3_RSS_FIELDS_ESPIP4 = 0x10UL,
+   VMXNET3_RSS_FIELDS_ESPIP6 = 0x20UL,
+
+   VMXNET3_RSS_FIELDS_INNER_IP4 = 0x100UL,
+   VMXNET3_RSS_FIELDS_INNER_TCPIP4 = 0x200UL,
+   VMXNET3_RSS_FIELDS_INNER_IP6 = 0x400UL,
+   VMXNET3_RSS_FIELDS_INNER_TCPIP6 = 0x800UL,
+   VMXNET3_RSS_FIELDS_INNER_UDPIP4 = 0x1000UL,
+   VMXNET3_RSS_FIELDS_INNER_UDPIP6 = 0x2000UL,
+   VMXNET3_RSS_FIELDS_INNER_ESPIP4 = 0x4000UL,
+   VMXNET3_RSS_FIELDS_INNER_ESPIP6 = 0x8000UL,
 } Vmxnet3_RSSField;
 
 typedef
@@ -1012,6 +1059,7 @@ struct Vmxnet3_DriverShared {
                                   * command.
                                   */
    } cu;
+   Vmxnet3_DSDevReadExt devReadExt;
 }
 #include "vmware_pack_end.h"
 Vmxnet3_DriverShared;

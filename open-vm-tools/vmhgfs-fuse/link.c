@@ -69,7 +69,7 @@ HgfsPackSymlinkCreateRequest(const char* symlink,     // IN: path of the link
       requestSize = sizeof(*requestV3) + HgfsGetRequestHeaderSize();
       /* Convert symlink name to CP format. */
       result = CPName_ConvertTo(symlink,
-                                HGFS_LARGE_PACKET_MAX - (requestSize - 1),
+                                HgfsLargePacketMax(FALSE) - (requestSize - 1),
                                 requestV3->symlinkName.name);
       if (result < 0) {
          LOG(4, ("SymlinkName CP conversion failed.\n"));
@@ -79,7 +79,7 @@ HgfsPackSymlinkCreateRequest(const char* symlink,     // IN: path of the link
       requestSize += result;
 
       /* Copy target name into request packet. */
-      if (targetNameBytes > HGFS_LARGE_PACKET_MAX - (requestSize - 1)) {
+      if (targetNameBytes > HgfsLargePacketMax(FALSE) - (requestSize - 1)) {
          LOG(4, ("Target name is too long.\n"));
          return -EINVAL;
       }
@@ -104,7 +104,7 @@ HgfsPackSymlinkCreateRequest(const char* symlink,     // IN: path of the link
       requestSize = sizeof *request;
       /* Convert symlink name to CP format. */
       result = CPName_ConvertTo(symlink,
-                                HGFS_LARGE_PACKET_MAX - (requestSize - 1),
+                                HgfsLargePacketMax(FALSE) - (requestSize - 1),
                                 request->symlinkName.name);
       if (result < 0) {
          LOG(4, ("SymlinkName CP conversion failed.\n"));
@@ -114,7 +114,7 @@ HgfsPackSymlinkCreateRequest(const char* symlink,     // IN: path of the link
       requestSize += result;
 
       /* Copy target name into request packet. */
-      if (targetNameBytes > HGFS_LARGE_PACKET_MAX - (requestSize - 1)) {
+      if (targetNameBytes > HgfsLargePacketMax(FALSE) - (requestSize - 1)) {
          LOG(4, ("Target name is too long.\n"));
          return -EINVAL;
       }

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007,2019 VMware, Inc. All rights reserved.
  *
  * The contents of this file are subject to the terms of the Common
  * Development and Distribution License (the "License") version 1.0
@@ -327,9 +327,9 @@ static void
 vmxnet3_rx_hwcksum(vmxnet3_softc_t *dp, mblk_t *mp,
                    Vmxnet3_GenericDesc *compDesc)
 {
-   uint32_t flags = 0;
-
    if (!compDesc->rcd.cnc) {
+      uint32_t flags = 0;
+
       if (compDesc->rcd.v4 && compDesc->rcd.ipc) {
          flags |= HCK_IPV4_HDRCKSUM;
          if ((compDesc->rcd.tcp || compDesc->rcd.udp) &&

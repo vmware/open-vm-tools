@@ -50,7 +50,9 @@
 #define GHI_CHANNEL_VIEW_USB_REDIRECTION        5  // VDPUsbRedirectionMKSControl module in
                                                    // View RMKS
 #define GHI_CHANNEL_VIEW_REMOTE_VDP_COMMON      6  // Handled by View VDP core module
-#define GHI_CHANNEL_MAX                         7
+#define GHI_CHANNEL_VIEW_PROTOCOL               7  // Interactions with different protocols
+                                                   // in View RMKS
+#define GHI_CHANNEL_MAX                         8
 
 typedef uint32 GHIChannelType;
 
@@ -139,6 +141,11 @@ typedef uint32 GHIGuestToHostMessageType;
  */
 #define GHI_HOST_USB_REDIRECTION_STARTUSBD_CMD  "ghi.usb.redirection.startusbd"
 
+ /*
+  * UI->MKS messages over GHI_CHANNEL_VIEW_PROTOCOL.
+  */
+#define GHI_SET_BUFFER_WITHOUT_AUDIO_CMD \
+        "ghi.view.protocol.set.buffer.without.audio"
 
 /*
  * MKS->UI messages over GHI_CHANNEL_VIEW_REMOTE_VDP_COMMON.

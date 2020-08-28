@@ -135,6 +135,7 @@ LPSTR  AppUtil_ToLowerUtf8(LPCSTR s);
 LPWSTR AppUtil_ToLowerUtf16(LPCWSTR s);
 
 Bool AppUtil_IsHorizonVDIAppRemotingMode();
+Bool AppUtil_IsHorizonUWPEnabled();
 
 #ifdef __cplusplus
 };

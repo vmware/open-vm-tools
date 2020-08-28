@@ -111,16 +111,9 @@ Bool Util_IsPhysicalSSD(const char* device);
 typedef void (*Util_OutputFunc)(void *data, const char *fmt, ...);
 
 void Util_Backtrace(int bugNr);
-void Util_BacktraceFromPointer(uintptr_t *basePtr);
-void Util_BacktraceFromPointerWithFunc(uintptr_t *basePtr,
-                                       Util_OutputFunc outFunc,
-                                       void *outFuncData);
 void Util_BacktraceWithFunc(int bugNr,
                             Util_OutputFunc outFunc,
                             void *outFuncData);
-
-void Util_BacktraceToBuffer(uintptr_t *basePtr,
-                            uintptr_t *buffer, int len);
 
 // sleep functions
 

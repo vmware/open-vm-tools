@@ -439,7 +439,7 @@ CertVerifyX509ToString(X509 *x)
 gchar *
 CertVerify_CertToX509String(const gchar *pemCert)
 {
-   X509 *x = NULL;
+   X509 *x;
    gchar *retVal = NULL;
 
    x = CertStringToX509(pemCert);

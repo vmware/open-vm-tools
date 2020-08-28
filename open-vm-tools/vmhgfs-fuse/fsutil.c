@@ -113,7 +113,7 @@ HgfsUnpackGetattrReply(HgfsReq *req,        // IN: Reply packet
       length = replyV3->symlinkTarget.length;
 
       /* Skip the symlinkTarget if it's too long. */
-      if (length > HGFS_NAME_BUFFER_SIZET(HGFS_LARGE_PACKET_MAX,
+      if (length > HGFS_NAME_BUFFER_SIZET(HgfsLargePacketMax(FALSE),
                                           sizeof *replyV3 + sizeof (HgfsReply))) {
          LOG(4, ("symlink target name too long, ignoring\n"));
          return -ENAMETOOLONG;
@@ -125,7 +125,7 @@ HgfsUnpackGetattrReply(HgfsReq *req,        // IN: Reply packet
       length = replyV2->symlinkTarget.length;
 
       /* Skip the symlinkTarget if it's too long. */
-      if (length > HGFS_NAME_BUFFER_SIZE(HGFS_LARGE_PACKET_MAX, replyV2)) {
+      if (length > HGFS_NAME_BUFFER_SIZE(HgfsLargePacketMax(FALSE), replyV2)) {
          LOG(4, ("symlink target name too long, ignoring\n"));
          return -ENAMETOOLONG;
       }
@@ -208,7 +208,7 @@ HgfsPackGetattrRequest(HgfsReq *req,            // IN/OUT: Request buffer
 
       requestV3->reserved = 0;
       reqSize = sizeof(*requestV3) + HgfsGetRequestHeaderSize();
-      reqBufferSize = HGFS_NAME_BUFFER_SIZET(HGFS_LARGE_PACKET_MAX, reqSize);
+      reqBufferSize = HGFS_NAME_BUFFER_SIZET(HgfsLargePacketMax(FALSE), reqSize);
 
       /* Convert to CP name. */
       result = CPName_ConvertTo(path,
@@ -232,7 +232,7 @@ HgfsPackGetattrRequest(HgfsReq *req,            // IN/OUT: Request buffer
       requestV2 = (HgfsRequestGetattrV2 *)(HGFS_REQ_PAYLOAD(req));
       requestV2->hints = 0;
       reqSize = sizeof *requestV2;
-      reqBufferSize = HGFS_NAME_BUFFER_SIZE(HGFS_LARGE_PACKET_MAX, requestV2);
+      reqBufferSize = HGFS_NAME_BUFFER_SIZE(HgfsLargePacketMax(FALSE), requestV2);
 
       /* Convert to CP name. */
       result = CPName_ConvertTo(path,
@@ -252,7 +252,7 @@ HgfsPackGetattrRequest(HgfsReq *req,            // IN/OUT: Request buffer
       HgfsRequestGetattr *requestV1;
       requestV1 = (HgfsRequestGetattr *)(HGFS_REQ_PAYLOAD(req));
       reqSize = sizeof *requestV1;
-      reqBufferSize = HGFS_NAME_BUFFER_SIZE(HGFS_LARGE_PACKET_MAX, requestV1);
+      reqBufferSize = HGFS_NAME_BUFFER_SIZE(HgfsLargePacketMax(FALSE), requestV1);
 
       /* Convert to CP name. */
       result = CPName_ConvertTo(path,

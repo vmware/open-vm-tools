@@ -1,0 +1,68 @@
+##########################################################
+# Copyright (C) 2010 VMware, Inc. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU Lesser General Public License as published
+# by the Free Software Foundation version 2.1 and no later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the Lesser GNU General Public
+# License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
+#
+##########################################################
+
+cmdline.background = "Se ejecuta en segundo plano y crea un archivo pid."
+
+cmdline.background.pidfile = "archivo pid"
+
+cmdline.blockfd = "Descriptor del archivo para el sistema de archivos de bloqueo de VMware."
+
+cmdline.blockfd.fd = "descriptor del archivo"
+
+cmdline.commonpath = "Ruta al directorio de complementos frecuentes."
+
+cmdline.config = "Utiliza el archivo de configuración en la ruta dada."
+
+cmdline.debug = "Se ejecuta en modo debug, utilizando el complemento dado."
+
+cmdline.displayname = "Nombre para mostrar del servicio (solo se usa con -i)."
+
+cmdline.displayname.argument = "nombre"
+
+cmdline.install = "Instala el servicio con el Administrador de control de servicios."
+
+cmdline.install.args = "argumentos"
+
+cmdline.kill = "Detiene una instancia en ejecución de un servicio de herramientas."
+
+cmdline.log = "Se ignora, se conserva para compatibilidad con versiones anteriores."
+
+cmdline.name = "Nombre del servicio que se está iniciando."
+
+cmdline.name.argument = "nombre de servicio"
+
+cmdline.path = "ruta"
+
+cmdline.pluginpath = "Ruta al directorio de complementos."
+
+cmdline.rpc = "Envía un comando RPC al host y sale."
+
+cmdline.rpc.command = "comando"
+
+cmdline.rpcerror = "No se puede enviar el comando al hipervisor de VMware."
+
+cmdline.state = "Vuelca el estado interno de una instancia de servicio en ejecución en los registros."
+
+cmdline.uinputfd = "Descriptor del archivo para el dispositivo de entrada."
+
+cmdline.uinputfd.fd = "fd"
+
+cmdline.uninstall = "Desinstala el servicio desde el Administrador de control de servicios."
+
+cmdline.version = "Imprime la versión daemon y sale."
+

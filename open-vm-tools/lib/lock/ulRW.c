@@ -44,72 +44,16 @@
 #if defined(_WIN32)
 typedef SRWLOCK NativeRWLock;
 
-typedef VOID (WINAPI *InitializeSRWLockFn)(PSRWLOCK lock);
-typedef VOID (WINAPI *AcquireSRWLockSharedFn)(PSRWLOCK lock);
-typedef VOID (WINAPI *ReleaseSRWLockSharedFn)(PSRWLOCK lock);
-typedef VOID (WINAPI *AcquireSRWLockExclusiveFn)(PSRWLOCK lock);
-typedef VOID (WINAPI *ReleaseSRWLockExclusiveFn)(PSRWLOCK lock);
-
-static InitializeSRWLockFn        pInitializeSRWLock;
-static AcquireSRWLockSharedFn     pAcquireSRWLockShared;
-static ReleaseSRWLockSharedFn     pReleaseSRWLockShared;
-static AcquireSRWLockExclusiveFn  pAcquireSRWLockExclusive;
-static ReleaseSRWLockExclusiveFn  pReleaseSRWLockExclusive;
-
 static Bool
 MXUserNativeRWSupported(void)
 {
-   static Bool result;
-   static Bool done = FALSE;
-
-   if (!done) {
-      HMODULE kernel32 = GetModuleHandleW(L"kernel32.dll");
-
-      if (kernel32) {
-         pInitializeSRWLock = (InitializeSRWLockFn)
-                              GetProcAddress(kernel32,
-                                             "InitializeSRWLock");
-
-         pAcquireSRWLockShared = (AcquireSRWLockSharedFn)
-                                 GetProcAddress(kernel32,
-                                                "AcquireSRWLockShared");
-
-         pReleaseSRWLockShared = (ReleaseSRWLockSharedFn)
-                                 GetProcAddress(kernel32,
-                                                "ReleaseSRWLockShared");
-
-         pAcquireSRWLockExclusive = (AcquireSRWLockExclusiveFn)
-                                    GetProcAddress(kernel32,
-                                                   "AcquireSRWLockExclusive");
-
-         pReleaseSRWLockExclusive = (ReleaseSRWLockExclusiveFn)
-                                    GetProcAddress(kernel32,
-                                                   "ReleaseSRWLockExclusive");
-
-         COMPILER_MEM_BARRIER();
-
-         result = ((pInitializeSRWLock != NULL) &&
-                   (pAcquireSRWLockShared != NULL) &&
-                   (pReleaseSRWLockShared != NULL) &&
-                   (pAcquireSRWLockExclusive != NULL) &&
-                   (pReleaseSRWLockExclusive != NULL));
-
-         COMPILER_MEM_BARRIER();
-      } else {
-         result = FALSE;
-      }
-
-      done = TRUE;
-   }
-
-   return result;
+   return TRUE;
 }
 
 static Bool
 MXUserNativeRWInit(NativeRWLock *lock)  // IN:
 {
-   ASSERT(pInitializeSRWLock);
-   (*pInitializeSRWLock)(lock);
+   InitializeSRWLock(lock);
 
    return TRUE;
 }
@@ -127,11 +71,9 @@ MXUserNativeRWAcquire(NativeRWLock *lock,  // IN:
                       int *err)            // OUT:
 {
    if (forRead) {
-      ASSERT(pAcquireSRWLockShared);
-      (*pAcquireSRWLockShared)(lock);
+      AcquireSRWLockShared(lock);
    } else {
-      ASSERT(pAcquireSRWLockExclusive);
-      (*pAcquireSRWLockExclusive)(lock);
+      AcquireSRWLockExclusive(lock);
    }
 
    *err = 0;
@@ -144,11 +86,9 @@ MXUserNativeRWRelease(NativeRWLock *lock,  // IN:
                       Bool forRead)        // IN:
 {
    if (forRead) {
-      ASSERT(pReleaseSRWLockShared);
-      (*pReleaseSRWLockShared)(lock);
+      ReleaseSRWLockShared(lock);
    } else {
-      ASSERT(pReleaseSRWLockExclusive);
-      (*pReleaseSRWLockExclusive)(lock);
+      ReleaseSRWLockExclusive(lock);
    }
 
    return 0;
@@ -584,7 +524,7 @@ MXUserAcquisition(MXUserRWLock *lock,  // IN/OUT:
 {
    HolderContext *myContext;
 
-   ASSERT(lock);
+   ASSERT(lock != NULL);
    MXUserValidateHeader(&lock->header, MXUSER_TYPE_RW);
 
    MXUserAcquisitionTracking(&lock->header, TRUE);
@@ -757,7 +697,7 @@ MXUser_IsCurThreadHoldingRWLock(MXUserRWLock *lock,  // IN:
 {
    HolderContext *myContext;
 
-   ASSERT(lock);
+   ASSERT(lock != NULL);
    MXUserValidateHeader(&lock->header, MXUSER_TYPE_RW);
 
    myContext = MXUserGetHolderContext(lock);
@@ -799,7 +739,7 @@ MXUser_ReleaseRWLock(MXUserRWLock *lock)  // IN/OUT:
 {
    HolderContext *myContext;
 
-   ASSERT(lock);
+   ASSERT(lock != NULL);
    MXUserValidateHeader(&lock->header, MXUSER_TYPE_RW);
 
    myContext = MXUserGetHolderContext(lock);
@@ -888,7 +828,7 @@ MXUser_CreateSingletonRWLockInt(Atomic_Ptr *lockStorage,  // IN/OUT:
 {
    MXUserRWLock *lock;
 
-   ASSERT(lockStorage);
+   ASSERT(lockStorage != NULL);
 
    lock = Atomic_ReadPtr(lockStorage);
 

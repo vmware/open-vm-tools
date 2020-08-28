@@ -58,10 +58,14 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 #endif
 
 #if defined(__linux__)
-#include <sys/io.h>
 #include <errno.h>
 #include <string.h>
+#ifdef VM_X86_ANY
+#include <sys/io.h>
 #include "ioplGet.h"
+#else
+#define NO_IOPL
+#endif
 #endif
 
 #define VMBACKUP_ENQUEUE_EVENT() do {                                         \
@@ -164,7 +168,7 @@ VmBackupKeepAliveCallback(void *clientData)
 }
 
 
-#if defined(__linux__)
+#if defined __linux__ && !defined NO_IOPL
 static Bool
 VmBackupPrivSendMsg(gchar *msg,
                     char **result,
@@ -233,7 +237,7 @@ VmBackup_SendEventNoAbort(const char *event,
                          event, code, desc);
    g_debug("Sending vmbackup event: %s\n", msg);
 
-#if defined(__linux__)
+#if defined __linux__ && !defined NO_IOPL
    if (gBackupState->needsPriv) {
       success = VmBackupPrivSendMsg(msg, &result, &resultLen);
    } else {
@@ -675,6 +679,15 @@ VmBackupAsyncCallback(void *clientData)
       if (gBackupState->rpcState == VMBACKUP_RPC_STATE_ERROR) {
          g_warning("Aborting backup operation due to RPC errors.");
          VmBackupDoAbort();
+
+         /*
+          * Check gBackupState, since the abort could cause a transition to
+          * VMBACKUP_MSTATE_IDLE, in which case the VmBackupState structure
+          * would be freed and gBackupState would be NULL.
+          */
+         if (gBackupState == NULL) {
+            return FALSE;
+         }
          goto exit;
       }
    }

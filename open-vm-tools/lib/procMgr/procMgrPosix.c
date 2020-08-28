@@ -270,9 +270,7 @@ ProcMgr_ListProcesses(void)
     * with the seconds since epoch that the system booted up.
     */
    if (0 == hostStartTime) {
-      FILE *uptimeFile = NULL;
-
-      uptimeFile = fopen("/proc/uptime", "r");
+      FILE *uptimeFile = fopen("/proc/uptime", "r");
       if (NULL != uptimeFile) {
          double secondsSinceBoot;
          char *realLocale;
@@ -393,6 +391,13 @@ ProcMgr_ListProcesses(void)
          int exeLen;
          char exeRealPath[1024];
 
+         /*
+          * This readlink() call on the "exe" file of the current /proc
+          * entry is not intended as a check on the subsequent open() of
+          * the "status" file of that entry, hence no time-of-check to
+          * time-of-use issue.
+          */
+         /* coverity[fs_check_call] */
          exeLen = readlink(cmdFilePath, exeRealPath, sizeof exeRealPath -1);
          if (exeLen != -1) {
             exeRealPath[exeLen] = '\0';
@@ -521,7 +526,13 @@ ProcMgr_ListProcesses(void)
        * stat() /proc/<pid> to get the owner.  We use fileStat.st_uid
        * later in this code.  If we can't stat(), ignore and continue.
        * Maybe we don't have enough permission.
+       *
+       * This stat() call on the current /proc entry is not intended
+       * as a check on the open() near the top of the while loop which
+       * is on the cmdline file of the next entry in /proc, hence no
+       * time-of-check to time-of-use issue.
        */
+      /* coverity[fs_check_call] */
       statResult = stat(cmdFilePath, &fileStat);
       if (0 != statResult) {
          goto next_entry;
@@ -1374,7 +1385,7 @@ ProcMgr_ExecSyncWithExitCode(char const *cmd,                  // IN: UTF-8 comm
                              Bool *validExitCode,              // OUT: exit code is valid
                              int *exitCode)                    // OUT: exit code
 {
-   Bool result = FALSE;
+   Bool result;
 
    ASSERT(exitCode != NULL && validExitCode != NULL);
 

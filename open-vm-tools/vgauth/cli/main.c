@@ -190,7 +190,7 @@ CliAddAlias(VGAuthContext *ctx,
             gboolean addMapped,
             const char *comment)
 {
-   gchar *pemCert = NULL;
+   gchar *pemCert;
    VGAuthError err;
    VGAuthAliasInfo ai;
 
@@ -246,7 +246,7 @@ CliRemoveAlias(VGAuthContext *ctx,
                  const char *pemFilename)
 {
    VGAuthError err;
-   gchar *pemCert = NULL;
+   gchar *pemCert;
    VGAuthSubject subj;
 
    pemCert = CliLoadPemFILE(pemFilename);

@@ -67,9 +67,7 @@ ToolsCoreRunCommand(const gchar *option,
 #endif
    if (VmCheck_IsVirtualWorld()) {
       char *result = NULL;
-      Bool status = FALSE;
-
-      status = RpcChannel_SendOne(&result, NULL, "%s", value);
+      Bool status = RpcChannel_SendOne(&result, NULL, "%s", value);
 
       if (!status) {
          g_printerr("%s\n", result ? result : "NULL");

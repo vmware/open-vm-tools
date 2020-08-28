@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005-2016, 2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -38,3 +38,22 @@
 
 void BackdoorHbIn(Backdoor_proto_hb *bp);
 void BackdoorHbOut(Backdoor_proto_hb *bp);
+void BackdoorHb(Backdoor_proto_hb *myBp, Bool outbound);
+
+/*
+ * Are vmcall/vmmcall hypercall instructions available in the assembler?
+ * Use the compiler version as a proxy.
+ */
+#if defined(__linux__) && defined(__GNUC__)
+#define GCC_VERSION (__GNUC__ * 10000 + \
+                     __GNUC_MINOR__ * 100 + \
+                     __GNUC_PATCHLEVEL__)
+#if GCC_VERSION > 40803 && !defined(__aarch64__)
+#define USE_HYPERCALL
+#endif
+#endif
+
+#if defined(USE_HYPERCALL)
+void BackdoorHbVmcall(Backdoor_proto_hb *bp);
+void BackdoorHbVmmcall(Backdoor_proto_hb *bp);
+#endif

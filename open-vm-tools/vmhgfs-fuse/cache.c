@@ -322,12 +322,13 @@ HgfsGetAttrCache(const char* path,   //IN: Path of file or directory
 {
    HgfsAttrCache *tmp;
    int res = -1;
-   int diff;
 
    pthread_mutex_lock(&HgfsAttrCacheLock);
 
    tmp = (HgfsAttrCache *)g_hash_table_lookup(g_hash_table, path);
    if (tmp != NULL) {
+      int diff;
+
       LOG(4, ("cache hit. path = %s\n", tmp->path));
 
       diff = (HGFS_GET_TIME(time(NULL)) - tmp->changeTime) / 10000000;

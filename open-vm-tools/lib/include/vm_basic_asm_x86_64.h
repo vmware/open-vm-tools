@@ -63,11 +63,28 @@ uint64 _umul128(uint64 multiplier, uint64 multiplicand,
 int64 _mul128(int64 multiplier, int64 multiplicand,
               int64 *highProduct);
 uint64 __shiftright128(uint64 lowPart, uint64 highPart, uint8 shift);
+#ifdef ULM
+void _fxsave64(void *save);
+void _fxsave(void *save);
+void _fxrstor64(const void *load);
+void _fxrstor(const void *load);
+void _xsave64(void *save, uint64 mask);
+void _xsave(void *save, uint64 mask);
+void _xsaveopt64(void *save, uint64 mask);
+void _xsavec(void *save, uint64 mask);
+void _xrstor64(const void *load, uint64 mask);
+void _xrstor(const void *load, uint64 mask);
+#endif /* ULM */
 #ifdef __cplusplus
 }
 #endif
 
 #pragma intrinsic(_umul128, _mul128, __shiftright128)
+
+#ifdef ULM
+#pragma intrinsic(_fxsave64, _fxsave, _fxrstor64, _fxrstor, _xsave64, _xsave, \
+                  _xsaveopt64, _xsavec, _xrstor64, _xrstor)
+#endif /* ULM */
 
 #endif // _MSC_VER
 
@@ -127,34 +144,51 @@ uint64 __shiftright128(uint64 lowPart, uint64 highPart, uint8 shift);
  * The workaround (FXRSTOR_AMD_ES0) only costs 1 cycle more than just doing an
  * fxrstor, on both AMD Opteron and Intel Core CPUs.
  */
-#if defined(__GNUC__)
 
+#if defined(VMM) || defined(VMKERNEL) || defined(FROBOS) || defined(ULM)
 static INLINE void
 FXSAVE_ES1(void *save)
 {
+#ifdef __GNUC__
    __asm__ __volatile__ ("fxsaveq %0  \n" : "=m" (*(uint8 *)save) : : "memory");
+#elif defined(_MSC_VER)
+   _fxsave64(save);
+#endif
 }
 
 static INLINE void
 FXSAVE_COMPAT_ES1(void *save)
 {
+#ifdef __GNUC__
    __asm__ __volatile__ ("fxsave %0  \n" : "=m" (*(uint8 *)save) : : "memory");
+#elif defined(_MSC_VER)
+   _fxsave(save);
+#endif
 }
 
 static INLINE void
 FXRSTOR_ES1(const void *load)
 {
+#ifdef __GNUC__
    __asm__ __volatile__ ("fxrstorq %0 \n"
                          : : "m" (*(const uint8 *)load) : "memory");
+#elif defined(_MSC_VER)
+   _fxrstor64(load);
+#endif
 }
 
 static INLINE void
 FXRSTOR_COMPAT_ES1(const void *load)
 {
+#ifdef __GNUC__
    __asm__ __volatile__ ("fxrstor %0 \n"
                          : : "m" (*(const uint8 *)load) : "memory");
+#elif defined(_MSC_VER)
+   _fxrstor(load);
+#endif
 }
 
+#if defined(__GNUC__)
 static INLINE void
 FXRSTOR_AMD_ES0(const void *load)
 {
@@ -184,70 +218,94 @@ FXRSTOR_AMD_ES0(const void *load)
  * The pointer passed in must be 64-byte aligned.
  * See above comment for more information.
  */
-#if defined(__GNUC__) && (defined(VMM) || defined(VMKERNEL) || defined(FROBOS))
 
 static INLINE void
 XSAVE_ES1(void *save, uint64 mask)
 {
+#ifdef __GNUC__
    __asm__ __volatile__ (
         "xsaveq %0 \n"
         : "=m" (*(uint8 *)save)
         : "a" ((uint32)mask), "d" ((uint32)(mask >> 32))
         : "memory");
+#elif defined(_MSC_VER)
+   _xsave64(save, mask);
+#endif
 }
 
 static INLINE void
 XSAVE_COMPAT_ES1(void *save, uint64 mask)
 {
+#ifdef __GNUC__
    __asm__ __volatile__ (
         "xsave %0 \n"
         : "=m" (*(uint8 *)save)
         : "a" ((uint32)mask), "d" ((uint32)(mask >> 32))
         : "memory");
+#elif defined(_MSC_VER)
+   _xsave(save, mask);
+#endif
 }
 
 static INLINE void
 XSAVEOPT_ES1(void *save, uint64 mask)
 {
+#ifdef __GNUC__
    __asm__ __volatile__ (
         "xsaveoptq %0 \n"
         : "=m" (*(uint8 *)save)
         : "a" ((uint32)mask), "d" ((uint32)(mask >> 32))
         : "memory");
+#elif defined(_MSC_VER)
+   _xsaveopt64(save, mask);
+#endif
 }
 
 static INLINE void
 XSAVEC_COMPAT_ES1(void *save, uint64 mask)
 {
+#ifdef __GNUC__
    __asm__ __volatile__ (
         "xsavec %0 \n"
         : "=m" (*(uint8 *)save)
         : "a" ((uint32)mask), "d" ((uint32)(mask >> 32))
         : "memory");
+#elif defined(_MSC_VER)
+   _xsavec(save, mask);
+#endif
 }
 
 static INLINE void
 XRSTOR_ES1(const void *load, uint64 mask)
 {
+#ifdef __GNUC__
    __asm__ __volatile__ (
         "xrstorq %0 \n"
         :
         : "m" (*(const uint8 *)load),
           "a" ((uint32)mask), "d" ((uint32)(mask >> 32))
         : "memory");
+#elif defined(_MSC_VER)
+   _xrstor64(load, mask);
+#endif
 }
 
 static INLINE void
 XRSTOR_COMPAT_ES1(const void *load, uint64 mask)
 {
+#ifdef __GNUC__
    __asm__ __volatile__ (
         "xrstor %0 \n"
         :
         : "m" (*(const uint8 *)load),
           "a" ((uint32)mask), "d" ((uint32)(mask >> 32))
         : "memory");
+#elif defined(_MSC_VER)
+   _xrstor(load, mask);
+#endif
 }
 
+#if defined(__GNUC__)
 static INLINE void
 XRSTOR_AMD_ES0(const void *load, uint64 mask)
 {
@@ -271,6 +329,7 @@ XRSTOR_AMD_ES0(const void *load, uint64 mask)
 }
 
 #endif /* __GNUC__ */
+#endif /* VMM || VMKERNEL || FROBOS || ULM */
 
 /*
  * XTEST

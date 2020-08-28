@@ -194,6 +194,7 @@ BlockService::Shutdown()
  */
 
 CopyPasteDnDX11::CopyPasteDnDX11() :
+   m_main(NULL),
    m_copyPasteUI(NULL),
    m_dndUI(NULL)
 {

@@ -2980,14 +2980,14 @@ void
 UnicodeICUTest(void)
 {
    StringEncoding enc, enc2;
-   const char *name;
    Bool supported;
    Bool redirected;
    Bool canGetBytes;
 
    for (enc = STRING_ENCODING_FIRST; enc < STRING_ENCODING_MAX_SPECIFIED;
         enc++ ) {
-      name =  Unicode_EncodingEnumToName(enc);
+      const char *name =  Unicode_EncodingEnumToName(enc);
+
       enc2 = Unicode_EncodingNameToEnum(name);
       redirected = FALSE;
       if (enc2 == STRING_ENCODING_UNKNOWN) {

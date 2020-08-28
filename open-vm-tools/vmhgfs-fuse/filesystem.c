@@ -140,7 +140,7 @@ HgfsPackQueryVolumeRequest(const char *path,        // IN: File pointer for this
       requestSize = sizeof(*requestV3) + HgfsGetRequestHeaderSize();
       /* Convert to CP name. */
       result = CPName_ConvertTo(path,
-                                HGFS_LARGE_PACKET_MAX - (requestSize - 1),
+                                HgfsLargePacketMax(FALSE) - (requestSize - 1),
                                 requestV3->fileName.name);
       if (result < 0) {
          LOG(4, ("CP conversion failed.\n"));
@@ -159,7 +159,7 @@ HgfsPackQueryVolumeRequest(const char *path,        // IN: File pointer for this
       requestSize = sizeof *request;
       /* Convert to CP name. */
       result = CPName_ConvertTo(path,
-                                HGFS_LARGE_PACKET_MAX - (requestSize - 1),
+                                HgfsLargePacketMax(FALSE) - (requestSize - 1),
                                 request->fileName.name);
       if (result < 0) {
          LOG(4, ("CP conversion failed.\n"));

@@ -200,7 +200,7 @@ MXUserSyndrome(void)
       syndrome = Atomic_Read(&syndromeMem);
    }
 
-   ASSERT(syndrome);
+   ASSERT(syndrome != 0);
 
    return syndrome;
 }
@@ -240,7 +240,7 @@ MXUserGetSignature(MXUserObjectType objectType)  // IN:
 
    signature = (MXUserSyndrome() & 0x0FFFFFFF) | (objectType << 28);
 
-   ASSERT(signature);
+   ASSERT(signature != 0);
 
    return signature;
 }
@@ -458,7 +458,7 @@ MXUserAllocPerThread(void)
    MXUserPerThread *perThread;
    MXRecLock *perThreadLock = MXUserInternalSingleton(&perThreadLockMem);
 
-   ASSERT(perThreadLock);
+   ASSERT(perThreadLock != NULL);
 
    MXRecLockAcquire(perThreadLock,
                     NULL);          // non-stats
@@ -472,7 +472,7 @@ MXUserAllocPerThread(void)
 
    MXRecLockRelease(perThreadLock);
 
-   ASSERT(perThread);
+   ASSERT(perThread != NULL);
 
    memset(perThread, 0, sizeof *perThread);  // ensure all zeros
 
@@ -503,11 +503,11 @@ MXUserFreePerThread(MXUserPerThread *perThread)  // IN:
 {
    MXRecLock *perThreadLock;
 
-   ASSERT(perThread);
+   ASSERT(perThread != NULL);
    ASSERT(perThread->next == NULL);
 
    perThreadLock = MXUserInternalSingleton(&perThreadLockMem);
-   ASSERT(perThreadLock);
+   ASSERT(perThreadLock != NULL);
 
    MXRecLockAcquire(perThreadLock,
                     NULL);          // non-stats
@@ -563,7 +563,7 @@ MXUserGetPerThread(Bool mayAlloc)  // IN: alloc perThread if not present?
           */
 
          perThread = HashTable_LookupOrInsert(hash, tid, newEntry);
-         ASSERT(perThread);
+         ASSERT(perThread != NULL);
 
          if (perThread != newEntry) {
             MXUserFreePerThread(newEntry);
@@ -664,7 +664,7 @@ MXUserThreadRank(MXUserPerThread *perThread,  // IN:
    Bool foundOnce = TRUE;
    MX_Rank maxRank = RANK_UNRANKED;
 
-   ASSERT(perThread);
+   ASSERT(perThread != NULL);
 
    /*
     * Determine the maximum rank held. Note if the lock being acquired

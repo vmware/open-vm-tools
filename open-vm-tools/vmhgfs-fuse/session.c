@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2015-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2015-2016,2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -52,7 +52,7 @@ HgfsPackCreateSessionRequest(HgfsOp opUsed, // IN: Op to be used
       HgfsRequestCreateSessionV4 *requestV4 = HgfsGetRequestPayload(req);
 
       requestV4->numCapabilities = 0;
-      requestV4->maxPacketSize = HGFS_LARGE_PACKET_MAX;
+      requestV4->maxPacketSize = HgfsLargePacketMax(FALSE);
       requestV4->reserved = 0;
 
       req->payloadSize = sizeof(*requestV4) + HgfsGetRequestHeaderSize();
@@ -96,6 +96,7 @@ HgfsCreateSessionProcessResult(const char *result,  // IN: Reply packet
    uint64 sessionId = HGFS_INVALID_SESSION_ID;
    uint8 headerVersion = HGFS_HEADER_VERSION_1;
    Bool sessionIdPresent = FALSE;
+   uint32 maxPacketSize = HgfsLargePacketMax(TRUE);
 
    uint32 information;
    HgfsHandle requestId;
@@ -145,12 +146,14 @@ HgfsCreateSessionProcessResult(const char *result,  // IN: Reply packet
        */
       sessionId = createSessionReply->sessionId;
       sessionIdPresent = TRUE;
+      maxPacketSize = createSessionReply->maxPacketSize;
    }
 
 out:
    gState->sessionId = sessionId;
    gState->headerVersion = headerVersion;
    gState->sessionEnabled = sessionIdPresent;
+   gState->maxPacketSize = maxPacketSize;
 
    LOG(4, ("Exit(%d)\n", status));
    return status;
@@ -336,6 +339,7 @@ HgfsDestroySessionProcessResult(const char *result,  // IN: Reply packet
 out:
    gState->sessionId = HGFS_INVALID_SESSION_ID;
    gState->sessionEnabled = FALSE;
+   gState->maxPacketSize = HgfsLargePacketMax(TRUE);
 
    LOG(4, ("Exit(%d)\n", status));
    return status;

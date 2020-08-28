@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -63,6 +63,8 @@ extern "C" {
 
 /* Flags used by the hypercall interface. */
 
+#define BDOOR_FLAGS_LB    0
+#define BDOOR_FLAGS_READ  0
 #define BDOOR_FLAGS_HB    (1<<0)
 #define BDOOR_FLAGS_WRITE (1<<1)
 
@@ -345,7 +347,7 @@ extern "C" {
 #define BDOOR_GUEST_PAGE_HINTS_TYPE_PSHARE   (0)
 #define BDOOR_GUEST_PAGE_HINTS_TYPE(reg)     (((reg) >> 16) & 0xffff)
 
-#ifdef VMM
+#if defined(VMM) || defined(ULM)
 /*
  *----------------------------------------------------------------------
  *
@@ -386,7 +388,7 @@ Backdoor_CmdRequiresValidSegments(unsigned cmd)
    return cmd == BDOOR_CMD_INITPCIOPROM ||
           cmd == BDOOR_CMD_GETMHZ;
 }
-#endif
+#endif // defined(VMM) || defined(ULM)
 
 #ifdef VM_ARM_64
 
@@ -481,10 +483,13 @@ Backdoor_CmdRequiresValidSegments(unsigned cmd)
  * This is the mechanism to favor from EL0 because it has a negligible impact
  * on vCPU performance.
  *
- * o From EL1 and EL0
+ * o From EL1 and EL0, only when monitor_control.hv_hypercall = "TRUE"
  * The vCPU executes the BRK (64-bit code) or BKPT (32-bit code) instruction
  * with the immediate X86_IO_MAGIC. Note that T32 code requires an 8-bit
  * immediate.
+ * Pro: This mechanism cannot be intercepted by EL3 code.
+ * Con: This mechanism has a significant impact on vCPU performance when
+ *      running a debugger in the guest.
  *
  * 4) Read from general-purpose registers specific to the x86 I/O space
  *    instruction.

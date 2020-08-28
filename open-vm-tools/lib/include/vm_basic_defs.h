@@ -477,10 +477,6 @@ void *_ReturnAddress(void);
 
 #define strtok_r  strtok_s
 
-#if (_MSC_VER < 1500)
-#define	vsnprintf _vsnprintf
-#endif
-
 typedef int uid_t;
 typedef int gid_t;
 
@@ -504,20 +500,9 @@ typedef int pid_t;
 #define       W_OK          2
 #define       R_OK          4
 
-#endif // }
+#endif // } _WIN32
 
-/*
- * Macro for username comparison.
- */
-
-#ifdef _WIN32 // {
-#define USERCMP(x,y)  Str_Strcasecmp(x,y)
-#else
-#define USERCMP(x,y)  strcmp(x,y)
-#endif // }
-
-
-#endif // }
+#endif // } USERLEVEL
 
 #ifndef va_copy
 
@@ -593,10 +578,10 @@ typedef int pid_t;
 #undef DEBUG_ONLY
 #ifdef VMX86_DEBUG
 #define vmx86_debug      1
-#define DEBUG_ONLY(x)    x
+#define DEBUG_ONLY(...)  __VA_ARGS__
 #else
 #define vmx86_debug      0
-#define DEBUG_ONLY(x)
+#define DEBUG_ONLY(...)
 #endif
 
 #ifdef VMX86_STATS
@@ -696,8 +681,10 @@ typedef int pid_t;
 #endif
 
 #ifdef VMM
+#define vmx86_vmm 1
 #define VMM_ONLY(x) x
 #else
+#define vmx86_vmm 0
 #define VMM_ONLY(x)
 #endif
 
@@ -738,7 +725,6 @@ typedef int pid_t;
  * display/printer drivers only.
  */
 #ifdef _WIN32
-#ifndef USES_OLD_WINDDK
 #if defined(VMX86_LOG)
 #ifdef _WIN64
 #define WinDrvPrint(arg, ...) DbgPrintEx(DPFLTR_IHVDRIVER_ID, (ULONG)~0, arg, __VA_ARGS__)
@@ -749,7 +735,6 @@ typedef int pid_t;
 #else
 #define WinDrvPrint(arg, ...)
 #define WinDrvEngPrint(arg, ...)
-#endif
 #endif
 #endif // _WIN32
 
@@ -839,5 +824,31 @@ typedef int pid_t;
 
 #define END_PTR_TO_ALIGNED_VAR \
    } while (0)
+
+
+/*
+ * -Wswitch means that when you pass switch an enum that it's looking for
+ * all values from that enum, and only that enum, to be accounted for.
+ * "default:;" is fine for catching values you don't care about. But today
+ * we have a bunch of code that uses internal and external enum values, or
+ * in other words combines two enums into a single variable. This cast is
+ * the workaround, but we really need to fix this mess.
+ */
+#define UNCHECKED_SWITCH__FIXME(x) switch ((uint64)(x))
+
+
+/*
+ * When clang static analyzer parses source files, it implicitly defines
+ * __clang_analyzer__ macro. We use this to define our custom macro to stop
+ * its execution for the current path of analysis by calling a function that
+ * doesn't return, making it think that it hit a failed assertion.
+ *
+ * DO NOT use to silence the analyzer! See PR2447238.
+ */
+#ifdef __clang_analyzer__
+#define VMW_CLANG_ANALYZER_NORETURN() Panic("Disable Clang static analyzer")
+#else
+#define VMW_CLANG_ANALYZER_NORETURN() ((void)0)
+#endif
 
 #endif // ifndef _VM_BASIC_DEFS_H_

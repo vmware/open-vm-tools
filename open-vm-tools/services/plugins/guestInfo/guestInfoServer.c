@@ -210,8 +210,8 @@ GuestInfoVMSupport(RpcInData *data)
 #if defined(_WIN32)
 
     char vmSupportCmd[] = "vm-support.vbs";
-    char *vmSupportPath = NULL;
-    gchar *vmSupport = NULL;
+    char *vmSupportPath;
+    gchar *vmSupport;
 
     SECURITY_ATTRIBUTES saProcess = {0}, saThread = {0};
 
@@ -994,6 +994,12 @@ GuestInfoSendNicInfoXdr(ToolsAppCtx *ctx,          // IN
       }
       vm_free(reply);
    }
+
+   /*
+    * DynXdr_Destroy only tries to free storage returned by a call to
+    * DynXdr_Create(NULL).
+    */
+   /* coverity[address_free] */
    DynXdr_Destroy(&xdrs, TRUE);
 
 exit:
@@ -1029,7 +1035,7 @@ GuestInfoSendData(ToolsAppCtx *ctx,                // IN
    Bool status;
    gchar *request;
    u_int msgLength = infoLength;
-   gchar *message = NULL;
+   gchar *message;
    char *reply = NULL;
    size_t replyLen;
 
@@ -1200,7 +1206,8 @@ GuestInfoSendNicInfo(ToolsAppCtx *ctx,             // IN
  * @param[in] infoSize  Size of disk info.
  *
  * @retval TRUE  Update sent successfully.
- * @retval FALSE Had trouble with serialization or transmission.
+ * @retval FALSE Had trouble with json string formatting, serialization or
+ *               transmission.
  *
  ******************************************************************************
  */
@@ -1216,7 +1223,7 @@ GuestInfoSendDiskInfoV1(ToolsAppCtx *ctx,             // IN
    char *infoReq;
    char *reply = NULL;
    size_t replyLen;
-   Bool status;
+   Bool status = FALSE;
 #ifdef _WIN32
    Bool reportUUID = VMTools_ConfigGetBoolean(ctx->config,
                                               CONFGROUPNAME_GUESTINFO,
@@ -1261,6 +1268,10 @@ GuestInfoSendDiskInfoV1(ToolsAppCtx *ctx,             // IN
 
    len = Str_Snprintf(tmpBuf, sizeof tmpBuf, headerFmt,
                       GUEST_DISK_INFO_COMMAND, DISK_INFO_VERSION_1);
+   if (len <= 0) {
+      goto exit;
+   }
+
    DynBuf_Append(&dynBuffer, tmpBuf, len);
    for (i = 0; i < pdi->numEntries; i++) {
       gchar *b64name;
@@ -1286,12 +1297,20 @@ GuestInfoSendDiskInfoV1(ToolsAppCtx *ctx,             // IN
                          b64name,
                          pdi->partitionList[i].freeBytes,
                          pdi->partitionList[i].totalBytes);
+      if (len <= 0) {
+         goto exit;
+      }
+
       DynBuf_Append(&dynBuffer, tmpBuf, len);
       g_free(b64name);
 
       if (pdi->partitionList[i].fsType[0] != '\0') {
          len = Str_Snprintf(tmpBuf, sizeof tmpBuf, jsonPerDiskFsTypeFmt,
                             pdi->partitionList[i].fsType);
+         if (len <= 0) {
+            goto exit;
+         }
+
          DynBuf_Append(&dynBuffer, tmpBuf, len);
       }
 #ifdef _WIN32
@@ -1299,6 +1318,10 @@ GuestInfoSendDiskInfoV1(ToolsAppCtx *ctx,             // IN
          if (pdi->partitionList[i].uuid[0] != '\0') {
             len = Str_Snprintf(tmpBuf, sizeof tmpBuf, jsonPerDiskUUIDFmt,
                                pdi->partitionList[i].uuid);
+            if (len <= 0) {
+               goto exit;
+            }
+
             DynBuf_Append(&dynBuffer, tmpBuf, len);
          }
       }
@@ -1310,11 +1333,19 @@ GuestInfoSendDiskInfoV1(ToolsAppCtx *ctx,             // IN
                        sizeof jsonPerDiskDevArrHdrFmt - 1);
          len = Str_Snprintf(tmpBuf, sizeof tmpBuf, jsonPerDiskDeviceFmt,
                             "", pdi->partitionList[i].diskDevNames[0]);
+         if (len <= 0) {
+            goto exit;
+         }
+
          DynBuf_Append(&dynBuffer, tmpBuf, len);
          for (idx = 1; idx < pdi->partitionList[i].diskDevCnt; idx++) {
             len = Str_Snprintf(tmpBuf, sizeof tmpBuf, jsonPerDiskDeviceFmt,
                                jsonPerDiskDeviceSep,
                                pdi->partitionList[i].diskDevNames[idx]);
+            if (len <= 0) {
+               goto exit;
+            }
+
             DynBuf_Append(&dynBuffer, tmpBuf, len);
          }
          DynBuf_Append(&dynBuffer, jsonPerDiskDevArrFmtFooter,
@@ -1346,9 +1377,10 @@ GuestInfoSendDiskInfoV1(ToolsAppCtx *ctx,             // IN
               __FUNCTION__, status, reply ? reply : "");
    }
 
-   DynBuf_Destroy(&dynBuffer);
    vm_free(reply);
 
+exit:
+   DynBuf_Destroy(&dynBuffer);
    return status;
 }
 
@@ -1764,9 +1796,7 @@ static Bool
 DiskInfoChanged(const GuestDiskInfoInt *diskInfo)
 {
    int index;
-   char *name;
    int i;
-   int matchedPartition;
    GuestDiskInfoInt *cachedDiskInfo;
 
    cachedDiskInfo = gInfoCache.diskInfo;
@@ -1785,7 +1815,8 @@ DiskInfoChanged(const GuestDiskInfoInt *diskInfo)
 
    /* Have any disks been modified? */
    for (index = 0; index < cachedDiskInfo->numEntries; index++) {
-      name = cachedDiskInfo->partitionList[index].name;
+      int matchedPartition;
+      char *name = cachedDiskInfo->partitionList[index].name;
 
       /* Find the corresponding partition in the new partition info. */
       for (i = 0; i < diskInfo->numEntries; i++) {

@@ -91,7 +91,7 @@ typedef struct ToolsCorePool {
  *******************************************************************************
  */
 
-G_INLINE_FUNC ToolsCorePool *
+static inline ToolsCorePool *
 ToolsCorePool_GetPool(ToolsAppCtx *ctx)
 {
    ToolsCorePool *pool = NULL;
@@ -123,7 +123,7 @@ ToolsCorePool_GetPool(ToolsAppCtx *ctx)
  *******************************************************************************
  */
 
-G_INLINE_FUNC guint
+static inline guint
 ToolsCorePool_SubmitTask(ToolsAppCtx *ctx,
                          ToolsCorePoolCb cb,
                          gpointer data,
@@ -153,7 +153,7 @@ ToolsCorePool_SubmitTask(ToolsAppCtx *ctx,
  *******************************************************************************
  */
 
-G_INLINE_FUNC void
+static inline void
 ToolsCorePool_CancelTask(ToolsAppCtx *ctx,
                          guint taskId)
 {
@@ -197,7 +197,7 @@ ToolsCorePool_CancelTask(ToolsAppCtx *ctx,
  *******************************************************************************
  */
 
-G_INLINE_FUNC gboolean
+static inline gboolean
 ToolsCorePool_StartThread(ToolsAppCtx *ctx,
                           const gchar *threadName,
                           ToolsCorePoolCb cb,

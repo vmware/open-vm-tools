@@ -338,12 +338,7 @@ ServiceIOAcceptGSource(gpointer userData)
 {
    ServiceConnection *newConn = NULL;
    ServiceConnection *lConn = (ServiceConnection *) userData;
-   VGAuthError err = VGAUTH_E_OK;
-#ifdef _WIN32
-   GSource *gSourceData;
-#else
-   GIOChannel *echan;
-#endif
+   VGAuthError err;
 
    err = ServiceConnectionClone(lConn, &newConn);
    if (VGAUTH_E_OK != err) {
@@ -353,6 +348,12 @@ ServiceIOAcceptGSource(gpointer userData)
 
    err = ServiceAcceptConnection(lConn, newConn);
    if (VGAUTH_E_OK == err) {
+#ifdef _WIN32
+      GSource *gSourceData;
+#else
+      GIOChannel *echan;
+#endif
+
       VGAUTH_LOG_DEBUG("Established a new pipe connection %d on %s", newConn->connId,
                        newConn->pipeName);
 #ifdef _WIN32

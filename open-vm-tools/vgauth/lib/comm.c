@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2016,2019 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -453,12 +453,22 @@ VGAuthError
 VGAuthComm_SetTestBufferInput(VGAuthContext *ctx,
                               const char *buffer)
 {
-   VGAuthError err = VGAUTH_E_OK;
+   VGAuthError err;
+   size_t bufLen;
 
    ctx->comm.bufTest = TRUE;
    ctx->comm.bufLoc = 0;
-   ctx->comm.bufLen = strlen(buffer);
-   strncpy(ctx->comm.testBuffer, buffer, ctx->comm.bufLen + 1);
+   bufLen = strlen(buffer);
+
+   if (bufLen > sizeof ctx->comm.testBuffer - 1) {
+      fprintf(stderr, "Test buffer too large.\n");
+      err = VGAUTH_E_INVALID_ARGUMENT;
+   } else {
+      ctx->comm.bufLen = bufLen;
+      strncpy(ctx->comm.testBuffer, buffer, sizeof ctx->comm.testBuffer - 1);
+      ctx->comm.testBuffer[sizeof ctx->comm.testBuffer - 1] = '\0';
+      err = VGAUTH_E_OK;
+   }
 
    return err;
 }

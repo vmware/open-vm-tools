@@ -1837,11 +1837,23 @@ VMGuestLibIoctl(const GuestLibIoctlParam *param,
    }
    if (!DynXdr_AppendRaw(&xdrs, request, strlen(request)) ||
        !xdr_GuestLibIoctlParam(&xdrs, (GuestLibIoctlParam *)param)) {
+
+      /*
+       * DynXdr_Destroy only tries to free storage returned by a call to
+       * DynXdr_Create(NULL).
+       */
+      /* coverity[address_free] */
       DynXdr_Destroy(&xdrs, TRUE);
       return FALSE;
    }
    ret = RpcChannel_SendOneRaw(DynXdr_Get(&xdrs), xdr_getpos(&xdrs),
                                reply, replySize);
+
+   /*
+    * DynXdr_Destroy only tries to free storage returned by a call to
+    * DynXdr_Create(NULL).
+    */
+   /* coverity[address_free] */
    DynXdr_Destroy(&xdrs, TRUE);
    return ret;
 }

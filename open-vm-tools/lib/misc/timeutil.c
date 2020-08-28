@@ -1065,22 +1065,9 @@ TimeUtil_GetLocalWindowsTimeZoneIndexAndName(char **ptzName)  // OUT: returning 
 
 #if defined(_WIN32)
    {
-      /*
-       * Hosted products don't support XP hosts anymore, but we use
-       * GetProcAddress instead of linking statically to
-       * GetDynamicTimeZoneInformation to avoid impacting Tools and Cascadia,
-       * which consume this lib and still need to run on XP.
-       */
       DYNAMIC_TIME_ZONE_INFORMATION tzInfo = {0};
-      typedef DWORD (WINAPI* PFNGetTZInfo)(PDYNAMIC_TIME_ZONE_INFORMATION);
-      PFNGetTZInfo pfnGetTZInfo = NULL;
 
-      pfnGetTZInfo =
-         (PFNGetTZInfo) GetProcAddress(GetModuleHandleW(L"kernel32"),
-                                       "GetDynamicTimeZoneInformation");
-
-      if (pfnGetTZInfo == NULL ||
-          pfnGetTZInfo(&tzInfo) == TIME_ZONE_ID_INVALID) {
+      if (GetDynamicTimeZoneInformation(&tzInfo) == TIME_ZONE_ID_INVALID) {
          return (-1);
       }
 

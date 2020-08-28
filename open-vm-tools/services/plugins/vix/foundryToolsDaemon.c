@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -162,7 +162,7 @@ static Bool thisProcessRunsAsRoot = FALSE;
 gboolean
 FoundryToolsDaemonRunProgram(RpcInData *data) // IN
 {
-   VixError err = VIX_OK;
+   VixError err;
    char *requestName = NULL;
    char *commandLine = NULL;
    char *commandLineArgs = NULL;
@@ -283,7 +283,7 @@ abort:
 gboolean
 FoundryToolsDaemonGetToolsProperties(RpcInData *data) // IN
 {
-   VixError err = VIX_OK;
+   VixError err;
    int additionalError = 0;
    static char resultBuffer[DEFAULT_RESULT_MSG_MAX_LENGTH];
    char *serializedBuffer = NULL;
@@ -494,12 +494,13 @@ ToolsDaemonTcloGetEncodedQuotedString(const char *args,      // IN
                                       const char **endOfArg, // OUT
                                       char **result)         // OUT
 {
-   VixError err = VIX_OK;
+   VixError err;
    char *rawResultStr = NULL;
    char *resultStr = NULL;
 
    rawResultStr = ToolsDaemonTcloGetQuotedString(args, endOfArg);
    if (NULL == rawResultStr) {
+      err = VIX_OK;
       goto abort;
    }
 
@@ -536,8 +537,8 @@ ToolsDaemonTcloSyncDriverFreeze(RpcInData *data)
 {
    static char resultBuffer[DEFAULT_RESULT_MSG_MAX_LENGTH];
    VixError err = VIX_OK;
-   char *driveList = NULL;
-   char *timeout = NULL;
+   char *driveList;
+   char *timeout;
    int timeoutVal;
    DECLARE_SYNCDRIVER_ERROR(sysError);
    ToolsAppCtx *ctx = data->appCtx;
@@ -576,10 +577,10 @@ ToolsDaemonTcloSyncDriverFreeze(RpcInData *data)
       goto abort;
    }
 
-   enableNullDriver = VixTools_ConfigGetBoolean(confDictRef,
-                                                "vmbackup",
-                                                "enableNullDriver",
-                                                FALSE);
+   enableNullDriver = VMTools_ConfigGetBoolean(confDictRef,
+                                               "vmbackup",
+                                               "enableNullDriver",
+                                               FALSE);
 
    /* Perform the actual freeze. */
    if (!SyncDriver_Freeze(driveList, enableNullDriver, &gSyncDriverHandle,
@@ -767,6 +768,12 @@ ToolsDaemonCheckMountedHGFS(Bool isFuseEnabled,      // IN:
          break;
       }
    }
+   /*
+    * Coverity flags this invocation of CLOSE_MNTFILE because the macro does
+    * a test whose results are ignored.  However, it also has a needed side
+    * effect, so this invocation is correct.
+    */
+   /* coverity[no_effect_test] */
    CLOSE_MNTFILE(mtab);
 
 exit:

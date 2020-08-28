@@ -81,6 +81,12 @@ InfoSendNetworkXdr(GuestNicProto *message,
       }
       ToolsCmd_FreeRPC(reply);
    }
+
+   /*
+    * DynXdr_Destroy only tries to free storage returned by a call to
+    * DynXdr_Create(NULL).
+    */
+   /* coverity[address_free] */
    DynXdr_Destroy(&xdrs, TRUE);
 
 exit:

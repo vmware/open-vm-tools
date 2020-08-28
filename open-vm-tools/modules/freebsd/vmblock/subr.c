@@ -1,5 +1,5 @@
 /* **********************************************************
- * Copyright 2007-2014 VMware, Inc.  All rights reserved. -- VMware Confidential
+ * Copyright 2007-2014 VMware, Inc.  All rights reserved.
  * **********************************************************/
 
 /*

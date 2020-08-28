@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -48,33 +48,33 @@ extern "C" {
  * at a later date. It is *ALWAYS* logged and *NEVER* outputs to the "standard
  * error".
  *
- * The VMW_LOG_BASE is chosen to ensure that on all platforms commonly
- * used system logger values will be invalid and the errant usage caught.
+ * NOTE: The log levels must have sequential values with no "holes" and start
+ *       with zero (0).
  *
- *      Level            Level value             Comments
- *---------------------------------------------------------------------------
+ *      Level              Comments
+ *-------------------------------------------------
  */
-
-#define VMW_LOG_BASE     100
-#define VMW_LOG_AUDIT    (VMW_LOG_BASE     +  0) // ALWAYS LOGGED; NO STDERR
-#define VMW_LOG_PANIC    (VMW_LOG_BASE     +  5) // Quietest level
-#define VMW_LOG_ERROR    (VMW_LOG_BASE     + 10)
-#define VMW_LOG_WARNING  (VMW_LOG_BASE     + 15)
-#define VMW_LOG_NOTICE   (VMW_LOG_BASE     + 20)
-#define VMW_LOG_INFO     (VMW_LOG_BASE     + 25)
-#define VMW_LOG_VERBOSE  (VMW_LOG_BASE     + 30)
-#define VMW_LOG_TRIVIA   (VMW_LOG_BASE     + 35)
-#define VMW_LOG_DEBUG_00 (VMW_LOG_BASE     + 40) // least noisy debug level
-#define VMW_LOG_DEBUG_01 (VMW_LOG_DEBUG_00 +  1)
-#define VMW_LOG_DEBUG_02 (VMW_LOG_DEBUG_00 +  2)
-#define VMW_LOG_DEBUG_03 (VMW_LOG_DEBUG_00 +  3) // debug levels grow
-#define VMW_LOG_DEBUG_04 (VMW_LOG_DEBUG_00 +  4) // increasingly noisy
-#define VMW_LOG_DEBUG_05 (VMW_LOG_DEBUG_00 +  5) // as the debug number
-#define VMW_LOG_DEBUG_06 (VMW_LOG_DEBUG_00 +  6) // increases
-#define VMW_LOG_DEBUG_07 (VMW_LOG_DEBUG_00 +  7)
-#define VMW_LOG_DEBUG_08 (VMW_LOG_DEBUG_00 +  8)
-#define VMW_LOG_DEBUG_09 (VMW_LOG_DEBUG_00 +  9)
-#define VMW_LOG_DEBUG_10 (VMW_LOG_DEBUG_00 + 10) // Noisiest level
+typedef enum {
+   VMW_LOG_AUDIT    = 0,   // ALWAYS LOGGED; NO STDERR
+   VMW_LOG_PANIC    = 1,   // Quietest level
+   VMW_LOG_ERROR    = 2,
+   VMW_LOG_WARNING  = 3,
+   VMW_LOG_NOTICE   = 4,
+   VMW_LOG_INFO     = 5,   // Default filter level for release builds
+   VMW_LOG_VERBOSE  = 6,   // Default filter level for debug builds
+   VMW_LOG_TRIVIA   = 7,
+   VMW_LOG_DEBUG_00 = 8,   // least noisy debug level
+   VMW_LOG_DEBUG_01 = 9,
+   VMW_LOG_DEBUG_02 = 10,
+   VMW_LOG_DEBUG_03 = 11,  // debug levels grow
+   VMW_LOG_DEBUG_04 = 12,  // increasingly noisy
+   VMW_LOG_DEBUG_05 = 13,  // as the debug number
+   VMW_LOG_DEBUG_06 = 14,  // increases
+   VMW_LOG_DEBUG_07 = 15,
+   VMW_LOG_DEBUG_08 = 16,
+   VMW_LOG_DEBUG_09 = 17,
+   VMW_LOG_DEBUG_10 = 18,  // Noisiest level
+} VmwLogLevel;
 
 #if defined(VMX86_DEBUG) || defined(VMX86_DEVEL)
    #define LOG_FILTER_DEFAULT_LEVEL VMW_LOG_VERBOSE
@@ -83,10 +83,12 @@ extern "C" {
 #endif
 
 /*
- * The "routing" parameter may contain other information.
+ * The "routing" parameter may contain other information. Be sure to
+ * use the VMW_LOG_LEVEL_MASK when checking for a level!
  */
 
-#define VMW_LOG_LEVEL_MASK 0x000000FF  // Log level bits are in the LOB
+#define VMW_LOG_LEVEL_BITS 5  // Log level bits (32 levels max)
+#define VMW_LOG_LEVEL_MASK ((int)(1 << VMW_LOG_LEVEL_BITS) - 1)
 
 void LogV(uint32 routing,
           const char *fmt,
@@ -413,6 +415,20 @@ Bool Log_BoundNumFiles(struct LogOutput *output,
 #define LOG_NO_ROTATION_SIZE           0  // Do not rotate based on file size
 #define LOG_NO_THROTTLE_THRESHOLD      0  // No threshold before throttling
 #define LOG_NO_BPS_LIMIT               0xFFFFFFFF  // unlimited input rate
+
+
+/*
+ * Assemble a line.
+ */
+
+void *Log_BufBegin(void);
+
+void Log_BufAppend(void *acc,
+                   const char *fmt,
+                   ...) PRINTF_DECL(2, 3);
+
+void Log_BufEndLevel(void *acc,
+                     uint32 routing);
 
 
 /*

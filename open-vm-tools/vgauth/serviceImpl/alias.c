@@ -675,6 +675,14 @@ ServiceLoadFileContentsPosix(const gchar *fileName,
 
    *fileSize = 0;
    *contents = NULL;
+
+   /*
+    * No time-of-check to time-of-use issue between this lstat() call and the
+    * subsequent open() since the open() is followed by fstat() and a series
+    * of checks of the fstat results against the lstat results to ensure that
+    * key file attributes did not change between the lstat() and the open().
+    */
+   /* coverity[fs_check_call] */
    ret = g_lstat(fileName, &lstatBuf);
    if (ret != 0) {
       Warning("%s: lstat(%s) failed (%d %d)\n",
@@ -1079,7 +1087,6 @@ AliasStartElement(GMarkupParseContext *parseContext,
 {
    AliasParseList *list = (AliasParseList *) userData;
    ServiceAliasInfo *infos;
-   int n;
 
    ASSERT(list);
 
@@ -1124,6 +1131,8 @@ AliasStartElement(GMarkupParseContext *parseContext,
       break;
    case ALIAS_PARSE_STATE_ALIASINFOS:
       if (g_strcmp0(elementName, ALIASINFO_ALIASINFO_ELEMENT_NAME) == 0) {
+         int n;
+
          list->state = ALIAS_PARSE_STATE_ALIASINFO;
 
          // grow
@@ -1429,7 +1438,7 @@ AliasLoadAliases(const gchar *userName,
       NULL,
       NULL,
    };
-   GMarkupParseContext *context = NULL;
+   GMarkupParseContext *context;
    gboolean bRet;
    gchar *fileContents = NULL;
    gsize fileSize;
@@ -2226,7 +2235,10 @@ updateMap:
          Debug("%s: removed empty map file '%s'\n", __FUNCTION__, mapFilename);
          g_free(mapFilename);
 
-         goto done;
+         if (emptyAliasFile) {
+            goto done;
+         }
+         goto rename;
       }
 
       tmpMapFilename = g_strdup_printf("%s"DIRSEP"%sXXXXXX",
@@ -2320,6 +2332,7 @@ updateMap:
 #endif
    }
 
+rename:
    /*
     * Make the tmpfiles become the real in a way we can try to recover from.
     */
