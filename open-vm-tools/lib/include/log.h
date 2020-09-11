@@ -501,6 +501,8 @@ typedef Bool (GetOpId)(size_t maxStringLen,
 void
 Log_RegisterOpIdFunction(GetOpId *getOpIdFunc);
 
+void Log_LoadModuleFilters(struct CfgInterface *cfgIf);
+
 #endif /* !VMM */
 
 #if defined(__cplusplus)

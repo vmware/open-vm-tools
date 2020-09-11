@@ -27,8 +27,6 @@
 /* KEEP IN SORTED ORDER! */
 
 #define LOGLEVEL_USER(LOGLEVEL_VAR) \
-   /* main has to be first. */ \
-   LOGLEVEL_VAR(main), \
    LOGLEVEL_VAR(acpi), \
    LOGLEVEL_VAR(acpiGPE), \
    LOGLEVEL_VAR(ahci), \
@@ -139,6 +137,7 @@
    LOGLEVEL_VAR(macfilter), \
    LOGLEVEL_VAR(machPoll), \
    LOGLEVEL_VAR(maclatency), \
+   LOGLEVEL_VAR(main), \
    LOGLEVEL_VAR(mainMem), \
    LOGLEVEL_VAR(mainMemReplayCheck), \
    LOGLEVEL_VAR(masReceipt), /* lib/masReceipt */ \
