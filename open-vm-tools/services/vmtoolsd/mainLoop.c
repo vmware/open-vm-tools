@@ -46,10 +46,12 @@
 #include "vmware/tools/vmbackup.h"
 #if defined(_WIN32)
 #  include "codeset.h"
+#  include "guestStoreClient.h"
 #  include "windowsu.h"
 #else
 #  include "posix.h"
 #endif
+
 
 /*
  * Establish the default and maximum vmusr RPC channel error limits
@@ -100,6 +102,13 @@ ToolsCoreCleanup(ToolsServiceState *state)
       ToolsCore_ReleaseVsockFamily(state);
    }
 #endif
+
+#if defined(_WIN32)
+   if (state->mainService && GuestStoreClient_DeInit()) {
+      g_info("%s: De-initialized GuestStore client.\n", __FUNCTION__);
+   }
+#endif
+
    if (state->ctx.rpc != NULL) {
       RpcChannel_Stop(state->ctx.rpc);
       RpcChannel_Destroy(state->ctx.rpc);
@@ -397,6 +406,12 @@ ToolsCoreRunLoop(ToolsServiceState *state)
    if (state->ctx.rpc) {
       ToolsCoreReportVersionData(state);
    }
+
+#if defined(_WIN32)
+   if (state->mainService && GuestStoreClient_Init()) {
+      g_info("%s: Initialized GuestStore client.\n", __FUNCTION__);
+   }
+#endif
 
    if (!ToolsCore_LoadPlugins(state)) {
       return 1;
