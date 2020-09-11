@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -291,6 +291,10 @@ Max(int a, int b)
 #ifndef MBYTES_2_PAGES
 #define MBYTES_2_PAGES(_nbytes) \
    ((uint64)(_nbytes) << (MBYTES_SHIFT - PAGE_SHIFT))
+#endif
+
+#ifndef PAGES_2_KBYTES
+#define PAGES_2_KBYTES(_npages) ((_npages) << (PAGE_SHIFT - KBYTES_SHIFT))
 #endif
 
 #ifndef PAGES_2_MBYTES
