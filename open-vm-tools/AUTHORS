@@ -63,5 +63,8 @@ Alexey Shabalin Add recognition of ALT Linux distributions
                 - https://github.com/vmware/open-vm-tools/pull/431
 
 Thom Leggett    Propagate new gdk-pixbuf-xlib include location
-                https://github.com/vmware/open-vm-tools/pull/438
+                - https://github.com/vmware/open-vm-tools/pull/438
+
+Alexey Shabalin Adding vmtools library dependency to deploypkg library.
+                - https://github.com/vmware/open-vm-tools/pull/432
 
