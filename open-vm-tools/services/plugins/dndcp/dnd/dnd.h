@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -37,6 +37,13 @@
 #include "vm_basic_types.h"
 #include "unicodeTypes.h"
 #include "dynarray.h"
+
+/*
+ * TODO: this works around a compilation issue, and can be removed
+ * when this file is converted to pack pragmas (after FreeBSD/Tools
+ * build is removed). --kevinc
+ */
+#include "vmware_pack_init.h"
 
 #if defined(__cplusplus)
 extern "C" {
