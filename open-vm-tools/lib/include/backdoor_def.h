@@ -352,49 +352,6 @@ extern "C" {
 #define BDOOR_GUEST_PAGE_HINTS_TYPE_PSHARE   (0)
 #define BDOOR_GUEST_PAGE_HINTS_TYPE(reg)     (((reg) >> 16) & 0xffff)
 
-#if defined(VMM) || defined(ULM)
-/*
- *----------------------------------------------------------------------
- *
- * Backdoor_CmdRequiresFullyValidVCPU --
- *
- *    A few backdoor commands require the full VCPU to be valid
- *    (including GDTR, IDTR, TR and LDTR). The rest get read/write
- *    access to GPRs and read access to Segment registers (selectors).
- *
- * Result:
- *    True iff VECX contains a command that require the full VCPU to
- *    be valid.
- *
- *----------------------------------------------------------------------
- */
-static INLINE Bool
-Backdoor_CmdRequiresFullyValidVCPU(unsigned cmd)
-{
-   return cmd == BDOOR_CMD_SIDT ||
-          cmd == BDOOR_CMD_SGDT ||
-          cmd == BDOOR_CMD_SLDT_STR ||
-          cmd == BDOOR_CMD_GMM;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Backdoor_CmdRequiresValidSegments --
- *
- *    Returns TRUE if a backdoor command requires access to segment selectors.
- *
- *----------------------------------------------------------------------
- */
-static INLINE Bool
-Backdoor_CmdRequiresValidSegments(unsigned cmd)
-{
-   return cmd == BDOOR_CMD_INITPCIOPROM ||
-          cmd == BDOOR_CMD_GETMHZ;
-}
-#endif // defined(VMM) || defined(ULM)
-
 #ifdef VM_ARM_64
 
 /*
