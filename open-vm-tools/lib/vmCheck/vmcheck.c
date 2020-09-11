@@ -42,6 +42,7 @@
 #if !defined(WINNT_DDK)
 #  include "hostinfo.h"
 #  include "str.h"
+#  include "x86cpuid.h"
 #endif
 
 /*

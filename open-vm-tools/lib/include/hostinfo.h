@@ -32,7 +32,7 @@
 
 #include "vm_basic_types.h"
 #include "vm_basic_defs.h"
-#include "x86cpuid.h"
+#include "x86vendor.h"
 #include "unicodeTypes.h"
 
 #if defined(__cplusplus)

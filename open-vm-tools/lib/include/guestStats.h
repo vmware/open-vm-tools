@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2018,2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -120,6 +120,10 @@ struct GuestStatHeader {
 }
 #include "vmware_pack_end.h"
 GuestStatHeader;
+
+#ifdef _MSC_VER
+#pragma warning (disable :4200) // non-std extension: zero-sized array in struct
+#endif
 
 typedef
 #include "vmware_pack_begin.h"
