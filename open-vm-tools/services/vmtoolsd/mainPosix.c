@@ -35,6 +35,7 @@
 #include "system.h"
 #include "unicode.h"
 #include "util.h"
+#include "vmcheck.h"
 #include "vmware/tools/log.h"
 #include "vmware/tools/i18n.h"
 #include "vmware/tools/utils.h"
@@ -172,6 +173,15 @@ main(int argc,
    int ret = EXIT_FAILURE;
    char **argvCopy;
    GSource *src;
+
+   /*
+    * Check that environment is a VM
+    */
+   if (!VmCheck_IsVirtualWorld()) {
+      g_printerr("Error: %s must be run inside a virtual machine"
+                 " on a VMware hypervisor product.\n", argv[0]);
+      goto exit;
+   }
 
    Unicode_Init(argc, &argv, NULL);
 
