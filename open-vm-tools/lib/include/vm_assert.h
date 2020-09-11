@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -224,8 +224,15 @@ void WarningThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
 #define NOT_REACHED()            _ASSERT_PANIC(AssertNotReached)
 #endif
 
+#if !defined VMKERNEL && !defined VMKBOOT && !defined VMKERNEL_MODULE
+/*
+ * PR 2621164,2624036: ASSERT_MEM_ALLOC is deprecated and should not be
+ * used. Please use VERIFY where applicable, since the latter aligns
+ * better with the consistency model as defined by bora/doc/assert.
+ */
 #define ASSERT_MEM_ALLOC(cond) \
            ASSERT_IFNOT(cond, _ASSERT_PANIC(AssertMemAlloc))
+#endif
 
 #ifdef VMX86_DEVEL
 #define NOT_TESTED()       Warning(_AssertNotTestedFmt "\n", __FILE__, __LINE__)
