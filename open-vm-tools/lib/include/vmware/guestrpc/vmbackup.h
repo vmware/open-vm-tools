@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2017,2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -25,27 +25,10 @@
 #define _VMBACKUP_DEF_H_
 
 /*
- * Limit messages to a max of 1024 bytes to avoid messages of arbitrary
- * sizes being set in VMDB.
- */
-#define VMBACKUP_MAX_MSG_SIZE             1024
-
-/*
- * Maximum number of events kept in memory in VMDB and hostd.
- */
-#define VMBACKUP_MAX_EVENTS               10
-
-/*
  * How often (in milliseconds) does the guest send keep alive messages
  * to the host during long operations.
  */
 #define VMBACKUP_KEEP_ALIVE_PERIOD        5000
-
-/* VMDB paths used for communication with the VMX/guest OS. */
-#define VMBACKUP_VMDB_PATH                "vmx/guestTools/backupProtocol/"
-#define VMBACKUP_VMDB_EVENT_PATH          VMBACKUP_VMDB_PATH"event"
-#define VMBACKUP_VMDB_REQUEST_PATH        VMBACKUP_VMDB_PATH"request"
-#define VMBACKUP_VMDB_RESPONSE_PATH       VMBACKUP_VMDB_PATH"response"
 
 /* These are RPC messages used between the VMX and the Tools. */
 #define VMBACKUP_PROTOCOL_PREFIX          "vmbackup."
