@@ -755,6 +755,7 @@ FileLockScanDirectory(const char *lockDir,      // IN:
       LockValues *ptr;
       Bool       myLockFile;
       LockValues memberValues;
+      char buffer[FILELOCK_DATA_SIZE];
 
       if ((fileList[i] == NULL) || (*fileList[i] == 'E')) {
          continue;
@@ -767,8 +768,6 @@ FileLockScanDirectory(const char *lockDir,      // IN:
          /* It's me! No need to read or validate anything. */
          ptr = myValues;
       } else {
-         char buffer[FILELOCK_DATA_SIZE];
-
          /* It's not me! Attempt to extract the member values. */
          err = FileLockMemberValues(lockDir, fileList[i], buffer,
                                     FILELOCK_DATA_SIZE, &memberValues);
