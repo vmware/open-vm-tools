@@ -43,7 +43,9 @@
  * when this file is converted to pack pragmas (after FreeBSD/Tools
  * build is removed). --kevinc
  */
-#include "vmware_pack_init.h"
+#ifdef _MSC_VER
+#   pragma warning(disable:4103)
+#endif
 
 #if defined(__cplusplus)
 extern "C" {
