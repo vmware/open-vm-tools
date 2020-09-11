@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -80,6 +80,60 @@ ToolsCoreRunCommand(const gchar *option,
    }
    g_printerr("%s\n",
               SU_(cmdline.rpcerror, "Unable to send command to VMware hypervisor."));
+   exit(1);
+}
+
+
+/**
+ * Reads the contents of a file and runs it as a Tools RPC command,
+ * printing the result to the terminal and
+ * exiting the application afterwards.
+ *
+ * @param[in]  option      Unused.
+ * @param[in]  fileName    Name of the file containing an RPC command.
+ * @param[in]  data        Unused.
+ * @param[out] error       Unused.
+ *
+ * @return This function doesn't return.
+ */
+
+static gboolean
+ToolsCoreRunCommandFromFile(const gchar *option,
+                            const gchar *fileName,
+                            gpointer data,
+                            GError **error)
+{
+#if defined(_WIN32)
+   VMTools_AttachConsole();
+#endif
+   if (VmCheck_IsVirtualWorld()) {
+      char *result = NULL;
+      Bool status;
+      gchar *fileContents = NULL;
+
+      if (!g_file_get_contents(fileName, &fileContents, NULL, NULL)) {
+         g_printerr(SU_(cmdline.cmdfile.read,
+                        "Unable to read command from file %s.\n"),
+                        fileName);
+         exit(1);
+      }
+
+      g_strchomp(fileContents);
+
+      status = RpcChannel_SendOne(&result, NULL, "%s", fileContents);
+      if (!status) {
+         g_printerr("%s\n", (NULL != result) ? result : "NULL");
+      } else {
+         g_print("%s\n", result);
+      }
+
+      g_free(fileContents);
+      vm_free(result);
+      exit(status ? 0 : 1);
+   }
+   g_printerr("%s\n",
+              SU_(cmdline.cmdfile.rpcerror,
+                  "Unable to send command from file to VMware hypervisor."));
    exit(1);
 }
 
@@ -235,6 +289,9 @@ ToolsCore_ParseCommandLine(ToolsServiceState *state,
       { "cmd", '\0', 0, G_OPTION_ARG_CALLBACK, ToolsCoreRunCommand,
          SU_(cmdline.rpc, "Sends an RPC command to the host and exits."),
          SU_(cmdline.rpc.command, "command") },
+      { "cmdfile", '\0', 0, G_OPTION_ARG_CALLBACK, ToolsCoreRunCommandFromFile,
+         SU_(cmdline.cmdfile, "Sends an RPC command from a file to the host and exits."),
+         SU_(cmdline.cmdfile.command, "command file") },
 #if defined(G_PLATFORM_WIN32)
       { "dump-state", 's', 0, G_OPTION_ARG_NONE, &dumpState,
          SU_(cmdline.state, "Dumps the internal state of a running service instance to the logs."),
