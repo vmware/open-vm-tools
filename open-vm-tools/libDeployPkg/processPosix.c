@@ -188,6 +188,8 @@ Process_RunToComplete(ProcessHandle h, unsigned long timeoutSec)
       dup2(stdout[1], STDOUT_FILENO);
       dup2(stderr[1], STDERR_FILENO);
       execv(p->args[0], p->args);
+      p->log(log_error, "execv failed to run (%s), errno=(%d), "
+             "error message:(%s)", p->args[0], errno, strerror(errno));
 
       // exec failed
       close(stdout[1]);
