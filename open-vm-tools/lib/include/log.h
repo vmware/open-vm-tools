@@ -94,13 +94,15 @@ typedef enum {
 #define VMW_LOG_LEVEL(routing)  ((routing) & VMW_LOG_LEVEL_MASK)
 #define VMW_LOG_MODULE(routing) (((routing) >> VMW_LOG_LEVEL_BITS))
 
-void LogV(uint32 routing,
-          const char *fmt,
-          va_list args);
+void
+LogV(uint32 routing,
+     const char *fmt,
+     va_list args);
 
-void Log_Level(uint32 routing,
-               const char *fmt,
-               ...) PRINTF_DECL(2, 3);
+void
+Log_Level(uint32 routing,
+          const char *fmt,
+          ...) PRINTF_DECL(2, 3);
 
 /*
  * Log     = Log_Info
@@ -223,44 +225,55 @@ typedef struct LogOutput LogOutput;
 
 struct CfgInterface *Log_CfgInterface(void);
 
-int32 Log_SetStderrLevel(int32 level);
+int32
+Log_SetStderrLevel(int32 level);
 
-int32 Log_GetStderrLevel(void);
+int32
+Log_GetStderrLevel(void);
 
-LogOutput *Log_NewStdioOutput(const char *appPrefix,
-                              struct Dictionary *params,
-                              struct CfgInterface *cfgIf);
+LogOutput *
+Log_NewStdioOutput(const char *appPrefix,
+                   struct Dictionary *params,
+                   struct CfgInterface *cfgIf);
 
-LogOutput *Log_NewSyslogOutput(const char *appPrefix,
-                               const char *instanceName,
-                               struct Dictionary *params,
-                               struct CfgInterface *cfgIf);
+LogOutput *
+Log_NewSyslogOutput(const char *appPrefix,
+                    const char *instanceName,
+                    struct Dictionary *params,
+                    struct CfgInterface *cfgIf);
 
-LogOutput *Log_NewFileOutput(const char *appPrefix,
-                             const char *instanceName,
-                             struct Dictionary *params,
-                             struct CfgInterface *cfgIf);
+LogOutput *
+Log_NewFileOutput(const char *appPrefix,
+                  const char *instanceName,
+                  struct Dictionary *params,
+                  struct CfgInterface *cfgIf);
 
 typedef void (LogCustomMsgFunc)(int level,
                                 const char *msg);
 
-LogOutput *Log_NewCustomOutput(const char *instanceName,
-                               LogCustomMsgFunc *msgFunc,
-                               int minLogLevel);
+LogOutput *
+Log_NewCustomOutput(const char *instanceName,
+                    LogCustomMsgFunc *msgFunc,
+                    int minLogLevel);
 
-Bool Log_FreeOutput(LogOutput *toOutput);
+Bool
+Log_FreeOutput(LogOutput *toOutput);
 
-Bool Log_AddOutput(LogOutput *output);
+Bool
+Log_AddOutput(LogOutput *output);
 
-Bool Log_ReplaceOutput(LogOutput *fromOutput,
-                       LogOutput *toOutput,
-                       Bool copyOver);
+Bool
+Log_ReplaceOutput(LogOutput *fromOutput,
+                  LogOutput *toOutput,
+                  Bool copyOver);
 
-int32 Log_SetOutputLevel(LogOutput *output,
-                         int32 level);
+int32
+Log_SetOutputLevel(LogOutput *output,
+                   int32 level);
 
-Bool Log_SetVmxStatsData(LogOutput *output,
-                         VmxStatsInfo *vmxStats);
+Bool
+Log_SetVmxStatsData(LogOutput *output,
+                    VmxStatsInfo *vmxStats);
 
 /*
  * The most common Log Facility client usage is via the "InitWith" functions.
@@ -275,10 +288,11 @@ Bool Log_SetVmxStatsData(LogOutput *output,
  * correct.
  */
 
-void Log_SetProductInfo(const char *appName,
-                        const char *appVersion,
-                        const char *buildNumber,
-                        const char *compilationOption);
+void
+Log_SetProductInfo(const char *appName,
+                   const char *appVersion,
+                   const char *buildNumber,
+                   const char *compilationOption);
 
 static INLINE void
 Log_SetProductInfoSimple(void)
@@ -290,9 +304,10 @@ Log_SetProductInfoSimple(void)
 }
 
 
-LogOutput *Log_InitWithCustomInt(struct CfgInterface *cfgIf,
-                                 LogCustomMsgFunc *msgFunc,
-                                 int minLogLevel);
+LogOutput *
+Log_InitWithCustomInt(struct CfgInterface *cfgIf,
+                      LogCustomMsgFunc *msgFunc,
+                      int minLogLevel);
 
 
 static INLINE LogOutput *
@@ -305,10 +320,11 @@ Log_InitWithCustom(struct CfgInterface *cfgIf,
    return Log_InitWithCustomInt(cfgIf, msgFunc, minLogLevel);
 }
 
-LogOutput *Log_InitWithFileInt(const char *appPrefix,
-                               struct Dictionary *dict,
-                               struct CfgInterface *cfgIf,
-                               Bool boundNumFiles);
+LogOutput *
+Log_InitWithFileInt(const char *appPrefix,
+                    struct Dictionary *dict,
+                    struct CfgInterface *cfgIf,
+                    Bool boundNumFiles);
 
 static INLINE LogOutput *
 Log_InitWithFile(const char *appPrefix,
@@ -321,9 +337,10 @@ Log_InitWithFile(const char *appPrefix,
    return Log_InitWithFileInt(appPrefix, dict, cfgIf, boundNumFiles);
 }
 
-LogOutput *Log_InitWithFileSimpleInt(const char *appPrefix,
-                                     struct CfgInterface *cfgIf,
-                                     const char *fileName);
+LogOutput *
+Log_InitWithFileSimpleInt(const char *appPrefix,
+                          struct CfgInterface *cfgIf,
+                          const char *fileName);
 
 static INLINE LogOutput *
 Log_InitWithFileSimple(const char *fileName,
@@ -334,9 +351,10 @@ Log_InitWithFileSimple(const char *fileName,
    return Log_InitWithFileSimpleInt(appPrefix, Log_CfgInterface(), fileName);
 }
 
-LogOutput *Log_InitWithSyslogInt(const char *appPrefix,
-                                 struct Dictionary *dict,
-                                 struct CfgInterface *cfgIf);
+LogOutput *
+Log_InitWithSyslogInt(const char *appPrefix,
+                      struct Dictionary *dict,
+                      struct CfgInterface *cfgIf);
 
 static INLINE LogOutput *
 Log_InitWithSyslog(const char *appPrefix,
@@ -348,9 +366,10 @@ Log_InitWithSyslog(const char *appPrefix,
    return Log_InitWithSyslogInt(appPrefix, dict, cfgIf);
 }
 
-LogOutput *Log_InitWithSyslogSimpleInt(const char *appPrefix,
-                                       struct CfgInterface *cfgIf,
-                                       const char *syslogID);
+LogOutput *
+Log_InitWithSyslogSimpleInt(const char *appPrefix,
+                            struct CfgInterface *cfgIf,
+                            const char *syslogID);
 
 static INLINE LogOutput *
 Log_InitWithSyslogSimple(const char *syslogID,
@@ -361,10 +380,11 @@ Log_InitWithSyslogSimple(const char *syslogID,
    return Log_InitWithSyslogSimpleInt(appPrefix, Log_CfgInterface(), syslogID);
 }
 
-LogOutput *Log_InitWithStdioSimpleInt(const char *appPrefix,
-                                      struct CfgInterface *cfgIf,
-                                      const char *minLevel,
-                                      Bool withLinePrefix);
+LogOutput *
+Log_InitWithStdioSimpleInt(const char *appPrefix,
+                           struct CfgInterface *cfgIf,
+                           const char *minLevel,
+                           Bool withLinePrefix);
 
 static INLINE LogOutput *
 Log_InitWithStdioSimple(const char *appPrefix,
@@ -377,34 +397,45 @@ Log_InitWithStdioSimple(const char *appPrefix,
                                      withLinePrefix);
 }
 
-void Log_Exit(void);
+void
+Log_Exit(void);
 
-Bool Log_Outputting(void);
+Bool
+Log_Outputting(void);
 
-Bool Log_IsLevelOutputting(int level);
+Bool
+Log_IsLevelOutputting(int level);
 
-const char *Log_GetFileName(void);
+const char *
+Log_GetFileName(void);
 
-const char *Log_GetOutputFileName(LogOutput *output);
+const char *
+Log_GetOutputFileName(LogOutput *output);
 
-void Log_SkipLocking(Bool skipLocking);
+void
+Log_SkipLocking(Bool skipLocking);
 
-void Log_DisableThrottling(void);
+void
+Log_DisableThrottling(void);
 
-void Log_DisableVmxStats(void);
+void
+Log_DisableVmxStats(void);
 
-uint32 Log_MaxLineLength(void);
+uint32
+Log_MaxLineLength(void);
 
-size_t Log_MakeTimeString(Bool millisec,
-                          char *buf,
-                          size_t max);
+size_t
+Log_MakeTimeString(Bool millisec,
+                   char *buf,
+                   size_t max);
 
 typedef Bool (LogOwnerFunc)(void *userData,
                             const char *fileName);
 
-Bool Log_BoundNumFiles(struct LogOutput *output,
-                       LogOwnerFunc *func,
-                       void *userData);
+Bool
+Log_BoundNumFiles(struct LogOutput *output,
+                LogOwnerFunc *func,
+                void *userData);
 
 #if defined(VMX86_SERVER)
 #define LOG_KEEPOLD 6  // Old log files to keep around; ESX value
@@ -422,46 +453,55 @@ Bool Log_BoundNumFiles(struct LogOutput *output,
  * Assemble a line.
  */
 
-void *Log_BufBegin(void);
+void *
+Log_BufBegin(void);
 
-void Log_BufAppend(void *acc,
-                   const char *fmt,
-                   ...) PRINTF_DECL(2, 3);
+void
+Log_BufAppend(void *acc,
+              const char *fmt,
+              ...) PRINTF_DECL(2, 3);
 
-void Log_BufEndLevel(void *acc,
-                     uint32 routing);
+void
+Log_BufEndLevel(void *acc,
+                uint32 routing);
 
 
 /*
  * Debugging
  */
 
-void Log_HexDump(const char *prefix,
+void
+Log_HexDump(const char *prefix,
+            const void *data,
+            size_t size);
+
+void
+Log_HexDumpLevel(uint32 routing,
+                 const char *prefix,
                  const void *data,
                  size_t size);
 
-void Log_HexDumpLevel(uint32 routing,
-                      const char *prefix,
-                      const void *data,
-                      size_t size);
+void
+Log_Time(VmTimeType *time,
+         int count,
+         const char *message);
 
-void Log_Time(VmTimeType *time,
-              int count,
-              const char *message);
-
-void Log_Histogram(uint32 n,
-                   uint32 histo[],
-                   int nbuckets,
-                   const char *message,
-                   int *count,
-                   int limit);
+void
+Log_Histogram(uint32 n,
+              uint32 histo[],
+              int nbuckets,
+              const char *message,
+              int *count,
+              int limit);
 
 typedef Bool (GetOpId)(size_t maxStringLen,
                        char *opId);
 
-void Log_RegisterOpIdFunction(GetOpId *getOpIdFunc);
+void
+Log_RegisterOpIdFunction(GetOpId *getOpIdFunc);
 
-void Log_LoadModuleFilters(struct CfgInterface *cfgIf);
+void
+Log_LoadModuleFilters(struct CfgInterface *cfgIf);
 
 #endif /* !VMM */
 
