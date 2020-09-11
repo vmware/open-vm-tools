@@ -545,4 +545,16 @@
 #define VDFS_RELEASE_PATCH "0"  /* 0 = experimental */
 #define VDFS_RELEASE VDFS_RELEASE_UPDATE "." VDFS_RELEASE_PATCH
 
+/*
+ * ZDOM Versions
+ */
+#define ZDOM_VERSION_MAJOR "0"
+#define ZDOM_VERSION_MINOR "1"
+#define ZDOM_VERSION_MAINT "0"
+#define ZDOM_VERSION ZDOM_VERSION_MAJOR "." ZDOM_VERSION_MINOR "." \
+                    ZDOM_VERSION_MAINT
+#define ZDOM_RELEASE_UPDATE "0" /* 0 = Pre-release/GA, 1 = Update 1 */
+#define ZDOM_RELEASE_PATCH "0"  /* 0 = experimental */
+#define ZDOM_RELEASE ZDOM_RELEASE_UPDATE "." ZDOM_RELEASE_PATCH
+
 #endif
