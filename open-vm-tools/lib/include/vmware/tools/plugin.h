@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2019,2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -227,6 +227,18 @@ ToolsCore_LogState(guint level,
  * in the callback for the object's "notify" signal.
  */
 #define TOOLS_CORE_PROP_CTX "tcs_app_ctx"
+
+/**
+ * Event signaled when VMTools requires a system restart to complete an install.
+ *
+ * Name of the event that can be set to the notification event to
+ * indicate a system restart is required to complete the install or
+ * upgrade of tools.
+ */
+#define TOOLS_CORE_EVENTS_TOOLS_NEED_REBOOT "VMToolsNeedReboot"
+
+#define TOOLS_CORE_EVENTS_GLOBAL_SCOPE      "Global"
+
 
 
 /**
