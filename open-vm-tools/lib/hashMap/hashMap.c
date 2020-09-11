@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2018,2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -104,9 +104,8 @@ struct HashMap {
 };
 
 #ifdef VMX86_SERVER
-typedef
-#include "vmware_pack_begin.h"
-struct HashMapOnDisk {
+#pragma pack(push, 1)
+typedef struct HashMapOnDisk {
    uint32 numEntries;
    uint32 count;
    uint32 alpha;
@@ -117,9 +116,8 @@ struct HashMapOnDisk {
 
    uint64 keyOffset;
    uint64 dataOffset;
-}
-#include "vmware_pack_end.h"
-HashMapOnDisk;
+} HashMapOnDisk;
+#pragma pack(pop)
 #endif
 
 typedef enum {
