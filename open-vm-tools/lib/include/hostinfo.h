@@ -126,7 +126,6 @@ const char *Hostinfo_OSVersionString(void);
 #if defined(_WIN32)
 Bool Hostinfo_OSIsWinNT(void);
 Bool Hostinfo_OSIsWow64(void);
-Bool Hostinfo_TSCInvariant(void);
 int Hostinfo_EnumerateAllProcessPids(uint32 **processIds);
 #else
 void Hostinfo_ResetProcessState(const int *keepFds,
@@ -251,7 +250,6 @@ Bool Hostinfo_GetMhzOfProcessor(int32 processorNumber,
 				uint32 *currentMhz,
                                 uint32 *maxMhz);
 uint64 Hostinfo_SystemIdleTime(void);
-Bool Hostinfo_GetAllCpuid(CPUIDQuery *query);
 
 #endif
 void Hostinfo_LogLoadAverage(void);
