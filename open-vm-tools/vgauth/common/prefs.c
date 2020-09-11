@@ -141,6 +141,9 @@ Pref_GetString(PrefHandle ph,
               prefName, gErr->message);
       g_error_free(gErr);
       retVal = g_strdup(defaultVal);
+   } else {
+      /* Remove any trailing whitespace. */
+      g_strchomp(retVal);
    }
 
    return retVal;
