@@ -20,6 +20,7 @@
 #define _LOGLEVEL_USER_VARS_H_
 
 #define INCLUDE_ALLOW_MODULE
+#define INCLUDE_ALLOW_VMCORE
 #define INCLUDE_ALLOW_USERLEVEL
 #include "includeCheck.h"
 

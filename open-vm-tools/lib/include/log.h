@@ -54,6 +54,7 @@ extern "C" {
  *      Level              Comments
  *-------------------------------------------------
  */
+
 typedef enum {
    VMW_LOG_AUDIT    = 0,   // ALWAYS LOGGED; NO STDERR
    VMW_LOG_PANIC    = 1,   // Quietest level
@@ -83,12 +84,43 @@ typedef enum {
 #endif
 
 /*
- * The "routing" parameter may contain other information. Be sure to
- * use the VMW_LOG_LEVEL_MASK when checking for a level!
+ * The "routing" parameter contains the level in the low order bits; the
+ * higher order bits specify the module where the log call came from.
  */
 
 #define VMW_LOG_LEVEL_BITS 5  // Log level bits (32 levels max)
 #define VMW_LOG_LEVEL_MASK ((int)(1 << VMW_LOG_LEVEL_BITS) - 1)
+
+#define VMW_LOG_LEVEL(routing)  ((routing) & VMW_LOG_LEVEL_MASK)
+#define VMW_LOG_MODULE(routing) (((routing) >> VMW_LOG_LEVEL_BITS))
+
+/*
+ * To use the Log Facility module specific filters:
+ *
+ *  1) Use LogV or Log_Level and use the LOG_ROUTING_BITS macro.
+ *
+ *  2) Have LOGLEVEL_MODULE defined before the include of "log.h".
+ *
+ *     For many files, this involves moving the include "log.h" after
+ *     the include of "loglevel_user.h".
+ */
+
+#if defined(LOGLEVEL_MODULE)
+   #include "loglevel_userVars.h"
+   #include "vm_basic_defs.h"
+
+   #define LOGFACILITY_MODULEVAR(mod) XCONC(_logFacilityModule_, mod)
+
+   enum LogFacilityModuleValue {
+      LOGLEVEL_USER(LOGFACILITY_MODULEVAR)
+   };
+
+   /* Module bits of zero (0) indicate no module has been specified */
+   #define LOG_ROUTING_BITS(level) \
+      (((LOGFACILITY_MODULEVAR(LOGLEVEL_MODULE) + 1) << VMW_LOG_LEVEL_BITS) | level)
+#else
+   #define LOG_ROUTING_BITS(level) (level)
+#endif
 
 void LogV(uint32 routing,
           const char *fmt,
@@ -98,12 +130,9 @@ void Log_Level(uint32 routing,
                const char *fmt,
                ...) PRINTF_DECL(2, 3);
 
-
 /*
- * Handy wrapper functions.
- *
- * Log     -> VMW_LOG_INFO
- * Warning -> VMW_LOG_WARNING
+ * Log     = Log_Info
+ * Warning = Log_Warning
  */
 
 static INLINE void PRINTF_DECL(1, 2)
