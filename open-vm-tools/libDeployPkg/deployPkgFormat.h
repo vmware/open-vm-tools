@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -107,10 +107,8 @@ typedef enum {
  * </pre>
  */
 
-typedef
-#include "vmware_pack_begin.h"
-struct
-{
+#pragma pack(push, 1)
+typedef struct {
    char signature[VMWAREDEPLOYPKG_SIGNATURE_LENGTH]; // Not null terminated.
    uint8 majorVersion;
    uint8 minorVersion;
@@ -143,9 +141,8 @@ struct
    char seed[VMWAREDEPLOYPKG_SEED_LENGTH];   // offset 48
    char command[VMWAREDEPLOYPKG_CMD_LENGTH]; // offset 56
 
-}
-#include "vmware_pack_end.h"
-VMwareDeployPkgHdr;
+} VMwareDeployPkgHdr;
+#pragma pack(pop)
 
 #ifdef _WIN32
 #include "poppack.h"
