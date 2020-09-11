@@ -200,7 +200,6 @@ void WarningThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
            ASSERT_IFNOT(cond, _ASSERT_PANIC_BUG_NORETURN(bug, AssertVerify))
 
 #define PANIC()        _ASSERT_PANIC(AssertPanic)
-#define PANIC_BUG(bug) _ASSERT_PANIC_BUG(bug, AssertPanic)
 
 #define ASSERT_NOT_IMPLEMENTED(cond) \
            ASSERT_IFNOT(cond, NOT_IMPLEMENTED())
