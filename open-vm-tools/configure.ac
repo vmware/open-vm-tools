@@ -448,6 +448,17 @@ AC_ARG_ENABLE([servicediscovery],
    ])
 
 #
+# Check that servicediscovery is enabled only on linux systems
+#
+
+if test "$enable_servicediscovery" = "yes"; then
+   if test "$os" != "linux"; then
+      AC_MSG_ERROR([The Service Discovery plugin is only supported for Linux
+      platforms. Try configure without --enable-servicediscovery option.])
+   fi
+fi
+
+#
 # Check for glib 2.34.0 or greater.
 #
 AC_VMW_CHECK_LIB([glib-2.0],
