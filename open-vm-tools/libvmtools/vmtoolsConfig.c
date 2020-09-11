@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -172,6 +172,87 @@ exit:
    g_free(defaultPath);
    VMTOOLS_RELEASE_FILENAME_LOCAL(localPath);
    return (cfg != NULL);
+}
+
+
+/**
+ * Copies the key/value pairs from one config dictionary to another config
+ * dictionary. The key/value pairs are added only if they are not
+ * already present in the destination configuration dictionary.
+ *
+ * @param[in]     srcConfig     Configuration dictionary from which the
+ *                              key/value pairs should be added.
+ * @param[in]     dstConfig     Configuration dictionary to which the
+ *                              key/value pairs should be added..
+ *
+ * @return Whether any key/value pairs have been added to the config
+ *         dictionary.
+ */
+
+gboolean
+VMTools_AddConfig(GKeyFile *srcConfig,
+                  GKeyFile *dstConfig)
+{
+   gsize numGroups;
+   gchar **groupNames;
+   gsize i;
+   gboolean configAdded = FALSE;
+
+   g_return_val_if_fail(srcConfig != NULL, configAdded);
+   g_return_val_if_fail(dstConfig != NULL, configAdded);
+
+   groupNames = g_key_file_get_groups(srcConfig, &numGroups);
+
+   g_debug("%s: Found %d groups in config.\n", __FUNCTION__, (int) numGroups);
+
+   for (i = 0; i < numGroups; ++i) {
+      gsize numKeys;
+      gchar **keyNames;
+      gsize j;
+      GError *gErr = NULL;
+      const gchar *group = groupNames[i];
+
+      keyNames = g_key_file_get_keys(srcConfig, group, &numKeys, &gErr);
+      if (gErr != NULL) {
+         g_warning("%s: g_key_file_get_keys(%s) failed: %s\n",
+                   __FUNCTION__, group, gErr->message);
+         g_clear_error(&gErr);
+         continue;
+      }
+
+      g_debug("%s: Found %d keys for group: '%s' in config.\n",
+              __FUNCTION__, (int) numKeys, group);
+
+      for (j = 0; j < numKeys; ++j) {
+         const gchar* key = keyNames[j];
+
+         if (!g_key_file_has_key(dstConfig, group, key, NULL)) {
+            gchar *value = g_key_file_get_value(srcConfig, group, key, &gErr);
+
+            if (value == NULL && gErr != NULL) {
+               g_warning("%s: g_key_file_get_value(%s:%s) failed: %s\n",
+                         __FUNCTION__, group, key, gErr->message);
+               g_clear_error(&gErr);
+               continue;
+            }
+
+            g_key_file_set_value(dstConfig, group, key, value);
+            g_debug("%s: Added (%s:%s) to the new config\n",
+                    __FUNCTION__, group, key);
+            configAdded = TRUE;
+            g_free(value);
+         } else {
+            g_debug("%s: Ignoring (%s:%s)\n", __FUNCTION__, group, key);
+         }
+      }
+
+      g_strfreev(keyNames);
+   }
+
+   g_debug("%s: Added the config. Return val: %d\n", __FUNCTION__, configAdded);
+
+   g_strfreev(groupNames);
+   return configAdded;
 }
 
 

@@ -106,6 +106,10 @@ VMTools_LoadConfig(const gchar *path,
                    time_t *mtime);
 
 gboolean
+VMTools_AddConfig(GKeyFile *srcConfig,
+                  GKeyFile *dstConfig);
+
+gboolean
 VMTools_WriteConfig(const gchar *path,
                     GKeyFile *config,
                     GError **err);

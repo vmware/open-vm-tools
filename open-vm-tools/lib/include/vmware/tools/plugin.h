@@ -217,6 +217,15 @@ ToolsCore_LogState(guint level,
  */
 #define TOOLS_CORE_SIG_SERVICE_CONTROL  "tcs_service_control"
 
+/**
+ * Signal sent when a new version of global configuration is downloaded.
+ *
+ * @param[in]  src      The source object.
+ * @param[in]  ctx      ToolsAppCtx *: The application context.
+ * @param[in]  data     Client data.
+ */
+#define TOOLS_CORE_SIG_GLOBALCONF_UPDATE "tcs_globalconf_update"
+
 #endif
 
 /**

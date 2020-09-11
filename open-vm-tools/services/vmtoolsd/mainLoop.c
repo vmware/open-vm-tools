@@ -47,6 +47,7 @@
 #if defined(_WIN32)
 #  include "codeset.h"
 #  include "guestStoreClient.h"
+#  include "globalConfig.h"
 #  include "windowsu.h"
 #else
 #  include "posix.h"
@@ -78,6 +79,13 @@
 #define VMUSR_CHANNEL_ERR_MAX 15       /* approximately 15 secs. */
 
 #define CONFNAME_MAX_CHANNEL_ATTEMPTS "maxChannelAttempts"
+
+#if defined(_WIN32)
+/*
+ * The state of the global conf module.
+ */
+static gGlobalConfEnabled = FALSE;
+#endif
 
 
 /*
@@ -188,6 +196,28 @@ ToolsCoreConfFileCb(gpointer clientData)
    ToolsCore_ReloadConfig(clientData, FALSE);
    return TRUE;
 }
+
+
+#if defined(_WIN32)
+/**
+ * Callback TOOLS_CORE_SIG_GLOBALCONF_UPDATE signal. The signal is
+ * triggered whenever a new global configuration is downloaded.
+ *
+ * @param[in]  src   The source object.
+ * @param[in]  ctx   The ToolsAppCtx for passing config.
+ * @param[in]  state Service state.
+ */
+
+static void
+ToolsCoreGlobalConfUpdateSignalCb(gpointer src,
+                                  ToolsAppCtx *ctx,
+                                  ToolsServiceState *state)
+{
+   g_debug("%s: global config is updated. Reloading the config.", __FUNCTION__);
+
+   ToolsCore_ReloadConfigEx(state, FALSE, TRUE);
+}
+#endif
 
 
 /**
@@ -481,9 +511,32 @@ ToolsCoreRunLoop(ToolsServiceState *state)
       /*
        * For now exclude the MAC due to limited testing.
        */
-      if (state->mainService && ToolsCoreHangDetector_Start(&state->ctx)) {
-         g_info("Successfully started tools hang detector");
+      if (state->mainService) {
+         if (ToolsCoreHangDetector_Start(&state->ctx)) {
+            g_info("%s: Successfully started tools hang detector",
+                   __FUNCTION__);
+         }
+#if defined(_WIN32)
+         if (GlobalConfig_Start(&state->ctx)) {
+            g_info("%s: Successfully started global config module.",
+                   __FUNCTION__);
+            if (g_signal_lookup(TOOLS_CORE_SIG_GLOBALCONF_UPDATE,
+                                G_OBJECT_TYPE(state->ctx.serviceObj)) != 0) {
+               g_signal_connect(state->ctx.serviceObj,
+                                TOOLS_CORE_SIG_GLOBALCONF_UPDATE,
+                                G_CALLBACK(ToolsCoreGlobalConfUpdateSignalCb),
+                                state);
+               g_debug("%s: Registered the handler for the "
+                       "global config update signal.", __FUNCTION__);
+               gGlobalConfEnabled = TRUE;
+            } else {
+               g_debug("%s: Failed to register the handler for the "
+                       "global config update signal", __FUNCTION__);
+            }
+         }
+#endif
       }
+
       g_main_loop_run(state->ctx.mainLoop);
 #endif
    }
@@ -616,19 +669,37 @@ ToolsCore_GetTcloName(ToolsServiceState *state)
  *
  * @param[in]  state       Service state.
  * @param[in]  reset       Whether to reset the logging subsystem.
+ * @param[in]  force       If TRUE, the config file will be loaded even if it
+ *                         has not been modified since the last check.
  */
 
 void
-ToolsCore_ReloadConfig(ToolsServiceState *state,
-                       gboolean reset)
+ToolsCore_ReloadConfigEx(ToolsServiceState *state,
+                         gboolean reset,
+                         gboolean force)
 {
    gboolean first = state->ctx.config == NULL;
    gboolean loaded;
+
+   if (force) {
+      /*
+       * Set the configMtime to 0 so that the config file from the file system
+       * is reloaded. Else, the config is loaded only if it's been modified
+       * since the last check.
+       */
+      state->configMtime = 0;
+   }
 
    loaded = VMTools_LoadConfig(state->configFile,
                                G_KEY_FILE_NONE,
                                &state->ctx.config,
                                &state->configMtime);
+#if defined(_WIN32)
+   if (gGlobalConfEnabled && (loaded || force)) {
+      gboolean globalConfigUpdated =  GlobalConfig_Update(state->ctx.config);
+      loaded = loaded || globalConfigUpdated;
+   }
+#endif
 
    if (!first && loaded) {
       g_debug("Config file reloaded.\n");
@@ -661,6 +732,24 @@ ToolsCore_ReloadConfig(ToolsServiceState *state,
        */
       VMTools_SetupVmxGuestLog(FALSE, state->ctx.config, NULL);
    }
+}
+
+
+/**
+ * Reloads the config file and re-configure the logging subsystem if the
+ * log file was updated. If the config file is being loaded for the first
+ * time, try to upgrade it to the new version if an old version is
+ * detected.
+ *
+ * @param[in]  state       Service state.
+ * @param[in]  reset       Whether to reset the logging subsystem.
+ */
+
+void
+ToolsCore_ReloadConfig(ToolsServiceState *state,
+                       gboolean reset)
+{
+   ToolsCore_ReloadConfigEx(state, reset, FALSE);
 }
 
 
