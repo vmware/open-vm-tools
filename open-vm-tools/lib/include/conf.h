@@ -137,6 +137,21 @@
 #define CONFGROUPNAME_GUESTSTOREUPGRADE "guestStoreUpgrade"
 
 /**
+ * Defines the value for GuestStore upgrade feature to be enabled or not.
+ *
+ * @note Illegal values result in a @c g_warning and fallback to the default
+ * value.
+ *
+ * @param string  Set to "off" no tools upgrade from GuestStore.
+ *                Set to "manual" tools upgrade from GuestStore manual start.
+ *                Set to "immediate" tools upgrade from GuestStore start
+ *                automatically checking on the poll-interval frequency.
+ *                Set to "powercycle" tools upgrade from GuestStore on system
+ *                power on.
+ */
+#define CONFNAME_GUESTSTOREUPGRADE_POLICY "policy"
+
+/**
  * Define a custom GuestStore Upgrade poll interval (in seconds).
  *
  * @note Illegal values result in a @c g_warning and fallback to the default
@@ -145,17 +160,6 @@
  * @param int   User-defined poll interval.  Set to 0 to disable polling.
  */
 #define CONFNAME_GUESTSTOREUPGRADE_POLLINTERVAL "poll-interval"
-
-/**
- * Defines the value for GuestStore upgrade feature to be enabled or not.
- *
- * @note Illegal values result in a @c g_warning and fallback to the default
- * value.
- *
- * @param boolean Set to TRUE to disable publishing.
- *                Set to FALSE to enable publishing.
- */
-#define CONFNAME_GUESTSTOREUPGRADE_DISABLED "disabled"
 
 /**
  * Defines the value for GuestStore upgrade to upgrade or not.
