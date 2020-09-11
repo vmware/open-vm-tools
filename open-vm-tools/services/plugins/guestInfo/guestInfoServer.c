@@ -991,7 +991,7 @@ GuestInfoSendNicInfoXdr(ToolsAppCtx *ctx,          // IN
                                &reply, &replyLen);
       if (!status) {
          g_warning("%s: update failed: request \"%s\", reply \"%s\".\n",
-                    __FUNCTION__, request, reply);
+                    __FUNCTION__, request, VM_SAFE_STR(reply));
       }
       vm_free(reply);
    }
@@ -1052,7 +1052,7 @@ GuestInfoSendData(ToolsAppCtx *ctx,                // IN
    status = RpcChannel_Send(ctx->rpc, message, msgLength, &reply, &replyLen);
    if (!status) {
       g_warning("%s: update failed: request \"%s\", reply \"%s\".\n",
-                __FUNCTION__, request, reply);
+                __FUNCTION__, request, VM_SAFE_STR(reply));
    }
    vm_free(reply);
 
@@ -1375,7 +1375,7 @@ GuestInfoSendDiskInfoV1(ToolsAppCtx *ctx,             // IN
       }
    } else {
       g_debug("%s: RPC failed (%d) reply '%s'\n",
-              __FUNCTION__, status, reply ? reply : "");
+              __FUNCTION__, status, VM_SAFE_STR(reply));
    }
 
    vm_free(reply);

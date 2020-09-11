@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -48,6 +48,7 @@
 #endif
 #include "vmware/tools/utils.h"
 #include "vmware/tools/vmbackup.h"
+#include "vmware/tools/log.h"
 #include "xdrutil.h"
 
 #if !defined(__APPLE__)
@@ -285,7 +286,7 @@ VmBackup_SendEventNoAbort(const char *event,
                                NULL);
    } else {
       g_warning("Failed to send vmbackup event: %s, result: %s.\n",
-                msg, result);
+                msg, VM_SAFE_STR(result));
    }
    vm_free(result);
    g_free(msg);
