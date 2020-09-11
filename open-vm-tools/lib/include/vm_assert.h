@@ -120,7 +120,6 @@ extern "C" {
 
 
 // These strings don't have newline so that a bug can be tacked on.
-#define _AssertPanicFmt            "PANIC %s:%d"
 #define _AssertAssertFmt           "ASSERT %s:%d"
 #define _AssertVerifyFmt           "VERIFY %s:%d"
 #define _AssertNotImplementedFmt   "NOT_IMPLEMENTED %s:%d"
@@ -198,8 +197,6 @@ void WarningThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
            ASSERT_IFNOT(cond, _ASSERT_PANIC_NORETURN(AssertVerify))
 #define VERIFY_BUG(bug, cond) \
            ASSERT_IFNOT(cond, _ASSERT_PANIC_BUG_NORETURN(bug, AssertVerify))
-
-#define PANIC()        _ASSERT_PANIC(AssertPanic)
 
 #define ASSERT_NOT_IMPLEMENTED(cond) \
            ASSERT_IFNOT(cond, NOT_IMPLEMENTED())
