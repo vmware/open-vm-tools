@@ -94,34 +94,6 @@ typedef enum {
 #define VMW_LOG_LEVEL(routing)  ((routing) & VMW_LOG_LEVEL_MASK)
 #define VMW_LOG_MODULE(routing) (((routing) >> VMW_LOG_LEVEL_BITS))
 
-/*
- * To use the Log Facility module specific filters:
- *
- *  1) Use LogV or Log_Level and use the LOG_ROUTING_BITS macro.
- *
- *  2) Have LOGLEVEL_MODULE defined before the include of "log.h".
- *
- *     For many files, this involves moving the include "log.h" after
- *     the include of "loglevel_user.h".
- */
-
-#if defined(LOGLEVEL_MODULE)
-   #include "loglevel_userVars.h"
-   #include "vm_basic_defs.h"
-
-   #define LOGFACILITY_MODULEVAR(mod) XCONC(_logFacilityModule_, mod)
-
-   enum LogFacilityModuleValue {
-      LOGLEVEL_USER(LOGFACILITY_MODULEVAR)
-   };
-
-   /* Module bits of zero (0) indicate no module has been specified */
-   #define LOG_ROUTING_BITS(level) \
-      (((LOGFACILITY_MODULEVAR(LOGLEVEL_MODULE) + 1) << VMW_LOG_LEVEL_BITS) | level)
-#else
-   #define LOG_ROUTING_BITS(level) (level)
-#endif
-
 void LogV(uint32 routing,
           const char *fmt,
           va_list args);
@@ -489,6 +461,8 @@ typedef Bool (GetOpId)(size_t maxStringLen,
 
 void Log_RegisterOpIdFunction(GetOpId *getOpIdFunc);
 
+void Log_LoadModuleFilters(struct CfgInterface *cfgIf);
+
 #endif /* !VMM */
 
 #if defined(__cplusplus)
@@ -496,3 +470,39 @@ void Log_RegisterOpIdFunction(GetOpId *getOpIdFunc);
 #endif
 
 #endif /* VMWARE_LOG_H */
+
+/*
+ * To use the Log Facility module specific filters:
+ *
+ *  1) Use LogV or Log_Level and use the LOG_ROUTING_BITS macro.
+ *
+ *  2) Have LOGLEVEL_MODULE defined before the include of "log.h".
+ *
+ *     For many files, this involves moving the include "log.h" after
+ *     the include of "loglevel_user.h".
+ */
+
+#if !defined(VMW_LOG_MODULE_LEVELS)
+   #include "vm_basic_defs.h"
+   #include "loglevel_userVars.h"
+
+   #define LOGFACILITY_MODULEVAR(mod) XCONC(_logFacilityModule_, mod)
+
+   enum LogFacilityModuleValue {
+      LOGLEVEL_USER(LOGFACILITY_MODULEVAR)
+   };
+
+   #define VMW_LOG_MODULE_LEVELS
+#endif
+
+#if defined(LOG_ROUTING_BITS)
+   #undef LOG_ROUTING_BITS
+#endif
+
+#if defined(LOGLEVEL_MODULE)
+   /* Module bits of zero (0) indicate no module has been specified */
+   #define LOG_ROUTING_BITS(level) \
+      (((LOGFACILITY_MODULEVAR(LOGLEVEL_MODULE) + 1) << VMW_LOG_LEVEL_BITS) | level)
+#else
+   #define LOG_ROUTING_BITS(level) (level)
+#endif
