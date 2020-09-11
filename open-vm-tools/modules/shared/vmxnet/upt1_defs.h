@@ -47,9 +47,8 @@
 
 #define UPT1_MAX_INTRS  (UPT1_MAX_TX_QUEUES + UPT1_MAX_RX_QUEUES)
 
-typedef
-#include "vmware_pack_begin.h"
-struct UPT1_TxStats {
+#pragma pack(push, 1)
+typedef struct UPT1_TxStats {
    uint64 TSOPktsTxOK;  /* TSO pkts post-segmentation */
    uint64 TSOBytesTxOK;
    uint64 ucastPktsTxOK;
@@ -60,13 +59,11 @@ struct UPT1_TxStats {
    uint64 bcastBytesTxOK;
    uint64 pktsTxError;
    uint64 pktsTxDiscard;
-}
-#include "vmware_pack_end.h"
-UPT1_TxStats;
+} UPT1_TxStats;
+#pragma pack(pop)
 
-typedef
-#include "vmware_pack_begin.h"
-struct UPT1_RxStats {
+#pragma pack(push, 1)
+typedef struct UPT1_RxStats {
    uint64 LROPktsRxOK;    /* LRO pkts */
    uint64 LROBytesRxOK;   /* bytes from LRO pkts */
    /* the following counters are for pkts from the wire, i.e., pre-LRO */
@@ -78,9 +75,8 @@ struct UPT1_RxStats {
    uint64 bcastBytesRxOK;
    uint64 pktsRxOutOfBuf;
    uint64 pktsRxError;
-}
-#include "vmware_pack_end.h"
-UPT1_RxStats;
+} UPT1_RxStats;
+#pragma pack(pop)
 
 /* interrupt moderation level */
 #define UPT1_IML_NONE     0 /* no interrupt moderation */
@@ -106,18 +102,16 @@ typedef enum {
 #define UPT1_RSS_MAX_KEY_SIZE        40
 #define UPT1_RSS_MAX_IND_TABLE_SIZE  128
 
-typedef
-#include "vmware_pack_begin.h"
-struct UPT1_RSSConf {
+#pragma pack(push, 1)
+typedef struct UPT1_RSSConf {
    uint16   hashType;
    uint16   hashFunc;
    uint16   hashKeySize;
    uint16   indTableSize;
    uint8    hashKey[UPT1_RSS_MAX_KEY_SIZE];
    uint8    indTable[UPT1_RSS_MAX_IND_TABLE_SIZE];
-}
-#include "vmware_pack_end.h"
-UPT1_RSSConf;
+} UPT1_RSSConf;
+#pragma pack(pop)
 
 /* features */
 #define UPT1_F_RXCSUM      0x0001   /* rx csum verification */
