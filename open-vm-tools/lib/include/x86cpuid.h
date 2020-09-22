@@ -85,9 +85,14 @@ typedef union CPUIDRegsUnion {
 #pragma warning (disable :4100) // unreferenced parameters
 #endif
 
-typedef
-#include "vmware_pack_begin.h"
-struct CPUIDReply {
+#if defined VMKERNEL || (!defined(__FreeBSD__) && !defined(__sun__))
+/*
+ * FreeBSD and Solaris do not support pragma pack until gcc-4.6,
+ * but do not need these structures (which are part of vmmon).
+ * Vmkernel sets __FreeBSD__ for a few files.
+ */
+#pragma pack(push, 1)
+typedef struct CPUIDReply {
    /*
     * Unique host logical CPU identifier. It does not change across queries, so
     * we use it to correlate the replies of multiple queries.
@@ -95,20 +100,16 @@ struct CPUIDReply {
    uint64 tag;                // OUT
 
    CPUIDRegs regs;            // OUT
-}
-#include "vmware_pack_end.h"
-CPUIDReply;
+} CPUIDReply;
 
-typedef
-#include "vmware_pack_begin.h"
-struct CPUIDQuery {
+typedef struct CPUIDQuery {
    uint32 eax;                // IN
    uint32 ecx;                // IN
    uint32 numLogicalCPUs;     // IN/OUT
    CPUIDReply logicalCPUs[0]; // OUT
-}
-#include "vmware_pack_end.h"
-CPUIDQuery;
+} CPUIDQuery;
+#pragma pack(pop)
+#endif
 
 /*
  * CPUID levels the monitor caches.
