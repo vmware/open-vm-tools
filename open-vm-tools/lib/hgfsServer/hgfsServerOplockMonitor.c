@@ -434,6 +434,16 @@ HgfsOplockUnmonitorFileChangeInternal(HOM_HANDLE handle)             // IN:
 void
 HgfsOplockUnmonitorFileChange(HOM_HANDLE handle)             // IN:
 {
+   /*
+    * This function is a callback function and may be called at any time, even
+    * when the oplock monitor module is destroyed.
+    * So, check if the oplock monitor module is initialized.
+    */
+   if (!gOplockMonitorInit) {
+      Log("%s: OplockMonitor module is not inited\n", __FUNCTION__);
+      return;
+   }
+
    MXUser_AcquireExclLock(oplockMonitorLock);
    HgfsOplockUnmonitorFileChangeInternal(handle);
    MXUser_ReleaseExclLock(oplockMonitorLock);
