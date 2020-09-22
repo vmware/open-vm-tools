@@ -205,17 +205,18 @@ enum {
 
 
 /* Named feature leaves */
-#define CPUID_FEATURE_INFORMATION  0x01
-#define CPUID_PROCESSOR_TOPOLOGY   4
-#define CPUID_MWAIT_FEATURES       5
-#define CPUID_PMC_FEATURES         0xa
-#define CPUID_XSAVE_FEATURES       0xd
-#define CPUID_SGX_FEATURES         0x12
-#define CPUID_PT_FEATURES          0x14
-#define CPUID_HYPERVISOR_LEVEL_0   0x40000000
-#define CPUID_VMW_FEATURES         0x40000010
-#define CPUID_SVM_FEATURES         0x8000000a
-#define CPUID_SEV_INFO             0x8000001f
+#define CPUID_FEATURE_INFORMATION    0x01
+#define CPUID_PROCESSOR_TOPOLOGY     4
+#define CPUID_MWAIT_FEATURES         5
+#define CPUID_PMC_FEATURES           0xa
+#define CPUID_XSAVE_FEATURES         0xd
+#define CPUID_SGX_FEATURES           0x12
+#define CPUID_PT_FEATURES            0x14
+#define CPUID_HYPERVISOR_LEVEL_0     0x40000000
+#define CPUID_VMW_FEATURES           0x40000010
+#define CPUID_HYPERVISOR_LEVEL_MAX   0x400000FF
+#define CPUID_SVM_FEATURES           0x8000000a
+#define CPUID_SEV_INFO               0x8000001f
 
 /*
  * CPUID result registers
