@@ -111,6 +111,7 @@
    LOGLEVEL_VAR(guestVars), \
    LOGLEVEL_VAR(gui), \
    LOGLEVEL_VAR(guiWin32), \
+   LOGLEVEL_VAR(Heap), \
    LOGLEVEL_VAR(hbaCommon), \
    LOGLEVEL_VAR(hbr), \
    LOGLEVEL_VAR(hdaudio), \
@@ -121,7 +122,6 @@
    LOGLEVEL_VAR(hostctl), \
    LOGLEVEL_VAR(hostonly), \
    LOGLEVEL_VAR(hpet), \
-   LOGLEVEL_VAR(Heap), \
    LOGLEVEL_VAR(http), \
    LOGLEVEL_VAR(ich7m), \
    LOGLEVEL_VAR(inputdevtap), \
