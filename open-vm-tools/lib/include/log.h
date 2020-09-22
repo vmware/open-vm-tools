@@ -32,24 +32,59 @@ extern "C" {
 
 
 /*
- * The bora/lib Log Facility log level model.
+ *                       ALL ABOUT LEVELS AND FILTERS
  *
- * Each log entry has a level associated with it. The Log Facility filters
- * entries as they arrive by their level; only levels equal to or below
- * (smaller values) the filter level will be accepted by the Log Facility for
- * processing.
+ * Each log entry has a level associated with it. A level expresses how
+ * important it is for a human to notice the log entry.
  *
- * By default, the Log Facility will output any entry which is submitted at
- * level VMW_LOG_WARNING and below to the "standard error". This may be
+ * Messages of general interest should be logged at VMW_LOG_INFO. An error
+ * should be logged at VMW_LOG_ERROR. An entry warning of an issue should
+ * be logged at VMW_LOG_WARNING and so forth.
+ *
+ * A call to Log() has an implicit level of VMW_LOG_INFO; a call to
+ * Warning() has an implicit level of VMW_LOG_WARNING.
+ *
+ * Those levels above VMW_LOG_INFO are increasingly critical to be noticed,
+ * those below VMW_LOG_INFO are increasingly chatty, things that are
+ * generally not useful to seen unless specifically requested. This is
+ * similar to how syslog and the vmacore logger handle levels.
+ *
+ * The Log Facility filters entries as they arrive by their level; only levels
+ * equal to or below (smaller values) the filter level will be accepted by
+ * the Log Facility for processing.
+ *
+ * There are two types of filters, global and module-specific.
+ *
+ * The global filter is the default filter. It is used for all entries to the
+ * Log Facility UNLESS a module is specified.
+ *
+ * The global filter has its default values set such that entries at level
+ * VMW_LOG_WARNING or lower are sent to the "standard error". This may be
  * controlled via Log_SetStderrLevel (see function header) or configuration
  * parameter (see comments in logFacility.c).
  *
- * The VMW_LOG_AUDIT level is used to log something that requires an audit
- * at a later date. It is *ALWAYS* logged and *NEVER* outputs to the "standard
- * error".
+ * The global filter has its default values set such that entries at level
+ * VMW_LOG_INFO (or VMW_LOG_VERBOSE in debug builds) will be accepted for
+ * processing.
  *
- * NOTE: The log levels must have sequential values with no "holes" and start
- *       with zero (0).
+ * Module specific filters are limited to a module (name specific) context;
+ * they do not fall with the global context. This allows entries to be
+ * controlled by module context AND level. This is similar to LOG, for those
+ * familiar with it... except that module-specific filters are available in
+ * all build types.
+ *
+ * Module specific filters have their default values set such that all entries
+ * are not accepted/processed (just like LOG). See comments at the top of
+ * logFacility.c on how to set the module specific level filters.
+ *
+ * How to use module-specific filters can be found at the bottom of this file.
+ *
+ * Regardless of which type of filtering is specified, the VMW_LOG_AUDIT
+ * level is used to log something that requires an audit at a later date.
+ * It is *ALWAYS* logged and *NEVER* outputs to the "standard error".
+ *
+ * NOTE: Log levels must start with zero (0) and increase monotonically, with
+ *       no "holes".
  *
  *      Level              Comments
  *-------------------------------------------------
@@ -57,21 +92,21 @@ extern "C" {
 
 typedef enum {
    VMW_LOG_AUDIT    = 0,   // ALWAYS LOGGED; NO STDERR
-   VMW_LOG_PANIC    = 1,   // Quietest level
+   VMW_LOG_PANIC    = 1,
    VMW_LOG_ERROR    = 2,
    VMW_LOG_WARNING  = 3,
    VMW_LOG_NOTICE   = 4,
-   VMW_LOG_INFO     = 5,   // Default filter level for release builds
-   VMW_LOG_VERBOSE  = 6,   // Default filter level for debug builds
+   VMW_LOG_INFO     = 5,  // Global filter, default for release builds
+   VMW_LOG_VERBOSE  = 6,  // Global filter, default for debug builds
    VMW_LOG_TRIVIA   = 7,
-   VMW_LOG_DEBUG_00 = 8,   // least noisy debug level
+   VMW_LOG_DEBUG_00 = 8,
    VMW_LOG_DEBUG_01 = 9,
    VMW_LOG_DEBUG_02 = 10,
    VMW_LOG_DEBUG_03 = 11,
    VMW_LOG_DEBUG_04 = 12,
    VMW_LOG_DEBUG_05 = 13,
-   VMW_LOG_DEBUG_06 = 14,  // debugging levels grow increasingly noisy
-   VMW_LOG_DEBUG_07 = 15,  // as the debug number increases
+   VMW_LOG_DEBUG_06 = 14,
+   VMW_LOG_DEBUG_07 = 15,
    VMW_LOG_DEBUG_08 = 16,
    VMW_LOG_DEBUG_09 = 17,
    VMW_LOG_DEBUG_10 = 18,
@@ -79,10 +114,11 @@ typedef enum {
    VMW_LOG_DEBUG_12 = 20,
    VMW_LOG_DEBUG_13 = 21,
    VMW_LOG_DEBUG_14 = 22,
-   VMW_LOG_DEBUG_15 = 23,  // Noisiest level
+   VMW_LOG_DEBUG_15 = 23,
+   VMW_LOG_MAX      = 24,
 } VmwLogLevel;
 
-#if defined(VMX86_DEBUG) || defined(VMX86_DEVEL)
+#if defined(VMX86_DEBUG)
    #define LOG_FILTER_DEFAULT_LEVEL VMW_LOG_VERBOSE
 #else
    #define LOG_FILTER_DEFAULT_LEVEL VMW_LOG_INFO
@@ -506,7 +542,8 @@ typedef Bool (GetOpId)(size_t maxStringLen,
 void
 Log_RegisterOpIdFunction(GetOpId *getOpIdFunc);
 
-void Log_LoadModuleFilters(struct CfgInterface *cfgIf);
+void
+Log_LoadModuleFilters(struct CfgInterface *cfgIf);
 
 #endif /* !VMM */
 
@@ -517,18 +554,25 @@ void Log_LoadModuleFilters(struct CfgInterface *cfgIf);
 #endif /* VMWARE_LOG_H */
 
 /*
- * To use the Log Facility module specific filters:
+ * To use the Log Facility Module Specific Filters:
  *
- *  1) Have LOGLEVEL_MODULE defined before the include of "log.h".
+ *  1) Modify the file (C/C++) slightly.
  *
- *     Be sure to have only one include of "log.h" in a file.
+ *     Define LOGLEVEL_MODULE before the include of "log.h". It's a good
+ *     idea to see if "log.h" is included more than once and, if so, to
+ *     remove any extra inclusions.
  *
- *     If all uses of LOG are converted to use the module specific filters,
+ *     If all uses of LOG are converted to use the module-specific filters,
  *     remember to remove "loglevel_user.h".
  *
- *  2) Use LogV and/or Log_Level and use the LOG_ROUTING_BITS macro for the
- *     routing argument OR use the helper functions Log_LevelModule and/or
- *     LogV_Module.
+ *  2) Pass the LOGLEVEL_MODULE information to the Log Facility.
+ *
+ *     Use LogV_Module and/or Log_LevelModule.
+ *
+ *     OR
+ *
+ *     Use the LOG_ROUTING_BITS macro as part of a call to LogV and/or
+ *     Log_Level.
  */
 
 #if !defined(VMW_LOG_MODULE_LEVELS)
