@@ -1,4 +1,173 @@
 
+commit a021b598a61aadccd7da931c7ab717312ca03c0f
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 22 14:54:07 2020 -0700
+
+    Fix the exit code when toolbox-cmd disk shrink is canceled.
+    
+    The toolbox-cmd disk shrink operation was exiting with status 0
+    when a SIGINT is received.  A non-zero exit status is expected.
+    Change the exit code to 130, which is the appropriate value
+    according to TLDP: https://tldp.org/LDP/abs/html/exitcodes.html
+
+commit 985c9a0ea8e4ff00d5cfbadbb0397c12a8ec0240
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 22 14:54:07 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 81aff3a41e14b4aaae285bebb95cc6545a600c77
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 22 14:54:07 2020 -0700
+
+    Fix memory leaks in guestInfo/diskInfo.c.
+    
+    When checking for IDE, SATA and SAS disk drives, the glib GMatchInfo is
+    passed to a g_regex_match() function inside a for loop.  It was not
+    properly passed to g_match_info_free() before subsequently being reused.
+    
+    This addresses https://github.com/vmware/open-vm-tools/issues/452
+
+commit 1c5d9dbbd3c19eb135633f9fefc47c654eacde76
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 22 14:54:07 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 30c87d05d1bb654b2bc37f482c779961bdb20506
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 22 14:54:07 2020 -0700
+
+    Common header file change not directly applicable to open-vm-tools.
+
+commit 457adfe51c0e03610705d32b0fb5cba55deb1304
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 22 14:54:07 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit cd6824eb5014508f479bb8deda86529bc5a21e79
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 22 14:54:07 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 9338c579fba6ee1f8d3a50df63f67cec7785d71b
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 22 14:54:07 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 5ba9b23033f6500570f6a706aee18477c72039ac
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 22 14:54:07 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 77c30381461404f2b9468edfd6d010f36183f3ca
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 22 14:54:06 2020 -0700
+
+    Common header file change not directly applicable to open-vm-tools.
+
+commit 65fd0bf725a223d31d09c249675a5e1d1eb5dabb
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 22 14:54:06 2020 -0700
+
+    Common header file change not directly applicable to open-vm-tools.
+
+commit 3267a1eb6964a4bb35806d1a117531b3a4119c9d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 22 14:54:06 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit cd53ce69a494ac0929523010f768a03e4cafec24
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 22 14:54:06 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit c86819a35d2a64a47bc846eeb8083a0dbd18b742
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 22 14:54:06 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit d6d96d1c7e53ea53affacb538342857d688a7aa1
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 22 14:54:06 2020 -0700
+
+    Fix a minor memory leak in VIX Listfiles().
+    
+    The GError structure is not cleared in an error code path, which
+    leads to a minor memory leak.  Explicitly call g_clear_error().
+
+commit af4e12648002f9ac4fdcc50a3aa04dddbaf5398b
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 22 14:54:06 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit c7b7ff477ca923833deebed645fec6b1612d4c5a
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 22 14:54:06 2020 -0700
+
+    Changes to common header files not applicable to open-vm-tools.
+
+commit ee09d506dac785a790e78b0e0dca0b99f447c694
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 22 14:54:06 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit bc811a0fcd6b80082fc7f513928e9c448e7bf46b
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 22 14:54:05 2020 -0700
+
+    hgfsServerOplockMonitor.c  HgfsOplockUnmonitorFileChange():
+    
+    There is no need to cancel the monitor action if the oplock monitor
+    module has already been destroyed.   Avoid a possible NULL pointer
+    dereference.
+
+commit 49c898507badc4d19e17a5e3230116505aa58f93
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 22 14:54:05 2020 -0700
+
+    Changes to common source files not directly applicable to open-vm-tools.
+
+commit 2d3a1ce819c86360cf00c7a3352c501674daaae1
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 22 14:54:05 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit ce5044577a89c0a66f4b427067c2843f4094044b
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 22 14:54:05 2020 -0700
+
+    Update the development tools version for the next major point release.
+
+commit ea2e57b14f0b4b063556fda617829ad1320d8565
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 22 14:54:05 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 97582346292959b5b4d125485ab7cf9747c1c391
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 22 14:54:05 2020 -0700
+
+    Fix a potential null pointer dereference in asyncsocket.
+
+commit 9a3f9c925037fc7cba45761c6fcae762ded0668d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 22 08:20:25 2020 -0700
+
+    Captured the "devel" change log history since the start of the "stable-11.1.x"
+    branch.
+
 *****
     Created the "stable-11.2.x" branch at this point.
 *****
