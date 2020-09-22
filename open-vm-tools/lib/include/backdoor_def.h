@@ -268,6 +268,7 @@ extern "C" {
 #  define BDOOR_CMD_GMM_GET_CAPABILITY        8
 #define   BDOOR_CMD_PRECISIONCLOCK           97
 #  define BDOOR_CMD_PRECISIONCLOCK_GETTIME    0
+#  define BDOOR_CMD_PRECISIONCLOCK_SETTIME    1
 #define   BDOOR_CMD_COREDUMP_UNSYNC          98 /* Devel only. For VMM cores */
 #define   BDOOR_CMD_APPLE_GPU_RES_SET        99
 #define   BDOOR_CMD_MAX                     100
