@@ -2362,30 +2362,6 @@ CPUID_LevelUsesEcx(uint32 level) {
    }
 }
 
-/*
- *----------------------------------------------------------------------
- *
- * CPUID_SupportsMsrPlatformInfo --
- *
- *    Uses vendor and cpuid.1.0.eax to determine if the processor
- *    supports MSR_PLATFORM_INFO.
- *
- *----------------------------------------------------------------------
- */
-static INLINE Bool
-CPUID_SupportsMsrPlatformInfo(CpuidVendor vendor, uint32 version)
-{
-   return vendor == CPUID_VENDOR_INTEL &&
-          (CPUID_UARCH_IS_NEHALEM(version)     ||
-           CPUID_UARCH_IS_SANDYBRIDGE(version) ||
-           CPUID_UARCH_IS_HASWELL(version)     ||
-           CPUID_UARCH_IS_SKYLAKE(version)     ||
-           CPUID_MODEL_IS_KNIGHTS_LANDING(version) ||
-           CPUID_MODEL_IS_DENVERTON(version)   ||
-           CPUID_UARCH_IS_SILVERMONT(version)  ||
-           CPUID_UARCH_IS_TREMONT(version));
-}
-
 #ifdef _MSC_VER
 #pragma warning (pop)
 #endif
