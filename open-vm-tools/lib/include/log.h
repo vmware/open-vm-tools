@@ -547,4 +547,31 @@ void Log_LoadModuleFilters(struct CfgInterface *cfgIf);
    #define LOG_ROUTING_BITS(level) (level)
 #endif
 
+#ifndef VMW_LOG_HELPER_FUNCTIONS
+#define VMW_LOG_HELPER_FUNCTIONS
 
+/*
+ * Helper functions for module level filtering.
+ */
+
+static INLINE void
+LogV_Module(int32 level,
+            const char *fmt,
+            va_list args)
+{
+   LogV(LOG_ROUTING_BITS(level), fmt, args);
+}
+
+static INLINE void PRINTF_DECL(2, 3)
+Log_LevelModule(int32 level,
+                const char *fmt,
+                ...)
+{
+   va_list ap;
+
+   va_start(ap, fmt);
+   LogV_Module(level, fmt, ap);
+   va_end(ap);
+}
+
+#endif

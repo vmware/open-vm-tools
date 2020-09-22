@@ -94,6 +94,7 @@
    LOGLEVEL_VAR(extcfgdevice), \
    LOGLEVEL_VAR(fakeDma), \
    LOGLEVEL_VAR(filtlib), \
+   LOGLEVEL_VAR(FiltLibTestLog), \
    LOGLEVEL_VAR(flashram), \
    LOGLEVEL_VAR(floppy), \
    LOGLEVEL_VAR(fsresx), \
@@ -120,6 +121,7 @@
    LOGLEVEL_VAR(hostctl), \
    LOGLEVEL_VAR(hostonly), \
    LOGLEVEL_VAR(hpet), \
+   LOGLEVEL_VAR(Heap), \
    LOGLEVEL_VAR(http), \
    LOGLEVEL_VAR(ich7m), \
    LOGLEVEL_VAR(inputdevtap), \
