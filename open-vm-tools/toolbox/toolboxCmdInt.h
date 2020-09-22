@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -72,6 +72,10 @@
 
 #ifndef EX_NOPERM
 #define EX_NOPERM 77 /* permission denied */
+#endif
+
+#ifndef VM_EX_INTERRUPT
+#define VM_EX_INTERRUPT 130 /* SIGINT received */
 #endif
 
 /*
