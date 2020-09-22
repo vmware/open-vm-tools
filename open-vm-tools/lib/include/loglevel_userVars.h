@@ -126,6 +126,7 @@
    LOGLEVEL_VAR(ich7m), \
    LOGLEVEL_VAR(inputdevtap), \
    LOGLEVEL_VAR(ipc), \
+   LOGLEVEL_VAR(ipcMgr), \
    LOGLEVEL_VAR(keyboard), \
    LOGLEVEL_VAR(keymap), \
    LOGLEVEL_VAR(keypersist), \
@@ -134,6 +135,7 @@
    LOGLEVEL_VAR(license), \
    LOGLEVEL_VAR(llc), \
    LOGLEVEL_VAR(lsilogic), \
+   LOGLEVEL_VAR(lwdFilter), \
    LOGLEVEL_VAR(macbw), \
    LOGLEVEL_VAR(macfi), \
    LOGLEVEL_VAR(macfilter), \
