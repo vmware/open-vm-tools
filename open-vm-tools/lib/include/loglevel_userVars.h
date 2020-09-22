@@ -303,6 +303,7 @@
    LOGLEVEL_VAR(vncDecode), \
    LOGLEVEL_VAR(vncEncode), \
    LOGLEVEL_VAR(vncServer), \
+   LOGLEVEL_VAR(vncServerOS), \
    LOGLEVEL_VAR(vnet), \
    LOGLEVEL_VAR(vprobe), \
    LOGLEVEL_VAR(VProbeClient), \
