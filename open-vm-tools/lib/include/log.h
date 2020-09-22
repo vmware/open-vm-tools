@@ -410,7 +410,7 @@ Bool
 Log_Outputting(void);
 
 Bool
-Log_IsLevelOutputting(int level);
+Log_IsRoutingEnabled(uint32 routing);
 
 const char *
 Log_GetFileName(void);
@@ -524,7 +524,7 @@ void Log_LoadModuleFilters(struct CfgInterface *cfgIf);
  *     Be sure to have only one include of "log.h" in a file.
  *
  *     If all uses of LOG are converted to use the module specific filters,
- *     remeber to remove "loglevel_user.h".
+ *     remember to remove "loglevel_user.h".
  *
  *  2) Use LogV and/or Log_Level and use the LOG_ROUTING_BITS macro for the
  *     routing argument OR use the helper functions Log_LevelModule and/or
@@ -556,6 +556,10 @@ void Log_LoadModuleFilters(struct CfgInterface *cfgIf);
    #define LOG_ROUTING_BITS(level) (level)
 #endif
 
+/*
+ * Helper functions for module level filters.
+ */
+
 #if defined(Log_LevelModule)
    #undef Log_LevelModule
 #endif
@@ -569,3 +573,12 @@ void Log_LoadModuleFilters(struct CfgInterface *cfgIf);
 
 #define Log_LevelModule(level, ...) \
    Log_Level(LOG_ROUTING_BITS(level), __VA_ARGS__)
+
+#if defined(Log_IsRoutingEnabledModule)
+   #undef Log_IsRoutingEnabledModule
+#endif
+
+#define Log_IsRoutingEnabledModule(level) \
+   Log_IsRoutingEnabled(LOG_ROUTING_BITS(level))
+
+
