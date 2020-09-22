@@ -564,15 +564,15 @@ void Log_LoadModuleFilters(struct CfgInterface *cfgIf);
    #undef Log_LevelModule
 #endif
 
-#define LogV_Module(level, ...) \
-   LogV(LOG_ROUTING_BITS(level), __VA_ARGS__)
+#define Log_LevelModule(level, ...) \
+   Log_Level(LOG_ROUTING_BITS(level), __VA_ARGS__)
 
 #if defined(LogV_Module)
    #undef LogV_Module
 #endif
 
-#define Log_LevelModule(level, ...) \
-   Log_Level(LOG_ROUTING_BITS(level), __VA_ARGS__)
+#define LogV_Module(level, ...) \
+   LogV(LOG_ROUTING_BITS(level), __VA_ARGS__)
 
 #if defined(Log_IsRoutingEnabledModule)
    #undef Log_IsRoutingEnabledModule
