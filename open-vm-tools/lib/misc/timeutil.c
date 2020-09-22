@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -955,6 +955,35 @@ TimeUtil_UnixTimeToNtTime(struct timespec unixTime)  // IN: Time in Unix format
    return (VmTimeType)unixTime.tv_sec * 10000000 +
                                           unixTime.tv_nsec / 100 + UNIX_EPOCH;
 }
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * TimeUtil_IsValidDate --
+ *
+ *    Checks out if the given time and date are valid. This function assumes
+ *    that any valid minute might contain a leap second.
+ *
+ * Results:
+ *    TRUE if the time and date are valid, FALSE otherwise.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+TimeUtil_IsValidDate(TimeUtil_Date const *d) // IN
+{
+   if (!TimeUtilIsValidDate(d->year, d->month, d->day)) {
+      return FALSE;
+   }
+
+   return d->hour < 24 && d->minute < 60 && d->second < 61;
+}
+
 
 #ifdef _WIN32
 /*
