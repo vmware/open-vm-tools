@@ -1961,8 +1961,7 @@ AsyncSocket_ConnectUnixDomain(const char *path,                  // IN
    asock = AsyncTCPSocketConnect((struct sockaddr_storage *)&addr,
                               sizeof addr, -1, connectFn, clientData,
                               flags, pollParams, outError);
-
-   return BaseSocket(asock);
+   return asock ? BaseSocket(asock) : NULL;
 }
 #endif
 
