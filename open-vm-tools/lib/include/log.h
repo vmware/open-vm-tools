@@ -67,11 +67,11 @@ typedef enum {
    VMW_LOG_DEBUG_00 = 8,   // least noisy debug level
    VMW_LOG_DEBUG_01 = 9,
    VMW_LOG_DEBUG_02 = 10,
-   VMW_LOG_DEBUG_03 = 11,  // debug levels grow
-   VMW_LOG_DEBUG_04 = 12,  // increasingly noisy
-   VMW_LOG_DEBUG_05 = 13,  // as the debug number
-   VMW_LOG_DEBUG_06 = 14,  // increases
-   VMW_LOG_DEBUG_07 = 15,
+   VMW_LOG_DEBUG_03 = 11,
+   VMW_LOG_DEBUG_04 = 12,
+   VMW_LOG_DEBUG_05 = 13,
+   VMW_LOG_DEBUG_06 = 14,  // debugging levels grow increasingly noisy
+   VMW_LOG_DEBUG_07 = 15,  // as the debug number increases
    VMW_LOG_DEBUG_08 = 16,
    VMW_LOG_DEBUG_09 = 17,
    VMW_LOG_DEBUG_10 = 18,
@@ -519,12 +519,16 @@ void Log_LoadModuleFilters(struct CfgInterface *cfgIf);
 /*
  * To use the Log Facility module specific filters:
  *
- *  1) Use LogV or Log_Level and use the LOG_ROUTING_BITS macro.
+ *  1) Have LOGLEVEL_MODULE defined before the include of "log.h".
  *
- *  2) Have LOGLEVEL_MODULE defined before the include of "log.h".
+ *     Be sure to have only one include of "log.h" in a file.
  *
- *     For many files, this involves moving the include "log.h" after
- *     the include of "loglevel_user.h".
+ *     If all uses of LOG are converted to use the module specific filters,
+ *     remeber to remove "loglevel_user.h".
+ *
+ *  2) Use LogV and/or Log_Level and use the LOG_ROUTING_BITS macro for the
+ *     routing argument OR use the helper functions Log_LevelModule and/or
+ *     LogV_Module.
  */
 
 #if !defined(VMW_LOG_MODULE_LEVELS)
@@ -552,31 +556,16 @@ void Log_LoadModuleFilters(struct CfgInterface *cfgIf);
    #define LOG_ROUTING_BITS(level) (level)
 #endif
 
-#ifndef VMW_LOG_HELPER_FUNCTIONS
-#define VMW_LOG_HELPER_FUNCTIONS
-
-/*
- * Helper functions for module level filtering.
- */
-
-static INLINE void
-LogV_Module(int32 level,
-            const char *fmt,
-            va_list args)
-{
-   LogV(LOG_ROUTING_BITS(level), fmt, args);
-}
-
-static INLINE void PRINTF_DECL(2, 3)
-Log_LevelModule(int32 level,
-                const char *fmt,
-                ...)
-{
-   va_list ap;
-
-   va_start(ap, fmt);
-   LogV_Module(level, fmt, ap);
-   va_end(ap);
-}
-
+#if defined(Log_LevelModule)
+   #undef Log_LevelModule
 #endif
+
+#define LogV_Module(level, ...) \
+   LogV(LOG_ROUTING_BITS(level), __VA_ARGS__)
+
+#if defined(LogV_Module)
+   #undef LogV_Module
+#endif
+
+#define Log_LevelModule(level, ...) \
+   Log_Level(LOG_ROUTING_BITS(level), __VA_ARGS__)
