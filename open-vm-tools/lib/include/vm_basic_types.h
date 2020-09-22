@@ -156,19 +156,22 @@
 
 /*
  * C99 <stdint.h> or equivalent
- * Special cases:
- * - Linux kernel lacks <stdint.h>, preferring <linux/types.h>
+ * Userlevel: 100% <stdint.h>
+ * - gcc-4.5 or later, and earlier for some sysroots
+ * - vs2010 or later
+ * Kernel: <stdint.h> is often unavailable (and no common macros)
+ * - Linux: uses <linux/types.h> instead
  *   (and defines uintptr_t since 2.6.24, but not intptr_t)
- * - Solaris collides with gcc <stdint.h>, but has <sys/stdint.h>
- * - VMKernel + FreeBSD collides with gcc <stdint.h>, but has <sys/stdint.h>
- * - VMKernel (+DECODERLIB) share macros with Linux kernel
- * - Windows only added <stdint.h> in vc10/vs2010 (MSC ver 1600),
- *   and WDKs lack it.
+ * - Solaris: conflicts with gcc <stdint.h>, but has <sys/stdint.h>
+ * - VMKernel + FreeBSD combination collides with gcc <stdint.h>,
+ *   but has <sys/stdint.h>
+ * - Windows: some types in <crtdefs.h>, no definitions for other types.
  *
  * NB about LLP64 in LP64 environments:
  * - Apple uses 'long long' uint64_t
  * - Linux kernel uses 'long long' uint64_t
  * - Linux userlevel uses 'long' uint64_t
+ * - Windows uses 'long long' uint64_t
  */
 #if !defined(VMKERNEL) && !defined(DECODERLIB) && \
     defined(__linux__) && defined(__KERNEL__)
@@ -182,11 +185,8 @@
       (defined(VMKERNEL) && defined(__FreeBSD__)) || \
       defined(_SYS_STDINT_H_)
 #  include <sys/stdint.h>
-#elif !defined(_MSC_VER)
-   /* Common case */
-#  include <stdint.h>
-#else
-   /* COMPAT: until pre-vc10 is retired */
+#elif defined(_MSC_VER) && defined(_KERNEL_MODE)
+   /* Windows driver headers (km/crt) lack stdint.h */
 #  include <crtdefs.h>  // uintptr_t
    typedef unsigned __int64   uint64_t;
    typedef unsigned int       uint32_t;
@@ -197,6 +197,9 @@
    typedef int                int32_t;
    typedef short              int16_t;
    typedef signed char        int8_t;
+#else
+   /* Common case */
+#  include <stdint.h>
 #endif
 
 /*
