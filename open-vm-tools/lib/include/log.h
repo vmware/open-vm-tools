@@ -42,7 +42,7 @@ extern "C" {
  * By default, the Log Facility will output any entry which is submitted at
  * level VMW_LOG_WARNING and below to the "standard error". This may be
  * controlled via Log_SetStderrLevel (see function header) or configuration
- * parameter (see comments in log.c).
+ * parameter (see comments in logFacility.c).
  *
  * The VMW_LOG_AUDIT level is used to log something that requires an audit
  * at a later date. It is *ALWAYS* logged and *NEVER* outputs to the "standard
@@ -74,7 +74,12 @@ typedef enum {
    VMW_LOG_DEBUG_07 = 15,
    VMW_LOG_DEBUG_08 = 16,
    VMW_LOG_DEBUG_09 = 17,
-   VMW_LOG_DEBUG_10 = 18,  // Noisiest level
+   VMW_LOG_DEBUG_10 = 18,
+   VMW_LOG_DEBUG_11 = 19,
+   VMW_LOG_DEBUG_12 = 20,
+   VMW_LOG_DEBUG_13 = 21,
+   VMW_LOG_DEBUG_14 = 22,
+   VMW_LOG_DEBUG_15 = 23,  // Noisiest level
 } VmwLogLevel;
 
 #if defined(VMX86_DEBUG) || defined(VMX86_DEVEL)
