@@ -1,3 +1,2215 @@
+commit 19d12e9a038a1835155ae26631b9a34d5a54cfcd
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:06 2020 -0700
+
+    Common source file changes not applicable to open-vm-tools.
+
+commit 5e0117e5ac8620ee00906fb9f070e92ac6a15baf
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:06 2020 -0700
+
+    Changes to Common source files not applicable to open-vm-tools.
+
+commit e71f137295a2aa94931369060a08a9fd6c1dde33
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:06 2020 -0700
+
+    GuestOS: Add Flatcar Linux (64-bit only) as a new guest.
+
+commit 53c5a3a8cb653031d3efa8009274b2b96c84ce25
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:06 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit d93e52f060d979baea5bcb63fac62a32a276becf
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:06 2020 -0700
+
+    Common source file change not applicable to open-vm-tools.
+
+commit 6c40ef8aa76485edbc322711cae34cb75df56d2a
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:05 2020 -0700
+
+    hostinfo.h: stop including x86cpuid.h
+    
+    With the removal of Hostinfo_GetAllCpuid in an earlier change, hostinfo.h
+    can stop including x86cpuid.h and only needs vendor IDs from x86vendor.h.
+    
+    Unfortunately, quite a few source files depended in hostinfo.h's automatic
+    inclusion of x86cpuid.h. Fix them to include what they need.
+    
+    The lib/include/guestStats.h is a special case that happened to succeed because
+    of a warning that was disabled in x86cpuid.h which also happens to have
+    been included earlier than this header.  Re-disable the warning.
+
+commit 1f66f283c20f7f5cd154ca34c33e3e145659916a
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:05 2020 -0700
+
+    Ensuring vmtools utilities are only used in a VMware virtual environment.
+    
+    Several utilities do not check that their running environment is in a
+    VMware hypervisor.  Add checks and generate error messages if the
+    running environment is a physical machine.  Some makefiles were altered
+    o resolve dependency issues.
+
+commit 6f78dd5ce2733ea964fe969cb739daa55e329e70
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:05 2020 -0700
+
+    VGAuth: vgauthd service fails if vgauth.conf samlSchemaDir has trailing whitespace
+    
+    When reading the vgauth.conf samlSchemaDir, remove any trailing whitespace.
+    Also remove trailing whitespace when reading any preference string.
+
+commit e6b3847d7bd9b811faff47126da72436d0e69ea2
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:05 2020 -0700
+
+    Additional clean up of vmware_pack files.
+
+commit 1cb3b54c545608fff271ca076b832c991a9316fb
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:05 2020 -0700
+
+    Updating authors for OVT contributions
+    
+    https://github.com/vmware/open-vm-tools/pull/432
+
+commit 098d213d1db4b4bb22823036cca7f3bc6f06af71
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:05 2020 -0700
+
+    Changing permissions of tools configuration example file.
+    
+    Also made a small change to another makefile for more consistency in style.
+
+commit 6ef9d2fb20c127d633210b4537848021b1840013
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:05 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 3b5f6264e905911ed87196cd49eec8387205da1e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:05 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 46c324e50081f63b12890cae9f0a9147805cdbee
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:05 2020 -0700
+
+    Additional clean up of vmware_pack files.
+
+commit daa348acc12b0c24075276874c03d97acd2d247e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:05 2020 -0700
+
+    Additional clean up of vmware_pack files.
+
+commit fdcc1ae11383e627ba624dc06c94d2ea0b62032f
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:05 2020 -0700
+
+    Additional clean up of vmware_pack files.
+
+commit 8cb221c581abe6a905ebd348d32cc3ecb6cabb93
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:05 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit c2553fbd4906f47984f01f11a208fea742683a5a
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:05 2020 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit c161dcb11d061c6bd4ef3c5aa563b15b13167bdd
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:04 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 4da428cb1bbea7a5e1e9da2df40d410ca557f63f
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:04 2020 -0700
+
+    Back out earlier common header file changes.
+
+commit 7903a7eaee51685e70abfd7c227d1828c34e9373
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:04 2020 -0700
+
+    Backout the previous header file change.
+
+commit ccba10c950c5a5a30c884c6ad3f5b2e71add5b09
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:04 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 27ef6c9deabdc9fe31de7b4f5da02a4408463410
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:04 2020 -0700
+
+    Changes to common header files not applicable to open-vm-tools.
+
+commit 2e5c40274f3f09d95084dafc9608123bf59f80b7
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:04 2020 -0700
+
+    Replace a bogus URL provided in a vmcheck.c error message.
+    
+    Previously the URL "http://www.vmware.com/info?id=99" appeared in
+    an error message in the vmware_checkvm binary to refer to VMware Tools
+    updating information that may change from one release to the next.
+    That information is now available from the single VMware Tools URL"
+    https://docs.vmware.com/en/VMware-Tools/index.html.
+
+commit fe7c6ebcd1fdf3e25246c7e1725063f8c4978db3
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:04 2020 -0700
+
+    Get rid of more vmware_pack files.
+    
+    gcc supports the Microsoft-style "pragma pack" syntax.
+    Standardize on it.  The conversion is somewhat non-trivial,
+    as gcc requires "pragma" to be before or after a statement,
+    not in the middle.
+
+commit 055fed60e4f1a545e923c2aa0c14f5ecdb53b6ab
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:04 2020 -0700
+
+    Common source file change not applicable to open-vm-tools.
+
+commit 3afc566751b7d151b2adb75703b5dfc10bff2237
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:04 2020 -0700
+
+    Log Facility: Infrastructure changes for module level filtering
+    
+    Additional changes to log.h and loglevel_userVars.h
+
+commit 0516ef4a9a98f435aa3fbf20be43fc9581b34115
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:04 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 3a10aafdeaac5c708d951e122bba816d9574b2be
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:04 2020 -0700
+
+    Remove PANIC() macro in favor of Panic() or VERIFY()
+
+commit 54d36be9679eec0971a31d5b608bb51ecb07dd25
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:04 2020 -0700
+
+    Record usage of VMware Tools version 11.1.6
+
+commit 90ac21d93e9159582865955c83d47676db2ea34f
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:03 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 3df677d2ba3b4ddefc81c0ae0e381c782c81bbb6
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:03 2020 -0700
+
+    Changes to common header files not applicable to open-vm-tools.
+
+commit 652aeafa2cee7893b66f73f3096077232e6dce93
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:03 2020 -0700
+
+    Adding null check for results passed to log function.
+    
+    In several files, replies/results from RPC functions can possibly be
+    null if the function fails.  This changeset adds a function-like macro
+    which does the null checks and is applied to the replies when passed
+    into logging functions.
+
+commit 31e14a2def83c8cf4450543c042c61a5e811eada
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:03 2020 -0700
+
+    Ensure the servicediscovery plugin isn't enabled in an open-vm-tools build for non Linux OS.
+    
+    The servicediscovery plugin is supported only on Linux platforms.  This
+    change checks that this plugin is enabled only if the OS is Linux.
+    Otherwise, an error message is printed.
+
+commit be533613b3efdc8f78f6762aa31574173443e7e8
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:03 2020 -0700
+
+    Tools consumes loglevel_user.h
+    
+    Adding lib/include/loglevel_userVars.h.
+
+commit 5a9242dd13e229929e1c1dbe6a872b4c0e9e3361
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:03 2020 -0700
+
+    Split out the log level defs from the log level vars.
+    
+    This way the Log Facility can use the same name space as LOG for its
+    domain specific level filtering by including loglevel_userVars.h directly.
+
+commit 3fbb1d39f298f37248ec9690f08c550872846940
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:03 2020 -0700
+
+    Backout the previous log level defines change.
+
+commit 34a64c375ee0a16db7e1f85f358c90d12815dac2
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:03 2020 -0700
+
+    Split out the log level defs from the log level vars.
+
+commit 606ed341010cec4a3c32233ba47e88aca9eb7b4d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:03 2020 -0700
+
+    Get rid of vmware_pack files (devices edition)
+    
+    gcc supports the Microsoft-style "pragma pack" syntax.
+    Standardize on it.  The conversion is somewhat non-trivial,
+    as gcc requires "pragma" to be before or after a statement,
+    not in the middle.
+
+commit 2174f3237b58391e9155e37895ef63c0043b0b35
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:03 2020 -0700
+
+    vm_assert.h: Remove unused PANIC_BUG
+
+commit 42af202affbf0cc2bb533dd430933bf5ee2ce247
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:03 2020 -0700
+
+    Swap out Log+PANIC for Panic
+    
+    Just call Panic with an appropriate string instead of a Log+PANIC.
+
+commit e61fbb2ebeb701063ec1e1362d7e1b19695ba183
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:02 2020 -0700
+
+    LOG: Keep the LOG_LEVEL entries sorted
+    
+    This is the first in a series of changes to the Log Facility that will add
+    the ability to have domain specific filtering (e.g. foobar domain can have
+    log calls which are filtered by domain (name) and level).  This will make
+    LOG like abilities usable in all build types, even a release build.
+    
+    The LOG_LEVEL entries are difficult to find since they are in a jumbled
+    order.  The existing grouping isn't useful as many of the modules are shared.
+    Create one big sorted list.
+
+commit 16f81450b4820a4634dfefbaea222dda161e445c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:02 2020 -0700
+
+    Common header file change not directly applicable to open-vm-tools.
+
+commit d2404fe3a2dfc88b118bd8dcf3655a960b52c822
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:02 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 31542efae6854d989d51b5d4c3333d3baa43dfc8
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:02 2020 -0700
+
+    Removing unnecessary code from rpc header file.
+    
+    Several macros related to VMDB are no longer needed in the guestrpc
+    header file.  This change deletes those unused macros.
+
+commit 0bb2d1599b4a29486aef2d4bced25992a99154cf
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:02 2020 -0700
+
+    Improve the logging for deployPkg in a few workflows
+    
+    When executing Perl script in Linux Guest OS customization, log an
+    error if the execution fails.
+
+commit 1c3925b3078008ff48b2c89c1ed080c583aba840
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:02 2020 -0700
+
+    Add --cmdfile argument
+    
+    Some OSes (Windows) have a relatively small cmdline limit.
+    Expose a cmdfile argument which works like --cmd, but
+    reads the input from a file.  This allows RPCs which can
+    have huge arguments (guestVars, namespaceDB, DataSets) to work.
+
+commit 00d5ee23bdbbc01ac7eb326715ae7a98c0acdd06
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:02 2020 -0700
+
+    Common source file change not applicable to open-vm-tools.
+
+commit 248ef2c5361a0a8a7e4bed9cafec50598a313899
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:02 2020 -0700
+
+    Fix a stack-use-after-scope issue in FileLockScanDirectory.
+
+commit 504e2b8021b5c1e51c7f208c11acaac444531feb
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Sep 11 12:11:02 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 79790f72cac52853dba8abba51e51226dad721f0
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Aug 18 07:46:26 2020 -0700
+
+    Update copyright dates.
+
+commit dd54c97c7aca69dda041e82fd1a62a836c20db4f
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Aug 18 07:14:12 2020 -0700
+
+    Remove the guestApp.h header file that is not needed in conf.h
+    
+    The configuration header file conf.h includes the guestapp header file
+    guestApp.h, but there are no related references to the guestapp header
+    file.  This change removes the unnecessary header file.
+    The guestApp.h header file is included in the few source files with
+    a dependency on it.
+
+commit 1b7f86e63a4a03170de159aa719c5e5be7e2dcea
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Aug 18 07:14:12 2020 -0700
+
+    Including appinfo and servicediscovery settings in configuration file
+    
+    Adding the default configuration settings to the tools.conf sample.
+
+commit 45d0a2d16b5fb25ec11df8e9f75000917e279c22
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Aug 18 07:14:12 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 093fcc60b980a6d48e9e3ed2156e79c6a6790f99
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Aug 18 07:14:12 2020 -0700
+
+    [HGFS Server] Add file attributes/symlink check status cache using oplock support
+    
+    An investigation found that while copying a group of small files from host
+    to guest using the shared folder, the HGFS_OP_GETATTR_V3 message was handled
+    in HGFS server 276,140 times over a period of ~35 seconds.
+    
+    Caching the file attributes in HGFS on the server-side can reduce the time
+    significantly (from experimental results, 35s => 8s).
+    
+    It was also discovered that Posix_RealPath is called repeatedly to check
+    whether a path is a symlink, since HgfsServerGetLocalNameInfo is called when
+    handling a series of requests.
+    
+    Integrate a key-value cache to HGFS server to cache the symlink check results
+    and file attributes, using the file path as the key.  This task will be divided
+    into multiple change:
+    
+    1. Add oplock support
+    2. Add a customized LRU cache in HGFS server for file attributes and
+       symlink check results
+    
+    -  New files:
+       hgfsCache.h/c: implements a customized LRU cache which is built by
+                      combining two data structures: a doubly linked list and
+                      a hash table.
+    
+    -  The cache will be allocated only when oplock is enabled.
+    -  The cache relies on the file change monitor provided by oplock to ensure
+       there is no stale data.  When adding an entry into the cache, also
+       register the file change callback to oplock.  Upon receiving the file change
+       callback, invalidate the cache.  Once the cache is full, remove the LRU
+       entry and unregister the file change callback for it.
+
+commit e860f4aaaac89aa0043a948ae79ac1b2a8dab6b4
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Aug 18 07:14:11 2020 -0700
+
+    Change to common header files not applicable to open-vm-tools.
+
+commit fac536ee236d87e779a323bc99e6f5c66550abf8
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Aug 18 07:14:11 2020 -0700
+
+    Common header file change not directly applicable to open-vm-tools.
+
+commit f7ac1c4b756bc8a0b4b248299f725df773858695
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Aug 18 07:14:11 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 07b065dbceadc6968f9b145dcef13a9fdfde1587
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Aug 18 07:14:11 2020 -0700
+
+    Define "Unknown Command" Macro to replace hard coded strings in rpc files
+    
+    This changeset finds all instances of the hardcoded string "Unknown Command"
+    in a few rpc files and replaces it with a macro defined in a shared header
+    file.
+
+commit 468fcf407bd71983cca6652d71547099772f37f6
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Aug 18 07:14:11 2020 -0700
+
+    Changes to common header files not directly applicable to open-vm-tools.
+
+commit bab170d03516705690ec347ba4c0ffbf5338f42a
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Aug 18 07:14:11 2020 -0700
+
+    Changes to common header files not applicable to open-vm-tools.
+
+commit 2f11b89440dfb80a8b3a8ff1b343642367b2491b
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Aug 18 07:14:11 2020 -0700
+
+    Fix log recursion issue in DestroyRpcChannel()
+    
+    Avoid calling g_xxx() logging routines in any function directly or
+    indirectly invoked from VmxGuestLog().  Change the g_debug() call in
+    DestroyRpcChannel() to a Debug() call.
+
+commit 46808762d89d92cdb2d2d382ff01227bdaf99f49
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Aug 18 07:14:11 2020 -0700
+
+    Changes to common source files not directly applicable to open-vm-tools.
+
+commit 7ea7359bcac3bab10db4d568156ccc9c7849ef40
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Aug 18 07:14:11 2020 -0700
+
+    Remove #include for headers that are not needed in serviceDiscovery.c file.
+
+commit 697e20320ee71b8feb248582ccf0100b919f5b32
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Aug 18 07:14:11 2020 -0700
+
+    Changes to common source files not directly applicable to open-vm-tools.
+
+commit e70b82a46f92f8094d321a44f5402de1686f22b2
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Aug 18 07:14:11 2020 -0700
+
+    Removing windows header file which is not needed for OVT build
+    
+    Changeset deletes code which references a Windows specific
+    header file and cleans up some whitespace.
+
+commit 95f424ea52f3a674a3d3181759cb1fbf7315b315
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Aug 18 07:14:10 2020 -0700
+
+    Adding vmtools library dependency to deploypkg library
+    
+    Some functions are not found in shared libraries when linking,
+    which generates several warnings.  Added a library with
+    the needed functions to the list of dependencies.
+
+commit cfbb787aa6c14ed71314b848fde915dc40fb8055
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Aug 18 07:14:10 2020 -0700
+
+    Backout the previous common souce file changes.
+    
+    Restore files to original state
+
+commit 78871a8b52d44aa4211890e4e7dadac31a56fe97
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Aug 18 07:14:10 2020 -0700
+
+    Changes to common source files not directly applicable to open-vm-tools.
+
+commit 98ac6d11bd48531c138f2fa82d70e71ec848a515
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Aug 11 21:26:23 2020 -0700
+
+    Update the copyright
+
+commit 32e653c935977b511470fafccb3cddcdb566df85
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Aug 7 12:03:26 2020 -0700
+
+    Backout the previous common souce file changes.
+
+commit f08d6f6d9a2cefe2f5a24fbe6836362c6fddde23
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Aug 7 12:03:26 2020 -0700
+
+    Changes to common source files not directly applicable to open-vm-tools.
+
+commit 09c15cc2d69d00799361b1ffc3b87550377b5f31
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Aug 7 12:03:26 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 62896f05bb22a2217851dc5dda59d0605e76d2bf
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Aug 7 12:03:26 2020 -0700
+
+    Address some Log spew for toolsdeployPkg.log
+    
+    1. Remove the extra '\n' at the tail of logging messages in imgcust.
+    2. Update the log printting function, do not add '\n' if the original
+       log message has already included it.
+
+commit 9cbda48c6a5b778b30db123d621c358a15d215bf
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Aug 7 12:03:26 2020 -0700
+
+    Add copyright header to service discovery scripts
+
+commit 3aef7599dc3ea7468149be55d9ed5c3bbcb6061b
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Aug 7 12:03:26 2020 -0700
+
+    common header file change not applicable to open-vm-tools.
+
+commit 1eb8a82ac5e2f493ad23caf67e9bab8fd4cd3802
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Aug 7 12:03:25 2020 -0700
+
+    Common source file changes not directly applicable to open-vm-tools.
+
+commit d2c7b255e902fcced1b60d30ff472d88595613ea
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Aug 7 12:03:25 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit a65b1788534991fa3989a3a65942e944588df897
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Aug 7 12:03:25 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 8dc74b22555398fbea5a7895914a910411909803
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Aug 7 12:03:25 2020 -0700
+
+    Updating the copyright date on a few files.
+
+commit bddf9cdc61846cf9d6e8f36585dcdc0b39339beb
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Aug 7 12:03:25 2020 -0700
+
+    Resubmit the gcc baseline to 4.1 bump.
+
+commit 563ab298de4a7d25355fd7768542b655660e22b9
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Aug 7 12:03:25 2020 -0700
+
+    Backout the previous gcc-4.1 enforcement.
+
+commit 57b3aa2a537fc1a7d5c6e04cdbbcb39e472f38af
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Aug 7 12:03:25 2020 -0700
+
+    Bump gcc baseline to 4.1
+
+commit ac7098903f510f69b8aefdd9ae2625f691389ba8
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Aug 7 12:03:25 2020 -0700
+
+    [HGFS Server] Support oplock inside HGFS server for Windows host
+    
+    Missed two source files for previous HGFS Server changeset.
+
+commit 31978d3150e9730e75266689e18404f49430ca44
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Aug 7 12:03:24 2020 -0700
+
+    [HGFS Server] Support oplock inside HGFS server for Windows host
+    
+    The motivation for this change is to cache file/directory related information
+    in host side, for example the file/directory attributes.  To make the cache
+    correct, we will use the oplock(Windows)/lease(Linux) to monitor the
+    file/directory change event.  When the file/directory changes, the item in
+    cache will be invalidated.
+    
+    In this change, two new functions are defined:
+    - HgfsOplockMonitorFileChange
+       This function is used to monitor the change event for a file/directory,
+       and the callback will be called if file/directory is changed.
+    - HgfsOplockUnmonitorFileChange
+       This function is used to cancel the change event monitoring.
+    
+    This patch only implements the oplock support for Windows host, the support
+    for Linux will be delivered in another patch.
+
+commit 3b40aceb52c8fd2b001c0b5aa192018fad3fa2c1
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Aug 7 12:03:24 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 6757870e37708413ea005c5790f292f1115b12ec
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jul 31 13:36:35 2020 -0700
+
+    The new table driven guest identification code did not handle Red Hat
+    properly.  It needs to be checked for before Enterprise Linux.
+
+commit 17f34b99fcde4d7f1a5dd26e766c502dc804a2db
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jul 31 13:36:35 2020 -0700
+
+    Changes to common header files not applicable to open-vm-tools.
+
+commit 623f1d057fd552a2a20110c8f2ad2e00ec01b0ad
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jul 31 13:36:35 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 6578e6a740a027e8957b8af1442277feba022ef9
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jul 31 13:36:35 2020 -0700
+
+    Remove duplicate global definitions.
+    
+    Remove duplicate and unused global definitions for
+    GDK_SELECTION_TYPE_TIMESTAMP and GDK_SELECTION_TYPE_UTF8_STRING.
+    
+    This fix will address https://github.com/vmware/open-vm-tools/issues/451
+
+commit bd2b5b4a8dfa4f449cc0afa4262e28bb4db06714
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jul 31 13:36:35 2020 -0700
+
+    Changes to common header files not applicable to open-vm-tools.
+
+commit 012ae95c08eaba8c46152422a23a2a82ff330f0c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jul 31 13:36:35 2020 -0700
+
+    serviceDiscovery: Double quoting script variables that might contain whitespaces.
+
+commit 6908a9f51956ef77c5e7a45d42ab09c3aba2c818
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jul 31 13:36:35 2020 -0700
+
+    Update to the tools.conf sample file not applicable to open-vm-tools.
+
+commit 3d311af531f06e7de255b51534818dcf777c81b7
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jul 31 13:36:34 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 96daffa492eee5aa9e5ad03f1b67c17e5ccfae42
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jul 31 13:36:34 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit e6927bc3ac49fec1241bbf78cb35158553bab400
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jul 31 13:36:34 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 631280670bd5e0f50c2ece8ea43cc01c8586eb46
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jul 31 13:36:34 2020 -0700
+
+    Changes to common header files not directly applicable to open-vm-tools.
+
+commit c275d66d52a532ddae5ca0bfe4b1af7f71209524
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jul 31 13:36:34 2020 -0700
+
+    [Coverity] Remove superfluous condition in if statement
+
+commit 45b48c92746b4151b1eb118efdbfcb045cb4b97e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jul 31 13:36:34 2020 -0700
+
+    Rewrite Linux guest shortname identification
+    
+    Replaced guest identification with easy to maintain tables
+    as well as added general table search abstractions for easy
+    maintainability.
+
+commit 9e70e3db1038b2703b7c0e9d5e12afad1407e95c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jul 31 13:36:34 2020 -0700
+
+    GOSC event doesn't report at once after customization process timer is reached
+    
+    When process timer is reached, the command process is killed and function
+    ProcessRead is called to read all the output till EOF.  But EOF can't be
+    reached immediately.  The reason is pre-customization script is launched
+    by perl script, and killing perl script process doesn't kill the
+    pre-customization script process.
+    This code update includes:
+    1. Do not read stdout/stderr when gosc command process exits abnormally
+       to avoid the EOF blocking.
+    2. Add READSTATUS_PENDING_TO_EOF in enum ReadStatus to avoid the confusion
+       with READSTATUS_PENDING.
+    3. Close the write ends of pipes (stdout[1]/stderr[1]) for child command
+       process before it exists.
+    4. In processPosix.c, the write ends of pipes have been closed in line 180,
+       181, so the read ends should be closed in line 254, 255.
+    5. Add explicit note for the beginning and the end of the perl script log.
+
+commit 641874bfb831fc63e8ea289ee00d12d67734285e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jul 31 13:36:34 2020 -0700
+
+    Common hesder file change not applicable to open-vm-tools.
+
+commit 534f6bcbdda25bc9999c306cdd0d8e3e89f8f95c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jul 31 13:36:34 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit f1625fd8cad09739da8e67c952c27bdd425e096b
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jul 31 13:36:33 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 44ad3675a33b804dd262bfab3279410aff442bcc
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 21 11:53:01 2020 -0700
+
+    Fix memory leak issue for "vmtoolsd" binary on receiving SIGINT or SIGUSR1.
+    
+    Valgrind complains of a memory leak issue on receiving SIGINT or SIGUSR1
+    signal, because we lost call to RpcIn_Destruct(chan->in) in
+    RpcChannelTeardown().  It just happens to be released only at service
+    shutdown or on receiving SIGUSR1 signal; not a major concern.
+    Cleaning up the code.
+
+commit 2696fb719e9589dd82477f296c7cf81cc3cad617
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 21 11:53:01 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit f1330b36a316d38930aa3a654ea288a40f5a2a70
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 21 11:53:01 2020 -0700
+
+    [CLI] "removeAll" missing in first line of vmware-vgauth-cmd help info
+
+commit 511b4a8d729adef45964aceb8b3f1a7ef285c132
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 21 11:53:01 2020 -0700
+
+    Remove unnecessary FreeBSD strings
+
+commit c9a362419af2cdc312591c5dd63258a765d6f8f0
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 21 11:53:01 2020 -0700
+
+    Unknown Linux, later than 5 should report 5, not 4
+    
+    We want to report the highest version we know about in the short name.
+
+commit 0265c8e2a43d45bfcbf9276168c55aa5fa69265e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 21 11:53:01 2020 -0700
+
+    Improve the LSB distro identification table documentation
+    
+    Explain the LSB distro identification table and provide directions
+    about when to use it.
+
+commit 87128716f810df6140987db6de8c73905e8a3b8c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 21 11:53:00 2020 -0700
+
+    Fix a comment about POSIX/Linux guest identification
+    
+    The comment is not clear.  Fix this.
+
+commit 0dabbdf36c4f2fdc248f75a5c5325b9d82728c59
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 21 11:53:00 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 99ccb81ebb4d0d085a25b9b531c86d43e646be6e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 21 11:53:00 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 3980498b245bf7a6a46a42d11dcdb725a326da70
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 21 11:53:00 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 3b9521c96f0ec985d4965c73e9fd70e9718b3d53
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 21 11:53:00 2020 -0700
+
+    Common source file changes not directly applicable to open-vm-tools at this time.
+
+commit 695611c22bb41a50abf71850ebc69de5ee415b09
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 21 11:53:00 2020 -0700
+
+    hostinfoPosix: remove NOT_IMPLEMENTED() when NO_IOPL
+    
+    When running "vmtoolsd -b pidfile" on Linux arm64, we hit this error:
+    
+       [error] [vmsvc] NOT_IMPLEMENTED hostinfoPosix.c:2526
+    
+    Linux arm64 does not implement iopl() and the Hostinfo_ResetProcessState()
+    is raising a NOT_IMPLEMENTED() because of that.  However if there's no iopl(),
+    there is no reason to drop IO privileges, so we can just skip that code.
+    
+    This change also restores usage of getloadavg() for non Android arm64
+    platforms: ESX vmx and tools for Linux arm64.
+
+commit b1fdd4f15337cfb314652b66bbcc7be4bca100c3
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 21 11:53:00 2020 -0700
+
+    Resubmit - Move vgauth to gcc6 and openssl-1.1.1e.
+
+commit 31d769f152106333e00902432a4bf49158defecd
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 21 11:53:00 2020 -0700
+
+    ServiceDiscovery: Reducing scope of local variables in checkForWrite().
+    
+    Reducing scope of variables 'clientTimeStamp', 'clientInterval' and
+    'currentTime' in function 'checkForWrite()'.
+
+commit 0e6bd1e045daeb194d624bf09a768f60a199b223
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 21 11:53:00 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 48a140340865ca769d022d741f6fdd6c73384a5c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 21 11:53:00 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit e0152be9ef541f359bf2cc4452b838825cefd581
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 21 11:53:00 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit de28bcaf8e4e85bdfcc2d67577bb2a3656f76d4f
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 21 11:52:59 2020 -0700
+
+    Backout the previous vgauth changes for openssl 1.1.1.
+
+commit 8180c0dd6c2e07631173d00437934a369bf7e715
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 21 11:52:59 2020 -0700
+
+    Move vgauth to gcc6 and openssl-1.1.1.
+
+commit 4f6cec30425e7e65405ca3e7191bfcd03ffe97d9
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 21 11:52:59 2020 -0700
+
+    vmware-toolsbox-cmd: Fix illegal read memory issue reported by Valgrind
+    
+    Replace the static function MsgUnescape() and its memmove() call that moves
+    1 byte beyond the termination '\0' with glib's g_strcompress().
+
+commit d5a24c41aa23c155a24ed65174cd986452fddd0d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 21 11:52:59 2020 -0700
+
+    Backout the immediately previous changes to common files.
+
+commit f078797c6b17ae91e3788da47a606313b141d0d9
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 21 11:52:59 2020 -0700
+
+    Common source file changes not directly applicable to open-vm-tools at this time.
+
+commit 7bd7bb9e062c7e93f94197b52211d09ef535b4e9
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 21 11:52:59 2020 -0700
+
+    Common header file change not directly applicable to open-vm-tools.
+
+commit 3e83452afcc6cc86b106b2c87527489c0126635b
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 21 11:52:59 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit a08df7a3eef47c1ed211ef034ae390a4ee898df9
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 21 11:52:59 2020 -0700
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit 92022a07d524a16cccc71e44f4cbbbafdd1062bf
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 21 11:52:59 2020 -0700
+
+    open-vm-tools: Propagate new gdk-pixbuf-xlib include location #438
+    
+    From github PR #438 (https://github.com/vmware/open-vm-tools/pull/438).
+
+commit cffddcca7187adc043c82a24b5f15296fa6428c0
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 21 11:52:59 2020 -0700
+
+    Common header file change not directly applicable to open-vm-tools.
+
+commit c0dfe4248701323394959b34814bd48d2b157bbc
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 21 11:52:59 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 27fe47c54402b6d3e941b2c45e611b98a6c862e9
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 21 11:52:59 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 29b3ab0fd346f411e65a39a3b89f56eb85d30b20
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 21 11:52:58 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 6ae818a5c9c261c16c630fc3f5814cbf8d080022
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 21 11:52:58 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit e5d0e1a2d33bd9060d843007d6bafebac677735d
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Thu Jun 11 20:43:21 2020 -0700
+
+    Fix misc. issues in appinfo plugin source.
+    
+    Used the proper @param and @return statements in the
+    function documentation for AppInfoServerSetOption.
+    
+    Re-organized an if code block.
+
+commit d5517e5255770cd66eab3239c9d617147a3b0077
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Thu Jun 11 20:43:21 2020 -0700
+
+    ServiceDiscovery: Replacing deprecated 'netstat' command with 'ss'
+    
+    Updating the Linux serviceDiscovery scripts to use "ss" in place of
+    the deprecated "netstat" command.
+
+commit 9afd238cddc0cb0511d8daa903b4f5c9a52b8dc3
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Thu Jun 11 20:43:21 2020 -0700
+
+    Code cleanup to address a Coverity issue.
+    
+    Coverity reports a "dereference after NULL check" in
+    BkdoorChannelStart.  However, at the point of dereference
+    it's known that chan->inStarted is TRUE, which means chan->in
+    is guaranteed to be non-NULL, so it's not a bug.
+    
+    Still, given that an input channel, if present, must have been
+    started before calling BkdoorChannelStart, it's possible to do
+    some code cleanup that will also get Coverity to stop reporting
+    the issue.  Change what's currently a test into an ASSERT, test
+    chan->in rather than chan->inStarted, and add comments to make
+    it clearer what's going on.
+
+commit 5e1388e10828cec3885ab0107711f483fe732d33
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Thu Jun 11 20:43:21 2020 -0700
+
+    Common header file change not applicable to open-vm-toold.
+
+commit e52ffacc9d189e4a4fd5880e3b1c9593cb6c32b6
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Thu Jun 11 20:43:21 2020 -0700
+
+    Fix Coverity-reported dead code issue.
+    
+    The underlying problem was that retryCount was being zeroed on every
+    iteration of the while loop.  Zero it before entering the loop instead.
+
+commit e3a31877f56c1f0274a7e45b39d3be16a5f64c5f
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Thu Jun 11 20:43:20 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 1669fe0b0c0161884f19bcce257e0b10328c14c6
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Thu Jun 11 20:43:20 2020 -0700
+
+    Correct an issue reported by Coverity.
+    
+    lib/asyncsocket/asyncsocket.c:
+     - AsyncSocket_SetKeepAlive() calls AsyncSocket_GetFd() which may return
+       a negative result.  If that should happen, simply return FALSE.
+
+commit 013e0137786b28fef01bf3a09d79087d656e8f6e
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jun 10 12:05:46 2020 -0700
+
+    open-vm-tools: add distribution specific pam config files
+    
+    Add distribution specific pam config files for Debian/Ubuntu,
+    SuSE and Redhat/Fedora/CentOS.  Install a generic file by default,
+    with comments to KB article.  The distribution files are intended
+    to be used by OS vendors in their open-vm-tools packages.
+
+commit 6ffc688caa7755febe912851d70de304d1ad447a
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jun 10 12:05:46 2020 -0700
+
+    Update the AUTHORS file for OVT an contribution.
+    
+    https://github.com/vmware/open-vm-tools/pull/431
+
+commit 384414d61846f5bd81ce691662efe9d8616a6c69
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jun 10 12:05:46 2020 -0700
+
+    Appinfo.h:  Add define for APP_INFO_GUESTINFO_KEY
+
+commit 13ac4d1bff79b0218675fcd1b64205f39cdbc768
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jun 10 12:05:46 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 3d1d9c92f7ff88b8bd7dfaec674c30a7298b596e
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jun 10 12:05:46 2020 -0700
+
+    Improve Linux guest identification function documentation.
+    
+    Make it clear that the "short name" of a Linux distro has a default
+    value and that the default value should not be overwritten unless
+    VMware does this.
+    
+    If someone cheats and sends down an unsupported "short name", the
+    guestMapper will protect the software stack, mapping the unsupported
+    "short name" to that of the guestOS config found in the VMX file.
+    We know that is OK since the VM couldn't power on and run the guest
+    unless it was valid.
+    
+    All older, supported ESXi have updates that contain the guestMapper.
+    
+    If the guestMapper is not in place - an older, unpatched release -
+    the software stack can become confused causing problems and crashes.
+    
+    Change augments https://github.com/vmware/open-vm-tools/pull/431
+
+commit 0cfda58aaa8bc0fea56f1211897e7f2237f6070a
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jun 10 12:05:46 2020 -0700
+
+    Make peeking back into the stack work for back traces
+    
+    GCC 10 doesn't like peeking back before the end of an arrary (which
+    is used to peek into the stack).  Fix this.
+    
+    https://github.com/vmware/open-vm-tools/issues/429
+
+commit c7f4a5150d398184062b4d9ddba18d2c481c37f1
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jun 10 12:05:45 2020 -0700
+
+    Pick up the LSB distro file for ALT Linux
+    
+    Improve the documentation of the Linux identification routine so others
+    know that nothing needs to be changed in the field.
+    Only VMware needs to add identification codes.
+    
+    https://github.com/vmware/open-vm-tools/pull/431
+
+commit ae80317fcbf2026896b9fe5885992d919062d79c
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jun 10 12:05:45 2020 -0700
+
+    SDMP plugin logs warning message every 5 minute if there is no
+    Namespace DB instance created on a VM.  Changing the log level to
+    debug to solve the problem.
+
+commit 94fe542015b2764db1ea6b29c55cf53d9ce94f5a
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jun 10 12:05:45 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 0cbe4240689df8c7f6670bb2acf8d9c674063bb7
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jun 10 12:05:45 2020 -0700
+
+    Clean up lib/file/file.c
+    
+    Consistency with the remainder of lib/file.
+
+commit 070142eaf4742eff23d7bba2a20d07c0064f37d7
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jun 10 12:05:45 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 8c65a2773817208831d2c2db836a124fb6f6dd0a
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jun 10 12:05:45 2020 -0700
+
+    Add a new definition for amazonlinux3_64
+
+commit dca1937e894674fa41e7e0e2f622fb297ab74c08
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jun 10 12:05:45 2020 -0700
+
+    Implement Set_option handler in appInfo plugin.
+    
+    * Added a handler for the Set_option for appInfo plugin.
+      The poll loop will be immediately turned off when the feature
+      is turned off at the host side.
+      The poll loop will be immediately turned on when the feature
+      is turned on at the host side.
+    
+    * Added the code to handle VM vmotion to an older host that
+      doesn't have logic to send 'set_option'.
+
+commit 3e3968f0b805d368b77e42902ec8283ba31dda7f
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jun 10 12:05:45 2020 -0700
+
+    Enable recognition of other5xLinux and other5xLinux64 guests
+
+commit f860921bce04cd0d7ad9f9eff977567d83b294a4
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jun 10 12:05:45 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 3bd995723f1c11e44ea391c296ad41cf5bc5f151
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jun 10 12:05:44 2020 -0700
+
+    Directive argument is null from GCC 9.3.0
+    
+    There are paths that do not properly deal with NULL in FileMakeTempEx2Work.
+    Fix this.
+    
+    https://github.com/vmware/open-vm-tools/issues/428
+
+commit 88b016d68ec5bc3b03ae8255a47a9f2fb8630f3a
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jun 10 12:05:44 2020 -0700
+
+    Add new definition for rhel9_64 and clones.
+
+commit 5612d4889d6dae21dfbb27ec4291807baa55ce7d
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jun 10 12:05:44 2020 -0700
+
+    Add recognition of FreeBSD 13.
+
+commit 041028cd617331def7b3e6ef7cb98985c64cde38
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jun 10 12:05:44 2020 -0700
+
+    Enable recognition of SLES 16_64.
+
+commit b48233cb1a996928cf13f6e48131fadabc6e31e9
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jun 10 12:05:44 2020 -0700
+
+    Add recognition of Windows Server 2021.
+
+commit f40ebc8d757924b08af60956e290e7957274a14c
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jun 10 12:05:44 2020 -0700
+
+    Enable recognition of darwin20_64 (macOS 10.16) and darwin21_64 (macOS 10.17).
+
+commit 10e5fe6eb5bd803fe0545371d820133813b3e7d5
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jun 10 12:05:44 2020 -0700
+
+    guest_os_tables.h: Backout previous change for SLES-16.
+
+commit 5978c6bcb8fdf6900c30e2e220f8478070f3bf12
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jun 10 12:05:44 2020 -0700
+
+    Enable recognization of SLES 16.
+
+commit 0c7eb59720429fb8fa5872e432104731520e8799
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jun 10 12:05:44 2020 -0700
+
+    Move appInfo and serviceDiscovery plugin related header files.
+    
+    As part of an upcoming project, some appinfo and serviceDiscovery
+    header files are needed at a different location in the common source
+    tree.
+    
+    * Moved the appInfo.h and serviceDiscovery.h to a different location.
+    
+    * Made necessary code and OVT changes to refer to new file paths.
+    
+    * Did some cleanup related to the MACRO names for the keys and scripts.
+
+commit ffc6f72e9babdf82010a96c7c76a0e99d5d9633e
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jun 10 12:05:44 2020 -0700
+
+    Fix a Coverity-reported NULL pointer issue.
+    
+    Check whether a pointer is NULL before dereferencing it.  Also
+    updated a stale comment, edited a couple of other comments for
+    line length, and deleted some trailing white space.
+
+commit 96c50d2068e45f2803b8ad8c1e186480d82f4411
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jun 10 12:05:43 2020 -0700
+
+    Fix dereference after null check reported by Coverity.
+    
+    Remove a superfluous NULL pointer test that causes Coverity
+    to report a dereference after null check.
+
+commit 60d527ae5ea021a7c04a8df7437ef8e5914e5404
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jun 10 12:05:43 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 3dfcedc9f383454baa79dcaa6508c676077177ca
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jun 10 12:05:43 2020 -0700
+
+    Enable recognition of Amazone Linux 3.
+
+commit 47c78f0e7ebbc80c9addeaa48fad88d507bcc759
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jun 10 12:05:43 2020 -0700
+
+    Header file vm_verison.h not needed in lib/user/util.c.
+
+commit cab6d8d915d86abd5558d00592e8b64386b50f22
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jun 10 12:05:43 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit d689c5de5349c48e3a84e72eaf7e2a6be52b8c08
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jun 10 12:05:43 2020 -0700
+
+    Common source file change not directly applicable to open-vm-tools.
+
+commit 8c0f47c895bd3cd901ddcc6df450a8d28fdf3578
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jun 10 12:05:43 2020 -0700
+
+    Coverity reported issue: missing break
+    
+    Add the missing break.
+
+commit bb11e038323893d2428eb2ce94f8742233b45546
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jun 10 12:05:43 2020 -0700
+
+    Changes to common source file not applicable to open-vm-tools.
+
+commit 421e77f5cbb0436bbafdb4d2ec7c39e637061838
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Jun 10 12:05:42 2020 -0700
+
+    Common source file change not directly applicable to open-vm-tools.
+
+commit 88836e5df83b215fed8821b3f31bb4a3091d9848
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue May 26 15:32:59 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 06ac81cfa3a6a31db045a719733a6b9f804063db
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue May 26 15:32:59 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 5a521ce9b164f0db7f860b154ab4baed553f5390
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue May 26 15:32:58 2020 -0700
+
+    serviceDiscovery: Updating 'get-versions.sh' script
+    
+    The following changes have been made:
+    
+    1. Environment variable 'ALIVE_BASE' is used to construct the path of
+       the file where vcops version is stored.  The variable is not avialable
+       when running the script inside serviceDiscovery plugin process, so a
+       hardcoded path is used.
+    
+    2. Added command to retrieve tcserver version
+
+commit 20ad411ebeff55e6d7bfd15afc3fdd6fc3947511
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue May 26 15:32:58 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit c1832d6a60475850a25093d05ccf8c786dd89a50
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue May 26 15:32:58 2020 -0700
+
+    Deprecate VMGuestLib_GetHostMemKernOvhdMB GuestSDK API.
+    
+    * GUESTLIB_HOST_MEM_KERN_OVHD_MB metric was already deprecated in ESXi
+      starting from 7.1.  It's time to deprecate the corresponding
+      VMGuestLib_GetHostMemKernOvhdMB API in GuestSDK.  The documentation
+      will be update denoting that this API is deprecated.
+      After one or two releases, the API will be removed completely.
+      Untill then, the API is modified to explicity return 0 for the metric.
+    
+    * Only a few functions listed in vmGuestLib.h are exposed in the vmGuestLibJava
+      interface.  The remaining functions are encapsulated in '#ifndef SWIG'
+      to hide them from SWIG utility which is used to generate the Java bindings.
+    
+    Note: The external customer facing documentation for this API will be
+          documented later.
+    Note: Once this changeset is submitted, the vmStatsProvider module
+          will be updated to stop using the deprecated API.
+
+commit 6a5123f2e020e6e35d2111777f99879c791088a2
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue May 26 15:32:58 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit a1bb9128e3087602ce5280f43d639cd87e5487cc
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue May 26 15:32:58 2020 -0700
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit 0682a7064f553a3d50a55ac881b0e5e6b78a257e
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue May 26 15:32:58 2020 -0700
+
+    Update to bora/public/vm_tools_version.h
+    
+    Add tools versions 11.1.1 and 11.1.5 to bora/public/vm_tools_version.h
+
+commit d1ce2c08c47a82a4cfddae55a55c4b9619b08042
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue May 26 15:32:58 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 53473f83f7dfda6a0b592bbfdf1a5e6144b426e7
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue May 26 15:32:58 2020 -0700
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit a99fcf43fbef64cc36473750a441cb2f6265a1dd
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue May 26 15:32:58 2020 -0700
+
+    Backout previous changes to common source files.
+
+commit 8f68d75e3d6642e2f8d7d7ef9a4cbfcab052b3be
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue May 26 15:32:58 2020 -0700
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit 34d7c760709cec8938488d1c60831960bc30441d
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue May 26 15:32:57 2020 -0700
+
+    Common source file changes not directly applicable to open-vm-tools.
+
+commit f3423aa7a1d2f0d864eaaa6d11b8b34eacb04c3c
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue May 26 15:32:57 2020 -0700
+
+    Common source file changes not directly applicable to open-vm-tools.
+
+commit e25e233b02557a944babad5d8140472eb25c2210
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue May 26 15:32:57 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 5ed3bc8fe0cfee2b15b469b4f5e71c1fbb28bad9
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue May 26 15:32:57 2020 -0700
+
+    Backout previous common header file change - not applicable to open-vm-tools.
+
+commit 2f6676c69e332677b7bd598505de02d6e78e1fbb
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue May 26 15:32:57 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 0128592fd7ec406824237af5e184f72726715f59
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue May 26 15:32:57 2020 -0700
+
+    Updating the bora/public/vm_tools_version.h history.
+    
+    Tracking version info for the 10.3.22 patch release and 10.2.23
+    development version of tools for older Linux guests.
+
+commit 146971ddbe43d24380891c4297493cce2d4a46c6
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue May 26 15:32:57 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 29c1c6743f5b1a2c9bf6d86f2eaacd10f2102aa2
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue May 26 15:32:57 2020 -0700
+
+    Common source file changes not directly applicable to open-vm-tools.
+
+commit 25320e4af24664ebb6ab324db0a1cdfebf241f37
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue May 26 15:32:57 2020 -0700
+
+    Common source file changes not directly applicable to open-vm-tools.
+    
+    Pre-enable SUSE 16
+
+commit ecdd9001cf809b2ce359f07f8b84d54cd436a573
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue May 26 15:32:57 2020 -0700
+
+    Common source file changes not directly applicable to open-vm-tools
+    
+    Pre-enable RHEL 9, CentOS 9, Oracle 9, and Asianux 9 guests
+
+commit 66e52b635938b8c4e5276944daaec1cddc5ae6f9
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue May 26 15:32:56 2020 -0700
+
+    GuestSDK and vmtoolslib cleanup.
+    
+    * Removed the vmtools dependency for guestsdk.  This has been already
+      done for tar tools build/target.  The same is being done for OVT
+      builds.
+    
+    * Used various static libraries for building guestlib in OVT instead of
+      depending on vmtoolslib.  Similar thing has already been done for
+      appmonitor library in OVT.
+    
+    * GuestSDK_{Panic|Debug|Warning|Log} functions in vmtoolslib are not used
+      anywhere and hence they are completely removed from the code.
+
+commit 66b70db09241bef18694bc0e45bd94a1804b201d
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue May 26 15:32:56 2020 -0700
+
+    Common header file change not directly applicable to open-vm-tools.
+
+commit e4fdad51c47f5e2605a3ad9dd9e3451b25ba6fbd
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue May 26 15:32:56 2020 -0700
+
+    Changes to common header files not applicable to open-vm-tools.
+
+commit a760361f0b603f0dabe2e82cec1a728e5b3f796b
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue May 26 15:32:56 2020 -0700
+
+    Pre-enablment: Recognition of FreeBSD 13
+
+commit 80ce8edc04fcd3253174be476b0f09bdf5527bf5
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue May 26 15:32:56 2020 -0700
+
+    Improve logging on signature verification
+    
+    If xmlsec and vgauth are built inconsistently, xmlSecSize
+    can differ between the two, which results in a key datastructure
+    being a different size, and vgauth ends up looking in the
+    wrong place in memory for the signature check status.
+    
+    Log the status, so that if its not one of the two
+    expected values, we have some ideas of what went wrong.
+
+commit 4dbd9ff2e404957147ad1c22233388302b726d71
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue May 26 15:32:56 2020 -0700
+
+    Changes to common header files not directly related to open-vm-tools.
+    
+    Recongition of MacOS 10.17 (darwin21-64) - pre-enablement on hosts.
+
+commit f01d92c41b756f0167308ef7b5596b0554a661b8
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue May 26 15:32:56 2020 -0700
+
+    lib/file: Fix a memory leak in FileLock_Lock.
+    
+    Valgrind complained about a minor leak within FileLock_Lock when running
+    test-vmx Firmware.Efi.QuickBoot .  FileLockScanner builds a list of "active
+    locks" and traverses that list repeatedly, but whenever it decides to remove
+    an entry from the list, it would simply leak it.
+    
+    This change ensures that the list item is not leaked by Posix_Free()ing it
+    once it is no longer needed.
+
+commit c27281f24e043f64a9e627e2eaeccd9c196fc938
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue May 26 15:32:56 2020 -0700
+
+    Hgfs Linux/OSX Server: fix write-only shares access check creating new files
+    
+    Linux and OS X Hgfs server has an incorrect failure status check when a
+    user has a write-only share enabled.  In a write-only share any failure
+    is mapped to EACESS unless the error is ENOENT when a new file is to be
+    created.  The error check currently fails all errors when it should
+    only allow creation of new files i.e., ENOENT with flags specifying
+    O_CREAT.
+    
+    The check should be
+       if (status == EACCES) goto exit
+
+commit 5a300cffdb3c7069a104559b598f6315a6dbae00
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue May 26 15:32:56 2020 -0700
+
+    Common source file changes not directly applicable to open-vm-tools.
+
+commit e256c4eb87e602c981cd9b92ec4c52df861094f4
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue May 26 15:32:55 2020 -0700
+
+    Common source file change not applicable to open-vm-tools.
+
+commit d663f02db62cf44ee246956f50666f1c044cee2a
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue May 26 15:32:55 2020 -0700
+
+    Common source file change not applicable to open-vm-tools.
+
+commit c3d1c32369ec29653bd32beb3851d2d283dadd0c
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue May 26 15:32:55 2020 -0700
+
+    Changes to common source files not directly applicable to open-vm-tools.
+
+commit 215d376160a4c2f4e53666fd4275f7e8c7edc2da
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon May 4 11:54:13 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 3e5fd5d7976d9d047229b33f9a209c250f928384
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon May 4 11:54:13 2020 -0700
+
+    [AppInfo] Tweak the gather loop only for a real config reload.
+    
+    The poll loop for the appInfo is being tweaked (destroyed and recreated)
+    for every conf reload even when nothing related to appinfo changed.
+    This may cause few scenarios where the 'application information'
+    will never be collected inside the guest.  Fixed the code, to
+    tweak the loop only when there is a real appinfo related config change
+    in the tools.conf file.
+
+commit c5f0d8d38bfedc576b9fec40b579a0d5f6c85688
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon May 4 11:54:13 2020 -0700
+
+    Use RPCI_UNKNOWN_COMMAND macro instead of hardcoded 'Unknown command" string.
+    
+    At few places in the code, the result from the RPC channel send APIs
+    is explicitly compared with a harcoded "Unknown command" string.  We already
+    have a well defined macro for that.  Changed the code to re-use the macro
+    wherever possible.
+
+commit 7a981dcaa625a982e62e93ab63648dc02ac31595
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon May 4 11:54:12 2020 -0700
+
+    Clean up a few things in the random.h header file.
+
+commit bdd112cee037f58b2788d7bc3f1dbc9fa5344d97
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon May 4 11:54:12 2020 -0700
+
+    Fix minor misc. issues.
+    
+    * In ServiceLoadFileContentsPosix() function, fd is always a positive
+      value when close() is called.  The if check 'fd >= 0' is not really
+      required.  Removed it.
+    
+    * Fixed the function name in the "procedure comment block" for the
+      ParseShareName function.
+
+commit 384b1e7b9e9a6dac67a285eef0acdd52f5c997e5
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon May 4 11:54:12 2020 -0700
+
+    Fix minor 'Comparison is always true' warning in linuxDeployment.c
+    
+    pkgProcessTimeout is uint16 and comparison is always true because
+    pkgProcessTimeout <= 65535, so remove the check.
+
+commit 4b57bd2d1c9fa37994a562a63be2232af6c4587d
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon May 4 11:54:12 2020 -0700
+
+    Deprecate GUESTLIB_HOST_MEM_KERN_OVHD_MB at ESXi level.
+    
+    Decided to deprecate GUESTLIB_HOST_MEM_KERN_OVHD_MB.  This changeset
+    implements the necessary changes to deprecate the metric at the ESXi level.
+    
+    Will address the deprecation changes in GuestLib SDK/API in
+    a separate changeset.
+
+commit cb0a946b284d99f78da58e012a91c38eb81e492e
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon May 4 11:54:12 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit aa346e71e6bbc9a55f0a48d7d7b728e3128ae4bf
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon May 4 11:54:12 2020 -0700
+
+    Backout previous change to guestlibV3.x
+
+commit 0f90e3fdd95d62294452b159c11a66368f8114e3
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon May 4 11:54:12 2020 -0700
+
+    Deprecate GUESTLIB_HOST_MEM_KERN_OVHD_MB at ESXi level.
+    
+    Decided to deprecate GUESTLIB_HOST_MEM_KERN_OVHD_MB. This changeset
+    implements the necessary changes to deprecate the metric at the ESXi level.
+    
+    Will address the deprecation changes in GuestLib SDK/API in
+    a separate changeset.
+
+commit 91923b6c7d19edfedac6d7a36c4a9b795a7ef37c
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon May 4 11:54:12 2020 -0700
+
+    Common source file change not applicable to open-vm-tools.
+
+commit 7058e42e6fa34dcf60438d27827d9b9ba20f5bd1
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon May 4 11:54:12 2020 -0700
+
+    Define macro for "Permission Denied" message returned from RpcChannel send APIs.
+    
+    In error cases, RpcChannel Send APIs (RpcChannel_SendOneRaw,
+    RpcChannel_SendOneRawPriv return 'hard coded' "Permission Denied"
+    error message.
+    
+    This changeset adds the MACRO for that error message.
+    
+    If there are any callers who compare the results (ex: ServiceDiscovery), they
+    don't have to use 'hardcoded' messages and can reuse the MACROs.
+
+commit 4c286c51e21e94e35b76a7f56c143a3b69e9a7e1
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon May 4 11:54:12 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit fde53d238b14ca984179aa821d7de95d6d6985ba
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon May 4 11:54:11 2020 -0700
+
+    CodeSet: Fix copyright header in codeset.h
+
+commit ced22726ccf583d54ebeaa83e5736fb249b730be
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon May 4 11:54:11 2020 -0700
+
+    CodeSet: Add CodeSet_IsValidUTF8String() and more comments
+    
+    This change adds a new function CodeSet_IsValidUTF8String() to
+    lib/misc/codesetUTF8.c, and adds comments for CodeSet_IsValidUTF8()
+    and CodeSet_IsStringValidUTF8().
+
+commit adcaf9cd9ad65a45459ee8058ebfc267844477d6
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Mon May 4 11:54:11 2020 -0700
+
+    ServiceDiscovery: Deleting keys from NDB by chunks to reduce RPC calls.
+    
+    Setting chunk size to 25 keys at a time.
+
+commit 619329e43a785831683f09d13f53f9d76615c559
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Apr 21 14:43:46 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 2fb29808e01636ef6621ec6cbc815b024f2aed68
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Apr 21 14:43:46 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 9e3875bc727141e69d7325af393e797353929833
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Apr 21 14:43:46 2020 -0700
+
+    Fix a trivial typo in the VIX log message.
+    
+    * Fixed a trivial typo in the VIX log message.
+    * Fixed an indentation issue.
+
+commit 08218dcd4eb03aafe823ae3585d99a23f7bee3c0
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Apr 21 14:43:46 2020 -0700
+
+    Use random poll-interval for appInfo on channel reset.
+    
+    In few workflows like instant clone, when a large number of VMs are
+    cloned at the same time, if the appinfo plugin runs at the same time
+    in all the VMs, the underlying ESXi may encounter heavy load.  To
+    avoid these situations, a random poll interval should be used
+    for the appinfo whenever applicable workflows are detected.
+    
+    Detecting a 'rpc channel reset' is a simple approach to detect.
+    
+    In this changeset, add the following changes:
+    
+    - Added a new callback function for the 'rpc channel reset'.  If
+    the rpc channel is reset, a new random poll interval is calculated
+    and poll timer is adjusted accordingly.  If the existing appinfo
+    poll interval is greater than the minimum interval of 30 seconds,
+    random interval will be generated between 30 and appinfopollinterval.
+    If the existing poll interval is less than the minimum 30 seconds
+    time, then random interval will not be changed.
+    
+    - Code refactoring for few functions.
+    - Changed one global variable as static.
+    - Added few debug/info log messages.
+
+commit 9b79ed9bc118860518028828a6c7858af62757a8
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Apr 21 14:43:46 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 9a9aab94168189302e74dd97939415ef1e07fb20
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Apr 21 14:43:46 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit a8086de2c4317d4463b0bb1a3b602cda0833bd3e
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Apr 21 14:43:46 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 8e2e15a2da54f3603a7ccdc09249aec0b58f6ed9
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Apr 21 14:43:46 2020 -0700
+
+    Free old ununsed loggers when tools.conf changes.
+    
+    Existing unused loggers are leaked when there is a change
+    in logging configuration.  Added a check to free the loggers
+    that are not used after tools.conf is modified.
+
+commit 1852a9e98e3b1c31542986b2d332c707e4a0b540
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Apr 21 14:43:46 2020 -0700
+
+    Changes to common source files not directly applicable to open-vm-tools.
+
+commit 86ca532794728e4cf3d6b5fd29b3a10ff4f36141
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Apr 21 14:43:46 2020 -0700
+
+    Add option to vmware-vgauth-cmd to support remove alias by [username]
+    and subject
+    
+    a. subject is mandatory
+    b. if user only provide subject, will only remove subject matched mapped aliases
+    c. if user provide username and subject, remove matched aliases
+
+commit 3324db715f71d850f12f91e7941745792edacb63
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Apr 21 14:43:46 2020 -0700
+
+    Make Backdoor fallback temporary.
+    
+    When RpcOut falls to Backdoor, it stays with Backdoor
+    permanently for the life of vmtoolsd service.  It is a
+    long standing bug in the reset handling code.  Typically,
+    channel type is not changed during reset.  Our reset
+    handling code can either keep the channel type same or
+    switch it from vsocket to Backdoor, but it can't do other
+    way.  Though it is supposed to switch to vsocket on reset
+    caused by events like vmtoolsd being restarted or VMX
+    breaking the channel for some VM management operation.
+    With this change when we start the channel, we always
+    try vsocket first unless Backdoor is enforced by the
+    caller.
+    
+    Using Backdoor for too long is not desirable because
+    privileged RPCs can't be used on such channel.  So, we
+    need to retry switching the channel back to vsocket
+    periodically.  We don't want to try vsocket on every
+    RpcChannel_Send call because that adds to overhead and
+    increases the latency of RpcChannel_Send due to connection
+    timeouts.  So, we retry vsocket with a backoff delay
+    between 2sec-5min.
+    
+    As some RpcChannel callers intend to use Backdoor channel
+    we need to differentiate between such usage from the
+    callers that create vsocket channel and fallback to
+    Backdoor.  Therefore, introduced a concept of mutable
+    channel.  The vsocket channel is mutable as it can fallback
+    to Backdoor and restore vsocket.  However, if a caller
+    creates Backdoor channel, it will not be mutable and
+    stay with Backdoor for its lifetime.
+    
+    As vmxLogger frequently connects and disconnects the
+    channel for every log message and does not use any
+    privileged RPC, so make it use Backdoor channel
+    permanently to avoid frequent vsocket connections.
+    
+    Additionally, removed the redundant 'stopRpcOut' interface
+    and renamed 'onStartErr' to 'destroy'.
+
+commit 4a049ceec7e2e1fafbfece34e29c4f7b14962e7c
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Apr 21 14:43:45 2020 -0700
+
+    AppInfo updates.
+    
+    While most of the changes are only applicable to VMware Tools for Windows
+    and are not applicable to open-vm-tools, the following changes do apply.
+    
+    - Modified few log messages from g_debug from g_warning.
+    - Modified the default poll interval to 360 minutes (Once in six hours).
+    - Modified log messages to log the filepath whose version is being retrieved.
+
+commit 500eadfa9b5b8304ce57d9f881247ab67205d40b
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Apr 21 14:43:45 2020 -0700
+
+    Common header file changes not applicable to open-vm-tools.
+
+commit 5f9bc344328dd144c5539dd44fe1508d0f7b8b6f
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Apr 21 14:43:45 2020 -0700
+
+    Common source file changes not applicable to open-vm-tools.
+    
+    Tools Windows: test plugin DLLs are the correct version
+
+commit 4c1fed3a4676d664a049da5db6516a8baee1fbb9
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Apr 21 14:43:45 2020 -0700
+
+    Backout previous change for the vmware-vgauth-cmd.
+
+commit f62afa8e4462c100105b8ac8d88f5379094e87cd
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Apr 21 14:43:45 2020 -0700
+
+    Add option to vmware-vgauth-cmd to support remove alias by [username]
+    and subject
+    
+    a. subject is mandatory
+    b. if user only provide subject, will only remove subject matched mapped aliases
+    c. if user provide username and subject, remove matched aliases
+
+commit bf687d16a380a2f94952a9d9ad84d492376d2895
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Apr 21 14:43:45 2020 -0700
+
+    Common source file changes not applicable to open-vm-tools.
+
+commit f2b9d8028ad88583f9f3575d26ca68cf5664fef7
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Apr 21 14:43:45 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit d1a02b45838f568d8a70d22f16e28bd2da8c447e
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Apr 21 14:43:45 2020 -0700
+
+    Common source file changes not applicable to open-vm-tools.
+
+commit fa6fb17347de72a56d6c5a6ffcf713b97b9e73c1
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Tue Apr 21 14:43:45 2020 -0700
+
+    Common source file changes not applicable to open-vm-tools.
+
+commit 86053c524c617ba1faa744a04b1e18986ebb929f
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Apr 8 12:05:18 2020 -0700
+
+    update version
+
+commit 32df621461ca3f7f7188763be0f3b269b71b87cb
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Apr 8 12:04:15 2020 -0700
+
+    sync tclodefs.h to source
+
+commit 5b3b243dc5edae6d94e0bd376290605044a2bf89
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Apr 1 11:31:38 2020 -0700
+
+    serviceDiscovery: Adding sleep before 'RpcChannel_SendOneRawPriv' call.
+
+commit a4560863d4fedc050b4917b3bc764c384b5c007f
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Apr 1 11:31:38 2020 -0700
+
+    Do a 100 msec delay for each vsock channel start retry.
+    
+    Move the 100 msec delay into the vsock RPC start retry loop.  The
+    100 msec delay before each start retry is needed for errors that
+    will return quickly.
+
+commit ffe0dc255114856f123b6f9dd04dc714ab6f1eb9
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Apr 1 11:31:38 2020 -0700
+
+    Common source file change not directly applicable to open-vm-tools.
+
+commit 8e221a1311bab1f526bef16d97d9d2798bf09e49
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Apr 1 11:31:37 2020 -0700
+
+    Fix localization issue on windows guests.
+    
+    Some fields of GOptionContext used in help are not public, so add 2
+    arguments to Usage to get needed info.
+
+commit 6fcc7bdd696cec8f04c748d3807bbce4dd3230b5
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Apr 1 11:31:37 2020 -0700
+
+    Add a retry loop to VSockChannelStart() to recover on start failure.
+    
+    On failure, a vsock RPC channel will eventually fallback to the
+    backdoor channel.  Services that require or are limited to the
+    priviledge RPC channel will fail.
+    
+    Adding a simple, limited loop in VSockChannelStart to retry the vsock
+    channel start before ultimately switching to the backdoor channel.
+    Retries are not done for "send once" operations.
+
+commit 39ceb37ce4d6093cb1b64baf6eeddf2532b0b3a1
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Apr 1 11:31:37 2020 -0700
+
+    Destroy the dedicated RPCI channel set up for the Vmx Guest Logging
+    when vmtoolsd process exits.
+
+commit b911e5c94cd18b7985e920875249d2314029f0a6
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Apr 1 11:31:37 2020 -0700
+
+    Fixing some log messages
+    
+    1. PublishScriptOutputToNamespaceDB can fail for various reasons,
+       caller can't know exact reason from return values, so just printing
+       that the function failed in case return value is FALSE.  Exact cause
+       must be inferred from the function's logs itself.
+    2. Printing log for chunkCount only if we successfully wrote it in NDB
+
+commit 6934e672378dbbdb505467682092d7bb905fe10e
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Apr 1 11:31:37 2020 -0700
+
+    ServiceDiscovery: Fixing failure of sending message via RPCChannel after
+    it has failed to the backdoor.
+
+commit 03f9392540cdfabd1220e220842ead210edfe7d2
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Apr 1 11:31:37 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 04e99532df99d8a11fc160882a3a8455a2d7c23c
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Apr 1 11:31:37 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit b4e6f4f8334be3bcc35c483dcf869de871ccac92
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Apr 1 11:31:37 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit c556b1d10671366e1d5ddba14785c3e9b270db84
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Apr 1 11:31:37 2020 -0700
+
+    open-vm-tools: stage all *.vmsg files
+    
+    Only a subset of the *.vmsg files were installed. Fixing this by
+    using a glob.
+
+commit 9a3f8e4b57537e522dba8831eef3529a6dd6b9e1
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Apr 1 11:31:37 2020 -0700
+
+    Record the assignment of tools version 11.0.6.
+    
+    Add TOOLS_VERSION_SLEDGEHAMMER_PATCH2 for version 11.0.6 to the
+    historical version information.
+
+commit 2fa133ac0af2588f0295228795f427bc5cd44465
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Apr 1 11:31:36 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 9cbdf3a6e2cb23a7673fe19b2a3f888714095019
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Apr 1 11:31:36 2020 -0700
+
+    Add a Coverity annotation.
+    
+    The Coverity scan of open-vm-tools reports an out-of-bounds access
+    issue in Util_BacktraceWithFunc.  This is intentional, to compute
+    the base pointer for a stack trace.
+
+commit 7db9613b49a77e59c3cb1ed045905e2d0bbb2280
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Apr 1 11:31:36 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit af4db666735d0af28ba013c63b92fef743bec125
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Apr 1 11:31:36 2020 -0700
+
+    Updating the tools version on the devel branch to 11.2.0.
+
+commit ded2a20ac11ef4f9340847d19ae2a14431a4702f
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Apr 1 11:31:36 2020 -0700
+
+    lib/unicode/unicodeSimpleTypes.c: fix leak on exit
+    
+    The hashtable used for encoding name -> IANA table index
+    lookups was not getting freed.
+    
+    Also, HashTable_AllocOnce() incorrectly instructs
+    the hashtable to clear its clientData, which contains
+    an integer index and not a pointer, using "free".
+
+commit ef20d06e9b2e3fbe8e7f6f709c4707ebf7c57d72
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Apr 1 11:31:36 2020 -0700
+
+    Annotate a Coverity false positive.
+    
+    The open-vm-tools Coverity scan reports a NULL pointer dereference
+    for the variable untrustedCerts.  However, untrustedCerts is NULL
+    only if no untrusted certs are found, in which case the code that
+    dereferences untrustedCerts isn't executed.
+
+commit 3777c7008da506fe35b1b8003b3d1ae7067662ae
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Apr 1 11:31:36 2020 -0700
+
+    lib/mics/sha1.c: Include string.h unconditionally.
+    
+    string.h is part of POSIX, lets include it unconditionally
+
+commit 8774b6383b6dcb024335dd115c8fcae2b00c4d16
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Apr 1 11:31:36 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 0bbaf772c27a8df913ade55d7086d651652a2f17
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Apr 1 11:31:36 2020 -0700
+
+    vmtools: fix compiler errors in posix service discovery core plugin
+    
+    As we build the vmtools for arm (unfortunately not on main), we hit
+    a compiler warnings "ISO C90 forbids mixed declarations and code"
+    in this new code.
+
+commit 65b6819ed3ba196f52639c5984be40475ce2fffc
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Apr 1 11:31:36 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 5ef6682ae1038942f4b1d873cd0ca93d688f83e0
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Apr 1 11:31:35 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 74351e2121e866ca0b28644a6fc545c97e8bfbda
+Author: Oliver Kurth <okurth@vmware.com>
+Date:   Wed Apr 1 11:31:35 2020 -0700
+
+    Fix localization issue of vmware-vgauth-cmd
+    1. default msg catalog folder is wrong, add correct msgCatalog in
+       vgauth.conf
+    2. rename vmsg file name to "VGAuthCli" since file name used in main
+       is "VGAuthCli"
+    3. Move I18n init up to fix variable localization issue
+
+*****
+    Created the "stable-11.1.x" branch at this point.
+*****
+
 2013.04.16  Dmitry Torokhov  <dtor@vmware.com>
 	This release tag contains commits up to the following id:
 	867ea989d5e6889abcac77b4c7dae7db2651df58
