@@ -6590,7 +6590,6 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
    int remaining = 0;
    int numResults;
    GRegex *regex = NULL;
-   GError *gErr = NULL;
    char *pathName;
    VMAutomationRequestParser parser;
 
@@ -6644,11 +6643,13 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
            index, maxResults, (int) offset);
 
    if (pattern) {
+      GError *gErr = NULL;
       regex = g_regex_new(pattern, 0, 0, &gErr);
       if (!regex) {
          g_warning("%s: bad regex pattern '%s' (%s);"
                    "failing with INVALID_ARG\n",
                    __FUNCTION__, pattern, gErr ? gErr->message : "");
+         g_clear_error(&gErr);
          err = VIX_E_INVALID_ARG;
          goto abort;
       }
