@@ -22,6 +22,7 @@ libtestPlugin_la_CPPFLAGS =
 libtestPlugin_la_CPPFLAGS += @CUNIT_CPPFLAGS@
 libtestPlugin_la_CPPFLAGS += @GOBJECT_CPPFLAGS@
 libtestPlugin_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
+libtestPlugin_la_CPPFLAGS += @XDR_CPPFLAGS@
 
 libtestPlugin_la_LDFLAGS =
 libtestPlugin_la_LDFLAGS += @PLUGIN_LDFLAGS@
