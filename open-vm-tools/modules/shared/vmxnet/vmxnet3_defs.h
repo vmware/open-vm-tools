@@ -175,7 +175,7 @@ typedef struct Vmxnet3_TxDesc {
 
 #ifdef __BIG_ENDIAN_BITFIELD
    uint32 msscof:14;  /* MSS, checksum offset, flags */
-   uint32 ext1:1;
+   uint32 ext1:1;     /* set to 1 to indicate inner csum/tso, vmxnet3 v7 */
    uint32 dtype:1;    /* descriptor type */
    uint32 oco:1;      /* Outer csum offload */
    uint32 gen:1;      /* generation bit */
@@ -185,7 +185,7 @@ typedef struct Vmxnet3_TxDesc {
    uint32 gen:1;      /* generation bit */
    uint32 oco:1;      /* Outer csum offload */
    uint32 dtype:1;    /* descriptor type */
-   uint32 ext1:1;
+   uint32 ext1:1;     /* set to 1 to indicating inner csum/tso, vmxnet3 v7 */
    uint32 msscof:14;  /* MSS, checksum offset, flags */
 #endif  /* __BIG_ENDIAN_BITFIELD */
 
