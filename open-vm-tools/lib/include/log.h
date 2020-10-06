@@ -268,10 +268,21 @@ struct CfgInterface *
 Log_CfgInterface(void);
 
 int32
-Log_SetStderrLevel(int32 level);
+Log_SetStderrLevel(uint32 module,
+                   int32 level);
 
 int32
-Log_GetStderrLevel(void);
+Log_GetStderrLevel(uint32 module);
+
+int32
+Log_SetLogLevel(uint32 module,
+                int32 level);
+
+int32
+Log_GetLogLevel(uint32 module);
+
+uint32
+Log_LookupModuleNumber(const char *moduleName);
 
 LogOutput *
 Log_NewStdioOutput(const char *appPrefix,
