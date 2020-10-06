@@ -155,6 +155,7 @@
    LOGLEVEL_VAR(mksClient), \
    LOGLEVEL_VAR(mksControl), \
    LOGLEVEL_VAR(mksCursorPosition), \
+   LOGLEVEL_VAR(mksDX11Window), \
    LOGLEVEL_VAR(mksDX11Renderer), \
    LOGLEVEL_VAR(mksDX11ResourceView), \
    LOGLEVEL_VAR(mksDX11ShimOps), \
