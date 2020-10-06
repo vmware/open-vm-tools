@@ -561,6 +561,9 @@ Log_RegisterOpIdFunction(GetOpId *getOpIdFunc);
 void
 Log_LoadModuleFilters(struct CfgInterface *cfgIf);
 
+long
+Log_OffsetUtc(void);
+
 #endif /* !VMM */
 
 #if defined(__cplusplus)
