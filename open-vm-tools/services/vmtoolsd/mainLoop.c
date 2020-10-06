@@ -84,7 +84,7 @@
 /*
  * The state of the global conf module.
  */
-static gGlobalConfEnabled = FALSE;
+static gboolean gGlobalConfEnabled = FALSE;
 #endif
 
 
