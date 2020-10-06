@@ -559,7 +559,8 @@ void
 Log_RegisterOpIdFunction(GetOpId *getOpIdFunc);
 
 void
-Log_LoadModuleFilters(struct CfgInterface *cfgIf);
+Log_LoadModuleFilters(const char *appPrefix,
+                      struct CfgInterface *cfgIf);
 
 long
 Log_OffsetUtc(void);
