@@ -31,17 +31,17 @@ addoptions.username = "El usuario cuyo almacén de certificados se está añadie
 
 addoptions.verbose = "Operación detallada"
 
-cmdline.help.appoption = "Application Options"
-cmdline.help.helpoption = "Help Options"
-cmdline.help.hint = "Show help options"
-cmdline.help.usage = "Usage"
+cmdline.help.appoption = "Opciones de la aplicación"
+cmdline.help.helpoption = "Opciones de ayuda"
+cmdline.help.hint = "Mostrar opciones de ayuda"
+cmdline.help.usage = "Uso"
 cmdline.parse = "Error de análisis de línea de comando"
 
 cmdline.summary.pemfile = "Archivo PEM"
 cmdline.summary.subject = "asunto"
 cmdline.summary.username = "nombre de usuario"
 cmdline.summary.comm = "comentario"
-cmdline.summary.note = "Note: If no username is provided, %1$s removes only the mapped aliases"
+cmdline.summary.note = "Nota: Si no se proporciona un nombre de usuario, %1$s elimina solo los alias asignados"
 
 list.comment = "Comentario"
 list.count = "%1$s Se han encontrado %2$d alias para el usuario '%3$s'\n"
@@ -76,15 +76,15 @@ removeoptions.username = "El usuario cuyo almacén de certificados se va a elimi
 
 removeoptions.verbose = "Operación detallada"
 
-removeall.fail = "%1$s: Failed to remove alias for user '%2$s' subject '%3$s': %4$s.\n"
+removeall.fail = "%1$s: No se pudo quitar el alias del usuario '%2$s', asunto '%3$s': %4$s.\n"
 
-removeall.removefail = "%1$s: Failed to remove alias for user '%2$s' subject '%3$s' pemCert '%4$s': %5$s.\n"
+removeall.removefail = "%1$s: No se pudo eliminar el alias para el usuario '%2$s', asunto '%3$s', pemCert '%4$s': %5$s.\n"
 
-removeall.success = "%1$s: all aliases removed\n"
+removeall.success = "%1$s: se eliminaron todos los alias\n"
 
-removealloptions.subject = "The SAML subject"
-removealloptions.username = "User whose certificate store is being removed from"
+removealloptions.subject = "Tema de SAML"
+removealloptions.username = "El usuario cuyo almacén de certificados se va a eliminar de"
 
-removealloptions.verbose = "Verbose operation"
+removealloptions.verbose = "Operación detallada"
 
 vgauth.init.failed = "No se ha podido iniciar VGAuth"

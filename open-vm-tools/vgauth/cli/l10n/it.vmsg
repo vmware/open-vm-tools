@@ -1,5 +1,5 @@
 ##########################################################
-# Copyright (C) 2011-2018,2020 VMware, Inc. All rights reserved.
+# Copyright (C) 2011-2017,2020 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -31,17 +31,17 @@ addoptions.username = "Utente a cui viene aggiunto l'archivio certificati"
 
 addoptions.verbose = "Operazione Verbose"
 
-cmdline.help.appoption = "Application Options"
-cmdline.help.helpoption = "Help Options"
-cmdline.help.hint = "Show help options"
-cmdline.help.usage = "Usage"
+cmdline.help.appoption = "Opzioni applicazione"
+cmdline.help.helpoption = "Opzioni Guida"
+cmdline.help.hint = "Mostra opzioni della Guida"
+cmdline.help.usage = "Utilizzo"
 cmdline.parse = "Analisi della riga di comando non riuscita"
 
 cmdline.summary.pemfile = "File PEM"
 cmdline.summary.subject = "oggetto"
 cmdline.summary.username = "nome utente"
 cmdline.summary.comm = "commento"
-cmdline.summary.note = "Note: If no username is provided, %1$s removes only the mapped aliases"
+cmdline.summary.note = "Nota: se non viene fornito alcun nome utente, %1$s rimuove solo gli alias mappati"
 
 list.comment = "Commento"
 list.count = "%1$s Trovati %2$d alias per l'utente '%3$s'\n"
@@ -76,15 +76,15 @@ removeoptions.username = "Utente da cui viene rimosso l'archivio certificati"
 
 removeoptions.verbose = "Operazione Verbose"
 
-removeall.fail = "%1$s: Failed to remove alias for user '%2$s' subject '%3$s': %4$s.\n"
+removeall.fail = "%1$s: impossibile rimuovere l'alias per l'utente '%2$s' oggetto '%3$s': %4$s.\n"
 
-removeall.removefail = "%1$s: Failed to remove alias for user '%2$s' subject '%3$s' pemCert '%4$s': %5$s.\n"
+removeall.removefail = "%1$s: impossibile rimuovere l'alias per l'utente '%2$s' oggetto '%3$s' pemCert '%4$s': %5$s.\n"
 
-removeall.success = "%1$s: all aliases removed\n"
+removeall.success = "%1$s: tutti gli alias sono stati rimossi\n"
 
-removealloptions.subject = "The SAML subject"
-removealloptions.username = "User whose certificate store is being removed from"
+removealloptions.subject = "L'oggetto SAML"
+removealloptions.username = "Utente da cui viene rimosso l'archivio certificati"
 
-removealloptions.verbose = "Verbose operation"
+removealloptions.verbose = "Operazione Verbose"
 
 vgauth.init.failed = "Impossibile inizializzare VGAuth"
