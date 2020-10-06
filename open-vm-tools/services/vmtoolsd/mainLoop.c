@@ -1200,6 +1200,8 @@ ToolsCore_Setup(ToolsServiceState *state)
 
    g_type_init();
    state->ctx.serviceObj = g_object_new(TOOLSCORE_TYPE_SERVICE, NULL);
+   state->ctx.registerServiceProperty =
+      (RegisterServiceProperty)ToolsCoreService_RegisterProperty;
 
    /* Register the core properties. */
    ToolsCoreService_RegisterProperty(state->ctx.serviceObj,

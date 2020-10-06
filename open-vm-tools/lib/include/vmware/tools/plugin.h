@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2019,2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -264,6 +264,18 @@ typedef enum {
 } ToolsCoreAPI;
 
 
+struct ToolsServiceProperty;
+
+/**
+ * Type of the function that installs a new property in
+ * the application context service object.
+ *
+ * @param[in] obj    The application context service object.
+ * @param[in] prop   Property to install.
+ */
+typedef void (*RegisterServiceProperty)(gpointer obj,
+                                        struct ToolsServiceProperty *prop);
+
 /**
  * Defines the context of a tools application. This data is provided by the
  * core services to applications when they're loaded.
@@ -301,6 +313,13 @@ typedef struct ToolsAppCtx {
     * register and emit their own signals using this object.
     */
    gpointer          serviceObj;
+
+   /**
+    * Function pointer for plugins to register properties to
+    * the service object serviceObj.
+    * This allows a plugin to share data and services to others.
+    */
+   RegisterServiceProperty registerServiceProperty;
 } ToolsAppCtx;
 
 #if defined(G_PLATFORM_WIN32)
