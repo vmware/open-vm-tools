@@ -100,7 +100,7 @@ typedef struct {
  * If you change these strings, make sure you also change the
  *  vmdb schema, since these strings are used as vmdb keys.
  */
-
+// clang-format off
 static GuestCapElem guestCapTable[] = {
    { UNITY_CAP_START_MENU,                 UNITY_CAP_VMDB_PATH, "startmenu" },
    { UNITY_CAP_VIRTUAL_DESK,               UNITY_CAP_VMDB_PATH, "virtualdesk" },
@@ -136,7 +136,9 @@ static GuestCapElem guestCapTable[] = {
    { GHI_CAP_SET_DISPLAY_SCALING,          GHI_CAP_VMDB_PATH,   "setDisplayScaling"},
    { UNITY_CAP_DISABLE_MOUSE_BUTTON_SWAPPING, UNITY_CAP_VMDB_PATH, "mouseButtonSwapping" },
    { UNITY_CAP_CARET_POSITION,             UNITY_CAP_VMDB_PATH, "getCaretPosition" },
+   { CAP_GUESTSTORE_UPGRADE,               CAP_VMDB_PATH,       "guestStoreUpgrade" },
 };
+// clang-format on
 
 #endif // VM_NEED_VMDB_GUEST_CAP_MAPPING
 
