@@ -1,3 +1,102 @@
+commit eae2394df5fc0856c4bc4133c569e13f5e327efb
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Oct 6 14:30:56 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit b76c75ae9a48e68e55412d0fd97f238a66409ea0
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Oct 6 14:30:56 2020 -0700
+
+    Changes to common source files not directly applicable to open-vm-tools.
+
+commit b966cb3822b3a8cb9815af6f2da46f8f367b58cd
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Oct 6 14:30:56 2020 -0700
+
+    Changes to common source files not directly applicable to open-vm-tools.
+
+commit 99d5a9ea8605ad5ce085f109d4e3d378bf327db4
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Oct 6 14:30:55 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit fd75f811c8d09b662ee78f072d90ec6c915fcec6
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Oct 6 14:30:55 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit c1f88125233b074398bb6ba38d7b5c2ae19e7085
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Oct 6 14:30:55 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit ece245c662d28b3880eb0ee40e8c427a2aafe4c8
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Oct 6 14:30:55 2020 -0700
+
+    Changes to common source files not directly applicable to open-vm-tools.
+
+commit 695d2fab5c8a036b8b7584877fb490bf505c178b
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Oct 6 14:30:55 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 84d87f789f8d93e5d265afe4288a6111c90341c4
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Oct 6 14:30:55 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 48e96c64a3a51b9bca2dd7614b1c7a04cc4dbb1d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Oct 6 14:30:55 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 49103fbe71707b99323c996a23ec22fde5cb1438
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Oct 6 14:30:55 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 08333afefd17ac7617ba5d4b1e3f087cccd97056
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Oct 6 14:30:54 2020 -0700
+
+    L10n drop for open-vm-tools 10.2.0.
+
+commit 6cbee265af33370fe41a47db63c90cfd52ecdba4
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Oct 6 14:30:54 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit a869ed128c313d6335316fa10ebfbe15ace2be73
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Oct 6 14:30:54 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit b6f81f00fcfbc602838b48feca9f85da2847cf59
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Oct 6 14:30:54 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 66eb1b16e7cea8399c67d71eee45acd015e12a49
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Oct 6 14:30:54 2020 -0700
+
+    Adding the vgauthImport utility to open-vm-tools.
+    
+    The vmware-alias-import utility is not currently packaged with the
+    open-vm-tools bundle; this change adds the utility.  It is built
+    only if vgauth is enabled.
 
 commit a021b598a61aadccd7da931c7ab717312ca03c0f
 Author: John Wolfe <jwolfe@vmware.com>
