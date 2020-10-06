@@ -446,7 +446,7 @@ Bool
 Log_Outputting(void);
 
 Bool
-Log_IsRoutingEnabled(uint32 routing);
+Log_IsEnabled(uint32 routing);
 
 const char *
 Log_GetFileName(void);
@@ -618,11 +618,11 @@ Log_LoadModuleFilters(struct CfgInterface *cfgIf);
 #define LogV_Module(level, ...) \
    LogV(LOG_ROUTING_BITS(level), __VA_ARGS__)
 
-#if defined(Log_IsRoutingEnabledModule)
-   #undef Log_IsRoutingEnabledModule
+#if defined(Log_IsEnabledModule)
+   #undef Log_IsEnabledModule
 #endif
 
-#define Log_IsRoutingEnabledModule(level) \
-   Log_IsRoutingEnabled(LOG_ROUTING_BITS(level))
+#define Log_IsEnabledModule(level) \
+   Log_IsEnabled(LOG_ROUTING_BITS(level))
 
 
