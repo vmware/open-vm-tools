@@ -110,6 +110,10 @@ VMTools_AddConfig(GKeyFile *srcConfig,
                   GKeyFile *dstConfig);
 
 gboolean
+VMTools_CompareConfig(GKeyFile *config1,
+                      GKeyFile *config2);
+
+gboolean
 VMTools_WriteConfig(const gchar *path,
                     GKeyFile *config,
                     GError **err);

@@ -97,7 +97,9 @@ VMTools_LoadConfig(const gchar *path,
    GKeyFile *cfg = NULL;
    static gboolean hadConfFile = TRUE;
 
-   g_return_val_if_fail(config != NULL, FALSE);
+   if (config == NULL) {
+      return FALSE;
+   }
 
    if (path == NULL) {
       defaultPath = VMToolsGetToolsConfFile();
@@ -198,8 +200,9 @@ VMTools_AddConfig(GKeyFile *srcConfig,
    gsize i;
    gboolean configAdded = FALSE;
 
-   g_return_val_if_fail(srcConfig != NULL, configAdded);
-   g_return_val_if_fail(dstConfig != NULL, configAdded);
+   if (srcConfig == NULL || dstConfig == NULL) {
+      return configAdded;
+   }
 
    groupNames = g_key_file_get_groups(srcConfig, &numGroups);
 
@@ -253,6 +256,149 @@ VMTools_AddConfig(GKeyFile *srcConfig,
 
    g_strfreev(groupNames);
    return configAdded;
+}
+
+
+/**
+ * Compares two configuration dictionaries. Compares all the groups and
+ * key/value pairs in both the configuration dictionaries. If all the entries
+ * are same, TRUE is returned. Else, FALSE is returned.
+ *
+ * @param[in]     config1     First configuration dictionary to compare.
+ * @param[in]     config2     Second configuration dictionary to compare.
+ *
+ * @return TRUE if both the specified configuration dictionaries are identical.
+ *         FALSE otherwise.
+ */
+
+gboolean
+VMTools_CompareConfig(GKeyFile *config1,
+                      GKeyFile *config2)
+{
+   gsize numGroups1 = 0;
+   gsize numGroups2 = 0;
+   gchar **groupNames1 = NULL;
+   gchar **groupNames2 = NULL;
+   gchar **keyNames1 = NULL;
+   gchar **keyNames2 = NULL;
+   gchar *value1 = NULL;
+   gchar *value2 = NULL;
+   gsize i;
+   gboolean sameConfigs = TRUE;
+   GError *gErr = NULL;
+
+   if (config1 == NULL && config2 == NULL) {
+      goto exit;
+   }
+
+   if (config1 == NULL || config2 == NULL) {
+      goto mismatch;
+   }
+
+   groupNames1 = g_key_file_get_groups(config1, &numGroups1);
+   groupNames2 = g_key_file_get_groups(config2, &numGroups2);
+
+   g_debug("%s: Found %d groups in first config, "
+           "%d groups in second config.\n",
+           __FUNCTION__, (int) numGroups1, (int) numGroups2);
+
+   if (numGroups1 != numGroups2) {
+      goto mismatch;
+   }
+
+   for (i = 0; i < numGroups1; ++i) {
+      gsize numKeys1 = 0;
+      gsize numKeys2 = 0;
+      gsize j;
+      const gchar *group = groupNames1[i];
+
+      g_strfreev(keyNames1);
+      keyNames1 = NULL;
+      g_strfreev(keyNames2);
+      keyNames2 = NULL;
+
+      if (!g_key_file_has_group(config2, group)) {
+         g_debug("%s: group: '%s' not found in second config.\n",
+                 __FUNCTION__, group);
+         goto mismatch;
+      }
+
+      keyNames1 = g_key_file_get_keys(config1, group, &numKeys1, &gErr);
+      if (gErr != NULL) {
+         g_warning("%s: g_key_file_get_keys(%s) for first config failed: %s\n",
+                   __FUNCTION__, group, gErr->message);
+         goto mismatch;
+      }
+
+      keyNames2 = g_key_file_get_keys(config2, group, &numKeys2, &gErr);
+      if (gErr != NULL) {
+         g_warning("%s: g_key_file_get_keys(%s) for second config failed: %s\n",
+                   __FUNCTION__, group, gErr->message);
+         goto mismatch;
+      }
+
+      g_debug("%s: For group: '%s', first config has %d keys, "
+              "second config has %d keys\n",
+              __FUNCTION__, group, (int) numKeys1, (int) numKeys2);
+
+      if (numKeys1 != numKeys2) {
+         goto mismatch;
+      }
+
+      for (j = 0; j < numKeys1; ++j) {
+         const gchar* key = keyNames1[j];
+
+         g_free(value1);
+         value1 = NULL;
+         g_free(value2);
+         value2 = NULL;
+
+         if (!g_key_file_has_key(config2, group, key, NULL)) {
+            g_debug("%s: key '%s' for group '%s' not found in second config.\n",
+                    __FUNCTION__, key, group);
+            goto mismatch;
+         }
+
+         value1 = g_key_file_get_value(config1, group, key, &gErr);
+         if (value1 == NULL && gErr != NULL) {
+            g_warning("%s: g_key_file_get_value(%s:%s) for first config "
+                      "failed: %s\n",
+                      __FUNCTION__, group, key, gErr->message);
+            goto mismatch;
+         }
+
+         value2 = g_key_file_get_value(config2, group, key, &gErr);
+         if (value2 == NULL && gErr != NULL) {
+            g_warning("%s: g_key_file_get_value(%s:%s) for second config "
+                      "failed: %s\n",
+                      __FUNCTION__, group, key, gErr->message);
+            goto mismatch;
+         }
+
+         if (strcmp(value1, value2) != 0) {
+            g_debug("%s: Value for (%s:%s) is not same in both the configs.\n",
+                    __FUNCTION__, group, key);
+            goto mismatch;
+         }
+      }
+   }
+
+   goto exit;
+
+mismatch:
+   sameConfigs = FALSE;
+
+exit:
+   g_debug("%s: Return Value: %d\n", __FUNCTION__, sameConfigs);
+
+   g_clear_error(&gErr);
+   g_free(value1);
+   g_free(value2);
+   g_strfreev(keyNames1);
+   g_strfreev(keyNames2);
+   g_strfreev(groupNames1);
+   g_strfreev(groupNames2);
+   return sameConfigs;
 }
 
 
