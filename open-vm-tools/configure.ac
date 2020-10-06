@@ -1647,6 +1647,7 @@ AC_CONFIG_FILES([                      \
    rpctool/Makefile                    \
    vgauth/Makefile                     \
    vgauth/lib/Makefile                 \
+   vgauthImport/Makefile               \
    namespacetool/Makefile              \
    vgauth/cli/Makefile                 \
    vgauth/test/Makefile                 \

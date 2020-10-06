@@ -32,6 +32,7 @@ if BUILD_HGFSMOUNTER
 endif
 if ENABLE_VGAUTH
    SUBDIRS += vgauth
+   SUBDIRS += vgauthImport
 endif
 SUBDIRS += checkvm
 SUBDIRS += libguestlib
