@@ -309,6 +309,11 @@ Log_NewCustomOutput(const char *instanceName,
                     LogCustomMsgFunc *msgFunc,
                     int minLogLevel);
 
+LogOutput *
+Log_NewEsxKernelLogOutput(const char *appPrefix,
+                          struct Dictionary *params,
+                          struct CfgInterface *cfgIf);
+
 Bool
 Log_FreeOutput(LogOutput *toOutput);
 
