@@ -74,11 +74,19 @@
  * Auto-upgrade commands.
  */
 
-#define AUTOUPGRADE_AVAILABLE_CMD   "vmx.capability.tools_is_upgradable"
-#define AUTOUPGRADE_START_CMD       "guest.initiateAutoUpgrade"
+#define AUTOUPGRADE_AVAILABLE_CMD       "vmx.capability.tools_is_upgradable"
+#define AUTOUPGRADE_START_CMD           "guest.initiateAutoUpgrade"
+#define AUTOUPGRADE_POWERON_POLICY_CMD  "vmx.autoupgrade.poweron_policy"
 
 /* More upgrader commands. */
 #define GUEST_UPGRADER_SEND_CMD_LINE_ARGS  "guest.upgrader_send_cmd_line_args"
+
+/*
+ * GuestStore Upgrade commands.
+ */
+
+#define GSUPGRADE_START_CMD   "guestStoreUpgrade.start"
+#define GSUPGRADE_CANCEL_CMD  "guestStoreUpgrade.cancel"
 
 /*
  * Shrink commands.
