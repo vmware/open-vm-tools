@@ -1,3 +1,40 @@
+commit 1bc98fb90ea0788909d17ea911b8081395d0b1e0
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Oct 13 14:00:59 2020 -0700
+
+    L10n drop for open-vm-tools 10.2.0.
+
+commit 25c2e973583cf189995c9638701e4bef9e1c851c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Oct 13 14:00:59 2020 -0700
+
+    Fix memory leaks in guestInfo/diskInfo.c.
+    
+    When checking for IDE, SATA and SAS disk drives, the glib GMatchInfo is
+    passed to a g_regex_match() function inside a for loop.  It was not
+    properly passed to g_match_info_free() before subsequently being reused.
+    
+    This addresses https://github.com/vmware/open-vm-tools/issues/452
+
+commit f11d66479eaa77015d5a5d7637fff107d1fcb9e3
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Oct 13 14:00:59 2020 -0700
+
+    Fix a minor memory leak in VIX Listfiles().
+    
+    The GError structure is not cleared in an error code path, which
+    leads to a minor memory leak.  Explicitly call g_clear_error().
+
+commit 79300b18b0e0d769a353ebf84c16fd5958361b88
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 22 07:58:10 2020 -0700
+
+    Updated the ChangeLog with the changes targeted for OVT 11.2.0 from
+    the "devel" branch.
+    
+    Note: These may include changes deemed urgent enough to be cross ported to
+          the "stable-11.1.x" branch.
+
 commit 19d12e9a038a1835155ae26631b9a34d5a54cfcd
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Fri Sep 11 12:11:06 2020 -0700
