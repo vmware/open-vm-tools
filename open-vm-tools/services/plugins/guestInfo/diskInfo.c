@@ -321,6 +321,7 @@ GuestInfoGetIdeSataDev(const char *tgtHostPath,
       regexAtaOrHost = regexAta;
 
    } else {
+      g_match_info_free(matchInfo);
       COMP_STATIC_REGEX(regexHostPath, "^.*/host(\\d+)$", gErr, exit)
       if (g_regex_match(regexHostPath, realPath, 0, &matchInfo)) {
          COMP_STATIC_REGEX(regexHost, "^host(\\d+)$", gErr, exit)
@@ -347,6 +348,7 @@ GuestInfoGetIdeSataDev(const char *tgtHostPath,
    for (fileNum = 0; fileNum < numFiles; fileNum++) {
       int currHost;
 
+      g_match_info_free(matchInfo);
       if (g_regex_match(regexAtaOrHost, fileNameList[fileNum], 0, &matchInfo)) {
          g_free(charHost);
          charHost = g_match_info_fetch(matchInfo, 1);
@@ -482,6 +484,7 @@ GuestInfoCheckSASDevice(char *pciDevPath,
               pciDevPath);
    }
    for (fileNum = 0; fileNum < numFiles; fileNum++) {
+      g_match_info_free(matchInfo);
       if (g_regex_match(regexSas, fileNameList[fileNum], 0, &matchInfo)) {
          free(*unit);     /* free previous "unit" string */
          *unit = g_match_info_fetch(matchInfo, 1);
@@ -712,6 +715,7 @@ GuestInfoLinuxBlockDevice(const char *startPath,
       /* Check for NVMe device. */
       COMP_STATIC_REGEX(regexNvme, "^.*/nvme\\d+$", gErr, finished)
 
+      g_match_info_free(matchInfo);
       if (!g_regex_match(regexNvme, realPath, 0, &matchInfo)) {
          g_debug("%s: block disk device pattern not found\n", __FUNCTION__);
          goto finished;
