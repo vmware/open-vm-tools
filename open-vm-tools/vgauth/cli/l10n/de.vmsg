@@ -31,17 +31,17 @@ addoptions.username = "Benutzer, dessen Zertifikatsspeicher hinzugefügt wird zu
 
 addoptions.verbose = "Detaillierter Vorgang"
 
-cmdline.help.appoption = "Application Options"
-cmdline.help.helpoption = "Help Options"
-cmdline.help.hint = "Show help options"
-cmdline.help.usage = "Usage"
+cmdline.help.appoption = "Anwendungsoptionen"
+cmdline.help.helpoption = "Hilfeoptionen"
+cmdline.help.hint = "Hilfeoptionen anzeigen"
+cmdline.help.usage = "Nutzung"
 cmdline.parse = "Die Analyse der Befehlszeile ist fehlgeschlagen"
 
 cmdline.summary.pemfile = "PEM-Datei"
 cmdline.summary.subject = "Inhaber"
 cmdline.summary.username = "Benutzername"
 cmdline.summary.comm = "Kommentar"
-cmdline.summary.note = "Note: If no username is provided, %1$s removes only the mapped aliases"
+cmdline.summary.note = "Hinweis: Wenn kein Benutzername angegeben wird, entfernt %1$s nur die zugeordneten Aliasnamen"
 
 list.comment = "Kommentar"
 list.count = "%1$s: Es wurden %2$d Aliase für den Benutzer '%3$s' gefunden.\n"
@@ -76,15 +76,15 @@ removeoptions.username = "Benutzer, dessen Zertifikatsspeicher entfernt wird von
 
 removeoptions.verbose = "Detaillierter Vorgang"
 
-removeall.fail = "%1$s: Failed to remove alias for user '%2$s' subject '%3$s': %4$s.\n"
+removeall.fail = "%1$s: Fehler beim Entfernen von Alias für Benutzer '%2$s' Inhaber '%3$s': %4$s.\n"
 
-removeall.removefail = "%1$s: Failed to remove alias for user '%2$s' subject '%3$s' pemCert '%4$s': %5$s.\n"
+removeall.removefail = "%1$s: Fehler beim Entfernen von Alias für Benutzer '%2$s' Inhaber '%3$s' pemCert '%4$s': %5$s.\n"
 
-removeall.success = "%1$s: all aliases removed\n"
+removeall.success = "%1$s: alle Aliase entfernt\n"
 
-removealloptions.subject = "The SAML subject"
-removealloptions.username = "User whose certificate store is being removed from"
+removealloptions.subject = "Der SAML-Inhaber"
+removealloptions.username = "Benutzer, dessen Zertifikatsspeicher entfernt wird von"
 
-removealloptions.verbose = "Verbose operation"
+removealloptions.verbose = "Detaillierter Vorgang"
 
 vgauth.init.failed = "Die Initialisierung von VGAuth ist fehlgeschlagen"

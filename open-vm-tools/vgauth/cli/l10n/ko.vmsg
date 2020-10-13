@@ -31,17 +31,17 @@ addoptions.username = "인증서 저장소를 추가 중인 사용자"
 
 addoptions.verbose = "자세한 정보 표시 작업"
 
-cmdline.help.appoption = "Application Options"
-cmdline.help.helpoption = "Help Options"
-cmdline.help.hint = "Show help options"
-cmdline.help.usage = "Usage"
+cmdline.help.appoption = "애플리케이션 옵션"
+cmdline.help.helpoption = "도움말 옵션"
+cmdline.help.hint = "도움말 옵션 표시"
+cmdline.help.usage = "사용"
 cmdline.parse = "명령줄 구문 분석 실패"
 
 cmdline.summary.pemfile = "PEM 파일"
 cmdline.summary.subject = "제목"
 cmdline.summary.username = "사용자 이름"
 cmdline.summary.comm = "설명"
-cmdline.summary.note = "Note: If no username is provided, %1$s removes only the mapped aliases"
+cmdline.summary.note = "참고: 사용자 이름이 제공되지 않으면 %1$s이(가) 매핑된 별칭만 제거합니다."
 
 list.comment = "설명"
 list.count = "%1$s에서 사용자 '%3$s'의 %2$d개 별칭이 확인되었습니다.\n"
@@ -76,15 +76,15 @@ removeoptions.username = "인증서 저장소를 제거 중인 사용자"
 
 removeoptions.verbose = "자세한 정보 표시 작업"
 
-removeall.fail = "%1$s: Failed to remove alias for user '%2$s' subject '%3$s': %4$s.\n"
+removeall.fail = "%1$s: 사용자 '%2$s' 주체 '%3$s'에 대한 별칭을 제거하지 못했습니다. %4$s.\n"
 
-removeall.removefail = "%1$s: Failed to remove alias for user '%2$s' subject '%3$s' pemCert '%4$s': %5$s.\n"
+removeall.removefail = "%1$s: 사용자 '%2$s' 주체 '%3$s' pemCert '%4$s'에 대한 별칭을 제거하지 못했습니다. %5$s.\n"
 
-removeall.success = "%1$s: all aliases removed\n"
+removeall.success = "%1$s: 모든 별칭이 제거됨\n"
 
-removealloptions.subject = "The SAML subject"
-removealloptions.username = "User whose certificate store is being removed from"
+removealloptions.subject = "SAML 주체"
+removealloptions.username = "인증서 저장소를 제거 중인 사용자"
 
-removealloptions.verbose = "Verbose operation"
+removealloptions.verbose = "자세한 정보 표시 작업"
 
 vgauth.init.failed = "VGAuth 초기화 실패"

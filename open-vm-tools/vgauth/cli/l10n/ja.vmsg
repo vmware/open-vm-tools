@@ -31,17 +31,17 @@ addoptions.username = "証明書ストアが追加されているユーザー"
 
 addoptions.verbose = "詳細な操作"
 
-cmdline.help.appoption = "Application Options"
-cmdline.help.helpoption = "Help Options"
-cmdline.help.hint = "Show help options"
-cmdline.help.usage = "Usage"
+cmdline.help.appoption = "アプリケーション オプション"
+cmdline.help.helpoption = "ヘルプ オプション"
+cmdline.help.hint = "ヘルプ オプションを表示"
+cmdline.help.usage = "使用量"
 cmdline.parse = "コマンド ラインの解析に失敗しました"
 
 cmdline.summary.pemfile = "PEM ファイル"
 cmdline.summary.subject = "サブジェクト"
 cmdline.summary.username = "ユーザー名"
 cmdline.summary.comm = "コメント"
-cmdline.summary.note = "Note: If no username is provided, %1$s removes only the mapped aliases"
+cmdline.summary.note = "注: ユーザー名が指定されていない場合、%1$s はマッピングされたエイリアスのみを削除します"
 
 list.comment = "コメント"
 list.count = "%1$s でユーザー '%3$s' のエイリアスが %2$d 個検出されました\n"
@@ -76,15 +76,15 @@ removeoptions.username = "次の場所から証明書ストアが削除されて
 
 removeoptions.verbose = "詳細な操作"
 
-removeall.fail = "%1$s: Failed to remove alias for user '%2$s' subject '%3$s': %4$s.\n"
+removeall.fail = "%1$s: ユーザー '%2$s' のサブジェクト '%3$s' を削除できませんでした: %4$s。\n"
 
-removeall.removefail = "%1$s: Failed to remove alias for user '%2$s' subject '%3$s' pemCert '%4$s': %5$s.\n"
+removeall.removefail = "%1$s: ユーザー '%2$s' のサブジェクト '%3$s' pemCert '%4$s' のエイリアスを削除できませんでした: %5$s。\n"
 
-removeall.success = "%1$s: all aliases removed\n"
+removeall.success = "%1$s: すべてのエイリアスが削除されました\n"
 
-removealloptions.subject = "The SAML subject"
-removealloptions.username = "User whose certificate store is being removed from"
+removealloptions.subject = "SAML サブジェクト"
+removealloptions.username = "次の場所から証明書ストアが削除されているユーザー"
 
-removealloptions.verbose = "Verbose operation"
+removealloptions.verbose = "詳細な操作"
 
 vgauth.init.failed = "VGAuth を初期化できませんでした"
