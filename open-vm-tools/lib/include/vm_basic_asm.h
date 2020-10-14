@@ -198,7 +198,7 @@ mssb64_0(const uint64 value)
 }
 #endif
 
-#ifdef __GNUC__
+#if defined __GNUC__ || __clang__
 
 #ifdef VM_X86_ANY
 #define USE_ARCH_X86_CUSTOM
@@ -513,7 +513,7 @@ uint16set(void *dst, uint16 val, size_t count)
       "strh    %w2, [%0]\n"
       "4:"
       : "+r" (tmpDst), "+r" (count), "+r" (tmpVal)
-      : "r" (val)
+      : "r" ((uint64)val)
       : "cc", "memory");
 #else
    size_t dummy0;
@@ -566,6 +566,7 @@ uint32set(void *dst, uint32 val, size_t count)
       : "cc", "memory");
 #elif defined(VM_ARM_64)
    void   *tmpDst = dst;
+   uint64 tmpVal = val;
 
    if (count == 0) {
       return dst;
@@ -602,7 +603,7 @@ uint32set(void *dst, uint32 val, size_t count)
       "cbz     %1, 4f\n\t"
       "str     %w2, [%0]\n\t" // No incr
       "4:"
-      : "+r" (tmpDst), "+r" (count), "+r" (val)
+      : "+r" (tmpDst), "+r" (count), "+r" (tmpVal)
       :
       : "cc", "memory");
 #else

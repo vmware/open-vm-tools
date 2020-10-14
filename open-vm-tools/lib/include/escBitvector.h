@@ -139,7 +139,11 @@ static INLINE int EscBitVector_Test(EscBitVector const *bv, int n)
    ASSERT(n>=0 && n<ESC_BITVECTOR_SIZE);
 #ifdef __GNUC__
    {
+#ifdef VM_ARM_64
+      uint64 tmp;
+#else
       uint32 tmp;
+#endif
    __asm__ __volatile ( "btl %2,%1\n\tsbbl %0,%0" : "=r" (tmp) : "m" (bv->vector[0]),"Ir" (n));
       return tmp;
    }

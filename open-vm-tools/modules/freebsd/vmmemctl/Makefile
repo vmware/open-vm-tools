@@ -28,6 +28,8 @@ SRCS	+= kernelStubsBSD.c
 
 .if $(MACHINE_ARCH) == "amd64"
 SRCS    += backdoorGcc64.c
+.else $(MACHINE_ARCH) == "aarch64"
+SRCS    += backdoorGcc64_arm64.c
 .else
 SRCS    += backdoorGcc32.c
 .endif

@@ -256,6 +256,10 @@ static __inline__ unsigned long os_ffz(unsigned long word)
    __asm__("bsfq %1,%0"
            :"=r" (word)
            :"r" (~word));
+#elif defined(__aarch64__)
+   __asm__("clz %1,%0"
+           :"=r" (word)
+           :"r" (~word));
 #else
    __asm__("bsfl %1,%0"
            :"=r" (word)

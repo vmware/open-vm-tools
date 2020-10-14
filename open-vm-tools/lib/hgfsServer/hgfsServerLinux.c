@@ -2561,7 +2561,7 @@ HgfsStatToFileAttr(struct stat *stats,       // IN: stat information
        attr->specialPerms, attr->ownerPerms, attr->groupPerms,
        attr->otherPerms, attr->size);
 #ifdef __FreeBSD__
-#   if !defined(VM_X86_64) && __FreeBSD_version >= 500043
+#   if !defined(VM_X86_64) && !defined(VM_ARM_64) && __FreeBSD_version >= 500043
 #      define FMTTIMET ""
 #   else
 #      define FMTTIMET "l"

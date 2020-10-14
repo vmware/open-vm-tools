@@ -53,6 +53,13 @@ VM_EMBED_VERSION(VMBLOCKMOUNTER_VERSION_STRING);
 
 #define LOG(format, ...) (beVerbose ? printf(format, ##__VA_ARGS__) : 0)
 
+#if CHAR_MIN < 0
+#   define GETOPT_END -1
+#else
+#   define GETOPT_END 255
+#endif
+
+
 static char *thisProgram;
 static char *thisProgramBase;
 static Bool beVerbose = FALSE;
@@ -147,7 +154,7 @@ main(int argc,          // IN
       thisProgramBase = thisProgram;
    }
 
-   while ((c = getopt(argc, argv, "hvV")) != -1) {
+   while ((c = getopt(argc, argv, "hvV")) != GETOPT_END) {
       switch (c) {
       case 'h':
          PrintUsage(stdout);
