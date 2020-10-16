@@ -1,3 +1,15 @@
+commit e9a78e945d907d3b3b69a42deffe0dbc544a2187
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Oct 16 15:02:38 2020 -0700
+
+    Release Notes for 11.2.0
+
+    commit 041b0dbea18c6c9fd5be2d21edace6fc751d20b8
+    Author: John Wolfe <jwolfe@vmware.com>
+    Date:   Fri Oct 16 14:58:21 2020 -0700
+
+        Set the final release build number and product build number
+
 commit 1bc98fb90ea0788909d17ea911b8081395d0b1e0
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Tue Oct 13 14:00:59 2020 -0700
