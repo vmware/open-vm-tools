@@ -58,7 +58,7 @@ Resolved Issues
 
 *   **A complete list of the granular changes that are in the open-vm-tools 11.2.0 release is available at:**
 
-        https://github.com/vmware/open-vm-tools/blob/stable-11.2.x/open-vm-tools/ChangeLog
+        https://github.com/vmware/open-vm-tools/blob/stable-11.2.0/open-vm-tools/ChangeLog
 
     The changes after March 31, 2020 are all the changes that have gone into the "devel" branch of open-vm-tools since the time that the "stable-11.1.x" branch was spun off.  Note these changes may include changes that were also released in the open-vm-tools 11.1.5 release.
 
