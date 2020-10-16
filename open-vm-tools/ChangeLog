@@ -1,3 +1,9 @@
+commit 231e099e58ebfc54633116e9751e87bdfd1af7d7
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Oct 16 16:11:59 2020 -0700
+
+    Correct URL for the 11.2.0 ChangeLog
+
 commit e9a78e945d907d3b3b69a42deffe0dbc544a2187
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Fri Oct 16 15:02:38 2020 -0700
