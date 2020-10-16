@@ -28,7 +28,6 @@
 #include "vmware.h"
 #include "guestApp.h"
 #include "vmcheck.h"
-#include "escBitvector.h"
 #include "hgfsEscape.h"
 #include "hgfs.h"
 #include "hgfsBd.h"
