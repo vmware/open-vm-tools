@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <glib.h>
 #include "vmware.h"
+#include "vmcheck.h"
 #include "str.h"
 #include "util.h"
 #include "dynbuf.h"
@@ -638,6 +639,16 @@ main(int argc, char *argv[])
 
    gAppName = g_path_get_basename(argv[0]);
    g_set_prgname(gAppName);
+
+   /*
+    * Checking if environment is VM
+    */
+   if (!VmCheck_IsVirtualWorld()) {
+      g_printerr("Error: %s must be run inside a virtual machine"
+                 " on a VMware hypervisor product.\n", gAppName);
+      g_free(gAppName);
+      return success;
+   }
 
    optCtx = g_option_context_new("[get-value | set-key | delete-key] "
                                   "[<namespace-name>]");

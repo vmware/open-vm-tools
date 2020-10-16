@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -48,6 +48,13 @@
 #define INCLUDE_ALLOW_DISTRIBUTE
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
+
+#if defined _MSC_VER && !defined BORA_NO_WIN32_INTRINS
+#pragma warning(push)
+#pragma warning(disable : 4255)      // disable no-prototype() to (void) warning
+#include <intrin.h>
+#pragma warning(pop)
+#endif
 
 #include "vm_basic_types.h"
 
@@ -513,7 +520,7 @@ uint16set(void *dst, uint16 val, size_t count)
       "strh    %w2, [%0]\n"
       "4:"
       : "+r" (tmpDst), "+r" (count), "+r" (tmpVal)
-      : "r" (val)
+      : "r" ((uint64)val)
       : "cc", "memory");
 #else
    size_t dummy0;
@@ -566,6 +573,7 @@ uint32set(void *dst, uint32 val, size_t count)
       : "cc", "memory");
 #elif defined(VM_ARM_64)
    void   *tmpDst = dst;
+   uint64 tmpVal = val;
 
    if (count == 0) {
       return dst;
@@ -602,7 +610,7 @@ uint32set(void *dst, uint32 val, size_t count)
       "cbz     %1, 4f\n\t"
       "str     %w2, [%0]\n\t" // No incr
       "4:"
-      : "+r" (tmpDst), "+r" (count), "+r" (val)
+      : "+r" (tmpDst), "+r" (count), "+r" (tmpVal)
       :
       : "cc", "memory");
 #else
@@ -646,21 +654,12 @@ uint32set(void *dst, uint32 val, size_t count)
 static INLINE void *
 uint16set(void *dst, uint16 val, size_t count)
 {
-#ifdef VM_X86_64
+#ifdef VM_X86_ANY
    __stosw((uint16*)dst, val, count);
-#elif defined(VM_ARM_32)
+#else
    size_t i;
    for (i = 0; i < count; i++) {
       ((uint16 *)dst)[i] = val;
-   }
-#else
-   __asm { pushf;
-           mov ax, val;
-           mov ecx, count;
-           mov edi, dst;
-           cld;
-           rep stosw;
-           popf;
    }
 #endif
    return dst;
@@ -669,21 +668,12 @@ uint16set(void *dst, uint16 val, size_t count)
 static INLINE void *
 uint32set(void *dst, uint32 val, size_t count)
 {
-#ifdef VM_X86_64
+#ifdef VM_X86_ANY
    __stosd((unsigned long*)dst, (unsigned long)val, count);
-#elif defined(VM_ARM_32)
+#else
    size_t i;
    for (i = 0; i < count; i++) {
       ((uint32 *)dst)[i] = val;
-   }
-#else
-   __asm { pushf;
-           mov eax, val;
-           mov ecx, count;
-           mov edi, dst;
-           cld;
-           rep stosd;
-           popf;
    }
 #endif
    return dst;
@@ -796,17 +786,9 @@ PAUSE(void)
 #endif
 }
 #elif defined(_MSC_VER)
-#ifdef VM_X86_64
 {
    _mm_pause();
 }
-#else /* VM_X86_64 */
-#pragma warning( disable : 4035)
-{
-   __asm _emit 0xf3 __asm _emit 0x90
-}
-#pragma warning (default: 4035)
-#endif /* VM_X86_64 */
 #else  /* __GNUC__  */
 #error No compiler defined for PAUSE
 #endif
@@ -854,11 +836,11 @@ RDTSC(void)
 #endif
 }
 #elif defined(_MSC_VER)
-#ifdef VM_X86_64
+#ifdef VM_X86_ANY
 {
    return __rdtsc();
 }
-#elif defined(VM_ARM_32)
+#else
 {
    /*
     * We need to do more inverstagetion here to find
@@ -867,13 +849,7 @@ RDTSC(void)
    NOT_IMPLEMENTED();
    return 0;
 }
-#else
-#pragma warning( disable : 4035)
-{
-   __asm _emit 0x0f __asm _emit 0x31
-}
-#pragma warning (default: 4035)
-#endif /* VM_X86_64 */
+#endif /* VM_X86_ANY */
 #else  /* __GNUC__  */
 #error No compiler defined for RDTSC
 #endif /* __GNUC__  */

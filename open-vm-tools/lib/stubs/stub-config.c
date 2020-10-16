@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -70,6 +70,11 @@ Preference_Init(void)
    return TRUE;
 }
 
+void
+Preference_Exit(void)
+{
+}
+
 Bool
 Preference_GetBool(Bool defaultValue,
                    const char *name)
@@ -112,3 +117,11 @@ Config_NotSet(const char *fmt, ...)
 {
    return FALSE;
 }
+
+int32
+Preference_GetLong(int32 defaultValue,
+                   const char *name)
+{
+   return defaultValue;
+}
+

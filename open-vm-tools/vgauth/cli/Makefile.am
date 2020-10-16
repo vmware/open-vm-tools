@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2014-2016 VMware, Inc.  All rights reserved.
+### Copyright (C) 2014-2016, 2020 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -47,5 +47,6 @@ else
 endif
 
 # Message catalogs.
+# rename file name to "VGAuthCli" which used in main
 install-data-hook:
-	@INSTVMSG@ vmware-vgauth-cmd $(srcdir)/l10n $(DESTDIR)$(datadir)
+	@INSTVMSG@ VGAuthCli $(srcdir)/l10n $(DESTDIR)$(datadir)

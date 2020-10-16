@@ -81,9 +81,11 @@ extern "C" {
 #define ASOCKERR_NETUNREACH        14
 #define ASOCKERR_ADDRUNRESV        15
 #define ASOCKERR_BUSY              16
-#define ASOCKERR_PROXY_NEEDS_AUTHENTICATION 17
-#define ASOCKERR_PROXY_CONNECT_FAILED       18
-#define ASOCKERR_WEBSOCK_UPGRADE_NOT_FOUND  19
+#define ASOCKERR_PROXY_NEEDS_AUTHENTICATION  17
+#define ASOCKERR_PROXY_CONNECT_FAILED        18
+#define ASOCKERR_WEBSOCK_UPGRADE_NOT_FOUND   19
+#define ASOCKERR_WEBSOCK_TOO_MANY_CONNECTION 20
+#define ASOCKERR_PROXY_INVALID_OR_NOT_SUPPORTED 21
 
 /*
  * Cross-platform codes for AsyncSocket_GetGenericError():
@@ -388,6 +390,12 @@ int AsyncSocket_GetFd(AsyncSocket *asock);
 int AsyncSocket_GetRemoteIPStr(AsyncSocket *asock,
                                const char **ipStr);
 
+/*
+ * Return the remote port associated with this socket if applicable
+ */
+int AsyncSocket_GetRemotePort(AsyncSocket *asock,
+                              uint32 *port);
+
 int AsyncSocket_GetLocalVMCIAddress(AsyncSocket *asock,
                                     uint32 *cid, uint32 *port);
 int AsyncSocket_GetRemoteVMCIAddress(AsyncSocket *asock,
@@ -460,16 +468,18 @@ AsyncSocket *AsyncSocket_ListenWebSocket(const char *addrStr,
                                          AsyncSocketPollParams *pollParams,
                                          void *sslCtx,
                                          int *outError);
-AsyncSocket *AsyncSocket_ListenWebSocketEx(const char *addrStr,
-                                           unsigned int port,
-                                           Bool useSSL,
-                                           const char *protocols[],
-                                           AsyncSocketConnectFn connectFn,
-                                           void *clientData,
-                                           AsyncSocketPollParams *pollParams,
-                                           void *sslCtx,
-                                           AsyncWebSocketHandleUpgradeRequestFn handleUpgradeRequestFn,
-                                           int *outError);
+AsyncSocket *AsyncSocket_PrepareListenWebSocket(Bool useSSL,
+                                                 const char *protocols[],
+                                                 AsyncSocketConnectFn connectFn,
+                                                 void *clientData,
+                                                 AsyncSocketPollParams *pollParams,
+                                                 void *sslCtx,
+                                                 AsyncWebSocketHandleUpgradeRequestFn handleUpgradeRequestFn);
+AsyncSocket *AsyncSocket_RegisterListenWebSocket(AsyncSocket *asock,
+                                                 const char *addrStr,
+                                                 unsigned int port,
+                                                 AsyncSocketPollParams *pollParams,
+                                                 int *outError);
 
 #ifndef _WIN32
 AsyncSocket *AsyncSocket_ListenWebSocketUDS(const char *pipeName,
@@ -723,10 +733,10 @@ char *AsyncSocket_GetWebSocketCookie(AsyncSocket *asock);
 /*
  * Set the Cookie  for a websocket connection
  */
-int AsyncSocket_SetWebSocketCookie(AsyncSocket *asock,         // IN
-                                   void *clientData,           // IN
-                                   const char *path,           // IN
-                                   const char *sessionId);     // IN
+int AsyncSocket_SetWebSocketCookie(AsyncSocket *asock,
+                                   void *clientData,
+                                   const char *path,
+                                   const char *sessionId);
 
 /*
  * Retrieve the close status, if received, for a websocket connection
@@ -737,6 +747,19 @@ uint16 AsyncSocket_GetWebSocketCloseStatus(AsyncSocket *asock);
  * Get negotiated websocket protocol
  */
 const char *AsyncSocket_GetWebSocketProtocol(AsyncSocket *asock);
+
+/*
+ * Set the flag for whether or not to delay websocket upgrade response
+ */
+int AsyncSocket_SetDelayWebSocketUpgradeResponse(AsyncSocket *asock,
+                                                 Bool delayWebSocketUpgradeResponse);
+
+/*
+ * Send the websocket upgrade response
+ */
+void
+AsyncSocket_WebSocketServerSendUpgradeResponse(AsyncSocket *base,
+                                               char *httpResponseTemp);
 
 /*
  * Get error code for websocket failure
@@ -759,6 +782,14 @@ char *AsyncSocket_WebSocketGetHttpHeader(const char *request,
                                          const char *webKey);
 
 unsigned AsyncSocket_WebSocketGetNumAccepted(AsyncSocket *asock);
+
+Bool AsyncSocket_SetKeepAlive(AsyncSocket *asock, int keepIdle);
+
+/*
+ * Send an HTTP error code, only valid on AsyncWebSockets
+ */
+void AsyncSocket_WebSocketServerSendError(AsyncSocket *asock, const char *text);
+
 
 /*
  * Some logging macros for convenience

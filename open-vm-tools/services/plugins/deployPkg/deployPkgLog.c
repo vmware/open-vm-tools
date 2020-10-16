@@ -157,9 +157,15 @@ DeployPkgLog_Log(int level,          // IN
    gchar *tstamp;
    const char *logLevel;
    GLogLevelFlags glogLevel;
+
+   if (fmtstr == NULL) {
+      return;
+   }
+
    va_start(args, fmtstr);
 
    if (_file != NULL) {
+      size_t fmtstrLen = strlen(fmtstr);
       switch (level) {
          case log_debug:
             logLevel = "debug";
@@ -182,7 +188,9 @@ DeployPkgLog_Log(int level,          // IN
       fprintf(_file, "[%s] [%8s] ",
               (tstamp != NULL) ? tstamp : "no time", logLevel);
       vfprintf(_file, fmtstr, args);
-      fprintf(_file, "\n");
+      if (fmtstrLen > 0 && fmtstr[fmtstrLen - 1] != '\n') {
+         fprintf(_file, "\n");
+      }
       g_free(tstamp);
    } else {
       switch (level) {

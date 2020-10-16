@@ -1,5 +1,5 @@
 ##########################################################
-# Copyright (C) 2010 VMware, Inc. All rights reserved.
+# Copyright (C) 2010,2020 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -55,6 +55,15 @@ cmdline.rpc = "Sends an RPC command to the host and exits."
 cmdline.rpc.command = "command"
 
 cmdline.rpcerror = "Unable to send command to VMware hypervisor."
+
+cmdline.cmdfile = "Sends an RPC command from a file to the host and exits."
+
+cmdline.cmdfile.command = "command file"
+
+cmdline.cmdfile.rpcerror = "Unable to send command from file to VMware hypervisor."
+
+cmdline.cmdfile.read = "Unable to read command from file %1$s.\n"
+
 
 cmdline.state = "Dumps the internal state of a running service instance to the logs."
 

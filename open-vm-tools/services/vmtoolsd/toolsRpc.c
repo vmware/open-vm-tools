@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -33,6 +33,7 @@
 #include "vm_basic_defs.h"
 #include "vm_assert.h"
 #include "conf.h"
+#include "guestApp.h"
 #include "str.h"
 #include "strutil.h"
 #include "toolsCoreInt.h"
@@ -279,7 +280,8 @@ ToolsCoreRpcCapReg(RpcInData *data)
 
          if (!RpcChannel_Send(state->ctx.rpc, toolsVersion, strlen(toolsVersion) + 1,
                               &result, &resultLen)) {
-            g_warning("Error setting tools version: %s.\n", result);
+            g_warning("Error setting tools version: %s.\n",
+                      VM_SAFE_STR(result));
          }
       }
       vm_free(result);
@@ -455,7 +457,8 @@ ToolsCore_SetCapabilities(RpcChannel *chan,
                                cap->name,
                                set ? cap->value : 0);
          if (!RpcChannel_Send(chan, tmp, strlen(tmp) + 1, &result, &resultLen)) {
-            g_warning("Error sending capability %s: %s\n", cap->name, result);
+            g_warning("Error sending capability %s: %s\n", cap->name,
+                      VM_SAFE_STR(result));
          }
          vm_free(result);
          g_free(tmp);
@@ -473,7 +476,8 @@ ToolsCore_SetCapabilities(RpcChannel *chan,
          if (set) {
             tmp = g_strdup_printf("tools.capability.%s ", cap->name);
             if (!RpcChannel_Send(chan, tmp, strlen(tmp), &result, &resultLen)) {
-               g_warning("Error sending capability %s: %s\n", cap->name, result);
+               g_warning("Error sending capability %s: %s\n", cap->name,
+                         VM_SAFE_STR(result));
             }
             vm_free(result);
             g_free(tmp);
@@ -500,7 +504,8 @@ ToolsCore_SetCapabilities(RpcChannel *chan,
    if (newcaps != NULL) {
       result = NULL;
       if (!RpcChannel_Send(chan, newcaps, strlen(newcaps) + 1, &result, &resultLen)) {
-         g_warning("Error sending new-style capabilities: %s\n", result);
+         g_warning("Error sending new-style capabilities: %s\n",
+                   VM_SAFE_STR(result));
       }
       vm_free(result);
       g_free(newcaps);

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998,2005-2012,2014-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998,2005-2012,2014-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -43,6 +43,7 @@
 #define PCI_DEVICE_ID_LSISAS1068        0x0054
 
 /* Our own PCI IDs
+ *    VMware SBX (Sandbox device for graphics driver VM)
  *    VMware SVGA II (Unified VGA)
  *    VMware SVGA (PCI Accelerator)
  *    VMware vmxnet (Idealized NIC)
@@ -54,6 +55,7 @@
  *    VMware HD Audio controller
  */
 #define PCI_VENDOR_ID_VMWARE                    0x15AD
+#define PCI_DEVICE_ID_VMWARE_SBX                0x0420
 #define PCI_DEVICE_ID_VMWARE_SVGA3              0x0406
 #define PCI_DEVICE_ID_VMWARE_SVGA2              0x0405
 #define PCI_DEVICE_ID_VMWARE_SVGA               0x0710
@@ -344,7 +346,7 @@
 #define MAX_NVDIMM 64
 
 /************* vRDMA implementation limits ******************************/
-#define MAX_VRDMA_DEVICES 1
+#define MAX_VRDMA_DEVICES 10
 
 /************* QAT implementation limits ********************/
 #define MAX_QAT_PCI_DEVICES 4

@@ -1,5 +1,5 @@
 /* **********************************************************
- * Copyright (C) 1998-2017 VMware, Inc.  All rights reserved.
+ * Copyright (C) 1998-2020 VMware, Inc.  All rights reserved.
  * **********************************************************/
 
 /*
@@ -55,6 +55,7 @@
 #   include <windows.h>
 #   include <malloc.h>
 #   include <str.h>
+#   include "windowsUtil.h"
 #else
 #   define _GNU_SOURCE
 #   include <string.h>
@@ -84,7 +85,6 @@
 #include "codeset.h"
 #include "codesetOld.h"
 #include "str.h"
-#include "windowsUtil.h"
 #if defined __APPLE__
 #   define LOCATION_WEAK
 #   include "location.h"
@@ -234,7 +234,7 @@ CodeSetGetModulePath(HANDLE hModule) // IN
  *      On success: The allocated, NUL-terminated file path.
  *         Note: This path can be a symbolic or hard link; it's just one
  *         possible path to access the executable.
- *         
+ *
  *      On failure: NULL.
  *
  * Side effects:
@@ -315,7 +315,7 @@ CodeSetGetModulePath(uint32 priv)
  *	Try to convert the path into a short name so it may work with
  *      local encoding.
  *
- *      XXX -- this function is a temporary fix. It should be removed once 
+ *      XXX -- this function is a temporary fix. It should be removed once
  *             we fix the 3rd party library pathname issue.
  *
  * Results:
@@ -1397,7 +1397,7 @@ CodeSet_Utf8ToUtf16le(const char *bufIn,  // IN
  *
  * CodeSet_Utf8FormDToUtf8FormC  --
  *
- *    Convert the content of a buffer (that uses the UTF-8 encoding) 
+ *    Convert the content of a buffer (that uses the UTF-8 encoding)
  *    which is in normal form D (decomposed) into another buffer
  *    (that uses the UTF-8 encoding) and is normalized as
  *    precomposed (Normalization Form C).
@@ -1446,7 +1446,7 @@ CodeSet_Utf8FormDToUtf8FormC(const char *bufIn,     // IN
  *
  * CodeSet_Utf8FormCToUtf8FormD  --
  *
- *    Convert the content of a buffer (that uses the UTF-8 encoding) 
+ *    Convert the content of a buffer (that uses the UTF-8 encoding)
  *    which is in normal form C (precomposed) into another buffer
  *    (that uses the UTF-8 encoding) and is normalized as
  *    decomposed (Normalization Form D).

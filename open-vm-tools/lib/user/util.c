@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -60,8 +60,6 @@
 #include "msg.h"
 #include "util.h"
 #include "str.h"
-/* For HARD_EXPIRE --hpreg */
-#include "vm_version.h"
 #include "su.h"
 #include "posix.h"
 #include "file.h"

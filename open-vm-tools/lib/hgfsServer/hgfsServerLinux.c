@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1003,18 +1003,22 @@ HgfsPlatformValidateOpen(HgfsFileOpenInfo *openInfo, // IN: Open info struct
    if (!openInfo->shareInfo.readPermissions) {
       /*
        * "Drop Box" / "FTP incoming" type of shared folders.
-       * Allow creating a new file. Deny opening exisitng file.
+       * Only allow creating a new file.
+       * Any access to an existing file requires read so fail EACCES.
        */
-      status = Posix_Access(openInfo->utf8Name, F_OK);
-      if (status < 0) {
-         status = errno;
-         if (status != ENOENT || (openFlags & O_CREAT) == 0) {
+      int accessStatus = Posix_Access(openInfo->utf8Name, F_OK);
+
+      if (accessStatus < 0) {
+         accessStatus = errno;
+         /* Not creating a new file, then fail. */
+         if (!(accessStatus == ENOENT && (openFlags & O_CREAT))) {
             status = EACCES;
          }
       } else {
+         /*An existing file, then fail */
          status = EACCES;
       }
-      if (status != 0) {
+      if (status == EACCES) {
          LOG(4, "%s: Error: Unreadable share flags %u file \"%s\": %d %s\n",
              __FUNCTION__, openFlags, openInfo->utf8Name, status,
              Err_Errno2String(status));

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -43,6 +43,10 @@
 #include "log.h"
 #include "random.h"
 #include "util.h"
+
+#if !defined(VMX86_RELEASE)
+#include "vm_atomic.h"
+#endif
 
 
 #if defined(_WIN32)
@@ -182,10 +186,20 @@ RandomBytesPosix(const char *name,  // IN:
  *-----------------------------------------------------------------------------
  */
 
+#if !defined(VMX86_RELEASE)
+static Atomic_uint32 forceFail;
+#endif
+
 Bool
 Random_Crypto(size_t size,   // IN:
               void *buffer)  // OUT:
 {
+#if !defined(VMX86_RELEASE)
+   if (Atomic_ReadIfEqualWrite32(&forceFail, 1, 0) == 1) {
+      return FALSE;
+   }
+#endif
+
 #if defined(_WIN32)
    return RandomBytesWin32(size, buffer);
 #else
@@ -195,6 +209,34 @@ Random_Crypto(size_t size,   // IN:
     */
 
    return RandomBytesPosix(GENERIC_RANDOM_DEVICE, size, buffer);
+#endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Random_CryptoFail --
+ *
+ *      This function will cause the next call to Random_Crypto to fail.
+ *
+ *      NOTE: This function does nothing in a release build.
+ *
+ * Results:
+ *      TRUE   success
+ *      FALSE  failure
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+Random_CryptoFail(void)
+{
+#if !defined(VMX86_RELEASE)
+   Atomic_Write32(&forceFail, 1);
 #endif
 }
 

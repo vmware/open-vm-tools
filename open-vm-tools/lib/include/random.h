@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017,2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -46,7 +46,14 @@ Bool Random_Crypto(size_t size,
                    void *buffer);
 
 /*
- * High quality - research grade - random number generator.
+ * The next call to Random_Crypto will fail after this function is called.
+ * This function does nothing in a release build.
+ */
+
+void Random_CryptoFail(void);
+
+/*
+ * Research grade Mersenne Twister random number generator.
  *
  * Period: 2^800
  * Speed: ~23 cycles
@@ -101,8 +108,12 @@ typedef struct {
 } RandomFastContext;
 
 uint32 Random_FastStream(RandomFastContext *rfc);
+
 uint64 Random_FastStream64(RandomFastContext *rfc);
-void Random_FastStreamSeed(RandomFastContext *rfc, uint64 seed, uint64 seq);
+
+void Random_FastStreamSeed(RandomFastContext *rfc,
+                           uint64 seed,
+                           uint64 seq);
 
 /*
  * Simple multiplicative congruential RNG.

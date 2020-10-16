@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016,2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016,2019-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -226,6 +226,7 @@ Random_Simple(int seed)  // IN:
 #ifdef VMKERNEL
 VMK_KERNEL_EXPORT(Random_Fast);
 VMK_KERNEL_EXPORT(Random_FastStream);
+VMK_KERNEL_EXPORT(Random_FastStream64);
 VMK_KERNEL_EXPORT(Random_FastStreamSeed);
 VMK_KERNEL_EXPORT(Random_Simple);
 #endif

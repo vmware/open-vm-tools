@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2002-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2002-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -33,6 +33,7 @@
 
 #include "vmware.h"
 #include "rpcout.h"
+#include "vmcheck.h"
 #include "str.h"
 #include "backdoor_def.h"
 #ifdef _WIN32
@@ -146,6 +147,15 @@ main(int argc, char *argv[])
 #ifdef _WIN32
    WinUtil_EnableSafePathSearching(TRUE);
 #endif
+
+   /*
+    * Check if environment is VM
+    */
+   if (!VmCheck_IsVirtualWorld()) {
+      fprintf(stderr, "Error: %s must be run inside a virtual machine"
+                      " on a VMware hypervisor product.\n", argv[0]);
+      return -1;
+   }
 
    if (argc <= 1) {
       PrintUsage();

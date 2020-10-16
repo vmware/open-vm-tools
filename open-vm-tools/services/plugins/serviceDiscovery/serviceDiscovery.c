@@ -25,16 +25,14 @@
 
 #include <string.h>
 
-#include "serviceDiscovery.h"
+#include "serviceDiscoveryInt.h"
 #include "vmware.h"
 #include "conf.h"
+#include "guestApp.h"
 #include "dynbuf.h"
-#include "escape.h"
-#include "str.h"
 #include "util.h"
-#include "vm_atomic.h"
 #include "vmcheck.h"
-#include "vmware/tools/log.h"
+#include "vmware/guestrpc/serviceDiscovery.h"
 #include "vmware/tools/threadPool.h"
 #include "vmware/tools/utils.h"
 
@@ -50,61 +48,42 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 #define NSDB_PRIV_GET_VALUES_CMD "namespace-priv-get-values"
 #define NSDB_PRIV_SET_KEYS_CMD "namespace-priv-set-keys"
 
-/*
- * Namespace DB used for service discovery
- */
-#define SERVICE_DISCOVERY_NAMESPACE_DB_NAME "com.vmware.vrops.sdmp"
-
-/*
- * ready - used to identify if data is succesfully written to Namespace DB
- * signal - signal send by sdmp client for plugin to start data collection
- */
-#define SERVICE_DISCOVERY_KEY_NAME_READY "ready"
-#define SERVICE_DISCOVERY_KEY_NAME_SIGNAL "signal"
 
 #if defined (_WIN32)
 
-/*
- * keys for types of service data collected by plugin from Windows guest
- */
-#define WIN_KEY_NAME_PROCESSES "listening-process-info"
-#define WIN_KEY_NAME_CONNECTIONS "connection-info"
-#define WIN_KEY_NAME_PERFORMANCE_METRICS "listening-process-perf-metrics"
-#define WIN_KEY_NAME_VERSIONS "versions"
-#define WIN_KEY_NAME_RELATIONSHIP "pid-to-ppid"
-#define WIN_KEY_NAME_NET "net"
-#define WIN_KEY_NAME_IIS_PORTS "iis-ports-info"
+#define SCRIPT_EXTN ".bat"
 
 /*
- * scripts used by plugin to collect from Windows guest
+ * Scripts used by plugin in Windows guests to capture information about
+ * running services.
  */
-#define WIN_SCRIPT_NAME_PROCESSES "get-listening-process-info.bat"
-#define WIN_SCRIPT_NAME_CONNECTIONS "get-connection-info.bat"
-#define WIN_SCRIPT_NAME_PERFORMANCE_METRICS "get-performance-metrics.bat"
-#define WIN_SCRIPT_NAME_VERSIONS "get-versions.bat"
-#define WIN_SCRIPT_NAME_RELATIONSHIP "get-parent-child-rels.bat"
-#define WIN_SCRIPT_NAME_NET "net-share.bat"
-#define WIN_SCRIPT_NAME_IIS_PORTS "get-iis-ports-info.bat"
+#define SERVICE_DISCOVERY_SCRIPT_PERFORMANCE_METRICS \
+        "get-performance-metrics" SCRIPT_EXTN
+#define SERVICE_DISCOVERY_WIN_SCRIPT_RELATIONSHIP "get-parent-child-rels" \
+        SCRIPT_EXTN
+#define SERVICE_DISCOVERY_WIN_SCRIPT_NET "net-share" SCRIPT_EXTN
+#define SERVICE_DISCOVERY_WIN_SCRIPT_IIS_PORTS "get-iis-ports-info" SCRIPT_EXTN
 
 #else
 
-/*
- * keys for types of service data collected by plugin from Linux guest
- */
-#define LIN_KEY_NAME_PROCESSES "listening-process-info"
-#define LIN_KEY_NAME_CONNECTIONS "connection-info"
-#define LIN_KEY_NAME_PERFORMANCE_METRICS "listening-process-perf-metrics"
-#define LIN_KEY_NAME_VERSIONS "versions"
+#define SCRIPT_EXTN ".sh"
 
 /*
- * scripts used by plugin to collect from Linux guest
+ * Scripts used by plugin in Linux guests to capture information about
+ * running services.
  */
-#define LIN_SCRIPT_NAME_PROCESSES "get-listening-process-info.sh"
-#define LIN_SCRIPT_NAME_CONNECTIONS "get-connection-info.sh"
-#define LIN_SCRIPT_NAME_PERFORMANCE_METRICS "get-listening-process-perf-metrics.sh"
-#define LIN_SCRIPT_NAME_VERSIONS "get-versions.sh"
-
+#define SERVICE_DISCOVERY_SCRIPT_PERFORMANCE_METRICS \
+        "get-listening-process-perf-metrics" SCRIPT_EXTN
 #endif
+
+/*
+ * Scripts used by plugin in both Windows and Linux guests to capture
+ * information about running services.
+ */
+#define SERVICE_DISCOVERY_SCRIPT_PROCESSES "get-listening-process-info" \
+        SCRIPT_EXTN
+#define SERVICE_DISCOVERY_SCRIPT_CONNECTIONS "get-connection-info" SCRIPT_EXTN
+#define SERVICE_DISCOVERY_SCRIPT_VERSIONS "get-versions" SCRIPT_EXTN
 
 /*
  * Default value for CONFNAME_SERVICE_DISCOVERY_DISABLED setting in
@@ -139,24 +118,21 @@ typedef struct {
    gchar *val;
 } KeyNameValue;
 
+static KeyNameValue gKeyScripts[] = {
+   { SERVICE_DISCOVERY_KEY_PROCESSES, SERVICE_DISCOVERY_SCRIPT_PROCESSES },
+   { SERVICE_DISCOVERY_KEY_CONNECTIONS,
+     SERVICE_DISCOVERY_SCRIPT_CONNECTIONS },
+   { SERVICE_DISCOVERY_KEY_PERFORMANCE_METRICS,
+     SERVICE_DISCOVERY_SCRIPT_PERFORMANCE_METRICS },
+   { SERVICE_DISCOVERY_KEY_VERSIONS, SERVICE_DISCOVERY_SCRIPT_VERSIONS },
 #if defined(_WIN32)
-static KeyNameValue gKeyScripts[] = {
-   { WIN_KEY_NAME_PROCESSES, WIN_SCRIPT_NAME_PROCESSES },
-   { WIN_KEY_NAME_CONNECTIONS, WIN_SCRIPT_NAME_CONNECTIONS },
-   { WIN_KEY_NAME_PERFORMANCE_METRICS, WIN_SCRIPT_NAME_PERFORMANCE_METRICS },
-   { WIN_KEY_NAME_VERSIONS, WIN_SCRIPT_NAME_VERSIONS },
-   { WIN_KEY_NAME_RELATIONSHIP, WIN_SCRIPT_NAME_RELATIONSHIP },
-   { WIN_KEY_NAME_IIS_PORTS, WIN_SCRIPT_NAME_IIS_PORTS },
-   { WIN_KEY_NAME_NET, WIN_SCRIPT_NAME_NET },
-};
-#else
-static KeyNameValue gKeyScripts[] = {
-   { LIN_KEY_NAME_PROCESSES, LIN_SCRIPT_NAME_PROCESSES },
-   { LIN_KEY_NAME_CONNECTIONS, LIN_SCRIPT_NAME_CONNECTIONS },
-   { LIN_KEY_NAME_PERFORMANCE_METRICS, LIN_SCRIPT_NAME_PERFORMANCE_METRICS },
-   { LIN_KEY_NAME_VERSIONS, LIN_SCRIPT_NAME_VERSIONS },
-};
+   { SERVICE_DISCOVERY_WIN_KEY_RELATIONSHIP,
+     SERVICE_DISCOVERY_WIN_SCRIPT_RELATIONSHIP },
+   { SERVICE_DISCOVERY_WIN_KEY_IIS_PORTS,
+     SERVICE_DISCOVERY_WIN_SCRIPT_IIS_PORTS },
+   { SERVICE_DISCOVERY_WIN_KEY_NET, SERVICE_DISCOVERY_WIN_SCRIPT_NET },
 #endif
+};
 
 static GSource *gServiceDiscoveryTimeoutSource = NULL;
 static gint64 gLastWriteTime = 0;
@@ -224,11 +200,11 @@ SendRpcMessage(ToolsAppCtx *ctx,
       status = RpcChannel_SendOneRawPriv(msg, msgLen, result, resultLen);
 
       /*
-       * RpcChannel_SendOneRawPriv returns 'Permission denied' if the
-       * privileged vsocket can not be established.
+       * RpcChannel_SendOneRawPriv returns RPCCHANNEL_SEND_PERMISSION_DENIED
+       * if the privileged vsocket can not be established.
        */
       if (!status && result != NULL &&
-          strcmp(*result, "Permission denied") == 0) {
+          strcmp(*result, RPCCHANNEL_SEND_PERMISSION_DENIED) == 0) {
          g_debug("%s: Retrying RPC send", __FUNCTION__);
          free(*result);
          g_usleep(SERVICE_DISCOVERY_RPC_WAIT_TIME * 1000);
@@ -609,11 +585,11 @@ ServiceDiscoveryTask(ToolsAppCtx *ctx,
    /*
     * Reset "ready" flag to stop readers until all data is written
     */
-   status = WriteData(ctx, SERVICE_DISCOVERY_KEY_NAME_READY, "FALSE", 5);
+   status = WriteData(ctx, SERVICE_DISCOVERY_KEY_READY, "FALSE", 5);
    if (!status) {
       gLastWriteTime = previousWriteTime;
       g_warning("%s: Failed to reset %s flag", __FUNCTION__,
-                SERVICE_DISCOVERY_KEY_NAME_READY);
+                SERVICE_DISCOVERY_KEY_READY);
       goto out;
    }
 
@@ -633,7 +609,7 @@ ServiceDiscoveryTask(ToolsAppCtx *ctx,
    /*
     * Update ready flag
     */
-   status = WriteData(ctx, SERVICE_DISCOVERY_KEY_NAME_READY, "TRUE", 4);
+   status = WriteData(ctx, SERVICE_DISCOVERY_KEY_READY, "TRUE", 4);
    if (!status) {
       g_warning("%s: Failed to update ready flag", __FUNCTION__);
    }
@@ -674,14 +650,10 @@ checkForWrite(ToolsAppCtx *ctx)
    /*
     * Read signal from Namespace DB
     */
-   if (!ReadData(ctx, SERVICE_DISCOVERY_KEY_NAME_SIGNAL, &signal, &signalLen)) {
+   if (!ReadData(ctx, SERVICE_DISCOVERY_KEY_SIGNAL, &signal, &signalLen)) {
       g_debug("%s: Failed to read necessary information from Namespace DB\n",
               __FUNCTION__);
    } else {
-      gint64 clientTimestamp;
-      int clientInterval;
-      gint64 currentTime;
-
       if ((signal != NULL) && (strcmp(signal, "")) && signalLen > 0) {
          char *token1;
          char *token2;
@@ -693,9 +665,9 @@ checkForWrite(ToolsAppCtx *ctx)
          token1 = strtok(signal, ",");
          token2 = strtok(NULL, ",");
          if (token1 != NULL && token2 != NULL) {
-            currentTime = GetGuestTimeInMillis();
-            clientInterval = (int) g_ascii_strtoll(token1, NULL, 10);
-            clientTimestamp = g_ascii_strtoll(token2, NULL, 10);
+            gint64 currentTime = GetGuestTimeInMillis();
+            int clientInterval = (int) g_ascii_strtoll(token1, NULL, 10);
+            gint64 clientTimestamp = g_ascii_strtoll(token2, NULL, 10);
 
             if (clientInterval == 0 || clientTimestamp == 0) {
                g_warning("%s: Wrong value of interval and timestamp",

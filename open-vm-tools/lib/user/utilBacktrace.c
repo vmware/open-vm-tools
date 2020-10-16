@@ -424,7 +424,7 @@ Util_BacktraceWithFunc(int bugNr,                // IN:
    for (i = 0; i < frames; i++) {
       if (dladdr(callstack[i], &dli)) {
          outFunc(outFuncData, "SymBacktrace[%d] rip=%016lx in function %s "
-                              "in object %s loaded at %#08x\n",
+                              "in object %s loaded at %016lx\n",
                  i, callstack[i], dli.dli_sname, dli.dli_fname,
                  dli.dli_fbase);
       } else {

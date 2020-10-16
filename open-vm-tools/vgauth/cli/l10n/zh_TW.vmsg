@@ -1,5 +1,5 @@
 ##########################################################
-# Copyright (C) 2011-2017 VMware, Inc. All rights reserved.
+# Copyright (C) 2011-2017,2020 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -31,13 +31,17 @@ addoptions.username = "正將其憑證存放區新增至以下項目的使用者
 
 addoptions.verbose = "詳細資訊作業"
 
-
+cmdline.help.appoption = "應用程式選項"
+cmdline.help.helpoption = "説明選項"
+cmdline.help.hint = "顯示說明選項"
+cmdline.help.usage = "使用量"
 cmdline.parse = "命令行剖析失敗"
 
 cmdline.summary.pemfile = "PEM 檔案"
 cmdline.summary.subject = "主旨"
 cmdline.summary.username = "使用者名稱"
 cmdline.summary.comm = "註解"
+cmdline.summary.note = "備註: 如果未提供使用者名稱，則 %1$s 僅會移除對應的別名"
 
 list.comment = "註解"
 list.count = "%1$s 找到使用者「%3$s」的 %2$d 個別名\n"
@@ -71,5 +75,16 @@ removeoptions.subject = "SAML 主旨"
 removeoptions.username = "正從以下項目移除其憑證存放區的使用者"
 
 removeoptions.verbose = "詳細資訊作業"
+
+removeall.fail = "%1$s: 無法移除使用者「%2$s」主題「%3$s」的別名: %4$s。\n"
+
+removeall.removefail = "%1$s: 無法移除使用者「%2$s」主題「%3$s」pemCert「%4$s」的別名: %5$s。\n"
+
+removeall.success = "%1$s: 已移除所有別名\n"
+
+removealloptions.subject = "SAML 主旨"
+removealloptions.username = "正從以下項目移除其憑證存放區的使用者"
+
+removealloptions.verbose = "詳細資訊作業"
 
 vgauth.init.failed = "無法初始化 VGAuth"

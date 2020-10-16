@@ -134,7 +134,7 @@ extern "C" {
 #define   BDOOR_CMD_ABSPOINTER_STATUS        40
 #define   BDOOR_CMD_ABSPOINTER_COMMAND       41
 //#define BDOOR_CMD_TIMER_SPONGE             42 /* Not in use. */
-#define   BDOOR_CMD_PATCH_ACPI_TABLES        43 /* CPL 0 only. */
+//#define BDOOR_CMD_PATCH_ACPI_TABLES        43 /* Not in use. */
 //#define BDOOR_CMD_DEVEL_FAKEHARDWARE       44 /* Not in use. */
 #define   BDOOR_CMD_GETHZ                    45
 #define   BDOOR_CMD_GETTIMEFULL              46
@@ -197,6 +197,7 @@ extern "C" {
 #  define BDOOR_CMD_EBC_QUICKBOOT_ENABLED         4
 #  define BDOOR_CMD_EBC_GET_PXE_ARCH              5
 #  define BDOOR_CMD_EBC_SKIP_DELAYS               6
+#  define BDOOR_CMD_EBC_GET_NETWORK_BOOT_URI      7
 #define   BDOOR_CMD_GET_HW_MODEL             74 /* CPL 0 only. */
 #define   BDOOR_CMD_GET_SVGA_CAPABILITIES    75 /* CPL 0 only. */
 #define   BDOOR_CMD_GET_FORCE_X2APIC         76 /* CPL 0 only  */
@@ -236,9 +237,11 @@ extern "C" {
 #  define BDOOR_CMD_GI_TEST_MAPPING         130
 #  define BDOOR_CMD_GI_TEST_PPN             131
 #  define BDOOR_CMD_GI_MAX                  131
-#define   BDOOR_CMD_MKSSTATS_SNAPSHOT        88 /* Devel only. */
-#  define BDOOR_CMD_MKSSTATS_START            0
-#  define BDOOR_CMD_MKSSTATS_STOP             1
+#define   BDOOR_CMD_MKSTEST                  88 /* Devel only. */
+#  define BDOOR_CMD_MKSTEST_STATS_START       0
+#  define BDOOR_CMD_MKSTEST_STATS_STOP        1
+#  define BDOOR_CMD_MKSTEST_CASE_START        2
+#  define BDOOR_CMD_MKSTEST_CASE_STOP         3
 #define   BDOOR_CMD_SECUREBOOT               89
 #define   BDOOR_CMD_COPY_PHYSMEM             90 /* Devel only. */
 #define   BDOOR_CMD_STEALCLOCK               91 /* CPL 0 only. */
@@ -266,7 +269,8 @@ extern "C" {
 #define   BDOOR_CMD_PRECISIONCLOCK           97
 #  define BDOOR_CMD_PRECISIONCLOCK_GETTIME    0
 #define   BDOOR_CMD_COREDUMP_UNSYNC          98 /* Devel only. For VMM cores */
-#define   BDOOR_CMD_MAX                      99
+#define   BDOOR_CMD_APPLE_GPU_RES_SET        99
+#define   BDOOR_CMD_MAX                     100
 
 
 /*
@@ -288,9 +292,11 @@ extern "C" {
 #define EFI_BOOT_ORDER_TYPE_LEGACY        0x1
 #define EFI_BOOT_ORDER_TYPE_NONE          0xf
 
-#define BDOOR_NETWORK_BOOT_PROTOCOL_NONE  0x0
-#define BDOOR_NETWORK_BOOT_PROTOCOL_IPV4  0x1
-#define BDOOR_NETWORK_BOOT_PROTOCOL_IPV6  0x2
+#define BDOOR_NETWORK_BOOT_PROTOCOL_NONE   0x0
+#define BDOOR_NETWORK_BOOT_PROTOCOL_IPV4   0x1
+#define BDOOR_NETWORK_BOOT_PROTOCOL_IPV6   0x2
+#define BDOOR_NETWORK_BOOT_PROTOCOL_HTTPV4 0x3
+#define BDOOR_NETWORK_BOOT_PROTOCOL_HTTPV6 0x4
 
 #define BDOOR_SECUREBOOT_STATUS_DISABLED  0xFFFFFFFFUL
 #define BDOOR_SECUREBOOT_STATUS_APPROVED  1
@@ -346,49 +352,6 @@ extern "C" {
 #define BDOOR_GUEST_PAGE_HINTS_MAX_PAGES     (0xffff)
 #define BDOOR_GUEST_PAGE_HINTS_TYPE_PSHARE   (0)
 #define BDOOR_GUEST_PAGE_HINTS_TYPE(reg)     (((reg) >> 16) & 0xffff)
-
-#if defined(VMM) || defined(ULM)
-/*
- *----------------------------------------------------------------------
- *
- * Backdoor_CmdRequiresFullyValidVCPU --
- *
- *    A few backdoor commands require the full VCPU to be valid
- *    (including GDTR, IDTR, TR and LDTR). The rest get read/write
- *    access to GPRs and read access to Segment registers (selectors).
- *
- * Result:
- *    True iff VECX contains a command that require the full VCPU to
- *    be valid.
- *
- *----------------------------------------------------------------------
- */
-static INLINE Bool
-Backdoor_CmdRequiresFullyValidVCPU(unsigned cmd)
-{
-   return cmd == BDOOR_CMD_SIDT ||
-          cmd == BDOOR_CMD_SGDT ||
-          cmd == BDOOR_CMD_SLDT_STR ||
-          cmd == BDOOR_CMD_GMM;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Backdoor_CmdRequiresValidSegments --
- *
- *    Returns TRUE if a backdoor command requires access to segment selectors.
- *
- *----------------------------------------------------------------------
- */
-static INLINE Bool
-Backdoor_CmdRequiresValidSegments(unsigned cmd)
-{
-   return cmd == BDOOR_CMD_INITPCIOPROM ||
-          cmd == BDOOR_CMD_GETMHZ;
-}
-#endif // defined(VMM) || defined(ULM)
 
 #ifdef VM_ARM_64
 

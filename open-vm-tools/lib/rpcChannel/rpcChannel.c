@@ -32,6 +32,7 @@
 #include "vmxrpc.h"
 #include "xdrutil.h"
 #include "rpcin.h"
+#include "vmware/guestrpc/tclodefs.h"
 #endif
 
 #include "str.h"
@@ -431,7 +432,7 @@ RpcChannel_Dispatch(RpcInData *data)
 
    if (rpc == NULL) {
       Debug(LGPFX "Unknown Command '%s': Handler not registered.\n", name);
-      status = RPCIN_SETRETVALS(data, "Unknown Command", FALSE);
+      status = RPCIN_SETRETVALS(data, GUEST_RPC_UNKNOWN_COMMAND, FALSE);
       goto exit;
    }
 
@@ -580,6 +581,11 @@ RpcChannelTeardown(RpcChannel *chan)
    if (cdata->resetCheck != NULL) {
       g_source_destroy(cdata->resetCheck);
       cdata->resetCheck = NULL;
+   }
+
+   if (chan->in != NULL) {
+      RpcIn_Destruct(chan->in);
+      chan->in = NULL;
    }
 
    cdata->rpcInInitialized = FALSE;
@@ -1194,7 +1200,7 @@ RpcChannelSendOneRaw(const char *data,
       goto sent;
    } else if (priv && RpcChannel_GetType(chan) != RPCCHANNEL_TYPE_PRIV_VSOCK) {
       if (result != NULL) {
-         *result = Util_SafeStrdup("Permission denied");
+         *result = Util_SafeStrdup(RPCCHANNEL_SEND_PERMISSION_DENIED);
          if (resultLen != NULL) {
             *resultLen = strlen(*result);
          }

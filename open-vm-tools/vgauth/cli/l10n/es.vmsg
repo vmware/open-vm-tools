@@ -1,5 +1,5 @@
 ##########################################################
-# Copyright (C) 2011-2017 VMware, Inc. All rights reserved.
+# Copyright (C) 2011-2017,2020 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -31,13 +31,17 @@ addoptions.username = "El usuario cuyo almacén de certificados se está añadie
 
 addoptions.verbose = "Operación detallada"
 
-
+cmdline.help.appoption = "Opciones de la aplicación"
+cmdline.help.helpoption = "Opciones de ayuda"
+cmdline.help.hint = "Mostrar opciones de ayuda"
+cmdline.help.usage = "Uso"
 cmdline.parse = "Error de análisis de línea de comando"
 
 cmdline.summary.pemfile = "Archivo PEM"
 cmdline.summary.subject = "asunto"
 cmdline.summary.username = "nombre de usuario"
 cmdline.summary.comm = "comentario"
+cmdline.summary.note = "Nota: Si no se proporciona un nombre de usuario, %1$s elimina solo los alias asignados"
 
 list.comment = "Comentario"
 list.count = "%1$s Se han encontrado %2$d alias para el usuario '%3$s'\n"
@@ -71,5 +75,16 @@ removeoptions.subject = "Tema de SAML"
 removeoptions.username = "El usuario cuyo almacén de certificados se va a eliminar de"
 
 removeoptions.verbose = "Operación detallada"
+
+removeall.fail = "%1$s: No se pudo quitar el alias del usuario '%2$s', asunto '%3$s': %4$s.\n"
+
+removeall.removefail = "%1$s: No se pudo eliminar el alias para el usuario '%2$s', asunto '%3$s', pemCert '%4$s': %5$s.\n"
+
+removeall.success = "%1$s: se eliminaron todos los alias\n"
+
+removealloptions.subject = "Tema de SAML"
+removealloptions.username = "El usuario cuyo almacén de certificados se va a eliminar de"
+
+removealloptions.verbose = "Operación detallada"
 
 vgauth.init.failed = "No se ha podido iniciar VGAuth"

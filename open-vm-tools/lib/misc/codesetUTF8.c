@@ -1,5 +1,5 @@
 /* **********************************************************
- * Copyright (C) 2015-2016 VMware, Inc.  All rights reserved.
+ * Copyright (C) 2015-2020 VMware, Inc.  All rights reserved.
  * **********************************************************/
 
 /*
@@ -61,18 +61,52 @@ CodeSetDecode(uint32 *state,  // IN:
 }
 
 
+/*
+ *----------------------------------------------------------------------------
+ *
+ * CodeSet_IsStringValidUTF8 --
+ *
+ *      Check if the given buffer contains a valid UTF-8 string.
+ *      This function will stop at first '\0' it sees.
+ *
+ * Results:
+ *      TRUE if the given buffer contains a valid UTF-8 string, or FALSE.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------------
+ */
+
 Bool
 CodeSet_IsStringValidUTF8(const char *bufIn)  // IN:
 {
    uint32 state = UTF8_ACCEPT;
 
-   while (*bufIn) {
+   while (*bufIn != '\0') {
       CodeSetDecode(&state, (unsigned char) *bufIn++);
    }
 
    return state == UTF8_ACCEPT;
 }
 
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * CodeSet_IsValidUTF8 --
+ *
+ *      Check if the given buffer with given size, is UTF-8 encoded.
+ *      This function will return TRUE even if there is '\0' in the buffer.
+ *
+ * Results:
+ *      TRUE if the buffer is UTF-8 encoded, or FALSE.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------------
+ */
 
 Bool
 CodeSet_IsValidUTF8(const char *bufIn,  // IN:
@@ -85,5 +119,47 @@ CodeSet_IsValidUTF8(const char *bufIn,  // IN:
       CodeSetDecode(&state, (unsigned char) *bufIn++);
    }
 
+   return state == UTF8_ACCEPT;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * CodeSet_IsValidUTF8String --
+ *
+ *      Check if the given buffer with given size, is a valid UTF-8 string,
+ *      and without '\0' in it.
+ *
+ * Results:
+ *      TRUE if passed, or FALSE.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------------
+ */
+
+Bool
+CodeSet_IsValidUTF8String(const char *bufIn,  // IN:
+                          size_t sizeIn)      // IN:
+{
+   size_t i;
+   uint32 state = UTF8_ACCEPT;
+   unsigned char c;
+
+   for (i = 0; i < sizeIn; i++) {
+      c = (unsigned char) *bufIn++;
+
+      if (UNLIKELY(c == '\0')) {
+         return FALSE;
+      }
+
+      CodeSetDecode(&state, c);
+   }
+
+   /* If everything went well we should have proper UTF8, the data
+    * might instead have ended in the middle of a UTF8 codepoint.
+    */
    return state == UTF8_ACCEPT;
 }

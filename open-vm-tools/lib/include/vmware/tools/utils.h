@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -106,6 +106,10 @@ VMTools_LoadConfig(const gchar *path,
                    time_t *mtime);
 
 gboolean
+VMTools_AddConfig(GKeyFile *srcConfig,
+                  GKeyFile *dstConfig);
+
+gboolean
 VMTools_WriteConfig(const gchar *path,
                     GKeyFile *config,
                     GError **err);
@@ -157,9 +161,6 @@ VMTools_GetLibdir(void);
 
 GSource *
 VMTools_CreateTimer(gint timeout);
-
-void
-VMTools_SetGuestSDKMode(void);
 
 void
 VMTools_AcquireLogStateLock(void);

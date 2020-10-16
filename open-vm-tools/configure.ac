@@ -35,10 +35,10 @@
 ### Initialization
 ###
 
-TOOLS_VERSION="11.1.5"
+TOOLS_VERSION="11.2.0"
 AC_INIT(
    [open-vm-tools],
-   [11.1.5],
+   [11.2.0],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
@@ -446,6 +446,17 @@ AC_ARG_ENABLE([servicediscovery],
    [
     enable_servicediscovery=no
    ])
+
+#
+# Check that servicediscovery is enabled only on linux systems
+#
+
+if test "$enable_servicediscovery" = "yes"; then
+   if test "$os" != "linux"; then
+      AC_MSG_ERROR([The Service Discovery plugin is only supported for Linux
+      platforms. Try configure without --enable-servicediscovery option.])
+   fi
+fi
 
 #
 # Check for glib 2.34.0 or greater.

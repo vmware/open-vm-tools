@@ -1,0 +1,7 @@
+# PAM configuration for vmtoolsd
+
+@include common-auth
+
+account     required    pam_shells.so
+@include common-account
+

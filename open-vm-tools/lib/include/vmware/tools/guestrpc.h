@@ -45,6 +45,10 @@ G_BEGIN_DECLS
 #define RPCIN_SETRETVALS  RpcChannel_SetRetVals
 #define RPCIN_SETRETVALSF RpcChannel_SetRetValsF
 
+/** Error messages returned by RpcChannel Send APIs **/
+
+#define RPCCHANNEL_SEND_PERMISSION_DENIED "Permission denied"
+
 typedef struct _RpcChannel RpcChannel;
 
 /** Data structure passed to RPC callbacks. */

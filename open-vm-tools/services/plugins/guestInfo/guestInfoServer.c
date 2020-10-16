@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -40,6 +40,7 @@
 #include "vmware.h"
 #include "buildNumber.h"
 #include "conf.h"
+#include "guestApp.h"
 #include "debug.h"
 #include "dynxdr.h"
 #include "hostinfo.h"
@@ -990,7 +991,7 @@ GuestInfoSendNicInfoXdr(ToolsAppCtx *ctx,          // IN
                                &reply, &replyLen);
       if (!status) {
          g_warning("%s: update failed: request \"%s\", reply \"%s\".\n",
-                    __FUNCTION__, request, reply);
+                    __FUNCTION__, request, VM_SAFE_STR(reply));
       }
       vm_free(reply);
    }
@@ -1051,7 +1052,7 @@ GuestInfoSendData(ToolsAppCtx *ctx,                // IN
    status = RpcChannel_Send(ctx->rpc, message, msgLength, &reply, &replyLen);
    if (!status) {
       g_warning("%s: update failed: request \"%s\", reply \"%s\".\n",
-                __FUNCTION__, request, reply);
+                __FUNCTION__, request, VM_SAFE_STR(reply));
    }
    vm_free(reply);
 
@@ -1374,7 +1375,7 @@ GuestInfoSendDiskInfoV1(ToolsAppCtx *ctx,             // IN
       }
    } else {
       g_debug("%s: RPC failed (%d) reply '%s'\n",
-              __FUNCTION__, status, reply ? reply : "");
+              __FUNCTION__, status, VM_SAFE_STR(reply));
    }
 
    vm_free(reply);

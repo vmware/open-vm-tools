@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2009-2019 VMware, Inc.  All rights reserved.
+### Copyright (C) 2009-2020 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -16,8 +16,6 @@
 ################################################################################
 
 bin_PROGRAMS = vmtoolsd
-pamdir = $(PAM_PREFIX)/pam.d
-
 
 vmtoolsd_CPPFLAGS =
 vmtoolsd_CPPFLAGS += @VMTOOLS_CPPFLAGS@
@@ -73,19 +71,16 @@ else
    vmtoolsd_LINK = $(LINK)
 endif
 
-# PAM support is currently only available for Linux, so HAVE_PAM is only
-# defined for that OS.
-if HAVE_PAM
-pam_SCRIPTS = $(top_srcdir)/scripts/linux/pam.d/vmtoolsd
-endif HAVE_PAM
-
 # Message catalogs.
 install-data-hook:
 	@INSTVMSG@ vmtoolsd $(srcdir)/l10n $(DESTDIR)$(datadir)
 
 install-exec-hook:
 	$(INSTALL) -d $(DESTDIR)/etc/vmware-tools
+	$(INSTALL) -d $(DESTDIR)/$(PAM_PREFIX)/pam.d/
+	$(INSTALL) $(top_srcdir)/pam/generic $(DESTDIR)/$(PAM_PREFIX)/pam.d/vmtoolsd
 
 uninstall-hook:
+	rm -f $(DESTDIR)/$(PAM_PREFIX)/pam.d/vmtoolsd
 	rm -rf $(DESTDIR)/etc/vmware-tools
 

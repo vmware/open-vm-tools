@@ -27,7 +27,7 @@
 #   error This file should not be compiled.
 #endif
 
-#include "serviceDiscovery.h"
+#include "serviceDiscoveryInt.h"
 #include "dynbuf.h"
 
 #include <stdio.h>
@@ -194,7 +194,7 @@ out:
          g_warning("%s: Failed to close child stdout file stream, errno=%d",
                    __FUNCTION__, errno);
       }
-   } else if (child_stdout != -1 && close(child_stdout) != 0) {
+   } else if (close(child_stdout) != 0) {
       g_warning("%s: Failed to close child stdout handle, errno=%d",
                 __FUNCTION__, errno);
    }

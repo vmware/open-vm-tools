@@ -313,6 +313,8 @@ g_warning_inline(const gchar *fmt,
 #define  vm_warning(fmt, ...)    g_warning("%s: " fmt, FUNC, ## __VA_ARGS__)
 #endif // ! (windows & glib >= 2.46)
 
+/* Checks if a string is null before it is passed in logging function  */
+#define VM_SAFE_STR(string)      (string != NULL ? string : "(NULL)")
 
 G_BEGIN_DECLS
 

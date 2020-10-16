@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013-2017, 2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -33,7 +33,7 @@
 /*
  * vm_basic_asm_arm64.h --
  *
- *	Basic assembler macros for the AArch64 architecture.
+ *      Basic assembler macros for the AArch64 architecture.
  */
 
 #ifndef _VM_BASIC_ASM_ARM64_H_
@@ -47,7 +47,8 @@ extern "C" {
 
 
 /*
- * GET_CURRENT_PC
+ * _GET_CURRENT_PC --
+ * GET_CURRENT_PC --
  *
  * Returns the current program counter. In the example below:
  *
@@ -57,30 +58,32 @@ extern "C" {
  * the return value from GET_CURRENT_PC will point a debugger to L123.
  */
 
-static INLINE void *
+#define _GET_CURRENT_PC(pc)                                                   \
+   asm volatile("1: adr %0, 1b" : "=r" (pc))
+
+static INLINE_ALWAYS void *
 GET_CURRENT_PC(void)
 {
-   uint64 pc;
+   void *pc;
 
-   asm volatile("1: adr     %0, 1b" : "=r" (pc) ::);
-
-   return (void *)pc;
+   _GET_CURRENT_PC(pc);
+   return pc;
 }
 
 /*
- * GET_CURRENT_LOCATION
+ * GET_CURRENT_LOCATION --
  *
- * Updates the arguments with the values of the %pc, %fp, %sp and %lr
+ * Updates the arguments with the values of the pc, x29, sp and x30
  * registers at the current code location where the macro is invoked.
  */
 
-#define GET_CURRENT_LOCATION(pc, fp, sp, lr)          \
-   asm("1: adr %0, 1b \n\t"                           \
-       "mov %1, x29\n\t"                              \
-       "mov %2, sp \n\t"                              \
-       "mov %3, x30\n\t"                              \
-       : "=r" (pc), "=r" (fp),                        \
-       "=r" (sp), "=r" (lr))
+#define GET_CURRENT_LOCATION(pc, fp, sp, lr) do {                             \
+   _GET_CURRENT_PC(pc);                                                       \
+   asm volatile("mov %0, x29" "\n\t"                                          \
+                "mov %1, sp"  "\n\t"                                          \
+                "mov %2, x30"                                                 \
+                : "=r" (fp), "=r" (sp), "=r" (lr));                           \
+} while (0)
 
 
 /*
@@ -168,21 +171,21 @@ ISB(void)
  *
  * MRS --
  *
- *      Get system register value.
+ *      Get the value of system register 'name'.
  *
  * Results:
- *      Value of system register x.
+ *      The value.
  *
  * Side effects:
- *      None
+ *      Depends on 'name'.
  *
  *----------------------------------------------------------------------
  */
 
-#define MRS(x) ({                           \
-   uint64 _val;                             \
-   asm volatile("mrs %0, " XSTR(x) : "=r" (_val) :: "memory");	\
-   (_val);                                  \
+#define MRS(name) ({                                                          \
+   uint64 val;                                                                \
+   asm volatile("mrs %0, " XSTR(name) : "=r" (val) :: "memory");              \
+   val;                                                                       \
 })
 
 
@@ -190,23 +193,24 @@ ISB(void)
  *----------------------------------------------------------------------
  *
  * MSR --
+ * MSR_IMMED --
  *
- *      Set system register value.
+ *      Set the value of system register 'name'.
  *
  * Results:
- *      None
+ *      None.
  *
  * Side effects:
- *      Per-register side-effects.
+ *      Depends on 'name'.
  *
  *----------------------------------------------------------------------
  */
 
-#define MSR(x, _val) \
-   asm volatile("msr " XSTR(x) ", %0" :: "r" (_val) : "memory")
+#define MSR(name, val)                                                        \
+   asm volatile("msr " XSTR(name) ", %0" :: "r" (val) : "memory")
 
-#define MSR_IMMED(x, _val) \
-   asm volatile("msr " XSTR(x) ", %0" :: "i" (_val) : "memory")
+#define MSR_IMMED(name, val)                                                  \
+   asm volatile("msr " XSTR(name) ", %0" :: "i" (val) : "memory")
 
 
 /*
@@ -480,7 +484,7 @@ SetSPELx(VA va)
  *
  *    Unsigned integer by fixed point multiplication, with rounding:
  *       result = floor(multiplicand * multiplier * 2**(-shift) + 0.5)
- * 
+ *
  *       Unsigned 64-bit integer multiplicand.
  *       Unsigned 64-bit fixed point multiplier, represented as
  *         (multiplier, shift), where shift < 64.
@@ -496,21 +500,16 @@ Mul64x6464(uint64 multiplicand,
            uint64 multiplier,
            uint32 shift)
 {
-   uint64 resLow, resHi;
-
-   asm volatile(
-      "mul      %x0, %x2, %x3 \n\t"
-      "umulh    %x1, %x2, %x3 \n\t"
-      : "=&r" (resLow), "=&r" (resHi)
-      : "r" (multiplicand), "r" (multiplier)
-      :);
-
    if (shift == 0) {
-      return resLow;
+      return multiplicand * multiplier;
    } else {
-      return (resLow >> shift) +
-         (resHi << (64 - shift)) +
-         ((resLow >> (shift - 1)) & 1);
+      uint64 lo, hi;
+
+      asm("mul   %0, %2, %3" "\n\t"
+          "umulh %1, %2, %3"
+          : "=&r" (lo), "=r" (hi)
+          : "r" (multiplicand), "r" (multiplier));
+      return (hi << (64 - shift) | lo >> shift) + (lo >> (shift - 1) & 1);
    }
 }
 
@@ -522,7 +521,7 @@ Mul64x6464(uint64 multiplicand,
  *
  *    Signed integer by fixed point multiplication, with rounding:
  *       result = floor(multiplicand * multiplier * 2**(-shift) + 0.5)
- * 
+ *
  *       Signed 64-bit integer multiplicand.
  *       Unsigned 64-bit fixed point multiplier, represented as
  *         (multiplier, shift), where shift < 64.
@@ -538,21 +537,16 @@ Muls64x64s64(int64 multiplicand,
              int64 multiplier,
              uint32 shift)
 {
-   uint64 resLow, resHi;
-
-   asm volatile(
-      "mul      %x0, %x2, %x3 \n\t"
-      "smulh    %x1, %x2, %x3 \n\t"
-      : "=&r" (resLow), "=&r" (resHi)
-      : "r" (multiplicand), "r" (multiplier)
-      :);
-
    if (shift == 0) {
-      return resLow;
+      return multiplicand * multiplier;
    } else {
-      return (resLow >> shift) +
-         (resHi << (64 - shift)) +
-         ((resLow >> (shift - 1)) & 1);
+      uint64 lo, hi;
+
+      asm("mul   %0, %2, %3" "\n\t"
+          "smulh %1, %2, %3"
+          : "=&r" (lo), "=r" (hi)
+          : "r" (multiplicand), "r" (multiplier));
+      return (hi << (64 - shift) | lo >> shift) + (lo >> (shift - 1) & 1);
    }
 }
 
@@ -564,7 +558,7 @@ Muls64x64s64(int64 multiplicand,
  *
  *    Unsigned integer by fixed point multiplication, with rounding:
  *       result = floor(multiplicand * multiplier * 2**(-shift) + 0.5)
- * 
+ *
  *       Unsigned 64-bit integer multiplicand.
  *       Unsigned 32-bit fixed point multiplier, represented as
  *         (multiplier, shift), where shift < 64.
@@ -589,7 +583,7 @@ Mul64x3264(uint64 multiplicand, uint32 multiplier, uint32 shift)
  *
  *    Signed integer by fixed point multiplication, with rounding:
  *       result = floor(multiplicand * multiplier * 2**(-shift) + 0.5)
- * 
+ *
  *       Signed 64-bit integer multiplicand.
  *       Unsigned 32-bit fixed point multiplier, represented as
  *         (multiplier, shift), where shift < 64.

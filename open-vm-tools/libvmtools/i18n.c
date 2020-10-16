@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -25,6 +25,7 @@
 #include <errno.h>
 #include <locale.h>
 #include <stdio.h>
+#include <glib.h>
 #include <glib/gprintf.h>
 
 #include "vmware.h"
@@ -421,63 +422,6 @@ MsgGetString(const char *domain,
 }
 
 
-/*
- ******************************************************************************
- * MsgUnescape --                                                       */ /**
- *
- * Does some more unescaping on top of what Escape_Undo() already does. This
- * function will replace '\\', '\n', '\t' and '\r' with their corresponding
- * characters. Substitution is done in place.
- *
- * @param[in] msg   Message to be processed.
- *
- ******************************************************************************
- */
-
-static void
-MsgUnescape(char *msg)
-{
-   char *c = msg;
-   gboolean escaped = FALSE;
-   size_t len = strlen(msg) + 1;
-
-   for (; *c != '\0'; c++, len--) {
-      if (escaped) {
-         char subst = '\0';
-
-         switch (*c) {
-         case '\\':
-            subst = '\\';
-            break;
-
-         case 'n':
-            subst = '\n';
-            break;
-
-         case 'r':
-            subst = '\r';
-            break;
-
-         case 't':
-            subst = '\t';
-            break;
-
-         default:
-            break;
-         }
-
-         if (subst != '\0') {
-            *(c - 1) = subst;
-            memmove(c, c + 1, len);
-            c--;
-         }
-
-         escaped = FALSE;
-      } else if (*c == '\\') {
-         escaped = TRUE;
-      }
-   }
-}
 
 
 /*
@@ -630,6 +574,7 @@ MsgLoadCatalog(const char *path)
       }
 
       if (name != NULL) {
+         gchar *val;
          ASSERT(value);
 
          if (!Unicode_IsBufferValid(name, strlen(name) + 1, STRING_ENCODING_UTF8) ||
@@ -641,10 +586,10 @@ MsgLoadCatalog(const char *path)
             break;
          }
 
-         MsgUnescape(value);
-         HashTable_ReplaceOrInsert(dict, name, g_strdup(value));
-         free(name);
+         val = g_strcompress(value);
          free(value);
+         HashTable_ReplaceOrInsert(dict, name, val);
+         free(name);
       }
 
       if (eof) {

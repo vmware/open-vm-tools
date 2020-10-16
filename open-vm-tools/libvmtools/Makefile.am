@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2008-2019 VMware, Inc.  All rights reserved.
+### Copyright (C) 2008-2020 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -70,7 +70,6 @@ libvmtools_la_SOURCES += vmtools.c
 libvmtools_la_SOURCES += vmtoolsConfig.c
 libvmtools_la_SOURCES += vmtoolsLog.c
 libvmtools_la_SOURCES += vmxLogger.c
-libvmtools_la_SOURCES += guestSDKLog.c
 
 # Recompile the stub for Log_* functions, but not Log() itself (see -DNO_LOG_STUB).
 libvmtools_la_SOURCES += $(top_srcdir)/lib/stubs/stub-log.c

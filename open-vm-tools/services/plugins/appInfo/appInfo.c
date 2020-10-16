@@ -28,7 +28,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "appInfo.h"
 #include "appInfoInt.h"
 #include "vmware.h"
 #include "conf.h"
@@ -38,6 +37,7 @@
 #include "util.h"
 #include "vm_atomic.h"
 #include "vmcheck.h"
+#include "vmware/guestrpc/appInfo.h"
 #include "vmware/guestrpc/tclodefs.h"
 #include "vmware/tools/log.h"
 #include "vmware/tools/threadPool.h"

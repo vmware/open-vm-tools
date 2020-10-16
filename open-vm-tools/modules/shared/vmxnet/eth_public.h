@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2014,2017-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005-2014,2017-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -139,13 +139,11 @@ typedef enum {
 
 #define ETH_LLC_CONTROL_UFRAME_MASK (0x3)
 
-typedef
-#include "vmware_pack_begin.h"
-struct Eth_DIX {
+#pragma pack(push, 1)
+typedef struct Eth_DIX {
    uint16  typeNBO;     // indicates the higher level protocol
-}
-#include "vmware_pack_end.h"
-Eth_DIX;
+} Eth_DIX;
+#pragma pack(pop)
 
 /*
  * LLC header come in two varieties:  8 bit control and 16 bit control.
@@ -153,44 +151,36 @@ Eth_DIX;
  * indicated the 8 bit control field.
  */
 
-typedef 
-#include "vmware_pack_begin.h"
-struct Eth_LLC8 {
+#pragma pack(push, 1)
+typedef struct Eth_LLC8 {
    uint8   dsap;
    uint8   ssap;
    uint8   control;
-}
-#include "vmware_pack_end.h"
-Eth_LLC8;
+} Eth_LLC8;
+#pragma pack(pop)
 
-typedef
-#include "vmware_pack_begin.h"
-struct Eth_LLC16 {
+#pragma pack(push, 1)
+typedef struct Eth_LLC16 {
    uint8   dsap;
    uint8   ssap;
    uint16  control;
-}
-#include "vmware_pack_end.h"
-Eth_LLC16;
+} Eth_LLC16;
+#pragma pack(pop)
 
-typedef
-#include "vmware_pack_begin.h"
-struct Eth_SNAP {
+#pragma pack(push, 1)
+typedef struct Eth_SNAP {
    uint8   snapOrg[3];
    Eth_DIX snapType;
-} 
-#include "vmware_pack_end.h"
-Eth_SNAP;
+} Eth_SNAP;
+#pragma pack(pop)
 
-typedef
-#include "vmware_pack_begin.h"
-struct Eth_802_3 {  
+#pragma pack(push, 1)
+typedef struct Eth_802_3 {  
    uint16   lenNBO;      // length of the frame
    Eth_LLC8 llc;         // LLC header
    Eth_SNAP snap;        // SNAP header
-} 
-#include "vmware_pack_end.h"
-Eth_802_3;
+} Eth_802_3;
+#pragma pack(pop)
 
 // 802.1p QOS/priority tags
 // 
@@ -205,21 +195,18 @@ enum {
    ETH_802_1_P_NETWORK_CONTROL      = 7
 };
 
-typedef
-#include "vmware_pack_begin.h"
-struct Eth_802_1pq_Tag {
+#pragma pack(push, 1)
+typedef struct Eth_802_1pq_Tag {
    uint16 typeNBO;            // always ETH_TYPE_802_1PQ
    uint16 vidHi:4,            // 802.1q vlan ID high nibble
           canonical:1,        // bit order? (should always be 0)
           priority:3,         // 802.1p priority tag
           vidLo:8;            // 802.1q vlan ID low byte
-}
-#include "vmware_pack_end.h"
-Eth_802_1pq_Tag;
+} Eth_802_1pq_Tag;
+#pragma pack(pop)
 
-typedef
-#include "vmware_pack_begin.h"
-struct Eth_802_1pq {
+#pragma pack(push, 1)
+typedef struct Eth_802_1pq {
    Eth_802_1pq_Tag tag;       // VLAN/QOS tag
    union {
       Eth_DIX      dix;       // DIX header follows
@@ -229,13 +216,11 @@ struct Eth_802_1pq {
          Eth_DIX           dix;        // DIX header follows
       } nested802_1pq;
    }; 
-}
-#include "vmware_pack_end.h"
-Eth_802_1pq; 
+} Eth_802_1pq; 
+#pragma pack(pop)
 
-typedef
-#include "vmware_pack_begin.h"
-struct Eth_Header {
+#pragma pack(push, 1)
+typedef struct Eth_Header {
    Eth_Address     dst;       // all types of ethernet frame have dst first
    Eth_Address     src;       // and the src next (at least all the ones we'll see)
    union {
@@ -243,9 +228,8 @@ struct Eth_Header {
       Eth_802_3    e802_3;    // ...or an 802.3 header
       Eth_802_1pq  e802_1pq;  // ...or an 802.1[pq] tag and a header
    };
-}
-#include "vmware_pack_end.h"
-Eth_Header;
+} Eth_Header;
+#pragma pack(pop)
 
 /*
  * Official VMware ethertype header format and types
@@ -260,15 +244,13 @@ enum {
    ETH_VMWARE_FRAME_TYPE_LLC        = 4, // XXX: Just re-use COLOR?
 };
 
-typedef
-#include "vmware_pack_begin.h"
-struct Eth_VMWareFrameHeader {
+#pragma pack(push, 1)
+typedef struct Eth_VMWareFrameHeader {
    uint32         magic;
    uint16         lenNBO;
    uint8          type;
-}
-#include "vmware_pack_end.h"
-Eth_VMWareFrameHeader;
+} Eth_VMWareFrameHeader;
+#pragma pack(pop)
 
 typedef Eth_Header Eth_802_1pq_Header; // for sizeof
 

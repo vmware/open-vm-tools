@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2007-2019 VMware, Inc.  All rights reserved.
+### Copyright (C) 2007-2020 VMware, Inc.  All rights reserved.
 ###
 ### Top-level Makefile for building the VMware OSS Tools.
 ###
@@ -71,5 +71,5 @@ endif
 
 install-data-local:
 	$(INSTALL) -d $(DESTDIR)/etc/vmware-tools/
-	$(INSTALL) $(srcdir)/tools.conf $(DESTDIR)/etc/vmware-tools/tools.conf.example
+	$(INSTALL) -m 644 $(srcdir)/tools.conf $(DESTDIR)/etc/vmware-tools/tools.conf.example
 

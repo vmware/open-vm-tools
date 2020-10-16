@@ -61,6 +61,7 @@
 #include <ws2tcpip.h>
 #include <wspiapi.h>
 #include <MSWSock.h>
+#include <mstcpip.h>
 #include <windows.h>
 #if !(defined(__GOT_SECURE_LIB__) && __GOT_SECURE_LIB__ >= 200402L)
 #undef strcpy
@@ -308,6 +309,7 @@ static int AsyncTCPSocketWaitForConnection(AsyncSocket *s, int timeoutMS);
 static int AsyncTCPSocketGetGenericErrno(AsyncSocket *s);
 static int AsyncTCPSocketGetFd(AsyncSocket *asock);
 static int AsyncTCPSocketGetRemoteIPStr(AsyncSocket *asock, const char **ipStr);
+static int AsyncTCPSocketGetRemotePort(AsyncSocket *asock, uint32 *port);
 static int AsyncTCPSocketGetINETIPStr(AsyncSocket *asock, int socketFamily,
                                       char **ipRetStr);
 static unsigned int AsyncTCPSocketGetPort(AsyncSocket *asock);
@@ -385,6 +387,7 @@ static const AsyncSocketVTable asyncTCPSocketVTable = {
    AsyncTCPSocketGetGenericErrno,
    AsyncTCPSocketGetFd,
    AsyncTCPSocketGetRemoteIPStr,
+   AsyncTCPSocketGetRemotePort,
    AsyncTCPSocketGetINETIPStr,
    AsyncTCPSocketGetPort,
    AsyncTCPSocketSetCloseOptions,
@@ -410,6 +413,7 @@ static const AsyncSocketVTable asyncTCPSocketVTable = {
    NULL,                        /* getWebSocketCloseStatus */
    NULL,                        /* getWebSocketProtocol */
    NULL,                        /* setWebSocketCookie */
+   NULL,                        /* setDelayWebSocketUpgradeResponse */
    AsyncTCPSocketRecvBlocking,
    AsyncTCPSocketRecvPartialBlocking,
    AsyncTCPSocketSendBlocking,
@@ -736,6 +740,46 @@ AsyncTCPSocketGetRemoteIPStr(AsyncSocket *base,      // IN
       } else {
          *ipRetStr = Util_SafeStrdup(addrBuf);
       }
+   }
+
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncTCPSocketGetRemotePort --
+ *
+ *      Given an AsyncTCPSocket object, returns the remote port
+ *      associated with it, or an error if the request is meaningless
+ *      for the underlying connection.
+ *
+ * Results:
+ *      ASOCKERR_SUCCESS or ASOCKERR_GENERIC.
+ *
+ * Side effects:
+ *
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static int
+AsyncTCPSocketGetRemotePort(AsyncSocket *base,  // IN
+                            uint32 *port)       // OUT
+{
+   AsyncTCPSocket *asock = TCPSocket(base);
+   int ret = ASOCKERR_SUCCESS;
+
+   ASSERT(asock);
+
+   if (asock == NULL ||
+      AsyncTCPSocketGetState(asock) != AsyncSocketConnected ||
+      (asock->remoteAddrLen != sizeof(struct sockaddr_in) &&
+       asock->remoteAddrLen != sizeof(struct sockaddr_in6))) {
+      ret = ASOCKERR_GENERIC;
+   } else {
+      *port = AsyncTCPSocketGetPortFromAddr(&asock->remoteAddr);
    }
 
    return ret;
@@ -2155,7 +2199,6 @@ AsyncTCPSocketConnect(struct sockaddr_storage *addr,         // IN
    AsyncTCPSocketLock(asock);
    if (connect(asock->fd, (struct sockaddr *)addr, addrLen) != 0) {
       if (ASOCK_LASTERROR() == ASOCK_ECONNECTING) {
-         ASSERT(!(vmx86_server && addr->ss_family == AF_UNIX));
          TCPSOCKLOG(1, asock,
                     "registering write callback for socket connect\n");
          pollStatus = AsyncTCPSocketPollAdd(asock, TRUE, POLL_FLAG_WRITE,
@@ -6372,4 +6415,96 @@ AsyncTCPSocketListenerError(int error,           // IN
    ASSERT(s);
 
    AsyncSocketHandleError(s, error);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * AsyncSocket_SetKeepAlive --
+ *
+ *      Set keep-alive socket option.
+ *
+ * Results:
+ *      TRUE if successful.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+AsyncSocket_SetKeepAlive(AsyncSocket *asock, // IN
+                         int keepIdle)       // IN
+{
+   int fd;
+
+   fd = AsyncSocket_GetFd(asock);
+   if (fd < 0) {
+      Log(ASOCKPREFIX "(%p) is not valid.\n", asock);
+      return FALSE;
+   }
+#ifdef WIN32
+   {
+      struct tcp_keepalive keepalive = { 1, keepIdle * 1000, keepIdle * 10 };
+      DWORD ret;
+
+      if (WSAIoctl(fd, SIO_KEEPALIVE_VALS, &keepalive, sizeof keepalive,
+                   NULL, 0, &ret, NULL, NULL)) {
+         Err_Number sysErr = ASOCK_LASTERROR();
+         ASOCKLG0(asock, "Could not set keepalive options, error %d: %s\n",
+                  sysErr, Err_Errno2String(sysErr));
+      }
+   }
+#else
+   {
+      static const int keepAlive = 1;
+      if (keepIdle) {
+#  ifdef TCP_KEEPIDLE
+#     define VMTCP_KEEPIDLE TCP_KEEPIDLE
+#  else
+#     define VMTCP_KEEPIDLE TCP_KEEPALIVE
+#  endif
+         if (setsockopt(fd,
+                        IPPROTO_TCP,
+                        VMTCP_KEEPIDLE,
+                        (const char *)&keepIdle, sizeof keepIdle) != 0) {
+            Err_Number sysErr = ASOCK_LASTERROR();
+            ASOCKLG0(asock, "Could not set TCP_KEEPIDLE, error %d: %s\n",
+                     sysErr, Err_Errno2String(sysErr));
+            return FALSE;
+         }
+#  ifndef __APPLE__
+      {
+         /*
+          * Default TCP setting is 7200 sec idle, and 75 interval.  So let's
+          * divide keepIdle by 100 to get an interval.  For our 300 seconds
+          * default that is 3 seconds keepIdle.
+          */
+         int keepIntvl = keepIdle / 100;
+
+         if (keepIntvl < 1) {
+            keepIntvl = 1;
+         }
+         if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL,
+                        (const char *)&keepIntvl, sizeof keepIntvl) != 0) {
+            Err_Number sysErr = ASOCK_LASTERROR();
+            ASOCKLG0(asock, "Could not set TCP_KEEPIDLE, error %d: %s\n",
+                     sysErr, Err_Errno2String(sysErr));
+            return FALSE;
+         }
+      }
+#  endif /* __APPLE__ */
+      }
+      if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE,
+                     (const char *)&keepAlive, sizeof keepAlive) != 0) {
+         Err_Number sysErr = ASOCK_LASTERROR();
+         ASOCKLG0(asock, "Could not set TCP_KEEPIDLE, error %d: %s\n",
+                  sysErr, Err_Errno2String(sysErr));
+         return FALSE;
+      }
+   }
+#endif /* WIN32 */
+   return TRUE;
 }

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -55,6 +55,7 @@ extern "C" {
    GOT(GUEST_OS_WINTEN_64)         /* Windows 10 x64 */                    \
    GOT(GUEST_OS_WIN_2016SRV_64)    /* Windows Server 2016 X64 */           \
    GOT(GUEST_OS_WIN_2019SRV_64)    /* Windows Server 2019 X64 */           \
+   GOT(GUEST_OS_WIN_2019SRVNEXT_64)/* Windows Server 2021 X64 */           \
    GOT(GUEST_OS_HYPER_V)           /* Microsoft Hyper-V */                 \
    GOT(GUEST_OS_OS2)                                                       \
    GOT(GUEST_OS_ECOMSTATION)       /* OS/2 variant; 1.x */                 \
@@ -84,6 +85,8 @@ extern "C" {
    GOT(GUEST_OS_FREEBSD11_64)                                              \
    GOT(GUEST_OS_FREEBSD12)                                                 \
    GOT(GUEST_OS_FREEBSD12_64)                                              \
+   GOT(GUEST_OS_FREEBSD13)                                                 \
+   GOT(GUEST_OS_FREEBSD13_64)                                              \
    GOT(GUEST_OS_SOLARIS_6_AND_7)                                           \
    GOT(GUEST_OS_SOLARIS8)                                                  \
    GOT(GUEST_OS_SOLARIS9)                                                  \
@@ -105,6 +108,7 @@ extern "C" {
    GOT(GUEST_OS_DARWIN18_64)       /* Mac OS 10.14 */                      \
    GOT(GUEST_OS_DARWIN19_64)       /* Mac OS 10.15 */                      \
    GOT(GUEST_OS_DARWIN20_64)       /* Mac OS 10.16 */                      \
+   GOT(GUEST_OS_DARWIN21_64)       /* Mac OS 10.17 */                      \
    GOT(GUEST_OS_OPENSERVER_5_AND_6)                                        \
    GOT(GUEST_OS_UNIXWARE7)                                                 \
    GOT(GUEST_OS_NETWARE4)                                                  \
@@ -122,13 +126,16 @@ extern "C" {
    GOT(GUEST_OS_ORACLE6_64)                                                \
    GOT(GUEST_OS_ORACLE7_64)                                                \
    GOT(GUEST_OS_ORACLE8_64)                                                \
+   GOT(GUEST_OS_ORACLE9_64)                                                \
    GOT(GUEST_OS_CENTOS)                                                    \
    GOT(GUEST_OS_CENTOS_64)                                                 \
    GOT(GUEST_OS_CENTOS6)                                                   \
    GOT(GUEST_OS_CENTOS6_64)                                                \
    GOT(GUEST_OS_CENTOS7_64)                                                \
    GOT(GUEST_OS_CENTOS8_64)                                                \
+   GOT(GUEST_OS_CENTOS9_64)                                                \
    GOT(GUEST_OS_AMAZONLINUX2_64)                                           \
+   GOT(GUEST_OS_AMAZONLINUX3_64)                                           \
    GOT(GUEST_OS_CRXSYS1_64)        /* VMware CRX system VM 1.0 64-bit */   \
    GOT(GUEST_OS_CRXPOD1_64)        /* VMware CRX pod VM 1.0 64-bit */      \
    GOT(GUEST_OS_LINUX_MINT_64)
@@ -177,6 +184,7 @@ extern "C" {
    GOKM("windows9-64",                          windows9_64Guest,        TRUE) \
    GOKM("windows9srv-64",                       windows9Server64Guest,   TRUE) \
    GOKM("windows2019srv-64",                    windows2019srv_64Guest,  TRUE) \
+   GOKM("windows2019srvNext-64",                windows2019srvNext_64Guest, TRUE) \
    GOKM("winHyperV",                            windowsHyperVGuest,      TRUE) \
    GOKM("winServer2008Cluster-32",              winLonghornGuest,        FALSE) \
    GOKM("winServer2008Datacenter-32",           winLonghornGuest,        FALSE) \
@@ -242,6 +250,7 @@ extern "C" {
    GOKM("rhel7",                                rhel7Guest,              TRUE) \
    GOKM("rhel7-64",                             rhel7_64Guest,           TRUE) \
    GOKM("rhel8-64",                             rhel8_64Guest,           TRUE) \
+   GOKM("rhel9-64",                             rhel9_64Guest,           TRUE) \
    GOKM("centos",                               centosGuest,             TRUE) \
    GOKM("centos-64",                            centos64Guest,           TRUE) \
    GOKM("centos6",                              centos6Guest,            TRUE) \
@@ -249,6 +258,7 @@ extern "C" {
    GOKM("centos7",                              centos7Guest,            FALSE) \
    GOKM("centos7-64",                           centos7_64Guest,         TRUE) \
    GOKM("centos8-64",                           centos8_64Guest,         TRUE) \
+   GOKM("centos9-64",                           centos9_64Guest,         TRUE) \
    GOKM("oraclelinux",                          oracleLinuxGuest,        TRUE) \
    GOKM("oraclelinux-64",                       oracleLinux64Guest,      TRUE) \
    GOKM("oraclelinux6",                         oracleLinux6Guest,       TRUE) \
@@ -256,6 +266,7 @@ extern "C" {
    GOKM("oraclelinux7",                         oracleLinux7Guest,       FALSE) \
    GOKM("oraclelinux7-64",                      oracleLinux7_64Guest,    TRUE) \
    GOKM("oraclelinux8-64",                      oracleLinux8_64Guest,    TRUE) \
+   GOKM("oraclelinux9-64",                      oracleLinux9_64Guest,    TRUE) \
    GOKM("suse",                                 suseGuest,               TRUE) \
    GOKM("suse-64",                              suse64Guest,             TRUE) \
    GOKM("sles",                                 slesGuest,               TRUE) \
@@ -267,6 +278,7 @@ extern "C" {
    GOKM("sles12",                               sles12Guest,             TRUE) \
    GOKM("sles12-64",                            sles12_64Guest,          TRUE) \
    GOKM("sles15-64",                            sles15_64Guest,          TRUE) \
+   GOKM("sles16-64",                            sles16_64Guest,          TRUE) \
    GOKM("mandrake",                             mandrakeGuest,           TRUE) \
    GOKM("mandrake-64",                          mandriva64Guest,         FALSE) \
    GOKM("mandriva",                             mandrivaGuest,           TRUE) \
@@ -298,6 +310,7 @@ extern "C" {
    GOKM("asianux5-64",                          asianux5_64Guest,        TRUE) \
    GOKM("asianux7-64",                          asianux7_64Guest,        TRUE) \
    GOKM("asianux8-64",                          asianux8_64Guest,        TRUE) \
+   GOKM("asianux9-64",                          asianux9_64Guest,        TRUE) \
    GOKM("nld9",                                 nld9Guest,               TRUE) \
    GOKM("oes",                                  oesGuest,                TRUE) \
    GOKM("sjds",                                 sjdsGuest,               TRUE) \
@@ -315,11 +328,14 @@ extern "C" {
    GOKM("other3xlinux-64",                      other3xLinux64Guest,     TRUE) \
    GOKM("other4xlinux",                         other4xLinuxGuest,       TRUE) \
    GOKM("other4xlinux-64",                      other4xLinux64Guest,     TRUE) \
+   GOKM("other5xlinux",                         other5xLinuxGuest,       TRUE) \
+   GOKM("other5xlinux-64",                      other5xLinux64Guest,     TRUE) \
    GOKM("linux",                                otherLinuxGuest,         FALSE) \
    GOKM("otherlinux",                           otherLinuxGuest,         TRUE) \
    GOKM("otherlinux-64",                        otherLinux64Guest,       TRUE) \
    GOKM("genericlinux",                         genericLinuxGuest,       TRUE) \
    GOKM("amazonlinux2-64",                      amazonlinux2_64Guest,    TRUE) \
+   GOKM("amazonlinux3-64",                      amazonlinux3_64Guest,    TRUE) \
    GOKM("CRXPod1-64",                           crxPod1Guest,            TRUE) \
    /* Netware guests */ \
    GOKM("netware4",                             netware4Guest,           TRUE) \
@@ -348,6 +364,8 @@ extern "C" {
    GOKM("darwin17-64",                          darwin17_64Guest,        TRUE) \
    GOKM("darwin18-64",                          darwin18_64Guest,        TRUE) \
    GOKM("darwin19-64",                          darwin19_64Guest,        TRUE) \
+   GOKM("darwin20-64",                          darwin20_64Guest,        TRUE) \
+   GOKM("darwin21-64",                          darwin21_64Guest,        TRUE) \
    /* ESX guests */ \
    GOKM("vmkernel",                             vmkernelGuest,           TRUE) \
    GOKM("vmkernel5",                            vmkernel5Guest,          TRUE) \
@@ -366,6 +384,8 @@ extern "C" {
    GOKM("freeBSD11-64",                         freebsd11_64Guest,       TRUE) \
    GOKM("freeBSD12",                            freebsd12Guest,          TRUE) \
    GOKM("freeBSD12-64",                         freebsd12_64Guest,       TRUE) \
+   GOKM("freeBSD13",                            freebsd13Guest,          TRUE) \
+   GOKM("freeBSD13-64",                         freebsd13_64Guest,       TRUE) \
    GOKM("openserver5",                          openServer5Guest,        TRUE) \
    GOKM("openserver6",                          openServer6Guest,        TRUE) \
    GOKM("unixware7",                            unixWare7Guest,          TRUE) \

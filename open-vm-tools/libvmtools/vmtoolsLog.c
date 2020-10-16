@@ -157,7 +157,6 @@ static guint gDroppedLogCount = 0;
 static gint gMaxCacheEntries = DEFAULT_MAX_CACHE_ENTRIES;
 static gboolean gEnableCoreDump = TRUE;
 static gboolean gLogEnabled = FALSE;
-static gboolean gGuestSDKMode = FALSE;
 static guint gPanicCount = 0;
 static LogHandler *gDefaultData;
 static LogHandler *gErrorData;
@@ -1748,7 +1747,8 @@ DestroyRpcChannel(void)
 
    gChannel = NULL;
 
-   g_debug("RPCI Channel for logging is destroyed successfully.\n");
+   /* Fix log recursion issue, check bug: 2607084 for more details */
+   Debug("RPCI Channel for logging is destroyed successfully.\n");
 }
 
 
@@ -2108,17 +2108,6 @@ VMTools_ResumeLogIO()
 
 
 /**
- * Called if vmtools lib is used along with Guestlib SDK.
- */
-
-void
-VMTools_SetGuestSDKMode(void)
-{
-   gGuestSDKMode = TRUE;
-}
-
-
-/**
  * Logs a message using the G_LOG_LEVEL_DEBUG level.
  *
  * @param[in] fmt Log message format.
@@ -2129,16 +2118,12 @@ Debug(const char *fmt, ...)
 {
    va_list args;
    va_start(args, fmt);
-   if (gGuestSDKMode) {
-      GuestSDK_Debug(fmt, args);
-   } else {
-      /*
-       * Preserve errno/lastError.
-       * This keeps compatibility with bora/lib Log(), preventing
-       * Log() calls in bora/lib code from clobbering errno/lastError.
-       */
-      WITH_ERRNO(err, VMToolsLogWrapper(G_LOG_LEVEL_DEBUG, fmt, args));
-   }
+   /*
+    * Preserve errno/lastError.
+    * This keeps compatibility with bora/lib Log(), preventing
+    * Log() calls in bora/lib code from clobbering errno/lastError.
+    */
+   WITH_ERRNO(err, VMToolsLogWrapper(G_LOG_LEVEL_DEBUG, fmt, args));
    va_end(args);
 }
 
@@ -2154,16 +2139,12 @@ Log(const char *fmt, ...)
 {
    va_list args;
    va_start(args, fmt);
-   if (gGuestSDKMode) {
-      GuestSDK_Log(fmt, args);
-   } else {
-      /*
-       * Preserve errno/lastError.
-       * This keeps compatibility with bora/lib Log(), preventing
-       * Log() calls in bora/lib code from clobbering errno/lastError.
-       */
-      WITH_ERRNO(err, VMToolsLogWrapper(G_LOG_LEVEL_INFO, fmt, args));
-   }
+   /*
+    * Preserve errno/lastError.
+    * This keeps compatibility with bora/lib Log(), preventing
+    * Log() calls in bora/lib code from clobbering errno/lastError.
+    */
+    WITH_ERRNO(err, VMToolsLogWrapper(G_LOG_LEVEL_INFO, fmt, args));
    va_end(args);
 }
 
@@ -2240,33 +2221,29 @@ Panic(const char *fmt, ...)
 
    va_start(args, fmt);
 
-   if (gGuestSDKMode) {
-      GuestSDK_Panic(fmt, args);
-   } else {
-      if (gPanicCount == 0) {
-         char *msg = Str_Vasprintf(NULL, fmt, args);
-         if (msg != NULL) {
-            g_log(gLogDomain, G_LOG_LEVEL_ERROR, "%s", msg);
-            free(msg);
-         }
-         /*
-          * In case an user-installed custom handler doesn't panic on error,
-          * force a core dump. Also force a dump in the recursive case.
-          */
-         VMToolsLogPanic();
-      } else if (gPanicCount == 1) {
-         /*
-          * Use a stack allocated string since we're in a recursive panic, so
-          * probably already in a weird state.
-          */
-         gchar msg[1024];
-         Str_Vsnprintf(msg, sizeof msg, fmt, args);
-         fprintf(stderr, "Recursive panic: %s\n", msg);
-         VMToolsLogPanic();
-      } else {
-         fprintf(stderr, "Recursive panic, giving up.\n");
-         exit(-1);
+   if (gPanicCount == 0) {
+      char *msg = Str_Vasprintf(NULL, fmt, args);
+      if (msg != NULL) {
+         g_log(gLogDomain, G_LOG_LEVEL_ERROR, "%s", msg);
+         free(msg);
       }
+      /*
+       * In case an user-installed custom handler doesn't panic on error,
+       * force a core dump. Also force a dump in the recursive case.
+       */
+      VMToolsLogPanic();
+   } else if (gPanicCount == 1) {
+      /*
+       * Use a stack allocated string since we're in a recursive panic, so
+       * probably already in a weird state.
+       */
+      gchar msg[1024];
+      Str_Vsnprintf(msg, sizeof msg, fmt, args);
+      fprintf(stderr, "Recursive panic: %s\n", msg);
+      VMToolsLogPanic();
+   } else {
+      fprintf(stderr, "Recursive panic, giving up.\n");
+      exit(-1);
    }
    va_end(args);
    while (1) ; // avoid compiler warning
@@ -2289,16 +2266,12 @@ Warning(const char *fmt, ...)
 {
    va_list args;
    va_start(args, fmt);
-   if (gGuestSDKMode) {
-      GuestSDK_Warning(fmt, args);
-   } else {
-      /*
-       * Preserve errno/lastError.
-       * This keeps compatibility with bora/lib Log(), preventing
-       * Log() calls in bora/lib code from clobbering errno/lastError.
-       */
-      WITH_ERRNO(err, VMToolsLogWrapper(G_LOG_LEVEL_WARNING, fmt, args));
-   }
+   /*
+    * Preserve errno/lastError.
+    * This keeps compatibility with bora/lib Log(), preventing
+    * Log() calls in bora/lib code from clobbering errno/lastError.
+    */
+   WITH_ERRNO(err, VMToolsLogWrapper(G_LOG_LEVEL_WARNING, fmt, args));
    va_end(args);
 }
 
@@ -2357,12 +2330,8 @@ WarningToHost(const char *fmt, ...)
 {
    va_list args;
    va_start(args, fmt);
-   if (gGuestSDKMode) {
-      GuestSDK_Warning(fmt, args);
-   } else {
-      WITH_ERRNO(err,
-         VmwareLogWrapper(TO_HOST, G_LOG_LEVEL_WARNING, fmt, args));
-   }
+   WITH_ERRNO(err,
+      VmwareLogWrapper(TO_HOST, G_LOG_LEVEL_WARNING, fmt, args));
    va_end(args);
 }
 
@@ -2383,12 +2352,8 @@ WarningToGuest(const char *fmt, ...)
 {
    va_list args;
    va_start(args, fmt);
-   if (gGuestSDKMode) {
-      GuestSDK_Warning(fmt, args);
-   } else {
-      WITH_ERRNO(err,
-         VmwareLogWrapper(IN_GUEST, G_LOG_LEVEL_WARNING, fmt, args));
-   }
+   WITH_ERRNO(err,
+      VmwareLogWrapper(IN_GUEST, G_LOG_LEVEL_WARNING, fmt, args));
    va_end(args);
 }
 

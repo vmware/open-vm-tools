@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -45,10 +45,14 @@
 #include "vmware/tools/utils.h"
 #include "vmware/tools/vmbackup.h"
 #if defined(_WIN32)
+#  include "codeset.h"
+#  include "guestStoreClient.h"
+#  include "globalConfig.h"
 #  include "windowsu.h"
 #else
 #  include "posix.h"
 #endif
+
 
 /*
  * Establish the default and maximum vmusr RPC channel error limits
@@ -76,6 +80,13 @@
 
 #define CONFNAME_MAX_CHANNEL_ATTEMPTS "maxChannelAttempts"
 
+#if defined(_WIN32)
+/*
+ * The state of the global conf module.
+ */
+static gGlobalConfEnabled = FALSE;
+#endif
+
 
 /*
  ******************************************************************************
@@ -99,6 +110,13 @@ ToolsCoreCleanup(ToolsServiceState *state)
       ToolsCore_ReleaseVsockFamily(state);
    }
 #endif
+
+#if defined(_WIN32)
+   if (state->mainService && GuestStoreClient_DeInit()) {
+      g_info("%s: De-initialized GuestStore client.\n", __FUNCTION__);
+   }
+#endif
+
    if (state->ctx.rpc != NULL) {
       RpcChannel_Stop(state->ctx.rpc);
       RpcChannel_Destroy(state->ctx.rpc);
@@ -178,6 +196,28 @@ ToolsCoreConfFileCb(gpointer clientData)
    ToolsCore_ReloadConfig(clientData, FALSE);
    return TRUE;
 }
+
+
+#if defined(_WIN32)
+/**
+ * Callback TOOLS_CORE_SIG_GLOBALCONF_UPDATE signal. The signal is
+ * triggered whenever a new global configuration is downloaded.
+ *
+ * @param[in]  src   The source object.
+ * @param[in]  ctx   The ToolsAppCtx for passing config.
+ * @param[in]  state Service state.
+ */
+
+static void
+ToolsCoreGlobalConfUpdateSignalCb(gpointer src,
+                                  ToolsAppCtx *ctx,
+                                  ToolsServiceState *state)
+{
+   g_debug("%s: global config is updated. Reloading the config.", __FUNCTION__);
+
+   ToolsCore_ReloadConfigEx(state, FALSE, TRUE);
+}
+#endif
 
 
 /**
@@ -397,6 +437,12 @@ ToolsCoreRunLoop(ToolsServiceState *state)
       ToolsCoreReportVersionData(state);
    }
 
+#if defined(_WIN32)
+   if (state->mainService && GuestStoreClient_Init()) {
+      g_info("%s: Initialized GuestStore client.\n", __FUNCTION__);
+   }
+#endif
+
    if (!ToolsCore_LoadPlugins(state)) {
       return 1;
    }
@@ -465,9 +511,32 @@ ToolsCoreRunLoop(ToolsServiceState *state)
       /*
        * For now exclude the MAC due to limited testing.
        */
-      if (state->mainService && ToolsCoreHangDetector_Start(&state->ctx)) {
-         g_info("Successfully started tools hang detector");
+      if (state->mainService) {
+         if (ToolsCoreHangDetector_Start(&state->ctx)) {
+            g_info("%s: Successfully started tools hang detector",
+                   __FUNCTION__);
+         }
+#if defined(_WIN32)
+         if (GlobalConfig_Start(&state->ctx)) {
+            g_info("%s: Successfully started global config module.",
+                   __FUNCTION__);
+            if (g_signal_lookup(TOOLS_CORE_SIG_GLOBALCONF_UPDATE,
+                                G_OBJECT_TYPE(state->ctx.serviceObj)) != 0) {
+               g_signal_connect(state->ctx.serviceObj,
+                                TOOLS_CORE_SIG_GLOBALCONF_UPDATE,
+                                G_CALLBACK(ToolsCoreGlobalConfUpdateSignalCb),
+                                state);
+               g_debug("%s: Registered the handler for the "
+                       "global config update signal.", __FUNCTION__);
+               gGlobalConfEnabled = TRUE;
+            } else {
+               g_debug("%s: Failed to register the handler for the "
+                       "global config update signal", __FUNCTION__);
+            }
+         }
+#endif
       }
+
       g_main_loop_run(state->ctx.mainLoop);
 #endif
    }
@@ -600,19 +669,37 @@ ToolsCore_GetTcloName(ToolsServiceState *state)
  *
  * @param[in]  state       Service state.
  * @param[in]  reset       Whether to reset the logging subsystem.
+ * @param[in]  force       If TRUE, the config file will be loaded even if it
+ *                         has not been modified since the last check.
  */
 
 void
-ToolsCore_ReloadConfig(ToolsServiceState *state,
-                       gboolean reset)
+ToolsCore_ReloadConfigEx(ToolsServiceState *state,
+                         gboolean reset,
+                         gboolean force)
 {
    gboolean first = state->ctx.config == NULL;
    gboolean loaded;
+
+   if (force) {
+      /*
+       * Set the configMtime to 0 so that the config file from the file system
+       * is reloaded. Else, the config is loaded only if it's been modified
+       * since the last check.
+       */
+      state->configMtime = 0;
+   }
 
    loaded = VMTools_LoadConfig(state->configFile,
                                G_KEY_FILE_NONE,
                                &state->ctx.config,
                                &state->configMtime);
+#if defined(_WIN32)
+   if (gGlobalConfEnabled && (loaded || force)) {
+      gboolean globalConfigUpdated =  GlobalConfig_Update(state->ctx.config);
+      loaded = loaded || globalConfigUpdated;
+   }
+#endif
 
    if (!first && loaded) {
       g_debug("Config file reloaded.\n");
@@ -648,6 +735,24 @@ ToolsCore_ReloadConfig(ToolsServiceState *state,
 }
 
 
+/**
+ * Reloads the config file and re-configure the logging subsystem if the
+ * log file was updated. If the config file is being loaded for the first
+ * time, try to upgrade it to the new version if an old version is
+ * detected.
+ *
+ * @param[in]  state       Service state.
+ * @param[in]  reset       Whether to reset the logging subsystem.
+ */
+
+void
+ToolsCore_ReloadConfig(ToolsServiceState *state,
+                       gboolean reset)
+{
+   ToolsCore_ReloadConfigEx(state, reset, FALSE);
+}
+
+
 #if defined(_WIN32)
 
 /**
@@ -676,6 +781,98 @@ ToolCoreGetLastErrorMsg(DWORD error)
    return msg;
 }
 
+
+/**
+ * Check the version for a file using GetFileVersionInfo method
+ *
+ * @param[in]  pluginPath        plugin path name.
+ * @param[in]  checkBuildNumber  inlcude check for build number.
+ *
+ * @return TRUE if plugin version matches the tools version,
+ *         FALSE in case of a mismatch.
+ */
+
+gboolean
+ToolsCore_CheckModuleVersion(const gchar *pluginPath,
+                             gboolean checkBuildNumber)
+{
+   WCHAR *pluginPathW = NULL;
+   void *buffer = NULL;
+   DWORD bufferLen = 0;
+   DWORD dummy = 0;
+   VS_FIXEDFILEINFO *fixedFileInfo = NULL;
+   UINT fixedFileInfoLen = 0;
+   ToolsVersionComponents toolsVer = {0};
+   uint32 pluginVersion[4] = {0};
+   gboolean result = FALSE;
+   static const uint32 toolsBuildNumber = PRODUCT_BUILD_NUMBER_NUMERIC;
+
+   if (!CodeSet_Utf8ToUtf16le(pluginPath,
+                              strlen(pluginPath),
+                              (char **)&pluginPathW,
+                              NULL)) {
+      g_debug("%s: Could not convert file %s to UTF-16\n",
+              __FUNCTION__, pluginPath);
+      goto exit;
+   }
+
+   bufferLen = GetFileVersionInfoSizeW(pluginPathW, &dummy);
+   if (bufferLen == 0) {
+      g_debug("%s: Failed to get info size from %s %u",
+              __FUNCTION__, pluginPath, GetLastError());
+      goto exit;
+   }
+
+   buffer = g_malloc(bufferLen);
+   if (!buffer) {
+      g_debug("%s: malloc failed for %s", __FUNCTION__, pluginPath);
+      goto exit;
+   }
+
+   if (!GetFileVersionInfoW(pluginPathW, 0, bufferLen, buffer)) {
+      g_debug("%s: Failed to get info size from %s %u",
+              __FUNCTION__, pluginPath, GetLastError());
+      goto exit;
+   }
+
+   if (!VerQueryValueW(buffer, L"\\", (void **)&fixedFileInfo, &fixedFileInfoLen)) {
+      g_debug("%s: Failed to get fixed file info from %s %u",
+              __FUNCTION__, pluginPath, GetLastError());
+      goto exit;
+   }
+
+   if (fixedFileInfoLen < sizeof *fixedFileInfo) {
+      g_debug("%s: Fixed file info from %s is too short: %d",
+                __FUNCTION__, pluginPath, fixedFileInfoLen);
+      goto exit;
+   }
+
+   /* Using Product version. File version is also available. */
+   pluginVersion[0] = (uint16)(fixedFileInfo->dwProductVersionMS >> 16);
+   pluginVersion[1] = (uint16)(fixedFileInfo->dwProductVersionMS >>  0);
+   pluginVersion[2] = (uint16)(fixedFileInfo->dwProductVersionLS >> 16);
+   pluginVersion[3] = (uint16)(fixedFileInfo->dwProductVersionLS >>  0);
+
+   TOOLS_VERSION_UINT_TO_COMPONENTS(TOOLS_VERSION_CURRENT, &toolsVer);
+
+   result = (pluginVersion[0] == toolsVer.major &&
+             pluginVersion[1] == toolsVer.minor &&
+             pluginVersion[2] == toolsVer.base);
+
+   if (result && checkBuildNumber) {
+      result =  pluginVersion[3] == toolsBuildNumber;
+   }
+
+exit:
+   if (!result) {
+      g_warning("%s: Failed or no version check %s : %u.%u.%u.%u",
+                __FUNCTION__, pluginPath, pluginVersion[0], pluginVersion[1],
+                pluginVersion[2], pluginVersion[3]);
+   }
+   g_free(buffer);
+   free(pluginPathW);
+   return result;
+}
 #endif
 
 

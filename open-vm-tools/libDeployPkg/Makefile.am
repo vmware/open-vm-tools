@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2014-2019 VMware, Inc.  All rights reserved.
+### Copyright (C) 2014-2020 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -25,6 +25,7 @@ AM_CFLAGS += @GLIB2_CPPFLAGS@
 
 libDeployPkg_la_LIBADD =
 libDeployPkg_la_LIBADD += @MSPACK_LIBS@
+libDeployPkg_la_LIBADD += @VMTOOLS_LIBS@
 
 libDeployPkg_la_SOURCES =
 libDeployPkg_la_SOURCES += deployPkgFormat.h

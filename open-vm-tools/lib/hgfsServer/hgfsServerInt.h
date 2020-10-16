@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -32,13 +32,14 @@ struct DirectoryEntry;
 #endif
 
 #include "dbllnklst.h"
-#include "hgfsProto.h"
 #include "cpName.h"     // for HgfsNameStatus
+#include "hgfsCache.h"
+#include "hgfsProto.h"
+#include "hgfsServer.h" // for the server public types
 #include "hgfsServerPolicy.h"
 #include "hgfsUtil.h"   // for HgfsInternalStatus
-#include "vm_atomic.h"
 #include "userlock.h"
-#include "hgfsServer.h" // for the server public types
+#include "vm_atomic.h"
 
 
 #ifndef VMX86_TOOLS
@@ -101,6 +102,8 @@ struct DirectoryEntry;
 #endif // VNMX86_TOOLS
 
 #define HGFS_DEBUG_ASYNC   (0)
+
+typedef uintptr_t HOM_HANDLE;
 
 typedef struct HgfsTransportSessionInfo HgfsTransportSessionInfo;
 
@@ -394,7 +397,13 @@ typedef struct HgfsSessionInfo {
    uint32 numberOfCapabilities;
 
    /* Asynchronous request handling. */
-   HgfsAsyncRequestInfo  asyncRequestsInfo;
+   HgfsAsyncRequestInfo asyncRequestsInfo;
+
+   /* Cache for symlink check status. */
+   HgfsCache *symlinkCache;
+
+   /* Cache for file attributes. */
+   HgfsCache *fileAttrCache;
 } HgfsSessionInfo;
 
 /*
@@ -512,6 +521,16 @@ typedef struct HgfsCreateSessionInfo {
    uint32 maxPacketSize;
    HgfsSessionFlags flags;       /* Session capability flags. */
 } HgfsCreateSessionInfo;
+
+typedef struct HgfsSymlinkCacheEntry {
+   HOM_HANDLE handle;            /* File handle. */
+   HgfsNameStatus nameStatus;    /* Symlink check status. */
+} HgfsSymlinkCacheEntry;
+
+typedef struct HgfsFileAttrCacheEntry {
+   HOM_HANDLE handle;            /* File handle. */
+   HgfsFileAttrInfo attr;        /* Attributes of entry. */
+} HgfsFileAttrCacheEntry;
 
 Bool
 HgfsCreateAndCacheFileNode(HgfsFileOpenInfo *openInfo, // IN: Open info struct

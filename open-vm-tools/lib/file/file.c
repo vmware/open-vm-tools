@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1299,7 +1299,7 @@ File_Move(const char *oldFile,  // IN:
       }
    }
 
-   if (asRename) {
+   if (asRename != NULL) {
       *asRename = duringRename;
    }
 
@@ -1330,7 +1330,9 @@ File_Move(const char *oldFile,  // IN:
  *
  * Side effects:
  *    - Deletes the originating directory
- *    - In the event of a failed copy we'll leave the new directory in a state
+ *    - In the event of a failed copy we'll leave the new directory in an
+ *      undefined state. Calling File_DeleteDirectoryContent would be a
+ *      good idea.
  *
  *-----------------------------------------------------------------------------
  */
@@ -1347,7 +1349,7 @@ File_MoveTree(const char *srcName,    // IN:
    ASSERT(srcName != NULL);
    ASSERT(dstName != NULL);
 
-   if (asMove) {
+   if (asMove != NULL) {
       *asMove = FALSE;
    }
 
@@ -1360,7 +1362,7 @@ File_MoveTree(const char *srcName,    // IN:
    }
 
    if (File_Rename(srcName, dstName) == 0) {
-      if (asMove) {
+      if (asMove != NULL) {
          *asMove = TRUE;
       }
 
@@ -1403,15 +1405,14 @@ File_MoveTree(const char *srcName,    // IN:
        */
       if (createdDir) {
          /*
-          * Check for free space on destination filesystem.
-          * We only check for free space if the destination directory
-          * did not exist. In this case, we will not be overwriting any existing
-          * paths, so we need as much space as srcName.
+          * Check for free space on destination filesystem. We only check for
+          * free space if the destination directory did not exist. In this
+          * case, we will not be overwriting any existing paths, so we need as
+          * much space as srcName.
           */
-         int64 srcSize;
-         int64 freeSpace;
-         srcSize = File_GetSizeEx(srcName);
-         freeSpace = File_GetFreeSpace(dstName, TRUE);
+         int64 srcSize = File_GetSizeEx(srcName);
+         int64 freeSpace = File_GetFreeSpace(dstName, TRUE);
+
          if (freeSpace < srcSize) {
             char *spaceStr = Msg_FormatSizeInBytes(srcSize);
             Msg_Append(MSGID(File.MoveTree.dst.insufficientSpace)
@@ -1476,9 +1477,7 @@ File_MoveTree(const char *srcName,    // IN:
 char *
 File_GetModTimeString(const char *pathName)  // IN:
 {
-   int64 modTime;
-
-   modTime = File_GetModTime(pathName);
+   int64 modTime = File_GetModTime(pathName);
 
    return (modTime == -1) ? NULL : TimeUtil_GetTimeFormat(modTime, TRUE, TRUE);
 }
@@ -1655,7 +1654,7 @@ FileFirstSlashIndex(const char *pathName,     // IN:
    UnicodeIndex firstBS;
 #endif
 
-   ASSERT(pathName);
+   ASSERT(pathName != NULL);
 
    firstFS = Unicode_FindSubstrInRange(pathName, startIndex, -1,
                                        "/", 0, 1);
@@ -1836,10 +1835,9 @@ Bool
 File_CreateDirectoryHierarchy(const char *pathName,   // IN:
                               char **topmostCreated)  // OUT/OPT:
 {
-   return File_CreateDirectoryHierarchyEx(pathName,
-                                          0777,
-                                          topmostCreated);
+   return File_CreateDirectoryHierarchyEx(pathName, 0777, topmostCreated);
 }
+
 
 /*
  *----------------------------------------------------------------------
@@ -2107,7 +2105,7 @@ File_FindFileInSearchPath(const char *fileIn,      // IN:
    sp = Util_SafeStrdup(searchPath);
    tok = strtok_r(sp, FILE_SEARCHPATHTOKEN, &saveptr);
 
-   while (tok) {
+   while (tok != NULL) {
       if (File_IsFullPath(tok)) {
          /* Fully Qualified Path. Use it. */
          cur = Str_SafeAsprintf(NULL, "%s%s%s", tok, DIRSEPS, file);
@@ -2137,7 +2135,7 @@ File_FindFileInSearchPath(const char *fileIn,      // IN:
    }
 
 done:
-   if (cur) {
+   if (cur != NULL) {
       found = TRUE;
 
       if (result) {
@@ -2684,3 +2682,49 @@ File_ContainSymLink(const char *pathName)  // IN:
 
    return retValue;
 }
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * File_IsSubPathOf --
+ *
+ *    Check if the argument path is a sub path for argument base.
+ *    The argument path will be converted to canonical path which doesn't
+ *    contain ".." and then check if this canonical path is a sub path for
+ *    argument base.
+ *    So, this function can correctly recognize that a path like
+ *    "/tmp/dir1/dir2/../../../bin/" is not a sub path for "/tmp/".
+ *
+ * Results:
+ *    True if the argument path is a sub path for argument base.
+ *
+ * Side effects:
+ *    None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+Bool
+File_IsSubPathOf(const char *base, // IN: the base path to test against.
+                 const char *path) // IN: the possible subpath to test.
+{
+   char *fullBase = File_FullPath(base);
+   char *fullPath = File_FullPath(path);
+   Bool isSubPath = TRUE;
+
+   ASSERT(fullBase != NULL);
+   ASSERT(fullPath != NULL);
+
+   if (fullPath == NULL ||
+       fullBase == NULL ||
+       strncmp(fullPath, fullBase, strlen(fullBase)) != 0) {
+      isSubPath = FALSE;
+   }
+
+   free(fullBase);
+   free(fullPath);
+
+   return isSubPath;
+}
+

@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2007-2018 VMware, Inc.  All rights reserved.
+### Copyright (C) 2007-2018,2020 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -21,15 +21,38 @@ AM_CFLAGS =
 AM_CFLAGS += -I$(top_srcdir)/include
 
 libguestlib_la_LIBADD =
-libguestlib_la_LIBADD += @VMTOOLS_LIBS@
+libguestlib_la_LIBADD += ../lib/backdoor/libBackdoor.la
+libguestlib_la_LIBADD += ../lib/dataMap/libDataMap.la
+libguestlib_la_LIBADD += ../lib/dynxdr/libDynxdr.la
+libguestlib_la_LIBADD += ../lib/err/libErr.la
+libguestlib_la_LIBADD += ../lib/hashMap/libHashMap.la
+libguestlib_la_LIBADD += ../lib/message/libMessage.la
+libguestlib_la_LIBADD += ../lib/misc/libMisc.la
+libguestlib_la_LIBADD += ../lib/rpcOut/libRpcOut.la
+libguestlib_la_LIBADD += ../lib/string/libString.la
+libguestlib_la_LIBADD += ../lib/unicode/libUnicode.la
+libguestlib_la_LIBADD += ../lib/vmCheck/libVmCheck.la
+libguestlib_la_LIBADD += ../lib/vmSignal/libVmSignal.la
 libguestlib_la_LIBADD += @XDR_LIBS@
+
+libguestlib_rpcchanneldir = $(top_srcdir)/lib/rpcChannel
 
 libguestlib_la_SOURCES =
 libguestlib_la_SOURCES += guestlibV3_xdr.c
 libguestlib_la_SOURCES += guestlibIoctl_xdr.c
+libguestlib_la_SOURCES += guestSDKLog.c
 libguestlib_la_SOURCES += vmGuestLib.c
+libguestlib_la_SOURCES += $(libguestlib_rpcchanneldir)/bdoorChannel.c
+libguestlib_la_SOURCES += $(libguestlib_rpcchanneldir)/rpcChannel.c
+libguestlib_la_SOURCES += $(libguestlib_rpcchanneldir)/glib_stubs.c
+if HAVE_VSOCK
+libguestlib_la_SOURCES += $(libguestlib_rpcchanneldir)/vsockChannel.c
+libguestlib_la_SOURCES += $(libguestlib_rpcchanneldir)/simpleSocket.c
+endif
 
 libguestlib_la_LDFLAGS =
+libguestlib_la_LDFLAGS += -Wl,-ldl
+libguestlib_la_LDFLAGS += -Wl,-lrt
 # We require GCC, so we're fine passing compiler-specific flags.
 # Needed for OS's that don't link shared libraries against libc by default, e.g. FreeBSD
 libguestlib_la_LDFLAGS += -Wl,-lc
@@ -56,6 +79,7 @@ CFLAGS += -Wno-unused
 
 libguestlib_la_CPPFLAGS =
 libguestlib_la_CPPFLAGS += -DVMTOOLS_USE_GLIB
+libguestlib_la_CPPFLAGS += -DUSE_RPCI_ONLY
 libguestlib_la_CPPFLAGS += @GLIB2_CPPFLAGS@
 libguestlib_la_CPPFLAGS += @XDR_CPPFLAGS@
 

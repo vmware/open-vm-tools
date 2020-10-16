@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2012-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2012-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -111,6 +111,56 @@ HgfsPlatformOplockDestroy(void)
    /* Tear down oplock state, so we no longer catch signals. */
    Sig_Callback(SIGIO, SIG_NOHANDLER, NULL, NULL);
 #endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsRemoveAIOServerLock --
+ *
+ *      Remove an oplock for an open file.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+HgfsRemoveAIOServerLock(fileDesc fileDesc)  // IN:
+{
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsAcquireAIOServerLock --
+ *
+ *    Acquire an oplock for an open file and register the break oplock event.
+ *
+ * Results:
+ *    TRUE on success. serverLock contains the type of the lock acquired.
+ *    FALSE on failure. serverLock is HGFS_LOCK_NONE.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+HgfsAcquireAIOServerLock(fileDesc fileDesc,            // IN:
+                         HgfsSessionInfo *session,     // IN: Session info
+                         HgfsLockType *serverLock,     // IN/OUT: Oplock asked for/granted
+                         HgfsOplockCallback callback,  // IN: call back
+                         void *data)                   // IN: parameter for call back
+{
+   return FALSE;
 }
 
 

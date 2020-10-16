@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013-2016,2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -17,134 +17,128 @@
  *********************************************************/
 
 /*
- * guestSDKLog.c --
+ * hgfsCacheStub.c --
  *
- *   guestSDK logging stubs. In guestSDK, we only do logging in OBJ builds.
- *
+ *    This file contains the stub implementation for hgfs cache.
  */
 
-#include <stdio.h>
-#include "str.h"
+#include "hgfsCache.h"
+#include "hgfsServerInt.h"
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * GuestSDK_Debug --
+ * HgfsCache_Alloc --
  *
- *    Log debug messages.
+ *      Create a cache and the corresponding hash table/doubly linked list/lock.
  *
  * Results:
- *    None.
+ *      Always return NULL.
  *
  * Side effects:
- *    Death.
+ *      None.
  *
  *-----------------------------------------------------------------------------
  */
 
-void
-GuestSDK_Debug(const char *fmt, ...)
+HgfsCache *
+HgfsCache_Alloc(HgfsCacheRemoveLRUCallback callback) // IN
 {
-#ifdef VMX86_LOG /* only do logging on OBJ builds */
-   va_list args;
-
-   va_start(args, fmt);
-   vfprintf(stderr, fmt, args);
-   va_end(args);
-#endif
+   return NULL;
 }
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * GuestSDK_Log --
+ * HgfsCache_Destroy --
  *
- *    Log messages.
+ *      Destroy a cache and the corresponding hash table/doubly linked list/lock.
  *
  * Results:
- *    None.
+ *      None.
  *
  * Side effects:
- *    Death.
+ *      None.
  *
  *-----------------------------------------------------------------------------
  */
 
 void
-GuestSDK_Log(const char *fmt, ...)
+HgfsCache_Destroy(HgfsCache *cache)                    // IN
 {
-#ifdef VMX86_LOG /* only do logging on OBJ builds */
-   va_list args;
-
-   va_start(args, fmt);
-   vfprintf(stderr, fmt, args);
-   va_end(args);
-#endif
 }
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * GuestSDK_Warning --
+ * HgfsCache_Put --
  *
- *    Log warning messages.
+ *      Put an entry into a cache.
  *
  * Results:
- *    None.
+ *      None.
  *
  * Side effects:
- *    Death.
+ *      None.
  *
  *-----------------------------------------------------------------------------
  */
 
 void
-GuestSDK_Warning(const char *fmt, ...)
+HgfsCache_Put(HgfsCache *cache,                    // IN
+              const char *key,                     // IN
+              void *data)                          // IN
 {
-#ifdef VMX86_LOG /* only do logging on OBJ builds */
-   va_list args;
-
-   va_start(args, fmt);
-   vfprintf(stderr, fmt, args);
-   va_end(args);
-#endif
 }
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * GuestSDK_Panic --
+ * HgfsCache_Get --
  *
- *    Panic.  Apps have to implement this for themselves.
+ *      Get an entry in a cache.
  *
  * Results:
- *    None.
+ *      Always return FALSE.
  *
  * Side effects:
- *    Death.
+ *      None.
  *
  *-----------------------------------------------------------------------------
  */
 
-void
-GuestSDK_Panic(const char *fmt, ...) // IN
+Bool
+HgfsCache_Get(HgfsCache *cache, // IN
+              const char *key,  // IN
+              void **data)      // OUT
 {
-   va_list args;
-   char buffer[1024];
-   volatile char *p = NULL;
+   return FALSE;
+}
 
-   va_start(args, fmt);
-   Str_Vsnprintf(buffer, sizeof buffer, fmt, args);
-   va_end(args);
 
-   printf("PANIC: %s", buffer);
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HgfsCache_Invalidate --
+ *
+ *      Remove an entry from a cache.
+ *
+ * Results:
+ *      Always return FALSE.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
 
-   /* force segfault */
-   /* coverity[var_deref_op] */
-   buffer[0] = *p;
-   while (1) ; // avoid compiler warning
+Bool
+HgfsCache_Invalidate(HgfsCache *cache, // IN
+                     const char *key)  // IN
+{
+   return FALSE;
 }

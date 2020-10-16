@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013-2016,2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -26,6 +26,9 @@
 #ifndef _HGFS_SERVER_OPLOCKINT_H_
 #define _HGFS_SERVER_OPLOCKINT_H_
 
+#ifdef _WIN32
+#include <winioctl.h>      // for REQUEST_OPLOCK_OUTPUT_BUFFER
+#endif
 #include "hgfsProto.h"     // for protocol types
 #include "hgfsServerInt.h" // for common server types e.g. HgfsSessionInfo
 
@@ -43,11 +46,19 @@
  * XXX describe the data structure
  */
 
+typedef void(*HgfsOplockCallback)(HgfsSessionInfo *session, void *data);
+
 /* Server lock related structure */
 typedef struct {
    fileDesc fileDesc;
-   int32 event;
+   HgfsSessionInfo *session;
    HgfsLockType serverLock;
+   HgfsOplockCallback callback;
+   void *data;
+#ifdef _WIN32
+   REQUEST_OPLOCK_OUTPUT_BUFFER oplockInfo;
+   OVERLAPPED overlapped;
+#endif
 } ServerLockData;
 
 
@@ -55,11 +66,31 @@ typedef struct {
  * Global variables
  */
 
+/*
+ * The maximum count of oplocks that the server supports.
+ * This value can be adjusted as necessary, but must be a power of 2.
+ */
+#define HGFS_OPLOCK_MAX_COUNT 1024
 
 
 /*
  * Global functions
  */
+
+Bool
+HgfsServerOplockIsInited(void);
+Bool
+HgfsPlatformOplockInit(void);
+void
+HgfsPlatformOplockDestroy(void);
+Bool
+HgfsAcquireAIOServerLock(fileDesc fileDesc,
+                         HgfsSessionInfo *session,
+                         HgfsLockType *serverLock,
+                         HgfsOplockCallback callback,
+                         void *data);
+void
+HgfsRemoveAIOServerLock(fileDesc fileDesc);
 
 #ifdef HGFS_OPLOCKS
 void

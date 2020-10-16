@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2016,2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -51,18 +51,6 @@ gint
 VMToolsAsprintf(gchar **string,
                 gchar const *format,
                 ...)  PRINTF_DECL(2, 3);
-
-void
-GuestSDK_Debug(const char *fmt, ...);
-
-void
-GuestSDK_Log(const char *fmt, ...);
-
-void
-GuestSDK_Warning(const char *fmt, ...);
-
-void
-GuestSDK_Panic(const char *fmt, ...);
 
 #endif /* _VMTOOLSINT_H_ */
 

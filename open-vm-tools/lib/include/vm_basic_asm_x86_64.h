@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -33,7 +33,7 @@
 /*
  * vm_basic_asm_x86_64.h
  *
- *	Basic x86_64 asm macros.
+ *      Basic x86_64 asm macros.
  */
 
 #ifndef _VM_BASIC_ASM_X86_64_H_
@@ -53,44 +53,10 @@
 #error "This file is x86-64 only!"
 #endif
 
-#if defined(_MSC_VER) && !defined(BORA_NO_WIN32_INTRINS)
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-uint64 _umul128(uint64 multiplier, uint64 multiplicand,
-                uint64 *highProduct);
-int64 _mul128(int64 multiplier, int64 multiplicand,
-              int64 *highProduct);
-uint64 __shiftright128(uint64 lowPart, uint64 highPart, uint8 shift);
-#ifdef ULM
-void _fxsave64(void *save);
-void _fxsave(void *save);
-void _fxrstor64(const void *load);
-void _fxrstor(const void *load);
-void _xsave64(void *save, uint64 mask);
-void _xsave(void *save, uint64 mask);
-void _xsaveopt64(void *save, uint64 mask);
-void _xsavec(void *save, uint64 mask);
-void _xrstor64(const void *load, uint64 mask);
-void _xrstor(const void *load, uint64 mask);
-#endif /* ULM */
-#ifdef __cplusplus
-}
-#endif
-
-#pragma intrinsic(_umul128, _mul128, __shiftright128)
-
-#ifdef ULM
-#pragma intrinsic(_fxsave64, _fxsave, _fxrstor64, _fxrstor, _xsave64, _xsave, \
-                  _xsaveopt64, _xsavec, _xrstor64, _xrstor)
-#endif /* ULM */
-
-#endif // _MSC_VER
-
 #if defined(__GNUC__)
 /*
- * GET_CURRENT_PC
+ * _GET_CURRENT_PC --
+ * GET_CURRENT_PC --
  *
  * Returns the current program counter (i.e. instruction pointer i.e. rip
  * register on x86_64). In the example below:
@@ -100,28 +66,36 @@ void _xrstor(const void *load, uint64 mask);
  *
  * the return value from GET_CURRENT_PC will point a debugger to L123.
  */
-#define GET_CURRENT_PC() ({                                           \
-      void *__rip;                                                    \
-      asm("lea 0(%%rip), %0;\n\t"                                     \
-         : "=r" (__rip));                                             \
-      __rip;                                                          \
-})
+
+#define _GET_CURRENT_PC(rip)                                                  \
+   asm volatile("lea 0(%%rip), %0" : "=r" (rip))
+
+static INLINE_ALWAYS void *
+GET_CURRENT_PC(void)
+{
+   void *rip;
+
+   _GET_CURRENT_PC(rip);
+   return rip;
+}
 
 /*
- * GET_CURRENT_LOCATION
+ * GET_CURRENT_LOCATION --
  *
  * Updates the arguments with the values of the %rip, %rbp, and %rsp
- * registers at the current code location where the macro is invoked,
- * and the return address.
+ * registers and the return address at the current code location where
+ * the macro is invoked.
  */
-#define GET_CURRENT_LOCATION(rip, rbp, rsp, retAddr)  do {         \
-      asm("lea 0(%%rip), %0\n"                                     \
-          "mov %%rbp, %1\n"                                        \
-          "mov %%rsp, %2\n"                                        \
-          : "=r" (rip), "=r" (rbp), "=r" (rsp));                   \
-      retAddr = (uint64) GetReturnAddress();                       \
-   } while (0)
+
+#define GET_CURRENT_LOCATION(rip, rbp, rsp, retAddr) do {                     \
+   _GET_CURRENT_PC(rip);                                                      \
+   asm volatile("mov %%rbp, %0" "\n\t"                                        \
+                "mov %%rsp, %1"                                               \
+                : "=r" (rbp), "=r" (rsp));                                    \
+   retAddr = (uint64)GetReturnAddress();                                      \
+} while (0)
 #endif
+
 
 /*
  * FXSAVE/FXRSTOR
@@ -425,13 +399,13 @@ Mul64x6464(uint64 multiplicand,
     *      discarded by the shift.
     *    Return the low-order 64 bits of the above.
     */
-   uint64 tmplo, tmphi;
-   tmplo = _umul128(multiplicand, multiplier, &tmphi);
    if (shift == 0) {
-      return tmplo;
+      return multiplicand * multiplier;
    } else {
-      return __shiftright128(tmplo, tmphi, (uint8) shift) +
-         ((tmplo >> (shift - 1)) & 1);
+      uint64 lo, hi;
+
+      lo = _umul128(multiplicand, multiplier, &hi);
+      return __shiftright128(lo, hi, (uint8)shift) + (lo >> (shift - 1) & 1);
    }
 }
 
@@ -512,13 +486,13 @@ Muls64x64s64(int64 multiplicand,
     * Note: using an unsigned shift is correct because shift < 64 and
     * we return only the low 64 bits of the shifted result.
     */
-   int64 tmplo, tmphi;
-   tmplo = _mul128(multiplicand, multiplier, &tmphi);
    if (shift == 0) {
-      return tmplo;
+      return multiplicand * multiplier;
    } else {
-      return __shiftright128(tmplo, tmphi, (uint8) shift) +
-         ((tmplo >> (shift - 1)) & 1);
+      int64 lo, hi;
+
+      lo = _mul128(multiplicand, multiplier, &hi);
+      return __shiftright128(lo, hi, (uint8)shift) + (lo >> (shift - 1) & 1);
    }
 }
 

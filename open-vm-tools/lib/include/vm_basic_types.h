@@ -140,6 +140,7 @@
 
 #pragma warning (3 :4505) // unreferenced local function
 #pragma warning (disable :4018) // signed/unsigned mismatch
+#pragma warning (suppress:4619) // suppress warning next line (C4761 was removed in vs2019u4)
 #pragma warning (disable :4761) // integral size mismatch in argument; conversion supplied
 #pragma warning (disable :4305) // truncation from 'const int' to 'short'
 #pragma warning (disable :4244) // conversion from 'unsigned short' to 'unsigned char'
@@ -726,22 +727,28 @@ typedef void * UserVA;
 
 /*
  * At present, we effectively require a compiler that is at least
- * gcc-3.3 (circa 2003).  Enforce this here, various things below
+ * gcc-4.1 (circa 2006).  Enforce this here, various things below
  * this line depend upon it.
  *
- * In practice, most things presently compile with gcc-4.1 or gcc-4.4.
- * The various linux kernel modules may use older (gcc-3.3) compilers.
+ * Current oldest compilers:
+ * - guest tools: 4.1.2 (freebsd/solaris)
+ * - buildhost compiler: 4.4.3
+ * - hosted kernel modules: 4.5
+ *
+ * SWIG's preprocessor is exempt.
  */
-#if defined __GNUC__ && (__GNUC__ < 3 || (__GNUC__ == 3 && __GNUC_MINOR__ < 3))
-#error "gcc version is too old to compile assembly, need gcc-3.3 or better"
+#ifndef SWIG
+#if defined __GNUC__ && (__GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 1))
+#error "gcc version is too old, need gcc-4.1 or better"
+#endif
 #endif
 
 /*
- * Similarly, we require a compiler that is at least vc90 (vs2008).
+ * Similarly, we require a compiler that is at least vs2012.
  * Enforce this here.
  */
-#if defined _MSC_VER && _MSC_VER < 1500
-#error "cl.exe version is too old, need vc90 or better"
+#if defined _MSC_VER && _MSC_VER < 1700
+#error "cl.exe version is too old, need vs2012 or better"
 #endif
 
 

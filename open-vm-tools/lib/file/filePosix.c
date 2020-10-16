@@ -111,6 +111,8 @@ struct WalkDirContextImpl {
 #define FS_NFS_ON_ESX "NFS"
 /* A string for VMFS on ESX file system type */
 #define FS_VMFS_ON_ESX "VMFS"
+/* A string for vsanD on ESX file system type */
+#define FS_VSAND_ON_ESX "vsanD"
 #define FS_VSAN_URI_PREFIX      "vsan:"
 
 #if defined __ANDROID__
@@ -1488,6 +1490,10 @@ FileIsVMFS(const char *pathName)  // IN:
       /* We want to match anything that starts with VMFS */
       result = strncmp(fsAttrs->fsType, FS_VMFS_ON_ESX,
                        strlen(FS_VMFS_ON_ESX)) == 0;
+      if (!result) {
+         result = strncmp(fsAttrs->fsType, FS_VSAND_ON_ESX,
+                          strlen(FS_VSAND_ON_ESX)) == 0;
+      }
    } else {
       Log(LGPFX" %s: File_GetVMFSAttributes failed\n", __func__);
    }

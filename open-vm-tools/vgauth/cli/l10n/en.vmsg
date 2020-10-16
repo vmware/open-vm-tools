@@ -1,5 +1,5 @@
 ##########################################################
-# Copyright (C) 2011-2017 VMware, Inc. All rights reserved.
+# Copyright (C) 2011-2017,2020 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -31,13 +31,17 @@ addoptions.username = "User whose certificate store is being added to"
 
 addoptions.verbose = "Verbose operation"
 
-
+cmdline.help.appoption = "Application Options"
+cmdline.help.helpoption = "Help Options"
+cmdline.help.hint = "Show help options"
+cmdline.help.usage = "Usage"
 cmdline.parse = "Command line parsing failed"
 
 cmdline.summary.pemfile = "PEM-file"
 cmdline.summary.subject = "subject"
 cmdline.summary.username = "username"
 cmdline.summary.comm = "comment"
+cmdline.summary.note = "Note: If no username is provided, %1$s removes only the mapped aliases"
 
 list.comment = "Comment"
 list.count = "%1$s Found %2$d aliases for user '%3$s'\n"
@@ -71,5 +75,16 @@ removeoptions.subject = "The SAML subject"
 removeoptions.username = "User whose certificate store is being removed from"
 
 removeoptions.verbose = "Verbose operation"
+
+removeall.fail = "%1$s: Failed to remove alias for user '%2$s' subject '%3$s': %4$s.\n"
+
+removeall.removefail = "%1$s: Failed to remove alias for user '%2$s' subject '%3$s' pemCert '%4$s': %5$s.\n"
+
+removeall.success = "%1$s: all aliases removed\n"
+
+removealloptions.subject = "The SAML subject"
+removealloptions.username = "User whose certificate store is being removed from"
+
+removealloptions.verbose = "Verbose operation"
 
 vgauth.init.failed = "Failed to init VGAuth"

@@ -66,6 +66,8 @@ extern "C" {
 #define RANK_hgfsActivateLock        (RANK_libLockBase + 0x4080)
 #define RANK_hgfsThreadpoolLock      (RANK_libLockBase + 0x4090)
 
+#define RANK_nfcLibAioCtxLock        (RANK_libLockBase + 0x4300)
+
 /*
  * vigor (must be < VMDB range and < disklib, see bug 741290)
  */
@@ -118,8 +120,8 @@ extern "C" {
 #define RANK_nfcLibInitLock          (RANK_libLockBase + 0x4505)
 #define RANK_nfcLibLock              (RANK_libLockBase + 0x4506)
 #define RANK_nfcLibSessionListLock   (RANK_libLockBase + 0x4507)
-#define RANK_nfcLibAioCtxLock        (RANK_libLockBase + 0x4508)
-#define RANK_nfcLibAioLock           (RANK_libLockBase + 0x4509)
+#define RANK_nfcLibAioLock           (RANK_libLockBase + 0x4508)
+#define RANK_nfcLibLastErrorLock     (RANK_libLockBase + 0x4509)
 
 /*
  * Policy lib lock

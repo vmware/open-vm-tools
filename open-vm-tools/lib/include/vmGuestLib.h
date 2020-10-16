@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2016,2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2016,2019-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -33,6 +33,17 @@ extern "C" {
  * performance statistics pertaining to the VMware virtual environment
  * from within a VMware Virtual Machine.
  */
+
+
+#if __GNUC__ > 3 || \
+    (__GNUC__ == 3 && __GNUC_MINOR__ >= 1) || \
+    defined (__clang__)
+#define VMGUESTLIB_DEPRECATED __attribute__((__deprecated__))
+#elif defined(_MSC_VER) && (_MSC_VER >= 1300)
+#define VMGUESTLIB_DEPRECATED __declspec(deprecated)
+#else
+#define VMGUESTLIB_DEPRECATED
+#endif
 
 
 /*
@@ -104,7 +115,7 @@ VMGuestLibError VMGuestLib_UpdateInfo(VMGuestLibHandle handle); // IN
 
 /*
  * Session ID
- * 
+ *
  * This is used to detect changes in the "session" of a virtual
  * machine. "Session" in this context refers to the particular running
  * instance of this virtual machine on a given host. Moving a virtual
@@ -375,6 +386,7 @@ VMGuestLibError VMGuestLib_GetResourcePoolPath(VMGuestLibHandle handle, // IN
                                                size_t *bufferSize,      // IN/OUT
                                                char *pathBuffer);       // OUT
 
+#ifndef SWIGJAVA
 /*
  * CPU stolen time. The time (in ms) that the VM was runnable but not scheduled
  * to run.
@@ -447,8 +459,12 @@ VMGuestLib_GetHostMemPhysFreeMB(VMGuestLibHandle handle,    // IN
 
 /*
  * Total host kernel memory overhead.
+ *
+ * Note: This function is deprecated in GuestSDK 11.2.0. Will be removed
+ *       in the future releases. hostMemKernOvhdMB is always set to 0.
  */
 
+VMGUESTLIB_DEPRECATED
 VMGuestLibError
 VMGuestLib_GetHostMemKernOvhdMB(VMGuestLibHandle handle,     // IN
                                 uint64 *hostMemKernOvhdMB);  // OUT
@@ -478,17 +494,9 @@ VMGuestLib_StatGet(const char *encoding,  // IN
                    const char *stat,      // IN
                    char **reply,          // OUT
                    size_t *replySize);    // OUT
-/*
- * To avoid a use after free error in SWIG-generated code, it is
- * necessary to present SWIG with a modified function prototype
- * for VMGuestLib_StatFree in which reply is of type "void *"
- * rather than "char *."
- */
-#ifndef	SWIG
+
 void VMGuestLib_StatFree(char *reply, size_t replySize);
-#else
-void VMGuestLib_StatFree(void *reply, size_t replySize);
-#endif
+#endif /* SWIGJAVA */
 
 #ifdef __cplusplus
 }

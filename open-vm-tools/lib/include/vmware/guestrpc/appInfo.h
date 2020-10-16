@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -22,13 +22,15 @@
 /**
  * @file appInfo.h
  *
- * Declares few constants for the appInfo plugin.
+ * Common declarations that aid in sending application information
+ * from 'appInfo' plugin in 'VMware Tools' to the host.
  */
 
 /**
  * The guest Variable name for the application information.
  */
 #define APP_INFO_GUESTVAR_KEY         "appInfo"
+#define APP_INFO_GUESTINFO_KEY        "guestinfo." APP_INFO_GUESTVAR_KEY
 
 #define APP_INFO_VERSION_1            1
 #define APP_INFO_KEY_VERSION          "version"

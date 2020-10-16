@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2008-2018 VMware, Inc.  All rights reserved.
+### Copyright (C) 2008-2018,2020 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -67,7 +67,7 @@ endif
 if FREEBSD
 	for MOD in $(MODULES); do                                              \
 	   $(INSTALL) -d $(DESTDIR)$(MODULES_DIR);                             \
-	   $(INSTALL) -m644 $(modulesrc)/$(MODULES_OS)/$$MOD.ko                \
+	   $(INSTALL) -m 644 $(modulesrc)/$(MODULES_OS)/$$MOD.ko               \
 	      $(DESTDIR)$(MODULES_DIR);                                        \
 	done
 endif

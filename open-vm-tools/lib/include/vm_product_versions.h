@@ -34,7 +34,7 @@
  * hard-coded value for every other product.
  */
 #if defined(VMX86_VMRC) /* check VMX86_VMRC before VMX86_DESKTOP */
-   #define PRODUCT_VERSION    11,1,0,PRODUCT_BUILD_NUMBER_NUMERIC   /* VMRC_VERSION_NUMBER below has to match this */
+   #define PRODUCT_VERSION    12,0,0,PRODUCT_BUILD_NUMBER_NUMERIC   /* VMRC_VERSION_NUMBER below has to match this */
 #elif defined(VMX86_FLEX) /* check VMX86_FLEX before VMX86_DESKTOP */
    #define PRODUCT_VERSION    8,0,0,PRODUCT_BUILD_NUMBER_NUMERIC   /* FLEX_VERSION_NUMBER below has to match this */
 #elif defined(VMX86_TOOLS)
@@ -43,17 +43,13 @@
    #define PRODUCT_VERSION    1,1,5,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_VPX)
    /* this should be kept in sync with the corresponding vpx branch. */
-   #define PRODUCT_VERSION    7,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
+   #define PRODUCT_VERSION    7,0,1,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_HORIZON_VIEW)
-   #if defined(VDM_CLIENT)
-      #define PRODUCT_VERSION    5,5,0,PRODUCT_BUILD_NUMBER_NUMERIC
-   #else
-      #define PRODUCT_VERSION    8,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
-   #endif
+   #define PRODUCT_VERSION    8,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
 // VMX86_DESKTOP must be last because it is the default and is always defined.
 #elif defined(VMX86_DESKTOP)
    // WORKSTATION_VERSION_NUMBER below has to match this
-   #define PRODUCT_VERSION    15,5,0,PRODUCT_BUILD_NUMBER_NUMERIC
+   #define PRODUCT_VERSION    16,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_SYSIMAGE)
    #define PRODUCT_VERSION    TOOLS_VERSION_EXT_CURRENT_CSV
    #define SYSIMAGE_VERSION TOOLS_VERSION_CURRENT_STR
@@ -141,7 +137,7 @@
  */
 #define ESX_VERSION_MAJOR "7"
 #define ESX_VERSION_MINOR "0"
-#define ESX_VERSION_MAINT "0" // 0 = Pre-release/GA, 1 = Update 1
+#define ESX_VERSION_MAINT "1" // 0 = Pre-release/GA, 1 = Update 1
 #define ESX_VERSION_UPDATE ESX_VERSION_MAINT // ESX's own update level
 
 #define ESX_VERSION ESX_VERSION_MAJOR "." ESX_VERSION_MINOR "." \
@@ -149,14 +145,12 @@
 #define ESX_VERSION_THIRD_PARTY ESX_VERSION_MAJOR ESX_VERSION_MINOR \
                                 ESX_VERSION_UPDATE
 
-#define ESX_RELEASE_UPDATE "2" // Quarterly release
+#define ESX_RELEASE_UPDATE "1" // Quarterly release
 #define ESX_RELEASE_PATCH "0"  // 0 = experimental
 #define ESX_RELEASE_QUARTERLY ESX_RELEASE_UPDATE // ESX's own quarterly release
 #define ESX_RELEASE ESX_RELEASE_QUARTERLY "." ESX_RELEASE_PATCH
 
 #define WORKSTATION_RELEASE_DESCRIPTION ""
-#define WSX_SERVER_VERSION_NUMBER "1.0.0"
-#define WSX_SERVER_VERSION "e.x.p"
 #define P2V_VERSION "e.x.p"
 #define P2V_FILE_VERSION 3,0,0,0
 
@@ -170,12 +164,12 @@
  * ALSO, leave FOO_VERSION at e.x.p on all EXCEPT release branches.
  * lmclient.h has a FLEX_VERSION struct so the versionPrefix can't be FLEX
  */
-#define WORKSTATION_VERSION_NUMBER "15.5.0" /* this version number should always match real WS version number */
+#define WORKSTATION_VERSION_NUMBER "16.0.0" /* this version number should always match real WS version number */
 #define WORKSTATION_VERSION "e.x.p"
-#define PLAYER_VERSION_NUMBER "15.5.0" /* this version number should always match real Player version number */
+#define PLAYER_VERSION_NUMBER "16.0.0" /* this version number should always match real Player version number */
 #define PLAYER_VERSION "e.x.p"
-#define VMRC_VERSION_NUMBER "11.1.0" /* this version number should always match real VMRC version number */
-#define VMRC_VERSION "11.1.0"
+#define VMRC_VERSION_NUMBER "12.0.0" /* this version number should always match real VMRC version number */
+#define VMRC_VERSION "12.0.0"
 #define FLEX_CLIENT_VERSION_NUMBER "8.0.0"
 #define FLEX_CLIENT_VERSION "e.x.p"
 
@@ -190,7 +184,7 @@
  */
 #define FUSION_VERSION "e.x.p"
 
-#define VIM_VERSION "7.0.0"
+#define VIM_VERSION "7.0.1"
 /*
  *For smooth version bump up for quaterly releases, we need to have a fallback
  *mechanism to previous version in all those components which perform version
@@ -220,26 +214,26 @@
 6.0.0,\
 6.5.0"
 // Put VPX_VERSION first, because vpx/make/defs.mk doesn't check for suffix.
-#define VPX_VERSION "7.0.0"
+#define VPX_VERSION "7.0.1"
 #define VPX_VERSION_MAJOR "7"
 #define VPX_VERSION_MINOR "0"
-#define VPX_VERSION_MAINT "0"
+#define VPX_VERSION_MAINT "1"
 #define VPX_VERSION_THIRD_PARTY VPX_VERSION_MAJOR VPX_VERSION_MINOR \
                                 VPX_VERSION_MAINT
-#define VPX_VERSION_NUMERIC 7,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
+#define VPX_VERSION_NUMERIC 7,0,1,PRODUCT_BUILD_NUMBER_NUMERIC
 
 // Last supported ESX version by VC.
 #define VPX_MIN_HOST_VERSION "6.5.0"
 
 #define MAX_SUPPORTED_VI_VERSION "6.6" //from ovfTool/src/supportedVersions.h
-#define VCDB_CURRENT_SCHEMA_VERSION           700 // from PitCADatabase.h
+#define VCDB_CURRENT_SCHEMA_VERSION           701 // from PitCADatabase.h
 
 #define VPX_RELEASE_UPDATE "0" /* 0 = Pre-release/GA, 1 = Update 1 */
 #define VPX_RELEASE_PATCH "0"  /* 0 = experimental */
 #define VPX_RELEASE VPX_RELEASE_UPDATE "." VPX_RELEASE_PATCH
 
 /* expected database version for current release */
-#define VPXD_VDB_DB_VERSION_ID            700
+#define VPXD_VDB_DB_VERSION_ID            701
 #define VPXD_VDB_DB_VERSION_VALUE         "VirtualCenter Database 7.0"
 
 // Virtual Appliance Patch Version Number
@@ -249,10 +243,9 @@
 // Changing the version is required when CPD releases an update.
 #define VA_PATCH_VERSION  "5100"
 
-#define INTEGRITY_VERSION "7.0.0" /* Should use VPX_VERSION? */
+#define INTEGRITY_VERSION "7.0.1" /* Should use VPX_VERSION? */
 #define SVA_VERSION "1.0.0"
 #define SSO_VERSION "1.0.0"
-#define WBC_VERSION "5.1.0"
 #define SDK_VERSION "4.1.0"
 #define FOUNDRY_VERSION "1.17.0"
 #define FOUNDRY_FILE_VERSION 1,17,0,PRODUCT_BUILD_NUMBER_NUMERIC
@@ -263,15 +256,15 @@
 #define VDM_VERSION "e.x.p"
 #define NETDUMP_VERSION        "5.1.0"
 #define NETDUMP_FILE_VERSION    5,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
-#define VDDK_VERSION          "7.0.0"
+#define VDDK_VERSION          "7.0.1"
 #define VDDK_VERSION_MAJOR    7
 #define VDDK_VERSION_MINOR    0
-#define VDDK_VERSION_MAINT    0
+#define VDDK_VERSION_MAINT    1
 #define VDDK_FILE_VERSION     VDDK_VERSION_MAJOR,VDDK_VERSION_MINOR,\
                               VDDK_VERSION_MAINT,PRODUCT_BUILD_NUMBER_NUMERIC
-#define OVFTOOL_VERSION "4.4.0"
+#define OVFTOOL_VERSION "4.4.1"
 #define VCSA_INSTALLER_VERSION "1.0.0"
-#define OVFTOOL_FILE_VERSION 4,4,0,PRODUCT_BUILD_NUMBER_NUMERIC
+#define OVFTOOL_FILE_VERSION 4,4,1,PRODUCT_BUILD_NUMBER_NUMERIC
 #define VGAUTH_VERSION "1.0.0"
 #define COMMON_AGENT_VERSION "e.x.p"
 #define VIEWY_VERSION "e.x.p"
@@ -280,30 +273,36 @@
 #define HOSTD_VERSION "e.x.p"
 #define RECOVERYLIBS_VERSION "2.0.0"
 #define PRECHECK_VERSION "e.x.p"
-#define VIEW_CLIENT_VERSION "5.5.0"
-#define VIEW_CLIENT_VERSION_NUMBER VIEW_CLIENT_VERSION
 #define VHSESDK_VERSION "1.0.0"
 #define VIEWVC_VERSION "14.0.2"
-#define WCP_VERSION "0.0.1"
+#define WCP_VERSION "0.0.5"
 #define VSTATS_VERSION "0.0.1"
-
+#define HDCS_VERSION "0.0.1"
+#define XVP_VERSION "1.0.0"
 /*
  * All of these components should follow the current version of View, except
  * Horizon DaaS Agent and mfw which have their own version.
  * SCons parsing code requires that each line have a version string, so we
  * can't just do something like #define RDESDK_VERSION VIEW_VERSION"
  */
-#define VIEW_VERSION "8.0.0"
-#define RDE_RFT_ALL_VERSION "8.0.0"
-#define RDE_RFT_REL_VERSION "8.0.0"
-#define RDESDKREL_VERSION "8.0.0"
-#define MKSVCHANDEV_VERSION "15.0.0"
-#define TSMMRDEV_VERSION "8.0.0"
-#define RDF_VERSION "8.0.0"
-#define HORIZON_DAAS_AGENT_VERSION "20.2.0"
-#define HORIZON_USB_AGENT_VERSION "11.0.0"
-#define MFW_VERSION "16.0.0"
-
+#define VIEW_CLIENT_VERSION "8.1.0"
+#define VIEW_CLIENT_VERSION_NUMBER VIEW_CLIENT_VERSION
+#define VIEW_VERSION "8.1.0"
+#define RDE_RFT_ALL_VERSION "8.1.0"
+#define RDE_RFT_REL_VERSION "8.1.0"
+#define RDESDKREL_VERSION "8.1.0"
+#define MKSVCHANDEV_VERSION "15.1.0"
+#define TSMMRDEV_VERSION "8.1.0"
+#define RDF_VERSION "8.1.0"
+#define HORIZON_DAAS_AGENT_VERSION "20.4.0"
+#define HORIZON_USB_AGENT_VERSION "11.1.0"
+#define MFW_VERSION "16.1.0"
+/*
+ * This is the Horizon Marketing version which is shared between
+ * Horizon Client, Agent and Server. It is set in the format of
+ * YYMM of the targeted release date.
+ */
+#define HORIZON_YYMM_VERSION "2012"
 
 #ifndef MAKESTR
 #define MAKESTR(x) #x
@@ -337,8 +336,6 @@
 #  else
 #     define PRODUCT_VERSION_NUMBER VPX_VERSION
 #  endif
-#elif defined(VMX86_WBC)
-#  define PRODUCT_VERSION_NUMBER WBC_VERSION
 #elif defined(VMX86_SDK)
 #  define PRODUCT_VERSION_NUMBER SDK_VERSION
 #elif defined(VMX86_P2V)
@@ -402,8 +399,8 @@
  * a parameter that no longer match the content of the dormant license
  * file.
  */
-#define PRODUCT_MAC_DESKTOP_VERSION_STRING_FOR_LICENSE "11.0"
-#define PRODUCT_PLAYER_VERSION_STRING_FOR_LICENSE "15.0"
+#define PRODUCT_MAC_DESKTOP_VERSION_STRING_FOR_LICENSE "12.0"
+#define PRODUCT_PLAYER_VERSION_STRING_FOR_LICENSE "16.0"
 #define PRODUCT_VMRC_VERSION_STRING_FOR_LICENSE "10.0"
 #define PRODUCT_FLEX_VERSION_STRING_FOR_LICENSE "8.0"
 
@@ -418,15 +415,9 @@
 #    define PRODUCT_LICENSE_VERSION PRODUCT_VMRC_VERSION_STRING_FOR_LICENSE
 #  elif defined(VMX86_FLEX) /* check VMX86_FLEX before VMX86_DESKTOP */
 #    define PRODUCT_LICENSE_VERSION PRODUCT_FLEX_VERSION_STRING_FOR_LICENSE
-#  elif defined(VMX86_WGS_MIGRATION)
-#    define PRODUCT_LICENSE_VERSION "1.0"
-#  elif defined(VMX86_WGS)
-#    define PRODUCT_LICENSE_VERSION "3.0"
 #  elif defined(VMX86_VPX)
 #    define PRODUCT_LICENSE_VERSION "7.0"
-#    define PRODUCT_LICENSE_FILE_VERSION "7.0.0.1"
-#  elif defined(VMX86_WBC)
-#    define PRODUCT_LICENSE_VERSION "1.0"
+#    define PRODUCT_LICENSE_FILE_VERSION "7.0.2.0"
 #  elif defined(VMX86_SDK)
 #    define PRODUCT_LICENSE_VERSION "1.0"
 #  elif defined(VMX86_P2V)
@@ -436,7 +427,7 @@
 #    if defined(__APPLE__)
 #      define PRODUCT_LICENSE_VERSION PRODUCT_MAC_DESKTOP_VERSION_STRING_FOR_LICENSE
 #    else
-#      define PRODUCT_LICENSE_VERSION "15.0"
+#      define PRODUCT_LICENSE_VERSION "16.0"
 #    endif
 #  else
 #    define PRODUCT_LICENSE_VERSION "0.0"
@@ -444,7 +435,7 @@
 #  define PRODUCT_VERSION_STRING_FOR_LICENSE PRODUCT_LICENSE_VERSION
 #endif
 #define PRODUCT_ESX_LICENSE_VERSION "7.0"
-#define PRODUCT_ESX_LICENSE_FILE_VERSION "7.0.0.4"
+#define PRODUCT_ESX_LICENSE_FILE_VERSION "7.0.2.0"
 
 /*
  * The configuration file version string should be changed
@@ -499,6 +490,7 @@
 #define PRODUCT_VERSION_SCALABLE_SERVER_60 PRODUCT_ESXI_BRIEF_NAME " 6.0"
 #define PRODUCT_VERSION_SCALABLE_SERVER_65 PRODUCT_ESXI_BRIEF_NAME " 6.5"
 #define PRODUCT_VERSION_SCALABLE_SERVER_67 PRODUCT_ESXI_BRIEF_NAME " 6.7"
+#define PRODUCT_VERSION_SCALABLE_SERVER_70 PRODUCT_ESXI_BRIEF_NAME " 7.0"
 #define PRODUCT_VERSION_WGS_1 "Server 1.x"
 #define PRODUCT_VERSION_WGS_2 "Server 2.x"
 #define PRODUCT_VERSION_GSX_3 "GSX Server 3.x"
@@ -514,6 +506,8 @@
 #define PRODUCT_VERSION_WORKSTATION_120 PRODUCT_WORKSTATION_BRIEF_NAME " 12.x"
 // Workstation 13.x is skipped.
 #define PRODUCT_VERSION_WORKSTATION_140 PRODUCT_WORKSTATION_BRIEF_NAME " 14.x"
+#define PRODUCT_VERSION_WORKSTATION_150 PRODUCT_WORKSTATION_BRIEF_NAME " 15.x"
+#define PRODUCT_VERSION_WORKSTATION_160 PRODUCT_WORKSTATION_BRIEF_NAME " 16.x"
 #define PRODUCT_VERSION_PLAYER_1 PRODUCT_PLAYER_BRIEF_NAME " 1.x"
 #define PRODUCT_VERSION_MAC_DESKTOP_1 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 1.1"
 #define PRODUCT_VERSION_MAC_DESKTOP_2 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 2.x"
@@ -525,6 +519,8 @@
 #define PRODUCT_VERSION_MAC_DESKTOP_80 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 8.x"
 // Fusion 9.x is skipped.
 #define PRODUCT_VERSION_MAC_DESKTOP_100 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 10.x"
+#define PRODUCT_VERSION_MAC_DESKTOP_110 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 11.x"
+#define PRODUCT_VERSION_MAC_DESKTOP_120 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 12.x"
 
 /*
  * VDFS Versions
@@ -537,5 +533,17 @@
 #define VDFS_RELEASE_UPDATE "0" /* 0 = Pre-release/GA, 1 = Update 1 */
 #define VDFS_RELEASE_PATCH "0"  /* 0 = experimental */
 #define VDFS_RELEASE VDFS_RELEASE_UPDATE "." VDFS_RELEASE_PATCH
+
+/*
+ * ZDOM Versions
+ */
+#define ZDOM_VERSION_MAJOR "0"
+#define ZDOM_VERSION_MINOR "1"
+#define ZDOM_VERSION_MAINT "0"
+#define ZDOM_VERSION ZDOM_VERSION_MAJOR "." ZDOM_VERSION_MINOR "." \
+                    ZDOM_VERSION_MAINT
+#define ZDOM_RELEASE_UPDATE "0" /* 0 = Pre-release/GA, 1 = Update 1 */
+#define ZDOM_RELEASE_PATCH "0"  /* 0 = experimental */
+#define ZDOM_RELEASE ZDOM_RELEASE_UPDATE "." ZDOM_RELEASE_PATCH
 
 #endif

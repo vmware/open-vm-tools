@@ -126,6 +126,7 @@ typedef uint32 HgfsConfigFlags;
 #define HGFS_CONFIG_OPLOCK_ENABLED                   (1 << 3)
 #define HGFS_CONFIG_SHARE_ALL_HOST_DRIVES_ENABLED    (1 << 4)
 #define HGFS_CONFIG_THREADPOOL_ENABLED               (1 << 5)
+#define HGFS_CONFIG_OPLOCK_MONITOR_ENABLED           (1 << 6)
 
 typedef struct HgfsServerConfig {
    HgfsConfigFlags flags;

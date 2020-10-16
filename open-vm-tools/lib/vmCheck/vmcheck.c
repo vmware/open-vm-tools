@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -42,6 +42,7 @@
 #if !defined(WINNT_DDK)
 #  include "hostinfo.h"
 #  include "str.h"
+#  include "x86cpuid.h"
 #endif
 
 /*
@@ -331,8 +332,9 @@ VmCheck_IsVirtualWorld(void)
 
    if (version != VERSION_MAGIC) {
       Debug("The version of this program is incompatible with your %s.\n"
-            "For information on updating your VMware Tools please see\n"
-            "http://www.vmware.com/info?id=99\n"
+            "For information on updating your VMware Tools please see the\n"
+            "'Upgrading VMware Tools' section of the 'VMware Tools User Guide'"
+            "\nat https://docs.vmware.com/en/VMware-Tools/index.html\n"
             "\n", PRODUCT_LINE_NAME);
       return FALSE;
    }

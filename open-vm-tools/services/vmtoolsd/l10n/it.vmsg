@@ -1,5 +1,5 @@
 ##########################################################
-# Copyright (C) 2010 VMware, Inc. All rights reserved.
+# Copyright (C) 2010,2020 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -55,6 +55,15 @@ cmdline.rpc = "Invia all'host un comando RPC ed esce."
 cmdline.rpc.command = "comando"
 
 cmdline.rpcerror = "Impossibile inviare il comando al supervisore VMware."
+
+cmdline.cmdfile = "Invia un comando RPC da un file all'host ed esce."
+
+cmdline.cmdfile.command = "file di comando"
+
+cmdline.cmdfile.rpcerror = "Impossibile inviare il comando dal file all'hypervisor VMware."
+
+cmdline.cmdfile.read = "Impossibile leggere il comando dal file %1$s.\n"
+
 
 cmdline.state = "Invia ai registri lo stato interno di un'istanza del servizio in esecuzione."
 

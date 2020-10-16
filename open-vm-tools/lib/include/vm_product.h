@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -120,8 +120,6 @@
 
 #define PRODUCT_HA_NAME MAKE_NAME("High Availability Extension")
 
-#define PRODUCT_WBC_NAME MAKE_NAME("WebCenter")
-
 #define PRODUCT_SDK_NAME MAKE_NAME("SDK")
 
 #define PRODUCT_DDK_NAME MAKE_NAME("ESX DDK")
@@ -194,7 +192,6 @@
       || defined(VMX86_DESKTOP)  \
       || defined(VMX86_HORIZON_VIEW)     \
       || defined(VMX86_VPX)      \
-      || defined(VMX86_WBC)      \
       || defined(VMX86_SDK)      \
       || defined(VMX86_TOOLS)    \
       || defined(VMX86_V2V)      \
@@ -245,8 +242,6 @@
 #  else
 #     define PRODUCT_SHORT_NAME PRODUCT_VPX_NAME
 #  endif
-#elif defined(VMX86_WBC)
-# define PRODUCT_SHORT_NAME PRODUCT_WBC_NAME
 #elif defined(VMX86_SDK)
 # define PRODUCT_SHORT_NAME PRODUCT_SDK_NAME
 #elif defined(VMX86_P2V)

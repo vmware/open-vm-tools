@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2017, 2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2017, 2019, 2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -278,6 +278,34 @@ extern "C" {
 
 #define VMCI_SOCKETS_DISCONNECT_REGULAR     0
 #define VMCI_SOCKETS_DISCONNECT_VMOTION     1
+
+/**
+ * \brief Option name for DGRAM socket to rate limit peers
+ *
+ * Use as the option name in \c getsockopt(3) to set the packet rate
+ * (packets per second) for peers of a datagram socket. A value of
+ * -1 means no limit set, value of 0 means to drop all packets.
+ *
+ * \note Only available for ESX (VMkernel/userworld) endpoints.
+ *
+ * An example is given below.
+ *
+ * \code
+ * int vmciFd;
+ * int af = VMCISock_GetAFValueFd(&vmciFd);
+ * int32 rate = 50;
+ * socklen_t len = sizeof rate;
+ * int fd = socket(af, SOCK_DGRAM, 0);
+ * setsockopt(fd, af, SO_VMCI_PEER_LIMIT_RATE, &rate, sizeof rate);
+ * ...
+ * close(fd);
+ * VMCISock_ReleaseAFValueFd(vmciFd);
+ * \endcode
+ */
+
+#define SO_VMCI_PEER_LIMIT_RATE             9
+
+#define VSOCK_OPT_PEER_RATE_MAX             (1 << 14)
 
 /**
  * \brief The vSocket equivalent of INADDR_ANY.

@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2009-2016 VMware, Inc.  All rights reserved.
+### Copyright (C) 2009-2016,2020 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -25,4 +25,8 @@ vmware_rpctool_LDADD += ../lib/rpcOut/libRpcOut.la
 vmware_rpctool_LDADD += ../lib/message/libMessage.la
 vmware_rpctool_LDADD += ../lib/backdoor/libBackdoor.la
 vmware_rpctool_LDADD += ../lib/string/libString.la
+vmware_rpctool_LDADD += ../lib/vmCheck/libVmCheck.la
+vmware_rpctool_LDADD += ../lib/vmSignal/libVmSignal.la
+vmware_rpctool_LDADD += ../lib/misc/libMisc.la
+vmware_rpctool_LDADD += ../lib/stubs/libStubs.la
 

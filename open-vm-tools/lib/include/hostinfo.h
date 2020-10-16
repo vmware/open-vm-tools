@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -32,7 +32,7 @@
 
 #include "vm_basic_types.h"
 #include "vm_basic_defs.h"
-#include "x86cpuid.h"
+#include "x86vendor.h"
 #include "unicodeTypes.h"
 
 #if defined(__cplusplus)
@@ -116,6 +116,7 @@ enum {
    HOSTINFO_OS_VERSION_MACOS_10_13 = 17,
    HOSTINFO_OS_VERSION_MACOS_10_14 = 18,
    HOSTINFO_OS_VERSION_MACOS_10_15 = 19,
+   HOSTINFO_OS_VERSION_MACOS_11    = 20,
 };
 
 int Hostinfo_OSVersion(unsigned int i);
@@ -125,7 +126,6 @@ const char *Hostinfo_OSVersionString(void);
 #if defined(_WIN32)
 Bool Hostinfo_OSIsWinNT(void);
 Bool Hostinfo_OSIsWow64(void);
-Bool Hostinfo_TSCInvariant(void);
 int Hostinfo_EnumerateAllProcessPids(uint32 **processIds);
 #else
 void Hostinfo_ResetProcessState(const int *keepFds,
@@ -250,7 +250,6 @@ Bool Hostinfo_GetMhzOfProcessor(int32 processorNumber,
 				uint32 *currentMhz,
                                 uint32 *maxMhz);
 uint64 Hostinfo_SystemIdleTime(void);
-Bool Hostinfo_GetAllCpuid(CPUIDQuery *query);
 
 #endif
 void Hostinfo_LogLoadAverage(void);

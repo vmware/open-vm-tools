@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -53,30 +53,20 @@
  *    test-esx -n misc/sha1.sh
  */
 
-#if defined(USERLEVEL) || defined(_WIN32)
-#   include <string.h>
-#   if defined(_WIN32)
-#      include <memory.h>
-#   endif
+#if defined(_WIN32)
+#   include <memory.h>
 #endif
 
 #if defined(sun) && !defined(SOL9)
-#include <memory.h>
+#   include <memory.h>
 #endif
 
-#if defined(__FreeBSD__)
-#   if defined(_KERNEL)
-#      include <sys/libkern.h>
-#      include <sys/systm.h>
-#   else
-#      include <string.h>
-#   endif
+#if defined(__FreeBSD__) && defined(_KERNEL)
+#   include <sys/libkern.h>
+#   include <sys/systm.h>
 #endif
 
-#if defined(__APPLE__)
-#      include <string.h>
-#endif
-
+#include <string.h>
 #include "vmware.h"
 #include "sha1.h"
 #include "vm_basic_asm.h"

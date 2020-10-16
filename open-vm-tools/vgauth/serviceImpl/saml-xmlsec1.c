@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2016-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2016-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1120,7 +1120,7 @@ BuildCertChain(xmlNodePtr x509Node,
        */
       ret = xmlSecCryptoAppKeysMngrCertLoadMemory(mgr,
                                                   pemCert,
-                                                  strlen(pemCert),
+                                                  (xmlSecSize) strlen(pemCert),
                                                   xmlSecKeyDataFormatPem,
                                                   xmlSecKeyDataTypeTrusted);
       if (ret < 0) {
@@ -1297,11 +1297,22 @@ VerifySignature(xmlDocPtr doc,
    /*
     * Check status to verify the signature is correct.
     *
+    * This check can fail due to build issues.  If xmlSecSize is
+    * different between this layer and the xmlsec library,
+    * dsigCtx->status can be at the wrong offset.  So
+    * dump the value of status, which should be either
+    * 1 (xmlSecDSigStatusSucceeded) or 2 (xmlSecDSigStatusInvalid).
+    * If its something else, that's a sign there's a
+    * build issue and XMLSEC_NO_SIZE_T may be set at one layer but
+    * not the other.
+    *
     */
    if (dsigCtx->status != xmlSecDSigStatusSucceeded) {
-      g_warning("Signature is INVALID\n");
+      g_warning("%s: Signature is invalid (got %d)\n",
+                __FUNCTION__, dsigCtx->status);
       VMXLog_Log(VMXLOG_LEVEL_WARNING,
-                 "%s: signature is invalid\n", __FUNCTION__);
+                 "%s: signature is invalid (got %d)\n", __FUNCTION__,
+                 dsigCtx->status);
       goto done;
    }
 

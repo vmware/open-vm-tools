@@ -1,5 +1,5 @@
 /* **********************************************************
- * Copyright (C) 2007-2017 VMware, Inc.  All rights reserved.
+ * Copyright (C) 2007-2020 VMware, Inc.  All rights reserved.
  * **********************************************************/
 
 /*
@@ -390,6 +390,9 @@ Bool CodeSet_IsValidUTF8(const char *bufIn,  // IN:
                          size_t sizeIn);     // IN:
 
 Bool CodeSet_IsStringValidUTF8(const char *string);  // IN:
+
+Bool CodeSet_IsValidUTF8String(const char *bufIn,  // IN:
+                               size_t sizeIn);     // IN:
 
 /*
  *-----------------------------------------------------------------------------

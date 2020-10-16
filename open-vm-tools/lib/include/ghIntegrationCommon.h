@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -52,7 +52,8 @@
 #define GHI_CHANNEL_VIEW_REMOTE_VDP_COMMON      6  // Handled by View VDP core module
 #define GHI_CHANNEL_VIEW_PROTOCOL               7  // Interactions with different protocols
                                                    // in View RMKS
-#define GHI_CHANNEL_MAX                         8
+#define GHI_CHANNEL_FCP                         8  // FCP for View RMKS
+#define GHI_CHANNEL_COUNT                       9
 
 typedef uint32 GHIChannelType;
 
@@ -114,6 +115,12 @@ typedef uint32 GHIGuestToHostMessageType;
 #define GHI_GUEST_DND_GETFILE_OVERWRITE_QUESTION      (GHI_CHANNEL_DND_BITS | 0x000005)
 #define GHI_GUEST_DND_CAPABILITY                      (GHI_CHANNEL_DND_BITS | 0x000006)
 
+
+/*
+ * UI->MKS Messages over GHI_CHANNEL_VIEW_REMOTE_RDE_COMMON.
+ */
+#define GHI_RDE_COMMON_GENERIC_CMD             "ghi.rde.generic"
+
 /*
  * MKS->UI messages over GHI_CHANNEL_VIEW_REMOTE_RDE_COMMON.
  */
@@ -125,6 +132,8 @@ typedef uint32 GHIGuestToHostMessageType;
             (GHI_CHANNEL_VIEW_REMOTE_RDE_COMMON_BITS | 0x000002)
 #define GHI_GUEST_RDE_COMMON_CLIPBOARD_DATA_SENT_DONE \
             (GHI_CHANNEL_VIEW_REMOTE_RDE_COMMON_BITS | 0x000003)
+#define GHI_GUEST_RDE_COMMON_GENERIC \
+            (GHI_CHANNEL_VIEW_REMOTE_RDE_COMMON_BITS | 0x000004)
 
 /*
  * MKS->UI messages over GHI_CHANNEL_VIEW_USB_REDIRECTION.
@@ -146,6 +155,17 @@ typedef uint32 GHIGuestToHostMessageType;
   */
 #define GHI_SET_BUFFER_WITHOUT_AUDIO_CMD \
         "ghi.view.protocol.set.buffer.without.audio"
+
+/*
+ * MKS->UI messages over GHI_CHANNEL_FCP, used by View FCP.
+ */
+#define GHI_CHANNEL_FCP_BITS                          GHI_GUEST_CHANNEL_BITS(GHI_CHANNEL_FCP)
+#define GHI_GUEST_FCP_TRANSFERFILES_PROGRESS          (GHI_CHANNEL_FCP_BITS | 0x000001)
+
+/*
+ * UI->MKS Messages over GHI_CHANNEL_FCP, used by View FCP.
+ */
+#define GHI_FCP_HOST_TRANSFERFILES_CANCEL_CMD   "ghi.fcp.host.transferfiles.cancel"
 
 /*
  * MKS->UI messages over GHI_CHANNEL_VIEW_REMOTE_VDP_COMMON.
