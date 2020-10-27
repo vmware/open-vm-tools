@@ -695,8 +695,20 @@ typedef int pid_t;
 #ifdef ULM
 #define vmx86_ulm 1
 #define ULM_ONLY(x) x
+#ifdef ULM_MAC
+#define ulm_mac 1
+#else
+#define ulm_mac 0
+#endif
+#ifdef ULM_WIN
+#define ulm_win 1
+#else
+#define ulm_win 0
+#endif
 #else
 #define vmx86_ulm 0
+#define ulm_mac 0
+#define ulm_win 0
 #define ULM_ONLY(x)
 #endif
 
