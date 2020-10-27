@@ -78,12 +78,24 @@
 #include "includeCheck.h"
 
 /*
- * Macros __i386__ and __ia64 are intrinsically defined by GCC
+ * Standardize MSVC arch macros to GCC arch macros.
  */
 #if defined _MSC_VER && defined _M_X64
-#  define __x86_64__
+#  define __x86_64__ 1
 #elif defined _MSC_VER && defined _M_IX86
-#  define __i386__
+#  define __i386__ 1
+#elif defined _MSC_VER && defined _M_ARM64
+#  define __aarch64__ 1
+#elif defined _MSC_VER && defined _M_ARM
+#  define __arm__ 1
+#endif
+
+/*
+ * Apple/Darwin uses __arm64__, but defines the more standard
+ * __aarch64__ too. Code below assumes __aarch64__.
+ */
+#if defined __arm64__ && !defined __aarch64__
+#  error Unexpected: defined __arm64__ without __aarch64__
 #endif
 
 /*
