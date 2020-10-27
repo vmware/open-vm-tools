@@ -63,10 +63,24 @@ typedef enum {
 
 
 /*
+ * RFC 4122-compliant UUIDs and UEFI/Microsoft GUIDs are essentially
+ * the same thing except for byte-ordering issues.  Although their
+ * fields are named differently, the meanings are the same.  The only
+ * important difference is that RFC 4122 recommends always storing and
+ * transmitting binary UUIDs with the multi-byte fields in network
+ * byte order (big-endian), while binary UEFI/Microsoft GUIDs are
+ * typically stored and transmitted with the first three fields in x86
+ * CPU native order (little-endian).  But both UUIDs and GUIDs use the
+ * same canonical text format representation, in which the hex digits
+ * are in big-endian order.  Details of each are below.
+ */
+
+/*
  * An RFC 4122-compliant UUID.
  *
- * See RFC 4122 section 4.1.2 (Layout and Byte Order). All multi-byte types are
- * stored in big-endian (most significant byte first) order.
+ * See RFC 4122 section 4.1.2 (Layout and Byte Order). The RFC
+ * recommends that multi-byte types be stored in big-endian (most
+ * significant byte first) order.
  *
  * The UUID packed text string
  *    00112233-4455-6677-8899-AABBCCDDEEFF
@@ -84,6 +98,13 @@ typedef enum {
  *    node[5] = 0xFF
  * and the structure is stored as the sequence of bytes
  *    00 11 22 33 44 55 66 77 88 99 AA BB CC DD EE FF
+ *
+ * Confusingly, some applications use the field names from this
+ * definition but store timeLow, timeMid, and timeHiAndVersion in
+ * little-endian order as UEFI/Microsoft GUIDs do; for example, the
+ * SMBIOS standard does so.  In that case, the structure is stored as
+ * the sequence of bytes
+ *    33 22 11 00 55 44 77 66 88 99 AA BB CC DD EE FF
  */
 
 typedef
