@@ -533,7 +533,7 @@ SelectResolution(uint32 width,
     * and height.
     */
    for (i = 0; i < xrrNumSizes; i++) {
-      potentialSize = xrrSizes[i].width * xrrSizes[i].height;
+      potentialSize = (uint64)xrrSizes[i].width * xrrSizes[i].height;
       if (xrrSizes[i].width <= width && xrrSizes[i].height <= height &&
           potentialSize > bestFitSize ) {
          bestFitSize = potentialSize;
