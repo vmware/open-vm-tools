@@ -512,6 +512,7 @@ ToolsCoreLoadDirectory(ToolsAppCtx *ctx,
    dir = g_dir_open(pluginPath, 0, &err);
    if (dir == NULL) {
       g_warning("Error opening dir: %s\n", err->message);
+      g_clear_error(&err);
       goto exit;
    }
 
