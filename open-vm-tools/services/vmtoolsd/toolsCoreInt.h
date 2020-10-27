@@ -72,6 +72,10 @@ typedef struct ToolsServiceState {
    gchar         *name;
    gchar         *configFile;
    time_t         configMtime;
+#if defined(_WIN32)
+   GKeyFile      *globalConfig;
+   time_t         globalConfigMtime;
+#endif
    guint          configCheckTask;
    gboolean       mainService;
    gboolean       capsRegistered;
@@ -142,11 +146,6 @@ ToolsCore_LoadPlugins(ToolsServiceState *state);
 void
 ToolsCore_ReloadConfig(ToolsServiceState *state,
                        gboolean reset);
-
-void
-ToolsCore_ReloadConfigEx(ToolsServiceState *state,
-                         gboolean reset,
-                         gboolean force);
 
 void
 ToolsCore_RegisterPlugins(ToolsServiceState *state);
