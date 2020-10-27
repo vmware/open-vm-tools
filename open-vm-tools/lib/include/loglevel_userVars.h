@@ -65,6 +65,7 @@
    LOGLEVEL_VAR(crtbora),  /* apps/crtbora */ \
    LOGLEVEL_VAR(cui), \
    LOGLEVEL_VAR(dataCache), \
+   LOGLEVEL_VAR(dataSetsStore), \
    LOGLEVEL_VAR(device), \
    LOGLEVEL_VAR(devicePowerOn), \
    LOGLEVEL_VAR(deviceThread), \
