@@ -116,6 +116,11 @@
 #define PCI_DEVICE_ID_VMWARE_VTPM       0x0830
 
 /*
+ * Device Virtualization Extension (DVX) sample device
+ */
+#define PCI_DEVICE_ID_VMWARE_DVX_SAMPLE 0x0840
+
+/*
  * VMware Virtual Device Test Infrastructure (VDTI) devices
  */
 #define PCI_DEVICE_ID_VMWARE_VDTI               0x7E57  /* stands for "TEST" */
