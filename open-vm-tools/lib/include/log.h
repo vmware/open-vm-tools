@@ -124,6 +124,14 @@ typedef enum {
    #define LOG_FILTER_DEFAULT_LEVEL VMW_LOG_INFO
 #endif
 
+#ifdef VMX86_SERVER
+/* WORLD_MAX_OPID_STRING_SIZE */
+#define LOG_MAX_OPID_LENGTH (128 + 1)
+#else
+/* We do not expect long opIDs in non-ESX environments. 32 should be enough. */
+#define LOG_MAX_OPID_LENGTH (32 + 1)
+#endif
+
 /*
  * The "routing" parameter contains the level in the low order bits; the
  * higher order bits specify the module where the log call came from.
@@ -644,5 +652,3 @@ Log_OffsetUtc(void);
 
 #define Log_IsEnabledModule(level) \
    Log_IsEnabled(LOG_ROUTING_BITS(level))
-
-
