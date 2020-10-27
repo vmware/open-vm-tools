@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -104,7 +104,7 @@ ServiceHelp(char *arg)
    printf("\t-s\tRun as a normal program, sending logging to a file.\n");
 #else
 #if USE_POSIX_SERVICE
-   printf("\t-k\tKill the running instance that was started as a daemon.\n");
+   printf("\t-k\tShut down the running instance that was started as a daemon.\n");
    printf("\t-s\tRun in daemon mode.\n");
    printf("\t-b\tRun in background mode, using a pid lock file.\n");
 #endif

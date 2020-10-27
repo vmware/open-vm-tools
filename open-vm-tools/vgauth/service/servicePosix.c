@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2017,2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2017,2019-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -174,7 +174,7 @@ ServiceSuicide(const char *pidPath)
                  pid);
          goto done;
       }
-      Debug("%s: killing service at pid %d\n", __FUNCTION__, pid);
+      Debug("%s: sending SIGTERM to service at pid %d\n", __FUNCTION__, pid);
       ret = kill(pid, SIGTERM);
       errCode = errno;
       if (0 != ret) {
