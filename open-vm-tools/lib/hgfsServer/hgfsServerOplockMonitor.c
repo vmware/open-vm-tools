@@ -351,6 +351,7 @@ error:
       free(monitorData->utf8Name);
       free(monitorData);
    }
+   free(data);
 
    MXUser_ReleaseExclLock(oplockMonitorLock);
    return HGFS_OPLOCK_INVALID_MONITOR_HANDLE;
