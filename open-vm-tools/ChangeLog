@@ -1,3 +1,139 @@
+commit d6ba5ae8996e44e52c9ee967c6d44036fa2eba92
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Oct 26 17:29:55 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit a4c1458c67a291c2a2d69d2a7f829daac00face1
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Oct 26 17:29:55 2020 -0700
+
+    Common header file change not directly applicable to open-vm-tools.
+
+commit 727a554c3d44ae615e23361a450ccfd793198019
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Oct 26 17:29:55 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit e18e67f727d0354b08a55b685178fd05f542c6da
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Oct 26 17:29:54 2020 -0700
+
+    Fix memory leaks.
+    
+    A Coverity scan of open-vm-tools reported a number of memory leaks
+    on error code paths.  Fix seven reported leaks, and modify code
+    to address two false positives in order to make the code clearer
+    and/or keep Coverity from reporting the issues.  Also fix additional
+    leaks found in the routine Proto_TextContents during code review.
+
+commit bf3a15812b587bc46f79f8ca97253d7a867456d5
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Oct 26 17:29:54 2020 -0700
+
+    Common header file change not directly applicable to open-vm-tools.
+
+commit 646eaa37a982d4f665443b6a017f8d420fc80546
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Oct 26 17:29:54 2020 -0700
+
+    tools: Fix Coverity errors in resolution plugin.
+    
+    Fix multiplication overflow and fgetc usage to avoid Coverity errors.
+
+commit 1548fae0093271462d23bb5d66eb9c2e6521fece
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Oct 26 17:29:54 2020 -0700
+
+    Fix a memory leak in HgfsOplockMonitorFileChange
+    
+    In the error case, "data" was not freed.
+
+commit 2bb9aab991f787cf07941d6c76812c089ea830ab
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Oct 26 17:29:54 2020 -0700
+
+    Common header file change not directly applicable to open-vm-tools.
+
+commit 90aeb31d98be541fdd2324e97160cef7abad93cf
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Oct 26 17:29:54 2020 -0700
+
+    Terminology cleanup
+
+commit 23e7479ca368d392395499a3db192c97112a156c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Oct 26 17:29:54 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 8bc0c0b8e3274cbfacb4ab1ace1a1fb644b66c64
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Oct 26 17:29:54 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 26fc16779ffbce1833ea90d1d5efdba83708bb87
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Oct 26 17:29:54 2020 -0700
+
+    Update vm_basic_types.h for apple silicon
+    
+    Apple silicon compilers will define __arm64__ as their
+    name for their new CPU. But they also define __aarch64__ which
+    existing 64-bit ARM CPUs use.  Add a little bit of logic
+    to enforce and document this.
+
+commit f73fa790abde3fe385cca37ed8583073eea36b7f
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Oct 26 17:29:54 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit b924451d819b646f2c25b873682c35937856dd1e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Oct 26 17:29:53 2020 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 75aabacdb096aa39252a14cf9ecbb11d7539369b
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Oct 26 17:29:53 2020 -0700
+
+    [GlobalConf] Support for vmusr service to load Global Configuration.
+    
+    Currently, the vmsvc service periodically downloads the Global Configuration
+    from the GuestStore and applies the downloaded configuration.  'vmusr'
+    service doesn't have the support.  In this changeset, made the changes
+    for both vmusr and vmsvc services to periodically check and apply
+    the changes.
+    
+    To keep thing simple and easy, the new approach is check the
+    modification time every time the regular tools conf is read and if
+    changes are detected, the configuration is applied.  With this new approach,
+    signalling mechanism is not needed and that code is removed.
+    
+    vmsvc:
+    * Starts a background thread which periodically fetches the global
+    configuration from the GuestStore.
+    
+    vmusr:
+    * No background thread is created. But checks and loads the configuration
+    everytime the regular tools.conf is checked.
+
+commit 00531302d7e56bddaa037e5e4ae006135a34cca8
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Oct 26 17:29:53 2020 -0700
+
+    Check in tools gdp plugin OVT installer code.
+
+commit d3ed2aebcb5b33581ad49f85e41e6fa0eca98738
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Oct 16 21:03:23 2020 -0700
+
+    Get the latest README.md from the stable-11.1.x branch
+
 commit eae2394df5fc0856c4bc4133c569e13f5e327efb
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Tue Oct 6 14:30:56 2020 -0700
