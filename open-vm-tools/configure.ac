@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2007-2020 VMware, Inc.  All rights reserved.
+### Copyright (c) 2007-2020 VMware, Inc.  All rights reserved.
 ###
 ### Configure script for building the VMware OSS Tools.
 ###
@@ -1626,6 +1626,7 @@ AC_CONFIG_FILES([                      \
    services/Makefile                   \
    services/vmtoolsd/Makefile          \
    services/plugins/Makefile           \
+   services/plugins/gdp/Makefile       \
    services/plugins/appInfo/Makefile   \
    services/plugins/serviceDiscovery/Makefile   \
    services/plugins/desktopEvents/Makefile \
