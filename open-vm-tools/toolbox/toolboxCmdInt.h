@@ -151,4 +151,8 @@ DECLARE_COMMAND(Config);
 DECLARE_COMMAND(Upgrade);
 #endif
 
+#if defined(_WIN32)
+DECLARE_COMMAND(GlobalConf)
+#endif
+
 #endif /*_TOOLBOX_CMD_H_*/
