@@ -892,8 +892,8 @@ Atomic_ReadWrite32(Atomic_uint32 *var, // IN/OUT
 {
 #if defined __GNUC__
 #ifdef VM_ARM_V7
-   register volatile uint32 retVal;
-   register volatile uint32 res;
+   uint32 retVal;
+   uint32 res;
 
    dmb();
 
@@ -1037,8 +1037,8 @@ Atomic_ReadIfEqualWrite32(Atomic_uint32 *var, // IN/OUT
 {
 #if defined __GNUC__
 #ifdef VM_ARM_V7
-   register uint32 retVal;
-   register uint32 res;
+   uint32 retVal;
+   uint32 res;
 
    dmb();
 
@@ -1108,8 +1108,8 @@ Atomic_ReadIfEqualWrite64(Atomic_uint64 *var, // IN/OUT
 {
 #if defined __GNUC__
 #ifdef VM_ARM_V7
-   register uint64 retVal;
-   register uint32 res;
+   uint64 retVal;
+   uint32 res;
 
    dmb();
 
@@ -1198,8 +1198,8 @@ Atomic_And32(Atomic_uint32 *var, // IN/OUT
 {
 #if defined __GNUC__
 #ifdef VM_ARM_V7
-   register volatile uint32 res;
-   register volatile uint32 tmp;
+   uint32 res;
+   uint32 tmp;
 
    dmb();
 
@@ -1257,8 +1257,8 @@ Atomic_Or32(Atomic_uint32 *var, // IN/OUT
 {
 #if defined __GNUC__
 #ifdef VM_ARM_V7
-   register volatile uint32 res;
-   register volatile uint32 tmp;
+   uint32 res;
+   uint32 tmp;
 
    dmb();
 
@@ -1316,8 +1316,8 @@ Atomic_Xor32(Atomic_uint32 *var, // IN/OUT
 {
 #if defined __GNUC__
 #ifdef VM_ARM_V7
-   register volatile uint32 res;
-   register volatile uint32 tmp;
+   uint32 res;
+   uint32 tmp;
 
    dmb();
 
@@ -1417,8 +1417,8 @@ Atomic_Add32(Atomic_uint32 *var, // IN/OUT
 {
 #if defined __GNUC__
 #ifdef VM_ARM_V7
-   register volatile uint32 res;
-   register volatile uint32 tmp;
+   uint32 res;
+   uint32 tmp;
 
    dmb();
 
@@ -1476,8 +1476,8 @@ Atomic_Sub32(Atomic_uint32 *var, // IN/OUT
 {
 #if defined __GNUC__
 #ifdef VM_ARM_V7
-   register volatile uint32 res;
-   register volatile uint32 tmp;
+   uint32 res;
+   uint32 tmp;
 
    dmb();
 
@@ -1763,9 +1763,9 @@ Atomic_ReadAdd32(Atomic_uint32 *var, // IN/OUT
 {
 #if defined __GNUC__
 #ifdef VM_ARM_V7
-   register volatile uint32 res;
-   register volatile uint32 retVal;
-   register volatile uint32 tmp;
+   uint32 res;
+   uint32 retVal;
+   uint32 tmp;
 
    dmb();
 
@@ -2877,8 +2877,8 @@ Atomic_ReadWrite16(Atomic_uint16 *var,  // IN/OUT:
    );
    return val;
 #elif defined VM_ARM_V7
-   register volatile uint16 retVal;
-   register volatile uint16 res;
+   uint16 retVal;
+   uint16 res;
 
    NOT_TESTED();
 
@@ -2987,8 +2987,8 @@ Atomic_ReadIfEqualWrite16(Atomic_uint16 *var,   // IN/OUT
    );
    return val;
 #elif defined VM_ARM_V7
-   register uint16 retVal;
-   register uint16 res;
+   uint16 retVal;
+   uint16 res;
 
    NOT_TESTED();
 
@@ -3047,8 +3047,8 @@ Atomic_And16(Atomic_uint16 *var, // IN/OUT
       : "cc", "memory"
    );
 #elif defined VM_ARM_V7
-   register volatile uint16 res;
-   register volatile uint16 tmp;
+   uint16 res;
+   uint16 tmp;
 
    NOT_TESTED();
 
@@ -3104,8 +3104,8 @@ Atomic_Or16(Atomic_uint16 *var, // IN/OUT
       : "cc", "memory"
    );
 #elif defined VM_ARM_V7
-   register volatile uint16 res;
-   register volatile uint16 tmp;
+   uint16 res;
+   uint16 tmp;
 
    NOT_TESTED();
 
@@ -3161,8 +3161,8 @@ Atomic_Xor16(Atomic_uint16 *var, // IN/OUT
       : "cc", "memory"
    );
 #elif defined VM_ARM_V7
-   register volatile uint16 res;
-   register volatile uint16 tmp;
+   uint16 res;
+   uint16 tmp;
 
    NOT_TESTED();
 
@@ -3218,8 +3218,8 @@ Atomic_Add16(Atomic_uint16 *var, // IN/OUT
       : "cc", "memory"
    );
 #elif defined VM_ARM_V7
-   register volatile uint16 res;
-   register volatile uint16 tmp;
+   uint16 res;
+   uint16 tmp;
 
    NOT_TESTED();
 
@@ -3275,8 +3275,8 @@ Atomic_Sub16(Atomic_uint16 *var, // IN/OUT
       : "cc", "memory"
    );
 #elif defined VM_ARM_V7
-   register volatile uint16 res;
-   register volatile uint16 tmp;
+   uint16 res;
+   uint16 tmp;
 
    NOT_TESTED();
 
@@ -3440,9 +3440,9 @@ Atomic_ReadAdd16(Atomic_uint16 *var,  // IN/OUT
    );
    return val;
 #elif defined VM_ARM_V7
-   register volatile uint16 res;
-   register volatile uint16 retVal;
-   register volatile uint16 tmp;
+   uint16 res;
+   uint16 retVal;
+   uint16 tmp;
 
    NOT_TESTED();
 
