@@ -51,6 +51,7 @@
 #define CONFNAME_DISABLETOOLSVERSION      "disable-tools-version"
 #define CONFNAME_HIDETOOLSVERSION         "hide-tools-version"
 #define CONFNAME_DISABLEPMTIMERWARNING    "disable-pmtimerwarning"
+#define CONFGROUPNAME_VMTOOLS             "vmtools"
 
 /*
  ******************************************************************************
