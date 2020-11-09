@@ -80,6 +80,7 @@
 
 // XXX not necessary except some places include vm_assert.h improperly
 #include "vm_basic_types.h"
+#include <stdarg.h>
 
 #ifdef __cplusplus
 extern "C" {

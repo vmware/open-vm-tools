@@ -169,6 +169,15 @@ Max(int a, int b)
 #define ROUNDUPBITS(x, bits)	(((uintptr_t) (x) + MASK(bits)) & ~MASK(bits))
 #define ROUNDDOWNBITS(x, bits)	((uintptr_t) (x) & ~MASK(bits))
 #define CEILING(x, y)		(((x) + (y) - 1) / (y))
+
+#if defined VMKERNEL || defined VMKBOOT
+# define CEIL(_a, _b)        CEILING(_a, _b)
+# define FLOOR(_a, _b)       ((_a)/(_b))
+# define ALIGN_DOWN(_a, _b)  ROUNDDOWN(_a, _b)
+# define ALIGN_UP(_a, _b)    ROUNDUP(_a, _b)
+# define IS_ALIGNED(_a, _b)  (ALIGN_DOWN(_a, _b) == _a)
+#endif
+
 #if defined __APPLE__
 #include <machine/param.h>
 #undef MASK
