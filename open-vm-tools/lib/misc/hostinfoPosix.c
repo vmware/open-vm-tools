@@ -3722,6 +3722,35 @@ Hostinfo_GetHardwareModel(void)
 {
    return HostinfoGetSysctlStringAlloc("hw.model");
 }
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Hostinfo_ProcessIsRosetta --
+ *
+ *      Checks if the current process is running as a translated binary.
+ *
+ * Results:
+ *      0 for a native process, 1 for a translated process,
+ *      and -1 when an error occurs.
+ *
+ * Side effects:
+ *      None
+ *----------------------------------------------------------------------
+ */
+
+int
+Hostinfo_ProcessIsRosetta(void)
+{
+   int ret = 0;
+   size_t size = sizeof ret;
+
+   if (sysctlbyname("sysctl.proc_translated", &ret, &size, NULL, 0) == -1) {
+      return errno == ENOENT ? 0 : -1;
+   }
+   return ret;
+}
 #endif /* __APPLE__ */
 
 

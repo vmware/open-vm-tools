@@ -258,6 +258,7 @@ Bool Hostinfo_GetLoadAverage(uint32 *l);
 #ifdef __APPLE__
 size_t Hostinfo_GetKernelZoneElemSize(char const *name);
 char *Hostinfo_GetHardwareModel(void);
+int Hostinfo_ProcessIsRosetta(void);
 #endif
 
 #if defined(__cplusplus)
