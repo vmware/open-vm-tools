@@ -376,7 +376,6 @@
 
 #   define VMWARE_MODULE_NAME "/dev/vmmon"
 #   define VMWARE_CONFIG PRODUCT_GENERIC_NAME_LOWER "-config.pl"
-#   define VMWARE_CONNECT_SOCKET_DIRECTORY "/var/run/" PRODUCT_GENERIC_NAME_LOWER
 
 #else
 
