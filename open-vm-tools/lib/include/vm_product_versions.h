@@ -237,6 +237,11 @@
 #define VPXD_VDB_DB_VERSION_ID            701
 #define VPXD_VDB_DB_VERSION_VALUE         "VirtualCenter Database 7.0"
 
+/*
+ * OSM Release Version for OSS/TP usage tracking and ticket filing
+ */
+#define VPX_OSM_VERSION "latest"
+
 // Virtual Appliance Patch Version Number
 // This is the last component of the VCSA w.x.y.z version number
 // While patching / minor update this number is used by VCSA
