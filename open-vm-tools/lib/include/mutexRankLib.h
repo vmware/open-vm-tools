@@ -81,10 +81,10 @@ extern "C" {
  * (must be > vigor and < filtlib, see PR 2613901)
  * Inbox filters may need to use lock ranks and these filters can be loaded
  * under Vigor-Offline. Therefore, any lock used by a filter in its callbacks
- * should have a rank greater than RANK_vigorOfflineLock. Moreover, filter lock
- * ranks should be lower than RANK_filtLibPollLock because these filters use
- * VMIOF APIs and an API like "VMIOF_TimerAdd" which holds RANK_filtLibPollLock,
- * cannot be invoked while holding a filter lock.
+ * should have a rank greater than RANK_vigorOfflineLock. IO filter lock ranks
+ * should also be lower than RANK_filtLibPollLock because this allows
+ * VMIOF/filtlib APIs that hold filtLibPollLock to be invoked while holding an
+ * IO filter lock.
  */
 #define RANK_ioFiltersBase            (RANK_libLockBase + 0x4420)
 
