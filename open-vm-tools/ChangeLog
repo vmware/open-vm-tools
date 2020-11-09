@@ -1,3 +1,166 @@
+commit d37e545258fe051acba22d728aa3d2b2232e0710
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Nov 9 12:29:03 2020 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 4b09058fb66e07b2545d779e5aee80e18c02e6ed
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Nov 9 12:29:03 2020 -0800
+
+    JSON escape a UTF8 string, plus a general purpose routine.
+    
+    Provide a JSON escape routine working with UTF8 built on
+    top of a general purpose escape routine.
+
+commit 1ef815ffcbced6cb22cd7ecf84ee6ca23e20da2a
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Nov 9 12:29:03 2020 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 381f8471434b84af40733a60163810734b437b4b
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Nov 9 12:29:03 2020 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit e51d9ca883dc892c126ba231ece82d2cc87898e7
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Nov 9 12:29:03 2020 -0800
+
+    Misc cleanup of "xferlogs" utility.
+    
+    Update the xferlogs usage message to include a 'upd' option, and use
+    glib to parse and print usage.  Remove the dependency on the vmtools
+    library.
+
+commit 330eb4025c26305e85fc5603dba88cefed261778
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Nov 9 12:29:03 2020 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 3cb3c6735d9f90b777765b93b93587ffe1db3a9a
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Nov 9 12:29:03 2020 -0800
+
+    Common header file change not directly applicable to open-vm-tools.
+
+commit 263fd9cf2c07cf20214a51427b6a9afb14ed0c2b
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Nov 9 12:29:03 2020 -0800
+
+    Common header file change not appplicable to open-vm-tools.
+
+commit 6cbd023665f07949526f7985d36d15739cf8ca90
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Nov 9 12:29:03 2020 -0800
+
+    Common header file change not directly applicable to open-vm-tools.
+
+commit f775ee10e6be1714b7fc3cf79037fdca6916a689
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Nov 9 12:29:03 2020 -0800
+
+    Service Discovrey: Fix a task thread and child process deadlock.
+    
+    Correct argument order in a warning message.
+
+commit 4f127053603aeffe722a9441f51529d1819cd658
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Nov 9 12:29:03 2020 -0800
+
+    vm_assert.h: Document usage patterns where they're easy to find.
+    
+    This is a formatting and comment change.
+
+commit 85004da3412c57a5ca40b6b4b4a087fe4a3e6591
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Nov 9 12:29:03 2020 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 807af42f5574a933d7e45c627e2537f1137c1e47
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Nov 9 12:29:03 2020 -0800
+
+    Common source file change not applicable to open-vm-tools.
+
+commit dc029b6a3b3e269a13a3a52142411e38ed5e163e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Nov 9 12:29:03 2020 -0800
+
+    Common header file change not directly applicable to open-vm-tools.
+
+commit 4dff6fd60f99d79c5fa8739e19c82c8bef21dcab
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Nov 9 12:29:03 2020 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 5f7df88d6bd7d3621a241cb0267b6523d28f9311
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Nov 9 12:29:03 2020 -0800
+
+    Changes to common header files not applicable to open-vm-tools.
+
+commit 004f1603ef72cd4baeb713b1d10ec67490777d5f
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Nov 9 12:29:03 2020 -0800
+
+    Add a usage message for the "checkvm" utility.
+    
+    This change alters the functionality of the -h option to print a
+    usage message by using glib options.  The previous functionality of -h
+    was to print hardware version, which prints invalid results.  This
+    change also removes a repeated header file and removes the -r option
+    which prints invalid results.
+
+commit 2614ce5bbf473c3df03f35d68cd8eceee8dbbf98
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Nov 9 12:29:03 2020 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit c27a6eac336305d36ee2fba7c192e5d0ea4bf0e4
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Nov 9 12:29:03 2020 -0800
+
+    Change the default Unicode error errno.
+    
+    In times long past, EINVAL was chosen for the errno returned when a
+    Unicode problem was detected.  This overloads EINVAL, particularly when
+    using POSIX system calls.  Unfortunately, the overloading makes it very
+    difficult to recover from some errors as there is no way to know the
+    difference between a "real" EINVAL and a Unicode problem EINVAL.
+    
+    Over 10 years of data shows that we *RARELY* encounter Unicode errors.
+    Inspecting the source base shows the code segments that do check for
+    errno after an error either:
+    
+    1) Post the errno value and die.
+    2) Have switch handle cases but also have a default catcher.
+    3) Have an if/else waterfall with a final else.
+    
+    Another observation is that Unicode routines are not involved with
+    anything that would return a math related errno (e.g. ERANGE, EDOM).
+    
+    Changing the value of UNICODE_CONVERSION_ERRNO to ERANGE and avoid
+    any overloading.
+
+commit d35ef560247e7f0bd798ae45646eeaee38d3a12b
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Nov 9 12:29:03 2020 -0800
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit e47338fd721f3393823d778e487ee3c937594311
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Nov 9 12:29:02 2020 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
 commit d6ba5ae8996e44e52c9ee967c6d44036fa2eba92
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Mon Oct 26 17:29:55 2020 -0700
