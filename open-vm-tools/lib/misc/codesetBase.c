@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -56,6 +56,7 @@ CodeSet_GetUtf8(const char *string,  // IN: string
    uint8 *e;
    uint32 c;
    int len;
+
    ASSERT(string < end);
 
    c = *p;
@@ -66,24 +67,24 @@ CodeSet_GetUtf8(const char *string,  // IN: string
       goto out;
    }
 
-   if ((c < 0xc2) || (c > 0xf4)) {
-      // 0x81 to 0xbf are not valid first bytes
-      // 0xc0 and 0xc1 cannot appear in UTF-8, see below
-      // leading char can not be > 0xf4, illegal as well
+   if ((c < 0xC2) || (c > 0xF4)) {
+      // 0x81 to 0xBF are not valid first bytes
+      // 0xC0 and 0xC1 cannot appear in UTF-8, see below
+      // leading char cannot be > 0xF4, illegal as well
       return 0;
    }
 
-   if (c < 0xe0) {
+   if (c < 0xE0) {
       // U+0080 - U+07FF: 2 bytes of UTF-8.
-      c -= 0xc0;
+      c -= 0xC0;
       len = 2;
-   } else if (c < 0xf0) {
+   } else if (c < 0xF0) {
       // U+0800 - U+FFFF: 3 bytes of UTF-8.
-      c -= 0xe0;
+      c -= 0xE0;
       len = 3;
    } else {
       // U+10000 - U+10FFFF: 4 bytes of UTF-8.
-      c -= 0xf0;
+      c -= 0xF0;
       len = 4;
    }
 
@@ -93,7 +94,7 @@ CodeSet_GetUtf8(const char *string,  // IN: string
    }
 
    while (++p < e) {
-      if ((*p & 0xc0) != 0x80) {
+      if ((*p & 0xC0) != 0x80) {
          // bad trailing byte
          return 0;
       }
@@ -109,7 +110,7 @@ CodeSet_GetUtf8(const char *string,  // IN: string
     * termination.
     *
     * This test does not work for len == 2, but that case is handled
-    * by requiring the first byte to be 0xc2 or greater (see above).
+    * by requiring the first byte to be 0xC2 or greater (see above).
     */
 
    if (c < 1U << (len * 5 - 4)) {
@@ -152,7 +153,7 @@ CodeSet_LengthInCodePoints(const char *utf8)  // IN:
    char *end;
    uint32 codePoints = 0;
 
-   ASSERT(utf8);
+   ASSERT(utf8 != NULL);
 
    p = (char *) utf8;
    end = p + strlen(utf8);
@@ -190,13 +191,13 @@ CodeSet_LengthInCodePoints(const char *utf8)  // IN:
  */
 
 int
-CodeSet_CodePointOffsetToByteOffset(const char *utf8,    // IN
-                                    int codePointOffset) // IN
+CodeSet_CodePointOffsetToByteOffset(const char *utf8,    // IN:
+                                    int codePointOffset) // IN:
 {
    const char *p;
    const char *end;
 
-   ASSERT(utf8);
+   ASSERT(utf8 != NULL);
 
    p = utf8;
    end = p + strlen(utf8);
@@ -248,7 +249,7 @@ CodeSet_UTF8ToUTF32(const char *utf8,  // IN:
    uint32 *ptr;
    int codePoints;
 
-   ASSERT(utf32);
+   ASSERT(utf32 != NULL);
 
    if (utf8 == NULL) {  // NULL is not an error
       *utf32 = NULL;
@@ -311,7 +312,7 @@ CodeSet_UTF32ToUTF8(const char *utf32,  // IN:
       uint8   bytes[4];
    } value;
 
-   ASSERT(utf8);
+   ASSERT(utf8 != NULL);
 
    if (utf32 == NULL) {  // NULL is not an error
       *utf8 = NULL;
@@ -390,4 +391,3 @@ CodeSet_UTF32ToUTF8(const char *utf32,  // IN:
 
    return TRUE;
 }
-
