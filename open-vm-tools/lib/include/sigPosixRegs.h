@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2017,2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -39,7 +39,7 @@ extern "C" {
 #if __linux__         // We need the REG_foo offsets in the gregset_t;
 #  define _GNU_SOURCE // _GNU_SOURCE maps to __USE_GNU
 
-/* And, the REG_foo definitions conflict with our own in x86.h */
+/* And, the REG_foo definitions conflict with our own in x86/regname_arch.h */
 #  if defined(__x86_64__)
 #    define REG_RAX GNU_REG_RAX
 #    define REG_RBX GNU_REG_RBX
