@@ -193,6 +193,9 @@ extern "C" {
 #define RANK_usbArbLibAsockLock      (RANK_libLockBase + 0x6507)
 #define RANK_usbEnumBackendLock      (RANK_libLockBase + 0x6508)
 #define RANK_sensorQueueLock         (RANK_libLockBase + 0x6509)
+#define RANK_ccidListLock            (RANK_libLockBase + 0x650A)
+#define RANK_readerLock              (RANK_libLockBase + 0x650B)
+#define RANK_ccidLock                (RANK_libLockBase + 0x650C)
 
 /*
  * misc locks
