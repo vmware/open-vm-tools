@@ -317,10 +317,17 @@ Log_NewCustomOutput(const char *instanceName,
                     LogCustomMsgFunc *msgFunc,
                     int minLogLevel);
 
+#if defined(VMX86_SERVER)
 LogOutput *
 Log_NewEsxKernelLogOutput(const char *appPrefix,
                           struct Dictionary *params,
                           struct CfgInterface *cfgIf);
+
+LogOutput *
+Log_NewCrxSyslogOutput(const char *appPrefix,
+                       struct Dictionary *params,
+                       struct CfgInterface *cfgIf);
+#endif
 
 Bool
 Log_FreeOutput(LogOutput *toOutput);
