@@ -29,7 +29,7 @@ vmware_xferlogs_LDADD += ../lib/vmSignal/libVmSignal.la
 vmware_xferlogs_LDADD += ../lib/misc/libMisc.la
 vmware_xferlogs_LDADD += ../lib/stubs/libStubs.la
 
-vmware_xferlogs_CPPFLAGS :=
+vmware_xferlogs_CPPFLAGS =
 vmware_xferlogs_CPPFLAGS += @GLIB2_CPPFLAGS@
 
 vmware_xferlogs_SOURCES =
