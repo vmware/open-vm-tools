@@ -44,6 +44,11 @@
 #include "vmware/tools/log.h"
 #include "vmware/tools/utils.h"
 #include "vmware/tools/vmbackup.h"
+
+#if defined(_WIN32)
+#include "vmware/tools/guestStore.h"
+#endif
+
 #if defined(_WIN32)
 #  include "codeset.h"
 #  include "guestStoreClient.h"
@@ -104,6 +109,16 @@ static gboolean gGlobalConfEnabled = FALSE;
 static void
 ToolsCoreCleanup(ToolsServiceState *state)
 {
+#if defined(_WIN32)
+   if (state->mainService) {
+      /*
+       * Shut down guestStore plugin first to prevent worker threads from being
+       * blocked in client lib synchronous recv() call.
+       */
+      ToolsPluginSvcGuestStore_Shutdown(&state->ctx);
+   }
+#endif
+
    ToolsCorePool_Shutdown(&state->ctx);
    ToolsCore_UnloadPlugins(state);
 #if defined(__linux__)
