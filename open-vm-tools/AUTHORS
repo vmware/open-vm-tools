@@ -68,3 +68,5 @@ Thom Leggett    Propagate new gdk-pixbuf-xlib include location
 Alexey Shabalin Adding vmtools library dependency to deploypkg library.
                 - https://github.com/vmware/open-vm-tools/pull/432
 
+Christian Ehrhardt   Build: fix propagation of libtirpc flags
+                - https://github.com/vmware/open-vm-tools/pull/469

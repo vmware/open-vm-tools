@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2009-2016 VMware, Inc.  All rights reserved.
+### Copyright (c) 2009-2016, 2020 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -22,6 +22,7 @@ libtestPlugin_la_CPPFLAGS =
 libtestPlugin_la_CPPFLAGS += @CUNIT_CPPFLAGS@
 libtestPlugin_la_CPPFLAGS += @GOBJECT_CPPFLAGS@
 libtestPlugin_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
+libtestPlugin_la_CPPFLAGS += @XDR_CPPFLAGS@
 
 libtestPlugin_la_LDFLAGS =
 libtestPlugin_la_LDFLAGS += @PLUGIN_LDFLAGS@
