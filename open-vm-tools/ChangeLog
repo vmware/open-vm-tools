@@ -1,3 +1,167 @@
+commit 735b9639a70429a3f0f50bfbd5bdc506999532c3
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Nov 20 08:37:31 2020 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit fbd4f01c7b0e707aba1a2df045dc76fafac3d3a5
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Nov 20 08:37:31 2020 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 9ea59704795a431c19fafe6e1b4ed4019b601c1c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Nov 20 08:37:31 2020 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 31fc9ee42b23fbcc482a787572a95d602afbec25
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Nov 20 08:37:31 2020 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 52bc97aa454ca2140ea62e6421f56c61d6954cf4
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Nov 20 08:37:30 2020 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit c9fe171752a499a66d76e64c1333373cfa2bd5f4
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Nov 20 08:37:30 2020 -0800
+
+    Update wording of user visible messages to conform to guidelines.
+
+commit b8d8c9f706558372d19edaa8c3a1ad4518960cd9
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Nov 20 08:37:30 2020 -0800
+
+    Common source file change not applicable to open-vm-tools.
+
+commit 2f4cc717102813ffabf8c534e59d690f4af7e669
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Nov 20 08:37:30 2020 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit decf8d536e55aa54ccfb64e39599151725cf4b58
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Nov 20 08:37:30 2020 -0800
+
+    Record use of tools version 11.2.1 for an emergency patch.
+    
+    Update bora/public/vm_tools_version.h with the assignment of
+    version 11.2.1 as a patch for 11.2.0.
+    
+    Also updating 11.2.0 as released and adding the scheduled 11.2.5
+    update relase.
+
+commit 2d51c8c2a7ce103417fb9a85204458099192fa1e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Nov 20 08:37:30 2020 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit de14e31cbd95c3fa847ef4d16dbaebdf97b0be87
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Nov 20 08:37:30 2020 -0800
+
+    Resolving autoreconf warning caused by recently submitted xferlogs change.
+
+commit 242478158e241275a284bcf5e87e26c3585031d7
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Nov 20 08:37:30 2020 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 02b9f17acb8249571b4be15a00f0a7f82d695d4c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Nov 20 08:37:30 2020 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit e82101b0cd6cdaaba8109e6c689f8d6edeb252cd
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Nov 20 08:37:30 2020 -0800
+
+    Fix propagation of libtirpc flags into build of test source.
+    
+    Starting with glibc 2.32, the Linux libc<n>-dev no longer provides
+    the /usr/include/rpc/rpc.h header.  The configure script will detect
+    the availability of the libtirpc package and use the rpc.h header
+    from /usr/include/tirpc/rpc/rpc.h.
+    
+    This fix extends the necessary compilation and linking options to the
+    build of the open-vm-tools services test programs that utilize RPC.
+    
+    Fixes: https://github.com/vmware/open-vm-tools/issues/468
+    Pull Request: https://github.com/vmware/open-vm-tools/pull/469
+
+commit 3c20d288d6b1348ac5625c9b574db1edac16e8d9
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Nov 20 08:37:30 2020 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 8efe182cdfeb85b7fb6b180a526c465714dd89f5
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Nov 20 08:37:30 2020 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 0e83a002e2b0836634bfcbfcff5dd45168cd25c0
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Nov 20 08:37:30 2020 -0800
+
+    Common source file change not applicable to open-vm-tools.
+
+commit bf677ea09702cb9185409dbdd6ca94478dcc7227
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Nov 20 08:37:30 2020 -0800
+
+    Replace g_key_file() usage in the Vix plugin with VMTools functions.
+
+commit d8eb9171431f69f818430699bb9ece67b1d39c76
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Nov 20 08:37:30 2020 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 50b718b2462ef24483bc0e3895a752f784eb64a8
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Nov 20 08:37:30 2020 -0800
+
+    Adding localized messages for new toolbox-cmd subcommands in development.
+
+commit 40c55773a03e552ff13bf0982d78962c7c9507a9
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Nov 20 08:37:30 2020 -0800
+
+    Remove the pam_securetty.so reference from the SUSE pam configuration file.
+    
+    The PAM config file for SUSE includes a library that is not necessary.
+    This changeset removes the unnecessary library per KB 78521.
+
+commit b40b15bce04fb65641fa469b49627f59fe874a69
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Nov 20 08:37:30 2020 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 4ed052eab5972e7c28ba40302c14e229c9e2cac7
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Nov 20 08:37:30 2020 -0800
+
+    Changes to common header files not directly applicable to open-vm-tools.
+
+commit 24cb1ecb455d9d1e348a2eb2bc7ced692e9f4f6d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Nov 20 08:37:30 2020 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
 commit d37e545258fe051acba22d728aa3d2b2232e0710
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Mon Nov 9 12:29:03 2020 -0800
