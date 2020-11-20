@@ -1,5 +1,5 @@
 ##########################################################
-# Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
+# Copyright (C) 2010-2017,2020 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -98,13 +98,17 @@ help.device = "%1$s: 仮想マシンのハードウェア デバイスに関連�
 
 help.disk = "%1$s: ディスク圧縮操作を実行\n使用方法: %2$s %3$s <サブコマンド> [引数]\n\nサブコマンド:\n   list: 使用可能な場所を一覧表示\n   shrink <場所>: 指定された場所のファイル システムをワイプおよび圧縮\n   shrinkonly: すべてのディスクを圧縮\n   wipe <場所>: 指定された場所のファイル システムをワイプ\n"
 
+help.globalconf = "%1$s: Manage global configuration downloads from the GuestStore\nUsage: %2$s %3$s <subcommand>\n\nESX guests only subcommands:\n   enable: Enable the global configuration module. (Tools service is restarted)\n   disable: Disable the global configuration module (Tools service is restarted)\n   refresh: Trigger a new download of the global configuration from the GuestStore\n   status: Print the status of the global configuration module\n"
+
+help.gueststore = "%1$s: get resource content from GuestStore\nUsage: %2$s %3$s <subcommand>\n\nESX guests only subcommands:\n   getcontent <resource path> <output file>: get resource content from GuestStore and save to output file.\n\n<resource path> starts with / and represents a unique resource in GuestStore.\n<output file> is the path of a file to save resource content to.\n"
+
 help.hint = "詳細については、「%1$s %2$s%3$s%4$s」を参照してください。\n"
 
 help.info = "%1$s: ホストのゲスト情報を更新します\n使用方法: %2$s %3$s update <情報カテゴリ>\n\nサブコマンド:\n   update <情報カテゴリ>: <情報カテゴリ> で特定される情報を更新します\n<情報カテゴリ> には「network」を指定できます\n"
 
 help.logging = "%1$s: Tools ログを変更します\n使用法: %2$s %3$s level <subcommand> <servicename> <level>\n\nサブコマンド:\n   <servicename> の取得: 現在のレベルを表示します\n   <servicename> <level> の設定: 現在のレベルを設定します\n\n<servicename> は、vmsvc や vmusr などサポートされているサービスを指定できます\n<level> は、エラー、クリティカル、警告、情報、メッセージ、デバッグのいずれかを指定できます\n   デフォルトは %4$s です\n"
 
-help.main = "使用方法: %1$s <コマンド> [オプション] [サブコマンド]\n「%2$s %3$s <コマンド>」と入力すると、そのコマンドのヘルプを表示できます。\nVMware Tools のバージョンを確認するには「%4$s -v」と入力します。.\nstdout 出力を抑止するには「-q」オプションを使用します。\nほとんどのコマンドではサブコマンドも使用されます。\n\n使用可能なコマンド: \n   config\n   device\n   disk（オペレーティング システムによっては使用できない場合もあります）\n   info\n   logging\n   script\n   stat\n   timesync\n   upgrade（オペレーティング システムによっては使用できない場合もあります）\n"
+help.main = "使用方法: %1$s <コマンド> [オプション] [サブコマンド]\n「%2$s %3$s <コマンド>」と入力すると、そのコマンドのヘルプを表示できます。\nVMware Tools のバージョンを確認するには「%4$s -v」と入力します。.\nstdout 出力を抑止するには「-q」オプションを使用します。\nほとんどのコマンドではサブコマンドも使用されます。\n\n使用可能なコマンド: \n   config\n   device\n   disk（オペレーティング システムによっては使用できない場合もあります）\n   globalconf (not available on all operating systems)\n   gueststore (not available on all operating systems)\n   info\n   logging\n   script\n   stat\n   timesync\n   upgrade（オペレーティング システムによっては使用できない場合もあります）\n"
 
 help.script = "%1$s: 電源操作に対応して実行されるスクリプトを制御\n使用方法: %2$s %3$s <power|resume|suspend|shutdown> <サブコマンド> [引数]\n\nサブコマンド:\n   enable: 指定されたスクリプトを有効にして、そのパスをデフォルトに復元\n   disable: 指定されたスクリプトを無効にする\n   set <フル パス>: 指定されたスクリプトを指定されたパスに設定\n   default: 指定されたスクリプトのデフォルトのパスを出力\n   current: 指定されたスクリプトの現在のパスを出力\n"
 
@@ -114,9 +118,27 @@ help.timesync = "%1$s: ゲスト OS の時刻の同期を制御するための�
 
 help.upgrade = "%1$s: VMware Tools のアップグレードに関連する機能。\n使用方法: %2$s %3$s <サブコマンド> [引数]\nサブコマンド:\n   status： VMware Tools のアップグレード ステータスを確認\n   start: VMware Tools の自動アップグレードを開始\n\nアップグレードが機能するには、VMware Tools サービスを実行している必要があります。\n"
 
+globalconf.start_vmtools = "%1$s: Starting the %2$s service.\n"
+
+globalconf.status = "The status of globalconf module is '%1$s'\n"
+
+globalconf.stop_vmtools = "%1$s: Stopping the %2$s service.\n"
+
+globalconf.update_config = "%1$s: Updating the Configuration.\n"
+
+gueststore.content_size = "Content size in bytes: "
+
+gueststore.error.client_lib = "'%1$s' failed, GuestStore client library error: %2$s.\n"
+
+gueststore.progress = "\rProgress: %1$d%%"
+
 option.disabled = "無効"
 
 option.enabled = "有効"
+
+result.error.failed = "'%1$s' failed, check %2$s log for more information.\n"
+
+result.succeeded = "'%1$s' succeeded.\n"
 
 script.notfound = "%1$s は存在しません。\n"
 
