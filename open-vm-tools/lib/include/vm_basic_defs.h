@@ -647,6 +647,12 @@ typedef int pid_t;
 #define HOSTED_ONLY(x) x
 #endif
 
+#ifdef VMX86_ESXIO
+#define vmx86_esxio      1
+#else
+#define vmx86_esxio      0
+#endif
+
 #ifdef VMKERNEL
 #define vmkernel 1
 #define VMKERNEL_ONLY(x) x
