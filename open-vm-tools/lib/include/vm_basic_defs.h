@@ -236,7 +236,7 @@ Max(int a, int b)
  * Page operations
  *
  * It has been suggested that these definitions belong elsewhere
- * (like x86types.h).  However, I deem them common enough
+ * (like cpu_types.h).  However, I deem them common enough
  * (since even regular user-level programs may want to do
  * page-based memory manipulation) to be here.
  * -- edward
