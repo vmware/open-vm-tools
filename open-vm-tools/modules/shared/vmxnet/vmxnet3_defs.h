@@ -780,29 +780,16 @@ typedef struct Vmxnet3_PktSteeringInput {
 
 #pragma pack(push, 1)
 typedef struct Vmxnet3_PktSteeringGeneveInput {
-#ifdef __BIG_ENDIAN_BITFIELD
-   uint32   optionsLength:6;  /* Length of options (in 4 bytes multiple) */
-   uint32   version:2;        /* Geneve protocol version */
-   uint32   reserved1:6;       /* Reserved bits */
-   uint32   criticalOptions:1; /* Critical options present flag */
-   uint32   oamFrame:1;        /* OAM frame flag */
+   uint8   optionsLength:6;  /* Length of options (in 4 bytes multiple) */
+   uint8   version:2;        /* Geneve protocol version */
+   uint8   reserved1:6;       /* Reserved bits */
+   uint8   criticalOptions:1; /* Critical options present flag */
+   uint8   oamFrame:1;        /* OAM frame flag */
    /* Protocol type of the following header using Ethernet type values */
-   uint32   protocolType:16;
+   uint16   protocolType;
 
    uint32   virtualNetworkId:24; /* Virtual network identifier */
    uint32   reserved2:8;         /* Reserved bits */
-#else
-   /* Protocol type of the following header using Ethernet type values */
-   uint32   protocolType:16;
-   uint32   oamFrame:1;        /* OAM frame flag */
-   uint32   criticalOptions:1; /* Critical options present flag */
-   uint32   reserved1:6;       /* Reserved bits */
-   uint32   version:2;        /* Geneve protocol version */
-   uint32   optionsLength:6;  /* Length of options (in 4 bytes multiple) */
-
-   uint32   reserved2:8;         /* Reserved bits */
-   uint32   virtualNetworkId:24; /* Virtual network identifier */
-#endif  /* __BIG_ENDIAN_BITFIELD */
 } Vmxnet3_PktSteeringGeneveInput;
 #pragma pack(pop)
 
