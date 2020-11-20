@@ -155,6 +155,7 @@ extern "C" {
 #define RANK_fsCmdLock               (RANK_libLockBase + 0x5050)
 #define RANK_scsiStateLock           (RANK_libLockBase + 0x5060)
 #define RANK_parInitLock             (RANK_libLockBase + 0x5070)
+#define RANK_datasetsLock            (RANK_libLockBase + 0x5075)
 #define RANK_namespaceLock           (RANK_libLockBase + 0x5080)
 #define RANK_objLibInitLock          (RANK_libLockBase + 0x5085)
 #define RANK_vvolLibLock             (RANK_libLockBase + 0x5090)
