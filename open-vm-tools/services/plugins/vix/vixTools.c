@@ -2735,14 +2735,14 @@ VixTools_GetToolsPropertiesImpl(GKeyFile *confDictRef,            // IN
    packageList = "";
 
    if (confDictRef != NULL) {
-      powerOffScript = g_key_file_get_string(confDictRef, "powerops",
-                                             CONFNAME_POWEROFFSCRIPT, NULL);
-      powerOnScript = g_key_file_get_string(confDictRef, "powerops",
-                                            CONFNAME_POWERONSCRIPT, NULL);
-      resumeScript = g_key_file_get_string(confDictRef, "powerops",
-                                           CONFNAME_RESUMESCRIPT, NULL);
-      suspendScript = g_key_file_get_string(confDictRef, "powerops",
-                                            CONFNAME_SUSPENDSCRIPT, NULL);
+      powerOffScript = VMTools_ConfigGetString(confDictRef, "powerops",
+                                               CONFNAME_POWEROFFSCRIPT, NULL);
+      powerOnScript = VMTools_ConfigGetString(confDictRef, "powerops",
+                                              CONFNAME_POWERONSCRIPT, NULL);
+      resumeScript = VMTools_ConfigGetString(confDictRef, "powerops",
+                                             CONFNAME_RESUMESCRIPT, NULL);
+      suspendScript = VMTools_ConfigGetString(confDictRef, "powerops",
+                                              CONFNAME_SUSPENDSCRIPT, NULL);
    }
 
    tempDir = File_GetSafeRandomTmpDir(TRUE);
@@ -3017,10 +3017,10 @@ VixToolsGetAPIDisabledFromConf(GKeyFile *confDictRef,            // IN
     * per-API configs if its set.
     */
    if (confDictRef != NULL) {
-      disabled = g_key_file_get_boolean(confDictRef,
-                                        VIX_TOOLS_CONFIG_API_GROUPNAME,
-                                        VIX_TOOLS_CONFIG_API_ALL_NAME,
-                                        NULL);
+      disabled = VMTools_ConfigGetBoolean(confDictRef,
+                                          VIX_TOOLS_CONFIG_API_GROUPNAME,
+                                          VIX_TOOLS_CONFIG_API_ALL_NAME,
+                                          FALSE);
       if (disabled) {
          return TRUE;
       }
@@ -3032,10 +3032,10 @@ VixToolsGetAPIDisabledFromConf(GKeyFile *confDictRef,            // IN
    if (NULL != varName) {
       Str_Snprintf(disabledName, sizeof(disabledName), "%s.disabled", varName);
       if (confDictRef != NULL) {
-         disabled = g_key_file_get_boolean(confDictRef,
-                                           VIX_TOOLS_CONFIG_API_GROUPNAME,
-                                           disabledName,
-                                           NULL);
+         disabled = VMTools_ConfigGetBoolean(confDictRef,
+                                             VIX_TOOLS_CONFIG_API_GROUPNAME,
+                                             disabledName,
+                                             FALSE);
       }
    }
 
