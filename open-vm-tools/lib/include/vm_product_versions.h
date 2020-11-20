@@ -249,6 +249,8 @@
 // Changing the version is required when CPD releases an update.
 #define VA_PATCH_VERSION  "5100"
 
+#define HORIZONOSOT_VERSION "1.3.0"
+
 #define INTEGRITY_VERSION "7.0.1" /* Should use VPX_VERSION? */
 #define SVA_VERSION "1.0.0"
 #define SSO_VERSION "1.0.0"
