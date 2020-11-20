@@ -181,6 +181,12 @@ Max(int a, int b)
 #if defined __APPLE__
 #include <machine/param.h>
 #undef MASK
+   #if defined VM_ARM_ANY
+      #include <mach/machine/vm_param.h>
+      #undef PAGE_SHIFT
+      #undef PAGE_SIZE
+      #undef PAGE_MASK
+   #endif
 #endif
 
 /*
@@ -246,7 +252,11 @@ Max(int a, int b)
 #if defined __x86_64__ || defined __i386__
    #define PAGE_SHIFT    12
 #elif defined __APPLE__
-   #define PAGE_SHIFT    12
+   #if defined VM_ARM_ANY
+      #define PAGE_SHIFT    14
+   #else
+      #define PAGE_SHIFT    12
+   #endif
 #elif defined VM_ARM_64
    #define PAGE_SHIFT    12
 #elif defined __arm__
