@@ -1,6 +1,5 @@
 auth     required       pam_shells.so
 auth     requisite      pam_nologin.so
-auth     [user_unknown=ignore success=ok ignore=ignore auth_err=die default=bad]    pam_securetty.so
 auth     include        common-auth
 account  include        common-account
 
