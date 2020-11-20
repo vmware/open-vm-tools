@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016,2018-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016, 2018-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -335,7 +335,7 @@ PowerOpsScriptCallback(GPid pid,
       g_message("Script exit code: %d, success = %d\n",
                 WEXITSTATUS(exitStatus), success);
    } else if (WIFSIGNALED(exitStatus)) {
-      g_message("Script killed by signal: %d, success = %d\n",
+      g_message("Script canceled by signal: %d, success = %d\n",
                 WTERMSIG(exitStatus), success);
    } else if (WIFSTOPPED(exitStatus)) {
       g_message("Script stopped by signal: %d, success = %d\n",
