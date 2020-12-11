@@ -136,7 +136,7 @@
 /**
  * Defines the string used for the GuestStore upgrade config file group.
  */
-#define CONFGROUPNAME_GSUPGRADE "guestStoreUpgrade"
+#define CONFGROUPNAME_GSUPGRADE "gueststoreupgrade"
 
 /**
  * Defines the value for GuestStore upgrade feature to be enabled or not.
