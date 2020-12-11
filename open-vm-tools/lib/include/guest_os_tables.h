@@ -55,7 +55,7 @@ extern "C" {
    GOT(GUEST_OS_WINTEN_64)         /* Windows 10 x64 */                    \
    GOT(GUEST_OS_WIN_2016SRV_64)    /* Windows Server 2016 X64 */           \
    GOT(GUEST_OS_WIN_2019SRV_64)    /* Windows Server 2019 X64 */           \
-   GOT(GUEST_OS_WIN_2019SRVNEXT_64)/* Windows Server 2021 X64 */           \
+   GOT(GUEST_OS_WIN_2022SRV_64)    /* Windows Server 2022 X64 */           \
    GOT(GUEST_OS_HYPER_V)           /* Microsoft Hyper-V */                 \
    GOT(GUEST_OS_OS2)                                                       \
    GOT(GUEST_OS_ECOMSTATION)       /* OS/2 variant; 1.x */                 \
