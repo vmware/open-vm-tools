@@ -53,6 +53,7 @@
 #  include "codeset.h"
 #  include "guestStoreClient.h"
 #  include "globalConfig.h"
+#  include "toolsNotify.h"
 #  include "windowsu.h"
 #else
 #  include "posix.h"
@@ -129,6 +130,9 @@ ToolsCoreCleanup(ToolsServiceState *state)
 #if defined(_WIN32)
    if (state->mainService && GuestStoreClient_DeInit()) {
       g_info("%s: De-initialized GuestStore client.\n", __FUNCTION__);
+   }
+   if (state->mainService && ToolsNotify_End()) {
+      g_info("%s: End Tools notifications.\n", __FUNCTION__);
    }
 #endif
 
@@ -509,6 +513,12 @@ ToolsCoreRunLoop(ToolsServiceState *state)
             g_info("%s: Successfully started tools hang detector",
                    __FUNCTION__);
          }
+#if defined(_WIN32)
+         if (ToolsNotify_Start(&state->ctx)) {
+            g_info("%s: Successfully started tools notifications",
+                   __FUNCTION__);
+         }
+#endif
       }
 
 #if defined(_WIN32)
