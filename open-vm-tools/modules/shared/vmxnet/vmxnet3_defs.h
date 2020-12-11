@@ -78,8 +78,16 @@
 #define VMXNET3_REG_RXPROD   0x800 /* Rx Producer Index for ring 1 */
 #define VMXNET3_REG_RXPROD2  0xA00 /* Rx Producer Index for ring 2 */
 
+/* For Large PT BAR, the following offset to DB register */
+#define VMXNET3_REG_LB_TXPROD   0x1000 /* Tx Producer Index */
+#define VMXNET3_REG_LB_RXPROD   0x1400 /* Rx Producer Index for ring 1 */
+#define VMXNET3_REG_LB_RXPROD2  0x1800 /* Rx Producer Index for ring 2 */
+
 #define VMXNET3_PT_REG_SIZE     4096    /* BAR 0 */
+#define VMXNET3_LARGE_PT_REG_SIZE  8192  /* large PT pages */
 #define VMXNET3_VD_REG_SIZE     4096    /* BAR 1 */
+#define VMXNET3_LARGE_BAR0_REG_SIZE (4096 * 4096)  /* LARGE BAR 0 */
+#define VMXNET3_OOB_REG_SIZE  (4094 * 4096) /* OOB pages */
 
 /*
  * The two Vmxnet3 MMIO Register PCI BARs (BAR 0 at offset 10h and BAR 1 at
@@ -91,6 +99,7 @@
  * VMXNET3_MSIX_BAR_SIZE is defined in "vmxnet3Int.h"
  */
 #define VMXNET3_PHYSMEM_PAGES   4
+#define VMXNET3_PHYSMEM_LB_PAGES 4099 /* 4096 + 1 + 2 */
 
 #define VMXNET3_REG_ALIGN       8  /* All registers are 8-byte aligned. */
 #define VMXNET3_REG_ALIGN_MASK  0x7
@@ -153,6 +162,7 @@ typedef enum {
    VMXNET3_CMD_GET_MAX_QUEUES_CONF,
    VMXNET3_CMD_GET_RSS_HASH_FUNC,
    VMXNET3_CMD_GET_MAX_CAPABILITIES,
+   VMXNET3_CMD_GET_DCR0_REG,
 } Vmxnet3_Cmd;
 
 /* Adaptive Ring Info Flags */
@@ -1118,7 +1128,8 @@ do {\
 #define VMXNET3_CAP_VERSION_6_MAX  VMXNET3_CAP_CRC32_HASH_FUNC
 #define VMXNET3_CAP_OAM_FILTER       14 /* bit 14 of DCR 0 */
 #define VMXNET3_CAP_ESP_QS           15 /* bit 15 of DCR 0 */
-#define VMXNET3_CAP_VERSION_7_MAX    16
+#define VMXNET3_CAP_LARGE_BAR        16 /* bit 16 of DCR 0 */
+#define VMXNET3_CAP_VERSION_7_MAX    17
 /* when new capability is introduced, update VMXNET3_CAP_MAX */
 #define VMXNET3_CAP_MAX              VMXNET3_CAP_VERSION_7_MAX
 
