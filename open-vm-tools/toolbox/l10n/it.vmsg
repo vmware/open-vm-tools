@@ -118,6 +118,8 @@ help.timesync = "%1$s: funzioni per il controllo di sincronizzazione dell'ora su
 
 help.upgrade = "%1$s: funzioni relative all'aggiornamento di VMware Tools.\nUtilizzo: %2$s %3$s <comando secondario> [args]\nComandi secondari:\n   stato: controllare lo stato di aggiornamento di VMware Tools.\n   avvio: avviare un aggiornamento automatico di VMware Tools.\n\nPer il funzionamento degli aggiornamenti, il servizio VMware Tools deve essere in esecuzione.\n"
 
+globalconf.refresh.failed  = "'%1$s' failed, since globalconf module is disabled.\n"
+
 globalconf.start_vmtools = "%1$s: Starting the %2$s service.\n"
 
 globalconf.status = "The status of globalconf module is '%1$s'\n"

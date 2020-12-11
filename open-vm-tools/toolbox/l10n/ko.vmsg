@@ -118,6 +118,8 @@ help.timesync = "%1$s: 게스트 OS의 시간 동기화 제어 기능\n사용법
 
 help.upgrade = "%1$s: VMware Tools 업그레이드와 관련된 기능입니다.\n사용법: %2$s %3$s <하위 명령> [인수]\n하위 명령:\n   status: VMware Tools 업그레이드 상태를 확인합니다.\n   start: VMware Tools의 자동 업그레이드를 시작합니다.\n\n업그레이드가 수행되려면 VMware Tools 서비스가 실행되어야 합니다.\n"
 
+globalconf.refresh.failed  = "'%1$s' failed, since globalconf module is disabled.\n"
+
 globalconf.start_vmtools = "%1$s: Starting the %2$s service.\n"
 
 globalconf.status = "The status of globalconf module is '%1$s'\n"

@@ -118,6 +118,8 @@ help.timesync = "%1$s: 用于控制来宾操作系统上的时间同步的功能
 
 help.upgrade = "%1$s: 与升级 VMware Tools 相关的功能。\n用法: %2$s %3$s <子命令> [参数]\n子命令:\n   status: 检查 VMware Tools 升级状态。\n   start: 启动 VMware Tools 自动升级。\n\n要使升级正常进行，需要运行 VMware Tools 服务。\n"
 
+globalconf.refresh.failed  = "'%1$s' failed, since globalconf module is disabled.\n"
+
 globalconf.start_vmtools = "%1$s: Starting the %2$s service.\n"
 
 globalconf.status = "The status of globalconf module is '%1$s'\n"
