@@ -229,6 +229,14 @@ ToolsCore_LogState(guint level,
 #define TOOLS_CORE_PROP_CTX "tcs_app_ctx"
 
 /**
+ * Event signaled when VMTools discovers a newer version is available.
+ *
+ * Name of the event that can be set to the notification event to
+ * indicate a new version of tools is available for install or upgrade.
+ */
+#define TOOLS_CORE_EVENTS_TOOLS_NEW_VERSION "VMToolsNewVersion"
+
+/**
  * Event signaled when VMTools requires a system restart to complete an install.
  *
  * Name of the event that can be set to the notification event to
