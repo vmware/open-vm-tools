@@ -1298,12 +1298,12 @@ GuestInfoSendDiskInfoV1(ToolsAppCtx *ctx,             // IN
                          b64name,
                          pdi->partitionList[i].freeBytes,
                          pdi->partitionList[i].totalBytes);
+      g_free(b64name);
       if (len <= 0) {
          goto exit;
       }
 
       DynBuf_Append(&dynBuffer, tmpBuf, len);
-      g_free(b64name);
 
       if (pdi->partitionList[i].fsType[0] != '\0') {
          len = Str_Snprintf(tmpBuf, sizeof tmpBuf, jsonPerDiskFsTypeFmt,
