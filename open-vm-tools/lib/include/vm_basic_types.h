@@ -146,6 +146,13 @@
 #define vm_arm_64 0
 #endif
 
+#if defined(__APPLE__) && defined(VM_ARM_64)
+#define VM_MAC_ARM
+#define vm_mac_arm 1
+#else
+#define vm_mac_arm 0
+#endif
+
 #define vm_64bit (sizeof (void *) == 8)
 
 #ifdef _MSC_VER
