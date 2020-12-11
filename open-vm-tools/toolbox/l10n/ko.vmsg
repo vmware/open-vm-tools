@@ -1,5 +1,5 @@
 ##########################################################
-# Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
+# Copyright (C) 2010-2017,2020 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -98,13 +98,17 @@ help.device = "%1$s: 가상 시스템의 하드웨어 디바이스와 관련된 
 
 help.disk = "%1$s: 디스크 축소 작업을 수행합니다.\n사용법: %2$s %3$s <하위명령> [인수]\n\n하위 명령:\n   list: 사용 가능한 위치를 나열합니다.\n   shrink <위치>: 지정된 위치에서 파일 시스템을 지우고 축소합니다.\n   shrinkonly: 모든 디스크를 축소합니다.\n   wipe <위치>: 지정된 위치에서 파일 시스템을 지웁니다.\n"
 
+help.globalconf = "%1$s: Manage global configuration downloads from the GuestStore\nUsage: %2$s %3$s <subcommand>\n\nESX guests only subcommands:\n   enable: Enable the global configuration module. (Tools service is restarted)\n   disable: Disable the global configuration module (Tools service is restarted)\n   refresh: Trigger a new download of the global configuration from the GuestStore\n   status: Print the status of the global configuration module\n"
+
+help.gueststore = "%1$s: get resource content from GuestStore\nUsage: %2$s %3$s <subcommand>\n\nESX guests only subcommands:\n   getcontent <resource path> <output file>: get resource content from GuestStore and save to output file.\n\n<resource path> starts with / and represents a unique resource in GuestStore.\n<output file> is the path of a file to save resource content to.\n"
+
 help.hint = "자세한 내용을 보려면 '%1$s %2$s%3$s%4$s'을(를) 시도해 보십시오.\n"
 
 help.info = "%1$s: 호스트에서 게스트 정보 업데이트\n사용법: %2$s %3$s 업데이트 <정보 클래스>\n\n하위 명령:\n   update <정보 클래스>: <정보 클래스>에서 식별한 정보 업데이트\n<정보 클래스>는 '네트워크'일 수 있음\n"
 
 help.logging = "%1$s: 도구 로깅 수정\n사용: %2$s %3$s 수준 <subcommand> <servicename> <level>\n\n하위 명령:\n   <servicename> 가져오기: 현재 수준 표시\n   <servicename> <level> 설정: 현재 수준 설정\n\n<servicename>은 vmsvc 또는 vmusr과 같은 지원 서비스일 수 있습니다.\n<level>은 오류, 중요, 경고, 정보, 메시지, 디버그 중 하나일 수 있습니다.\n   기본값은 %4$s입니다.\n"
 
-help.main = "사용법: %1$s <명령> [옵션] [하위 명령]\n특정 명령에 대한 도움말을 보려면 '%2$s %3$s <명령>'을 입력하십시오.\nVMware Tools 버전을 확인하려면 '%4$s -v'를 입력하십시오.\nstdout 출력을 표시하지 않으려면 '-q' 옵션을 사용하십시오.\n대부분의 명령에 하위 명령이 사용됩니다.\n\n사용 가능한 명령:\n   config\n   device\n   disk(일부 운영 체제에서만 사용할 수 있음)\n   info\n   logging\n   script\n   stat\n   timesync\n   upgrade(일부 운영 체제에서만 사용할 수 있음)\n"
+help.main = "사용법: %1$s <명령> [옵션] [하위 명령]\n특정 명령에 대한 도움말을 보려면 '%2$s %3$s <명령>'을 입력하십시오.\nVMware Tools 버전을 확인하려면 '%4$s -v'를 입력하십시오.\nstdout 출력을 표시하지 않으려면 '-q' 옵션을 사용하십시오.\n대부분의 명령에 하위 명령이 사용됩니다.\n\n사용 가능한 명령:\n   config\n   device\n   disk(일부 운영 체제에서만 사용할 수 있음)\n   globalconf (not available on all operating systems)\n   gueststore (not available on all operating systems)\n   info\n   logging\n   script\n   stat\n   timesync\n   upgrade(일부 운영 체제에서만 사용할 수 있음)\n"
 
 help.script = "%1$s: 전원 작업에 대한 응답으로 실행되는 스크립트를 제어합니다.\n사용법: %2$s %3$s <power|resume|suspend|shutdown> <하위 명령> [인수]\n\n하위 명령:\n   enable: 지정된 스크립트가 사용되도록 설정하고 해당 경로를 기본값으로 복원합니다.\n   disable: 지정된 스크립트가 사용되지 않도록 설정합니다.\n   set <전체 경로>: 지정된 스크립트를 지정된 경로로 설정합니다.\n   default: 지정된 스크립트의 기본 경로를 출력합니다.\n   current: 지정된 스크립트의 현재 경로를 출력합니다.\n"
 
@@ -114,9 +118,27 @@ help.timesync = "%1$s: 게스트 OS의 시간 동기화 제어 기능\n사용법
 
 help.upgrade = "%1$s: VMware Tools 업그레이드와 관련된 기능입니다.\n사용법: %2$s %3$s <하위 명령> [인수]\n하위 명령:\n   status: VMware Tools 업그레이드 상태를 확인합니다.\n   start: VMware Tools의 자동 업그레이드를 시작합니다.\n\n업그레이드가 수행되려면 VMware Tools 서비스가 실행되어야 합니다.\n"
 
+globalconf.start_vmtools = "%1$s: Starting the %2$s service.\n"
+
+globalconf.status = "The status of globalconf module is '%1$s'\n"
+
+globalconf.stop_vmtools = "%1$s: Stopping the %2$s service.\n"
+
+globalconf.update_config = "%1$s: Updating the Configuration.\n"
+
+gueststore.content_size = "Content size in bytes: "
+
+gueststore.error.client_lib = "'%1$s' failed, GuestStore client library error: %2$s.\n"
+
+gueststore.progress = "\rProgress: %1$d%%"
+
 option.disabled = "사용 안 함"
 
 option.enabled = "사용"
+
+result.error.failed = "'%1$s' failed, check %2$s log for more information.\n"
+
+result.succeeded = "'%1$s' succeeded.\n"
 
 script.notfound = "%1$s이(가) 없습니다.\n"
 
