@@ -513,7 +513,6 @@ typedef uint64    PageNum;
 typedef unsigned  MemHandle;
 typedef unsigned  IoHandle;
 typedef int32     World_ID;
-typedef uint64    VSCSI_HandleID;
 
 /* !! do not alter the definition of INVALID_WORLD_ID without ensuring
  * that the values defined in both bora/public/vm_basic_types.h and
