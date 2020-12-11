@@ -569,6 +569,7 @@ FLAG(   7,  0, EDX, 14,  1, SERIALIZE,                           NO,    0 ) \
 FLAG(   7,  0, EDX, 15,  1, HYBRID,                              NO,    0 ) \
 FLAG(   7,  0, EDX, 16,  1, TSXLDTRK,                            NO,    0 ) \
 FLAG(   7,  0, EDX, 18,  1, PCONFIG,                             NO,    0 ) \
+FLAG(   7,  0, EDX, 19,  1, ARCH_LBR,                            NO,    0 ) \
 FLAG(   7,  0, EDX, 20,  1, CET_IBT,                             NO,    0 ) \
 FLAG(   7,  0, EDX, 22,  1, AMX_BF16,                            NO,    0 ) \
 FLAG(   7,  0, EDX, 23,  1, AVX512FP16,                          NO,    0 ) \
