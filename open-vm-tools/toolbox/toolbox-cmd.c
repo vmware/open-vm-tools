@@ -39,6 +39,7 @@
 #include "vmware/tools/utils.h"
 #if defined(_WIN32)
 #include "vmware/tools/win32util.h"
+#include "globalConfig.h"
 #endif
 
 #include "vm_version.h"
@@ -466,6 +467,17 @@ main(int argc,    // IN: length of command line arguments
 
    setlocale(LC_ALL, "");
    VMTools_LoadConfig(NULL, G_KEY_FILE_NONE, &conf, NULL);
+
+#if defined(_WIN32)
+   if (GlobalConfig_GetEnabled(conf)) {
+      GKeyFile *globalConf = NULL;
+      if (GlobalConfig_LoadConfig(&globalConf, NULL)) {
+         VMTools_AddConfig(globalConf, conf);
+         g_key_file_free(globalConf);
+      }
+   }
+#endif
+
    VMTools_ConfigLogging("toolboxcmd", conf, FALSE, FALSE);
    VMTools_BindTextDomain(VMW_TEXT_DOMAIN, NULL, NULL);
 

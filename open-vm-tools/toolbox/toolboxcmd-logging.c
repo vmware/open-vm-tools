@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2015-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2015-2016,2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -38,6 +38,9 @@
 
 #include "conf.h"
 #include "toolboxCmdInt.h"
+#if defined(_WIN32)
+#include "globalConfig.h"
+#endif
 #include "vmware/tools/i18n.h"
 #include "vmware/tools/utils.h"
 #include "vmware/tools/log.h"
@@ -164,6 +167,16 @@ LoggingGetLevel(char *service)         // service
       confDict = g_key_file_new();
    }
 
+#if defined(_WIN32)
+   if (GlobalConfig_GetEnabled(confDict)) {
+      GKeyFile *globalConf = NULL;
+      if (GlobalConfig_LoadConfig(&globalConf, NULL)) {
+         VMTools_AddConfig(globalConf, confDict);
+         g_key_file_free(globalConf);
+      }
+   }
+#endif
+
    confName = g_strdup_printf("%s.level", service);
 
    level = g_key_file_get_string(confDict, LOGGING_CONF_SECTION,
@@ -277,6 +290,8 @@ Logging_Help(const char *progName, // IN: The name of the program obtained from 
                "Usage: %s %s level <subcommand> <servicename> <level>\n\n"
                "Subcommands:\n"
                "   get <servicename>: display current level\n"
+               "   NOTE: If the level is not present in tools.conf, its\n"
+               "   value from the global configuration is returned if present\n"
                "   set <servicename> <level>: set current level\n\n"
                "<servicename> can be any supported service, such as vmsvc or vmusr\n"
                "<level> can be one of error, critical, warning, info, message, debug\n"
