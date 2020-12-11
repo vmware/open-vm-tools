@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2014-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2014-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1171,7 +1171,7 @@ RecordResolverNS(res_state resp, DnsConfigInfo *dnsConfigInfo) // IN
           * Not all expected nameserver entries were collected
           */
          g_warning(
-            "%s: dns update aborted, index=%d, ns=%d, IPv4=%d, IPv6=%d",
+            "%s: dns update canceled, index=%d, ns=%d, IPv4=%d, IPv6=%d",
             __FUNCTION__,
             i, resp->nscount, nscount4, nscount6);
       }

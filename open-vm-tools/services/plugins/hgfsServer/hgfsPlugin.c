@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1126,7 +1126,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)
                               NULL);      // no rpc callback
 
    if (!HgfsServerManager_Register(mgrData)) {
-      g_warning("HgfsServer_InitState() failed, aborting HGFS server init.\n");
+      g_warning("HgfsServer_InitState() failed, canceling HGFS server init.\n");
       g_free(mgrData);
       return NULL;
    }
