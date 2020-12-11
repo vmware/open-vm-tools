@@ -1,3 +1,135 @@
+commit 816f569db5207ffe321372edf75836eb4cff1992
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Dec 10 19:34:56 2020 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 197124856f619fb303f8bb5f91489c8f6753e0e4
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Dec 10 19:34:56 2020 -0800
+
+    Change to common source file not immediately applicable to open-vm-tools.
+    
+    GuestStore Upgrade: add settings to the tools.conf file
+    
+    This change adds the GuestStore Upgrade settings to the tools.conf
+    file installed with Tools.
+    
+    Settings are:
+    [gueststoreupgrade]
+    
+     # The guestStoreUpgrade plugin is only available for Windows.
+    
+     # The policy value is one of the settings listed below.
+     # off         = no VMware Tools upgrade from GuestStore. Feature is
+     #               disabled.
+     # manual      = (Default) VMware Tools upgrade from GuestStore is
+     #               manually started.
+     # powercycle  = VMware Tools upgrade from GuestStore on system
+     #               power on.
+    
+     #policy=manual
+    
+     # Time interval for periodically checking available VMware Tools package
+     # version in the GuestStore.
+     # User-defined poll interval in seconds. Set to 0 to disable polling.
+     # Minimum valid value is 900 seconds (15 minutes)
+     # Default value is 3600 seconds (60 minutes)
+     #poll-interval=3600
+    
+     # VMware Tools package version metadata key to specify a VMware Tools
+     # package version in the GuestStore.
+     # User-defined key for VMware Tools package version.
+     # Default value is "vmtools" which points to the latest version of
+     # VMware Tools package in the GuestStore.
+     #vmtools-version-key=vmtools
+
+commit 36519ebbb0c6f14b0d2e56525223938ff4b65595
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Dec 10 19:34:56 2020 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit cad956d8cb6c71f5726fa630602085f90855d56a
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Dec 10 19:34:56 2020 -0800
+
+    Changes to common header files not applicable to open-vm-tools.
+
+commit 6630aeda4ae52007744dbe789e59f0212a5cd818
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Dec 10 19:34:56 2020 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit d70f18262ccf9719f490671d1a2b7b3df57a5336
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Dec 10 19:34:56 2020 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit c504335ff4d11b93d6225a3f68f2faa88fe36f4a
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Dec 10 19:34:56 2020 -0800
+
+    The next Windows Server OS is Windows Server 2022
+    
+    Originally guessed 2021 based on early data, but now Microsoft has
+    provided the official name and date.  Update the internals appropriately.
+    
+    Add some TBD markers as a reminder to update the guest identification
+    code once Windows Server 2022 has an official build number.
+
+commit f5c38172e4d87342ffd8bf6f3f3e498d98705f5e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Dec 10 19:34:56 2020 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 4f55ff374583417645fcf22ceaad8dabbf049f1c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Dec 10 19:34:56 2020 -0800
+
+    Update Mac OS related comments: 10.15->11, 10.16->12
+    
+    Apple changed their naming scheme.
+
+commit d8db55524a278f05671bc60fe3691e9edafd85c3
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Dec 10 19:34:56 2020 -0800
+
+    Changes to common l10n files not applicable to open-vm-tools.
+
+commit c38b77280bc273abc07dccdc46c01fd5b7386e18
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Dec 10 19:34:56 2020 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 7aef446280d018a738d66caafc932f3d5842e43e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Dec 10 19:34:56 2020 -0800
+
+    Changes to toolbox-cmd not immediately applicable to open-vm-tools.
+
+commit f2a099bb3402c5f15c3b2d23e27703fda32974b6
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Dec 10 19:34:56 2020 -0800
+
+    Backout previous header file change not applicable to open-vm-tools.
+
+commit 36ded5ccac2c86e3accbed54e7930a4eb60723d4
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Dec 10 19:34:56 2020 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 526156a867563020c90f681030dd697bbfa527a5
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Dec 10 19:34:56 2020 -0800
+
+    Changes to common l10n files not applicable to open-vm-tools.
+
 commit 735b9639a70429a3f0f50bfbd5bdc506999532c3
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Fri Nov 20 08:37:31 2020 -0800
