@@ -100,7 +100,7 @@ help.disk = "%1$s : effectue les opérations de réduction des disques\nSyntaxe
 
 help.globalconf = "%1$s: Manage global configuration downloads from the GuestStore\nUsage: %2$s %3$s <subcommand>\n\nESX guests only subcommands:\n   enable: Enable the global configuration module. (Tools service is restarted)\n   disable: Disable the global configuration module (Tools service is restarted)\n   refresh: Trigger a new download of the global configuration from the GuestStore\n   status: Print the status of the global configuration module\n"
 
-help.gueststore = "%1$s: get resource content from GuestStore\nUsage: %2$s %3$s <subcommand>\n\nESX guests only subcommands:\n   getcontent <resource path> <output file>: get resource content from GuestStore and save to output file.\n\n<resource path> starts with / and represents a unique resource in GuestStore.\n<output file> is the path of a file to save resource content to.\n"
+help.gueststore = "%1$s: get resource content from GuestStore\nUsage: %2$s %3$s <subcommand>\n\nESX guests only subcommands:\n   getcontent <resource path> <output file>: get resource content from GuestStore and save to output file.\n\n<resource path> starts with / and represents a unique resource in GuestStore. If it ends with /, defaults to retrieve the underlying 'metadata.json' resource.\n<output file> is the path of a file to save resource content to.\n"
 
 help.hint = "Pour plus d'informations, essayez '%1$s %2$s%3$s%4$s'.\n"
 
