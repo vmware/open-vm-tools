@@ -92,7 +92,7 @@ error.novirtual = "%1$s 必須在虛擬機器中執行。\n"
 
 error.unknown = "%1$s: 未知 %2$s「%3$s」\n"
 
-help.config = "%1$s: 修改工具組態\n使用量: %2$s %3$s <子命令>\n\n子命令:\n   取得 <區段> <金鑰>: 顯示目前 <金鑰> 的值\n   設定 <區段> <金鑰> <值>: 設定 <金鑰> 至 <值>\n\n   移除 <區段> <金鑰>: 移除 <金鑰>\n\n<區段> 可為任何受支援的區段，例如記錄、guestoperations 或 guestinfo。\n<金鑰> 可為任何組態金鑰。\n<值> 可為任何值。\n"
+help.config = "%1$s: modify Tools configuration\nUsage: %2$s %3$s <subcommand>\n\nSubcommands:\n   get <section> <key>: display current value for <key>\n   NOTE: If the <key> is not present in tools.conf, its\n   value from the global configuration is returned if present\n   set <section> <key> <value>: set <key> to <value>\n\n   remove <section> <key>: remove <key>\n\n<section> can be any supported section, such as logging, guestoperations or guestinfo.\n<key> can be any configuration key.\n<value> can be any value.\n"
 
 help.device = "%1$s: 與虛擬機器之硬體裝置相關的功能\n使用量: %2$s %3$s <subcommand> [args]\ndev 是裝置名稱。\n\n子命令:\n   enable <dev>: 啟用裝置 dev\n   disable <dev>: 停用裝置 dev\n   list: 列出所有可用裝置\n   status <dev>: 列印裝置狀態\n"
 
@@ -106,11 +106,11 @@ help.hint = "如需詳細資訊，請嘗試「%1$s%2$s%3$s%4$s」。\n"
 
 help.info = "%1$s: 更新主機上的客體資訊\n使用方式: %2$s %3$s update <資訊類別>\n\n子命令:\n   update <資訊類別>: 更新依 <資訊類別> 識別之資訊\n<資訊類別> 可為「network」\n"
 
-help.logging = "%1$s: 修改工具記錄\n使用量: %2$s %3$s 層級 <subcommand> <servicename> <level>\n\n子命令:\n  取得 <servicename>: 顯示目前層級\n  設定 <servicename> <level>: 設定目前層級\n\n<servicename> 可為任何受支援服務，例如 vmsvc 或 vmusr\n<level> 可為錯誤、嚴重、警告 、資訊、訊息、偵錯其中一項\n   預設為 %4$s\n"
+help.logging = "%1$s: modify tools logging\nUsage: %2$s %3$s level <subcommand> <servicename> <level>\n\nSubcommands:\n   get <servicename>: display current level\n   NOTE: If the level is not present in tools.conf, its\n   value from the global configuration is returned if present\n   set <servicename> <level>: set current level\n\n<servicename> can be any supported service, such as vmsvc or vmusr\n<level> can be one of error, critical, warning, info, message, debug\n   default is %4$s\n"
 
 help.main = "使用量: %1$s <命令> [選項] [子命令]\n輸入「%2$s %3$s <命令>」以取得特定命令的說明。\n輸入「%4$s -v」以查看 VMware Tools 版本。\n使用「-q」選項以隱藏 stdout 輸出。\n大多數命令都有子命令。\n\n可用命令:\n   config\n   device\n   disk (並非所有作業系統皆可使用)\n   globalconf (not available on all operating systems)\n   gueststore (not available on all operating systems)\n   info\n   logging\n   script\n   stat\n   timesync\n   upgrade (並非所有作業系統皆可使用)\n"
 
-help.script = "%1$s: 控制指令碼執行以回應電源作業\n使用量: %2$s %3$s <power|resume|suspend|shutdown> <subcommand> [args]\n\n子命令:\n   enable: 啟用指定指令碼，並將其路徑還原為預設值\n   disable: 停用指定指令碼\n   set <full_path>: 將指定指令碼設定為指定路徑\n   default: 列印指定指令碼的預設路徑\n   current: 列印指定指令碼的目前路徑\n"
+help.script = "%1$s: control the scripts run in response to power operations\nUsage: %2$s %3$s <power|resume|suspend|shutdown> <subcommand> [args]\n\nSubcommands:\n   enable: enable the given script and restore its path to the default\n   disable: disable the given script\n   set <full_path>: set the given script to the given path\n   default: print the default path of the given script\n   current: print the current path of the given script\n   NOTE: If the path is not present in tools.conf, its\n   value from the global configuration is returned if present\n"
 
 help.stat = "%1$s: 列印實用的客體和主機資訊\n使用方式: %2$s %3$s <子命令>\n\n子命令:\n   hosttime: 列印主機時間\n   speed: 列印 CPU 速度 (MHz)\n僅 ESX 客體子命令:\n   sessionid: 列印目前的工作階段識別碼\n   balloon: 列印記憶體佔用資訊\n   swap: 列印記憶體交換資訊\n   memlimit: 列印記憶體限制資訊\n   memres: 列印記憶體保留區資訊\n   cpures: 列印 CPU 保留區資訊\n   cpulimit: 列印 CPU 限制資訊\n   raw [<代碼> <統計名称>]: 列印原始統計資訊\n      <代碼> 可為「text」、「json」、「xml」、「yaml」其中之一。\n      <統計名称> 包含「session」、「host」、「resources」、「vscsi」和\n      vnet」(某些狀態如 vscsi 為兩個字，例如「vscsi scsi0:0」)。\n      如果並未指定引數 <代碼> 和 <統計名称>\n      則列印可用的統計資料。\n"
 

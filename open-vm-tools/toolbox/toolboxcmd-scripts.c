@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016,2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -33,6 +33,9 @@
 #include "guestApp.h"
 #include "system.h"
 #include "toolboxCmdInt.h"
+#if defined(_WIN32)
+#include "globalConfig.h"
+#endif
 #include "vmware/tools/i18n.h"
 #include "vmware/tools/utils.h"
 
@@ -152,6 +155,15 @@ GetConfEntry(const char *progName,  // IN: program name (argv[0])
    }
 
    confDict = LoadConfFile();
+#if defined(_WIN32)
+   if (GlobalConfig_GetEnabled(confDict)) {
+      GKeyFile *globalConf = NULL;
+      if (GlobalConfig_LoadConfig(&globalConf, NULL)) {
+         VMTools_AddConfig(globalConf, confDict);
+         g_key_file_free(globalConf);
+      }
+   }
+#endif
 
    switch (type) {
    case Current:
@@ -488,7 +500,9 @@ Script_Help(const char *progName, // IN: The name of the program obtained from a
                "   disable: disable the given script\n"
                "   set <full_path>: set the given script to the given path\n"
                "   default: print the default path of the given script\n"
-               "   current: print the current path of the given script\n"),
+               "   current: print the current path of the given script\n"
+               "   NOTE: If the path is not present in tools.conf, its\n"
+               "   value from the global configuration is returned if present\n"),
            cmd, progName, cmd);
 }
 
