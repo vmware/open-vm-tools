@@ -159,6 +159,7 @@
    LOGLEVEL_VAR(mksCursorPosition), \
    LOGLEVEL_VAR(mksDX11Window), \
    LOGLEVEL_VAR(mksDX11Renderer), \
+   LOGLEVEL_VAR(mksDX11Basic), \
    LOGLEVEL_VAR(mksDX11ResourceView), \
    LOGLEVEL_VAR(mksDX11ShimOps), \
    LOGLEVEL_VAR(mksFrame), \
