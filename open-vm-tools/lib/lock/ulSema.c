@@ -141,8 +141,10 @@ MXUserTimedDown(NativeSemaphore *sema,  // IN:
          break;
 
       default:  // Something really terrible has happened...
-         Panic("%s: WaitForSingleObject return value %x\n",
-               __FUNCTION__, status);
+         if (vmx86_debug) {
+            Panic("%s: WaitForSingleObject return value %x\n",
+                  __FUNCTION__, status);
+         }
    }
 
    return err;
@@ -153,8 +155,8 @@ MXUserDown(NativeSemaphore *sema)  // IN:
 {
    DWORD status = WaitForSingleObject(*sema, INFINITE);
 
-   /* The down (decrement) *HAD BETTER HAVE* occurred */
-   if (status != WAIT_OBJECT_0) {
+   /* The down (decrement) *HAD BETTER HAVE* occurred! */
+   if (vmx86_debug && (status != WAIT_OBJECT_0)) {
       Panic("%s: WaitForSingleObject return value %x\n",
             __FUNCTION__, status);
    }
