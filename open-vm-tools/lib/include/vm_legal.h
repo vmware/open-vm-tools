@@ -37,7 +37,7 @@
  * Updating them therefore may require updating translations and vmsg
  * auditing files in bora/messages/ to avoid breaking the build.
  */
-#define COPYRIGHT_YEARS  "1998-2020" /* See the note above when changing. */
+#define COPYRIGHT_YEARS  "1998-2021" /* See the note above when changing. */
 #define COPYRIGHT_STRING "Copyright (C) " COPYRIGHT_YEARS " " COMPANY_NAME
 #define RIGHT_RESERVED   "All rights reserved."
 
