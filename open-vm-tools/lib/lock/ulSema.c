@@ -118,54 +118,48 @@ MXUserTimedDown(NativeSemaphore *sema,  // IN:
                 uint64 waitTimeNS,      // IN:
                 Bool *downOccurred)     // OUT:
 {
-    int err;
-    DWORD status;
-    const uint64 maxWaitTimeMS = (uint64) 0x7FFFFFFF;
-    uint64 waitTimeMS = CEILING(waitTimeNS, (uint64) MXUSER_A_MILLION);
+   int err;
+   DWORD status;
+   const uint64 maxWaitTimeMS = (uint64) 0x7FFFFFFF;
+   uint64 waitTimeMS = CEILING(waitTimeNS, (uint64) MXUSER_A_MILLION);
 
-    if (waitTimeMS > maxWaitTimeMS) {
-       waitTimeMS = maxWaitTimeMS;
-    }
+   if (waitTimeMS > maxWaitTimeMS) {
+      waitTimeMS = maxWaitTimeMS;
+   }
 
-    status = WaitForSingleObject(*sema, (int) waitTimeMS);
+   status = WaitForSingleObject(*sema, (DWORD) waitTimeMS);
 
-    switch (status) {
-       case WAIT_OBJECT_0:  // The down (decrement) occurred
-          *downOccurred = TRUE;
-          err = 0;
-          break;
+   switch (status) {
+      case WAIT_OBJECT_0:  // The down (decrement) occurred
+         *downOccurred = TRUE;
+         err = 0;
+         break;
 
-       case WAIT_TIMEOUT:  // Timed out; the down (decrement) did not occur
-          *downOccurred = FALSE;
-          err = 0;
-          break;
+      case WAIT_TIMEOUT:  // Timed out; the down (decrement) did not occur
+         *downOccurred = FALSE;
+         err = 0;
+         break;
 
-       default:  // Something really terrible has happened...
-          Panic("%s: WaitForSingleObject return value %x\n",
-                __FUNCTION__, status);
-    }
+      default:  // Something really terrible has happened...
+         Panic("%s: WaitForSingleObject return value %x\n",
+               __FUNCTION__, status);
+   }
 
-    return err;
+   return err;
 }
 
 static int
 MXUserDown(NativeSemaphore *sema)  // IN:
 {
-   int err;
-   Bool downOccurred;
+   DWORD status = WaitForSingleObject(*sema, INFINITE);
 
-   /*
-    * Use an infinite timed wait to implement down. If the timed down
-    * succeeds, assert that the down actually occurred.
-    */
-
-   err = MXUserTimedDown(sema, INFINITE, &downOccurred);
-
-   if (err == 0) {
-      ASSERT(downOccurred);
+   /* The down (decrement) *HAD BETTER HAVE* occurred */
+   if (status != WAIT_OBJECT_0) {
+      Panic("%s: WaitForSingleObject return value %x\n",
+            __FUNCTION__, status);
    }
 
-   return err;
+   return 0;
 }
 
 static int
