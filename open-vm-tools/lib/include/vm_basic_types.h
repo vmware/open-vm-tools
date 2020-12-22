@@ -416,12 +416,6 @@ typedef int64 VmTimeVirtualClock;  /* Virtual Clock kept in CPU cycles */
  * Suffix for 64-bit constants.  Use it like this:
  *    CONST64(0x7fffffffffffffff) for signed or
  *    CONST64U(0x7fffffffffffffff) for unsigned.
- *
- * 2004.08.30(thutt):
- *   The vmcore/asm64/gen* programs are compiled as 32-bit
- *   applications, but must handle 64 bit constants.  If the
- *   64-bit-constant defining macros are already defined, the
- *   definition will not be overwritten.
  */
 
 #if !defined(CONST64) || !defined(CONST64U)
