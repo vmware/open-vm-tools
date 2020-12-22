@@ -34,7 +34,7 @@
  * hard-coded value for every other product.
  */
 #if defined(VMX86_VMRC) /* check VMX86_VMRC before VMX86_DESKTOP */
-   #define PRODUCT_VERSION    12,0,0,PRODUCT_BUILD_NUMBER_NUMERIC   /* VMRC_VERSION_NUMBER below has to match this */
+   #define PRODUCT_VERSION    12,1,0,PRODUCT_BUILD_NUMBER_NUMERIC   /* VMRC_VERSION_NUMBER below has to match this */
 #elif defined(VMX86_FLEX) /* check VMX86_FLEX before VMX86_DESKTOP */
    #define PRODUCT_VERSION    8,0,0,PRODUCT_BUILD_NUMBER_NUMERIC   /* FLEX_VERSION_NUMBER below has to match this */
 #elif defined(VMX86_TOOLS)
@@ -168,8 +168,8 @@
 #define WORKSTATION_VERSION "e.x.p"
 #define PLAYER_VERSION_NUMBER "16.0.0" /* this version number should always match real Player version number */
 #define PLAYER_VERSION "e.x.p"
-#define VMRC_VERSION_NUMBER "12.0.0" /* this version number should always match real VMRC version number */
-#define VMRC_VERSION "12.0.0"
+#define VMRC_VERSION_NUMBER "12.1.0" /* this version number should always match real VMRC version number */
+#define VMRC_VERSION "12.1.0"
 #define FLEX_CLIENT_VERSION_NUMBER "8.0.0"
 #define FLEX_CLIENT_VERSION "e.x.p"
 
