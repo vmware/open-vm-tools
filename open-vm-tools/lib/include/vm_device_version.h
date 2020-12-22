@@ -175,7 +175,9 @@
 /*
  * Intel Volume Management Device (VMD)
  */
-#define PCI_DEVICE_ID_INTEL_VMD_V1           0x201d
+#define PCI_DEVICE_ID_INTEL_VMD_GEN1           0x201d
+#define PCI_DEVICE_ID_INTEL_VMD_GEN2           0x28c0
+#define PCI_DEVICE_ID_INTEL_VMD_GEN3           0x476F
 
 /*
  * Intel Quickassist (QAT) devices.
