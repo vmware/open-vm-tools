@@ -532,4 +532,30 @@
  ******************************************************************************
  * END CarbonBlack helper plugin goodies.
  */
+
+/*
+ ******************************************************************************
+ * BEGIN deviceHelper plugin goodies.
+ */
+
+/**
+ * Defines the string used for the device helper config file group.
+ */
+#define CONFGROUPNAME_DEVICEHELPER "devicehelper"
+
+/**
+ * Defines the configuration to perform device helper or not.
+ *
+ * @note Illegal values result in a @c g_warning and fallback to the default
+ * value.
+ *
+ * @param boolean Set to TRUE to disable device helper feature.
+ *                Set to FALSE to enable device helper feature.
+ */
+#define CONFNAME_DEVICEHELPER_DISABLED "disabled"
+
+/*
+ * END deviceHelper goodies.
+ ******************************************************************************
+ */
 #endif /* __CONF_H__ */
