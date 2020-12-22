@@ -77,6 +77,7 @@ typedef enum {
    UNITY_CAP_DISABLE_MOUSE_BUTTON_SWAPPING     = 32, // supports disabling mouse button swapping
    UNITY_CAP_CARET_POSITION             = 33, // supports sending caret position updates
    CAP_GUESTSTORE_UPGRADE               = 34, // supports tools upgrade from GuestStore
+   CAP_DEVICE_HELPER                    = 35, // supports tools device helper for Windows guests
 } GuestCapabilities;
 
 typedef struct {
@@ -141,6 +142,7 @@ static GuestCapElem guestCapTable[] = {
     * don't define VMDB schema for it and don't store it in VMDB.
     */
    { CAP_GUESTSTORE_UPGRADE,               NULL,                NULL },
+   { CAP_DEVICE_HELPER,                    NULL,                NULL },
 };
 // clang-format on
 
