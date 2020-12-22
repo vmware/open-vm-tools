@@ -1,3 +1,120 @@
+commit 64ccc4db5bc5d2aac817af5041fe482e2982c7ed
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 22 13:01:04 2020 -0800
+
+    Update some copyright dates for 2020 publication.
+
+commit 2b6aac74cdc34ce88a7ca04aee3bfa4df888f391
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 22 12:22:04 2020 -0800
+
+    Changes to common source files not immediately applicable to open-vm-tools.
+    
+    Staging source files and changes for a future feature.
+
+commit af42d91f5881f1fcec0a902206386f546306dfe9
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 22 12:22:03 2020 -0800
+
+    OVT: Build only fuse-based or kernel module vmblocktest programs.
+    
+    The OVT configuration determines whether open-vm-tools will build
+    a vmblock kernel module or a vmblock-fuse user level VMBlock
+    implementation.  Both versions of the vmblocktest program(s) are not
+    needed.   Linux OVT is only using the vmblock-fuse implementation.
+    
+    Select the version to build based on the HAVE_FUSE setting from the
+    ./configure run.
+    
+    This fixes https://github.com/vmware/open-vm-tools/issues/467
+
+commit 2a6f597bc91b8806601d186ab5be9d219ce01637
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 22 12:22:03 2020 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 2a0984da06bd84dc85228368f4a449e53cf04b91
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 22 12:22:03 2020 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 4c15a5dd7ea13adee0774298d837fc3e712be910
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 22 12:22:03 2020 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 1d8243ee2d6b606f0be546fdaae494229c0714a6
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 22 12:22:03 2020 -0800
+
+    Common source file change not applicable to open-vm-tools
+
+commit 2a8f1de3f7ff1d81f45c9a81f06beae95b74af07
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 22 12:22:03 2020 -0800
+
+    Common header file change not directly applicable to open-vm-tools.
+
+commit 9b2d29f394066714ac0131c9904c01a5430ce16d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 22 12:22:03 2020 -0800
+
+    Changes to a common source file not applicable to open-vm-tools.
+
+commit 54d0128fc4ec2f2b256b88ad978b780c696b9c5d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 22 12:22:03 2020 -0800
+
+    Corrected a few typos and reworded sentences in tools.conf.
+    
+    Corrected a few typos, reworded a few sentences, added some
+    details for quiescing scripts and removed some duplicates.
+
+commit c80f0f3db5df3a055c70949e4c07326f98ac7045
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 22 12:22:03 2020 -0800
+
+    MXUser Semaphores - nanosecond resolution wait times
+    
+    The graphics team requested the ability to have semaphore wait times
+    less than a millisecond.  This would greatly improve some graphics
+    operations.  Since POSIX platforms (i.e. ESXi, MacOS, Linux) support
+    nanosecond resolution for semaphore wait times, a new timed semaphore
+    wait routine with nanosecond resolution is introduced.
+
+commit a2396202001370cf37d4cea3087b6a83bcb0cb61
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 22 12:22:03 2020 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit bc9196b59469f9269c73d8cca605e7628d6b3d17
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 22 12:22:03 2020 -0800
+
+    Update copyright date for products to be released in 2021.
+
+commit 6284afd17986fe3053fc6d69560d319dacb5299c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 22 12:22:03 2020 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit dec004f0853468937b8e1e7b25f5062c58d131e2
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 22 12:22:03 2020 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 30874008335209a51531a50bc27d05b7fac513fe
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 22 12:22:03 2020 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
 commit 816f569db5207ffe321372edf75836eb4cff1992
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Thu Dec 10 19:34:56 2020 -0800
