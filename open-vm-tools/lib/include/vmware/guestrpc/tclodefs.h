@@ -69,6 +69,7 @@
 #define TOOLSOPTION_ENABLE_MESSAGE_BUS_TUNNEL     "enableMessageBusTunnel"
 #define TOOLSOPTION_GUEST_LOG_LEVEL               "guestLogLevel"
 #define TOOLSOPTION_ENABLE_APPINFO                "enableAppInfo"
+#define TOOLSOPTION_ENABLE_GUESTSTORE_ACCESS      "enableGuestStoreAccess"
 
 /*
  * Auto-upgrade commands.
