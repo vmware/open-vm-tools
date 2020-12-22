@@ -17,8 +17,9 @@
 
 SUBDIRS =
 if LINUX
-   SUBDIRS += gdp
    SUBDIRS += appInfo
+   SUBDIRS += gdp
+   SUBDIRS += guestStore
 endif
 if ENABLE_SDMP
    SUBDIRS += serviceDiscovery

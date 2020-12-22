@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2007-2016 VMware, Inc.  All rights reserved.
+### Copyright (c) 2007-2016,2020 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -37,6 +37,9 @@ SUBDIRS += file
 SUBDIRS += foundryMsg
 SUBDIRS += glibUtils
 SUBDIRS += guestApp
+if LINUX
+   SUBDIRS += guestStoreClientHelper
+endif
 SUBDIRS += hgfs
 SUBDIRS += hgfsBd
 SUBDIRS += hgfsHelper

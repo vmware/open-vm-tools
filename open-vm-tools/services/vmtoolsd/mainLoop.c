@@ -45,8 +45,9 @@
 #include "vmware/tools/utils.h"
 #include "vmware/tools/vmbackup.h"
 
-#if defined(_WIN32)
-#include "vmware/tools/guestStore.h"
+#if defined(_WIN32) || \
+   (defined(__linux__) && !defined(USERWORLD))
+#  include "vmware/tools/guestStore.h"
 #endif
 
 #if defined(_WIN32)
@@ -109,7 +110,8 @@ static gboolean gGlobalConfEnabled = FALSE;
 static void
 ToolsCoreCleanup(ToolsServiceState *state)
 {
-#if defined(_WIN32)
+#if defined(_WIN32) || \
+   (defined(__linux__) && !defined(USERWORLD))
    if (state->mainService) {
       /*
        * Shut down guestStore plugin first to prevent worker threads from being

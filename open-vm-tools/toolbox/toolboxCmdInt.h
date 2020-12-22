@@ -149,6 +149,10 @@ DECLARE_COMMAND(Config);
 #if defined(_WIN32) || \
    (defined(__linux__) && !defined(OPEN_VM_TOOLS) && !defined(USERWORLD))
 DECLARE_COMMAND(Upgrade);
+#endif
+
+#if defined(_WIN32) || \
+   (defined(__linux__) && !defined(USERWORLD))
 DECLARE_COMMAND(GuestStore);
 #endif
 

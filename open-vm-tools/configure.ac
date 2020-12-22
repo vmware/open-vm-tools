@@ -1592,6 +1592,7 @@ AC_CONFIG_FILES([                      \
    lib/glibUtils/Makefile              \
    lib/guestApp/Makefile               \
    lib/guestRpc/Makefile               \
+   lib/guestStoreClientHelper/Makefile \
    lib/hgfs/Makefile                   \
    lib/hgfsBd/Makefile                 \
    lib/hgfsHelper/Makefile             \
@@ -1632,6 +1633,7 @@ AC_CONFIG_FILES([                      \
    services/plugins/desktopEvents/Makefile \
    services/plugins/dndcp/Makefile     \
    services/plugins/guestInfo/Makefile \
+   services/plugins/guestStore/Makefile \
    services/plugins/hgfsServer/Makefile \
    services/plugins/powerOps/Makefile  \
    services/plugins/resolutionSet/Makefile \
@@ -1658,6 +1660,7 @@ AC_CONFIG_FILES([                      \
    libDeployPkg/Makefile               \
    libDeployPkg/libDeployPkg.pc        \
    libhgfs/Makefile                    \
+   libguestStoreClient/Makefile        \
    libvmtools/Makefile                 \
    xferlogs/Makefile                   \
    modules/Makefile                    \

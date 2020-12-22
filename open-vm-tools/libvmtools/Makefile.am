@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2008-2020 VMware, Inc.  All rights reserved.
+### Copyright (c) 2008-2020 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -35,6 +35,9 @@ libvmtools_la_LIBADD += ../lib/file/libFile.la
 libvmtools_la_LIBADD += ../lib/glibUtils/libGlibUtils.la
 libvmtools_la_LIBADD += ../lib/guestApp/libGuestApp.la
 libvmtools_la_LIBADD += ../lib/guestRpc/libGuestRpc.la
+if LINUX
+   libvmtools_la_LIBADD += ../lib/guestStoreClientHelper/libGuestStoreClientHelper.la
+endif
 libvmtools_la_LIBADD += ../lib/message/libMessage.la
 libvmtools_la_LIBADD += ../lib/netUtil/libNetUtil.la
 libvmtools_la_LIBADD += ../lib/nicInfo/libNicInfo.la

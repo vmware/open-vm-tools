@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2007-2020 VMware, Inc.  All rights reserved.
+### Copyright (c) 2007-2020 VMware, Inc.  All rights reserved.
 ###
 ### Top-level Makefile for building the VMware OSS Tools.
 ###
@@ -24,6 +24,9 @@ ACLOCAL_AMFLAGS = -I m4
 
 SUBDIRS =
 SUBDIRS += lib
+if LINUX
+   SUBDIRS += libguestStoreClient
+endif
 SUBDIRS += libvmtools
 SUBDIRS += libhgfs
 SUBDIRS += hgfsclient
