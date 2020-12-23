@@ -1,3 +1,39 @@
+commit 7362e15861192473fb8407fe01682d3ae24d9624
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Dec 23 08:04:08 2020 -0800
+
+    Update some copyright dates for 2020 publication.
+
+commit 9b531d3c5a736377f879f3087118a62f2ef052be
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Dec 23 07:33:50 2020 -0800
+
+    L10n drop for open-vm-tools 10.2.5.
+
+commit b126b69245546cdfcde0e49fb10ccbb127d95b9c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Dec 23 07:33:50 2020 -0800
+
+    OVT: Build only fuse-based or kernel module vmblocktest programs.
+    
+    The OVT configuration determines whether open-vm-tools will build
+    a vmblock kernel module or a vmblock-fuse user level VMBlock
+    implementation.  Both versions of the vmblocktest program(s) are not
+    needed.   Linux OVT is only using the vmblock-fuse implementation.
+    
+    Select the version to build based on the HAVE_FUSE setting from the
+    ./configure run.
+    
+    This fixes https://github.com/vmware/open-vm-tools/issues/467
+
+commit 686fcb305ffbd3bcbba2461da9db8b41e2217f3c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Dec 23 07:33:50 2020 -0800
+
+    tools: Fix Coverity errors in resolution plugin.
+    
+    Fix multiplication overflow and fgetc usage to avoid Coverity errors.
+
 commit df2e08071213c1d820695307acfa139bc7cade3e
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Thu Dec 10 21:05:49 2020 -0800
