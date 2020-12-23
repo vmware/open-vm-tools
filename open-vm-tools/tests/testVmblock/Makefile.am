@@ -15,12 +15,12 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_PROGRAMS = vmware-testvmblock-legacy
-noinst_PROGRAMS += vmware-testvmblock-manual-legacy
-
 if HAVE_FUSE
-  noinst_PROGRAMS += vmware-testvmblock-fuse
+  noinst_PROGRAMS = vmware-testvmblock-fuse
   noinst_PROGRAMS += vmware-testvmblock-manual-fuse
+else
+  noinst_PROGRAMS = vmware-testvmblock-legacy
+  noinst_PROGRAMS += vmware-testvmblock-manual-legacy
 endif
 
 AM_CFLAGS =
