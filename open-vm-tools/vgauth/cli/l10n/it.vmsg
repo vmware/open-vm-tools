@@ -33,7 +33,7 @@ addoptions.verbose = "Operazione Verbose"
 
 cmdline.help.appoption = "Opzioni applicazione"
 cmdline.help.helpoption = "Opzioni Guida"
-cmdline.help.hint = "Mostra opzioni della Guida"
+cmdline.help.hint = "Visualizza le opzioni della Guida"
 cmdline.help.usage = "Utilizzo"
 cmdline.parse = "Analisi della riga di comando non riuscita"
 
@@ -41,7 +41,7 @@ cmdline.summary.pemfile = "File PEM"
 cmdline.summary.subject = "oggetto"
 cmdline.summary.username = "nome utente"
 cmdline.summary.comm = "commento"
-cmdline.summary.note = "Nota: se non viene fornito alcun nome utente, %1$s rimuove solo gli alias mappati"
+cmdline.summary.note = "Nota: se non viene specificato alcun nome utente, %1$s rimuove solo gli alias mappati"
 
 list.comment = "Commento"
 list.count = "%1$s Trovati %2$d alias per l'utente '%3$s'\n"
@@ -82,9 +82,9 @@ removeall.removefail = "%1$s: impossibile rimuovere l'alias per l'utente '%2$s' 
 
 removeall.success = "%1$s: tutti gli alias sono stati rimossi\n"
 
-removealloptions.subject = "L'oggetto SAML"
+removealloptions.subject = "Oggetto SAML"
 removealloptions.username = "Utente da cui viene rimosso l'archivio certificati"
 
-removealloptions.verbose = "Operazione Verbose"
+removealloptions.verbose = "Operazione dettagliata"
 
 vgauth.init.failed = "Impossibile inizializzare VGAuth"

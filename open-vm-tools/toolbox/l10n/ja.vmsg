@@ -92,25 +92,25 @@ error.novirtual = "%1$s は仮想マシン内で実行する必要がありま�
 
 error.unknown = "%1$s: 不明な %2$s '%3$s'\n"
 
-help.config = "%1$s: modify Tools configuration\nUsage: %2$s %3$s <subcommand>\n\nSubcommands:\n   get <section> <key>: display current value for <key>\n   NOTE: If the <key> is not present in tools.conf, its\n   value from the global configuration is returned if present\n   set <section> <key> <value>: set <key> to <value>\n\n   remove <section> <key>: remove <key>\n\n<section> can be any supported section, such as logging, guestoperations or guestinfo.\n<key> can be any configuration key.\n<value> can be any value.\n"
+help.config = "%1$s: VMware Tools の設定を変更します\n使用方法: %2$s %3$s <サブコマンド>\n\nサブコマンド: \n   get <セクション> <キー>: <キー> の現在値を表示します\n   注: tools.conf に <キー> が存在しない場合は、その\n 値がグローバル設定から返されます (存在する場合)\n   set <セクション> <キー> <値>: <キー> を <値> に設定します\n\n   remove <セクション> <キー>: <キー> を削除します\n\n<セクション> には、logging、guestoperations、または guestinfo などのサポートされる任意のセクションを指定できます。\n<キー> には、任意の構成キーを指定できます。\n<値> には任意の値を指定できます。\n"
 
 help.device = "%1$s: 仮想マシンのハードウェア デバイスに関連する機能\n使用方法： %2$s %3$s <サブコマンド> [引数]\ndev にはデバイス名を指定します。\n\nサブコマンド：\n   enable <デバイス>： デバイス dev を有効にする\n   disable <デバイス>： デバイス dev を無効にする\n   list： 有効なデバイスを一覧表示\n   status <デバイス>： デバイスのステータスを出力\n"
 
 help.disk = "%1$s: ディスク圧縮操作を実行\n使用方法: %2$s %3$s <サブコマンド> [引数]\n\nサブコマンド:\n   list: 使用可能な場所を一覧表示\n   shrink <場所>: 指定された場所のファイル システムをワイプおよび圧縮\n   shrinkonly: すべてのディスクを圧縮\n   wipe <場所>: 指定された場所のファイル システムをワイプ\n"
 
-help.globalconf = "%1$s: Manage global configuration downloads from the GuestStore\nUsage: %2$s %3$s <subcommand>\n\nESX guests only subcommands:\n   enable: Enable the global configuration module. (Tools service is restarted)\n   disable: Disable the global configuration module (Tools service is restarted)\n   refresh: Trigger a new download of the global configuration from the GuestStore\n   status: Print the status of the global configuration module\n"
+help.globalconf = "%1$s: GuestStore からのグローバル設定のダウンロードを管理します\n使用方法: %2$s %3$s <サブコマンド>\n\nESX ゲストのみのサブコマンド:\n   enable: グローバル設定モジュールを有効にします (VMware Tools Service が再起動します)\n   disable: グローバル設定モジュールを無効にします (VMware Tools Service が再起動します)\n   refresh: GuestStore からのグローバル設定の新しいダウンロードをトリガします\n   status: グローバル設定モジュールのステータスを出力します\n"
 
-help.gueststore = "%1$s: get resource content from GuestStore\nUsage: %2$s %3$s <subcommand>\n\nESX guests only subcommands:\n   getcontent <resource path> <output file>: get resource content from GuestStore and save to output file.\n\n<resource path> starts with / and represents a unique resource in GuestStore. If it ends with /, defaults to retrieve the underlying 'metadata.json' resource.\n<output file> is the path of a file to save resource content to.\n"
+help.gueststore = "%1$s: GuestStore からリソース コンテンツを取得します\n使用方法: %2$s %3$s <サブコマンド>\n\nESX ゲストのみのサブコマンド:\n   getcontent <リソース パス> <出力ファイル>: GuestStore からリソース コンテンツを取得し、出力ファイルに保存します。\n\n<リソース パス>は / で始まり、GuestStore 内の一意のリソースを表します。/ で終わる場合、デフォルトでは基盤となる「metadata.json」リソースを取得します。\n<出力ファイル> は、リソース コンテンツを保存するファイルのパスです。\n"
 
 help.hint = "詳細については、「%1$s %2$s%3$s%4$s」を参照してください。\n"
 
 help.info = "%1$s: ホストのゲスト情報を更新します\n使用方法: %2$s %3$s update <情報カテゴリ>\n\nサブコマンド:\n   update <情報カテゴリ>: <情報カテゴリ> で特定される情報を更新します\n<情報カテゴリ> には「network」を指定できます\n"
 
-help.logging = "%1$s: modify tools logging\nUsage: %2$s %3$s level <subcommand> <servicename> <level>\n\nSubcommands:\n   get <servicename>: display current level\n   NOTE: If the level is not present in tools.conf, its\n   value from the global configuration is returned if present\n   set <servicename> <level>: set current level\n\n<servicename> can be any supported service, such as vmsvc or vmusr\n<level> can be one of error, critical, warning, info, message, debug\n   default is %4$s\n"
+help.logging = "%1$s: VMware Tools ログを変更します\n使用方法: %2$s %3$s level <サブコマンド> <サービス名> <レベル>\n\nサブコマンド:\n   get <サービス名>: 現在のレベルを表示します\n   注: tools.conf にレベルが存在しない場合は、その\n 値がグローバル設定から返されます (存在する場合)\n   set <サービス名> <レベル>: 現在のレベルを設定します\n\n<サービス名> は、vmsvc や vmusr などのサポートされているサービスを指定できます\n<レベル> は、エラー、重大、警告、情報、メッセージ、デバッグのいずれかを指定できます\n   デフォルトは %4$s です\n"
 
-help.main = "使用方法: %1$s <コマンド> [オプション] [サブコマンド]\n「%2$s %3$s <コマンド>」と入力すると、そのコマンドのヘルプを表示できます。\nVMware Tools のバージョンを確認するには「%4$s -v」と入力します。.\nstdout 出力を抑止するには「-q」オプションを使用します。\nほとんどのコマンドではサブコマンドも使用されます。\n\n使用可能なコマンド: \n   config\n   device\n   disk（オペレーティング システムによっては使用できない場合もあります）\n   globalconf (not available on all operating systems)\n   gueststore (not available on all operating systems)\n   info\n   logging\n   script\n   stat\n   timesync\n   upgrade（オペレーティング システムによっては使用できない場合もあります）\n"
+help.main = "使用方法: %1$s <コマンド> [オプション] [サブコマンド]\n「%2$s %3$s <コマンド>」と入力すると、そのコマンドのヘルプを表示できます。\nVMware Tools のバージョンを確認するには「%4$s -v」と入力します。\nstdout 出力を抑止するには「-q」オプションを使用します。\nほとんどのコマンドではサブコマンドも使用されます。\n\n使用可能なコマンド: \n   config\n   device\n   disk (一部のオペレーティング システムでのみ使用可能)\n   globalconf (一部のオペレーティング システムでのみ使用可能)\n   gueststore (一部のオペレーティング システムでのみ使用可能)\n   info\n   logging\n   script\n   stat\n   timesync\n   upgrade (一部のオペレーティング システムでのみ使用可能)\n"
 
-help.script = "%1$s: control the scripts run in response to power operations\nUsage: %2$s %3$s <power|resume|suspend|shutdown> <subcommand> [args]\n\nSubcommands:\n   enable: enable the given script and restore its path to the default\n   disable: disable the given script\n   set <full_path>: set the given script to the given path\n   default: print the default path of the given script\n   current: print the current path of the given script\n   NOTE: If the path is not present in tools.conf, its\n   value from the global configuration is returned if present\n"
+help.script = "%1$s: 電源操作に対応して実行されるスクリプトを制御します\n使用方法: %2$s %3$s <power|resume|suspend|shutdown> <サブコマンド> [引数]\n\nサブコマンド:\n   enable: 指定されたスクリプトを有効にして、そのパスをデフォルトに復元します\n   disable: 指定されたスクリプトを無効にします\n   set <フル パス>: 指定されたスクリプトを指定されたパスに設定します\n   default: 指定されたスクリプトのデフォルトのパスを出力します\n   current: 指定されたスクリプトの現在のパスを出力します\n   注: tools.conf にパスが存在しない場合は、その\n 値がグローバル設定から返されます (存在する場合)\n"
 
 help.stat = "%1$s: 役に立つゲストおよびホスト情報を出力\n使用方法: %2$s %3$s <サブコマンド>\n\nサブコマンド:\n   hosttime: ホスト時刻を出力\n   speed: CPU 速度 (MHz) を出力\nESX ゲストのみのサブコマンド:\n   sessionid: 現在のセッション ID を出力\n   balloon: メモリのバルーニング情報を出力\n   swap: メモリのスワップ情報を出力\n   memlimit: メモリの制限情報を出力\n   memres: メモリの予約情報を出力\n   cpures: CPU の予約情報を出力\n   cpulimit: CPU の制限情報を出力\n   raw [<エンコーディング> <統計名>]: RAW 統計情報を出力\n      <エンコーディング> には、「text'」、「json」、「xml」、「yaml」のいずれかを指定できます。\n      <統計名> には、セッション、ホスト、リソース、vscsi および\n      vnet が含まれます（vscsi などのいくつかの統計は、たとえば「vscsi scsi0:0」など、2 語になります）。\n      <エンコーディング> および <統計名>\n      の引数が指定されない場合、利用可能な統計が出力されます。\n"
 
@@ -118,29 +118,29 @@ help.timesync = "%1$s: ゲスト OS の時刻の同期を制御するための�
 
 help.upgrade = "%1$s: VMware Tools のアップグレードに関連する機能。\n使用方法: %2$s %3$s <サブコマンド> [引数]\nサブコマンド:\n   status： VMware Tools のアップグレード ステータスを確認\n   start: VMware Tools の自動アップグレードを開始\n\nアップグレードが機能するには、VMware Tools サービスを実行している必要があります。\n"
 
-globalconf.refresh.failed  = "'%1$s' failed, since globalconf module is disabled.\n"
+globalconf.refresh.failed  = "globalconf モジュールが無効になっているため、'%1$s' に失敗しました。\n"
 
-globalconf.start_vmtools = "%1$s: Starting the %2$s service.\n"
+globalconf.start_vmtools = "%1$s: %2$s サービスを開始しています。\n"
 
-globalconf.status = "The status of globalconf module is '%1$s'\n"
+globalconf.status = "globalconf モジュールのステータスは '%1$s' です\n"
 
-globalconf.stop_vmtools = "%1$s: Stopping the %2$s service.\n"
+globalconf.stop_vmtools = "%1$s: %2$s サービスを停止しています。\n"
 
-globalconf.update_config = "%1$s: Updating the Configuration.\n"
+globalconf.update_config = "%1$s: 設定を更新しています。\n"
 
-gueststore.content_size = "Content size in bytes: "
+gueststore.content_size = "コンテンツ サイズ (バイト): "
 
-gueststore.error.client_lib = "'%1$s' failed, GuestStore client library error: %2$s.\n"
+gueststore.error.client_lib = "'%1$s' に失敗しました。GuestStore クライアント ライブラリ エラー: %2$s。\n"
 
-gueststore.progress = "\rProgress: %1$d%%"
+gueststore.progress = "\r進行状況: %1$d%%"
 
 option.disabled = "無効"
 
 option.enabled = "有効"
 
-result.error.failed = "'%1$s' failed, check %2$s log for more information.\n"
+result.error.failed = "'%1$s' に失敗しました。詳細については、%2$s ログを確認してください。\n"
 
-result.succeeded = "'%1$s' succeeded.\n"
+result.succeeded = "'%1$s' が正常に完了しました。\n"
 
 script.notfound = "%1$s は存在しません。\n"
 
