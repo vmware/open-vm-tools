@@ -1,3 +1,23 @@
+commit 2ca1201b81d7513cc4d709ae766daf7eb4ae3612
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Dec 31 10:12:25 2020 -0800
+
+    Correcting missed copyright date updates.
+    
+    Adding 2020 to the copyright of a few files modified in this year.
+
+commit 73491aa22b8892784b68ef2b7e285c6d95261fa6
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Dec 31 10:12:25 2020 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 2d07080e644b2c6f12aae02006eb40adcac2a1ca
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Dec 31 10:12:25 2020 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
 commit 64ccc4db5bc5d2aac817af5041fe482e2982c7ed
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Tue Dec 22 13:01:04 2020 -0800
