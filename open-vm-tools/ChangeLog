@@ -1,3 +1,13 @@
+commit eadcaebaf987c423f4c45e4109b01c5d80e06f36
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Jan 13 14:48:17 2021 -0800
+
+    Prepare to make the 11.2.5 OVT release announcement.
+      - ReleaseNotes.md - copy in the final 11.2.5 OVT release notes
+      - configure.ac  = set the tools version to 11.2.5
+      - buildNumber.h  - set the build and product number from the internal
+                         release build.
+
 commit 7362e15861192473fb8407fe01682d3ae24d9624
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Wed Dec 23 08:04:08 2020 -0800
