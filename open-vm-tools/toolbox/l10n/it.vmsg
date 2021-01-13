@@ -1,5 +1,5 @@
 ##########################################################
-# Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
+# Copyright (C) 2010-2017,2020 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -44,7 +44,7 @@ arg.scriptpath = "percorso script"
 
 arg.scripttype = "tipo script"
 
-arg.subcommand = "sottocomando "
+arg.subcommand = "sottocomando"
 
 device.connect.error = "Impossibile connettere il dispositivo %1$s.\n"
 
@@ -92,21 +92,25 @@ error.novirtual = "%1$s deve essere eseguito all'interno di una macchina virtual
 
 error.unknown = "%1$s: %2$s '%3$s' sconosciuto\n"
 
-help.config = "%1$s: modifica configurazione strumenti\nUtilizzo: %2$s %3$s <comando secondario>\n\nComandi secondari:\n   ottieni <sezione> <chiave>: mostra valore attuale per <chiave>\n   imposta <sezione> <chiave> <valore>: imposta <chiave> in <valore>\n\n   rimuovi <sezione> <chiave>: rimuove <chiave>\n\n<sezione> può essere qualsiasi sezione supportata come registrazione, operazioni guest o info guest.\n<chiave> può essere qualsiasi chiave di configurazione.\n<valore> può essere qualsiasi valore.\n"
+help.config = "%1$s: modifica la configurazione di Tools\nUtilizzo: %2$s %3$s <comando secondario>\n\nComandi secondari:\n   get <sezione> <chiave>: visualizza il valore corrente per <chiave>\n   NOTA: se <chiave> non è presente in tools.conf, viene\n   restituito il valore corrispondente della configurazione globale, se disponibile\n   set <sezione> <chiave> <valore>: imposta <chiave> su <valore>\n\n   remove <sezione> <chiave>: rimuove <chiave>\n\n<sezione> può essere qualsiasi sezione supportata come logging, guestoperations o guestinfo.\n<chiave> può essere qualsiasi chiave di configurazione.\n<valore> può essere qualsiasi valore.\n"
 
 help.device = "%1$s: funzioni relative ai dispositivi hardware della macchina virtuale\nUtilizzo: %2$s %3$s <comando secondario> [args]\ndev è il nome del dispositivo.\n\nComandi secondari:\n   attiva <dev>: attivare il dispositivo dev\n   disattiva <dev>: disattivare il dispositivo dev\n   elenca: elencare tutti i dispositivi disponibili\n   stato <dev>: stampare lo stato di un dispositivo\n"
 
 help.disk = "%1$s: eseguire le operazioni di compattazione\nUtilizzo: %2$s %3$s <comando secondario> [args]\n\nComandi secondari:\n   elenco: elencare le posizioni disponibili\n   compatta <posizione>: pulisce e compatta un sistema di file nella posizione data\n   compatta solo: compatta tutti i dischi\n   pulisci <posizione>: pulisce un sistema di file nella posizione data\n"
 
+help.globalconf = "%1$s: gestisce i download della configurazione globale da GuestStore\nUtilizzo: %2$s %3$s <comando secondario>\n\nSolo comandi secondari di guest ESX:\n   enable: abilita il modulo di configurazione globale. (Il servizio Tools viene riavviato)\n   disable: disabilita il modulo di configurazione globale (il servizio Tools viene riavviato)\n   refresh: attiva un nuovo download della configurazione globale da GuestStore\n   status: stampa lo stato del modulo di configurazione globale\n"
+
+help.gueststore = "%1$s: ottiene il contenuto della risorsa da GuestStore\nUtilizzo: %2$s %3$s <comando secondario>\n\nSolo comandi secondari di guest ESX:\n   getcontent <percorso risorsa> <file di output>: ottiene il contenuto della risorsa da GuestStore ed esegue il salvataggio nel file di output.\n\n<percorso risorsa> inizia con / e rappresenta una risorsa univoca in GuestStore. Se termina con /, per impostazione predefinita recupera la risorsa 'metadata.json' sottostante.\n<file di output> è il percorso di un file in cui salvare il contenuto della risorsa.\n"
+
 help.hint = "Provare '%1$s %2$s%3$s%4$s' per ulteriori informazioni.\n"
 
 help.info = "%1$s: aggiornare informazioni guest su host\nUtilizzo: %2$s %3$s aggiorna <classe info>\n\nComandi secondari:\n   aggiorna <classe info>: aggiornare informazioni identificate da <classe info>\n<classe info> può essere "rete"\n"
 
-help.logging = ""%1$s: modifica registrazione strumenti\nUso: %2$s %3$s livello <comando secondario> <nome servizio> <livello>\n\nComandi secondari:\n   get <nome servizio>: visualizza livello corrente\n   set <nome servizio> <livello>: imposta livello corrente\n\n<nome servizio> può essere qualunque servizio supportato, come vmsvc o vmusr\n<livello> può essere selezionato tra errore, critico, avvertenza, informazione, messaggio, debug\n   l'impostazione predefinita è %4$s\n""
+help.logging = "%1$s: modifica la registrazione di Tools\nUtilizzo: %2$s %3$s level <comando secondario> <nome servizio> <livello>\n\nComandi secondari:\n   get <nome servizio>: visualizza il livello corrente\n   NOTA: se il livello non è presente in tools.conf, viene\n   restituito il valore corrispondente della configurazione globale se disponibile\n   set <nome servizio> <livello>: imposta il livello corrente\n\n<nome servizio> può essere qualsiasi servizio supportato, come vmsvc o vmusr\n<livello> può essere error, critical, warning, info, message o debug\n   il valore predefinito è %4$s\n"
 
-help.main = "Utilizzo: %1$s <comando> [opzioni] [comando secondario]\nDigitare "%2$s %3$s <comando>" per aiuto su un comando specifico.\nDigitare "%4$s -v" per vedere la versione di VMware Tools.\nUsare l'opzione "-q" per sopprimere l'uscita stdout.\nLa maggior parte dei comandi accetta un comando secondario.\n\nComandi disponibili:\n   config\n   dispositivo\n   disco (non disponibile su tutti i sistemi operativi)\n   info\n   registrazione\n   script\n   stato\n   timesync\n   upgrade (non disponibile su tutti i sistemi operativi)\n"
+help.main = "Utilizzo: %1$s <comando> [opzioni] [comando secondario]\nDigitare '%2$s %3$s <comando>' per visualizzare informaziomi su un comando specifico.\nDigitare '%4$s -v' per visualizzare la versione di VMware Tools.\nUtilizzare l'opzione '-q' per eliminare l'output stdout.\nLa maggior parte dei comandi accetta un comando secondario.\n\nComandi disponibili:\n   config\n   device\n   disk (non disponibile in tutti i sistemi operativi)\n   globalconf (non disponibile in tutti i sistemi operativi)\n   gueststore (non disponibile in tutti i sistemi operativi)\n   info\n   logging\n   script\n   stat\n   timesync\n   upgrade (non disponibile in tutti i sistemi operativi)\n"
 
-help.script = "%1$s: controllare gli script eseguiti in risposta alle operazioni di alimentazione\nUtilizzo: %2$s %3$s <power|resume|suspend|shutdown> <comando secondario> [args]\n\nComandi secondari:\n   attiva: attivare lo script dato e ripristinare il suo percorso sul valore predefinito\n   disabilita: disabilitare lo script dato\n   imposta <percorso_completo>: impostare lo script dato sul percorso dato\n   default: stampare il percorso predefinito dello script dato\n   corrente: stampare il percorso corrente dello script dato\n"
+help.script = "%1$s: controlla gli script eseguiti in risposta alle operazioni di alimentazione\nUtilizzo: %2$s %3$s <power|resume|suspend|shutdown> <comando secondario> [argomenti]\n\nComandi secondari:\n   enable: abilita lo script dato e ripristina il suo percorso sul valore predefinito\n   disable: disabilita lo script dato\n   set <percorso_completo>: imposta lo script dato sul percorso dato\n   default: stampa il percorso predefinito dello script dato\n   current: stampa il percorso corrente dello script dato\n   NOTA: se il percorso non è presente in tools.conf, viene\n   restituito il valore corrispondente della configurazione globale se disponibile\n"
 
 help.stat = "%1$s: stampare informazioni utili su guest e host\nUtilizzo: %2$s %3$s <comando secondario>\n\nComandi secondari:\n   hosttime: stampare il tempo dell'host\n   speed: stampare la velocità della CPU in MHz\nESX ospita solo comandi secondari:\n   sessionid: stampare l'id della sessione corrente\n   balloon: stampare le informazioni di ballooning della memoria\n   swap: stampare le informazioni di swap della memoria\n   memlimit: stampare le informazioni di limite della memoria\n   memres: stampare le informazioni di prenotazione della memoria\n   cpures: stampare le informazioni di prenotazione della CPU\n   cpulimit: stampare le informazioni di limite della CPU\n   raw [<codifica> <nome stato>]: stampare informazioni stato non elaborate\n      <codifica> può essere "text", "json", "xml", "yaml".\n      <nome stato> include sessione, host, risorse, vscsi e\n      vnet (alcuni stati, come vscsi, sono composti da due parole, ad es. "vscsi scsi0:0").\n      Stampa gli stati disponibili se <codifica> e <nome stato>\n      non sono argomenti specificati.\n"
 
@@ -114,9 +118,29 @@ help.timesync = "%1$s: funzioni per il controllo di sincronizzazione dell'ora su
 
 help.upgrade = "%1$s: funzioni relative all'aggiornamento di VMware Tools.\nUtilizzo: %2$s %3$s <comando secondario> [args]\nComandi secondari:\n   stato: controllare lo stato di aggiornamento di VMware Tools.\n   avvio: avviare un aggiornamento automatico di VMware Tools.\n\nPer il funzionamento degli aggiornamenti, il servizio VMware Tools deve essere in esecuzione.\n"
 
+globalconf.refresh.failed  = "'%1$s' non riuscito perché il modulo globalconf è disabilitato.\n"
+
+globalconf.start_vmtools = "%1$s: avvio del servizio %2$s.\n"
+
+globalconf.status = "Lo stato del modulo globalconf è '%1$s'\n"
+
+globalconf.stop_vmtools = "%1$s: arresto del servizio %2$s.\n"
+
+globalconf.update_config = "%1$s: aggiornamento della configurazione.\n"
+
+gueststore.content_size = "Dimensioni dei contenuti in byte: "
+
+gueststore.error.client_lib = "'%1$s' non riuscito, errore della libreria client GuestStore: %2$s.\n"
+
+gueststore.progress = "\rAvanzamento: %1$d%%"
+
 option.disabled = "Disabilitato"
 
 option.enabled = "Abilitata"
+
+result.error.failed = "'%1$s' non riuscito. Controllare il registro %2$s per ulteriori informazioni.\n"
+
+result.succeeded = "'%1$s' riuscito.\n"
 
 script.notfound = "%1$s inesistente.\n"
 

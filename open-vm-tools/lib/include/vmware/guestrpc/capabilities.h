@@ -136,6 +136,11 @@ static GuestCapElem guestCapTable[] = {
    { GHI_CAP_SET_DISPLAY_SCALING,          GHI_CAP_VMDB_PATH,   "setDisplayScaling"},
    { UNITY_CAP_DISABLE_MOUSE_BUTTON_SWAPPING, UNITY_CAP_VMDB_PATH, "mouseButtonSwapping" },
    { UNITY_CAP_CARET_POSITION,             UNITY_CAP_VMDB_PATH, "getCaretPosition" },
+   /*
+    * GuestStoreUpgrade is available on ESXi only at this time. Therefore, we
+    * don't define VMDB schema for it and don't store it in VMDB.
+    */
+   { CAP_GUESTSTORE_UPGRADE,               NULL,                NULL },
 };
 
 #endif // VM_NEED_VMDB_GUEST_CAP_MAPPING

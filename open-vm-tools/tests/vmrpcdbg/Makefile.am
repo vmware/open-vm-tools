@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2009-2016 VMware, Inc.  All rights reserved.
+### Copyright (c) 2009-2016, 2020 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -21,6 +21,7 @@ libvmrpcdbg_la_CPPFLAGS =
 libvmrpcdbg_la_CPPFLAGS += @CUNIT_CPPFLAGS@
 libvmrpcdbg_la_CPPFLAGS += @GMODULE_CPPFLAGS@
 libvmrpcdbg_la_CPPFLAGS += @VMTOOLS_CPPFLAGS@
+libvmrpcdbg_la_CPPFLAGS += @XDR_CPPFLAGS@
 libvmrpcdbg_la_CPPFLAGS += -I$(top_srcdir)/lib/rpcChannel
 
 libvmrpcdbg_la_LDFLAGS =

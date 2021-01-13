@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -145,6 +145,11 @@ DECLARE_COMMAND(Config);
 #if defined(_WIN32) || \
    (defined(__linux__) && !defined(OPEN_VM_TOOLS) && !defined(USERWORLD))
 DECLARE_COMMAND(Upgrade);
+DECLARE_COMMAND(GuestStore);
+#endif
+
+#if defined(_WIN32)
+DECLARE_COMMAND(GlobalConf)
 #endif
 
 #endif /*_TOOLBOX_CMD_H_*/

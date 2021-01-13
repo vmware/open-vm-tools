@@ -1,5 +1,5 @@
 ##########################################################
-# Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
+# Copyright (C) 2010-2017,2020 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -92,21 +92,25 @@ error.novirtual = "%1$s must be run inside a virtual machine.\n"
 
 error.unknown = "%1$s: Unknown %2$s '%3$s'\n"
 
-help.config = "%1$s: modify Tools configuration\nUsage: %2$s %3$s <subcommand>\n\nSubcommands:\n   get <section> <key>: display current value for <key>\n   set <section> <key> <value>: set <key> to <value>\n\n   remove <section> <key>: remove <key>\n\n<section> can be any supported section, such as logging, guestoperations or guestinfo.\n<key> can be any configuration key.\n<value> can be any value.\n"
+help.config = "%1$s: modify Tools configuration\nUsage: %2$s %3$s <subcommand>\n\nSubcommands:\n   get <section> <key>: display current value for <key>\n   NOTE: If the <key> is not present in tools.conf, its\n   value from the global configuration is returned if present\n   set <section> <key> <value>: set <key> to <value>\n\n   remove <section> <key>: remove <key>\n\n<section> can be any supported section, such as logging, guestoperations or guestinfo.\n<key> can be any configuration key.\n<value> can be any value.\n"
 
 help.device = "%1$s: functions related to the virtual machine's hardware devices\nUsage: %2$s %3$s <subcommand> [args]\ndev is the name of the device.\n\nSubcommands:\n   enable <dev>: enable the device dev\n   disable <dev>: disable the device dev\n   list: list all available devices\n   status <dev>: print the status of a device\n"
 
 help.disk = "%1$s: perform disk shrink operations\nUsage: %2$s %3$s <subcommand> [args]\n\nSubcommands:\n   list: list available locations\n   shrink <location>: wipes and shrinks a file system at the given location\n   shrinkonly: shrinks all disks\n   wipe <location>: wipes a file system at the given location\n"
 
+help.globalconf = "%1$s: Manage global configuration downloads from the GuestStore\nUsage: %2$s %3$s <subcommand>\n\nESX guests only subcommands:\n   enable: Enable the global configuration module. (Tools service is restarted)\n   disable: Disable the global configuration module (Tools service is restarted)\n   refresh: Trigger a new download of the global configuration from the GuestStore\n   status: Print the status of the global configuration module\n"
+
+help.gueststore = "%1$s: get resource content from GuestStore\nUsage: %2$s %3$s <subcommand>\n\nESX guests only subcommands:\n   getcontent <resource path> <output file>: get resource content from GuestStore and save to output file.\n\n<resource path> starts with / and represents a unique resource in GuestStore. If it ends with /, defaults to retrieve the underlying 'metadata.json' resource.\n<output file> is the path of a file to save resource content to.\n"
+
 help.hint = "Try '%1$s %2$s%3$s%4$s' for more information.\n"
 
 help.info = "%1$s: update guest information on the host\nUsage: %2$s %3$s update <infoclass>\n\nSubcommands:\n   update <infoclass>: update information identified by <infoclass>\n<infoclass> can be 'network'\n"
 
-help.logging = "%1$s: modify tools logging\nUsage: %2$s %3$s level <subcommand> <servicename> <level>\n\nSubcommands:\n   get <servicename>: display current level\n   set <servicename> <level>: set current level\n\n<servicename> can be any supported service, such as vmsvc or vmusr\n<level> can be one of error, critical, warning, info, message, debug\n   default is %4$s\n"
+help.logging = "%1$s: modify tools logging\nUsage: %2$s %3$s level <subcommand> <servicename> <level>\n\nSubcommands:\n   get <servicename>: display current level\n   NOTE: If the level is not present in tools.conf, its\n   value from the global configuration is returned if present\n   set <servicename> <level>: set current level\n\n<servicename> can be any supported service, such as vmsvc or vmusr\n<level> can be one of error, critical, warning, info, message, debug\n   default is %4$s\n"
 
-help.main = "Usage: %1$s <command> [options] [subcommand]\nType '%2$s %3$s <command>' for help on a specific command.\nType '%4$s -v' to see the VMware Tools version.\nUse '-q' option to suppress stdout output.\nMost commands take a subcommand.\n\nAvailable commands:\n   config\n   device\n   disk (not available on all operating systems)\n   info\n   logging\n   script\n   stat\n   timesync\n   upgrade (not available on all operating systems)\n"
+help.main = "Usage: %1$s <command> [options] [subcommand]\nType '%2$s %3$s <command>' for help on a specific command.\nType '%4$s -v' to see the VMware Tools version.\nUse '-q' option to suppress stdout output.\nMost commands take a subcommand.\n\nAvailable commands:\n   config\n   device\n   disk (not available on all operating systems)\n   globalconf (not available on all operating systems)\n   gueststore (not available on all operating systems)\n   info\n   logging\n   script\n   stat\n   timesync\n   upgrade (not available on all operating systems)\n"
 
-help.script = "%1$s: control the scripts run in response to power operations\nUsage: %2$s %3$s <power|resume|suspend|shutdown> <subcommand> [args]\n\nSubcommands:\n   enable: enable the given script and restore its path to the default\n   disable: disable the given script\n   set <full_path>: set the given script to the given path\n   default: print the default path of the given script\n   current: print the current path of the given script\n"
+help.script = "%1$s: control the scripts run in response to power operations\nUsage: %2$s %3$s <power|resume|suspend|shutdown> <subcommand> [args]\n\nSubcommands:\n   enable: enable the given script and restore its path to the default\n   disable: disable the given script\n   set <full_path>: set the given script to the given path\n   default: print the default path of the given script\n   current: print the current path of the given script\n   NOTE: If the path is not present in tools.conf, its\n   value from the global configuration is returned if present\n"
 
 help.stat = "%1$s: print useful guest and host information\nUsage: %2$s %3$s <subcommand>\n\nSubcommands:\n   hosttime: print the host time\n   speed: print the CPU speed in MHz\nESX guests only subcommands:\n   sessionid: print the current session id\n   balloon: print memory ballooning information\n   swap: print memory swapping information\n   memlimit: print memory limit information\n   memres: print memory reservation information\n   cpures: print CPU reservation information\n   cpulimit: print CPU limit information\n   raw [<encoding> <stat name>]: print raw stat information\n      <encoding> can be one of 'text', 'json', 'xml', 'yaml'.\n      <stat name> includes session, host, resources, vscsi and\n      vnet (Some stats like vscsi are two words, e.g. 'vscsi scsi0:0').\n      Prints the available stats if <encoding> and <stat name>\n      arguments are not specified.\n"
 
@@ -114,9 +118,29 @@ help.timesync = "%1$s: functions for controlling time synchronization on the gue
 
 help.upgrade = "%1$s: functions related to upgrading VMware Tools.\nUsage: %2$s %3$s <subcommand> [args]\nSubcommands:\n   status: check the VMware Tools upgrade status.\n   start: initiate an auto-upgrade of VMware Tools.\n\nFor upgrades to work, the VMware Tools service needs to be running.\n"
 
+globalconf.refresh.failed  = "'%1$s' failed, since globalconf module is disabled.\n"
+
+globalconf.start_vmtools = "%1$s: Starting the %2$s service.\n"
+
+globalconf.status = "The status of globalconf module is '%1$s'\n"
+
+globalconf.stop_vmtools = "%1$s: Stopping the %2$s service.\n"
+
+globalconf.update_config = "%1$s: Updating the Configuration.\n"
+
+gueststore.content_size = "Content size in bytes: "
+
+gueststore.error.client_lib = "'%1$s' failed, GuestStore client library error: %2$s.\n"
+
+gueststore.progress = "\rProgress: %1$d%%"
+
 option.disabled = "Disabled"
 
 option.enabled = "Enabled"
+
+result.error.failed = "'%1$s' failed, check %2$s log for more information.\n"
+
+result.succeeded = "'%1$s' succeeded.\n"
 
 script.notfound = "%1$s doesn't exist.\n"
 

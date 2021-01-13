@@ -1121,7 +1121,7 @@ main(int argc,          // IN
    canonicalizedPath = malloc(pathMax * sizeof *canonicalizedPath);
    if (canonicalizedPath == NULL) {
       printf("Error: cannot allocate memory for canonicalized path, "
-             "aborting mount\n");
+             "canceling mount\n");
       goto out;
    } else if (!realpath(mountPoint, canonicalizedPath)) {
       perror("Error: cannot canonicalize mount point");
@@ -1130,7 +1130,7 @@ main(int argc,          // IN
    mountPoint = canonicalizedPath;
 
    if (!ParseShareName(shareName, &shareNameHost, &shareNameDir)) {
-      printf("Error: share name is invalid, aborting mount\n");
+      printf("Error: share name is invalid, canceling mount\n");
       goto out;
    }
 

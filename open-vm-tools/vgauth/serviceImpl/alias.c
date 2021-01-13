@@ -3158,6 +3158,9 @@ ServiceIDVerifyStoreContents(void)
              * a blacklist of bad files and keep going.  but that's
              * a lot of risky work that's very hard to test, so punt for now.
              */
+            g_free(badFileName);
+            g_free(fullFileName);
+            g_dir_close(dir);
             return VGAUTH_E_FAIL;
          } else {
             Audit_Event(TRUE,
@@ -3408,6 +3411,7 @@ ServiceAliasInitAliasStore(void)
                          "Failed to rename suspect Alias store directory '%s' to '%s'"),
                      aliasStoreRootDir, badRootDirName);
          // XXX making this fatal for now.  can we do anything better?
+         g_free(badRootDirName);
          return VGAUTH_E_FAIL;
       }
       g_free(badRootDirName);

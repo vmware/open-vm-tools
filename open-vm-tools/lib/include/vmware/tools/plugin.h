@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2019,2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -217,15 +217,6 @@ ToolsCore_LogState(guint level,
  */
 #define TOOLS_CORE_SIG_SERVICE_CONTROL  "tcs_service_control"
 
-/**
- * Signal sent when a new version of global configuration is downloaded.
- *
- * @param[in]  src      The source object.
- * @param[in]  ctx      ToolsAppCtx *: The application context.
- * @param[in]  data     Client data.
- */
-#define TOOLS_CORE_SIG_GLOBALCONF_UPDATE "tcs_globalconf_update"
-
 #endif
 
 /**
@@ -236,6 +227,14 @@ ToolsCore_LogState(guint level,
  * in the callback for the object's "notify" signal.
  */
 #define TOOLS_CORE_PROP_CTX "tcs_app_ctx"
+
+/**
+ * Event signaled when VMTools discovers a newer version is available.
+ *
+ * Name of the event that can be set to the notification event to
+ * indicate a new version of tools is available for install or upgrade.
+ */
+#define TOOLS_CORE_EVENTS_TOOLS_NEW_VERSION "VMToolsNewVersion"
 
 /**
  * Event signaled when VMTools requires a system restart to complete an install.
@@ -263,6 +262,18 @@ typedef enum {
    TOOLS_CORE_API_V1    = 0x1,
 } ToolsCoreAPI;
 
+
+struct ToolsServiceProperty;
+
+/**
+ * Type of the function that installs a new property in
+ * the application context service object.
+ *
+ * @param[in] obj    The application context service object.
+ * @param[in] prop   Property to install.
+ */
+typedef void (*RegisterServiceProperty)(gpointer obj,
+                                        struct ToolsServiceProperty *prop);
 
 /**
  * Defines the context of a tools application. This data is provided by the
@@ -301,6 +312,13 @@ typedef struct ToolsAppCtx {
     * register and emit their own signals using this object.
     */
    gpointer          serviceObj;
+
+   /**
+    * Function pointer for plugins to register properties to
+    * the service object serviceObj.
+    * This allows a plugin to share data and services to others.
+    */
+   RegisterServiceProperty registerServiceProperty;
 } ToolsAppCtx;
 
 #if defined(G_PLATFORM_WIN32)

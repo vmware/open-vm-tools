@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -39,6 +39,7 @@
 #include "vmware/tools/utils.h"
 #if defined(_WIN32)
 #include "vmware/tools/win32util.h"
+#include "globalConfig.h"
 #endif
 
 #include "vm_version.h"
@@ -100,9 +101,6 @@ ToolboxCmdHelp(const char *progName,
  * The commands table.
  * Must go after function declarations
  */
-#if defined(_WIN32)
-#include "toolboxCmdTableWin32.h"
-#else
 static CmdTable commands[] = {
    { "timesync",   TimeSync_Command,   TRUE,  FALSE, TimeSync_Help},
    { "script",     Script_Command,     FALSE, TRUE,  Script_Help},
@@ -111,15 +109,19 @@ static CmdTable commands[] = {
 #endif
    { "stat",       Stat_Command,       TRUE,  FALSE, Stat_Help},
    { "device",     Device_Command,     TRUE,  FALSE, Device_Help},
-#if defined(__linux__) && !defined(OPEN_VM_TOOLS) && !defined(USERWORLD)
+#if defined(_WIN32) || \
+   (defined(__linux__) && !defined(OPEN_VM_TOOLS) && !defined(USERWORLD))
    { "upgrade",    Upgrade_Command,    TRUE,  TRUE,  Upgrade_Help},
+   { "gueststore", GuestStore_Command, TRUE,  FALSE, GuestStore_Help},
+#endif
+#if defined(_WIN32)
+   { "globalconf", GlobalConf_Command, TRUE,  TRUE,  GlobalConf_Help},
 #endif
    { "logging",    Logging_Command,    TRUE,  TRUE,  Logging_Help},
    { "info",       Info_Command,       TRUE,  TRUE,  Info_Help},
    { "config",     Config_Command,     TRUE,  TRUE,  Config_Help},
    { "help",       HelpCommand,        FALSE, FALSE, ToolboxCmdHelp},
 };
-#endif
 
 
 /*
@@ -318,9 +320,6 @@ ToolsCmd_UnknownEntityError(const char *name,    // IN: command name (argv[0])
  *-----------------------------------------------------------------------------
  */
 
-#if defined(_WIN32)
-#include "toolboxCmdHelpWin32.h"
-#else
 static void
 ToolboxCmdHelp(const char *progName,   // IN
                const char *cmd)        // IN
@@ -334,6 +333,8 @@ ToolboxCmdHelp(const char *progName,   // IN
                           "   config\n"
                           "   device\n"
                           "   disk (not available on all operating systems)\n"
+                          "   globalconf (not available on all operating systems)\n"
+                          "   gueststore (not available on all operating systems)\n"
                           "   info\n"
                           "   logging\n"
                           "   script\n"
@@ -342,7 +343,6 @@ ToolboxCmdHelp(const char *progName,   // IN
                           "   upgrade (not available on all operating systems)\n"),
            progName, progName, cmd, progName);
 }
-#endif
 
 
 /*
@@ -467,6 +467,17 @@ main(int argc,    // IN: length of command line arguments
 
    setlocale(LC_ALL, "");
    VMTools_LoadConfig(NULL, G_KEY_FILE_NONE, &conf, NULL);
+
+#if defined(_WIN32)
+   if (GlobalConfig_GetEnabled(conf)) {
+      GKeyFile *globalConf = NULL;
+      if (GlobalConfig_LoadConfig(&globalConf, NULL)) {
+         VMTools_AddConfig(globalConf, conf);
+         g_key_file_free(globalConf);
+      }
+   }
+#endif
+
    VMTools_ConfigLogging("toolboxcmd", conf, FALSE, FALSE);
    VMTools_BindTextDomain(VMW_TEXT_DOMAIN, NULL, NULL);
 

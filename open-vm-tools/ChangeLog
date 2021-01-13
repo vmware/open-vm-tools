@@ -1,3 +1,146 @@
+commit eadcaebaf987c423f4c45e4109b01c5d80e06f36
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Jan 13 14:48:17 2021 -0800
+
+    Prepare to make the 11.2.5 OVT release announcement.
+      - ReleaseNotes.md - copy in the final 11.2.5 OVT release notes
+      - configure.ac  = set the tools version to 11.2.5
+      - buildNumber.h  - set the build and product number from the internal
+                         release build.
+
+commit 7362e15861192473fb8407fe01682d3ae24d9624
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Dec 23 08:04:08 2020 -0800
+
+    Update some copyright dates for 2020 publication.
+
+commit 9b531d3c5a736377f879f3087118a62f2ef052be
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Dec 23 07:33:50 2020 -0800
+
+    L10n drop for open-vm-tools 10.2.5.
+
+commit b126b69245546cdfcde0e49fb10ccbb127d95b9c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Dec 23 07:33:50 2020 -0800
+
+    OVT: Build only fuse-based or kernel module vmblocktest programs.
+    
+    The OVT configuration determines whether open-vm-tools will build
+    a vmblock kernel module or a vmblock-fuse user level VMBlock
+    implementation.  Both versions of the vmblocktest program(s) are not
+    needed.   Linux OVT is only using the vmblock-fuse implementation.
+    
+    Select the version to build based on the HAVE_FUSE setting from the
+    ./configure run.
+    
+    This fixes https://github.com/vmware/open-vm-tools/issues/467
+
+commit 686fcb305ffbd3bcbba2461da9db8b41e2217f3c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Dec 23 07:33:50 2020 -0800
+
+    tools: Fix Coverity errors in resolution plugin.
+    
+    Fix multiplication overflow and fgetc usage to avoid Coverity errors.
+
+commit df2e08071213c1d820695307acfa139bc7cade3e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Dec 10 21:05:49 2020 -0800
+
+    VMTools 11.2.5: update visible copyrights to 2021
+    
+    Release of VMware Tools 11.2.5 is targeted for Jan. 2021.  Updating
+    the visible copyright dates to 2021 to coincide with the GA release.
+
+commit 29b51efe1a714738f727d549c1555e475ac71f72
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Dec 10 21:05:49 2020 -0800
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit 09e208778d861e131b03ee663e3a7700036649a3
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Dec 10 21:05:49 2020 -0800
+
+    Update wording of user visible messages to conform to guidelines.
+
+commit d468952813591372de36e543dbab285761cc24a9
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Dec 10 21:05:49 2020 -0800
+
+    Change toolboxcmd gueststore command help.
+
+commit 82fb9f6cb67f0e0b958b9f1329c13041083ef8fe
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Dec 10 21:05:49 2020 -0800
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit b9c9d80dab351ed60c77486137a637c1ed53a642
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Dec 10 21:05:49 2020 -0800
+
+    Common source file change not applicable to open-vm-tools.
+
+commit 145b32d8cc02779adb5372a7845070eea52daeb4
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Dec 10 21:05:49 2020 -0800
+
+    Common header file change not directly applicable to open-vm-tools.
+
+commit 1f57b44a3f4b685f70d9ff9b0981d598e2ecdd5a
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Dec 10 21:05:49 2020 -0800
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit e434a297bb1af38c00094d92914396232ece8ca7
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Dec 10 21:05:49 2020 -0800
+
+    Remove the pam_securetty.so reference from the SUSE pam configuration file.
+    
+    The PAM config file for SUSE includes a library that is not necessary.
+    This changeset removes the unnecessary library per KB 78521.
+
+commit aa024778aa12e578e7d27b192a458fb497a644f6
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Dec 10 21:05:49 2020 -0800
+
+    Fix propagation of libtirpc flags into build of test source.
+    
+    Starting with glibc 2.32, the Linux libc<n>-dev no longer provides
+    the /usr/include/rpc/rpc.h header.  The configure script will detect
+    the availability of the libtirpc package and use the rpc.h header
+    from /usr/include/tirpc/rpc/rpc.h.
+    
+    This fix extends the necessary compilation and linking options to the
+    build of the open-vm-tools services test programs that utilize RPC.
+    
+    Fixes: https://github.com/vmware/open-vm-tools/issues/468
+    Pull Request: https://github.com/vmware/open-vm-tools/pull/469
+
+commit d3367358a7cff80effffbc7e5f9bc0c5fded3a48
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Dec 10 21:05:49 2020 -0800
+
+    Fix memory leaks.
+    
+    A Coverity scan of open-vm-tools reported a number of memory leaks
+    on error code paths.  Fix seven reported leaks, and modify code
+    to address two false positives in order to make the code clearer
+    and/or keep Coverity from reporting the issues.  Also fix additional
+    leaks found in the routine Proto_TextContents during code review.
+
+commit 35a57d5cb66113095142fdfb07d39f756d5a81af
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Dec 10 21:05:48 2020 -0800
+
+    Prepare the vmtools-prod-cpd branch for the VMware Tools 11.2.5 build.
+    
+    - Set the tools version to 11.2.5.
+
 commit 231e099e58ebfc54633116e9751e87bdfd1af7d7
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Fri Oct 16 16:11:59 2020 -0700

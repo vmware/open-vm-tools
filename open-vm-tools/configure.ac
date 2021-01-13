@@ -35,7 +35,7 @@
 ### Initialization
 ###
 
-TOOLS_VERSION="11.2.0"
+TOOLS_VERSION="11.2.5"
 AC_INIT(
    [open-vm-tools],
    [11.2.0],

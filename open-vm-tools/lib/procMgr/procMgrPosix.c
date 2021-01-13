@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1891,7 +1891,7 @@ ProcMgrKill(pid_t pid,      // IN
 {
    if (kill(pid, sig) == -1) {
       int savedErrno = errno;
-      Warning("Error trying to kill process %"FMTPID" with signal %d: %s\n",
+      Warning("Error trying to cancel process %"FMTPID" with signal %d: %s\n",
               pid, sig, Msg_ErrString());
       errno = savedErrno;
       return 0;
@@ -1938,7 +1938,7 @@ ProcMgrKill(pid_t pid,      // IN
    /*
     * timed out -- system/process is incredibly unresponsive or unkillable
     */
-   Warning("%s: timed out trying to kill pid %"FMTPID" with signal %d\n",
+   Warning("%s: timed out trying to cancel pid %"FMTPID" with signal %d\n",
            __FUNCTION__, pid, sig);
    return -1;
 }

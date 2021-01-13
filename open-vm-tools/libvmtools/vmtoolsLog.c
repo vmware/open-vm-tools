@@ -2395,7 +2395,6 @@ VMTools_ChangeLogFilePath(const gchar *delimiter,     // IN
 {
    gchar key[128];
    gchar *path = NULL;
-   gchar *userLogTemp = NULL;
    gchar **tokens;
    gboolean retVal = FALSE;
 
@@ -2412,8 +2411,9 @@ VMTools_ChangeLogFilePath(const gchar *delimiter,     // IN
 
    tokens = g_strsplit(path, delimiter, 2);
    if (tokens != NULL && *tokens != NULL){
-      userLogTemp = g_strjoin(appendString, *tokens, " ", NULL);
-      userLogTemp = g_strchomp (userLogTemp);
+      char *userLogTemp = g_strjoin(appendString, *tokens, " ", NULL);
+
+      g_strchomp(userLogTemp);
       if (*(tokens+1) != NULL){
          gchar *userLog;
          userLog = g_strjoin(delimiter, userLogTemp, *(tokens+1), NULL);

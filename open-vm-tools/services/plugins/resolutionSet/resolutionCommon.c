@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2016-2017 VMware, Inc. All rights reserved.
+ * Copyright (c) 2016-2017,2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -400,7 +400,7 @@ resolutionXorgDriverVersion(int numPaths,               // IN: Number of strings
 {
    FILE *driver = NULL;
    const char *curMatch;
-   char curFileChar;
+   int curFileChar;
    int i;
 
    g_debug("%s: Scanning for VMWare Xorg drivers.\n", __func__);
@@ -423,7 +423,7 @@ resolutionXorgDriverVersion(int numPaths,               // IN: Number of strings
 	 goto outNotFound;
 
       curFileChar = fgetc(driver);
-      if (curFileChar == *curMatch) {
+      if (curFileChar != EOF && curFileChar == *curMatch) {
 	 curMatch++;
 	 continue;
       } else if (curMatch != versionString) {

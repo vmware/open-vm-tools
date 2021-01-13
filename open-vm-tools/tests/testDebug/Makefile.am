@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2009-2016 VMware, Inc.  All rights reserved.
+### Copyright (c) 2009-2016, 2020 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -22,6 +22,7 @@ libtestDebug_la_CPPFLAGS =
 libtestDebug_la_CPPFLAGS += @CUNIT_CPPFLAGS@
 libtestDebug_la_CPPFLAGS += @GOBJECT_CPPFLAGS@
 libtestDebug_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
+libtestDebug_la_CPPFLAGS += @XDR_CPPFLAGS@
 
 libtestDebug_la_LDFLAGS =
 libtestDebug_la_LDFLAGS += @PLUGIN_LDFLAGS@
@@ -30,6 +31,7 @@ libtestDebug_la_LIBADD =
 libtestDebug_la_LIBADD += @CUNIT_LIBS@
 libtestDebug_la_LIBADD += @GOBJECT_LIBS@
 libtestDebug_la_LIBADD += @VMTOOLS_LIBS@
+libtestDebug_la_LIBADD += @XDR_LIBS@
 libtestDebug_la_LIBADD += ../vmrpcdbg/libvmrpcdbg.la
 
 libtestDebug_la_SOURCES =
