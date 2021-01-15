@@ -985,7 +985,7 @@ TryToEnableNics(const char *nics)
  *-----------------------------------------------------------------------------
  */
 
-static bool sSkipReboot = false;
+static bool sSkipReboot = true;
 
 IMGCUST_API void
 _DeployPkg_SkipReboot(bool skip)
