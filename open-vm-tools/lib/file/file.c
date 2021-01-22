@@ -2441,6 +2441,8 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
    char *tmp;
    int result;
    int nrFiles;
+   size_t extLen;
+   size_t baseNameLen;
    uint32 maxNr = 0;
    uint32 nFound = 0;
    char *baseDir = NULL;
@@ -2473,6 +2475,8 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
       goto cleanup;
    }
 
+   baseNameLen = strlen(baseName);
+
    nrFiles = File_ListDirectory(baseDir, &fileList);
    if (nrFiles == -1) {
       Log(LGPFX" %s: failed to read the directory '%s'.\n", __FUNCTION__,
@@ -2487,39 +2491,32 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
     * including in the list to be considered.
     */
 
+   extLen = strlen(ext);
+
    for (i = 0; i < nrFiles; i++) {
-      if (StrUtil_StartsWith(fileList[i], baseName) &&
-          StrUtil_EndsWith(fileList[i], ext) &&
-          fileList[i][strlen(baseName)] == '-') {
-         uint32 curNr;
-         char *endNr = NULL;
-         size_t nrLen = strlen(fileList[i]) - strlen(baseName) - strlen(ext) - 1;
-         const char *nr = fileList[i] + strlen(baseName) + 1;
+      size_t fileNameLen = strlen(fileList[i]);
 
-         if (nrLen < 1) {  // Something must be present after the "-"
-            goto skip;
+      if ((fileNameLen >= (baseNameLen + 1 /* dash */ + 1 /* digit */ + extLen)) &&
+          (memcmp(fileList[i], baseName, baseNameLen) == 0) &&
+          (fileList[i][baseNameLen] == '-') &&
+          (memcmp(fileList[i] + fileNameLen - extLen, ext, extLen) == 0)) {
+         const char *nr = fileList[i] + baseNameLen + 1;
+
+         /* No leading zeros; zero is invalid; must be a valid ASCII digit */
+         if ((nr[0] >= '1') || (nr[0] <= '9')) {
+            uint32 curNr;
+            char *endNr = NULL;
+
+            errno = 0;
+            curNr = strtoul(nr, &endNr, 10);
+            if ((errno == 0) &&
+                (endNr == fileList[i] + fileNameLen - extLen) &&
+                (curNr <= MAX_UINT32)) {
+               fileNumbers[nFound++] = curNr;
+            }
          }
-
-         if (!isdigit(nr[0])) {  // "-' must immediately be followed by a digit
-            goto skip;
-         }
-
-         if (nr[0] == '0') {  // zero is invalid, as are leading zeros
-            goto skip;
-         }
-
-         errno = 0;
-         curNr = strtoul(nr, &endNr, 10);
-
-         if ((Err_Errno() != 0) ||     // out of range; vmware-1C.log
-             (endNr - nr != nrLen)) {
-            goto skip;
-         }
-
-         fileNumbers[nFound++] = curNr;
       }
 
-skip:
       Posix_Free(fileList[i]);
    }
 
