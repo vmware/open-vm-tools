@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -249,6 +249,12 @@ DeployPkgExecDeploy(ToolsAppCtx *ctx,   // IN: app context
       /* Unpack the package and run the command. */
       ret = DeployPkgDeployPkgInGuest(ctx, pkgNameStr, errMsg, sizeof errMsg);
       if (ret != TOOLSDEPLOYPKG_ERROR_SUCCESS) {
+#ifdef _WIN32
+        /*
+         * PR 1631160. for Linux, sysimage has sent failure status in vmx when
+         * deploy pkg failed, to avoid sending failure events repeatedly, here
+         * is only sending status in the case of windows.
+         */
          gchar *msg = g_strdup_printf("deployPkg.update.state %d %d %s",
                                       TOOLSDEPLOYPKG_DEPLOYING,
                                       TOOLSDEPLOYPKG_ERROR_DEPLOY_FAILED,
@@ -261,6 +267,7 @@ DeployPkgExecDeploy(ToolsAppCtx *ctx,   // IN: app context
                       TOOLSDEPLOYPKG_ERROR_DEPLOY_FAILED);
          }
          g_free(msg);
+#endif
          g_warning("DeployPkgInGuest failed, error = %d\n", ret);
       }
    }
