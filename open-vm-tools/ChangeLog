@@ -140,6 +140,12 @@ Date:   Fri Jan 22 12:25:40 2021 -0800
 
     Common header file change not applicable to open-vm-tools.
 
+commit 937691d51dd93ee8043adc83c24f3b7fe4c25bcb
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Dec 31 10:16:50 2020 -0800
+
+    Update ChangeLog with the granular push of Dec. 31.
+
 commit 2ca1201b81d7513cc4d709ae766daf7eb4ae3612
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Thu Dec 31 10:12:25 2020 -0800
