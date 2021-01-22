@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -283,7 +283,7 @@
 #define PRECHECK_VERSION "e.x.p"
 #define VHSESDK_VERSION "1.0.0"
 #define VIEWVC_VERSION "14.0.2"
-#define WCP_VERSION "0.0.6"
+#define WCP_VERSION "0.0.7"
 #define VSTATS_VERSION "0.0.1"
 #define XVP_VERSION "1.0.0"
 /*
