@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -69,6 +69,7 @@
  */
 #define PRODUCT_SCALABLE_SERVER_BRIEF_NAME "ESX"
 #define PRODUCT_ESXI_BRIEF_NAME "ESXi"
+#define PRODUCT_ESXIO_BRIEF_NAME "ESXio"
 #define PRODUCT_VMVISOR_BRIEF_NAME PRODUCT_ESXI_BRIEF_NAME
 #define PRODUCT_WORKSTATION_BRIEF_NAME "Workstation"
 #define PRODUCT_WORKSTATION_SERVER_BRIEF_NAME "Workstation Server"
@@ -90,6 +91,7 @@
 
 #define PRODUCT_SCALABLE_SERVER_NAME MAKE_NAME(PRODUCT_SCALABLE_SERVER_BRIEF_NAME)
 #define PRODUCT_ESXI_NAME MAKE_NAME(PRODUCT_ESXI_BRIEF_NAME)
+#define PRODUCT_ESXIO_NAME MAKE_NAME(PRODUCT_ESXIO_BRIEF_NAME)
 #define PRODUCT_VMVISOR_NAME PRODUCT_ESXI_NAME
 #define PRODUCT_WORKSTATION_NAME MAKE_NAME(PRODUCT_WORKSTATION_BRIEF_NAME)
 #define PRODUCT_WORKSTATION_SERVER_NAME MAKE_NAME(PRODUCT_WORKSTATION_SERVER_BRIEF_NAME)
@@ -188,7 +190,8 @@
 #define PRODUCT_MAC_DESKTOP_NAME MAKE_NAME(PRODUCT_MAC_DESKTOP_BRIEF_NAME)
 
 
-#if !(   defined(VMX86_SERVER)   \
+#if !(   defined(VMX86_ESXIO)    \
+      || defined(VMX86_SERVER)   \
       || defined(VMX86_DESKTOP)  \
       || defined(VMX86_HORIZON_VIEW)     \
       || defined(VMX86_VPX)      \
@@ -216,7 +219,9 @@
 #endif
 
 
-#if defined(VMX86_SERVER)
+#if defined(VMX86_ESXIO)
+# define PRODUCT_SHORT_NAME PRODUCT_ESXIO_NAME
+#elif defined(VMX86_SERVER)
 # define PRODUCT_SHORT_NAME PRODUCT_ESXI_NAME
 #elif defined(VMX86_VMRC) /* check VMX86_VMRC before VMX86_DESKTOP */
 # define PRODUCT_SHORT_NAME PRODUCT_VMRC_NAME
@@ -321,7 +326,9 @@
  * a parameter that no longer match the content of the dormant license
  * file.
  */
-#   if defined(VMX86_SERVER)
+#   if defined(VMX86_ESXIO)
+#      define PRODUCT_NAME_FOR_LICENSE "VMware ESXio"
+#   elif defined(VMX86_SERVER)
 #      define PRODUCT_NAME_FOR_LICENSE "VMware ESX Server"
 #   elif defined(VMX86_VMRC) /* check VMX86_VMRC before VMX86_DESKTOP */
 #      define PRODUCT_NAME_FOR_LICENSE PRODUCT_VMRC_NAME_FOR_LICENSE
