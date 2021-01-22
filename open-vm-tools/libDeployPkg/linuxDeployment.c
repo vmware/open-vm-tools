@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1464,8 +1464,7 @@ Deploy(const char* packageName)
             }
             rebootCommandResult =
                ForkExecAndWaitCommand("/sbin/telinit 6", false);
-            isRebooting = (rebootCommandResult == 0) ?
-			   true : isRebooting;
+            isRebooting = (rebootCommandResult == 0) ? true : isRebooting;
             sleep(1);
          } while (rebootCommandResult == 0);
          if (!isRebooting) {
@@ -1722,6 +1721,8 @@ ForkExecAndWaitCommand(const char* command, bool ignoreStdErr)
    int i;
    char** args = GetFormattedCommandLine(command);
    Bool isPerlCommand = (strcmp(args[0], "/usr/bin/perl") == 0) ? true : false;
+   Bool isTelinitCommand =
+      (strcmp(args[0], "/sbin/telinit") == 0) ? true : false;
 
    sLog(log_debug, "Command to exec : '%s'.", args[0]);
    Process_Create(&hp, args, sLog);
@@ -1761,10 +1762,17 @@ ForkExecAndWaitCommand(const char* command, bool ignoreStdErr)
          }
       }
    } else {
-      sLog(log_error,
-           "Customization command failed with exitcode: %d, stderr: '%s'.",
-           retval,
-           Process_GetStderr(hp));
+      if (isTelinitCommand) {
+         sLog(log_info,
+              "Telinit command failed with exitcode: %d, stderr: '%s'.",
+              retval,
+              Process_GetStderr(hp));
+      } else {
+         sLog(log_error,
+              "Customization command failed with exitcode: %d, stderr: '%s'.",
+              retval,
+              Process_GetStderr(hp));
+      }
    }
 
    Process_Destroy(hp);
