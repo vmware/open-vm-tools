@@ -68,6 +68,7 @@
 #include "vm_atomic.h"
 #include "fileLock.h"
 #include "userlock.h"
+#include "strutil.h"
 
 #include "unicodeOperations.h"
 
@@ -2444,7 +2445,6 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
    uint32 nFound = 0;
    char *baseDir = NULL;
    char *baseName = NULL;
-   char *fmtString = NULL;
    char **fileList = NULL;
    char *fullPathNoExt = NULL;
    uint32 *fileNumbers = NULL;
@@ -2473,8 +2473,6 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
       goto cleanup;
    }
 
-   fmtString = Str_SafeAsprintf(NULL, "%s-%%u%s%%n", baseName, ext);
-
    nrFiles = File_ListDirectory(baseDir, &fileList);
    if (nrFiles == -1) {
       Log(LGPFX" %s: failed to read the directory '%s'.\n", __FUNCTION__,
@@ -2484,16 +2482,39 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
 
    fileNumbers = Util_SafeCalloc(nrFiles, sizeof(uint32));
 
+   /*
+    * Make sure the whole file name precisely matches what we expect before
+    * including in the list to be considered.
+    */
+
    for (i = 0; i < nrFiles; i++) {
-      uint32 curNr;
-      int bytesProcessed = 0;
+      if (StrUtil_StartsWith(fileList[i], baseName) &&
+          StrUtil_EndsWith(fileList[i], ext) &&
+          fileList[i][strlen(baseName)] == '-') {
+         uint32 curNr;
+         char *endNr = NULL;
+         size_t nrLen = strlen(fileList[i]) - strlen(baseName) - strlen(ext) - 1;
+         const char *nr = fileList[i] + strlen(baseName) + 1;
 
-      /*
-       * Make sure the whole file name matched what we expect for the file.
-       */
+         if (nrLen < 1) {  // Something must be present after the "-"
+            continue;
+         }
 
-      if ((sscanf(fileList[i], fmtString, &curNr, &bytesProcessed) >= 1) &&
-          (bytesProcessed == strlen(fileList[i]))) {
+         if (!isdigit(nr[0])) {  // "-' must immediately be followed by a digit
+            continue;
+         }
+
+         if (nr[0] == '0') {  // zero is invalid, as are leading zeros
+            continue;
+         }
+
+         errno = 0;
+         curNr = strtoul(nr, &endNr, 10);
+
+         if ((errno != 0) || (endNr - nr != nrLen)) {  // out of range; vmware-1C.log
+            continue;
+         }
+
          fileNumbers[nFound++] = curNr;
       }
 
@@ -2574,7 +2595,6 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
   cleanup:
    Posix_Free(fileNumbers);
    Posix_Free(fileList);
-   Posix_Free(fmtString);
    Posix_Free(baseDir);
    Posix_Free(baseName);
    Posix_Free(fullPathNoExt);
