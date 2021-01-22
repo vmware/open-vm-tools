@@ -182,6 +182,7 @@
    LOGLEVEL_VAR(mksServer), \
    LOGLEVEL_VAR(mksSWB), \
    LOGLEVEL_VAR(mksVulkanRenderer), \
+   LOGLEVEL_VAR(mksVulkanCmds), \
    LOGLEVEL_VAR(mksWinBSOD), \
    LOGLEVEL_VAR(mor), \
    LOGLEVEL_VAR(mstat), \
