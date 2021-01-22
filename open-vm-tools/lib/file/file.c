@@ -2511,7 +2511,8 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
          errno = 0;
          curNr = strtoul(nr, &endNr, 10);
 
-         if ((errno != 0) || (endNr - nr != nrLen)) {  // out of range; vmware-1C.log
+         if ((Err_Errno() != 0) ||     // out of range; vmware-1C.log
+             (endNr - nr != nrLen)) {
             goto skip;
          }
 
