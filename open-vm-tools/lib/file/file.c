@@ -2497,27 +2497,28 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
          const char *nr = fileList[i] + strlen(baseName) + 1;
 
          if (nrLen < 1) {  // Something must be present after the "-"
-            continue;
+            goto skip;
          }
 
          if (!isdigit(nr[0])) {  // "-' must immediately be followed by a digit
-            continue;
+            goto skip;
          }
 
          if (nr[0] == '0') {  // zero is invalid, as are leading zeros
-            continue;
+            goto skip;
          }
 
          errno = 0;
          curNr = strtoul(nr, &endNr, 10);
 
          if ((errno != 0) || (endNr - nr != nrLen)) {  // out of range; vmware-1C.log
-            continue;
+            goto skip;
          }
 
          fileNumbers[nFound++] = curNr;
       }
 
+skip:
       Posix_Free(fileList[i]);
    }
 
