@@ -779,6 +779,7 @@ RandR12SetupOutput(Display *display,        // IN: The display connection
                    int height)              // IN: Height of scanout area
 {
    RRCrtc crtcID = info->xrrRes->crtcs[rrOutput->crtc];
+   XRRCrtcInfo *crtcInfo = info->crtcs[rrOutput->crtc];
    XRRModeInfo *mode;
    Status ret;
 
@@ -791,9 +792,14 @@ RandR12SetupOutput(Display *display,        // IN: The display connection
    if (!mode) {
       return FALSE;
    }
+   if (!crtcInfo) {
+       g_warning("%s: Wasn't able to find crtc info for crtc id %d.\n", __func__,
+                   (int)crtcID);
+       return FALSE;
+   }
 
    ret = XRRSetCrtcConfig(display, info->xrrRes, crtcID, CurrentTime, x, y,
-                          mode->id, RR_Rotate_0, &rrOutput->id, 1);
+                          mode->id, crtcInfo->rotation, &rrOutput->id, 1);
    if (ret == Success) {
       rrOutput->mode = mode->id;
       return TRUE;
