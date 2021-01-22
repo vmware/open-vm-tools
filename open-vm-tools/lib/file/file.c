@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -2412,11 +2412,10 @@ FileNumberCompare(const void *a,  // IN:
  * FileRotateByRenumber --
  *
  *      File rotation scheme optimized for vmfs:
- *        1) find highest numbered file (maxNr)
- *        2) rename <base>.<ext> to <base>-<maxNr + 1>.<ext>
- *        3) delete (nFound - numToKeep) lowest numbered files.
- *
- *        Wrap around is handled incorrectly.
+ *        1) Find highest numbered file (maxNr)
+ *        2) Rename <base>.<ext> to <base>-<maxNr + 1>.<ext>
+ *           Should maxNr hit MAX_UINT32, file names are "fixed up".
+ *        3) Delete (nFound - numToKeep) lowest numbered files.
  *
  * Results:
  *      If newFilePath is non-NULL: the new path is returned to *newFilePath
@@ -2437,13 +2436,18 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
                      int n,                      // IN: number old files to keep
                      char **newFilePath)         // OUT/OPT: new path to file
 {
-   char *baseDir = NULL, *fmtString = NULL, *baseName = NULL, *tmp;
-   char *fullPathNoExt = NULL;
-   uint32 maxNr = 0;
-   int i, nrFiles, nFound = 0;
-   char **fileList = NULL;
-   uint32 *fileNumbers = NULL;
+   uint32 i;
+   char *tmp;
    int result;
+   int nrFiles;
+   uint32 maxNr = 0;
+   uint32 nFound = 0;
+   char *baseDir = NULL;
+   char *baseName = NULL;
+   char *fmtString = NULL;
+   char **fileList = NULL;
+   char *fullPathNoExt = NULL;
+   uint32 *fileNumbers = NULL;
 
    if (newFilePath != NULL) {
       *newFilePath = NULL;
@@ -2469,7 +2473,7 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
       goto cleanup;
    }
 
-   fmtString = Str_SafeAsprintf(NULL, "%s-%%d%s%%n", baseName, ext);
+   fmtString = Str_SafeAsprintf(NULL, "%s-%%u%s%%n", baseName, ext);
 
    nrFiles = File_ListDirectory(baseDir, &fileList);
    if (nrFiles == -1) {
@@ -2499,10 +2503,41 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
    if (nFound > 0) {
       qsort(fileNumbers, nFound, sizeof(uint32), FileNumberCompare);
       maxNr = fileNumbers[nFound - 1];
+
+      /*
+       * If the maximum file number maxes out the uint32 used, rename all of the
+       * files, packing them down to the beginning of the rotation sequence.
+       *
+       * After MAX_UINT32 file rotations we can afford some extra time and I/O
+       * operations to handle the wrapping case nicely.
+       */
+
+      if (maxNr == MAX_UINT32) {
+         for (i = 0; i < nFound; i++) {
+            char *to = Str_SafeAsprintf(NULL, "%s/%s-%u%s", baseDir, baseName,
+                             i + 1, ext);
+            char *from = Str_SafeAsprintf(NULL, "%s/%s-%u%s", baseDir, baseName,
+                             fileNumbers[i], ext);
+
+            if (Posix_Rename(from, to) == -1) {
+               int error = Err_Errno();
+
+               Log(LGPFX" %s: failed to rename %s -> %s failed: %s\n", __FUNCTION__,
+                   from, to, Err_Errno2String(error));
+            }
+
+            free(to);
+            free(from);
+
+            fileNumbers[i] = i + 1;
+         }
+
+         maxNr = nFound;
+      }
    }
 
-   /* rename the existing file to the next number */
-   tmp = Str_SafeAsprintf(NULL, "%s/%s-%d%s", baseDir, baseName,
+   /* Rename the existing file to the next number */
+   tmp = Str_SafeAsprintf(NULL, "%s/%s-%u%s", baseDir, baseName,
                           maxNr + 1, ext);
 
    result = Posix_Rename(filePath, tmp);
@@ -2525,7 +2560,7 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
    if (nFound >= n) {
       /* Delete the extra files. */
       for (i = 0; i <= nFound - n; i++) {
-         tmp = Str_SafeAsprintf(NULL, "%s/%s-%d%s", baseDir, baseName,
+         tmp = Str_SafeAsprintf(NULL, "%s/%s-%u%s", baseDir, baseName,
                                 fileNumbers[i], ext);
 
          if (Posix_Unlink(tmp) == -1) {
