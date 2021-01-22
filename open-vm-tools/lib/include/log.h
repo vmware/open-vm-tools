@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -126,10 +126,10 @@ typedef enum {
 
 #ifdef VMX86_SERVER
 /* WORLD_MAX_OPID_STRING_SIZE */
-#define LOG_MAX_OPID_LENGTH (128 + 1)
+#define LOG_MAX_OPID_LENGTH 128
 #else
 /* We do not expect long opIDs in non-ESX environments. 32 should be enough. */
-#define LOG_MAX_OPID_LENGTH (32 + 1)
+#define LOG_MAX_OPID_LENGTH 32
 #endif
 
 /*
