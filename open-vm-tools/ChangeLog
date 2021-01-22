@@ -1,3 +1,145 @@
+commit c777cf7c2d053948c18fda88bba8e2564c495518
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jan 22 12:39:50 2021 -0800
+
+    Correct missing 2021 copyright dates.
+
+commit c41a0d7d9f3d9e30b62eb64b30a8cba362edcd59
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jan 22 12:25:41 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 7a300e61857eeb16174f97eb8f95bb47f2499561
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jan 22 12:25:41 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 3e5288ecb310ad2cb8dcdce586aaee11abd080ba
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jan 22 12:25:41 2021 -0800
+
+    File_Rotate: Optimize FileRotateByRenumber performance
+
+commit f06ab994230b074a361edbd76e29e00a7b3160ef
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jan 22 12:25:41 2021 -0800
+
+    Fix an issue where CustomizationUnknownFailure is generated multiple times
+    on Linux.
+    
+    For Linux, sysimage sends a failure status to VMX when the deploy pkg
+    failed.  The tools plugin then sends the failure notice again.  Changing the
+    plugin to only send the failure notice for Windows guests where the
+    failure has yet to be logged.
+
+commit 61d8c3cfd2d1ed84c6527ae446f543324a341f38
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jan 22 12:25:41 2021 -0800
+
+    Common header file change not directly applicable to open-vm-tools.
+
+commit 41b2a9b1f07e4e1971f7523290c9443d0b251f29
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jan 22 12:25:41 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 4a9cdfb5190706a8471bf668247011a0725af09c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jan 22 12:25:41 2021 -0800
+
+    Customization: Set log level to info, not error, for failed /sbin/telinit command
+    
+    The error message of a failed /sbin/telinit command is confusing for
+    customers who might think customization failed.  On some Guest OSes,
+    the repeatedly executing /sbin/telinit command can fail while a reboot
+    is happening and the init daemon has been killed.
+    This change sets log level to info, not error, for failed /sbin/telinit
+    command.
+    Note: The first /sbin/telinit commmand failure will fail customization
+    with error 127; this is unchanged.
+
+commit ecf07f0bf6cbab57c9e970efa32ca53e6c207aab
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jan 22 12:25:41 2021 -0800
+
+    lib/file/file.c: Use Err_Errno instead of errno directly.
+
+commit 741870477774566d0c065ae7f432ecda3e0caafc
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jan 22 12:25:41 2021 -0800
+
+    lib/file/file.c: Fix memory leak
+    
+    Don't continue; jump to ensure string free.
+
+commit 5f8671ff14899d34f7abc07550812d5951e927b0
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jan 22 12:25:41 2021 -0800
+
+    Invalid file name causes the VMX to crash in log file rotation
+    
+    Parse the log file names without using sscanf.  This way no "%" in
+    a file name can look like a valid scanf directive.
+
+commit 2b2d31c783c551b25d6a5525c3227d2dc87e64d7
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jan 22 12:25:40 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 68853a46e351f6d850973c01762b1188a685001a
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jan 22 12:25:40 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit d37933efb2dacaadc11fd5df8de51d7537bd9306
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jan 22 12:25:40 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 69b5354e7df1ab0579f1c25fa2e0cf5414cec037
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jan 22 12:25:40 2021 -0800
+
+    [resolution/x11] Preserve the rotation
+    
+    The screen orientation/rotation was being reset on each mode set.
+    In general that is not a bad behavior.   But it does break with a
+    fit to window and such as it will continuously reset the user
+    requested orientation.
+    This patch preserves the orientation/rotation on mode changes.
+
+commit d65ad41e69517cbd2ef653b30ddcfca528b835c3
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jan 22 12:25:40 2021 -0800
+
+    Log file name becomes invalid after a rotation
+    
+    This is because the accounting is done unsigned but the printf used (in
+    multiple places) was "%d".  Fix this by using "%u".
+    
+    As documented in the function header, the wrap around case was not handled
+    properly, so this was fixed as well.  If the maximum rotation number hits
+    MAX_UINT32, all of the files are renamed to pack the files as if this was
+    the beginning of a rotation sequence.
+
+commit 462c995f2deeaa578792b65c22eb082b9f487305
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jan 22 12:25:40 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit ba3483f293b56d696b962f691fa66fd888cc2964
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jan 22 12:25:40 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
 commit 2ca1201b81d7513cc4d709ae766daf7eb4ae3612
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Thu Dec 31 10:12:25 2020 -0800
