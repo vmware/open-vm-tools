@@ -342,6 +342,28 @@
  */
 
 
+
+/*
+ ******************************************************************************
+ * BEGIN resolutionSet goodies.
+ */
+
+/**
+ * Defines the string used for the resolutionSet config file group.
+ */
+#define CONFGROUPNAME_RESOLUTIONSET "resolutionSet"
+
+/**
+ * Lets the X11 back-end initialize with KMS enabled.
+ */
+#define CONFNAME_RESOLUTIONSET_X11_BACKEND "allow-x11-backend"
+
+/*
+ * END resolutionSet goodies.
+ ******************************************************************************
+ */
+
+
 /*
  ******************************************************************************
  * BEGIN GuestOSInfo goodies.

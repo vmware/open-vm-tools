@@ -38,6 +38,7 @@
 
 #include "vmware.h"
 #include "debug.h"
+#include "conf.h"
 #include "libvmwarectrl.h"
 #include "str.h"
 #include "strutil.h"
@@ -95,14 +96,20 @@ static int ResolutionX11ErrorHandler(Display *d, XErrorEvent *e);
  */
 
 Bool
-ResolutionBackendInit(InitHandle handle)
+ResolutionBackendInit(InitHandle handle, ToolsAppCtx *ctx)
 {
    ResolutionInfoX11Type *resInfoX = (ResolutionInfoX11Type *)handle;
    ResolutionInfoType *resInfo = &resolutionInfo;
    int dummy1;
    int dummy2;
 
-   if (resInfoX->canUseResolutionKMS == TRUE) {
+   gboolean allowX11Backend;
+   allowX11Backend = g_key_file_get_boolean(ctx->config,
+                                            CONFGROUPNAME_RESOLUTIONSET,
+                                            CONFNAME_RESOLUTIONSET_X11_BACKEND,
+                                            NULL);
+
+   if (resInfoX->canUseResolutionKMS == TRUE && !allowX11Backend) {
       resInfo->canSetResolution = FALSE;
       resInfo->canSetTopology = FALSE;
       return FALSE;
