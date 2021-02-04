@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -231,7 +231,7 @@ GuestInfoVMSupport(RpcInData *data)
     }
 
     /* Put together absolute vm-support filename. */
-    vmSupport = g_strdup_printf("cscript \"%s%s%s\" -u",
+    vmSupport = g_strdup_printf("cscript \"%s%s%s\" -u -x",
                                 vmSupportPath, DIRSEPS, vmSupportCmd);
     vm_free(vmSupportPath);
 
@@ -259,7 +259,7 @@ GuestInfoVMSupport(RpcInData *data)
 
 #else
 
-     gchar *vmSupportCmdArgv[] = {"vm-support", "-u", NULL};
+     gchar *vmSupportCmdArgv[] = {"vm-support", "-u", "-x", NULL};
 
      g_message("Starting vm-support script - %s\n", vmSupportCmdArgv[0]);
      if (!g_spawn_async(NULL, vmSupportCmdArgv, NULL,
