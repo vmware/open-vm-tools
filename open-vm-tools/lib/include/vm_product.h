@@ -116,10 +116,6 @@
 
 #define PRODUCT_VPX_NAME MAKE_NAME("VirtualCenter")
 
-// Selector for the VPXD mode of operation
-#define PRODUCT_VPXD_SHORT_NAME "VirtualCenter"
-#define PRODUCT_CCP_SHORT_NAME "ClusterControlPlane"
-
 #define PRODUCT_VPXA_NAME PRODUCT_VPX_NAME " Agent"
 
 #define PRODUCT_FDM_NAME MAKE_NAME("Fault Domain Manager")
