@@ -152,6 +152,12 @@
 #define vm_arm_any 0
 #endif
 
+#ifdef VM_X86_ANY
+#define vm_x86_any 1
+#else
+#define vm_x86_any 0
+#endif
+
 #if defined(__APPLE__) && defined(VM_ARM_64)
 #define VM_MAC_ARM
 #define vm_mac_arm 1
