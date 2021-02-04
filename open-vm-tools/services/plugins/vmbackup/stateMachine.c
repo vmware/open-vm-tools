@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1440,6 +1440,38 @@ VmBackupShutdown(gpointer src,
 }
 
 
+/*
+ *******************************************************************************
+ * VmBackupCapabilities --                                               */ /**
+ *
+ * Sends the vmbackup capability to the VMX.
+ *
+ * @param[in]  src      The source object.
+ * @param[in]  ctx      The app context.
+ * @param[in]  set      Whether setting or unsetting the capability.
+ * @param[in]  data     Unused.
+ *
+ * @return An array with the capabilities to set.
+ *
+ *******************************************************************************
+ */
+
+static GArray *
+VmBackupCapabilities(gpointer src,
+                     ToolsAppCtx *ctx,
+                     gboolean set,
+                     gpointer data)
+{
+   ToolsAppCapability caps[] = {
+      { TOOLS_CAP_NEW, NULL, CAP_VMBACKUP_NVME, },
+   };
+
+   caps[0].value = set ? 1 : 0;
+
+   return VMTools_WrapArray(caps, sizeof *caps, ARRAYSIZE(caps));
+}
+
+
 /**
  * Plugin entry point. Initializes internal plugin state.
  *
@@ -1469,6 +1501,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)
       { VMBACKUP_PROTOCOL_SNAPSHOT_DONE, VmBackupSnapshotDone, NULL, NULL, NULL, 0 }
    };
    ToolsPluginSignalCb sigs[] = {
+      { TOOLS_CORE_SIG_CAPABILITIES, VmBackupCapabilities, NULL },
       { TOOLS_CORE_SIG_DUMP_STATE, VmBackupDumpState, NULL },
       { TOOLS_CORE_SIG_RESET, VmBackupReset, NULL },
       { TOOLS_CORE_SIG_SHUTDOWN, VmBackupShutdown, NULL },

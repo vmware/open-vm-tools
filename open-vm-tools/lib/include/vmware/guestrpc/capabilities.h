@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2017,2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2017,2020-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -78,6 +78,7 @@ typedef enum {
    UNITY_CAP_CARET_POSITION             = 33, // supports sending caret position updates
    CAP_GUESTSTORE_UPGRADE               = 34, // supports tools upgrade from GuestStore
    CAP_DEVICE_HELPER                    = 35, // supports tools device helper for Windows guests
+   CAP_VMBACKUP_NVME                    = 36, // supports NVMe for vmbackup
 } GuestCapabilities;
 
 typedef struct {
@@ -143,6 +144,7 @@ static GuestCapElem guestCapTable[] = {
     */
    { CAP_GUESTSTORE_UPGRADE,               NULL,                NULL },
    { CAP_DEVICE_HELPER,                    NULL,                NULL },
+   { CAP_VMBACKUP_NVME,                    NULL,                NULL },
 };
 // clang-format on
 
