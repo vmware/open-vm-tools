@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2018, 2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018, 2020-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -107,18 +107,16 @@ typedef enum {
  *    33 22 11 00 55 44 77 66 88 99 AA BB CC DD EE FF
  */
 
-typedef
-#include "vmware_pack_begin.h"
-struct {
+#pragma pack(push, 1)
+typedef struct {
    uint32 timeLow;
    uint16 timeMid;
    uint16 timeHiAndVersion;
    uint8  clockSeqHiAndReserved;
    uint8  clockSeqLow;
    uint8  node[6];
-}
-#include "vmware_pack_end.h"
-UUIDRFC4122;
+} UUIDRFC4122;
+#pragma pack(pop)
 
 
 /*
@@ -148,16 +146,14 @@ UUIDRFC4122;
  *    little-endian CPU: 33 22 11 00 55 44 77 66 88 99 AA BB CC DD EE FF
  */
 
-typedef
-#include "vmware_pack_begin.h"
-struct {
+#pragma pack(push, 1)
+typedef struct {
    uint32 data1;
    uint16 data2;
    uint16 data3;
    uint8  data4[8];
-}
-#include "vmware_pack_end.h"
-EFIGUID;
+} EFIGUID;
+#pragma pack(pop)
 
 Bool UUID_ConvertPackedToBin(EFIGUID *destID,
                              const char *text);

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2018,2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2018,2020-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -82,18 +82,16 @@
  * It should stay the same to ensure binary compatibility.
  */
 
-typedef
-#include "vmware_pack_begin.h"
-struct GuestMemInfoLegacy {
+#pragma pack(push, 1)
+typedef struct GuestMemInfoLegacy {
    uint32 version;            ///< MemInfo structure version.
    uint32 flags;              ///< Indicates which stats are valid.
    uint64 memTotal;           ///< Total physical memory in Kb.
    uint64 deprecated1[9];     ///< No longer used.
    uint64 hugePagesTotal;     ///< Total number of huge pages.
    uint64 deprecated2[2];     ///< No longer used.
-}
-#include "vmware_pack_end.h"
-GuestMemInfoLegacy;
+} GuestMemInfoLegacy;
+#pragma pack(pop)
 
 /*
  * A stat begins with a header. The header has a mask which says what data
@@ -113,26 +111,22 @@ typedef enum {
     GUEST_DATUM_VALUE             = 0x0080,  // value data
 } GuestDatum;
 
-typedef
-#include "vmware_pack_begin.h"
-struct GuestStatHeader {
+#pragma pack(push, 1)
+typedef struct GuestStatHeader {
    GuestDatum  datumFlags;  // Indicates how many and which data follow
-}
-#include "vmware_pack_end.h"
-GuestStatHeader;
+} GuestStatHeader;
+#pragma pack(pop)
 
 #ifdef _MSC_VER
 #pragma warning (disable :4200) // non-std extension: zero-sized array in struct
 #endif
 
-typedef
-#include "vmware_pack_begin.h"
-struct GuestDatumHeader {
+#pragma pack(push, 1)
+typedef struct GuestDatumHeader {
    uint16  dataSize;  // dataSize - May be zero
    char    data[0];   // data - if dataSize is not zero.
-}
-#include "vmware_pack_end.h"
-GuestDatumHeader;
+} GuestDatumHeader;
+#pragma pack(pop)
 
 /*
  * Units datum enum.

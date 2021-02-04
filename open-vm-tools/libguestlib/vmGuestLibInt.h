@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2017,2020-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -58,15 +58,13 @@ typedef struct {
  * padding, adding the 3-byte "padding" field and using pack(1)
  * to make sure we always have 4-byte alignment. 
  */
-typedef 
-#include "vmware_pack_begin.h"
-struct {
+#pragma pack(push, 1)
+typedef struct {
    Bool valid;       // Indicates whether this stat is valid on this system
    uint8 padding[3]; 
    uint64 value;     // Actual stat value.
-}
-#include "vmware_pack_end.h"
-StatUint64;
+} StatUint64;
+#pragma pack(pop)
 
 
 
@@ -76,9 +74,8 @@ StatUint64;
  */
 #if 0
 
-typedef
-#include "vmware_pack_begin.h"
-struct VMGuestLibDataV1 {
+#pragma pack(push, 1)
+typedef struct VMGuestLibDataV1 {
    uint32 version;
    VMSessionId sessionId;
 
@@ -112,20 +109,17 @@ struct VMGuestLibDataV1 {
     * as big as SCHED_GROUP_PATHNAME_LEN.
     */
    char resourcePoolPath[512];
-}
-#include "vmware_pack_end.h"
-VMGuestLibDataV1;
+} VMGuestLibDataV1;
+#pragma pack(pop)
 
 #endif // #if 0
 
-typedef
-#include "vmware_pack_begin.h"
-struct {
+#pragma pack(push, 1)
+typedef struct {
    uint32 version;
    VMSessionId sessionId;
-}
-#include "vmware_pack_end.h"
-VMGuestLibHeader;
+} VMGuestLibHeader;
+#pragma pack(pop)
 
 /*
  * This is version 2 of the data structure GuestLib uses to obtain
@@ -133,9 +127,8 @@ VMGuestLibHeader;
  * exposed to users of the GuestLib API.
  */
 
-typedef
-#include "vmware_pack_begin.h"
-struct VMGuestLibDataV2 {
+#pragma pack(push, 1)
+typedef struct VMGuestLibDataV2 {
    /* Header */
    VMGuestLibHeader hdr;
 
@@ -175,9 +168,8 @@ struct VMGuestLibDataV2 {
       Bool valid;
       char value[512];
    } resourcePoolPath;
-}
-#include "vmware_pack_end.h"
-VMGuestLibDataV2;
+} VMGuestLibDataV2;
+#pragma pack(pop)
 
 
 /*
@@ -199,18 +191,16 @@ VMGuestLibDataV2;
  * supported by the host.
  */
 
-typedef
-#include "vmware_pack_begin.h"
-struct VMGuestLibDataV3 {
+#pragma pack(push, 1)
+typedef struct VMGuestLibDataV3 {
    /* Header */
    VMGuestLibHeader hdr;
 
    /* Statistics */
    uint32 dataSize;
    char data[0];
-}
-#include "vmware_pack_end.h"
-VMGuestLibDataV3;
+} VMGuestLibDataV3;
+#pragma pack(pop)
 
 #if defined(__cplusplus)
 }  // extern "C"
