@@ -45,7 +45,7 @@
    /* this should be kept in sync with the corresponding vpx branch. */
    #define PRODUCT_VERSION    7,0,2,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_HORIZON_VIEW)
-   #define PRODUCT_VERSION    8,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
+   #define PRODUCT_VERSION    8,2,0,PRODUCT_BUILD_NUMBER_NUMERIC
 // VMX86_DESKTOP must be last because it is the default and is always defined.
 #elif defined(VMX86_DESKTOP)
    // WORKSTATION_VERSION_NUMBER below has to match this
@@ -292,15 +292,15 @@
  * SCons parsing code requires that each line have a version string, so we
  * can't just do something like #define RDESDK_VERSION VIEW_VERSION"
  */
-#define VIEW_CLIENT_VERSION "8.1.0"
+#define VIEW_CLIENT_VERSION "8.2.0"
 #define VIEW_CLIENT_VERSION_NUMBER VIEW_CLIENT_VERSION
-#define VIEW_VERSION "8.1.0"
-#define RDE_RFT_ALL_VERSION "8.1.0"
-#define RDE_RFT_REL_VERSION "8.1.0"
-#define RDESDKREL_VERSION "8.1.0"
+#define VIEW_VERSION "8.2.0"
+#define RDE_RFT_ALL_VERSION "8.2.0"
+#define RDE_RFT_REL_VERSION "8.2.0"
+#define RDESDKREL_VERSION "8.2.0"
 #define MKSVCHANDEV_VERSION "15.1.0"
-#define TSMMRDEV_VERSION "8.1.0"
-#define RDF_VERSION "8.1.0"
+#define TSMMRDEV_VERSION "8.2.0"
+#define RDF_VERSION "8.2.0"
 #define HORIZON_DAAS_AGENT_VERSION "20.4.0"
 #define HORIZON_USB_AGENT_VERSION "11.1.0"
 #define MFW_VERSION "16.1.0"
@@ -309,7 +309,7 @@
  * Horizon Client, Agent and Server. It is set in the format of
  * YYMM of the targeted release date.
  */
-#define HORIZON_YYMM_VERSION "2012"
+#define HORIZON_YYMM_VERSION "2103"
 
 #ifndef MAKESTR
 #define MAKESTR(x) #x
