@@ -1,3 +1,133 @@
+commit 38a44105dfc934aded80b38e4cb242daacc2bca5
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Feb 4 09:57:03 2021 -0800
+
+    Common header file change not directly applicable to open-vm-tools.
+
+commit 3d114fa0a5c050d1e84d6e73a9942d2e82aa8f00
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Feb 4 09:57:03 2021 -0800
+
+    Drop usage of vmware_pack_*.h header files.
+    
+    Both gcc and clang support the Microsoft-style "pragma pack" syntax.
+
+commit ff5eb5f448c78448b96f9c3db957d19f0288a9b6
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Feb 4 09:57:03 2021 -0800
+
+    resolution: Fix kms autodetection
+    
+    Currently, the elf binary of the xorg driver is loaded to check for a
+    string that was put in the .modinfo section in the driver.  Unfortunately
+    there are two problems with this approach:
+    
+      1) Distros now ship without xorg, so the xorg .so doesn't exist and
+         there's nothing to check.
+      2) Distros (e.g. Fedora) do heavy optimizations and remove the .modinfo
+         section from the .so, so the string cannot be found even though the
+         driver exists.
+    
+    To fix both, stop depending on being able to parse the elf binary of the
+    xorg driver.  Instead, let the plugin check for the existence of the drm
+    driver with a sufficiently high version, and if it exists, use kms.
+    This removes the dependency on X for kms.  Also increase the version of
+    vmwgfx required to ensure atomic mode-setting plus relevant bug fixes (in
+    the kernel since 2017) are available.
+
+commit c5b510fded54592eae1c5a4a61f8119f69666a3f
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Feb 4 09:57:03 2021 -0800
+
+    Add a switch to the vm-support script to transfer the support bundle to the hypervisor
+    
+    The vm-support script unconditionally transferred the support bundle to
+    to the VMware hypervisor, thereby filling vmware.log.
+    This fix changes the default behavior of the Linux and Windows scripts
+    to *not* transfer the logs to the host.
+    
+    Added an option '-x' to both scripts to let the user elect to
+    transfer the guest support bundle to the host.
+
+commit f7ddf98958097197468cd153227317cba205a19c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Feb 4 09:57:03 2021 -0800
+
+    Add NVMe capability for vmbackup.
+    
+    The vmx/vmbackup logic checks if tools/vmbackup can support NVMe.  If it
+    is supported, vmx/vmbackup can further go through the app quiesce process.
+    Otherwise, vmx/vmbackup requests the filesystem quiesce process.
+
+commit 61a691368b6e102d939173583e5e08c6ed1673dc
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Feb 4 09:57:03 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit b797923f9a5e960bb5c2971132d7cac592defc00
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Feb 4 09:57:03 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit ce4ad3f984f4926d75888360b58b1b9b5637528d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Feb 4 09:57:03 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit e2eb818a1d6d8947bc9c95801f714af202692963
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Feb 4 09:57:03 2021 -0800
+
+    Common header file change not directly applicable to open-vm-tools.
+
+commit 056936aea88980f1474daaf34f20aacf34cc39c5
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Feb 4 09:57:03 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 2c10a53bc8c41baaff4f8817d8f35d2808291c3a
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Feb 4 09:57:03 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 4e9abe77c7ca725b3cbc70ed0659794a6e54f269
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Feb 4 09:57:03 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 4ab1a9303926a9c50ec099bd9ed2778d02ed7fdf
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Feb 4 09:57:03 2021 -0800
+
+    Add tools version 10.3.24 to list of tools versions.
+    
+    Document use of 10.3.24 for the next possible release of VMware Tools
+    (tartools) or OSPS for older releases of Linux.
+
+commit 3d237b31774e58d637c88047567cf4394d3f8654
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Feb 4 09:57:03 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 7a830f9330fc9a5599a6d04ad07b0ac6cffcb3c3
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jan 22 12:55:24 2021 -0800
+
+    Added in the ChangeLog update comment from Dec 31.
+
+commit 5ad6d8f3f627c050e2b58acc916166d09822f221
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jan 22 12:52:09 2021 -0800
+
+    Update ChangeLog with the granular push of Jan. 22, 2021.
+
 commit c777cf7c2d053948c18fda88bba8e2564c495518
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Fri Jan 22 12:39:50 2021 -0800
