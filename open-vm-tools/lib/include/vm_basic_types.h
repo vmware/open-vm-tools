@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -144,6 +144,12 @@
 #define VM_64BIT
 #else
 #define vm_arm_64 0
+#endif
+
+#ifdef VM_ARM_ANY
+#define vm_arm_any 1
+#else
+#define vm_arm_any 0
 #endif
 
 #if defined(__APPLE__) && defined(VM_ARM_64)
