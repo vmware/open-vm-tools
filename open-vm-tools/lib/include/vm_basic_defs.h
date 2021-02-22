@@ -248,31 +248,43 @@ Max(int a, int b)
  * -- edward
  */
 
+#define PAGE_SHIFT_4KB   12
+#define PAGE_SHIFT_16KB  14
+
 #ifndef PAGE_SHIFT // {
 #if defined __x86_64__ || defined __i386__
-   #define PAGE_SHIFT    12
+   #define PAGE_SHIFT    PAGE_SHIFT_4KB
 #elif defined __APPLE__
    #if defined VM_ARM_ANY
-      #define PAGE_SHIFT    14
+      #define PAGE_SHIFT    PAGE_SHIFT_16KB
    #else
-      #define PAGE_SHIFT    12
+      #define PAGE_SHIFT    PAGE_SHIFT_4KB
    #endif
 #elif defined VM_ARM_64
-   #define PAGE_SHIFT    12
+   #define PAGE_SHIFT    PAGE_SHIFT_4KB
 #elif defined __arm__
-   #define PAGE_SHIFT    12
+   #define PAGE_SHIFT    PAGE_SHIFT_4KB
 #else
    #error
 #endif
 #endif // }
 
+#define PAGE_SIZE_4KB    (1 << PAGE_SHIFT_4KB)
+#define PAGE_SIZE_16KB   (1 << PAGE_SHIFT_16KB)
+
 #ifndef PAGE_SIZE
 #define PAGE_SIZE     (1 << PAGE_SHIFT)
 #endif
 
+#define PAGE_MASK_4KB    (PAGE_SIZE_4KB - 1)
+#define PAGE_MASK_16KB   (PAGE_SIZE_16KB - 1)
+
 #ifndef PAGE_MASK
 #define PAGE_MASK     (PAGE_SIZE - 1)
 #endif
+
+#define PAGE_OFFSET_4KB(_addr)   ((uintptr_t)(_addr) & (PAGE_SIZE_4KB - 1))
+#define PAGE_OFFSET_16KB(_addr)  ((uintptr_t)(_addr) & (PAGE_SIZE_16KB - 1))
 
 #ifndef PAGE_OFFSET
 #define PAGE_OFFSET(_addr)  ((uintptr_t)(_addr) & (PAGE_SIZE - 1))
@@ -397,14 +409,6 @@ Max(int a, int b)
 #ifndef VM_1GB_2_PDIRS
 #define VM_1GB_2_PDIRS (VM_1GB_PAGE_SIZE / VM_PAE_LARGE_PAGE_SIZE)
 #endif
-
-#define PAGE_SIZE_4KB    0x1000
-#define PAGE_MASK_4KB    (PAGE_SIZE_4KB - 1)
-#define PAGE_SHIFT_4KB   12
-
-#define PAGE_SIZE_16KB   0x4000
-#define PAGE_MASK_16KB   (PAGE_SIZE_16KB - 1)
-#define PAGE_SHIFT_16KB  14
 
 /*
  * Word operations
