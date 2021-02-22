@@ -398,6 +398,14 @@ Max(int a, int b)
 #define VM_1GB_2_PDIRS (VM_1GB_PAGE_SIZE / VM_PAE_LARGE_PAGE_SIZE)
 #endif
 
+#define PAGE_SIZE_4KB    0x1000
+#define PAGE_MASK_4KB    (PAGE_SIZE_4KB - 1)
+#define PAGE_SHIFT_4KB   12
+
+#define PAGE_SIZE_16KB   0x4000
+#define PAGE_MASK_16KB   (PAGE_SIZE_16KB - 1)
+#define PAGE_SHIFT_16KB  14
+
 /*
  * Word operations
  */
