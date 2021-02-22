@@ -329,6 +329,7 @@
 
 #define VIM_EESX_PRODUCT_LINE_ID "embeddedEsx"
 #define VIM_ESX_PRODUCT_LINE_ID "esx"
+#define VIM_ESXIO_PRODUCT_LINE_ID "esxio"
 #define VIM_WS_PRODUCT_LINE_ID "ws"
 
 #if defined(VMX86_VMRC) /* check VMX86_VMRC before VMX86_DESKTOP */
