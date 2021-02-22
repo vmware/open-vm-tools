@@ -1923,17 +1923,23 @@ FileDeleteDirectoryTree(const char *pathName,  // IN: directory to delete
 #if !defined(_WIN32)
          case S_IFLNK:
             /* Delete symlink, not what it points to */
-            if (FileDeletion(curPath, FALSE) != 0) {
+            err = FileDeletion(curPath, FALSE);
+
+            if ((err != 0) && (err != ENOENT)) {
                fileError = Err_Errno();
             }
             break;
 #endif
 
          default:
-            if (FileDeletion(curPath, FALSE) != 0) {
+            err = FileDeletion(curPath, FALSE);
+
+            if ((err != 0) && (err != ENOENT)) {
 #if defined(_WIN32)
                if (File_SetFilePermissions(curPath, S_IWUSR)) {
-                  if (FileDeletion(curPath, FALSE) != 0) {
+                  err = FileDeletion(curPath, FALSE);
+
+                  if ((err != 0) && (err != ENOENT)) {
                      fileError = Err_Errno();
                   }
                } else {
@@ -1946,9 +1952,11 @@ FileDeleteDirectoryTree(const char *pathName,  // IN: directory to delete
             break;
          }
       } else {
-         fileError = Err_Errno();
-         Log(LGPFX" %s: Lstat of '%s' failed, errno = %d\n",
-             __FUNCTION__, curPath, errno);
+         if (errno != ENOENT) {
+            fileError = Err_Errno();
+            Log(LGPFX" %s: Lstat of '%s' failed, errno = %d\n",
+                __FUNCTION__, curPath, errno);
+         }
       }
 
       Posix_Free(curPath);
