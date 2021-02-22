@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2019,2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -28,7 +28,6 @@
 #include "vmware.h"
 #include "guestApp.h"
 #include "vmcheck.h"
-#include "escBitvector.h"
 #include "hgfsEscape.h"
 #include "hgfs.h"
 #include "hgfsBd.h"

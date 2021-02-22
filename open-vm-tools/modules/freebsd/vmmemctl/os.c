@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2000,2014,2018-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2000,2014,2018-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -254,6 +254,10 @@ static __inline__ unsigned long os_ffz(unsigned long word)
 {
 #ifdef __x86_64__
    __asm__("bsfq %1,%0"
+           :"=r" (word)
+           :"r" (~word));
+#elif defined(__aarch64__)
+   __asm__("rbit %0, %1; clz %0,%0"
            :"=r" (word)
            :"r" (~word));
 #else

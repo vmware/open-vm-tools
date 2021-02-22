@@ -1,6 +1,6 @@
 #!/usr/bin/make -f
 ##########################################################
-# Copyright (C) 2007-2018 VMware, Inc. All rights reserved.
+# Copyright (C) 2007-2018, 2021 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -28,6 +28,8 @@ SRCS	+= kernelStubsBSD.c
 
 .if $(MACHINE_ARCH) == "amd64"
 SRCS    += backdoorGcc64.c
+.elif $(MACHINE_ARCH) == "aarch64"
+SRCS    += backdoorGcc64_arm64.c
 .else
 SRCS    += backdoorGcc32.c
 .endif

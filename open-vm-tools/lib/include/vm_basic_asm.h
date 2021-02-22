@@ -205,7 +205,7 @@ mssb64_0(const uint64 value)
 }
 #endif
 
-#ifdef __GNUC__
+#if defined __GNUC__ || defined __clang__
 
 #ifdef VM_X86_ANY
 #define USE_ARCH_X86_CUSTOM
