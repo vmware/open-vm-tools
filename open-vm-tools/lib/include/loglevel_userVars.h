@@ -236,6 +236,7 @@
    LOGLEVEL_VAR(serviceUser), /* lib/serviceUser */ \
    LOGLEVEL_VAR(sg), /* lib/sg */ \
    LOGLEVEL_VAR(sgx), \
+   LOGLEVEL_VAR(sgxmpa), \
    LOGLEVEL_VAR(sgxRegistrationTool), \
    LOGLEVEL_VAR(shader), \
    LOGLEVEL_VAR(sharedFolderMgr),  /* mks/remote/vdpFolderSharedMgrVmdb */ \
