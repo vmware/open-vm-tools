@@ -1,3 +1,172 @@
+commit a7f9569f76f4ff05886dc3f4f9b5d3531d87c0ef
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 22 09:37:00 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit ff99f1169acc775d2e150f9cd4035c3bbd5eaf02
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 22 09:37:00 2021 -0800
+
+    lib/file: Deleting a directory tree should not care about missing files
+    
+    Tolerate a directory entry disappearing while a directory tree is being
+    deleted.
+
+commit 533d1a6ee716635f0175584e62aaa6a1a115e00e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 22 09:37:00 2021 -0800
+
+    Common header file changes: additional pre-gcc-4.4 clean up.
+
+commit 433270c8dc916aeafd222a55a9bd2a301ac573f6
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 22 09:37:00 2021 -0800
+
+    Fix miscellaneous Codacy warnings in Tools and VGAuth code.
+    
+    Multiple warnings "The scope of the variable can be reduced" reported by
+    the Codacy static analysis tool have been addressed.
+
+commit d0b0527a75c4e265e5e9b21cfa87e9bc40733cb5
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 22 09:37:00 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 5c27a31bbe54cdff6f53825a163d65e1c559a884
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 22 09:37:00 2021 -0800
+
+    Adding FreeBSD on ARM64 support to open-vm-tools.
+    
+    Updating the FreeBSD specific sections of open-vm-tools to adjust
+    where necessary for ARM64.   The FreeBSD vmballoon driver (vmmemctl.ko)
+    will use the backdoorGcc64_arm64.c when built for ARM64.
+    
+    Pull request: https://github.com/vmware/open-vm-tools/pull/474
+
+commit f3f8353eb2037f84d7f7ed6101086680ec58bdff
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 22 09:37:00 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 51328a83a99526be033774c32ef78934b0a4f6e2
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 22 09:36:59 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit fb05d52910e9929ed3e23374a2d59bbbd96e4a8d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 22 09:36:59 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 4071ec7e4067f57d3747f2e95a04de23859d1735
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 22 09:36:59 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 08b6d1d81dc574a9ddbeead44ea8b72dcf5d4c00
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 22 09:36:59 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 05c7fa93f68be1c96badaa596d25c12a6654eed1
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 22 09:36:59 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 619df79c8d3661d5609d68419c42a7e9e81463c5
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 22 09:36:59 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit f200cb67cd75913c0850df7758a3adc5a462a688
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 22 09:36:59 2021 -0800
+
+    Clean up pre-gcc-4.4 macros
+    
+    Gcc is now "always" at least gcc-4.4 (checked in vm_basic_types.h),
+    which means many conditionals for earlier gcc can be removed.
+
+commit 6c116db015bf794f420019aa4210004ebff262fd
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 22 09:36:59 2021 -0800
+
+    Common header file change not directly applicable to open-vm-tools.
+
+commit 4fa8c3dde624e209af5ecaaeb6ac720d9abfaa81
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 22 09:36:59 2021 -0800
+
+    Compiler minimums: bump to gcc-4.4
+
+commit cbd0de661501194f0834ff0f8ff215344989ef38
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 22 09:36:59 2021 -0800
+
+    Fix miscellaneous Codacy warnings in deployPkg plugin code.
+    
+    Multiple warnings "The scope of the variable can be reduced" reported by
+    the Codacy static analysis tool have been addressed.
+
+commit 08e78ef8082830191d1be09a0b3a6806bd408c9e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 22 09:36:59 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 649dc72afb024063fc9c5871ee411bb1ad82f45d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 22 09:36:59 2021 -0800
+
+    [open-vm-tools part] Support raw cloud-init data in VM customization.
+    
+    To support this feature, open-vm-tools needs to check whether cloud-init
+    can support raw cloud-init data; then copy the data to the cloud-init
+    cfg directory.
+
+commit 39c9113caae0750342ef6049201f6c8976d8535b
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 22 09:36:59 2021 -0800
+
+    Added 2 error codes for supporting raw cloud-init data in VM customization.
+    
+    Header file updated with errors detected when using raw cloud-init data
+    in guest customization.
+      - cloud-init version is too old to support raw cloud-init data.
+      - cloud-init meta data format is invalid.
+
+commit 5bf675afdc2c7d021bdac29f3bebe2d3bbb70c37
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 22 09:36:59 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit bd2c979437f44ecdc5a23a24b3e0afd301a21151
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 22 09:36:59 2021 -0800
+
+    Remove lib/include/vmware_pack_*.h header files.
+    
+    Previous changes have removed the last usages of these headers; now using
+    '#pragma pack' 100% of the time.
+
+commit 0da0823a61677c6140a71a8407acccdf5b4a3de8
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Feb 4 10:13:38 2021 -0800
+
+    Update ChangeLog with the granular push of Feb. 4, 2021.
+      - plus Changelog update of Jan. 22.
+
 commit 38a44105dfc934aded80b38e4cb242daacc2bca5
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Thu Feb 4 09:57:03 2021 -0800
