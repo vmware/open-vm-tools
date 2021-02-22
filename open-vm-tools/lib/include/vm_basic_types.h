@@ -756,19 +756,20 @@ typedef void * UserVA;
 
 /*
  * At present, we effectively require a compiler that is at least
- * gcc-4.1 (circa 2006).  Enforce this here, various things below
+ * gcc-4.4 (circa 2009).  Enforce this here, various things below
  * this line depend upon it.
  *
  * Current oldest compilers:
- * - guest tools: 4.1.2 (freebsd/solaris)
  * - buildhost compiler: 4.4.3
  * - hosted kernel modules: 4.5
+ * - widespread usage: 4.8
  *
  * SWIG's preprocessor is exempt.
+ * clang pretends to be gcc (4.2.1 by default), so needs to be excluded.
  */
-#ifndef SWIG
-#if defined __GNUC__ && (__GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 1))
-#error "gcc version is too old, need gcc-4.1 or better"
+#if !defined __clang__ && !defined SWIG
+#if defined __GNUC__ && (__GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 4))
+#error "gcc version is too old, need gcc-4.4 or better"
 #endif
 #endif
 
