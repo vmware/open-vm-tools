@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -454,34 +454,14 @@ void *_ReturnAddress(void);
 
 
 #ifdef __GNUC__
-#ifndef sun
-
-/*
- * A bug in __builtin_frame_address was discovered in gcc 4.1.1, and
- * fixed in 4.2.0; assume it originated in 4.0. PR 147638 and 554369.
- */
-#if  !(__GNUC__ == 4 && (__GNUC_MINOR__ == 0 || __GNUC_MINOR__ == 1))
 #define GetFrameAddr() __builtin_frame_address(0)
-#endif
-
-#endif // sun
 #endif // __GNUC__
 
-/*
- * Data prefetch was added in gcc 3.1.1
- * http://www.gnu.org/software/gcc/gcc-3.1/changes.html
- */
 #ifdef __GNUC__
-#  if ((__GNUC__ > 3) || (__GNUC__ == 3 && __GNUC_MINOR__ > 1) || \
-       (__GNUC__ == 3 && __GNUC_MINOR__ == 1 && __GNUC_PATCHLEVEL__ >= 1))
-#     define PREFETCH_R(var) __builtin_prefetch((var), 0 /* read */, \
-                                                3 /* high temporal locality */)
-#     define PREFETCH_W(var) __builtin_prefetch((var), 1 /* write */, \
-                                                3 /* high temporal locality */)
-#  else
-#     define PREFETCH_R(var) ((void)(var))
-#     define PREFETCH_W(var) ((void)(var))
-#  endif
+#  define PREFETCH_R(var) __builtin_prefetch((var), 0 /* read */, \
+                                             3 /* high temporal locality */)
+#  define PREFETCH_W(var) __builtin_prefetch((var), 1 /* write */, \
+                                             3 /* high temporal locality */)
 #endif /* __GNUC__ */
 
 
@@ -543,14 +523,6 @@ typedef int pid_t;
 
 // The macOS kernel SDK defines va_copy in stdarg.h.
 #include <stdarg.h>
-
-#elif defined(__GNUC__) && (__GNUC__ < 3)
-
-/*
- * Old versions of gcc recognize __va_copy, but not va_copy.
- */
-
-#define va_copy(dest, src) __va_copy(dest, src)
 
 #endif // _WIN32
 
@@ -812,7 +784,7 @@ typedef int pid_t;
  * Bug 827422 and 838523.
  */
 
-#if defined __GNUC__ && __GNUC__ >= 4
+#if defined __GNUC__
 #define VISIBILITY_HIDDEN __attribute__((visibility("hidden")))
 #else
 #define VISIBILITY_HIDDEN /* nothing */

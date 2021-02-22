@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -236,10 +236,6 @@ mssb64_0(const uint64 value)
  * **********************************************************
  */
 
-#if __GNUC__ < 4
-#define FEWER_BUILTINS
-#endif
-
 static INLINE int
 lssb32_0(uint32 v)
 {
@@ -258,7 +254,6 @@ lssb32_0(uint32 v)
    return __builtin_ffs(value) - 1;
 }
 
-#ifndef FEWER_BUILTINS
 static INLINE int
 mssb32_0(uint32 value)
 {
@@ -311,46 +306,6 @@ lssb64_0(const uint64 v)
 #endif
    return __builtin_ffsll(value) - 1;
 }
-#endif /* !FEWER_BUILTINS */
-
-#ifdef FEWER_BUILTINS
-/* GCC 3.3.x does not like __bulitin_clz or __builtin_ffsll. */
-static INLINE int
-mssb32_0(uint32 value)
-{
-   if (UNLIKELY(value == 0)) {
-      return -1;
-   } else {
-      int pos;
-      __asm__ __volatile__("bsrl %1, %0\n" : "=r" (pos) : "rm" (value) : "cc");
-      return pos;
-   }
-}
-
-static INLINE int
-lssb64_0(const uint64 value)
-{
-   if (UNLIKELY(value == 0)) {
-      return -1;
-   } else {
-      intptr_t pos;
-
-#ifdef VM_X86_64
-      __asm__ __volatile__("bsf %1, %0\n" : "=r" (pos) : "rm" (value) : "cc");
-#else
-      /* The coding was chosen to minimize conditionals and operations */
-      pos = lssb32_0((uint32) value);
-      if (pos == -1) {
-         pos = lssb32_0((uint32) (value >> 32));
-         if (pos != -1) {
-            return pos + 32;
-         }
-      }
-#endif /* VM_X86_64 */
-      return pos;
-   }
-}
-#endif /* FEWER_BUILTINS */
 
 
 static INLINE int
@@ -1169,7 +1124,7 @@ RoundUpPow2_32(uint32 value)
 static INLINE unsigned
 PopCount32(uint32 value)
 {
-#if defined(__GNUC__) && !defined(FEWER_BUILTINS) && defined(__POPCNT__)
+#if defined(__GNUC__) && defined(__POPCNT__)
    return __builtin_popcount(value);
 #else
    /*
@@ -1238,7 +1193,7 @@ PopCount32(uint32 value)
 static INLINE unsigned
 PopCount64(uint64 value)
 {
-#if defined(__GNUC__) && !defined(FEWER_BUILTINS) && defined(__POPCNT__)
+#if defined(__GNUC__) && defined(__POPCNT__)
 #if defined(VM_X86_64)
    return __builtin_popcountll(value);
 #else

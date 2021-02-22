@@ -866,7 +866,7 @@ typedef void * UserVA;
  *    Note that there is no annotation for "neither."
  */
 
-#if defined __GNUC__ && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 3))
+#if defined __GNUC__
 #define HOT __attribute__((hot))
 #define COLD __attribute__((cold))
 #else
