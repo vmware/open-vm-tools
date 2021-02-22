@@ -76,6 +76,12 @@
 #define TOOLSOPTION_ENABLE_DEVICEHELPER           "enableDeviceHelper"
 
 /*
+ * Device helper commands.
+ */
+
+#define DEVICEHELPER_CONFIG_DONE_CMD    "guest.deviceHelper.config_done"
+
+/*
  * Auto-upgrade commands.
  */
 
