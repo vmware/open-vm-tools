@@ -317,6 +317,22 @@ Log_NewCustomOutput(const char *instanceName,
                     LogCustomMsgFunc *msgFunc,
                     int minLogLevel);
 
+typedef struct {
+   uint8 level;
+   Bool  additionalLine;
+   char  timeStamp[64];
+   char  threadName[32];
+   char  opID[132];  // Will be empty string on hosted products
+} LogLineMetadata;
+
+typedef void (LogCustomMsgFuncEx)(const LogLineMetadata * const metadata,
+                                  const char *msg);
+
+LogOutput *
+Log_NewCustomOutputEx(const char *instanceName,
+                      LogCustomMsgFuncEx *msgFunc,
+                      int minLogLevel);
+
 #if defined(VMX86_SERVER)
 LogOutput *
 Log_NewEsxKernelLogOutput(const char *appPrefix,
