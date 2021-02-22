@@ -914,7 +914,6 @@ RandR12Revert(Display *display,    // IN: The display connection
    unsigned int i;
    RandR12Info *info = *pInfo;
    XRRScreenResources *xrrRes = info->xrrRes;
-   RandR12Output *rrOutput;
    XRRCrtcInfo *crtc;
    RRCrtc crtcID;
 
@@ -922,7 +921,7 @@ RandR12Revert(Display *display,    // IN: The display connection
 
    for (i = 0; i < info->nOutput; ++i) {
 
-      rrOutput = &info->outputs[i];
+      RandR12Output *rrOutput = &info->outputs[i];
       crtc = info->crtcs[rrOutput->crtc];
       crtcID = xrrRes->crtcs[rrOutput->crtc];
 

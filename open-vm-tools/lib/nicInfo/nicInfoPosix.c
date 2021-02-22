@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2014-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2014-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -665,7 +665,6 @@ ReadInterfaceDetails(const struct intf_entry *entry, // IN
                      void *arg,                      // IN
                      NicInfoPriority priority)       // IN
 {
-   int i;
    NicInfoV3 *nicInfo = arg;
 
    ASSERT(entry);
@@ -684,6 +683,7 @@ ReadInterfaceDetails(const struct intf_entry *entry, // IN
       if (entry->intf_link_addr.addr_type == ADDR_TYPE_ETH) {
          char macAddress[NICINFO_MAC_LEN];
          GuestNicV3 *nic = NULL;
+         int i;
 
          Str_Sprintf(macAddress, sizeof macAddress, "%s",
                      addr_ntoa(&entry->intf_link_addr));

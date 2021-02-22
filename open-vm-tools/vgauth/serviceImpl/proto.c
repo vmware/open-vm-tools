@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016,2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2016,2019-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1747,11 +1747,8 @@ ServiceProtoQueryAliases(ServiceConnection *conn,
 {
    VGAuthError err;
    gchar *packet;
-   gchar *endPacket;
    int num;
    ServiceAlias *aList;
-   int i;
-   int j;
 
    /*
     * The alias code will do argument validation.
@@ -1763,11 +1760,15 @@ ServiceProtoQueryAliases(ServiceConnection *conn,
    if (err != VGAUTH_E_OK) {
       packet = Proto_MakeErrorReply(conn, req, err, "queryAliases failed");
    } else {
+      int i;
+      gchar *endPacket;
+
       packet = g_markup_printf_escaped(VGAUTH_QUERYALIASES_REPLY_FORMAT_START,
                                        req->sequenceNumber);
       // now the aliases
       for (i = 0; i < num; i++) {
          gchar *certPacket;
+         int j;
 
          certPacket = g_markup_printf_escaped(VGAUTH_ALIAS_FORMAT_START,
                                               aList[i].pemCert);

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013-2017,2019-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013-2017,2019-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -222,11 +222,10 @@ Socket_Send(SOCKET fd,      // IN
 {
    int left = len;
    int sent = 0;
-   int rv;
    int sysErr;
 
    while (left > 0) {
-      rv = send(fd, buf + sent, left, 0);
+      int rv = send(fd, buf + sent, left, 0);
       if (rv == SOCKET_ERROR) {
          sysErr = SocketGetLastError();
          if (sysErr == SYSERR_EINTR) {

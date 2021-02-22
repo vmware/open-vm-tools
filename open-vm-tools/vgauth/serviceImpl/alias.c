@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -3100,7 +3100,6 @@ ServiceIDVerifyStoreContents(void)
    GDir *dir;
    GError *gErr;
    const gchar *fileName;
-   gchar *fullFileName;
    gboolean saveBadFile = FALSE;
 
    dir = g_dir_open(aliasStoreRootDir, 0, &gErr);
@@ -3112,9 +3111,9 @@ ServiceIDVerifyStoreContents(void)
    }
 
    while ((fileName = g_dir_read_name(dir)) != NULL) {
-      fullFileName = g_strdup_printf("%s"DIRSEP"%s",
-                                     aliasStoreRootDir,
-                                     fileName);
+      gchar *fullFileName = g_strdup_printf("%s"DIRSEP"%s",
+                                            aliasStoreRootDir,
+                                            fileName);
       // mapping file is special
       if (g_strcmp0(ALIASSTORE_MAPFILE_NAME, fileName) == 0) {
          err = AliasCheckMapFilePerms(fullFileName);

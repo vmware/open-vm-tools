@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2014-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2014-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -947,7 +947,6 @@ GuestInfoGetDiskDevice(const char *fsName,
    if (!GuestInfoIsLinuxLvmDevice(fsName, partEntry)) {
 
       /* Not an LVM; check if a basic block device. */
-      char blockDevPath[PATH_MAX];
       const char *baseDevName = strrchr(fsName, '/');
 
       /*
@@ -956,6 +955,8 @@ GuestInfoGetDiskDevice(const char *fsName,
        * lookup; avoid at this time.
        */
       if (baseDevName != NULL && strcmp(partEntry->fsType, "zfs") != 0) {
+         char blockDevPath[PATH_MAX];
+
          /*
           * Have a single disk device associated with this mount point.  The
           * majority of these will be handled by the basic Linux block device

@@ -1,5 +1,5 @@
 /* **********************************************************
- * Copyright (C) 2007-2020 VMware, Inc.  All rights reserved.
+ * Copyright (c) 2007-2021 VMware, Inc.  All rights reserved.
  * **********************************************************/
 
 /*
@@ -498,10 +498,10 @@ CodeSet_Utf8FindCodePointBoundary(const char *buf,   // IN
                                   size_t offset)     // IN
 {
    size_t origOffset = offset;
-   signed char c;
 
    if (offset > 0) {
 
+      signed char c;
       /*
        * Back up 1 byte and then find the start of the UTF-8 code
        * point occupying that location.
