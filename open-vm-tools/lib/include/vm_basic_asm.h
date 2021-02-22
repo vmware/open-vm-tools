@@ -778,6 +778,11 @@ RDTSC(void)
 
    return tim;
 #elif defined(VM_ARM_64)
+   /*
+    * Keep this implementation in sync with:
+    * bora/lib/vprobe/arm64/vp_emit_tc.c::VpEmit_BuiltinRDTSCWork()
+    * bora/modules/vmkernel/tests/core/xmapTest/xmapTest_arm64.c::XMapTest_SetupLoopCode()
+    */
 #if (defined(VMKERNEL) || defined(VMM)) && !defined(VMK_ARM_EL1)
    return MRS(CNTPCT_EL0);
 #else
