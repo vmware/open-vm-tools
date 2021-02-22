@@ -210,7 +210,6 @@ void
 DeployPkgExecDeploy(ToolsAppCtx *ctx,   // IN: app context
                     void *pkgName)      // IN: pkg file name
 {
-   char errMsg[2048];
    ToolsDeployPkgError ret;
    char *pkgNameStr = (char *) pkgName;
    Bool enableCust;
@@ -246,6 +245,7 @@ DeployPkgExecDeploy(ToolsAppCtx *ctx,   // IN: app context
       g_free(msg);
       vm_free(result);
    } else {
+      char errMsg[2048];
       /* Unpack the package and run the command. */
       ret = DeployPkgDeployPkgInGuest(ctx, pkgNameStr, errMsg, sizeof errMsg);
       if (ret != TOOLSDEPLOYPKG_ERROR_SUCCESS) {

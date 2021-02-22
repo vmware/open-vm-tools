@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -154,9 +154,6 @@ DeployPkgLog_Log(int level,          // IN
                  ...)                // IN
 {
    va_list args;
-   gchar *tstamp;
-   const char *logLevel;
-   GLogLevelFlags glogLevel;
 
    if (fmtstr == NULL) {
       return;
@@ -165,6 +162,8 @@ DeployPkgLog_Log(int level,          // IN
    va_start(args, fmtstr);
 
    if (_file != NULL) {
+      const char *logLevel;
+      gchar *tstamp;
       size_t fmtstrLen = strlen(fmtstr);
       switch (level) {
          case log_debug:
@@ -193,6 +192,7 @@ DeployPkgLog_Log(int level,          // IN
       }
       g_free(tstamp);
    } else {
+      GLogLevelFlags glogLevel;
       switch (level) {
          case log_debug:
             glogLevel = G_LOG_LEVEL_DEBUG;

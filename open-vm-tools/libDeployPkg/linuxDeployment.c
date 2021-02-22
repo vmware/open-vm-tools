@@ -238,11 +238,10 @@ DeployPkg_SetProcessTimeout(uint16 timeout)
 NORETURN void
 Panic(const char *fmtstr, ...)
 {
-   va_list args;
-
    char *tmp = malloc(MAXSTRING);
 
    if (tmp != NULL) {
+      va_list args;
       va_start(args, fmtstr);
       Str_Vsnprintf(tmp, MAXSTRING, fmtstr, args);
       va_end(args);

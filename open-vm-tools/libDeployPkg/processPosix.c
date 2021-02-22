@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -433,7 +433,6 @@ ProcessError
 Process_Destroy(ProcessHandle h)
 {
    ProcessInternal* p;
-   int i;
    p = (ProcessInternal*)h;
    if (p->stdoutFd >= 0) {
       close(p->stdoutFd);
@@ -444,6 +443,7 @@ Process_Destroy(ProcessHandle h)
    free(p->stdoutStr);
    free(p->stderrStr);
    if (p->args != NULL) {
+      int i;
       for (i = 0; p->args[i] != NULL; i++) {
          free(p->args[i]);
       }
