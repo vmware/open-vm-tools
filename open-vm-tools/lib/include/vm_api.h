@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2016,2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -117,7 +117,7 @@
 #  define VMW_LIB_CLIENT_INLINE
 #  define VMW_LIB_DYNAMIC  __declspec(dllexport)
 #  define VMW_LIB_DYNAMIC_INLINE
-#elif defined __GNUC__ && __GNUC__ >= 4 /* !_MSC_VER */
+#elif defined __GNUC__
 #  define VMW_LIB_STATIC  __attribute__ ((visibility ("hidden")))
 #  define VMW_LIB_CLIENT  __attribute__ ((visibility ("default")))
 #  define VMW_LIB_CLIENT_INLINE  __attribute__ ((visibility ("default")))
