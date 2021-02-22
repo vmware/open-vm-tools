@@ -26,6 +26,10 @@
 #include "productState.h"
 #include <stdarg.h>
 
+#if defined(_WIN32)
+#include <windows.h>
+#endif
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -522,9 +526,21 @@ typedef Bool (LogOwnerFunc)(void *userData,
                             const char *fileName);
 
 Bool
-Log_BoundNumFiles(struct LogOutput *output,
-                LogOwnerFunc *func,
-                void *userData);
+Log_BoundNumFiles(const LogOutput *output,
+                  LogOwnerFunc *func,
+                  void *userData);
+
+typedef struct {
+#if defined(_WIN32)
+   HANDLE handle;
+#else
+   int fd;
+#endif
+} LogFileObject;
+
+Bool
+Log_GetFileObject(const LogOutput *output,
+                  LogFileObject *result);
 
 #if defined(VMX86_SERVER)
 #define LOG_KEEPOLD 6  // Old log files to keep around; ESX value
