@@ -71,6 +71,7 @@ endif
 
 if HAVE_UDEV
    SUBDIRS += udev
+   SUBDIRS += vmwgfxctrl
 endif
 
 install-data-local:

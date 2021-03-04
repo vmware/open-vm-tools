@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (c) 2007-2020 VMware, Inc.  All rights reserved.
+### Copyright (c) 2007-2021 VMware, Inc.  All rights reserved.
 ###
 ### Configure script for building the VMware OSS Tools.
 ###
@@ -325,6 +325,15 @@ AC_ARG_ENABLE(
       [build the linux / unix resolutionkms module.]),
    [],
    [enable_resolutionkms="auto"])
+
+
+AC_ARG_ENABLE(
+   vmwgfxctrl,
+   AS_HELP_STRING(
+      [--enable-vmwgfxctrl],
+      [build the linux / unix vmwgfxctrl tool.]),
+   [],
+   [enable_vmwgfxctrl="auto"])
 
 AM_INIT_AUTOMAKE
 
@@ -1333,13 +1342,16 @@ if test "$os" = "linux"; then
       MODULES="$MODULES vmblock vmsync"
    fi
    buildHgfsmounter=yes
-   if test "x$enable_resolutionkms" != "xno"; then
+   if test "x$enable_resolutionkms" != "xno" && test "x$enable_vmwgfxctrl" != "xno"; then
       PKG_CHECK_MODULES(
          [LIBUDEV],
          libdrm libudev,
-         [LIBUDEV_CFLAGS="$LIBUDEV_CFLAGS -DHAVE_LIBUDEV"],
+         [LIBUDEV_CFLAGS="$LIBUDEV_CFLAGS -DHAVE_LIBUDEV";
+         enable_vmwgfxctrl="yes"],
          [AC_MSG_WARN(
-	    [Missing libdrm or libudev. The resolutionKMS plugin will search for them at run-time.])])
+            [Missing libdrm or libudev. vmwgfxctrl will be disabled and the resolutionKMS plugin will search for them at run-time.]);
+            enable_vmwgfxctrl="no"
+            ])
       enable_resolutionkms="yes"
    fi
 fi
@@ -1435,6 +1447,10 @@ if test "x$enable_resolutionkms" = "xyes"; then
    CPPFLAGS="$CPPFLAGS -DENABLE_RESOLUTIONKMS"
 fi
 
+if test "x$enable_vmwgfxctrl" = "xauto"; then
+   enable_vmwgfxctrl="no"
+fi
+
 AM_CONDITIONAL(BUILD_HGFSMOUNTER, test "$buildHgfsmounter" = "yes")
 AM_CONDITIONAL(LINUX, test "$os" = "linux")
 AM_CONDITIONAL(SOLARIS, test "$os" = "solaris")
@@ -1464,6 +1480,7 @@ AM_CONDITIONAL(HAVE_VSOCK, test "$os" = "linux")
 AM_CONDITIONAL(HAVE_MKDTEMP, test "$have_mkdtemp" = "yes")
 AM_CONDITIONAL(HAVE_UDEV, test "$have_udev" = "yes")
 AM_CONDITIONAL(ENABLE_RESOLUTIONKMS, test "x$enable_resolutionkms" = "xyes")
+AM_CONDITIONAL(ENABLE_VMWGFXCTRL, test "x$enable_vmwgfxctrl" = "xyes")
 AM_CONDITIONAL(VGAUTH_USE_CXX, test "$with_icu" = "yes" -o "$use_xmlsec1" != "yes")
 AM_CONDITIONAL(ENABLE_LIBAPPMONITOR, test "$enable_libappmonitor" = "yes")
 AM_CONDITIONAL(ENABLE_SDMP, test "$enable_servicediscovery" = "yes")
@@ -1647,6 +1664,7 @@ AC_CONFIG_FILES([                      \
    hgfsclient/Makefile                 \
    hgfsmounter/Makefile                \
    checkvm/Makefile                    \
+   vmwgfxctrl/Makefile                 \
    rpctool/Makefile                    \
    vgauth/Makefile                     \
    vgauth/lib/Makefile                 \
