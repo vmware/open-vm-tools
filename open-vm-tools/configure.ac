@@ -535,8 +535,8 @@ AC_VMW_CHECK_LIB([fuse],
 #
 AC_ARG_WITH([pam],
    [AS_HELP_STRING([--without-pam],
-     [compiles without PAM support.])],
-   [],
+     [compiles without PAM support (disables vgauth).])],
+   [with_pam="$withval"],
    [with_pam=yes])
 
 if test "$with_pam" = "yes"; then
@@ -556,11 +556,19 @@ AC_ARG_ENABLE([vgauth],
    [AS_HELP_STRING([--disable-vgauth],
      [do not build vgauth.])],
    [
+    if test "$with_pam" = "no" -a "$enableval" = "yes"; then
+       AC_MSG_ERROR([Cannot enable vgauth without PAM. Please configure
+                     without --without-pam or without --enable-vgauth.])
+    fi
     enable_vgauth="$enableval"
     use_xmlsec1=yes
    ],
    [
-    if test "$os" = "linux"; then
+    if test "$with_pam" = "no"; then
+       enable_vgauth="no"
+       use_xmlsec1="no"
+       AC_MSG_WARN("Building without PAM; vgauth will be disabled.")
+    elif test "$os" = "linux"; then
        enable_vgauth=yes
        use_xmlsec1=yes
     else
