@@ -216,8 +216,6 @@ stageLinux()
    if which apt > /dev/null; then
       runcmd "/tmp/apt-list.txt" apt list
    fi
-   runcmd "/tmp/netstat-lan.txt" netstat -lan
-   runcmd "/tmp/route.txt" route
    runcmd "/tmp/free.txt" free
 }
 
@@ -260,6 +258,22 @@ cleanup()
    fi
 }
 
+collectNetworkDetails()
+{
+    if which ip >/dev/null; then
+        runcmd "/tmp/ip-addr.txt" ip addr
+        runcmd "/tmp/ip-route.txt" ip route
+    else
+        runcmd "/tmp/ifconfig.txt" ifconfig -a
+        runcmd "/tmp/route.txt" route
+    fi
+
+    if which ss >/dev/null; then
+        runcmd "/tmp/ss-lan.txt" ss -lan
+    else
+        runcmd "/tmp/netstat-lan.txt" netstat -lan
+    fi
+}
 
 # This executable may run with root privileges, so hardcode a PATH where
 # unprivileged users cannot write.
@@ -350,7 +364,7 @@ addfile /var/log/cloud-init-output.log
 addfile /etc/cloud/cloud.cfg
 
 runcmd "/tmp/df.txt" df
-runcmd "/tmp/ifconfig.txt" ifconfig -a
+collectNetworkDetails
 runcmd "/tmp/mount.txt" mount
 runcmd "/tmp/dmesg.txt" dmesg
 runcmd "/tmp/ulimit-a.txt" ulimit -a
