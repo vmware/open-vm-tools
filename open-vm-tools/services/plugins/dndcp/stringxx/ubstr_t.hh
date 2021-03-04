@@ -863,7 +863,7 @@ ubstr_t::GetUTF8Cache()
 inline void
 ubstr_t::InvalidateCache()
 {
-   mUTF8.clear();
+   mUTF8.reset();
 }
 
 
