@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -274,7 +274,8 @@ extern "C" {
 #  define BDOOR_CMD_PRECISIONCLOCK_NUMCMDS    4
 #define   BDOOR_CMD_COREDUMP_UNSYNC          98 /* Devel only. For VMM cores */
 #define   BDOOR_CMD_APPLE_GPU_RES_SET        99
-#define   BDOOR_CMD_MAX                     100
+#define   BDOOR_CMD_GETBUILDNUM             100
+#define   BDOOR_CMD_MAX                     101
 
 
 /*
