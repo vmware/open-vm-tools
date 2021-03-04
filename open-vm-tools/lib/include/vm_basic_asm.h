@@ -992,6 +992,44 @@ TestBitVector(const void *var, int32 index)
 #endif
 }
 
+
+/*
+ *-----------------------------------------------------------------------------
+ * RoundDownPow2_{64,32} --
+ *
+ *   Rounds a value down to the previous power of 2.  Returns the original
+ *   value if it is a power of 2. Returns 0 for input of 0 and 1 for 1.
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE uint64
+RoundDownPow2_64(uint64 value)
+{
+   if ((value & (value - 1)) == 0) {
+      /*
+       * Already zero or a power of two.
+       */
+      return value;
+   }
+
+   return CONST64U(1) << mssb64_0(value);
+}
+
+
+static INLINE uint32
+RoundDownPow2_32(uint32 value)
+{
+   if ((value & (value - 1)) == 0) {
+      /*
+       * Already a power of two.
+       */
+      return value;
+   }
+
+   return 1U << mssb32_0(value);
+}
+
+
 /*
  *-----------------------------------------------------------------------------
  * RoundUpPow2_{64,32} --
