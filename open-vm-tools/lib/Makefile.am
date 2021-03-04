@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (c) 2007-2016,2020 VMware, Inc.  All rights reserved.
+### Copyright (c) 2007-2016,2020-2021 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -66,6 +66,7 @@ if USE_SLASH_PROC
    SUBDIRS += slashProc
 endif
 SUBDIRS += string
+SUBDIRS += jsmn
 SUBDIRS += stubs
 SUBDIRS += syncDriver
 SUBDIRS += system

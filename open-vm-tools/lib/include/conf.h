@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2002-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2002-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -558,4 +558,31 @@
  * END deviceHelper goodies.
  ******************************************************************************
  */
+
+/*
+ ******************************************************************************
+ * BEGIN gdp plugin goodies.
+ */
+
+/**
+ * Defines the string used for the gdp config file group.
+ */
+#define CONFGROUPNAME_GDP "gdp"
+
+/**
+ * Defines a custom history cache size (in bytes).
+ *
+ * @note Illegal values result in a @c g_warning and fallback to the default
+ * cache size 4194304.
+ *
+ * @param int   User-defined cache size within [1048576, 16777216].
+ *              Set to 0 to disable caching.
+ */
+#define CONFNAME_GDP_CACHE_SIZE "cacheSize"
+
+/*
+ * END gdp goodies.
+ ******************************************************************************
+ */
+
 #endif /* __CONF_H__ */

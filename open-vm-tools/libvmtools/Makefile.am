@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (c) 2008-2020 VMware, Inc.  All rights reserved.
+### Copyright (c) 2008-2021 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -48,6 +48,7 @@ libvmtools_la_LIBADD += ../lib/rpcIn/libRpcIn.la
 libvmtools_la_LIBADD += ../lib/rpcOut/libRpcOut.la
 libvmtools_la_LIBADD += ../lib/rpcVmx/libRpcVmx.la
 libvmtools_la_LIBADD += ../lib/string/libString.la
+libvmtools_la_LIBADD += ../lib/jsmn/libJsmn.la
 libvmtools_la_LIBADD += ../lib/syncDriver/libSyncDriver.la
 libvmtools_la_LIBADD += ../lib/system/libSystem.la
 libvmtools_la_LIBADD += ../lib/stubs/libStubsCS.la

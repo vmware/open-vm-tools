@@ -1632,6 +1632,7 @@ AC_CONFIG_FILES([                      \
    lib/rpcVmx/Makefile                 \
    lib/slashProc/Makefile              \
    lib/string/Makefile                 \
+   lib/jsmn/Makefile                   \
    lib/stubs/Makefile                  \
    lib/syncDriver/Makefile             \
    lib/system/Makefile                 \

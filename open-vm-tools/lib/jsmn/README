@@ -1,0 +1,8 @@
+This is a local copy of jsmn, a minimalistic json parser.
+
+jsmn included as src because its tiny, and its been augmented to use
+Log() since the original code has no logging.
+
+https://zserge.com/jsmn.html
+https://github.com/zserge/jsmn
+
