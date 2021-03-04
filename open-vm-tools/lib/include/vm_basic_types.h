@@ -564,8 +564,9 @@ typedef  int128  Reg128;
 typedef uint128 UReg128;
 #endif
 
-#if defined(VMM) || defined(COREQUERY) || defined(EXTDECODER) ||  \
-    defined (VMKERNEL) || defined (VMKBOOT) || defined (ULM)
+#if (defined(VMM) || defined(COREQUERY) || defined(EXTDECODER) ||  \
+     defined (VMKERNEL) || defined (VMKBOOT) || defined (ULM)) &&  \
+    !defined (FROBOS)
 typedef  Reg64  Reg;
 typedef UReg64 UReg;
 #endif
