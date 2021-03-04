@@ -69,6 +69,7 @@
    LOGLEVEL_VAR(dataSetsStore),\
    LOGLEVEL_VAR(device), \
    LOGLEVEL_VAR(devicePowerOn), \
+   LOGLEVEL_VAR(deviceSwap), \
    LOGLEVEL_VAR(deviceThread), \
    LOGLEVEL_VAR(dict), \
    LOGLEVEL_VAR(digestlib), \
