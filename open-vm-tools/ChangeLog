@@ -1,3 +1,16 @@
+commit fdc50f3716bd23dd891eccf292741c3f48d342e1
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Mar 5 11:19:30 2021 -0800
+
+    Added complete LICENSE file to the jsmn.h and jsmn.c source files.
+
+commit 7fb7dd20e9b879c4c75eb9349c761ca0f284f9d1
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 4 16:41:38 2021 -0800
+
+    Update ChangeLog with the granular push of Mar. 4, 2021.
+     - plus Changelog update of Feb. 22.
+
 commit 1a13bb349ab93d6861cdb57daf6cec451cca616a
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Thu Mar 4 16:34:57 2021 -0800
