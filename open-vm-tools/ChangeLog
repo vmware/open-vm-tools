@@ -1,3 +1,135 @@
+commit 1a13bb349ab93d6861cdb57daf6cec451cca616a
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 4 16:34:57 2021 -0800
+
+    Correct some missed copyright dates for 2021 publication.
+
+commit 30a9f295681983c778ea89eef379b8822518e524
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 4 13:48:46 2021 -0800
+
+    Configuring OVT with the --without-pam option will implicitly disable vgauth.
+    
+    When no vgauth option is given alongside -–without-pam, a warning
+    is displayed with a message “Building without PAM; vgauth will be
+    disabled.”.
+    
+    When -–disable-vgauth is supplied alongside –-without-pam, no
+    warning or error message is displayed.
+    
+    When -–enable-vgauth is supplied alongside -–without-pam, an
+    error will be thrown and the configure stage will be aborted with an
+    error message “Cannot enable vgauth without PAM. Please configure
+    without --without-pam or without --enable-vgauth.”
+    
+    Github Issue: https://github.com/vmware/open-vm-tools/issues/481
+
+commit edeef6123b1c1edeac42acd4b45f5dab96a8c8d3
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 4 13:48:46 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit f28bea2dde358e4a12f90f4436d276d9c5e3be77
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 4 13:48:46 2021 -0800
+
+    Common source file changes not applicable to open-vm-tools.
+
+commit 65d92cd11edafe3e9ff7c96e83d824da6ecf4ae7
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 4 13:48:46 2021 -0800
+
+    Tools gdp plugin updates.
+
+commit c94ae5a4c7524f0d424ffd0a2cbc0aa685a6a710
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 4 13:48:46 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 662f85c3f7d356cfbb8e23dff0a7c4dfa6f74fba
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 4 13:48:46 2021 -0800
+
+    tools/vmwgfxctrl: Add a command line tool for controlling vmwgfx.
+    
+    vmwgfxctrl is a small command line tool used to control various
+    aspects of the vmwgfx kernel driver.  Currently it can both
+    display and set current topology of the vmwgfx kernel driver.
+    
+    It should be distributed alongside other open-vm-tools binaries.
+    It's incredibly useful when trying to set custom resolution on any
+    recent distro (that includes multi-monitor setups).
+
+commit b00709f8f9af26a1fb5803ef22c155b5983086ac
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 4 13:48:46 2021 -0800
+
+    Change not applicable to open-vm-tools.
+    
+    Windows: Add default setting to example tools.conf.
+
+commit e239a31df9563c38ffbc0468deb1018b52334e02
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 4 13:48:46 2021 -0800
+
+    stringxx: Replace usage of deprecated glibmm function
+    
+    Glibmm::RefPtr::clear() has been deprecated for a while and was removed in
+    2.51. The reasoning is listed in the 2.44 header:
+    
+    "/// @deprecated Use reset() instead because this leads to confusion with
+    clear() methods on the underlying class."
+    
+    reset() has been available since 2.16, so it is trivial to switch to it.
+
+commit 44bfc5bc266ae7fc9c8c3df551220942c187c587
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 4 13:48:46 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit b2f9775cac95500b3ab19ac35bc9d40d48d41d2e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 4 13:48:46 2021 -0800
+
+    PowerOps plugin logging of diagnostic messages on the host.
+    
+    To assist with diagnosis of VM power operations, have the powerOps plugin
+    log messages about guest OS reboot, shutdown, power-on/power-off,
+    script execution, and exit status to the VM's guest.log file on the host.
+
+commit c3fad0b7d4f505f22e5606c6587833948f420c7e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 4 13:48:46 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 9bdfa71a8d86b7182c0ed2b8ea9e42f6aa0d33e8
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 4 13:48:46 2021 -0800
+
+    Reduce or eliminate Linux dependency on the "net-tools" package.
+    
+    The "ifconfig" and "netstat" commands are deprecated in more recent
+    releases of Linux.  Update the Linux vm-support script to use the "ip"
+    and "ss" commands when available.
+    
+    If Available:         Fallback:
+         ip                   ifconfig
+         ip route             route
+         ss                   netstat
+    
+    Addresses: https://github.com/vmware/open-vm-tools/issues/446
+
+commit 9b2d46f1f36535e7a0838890a151cd63a853f198
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 22 10:13:53 2021 -0800
+
+    Update ChangeLog with the granular push of Feb. 22, 2021.
+      plus Changelog update of Feb. 4.
+
 commit a7f9569f76f4ff05886dc3f4f9b5d3531d87c0ef
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Mon Feb 22 09:37:00 2021 -0800
