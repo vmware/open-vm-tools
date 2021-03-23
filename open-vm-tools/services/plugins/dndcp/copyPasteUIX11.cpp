@@ -1666,6 +1666,7 @@ CopyPasteUIX11::FileBlockMonitorThread(void *arg)   // IN
       char buf[sizeof(VMBLOCK_FUSE_READ_RESPONSE)];
       ssize_t size;
       size = read(fd, buf, sizeof(VMBLOCK_FUSE_READ_RESPONSE));
+      (void) size; /* Prevent unused variable warning */
       /*
        * The current thread will block in read function until
        * any other application accesses the file params->fileBlockName

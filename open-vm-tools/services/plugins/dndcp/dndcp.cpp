@@ -33,9 +33,9 @@
 
 extern "C" {
 #include "vmware/guestrpc/tclodefs.h"
+}
 #include "vmware/tools/plugin.h"
 #include "vmware/tools/utils.h"
-}
 
 #include <string.h>
 #include "copyPasteDnDWrapper.h"

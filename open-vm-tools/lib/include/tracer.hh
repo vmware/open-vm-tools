@@ -28,9 +28,7 @@
 
 #include "vm_basic_defs.h"
 
-extern "C" {
 #include "glib.h"
-}
 
 
 #ifdef VMX86_DEVEL

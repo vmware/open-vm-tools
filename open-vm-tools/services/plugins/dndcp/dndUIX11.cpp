@@ -467,8 +467,13 @@ DnDUIX11::OnSrcDragBegin(const CPClipboard *clip,       // IN
 #ifndef GTK3
    event.device = gdk_device_get_core_pointer();
 #else
+  #if GTK_MINOR_VERSION >= 20
+   GdkSeat* seat = gdk_display_get_default_seat(gdk_window_get_display(event.window));
+   event.device = gdk_seat_get_pointer(seat);
+  #else
    GdkDeviceManager* manager = gdk_display_get_device_manager(gdk_window_get_display(event.window));
    event.device = gdk_device_manager_get_client_pointer(manager);
+  #endif
 #endif
    event.x_root = mOrigin.get_x();
    event.y_root = mOrigin.get_y();
