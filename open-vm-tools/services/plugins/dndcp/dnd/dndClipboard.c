@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -306,6 +306,9 @@ CPClipboard_SetItem(CPClipboard *clip,          // IN/OUT: the clipboard
    if (size >= (size_t) clip->maxSize) {
       return FALSE;
    }
+
+   Log("%s: Set CPClipboard struct with data of size:%zu, format:%d.\n",
+       __FUNCTION__, size, (int)fmt);
 
    item = &clip->items[CPFormatToIndex(fmt)];
 
