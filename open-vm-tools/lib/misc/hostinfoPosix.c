@@ -884,6 +884,37 @@ HostinfoSearchShortNames(const ShortNameSet *array, // IN:
 /*
  *-----------------------------------------------------------------------------
  *
+ * HostinfoArchString --
+ *
+ *      Return the machine architecture prefix. The X86 and X86_64 machine
+ *      architectures are implied - no prefix. All others require an official
+ *      string from VMware.
+ *
+ * Return value:
+ *      As above.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static const char *
+HostinfoArchString(void)
+{
+#if defined(vm_arm_any)
+   return "arm-";
+#elif defined(vm_x86_any)
+   return "";
+#else
+#error Unsupported architecture!
+#endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * HostinfoGenericSetShortName --
  *
  *      Set the short name using the short name entry in the specified table
@@ -908,7 +939,8 @@ HostinfoGenericSetShortName(const ShortNameSet *entry, // IN:
    ASSERT(entry != NULL);
    ASSERT(entry->shortName != NULL);
 
-   Str_Strcpy(distroShort, entry->shortName, distroShortSize);
+   Str_Sprintf(distroShort, distroShortSize, "%s%s", HostinfoArchString(),
+               entry->shortName);
 
    return TRUE;
 }
@@ -941,8 +973,8 @@ HostinfoSetAmazonShortName(const ShortNameSet *entry, // IN: Unused
       version = 2;
    }
 
-   Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_AMAZON_LINUX,
-               version);
+   Str_Sprintf(distroShort, distroShortSize, "%s%s%d",
+               HostinfoArchString(), STR_OS_AMAZON_LINUX, version);
 
    return TRUE;
 }
@@ -974,8 +1006,8 @@ HostinfoSetAsianuxShortName(const ShortNameSet *entry, // IN: Unused
    if (version < 3) {
       Str_Strcpy(distroShort, STR_OS_ASIANUX, distroShortSize);
    } else {
-      Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_ASIANUX,
-                  version);
+      Str_Sprintf(distroShort, distroShortSize, "%s%s%d",
+                  HostinfoArchString(), STR_OS_ASIANUX, version);
    }
 
    return TRUE;
@@ -1008,8 +1040,8 @@ HostinfoSetCentosShortName(const ShortNameSet *entry, // IN: Unused
    if (version < 6) {
       Str_Strcpy(distroShort, STR_OS_CENTOS, distroShortSize);
    } else {
-      Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_CENTOS,
-                  version);
+      Str_Sprintf(distroShort, distroShortSize, "%s%s%d",
+                  HostinfoArchString(), STR_OS_CENTOS, version);
    }
 
    return TRUE;
@@ -1042,8 +1074,8 @@ HostinfoSetDebianShortName(const ShortNameSet *entry, // IN: Unused
    if (version <= 4) {
       Str_Strcpy(distroShort, STR_OS_DEBIAN "4", distroShortSize);
    } else {
-      Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_DEBIAN,
-                  version);
+      Str_Sprintf(distroShort, distroShortSize, "%s%s%d",
+                  HostinfoArchString(), STR_OS_DEBIAN, version);
    }
 
    return TRUE;
@@ -1082,10 +1114,11 @@ HostinfoSetOracleShortName(const ShortNameSet *entry, // IN: Unused
     */
 
    if (version == 0) {
-      Str_Strcpy(distroShort, STR_OS_ORACLE, distroShortSize);
+      Str_Sprintf(distroShort, distroShortSize, "%s%s",
+                  HostinfoArchString(), STR_OS_ORACLE);
    } else {
-      Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_ORACLE,
-                  version);
+      Str_Sprintf(distroShort, distroShortSize, "%s%s%d",
+                  HostinfoArchString(), STR_OS_ORACLE, version);
    }
 
    return TRUE;
@@ -1116,13 +1149,15 @@ HostinfoSetRedHatShortName(const ShortNameSet *entry, // IN: Unused
                            int distroShortSize)       // IN:
 {
    if (strstr(distroLower, "enterprise") == NULL) {
-      Str_Strcpy(distroShort, STR_OS_RED_HAT, distroShortSize);
+      Str_Sprintf(distroShort, distroShortSize, "%s%s",
+                  HostinfoArchString(), STR_OS_RED_HAT);
    } else {
       if (version == 0) {
-         Str_Strcpy(distroShort, STR_OS_RED_HAT_EN, distroShortSize);
+         Str_Sprintf(distroShort, distroShortSize, "%s%s",
+                     HostinfoArchString(), STR_OS_RED_HAT_EN);
       } else {
-         Str_Sprintf(distroShort, distroShortSize, "%s%d",
-                     STR_OS_RED_HAT_EN, version);
+         Str_Sprintf(distroShort, distroShortSize, "%s%s%d",
+                     HostinfoArchString(), STR_OS_RED_HAT_EN, version);
       }
    }
 
@@ -1200,14 +1235,16 @@ HostinfoSetSuseShortName(const ShortNameSet *entry, // IN:
                                        distroLower, distroShort,
                                        distroShortSize);
       if (!found) {
-         Str_Strcpy(distroShort, STR_OS_SUSE, distroShortSize);
+         Str_Sprintf(distroShort, distroShortSize, "%s%s",
+                     HostinfoArchString(), STR_OS_SUSE);
       }
    } else {
       found = HostinfoSearchShortNames(suseEnterpriseShortNameArray, version,
                                        distroLower, distroShort,
                                        distroShortSize);
       if (!found) {
-         Str_Strcpy(distroShort, STR_OS_SLES, distroShortSize);
+         Str_Sprintf(distroShort, distroShortSize, "%s%s",
+                     HostinfoArchString(), STR_OS_SLES);
       }
    }
 
