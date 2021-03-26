@@ -91,6 +91,16 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
    VMTools_ConfigGetInteger(config, "vmbackup", key, defVal)
 
 #define VMBACKUP_CFG_ENABLEVSS      "enableVSS"
+#define VMBACKUP_CFG_ENABLENVME     "enableNVMe"
+
+/**
+ * Default value for VMBACKUP_CFG_ENABLENVME setting in
+ * tools configuration file.
+ *
+ * TRUE will allow the host to use NVMe feature in snapshot,
+ * FALSE otherwise.
+ */
+#define VMBACKUP_CFG_ENABLENVME_DEFAULT                  FALSE
 
 static VmBackupState *gBackupState = NULL;
 
@@ -1465,8 +1475,14 @@ VmBackupCapabilities(gpointer src,
    ToolsAppCapability caps[] = {
       { TOOLS_CAP_NEW, NULL, CAP_VMBACKUP_NVME, },
    };
+   Bool enableNVMe = VMBACKUP_CONFIG_GET_BOOL(ctx->config,
+                                              VMBACKUP_CFG_ENABLENVME,
+                                              VMBACKUP_CFG_ENABLENVME_DEFAULT);
 
-   caps[0].value = set ? 1 : 0;
+   g_debug("%s - vmbackup NVMe feature is %s\n", __FUNCTION__,
+           enableNVMe ? "enabled" : "disabled");
+
+   caps[0].value =  enableNVMe && set ? 1 : 0;
 
    return VMTools_WrapArray(caps, sizeof *caps, ARRAYSIZE(caps));
 }
