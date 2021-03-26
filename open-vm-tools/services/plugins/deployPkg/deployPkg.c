@@ -88,8 +88,39 @@ DeployPkgDeployPkgInGuest(ToolsAppCtx *ctx,    // IN: app context
    int processTimeout;
 #endif
 
-   /* Init the logger */
-   DeployPkgLog_Open();
+   /*
+    * Init the logger
+    * PR 2109109. If the deployPkg log handler has been configured explicitly in
+    * tools.conf, then output deployPkg log through the specified handler.
+    * https://wiki.eng.vmware.com/Configuring_Logging_for_the_VMware_Tools
+    * If not, output the log to the default log file defined in
+    * function DeployPkgLog_Open.
+    * The deployPkg log handler is mainly configured for debugging purpose.
+    */
+   char key[128];
+   char *handler;
+   snprintf(key, sizeof key, "%s.handler", G_LOG_DOMAIN);
+   handler = VMTools_ConfigGetString(ctx->config,
+                                     CONFGROUPNAME_LOGGING,
+                                     key,
+                                     NULL);
+   if (handler != NULL &&
+       (strcmp(handler, "vmx") == 0 || strcmp(handler, "file") == 0 ||
+        strcmp(handler, "file+") == 0)) {
+      g_debug("Using deployPkg log handler: %s", handler);
+      free(handler);
+   } else {
+      DeployPkgLog_Open();
+
+      if (handler != NULL) {
+         DeployPkgLog_Log(log_debug,
+                          "Log handler %s is not applicable for deployPkg,"
+                          " ignore it and ouput the log in GOS customization"
+                          " default log path.",
+                          handler);
+         free(handler);
+      }
+   }
    DeployPkg_SetLogger(DeployPkgLog_Log);
 
    DeployPkgLog_Log(log_debug, "Deploying %s", pkgFile);
