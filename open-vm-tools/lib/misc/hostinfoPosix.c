@@ -250,7 +250,7 @@ DetailedDataField detailedDataFields[] = {
 #if defined(VM_ARM_ANY)
    { "architecture",  "Arm"   },  // Arm
 #else
-   { "architecture",  "X86" },    // Intel/X86
+   { "architecture",  "X86"   },  // Intel/X86
 #endif
    { "bitness",       ""      },  // "32" or "64"
    { "buildNumber",   ""      },  // Present for MacOS and some Linux distros.
