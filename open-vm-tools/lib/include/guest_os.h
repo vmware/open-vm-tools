@@ -544,20 +544,15 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_WIN_TENSERVER_2019_GENERIC_FULL "Windows Server 2019"
 #define STR_OS_WIN_TENSERVER_2022_GENERIC_FULL "Windows Server 2022"
 
-/* Win 10 server versions are distinguished by major build number */
-#define WIN10SERVER2016_BUILD14393 14393
-#define WIN10SERVER2019_BUILD17763 17763
-#define WIN10SERVER2022_BUILDxxxxx "TBD"
-
 /* Microsoft Hyper-V */
 #define STR_OS_HYPER_V      "winHyperV"
 #define STR_OS_HYPER_V_FULL "Hyper-V Server"
 
 /* Windows Future/Unknown */
 
-#define STR_OS_WIN_FUTURE                   "windowsUnknown"
-#define STR_OS_WIN_FUTURE_X64               "windowsUnknown-64"
-#define STR_OS_WIN_FUTURE_GENERIC           "Windows Unknown"
+#define STR_OS_WIN_UNKNOWN                   "windowsUnknown"
+#define STR_OS_WIN_UNKNOWN_X64               "windowsUnknown-64"
+#define STR_OS_WIN_UNKNOWN_GENERIC           "Windows Unknown"
 
 /* Modifiers for Windows Vista, Windows Server 2008, and later. */
 #define STR_OS_WIN_32_BIT_EXTENSION ", 32-bit"
