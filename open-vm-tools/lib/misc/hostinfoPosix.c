@@ -2108,34 +2108,12 @@ HostinfoBSD(struct utsname *buf)  // IN:
     * FreeBSD 11 and later are identified using a different guest ID than
     * older FreeBSD.
     */
-   switch (majorVersion) {
-   case 1:
-   case 2:
-   case 3:
-   case 4:
-   case 5:
-   case 6:
-   case 7:
-   case 8:
-   case 9:
-   case 10:
+
+   if (majorVersion < 11) {
       Str_Strcpy(distroShort, STR_OS_FREEBSD, sizeof distroShort);
-      break;
-
-   case 11:
-      Str_Strcpy(distroShort, STR_OS_FREEBSD "11", sizeof distroShort);
-      break;
-
-   case 12:
-      Str_Strcpy(distroShort, STR_OS_FREEBSD "12", sizeof distroShort);
-      break;
-
-   default: // Unknown defaults to the highest known.
-      /* FALL THROUGH */
-
-   case 13:
-      Str_Strcpy(distroShort, STR_OS_FREEBSD "13", sizeof distroShort);
-      break;
+   } else {
+      Str_Sprintf(distroShort, sizeof distroShort, "%s%s%d",
+                  HostinfoArchString(), STR_OS_FREEBSD, majorVersion);
    }
 
    len = Str_Snprintf(osNameFull, sizeof osNameFull, "%s %s", buf->sysname,
