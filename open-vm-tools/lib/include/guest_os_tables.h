@@ -62,6 +62,7 @@ extern "C" {
    GOT(GUEST_OS_WIN_2016SRV_64)      /* Windows Server 2016 64-bit */      \
    GOT(GUEST_OS_WIN_2019SRV_64)      /* Windows Server 2019 64-bit */      \
    GOT(GUEST_OS_WIN_2022SRV_64)      /* Windows Server 2022 64-bit */      \
+   GOT(GUEST_OS_WIN_2025SRV_64)      /* Windows Server 2025 64-bit */      \
    GOT(GUEST_OS_HYPER_V)             /* Microsoft Hyper-V */               \
    GOT(GUEST_OS_OS2)                                                       \
    GOT(GUEST_OS_ECOMSTATION)         /* OS/2 variant; 1.x */               \
