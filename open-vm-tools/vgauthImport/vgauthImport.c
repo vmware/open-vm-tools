@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2012,2018-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2012,2018-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -397,15 +397,12 @@ QueryNamespace(char *namespace,
                size_t *resultDataLen)
 {
    char *result = NULL;
-   size_t resultLen;
+   size_t resultLen = 0;
    DynBuf buf;
    int i;
    Bool status = FALSE;
 
    ASSERT(namespace);
-
-   *resultData = NULL;
-   *resultDataLen = 0;
 
    DynBuf_Init(&buf);
 
