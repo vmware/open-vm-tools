@@ -90,6 +90,7 @@ extern "C" {
    GOT(GUEST_OS_ARM_DEBIAN_64)                                             \
    GOT(GUEST_OS_RHEL)                                                      \
    GOT(GUEST_OS_RHEL_64)                                                   \
+   GOT(GUEST_OS_RHEL9_64)                                                  \
    GOT(GUEST_OS_FREEBSD)                                                   \
    GOT(GUEST_OS_FREEBSD_64)                                                \
    GOT(GUEST_OS_FREEBSD11)                                                 \
