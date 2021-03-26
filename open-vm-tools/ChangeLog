@@ -1,3 +1,184 @@
+commit 244e5bad740fa06eb40c48a7973ae8c519106019
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 25 20:21:18 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit c8c330b4df2878b6b152ac8be4f1bc999febe615
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 25 20:21:18 2021 -0700
+
+    Add Arm FreeBSD to the ALLARM set in guest_os.h.
+
+commit 2df1c32e009649602f0f3179272107afa2c966b3
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 25 20:21:18 2021 -0700
+
+    Clean up the classification information for Ubuntu, Debian, and FreeBSD.
+    
+    Some important information about these distros was not reflected in
+    the macros in guest_os.h.  Fixed this.
+
+commit 0ec0bb8ec20b45b7b1714701276d377db63acabc
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 25 20:21:18 2021 -0700
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit 1a6546dfe7e0d4ed572434bd794d94f5228763b4
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 25 20:21:18 2021 -0700
+
+    Fix an uninitialized variable issue reported by a Coverity scan of
+    open-vm-tools.
+
+commit f06d7cf7225a8c5e2a58fa2bf6a8f5d301964dfa
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 25 20:21:18 2021 -0700
+
+    Record the assignment of 11.2.6 for a VMware Tools emergency patch.
+
+commit a95a56f95b01b3028c72e4da2af7c44fb38a4900
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 25 20:21:18 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit d26c6dfb4cf8dd0783df79589b3621f87c71071e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 25 20:21:18 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit f5a922bfd6268ee0690f0aabc03d88bdb781b867
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 25 20:21:18 2021 -0700
+
+    Disable NVMe quiesced snapshot by default.
+    
+    Open-vm-tools has no FSS.  Enable the feature only when it has been
+    completely verified and FSS is enabled on the host side.
+
+commit a58a79da6affce6fc993b0fa18b3d2b718a32d18
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 25 20:21:18 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 004a5ddc3f79e126a1a14bac0ac5cf53630c833c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 25 20:21:17 2021 -0700
+
+    Add RHEL9 to the guest_os_tables.h header file.
+
+commit c82f1d9ced8a9c1b13a19256da9d92b64c896906
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 25 20:21:17 2021 -0700
+
+    FreeBSD now supports Arm
+    
+    Upgrade the guest identification code to handle this.
+
+commit 4f7441d8cd20923e509ff819084693bbd8c928df
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 25 20:21:17 2021 -0700
+
+    Fix a memory leak reported by a partner from their Coverity scans.
+
+commit 6cda6b456e88c570aac9c3eb8ee1765347e43a27
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 25 20:21:17 2021 -0700
+
+    Linux guest identification: Support multiple architectures.
+    
+    Allow machine architecture information to be present in the
+    "short string" and the guestOS string.  This is done via a prefix,
+    "<arch>-" (e.g. arm-ubuntu-64, riscv-debian11-64, arm-windows10-64)
+    with the X86 architecture being implied (no explicit "<arch>-").
+    
+    Add the recognition of the Arm machine architecture to the Linux
+    guest identification code.
+
+commit 3694c7e9071771ccc6690a7f1473206cc21b3452
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 25 20:21:17 2021 -0700
+
+    Style change, alignment correction.
+
+commit 6e980e3adeed221af11edc3ef66dcb382474642c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 25 20:21:17 2021 -0700
+
+    Clipboard logging improvement.
+    
+    Add a log instruction in CPClipboard_SetItem() to print the data size for
+    every format.
+
+commit c6b98a52e69488006fef87c63a3cc186ab3d9525
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 25 20:21:17 2021 -0700
+
+    Add machine architecture information to os.detailed.data.
+    
+    The detailed data now include information about the guest's running
+    machine architecture.  A later change will deal with the guest
+    "short name" (a.k.a. the guestOS string).
+
+commit f387d5a2cc4a2221bb4802915e4e432adc1a945f
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 25 20:21:17 2021 -0700
+
+    Tools gdp plugin updates.
+
+commit 5689130bbc010843b718a0691ee3765624beca00
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 25 20:21:17 2021 -0700
+
+    Implement log redirection for the deployPkg plugin.
+    
+    On Linux, /var/log/vmware-imc/toolsDeployPkg.log is the default deployPkgs
+    log file.  This change allows users to redirect that log to the vmware.log
+    on the host or to another file located on the guest VM.  Redirection is
+    controlled by settings in the "logging" section of the tools.conf file.
+    
+    See the examples in the sample tools.conf file provided in the distribution.
+
+commit ce844c061dc2c8049d8c6f4c6499848cfa145728
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 25 20:21:17 2021 -0700
+
+    Changes to common header files.
+    
+    GuestOS: Begin recognizing Arm in VMware products.
+
+commit 49ca4d0632ab5920c45e536883db5154cad2b8e4
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 25 20:21:17 2021 -0700
+
+    Stylistic changes to the serviceDiscovery plugin Makefile.
+    
+    Replaced all occurrences of "$(libdir)/open-vm-tools" with "$(pkglibdir)".
+    Split the makefile command lines to fit within 80 columns.
+
+commit 807a1167e3bef3f070773ea1d8e2fd812f82cfd6
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 25 20:21:17 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit adaeae034bd8d4fa150700f96f617e40fc22edf1
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Mar 5 11:28:17 2021 -0800
+
+    Update the ChangeLog with Mar. 5 corrections
+     - plus ChangeLog update of Mar. 4.
+
+commit fdc50f3716bd23dd891eccf292741c3f48d342e1
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Mar 5 11:19:30 2021 -0800
+
+    Added complete LICENSE file to the jsmn.h and jsmn.c source files.
+
 commit fdc50f3716bd23dd891eccf292741c3f48d342e1
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Fri Mar 5 11:19:30 2021 -0800
