@@ -35,74 +35,146 @@ extern "C" {
 #endif
 
 
-/*
- *                       ALL ABOUT LEVELS AND FILTERS
+/**
+ * Log Facility
  *
- * Each log entry has a level associated with it. A level expresses how
- * important it is for a human to notice the log entry.
+ * The Log Facility exists to record events of program execution for purposes
+ * of auditing, debugging, and monitoring. Any non-trivial program should use
+ * logging, to enable those purposes.
  *
- * Messages of general interest should be logged at VMW_LOG_INFO. An error
- * should be logged at VMW_LOG_ERROR. An entry warning of an issue should
- * be logged at VMW_LOG_WARNING and so forth.
+ * Events recorded by the Log Facility (i.e. calls to here-declared functions)
+ * are automatically filtered, time-stamped, and persisted.
  *
- * A call to Log() has an implicit level of VMW_LOG_INFO; a call to
- * Warning() has an implicit level of VMW_LOG_WARNING.
+ * Configuration for field engineers is documented at
+ *   https://wiki.eng.vmware.com/PILogFacility
+ * For full details on configurable parameters and their semantics,
+ * use the source, Luke -- starting at lib/log/logFacility.c
  *
- * Those levels above VMW_LOG_INFO are increasingly critical to be noticed,
- * those below VMW_LOG_INFO are increasingly chatty, things that are
- * generally not useful to seen unless specifically requested. This is
- * similar to how syslog and the vmacore logger handle levels.
+ * The events are explicitly annotated by the developer (i.e. you)
+ * with a level, an optional module, and a message.
  *
- * The Log Facility filters entries as they arrive by their level; only levels
- * equal to or below (smaller values) the filter level will be accepted by
- * the Log Facility for processing.
+ * Notes:
+ * - Log() is defined as Log_Info()
+ * - Warning() is defined as Log_Warning()
  *
- * There are two types of filters, global and module-specific.
+ * Log Level
  *
- * The global filter is the default filter. It is used for all entries to the
- * Log Facility UNLESS a module is specified.
+ * The Log Level indicates the (in)significance of the event, with larger
+ * numbers indicating lesser significance. The level, whether explicit
+ * (e.g. Log_Level(level, ...)) or implicit (e.g. Log_Info(...)),
+ * should be chosen with some care. A Log_Info() message containing the word
+ * "warning" or "error" is almost certainly mis-routed.
  *
- * The global filter has its default values set such that entries at level
- * VMW_LOG_WARNING or lower are sent to the "standard error". This may be
- * controlled via Log_SetStderrLevel (see function header) or configuration
- * parameter (see comments in logFacility.c).
+ * The following rules of thumb provide a rough guide to choice of level.
+ * * VMW_LOG_AUDIT -- always logged, for auditing purposes
+ *  + change to authorization
+ *  + change to configuration
+ * * VMW_LOG_PANIC -- system broken; cannot exit gracefully
+ *  + wild pointer; corrupt arena
+ *  + error during error exit
+ * * VMW_LOG_ERROR -- system broken; must exit
+ *  + required resource inaccessible (memory; storage; network)
+ *  + incorrigible internal inconsistency
+ * * VMW_LOG_WARNING -- unexpected condition; may require immediate attention
+ *  + inconsistency corrected or ignored
+ *  + timeout or slow operation
+ * * VMW_LOG_NOTICE -- unexpected condition; may require eventual attention
+ *  + missing config; default used
+ *  + lower level error ignored
+ * * VMW_LOG_INFO -- expected condition
+ *  + non-standard configuration
+ *  + alternate path taken (e.g. on lower level error)
+ * * VMW_LOG_VERBOSE -- normal operation; potentially useful information
+ *  + system health observation, for monitoring
+ *  + unexpected non-error state
+ * * VMW_LOG_TRIVIA -- normal operation; excess information
+ *  + vaguely interesting note
+ *  + anything else the developer thinks might be useful
+ * * VMW_LOG_DEBUG_* -- flow and logic tracing
+ *  + routine entry, with parameters; routine exit, with return value
+ *  + intermediate values or decisions
  *
- * The global filter has its default values set such that entries at level
- * VMW_LOG_INFO (or VMW_LOG_VERBOSE in debug builds) will be accepted for
- * processing.
+ * Log Module
  *
- * Module specific filters are limited to a module (name specific) context;
- * they do not fall with the global context. This allows entries to be
- * controlled by module context AND level. This is similar to LOG, for those
- * familiar with it... except that module-specific filters are available in
+ * The Log routines accept an explicit level (see below)
+ * as well as an optional module parameter.
+ * This affords another degree of freedom in filtering.
+ *
+ * To use the module parameter:
+ * (0) The module identifier must already exist, or be invented and defined,
+ *     in public/loglevel_userVars.h
+ *
+ * (1) Define LOGLEVEL_MODULE before the include of "log.h".
+ *     The value must be a valid module identifier (see above).
+ *     It is a good idea to see if "log.h" is included more than once,
+ *     and if so, to remove any extra inclusions.
+ *
+ *     If all uses of LOG() are converted to use Log_ variants,
+ *     remember to remove "loglevel_user.h".
+ *
+ * (2) Pass the module information to the Log Facility.
+ *     LOGLEVEL_MODULE is actually encoded in the level parameter by
+ *     the LOG_ROUTING_BITS(level) macro.
+ *
+ *     Use
+ *        Log_LevelModule(level, ...);
+ *     OR
+ *        LogV_Module(level, ...);
+ *     OR
+ *        Log_Level(LOG_ROUTING_BITS(level), ...);
+ *     OR
+ *        Log_V(LOG_ROUTING_BITS(level), ...);
+ *
+ * Log Message
+ *
+ * Every Log message should be unique, unambiguously describing the event
+ * being logged, and should include all relevant data, in human-readable form.
+ * Source line number is *not* useful.
+ * + printf-style arguments
+ * + function name as prefix (controversial)
+ * + format pure number (e.g. error number) in decimal
+ * + format bitfield (e.g. compound error code) in hex
+ * + format disk size or offset in hex; specify units if not bytes
+ * + quote string arguments (e.g. pathnames) which can contain spaces
+ *
+ * Log Filter
+ *
+ * The Log Facility filters events as they arrive, by level and by module,
+ * discarding events above the configured filter level.
+ * This is similar to how syslog and the vmacore logger handle levels.
+ *
+ * There is a global filter and assorted module filters.
+ * The global filter is used for all entries to the Log Facility
+ * UNLESS a module is specified.
+ *
+ * Module filters are limited to a module (name specific) context;
+ * they do not fall within the global context. This allows entries to be
+ * controlled by module AND level. This is similar to LOG(), for those
+ * familiar with it ... except that module filters are available in
  * all build types.
  *
- * Module specific filters have their default values set such that all entries
- * are not accepted/processed (just like LOG). See comments at the top of
- * logFacility.c on how to set the module specific level filters.
+ * Each module is a separate configuration namespace, with module-specific
+ * filter levels. The default module filter level is none (VMW_LOG_AUDIT)
+ * i.e. module filters by default discard all events (just like LOG()).
  *
- * How to use module-specific filters can be found at the bottom of this file.
- *
- * Regardless of which type of filtering is specified, the VMW_LOG_AUDIT
+* Regardless of what level of filtering is specified, the VMW_LOG_AUDIT
  * level is used to log something that requires an audit at a later date.
  * It is *ALWAYS* logged and *NEVER* outputs to the "standard error".
- *
- * NOTE: Log levels must start with zero (0) and increase monotonically, with
- *       no "holes".
- *
- *      Level              Comments
- *-------------------------------------------------
+ */
+/*
+ * Level            Value    Comments
+ *---------------------------------------------------------------------------
  */
 
 typedef enum {
-   VMW_LOG_AUDIT    = 0,   // ALWAYS LOGGED; NO STDERR
-   VMW_LOG_PANIC    = 1,
-   VMW_LOG_ERROR    = 2,
-   VMW_LOG_WARNING  = 3,
-   VMW_LOG_NOTICE   = 4,
-   VMW_LOG_INFO     = 5,  // Global filter, default for release builds
-   VMW_LOG_VERBOSE  = 6,  // Global filter, default for debug builds
-   VMW_LOG_TRIVIA   = 7,
+   VMW_LOG_AUDIT    = 0,  // Always output; never to stderr
+   VMW_LOG_PANIC    = 1,  // Desperation
+   VMW_LOG_ERROR    = 2,  // Irremediable error
+   VMW_LOG_WARNING  = 3,  // Unexpected condition; may need immediate attention
+   VMW_LOG_NOTICE   = 4,  // Unexpected condition; may need eventual attention
+   VMW_LOG_INFO     = 5,  // Expected condition
+   VMW_LOG_VERBOSE  = 6,  // Extra information
+   VMW_LOG_TRIVIA   = 7,  // Excess information
    VMW_LOG_DEBUG_00 = 8,
    VMW_LOG_DEBUG_01 = 9,
    VMW_LOG_DEBUG_02 = 10,
@@ -137,8 +209,8 @@ typedef enum {
 #endif
 
 /*
- * The "routing" parameter contains the level in the low order bits; the
- * higher order bits specify the module where the log call came from.
+ * The "routing" parameter contains the level in the low order bits;
+ * the higher order bits specify the module of the log call.
  */
 
 #define VMW_LOG_LEVEL_BITS 5  // Log level bits (32 levels max)
