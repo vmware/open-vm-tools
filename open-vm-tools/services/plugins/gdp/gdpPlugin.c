@@ -150,12 +150,12 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 
 #define GDP_HISTORY_REQUEST_PAST_SECONDS "pastSeconds" // <uint64>
 #define GDP_HISTORY_REQUEST_ID           "id"          // <uint64>
-                                                       // subscription ID
+                                                       // Subscription ID
 
 #define GDP_HISTORY_REQUEST_REQUIRED_KEYS 2
 
 /*
- * Historical guest data cache size limit
+ * History guest data cache size limit
  */
 #define GDP_MAX_CACHE_SIZE_LIMIT     (1 << 24) // 16M
 #define GDP_DEFAULT_CACHE_SIZE_LIMIT (1 << 22) // 4M
@@ -255,7 +255,7 @@ typedef enum GdpTaskMode {
    GDP_TASK_MODE_NONE,    /* Not publishing
                              valid with GDP_TASK_STATE_IDLE only */
    GDP_TASK_MODE_PUBLISH, /* Publishing new data */
-   GDP_TASK_MODE_HISTORY, /* Publishing historical data */
+   GDP_TASK_MODE_HISTORY, /* Publishing history data */
 } GdpTaskMode;
 
 typedef enum GdpTaskState {
@@ -276,9 +276,7 @@ typedef struct PublishResult {
 typedef struct HistoryRequest {
    gint64 beginCacheTime; /* Begin cacheTime */
    gint64 endCacheTime;   /* End cacheTime */
-   gchar id[24];          /* Incremental uint64 subscription ID in string
-                             format.
-                             2^64 - 1: 18446744073709551615 (20 digits) */
+   guint64 id;            /* Subscription ID */
 } HistoryRequest;
 
 typedef struct HistoryCacheItem {
@@ -1544,10 +1542,11 @@ GdpTaskUpdateHistoryCachePointerAndGetSubscribers(
          } else if (request->beginCacheTime < item->cacheTime &&
                     item->cacheTime <= request->endCacheTime) {
             if (subscribers == NULL) {
-               subscribers = g_strdup_printf("\"%s\"", request->id);
+               subscribers = g_strdup_printf("%" G_GUINT64_FORMAT,
+                                             request->id);
             } else {
                gchar *subscribersNew;
-               subscribersNew = g_strdup_printf("%s,\"%s\"",
+               subscribersNew = g_strdup_printf("%s,%" G_GUINT64_FORMAT,
                                                 subscribers, request->id);
                g_free(subscribers);
                subscribers = subscribersNew;
@@ -1606,8 +1605,8 @@ GdpTaskPublishHistory(TaskContext *taskCtx) // IN/OUT
 
    subscribers = GdpTaskUpdateHistoryCachePointerAndGetSubscribers(taskCtx);
    if (subscribers == NULL) {
-      g_info("%s: No history item meets subscription requirement.\n",
-             __FUNCTION__);
+      g_debug("%s: No history data to publish now.\n",
+              __FUNCTION__);
       goto cleanup;
    }
 
@@ -1910,9 +1909,7 @@ GdpJsonIsHistoryRequest(const char *json,        // IN
                                      GDP_HISTORY_REQUEST_ID)) {
          requiredKeys--;
          index++;
-         Str_Strncpy(request->id, sizeof request->id,
-                     json + tokens[index].start,
-                     tokens[index].end - tokens[index].start);
+         request->id = g_ascii_strtoull(json + tokens[index].start, NULL, 10);
       }
    }
 
@@ -1962,7 +1959,10 @@ GdpTaskPushHistoryRequest(TaskContext *taskCtx,    // IN/OUT
    }
 
    requestCopy = (HistoryRequest *) Util_SafeMalloc(sizeof *request);
-   Util_Memcpy(requestCopy, request, sizeof *request);
+   requestCopy->beginCacheTime = request->beginCacheTime;
+   requestCopy->endCacheTime = request->endCacheTime;
+   requestCopy->id = request->id;
+
    /*
     * Note: each request comes with a unique subscription ID.
     */
@@ -2054,6 +2054,7 @@ GdpTaskProcessNetwork(TaskContext *taskCtx) // IN/OUT
       GdpTaskProcessPublishResult(taskCtx, &result);
       g_free(result.diagnosis);
    } else if (isHistoryRequest) {
+      g_debug("%s: Received history request:\n%s\n", __FUNCTION__, buf);
       GdpTaskPushHistoryRequest(taskCtx, &request);
    } else {
       g_info("%s: Unknown JSON:\n%s\n", __FUNCTION__, buf);
