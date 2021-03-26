@@ -247,14 +247,19 @@ static const DistroInfo distroArray[] = {
 
 /* Must be sorted. Keep in the same ordering as DetailedDataFieldType */
 DetailedDataField detailedDataFields[] = {
-   { "bitness",       "" },  // "32" or "64"
-   { "buildNumber",   "" },  // Present for MacOS and some Linux distros.
-   { "distroName",    "" },  // Defaults to uname -s
-   { "distroVersion", "" },  // Present for MacOS. Read from distro files for Linux.
-   { "familyName",    "" },  // Defaults to uname -s
-   { "kernelVersion", "" },  // Defaults to uname -r
-   { "prettyName",    "" },  // Present for MacOS. Read from distro files for Linux.
-   { NULL,            "" },  // MUST BE LAST
+#if defined(VM_ARM_ANY)
+   { "architecture",  "Arm"   },  // Arm
+#else
+   { "architecture",  "X86" },    // Intel/X86
+#endif
+   { "bitness",       ""      },  // "32" or "64"
+   { "buildNumber",   ""      },  // Present for MacOS and some Linux distros.
+   { "distroName",    ""      },  // Defaults to uname -s
+   { "distroVersion", ""      },  // Present for MacOS.
+   { "familyName",    ""      },  // Defaults to uname -s
+   { "kernelVersion", ""      },  // Defaults to uname -r
+   { "prettyName",    ""      },  // Present for MacOS.
+   { NULL,            ""      },  // MUST BE LAST
 };
 
 #if defined __ANDROID__ || defined __aarch64__
