@@ -81,6 +81,9 @@
 
 #define DEVICEHELPER_CONFIG_DONE_CMD    "guest.deviceHelper.config_done"
 
+#define DEVICEHELPER_CONFIG_STATUS_SUCCESS     1
+#define DEVICEHELPER_CONFIG_STATUS_FAILURE     0
+
 /*
  * Auto-upgrade commands.
  */
