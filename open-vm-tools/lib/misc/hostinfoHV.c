@@ -391,6 +391,40 @@ Hostinfo_TouchXen(void)
 /*
  *----------------------------------------------------------------------
  *
+ *  Hostinfo_HyperV --
+ *
+ *      Check for HyperV.
+ *
+ * Results:
+ *      TRUE if we are running in HyperV.
+ *      FALSE otherwise.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+Hostinfo_HyperV(void)
+{
+   Bool hyperVAvailable = FALSE;
+#if defined(__i386__) || defined(__x86_64__)
+   char *hypervisorSig = Hostinfo_HypervisorCPUIDSig();
+
+   if (hypervisorSig) {
+      if (!memcmp(CPUID_HYPERV_HYPERVISOR_VENDOR_STRING, hypervisorSig,
+                  sizeof CPUID_HYPERV_HYPERVISOR_VENDOR_STRING)) {
+         hyperVAvailable = TRUE;
+      }
+      free(hypervisorSig);
+   }
+#endif
+
+   return hyperVAvailable;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  *  Hostinfo_NestedHVReplaySupported --
  *
  *      Access the backdoor with a HV replay control query. This is used

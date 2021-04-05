@@ -160,6 +160,7 @@ Bool Hostinfo_NestedHVReplaySupported(void);
 Bool Hostinfo_TouchBackDoor(void);
 Bool Hostinfo_TouchVirtualPC(void);
 Bool Hostinfo_TouchXen(void);
+Bool Hostinfo_HyperV(void);
 char *Hostinfo_HypervisorCPUIDSig(void);
 void Hostinfo_LogHypervisorCPUID(void);
 char *Hostinfo_HypervisorInterfaceSig(void);
