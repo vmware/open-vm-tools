@@ -258,7 +258,8 @@ File_GetFilePermissions(const char *pathName,  // IN:
  *      Errno/GetLastError is available upon failure.
  *
  * Results:
- *      Return 0 if the unlink is successful. Otherwise, returns -1.
+ *        0  success
+ *      > 0  failure (errno)
  *
  * Side effects:
  *      The file is removed.
@@ -269,7 +270,9 @@ File_GetFilePermissions(const char *pathName,  // IN:
 int
 File_Unlink(const char *pathName)  // IN:
 {
-   return (FileDeletion(pathName, TRUE) == 0) ? 0 : -1;
+   errno = FileDeletion(pathName, TRUE);
+
+   return errno;
 }
 
 

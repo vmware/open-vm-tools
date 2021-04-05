@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -270,7 +270,7 @@ DnD_DeleteStagingFiles(const char *stagingDir,  // IN:
                ret = FALSE;
             }
          } else {
-            if (File_Unlink(curPath) == -1) {
+            if (File_Unlink(curPath) != 0) {
                ret = FALSE;
             }
          }
