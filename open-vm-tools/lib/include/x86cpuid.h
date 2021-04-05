@@ -582,7 +582,7 @@ FLAG(   7,  0, EDX, 28,  1, FCMD,                                YES,   9 ) \
 FLAG(   7,  0, EDX, 29,  1, ARCH_CAPABILITIES,                   ANY,   9 ) \
 FLAG(   7,  0, EDX, 30,  1, CORE_CAPABILITIES,                   NO,    0 ) \
 FLAG(   7,  0, EDX, 31,  1, SSBD,                                YES,   9 ) \
-FLAG(   7,  1, EAX,  4,  1, AVX_VNNI,                            NO,    0 ) \
+FLAG(   7,  1, EAX,  4,  1, AVX_VNNI,                            YES, FUT ) \
 FLAG(   7,  1, EAX,  5,  1, AVX512BF16,                          YES,  18 ) \
 FLAG(   7,  1, EAX, 10,  1, FAST_ZERO_MOVSB,                     NO,    0 ) \
 FLAG(   7,  1, EAX, 11,  1, FAST_SHORT_STOSB,                    NO,    0 ) \
