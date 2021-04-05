@@ -1,3 +1,163 @@
+commit b81140454253dfe3c836c03e221aa832da4ac9e8
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 5 09:01:43 2021 -0700
+
+    Check return value from VmCheck_GetVersion.
+    
+    Fixed an issue reported by Coverity scan of open-vm-tools.
+
+commit f68f15d091fcda7ab393586498683d2061f9a85e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 5 09:01:43 2021 -0700
+
+    L10n drop for updated wording in user visible messages to conform to guidelines.
+
+commit d1d9f2fca56a40159b7039f2955410acc3de3489
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 5 09:01:43 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 585747b2d0b6091ffcc9ffce585ef89dd43ea9e8
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 5 09:01:43 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 3256fd9e85d75768f9bcbeb39037a35e2b7c3908
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 5 09:01:43 2021 -0700
+
+    Common header file change not directly applicable to open-vm-tools.
+
+commit ba6744a874786f5a890e641fb94f2d048fc39e69
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 5 09:01:43 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit ec8b7d139c72287140e660ad4f43c083981b9a6d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 5 09:01:42 2021 -0700
+
+    Fix dereference after null check reported by Coverity.
+    
+    Removed a NULL pointer test for gErr that causes Coverity to report
+    a dereference after null check.
+
+commit d19fe417deed03b2b8a9b8a22cbed1bcc836e0f3
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 5 09:01:42 2021 -0700
+
+    Tools gdp plugin updates.
+
+commit 58fca5f585180c19311d084a536ed8014f5c102b
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 5 09:01:42 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 08d82bad0db6d0d04b257748e8434a28f5a7c1c4
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 5 09:01:42 2021 -0700
+
+    JSMN: Miscellaneous log message fixes.
+    
+    * One log message in jsmn_parse_string function referred to a primitive
+      instead of a string.
+    
+    * When the parsing fails, the log message specified the wrong position
+      where the parsing failed.
+    
+    * Changed '%c' to '0x%02x' in the log messages to avoid any issues with
+      printing the invalid/unprintable characters.
+    
+    * Added a new log message for better debugging in one specific error
+      code path.
+
+commit 5bf72167ec1870b75699e46df1b5e5e86520492a
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 5 09:01:42 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit a5b6b94525ee86d4283ae1db3c424435c93dac61
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 5 09:01:42 2021 -0700
+
+    lib/misc/hostinfoPosix.c:
+    
+    Correct an ifdef typo introduced in an earlier change.
+
+commit 47df40cccede41beffa9658889b51ce1738c61bd
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 5 09:01:42 2021 -0700
+
+    lib/file/file.c:  File_UnlinkIfExists()
+    
+    Revised File_UnlinkIfExists() to return 0 for success and an errno for
+    failure.  Previously, a failure was indicated by a -1 and the caller had
+    to retrieve the errno.
+
+commit 48f6c1cefc31cab095718ac4383a4fb7fd08d51b
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 5 09:01:41 2021 -0700
+
+    lib/file/file.c:  File_Unlink()
+    
+    Revised File_Unlink() to return 0 for success and an errno for failure.
+    Previously, a failure was indicated by a -1 and the caller had to retrieve
+    the errno.
+
+commit 996626d977b3e5186d4664491b740a8afc6f45cd
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 5 09:01:41 2021 -0700
+
+    Common source file change not directly applicable to open-vm-tools.
+    
+    lib/file/file.c:
+    
+    Revised File_UnlinkRetry() and File_UnlinkNoFollow() to return 0 for
+    success and an errno for failure.  Previously, a failure was indicated
+    by a -1 and the caller had to retrieve the errno.
+
+commit 8a98b8f5d3669812e1524cd692e1dd897e5f0ba9
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 5 09:01:41 2021 -0700
+
+    Change to common source files not directly applicable to open-vm-tools.
+    
+    Add a common function to detect if HyperV is present.
+
+commit 761631d7c7d7c0210dafd6f4e4d5281a6d46a52a
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 5 09:01:41 2021 -0700
+
+    Don't follow symlinks in File_Rotate_ByRename().
+    
+    Delete the directory entries, not where they point to in the case of symlinks.
+    
+    Also, clean up some of the related and similar source code.
+
+commit f9821bdf9031eda30bc515b4b869522119684393
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 5 09:01:41 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 5f14d310fa604a2d6802b76c8bbe48baac7e7b90
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 5 09:01:41 2021 -0700
+
+    Pre-enabled MacOS 13 (Darwin 22).
+
+commit 0c88931b229a0099e6c70cb6eecc83b1b00846d3
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 25 20:51:05 2021 -0700
+
+    Update ChangeLog with the granular push of Mar. 25, 2021.
+     - plus ChangeLog update of March 5.
+
 commit 244e5bad740fa06eb40c48a7973ae8c519106019
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Thu Mar 25 20:21:18 2021 -0700
@@ -172,12 +332,6 @@ Date:   Fri Mar 5 11:28:17 2021 -0800
 
     Update the ChangeLog with Mar. 5 corrections
      - plus ChangeLog update of Mar. 4.
-
-commit fdc50f3716bd23dd891eccf292741c3f48d342e1
-Author: John Wolfe <jwolfe@vmware.com>
-Date:   Fri Mar 5 11:19:30 2021 -0800
-
-    Added complete LICENSE file to the jsmn.h and jsmn.c source files.
 
 commit fdc50f3716bd23dd891eccf292741c3f48d342e1
 Author: John Wolfe <jwolfe@vmware.com>
