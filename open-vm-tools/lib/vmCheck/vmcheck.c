@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -317,14 +317,20 @@ VmCheck_IsVirtualWorld(void)
    }
 
    /* It should be safe to use the backdoor without a crash handler now. */
-   VmCheck_GetVersion(&version, &dummy);
+   if (!VmCheck_GetVersion(&version, &dummy)) {
+      Debug("%s: VmCheck_GetVersion failed.\n", __FUNCTION__);
+      return FALSE;
+   }
 #else
    /*
     * The Win32 vmwvaudio driver uses this function, so keep the old,
     * VMware-only check.
     */
    __try {
-      VmCheck_GetVersion(&version, &dummy);
+      if (!VmCheck_GetVersion(&version, &dummy)) {
+         Debug("%s: VmCheck_GetVersion failed.\n", __FUNCTION__);
+         return FALSE;
+      }
    } __except (GetExceptionCode() == STATUS_PRIVILEGED_INSTRUCTION) {
       return FALSE;
    }
