@@ -570,15 +570,25 @@
 #define CONFGROUPNAME_GDP "gdp"
 
 /**
- * Defines a custom history cache size (in bytes).
+ * Defines a custom history cache buffer size limit (in bytes).
  *
  * @note Illegal values result in a @c g_warning and fallback to the default
- * cache size 4194304.
+ * cache buffer size limit 1048576.
  *
- * @param int   User-defined cache size within [1048576, 16777216].
- *              Set to 0 to disable caching.
+ * @param int   User-defined cache buffer size limit within [262144, 4194304].
+ *              Set 0 to disable caching.
  */
 #define CONFNAME_GDP_CACHE_SIZE "cacheSize"
+
+/**
+ * Defines a custom history cache item count limit.
+ *
+ * @note Illegal values result in a @c g_warning and fallback to the default
+ * cache item count limit 256.
+ *
+ * @param int   User-defined cache item count limit within [64, 1024].
+ */
+#define CONFNAME_GDP_CACHE_COUNT "cacheCount"
 
 /*
  * END gdp goodies.

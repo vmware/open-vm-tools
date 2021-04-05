@@ -90,7 +90,8 @@ typedef struct ToolsPluginSvcGdp {
                        const gchar *token,
                        const gchar *category,
                        const gchar *data,
-                       guint32 dataLen);
+                       guint32 dataLen,
+                       gboolean cacheData);
 } ToolsPluginSvcGdp;
 
 
@@ -113,6 +114,7 @@ typedef struct ToolsPluginSvcGdp {
  *                                 "application"
  * @param[in]          data        Buffer containing data to publish
  * @param[in]          dataLen     Buffer length
+ * @param[in]          cacheData   Cache the data if TRUE
  *
  * @return GDP_ERROR_SUCCESS on success.
  * @return Other GdpError code otherwise.
@@ -127,13 +129,14 @@ ToolsPluginSvcGdp_Publish(ToolsAppCtx *ctx,      // IN
                           const gchar *token,    // IN, OPTIONAL
                           const gchar *category, // IN, OPTIONAL
                           const gchar *data,     // IN
-                          guint32 dataLen)       // IN
+                          guint32 dataLen,       // IN
+                          gboolean cacheData)    // IN
 {
    ToolsPluginSvcGdp *svcGdp = NULL;
    g_object_get(ctx->serviceObj, TOOLS_PLUGIN_SVC_PROP_GDP, &svcGdp, NULL);
    if (svcGdp != NULL && svcGdp->publish != NULL) {
       return svcGdp->publish(createTime, topic, token,
-                             category, data, dataLen);
+                             category, data, dataLen, cacheData);
    }
    return GDP_ERROR_GENERAL;
 }
