@@ -92,25 +92,25 @@ error.novirtual = "%1$s은(는) 가상 시스템 내부에서 실행해야 합�
 
 error.unknown = "%1$s: 알 수 없는 %2$s '%3$s'\n"
 
-help.config = "%1$s: modify Tools configuration\nUsage: %2$s %3$s <subcommand>\n\nSubcommands:\n   get <section> <key>: display current value for <key>\n   NOTE: If the <key> is not present in tools.conf, its\n   value from the global configuration is returned if present\n   set <section> <key> <value>: set <key> to <value>\n\n   remove <section> <key>: remove <key>\n\n<section> can be any supported section, such as logging, guestoperations or guestinfo.\n<key> can be any configuration key.\n<value> can be any value.\n"
+help.config = "%1$s: 도구 구성 수정\n사용법: %2$s %3$s <하위 명령>\n\n하위 명령:\n <섹션> <키> 획득: <키>에 대한 현재 값 표시\n 참고: <키>이(가) tools.conf에 없으면\n전역 구성의 값이 반환됩니다(있을 경우).\n<섹션> <키> <값> 설정: <키>을(를) <값>(으)로 설정\n\n<섹션> <키> 제거: <키> 제거\n\n<섹션>은(는) 어떤 섹션(예: logging, guestoperations 또는 guestinfo)이라도 될 수 있습니다.\n<키>은(는) 어떤 구성 키라도 될 수 있습니다.\n<값>은(는) 어떤 값이라도 될 수 있습니다.\n"
 
 help.device = "%1$s: 가상 시스템의 하드웨어 디바이스와 관련된 기능\n사용법: %2$s %3$s <하위 명령> [인수]\ndev는 디바이스 이름입니다.\n\n하위 명령:\n   enable <dev>: 디바이스 dev가 사용되도록 설정합니다.\n   disable <dev>: 디바이스 dev가 사용되지 않도록 설정합니다.\n   list: 사용 가능한 모든 디바이스를 나열합니다.\n   status <dev>: 디바이스의 상태를 출력합니다.\n"
 
 help.disk = "%1$s: 디스크 축소 작업을 수행합니다.\n사용법: %2$s %3$s <하위명령> [인수]\n\n하위 명령:\n   list: 사용 가능한 위치를 나열합니다.\n   shrink <위치>: 지정된 위치에서 파일 시스템을 지우고 축소합니다.\n   shrinkonly: 모든 디스크를 축소합니다.\n   wipe <위치>: 지정된 위치에서 파일 시스템을 지웁니다.\n"
 
-help.globalconf = "%1$s: Manage global configuration downloads from the GuestStore\nUsage: %2$s %3$s <subcommand>\n\nESX guests only subcommands:\n   enable: Enable the global configuration module. (Tools service is restarted)\n   disable: Disable the global configuration module (Tools service is restarted)\n   refresh: Trigger a new download of the global configuration from the GuestStore\n   status: Print the status of the global configuration module\n"
+help.globalconf = "%1$s: GuestStore에서의 전역 구성 다운로드 관리\n사용법: %2$s %3$s <하위 명령>\n\nESX 게스트 전용 하위 명령:\n사용: 전역 구성 모듈을 사용하도록 설정합니다.(Tools 서비스가 다시 시작됨)\n 사용 안 함: 전역 구성 모듈을 사용하지 않도록 설정합니다.(Tools 서비스가 다시 시작됨)\n 새로 고침: GuestStore에서의 전역 구성 새 다운로드를 트리거합니다.\n 상태: 전역 구성 모듈의 상태를 인쇄합니다.\n"
 
-help.gueststore = "%1$s: get resource content from GuestStore\nUsage: %2$s %3$s <subcommand>\n\nESX guests only subcommands:\n   getcontent <resource path> <output file>: get resource content from GuestStore and save to output file.\n\n<resource path> starts with / and represents a unique resource in GuestStore. If it ends with /, defaults to retrieve the underlying 'metadata.json' resource.\n<output file> is the path of a file to save resource content to.\n"
+help.gueststore = "%1$s: GuestStore에서 리소스 콘텐츠 가져오기\사용법: %2$s %3$s <하위 명령>\n\nESX 게스트 전용 하위 명령:\n <리소스 경로> <출력 파일> 콘텐츠 가져오기: GuestStore에서 리소스 콘텐츠를 가져온 후 출력 파일에 저장합니다.\n\n<리소스 경로>은(는) /로 시작하고 GuestStore의 고유한 리소스를 나타냅니다. /로 끝나는 경우 기본 'metadata. json' 리소스를 검색합니다.\n<파일 출력>은(는) 리소스 콘텐츠를 저장할 파일의 경로입니다.\n"
 
 help.hint = "자세한 내용을 보려면 '%1$s %2$s%3$s%4$s'을(를) 시도해 보십시오.\n"
 
 help.info = "%1$s: 호스트에서 게스트 정보 업데이트\n사용법: %2$s %3$s 업데이트 <정보 클래스>\n\n하위 명령:\n   update <정보 클래스>: <정보 클래스>에서 식별한 정보 업데이트\n<정보 클래스>는 '네트워크'일 수 있음\n"
 
-help.logging = "%1$s: modify tools logging\nUsage: %2$s %3$s level <subcommand> <servicename> <level>\n\nSubcommands:\n   get <servicename>: display current level\n   NOTE: If the level is not present in tools.conf, its\n   value from the global configuration is returned if present\n   set <servicename> <level>: set current level\n\n<servicename> can be any supported service, such as vmsvc or vmusr\n<level> can be one of error, critical, warning, info, message, debug\n   default is %4$s\n"
+help.logging = "%1$s: 도구 로깅 수정\n사용법: %2$s %3$s 수준 <하위 명령> <서비스 이름> <수준>\n\n하위 명령:\n <서비스 이름> 가져오기: 현재 수준 표시\n 참고: 도구 구성에 수준이 없으면\n전역 구성의 값이 반환됩니다(있을 경우).\n <서비스 이름> <수준> 설정: 현재 수준 설정\n\n<서비스 이름>은(는) vmsvc 또는 vmusr과 같은 지원 서비스일 수 있습니다.\n<수준>은(는) 오류, 중요, 경고, 정보, 메시지, 디버그 중 하나일 수 있습니다.\n 기본값은 %4$s입니다.\n"
 
-help.main = "사용법: %1$s <명령> [옵션] [하위 명령]\n특정 명령에 대한 도움말을 보려면 '%2$s %3$s <명령>'을 입력하십시오.\nVMware Tools 버전을 확인하려면 '%4$s -v'를 입력하십시오.\nstdout 출력을 표시하지 않으려면 '-q' 옵션을 사용하십시오.\n대부분의 명령에 하위 명령이 사용됩니다.\n\n사용 가능한 명령:\n   config\n   device\n   disk(일부 운영 체제에서만 사용할 수 있음)\n   globalconf (not available on all operating systems)\n   gueststore (not available on all operating systems)\n   info\n   logging\n   script\n   stat\n   timesync\n   upgrade(일부 운영 체제에서만 사용할 수 있음)\n"
+help.main = "사용법: %1$s <명령> [옵션] [하위 명령]\n특정 명령에 대한 도움말을 보려면 '%2$s %3$s <명령>'을(를) 입력합니다.\nVMware Tools 버전을 확인하려면 '%4$s -v'를 입력합니다.\nstdout 출력을 표시하지 않으려면 '-q' 옵션을 사용합니다.\n대부분의 명령에 하위 명령이 사용됩니다.\n\n사용 가능한 명령:\n config\n device\n disk(일부 운영 체제에서만 사용할 수 있음)\n globalconf(일부 운영 체제에서만 사용할 수 있음)\n gueststore(일부 운영 체제에서만 사용할 수 있음)\n info\n logging\n script\n stat\n timesync\n upgrade(일부 운영 체제에서만 사용할 수 있음)\n"
 
-help.script = "%1$s: control the scripts run in response to power operations\nUsage: %2$s %3$s <power|resume|suspend|shutdown> <subcommand> [args]\n\nSubcommands:\n   enable: enable the given script and restore its path to the default\n   disable: disable the given script\n   set <full_path>: set the given script to the given path\n   default: print the default path of the given script\n   current: print the current path of the given script\n   NOTE: If the path is not present in tools.conf, its\n   value from the global configuration is returned if present\n"
+help.script = "%1$s: 전원 작업에 대한 응답으로 실행되는 스크립트를 제어합니다.\n사용법: %2$s %3$s <power|resume|suspend|shutdown> <하위 명령> [인수]\n\n하위 명령:\n 사용: 지정된 스크립트가 사용되도록 설정하고 해당 경로를 기본값으로 복원합니다.\n 사용 안 함: 지정된 스크립트가 사용되지 않도록 설정합니다.\n <전체_경로> 설정: 지정된 스크립트를 지정된 경로로 설정합니다.\n 기본값: 지정된 스크립트의 기본 경로를 출력합니다.\n 현재: 지정된 스크립트의 현재 경로를 출력합니다.\n 참고: 경로가 tools.conf에 없는 경우\n 전역 구성의 값이 반환됩니다(있는 경우)\n"
 
 help.stat = "%1$s: 유용한 게스트 및 호스트 정보 인쇄\n사용법: %2$s %3$s <하위 명령>\n\n하위 명령:\n   hosttime: 호스트 시간 인쇄\n   speed: CPU 속도(MHz) 인쇄\nESX 게스트 전용 하위 명령:\n   sessionid: 현재 세션 ID 인쇄\n   balloon: 메모리 벌루닝 정보 인쇄\n   swap: 메모리 스와핑 정보 인쇄\n   memlimit: 메모리 제한 정보 인쇄\n   memres: 메모리 예약 정보 인쇄\n   cpures: CPU 예약 정보 인쇄\n   cpulimit: CPU 제한 정보 인쇄\n   raw [<인코딩> <통계 이름>]: 원시 통계 정보 인쇄\n      <인코딩>은 'text', 'json', 'xml', 'yaml' 중 하나일 수 있습니다.\n      <통계 이름>은 세션, 호스트, 리소스, vscsi 및\n      vnet을 포함합니다(vscsi와 같은 일부 통계는 'vscsi scsi0:0'과 같이 2개의 단어로 구성됨).\n      <인코딩> 및 <통계 이름>\n      인수가 지정되지 않은 경우 사용 가능한 통계를 인쇄합니다.\n"
 
@@ -118,29 +118,29 @@ help.timesync = "%1$s: 게스트 OS의 시간 동기화 제어 기능\n사용법
 
 help.upgrade = "%1$s: VMware Tools 업그레이드와 관련된 기능입니다.\n사용법: %2$s %3$s <하위 명령> [인수]\n하위 명령:\n   status: VMware Tools 업그레이드 상태를 확인합니다.\n   start: VMware Tools의 자동 업그레이드를 시작합니다.\n\n업그레이드가 수행되려면 VMware Tools 서비스가 실행되어야 합니다.\n"
 
-globalconf.refresh.failed  = "'%1$s' failed, since globalconf module is disabled.\n"
+globalconf.refresh.failed  = "전역 구성 모듈을 사용하지 않도록 설정했으므로 '%1$s'이(가) 실패했습니다.\n"
 
-globalconf.start_vmtools = "%1$s: Starting the %2$s service.\n"
+globalconf.start_vmtools = "%1$s: %2$s 서비스를 시작하는 중입니다.\n"
 
-globalconf.status = "The status of globalconf module is '%1$s'\n"
+globalconf.status = "전역 구성 모듈의 상태는 '%1$s'입니다.\n"
 
-globalconf.stop_vmtools = "%1$s: Stopping the %2$s service.\n"
+globalconf.stop_vmtools = "%1$s: %2$s 서비스를 중지하는 중입니다.\n"
 
-globalconf.update_config = "%1$s: Updating the Configuration.\n"
+globalconf.update_config = "%1$s: 구성을 업데이트하는 중입니다.\n"
 
-gueststore.content_size = "Content size in bytes: "
+gueststore.content_size = "콘텐츠 크기(바이트): "
 
-gueststore.error.client_lib = "'%1$s' failed, GuestStore client library error: %2$s.\n"
+gueststore.error.client_lib = "'%1$s'이(가) 실패했습니다. GuestStore 클라이언트 라이브러리 오류: %2$s.\n"
 
-gueststore.progress = "\rProgress: %1$d%%"
+gueststore.progress = "\r진행: %1$d%%"
 
 option.disabled = "사용 안 함"
 
 option.enabled = "사용"
 
-result.error.failed = "'%1$s' failed, check %2$s log for more information.\n"
+result.error.failed = "'%1$s'이(가) 실패했습니다. 자세한 내용은 %2$s 로그를 확인하십시오.\n"
 
-result.succeeded = "'%1$s' succeeded.\n"
+result.succeeded = "'%1$s'이(가) 성공했습니다.\n"
 
 script.notfound = "%1$s이(가) 없습니다.\n"
 

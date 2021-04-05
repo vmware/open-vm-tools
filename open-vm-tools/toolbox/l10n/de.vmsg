@@ -92,25 +92,25 @@ error.novirtual = "%1$s muss innerhalb einer virtuellen Maschine ausgeführt wer
 
 error.unknown = "%1$s: %2$s '%3$s' unbekannt\n"
 
-help.config = "%1$s: modify Tools configuration\nUsage: %2$s %3$s <subcommand>\n\nSubcommands:\n   get <section> <key>: display current value for <key>\n   NOTE: If the <key> is not present in tools.conf, its\n   value from the global configuration is returned if present\n   set <section> <key> <value>: set <key> to <value>\n\n   remove <section> <key>: remove <key>\n\n<section> can be any supported section, such as logging, guestoperations or guestinfo.\n<key> can be any configuration key.\n<value> can be any value.\n"
+help.config = "%1$s: Tools-Konfiguration bearbeiten\nNutzung: %2$s %3$s <Unterbefehl>\n\nUnterbefehle:\n   get <Abschnitt> <Schlüssel>: Aktuellen Wert für <Schlüssel> anzeigen\n   HINWEIS: Wenn der <Schlüssel> in tools.conf nicht vorhanden ist, wird\n   sein Wert aus der globalen Konfiguration zurückgegeben, falls vorhanden\n   set <Abschnitt> <Schlüssel> <Wert>: <Schlüssel> auf <Wert> einstellen\n\n   remove <Abschnitt> <Schlüssel>: <Schlüssel> entfernen\n\n<Abschnitt> kann ein beliebiger unterstützter Abschnitt sein, z. B. logging, guestoperations oder guestinfo.\n<Schlüssel> kann ein beliebiger Konfigurationsschlüssel sein.\n<Wert> kann ein beliebiger Wert sein.\n"
 
 help.device = "%1$s: Funktionen für die Hardwaregeräte der virtuellen Maschine\nNutzung: %2$s %3$s <Unterbefehl> [Argumente]\n'dev' ist der Name des Geräts.\n\nUnterbefehle:\n   enable <dev>: Aktivieren des Geräts 'dev' \n   disable <dev>: Deaktivieren des Geräts 'dev'\n   list: Auflisten aller verfügbaren Geräte\n   status <dev>: Ausgeben des Status eines Geräts\n"
 
 help.disk = "%1$s: Führt Verkleinerungen von Festplatten durch\nNutzung: %2$s %3$s <Unterbefehl> [Argumente]\n\nUnterbefehle:\n   list: Auflisten der verfügbaren Speicherorte\n   shrink <Speicherort>: Löschen und Verkleinern eines Dateisystems am angegebenen Speicherort\n   shrinkonly: Verkleinern alle Festplatten\n   wipe <Speicherort>: Löschen eines Dateisystems am angegebenen Speicherort\n"
 
-help.globalconf = "%1$s: Manage global configuration downloads from the GuestStore\nUsage: %2$s %3$s <subcommand>\n\nESX guests only subcommands:\n   enable: Enable the global configuration module. (Tools service is restarted)\n   disable: Disable the global configuration module (Tools service is restarted)\n   refresh: Trigger a new download of the global configuration from the GuestStore\n   status: Print the status of the global configuration module\n"
+help.globalconf = "%1$s: Globale Konfigurationsdownloads aus GuestStore verwalten\nNutzung: %2$s %3$s <Unterbefehel>\n\nUnterbefehle nur für ESX-Gäste:\n   enable: Globales Konfigurationsmodul aktivieren. (Tools-Dienst wird neu gestartet)\n   disable: Globales Konfigurationsmodul deaktivieren (Tools-Dienst wird neu gestartet)\n   refresh: Neuen Download der globalen Konfiguration aus dem GuestStore auslösen\n   status: Status des globalen Konfigurationsmodul drucken\n"
 
-help.gueststore = "%1$s: get resource content from GuestStore\nUsage: %2$s %3$s <subcommand>\n\nESX guests only subcommands:\n   getcontent <resource path> <output file>: get resource content from GuestStore and save to output file.\n\n<resource path> starts with / and represents a unique resource in GuestStore. If it ends with /, defaults to retrieve the underlying 'metadata.json' resource.\n<output file> is the path of a file to save resource content to.\n"
+help.gueststore = "%1$s: Ressourceninhalt aus dem GuestStore abrufen\nNutzung: %2$s %3$s <Unterbefehl>\n\nUnterbefehle nur für ESX-Gäste:\n   getcontent <Ressourcenpfad> <Ausgabedatei>: Ressourceninhalt aus dem GuestStore abrufen un in Ausgabedatei speichern.\n\n<Ressourcenpfad> startet mit / und stellt eine eindeutige Ressource im GuestStore dar. Wenn er mit / endet, wird standardmäßig die zugrunde liegende Ressource 'metadata.json' abgerufen.\n<Ausgabedatei> ist der Pfad zu einer Datei, in der der Ressourceninhalt gespeichert werden soll.\n"
 
 help.hint = "Siehe '%1$s %2$s%3$s%4$s' für weitere Informationen.\n"
 
 help.info = "%1$s: Aktualisieren von Gastbetriebssysteminformationen auf dem Host\nNutzung: %2$s %3$s update <Infoklasse>\n\nUnterbefehle:\n   update < Infoklasse >: Aktualisieren von durch <Infoklasse> ermittelte Informationen\n< Infoklasse > kann 'network' sein\n"
 
-help.logging = "%1$s: modify tools logging\nUsage: %2$s %3$s level <subcommand> <servicename> <level>\n\nSubcommands:\n   get <servicename>: display current level\n   NOTE: If the level is not present in tools.conf, its\n   value from the global configuration is returned if present\n   set <servicename> <level>: set current level\n\n<servicename> can be any supported service, such as vmsvc or vmusr\n<level> can be one of error, critical, warning, info, message, debug\n   default is %4$s\n"
+help.logging = "%1$s: Tools-Protokollierung verändern\nNutzung: %2$s %3$s level <Unterbefehl> <Dienstname> <level>\n\nUnterbefehle:\n   get <Dienstname>: Aktuelle Ebene anzeigen\n   HINWEIS: Wenn die Ebene in tools.conf nicht vorhanden ist, wird ihr\n   Wert aus der globalen Konfiguration zurückgegeben, falls vorhanden\n   set <Dienstname> <Ebene>: Aktuelle Ebene festlegen\n\n<Dienstname> kann jeder unterstützte Dienst sein wie vmsvc oder vmusr\n<Ebene> kann für einen Fehler, ein kritisches Ereignis, eine Warnung, Info, Meldung oder ein Debugging stehen\n   Standard ist %4$s\n"
 
-help.main = "Nutzung: %1$s <Befehl> [Optionen] [Unterbefehl]\nWenn Sie Hilfe zu einem bestimmten Befehl benötigen, geben Sie '%2$s %3$s <Befehl>' ein.\nGeben Sie '%4$s -v' ein, um die VMware Tools-Version anzuzeigen.\nVerwenden Sie die Option '-q' zum Unterdrücken der stdout-Ausgabe.\nFür die meisten Befehle gibt es Unterbefehle.\n\nVerfügbare Befehle:\n   config\n   device\n   disk (nicht auf allen Betriebssystemen verfügbar)\n   globalconf (not available on all operating systems)\n   gueststore (not available on all operating systems)\n   info\n  logging\n   script\n   stat\n   timesync\n   upgrade (nicht auf allen Betriebssystemen verfügbar)\n"
+help.main = "Nutzung: %1$s <Befehl> [Optionen] [Unterbefehl]\nWenn Sie Hilfe zu einem bestimmten Befehl benötigen, geben Sie '%2$s %3$s <Befehl>' ein.\nGeben Sie '%4$s -v' ein, um die VMware Tools-Version anzuzeigen.\nVerwenden Sie die Option '-q' zum Unterdrücken der stdout-Ausgabe.\nFür die meisten Befehle gibt es Unterbefehle.\n\nVerfügbare Befehle:\n   config\n   device\n   disk (nicht auf allen Betriebssystemen verfügbar)\n   globalconf (nicht auf allen Betriebssystemen verfügbar)\n   gueststore (nicht auf allen Betriebssystemen verfügbar)\n   info\n   logging\n   script\n   stat\n   timesync\n   upgrade (nicht auf allen Betriebssystemen verfügbar)\n"
 
-help.script = "%1$s: control the scripts run in response to power operations\nUsage: %2$s %3$s <power|resume|suspend|shutdown> <subcommand> [args]\n\nSubcommands:\n   enable: enable the given script and restore its path to the default\n   disable: disable the given script\n   set <full_path>: set the given script to the given path\n   default: print the default path of the given script\n   current: print the current path of the given script\n   NOTE: If the path is not present in tools.conf, its\n   value from the global configuration is returned if present\n"
+help.script = "%1$s: Steuerung der Skripts, die als Reaktion auf Betriebsvorgänge ausgeführt werden\nNutzung: %2$s %3$s <power|resume|suspend|shutdown> <Unterbefehl> [Argumente]\n\nUnterbefehle:\n   enable: Angegebenes Skript aktivieren und dessen Pfad auf den Standardpfad zurücksetzen\n   disable: Angegebenes Skript deaktivieren\n   set <Vollständiger Pfad>: Angegebenes Skript auf den angegebenen Pfad festlegen\n   default: Standardpfad an das angegebene Skript ausgeben\n   current: Aktuellen Pfad des angegebenen Skripts ausgeben\n   HINWEIS: Wenn der Pfad in tools.conf nicht vorhanden ist, wird dessen\n   Wert aus der globalen Konfiguration zurückgegeben, falls vorhanden\n"
 
 help.stat = "%1$s: Drucken von hilfreichen Gast- und Hostinformationen\nNutzung: %2$s %3$s <Unterbefehl>\n\nUnterbefehle:\n   hosttime: Ausgeben der Hostuhrzeit\n   speed: Ausgeben der CPU-Geschwindigkeit in MHz\nUnterbefehle nur für ESX-Gäste:\n   sessionid: Ausgeben der aktuellen Sitzungs-ID\n   balloon: Ausgeben der Balloon-Arbeitsspeicher-Informationen\n   swap: Ausgeben der Auslagerungsinformationen für den Arbeitsspeicher\n   memlimit: Ausgeben des Arbeitsspeicher-Limits\n   memres: Ausgeben der Arbeitsspeicherreservierung\n   cpures: Ausgeben der CPU-Reservierung\n   cpulimit: Ausgeben des CPU-Limits\n  raw [<Codierung> <Statistikname>]: Drucken von statistischen Rohdaten\n      <Codierung> steht für 'text', 'json', 'xml' oder 'yaml'.\n      <Statistikname> beinhaltet session, host, resources, vscsi und\n      vnet (einige Statistiken wie vsci bestehen aus zwei Wörtern, z. B. 'vscsi scsi0:0').\n      Druckt verfügbare Statistiken wenn für <Codierung> und <Statistikname>\n      keine Argumente angegeben wurden.\n"
 
@@ -118,29 +118,29 @@ help.timesync = "%1$s: Funktionen für die Steuerung der Zeitsynchronisierung au
 
 help.upgrade = "%1$s: Funktionen für das Upgrade von VMware Tools.\nNutzung: %2$s %3$s <Unterbefehl> [Argumente]\nUnterbefehle:\n   status: Überprüfen des Upgrade-Status für VMware Tools.\n   start: Starten eines automatischen Upgrade von VMware Tools.\n\nDamit die Upgrades funktionieren, muss der VMware Tools-Dienst ausgeführt werden.\n"
 
-globalconf.refresh.failed  = "'%1$s' failed, since globalconf module is disabled.\n"
+globalconf.refresh.failed  = "'%1$s' ist fehlgeschlagen, da das globalconf-Modul deaktiviert ist.\n"
 
-globalconf.start_vmtools = "%1$s: Starting the %2$s service.\n"
+globalconf.start_vmtools = "%1$s: Dienst %2$s wird gestartet.\n"
 
-globalconf.status = "The status of globalconf module is '%1$s'\n"
+globalconf.status = "Der Status des globalconf-Modul lautet '%1$s'\n"
 
-globalconf.stop_vmtools = "%1$s: Stopping the %2$s service.\n"
+globalconf.stop_vmtools = "%1$s: Dienst %2$s wird angehalten.\n"
 
-globalconf.update_config = "%1$s: Updating the Configuration.\n"
+globalconf.update_config = "%1$s: Die Konfiguration wird aktualisiert.\n"
 
-gueststore.content_size = "Content size in bytes: "
+gueststore.content_size = "Größe des Inhalts in Byte: "
 
-gueststore.error.client_lib = "'%1$s' failed, GuestStore client library error: %2$s.\n"
+gueststore.error.client_lib = "'%1$s' ist fehlgeschlagen, Fehler in der GuestStore-Client-Bibliothek: %2$s.\n"
 
-gueststore.progress = "\rProgress: %1$d%%"
+gueststore.progress = "\rFortschritt: %1$d%%"
 
 option.disabled = "Deaktiviert"
 
 option.enabled = "Aktiviert"
 
-result.error.failed = "'%1$s' failed, check %2$s log for more information.\n"
+result.error.failed = "'%1$s' ist fehlgeschlagen. Weitere Informationen finden Sie im %2$s-Protokoll.\n"
 
-result.succeeded = "'%1$s' succeeded.\n"
+result.succeeded = "'%1$s' war erfolgreich.\n"
 
 script.notfound = "%1$s ist nicht vorhanden.\n"
 

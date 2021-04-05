@@ -76,9 +76,9 @@ removeoptions.username = "El usuario cuyo almacén de certificados se va a elimi
 
 removeoptions.verbose = "Operación detallada"
 
-removeall.fail = "%1$s: No se pudo quitar el alias del usuario '%2$s', asunto '%3$s': %4$s.\n"
+removeall.fail = "%1$s: No se pudo eliminar el alias del usuario '%2$s', asunto '%3$s': %4$s.\n"
 
-removeall.removefail = "%1$s: No se pudo eliminar el alias para el usuario '%2$s', asunto '%3$s', pemCert '%4$s': %5$s.\n"
+removeall.removefail = "%1$s: No se pudo eliminar el alias del usuario '%2$s', asunto '%3$s', pemCert '%4$s': %5$s.\n"
 
 removeall.success = "%1$s: se eliminaron todos los alias\n"
 
