@@ -902,9 +902,9 @@ HostinfoSearchShortNames(const ShortNameSet *array, // IN:
 static const char *
 HostinfoArchString(void)
 {
-#if defined(vm_arm_any)
+#if defined(VM_ARM_ANY)
    return "arm-";
-#elif defined(vm_x86_any)
+#elif defined(VM_X86_ANY)
    return "";
 #else
 #error Unsupported architecture!
