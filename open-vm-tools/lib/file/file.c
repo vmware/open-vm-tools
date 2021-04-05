@@ -115,8 +115,8 @@ File_Exists(const char *pathName)  // IN: May be NULL.
  *      Errno/GetLastError is available upon failure.
  *
  * Results:
- *      Return 0 if the unlink is successful or if the file did not exist.
- *      Otherwise return -1.
+ *        0  success
+ *      > 0  failure (errno)
  *
  * Side effects:
  *      May unlink the file.
@@ -127,13 +127,13 @@ File_Exists(const char *pathName)  // IN: May be NULL.
 int
 File_UnlinkIfExists(const char *pathName)  // IN:
 {
-   int ret = FileDeletion(pathName, TRUE);
+   errno = FileDeletion(pathName, TRUE);
 
-   if (ret != 0) {
-      ret = (ret == ENOENT) ? 0 : -1;
+   if (errno == ENOENT) {
+      errno = 0;
    }
 
-   return ret;
+   return errno;
 }
 
 
