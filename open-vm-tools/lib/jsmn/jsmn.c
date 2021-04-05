@@ -96,11 +96,11 @@ static int jsmn_parse_primitive(jsmn_parser *parser, const char *js,
             goto found;
       }
       if (js[parser->pos] < 32 || js[parser->pos] >= 127) {
-         parser->pos = start;
          /* vmware */
-         Log("%s: Unexpected char '%c' in primitive at pos %d\n",
+         Log("%s: Unexpected char '0x%02x' in primitive at pos %d\n",
              __FUNCTION__, js[parser->pos], parser->pos);
          /* vmware */
+         parser->pos = start;
          return JSMN_ERROR_INVAL;
       }
    }
@@ -177,11 +177,12 @@ static int jsmn_parse_string(jsmn_parser *parser, const char *js,
                   if(!((js[parser->pos] >= 48 && js[parser->pos] <= 57) || /* 0-9 */
                            (js[parser->pos] >= 65 && js[parser->pos] <= 70) || /* A-F */
                            (js[parser->pos] >= 97 && js[parser->pos] <= 102))) { /* a-f */
-                     parser->pos = start;
                      /* vmware */
-                     Log("%s: Unexpected char '%c' in escaped unicode at pos %d\n",
+                     Log("%s: Unexpected char '0x%02x' in escaped unicode "
+                         "at pos %d\n",
                          __FUNCTION__, js[parser->pos], parser->pos);
                      /* vmware */
+                     parser->pos = start;
                      return JSMN_ERROR_INVAL;
                   }
                   parser->pos++;
@@ -190,11 +191,11 @@ static int jsmn_parse_string(jsmn_parser *parser, const char *js,
                break;
             /* Unexpected symbol */
             default:
-               parser->pos = start;
                /* vmware */
-               Log("%s: Unexpected symbol '%c' in primitive at pos %d\n",
+               Log("%s: Unexpected symbol '0x%02x' in string at pos %d\n",
                    __FUNCTION__, js[parser->pos], parser->pos);
                /* vmware */
+               parser->pos = start;
                return JSMN_ERROR_INVAL;
          }
       }
@@ -347,6 +348,10 @@ int jsmn_parse(jsmn_parser *parser, const char *js, size_t len,
 #ifdef JSMN_STRICT
          /* Unexpected char in strict mode */
          default:
+            /* vmware */
+            Log("%s: Unexpected char '0x%02x' at pos %d\n",
+                __FUNCTION__, js[parser->pos], parser->pos);
+            /* vmware */
             return JSMN_ERROR_INVAL;
 #endif
       }
