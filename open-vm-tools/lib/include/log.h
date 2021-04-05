@@ -400,7 +400,7 @@ typedef struct {
    Bool  additionalLine;
    char  timeStamp[64];
    char  threadName[32];
-   char  opID[132];  // Will be empty string on hosted products
+   char  opID[LOG_MAX_OPID_LENGTH + 1];  // Will be empty string on hosted products
 } LogLineMetadata;
 
 typedef void (LogCustomMsgFuncEx)(const LogLineMetadata * const metadata,
