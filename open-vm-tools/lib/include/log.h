@@ -47,6 +47,7 @@ extern "C" {
  *
  * Configuration for field engineers is documented at
  *   https://wiki.eng.vmware.com/PILogFacility
+ *
  * For full details on configurable parameters and their semantics,
  * use the source, Luke -- starting at lib/log/logFacility.c
  *
@@ -101,6 +102,7 @@ extern "C" {
  * This affords another degree of freedom in filtering.
  *
  * To use the module parameter:
+ *
  * (0) The module identifier must already exist, or be invented and defined,
  *     in public/loglevel_userVars.h
  *
@@ -157,7 +159,7 @@ extern "C" {
  * filter levels. The default module filter level is none (VMW_LOG_AUDIT)
  * i.e. module filters by default discard all events (just like LOG()).
  *
-* Regardless of what level of filtering is specified, the VMW_LOG_AUDIT
+ * Regardless of what level of filtering is specified, the VMW_LOG_AUDIT
  * level is used to log something that requires an audit at a later date.
  * It is *ALWAYS* logged and *NEVER* outputs to the "standard error".
  */
