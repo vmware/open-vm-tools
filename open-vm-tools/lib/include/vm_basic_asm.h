@@ -652,7 +652,7 @@ uint32set(void *dst, uint32 val, size_t count)
 static INLINE uint16
 Bswap16(uint16 v)
 {
-#if defined(VM_ARM_64)
+#if defined(VM_ARM_64) && !defined(_MSC_VER)
    __asm__("rev16 %w0, %w0" : "+r"(v));
    return v;
 #else
@@ -685,7 +685,7 @@ Bswap32(uint32 v) // IN
 #elif defined(VM_ARM_32) && !defined(__ANDROID__) && !defined(_MSC_VER)
     __asm__("rev %0, %0" : "+r"(v));
     return v;
-#elif defined(VM_ARM_64)
+#elif defined(VM_ARM_64) && !defined(_MSC_VER)
    __asm__("rev32 %x0, %x0" : "+r"(v));
    return v;
 #else
@@ -711,7 +711,7 @@ Bswap32(uint32 v) // IN
 static INLINE uint64
 Bswap64(uint64 v) // IN
 {
-#if defined(VM_ARM_64)
+#if defined(VM_ARM_64) && !defined(_MSC_VER)
    __asm__("rev %0, %0" : "+r"(v));
    return v;
 #else
@@ -742,7 +742,11 @@ PAUSE(void)
 }
 #elif defined(_MSC_VER)
 {
+#ifdef VM_X86_ANY
    _mm_pause();
+#else
+   __yield();
+#endif
 }
 #else  /* __GNUC__  */
 #error No compiler defined for PAUSE
