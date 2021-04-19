@@ -2446,24 +2446,20 @@ static INLINE uint64
 Atomic_ReadWrite64(Atomic_uint64 *var, // IN/OUT
                    uint64 val)         // IN
 {
-#if defined __x86_64__
-#if defined __GNUC__
+#if defined __GNUC__ && defined __x86_64__
    /* Checked against the AMD manual and GCC --hpreg */
    __asm__ __volatile__(
       "xchgq %0, %1"
       : "=r" (val),
-        "+m" (var->value)
+      "+m" (var->value)
       : "0" (val)
       : "memory"
    );
    return val;
-#elif defined _MSC_VER
-   return _InterlockedExchange64((__int64 *)&var->value, (__int64)val);
-#else
-#error No compiler defined for Atomic_ReadWrite64
-#endif
-#elif defined VM_ARM_64
+#elif defined __GNUC__ && defined VM_ARM_64
    return _VMATOM_X(RW, 64, TRUE, &var->value, val);
+#elif defined _MSC_VER && defined VM_64BIT
+   return _InterlockedExchange64((__int64 *)&var->value, (__int64)val);
 #else
    uint64 oldVal;
 
@@ -2555,8 +2551,7 @@ static INLINE void
 Atomic_Or64(Atomic_uint64 *var, // IN/OUT
             uint64 val)         // IN
 {
-#if defined __x86_64__
-#if defined __GNUC__
+#if defined __GNUC__ && defined __x86_64__
    /* Checked against the AMD manual and GCC --hpreg */
    __asm__ __volatile__(
       "lock; orq %1, %0"
@@ -2564,14 +2559,11 @@ Atomic_Or64(Atomic_uint64 *var, // IN/OUT
       : "re" (val)
       : "cc", "memory"
    );
-#elif defined _MSC_VER
+#elif defined __GNUC__ && defined VM_ARM_64
+   _VMATOM_X(OP, 64, TRUE, &var->value, orr, val);
+#elif defined _MSC_VER && defined VM_64BIT
    _InterlockedOr64((__int64 *)&var->value, (__int64)val);
 #else
-#error No compiler defined for Atomic_Or64
-#endif
-#elif defined VM_ARM_64
-   _VMATOM_X(OP, 64, TRUE, &var->value, orr, val);
-#else // __x86_64__
    uint64 oldVal;
    uint64 newVal;
    do {
@@ -2602,8 +2594,7 @@ static INLINE void
 Atomic_And64(Atomic_uint64 *var, // IN/OUT
              uint64 val)         // IN
 {
-#if defined __x86_64__
-#if defined __GNUC__
+#if defined __GNUC__ && defined __x86_64__
    /* Checked against the AMD manual and GCC --hpreg */
    __asm__ __volatile__(
       "lock; andq %1, %0"
@@ -2611,14 +2602,11 @@ Atomic_And64(Atomic_uint64 *var, // IN/OUT
       : "re" (val)
       : "cc", "memory"
    );
-#elif defined _MSC_VER
+#elif defined __GNUC__ && defined VM_ARM_64
+   _VMATOM_X(OP, 64, TRUE, &var->value, and, val);
+#elif defined _MSC_VER && defined VM_64BIT
    _InterlockedAnd64((__int64 *)&var->value, (__int64)val);
 #else
-#error No compiler defined for Atomic_And64
-#endif
-#elif defined VM_ARM_64
-   _VMATOM_X(OP, 64, TRUE, &var->value, and, val);
-#else // __x86_64__
    uint64 oldVal;
    uint64 newVal;
    do {
