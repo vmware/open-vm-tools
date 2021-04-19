@@ -205,6 +205,7 @@ extern "C" {
    GOKM("windows9srv-64",                       windows9Server64Guest,   TRUE) \
    GOKM("windows2019srv-64",                    windows2019srv_64Guest,  TRUE) \
    GOKM("windows2019srvNext-64",                windows2019srvNext_64Guest, TRUE) \
+   GOKM("windows2022srvNext-64",                windows2022srvNext_64Guest, TRUE) \
    GOKM("winHyperV",                            windowsHyperVGuest,      TRUE) \
    GOKM("winServer2008Cluster-32",              winLonghornGuest,        FALSE) \
    GOKM("winServer2008Datacenter-32",           winLonghornGuest,        FALSE) \
