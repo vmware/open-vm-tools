@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -2010,14 +2010,14 @@ AsyncTCPSocketConnectErrorCheck(void *data)  // IN: AsyncTCPSocket *
                  Err_Errno2String(asock->genericErrno));
       /* Remove connect callback. */
       removed = AsyncTCPSocketPollRemove(asock, TRUE, POLL_FLAG_WRITE,
-                                      asock->internalConnectFn);
+                                         asock->internalConnectFn);
       ASSERT(removed);
       func = asock->internalConnectFn;
    }
 
    /* Remove this callback. */
    removed = AsyncTCPSocketPollRemove(asock, FALSE, POLL_FLAG_PERIODIC,
-                                   AsyncTCPSocketConnectErrorCheck);
+                                      AsyncTCPSocketConnectErrorCheck);
    ASSERT(removed);
    asock->internalConnectFn = NULL;
 
@@ -5180,6 +5180,14 @@ AsyncTCPSocketConnectCallback(void *clientData)         // IN
              retval == ASOCKERR_NETUNREACH ||
              retval == ASOCKERR_CONNECT);
       AsyncTCPSocketHandleError(asock, retval);
+   }
+   if (vmx86_win32 && asock->internalConnectFn != NULL) {
+      Bool removed;
+
+      removed = AsyncTCPSocketPollRemove(asock, FALSE, POLL_FLAG_PERIODIC,
+                                         AsyncTCPSocketConnectErrorCheck);
+      ASSERT(removed);
+      asock->internalConnectFn = NULL;
    }
    AsyncTCPSocketRelease(asock);
 }
