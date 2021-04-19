@@ -1,5 +1,5 @@
 ##########################################################
-# Copyright (C) 2010-2017,2020 VMware, Inc. All rights reserved.
+# Copyright (C) 2010-2017,2020-2021 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -98,7 +98,7 @@ help.device = "%1$s: Funktionen für die Hardwaregeräte der virtuellen Maschine
 
 help.disk = "%1$s: Führt Verkleinerungen von Festplatten durch\nNutzung: %2$s %3$s <Unterbefehl> [Argumente]\n\nUnterbefehle:\n   list: Auflisten der verfügbaren Speicherorte\n   shrink <Speicherort>: Löschen und Verkleinern eines Dateisystems am angegebenen Speicherort\n   shrinkonly: Verkleinern alle Festplatten\n   wipe <Speicherort>: Löschen eines Dateisystems am angegebenen Speicherort\n"
 
-help.globalconf = "%1$s: Globale Konfigurationsdownloads aus GuestStore verwalten\nNutzung: %2$s %3$s <Unterbefehel>\n\nUnterbefehle nur für ESX-Gäste:\n   enable: Globales Konfigurationsmodul aktivieren. (Tools-Dienst wird neu gestartet)\n   disable: Globales Konfigurationsmodul deaktivieren (Tools-Dienst wird neu gestartet)\n   refresh: Neuen Download der globalen Konfiguration aus dem GuestStore auslösen\n   status: Status des globalen Konfigurationsmodul drucken\n"
+help.globalconf = "%1$s: Globale Konfigurationsdownloads aus GuestStore verwalten\nNutzung: %2$s %3$s <Unterbefehel>\n\nUnterbefehle nur für ESX-Gäste:\n   enable: Globales Konfigurationsmodul aktivieren\n   disable: Globales Konfigurationsmodul deaktivieren\n   refresh: Neuen Download der globalen Konfiguration aus dem GuestStore auslösen\n   status: Status des globalen Konfigurationsmodul drucken\n"
 
 help.gueststore = "%1$s: Ressourceninhalt aus dem GuestStore abrufen\nNutzung: %2$s %3$s <Unterbefehl>\n\nUnterbefehle nur für ESX-Gäste:\n   getcontent <Ressourcenpfad> <Ausgabedatei>: Ressourceninhalt aus dem GuestStore abrufen un in Ausgabedatei speichern.\n\n<Ressourcenpfad> startet mit / und stellt eine eindeutige Ressource im GuestStore dar. Wenn er mit / endet, wird standardmäßig die zugrunde liegende Ressource 'metadata.json' abgerufen.\n<Ausgabedatei> ist der Pfad zu einer Datei, in der der Ressourceninhalt gespeichert werden soll.\n"
 

@@ -1,5 +1,5 @@
 ##########################################################
-# Copyright (C) 2010-2017,2020 VMware, Inc. All rights reserved.
+# Copyright (C) 2010-2017,2020-2021 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -98,7 +98,7 @@ help.device = "%1$s: 與虛擬機器之硬體裝置相關的功能\n使用量: %
 
 help.disk = "%1$s: 執行磁碟壓縮作業\n使用量: %2$s %3$s <subcommand> [args]\n\n子命令:\n   list: 列出可用位置\n   shrink <location>: 抹除和壓縮指定位置的檔案系統\n   shrinkonly: 壓縮所有磁碟\n   wipe <location>: 抹除指定位置的檔案系統\n"
 
-help.globalconf = "%1$s: 從 GuestStore 管理全域組態下載\n使用量: %2$s %3$s <子命令>\n\n僅 ESX 客體的子命令:\n   enable: 啟用全域組態模組。(工具服務已重新啟動)\n   disable: 停用全域組態模組 (工具服務已重新啟動)\n   refresh: 從 GuestStore 觸發全域組態的新下載\n   status: 列印全域組態模組的狀態\n"
+help.globalconf = "%1$s: 從 GuestStore 管理全域組態下載\n使用量: %2$s %3$s <子命令>\n\n僅 ESX 客體的子命令:\n   enable: 啟用全域組態模組\n   disable: 停用全域組態模組\n   refresh: 從 GuestStore 觸發全域組態的新下載\n   status: 列印全域組態模組的狀態\n"
 
 help.gueststore = "%1$s: 從 GuestStore 取得資源內容\n使用量: %2$s %3$s <子命令>\n\n僅 ESX 客體的子命令:\n   getcontent < 資源路徑 > < 輸出檔案 >: 從 GuestStore 取得資源內容並儲存至輸出檔案。\n\n<資源路徑> 開頭為 /，代表 GuestStore 中的唯一資源。如果結尾為 /，則預設為擷取基礎的「metadata json」資源。\n\n<輸出檔案> 是要儲存資源內容的目標檔案路徑。\n"
 

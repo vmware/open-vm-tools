@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -91,7 +91,7 @@
 /*
  * The state of the global conf module.
  */
-static gboolean gGlobalConfEnabled = FALSE;
+static gboolean gGlobalConfStarted = FALSE;
 #endif
 
 
@@ -527,7 +527,7 @@ ToolsCoreRunLoop(ToolsServiceState *state)
       if (GlobalConfig_Start(&state->ctx)) {
          g_info("%s: Successfully started global config module.",
                   __FUNCTION__);
-         gGlobalConfEnabled = TRUE;
+         gGlobalConfStarted = TRUE;
       }
 #endif
 
@@ -675,7 +675,7 @@ ToolsCore_ReloadConfig(ToolsServiceState *state,
 #if defined(_WIN32)
    gboolean globalConfLoaded = FALSE;
 
-   if (gGlobalConfEnabled) {
+   if (gGlobalConfStarted) {
       globalConfLoaded =  GlobalConfig_LoadConfig(&state->globalConfig,
                                                   &state->globalConfigMtime);
       if (globalConfLoaded) {
@@ -684,6 +684,7 @@ ToolsCore_ReloadConfig(ToolsServiceState *state,
          * is reloaded. Else, the config is loaded only if it's been modified
          * since the last check.
          */
+         g_info("%s: globalconfig reloaded.\n", __FUNCTION__);
          state->configMtime = 0;
       }
    }
@@ -703,7 +704,7 @@ ToolsCore_ReloadConfig(ToolsServiceState *state,
 #endif
 
    if (!first && loaded) {
-      g_debug("Config file reloaded.\n");
+      g_info("Config file reloaded.\n");
 
       /*
        * Inform plugins of config file update.
