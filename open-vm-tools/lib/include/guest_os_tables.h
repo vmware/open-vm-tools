@@ -386,6 +386,7 @@ extern "C" {
    GOKM("darwin19-64",                          darwin19_64Guest,        TRUE) \
    GOKM("darwin20-64",                          darwin20_64Guest,        TRUE) \
    GOKM("darwin21-64",                          darwin21_64Guest,        TRUE) \
+   GOKM("darwin22-64",                          darwin22_64Guest,        TRUE) \
    /* ESX guests */ \
    GOKM("vmkernel",                             vmkernelGuest,           TRUE) \
    GOKM("vmkernel5",                            vmkernel5Guest,          TRUE) \
