@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -23,9 +23,6 @@
  *
  * Note: Only partially tested on ARM processors: Works for View Open
  *       Client, which shouldn't have threads, and ARMv8 processors.
- *
- *       In ARM, GCC intrinsics (__sync*) compile but might not
- *       work, while MS intrinsics (_Interlocked*) do not compile.
  */
 
 #ifndef _ATOMIC_H_
@@ -294,7 +291,7 @@ Atomic_Read8(Atomic_uint8 const *var)  // IN:
 
 #if defined __GNUC__ && defined VM_ARM_32
    val = AtomicUndefined(var);
-#elif defined VM_ARM_64
+#elif defined __GNUC__ && defined VM_ARM_64
    val = _VMATOM_X(R, 8, &var->value);
 #elif defined __GNUC__ && (defined __i386__ || defined __x86_64__)
    __asm__ __volatile__(
@@ -334,7 +331,7 @@ Atomic_ReadWrite8(Atomic_uint8 *var,  // IN/OUT:
 {
 #if defined __GNUC__ && defined VM_ARM_32
    return AtomicUndefined(var + val);
-#elif defined VM_ARM_64
+#elif defined __GNUC__ && defined VM_ARM_64
    return _VMATOM_X(RW, 8, TRUE, &var->value, val);
 #elif defined __GNUC__ && (defined __i386__ || defined __x86_64__)
    __asm__ __volatile__(
@@ -375,7 +372,7 @@ Atomic_Write8(Atomic_uint8 *var,  // IN/OUT:
 {
 #if defined __GNUC__ && defined VM_ARM_32
    AtomicUndefined(var + val);
-#elif defined VM_ARM_64
+#elif defined __GNUC__ && defined VM_ARM_64
    _VMATOM_X(W, 8, &var->value, val);
 #elif defined __GNUC__ && (defined __i386__ || defined __x86_64__)
    __asm__ __volatile__(
@@ -414,7 +411,7 @@ Atomic_ReadIfEqualWrite8(Atomic_uint8 *var,  // IN/OUT:
 {
 #if defined __GNUC__ && defined VM_ARM_32
    return AtomicUndefined(var + oldVal + newVal);
-#elif defined VM_ARM_64
+#elif defined __GNUC__ && defined VM_ARM_64
    return _VMATOM_X(RIFEQW, 8, TRUE, &var->value, oldVal, newVal);
 #elif defined __GNUC__ && (defined __i386__ || defined __x86_64__)
    uint8 val;
@@ -460,7 +457,7 @@ Atomic_ReadAnd8(Atomic_uint8 *var, // IN/OUT
 {
    uint8 res;
 
-#if defined VM_ARM_64
+#if defined __GNUC__ && defined VM_ARM_64
    res = _VMATOM_X(ROP, 8, TRUE, &var->value, and, val);
 #else
    do {
@@ -492,7 +489,7 @@ static INLINE void
 Atomic_And8(Atomic_uint8 *var, // IN/OUT
             uint8 val)         // IN
 {
-#if defined VM_ARM_64
+#if defined __GNUC__ && defined VM_ARM_64
    _VMATOM_X(OP, 8, TRUE, &var->value, and, val);
 #else
    (void)Atomic_ReadAnd8(var, val);
@@ -522,7 +519,7 @@ Atomic_ReadOr8(Atomic_uint8 *var, // IN/OUT
 {
    uint8 res;
 
-#if defined VM_ARM_64
+#if defined __GNUC__ && defined VM_ARM_64
    res = _VMATOM_X(ROP, 8, TRUE, &var->value, orr, val);
 #else
    do {
@@ -554,7 +551,7 @@ static INLINE void
 Atomic_Or8(Atomic_uint8 *var, // IN/OUT
            uint8 val)         // IN
 {
-#if defined VM_ARM_64
+#if defined __GNUC__ && defined VM_ARM_64
    _VMATOM_X(OP, 8, TRUE, &var->value, orr, val);
 #else
    (void)Atomic_ReadOr8(var, val);
@@ -584,7 +581,7 @@ Atomic_ReadXor8(Atomic_uint8 *var, // IN/OUT
 {
    uint8 res;
 
-#if defined VM_ARM_64
+#if defined __GNUC__ && defined VM_ARM_64
    res = _VMATOM_X(ROP, 8, TRUE, &var->value, eor, val);
 #else
    do {
@@ -616,7 +613,7 @@ static INLINE void
 Atomic_Xor8(Atomic_uint8 *var, // IN/OUT
             uint8 val)         // IN
 {
-#if defined VM_ARM_64
+#if defined __GNUC__ && defined VM_ARM_64
    _VMATOM_X(OP, 8, TRUE, &var->value, eor, val);
 #else
    (void)Atomic_ReadXor8(var, val);
@@ -646,7 +643,7 @@ Atomic_ReadAdd8(Atomic_uint8 *var, // IN/OUT
 {
    uint8 res;
 
-#if defined VM_ARM_64
+#if defined __GNUC__ && defined VM_ARM_64
    res = _VMATOM_X(ROP, 8, TRUE, &var->value, add, val);
 #else
    do {
@@ -678,7 +675,7 @@ static INLINE void
 Atomic_Add8(Atomic_uint8 *var, // IN/OUT
             uint8 val)         // IN
 {
-#if defined VM_ARM_64
+#if defined __GNUC__ && defined VM_ARM_64
    _VMATOM_X(OP, 8, TRUE, &var->value, add, val);
 #else
    (void)Atomic_ReadAdd8(var, val);
@@ -706,7 +703,7 @@ static INLINE void
 Atomic_Sub8(Atomic_uint8 *var, // IN/OUT
             uint8 val)         // IN
 {
-#if defined VM_ARM_64
+#if defined __GNUC__ && defined VM_ARM_64
    _VMATOM_X(OP, 8, TRUE, &var->value, sub, val);
 #else
    Atomic_Add8(var, -val);
@@ -1621,7 +1618,7 @@ Atomic_ReadOr32(Atomic_uint32 *var, // IN/OUT
 {
    uint32 res;
 
-#if defined VM_ARM_64
+#if defined __GNUC__ && defined VM_ARM_64
    res = _VMATOM_X(ROP, 32, TRUE, &var->value, orr, val);
 #else
    do {
@@ -1655,7 +1652,7 @@ Atomic_ReadAnd32(Atomic_uint32 *var, // IN/OUT
 {
    uint32 res;
 
-#if defined VM_ARM_64
+#if defined __GNUC__ && defined VM_ARM_64
    res = _VMATOM_X(ROP, 32, TRUE, &var->value, and, val);
 #else
    do {
@@ -1690,7 +1687,7 @@ Atomic_ReadOr64(Atomic_uint64 *var, // IN/OUT
 {
    uint64 res;
 
-#if defined VM_ARM_64
+#if defined __GNUC__ && defined VM_ARM_64
    res = _VMATOM_X(ROP, 64, TRUE, &var->value, orr, val);
 #else
    do {
@@ -1724,7 +1721,7 @@ Atomic_ReadAnd64(Atomic_uint64 *var, // IN/OUT
 {
    uint64 res;
 
-#if defined VM_ARM_64
+#if defined __GNUC__ && defined VM_ARM_64
    res = _VMATOM_X(ROP, 64, TRUE, &var->value, and, val);
 #else
    do {
@@ -2157,7 +2154,7 @@ static INLINE uint64
 Atomic_ReadAdd64(Atomic_uint64 *var, // IN/OUT
                  uint64 val)         // IN
 {
-#if defined VM_ARM_64
+#if defined __GNUC__ && defined VM_ARM_64
    return _VMATOM_X(ROP, 64, TRUE, &var->value, add, val);
 #elif defined __x86_64__
 
@@ -2213,7 +2210,7 @@ static INLINE uint64
 Atomic_ReadSub64(Atomic_uint64 *var, // IN/OUT
                  uint64 val)         // IN
 {
-#if defined VM_ARM_64
+#if defined __GNUC__ && defined VM_ARM_64
    return _VMATOM_X(ROP, 64, TRUE, &var->value, sub, val);
 #else
    return Atomic_ReadAdd64(var, (uint64)-(int64)val);
