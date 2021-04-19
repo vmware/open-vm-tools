@@ -1,3 +1,214 @@
+commit b5ec5c1b60db89fe8fb4c223b204a8e50077851b
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 19 12:32:41 2021 -0700
+
+    Sync "(c)" vs. "(C)" usage in another header file.
+
+commit e4e7aee59955326f1480fc27ffb8eef080fbbefc
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 19 12:19:57 2021 -0700
+
+    Update copyright date missed by developer.
+
+commit b8058d49454e7c15fcd4806e51244803b08170b8
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 19 11:16:36 2021 -0700
+
+    Sync the (c) copyright symbol with the (C) in the Perforce repository; will
+    avoid granular update problems when the copyright changes on these files.
+
+commit 315b159733f55bd617391abf472a4ef2be22a624
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 19 11:08:11 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 1ebf8c871c8db79278fa6cd3f7d24edd4db7ce2d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 19 11:08:11 2021 -0700
+
+    Common source file change not applicable to open-vm-tools.
+
+commit 52523347adccc1ec3670488c6c61ed4c998372f3
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 19 11:08:11 2021 -0700
+
+    Changes to common source files not directly applicable to open-vm-tools.
+
+commit cd80433f04bb0f760759a4b64cc52d9950c07230
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 19 11:08:11 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 7417e628d777f598c75d832564478ec199e709d8
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 19 11:08:11 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 5f982aadfcfbdb11d38978c764678c94575eb4b8
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 19 11:08:11 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 48c0a778d94c99ebb0e51a284aa8ea1f6a8d6338
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 19 11:08:11 2021 -0700
+
+    Common source file change not applicable to open-vm-tools.
+
+commit fe2192f866a2faed6f9d27a1674838d56aa9f69f
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 19 11:08:11 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit a183c79fbd8188a1d2aa1322469d19e71be7d676
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 19 11:08:11 2021 -0700
+
+    Unescape JSON in UTF-8.
+    
+    Add a routine to unescape JSON escape sequence in UTF-8 strings.
+
+commit 865b31e49350e4aefa0858b6575051eae7def5e1
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 19 11:08:11 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 5883b498a44c7d64025e6af761e784a7e2ce72aa
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 19 11:08:11 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit e834e17b698f56313e6b6a1f34c2b0c52665e3cd
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 19 11:08:11 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 3827120a9edac868a1094cdd225b02920f952a0e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 19 11:08:11 2021 -0700
+
+    Common header files change to facilitate building with x86_64 and arm64.
+    
+    Simplify _DMB/_DSB.
+
+commit 5e5494ef373917c706bc14c3fc5f90cdd07a0f4a
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 19 11:08:11 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 65519ffb067661ecea1e0bae077dea5d3ce23197
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 19 11:08:11 2021 -0700
+
+    Correct a typo that rendered an if statment to always be true.
+
+commit 27d9e866243ce119746a57d60690efb4c4502fb7
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 19 11:08:11 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 964ecc057dd482efd53c809921a9f97b8efd3313
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 19 11:08:11 2021 -0700
+
+    Changes to common source files not directly applicable to open-vm-tools.
+
+commit 57d9962108e0fdd56721ad03a7acec6abb7fdb86
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 19 11:08:10 2021 -0700
+
+    Adding thread ID to logging messages.
+    
+    As more threads (even short-lived worker threads) are added
+    to vmtoolsd, add logging of the thread ID to simplify debugging.
+
+commit 4dca880085556da2e7c3515067667a53acf43d54
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 19 11:08:10 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 0f6d89fc0bbf119e2284ba5195b7072d99a503f2
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 19 11:08:10 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit a58b9c39768dd4582a2ccbd2483ae6c02d894528
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 19 11:08:10 2021 -0700
+
+    Check a previously unchecked return value.
+    
+    Fixes an "Unused value" issue reported from a Coverity scan of
+    open-vm-tools.
+
+commit b9c4441ed7316d1f807697c7145e2c09656f3e5e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 19 11:08:10 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 82931a1bcb39d5132910c7fb2ddc086c51d06662
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 19 11:08:10 2021 -0700
+
+    Fix issues using GCC 11 with gtk >= 3.20 and glib >=2.66.3
+    
+    With glib2.0 releases >= 2.66.3, glib header files inside an
+    extern "C" block will encounter compilation errors.  This has
+    impacted several OSS packages.  Consumers of newer versions of glib2.0
+    must not include glib headers in an extern "C" block.
+    
+    GTK 3.20 has deprecated gdk_display_get_device_manager(); using the
+    newer gdk_display_get_default_seat() when the GTK version is >= 3.20.
+    
+    The return value from read() must be used to avoid an unused result
+    warning from the compiler.  This can be avoided by using dummy retyping
+    in the case where the return value is not used or in this case, using
+    the returned value in a debug log message.
+    
+    Pull Request: https://github.com/vmware/open-vm-tools/pull/505
+    Addresses:    https://github.com/vmware/open-vm-tools/issues/500
+    Addresses:    https://github.com/vmware/open-vm-tools/issues/509
+
+commit d8ccbf4f386ca996778ed843073f6ad5743c8093
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 19 11:08:10 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit fc6368df777de8e862dcc7fac3dec5ccdc8cf817
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 19 11:08:10 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 50a9a23dd3abda3df63f96433821a79f74742bd1
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 19 11:08:10 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+    
+    Add new definition for darwin22-64 (macOS 13)
+
+commit 78631eb8a2e4ce12794b1e75a6232482f08d0c96
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 5 09:28:52 2021 -0700
+
+    Update ChangeLog with the granular push of April 5, 2021
+     - plus ChangeLog update of March 25.
+
 commit b81140454253dfe3c836c03e221aa832da4ac9e8
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Mon Apr 5 09:01:43 2021 -0700
