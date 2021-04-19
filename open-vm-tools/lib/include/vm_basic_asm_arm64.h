@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013-2017, 2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -95,6 +95,21 @@ GET_CURRENT_PC(void)
  *
  *      Memory barrier governing visibility of explicit load/stores.
  *
+ *      The options for shareability domains are:
+ *      NSH     - Non-shareable
+ *      ISH     - Inner Shareable
+ *      OSH     - Outer Shareable
+ *      default - Full System
+ *
+ *      The options for access types are:
+ *      LD      - Load         , Barrier, Load _or Store_ (yes, really)
+ *      ST      - Store        , Barrier, Store
+ *      default - Load or Store, Barrier, Load or Store
+ *
+ *      Note that the extra spaces at the end of the strings below are to
+ *      prevent specifying multiple arguments which would work with GCC but not
+ *      MSVC.
+ *
  * Results:
  *      None
  *
@@ -104,16 +119,20 @@ GET_CURRENT_PC(void)
  *----------------------------------------------------------------------
  */
 
-/* Shareability domains */
-#define _NSH   "nsh" // Non-shareable
-#define _ISH   "ish" // Inner Shareable
-#define _OSH   "osh" // Outer Shareable
-#define _SY    "sy"  // Full System     (default)
+#define _NSH   "nsh "
+#define _ISH   "ish "
+#define _OSH   "osh "
+#define _SY    "sy "
 
-/* Access types */
-#define _LD    "ld"  // Load         , Barrier, Load _or Store_ (yes, really)
-#define _ST    "st"  // Store        , Barrier, Store
-//             ""    // Load or Store, Barrier, Load or Store   (default)
+#define _NSHST "nshst "
+#define _ISHST "ishst "
+#define _OSHST "oshst "
+#define _ST    "st "
+
+#define _NSHLD "nshld "
+#define _ISHLD "ishld "
+#define _OSHLD "oshld "
+#define _LD    "ld "
 
 #define _DMB(t) asm volatile("dmb " t ::: "memory")
 
@@ -818,9 +837,9 @@ RDTSC_BARRIER(void)
 
 #define SMP_R_BARRIER_R()     SMP_R_BARRIER_RW()
 #define SMP_R_BARRIER_W()     SMP_R_BARRIER_RW()
-#define SMP_R_BARRIER_RW()    _DMB(_ISH _LD)
+#define SMP_R_BARRIER_RW()    _DMB(_ISHLD)
 #define SMP_W_BARRIER_R()     SMP_RW_BARRIER_RW()
-#define SMP_W_BARRIER_W()     _DMB(_ISH _ST)
+#define SMP_W_BARRIER_W()     _DMB(_ISHST)
 #define SMP_W_BARRIER_RW()    SMP_RW_BARRIER_RW()
 #define SMP_RW_BARRIER_R()    SMP_RW_BARRIER_RW()
 #define SMP_RW_BARRIER_W()    SMP_RW_BARRIER_RW()
@@ -835,9 +854,9 @@ RDTSC_BARRIER(void)
 
 #define DMA_R_BARRIER_R()     DMA_R_BARRIER_RW()
 #define DMA_R_BARRIER_W()     DMA_R_BARRIER_RW()
-#define DMA_R_BARRIER_RW()    _DMB(_OSH _LD)
+#define DMA_R_BARRIER_RW()    _DMB(_OSHLD)
 #define DMA_W_BARRIER_R()     DMA_RW_BARRIER_RW()
-#define DMA_W_BARRIER_W()     _DMB(_OSH _ST)
+#define DMA_W_BARRIER_W()     _DMB(_OSHST)
 #define DMA_W_BARRIER_RW()    DMA_RW_BARRIER_RW()
 #define DMA_RW_BARRIER_R()    DMA_RW_BARRIER_RW()
 #define DMA_RW_BARRIER_W()    DMA_RW_BARRIER_RW()
