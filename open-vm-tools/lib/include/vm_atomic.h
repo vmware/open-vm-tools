@@ -2071,13 +2071,13 @@ Atomic_Read64(Atomic_uint64 const *var) // IN
       : "m" (*var)
       : "cc"
    );
-#elif defined _MSC_VER && defined __x86_64__
+#elif defined _MSC_VER && defined VM_64BIT
    /*
     * Microsoft docs guarantee "Simple reads and writes to properly
     * aligned 64-bit variables are atomic on 64-bit Windows."
     * http://msdn.microsoft.com/en-us/library/ms684122%28VS.85%29.aspx
     *
-    * XXX Verify that value is properly aligned. Bug 61315.
+    * XXX Unconditionally verify that value is properly aligned. Bug 61315.
     */
    return var->value;
 #elif defined _MSC_VER && defined VM_ARM_32
@@ -2496,8 +2496,7 @@ Atomic_Write64(Atomic_uint64 *var, // OUT
    ASSERT((uintptr_t)var % 8 == 0);
 #endif
 
-#if defined __x86_64__
-#if defined __GNUC__
+#if defined __GNUC__ && defined __x86_64__
    /*
     * There is no move instruction for 64-bit immediate to memory, so unless
     * the immediate value fits in 32-bit (i.e. can be sign-extended), GCC
@@ -2510,21 +2509,18 @@ Atomic_Write64(Atomic_uint64 *var, // OUT
       : "=m" (var->value)
       : "r" (val)
    );
-#elif defined _MSC_VER
+#elif defined __GNUC__ && defined VM_ARM_64
+   _VMATOM_X(W, 64, &var->value, val);
+#elif defined _MSC_VER && defined VM_64BIT
    /*
     * Microsoft docs guarantee "Simple reads and writes to properly aligned
     * 64-bit variables are atomic on 64-bit Windows."
     * http://msdn.microsoft.com/en-us/library/ms684122%28VS.85%29.aspx
     *
-    * XXX Verify that value is properly aligned. Bug 61315.
+    * XXX Unconditionally verify that value is properly aligned. Bug 61315.
     */
 
    var->value = val;
-#else
-#error No compiler defined for Atomic_Write64
-#endif
-#elif defined VM_ARM_64
-   _VMATOM_X(W, 64, &var->value, val);
 #else
    (void)Atomic_ReadWrite64(var, val);
 #endif
