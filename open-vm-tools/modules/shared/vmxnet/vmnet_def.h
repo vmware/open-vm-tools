@@ -119,6 +119,7 @@
 #define VMNET_CAP_ENS                  CONST64U(0x400000000000000)  /* Support ENS */
 #define VMNET_CAP_FPO                  CONST64U(0x800000000000000)  /* Support FPO */
 #define VMNET_CAP_BMC_NIC              CONST64U(0x1000000000000000) /* Nic Hardware connected to server BMC */
+#define VMNET_CAP_UENS_SHIM            CONST64U(0x2000000000000000) /* Driver is compatible with UENS shimming layer */
 #define VMNET_CAP_LEGACY               CONST64U(0x8000000000000000) /* Uplink is compatible with vmklinux drivers */
 
 #endif // _VMNET_DEF_H_
