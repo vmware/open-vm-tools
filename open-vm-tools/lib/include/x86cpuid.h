@@ -157,6 +157,7 @@ typedef struct CPUIDQuery {
    CPUIDLEVEL(TRUE,  19,  0x19,       0, 20) \
    CPUIDLEVEL(TRUE,  1A,  0x1a,       0, 17) \
    CPUIDLEVEL(TRUE,  1B,  0x1b,       2, 17) \
+   CPUIDLEVEL(TRUE,  1C,  0x1c,       0, 20) \
    CPUIDLEVEL(TRUE,  1D,  0x1d,       2, 19) \
    CPUIDLEVEL(TRUE,  1E,  0x1e,       1, 19) \
    CPUIDLEVEL(FALSE, 1F,  0x1f,       6, 17) \
@@ -548,6 +549,7 @@ FLAG(   7,  0, ECX,  9,  1, VAES,                                YES,  17 ) \
 FLAG(   7,  0, ECX, 10,  1, VPCLMULQDQ,                          YES,  17 ) \
 FLAG(   7,  0, ECX, 11,  1, AVX512VNNI,                          YES,  17 ) \
 FLAG(   7,  0, ECX, 12,  1, AVX512BITALG,                        YES,  17 ) \
+FLAG(   7,  0, ECX, 13,  1, TME_EN,                              NO,    0 ) \
 FLAG(   7,  0, ECX, 14,  1, AVX512VPOPCNTDQ,                     YES,  16 ) \
 FLAG(   7,  0, ECX, 16,  1, VA57,                                NO,    0 ) \
 FIELD(  7,  0, ECX, 17,  5, MAWA,                                NO,    0 ) \
@@ -587,7 +589,8 @@ FLAG(   7,  1, EAX,  5,  1, AVX512BF16,                          YES,  18 ) \
 FLAG(   7,  1, EAX, 10,  1, FAST_ZERO_MOVSB,                     NO,    0 ) \
 FLAG(   7,  1, EAX, 11,  1, FAST_SHORT_STOSB,                    NO,    0 ) \
 FLAG(   7,  1, EAX, 12,  1, FAST_SHORT_CMPSB_SCASB,              NO,    0 ) \
-FLAG(   7,  1, EAX, 22,  1, HRESET,                              NO,    0 )
+FLAG(   7,  1, EAX, 22,  1, HRESET,                              NO,    0 ) \
+FLAG(   7,  1, EAX, 26,  1, LAM,                                 NO,    0 )
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_9                                            \
@@ -859,6 +862,18 @@ FIELD( 1B,  0, EAX,  0, 12, PCONFIG_SUBLEAF_TYPE,                NO,    0 ) \
 FIELD( 1B,  0, EBX,  0, 32, PCONFIG_TARGET_ID1,                  NO,    0 ) \
 FIELD( 1B,  0, ECX,  0, 32, PCONFIG_TARGET_ID2,                  NO,    0 ) \
 FIELD( 1B,  0, EDX,  0, 32, PCONFIG_TARGET_ID3,                  NO,    0 )
+
+/*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
+#define CPUID_FIELD_DATA_LEVEL_1C                                           \
+FIELD( 1C,  0, EAX,  0,  8, LBR_DEPTH,                           NO,    0 ) \
+FLAG(  1C,  0, EAX, 30,  1, LBR_DEEP_CSTATE_RESET,               NO,    0 ) \
+FLAG(  1C,  0, EAX, 31,  1, LBR_IP_CONTAINS_LIP,                 NO,    0 ) \
+FLAG(  1C,  0, EBX,  0,  1, LBR_CPL_FILTERING,                   NO,    0 ) \
+FLAG(  1C,  0, EBX,  1,  1, LBR_BRANCH_FILTERING,                NO,    0 ) \
+FLAG(  1C,  0, EBX,  2,  1, LBR_CALL_STACK_MODE,                 NO,    0 ) \
+FLAG(  1C,  0, ECX,  0,  1, LBR_MISPREDICT,                      NO,    0 ) \
+FLAG(  1C,  0, ECX,  1,  1, LBR_TIMED_LBRS,                      NO,    0 ) \
+FLAG(  1C,  0, ECX,  2,  1, LBR_BRANCH_TYPE,                     NO,    0 ) \
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_1D                                           \
@@ -1176,6 +1191,7 @@ FLAG(  88,  0, EBX, 23,  1, PPIN,                                NO,    0 ) \
 FLAG(  88,  0, EBX, 24,  1, LEAF88_SSBD_SPEC_CTRL,               ANY,   9 ) \
 FLAG(  88,  0, EBX, 25,  1, LEAF88_SSBD_VIRT_SPEC_CTRL,          ANY,   9 ) \
 FLAG(  88,  0, EBX, 26,  1, LEAF88_SSBD_NOT_NEEDED,              NO,    0 ) \
+FLAG(  88,  0, EBX, 28,  1, PSFD,                                NO,    0 ) \
 FIELD( 88,  0, ECX,  0,  8, LEAF88_CORE_COUNT,                   YES,   4 ) \
 FIELD( 88,  0, ECX, 12,  4, APICID_COREID_SIZE,                  YES,   7 ) \
 FIELD( 88,  0, ECX, 16,  2, PERFTSC_SIZE,                        NO,    0 ) \
@@ -1357,6 +1373,7 @@ FIELD(820,  1, EDX,  0, 32, NUM_SERVICE_CLASSES,                 NO,    0 )
    CPUID_FIELD_DATA_LEVEL_19                                          \
    CPUID_FIELD_DATA_LEVEL_1A                                          \
    CPUID_FIELD_DATA_LEVEL_1B                                          \
+   CPUID_FIELD_DATA_LEVEL_1C                                          \
    CPUID_FIELD_DATA_LEVEL_1D                                          \
    CPUID_FIELD_DATA_LEVEL_1E                                          \
    CPUID_FIELD_DATA_LEVEL_1F                                          \
