@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -58,6 +58,7 @@
 #include "vmware/guestrpc/tclodefs.h"
 #include "err.h"
 #include "logToHost.h"
+#include "vthreadBase.h"
 
 #define LOGGING_GROUP         "logging"
 
@@ -367,7 +368,7 @@ VMTools_GetTimeAsString(void)
 /**
  * Creates a formatted message to be logged. The format of the message will be:
  *
- *    [timestamp] [domain] [level] Log message
+ *    [timestamp] [domain] [level] [thread_id] Log message
  *
  * @param[in] message      User log message.
  * @param[in] domain       Log domain.
@@ -416,31 +417,38 @@ VMToolsLogFormat(const gchar *message,
 
    if (!addsTimestamp) {
       if (shared) {
-         len = VMToolsAsprintf(&msg, "[%s] [%8s] [%s:%s] %s\n",
+         len = VMToolsAsprintf(&msg, "[%s] [%8s] [%s:%s] [%"FMT64"u] %s\n",
                                (tstamp != NULL) ? tstamp : "no time",
-                               slevel, gLogDomain, domain, message);
+                               slevel, gLogDomain, domain,
+                               VThreadBase_GetKernelID(), message);
       } else {
-         len = VMToolsAsprintf(&msg, "[%s] [%8s] [%s] %s\n",
+         len = VMToolsAsprintf(&msg, "[%s] [%8s] [%s] [%"FMT64"u] %s\n",
                                (tstamp != NULL) ? tstamp : "no time",
-                               slevel, domain, message);
+                               slevel, domain, VThreadBase_GetKernelID(),
+                               message);
       }
    } else {
       if (cached) {
          if (shared) {
-            len = VMToolsAsprintf(&msg, "[cached at %s] [%8s] [%s:%s] %s\n",
-                                  (tstamp != NULL) ? tstamp : "no time",
-                                  slevel, gLogDomain, domain, message);
+            len = VMToolsAsprintf(&msg,
+                              "[cached at %s] [%8s] [%s:%s] [%"FMT64"u] %s\n",
+                              (tstamp != NULL) ? tstamp : "no time", slevel,
+                              gLogDomain, domain, VThreadBase_GetKernelID(),
+                              message);
          } else {
-            len = VMToolsAsprintf(&msg, "[cached at %s] [%8s] [%s] %s\n",
-                                  (tstamp != NULL) ? tstamp : "no time",
-                                  slevel, domain, message);
+            len = VMToolsAsprintf(&msg,
+                               "[cached at %s] [%8s] [%s] [%"FMT64"u] %s\n",
+                               (tstamp != NULL) ? tstamp : "no time", slevel,
+                               domain, VThreadBase_GetKernelID(), message);
          }
       } else {
          if (shared) {
-            len = VMToolsAsprintf(&msg, "[%8s] [%s:%s] %s\n",
-                                  slevel, gLogDomain, domain, message);
+            len = VMToolsAsprintf(&msg, "[%8s] [%s:%s] [%"FMT64"u] %s\n",
+                                  slevel, gLogDomain, domain,
+                                  VThreadBase_GetKernelID(), message);
          } else {
-            len = VMToolsAsprintf(&msg, "[%8s] [%s] %s\n", slevel, domain, message);
+            len = VMToolsAsprintf(&msg, "[%8s] [%s] [%"FMT64"u] %s\n", slevel,
+                                  domain, VThreadBase_GetKernelID(), message);
          }
       }
    }
