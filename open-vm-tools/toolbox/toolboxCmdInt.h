@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -33,6 +33,7 @@
 #include <string.h>
 #ifdef _WIN32
 #   include "getoptwin32.h"
+#   include "globalConfig.h"
 #else
 #   include <getopt.h>
 #   include <sysexits.h>
@@ -158,6 +159,24 @@ DECLARE_COMMAND(GuestStore);
 
 #if defined(_WIN32)
 DECLARE_COMMAND(GlobalConf)
+#endif
+
+#if defined(GLOBALCONFIG_SUPPORTED)
+
+#define TOOLBOXCMD_LOAD_GLOBALCONFIG(conf)                        \
+   {                                                              \
+      if (GlobalConfig_GetEnabled(conf)) {                        \
+         GKeyFile *__globalConf = NULL;                           \
+         if (GlobalConfig_LoadConfig(&__globalConf, NULL)) {      \
+            VMTools_AddConfig(__globalConf, conf);                \
+            g_key_file_free(__globalConf);                        \
+         }                                                        \
+      }                                                           \
+   }
+#else
+
+#define TOOLBOXCMD_LOAD_GLOBALCONFIG(conf)
+
 #endif
 
 #endif /*_TOOLBOX_CMD_H_*/

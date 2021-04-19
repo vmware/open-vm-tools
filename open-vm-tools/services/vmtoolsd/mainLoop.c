@@ -87,7 +87,7 @@
 
 #define CONFNAME_MAX_CHANNEL_ATTEMPTS "maxChannelAttempts"
 
-#if defined(_WIN32)
+#if defined(GLOBALCONFIG_SUPPORTED)
 /*
  * The state of the global conf module.
  */
@@ -523,7 +523,7 @@ ToolsCoreRunLoop(ToolsServiceState *state)
 #endif
       }
 
-#if defined(_WIN32)
+#if defined(GLOBALCONFIG_SUPPORTED)
       if (GlobalConfig_Start(&state->ctx)) {
          g_info("%s: Successfully started global config module.",
                   __FUNCTION__);
@@ -672,7 +672,7 @@ ToolsCore_ReloadConfig(ToolsServiceState *state,
    gboolean first = state->ctx.config == NULL;
    gboolean loaded;
 
-#if defined(_WIN32)
+#if defined(GLOBALCONFIG_SUPPORTED)
    gboolean globalConfLoaded = FALSE;
 
    if (gGlobalConfStarted) {
@@ -695,7 +695,7 @@ ToolsCore_ReloadConfig(ToolsServiceState *state,
                                &state->ctx.config,
                                &state->configMtime);
 
-#if defined(_WIN32)
+#if defined(GLOBALCONFIG_SUPPORTED)
    if (loaded || globalConfLoaded) {
       gboolean configUpdated = VMTools_AddConfig(state->globalConfig,
                                                  state->ctx.config);

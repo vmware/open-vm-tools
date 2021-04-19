@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -117,7 +117,7 @@ static CmdTable commands[] = {
    (defined(__linux__) && !defined(USERWORLD))
    { "gueststore", GuestStore_Command, TRUE,  FALSE, GuestStore_Help},
 #endif
-#if defined(_WIN32)
+#if defined(GLOBALCONFIG_SUPPORTED)
    { "globalconf", GlobalConf_Command, TRUE,  TRUE,  GlobalConf_Help},
 #endif
    { "logging",    Logging_Command,    TRUE,  TRUE,  Logging_Help},
@@ -471,15 +471,7 @@ main(int argc,    // IN: length of command line arguments
    setlocale(LC_ALL, "");
    VMTools_LoadConfig(NULL, G_KEY_FILE_NONE, &conf, NULL);
 
-#if defined(_WIN32)
-   if (GlobalConfig_GetEnabled(conf)) {
-      GKeyFile *globalConf = NULL;
-      if (GlobalConfig_LoadConfig(&globalConf, NULL)) {
-         VMTools_AddConfig(globalConf, conf);
-         g_key_file_free(globalConf);
-      }
-   }
-#endif
+   TOOLBOXCMD_LOAD_GLOBALCONFIG(conf)
 
    VMTools_ConfigLogging("toolboxcmd", conf, FALSE, FALSE);
    VMTools_BindTextDomain(VMW_TEXT_DOMAIN, NULL, NULL);
