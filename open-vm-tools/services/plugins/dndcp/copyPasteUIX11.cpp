@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1666,6 +1666,7 @@ CopyPasteUIX11::FileBlockMonitorThread(void *arg)   // IN
       char buf[sizeof(VMBLOCK_FUSE_READ_RESPONSE)];
       ssize_t size;
       size = read(fd, buf, sizeof(VMBLOCK_FUSE_READ_RESPONSE));
+      g_debug("%s: Number of bytes read : %" FMTSZ "u\n", __FUNCTION__, size);
       /*
        * The current thread will block in read function until
        * any other application accesses the file params->fileBlockName
