@@ -93,7 +93,13 @@ extern "C" {
 #define _OSHLD "oshld "
 #define _LD    "ld "
 
+#if defined __GNUC__
 #define _DMB(t) asm volatile("dmb " t ::: "memory")
+#elif defined _MSC_VER
+#define _DMB(t) __dmb(_ARM64_BARRIER##t)
+#else
+#error No compiler defined for _DMB
+#endif
 
 
 /*
@@ -115,7 +121,13 @@ extern "C" {
  *----------------------------------------------------------------------
  */
 
+#if defined __GNUC__
 #define _DSB(t) asm volatile("dsb " t ::: "memory")
+#elif defined _MSC_VER
+#define _DSB(t) __dsb(_ARM64_BARRIER##t)
+#else
+#error No compiler defined for _DSB
+#endif
 
 
 /*
@@ -140,7 +152,13 @@ extern "C" {
 static INLINE void
 ISB(void)
 {
+#if defined __GNUC__
    asm volatile("isb" ::: "memory");
+#elif defined _MSC_VER
+   __isb(_ARM64_BARRIER_SY);
+#else
+#error No compiler defined for ISB
+#endif
 }
 
 
@@ -257,6 +275,7 @@ ISB(void)
 #define MMIO_RW_BARRIER_W()   MMIO_RW_BARRIER_RW()
 #define MMIO_RW_BARRIER_RW()  _DSB(_SY)
 
+#ifndef _MSC_VER
 
 /*
  * _GET_CURRENT_PC --
@@ -947,6 +966,7 @@ DCacheClean(VA va, uint64 len)
    _DSB(_SY);
 }
 
+#endif // ifndef _MSC_VER
 
 #if defined __cplusplus
 } // extern "C"
