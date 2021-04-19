@@ -404,6 +404,8 @@ char *CodeSet_Utf8Escape(const char *utf8,                    // IN:
 
 char *CodeSet_JsonEscape(const char *utf8);  // IN:
 
+char *CodeSet_JsonUnescape(const char *utf8);  // IN:
+
 /*
  *-----------------------------------------------------------------------------
  *
