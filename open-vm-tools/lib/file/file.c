@@ -2515,7 +2515,7 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
          const char *nr = fileList[i] + baseNameLen + 1;
 
          /* No leading zeros; zero is invalid; must be a valid ASCII digit */
-         if ((nr[0] >= '1') || (nr[0] <= '9')) {
+         if ((nr[0] >= '1') && (nr[0] <= '9')) {
             uint32 curNr;
             char *endNr = NULL;
 
