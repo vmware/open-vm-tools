@@ -140,6 +140,7 @@ typedef enum {
    VMXNET3_CMD_SET_RSS_FIELDS,
    VMXNET3_CMD_SET_PKTSTEERING, /* 0xCAFE0011 */
    VMXNET3_CMD_SET_ESP_QUEUE_SELECTION_CONF,
+   VMXNET3_CMD_SET_RING_BUFFER_SIZE,
 
    VMXNET3_CMD_FIRST_GET = 0xF00D0000,
    VMXNET3_CMD_GET_QUEUE_STATUS = VMXNET3_CMD_FIRST_GET,
@@ -1036,6 +1037,15 @@ typedef struct Vmxnet3_ESPQueueSelectionConf {
 } Vmxnet3_ESPQueueSelectionConf;
 #pragma pack(pop)
 
+#pragma pack(push, 1)
+typedef struct Vmxnet3_RingBufferSize {
+   __le16             ring1BufSizeType0;
+   __le16             ring1BufSizeType1;
+   __le16             ring2BufSizeType1;
+   __le16             pad;
+} Vmxnet3_RingBufferSize;
+#pragma pack(pop)
+
 /*
  * If a command data does not exceed 16 bytes, it can use
  * the shared memory directly. Otherwise use variable length
@@ -1048,6 +1058,7 @@ typedef union Vmxnet3_CmdInfo {
    Vmxnet3_RSSField            setRSSFields;
    Vmxnet3_EncapDstPort        encapDstPort;
    Vmxnet3_ESPQueueSelectionConf espQSConf;
+   Vmxnet3_RingBufferSize      ringBufSize;
    __le64                      data[2];
 } Vmxnet3_CmdInfo;
 #pragma pack(pop)
