@@ -199,6 +199,7 @@
    LOGLEVEL_VAR(objc), /* lib/objc */ \
    LOGLEVEL_VAR(objlib), \
    LOGLEVEL_VAR(oemDevice), \
+   LOGLEVEL_VAR(opNotification), \
    LOGLEVEL_VAR(oprom), \
    LOGLEVEL_VAR(ovhdmem), \
    LOGLEVEL_VAR(parallel), \
