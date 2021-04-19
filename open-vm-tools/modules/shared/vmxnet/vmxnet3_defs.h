@@ -1138,7 +1138,8 @@ do {\
 #define VMXNET3_CAP_OAM_FILTER       14 /* bit 14 of DCR 0 */
 #define VMXNET3_CAP_ESP_QS           15 /* bit 15 of DCR 0 */
 #define VMXNET3_CAP_LARGE_BAR        16 /* bit 16 of DCR 0 */
-#define VMXNET3_CAP_VERSION_7_MAX    17
+#define VMXNET3_CAP_OOORX_COMP       17 /* bit 17 of DCR 0 */
+#define VMXNET3_CAP_VERSION_7_MAX    18
 /* when new capability is introduced, update VMXNET3_CAP_MAX */
 #define VMXNET3_CAP_MAX              VMXNET3_CAP_VERSION_7_MAX
 
