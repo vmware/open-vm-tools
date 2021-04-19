@@ -65,10 +65,6 @@ extern "C" {
  *      ST      - Store        , Barrier, Store
  *      default - Load or Store, Barrier, Load or Store
  *
- *      Note that the extra spaces at the end of the strings below are to
- *      prevent specifying multiple arguments which would work with GCC but not
- *      MSVC.
- *
  * Results:
  *      None
  *
@@ -78,25 +74,10 @@ extern "C" {
  *----------------------------------------------------------------------
  */
 
-#define _NSH   "nsh "
-#define _ISH   "ish "
-#define _OSH   "osh "
-#define _SY    "sy "
-
-#define _NSHST "nshst "
-#define _ISHST "ishst "
-#define _OSHST "oshst "
-#define _ST    "st "
-
-#define _NSHLD "nshld "
-#define _ISHLD "ishld "
-#define _OSHLD "oshld "
-#define _LD    "ld "
-
 #if defined __GNUC__
-#define _DMB(t) asm volatile("dmb " t ::: "memory")
+#define _DMB(t) asm volatile("dmb " #t ::: "memory")
 #elif defined _MSC_VER
-#define _DMB(t) __dmb(_ARM64_BARRIER##t)
+#define _DMB(t) __dmb(_ARM64_BARRIER_##t)
 #else
 #error No compiler defined for _DMB
 #endif
@@ -122,9 +103,9 @@ extern "C" {
  */
 
 #if defined __GNUC__
-#define _DSB(t) asm volatile("dsb " t ::: "memory")
+#define _DSB(t) asm volatile("dsb " #t ::: "memory")
 #elif defined _MSC_VER
-#define _DSB(t) __dsb(_ARM64_BARRIER##t)
+#define _DSB(t) __dsb(_ARM64_BARRIER_##t)
 #else
 #error No compiler defined for _DSB
 #endif
@@ -234,13 +215,13 @@ ISB(void)
 
 #define SMP_R_BARRIER_R()     SMP_R_BARRIER_RW()
 #define SMP_R_BARRIER_W()     SMP_R_BARRIER_RW()
-#define SMP_R_BARRIER_RW()    _DMB(_ISHLD)
+#define SMP_R_BARRIER_RW()    _DMB(ISHLD)
 #define SMP_W_BARRIER_R()     SMP_RW_BARRIER_RW()
-#define SMP_W_BARRIER_W()     _DMB(_ISHST)
+#define SMP_W_BARRIER_W()     _DMB(ISHST)
 #define SMP_W_BARRIER_RW()    SMP_RW_BARRIER_RW()
 #define SMP_RW_BARRIER_R()    SMP_RW_BARRIER_RW()
 #define SMP_RW_BARRIER_W()    SMP_RW_BARRIER_RW()
-#define SMP_RW_BARRIER_RW()   _DMB(_ISH)
+#define SMP_RW_BARRIER_RW()   _DMB(ISH)
 
 /*
  * Like the above, only for use with cache coherent observers other than CPUs,
@@ -251,13 +232,13 @@ ISB(void)
 
 #define DMA_R_BARRIER_R()     DMA_R_BARRIER_RW()
 #define DMA_R_BARRIER_W()     DMA_R_BARRIER_RW()
-#define DMA_R_BARRIER_RW()    _DMB(_OSHLD)
+#define DMA_R_BARRIER_RW()    _DMB(OSHLD)
 #define DMA_W_BARRIER_R()     DMA_RW_BARRIER_RW()
-#define DMA_W_BARRIER_W()     _DMB(_OSHST)
+#define DMA_W_BARRIER_W()     _DMB(OSHST)
 #define DMA_W_BARRIER_RW()    DMA_RW_BARRIER_RW()
 #define DMA_RW_BARRIER_R()    DMA_RW_BARRIER_RW()
 #define DMA_RW_BARRIER_W()    DMA_RW_BARRIER_RW()
-#define DMA_RW_BARRIER_RW()   _DMB(_OSH)
+#define DMA_RW_BARRIER_RW()   _DMB(OSH)
 
 /*
  * And finally a set for use with MMIO accesses.
@@ -267,13 +248,13 @@ ISB(void)
 
 #define MMIO_R_BARRIER_R()    MMIO_R_BARRIER_RW()
 #define MMIO_R_BARRIER_W()    MMIO_R_BARRIER_RW()
-#define MMIO_R_BARRIER_RW()   _DSB(_LD)
+#define MMIO_R_BARRIER_RW()   _DSB(LD)
 #define MMIO_W_BARRIER_R()    MMIO_RW_BARRIER_RW()
-#define MMIO_W_BARRIER_W()    _DSB(_ST)
+#define MMIO_W_BARRIER_W()    _DSB(ST)
 #define MMIO_W_BARRIER_RW()   MMIO_RW_BARRIER_RW()
 #define MMIO_RW_BARRIER_R()   MMIO_RW_BARRIER_RW()
 #define MMIO_RW_BARRIER_W()   MMIO_RW_BARRIER_RW()
-#define MMIO_RW_BARRIER_RW()  _DSB(_SY)
+#define MMIO_RW_BARRIER_RW()  _DSB(SY)
 
 #ifndef _MSC_VER
 
@@ -893,7 +874,7 @@ static INLINE void
 RDTSC_BARRIER(void)
 {
    ISB();
-   _DMB(_SY);
+   _DMB(SY);
 }
 
 
@@ -928,7 +909,7 @@ DCacheCleanInvalidate(VA va, uint64 len)
    }
 
    /* Ensure completion. */
-   _DSB(_SY);
+   _DSB(SY);
 }
 
 
@@ -963,7 +944,7 @@ DCacheClean(VA va, uint64 len)
    }
 
    /* Ensure completion of clean. */
-   _DSB(_SY);
+   _DSB(SY);
 }
 
 #endif // ifndef _MSC_VER
