@@ -251,6 +251,12 @@ ProcessQueryReply(char *result,
    if (addMapped) {
       vgErr = VGAuth_QueryMappedAliases(ctx, 0, NULL,
                                         &numMapped, &maList);
+      if (VGAUTH_FAILED(vgErr)) {
+         fprintf(stderr, "VGAuth_QueryMappedAliases failed.\n");
+         status = FALSE;
+         goto done;
+      }
+
       for (i = 0; i < numMapped; i++) {
          if ((strcmp(pemCert, maList[i].pemCert) == 0) &&
              (strcmp(userName, maList[i].userName) == 0)) {
