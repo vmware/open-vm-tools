@@ -21,12 +21,11 @@ if ENABLE_VMWGFXCTRL
 
 bin_PROGRAMS = vmwgfxctrl
 
-AM_CFLAGS =
-AM_CFLAGS += -I$(top_srcdir)/services/plugins/resolutionSet
-
 vmwgfxctrl_LDADD =
 vmwgfxctrl_LDADD += @VMTOOLS_LIBS@
 vmwgfxctrl_LDADD += @LIBUDEV_LIBS@
+
+vmwgfxctrl_CFLAGS = -std=gnu89
 
 vmwgfxctrl_CPPFLAGS =
 vmwgfxctrl_CPPFLAGS += @VMTOOLS_CPPFLAGS@

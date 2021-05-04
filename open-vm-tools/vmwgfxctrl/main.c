@@ -41,11 +41,11 @@
  */
 
 #include "vm_basic_defs.h"
-#include "resolutionDL.h"
 
 #include <assert.h>
 #include <fcntl.h>
 #include <inttypes.h>
+#include <libudev.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -53,6 +53,9 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <vmwgfx_drm.h>
+#include <xf86drm.h>
+#include <xf86drmMode.h>
 
 /* The DRM device we are looking for */
 #define VMWGFXCTRL_VENDOR     "0x15ad"
@@ -255,6 +258,7 @@ parseRects(uint32_t num_rects,
            char **argv,
            struct drm_vmw_rect **rects)
 {
+   uint32_t j;
    /*
      * The argument string will look something like:
      *   WxH+x+y * count.
@@ -272,7 +276,7 @@ parseRects(uint32_t num_rects,
       return false;
    }
 
-   for (uint32_t j = 0; j < num_rects; ++j) {
+   for (j = 0; j < num_rects; ++j) {
       char *p = argv[arg++];
       if (sscanf(p, "%ux%u+%d+%d", &(*rects)[j].w, &(*rects)[j].h,
                  &(*rects)[j].x, &(*rects)[j].y) != 4) {
@@ -402,6 +406,7 @@ drmModeConnectionToString(drmModeConnection modeConnection)
 static void
 printTopology(void)
 {
+   int i, j;
    int fd = vmwgfxOpen(false);
    if (fd < 0) {
       fprintf(stderr, "Wasn't able to open the drm device\n");
@@ -424,7 +429,7 @@ printTopology(void)
    printf("  max_size         : [%u, %u]\n", res->max_width, res->max_height);
    printf("\n");
 
-   for (int i = 0; i < res->count_connectors; i++) {
+   for (i = 0; i < res->count_connectors; i++) {
       drmModeConnectorPtr connector = drmModeGetConnector(fd, res->connectors[i]);
       if (!connector) {
          printf("Could not get connector %i\n", res->connectors[i]);
@@ -447,7 +452,7 @@ printTopology(void)
          if (connector->count_props) {
             printf("\tProperties:\n");
          }
-         for (int j = 0; j < connector->count_props; j++) {
+         for (j = 0; j < connector->count_props; j++) {
             drmModePropertyPtr props = drmModeGetProperty(fd, connector->props[j]);
             if (props) {
                printProperty(fd, j, props, connector->prop_values[j]);
@@ -457,7 +462,7 @@ printTopology(void)
          if (connector->count_modes) {
             printf("\tModes:\n");
          }
-         for (int j = 0; j < connector->count_modes; j++) {
+         for (j = 0; j < connector->count_modes; j++) {
             struct drm_mode_modeinfo *mode = (struct drm_mode_modeinfo *)&connector->modes[j];
             printMode(mode, j, false);
          }
@@ -475,7 +480,8 @@ printTopology(void)
 static void
 run(int argc, char **argv)
 {
-   for (int i = 1; i < argc; ++i) {
+   int i, j;
+   for (i = 1; i < argc; ++i) {
       if (strcmp(argv[i], "--help") == 0) {
          printf("%s: \n", argv[0]);
          printf("\t--help prints out the help screen\n");
@@ -497,7 +503,7 @@ run(int argc, char **argv)
          }
 
          printf("Setting topology for %d screens", num_rects);
-         for (uint32_t j = 0; j < num_rects; ++j) {
+         for (j = 0; j < num_rects; ++j) {
             printf(", [%d, %d, %u, %u]",
                    rects[j].x, rects[j].y,
                    rects[j].w, rects[j].h);
