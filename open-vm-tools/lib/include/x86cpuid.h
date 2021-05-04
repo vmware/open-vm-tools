@@ -519,7 +519,7 @@ FLAG(   7,  0, EBX, 10,  1, INVPCID,                             YES,  11 ) \
 FLAG(   7,  0, EBX, 11,  1, RTM,                                 YES,  11 ) \
 FLAG(   7,  0, EBX, 12,  1, PQM,                                 NO,    0 ) \
 FLAG(   7,  0, EBX, 13,  1, FP_SEGMENT_ZERO,                     ANY,  11 ) \
-FLAG(   7,  0, EBX, 14,  1, MPX,                                 YES,  13 ) \
+FLAG(   7,  0, EBX, 14,  1, MPX,                                 ANY,  13 ) \
 FLAG(   7,  0, EBX, 15,  1, PQE,                                 NO,    0 ) \
 FLAG(   7,  0, EBX, 16,  1, AVX512F,                             YES,  13 ) \
 FLAG(   7,  0, EBX, 17,  1, AVX512DQ,                            YES,  13 ) \
