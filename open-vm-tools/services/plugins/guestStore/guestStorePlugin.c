@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2019-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2019-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -961,7 +961,7 @@ SendConnectRequestToVmx(void)
 #else
    socklen_t addrLen = (socklen_t)sizeof(addr);
 #endif
-   char msg[32];
+   char msg[32]; // Longest string: "guestStore.connect 4294967295" (29 chars)
    int msgLen;
    char *result;
    size_t resultLen;
@@ -993,7 +993,7 @@ SendConnectRequestToVmx(void)
    }
 
    msgLen = Str_Sprintf(msg, sizeof msg,
-                        "guestStore.connect %d", addr.svm_port);
+                        "guestStore.connect %u", addr.svm_port);
    result = NULL;
    rpcChannelType = RpcChannel_GetType(pluginData.ctx->rpc);
    g_debug("Current guest RPC channel type: %d.\n", rpcChannelType);
@@ -1015,9 +1015,10 @@ SendConnectRequestToVmx(void)
    }
 
    if (retVal) {
-      g_info("Connect request sent to VMX.\n");
+      g_info("Connect request sent to VMX (svm_port = %u).\n", addr.svm_port);
    } else {
-      g_warning("Failed to send connect request to VMX: %s.\n",
+      g_warning("Failed to send connect request to VMX (svm_port = %u): %s.\n",
+                addr.svm_port,
                 result != NULL ? result : "");
    }
    vm_free(result);
