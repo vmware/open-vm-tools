@@ -117,6 +117,9 @@
    }                                               \
 } while (0)
 
+#define VMX_LOG_CMD     "log "
+#define VMX_LOG_CMD_LEN (sizeof(VMX_LOG_CMD) - 1)
+
 
 typedef struct LogHandler {
    GlibLogger    *logger;
@@ -2712,4 +2715,60 @@ VMTools_Log(LogWhere where,
    va_start(args, fmt);
    LogWhereLevelV(where, level, domain, fmt, args);
    va_end(args);
+}
+
+
+/*
+ ******************************************************************************
+ * VMTools_VmxLog --
+ *
+ * Sends the log message through RPC to vmx to be logged on the host.
+ * Also, logs the message to vmsvc log file inside guest.
+ *
+ * @param[in]  chan         The RPC channel instance.
+ * @param[in]  fmt          Log message output format.
+ *
+ * @return None
+ *
+ ******************************************************************************
+ */
+
+void
+VMTools_VmxLog(RpcChannel *chan,
+               const gchar *fmt,
+               ...)
+{
+   char *reply = NULL;
+   size_t replyLen;
+   gchar msg[4096] = VMX_LOG_CMD;
+   va_list args;
+   gint len;
+
+   va_start(args, fmt);
+   len = g_vsnprintf(msg + VMX_LOG_CMD_LEN,
+                     sizeof msg - VMX_LOG_CMD_LEN,
+                     fmt, args);
+   va_end(args);
+
+   if (len <= 0) {
+      g_warning("%s: g_vsnprintf failed: return value: %d.\n", __FUNCTION__,
+                len);
+      return;
+   }
+
+   len += VMX_LOG_CMD_LEN;
+   if (len >= sizeof msg) {
+      len = sizeof msg - 1;
+      msg[len] = '\0';
+   }
+
+   if (!RpcChannel_Send(chan, msg, len + 1, &reply, &replyLen)) {
+      g_warning("%s: Error sending RPC message: %s. reply: %s\n",
+                __FUNCTION__, msg, reply ? reply : "NULL");
+   }
+   if (reply) {
+      free(reply);
+   }
+
+   g_message("%s\n", msg + VMX_LOG_CMD_LEN);
 }

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2014-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2014-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -41,7 +41,8 @@ typedef enum {
 Bool GuestInfo_GetFqdn(int outBufLen, char fqdn[]);
 Bool GuestInfo_GetNicInfo(unsigned int maxIPv4Routes,
                           unsigned int maxIPv6Routes,
-                          NicInfoV3 **nicInfo);
+                          NicInfoV3 **nicInfo,
+                          Bool *maxNicsError);
 void GuestInfo_FreeNicInfo(NicInfoV3 *nicInfo);
 char *GuestInfo_GetPrimaryIP(void);
 

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2014-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2014-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -36,12 +36,14 @@
 Bool GuestInfoGetFqdn(int outBufLen, char fqdn[]);
 Bool GuestInfoGetNicInfo(unsigned int maxIPv4Routes,   // IN
                          unsigned int maxIPv6Routes,   // IN
-                         NicInfoV3 *nicInfo);          // OUT
+                         NicInfoV3 *nicInfo,           // OUT
+                         Bool *maxNicsError);          // OUT
 
 GuestNicV3 *GuestInfoAddNicEntry(NicInfoV3 *nicInfo,                    // IN/OUT
                                  const char macAddress[NICINFO_MAC_LEN], // IN
                                  DnsConfigInfo *dnsInfo,                // IN
-                                 WinsConfigInfo *winsInfo);             // IN
+                                 WinsConfigInfo *winsInfo,              // IN
+                                 Bool *maxNicsError);                   // OUT
 
 IpAddressEntry *GuestInfoAddIpAddress(GuestNicV3 *nic,                  // IN/OUT
                                       const struct sockaddr *sockAddr,  // IN

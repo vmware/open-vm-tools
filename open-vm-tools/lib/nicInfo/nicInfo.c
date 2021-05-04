@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2014-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2014-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -284,6 +284,7 @@ GuestInfo_GetFqdn(int outBufLen,
  * @param[in]  maxIPv4Routes  Max IPv4 routes to gather.
  * @param[in]  maxIPv6Routes  Max IPv6 routes to gather.
  * @param[out] nicInfo        Will point to a newly allocated NicInfo.
+ * @param[out] maxNicsError   To determine NIC max limit error.
  *
  * @note
  * Caller is responsible for freeing @a nicInfo with GuestInfo_FreeNicInfo.
@@ -297,13 +298,15 @@ GuestInfo_GetFqdn(int outBufLen,
 Bool
 GuestInfo_GetNicInfo(unsigned int maxIPv4Routes,
                      unsigned int maxIPv6Routes,
-                     NicInfoV3 **nicInfo)
+                     NicInfoV3 **nicInfo,
+                     Bool *maxNicsError)
 {
    Bool retval;
 
    *nicInfo = Util_SafeCalloc(1, sizeof (struct NicInfoV3));
 
-   retval = GuestInfoGetNicInfo(maxIPv4Routes, maxIPv6Routes, *nicInfo);
+   retval = GuestInfoGetNicInfo(maxIPv4Routes, maxIPv6Routes, *nicInfo,
+                                maxNicsError);
    if (!retval) {
       GuestInfo_FreeNicInfo(*nicInfo);
       *nicInfo = NULL;
@@ -374,10 +377,11 @@ GuestInfo_GetPrimaryIP(void)
  *
  * @brief GuestNicV3 constructor.
  *
- * @param[in,out] nicInfo     List of NICs.
- * @param[in]     macAddress  MAC address of new NIC.
- * @param[in]     dnsInfo     Per-NIC DNS config state.
- * @param[in]     winsInfo    Per-NIC WINS config state.
+ * @param[in,out] nicInfo       List of NICs.
+ * @param[in]     macAddress    MAC address of new NIC.
+ * @param[in]     dnsInfo       Per-NIC DNS config state.
+ * @param[in]     winsInfo      Per-NIC WINS config state.
+ * @param[out]    maxNicsError  To determine NIC max limit error.
  *
  * @note The returned GuestNic will take ownership of @a dnsInfo and
  *       @a winsInfo  The caller must not free it directly.
@@ -391,14 +395,16 @@ GuestNicV3 *
 GuestInfoAddNicEntry(NicInfoV3 *nicInfo,
                      const char macAddress[NICINFO_MAC_LEN],
                      DnsConfigInfo *dnsInfo,
-                     WinsConfigInfo *winsInfo)
+                     WinsConfigInfo *winsInfo,
+                     Bool *maxNicsError)
 {
    GuestNicV3 *newNic;
 
    /* Check to see if we're going above our limit. See bug 605821. */
    if (nicInfo->nics.nics_len == NICINFO_MAX_NICS) {
-      g_message("%s: NIC limit (%d) reached, skipping overflow.",
-                __FUNCTION__, NICINFO_MAX_NICS);
+      if (maxNicsError != NULL) {
+         *maxNicsError = TRUE;
+      }
       return NULL;
    }
 

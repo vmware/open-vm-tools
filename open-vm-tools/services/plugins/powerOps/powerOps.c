@@ -34,6 +34,7 @@
 #include "vmware/guestrpc/powerops.h"
 #include "vmware/tools/plugin.h"
 #include "vmware/tools/utils.h"
+#include "vmware/tools/log.h"
 
 #if defined(G_PLATFORM_WIN32)
 #  define INVALID_PID NULL
@@ -48,9 +49,6 @@
 #include "vmtoolsd_version.h"
 VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 #endif
-
-#define HOST_LOG_CMD     "log "
-#define HOST_LOG_CMD_LEN (sizeof(HOST_LOG_CMD) - 1)
 
 static const char *stateChgConfNames[] = {
    NULL,
@@ -166,48 +164,6 @@ PowerOpsShutdown(gpointer src,
 
 
 /**
- * Sends the log message through RPC to vmx to be logged in guest.log on host.
- * Also, logs the message to vmsvc log file inside guest.
- *
- * @param[in]  ctx          The application context.
- * @param[in]  fmt          Log message output format.
- */
-
-static void
-PowerOpsLog(ToolsAppCtx *ctx,
-            const gchar *fmt,
-            ...)
-{
-   gchar msg[4096] = HOST_LOG_CMD;
-   va_list args;
-   gint len;
-
-   va_start(args, fmt);
-   len = g_vsnprintf(msg + HOST_LOG_CMD_LEN, sizeof msg - HOST_LOG_CMD_LEN,
-                     fmt, args);
-   va_end(args);
-
-   if (len <= 0) {
-      g_warning("g_vsnprintf failed: return value: %d", len);
-      return;
-   }
-
-   len += HOST_LOG_CMD_LEN;
-   if (len >= sizeof msg) {
-      len = sizeof msg - 1;
-      msg[len] = '\0';
-      g_message("Following log message is truncated: %s.\n", msg);
-   }
-
-   if (!RpcChannel_Send(ctx->rpc, msg, len + 1, NULL, NULL)) {
-      g_warning("%s: Error sending RPC message: %s.\n", __FUNCTION__, msg);
-   }
-
-   g_message("%s\n", msg + HOST_LOG_CMD_LEN);
-}
-
-
-/**
  * Called when a state change script is done running. Sends the state change
  * status to the VMX.
  *
@@ -258,10 +214,10 @@ PowerOpsStateChangeDone(PowerOpState *state,
    /* Finally, perform the requested operation. */
    if (success) {
       if (state->stateChgInProgress == GUESTOS_STATECHANGE_REBOOT) {
-         PowerOpsLog(state->ctx, "Initiating reboot.");
+         VMTools_VmxLog(state->ctx->rpc, "Initiating reboot.");
          System_Shutdown(TRUE);
       } else if (state->stateChgInProgress == GUESTOS_STATECHANGE_HALT) {
-         PowerOpsLog(state->ctx, "Initiating halt.");
+         VMTools_VmxLog(state->ctx->rpc, "Initiating halt.");
          System_Shutdown(FALSE);
       }
    }
@@ -292,8 +248,8 @@ PowerOpsScriptCallback(gpointer _state)
 
       success = (ProcMgr_GetExitCode(state->pid, &exitcode) == 0 &&
                  exitcode == 0);
-      PowerOpsLog(state->ctx, "Script exit code: %d, success = %d",
-                  exitcode, success);
+      VMTools_VmxLog(state->ctx->rpc, "Script exit code: %d, success = %d",
+                     exitcode, success);
       PowerOpsStateChangeDone(state, success);
       ProcMgr_Free(state->pid);
       state->pid = INVALID_PID;
@@ -378,17 +334,17 @@ PowerOpsScriptCallback(GPid pid,
    ASSERT(state->pid != INVALID_PID);
 
    if (WIFEXITED(exitStatus)) {
-      PowerOpsLog(state->ctx, "Script exit code: %d, success = %d",
-                  WEXITSTATUS(exitStatus), success);
+      VMTools_VmxLog(state->ctx->rpc, "Script exit code: %d, success = %d",
+                     WEXITSTATUS(exitStatus), success);
    } else if (WIFSIGNALED(exitStatus)) {
-      PowerOpsLog(state->ctx, "Script canceled by signal: %d, success = %d",
-                  WTERMSIG(exitStatus), success);
+      VMTools_VmxLog(state->ctx->rpc, "Script canceled by signal: %d, "
+                     "success = %d", WTERMSIG(exitStatus), success);
    } else if (WIFSTOPPED(exitStatus)) {
-      PowerOpsLog(state->ctx, "Script stopped by signal: %d, success = %d",
-                  WSTOPSIG(exitStatus), success);
+      VMTools_VmxLog(state->ctx->rpc, "Script stopped by signal: %d, "
+                     "success = %d", WSTOPSIG(exitStatus), success);
    } else {
-      PowerOpsLog(state->ctx, "Script exit status: %d, success = %d",
-                  exitStatus, success);
+      VMTools_VmxLog(state->ctx->rpc, "Script exit status: %d, success = %d",
+                     exitStatus, success);
    }
    PowerOpsStateChangeDone(_state, success);
    g_spawn_close_pid(state->pid);
@@ -546,8 +502,8 @@ PowerOpsStateChange(RpcInData *data)
             script = tmp;
          }
 
-         PowerOpsLog(state->ctx, "Executing script for state change '%s'.",
-                     stateChangeCmdTable[i].tcloCmd);
+         VMTools_VmxLog(state->ctx->rpc, "Executing script for state change "
+                        "'%s'.", stateChangeCmdTable[i].tcloCmd);
          if (PowerOpsRunScript(state, script)) {
             result = "";
             ret = TRUE;
