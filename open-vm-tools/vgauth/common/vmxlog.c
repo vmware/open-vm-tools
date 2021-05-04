@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2018-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2018-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -245,6 +245,11 @@ MakePacket(const char *cmd,
    struct {
       uint32 type;
       uint32 fieldId;
+      uint64 value;
+   } flags;
+   struct {
+      uint32 type;
+      uint32 fieldId;
       uint32 len;
    } payload;
 
@@ -261,6 +266,14 @@ MakePacket(const char *cmd,
    hdr.value = _vmxlog_htonll(1);       // GUESTRPCPKT_TYPE_DATA
 
    /*
+    * Adding the fast_close flag GUESTRPCPKT_FIELD_FAST_CLOSE in the packet
+    * to indicate vmx to close the channel as soon as the response is sent.
+    */
+   flags.type = htonl(1);            // DMFIELDTYPE_INT64
+   flags.fieldId = htonl(3);         // GUESTRPCPKT_FIELD_FAST_CLOSE
+   flags.value = _vmxlog_htonll(1);  // GUESTRPCPKT_TYPE_DATA
+
+   /*
     * this part of the data doesn't seem to care about network byte
     * order, but do it anyways.
     */
@@ -268,7 +281,7 @@ MakePacket(const char *cmd,
    payload.fieldId = htonl(2);  // GUESTRPCPKT_FIELD_PAYLOAD
    payload.len = htonl(len);    // length of 'cmd'
 
-   plen = sizeof(hdr) + sizeof(payload) + len;
+   plen = sizeof(hdr) + sizeof(flags) + sizeof(payload) + len;
 
    tlen = plen + sizeof(int);
    packet = (char *) g_malloc(tlen);
@@ -281,6 +294,8 @@ MakePacket(const char *cmd,
 
    memcpy(p, &hdr, sizeof hdr);
    p += sizeof hdr;
+   memcpy(p, &flags, sizeof flags);
+   p += sizeof flags;
    memcpy(p, &payload, sizeof payload);
    p += sizeof payload;
    memcpy(p, cmd, len);
