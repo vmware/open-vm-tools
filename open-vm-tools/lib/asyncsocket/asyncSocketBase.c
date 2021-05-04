@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2016-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2016-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -434,7 +434,11 @@ AsyncSocket_GetID(AsyncSocket *asock)         // IN
  * AsyncSocket_SetErrorFn --
  *
  *      Sets the error handling function for the asock. The error function
- *      is invoked automatically on I/O errors.
+ *      is invoked automatically on I/O errors. This should be done
+ *      before an internal callback that may call the error handler can be
+ *      fired. This usually means doing so immediately after the asyncsocket
+ *      is created, either from the poll thread or with the asyncsocket lock
+ *      (passed in pollParams) held throughout both calls.
  *
  * Results:
  *      ASOCKERR_SUCCESS or ASOCKERR_INVAL.
