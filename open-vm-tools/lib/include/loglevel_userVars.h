@@ -68,6 +68,7 @@
    LOGLEVEL_VAR(dataSetsMgr), \
    LOGLEVEL_VAR(dataSetsStore),\
    LOGLEVEL_VAR(device), \
+   LOGLEVEL_VAR(deviceGroup), \
    LOGLEVEL_VAR(devicePowerOn), \
    LOGLEVEL_VAR(deviceSwap), \
    LOGLEVEL_VAR(deviceThread), \
