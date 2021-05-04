@@ -1,3 +1,128 @@
+commit 16e2be2e2c67d49ed01032348368157ad9867920
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon May 3 19:39:41 2021 -0700
+
+    VGAuth: Use GUESTRPCPKT_FIELD_FAST_CLOSE flag for log messages.
+    
+    VGauth is a single action service.  With the GUESTRPCPKT_FIELD_FAST_CLOSE
+    flag added, VMX closes the vsocket as soon as the RPC response is sent.
+    This cleans up the vsocket connections faster and minimizes the number
+    of connect() failures in the guest.
+
+commit 092a4cfd7b577b55abc71e636748dbbb25240171
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon May 3 19:39:40 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 8994d7c3a9c5164c5c88b5d882d32238a9964628
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon May 3 19:39:40 2021 -0700
+
+    Asyncsocket: Add comments about AsyncSocket_SetErrorFn usage.
+    
+    Document that AsyncSocket_SetErrorFn must be called before an internal
+    asyncsocket callback can fire and trigger a call to the error handler.
+    The error handler must be set immediately after the asyncsocket is created,
+    either from the poll thread, which requires no additional synchronization,
+    or while holding the asyncsocket lock, which is passed via pollParams.
+
+commit 4abc2d2b6cf754914e6c0f08d245a2852f04e368
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon May 3 19:39:40 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit a3db034717c4bd77ffcf4f6ac2682096d360e2e0
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon May 3 19:39:40 2021 -0700
+
+    Tools gdp plugin updates.
+
+commit 037825f8b73cdc04e6f19e5868224e3e911c1acb
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon May 3 19:39:40 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 62daa89681b48ad0fe33a92332a04a5c33c862e2
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon May 3 19:39:40 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 306366fa79a390b632c89b4eab29fdd01659b688
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon May 3 19:39:40 2021 -0700
+
+    Format the VMCI port in a guest RPC connect request using "unsigned int" type.
+
+commit 6c01c0ad957152d00cec28fb059a5781acb5a607
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon May 3 19:39:40 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit e0b4963730505f1bb746b1f93998b5e9a8a9af58
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon May 3 19:39:40 2021 -0700
+
+    Common header file change not directly applicable to open-vm-tools.
+
+commit 2693e19a54d93dac0a206bf2634f6e6b908fc8b9
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon May 3 19:39:40 2021 -0700
+
+    vmwgfxctrl: Refactor the 'for' loop index declarations for C89 compatibility.
+
+commit 86fa9e400b3866407be4acfebd52f9093483f8b1
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon May 3 19:39:40 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit d9dae1062ab61a15c54f02ccc8b74f69a1ead3f9
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon May 3 19:39:40 2021 -0700
+
+    Fusion does not need to fork on certain file opens anymore.
+    
+    An NFS issue in MacOS 10.4 was worked around by forking and
+    sending credentials to the child.  Removing the work-around
+    since it is no longer needed.
+
+commit b2078e875dfaa3257cb8a709a574b8a3cb8e8069
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon May 3 19:39:40 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit f59fe38baa986b5d5e1a8504ac70c5e3d4938cc6
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon May 3 19:39:40 2021 -0700
+
+    Log messages when the network interface limit is hit.
+    
+    Whenever the maximum NIC limit is reached, log a message to both the
+    VM guest.log file on the host and the vmsvc.log file inside the guest.
+    
+    Moved the logging api added for powerOps plugin to vmtoolslib so
+    that it is available for all plugins.  Modified the powerOps code
+    accordingly.
+
+commit 09b035ad85475df08cd9bae8cc2d7aea6d8f0ffe
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon May 3 19:39:40 2021 -0700
+
+    Common header file change not directly applicable to open-vm-tools.
+
+commit cf65239bd6f5dede5394d1090615e6d70b06cd48
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 19 12:41:43 2021 -0700
+
+    Update ChangeLog with the granular push of April 19, 2021
+     - plus ChangeLog update of April 5.
+
 commit b5ec5c1b60db89fe8fb4c223b204a8e50077851b
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Mon Apr 19 12:32:41 2021 -0700
