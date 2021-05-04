@@ -1910,6 +1910,7 @@ GdpJsonIsPublishResult(const char *json,        // IN
       } else if (GdpJsonIsTokenOfKey(json, &tokens[index],
                                      GDP_RESULT_DIAGNOSIS)) {
          index++;
+         ASSERT(diagnosis == NULL);
          tokenLen = tokens[index].end - tokens[index].start;
          diagnosis = g_strndup(json + tokens[index].start, tokenLen);
       } else if (GdpJsonIsTokenOfKey(json, &tokens[index],
