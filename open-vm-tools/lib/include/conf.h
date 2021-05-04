@@ -207,6 +207,53 @@
 
 /*
  ******************************************************************************
+ * BEGIN GlobalConf goodies.
+ */
+
+/**
+ * Defines the string used for the GlobalConf config file group.
+ */
+#define CONFGROUPNAME_GLOBALCONF "globalconf"
+
+/**
+ * Defines the configuration to enable/disable the GlobalConf module.
+ *
+ * @note Illegal values result in @c g_warning and fallback to the default
+ * value.
+ *
+ * @param boolean Set to TRUE to enable the module.
+ *                Set to FALSE to disable the module.
+ */
+#define CONFNAME_GLOBALCONF_ENABLED "enabled"
+
+/**
+ * Define a custom GlobalConf poll interval (in seconds).
+ *
+ * @note Illegal values result in @c g_warning and fallback to the default
+ * value.
+ *
+ * @param int   User-defined poll interval.
+ */
+#define CONFNAME_GLOBALCONF_POLL_INTERVAL "poll-interval"
+
+/**
+ * Define the global configuration resource in GuestStore.
+ *
+ * @note Illegal values result in @c g_warning and fallback to the default
+ * value.
+ *
+ * @param string   Resource identifier in GuestStore.
+ */
+#define CONFNAME_GLOBALCONF_RESOURCE "resource"
+
+/*
+ * END GlobalConf goodies.
+ ******************************************************************************
+ */
+
+
+/*
+ ******************************************************************************
  * BEGIN GuestInfo goodies.
  */
 
