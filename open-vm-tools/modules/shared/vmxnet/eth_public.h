@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2014,2017-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005-2014,2017-2020,2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -112,6 +112,7 @@ typedef enum {
    ETH_TYPE_NSH         = 0x894F,
    ETH_TYPE_802_1PQ     = 0x8100,  // not really a DIX type, but used as such
    ETH_TYPE_QINQ        = 0x88A8,
+   ETH_TYPE_PAE         = 0x888e,  /* EAPOL PAE/802.1x */
    ETH_TYPE_LLC         = 0xFFFF,  // 0xFFFF is IANA reserved, used to mark LLC
 } Eth_DixType;
 typedef enum {
@@ -127,6 +128,7 @@ typedef enum {
    ETH_TYPE_NSH_NBO     = 0x4F89,
    ETH_TYPE_802_1PQ_NBO = 0x0081,  // not really a DIX type, but used as such
    ETH_TYPE_QINQ_NBO    = 0xA888,
+   ETH_TYPE_PAE_NBO     = 0x8e88,   /* EAPOL PAE/802.1x */
    ETH_TYPE_802_3_PAUSE_NBO = 0x0888,  // pause frame based ethernet flow control
 } Eth_DixTypeNBO;
 
