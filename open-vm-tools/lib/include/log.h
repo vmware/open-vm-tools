@@ -332,23 +332,23 @@ Log_Trivia(const char *fmt,
 }
 
 #if !defined(VMM)
+typedef struct {
+   int32   legalLevelValue;
+   char   *legalName;
+   char   *levelIdStr;
+} LogLevelData;
+
+const LogLevelData *
+Log_MapByLevel(VmwLogLevel level);
+
+const LogLevelData *
+Log_MapByName(const char *name);
+
+typedef struct LogOutput LogOutput;
+
 /* Forward decl */
 struct Dictionary;
 struct CfgInterface;
-
-/*
- * Structure contains all the pointers to where value can be updated
- * Making VmxStats as a struct has its own advantage, such as updating
- * 'droppedChars' from the struct instead within LogFile.
- */
-typedef struct {
-   uint64 *numTimesDrop; // total time char dropped
-   uint64 *droppedChars; // Number of drop char
-   uint64 *bytesLogged;  // Total logged
-} VmxStatsInfo;
-
-
-typedef struct LogOutput LogOutput;
 
 struct CfgInterface *
 Log_CfgInterface(void);
@@ -437,6 +437,17 @@ Log_ReplaceOutput(LogOutput *fromOutput,
 int32
 Log_SetOutputLevel(LogOutput *output,
                    int32 level);
+
+/*
+ * Structure contains all the pointers to where value can be updated
+ * Making VmxStats as a struct has its own advantage, such as updating
+ * 'droppedChars' from the struct instead within LogFile.
+ */
+typedef struct {
+   uint64 *numTimesDrop; // total time char dropped
+   uint64 *droppedChars; // Number of drop char
+   uint64 *bytesLogged;  // Total logged
+} VmxStatsInfo;
 
 Bool
 Log_SetVmxStatsData(LogOutput *output,
