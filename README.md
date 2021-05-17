@@ -118,6 +118,7 @@ You can get involved today in several different ways:
   * Oracle Linux 7 and later 
   * Fedora 19 and later releases
   * openSUSE 11.x and later releases
+  * Rocky 8 and later releases
  
 ## Will external developers be allowed to become committers to the project?
 Yes. Initially, VMware engineers will be the only committers. As we roll out our development infrastructure, we will be looking to add external committers to the project as well.
