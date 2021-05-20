@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -275,7 +275,15 @@ TimeSyncReadHost(int64 *host, int64 *apparentError, Bool *apparentErrorValid,
                  "attempting BDOOR_CMD_GETTIME\n");
          bp.in.cx.halfs.low = BDOOR_CMD_GETTIME;
          Backdoor(&bp);
-         hostSecs = bp.out.ax.word;
+         /*
+          * This backdoor returns uint32 time value in bp.out.ax.word or
+          * MAX_UINT32 in case of error.
+          */
+         if (bp.out.ax.word == MAX_UINT32) {
+            hostSecs = -1;
+         } else {
+            hostSecs = bp.out.ax.word;
+         }
       }
    }
    hostUsecs = bp.out.bx.word;
