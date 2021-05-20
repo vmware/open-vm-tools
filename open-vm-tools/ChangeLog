@@ -1,3 +1,123 @@
+commit dde0b8e906ea1ef1f5e752e51e9887be002b07f0
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu May 20 11:38:38 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit b4a3a288b013202bfc01f99093c420b75051ffb4
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu May 20 11:38:38 2021 -0700
+
+    Change to common source file not immediately applicable to open-vm-tools.
+
+commit b2c8baeaa8ac365e1445f941cf1b80999ed89a9d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu May 20 11:38:38 2021 -0700
+
+    Remove unwanted "volatile" from static variable used with g_once_init_enter()
+    
+    The glib api documentation for g_once_init_enter() specifically states
+    that "volatile" should NOT be used with the address passed as the
+    argument.  Recent compilers (GCC-11 & clang 11) and recent versions of
+    glib-2 will result in a warning that the "volatile" qualifier has been
+    dropped if it has been used.
+    
+    Remove the unneeded and unwanted "volatile" qualifier from the definition
+    of "inited" in pollGtk.c.
+    
+    Fixes: https://github.com/vmware/open-vm-tools/issues/509
+
+commit 33ba0f01a3a15b245857e0f8ba2563b3177ced25
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu May 20 11:38:38 2021 -0700
+
+    Add backdoor support for host time of day in Arm
+    
+    The timeSync plugin makes backdoor calls to get host time of day.
+    Update the time of day backdoor calls to function with the Arm
+    backdoor implementation.  Also fix a bug where an error returned
+    by the GETTIME backdoor handler is incorrectly treated as a time value.
+
+commit 39b499fb2fcedc7b984510edf2ed0ea43fb0fe24
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu May 20 11:38:38 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 35dbe93510857ea9fa58bb93a959f26dea1bed7d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu May 20 11:38:38 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit c693dcf8212bcb01827cf131910e1d66132f50e1
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu May 20 11:38:38 2021 -0700
+
+    Common source file change not directly applicable to open-vm-tools.
+    
+    Introduce peek() to the asyncsocket API, only supported by TCP vtable.
+    
+    Peeks are similar to recv(), except that they do not drain the socket
+    after reading.  Subsequent peek/recv reads the same data back.  However
+    since recv does SSL_Read, a recv() following a peek() may not get the same
+    data as peek() after SSL is initialized.  This is not a problem when
+    peeks are done before SSL setup.
+    
+    Implementation notes:
+    
+    - peek is a one-shot operation. The poll callback is unregistered
+      once it fires (recv keeps the callback until recv is cancelled).
+    - non-partial peek is not supported, so the peek callback will be fired when
+      any amount of data less than or equal amount of the requested length is
+      available in the socket buffer.
+    - It is possible to invoke recv() or peek() recursively from within the peek()
+      callback.  A peek is disallowed from within the recv() callback.
+
+commit 95cbd990ec667a34b6b76c1d53182317c33e5330
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu May 20 11:38:38 2021 -0700
+
+    Fix an ASSERT in bora/lib/misc/timeutil.c.
+    
+    Fix a problem with TimeUtil_NtTimeToUnixTime on Arm that was encountered
+    when running tools tests on Apple silicon.  The problem was the routine
+    assumed that a variable was 32-bits if VM_X86_64 was not defined.  This
+    may have been true in the past, but it is no longer true now that the code
+    is also built for 64-bit Arm.
+
+commit abfd599dea18f0f6a5acc35d539cec0322d194df
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu May 20 11:38:38 2021 -0700
+
+    Additional changes for the network interface limit logging.
+    
+    1) Use the VM_SAFE_STR macro for string null check.
+    2) Since free() is NULL safe, remove the "if" check before the free().
+    3) Fix an alignment issue.
+
+commit 78f19996702a14066d9f5424c522167780151f0e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu May 20 11:38:37 2021 -0700
+
+    Update terms used in code that is distributed publicly in open-vm-tools.
+    
+    Use alternate terms wherever possible.  This does not address
+    function names, structure elements, or macros.
+
+commit d55475adf7617516fd8ec2bdc4403c1b7fdcf83f
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu May 20 11:38:37 2021 -0700
+
+    Common header file change not directly applicable to open-vm-tools.
+
+commit bbcdb619382645179f2a8091818f55314c44291d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon May 3 20:01:43 2021 -0700
+
+    Update ChangeLog with the granular push of May 3, 2021
+      - plus ChangeLog update of April 19.
+
 commit 16e2be2e2c67d49ed01032348368157ad9867920
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Mon May 3 19:39:41 2021 -0700
