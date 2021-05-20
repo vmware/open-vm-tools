@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -893,8 +893,8 @@ int
 TimeUtil_NtTimeToUnixTime(struct timespec *unixTime,  // OUT: Time in Unix format
                           VmTimeType ntTime)          // IN: Time in Windows NT format
 {
-#ifndef VM_X86_64
    ASSERT(unixTime);
+#ifndef VM_64BIT
    /* We assume that time_t is 32bit */
    ASSERT(sizeof (unixTime->tv_sec) == 4);
 
@@ -905,9 +905,7 @@ TimeUtil_NtTimeToUnixTime(struct timespec *unixTime,  // OUT: Time in Unix forma
       unixTime->tv_nsec = 0;
       return 1;
    }
-#else
-   ASSERT(unixTime);
-#endif // VM_X86_64
+#endif // ifndef VM_64BIT
 
    if (ntTime < UNIX_EPOCH) {
       unixTime->tv_sec = 0;
