@@ -48,12 +48,19 @@
 #if defined(_WIN32) || \
    (defined(__linux__) && !defined(USERWORLD))
 #  include "vmware/tools/guestStore.h"
+#  include "globalConfig.h"
+#endif
+
+/*
+ * guestStoreClient library is needed for both Gueststore based tools upgrade
+ * and also for GlobalConfig module.
+ */
+#if defined(_WIN32) || defined(GLOBALCONFIG_SUPPORTED)
+#  include "guestStoreClient.h"
 #endif
 
 #if defined(_WIN32)
 #  include "codeset.h"
-#  include "guestStoreClient.h"
-#  include "globalConfig.h"
 #  include "toolsNotify.h"
 #  include "windowsu.h"
 #else
@@ -129,10 +136,17 @@ ToolsCoreCleanup(ToolsServiceState *state)
    }
 #endif
 
-#if defined(_WIN32)
+/*
+ * guestStoreClient library is needed for both Gueststore based tools upgrade
+ * and also for GlobalConfig module.
+ */
+#if defined(_WIN32) || defined(GLOBALCONFIG_SUPPORTED)
    if (state->mainService && GuestStoreClient_DeInit()) {
       g_info("%s: De-initialized GuestStore client.\n", __FUNCTION__);
    }
+#endif
+
+#if defined(_WIN32)
    if (state->mainService && ToolsNotify_End()) {
       g_info("%s: End Tools notifications.\n", __FUNCTION__);
    }
@@ -436,7 +450,11 @@ ToolsCoreRunLoop(ToolsServiceState *state)
       ToolsCoreReportVersionData(state);
    }
 
-#if defined(_WIN32)
+/*
+ * guestStoreClient library is needed for both Gueststore based tools upgrade
+ * and also for GlobalConfig module.
+ */
+#if defined(_WIN32) || defined(GLOBALCONFIG_SUPPORTED)
    if (state->mainService && GuestStoreClient_Init()) {
       g_info("%s: Initialized GuestStore client.\n", __FUNCTION__);
    }

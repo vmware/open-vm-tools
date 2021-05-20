@@ -33,11 +33,14 @@
 #include <string.h>
 #ifdef _WIN32
 #   include "getoptwin32.h"
-#   include "globalConfig.h"
 #else
 #   include <getopt.h>
 #   include <sysexits.h>
 #   include <unistd.h>
+#endif
+
+#if defined(_WIN32) || (defined(__linux__) && !defined(USERWORLD))
+#include "globalConfig.h"
 #endif
 
 #include "vmGuestLib.h"
@@ -157,11 +160,9 @@ DECLARE_COMMAND(Upgrade);
 DECLARE_COMMAND(GuestStore);
 #endif
 
-#if defined(_WIN32)
-DECLARE_COMMAND(GlobalConf)
-#endif
-
 #if defined(GLOBALCONFIG_SUPPORTED)
+
+DECLARE_COMMAND(GlobalConf)
 
 #define TOOLBOXCMD_LOAD_GLOBALCONFIG(conf)                        \
    {                                                              \

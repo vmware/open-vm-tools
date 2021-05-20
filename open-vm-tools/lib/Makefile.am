@@ -39,6 +39,7 @@ SUBDIRS += glibUtils
 SUBDIRS += guestApp
 if LINUX
    SUBDIRS += guestStoreClientHelper
+   SUBDIRS += globalConfig
 endif
 SUBDIRS += hgfs
 SUBDIRS += hgfsBd

@@ -32,7 +32,7 @@
 #include <glib-object.h>
 #include <gmodule.h>
 #include <time.h>
-#if defined(_WIN32)
+#if defined(_WIN32) || (defined(__linux__) && !defined(USERWORLD))
 /* Need this header for GLOBALCONFIG_SUPPORTED definition.*/
 #include "globalConfig.h"
 #endif

@@ -1615,6 +1615,7 @@ AC_CONFIG_FILES([                      \
    lib/file/Makefile                   \
    lib/foundryMsg/Makefile             \
    lib/glibUtils/Makefile              \
+   lib/globalConfig/Makefile           \
    lib/guestApp/Makefile               \
    lib/guestRpc/Makefile               \
    lib/guestStoreClientHelper/Makefile \
