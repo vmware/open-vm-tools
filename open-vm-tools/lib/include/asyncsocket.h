@@ -657,6 +657,11 @@ int AsyncSocket_Recv(AsyncSocket *asock, void *buf, int len, void *cb, void *cbD
 int AsyncSocket_RecvPartial(AsyncSocket *asock, void *buf, int len,
                             void *cb, void *cbData);
 
+int AsyncSocket_Peek(AsyncSocket *asock, void *buf, int len, void *cb, void *cbData);
+
+int AsyncSocket_PeekPartial(AsyncSocket *asock, void *buf, int len,
+                            void *cb, void *cbData);
+
 /*
  * Specify the amount of data to receive and the receive function to call.
  */

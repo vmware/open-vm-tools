@@ -548,7 +548,7 @@ AsyncSocketCheckAndDispatchRecv(AsyncSocket *s,  // IN
        * We do this dance in case the handler frees the buffer (so
        * that there's no possible window where there are dangling
        * references here.  Obviously if the handler frees the buffer,
-       * but them fails to register a new one, we'll put back the
+       * but then fails to register a new one, we'll put back the
        * dangling reference in the automatic reset case below, but
        * there's currently a limit to how far we go to shield clients
        * who use our API in a broken way.
@@ -650,7 +650,7 @@ AsyncSocketSetRecvBuf(AsyncSocket *asock,  // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * WebSocketCancelRecv --
+ * AsyncSocketCancelRecv --
  *
  *    Call this function if you know what you are doing. This should
  *    be called if you want to synchronously receive the outstanding
