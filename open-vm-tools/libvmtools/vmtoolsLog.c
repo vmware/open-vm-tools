@@ -2764,11 +2764,9 @@ VMTools_VmxLog(RpcChannel *chan,
 
    if (!RpcChannel_Send(chan, msg, len + 1, &reply, &replyLen)) {
       g_warning("%s: Error sending RPC message: %s. reply: %s\n",
-                __FUNCTION__, msg, reply ? reply : "NULL");
+                __FUNCTION__, msg, VM_SAFE_STR(reply));
    }
-   if (reply) {
-      free(reply);
-   }
+   free(reply);
 
    g_message("%s\n", msg + VMX_LOG_CMD_LEN);
 }
