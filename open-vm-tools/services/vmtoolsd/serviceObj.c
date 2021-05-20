@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2019, 2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -61,8 +61,8 @@ ToolsCoreSetOptionAccumulator(GSignalInvocationHint *ihint,
 
 
 /**
- * Accumulator function for the "capabilities" signal. Just puts the contents
- * of all returned GArray instances into a "master" instance.
+ * Accumulator function for the "capabilities" signal. Just aggregates the
+ * contents of all returned GArray instances into a "higher level" instance.
  *
  * @param[in]  ihint       Unused.
  * @param[out] retval      Return value of the signal.

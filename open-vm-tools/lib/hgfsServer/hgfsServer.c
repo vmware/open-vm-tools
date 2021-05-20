@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -3605,7 +3605,7 @@ HgfsServerTransportAddSessionToList(HgfsTransportSessionInfo *transportSession, 
    MXUser_AcquireExclLock(transportSession->sessionArrayLock);
 
    if (transportSession->numSessions == MAX_SESSION_COUNT) {
-      goto abort;
+      goto quit;
    }
 
    DblLnkLst_LinkLast(&transportSession->sessionArray, &session->links);
@@ -3613,7 +3613,7 @@ HgfsServerTransportAddSessionToList(HgfsTransportSessionInfo *transportSession, 
    HgfsServerSessionGet(session);
    status = HGFS_ERROR_SUCCESS;
 
-abort:
+quit:
    MXUser_ReleaseExclLock(transportSession->sessionArrayLock);
    return status;
 }
@@ -9349,14 +9349,14 @@ HgfsServerCreateSession(HgfsInputParam *input)  // IN: Input params
                                      info,
                                      &session)) {
          status = HGFS_ERROR_NOT_ENOUGH_MEMORY;
-         goto abort;
+         goto quit;
       } else {
          status = HgfsServerTransportAddSessionToList(input->transportSession,
                                                       session);
          if (HGFS_ERROR_SUCCESS != status) {
             LOG(4, "%s: Could not add session to the list.\n", __FUNCTION__);
             HgfsServerSessionPut(session);
-            goto abort;
+            goto quit;
          }
       }
 
@@ -9370,7 +9370,7 @@ HgfsServerCreateSession(HgfsInputParam *input)  // IN: Input params
       status = HGFS_ERROR_PROTOCOL;
    }
 
-abort:
+quit:
    HgfsServerCompleteRequest(status, replyPayloadSize, input);
 }
 

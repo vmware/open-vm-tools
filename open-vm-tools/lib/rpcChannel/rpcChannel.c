@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016,2018-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016, 2018-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -815,7 +815,7 @@ RpcChannel_SetRetValsF(RpcInData *data,
 
 /**
  * Force to create backdoor channels only.
- * This provides a kill-switch to disable vsocket channels if needed.
+ * This provides a control-switch to disable vsocket channels if needed.
  * This needs to be called before RpcChannel_New to take effect.
  */
 

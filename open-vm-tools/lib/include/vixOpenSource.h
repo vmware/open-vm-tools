@@ -366,7 +366,7 @@ typedef struct VixPropertyListImpl
  */
 typedef enum VixPropertyListBadEncodingAction {
    /*
-    * Abort the deserialization and return an error. This is the recommended
+    * Cancel the deserialization and return an error. This is the recommended
     * value since it is the strictest; you don't have to think about how
     * any clients or library code will handle escaped values.
     * This should always be used when parsing property lists passing arguments

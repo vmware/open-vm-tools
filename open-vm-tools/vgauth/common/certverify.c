@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016,2018-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2016, 2018-2019, 2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -140,7 +140,7 @@ VerifyCallback(int ok,
     * XXX
     *
     * This is a legacy function that has some issues, but setting up a bio
-    * just for a bit of debug seems overkill.
+    * just for a bit of debug seems excessive.
     */
    if (NULL != curCert) {
       X509_NAME_oneline(X509_get_subject_name(curCert), nameBuf, sizeof(nameBuf) - 1);
@@ -183,7 +183,7 @@ VerifyCallback(int ok,
  *
  * Assumes the data is in the openssl form, but allows for some fudge
  * factor in the way the '---' are handled in case of hand-editing.
- * This may be overkill, but since we're currently thinking people can
+ * This may be excessive, but since we're currently thinking people can
  * hand-edit things, and its not that much harder, lets try it.
  * Of course, if we get a test case that tries to do this, I'm sure
  * they can beat it if they try hard enough.

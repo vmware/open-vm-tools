@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2017,2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2017, 2019, 2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -324,9 +324,9 @@ VGAuthValidateUsernamePasswordImpl(VGAuthContext *ctx,
 
 #else /* !USE_PAM */
 
-   setpwent(); //XXX can kill?
+   setpwent(); // XXX Is this needed?
    pwd = getpwnam(userName);
-   endpwent(); //XXX can kill?
+   endpwent(); // XXX Is this needed?
 
    if (!pwd) {
       // No such user

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -273,7 +273,7 @@ ToolsCore_ParseCommandLine(ToolsServiceState *state,
    gboolean version = FALSE;
 #if defined(G_PLATFORM_WIN32)
    gboolean dumpState = FALSE;
-   gboolean kill = FALSE;
+   gboolean forceQuit = FALSE;
 #endif
    gboolean unused;
    GOptionEntry clOptions[] = {
@@ -296,8 +296,8 @@ ToolsCore_ParseCommandLine(ToolsServiceState *state,
       { "dump-state", 's', 0, G_OPTION_ARG_NONE, &dumpState,
          SU_(cmdline.state, "Dumps the internal state of a running service instance to the logs."),
          NULL },
-      { "kill", 'k', 0, G_OPTION_ARG_NONE, &kill,
-         SU_(cmdline.kill, "Stops a running instance of a tools service."),
+      { "kill", 'k', 0, G_OPTION_ARG_NONE, &forceQuit,
+         SU_(cmdline.forceQuit, "Stops a running instance of a tools service."),
          NULL },
       { "install", 'i', G_OPTION_FLAG_NO_ARG, G_OPTION_ARG_CALLBACK, ToolsCoreIgnoreArg,
          SU_(cmdline.install, "Installs the service with the Service Control Manager."),
@@ -394,7 +394,7 @@ ToolsCore_ParseCommandLine(ToolsServiceState *state,
    g_info("CmdLine: \"%s\"\n", cmdStr);
 
 #if defined(G_PLATFORM_WIN32)
-   if (kill) {
+   if (forceQuit) {
       exit(ToolsCoreSignalEvent(state->name, QUIT_EVENT_NAME_FMT) ? 0 : 1);
    }
    if (dumpState) {

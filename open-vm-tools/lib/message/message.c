@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1999-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1999-2017, 2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -47,7 +47,7 @@
  *       not true
  *
  *    Operations that are not atomic (in terms of number of backdoor calls)
- *    can be aborted by vmware if a checkpoint/restore occurs in the middle of
+ *    can be canceled by vmware if a checkpoint/restore occurs in the middle of
  *    such an operation. This layer takes care of retrying those operations.
  */
 
@@ -84,7 +84,7 @@ extern "C" {
  *    Open a communication channel using an allocated, but unitialized
  *    Message_Channel structure.  A receive buffer may be optionally
  *    specified with a given size.  If a message larger than this
- *    buffer is received the communication will be aborted.  If no
+ *    buffer is received then the communication will end.  If no
  *    receiver buffer is specified, one will be dynamically allocated
  *    to size.  When finished with the channel, Message_CloseAllocated
  *    should be called.

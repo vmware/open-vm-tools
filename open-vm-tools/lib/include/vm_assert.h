@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -219,9 +219,9 @@ void WarningThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
 
    /*
     * NOT IMPLEMENTED is useful to indicate that a codepath has not yet
-    * been implemented, and should cause execution to abort if it is ever
-    * reached. Some instances use NOT_IMPLEMENTED for things that will never
-    * be implemented (as implied by ASSERT_NOT_IMPLEMENTED).
+    * been implemented, and should cause execution to forcibly quit if it is
+    * ever reached. Some instances use NOT_IMPLEMENTED for things that will
+    * never be implemented (as implied by ASSERT_NOT_IMPLEMENTED).
     *
     * PR1151214 asks for ASSERT_NOT_IMPLEMENTED to be replaced with VERIFY.
     * ASSERT_NOT_IMPLEMENTED is a conditional NOT_IMPLEMENTED. Despite the

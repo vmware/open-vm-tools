@@ -3931,7 +3931,7 @@ AsyncTCPSocketAcceptInternal(AsyncTCPSocket *s)         // IN
 #endif
 #ifndef _WIN32
          /*
-          * This sucks. Linux accept() can return ECONNABORTED for connections
+          * Linux accept() can return ECONNABORTED for connections
           * that closed before we got to actually call accept(), but Windows
           * just ignores this case. So we have to special case for Linux here.
           * We return ASOCKERR_GENERIC here because we still want to continue
@@ -3939,7 +3939,7 @@ AsyncTCPSocketAcceptInternal(AsyncTCPSocket *s)         // IN
           */
 
       } else if (sysErr == ECONNABORTED) {
-         TCPSOCKLG0(s, "accept: new connection was aborted\n");
+         TCPSOCKLG0(s, "accept: new connection was canceled.\n");
 
          return ASOCKERR_GENERIC;
 #endif

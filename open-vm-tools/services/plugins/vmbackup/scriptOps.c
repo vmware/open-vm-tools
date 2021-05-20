@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2019, 2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -371,8 +371,8 @@ VmBackupScriptOpRelease(VmBackupOp *_op)  // IN
  *
  *  VmBackupScriptOpCancel --
  *
- *    Cancels the current operation. Kills any currently running script and
- *    flags the operation as canceled.
+ *    Cancels the current operation.  Forces any currently running script
+ *    to quit and flags the operation as canceled.
  *
  * Result
  *    None.

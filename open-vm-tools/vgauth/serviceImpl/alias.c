@@ -3154,7 +3154,7 @@ ServiceIDVerifyStoreContents(void)
                         fullFileName, badFileName);
             /*
              * XXX the best way to handle this would be to add it to
-             * a blacklist of bad files and keep going.  but that's
+             * a list of prohibited bad files and keep going.  but that's
              * a lot of risky work that's very hard to test, so punt for now.
              */
             g_free(badFileName);

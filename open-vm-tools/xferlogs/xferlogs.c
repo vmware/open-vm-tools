@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -221,7 +221,7 @@ extractFile(char *filename) //IN: vmx log filename e.g. vmware.log
              * Ignore the filename in the log, for obvious security reasons
              * and create a new filename consiting of time and enumerator.
              * Try to maintain the same extension reported by the guest,
-             * though, if it's in the white list.
+             * though, if it's in the "allowed" list.
              */
             if (StrUtil_EndsWith(logInpFilename, ".zip")) {
                ext = "zip";

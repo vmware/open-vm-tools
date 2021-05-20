@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016,2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2016, 2019, 2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -377,7 +377,7 @@ VGAuth_CommReadData(VGAuthContext *ctx,
       if (NULL == rBuf) {     // EOF
          *len = 0;
          err = VGAUTH_E_COMM;
-         goto abort;
+         goto quit;
       }
       *len = 1;
       *response = g_strdup(buf);
@@ -386,7 +386,7 @@ VGAuth_CommReadData(VGAuthContext *ctx,
       if (ctx->comm.bufLoc == ctx->comm.bufLen) {
          *len = 0;
          err = VGAUTH_E_COMM;
-         goto abort;
+         goto quit;
       }
       *response = g_strdup(ctx->comm.testBuffer);
       *len = ctx->comm.bufLen;
@@ -397,7 +397,7 @@ VGAuth_CommReadData(VGAuthContext *ctx,
       err = VGAuth_NetworkReadBytes(ctx, len, response);
    }
 #ifdef UNITTEST
-abort:
+quit:
 #endif
    return err;
 }

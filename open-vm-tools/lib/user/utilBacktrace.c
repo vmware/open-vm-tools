@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -141,7 +141,7 @@ UtilLogWrapper(void *ignored,    // IN:
  *
  * Results:
  *      _URC_NO_REASON : Please continue with backtrace.
- *      _URC_END_OF_STACK : Abort backtrace.
+ *      _URC_END_OF_STACK : Force backtrace to quit.
  *
  * Side effects:
  *      None.

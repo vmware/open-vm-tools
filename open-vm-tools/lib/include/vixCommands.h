@@ -1175,7 +1175,7 @@ enum {
 
 /*
  * **********************************************************
- * Kill a guest process.
+ * Force a guest process to quit.
  */
 
 #pragma pack(push, 1)

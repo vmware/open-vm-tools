@@ -240,20 +240,20 @@ Process_RunToComplete(ProcessHandle h, unsigned long timeoutSec)
          break;
       } else {
          if (timeoutLoopSleeps == elapsedTimeLoopSleeps) {
-            p->log(log_error, "Timed out waiting for process exit, killing...");
+            p->log(log_error, "Timed out waiting for process exit, canceling...");
             kill(p->pid, SIGKILL);
          }
 
          // Empty the pipes.
          ProcessRead(p, &res_stdout, TRUE, FALSE);
          if (res_stdout == READSTATUS_ERROR) {
-            p->log(log_error, "Error while reading process output, killing...");
+            p->log(log_error, "Error while reading process output, canceling...");
             kill(p->pid, SIGKILL);
          }
 
          ProcessRead(p, &res_stderr, FALSE, FALSE);
          if (res_stderr == READSTATUS_ERROR) {
-            p->log(log_error, "Error while reading process output, killing...");
+            p->log(log_error, "Error while reading process output, canceling...");
             kill(p->pid, SIGKILL);
          }
 
@@ -267,12 +267,12 @@ Process_RunToComplete(ProcessHandle h, unsigned long timeoutSec)
    // Otherwise just empty the pipe to avoid being blocked by read operation.
    ProcessRead(p, &res_stdout, TRUE, !processExitedAbnormally);
    if (res_stdout == READSTATUS_ERROR) {
-      p->log(log_error, "Error while reading process stdout, killing...");
+      p->log(log_error, "Error while reading process stdout, canceling...");
    }
 
    ProcessRead(p, &res_stderr, FALSE, !processExitedAbnormally);
    if (res_stderr == READSTATUS_ERROR) {
-      p->log(log_error, "Error while reading process stderr, killing...");
+      p->log(log_error, "Error while reading process stderr, canceling...");
    }
 
    close(stdout[0]);

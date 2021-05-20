@@ -211,7 +211,7 @@ static AlignedPool alignedPool;
       extern ssize_t pwritev64(int fd, const struct iovec *iov, int iovcnt,
                           __off64_t offset) __attribute__ ((weak));
    #else
-      #error "Large file support unavailable. Aborting."
+      #error "Large file support is unavailable."
    #endif
 #endif /* defined(__linux__) */
 

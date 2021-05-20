@@ -262,7 +262,7 @@ VMToolsLogLevelString(GLogLevelFlags level) {
 
 
 /**
- * Aborts the program, optionally creating a core dump.
+ * Forces the program to quit, optionally creating a core dump.
  */
 
 static INLINE NORETURN void
@@ -1688,7 +1688,7 @@ VMToolsLogWrapper(GLogLevelFlags level,
          free(msg);
       }
    } else {
-      /* Try to avoid malloc() since we're aborting. */
+      /* Try to avoid malloc() since we're forcibly quitting. */
       gchar msg[256];
       Str_Vsnprintf(msg, sizeof msg, fmt, args);
       VMToolsLogInt(gLogDomain, level, msg, gDefaultData);
@@ -2558,7 +2558,7 @@ VMTools_SetupVmxGuestLog(gboolean refreshRpcChannel,   // IN
     */
    g_rec_mutex_lock(&gVmxGuestLogMutex);
 
-   /* Load config for the kill switch in tools.conf */
+   /* Load config for the disable-switch in tools.conf */
    if (NULL == cfg) {
       if (!VMTools_LoadConfig(NULL, G_KEY_FILE_NONE, &cfg, NULL)) {
          g_warning("Failed to load the tools config file.\n");

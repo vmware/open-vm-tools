@@ -1,5 +1,5 @@
 ##########################################################
-# Copyright (C) 2010,2020 VMware, Inc. All rights reserved.
+# Copyright (C) 2010, 2020-2021 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -38,7 +38,7 @@ cmdline.install = "Installa il servizio in Gestione controllo servizi."
 
 cmdline.install.args = "argomenti"
 
-cmdline.kill = "Interrompe un'istanza in esecuzione di un servizio di Tools."
+cmdline.forceQuit = "Interrompe un'istanza in esecuzione di un servizio di Tools."
 
 cmdline.log = "Ignorato, mantenuto per la compatibilità con versioni precedenti."
 

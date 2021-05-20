@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017, 2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -259,7 +259,7 @@ NetUtil_GetPrimaryNic(void)
 
    ipstr = NetUtil_GetPrimaryIP();
    if (NULL == ipstr) {
-      goto abort;
+      goto quit;
    }
 
    nicEntry = Util_SafeCalloc(1, sizeof *nicEntry);
@@ -271,7 +271,7 @@ NetUtil_GetPrimaryNic(void)
    Str_Strcpy(ip->ipAddress, ipstr, sizeof ip->ipAddress);
    free(ipstr);
 
-abort:
+quit:
    return nicEntry;
 }
 

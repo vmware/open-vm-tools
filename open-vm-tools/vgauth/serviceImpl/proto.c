@@ -1117,11 +1117,11 @@ ServiceProtoReadAndProcessRequest(ServiceConnection *conn)
       if (conn->eof) { // EOF
          err = VGAUTH_E_COMM;
          Debug("%s: read EOF on Connection %d\n", __FUNCTION__, conn->connId);
-         goto abort;
+         goto quit;
       }
 
       if (err != VGAUTH_E_OK) {
-         goto abort;
+         goto quit;
       }
 #if VGAUTH_PROTO_TRACE
       if (req->rawData) {
@@ -1140,7 +1140,7 @@ ServiceProtoReadAndProcessRequest(ServiceConnection *conn)
          Warning("%s: g_markup_parse_context_parse() failed: %s\n",
                  __FUNCTION__, gErr->message);
          g_error_free(gErr);
-         goto abort;
+         goto quit;
       }
    }
 
@@ -1165,7 +1165,7 @@ ServiceProtoReadAndProcessRequest(ServiceConnection *conn)
       ServiceProtoCleanupParseState(conn);
    }
 
-abort:
+quit:
    /*
     * If something went wrong, clean up.  Any error means bad data coming
     * from the client, and we don't even try to recover -- just slam

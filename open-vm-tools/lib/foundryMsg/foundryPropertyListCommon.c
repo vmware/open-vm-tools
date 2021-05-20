@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2016, 2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -127,7 +127,7 @@ VixPropertyList_RemoveAllWithoutHandles(VixPropertyListImpl *propList)   // IN
          }
          free(property->value.blobValue.blobContents);
       }
-      
+    
       free(property);
    }
 } // VixPropertyList_RemoveAllWithoutHandles
@@ -174,7 +174,7 @@ VixPropertyList_MarkAllSensitive(VixPropertyListImpl *propList)  // IN/OUT:
  *
  *       This function should be modified to deal with the case of 
  *       properties of type VIX_PROPERTYTYPE_HANDLE.
- *       
+ *     
  *
  * Results:
  *      VixError.
@@ -208,7 +208,7 @@ VixPropertyList_Serialize(VixPropertyListImpl *propList,  // IN:
        (NULL == resultSize) ||
        (NULL == resultBuffer)) {
       err = VIX_E_INVALID_ARG;
-      goto abort;
+      goto quit;
    }
  
    propertyIDSize = sizeof(property->propertyID);
@@ -232,7 +232,7 @@ VixPropertyList_Serialize(VixPropertyListImpl *propList,  // IN:
       }
 
       bufferSize += headerSize;
-      
+    
       switch (property->type) {
          ////////////////////////////////////////////////////////
          case VIX_PROPERTYTYPE_INTEGER:
@@ -264,7 +264,7 @@ VixPropertyList_Serialize(VixPropertyListImpl *propList,  // IN:
                bufferSize += valueLength;
             } else {
                err = VIX_E_INVALID_ARG;
-               goto abort;
+               goto quit;
             }
             break;
 
@@ -292,12 +292,12 @@ VixPropertyList_Serialize(VixPropertyListImpl *propList,  // IN:
             err = VIX_E_INVALID_ARG;
             Log("%s:%d, pointer properties cannot be serialized.\n",
                 __FUNCTION__, __LINE__);
-            goto abort;
+            goto quit;
 
          ////////////////////////////////////////////////////////
          default:
             err = VIX_E_UNRECOGNIZED_PROPERTY;
-            goto abort;     
+            goto quit;   
       }
 
       property = property->next;
@@ -306,7 +306,7 @@ VixPropertyList_Serialize(VixPropertyListImpl *propList,  // IN:
    *resultBuffer = (char*) VixMsg_MallocClientData(bufferSize);
    if (NULL == *resultBuffer) {
       err = VIX_E_OUT_OF_MEMORY;
-      goto abort;
+      goto quit;
    }
    serializeBuffer = *resultBuffer;
 
@@ -318,7 +318,7 @@ VixPropertyList_Serialize(VixPropertyListImpl *propList,  // IN:
     * PropertyID | PropertyType | DataLength | Data
     */
 
-   while (NULL != property) {   
+   while (NULL != property) { 
       /*
        * If only the dirty properties need to be serialized
        * then skip the unchanged ones.
@@ -377,7 +377,7 @@ VixPropertyList_Serialize(VixPropertyListImpl *propList,  // IN:
                       valueLength);
             } else {
                err = VIX_E_INVALID_ARG;
-               goto abort;
+               goto quit;
             }
             break;
 
@@ -388,17 +388,17 @@ VixPropertyList_Serialize(VixPropertyListImpl *propList,  // IN:
          ////////////////////////////////////////////////////////
          default:
              err = VIX_E_UNRECOGNIZED_PROPERTY;
-             goto abort;     
+             goto quit;   
       }
-      
+    
       pos += valueLength;
       property = property->next;
    }
 
    ASSERT(pos == bufferSize);
    *resultSize = bufferSize;
-   
-abort:
+ 
+quit:
    if (VIX_OK != err) {
       free(serializeBuffer);
       if (NULL != resultBuffer) {
@@ -522,7 +522,7 @@ VixPropertyListDeserializeImpl(VixPropertyListImpl *propList,            // IN
    if ((NULL == propList)
        || (NULL == buffer)) {
       err = VIX_E_INVALID_ARG;
-      goto abort;
+      goto quit;
    }
 
    propertyIDSize = sizeof(*propertyIDPtr);
@@ -548,7 +548,7 @@ VixPropertyListDeserializeImpl(VixPropertyListImpl *propList,            // IN
        */
       if ((*lengthPtr < 1) || ((*lengthPtr + pos) > bufferSize)) {
          err = VIX_E_INVALID_SERIALIZED_DATA;
-         goto abort;
+         goto quit;
       }
 
       /*
@@ -569,7 +569,7 @@ VixPropertyListDeserializeImpl(VixPropertyListImpl *propList,            // IN
       }
 
       if (VIX_OK != err) {
-         goto abort;
+         goto quit;
       }
 
       /*
@@ -580,7 +580,7 @@ VixPropertyListDeserializeImpl(VixPropertyListImpl *propList,            // IN
          case VIX_PROPERTYTYPE_INTEGER:
             if (PROPERTY_SIZE_INT32 != *lengthPtr) {
                err = VIX_E_INVALID_SERIALIZED_DATA;
-               goto abort;
+               goto quit;
             }
             intPtr = (int*) &(buffer[pos]);
             property->value.intValue = *intPtr;
@@ -595,7 +595,7 @@ VixPropertyListDeserializeImpl(VixPropertyListImpl *propList,            // IN
              */
             if (strPtr[*lengthPtr - 1] != '\0') {
                err = VIX_E_INVALID_SERIALIZED_DATA;
-               goto abort;
+               goto quit;
             }
 
             needToEscape = FALSE;
@@ -611,7 +611,7 @@ VixPropertyListDeserializeImpl(VixPropertyListImpl *propList,            // IN
                switch (action) {
                case VIX_PROPERTY_LIST_BAD_ENCODING_ERROR:
                   err = VIX_E_INVALID_UTF8_STRING;
-                  goto abort;
+                  goto quit;
                case VIX_PROPERTY_LIST_BAD_ENCODING_ESCAPE:
                   needToEscape = TRUE;
                }
@@ -625,14 +625,14 @@ VixPropertyListDeserializeImpl(VixPropertyListImpl *propList,            // IN
                                        STRING_ENCODING_UTF8);
                if (NULL == property->value.strValue) {
                   err = VIX_E_OUT_OF_MEMORY;
-                  goto abort;
+                  goto quit;
                }
             } else {
                property->value.strValue =
                   VixMsg_StrdupClientData(strPtr, &allocateFailed);
                if (allocateFailed) {
                   err = VIX_E_OUT_OF_MEMORY;
-                  goto abort;
+                  goto quit;
                }
             }
             break;
@@ -641,7 +641,7 @@ VixPropertyListDeserializeImpl(VixPropertyListImpl *propList,            // IN
          case VIX_PROPERTYTYPE_BOOL:
             if (PROPERTY_SIZE_BOOL != *lengthPtr) {
                err = VIX_E_INVALID_SERIALIZED_DATA;
-               goto abort;
+               goto quit;
             }
             boolPtr = (Bool*) &(buffer[pos]);
             property->value.boolValue = *boolPtr;
@@ -651,7 +651,7 @@ VixPropertyListDeserializeImpl(VixPropertyListImpl *propList,            // IN
          case VIX_PROPERTYTYPE_INT64:
             if (PROPERTY_SIZE_INT64 != *lengthPtr) {
                err = VIX_E_INVALID_SERIALIZED_DATA;
-               goto abort;
+               goto quit;
             }
             int64Ptr = (int64*) &(buffer[pos]);
             property->value.int64Value = *int64Ptr;
@@ -671,7 +671,7 @@ VixPropertyListDeserializeImpl(VixPropertyListImpl *propList,            // IN
                VixMsg_MallocClientData(*lengthPtr);
             if (NULL == property->value.blobValue.blobContents) {
                err = VIX_E_OUT_OF_MEMORY;
-               goto abort;
+               goto quit;
             }
             memcpy(property->value.blobValue.blobContents, blobPtr, *lengthPtr);
             break;
@@ -685,18 +685,18 @@ VixPropertyListDeserializeImpl(VixPropertyListImpl *propList,            // IN
             err = VIX_E_INVALID_SERIALIZED_DATA;
             Log("%s:%d, pointer properties cannot be serialized.\n",
                 __FUNCTION__, __LINE__);
-            goto abort;
+            goto quit;
 
          ////////////////////////////////////////////////////////
          default:
             err = VIX_E_UNRECOGNIZED_PROPERTY;
-            goto abort;
+            goto quit;
       }
 
       pos += *lengthPtr;
    }
 
-abort:  
+quit:
    if ((VIX_OK != err) && (NULL != propList)) {
       VixPropertyList_RemoveAllWithoutHandles(propList);
    }
@@ -738,7 +738,7 @@ VixPropertyList_FindProperty(VixPropertyListImpl *propList,    // IN
 
    if (NULL == resultEntry) {
       err = VIX_E_INVALID_ARG;
-      goto abort;
+      goto quit;
    }
    *resultEntry = NULL;
 
@@ -754,7 +754,7 @@ VixPropertyList_FindProperty(VixPropertyListImpl *propList,    // IN
                err = VIX_E_TYPE_MISMATCH;
             }
             *resultEntry = property;
-            goto abort;
+            goto quit;
          }
       } // (propertyID == property->propertyID)
 
@@ -767,7 +767,7 @@ VixPropertyList_FindProperty(VixPropertyListImpl *propList,    // IN
     */
    if (!createIfMissing) {
       err = VIX_E_UNRECOGNIZED_PROPERTY;
-      goto abort;
+      goto quit;
    }
 
    err = VixPropertyListAppendProperty(propList,
@@ -775,7 +775,7 @@ VixPropertyList_FindProperty(VixPropertyListImpl *propList,    // IN
                                        type,
                                        resultEntry);
 
-abort:
+quit:
    return err;
 }
 
@@ -808,7 +808,7 @@ VixPropertyListAppendProperty(VixPropertyListImpl *propList,   // IN
 
    if (NULL == resultEntry) {
       err = VIX_E_INVALID_ARG;
-      goto abort;
+      goto quit;
    }
    *resultEntry = NULL;
 
@@ -842,7 +842,7 @@ VixPropertyListAppendProperty(VixPropertyListImpl *propList,   // IN
       lastProperty = lastProperty->next;
    }
 
-   
+ 
    if (NULL == lastProperty) {
       propList->properties = property;
    } else {
@@ -853,7 +853,7 @@ VixPropertyListAppendProperty(VixPropertyListImpl *propList,   // IN
 
    *resultEntry = property;
 
-abort:
+quit:
    return err;
 } // VixPropertyListAppendProperty
 
@@ -892,7 +892,7 @@ VixPropertyList_GetString(VixPropertyListImpl *propList,       // IN
 
    if ((NULL == propList) || (NULL == resultValue)) {
       err = VIX_E_INVALID_ARG;
-      goto abort;
+      goto quit;
    }
    *resultValue = NULL;
 
@@ -903,14 +903,14 @@ VixPropertyList_GetString(VixPropertyListImpl *propList,       // IN
                                       FALSE,
                                       &property);
    if (VIX_OK != err) {
-      goto abort;
+      goto quit;
    }
 
    if (NULL != property->value.strValue) {
       *resultValue = Util_SafeStrdup(property->value.strValue);
    }
 
-abort:
+quit:
    return err;
 } // VixPropertyList_GetString
 
@@ -985,7 +985,7 @@ VixPropertyList_SetString(VixPropertyListImpl *propList,  // IN:
 
    if (NULL == propList) {
       err = VIX_E_INVALID_ARG;
-      goto abort;
+      goto quit;
    }
 
    /*
@@ -1001,7 +1001,7 @@ VixPropertyList_SetString(VixPropertyListImpl *propList,  // IN:
       VixPropertyListSetStringImpl(property, value, property->isSensitive);
    }
 
-abort:
+quit:
 
    return err;
 } // VixPropertyList_SetString
@@ -1041,7 +1041,7 @@ VixPropertyList_SetStringSensitive(VixPropertyListImpl *propList,  // IN:
 
    if (NULL == propList) {
       err = VIX_E_INVALID_ARG;
-      goto abort;
+      goto quit;
    }
 
    /*
@@ -1058,7 +1058,7 @@ VixPropertyList_SetStringSensitive(VixPropertyListImpl *propList,  // IN:
       VixPropertyListSetStringImpl(property, value, TRUE);
    }
 
-abort:
+quit:
 
    return err;
 } // VixPropertyList_SetString
@@ -1097,9 +1097,9 @@ VixPropertyList_GetInteger(VixPropertyListImpl *propList,      // IN
 
    if ((NULL == resultValue) || (NULL == propList)) {
       err = VIX_E_INVALID_ARG;
-      goto abort;
+      goto quit;
    }
-   
+ 
    err = VixPropertyList_FindProperty(propList,
                                       propertyID,
                                       VIX_PROPERTYTYPE_INTEGER, 
@@ -1107,12 +1107,12 @@ VixPropertyList_GetInteger(VixPropertyListImpl *propList,      // IN
                                       FALSE, 
                                       &property);
    if (VIX_OK != err) {
-      goto abort;
+      goto quit;
    }
 
    *resultValue = property->value.intValue;
 
-abort:   
+quit: 
    return err;
 } // VixPropertyList_GetInteger
 
@@ -1151,9 +1151,9 @@ VixPropertyList_SetInteger(VixPropertyListImpl *propList,      // IN
 
    if (NULL == propList) {
       err = VIX_E_INVALID_ARG;
-      goto abort;
+      goto quit;
    }
-   
+ 
    /*
     * Find or create an entry for this property.
     */
@@ -1164,13 +1164,13 @@ VixPropertyList_SetInteger(VixPropertyListImpl *propList,      // IN
                                       TRUE, 
                                       &property);
    if (VIX_OK != err) {
-      goto abort;
+      goto quit;
    }
 
    property->value.intValue = value;
    property->isDirty = TRUE;
 
-abort:
+quit:
    return err;
 } // VixPropertyList_SetInteger
 
@@ -1208,7 +1208,7 @@ VixPropertyList_GetBool(VixPropertyListImpl *propList,      // IN
 
    if ((NULL == resultValue) || (NULL == propList)) {
       err = VIX_E_INVALID_ARG;
-      goto abort;
+      goto quit;
    }
 
    err = VixPropertyList_FindProperty(propList,
@@ -1218,16 +1218,16 @@ VixPropertyList_GetBool(VixPropertyListImpl *propList,      // IN
                                       FALSE, 
                                       &property);
    if (VIX_OK != err) {
-      goto abort;
+      goto quit;
    }
 
    if (NULL == property) {
-      goto abort;
+      goto quit;
    }
 
    *resultValue = property->value.boolValue;
 
-abort:   
+quit: 
    return err;
 } // VixPropertyList_GetBool
 
@@ -1266,7 +1266,7 @@ VixPropertyList_SetBool(VixPropertyListImpl *propList,      // IN
 
    if (NULL == propList) {
       err = VIX_E_INVALID_ARG;
-      goto abort;
+      goto quit;
    }
 
    /*
@@ -1279,13 +1279,13 @@ VixPropertyList_SetBool(VixPropertyListImpl *propList,      // IN
                                       TRUE, 
                                       &property);
    if (VIX_OK != err) {
-      goto abort;
+      goto quit;
    }
 
    property->value.boolValue = value;
    property->isDirty = TRUE;
 
-abort:
+quit:
    return err;
 }
 
@@ -1323,7 +1323,7 @@ VixPropertyList_GetInt64(VixPropertyListImpl *propList,     // IN
 
    if ((NULL == resultValue) || (NULL == propList)) {
       err = VIX_E_INVALID_ARG;
-      goto abort;
+      goto quit;
    }
 
    err = VixPropertyList_FindProperty(propList,
@@ -1333,12 +1333,12 @@ VixPropertyList_GetInt64(VixPropertyListImpl *propList,     // IN
                                       FALSE, 
                                       &property);
    if (VIX_OK != err) {
-      goto abort;
+      goto quit;
    }
 
    *resultValue = property->value.int64Value;
 
-abort:   
+quit: 
    return err;
 } // VixPropertyList_GetInt64
 
@@ -1377,9 +1377,9 @@ VixPropertyList_SetInt64(VixPropertyListImpl *propList,     // IN
 
    if (NULL == propList) {
       err = VIX_E_INVALID_ARG;
-      goto abort;
+      goto quit;
    }
-   
+ 
    /*
     * Find or create an entry for this property.
     */
@@ -1390,13 +1390,13 @@ VixPropertyList_SetInt64(VixPropertyListImpl *propList,     // IN
                                       TRUE, 
                                       &property);
    if (VIX_OK != err) {
-      goto abort;
+      goto quit;
    }
 
    property->value.int64Value = value;
    property->isDirty = TRUE;
 
-abort:
+quit:
    return err;
 } // VixPropertyList_SetInt64
 
@@ -1435,11 +1435,11 @@ VixPropertyList_GetBlob(VixPropertyListImpl *propList,      // IN
 
    if ((NULL == propList) || (NULL == resultSize) || (NULL == resultValue)) {
       err = VIX_E_INVALID_ARG;
-      goto abort;
+      goto quit;
    }
    *resultSize = 0;
    *resultValue = NULL;
-   
+ 
    err = VixPropertyList_FindProperty(propList, 
                                       propertyID, 
                                       VIX_PROPERTYTYPE_BLOB, 
@@ -1447,20 +1447,20 @@ VixPropertyList_GetBlob(VixPropertyListImpl *propList,      // IN
                                       FALSE,
                                       &property);
    if (VIX_OK != err) {
-      goto abort;
+      goto quit;
    }
 
    if ((property->value.blobValue.blobSize > 0) 
          && (NULL != property->value.blobValue.blobContents)) {
       *resultSize = property->value.blobValue.blobSize;
-      
+    
       *resultValue = Util_SafeMalloc(property->value.blobValue.blobSize);
       memcpy(*resultValue, 
              property->value.blobValue.blobContents, 
              property->value.blobValue.blobSize);
    }
 
-abort:
+quit:
    return err;
 } // VixPropertyList_GetBlob
 
@@ -1543,7 +1543,7 @@ VixPropertyList_SetBlob(VixPropertyListImpl *propList,  // IN:
 
    if (NULL == propList) {
       err = VIX_E_INVALID_ARG;
-      goto abort;
+      goto quit;
    }
 
    /*
@@ -1561,7 +1561,7 @@ VixPropertyList_SetBlob(VixPropertyListImpl *propList,  // IN:
                                  property->isSensitive);
    }
 
-abort:
+quit:
    return err;
 } // VixPropertyList_SetBlob
 
@@ -1601,7 +1601,7 @@ VixPropertyList_SetBlobSensitive(VixPropertyListImpl *propList,  // IN:
 
    if (NULL == propList) {
       err = VIX_E_INVALID_ARG;
-      goto abort;
+      goto quit;
    }
 
    /*
@@ -1618,7 +1618,7 @@ VixPropertyList_SetBlobSensitive(VixPropertyListImpl *propList,  // IN:
       VixPropertyListSetBlobImpl(property, blobSize, value, TRUE);
    }
 
-abort:
+quit:
    return err;
 } // VixPropertyList_SetBlob
 
@@ -1659,7 +1659,7 @@ VixPropertyList_GetPtr(VixPropertyListImpl *propList,     // IN
 
    if ((NULL == resultValue) || (NULL == propList)) {
       err = VIX_E_INVALID_ARG;
-      goto abort;
+      goto quit;
    }
 
    err = VixPropertyList_FindProperty(propList,
@@ -1669,12 +1669,12 @@ VixPropertyList_GetPtr(VixPropertyListImpl *propList,     // IN
                                       FALSE, 
                                       &property);
    if (VIX_OK != err) {
-      goto abort;
+      goto quit;
    }
 
    *resultValue = property->value.ptrValue;
 
-abort:   
+quit: 
    return err;
 } // VixPropertyList_GetPtr
 
@@ -1716,9 +1716,9 @@ VixPropertyList_SetPtr(VixPropertyListImpl *propList,     // IN
 
    if (NULL == propList) {
       err = VIX_E_INVALID_ARG;
-      goto abort;
+      goto quit;
    }
-   
+ 
    /*
     * Find or create an entry for this property.
     */
@@ -1729,13 +1729,13 @@ VixPropertyList_SetPtr(VixPropertyListImpl *propList,     // IN
                                       TRUE, 
                                       &property);
    if (VIX_OK != err) {
-      goto abort;
+      goto quit;
    }
 
    property->value.ptrValue = value;
    property->isDirty = TRUE;
 
-abort:
+quit:
    return err;
 } // VixPropertyList_SetPtr
 
