@@ -62,6 +62,7 @@
 #if defined(_WIN32)
 #  include "codeset.h"
 #  include "toolsNotify.h"
+#  include "vsockets.h"
 #  include "windowsu.h"
 #else
 #  include "posix.h"
@@ -433,6 +434,16 @@ ToolsCoreResetSignalCb(gpointer src,          // IN
 static int
 ToolsCoreRunLoop(ToolsServiceState *state)
 {
+#if defined(_WIN32)
+   /*
+    * Verify VSockets are fully initialized before any real work.
+    * For example, this can be broken by OS upgrades, see PR 2743009.
+    */
+   if (state->mainService) {
+      VSockets_Initialized();
+   }
+#endif
+
    if (!ToolsCore_InitRpc(state)) {
       return 1;
    }
