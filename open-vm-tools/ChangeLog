@@ -1,3 +1,40 @@
+commit f8fd00cb7fbfbb9df62ba7723c472b84ffe495bf
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Jun 7 13:36:32 2021 -0700
+
+    Adding missed 2021 copyright updates in granular pushes.
+
+commit 008993082515aadfb3087ae22bec80ed5ac33684
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Jun 7 13:29:01 2021 -0700
+
+    Open-vm-tools 11.3.0 L10n updates.
+
+commit e4c1a58df62e2b08fbef8e8e399dcba7654aefc5
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Jun 7 13:29:01 2021 -0700
+
+    Common source file change not applicable to open-vm-tools.
+
+commit 9fbd584aee962d6a3e18109eb408b01b273a19f4
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Jun 7 13:29:01 2021 -0700
+
+    Switch the current thread to "C" locale to parse /proc files.
+
+commit 912fecf2f9e28a8083fee6e29b83a926c35b8661
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri May 21 11:57:16 2021 -0700
+
+    Match the copyright style as in the main source repository.
+
+commit b35069156e3d73b2149e78238eed38671481b0b4
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu May 20 11:58:01 2021 -0700
+
+    Update ChangeLog with the granular push of May 20, 2021
+      - plus ChangeLog update of May 3.
+
 commit dde0b8e906ea1ef1f5e752e51e9887be002b07f0
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Thu May 20 11:38:38 2021 -0700
