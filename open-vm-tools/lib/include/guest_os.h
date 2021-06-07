@@ -209,18 +209,22 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define ALL5XLINUX64          BS(OTHER5XLINUX_64), BS(ARM_OTHER5XLINUX_64), \
                               BS(ARM_DEBIAN_64),   BS(ARM_UBUNTU_64)
 
+#define ALL6XLINUX32          BS(OTHER6XLINUX)
+
+#define ALL6XLINUX64          BS(OTHER6XLINUX_64), BS(ARM_OTHER6XLINUX_64)
+
 #define ALLVMKERNEL           BS(VMKERNEL),   BS(VMKERNEL5), BS(VMKERNEL6), \
                               BS(VMKERNEL65), BS(VMKERNEL7), BS(ARM_VMKERNEL7)
 
 #define ALLLINUX32            BS(VMKERNEL), BS(OTHERLINUX), \
                               BS(OTHER24XLINUX), \
                               ALL26XLINUX32, ALL3XLINUX32, ALL4XLINUX32, \
-                              ALL5XLINUX32
+                              ALL5XLINUX32, ALL6XLINUX32
 
 #define ALLLINUX64            BS(OTHERLINUX_64), BS(OTHER24XLINUX_64), \
                               ALL26XLINUX64,     ALL3XLINUX64,         \
                               ALL4XLINUX64,      ALL5XLINUX64,         \
-                              ALLPHOTON
+                              ALL6XLINUX64,      ALLPHOTON
 
 #define ALLLINUX              ALLLINUX32, ALLLINUX64
 
@@ -312,8 +316,12 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_OTHER_4X_FULL      "Other Linux 4.x"
 #define STR_OS_OTHER_5X           "other5xlinux"
 #define STR_OS_OTHER_5X_FULL      "Other Linux 5.x and later kernel"
+#define STR_OS_OTHER_6X           "other6xlinux"
+#define STR_OS_OTHER_6X_FULL      "Other Linux 6.x and later kernel"
 #define STR_OS_ARM_OTHER_5X       "arm-other5xlinux"
 #define STR_OS_ARM_OTHER_5X_FULL  "Other Linux 5.x and later kernel Arm"
+#define STR_OS_ARM_OTHER_6X       "arm-other6xlinux"
+#define STR_OS_ARM_OTHER_6X_FULL  "Other Linux 6.x and later kernel Arm"
 #define STR_OS_PHOTON             "vmware-photon"
 #define STR_OS_ARM_PHOTON         "arm-vmware-photon"
 #define STR_OS_PHOTON_FULL        "VMware Photon OS"

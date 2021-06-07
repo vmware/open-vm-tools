@@ -80,6 +80,9 @@ extern "C" {
    GOT(GUEST_OS_OTHER5XLINUX)        /* Linux 5.x and later 32-bit */      \
    GOT(GUEST_OS_OTHER5XLINUX_64)     /* Linux 5.x and later 64-bit */      \
    GOT(GUEST_OS_ARM_OTHER5XLINUX_64) /* Linux 5.x and later Arm 64-bit */  \
+   GOT(GUEST_OS_OTHER6XLINUX)        /* Linux 5.x and later 32-bit */      \
+   GOT(GUEST_OS_OTHER6XLINUX_64)     /* Linux 5.x and later 64-bit */      \
+   GOT(GUEST_OS_ARM_OTHER6XLINUX_64) /* Linux 5.x and later Arm 64-bit */  \
    GOT(GUEST_OS_OTHER)                                                     \
    GOT(GUEST_OS_OTHER_64)            /* Other 64-bit */                    \
    GOT(GUEST_OS_ARM_OTHER_64)        /* Other Arm 64-bit */                \
