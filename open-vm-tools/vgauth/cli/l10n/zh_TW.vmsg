@@ -34,7 +34,7 @@ addoptions.verbose = "詳細資訊作業"
 cmdline.help.appoption = "應用程式選項"
 cmdline.help.helpoption = "説明選項"
 cmdline.help.hint = "顯示說明選項"
-cmdline.help.usage = "使用量"
+cmdline.help.usage = "用法"
 cmdline.parse = "命令行剖析失敗"
 
 cmdline.summary.pemfile = "PEM 檔案"
