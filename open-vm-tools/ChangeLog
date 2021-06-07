@@ -1,3 +1,109 @@
+commit 1d25adfe20a5da7a3ed37c970e72699d487f3cca
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Jun 7 10:53:14 2021 -0700
+
+    Adding missed 2021 copyright updates in granular pushes.
+
+commit a01a33d95d511a1019c6f9ab7a525635c9a61c61
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Jun 7 08:25:09 2021 -0700
+
+    Enhanced the VMware Tools SDMP plugin to support GDP.
+
+commit 1751cd1e49edb5d88cb4d5175bdbb7ac5d86054c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Jun 7 08:25:09 2021 -0700
+
+    Add check that the packet size received is >= expected packet header size.
+    
+    DnD RpcV3: A corrupted packet received may result in an out of bounds (OOB)
+    memory access if the length of the message received is less than the size
+    of the expected packet header.
+
+commit e3de1afdd4d802596bffdbbb63ec6708fafcf51a
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Jun 7 08:25:09 2021 -0700
+
+    GOS support: Add Linux 6.x support.
+
+commit bd151c59769f9bac14fc2df0d1076faa902734bf
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Jun 7 08:25:09 2021 -0700
+
+    Change to a common source file not directly applicable to open-vm-tools.
+    
+    Adding a NULL pointer check.
+
+commit d5938385597f4c13b6e9d265a399a67258c47f41
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Jun 7 08:25:09 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 26b72e101e3d9a66e97e2179f142ce8961c7869f
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Jun 7 08:25:09 2021 -0700
+
+    Update the tools version to 11.4.0 on the "devel" branch.
+
+commit 5c1025a2f29f199a65cf703b93c1ae5294ff0053
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Jun 7 08:25:09 2021 -0700
+
+    Open-vm-tools 11.3.0 L10n updates.
+
+commit 40e473ea1378ab1874f4cdf8aa38d39e11299fe9
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Jun 7 08:25:08 2021 -0700
+
+    Customization: Retry the Linux reboot if telinit is a soft link to systemctl.
+    
+    Issues have been reported on some newer versions of Linux where the VM
+    failed to reboot at the end of a traditional customization.  The command
+    '/sbin/telinit 6' exited abnormally due to SIGTERM sent by systemd and
+    where telinit is a symlink to systemctl.
+    
+    This fix checks if telinit is a soft link to systemctl and if yes, retries
+    a system reboot until the telinit command succeeds or the reboot literally
+    happens.
+
+commit f8eedf7070b0c11c73f86e1374c004a1bc0212e1
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Jun 7 08:25:08 2021 -0700
+
+    Change to common source file not directly applicable to open-vm-tools.
+
+commit 5acc2a69256aa351e38d7abe1914b7785de6d6b2
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Jun 7 08:25:08 2021 -0700
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit 9ff3c61c5d5ab58922c55db77704bab56bac75d6
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Jun 7 08:25:08 2021 -0700
+
+    Common source file change not applicable to open-vm-tools.
+
+commit dc39fc8c67180b3e7213d01449868482c17b36f4
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Jun 7 08:25:08 2021 -0700
+
+    Switch the current thread to "C" locale to parse /proc files.
+
+commit 912fecf2f9e28a8083fee6e29b83a926c35b8661
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri May 21 11:57:16 2021 -0700
+
+    Match the copyright style as in the main source repository.
+
+commit b35069156e3d73b2149e78238eed38671481b0b4
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu May 20 11:58:01 2021 -0700
+
+    Update ChangeLog with the granular push of May 20, 2021
+      - plus ChangeLog update of May 3.
+
 commit dde0b8e906ea1ef1f5e752e51e9887be002b07f0
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Thu May 20 11:38:38 2021 -0700
