@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2019,2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -16,11 +16,18 @@
  *
  *********************************************************/
 
+/*
+ * Get GNU locale_t.
+ * Alternatively, use _XOPEN_SOURCE >= 700 to get Posix locale_t.
+ */
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <locale.h>
 #include <string.h>
 
 #include "vm_basic_defs.h"
@@ -258,14 +265,21 @@ GuestInfoGetUpTime(double *now)  // OUT:
    FILE *fp = Posix_Fopen(UPTIME_FILE, "r");
 
    if (fp == NULL) {
+      g_warning("%s: Failed to open %s, error=%d.\n",
+                __FUNCTION__, UPTIME_FILE, errno);
       return result;
    }
 
    if (fgets(line, sizeof line, fp) == line) {
+      int assignedCount;
       double idle;
 
-      if (sscanf(line, "%lf %lf", now, &idle) == 2) {
+      assignedCount = sscanf(line, "%lf %lf", now, &idle);
+      if (assignedCount == 2) {
          result = TRUE;
+      } else {
+         g_warning("%s: sscanf \"%s\" failed, return=%d, error=%d.\n",
+                   __FUNCTION__, line, assignedCount, errno);
       }
    }
 
@@ -442,7 +456,8 @@ GuestInfoProcData(const char *pathName,           // IN: path name
    FILE *fp = Posix_Fopen(pathName, "r");
 
    if (fp == NULL) {
-      g_warning("%s: Error opening %s.\n", __FUNCTION__, pathName);
+      g_warning("%s: Failed to open %s, error=%d.\n",
+                __FUNCTION__, pathName, errno);
       return FALSE;
    }
 
@@ -530,8 +545,9 @@ GuestInfoProcSimpleValue(GuestStatToolsID reportID,      // IN:
    /* coverity[var_deref_op] */
    fp = Posix_Fopen(stat->query->sourceFile, "r");
    if (fp == NULL) {
-      g_warning("%s: Error opening %s.\n",
-                __FUNCTION__, stat->query->sourceFile);
+      g_warning("%s: Failed to open %s, error=%d.\n",
+                __FUNCTION__, stat->query->sourceFile, errno);
+
       return success;
    }
 
@@ -710,7 +726,8 @@ GuestInfoProcDiskStatsData(GuestInfoCollector *collector)  // IN/OUT:
    FILE *fp = Posix_Fopen(DISKSTATS_FILE, "r");
 
    if (fp == NULL) {
-      g_warning("%s: Error opening " DISKSTATS_FILE ".\n", __FUNCTION__);
+      g_warning("%s: Failed to open %s, error=%d.\n",
+                __FUNCTION__, DISKSTATS_FILE, errno);
       return FALSE;
    }
 
@@ -1523,6 +1540,8 @@ Bool
 GuestInfoTakeSample(DynBuf *statBuf)  // IN/OUT: inited, ready to fill
 {
    GuestInfoCollector *temp;
+   locale_t newLoc;
+   locale_t prevLoc;
 
    ASSERT(statBuf && DynBuf_GetSize(statBuf) == 0);
 
@@ -1549,11 +1568,41 @@ GuestInfoTakeSample(DynBuf *statBuf)  // IN/OUT: inited, ready to fill
       return FALSE;
    }
 
+   /*
+    * Switch the current thread to "C" locale to parse /proc files.
+    *
+    * vmtoolsd process calls setlocale(LC_ALL, "") to switch process locale
+    * from default "C" locale to that set in environment variable, like
+    * LC_ALL or LANG, at startup time.
+    *
+    * Linux /proc file floats are using "C" locale decimal separator ".".
+    *
+    * Case in point, on a system with es_ES locale, its LC_NUMERIC is using
+    * decimal separator ",", when parsing /proc/uptime, sscanf("%lf %lf")
+    * stops at the first "." and returns 1, instead of 2 with en_US locale
+    * and "C" locale.
+    *
+    * Restore the current thread to its previous locale once done with the
+    * stats collection and encoding.
+    */
+   newLoc = newlocale(LC_ALL_MASK, "C", (locale_t)0);
+   if (newLoc != (locale_t)0) {
+      prevLoc = uselocale(newLoc);
+   } else {
+      g_warning("%s: newlocale failed, error=%d.\n", __FUNCTION__, errno);
+   }
+
    /* Collect the current data */
    GuestInfoCollect(gCurrentCollector);
 
    /* Encode the captured data */
    GuestInfoEncodeStats(gCurrentCollector, gPreviousCollector, statBuf);
+
+   if (newLoc != (locale_t)0) {
+      /* Restore thread previous locale */
+      uselocale(prevLoc);
+      freelocale(newLoc);
+   }
 
    /* Switch the collections for next time. */
    temp = gCurrentCollector;
@@ -1586,7 +1635,7 @@ GuestInfo_StatProviderPoll(gpointer data)
    ToolsAppCtx *ctx = data;
    DynBuf stats;
 
-   g_debug("Entered guest info stats gather.\n");
+   g_debug("%s: Entered guest info stats gather.\n", __FUNCTION__);
 
 #if ADD_NEW_STATS
    gUnstable = g_key_file_get_boolean(ctx->config,
@@ -1599,9 +1648,9 @@ GuestInfo_StatProviderPoll(gpointer data)
    DynBuf_Init(&stats);
 
    if (!GuestInfoTakeSample(&stats)) {
-      g_warning("Failed to get vmstats.\n");
+      g_warning("%s: Failed to get vmstats.\n", __FUNCTION__);
    } else if (!GuestInfo_ServerReportStats(ctx, &stats)) {
-      g_warning("Failed to send vmstats.\n");
+      g_warning("%s: Failed to send vmstats.\n", __FUNCTION__);
    }
 
    DynBuf_Destroy(&stats);
