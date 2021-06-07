@@ -493,6 +493,15 @@ FILE *FileIO_DescriptorToStream(FileIODescriptor *fd,
 
 const char *FileIO_Filename(FileIODescriptor *fd);
 
+#ifdef VMX86_SERVER
+FileIOResult FileIO_CreateDeviceFileNoPrompt(FileIODescriptor *fd,
+                                             const char *pathName,
+                                             int openMode,
+                                             FileIOOpenAction action,
+                                             int perms,
+                                             const char *device);
+#endif
+
 /*
  *-------------------------------------------------------------------------
  *
