@@ -38,6 +38,7 @@
  */
 #define SERVICE_DISCOVERY_KEY_READY "ready"
 #define SERVICE_DISCOVERY_KEY_SIGNAL "signal"
+#define SERVICE_DISCOVERY_KEY_GDP_SIGNAL "gdp-signal"
 
 /*
  * keys for types of service data collected by plugin.
