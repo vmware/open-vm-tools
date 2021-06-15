@@ -1,3 +1,10 @@
+commit 0eeda8e91370ac3d3af2e4efd7c6e413618aa839
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Jun 7 13:40:37 2021 -0700
+
+    Update ChangeLog with the granular push to stable-11.3.x on June 7, 2021.
+      - plus ChangeLog update of May 20.
+
 commit f8fd00cb7fbfbb9df62ba7723c472b84ffe495bf
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Mon Jun 7 13:36:32 2021 -0700
