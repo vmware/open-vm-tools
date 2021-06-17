@@ -1,3 +1,15 @@
+commit 0456d11e57fc48104b413670511794c91f2e3673
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jun 17 12:22:33 2021 -0700
+
+    configure.ac: missed a version bump to 11.3.0.
+
+commit 7695514c2409afa85c69f0af38ddfa20780d47b9
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jun 17 11:55:10 2021 -0700
+
+    Update open-vm-tools/ChangeLog with final steps before release.
+
 commit 7fd653a62d543dde25815ecd72067487a780f4b6
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Thu Jun 17 11:47:50 2021 -0700
