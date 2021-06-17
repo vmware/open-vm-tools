@@ -1,3 +1,20 @@
+commit 7fd653a62d543dde25815ecd72067487a780f4b6
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jun 17 11:47:50 2021 -0700
+
+    Prepare to make the 11.3.0 OVT release announcement.
+    
+      - ReleaseNotes.md - copy in the iinitial (final ?) 11.3.0 OVT release notes.
+      - configure.ac  = set the tools version to 11.3.0.
+      - buildNumber.h  - set the build and product number from the internal
+                         release build.
+
+commit 9ce90f4c64be0b382be65e0db0f63167dc16c786
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jun 15 07:58:27 2021 -0700
+
+    Update ChangeLog with the ChangeLog update of June 7.
+
 commit 0eeda8e91370ac3d3af2e4efd7c6e413618aa839
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Mon Jun 7 13:40:37 2021 -0700
