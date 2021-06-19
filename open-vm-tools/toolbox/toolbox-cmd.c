@@ -112,10 +112,6 @@ static CmdTable commands[] = {
 #if defined(_WIN32) || \
    (defined(__linux__) && !defined(OPEN_VM_TOOLS) && !defined(USERWORLD))
    { "upgrade",    Upgrade_Command,    TRUE,  TRUE,  Upgrade_Help},
-   { "gueststore", GuestStore_Command, TRUE,  FALSE, GuestStore_Help},
-#endif
-#if defined(_WIN32)
-   { "globalconf", GlobalConf_Command, TRUE,  TRUE,  GlobalConf_Help},
 #endif
 #if defined(_WIN32) || \
    (defined(__linux__) && !defined(USERWORLD))

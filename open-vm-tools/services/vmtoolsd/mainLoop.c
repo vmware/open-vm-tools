@@ -145,9 +145,6 @@ ToolsCoreCleanup(ToolsServiceState *state)
    if (state->mainService && GuestStoreClient_DeInit()) {
       g_info("%s: De-initialized GuestStore client.\n", __FUNCTION__);
    }
-   if (state->mainService && ToolsNotify_End()) {
-      g_info("%s: End Tools notifications.\n", __FUNCTION__);
-   }
 #endif
 
 #if defined(_WIN32)

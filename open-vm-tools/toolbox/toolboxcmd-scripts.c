@@ -33,9 +33,6 @@
 #include "guestApp.h"
 #include "system.h"
 #include "toolboxCmdInt.h"
-#if defined(_WIN32)
-#include "globalConfig.h"
-#endif
 #include "vmware/tools/i18n.h"
 #include "vmware/tools/utils.h"
 
