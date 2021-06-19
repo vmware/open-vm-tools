@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2014,2017-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2014,2017-2019,2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -118,6 +118,9 @@
 #define VMNET_CAP_RX_SW_LRO            CONST64U(0x200000000000000)  /* Support SW LRO */
 #define VMNET_CAP_ENS                  CONST64U(0x400000000000000)  /* Support ENS */
 #define VMNET_CAP_FPO                  CONST64U(0x800000000000000)  /* Support FPO */
+#define VMNET_CAP_BMC_NIC              CONST64U(0x1000000000000000) /* Nic Hardware connected to server BMC */
+#define VMNET_CAP_UENS_SHIM            CONST64U(0x2000000000000000) /* Driver is compatible with UENS shimming layer */
+#define VMNET_CAP_K2K_NIC              CONST64U(0x4000000000000000) /* Nic used for Kernel-to-Kernel communication */
 #define VMNET_CAP_LEGACY               CONST64U(0x8000000000000000) /* Uplink is compatible with vmklinux drivers */
 
 #endif // _VMNET_DEF_H_

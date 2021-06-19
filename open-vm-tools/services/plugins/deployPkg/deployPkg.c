@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -88,8 +88,39 @@ DeployPkgDeployPkgInGuest(ToolsAppCtx *ctx,    // IN: app context
    int processTimeout;
 #endif
 
-   /* Init the logger */
-   DeployPkgLog_Open();
+   /*
+    * Init the logger
+    * PR 2109109. If the deployPkg log handler has been configured explicitly in
+    * tools.conf, then output deployPkg log through the specified handler.
+    * https://wiki.eng.vmware.com/Configuring_Logging_for_the_VMware_Tools
+    * If not, output the log to the default log file defined in
+    * function DeployPkgLog_Open.
+    * The deployPkg log handler is mainly configured for debugging purpose.
+    */
+   char key[128];
+   char *handler;
+   snprintf(key, sizeof key, "%s.handler", G_LOG_DOMAIN);
+   handler = VMTools_ConfigGetString(ctx->config,
+                                     CONFGROUPNAME_LOGGING,
+                                     key,
+                                     NULL);
+   if (handler != NULL &&
+       (strcmp(handler, "vmx") == 0 || strcmp(handler, "file") == 0 ||
+        strcmp(handler, "file+") == 0)) {
+      g_debug("Using deployPkg log handler: %s", handler);
+      free(handler);
+   } else {
+      DeployPkgLog_Open();
+
+      if (handler != NULL) {
+         DeployPkgLog_Log(log_debug,
+                          "Log handler %s is not applicable for deployPkg,"
+                          " ignore it and ouput the log in GOS customization"
+                          " default log path.",
+                          handler);
+         free(handler);
+      }
+   }
    DeployPkg_SetLogger(DeployPkgLog_Log);
 
    DeployPkgLog_Log(log_debug, "Deploying %s", pkgFile);
@@ -210,7 +241,6 @@ void
 DeployPkgExecDeploy(ToolsAppCtx *ctx,   // IN: app context
                     void *pkgName)      // IN: pkg file name
 {
-   char errMsg[2048];
    ToolsDeployPkgError ret;
    char *pkgNameStr = (char *) pkgName;
    Bool enableCust;
@@ -246,9 +276,16 @@ DeployPkgExecDeploy(ToolsAppCtx *ctx,   // IN: app context
       g_free(msg);
       vm_free(result);
    } else {
+      char errMsg[2048];
       /* Unpack the package and run the command. */
       ret = DeployPkgDeployPkgInGuest(ctx, pkgNameStr, errMsg, sizeof errMsg);
       if (ret != TOOLSDEPLOYPKG_ERROR_SUCCESS) {
+#ifdef _WIN32
+        /*
+         * PR 1631160. for Linux, sysimage has sent failure status in vmx when
+         * deploy pkg failed, to avoid sending failure events repeatedly, here
+         * is only sending status in the case of windows.
+         */
          gchar *msg = g_strdup_printf("deployPkg.update.state %d %d %s",
                                       TOOLSDEPLOYPKG_DEPLOYING,
                                       TOOLSDEPLOYPKG_ERROR_DEPLOY_FAILED,
@@ -261,6 +298,7 @@ DeployPkgExecDeploy(ToolsAppCtx *ctx,   // IN: app context
                       TOOLSDEPLOYPKG_ERROR_DEPLOY_FAILED);
          }
          g_free(msg);
+#endif
          g_warning("DeployPkgInGuest failed, error = %d\n", ret);
       }
    }

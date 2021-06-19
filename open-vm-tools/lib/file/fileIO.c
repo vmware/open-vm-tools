@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -524,7 +524,7 @@ FileIO_CloseAndUnlink(FileIODescriptor *fd)  // IN:
    path = Unicode_Duplicate(fd->fileName);
 
    ret = FileIO_Close(fd);
-   if ((File_UnlinkIfExists(path) == -1) && FileIO_IsSuccess(ret)) {
+   if ((File_UnlinkIfExists(path) != 0) && FileIO_IsSuccess(ret)) {
       ret = FILEIO_ERROR;
    }
 

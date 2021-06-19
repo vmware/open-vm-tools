@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -28,6 +28,11 @@
 extern "C" {
 #endif
 
+/*
+ * Unless explicitly specified (i.e. _ARM_), all guests are assumed to be
+ * Intel architecture.
+ */
+
 #define GUEST_OS_TYPE_GEN                                                  \
    GOT(GUEST_OS_ANY)                                                       \
    GOT(GUEST_OS_DOS)                                                       \
@@ -45,40 +50,48 @@ extern "C" {
    GOT(GUEST_OS_LONGHORN_64)                                               \
    GOT(GUEST_OS_WINVISTA)                                                  \
    GOT(GUEST_OS_WINVISTA_64)                                               \
-   GOT(GUEST_OS_WINSEVEN)          /* Windows 7 */                         \
-   GOT(GUEST_OS_WINSEVEN_64)       /* Windows 7 */                         \
-   GOT(GUEST_OS_WIN2008R2_64)      /* Server 2008 R2 */                    \
-   GOT(GUEST_OS_WINEIGHT)          /* Windows 8 */                         \
-   GOT(GUEST_OS_WINEIGHT_64)       /* Windows 8 x64 */                     \
-   GOT(GUEST_OS_WINEIGHTSERVER_64) /* Windows 8 Server X64 */              \
-   GOT(GUEST_OS_WINTEN)            /* Windows 10 */                        \
-   GOT(GUEST_OS_WINTEN_64)         /* Windows 10 x64 */                    \
-   GOT(GUEST_OS_WIN_2016SRV_64)    /* Windows Server 2016 X64 */           \
-   GOT(GUEST_OS_WIN_2019SRV_64)    /* Windows Server 2019 X64 */           \
-   GOT(GUEST_OS_WIN_2019SRVNEXT_64)/* Windows Server 2021 X64 */           \
-   GOT(GUEST_OS_HYPER_V)           /* Microsoft Hyper-V */                 \
+   GOT(GUEST_OS_WINSEVEN)            /* Windows 7 32-bit */                \
+   GOT(GUEST_OS_WINSEVEN_64)         /* Windows 7 64-bit */                \
+   GOT(GUEST_OS_WIN2008R2_64)        /* Server 2008 R2 64-bit */           \
+   GOT(GUEST_OS_WINEIGHT)            /* Windows 8 32-bit */                \
+   GOT(GUEST_OS_WINEIGHT_64)         /* Windows 8 64-bit */                \
+   GOT(GUEST_OS_WINEIGHTSERVER_64)   /* Windows 8 Server 64-bit */         \
+   GOT(GUEST_OS_WINTEN)              /* Windows 10 32-bit */               \
+   GOT(GUEST_OS_WINTEN_64)           /* Windows 10 64-bit */               \
+   GOT(GUEST_OS_ARM_WINTEN_64)       /* Windows 10 Arm 64-bit */           \
+   GOT(GUEST_OS_WIN_2016SRV_64)      /* Windows Server 2016 64-bit */      \
+   GOT(GUEST_OS_WIN_2019SRV_64)      /* Windows Server 2019 64-bit */      \
+   GOT(GUEST_OS_WIN_2022SRV_64)      /* Windows Server 2022 64-bit */      \
+   GOT(GUEST_OS_WIN_2025SRV_64)      /* Windows Server 2025 64-bit */      \
+   GOT(GUEST_OS_HYPER_V)             /* Microsoft Hyper-V */               \
    GOT(GUEST_OS_OS2)                                                       \
-   GOT(GUEST_OS_ECOMSTATION)       /* OS/2 variant; 1.x */                 \
-   GOT(GUEST_OS_ECOMSTATION2)      /* OS/2 variant; 2.x */                 \
+   GOT(GUEST_OS_ECOMSTATION)         /* OS/2 variant; 1.x */               \
+   GOT(GUEST_OS_ECOMSTATION2)        /* OS/2 variant; 2.x */               \
    GOT(GUEST_OS_OTHERLINUX)                                                \
    GOT(GUEST_OS_OTHERLINUX_64)                                             \
    GOT(GUEST_OS_OTHER24XLINUX)                                             \
    GOT(GUEST_OS_OTHER24XLINUX_64)                                          \
    GOT(GUEST_OS_OTHER26XLINUX)                                             \
    GOT(GUEST_OS_OTHER26XLINUX_64)                                          \
-   GOT(GUEST_OS_OTHER3XLINUX)      /* Linux 3.x */                         \
-   GOT(GUEST_OS_OTHER3XLINUX_64)   /* Linux 3.x X64 */                     \
-   GOT(GUEST_OS_OTHER4XLINUX)      /* Linux 4.x */                         \
-   GOT(GUEST_OS_OTHER4XLINUX_64)   /* Linux 4.x X64 */                     \
-   GOT(GUEST_OS_OTHER5XLINUX)      /* Linux 5.x and later */               \
-   GOT(GUEST_OS_OTHER5XLINUX_64)   /* Linux 5.x and later X64 */           \
+   GOT(GUEST_OS_OTHER3XLINUX)        /* Linux 3.x 32-bit */                \
+   GOT(GUEST_OS_OTHER3XLINUX_64)     /* Linux 3.x 64-bit */                \
+   GOT(GUEST_OS_OTHER4XLINUX)        /* Linux 4.x 32-bit */                \
+   GOT(GUEST_OS_OTHER4XLINUX_64)     /* Linux 4.x 64-bit  */               \
+   GOT(GUEST_OS_OTHER5XLINUX)        /* Linux 5.x and later 32-bit */      \
+   GOT(GUEST_OS_OTHER5XLINUX_64)     /* Linux 5.x and later 64-bit */      \
+   GOT(GUEST_OS_ARM_OTHER5XLINUX_64) /* Linux 5.x and later Arm 64-bit */  \
    GOT(GUEST_OS_OTHER)                                                     \
-   GOT(GUEST_OS_OTHER_64)                                                  \
+   GOT(GUEST_OS_OTHER_64)            /* Other 64-bit */                    \
+   GOT(GUEST_OS_ARM_OTHER_64)        /* Other Arm 64-bit */                \
    GOT(GUEST_OS_UBUNTU)                                                    \
+   GOT(GUEST_OS_UBUNTU_64)                                                 \
+   GOT(GUEST_OS_ARM_UBUNTU_64)                                             \
    GOT(GUEST_OS_DEBIAN)                                                    \
    GOT(GUEST_OS_DEBIAN_64)                                                 \
+   GOT(GUEST_OS_ARM_DEBIAN_64)                                             \
    GOT(GUEST_OS_RHEL)                                                      \
    GOT(GUEST_OS_RHEL_64)                                                   \
+   GOT(GUEST_OS_RHEL9_64)                                                  \
    GOT(GUEST_OS_FREEBSD)                                                   \
    GOT(GUEST_OS_FREEBSD_64)                                                \
    GOT(GUEST_OS_FREEBSD11)                                                 \
@@ -87,39 +100,46 @@ extern "C" {
    GOT(GUEST_OS_FREEBSD12_64)                                              \
    GOT(GUEST_OS_FREEBSD13)                                                 \
    GOT(GUEST_OS_FREEBSD13_64)                                              \
+   GOT(GUEST_OS_FREEBSD14)                                                 \
+   GOT(GUEST_OS_FREEBSD14_64)                                              \
+   GOT(GUEST_OS_ARM_FREEBSD13_64)                                          \
+   GOT(GUEST_OS_ARM_FREEBSD14_64)                                          \
    GOT(GUEST_OS_SOLARIS_6_AND_7)                                           \
    GOT(GUEST_OS_SOLARIS8)                                                  \
    GOT(GUEST_OS_SOLARIS9)                                                  \
    GOT(GUEST_OS_SOLARIS10)                                                 \
    GOT(GUEST_OS_SOLARIS10_64)                                              \
    GOT(GUEST_OS_SOLARIS11_64)                                              \
-   GOT(GUEST_OS_DARWIN9)           /* Mac OS 10.5 */                       \
+   GOT(GUEST_OS_DARWIN9)             /* Mac OS 10.5 */                     \
    GOT(GUEST_OS_DARWIN9_64)                                                \
-   GOT(GUEST_OS_DARWIN10)          /* Mac OS 10.6 */                       \
+   GOT(GUEST_OS_DARWIN10)            /* Mac OS 10.6 */                     \
    GOT(GUEST_OS_DARWIN10_64)                                               \
-   GOT(GUEST_OS_DARWIN11)          /* Mac OS 10.7 */                       \
+   GOT(GUEST_OS_DARWIN11)            /* Mac OS 10.7 */                     \
    GOT(GUEST_OS_DARWIN11_64)                                               \
-   GOT(GUEST_OS_DARWIN12_64)       /* Mac OS 10.8 */                       \
-   GOT(GUEST_OS_DARWIN13_64)       /* Mac OS 10.9 */                       \
-   GOT(GUEST_OS_DARWIN14_64)       /* Mac OS 10.10 */                      \
-   GOT(GUEST_OS_DARWIN15_64)       /* Mac OS 10.11 */                      \
-   GOT(GUEST_OS_DARWIN16_64)       /* Mac OS 10.12 */                      \
-   GOT(GUEST_OS_DARWIN17_64)       /* Mac OS 10.13 */                      \
-   GOT(GUEST_OS_DARWIN18_64)       /* Mac OS 10.14 */                      \
-   GOT(GUEST_OS_DARWIN19_64)       /* Mac OS 10.15 */                      \
-   GOT(GUEST_OS_DARWIN20_64)       /* Mac OS 10.16 */                      \
-   GOT(GUEST_OS_DARWIN21_64)       /* Mac OS 10.17 */                      \
+   GOT(GUEST_OS_DARWIN12_64)         /* Mac OS 10.8 */                     \
+   GOT(GUEST_OS_DARWIN13_64)         /* Mac OS 10.9 */                     \
+   GOT(GUEST_OS_DARWIN14_64)         /* Mac OS 10.10 */                    \
+   GOT(GUEST_OS_DARWIN15_64)         /* Mac OS 10.11 */                    \
+   GOT(GUEST_OS_DARWIN16_64)         /* Mac OS 10.12 */                    \
+   GOT(GUEST_OS_DARWIN17_64)         /* Mac OS 10.13 */                    \
+   GOT(GUEST_OS_DARWIN18_64)         /* Mac OS 10.14 */                    \
+   GOT(GUEST_OS_DARWIN19_64)         /* Mac OS 10.15 */                    \
+   GOT(GUEST_OS_DARWIN20_64)         /* Mac OS 11 */                       \
+   GOT(GUEST_OS_DARWIN21_64)         /* Mac OS 12 */                       \
+   GOT(GUEST_OS_DARWIN22_64)         /* Mac OS 13 */                       \
    GOT(GUEST_OS_OPENSERVER_5_AND_6)                                        \
    GOT(GUEST_OS_UNIXWARE7)                                                 \
    GOT(GUEST_OS_NETWARE4)                                                  \
    GOT(GUEST_OS_NETWARE5)                                                  \
    GOT(GUEST_OS_NETWARE6)                                                  \
-   GOT(GUEST_OS_VMKERNEL)          /* ESX 4.x */                           \
-   GOT(GUEST_OS_VMKERNEL5)         /* ESX 5.x */                           \
-   GOT(GUEST_OS_VMKERNEL6)         /* ESX 6 */                             \
-   GOT(GUEST_OS_VMKERNEL65)        /* ESX 6.5 */                           \
-   GOT(GUEST_OS_VMKERNEL7)         /* ESX 7 and later */                   \
-   GOT(GUEST_OS_PHOTON_64)         /* VMware Photon IA 64-bit */           \
+   GOT(GUEST_OS_VMKERNEL)            /* ESX 4.x 64-bit */                  \
+   GOT(GUEST_OS_VMKERNEL5)           /* ESX 5.x 64-bit */                  \
+   GOT(GUEST_OS_VMKERNEL6)           /* ESX 6 64-bit */                    \
+   GOT(GUEST_OS_VMKERNEL65)          /* ESX 6.5 and 6.7 64-bit */          \
+   GOT(GUEST_OS_VMKERNEL7)           /* ESX 7 and later 64-bit */          \
+   GOT(GUEST_OS_ARM_VMKERNEL7)       /* ESX 7 and later Arm 64-bit */      \
+   GOT(GUEST_OS_PHOTON_64)           /* VMware Photon 64-bit */            \
+   GOT(GUEST_OS_ARM_PHOTON_64)       /* VMware Photon Arm 64-bit */        \
    GOT(GUEST_OS_ORACLE)                                                    \
    GOT(GUEST_OS_ORACLE_64)                                                 \
    GOT(GUEST_OS_ORACLE6)                                                   \
@@ -185,6 +205,7 @@ extern "C" {
    GOKM("windows9srv-64",                       windows9Server64Guest,   TRUE) \
    GOKM("windows2019srv-64",                    windows2019srv_64Guest,  TRUE) \
    GOKM("windows2019srvNext-64",                windows2019srvNext_64Guest, TRUE) \
+   GOKM("windows2022srvNext-64",                windows2022srvNext_64Guest, TRUE) \
    GOKM("winHyperV",                            windowsHyperVGuest,      TRUE) \
    GOKM("winServer2008Cluster-32",              winLonghornGuest,        FALSE) \
    GOKM("winServer2008Datacenter-32",           winLonghornGuest,        FALSE) \
@@ -366,6 +387,7 @@ extern "C" {
    GOKM("darwin19-64",                          darwin19_64Guest,        TRUE) \
    GOKM("darwin20-64",                          darwin20_64Guest,        TRUE) \
    GOKM("darwin21-64",                          darwin21_64Guest,        TRUE) \
+   GOKM("darwin22-64",                          darwin22_64Guest,        TRUE) \
    /* ESX guests */ \
    GOKM("vmkernel",                             vmkernelGuest,           TRUE) \
    GOKM("vmkernel5",                            vmkernel5Guest,          TRUE) \

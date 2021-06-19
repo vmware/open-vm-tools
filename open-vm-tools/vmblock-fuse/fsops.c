@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -252,7 +252,6 @@ int
 VMBlockGetAttr(const char *path,        // IN: File to get attributes of.
                struct stat *statBuf)    // OUT: Where to put the attributes.
 {
-   char target[PATH_MAX + 1];
    vmblockSpecialDirEntry *dirEntry;
    ASSERT(path != NULL);
    ASSERT(statBuf != NULL);
@@ -272,6 +271,7 @@ VMBlockGetAttr(const char *path,        // IN: File to get attributes of.
       }
    }
    if (strncmp(path, REDIRECT_DIR, strlen(REDIRECT_DIR)) == 0) {
+      char target[PATH_MAX + 1];
       int status = RealReadLink(path, target, sizeof target);
 
       LOG(4, "%s: Called RealReadLink which returned: %d\n", __func__, status);

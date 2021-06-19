@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -22,6 +22,7 @@
  *      Implementation of libDeployPkg.so.
  */
 
+#include <ctype.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include <dirent.h>
@@ -91,6 +92,13 @@ VM_EMBED_VERSION(SYSIMAGE_VERSION_EXT_STR);
 
 #define MAXSTRING 2048
 
+// the minimum version that cloud-init support raw data
+#define CLOUDINIT_SUPPORT_RAW_DATA_MAJOR_VERSION 21
+#define CLOUDINIT_SUPPORT_RAW_DATA_MINOR_VERSION 1
+
+// the maximum length of cloud-init version stdout
+#define MAX_LENGTH_CLOUDINIT_VERSION 256
+
 /*
  * Constant definitions
  */
@@ -114,6 +122,17 @@ static const int CUST_GENERIC_ERROR = 255;
 static const int CUST_NETWORK_ERROR = 254;
 static const int CUST_NIC_ERROR     = 253;
 static const int CUST_DNS_ERROR     = 252;
+
+// the error code to use cloudinit workflow
+typedef enum USE_CLOUDINIT_ERROR_CODE {
+   USE_CLOUDINIT_OK = 0,
+   USE_CLOUDINIT_INTERNAL_ERROR,
+   USE_CLOUDINIT_WRONG_VERSION,
+   USE_CLOUDINIT_NOT_INSTALLED,
+   USE_CLOUDINIT_DISABLED,
+   USE_CLOUDINIT_NO_CUST_CFG,
+   USE_CLOUDINIT_IGNORE,
+} USE_CLOUDINIT_ERROR_CODE;
 
 /*
  * Linked list definition
@@ -146,10 +165,20 @@ static bool CopyFileToDirectory(const char* srcPath, const char* destPath,
                                 const char* fileName);
 static DeployPkgStatus Deploy(const char* pkgName);
 static char** GetFormattedCommandLine(const char* command);
-int ForkExecAndWaitCommand(const char* command, bool ignoreStdErr);
+int ForkExecAndWaitCommand(const char* command,
+                           bool failIfStdErr,
+                           char* forkOutput,
+                           int maxOutputLen);
 static void SetDeployError(const char* format, ...);
 static const char* GetDeployError(void);
 static void NoLogging(int level, const char* fmtstr, ...);
+static Bool CheckFileExist(const char* dirPath, const char* fileName);
+static Bool CopyFileIfExist(const char* sourcePath,
+                            const char* targetPath,
+                            const char* fileName);
+static void GetCloudinitVersion(const char* versionOutput,
+                                int* major,
+                                int* minor);
 
 /*
  * Globals
@@ -209,11 +238,10 @@ DeployPkg_SetProcessTimeout(uint16 timeout)
 NORETURN void
 Panic(const char *fmtstr, ...)
 {
-   va_list args;
-
    char *tmp = malloc(MAXSTRING);
 
    if (tmp != NULL) {
+      va_list args;
       va_start(args, fmtstr);
       Str_Vsnprintf(tmp, MAXSTRING, fmtstr, args);
       va_end(args);
@@ -1024,7 +1052,7 @@ CloudInitSetup(const char *imcDirPath)
             "/bin/mkdir -p %s", cloudInitTmpDirPath);
    command[sizeof(command) - 1] = '\0';
 
-   forkExecResult = ForkExecAndWaitCommand(command, false);
+   forkExecResult = ForkExecAndWaitCommand(command, true, NULL, 0);
    if (forkExecResult != 0) {
       SetDeployError("Error creating '%s' dir.(%s)",
                      cloudInitTmpDirPath,
@@ -1036,23 +1064,18 @@ CloudInitSetup(const char *imcDirPath)
 
    // Copy required files for cloud-init to a temp name initially and then
    // rename in order to avoid race conditions with partial writes.
-   sLog(log_info, "Check if nics.txt exists. Copy if exists, skip otherwise.");
-   snprintf(command, sizeof(command),
-            "/usr/bin/test -f %s/nics.txt", imcDirPath);
-   command[sizeof(command) - 1] = '\0';
+   // Regarding to metadata and userdata, we don't parse cust.cfg to check
+   // if they are mandatory. That is done by cloud-init.
+   if (!CopyFileIfExist(imcDirPath, cloudInitTmpDirPath, "nics.txt")) {
+      goto done;
+   }
 
-   forkExecResult = ForkExecAndWaitCommand(command, false);
+   if (!CopyFileIfExist(imcDirPath, cloudInitTmpDirPath, "metadata")) {
+      goto done;
+   }
 
-   /*
-    * /usr/bin/test -f returns 0 if the file exists
-    * non zero is returned if the file does not exist.
-    * We need to copy the nics.txt only if it exists.
-    */
-   if (forkExecResult == 0) {
-      sLog(log_info, "nics.txt file exists. Copying...");
-      if (!CopyFileToDirectory(imcDirPath, cloudInitTmpDirPath, "nics.txt")) {
-         goto done;
-       }
+   if (!CopyFileIfExist(imcDirPath, cloudInitTmpDirPath, "userdata")) {
+      goto done;
    }
 
    // Get custom script name.
@@ -1097,7 +1120,7 @@ done:
                   "/bin/rm -rf %s",
                   cloudInitTmpDirPath);
          command[sizeof(command) - 1] = '\0';
-         if (ForkExecAndWaitCommand(command, false) != 0) {
+         if (ForkExecAndWaitCommand(command, true, NULL, 0) != 0) {
             sLog(log_warning,
                  "Error while removing temporary folder '%s'. (%s)",
                  cloudInitTmpDirPath, strerror(errno));
@@ -1125,7 +1148,7 @@ CopyFileToDirectory(const char* srcPath, const char* destPath,
    snprintf(command, sizeof(command), "/bin/cp %s/%s %s/%s.tmp", srcPath,
             fileName, destPath, fileName);
    command[sizeof(command) - 1] = '\0';
-   forkExecResult = ForkExecAndWaitCommand(command, false);
+   forkExecResult = ForkExecAndWaitCommand(command, true, NULL, 0);
    if (forkExecResult != 0) {
       SetDeployError("Error while copying file '%s'.(%s)", fileName,
                      strerror(errno));
@@ -1135,7 +1158,7 @@ CopyFileToDirectory(const char* srcPath, const char* destPath,
             fileName, destPath, fileName);
    command[sizeof(command) - 1] = '\0';
 
-   forkExecResult = ForkExecAndWaitCommand(command, false);
+   forkExecResult = ForkExecAndWaitCommand(command, true, NULL, 0);
    if (forkExecResult != 0) {
       SetDeployError("Error while renaming temp file '%s'.(%s)", fileName,
                      strerror(errno));
@@ -1159,57 +1182,69 @@ CopyFileToDirectory(const char* srcPath, const char* destPath,
  * - cloud-init is enabled.
  *
  * @param   [IN]  dirPath  Path where the package is extracted.
- * @returns true if cloud-init should be used for guest customization.
+ * @returns the error code to use cloud-init work flow
  *
  *----------------------------------------------------------------------------
  * */
 
-static bool
+static USE_CLOUDINIT_ERROR_CODE
 UseCloudInitWorkflow(const char* dirPath)
 {
-   char *cfgFullPath = NULL;
-   int cfgFullPathSize;
    static const char cfgName[] = "cust.cfg";
+   static const char metadataName[] = "metadata";
    static const char cloudInitConfigFilePath[] = "/etc/cloud/cloud.cfg";
    static const char cloudInitCommand[] = "/usr/bin/cloud-init -v";
+   char cloudInitCommandOutput[MAX_LENGTH_CLOUDINIT_VERSION];
    int forkExecResult;
 
    if (NULL == dirPath) {
-      return false;
+      return USE_CLOUDINIT_INTERNAL_ERROR;
    }
 
-   sLog(log_debug, "Check if cust.cfg exists.");
-
-   cfgFullPathSize = strlen(dirPath) + 1 /* For '/' */ + sizeof(cfgName);
-   cfgFullPath = (char *) malloc(cfgFullPathSize);
-   if (cfgFullPath == NULL) {
-      sLog(log_error, "Failed to allocate memory. (%s)", strerror(errno));
-      return false;
+   // check if cust.cfg file exists
+   if (!CheckFileExist(dirPath, cfgName)) {
+      return USE_CLOUDINIT_NO_CUST_CFG;
    }
 
-   snprintf(cfgFullPath, cfgFullPathSize, "%s/%s", dirPath, cfgName);
-   cfgFullPath[cfgFullPathSize - 1] = '\0';
-
-   if (access(cfgFullPath, R_OK) != 0) {
-      sLog(log_info, "cust.cfg is missing in '%s' directory. Error: (%s)",
-           dirPath, strerror(errno));
-      free(cfgFullPath);
-      return false;
-   } else {
-      sLog(log_info, "cust.cfg is found in '%s' directory.", dirPath);
-   }
-
-   forkExecResult = ForkExecAndWaitCommand(cloudInitCommand, true);
+   forkExecResult = ForkExecAndWaitCommand(cloudInitCommand,
+                                           false,
+                                           cloudInitCommandOutput,
+                                           sizeof(cloudInitCommandOutput));
    if (forkExecResult != 0) {
       sLog(log_info, "cloud-init is not installed.");
-      free(cfgFullPath);
-      return false;
+      return USE_CLOUDINIT_NOT_INSTALLED;
    } else {
       sLog(log_info, "cloud-init is installed.");
    }
 
-   free(cfgFullPath);
-   return IsCloudInitEnabled(cloudInitConfigFilePath);
+   // If cloud-init metadata exists, check if cloud-init support to handle
+   // cloud-init raw data.
+   // In this case, the guest customization must be delegated to cloud-init,
+   // no need to check if cloud-init is enabled in cloud.cfg.
+   if (CheckFileExist(dirPath, metadataName)) {
+      int major, minor;
+      GetCloudinitVersion(cloudInitCommandOutput, &major, &minor);
+      sLog(log_info, "metadata exists, check cloud-init version...");
+      if (major < CLOUDINIT_SUPPORT_RAW_DATA_MAJOR_VERSION ||
+          (major == CLOUDINIT_SUPPORT_RAW_DATA_MAJOR_VERSION &&
+           minor < CLOUDINIT_SUPPORT_RAW_DATA_MINOR_VERSION)) {
+          sLog(log_info,
+               "cloud-init version %d.%d is older than required version %d.%d",
+               major,
+               minor,
+               CLOUDINIT_SUPPORT_RAW_DATA_MAJOR_VERSION,
+               CLOUDINIT_SUPPORT_RAW_DATA_MINOR_VERSION);
+          return USE_CLOUDINIT_WRONG_VERSION;
+      } else {
+         return USE_CLOUDINIT_OK;
+      }
+   } else {
+      if (IsCloudInitEnabled(cloudInitConfigFilePath)) {
+         return USE_CLOUDINIT_OK;
+      } else {
+         return USE_CLOUDINIT_DISABLED;
+      }
+   }
 }
 
 
@@ -1241,7 +1276,7 @@ DeleteTempDeploymentDirectory(const char* imcDirPath)
    Str_Strcat(cleanupCommand, imcDirPath, cleanupCommandSize);
 
    sLog(log_info, "Launching cleanup.");
-   if (ForkExecAndWaitCommand(cleanupCommand, false) != 0) {
+   if (ForkExecAndWaitCommand(cleanupCommand, true, NULL, 0) != 0) {
       sLog(log_warning, "Error while cleaning up imc directory '%s'. (%s)",
            imcDirPath, strerror(errno));
       free(cleanupCommand);
@@ -1278,7 +1313,7 @@ Deploy(const char* packageName)
    bool forceSkipReboot = false;
    const char *baseDirPath = NULL;
    char *imcDirPath = NULL;
-   bool useCloudInitWorkflow = false;
+   USE_CLOUDINIT_ERROR_CODE useCloudInitWorkflow = USE_CLOUDINIT_IGNORE;
    int imcDirPathSize = 0;
    TransitionState(NULL, INPROGRESS);
 
@@ -1367,14 +1402,34 @@ Deploy(const char* packageName)
       sLog(log_info, "Ignoring cloud-init.");
    }
 
-   if (useCloudInitWorkflow) {
+   sLog(log_info, "UseCloudInitWorkflow return: %d", useCloudInitWorkflow);
+
+   if (useCloudInitWorkflow == USE_CLOUDINIT_OK) {
       sLog(log_info, "Executing cloud-init workflow.");
       sSkipReboot = TRUE;
       free(command);
       deployPkgStatus = CloudInitSetup(imcDirPath);
+   } else if (useCloudInitWorkflow == USE_CLOUDINIT_WRONG_VERSION ||
+              useCloudInitWorkflow == USE_CLOUDINIT_INTERNAL_ERROR) {
+      int errCode = (useCloudInitWorkflow == USE_CLOUDINIT_WRONG_VERSION) ?
+         TOOLSDEPLOYPKG_ERROR_CLOUDINIT_NOT_SUPPORT_RAWDATA :
+         GUESTCUST_EVENT_CUSTOMIZE_FAILED;
+      TransitionState(INPROGRESS, ERRORED);
+
+      SetDeployError("Deployment failed. use cloud-init work flow return: %d",
+                     useCloudInitWorkflow);
+      sLog(log_error, "Deployment failed. use cloud-init work flow return: %d",
+           useCloudInitWorkflow);
+      SetCustomizationStatusInVmx(TOOLSDEPLOYPKG_RUNNING,
+                                  errCode,
+                                  "Deployment failed");
+      DeleteTempDeploymentDirectory(imcDirPath);
+      free(imcDirPath);
+      free(command);
+      return DEPLOYPKG_STATUS_ERROR;
    } else {
       sLog(log_info, "Executing traditional GOSC workflow.");
-      deploymentResult = ForkExecAndWaitCommand(command, false);
+      deploymentResult = ForkExecAndWaitCommand(command, true, NULL, 0);
       free(command);
 
       if (deploymentResult != CUST_SUCCESS) {
@@ -1463,9 +1518,8 @@ Deploy(const char* packageName)
                sLog(log_info, "Rebooting.");
             }
             rebootCommandResult =
-               ForkExecAndWaitCommand("/sbin/telinit 6", false);
-            isRebooting = (rebootCommandResult == 0) ?
-			   true : isRebooting;
+               ForkExecAndWaitCommand("/sbin/telinit 6", true, NULL, 0);
+            isRebooting = (rebootCommandResult == 0) ? true : isRebooting;
             sleep(1);
          } while (rebootCommandResult == 0);
          if (!isRebooting) {
@@ -1710,18 +1764,29 @@ GetFormattedCommandLine(const char* command)
  * fork-and-exec.
  *
  * @param   [IN]  command       Command to execute
- * @param   [IN]  ignoreStdErr  If we ignore stderr when cmd's return code is 0
+ * @param   [IN]  failIfStdErr  Whether to treat stderr as command failed when
+ *                              command's return code is 0.
+ * @param   [OUT] forkOutput    Return the command stdout. If stdout is empty,
+ *                              return the command stderr.
+ * @param   [IN]  maxOutputLen  The maximum length to return from command
+ *                              output
  * @return  Return code from the process (or -1)
  *
  **/
 int
-ForkExecAndWaitCommand(const char* command, bool ignoreStdErr)
+ForkExecAndWaitCommand(const char* command,
+                       bool failIfStdErr,
+                       char* forkOutput,
+                       int maxOutputLen)
 {
    ProcessHandle hp;
    int retval;
    int i;
    char** args = GetFormattedCommandLine(command);
+   const char* processStdOut;
    Bool isPerlCommand = (strcmp(args[0], "/usr/bin/perl") == 0) ? true : false;
+   Bool isTelinitCommand =
+      (strcmp(args[0], "/sbin/telinit") == 0) ? true : false;
 
    sLog(log_debug, "Command to exec : '%s'.", args[0]);
    Process_Create(&hp, args, sLog);
@@ -1733,38 +1798,61 @@ ForkExecAndWaitCommand(const char* command, bool ignoreStdErr)
    free(args);
 
    Process_RunToComplete(hp, gProcessTimeout);
+
+   processStdOut = Process_GetStdout(hp);
+
+   if (forkOutput != NULL) {
+      // Copy the command stdout. If stdout is empty, copy the command stderr.
+      if (strlen(processStdOut) > 0) {
+         Str_Strncpy(forkOutput, maxOutputLen, processStdOut,
+                     maxOutputLen - 1);
+      } else {
+         Str_Strncpy(forkOutput, maxOutputLen, Process_GetStderr(hp),
+                     maxOutputLen - 1);
+      }
+   }
+
    if (isPerlCommand) {
       sLog(log_info, "Customization command output:\n%s\n%s\n%s",
          "=================== Perl script log start =================",
-         Process_GetStdout(hp),
+         processStdOut,
          "=================== Perl script log end =================");
    } else {
       sLog(log_info, "Customization command output:\n'%s'.",
-         Process_GetStdout(hp));
+         processStdOut);
    }
    retval = Process_GetExitCode(hp);
 
    if (retval == 0) {
-      if (strlen(Process_GetStderr(hp)) > 0) {
-         if (!ignoreStdErr) {
-            // Assume command failed if it wrote to stderr, even if exitCode is 0
+      const char* processStdErr = Process_GetStderr(hp);
+      if (strlen(processStdErr) > 0) {
+         if (failIfStdErr) {
+            // Assume command failed if it wrote to stderr, although exitCode
+            // is 0.
             sLog(log_error,
                  "Customization command failed with stderr: '%s'.",
-                 Process_GetStderr(hp));
+                 processStdErr);
             retval = -1;
          } else {
-            // If we choose to ignore stderr, we do not return -1 when return
-            // code is 0. e.g, PR2148977, "cloud-init -v" will return 0
+            // Assume command succeeded if exitCode is 0, although it wrote to
+            // stderr. e.g, PR2148977, "cloud-init -v" will return 0
             // even there is output in stderr
-            sLog(log_info, "Ignoring stderr output: '%s'.",
-                 Process_GetStderr(hp));
+            sLog(log_info, "Command succeeded despite of stderr output: '%s'.",
+                 processStdErr);
          }
       }
    } else {
-      sLog(log_error,
-           "Customization command failed with exitcode: %d, stderr: '%s'.",
-           retval,
-           Process_GetStderr(hp));
+      if (isTelinitCommand) {
+         sLog(log_info,
+              "Telinit command failed with exitcode: %d, stderr: '%s'.",
+              retval,
+              Process_GetStderr(hp));
+      } else {
+         sLog(log_error,
+              "Customization command failed with exitcode: %d, stderr: '%s'.",
+              retval,
+              Process_GetStderr(hp));
+      }
    }
 
    Process_Destroy(hp);
@@ -1845,4 +1933,98 @@ DeployPkg_DeployPackageFromFile(const char* file)
    }
 
    return retStatus;
+}
+
+/**
+ *
+ * Check if the given file exists or not
+ *
+ * @param  [IN]  dirPath     The dir path of the given file
+ * @param  [IN]  fileName    The file name of the given file
+ * @returns  TRUE if file exists.
+ *           FALSE if file doesn't exist or an error occured.
+ *
+ **/
+static Bool
+CheckFileExist(const char* dirPath, const char* fileName)
+{
+   Bool ret;
+   int fullPathSize = strlen(dirPath) + strlen(fileName) + 2 /* '/' and \0 */;
+   char *fullPath = (char *) malloc(fullPathSize);
+   if (fullPath == NULL) {
+      sLog(log_error, "Failed to allocate memory. (%s)", strerror(errno));
+      return FALSE;
+   }
+
+   snprintf(fullPath, fullPathSize, "%s/%s", dirPath, fileName);
+   ret = File_Exists(fullPath);
+   free(fullPath);
+   return ret;
+}
+
+/**
+ *
+ * Copy the given file to target directory if it exists
+ *
+ * @param  [IN]  sourcePath     The dir path to copy the file from
+ * @param  [IN]  targetPath     The dir path to copy the file to
+ * @param  [IN]  fileName       The file name to copy
+ * @returns  TRUE if file is copied or not exist.
+ *           FALSE if any error occurs.
+ *
+ **/
+static Bool
+CopyFileIfExist(const char* sourcePath,
+                const char* targetPath,
+                const char* fileName)
+{
+   sLog(log_info, "Copy file %s/%s to directory %s, return if not exist.",
+        sourcePath, fileName, targetPath);
+
+   if (CheckFileExist(sourcePath, fileName)) {
+      sLog(log_info, "file %s exists. Copying...", fileName);
+      if (!CopyFileToDirectory(sourcePath, targetPath, fileName)) {
+         return FALSE;
+       }
+   } else {
+      sLog(log_info, "file %s doesn't exist, skipped.", fileName);
+   }
+   return TRUE;
+}
+
+/**
+ *
+ * Get the cloudinit version from "cloud-init -v" output.
+ *
+ * The "cloud-init -v" output is something like:
+ *    /usr/bin/cloud-init 20.3-2-g371b392c-0ubuntu1~20.04.1
+ *    or
+ *    cloud-init 0.7.9
+ *
+ * @param [IN] version    The output of command "cloud-init -v"
+ * @param [OUT] major     The major version of cloud-init
+ * @param [OUT] minor     The minor version of cloud-init
+ *
+ * examples:
+ *    /usr/bin/cloud-init 20.3-2-g371b392c-0ubuntu1~20.04.1
+ *       major: 20, minor: 3
+ *    cloud-init 0.7.9
+ *       major: 0, minor: 7
+ **/
+static void
+GetCloudinitVersion(const char* version, int* major, int* minor)
+{
+   *major = *minor = 0;
+   if (version == NULL || strlen(version) == 0) {
+      sLog(log_warning, "Invalid cloud-init version.");
+      return;
+   }
+   sLog(log_info, "Parse cloud-init version from :%s", version);
+
+   if (isdigit(version[0])) {
+      sscanf(version, "%d%*[-.]%d", major, minor);
+   } else {
+      sscanf(version, "%*[^0123456789]%d%*[-.]%d", major, minor);
+   }
+   sLog(log_info, "Cloud-init version major: %d, minor: %d", *major, *minor);
 }

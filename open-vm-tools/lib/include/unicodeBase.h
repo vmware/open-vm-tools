@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -62,12 +62,14 @@ extern "C" {
 
 
 /*
- * In contexts where an errno makes sense, use this
- * to report conversion failure.
+ * In contexts where an errno makes sense, use this to report conversion
+ * failure. ERANGE is chosen since no Unicode routines deal with math; this
+ * avoids overloading an errno that may a specific meaning for a certain
+ * routine.
  */
 
 #ifndef _WIN32
-#define UNICODE_CONVERSION_ERRNO EINVAL 
+#define UNICODE_CONVERSION_ERRNO ERANGE
 #endif
 
 

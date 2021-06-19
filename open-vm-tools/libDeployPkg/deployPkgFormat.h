@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -54,6 +54,7 @@ typedef enum {
 #define VMWAREDEPLOYPKG_HEADER_FLAGS_NONE 0
 #define VMWAREDEPLOYPKG_HEADER_FLAGS_SKIP_REBOOT 1
 #define VMWAREDEPLOYPKG_HEADER_FLAGS_IGNORE_CLOUD_INIT 2
+#define VMWAREDEPLOYPKG_HEADER_FLAGS_RAW_CLOUD_INIT 4
 
 #ifdef _WIN32
 #include "pshpack4.h" // 4 byte alignment assumed.

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -26,66 +26,193 @@
 #include "productState.h"
 #include <stdarg.h>
 
+#if defined(_WIN32)
+#include <windows.h>
+#endif
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
 
+/**
+ * Log Facility
+ *
+ * The Log Facility exists to record events of program execution for purposes
+ * of auditing, debugging, and monitoring. Any non-trivial program should use
+ * logging, to enable those purposes.
+ *
+ * Events recorded by the Log Facility (i.e. calls to here-declared functions)
+ * are automatically filtered, time-stamped, and persisted.
+ *
+ * Configuration for field engineers is documented at
+ *   https://wiki.eng.vmware.com/PILogFacility
+ *
+ * For full details on configurable parameters and their semantics,
+ * use the source, Luke -- starting at lib/log/logFacility.c
+ *
+ * The events are explicitly annotated by the developer (i.e. you)
+ * with a level, an optional module, and a message.
+ *
+ * Notes:
+ * - Log() is defined as Log_Info()
+ * - Warning() is defined as Log_Warning()
+ *
+ * Log Level
+ *
+ * The Log Level indicates the (in)significance of the event, with larger
+ * numbers indicating lesser significance. The level, whether explicit
+ * (e.g. Log_Level(level, ...)) or implicit (e.g. Log_Info(...)),
+ * should be chosen with some care. A Log_Info() message containing the word
+ * "warning" or "error" is almost certainly mis-routed.
+ *
+ * The following rules of thumb provide a rough guide to choice of level.
+ * * VMW_LOG_AUDIT -- always logged, for auditing purposes
+ *  + change to authorization
+ *  + change to configuration
+ * * VMW_LOG_PANIC -- system broken; cannot exit gracefully
+ *  + wild pointer; corrupt arena
+ *  + error during error exit
+ * * VMW_LOG_ERROR -- system broken; must exit
+ *  + required resource inaccessible (memory; storage; network)
+ *  + incorrigible internal inconsistency
+ * * VMW_LOG_WARNING -- unexpected condition; may require immediate attention
+ *  + inconsistency corrected or ignored
+ *  + timeout or slow operation
+ * * VMW_LOG_NOTICE -- unexpected condition; may require eventual attention
+ *  + missing config; default used
+ *  + lower level error ignored
+ * * VMW_LOG_INFO -- expected condition
+ *  + non-standard configuration
+ *  + alternate path taken (e.g. on lower level error)
+ * * VMW_LOG_VERBOSE -- normal operation; potentially useful information
+ *  + system health observation, for monitoring
+ *  + unexpected non-error state
+ * * VMW_LOG_TRIVIA -- normal operation; excess information
+ *  + vaguely interesting note
+ *  + anything else the developer thinks might be useful
+ * * VMW_LOG_DEBUG_* -- flow and logic tracing
+ *  + routine entry, with parameters; routine exit, with return value
+ *  + intermediate values or decisions
+ *
+ * Log Module
+ *
+ * The Log routines accept an explicit level (see below)
+ * as well as an optional module parameter.
+ * This affords another degree of freedom in filtering.
+ *
+ * To use the module parameter:
+ *
+ * (0) The module identifier must already exist, or be invented and defined,
+ *     in public/loglevel_userVars.h
+ *
+ * (1) Define LOGLEVEL_MODULE before the include of "log.h".
+ *     The value must be a valid module identifier (see above).
+ *     It is a good idea to see if "log.h" is included more than once,
+ *     and if so, to remove any extra inclusions.
+ *
+ *     If all uses of LOG() are converted to use Log_ variants,
+ *     remember to remove "loglevel_user.h".
+ *
+ * (2) Pass the module information to the Log Facility.
+ *     LOGLEVEL_MODULE is actually encoded in the level parameter by
+ *     the LOG_ROUTING_BITS(level) macro.
+ *
+ *     Use
+ *        Log_LevelModule(level, ...);
+ *     OR
+ *        LogV_Module(level, ...);
+ *     OR
+ *        Log_Level(LOG_ROUTING_BITS(level), ...);
+ *     OR
+ *        Log_V(LOG_ROUTING_BITS(level), ...);
+ *
+ * Log Message
+ *
+ * Every Log message should be unique, unambiguously describing the event
+ * being logged, and should include all relevant data, in human-readable form.
+ * Source line number is *not* useful.
+ * + printf-style arguments
+ * + function name as prefix (controversial)
+ * + format pure number (e.g. error number) in decimal
+ * + format bitfield (e.g. compound error code) in hex
+ * + format disk size or offset in hex; specify units if not bytes
+ * + quote string arguments (e.g. pathnames) which can contain spaces
+ *
+ * Log Filter
+ *
+ * The Log Facility filters events as they arrive, by level and by module,
+ * discarding events above the configured filter level.
+ * This is similar to how syslog and the vmacore logger handle levels.
+ *
+ * There is a global filter and assorted module filters.
+ * The global filter is used for all entries to the Log Facility
+ * UNLESS a module is specified.
+ *
+ * Module filters are limited to a module (name specific) context;
+ * they do not fall within the global context. This allows entries to be
+ * controlled by module AND level. This is similar to LOG(), for those
+ * familiar with it ... except that module filters are available in
+ * all build types.
+ *
+ * Each module is a separate configuration namespace, with module-specific
+ * filter levels. The default module filter level is none (VMW_LOG_AUDIT)
+ * i.e. module filters by default discard all events (just like LOG()).
+ *
+ * Regardless of what level of filtering is specified, the VMW_LOG_AUDIT
+ * level is used to log something that requires an audit at a later date.
+ * It is *ALWAYS* logged and *NEVER* outputs to the "standard error".
+ */
 /*
- * The bora/lib Log Facility log level model.
- *
- * Each log entry has a level associated with it. The Log Facility filters
- * entries as they arrive by their level; only levels equal to or below
- * (smaller values) the filter level will be accepted by the Log Facility for
- * processing.
- *
- * By default, the Log Facility will output any entry which is submitted at
- * level VMW_LOG_WARNING and below to the "standard error". This may be
- * controlled via Log_SetStderrLevel (see function header) or configuration
- * parameter (see comments in log.c).
- *
- * The VMW_LOG_AUDIT level is used to log something that requires an audit
- * at a later date. It is *ALWAYS* logged and *NEVER* outputs to the "standard
- * error".
- *
- * NOTE: The log levels must have sequential values with no "holes" and start
- *       with zero (0).
- *
- *      Level              Comments
- *-------------------------------------------------
+ * Level            Value    Comments
+ *---------------------------------------------------------------------------
  */
 
 typedef enum {
-   VMW_LOG_AUDIT    = 0,   // ALWAYS LOGGED; NO STDERR
-   VMW_LOG_PANIC    = 1,   // Quietest level
-   VMW_LOG_ERROR    = 2,
-   VMW_LOG_WARNING  = 3,
-   VMW_LOG_NOTICE   = 4,
-   VMW_LOG_INFO     = 5,   // Default filter level for release builds
-   VMW_LOG_VERBOSE  = 6,   // Default filter level for debug builds
-   VMW_LOG_TRIVIA   = 7,
-   VMW_LOG_DEBUG_00 = 8,   // least noisy debug level
+   VMW_LOG_AUDIT    = 0,  // Always output; never to stderr
+   VMW_LOG_PANIC    = 1,  // Desperation
+   VMW_LOG_ERROR    = 2,  // Irremediable error
+   VMW_LOG_WARNING  = 3,  // Unexpected condition; may need immediate attention
+   VMW_LOG_NOTICE   = 4,  // Unexpected condition; may need eventual attention
+   VMW_LOG_INFO     = 5,  // Expected condition
+   VMW_LOG_VERBOSE  = 6,  // Extra information
+   VMW_LOG_TRIVIA   = 7,  // Excess information
+   VMW_LOG_DEBUG_00 = 8,
    VMW_LOG_DEBUG_01 = 9,
    VMW_LOG_DEBUG_02 = 10,
-   VMW_LOG_DEBUG_03 = 11,  // debug levels grow
-   VMW_LOG_DEBUG_04 = 12,  // increasingly noisy
-   VMW_LOG_DEBUG_05 = 13,  // as the debug number
-   VMW_LOG_DEBUG_06 = 14,  // increases
+   VMW_LOG_DEBUG_03 = 11,
+   VMW_LOG_DEBUG_04 = 12,
+   VMW_LOG_DEBUG_05 = 13,
+   VMW_LOG_DEBUG_06 = 14,
    VMW_LOG_DEBUG_07 = 15,
    VMW_LOG_DEBUG_08 = 16,
    VMW_LOG_DEBUG_09 = 17,
-   VMW_LOG_DEBUG_10 = 18,  // Noisiest level
+   VMW_LOG_DEBUG_10 = 18,
+   VMW_LOG_DEBUG_11 = 19,
+   VMW_LOG_DEBUG_12 = 20,
+   VMW_LOG_DEBUG_13 = 21,
+   VMW_LOG_DEBUG_14 = 22,
+   VMW_LOG_DEBUG_15 = 23,
+   VMW_LOG_MAX      = 24,
 } VmwLogLevel;
 
-#if defined(VMX86_DEBUG) || defined(VMX86_DEVEL)
+#if defined(VMX86_DEBUG)
    #define LOG_FILTER_DEFAULT_LEVEL VMW_LOG_VERBOSE
 #else
    #define LOG_FILTER_DEFAULT_LEVEL VMW_LOG_INFO
 #endif
 
+#ifdef VMX86_SERVER
+/* WORLD_MAX_OPID_STRING_SIZE */
+#define LOG_MAX_OPID_LENGTH 128
+#else
+/* We do not expect long opIDs in non-ESX environments. 32 should be enough. */
+#define LOG_MAX_OPID_LENGTH 32
+#endif
+
 /*
- * The "routing" parameter contains the level in the low order bits; the
- * higher order bits specify the module where the log call came from.
+ * The "routing" parameter contains the level in the low order bits;
+ * the higher order bits specify the module of the log call.
  */
 
 #define VMW_LOG_LEVEL_BITS 5  // Log level bits (32 levels max)
@@ -205,32 +332,43 @@ Log_Trivia(const char *fmt,
 }
 
 #if !defined(VMM)
+typedef struct {
+   int32   legalLevelValue;
+   char   *legalName;
+   char   *levelIdStr;
+} LogLevelData;
+
+const LogLevelData *
+Log_MapByLevel(VmwLogLevel level);
+
+const LogLevelData *
+Log_MapByName(const char *name);
+
+typedef struct LogOutput LogOutput;
+
 /* Forward decl */
 struct Dictionary;
 struct CfgInterface;
-
-/*
- * Structure contains all the pointers to where value can be updated
- * Making VmxStats as a struct has its own advantage, such as updating
- * 'droppedChars' from the struct instead within LogFile.
- */
-typedef struct {
-   uint64 *numTimesDrop; // total time char dropped
-   uint64 *droppedChars; // Number of drop char
-   uint64 *bytesLogged;  // Total logged
-} VmxStatsInfo;
-
-
-typedef struct LogOutput LogOutput;
 
 struct CfgInterface *
 Log_CfgInterface(void);
 
 int32
-Log_SetStderrLevel(int32 level);
+Log_SetStderrLevel(uint32 module,
+                   int32 level);
 
 int32
-Log_GetStderrLevel(void);
+Log_GetStderrLevel(uint32 module);
+
+int32
+Log_SetLogLevel(uint32 module,
+                int32 level);
+
+int32
+Log_GetLogLevel(uint32 module);
+
+uint32
+Log_LookupModuleNumber(const char *moduleName);
 
 LogOutput *
 Log_NewStdioOutput(const char *appPrefix,
@@ -257,6 +395,34 @@ Log_NewCustomOutput(const char *instanceName,
                     LogCustomMsgFunc *msgFunc,
                     int minLogLevel);
 
+typedef struct {
+   uint8 level;
+   Bool  additionalLine;
+   char  timeStamp[64];
+   char  threadName[32];
+   char  opID[LOG_MAX_OPID_LENGTH + 1];  // Will be empty string on hosted products
+} LogLineMetadata;
+
+typedef void (LogCustomMsgFuncEx)(const LogLineMetadata * const metadata,
+                                  const char *msg);
+
+LogOutput *
+Log_NewCustomOutputEx(const char *instanceName,
+                      LogCustomMsgFuncEx *msgFunc,
+                      int minLogLevel);
+
+#if defined(VMX86_SERVER)
+LogOutput *
+Log_NewEsxKernelLogOutput(const char *appPrefix,
+                          struct Dictionary *params,
+                          struct CfgInterface *cfgIf);
+
+LogOutput *
+Log_NewCrxSyslogOutput(const char *appPrefix,
+                       struct Dictionary *params,
+                       struct CfgInterface *cfgIf);
+#endif
+
 Bool
 Log_FreeOutput(LogOutput *toOutput);
 
@@ -271,6 +437,17 @@ Log_ReplaceOutput(LogOutput *fromOutput,
 int32
 Log_SetOutputLevel(LogOutput *output,
                    int32 level);
+
+/*
+ * Structure contains all the pointers to where value can be updated
+ * Making VmxStats as a struct has its own advantage, such as updating
+ * 'droppedChars' from the struct instead within LogFile.
+ */
+typedef struct {
+   uint64 *numTimesDrop; // total time char dropped
+   uint64 *droppedChars; // Number of drop char
+   uint64 *bytesLogged;  // Total logged
+} VmxStatsInfo;
 
 Bool
 Log_SetVmxStatsData(LogOutput *output,
@@ -405,7 +582,7 @@ Bool
 Log_Outputting(void);
 
 Bool
-Log_IsLevelOutputting(int level);
+Log_IsEnabled(uint32 routing);
 
 const char *
 Log_GetFileName(void);
@@ -434,9 +611,21 @@ typedef Bool (LogOwnerFunc)(void *userData,
                             const char *fileName);
 
 Bool
-Log_BoundNumFiles(struct LogOutput *output,
-                LogOwnerFunc *func,
-                void *userData);
+Log_BoundNumFiles(const LogOutput *output,
+                  LogOwnerFunc *func,
+                  void *userData);
+
+typedef struct {
+#if defined(_WIN32)
+   HANDLE handle;
+#else
+   int fd;
+#endif
+} LogFileObject;
+
+Bool
+Log_GetFileObject(const LogOutput *output,
+                  LogFileObject *result);
 
 #if defined(VMX86_SERVER)
 #define LOG_KEEPOLD 6  // Old log files to keep around; ESX value
@@ -501,7 +690,12 @@ typedef Bool (GetOpId)(size_t maxStringLen,
 void
 Log_RegisterOpIdFunction(GetOpId *getOpIdFunc);
 
-void Log_LoadModuleFilters(struct CfgInterface *cfgIf);
+void
+Log_LoadModuleFilters(const char *appPrefix,
+                      struct CfgInterface *cfgIf);
+
+long
+Log_OffsetUtc(void);
 
 #endif /* !VMM */
 
@@ -512,14 +706,25 @@ void Log_LoadModuleFilters(struct CfgInterface *cfgIf);
 #endif /* VMWARE_LOG_H */
 
 /*
- * To use the Log Facility module specific filters:
+ * To use the Log Facility Module Specific Filters:
  *
- *  1) Use LogV or Log_Level and use the LOG_ROUTING_BITS macro.
+ *  1) Modify the file (C/C++) slightly.
  *
- *  2) Have LOGLEVEL_MODULE defined before the include of "log.h".
+ *     Define LOGLEVEL_MODULE before the include of "log.h". It's a good
+ *     idea to see if "log.h" is included more than once and, if so, to
+ *     remove any extra inclusions.
  *
- *     For many files, this involves moving the include "log.h" after
- *     the include of "loglevel_user.h".
+ *     If all uses of LOG are converted to use the module-specific filters,
+ *     remember to remove "loglevel_user.h".
+ *
+ *  2) Pass the LOGLEVEL_MODULE information to the Log Facility.
+ *
+ *     Use LogV_Module and/or Log_LevelModule.
+ *
+ *     OR
+ *
+ *     Use the LOG_ROUTING_BITS macro as part of a call to LogV and/or
+ *     Log_Level.
  */
 
 #if !defined(VMW_LOG_MODULE_LEVELS)
@@ -547,4 +752,27 @@ void Log_LoadModuleFilters(struct CfgInterface *cfgIf);
    #define LOG_ROUTING_BITS(level) (level)
 #endif
 
+/*
+ * Helper functions for module level filters.
+ */
 
+#if defined(Log_LevelModule)
+   #undef Log_LevelModule
+#endif
+
+#define Log_LevelModule(level, ...) \
+   Log_Level(LOG_ROUTING_BITS(level), __VA_ARGS__)
+
+#if defined(LogV_Module)
+   #undef LogV_Module
+#endif
+
+#define LogV_Module(level, ...) \
+   LogV(LOG_ROUTING_BITS(level), __VA_ARGS__)
+
+#if defined(Log_IsEnabledModule)
+   #undef Log_IsEnabledModule
+#endif
+
+#define Log_IsEnabledModule(level) \
+   Log_IsEnabled(LOG_ROUTING_BITS(level))

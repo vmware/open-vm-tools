@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2019, 2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -367,8 +367,8 @@ WiperIsDiskDevice(MNTINFO *mnt,         // IN: file system being considered
 #else
    /*
     * Begin by testing whether file system source is really a character
-    * device node.  (FreeBSD killed off block devices long ago.)  Next,
-    * simply discriminate by device node name:
+    * device node.  (FreeBSD dropped support for block devices long ago.)
+    * Next, simply discriminate by device node name:
     *   /dev/ad* = ATA disk, /dev/da* = SCSI disk
     */
 #define MASK_ATA_DISK    "ad"

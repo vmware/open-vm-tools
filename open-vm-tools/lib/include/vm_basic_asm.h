@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -205,7 +205,7 @@ mssb64_0(const uint64 value)
 }
 #endif
 
-#ifdef __GNUC__
+#if defined __GNUC__ || defined __clang__
 
 #ifdef VM_X86_ANY
 #define USE_ARCH_X86_CUSTOM
@@ -236,10 +236,6 @@ mssb64_0(const uint64 value)
  * **********************************************************
  */
 
-#if __GNUC__ < 4
-#define FEWER_BUILTINS
-#endif
-
 static INLINE int
 lssb32_0(uint32 v)
 {
@@ -258,7 +254,6 @@ lssb32_0(uint32 v)
    return __builtin_ffs(value) - 1;
 }
 
-#ifndef FEWER_BUILTINS
 static INLINE int
 mssb32_0(uint32 value)
 {
@@ -311,46 +306,6 @@ lssb64_0(const uint64 v)
 #endif
    return __builtin_ffsll(value) - 1;
 }
-#endif /* !FEWER_BUILTINS */
-
-#ifdef FEWER_BUILTINS
-/* GCC 3.3.x does not like __bulitin_clz or __builtin_ffsll. */
-static INLINE int
-mssb32_0(uint32 value)
-{
-   if (UNLIKELY(value == 0)) {
-      return -1;
-   } else {
-      int pos;
-      __asm__ __volatile__("bsrl %1, %0\n" : "=r" (pos) : "rm" (value) : "cc");
-      return pos;
-   }
-}
-
-static INLINE int
-lssb64_0(const uint64 value)
-{
-   if (UNLIKELY(value == 0)) {
-      return -1;
-   } else {
-      intptr_t pos;
-
-#ifdef VM_X86_64
-      __asm__ __volatile__("bsf %1, %0\n" : "=r" (pos) : "rm" (value) : "cc");
-#else
-      /* The coding was chosen to minimize conditionals and operations */
-      pos = lssb32_0((uint32) value);
-      if (pos == -1) {
-         pos = lssb32_0((uint32) (value >> 32));
-         if (pos != -1) {
-            return pos + 32;
-         }
-      }
-#endif /* VM_X86_64 */
-      return pos;
-   }
-}
-#endif /* FEWER_BUILTINS */
 
 
 static INLINE int
@@ -697,7 +652,7 @@ uint32set(void *dst, uint32 val, size_t count)
 static INLINE uint16
 Bswap16(uint16 v)
 {
-#if defined(VM_ARM_64)
+#if defined(VM_ARM_64) && !defined(_MSC_VER)
    __asm__("rev16 %w0, %w0" : "+r"(v));
    return v;
 #else
@@ -730,7 +685,7 @@ Bswap32(uint32 v) // IN
 #elif defined(VM_ARM_32) && !defined(__ANDROID__) && !defined(_MSC_VER)
     __asm__("rev %0, %0" : "+r"(v));
     return v;
-#elif defined(VM_ARM_64)
+#elif defined(VM_ARM_64) && !defined(_MSC_VER)
    __asm__("rev32 %x0, %x0" : "+r"(v));
    return v;
 #else
@@ -756,7 +711,7 @@ Bswap32(uint32 v) // IN
 static INLINE uint64
 Bswap64(uint64 v) // IN
 {
-#if defined(VM_ARM_64)
+#if defined(VM_ARM_64) && !defined(_MSC_VER)
    __asm__("rev %0, %0" : "+r"(v));
    return v;
 #else
@@ -787,7 +742,11 @@ PAUSE(void)
 }
 #elif defined(_MSC_VER)
 {
+#ifdef VM_X86_ANY
    _mm_pause();
+#else
+   __yield();
+#endif
 }
 #else  /* __GNUC__  */
 #error No compiler defined for PAUSE
@@ -823,6 +782,11 @@ RDTSC(void)
 
    return tim;
 #elif defined(VM_ARM_64)
+   /*
+    * Keep this implementation in sync with:
+    * bora/lib/vprobe/arm64/vp_emit_tc.c::VpEmit_BuiltinRDTSCWork()
+    * bora/modules/vmkernel/tests/core/xmapTest/xmapTest_arm64.c::XMapTest_SetupLoopCode()
+    */
 #if (defined(VMKERNEL) || defined(VMM)) && !defined(VMK_ARM_EL1)
    return MRS(CNTPCT_EL0);
 #else
@@ -1032,6 +996,44 @@ TestBitVector(const void *var, int32 index)
 #endif
 }
 
+
+/*
+ *-----------------------------------------------------------------------------
+ * RoundDownPow2_{64,32} --
+ *
+ *   Rounds a value down to the previous power of 2.  Returns the original
+ *   value if it is a power of 2. Returns 0 for input of 0 and 1 for 1.
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE uint64
+RoundDownPow2_64(uint64 value)
+{
+   if ((value & (value - 1)) == 0) {
+      /*
+       * Already zero or a power of two.
+       */
+      return value;
+   }
+
+   return CONST64U(1) << mssb64_0(value);
+}
+
+
+static INLINE uint32
+RoundDownPow2_32(uint32 value)
+{
+   if ((value & (value - 1)) == 0) {
+      /*
+       * Already a power of two.
+       */
+      return value;
+   }
+
+   return 1U << mssb32_0(value);
+}
+
+
 /*
  *-----------------------------------------------------------------------------
  * RoundUpPow2_{64,32} --
@@ -1169,7 +1171,7 @@ RoundUpPow2_32(uint32 value)
 static INLINE unsigned
 PopCount32(uint32 value)
 {
-#if defined(__GNUC__) && !defined(FEWER_BUILTINS) && defined(__POPCNT__)
+#if defined(__GNUC__) && defined(__POPCNT__)
    return __builtin_popcount(value);
 #else
    /*
@@ -1238,7 +1240,7 @@ PopCount32(uint32 value)
 static INLINE unsigned
 PopCount64(uint64 value)
 {
-#if defined(__GNUC__) && !defined(FEWER_BUILTINS) && defined(__POPCNT__)
+#if defined(__GNUC__) && defined(__POPCNT__)
 #if defined(VM_X86_64)
    return __builtin_popcountll(value);
 #else

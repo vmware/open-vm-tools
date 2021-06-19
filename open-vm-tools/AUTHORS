@@ -70,3 +70,9 @@ Alexey Shabalin Adding vmtools library dependency to deploypkg library.
 
 Christian Ehrhardt   Build: fix propagation of libtirpc flags
                 - https://github.com/vmware/open-vm-tools/pull/469
+
+Vincent Milum Jr  Adding FreeBSD on ARM64 support to open-vm-tools.
+                - https://github.com/vmware/open-vm-tools/pull/474
+
+Miroslav Rezanina   Fix issues using GCC 11 with gtk >= 3.20 and glib >=2.66.3
+                - https://github.com/vmware/open-vm-tools/pull/505

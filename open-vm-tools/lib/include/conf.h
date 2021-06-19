@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2002-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2002-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -201,6 +201,53 @@
 
 /*
  * END GuestStore upgrader goodies.
+ ******************************************************************************
+ */
+
+
+/*
+ ******************************************************************************
+ * BEGIN GlobalConf goodies.
+ */
+
+/**
+ * Defines the string used for the GlobalConf config file group.
+ */
+#define CONFGROUPNAME_GLOBALCONF "globalconf"
+
+/**
+ * Defines the configuration to enable/disable the GlobalConf module.
+ *
+ * @note Illegal values result in @c g_warning and fallback to the default
+ * value.
+ *
+ * @param boolean Set to TRUE to enable the module.
+ *                Set to FALSE to disable the module.
+ */
+#define CONFNAME_GLOBALCONF_ENABLED "enabled"
+
+/**
+ * Define a custom GlobalConf poll interval (in seconds).
+ *
+ * @note Illegal values result in @c g_warning and fallback to the default
+ * value.
+ *
+ * @param int   User-defined poll interval.
+ */
+#define CONFNAME_GLOBALCONF_POLL_INTERVAL "poll-interval"
+
+/**
+ * Define the global configuration resource in GuestStore.
+ *
+ * @note Illegal values result in @c g_warning and fallback to the default
+ * value.
+ *
+ * @param string   Resource identifier in GuestStore.
+ */
+#define CONFNAME_GLOBALCONF_RESOURCE "resource"
+
+/*
+ * END GlobalConf goodies.
  ******************************************************************************
  */
 
@@ -532,4 +579,67 @@
  ******************************************************************************
  * END CarbonBlack helper plugin goodies.
  */
+
+/*
+ ******************************************************************************
+ * BEGIN deviceHelper plugin goodies.
+ */
+
+/**
+ * Defines the string used for the device helper config file group.
+ */
+#define CONFGROUPNAME_DEVICEHELPER "devicehelper"
+
+/**
+ * Defines the configuration to perform device helper or not.
+ *
+ * @note Illegal values result in a @c g_warning and fallback to the default
+ * value.
+ *
+ * @param boolean Set to TRUE to disable device helper feature.
+ *                Set to FALSE to enable device helper feature.
+ */
+#define CONFNAME_DEVICEHELPER_DISABLED "disabled"
+
+/*
+ * END deviceHelper goodies.
+ ******************************************************************************
+ */
+
+/*
+ ******************************************************************************
+ * BEGIN gdp plugin goodies.
+ */
+
+/**
+ * Defines the string used for the gdp config file group.
+ */
+#define CONFGROUPNAME_GDP "gdp"
+
+/**
+ * Defines a custom history cache buffer size limit (in bytes).
+ *
+ * @note Illegal values result in a @c g_warning and fallback to the default
+ * cache buffer size limit 1048576.
+ *
+ * @param int   User-defined cache buffer size limit within [262144, 4194304].
+ *              Set 0 to disable caching.
+ */
+#define CONFNAME_GDP_CACHE_SIZE "cacheSize"
+
+/**
+ * Defines a custom history cache item count limit.
+ *
+ * @note Illegal values result in a @c g_warning and fallback to the default
+ * cache item count limit 256.
+ *
+ * @param int   User-defined cache item count limit within [64, 1024].
+ */
+#define CONFNAME_GDP_CACHE_COUNT "cacheCount"
+
+/*
+ * END gdp goodies.
+ ******************************************************************************
+ */
+
 #endif /* __CONF_H__ */

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -53,6 +53,9 @@
 /** Reply from the guest when the command is not recognized. */
 #define GUEST_RPC_UNKNOWN_COMMAND "Unknown Command"
 
+/** Reply from host when the option is disabled. */
+#define GUEST_RPC_DISABLED_OPTION "disabled"
+
 #define GUESTRPC_TCLO_VSOCK_LISTEN_PORT      975
 #define GUESTRPC_RPCI_VSOCK_LISTEN_PORT      976
 
@@ -69,6 +72,17 @@
 #define TOOLSOPTION_ENABLE_MESSAGE_BUS_TUNNEL     "enableMessageBusTunnel"
 #define TOOLSOPTION_GUEST_LOG_LEVEL               "guestLogLevel"
 #define TOOLSOPTION_ENABLE_APPINFO                "enableAppInfo"
+#define TOOLSOPTION_ENABLE_GUESTSTORE_ACCESS      "enableGuestStoreAccess"
+#define TOOLSOPTION_ENABLE_DEVICEHELPER           "enableDeviceHelper"
+
+/*
+ * Device helper commands.
+ */
+
+#define DEVICEHELPER_CONFIG_DONE_CMD    "guest.deviceHelper.config_done"
+
+#define DEVICEHELPER_CONFIG_STATUS_SUCCESS     1
+#define DEVICEHELPER_CONFIG_STATUS_FAILURE     0
 
 /*
  * Auto-upgrade commands.

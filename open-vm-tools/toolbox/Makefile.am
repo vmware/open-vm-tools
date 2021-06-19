@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2007-2018 VMware, Inc.  All rights reserved.
+### Copyright (c) 2007-2018,2020-2021 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -31,6 +31,12 @@ vmware_toolbox_cmd_SOURCES += toolbox-cmd.c
 vmware_toolbox_cmd_SOURCES += toolboxcmd-config.c
 vmware_toolbox_cmd_SOURCES += toolboxcmd-devices.c
 vmware_toolbox_cmd_SOURCES += toolboxcmd-info.c
+if LINUX
+   vmware_toolbox_cmd_SOURCES += toolboxcmd-gueststore.c
+   vmware_toolbox_cmd_SOURCES += toolboxcmd-globalconf.c
+   vmware_toolbox_cmd_LDADD   += ../lib/globalConfig/libGlobalConfig.la
+   vmware_toolbox_cmd_LDADD   += @GOBJECT_LIBS@
+endif
 vmware_toolbox_cmd_SOURCES += toolboxcmd-logging.c
 vmware_toolbox_cmd_SOURCES += toolboxcmd-scripts.c
 vmware_toolbox_cmd_SOURCES += toolboxcmd-shrink.c

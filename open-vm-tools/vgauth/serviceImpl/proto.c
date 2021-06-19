@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016,2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2016,2019-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1117,11 +1117,11 @@ ServiceProtoReadAndProcessRequest(ServiceConnection *conn)
       if (conn->eof) { // EOF
          err = VGAUTH_E_COMM;
          Debug("%s: read EOF on Connection %d\n", __FUNCTION__, conn->connId);
-         goto abort;
+         goto quit;
       }
 
       if (err != VGAUTH_E_OK) {
-         goto abort;
+         goto quit;
       }
 #if VGAUTH_PROTO_TRACE
       if (req->rawData) {
@@ -1140,7 +1140,7 @@ ServiceProtoReadAndProcessRequest(ServiceConnection *conn)
          Warning("%s: g_markup_parse_context_parse() failed: %s\n",
                  __FUNCTION__, gErr->message);
          g_error_free(gErr);
-         goto abort;
+         goto quit;
       }
    }
 
@@ -1165,7 +1165,7 @@ ServiceProtoReadAndProcessRequest(ServiceConnection *conn)
       ServiceProtoCleanupParseState(conn);
    }
 
-abort:
+quit:
    /*
     * If something went wrong, clean up.  Any error means bad data coming
     * from the client, and we don't even try to recover -- just slam
@@ -1747,11 +1747,8 @@ ServiceProtoQueryAliases(ServiceConnection *conn,
 {
    VGAuthError err;
    gchar *packet;
-   gchar *endPacket;
    int num;
    ServiceAlias *aList;
-   int i;
-   int j;
 
    /*
     * The alias code will do argument validation.
@@ -1763,11 +1760,15 @@ ServiceProtoQueryAliases(ServiceConnection *conn,
    if (err != VGAUTH_E_OK) {
       packet = Proto_MakeErrorReply(conn, req, err, "queryAliases failed");
    } else {
+      int i;
+      gchar *endPacket;
+
       packet = g_markup_printf_escaped(VGAUTH_QUERYALIASES_REPLY_FORMAT_START,
                                        req->sequenceNumber);
       // now the aliases
       for (i = 0; i < num; i++) {
          gchar *certPacket;
+         int j;
 
          certPacket = g_markup_printf_escaped(VGAUTH_ALIAS_FORMAT_START,
                                               aList[i].pemCert);

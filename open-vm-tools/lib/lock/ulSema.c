@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -41,7 +41,8 @@
 #include "windowsu.h"
 #endif
 
-#define MXUSER_A_BILLION (1000 * 1000 * 1000)
+#define MXUSER_A_MILLION (1000 * 1000)
+#define MXUSER_A_BILLION (1000 * MXUSER_A_MILLION)
 
 #if defined(_WIN32)
 typedef HANDLE NativeSemaphore;
@@ -114,51 +115,53 @@ MXUserDestroy(NativeSemaphore *sema)  // IN:
 
 static int
 MXUserTimedDown(NativeSemaphore *sema,  // IN:
-                uint32 waitTimeMsec,    // IN:
+                uint64 waitTimeNS,      // IN:
                 Bool *downOccurred)     // OUT:
 {
-    int err;
-    DWORD status;
+   int err;
+   DWORD status;
+   const uint64 maxWaitTimeMS = (uint64) 0x7FFFFFFF;
+   uint64 waitTimeMS = CEILING(waitTimeNS, (uint64) MXUSER_A_MILLION);
 
-    status = WaitForSingleObject(*sema, waitTimeMsec);
+   if (waitTimeMS > maxWaitTimeMS) {
+      waitTimeMS = maxWaitTimeMS;
+   }
 
-    switch (status) {
-       case WAIT_OBJECT_0:  // The down (decrement) occurred
-          *downOccurred = TRUE;
-          err = 0;
-          break;
+   status = WaitForSingleObject(*sema, (DWORD) waitTimeMS);
 
-       case WAIT_TIMEOUT:  // Timed out; the down (decrement) did not occur
-          *downOccurred = FALSE;
-          err = 0;
-          break;
+   switch (status) {
+      case WAIT_OBJECT_0:  // The down (decrement) occurred
+         *downOccurred = TRUE;
+         err = 0;
+         break;
 
-       default:  // Something really terrible has happened...
-          Panic("%s: WaitForSingleObject return value %x\n",
-                __FUNCTION__, status);
-    }
+      case WAIT_TIMEOUT:  // Timed out; the down (decrement) did not occur
+         *downOccurred = FALSE;
+         err = 0;
+         break;
 
-    return err;
+      default:  // Something really terrible has happened...
+         if (vmx86_debug) {
+            Panic("%s: WaitForSingleObject return value %x\n",
+                  __FUNCTION__, status);
+         }
+   }
+
+   return err;
 }
 
 static int
 MXUserDown(NativeSemaphore *sema)  // IN:
 {
-   int err;
-   Bool downOccurred;
+   DWORD status = WaitForSingleObject(*sema, INFINITE);
 
-   /*
-    * Use an infinite timed wait to implement down. If the timed down
-    * succeeds, assert that the down actually occurred.
-    */
-
-   err = MXUserTimedDown(sema, INFINITE, &downOccurred);
-
-   if (err == 0) {
-      ASSERT(downOccurred);
+   /* The down (decrement) *HAD BETTER HAVE* occurred! */
+   if (vmx86_debug && (status != WAIT_OBJECT_0)) {
+      Panic("%s: WaitForSingleObject return value %x\n",
+            __FUNCTION__, status);
    }
 
-   return err;
+   return 0;
 }
 
 static int
@@ -198,12 +201,12 @@ MXUserDestroy(NativeSemaphore *sema)  // IN:
 
 static int
 MXUserTimedDown(NativeSemaphore *sema,  // IN:
-                uint32 waitTimeMsec,    // IN:
+                uint64 waitTimeNS,      // IN:
                 Bool *downOccurred)     // OUT:
 {
-   int64 nsecWait = 1000000LL * (int64)waitTimeMsec;
-   dispatch_time_t deadline = dispatch_time(DISPATCH_TIME_NOW, nsecWait);
+   dispatch_time_t deadline = dispatch_time(DISPATCH_TIME_NOW, waitTimeNS);
    *downOccurred = dispatch_semaphore_wait(*sema, deadline) == 0;
+
    return 0;
 }
 
@@ -260,7 +263,7 @@ MXUserDown(NativeSemaphore *sema)  // IN:
 
 static int
 MXUserTimedDown(NativeSemaphore *sema,  // IN:
-                uint32 waitTimeMsec,    // IN:
+                uint64 waitTimeNS,      // IN:
                 Bool *downOccurred)     // OUT:
 {
    int err;
@@ -277,7 +280,7 @@ MXUserTimedDown(NativeSemaphore *sema,  // IN:
    gettimeofday(&curTime, NULL);
    endNS = ((uint64) curTime.tv_sec * MXUSER_A_BILLION) +
            ((uint64) curTime.tv_usec * 1000) +
-           ((uint64) waitTimeMsec * (1000 * 1000));
+           waitTimeNS;
 
    endTime.tv_sec = (time_t) (endNS / MXUSER_A_BILLION);
    endTime.tv_nsec = (long int) (endNS % MXUSER_A_BILLION);
@@ -579,6 +582,7 @@ MXUser_DownSemaphore(MXUserSemaphore *sema)  // IN/OUT:
    int err;
 
    ASSERT(sema != NULL);
+
    MXUserValidateHeader(&sema->header, MXUSER_TYPE_SEMA);
 
    Atomic_Inc(&sema->activeUserCount);
@@ -635,11 +639,17 @@ MXUser_DownSemaphore(MXUserSemaphore *sema)  // IN/OUT:
 /*
  *-----------------------------------------------------------------------------
  *
- * MXUser_TimedDownSemaphore --
+ * MXUser_TimedDownSemaphoreNS --
  *
  *      Perform a down (P; probeer te verlagen; "try to reduce") operation
  *      on a semaphore with a timeout. The wait time will always have elapsed
  *      before the routine returns.
+ *
+ *      NOT ALL SUPPORTED PLATFORMS CAN NATIVELY HANDLE WAIT TIMES OF LESS
+ *      THAN A MILLISECOND. WAIT TIMES WILL BE ROUNDED UP WHEN NECESSARY.
+ *
+ *      WAIT TIMES LONGER THAN A SUPPORTED PLATFORM CAN SUPPORT WILL BE
+ *      SET TO THE MAXIMUM POSSIBLE.
  *
  * Results:
  *      TRUE   Down operation occurred (count has been decremented)
@@ -652,13 +662,14 @@ MXUser_DownSemaphore(MXUserSemaphore *sema)  // IN/OUT:
  */
 
 Bool
-MXUser_TimedDownSemaphore(MXUserSemaphore *sema,  // IN/OUT:
-                          uint32 waitTimeMsec)    // IN:
+MXUser_TimedDownSemaphoreNS(MXUserSemaphore *sema,  // IN/OUT:
+                            uint64 waitTimeNS)      // IN:
 {
    int err;
    Bool downOccurred = FALSE;
 
    ASSERT(sema != NULL);
+
    MXUserValidateHeader(&sema->header, MXUSER_TYPE_SEMA);
 
    Atomic_Inc(&sema->activeUserCount);
@@ -682,7 +693,7 @@ MXUser_TimedDownSemaphore(MXUserSemaphore *sema,  // IN/OUT:
          if (tryDownSuccess) {
             downOccurred = TRUE;
          } else {
-            err = MXUserTimedDown(&sema->nativeSemaphore, waitTimeMsec,
+            err = MXUserTimedDown(&sema->nativeSemaphore, waitTimeNS,
                                   &downOccurred);
          }
       }
@@ -702,7 +713,7 @@ MXUser_TimedDownSemaphore(MXUserSemaphore *sema,  // IN/OUT:
          }
       }
    } else {
-      err = MXUserTimedDown(&sema->nativeSemaphore, waitTimeMsec,
+      err = MXUserTimedDown(&sema->nativeSemaphore, waitTimeNS,
                             &downOccurred);
    }
 
@@ -716,6 +727,36 @@ MXUser_TimedDownSemaphore(MXUserSemaphore *sema,  // IN/OUT:
    Atomic_Dec(&sema->activeUserCount);
 
    return downOccurred;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUser_TimedDownSemaphore --
+ *
+ *      Perform a down (P; probeer te verlagen; "try to reduce") operation
+ *      on a semaphore with a timeout. The wait time will always have elapsed
+ *      before the routine returns.
+ *
+ *      ALL SUPPORTED PLATFORMS CAN NATIVELY HANDLE MILLISECOND WAITS.
+ *
+ * Results:
+ *      TRUE   Down operation occurred (count has been decremented)
+ *      FALSE  Down operation did not occur (time out occurred)
+ *
+ * Side effects:
+ *      The caller may sleep.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+MXUser_TimedDownSemaphore(MXUserSemaphore *sema,  // IN/OUT:
+                          uint32 waitTimeMS)      // IN:
+{
+   return MXUser_TimedDownSemaphoreNS(sema,
+                                      (uint64) MXUSER_A_MILLION * waitTimeMS);
 }
 
 
@@ -748,6 +789,7 @@ MXUser_TryDownSemaphore(MXUserSemaphore *sema)  // IN/OUT:
    Bool downOccurred = FALSE;
 
    ASSERT(sema != NULL);
+
    MXUserValidateHeader(&sema->header, MXUSER_TYPE_SEMA);
 
    Atomic_Inc(&sema->activeUserCount);
@@ -799,6 +841,7 @@ MXUser_UpSemaphore(MXUserSemaphore *sema)  // IN/OUT:
    int err;
 
    ASSERT(sema != NULL);
+
    MXUserValidateHeader(&sema->header, MXUSER_TYPE_SEMA);
 
    /*

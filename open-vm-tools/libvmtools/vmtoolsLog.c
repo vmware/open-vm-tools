@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -58,6 +58,7 @@
 #include "vmware/guestrpc/tclodefs.h"
 #include "err.h"
 #include "logToHost.h"
+#include "vthreadBase.h"
 
 #define LOGGING_GROUP         "logging"
 
@@ -115,6 +116,9 @@
       g_free(handler);                             \
    }                                               \
 } while (0)
+
+#define VMX_LOG_CMD     "log "
+#define VMX_LOG_CMD_LEN (sizeof(VMX_LOG_CMD) - 1)
 
 
 typedef struct LogHandler {
@@ -258,7 +262,7 @@ VMToolsLogLevelString(GLogLevelFlags level) {
 
 
 /**
- * Aborts the program, optionally creating a core dump.
+ * Forces the program to quit, optionally creating a core dump.
  */
 
 static INLINE NORETURN void
@@ -367,7 +371,7 @@ VMTools_GetTimeAsString(void)
 /**
  * Creates a formatted message to be logged. The format of the message will be:
  *
- *    [timestamp] [domain] [level] Log message
+ *    [timestamp] [domain] [level] [thread_id] Log message
  *
  * @param[in] message      User log message.
  * @param[in] domain       Log domain.
@@ -416,31 +420,38 @@ VMToolsLogFormat(const gchar *message,
 
    if (!addsTimestamp) {
       if (shared) {
-         len = VMToolsAsprintf(&msg, "[%s] [%8s] [%s:%s] %s\n",
+         len = VMToolsAsprintf(&msg, "[%s] [%8s] [%s:%s] [%"FMT64"u] %s\n",
                                (tstamp != NULL) ? tstamp : "no time",
-                               slevel, gLogDomain, domain, message);
+                               slevel, gLogDomain, domain,
+                               VThreadBase_GetKernelID(), message);
       } else {
-         len = VMToolsAsprintf(&msg, "[%s] [%8s] [%s] %s\n",
+         len = VMToolsAsprintf(&msg, "[%s] [%8s] [%s] [%"FMT64"u] %s\n",
                                (tstamp != NULL) ? tstamp : "no time",
-                               slevel, domain, message);
+                               slevel, domain, VThreadBase_GetKernelID(),
+                               message);
       }
    } else {
       if (cached) {
          if (shared) {
-            len = VMToolsAsprintf(&msg, "[cached at %s] [%8s] [%s:%s] %s\n",
-                                  (tstamp != NULL) ? tstamp : "no time",
-                                  slevel, gLogDomain, domain, message);
+            len = VMToolsAsprintf(&msg,
+                              "[cached at %s] [%8s] [%s:%s] [%"FMT64"u] %s\n",
+                              (tstamp != NULL) ? tstamp : "no time", slevel,
+                              gLogDomain, domain, VThreadBase_GetKernelID(),
+                              message);
          } else {
-            len = VMToolsAsprintf(&msg, "[cached at %s] [%8s] [%s] %s\n",
-                                  (tstamp != NULL) ? tstamp : "no time",
-                                  slevel, domain, message);
+            len = VMToolsAsprintf(&msg,
+                               "[cached at %s] [%8s] [%s] [%"FMT64"u] %s\n",
+                               (tstamp != NULL) ? tstamp : "no time", slevel,
+                               domain, VThreadBase_GetKernelID(), message);
          }
       } else {
          if (shared) {
-            len = VMToolsAsprintf(&msg, "[%8s] [%s:%s] %s\n",
-                                  slevel, gLogDomain, domain, message);
+            len = VMToolsAsprintf(&msg, "[%8s] [%s:%s] [%"FMT64"u] %s\n",
+                                  slevel, gLogDomain, domain,
+                                  VThreadBase_GetKernelID(), message);
          } else {
-            len = VMToolsAsprintf(&msg, "[%8s] [%s] %s\n", slevel, domain, message);
+            len = VMToolsAsprintf(&msg, "[%8s] [%s] [%"FMT64"u] %s\n", slevel,
+                                  domain, VThreadBase_GetKernelID(), message);
          }
       }
    }
@@ -1677,7 +1688,7 @@ VMToolsLogWrapper(GLogLevelFlags level,
          free(msg);
       }
    } else {
-      /* Try to avoid malloc() since we're aborting. */
+      /* Try to avoid malloc() since we're forcibly quitting. */
       gchar msg[256];
       Str_Vsnprintf(msg, sizeof msg, fmt, args);
       VMToolsLogInt(gLogDomain, level, msg, gDefaultData);
@@ -2547,7 +2558,7 @@ VMTools_SetupVmxGuestLog(gboolean refreshRpcChannel,   // IN
     */
    g_rec_mutex_lock(&gVmxGuestLogMutex);
 
-   /* Load config for the kill switch in tools.conf */
+   /* Load config for the disable-switch in tools.conf */
    if (NULL == cfg) {
       if (!VMTools_LoadConfig(NULL, G_KEY_FILE_NONE, &cfg, NULL)) {
          g_warning("Failed to load the tools config file.\n");
@@ -2704,4 +2715,58 @@ VMTools_Log(LogWhere where,
    va_start(args, fmt);
    LogWhereLevelV(where, level, domain, fmt, args);
    va_end(args);
+}
+
+
+/*
+ ******************************************************************************
+ * VMTools_VmxLog --
+ *
+ * Sends the log message through RPC to vmx to be logged on the host.
+ * Also, logs the message to vmsvc log file inside guest.
+ *
+ * @param[in]  chan         The RPC channel instance.
+ * @param[in]  fmt          Log message output format.
+ *
+ * @return None
+ *
+ ******************************************************************************
+ */
+
+void
+VMTools_VmxLog(RpcChannel *chan,
+               const gchar *fmt,
+               ...)
+{
+   char *reply = NULL;
+   size_t replyLen;
+   gchar msg[4096] = VMX_LOG_CMD;
+   va_list args;
+   gint len;
+
+   va_start(args, fmt);
+   len = g_vsnprintf(msg + VMX_LOG_CMD_LEN,
+                     sizeof msg - VMX_LOG_CMD_LEN,
+                     fmt, args);
+   va_end(args);
+
+   if (len <= 0) {
+      g_warning("%s: g_vsnprintf failed: return value: %d.\n", __FUNCTION__,
+                len);
+      return;
+   }
+
+   len += VMX_LOG_CMD_LEN;
+   if (len >= sizeof msg) {
+      len = sizeof msg - 1;
+      msg[len] = '\0';
+   }
+
+   if (!RpcChannel_Send(chan, msg, len + 1, &reply, &replyLen)) {
+      g_warning("%s: Error sending RPC message: %s. reply: %s\n",
+                __FUNCTION__, msg, VM_SAFE_STR(reply));
+   }
+   free(reply);
+
+   g_message("%s\n", msg + VMX_LOG_CMD_LEN);
 }

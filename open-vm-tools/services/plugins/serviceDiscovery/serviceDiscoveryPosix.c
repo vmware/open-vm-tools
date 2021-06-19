@@ -114,7 +114,6 @@ PublishScriptOutputToNamespaceDB(ToolsAppCtx *ctx,
                                  const char *script)
 {
    Bool status = FALSE;
-   Bool stdoutIsEmpty = TRUE;
    GPid pid;
    gchar *command = g_strdup(script);
    gchar *cmd[] = { command, NULL };
@@ -130,8 +129,8 @@ PublishScriptOutputToNamespaceDB(ToolsAppCtx *ctx,
                                      &p_error);
    if (!status) {
       if (p_error != NULL) {
-         g_warning("%s: Error during script exec %s\n", p_error->message,
-                   __FUNCTION__);
+         g_warning("%s: Error during script exec %s\n", __FUNCTION__,
+                   p_error->message);
          g_error_free(p_error);
       } else {
          g_warning("%s: Command not run\n", __FUNCTION__);
@@ -146,24 +145,30 @@ PublishScriptOutputToNamespaceDB(ToolsAppCtx *ctx,
    if (child_stdout_f == NULL) {
       g_warning("%s: Failed to create file stream for child stdout, errno=%d",
                 __FUNCTION__, errno);
+      status = FALSE;
       goto out;
    }
 
-   status = FALSE;
    for (;;) {
       char buf[SERVICE_DISCOVERY_VALUE_MAX_SIZE];
       size_t readBytes = fread(buf, 1, sizeof(buf), child_stdout_f);
 
-      g_debug("%s: readBytes = %" G_GSSIZE_FORMAT "\n", __FUNCTION__, readBytes);
-
-      if (readBytes > 0) {
+      g_debug("%s: readBytes = %" G_GSSIZE_FORMAT " status = %s\n",
+              __FUNCTION__, readBytes, status ? "TRUE" : "FALSE");
+      // At first iteration we are sure that status is true
+      if (status && readBytes > 0) {
          gchar* msg = g_strdup_printf("%s-%d", key, ++i);
-         stdoutIsEmpty = FALSE;
          status = WriteData(ctx, msg, buf, readBytes);
+         if (!status) {
+             g_warning("%s: Failed to store data\n", __FUNCTION__);
+         }
          g_free(msg);
       }
 
-      if (!status || readBytes < sizeof(buf)) {
+      if (readBytes < sizeof(buf)) {
+         if (!status) {
+            g_warning("%s: Data read finished but failed to store\n", __FUNCTION__);
+         }
          break;
       }
    }
@@ -175,8 +180,6 @@ PublishScriptOutputToNamespaceDB(ToolsAppCtx *ctx,
          g_debug("%s: Written key %s chunks %s\n", __FUNCTION__, key, chunkCount);
       }
       g_free(chunkCount);
-   } else if (!stdoutIsEmpty) {
-      g_warning("%s: Was not able to capture or store data\n", __FUNCTION__);
    }
 
    DynBuf_Init(&err);

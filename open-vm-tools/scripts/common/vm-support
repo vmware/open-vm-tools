@@ -1,6 +1,6 @@
 #!/bin/sh
 ##########################################################
-# Copyright (C) 2006-2019 VMware, Inc. All rights reserved.
+# Copyright (C) 2006-2021 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -20,10 +20,13 @@
 # usage(): prints how to use this script
 usage()
 {
-	echo ""
-	echo "Usage: $0 [-h]"
-	echo "	-h prints this usage statement"
-	exit 1
+        echo ""
+        echo "Usage: $0 [-hux]"
+        echo "  -h prints this usage statement"
+        echo "  -u updates the host with the state of support data" \
+             "collection process"
+        echo "  -x transfers support data to the host"
+        exit 1
 }
 
 
@@ -58,6 +61,9 @@ VMSUPPORT_UNKNOWN=100
 
 #internal state machine state for update
 update=0
+
+#internal state machine state for transfering logs to host
+transfer=0
 
 # UpdateState($state): Updates the VM with the given state.
 UpdateState()
@@ -204,11 +210,12 @@ stageLinux()
    runcmd "/tmp/modules.txt" /sbin/lsmod
    runcmd "/tmp/uname.txt" uname -a
    runcmd "/tmp/issue.txt" cat /etc/issue
-   if which rpm &> /dev/null; then
+   if which rpm > /dev/null; then
       runcmd "/tmp/rpm-qa.txt" rpm -qa
    fi
-   runcmd "/tmp/netstat-lan.txt" netstat -lan
-   runcmd "/tmp/route.txt" route
+   if which apt > /dev/null; then
+      runcmd "/tmp/apt-list.txt" apt list
+   fi
    runcmd "/tmp/free.txt" free
 }
 
@@ -251,13 +258,29 @@ cleanup()
    fi
 }
 
+collectNetworkDetails()
+{
+    if which ip >/dev/null; then
+        runcmd "/tmp/ip-addr.txt" ip addr
+        runcmd "/tmp/ip-route.txt" ip route
+    else
+        runcmd "/tmp/ifconfig.txt" ifconfig -a
+        runcmd "/tmp/route.txt" route
+    fi
+
+    if which ss >/dev/null; then
+        runcmd "/tmp/ss-lan.txt" ss -lan
+    else
+        runcmd "/tmp/netstat-lan.txt" netstat -lan
+    fi
+}
 
 # This executable may run with root privileges, so hardcode a PATH where
 # unprivileged users cannot write.
 export PATH=/bin:/sbin:/usr/bin:/usr/sbin
 
 TARFILE=vm-`date +%Y-%m-%d`.$$.tar.gz
-VER=0.92
+VER=0.93
 
 # Parse args
 for option in $@
@@ -268,6 +291,9 @@ do
       ;;
    "-u")
       update=1
+      ;;
+   "-x")
+      transfer=1
       ;;
    *)
       usage
@@ -338,7 +364,7 @@ addfile /var/log/cloud-init-output.log
 addfile /etc/cloud/cloud.cfg
 
 runcmd "/tmp/df.txt" df
-runcmd "/tmp/ifconfig.txt" ifconfig -a
+collectNetworkDetails
 runcmd "/tmp/mount.txt" mount
 runcmd "/tmp/dmesg.txt" dmesg
 runcmd "/tmp/ulimit-a.txt" ulimit -a
@@ -377,12 +403,17 @@ fi
 # Clean up temporary files
 trap - HUP INT QUIT TERM ABRT; cleanup
 
-banner "Uploading archive to host..."
-vmware-xferlogs enc $TARFILE 2>/dev/null
+if [ $transfer -eq 1 ]; then
+   banner "Transferring support data to the host..."
+   vmware-xferlogs enc $TARFILE 2>/dev/null
 
-if [ $? != 0 ]; then
-   banner "Could not transmit logs successfully: either the vmware-xferlogs " \
-          "binary is not in the path, or you are not in a virtual machine."
+   if [ $? != 0 ]; then
+      banner "Could not transfer the support data  successfully: either " \
+             "vmware-xferlogs binary is not in the path, or you are not " \
+             "in a virtual machine."
+   fi
+else
+   banner "Skipping support data transfer to the host."
 fi
 
 UpdateState $VMSUPPORT_ENDING

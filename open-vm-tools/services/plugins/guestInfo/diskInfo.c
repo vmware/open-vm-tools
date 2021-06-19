@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2014-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2014-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -737,7 +737,7 @@ finished:
    /*
     * Add the device name, whether found or not, to the device list for
     * this mounted file system.  After processing the single partition of
-    * a file system mounted on a block device or all the slave devices of
+    * a file system mounted on a block device or all the subordinate devices of
     * an LVM, the presence of a zero-length name indicates not all devices
     * have been correctly determined.
     */
@@ -760,7 +760,7 @@ finished:
  *
  * Determine if the fsName is a Linux LVM and if so, determine the disk
  * device or devices associated with this LVM based filesystem.  If for
- * any reason the full set of LVM "slaves" cannot be determined, an
+ * any reason the full set of LVM subordinates cannot be determined, an
  * incomplete list of disk device names will not be provided.
  *
  * @param[in]     fsName     Name of the block device or LVM mapper name of
@@ -770,7 +770,7 @@ finished:
  * @return TRUE if the "slaves" directory has been located.  It does not
  *         indicate that LVM processing was successful, only that this
  *         does appear to be an LVM filesystem.  If the disk device names
- *         for all slaves cannot be located, partial disk mapping is not
+ *         for all subordinates cannot be located, partial disk mapping is not
  *         reported.
  *
  ******************************************************************************
@@ -784,7 +784,7 @@ GuestInfoIsLinuxLvmDevice(const char *fsName,
    char **fileNameList = NULL;
    int numFiles = 0;
    int devIndx;
-   char slavesPath[PATH_MAX];
+   char subordinatesPath[PATH_MAX];
    char devPath[PATH_MAX];
 
    /*
@@ -795,13 +795,13 @@ GuestInfoIsLinuxLvmDevice(const char *fsName,
    if ((realPath = Posix_RealPath(fsName)) == NULL) {
       return FALSE;
    }
-   Str_Snprintf(slavesPath, PATH_MAX, "%s/%s/slaves", LINUX_SYS_CLASS_BLOCK_DIR,
+   Str_Snprintf(subordinatesPath, PATH_MAX, "%s/%s/slaves", LINUX_SYS_CLASS_BLOCK_DIR,
                 strrchr(realPath, '/') + 1);
    free(realPath);
-   if (!File_IsDirectory(slavesPath)) {
+   if (!File_IsDirectory(subordinatesPath)) {
       return FALSE;
    }
-   numFiles = File_ListDirectory(slavesPath, &fileNameList);
+   numFiles = File_ListDirectory(subordinatesPath, &fileNameList);
    if (numFiles == 0) {
       /* An empty "slaves" directory happens at a disk device node; this
        * certainly is not an LVM.
@@ -810,11 +810,11 @@ GuestInfoIsLinuxLvmDevice(const char *fsName,
    }
    if (numFiles < 0) {
       g_debug("%s: Unable to list entries in \"%s\" directory.\n", __FUNCTION__,
-              slavesPath);
+              subordinatesPath);
       return TRUE;
    }
 
-   /* Create a device name entry for each slave device found. */
+   /* Create a device name entry for each subordinate device found. */
    partEntry->diskDevCnt = numFiles;
    partEntry->diskDevNames = Util_SafeRealloc(partEntry->diskDevNames,
                                               numFiles *
@@ -822,11 +822,11 @@ GuestInfoIsLinuxLvmDevice(const char *fsName,
 
    for (devIndx = 0; devIndx < numFiles; devIndx++) {
       /*
-       * Each slave device will be based on the disk or disk partition of
+       * Each subordinate device will be based on the disk or disk partition of
        * a virtual disk device.  Start the block device search from the
        * "slaves" path.
        */
-      Str_Snprintf(devPath, PATH_MAX, "%s/%s", slavesPath,
+      Str_Snprintf(devPath, PATH_MAX, "%s/%s", subordinatesPath,
                    fileNameList[devIndx]);
       GuestInfoLinuxBlockDevice(devPath, partEntry, devIndx + 1);
    }
@@ -947,7 +947,6 @@ GuestInfoGetDiskDevice(const char *fsName,
    if (!GuestInfoIsLinuxLvmDevice(fsName, partEntry)) {
 
       /* Not an LVM; check if a basic block device. */
-      char blockDevPath[PATH_MAX];
       const char *baseDevName = strrchr(fsName, '/');
 
       /*
@@ -956,6 +955,8 @@ GuestInfoGetDiskDevice(const char *fsName,
        * lookup; avoid at this time.
        */
       if (baseDevName != NULL && strcmp(partEntry->fsType, "zfs") != 0) {
+         char blockDevPath[PATH_MAX];
+
          /*
           * Have a single disk device associated with this mount point.  The
           * majority of these will be handled by the basic Linux block device

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013-2017, 2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -45,6 +45,218 @@
 extern "C" {
 #endif
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * _DMB --
+ *
+ *      Data memory barrier.
+ *
+ *      Memory barrier governing visibility of explicit load/stores.
+ *
+ *      The options for shareability domains are:
+ *      NSH     - Non-shareable
+ *      ISH     - Inner Shareable
+ *      OSH     - Outer Shareable
+ *      default - Full System
+ *
+ *      The options for access types are:
+ *      LD      - Load         , Barrier, Load _or Store_ (yes, really)
+ *      ST      - Store        , Barrier, Store
+ *      default - Load or Store, Barrier, Load or Store
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+#if defined __GNUC__
+#define _DMB(t) asm volatile("dmb " #t ::: "memory")
+#elif defined _MSC_VER
+#define _DMB(t) __dmb(_ARM64_BARRIER_##t)
+#else
+#error No compiler defined for _DMB
+#endif
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * _DSB --
+ *
+ *      Data synchronization barrier.
+ *
+ *      Synchronizes the execution stream with memory accesses. Like a DMB but
+ *      also forces all cache/TLB maintenance operations to complete.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+#if defined __GNUC__
+#define _DSB(t) asm volatile("dsb " #t ::: "memory")
+#elif defined _MSC_VER
+#define _DSB(t) __dsb(_ARM64_BARRIER_##t)
+#else
+#error No compiler defined for _DSB
+#endif
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * ISB --
+ *
+ *      Instruction synchronization barrier.
+ *
+ *      Pipeline flush - all instructions fetched after ISB have effects of
+ *      cache/maintenance and system register updates prior to the ISB visible.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static INLINE void
+ISB(void)
+{
+#if defined __GNUC__
+   asm volatile("isb" ::: "memory");
+#elif defined _MSC_VER
+   __isb(_ARM64_BARRIER_SY);
+#else
+#error No compiler defined for ISB
+#endif
+}
+
+
+/*
+ * Memory Barriers
+ * ===============
+ *
+ *    Terminology
+ *    -----------
+ *
+ * A compiler memory barrier prevents the compiler from re-ordering memory
+ * accesses accross the barrier. It is not a CPU instruction, it is a compiler
+ * directive (i.e. it does not emit any code).
+ *
+ * A CPU memory barrier prevents the CPU from re-ordering memory accesses
+ * accross the barrier. It is a CPU instruction.
+ *
+ * A memory barrier is the union of a compiler memory barrier and a CPU memory
+ * barrier. A compiler memory barrier is a useless construct by itself. It is
+ * only useful when combined with a CPU memory barrier, to implement a memory
+ * barrier.
+ *
+ *    Semantics
+ *    ---------
+ *
+ * At the time COMPILER_*_BARRIER were created (and references to them were
+ * added to the code), the code was only targetting x86. The intent of the code
+ * was really to use a memory barrier, but because x86 uses a strongly ordered
+ * memory model, the CPU would not re-order memory accesses, and the code could
+ * get away with using just a compiler memory barrier. So COMPILER_*_BARRIER
+ * were born and were implemented as compiler memory barriers _on x86_. But
+ * make no mistake, _the semantics that the code expects from
+ * COMPILER_*_BARRIER are that of a memory barrier_!
+ *
+ *    DO NOT USE!
+ *    -----------
+ *
+ * On at least one non-x86 architecture, COMPILER_*_BARRIER are
+ * 1) Misnomers
+ * 2) Not fine-grained enough to provide the best performance.
+ * For the above two reasons, usage of COMPILER_*_BARRIER is now deprecated.
+ * _Do not add new references to COMPILER_*_BARRIER._ Instead, precisely
+ * document the intent of your code by using
+ * <mem_type/purpose>_<before_access_type>_BARRIER_<after_access_type>.
+ * Existing references to COMPILER_*_BARRIER are being slowly but surely
+ * converted, and when no references are left, COMPILER_*_BARRIER will be
+ * retired.
+ *
+ * Thanks for pasting this whole comment into every architecture header.
+ */
+
+#define COMPILER_READ_BARRIER()  SMP_R_BARRIER_R()
+#define COMPILER_WRITE_BARRIER() SMP_W_BARRIER_W()
+#define COMPILER_MEM_BARRIER()   SMP_RW_BARRIER_RW()
+
+/*
+ * Memory barriers. These take the form of
+ *
+ * <mem_type/purpose>_<before_access_type>_BARRIER_<after_access_type>
+ *
+ * where:
+ *   <mem_type/purpose> is either SMP, DMA, or MMIO.
+ *   <*_access type> is either R(load), W(store) or RW(any).
+ *
+ * Above every use of these memory barriers in the code, there _must_ be a
+ * comment to justify the use, i.e. a comment which:
+ * 1) Precisely identifies which memory accesses must not be re-ordered across
+ *    the memory barrier.
+ * 2) Explains why it is important that the memory accesses not be re-ordered.
+ *
+ * Thanks for pasting this whole comment into every architecture header.
+ */
+
+#define SMP_R_BARRIER_R()     SMP_R_BARRIER_RW()
+#define SMP_R_BARRIER_W()     SMP_R_BARRIER_RW()
+#define SMP_R_BARRIER_RW()    _DMB(ISHLD)
+#define SMP_W_BARRIER_R()     SMP_RW_BARRIER_RW()
+#define SMP_W_BARRIER_W()     _DMB(ISHST)
+#define SMP_W_BARRIER_RW()    SMP_RW_BARRIER_RW()
+#define SMP_RW_BARRIER_R()    SMP_RW_BARRIER_RW()
+#define SMP_RW_BARRIER_W()    SMP_RW_BARRIER_RW()
+#define SMP_RW_BARRIER_RW()   _DMB(ISH)
+
+/*
+ * Like the above, only for use with cache coherent observers other than CPUs,
+ * i.e. DMA masters.
+ * On ARM it means that we extend the `dmb' options to an outer-shareable
+ * memory where all our devices are.
+ */
+
+#define DMA_R_BARRIER_R()     DMA_R_BARRIER_RW()
+#define DMA_R_BARRIER_W()     DMA_R_BARRIER_RW()
+#define DMA_R_BARRIER_RW()    _DMB(OSHLD)
+#define DMA_W_BARRIER_R()     DMA_RW_BARRIER_RW()
+#define DMA_W_BARRIER_W()     _DMB(OSHST)
+#define DMA_W_BARRIER_RW()    DMA_RW_BARRIER_RW()
+#define DMA_RW_BARRIER_R()    DMA_RW_BARRIER_RW()
+#define DMA_RW_BARRIER_W()    DMA_RW_BARRIER_RW()
+#define DMA_RW_BARRIER_RW()   _DMB(OSH)
+
+/*
+ * And finally a set for use with MMIO accesses.
+ * Synchronization of accesses to a non-cache coherent device memory
+ * (in general case) requires strongest available barriers on ARM.
+ */
+
+#define MMIO_R_BARRIER_R()    MMIO_R_BARRIER_RW()
+#define MMIO_R_BARRIER_W()    MMIO_R_BARRIER_RW()
+#define MMIO_R_BARRIER_RW()   _DSB(LD)
+#define MMIO_W_BARRIER_R()    MMIO_RW_BARRIER_RW()
+#define MMIO_W_BARRIER_W()    _DSB(ST)
+#define MMIO_W_BARRIER_RW()   MMIO_RW_BARRIER_RW()
+#define MMIO_RW_BARRIER_R()   MMIO_RW_BARRIER_RW()
+#define MMIO_RW_BARRIER_W()   MMIO_RW_BARRIER_RW()
+#define MMIO_RW_BARRIER_RW()  _DSB(SY)
+
+#ifndef _MSC_VER
 
 /*
  * _GET_CURRENT_PC --
@@ -84,86 +296,6 @@ GET_CURRENT_PC(void)
                 "mov %2, x30"                                                 \
                 : "=r" (fp), "=r" (sp), "=r" (lr));                           \
 } while (0)
-
-
-/*
- *----------------------------------------------------------------------
- *
- * _DMB --
- *
- *      Data memory barrier.
- *
- *      Memory barrier governing visibility of explicit load/stores.
- *
- * Results:
- *      None
- *
- * Side effects:
- *      None
- *
- *----------------------------------------------------------------------
- */
-
-/* Shareability domains */
-#define _NSH   "nsh" // Non-shareable
-#define _ISH   "ish" // Inner Shareable
-#define _OSH   "osh" // Outer Shareable
-#define _SY    "sy"  // Full System     (default)
-
-/* Access types */
-#define _LD    "ld"  // Load         , Barrier, Load _or Store_ (yes, really)
-#define _ST    "st"  // Store        , Barrier, Store
-//             ""    // Load or Store, Barrier, Load or Store   (default)
-
-#define _DMB(t) asm volatile("dmb " t ::: "memory")
-
-
-/*
- *----------------------------------------------------------------------
- *
- * _DSB --
- *
- *      Data synchronization barrier.
- *
- *      Synchronizes the execution stream with memory accesses. Like a DMB but
- *      also forces all cache/TLB maintenance operations to complete.
- *
- * Results:
- *      None
- *
- * Side effects:
- *      None
- *
- *----------------------------------------------------------------------
- */
-
-#define _DSB(t) asm volatile("dsb " t ::: "memory")
-
-
-/*
- *----------------------------------------------------------------------
- *
- * ISB --
- *
- *      Instruction synchronization barrier.
- *
- *      Pipeline flush - all instructions fetched after ISB have effects of
- *      cache/maintenance and system register updates prior to the ISB visible.
- *
- * Results:
- *      None
- *
- * Side effects:
- *      None
- *
- *----------------------------------------------------------------------
- */
-
-static INLINE void
-ISB(void)
-{
-   asm volatile("isb" ::: "memory");
-}
 
 
 /*
@@ -742,122 +874,8 @@ static INLINE void
 RDTSC_BARRIER(void)
 {
    ISB();
-   _DMB(_SY);
+   _DMB(SY);
 }
-
-
-/*
- * Memory Barriers
- * ===============
- *
- *    Terminology
- *    -----------
- *
- * A compiler memory barrier prevents the compiler from re-ordering memory
- * accesses accross the barrier. It is not a CPU instruction, it is a compiler
- * directive (i.e. it does not emit any code).
- *
- * A CPU memory barrier prevents the CPU from re-ordering memory accesses
- * accross the barrier. It is a CPU instruction.
- *
- * A memory barrier is the union of a compiler memory barrier and a CPU memory
- * barrier. A compiler memory barrier is a useless construct by itself. It is
- * only useful when combined with a CPU memory barrier, to implement a memory
- * barrier.
- *
- *    Semantics
- *    ---------
- *
- * At the time COMPILER_*_BARRIER were created (and references to them were
- * added to the code), the code was only targetting x86. The intent of the code
- * was really to use a memory barrier, but because x86 uses a strongly ordered
- * memory model, the CPU would not re-order memory accesses, and the code could
- * get away with using just a compiler memory barrier. So COMPILER_*_BARRIER
- * were born and were implemented as compiler memory barriers _on x86_. But
- * make no mistake, _the semantics that the code expects from
- * COMPILER_*_BARRIER are that of a memory barrier_!
- *
- *    DO NOT USE!
- *    -----------
- *
- * On at least one non-x86 architecture, COMPILER_*_BARRIER are
- * 1) Misnomers
- * 2) Not fine-grained enough to provide the best performance.
- * For the above two reasons, usage of COMPILER_*_BARRIER is now deprecated.
- * _Do not add new references to COMPILER_*_BARRIER._ Instead, precisely
- * document the intent of your code by using
- * <mem_type/purpose>_<before_access_type>_BARRIER_<after_access_type>.
- * Existing references to COMPILER_*_BARRIER are being slowly but surely
- * converted, and when no references are left, COMPILER_*_BARRIER will be
- * retired.
- *
- * Thanks for pasting this whole comment into every architecture header.
- */
-
-#define COMPILER_READ_BARRIER()  SMP_R_BARRIER_R()
-#define COMPILER_WRITE_BARRIER() SMP_W_BARRIER_W()
-#define COMPILER_MEM_BARRIER()   SMP_RW_BARRIER_RW()
-
-/*
- * Memory barriers. These take the form of
- *
- * <mem_type/purpose>_<before_access_type>_BARRIER_<after_access_type>
- *
- * where:
- *   <mem_type/purpose> is either SMP, DMA, or MMIO.
- *   <*_access type> is either R(load), W(store) or RW(any).
- *
- * Above every use of these memory barriers in the code, there _must_ be a
- * comment to justify the use, i.e. a comment which:
- * 1) Precisely identifies which memory accesses must not be re-ordered across
- *    the memory barrier.
- * 2) Explains why it is important that the memory accesses not be re-ordered.
- *
- * Thanks for pasting this whole comment into every architecture header.
- */
-
-#define SMP_R_BARRIER_R()     SMP_R_BARRIER_RW()
-#define SMP_R_BARRIER_W()     SMP_R_BARRIER_RW()
-#define SMP_R_BARRIER_RW()    _DMB(_ISH _LD)
-#define SMP_W_BARRIER_R()     SMP_RW_BARRIER_RW()
-#define SMP_W_BARRIER_W()     _DMB(_ISH _ST)
-#define SMP_W_BARRIER_RW()    SMP_RW_BARRIER_RW()
-#define SMP_RW_BARRIER_R()    SMP_RW_BARRIER_RW()
-#define SMP_RW_BARRIER_W()    SMP_RW_BARRIER_RW()
-#define SMP_RW_BARRIER_RW()   _DMB(_ISH)
-
-/*
- * Like the above, only for use with cache coherent observers other than CPUs,
- * i.e. DMA masters.
- * On ARM it means that we extend the `dmb' options to an outer-shareable
- * memory where all our devices are.
- */
-
-#define DMA_R_BARRIER_R()     DMA_R_BARRIER_RW()
-#define DMA_R_BARRIER_W()     DMA_R_BARRIER_RW()
-#define DMA_R_BARRIER_RW()    _DMB(_OSH _LD)
-#define DMA_W_BARRIER_R()     DMA_RW_BARRIER_RW()
-#define DMA_W_BARRIER_W()     _DMB(_OSH _ST)
-#define DMA_W_BARRIER_RW()    DMA_RW_BARRIER_RW()
-#define DMA_RW_BARRIER_R()    DMA_RW_BARRIER_RW()
-#define DMA_RW_BARRIER_W()    DMA_RW_BARRIER_RW()
-#define DMA_RW_BARRIER_RW()   _DMB(_OSH)
-
-/*
- * And finally a set for use with MMIO accesses.
- * Synchronization of accesses to a non-cache coherent device memory
- * (in general case) requires strongest available barriers on ARM.
- */
-
-#define MMIO_R_BARRIER_R()    MMIO_R_BARRIER_RW()
-#define MMIO_R_BARRIER_W()    MMIO_R_BARRIER_RW()
-#define MMIO_R_BARRIER_RW()   _DSB(_LD)
-#define MMIO_W_BARRIER_R()    MMIO_RW_BARRIER_RW()
-#define MMIO_W_BARRIER_W()    _DSB(_ST)
-#define MMIO_W_BARRIER_RW()   MMIO_RW_BARRIER_RW()
-#define MMIO_RW_BARRIER_R()   MMIO_RW_BARRIER_RW()
-#define MMIO_RW_BARRIER_W()   MMIO_RW_BARRIER_RW()
-#define MMIO_RW_BARRIER_RW()  _DSB(_SY)
 
 
 /*
@@ -891,7 +909,7 @@ DCacheCleanInvalidate(VA va, uint64 len)
    }
 
    /* Ensure completion. */
-   _DSB(_SY);
+   _DSB(SY);
 }
 
 
@@ -926,9 +944,10 @@ DCacheClean(VA va, uint64 len)
    }
 
    /* Ensure completion of clean. */
-   _DSB(_SY);
+   _DSB(SY);
 }
 
+#endif // ifndef _MSC_VER
 
 #if defined __cplusplus
 } // extern "C"

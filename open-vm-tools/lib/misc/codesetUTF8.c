@@ -1,5 +1,5 @@
 /* **********************************************************
- * Copyright (C) 2015-2020 VMware, Inc.  All rights reserved.
+ * Copyright (c) 2015-2021 VMware, Inc.  All rights reserved.
  * **********************************************************/
 
 /*
@@ -146,10 +146,9 @@ CodeSet_IsValidUTF8String(const char *bufIn,  // IN:
 {
    size_t i;
    uint32 state = UTF8_ACCEPT;
-   unsigned char c;
 
    for (i = 0; i < sizeIn; i++) {
-      c = (unsigned char) *bufIn++;
+      unsigned char c = (unsigned char) *bufIn++;
 
       if (UNLIKELY(c == '\0')) {
          return FALSE;

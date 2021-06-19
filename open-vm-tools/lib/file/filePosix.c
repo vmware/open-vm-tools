@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -2881,11 +2881,12 @@ int
 File_ListDirectory(const char *dirName,  // IN:
                    char ***ids)          // OUT: relative paths
 {
-   int err = 0;
    int count = -1;
    WalkDirContext context = File_WalkDirectoryStart(dirName);
 
    if (context != NULL) {
+      int err;
+
       while (File_WalkDirectoryNext(context, NULL))
          ;
 

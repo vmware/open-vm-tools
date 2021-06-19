@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -342,9 +342,7 @@ Div643264(uint64 dividend,   // IN
  *-----------------------------------------------------------------------------
  */
 
-#if defined(__GNUC__) && \
-   (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 4)) && \
-   !defined(MUL64_NO_ASM)
+#if defined(__GNUC__) && !defined(MUL64_NO_ASM)
 
 static INLINE uint64
 Mul64x3264(uint64 multiplicand, uint32 multiplier, uint32 shift)
@@ -449,9 +447,7 @@ Mul64x3264(uint64 multiplicand, uint32 multiplier, uint32 shift)
  *-----------------------------------------------------------------------------
  */
 
-#if defined(__GNUC__) && \
-   (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 4)) && \
-   !defined(MUL64_NO_ASM)
+#if defined(__GNUC__) && !defined(MUL64_NO_ASM)
 
 static INLINE int64
 Muls64x32s64(int64 multiplicand, uint32 multiplier, uint32 shift)

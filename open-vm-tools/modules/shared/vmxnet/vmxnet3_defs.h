@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -61,6 +61,12 @@
 #define VMXNET3_REG_MACH  0x30   /* MAC Address High */
 #define VMXNET3_REG_ICR   0x38   /* Interrupt Cause Register */
 #define VMXNET3_REG_ECR   0x40   /* Event Cause Register */
+#define VMXNET3_REG_DCR   0x48   /* Device capability register,
+                                  * from 0x48 to 0x80
+                                  * */
+#define VMXNET3_REG_PTCR 0x88    /* Passthru capbility register
+                                  * from 0x88 to 0xb0
+                                  */
 
 #define VMXNET3_REG_WSAL  0xF00  /* Wireless Shared Address Lo  */
 #define VMXNET3_REG_WSAH  0xF08  /* Wireless Shared Address Hi  */
@@ -72,8 +78,16 @@
 #define VMXNET3_REG_RXPROD   0x800 /* Rx Producer Index for ring 1 */
 #define VMXNET3_REG_RXPROD2  0xA00 /* Rx Producer Index for ring 2 */
 
+/* For Large PT BAR, the following offset to DB register */
+#define VMXNET3_REG_LB_TXPROD    (PAGE_SIZE)           /* Tx Producer Index */
+#define VMXNET3_REG_LB_RXPROD    ((PAGE_SIZE) + 0x400) /* Rx Producer Index for ring 1 */
+#define VMXNET3_REG_LB_RXPROD2   ((PAGE_SIZE) + 0x800) /* Rx Producer Index for ring 2 */
+
 #define VMXNET3_PT_REG_SIZE     4096    /* BAR 0 */
+#define VMXNET3_LARGE_PT_REG_SIZE  (2 * (PAGE_SIZE))  /* large PT pages */
 #define VMXNET3_VD_REG_SIZE     4096    /* BAR 1 */
+#define VMXNET3_LARGE_BAR0_REG_SIZE (4096 * 4096)  /* LARGE BAR 0 */
+#define VMXNET3_OOB_REG_SIZE  (4094 * 4096) /* OOB pages */
 
 /*
  * The two Vmxnet3 MMIO Register PCI BARs (BAR 0 at offset 10h and BAR 1 at
@@ -84,7 +98,6 @@
  * -------------------------------------------------------------------------
  * VMXNET3_MSIX_BAR_SIZE is defined in "vmxnet3Int.h"
  */
-#define VMXNET3_PHYSMEM_PAGES   4
 
 #define VMXNET3_REG_ALIGN       8  /* All registers are 8-byte aligned. */
 #define VMXNET3_REG_ALIGN_MASK  0x7
@@ -127,6 +140,7 @@ typedef enum {
    VMXNET3_CMD_SET_RSS_FIELDS,
    VMXNET3_CMD_SET_PKTSTEERING, /* 0xCAFE0011 */
    VMXNET3_CMD_SET_ESP_QUEUE_SELECTION_CONF,
+   VMXNET3_CMD_SET_RING_BUFFER_SIZE,
 
    VMXNET3_CMD_FIRST_GET = 0xF00D0000,
    VMXNET3_CMD_GET_QUEUE_STATUS = VMXNET3_CMD_FIRST_GET,
@@ -146,6 +160,8 @@ typedef enum {
    VMXNET3_CMD_GET_PKTSTEERING, /* 0xF00D000E */
    VMXNET3_CMD_GET_MAX_QUEUES_CONF,
    VMXNET3_CMD_GET_RSS_HASH_FUNC,
+   VMXNET3_CMD_GET_MAX_CAPABILITIES,
+   VMXNET3_CMD_GET_DCR0_REG,
 } Vmxnet3_Cmd;
 
 /* Adaptive Ring Info Flags */
@@ -175,7 +191,7 @@ typedef struct Vmxnet3_TxDesc {
 
 #ifdef __BIG_ENDIAN_BITFIELD
    uint32 msscof:14;  /* MSS, checksum offset, flags */
-   uint32 ext1:1;
+   uint32 ext1:1;     /* set to 1 to indicate inner csum/tso, vmxnet3 v7 */
    uint32 dtype:1;    /* descriptor type */
    uint32 oco:1;      /* Outer csum offload */
    uint32 gen:1;      /* generation bit */
@@ -185,7 +201,7 @@ typedef struct Vmxnet3_TxDesc {
    uint32 gen:1;      /* generation bit */
    uint32 oco:1;      /* Outer csum offload */
    uint32 dtype:1;    /* descriptor type */
-   uint32 ext1:1;
+   uint32 ext1:1;     /* set to 1 to indicating inner csum/tso, vmxnet3 v7 */
    uint32 msscof:14;  /* MSS, checksum offset, flags */
 #endif  /* __BIG_ENDIAN_BITFIELD */
 
@@ -773,29 +789,16 @@ typedef struct Vmxnet3_PktSteeringInput {
 
 #pragma pack(push, 1)
 typedef struct Vmxnet3_PktSteeringGeneveInput {
-#ifdef __BIG_ENDIAN_BITFIELD
-   uint32   optionsLength:6;  /* Length of options (in 4 bytes multiple) */
-   uint32   version:2;        /* Geneve protocol version */
-   uint32   reserved1:6;       /* Reserved bits */
-   uint32   criticalOptions:1; /* Critical options present flag */
-   uint32   oamFrame:1;        /* OAM frame flag */
+   uint8   optionsLength:6;  /* Length of options (in 4 bytes multiple) */
+   uint8   version:2;        /* Geneve protocol version */
+   uint8   reserved1:6;       /* Reserved bits */
+   uint8   criticalOptions:1; /* Critical options present flag */
+   uint8   oamFrame:1;        /* OAM frame flag */
    /* Protocol type of the following header using Ethernet type values */
-   uint32   protocolType:16;
+   uint16   protocolType;
 
    uint32   virtualNetworkId:24; /* Virtual network identifier */
    uint32   reserved2:8;         /* Reserved bits */
-#else
-   /* Protocol type of the following header using Ethernet type values */
-   uint32   protocolType:16;
-   uint32   oamFrame:1;        /* OAM frame flag */
-   uint32   criticalOptions:1; /* Critical options present flag */
-   uint32   reserved1:6;       /* Reserved bits */
-   uint32   version:2;        /* Geneve protocol version */
-   uint32   optionsLength:6;  /* Length of options (in 4 bytes multiple) */
-
-   uint32   reserved2:8;         /* Reserved bits */
-   uint32   virtualNetworkId:24; /* Virtual network identifier */
-#endif  /* __BIG_ENDIAN_BITFIELD */
 } Vmxnet3_PktSteeringGeneveInput;
 #pragma pack(pop)
 
@@ -1034,6 +1037,15 @@ typedef struct Vmxnet3_ESPQueueSelectionConf {
 } Vmxnet3_ESPQueueSelectionConf;
 #pragma pack(pop)
 
+#pragma pack(push, 1)
+typedef struct Vmxnet3_RingBufferSize {
+   __le16             ring1BufSizeType0;
+   __le16             ring1BufSizeType1;
+   __le16             ring2BufSizeType1;
+   __le16             pad;
+} Vmxnet3_RingBufferSize;
+#pragma pack(pop)
+
 /*
  * If a command data does not exceed 16 bytes, it can use
  * the shared memory directly. Otherwise use variable length
@@ -1046,6 +1058,7 @@ typedef union Vmxnet3_CmdInfo {
    Vmxnet3_RSSField            setRSSFields;
    Vmxnet3_EncapDstPort        encapDstPort;
    Vmxnet3_ESPQueueSelectionConf espQSConf;
+   Vmxnet3_RingBufferSize      ringBufSize;
    __le64                      data[2];
 } Vmxnet3_CmdInfo;
 #pragma pack(pop)
@@ -1102,5 +1115,32 @@ do {\
 #define VMXWIFI_DRIVER_SHARED_LEN 8192
 
 #define VMXNET3_DID_PASSTHRU    0xFFFF
+
+
+#define VMXNET3_DCR_ERROR    31    /* error when bit 31 of DCR * is set */
+#define VMXNET3_CAP_UDP_RSS           0    /* bit 0 of DCR 0 */
+#define VMXNET3_CAP_ESP_RSS_IPV4      1    /* bit 1 of DCR 0 */
+#define VMXNET3_CAP_GENEVE_CHECKSUM_OFFLOAD   2  /* bit 2 of DCR 0 */
+#define VMXNET3_CAP_GENEVE_TSO        3          /* bit 3 of DCR 0 */
+#define VMXNET3_CAP_VXLAN_CHECKSUM_OFFLOAD    4  /* bit 4 of DCR 0 */
+#define VMXNET3_CAP_VXLAN_TSO         5          /* bit 5 of DCR 0 */
+#define VMXENT3_CAP_GENEVE_OUTER_CHECKSUM_OFFLOAD 6 /* bit 6 of DCR 0 */
+#define VMXNET3_CAP_VXLAN_OUTER_CHECKSUM_OFFLOAD  7 /* bit 7 of DCR 0 */
+#define VMXNET3_CAP_PKT_STEERING_IPV4 8   /* bit 8 of DCR 0 */
+#define VMXNET3_CAP_VERSION_4_MAX  VMXNET3_CAP_PKT_STEERING_IPV4
+#define VMXNET3_CAP_ESP_RSS_IPV6      9   /* bit 9 of DCR 0 */
+#define VMXNET3_CAP_VERSION_5_MAX VMXNET3_CAP_ESP_RSS_IPV6
+#define VMXNET3_CAP_ESP_OVER_UDP_RSS 10  /* bit 10 of DCR 0 */
+#define VMXNET3_CAP_INNER_RSS        11  /* bit 11 of DCR 0 */
+#define VMXNET3_CAP_INNER_ESP_RSS    12 /* bit 12 of DCR 0 */
+#define VMXNET3_CAP_CRC32_HASH_FUNC  13 /* bit 13 of DCR 0 */
+#define VMXNET3_CAP_VERSION_6_MAX  VMXNET3_CAP_CRC32_HASH_FUNC
+#define VMXNET3_CAP_OAM_FILTER       14 /* bit 14 of DCR 0 */
+#define VMXNET3_CAP_ESP_QS           15 /* bit 15 of DCR 0 */
+#define VMXNET3_CAP_LARGE_BAR        16 /* bit 16 of DCR 0 */
+#define VMXNET3_CAP_OOORX_COMP       17 /* bit 17 of DCR 0 */
+#define VMXNET3_CAP_VERSION_7_MAX    18
+/* when new capability is introduced, update VMXNET3_CAP_MAX */
+#define VMXNET3_CAP_MAX              VMXNET3_CAP_VERSION_7_MAX
 
 #endif /* _VMXNET3_DEFS_H_ */

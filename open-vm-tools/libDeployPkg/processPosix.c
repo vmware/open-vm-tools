@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -240,20 +240,20 @@ Process_RunToComplete(ProcessHandle h, unsigned long timeoutSec)
          break;
       } else {
          if (timeoutLoopSleeps == elapsedTimeLoopSleeps) {
-            p->log(log_error, "Timed out waiting for process exit, killing...");
+            p->log(log_error, "Timed out waiting for process exit, canceling...");
             kill(p->pid, SIGKILL);
          }
 
          // Empty the pipes.
          ProcessRead(p, &res_stdout, TRUE, FALSE);
          if (res_stdout == READSTATUS_ERROR) {
-            p->log(log_error, "Error while reading process output, killing...");
+            p->log(log_error, "Error while reading process output, canceling...");
             kill(p->pid, SIGKILL);
          }
 
          ProcessRead(p, &res_stderr, FALSE, FALSE);
          if (res_stderr == READSTATUS_ERROR) {
-            p->log(log_error, "Error while reading process output, killing...");
+            p->log(log_error, "Error while reading process output, canceling...");
             kill(p->pid, SIGKILL);
          }
 
@@ -267,12 +267,12 @@ Process_RunToComplete(ProcessHandle h, unsigned long timeoutSec)
    // Otherwise just empty the pipe to avoid being blocked by read operation.
    ProcessRead(p, &res_stdout, TRUE, !processExitedAbnormally);
    if (res_stdout == READSTATUS_ERROR) {
-      p->log(log_error, "Error while reading process stdout, killing...");
+      p->log(log_error, "Error while reading process stdout, canceling...");
    }
 
    ProcessRead(p, &res_stderr, FALSE, !processExitedAbnormally);
    if (res_stderr == READSTATUS_ERROR) {
-      p->log(log_error, "Error while reading process stderr, killing...");
+      p->log(log_error, "Error while reading process stderr, canceling...");
    }
 
    close(stdout[0]);
@@ -433,7 +433,6 @@ ProcessError
 Process_Destroy(ProcessHandle h)
 {
    ProcessInternal* p;
-   int i;
    p = (ProcessInternal*)h;
    if (p->stdoutFd >= 0) {
       close(p->stdoutFd);
@@ -444,6 +443,7 @@ Process_Destroy(ProcessHandle h)
    free(p->stdoutStr);
    free(p->stderrStr);
    if (p->args != NULL) {
+      int i;
       for (i = 0; p->args[i] != NULL; i++) {
          free(p->args[i]);
       }

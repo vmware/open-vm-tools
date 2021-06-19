@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013-2017,2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -28,9 +28,7 @@
 
 #include "vm_basic_defs.h"
 
-extern "C" {
 #include "glib.h"
-}
 
 
 #ifdef VMX86_DEVEL

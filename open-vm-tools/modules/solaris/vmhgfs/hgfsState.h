@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2016, 2021 VMware, Inc. All rights reserved.
  *
  * The contents of this file are subject to the terms of the Common
  * Development and Distribution License (the "License") version 1.0
@@ -68,7 +68,7 @@
  * This macro is used for sanity checking the fact that Solaris won't ever call
  * one of our vnode operations without first calling lookup(), which is the
  * place where we acquire the filename.  I have never seen a function fail
- * because of this, so it is likely that we can kill this macro and the checks
+ * because of this, so it is likely that we can remove this macro and the checks
  * on it throughout vnode.c.
  */
 #define HGFS_KNOW_FILENAME(vp)                          \

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -78,7 +78,7 @@ extern "C" {
 #define VDFM_MOUNT_PATH                 VDFM_MOUNT_POINT "/"
 
 #define CDROM_DRIVER_STRING             "cdrom"
-#define SCSI_DISK_DRIVER_STRING         "disks"
+#define PSA_STOR_DISK_DRIVER_STRING     "disks"
 #define SCSI_GENERIC_DRIVER_STRING      "genscsi"
 #define OLD_SCSI_GENERIC_DRIVER_STRING  "generic"
 #define COW_DRIVER_NAME                 "deltadisks"
@@ -87,7 +87,7 @@ extern "C" {
 #define FDS_DRIVER_ALL_STRING           "fdsall"
 
 #define CDROM_MOUNT_POINT               DEVFS_MOUNT_PATH CDROM_DRIVER_STRING
-#define DISKS_MOUNT_POINT               DEVFS_MOUNT_PATH SCSI_DISK_DRIVER_STRING
+#define DISKS_MOUNT_POINT               DEVFS_MOUNT_PATH PSA_STOR_DISK_DRIVER_STRING
 #define GENERIC_SCSI_MOUNT_POINT        DEVFS_MOUNT_PATH SCSI_GENERIC_DRIVER_STRING
 #define MULTI_EXTENT_MOUNT_POINT	DEVFS_MOUNT_PATH MULTI_EXTENT_DIR_NAME
 #define CDROM_MOUNT_PATH                CDROM_MOUNT_POINT "/"
@@ -97,7 +97,7 @@ extern "C" {
 
 #define VISOR_DEVFS_MOUNT_PATH          "/dev/"
 #define VISOR_CDROM_MOUNT_POINT         VISOR_DEVFS_MOUNT_PATH CDROM_DRIVER_STRING
-#define VISOR_DISKS_MOUNT_POINT         VISOR_DEVFS_MOUNT_PATH SCSI_DISK_DRIVER_STRING
+#define VISOR_DISKS_MOUNT_POINT         VISOR_DEVFS_MOUNT_PATH PSA_STOR_DISK_DRIVER_STRING
 #define VISOR_GENERIC_SCSI_MOUNT_POINT  VISOR_DEVFS_MOUNT_PATH SCSI_GENERIC_DRIVER_STRING
 #define VISOR_CDROM_MOUNT_PATH          VISOR_CDROM_MOUNT_POINT "/"
 #define VISOR_DISKS_MOUNT_PATH          VISOR_DISKS_MOUNT_POINT "/"

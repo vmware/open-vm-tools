@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -68,6 +68,7 @@
 #include "vm_atomic.h"
 #include "fileLock.h"
 #include "userlock.h"
+#include "strutil.h"
 
 #include "unicodeOperations.h"
 
@@ -114,8 +115,8 @@ File_Exists(const char *pathName)  // IN: May be NULL.
  *      Errno/GetLastError is available upon failure.
  *
  * Results:
- *      Return 0 if the unlink is successful or if the file did not exist.
- *      Otherwise return -1.
+ *        0  success
+ *      > 0  failure (errno)
  *
  * Side effects:
  *      May unlink the file.
@@ -126,13 +127,13 @@ File_Exists(const char *pathName)  // IN: May be NULL.
 int
 File_UnlinkIfExists(const char *pathName)  // IN:
 {
-   int ret = FileDeletion(pathName, TRUE);
+   errno = FileDeletion(pathName, TRUE);
 
-   if (ret != 0) {
-      ret = (ret == ENOENT) ? 0 : -1;
+   if (errno == ENOENT) {
+      errno = 0;
    }
 
-   return ret;
+   return errno;
 }
 
 
@@ -257,7 +258,8 @@ File_GetFilePermissions(const char *pathName,  // IN:
  *      Errno/GetLastError is available upon failure.
  *
  * Results:
- *      Return 0 if the unlink is successful. Otherwise, returns -1.
+ *        0  success
+ *      > 0  failure (errno)
  *
  * Side effects:
  *      The file is removed.
@@ -268,7 +270,9 @@ File_GetFilePermissions(const char *pathName,  // IN:
 int
 File_Unlink(const char *pathName)  // IN:
 {
-   return (FileDeletion(pathName, TRUE) == 0) ? 0 : -1;
+   errno = FileDeletion(pathName, TRUE);
+
+   return errno;
 }
 
 
@@ -284,7 +288,8 @@ File_Unlink(const char *pathName)  // IN:
  *      Errno/GetLastError is available upon failure.
  *
  * Results:
- *      Return 0 if the unlink is successful. Otherwise, returns -1.
+ *        0  success
+ *      > 0  failure (errno)
  *
  * Side effects:
  *      The file is removed.
@@ -295,7 +300,9 @@ File_Unlink(const char *pathName)  // IN:
 int
 File_UnlinkNoFollow(const char *pathName)  // IN:
 {
-   return (FileDeletion(pathName, FALSE) == 0) ? 0 : -1;
+   errno = FileDeletion(pathName, FALSE);
+
+   return errno;
 }
 
 
@@ -307,7 +314,8 @@ File_UnlinkNoFollow(const char *pathName)  // IN:
  *      Unlink the file, retrying on EBUSY on ESX, up to given timeout.
  *
  * Results:
- *      Return 0 if the unlink is successful. Otherwise, return -1.
+ *        0  success
+ *      > 0  failure (errno)
  *
  * Side effects:
  *      The file is removed.
@@ -319,26 +327,27 @@ int
 File_UnlinkRetry(const char *pathName,       // IN:
                  uint32 maxWaitTimeMilliSec) // IN:
 {
-   int ret;
-
    if (vmx86_server) {
       uint32 const unlinkWait = 300;
       uint32 waitMilliSec = 0;
 
       do {
-         ret = FileDeletion(pathName, TRUE);
-         if (ret != EBUSY || waitMilliSec >= maxWaitTimeMilliSec) {
+         errno = FileDeletion(pathName, TRUE);
+
+         if (errno != EBUSY || waitMilliSec >= maxWaitTimeMilliSec) {
             break;
          }
+
          Log(LGPFX" %s: %s after %u ms\n", __FUNCTION__, pathName, unlinkWait);
+
          Util_Usleep(unlinkWait * 1000);
          waitMilliSec += unlinkWait;
       } while (TRUE);
    } else {
-      ret = FileDeletion(pathName, TRUE);
+      errno = FileDeletion(pathName, TRUE);
    }
 
-   return ret == 0 ? 0 : -1;
+   return errno;
 }
 
 
@@ -1922,17 +1931,23 @@ FileDeleteDirectoryTree(const char *pathName,  // IN: directory to delete
 #if !defined(_WIN32)
          case S_IFLNK:
             /* Delete symlink, not what it points to */
-            if (FileDeletion(curPath, FALSE) != 0) {
+            err = FileDeletion(curPath, FALSE);
+
+            if ((err != 0) && (err != ENOENT)) {
                fileError = Err_Errno();
             }
             break;
 #endif
 
          default:
-            if (FileDeletion(curPath, FALSE) != 0) {
+            err = FileDeletion(curPath, FALSE);
+
+            if ((err != 0) && (err != ENOENT)) {
 #if defined(_WIN32)
                if (File_SetFilePermissions(curPath, S_IWUSR)) {
-                  if (FileDeletion(curPath, FALSE) != 0) {
+                  err = FileDeletion(curPath, FALSE);
+
+                  if ((err != 0) && (err != ENOENT)) {
                      fileError = Err_Errno();
                   }
                } else {
@@ -1945,9 +1960,11 @@ FileDeleteDirectoryTree(const char *pathName,  // IN: directory to delete
             break;
          }
       } else {
-         fileError = Err_Errno();
-         Log(LGPFX" %s: Lstat of '%s' failed, errno = %d\n",
-             __FUNCTION__, curPath, errno);
+         if (errno != ENOENT) {
+            fileError = Err_Errno();
+            Log(LGPFX" %s: Lstat of '%s' failed, errno = %d\n",
+                __FUNCTION__, curPath, errno);
+         }
       }
 
       Posix_Free(curPath);
@@ -2352,22 +2369,18 @@ FileRotateByRename(const char *fileName,  // IN: full path to file
                        Str_SafeAsprintf(NULL, "%s-%d%s", baseName, i - 1, ext);
 
       if (dst == NULL) {
-         result = File_UnlinkIfExists(src);
+         result = FileDeletion(src, FALSE);  // Don't follow a symlink!
 
-         if (result == -1) {
+         if ((result != 0) && (result != ENOENT)) {
             Log(LGPFX" %s: failed to remove %s: %s\n", __FUNCTION__,
-                src, Msg_ErrString());
+                src, Err_Errno2String(Err_Errno()));
          }
       } else {
-         result = Posix_Rename(src, dst);
+         result = File_Rename(src, dst);
 
-         if (result == -1) {
-            int error = Err_Errno();
-
-            if (error != ENOENT) {
-               Log(LGPFX" %s: failed to rename %s -> %s: %s\n", src, dst,
-                   __FUNCTION__, Err_Errno2String(error));
-            }
+         if ((result != 0) && (result != ENOENT)) {
+            Log(LGPFX" %s: rename of %s -> %s failed: %s\n", src, dst,
+                __FUNCTION__, Err_Errno2String(Err_Errno()));
          }
       }
 
@@ -2412,11 +2425,10 @@ FileNumberCompare(const void *a,  // IN:
  * FileRotateByRenumber --
  *
  *      File rotation scheme optimized for vmfs:
- *        1) find highest numbered file (maxNr)
- *        2) rename <base>.<ext> to <base>-<maxNr + 1>.<ext>
- *        3) delete (nFound - numToKeep) lowest numbered files.
- *
- *        Wrap around is handled incorrectly.
+ *        1) Find highest numbered file (maxNr)
+ *        2) Rename <base>.<ext> to <base>-<maxNr + 1>.<ext>
+ *           Should maxNr hit MAX_UINT32, file names are "fixed up".
+ *        3) Delete (nFound - numToKeep) lowest numbered files.
  *
  * Results:
  *      If newFilePath is non-NULL: the new path is returned to *newFilePath
@@ -2437,13 +2449,19 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
                      int n,                      // IN: number old files to keep
                      char **newFilePath)         // OUT/OPT: new path to file
 {
-   char *baseDir = NULL, *fmtString = NULL, *baseName = NULL, *tmp;
-   char *fullPathNoExt = NULL;
-   uint32 maxNr = 0;
-   int i, nrFiles, nFound = 0;
-   char **fileList = NULL;
-   uint32 *fileNumbers = NULL;
+   uint32 i;
+   char *tmp;
    int result;
+   int nrFiles;
+   size_t extLen;
+   size_t baseNameLen;
+   uint32 maxNr = 0;
+   uint32 nFound = 0;
+   char *baseDir = NULL;
+   char *baseName = NULL;
+   char **fileList = NULL;
+   char *fullPathNoExt = NULL;
+   uint32 *fileNumbers = NULL;
 
    if (newFilePath != NULL) {
       *newFilePath = NULL;
@@ -2469,7 +2487,7 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
       goto cleanup;
    }
 
-   fmtString = Str_SafeAsprintf(NULL, "%s-%%d%s%%n", baseName, ext);
+   baseNameLen = strlen(baseName);
 
    nrFiles = File_ListDirectory(baseDir, &fileList);
    if (nrFiles == -1) {
@@ -2480,17 +2498,35 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
 
    fileNumbers = Util_SafeCalloc(nrFiles, sizeof(uint32));
 
+   /*
+    * Make sure the whole file name precisely matches what we expect before
+    * including in the list to be considered.
+    */
+
+   extLen = strlen(ext);
+
    for (i = 0; i < nrFiles; i++) {
-      uint32 curNr;
-      int bytesProcessed = 0;
+      size_t fileNameLen = strlen(fileList[i]);
 
-      /*
-       * Make sure the whole file name matched what we expect for the file.
-       */
+      if ((fileNameLen >= (baseNameLen + 1 /* dash */ + 1 /* digit */ + extLen)) &&
+          (memcmp(fileList[i], baseName, baseNameLen) == 0) &&
+          (fileList[i][baseNameLen] == '-') &&
+          (memcmp(fileList[i] + fileNameLen - extLen, ext, extLen) == 0)) {
+         const char *nr = fileList[i] + baseNameLen + 1;
 
-      if ((sscanf(fileList[i], fmtString, &curNr, &bytesProcessed) >= 1) &&
-          (bytesProcessed == strlen(fileList[i]))) {
-         fileNumbers[nFound++] = curNr;
+         /* No leading zeros; zero is invalid; must be a valid ASCII digit */
+         if ((nr[0] >= '1') && (nr[0] <= '9')) {
+            uint32 curNr;
+            char *endNr = NULL;
+
+            errno = 0;
+            curNr = strtoul(nr, &endNr, 10);
+            if ((errno == 0) &&
+                (endNr == fileList[i] + fileNameLen - extLen) &&
+                (curNr <= MAX_UINT32)) {
+               fileNumbers[nFound++] = curNr;
+            }
+         }
       }
 
       Posix_Free(fileList[i]);
@@ -2499,24 +2535,50 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
    if (nFound > 0) {
       qsort(fileNumbers, nFound, sizeof(uint32), FileNumberCompare);
       maxNr = fileNumbers[nFound - 1];
-   }
 
-   /* rename the existing file to the next number */
-   tmp = Str_SafeAsprintf(NULL, "%s/%s-%d%s", baseDir, baseName,
-                          maxNr + 1, ext);
+      /*
+       * If the maximum file number maxes out the uint32 used, rename all of the
+       * files, packing them down to the beginning of the rotation sequence.
+       *
+       * After MAX_UINT32 file rotations we can afford some extra time and I/O
+       * operations to handle the wrapping case nicely.
+       */
 
-   result = Posix_Rename(filePath, tmp);
+      if (maxNr == MAX_UINT32) {
+         for (i = 0; i < nFound; i++) {
+            char *to = Str_SafeAsprintf(NULL, "%s/%s-%u%s", baseDir, baseName,
+                             i + 1, ext);
+            char *from = Str_SafeAsprintf(NULL, "%s/%s-%u%s", baseDir, baseName,
+                             fileNumbers[i], ext);
 
-   if (result == -1) {
-      int error = Err_Errno();
+            result = File_Rename(from, to);
 
-      if (error != ENOENT) {
-         Log(LGPFX" %s: failed to rename %s -> %s failed: %s\n", __FUNCTION__,
-             filePath, tmp, Err_Errno2String(error));
+            if (result != 0) {
+               Log(LGPFX" %s: rename of %s -> %s failed: %s\n", __FUNCTION__,
+                   from, to, Err_Errno2String(Err_Errno()));
+            }
+
+            free(to);
+            free(from);
+
+            fileNumbers[i] = i + 1;
+         }
+
+         maxNr = nFound;
       }
    }
 
-   if (newFilePath == NULL || result == -1) {
+   /* Rename the existing file to the next number */
+   tmp = Str_SafeAsprintf(NULL, "%s/%s-%u%s", baseDir, baseName, maxNr + 1, ext);
+
+   result = File_Rename(filePath, tmp);
+
+   if ((result != 0) && (result != ENOENT)) {
+      Log(LGPFX" %s: rename of %s -> %s failed: %s\n", __FUNCTION__,
+          filePath, tmp, Err_Errno2String(Err_Errno()));
+   }
+
+   if (newFilePath == NULL || result != 0) {
       Posix_Free(tmp);
    } else {
       *newFilePath = tmp;
@@ -2525,13 +2587,16 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
    if (nFound >= n) {
       /* Delete the extra files. */
       for (i = 0; i <= nFound - n; i++) {
-         tmp = Str_SafeAsprintf(NULL, "%s/%s-%d%s", baseDir, baseName,
+         tmp = Str_SafeAsprintf(NULL, "%s/%s-%u%s", baseDir, baseName,
                                 fileNumbers[i], ext);
 
-         if (Posix_Unlink(tmp) == -1) {
-            Log(LGPFX" %s: failed to remove %s: %s\n", __FUNCTION__, tmp,
-                Msg_ErrString());
+         result = FileDeletion(tmp, FALSE);  // Don't follow a symlink!
+
+         if (result != 0) {
+            Log(LGPFX" %s: failed to remove %s: %s\n", __FUNCTION__,
+                tmp, Err_Errno2String(Err_Errno()));
          }
+
          Posix_Free(tmp);
       }
    }
@@ -2539,7 +2604,6 @@ FileRotateByRenumber(const char *filePath,       // IN: full path to file
   cleanup:
    Posix_Free(fileNumbers);
    Posix_Free(fileList);
-   Posix_Free(fmtString);
    Posix_Free(baseDir);
    Posix_Free(baseName);
    Posix_Free(fullPathNoExt);

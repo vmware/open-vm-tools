@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2020-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -198,14 +198,15 @@ HgfsOplockMonitorFileChangeCallback(HgfsSessionInfo *session,   // IN:
                                     void *data)                 // IN:
 {
    oplockMonitorData *monitorData = data;
-   DblLnkLst_Links *link, *nextLink;
-   oplockMonitorCallbackList *callbackItem;
 
    ASSERT(monitorData);
    MXUser_AcquireExclLock(oplockMonitorLock);
    if (HashTable_Lookup(gOplockMonitorMap, monitorData->utf8Name, NULL)) {
+      DblLnkLst_Links *link, *nextLink;
       DblLnkLst_ForEachSafe(link, nextLink, &monitorData->callbackList) {
-         callbackItem = DblLnkLst_Container(link, oplockMonitorCallbackList, links);
+         oplockMonitorCallbackList *callbackItem = DblLnkLst_Container(link,
+                                                   oplockMonitorCallbackList,
+                                                   links);
          callbackItem->callback(session, callbackItem->data);
          /*
           * callbackItem->data has been freed in the user callback.
@@ -351,6 +352,7 @@ error:
       free(monitorData->utf8Name);
       free(monitorData);
    }
+   free(data);
 
    MXUser_ReleaseExclLock(oplockMonitorLock);
    return HGFS_OPLOCK_INVALID_MONITOR_HANDLE;
@@ -434,6 +436,16 @@ HgfsOplockUnmonitorFileChangeInternal(HOM_HANDLE handle)             // IN:
 void
 HgfsOplockUnmonitorFileChange(HOM_HANDLE handle)             // IN:
 {
+   /*
+    * This function is a callback function and may be called at any time, even
+    * when the oplock monitor module is destroyed.
+    * So, check if the oplock monitor module is initialized.
+    */
+   if (!gOplockMonitorInit) {
+      Log("%s: OplockMonitor module is not inited\n", __FUNCTION__);
+      return;
+   }
+
    MXUser_AcquireExclLock(oplockMonitorLock);
    HgfsOplockUnmonitorFileChangeInternal(handle);
    MXUser_ReleaseExclLock(oplockMonitorLock);

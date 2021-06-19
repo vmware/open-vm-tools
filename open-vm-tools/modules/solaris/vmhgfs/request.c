@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2016, 2021 VMware, Inc. All rights reserved.
  *
  * The contents of this file are subject to the terms of the Common
  * Development and Distribution License (the "License") version 1.0
@@ -90,7 +90,7 @@ HgfsInitRequestList(HgfsSuperInfo *sip) // IN: Pointer to superinfo structure
  * HgfsCancelAllRequests  --
  *
  *    Cancels all pending (SUBMITTED) requests by signalling the transport
- *    code that they should be aborted.
+ *    code that they should be forcibly ended.
  *
  * Results:
  *    None.

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -107,18 +107,16 @@ VixError Vix_TranslateGuestRegistryError(int systemError);
  * enum constant, like an integer. For example, err = VIX_E_FAIL; works.
  * This just leaves the flags and extraError fields as 0.
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixErrorFields {
+#pragma pack(push, 1)
+typedef struct VixErrorFields {
    uint16   error;
 
    uint8    flags;
 
    uint8    extraErrorType;
    uint32   extraError;
-}
-#include "vmware_pack_end.h"
-VixErrorFields;
+} VixErrorFields;
+#pragma pack(pop)
 
 /*
  * These are the flags for a Vix error.
@@ -368,7 +366,7 @@ typedef struct VixPropertyListImpl
  */
 typedef enum VixPropertyListBadEncodingAction {
    /*
-    * Abort the deserialization and return an error. This is the recommended
+    * Cancel the deserialization and return an error. This is the recommended
     * value since it is the strictest; you don't have to think about how
     * any clients or library code will handle escaped values.
     * This should always be used when parsing property lists passing arguments

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2016-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2016-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -434,7 +434,11 @@ AsyncSocket_GetID(AsyncSocket *asock)         // IN
  * AsyncSocket_SetErrorFn --
  *
  *      Sets the error handling function for the asock. The error function
- *      is invoked automatically on I/O errors.
+ *      is invoked automatically on I/O errors. This should be done
+ *      before an internal callback that may call the error handler can be
+ *      fired. This usually means doing so immediately after the asyncsocket
+ *      is created, either from the poll thread or with the asyncsocket lock
+ *      (passed in pollParams) held throughout both calls.
  *
  * Results:
  *      ASOCKERR_SUCCESS or ASOCKERR_INVAL.
@@ -544,7 +548,7 @@ AsyncSocketCheckAndDispatchRecv(AsyncSocket *s,  // IN
        * We do this dance in case the handler frees the buffer (so
        * that there's no possible window where there are dangling
        * references here.  Obviously if the handler frees the buffer,
-       * but them fails to register a new one, we'll put back the
+       * but then fails to register a new one, we'll put back the
        * dangling reference in the automatic reset case below, but
        * there's currently a limit to how far we go to shield clients
        * who use our API in a broken way.
@@ -646,7 +650,7 @@ AsyncSocketSetRecvBuf(AsyncSocket *asock,  // IN:
 /*
  *-----------------------------------------------------------------------------
  *
- * WebSocketCancelRecv --
+ * AsyncSocketCancelRecv --
  *
  *    Call this function if you know what you are doing. This should
  *    be called if you want to synchronously receive the outstanding

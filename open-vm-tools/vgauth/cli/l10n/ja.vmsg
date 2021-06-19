@@ -1,5 +1,5 @@
 ##########################################################
-# Copyright (C) 2011-2017,2020 VMware, Inc. All rights reserved.
+# Copyright (c) 2011-2017,2020-2021 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -34,7 +34,7 @@ addoptions.verbose = "詳細な操作"
 cmdline.help.appoption = "アプリケーション オプション"
 cmdline.help.helpoption = "ヘルプ オプション"
 cmdline.help.hint = "ヘルプ オプションを表示"
-cmdline.help.usage = "使用量"
+cmdline.help.usage = "使用方法"
 cmdline.parse = "コマンド ラインの解析に失敗しました"
 
 cmdline.summary.pemfile = "PEM ファイル"
@@ -78,7 +78,7 @@ removeoptions.verbose = "詳細な操作"
 
 removeall.fail = "%1$s: ユーザー '%2$s' のサブジェクト '%3$s' を削除できませんでした: %4$s。\n"
 
-removeall.removefail = "%1$s: ユーザー '%2$s' のサブジェクト '%3$s' pemCert '%4$s' のエイリアスを削除できませんでした: %5$s。\n"
+removeall.removefail = "%1$s: ユーザー '%2$s' のサブジェクト '%3$s' の pemCert '%4$s' のエイリアスを削除できませんでした: %5$s。\n"
 
 removeall.success = "%1$s: すべてのエイリアスが削除されました\n"
 

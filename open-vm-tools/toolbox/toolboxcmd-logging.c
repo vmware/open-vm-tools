@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2015-2016,2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2015-2016,2020-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -167,15 +167,7 @@ LoggingGetLevel(char *service)         // service
       confDict = g_key_file_new();
    }
 
-#if defined(_WIN32)
-   if (GlobalConfig_GetEnabled(confDict)) {
-      GKeyFile *globalConf = NULL;
-      if (GlobalConfig_LoadConfig(&globalConf, NULL)) {
-         VMTools_AddConfig(globalConf, confDict);
-         g_key_file_free(globalConf);
-      }
-   }
-#endif
+   TOOLBOXCMD_LOAD_GLOBALCONFIG(confDict)
 
    confName = g_strdup_printf("%s.level", service);
 

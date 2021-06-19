@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2020 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -24,14 +24,12 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <glib.h>
 
 #if !defined(_WIN32)
 #include <unistd.h>
 #endif
 
-#include "vm_version.h"
-#include "backdoor.h"
-#include "backdoor_def.h"
 #include "vm_basic_types.h"
 #include "vmcheck.h"
 #if defined(_WIN32)
@@ -44,33 +42,6 @@
 #include "embed_version.h"
 VM_EMBED_VERSION(CHECKVM_VERSION_STRING);
 
-
-/*
- *  getHWVersion  -  Read VM HW version through backdoor
- */
-void
-getHWVersion(uint32 *hwVersion)
-{
-   Backdoor_proto bp;
-   bp.in.cx.halfs.low = BDOOR_CMD_GETHWVERSION;
-   Backdoor(&bp);
-   *hwVersion = bp.out.ax.word;
-}
-
-
-/*
- *  getScreenSize  -  Get screen size of the host
- */
-void
-getScreenSize(uint32 *screensize)
-{
-   Backdoor_proto bp;
-   bp.in.cx.halfs.low = BDOOR_CMD_GETSCREENSIZE;
-   Backdoor(&bp);
-   *screensize = bp.out.ax.word;
-}
-
-
 /*
  *  Start of main program.  Check if we are in a VM, by reading
  *  a backdoor port.  Then process any other commands.
@@ -80,71 +51,74 @@ main(int argc,
      char *argv[])
 {
    uint32 version[2];
-   int opt;
-   int width, height;
-   uint32 screensize = 0;
-   uint32 hwVersion;
+   gchar *gAppName;
+   GError *gErr = NULL;
+   gboolean product = FALSE;
+   int success = 1;
+
+   GOptionEntry options[] = {
+      {"prod", 'p', G_OPTION_FLAG_IN_MAIN, G_OPTION_ARG_NONE, &product,
+       "print VMware hypervisor product.", NULL},
+      {NULL}
+   };
+   GOptionContext *optCtx;
 
 #if defined(_WIN32)
    WinUtil_EnableSafePathSearching(TRUE);
 #endif
 
+   /*
+    * set up glib options context.
+    */
+   gAppName = g_path_get_basename(argv[0]);
+
+   g_set_prgname(gAppName);
+   optCtx = g_option_context_new(NULL);
+   g_option_context_add_main_entries(optCtx, options, NULL);
+
    if (!VmCheck_IsVirtualWorld()) {
-      fprintf(stdout, "Not running in a virtual machine.\n");
-      return 1;
+      g_printerr("Error: %s must be run inside a virtual machine"
+                 " on a VMware hypervisor product.\n", gAppName);
+      goto out;
    }
 
    if (!VmCheck_GetVersion(&version[0], &version[1])) {
-      fprintf(stdout, "Couldn't get version\n");
-      return 1;
+      g_printerr("%s: Couldn't get version\n", gAppName);
+      goto out;
+   }
+
+   if (!g_option_context_parse(optCtx, &argc, &argv, &gErr)) {
+      g_printerr("%s: %s\n", gAppName, gErr->message);
+      g_error_free(gErr);
+      goto out;
    }
 
    /*
-    *  OK, we're in a VM, check if there are any other requests
+    * product is true if 'p' option was passed to parser
     */
-   while ((opt = getopt(argc, argv, "rph")) != EOF) {
-      switch (opt) {
-      case 'r':
-         getScreenSize(&screensize);
-         width = (screensize >> 16) & 0xffff;
-         height = screensize & 0xffff;
-         if ((width <= 0x7fff) && (height <= 0x7fff)) {
-            printf("%d %d\n", width, height);
-         } else {
-            printf("0 0\n");
-         }
-         return 0;
+   if (product) {
+      switch (version[1]) {
+      case VMX_TYPE_SCALABLE_SERVER:
+         g_print("ESX Server\n");
+         break;
 
-      case 'p':
-         /*
-         * Print out product that we're running on based on code
-         * obtained from getVersion().
-         */
-         switch (version[1]) {
-         case VMX_TYPE_SCALABLE_SERVER:
-            printf("ESX Server\n");
-            break;
-
-         case VMX_TYPE_WORKSTATION:
-            printf("Workstation\n");
-            break;
-
-         default:
-            printf("Unknown\n");
-            break;
-         }
-         return 0;
-
-      case 'h':
-         getHWVersion(&hwVersion);
-         printf("VM's hw version is %u\n", hwVersion);
+      case VMX_TYPE_WORKSTATION:
+         g_print("Workstation\n");
          break;
 
       default:
+         g_print("Unknown\n");
          break;
       }
+      success = 0;
+      goto out;
    }
 
-   printf("%s version %d (good)\n", PRODUCT_LINE_NAME, version[0]);
-   return 0;
+   g_print("%s version %d (good)\n", PRODUCT_LINE_NAME, version[0]);
+   success = 0;
+
+out:
+   g_option_context_free(optCtx);
+   g_free(gAppName);
+   return success;
 }

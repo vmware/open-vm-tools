@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2019-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2019-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -317,7 +317,7 @@ AppInfoGatherTask(ToolsAppCtx *ctx,    // IN
 
    if (len < 0) {
       g_warning("%s: Insufficient space for the header.\n", __FUNCTION__);
-      goto abort;
+      goto quit;
    }
 
    DynBuf_Append(&dynBuffer, tmpBuf, len);
@@ -338,14 +338,14 @@ AppInfoGatherTask(ToolsAppCtx *ctx,    // IN
       if (NULL == escapedCmd) {
          g_warning("%s: Failed to escape the content of cmdName.\n",
                    __FUNCTION__);
-         goto abort;
+         goto quit;
       }
 
       escapedVersion = EscapeJSONString(appInfo->version);
       if (NULL == escapedVersion) {
          g_warning("%s: Failed to escape the content of version information.\n",
                    __FUNCTION__);
-         goto abort;
+         goto quit;
       }
 
       if (appNode == appList) {
@@ -384,7 +384,7 @@ next_entry:
    DynBuf_Append(&dynBuffer, jsonSuffix, sizeof jsonSuffix - 1);
    SetGuestInfo(ctx, APP_INFO_GUESTVAR_KEY, DynBuf_GetString(&dynBuffer));
 
-abort:
+quit:
    free(escapedCmd);
    free(escapedVersion);
    AppInfo_DestroyAppList(appList);

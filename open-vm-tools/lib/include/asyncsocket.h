@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -498,7 +498,11 @@ AsyncSocket *AsyncSocket_ListenSocketUDS(const char *pipeName,
 
 
 /*
- * Connect to address:port and fire callback with new asock
+ * Connect to address:port and fire callback with new asock.
+ * If a custom error handler is needed, call AsyncSocket_SetErrorFn immediately
+ * after the new asock is created. If this is done on a thread that is not the
+ * poll thread, both calls should be done under the asyncsocket lock (passed
+ * via pollParams).
  */
 AsyncSocket *AsyncSocket_Connect(const char *hostname,
                                  unsigned int port,
@@ -653,6 +657,11 @@ int AsyncSocket_Recv(AsyncSocket *asock, void *buf, int len, void *cb, void *cbD
 int AsyncSocket_RecvPartial(AsyncSocket *asock, void *buf, int len,
                             void *cb, void *cbData);
 
+int AsyncSocket_Peek(AsyncSocket *asock, void *buf, int len, void *cb, void *cbData);
+
+int AsyncSocket_PeekPartial(AsyncSocket *asock, void *buf, int len,
+                            void *cb, void *cbData);
+
 /*
  * Specify the amount of data to receive and the receive function to call.
  */
@@ -703,7 +712,9 @@ int AsyncSocket_CancelCbForClose(AsyncSocket *asock);
 
 /*
  * Set the error handler to invoke on I/O errors (default is to close the
- * socket)
+ * socket). This should be done immediately after an asyncsocket is created.
+ * If this is done on a thread that is not the poll thread, the asyncsocket
+ * lock (passed via pollParams) should be held throughout.
  */
 int AsyncSocket_SetErrorFn(AsyncSocket *asock, AsyncSocketErrorFn errorFn,
                            void *clientData);

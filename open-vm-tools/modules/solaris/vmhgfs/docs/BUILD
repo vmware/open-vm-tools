@@ -77,7 +77,7 @@ Hgfs Kernel Module
 
  Note that most of the time rotate will take care of everything for you, but if
  guestd is running this may cause problems because the driver will be added
- even if the module cannot be removed.  Just kill guestd then make rotate.
+ even if the module cannot be removed.  Just "kill" guestd then "make rotate".
 
 
  2. Building from the Guest (Solaris 10)

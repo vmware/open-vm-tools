@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2007-2020 VMware, Inc.  All rights reserved.
+### Copyright (c) 2007-2021 VMware, Inc.  All rights reserved.
 ###
 ### Configure script for building the VMware OSS Tools.
 ###
@@ -35,10 +35,10 @@
 ### Initialization
 ###
 
-TOOLS_VERSION="11.2.5"
+TOOLS_VERSION="11.3.0"
 AC_INIT(
    [open-vm-tools],
-   [11.2.0],
+   [11.3.0],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
@@ -326,6 +326,15 @@ AC_ARG_ENABLE(
    [],
    [enable_resolutionkms="auto"])
 
+
+AC_ARG_ENABLE(
+   vmwgfxctrl,
+   AS_HELP_STRING(
+      [--enable-vmwgfxctrl],
+      [build the linux / unix vmwgfxctrl tool.]),
+   [],
+   [enable_vmwgfxctrl="auto"])
+
 AM_INIT_AUTOMAKE
 
 ###
@@ -526,8 +535,8 @@ AC_VMW_CHECK_LIB([fuse],
 #
 AC_ARG_WITH([pam],
    [AS_HELP_STRING([--without-pam],
-     [compiles without PAM support.])],
-   [],
+     [compiles without PAM support (disables vgauth).])],
+   [with_pam="$withval"],
    [with_pam=yes])
 
 if test "$with_pam" = "yes"; then
@@ -547,11 +556,19 @@ AC_ARG_ENABLE([vgauth],
    [AS_HELP_STRING([--disable-vgauth],
      [do not build vgauth.])],
    [
+    if test "$with_pam" = "no" -a "$enableval" = "yes"; then
+       AC_MSG_ERROR([Cannot enable vgauth without PAM. Please configure
+                     without --without-pam or without --enable-vgauth.])
+    fi
     enable_vgauth="$enableval"
     use_xmlsec1=yes
    ],
    [
-    if test "$os" = "linux"; then
+    if test "$with_pam" = "no"; then
+       enable_vgauth="no"
+       use_xmlsec1="no"
+       AC_MSG_WARN("Building without PAM; vgauth will be disabled.")
+    elif test "$os" = "linux"; then
        enable_vgauth=yes
        use_xmlsec1=yes
     else
@@ -1333,13 +1350,16 @@ if test "$os" = "linux"; then
       MODULES="$MODULES vmblock vmsync"
    fi
    buildHgfsmounter=yes
-   if test "x$enable_resolutionkms" != "xno"; then
+   if test "x$enable_resolutionkms" != "xno" && test "x$enable_vmwgfxctrl" != "xno"; then
       PKG_CHECK_MODULES(
          [LIBUDEV],
          libdrm libudev,
-         [LIBUDEV_CFLAGS="$LIBUDEV_CFLAGS -DHAVE_LIBUDEV"],
+         [LIBUDEV_CFLAGS="$LIBUDEV_CFLAGS -DHAVE_LIBUDEV";
+         enable_vmwgfxctrl="yes"],
          [AC_MSG_WARN(
-	    [Missing libdrm or libudev. The resolutionKMS plugin will search for them at run-time.])])
+            [Missing libdrm or libudev. vmwgfxctrl will be disabled and the resolutionKMS plugin will search for them at run-time.]);
+            enable_vmwgfxctrl="no"
+            ])
       enable_resolutionkms="yes"
    fi
 fi
@@ -1435,6 +1455,10 @@ if test "x$enable_resolutionkms" = "xyes"; then
    CPPFLAGS="$CPPFLAGS -DENABLE_RESOLUTIONKMS"
 fi
 
+if test "x$enable_vmwgfxctrl" = "xauto"; then
+   enable_vmwgfxctrl="no"
+fi
+
 AM_CONDITIONAL(BUILD_HGFSMOUNTER, test "$buildHgfsmounter" = "yes")
 AM_CONDITIONAL(LINUX, test "$os" = "linux")
 AM_CONDITIONAL(SOLARIS, test "$os" = "solaris")
@@ -1464,6 +1488,7 @@ AM_CONDITIONAL(HAVE_VSOCK, test "$os" = "linux")
 AM_CONDITIONAL(HAVE_MKDTEMP, test "$have_mkdtemp" = "yes")
 AM_CONDITIONAL(HAVE_UDEV, test "$have_udev" = "yes")
 AM_CONDITIONAL(ENABLE_RESOLUTIONKMS, test "x$enable_resolutionkms" = "xyes")
+AM_CONDITIONAL(ENABLE_VMWGFXCTRL, test "x$enable_vmwgfxctrl" = "xyes")
 AM_CONDITIONAL(VGAUTH_USE_CXX, test "$with_icu" = "yes" -o "$use_xmlsec1" != "yes")
 AM_CONDITIONAL(ENABLE_LIBAPPMONITOR, test "$enable_libappmonitor" = "yes")
 AM_CONDITIONAL(ENABLE_SDMP, test "$enable_servicediscovery" = "yes")
@@ -1590,8 +1615,10 @@ AC_CONFIG_FILES([                      \
    lib/file/Makefile                   \
    lib/foundryMsg/Makefile             \
    lib/glibUtils/Makefile              \
+   lib/globalConfig/Makefile           \
    lib/guestApp/Makefile               \
    lib/guestRpc/Makefile               \
+   lib/guestStoreClientHelper/Makefile \
    lib/hgfs/Makefile                   \
    lib/hgfsBd/Makefile                 \
    lib/hgfsHelper/Makefile             \
@@ -1614,6 +1641,7 @@ AC_CONFIG_FILES([                      \
    lib/rpcVmx/Makefile                 \
    lib/slashProc/Makefile              \
    lib/string/Makefile                 \
+   lib/jsmn/Makefile                   \
    lib/stubs/Makefile                  \
    lib/syncDriver/Makefile             \
    lib/system/Makefile                 \
@@ -1626,11 +1654,13 @@ AC_CONFIG_FILES([                      \
    services/Makefile                   \
    services/vmtoolsd/Makefile          \
    services/plugins/Makefile           \
+   services/plugins/gdp/Makefile       \
    services/plugins/appInfo/Makefile   \
    services/plugins/serviceDiscovery/Makefile   \
    services/plugins/desktopEvents/Makefile \
    services/plugins/dndcp/Makefile     \
    services/plugins/guestInfo/Makefile \
+   services/plugins/guestStore/Makefile \
    services/plugins/hgfsServer/Makefile \
    services/plugins/powerOps/Makefile  \
    services/plugins/resolutionSet/Makefile \
@@ -1644,9 +1674,11 @@ AC_CONFIG_FILES([                      \
    hgfsclient/Makefile                 \
    hgfsmounter/Makefile                \
    checkvm/Makefile                    \
+   vmwgfxctrl/Makefile                 \
    rpctool/Makefile                    \
    vgauth/Makefile                     \
    vgauth/lib/Makefile                 \
+   vgauthImport/Makefile               \
    namespacetool/Makefile              \
    vgauth/cli/Makefile                 \
    vgauth/test/Makefile                 \
@@ -1656,6 +1688,7 @@ AC_CONFIG_FILES([                      \
    libDeployPkg/Makefile               \
    libDeployPkg/libDeployPkg.pc        \
    libhgfs/Makefile                    \
+   libguestStoreClient/Makefile        \
    libvmtools/Makefile                 \
    xferlogs/Makefile                   \
    modules/Makefile                    \

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998,2005-2012,2014-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998,2005-2012,2014-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -116,6 +116,12 @@
 #define PCI_DEVICE_ID_VMWARE_VTPM       0x0830
 
 /*
+ * VMware Device Virtualization Extension (DVX) devices
+ */
+#define PCI_DEVICE_ID_VMWARE_DVX_SAMPLE 0x0840
+#define PCI_DEVICE_ID_VMWARE_DVX_TEST   0x0841
+
+/*
  * VMware Virtual Device Test Infrastructure (VDTI) devices
  */
 #define PCI_DEVICE_ID_VMWARE_VDTI               0x7E57  /* stands for "TEST" */
@@ -169,7 +175,9 @@
 /*
  * Intel Volume Management Device (VMD)
  */
-#define PCI_DEVICE_ID_INTEL_VMD_V1           0x201d
+#define PCI_DEVICE_ID_INTEL_VMD_GEN1           0x201d
+#define PCI_DEVICE_ID_INTEL_VMD_GEN2           0x28c0
+#define PCI_DEVICE_ID_INTEL_VMD_GEN3           0x476F
 
 /*
  * Intel Quickassist (QAT) devices.
@@ -353,6 +361,9 @@
 
 /************* PrecisionClock implementation limits ********************/
 #define MAX_PRECISIONCLOCK_DEVICES 1
+
+/************* DeviceGroup implementation limits ********************/
+#define MAX_DEVICE_GROUP_DEVICES 4
 
 /************* Strings for Host USB Driver *******************************/
 

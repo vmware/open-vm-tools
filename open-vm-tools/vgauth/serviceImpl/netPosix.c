@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2017, 2019-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2017, 2019-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -69,7 +69,7 @@ ServiceNetworkCreateSocketDir(void)
       bRet = FALSE;
       Warning("%s: socket dir path '%s' already exists as a non-directory; "
               "canceling\n", __FUNCTION__, socketDir);
-      goto abort;
+      goto quit;
    }
 
    /*
@@ -83,11 +83,11 @@ ServiceNetworkCreateSocketDir(void)
          bRet = FALSE;
          Warning("%s: failed to create socket dir '%s' error: %d\n",
                  __FUNCTION__, socketDir, ret);
-         goto abort;
+         goto quit;
       }
       Log("%s: Created socket directory '%s'\n", __FUNCTION__, socketDir);
    }
-abort:
+quit:
    g_free(socketDir);
 
    return bRet;
@@ -139,14 +139,14 @@ ServiceNetworkListen(ServiceConnection *conn,            // IN/OUT
     */
    if (!ServiceNetworkCreateSocketDir()) {
       err = VGAUTH_E_COMM;
-      goto abort;
+      goto quit;
    }
 
    sock = socket(PF_UNIX, SOCK_STREAM, 0);
    if (sock < 0) {
       err = VGAUTH_E_COMM;
       Warning("%s: socket() failed, %d\n", __FUNCTION__, errno);
-      goto abort;
+      goto quit;
    }
 
    sockaddr.sun_family = PF_UNIX;
@@ -159,7 +159,7 @@ ServiceNetworkListen(ServiceConnection *conn,            // IN/OUT
    if (ret < 0) {
       err = VGAUTH_E_COMM;
       Warning("%s: bind(%s) failed, %d\n", __FUNCTION__, conn->pipeName, errno);
-      goto abort;
+      goto quit;
    }
 
    /*
@@ -168,7 +168,7 @@ ServiceNetworkListen(ServiceConnection *conn,            // IN/OUT
    if (stat(conn->pipeName, &stbuf) < 0) {
       err = VGAUTH_E_COMM;
       Warning("%s: stat(%s) failed, %d\n", __FUNCTION__, conn->pipeName, errno);
-      goto abort;
+      goto quit;
    }
 
    mode = stbuf.st_mode;
@@ -184,7 +184,7 @@ ServiceNetworkListen(ServiceConnection *conn,            // IN/OUT
    if (chmod(conn->pipeName, mode) < 0) {
       err = VGAUTH_E_COMM;
       Warning("%s: chmod(%s) failed, %d\n", __FUNCTION__, conn->pipeName, errno);
-      goto abort;
+      goto quit;
    }
 
    if (makeSecure) {
@@ -193,32 +193,32 @@ ServiceNetworkListen(ServiceConnection *conn,            // IN/OUT
          err = VGAUTH_E_NO_SUCH_USER;
          Warning("%s: failed to get uid/gid for user '%s'\n",
                  __FUNCTION__, conn->userName);
-         goto abort;
+         goto quit;
       }
       if (chown(conn->pipeName, uid, gid) < 0) {
          err = VGAUTH_E_COMM;
          Warning("%s: chown(%s) failed, %d\n", __FUNCTION__, conn->pipeName, errno);
-         goto abort;
+         goto quit;
       }
    }
 
    if (fcntl(sock, F_SETFL, O_NONBLOCK) < 0) {
       err = VGAUTH_E_COMM;
       Warning("%s: fcntl() failed, %d\n", __FUNCTION__, errno);
-      goto abort;
+      goto quit;
    }
 
    if (listen(sock, 32) < 0) {
       err = VGAUTH_E_COMM;
       Warning("%s: listen() failed, %d\n", __FUNCTION__, errno);
-      goto abort;
+      goto quit;
    }
 
    conn->sock = sock;
 
    return VGAUTH_E_OK;
 
-abort:
+quit:
    if (sock >= 0) {
       close(sock);
    }
@@ -255,7 +255,7 @@ ServiceNetworkAcceptConnection(ServiceConnection *connIn,
    if (newfd < 0) {
       err = VGAUTH_E_COMM;
       Warning("%s: accept() failed, %d\n", __FUNCTION__, errno);
-      goto abort;
+      goto quit;
    }
 
    Debug("%s: got new connection on '%s', sock %d\n",
@@ -264,7 +264,7 @@ ServiceNetworkAcceptConnection(ServiceConnection *connIn,
    connOut->sock = newfd;
 
    return VGAUTH_E_OK;
-abort:
+quit:
    return err;
 }
 
@@ -451,7 +451,7 @@ ServiceNetworkAcceptTCPConnection(ServiceConnection *connIn,
    if (newfd < 0) {
       err = VGAUTH_E_COMM;
       Warning("%s: accept() failed, %d\n", __FUNCTION__, errno);
-      goto abort;
+      goto quit;
    }
 
    ipaddr = inet_ntoa(sockaddr.sin_addr);
@@ -460,7 +460,7 @@ ServiceNetworkAcceptTCPConnection(ServiceConnection *connIn,
    connOut->sock = newfd;
 
    return VGAUTH_E_OK;
-abort:
+quit:
    return err;
 }
 
@@ -482,7 +482,7 @@ ServiceNetworkTCPListen(ServiceConnection *conn)         // IN/OUT
       err = VGAUTH_E_COMM;
       Warning("%s: getprotobyname_r() failed, %d\n", __FUNCTION__, errno);
       g_free(buf);
-      goto abort;
+      goto quit;
    }
 
 
@@ -491,7 +491,7 @@ ServiceNetworkTCPListen(ServiceConnection *conn)         // IN/OUT
       err = VGAUTH_E_COMM;
       Warning("%s: socket() failed, %d\n", __FUNCTION__, errno);
       g_free(buf);
-      goto abort;
+      goto quit;
    }
 
    g_free(buf);
@@ -513,26 +513,26 @@ ServiceNetworkTCPListen(ServiceConnection *conn)         // IN/OUT
    if (ret < 0) {
       err = VGAUTH_E_COMM;
       Warning("%s: bind() failed, %d\n", __FUNCTION__, errno);
-      goto abort;
+      goto quit;
    }
 
    if (fcntl(sock, F_SETFL, O_NONBLOCK) < 0) {
       err = VGAUTH_E_COMM;
       Warning("%s: fcntl() failed, %d\n", __FUNCTION__, errno);
-      goto abort;
+      goto quit;
    }
 
    if (listen(sock, 32) < 0) {
       err = VGAUTH_E_COMM;
       Warning("%s: listen() failed, %d\n", __FUNCTION__, errno);
-      goto abort;
+      goto quit;
    }
 
    conn->sock = sock;
 
    return VGAUTH_E_OK;
 
-abort:
+quit:
    close(sock);
    return err;
 }

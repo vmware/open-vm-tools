@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -100,7 +100,8 @@
 #define CR4_SMAP       0x00200000
 #define CR4_PKE        0x00400000
 #define CR4_CET        0x00800000
-#define CR4_RESERVED   CONST64U(0xffffffffff889000)
+#define CR4_PKS        0x01000000
+#define CR4_RESERVED   CONST64U(0xfffffffffe089000)
 #define CR8_RESERVED   CONST64U(0xfffffffffffffff0)
 
 /*

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2008-2017,2019-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -79,6 +79,83 @@ static Bool ResolutionCanSet(void);
 static Bool TopologyCanSet(void);
 static Bool SelectResolution(uint32 width, uint32 height);
 static int ResolutionX11ErrorHandler(Display *d, XErrorEvent *e);
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * resolutionXorgDriverVersion --
+ *
+ *     Scans for VMWare Xorg driver files and tries to determine the Xorg
+ *     driver version.
+ *
+ * Results:
+ *     If succesful returns zero and outputs the driver version in the
+ *     parameters major, minor and level. If not successful, returns -1.
+ *
+ * Side effects:
+ *     None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+static int
+resolutionXorgDriverVersion(int numPaths,               // IN: Number of strings
+                                                        // in paths.
+                            const char *paths[],        // IN: Possible driver
+                                                        // paths.
+                            const char versionString[], // IN: Version token.
+                            int *major,                 // OUT: Major version #
+                            int *minor,                 // OUT: Minor version #
+                            int *level)                 // OUT: Patchlevel
+                                                        // version #
+{
+   FILE *driver = NULL;
+   const char *curMatch;
+   int curFileChar;
+   int i;
+
+   g_debug("%s: Scanning for VMWare Xorg drivers.\n", __func__);
+   for(i = 0; i < numPaths; ++i) {
+      g_debug("%s: Looking for \"%s\".\n", __func__, paths[i]);
+      driver = fopen(paths[i], "r");
+      if (driver)
+         break;
+   }
+
+   if (!driver) {
+      g_debug("%s: No driver found.\n",  __func__);
+      return -1;
+   }
+
+   g_debug("%s: Driver found. Looking for version info.\n", __func__);
+   curMatch = versionString;
+   while (*curMatch) {
+      if (feof(driver))
+         goto outNotFound;
+
+      curFileChar = fgetc(driver);
+      if (curFileChar != EOF && curFileChar == *curMatch) {
+         curMatch++;
+         continue;
+      } else if (curMatch != versionString) {
+         curMatch = versionString;
+         (void) ungetc(curFileChar, driver);
+      }
+   }
+
+   if (fscanf(driver, "%d.%d.%d", major, minor, level) != 3)
+      goto outNotFound;
+
+   fclose(driver);
+   g_debug("%s: Version info found: %d.%d.%d\n", __func__, *major, *minor,
+           *level);
+   return 0;
+
+outNotFound:
+   fclose(driver);
+   g_debug("%s: No version info found.\n", __func__);
+   return -1;
+}
 
 
 /*

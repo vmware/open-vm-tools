@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2020 VMware, Inc.  All rights reserved.
+### Copyright (c) 2020-2021 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -37,10 +37,14 @@ libserviceDiscovery_la_SOURCES += serviceDiscoveryPosix.c
 libserviceDiscovery_la_SOURCES += serviceDiscoveryInt.h
 
 install-data-local:
-	$(INSTALL) -d $(DESTDIR)/$(libdir)/open-vm-tools/serviceDiscovery/scripts/
-	$(INSTALL) -m 755 $(srcdir)/get-connection-info.sh $(DESTDIR)/$(libdir)/open-vm-tools/serviceDiscovery/scripts/
-	$(INSTALL) -m 755 $(srcdir)/get-listening-process-info.sh $(DESTDIR)/$(libdir)/open-vm-tools/serviceDiscovery/scripts/
-	$(INSTALL) -m 755 $(srcdir)/get-listening-process-perf-metrics.sh $(DESTDIR)/$(libdir)/open-vm-tools/serviceDiscovery/scripts/
-	$(INSTALL) -m 755 $(srcdir)/get-versions.sh $(DESTDIR)/$(libdir)/open-vm-tools/serviceDiscovery/scripts/
+	$(INSTALL) -d $(DESTDIR)/$(pkglibdir)/serviceDiscovery/scripts/
+	$(INSTALL) -m 755 $(srcdir)/get-connection-info.sh \
+			  $(DESTDIR)/$(pkglibdir)/serviceDiscovery/scripts/
+	$(INSTALL) -m 755 $(srcdir)/get-listening-process-info.sh \
+			  $(DESTDIR)/$(pkglibdir)/serviceDiscovery/scripts/
+	$(INSTALL) -m 755 $(srcdir)/get-listening-process-perf-metrics.sh \
+			  $(DESTDIR)/$(pkglibdir)/serviceDiscovery/scripts/
+	$(INSTALL) -m 755 $(srcdir)/get-versions.sh \
+			  $(DESTDIR)/$(pkglibdir)/serviceDiscovery/scripts/
 
 

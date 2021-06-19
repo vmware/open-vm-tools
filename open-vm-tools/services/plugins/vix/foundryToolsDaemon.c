@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -111,7 +111,7 @@ static Bool ToolsDaemonSyncDriverThawCallback(void *clientData);
 
 static char *ToolsDaemonTcloGetQuotedString(const char *args,
                                             const char **endOfArg);
-  
+
 static VixError ToolsDaemonTcloGetEncodedQuotedString(const char *args,
                                                       const char **endOfArg,
                                                       char **result);
@@ -133,8 +133,8 @@ void ToolsDaemonTcloReportProgramCompleted(const char *requestName,
                                            void *clientData);
 
 /*
- * These constants are a bad hack. I really should generate the result 
- * strings twice, once to compute the length and then allocate the buffer, 
+ * These constants are a bad hack. I really should generate the result
+ * strings twice, once to compute the length and then allocate the buffer,
  * and a second time to write the buffer.
  */
 #define DEFAULT_RESULT_MSG_MAX_LENGTH     1024
@@ -185,13 +185,13 @@ FoundryToolsDaemonRunProgram(RpcInData *data) // IN
    err = ToolsDaemonTcloGetEncodedQuotedString(data->args, &data->args,
                                                &commandLine);
    if (err != VIX_OK) {
-      goto abort;
+      goto quit;
    }
 
    err = ToolsDaemonTcloGetEncodedQuotedString(data->args, &data->args,
                                                &commandLineArgs);
    if (err != VIX_OK) {
-      goto abort;
+      goto quit;
    }
 
    credentialTypeStr = ToolsDaemonTcloGetQuotedString(data->args, &data->args);
@@ -206,19 +206,19 @@ FoundryToolsDaemonRunProgram(RpcInData *data) // IN
     */
    if ((NULL == requestName) || (NULL == commandLine)) {
       err = VIX_E_INVALID_ARG;
-      goto abort;
+      goto quit;
    }
 
    if ((NULL != credentialTypeStr)
-         && (*credentialTypeStr) 
+         && (*credentialTypeStr)
          && (thisProcessRunsAsRoot)) {
-      impersonatingVMWareUser = VixToolsImpersonateUserImpl(credentialTypeStr, 
+      impersonatingVMWareUser = VixToolsImpersonateUserImpl(credentialTypeStr,
                                                             VIX_USER_CREDENTIAL_NONE,
-                                                            obfuscatedNamePassword, 
+                                                            obfuscatedNamePassword,
                                                             &userToken);
       if (!impersonatingVMWareUser) {
          err = VIX_E_GUEST_USER_PERMISSIONS;
-         goto abort;
+         goto quit;
       }
    }
 
@@ -230,7 +230,7 @@ FoundryToolsDaemonRunProgram(RpcInData *data) // IN
                                 eventQueue,
                                 (int64 *) &pid);
 
-abort:
+quit:
    if (impersonatingVMWareUser) {
       VixToolsUnimpersonateUser(userToken);
    }
@@ -293,7 +293,7 @@ FoundryToolsDaemonGetToolsProperties(RpcInData *data) // IN
    Bool success;
    char *returnBuffer = NULL;
    GKeyFile *confDictRef;
-   
+
    /*
     * Collect some values about the host.
     */
@@ -305,21 +305,21 @@ FoundryToolsDaemonGetToolsProperties(RpcInData *data) // IN
    if (VIX_OK == err) {
       base64BufferLength = Base64_EncodedLength(serializedBuffer, serializedBufferLength) + 1;
       base64Buffer = Util_SafeMalloc(base64BufferLength);
-      success = Base64_Encode(serializedBuffer, 
-                              serializedBufferLength, 
-                              base64Buffer, 
-                              base64BufferLength, 
+      success = Base64_Encode(serializedBuffer,
+                              serializedBufferLength,
+                              base64Buffer,
+                              base64BufferLength,
                               &base64BufferLength);
       if (!success) {
          base64Buffer[0] = 0;
          err = VIX_E_FAIL;
-         goto abort;
+         goto quit;
       }
       base64Buffer[base64BufferLength] = 0;
    }
 
 
-abort:
+quit:
    returnBuffer = base64Buffer;
    if (NULL == base64Buffer) {
       returnBuffer = "";
@@ -342,7 +342,7 @@ abort:
 
    free(serializedBuffer);
    free(base64Buffer);
-   
+
    return TRUE;
 } // FoundryToolsDaemonGetToolsProperties
 
@@ -501,12 +501,12 @@ ToolsDaemonTcloGetEncodedQuotedString(const char *args,      // IN
    rawResultStr = ToolsDaemonTcloGetQuotedString(args, endOfArg);
    if (NULL == rawResultStr) {
       err = VIX_OK;
-      goto abort;
+      goto quit;
    }
 
    err = VixMsg_DecodeString(rawResultStr, &resultStr);
 
-abort:
+quit:
    free(rawResultStr);
    *result = resultStr;
 
@@ -558,14 +558,14 @@ ToolsDaemonTcloSyncDriverFreeze(RpcInData *data)
    if (NULL == driveList || NULL == timeout) {
       err = VIX_E_INVALID_ARG;
       g_warning("%s: Failed to get string args\n", __FUNCTION__);
-      goto abort;
+      goto quit;
    }
 
    if (!StrUtil_StrToInt(&timeoutVal, timeout) || timeoutVal < 0) {
       g_warning("%s: Bad args, timeout '%s'\n",
                 __FUNCTION__, timeout);
       err = VIX_E_INVALID_ARG;
-      goto abort;
+      goto quit;
    }
 
    g_debug("%s: Got request to freeze '%s', timeout %d\n",
@@ -574,7 +574,7 @@ ToolsDaemonTcloSyncDriverFreeze(RpcInData *data)
    /* Disallow multiple freeze calls. */
    if (gSyncDriverHandle != SYNCDRIVER_INVALID_HANDLE) {
       err = VIX_E_OBJECT_IS_BUSY;
-      goto abort;
+      goto quit;
    }
 
    enableNullDriver = VMTools_ConfigGetBoolean(confDictRef,
@@ -594,7 +594,7 @@ ToolsDaemonTcloSyncDriverFreeze(RpcInData *data)
          SyncDriver_Thaw(gSyncDriverHandle);
          SyncDriver_CloseHandle(&gSyncDriverHandle);
       }
-      goto abort;
+      goto quit;
    }
 
    /* Start the timer callback to automatically thaw. */
@@ -606,7 +606,7 @@ ToolsDaemonTcloSyncDriverFreeze(RpcInData *data)
       g_source_unref(timer);
    }
 
-abort:
+quit:
    /*
     * These were allocated by ToolsDaemonTcloGetQuotedString.
     */
@@ -1019,7 +1019,7 @@ ToolsDaemonTcloReceiveVixCommand(RpcInData *data) // IN
    requestName = ToolsDaemonTcloGetQuotedString(data->args, &data->args);
 
    /*
-    * Skip the NULL, char, and then the rest of the buffer should just 
+    * Skip the NULL, char, and then the rest of the buffer should just
     * be a Vix command object.
     */
    while (*data->args) {
@@ -1028,7 +1028,7 @@ ToolsDaemonTcloReceiveVixCommand(RpcInData *data) // IN
    data->args += 1;
    err = VixMsg_ValidateMessage((char *) data->args, data->argsSize);
    if (VIX_OK != err) {
-      goto abort;
+      goto quit;
    }
    requestMsg = (VixCommandRequestHeader *) data->args;
    maxResultBufferSize = sizeof(tcloBuffer) - vixPrefixDataSize;
@@ -1061,7 +1061,7 @@ ToolsDaemonTcloReceiveVixCommand(RpcInData *data) // IN
               __FUNCTION__, requestMsg->opCode, additionalError);
    }
 
-abort:
+quit:
    tcloBufferLen = resultValueLength + vixPrefixDataSize;
 
    /*
@@ -1088,7 +1088,7 @@ abort:
 
    /*
     * If this is a binary result, then we put a # at the end of the ascii to
-    * mark the end of ascii and the start of the binary data. 
+    * mark the end of ascii and the start of the binary data.
     */
    if ((NULL != requestMsg)
          && (requestMsg->commonHeader.commonFlags & VIX_COMMAND_GUEST_RETURNS_BINARY)) {
@@ -1110,7 +1110,7 @@ abort:
       *(destPtr++) = 0;
       data->resultLen = strlen(tcloBuffer) + 1;
    }
-   
+
    data->result = tcloBuffer;
 
    if (deleteResultValue) {

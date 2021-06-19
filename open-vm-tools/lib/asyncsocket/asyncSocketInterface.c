@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2016-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2016-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -976,6 +976,64 @@ AsyncSocket_RecvPartial(AsyncSocket *asock,         // IN
    if (VALID(asock, recv)) {
       AsyncSocketLock(asock);
       ret = VT(asock)->recv(asock, buf, len, TRUE, cb, cbData);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocket_Peek --
+ *
+ *      Similar to AsyncSocket_RecvPartial, AsyncSocket_Peek reads the socket
+ *      buffer contents into the provided buffer by registering a callback that
+ *      will fire when data becomes available.
+ *
+ *      Due to underying poll implementation, peeks are always "partial" ie.
+ *      callback returns when less than or equal amount of requested length is
+ *      available to read. Peek callers may use recv() to drain smaller amounts
+ *      notified by peek-callback and then peek for more data if that helps.
+ *
+ *      There are some noteworthy differences compared to Recv():
+ *
+ *      - By definition, Recv() drains the socket buffer while Peek() does not
+ *
+ *      - Asyncsocket Recv() is post-SSL since it internally calls SSL_Read()
+ *        so application always gets decrypted data when entire SSL record is
+ *        decrypted. Peek() on the other hand is SSL agnostic; it reads
+ *        directly from the underlying host socket and makes no attempt to
+ *        decrypt it or check for any data buffered within SSL. So asyncsocket
+ *        user doing a recv() followed by peek() may get different results.
+ *        That is why is it most safe to use peek() before SSL is setup on the
+ *        TCP connection.
+ *
+ *      - Peek is one-shot in nature, meaning that peek callbacks are
+ *        unregistered from poll once fired.
+ *
+ * Results:
+ *      ASOCKERR_*.
+ *
+ * Side effects:
+ *      Could register poll callback.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+AsyncSocket_Peek(AsyncSocket *asock,         // IN
+                 void *buf,                  // IN (buffer to fill)
+                 int len,                    // IN
+                 void *cb,                   // IN
+                 void *cbData)               // IN
+{
+   int ret;
+   if (VALID(asock, recv)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->peek(asock, buf, len, cb, cbData);
       AsyncSocketUnlock(asock);
    } else {
       ret = ASOCKERR_INVAL;

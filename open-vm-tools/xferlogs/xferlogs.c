@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -43,6 +43,7 @@
 #include <string.h>
 #include <errno.h>
 #include <time.h>
+#include <glib.h>
 
 #include "vmware.h"
 #include "vmsupport.h"
@@ -220,7 +221,7 @@ extractFile(char *filename) //IN: vmx log filename e.g. vmware.log
              * Ignore the filename in the log, for obvious security reasons
              * and create a new filename consiting of time and enumerator.
              * Try to maintain the same extension reported by the guest,
-             * though, if it's in the white list.
+             * though, if it's in the "allowed" list.
              */
             if (StrUtil_EndsWith(logInpFilename, ".zip")) {
                ext = "zip";
@@ -304,13 +305,11 @@ extractFile(char *filename) //IN: vmx log filename e.g. vmware.log
 
 
 static void
-usage(void)
+usage(GOptionContext *optCtx)
 {
-   Warning("xferlogs <options> <filename>\n");
-   Warning("options:\n");
-   Warning("\t-h | --help - prints this usage.\n");
-   Warning("\tenc - encodes and transfers <filename> to the VMX log.\n");
-   Warning("\tdec - extracts encoded data to <filename> from the VMX log.\n");
+   gchar *usage =  g_option_context_get_help(optCtx, TRUE, NULL);
+   g_print("%s", usage);
+   g_free(usage);
 }
 
 
@@ -318,47 +317,116 @@ int
 main(int argc,
      char *argv[])
 {
+   gchar *gAppName;
+   gchar *encBuffer = NULL; // storage for filename for 'enc' option
+   gchar *decBuffer = NULL; // storage for filename for 'dec' option
+   gchar *vmsupportStatus = NULL; // storage for vmsupport status for 'upd' opt
+   int success = -1;
    int status;
+   /*
+    * This flag will be true if option passed starts with '-'.
+    * This means we can use glib parser to see if it is a
+    * valid option. Otherwise, try original parsing.
+    */
+   gboolean useGlibParser = (argc > 1) && (argv[1][0] == '-');
+
+   GOptionEntry options[] = {
+      {"put", 'p', G_OPTION_FLAG_IN_MAIN, G_OPTION_ARG_FILENAME, &encBuffer,
+       "encodes and transfers <filename> to the VMX log.", "<filename>"},
+      {"get", 'g', G_OPTION_FLAG_IN_MAIN, G_OPTION_ARG_FILENAME, &decBuffer,
+       "extracts encoded data to <filename> from the VMX log.", "<filename>"},
+      {"update", 'u', G_OPTION_FLAG_IN_MAIN, G_OPTION_ARG_STRING,
+       &vmsupportStatus, "updates status of vmsupport to <status>.",
+       "<status>"},
+      {NULL},
+   };
+   GOptionContext *optCtx;
 
 #ifdef _WIN32
    WinUtil_EnableSafePathSearching(TRUE);
 #endif
 
+   gAppName = g_path_get_basename(argv[0]);
+   g_set_prgname(gAppName);
+   optCtx = g_option_context_new(NULL);
+   g_option_context_add_main_entries(optCtx, options, NULL);
+
    /*
     * Check if environment is a VM
     */
    if (!VmCheck_IsVirtualWorld()) {
-      fprintf(stderr, "Error: %s must be run inside a virtual machine"
-                      " on a VMware hypervisor product.\n", argv[0]);
-      return -1;
+      g_printerr("Error: %s must be run inside a virtual machine"
+                 " on a VMware hypervisor product.\n", gAppName);
+      goto out;
    }
 
-   if (argc == 2 &&
-       (!strncmp(argv[1], "-h", 2) ||
-        !strncmp(argv[1], "--help", 6))) {
-      usage();
-      return 0;
-   }
+   if (useGlibParser) {
+     /*
+      * numOptions will count the number of options passed
+      * and fail if more than one option is passed.
+      */
+      int numOptions;
+      GError *gErr = NULL;
 
-   if (argc != 3) {
-      usage();
-      return -1;
-   }
+      if (!g_option_context_parse(optCtx, &argc, &argv, &gErr)) {
+         g_printerr("%s: %s\n", gAppName, gErr->message);
+         g_error_free(gErr);
+         goto out;
+      }
 
-   if (!strncmp(argv[1], "enc", 3)) {
-      xmitFile(argv[2]);
-   } else if (!strncmp(argv[1], "dec", 3)) {
-      extractFile(argv[2]);
-   } else if (!strncmp(argv[1], "upd", 3)) {
-      if (StrUtil_StrToInt(&status, argv[2])) {
-         RpcOut_sendOne(NULL, NULL, RPC_VMSUPPORT_STATUS " %d", status);
-      } else {
-         return -1;
+      numOptions = (encBuffer != NULL ? 1 : 0) + (decBuffer != NULL ? 1 : 0) +
+                   (vmsupportStatus != NULL ? 1 : 0);
+
+      if (numOptions > 1) {
+         g_printerr("%s: Use one option per command.\n", gAppName);
+         usage(optCtx);
+         goto out;
       }
    } else {
-      usage();
-      return -1;
-   }
-   return 0;
-}
+      /*
+       * If not using glib parser then check for old style options
+       */
+      if (argc != 3) {
+         g_printerr("%s: Incorrect number of arguments.\n", gAppName);
+         usage(optCtx);
+         goto out;
+      }
 
+      if ((strncmp(argv[1], "enc", 3) == 0)) {
+         encBuffer = argv[2];
+      } else if ((strncmp(argv[1], "dec", 3) == 0)) {
+         decBuffer = argv[2];
+      } else if ((strncmp(argv[1], "upd", 3) == 0)) {
+         vmsupportStatus = argv[2];
+      }
+   }
+
+   if (encBuffer != NULL) {
+      xmitFile(encBuffer);
+   } else if (decBuffer != NULL) {
+      extractFile(decBuffer);
+   } else if (vmsupportStatus != NULL) {
+      if (!(StrUtil_StrToInt(&status, vmsupportStatus))) {
+         g_printerr("%s: Bad value specified.\n", gAppName);
+         goto out;
+      }
+      RpcOut_sendOne(NULL, NULL, RPC_VMSUPPORT_STATUS " %d", status);
+   } else {
+      g_printerr("%s: Incorrect usage.\n", gAppName);
+      usage(optCtx);
+      goto out;
+   }
+
+   success = 0;
+
+out:
+   if (useGlibParser) {
+      g_free(encBuffer);
+      g_free(decBuffer);
+      g_free(vmsupportStatus);
+   }
+
+   g_option_context_free(optCtx);
+   g_free(gAppName);
+   return success;
+}

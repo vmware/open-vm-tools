@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2019, 2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -205,8 +205,8 @@ VmBackupDriverOpRelease(VmBackupOp *_op)  // IN
  *
  *    Cancel an ongoing sync driver operation. This doesn't actually
  *    cancel the operation, but rather waits for it to finish, since
- *    just killing the worker thread might have undesired side effects.
- *    This will not cancel thaw operations.
+ *    just forcing the worker thread to quit might have undesired side
+ *    effects.  This will not cancel thaw operations.
  *
  * Result
  *    None.

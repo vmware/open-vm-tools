@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2015-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2015-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -171,7 +171,7 @@ InfoUpdateNetwork(void)
 
    if (!GuestInfo_GetNicInfo(maxIPv4RoutesToGather,
                              maxIPv6RoutesToGather,
-                             &info)) {
+                             &info, NULL)) {
       g_warning("Failed to get nic info.\n");
       ret = EXIT_FAILURE;
       goto done;

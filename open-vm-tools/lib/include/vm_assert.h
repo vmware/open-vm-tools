@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -60,8 +60,7 @@
  *
  *	The basic assertion facility for all VMware code.
  *
- *      For proper use, see bora/doc/assert and
- *      http://vmweb.vmware.com/~mts/WebSite/guide/programming/asserts.html.
+ *      For proper use, see bora/doc/assert
  */
 
 #ifndef _VM_ASSERT_H_
@@ -80,6 +79,7 @@
 
 // XXX not necessary except some places include vm_assert.h improperly
 #include "vm_basic_types.h"
+#include <stdarg.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -103,18 +103,18 @@ extern "C" {
 
 #if !defined VMM || defined MONITOR_APP // {
 
-#if defined (VMKPANIC) 
-#include "vmk_assert.h"
-#else /* !VMKPANIC */
-#define _ASSERT_PANIC(name) \
+# if defined (VMKPANIC)
+#  include "vmk_assert.h"
+# else /* !VMKPANIC */
+#  define _ASSERT_PANIC(name) \
            Panic(_##name##Fmt "\n", __FILE__, __LINE__)
-#define _ASSERT_PANIC_BUG(bug, name) \
+#  define _ASSERT_PANIC_BUG(bug, name) \
            Panic(_##name##Fmt " bugNr=%d\n", __FILE__, __LINE__, bug)
-#define _ASSERT_PANIC_NORETURN(name) \
+#  define _ASSERT_PANIC_NORETURN(name) \
            Panic(_##name##Fmt "\n", __FILE__, __LINE__)
-#define _ASSERT_PANIC_BUG_NORETURN(bug, name) \
+#  define _ASSERT_PANIC_BUG_NORETURN(bug, name) \
            Panic(_##name##Fmt " bugNr=%d\n", __FILE__, __LINE__, bug)
-#endif /* VMKPANIC */
+# endif /* VMKPANIC */
 
 #endif // }
 
@@ -132,19 +132,21 @@ extern "C" {
  * Panic and log functions
  */
 
-void Log(const char *fmt, ...) PRINTF_DECL(1, 2);
+void Log(const char *fmt, ...)     PRINTF_DECL(1, 2);
 void Warning(const char *fmt, ...) PRINTF_DECL(1, 2);
+
 #if defined VMKPANIC
 void Panic_SaveRegs(void);
 
 NORETURN void Panic_NoSave(const char *fmt, ...) PRINTF_DECL(1, 2);
 
-#define Panic(fmt...) do { \
-   Panic_SaveRegs();       \
-   Panic_NoSave(fmt);      \
-} while(0)
+# define Panic(fmt...)        \
+   do {                       \
+      Panic_SaveRegs();       \
+      Panic_NoSave(fmt);      \
+   } while(0)
 
-#else
+#else /* !VMKPANIC */
 NORETURN void Panic(const char *fmt, ...) PRINTF_DECL(1, 2);
 #endif
 
@@ -154,8 +156,6 @@ void WarningThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
 
 #ifndef ASSERT_IFNOT
    /*
-    * PR 271512: When compiling with gcc, catch assignments inside an ASSERT.
-    *
     * 'UNLIKELY' is defined with __builtin_expect, which does not warn when
     * passed an assignment (gcc bug 36050). To get around this, we put 'cond'
     * in an 'if' statement and make sure it never gets executed by putting
@@ -166,78 +166,135 @@ void WarningThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
     * not clear if this is a problem with other compilers, the ASSERT
     * definition was not changed for them. Using a bare 'cond' with the
     * ternary operator may provide a solution.
+    *
+    * PR 271512: When compiling with gcc, catch assignments inside an ASSERT.
     */
 
-   #ifdef __GNUC__
-      #define ASSERT_IFNOT(cond, panic)                                       \
+# ifdef __GNUC__
+#  define ASSERT_IFNOT(cond, panic)                                       \
          ({if (UNLIKELY(!(cond))) { panic; if (0) { if (cond) {;}}} (void)0;})
-   #else
-      #define ASSERT_IFNOT(cond, panic)                                       \
+# else
+#  define ASSERT_IFNOT(cond, panic)                                       \
          (UNLIKELY(!(cond)) ? (panic) : (void)0)
-   #endif
+# endif
 #endif
 
 
 /*
  * Assert, panic, and log macros
  *
- * Some of these are redefined below undef !VMX86_DEBUG.
- * ASSERT() is special cased because of interaction with Windows DDK.
+ * Some of these are redefined or undef below in !VMX86_DEBUG.
  */
 
 #if defined VMX86_DEBUG
-#undef  ASSERT
-#define ASSERT(cond) ASSERT_IFNOT(cond, _ASSERT_PANIC(AssertAssert))
-#define ASSERT_BUG(bug, cond) \
+   /*
+    * Assert is a debug-only construct.
+    *
+    * Assert should capture (i.e., document and validate) invariants,
+    * including method preconditions, postconditions, loop invariants,
+    * class invariants, data structure invariants, etc.
+    *
+    * ASSERT() is special cased because of interaction with Windows DDK.
+    */
+# undef  ASSERT
+# define ASSERT(cond) ASSERT_IFNOT(cond, _ASSERT_PANIC(AssertAssert))
+# define ASSERT_BUG(bug, cond) \
            ASSERT_IFNOT(cond, _ASSERT_PANIC_BUG(bug, AssertAssert))
 #endif
 
+   /*
+    * Verify is present on all build types.
+    *
+    * Verify should protect against missing functionality (e.g., unhandled
+    * cases), bugs and other forms of gaps, and also be used as the fail-safe
+    * way to plug remaining security risks. Verify is not the correct primitive
+    * to use to validate an invariant, as a condition never being true implies
+    * that it need not be handled.
+    */
 #undef  VERIFY
 #define VERIFY(cond) \
            ASSERT_IFNOT(cond, _ASSERT_PANIC_NORETURN(AssertVerify))
 #define VERIFY_BUG(bug, cond) \
            ASSERT_IFNOT(cond, _ASSERT_PANIC_BUG_NORETURN(bug, AssertVerify))
 
+   /*
+    * NOT IMPLEMENTED is useful to indicate that a codepath has not yet
+    * been implemented, and should cause execution to forcibly quit if it is
+    * ever reached. Some instances use NOT_IMPLEMENTED for things that will
+    * never be implemented (as implied by ASSERT_NOT_IMPLEMENTED).
+    *
+    * PR1151214 asks for ASSERT_NOT_IMPLEMENTED to be replaced with VERIFY.
+    * ASSERT_NOT_IMPLEMENTED is a conditional NOT_IMPLEMENTED. Despite the
+    * name, ASSERT_NOT_IMPLEMENTED is present in release builds.
+    *
+    * NOT_IMPLEMENTED_BUG is NOT_IMPLEMENTED with the bug number included
+    * in the panic string.
+    */
 #define ASSERT_NOT_IMPLEMENTED(cond) \
            ASSERT_IFNOT(cond, NOT_IMPLEMENTED())
 
 #if defined VMKPANIC || defined VMM
-#define NOT_IMPLEMENTED()        _ASSERT_PANIC_NORETURN(AssertNotImplemented)
+# define NOT_IMPLEMENTED()        _ASSERT_PANIC_NORETURN(AssertNotImplemented)
 #else
-#define NOT_IMPLEMENTED()        _ASSERT_PANIC(AssertNotImplemented)
+# define NOT_IMPLEMENTED()        _ASSERT_PANIC(AssertNotImplemented)
 #endif
 
 #if defined VMM
-#define NOT_IMPLEMENTED_BUG(bug) \
+# define NOT_IMPLEMENTED_BUG(bug) \
           _ASSERT_PANIC_BUG_NORETURN(bug, AssertNotImplemented)
-#else 
-#define NOT_IMPLEMENTED_BUG(bug) _ASSERT_PANIC_BUG(bug, AssertNotImplemented)
+#else
+# define NOT_IMPLEMENTED_BUG(bug) _ASSERT_PANIC_BUG(bug, AssertNotImplemented)
 #endif
 
+   /*
+    * NOT_REACHED is meant to indicate code paths that we can never
+    * execute. This can be very dangerous on release builds due to how
+    * some compilers behave when you do potentially reach the point
+    * indicated by NOT_REACHED and can lead to very difficult to debug
+    * failures. NOT_REACHED should be used sparingly due to this.
+    *
+    * On debug builds, NOT_REACHED is a Panic with a fixed string.
+    */
 #if defined VMKPANIC || defined VMM
-#define NOT_REACHED()            _ASSERT_PANIC_NORETURN(AssertNotReached)
+# define NOT_REACHED()            _ASSERT_PANIC_NORETURN(AssertNotReached)
 #else
-#define NOT_REACHED()            _ASSERT_PANIC(AssertNotReached)
+# define NOT_REACHED()            _ASSERT_PANIC(AssertNotReached)
 #endif
 
 #if !defined VMKERNEL && !defined VMKBOOT && !defined VMKERNEL_MODULE
-/*
- * PR 2621164,2624036: ASSERT_MEM_ALLOC is deprecated and should not be
- * used. Please use VERIFY where applicable, since the latter aligns
- * better with the consistency model as defined by bora/doc/assert.
- */
-#define ASSERT_MEM_ALLOC(cond) \
+   /*
+    * PR 2621164,2624036: ASSERT_MEM_ALLOC is deprecated and should not be
+    * used. Please use VERIFY where applicable, since the latter aligns
+    * better with the consistency model as defined by bora/doc/assert. You
+    * could also consider the Util_Safe*alloc* functions in userland.
+    *
+    * Despite its name, ASSERT_MEM_ALLOC is present in both debug and release
+    * builds.
+    */
+# define ASSERT_MEM_ALLOC(cond) \
            ASSERT_IFNOT(cond, _ASSERT_PANIC(AssertMemAlloc))
 #endif
 
-#ifdef VMX86_DEVEL
-#define NOT_TESTED()       Warning(_AssertNotTestedFmt "\n", __FILE__, __LINE__)
-#else
-#define NOT_TESTED()       Log(_AssertNotTestedFmt "\n", __FILE__, __LINE__)
-#endif
-
+   /*
+    * ASSERT_NO_INTERRUPTS & ASSERT_HAS_INTERRUPTS are shorthand to
+    * assert whether interrupts are disabled or enabled.
+    */
 #define ASSERT_NO_INTERRUPTS()  ASSERT(!INTERRUPTS_ENABLED())
 #define ASSERT_HAS_INTERRUPTS() ASSERT(INTERRUPTS_ENABLED())
+
+   /*
+    * NOT_TESTED may be used to indicate that we've reached a code path.
+    * It simply puts an entry in the log file.
+    *
+    * ASSERT_NOT_TESTED does the same, conditionally.
+    * NOT_TESTED_ONCE will only log the first time we executed it.
+    * NOT_TESTED_1024 will only log every 1024th time we execute it.
+    */
+#ifdef VMX86_DEVEL
+# define NOT_TESTED()      Warning(_AssertNotTestedFmt "\n", __FILE__, __LINE__)
+#else
+# define NOT_TESTED()      Log(_AssertNotTestedFmt "\n", __FILE__, __LINE__)
+#endif
 
 #define ASSERT_NOT_TESTED(cond) (UNLIKELY(!(cond)) ? NOT_TESTED() : (void)0)
 #define NOT_TESTED_ONCE()       DO_ONCE(NOT_TESTED())
@@ -253,17 +310,36 @@ void WarningThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
 
 
 /*
- * Redefine macros that are only in debug versions
+ * Redefine macros that have a different behaviour on release
+ * builds. This includes no behaviour (ie. removed).
  */
 
 #if !defined VMX86_DEBUG // {
 
-#undef  ASSERT
-#define ASSERT(cond)          ((void)0)
-#define ASSERT_BUG(bug, cond) ((void)0)
+# undef  ASSERT
+# define ASSERT(cond)          ((void)0)
+# define ASSERT_BUG(bug, cond) ((void)0)
 
 /*
- * Expand NOT_REACHED() as appropriate for each situation.
+ * NOT_REACHED on debug builds is a Panic; but on release
+ * builds reaching it is __builtin_unreachable()
+ * which is "undefined behaviour" according to
+ * gcc. (https://gcc.gnu.org/onlinedocs/gcc/Other-Builtins.html)
+ *
+ * When used correctly __builtin_unreachable() allows the compiler
+ * to generate slightly better code and eliminates some warnings
+ * when the compiler can't identify a "fallthrough" path that is
+ * never reached.
+ *
+ * When used incorrectly, __builtin_unreachable is a dangerous
+ * construct and we should structure code in such a way that we
+ * need fewer instances of NOT_REACHED to silence the compiler,
+ * and use the function attribute "noreturn" where appropriate
+ * and potentially then using NOT_REACHED as documentation.
+ *
+ * We should *never* have code after NOT_REACHED in a block as
+ * it's unclear to the reader if that path is ever possible, and
+ * as mentioned above, gcc will do weird and wonderful things to us.
  *
  * Mainly, we want the compiler to infer the same control-flow
  * information as it would from Panic().  Otherwise, different
@@ -276,30 +352,31 @@ void WarningThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
  * (measured at 212 bytes for the release vmm for a minimal infinite
  * loop; panic would cost even more) so it does without and lives
  * with the inconsistency.
+ *
  */
 
-#if defined VMKPANIC || defined VMM
-#undef  NOT_REACHED
-#if defined __GNUC__ && (__GNUC__ > 4 || __GNUC__ == 4 && __GNUC_MINOR__ >= 5)
-#define NOT_REACHED() (__builtin_unreachable())
-#else
-#define NOT_REACHED() ((void)0)
-#endif
-#else
-// keep debug definition
-#endif
+# if defined VMKPANIC || defined VMM
+#  undef  NOT_REACHED
+#  if defined __GNUC__ && (__GNUC__ > 4 || __GNUC__ == 4 && __GNUC_MINOR__ >= 5)
+#   define NOT_REACHED() (__builtin_unreachable())
+#  else
+#   define NOT_REACHED() ((void)0)
+#  endif
+# else
+ // keep debug definition
+# endif
 
-#undef LOG_UNEXPECTED
-#define LOG_UNEXPECTED(bug)     ((void)0)
+# undef LOG_UNEXPECTED
+# define LOG_UNEXPECTED(bug)     ((void)0)
 
-#undef  ASSERT_NOT_TESTED
-#define ASSERT_NOT_TESTED(cond) ((void)0)
-#undef  NOT_TESTED
-#define NOT_TESTED()            ((void)0)
-#undef  NOT_TESTED_ONCE
-#define NOT_TESTED_ONCE()       ((void)0)
-#undef  NOT_TESTED_1024
-#define NOT_TESTED_1024()       ((void)0)
+# undef  ASSERT_NOT_TESTED
+# define ASSERT_NOT_TESTED(cond) ((void)0)
+# undef  NOT_TESTED
+# define NOT_TESTED()            ((void)0)
+# undef  NOT_TESTED_ONCE
+# define NOT_TESTED_ONCE()       ((void)0)
+# undef  NOT_TESTED_1024
+# define NOT_TESTED_1024()       ((void)0)
 
 #endif // !VMX86_DEBUG }
 
@@ -362,9 +439,9 @@ void WarningThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
  * the __clang_analyzer__ macro defined only when clang SA is parsing files.
  */
 #ifdef __clang_analyzer__
-#define ANALYZER_ASSERT(cond) ASSERT(cond)
+# define ANALYZER_ASSERT(cond) ASSERT(cond)
 #else
-#define ANALYZER_ASSERT(cond) ((void)0)
+# define ANALYZER_ASSERT(cond) ((void)0)
 #endif
 
 #ifdef __cplusplus

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -360,18 +360,20 @@ VMTools_CompareConfig(GKeyFile *config1,
          }
 
          value1 = g_key_file_get_value(config1, group, key, &gErr);
-         if (value1 == NULL && gErr != NULL) {
+         if (value1 == NULL) {
             g_warning("%s: g_key_file_get_value(%s:%s) for first config "
                       "failed: %s\n",
-                      __FUNCTION__, group, key, gErr->message);
+                      __FUNCTION__, group, key,
+                      (gErr != NULL) ? gErr->message : "");
             goto mismatch;
          }
 
          value2 = g_key_file_get_value(config2, group, key, &gErr);
-         if (value2 == NULL && gErr != NULL) {
+         if (value2 == NULL) {
             g_warning("%s: g_key_file_get_value(%s:%s) for second config "
                       "failed: %s\n",
-                      __FUNCTION__, group, key, gErr->message);
+                      __FUNCTION__, group, key,
+                      (gErr != NULL) ? gErr->message : "");
             goto mismatch;
          }
 

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -211,7 +211,7 @@ static AlignedPool alignedPool;
       extern ssize_t pwritev64(int fd, const struct iovec *iov, int iovcnt,
                           __off64_t offset) __attribute__ ((weak));
    #else
-      #error "Large file support unavailable. Aborting."
+      #error "Large file support is unavailable."
    #endif
 #endif /* defined(__linux__) */
 
@@ -457,329 +457,6 @@ FileIO_CreateFDPosix(int posix,  // IN: UNIX file descriptor
 /*
  *----------------------------------------------------------------------
  *
- * ProxySendResults --
- *
- *      Send the results of a open from the proxy.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-static void
-ProxySendResults(int sock_fd,     // IN:
-                 int send_fd,     // IN:
-                 int send_errno)  // IN:
-{
-   struct iovec iov;
-   struct msghdr msg;
-   char cmsgBuf[CMSG_SPACE(sizeof send_fd)];
-
-   iov.iov_base = &send_errno;
-   iov.iov_len = sizeof send_errno;
-
-   if (send_fd == -1) {
-      msg.msg_control = NULL;
-      msg.msg_controllen = 0;
-   } else {
-      struct cmsghdr *cmsg;
-
-      msg.msg_control = cmsgBuf;
-      msg.msg_controllen = sizeof cmsgBuf;
-
-      cmsg = CMSG_FIRSTHDR(&msg);
-
-      cmsg->cmsg_level = SOL_SOCKET;
-      cmsg->cmsg_len = CMSG_LEN(sizeof send_fd);
-      cmsg->cmsg_type = SCM_RIGHTS;
-
-      (*(int *) CMSG_DATA(cmsg)) = send_fd;
-
-      msg.msg_controllen = cmsg->cmsg_len;
-   }
-
-   msg.msg_name = NULL;
-   msg.msg_namelen = 0;
-   msg.msg_iov = &iov;
-   msg.msg_iovlen = 1;
-   msg.msg_flags = 0;
-
-   sendmsg(sock_fd, &msg, 0);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * ProxyReceiveResults --
- *
- *      Receive the results of an open from the proxy.
- *
- * Results:
- *      None
- *
- * Side effects:
- *      None
- *
- *----------------------------------------------------------------------
- */
-
-static void
-ProxyReceiveResults(int sock_fd,      // IN:
-                    int *recv_fd,     // OUT:
-                    int *recv_errno)  // OUT:
-{
-   int err;
-   struct iovec iov;
-   struct msghdr msg;
-   uint8_t cmsgBuf[CMSG_SPACE(sizeof(int))];
-
-   iov.iov_base = recv_errno;
-   iov.iov_len = sizeof *recv_errno;
-
-   msg.msg_control = cmsgBuf;
-   msg.msg_controllen = sizeof cmsgBuf;
-   msg.msg_name = NULL;
-   msg.msg_namelen = 0;
-   msg.msg_iov = &iov;
-   msg.msg_iovlen = 1;
-
-   err = recvmsg(sock_fd, &msg, 0);
-
-   if (err <= 0) {
-      *recv_fd = -1;
-      *recv_errno = (err == 0) ? EIO : errno;
-
-      return;
-   }
-
-   if (msg.msg_controllen == 0) {
-      *recv_fd = -1;
-   } else {
-      struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
-
-      if ((cmsg->cmsg_level == SOL_SOCKET) &&
-          (cmsg->cmsg_type == SCM_RIGHTS)) {
-         *recv_fd = *((int *) CMSG_DATA(cmsg));
-      } else {
-         *recv_fd = -1;
-         *recv_errno = EIO;
-      }
-   }
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * ProxyOpen --
- *
- *      Open a file via a proxy.
- *
- * Results:
- *      -1 on error
- *      >= 0 on success
- *
- * Side effects:
- *      errno is set on error
- *
- *----------------------------------------------------------------------
- */
-
-static int
-ProxyOpen(const char *pathName,  // IN:
-          int flags,             // IN:
-          int mode)              // IN:
-{
-   int err;
-   pid_t pid;
-   int fds[2];
-   int proxyFD;
-
-   int saveErrno = 0;
-
-   if (pathName == NULL) {
-      errno = EFAULT;
-      return -1;
-   }
-
-   err = socketpair(AF_UNIX, SOCK_DGRAM, 0, fds);
-   if (err == -1) {
-      errno = ENOMEM; // Out of resources...
-      return err;
-   }
-
-   pid = fork();
-   if (pid == -1) {
-      proxyFD = -1;
-      saveErrno = ENOMEM; // Out of resources...
-      goto bail;
-   }
-
-   if (pid == 0) { /* child:  use fd[0] */
-      proxyFD = Posix_Open(pathName, flags, mode);
-
-      ProxySendResults(fds[0], proxyFD, errno);
-
-      _exit(0);
-   } else {        /* parent: use fd[1] */
-      ProxyReceiveResults(fds[1], &proxyFD, &saveErrno);
-
-      waitpid(pid, &err, 0);
-   }
-
-bail:
-
-   close(fds[0]);
-   close(fds[1]);
-
-   errno = saveErrno;
-
-   return proxyFD;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * ProxyUse --
- *
- *      Determine is the open proxy is to be used.
- *
- * Results:
- *	0	Success, useProxy is set
- *	> 0	Failure (errno value); useProxy is undefined
- *
- * Side effects:
- *	None
- *
- *----------------------------------------------------------------------
- */
-
-static int
-ProxyUse(const char *pathName,  // IN:
-         Bool *useProxy)        // IN:
-{
-   char *path;
-   UnicodeIndex index;
-   struct statfs sfbuf;
-   struct stat statbuf;
-
-   if (pathName == NULL) {
-      errno = EFAULT;
-      return -1;
-   }
-
-   if ((Posix_Lstat(pathName, &statbuf) == 0) &&
-       S_ISLNK(statbuf.st_mode)) {
-      *useProxy = TRUE;
-
-      return 0;
-   }
-
-   /*
-    * Construct the path to the directory that contains the filePath.
-    */
-
-   index = Unicode_FindLast(pathName, "/");
-
-   if (index == UNICODE_INDEX_NOT_FOUND) {
-      path = Unicode_Duplicate(".");
-   } else {
-      char *temp;
-
-      temp = Unicode_Substr(pathName, 0, index + 1);
-      path = Unicode_Append(temp, ".");
-      Posix_Free(temp);
-   }
-
-   /*
-    * Attempt to obtain information about the testPath (directory
-    * containing filePath).
-    */
-
-   if (Posix_Statfs(path, &sfbuf) == 0) {
-      /*
-       * The testPath exists; determine proxy usage explicitely.
-       */
-
-      *useProxy = strcmp(sfbuf.f_fstypename, "nfs") == 0 ?  TRUE : FALSE;
-   } else {
-      /*
-       * A statfs error of some sort; Err on the side of caution.
-       */
-
-      *useProxy = TRUE;
-   }
-
-   Posix_Free(path);
-
-   return 0;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * PosixFileOpener --
- *
- *      Open a file. Use a proxy when creating a file or on NFS.
- *
- *      Why a proxy? The Mac OS X 10.4.* NFS client interacts with our
- *      use of settid() and doesn't send the proper credentials on opens.
- *      This leads to files being written without error but containing no
- *      data. The proxy avoids all of this unhappiness.
- *
- * Results:
- *      -1 on error
- *      >= 0 on success
- *
- * Side effects:
- *      errno is set
- *
- *----------------------------------------------------------------------
- */
-
-int
-PosixFileOpener(const char *pathName,  // IN:
-                int flags,             // IN:
-                mode_t mode)           // IN:
-{
-   Bool useProxy;
-
-   if ((flags & O_ACCMODE) || (flags & O_CREAT)) {
-      int err;
-
-      /*
-       * Open for write and/or O_CREAT. Determine proxy usage.
-       */
-
-      err = ProxyUse(pathName, &useProxy);
-      if (err != 0) {
-         errno = err;
-
-         return -1;
-      }
-   } else {
-      /*
-       * No write access, no need for a proxy.
-       */
-
-      useProxy = FALSE;
-   }
-
-   return useProxy ? ProxyOpen(pathName, flags, mode) :
-                     Posix_Open(pathName, flags, mode);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * FileIO_SetPrivilegedOpener --
  *
  *      Set the function to be used when opening files with privilege,
@@ -966,7 +643,7 @@ FileIOCreateRetry(FileIODescriptor *file,   // OUT:
          fd = FileIO_PrivilegedPosixOpen(pathName, flags);
       }
    } else {
-      fd = PosixFileOpener(pathName, flags, mode);
+      fd = Posix_Open(pathName, flags, mode);
    }
 #else
    {
@@ -976,7 +653,7 @@ FileIOCreateRetry(FileIODescriptor *file,   // OUT:
          uid = Id_BeginSuperUser();
       }
 
-      fd = PosixFileOpener(pathName, flags, mode);
+      fd = Posix_Open(pathName, flags, mode);
 
       error = errno;
 
@@ -2727,7 +2404,7 @@ FileIO_PrivilegedPosixOpen(const char *pathName,  // IN:
 
 #if defined(__APPLE__)
    if (privilegedOpenerFunc != NULL) {
-      fd = privilegedOpenerFunc(pathName, flags);
+      fd = (*privilegedOpenerFunc)(pathName, flags);
    } else
 #endif
    {

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2018, 2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -104,7 +104,7 @@ VixToolsNewEnvIterator(void *userToken,                  // IN
 
    if (NULL == envItr) {
       err = VIX_E_FAIL;
-      goto abort;
+      goto quit;
    }
 
    *envItr = NULL;
@@ -118,7 +118,7 @@ VixToolsNewEnvIterator(void *userToken,                  // IN
       it->envType = VIX_TOOLS_ENV_TYPE_ENV_BLOCK;
       err = VixToolsGetEnvBlock(userToken, &it->data.eb.envBlock);
       if (VIX_FAILED(err)) {
-         goto abort;
+         goto quit;
       }
       it->data.eb.currEnvVar = it->data.eb.envBlock;
    } else {
@@ -140,7 +140,7 @@ VixToolsNewEnvIterator(void *userToken,                  // IN
    it->environ = environ;
 #endif
    *envItr = it;
-abort:
+quit:
    if (VIX_FAILED(err)) {
       free(it);
    }
@@ -264,7 +264,7 @@ VixToolsNewUserEnvironment(void *userToken,                   // IN
 
    if (NULL == env) {
       err = VIX_E_FAIL;
-      goto abort;
+      goto quit;
    }
 
    *env = NULL;
@@ -274,7 +274,7 @@ VixToolsNewUserEnvironment(void *userToken,                   // IN
       myEnv->impersonated = TRUE;
       err = VixToolsGetEnvBlock(userToken, &myEnv->envBlock);
       if (VIX_FAILED(err)) {
-         goto abort;
+         goto quit;
       }
    } else {
       myEnv->impersonated = FALSE;
@@ -284,7 +284,7 @@ VixToolsNewUserEnvironment(void *userToken,                   // IN
 
    *env = myEnv;
 
-abort:
+quit:
    if (VIX_FAILED(err)) {
       free(myEnv);
    }
@@ -403,7 +403,7 @@ VixToolsEnvironToEnvBlock(char const * const *env,        // IN: UTF-8
 
    if ((NULL == env) || (NULL == envBlock)) {
       err = VIX_E_FAIL;
-      goto abort;
+      goto quit;
    }
 
    *envBlock = NULL;
@@ -416,7 +416,7 @@ VixToolsEnvironToEnvBlock(char const * const *env,        // IN: UTF-8
       free(envVar);
       if (!res) {
          err = VIX_E_OUT_OF_MEMORY;
-         goto abort;
+         goto quit;
       }
       env++;
    }
@@ -431,13 +431,13 @@ VixToolsEnvironToEnvBlock(char const * const *env,        // IN: UTF-8
    res = DynBuf_Append(&buf, nullTerm, sizeof nullTerm);
    if (!res) {
       err = VIX_E_OUT_OF_MEMORY;
-      goto abort;
+      goto quit;
    }
 
    *envBlock = DynBuf_Detach(&buf);
    err = VIX_OK;
 
-abort:
+quit:
    DynBuf_Destroy(&buf);
 
    return err;

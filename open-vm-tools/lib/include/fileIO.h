@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018,2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -509,21 +509,11 @@ const char *FileIO_Filename(FileIODescriptor *fd);
  *-------------------------------------------------------------------------
  */
 
-#if !defined(sun) || __GNUC__ >= 3
 static INLINE Bool
 FileIO_IsSuccess(FileIOResult res)      // IN
 {
    return res == FILEIO_SUCCESS;
 }
-#else
-/*
- * XXX: Crosscompiler used for Solaris tools builds (gcc 2.95.3) complains
- * whenever the above definition is unused, even though that shouldn't be
- * a problem for static functions that are also inline.  So for Solaris, we
- * have a separate definition that is neither static nor inline.
- */
-Bool FileIO_IsSuccess(FileIOResult res);
-#endif
 
 Bool FileIO_SupportsPrealloc(const char *pathName,
                              Bool fsCheck);

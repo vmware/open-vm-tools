@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -391,6 +391,40 @@ Hostinfo_TouchXen(void)
 /*
  *----------------------------------------------------------------------
  *
+ *  Hostinfo_HyperV --
+ *
+ *      Check for HyperV.
+ *
+ * Results:
+ *      TRUE if we are running in HyperV.
+ *      FALSE otherwise.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+Hostinfo_HyperV(void)
+{
+   Bool hyperVAvailable = FALSE;
+#if defined(__i386__) || defined(__x86_64__)
+   char *hypervisorSig = Hostinfo_HypervisorCPUIDSig();
+
+   if (hypervisorSig) {
+      if (!memcmp(CPUID_HYPERV_HYPERVISOR_VENDOR_STRING, hypervisorSig,
+                  sizeof CPUID_HYPERV_HYPERVISOR_VENDOR_STRING)) {
+         hyperVAvailable = TRUE;
+      }
+      free(hypervisorSig);
+   }
+#endif
+
+   return hyperVAvailable;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  *  Hostinfo_NestedHVReplaySupported --
  *
  *      Access the backdoor with a HV replay control query. This is used
@@ -681,6 +715,56 @@ Hostinfo_VCPUInfoBackdoor(unsigned bit)
 }
 
 
+/*
+ *----------------------------------------------------------------------
+ *
+ *  Hostinfo_GetNestedBuildNum --
+ *
+ *      Perform a backdoor call to query the build number of the
+ *      outer VMware hypervisor.
+ *
+ * Results:
+ *      The build number of the outer VMware hypervisor, or -1 if
+ *      the backdoor call is not supported.
+ *
+ * Side effects:
+ *      Exception if not in a VM, so don't do that!
+ *
+ *----------------------------------------------------------------------
+ */
+
+uint32
+Hostinfo_GetNestedBuildNum(void)
+{
+   uint32 cmd = BDOOR_CMD_GETBUILDNUM;
+   int32 result;
+
+#if defined(_WIN64)
+   Backdoor_proto bp;
+
+   bp.in.ax.quad = BDOOR_MAGIC;
+   bp.in.cx.quad = cmd;
+   bp.in.dx.quad = BDOOR_PORT;
+
+   Hostinfo_BackdoorInOut(&bp);
+
+   result = bp.out.ax.words.low;
+#else
+   _asm {
+         push edx
+         push ecx
+         mov ecx, cmd
+         mov eax, BDOOR_MAGIC
+         mov dx, BDOOR_PORT
+         in eax, dx
+         mov result, eax
+         pop ecx
+         pop edx
+   }
+#endif
+   return result;
+}
+
 #else // !defined(_WIN32)
 
 /*
@@ -921,5 +1005,48 @@ Hostinfo_VCPUInfoBackdoor(unsigned bit)
    return FALSE;
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ *  Hostinfo_GetNestedBuildNum --
+ *
+ *      Perform a backdoor call to query the build number of the
+ *      outer VMware hypervisor.
+ *
+ * Results:
+ *      The build number of the outer VMware hypervisor, or -1 if
+ *      the backdoor call is not supported.
+ *
+ * Side effects:
+ *      Exception if not in a VM, so don't do that!
+ *
+ *----------------------------------------------------------------------
+ */
+
+uint32
+Hostinfo_GetNestedBuildNum(void)
+{
+#if defined(__i386__) || defined(__x86_64__)
+   uint32 result;
+   uint32 cmd = BDOOR_CMD_GETBUILDNUM;
+
+   switch (HostinfoBackdoorGetInterface()) {
+#  if defined(USE_HYPERCALL)
+   case BACKDOOR_INTERFACE_VMCALL:
+      Vmcall(cmd, result);
+      break;
+   case BACKDOOR_INTERFACE_VMMCALL:
+      Vmmcall(cmd, result);
+      break;
+#  endif
+   default:
+      Ioportcall(cmd, result);
+      break;
+   }
+   return result;
+#endif
+   return 0;
+}
 #endif
 

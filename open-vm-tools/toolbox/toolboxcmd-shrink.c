@@ -515,7 +515,7 @@ ShrinkWiperDestroy(int signal)	// IN: Signal caught
       wiper = NULL;
    }
    ToolsCmd_Print("%s", SU_(disk.shrink.canceled, "Disk shrink canceled.\n"));
-   exit(EXIT_SUCCESS);
+   exit(VM_EX_INTERRUPT);
 }
 #endif
 

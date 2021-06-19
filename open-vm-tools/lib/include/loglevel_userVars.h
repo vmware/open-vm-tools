@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -65,8 +65,12 @@
    LOGLEVEL_VAR(crtbora),  /* apps/crtbora */ \
    LOGLEVEL_VAR(cui), \
    LOGLEVEL_VAR(dataCache), \
+   LOGLEVEL_VAR(dataSetsMgr), \
+   LOGLEVEL_VAR(dataSetsStore),\
    LOGLEVEL_VAR(device), \
+   LOGLEVEL_VAR(deviceGroup), \
    LOGLEVEL_VAR(devicePowerOn), \
+   LOGLEVEL_VAR(deviceSwap), \
    LOGLEVEL_VAR(deviceThread), \
    LOGLEVEL_VAR(dict), \
    LOGLEVEL_VAR(digestlib), \
@@ -94,6 +98,7 @@
    LOGLEVEL_VAR(extcfgdevice), \
    LOGLEVEL_VAR(fakeDma), \
    LOGLEVEL_VAR(filtlib), \
+   LOGLEVEL_VAR(FiltLibTestLog), \
    LOGLEVEL_VAR(flashram), \
    LOGLEVEL_VAR(floppy), \
    LOGLEVEL_VAR(fsresx), \
@@ -110,6 +115,7 @@
    LOGLEVEL_VAR(guestVars), \
    LOGLEVEL_VAR(gui), \
    LOGLEVEL_VAR(guiWin32), \
+   LOGLEVEL_VAR(Heap), \
    LOGLEVEL_VAR(hbaCommon), \
    LOGLEVEL_VAR(hbr), \
    LOGLEVEL_VAR(hdaudio), \
@@ -124,6 +130,7 @@
    LOGLEVEL_VAR(ich7m), \
    LOGLEVEL_VAR(inputdevtap), \
    LOGLEVEL_VAR(ipc), \
+   LOGLEVEL_VAR(ipcMgr), \
    LOGLEVEL_VAR(keyboard), \
    LOGLEVEL_VAR(keymap), \
    LOGLEVEL_VAR(keypersist), \
@@ -132,6 +139,7 @@
    LOGLEVEL_VAR(license), \
    LOGLEVEL_VAR(llc), \
    LOGLEVEL_VAR(lsilogic), \
+   LOGLEVEL_VAR(lwdFilter), \
    LOGLEVEL_VAR(macbw), \
    LOGLEVEL_VAR(macfi), \
    LOGLEVEL_VAR(macfilter), \
@@ -151,7 +159,9 @@
    LOGLEVEL_VAR(mksClient), \
    LOGLEVEL_VAR(mksControl), \
    LOGLEVEL_VAR(mksCursorPosition), \
+   LOGLEVEL_VAR(mksDX11Window), \
    LOGLEVEL_VAR(mksDX11Renderer), \
+   LOGLEVEL_VAR(mksDX11Basic), \
    LOGLEVEL_VAR(mksDX11ResourceView), \
    LOGLEVEL_VAR(mksDX11ShimOps), \
    LOGLEVEL_VAR(mksFrame), \
@@ -174,6 +184,7 @@
    LOGLEVEL_VAR(mksServer), \
    LOGLEVEL_VAR(mksSWB), \
    LOGLEVEL_VAR(mksVulkanRenderer), \
+   LOGLEVEL_VAR(mksVulkanCmds), \
    LOGLEVEL_VAR(mksWinBSOD), \
    LOGLEVEL_VAR(mor), \
    LOGLEVEL_VAR(mstat), \
@@ -189,6 +200,7 @@
    LOGLEVEL_VAR(objc), /* lib/objc */ \
    LOGLEVEL_VAR(objlib), \
    LOGLEVEL_VAR(oemDevice), \
+   LOGLEVEL_VAR(opNotification), \
    LOGLEVEL_VAR(oprom), \
    LOGLEVEL_VAR(ovhdmem), \
    LOGLEVEL_VAR(parallel), \
@@ -227,6 +239,8 @@
    LOGLEVEL_VAR(serviceUser), /* lib/serviceUser */ \
    LOGLEVEL_VAR(sg), /* lib/sg */ \
    LOGLEVEL_VAR(sgx), \
+   LOGLEVEL_VAR(sgxmpa), \
+   LOGLEVEL_VAR(sgxRegistrationTool), \
    LOGLEVEL_VAR(shader), \
    LOGLEVEL_VAR(sharedFolderMgr),  /* mks/remote/vdpFolderSharedMgrVmdb */ \
    LOGLEVEL_VAR(shim3D), \
@@ -300,6 +314,7 @@
    LOGLEVEL_VAR(vncDecode), \
    LOGLEVEL_VAR(vncEncode), \
    LOGLEVEL_VAR(vncServer), \
+   LOGLEVEL_VAR(vncServerOS), \
    LOGLEVEL_VAR(vnet), \
    LOGLEVEL_VAR(vprobe), \
    LOGLEVEL_VAR(VProbeClient), \

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -94,15 +94,13 @@ typedef struct GuestNicInfoV1 {
    NicEntryV1 nicList[MAX_NICS];
 } GuestNicInfoV1;
 
-typedef
-#include "vmware_pack_begin.h"
-struct _PartitionEntry {
+#pragma pack(push, 1)
+typedef struct _PartitionEntry {
    uint64 freeBytes;
    uint64 totalBytes;
    char name[PARTITION_NAME_SIZE];
-}
-#include "vmware_pack_end.h"
-PartitionEntry, *PPartitionEntry;
+} PartitionEntry, *PPartitionEntry;
+#pragma pack(pop)
 
 typedef struct _DiskInfo {
    unsigned int numEntries;

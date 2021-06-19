@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2017,2020-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -39,7 +39,7 @@ extern "C" {
 #if __linux__         // We need the REG_foo offsets in the gregset_t;
 #  define _GNU_SOURCE // _GNU_SOURCE maps to __USE_GNU
 
-/* And, the REG_foo definitions conflict with our own in x86.h */
+/* And, the REG_foo definitions conflict with our own in x86/regname_arch.h */
 #  if defined(__x86_64__)
 #    define REG_RAX GNU_REG_RAX
 #    define REG_RBX GNU_REG_RBX
@@ -189,6 +189,8 @@ extern "C" {
 #define SC_R13(uc) ((unsigned long) (uc)->uc_mcontext.mc_r13)
 #define SC_R14(uc) ((unsigned long) (uc)->uc_mcontext.mc_r14)
 #define SC_R15(uc) ((unsigned long) (uc)->uc_mcontext.mc_r15)
+#elif defined(__aarch64__)
+#define SC_X(uc,n) ((unsigned long) (uc)->uc_mcontext.mc_gpregs.gp_x[n])
 #else
 #define SC_EAX(uc) ((unsigned long) (uc)->uc_mcontext.mc_eax)
 #define SC_EBX(uc) ((unsigned long) (uc)->uc_mcontext.mc_ebx)

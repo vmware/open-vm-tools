@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -153,9 +153,8 @@ enum VixResponseFlagsValues {
  * currently empty for a response.
  *
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgHeader {
+#pragma pack(push, 1)
+typedef struct VixMsgHeader {
    uint32   magic;
    uint16   messageVersion;
 
@@ -165,9 +164,8 @@ struct VixMsgHeader {
    uint32   credentialLength;
 
    uint8    commonFlags;
-}
-#include "vmware_pack_end.h"
-VixMsgHeader;
+} VixMsgHeader;
+#pragma pack(pop)
 
 
 /*
@@ -177,9 +175,8 @@ VixMsgHeader;
  * accept response messages from the VMX, not requests.  Because of
  * this, an event message is a special kind of response message.
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixCommandRequestHeader {
+#pragma pack(push, 1)
+typedef struct VixCommandRequestHeader {
    VixMsgHeader      commonHeader;
 
    uint32            opCode;
@@ -191,14 +188,12 @@ struct VixCommandRequestHeader {
    uint32            clientHandleId; // for remote case
 
    uint32            userCredentialType;
-}
-#include "vmware_pack_end.h"
-VixCommandRequestHeader;
+} VixCommandRequestHeader;
+#pragma pack(pop)
 
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixCommandResponseHeader {
+#pragma pack(push, 1)
+typedef struct VixCommandResponseHeader {
    VixMsgHeader   commonHeader;
 
    uint64         requestCookie;
@@ -210,33 +205,28 @@ struct VixCommandResponseHeader {
    uint32         error;
    uint32         additionalError;
    uint32         errorDataLength;
-}
-#include "vmware_pack_end.h"
-VixCommandResponseHeader;
+} VixCommandResponseHeader;
+#pragma pack(pop)
 
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgEventHeader {
+#pragma pack(push, 1)
+typedef struct VixMsgEventHeader {
    VixCommandResponseHeader   responseHeader;
 
    int32                      eventType;
-}
-#include "vmware_pack_end.h"
-VixMsgEventHeader;
+} VixMsgEventHeader;
+#pragma pack(pop)
 
 
 /*
  * A trivial request that is just a generic
  * response header (it has no body).
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgTrivialRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgTrivialRequest {
    VixCommandRequestHeader   header;
-}
-#include "vmware_pack_end.h"
-VixMsgTrivialRequest;
+} VixMsgTrivialRequest;
+#pragma pack(pop)
 
 
 /*
@@ -244,13 +234,11 @@ VixMsgTrivialRequest;
  * event header (it has no body).
  */
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgTrivialEvent {
+#pragma pack(push, 1)
+typedef struct VixMsgTrivialEvent {
    VixMsgEventHeader          eventHeader;
-}
-#include "vmware_pack_end.h"
-VixMsgTrivialEvent;
+} VixMsgTrivialEvent;
+#pragma pack(pop)
 
 
 /*
@@ -263,31 +251,27 @@ VixMsgTrivialEvent;
  * VIX_EVENTTYPE_JOB_PROGRESS as the eventType.
  */
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgProgressEvent {
+#pragma pack(push, 1)
+typedef struct VixMsgProgressEvent {
    VixMsgEventHeader          eventHeader;
 
    int64                      workToDo;
    int64                      workDone;
-} 
-#include "vmware_pack_end.h"
-VixMsgProgressEvent;
+} VixMsgProgressEvent;
+#pragma pack(pop)
 
 
 /*
  * This is an event sent from the VMX to all clients when some property changes.
  * It may be used for any runtime property.
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgPropertyChangedEvent {
+#pragma pack(push, 1)
+typedef struct VixMsgPropertyChangedEvent {
    VixMsgEventHeader        eventHeader;
    int                      options;
    uint32                   propertyListSize;
-}
-#include "vmware_pack_end.h"
-VixMsgPropertyChangedEvent;
+} VixMsgPropertyChangedEvent;
+#pragma pack(pop)
 
 
 
@@ -295,38 +279,32 @@ VixMsgPropertyChangedEvent;
  * **********************************************************
  * This is a userName and password pair.
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixCommandNamePassword {
+#pragma pack(push, 1)
+typedef struct VixCommandNamePassword {
    uint32    nameLength;
    uint32    passwordLength;
-}
-#include "vmware_pack_end.h"
-VixCommandNamePassword;
+} VixCommandNamePassword;
+#pragma pack(pop)
 
 /*
  * **********************************************************
  * This is a ticketed session for authentication.
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixCommandTicketedSession {
+#pragma pack(push, 1)
+typedef struct VixCommandTicketedSession {
    uint32    ticketLength;
-}
-#include "vmware_pack_end.h"
-VixCommandTicketedSession;
+} VixCommandTicketedSession;
+#pragma pack(pop)
 
 /*
  * **********************************************************
  * This is a SSPI token for acquiring credentials
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixCommandSSPI {
+#pragma pack(push, 1)
+typedef struct VixCommandSSPI {
    uint32    tokenLength;
-}
-#include "vmware_pack_end.h"
-VixCommandSSPI;
+} VixCommandSSPI;
+#pragma pack(pop)
 
 
 /*
@@ -334,23 +312,20 @@ VixCommandSSPI;
  * This is a SAML bearer token with optional userName to specify
  * an IdProvider store.
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixCommandSAMLToken {
+#pragma pack(push, 1)
+typedef struct VixCommandSAMLToken {
    uint32    tokenLength;
    uint32    nameLength;
-}
-#include "vmware_pack_end.h"
-VixCommandSAMLToken;
+} VixCommandSAMLToken;
+#pragma pack(pop)
 
 /*
  * **********************************************************
  * Basic power op request. The response is just a generic
  * response header (it has no body).
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgPowerOpRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgPowerOpRequest {
    VixCommandRequestHeader   header;
    VixVMPowerOpOptions       powerOpOptions;
    /*
@@ -358,9 +333,8 @@ struct VixMsgPowerOpRequest {
     * can be appended here. This was originally used for augmenting
     * poweroff to support revert to snapshot upon poweroff functionality.
     */
-}
-#include "vmware_pack_end.h"
-VixMsgPowerOpRequest;
+} VixMsgPowerOpRequest;
+#pragma pack(pop)
 
 
 /*
@@ -368,37 +342,31 @@ VixMsgPowerOpRequest;
  * Get/Set Properties Request
  */
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgGetVMStateResponse {
+#pragma pack(push, 1)
+typedef struct VixMsgGetVMStateResponse {
    VixCommandResponseHeader   header;
    uint32                     bufferSize;
    // This is followed by the buffer of serialized properties
-}
-#include "vmware_pack_end.h"
-VixMsgGetVMStateResponse;
+} VixMsgGetVMStateResponse;
+#pragma pack(pop)
 
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgSetVMStateRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgSetVMStateRequest {
    VixCommandRequestHeader header;
    uint32                  bufferSize;
    // This is followed by the buffer of serialized properties
-}
-#include "vmware_pack_end.h"
-VixMsgSetVMStateRequest;
+} VixMsgSetVMStateRequest;
+#pragma pack(pop)
 
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgAuthDataV1 {
+#pragma pack(push, 1)
+typedef struct VixMsgAuthDataV1 {
    int64  nonce;
    uint32 sequenceNumber;
    uint8  hashValue[32];
-}
-#include "vmware_pack_end.h"
-VixMsgAuthDataV1;
+} VixMsgAuthDataV1;
+#pragma pack(pop)
 
 
 
@@ -407,14 +375,12 @@ VixMsgAuthDataV1;
  * Basic reload state request. The response is just a generic
  * response header (it has no body).
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgReloadVMStateRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgReloadVMStateRequest {
    VixCommandRequestHeader   header;
    // This is followed by an array of VixMsgConfigurationObjectType objects
-}
-#include "vmware_pack_end.h"
-VixMsgReloadVMStateRequest;
+} VixMsgReloadVMStateRequest;
+#pragma pack(pop)
 
 
 /*
@@ -425,18 +391,15 @@ VixMsgReloadVMStateRequest;
  * 
  *    VIX_NETWORK_SETTING_CONFIG   - VixMsgNICBandwidth
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgConfigurationObjectType {
+#pragma pack(push, 1)
+typedef struct VixMsgConfigurationObjectType {
    int32    configurationType;
    uint32   objectSize;
-}
-#include "vmware_pack_end.h"
-VixMsgConfigurationObjectType;
+} VixMsgConfigurationObjectType;
+#pragma pack(pop)
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgNICBandwidth {
+#pragma pack(push, 1)
+typedef struct VixMsgNICBandwidth {
    Bool        validNICNum;
    int32       nicNum;
    char        pvnGUID[64];
@@ -454,18 +417,15 @@ struct VixMsgNICBandwidth {
    uint32      maxLatency;
 
    uint32      options;
-}
-#include "vmware_pack_end.h"
-VixMsgNICBandwidth;
+} VixMsgNICBandwidth;
+#pragma pack(pop)
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgLANSegmentConfiguration {
+#pragma pack(push, 1)
+typedef struct VixMsgLANSegmentConfiguration {
    VixMsgConfigurationObjectType   configHeader;
    VixMsgNICBandwidth              lanSegment;
-}
-#include "vmware_pack_end.h"
-VixMsgLANSegmentConfiguration;
+} VixMsgLANSegmentConfiguration;
+#pragma pack(pop)
 
 /*
  * These are options to the bandwidth commands.
@@ -488,15 +448,13 @@ enum VixMsgConfigObjectType {
  * Wait for tools request. The response is just a generic
  * response header (it has no body).
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgWaitForToolsRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgWaitForToolsRequest {
    VixCommandRequestHeader header;
    int32                   timeoutInSeconds;
    int32                   minVersion;
-}
-#include "vmware_pack_end.h"
-VixMsgWaitForToolsRequest;
+} VixMsgWaitForToolsRequest;
+#pragma pack(pop)
 
 
 
@@ -504,34 +462,29 @@ VixMsgWaitForToolsRequest;
  * **********************************************************
  * Run a program on the guest.
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgRunProgramRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgRunProgramRequest {
    VixCommandRequestHeader header;
 
    int32                   runProgramOptions;
    uint32                  programNameLength;
    uint32                  commandLineArgsLength;
-}
-#include "vmware_pack_end.h"
-VixMsgRunProgramRequest;
+} VixMsgRunProgramRequest;
+#pragma pack(pop)
 
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgOldRunProgramResponse {
+#pragma pack(push, 1)
+typedef struct VixMsgOldRunProgramResponse {
    VixCommandResponseHeader   header;
 
    int32                      exitCode;
    VmTimeType                 deltaTime;
-} 
-#include "vmware_pack_end.h"
-VixMsgOldRunProgramResponse;
+} VixMsgOldRunProgramResponse;
+#pragma pack(pop)
 
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgRunProgramResponse {
+#pragma pack(push, 1)
+typedef struct VixMsgRunProgramResponse {
    VixCommandResponseHeader   header;
 
    int32                      exitCode;
@@ -540,25 +493,22 @@ struct VixMsgRunProgramResponse {
    int64                      pid;
    uint32                     stdOutLength;
    uint32                     stdErrLength;
-} 
-#include "vmware_pack_end.h"
-VixMsgRunProgramResponse;
+} VixMsgRunProgramResponse;
+#pragma pack(pop)
 
 
 /*
  * **********************************************************
  * Install VMware tools.
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgInstallToolsRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgInstallToolsRequest {
    VixCommandRequestHeader header;
 
    int32                   installOptions;
    uint32                  commandLineArgsLength;
-}
-#include "vmware_pack_end.h"
-VixMsgInstallToolsRequest;
+} VixMsgInstallToolsRequest;
+#pragma pack(pop)
 
 
 
@@ -583,22 +533,19 @@ enum VixKeyStrokeModifiers {
 };
 
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgKeyStroke {
+#pragma pack(push, 1)
+typedef struct VixMsgKeyStroke {
    int32                   modifier;
    int32                   scanCode;
    int32                   duration;
    int32                   delayAfterKeyUp;
    int32                   repeat;
-} 
-#include "vmware_pack_end.h"
-VixMsgKeyStroke;
+} VixMsgKeyStroke;
+#pragma pack(pop)
 
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgSendKeyStrokesRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgSendKeyStrokesRequest {
    VixCommandRequestHeader header;
 
    int32                   keyStrokeType;
@@ -606,26 +553,23 @@ struct VixMsgSendKeyStrokesRequest {
    int64                   targetPid;
    int32                   numKeyStrokes;
    uint32                  windowNameLength;
-} 
-#include "vmware_pack_end.h"
-VixMsgSendKeyStrokesRequest;
+} VixMsgSendKeyStrokesRequest;
+#pragma pack(pop)
 
 /*
  * send a mouse event to the guest
  */
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgSendMouseEventRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgSendMouseEventRequest {
    VixCommandRequestHeader header;
 
    int16                    x;
    int16                    y;
    int16                    buttons;
    int32                    options;
-} 
-#include "vmware_pack_end.h"
-VixMsgSendMouseEventRequest;
+} VixMsgSendMouseEventRequest;
+#pragma pack(pop)
 
 
 
@@ -634,17 +578,15 @@ VixMsgSendMouseEventRequest;
  * **********************************************************
  * Read or write the registry on the guest.
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgRegistryRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgRegistryRequest {
    VixCommandRequestHeader header;
 
    uint32                  registryKeyLength;
    int32                   expectedRegistryKeyType;
    uint32                  dataToWriteSize;
-}
-#include "vmware_pack_end.h"
-VixMsgRegistryRequest;
+} VixMsgRegistryRequest;
+#pragma pack(pop)
 
 
 
@@ -652,22 +594,19 @@ VixMsgRegistryRequest;
  * **********************************************************
  * Copy files between the host and the guest.
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixCommandRenameFileRequest {
+#pragma pack(push, 1)
+typedef struct VixCommandRenameFileRequest {
    VixCommandRequestHeader header;
 
    int32                   copyFileOptions;
    uint32                  oldPathNameLength;
    uint32                  newPathNameLength;
    uint32                  filePropertiesLength;
-}
-#include "vmware_pack_end.h"
-VixCommandRenameFileRequest;
+} VixCommandRenameFileRequest;
+#pragma pack(pop)
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixCommandRenameFileRequestEx {
+#pragma pack(push, 1)
+typedef struct VixCommandRenameFileRequestEx {
    VixCommandRequestHeader header;
 
    int32                   copyFileOptions;
@@ -675,24 +614,20 @@ struct VixCommandRenameFileRequestEx {
    uint32                  newPathNameLength;
    uint32                  filePropertiesLength;
    Bool                    overwrite;
-}
-#include "vmware_pack_end.h"
-VixCommandRenameFileRequestEx;
+} VixCommandRenameFileRequestEx;
+#pragma pack(pop)
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixCommandHgfsSendPacket {
+#pragma pack(push, 1)
+typedef struct VixCommandHgfsSendPacket {
    VixCommandRequestHeader header;
 
    uint32                  hgfsPacketSize;
    int32                   timeout;
-}
-#include "vmware_pack_end.h"
-VixCommandHgfsSendPacket;
+} VixCommandHgfsSendPacket;
+#pragma pack(pop)
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgSetGuestFileAttributesRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgSetGuestFileAttributesRequest {
    VixCommandRequestHeader header;
 
    int32                  fileOptions;
@@ -704,9 +639,8 @@ struct VixMsgSetGuestFileAttributesRequest {
    Bool                   hidden;
    Bool                   readOnly;
    uint32                 guestPathNameLength;
-}
-#include "vmware_pack_end.h"
-VixMsgSetGuestFileAttributesRequest;
+} VixMsgSetGuestFileAttributesRequest;
+#pragma pack(pop)
 
 
 /*
@@ -714,36 +648,31 @@ VixMsgSetGuestFileAttributesRequest;
  * Perform a simple operation (like delete or check for existence)
  * on a file or registry key on the guest.
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgSimpleFileRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgSimpleFileRequest {
    VixCommandRequestHeader header;
 
    int32                   fileOptions;
    uint32                  guestPathNameLength;
-}
-#include "vmware_pack_end.h"
-VixMsgSimpleFileRequest;
+} VixMsgSimpleFileRequest;
+#pragma pack(pop)
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgListDirectoryRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgListDirectoryRequest {
    VixCommandRequestHeader header;
 
    int32                   fileOptions;
    uint32                  guestPathNameLength;
    int64                   offset;
-}
-#include "vmware_pack_end.h"
-VixMsgListDirectoryRequest;
+} VixMsgListDirectoryRequest;
+#pragma pack(pop)
 
 enum VixListDirectoryOptions {
    VIX_LIST_DIRECTORY_USE_OFFSET = 0x01
 };
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgListFilesRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgListFilesRequest {
    VixCommandRequestHeader header;
 
    int32                   fileOptions;
@@ -752,35 +681,30 @@ struct VixMsgListFilesRequest {
    int32                   index;
    int32                   maxResults;
    uint64                  offset;
-}
-#include "vmware_pack_end.h"
-VixMsgListFilesRequest;
+} VixMsgListFilesRequest;
+#pragma pack(pop)
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixCommandInitiateFileTransferToGuestRequest {
+#pragma pack(push, 1)
+typedef struct VixCommandInitiateFileTransferToGuestRequest {
    VixCommandRequestHeader header;
 
    int32                   options;
    uint32                  guestPathNameLength;
    Bool                    overwrite;
-}
-#include "vmware_pack_end.h"
-VixCommandInitiateFileTransferToGuestRequest;
+} VixCommandInitiateFileTransferToGuestRequest;
+#pragma pack(pop)
 
 
 /*
  * This is used to reply to several operations, like testing whether
  * a file or registry key exists on the client.
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgCheckExistsResponse {
+#pragma pack(push, 1)
+typedef struct VixMsgCheckExistsResponse {
    VixCommandResponseHeader   header;
    Bool                       exists;
-}
-#include "vmware_pack_end.h"
-VixMsgCheckExistsResponse;
+} VixMsgCheckExistsResponse;
+#pragma pack(pop)
 
 
 /*
@@ -789,160 +713,138 @@ VixMsgCheckExistsResponse;
  * on a file in the guest. This lets you pass in things like the initial file
  * properties.
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgCreateFileRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgCreateFileRequest {
    VixCommandRequestHeader header;
 
    int32                   fileOptions;
    uint32                  guestPathNameLength;
    uint32                  filePropertiesLength;
-}
-#include "vmware_pack_end.h"
-VixMsgCreateFileRequest;
+} VixMsgCreateFileRequest;
+#pragma pack(pop)
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgCreateFileRequestEx {
+#pragma pack(push, 1)
+typedef struct VixMsgCreateFileRequestEx {
    VixCommandRequestHeader header;
 
    int32                   fileOptions;
    uint32                  guestPathNameLength;
    uint32                  filePropertiesLength;
    Bool                    createParentDirectories;
-}
-#include "vmware_pack_end.h"
-VixMsgCreateFileRequestEx;
+} VixMsgCreateFileRequestEx;
+#pragma pack(pop)
 
 
 /*
  * **********************************************************
  * Hot extend a disk in a running VM.
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgHotExtendDiskRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgHotExtendDiskRequest {
    VixCommandRequestHeader header;
    int32                    hotDiskOptions;
    uint32                   typeLength;
    int32                    adapterNum;
    int32                    targetNum;
    uint64                   newNumSectors;
-}
-#include "vmware_pack_end.h"
-VixMsgHotExtendDiskRequest;
+} VixMsgHotExtendDiskRequest;
+#pragma pack(pop)
 
 
 /*
  * **********************************************************
  * Hot plug CPU in a running VM.
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgHotPlugCPURequest {
+#pragma pack(push, 1)
+typedef struct VixMsgHotPlugCPURequest {
    VixCommandRequestHeader header;
    uint32                  newNumCPU;
-}
-#include "vmware_pack_end.h"
-VixMsgHotPlugCPURequest;
+} VixMsgHotPlugCPURequest;
+#pragma pack(pop)
 
 
 /*
  * **********************************************************
  * Hot plug memory in a running VM.
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgHotPlugMemoryRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgHotPlugMemoryRequest {
    VixCommandRequestHeader header;
    uint32                  newSizeMb;
-}
-#include "vmware_pack_end.h"
-VixMsgHotPlugMemoryRequest;
+} VixMsgHotPlugMemoryRequest;
+#pragma pack(pop)
 
 
 /*
  * **********************************************************
  * Hot add device in a running VM.
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgHotAddDeviceRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgHotAddDeviceRequest {
    VixCommandRequestHeader header;
    int32                   deviceType;
    uint32                  devicePropsBufferSize;
    int32                   backingType;
    uint32                  backingPropsBufferSize;
-}
-#include "vmware_pack_end.h"
-VixMsgHotAddDeviceRequest;
+} VixMsgHotAddDeviceRequest;
+#pragma pack(pop)
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgHotAddDeviceResponse {
+#pragma pack(push, 1)
+typedef struct VixMsgHotAddDeviceResponse {
    VixCommandResponseHeader   header;
    int32                      adapterNum;
    int32                      targetNum;
-}
-#include "vmware_pack_end.h"
-VixMsgHotAddDeviceResponse;
+} VixMsgHotAddDeviceResponse;
+#pragma pack(pop)
 
 
 /*
  * **********************************************************
  * Hot remove device in a running VM.
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgHotRemoveDeviceRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgHotRemoveDeviceRequest {
    VixCommandRequestHeader header;
    int32                   deviceType;
    uint32                  devicePropsBufferSize;
-}
-#include "vmware_pack_end.h"
-VixMsgHotRemoveDeviceRequest;
+} VixMsgHotRemoveDeviceRequest;
+#pragma pack(pop)
 
 
 /*
  * **********************************************************
  * Change monitor type of a running VM.
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgHotChangeMonitorTypeRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgHotChangeMonitorTypeRequest {
    VixCommandRequestHeader header;
    int32                   monitorType;
-}
-#include "vmware_pack_end.h"
-VixMsgHotChangeMonitorTypeRequest;
+} VixMsgHotChangeMonitorTypeRequest;
+#pragma pack(pop)
 
 
 /*
  * **********************************************************
  * Hot plug begin batch.
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgHotPlugBeginBatchRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgHotPlugBeginBatchRequest {
    VixCommandRequestHeader header;
    int32                   flags;
-}
-#include "vmware_pack_end.h"
-VixMsgHotPlugBeginBatchRequest;
+} VixMsgHotPlugBeginBatchRequest;
+#pragma pack(pop)
 
 
 /*
  * **********************************************************
  * Hot plug commit batch.
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgHotPlugCommitBatchRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgHotPlugCommitBatchRequest {
    VixCommandRequestHeader header;
    int32                   status;
-}
-#include "vmware_pack_end.h"
-VixMsgHotPlugCommitBatchRequest;
+} VixMsgHotPlugCommitBatchRequest;
+#pragma pack(pop)
 
 
 /*
@@ -950,18 +852,16 @@ VixMsgHotPlugCommitBatchRequest;
  * Transfer connection.  Besides fields here you are supposed to
  * receive file descriptor OOB.
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgTransferConnectionRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgTransferConnectionRequest {
    VixCommandRequestHeader header;
    Bool                    isPrivileged;
    uint32                  cryptoLength;
    uint32                  fdLength;
 /* uint8                   cryptoData[]; */
 /* uint8                   fdData[]; */
-}
-#include "vmware_pack_end.h"
-VixMsgTransferConnectionRequest;
+} VixMsgTransferConnectionRequest;
+#pragma pack(pop)
 
 
 /*
@@ -971,17 +871,15 @@ VixMsgTransferConnectionRequest;
  * on original connection already transferred via
  * TransferConnectionRequest.
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgTransferRequestRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgTransferRequestRequest {
    VixCommandRequestHeader header;
    uint32                  dataLength;
    uint32                  fdLength;
 /* uint8                   data[]; */
 /* uint8                   fdData[]; */
-}
-#include "vmware_pack_end.h"
-VixMsgTransferRequestRequest;
+} VixMsgTransferRequestRequest;
+#pragma pack(pop)
 
 
 /*
@@ -990,26 +888,23 @@ VixMsgTransferRequestRequest;
  * file descriptor.  Data is just what was already received
  * on the socket passed by TransferConnectionRequest.
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgTransferFinalDataRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgTransferFinalDataRequest {
    VixCommandRequestHeader header;
    uint32                  dataLength;
    uint32                  fdLength;
 /* uint8                   data[]; */
 /* uint8                   fdData[]; */
-}
-#include "vmware_pack_end.h"
-VixMsgTransferFinalDataRequest;
+} VixMsgTransferFinalDataRequest;
+#pragma pack(pop)
 
 
 /*
  * **********************************************************
  * Create a snapshot of a running VM.
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgCreateSnapshotRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgCreateSnapshotRequest {
    VixCommandRequestHeader    header;
 
    int32                      options;
@@ -1019,38 +914,32 @@ struct VixMsgCreateSnapshotRequest {
 
    uint32                     nameLength;
    uint32                     descriptionLength;
-}
-#include "vmware_pack_end.h"
-VixMsgCreateSnapshotRequest;
+} VixMsgCreateSnapshotRequest;
+#pragma pack(pop)
 
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgCreateSnapshotResponse {
+#pragma pack(push, 1)
+typedef struct VixMsgCreateSnapshotResponse {
    VixCommandResponseHeader   header;
    int32                      snapshotUID;
-}
-#include "vmware_pack_end.h"
-VixMsgCreateSnapshotResponse;
+} VixMsgCreateSnapshotResponse;
+#pragma pack(pop)
 
 
 /*
  * Several snapshot operations for a running VM.
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgSnapshotRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgSnapshotRequest {
    VixCommandRequestHeader    header;
 
    int32                      options;
    int32                      snapshotId;
-}
-#include "vmware_pack_end.h"
-VixMsgSnapshotRequest;
+} VixMsgSnapshotRequest;
+#pragma pack(pop)
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgSnapshotUpdateEvent {
+#pragma pack(push, 1)
+typedef struct VixMsgSnapshotUpdateEvent {
    VixMsgEventHeader          eventHeader;
 
    int32                      options;
@@ -1058,24 +947,20 @@ struct VixMsgSnapshotUpdateEvent {
    /*
     * This is followed by a serialized property list.
     */
-}
-#include "vmware_pack_end.h"
-VixMsgSnapshotUpdateEvent;
+} VixMsgSnapshotUpdateEvent;
+#pragma pack(pop)
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgSnapshotMRURequest {
+#pragma pack(push, 1)
+typedef struct VixMsgSnapshotMRURequest {
    VixCommandRequestHeader    header;
 
    int32                      snapshotId;
    int32                      maxMRU;
-}
-#include "vmware_pack_end.h"
-VixMsgSnapshotMRURequest;
+} VixMsgSnapshotMRURequest;
+#pragma pack(pop)
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgSetSnapshotInfoRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgSetSnapshotInfoRequest {
    VixCommandRequestHeader    header;
 
    int32                      snapshotId;
@@ -1093,23 +978,19 @@ struct VixMsgSetSnapshotInfoRequest {
     *   description string
     *   serialized property list.
     */
-}
-#include "vmware_pack_end.h"
-VixMsgSetSnapshotInfoRequest;
+} VixMsgSetSnapshotInfoRequest;
+#pragma pack(pop)
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgSetSnapshotInfoResponse {
+#pragma pack(push, 1)
+typedef struct VixMsgSetSnapshotInfoResponse {
    VixCommandResponseHeader    header;
 
    uint32                     propertyListLength;
-}
-#include "vmware_pack_end.h"
-VixMsgSetSnapshotInfoResponse;
+} VixMsgSetSnapshotInfoResponse;
+#pragma pack(pop)
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgRemoveBulkSnapshotRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgRemoveBulkSnapshotRequest {
    VixCommandRequestHeader    header;
 
    int32                      options;
@@ -1117,92 +998,79 @@ struct VixMsgRemoveBulkSnapshotRequest {
    /*
     * This is followed by numSnapshots snapshotIDs.
     */
-}
-#include "vmware_pack_end.h"
-VixMsgRemoveBulkSnapshotRequest;
+} VixMsgRemoveBulkSnapshotRequest;
+#pragma pack(pop)
 
 /*
  * Stop recording or playback of a snapshot event log.
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgVMSnapshotPauseRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgVMSnapshotPauseRequest {
    VixCommandRequestHeader    header;
 
    int32                      options;
-}
-#include "vmware_pack_end.h"
-VixMsgVMSnapshotPauseRequest;
+} VixMsgVMSnapshotPauseRequest;
+#pragma pack(pop)
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgDebuggerEvent {
+#pragma pack(push, 1)
+typedef struct VixMsgDebuggerEvent {
    VixMsgEventHeader          eventHeader;
 
    int32                      blobLength;
    /*
     * This is followed by the blob buffer.
     */
-}
-#include "vmware_pack_end.h"
-VixMsgDebuggerEvent;
+} VixMsgDebuggerEvent;
+#pragma pack(pop)
 
 
 /*
  * **********************************************************
  * Shared folder operations.
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgSharedFolderRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgSharedFolderRequest {
    VixCommandRequestHeader   header;
 
    int32                     options;
    int32                     index;
    uint32                    shareNameLength;
    uint32                    hostPathNameLength;
-}
-#include "vmware_pack_end.h"
-VixMsgSharedFolderRequest;
+} VixMsgSharedFolderRequest;
+#pragma pack(pop)
 
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgSharedFolderResponse {
+#pragma pack(push, 1)
+typedef struct VixMsgSharedFolderResponse {
    VixCommandResponseHeader      header;
    int32                         numSharedFolders;
-}
-#include "vmware_pack_end.h"
-VixMsgSharedFolderResponse;
+} VixMsgSharedFolderResponse;
+#pragma pack(pop)
 
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgGetSharedFolderInfoResponse {
+#pragma pack(push, 1)
+typedef struct VixMsgGetSharedFolderInfoResponse {
    VixCommandResponseHeader   header;
 
    uint32                     shareNameLength;
    uint32                     hostPathNameLength;
    int32                      sharedFolderFlags;
-}
-#include "vmware_pack_end.h"
-VixMsgGetSharedFolderInfoResponse;
+} VixMsgGetSharedFolderInfoResponse;
+#pragma pack(pop)
 
 
 /*
  * Add or change a shared folder request.
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgSetSharedFolderRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgSetSharedFolderRequest {
    VixCommandRequestHeader   header;
 
    int32                     options;
    uint32                    shareNameLength;
    uint32                    hostPathNameLength;
-}
-#include "vmware_pack_end.h"
-VixMsgSetSharedFolderRequest;
+} VixMsgSetSharedFolderRequest;
+#pragma pack(pop)
 
 
 /*
@@ -1210,9 +1078,8 @@ VixMsgSetSharedFolderRequest;
  * Capture the screen of a VM
  */
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgCaptureScreenRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgCaptureScreenRequest {
    VixCommandRequestHeader header;
    
    int32                   format;  // Identifies the requested data format.
@@ -1220,28 +1087,24 @@ struct VixMsgCaptureScreenRequest {
                                     //    (-1 is any size)
 
    int32                    captureScreenOptions;
-}
-#include "vmware_pack_end.h"
-VixMsgCaptureScreenRequest;
+} VixMsgCaptureScreenRequest;
+#pragma pack(pop)
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgCaptureScreenResponse {
+#pragma pack(push, 1)
+typedef struct VixMsgCaptureScreenResponse {
    VixCommandResponseHeader header;
    
    int32                   format; // Format of the data in the response.
    uint32                  dataOffset; // Relative to the address of this struct.
-}
-#include "vmware_pack_end.h"
-VixMsgCaptureScreenResponse;
+} VixMsgCaptureScreenResponse;
+#pragma pack(pop)
 
 /*
  * **********************************************************
  * Run a script in the guest.
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgRunScriptRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgRunScriptRequest {
    VixCommandRequestHeader header;
 
    int32                   scriptOptions;
@@ -1249,9 +1112,8 @@ struct VixMsgRunScriptRequest {
    uint32                  interpreterNameLength;
    uint32                  scriptLength;
    uint32                  propertiesLength;
-}
-#include "vmware_pack_end.h"
-VixMsgRunScriptRequest;
+} VixMsgRunScriptRequest;
+#pragma pack(pop)
 
 
 /*
@@ -1259,23 +1121,20 @@ VixMsgRunScriptRequest;
  * An unsupported command. This is used to test future versions
  * of the API sending us commands we don't recognize.
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixUnsupportedCommandRequest {
+#pragma pack(push, 1)
+typedef struct VixUnsupportedCommandRequest {
    VixCommandRequestHeader   header;
    char                      junk[2053];
-}
-#include "vmware_pack_end.h"
-VixUnsupportedCommandRequest;
+} VixUnsupportedCommandRequest;
+#pragma pack(pop)
 
 
 /*
  * **********************************************************
  * Create a session key between the client and the VMX.
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixCommandMakeSessionKeyRequest {
+#pragma pack(push, 1)
+typedef struct VixCommandMakeSessionKeyRequest {
    VixCommandRequestHeader   header;
 
    int32                     keyOptions;
@@ -1283,34 +1142,29 @@ struct VixCommandMakeSessionKeyRequest {
    uint32                    responseKeyLength;
    int32                     responseKeyCypherType;
    int32                     cypherType;
-}
-#include "vmware_pack_end.h"
-VixCommandMakeSessionKeyRequest;
+} VixCommandMakeSessionKeyRequest;
+#pragma pack(pop)
 
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixCommandMakeSessionKeyResponse {
+#pragma pack(push, 1)
+typedef struct VixCommandMakeSessionKeyResponse {
    VixCommandResponseHeader     header;
 
    int32                        keyOptions;
    int32                        timeout;
    uint32                       keyLength;
    int32                        cypherType;
-}
-#include "vmware_pack_end.h"
-VixCommandMakeSessionKeyResponse;
+} VixCommandMakeSessionKeyResponse;
+#pragma pack(pop)
 
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixCommandGenerateNonceResponse {
+#pragma pack(push, 1)
+typedef struct VixCommandGenerateNonceResponse {
    VixCommandResponseHeader     header;
 
    int64                        nonce;
-}
-#include "vmware_pack_end.h"
-VixCommandGenerateNonceResponse;
+} VixCommandGenerateNonceResponse;
+#pragma pack(pop)
 
 
 enum {
@@ -1321,57 +1175,50 @@ enum {
 
 /*
  * **********************************************************
- * Kill a guest process.
+ * Force a guest process to quit.
  */
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixCommandKillProcessRequest {
+#pragma pack(push, 1)
+typedef struct VixCommandKillProcessRequest {
    VixCommandRequestHeader    header;
 
    uint64                     pid;
    uint32                     options;
-}
-#include "vmware_pack_end.h"
-VixCommandKillProcessRequest;
+} VixCommandKillProcessRequest;
+#pragma pack(pop)
 
 
 /*
  * **********************************************************
  * Read and write variables like guest variables and config values.
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgReadVariableRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgReadVariableRequest {
    VixCommandRequestHeader header;
 
    int32                   variableType;
    int32                   options;
    uint32                  nameLength;
-}
-#include "vmware_pack_end.h"
-VixMsgReadVariableRequest;
+} VixMsgReadVariableRequest;
+#pragma pack(pop)
 
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgReadVariableResponse {
+#pragma pack(push, 1)
+typedef struct VixMsgReadVariableResponse {
    VixCommandResponseHeader   header;
 
    int32                      valueType;
    int32                      valueProperties;
    uint32                     valueLength;
-}
-#include "vmware_pack_end.h"
-VixMsgReadVariableResponse;
+} VixMsgReadVariableResponse;
+#pragma pack(pop)
 
 
 /*
  * Several snapshot operations for a running VM.
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgWriteVariableRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgWriteVariableRequest {
    VixCommandRequestHeader header;
 
    int32                   variableType;
@@ -1379,9 +1226,8 @@ struct VixMsgWriteVariableRequest {
 
    uint32                  nameLength;
    uint32                  valueLength;
-}
-#include "vmware_pack_end.h"
-VixMsgWriteVariableRequest;
+} VixMsgWriteVariableRequest;
+#pragma pack(pop)
 
 
 
@@ -1391,23 +1237,20 @@ VixMsgWriteVariableRequest;
  * on a file in the guest. This lets you pass in things like the initial file
  * properties.
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgCreateTempFileRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgCreateTempFileRequest {
    VixCommandRequestHeader header;
 
    int32                   options;
    uint32                  propertyNameLength;
    uint32                  filePrefixLength;
    uint32                  fileSuffixLength;
-}
-#include "vmware_pack_end.h"
-VixMsgCreateTempFileRequest;
+} VixMsgCreateTempFileRequest;
+#pragma pack(pop)
 
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgCreateTempFileRequestEx {
+#pragma pack(push, 1)
+typedef struct VixMsgCreateTempFileRequestEx {
    VixCommandRequestHeader header;
 
    int32                   options;
@@ -1415,69 +1258,60 @@ struct VixMsgCreateTempFileRequestEx {
    uint32                  fileSuffixLength;
    uint32                  directoryPathLength;
    uint32                  propertyListLength;
-}
-#include "vmware_pack_end.h"
-VixMsgCreateTempFileRequestEx;
+} VixMsgCreateTempFileRequestEx;
+#pragma pack(pop)
 
 
-typedef
-#include "vmware_pack_begin.h"
-struct {
+#pragma pack(push, 1)
+typedef struct {
    VixCommandRequestHeader header;
 
    int32                   fileOptions;
    uint32                  guestPathNameLength;
    uint32                  filePropertiesLength;
    Bool                    recursive;
-}
-#include "vmware_pack_end.h"
-VixMsgDeleteDirectoryRequest;
+} VixMsgDeleteDirectoryRequest;
+#pragma pack(pop)
 
 /*
  * **********************************************************
  * Connect/Disconnect device request. The response is just a generic
  * response header (it has no body).
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgConnectDeviceRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgConnectDeviceRequest {
    VixCommandRequestHeader    header;
    int32                      options;
    Bool                       connected;
    uint32                     nameLength;
-}
-#include "vmware_pack_end.h"
-VixMsgConnectDeviceRequest;
+} VixMsgConnectDeviceRequest;
+#pragma pack(pop)
 
 /*
  * **********************************************************
  * Get the state of a virtual device.
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgGetDeviceStateRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgGetDeviceStateRequest {
    VixCommandRequestHeader header;
 
    int32                   options;
    uint32                  nameLength;
-}
-#include "vmware_pack_end.h"
-VixMsgGetDeviceStateRequest;
+} VixMsgGetDeviceStateRequest;
+#pragma pack(pop)
 
 
 /*
  * This is used to reply to IsDeviceConnected operations.
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgGetDeviceStateResponse {
+#pragma pack(push, 1)
+typedef struct VixMsgGetDeviceStateResponse {
    VixCommandResponseHeader   header;
    Bool                       connected;
    int32                      stateFlags;
    // Maybe capacity and percent allocated?
-}
-#include "vmware_pack_end.h"
-VixMsgGetDeviceStateResponse;
+} VixMsgGetDeviceStateResponse;
+#pragma pack(pop)
 
 
 /*
@@ -1485,15 +1319,13 @@ VixMsgGetDeviceStateResponse;
  * Enable/disable all shared folders on this VM. The response
  * is just a generic response header (it has no body).
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgEnableSharedFoldersRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgEnableSharedFoldersRequest {
    VixCommandRequestHeader   header;
    Bool                      enabled;
    int32                     sharedFolderOptions;
-}
-#include "vmware_pack_end.h"
-VixMsgEnableSharedFoldersRequest;
+} VixMsgEnableSharedFoldersRequest;
+#pragma pack(pop)
 
 
 /*
@@ -1507,9 +1339,8 @@ enum VixMountOptions {
 };
 
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgMountHGFSRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgMountHGFSRequest {
    VixCommandRequestHeader header;
 
    int32                   mountOptions;
@@ -1517,46 +1348,40 @@ struct VixMsgMountHGFSRequest {
 
    /* The str path list has the form "host1\0dest1\0host2\0dest2\0host3\0dest3\0\0" */
    uint32                  pathListLength;
-}
-#include "vmware_pack_end.h"
-VixMsgMountHGFSRequest;
+} VixMsgMountHGFSRequest;
+#pragma pack(pop)
 
 
 /*
  * Get guest networking config
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgGetGuestNetworkingConfigRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgGetGuestNetworkingConfigRequest {
    VixCommandRequestHeader   header;
 
    int32                     options;
-}
-#include "vmware_pack_end.h"
-VixMsgGetGuestNetworkingConfigRequest;
+} VixMsgGetGuestNetworkingConfigRequest;
+#pragma pack(pop)
 
 
 /*
  * Set guest networking config
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgSetGuestNetworkingConfigRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgSetGuestNetworkingConfigRequest {
    VixCommandRequestHeader   header;
 
    int32                     options;
    uint32                    bufferSize;
-}
-#include "vmware_pack_end.h"
-VixMsgSetGuestNetworkingConfigRequest;
+} VixMsgSetGuestNetworkingConfigRequest;
+#pragma pack(pop)
 
 
 /*
  * Query VMX performance data
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgGetPerformanceDataRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgGetPerformanceDataRequest {
    VixCommandRequestHeader   header;
 
    // unused for now, but left for future expansion in case we
@@ -1564,27 +1389,23 @@ struct VixMsgGetPerformanceDataRequest {
    int32                     options;
    uint32                    sizeOfPropertyList;
    // This is followed by the buffer of properties we wish to fetch
-}
-#include "vmware_pack_end.h"
-VixMsgGetPerformanceDataRequest;
+} VixMsgGetPerformanceDataRequest;
+#pragma pack(pop)
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgGetPerformanceDataResponse {
+#pragma pack(push, 1)
+typedef struct VixMsgGetPerformanceDataResponse {
    VixCommandResponseHeader   header;
    uint32                     bufferSize;
    // This is followed by the buffer of serialized properties
-}
-#include "vmware_pack_end.h"
-VixMsgGetPerformanceDataResponse;
+} VixMsgGetPerformanceDataResponse;
+#pragma pack(pop)
 
 
 /*
  * Run a program in guest with (VI version with more args)
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgStartProgramRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgStartProgramRequest {
    VixCommandRequestHeader   header;
 
    Bool   startMinimized;
@@ -1595,13 +1416,11 @@ struct VixMsgStartProgramRequest {
    uint32 envVarLength;
 
    // This is followed by the buffer of the args
-}
-#include "vmware_pack_end.h"
-VixMsgStartProgramRequest;
+} VixMsgStartProgramRequest;
+#pragma pack(pop)
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgListProcessesExRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgListProcessesExRequest {
    VixCommandRequestHeader   header;
 
    // if we need to make multiple trips, this is the key used to identify
@@ -1614,28 +1433,24 @@ struct VixMsgListProcessesExRequest {
    uint32 numPids;
 
    // This is followed by the list of uint64s
-}
-#include "vmware_pack_end.h"
-VixMsgListProcessesExRequest;
+} VixMsgListProcessesExRequest;
+#pragma pack(pop)
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgReadEnvironmentVariablesRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgReadEnvironmentVariablesRequest {
    VixCommandRequestHeader   header;
 
    uint32 numNames;
    uint32 namesLength;
 
    // This is followed by the list of NUL-terminated names
-}
-#include "vmware_pack_end.h"
-VixMsgReadEnvironmentVariablesRequest;
+} VixMsgReadEnvironmentVariablesRequest;
+#pragma pack(pop)
 
 /* IdProvider support */
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgAddAliasRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgAddAliasRequest {
    VixCommandRequestHeader header;
 
    uint32                  options;
@@ -1653,13 +1468,11 @@ struct VixMsgAddAliasRequest {
    /* char[]               pemCert; */
    /* char[]               subjectName; */
    /* char[]               aliasComment; */
-}
-#include "vmware_pack_end.h"
-VixMsgAddAuthAliasRequest;
+} VixMsgAddAuthAliasRequest;
+#pragma pack(pop)
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgRemoveAuthAliasRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgRemoveAuthAliasRequest {
    VixCommandRequestHeader header;
 
    uint32                  options;
@@ -1676,13 +1489,11 @@ struct VixMsgRemoveAuthAliasRequest {
    /* char[]               userName; */
    /* char[]               pemCert; */
    /* char[]               subjectName; */
-}
-#include "vmware_pack_end.h"
-VixMsgRemoveAuthAliasRequest;
+} VixMsgRemoveAuthAliasRequest;
+#pragma pack(pop)
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgListAuthAliasesRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgListAuthAliasesRequest {
    VixCommandRequestHeader header;
 
    uint32                  options;
@@ -1690,26 +1501,22 @@ struct VixMsgListAuthAliasesRequest {
    uint32                  userNameLen;
 
    /* char[]               userName; */
-}
-#include "vmware_pack_end.h"
-VixMsgListAuthAliasesRequest;
+} VixMsgListAuthAliasesRequest;
+#pragma pack(pop)
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgListMappedAliasesRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgListMappedAliasesRequest {
    VixCommandRequestHeader header;
 
    uint32                  options;
-}
-#include "vmware_pack_end.h"
-VixMsgListMappedAliasesRequest;
+} VixMsgListMappedAliasesRequest;
+#pragma pack(pop)
 
 /*
  * Windows Registry Management Support.
  */
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgCreateRegKeyRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgCreateRegKeyRequest {
    VixCommandRequestHeader header;
 
    uint32 options;
@@ -1724,13 +1531,11 @@ struct VixMsgCreateRegKeyRequest {
     * char[] path;
     * char[] classType;
     */
-}
-#include "vmware_pack_end.h"
-VixMsgCreateRegKeyRequest;
+} VixMsgCreateRegKeyRequest;
+#pragma pack(pop)
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgListRegKeysRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgListRegKeysRequest {
    VixCommandRequestHeader header;
 
    uint32 options;
@@ -1757,13 +1562,11 @@ struct VixMsgListRegKeysRequest {
     * char[] path;
     * char[] matchPattern;
     */
-}
-#include "vmware_pack_end.h"
-VixMsgListRegKeysRequest;
+} VixMsgListRegKeysRequest;
+#pragma pack(pop)
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgDeleteRegKeyRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgDeleteRegKeyRequest {
    VixCommandRequestHeader header;
 
    uint32 options;
@@ -1776,13 +1579,11 @@ struct VixMsgDeleteRegKeyRequest {
     * Followed by NUL-terminated string arguments.
     * char[] path;
     */
-}
-#include "vmware_pack_end.h"
-VixMsgDeleteRegKeyRequest;
+} VixMsgDeleteRegKeyRequest;
+#pragma pack(pop)
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgSetRegValueRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgSetRegValueRequest {
    VixCommandRequestHeader header;
 
    uint32 options;
@@ -1802,13 +1603,11 @@ struct VixMsgSetRegValueRequest {
     * containing information of specified type.
     * void *dataBlob;
     */
-}
-#include "vmware_pack_end.h"
-VixMsgSetRegValueRequest;
+} VixMsgSetRegValueRequest;
+#pragma pack(pop)
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgListRegValuesRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgListRegValuesRequest {
    VixCommandRequestHeader header;
 
    uint32 options;
@@ -1835,13 +1634,11 @@ struct VixMsgListRegValuesRequest {
     * char[] path;
     * char[] matchPattern;
     */
-}
-#include "vmware_pack_end.h"
-VixMsgListRegValuesRequest;
+} VixMsgListRegValuesRequest;
+#pragma pack(pop)
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgDeleteRegValueRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgDeleteRegValueRequest {
    VixCommandRequestHeader header;
 
    uint32 options;
@@ -1855,9 +1652,8 @@ struct VixMsgDeleteRegValueRequest {
     * char[] path;
     * char[] name;
     */
-}
-#include "vmware_pack_end.h"
-VixMsgDeleteRegValueRequest;
+} VixMsgDeleteRegValueRequest;
+#pragma pack(pop)
 
 
 /*
@@ -1880,27 +1676,23 @@ VixMsgDeleteRegValueRequest;
  * Sample Command.
  */
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgSampleCommandRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgSampleCommandRequest {
    VixCommandRequestHeader header;
 
    int32                   intArg;
    uint32                  strArgLength;
-}
-#include "vmware_pack_end.h"
-VixMsgSampleCommandRequest;
+} VixMsgSampleCommandRequest;
+#pragma pack(pop)
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgSampleCommandResponse {
+#pragma pack(push, 1)
+typedef struct VixMsgSampleCommandResponse {
    VixCommandResponseHeader   header;
 
    int32                      intResult;
    uint32                     strResultLength;
-} 
-#include "vmware_pack_end.h"
-VixMsgSampleCommandResponse;
+} VixMsgSampleCommandResponse;
+#pragma pack(pop)
 
 // End of "HOWTO: Adding a new Vix Command. Step 3."
 
@@ -1910,81 +1702,67 @@ VixMsgSampleCommandResponse;
  *  Debugger related commands.
  */
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgAttachDebuggerRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgAttachDebuggerRequest {
    VixCommandRequestHeader   header;
    
    int32                     options;
    uint32                    propertyListBufferSize;
-}  
-#include "vmware_pack_end.h"
-VixMsgAttachDebuggerRequest;
+} VixMsgAttachDebuggerRequest;
+#pragma pack(pop)
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgAttachDebuggerResponse {
+#pragma pack(push, 1)
+typedef struct VixMsgAttachDebuggerResponse {
    VixCommandResponseHeader header;
    uint32   propertyListBufferSize;
-} 
-#include "vmware_pack_end.h"
-VixMsgAttachDebuggerResponse;
+} VixMsgAttachDebuggerResponse;
+#pragma pack(pop)
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgIssueDebuggerCommandRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgIssueDebuggerCommandRequest {
    VixCommandRequestHeader   header;
 
    int32                     options;
    uint32                    propertyListBufferSize;
    uint32                    debuggerBlobBufferSize;
-}
-#include "vmware_pack_end.h"
-VixMsgIssueDebuggerCommandRequest;
+} VixMsgIssueDebuggerCommandRequest;
+#pragma pack(pop)
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgIssueDebuggerCommandResponse {
+#pragma pack(push, 1)
+typedef struct VixMsgIssueDebuggerCommandResponse {
    VixCommandResponseHeader header;
    uint32   propertyListBufferSize;
    uint32   debuggerBlobBufferSize;
-}
-#include "vmware_pack_end.h"
-VixMsgIssueDebuggerCommandResponse;
+} VixMsgIssueDebuggerCommandResponse;
+#pragma pack(pop)
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgDetachDebuggerRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgDetachDebuggerRequest {
    VixCommandRequestHeader   header;
   
    int32                     options;
    uint32                    propertyListBufferSize;
-} 
-#include "vmware_pack_end.h"
-VixMsgDetachDebuggerRequest;
+} VixMsgDetachDebuggerRequest;
+#pragma pack(pop)
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgDetachDebuggerResponse {
+#pragma pack(push, 1)
+typedef struct VixMsgDetachDebuggerResponse {
    VixCommandResponseHeader header;
    uint32   propertyListBufferSize;
-}
-#include "vmware_pack_end.h"
-VixMsgDetachDebuggerResponse;
+} VixMsgDetachDebuggerResponse;
+#pragma pack(pop)
 
 /*
  * **********************************************************
  * VM Pause state change event format
  */
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgPauseStateChangedEvent {
+#pragma pack(push, 1)
+typedef struct VixMsgPauseStateChangedEvent {
    VixMsgEventHeader          eventHeader;
    Bool                       paused;
-}
-#include "vmware_pack_end.h"
-VixMsgPauseStateChangedEvent;
+} VixMsgPauseStateChangedEvent;
+#pragma pack(pop)
 
 
 /*
@@ -1997,9 +1775,8 @@ VixMsgPauseStateChangedEvent;
  * VIX_COMMAND_WAIT_FOR_USER_ACTION_IN_GUEST
  */
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgWaitForUserActionRequest {
+#pragma pack(push, 1)
+typedef struct VixMsgWaitForUserActionRequest {
    VixCommandRequestHeader    header;
 
    int32                      userType;
@@ -2014,23 +1791,20 @@ struct VixMsgWaitForUserActionRequest {
    // This is followed by:
    //    userName
    //    buffer of serialized properties
-}
-#include "vmware_pack_end.h"
-VixMsgWaitForUserActionRequest;
+} VixMsgWaitForUserActionRequest;
+#pragma pack(pop)
 
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixMsgWaitForUserActionResponse {
+#pragma pack(push, 1)
+typedef struct VixMsgWaitForUserActionResponse {
    VixCommandRequestHeader    header;
 
    Bool                       actionHappened;
 
    uint32                     bufferSize;
    // This is followed by the buffer of serialized properties
-}
-#include "vmware_pack_end.h"
-VixMsgWaitForUserActionResponse;
+} VixMsgWaitForUserActionResponse;
+#pragma pack(pop)
 
 
 /*
@@ -2038,31 +1812,27 @@ VixMsgWaitForUserActionResponse;
  * List filesystems
  */
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixCommandListFileSystemsRequest {
+#pragma pack(push, 1)
+typedef struct VixCommandListFileSystemsRequest {
    VixCommandRequestHeader    header;
 
    uint32                     options;
    uint32                     propertyListSize;
-}
-#include "vmware_pack_end.h"
-VixCommandListFileSystemsRequest;
+} VixCommandListFileSystemsRequest;
+#pragma pack(pop)
 
 /*
  * **********************************************************
  * Acquire Credentials.
  */
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixCommandAcquireCredentialsRequest {
+#pragma pack(push, 1)
+typedef struct VixCommandAcquireCredentialsRequest {
    VixCommandRequestHeader    header;
 
    int64                      sessionID;
-}
-#include "vmware_pack_end.h"
-VixCommandAcquireCredentialsRequest;
+} VixCommandAcquireCredentialsRequest;
+#pragma pack(pop)
 
 /*
  * **********************************************************
@@ -2070,17 +1840,15 @@ VixCommandAcquireCredentialsRequest;
  * property list.
  */
 
-typedef
-#include "vmware_pack_begin.h"
-struct VixCommandGenericRequest {
+#pragma pack(push, 1)
+typedef struct VixCommandGenericRequest {
    VixCommandRequestHeader    header;
 
    uint32                     options;
    uint32                     propertyListSize;
    // This is followed by the buffer of serialized properties
-}
-#include "vmware_pack_end.h"
-VixCommandGenericRequest;
+} VixCommandGenericRequest;
+#pragma pack(pop)
 
 /*
  * The security classifications for async op types/op code. Each op code

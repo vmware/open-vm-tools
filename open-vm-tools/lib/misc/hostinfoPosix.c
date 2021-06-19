@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -140,11 +140,13 @@
 #define SYSTEM_BITNESS_64_SUN "amd64"
 #define SYSTEM_BITNESS_64_LINUX "x86_64"
 #define SYSTEM_BITNESS_64_ARM_LINUX "aarch64"
+#define SYSTEM_BITNESS_64_ARM_FREEBSD "arm64"
 #define SYSTEM_BITNESS_MAXLEN \
    MAX(sizeof SYSTEM_BITNESS_32, \
    MAX(sizeof SYSTEM_BITNESS_64_SUN, \
    MAX(sizeof SYSTEM_BITNESS_64_LINUX, \
-       sizeof SYSTEM_BITNESS_64_ARM_LINUX)))
+   MAX(sizeof SYSTEM_BITNESS_64_ARM_LINUX, \
+       sizeof SYSTEM_BITNESS_64_ARM_FREEBSD))))
 
 struct hostinfoOSVersion {
    int   hostinfoOSVersion[4];
@@ -245,14 +247,19 @@ static const DistroInfo distroArray[] = {
 
 /* Must be sorted. Keep in the same ordering as DetailedDataFieldType */
 DetailedDataField detailedDataFields[] = {
-   { "bitness",       "" },  // "32" or "64"
-   { "buildNumber",   "" },  // Present for MacOS and some Linux distros.
-   { "distroName",    "" },  // Defaults to uname -s
-   { "distroVersion", "" },  // Present for MacOS. Read from distro files for Linux.
-   { "familyName",    "" },  // Defaults to uname -s
-   { "kernelVersion", "" },  // Defaults to uname -r
-   { "prettyName",    "" },  // Present for MacOS. Read from distro files for Linux.
-   { NULL,            "" },  // MUST BE LAST
+#if defined(VM_ARM_ANY)
+   { "architecture",  "Arm"   },  // Arm
+#else
+   { "architecture",  "X86"   },  // Intel/X86
+#endif
+   { "bitness",       ""      },  // "32" or "64"
+   { "buildNumber",   ""      },  // Present for MacOS and some Linux distros.
+   { "distroName",    ""      },  // Defaults to uname -s
+   { "distroVersion", ""      },  // Present for MacOS.
+   { "familyName",    ""      },  // Defaults to uname -s
+   { "kernelVersion", ""      },  // Defaults to uname -r
+   { "prettyName",    ""      },  // Present for MacOS.
+   { NULL,            ""      },  // MUST BE LAST
 };
 
 #if defined __ANDROID__ || defined __aarch64__
@@ -496,7 +503,9 @@ Hostinfo_GetSystemBitness(void)
    if (strcmp(buf, SYSTEM_BITNESS_32) == 0) {
       return 32;
    } else if (strcmp(buf, SYSTEM_BITNESS_64_SUN) == 0 ||
-              strcmp(buf, SYSTEM_BITNESS_64_LINUX) == 0) {
+              strcmp(buf, SYSTEM_BITNESS_64_LINUX) == 0 ||
+              strcmp(buf, SYSTEM_BITNESS_64_ARM_LINUX) == 0 ||
+              strcmp(buf, SYSTEM_BITNESS_64_ARM_FREEBSD) == 0) {
       return 64;
    }
 
@@ -875,6 +884,37 @@ HostinfoSearchShortNames(const ShortNameSet *array, // IN:
 /*
  *-----------------------------------------------------------------------------
  *
+ * HostinfoArchString --
+ *
+ *      Return the machine architecture prefix. The X86 and X86_64 machine
+ *      architectures are implied - no prefix. All others require an official
+ *      string from VMware.
+ *
+ * Return value:
+ *      As above.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static const char *
+HostinfoArchString(void)
+{
+#if defined(VM_ARM_ANY)
+   return "arm-";
+#elif defined(VM_X86_ANY)
+   return "";
+#else
+#error Unsupported architecture!
+#endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * HostinfoGenericSetShortName --
  *
  *      Set the short name using the short name entry in the specified table
@@ -899,7 +939,8 @@ HostinfoGenericSetShortName(const ShortNameSet *entry, // IN:
    ASSERT(entry != NULL);
    ASSERT(entry->shortName != NULL);
 
-   Str_Strcpy(distroShort, entry->shortName, distroShortSize);
+   Str_Sprintf(distroShort, distroShortSize, "%s%s", HostinfoArchString(),
+               entry->shortName);
 
    return TRUE;
 }
@@ -932,8 +973,8 @@ HostinfoSetAmazonShortName(const ShortNameSet *entry, // IN: Unused
       version = 2;
    }
 
-   Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_AMAZON_LINUX,
-               version);
+   Str_Sprintf(distroShort, distroShortSize, "%s%s%d",
+               HostinfoArchString(), STR_OS_AMAZON_LINUX, version);
 
    return TRUE;
 }
@@ -965,8 +1006,8 @@ HostinfoSetAsianuxShortName(const ShortNameSet *entry, // IN: Unused
    if (version < 3) {
       Str_Strcpy(distroShort, STR_OS_ASIANUX, distroShortSize);
    } else {
-      Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_ASIANUX,
-                  version);
+      Str_Sprintf(distroShort, distroShortSize, "%s%s%d",
+                  HostinfoArchString(), STR_OS_ASIANUX, version);
    }
 
    return TRUE;
@@ -999,8 +1040,8 @@ HostinfoSetCentosShortName(const ShortNameSet *entry, // IN: Unused
    if (version < 6) {
       Str_Strcpy(distroShort, STR_OS_CENTOS, distroShortSize);
    } else {
-      Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_CENTOS,
-                  version);
+      Str_Sprintf(distroShort, distroShortSize, "%s%s%d",
+                  HostinfoArchString(), STR_OS_CENTOS, version);
    }
 
    return TRUE;
@@ -1033,8 +1074,8 @@ HostinfoSetDebianShortName(const ShortNameSet *entry, // IN: Unused
    if (version <= 4) {
       Str_Strcpy(distroShort, STR_OS_DEBIAN "4", distroShortSize);
    } else {
-      Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_DEBIAN,
-                  version);
+      Str_Sprintf(distroShort, distroShortSize, "%s%s%d",
+                  HostinfoArchString(), STR_OS_DEBIAN, version);
    }
 
    return TRUE;
@@ -1073,10 +1114,11 @@ HostinfoSetOracleShortName(const ShortNameSet *entry, // IN: Unused
     */
 
    if (version == 0) {
-      Str_Strcpy(distroShort, STR_OS_ORACLE, distroShortSize);
+      Str_Sprintf(distroShort, distroShortSize, "%s%s",
+                  HostinfoArchString(), STR_OS_ORACLE);
    } else {
-      Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_ORACLE,
-                  version);
+      Str_Sprintf(distroShort, distroShortSize, "%s%s%d",
+                  HostinfoArchString(), STR_OS_ORACLE, version);
    }
 
    return TRUE;
@@ -1107,13 +1149,15 @@ HostinfoSetRedHatShortName(const ShortNameSet *entry, // IN: Unused
                            int distroShortSize)       // IN:
 {
    if (strstr(distroLower, "enterprise") == NULL) {
-      Str_Strcpy(distroShort, STR_OS_RED_HAT, distroShortSize);
+      Str_Sprintf(distroShort, distroShortSize, "%s%s",
+                  HostinfoArchString(), STR_OS_RED_HAT);
    } else {
       if (version == 0) {
-         Str_Strcpy(distroShort, STR_OS_RED_HAT_EN, distroShortSize);
+         Str_Sprintf(distroShort, distroShortSize, "%s%s",
+                     HostinfoArchString(), STR_OS_RED_HAT_EN);
       } else {
-         Str_Sprintf(distroShort, distroShortSize, "%s%d",
-                     STR_OS_RED_HAT_EN, version);
+         Str_Sprintf(distroShort, distroShortSize, "%s%s%d",
+                     HostinfoArchString(), STR_OS_RED_HAT_EN, version);
       }
    }
 
@@ -1191,14 +1235,16 @@ HostinfoSetSuseShortName(const ShortNameSet *entry, // IN:
                                        distroLower, distroShort,
                                        distroShortSize);
       if (!found) {
-         Str_Strcpy(distroShort, STR_OS_SUSE, distroShortSize);
+         Str_Sprintf(distroShort, distroShortSize, "%s%s",
+                     HostinfoArchString(), STR_OS_SUSE);
       }
    } else {
       found = HostinfoSearchShortNames(suseEnterpriseShortNameArray, version,
                                        distroLower, distroShort,
                                        distroShortSize);
       if (!found) {
-         Str_Strcpy(distroShort, STR_OS_SLES, distroShortSize);
+         Str_Sprintf(distroShort, distroShortSize, "%s%s",
+                     HostinfoArchString(), STR_OS_SLES);
       }
    }
 
@@ -2062,34 +2108,12 @@ HostinfoBSD(struct utsname *buf)  // IN:
     * FreeBSD 11 and later are identified using a different guest ID than
     * older FreeBSD.
     */
-   switch (majorVersion) {
-   case 1:
-   case 2:
-   case 3:
-   case 4:
-   case 5:
-   case 6:
-   case 7:
-   case 8:
-   case 9:
-   case 10:
+
+   if (majorVersion < 11) {
       Str_Strcpy(distroShort, STR_OS_FREEBSD, sizeof distroShort);
-      break;
-
-   case 11:
-      Str_Strcpy(distroShort, STR_OS_FREEBSD "11", sizeof distroShort);
-      break;
-
-   case 12:
-      Str_Strcpy(distroShort, STR_OS_FREEBSD "12", sizeof distroShort);
-      break;
-
-   default: // Unknown defaults to the highest known.
-      /* FALL THROUGH */
-
-   case 13:
-      Str_Strcpy(distroShort, STR_OS_FREEBSD "13", sizeof distroShort);
-      break;
+   } else {
+      Str_Sprintf(distroShort, sizeof distroShort, "%s%s%d",
+                  HostinfoArchString(), STR_OS_FREEBSD, majorVersion);
    }
 
    len = Str_Snprintf(osNameFull, sizeof osNameFull, "%s %s", buf->sysname,
@@ -3721,6 +3745,35 @@ char *
 Hostinfo_GetHardwareModel(void)
 {
    return HostinfoGetSysctlStringAlloc("hw.model");
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Hostinfo_ProcessIsRosetta --
+ *
+ *      Checks if the current process is running as a translated binary.
+ *
+ * Results:
+ *      0 for a native process, 1 for a translated process,
+ *      and -1 when an error occurs.
+ *
+ * Side effects:
+ *      None
+ *----------------------------------------------------------------------
+ */
+
+int
+Hostinfo_ProcessIsRosetta(void)
+{
+   int ret = 0;
+   size_t size = sizeof ret;
+
+   if (sysctlbyname("sysctl.proc_translated", &ret, &size, NULL, 0) == -1) {
+      return errno == ENOENT ? 0 : -1;
+   }
+   return ret;
 }
 #endif /* __APPLE__ */
 
