@@ -2,7 +2,7 @@
 
 Updated on: 17 JUN 2021
 
-Open-vm-tools | 17 JUN 2021 | Build 17901274
+Open-vm-tools | 17 JUN 2021 | Build 18090558 
 
 Check back for additions and updates to these release notes.
 
