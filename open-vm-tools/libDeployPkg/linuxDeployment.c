@@ -687,13 +687,22 @@ GetPackageInfo(const char* packageName,
    close(fd);
 
    // Create space and copy the command
+#ifndef PHOTON_GOSC
    *command = malloc(VMWAREDEPLOYPKG_CMD_LENGTH);
+#else
+   *command = calloc(VMWAREDEPLOYPKG_CMD_LENGTH + 1, 1);
+#endif /* PHOTON_GOSC */
    if (*command == NULL) {
       SetDeployError("Error allocating memory.");
       return FALSE;
    }
 
+#ifndef PHOTON_GOSC
    memcpy(*command, hdr.command, VMWAREDEPLOYPKG_CMD_LENGTH);
+#else
+   strncpy(*command, hdr.command, VMWAREDEPLOYPKG_CMD_LENGTH);
+#endif /* PHOTON_GOSC */
+
    *archiveType = hdr.payloadType;
    *flags = hdr.reserved;
 
@@ -1428,6 +1437,32 @@ Deploy(const char* packageName)
       free(command);
       return DEPLOYPKG_STATUS_ERROR;
    } else {
+#ifdef PHOTON_GOSC
+      #define BASH_PATH "/bin/bash"
+      #define SCRIPT_PATH "/usr/share/open-vm-tools/gosc-scripts/customize.sh"
+
+      if (strstr(command, "scripts/Customize.pl") ||
+            strstr(command, "scripts/customize.sh")) {
+
+         char photon_gosc[256] = {0};
+
+         free(command);
+         command = NULL;
+
+         snprintf(photon_gosc, sizeof(photon_gosc),
+               "%s %s %s/cust.cfg", BASH_PATH, SCRIPT_PATH, imcDirPath);
+
+         // The command will be parsed alter and can be of arbitrary length
+         command = strdup(photon_gosc);
+         if (!command) {
+            SetDeployError("Error allocating memory in photon_gosc\n");
+            return DEPLOYPKG_STATUS_ERROR;
+         }
+
+         _DeployPkg_SkipReboot(true);
+      }
+#endif /* PHOTON_GOSC */
+
       sLog(log_info, "Executing traditional GOSC workflow.");
       deploymentResult = ForkExecAndWaitCommand(command, true, NULL, 0);
       free(command);
