@@ -886,16 +886,16 @@ FLAG(  1C,  0, ECX,  2,  1, LBR_BRANCH_TYPE,                     NO,    0 ) \
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_1D                                           \
-FLAG(  1D,  0, EAX,  0,  1, TILE_PALETTE_MAX,                    NO,    0 ) \
-FIELD( 1D,  1, EAX,  0, 15, TILE_PALETTE1_TOTAL_BYTES,           NO,    0 ) \
+FIELD( 1D,  0, EAX,  0, 32, TILE_PALETTE_MAX,                    NO,    0 ) \
+FIELD( 1D,  1, EAX,  0, 16, TILE_PALETTE1_TOTAL_BYTES,           NO,    0 ) \
 FIELD( 1D,  1, EAX, 16, 16, TILE_PALETTE1_BYTES_PER_TILE,        NO,    0 ) \
-FIELD( 1D,  1, EBX,  0, 15, TILE_PALETTE1_BYTES_PER_ROW,         NO,    0 ) \
+FIELD( 1D,  1, EBX,  0, 16, TILE_PALETTE1_BYTES_PER_ROW,         NO,    0 ) \
 FIELD( 1D,  1, EBX, 16, 16, TILE_PALETTE1_NUM_REGS,              NO,    0 ) \
-FIELD( 1D,  1, ECX,  0, 15, TILE_PALETTE1_MAX_ROWS,              NO,    0 )
+FIELD( 1D,  1, ECX,  0, 16, TILE_PALETTE1_MAX_ROWS,              NO,    0 )
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_1E                                           \
-FIELD( 1E,  0, EBX,  0,  7, TMUL_MAX_K,                          NO,    0 ) \
+FIELD( 1E,  0, EBX,  0,  8, TMUL_MAX_K,                          NO,    0 ) \
 FIELD( 1E,  0, EBX,  8, 16, TMUL_MAX_N,                          NO,    0 )
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
