@@ -1200,7 +1200,7 @@ FLAG(  88,  0, EBX, 23,  1, PPIN,                                NO,    0 ) \
 FLAG(  88,  0, EBX, 24,  1, LEAF88_SSBD_SPEC_CTRL,               YES,  20 ) \
 FLAG(  88,  0, EBX, 25,  1, LEAF88_SSBD_VIRT_SPEC_CTRL,          NO,    0 ) \
 FLAG(  88,  0, EBX, 26,  1, LEAF88_SSBD_NOT_NEEDED,              NO,    0 ) \
-FLAG(  88,  0, EBX, 28,  1, PSFD,                                NO,    0 ) \
+FLAG(  88,  0, EBX, 28,  1, LEAF88_PSFD,                         YES,  20 ) \
 FIELD( 88,  0, ECX,  0,  8, LEAF88_CORE_COUNT,                   YES,   4 ) \
 FIELD( 88,  0, ECX, 12,  4, APICID_COREID_SIZE,                  YES,   7 ) \
 FIELD( 88,  0, ECX, 16,  2, PERFTSC_SIZE,                        NO,    0 ) \
