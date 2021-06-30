@@ -118,6 +118,33 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 
 #define SERVICE_DISCOVERY_TOPIC_PREFIX "serviceDiscovery"
 
+#if defined(VMX86_DEBUG)
+/*
+ * Defines the configuration to identify whether is in GDP debug mode
+ *
+ * Tools daemon restart is required to apply this setting's cahnge
+ */
+#define CONFNAME_SERVICEDISCOVERY_GDP_DEBUG "gdp-debug"
+
+/*
+ * Defines the configuration to customize polling interval for GDP debug
+ *
+ * Tools daemon restart is required to apply this setting's cahnge
+ */
+#define CONFNAME_SERVICEDISCOVERY_GDP_POLL_INTERVAL "poll-interval"
+
+/*
+ * Default polling interval of service discovery plugin for GDP debug in seconds
+ */
+#define SERVICE_DISCOVERY_CONF_GDP_DEBUG_POLL_INTERVAL 15
+
+/*
+ * Minimum polling interval of service discovery plugin for GDP debug in seconds
+ */
+#define SERVICE_DISCOVERY_CONF_MIN_POLL_INTERVAL 1
+
+static Bool isGDPDebug = FALSE;
+#endif
 
 /*
  * Maximum number of keys that can be deleted by one operation
@@ -184,6 +211,37 @@ GetGuestTimeInMillis(void)
    return g_get_real_time() / 1000;
 }
 
+#if defined(VMX86_DEBUG)
+/*
+ *****************************************************************************
+ * GetGDPPollInterval --
+ *
+ * @brief Get poll interval from tools config for debugging the GDP
+ *
+ * @param[in]  ctx     The application context
+ *
+ * @retval Poll interval in milli-seconds.
+ *
+ *****************************************************************************
+ */
+
+static gint
+GetGDPPollInterval(ToolsAppCtx *ctx)
+{
+   gint pollInterval =
+      VMTools_ConfigGetInteger(ctx->config,
+                               CONFGROUPNAME_SERVICEDISCOVERY,
+                               CONFNAME_SERVICEDISCOVERY_GDP_POLL_INTERVAL,
+                               SERVICE_DISCOVERY_CONF_GDP_DEBUG_POLL_INTERVAL);
+   if (pollInterval < SERVICE_DISCOVERY_CONF_MIN_POLL_INTERVAL) {
+      g_info("%s: Service discovery minimum poll interval is enforced.\n",
+             __FUNCTION__);
+      pollInterval = SERVICE_DISCOVERY_CONF_MIN_POLL_INTERVAL;
+   }
+
+   return pollInterval * 1000;
+}
+#endif
 
 /*
  *****************************************************************************
@@ -1023,8 +1081,18 @@ static Bool
 ServiceDiscoveryThread(gpointer data)
 {
    ToolsAppCtx *ctx = data;
+   #if defined(VMX86_DEBUG)
+   if (isGDPDebug) {
+      isGDPWriteReady = TRUE;
+      isNDBWriteReady = FALSE;
+   } else {
+      isGDPWriteReady = checkForWrite(ctx, SERVICE_DISCOVERY_KEY_GDP_SIGNAL);
+      isNDBWriteReady = checkForWrite(ctx, SERVICE_DISCOVERY_KEY_SIGNAL);
+   }
+   #else
    isGDPWriteReady = checkForWrite(ctx, SERVICE_DISCOVERY_KEY_GDP_SIGNAL);
    isNDBWriteReady = checkForWrite(ctx, SERVICE_DISCOVERY_KEY_SIGNAL);
+   #endif
 
    /*
     * First check for taskSubmitted, if it is true automatically omit this
@@ -1061,8 +1129,21 @@ static void
 TweakDiscoveryLoop(ToolsAppCtx *ctx)
 {
    if (gServiceDiscoveryTimeoutSource == NULL) {
+      gint pollInterval = SERVICE_DISCOVERY_POLL_INTERVAL;
+      #if defined(VMX86_DEBUG)
+      isGDPDebug =
+               VMTools_ConfigGetBoolean(ctx->config,
+                                        CONFGROUPNAME_SERVICEDISCOVERY,
+                                        CONFNAME_SERVICEDISCOVERY_GDP_DEBUG,
+                                        FALSE);
+      if (isGDPDebug) {
+         pollInterval = GetGDPPollInterval(ctx);
+         g_info("%s: GDP Debug is enabled with %d ms polling interval\n",
+                __FUNCTION__, pollInterval);
+      }
+      #endif
       gServiceDiscoveryTimeoutSource =
-                          g_timeout_source_new(SERVICE_DISCOVERY_POLL_INTERVAL);
+                          g_timeout_source_new(pollInterval);
       VMTOOLSAPP_ATTACH_SOURCE(ctx, gServiceDiscoveryTimeoutSource,
                                ServiceDiscoveryThread, ctx, NULL);
       g_source_unref(gServiceDiscoveryTimeoutSource);
