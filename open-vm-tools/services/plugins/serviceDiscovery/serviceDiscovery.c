@@ -185,7 +185,7 @@ static GSource *gServiceDiscoveryTimeoutSource = NULL;
 static gint64 gLastWriteTime = 0;
 
 static GArray *gFullPaths = NULL;
-static volatile Bool gTaskSubmitted = FALSE;
+static Atomic_Bool gTaskSubmitted = { FALSE }; // Task has been submitted.
 
 static size_t readBytesPerCycle = 0;
 static size_t cycle = 0;
@@ -289,7 +289,7 @@ SendRpcMessage(ToolsAppCtx *ctx,
        */
       if (!status && result != NULL &&
           strcmp(*result, RPCCHANNEL_SEND_PERMISSION_DENIED) == 0) {
-         g_debug("%s: Retrying RPC send", __FUNCTION__);
+         g_debug("%s: Retrying RPC send\n", __FUNCTION__);
          free(*result);
          g_usleep(SERVICE_DISCOVERY_RPC_WAIT_TIME * 1000);
          status = RpcChannel_SendOneRawPriv(msg, msgLen, result, resultLen);
@@ -906,8 +906,8 @@ ServiceDiscoveryTask(ToolsAppCtx *ctx,
                      void *data)
 {
    int i;
-   gTaskSubmitted = TRUE;
    Bool status = FALSE;
+   Atomic_WriteBool(&gTaskSubmitted, TRUE);
    if (isGDPWriteReady) {
       gSkipThisTask = FALSE;
    }
@@ -928,8 +928,8 @@ ServiceDiscoveryTask(ToolsAppCtx *ctx,
          gLastWriteTime = previousWriteTime;
          g_warning("%s: Failed to reset %s flag", __FUNCTION__,
                    SERVICE_DISCOVERY_KEY_READY);
-         gTaskSubmitted = FALSE;
          if (!isGDPWriteReady) {
+            Atomic_WriteBool(&gTaskSubmitted, FALSE);
             return;
          }
       }
@@ -973,7 +973,7 @@ ServiceDiscoveryTask(ToolsAppCtx *ctx,
       }
    }
 
-   gTaskSubmitted = FALSE;
+   Atomic_WriteBool(&gTaskSubmitted, FALSE);
 }
 
 /*
@@ -1099,9 +1099,11 @@ ServiceDiscoveryThread(gpointer data)
     * cycle even without checking for write to avoid resetting last write
     * time.
     */
-   if ((gTaskSubmitted || !isNDBWriteReady) &&  !isGDPWriteReady) {
-      g_debug("%s: Data should not be written taskSubmitted = %s\n",
-              __FUNCTION__, gTaskSubmitted ? "True" : "False");
+   if (Atomic_ReadBool(&gTaskSubmitted)) {
+      g_debug("%s: Previously submitted task is not completed\n", __FUNCTION__);
+   } else if (!isNDBWriteReady && !isGDPWriteReady) {
+      g_debug("%s: Neither Namespace DB nor GDP is ready for writing\n",
+              __FUNCTION__);
    } else {
       g_debug("%s: Submitting task to write\n", __FUNCTION__);
       if (!ToolsCorePool_SubmitTask(ctx, ServiceDiscoveryTask, NULL, NULL)) {
