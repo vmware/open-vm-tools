@@ -892,4 +892,17 @@ typedef int pid_t;
 #define VMW_CLANG_ANALYZER_NORETURN() ((void)0)
 #endif
 
+/* VMW_FALLTHROUGH
+ *
+ *   Instructs GCC 9 and above to not warn when a case label of a
+ *   'switch' statement falls through to the next label.
+ *
+ *   If not GCC 9 or above, expands to nothing.
+ */
+#if __GNUC__ >= 9
+#define VMW_FALLTHROUGH __attribute__((fallthrough))
+#else
+#define VMW_FALLTHROUGH
+#endif
+
 #endif // ifndef _VM_BASIC_DEFS_H_
