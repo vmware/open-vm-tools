@@ -139,6 +139,7 @@
 
 #include <glib.h>
 #include "vmware/tools/guestrpc.h"
+#include "vm_basic_types.h"
 
 #if defined(__GNUC__)
 #  define FUNC __func__
@@ -354,6 +355,12 @@ void
 VMTools_VmxLog(RpcChannel *chan,
                const gchar *fmt,
                ...);
+
+void
+VMTools_VmxLogThrottled(uint32 *count,
+                        RpcChannel *chan,
+                        const gchar *fmt,
+                        ...);
 
 G_END_DECLS
 

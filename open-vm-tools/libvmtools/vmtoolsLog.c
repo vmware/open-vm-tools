@@ -63,6 +63,7 @@
 #include "vm_tools_version.h"
 #include "buildNumber.h"
 #include "vm_product.h"
+#include "util.h"
 
 #define LOGGING_GROUP         "logging"
 
@@ -2736,35 +2737,33 @@ VMTools_Log(LogWhere where,
 
 /*
  ******************************************************************************
- * VMTools_VmxLog --
+ * VMToolsVmxLogV --
  *
  * Sends the log message through RPC to vmx to be logged on the host.
  * Also, logs the message to vmsvc log file inside guest.
  *
  * @param[in]  chan         The RPC channel instance.
  * @param[in]  fmt          Log message output format.
+ * @param[in]  args         The argument list.
  *
  * @return None
  *
  ******************************************************************************
  */
 
-void
-VMTools_VmxLog(RpcChannel *chan,
+static void
+VMToolsVmxLogV(RpcChannel *chan,
                const gchar *fmt,
-               ...)
+               va_list args)
 {
    char *reply = NULL;
    size_t replyLen;
    gchar msg[4096] = VMX_LOG_CMD;
-   va_list args;
    gint len;
 
-   va_start(args, fmt);
    len = g_vsnprintf(msg + VMX_LOG_CMD_LEN,
                      sizeof msg - VMX_LOG_CMD_LEN,
                      fmt, args);
-   va_end(args);
 
    if (len <= 0) {
       g_warning("%s: g_vsnprintf failed: return value: %d.\n", __FUNCTION__,
@@ -2785,4 +2784,62 @@ VMTools_VmxLog(RpcChannel *chan,
    free(reply);
 
    g_message("%s\n", msg + VMX_LOG_CMD_LEN);
+}
+
+
+/*
+ ******************************************************************************
+ * VMTools_VmxLog --
+ *
+ * Passes through VMToolsVmxLogV but takes the arguments inline.
+ *
+ * @param[in]  chan         The RPC channel instance.
+ * @param[in]  fmt          Log message output format.
+ *
+ * @return None
+ *
+ ******************************************************************************
+ */
+
+void
+VMTools_VmxLog(RpcChannel *chan,
+               const gchar *fmt,
+               ...)
+{
+   va_list args;
+
+   va_start(args, fmt);
+   VMToolsVmxLogV(chan, fmt, args);
+   va_end(args);
+}
+
+
+/*
+ ******************************************************************************
+ * VMTools_VmxLogThrottled --
+ *
+ * Passes through VMToolsVmxLogV to log the message after checking for the
+ * throttling condition. Takes the arguments inline.
+ *
+ * @param[in/out]  count     Throttle count.
+ * @param[in]      chan      The RPC channel instance.
+ * @param[in]      fmt       Log message output format.
+ *
+ * @return None
+ *
+ ******************************************************************************
+ */
+
+void
+VMTools_VmxLogThrottled(uint32 *count,
+                        RpcChannel *chan,
+                        const gchar *fmt,
+                        ...)
+{
+   va_list args;
+   if (Util_Throttle(++*count)) {
+      va_start(args, fmt);
+      VMToolsVmxLogV(chan, fmt, args);
+      va_end(args);
+   }
 }

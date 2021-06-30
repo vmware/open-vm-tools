@@ -545,6 +545,7 @@ GuestInfoGather(gpointer data)
    gchar *osNameOverride;
    gchar *osNameFullOverride;
    Bool maxNicsError = FALSE;
+   static uint32 logThrottleCount = 0;
 
    g_debug("Entered guest info gather.\n");
 
@@ -767,8 +768,9 @@ GuestInfoGather(gpointer data)
       nicInfo = Util_SafeCalloc(1, sizeof (struct NicInfoV3));
    }
    if (maxNicsError) {
-      VMTools_VmxLog(ctx->rpc, "%s: NIC limit (%d) reached.",
-                     __FUNCTION__, NICINFO_MAX_NICS);
+      VMTools_VmxLogThrottled(&logThrottleCount, ctx->rpc,
+                              "%s: NIC limit (%d) reached.",
+                              __FUNCTION__, NICINFO_MAX_NICS);
    }
 
    /*
