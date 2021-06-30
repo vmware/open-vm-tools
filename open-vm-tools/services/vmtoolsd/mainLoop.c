@@ -1182,11 +1182,6 @@ ToolsCore_Setup(ToolsServiceState *state)
    GMainContext *gctx;
    ToolsServiceProperty ctxProp = { TOOLS_CORE_PROP_CTX };
 
-   /*
-    * Useful for debugging purposes. Log the vesion and build information.
-    */
-   g_message("Tools Version: %s (%s)\n", TOOLS_VERSION_EXT_CURRENT_STR, BUILD_NUMBER);
-
    /* Initializes the app context. */
    gctx = g_main_context_default();
    state->ctx.version = TOOLS_CORE_API_V1;

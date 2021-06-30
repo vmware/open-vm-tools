@@ -59,6 +59,10 @@
 #include "err.h"
 #include "logToHost.h"
 #include "vthreadBase.h"
+#include "hostinfo.h"
+#include "vm_tools_version.h"
+#include "buildNumber.h"
+#include "vm_product.h"
 
 #define LOGGING_GROUP         "logging"
 
@@ -1416,6 +1420,7 @@ VMToolsConfigLoggingInt(const gchar *defaultDomain,
    GPtrArray *oldDomains = NULL;
    LogHandler *oldDefault = NULL;
    GError *err = NULL;
+   char *gosDetails;
 
    g_return_if_fail(defaultDomain != NULL);
 
@@ -1488,6 +1493,17 @@ VMToolsConfigLoggingInt(const gchar *defaultDomain,
     */
    gLogEnabled |= force;
    MarkLogInitialized();
+
+   /*
+    * Log Tools version, build information and guest OS details.
+    */
+   g_message("%s Version: %s (%s)", VMWARE_TOOLS_SHORT_NAME,
+             TOOLS_VERSION_EXT_CURRENT_STR, BUILD_NUMBER);
+   gosDetails = Hostinfo_GetOSDetailedData();
+   if (gosDetails != NULL) {
+      g_message("Guest OS details: %s", gosDetails);
+      free(gosDetails);
+   }
 
    gMaxCacheEntries = g_key_file_get_integer(cfg, LOGGING_GROUP,
                                              "maxCacheEntries", &err);
