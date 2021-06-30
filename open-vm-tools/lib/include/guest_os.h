@@ -207,7 +207,8 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define ALL5XLINUX32          BS(OTHER5XLINUX)
 
 #define ALL5XLINUX64          BS(OTHER5XLINUX_64), BS(ARM_OTHER5XLINUX_64), \
-                              BS(ARM_DEBIAN_64),   BS(ARM_UBUNTU_64)
+                              BS(ARM_DEBIAN_64),   BS(ARM_UBUNTU_64),       \
+                              BS(ARM_RHEL9_64)
 
 #define ALL6XLINUX32          BS(OTHER6XLINUX)
 
@@ -328,6 +329,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_PLD                "PLD"
 #define STR_OS_RED_HAT            "redhat"
 #define STR_OS_RED_HAT_EN         "rhel"
+#define STR_OS_ARM_RED_HAT_EN     "arm-rhel"
 #define STR_OS_RED_HAT_FULL       "Red Hat Linux"
 #define STR_OS_SLACKWARE          "Slackware"
 #define STR_OS_SLES               "sles"

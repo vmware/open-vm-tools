@@ -77,12 +77,12 @@ extern "C" {
    GOT(GUEST_OS_OTHER3XLINUX_64)     /* Linux 3.x 64-bit */                \
    GOT(GUEST_OS_OTHER4XLINUX)        /* Linux 4.x 32-bit */                \
    GOT(GUEST_OS_OTHER4XLINUX_64)     /* Linux 4.x 64-bit  */               \
-   GOT(GUEST_OS_OTHER5XLINUX)        /* Linux 5.x and later 32-bit */      \
-   GOT(GUEST_OS_OTHER5XLINUX_64)     /* Linux 5.x and later 64-bit */      \
-   GOT(GUEST_OS_ARM_OTHER5XLINUX_64) /* Linux 5.x and later Arm 64-bit */  \
-   GOT(GUEST_OS_OTHER6XLINUX)        /* Linux 5.x and later 32-bit */      \
-   GOT(GUEST_OS_OTHER6XLINUX_64)     /* Linux 5.x and later 64-bit */      \
-   GOT(GUEST_OS_ARM_OTHER6XLINUX_64) /* Linux 5.x and later Arm 64-bit */  \
+   GOT(GUEST_OS_OTHER5XLINUX)        /* Linux 5.x 32-bit */                \
+   GOT(GUEST_OS_OTHER5XLINUX_64)     /* Linux 5.x 64-bit */                \
+   GOT(GUEST_OS_ARM_OTHER5XLINUX_64) /* Linux 5.x Arm 64-bit */            \
+   GOT(GUEST_OS_OTHER6XLINUX)        /* Linux 6.x and later 32-bit */      \
+   GOT(GUEST_OS_OTHER6XLINUX_64)     /* Linux 6.x and later 64-bit */      \
+   GOT(GUEST_OS_ARM_OTHER6XLINUX_64) /* Linux 6.x and later Arm 64-bit */  \
    GOT(GUEST_OS_OTHER)                                                     \
    GOT(GUEST_OS_OTHER_64)            /* Other 64-bit */                    \
    GOT(GUEST_OS_ARM_OTHER_64)        /* Other Arm 64-bit */                \
@@ -95,6 +95,7 @@ extern "C" {
    GOT(GUEST_OS_RHEL)                                                      \
    GOT(GUEST_OS_RHEL_64)                                                   \
    GOT(GUEST_OS_RHEL9_64)                                                  \
+   GOT(GUEST_OS_ARM_RHEL9_64)                                              \
    GOT(GUEST_OS_FREEBSD)                                                   \
    GOT(GUEST_OS_FREEBSD_64)                                                \
    GOT(GUEST_OS_FREEBSD11)                                                 \
