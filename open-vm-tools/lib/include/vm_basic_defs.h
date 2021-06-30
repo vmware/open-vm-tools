@@ -250,6 +250,7 @@ Max(int a, int b)
 
 #define PAGE_SHIFT_4KB   12
 #define PAGE_SHIFT_16KB  14
+#define PAGE_SHIFT_64KB  16
 
 #ifndef PAGE_SHIFT // {
 #if defined __x86_64__ || defined __i386__
@@ -271,6 +272,7 @@ Max(int a, int b)
 
 #define PAGE_SIZE_4KB    (1 << PAGE_SHIFT_4KB)
 #define PAGE_SIZE_16KB   (1 << PAGE_SHIFT_16KB)
+#define PAGE_SIZE_64KB   (1 << PAGE_SHIFT_64KB)
 
 #ifndef PAGE_SIZE
 #define PAGE_SIZE     (1 << PAGE_SHIFT)
@@ -278,6 +280,7 @@ Max(int a, int b)
 
 #define PAGE_MASK_4KB    (PAGE_SIZE_4KB - 1)
 #define PAGE_MASK_16KB   (PAGE_SIZE_16KB - 1)
+#define PAGE_MASK_64KB   (PAGE_SIZE_64KB - 1)
 
 #ifndef PAGE_MASK
 #define PAGE_MASK     (PAGE_SIZE - 1)
@@ -285,6 +288,7 @@ Max(int a, int b)
 
 #define PAGE_OFFSET_4KB(_addr)   ((uintptr_t)(_addr) & (PAGE_SIZE_4KB - 1))
 #define PAGE_OFFSET_16KB(_addr)  ((uintptr_t)(_addr) & (PAGE_SIZE_16KB - 1))
+#define PAGE_OFFSET_64KB(_addr)  ((uintptr_t)(_addr) & (PAGE_SIZE_64KB - 1))
 
 #ifndef PAGE_OFFSET
 #define PAGE_OFFSET(_addr)  ((uintptr_t)(_addr) & (PAGE_SIZE - 1))
