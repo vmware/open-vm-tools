@@ -1,3 +1,124 @@
+commit 4ac7706c44c4d29f38e8d1c7d2ac9cf45521cf4f
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Jun 30 11:37:27 2021 -0700
+
+    Changes to a common header file not applicable to open-vm-tools.
+
+commit d5f0c71fd909527fcfd03f858d277abc9fae9569
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Jun 30 11:37:27 2021 -0700
+
+    Add page size defines for 64KB pages.
+
+commit c1457815c1c5e579a3d26c99fff3f6b9e6ed0d41
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Jun 30 11:37:27 2021 -0700
+
+    Changes to a common header file not applicable to open-vm-tools.
+
+commit 248830d868b7ade3ce199894fc0cb3c4771dd364
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Jun 30 11:37:27 2021 -0700
+
+    Changes to common source file not applicable to open-vm-tools.
+
+commit bd5dede3536c30e2799fa8c788a9dc9b7f904d35
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Jun 30 11:37:27 2021 -0700
+
+    Use os-release preferentially for guest identification.
+    
+    If the "score" of the Linux guest identification from os-release is
+    the same as from the LSB score, use the os-release data. The os-release
+    standard is well established and the LSB is deprecated.
+
+commit 5fac74631a896e3e5b121a024a4293dcede5eaa1
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Jun 30 11:37:27 2021 -0700
+
+    Changes to a common header file not applicable to open-vm-tools.
+
+commit d9ff40dc4cf48b78cdebe9d05a393bd283429fa0
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Jun 30 11:37:27 2021 -0700
+
+    Changes to a common header file not applicable to open-vm-tools.
+
+commit 843e5851ac692c4bcaca1cfa262eda7e610417f0
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Jun 30 11:37:27 2021 -0700
+
+    Changes to a common header file not directly applicable to open-vm-tools.
+    
+    This is part of a host-side fix for an intermittent DnD issue.
+
+commit 19c38e8ed9be5272dd45cd07d362345456d9c3ed
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Jun 30 11:37:27 2021 -0700
+
+    Fix an issue of re-running scripts.
+    
+    Fix an issue in the service discovery plugin where scripts can be re-run
+    while the previously started one is still active.
+
+commit 26b6e174f9a6ba780a052657cce3290f2174bcba
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Jun 30 11:37:27 2021 -0700
+
+    Changes to a common header file not applicable to open-vm-tools.
+
+commit 03d3b6978b2c9d0e66d4b45b992724167ab14f03
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Jun 30 11:37:27 2021 -0700
+
+    Changes to a common header file not applicable to open-vm-tools.
+
+commit 59fe3b61458659b0bdcce7d8ac0e4ae9e4ae7b3d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Jun 30 11:37:27 2021 -0700
+
+    Changes to a common header file not applicable to open-vm-tools.
+
+commit 81745623ae421c510fedba499ecfe0d916265a28
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Jun 30 11:37:27 2021 -0700
+
+    Allow setting a custom poll interval in the service discovery plugin for debugging.
+
+commit 08649561962e115cda98d6f1ef85a3559b12efe3
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Jun 30 11:37:27 2021 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 185952f4b8c85d0fb04eecd08be0673f9e800f70
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Jun 30 11:37:27 2021 -0700
+
+    Add preliminary guest OS support of RHEL-9 for Arm.
+
+commit 176a0490fa001892e74237d1cf49607574bf8c4a
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Jun 30 11:37:27 2021 -0700
+
+    Throttle the "Nic limit reached" log message from the guestInfo plugin.
+    
+    Implement a wrapper API for throttling vmtools log messages.
+    Use the API to throttle the repetitive log message, "Nic limit reached",
+    from the guestInfo plugin.
+    
+    This change addresses the log spew reported in open-vm-tools issue:
+    https://github.com/vmware/open-vm-tools/issues/128
+
+commit c3ad5e62cb9892e28486839aba19116aaadd76ef
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Jun 30 11:37:26 2021 -0700
+
+    Add a header to the vmsvc log file.
+    
+    Add a log entry at the start of the vmsvc log file that includes the tools
+    version, build number, and guest OS details.
+
 commit 1d25adfe20a5da7a3ed37c970e72699d487f3cca
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Mon Jun 7 10:53:14 2021 -0700
