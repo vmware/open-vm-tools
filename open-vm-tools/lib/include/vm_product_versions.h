@@ -150,6 +150,11 @@
 #define ESX_RELEASE_QUARTERLY ESX_RELEASE_UPDATE // ESX's own quarterly release
 #define ESX_RELEASE ESX_RELEASE_QUARTERLY "." ESX_RELEASE_PATCH
 
+// ESX release versioning string -
+//    <major>.<minor>.<update>-<quarter>.<patch>.<buildid>
+#define ESX_RELEASE_VERSION_STR ESX_VERSION "-" ESX_RELEASE "." \
+                                XSTR(BUILD_NUMBER_NUMERIC)
+
 #define WORKSTATION_RELEASE_DESCRIPTION ""
 #define P2V_VERSION "e.x.p"
 #define P2V_FILE_VERSION 3,0,0,0
@@ -157,8 +162,6 @@
 /*
  * HEADS UP:  Don't merge patch version bumps (e.g. x.y.0 -> x.y.1) to CBS
  * branches (*-main), 'cuz it breaks stuff in VIX land.  See bug 939456.
- *
- * Whenever WORKSTATION_VERSION_NUMBER and PLAYER_VERSION_NUMBER are changed,
  * necessary VIX changes also need to be done. See bug 939456.
  *
  * ALSO, leave FOO_VERSION at e.x.p on all EXCEPT release branches.
