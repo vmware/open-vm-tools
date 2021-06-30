@@ -387,6 +387,25 @@ Log_NewFileOutput(const char *appPrefix,
                   struct Dictionary *params,
                   struct CfgInterface *cfgIf);
 
+typedef struct {
+   uint32 keepOld;
+   uint32 rotateSize;
+   uint32 throttleThreshold;
+   uint32 throttleBPS;
+   Bool   useTimeStamp;
+   Bool   useMilliseconds;
+   Bool   useThreadName;
+   Bool   useLevelDesignator;
+   Bool   useOpID;
+   Bool   append;
+   Bool   syncAfterWrite;
+   Bool   fastRotation;
+} LogFileParameters;
+
+Bool
+Log_GetFileParameters(const LogOutput *output,
+                      LogFileParameters *parms);
+
 typedef void (LogCustomMsgFunc)(int level,
                                 const char *msg);
 
