@@ -33,14 +33,14 @@ install-exec-hook:
 	mv $(DESTDIR)$(sbindir)/mount.vmhgfs \
 		$(DESTDIR)$(sbindir)/mount_vmhgfs
 	-$(MKDIR_P) $(DESTDIR)/sbin
-	-$(LN_S) $(DESTDIR)$(sbindir)/mount_vmhgfs \
+	-$(LN_S) $(sbindir)/mount_vmhgfs \
 		$(DESTDIR)/sbin/mount_vmhgfs &> /dev/null
 uninstall-hook:
 	rm -f $(DESTDIR)$(sbindir)/mount_vmhgfs
 else
 install-exec-hook:
 	-$(MKDIR_P) $(DESTDIR)/sbin
-	-$(LN_S) $(DESTDIR)$(sbindir)/mount.vmhgfs \
+	-$(LN_S) $(sbindir)/mount.vmhgfs \
 		$(DESTDIR)/sbin/mount.vmhgfs &> /dev/null
 uninstall-hook:
 	rm -f $(DESTDIR)/sbin/mount.vmhgfs
