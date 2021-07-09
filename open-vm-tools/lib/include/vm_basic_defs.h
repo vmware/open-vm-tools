@@ -900,9 +900,9 @@ typedef int pid_t;
  *   If not GCC 9 or above, expands to nothing.
  */
 #if __GNUC__ >= 9
-#define VMW_FALLTHROUGH __attribute__((fallthrough))
+#define VMW_FALLTHROUGH() __attribute__((fallthrough))
 #else
-#define VMW_FALLTHROUGH
+#define VMW_FALLTHROUGH()
 #endif
 
 #endif // ifndef _VM_BASIC_DEFS_H_
