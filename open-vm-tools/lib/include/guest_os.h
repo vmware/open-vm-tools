@@ -136,13 +136,17 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define ALLWINTEN64           ALLWINTENCLIENT64, ALLWINTENSERVER
 #define ALLWINTEN             ALLWINTENCLIENT, ALLWINTENSERVER
 
+#define ALLWINELEVENCLIENT64  BS(WINELEVEN_64), BS(ARM_WINELEVEN_64)
+#define ALLWINELEVEN64        ALLWINTENCLIENT64
+#define ALLWINELEVEN          ALLWINELEVENCLIENT64
+
 #define ALLHYPER_V            BS(HYPER_V)
 
-#define ALLWINVISTA_OR_HIGHER ALLWINVISTA,       ALLWINLONGHORN,     \
-                              ALLWIN2008R2,      ALLWINSEVEN,        \
-                              ALLWINEIGHTSERVER, ALLWINEIGHTCLIENT,  \
-                              ALLWINTENSERVER,   ALLWINTENCLIENT,    \
-                              ALLHYPER_V                             \
+#define ALLWINVISTA_OR_HIGHER ALLWINVISTA,           ALLWINLONGHORN,     \
+                              ALLWIN2008R2,          ALLWINSEVEN,        \
+                              ALLWINEIGHTSERVER,     ALLWINEIGHTCLIENT,  \
+                              ALLWINTENSERVER,       ALLWINTENCLIENT,    \
+                              ALLWINELEVENCLIENT64,  ALLHYPER_V          \
 
 #define ALLWINNT32            BS(WINNT),           ALLWIN2000,          \
                               ALLWINXP32,          ALLWINNET32,         \
@@ -150,12 +154,12 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
                               ALLWINSEVEN32,       ALLWINEIGHTCLIENT32, \
                               ALLWINTENCLIENT32
 
-#define ALLWINNT64            ALLWINXP64,          ALLWINNET64,       \
-                              ALLWINVISTA64,       ALLWINLONGHORN64,  \
-                              ALLWINSEVEN64,       ALLWIN2008R2_64,   \
-                              ALLWINEIGHTCLIENT64, ALLWINEIGHTSERVER, \
-                              ALLWINTENCLIENT64,   ALLWINTENSERVER,   \
-                              ALLHYPER_V
+#define ALLWINNT64            ALLWINXP64,            ALLWINNET64,       \
+                              ALLWINVISTA64,         ALLWINLONGHORN64,  \
+                              ALLWINSEVEN64,         ALLWIN2008R2_64,   \
+                              ALLWINEIGHTCLIENT64,   ALLWINEIGHTSERVER, \
+                              ALLWINTENCLIENT64,     ALLWINTENSERVER,   \
+                              ALLWINELEVENCLIENT64,  ALLHYPER_V
 
 #define ALLWINNT              ALLWINNT32, ALLWINNT64
 
@@ -523,6 +527,14 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 
 /*
+ * Windows on Arm
+ *
+ * Window on Arm support starts with Windows 10.
+ */
+
+#define STR_OS_ARM_WIN       "arm-windows"
+
+/*
  * Windows 10
  *
  * Microsoft renamed Windows 9 to Windows 10 at the last minute; Windows 9 was
@@ -532,7 +544,6 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 #define STR_OS_WINTEN        "windows9"
 #define STR_OS_WINTEN_X64    "windows9-64"
-#define STR_OS_ARM_WIN       "arm-windows"
 
 #define STR_OS_WIN_TEN_GENERIC_FULL        "Windows 10"
 #define STR_OS_WIN_10_HOME_FULL            "Windows 10 Home"
@@ -541,6 +552,14 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_WIN_10_PRO_WORKSTATION_FULL "Windows 10 Pro for Workstations"
 #define STR_OS_WIN_10_PRO_FULL             "Windows 10 Pro"
 #define STR_OS_WIN_10_IOTCORE_FULL         "Windows 10 IoT Core"
+
+/*
+ * Windows 11
+ *
+ * No 32-bit support.
+ */
+
+#define STR_OS_WINELEVEN_X64    "windows11-64"
 
 /* Windows Server 2016 */
 
