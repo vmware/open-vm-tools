@@ -1,3 +1,109 @@
+commit b033e5c2d77ee66e9426973005cf1f48a5b3cceb
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jul 8 20:10:23 2021 -0700
+
+    Common header file changes not applicable to open-vm-tools.
+
+commit c907662b1034bd783dab4728bec3af06892f6e4a
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jul 8 20:10:23 2021 -0700
+
+    Changes to common header files not directly applicable to open-vm-tools.
+
+commit e6ff175716602a91fa1385c30846961c57d089f2
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jul 8 20:10:23 2021 -0700
+
+    Common header file change not directly applicable to open-vm-tools.
+
+commit d21b1402ac2e1f59851560ac08516ee8ddaa13b0
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jul 8 20:10:23 2021 -0700
+
+    Changes to common header files not applicable to open-vm-tools.
+
+commit 35c78d66e0202a5ce217193d03bd48a50ce87c3c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jul 8 20:10:23 2021 -0700
+
+    Added a configurable logging capability to the network script.
+    
+    The network script has been updated to:
+      - use the vmware-toolbox-cmd to query any network logging configuration.
+      - use 'vmtoolsd --cmd "log ..."' to log a message to the vmx logfile
+        when the logginging handler is configured to "vmx" or when the logfile
+        is full or is not writeable.
+    Added an example configuration in the tools.conf example file.
+
+commit b484ab6727bbfd8691e8dd4f8d6ae297e06a8672
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jul 8 20:10:23 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 102714ebe1d0253a7a2afb373f5d73d9d25687fb
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jul 8 20:10:23 2021 -0700
+
+    Fixed the possible use of an uninitialized variable in Util_ExpandString.
+    
+    Additionally, several Boolean expressions were updated to be proper
+    Boolean values, for readability and consistency.
+
+commit 0ae179aa40ed68f3357faabbe6f101035206cd32
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jul 8 20:10:23 2021 -0700
+
+    Changes to common header files not applicable to open-vm-tools.
+    
+    Prepared the basic infrastructure for adding Windows 11 guests.
+
+commit e1f850a1fa20a911abf9a3d7f2ca7ae6c2a44209
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jul 8 20:10:23 2021 -0700
+
+    Record the use of VMware Tools version 11.3.5 in vm_tools_version.h
+    
+    Add TOOLS_VERSION_JIGSAW_UPDATE1 for version 11.3.5 in the header
+    file lib/include/vm_tools_version.h
+
+commit d5605d3861c1dd8a5cf968b627b7adad2da98308
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jul 8 20:10:23 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 77196a4b4fe7edbdddab1adb402021979f224a0f
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jul 8 20:10:23 2021 -0700
+
+    Changes to common header files not applicable to open-vm-tools.
+
+commit 38777a57a1e9befbb5d858934e8c032923fb2242
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jul 8 20:10:23 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 7caa442246e75e60e266f936538d68a0fa6045a8
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jul 8 20:10:23 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 6e5c26b8bddbe7817d49b2f48dba6776e5d4f851
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jul 8 20:10:23 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit c9bc765c083db8e3d4705eb14715792cdfba8d0c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Jun 30 11:53:41 2021 -0700
+
+    Update ChangeLog with the granular push of Jun 30, 2021.
+      - plus ChangeLog update of June 7.
+
 commit 4ac7706c44c4d29f38e8d1c7d2ac9cf45521cf4f
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Wed Jun 30 11:37:27 2021 -0700
