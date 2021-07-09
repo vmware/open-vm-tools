@@ -50,17 +50,17 @@ extern "C" {
    GOT(GUEST_OS_LONGHORN_64)                                               \
    GOT(GUEST_OS_WINVISTA)                                                  \
    GOT(GUEST_OS_WINVISTA_64)                                               \
-   GOT(GUEST_OS_WINSEVEN)            /* Windows 7 32-bit */                \
-   GOT(GUEST_OS_WINSEVEN_64)         /* Windows 7 64-bit */                \
-   GOT(GUEST_OS_WIN2008R2_64)        /* Server 2008 R2 64-bit */           \
-   GOT(GUEST_OS_WINEIGHT)            /* Windows 8 32-bit */                \
-   GOT(GUEST_OS_WINEIGHT_64)         /* Windows 8 64-bit */                \
-   GOT(GUEST_OS_WINEIGHTSERVER_64)   /* Windows 8 Server 64-bit */         \
+   GOT(GUEST_OS_WIN_7)               /* Windows 7 32-bit */                \
+   GOT(GUEST_OS_WIN_7_64)            /* Windows 7 64-bit */                \
+   GOT(GUEST_OS_WIN_8)               /* Windows 8 32-bit */                \
+   GOT(GUEST_OS_WIN_8_64)            /* Windows 8 64-bit */                \
    GOT(GUEST_OS_WIN_10)              /* Windows 10 32-bit */               \
    GOT(GUEST_OS_WIN_10_64)           /* Windows 10 64-bit */               \
-   GOT(GUEST_OS_ARM_WIN_10_64)       /* Windows 10 Arm 64-bit */           \
+   GOT(GUEST_OS_WIN_10_ARM_64)       /* Windows 10 Arm 64-bit */           \
    GOT(GUEST_OS_WIN_11_64)           /* Windows 11 64-bit */               \
-   GOT(GUEST_OS_ARM_WIN_11_64)       /* Windows 11 Arm 64-bit */           \
+   GOT(GUEST_OS_WIN_11_ARM_64)       /* Windows 11 Arm 64-bit */           \
+   GOT(GUEST_OS_WIN2008R2_64)        /* Server 2008 R2 64-bit */           \
+   GOT(GUEST_OS_WIN_8_SERVER_64)     /* Windows 8 Server 64-bit */         \
    GOT(GUEST_OS_WIN_2016SRV_64)      /* Windows Server 2016 64-bit */      \
    GOT(GUEST_OS_WIN_2019SRV_64)      /* Windows Server 2019 64-bit */      \
    GOT(GUEST_OS_WIN_2022SRV_64)      /* Windows Server 2022 64-bit */      \
@@ -81,23 +81,23 @@ extern "C" {
    GOT(GUEST_OS_OTHER4XLINUX_64)     /* Linux 4.x 64-bit  */               \
    GOT(GUEST_OS_OTHER5XLINUX)        /* Linux 5.x 32-bit */                \
    GOT(GUEST_OS_OTHER5XLINUX_64)     /* Linux 5.x 64-bit */                \
-   GOT(GUEST_OS_ARM_OTHER5XLINUX_64) /* Linux 5.x Arm 64-bit */            \
+   GOT(GUEST_OS_OTHER5XLINUX_ARM_64) /* Linux 5.x Arm 64-bit */            \
    GOT(GUEST_OS_OTHER6XLINUX)        /* Linux 6.x and later 32-bit */      \
    GOT(GUEST_OS_OTHER6XLINUX_64)     /* Linux 6.x and later 64-bit */      \
-   GOT(GUEST_OS_ARM_OTHER6XLINUX_64) /* Linux 6.x and later Arm 64-bit */  \
-   GOT(GUEST_OS_OTHER)                                                     \
+   GOT(GUEST_OS_OTHER6XLINUX_ARM_64) /* Linux 6.x and later Arm 64-bit */  \
+   GOT(GUEST_OS_OTHER)               /* Other 32-bit */                    \
    GOT(GUEST_OS_OTHER_64)            /* Other 64-bit */                    \
-   GOT(GUEST_OS_ARM_OTHER_64)        /* Other Arm 64-bit */                \
+   GOT(GUEST_OS_OTHER_ARM_64)        /* Other Arm 64-bit */                \
    GOT(GUEST_OS_UBUNTU)                                                    \
    GOT(GUEST_OS_UBUNTU_64)                                                 \
-   GOT(GUEST_OS_ARM_UBUNTU_64)                                             \
+   GOT(GUEST_OS_UBUNTU_ARM_64)                                             \
    GOT(GUEST_OS_DEBIAN)                                                    \
    GOT(GUEST_OS_DEBIAN_64)                                                 \
-   GOT(GUEST_OS_ARM_DEBIAN_64)                                             \
+   GOT(GUEST_OS_DEBIAN_ARM_64)                                             \
    GOT(GUEST_OS_RHEL)                                                      \
    GOT(GUEST_OS_RHEL_64)                                                   \
    GOT(GUEST_OS_RHEL9_64)                                                  \
-   GOT(GUEST_OS_ARM_RHEL9_64)                                              \
+   GOT(GUEST_OS_RHEL9_ARM_64)                                              \
    GOT(GUEST_OS_FREEBSD)                                                   \
    GOT(GUEST_OS_FREEBSD_64)                                                \
    GOT(GUEST_OS_FREEBSD11)                                                 \
@@ -106,10 +106,10 @@ extern "C" {
    GOT(GUEST_OS_FREEBSD12_64)                                              \
    GOT(GUEST_OS_FREEBSD13)                                                 \
    GOT(GUEST_OS_FREEBSD13_64)                                              \
+   GOT(GUEST_OS_FREEBSD13_ARM_64)                                          \
    GOT(GUEST_OS_FREEBSD14)                                                 \
    GOT(GUEST_OS_FREEBSD14_64)                                              \
-   GOT(GUEST_OS_ARM_FREEBSD13_64)                                          \
-   GOT(GUEST_OS_ARM_FREEBSD14_64)                                          \
+   GOT(GUEST_OS_FREEBSD14_ARM_64)                                          \
    GOT(GUEST_OS_SOLARIS_6_AND_7)                                           \
    GOT(GUEST_OS_SOLARIS8)                                                  \
    GOT(GUEST_OS_SOLARIS9)                                                  \
@@ -143,9 +143,9 @@ extern "C" {
    GOT(GUEST_OS_VMKERNEL6)           /* ESX 6 64-bit */                    \
    GOT(GUEST_OS_VMKERNEL65)          /* ESX 6.5 and 6.7 64-bit */          \
    GOT(GUEST_OS_VMKERNEL7)           /* ESX 7 and later 64-bit */          \
-   GOT(GUEST_OS_ARM_VMKERNEL7)       /* ESX 7 and later Arm 64-bit */      \
+   GOT(GUEST_OS_VMKERNEL7_ARM)       /* ESX 7 and later Arm 64-bit */      \
    GOT(GUEST_OS_PHOTON_64)           /* VMware Photon 64-bit */            \
-   GOT(GUEST_OS_ARM_PHOTON_64)       /* VMware Photon Arm 64-bit */        \
+   GOT(GUEST_OS_PHOTON_ARM_64)       /* VMware Photon Arm 64-bit */        \
    GOT(GUEST_OS_ORACLE)                                                    \
    GOT(GUEST_OS_ORACLE_64)                                                 \
    GOT(GUEST_OS_ORACLE6)                                                   \

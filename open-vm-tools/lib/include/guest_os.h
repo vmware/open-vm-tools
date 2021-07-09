@@ -90,8 +90,8 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 #define ALLFREEBSD64          BS(FREEBSD_64),   BS(FREEBSD11_64),     \
                               BS(FREEBSD12_64), BS(FREEBSD13_64),     \
-                              BS(FREEBSD14_64), BS(ARM_FREEBSD13_64), \
-                              BS(ARM_FREEBSD14_64)
+                              BS(FREEBSD14_64), BS(FREEBSD13_ARM_64), \
+                              BS(FREEBSD14_ARM_64)
 
 #define ALLFREEBSD            ALLFREEBSD32, ALLFREEBSD64
 
@@ -110,15 +110,15 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define ALLWIN2008R2_64       BS(WIN2008R2_64)
 #define ALLWIN2008R2          ALLWIN2008R2_64
 
-#define ALLWINSEVEN32         BS(WINSEVEN)
-#define ALLWINSEVEN64         BS(WINSEVEN_64)
+#define ALLWINSEVEN32         BS(WIN_7)
+#define ALLWINSEVEN64         BS(WIN_7_64)
 #define ALLWINSEVEN           ALLWINSEVEN32, ALLWINSEVEN64
 
-#define ALLWINEIGHTSERVER64   BS(WINEIGHTSERVER_64)
+#define ALLWINEIGHTSERVER64   BS(WIN_8_SERVER_64)
 #define ALLWINEIGHTSERVER     ALLWINEIGHTSERVER64
 
-#define ALLWINEIGHTCLIENT32   BS(WINEIGHT)
-#define ALLWINEIGHTCLIENT64   BS(WINEIGHT_64)
+#define ALLWINEIGHTCLIENT32   BS(WIN_8)
+#define ALLWINEIGHTCLIENT64   BS(WIN_8_64)
 #define ALLWINEIGHTCLIENT     ALLWINEIGHTCLIENT32, ALLWINEIGHTCLIENT64
 
 #define ALLWINEIGHT           ALLWINEIGHTSERVER, ALLWINEIGHTCLIENT
@@ -128,7 +128,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define ALLWIN_10_SERVER      ALLWIN_10_SERVER64
 
 #define ALLWIN_10_CLIENT32    BS(WIN_10)
-#define ALLWIN_10_CLIENT64    BS(WIN_10_64), BS(ARM_WIN_10_64)
+#define ALLWIN_10_CLIENT64    BS(WIN_10_64), BS(WIN_10_ARM_64)
 #define ALLWIN_10_CLIENT      ALLWIN_10_CLIENT32, ALLWIN_10_CLIENT64
 
 #define ALLWIN_10_32          ALLWIN_10_CLIENT32
@@ -138,7 +138,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define ALLWIN_11_SERVER64    BS(WIN_2022SRV_64), BS(WIN_2025SRV_64)
 #define ALLWIN_11_SERVER      ALLWIN_10_SERVER64
 
-#define ALLWIN_11_CLIENT64    BS(WIN_11_64), BS(ARM_WIN_11_64)
+#define ALLWIN_11_CLIENT64    BS(WIN_11_64), BS(WIN_11_ARM_64)
 #define ALLWIN_11_CLIENT      ALLWIN_11_CLIENT64
 
 #define ALLWIN_11_64          ALLWIN_11_CLIENT64, ALLWIN_11_SERVER
@@ -189,7 +189,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 #define ALLNETWARE            BS(NETWARE4), BS(NETWARE5), BS(NETWARE6)
 
-#define ALLPHOTON             BS(PHOTON_64), BS(ARM_PHOTON_64)
+#define ALLPHOTON             BS(PHOTON_64), BS(PHOTON_ARM_64)
 
 #define ALL26XLINUX32         BS(DEBIAN),  BS(RHEL),   \
                               BS(UBUNTU),  BS(CENTOS), \
@@ -216,16 +216,16 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 #define ALL5XLINUX32          BS(OTHER5XLINUX)
 
-#define ALL5XLINUX64          BS(OTHER5XLINUX_64), BS(ARM_OTHER5XLINUX_64), \
-                              BS(ARM_DEBIAN_64),   BS(ARM_UBUNTU_64),       \
-                              BS(ARM_RHEL9_64)
+#define ALL5XLINUX64          BS(OTHER5XLINUX_64), BS(OTHER5XLINUX_ARM_64), \
+                              BS(DEBIAN_ARM_64),   BS(UBUNTU_ARM_64),       \
+                              BS(RHEL9_ARM_64)
 
 #define ALL6XLINUX32          BS(OTHER6XLINUX)
 
-#define ALL6XLINUX64          BS(OTHER6XLINUX_64), BS(ARM_OTHER6XLINUX_64)
+#define ALL6XLINUX64          BS(OTHER6XLINUX_64), BS(OTHER6XLINUX_ARM_64)
 
 #define ALLVMKERNEL           BS(VMKERNEL),   BS(VMKERNEL5), BS(VMKERNEL6), \
-                              BS(VMKERNEL65), BS(VMKERNEL7), BS(ARM_VMKERNEL7)
+                              BS(VMKERNEL65), BS(VMKERNEL7), BS(VMKERNEL7_ARM)
 
 #define ALLLINUX32            BS(VMKERNEL), BS(OTHERLINUX), \
                               BS(OTHER24XLINUX), \
@@ -255,7 +255,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
                               ALLFREEBSD64,      ALLDARWIN64,       \
                               ALLPHOTON,         ALLVMKERNEL,       \
                               BS(SOLARIS10_64),  BS(SOLARIS11_64),  \
-                              BS(OTHER_64),      BS(ARM_OTHER_64)
+                              BS(OTHER_64),      BS(OTHER_ARM_64)
 
 #define ALLECOMSTATION        BS(ECOMSTATION), BS(ECOMSTATION2)
 
@@ -263,11 +263,11 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 #define ALLCRX                BS(CRXSYS1_64), BS(CRXPOD1_64)
 
-#define ALLARM                BS(ARM_WIN_10_64),    BS(ARM_UBUNTU_64),       \
-                              BS(ARM_PHOTON_64),    BS(ARM_VMKERNEL7),       \
-                              BS(ARM_OTHER_64),     BS(ARM_OTHER5XLINUX_64), \
-                              BS(ARM_DEBIAN_64),    BS(ARM_FREEBSD13_64),    \
-                              BS(ARM_FREEBSD14_64), BS(ARM_WIN_11_64)
+#define ALLARM                BS(WIN_10_ARM_64),    BS(UBUNTU_ARM_64),       \
+                              BS(PHOTON_ARM_64),    BS(VMKERNEL7_ARM),       \
+                              BS(OTHER_ARM_64),     BS(OTHER5XLINUX_ARM_64), \
+                              BS(DEBIAN_ARM_64),    BS(FREEBSD13_ARM_64),    \
+                              BS(FREEBSD14_ARM_64), BS(WIN_11_ARM_64)
 
 /*
  * These constants are generated by GuestInfoGetOSName which is in
