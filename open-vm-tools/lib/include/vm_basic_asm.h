@@ -910,18 +910,27 @@ TestBit64(const uint64 *var, unsigned index)
  *-----------------------------------------------------------------------------
  */
 
+#if defined __GCC_ASM_FLAG_OUTPUTS__
+/*
+ * See https://gcc.gnu.org/onlinedocs/gcc/Extended-Asm.html
+ * 6.47.2.4 Flag Output Operands
+ *
+ * This expands to 0 or 1 instructions followed by the output operand string.
+ */
+#define GCC_ASM_BT_EPILOG : "=@ccc"
+#else
+#define GCC_ASM_BT_EPILOG "\n\tsetc\t%0" : "=qQm"
+#endif
+
 static INLINE Bool
 SetBitVector(void *var, int32 index)
 {
 #if defined(__GNUC__) && defined(VM_X86_ANY)
    Bool bit;
-   __asm__ (
-      "bts %2, %1;"
-      "setc %0"
-      : "=qQm" (bit), "+m" (*(uint32 *)var)
-      : "rI" (index)
-      : "memory", "cc"
-   );
+   __asm__("bts\t%2, %1"
+           GCC_ASM_BT_EPILOG (bit), "+m" (*(uint32 *)var)
+           : "rI" (index)
+           : "memory", "cc");
    return bit;
 #elif defined(_MSC_VER)
    return _bittestandset((long *)var, index) != 0;
@@ -937,13 +946,10 @@ ClearBitVector(void *var, int32 index)
 {
 #if defined(__GNUC__) && defined(VM_X86_ANY)
    Bool bit;
-   __asm__ (
-      "btr %2, %1;"
-      "setc %0"
-      : "=qQm" (bit), "+m" (*(uint32 *)var)
-      : "rI" (index)
-      : "memory", "cc"
-   );
+   __asm__("btr\t%2, %1"
+           GCC_ASM_BT_EPILOG (bit), "+m" (*(uint32 *)var)
+           : "rI" (index)
+           : "memory", "cc");
    return bit;
 #elif defined(_MSC_VER)
    return _bittestandreset((long *)var, index) != 0;
@@ -959,13 +965,10 @@ ComplementBitVector(void *var, int32 index)
 {
 #if defined(__GNUC__) && defined(VM_X86_ANY)
    Bool bit;
-   __asm__ (
-      "btc %2, %1;"
-      "setc %0"
-      : "=qQm" (bit), "+m" (*(uint32 *)var)
-      : "rI" (index)
-      : "memory", "cc"
-   );
+   __asm__("btc\t%2, %1"
+           GCC_ASM_BT_EPILOG (bit), "+m" (*(uint32 *)var)
+           : "rI" (index)
+           : "memory", "cc");
    return bit;
 #elif defined(_MSC_VER)
    return _bittestandcomplement((long *)var, index) != 0;
@@ -981,13 +984,10 @@ TestBitVector(const void *var, int32 index)
 {
 #if defined(__GNUC__) && defined(VM_X86_ANY)
    Bool bit;
-   __asm__ (
-      "bt %2, %1;"
-      "setc %0"
-      : "=qQm" (bit)
-      : "m" (*(const uint32 *)var), "rI" (index)
-      : "cc"
-   );
+   __asm__("bt\t%2, %1"
+           GCC_ASM_BT_EPILOG (bit)
+           : "m" (*(const uint32 *)var), "rI" (index)
+           : "cc");
    return bit;
 #elif defined _MSC_VER
    return _bittest((long *)var, index) != 0;
@@ -996,6 +996,7 @@ TestBitVector(const void *var, int32 index)
 #endif
 }
 
+#undef GCC_ASM_BT_EPILOG
 
 /*
  *-----------------------------------------------------------------------------
