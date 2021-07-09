@@ -136,7 +136,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define ALLWIN_10             ALLWIN_10_CLIENT,   ALLWIN_10_SERVER
 
 #define ALLWIN_11_SERVER64    BS(WIN_2022SRV_64), BS(WIN_2025SRV_64)
-#define ALLWIN_11_SERVER      ALLWIN_10_SERVER64
+#define ALLWIN_11_SERVER      ALLWIN_11_SERVER64
 
 #define ALLWIN_11_CLIENT64    BS(WIN_11_64), BS(WIN_11_ARM_64)
 #define ALLWIN_11_CLIENT      ALLWIN_11_CLIENT64
@@ -146,11 +146,11 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 #define ALLHYPER_V            BS(HYPER_V)
 
-#define ALLWINVISTA_OR_HIGHER ALLWINVISTA,           ALLWINLONGHORN,     \
-                              ALLWIN2008R2,          ALLWINSEVEN,        \
-                              ALLWINEIGHTSERVER,     ALLWINEIGHTCLIENT,  \
-                              ALLWIN_10_SERVER,      ALLWIN_10_CLIENT,   \
-                              ALLWIN_11_SERVER,      ALLWIN_11_CLIENT,   \
+#define ALLWINVISTA_OR_HIGHER ALLWINVISTA,         ALLWINLONGHORN,     \
+                              ALLWIN2008R2,        ALLWINSEVEN,        \
+                              ALLWINEIGHTSERVER,   ALLWINEIGHTCLIENT,  \
+                              ALLWIN_10_SERVER,    ALLWIN_10_CLIENT,   \
+                              ALLWIN_11_SERVER,    ALLWIN_11_CLIENT,   \
                               ALLHYPER_V
 
 #define ALLWINNT32            BS(WINNT),           ALLWIN2000,          \
@@ -227,10 +227,10 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define ALLVMKERNEL           BS(VMKERNEL),   BS(VMKERNEL5), BS(VMKERNEL6), \
                               BS(VMKERNEL65), BS(VMKERNEL7), BS(VMKERNEL7_ARM)
 
-#define ALLLINUX32            BS(VMKERNEL), BS(OTHERLINUX), \
-                              BS(OTHER24XLINUX), \
-                              ALL26XLINUX32, ALL3XLINUX32, ALL4XLINUX32, \
-                              ALL5XLINUX32, ALL6XLINUX32
+#define ALLLINUX32            BS(VMKERNEL),      BS(OTHERLINUX), \
+                              BS(OTHER24XLINUX), ALL26XLINUX32,  \
+                              ALL3XLINUX32,      ALL4XLINUX32,   \
+                              ALL5XLINUX32,      ALL6XLINUX32
 
 #define ALLLINUX64            BS(OTHERLINUX_64), BS(OTHER24XLINUX_64), \
                               ALL26XLINUX64,     ALL3XLINUX64,         \
