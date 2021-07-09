@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005-2019,2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -66,6 +66,7 @@ extern "C" {
 #define VMCI_CAPS_DATAGRAM      0x4
 #define VMCI_CAPS_NOTIFICATIONS 0x8
 #define VMCI_CAPS_PPN64         0x10
+#define VMCI_CAPS_DMA_DATAGRAM  0x20
 #define VMCI_CAPS_CLEAR_TO_ACK  (0x1 << 31)
 
 #define VMCI_CAPS_NOT_ACKED (VMCI_CAPS_HYPERCALL | VMCI_CAPS_GUESTCALL | \
