@@ -162,16 +162,13 @@ ISB(void)
  *----------------------------------------------------------------------
  */
 
+#if defined __GNUC__
 static INLINE void
 ESB(void)
 {
-#if defined __GNUC__
    asm volatile(".arch armv8.2-a\n\tesb" ::: "memory");
-#else
-#error No compiler defined for ESB
-#endif
 }
-
+#endif
 
 /*
  * Memory Barriers
