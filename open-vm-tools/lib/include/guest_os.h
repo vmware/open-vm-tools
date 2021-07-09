@@ -559,6 +559,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
  * No 32-bit support.
  */
 
+#define STR_OS_WINELEVEN        "windows11"
 #define STR_OS_WINELEVEN_X64    "windows11-64"
 
 /* Windows Server 2016 */
