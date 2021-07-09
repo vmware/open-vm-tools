@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019, 2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -370,7 +370,7 @@ Util_IsAbsolutePath(const char *path)  // IN: path to check
  *      Returns TRUE if character is a digit or a letter, FALSE otherwise.
  *
  * Side effects:
- *	     None.
+ *           None.
  *
  *-----------------------------------------------------------------------------
  */
@@ -530,8 +530,8 @@ UtilDoTildeSubst(const char *user)  // IN: name of user
  *
  * Results:
  *
- *	Return a newly allocated string.  The caller is responsible
- *	for deallocating it.
+ *      Return a newly allocated string.  The caller is responsible
+ *      for deallocating it.
  *
  *      Return NULL in case of error.
  *
@@ -540,8 +540,8 @@ UtilDoTildeSubst(const char *user)  // IN: name of user
  *
  * Bugs:
  *      the handling of enviroment variable references is very
- *	simplistic: there can be only one in a pathname segment
- *	and it must appear last in the string
+ *      simplistic: there can be only one in a pathname segment
+ *      and it must appear last in the string
  *
  *----------------------------------------------------------------------
  */
@@ -560,7 +560,7 @@ Util_ExpandString(const char *fileName) // IN  file path to expand
    char *cp;
    int i;
 
-   ASSERT(fileName);
+   ASSERT(fileName != NULL);
 
    copy = Unicode_Duplicate(fileName);
 
@@ -586,24 +586,24 @@ Util_ExpandString(const char *fileName) // IN  file path to expand
     */
 
    nchunk = 0;
-   for (cp = copy; *cp;) {
+   for (cp = copy; *cp != '\0';) {
       size_t len;
       if (*cp == '$') {
-	 char *p;
-	 for (p = cp + 1; UtilIsAlphaOrNum(*p) || *p == '_'; p++) {
-	 }
-	 len = p - cp;
+         char *p;
+         for (p = cp + 1; UtilIsAlphaOrNum(*p) || *p == '_'; p++) {
+         }
+         len = p - cp;
 #if !defined(_WIN32)
       } else if (cp == copy && *cp == '~') {
-	 len = strcspn(cp, DIRSEPS);
+         len = strcspn(cp, DIRSEPS);
 #endif
       } else {
-	 len = strcspn(cp, "$");
+         len = strcspn(cp, "$");
       }
       if (nchunk >= UTIL_MAX_PATH_CHUNKS) {
          Log("%s: Filename \"%s\" has too many chunks.\n", __FUNCTION__,
              fileName);
-	 goto out;
+         goto out;
       }
       chunks[nchunk] = cp;
       chunkSize[nchunk] = len;
@@ -617,7 +617,7 @@ Util_ExpandString(const char *fileName) // IN  file path to expand
     */
 
 #if !defined(_WIN32)
-   if (chunks[0][0] == '~') {
+   if (nchunk > 0 && chunks[0][0] == '~') {
       char save = (cp = chunks[0])[chunkSize[0]];
       cp[chunkSize[0]] = 0;
       ASSERT(!freeChunk[0]);
@@ -654,7 +654,7 @@ Util_ExpandString(const char *fileName) // IN  file path to expand
           * $ will be kept as a part of the pathname.
           */
 
-	 continue;
+         continue;
       }
 
       save = cp[chunkSize[i]];
@@ -668,22 +668,22 @@ Util_ExpandString(const char *fileName) // IN  file path to expand
       expand = Unicode_Duplicate(Posix_Getenv(cp + 1));
       if (expand != NULL) {
       } else if (strcasecmp(cp + 1, "PID") == 0) {
-	 Str_Snprintf(buf, sizeof buf, "%"FMTPID, getpid());
-	 expand = Util_SafeStrdup(buf);
+         Str_Snprintf(buf, sizeof buf, "%"FMTPID, getpid());
+         expand = Util_SafeStrdup(buf);
       } else if (strcasecmp(cp + 1, "USER") == 0) {
 #if !defined(_WIN32)
          struct passwd *pwd = Posix_Getpwuid(getuid());
          expand = UtilGetLoginName(pwd);
          Posix_Endpwent();
 #else
-	 DWORD n = ARRAYSIZE(bufW);
-	 if (GetUserNameW(bufW, &n)) {
-	    expand = Unicode_AllocWithUTF16(bufW);
-	 }
+         DWORD n = ARRAYSIZE(bufW);
+         if (GetUserNameW(bufW, &n)) {
+            expand = Unicode_AllocWithUTF16(bufW);
+         }
 #endif
-	 if (expand == NULL) {
-	    expand = Unicode_Duplicate("unknown");
-	 }
+         if (expand == NULL) {
+            expand = Unicode_Duplicate("unknown");
+         }
       } else {
          Log("Environment variable '%s' not defined in '%s'.\n",
              cp + 1, fileName);
@@ -692,7 +692,7 @@ Util_ExpandString(const char *fileName) // IN  file path to expand
           * Strip off the env variable string from the pathname.
           */
 
-	 expand = Unicode_Duplicate("");
+         expand = Unicode_Duplicate("");
 
 #else    // _WIN32
 
@@ -720,9 +720,9 @@ Util_ExpandString(const char *fileName) // IN  file path to expand
       ASSERT(!freeChunk[i]);
       chunks[i] = expand;
       if (chunks[i] == NULL) {
-	 Log("%s: Cannot allocate memory to expand $ in \"%s\".\n",
+         Log("%s: Cannot allocate memory to expand $ in \"%s\".\n",
              __FUNCTION__, fileName);
-	 goto out;
+         goto out;
       }
       chunkSize[i] = strlen(expand);
       freeChunk[i] = TRUE;
@@ -733,9 +733,9 @@ Util_ExpandString(const char *fileName) // IN  file path to expand
     */
 
    {
-      int size = 1;	// 1 for the terminating null
+      int size = 1;     // 1 for the terminating null
       for (i = 0; i < nchunk; i++) {
-	 size += chunkSize[i];
+         size += chunkSize[i];
       }
       result = malloc(size);
    }
@@ -758,7 +758,7 @@ out:
 
    for (i = 0; i < nchunk; i++) {
       if (freeChunk[i]) {
-	 free(chunks[i]);
+         free(chunks[i]);
       }
    }
    free(copy);
