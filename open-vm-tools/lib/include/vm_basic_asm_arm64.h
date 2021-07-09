@@ -144,6 +144,36 @@ ISB(void)
 
 
 /*
+ *----------------------------------------------------------------------
+ *
+ * ESB --
+ *
+ *      Error synchronization barrier.
+ *
+ *      Error synchronization event as per Arm ARM. NOP if ARMv8.2
+ *      RAS extensions are not implemented.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      SError exception or DISR/VDISR getting updated.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static INLINE void
+ESB(void)
+{
+#if defined __GNUC__
+   asm volatile(".arch armv8.2-a\n\tesb" ::: "memory");
+#else
+#error No compiler defined for ESB
+#endif
+}
+
+
+/*
  * Memory Barriers
  * ===============
  *
