@@ -410,12 +410,22 @@ LOCKED_INSN_BARRIER(void)
  * accesses accross the barrier. It is not a CPU instruction, it is a compiler
  * directive (i.e. it does not emit any code).
  *
+ * => A compiler memory barrier on its own is useful for coordinating
+ *    with an interrupt handler (or preemption logic in the scheduler)
+ *    on the same CPU, so that the order of read and write
+ *    instructions in code that might be interrupted is consistent
+ *    with the barriers. But when there are other CPUs involved, or
+ *    other types of devices like memory-mapped I/O and DMA
+ *    controllers, a compiler memory barrier is not enough.
+ *
  * A CPU memory barrier prevents the CPU from re-ordering memory accesses
  * accross the barrier. It is a CPU instruction.
  *
+ * => On its own the CPU instruction isn't useful because the compiler
+ *    may reorder loads and stores around the CPU instruction.  It is
+ *    useful only when combined with a compiler memory barrier.
+ *
  * A memory barrier is the union of a compiler memory barrier and a CPU memory
- * barrier. A compiler memory barrier is a useless construct by itself. It is
- * only useful when combined with a CPU memory barrier, to implement a memory
  * barrier.
  *
  *    Semantics
@@ -463,12 +473,11 @@ LOCKED_INSN_BARRIER(void)
  * <mem_type/purpose>_<before_access_type>_BARRIER_<after_access_type>
  *
  * where:
- *   <mem_type/purpose> is either SMP, DMA, or MMIO.
+ *   <mem_type/purpose> is either INTR, SMP, DMA, or MMIO.
  *   <*_access type> is either R(load), W(store) or RW(any).
  *
  * Above every use of these memory barriers in the code, there _must_ be a
  * comment to justify the use, i.e. a comment which:
- *
  * 1) Precisely identifies which memory accesses must not be re-ordered across
  *    the memory barrier.
  * 2) Explains why it is important that the memory accesses not be re-ordered.

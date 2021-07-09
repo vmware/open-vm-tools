@@ -1259,6 +1259,79 @@ PopCount64(uint64 value)
 }
 
 
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * INTR_R_BARRIER_R --
+ * INTR_R_BARRIER_W --
+ * INTR_R_BARRIER_RW --
+ * INTR_W_BARRIER_R --
+ * INTR_W_BARRIER_W --
+ * INTR_W_BARRIER_RW --
+ * INTR_RW_BARRIER_R --
+ * INTR_RW_BARRIER_W --
+ * INTR_RW_BARRIER_RW --
+ *
+ *      Enforce ordering on memory operations witnessed by and
+ *      affected by interrupt handlers.
+ *
+ *      This should be used to replace the legacy COMPILER_*_BARRIER
+ *      for code that has been audited to determine it only needs
+ *      ordering with respect to interrupt handlers, and not to other
+ *      CPUs (SMP_*), memory-mapped I/O (MMIO_*), or DMA (DMA_*).
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+#ifdef __GNUC__
+
+static INLINE void
+INTR_RW_BARRIER_RW(void)
+{
+   __asm__ __volatile__("" ::: "memory");
+}
+
+#define INTR_R_BARRIER_R INTR_RW_BARRIER_RW
+#define INTR_R_BARRIER_W INTR_RW_BARRIER_RW
+#define INTR_R_BARRIER_RW INTR_RW_BARRIER_RW
+#define INTR_W_BARRIER_R INTR_RW_BARRIER_RW
+#define INTR_W_BARRIER_W INTR_RW_BARRIER_RW
+#define INTR_W_BARRIER_RW INTR_RW_BARRIER_RW
+#define INTR_RW_BARRIER_R INTR_RW_BARRIER_RW
+#define INTR_RW_BARRIER_W INTR_RW_BARRIER_RW
+
+#elif defined _MSC_VER
+
+static INLINE void
+INTR_R_BARRIER_R(void)
+{
+   _ReadBarrier();
+}
+
+static INLINE void
+INTR_W_BARRIER_W(void)
+{
+   _WriteBarrier();
+}
+
+static INLINE void
+INTR_RW_BARRIER_RW(void)
+{
+   _ReadWriteBarrier();
+}
+
+#define INTR_R_BARRIER_W INTR_RW_BARRIER_RW
+#define INTR_R_BARRIER_RW INTR_RW_BARRIER_RW
+#define INTR_W_BARRIER_R INTR_RW_BARRIER_RW
+#define INTR_W_BARRIER_RW INTR_RW_BARRIER_RW
+#define INTR_RW_BARRIER_R INTR_RW_BARRIER_RW
+#define INTR_RW_BARRIER_W INTR_RW_BARRIER_RW
+
+#else
+#error No compiler defined for INTR_*_BARRIER_*
+#endif
+
+
 #if defined __cplusplus
 } // extern "C"
 #endif
