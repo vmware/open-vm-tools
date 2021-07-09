@@ -56,11 +56,11 @@ extern "C" {
    GOT(GUEST_OS_WINEIGHT)            /* Windows 8 32-bit */                \
    GOT(GUEST_OS_WINEIGHT_64)         /* Windows 8 64-bit */                \
    GOT(GUEST_OS_WINEIGHTSERVER_64)   /* Windows 8 Server 64-bit */         \
-   GOT(GUEST_OS_WINTEN)              /* Windows 10 32-bit */               \
-   GOT(GUEST_OS_WINTEN_64)           /* Windows 10 64-bit */               \
-   GOT(GUEST_OS_ARM_WINTEN_64)       /* Windows 10 Arm 64-bit */           \
-   GOT(GUEST_OS_WINELEVEN_64)        /* Windows 11 64-bit */               \
-   GOT(GUEST_OS_ARM_WINELEVEN_64)    /* Windows 11 Arm 64-bit */           \
+   GOT(GUEST_OS_WIN_10)              /* Windows 10 32-bit */               \
+   GOT(GUEST_OS_WIN_10_64)           /* Windows 10 64-bit */               \
+   GOT(GUEST_OS_ARM_WIN_10_64)       /* Windows 10 Arm 64-bit */           \
+   GOT(GUEST_OS_WIN_11_64)           /* Windows 11 64-bit */               \
+   GOT(GUEST_OS_ARM_WIN_11_64)       /* Windows 11 Arm 64-bit */           \
    GOT(GUEST_OS_WIN_2016SRV_64)      /* Windows Server 2016 64-bit */      \
    GOT(GUEST_OS_WIN_2019SRV_64)      /* Windows Server 2019 64-bit */      \
    GOT(GUEST_OS_WIN_2022SRV_64)      /* Windows Server 2022 64-bit */      \
