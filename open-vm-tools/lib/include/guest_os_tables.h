@@ -154,6 +154,10 @@ extern "C" {
    GOT(GUEST_OS_CENTOS7_64)                                                \
    GOT(GUEST_OS_CENTOS8_64)                                                \
    GOT(GUEST_OS_CENTOS9_64)                                                \
+   GOT(GUEST_OS_ROCKY)                                                     \
+   GOT(GUEST_OS_ROCKY_64)                                                  \
+   GOT(GUEST_OS_ROCKY8_64)                                                 \
+   GOT(GUEST_OS_ROCKY9_64)                                                 \
    GOT(GUEST_OS_AMAZONLINUX2_64)                                           \
    GOT(GUEST_OS_AMAZONLINUX3_64)                                           \
    GOT(GUEST_OS_CRXSYS1_64)        /* VMware CRX system VM 1.0 64-bit */   \
@@ -288,6 +292,10 @@ extern "C" {
    GOKM("oraclelinux7-64",                      oracleLinux7_64Guest,    TRUE) \
    GOKM("oraclelinux8-64",                      oracleLinux8_64Guest,    TRUE) \
    GOKM("oraclelinux9-64",                      oracleLinux9_64Guest,    TRUE) \
+   GOKM("rocky",                                rockyGuest               TRUE) \
+   GOKM("rocky-64",                             rocky64Guest             TRUE) \
+   GOKM("rocky8-64",                            rocky8_64Guest,          TRUE) \
+   GOKM("rocky9-64",                            rocky9_64Guest,          TRUE) \
    GOKM("suse",                                 suseGuest,               TRUE) \
    GOKM("suse-64",                              suse64Guest,             TRUE) \
    GOKM("sles",                                 slesGuest,               TRUE) \

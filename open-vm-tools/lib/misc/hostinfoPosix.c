@@ -226,6 +226,7 @@ static const DistroInfo distroArray[] = {
    { "PLD",                "/etc/pld-release"           },
    { "RedHat",             "/etc/redhat-release"        },
    { "RedHat",             "/etc/redhat_version"        },
+   { "Rocky",              "/etc/rocky-release"         },
    { "Slackware",          "/etc/slackware-release"     },
    { "Slackware",          "/etc/slackware-version"     },
    { "SMEServer",          "/etc/e-smith-release"       },
@@ -1166,6 +1167,40 @@ HostinfoSetRedHatShortName(const ShortNameSet *entry, // IN: Unused
 
 
 /*
+ *-----------------------------------------------------------------------------
+ *
+ * HostinfoSetRockyShortName --
+ *
+ *      Set the short name for the Rocky distro.
+ *
+ * Return value:
+ *      TRUE    success
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+HostinfoSetRockyShortName(const ShortNameSet *entry, // IN: Unused
+                          int version,               // IN:
+                          const char *distroLower,   // IN: Unused
+                          char *distroShort,         // OUT:
+                          int distroShortSize)       // IN:
+{
+   if (version < 8) {
+      Str_Strcpy(distroShort, STR_OS_ROCKY, distroShortSize);
+   } else {
+      Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_ROCKY,
+                  version);
+   }
+
+   return TRUE;
+}
+
+
+/*
  *      Short name subarray for the SUSE Enterprise distro.
  *
  *      Keep in sorted order (sort -d)!
@@ -1295,6 +1330,7 @@ static const ShortNameSet shortNameArray[] = {
 {"opensuse",            STR_OS_OPENSUSE,           HostinfoGenericSetShortName},
 {"oracle",              NULL,                      HostinfoSetOracleShortName},
 {"pld",                 STR_OS_PLD,                HostinfoGenericSetShortName},
+{"rocky",               NULL,                      HostinfoSetRockyShortName},
 {"slackware",           STR_OS_SLACKWARE,          HostinfoGenericSetShortName},
 {"sme server",          STR_OS_SMESERVER,          HostinfoGenericSetShortName},
 {"suse",                NULL,                      HostinfoSetSuseShortName},

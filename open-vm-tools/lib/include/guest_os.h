@@ -200,6 +200,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define ALL4XLINUX64          BS(OTHER4XLINUX_64), BS(PHOTON_64),       \
                               BS(CENTOS8_64),      BS(CENTOS9_64),      \
                               BS(ORACLE8_64),      BS(ORACLE9_64),      \
+                              BS(ROCKY8_64),       BS(ROCKY9_64),       \
                               BS(CRXSYS1_64),      BS(CRXPOD1_64),      \
                               BS(AMAZONLINUX2_64), BS(AMAZONLINUX3_64), \
                               BS(LINUX_MINT_64)
@@ -321,6 +322,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_RED_HAT            "redhat"
 #define STR_OS_RED_HAT_EN         "rhel"
 #define STR_OS_RED_HAT_FULL       "Red Hat Linux"
+#define STR_OS_ROCKY              "rocky"
 #define STR_OS_SLACKWARE          "Slackware"
 #define STR_OS_SLES               "sles"
 #define STR_OS_SUSE               "suse"
