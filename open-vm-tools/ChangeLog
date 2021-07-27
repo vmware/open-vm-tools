@@ -1,3 +1,88 @@
+commit 26e7c2f3b5198621c8234c4890431dc16698bcf3
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 27 10:37:24 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit d78011e325c6275bc9199b102983544057dfc0bc
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 27 10:37:24 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 8db9ab140d15787064745c4ba0497fc7d162ab84
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 27 10:37:24 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 4eb519b107745cd01018194aa059a5d0b39c3cf4
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 27 10:37:24 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit c387b16795b4a78a53c89f607a8ca31580138e05
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 27 10:37:24 2021 -0700
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit 8259e2e5238e7b90c7f1ddf396ec47fc9acabfe1
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 27 10:37:24 2021 -0700
+
+    Add tools version and build info into the toolsDeployPkg.log file.
+
+commit 2fe6126e92f4bd4dc9eb683e59df84000b312398
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 27 10:37:24 2021 -0700
+
+    Common header file change not directly applicable to open-vm-tools.
+
+commit 8c788af23d0855f1876e8e6de665d050a157c557
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 27 10:37:24 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit cb8741edd1fe30dd423cf8533d63a4dc8bb39d8a
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 27 10:37:24 2021 -0700
+
+    Terminology cleanup in some comments.
+
+commit b873cda6c5bf0228b0442d1c3be402feafadf8c1
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 27 10:37:24 2021 -0700
+
+    GuestOS: Support Fedora and Debian 10 for ARM
+    
+    Since we support Fedora, support ARM Fedora - 64 bit only.
+    
+    Remove VCPUHOTADD from ARM guests. There is no support for this.
+
+commit 3a599078d238c12c26d3ca3e39c743f7d9c65555
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 27 10:37:24 2021 -0700
+
+    guest_os.h: A bit of clean up
+    
+    Arrange things in a nicer way.
+
+commit 61e3c68f029af528e61de5b22b215ef689870be2
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 27 10:37:24 2021 -0700
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit 3226203c1c49e8d0fca9aa6a8557ac757c91c3a8
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jul 8 20:35:44 2021 -0700
+
+    Update ChangeLog with the granular push of July 8, 2021.
+      - plus ChangeLog update of June 30.
+
 commit b033e5c2d77ee66e9426973005cf1f48a5b3cceb
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Thu Jul 8 20:10:23 2021 -0700
