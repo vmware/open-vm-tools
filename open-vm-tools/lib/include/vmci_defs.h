@@ -466,7 +466,7 @@ typedef uint32 VMCIPrivilegeFlags;
  * a line in a store, for example, you walk up to the tail.
  *
  * consumerHead: the point in the queue from which the next element is
- * dequeued.  In other words, who is next in line is he who is at the
+ * dequeued.  In other words, the next in line is the one at the
  * head of the line.
  *
  * Also, producerTail points to an empty byte in the Queue, whereas

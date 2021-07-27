@@ -1234,9 +1234,9 @@ bail:
  *      Get the filesystem type number of the file system on which the
  *      given file/directory resides.
  *
- *      Caller can specify either a pathname or an already opened fd of
- *      the file/dir whose filesystem he wants to determine.
- *      'fd' takes precedence over 'pathName' so 'pathName' is used only
+ *      Callers can specify either a pathname, or an already opened fd,
+ *      of the file/dir whose filesystem they want to determine.
+ *      'fd' takes precedence over 'pathName', so 'pathName' is used only
  *      if 'fd' is -1.
  *
  * Results:
