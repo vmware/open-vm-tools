@@ -626,12 +626,12 @@ Log_MakeTimeString(Bool millisec,
                    char *buf,
                    size_t max);
 
-typedef Bool (LogOwnerFunc)(void *userData,
-                            const char *fileName);
+typedef Bool (LogMayDeleteFunc)(void *userData,
+                                const char *fileName);
 
 Bool
 Log_BoundNumFiles(const LogOutput *output,
-                  LogOwnerFunc *func,
+                  LogMayDeleteFunc *mayDeleteFunc,
                   void *userData);
 
 typedef struct {
