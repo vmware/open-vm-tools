@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019, 2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -26,7 +26,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#if !defined(_WIN32)
+#if defined(_WIN32)
+#include <wchar.h>
+#else
 #include <strings.h> /* For strncasecmp */
 #include <stdint.h>
 #endif
@@ -131,6 +133,75 @@ StrUtil_GetNextToken(unsigned int *index,    // IN/OUT: Index to start at
 
    return token;
 }
+
+
+#if defined(_WIN32)
+/*
+ ******************************************************************************
+ * StrUtil_GetNextTokenW --
+ *
+ *      Get the next token from a UTF-16 string after a given index w/o
+ *      modifying the original string. This routine is based on the
+ *      StrUtil_GetNextToken() function but convert it from ASCII to Unicode
+ *      version.
+ *
+ * Results:
+ *      An allocated, NULL-terminated string containing the token. 'index'
+ *      is updated to point after the returned token
+ *      NULL if no tokens are left
+ *
+ * Side effects:
+ *      None
+ *
+ ******************************************************************************
+ */
+
+wchar_t *
+StrUtil_GetNextTokenW(unsigned int  *index,      // IN/OUT: Index to start at
+                      const wchar_t *str,        // IN    : String to parse
+                      const wchar_t *delimiters) // IN    : Separating tokens
+{
+   unsigned int startIndex;
+   unsigned int length;
+   wchar_t *token;
+
+   ASSERT(index != NULL);
+   ASSERT(str != NULL);
+   ASSERT(delimiters != NULL);
+   ASSERT(*index <= wcslen(str));
+
+#define NOT_DELIMITER (wcschr(delimiters, str[*index]) == NULL)
+
+   /* Skip leading delimiters. */
+   for (;; (*index)++) {
+      if (str[*index] == L'\0') {
+         return NULL;
+      }
+
+      if (NOT_DELIMITER) {
+         break;
+      }
+   }
+   startIndex = *index;
+
+   /*
+    * Walk the string until we reach the end of it, or we find a
+    * delimiter.
+    */
+   for ((*index)++; str[*index] != L'\0' && NOT_DELIMITER; (*index)++) {
+   }
+
+#undef NOT_DELIMITER
+
+   length = *index - startIndex;
+   ASSERT(length);
+   token = Util_SafeMalloc(sizeof *token * (length + 1));
+   wmemcpy(token, str + startIndex, length);
+   token[length] = L'\0';
+
+   return token;
+}
+#endif
 
 
 /*
