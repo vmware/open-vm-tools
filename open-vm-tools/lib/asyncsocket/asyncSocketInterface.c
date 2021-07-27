@@ -1513,12 +1513,11 @@ AsyncSocket_GetWebSocketCookie(AsyncSocket *asock)    // IN
  *
  * AsyncSocket_SetWebSocketCookie --
  *
- *      Return the Cookie field value supplied during a WebSocket
- *      connection request.
+ *      Insert Set-Cookie HTTP response header during WebSocket connection.
  *
  * Results:
- *      Cookie, if asock is WebSocket.
- *      NULL, if asock is not WebSocket.
+ *      ASOCKERR_SUCCESS if we finished the operation, ASOCKERR_* error codes
+ *      otherwise.
  *
  * Side effects:
  *      None.

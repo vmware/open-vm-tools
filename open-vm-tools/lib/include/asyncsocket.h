@@ -480,6 +480,14 @@ AsyncSocket *AsyncSocket_RegisterListenWebSocket(AsyncSocket *asock,
                                                  unsigned int port,
                                                  AsyncSocketPollParams *pollParams,
                                                  int *outError);
+AsyncSocket* AsyncSocket_UpgradeToWebSocket(AsyncSocket *asock,
+                                            const char *protocols[],
+                                            AsyncSocketConnectFn connectFn,
+                                            void *clientData,
+                                            Bool useSSL,
+                                            void *sslCtx,
+                                            AsyncWebSocketHandleUpgradeRequestFn handleUpgradeRequestFn,
+                                            int *outError);
 
 #ifndef _WIN32
 AsyncSocket *AsyncSocket_ListenWebSocketUDS(const char *pipeName,
