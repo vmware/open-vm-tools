@@ -294,6 +294,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_DEBIAN              "debian"
 #define STR_OS_ARM_DEBIAN          "arm-debian"
 #define STR_OS_FEDORA              "Fedora"
+#define STR_OS_ARM_FEDORA          "arm-Fedora"
 #define STR_OS_FLATCAR             "flatcar"
 #define STR_OS_GENTOO              "Gentoo"
 #define STR_OS_IMMUNIX             "Immunix"
