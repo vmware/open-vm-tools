@@ -1,3 +1,76 @@
+commit 38f8606a3f4faeb0b8ae1f9277c9c1b50ac19bbe
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Aug 12 12:46:05 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 574cbbe55abdc716a6af03a752260699c3e22784
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Aug 12 12:46:05 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 5003c79aaf398fbdc965c510c1b0be2350be7e64
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Aug 12 12:46:05 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit f254eef58523fc9539e3836d825056b999ff192b
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Aug 12 12:46:05 2021 -0700
+
+    Reduce the scope of a local variable.
+    
+    The 'Codacy' tool reported that the scope of a local variable can be
+    reduced in the Debug() function of linuxDeployment.c.
+
+commit 63d9fd68f5513b683aae855d30a2da4d4e4f72a7
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Aug 12 12:46:05 2021 -0700
+
+    Common header file change not directly applicable to open-vm-tools.
+
+commit f39d4c1fe303d94a079f0d0e9ed098cde1cb0316
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Aug 12 12:46:05 2021 -0700
+
+    VmCheck_IsVirtualWorld(): assume VMware hypervisor if USE_VALGRIND is defined.
+    
+    Updating the VmCheck_IsVirtualWorld() function to assume that if the
+    open-vm-tools build was configured with "--enable-valgrind", the tools
+    will be used on a VMware hypervisor for memory leak detection.  In this
+    case, simply return TRUE and avoid touching the backdoor.
+    
+    The "backdoor" touch test cannot be handled by Valgrind.
+
+commit 1c31dbfc3df970bd6f4e0ad297f8d79e105a2690
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Aug 12 12:46:05 2021 -0700
+
+    Update VMware Tools version to 12.0.0.
+    
+    The next major VMware Tools / open-vm-tools will be version 12.0.0.
+
+commit dd78c6abbb4f376afea1db423acaf483c4f56f32
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Aug 12 12:46:04 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit e76f136563a8e78676f9c1e069175dec835eaade
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Aug 12 12:46:04 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit beee0873cbf0d0399d52cb762b2b3e85054c5774
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 27 10:54:08 2021 -0700
+
+    Update ChangeLog with the granular push of July 27, 2021.
+      - plus ChangeLog update of July 8.
+
 commit 26e7c2f3b5198621c8234c4890431dc16698bcf3
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Tue Jul 27 10:37:24 2021 -0700
