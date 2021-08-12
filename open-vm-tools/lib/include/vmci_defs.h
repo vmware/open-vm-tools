@@ -79,10 +79,12 @@ extern "C" {
 /* Interrupt Cause register bits. */
 #define VMCI_ICR_DATAGRAM      0x1
 #define VMCI_ICR_NOTIFICATION  0x2
+#define VMCI_ICR_INOUT         0x4
 
 /* Interrupt Mask register bits. */
 #define VMCI_IMR_DATAGRAM      0x1
 #define VMCI_IMR_NOTIFICATION  0x2
+#define VMCI_IMR_INOUT         0x4
 
 /* Interrupt type. */
 typedef enum VMCIIntrType {
@@ -94,7 +96,9 @@ typedef enum VMCIIntrType {
 /*
  * Maximum MSI/MSI-X interrupt vectors in the device.
  */
-#define VMCI_MAX_INTRS 2
+#define VMCI_MAX_INTRS_NOTIFICATION 2
+#define VMCI_MAX_INTRS_INOUT        3
+#define VMCI_MAX_INTRS              VMCI_MAX_INTRS_INOUT
 
 /*
  * Supported interrupt vectors.  There is one for each ICR value above,
@@ -102,6 +106,7 @@ typedef enum VMCIIntrType {
  */
 #define VMCI_INTR_DATAGRAM     0
 #define VMCI_INTR_NOTIFICATION 1
+#define VMCI_INTR_INOUT        2
 
 
 /*
