@@ -729,12 +729,6 @@ typedef int pid_t;
 #define ULM_ONLY(x)
 #endif
 
-#ifdef ULM_ESX_VMX
-#define ulm_esx_vmx 1
-#else
-#define ulm_esx_vmx 0
-#endif
-
 #if defined(VMM) || defined(ULM)
 #define MONITOR_ONLY(x) x
 #else
