@@ -1196,14 +1196,7 @@ ToolsCore_Setup(ToolsServiceState *state)
 #else
    state->ctx.mainLoop = g_main_loop_new(gctx, FALSE);
 #endif
-   /*
-    * Valgrind can't handle the backdoor check.
-    */
-#ifdef USE_VALGRIND
-   state->ctx.isVMware = TRUE;
-#else
    state->ctx.isVMware = VmCheck_IsVirtualWorld();
-#endif
    g_main_context_unref(gctx);
 
    g_type_init();

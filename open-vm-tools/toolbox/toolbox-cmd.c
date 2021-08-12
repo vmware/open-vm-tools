@@ -476,18 +476,11 @@ main(int argc,    // IN: length of command line arguments
    VMTools_ConfigLogging("toolboxcmd", conf, FALSE, FALSE);
    VMTools_BindTextDomain(VMW_TEXT_DOMAIN, NULL, NULL);
 
-   /*
-    * Check if we are in a VM
-    *
-    * Valgrind can't handle the backdoor check, so don't bother.
-    */
-#ifndef USE_VALGRIND
    if (!VmCheck_IsVirtualWorld()) {
       g_printerr(SU_(error.novirtual, "%s must be run inside a virtual machine.\n"),
                  argv[0]);
       goto exit;
    }
-#endif
 
    /*
     * Parse the command line optional arguments
