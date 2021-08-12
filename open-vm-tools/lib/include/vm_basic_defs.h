@@ -181,12 +181,10 @@ Max(int a, int b)
 #if defined __APPLE__
 #include <machine/param.h>
 #undef MASK
-   #if defined VM_ARM_ANY
-      #include <mach/machine/vm_param.h>
-      #undef PAGE_SHIFT
-      #undef PAGE_SIZE
-      #undef PAGE_MASK
-   #endif
+#include <mach/machine/vm_param.h>
+#undef PAGE_SHIFT
+#undef PAGE_SIZE
+#undef PAGE_MASK
 #endif
 
 /*
