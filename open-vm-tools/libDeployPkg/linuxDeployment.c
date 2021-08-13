@@ -179,6 +179,7 @@ static Bool CopyFileIfExist(const char* sourcePath,
 static void GetCloudinitVersion(const char* versionOutput,
                                 int* major,
                                 int* minor);
+static Bool IsTelinitASoftlinkToSystemctl(void);
 
 /*
  * Globals
@@ -1507,12 +1508,15 @@ Deploy(const char* packageName)
          sLog(log_error, "Failed to fork: '%s'.", strerror(errno));
       } else if (pid == 0) {
          // We're in the child
-
-         // Repeatedly try to reboot to workaround PR 530641 where
-         // telinit 6 is overwritten by a telinit 2
          int rebootCommandResult;
          bool isRebooting = false;
+         // Retry reboot until telinit 6 succeeds to workaround PR 2716292 where
+         // telinit is a soft(symbolic) link to systemctl and it could exit
+         // abnormally due to systemd sends SIGTERM
+         bool retryReboot = IsTelinitASoftlinkToSystemctl();
          sLog(log_info, "Trigger reboot.");
+         // Repeatedly try to reboot to workaround PR 530641 where
+         // telinit 6 is overwritten by a telinit 2
          do {
             if (isRebooting) {
                sLog(log_info, "Rebooting.");
@@ -1521,10 +1525,10 @@ Deploy(const char* packageName)
                ForkExecAndWaitCommand("/sbin/telinit 6", true, NULL, 0);
             isRebooting = (rebootCommandResult == 0) ? true : isRebooting;
             sleep(1);
-         } while (rebootCommandResult == 0);
+         } while (rebootCommandResult == 0 || (retryReboot && !isRebooting));
          if (!isRebooting) {
             sLog(log_error,
-                 "Failed to reboot, telinit returned error %d.",
+                 "Failed to reboot, reboot command returned error %d.",
                  rebootCommandResult);
             exit (127);
          } else {
@@ -2027,4 +2031,44 @@ GetCloudinitVersion(const char* version, int* major, int* minor)
       sscanf(version, "%*[^0123456789]%d%*[-.]%d", major, minor);
    }
    sLog(log_info, "Cloud-init version major: %d, minor: %d", *major, *minor);
+}
+
+/**
+ *
+ * Check if "telinit" command is a soft(symbolic) link to "systemctl" command
+ *
+ * The fullpath of "systemctl" command could be:
+ *    /bin/systemctl
+ *    or
+ *    /usr/bin/systemctl
+ *
+ * @returns TRUE if "telinit" command is a soft link to "systemctl" command
+ *          FALSE if "telinit" command is not a soft link to "systemctl" command
+ *
+ **/
+static Bool
+IsTelinitASoftlinkToSystemctl(void)
+{
+   static const char systemctlBinPath[] = "/bin/systemctl";
+   static const char readlinkCommand[] = "/bin/readlink /sbin/telinit";
+   char readlinkCommandOutput[256];
+   int forkExecResult;
+
+   forkExecResult = ForkExecAndWaitCommand(readlinkCommand,
+                                           true,
+                                           readlinkCommandOutput,
+                                           sizeof(readlinkCommandOutput));
+   if (forkExecResult != 0) {
+      sLog(log_debug, "readlink command result = %d.", forkExecResult);
+      return FALSE;
+   }
+
+   if (strstr(readlinkCommandOutput, systemctlBinPath) != NULL) {
+      sLog(log_debug, "/sbin/telinit is a soft link to systemctl");
+      return TRUE;
+   } else {
+      sLog(log_debug, "/sbin/telinit is not a soft link to systemctl");
+   }
+
+   return FALSE;
 }
