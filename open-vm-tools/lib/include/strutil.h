@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018, 2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -37,6 +37,10 @@ struct DynBuf;
 
 char *StrUtil_GetNextToken(unsigned int *index, const char *str,
                            const char *delimiters);
+#if defined(_WIN32)
+wchar_t *StrUtil_GetNextTokenW(unsigned int *index, const wchar_t *str,
+                               const wchar_t *delimiters);
+#endif
 Bool StrUtil_GetNextIntToken(int32 *out, unsigned int *index, const char *str,
                              const char *delimiters);
 Bool StrUtil_GetNextUintToken(uint32 *out, unsigned int *index, const char *str,
