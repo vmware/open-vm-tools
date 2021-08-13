@@ -1,6 +1,6 @@
 #!/bin/sh -x
 ##########################################################
-# Copyright (C) 2001-2018 VMware, Inc. All rights reserved.
+# Copyright (C) 2001-2018, 2021 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -26,31 +26,104 @@
 # of suspend and resume events, respectively.
 #
 
-logbase=/var/log/vmware-network
+SOURCE=$0
+logdir=/var/log
+logbase=$logdir/vmware-network
 logfile=$logbase.log
+
+# Defines logging mode enabled (1) or disabled (0)
+logmode=1
+
+# Defines whether to rotate logs (1) or not (0)
+logrotate=1
+
+#
+# Get log file path
+#
+get_logfile() {
+   file=`vmware-toolbox-cmd config get logging network.data | \
+        sed -e 's/.*= *//' -e 's/ *$//'`
+   if [ -n "${file##*"UNSET"*}" ]; then
+      logfile=$file
+      logdir=`dirname $logfile`
+      logbase=`echo $logfile | sed 's/\..*$//'`
+   fi
+}
+
+#
+# Get Network logging config
+#
+get_logconfig() {
+   handler=`vmware-toolbox-cmd config get logging network.handler | \
+           sed -e 's/.*= *//' -e 's/ *$//'`
+   case $handler in
+      "file")
+         get_logfile
+         ;;
+      "file+")
+         get_logfile
+         logrotate=0
+         ;;
+      "vmx"|"std")
+         logrotate=0
+         ;;
+      "syslog")
+         logfile=/var/log/syslog
+         logdir=`dirname $logfile`
+         logrotate=0
+         ;;
+      *)
+         ;;
+   esac
+}
 
 #
 # Rotate any logs
 #
 rotate_logfile() {
-    max=9
-    max=`expr $max - 1`
-    for s in `seq $max -1 1`; do
-        d=`expr $s + 1`
-        mv -f $logbase.$s.log $logbase.$d.log
-    done
-    mv -f $logbase.log $logbase.1.log
+   if [ $logrotate -eq 1 ]; then
+      max=`vmware-toolbox-cmd config get logging network.maxOldLogFiles | \
+          sed -e 's/.*= *//' -e 's/ *$//'`
+      if [ -z "${max##*"UNSET"*}" -o `expr "$max" : '[0-9]\+$'` -eq 0 ]; then
+         max=9
+      fi
+      max=`expr $max - 1`
+      for s in `seq $max -1 1`; do
+         d=`expr $s + 1`
+         mv -f $logbase.$s.log $logbase.$d.log
+      done
+      mv -f $logbase.log $logbase.1.log
+   fi
 }
 
+#
+# Logging api
+#
+log() {
+   if [ $logmode -eq 1 ]; then
+      if [ "$handler" = "vmx" ]; then
+         `vmtoolsd --cmd "log $*"`
+      elif [ "$handler" = "std" ]; then
+         echo `date` ": $*"
+      elif [ -w $logdir ]; then
+         space=`df -k $logdir | awk 'NR == 2 { print $4 }'`
+         if [ $space -gt 1024 ]; then
+            echo `date` ": $*" >> $logfile
+         else
+            `vmtoolsd --cmd "log WARNING: [$SOURCE] Logging disabled. No space left in $logdir"`
+            logmode=0
+         fi
+      else
+         `vmtoolsd --cmd "log WARNING: [$SOURCE] Logging disabled. $logdir is not writable"`
+         logmode=0
+      fi
+   fi
+}
+
+get_logconfig
 rotate_logfile
 
-# redirect stdio
-exec > $logfile 2>&1
-chmod 0600 $logfile
-
-
-echo `date` ": Executing '$0 $*'"
-echo
+log "Executing '$0 $*'"
 
 . `dirname "$0"`/../../statechange.subr
 
@@ -96,7 +169,7 @@ find_networking_script() {
       fi
    done
 
-   echo "$script"
+   log "$script"
 }
 
 
@@ -394,9 +467,9 @@ rescue_NIC()
          fi
 
          if echo $intf_out | grep -q 'UP'; then
-            echo `date` "[rescue_nic] $nic is already active."
+            log "[rescue_nic] $nic is already active."
          else
-            echo `date` "[rescue_nic] activating $nic ..."
+            log "[rescue_nic] activating $nic ..."
 
             # Our best effort to activate interfaces, use ifup if available
             # otherwise use the ip command as fallback.
@@ -612,7 +685,7 @@ main() {
          fi
          ;;
       *)
-         echo "No argument supplied."
+         log "No argument supplied."
          ;;
    esac
 
@@ -620,4 +693,4 @@ main() {
 }
 
 main "$@"
-echo `date` ": Finished '$0 $*'"
+log "Finished '$0 $*'"
