@@ -1319,7 +1319,6 @@ MODULES=""
 MODULES_OS="$os"
 TARGET_OS="$os"
 MODULES_DIR=""
-buildHgfsmounter=no
 
 if test "$os" = "linux"; then
    MODULES_DIR="$LINUXDIR/kernel/"
@@ -1349,7 +1348,6 @@ if test "$os" = "linux"; then
    if test "$osVersion" -lt 300000; then
       MODULES="$MODULES vmblock vmsync"
    fi
-   buildHgfsmounter=yes
    if test "x$enable_resolutionkms" != "xno" && test "x$enable_vmwgfxctrl" != "xno"; then
       PKG_CHECK_MODULES(
          [LIBUDEV],
@@ -1459,7 +1457,6 @@ if test "x$enable_vmwgfxctrl" = "xauto"; then
    enable_vmwgfxctrl="no"
 fi
 
-AM_CONDITIONAL(BUILD_HGFSMOUNTER, test "$buildHgfsmounter" = "yes")
 AM_CONDITIONAL(LINUX, test "$os" = "linux")
 AM_CONDITIONAL(SOLARIS, test "$os" = "solaris")
 AM_CONDITIONAL(FREEBSD, test "$os" = "freebsd" -o "$os" = "kfreebsd-gnu")
@@ -1672,7 +1669,6 @@ AC_CONFIG_FILES([                      \
    vmware-user-suid-wrapper/Makefile   \
    toolbox/Makefile                    \
    hgfsclient/Makefile                 \
-   hgfsmounter/Makefile                \
    checkvm/Makefile                    \
    vmwgfxctrl/Makefile                 \
    rpctool/Makefile                    \
