@@ -1,3 +1,48 @@
+commit a6923583d4519019e25860abcd16c2205d8a3fde
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Aug 23 20:13:37 2021 -0700
+
+    Replace the use of appInfo's internal json escape function with
+    libmisc's CodeSet_JsonEscape().
+
+commit c7a5a3e189494e44c16ed7c21ab0b4fac28b26b8
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Aug 23 20:13:37 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 3bae54175a7a72872920ba62842a5091a87ae11a
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Aug 23 20:13:37 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 61331a189a0eeb76f014db28288b06c0323bc0b9
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Aug 23 20:13:36 2021 -0700
+
+    Removal of the hgfsmounter/mount.vmhgfs command from open-vm-tools.
+    
+    The hgfsmounter (mount.vmhgfs) command is no longer used in Linux
+    open-vm-tools.  It has been replaced by hgfs-fuse.  Remove
+    all references to the hgfsmounter in Linux builds.
+
+commit f5fb3a9fb32ea465f965aa971bc40bdff8edc36f
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Aug 23 20:13:36 2021 -0700
+
+    Further refinement of the toolsDeployPkg.log file.
+    
+    Modified the build info description with the module name instead of
+    "imgcust" or "sysimage".
+
+commit 1f971148e368b2df87cb20c74568494b7b543ced
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Aug 12 12:57:20 2021 -0700
+
+    Update ChangeLog with the granular push of Aug. 12, 2021.
+      plus ChangeLog update of July 27.
+
 commit 38f8606a3f4faeb0b8ae1f9277c9c1b50ac19bbe
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Thu Aug 12 12:46:05 2021 -0700
