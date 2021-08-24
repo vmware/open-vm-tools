@@ -208,6 +208,7 @@ extern "C" {
    GOKM("windows8srv-64",                       windows8Server64Guest,   TRUE) \
    GOKM("windows9",                             windows9Guest,           TRUE) \
    GOKM("windows9-64",                          windows9_64Guest,        TRUE) \
+   GOKM("windows11-64",                         windows11_64Guest,       TRUE) \
    GOKM("windows9srv-64",                       windows9Server64Guest,   TRUE) \
    GOKM("windows2019srv-64",                    windows2019srv_64Guest,  TRUE) \
    GOKM("windows2019srvNext-64",                windows2019srvNext_64Guest, TRUE) \
@@ -357,6 +358,8 @@ extern "C" {
    GOKM("other4xlinux-64",                      other4xLinux64Guest,     TRUE) \
    GOKM("other5xlinux",                         other5xLinuxGuest,       TRUE) \
    GOKM("other5xlinux-64",                      other5xLinux64Guest,     TRUE) \
+   GOKM("other6xlinux",                         other6xLinuxGuest,       TRUE) \
+   GOKM("other6xlinux-64",                      other6xLinux64Guest,     TRUE) \
    GOKM("linux",                                otherLinuxGuest,         FALSE) \
    GOKM("otherlinux",                           otherLinuxGuest,         TRUE) \
    GOKM("otherlinux-64",                        otherLinux64Guest,       TRUE) \
