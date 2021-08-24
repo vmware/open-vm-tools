@@ -30,6 +30,7 @@
 
 #include "appInfoInt.h"
 #include "vmware.h"
+#include "codeset.h"
 #include "conf.h"
 #include "dynbuf.h"
 #include "escape.h"
@@ -48,10 +49,6 @@
 #include "embed_version.h"
 #include "vmtoolsd_version.h"
 VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
-#endif
-
-#if defined(_WIN32)
-#include "codeset.h"
 #endif
 
 /**
@@ -100,51 +97,6 @@ static gboolean gAppInfoEnabledInHost = TRUE;
 static GSource *gAppInfoTimeoutSource = NULL;
 
 static void TweakGatherLoop(ToolsAppCtx *ctx, gboolean force);
-
-
-/*
- *****************************************************************************
- * EscapeJSONString --
- *
- * Escapes a string to be included in JSON content.
- *
- * @param[in] str The string to be escaped.
- *
- * @retval Pointer to a heap-allocated memory. This holds the escaped content
- *         of the string passed by the caller.
- *
- *****************************************************************************
- */
-
-static char *
-EscapeJSONString(const char *str)    // IN
-{
-   /*
-    * Escape '"' and '\' characters in the JSON string.
-    */
-
-   static const int bytesToEscape[] = {
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,   // "
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0,   // '\'
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-   };
-
-   return Escape_DoString("\\u00", bytesToEscape, str, strlen(str),
-                          NULL);
-}
 
 
 /*
@@ -333,7 +285,7 @@ AppInfoGatherTask(ToolsAppCtx *ctx,    // IN
          goto next_entry;
       }
 
-      escapedCmd = EscapeJSONString(appInfo->appName);
+      escapedCmd = CodeSet_JsonEscape(appInfo->appName);
 
       if (NULL == escapedCmd) {
          g_warning("%s: Failed to escape the content of cmdName.\n",
@@ -341,7 +293,7 @@ AppInfoGatherTask(ToolsAppCtx *ctx,    // IN
          goto quit;
       }
 
-      escapedVersion = EscapeJSONString(appInfo->version);
+      escapedVersion = CodeSet_JsonEscape(appInfo->version);
       if (NULL == escapedVersion) {
          g_warning("%s: Failed to escape the content of version information.\n",
                    __FUNCTION__);
