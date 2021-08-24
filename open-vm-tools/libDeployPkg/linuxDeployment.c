@@ -1882,8 +1882,14 @@ DeployPkg_DeployPackageFromFileEx(const char* file)
    DeployPkgStatus retStatus;
 
 #if !defined(OPEN_VM_TOOLS) && !defined(USERWORLD)
-   sLog(log_info, "Imgcust component Version: %s (%s)",
+   sLog(log_info, "libDeployPkg.so version: %s (%s)",
         SYSIMAGE_VERSION_EXT_STR, BUILD_NUMBER);
+#else
+   /*
+    * For OPEN_VM_TOOLS and USERWORLD, the vmtoolsd version is logged in
+    * function DeployPkgDeployPkgInGuest from
+    * services/plugins/deployPkg/deployPkg.c
+    */
 #endif
    sLog(log_info, "Initializing deployment module.");
    Init();
