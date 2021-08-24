@@ -339,10 +339,10 @@
 #define MAX_FLOPPY_DRIVES      2
 
 /************* PCI Passthrough implementation limits ********************/
-#define MAX_PCI_PASSTHRU_DEVICES 16
+#define MAX_PCI_PASSTHRU_DEVICES 32
 
 /************* Test device implementation limits ********************/
-#define MAX_PCI_TEST_DEVICES 16
+#define MAX_PCI_TEST_DEVICES 32
 
 /************* VDTI PCI Device implementation limits ********************/
 #define MAX_VDTI_PCI_DEVICES 16
