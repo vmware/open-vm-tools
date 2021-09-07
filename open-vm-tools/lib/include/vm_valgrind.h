@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2014 VMware, Inc. All rights reserved.
+ * Copyright (C) 2014, 2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -62,5 +62,16 @@
 #define VALGRIND_MAKE_MEM_UNDEFINED(_qzz_addr, _qzz_len) 0
 
 #endif
+
+/*
+ * VALGRIND_SPEED_FACTOR is an approximation of how much Valgrind's
+ * instrumentation is likely to slow down execution.  It is a _very_ rough
+ * guess because the actual slowdown will depend on the nature of the code
+ * being executed, but regardless this is a handy macro for adjusting (by
+ * multiplying or dividing) times or loop counts or anything else impacted by
+ * Valgrind's instrumentation overhead.
+ */
+
+#define VALGRIND_SPEED_FACTOR (RUNNING_ON_VALGRIND ? 100 : 1)
 
 #endif /* _VM_VALGRIND_H_ */
