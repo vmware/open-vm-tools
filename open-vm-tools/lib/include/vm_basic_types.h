@@ -98,6 +98,29 @@
 #  error Unexpected: defined __arm64__ without __aarch64__
 #endif
 
+#ifdef GTEST
+
+// Select definitions based on product.
+#if defined(GTEST_PRODUCT_esx)
+#define vm_arm_64 0
+#define vm_x86_64 1
+
+#define VM_X86_64
+#define VM_X86_ANY
+#define VM_64BIT
+#elif defined(GTEST_PRODUCT_esxarm64)
+#define vm_arm_64 1
+#define vm_x86_64 0
+
+#define VM_ARM_64
+#define VM_ARM_ANY
+#define VM_64BIT
+#else
+#error "Unknown gtest product, cannot define ISA."
+#endif
+
+#else    // !GTEST
+
 /*
  * Setup a bunch of defines for instruction set architecture (ISA) related
  * properties.
@@ -145,6 +168,8 @@
 #else
 #define vm_arm_64 0
 #endif
+
+#endif   // !GTEST
 
 #ifdef VM_ARM_ANY
 #define vm_arm_any 1
