@@ -1,3 +1,46 @@
+commit 9a793fb5399b36cb473c57eb3a41570adfccc078
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 7 06:39:53 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit d09c3d5247e21f0a881406a020e6cdf87ab0ee2d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 7 06:39:53 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit b963fdd5363d1ecd347045408cf1b40e5ac27188
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 7 06:39:53 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit ee2fe611e1c6f27d0e918a361a967f13da10ba08
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 7 06:39:53 2021 -0700
+
+    Common header file change not directly applicable to open-vm-tools.
+
+commit e551b81709ee4f42e79f2f4aaa47d9443e24a2fa
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 7 06:39:53 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit adb9c0476a8dd9d15947857343b23c6ffe9b395c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 7 06:39:53 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 6336dec45c73d60d8bd100ddc71f3b125a2a9cc9
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Aug 23 20:22:35 2021 -0700
+
+    Update ChangeLog with the granular push of Aug. 22, 2021.
+      plus ChangeLog update of Aug. 12.
+
 commit a6923583d4519019e25860abcd16c2205d8a3fde
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Mon Aug 23 20:13:37 2021 -0700
