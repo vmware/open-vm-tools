@@ -569,6 +569,13 @@ AsyncSocket_CreateNamedPipe(const char *pipeName,
 AsyncSocket *
 AsyncSocket_AttachToNamedPipe(HANDLE handle, AsyncSocketPollParams *pollParams,
                               int *outError);
+
+/*
+ * Obtain the client process id of the given named pipe
+ */
+Bool
+AsyncSocket_GetNamedPipeClientProcessId(AsyncSocket* asock,
+                                        PULONG clientPid);
 #endif
 
 AsyncSocket *
