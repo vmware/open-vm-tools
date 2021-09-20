@@ -1606,6 +1606,12 @@ GuestInfoUpdateVMX(ToolsAppCtx *ctx,        // IN: Application context
          return FALSE;
       }
 
+      if (infoType == INFO_OS_NAME) {
+         g_message("Updated Guest OS name to %s\n", (char *) info);
+      } else if (infoType == INFO_OS_NAME_FULL) {
+         g_message("Updated Guest OS full name to %s\n", (char *) info);
+      }
+
       /* Update the value in the cache as well. */
       free(gInfoCache.value[infoType]);
       gInfoCache.value[infoType] = Util_SafeStrdup((char *) info);
