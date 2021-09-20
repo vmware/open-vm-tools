@@ -1652,7 +1652,8 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 #define CPUID_MODEL_ICELAKE_7E        0x7e  // Ice Lake U/Y
 #define CPUID_MODEL_ICELAKE_6A        0x6a  // Ice Lake SP (ICX)
 #define CPUID_MODEL_ICELAKE_6C        0x6c  // Ice Lake D
-#define CPUID_MODEL_TIGERLAKE_8C      0x8c  // Tiger Lake
+#define CPUID_MODEL_TIGERLAKE_8C      0x8c  // Tiger Lake UP3/UP4/H35
+#define CPUID_MODEL_TIGERLAKE_8D      0x8d  // Tiger Lake H81
 #define CPUID_MODEL_KNM_85            0x85  // Knights Mill
 #define CPUID_MODEL_KABYLAKE_8E       0x8e  // Kaby Lake U/Y QS
 #define CPUID_MODEL_KABYLAKE_9E       0x9e  // Kaby Lake S/H QS
@@ -2028,7 +2029,8 @@ CPUID_MODEL_IS_TIGERLAKE(uint32 v) // IN: %eax from CPUID with %eax=1.
 {
    /* Assumes the CPU manufacturer is Intel. */
    return CPUID_FAMILY_IS_P6(v) &&
-          (CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_TIGERLAKE_8C);
+          (CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_TIGERLAKE_8C ||
+           CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_TIGERLAKE_8D);
 }
 
 static INLINE Bool
