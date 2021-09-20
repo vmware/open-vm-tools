@@ -52,6 +52,7 @@ extern "C" {
 #define VMCI_DATA_OUT_HIGH_ADDR 0x28
 #define VMCI_DATA_IN_LOW_ADDR   0x2c
 #define VMCI_DATA_IN_HIGH_ADDR  0x30
+#define VMCI_PAGE_SHIFT_ADDR    0x34
 
 /* Max number of devices. */
 #define VMCI_MAX_DEVICES 1
