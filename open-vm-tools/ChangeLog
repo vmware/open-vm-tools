@@ -1,3 +1,53 @@
+commit fe059f34e4ab93f21c41b4598da6846eafd9bc20
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Sep 20 08:07:36 2021 -0700
+
+    Change to common header file not directly applicable to open-vm-tools.
+
+commit ffa5d491194412213882cdcc808d621b439ae2a6
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Sep 20 08:07:36 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 03b6ca66c23289da7b34d1e47f5769d063ee3ad9
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Sep 20 08:07:36 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit a3e4fd4e4692e36b5b66b5feb4044faa41d46f22
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Sep 20 08:07:36 2021 -0700
+
+    resolutionKMS: Add support for the svga3 device
+    
+    The resolution plugin was checking for only the svga2 device, which
+    does not exist on ARM.  This makes the resolution plugin work on ARM.
+
+commit 21f193b21e3d2be122a6ee9755a45536671cf4e9
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Sep 20 08:07:36 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit fe8803ea205da66e8a5040f447835fd2292de89e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Sep 20 08:07:36 2021 -0700
+
+    Log the guest OS name and full name.
+    
+    Added a log message for the guest OS name and full name that is sent as
+    guestInfo.  Messages are logged only when the guestInfo is successfully
+    updated to the VMX log.
+
+commit 7b58f891b283c4eb42602bba07f4713815a508da
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 7 06:49:29 2021 -0700
+
+    Update ChangeLog with the granular push of Sept. 7, 2021.
+      plus ChangeLog update of Aug. 23.
+
 commit 9a793fb5399b36cb473c57eb3a41570adfccc078
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Tue Sep 7 06:39:53 2021 -0700
