@@ -35,10 +35,10 @@
 ### Initialization
 ###
 
-TOOLS_VERSION="11.3.0"
+TOOLS_VERSION="11.3.5"
 AC_INIT(
    [open-vm-tools],
-   [11.3.0],
+   [11.3.5],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
