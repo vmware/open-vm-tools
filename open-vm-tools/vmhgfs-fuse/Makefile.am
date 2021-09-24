@@ -19,10 +19,12 @@ bin_PROGRAMS = vmhgfs-fuse
 
 AM_CFLAGS =
 AM_CFLAGS += @FUSE_CPPFLAGS@
+AM_CFLAGS += @FUSE3_CPPFLAGS@
 AM_CFLAGS += @GLIB2_CPPFLAGS@
 
 vmhgfs_fuse_LDADD =
 vmhgfs_fuse_LDADD += @FUSE_LIBS@
+vmhgfs_fuse_LDADD += @FUSE3_LIBS@
 vmhgfs_fuse_LDADD += @GLIB2_LIBS@
 vmhgfs_fuse_LDADD += @VMTOOLS_LIBS@
 

@@ -519,18 +519,71 @@ fi
 #
 # Check for fuse.
 #
-# FUSE_USE_VERSION sets the version of the FUSE API that will be exported.
-AC_VMW_CHECK_LIB([fuse],
-                 [FUSE],
-                 [fuse],
-                 [],
-                 [],
-                 [fuse.h],
-                 [fuse_main],
-                 [have_fuse=yes;
-                  AC_DEFINE([FUSE_USE_VERSION], 29, [FUSE API version to use.])],
-                 [have_fuse=no;
-                  AC_MSG_WARN([Fuse is missing, vmblock-fuse/vmhgfs-fuse will be disabled.])])
+AC_ARG_WITH([fuse],
+   [AS_HELP_STRING([--without-fuse],
+     [compiles without FUSE support (disables vmblock-fuse/vmhgfs-fuse).])],
+   [with_fuse="$withval"],
+   [with_fuse=auto])
+
+case "$with_fuse" in
+   fuse|2)
+      with_fuse="fuse"
+      ;;
+   fuse3|3)
+      with_fuse="fuse3"
+      ;;
+   auto)
+      ;;
+   *)
+      AC_MSG_FAILURE([--with-fuse was given with an unsupported paramter $with_fuse])
+      ;;
+esac
+
+if test "$with_fuse" = "auto" || test "$with_fuse" = "fuse3"; then
+   #
+   # Check for fuse3.
+   #
+   # FUSE_USE_VERSION sets the version of the FUSE API that will be exported.
+   AC_VMW_CHECK_LIB([fuse3],
+                    [FUSE3],
+                    [fuse3],
+                    [],
+                    [3.10.0],
+                    [fuse3/fuse.h],
+                    [fuse_main],
+                    [have_fuse3=yes;
+                     AC_DEFINE([HAVE_FUSE3], 1, [Define to 1 if using FUSE3.])
+                     AC_DEFINE([FUSE_USE_VERSION], 35, [FUSE API version to use.])],
+                    [have_fuse3=no])
+
+   if test "$have_fuse3" = "no"; then
+      if test "$with_fuse" = "auto"; then
+         AC_MSG_NOTICE([Fuse3 is missing, trying to use older Fuse library.])
+      else
+         AC_MSG_WARN([Fuse3 is missing, vmblock-fuse/vmhgfs-fuse will be disabled.])
+      fi
+   fi
+fi
+
+if test "$with_fuse" = "fuse" ||
+   ( test "$with_fuse" = "auto" && test "$have_fuse3" = "no" ); then
+   #
+   # Check for fuse.
+   #
+   # FUSE_USE_VERSION sets the version of the FUSE API that will be exported.
+   AC_VMW_CHECK_LIB([fuse],
+                    [FUSE],
+                    [fuse],
+                    [],
+                    [],
+                    [fuse.h],
+                    [fuse_main],
+                    [have_fuse=yes;
+                     AC_DEFINE([HAVE_FUSE], 1, [Define to 1 if using FUSE.])
+                     AC_DEFINE([FUSE_USE_VERSION], 29, [FUSE API version to use.])],
+                    [have_fuse=no;
+                     AC_MSG_WARN([Fuse is missing, vmblock-fuse/vmhgfs-fuse will be disabled.])])
+fi
 
 #
 # Check for PAM.
@@ -1478,7 +1531,8 @@ AM_CONDITIONAL(HAVE_XCOMPOSITE, test "$have_xcomposite" = "yes")
 AM_CONDITIONAL(ENABLE_TESTS, test "$have_cunit" = "yes")
 AM_CONDITIONAL(WITH_ROOT_PRIVILEGES, test "$with_root_privileges" = "yes")
 AM_CONDITIONAL(HAVE_DOXYGEN, test "$have_doxygen" = "yes")
-AM_CONDITIONAL(HAVE_FUSE, test "$have_fuse" = "yes")
+AM_CONDITIONAL(HAVE_FUSE, test "$have_fuse" = "yes" || test "$have_fuse3" = "yes")
+AM_CONDITIONAL(HAVE_FUSE3, test "$have_fuse3" = "yes")
 AM_CONDITIONAL(HAVE_GNU_LD, test "$with_gnu_ld" = "yes")
 AM_CONDITIONAL(HAVE_GTKMM, test "$have_x" = "yes" -a \( "$with_gtkmm" = "yes" -o "$with_gtkmm3" = "yes" \) )
 AM_CONDITIONAL(HAVE_PAM, test "$with_pam" = "yes")

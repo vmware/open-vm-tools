@@ -115,9 +115,16 @@ freeAbsPath(char *abspath)  // IN
  *----------------------------------------------------------------------
  */
 
+#if HAVE_FUSE3
+static int
+hgfs_getattr(const char *path,           //IN: path of a file/directory
+             struct stat *stbuf,         //IN/OUT: file/directoy attribute
+             struct fuse_file_info *fi)  //IN/OUT: Unused
+#else
 static int
 hgfs_getattr(const char *path,    //IN: path of a file/directory
              struct stat *stbuf)  //IN/OUT: file/directoy attribute
+#endif
 {
    HgfsHandle fileHandle = HGFS_INVALID_HANDLE;
    HgfsAttrInfo newAttr = {0};
@@ -361,12 +368,22 @@ exit:
  *----------------------------------------------------------------------
  */
 
+#if HAVE_FUSE3
+static int
+hgfs_readdir(const char *path,              //IN: path to a directory
+             void *buf,                     //OUT: buffer to fill the dir entry
+             fuse_fill_dir_t filler,        //IN: function pointer to fill buf
+             off_t offset,                  //IN: offset to read the dir
+             struct fuse_file_info *fi,     //IN: file info set by open call
+             enum fuse_readdir_flags flags) //IN: unused
+#else
 static int
 hgfs_readdir(const char *path,          //IN: path to a directory
              void *buf,                 //OUT: buffer to fill the dir entry
              fuse_fill_dir_t filler,    //IN: function pointer to fill buf
              off_t offset,              //IN: offset to read the dir
              struct fuse_file_info *fi) //IN: file info set by open call
+#endif
 {
    char *abspath = NULL;
    int res = 0;
@@ -598,9 +615,16 @@ exit:
  *----------------------------------------------------------------------
  */
 
+#if HAVE_FUSE3
+static int
+hgfs_rename(const char *from,    //IN: from path name
+            const char *to,      //IN: to path name
+            unsigned int flags)  //IN: unused
+#else
 static int
 hgfs_rename(const char *from,  //IN: from path name
             const char *to)    //IN: to path name
+#endif
 {
    char *absfrom = NULL;
    char *absto = NULL;
@@ -691,9 +715,16 @@ exit:
  *----------------------------------------------------------------------
  */
 
+#if HAVE_FUSE3
+static int
+hgfs_chmod(const char *path,          //IN: path to a file
+           mode_t mode,               //IN: mode to set
+           struct fuse_file_info *fi) //IN/OUT: unused
+#else
 static int
 hgfs_chmod(const char *path,   //IN: path to a file
            mode_t mode)        //IN: mode to set
+#endif
 {
    char *abspath = NULL;
    int res;
@@ -756,10 +787,18 @@ exit:
  *----------------------------------------------------------------------
  */
 
+#if HAVE_FUSE3
+static int
+hgfs_chown(const char *path,           //IN: Path to a file
+           uid_t uid,                  //IN: User id
+           gid_t gid,                  //IN: Group id
+           struct fuse_file_info *fi)  //IN/OUT: unused
+#else
 static int
 hgfs_chown(const char *path,  //IN: Path to a file
            uid_t uid,         //IN: User id
            gid_t gid)         //IN: Group id
+#endif
 {
    HgfsHandle fileHandle = HGFS_INVALID_HANDLE;
    HgfsAttrInfo newAttr = {0};
@@ -819,9 +858,16 @@ exit:
  *----------------------------------------------------------------------
  */
 
+#if HAVE_FUSE3
+static int
+hgfs_truncate(const char *path,           //IN: path to a file
+              off_t size,                 //IN: new size
+              struct fuse_file_info *fi)  //IN/OUT: unused
+#else
 static int
 hgfs_truncate(const char *path,  //IN: path to a file
               off_t size)        //IN: new size
+#endif
 {
    HgfsHandle fileHandle = HGFS_INVALID_HANDLE;
    HgfsAttrInfo newAttr = {0};
@@ -880,9 +926,16 @@ exit:
  *----------------------------------------------------------------------
  */
 
+#if HAVE_FUSE3
+static int
+hgfs_utimens(const char *path,              //IN: path to a file
+             const struct timespec ts[2],   //IN: new time
+             struct fuse_file_info *fi)     //IN/OUT: unused
+#else
 static int
 hgfs_utimens(const char *path,              //IN: path to a file
              const struct timespec ts[2])   //IN: new time
+#endif
 {
    HgfsHandle fileHandle = HGFS_INVALID_HANDLE;
    HgfsAttrInfo newAttr = {0};
@@ -1232,8 +1285,14 @@ exit:
  *----------------------------------------------------------------------
  */
 
+#if HAVE_FUSE3
+static void*
+hgfs_init(struct fuse_conn_info *conn, // IN: unused
+          struct fuse_config *cfg)     // IN/OUT: unused
+#else
 static void*
 hgfs_init(struct fuse_conn_info *conn) // IN: unused
+#endif
 {
    pthread_t purgeCacheThread;
    int dummy;

@@ -396,7 +396,11 @@ HgfsReadDirFromReply(uint32 *f_pos,     // IN/OUT: Offset
       st.st_size = attr.size;
       st.st_ino = ino;
       st.st_mode = d_type << 12;
+#if HAVE_FUSE3
+      result = filldir(vfsDirent, escName, &st, 0, 0);
+#else
       result = filldir(vfsDirent, escName, &st, 0);
+#endif
 
       if (result) {
          /*
