@@ -1939,8 +1939,12 @@ HostinfoBestScore(char *distro,            // OUT:
    int lsbScore = HostinfoLsb(&lsbData);
    int osReleaseScore = HostinfoOsRelease(&osReleaseData);
 
-   /* We prefer the LSB so as to maintain the best backwards compatibility. */
-   if ((lsbScore > 0) && (lsbScore >= osReleaseScore)) {
+   /*
+    * Now that the os-release standard is long stable, choose it over the LSB
+    * standard, all things being the same.
+    */
+
+   if ((lsbScore > 0) && (lsbScore > osReleaseScore)) {
       size_t fields = ARRAYSIZE(lsbFields) - 1;  // Exclude terminator
 
       if (lsbData[0] != NULL) {  // Name

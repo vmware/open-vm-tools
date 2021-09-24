@@ -1,3 +1,93 @@
+commit 199592961abba672ebacfe19d1fa43caec6acb6c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Sep 23 17:48:02 2021 -0700
+
+    Prepare to make the 11.3.5 OVT release announcement.
+    
+     - ReleaseNotes.md - copy in the initial (final ?) 11.3.5 OVT release notes.
+     - configure.ac  = set the tools version to 11.3.5.
+     - buildNumber.h  - set the build and product number from the internal
+                        release build.
+
+commit 7f297dca6342350b1f01444c3636ffe39ab78c27
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Aug 13 11:35:59 2021 -0700
+
+    Remove the mount.vmhgfs from open-vm-tools.
+    
+    The hgfsmounter (mount.vmhgfs) command is no longer used in Linux
+    open-vm-tools.  It has been replaced by hgfs-fuse.  Therefore, removing
+    all references to the hgfsmounter in Linux builds.
+
+commit 07aa3359ea6c734afe9cb5907019f16e9fedc59e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Aug 13 11:35:58 2021 -0700
+
+    VmCheck_IsVirtualWorld(): assume VMware hypervisor if USE_VALGRIND is defined.
+    
+    Updating the VmCheck_IsVirtualWorld() function to assume that if the
+    open-vm-tools build was configured with "--enable-valgrind", the tools
+    will be used on a VMware hypervisor for memory leak detection.  In this
+    case, simply return TRUE and avoid touching the backdoor.
+    
+    The "backdoor" touch test cannot be handled by Valgrind.
+
+commit e4265556a1e60a0298c03cf06222d5106e77325f
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Aug 13 11:35:58 2021 -0700
+
+    Added a configurable logging capability to the network script.
+    
+    The network script has been updated to:
+      - use the vmware-toolbox-cmd to query any network logging configuration.
+      - use 'vmtoolsd --cmd "log ..."' to log a message to the vmx logfile
+        when the logginging handler is configured to "vmx" or when the logfile
+        is full or is not writeable.
+    Added an example configuration in the tools.conf example file.
+
+commit 56f88f3d8ddc708100faf0c6b4477fec7bcde13a
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Aug 13 11:35:58 2021 -0700
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit 4a6491b17b2a7a71a60f94c8c9796b93cf914726
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Aug 13 11:35:58 2021 -0700
+
+    Use os-release preferentially for guest identification.
+    
+    If the "score" of the Linux guest identification from os-release is
+    the same as from the LSB score, use the os-release data. The os-release
+    standard is well established and the LSB is deprecated.
+
+commit 2500bd59ed76a4c376dad6da40345e9af9da1153
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Aug 13 11:35:58 2021 -0700
+
+    Customization: Retry the Linux reboot if telinit is a soft link to systemctl.
+    
+    Issues have been reported on some newer versions of Linux where the VM
+    failed to reboot at the end of a traditional customization.  The command
+    '/sbin/telinit 6' exited abnormally due to SIGTERM sent by systemd and
+    where telinit is a symlink to systemctl.
+    
+    This fix checks if telinit is a soft link to systemctl and if yes, retries
+    a system reboot until the telinit command succeeds or the reboot literally
+    happens.
+
+commit d09ffadb02deeae6f61157a6df23cc37d4a0d5d6
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Aug 13 11:35:58 2021 -0700
+
+    Set the tools version to 11.3.5 on the "stable-11.3.x" branch.
+
+========================================================
+
+   open-vm-tools 11.3.0 release
+
+========================================================
+
 commit 0456d11e57fc48104b413670511794c91f2e3673
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Thu Jun 17 12:22:33 2021 -0700

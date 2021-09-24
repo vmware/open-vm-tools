@@ -249,7 +249,8 @@ VmCheck_GetVersion(uint32 *version, // OUT
  *    environment.
  *
  * Return value:
- *    TRUE if we're in a virtual machine, FALSE otherwise.
+ *    TRUE if we're in a virtual machine or a Linux compilation using Valgrind,
+ *    FALSE otherwise.
  *
  * Side effects:
  *    None.
@@ -264,6 +265,12 @@ VmCheck_IsVirtualWorld(void)
    uint32 dummy;
 
 #if !defined(WINNT_DDK)
+#ifdef USE_VALGRIND
+   /*
+    * Valgrind can't handle the backdoor check.
+    */
+   return TRUE;
+#endif
 #if defined VM_X86_ANY
    char *hypervisorSig;
    uint32 i;
