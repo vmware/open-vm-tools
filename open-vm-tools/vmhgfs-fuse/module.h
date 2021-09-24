@@ -25,8 +25,6 @@
 #ifndef _VMHGFS_FUSE_MODULE_H_
 #define _VMHGFS_FUSE_MODULE_H_
 
-#define FUSE_USE_VERSION 29
-
 #include <sys/types.h>
 #include "hgfsUtil.h"
 #include "vm_assert.h"

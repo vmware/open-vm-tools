@@ -22,10 +22,6 @@
  * Main entry points for fuse file operations for HGFS
  */
 
-#if FUSE_USE_VERSION >= 26
-#define HAVE_UTIMENSAT 1
-#endif
-
 #include "module.h"
 #include "cache.h"
 #include "filesystem.h"
@@ -884,15 +880,9 @@ exit:
  *----------------------------------------------------------------------
  */
 
-#ifdef HAVE_UTIMENSAT
 static int
 hgfs_utimens(const char *path,              //IN: path to a file
              const struct timespec ts[2])   //IN: new time
-#else
-static int
-hgfs_utime(const char *path,        //IN: path to a file
-           struct utimbuf *times)   //IN: new time
-#endif
 {
    HgfsHandle fileHandle = HGFS_INVALID_HANDLE;
    HgfsAttrInfo newAttr = {0};
@@ -936,17 +926,10 @@ hgfs_utime(const char *path,        //IN: path to a file
    attr->mask = (HGFS_ATTR_VALID_WRITE_TIME |
                  HGFS_ATTR_VALID_ACCESS_TIME);
 
-#ifdef HAVE_UTIMENSAT
    accessTimeSec = ts[0].tv_sec;
    accessTimeNsec = ts[0].tv_nsec;
    writeTimeSec = ts[1].tv_sec;
    writeTimeNsec = ts[1].tv_nsec;
-#else
-   accessTimeSec = times->actime;
-   accessTimeNsec = 0;
-   writeTimeSec = times->modtime;
-   writeTimeNsec = 0;
-#endif
    attr->accessTime = HgfsConvertToNtTime(accessTimeSec, accessTimeNsec);
    attr->writeTime = HgfsConvertToNtTime(writeTimeSec, writeTimeNsec);
 
@@ -1335,11 +1318,7 @@ static struct fuse_operations vmhgfs_operations = {
    .chmod       = hgfs_chmod,
    .chown       = hgfs_chown,
    .truncate    = hgfs_truncate,
-#ifdef HAVE_UTIMENSAT
    .utimens     = hgfs_utimens,
-#else // HAVE_UTIMENSAT
-   .utime       = hgfs_utime,
-#endif // defined HAVE_UTIMENSAT
    .open        = hgfs_open,
    .read        = hgfs_read,
    .write       = hgfs_write,

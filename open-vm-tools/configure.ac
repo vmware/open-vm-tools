@@ -519,6 +519,7 @@ fi
 #
 # Check for fuse.
 #
+# FUSE_USE_VERSION sets the version of the FUSE API that will be exported.
 AC_VMW_CHECK_LIB([fuse],
                  [FUSE],
                  [fuse],
@@ -526,7 +527,8 @@ AC_VMW_CHECK_LIB([fuse],
                  [],
                  [fuse.h],
                  [fuse_main],
-                 [have_fuse=yes],
+                 [have_fuse=yes;
+                  AC_DEFINE([FUSE_USE_VERSION], 29, [FUSE API version to use.])],
                  [have_fuse=no;
                   AC_MSG_WARN([Fuse is missing, vmblock-fuse/vmhgfs-fuse will be disabled.])])
 

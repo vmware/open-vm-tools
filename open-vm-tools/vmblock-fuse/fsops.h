@@ -30,13 +30,6 @@
 #ifndef _VMBLOCK_FUSE_H_
 #define _VMBLOCK_FUSE_H_
 
-/*
- * FUSE_USE_VERSION sets the version of the FUSE API that will be exported.
- * Version 25 is the newest version supported by the libfuse in our toolchain
- * as of 2008-07.
- */
-
-#define FUSE_USE_VERSION 25
 #include <fuse.h>
 
 #include "vmblock.h"

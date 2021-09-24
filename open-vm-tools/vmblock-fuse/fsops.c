@@ -765,7 +765,7 @@ VMBlockRelease(const char *path,                   // IN: Must be control file.
  */
 
 void *
-VMBlockInit(void)
+VMBlockInit(struct fuse_conn_info *conn)
 {
    BlockInit();
    return NULL;

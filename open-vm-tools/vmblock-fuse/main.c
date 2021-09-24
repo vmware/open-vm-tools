@@ -66,5 +66,5 @@ main(int argc,           // IN
          LOGLEVEL_THRESHOLD = 4;
       }
    }
-   return fuse_main(argc, argv, &vmblockOperations);
+   return fuse_main(argc, argv, &vmblockOperations, NULL);
 }
