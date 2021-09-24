@@ -1,3 +1,14 @@
+commit 199592961abba672ebacfe19d1fa43caec6acb6c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Sep 23 17:48:02 2021 -0700
+
+    Prepare to make the 11.3.5 OVT release announcement.
+    
+     - ReleaseNotes.md - copy in the initial (final ?) 11.3.5 OVT release notes.
+     - configure.ac  = set the tools version to 11.3.5.
+     - buildNumber.h  - set the build and product number from the internal
+                        release build.
+
 commit 7f297dca6342350b1f01444c3636ffe39ab78c27
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Fri Aug 13 11:35:59 2021 -0700
