@@ -188,6 +188,7 @@
    LOGLEVEL_VAR(mksWinBSOD), \
    LOGLEVEL_VAR(mor), \
    LOGLEVEL_VAR(mstat), \
+   LOGLEVEL_VAR(msvga), \
    LOGLEVEL_VAR(mvnc), \
    LOGLEVEL_VAR(namespaceDb), \
    LOGLEVEL_VAR(namespaceMgr), \
