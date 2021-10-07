@@ -844,9 +844,10 @@ RDTSC(void)
 /*
  *-----------------------------------------------------------------------------
  *
- * {Clear,Set,Test}Bit{32,64} --
+ * {Clear, Set, Test, Toggle}Bit{32, 64} --
  *
- *    Sets tests or clears a specified single bit in the provided variable.
+ *    Sets tests clears or toggles a specified single bit in the provided
+ *    variable.
  *
  *    The index input value specifies which bit to modify and is 0-based.
  *    Index is truncated by hardware to a 5-bit or 6-bit offset for the
@@ -872,6 +873,12 @@ ClearBit32(uint32 *var, unsigned index)
 }
 
 static INLINE void
+ToggleBit32(uint32 *var, unsigned index)
+{
+   *var ^= 1 << index;
+}
+
+static INLINE void
 SetBit64(uint64 *var, unsigned index)
 {
    *var |= CONST64U(1) << index;
@@ -881,6 +888,12 @@ static INLINE void
 ClearBit64(uint64 *var, unsigned index)
 {
    *var &= ~(CONST64U(1) << index);
+}
+
+static INLINE void
+ToggleBit64(uint64 *var, unsigned index)
+{
+   *var ^= (CONST64U(1) << index);
 }
 
 static INLINE Bool
