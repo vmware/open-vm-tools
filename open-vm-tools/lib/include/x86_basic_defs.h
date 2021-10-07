@@ -101,6 +101,7 @@
 #define CR4_PKE        0x00400000
 #define CR4_CET        0x00800000
 #define CR4_PKS        0x01000000
+#define CR4_UINTR      0x02000000
 #define CR4_RESERVED   CONST64U(0xfffffffffe089000)
 #define CR8_RESERVED   CONST64U(0xfffffffffffffff0)
 
