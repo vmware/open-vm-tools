@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -300,6 +300,37 @@ XRSTOR_AMD_ES0(const void *load, uint64 mask)
         : "m" (dummy), "m" (*(const uint8 *)load),
           "b" ((uint32)mask), "d" ((uint32)(mask >> 32))
         : "eax", "memory");
+}
+
+#endif /* __GNUC__ */
+
+/*
+ * XSAVES/XRSTORS
+ *     saves/restores processor state components
+ *
+ * The pointer passed in must be 64-byte aligned.
+ */
+
+#if defined(__GNUC__)
+static INLINE void
+XSAVES(const void *save, uint64 mask)
+{
+   __asm__ __volatile__ (
+        "xsaves %0 \n"
+        : "=m" (*(uint8 *)save)
+        : "a" ((uint32)mask), "d" ((uint32)(mask >> 32))
+        : "memory");
+}
+
+static INLINE void
+XRSTORS(const void *load, uint64 mask)
+{
+   __asm__ __volatile__ (
+        "xrstors %0 \n"
+        :
+        : "m" (*(const uint8 *)load),
+          "a" ((uint32)mask), "d" ((uint32)(mask >> 32))
+        : "memory");
 }
 
 #endif /* __GNUC__ */

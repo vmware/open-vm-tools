@@ -572,7 +572,7 @@ FLAG(   7,  0, EDX, 14,  1, SERIALIZE,                           YES,  20 ) \
 FLAG(   7,  0, EDX, 15,  1, HYBRID,                              NO,    0 ) \
 FLAG(   7,  0, EDX, 16,  1, TSXLDTRK,                            NO,    0 ) \
 FLAG(   7,  0, EDX, 18,  1, PCONFIG,                             NO,    0 ) \
-FLAG(   7,  0, EDX, 19,  1, ARCH_LBR,                            NO,    0 ) \
+FLAG(   7,  0, EDX, 19,  1, ARCH_LBR,                            YES,  20 ) \
 FLAG(   7,  0, EDX, 20,  1, CET_IBT,                             NO,    0 ) \
 FLAG(   7,  0, EDX, 22,  1, AMX_BF16,                            NO,    0 ) \
 FLAG(   7,  0, EDX, 23,  1, AVX512FP16,                          NO,    0 ) \
@@ -874,15 +874,15 @@ FIELD( 1B,  0, EDX,  0, 32, PCONFIG_TARGET_ID3,                  NO,    0 )
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_1C                                           \
-FIELD( 1C,  0, EAX,  0,  8, LBR_DEPTH,                           NO,    0 ) \
-FLAG(  1C,  0, EAX, 30,  1, LBR_DEEP_CSTATE_RESET,               NO,    0 ) \
-FLAG(  1C,  0, EAX, 31,  1, LBR_IP_CONTAINS_LIP,                 NO,    0 ) \
-FLAG(  1C,  0, EBX,  0,  1, LBR_CPL_FILTERING,                   NO,    0 ) \
-FLAG(  1C,  0, EBX,  1,  1, LBR_BRANCH_FILTERING,                NO,    0 ) \
-FLAG(  1C,  0, EBX,  2,  1, LBR_CALL_STACK_MODE,                 NO,    0 ) \
-FLAG(  1C,  0, ECX,  0,  1, LBR_MISPREDICT,                      NO,    0 ) \
-FLAG(  1C,  0, ECX,  1,  1, LBR_TIMED_LBRS,                      NO,    0 ) \
-FLAG(  1C,  0, ECX,  2,  1, LBR_BRANCH_TYPE,                     NO,    0 ) \
+FIELD( 1C,  0, EAX,  0,  8, LBR_DEPTH,                           YES,  20 ) \
+FLAG(  1C,  0, EAX, 30,  1, LBR_DEEP_CSTATE_RESET,               YES,  20 ) \
+FLAG(  1C,  0, EAX, 31,  1, LBR_IP_CONTAINS_LIP,                 YES,  20 ) \
+FLAG(  1C,  0, EBX,  0,  1, LBR_CPL_FILTERING,                   YES,  20 ) \
+FLAG(  1C,  0, EBX,  1,  1, LBR_BRANCH_FILTERING,                YES,  20 ) \
+FLAG(  1C,  0, EBX,  2,  1, LBR_CALL_STACK_MODE,                 YES,  20 ) \
+FLAG(  1C,  0, ECX,  0,  1, LBR_MISPREDICT,                      YES,  20 ) \
+FLAG(  1C,  0, ECX,  1,  1, LBR_TIMED_LBRS,                      YES,  20 ) \
+FLAG(  1C,  0, ECX,  2,  1, LBR_BRANCH_TYPE,                     YES,  20 ) \
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_1D                                           \
