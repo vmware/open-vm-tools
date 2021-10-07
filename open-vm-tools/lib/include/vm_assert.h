@@ -101,7 +101,10 @@ extern "C" {
  * so it uses generic functions.
  */
 
-#if !defined VMM || defined MONITOR_APP // {
+#if !defined VMM ||                                                     \
+    defined BINARY_CHECKER || defined COREQUERY || defined DECODER ||   \
+    defined DIS16 || defined FROBOS || defined TRAPAPI_APP ||           \
+    defined VMM_LINKER || defined VMSS2CORE
 
 # if defined (VMKPANIC)
 #  include "vmk_assert.h"
@@ -115,8 +118,7 @@ extern "C" {
 #  define _ASSERT_PANIC_BUG_NORETURN(bug, name) \
            Panic(_##name##Fmt " bugNr=%d\n", __FILE__, __LINE__, bug)
 # endif /* VMKPANIC */
-
-#endif // }
+#endif
 
 
 // These strings don't have newline so that a bug can be tacked on.
