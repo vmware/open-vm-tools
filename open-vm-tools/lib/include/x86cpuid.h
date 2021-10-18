@@ -574,10 +574,10 @@ FLAG(   7,  0, EDX, 16,  1, TSXLDTRK,                            NO,    0 ) \
 FLAG(   7,  0, EDX, 18,  1, PCONFIG,                             NO,    0 ) \
 FLAG(   7,  0, EDX, 19,  1, ARCH_LBR,                            YES,  20 ) \
 FLAG(   7,  0, EDX, 20,  1, CET_IBT,                             NO,    0 ) \
-FLAG(   7,  0, EDX, 22,  1, AMX_BF16,                            NO,    0 ) \
-FLAG(   7,  0, EDX, 23,  1, AVX512FP16,                          NO,    0 ) \
-FLAG(   7,  0, EDX, 24,  1, AMX_TILE,                            NO,    0 ) \
-FLAG(   7,  0, EDX, 25,  1, AMX_INT8,                            NO,    0 ) \
+FLAG(   7,  0, EDX, 22,  1, AMX_BF16,                            YES,  20 ) \
+FLAG(   7,  0, EDX, 23,  1, AVX512FP16,                          YES,  20 ) \
+FLAG(   7,  0, EDX, 24,  1, AMX_TILE,                            YES,  20 ) \
+FLAG(   7,  0, EDX, 25,  1, AMX_INT8,                            YES,  20 ) \
 FLAG(   7,  0, EDX, 26,  1, IBRSIBPB,                            ANY,   9 ) \
 FLAG(   7,  0, EDX, 27,  1, STIBP,                               YES,   9 ) \
 FLAG(   7,  0, EDX, 28,  1, FCMD,                                YES,   9 ) \
@@ -637,8 +637,8 @@ FLAG(   D,  0, EAX,  5,  1, XCR0_MASTER_OPMASK,                  YES,  13 ) \
 FLAG(   D,  0, EAX,  6,  1, XCR0_MASTER_ZMM_H,                   YES,  13 ) \
 FLAG(   D,  0, EAX,  7,  1, XCR0_MASTER_HI16_ZMM,                YES,  13 ) \
 FLAG(   D,  0, EAX,  9,  1, XCR0_MASTER_PKRU,                    YES,  13 ) \
-FLAG(   D,  0, EAX, 17,  1, XCR0_MASTER_XTILECFG,                NO,    0 ) \
-FLAG(   D,  0, EAX, 18,  1, XCR0_MASTER_XTILEDATA,               NO,    0 ) \
+FLAG(   D,  0, EAX, 17,  1, XCR0_MASTER_XTILECFG,                YES,  20 ) \
+FLAG(   D,  0, EAX, 18,  1, XCR0_MASTER_XTILEDATA,               YES,  20 ) \
 FIELD(  D,  0, EBX,  0, 32, XSAVE_ENABLED_SIZE,                  ANY,   8 ) \
 FIELD(  D,  0, ECX,  0, 32, XSAVE_MAX_SIZE,                      YES,   8 ) \
 FIELD(  D,  0, EDX,  0, 29, XCR0_MASTER_UPPER,                   NO,    0 ) \
@@ -648,7 +648,7 @@ FLAG(   D,  1, EAX,  0,  1, XSAVEOPT,                            YES,  11 ) \
 FLAG(   D,  1, EAX,  1,  1, XSAVEC,                              YES,  13 ) \
 FLAG(   D,  1, EAX,  2,  1, XGETBV_ECX1,                         YES,  17 ) \
 FLAG(   D,  1, EAX,  3,  1, XSAVES,                              YES,  13 ) \
-FLAG(   D,  1, EAX,  4,  1, XFD,                                 NO,    0 ) \
+FLAG(   D,  1, EAX,  4,  1, XFD,                                 YES,  20 ) \
 FIELD(  D,  1, EBX,  0, 32, XSAVES_ENABLED_SIZE,                 ANY,  13 ) \
 FLAG(   D,  1, ECX,  8,  1, XSS_MASTER_PT,                       NO,    0 ) \
 FLAG(   D,  1, ECX, 10,  1, XSS_MASTER_PASID,                    NO,    0 ) \
@@ -726,16 +726,16 @@ FIELD(  D, 16, EAX,  0, 32, XSAVES_HWP_SIZE,                     NO,    0 ) \
 FLAG(   D, 16, ECX,  0,  1, XSAVES_HWP_SUP_BY_XSS,               NO,    0 ) \
 FLAG(   D, 16, ECX,  1,  1, XSAVES_HWP_ALIGN,                    NO,    0 ) \
 FLAG(   D, 16, ECX,  2,  1, XSAVES_HWP_XFD,                      NO,    0 ) \
-FIELD(  D, 17, EAX,  0, 32, XSAVE_XTILECFG_SIZE,                 NO,    0 ) \
-FIELD(  D, 17, EBX,  0, 32, XSAVE_XTILECFG_OFFSET,               NO,    0 ) \
+FIELD(  D, 17, EAX,  0, 32, XSAVE_XTILECFG_SIZE,                 YES,  20 ) \
+FIELD(  D, 17, EBX,  0, 32, XSAVE_XTILECFG_OFFSET,               YES,  20 ) \
 FLAG(   D, 17, ECX,  0,  1, XSAVE_XTILECFG_SUP_BY_XSS,           NO,    0 ) \
-FLAG(   D, 17, ECX,  1,  1, XSAVE_XTILECFG_ALIGN,                NO,    0 ) \
-FLAG(   D, 17, ECX,  2,  1, XSAVE_XTILECFG_XFD,                  NO,    0 ) \
-FIELD(  D, 18, EAX,  0, 32, XSAVE_XTILEDATA_SIZE,                NO,    0 ) \
-FIELD(  D, 18, EBX,  0, 32, XSAVE_XTILEDATA_OFFSET,              NO,    0 ) \
+FLAG(   D, 17, ECX,  1,  1, XSAVE_XTILECFG_ALIGN,                YES,  20 ) \
+FLAG(   D, 17, ECX,  2,  1, XSAVE_XTILECFG_XFD,                  YES,  20 ) \
+FIELD(  D, 18, EAX,  0, 32, XSAVE_XTILEDATA_SIZE,                YES,  20 ) \
+FIELD(  D, 18, EBX,  0, 32, XSAVE_XTILEDATA_OFFSET,              YES,  20 ) \
 FLAG(   D, 18, ECX,  0,  1, XSAVE_XTILEDATA_SUP_BY_XSS,          NO,    0 ) \
-FLAG(   D, 18, ECX,  1,  1, XSAVE_XTILEDATA_ALIGN,               NO,    0 ) \
-FLAG(   D, 18, ECX,  2,  1, XSAVE_XTILEDATA_XFD,                 NO,    0 ) \
+FLAG(   D, 18, ECX,  1,  1, XSAVE_XTILEDATA_ALIGN,               YES,  20 ) \
+FLAG(   D, 18, ECX,  2,  1, XSAVE_XTILEDATA_XFD,                 YES,  20 ) \
 /* D, 62: AMD LWP leaf on BD, PD, SR. Dropped in Zen. Never referenced. */
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
@@ -886,17 +886,17 @@ FLAG(  1C,  0, ECX,  2,  1, LBR_BRANCH_TYPE,                     YES,  20 ) \
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_1D                                           \
-FIELD( 1D,  0, EAX,  0, 32, TILE_PALETTE_MAX,                    NO,    0 ) \
-FIELD( 1D,  1, EAX,  0, 16, TILE_PALETTE1_TOTAL_BYTES,           NO,    0 ) \
-FIELD( 1D,  1, EAX, 16, 16, TILE_PALETTE1_BYTES_PER_TILE,        NO,    0 ) \
-FIELD( 1D,  1, EBX,  0, 16, TILE_PALETTE1_BYTES_PER_ROW,         NO,    0 ) \
-FIELD( 1D,  1, EBX, 16, 16, TILE_PALETTE1_NUM_REGS,              NO,    0 ) \
-FIELD( 1D,  1, ECX,  0, 16, TILE_PALETTE1_MAX_ROWS,              NO,    0 )
+FIELD( 1D,  0, EAX,  0, 32, TILE_PALETTE_MAX,                    YES,    20 ) \
+FIELD( 1D,  1, EAX,  0, 16, TILE_PALETTE1_TOTAL_BYTES,           YES,    20 ) \
+FIELD( 1D,  1, EAX, 16, 16, TILE_PALETTE1_BYTES_PER_TILE,        YES,    20 ) \
+FIELD( 1D,  1, EBX,  0, 16, TILE_PALETTE1_BYTES_PER_ROW,         YES,    20 ) \
+FIELD( 1D,  1, EBX, 16, 16, TILE_PALETTE1_NUM_REGS,              YES,    20 ) \
+FIELD( 1D,  1, ECX,  0, 16, TILE_PALETTE1_MAX_ROWS,              YES,    20 )
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_1E                                           \
-FIELD( 1E,  0, EBX,  0,  8, TMUL_MAX_K,                          NO,    0 ) \
-FIELD( 1E,  0, EBX,  8, 16, TMUL_MAX_N,                          NO,    0 )
+FIELD( 1E,  0, EBX,  0,  8, TMUL_MAX_K,                          YES,    20 ) \
+FIELD( 1E,  0, EBX,  8, 16, TMUL_MAX_N,                          YES,    20 )
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_1F                                           \
