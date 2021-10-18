@@ -106,7 +106,6 @@
    LOGLEVEL_VAR(ftcpt), \
    LOGLEVEL_VAR(gmm), \
    LOGLEVEL_VAR(gpuManager), \
-   LOGLEVEL_VAR(gpumgmt), \
    LOGLEVEL_VAR(grainTrack), \
    LOGLEVEL_VAR(grm), \
    LOGLEVEL_VAR(guestAppMonitor), \
