@@ -1,3 +1,91 @@
+commit d3158f108ec8119d270d08d613545b61f4a6d50b
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Oct 18 07:31:44 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 8407406335a8f1bc25a23497cdb5b880fc2db6aa
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Oct 18 07:31:44 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit e9907529c68df57dbf1baa5c5b0872098fb3bbeb
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Oct 18 07:31:44 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 1ec43b3ef88719d8d3ad206e7a427c479c496e0d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Oct 18 07:31:44 2021 -0700
+
+    Remove <CR> characters from saml-schema-assertion-2.0.xsd.
+    
+    The file, created with Windows <CRLF> in 2011, has been changed
+    to Unix encoding.
+
+commit ae7d374ee335277a637ec99ada728df7545f2459
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Oct 18 07:31:44 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit f9bfc57babb4cc18e8fcada6f44c26d7dfca90ce
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Oct 18 07:31:44 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit a45ded9333305f71eea2e0ab4cc144fc2efad74f
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Oct 18 07:31:44 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 6ff8e802b6a2fdf1595d032a1ab94b9f83a2f61b
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Oct 18 07:31:44 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 8f2a9bb928e5d41c308684e68ed68a742dfd8222
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Oct 18 07:31:44 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit c9639690ec6d7bce96a7c06d0a05546b811d6b1f
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Oct 18 07:31:44 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit a1aa6abc127d872966415e5fd01a9e35db0f2ef5
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Oct 18 07:31:44 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 88de2de0f48cb0334cb8b57bca5ad016133d1674
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Oct 18 07:31:44 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit fe739dc30671ab0d6de67acd1dde374f88fe499c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Oct 18 07:31:43 2021 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit c5bc4c37b8f948e3d9bf8d7e2f85196f5099d311
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Oct 6 23:52:03 2021 -0700
+
+    Update ChangeLog with the granular push of Oct. 6, 2021.
+      plus ChangeLog update of Sept. 20.
+
 commit 4aecc2978e09dddc1f7a0c9af7e9b8ffa57227e2
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Wed Oct 6 23:40:31 2021 -0700
