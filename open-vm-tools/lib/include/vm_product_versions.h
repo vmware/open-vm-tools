@@ -287,7 +287,7 @@
 #define PRECHECK_VERSION "e.x.p"
 #define VHSESDK_VERSION "1.0.0"
 #define VIEWVC_VERSION "14.0.2"
-#define WCP_VERSION "0.0.12"
+#define WCP_VERSION "0.0.13"
 #define VSTATS_VERSION "0.0.1"
 #define XVP_VERSION "1.0.0"
 /*
