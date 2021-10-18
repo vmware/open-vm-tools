@@ -512,7 +512,7 @@ FLAG(   7,  0, EBX,  0,  1, FSGSBASE,                            YES,   9 ) \
 FLAG(   7,  0, EBX,  1,  1, TSC_ADJUST,                          ANY,  11 ) \
 FLAG(   7,  0, EBX,  2,  1, SGX,                                 ANY,  17 ) \
 FLAG(   7,  0, EBX,  3,  1, BMI1,                                YES,   9 ) \
-FLAG(   7,  0, EBX,  4,  1, HLE,                                 YES,  11 ) \
+FLAG(   7,  0, EBX,  4,  1, HLE,                                 ANY,  11 ) \
 FLAG(   7,  0, EBX,  5,  1, AVX2,                                YES,  11 ) \
 FLAG(   7,  0, EBX,  6,  1, FDP_EXCPTN_ONLY,                     ANY,   4 ) \
 FLAG(   7,  0, EBX,  7,  1, SMEP,                                YES,   9 ) \
