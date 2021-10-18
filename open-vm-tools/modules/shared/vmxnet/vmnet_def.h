@@ -90,6 +90,7 @@
 #define VMNET_CAP_SCHED                CONST64U(0x40000000)         /* compliant with network scheduling */
 #define VMNET_CAP_SRIOV                CONST64U(0x80000000)         /* Supports SR-IOV */
 
+#define VMNET_CAP_PREFERRED_MGMT_NIC   CONST64U(0x100000000)        /* Uplink should be given preference when selecting the management NIC */
 #define VMNET_CAP_SG_TX                VMNET_CAP_SG
 #define VMNET_CAP_SG_RX                CONST64U(0x200000000)        /* Scatter-gather receive capability */
 #define VMNET_CAP_PRIV_STATS           CONST64U(0x400000000)        /* Driver supports accessing private stats */
