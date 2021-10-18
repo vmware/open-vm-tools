@@ -162,6 +162,7 @@ typedef struct CPUIDQuery {
    CPUIDLEVEL(TRUE,  1E,  0x1e,       1, 19) \
    CPUIDLEVEL(FALSE, 1F,  0x1f,       6, 17) \
    CPUIDLEVEL(TRUE,  20,  0x20,       1, 20) \
+   CPUIDLEVEL(TRUE , 21,  0x21,       1, 20) \
    CPUIDLEVEL(FALSE, 400, 0x40000000, 0,  0) \
    CPUIDLEVEL(FALSE, 401, 0x40000001, 0,  0) \
    CPUIDLEVEL(FALSE, 402, 0x40000002, 0,  0) \
@@ -244,17 +245,19 @@ typedef enum {
 #define CPUID_CYRIX_VENDOR_STRING       "CyriteadxIns"
 #define CPUID_VIA_VENDOR_STRING         "CentaulsaurH"
 #define CPUID_HYGON_VENDOR_STRING       "HygouinenGen"
+#define CPUID_INTEL_TDX_VENDOR_STRING   "Inte    lTDX"
 
 #define CPUID_HYPERV_HYPERVISOR_VENDOR_STRING  "Microsoft Hv"
 #define CPUID_KVM_HYPERVISOR_VENDOR_STRING     "KVMKVMKVM\0\0\0"
 #define CPUID_VMWARE_HYPERVISOR_VENDOR_STRING  "VMwareVMware"
 #define CPUID_XEN_HYPERVISOR_VENDOR_STRING     "XenVMMXenVMM"
 
-#define CPUID_INTEL_VENDOR_STRING_FIXED "GenuineIntel"
-#define CPUID_AMD_VENDOR_STRING_FIXED   "AuthenticAMD"
-#define CPUID_CYRIX_VENDOR_STRING_FIXED "CyrixInstead"
-#define CPUID_VIA_VENDOR_STRING_FIXED   "CentaurHauls"
-#define CPUID_HYGON_VENDOR_STRING_FIXED "HygonGenuine"
+#define CPUID_INTEL_VENDOR_STRING_FIXED      "GenuineIntel"
+#define CPUID_AMD_VENDOR_STRING_FIXED        "AuthenticAMD"
+#define CPUID_CYRIX_VENDOR_STRING_FIXED      "CyrixInstead"
+#define CPUID_VIA_VENDOR_STRING_FIXED        "CentaurHauls"
+#define CPUID_HYGON_VENDOR_STRING_FIXED      "HygonGenuine"
+#define CPUID_INTEL_TDX_VENDOR_STRING_FIXED  "IntelTDX    "
 
 /*
  * FIELD can be defined to process the CPUID information provided in the
@@ -912,6 +915,13 @@ FIELD( 20,  0, EAX,  0, 32, HRESET_MAX_SUBLEAF,                  NO,    0 ) \
 FIELD( 20,  0, EBX,  0, 32, HRESET_ENABLE_MSR_VALID_BITS,        NO,    0 )
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
+#define CPUID_FIELD_DATA_LEVEL_21                                           \
+FIELD( 21,  0, EAX,  0, 32, TDX_MAX_SUBLEAF,                     NO,    0 ) \
+FIELD( 21,  0, EBX,  0, 32, TDX_VENDOR1,                         NO,    0 ) \
+FIELD( 21,  0, ECX,  0, 32, TDX_VENDOR3,                         NO,    0 ) \
+FIELD( 21,  0, EDX,  0, 32, TDX_VENDOR2,                         NO,    0 )
+
+/*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_400                                          \
 FIELD(400,  0, EAX,  0, 32, MAX_HYP_LEVEL,                       NA,    0 ) \
 FIELD(400,  0, EBX,  0, 32, HYPERVISOR_VENDOR0,                  NA,    0 ) \
@@ -1015,7 +1025,6 @@ FIELD(410,  0, EAX,  0, 32, TSC_HZ,                              NA,    0 ) \
 FIELD(410,  0, EBX,  0, 32, APICBUS_HZ,                          NA,    0 ) \
 FLAG( 410,  0, ECX,  0,  1, VMMCALL_BACKDOOR,                    NA,    0 ) \
 FLAG( 410,  0, ECX,  1,  1, VMCALL_BACKDOOR,                     NA,    0 ) \
-FLAG( 410,  0, ECX,  2,  1, TDX_ENABLED,                         NA,    0 ) \
 FLAG( 410,  0, ECX,  3,  1, TDX_API_ENABLED,                     NA,    0 )
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
@@ -1387,6 +1396,7 @@ FIELD(820,  1, EDX,  0, 32, NUM_SERVICE_CLASSES,                 NO,    0 )
    CPUID_FIELD_DATA_LEVEL_1E                                          \
    CPUID_FIELD_DATA_LEVEL_1F                                          \
    CPUID_FIELD_DATA_LEVEL_20                                          \
+   CPUID_FIELD_DATA_LEVEL_21                                          \
    CPUID_FIELD_DATA_LEVEL_400                                         \
    CPUID_FIELD_DATA_LEVEL_401                                         \
    CPUID_FIELD_DATA_LEVEL_402                                         \
@@ -1728,7 +1738,7 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
  *----------------------------------------------------------------------
  */
 static INLINE Bool
-CPUID_IsRawVendor(CPUIDRegs *id0, const char* vendor)
+CPUID_IsRawVendor(const CPUIDRegs *id0, const char* vendor)
 {
    // hard to get strcmp() in some environments, so do it in the raw
    return (id0->ebx == *(const uint32 *)(uintptr_t) (vendor + 0) &&
@@ -1737,25 +1747,25 @@ CPUID_IsRawVendor(CPUIDRegs *id0, const char* vendor)
 }
 
 static INLINE Bool
-CPUID_IsVendorAMD(CPUIDRegs *id0)
+CPUID_IsVendorAMD(const CPUIDRegs *id0)
 {
    return CPUID_IsRawVendor(id0, CPUID_AMD_VENDOR_STRING);
 }
 
 static INLINE Bool
-CPUID_IsVendorIntel(CPUIDRegs *id0)
+CPUID_IsVendorIntel(const CPUIDRegs *id0)
 {
    return CPUID_IsRawVendor(id0, CPUID_INTEL_VENDOR_STRING);
 }
 
 static INLINE Bool
-CPUID_IsVendorVIA(CPUIDRegs *id0)
+CPUID_IsVendorVIA(const CPUIDRegs *id0)
 {
    return CPUID_IsRawVendor(id0, CPUID_VIA_VENDOR_STRING);
 }
 
 static INLINE Bool
-CPUID_IsVendorHygon(CPUIDRegs *id0)
+CPUID_IsVendorHygon(const CPUIDRegs *id0)
 {
    return CPUID_IsRawVendor(id0, CPUID_HYGON_VENDOR_STRING);
 }
