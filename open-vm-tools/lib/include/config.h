@@ -115,9 +115,7 @@ Bool Config_Load(const char *filename);
 Bool Config_Write(void);
 Bool Config_WriteNoMsg(void);
 
-Bool Config_FileIsWritable(void);
-
-Bool Config_IsIntegrityProtected(void);
+Bool  Config_FileIsWritable(void);
 
 uint32 Config_GetMask(uint32 defaultMask, const char *optionName);
 uint64 Config_GetMask64(uint64 defaultMask, const char *optionName);
