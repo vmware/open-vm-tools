@@ -321,9 +321,18 @@ Max(int a, int b)
 #define MBYTES_SHIFT 20
 #endif
 
+#ifndef GBYTES_SHIFT
+#define GBYTES_SHIFT 30
+#endif
+
+#ifndef KBYTES_2_PAGES
+#define KBYTES_2_PAGES(_nkbytes) \
+   ((uint64)(_nkbytes) >> (PAGE_SHIFT - KBYTES_SHIFT))
+#endif
+
 #ifndef MBYTES_2_PAGES
-#define MBYTES_2_PAGES(_nbytes) \
-   ((uint64)(_nbytes) << (MBYTES_SHIFT - PAGE_SHIFT))
+#define MBYTES_2_PAGES(_nMbytes) \
+   ((uint64)(_nMbytes) << (MBYTES_SHIFT - PAGE_SHIFT))
 #endif
 
 #ifndef PAGES_2_KBYTES
@@ -345,11 +354,12 @@ Max(int a, int b)
 #endif
 
 #ifndef GBYTES_2_PAGES
-#define GBYTES_2_PAGES(_nbytes) ((uint64)(_nbytes) << (30 - PAGE_SHIFT))
+#define GBYTES_2_PAGES(_nGbytes) \
+   ((uint64)(_nGbytes) << (GBYTES_SHIFT - PAGE_SHIFT))
 #endif
 
 #ifndef PAGES_2_GBYTES
-#define PAGES_2_GBYTES(_npages) ((_npages) >> (30 - PAGE_SHIFT))
+#define PAGES_2_GBYTES(_npages) ((_npages) >> (GBYTES_SHIFT - PAGE_SHIFT))
 #endif
 
 #ifndef BYTES_2_KBYTES
@@ -357,7 +367,7 @@ Max(int a, int b)
 #endif
 
 #ifndef KBYTES_2_BYTES
-#define KBYTES_2_BYTES(_nbytes) ((uint64)(_nbytes) << KBYTES_SHIFT)
+#define KBYTES_2_BYTES(_nkbytes) ((uint64)(_nkbytes) << KBYTES_SHIFT)
 #endif
 
 #ifndef BYTES_2_MBYTES
@@ -365,15 +375,15 @@ Max(int a, int b)
 #endif
 
 #ifndef MBYTES_2_BYTES
-#define MBYTES_2_BYTES(_nbytes) ((uint64)(_nbytes) << MBYTES_SHIFT)
+#define MBYTES_2_BYTES(_nMbytes) ((uint64)(_nMbytes) << MBYTES_SHIFT)
 #endif
 
 #ifndef BYTES_2_GBYTES
-#define BYTES_2_GBYTES(_nbytes) ((_nbytes) >> 30)
+#define BYTES_2_GBYTES(_nbytes) ((_nbytes) >> GBYTES_SHIFT)
 #endif
 
 #ifndef GBYTES_2_BYTES
-#define GBYTES_2_BYTES(_nbytes) ((uint64)(_nbytes) << 30)
+#define GBYTES_2_BYTES(_nGbytes) ((uint64)(_nGbytes) << GBYTES_SHIFT)
 #endif
 
 #ifndef VM_PAE_LARGE_PAGE_SHIFT
