@@ -83,6 +83,10 @@
 #error "VMM and ULM cannot be defined at the same time."
 #endif
 
+#if defined ULM && !defined USERLEVEL
+#error "All ULM code must be compiled with USERLEVEL set."
+#endif
+
 #if defined VMCORE && !defined INCLUDE_ALLOW_VMCORE
 #error "The surrounding include file is not allowed in vmcore."
 #endif
