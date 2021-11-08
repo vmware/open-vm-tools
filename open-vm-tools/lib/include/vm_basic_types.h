@@ -546,9 +546,6 @@ typedef User_CartelID User_SessionID;
 typedef User_CartelID User_CartelGroupID;
 #define INVALID_CARTELGROUP_ID INVALID_CARTEL_ID
 
-typedef uint32 Worldlet_ID;
-#define INVALID_WORLDLET_ID ((Worldlet_ID)-1)
-
 typedef  int8    Reg8;
 typedef  int16   Reg16;
 typedef  int32   Reg32;
