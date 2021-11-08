@@ -71,6 +71,14 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 #define APP_INFO_CONF_DEFAULT_DISABLED_VALUE FALSE
 
 /**
+ * Default value for CONFNAME_APPINFO_REMOVE_DUPLICATES setting in
+ * tools configuration file.
+ *
+ * TRUE will remove duplicate applications.
+ */
+#define APP_INFO_CONF_DEFAULT_REMOVE_DUPLICATES TRUE
+
+/**
  * Default value for CONFNAME_APPINFO_USE_WMI setting in
  * tools configuration file.
  *
@@ -243,6 +251,8 @@ AppInfoGatherTask(ToolsAppCtx *ctx,    // IN
    GSList *appNode;
    static Atomic_uint64 updateCounter = {0};
    uint64 counter = (uint64) Atomic_ReadInc64(&updateCounter) + 1;
+   GHashTable *appsAdded = NULL;
+   gchar *key = NULL;
 
    static char headerFmt[] = "{\n"
                      "\"" APP_INFO_KEY_VERSION        "\":\"%d\", \n"
@@ -257,6 +267,11 @@ AppInfoGatherTask(ToolsAppCtx *ctx,    // IN
                            "\"" APP_INFO_KEY_APP_VERSION "\":\"%s\""
                            "}";
    static char jsonSuffix[] = "]}";
+   gboolean removeDup =
+      VMTools_ConfigGetBoolean(ctx->config,
+                               CONFGROUPNAME_APPINFO,
+                               CONFNAME_APPINFO_REMOVE_DUPLICATES,
+                               APP_INFO_CONF_DEFAULT_REMOVE_DUPLICATES);
 
    DynBuf_Init(&dynBuffer);
 
@@ -275,6 +290,10 @@ AppInfoGatherTask(ToolsAppCtx *ctx,    // IN
    DynBuf_Append(&dynBuffer, tmpBuf, len);
 
    appList = AppInfo_SortAppList(AppInfo_GetAppList(ctx->config));
+   if (removeDup) {
+      appsAdded = g_hash_table_new_full(g_str_hash, g_str_equal,
+                                        g_free, NULL);
+   }
 
    for (appNode = appList; appNode != NULL; appNode = appNode->next) {
       size_t currentBufferSize = DynBuf_GetSize(&dynBuffer);
@@ -285,6 +304,16 @@ AppInfoGatherTask(ToolsAppCtx *ctx,    // IN
          goto next_entry;
       }
 
+      if (removeDup) {
+         key = g_strdup_printf("%s|%s", appInfo->appName, appInfo->version);
+         /*
+          * If the key already exists, then this app is a duplicate. Free
+          * the key and move to the next application.
+          */
+         if (g_hash_table_contains(appsAdded, key)) {
+            goto next_entry;
+         }
+      }
       escapedCmd = CodeSet_JsonEscape(appInfo->appName);
 
       if (NULL == escapedCmd) {
@@ -325,8 +354,14 @@ AppInfoGatherTask(ToolsAppCtx *ctx,    // IN
       }
 
       DynBuf_Append(&dynBuffer, tmpBuf, len);
+      if (removeDup) {
+         g_hash_table_add(appsAdded, key);
+         key = NULL;
+      }
 
 next_entry:
+      g_free(key);
+      key = NULL;
       free(escapedCmd);
       escapedCmd = NULL;
       free(escapedVersion);
@@ -340,6 +375,10 @@ quit:
    free(escapedCmd);
    free(escapedVersion);
    AppInfo_DestroyAppList(appList);
+   if (appsAdded != NULL) {
+      g_hash_table_destroy(appsAdded);
+   }
+   g_free(key);
    g_free(tstamp);
    DynBuf_Destroy(&dynBuffer);
 }

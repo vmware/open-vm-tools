@@ -85,6 +85,14 @@
 #define CONFNAME_APPINFO_DISABLED "disabled"
 
 /**
+ * Defines the configuration to remove duplicate applications.
+ *
+ * @param boolean Set to TRUE to remove duplicate apps.
+ *                Set to FALSE to keep duplicate apps.
+ */
+#define CONFNAME_APPINFO_REMOVE_DUPLICATES "remove-duplicates"
+
+/**
  * Defines the configuration to use the WMI for getting the application
  * version information.
  *
