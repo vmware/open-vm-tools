@@ -333,9 +333,9 @@ Log_Trivia(const char *fmt,
 
 #if !defined(VMM)
 typedef struct {
-   int32   legalLevelValue;
-   char   *legalName;
-   char   *levelIdStr;
+   int32       legalLevelValue;
+   const char *legalName;
+   const char *levelIdStr;
 } LogLevelData;
 
 const LogLevelData *

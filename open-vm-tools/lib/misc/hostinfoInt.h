@@ -34,8 +34,8 @@
  */
 
 typedef struct {
-   char  *name;
-   char   value[MAX_DETAILED_FIELD_LEN];
+   const char *name;
+   char        value[MAX_DETAILED_FIELD_LEN];
 } DetailedDataField;
 
 /* Must be sorted. Keep in same ordering as detailedDataFields */

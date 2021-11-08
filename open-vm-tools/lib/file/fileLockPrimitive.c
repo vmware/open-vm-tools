@@ -72,9 +72,9 @@ static char implicitReadToken;
 
 typedef struct parse_table
 {
-   int    type;
-   char  *name;
-   void  *valuePtr;
+   int         type;
+   const char *name;
+   void       *valuePtr;
 } ParseTable;
 
 /*

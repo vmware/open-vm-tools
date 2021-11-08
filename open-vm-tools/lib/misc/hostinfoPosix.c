@@ -72,7 +72,9 @@
 #if !defined(USING_AUTOCONF) || defined(HAVE_SYS_VFS_H)
 #include <sys/vfs.h>
 #endif
-#if !defined(sun) && !defined __ANDROID__ && (!defined(USING_AUTOCONF) || (defined(HAVE_SYS_IO_H) && defined(HAVE_SYS_SYSINFO_H)))
+#if !defined(sun) && !defined __ANDROID__ && (!defined(USING_AUTOCONF) || \
+                                              (defined(HAVE_SYS_IO_H) && \
+                                               defined(HAVE_SYS_SYSINFO_H)))
 #if defined(__i386__) || defined(__x86_64__) || defined(__arm__)
 #include <sys/io.h>
 #else
@@ -159,8 +161,8 @@ static Atomic_Ptr hostinfoOSVersion;
 
 #if !defined(__APPLE__) && !defined(VMX86_SERVER) && !defined(USERWORLD)
 typedef struct {
-   char *name;
-   char *scanString;
+   const char *name;
+   const char *scanString;
 } DistroNameScan;
 
 static const DistroNameScan lsbFields[] = {
@@ -180,8 +182,8 @@ static const DistroNameScan osReleaseFields[] = {
 };
 
 typedef struct {
-   char *name;
-   char *filename;
+   const char *name;
+   const char *filename;
 } DistroInfo;
 
 /*
@@ -1842,8 +1844,8 @@ HostinfoDefaultLinux(char *distro,            // OUT/OPT:
                      size_t distroShortSize)  // IN:
 {
    char generic[128];
-   char *distroOut = NULL;
-   char *distroShortOut = NULL;
+   const char *distroOut = NULL;
+   const char *distroShortOut = NULL;
    int majorVersion = Hostinfo_OSVersion(0);
    int minorVersion = Hostinfo_OSVersion(1);
 
@@ -3337,8 +3339,8 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
  */
 
 static char *
-HostinfoGetCpuInfo(int nCpu,    // IN:
-                   char *name)  // IN:
+HostinfoGetCpuInfo(int nCpu,         // IN:
+                   const char *name) // IN:
 {
    FILE *f;
    char *line;
@@ -3921,7 +3923,7 @@ NOT_IMPLEMENTED();
 
 static Bool
 HostinfoFindEntry(char *buffer,         // IN: Buffer
-                  char *string,         // IN: String sought
+                  const char *string,   // IN: String sought
                   unsigned int *value)  // OUT: Value
 {
    char *p = strstr(buffer, string);
@@ -3969,8 +3971,8 @@ HostinfoFindEntry(char *buffer,         // IN: Buffer
  */
 
 static Bool
-HostinfoGetMemInfo(char *name,           // IN:
-                   unsigned int *value)  // OUT:
+HostinfoGetMemInfo(const char *name,    // IN:
+                   unsigned int *value) // OUT:
 {
    size_t len;
    char   buffer[4096];

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017,2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017,2019,2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -731,7 +731,7 @@ CodeSetOld_GetCurrentCodeSet(void)
 
    return ret;
 #elif defined(USE_ICONV)
-   static char *cachedCodeset;
+   static const char *cachedCodeset;
 
    /*
     * Mirror GLib behavior:
@@ -756,16 +756,16 @@ CodeSetOld_GetCurrentCodeSet(void)
     *    the first entry when converting to/from UTF-8.
     */
 
-   if (!cachedCodeset) {
+   if (cachedCodeset == NULL) {
       char *gFilenameEncoding = getenv("G_FILENAME_ENCODING");
 
-      if (gFilenameEncoding && *gFilenameEncoding) {
+      if (gFilenameEncoding != NULL && *gFilenameEncoding != '\0') {
          char *p;
 
          gFilenameEncoding = Util_SafeStrdup(gFilenameEncoding);
          p = strchr(gFilenameEncoding, ',');
 
-         if (p) {
+         if (p != NULL) {
             *p = '\0';
          }
          if (!strcmp(gFilenameEncoding, "@locale")) {
