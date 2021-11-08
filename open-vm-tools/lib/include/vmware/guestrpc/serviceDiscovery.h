@@ -55,5 +55,6 @@
 #define SERVICE_DISCOVERY_WIN_KEY_RELATIONSHIP "pid-to-ppid"
 #define SERVICE_DISCOVERY_WIN_KEY_NET "net"
 #define SERVICE_DISCOVERY_WIN_KEY_IIS_PORTS "iis-ports-info"
+#define SERVICE_DISCOVERY_WIN_KEY_SHAREPOINT_PORTS "sharepoint-ports-info"
 
 #endif /* _SERVICEDISCOVERY_H_ */
