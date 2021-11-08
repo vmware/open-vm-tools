@@ -1,3 +1,87 @@
+commit 819a20bd5fd2d4f84ae56183d2b2fa4fc88dd72b
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Nov 8 13:33:58 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 53a3387f9bb7f15fd504d6a44c4d8608c1b6ef56
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Nov 8 13:33:58 2021 -0800
+
+    Code clean up.
+     - Fix assignments of pointer to constant data to a non-constant
+       pointer type.
+     - Remove code that has been commented out.
+     - Updated treatment of pointers as a boolean expression to be
+       a true boolean expression.
+     - Fixed some formatting issues.
+
+commit 04515ad7b6f3291af6236ef492de8bfb927d3151
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Nov 8 13:33:58 2021 -0800
+
+    Update open-vm-tools 12.0.0 to work with openssl 1.1.1 or 3.0.0.
+
+commit 0186a8af01f1dd09090cfcd1ddd5487d60c1026e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Nov 8 13:33:58 2021 -0800
+
+    AppInfo Enhancement: Remove duplicate applications.
+    
+    Update appinfo to remove duplicate applications from guestVar.
+    Add a "remove-duplicates" tools.conf key, which is enabled by default.
+    Setting "remove-duplicates=false" disables the functionality.
+
+commit 899063f29c498d1a0abd7ffce71ae05260a5555d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Nov 8 13:33:57 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit aaaefaf7e0cc39bc7ec1c7f89069f5bf96baf5ca
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Nov 8 13:33:57 2021 -0800
+
+    ServiceDiscovery: Enhance version scripts to discover vRLi and
+                      Cassandra services versions.
+
+commit 8a4e38f66325092f84ba612e614f6fd16e135752
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Nov 8 13:33:57 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit ffbbc2932e8fa348e7177f3cf91c1085641a295c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Nov 8 13:33:57 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit e501f711f59b30ce4d402d5bbc2361cb5b29f541
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Nov 8 13:33:57 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit df85d1e571414fdecabc98492da53fe2950a8e6b
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Nov 8 13:33:57 2021 -0800
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit d40c8b6d3086f95980b41a1012639ae796e80fbc
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Nov 8 13:33:57 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 16e24c8d789f8ff81a9fbb915858cb6af88f66a5
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Oct 18 07:44:47 2021 -0700
+
+    Update ChangeLog with the granular push of Oct. 18, 2021.
+      plus ChangeLog update of Oct. 6.
+
 commit d3158f108ec8119d270d08d613545b61f4a6d50b
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Mon Oct 18 07:31:44 2021 -0700
