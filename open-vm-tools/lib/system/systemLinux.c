@@ -307,7 +307,9 @@ System_Shutdown(Bool reboot)  // IN: "reboot or shutdown" flag
    char *cmd;
 
    if (reboot) {
-#if defined(sun)
+#if defined(REBOOT_COMMAND)
+      cmd = REBOOT_COMMAND;
+#elif defined(sun)
       cmd = "/usr/sbin/shutdown -g 0 -i 6 -y";
 #elif defined(USERWORLD)
       cmd = "/bin/reboot";
@@ -315,7 +317,9 @@ System_Shutdown(Bool reboot)  // IN: "reboot or shutdown" flag
       cmd = "/sbin/shutdown -r now";
 #endif
    } else {
-#if __FreeBSD__
+#if defined(SHUTDOWN_COMMAND)
+      cmd = SHUTDOWN_COMMAND;
+#elif __FreeBSD__
       cmd = "/sbin/shutdown -p now";
 #elif defined(sun)
       cmd = "/usr/sbin/shutdown -g 0 -i 5 -y";
