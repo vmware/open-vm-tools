@@ -2270,6 +2270,7 @@ CPUID_FAMILY_IS_ZEN3(uint32 eax)
    return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_ZEN3;
 }
 
+
 /*
  * AMD Barcelona (of either Opteron or Phenom kind).
  */
@@ -2401,8 +2402,8 @@ CPUID_MODEL_IS_DHYANA_A(uint32 eax)
 static INLINE Bool
 CPUID_MODEL_IS_ZEN3(uint32 eax)
 {
-  return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_ZEN3 &&
-         CPUID_EFFECTIVE_MODEL(eax) <= CPUID_MODEL_ZEN3_0F;
+   return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_ZEN3 &&
+          CPUID_EFFECTIVE_MODEL(eax) <= CPUID_MODEL_ZEN3_0F;
 }
 
 
