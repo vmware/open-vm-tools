@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2018,2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2018,2019,2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -178,7 +178,8 @@ RpcVMX_LogV(const char *fmt, va_list args)
     * returns two character strings "1 " on success and "0 " on
     * failure, so we don't need a sizeable buffer.
     */
-   RpcOut_SendOneRawPreallocated(RpcVMX.logBuf, RpcVMX.logOffset + payloadLen,
+   RpcOut_SendOneRawPreallocated(RpcVMX.logBuf,
+                                 (size_t)RpcVMX.logOffset + payloadLen,
                                  receiveBuffer, sizeof receiveBuffer);
 }
 
