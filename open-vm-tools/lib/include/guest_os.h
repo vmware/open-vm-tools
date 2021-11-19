@@ -218,7 +218,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 #define ALL5XLINUX64          BS(OTHER5XLINUX_64), BS(OTHER5XLINUX_ARM_64), \
                               BS(DEBIAN_ARM_64),   BS(UBUNTU_ARM_64),       \
-                              BS(RHEL9_ARM_64)
+                              BS(RHEL9_64),        BS(RHEL9_ARM_64)
 
 #define ALL6XLINUX32          BS(OTHER6XLINUX)
 
