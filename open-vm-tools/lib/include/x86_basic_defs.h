@@ -75,7 +75,9 @@
 #define CR3_PDB_MASK   0xfffff000
 #define CR3_IGNORE     0xFFF
 #define PAE_CR3_IGNORE 0x1F
+#ifndef CR3_PCID_MASK
 #define CR3_PCID_MASK  0xFFF
+#endif
 #define CR3_NO_FLUSH   (1ULL << 63)
 
 #define CR4_VME        0x00000001
