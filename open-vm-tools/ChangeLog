@@ -1,3 +1,54 @@
+commit 28666842fb665b9039ea32a0de5602e6873ac442
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Nov 19 11:40:50 2021 -0800
+
+    [AsyncSocket] Avoid a potential NULL pointer dereference in a log message.
+    
+    A log message in AsyncTCPSocketListenerCreateImpl() accesses an error code
+    through an optional parameter.  Introduce a local error variable to
+    capture any error code from called functions and have it available for the
+    log message.
+
+commit 342fd81a270bf36c79baec5bb928a9a979e95af2
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Nov 19 11:40:50 2021 -0800
+
+    Correct the guestFamily reported for RHEL 9.
+    
+    RHEL 9 had not been added to the ALLLINUX macro.  This has been
+    corrected.
+
+commit 36514e38f5e31a74ef2e38cb13cebd054a52179d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Nov 19 11:40:50 2021 -0800
+
+    Common source file change not directly applicable to open-vm-tools.
+
+commit a91770b88b3d6f534944867f9c58f982b3f6c37a
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Nov 19 11:40:50 2021 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 9997bb0c311e5d931d53f1a4328ced07ec911b77
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Nov 19 11:40:50 2021 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit e4b6231aab74fcc51cf6a22848d9512605be8d28
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Nov 19 11:40:50 2021 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 44f883c59b11912eccfc67df5a9723a2848433b1
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Nov 8 14:03:23 2021 -0800
+
+    Update ChangeLog with the granular push of Nov. 8, 2021.
+     - plus ChangeLog update of Oct. 18.
+
 commit 819a20bd5fd2d4f84ae56183d2b2fa4fc88dd72b
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Mon Nov 8 13:33:58 2021 -0800
