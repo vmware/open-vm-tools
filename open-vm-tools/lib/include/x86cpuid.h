@@ -189,7 +189,10 @@ typedef struct CPUIDQuery {
    CPUIDLEVEL(FALSE, 81E, 0x8000001e, 0,  0) \
    CPUIDLEVEL(TRUE,  81F, 0x8000001f, 0, 14) \
    CPUIDLEVEL(TRUE,  820, 0x80000020, 2, 17) \
-   CPUIDLEVEL(TRUE,  821, 0x80000021, 0, 17)
+   CPUIDLEVEL(TRUE,  821, 0x80000021, 0, 17) \
+   CPUIDLEVEL(TRUE,  822, 0x80000022, 0, 20) \
+   CPUIDLEVEL(TRUE,  823, 0x80000023, 0, 20) \
+   CPUIDLEVEL(TRUE,  826, 0x80000026, 4, 20)
 
 #define CPUID_ALL_LEVELS CPUID_CACHED_LEVELS
 
@@ -1371,6 +1374,12 @@ FIELD(820,  1, EDX,  0, 32, NUM_SERVICE_CLASSES,                 NO,    0 )
 
 #define CPUID_FIELD_DATA_LEVEL_821
 
+#define CPUID_FIELD_DATA_LEVEL_822
+
+#define CPUID_FIELD_DATA_LEVEL_823
+
+#define CPUID_FIELD_DATA_LEVEL_826
+
 #define CPUID_FIELD_DATA                                              \
    CPUID_FIELD_DATA_LEVEL_0                                           \
    CPUID_FIELD_DATA_LEVEL_1                                           \
@@ -1426,7 +1435,10 @@ FIELD(820,  1, EDX,  0, 32, NUM_SERVICE_CLASSES,                 NO,    0 )
    CPUID_FIELD_DATA_LEVEL_81E                                         \
    CPUID_FIELD_DATA_LEVEL_81F                                         \
    CPUID_FIELD_DATA_LEVEL_820                                         \
-   CPUID_FIELD_DATA_LEVEL_821
+   CPUID_FIELD_DATA_LEVEL_821                                         \
+   CPUID_FIELD_DATA_LEVEL_822                                         \
+   CPUID_FIELD_DATA_LEVEL_823                                         \
+   CPUID_FIELD_DATA_LEVEL_826
 
 /*
  * Define all field and flag values as an enum.  The result is a full
