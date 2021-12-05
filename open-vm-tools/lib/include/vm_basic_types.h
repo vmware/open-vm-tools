@@ -666,7 +666,7 @@ typedef void * UserVA;
 #define MAX_MPN           ((MPN)MPN38_MASK - 3) /* 50 bits of address space */
 
 #define INVALID_IOPN      ((IOPN)-1)
-#define MAX_IOPN          (INVALID_IOPN - 1)
+#define MAX_IOPN          (IOA_2_IOPN((IOA)-1))
 
 #define INVALID_LPN       ((LPN)-1)
 #define INVALID_VPN       ((VPN)-1)
