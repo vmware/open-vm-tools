@@ -89,7 +89,10 @@
  * References:
  *   C90 7.17, C99 7.19, C11 7.19
  */
-#if !defined(VMKERNEL)
+/* Use linux/stddef.h when building Linux kernel modules. */
+#ifdef KBUILD_MODNAME
+#  include <linux/stddef.h>
+#elif !defined(VMKERNEL)
 #  include <stddef.h>
 #else
    /*

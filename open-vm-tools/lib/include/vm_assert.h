@@ -79,7 +79,11 @@
 
 // XXX not necessary except some places include vm_assert.h improperly
 #include "vm_basic_types.h"
+
+/* No stdarg.h on Linux kernels 5.15+ */
+#ifndef KBUILD_MODNAME
 #include <stdarg.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {
