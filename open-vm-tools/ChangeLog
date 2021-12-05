@@ -1,3 +1,40 @@
+commit 2cadef44dc8c156d8543111d62340212c501aa0d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Sat Dec 4 22:55:11 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 5fc921074bbf7eba8ee1827de7f12417769e30ca
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Sat Dec 4 22:55:11 2021 -0800
+
+    Adding RHEL9_ARM and OTHERLINUX6_ARM to the ALLARM group.
+
+commit b3cb33a91bb97a17b575b77fa9a622b1a9a74a74
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Sat Dec 4 22:55:11 2021 -0800
+
+    Changes to common header files not applicable to open-vm-tools.
+
+commit 8459c9bcda9b7901de0128d1cb594227b33eea1a
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Sat Dec 4 22:55:11 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 611dce7461466fbde66466b08efed436c3c9b3cb
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Sat Dec 4 22:55:11 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 9920a7e9141ae4910cc77b7891dd14607ee8a474
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Nov 19 12:52:20 2021 -0800
+
+    Update ChangeLog with the granular push of Nov. 19, 2021.
+     - plus ChangeLog update of Nov. 8.
+
 commit 28666842fb665b9039ea32a0de5602e6873ac442
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Fri Nov 19 11:40:50 2021 -0800
