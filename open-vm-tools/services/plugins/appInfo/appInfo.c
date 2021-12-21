@@ -505,7 +505,7 @@ TweakGatherLoop(ToolsAppCtx *ctx,  // IN
                                               CONFNAME_APPINFO_POLLINTERVAL,
                                               APP_INFO_POLL_INTERVAL);
 
-      if (pollInterval < 0) {
+      if (pollInterval < 0 || pollInterval > (G_MAXINT / 1000)) {
          g_warning("%s: Invalid poll interval %d. Using default %us.\n",
                    __FUNCTION__, pollInterval, APP_INFO_POLL_INTERVAL);
          pollInterval = APP_INFO_POLL_INTERVAL;

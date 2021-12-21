@@ -1986,29 +1986,20 @@ TweakGatherLoop(ToolsAppCtx *ctx,
    gint pollInterval = 0;
 
    if (enable) {
-      pollInterval = defInterval * 1000;
-
       /*
        * Check the config registry for custom poll interval,
        * converting from seconds to milliseconds.
        */
-      if (g_key_file_has_key(ctx->config, CONFGROUPNAME_GUESTINFO,
-                             cfgKey, NULL)) {
-         GError *gError = NULL;
-
-         pollInterval = g_key_file_get_integer(ctx->config,
-                                               CONFGROUPNAME_GUESTINFO,
-                                               cfgKey, &gError);
-         pollInterval *= 1000;
-
-         if (pollInterval < 0 || gError) {
-            g_warning("Invalid %s.%s value. Using default %us.\n",
-                      CONFGROUPNAME_GUESTINFO, cfgKey, defInterval);
-            pollInterval = defInterval * 1000;
-         }
-
-         g_clear_error(&gError);
+      pollInterval = VMTools_ConfigGetInteger(ctx->config,
+                                              CONFGROUPNAME_GUESTINFO,
+                                              cfgKey, defInterval);
+      if (pollInterval < 0 || pollInterval > (G_MAXINT / 1000)) {
+         g_warning("Invalid %s.%s value. Using default %us.\n",
+                   CONFGROUPNAME_GUESTINFO, cfgKey, defInterval);
+         pollInterval = defInterval;
       }
+
+      pollInterval *= 1000;
    }
 
    if (*timeoutSource != NULL) {

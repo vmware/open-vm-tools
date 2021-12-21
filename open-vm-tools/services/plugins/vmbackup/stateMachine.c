@@ -115,6 +115,31 @@ VmBackupEnableCompleteWait(void);
 
 
 /**
+ * Returns the configured timeout value.
+ *
+ * @param[in]  config   Config file to read from.
+ * @param[in]  defValue Default value if the timeout key is not found or error.
+ *
+ * @return value of the timeout key if read successfully,
+ *         defValue otherwise.
+ */
+
+static gint
+VmBackupGetTimeout(GKeyFile *config,
+                   const gint defValue)
+{
+   gint timeout = VMBACKUP_CONFIG_GET_INT(config, "timeout", defValue);
+   if (timeout < 0 || timeout > (G_MAXINT / 1000)) {
+      g_warning("Invalid timeout %d. Using default %us.",
+                timeout, defValue);
+      timeout = defValue;
+   }
+
+   return timeout;
+}
+
+
+/**
  * Returns a string representation of the given state machine state.
  *
  * @param[in]  state    State of interest.
@@ -1081,8 +1106,8 @@ VmBackupStartCommon(RpcInData *data,
     * See bug 506106.
     */
    if (gBackupState->timeout == 0) {
-      gBackupState->timeout = VMBACKUP_CONFIG_GET_INT(ctx->config, "timeout",
-                                       GUEST_QUIESCE_DEFAULT_TIMEOUT_IN_SEC);
+      gBackupState->timeout = VmBackupGetTimeout(ctx->config,
+                                 GUEST_QUIESCE_DEFAULT_TIMEOUT_IN_SEC);
    }
 
    /* Treat "0" as no timeout. */
@@ -1167,8 +1192,7 @@ VmBackupStart(RpcInData *data)
       gBackupState->scriptArg = VMBACKUP_CONFIG_GET_STR(ctx->config,
                                                         "scriptArg",
                                                         NULL);
-      gBackupState->timeout = VMBACKUP_CONFIG_GET_INT(ctx->config,
-                                                      "timeout", 0);
+      gBackupState->timeout = VmBackupGetTimeout(ctx->config, 0);
       gBackupState->vssUseDefault = VMBACKUP_CONFIG_GET_BOOL(ctx->config,
                                                              "vssUseDefault",
                                                              TRUE);
