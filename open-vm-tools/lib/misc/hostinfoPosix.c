@@ -779,40 +779,16 @@ HostinfoESX(struct utsname *buf)  // IN:
       minor = 0;
    }
 
-   switch (major) {
-   case 0:
-   case 1:
-   case 2:
-   case 3:
-   case 4:
+   if (major <= 4) {
       Str_Strcpy(osName, STR_OS_VMKERNEL, sizeof osName);
-      break;
-
-   case 5:
-      Str_Strcpy(osName, STR_OS_VMKERNEL "5", sizeof osName);
-      break;
-
-   case 6:
-      if (minor < 5) {
-         Str_Strcpy(osName, STR_OS_VMKERNEL "6", sizeof osName);
+   } else {
+      if (minor == 0) {
+         Str_Sprintf(osName, sizeof osName, "%s%d", STR_OS_VMKERNEL,
+                     major);
       } else {
-         Str_Strcpy(osName, STR_OS_VMKERNEL "65", sizeof osName);
+         Str_Sprintf(osName, sizeof osName, "%s%d%d", STR_OS_VMKERNEL,
+                     major, minor);
       }
-      break;
-
-   case 7:
-      Str_Strcpy(osName, STR_OS_VMKERNEL "7", sizeof osName);
-      break;
-
-   case 8:
-   default:
-      /*
-       * New osName are created IFF the VMX/monitor requires them (rare),
-       * not (simply) with every ESXi release.
-       */
-
-      Str_Strcpy(osName, STR_OS_VMKERNEL "8", sizeof osName);
-      break;
    }
 
    len = Str_Snprintf(osNameFull, sizeof osNameFull, "VMware ESXi %s",
