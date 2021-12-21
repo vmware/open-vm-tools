@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2019,2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -66,10 +66,11 @@
 #ifndef __KERNELSTUBS_H__
 #define __KERNELSTUBS_H__
 
-#define KRNL_STUBS_DRIVER_TYPE_POSIX  1
-#define KRNL_STUBS_DRIVER_TYPE_GDI    2
-#define KRNL_STUBS_DRIVER_TYPE_WDM    3
-#define KRNL_STUBS_DRIVER_TYPE_NDIS   4
+#define KRNL_STUBS_DRIVER_TYPE_POSIX      1
+#define KRNL_STUBS_DRIVER_TYPE_GDI        2
+#define KRNL_STUBS_DRIVER_TYPE_WDM        3
+#define KRNL_STUBS_DRIVER_TYPE_NDIS       4
+#define KRNL_STUBS_DRIVER_TYPE_STORPORT   5
 
 // For now (vsphere-2015), choose a good default. Later we'll modify all the
 // build files using KernelStubs to set this.
@@ -107,6 +108,16 @@
 #      include "kernelStubsFloorFixes.h"
 #pragma warning(disable:4201) // unnamed struct/union
 #      include <ndis.h>
+#   elif KRNL_STUBS_DRIVER_TYPE == KRNL_STUBS_DRIVER_TYPE_STORPORT
+#      include "vm_basic_types.h"
+#      include <wdm.h>   /* kernel memory APIs, DbgPrintEx */
+#      include <stdio.h>    /* for _vsnprintf, vsprintf */
+#      include <stdarg.h>   /* for va_start stuff */
+#      include <stdlib.h>   /* for min macro. */
+#      include <Storport.h> /* for Storport functions */
+#      include "vm_basic_defs.h"
+#      include "vm_assert.h"  /* Our assert macros */
+#      include "kernelStubsFloorFixes.h"
 #   elif KRNL_STUBS_DRIVER_TYPE == KRNL_STUBS_DRIVER_TYPE_WDM
 #      include "vm_basic_types.h"
 #      if defined(NTDDI_WINXP) && (NTDDI_VERSION >= NTDDI_WINXP)
