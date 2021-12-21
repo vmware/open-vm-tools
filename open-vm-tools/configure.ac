@@ -467,6 +467,27 @@ if test "$enable_servicediscovery" = "yes"; then
    fi
 fi
 
+AC_ARG_ENABLE([salt-minion],
+   [AS_HELP_STRING([--enable-salt-minion],
+     [Install salt_minion related script files.])],
+   [
+    enable_saltminion=$enableval
+   ],
+   [
+    enable_saltminion=no
+   ])
+
+#
+# Check that salt_minion is enabled only on linux systems
+#
+
+if test "$enable_saltminion" = "yes"; then
+   if test "$os" != "linux"; then
+      AC_MSG_ERROR([The salt_minion package is only supported for Linux
+      platforms. Try configure without --enable-salt-minion option.])
+   fi
+fi
+
 #
 # Check for glib 2.34.0 or greater.
 #
@@ -1489,6 +1510,7 @@ AM_CONDITIONAL(ENABLE_VMWGFXCTRL, test "x$enable_vmwgfxctrl" = "xyes")
 AM_CONDITIONAL(VGAUTH_USE_CXX, test "$with_icu" = "yes" -o "$use_xmlsec1" != "yes")
 AM_CONDITIONAL(ENABLE_LIBAPPMONITOR, test "$enable_libappmonitor" = "yes")
 AM_CONDITIONAL(ENABLE_SDMP, test "$enable_servicediscovery" = "yes")
+AM_CONDITIONAL(ENABLE_SALTMINION, test "$enable_saltminion" = "yes")
 
 if test "$have_xsm" != "yes"; then
 AC_DEFINE([NO_XSM], 1, [])
@@ -1653,6 +1675,7 @@ AC_CONFIG_FILES([                      \
    services/plugins/Makefile           \
    services/plugins/gdp/Makefile       \
    services/plugins/appInfo/Makefile   \
+   services/plugins/componentMgr/Makefile  \
    services/plugins/serviceDiscovery/Makefile   \
    services/plugins/desktopEvents/Makefile \
    services/plugins/dndcp/Makefile     \
