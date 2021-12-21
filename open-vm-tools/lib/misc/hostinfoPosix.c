@@ -1176,18 +1176,18 @@ HostinfoSetRedHatShortName(const ShortNameSet *entry, // IN: Unused
 #define SUSE_SAP_LINUX "server for sap applications 12"
 
 static const ShortNameSet suseEnterpriseShortNameArray[] = {
-   {"desktop 10",    STR_OS_SLES "10",  HostinfoGenericSetShortName},
-   {"desktop 11",    STR_OS_SLES "11",  HostinfoGenericSetShortName},
-   {"desktop 12",    STR_OS_SLES "12",  HostinfoGenericSetShortName},
-   {"desktop 15",    STR_OS_SLES "15",  HostinfoGenericSetShortName},
-   {"desktop 16",    STR_OS_SLES "16",  HostinfoGenericSetShortName},
-   {"server 10",     STR_OS_SLES "10",  HostinfoGenericSetShortName},
-   {"server 11",     STR_OS_SLES "11",  HostinfoGenericSetShortName},
-   {"server 12",     STR_OS_SLES "12",  HostinfoGenericSetShortName},
-   {"server 15",     STR_OS_SLES "15",  HostinfoGenericSetShortName},
-   {"server 16",     STR_OS_SLES "16",  HostinfoGenericSetShortName},
-   {SUSE_SAP_LINUX,  STR_OS_SLES "12",  HostinfoGenericSetShortName},
-   {NULL,            NULL,              NULL} // MUST BE LAST
+   { "desktop 10",    STR_OS_SLES "10",  HostinfoGenericSetShortName },
+   { "desktop 11",    STR_OS_SLES "11",  HostinfoGenericSetShortName },
+   { "desktop 12",    STR_OS_SLES "12",  HostinfoGenericSetShortName },
+   { "desktop 15",    STR_OS_SLES "15",  HostinfoGenericSetShortName },
+   { "desktop 16",    STR_OS_SLES "16",  HostinfoGenericSetShortName },
+   { "server 10",     STR_OS_SLES "10",  HostinfoGenericSetShortName },
+   { "server 11",     STR_OS_SLES "11",  HostinfoGenericSetShortName },
+   { "server 12",     STR_OS_SLES "12",  HostinfoGenericSetShortName },
+   { "server 15",     STR_OS_SLES "15",  HostinfoGenericSetShortName },
+   { "server 16",     STR_OS_SLES "16",  HostinfoGenericSetShortName },
+   { SUSE_SAP_LINUX,  STR_OS_SLES "12",  HostinfoGenericSetShortName },
+   { NULL,            NULL,              NULL                        } // MUST BE LAST
 };
 
 
@@ -1198,9 +1198,9 @@ static const ShortNameSet suseEnterpriseShortNameArray[] = {
  */
 
 static const ShortNameSet suseShortNameArray[] = {
-   {"sun",           STR_OS_SUN_DESK,  HostinfoGenericSetShortName},
-   {"novell",        STR_OS_NOVELL,    HostinfoGenericSetShortName},
-   {NULL,            NULL,             NULL} // MUST BE LAST
+   { "sun",           STR_OS_SUN_DESK,  HostinfoGenericSetShortName },
+   { "novell",        STR_OS_NOVELL,    HostinfoGenericSetShortName },
+   { NULL,            NULL,             NULL                        } // MUST BE LAST
 };
 
 
@@ -1209,7 +1209,8 @@ static const ShortNameSet suseShortNameArray[] = {
  *
  * HostinfoSetSuseShortName --
  *
- *      Set the short name for the SUSE distros.
+ *      Set the short name for the SUSE distros. Due to ownership and naming
+ *      changes, other distros have to be "filtered" and named differently.
  *
  * Return value:
  *      TRUE    success
@@ -1272,43 +1273,45 @@ HostinfoSetSuseShortName(const ShortNameSet *entry, // IN:
 
 static const ShortNameSet shortNameArray[] = {
 /* Long distro name     Short distro name          Short name set function */
-{"amazon",              NULL,                      HostinfoSetAmazonShortName},
-{"annvix",              STR_OS_ANNVIX,             HostinfoGenericSetShortName},
-{"arch",                STR_OS_ARCH,               HostinfoGenericSetShortName},
-{"arklinux",            STR_OS_ARKLINUX,           HostinfoGenericSetShortName},
-{"asianux",             NULL,                      HostinfoSetAsianuxShortName},
-{"aurox",               STR_OS_AUROX,              HostinfoGenericSetShortName},
-{"black cat",           STR_OS_BLACKCAT,           HostinfoGenericSetShortName},
-{"centos",              NULL,                      HostinfoSetCentosShortName},
-{"cobalt",              STR_OS_COBALT,             HostinfoGenericSetShortName},
-{"conectiva",           STR_OS_CONECTIVA,          HostinfoGenericSetShortName},
-{"debian",              NULL,                      HostinfoSetDebianShortName},
-{"red hat",             NULL,                      HostinfoSetRedHatShortName},
+{ "almalinux",           STR_OS_ALMA_LINUX,         HostinfoGenericSetShortName },
+{ "amazon",              NULL,                      HostinfoSetAmazonShortName  },
+{ "annvix",              STR_OS_ANNVIX,             HostinfoGenericSetShortName },
+{ "arch",                STR_OS_ARCH,               HostinfoGenericSetShortName },
+{ "arklinux",            STR_OS_ARKLINUX,           HostinfoGenericSetShortName },
+{ "asianux",             NULL,                      HostinfoSetAsianuxShortName },
+{ "aurox",               STR_OS_AUROX,              HostinfoGenericSetShortName },
+{ "black cat",           STR_OS_BLACKCAT,           HostinfoGenericSetShortName },
+{ "centos",              NULL,                      HostinfoSetCentosShortName  },
+{ "cobalt",              STR_OS_COBALT,             HostinfoGenericSetShortName },
+{ "conectiva",           STR_OS_CONECTIVA,          HostinfoGenericSetShortName },
+{ "debian",              NULL,                      HostinfoSetDebianShortName  },
+{ "red hat",             NULL,                      HostinfoSetRedHatShortName  },
 /* Red Hat must come before the Enterprise Linux entry */
-{"enterprise linux",    NULL,                      HostinfoSetOracleShortName},
-{"fedora",              STR_OS_FEDORA,             HostinfoGenericSetShortName},
-{"gentoo",              STR_OS_GENTOO,             HostinfoGenericSetShortName},
-{"immunix",             STR_OS_IMMUNIX,            HostinfoGenericSetShortName},
-{"linux-from-scratch",  STR_OS_LINUX_FROM_SCRATCH, HostinfoGenericSetShortName},
-{"linux-ppc",           STR_OS_LINUX_PPC,          HostinfoGenericSetShortName},
-{"mandrake",            STR_OS_MANDRAKE,           HostinfoGenericSetShortName},
-{"mandriva",            STR_OS_MANDRIVA,           HostinfoGenericSetShortName},
-{"mklinux",             STR_OS_MKLINUX,            HostinfoGenericSetShortName},
-{"opensuse",            STR_OS_OPENSUSE,           HostinfoGenericSetShortName},
-{"oracle",              NULL,                      HostinfoSetOracleShortName},
-{"pld",                 STR_OS_PLD,                HostinfoGenericSetShortName},
-{"slackware",           STR_OS_SLACKWARE,          HostinfoGenericSetShortName},
-{"sme server",          STR_OS_SMESERVER,          HostinfoGenericSetShortName},
-{"suse",                NULL,                      HostinfoSetSuseShortName},
-{"tiny sofa",           STR_OS_TINYSOFA,           HostinfoGenericSetShortName},
-{"turbolinux",          STR_OS_TURBO,              HostinfoGenericSetShortName},
-{"ubuntu",              STR_OS_UBUNTU,             HostinfoGenericSetShortName},
-{"ultra penguin",       STR_OS_ULTRAPENGUIN,       HostinfoGenericSetShortName},
-{"united linux",        STR_OS_UNITEDLINUX,        HostinfoGenericSetShortName},
-{"va linux",            STR_OS_VALINUX,            HostinfoGenericSetShortName},
-{"vmware photon",       STR_OS_PHOTON,             HostinfoGenericSetShortName},
-{"yellow dog",          STR_OS_YELLOW_DOG,         HostinfoGenericSetShortName},
-{NULL,                  NULL,                      NULL} // MUST BE LAST
+{ "enterprise linux",    NULL,                      HostinfoSetOracleShortName  },
+{ "fedora",              STR_OS_FEDORA,             HostinfoGenericSetShortName },
+{ "gentoo",              STR_OS_GENTOO,             HostinfoGenericSetShortName },
+{ "immunix",             STR_OS_IMMUNIX,            HostinfoGenericSetShortName },
+{ "linux-from-scratch",  STR_OS_LINUX_FROM_SCRATCH, HostinfoGenericSetShortName },
+{ "linux-ppc",           STR_OS_LINUX_PPC,          HostinfoGenericSetShortName },
+{ "mandrake",            STR_OS_MANDRAKE,           HostinfoGenericSetShortName },
+{ "mandriva",            STR_OS_MANDRIVA,           HostinfoGenericSetShortName },
+{ "mklinux",             STR_OS_MKLINUX,            HostinfoGenericSetShortName },
+{ "opensuse",            STR_OS_OPENSUSE,           HostinfoGenericSetShortName },
+{ "oracle",              NULL,                      HostinfoSetOracleShortName  },
+{ "pld",                 STR_OS_PLD,                HostinfoGenericSetShortName },
+{ "rocky linux",         STR_OS_ROCKY_LINUX,        HostinfoGenericSetShortName },
+{ "slackware",           STR_OS_SLACKWARE,          HostinfoGenericSetShortName },
+{ "sme server",          STR_OS_SMESERVER,          HostinfoGenericSetShortName },
+{ "suse",                NULL,                      HostinfoSetSuseShortName    },
+{ "tiny sofa",           STR_OS_TINYSOFA,           HostinfoGenericSetShortName },
+{ "turbolinux",          STR_OS_TURBO,              HostinfoGenericSetShortName },
+{ "ubuntu",              STR_OS_UBUNTU,             HostinfoGenericSetShortName },
+{ "ultra penguin",       STR_OS_ULTRAPENGUIN,       HostinfoGenericSetShortName },
+{ "united linux",        STR_OS_UNITEDLINUX,        HostinfoGenericSetShortName },
+{ "va linux",            STR_OS_VALINUX,            HostinfoGenericSetShortName },
+{ "vmware photon",       STR_OS_PHOTON,             HostinfoGenericSetShortName },
+{ "yellow dog",          STR_OS_YELLOW_DOG,         HostinfoGenericSetShortName },
+{ NULL,                  NULL,                      NULL                        } // MUST BE LAST
 };
 
 
