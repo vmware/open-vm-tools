@@ -801,13 +801,17 @@ HostinfoESX(struct utsname *buf)  // IN:
       break;
 
    case 7:
+      Str_Strcpy(osName, STR_OS_VMKERNEL "7", sizeof osName);
+      break;
+
+   case 8:
    default:
       /*
        * New osName are created IFF the VMX/monitor requires them (rare),
        * not (simply) with every ESXi release.
        */
 
-      Str_Strcpy(osName, STR_OS_VMKERNEL "7", sizeof osName);
+      Str_Strcpy(osName, STR_OS_VMKERNEL "8", sizeof osName);
       break;
    }
 
