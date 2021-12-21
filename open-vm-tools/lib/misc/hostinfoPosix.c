@@ -1178,9 +1178,9 @@ static const ShortNameSet suseEnterpriseShortNameArray[] = {
  */
 
 static const ShortNameSet suseShortNameArray[] = {
-   { "sun",           STR_OS_SUN_DESK,  HostinfoGenericSetShortName },
-   { "novell",        STR_OS_NOVELL,    HostinfoGenericSetShortName },
-   { NULL,            NULL,             NULL                        } // MUST BE LAST
+   { "sun",           STR_OS_SUN_DESK,     HostinfoGenericSetShortName },
+   { "novell",        STR_OS_NOVELL "9",   HostinfoGenericSetShortName },
+   { NULL,            NULL,                NULL                        } // MUST BE LAST
 };
 
 
