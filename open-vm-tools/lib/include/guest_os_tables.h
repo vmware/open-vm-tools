@@ -59,6 +59,8 @@ extern "C" {
    GOT(GUEST_OS_WIN_10_ARM_64)       /* Windows 10 Arm 64-bit */           \
    GOT(GUEST_OS_WIN_11_64)           /* Windows 11 64-bit */               \
    GOT(GUEST_OS_WIN_11_ARM_64)       /* Windows 11 Arm 64-bit */           \
+   GOT(GUEST_OS_WIN_12_64)           /* Windows 12 64-bit */               \
+   GOT(GUEST_OS_WIN_12_ARM_64)       /* Windows 12 Arm 64-bit */           \
    GOT(GUEST_OS_WIN2008R2_64)        /* Server 2008 R2 64-bit */           \
    GOT(GUEST_OS_WIN_8_SERVER_64)     /* Windows 8 Server 64-bit */         \
    GOT(GUEST_OS_WIN_2016SRV_64)      /* Windows Server 2016 64-bit */      \
