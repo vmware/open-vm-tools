@@ -573,6 +573,119 @@ if test "$with_pam" = "yes"; then
                     [AC_VMW_LIB_ERROR([PAM], [pam])])
 fi
 
+AC_ARG_ENABLE([containerinfo],
+   [AS_HELP_STRING([--disable-containerinfo],
+     [do not build containerinfo plugin.])],
+   [
+     enable_containerinfo=$enableval
+   ],
+   [
+       if test "$os" = "linux"; then
+          enable_containerinfo=auto
+       else
+          enable_containerinfo=no
+       fi
+   ])
+
+#
+# Check that containerinfo plugin is enabled only on linux systems.
+#
+if test "$os" != "linux"; then
+   if test "$enable_containerinfo" = "yes"; then
+      AC_MSG_ERROR([The containerinfo plugin is only supported for Linux
+      platforms. Try configure with --disable-containerinfo option.])
+   fi
+fi
+
+if test "$enable_containerinfo" = "yes" ||
+   test "$enable_containerinfo" = "auto"; then
+
+can_build_containerinfo=yes
+
+#
+# AC_VMW_CONTAINERINFO_MSG(library)
+#
+# Wrapper around AC_MSG_WARN to print a standard message about missing libraries.
+#
+#     library ($1): name of missing library / package.
+#
+AC_DEFUN([AC_VMW_CONTAINERINFO_MSG],[
+   can_build_containerinfo=no
+   AC_MSG_WARN(["$1 is missing which is required for building containerinfo plugin."])
+])
+
+   AC_VMW_DEFAULT_FLAGS([CURL])
+   AC_VMW_CHECK_LIB([curl],
+                    [CURL],
+                    [],
+                    [],
+                    [],
+                    [curl/curl.h],
+                    [curl_easy_init],
+                    [CURL_CPPFLAGS="$CURL_CPPFLAGS"],
+                    [AC_VMW_CONTAINERINFO_MSG([CURL])])
+
+   AC_VMW_CHECK_LIB([protobuf],
+                    [PROTOBUF],
+                    [protobuf],
+                    [],
+                    [3.0.0],
+                    [],
+                    [],
+                    [],
+                    [AC_VMW_CONTAINERINFO_MSG(["protobuf >= 3.0.0"])])
+
+   AC_VMW_DEFAULT_FLAGS([GRPC])
+   AC_VMW_CHECK_LIBXX([grpc++],
+                      [GRPC],
+                      [grpc++],
+                      [],
+                      [1.3.2],
+                      [grpc++/grpc++.h],
+                      [],
+                      [],
+                      [AC_VMW_CONTAINERINFO_MSG(["grpc++ >= 1.3.2"])])
+
+#
+# proto files needed by containerd grpc client.
+#
+   shared_prefix=/usr/share/gocode/src/github.com
+   AC_SUBST(CONTAINERD_PROTOPATH, $shared_prefix/containerd/containerd/api/services/containers/v1)
+   AC_SUBST(GOGO_PROTOPATH, $shared_prefix/gogo/protobuf)
+   AC_CHECK_FILE([${CONTAINERD_PROTOPATH}/containers.proto],
+                 [],
+                 [AC_VMW_CONTAINERINFO_MSG(["containerd package"])])
+   AC_CHECK_FILE([${GOGO_PROTOPATH}/gogoproto/gogo.proto],
+                 [],
+                 [AC_VMW_CONTAINERINFO_MSG(["gogoproto package"])])
+
+#
+# Binaries needed to build for containerd grpc client.
+#
+   AC_CHECK_PROG([GRPC_CPP], [grpc_cpp_plugin], [grpc_cpp_plugin], [not found])
+
+   if test "$GRPC_CPP" != "grpc_cpp_plugin"  ; then
+      AC_VMW_CONTAINERINFO_MSG(["grpc_cpp_plugin binary"])
+   fi
+
+   AC_CHECK_PROG([PROTOC], [protoc], [protoc], [not found])
+
+   if test "$PROTOC" != "protoc"  ; then
+      AC_VMW_CONTAINERINFO_MSG(["protoc binary"])
+   fi
+
+   if test "$can_build_containerinfo" = "no" ; then
+      if test "$enable_containerinfo" = "auto" ; then
+         enable_containerinfo=no
+         AC_MSG_WARN(["Cannot enable containerinfo plugin since one ore more required packages are missing."])
+      else
+         AC_MSG_ERROR(["Cannot enable containerinfo plugin since one or more required packages are missing. Please configure without containerinfo (using --disable-containerinfo), or install the necessary libraries and devel package(s)."])
+      fi
+   else
+      enable_containerinfo=yes
+   fi
+fi
+
 AC_ARG_ENABLE([vgauth],
    [AS_HELP_STRING([--disable-vgauth],
      [do not build vgauth.])],
@@ -1499,6 +1612,7 @@ AM_CONDITIONAL(HAVE_GNU_LD, test "$with_gnu_ld" = "yes")
 AM_CONDITIONAL(HAVE_GTKMM, test "$have_x" = "yes" -a \( "$with_gtkmm" = "yes" -o "$with_gtkmm3" = "yes" \) )
 AM_CONDITIONAL(HAVE_PAM, test "$with_pam" = "yes")
 AM_CONDITIONAL(USE_SLASH_PROC, test "$os" = "linux")
+AM_CONDITIONAL(ENABLE_CONTAINERINFO, test "$enable_containerinfo" = "yes")
 AM_CONDITIONAL(ENABLE_DEPLOYPKG, test "$enable_deploypkg" = "yes")
 AM_CONDITIONAL(ENABLE_VGAUTH, test "$enable_vgauth" = "yes")
 AM_CONDITIONAL(USE_XMLSEC1, test "$use_xmlsec1" = "yes")
@@ -1676,6 +1790,7 @@ AC_CONFIG_FILES([                      \
    services/plugins/gdp/Makefile       \
    services/plugins/appInfo/Makefile   \
    services/plugins/componentMgr/Makefile  \
+   services/plugins/containerInfo/Makefile   \
    services/plugins/serviceDiscovery/Makefile   \
    services/plugins/desktopEvents/Makefile \
    services/plugins/dndcp/Makefile     \

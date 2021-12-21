@@ -22,6 +22,9 @@ if LINUX
    SUBDIRS += guestStore
    SUBDIRS += componentMgr
 endif
+if ENABLE_CONTAINERINFO
+   SUBDIRS += containerInfo
+endif
 if ENABLE_SDMP
    SUBDIRS += serviceDiscovery
 endif
