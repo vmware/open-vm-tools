@@ -19,6 +19,10 @@
 #ifndef _CONTAINERINFOINT_H_
 #define _CONTAINERINFOINT_H_
 
+#include "conf.h"
+
+#define G_LOG_DOMAIN CONFGROUPNAME_CONTAINERINFO
+
 #include <glib.h>
 
 /**

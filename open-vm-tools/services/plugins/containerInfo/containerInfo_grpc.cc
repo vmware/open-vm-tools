@@ -25,8 +25,6 @@
  *    socket and the specified namespace is queried for any running containers.
  */
 
-#define G_LOG_DOMAIN "containerInfo"
-
 #include "containerInfoInt.h"
 #include "containers.grpc.pb.h"
 #include "containers.pb.h"

@@ -27,12 +27,11 @@
 #   error This file should not be compiled.
 #endif
 
-#define G_LOG_DOMAIN "containerInfo"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "containerInfoInt.h"
 #include "codeset.h"
 #include "procMgr.h"
 #include "str.h"
@@ -41,7 +40,6 @@
 #include "util.h"
 #include "vm_atomic.h"
 #include "vmware/guestrpc/containerInfo.h"
-#include "containerInfoInt.h"
 #include "vmware/guestrpc/tclodefs.h"
 #include "vmware/tools/log.h"
 #include "vmware/tools/threadPool.h"

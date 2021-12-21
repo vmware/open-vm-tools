@@ -26,10 +26,9 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#define G_LOG_DOMAIN "containerInfo"
-#include "jsmn.h"
 #include "containerInfoInt.h"
-#include <curl/curl.h> 
+#include "jsmn.h"
+#include <curl/curl.h>
 #include "vm_assert.h"
 
 #define HTTP_HEADER "HTTP"
