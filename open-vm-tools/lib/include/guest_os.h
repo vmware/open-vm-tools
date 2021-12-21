@@ -491,12 +491,17 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_WIN_2008_STORAGE_WORKGROUP_X64 "winServer2008StorageWorkgroup-64"
 #define STR_OS_WIN_2008_WEB_SERVER_X64        "winServer2008Web-64"
 
+/* All */
+#define STR_OS_64BIT_SUFFIX "-64"
+#define STR_OS_64BIT_SUFFIX_FULL " (64 bit)"
+#define STR_OS_EMPTY ""
+
 /* Windows 7 */
 
 #define STR_OS_WINDOWS       "windows"
 
 #define STR_OS_WIN_SEVEN     STR_OS_WINDOWS "7"
-#define STR_OS_WIN_SEVEN_X64 STR_OS_WINDOWS "7-64"
+#define STR_OS_WIN_SEVEN_X64 STR_OS_WIN_SEVEN STR_OS_64BIT_SUFFIX
 
 #define STR_OS_WIN_SEVEN_GENERIC           "Windows 7"
 #define STR_OS_WIN_SEVEN_STARTER_FULL      "Windows 7 Starter"
@@ -508,7 +513,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 /* Windows Server 2008 R2 (based on Windows 7) */
 
-#define STR_OS_WIN_2008R2_X64 STR_OS_WINDOWS "7srv-64"
+#define STR_OS_WIN_2008R2_X64 STR_OS_WINDOWS "7srv" STR_OS_64BIT_SUFFIX
 
 #define STR_OS_WIN_2008R2_FOUNDATION_FULL "Windows Server 2008 R2 Foundation Edition"
 #define STR_OS_WIN_2008R2_STANDARD_FULL   "Windows Server 2008 R2 Standard Edition"
@@ -519,7 +524,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 /* Windows 8 */
 
 #define STR_OS_WIN_EIGHT               STR_OS_WINDOWS "8"
-#define STR_OS_WIN_EIGHT_X64           STR_OS_WINDOWS "8-64"
+#define STR_OS_WIN_EIGHT_X64           STR_OS_WIN_EIGHT STR_OS_64BIT_SUFFIX
 
 #define STR_OS_WIN_EIGHT_GENERIC_FULL        "Windows 8%s"
 #define STR_OS_WIN_EIGHTSERVER_GENERIC_FULL  "Windows Server%s 2012"
@@ -530,7 +535,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 /* Windows Server 2012 */
 
-#define STR_OS_WIN_EIGHTSERVER_X64 STR_OS_WINDOWS "8srv-64"
+#define STR_OS_WIN_EIGHTSERVER_X64 STR_OS_WINDOWS "8srv" STR_OS_64BIT_SUFFIX 
 
 #define STR_OS_WIN_2012_FOUNDATION_FULL      "Windows Server 2012%s Foundation Edition"
 #define STR_OS_WIN_2012_ESSENTIALS_FULL      "Windows Server 2012%s Essentials Edition"
@@ -558,7 +563,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
  */
 
 #define STR_OS_WIN_10        STR_OS_WINDOWS "9"
-#define STR_OS_WIN_10_X64    STR_OS_WINDOWS "9-64"
+#define STR_OS_WIN_10_X64    STR_OS_WIN_10 STR_OS_64BIT_SUFFIX
 
 #define STR_OS_WIN_10_GENERIC_FULL         "Windows 10"
 #define STR_OS_WIN_10_HOME_FULL            "Windows 10 Home"
@@ -573,7 +578,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
  */
 
 #define STR_OS_WIN_11        STR_OS_WINDOWS "11"
-#define STR_OS_WIN_11_X64    STR_OS_WINDOWS "11-64"
+#define STR_OS_WIN_11_X64    STR_OS_WIN_11 STR_OS_64BIT_SUFFIX
 
 #define STR_OS_WIN_11_GENERIC_FULL         "Windows 11"
 #define STR_OS_WIN_11_HOME_FULL            "Windows 11 Home"
@@ -588,25 +593,25 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
  */
 
 #define STR_OS_WIN_12        STR_OS_WINDOWS "12"
-#define STR_OS_WIN_12_X64    STR_OS_WINDOWS "12-64"
+#define STR_OS_WIN_12_X64    STR_OS_WIN_12 STR_OS_64BIT_SUFFIX
 
 /* No full names known yet */
 
 /* Windows Server 2016 */
 
-#define STR_OS_WIN_2016SRV_X64 STR_OS_WINDOWS "9srv-64"
+#define STR_OS_WIN_2016SRV_X64 STR_OS_WINDOWS "9srv" STR_OS_64BIT_SUFFIX
 
 /* Windows Server 2019 */
 
-#define STR_OS_WIN_2019SRV_X64 STR_OS_WINDOWS "2019srv-64"
+#define STR_OS_WIN_2019SRV_X64 STR_OS_WINDOWS "2019srv" STR_OS_64BIT_SUFFIX
 
 /* Windows Server 2022 */
 
-#define STR_OS_WIN_2022SRV_X64 STR_OS_WINDOWS "2019srvNext-64"
+#define STR_OS_WIN_2022SRV_X64 STR_OS_WINDOWS "2019srvNext" STR_OS_64BIT_SUFFIX
 
 /* Windows Server 2025 */
 
-#define STR_OS_WIN_2025SRV_X64 STR_OS_WINDOWS "2022srvNext-64"
+#define STR_OS_WIN_2025SRV_X64 STR_OS_WINDOWS "2022srvNext" STR_OS_64BIT_SUFFIX
 
 /* THIS SPACE FOR RENT (Windows 10 and later official server variant names) */
 
@@ -622,7 +627,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 /* Windows Future/Unknown */
 
 #define STR_OS_WIN_UNKNOWN                   "windowsUnknown"
-#define STR_OS_WIN_UNKNOWN_X64               "windowsUnknown-64"
+#define STR_OS_WIN_UNKNOWN_X64               STR_OS_WIN_UNKNOWN STR_OS_64BIT_SUFFIX
 #define STR_OS_WIN_UNKNOWN_GENERIC           "Windows Unknown"
 
 /* Modifiers for Windows Vista, Windows Server 2008, and later. */
@@ -630,7 +635,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_WIN_64_BIT_EXTENSION ", 64-bit"
 
 /* FreeBSD */
-#define STR_OS_FREEBSD      "freeBSD"
+#define STR_OS_FREEBSD "freeBSD"
 
 /* Solaris */
 #define STR_OS_SOLARIS "solaris"
@@ -640,11 +645,6 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 /* Mac OS */
 #define STR_OS_MACOS "darwin"
-
-/* All */
-#define STR_OS_64BIT_SUFFIX "-64"
-#define STR_OS_64BIT_SUFFIX_FULL " (64 bit)"
-#define STR_OS_EMPTY ""
 
 #if defined(__cplusplus)
 }  // extern "C"
