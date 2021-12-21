@@ -14,7 +14,7 @@ set -o pipefail
 # using bash for now
 # run this script as root, as needed to run salt
 
-readonly SCRIPT_VERSION='SCRIPT_VERSION_REPLACE'
+readonly SCRIPT_VERSION='1.0'
 
 # definitions
 
