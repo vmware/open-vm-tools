@@ -2996,7 +2996,7 @@ File_WalkDirectoryStart(const char *dirName)  // IN:
    context = Util_SafeMalloc(sizeof *context);
 
    context->dirName = Util_SafeStrdup(dirName);
-   context->hash = HashTable_Alloc(256, HASH_STRING_KEY, NULL);
+   context->hash = HashTable_Alloc(2048, HASH_STRING_KEY, NULL);
    context->dir = Posix_OpenDir(dirName);
 
    if (context->dir == NULL) {
