@@ -314,6 +314,7 @@
    LOGLEVEL_VAR(vncBlit),   \
    LOGLEVEL_VAR(vncDecode), \
    LOGLEVEL_VAR(vncEncode), \
+   LOGLEVEL_VAR(vncRegEnc), \
    LOGLEVEL_VAR(vncServer), \
    LOGLEVEL_VAR(vncServerOS), \
    LOGLEVEL_VAR(vnet), \
