@@ -213,6 +213,34 @@
 
 /*
  ******************************************************************************
+ * BEGIN ComponentMgr goodies.
+ */
+
+/**
+ * Defines the current poll interval (in seconds).
+ * This value is controlled by the componentMgr.poll-interval config file
+ * option.
+ */
+#define COMPONENTMGR_CONF_POLLINTERVAL "poll-interval"
+
+/**
+ * Name of section of configuration to be read from tools.conf.
+ */
+#define COMPONENTMGR_CONF_GROUPNAME "componentmgr"
+
+/**
+ * Defines the components  managed by the componentMgr plugin.
+ * This value is controlled by the componentMgr.included config file option.
+ */
+#define COMPONENTMGR_CONF_INCLUDEDCOMPONENTS "included"
+
+/*
+ * END ComponentMgr goodies.
+ ******************************************************************************
+ */
+
+/*
+ ******************************************************************************
  * BEGIN GuestStore upgrader goodies.
  ******************************************************************************
  */

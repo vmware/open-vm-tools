@@ -36,6 +36,7 @@
 #include "util.h"
 #include "guestApp.h"
 #include "codeset.h"
+#include "conf.h"
 
 
 /*
@@ -94,7 +95,7 @@ ComponentMgrCustomizeSaltAddAction();
  * current action to be run on the component.
  */
 
-static struct componentInfo components[] = {
+static struct ComponentInfo components[] = {
    {SALT_MINION, TRUE, NOTINSTALLED, NULL, NULL, COMPONENTMGR_CHECK_STATUS_COUNT_DOWN, INVALIDACTION}
 };
 
@@ -137,7 +138,7 @@ static ComponentAction executionScripts[] = {
  */
 
 const char*
-ComponentMgr_GetComponentName(int componentIndex) //IN
+ComponentMgr_GetComponentName(int componentIndex) // IN
 {
    return components[componentIndex].name;
 }
@@ -161,18 +162,17 @@ ComponentMgr_GetComponentName(int componentIndex) //IN
  */
 
 gboolean
-ComponentMgr_CheckAnyAsyncProcessRunning()  //IN
+ComponentMgr_CheckAnyAsyncProcessRunning() // IN
 {
    int i;
    for (i = 0; i < ARRAYSIZE(components); i++) {
-      if (components[i].procInfo != NULL) {
-         g_debug("%s: Component %s has an async process still running.\n",
-                 __FUNCTION__, components[i].name);
+      if (ComponentMgr_IsAsyncProcessRunning(i)) {
          return TRUE;
       }
    }
    return FALSE;
 }
+
 
 /*
  *****************************************************************************
@@ -195,7 +195,7 @@ ComponentMgr_CheckAnyAsyncProcessRunning()  //IN
  */
 
 gboolean
-ComponentMgr_IsAsyncProcessRunning(int componentIndex)  //IN
+ComponentMgr_IsAsyncProcessRunning(int componentIndex) // IN
 {
    if (components[componentIndex].procInfo != NULL) {
       g_info("%s: Component %s has an async process still running.\n",
@@ -224,12 +224,13 @@ ComponentMgr_IsAsyncProcessRunning(int componentIndex)  //IN
  *
  * Side effects:
  *      None.
+ *
  *****************************************************************************
  */
 
 void
-ComponentMgr_SetComponentAsyncProcInfo(asyncProcessInfo *asyncProcInfo,
-                                       int componentIndex)
+ComponentMgr_SetComponentAsyncProcInfo(AsyncProcessInfo *asyncProcInfo, // IN
+                                       int componentIndex)              // IN
 {
    ASSERT(components[componentIndex].procInfo == NULL);
    components[componentIndex].procInfo = asyncProcInfo;
@@ -255,7 +256,7 @@ ComponentMgr_SetComponentAsyncProcInfo(asyncProcessInfo *asyncProcInfo,
  */
 
 void
-ComponentMgr_ResetComponentAsyncProcInfo(int componentIndex)
+ComponentMgr_ResetComponentAsyncProcInfo(int componentIndex) // IN
 {
    components[componentIndex].procInfo = NULL;
 }
@@ -283,8 +284,8 @@ ComponentMgr_ResetComponentAsyncProcInfo(int componentIndex)
  */
 
 void
-ComponentMgr_SetComponentGSourceTimer(GSource *componentTimer,
-                                      int componentIndex)
+ComponentMgr_SetComponentGSourceTimer(GSource *componentTimer, // IN
+                                      int componentIndex)      // IN
 {
    ASSERT(components[componentIndex].sourceTimer == NULL);
    components[componentIndex].sourceTimer = componentTimer;
@@ -310,7 +311,7 @@ ComponentMgr_SetComponentGSourceTimer(GSource *componentTimer,
  */
 
 void
-ComponentMgr_ResetComponentGSourceTimer(int componentIndex)
+ComponentMgr_ResetComponentGSourceTimer(int componentIndex) // IN
 {
    components[componentIndex].sourceTimer = NULL;
 }
@@ -337,8 +338,8 @@ ComponentMgr_ResetComponentGSourceTimer(int componentIndex)
  */
 
 static gchar*
-ComponentMgrGetScriptFullPath(const char *scriptName,   //IN
-                              const char *componentDir) //IN
+ComponentMgrGetScriptFullPath(const char *scriptName,   // IN
+                              const char *componentDir) // IN
 {
    gchar *scriptInstallDir;
    gchar *toolsInstallDir;
@@ -350,7 +351,7 @@ ComponentMgrGetScriptFullPath(const char *scriptName,   //IN
 #else
    toolsInstallDir = GuestApp_GetInstallPath();
    scriptInstallDir = g_strdup_printf("%s%s%s%s%s%s%s", toolsInstallDir, DIRSEPS,
-                                      COMPONENTMGR_CONFGROUPNAME, DIRSEPS,
+                                      COMPONENTMGR_DIRECTORY, DIRSEPS,
                                       componentDir, DIRSEPS, scriptName);
 #endif
 
@@ -428,10 +429,10 @@ ComponentMgrCustomizeSaltAddAction()
  */
 
 static char *
-ComponentMgrConstructCommandline(gchar *scriptPath,            //IN
-                                 const char *defaultArguments, //IN
-                                 const char *mandatoryParams,  //IN
-                                 char* (*customizeAction)())   //IN
+ComponentMgrConstructCommandline(gchar *scriptPath,            // IN
+                                 const char *defaultArguments, // IN
+                                 const char *mandatoryParams,  // IN
+                                 char* (*customizeAction)())   // IN
 {
    char *commandline = NULL;
    const char *mandatoryParamsExists = NULL;
@@ -444,7 +445,7 @@ ComponentMgrConstructCommandline(gchar *scriptPath,            //IN
 
    // Customize the arguments for the specific action via the callback function
    if (customizeAction != NULL) {
-      g_info("%s: Customizing argumnets with function.\n", __FUNCTION__);
+      g_info("%s: Customizing arguments with function.\n", __FUNCTION__);
       customArguments = customizeAction();
    }
 
@@ -466,7 +467,7 @@ ComponentMgrConstructCommandline(gchar *scriptPath,            //IN
 
    if (customArguments != NULL) {
       mandatoryParamsExists = strstr(customArguments, mandatoryParams);
-      if(mandatoryParamsExists == NULL) {
+      if (mandatoryParamsExists == NULL) {
          commandline = Str_SafeAsprintf(NULL, "\"%s%s\" %s \"%s\" %s %s %s",
                                         sysDir, powershellExecutable,
                                         componentMgrExecutionPolicy,
@@ -494,7 +495,7 @@ ComponentMgrConstructCommandline(gchar *scriptPath,            //IN
 #else
    if (customArguments != NULL) {
       mandatoryParamsExists = strstr(customArguments, mandatoryParams);
-      if(mandatoryParamsExists == NULL) {
+      if (mandatoryParamsExists == NULL) {
          commandline = Str_SafeAsprintf(NULL, "%s %s %s %s", scriptPath,
                                         defaultArguments, customArguments,
                                         mandatoryParams);
@@ -540,9 +541,9 @@ proceedexit:
  */
 
 char *
-ComponentMgr_CheckStatusCommandLine(int componentIndex)
+ComponentMgr_CheckStatusCommandLine(int componentIndex) // IN
 {
-   char *commandline = NULL;
+   char *commandline;
    gchar *scriptFullPath;
 
    /*
@@ -593,15 +594,23 @@ ComponentMgr_CheckStatusCommandLine(int componentIndex)
  */
 
 static void
-ComponentMgrSetEnabledComponentInfo(const char *componentName, //IN
-                                    gboolean enabled)          //IN
+ComponentMgrSetEnabledComponentInfo(const char *componentName, // IN
+                                    gboolean enabled)          // IN
 {
    int i;
+   gboolean componentFound = FALSE;
+
    for (i = 0; i < ARRAYSIZE(components); i++) {
       if (Str_Strcmp(components[i].name, componentName) == 0) {
-          components[i].isEnabled = enabled;
+         components[i].isEnabled = enabled;
+         componentFound = TRUE;
          break;
       }
+   }
+
+   if (!componentFound) {
+      g_info("%s: Invalid component name %s.\n",
+             __FUNCTION__, componentName);
    }
 }
 
@@ -629,9 +638,9 @@ ComponentMgrSetEnabledComponentInfo(const char *componentName, //IN
  */
 
 void
-ComponentMgr_SetStatusComponentInfo(ToolsAppCtx *ctx,   //IN
-                                    int exitCode,       //IN
-                                    int componentIndex) //IN
+ComponentMgr_SetStatusComponentInfo(ToolsAppCtx *ctx,   // IN
+                                    int exitCode,       // IN
+                                    int componentIndex) // IN
 {
    gchar *msg;
    gboolean status;
@@ -643,11 +652,6 @@ ComponentMgr_SetStatusComponentInfo(ToolsAppCtx *ctx,   //IN
 
    status = ComponentMgr_SendRpc(ctx, msg, NULL, NULL);
    g_free(msg);
-   if (!status) {
-      g_info("%s: Error sending RPC message for setting laststatus.\n",
-             __FUNCTION__);
-   }
-
    components[componentIndex].status = exitCode;
 }
 
@@ -670,15 +674,11 @@ ComponentMgr_SetStatusComponentInfo(ToolsAppCtx *ctx,   //IN
  */
 
 static void
-ComponentMgrSetEnabledAllComponents(gboolean enabled)
+ComponentMgrSetEnabledAllComponents(gboolean enabled) // IN
 {
    int i;
    for (i = 0; i < ARRAYSIZE(components); i++) {
-      if (enabled) {
-         components[i].isEnabled = TRUE;
-      } else {
-         components[i].isEnabled = FALSE;
-      }
+      components[i].isEnabled = enabled;
    }
 }
 
@@ -699,11 +699,12 @@ ComponentMgrSetEnabledAllComponents(gboolean enabled)
  *
  * Side effects:
  *      None.
+ *
  *****************************************************************************
  */
 
 void
-ComponentMgr_ExecuteComponentAction(int componentIndex)
+ComponentMgr_ExecuteComponentAction(int componentIndex) // IN
 {
    gchar *scriptFullPath;
    const char *action = NULL;
@@ -768,13 +769,15 @@ ComponentMgr_ExecuteComponentAction(int componentIndex)
     g_free(scriptFullPath);
 
    if (commandline == NULL) {
+      g_info("%s: Construction of command line failed for component %s.\n",
+             __FUNCTION__, components[componentIndex].name);
       return;
    }
 
    g_info("%s: Commandline %s to perform %s action on component %s.\n",
           __FUNCTION__, commandline, action, components[componentIndex].name);
-   ComponentMgr_AsynchrnousComponentActionStart(ComponentMgr_GetToolsAppCtx(),
-                                                commandline, componentIndex);
+   ComponentMgr_AsynchronousComponentActionStart(ComponentMgr_GetToolsAppCtx(),
+                                                 commandline, componentIndex);
    free(commandline);
 }
 
@@ -799,7 +802,7 @@ ComponentMgr_ExecuteComponentAction(int componentIndex)
  */
 
 static void
-ComponentMgrPublishKnownComponents(ToolsAppCtx *ctx)
+ComponentMgrPublishKnownComponents(ToolsAppCtx *ctx) // IN
 {
    int i;
    DynBuf enabledComponents;
@@ -817,7 +820,7 @@ ComponentMgrPublishKnownComponents(ToolsAppCtx *ctx)
                                                         executionScripts[i].componentDirectory);
 
          if (!File_Exists(scriptFullPath)) {
-            g_info("%s: Script file for component %s does not exists "
+            g_info("%s: Script file for component %s does not exist "
                    "under path %s.\n", __FUNCTION__, components[i].name,
                    scriptFullPath);
             g_free(scriptFullPath);
@@ -867,7 +870,7 @@ ComponentMgrPublishKnownComponents(ToolsAppCtx *ctx)
  */
 
 static IncludedComponents
-ComponentMgrIncludedComponents(const char* componentString) //IN
+ComponentMgrIncludedComponents(const char* componentString) // IN
 {
    int i;
    gchar **componentList = NULL;
@@ -921,18 +924,19 @@ ComponentMgrIncludedComponents(const char* componentString) //IN
  */
 
 void
-ComponentMgr_UpdateComponentEnableStatus(ToolsAppCtx *ctx) //IN
+ComponentMgr_UpdateComponentEnableStatus(ToolsAppCtx *ctx) // IN
 {
    gchar *listString;
-   char *context = NULL;
+   IncludedComponents included;
    char *token;
+   char *context = NULL;
 
    listString = VMTools_ConfigGetString(ctx->config,
-                                        COMPONENTMGR_CONFGROUPNAME,
+                                        COMPONENTMGR_CONF_GROUPNAME,
                                         COMPONENTMGR_CONF_INCLUDEDCOMPONENTS,
                                         COMPONENTMGR_ALLCOMPONENTS);
 
-   IncludedComponents included = ComponentMgrIncludedComponents(listString);
+   included = ComponentMgrIncludedComponents(listString);
    switch (included) {
       case ALLCOMPONENTS:
          ComponentMgrSetEnabledAllComponents(TRUE);
@@ -973,7 +977,7 @@ publishComponents:
  * current action for the component and waits for status update counter
  * to reach zero to run a check status operation if the component status
  * and component action are not compliant.
- * If the component action and component status are compliant, it spins of
+ * If the component action and component status are compliant, it spins off
  * an async check status operation.
  *
  * @param[in] ctx Tools application context.
@@ -991,23 +995,21 @@ publishComponents:
  */
 
 static void
-ComponentMgrCheckExecuteComponentAction(ToolsAppCtx *ctx,   //IN
-                                        int componentIndex, //IN
-                                        const char *action) //IN
+ComponentMgrCheckExecuteComponentAction(ToolsAppCtx *ctx,   // IN
+                                        int componentIndex, // IN
+                                        const char *action) // IN
 {
-   Action installaction;
-   char* commandline = NULL;
+   char* commandline;
    void (*callbackFunction)(int) = &ComponentMgr_ExecuteComponentAction;
+   Action installaction = INVALIDACTION;
 
    /*
     * It is possible at this stage, an async process for checkstatus or
-    * present/absent action may be running for the component. In such a sceanrio
+    * present/absent action may be running for the component. In such a scenario
     * the plugin shall not trigger any other async process.
     */
    ASSERT(components[componentIndex].isEnabled);
-   if (ComponentMgr_IsAsyncProcessRunning(componentIndex)) {
-      return;
-   }
+   ASSERT(!ComponentMgr_IsAsyncProcessRunning(componentIndex));
 
    commandline = ComponentMgr_CheckStatusCommandLine(componentIndex);
    if (commandline == NULL) {
@@ -1067,8 +1069,8 @@ ComponentMgrCheckExecuteComponentAction(ToolsAppCtx *ctx,   //IN
     * Before invoking any action for a component, we need to check the current
     * status for that component. We run the pre configured script with pre
     * configured check status arguments to the script.
-    * An async process in spin off to perform check status of a component with
-    * an option of sequenced operation after check status call.
+    * An async process will be spun off to perform check status of a component
+    * with an option of sequenced operation after check status call.
     */
    g_debug("%s: Checking current status of component %s with commandline %s.\n",
            __FUNCTION__, components[componentIndex].name, commandline);
@@ -1081,7 +1083,7 @@ ComponentMgrCheckExecuteComponentAction(ToolsAppCtx *ctx,   //IN
 
 /*
  *****************************************************************************
- * ComponentMgr_DestroyAsyncProcess -
+ * ComponentMgr_DestroyAsyncProcess --
  *
  * Destroy and free any or all async process running for a component.
  *
@@ -1114,7 +1116,7 @@ ComponentMgr_DestroyAsyncProcess()
 
 /*
  *****************************************************************************
- * ComponentMgr_Destroytimers -
+ * ComponentMgr_Destroytimers --
  *
  * This function destroys the GSource timers for all components.
  *
@@ -1167,7 +1169,7 @@ ComponentMgr_Destroytimers(void)
  */
 
 void
-ComponentMgr_UpdateComponentStatus(ToolsAppCtx *ctx)
+ComponentMgr_UpdateComponentStatus(ToolsAppCtx *ctx) // IN
 {
    int i;
 

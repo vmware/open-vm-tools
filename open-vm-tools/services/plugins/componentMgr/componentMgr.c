@@ -29,6 +29,7 @@
 
 #include "componentMgrPlugin.h"
 #include "str.h"
+#include "conf.h"
 #include "vm_version.h"
 #include "embed_version.h"
 #include "vmtoolsd_version.h"
@@ -62,6 +63,7 @@ static gboolean ComponentMgrCb(gpointer data);
  *
  * @return
  *      Main ToolsAppCtx of the plugin.
+ *
  *****************************************************************************
  */
 
@@ -88,6 +90,7 @@ ComponentMgr_GetToolsAppCtx()
  *
  * Side effects:
  *      Deletes the existing timeout source and recreates a new one.
+ *
  *****************************************************************************
  */
 
@@ -110,7 +113,8 @@ ReconfigureComponentMgrPollLoopEx(ToolsAppCtx *ctx,  // IN
    }
 
    if (pollInterval != 0) {
-      if (pollInterval < COMPONENTMGR_POLL_INTERVAL) {
+      if (pollInterval < COMPONENTMGR_POLL_INTERVAL ||
+         pollInterval > (G_MAXINT / 1000)) {
          g_warning("%s: Invalid poll interval. Using default %us.\n",
                    __FUNCTION__, COMPONENTMGR_POLL_INTERVAL);
          pollInterval = COMPONENTMGR_POLL_INTERVAL;
@@ -120,7 +124,7 @@ ReconfigureComponentMgrPollLoopEx(ToolsAppCtx *ctx,  // IN
              COMPONENTMGR_CONF_POLLINTERVAL,
              pollInterval);
 
-      gComponentMgrTimeoutSource = g_timeout_source_new_seconds(pollInterval);
+      gComponentMgrTimeoutSource = g_timeout_source_new(pollInterval * 1000);
       VMTOOLSAPP_ATTACH_SOURCE(ctx, gComponentMgrTimeoutSource,
                                ComponentMgrCb, ctx, NULL);
       g_source_unref(gComponentMgrTimeoutSource);
@@ -153,11 +157,12 @@ ReconfigureComponentMgrPollLoopEx(ToolsAppCtx *ctx,  // IN
  *
  * Side effects:
  *      None.
+ *
  *****************************************************************************
  */
 
 static gboolean
-ComponentMgrCb(gpointer data) //IN
+ComponentMgrCb(gpointer data) // IN
 {
    ToolsAppCtx *ctx = data;
 
@@ -197,22 +202,23 @@ ComponentMgrCb(gpointer data) //IN
  *
  * Side effects:
  *      None.
+ *
  *****************************************************************************
  */
 
 static void
-ComponentMgrPollLoop(ToolsAppCtx *ctx) //IN
+ComponentMgrPollLoop(ToolsAppCtx *ctx) // IN
 {
    gint pollInterval;
-   gchar *listString = NULL;
+   gchar *listString;
 
    pollInterval = VMTools_ConfigGetInteger(ctx->config,
-                                           COMPONENTMGR_CONFGROUPNAME,
+                                           COMPONENTMGR_CONF_GROUPNAME,
                                            COMPONENTMGR_CONF_POLLINTERVAL,
                                            COMPONENTMGR_POLL_INTERVAL);
 
    listString = VMTools_ConfigGetString(ctx->config,
-                                        COMPONENTMGR_CONFGROUPNAME,
+                                        COMPONENTMGR_CONF_GROUPNAME,
                                         COMPONENTMGR_CONF_INCLUDEDCOMPONENTS,
                                         COMPONENTMGR_ALLCOMPONENTS);
 
@@ -288,13 +294,14 @@ ComponentMgrServerShutdown(gpointer src,     // IN
  *
  * Side effects:
  *      None.
+ *
  ******************************************************************************
  */
 
 static void
-ComponentMgrServerConfReload(gpointer src,        // IN
-                             ToolsAppCtx *ctx,    // IN
-                             gpointer data)       // IN
+ComponentMgrServerConfReload(gpointer src,     // IN
+                             ToolsAppCtx *ctx, // IN
+                             gpointer data)    // IN
 {
    ComponentMgrPollLoop(ctx);
 }
@@ -315,6 +322,7 @@ ComponentMgrServerConfReload(gpointer src,        // IN
  *
  * Side effects:
  *     Reinitializes the plugin timeout source.
+ *
  ******************************************************************************
  */
 
@@ -353,7 +361,7 @@ ComponentMgrServerReset(gpointer src,     // IN
  */
 
 TOOLS_MODULE_EXPORT ToolsPluginData *
-ToolsOnLoad(ToolsAppCtx *ctx)    // IN
+ToolsOnLoad(ToolsAppCtx *ctx) // IN
 {
    static ToolsPluginData regData = {
       "componentMgr",

@@ -48,14 +48,15 @@
  *
  * Side effects:
  *      None.
+ *
  ******************************************************************************
  */
 
 gboolean
-ComponentMgr_SendRpc(ToolsAppCtx *ctx,        //IN
-                     const char *guestInfoCmd,//IN
-                     char **outBuffer,        //OUT
-                     size_t *outBufferLen)    //OUT
+ComponentMgr_SendRpc(ToolsAppCtx *ctx,         // IN
+                     const char *guestInfoCmd, // IN
+                     char **outBuffer,         // OUT
+                     size_t *outBufferLen)     // OUT
 {
    gboolean status;
    size_t replyLen;
@@ -88,7 +89,7 @@ ComponentMgr_SendRpc(ToolsAppCtx *ctx,        //IN
 
 /*
  **************************************************************************
- * ComponentMgr_GetComponentInstallStatus
+ * ComponentMgr_GetComponentInstallStatus --
  *
  * This function returns an enum equivalent of the current status of the
  * component.
@@ -105,7 +106,7 @@ ComponentMgr_SendRpc(ToolsAppCtx *ctx,        //IN
  */
 
 const char*
-ComponentMgr_GetComponentInstallStatus(InstallStatus installStatus) //IN
+ComponentMgr_GetComponentInstallStatus(InstallStatus installStatus) // IN
 {
    switch (installStatus) {
       case NOTINSTALLED:      return "NOTINSTALLED";
@@ -123,7 +124,7 @@ ComponentMgr_GetComponentInstallStatus(InstallStatus installStatus) //IN
 
 /*
  **************************************************************************
- * ComponentMgr_GetComponentAction
+ * ComponentMgr_GetComponentAction --
  *
  * This function returns an enum equivalent of component action to be executed.
  *
@@ -139,15 +140,15 @@ ComponentMgr_GetComponentInstallStatus(InstallStatus installStatus) //IN
  */
 
 const char*
-ComponentMgr_GetComponentAction(Action action) //IN
+ComponentMgr_GetComponentAction(Action action) // IN
 {
    switch (action) {
-      case PRESENT:       return "present";
-      case ABSENT:        return "absent";
-      case CHECKSTATUS:   return "checkstatus";
-      case INVALIDACTION: return "invalidaction";
+      case PRESENT:       return COMPONENTMGR_COMPONENTPRESENT;
+      case ABSENT:        return COMPONENTMGR_COMPONENTABSENT;
+      case CHECKSTATUS:   return COMPONENTMGR_COMPONENTCHECKSTATUS;
+      case INVALIDACTION: return COMPONENTMGR_COMPONENINVALIDACTION;
    }
-   return NULL;
+   return COMPONENTMGR_COMPONENINVALIDACTION;
 }
 
 
@@ -171,13 +172,12 @@ ComponentMgr_GetComponentAction(Action action) //IN
 
 
 const char*
-ComponentMgr_GetIncludedComponents(IncludedComponents specialValue)
+ComponentMgr_GetIncludedComponents(IncludedComponents specialValue) // IN
 {
-   switch(specialValue)
-   {
+   switch (specialValue) {
       case ALLCOMPONENTS:      return "ALLCOMPONENTS";
       case NONECOMPONENTS:     return "NONECOMPONENTS";
-      default:                 return "NOSPECIALVALUES";
+      case NOSPECIALVALUES:    return "NOSPECIALVALUES";
    }
    return "NOSPECIALVALUES";
 }
@@ -198,12 +198,13 @@ ComponentMgr_GetIncludedComponents(IncludedComponents specialValue)
  *
  * Side effects:
  *      None.
+ *
  *****************************************************************************
  */
 
 void
-ComponentMgr_PublishAvailableComponents(ToolsAppCtx *ctx,
-                                        const char *components)
+ComponentMgr_PublishAvailableComponents(ToolsAppCtx *ctx,       // IN
+                                        const char *components) // IN
 {
    gboolean status;
    gchar *msg = g_strdup_printf("%s.%s %s", COMPONENTMGR_PUBLISH_COMPONENTS,
@@ -212,9 +213,4 @@ ComponentMgr_PublishAvailableComponents(ToolsAppCtx *ctx,
 
    status = ComponentMgr_SendRpc(ctx, msg, NULL, NULL);
    g_free(msg);
-
-   if (!status) {
-      g_info("%s: Error sending RPC message for known components.\n",
-             __FUNCTION__);
-   }
 }

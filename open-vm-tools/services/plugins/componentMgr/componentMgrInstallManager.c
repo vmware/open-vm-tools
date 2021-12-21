@@ -53,7 +53,7 @@
  */
 
 void
-ComponentMgr_FreeAsyncProc(asyncProcessInfo *procInfo) //IN
+ComponentMgr_FreeAsyncProc(AsyncProcessInfo *procInfo) // IN
 {
    int componentIndex = procInfo->componentIndex;
 #if defined(__linux__)
@@ -96,14 +96,14 @@ ComponentMgr_FreeAsyncProc(asyncProcessInfo *procInfo) //IN
  */
 
 static gboolean
-ComponentMgrCheckStatusMonitor(void *data)
+ComponentMgrCheckStatusMonitor(void *data) // IN
 {
-   int exitCode = -1;
+   ProcMgr_Pid procPid;
    int componentIndex;
-   const char *componentName = NULL;
+   const char *componentName;
    void (*callbackFunction)(int compIndex) = NULL;
 
-   asyncProcessInfo *procInfo = (asyncProcessInfo*)data;
+   AsyncProcessInfo *procInfo = (AsyncProcessInfo*)data;
    ASSERT(procInfo->asyncProc != NULL);
 
    /*
@@ -111,7 +111,7 @@ ComponentMgrCheckStatusMonitor(void *data)
     * the remaining execution time for the component.
     */
    procInfo->backoffTimer -= COMPONENTMGR_ASYNC_CHECK_STATUS_POLL_INTERVAL;
-   ProcMgr_Pid procPid = ProcMgr_GetPid(procInfo->asyncProc);
+   procPid = ProcMgr_GetPid(procInfo->asyncProc);
    componentIndex = procInfo->componentIndex;
    componentName = ComponentMgr_GetComponentName(componentIndex);
 
@@ -120,14 +120,15 @@ ComponentMgrCheckStatusMonitor(void *data)
            componentName, procInfo->backoffTimer);
 
    if (!ProcMgr_IsAsyncProcRunning(procInfo->asyncProc)) {
+      int exitCode = -1;
 #if defined(__linux__)
       if (ProcMgr_GetExitCode(procInfo->asyncProc, &exitCode) || exitCode == -1) {
          exitCode = SCRIPTFAILED;
       }
 #else
-     if (ProcMgr_GetExitCode(procInfo->asyncProc, &exitCode)) {
+      if (ProcMgr_GetExitCode(procInfo->asyncProc, &exitCode)) {
          exitCode = SCRIPTFAILED;
-     }
+      }
 #endif
      g_debug("%s: Checking status of a component has terminated gracefully"
              " with exit code %d.\n", __FUNCTION__, exitCode);
@@ -214,17 +215,18 @@ ComponentMgrCheckStatusMonitor(void *data)
  */
 
 static gboolean
-ComponentMgrProcessMonitor(void *data)
+ComponentMgrProcessMonitor(void *data) // IN
 {
-   char *commandline = NULL;
+   ProcMgr_Pid procPid;
    int componentIndex;
-   const char *componentName = NULL;
+   char *commandline;
+   const char *componentName;
 
-   asyncProcessInfo *procInfo = (asyncProcessInfo*)data;
+   AsyncProcessInfo *procInfo = (AsyncProcessInfo*)data;
    ASSERT(procInfo->asyncProc != NULL);
 
    procInfo->backoffTimer -= COMPONENTMGR_ASYNCPROCESS_POLL_INTERVAL;
-   ProcMgr_Pid procPid = ProcMgr_GetPid(procInfo->asyncProc);
+   procPid = ProcMgr_GetPid(procInfo->asyncProc);
    componentIndex = procInfo->componentIndex;
    componentName = ComponentMgr_GetComponentName(componentIndex);
 
@@ -341,14 +343,14 @@ ComponentMgrProcessMonitor(void *data)
  *****************************************************************************
  */
 
-static asyncProcessInfo*
-ComponentMgrCreateAsyncProcessInfo(ProcMgr_AsyncProc *asyncProc,
-                                   ToolsAppCtx *ctx,
-                                   int backoffTimer,
-                                   int componentIndex,
-                                   void (*callbackFunction)(int componentIndex))
+static AsyncProcessInfo*
+ComponentMgrCreateAsyncProcessInfo(ProcMgr_AsyncProc *asyncProc,                 // IN
+                                   ToolsAppCtx *ctx,                             // IN
+                                   int backoffTimer,                             // IN
+                                   int componentIndex,                           // IN
+                                   void (*callbackFunction)(int componentIndex)) // IN
 {
-   asyncProcessInfo *procInfo;
+   AsyncProcessInfo *procInfo;
    procInfo = g_malloc(sizeof *procInfo);
    procInfo->asyncProc = asyncProc;
    procInfo->ctx = ctx;
@@ -385,14 +387,15 @@ ComponentMgrCreateAsyncProcessInfo(ProcMgr_AsyncProc *asyncProc,
  */
 
 void
-ComponentMgr_AsynchronousComponentCheckStatus(ToolsAppCtx *ctx,
-                                              char *commandline,
-                                              int componentIndex,
-                                              void (*callback)(int compIndex))
+ComponentMgr_AsynchronousComponentCheckStatus(ToolsAppCtx *ctx,                // IN
+                                              const char *commandline,         // IN
+                                              int componentIndex,              // IN
+                                              void (*callback)(int compIndex)) // IN
 {
    ProcMgr_ProcArgs userArgs;
    GSource *sourceTimer;
-   asyncProcessInfo *procInfo;
+   AsyncProcessInfo *procInfo;
+   ProcMgr_AsyncProc *asyncProc;
 
    /*
     * If an async process is already running for the component.
@@ -402,7 +405,7 @@ ComponentMgr_AsynchronousComponentCheckStatus(ToolsAppCtx *ctx,
    ASSERT(!ComponentMgr_IsAsyncProcessRunning(componentIndex));
 
    memset(&userArgs, 0, sizeof userArgs);
-   ProcMgr_AsyncProc *asyncProc = ProcMgr_ExecAsync(commandline, &userArgs);
+   asyncProc = ProcMgr_ExecAsync(commandline, &userArgs);
    if (asyncProc == NULL) {
       g_warning("%s: Failed to create process", __FUNCTION__);
       return;
@@ -431,7 +434,7 @@ ComponentMgr_AsynchronousComponentCheckStatus(ToolsAppCtx *ctx,
 
 /*
  *****************************************************************************
- * ComponentMgr_AsynchrnousComponentActionStart --
+ * ComponentMgr_AsynchronousComponentActionStart --
  *
  * This function invokes the component script as an async process to perform
  * present/absent action and a GSource timer to poll the progress.
@@ -451,13 +454,14 @@ ComponentMgr_AsynchronousComponentCheckStatus(ToolsAppCtx *ctx,
  */
 
 void
-ComponentMgr_AsynchrnousComponentActionStart(ToolsAppCtx *ctx,
-                                             char *commandline,
-                                             int componentIndex)
+ComponentMgr_AsynchronousComponentActionStart(ToolsAppCtx *ctx,        // IN
+                                              const char *commandline, // IN
+                                              int componentIndex)      // IN
 {
    ProcMgr_ProcArgs userArgs;
    GSource *sourceTimer;
-   asyncProcessInfo *procInfo;
+   AsyncProcessInfo *procInfo;
+   ProcMgr_AsyncProc *asyncProc;
 
    /*
     * If an async process is already running for the component.
@@ -467,7 +471,7 @@ ComponentMgr_AsynchrnousComponentActionStart(ToolsAppCtx *ctx,
    ASSERT(!ComponentMgr_IsAsyncProcessRunning(componentIndex));
 
    memset(&userArgs, 0, sizeof userArgs);
-   ProcMgr_AsyncProc *asyncProc = ProcMgr_ExecAsync(commandline, &userArgs);
+   asyncProc = ProcMgr_ExecAsync(commandline, &userArgs);
    if (asyncProc == NULL) {
       g_warning("%s: Failed to create process", __FUNCTION__);
       return;

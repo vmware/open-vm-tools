@@ -24,7 +24,7 @@
  *
  * This file contains macros used by the componentMgr plugin having references
  * for timer related information, guestVar information, component information
- * and configuration realted information.
+ * and configuration related information.
  * Defines functions shared across the componentMgr plugin.
  * Defines states structures to be used to cache and store information related
  * to a component and async process.
@@ -41,25 +41,6 @@
 #include <windows.h>
 #endif
 
-
-//********************** Configuration Params Definitions *************
-
-/*
- * Defines the current poll interval (in seconds).
- * This value is controlled by the ComponentMgr.poll-interval config file option.
- */
-#define COMPONENTMGR_CONF_POLLINTERVAL "poll-interval"
-
-/**
- * Name of section of configuration to be read from tools.conf.
- */
-#define COMPONENTMGR_CONFGROUPNAME "componentMgr"
-
-/**
- * Defines the components  managed by the componentMgr plugin.
- * This value is controlled by the componentMgr.included config file option.
- */
-#define COMPONENTMGR_CONF_INCLUDEDCOMPONENTS "included"
 
 //********************** Timer Definitions ****************************
 
@@ -100,6 +81,16 @@
 //********************** Component Action Definitions *********************
 
 /**
+ * Defines check status action on the component.
+ */
+#define COMPONENTMGR_COMPONENTCHECKSTATUS "checkstatus"
+
+/**
+ * Defines an invalid action on the component.
+ */
+#define COMPONENTMGR_COMPONENINVALIDACTION "invalidaction"
+
+/**
  * Defines present action for a component to be installed on a system.
  */
 #define COMPONENTMGR_COMPONENTPRESENT "present"
@@ -138,6 +129,11 @@
 #define COMPONENTMGR_PUBLISH_COMPONENTS "info-set guestinfo.vmware.components"
 
 //********************** Component Definitions *********************
+
+/**
+ * Defines the directory for the plugin to host the scripts.
+ */
+#define COMPONENTMGR_DIRECTORY "componentMgr"
 
 /**
  * Defines none to indicate no component is managed by the plugin.
@@ -202,7 +198,7 @@ typedef enum Action
 {
    PRESENT,      /* The action adds/installs the components on the guest. */
    ABSENT,       /* The action removes/uninstalls the components on the guest.*/
-   CHECKSTATUS,  /* The actions calls the preconfigured script to check the
+   CHECKSTATUS,  /* The action calls the preconfigured script to check the
                     current status of the component. */
    INVALIDACTION /* Action not recongnised by the plugin. */
 } Action;
@@ -213,7 +209,7 @@ typedef enum Action
  * for a particular component.
  */
 
-typedef struct asyncProcessInfo {
+typedef struct AsyncProcessInfo {
    ProcMgr_AsyncProc *asyncProc; /* ProcMgr_AsyncProc structure consisting of
                                     the process data running an action on the
                                     component. */
@@ -225,7 +221,7 @@ typedef struct asyncProcessInfo {
    void (*callbackFunction)(int componentIndex); /* A callback function to
                                                     sequence a new operation
                                                   */
-} asyncProcessInfo;
+} AsyncProcessInfo;
 
 
 /*
@@ -233,14 +229,14 @@ typedef struct asyncProcessInfo {
  * managed by the plugin. The component states is maintained in this structure.
  */
 
-typedef struct componentInfo
+typedef struct ComponentInfo
 {
    const char *name;     /* The name of the component. */
    gboolean isEnabled;   /* Component enabled/disabled by the plugin. */
    InstallStatus status; /* Contains current status of the component. */
    GSource *sourceTimer; /* A GSource timer for async process monitoring running
                             an operation for a component. */
-   asyncProcessInfo *procInfo; /* A structure to store information about the
+   AsyncProcessInfo *procInfo; /* A structure to store information about the
                                 * current running async process for a component.
                                 */
    int statuscount;      /* A counter value to store max number of times to
@@ -248,7 +244,7 @@ typedef struct componentInfo
                           */
    Action action;        /* Contains information about the action to be
                             performed on a component. */
-} componentInfo;
+} ComponentInfo;
 
 
 void
@@ -279,9 +275,9 @@ ComponentMgr_GetComponentAction(Action action);
 
 
 void
-ComponentMgr_AsynchrnousComponentActionStart(ToolsAppCtx *ctx,
-                                             char *commandline,
-                                             int componetIndex);
+ComponentMgr_AsynchronousComponentActionStart(ToolsAppCtx *ctx,
+                                              const char *commandline,
+                                              int componetIndex);
 
 
 void
@@ -312,7 +308,7 @@ ComponentMgr_ExecuteComponentAction(int componentIndex);
 
 void
 ComponentMgr_AsynchronousComponentCheckStatus(ToolsAppCtx *ctx,
-                                              char *commandline,
+                                              const char *commandline,
                                               int componentIndex,
                                               void (*callback)(int compIndex));
 
@@ -326,7 +322,7 @@ ComponentMgr_GetIncludedComponents(IncludedComponents pos);
 
 
 void
-ComponentMgr_SetComponentAsyncProcInfo(asyncProcessInfo *asyncProcInfo,
+ComponentMgr_SetComponentAsyncProcInfo(AsyncProcessInfo *asyncProcInfo,
                                        int componentIndex);
 
 
@@ -343,7 +339,7 @@ ComponentMgr_GetComponentName(int componentIndex);
 
 
 void
-ComponentMgr_FreeAsyncProc(asyncProcessInfo *procInfo);
+ComponentMgr_FreeAsyncProc(AsyncProcessInfo *procInfo);
 
 
 void
