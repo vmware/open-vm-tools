@@ -119,9 +119,10 @@ typedef uint32 GHIGuestToHostMessageType;
 /*
  * UI->MKS Messages over GHI_CHANNEL_VIEW_REMOTE_RDE_COMMON.
  */
-#define GHI_RDE_COMMON_GENERIC_CMD              "ghi.rde.generic"
-#define GHI_RDE_COMMON_SET_IME_ENABLED_CMD      "ghi.rde.set.ime.enabled"
-#define GHI_RDE_COMMON_SET_IME_HOST_KEYS_CMD    "ghi.rde.set.ime.host.keys"
+#define GHI_RDE_COMMON_GENERIC_CMD                 "ghi.rde.generic"
+#define GHI_RDE_COMMON_SET_IME_ENABLED_CMD         "ghi.rde.set.ime.enabled"
+#define GHI_RDE_COMMON_SET_IME_HOST_KEYS_CMD       "ghi.rde.set.ime.host.keys"
+#define GHI_RDE_COMMON_SET_VMWPROTECT_HANDLE_CMD   "ghi.rde.set.vmwprotect.handle"
 
 /*
  * MKS->UI messages over GHI_CHANNEL_VIEW_REMOTE_RDE_COMMON.
