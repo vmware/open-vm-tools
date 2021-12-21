@@ -1,3 +1,278 @@
+commit 7987a3440f0d05b18faa77b9f9f67ae55d8a1cf1
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 21 13:07:55 2021 -0800
+
+    Update missed 2021 copyright.
+
+commit 4c66981405127910285d182930e049c4fb496a7a
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 21 12:48:50 2021 -0800
+
+    Change to a common header file not applicable to open-vm-tools.
+
+commit cc72edfdd60497b86b8e7f20495c85ce414d6106
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 21 12:48:50 2021 -0800
+
+    Changed the log domain of the containerInfo plugin to containerinfo.
+    
+    This will make both 'config group name' and 'logging domain' name the same.
+    Did some code-reorg.
+
+commit 97917fce5828ef0efdae59d7bb6e4dd7f0caeae0
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 21 12:48:50 2021 -0800
+
+    Update open-vm-tools to build with either Fuse 3 or Fuse 2
+    
+    Vendors are requesting that open-vm-tools can be built with either
+    Fuse 2 or Fuse 3.  While both Fuse 2 and Fuse 3 runtime can be
+    installed on a Linux system, vendors would prefer to switch from
+    Fuse 2 to Fuse 3 at the same time for all products to be available
+    with the base OS.
+    
+    Updating the configure.ac file to check for the presence of the Fuse 3
+    or Fuse 2 development packages in the build environment.  Providing
+    configure options to allow users to control the version of Fuse to be
+    used.
+     --without-fuse       - vmblock-fuse and vmhgfs-fuse will be disabled.
+     --with-fuse=fuse3|3  - use Fuse 3.x
+     --with-fuse=fuse|2   - use Fuse 2.x
+     --with-fuse=auto     - check for Fuse 3 or Fuse 2 availability; disable
+                            vmblock-fuse and vmhgfs-fuse if unavailable.
+     --with-fuse          - implicit "yes".
+     --with-fuse=yes      - check for Fuse 3 or Fuse 2 availability; disable
+                            vmblock-fuse and vmhgfs-fuse if unavailable.
+    
+    Pull request: https://github.com/vmware/open-vm-tools/pull/544
+    Fixes issue:  https://github.com/vmware/open-vm-tools/issues/314
+    
+    The vmblock-fuse code is also used by WorkStation.  Configure defines
+    are not available in internal builds.  Reworked preprocessor tests to
+    use FUSE_MAJOR_VERSION from the fuse headers to determine API to be
+    used during compilation.
+
+commit d0571b23fe1513c0ec83e8b57bd8e91edd5b86a3
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 21 12:48:50 2021 -0800
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit 7776c845db0bc24c5103d80a8d8f76d73f79ec39
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 21 12:48:50 2021 -0800
+
+    Change to a common header file not applicable to open-vm-tools.
+
+commit ec4040bfc25818e5979f8c681f13b4c0e3d9c38a
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 21 12:48:50 2021 -0800
+
+    Changes to a common source file not applicable to open-vm-tools.
+
+commit 3695f042018aedbca6d37751d3d1577bf1887aa1
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 21 12:48:50 2021 -0800
+
+    Common source file change not applicable to open-vm-tools.
+
+commit 7cb1006b6f362a1e19b6dbaea5ae30bd727d4f5b
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 21 12:48:50 2021 -0800
+
+    Fix potential integer overflow when calling g_timeout_source_new() or
+    g_timeout_source_new_seconds().
+
+commit c69332a9252413b265b4a146c072bcae8b16a3d3
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 21 12:48:50 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 1c916a09107b2b6c901488587711db569ade9223
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 21 12:48:50 2021 -0800
+
+    Changes to common header files not applicable to open-vm-tools.
+
+commit 8296854e348014441368af01edc41c728b80de86
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 21 12:48:50 2021 -0800
+
+    Clean up of guest OS tables.
+    
+    Use official defines for Arm and guestOS strings.
+
+commit d5a3e4b02c5515cde9f10e351b67dade9c073d6e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 21 12:48:50 2021 -0800
+
+    Remove the collection of GRUB files from the vm-support script
+    
+    GRUB configuration files have not been needed in the past. Therefore, as part
+    of this change, removing the code from vm-support script which collects any
+    grub configuration files.
+
+commit 63abb4f4b0fe73205888bedca91385faf3f53bf7
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 21 12:48:50 2021 -0800
+
+    Adding Alma Linux and Rocky Linux to tools guest ID code.
+
+commit 89d3e8d9560708be308b0511bbacece903651790
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 21 12:48:50 2021 -0800
+
+    Refactored the componentMgr plugin code following standard practices.
+
+commit d33c816998b8680b67b39a096f44e95d5019e1ab
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 21 12:48:50 2021 -0800
+
+    Adding Alma and Rocky Linux for x86 and Arm architectures.
+
+commit dce3b03c433e4ff77df5703e97519e3b32c9cf14
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 21 12:48:50 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 32dd72b34033ba0f7eda8456a67bd45fee98c483
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 21 12:48:50 2021 -0800
+
+    Common source file changes not directly applicable to open-vm-tools.
+
+commit 6b3e2e5ae06c77c122bc890a8ff8c3dede6368c9
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 21 12:48:50 2021 -0800
+
+    Changes to common header files not applicable to open-vm-tools.
+
+commit ed84c0a175c0122555a6a7cc947590569d28becb
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 21 12:48:50 2021 -0800
+
+    containerInfo Plugin: list the Docker and Kubernetes containers in a guest VM.
+    
+    Added code for a new open-vm-tools plugin, containerInfo.
+    - Added a new configure option --disable-containerinfo to disable building
+      the containerinfo plugin.
+       --disable-containerinfo : Will not check for any dependent packages and
+                                 will not build the containerinfo plugin.
+       --enable-containerinfo=no : Same as --disable-containerinfo
+       --enable-containerinfo=auto : Checks for the dependent packages. If they
+                                     are available, then the containerinfo plugin
+                                     will be built. Otherwise, a warning is printeds
+                                     and the containerinfo plugin will be skipped.
+       --enable-containerinfo
+       --enable-containerinfo=yes  : Checks for the dependent packages. If they are
+                                     available, then the containerinfo plugin will
+                                     be built.  Otherwise, the configure will
+                                     terminate with an error.
+    
+    - Updated the sample tools.conf file with various settings related to
+      the containerinfo plugin.
+    - Due to an issue reported in https://github.com/protocolbuffers/protobuf/issues/9184,
+      implemented a workaround by changing 'import weak ' to 'import ' in the
+      .proto files while generating the header files.
+    
+    Build dependencies: (packages names may vary with Linux release).
+                                    - or -
+      - libcurl4-openssl-dev                      libcurl-devel
+      - protobuf-compiler                         protobuf-compiler
+      - libprotobuf-dev                           protobuf-devel
+      - protobuf-compiler-grpc                    grpc-plugins
+      - libgrpc++-dev                             grpc-devel
+      - golang-github-containerd-containerd-dev   containerd-devel
+      - golang-github-gogo-protobuf-dev
+    
+    Runtime requirements:
+    
+       - curl, protobug and grpc-cpp
+
+commit b36b275bc8cd14c1e2e64f76e3b41307e24a165f
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 21 12:48:49 2021 -0800
+
+    Set the "svtminion.sh" script version to '1.0'.
+
+commit 53949064ee169cdba0925d99a1f9a75f63dbf39b
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 21 12:48:49 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit b38a34acdf9ed3113e53f5e9f2c3cc0927df50eb
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 21 12:48:49 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 308259f3e5e3630cd30bd04aa0fd0d4c952d7ff2
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 21 12:48:49 2021 -0800
+
+    Added the componentMgr plugin to the vmtoolsd vmsvc process.
+    
+    The new componentMgr plugin manages adding/removing of components
+    in the guest.
+
+commit db3a1dc6c9cc771bf4c4d8a268b6747f167bcad7
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 21 12:48:49 2021 -0800
+
+    Salt Stack Script Integration for Linux.
+    
+    Added the "svtminion.sh" script which will be packaged for Linux to
+    support SaltStack integration and management from the componentMgr plugin.
+
+commit 50500199ac9e36ee67deffe51ccd714a6a90ef46
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 21 12:48:49 2021 -0800
+
+    Activate the componentMgr plugin build and enablement of the Salt-Minion plugin.
+
+commit 67383c5669650766fbdb18962ce05afafb6d0dca
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 21 12:48:49 2021 -0800
+
+    Prepare to enable Mac OS 14 (Darwin 23) as a new guest.
+
+commit 3ca3a1d1ff4edb9ab6dbe5e30079167710ee5d06
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 21 12:48:49 2021 -0800
+
+    filePosix.c: Increased the hash table size for better performance.
+    
+    Improved the performance of the functions File_ListDirectory() and
+    File_WalkDirectoryStart().
+
+commit 011d680184caa26fd4d4d6fe77f77a862aee0adb
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 21 12:48:49 2021 -0800
+
+    Changes to common header files not applicable to open-vm-tools.
+
+commit be8ec133fb755dec100de90d6f5d42dd2a56cf6c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 21 12:48:49 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 8b97e826ce53cbcd6ca5aa568906ffbe1b57f0d4
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 21 12:48:49 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit de920bf8398bcf7a017a4b012e84cf98d67babab
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Sat Dec 4 23:09:31 2021 -0800
+
+    Update ChangeLog with the granular push of Dec. 4, 2021.
+     - plus ChangeLog update of Nov. 19.
+
 commit 2cadef44dc8c156d8543111d62340212c501aa0d
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Sat Dec 4 22:55:11 2021 -0800
