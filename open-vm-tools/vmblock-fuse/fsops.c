@@ -65,6 +65,14 @@ static vmblockSpecialDirEntry symlinkDirEntry =
 static vmblockSpecialDirEntry notifyDirEntry =
    { NOTIFY_DIR "/*",   S_IFREG | 0444, 1, 0 };
 
+#if FUSE_MAJOR_VERSION == 3
+#define CALL_FUSE_FILLER(buf, name, stbuf, off, flags) \
+   filler(buf, name, stbuf, off, flags)
+#else
+#define CALL_FUSE_FILLER(buf, name, stbuf, off, flags) \
+   filler(buf, name, stbuf, off)
+#endif
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -248,9 +256,16 @@ SetTimesToNow(struct stat *statBuf)      // OUT
  *-----------------------------------------------------------------------------
  */
 
+#if FUSE_MAJOR_VERSION == 3
+int
+VMBlockGetAttr(const char *path,          // IN: File to get attributes of.
+               struct stat *statBuf,      // OUT: Where to put the attributes.
+               struct fuse_file_info *fi) // IN: Ignored
+#else
 int
 VMBlockGetAttr(const char *path,        // IN: File to get attributes of.
                struct stat *statBuf)    // OUT: Where to put the attributes.
+#endif
 {
    vmblockSpecialDirEntry *dirEntry;
    ASSERT(path != NULL);
@@ -362,7 +377,7 @@ ExternalReadDir(const char *blockPath,           // IN:
    errno = 0;
 
    while ((dentry = readdir(dir)) != NULL) {
-      status = filler(buf, dentry->d_name, &statBuf, 0);
+      status = CALL_FUSE_FILLER(buf, dentry->d_name, &statBuf, 0, 0);
       if (status == 1) {
          break;
       }
@@ -408,6 +423,17 @@ ExternalReadDir(const char *blockPath,           // IN:
  *-----------------------------------------------------------------------------
  */
 
+#if FUSE_MAJOR_VERSION == 3
+int
+VMBlockReadDir(const char *path,                // IN: Directory to read.
+               void *buf,                       // OUT: Where to put directory
+                                                //      listing.
+               fuse_fill_dir_t filler,          // IN: Function to add an entry
+                                                //     to buf.
+               off_t offset,                    // IN: Ignored.
+               struct fuse_file_info *fileInfo, // IN: Ignored.
+               enum fuse_readdir_flags flags)   // IN: Ignored.
+#else
 int
 VMBlockReadDir(const char *path,                // IN: Directory to read.
                void *buf,                       // OUT: Where to put directory
@@ -416,6 +442,7 @@ VMBlockReadDir(const char *path,                // IN: Directory to read.
                                                 //     to buf.
                off_t offset,                    // IN: Ignored.
                struct fuse_file_info *fileInfo) // IN: Ignored.
+#endif
 {
    struct stat fileStat;
    struct stat dirStat;
@@ -433,11 +460,11 @@ VMBlockReadDir(const char *path,                // IN: Directory to read.
    dirStat.st_mode = S_IFDIR;
 
    if (strcmp(path, "/") == 0) {
-      (void)(filler(buf, ".", &dirStat, 0) ||
-             filler(buf, "..", &dirStat, 0) ||
-             filler(buf, VMBLOCK_DEVICE_NAME, &fileStat, 0) ||
-             filler(buf, REDIRECT_DIR_NAME, &dirStat, 0) ||
-             filler(buf, NOTIFY_DIR_NAME, &dirStat, 0));
+      (void)(CALL_FUSE_FILLER(buf, ".", &dirStat, 0, 0) ||
+             CALL_FUSE_FILLER(buf, "..", &dirStat, 0, 0) ||
+             CALL_FUSE_FILLER(buf, VMBLOCK_DEVICE_NAME, &fileStat, 0, 0) ||
+             CALL_FUSE_FILLER(buf, REDIRECT_DIR_NAME, &dirStat, 0, 0) ||
+             CALL_FUSE_FILLER(buf, NOTIFY_DIR_NAME, &dirStat, 0, 0));
       return 0;
    } else if (   (strcmp(path, REDIRECT_DIR) == 0)
               || (strcmp(path, NOTIFY_DIR) == 0)) {
@@ -764,8 +791,19 @@ VMBlockRelease(const char *path,                   // IN: Must be control file.
  *-----------------------------------------------------------------------------
  */
 
+#if FUSE_MAJOR_VERSION == 3
+void *
+VMBlockInit(struct fuse_conn_info *conn,
+            struct fuse_config *config)
+#else
+#if FUSE_USE_VERSION < 26
 void *
 VMBlockInit(void)
+#else
+void *
+VMBlockInit(struct fuse_conn_info *conn)
+#endif
+#endif
 {
    BlockInit();
    return NULL;

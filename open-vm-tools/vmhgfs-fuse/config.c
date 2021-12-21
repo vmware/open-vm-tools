@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2015-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2015-2018,2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -22,6 +22,7 @@
  */
 
 #include "module.h"
+#include <fuse_lowlevel.h>
 #include <sys/utsname.h>
 
 #ifdef VMX86_DEVEL
@@ -76,8 +77,10 @@ const struct fuse_opt vmhgfsOpts[] = {
      VMHGFS_OPT("-l %i",            logLevel, 4),
 #endif
      /* We will change the default value, unless it is specified explicitly. */
+#if FUSE_MAJOR_VERSION != 3
      FUSE_OPT_KEY("big_writes",     KEY_BIG_WRITES),
      FUSE_OPT_KEY("nobig_writes",   KEY_NO_BIG_WRITES),
+#endif
 
      FUSE_OPT_KEY("-V",             KEY_VERSION),
      FUSE_OPT_KEY("--version",      KEY_VERSION),
@@ -131,8 +134,13 @@ Usage(char *prog_name)  // IN
 
 #define LIB_MODULEPATH         "/lib/modules"
 #define MODULES_DEP            "modules.dep"
+#if FUSE_MAJOR_VERSION == 3
+#define FUSER_MOUNT_BIN        "/bin/fusermount3"
+#define FUSER_MOUNT_USR_BIN    "/usr/bin/fusermount3"
+#else
 #define FUSER_MOUNT_BIN        "/bin/fusermount"
 #define FUSER_MOUNT_USR_BIN    "/usr/bin/fusermount"
+#endif
 #define PROC_FILESYSTEMS       "/proc/filesystems"
 #define FUSER_KERNEL_FS        "fuse"
 
@@ -406,7 +414,9 @@ vmhgfsOptProc(void *data,                // IN
               int key,                   // IN
               struct fuse_args *outargs) // OUT
 {
+#if FUSE_MAJOR_VERSION != 3
    struct vmhgfsConfig *config = data;
+#endif
 
    switch (key) {
    case FUSE_OPT_KEY_NONOPT:
@@ -434,6 +444,7 @@ vmhgfsOptProc(void *data,                // IN
       }
       return 1;
 
+#if FUSE_MAJOR_VERSION != 3
    case KEY_BIG_WRITES:
       config->addBigWrites = TRUE;
       return 0;
@@ -441,11 +452,18 @@ vmhgfsOptProc(void *data,                // IN
    case KEY_NO_BIG_WRITES:
       config->addBigWrites = FALSE;
       return 0;
+#endif
 
    case KEY_HELP:
       Usage(outargs->argv[0]);
+#if FUSE_MAJOR_VERSION != 3
       fuse_opt_add_arg(outargs, "-ho");
       fuse_main(outargs->argc, outargs->argv, NULL, NULL);
+#else
+      fprintf(stdout, "FUSE options:\n");
+      fuse_cmdline_help();
+      fuse_lib_help(outargs);
+#endif
       exit(1);
 
    case KEY_ENABLED_FUSE: {
@@ -496,8 +514,8 @@ vmhgfsPreprocessArgs(struct fuse_args *outargs)    // IN/OUT
 #ifdef VMX86_DEVEL
    config.logLevel = LOGLEVEL_THRESHOLD;
 #endif
-#ifdef __APPLE__
-   /* osxfuse does not have option 'big_writes'. */
+#if defined(__APPLE__) || FUSE_MAJOR_VERSION == 3
+   /* osxfuse and fuse3 does not have option 'big_writes'. */
    config.addBigWrites = FALSE;
 #else
    config.addBigWrites = TRUE;

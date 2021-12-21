@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013,2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -25,7 +25,13 @@
 #ifndef _VMHGFS_FUSE_MODULE_H_
 #define _VMHGFS_FUSE_MODULE_H_
 
-#define FUSE_USE_VERSION 29
+/*
+ * FUSE_USE_VERSION must be set before the fuse or fuse3 headers are
+ * included.  If undefined, fall back to previous default used.
+ */
+#ifndef FUSE_USE_VERSION
+#   define FUSE_USE_VERSION 29
+#endif
 
 #include <sys/types.h>
 #include "hgfsUtil.h"

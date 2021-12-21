@@ -76,3 +76,6 @@ Vincent Milum Jr  Adding FreeBSD on ARM64 support to open-vm-tools.
 
 Miroslav Rezanina   Fix issues using GCC 11 with gtk >= 3.20 and glib >=2.66.3
                 - https://github.com/vmware/open-vm-tools/pull/505
+
+Marco Trevisan  Update open-vm-tools to build with either Fuse 3 or Fuse 2
+                - https://github.com/vmware/open-vm-tools/pull/544
