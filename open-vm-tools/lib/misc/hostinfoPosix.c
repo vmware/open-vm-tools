@@ -905,7 +905,7 @@ static const char *
 HostinfoArchString(void)
 {
 #if defined(VM_ARM_ANY)
-   return "arm-";
+   return STR_OS_ARM_PREFIX;
 #elif defined(VM_X86_ANY)
    return "";
 #else
