@@ -671,7 +671,7 @@ typedef void * UserVA;
 #define INVALID_LPN       ((LPN)-1)
 #define INVALID_VPN       ((VPN)-1)
 #define INVALID_LPN64     ((LPN64)-1)
-#define INVALID_PAGENUM   ((PageNum)0x000000ffffffffffull)
+#define INVALID_PAGENUM   ((PageNum)0x0000003fffffffffull)
 #define INVALID_PAGENUM32 ((uint32)-1)
 
 /*
