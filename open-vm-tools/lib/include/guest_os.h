@@ -282,7 +282,12 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
                               BS(FREEBSD13_ARM_64),     BS(FREEBSD14_ARM_64),    \
                               BS(ALMA_LINUX_ARM_64),    BS(ROCKY_LINUX_ARM_64)
 
+/*
+ * Architecture prefixes. No prefix implies the X86 architecture.
+ */
+
 #define STR_OS_ARM_PREFIX          "arm-"
+#define STR_OS_RISCV_PREFIX        "riscv-"
 
 /* vmkernel (ESX) */
 #define STR_OS_VMKERNEL            "vmkernel"
