@@ -147,7 +147,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define ALLWIN_12_CLIENT64    BS(WIN_12_64), BS(WIN_12_ARM_64)
 #define ALLWIN_12_CLIENT      ALLWIN_12_CLIENT64
 
-#define ALLWIN_12             ALLWIN_11_CLIENT64
+#define ALLWIN_12             ALLWIN_12_CLIENT64
 
 #define ALLHYPER_V            BS(HYPER_V)
 
