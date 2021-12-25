@@ -1,3 +1,32 @@
+commit f6d49e0acd81353d8022b639e231bc517a69b166
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Sat Dec 25 09:51:13 2021 -0800
+
+    Common source file changes not directly applicable to open-vm-tools.
+
+commit ff6e8264fedfc3237ab66b91598d998bfa7eae39
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Sat Dec 25 09:51:13 2021 -0800
+
+    Salt-minion and componentMgr plugin updates.
+    
+    Lastest version of the Salt Minion installer script.
+    The poll-interval of the componentMgr can be set to a minimum value of
+    five (5) seconds when compiled with -DVMX86_DEBUG.
+
+commit f0b616649db5cb3c7a5251cd981401bbf74039c7
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Sat Dec 25 09:51:13 2021 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 3c3cfcc9a9d16e79a9ef886f2831a7be28e9e596
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Dec 21 13:19:21 2021 -0800
+
+    Update ChangeLog with the granular push of Dec. 21, 2021.
+     - plus ChangeLog update of Dec. 4.
+
 commit 7987a3440f0d05b18faa77b9f9f67ae55d8a1cf1
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Tue Dec 21 13:07:55 2021 -0800
