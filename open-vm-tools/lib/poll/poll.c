@@ -114,6 +114,30 @@ Poll_InitWithImpl(const PollImpl *impl)
    pollImpl->Init();
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Poll_IsInitialized --
+ *
+ *      Allows libraries to determine if they can use poll or not.
+ *
+ * Results:
+ *      TRUE if and only if poll is initialized.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+Poll_IsInitialized(void)
+{
+   return pollImpl != NULL;
+}
+
+
 /*
  *----------------------------------------------------------------------
  *
