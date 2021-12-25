@@ -29,7 +29,6 @@
 
 #include "componentMgrPlugin.h"
 #include "str.h"
-#include "conf.h"
 #include "vm_version.h"
 #include "embed_version.h"
 #include "vmtoolsd_version.h"
@@ -113,11 +112,11 @@ ReconfigureComponentMgrPollLoopEx(ToolsAppCtx *ctx,  // IN
    }
 
    if (pollInterval != 0) {
-      if (pollInterval < COMPONENTMGR_POLL_INTERVAL ||
+      if (pollInterval < COMPONENTMGR_MIN_POLL_INTERVAL ||
          pollInterval > (G_MAXINT / 1000)) {
          g_warning("%s: Invalid poll interval. Using default %us.\n",
-                   __FUNCTION__, COMPONENTMGR_POLL_INTERVAL);
-         pollInterval = COMPONENTMGR_POLL_INTERVAL;
+                   __FUNCTION__, COMPONENTMGR_DEFAULT_POLL_INTERVAL);
+         pollInterval = COMPONENTMGR_DEFAULT_POLL_INTERVAL;
       }
 
       g_info("%s: New value for %s is %us.\n", __FUNCTION__,
@@ -215,7 +214,7 @@ ComponentMgrPollLoop(ToolsAppCtx *ctx) // IN
    pollInterval = VMTools_ConfigGetInteger(ctx->config,
                                            COMPONENTMGR_CONF_GROUPNAME,
                                            COMPONENTMGR_CONF_POLLINTERVAL,
-                                           COMPONENTMGR_POLL_INTERVAL);
+                                           COMPONENTMGR_DEFAULT_POLL_INTERVAL);
 
    listString = VMTools_ConfigGetString(ctx->config,
                                         COMPONENTMGR_CONF_GROUPNAME,

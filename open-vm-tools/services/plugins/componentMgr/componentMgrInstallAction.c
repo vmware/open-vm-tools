@@ -36,7 +36,6 @@
 #include "util.h"
 #include "guestApp.h"
 #include "codeset.h"
-#include "conf.h"
 
 
 /*

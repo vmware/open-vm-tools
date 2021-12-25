@@ -31,7 +31,10 @@
  *
  */
 
-#define G_LOG_DOMAIN "componentMgr"
+
+#include "conf.h"
+
+#define G_LOG_DOMAIN COMPONENTMGR_CONF_GROUPNAME
 
 #include "vm_basic_defs.h"
 #include "vmware/tools/plugin.h"
@@ -47,7 +50,18 @@
 /**
  * Default and minimum poll interval for componentMgr in seconds.
  */
-#define COMPONENTMGR_POLL_INTERVAL 180
+#define COMPONENTMGR_DEFAULT_POLL_INTERVAL 180
+
+/**
+ * Minimum poll interval for componentMgr in seconds.
+ * For development and beta builds the poll-interval can be configured
+ * lower than the default poll-interval.
+ */
+#ifdef VMX86_DEBUG
+#define COMPONENTMGR_MIN_POLL_INTERVAL 5
+#else
+#define COMPONENTMGR_MIN_POLL_INTERVAL COMPONENTMGR_DEFAULT_POLL_INTERVAL
+#endif
 
 /*
  * Poll interval between 2 consecutive check status operation in seconds.

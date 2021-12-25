@@ -14,7 +14,7 @@ set -o pipefail
 # using bash for now
 # run this script as root, as needed to run salt
 
-readonly SCRIPT_VERSION='1.0'
+readonly SCRIPT_VERSION='1.1'
 
 # definitions
 
@@ -46,7 +46,9 @@ readonly list_file_dirs_to_remove="${base_salt_location}
 /var/cache/salt
 /var/log/salt
 /usr/bin/salt-*
+/lib/systemd/system/salt-minion.service
 /usr/lib/systemd/system/salt-minion.service
+/usr/local/lib/systemd/system/salt-minion.service
 /etc/systemd/system/salt-minion.service
 "
 ## /var/log/vmware-${SCRIPTNAME}-*
@@ -1186,7 +1188,6 @@ _status_fn() {
 #
 #   Check dependencies for using salt-minion
 #
-#
 # Side Effects:
 # Results:
 #   Exits with 0 or error code
@@ -1211,6 +1212,45 @@ _deps_chk_fn() {
             "dependenices '${error_missing_deps}'";
     fi
     return 0
+}
+
+#
+# _find_system_lib_path
+#
+# find with systemd library path to use
+#
+# Result:
+#   echos the systemd library path
+#   will error if no systemd library path can be determined
+#
+# Note:
+#   /lib/systemd/system
+#       System units installed by the distribution package manage
+#   /usr/lib/systemd/system
+#       System units installed by the Administrator
+#   /usr/local/lib/systemd/system
+#       System units installed by the Administrator (possible on some OS)
+#
+# Will use /usr/lib/systemd/system available, since this is generally
+# the default used on modern Linux OS by salt-minion, some earlier OS's
+# (Debian 9, Ubuntu 18.04) use /lib/systemd/system
+#
+_find_system_lib_path () {
+
+    local path_found=""
+    _info_log "$0:${FUNCNAME[0]} finding systemd library path to use"
+    if [[ -d "/usr/lib/systemd/system" ]]; then
+        path_found="/usr/lib/systemd/system"
+    elif [[ -d "/lib/systemd/system" ]]; then
+        path_found="/lib/systemd/system"
+    elif [[ -d "/usr/local/lib/systemd/system" ]]; then
+        path_found="/usr/local/lib/systemd/system"
+    else
+        _error_log "$0:${FUNCNAME[0]} unable to determine systemd"\
+        "library path to use"
+    fi
+    _debug_log "$0:${FUNCNAME[0]} found library path to use ${path_found}"
+    echo "${path_found}"
 }
 
 
@@ -1307,28 +1347,31 @@ _install_fn () {
         fi
 
         # install salt-minion systemd service script
+        # first find with systemd library path to use
+        local systemd_lib_path=""
+        systemd_lib_path=$(_find_system_lib_path)
+        local name_service="salt-minion.service"
         _debug_log "$0:${FUNCNAME[0]} copying systemd service script "\
-            "'salt-minion.service' to directory /usr/lib/systemd/system"
+            "${name_service} to directory ${systemd_lib_path}"
         echo "${salt_minion_service_wrapper}" \
-            > /usr/lib/systemd/system/salt-minion.service || {
+            > "${systemd_lib_path}/${name_service}" || {
             _error_log "$0:${FUNCNAME[0]} failed to copy systemd service "\
-                "file 'salt-minion.service' to directory "\
-                "/usr/lib/systemd/system, retcode '$?'";
+                "file ${name_service} to directory "\
+                "${systemd_lib_path}, retcode '$?'";
         }
         cd /etc/systemd/system || return $?
-        rm -f "salt-minion.service"
-        ln -s "/usr/lib/systemd/system/salt-minion.service" \
-            "salt-minion.service" || {
+        rm -f "${name_service}"
+        ln -s "${systemd_lib_path}/${name_service}" \
+            "${name_service}" || {
                 _error_log "$0:${FUNCNAME[0]} failed to symbolic link "\
-                    "systemd service file 'salt-minion.service' in "\
+                    "systemd service file ${name_service} in "\
                     "directory /etc/systemd/system, retcode '$?'";
         }
         _debug_log "$0:${FUNCNAME[0]} symbolically linked systemd service "\
-            "file 'salt-minion.service' in directory /etc/systemd/system"
+            "file ${name_service} in directory /etc/systemd/system"
         cd "${CURRDIR}" || return $?
 
         # start the salt-minion using systemd
-        local name_service="salt-minion.service"
         systemctl daemon-reload || {
             _error_log "$0:${FUNCNAME[0]} reloading the systemd daemon "\
                 "failed , retcode '$?'";
