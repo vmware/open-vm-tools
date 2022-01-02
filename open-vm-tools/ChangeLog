@@ -1,3 +1,26 @@
+commit 7c9a9ff9a04c0818f9727ce95fa8aa4ca32cef55
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Sun Jan 2 03:23:38 2022 -0800
+
+    Set SABRE_SAW as the code name for the VMware Tools 12.0.0 release.
+
+commit df5d18f2585c5f46ce1e47b482e99828850fe19b
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Sun Jan 2 03:23:38 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit c4220766355a623901f3d562ad03ddd3745729fd
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Sat Dec 25 10:10:54 2021 -0800
+
+    ====================================================================
+    The "stable-12.0.x" branch was created from the "devel" branch here.
+    ====================================================================
+    
+    Update ChangeLog with the granular push of Dec. 25, 2021.
+     - plus ChangeLog update of Dec. 21.
+
 commit f6d49e0acd81353d8022b639e231bc517a69b166
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Sat Dec 25 09:51:13 2021 -0800
