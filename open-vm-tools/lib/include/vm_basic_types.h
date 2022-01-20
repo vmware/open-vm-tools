@@ -563,7 +563,7 @@ typedef uint128 UReg128;
 
 #if (defined(VMM) || defined(COREQUERY) || defined(EXTDECODER) ||  \
      defined (VMKERNEL) || defined (VMKBOOT) || defined (ULM)) &&  \
-    !defined (FROBOS)
+    !defined (FROBOS) || defined (VSAN_USERLEVEL)
 typedef  Reg64  Reg;
 typedef UReg64 UReg;
 #endif

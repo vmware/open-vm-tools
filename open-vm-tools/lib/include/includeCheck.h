@@ -101,7 +101,7 @@
 
 #if defined USERLEVEL && !defined VMX86_VMX && !defined VMCORE && \
     !defined ULM && !defined INCLUDE_ALLOW_USERLEVEL && \
-    !defined INCLUDE_ALLOW_MKS
+    !defined INCLUDE_ALLOW_MKS && !defined VSAN_USERLEVEL
 #error "The surrounding include file is not allowed at userlevel."
 #endif
 #undef INCLUDE_ALLOW_USERLEVEL
