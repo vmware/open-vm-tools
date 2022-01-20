@@ -82,9 +82,9 @@ removeall.removefail = "%1$s: impossibile rimuovere l'alias per l'utente '%2$s' 
 
 removeall.success = "%1$s: tutti gli alias sono stati rimossi\n"
 
-removealloptions.subject = "Oggetto SAML"
+removealloptions.subject = "L'oggetto SAML"
 removealloptions.username = "Utente da cui viene rimosso l'archivio certificati"
 
-removealloptions.verbose = "Operazione dettagliata"
+removealloptions.verbose = "Operazione Verbose"
 
 vgauth.init.failed = "Impossibile inizializzare VGAuth"
