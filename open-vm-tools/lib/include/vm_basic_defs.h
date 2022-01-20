@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -312,6 +312,10 @@ Max(int a, int b)
 #define BYTES_2_PAGES(_nbytes)  ((_nbytes) >> PAGE_SHIFT)
 #endif
 
+#ifndef BYTES_2_PAGES_4KB
+#define BYTES_2_PAGES_4KB(_nbytes)  ((_nbytes) >> PAGE_SHIFT_4KB)
+#endif
+
 #ifndef PAGES_2_BYTES
 #define PAGES_2_BYTES(_npages)  (((uint64)(_npages)) << PAGE_SHIFT)
 #endif
@@ -336,6 +340,11 @@ Max(int a, int b)
 #ifndef MBYTES_2_PAGES
 #define MBYTES_2_PAGES(_nMbytes) \
    ((uint64)(_nMbytes) << (MBYTES_SHIFT - PAGE_SHIFT))
+#endif
+
+#ifndef MBYTES_2_PAGES_4KB
+#define MBYTES_2_PAGES_4KB(_nMbytes) \
+   ((uint64)(_nMbytes) << (MBYTES_SHIFT - PAGE_SHIFT_4KB))
 #endif
 
 #ifndef PAGES_2_KBYTES
