@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -772,11 +772,11 @@ typedef void * UserVA;
 #endif
 
 /*
- * Similarly, we require a compiler that is at least vs2012.
+ * Similarly, we require a compiler that is at least vs2013.
  * Enforce this here.
  */
-#if defined _MSC_VER && _MSC_VER < 1700
-#error "cl.exe version is too old, need vs2012 or better"
+#if defined _MSC_VER && _MSC_VER < 1800
+#error "cl.exe version is too old, need vs2013 or better"
 #endif
 
 
