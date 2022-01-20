@@ -787,7 +787,7 @@ RDTSC(void)
     * bora/lib/vprobe/arm64/vp_emit_tc.c::VpEmit_BuiltinRDTSCWork()
     * bora/modules/vmkernel/tests/core/xmapTest/xmapTest_arm64.c::XMapTest_SetupLoopCode()
     */
-#if (defined(VMKERNEL) || defined(VMM)) && !defined(VMK_ARM_EL1)
+#if (defined(VMKERNEL) || defined(VMM)) && !defined(VMK_ARM_EL1_OR_VHE)
    return MRS(CNTPCT_EL0);
 #else
    return MRS(CNTVCT_EL0);
