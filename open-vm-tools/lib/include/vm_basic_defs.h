@@ -686,6 +686,13 @@ typedef int pid_t;
 #define VMKERNEL_ONLY(x)
 #endif
 
+/*
+ * In MSVC, _WIN32 is defined as 1 when the compilation target is
+ * 32-bit ARM, 64-bit ARM, x86, or x64 (which implies _WIN64). This
+ * is documented in C/C++ preprocessor section of the Microsoft C++,
+ * C, and Assembler documentation (https://via.vmw.com/EchK).
+ */
+
 #ifdef _WIN32
 #define WIN32_ONLY(x) x
 #define POSIX_ONLY(x)
