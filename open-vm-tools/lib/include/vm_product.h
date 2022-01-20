@@ -196,6 +196,7 @@
 
 #if !(   defined(VMX86_ESXIO)    \
       || defined(VMX86_SERVER)   \
+      || defined(VMKBOOT)        \
       || defined(VMX86_DESKTOP)  \
       || defined(VMX86_HORIZON_VIEW)     \
       || defined(VMX86_VPX)      \
@@ -226,6 +227,8 @@
 #if defined(VMX86_ESXIO)
 # define PRODUCT_SHORT_NAME PRODUCT_ESXIO_NAME
 #elif defined(VMX86_SERVER)
+# define PRODUCT_SHORT_NAME PRODUCT_ESXI_NAME
+#elif defined(VMKBOOT)
 # define PRODUCT_SHORT_NAME PRODUCT_ESXI_NAME
 #elif defined(VMX86_VMRC) /* check VMX86_VMRC before VMX86_DESKTOP */
 # define PRODUCT_SHORT_NAME PRODUCT_VMRC_NAME
