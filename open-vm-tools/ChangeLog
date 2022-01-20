@@ -1,3 +1,103 @@
+commit bd0f9506e5ad3ee42c95cbd1aea0c9381e4abf59
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jan 20 11:40:15 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit ddd97d710b1b49a2d8b3679ac07c70feacb2aeb0
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jan 20 11:40:15 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit b4a4387294cc9dc3cb890093398abad4d0800bc2
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jan 20 11:40:15 2022 -0800
+
+    Common header file change.
+    
+    Prepare to recognize macOS 14, Debian GNU/Linux 12, Rocky Linux,
+    and AlmaLinux.
+
+commit cbc229407f734a7b44aeecb9e3a6a51975ace35e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jan 20 11:40:15 2022 -0800
+
+    open-vm-tools-12.0.0 L10n drop.
+
+commit e85e58885523f69b01fc8a49ee40732df6b6e2a6
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jan 20 11:40:15 2022 -0800
+
+    ContainerInfo: Remove 'default' namespace from the default allowed namespace list.
+
+commit b9ebabe69f0d864bfaa28bf8773a4c8a51e29416
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jan 20 11:40:15 2022 -0800
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit e2de0491601d6c14e5aa4b64467cced413ff28e6
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jan 20 11:40:15 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 28dd7a83e35173ac7d1869906442ded5d1c632eb
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jan 20 11:40:15 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 750eed3fc4dc6d0265bc3e28b845e76ca3acf944
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jan 20 11:40:15 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit b59acd69c499825b1e0cc451f3c3798b1bb18d1c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jan 20 11:40:15 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 0f084152e3e03d22dcaa5d80118f244dba3f1455
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jan 20 11:40:15 2022 -0800
+
+    Set tools builds on the "devel" branch to version 12.1.0.
+    
+    Also, add back the definitions of TOOLS_VERSION_NEXT* inadvertently
+    removed in the previous change to vm_tools_version.h.
+
+commit f48b8797c14d43b3786fddae8bd38b890e48cd9d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jan 20 11:40:15 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 87396d0925299645ce77491ca8ad30ad1cb01c85
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jan 20 11:40:15 2022 -0800
+
+    Restrict Enable Salt Minion feature to x86_64 systems.
+    
+    Currently Salt Minion is available only for x86_64 systems.  Update
+    configure.ac to exclude ENABLE_SALTMINION from ARM and 32-bit systems.
+
+commit 9c171d9aede372e9647fe05f09a0e127df6d1dbd
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jan 20 11:40:15 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit bc9832a87009a1d41729ea6d07d1fae960026655
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Sun Jan 2 02:20:56 2022 -0800
+
+    Update ChangeLog with the granular changes through 12/31/21.
+      - granular push of Jan. 2, 2022
+      - plus ChangeLog update of Dec. 25.
 
 commit 34415b186a26a563690025d50b582cb7a73aef77
 Author: John Wolfe <jwolfe@vmware.com>
