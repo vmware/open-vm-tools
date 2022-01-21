@@ -1702,7 +1702,7 @@ AM_CONDITIONAL(ENABLE_VMWGFXCTRL, test "x$enable_vmwgfxctrl" = "xyes")
 AM_CONDITIONAL(VGAUTH_USE_CXX, test "$with_icu" = "yes" -o "$use_xmlsec1" != "yes")
 AM_CONDITIONAL(ENABLE_LIBAPPMONITOR, test "$enable_libappmonitor" = "yes")
 AM_CONDITIONAL(ENABLE_SDMP, test "$enable_servicediscovery" = "yes")
-AM_CONDITIONAL(ENABLE_SALTMINION, test "$enable_saltminion" = "yes")
+AM_CONDITIONAL(ENABLE_SALTMINION, test "$enable_saltminion" = "yes" -a \( "$arch" = "x64" \) )
 
 if test "$have_xsm" != "yes"; then
 AC_DEFINE([NO_XSM], 1, [])
