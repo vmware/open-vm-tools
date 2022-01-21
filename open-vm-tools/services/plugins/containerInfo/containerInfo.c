@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 2021-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -87,7 +87,7 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 /**
  * Default value for allowed-namespaces conf key.
  */
-#define CONTAINERINFO_DEFAULT_ALLOWED_NAMESPACES "moby,k8s.io,default"
+#define CONTAINERINFO_DEFAULT_ALLOWED_NAMESPACES "moby,k8s.io"
 
 /**
  * Name of the 'moby' namespace used by docker.
