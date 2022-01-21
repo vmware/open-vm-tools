@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -125,6 +125,8 @@
 #define VMX_LOG_CMD     "log "
 #define VMX_LOG_CMD_LEN (sizeof(VMX_LOG_CMD) - 1)
 
+#define LOG_HEADER_MAX_ENTRIES 2
+
 
 typedef struct LogHandler {
    GlibLogger    *logger;
@@ -199,6 +201,9 @@ static RpcChannel *gChannel; /* either NULL or allocated AND started */
  */
 static GLogLevelFlags gLevelMask;
 
+static gchar *gLogHeaderBuf[LOG_HEADER_MAX_ENTRIES];
+static guint gLogHeaderCount;
+
 static enum RpcMode {
    RPC_OFF = 0,
    RPC_GUEST_LOG_TEXT,
@@ -217,6 +222,7 @@ static void LogWhereLevelV(LogWhere where,
                            const gchar *domain,
                            const gchar *fmt,
                            va_list args);
+static LogHandler *GetLogHandlerByDomain(const gchar *domain);
 
 /* Internal functions. */
 
@@ -502,6 +508,31 @@ VMToolsFreeLogEntry(gpointer data)
 
 
 /**
+ * Function that logs a cached log header of Tools version, build details
+ * and Guest OS details.
+ *
+ * @param[in] _data     LogEntry pointer.
+ */
+
+static void
+VMToolsLogHeader(gpointer _data)
+{
+   LogEntry *entry = _data;
+   GlibLogger *logger = entry->handler->logger;
+   guint i;
+
+   for (i = 0; i < gLogHeaderCount; i++) {
+      char *message = VMToolsLogFormat(gLogHeaderBuf[i], entry->domain,
+                                       G_LOG_LEVEL_MESSAGE, entry->handler,
+                                       FALSE);
+
+      logger->logfn(entry->domain, G_LOG_LEVEL_MESSAGE, message, logger);
+      g_free(message);
+   }
+}
+
+
+/**
  * Function that calls the log handler.
  *
  * Also, frees the _data to avoid having separate free call.
@@ -518,6 +549,10 @@ VMToolsLogMsg(gpointer _data, gpointer userData)
    gboolean usedSyslog = FALSE;
 
    if (logger != NULL) {
+       if (logger->logHeader) {
+          VMToolsLogHeader(entry);
+          logger->logHeader = FALSE;
+       }
        logger->logfn(entry->domain, entry->level, entry->msg, logger);
        usedSyslog = entry->handler->isSysLog;
    } else if (gErrorData->logger != NULL) {
@@ -1496,14 +1531,31 @@ VMToolsConfigLoggingInt(const gchar *defaultDomain,
    MarkLogInitialized();
 
    /*
-    * Log Tools version, build information and guest OS details.
+    * Cache Tools version, build number and guest OS details.
+    * Cached log headers will be logged at log rotation and reset.
+    * No need to re-init the log headers in case of config reload.
     */
-   g_message("%s Version: %s (%s)", VMWARE_TOOLS_SHORT_NAME,
-             TOOLS_VERSION_EXT_CURRENT_STR, BUILD_NUMBER);
-   gosDetails = Hostinfo_GetOSDetailedData();
-   if (gosDetails != NULL) {
-      g_message("Guest OS details: %s", gosDetails);
+   if (gLogHeaderCount == 0) {
+      LogHandler *handler = GetLogHandlerByDomain(gLogDomain);
+      GlibLogger *logger = handler->logger;
+
+      logger->logHeader = TRUE;
+
+      gLogHeaderBuf[gLogHeaderCount++] = Str_Asprintf(NULL,
+                                                      "%s Version: %s (%s)",
+                                                      VMWARE_TOOLS_SHORT_NAME,
+                                                      TOOLS_VERSION_EXT_CURRENT_STR,
+                                                      BUILD_NUMBER);
+
+      gosDetails = Hostinfo_GetOSDetailedData();
+      if (gosDetails != NULL && gLogHeaderCount < LOG_HEADER_MAX_ENTRIES) {
+         gLogHeaderBuf[gLogHeaderCount++] = Str_Asprintf(NULL,
+                                                         "Guest OS details: %s",
+                                                         gosDetails);
+      }
       free(gosDetails);
+
+      ASSERT(gLogHeaderCount <= LOG_HEADER_MAX_ENTRIES);
    }
 
    gMaxCacheEntries = g_key_file_get_integer(cfg, LOGGING_GROUP,
