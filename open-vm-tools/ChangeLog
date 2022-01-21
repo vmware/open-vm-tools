@@ -1,3 +1,48 @@
+commit c64088ba9b88698455b25686a464c07f59c13e6b
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jan 20 17:08:38 2022 -0800
+
+    Missed a few 2022 copyright updates - correcting before publishing.
+
+commit cc49be1a05cc5b4b133337997a475102b31e97d3
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jan 20 16:48:46 2022 -0800
+
+    Open-vm-tools 12.0.0 L10n drop.
+
+commit 68b050ba00a6244fd71e93f95d06375c30a4aa3e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jan 20 16:48:46 2022 -0800
+
+    ContainerInfo: Remove 'default' namespace from the default allowed namespace list.
+
+commit cfe60646c0b07f257acd5e4470f14ed0ba70cd5a
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jan 20 16:48:46 2022 -0800
+
+    Restrict Enable Salt Minion feature to x86_64 systems.
+    
+    Currently Salt Minion is available only for x86_64 systems.  Update
+    configure.ac to exclude ENABLE_SALTMINION from ARM and 32-bit systems.
+
+commit 10dd041d5e5c7604fb525ec72cf314a27ea0c166
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jan 20 16:48:45 2022 -0800
+
+    The header added to the vmsvc log file is repeated at log file rotation.
+    
+    The log entry with the tools version, tools build number and guest OS
+    details added at the start of the vmsvc log file is repeated when log
+    file rotation occurs.
+
+commit 924882d1441db856cfc9c8b0fff77b727f32dd23
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Sun Jan 2 03:33:24 2022 -0800
+
+    Update ChangeLog with the granular changes through 12/31/21.
+      - granular push of Jan. 2, 2022
+      - plus ChangeLog update of Dec.25 - creation of stable-12.0.x branch.
+
 commit 7c9a9ff9a04c0818f9727ce95fa8aa4ca32cef55
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Sun Jan 2 03:23:38 2022 -0800
