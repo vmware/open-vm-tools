@@ -371,7 +371,7 @@ FIELD(  1,  0, EBX, 24,  8, APICID,                              ANY,   4 ) \
 FLAG(   1,  0, ECX,  0,  1, SSE3,                                YES,   4 ) \
 FLAG(   1,  0, ECX,  1,  1, PCLMULQDQ,                           YES,   4 ) \
 FLAG(   1,  0, ECX,  2,  1, DTES64,                              NO,    0 ) \
-FLAG(   1,  0, ECX,  3,  1, MWAIT,                               YES,   4 ) \
+FLAG(   1,  0, ECX,  3,  1, MWAIT,                               YES,   7 ) \
 FLAG(   1,  0, ECX,  4,  1, DSCPL,                               NO,    0 ) \
 FLAG(   1,  0, ECX,  5,  1, VMX,                                 YES,   8 ) \
 FLAG(   1,  0, ECX,  6,  1, SMX,                                 YES, FUT ) \
