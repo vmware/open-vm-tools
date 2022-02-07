@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -100,6 +100,11 @@
 #if defined(__APPLE__)
 #include <sys/sysctl.h>
 #include <sys/fcntl.h>
+#endif
+
+#ifdef VMX86_SERVER
+#include "fs_public.h"
+#include <sys/ioctl.h>
 #endif
 
 /*
@@ -2288,7 +2293,16 @@ Bool
 FileIO_SupportsFileSize(const FileIODescriptor *fd,  // IN:
                         uint64 requestedSize)        // IN:
 {
-#if defined(__linux__)
+#ifdef VMX86_SERVER
+   // PR 93215: Use VMkernel-specific logic.
+   uint64 maxFileSize;
+   if (ioctl(fd->posix, IOCTLCMD_VMFS_GET_MAX_FILE_SIZE, &maxFileSize) == -1) {
+      Log(LGPFX" %s: Could not get max file size for fd: %d, error: %s\n",
+          __func__, fd->posix, Err_Errno2String(errno));
+      return FALSE;
+   }
+   return requestedSize <= maxFileSize;
+#elif defined(__linux__)
    /*
     * Linux makes test on seek(), so we can do simple non-intrusive test.
     * Verified to work on 2.2.x, 2.4.x and 2.6.x, with ext2, ext3, smbfs,
