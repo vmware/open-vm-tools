@@ -1,3 +1,54 @@
+commit cf3cf0f5d59a99814f90c0fbb8c321059baa3693
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 7 10:23:44 2022 -0800
+
+    Correct missed 2022 copyright update.
+
+commit 8e6db032d0ad7404b327a5126e1a62c2b91c7bb3
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 7 10:21:18 2022 -0800
+
+    Service Discovery script update.
+    
+    Updated the get-version.sh script to retrieve the vRLI version.
+
+commit e573682b872487b68e10fd6d821cd0bb6e705b92
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 7 10:21:18 2022 -0800
+
+    AppVisibility: Skip terminated/stopped containers.
+    
+    Added code to skip terminated/stopped containers.  This is done
+    by using TaskStub to retrieve the pid for the running container.
+    If the pid cannot be retrieved, then that container is skipped.
+    
+    The previously suppressed "default" namespace has been restored.
+    
+    Fixed another minor issue with calculating the number of containers
+    that were added.
+    
+    Note: This changeset introduces a dependency on Tasks.proto, and
+    Tasks.proto depends on a few other proto files like mount, metrics,
+    descriptor and task.  Modified the makefile to generate the necessary
+    C++ files from the proto files.
+    
+    Additional notes:
+     - .proto -> generates .pb.h, .pb.c and .grpc.pb.cc files.
+     - For compiling and building the library (.so file), the .grpc.pb.{h,cc}
+       and .pb.{h,cc} files are needed.
+     - The protoc compiler generates .pb.h and .pb.c files when the --cpp_out
+       option is specified.
+     - The protoc compiler generates .grpc.pb.* when the --grpc_out option is
+       specified.
+
+commit 3d626749b6914ee013989643fed04eb14c9eb1b2
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jan 20 17:21:06 2022 -0800
+
+    Update ChangeLog with the granular changes through 1/1/22 thru 1/15/22
+      - granular push of Jan. 20, 2022
+      - plus ChangeLog update of Jan. 2.
+
 commit c64088ba9b88698455b25686a464c07f59c13e6b
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Thu Jan 20 17:08:38 2022 -0800
