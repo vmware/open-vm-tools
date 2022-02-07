@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2021 VMware, Inc.  All rights reserved.
+# Copyright (c) 2021-2022 VMware, Inc.  All rights reserved.
 
 # check if necesary commands exist
 command -v ss >/dev/null 2>&1 || { echo >&2 "ss doesn't exist"; exit 1; }
