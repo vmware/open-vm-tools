@@ -95,7 +95,7 @@ get_cassandra_version() {
 
 get_vrli_version() {
   FILE_PATH_TEMPLATE=/storage/core/loginsight/config/loginsight-config.xml#
-  FILE_NAMES=($(ls /storage/core/loginsight/config/ 2>/dev/null | grep -o "[0-9].*"))
+  FILE_NAMES=$(ls /storage/core/loginsight/config/ 2>/dev/null | grep -o "[0-9].*")
   [ ! -z "$FILE_NAMES" ] && LATEST_FILE_NUM=$(printf '%s\n' "${FILE_NAMES[@]}" | awk '$1 > m || NR == 1 { m = $1 } END { print m }')
   VERSION_FILE_NAME="$FILE_PATH_TEMPLATE$LATEST_FILE_NUM"
   VERSION=$(cat $VERSION_FILE_NAME 2>/dev/null | grep 'strata-version value=' | grep -oE "[0-9.]+" | head -1)
