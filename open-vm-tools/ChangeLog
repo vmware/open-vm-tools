@@ -1,3 +1,134 @@
+commit 8406802f4bf9269f02b6850b10741a7fce1635bc
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 7 09:52:43 2022 -0800
+
+    Correct missed 2022 copyright update.
+
+commit 4311a4a5d2952703cb808feb1f6372e28c2afc68
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 7 09:40:01 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit e9e485b9d6fd41acb5a777896b7c7efb32632722
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 7 09:40:00 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit a085da930a078f956192bb257de251a58e49a5f2
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 7 09:40:00 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 5b0c9eada72482a7149a5188f11d470272e53087
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 7 09:40:00 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 8692a2327c0bcd4608fd40d8f7539da5d82e6b28
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 7 09:40:00 2022 -0800
+
+    Enable time step correction log in all builds.
+    
+    Enabled logging of the information in all builds of open-vm-tools.
+    This is useful for auditing and for debugging.
+
+commit 87389ed6975ed40bdc7883c64c2509da6650a435
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 7 09:40:00 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 05943d86fbc47821c3036eaa3b11b7b7a1eb2780
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 7 09:40:00 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit d8ad6f5c0d2237ed6eb3230720be9701547e2ed9
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 7 09:40:00 2022 -0800
+
+    Service Discovery script update.
+    
+    Updated the get-version.sh script to retrieve the vRLI version.
+
+commit a9e72b211bafb19ca0e674bf73351e1aa859d083
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 7 09:40:00 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 5a040d4c25705565e8397b2135506e93e320bd54
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 7 09:40:00 2022 -0800
+
+    Common header file cahnge not applicable to open-vm-tools.
+
+commit 627f748ab314c6bd2b6a5023d1f17684bd8eec0d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 7 09:40:00 2022 -0800
+
+    Common source file change not applicable to open-vm-tools.
+
+commit 2290690693f0590bb5ffbd592ebd4b8062d57513
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 7 09:40:00 2022 -0800
+
+    AppVisibility: Skip terminated/stopped containers.
+    
+    Added code to skip terminated/stopped containers.  This is done
+    by using TaskStub to retrieve the pid for the running container.
+    If the pid cannot be retrieved, then that container is skipped.
+    
+    The previously suppressed "default" namespace has been restored.
+    
+    Fixed another minor issue with calculating the number of containers
+    that were added.
+    
+    Note: This changeset introduces a dependency on Tasks.proto, and
+    Tasks.proto depends on a few other proto files like mount, metrics,
+    descriptor and task.  Modified the makefile to generate the necessary
+    C++ files from the proto files.
+    
+    Additional notes:
+     - .proto -> generates .pb.h, .pb.c and .grpc.pb.cc files.
+     - For compiling and building the library (.so file), the .grpc.pb.{h,cc}
+       and .pb.{h,cc} files are needed.
+     - The protoc compiler generates .pb.h and .pb.c files when the --cpp_out
+       option is specified.
+     - The protoc compiler generates .grpc.pb.* when the --grpc_out option is
+       specified.
+
+commit 5e79bc1414f31a07a9fb74c624b8b435546e0212
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 7 09:40:00 2022 -0800
+
+    Common source file change not applicable to open-vm-tools.
+
+commit 75f3a3e2e6b4cfec157c02e8f06e5ac139ad98cc
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 7 09:40:00 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 192667e6e65ad7d7592798ef567278dbe15c293d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jan 20 15:01:49 2022 -0800
+
+    Last minute 2022 copyright updates to several files.
+
+commit 99c00042476803def0d1aea4fc28cd59e271859d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jan 20 11:50:29 2022 -0800
+
+    Update ChangeLog with the granular push of Jan. 20, 2022.
+     - plus ChangeLog update of Jan 2, 2022.
+
 commit bd0f9506e5ad3ee42c95cbd1aea0c9381e4abf59
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Thu Jan 20 11:40:15 2022 -0800
