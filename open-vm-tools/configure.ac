@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (c) 2007-2021 VMware, Inc.  All rights reserved.
+### Copyright (c) 2007-2022 VMware, Inc.  All rights reserved.
 ###
 ### Configure script for building the VMware OSS Tools.
 ###
@@ -727,9 +727,27 @@ AC_DEFUN([AC_VMW_CONTAINERINFO_MSG],[
 # proto files needed by containerd grpc client.
 #
    shared_prefix=/usr/share/gocode/src/github.com
+   AC_SUBST(TYPES_DIR, github.com/containerd/containerd/api/types)
+   AC_SUBST(TASKS_PROTOPATH, $shared_prefix/containerd/containerd/api/services/tasks/v1)
+   AC_SUBST(DEP_PROTOPATH, /usr/share/gocode/src)
    AC_SUBST(CONTAINERD_PROTOPATH, $shared_prefix/containerd/containerd/api/services/containers/v1)
    AC_SUBST(GOGO_PROTOPATH, $shared_prefix/gogo/protobuf)
    AC_CHECK_FILE([${CONTAINERD_PROTOPATH}/containers.proto],
+                 [],
+                 [AC_VMW_CONTAINERINFO_MSG(["containerd package"])])
+   AC_CHECK_FILE([${TASKS_PROTOPATH}/tasks.proto],
+                 [],
+                 [AC_VMW_CONTAINERINFO_MSG(["containerd package"])])
+   AC_CHECK_FILE([${DEP_PROTOPATH}/${TYPES_DIR}/mount.proto],
+                 [],
+                 [AC_VMW_CONTAINERINFO_MSG(["containerd package"])])
+   AC_CHECK_FILE([${DEP_PROTOPATH}/${TYPES_DIR}/metrics.proto],
+                 [],
+                 [AC_VMW_CONTAINERINFO_MSG(["containerd package"])])
+   AC_CHECK_FILE([${DEP_PROTOPATH}/${TYPES_DIR}/descriptor.proto],
+                 [],
+                 [AC_VMW_CONTAINERINFO_MSG(["containerd package"])])
+   AC_CHECK_FILE([${DEP_PROTOPATH}/${TYPES_DIR}/task/task.proto],
                  [],
                  [AC_VMW_CONTAINERINFO_MSG(["containerd package"])])
    AC_CHECK_FILE([${GOGO_PROTOPATH}/gogoproto/gogo.proto],

@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (c) 2021 VMware, Inc.  All rights reserved.
+### Copyright (c) 2021-2022 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -19,9 +19,6 @@ SUBDIRS =
 
 plugindir = @VMSVC_PLUGIN_INSTALLDIR@
 plugin_LTLIBRARIES = libcontainerInfo.la
-
-PWD = $(shell pwd)
-CONTAINERS_PROTO = $(PWD)/containers.proto
 
 libcontainerInfo_la_CPPFLAGS =
 libcontainerInfo_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
@@ -45,28 +42,57 @@ libcontainerInfo_la_LIBADD += ../../../lib/jsmn/libJsmn.la
 
 libcontainerInfo_la_SOURCES += gogoproto/gogo.pb.h
 libcontainerInfo_la_SOURCES += gogoproto/gogo.pb.cc
-libcontainerInfo_la_SOURCES += containers.pb.cc
+libcontainerInfo_la_SOURCES += $(TYPES_DIR)/mount.pb.h
+libcontainerInfo_la_SOURCES += $(TYPES_DIR)/mount.pb.cc
+libcontainerInfo_la_SOURCES += $(TYPES_DIR)/metrics.pb.h
+libcontainerInfo_la_SOURCES += $(TYPES_DIR)/metrics.pb.cc
+libcontainerInfo_la_SOURCES += $(TYPES_DIR)/descriptor.pb.h
+libcontainerInfo_la_SOURCES += $(TYPES_DIR)/descriptor.pb.cc
+libcontainerInfo_la_SOURCES += $(TYPES_DIR)/task/task.pb.h
+libcontainerInfo_la_SOURCES += $(TYPES_DIR)/task/task.pb.cc
+libcontainerInfo_la_SOURCES += tasks.pb.h
+libcontainerInfo_la_SOURCES += tasks.pb.cc
 libcontainerInfo_la_SOURCES += containers.pb.h
-libcontainerInfo_la_SOURCES += containers.grpc.pb.cc
+libcontainerInfo_la_SOURCES += containers.pb.cc
+libcontainerInfo_la_SOURCES += tasks.grpc.pb.h
+libcontainerInfo_la_SOURCES += tasks.grpc.pb.cc
 libcontainerInfo_la_SOURCES += containers.grpc.pb.h
+libcontainerInfo_la_SOURCES += containers.grpc.pb.cc
 libcontainerInfo_la_SOURCES += containerInfo_grpc.cc
 
 libcontainerInfo_la_CPPFLAGS += @GRPC_CPPFLAGS@
 libcontainerInfo_la_LDFLAGS += -lprotobuf
 libcontainerInfo_la_LDFLAGS += -lgrpc++
 
-containers.grpc.pb.cc \
-containers.grpc.pb.h: $(CONTAINERS_PROTO)
-	$(PROTOC) -I$(PWD) -I$(GOGO_PROTOPATH) \
-             --grpc_out=. --plugin=protoc-gen-grpc=`which $(GRPC_CPP)` $^
+tasks.grpc.pb.cc containers.grpc.pb.cc: %.grpc.pb.cc : %.proto %.pb.cc
+	$(PROTOC) -I. -I$(GOGO_PROTOPATH) \
+             --grpc_out=. --plugin=protoc-gen-grpc=`which $(GRPC_CPP)` $<
 
-gogoproto/gogo.pb.cc \
-gogoproto/gogo.pb.h \
-containers.pb.cc \
-containers.pb.h: $(CONTAINERD_PROTOPATH)/containers.proto \
-                 $(GOGO_PROTOPATH)/gogoproto/gogo.proto
-	sed 's/import weak /import /' \
-	    $(CONTAINERD_PROTOPATH)/containers.proto > $(CONTAINERS_PROTO)
-	$(MKDIR_P) gogoproto/
-	$(PROTOC) --cpp_out=. -I$(PWD) -I$(GOGO_PROTOPATH) \
-                        $(CONTAINERS_PROTO) $(GOGO_PROTOPATH)/gogoproto/gogo.proto
+containerInfo_grpc.cc : containers.grpc.pb.cc tasks.grpc.pb.cc
+
+$(TYPES_DIR)/mount.proto \
+$(TYPES_DIR)/metrics.proto \
+$(TYPES_DIR)/descriptor.proto \
+$(TYPES_DIR)/task/task.proto: %.proto : $(DEP_PROTOPATH)/%.proto
+	$(MKDIR_P) $(@D)
+	sed 's/import weak /import /' $< > $@
+
+$(TYPES_DIR)/mount.pb.cc \
+$(TYPES_DIR)/metrics.pb.cc \
+$(TYPES_DIR)/descriptor.pb.cc \
+$(TYPES_DIR)/task/task.pb.cc: %.pb.cc : %.proto
+	$(PROTOC) --cpp_out=. -I$(GOGO_PROTOPATH) -I. $<
+
+tasks.proto: $(TASKS_PROTOPATH)/tasks.proto
+	sed 's/import weak /import /' $< > $@
+
+containers.proto: $(CONTAINERD_PROTOPATH)/containers.proto
+	sed 's/import weak /import /' $< > $@
+
+tasks.pb.cc containers.pb.cc: %.pb.cc : %.proto
+	$(PROTOC) --cpp_out=. -I. -I$(GOGO_PROTOPATH) $<
+
+gogoproto/gogo.pb.cc: $(GOGO_PROTOPATH)/gogoproto/gogo.proto
+	$(MKDIR_P) $(@D)
+	$(PROTOC) --cpp_out=. -I$(GOGO_PROTOPATH) $<
+
