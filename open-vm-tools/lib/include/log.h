@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -715,6 +715,33 @@ Log_LoadModuleFilters(const char *appPrefix,
 
 long
 Log_OffsetUtc(void);
+
+/*
+ * log throttling:
+ *
+ * throttleThreshold = start log throttling only after this many bytes have
+ *                     been logged (allows initial vmx startup spew).
+ *
+ * throttleBPS = start throttling if more than this many bytes per second are
+ *               logged. Continue throttling until rate drops below this value.
+ *
+ * bytesLogged = total bytes logged.
+ *
+ * logging rate =  (bytesLogged - lastBytesSample)/(curTime - lastSampleTime)
+ */
+
+typedef struct {
+   Bool        throttled;
+   uint32      throttleThreshold;
+   uint32      throttleBPS;
+   uint64      bytesLogged;
+   VmTimeType  lastSampleTime;
+   uint64      lastBytesSample;
+} LogThrottleInfo;
+
+Bool
+Log_IsThrottled(LogThrottleInfo *info,
+                size_t msgLen);
 
 #endif /* !VMM */
 
