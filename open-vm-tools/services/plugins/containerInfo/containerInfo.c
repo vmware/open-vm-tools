@@ -87,7 +87,7 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 /**
  * Default value for allowed-namespaces conf key.
  */
-#define CONTAINERINFO_DEFAULT_ALLOWED_NAMESPACES "moby,k8s.io"
+#define CONTAINERINFO_DEFAULT_ALLOWED_NAMESPACES "moby,k8s.io,default"
 
 /**
  * Name of the 'moby' namespace used by docker.
