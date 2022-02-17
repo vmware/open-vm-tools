@@ -19,6 +19,46 @@
 #define VM_PRODUCT_VERSIONS_H
 
 /*
+ *
+ * This file contains sections delineated by marker tags like  MARKER_XXX_...
+ * These tags are used to generate vm_product_versions_fast.h, which is a
+ * version header that enables faster compiles.
+ *
+ * When BUILD_NUMBER and similar macros are defined as numbers, builds become
+ * slow as the consumer can't be cached (the crypto-hash for the C compiler's
+ * inputs changes each build). For cases where that is still necessary,
+ * vm_product_versions_slow.h can be used. Note: the fast headers require
+ * linking to bora/lib/version.
+ *
+ * to avoid multiple copy of similar header, xx_fast.h code is generated from
+ * this file using these marker tag.
+ *
+ */
+
+// vm_product_versions_fast.h can't be used in headers shared with Windows just
+// yet
+//MARKER_FAST_UNCOMMENT_START
+//#if defined _MSC_VER
+//#error Fast Version headers not implemented on Windows yet
+//#endif
+//MARKER_FAST_UNCOMMENT_END
+
+//MARKER_FAST_UNCOMMENT_START
+//extern unsigned int gProductVersion[];
+//extern unsigned int gVieFileVersion[];
+//extern unsigned int gVpxVersionNumeric[];
+//extern unsigned int gNetdumpFileVersion[];
+//extern unsigned int gFoundryFileVersion[];
+//
+//extern int gVddkVersionMajor;
+//extern int gVddkVersionMinor;
+//extern int gVddkVersionMaint;
+//
+//extern unsigned int gOvftoolFileVersion[];
+//extern const char gEsxReleaseVersionString[];
+//MARKER_FAST_UNCOMMENT_END
+
+/*
  * NOTE: Some of the macro expansions in this file require information
  *       from the generated file, 'buildNumber.h'.  For those
  *       expansions, and for those expansions only, you must include
@@ -33,6 +73,8 @@
  * version. Otherwise we use a hard-coded value for Workstation and a different
  * hard-coded value for every other product.
  */
+
+//MARKER_FAST_REMOVE_START
 #if defined(VMX86_VMRC) /* check VMX86_VMRC before VMX86_DESKTOP */
    #define PRODUCT_VERSION    12,1,0,PRODUCT_BUILD_NUMBER_NUMERIC   /* VMRC_VERSION_NUMBER below has to match this */
 #elif defined(VMX86_FLEX) /* check VMX86_FLEX before VMX86_DESKTOP */
@@ -58,6 +100,10 @@
    /* Generic catch-all. */
    #define PRODUCT_VERSION    0,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #endif
+//MARKER_FAST_REMOVE_END
+//MARKER_FAST_UNCOMMENT_START
+//#define PRODUCT_VERSION gProductVersion
+//MARKER_FAST_UNCOMMENT_END
 
 /*
  * The VIE components are shared by different products and may be updated by newer
@@ -83,7 +129,12 @@
  * VMI 2.0      : 3.1.0
  * P2VA 3.0     : 3.?.?
  */
+//MARKER_FAST_REMOVE_START
 #define VIE_FILEVERSION 6,5,0,PRODUCT_BUILD_NUMBER_NUMERIC
+//MARKER_FAST_REMOVE_END
+//MARKER_FAST_UNCOMMENT_START
+//#define VIE_FILEVERSION gVieFileVersion
+//MARKER_FAST_UNCOMMENT_END
 
 /*
  * This string can be a little more "free form".  The license
@@ -152,8 +203,13 @@
 
 // ESX release versioning string -
 //    <major>.<minor>.<update>-<quarter>.<patch>.<buildid>
+//MARKER_FAST_REMOVE_START
 #define ESX_RELEASE_VERSION_STR ESX_VERSION "-" ESX_RELEASE "." \
                                 XSTR(BUILD_NUMBER_NUMERIC)
+//MARKER_FAST_REMOVE_END
+//MARKER_FAST_UNCOMMENT_START
+//#define ESX_RELEASE_VERSION_STR gEsxReleaseVersionString
+//MARKER_FAST_UNCOMMENT_END
 
 #define WORKSTATION_RELEASE_DESCRIPTION ""
 #define P2V_VERSION "e.x.p"
@@ -224,7 +280,12 @@
 #define VPX_VERSION_PATCH "00000"
 #define VPX_VERSION_THIRD_PARTY VPX_VERSION_MAJOR VPX_VERSION_MINOR \
                                 VPX_VERSION_MAINT
+//MARKER_FAST_REMOVE_START
 #define VPX_VERSION_NUMERIC 8,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
+//MARKER_FAST_REMOVE_END
+//MARKER_FAST_UNCOMMENT_START
+//#define VPX_VERSION_NUMERIC gVpxVersionNumeric
+//MARKER_FAST_UNCOMMENT_END
 
 // Last supported ESX version by VC.
 #define VPX_MIN_HOST_VERSION "6.5.0"
@@ -260,23 +321,51 @@
 #define SSO_VERSION "1.0.0"
 #define SDK_VERSION "4.1.0"
 #define FOUNDRY_VERSION "1.17.0"
+
+//MARKER_FAST_REMOVE_START
 #define FOUNDRY_FILE_VERSION 1,17,0,PRODUCT_BUILD_NUMBER_NUMERIC
+//MARKER_FAST_REMOVE_END
+//MARKER_FAST_UNCOMMENT_START
+//#define FOUNDRY_FILE_VERSION gFoundryFileVersion
+//MARKER_FAST_UNCOMMENT_END
+
 #define VLICENSE_VERSION "1.1.5"
 #define DDK_VERSION "e.x.p"
 #define VIPERL_VERSION "7.0.0"
 #define RCLI_VERSION "7.0.0"
 #define VDM_VERSION "e.x.p"
 #define NETDUMP_VERSION        "5.1.0"
+
+//MARKER_FAST_REMOVE_START
 #define NETDUMP_FILE_VERSION    5,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
+//MARKER_FAST_REMOVE_END
+//MARKER_FAST_UNCOMMENT_START
+//#define NETDUMP_FILE_VERSION  gNetdumpFileVersion
+//MARKER_FAST_UNCOMMENT_END
+
 #define VDDK_VERSION          "8.0.0"
 #define VDDK_VERSION_MAJOR    8
 #define VDDK_VERSION_MINOR    0
 #define VDDK_VERSION_MAINT    0
+
+//MARKER_FAST_REMOVE_START
 #define VDDK_FILE_VERSION     VDDK_VERSION_MAJOR,VDDK_VERSION_MINOR,\
                               VDDK_VERSION_MAINT,PRODUCT_BUILD_NUMBER_NUMERIC
+//MARKER_FAST_REMOVE_END
+//MARKER_FAST_UNCOMMENT_START
+//#define VDDK_FILE_VERSION gVddkFileVersion
+//MARKER_FAST_UNCOMMENT_END
+
 #define OVFTOOL_VERSION "4.4.3"
 #define VCSA_INSTALLER_VERSION "1.0.0"
+
+//MARKER_FAST_REMOVE_START
 #define OVFTOOL_FILE_VERSION 4,4,1,PRODUCT_BUILD_NUMBER_NUMERIC
+//MARKER_FAST_REMOVE_END
+//MARKER_FAST_UNCOMMENT_START
+//#define OVFTOOL_FILE_VERSION gOvftoolFileVersion
+//MARKER_FAST_UNCOMMENT_END
+
 #define VGAUTH_VERSION "1.0.0"
 #define COMMON_AGENT_VERSION "e.x.p"
 #define VIEWY_VERSION "e.x.p"
@@ -394,8 +483,13 @@
  * not needed in the string.
  */
 
+//MARKER_FAST_REMOVE_START
 #define PRODUCT_VERSION_STRING PRODUCT_VERSION_NUMBER " " BUILD_NUMBER
-
+//MARKER_FAST_REMOVE_END
+//MARKER_FAST_UNCOMMENT_START
+//extern const char gProductVersionString[];
+//#define PRODUCT_VERSION_STRING gProductVersionString
+//MARKER_FAST_UNCOMMENT_END
 /*
  * The license manager requires that PRODUCT_VERSION_STRING matches the
  * following pattern: <x>[.<y>][.<z>].
