@@ -1,3 +1,82 @@
+commit 2cf575e2fb0a6c83211e8e09339491889bdcc8fe
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Feb 17 15:01:31 2022 -0800
+
+    Add missing 2022 copyright.
+
+commit 66b79830eccb5fd8c7b85f07b8090c763e12783c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Feb 17 14:51:25 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 27bd6b5a84370ad488227614df3740ad6c2014db
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Feb 17 14:51:25 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit bb597ad25dbf695b5d16ddea3c09080d1a715967
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Feb 17 14:51:25 2022 -0800
+
+    Backout previous changes to common header files not applicable to open-vm-tools.
+
+commit 92254389f42b0a09ea140427afb4d0352a56cb4b
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Feb 17 14:51:25 2022 -0800
+
+    Adding configuration information for the GlobalConf feature.
+    
+    As part of the GlobalConf feature, a "globalconf" section is introduced
+    into tools.conf to provide custom configuration options for the feature.
+    The configuration parameters are as follows:
+     * enabled=false - Enable/disable the GlobalConf module.
+     * poll-interval=3600 - Poll interval for the GlobalConf feature.
+     * resource=<path> - Defines the location of the tools.conf in the
+                         GuestStore.  There is a separate default for Windows
+                         and Linux guests.
+
+commit 1b5114ab87e342af85eb340237ba2d747b49fdad
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Feb 17 14:51:25 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit f35987b39f2874f13b2f4facd1b1d3dde7ae2a63
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Feb 17 14:51:25 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit de6d129476724668b8903e2a87654f50ba21b1b2
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Feb 17 14:51:25 2022 -0800
+
+    asyncsocket.c: Use size_t in place of int type for array size and indexing.
+    
+    Glibc 2.35 with GCC 11 and 12 produces additional warnings about strings
+    and array bounds.  Switching from "int" to "size_t" type for variable
+    used for the array size and element indexing.
+    
+    GCC warned when an integer value is passed as the size of the
+    struct pollfd array to poll().
+    
+    Fixes https://github.com/vmware/open-vm-tools/issues/570
+
+commit 956fd221b6697242405bc3c1f8fe5c18236a9b68
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Feb 17 14:51:25 2022 -0800
+
+    Changes to common header files not applicable to open-vm-tools.
+
+commit 760d6ca22de590ffcce82c43926d8b91474cf101
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 7 10:01:44 2022 -0800
+
+    Update ChangeLog with the granular push of Feb. 7, 2022.
+     - plus ChangeLog and late copyright update of Jan. 20, 2022.
+
 commit 8406802f4bf9269f02b6850b10741a7fce1635bc
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Mon Feb 7 09:52:43 2022 -0800
