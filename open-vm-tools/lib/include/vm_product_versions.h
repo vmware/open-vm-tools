@@ -313,7 +313,6 @@
 // Changing the version is required when CPD releases an update.
 #define VA_PATCH_VERSION  "5100"
 
-#define HORIZONOSOT_VERSION "1.4.0"
 #define HORIZONVMDS_VERSION "1.0.0"
 
 #define INTEGRITY_VERSION "8.0.0" /* Should use VPX_VERSION? */
