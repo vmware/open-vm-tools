@@ -370,7 +370,7 @@ static int AsyncTCPSocketRecvPartialBlocking(AsyncSocket *s, void *buf, int len,
 static int AsyncTCPSocketSendBlocking(AsyncSocket *s, void *buf, int len,
                                       int *sent, int timeoutMS);
 static int AsyncTCPSocketDoOneMsg(AsyncSocket *s, Bool read, int timeoutMS);
-static int AsyncTCPSocketWaitForReadMultiple(AsyncSocket **asock, int numSock,
+static int AsyncTCPSocketWaitForReadMultiple(AsyncSocket **asock, size_t numSock,
                                              int timeoutMS, int *outIdx);
 static int AsyncTCPSocketSetOption(AsyncSocket *asyncSocket,
                                    AsyncSocketOpts_Layer layer,
@@ -2807,7 +2807,7 @@ AsyncTCPSocketPeek(AsyncSocket *base,   // IN:
 
 static int
 AsyncTCPSocketPollWork(AsyncTCPSocket **asock,     // IN:
-                       int numSock,                // IN:
+                       size_t numSock,             // IN:
                        void *p,                    // IN:
                        Bool read,                  // IN:
                        int timeoutMS,              // IN:
@@ -2827,11 +2827,11 @@ AsyncTCPSocketPollWork(AsyncTCPSocket **asock,     // IN:
    struct fd_set rwfds;
    struct fd_set exceptfds;
 #endif
-   int i;
+   size_t i;
    int retval;
 
    ASSERT(outAsock != NULL && *outAsock == NULL && asock != NULL &&
-          numSock > 0);
+          numSock != 0);
 
    for (i = 0; i < numSock; i++) {
       if (read && SSL_Pending(asock[i]->sslSock)) {
@@ -2852,7 +2852,7 @@ AsyncTCPSocketPollWork(AsyncTCPSocket **asock,     // IN:
          retval = poll(pfd, numSock, timeoutMS);
          AsyncTCPSocketLock(parentSock);
       } else {
-         for (i = numSock - 1; i >= 0; i--) {
+         for (i = numSock; i-- > 0; ) {
             AsyncTCPSocketUnlock(asock[i]);
          }
          retval = poll(pfd, numSock, timeoutMS);
@@ -2878,7 +2878,7 @@ AsyncTCPSocketPollWork(AsyncTCPSocket **asock,     // IN:
                          &exceptfds, timeoutMS >= 0 ? &tv : NULL);
          AsyncTCPSocketLock(parentSock);
       } else {
-         for (i = numSock - 1; i >= 0; i--) {
+         for (i = numSock; i-- > 0; ) {
             AsyncTCPSocketUnlock(asock[i]);
          }
          retval = select(1, read ? &rwfds : NULL, read ? NULL : &rwfds,
@@ -3032,7 +3032,7 @@ AsyncTCPSocketPoll(AsyncTCPSocket *s,          // IN:
 #else
    void *p = NULL;
 #endif
-   int numSock = 0;
+   size_t numSock = 0;
 
    if (read && s->fd == -1) {
       if (!s->listenAsock4 && !s->listenAsock6) {
@@ -3078,11 +3078,11 @@ AsyncTCPSocketPoll(AsyncTCPSocket *s,          // IN:
 
 static int
 AsyncTCPSocketWaitForReadMultiple(AsyncSocket **asock,   // IN:
-                                  int numSock,           // IN:
+                                  size_t numSock,        // IN:
                                   int timeoutMS,         // IN:
                                   int *outIdx)           // OUT:
 {
-   int i;
+   size_t i;
    int err;
    AsyncTCPSocket *outAsock  = NULL;
 #ifndef _WIN32
@@ -3096,7 +3096,7 @@ AsyncTCPSocketWaitForReadMultiple(AsyncSocket **asock,   // IN:
    }
    err = AsyncTCPSocketPollWork((AsyncTCPSocket **)asock, numSock, p, TRUE,
                                 timeoutMS, NULL, &outAsock);
-   for (i = numSock - 1; i >= 0; i--) {
+   for (i = numSock; i-- > 0; ) {
       AsyncTCPSocket *tcpAsock = TCPSocket(asock[i]);
       if (outAsock == tcpAsock) {
          *outIdx = i;
