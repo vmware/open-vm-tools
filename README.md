@@ -90,9 +90,66 @@ sudo make install
 sudo ldconfig
 ```
 
+### Service Discovery (sdmp) plugin
 To build the optional sdmp (Service Discovery) plugin use the `--enable-servicediscovery` option to invoke the configure script:
 ```
 ./configure --enable-servicediscovery
+```
+
+### The open-vm-tools 12.0.0 release introduces an optional setup script and two plugins (one optional)
+
+ * Salt Minion Setup
+ * Component Manager plugin
+ * ContainerInfo plugin (optional)
+
+### Salt Minion Setup
+The Salt support on Linux consists of a single bash script to setup Salt Minion on VMware virtual machines.  The script requires the "curl" and "awk" commands to be available on the system.
+
+It is recommended to Linux vendors supplying open-vm-tools packages that Salt Minion support be provided in a separate optional package - "open-vm-tools-salt-minion".
+
+To make the Salt Minion Setup a part of the open-vm-tools build use the `--enable-salt-minion` option when invoking the configure script:
+```
+./configure --enable-salt-minion
+```
+
+### Component Manager (componentMgr) plugin
+The component Manager manages a preconfigured set of components available from VMware that can be made available on the Linux guest.  Currently the only component that can be managed is the Salt Minion.
+
+### ContainerInfo (containerInfo) plugin
+The optional containerInfo plugin captures a list of the containers running on a Linux guest and publishes the list to the guest variable "**guestinfo.vmtools.containerinfo**" in JSON format.  The containerInfo plugin supports only the containerd runtime. The plugin communicates with the containerd runtime using gRPC and retrieves the list of running containers.  If any of those containers are managed by Docker, the plugin uses libcurl to communicate with the Docker daemon and get the name of the container.
+
+This plugin requires additional build and runtime dependencies.  It is suggested that this plugin be released in a separate, optional package - "open-vm-tools-containerinfo".  A separate package avoids unneeded, unused runtime dependencies for the customers not using the features provided by this plugin.  
+
+#### Canonical, Debian, Ubuntu Linux
+| Build Dependencies | Runtime |
+|:------------------------:|:----------------:|
+| `libcurl4-openssl-dev` | `curl` |
+| `protobuf-compiler` | `protobuf` |
+| `libprotobuf-dev` | `grpc++` |
+| `protobuf-compiler-grpc` |
+| `libgrpc++-dev` |
+| `golang-github-containerd-containerd-dev` |
+| `golang-github-gogo-protobuf-dev` |
+
+#### Fedora, Red Hat Enterprise Linux, ...
+| Build Dependencies | Runtime |
+|:------------------------:|:----------------:|
+| `libcurl-devel` | `curl` |
+| `protobuf-compiler` | `protobuf` |
+| `protobuf-devel` | `grpc-cpp` |
+| `grpc-plugins` |
+| `grpc-devel` |
+| `containerd-devel` |
+
+
+#### Configuring the build for the ContainerInfo plugin
+The configure script defaults to build the ContainerInfo plugin.  If, however, all the needed dependencies are not available, the plugin will not be built - as if the configure script was invoked with `--enable-containerinfo=no`.  Use this option to explicitly avoid trying to build the plugin.
+```
+./configure --enable-containerinfo=no
+```
+If the configure script is given the option `--enable-containerinfo=yes` and all necessary dependencies are not available, the configure script will terminate with an error.
+```
+./configure --enable-containerinfo=yes
 ```
 
 ## Getting configure options and help
