@@ -105,20 +105,20 @@ To build the optional sdmp (Service Discovery) plugin use the `--enable-serviced
 ### Salt Minion Setup
 The Salt support on Linux consists of a single bash script to setup Salt Minion on VMware virtual machines.  The script requires the "curl" and "awk" commands to be available on the system.
 
-It is recommended to Linux vendors supplying open-vm-tools packages that Salt Minion support be provided in a separate optional package - "open-vm-tools-salt-minion".
+Linux providers supplying open-vm-tools packages are recommended to provide Salt Minion support in a separate optional package - "open-vm-tools-salt-minion".
 
-To make the Salt Minion Setup a part of the open-vm-tools build use the `--enable-salt-minion` option when invoking the configure script:
+To include the Salt Minion Setup in the open-vm-tools build use the `--enable-salt-minion` option when invoking the configure script.
 ```
 ./configure --enable-salt-minion
 ```
 
 ### Component Manager (componentMgr) plugin
-The component Manager manages a preconfigured set of components available from VMware that can be made available on the Linux guest.  Currently the only component that can be managed is the Salt Minion.
+The component Manager manages a preconfigured set of components available from VMware that can be made available on the Linux guest.  Currently the only component that can be managed is the Salt Minion Setup.
 
 ### ContainerInfo (containerInfo) plugin
-The optional containerInfo plugin captures a list of the containers running on a Linux guest and publishes the list to the guest variable "**guestinfo.vmtools.containerinfo**" in JSON format.  The containerInfo plugin supports only the containerd runtime. The plugin communicates with the containerd runtime using gRPC and retrieves the list of running containers.  If any of those containers are managed by Docker, the plugin uses libcurl to communicate with the Docker daemon and get the name of the container.
+The optional containerInfo plugin retrieves a list of the containers running on a Linux guest and publishes the list to the guest variable "**guestinfo.vmtools.containerinfo**" in JSON format.  The containerInfo plugin communicates with the containerd daemon using gRPC to retrieve the desired information.  For containers that are managed by Docker, the plugin uses libcurl to communicate with the Docker daemon and get the names of the containers.
 
-This plugin requires additional build and runtime dependencies.  It is suggested that this plugin be released in a separate, optional package - "open-vm-tools-containerinfo".  A separate package avoids unneeded, unused runtime dependencies for the customers not using the features provided by this plugin.  
+Since this plugin requires additional build and runtime dependencies, Linux vendors are recommended to release it in a separate, optional package - "open-vm-tools-containerinfo".  This avoids unnecessary dependencies for customers not using the feature.
 
 #### Canonical, Debian, Ubuntu Linux
 | Build Dependencies | Runtime |
@@ -143,11 +143,11 @@ This plugin requires additional build and runtime dependencies.  It is suggested
 
 
 #### Configuring the build for the ContainerInfo plugin
-The configure script defaults to build the ContainerInfo plugin.  If, however, all the needed dependencies are not available, the plugin will not be built - as if the configure script was invoked with `--enable-containerinfo=no`.  Use this option to explicitly avoid trying to build the plugin.
+The configure script defaults to building the ContainerInfo when all the needed dependencies are available.  ContainerInfo will not be built if there are missing dependencies.  Invoke the configure script with `--enable-containerinfo=no` to explicitly inhibit building the plugin.
 ```
 ./configure --enable-containerinfo=no
 ```
-If the configure script is given the option `--enable-containerinfo=yes` and all necessary dependencies are not available, the configure script will terminate with an error.
+If the configure script is given the option `--enable-containerinfo=yes` and any necessary dependency is not available, the configure script will terminate with an error.
 ```
 ./configure --enable-containerinfo=yes
 ```
