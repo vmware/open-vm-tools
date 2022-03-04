@@ -1,3 +1,53 @@
+commit a43eac940829b44d5f19c563f76bc8f173ae9464
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Mar 4 12:31:27 2022 -0800
+
+    Add the ReleaseNotes.md file for the OVT 12.0.0 release
+     - Sync README.md content with the RN where there is overlap.
+
+commit eaef22358d8b0584ae1863a4002ad14a8c5164a2
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Mar 2 17:27:43 2022 -0800
+
+    Update the README.md document.
+      - Adding configure and build information for new plugins and service(s)
+        added in the 12.0.0 tools release.
+
+commit eb9d3ea1f87b78e6b46721c9e9005b4492a7154b
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Mar 2 15:21:37 2022 -0800
+
+    Preparing for the 12.0.0 OVT release
+     - configure.ac: set release version - 2 spots.
+     - lib/include/buildNumber.h: Set build number and product build number.
+
+commit b5912048b23f611e79b7c5ca9f0e1d729d1973fb
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Mar 2 15:08:55 2022 -0800
+
+    Copyright clean up.
+     - matching (C) vs. (c) between github and perforce source.
+
+commit f3aab8224d5647a5bc413c5af2543b0c8f8d0a75
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Feb 22 16:52:02 2022 -0800
+
+    Update the list of operating system with open-vm-tools.  Add:
+     * Flatcar Container Linux, all releases
+     * Rocky 8 and later releases
+     * AlmaLinux OS 8 and later releases
+    
+    Addresses:
+      https://github.com/vmware/open-vm-tools/pull/573
+      https://github.com/vmware/open-vm-tools/pull/513
+
+commit 1e9e65529def34cb60d37ab064518ec0fad0d1aa
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 7 10:26:57 2022 -0800
+
+    Update ChangeLog with the granular changes through 1/31/22.
+     - plus ChangeLog update of Jan. 20.
+
 commit cf3cf0f5d59a99814f90c0fbb8c321059baa3693
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Mon Feb 7 10:23:44 2022 -0800
