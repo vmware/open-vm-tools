@@ -1007,6 +1007,7 @@ AsyncTCPSocketListenerCreateImpl(
    struct sockaddr_storage addr;
    socklen_t addrLen;
    char *ipString = NULL;
+   int tempError = ASOCKERR_SUCCESS;
    int getaddrinfoError = AsyncTCPSocketResolveAddr(addrStr, port, socketFamily,
                                                     TRUE, &addr, &addrLen,
                                                     &ipString);
@@ -1014,7 +1015,7 @@ AsyncTCPSocketListenerCreateImpl(
    if (getaddrinfoError == 0) {
       asock = AsyncTCPSocketListenImpl(&addr, addrLen, connectFn, clientData,
                                        pollParams,
-                                       outError);
+                                       &tempError);
 
       if (asock) {
          TCPSOCKLG0(asock,
@@ -1023,15 +1024,17 @@ AsyncTCPSocketListenerCreateImpl(
                     "socket", ipString);
       } else {
          Log(ASOCKPREFIX "Could not create %s listener socket, error %d: %s\n",
-             addr.ss_family == AF_INET ? "IPv4" : "IPv6", *outError,
-             AsyncSocket_Err2String(*outError));
+             addr.ss_family == AF_INET ? "IPv4" : "IPv6", tempError,
+             AsyncSocket_Err2String(tempError));
       }
       free(ipString);
    } else {
       Log(ASOCKPREFIX "Could not resolve listener socket address.\n");
-      if (outError) {
-         *outError = ASOCKERR_ADDRUNRESV;
-      }
+      tempError = ASOCKERR_ADDRUNRESV;
+   }
+
+   if (outError) {
+      *outError = tempError;
    }
 
    return asock;
@@ -1284,11 +1287,12 @@ AsyncSocket_ListenVMCI(unsigned int cid,                  // IN
                        AsyncSocketConnectFn connectFn,    // IN
                        void *clientData,                  // IN
                        AsyncSocketPollParams *pollParams, // IN
-                       int *outError)                     // OUT
+                       int *outError)                     // OUT: optional
 {
    struct sockaddr_vm addr;
    AsyncTCPSocket *asock;
    int vsockDev = -1;
+   int tempError = ASOCKERR_SUCCESS;
 
    memset(&addr, 0, sizeof addr);
    addr.svm_family = VMCISock_GetAFValueFd(&vsockDev);
@@ -1298,7 +1302,10 @@ AsyncSocket_ListenVMCI(unsigned int cid,                  // IN
    asock = AsyncTCPSocketListenImpl((struct sockaddr_storage *)&addr,
                                     sizeof addr,
                                     connectFn, clientData, pollParams,
-                                    outError);
+                                    &tempError);
+   if (outError) {
+      *outError = tempError;
+   }
 
    VMCISock_ReleaseAFValueFd(vsockDev);
    return BaseSocket(asock);
@@ -1519,7 +1526,6 @@ AsyncTCPSocketBind(AsyncTCPSocket *asock,          // IN
                    socklen_t addrLen,              // IN
                    int *outError)                  // OUT
 {
-   int error = ASOCKERR_BIND;
    int sysErr;
    unsigned int port;
 
@@ -1602,7 +1608,7 @@ AsyncTCPSocketBind(AsyncTCPSocket *asock,          // IN
    if (bind(asock->fd, (struct sockaddr *)addr, addrLen) != 0) {
       sysErr = ASOCK_LASTERROR();
       if (sysErr == ASOCK_EADDRINUSE) {
-         error = ASOCKERR_BINDADDRINUSE;
+         *outError = ASOCKERR_BINDADDRINUSE;
       }
       Warning(ASOCKPREFIX "Could not bind socket, error %d: %s\n", sysErr,
               Err_Errno2String(sysErr));
@@ -1614,10 +1620,6 @@ AsyncTCPSocketBind(AsyncTCPSocket *asock,          // IN
 error:
    SSL_Shutdown(asock->sslSock);
    free(asock);
-
-   if (outError) {
-      *outError = error;
-   }
 
    return FALSE;
 }
@@ -1646,14 +1648,13 @@ AsyncTCPSocketListen(AsyncTCPSocket *asock,             // IN
                      int *outError)                     // OUT
 {
    VMwareStatus pollStatus;
-   int error;
 
    ASSERT(NULL != asock);
    ASSERT(NULL != asock->sslSock);
 
    if (!connectFn) {
       Warning(ASOCKPREFIX "invalid arguments to listen!\n");
-      error = ASOCKERR_INVAL;
+      *outError = ASOCKERR_INVAL;
       goto error;
    }
 
@@ -1665,7 +1666,7 @@ AsyncTCPSocketListen(AsyncTCPSocket *asock,             // IN
       int sysErr = ASOCK_LASTERROR();
       Warning(ASOCKPREFIX "could not listen on socket, error %d: %s\n",
               sysErr, Err_Errno2String(sysErr));
-      error = ASOCKERR_LISTEN;
+      *outError = ASOCKERR_LISTEN;
       goto error;
    }
 
@@ -1681,7 +1682,7 @@ AsyncTCPSocketListen(AsyncTCPSocket *asock,             // IN
 
    if (pollStatus != VMWARE_STATUS_SUCCESS) {
       TCPSOCKWARN(asock, "could not register accept callback!\n");
-      error = ASOCKERR_POLL;
+      *outError = ASOCKERR_POLL;
       AsyncTCPSocketUnlock(asock);
       goto error;
    }
@@ -1696,10 +1697,6 @@ AsyncTCPSocketListen(AsyncTCPSocket *asock,             // IN
 error:
    SSL_Shutdown(asock->sslSock);
    free(asock);
-
-   if (outError) {
-      *outError = error;
-   }
 
    return FALSE;
 }
@@ -6633,10 +6630,11 @@ AsyncSocket_ListenSocketUDS(const char *pipeName,               // IN
                             AsyncSocketConnectFn connectFn,     // IN
                             void *clientData,                   // IN
                             AsyncSocketPollParams *pollParams,  // IN
-                            int *outError)                      // OUT
+                            int *outError)                      // OUT: optional
 {
    struct sockaddr_un addr;
    AsyncTCPSocket *asock;
+   int tempError = ASOCKERR_SUCCESS;
 
    memset(&addr, 0, sizeof addr);
    addr.sun_family = AF_UNIX;
@@ -6646,7 +6644,10 @@ AsyncSocket_ListenSocketUDS(const char *pipeName,               // IN
 
    asock = AsyncTCPSocketListenImpl((struct sockaddr_storage *)&addr,
                                     sizeof addr, connectFn, clientData,
-                                    pollParams, outError);
+                                    pollParams, &tempError);
+   if (outError) {
+      *outError = tempError;
+   }
 
    return BaseSocket(asock);
 }

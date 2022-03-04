@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016,2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -66,5 +66,9 @@ main(int argc,           // IN
          LOGLEVEL_THRESHOLD = 4;
       }
    }
+#if FUSE_USE_VERSION < 26
    return fuse_main(argc, argv, &vmblockOperations);
+#else
+   return fuse_main(argc, argv, &vmblockOperations, NULL);
+#endif
 }

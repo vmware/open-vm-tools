@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2019, 2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2019, 2021-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -392,6 +392,7 @@ FileLoggerLog(const gchar *domain,
             g_io_channel_unref(logger->file);
             logger->append = FALSE;
             logger->file = FileLoggerOpen(logger);
+            logger->handler.logHeader = TRUE;
          } else {
             g_io_channel_flush(logger->file, NULL);
          }
@@ -460,6 +461,7 @@ GlibUtils_CreateFileLogger(const char *path,
    data->handler.shared = FALSE;
    data->handler.logfn = FileLoggerLog;
    data->handler.dtor = FileLoggerDestroy;
+   data->handler.logHeader = TRUE;
 
    data->path = g_filename_from_utf8(path, -1, NULL, NULL, NULL);
    if (data->path == NULL) {

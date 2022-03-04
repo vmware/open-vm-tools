@@ -90,9 +90,66 @@ sudo make install
 sudo ldconfig
 ```
 
+### Service Discovery (sdmp) plugin
 To build the optional sdmp (Service Discovery) plugin use the `--enable-servicediscovery` option to invoke the configure script:
 ```
 ./configure --enable-servicediscovery
+```
+
+### The open-vm-tools 12.0.0 release introduces an optional setup script and two plugins (one optional)
+
+ * Salt Minion Setup
+ * Component Manager plugin
+ * ContainerInfo plugin (optional)
+
+### Salt Minion Setup
+The Salt support on Linux consists of a single bash script to setup Salt Minion on VMware virtual machines.  The script requires the "curl" and "awk" commands to be available on the system.
+
+Linux providers supplying open-vm-tools packages are recommended to provide Salt Minion support in a separate optional package - "open-vm-tools-salt-minion".
+
+To include the Salt Minion Setup in the open-vm-tools build use the `--enable-salt-minion` option when invoking the configure script.
+```
+./configure --enable-salt-minion
+```
+
+### Component Manager (componentMgr) plugin
+The component Manager manages a preconfigured set of components available from VMware that can be made available on the Linux guest.  Currently the only component that can be managed is the Salt Minion Setup.
+
+### ContainerInfo (containerInfo) plugin
+The optional containerInfo plugin retrieves a list of the containers running on a Linux guest and publishes the list to the guest variable "**guestinfo.vmtools.containerinfo**" in JSON format.  The containerInfo plugin communicates with the containerd daemon using gRPC to retrieve the desired information.  For containers that are managed by Docker, the plugin uses libcurl to communicate with the Docker daemon and get the names of the containers.
+
+Since this plugin requires additional build and runtime dependencies, Linux vendors are recommended to release it in a separate, optional package - "open-vm-tools-containerinfo".  This avoids unnecessary dependencies for customers not using the feature.
+
+#### Canonical, Debian, Ubuntu Linux
+| Build Dependencies | Runtime |
+|:------------------------:|:----------------:|
+| `libcurl4-openssl-dev` | `curl` |
+| `protobuf-compiler` | `protobuf` |
+| `libprotobuf-dev` | `grpc++` |
+| `protobuf-compiler-grpc` |
+| `libgrpc++-dev` |
+| `golang-github-containerd-containerd-dev` |
+| `golang-github-gogo-protobuf-dev` |
+
+#### Fedora, Red Hat Enterprise Linux, ...
+| Build Dependencies | Runtime |
+|:------------------------:|:----------------:|
+| `libcurl-devel` | `curl` |
+| `protobuf-compiler` | `protobuf` |
+| `protobuf-devel` | `grpc-cpp` |
+| `grpc-plugins` |
+| `grpc-devel` |
+| `containerd-devel` |
+
+
+#### Configuring the build for the ContainerInfo plugin
+The configure script defaults to building the ContainerInfo when all the needed dependencies are available.  ContainerInfo will not be built if there are missing dependencies.  Invoke the configure script with `--enable-containerinfo=no` to explicitly inhibit building the plugin.
+```
+./configure --enable-containerinfo=no
+```
+If the configure script is given the option `--enable-containerinfo=yes` and any necessary dependency is not available, the configure script will terminate with an error.
+```
+./configure --enable-containerinfo=yes
 ```
 
 ## Getting configure options and help
@@ -118,6 +175,9 @@ You can get involved today in several different ways:
   * Oracle Linux 7 and later 
   * Fedora 19 and later releases
   * openSUSE 11.x and later releases
+  * Flatcar Container Linux, all releases
+  * Rocky 8 and later releases
+  * AlmaLinux OS 8 and later releases
  
 ## Will external developers be allowed to become committers to the project?
 Yes. Initially, VMware engineers will be the only committers. As we roll out our development infrastructure, we will be looking to add external committers to the project as well.

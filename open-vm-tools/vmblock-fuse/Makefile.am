@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2008-2016 VMware, Inc.  All rights reserved.
+### Copyright (c) 2008-2016,2021 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -29,12 +29,14 @@ AM_CFLAGS += -D_XOPEN_SOURCE=600
 AM_CFLAGS += -DUSERLEVEL
 AM_CFLAGS += -D_FILE_OFFSET_BITS=64
 AM_CFLAGS += @FUSE_CPPFLAGS@
+AM_CFLAGS += @FUSE3_CPPFLAGS@
 AM_CFLAGS += @GLIB2_CPPFLAGS@
 AM_CFLAGS += -I$(top_srcdir)/modules/shared/vmblock
 AM_CFLAGS += -I$(srcdir)
 
 vmware_vmblock_fuse_LDADD =
 vmware_vmblock_fuse_LDADD += @FUSE_LIBS@
+vmware_vmblock_fuse_LDADD += @FUSE3_LIBS@
 vmware_vmblock_fuse_LDADD += @GLIB2_LIBS@
 
 vmware_vmblock_fuse_SOURCES =

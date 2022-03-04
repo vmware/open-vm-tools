@@ -133,26 +133,6 @@ addfiles()
 }
 
 
-# addGrubFile(): adds a grub file to the archive after
-# replacing password hash with 'xxxxxx'
-addGrubFile()
-{
-   file="$1"
-
-   addfile "$file"
-   if [ $? != 0 ]; then
-      return
-   fi
-
-   # Avoid tempering with links
-   if [ ! -L "${OUTPUT_DIR}$file" ]; then
-      cat "${OUTPUT_DIR}$file" | \
-         sed 's/password[[:space:]]\+\(.*\)[[:space:]]\+\(.*\)$/password \1 xxxxxx/g' > \
-         "${OUTPUT_DIR}$file.modified"
-      mv "${OUTPUT_DIR}$file.modified" "${OUTPUT_DIR}$file"
-   fi
-}
-
 # runcmd($out, $cmd): executes the command redirected to a file
 runcmd()
 {
@@ -180,12 +160,6 @@ stageLinux()
 {
    # Try to collect bootloader config.
    addfile /etc/lilo.conf
-
-   # And for grub we are not sure about the exact default location so collect them
-   # all.
-   addGrubFile /boot/grub/grub.conf
-   addGrubFile /boot/grub/menu.lst
-   addGrubFile /etc/grub.conf
 
    # Old linux kernel use modules.conf while new kernel use modprobe.conf and modprobe.d
    addfile /etc/modules.conf
@@ -280,7 +254,7 @@ collectNetworkDetails()
 export PATH=/bin:/sbin:/usr/bin:/usr/sbin
 
 TARFILE=vm-`date +%Y-%m-%d`.$$.tar.gz
-VER=0.93
+VER=0.94
 
 # Parse args
 for option in $@

@@ -545,6 +545,7 @@ GuestInfoGather(gpointer data)
    gchar *osNameOverride;
    gchar *osNameFullOverride;
    Bool maxNicsError = FALSE;
+   static uint32 logThrottleCount = 0;
 
    g_debug("Entered guest info gather.\n");
 
@@ -767,8 +768,9 @@ GuestInfoGather(gpointer data)
       nicInfo = Util_SafeCalloc(1, sizeof (struct NicInfoV3));
    }
    if (maxNicsError) {
-      VMTools_VmxLog(ctx->rpc, "%s: NIC limit (%d) reached.",
-                     __FUNCTION__, NICINFO_MAX_NICS);
+      VMTools_VmxLogThrottled(&logThrottleCount, ctx->rpc,
+                              "%s: NIC limit (%d) reached.",
+                              __FUNCTION__, NICINFO_MAX_NICS);
    }
 
    /*
@@ -1604,6 +1606,12 @@ GuestInfoUpdateVMX(ToolsAppCtx *ctx,        // IN: Application context
          return FALSE;
       }
 
+      if (infoType == INFO_OS_NAME) {
+         g_message("Updated Guest OS name to %s\n", (char *) info);
+      } else if (infoType == INFO_OS_NAME_FULL) {
+         g_message("Updated Guest OS full name to %s\n", (char *) info);
+      }
+
       /* Update the value in the cache as well. */
       free(gInfoCache.value[infoType]);
       gInfoCache.value[infoType] = Util_SafeStrdup((char *) info);
@@ -1978,29 +1986,20 @@ TweakGatherLoop(ToolsAppCtx *ctx,
    gint pollInterval = 0;
 
    if (enable) {
-      pollInterval = defInterval * 1000;
-
       /*
        * Check the config registry for custom poll interval,
        * converting from seconds to milliseconds.
        */
-      if (g_key_file_has_key(ctx->config, CONFGROUPNAME_GUESTINFO,
-                             cfgKey, NULL)) {
-         GError *gError = NULL;
-
-         pollInterval = g_key_file_get_integer(ctx->config,
-                                               CONFGROUPNAME_GUESTINFO,
-                                               cfgKey, &gError);
-         pollInterval *= 1000;
-
-         if (pollInterval < 0 || gError) {
-            g_warning("Invalid %s.%s value. Using default %us.\n",
-                      CONFGROUPNAME_GUESTINFO, cfgKey, defInterval);
-            pollInterval = defInterval * 1000;
-         }
-
-         g_clear_error(&gError);
+      pollInterval = VMTools_ConfigGetInteger(ctx->config,
+                                              CONFGROUPNAME_GUESTINFO,
+                                              cfgKey, defInterval);
+      if (pollInterval < 0 || pollInterval > (G_MAXINT / 1000)) {
+         g_warning("Invalid %s.%s value. Using default %us.\n",
+                   CONFGROUPNAME_GUESTINFO, cfgKey, defInterval);
+         pollInterval = defInterval;
       }
+
+      pollInterval *= 1000;
    }
 
    if (*timeoutSource != NULL) {

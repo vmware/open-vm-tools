@@ -48,6 +48,7 @@
 #include "includeCheck.h"
 
 #include "vm_basic_defs.h"
+#include "vm_assert.h"
 
 #if defined __cplusplus
 extern "C" {

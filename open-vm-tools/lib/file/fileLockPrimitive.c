@@ -72,9 +72,9 @@ static char implicitReadToken;
 
 typedef struct parse_table
 {
-   int    type;
-   char  *name;
-   void  *valuePtr;
+   int         type;
+   const char *name;
+   void       *valuePtr;
 } ParseTable;
 
 /*
@@ -1282,27 +1282,22 @@ FileLockCreateEntryDirectory(const char *lockDir,    // IN:
       if (err == 0) {
         /* The name exists. Deal with it... */
 
-        if (fileData.fileType == FILE_TYPE_REGULAR) {
+        if (fileData.fileType != FILE_TYPE_DIRECTORY) {
            /*
-            * It's a file. Assume this is an (active?) old style lock and
-            * err on the safe side - don't remove it (and automatically
-            * upgrade to a new style lock).
+            * Locks are implemented via directories. Ancient hosted locks and
+            * lock files imported alongsize an ESXi VM are implemented as
+            * files. It's safe to remove these. The ESXi lock files are
+            * meaningless and the ancient hosted lock files have been dead
+            * for over a decade (at the time of writing this comment).
             */
 
-            Log(LGPFX" %s: '%s' exists; an old style lock file?\n",
-                __FUNCTION__, lockDir);
-
-            err = EBUSY;
-            break;
-        }
-
-        if (fileData.fileType != FILE_TYPE_DIRECTORY) {
-           /* Not a directory; attempt to remove the debris */
-           if (FileDeletionRobust(lockDir, FALSE) != 0) {
-              Warning(LGPFX" %s: '%s' exists and is not a directory.\n",
+           err = FileDeletionRobust(lockDir, FALSE);
+           if (err == 0) {
+              Warning(LGPFX" %s: '%s' is not a directory. Removed.\n",
                       __FUNCTION__, lockDir);
-
-              err = ENOTDIR;
+           } else {
+              Warning(LGPFX" %s: an attempt to remove '%s' failed: %s\n",
+                      __FUNCTION__, lockDir, Err_Errno2String(err));
               break;
            }
 

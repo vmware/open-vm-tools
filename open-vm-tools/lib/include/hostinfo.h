@@ -212,6 +212,7 @@ typedef enum {
    OS_WINSEVEN               = 9,
    OS_WIN8                   = 10,
    OS_WIN10                  = 11,
+   OS_WIN11                  = 12,
    OS_UNKNOWN                = 99999 // last, highest value
 } OS_TYPE;
 
@@ -241,6 +242,8 @@ typedef enum {
    OS_DETAIL_WIN8SERVER      = 23,
    OS_DETAIL_WIN10           = 24,
    OS_DETAIL_WIN10SERVER     = 25,
+   OS_DETAIL_WIN11           = 26,
+   OS_DETAIL_WIN11SERVER     = 27,
    OS_DETAIL_UNKNOWN         = 99999  // last, highest value
 } OS_DETAIL_TYPE;
 

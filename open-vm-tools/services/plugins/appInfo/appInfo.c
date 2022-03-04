@@ -30,6 +30,7 @@
 
 #include "appInfoInt.h"
 #include "vmware.h"
+#include "codeset.h"
 #include "conf.h"
 #include "dynbuf.h"
 #include "escape.h"
@@ -50,10 +51,6 @@
 VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 #endif
 
-#if defined(_WIN32)
-#include "codeset.h"
-#endif
-
 /**
  * Maximum size of the packet size that appInfo plugin should send
  * to the VMX. Currently, this is set to 62 KB.
@@ -72,6 +69,14 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
  * FALSE will enable the plugin. TRUE will disable the plugin.
  */
 #define APP_INFO_CONF_DEFAULT_DISABLED_VALUE FALSE
+
+/**
+ * Default value for CONFNAME_APPINFO_REMOVE_DUPLICATES setting in
+ * tools configuration file.
+ *
+ * TRUE will remove duplicate applications.
+ */
+#define APP_INFO_CONF_DEFAULT_REMOVE_DUPLICATES TRUE
 
 /**
  * Default value for CONFNAME_APPINFO_USE_WMI setting in
@@ -100,51 +105,6 @@ static gboolean gAppInfoEnabledInHost = TRUE;
 static GSource *gAppInfoTimeoutSource = NULL;
 
 static void TweakGatherLoop(ToolsAppCtx *ctx, gboolean force);
-
-
-/*
- *****************************************************************************
- * EscapeJSONString --
- *
- * Escapes a string to be included in JSON content.
- *
- * @param[in] str The string to be escaped.
- *
- * @retval Pointer to a heap-allocated memory. This holds the escaped content
- *         of the string passed by the caller.
- *
- *****************************************************************************
- */
-
-static char *
-EscapeJSONString(const char *str)    // IN
-{
-   /*
-    * Escape '"' and '\' characters in the JSON string.
-    */
-
-   static const int bytesToEscape[] = {
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,   // "
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0,   // '\'
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-   };
-
-   return Escape_DoString("\\u00", bytesToEscape, str, strlen(str),
-                          NULL);
-}
 
 
 /*
@@ -291,6 +251,8 @@ AppInfoGatherTask(ToolsAppCtx *ctx,    // IN
    GSList *appNode;
    static Atomic_uint64 updateCounter = {0};
    uint64 counter = (uint64) Atomic_ReadInc64(&updateCounter) + 1;
+   GHashTable *appsAdded = NULL;
+   gchar *key = NULL;
 
    static char headerFmt[] = "{\n"
                      "\"" APP_INFO_KEY_VERSION        "\":\"%d\", \n"
@@ -305,6 +267,11 @@ AppInfoGatherTask(ToolsAppCtx *ctx,    // IN
                            "\"" APP_INFO_KEY_APP_VERSION "\":\"%s\""
                            "}";
    static char jsonSuffix[] = "]}";
+   gboolean removeDup =
+      VMTools_ConfigGetBoolean(ctx->config,
+                               CONFGROUPNAME_APPINFO,
+                               CONFNAME_APPINFO_REMOVE_DUPLICATES,
+                               APP_INFO_CONF_DEFAULT_REMOVE_DUPLICATES);
 
    DynBuf_Init(&dynBuffer);
 
@@ -323,6 +290,10 @@ AppInfoGatherTask(ToolsAppCtx *ctx,    // IN
    DynBuf_Append(&dynBuffer, tmpBuf, len);
 
    appList = AppInfo_SortAppList(AppInfo_GetAppList(ctx->config));
+   if (removeDup) {
+      appsAdded = g_hash_table_new_full(g_str_hash, g_str_equal,
+                                        g_free, NULL);
+   }
 
    for (appNode = appList; appNode != NULL; appNode = appNode->next) {
       size_t currentBufferSize = DynBuf_GetSize(&dynBuffer);
@@ -333,7 +304,17 @@ AppInfoGatherTask(ToolsAppCtx *ctx,    // IN
          goto next_entry;
       }
 
-      escapedCmd = EscapeJSONString(appInfo->appName);
+      if (removeDup) {
+         key = g_strdup_printf("%s|%s", appInfo->appName, appInfo->version);
+         /*
+          * If the key already exists, then this app is a duplicate. Free
+          * the key and move to the next application.
+          */
+         if (g_hash_table_contains(appsAdded, key)) {
+            goto next_entry;
+         }
+      }
+      escapedCmd = CodeSet_JsonEscape(appInfo->appName);
 
       if (NULL == escapedCmd) {
          g_warning("%s: Failed to escape the content of cmdName.\n",
@@ -341,7 +322,7 @@ AppInfoGatherTask(ToolsAppCtx *ctx,    // IN
          goto quit;
       }
 
-      escapedVersion = EscapeJSONString(appInfo->version);
+      escapedVersion = CodeSet_JsonEscape(appInfo->version);
       if (NULL == escapedVersion) {
          g_warning("%s: Failed to escape the content of version information.\n",
                    __FUNCTION__);
@@ -373,8 +354,14 @@ AppInfoGatherTask(ToolsAppCtx *ctx,    // IN
       }
 
       DynBuf_Append(&dynBuffer, tmpBuf, len);
+      if (removeDup) {
+         g_hash_table_add(appsAdded, key);
+         key = NULL;
+      }
 
 next_entry:
+      g_free(key);
+      key = NULL;
       free(escapedCmd);
       escapedCmd = NULL;
       free(escapedVersion);
@@ -388,6 +375,10 @@ quit:
    free(escapedCmd);
    free(escapedVersion);
    AppInfo_DestroyAppList(appList);
+   if (appsAdded != NULL) {
+      g_hash_table_destroy(appsAdded);
+   }
+   g_free(key);
    g_free(tstamp);
    DynBuf_Destroy(&dynBuffer);
 }
@@ -514,7 +505,7 @@ TweakGatherLoop(ToolsAppCtx *ctx,  // IN
                                               CONFNAME_APPINFO_POLLINTERVAL,
                                               APP_INFO_POLL_INTERVAL);
 
-      if (pollInterval < 0) {
+      if (pollInterval < 0 || pollInterval > (G_MAXINT / 1000)) {
          g_warning("%s: Invalid poll interval %d. Using default %us.\n",
                    __FUNCTION__, pollInterval, APP_INFO_POLL_INTERVAL);
          pollInterval = APP_INFO_POLL_INTERVAL;

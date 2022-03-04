@@ -273,11 +273,10 @@ void
 Debug(const char *fmtstr, ...)
 {
 #ifdef VMX86_DEBUG
-   va_list args;
-
    char *tmp = malloc(MAXSTRING);
 
    if (tmp != NULL) {
+      va_list args;
       va_start(args, fmtstr);
       Str_Vsnprintf(tmp, MAXSTRING, fmtstr, args);
       va_end(args);
@@ -465,11 +464,10 @@ SetDeployError(const char* format, ...)
    /*
     * No Error check is employed since this is only an advisory service.
     */
-   va_list args;
-
    char* tmp = malloc(MAXSTRING);
 
    if (tmp != NULL) {
+      va_list args;
       va_start(args, format);
       Str_Vsnprintf(tmp, MAXSTRING, format, args);
       va_end(args);
@@ -1883,6 +1881,16 @@ DeployPkg_DeployPackageFromFileEx(const char* file)
 {
    DeployPkgStatus retStatus;
 
+#if !defined(OPEN_VM_TOOLS) && !defined(USERWORLD)
+   sLog(log_info, "libDeployPkg.so version: %s (%s)",
+        SYSIMAGE_VERSION_EXT_STR, BUILD_NUMBER);
+#else
+   /*
+    * For OPEN_VM_TOOLS and USERWORLD, the vmtoolsd version is logged in
+    * function DeployPkgDeployPkgInGuest from
+    * services/plugins/deployPkg/deployPkg.c
+    */
+#endif
    sLog(log_info, "Initializing deployment module.");
    Init();
 

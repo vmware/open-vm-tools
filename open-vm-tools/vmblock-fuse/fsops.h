@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2018,2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -31,12 +31,18 @@
 #define _VMBLOCK_FUSE_H_
 
 /*
+ *  FUSE_USE_VERSION must be set before the fuse or fuse3 headers are
+ *  included.  If undefined, fall back to previous default used.
+ */
+#ifndef FUSE_USE_VERSION
+/*
  * FUSE_USE_VERSION sets the version of the FUSE API that will be exported.
  * Version 25 is the newest version supported by the libfuse in our toolchain
  * as of 2008-07.
  */
-
 #define FUSE_USE_VERSION 25
+#endif
+
 #include <fuse.h>
 
 #include "vmblock.h"
@@ -55,9 +61,18 @@
  */
 
 int VMBlockReadLink(const char *path, char *buf, size_t bufSize);
+
+#if FUSE_MAJOR_VERSION == 3
+int VMBlockGetAttr(const char *path, struct stat *statBuf,
+                   struct fuse_file_info *fi);
+int VMBlockReadDir(const char *path, void *buf, fuse_fill_dir_t filler,
+                   off_t offset, struct fuse_file_info *fileInfo,
+                   enum fuse_readdir_flags);
+#else
 int VMBlockGetAttr(const char *path, struct stat *statBuf);
 int VMBlockReadDir(const char *path, void *buf, fuse_fill_dir_t filler,
                    off_t offset, struct fuse_file_info *fileInfo);
+#endif
 int VMBlockOpen(const char *path, struct fuse_file_info *fileInfo);
 int VMBlockWrite(const char *path, const char *buf, size_t size, off_t offset,
                  struct fuse_file_info *fileInfo);

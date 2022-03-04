@@ -1390,7 +1390,7 @@ StartCurrentClientConnRecvTimeout(void)
 
    clientRecvTimeout = GUESTSTORE_CONFIG_GET_INT("clientRecvTimeout",
       DEFAULT_CLIENT_RECV_TIMEOUT);
-   if (clientRecvTimeout <= 0) {
+   if (clientRecvTimeout <= 0 || clientRecvTimeout > (G_MAXINT / 1000)) {
       g_warning("Invalid clientRecvTimeout (%d); Using default (%d).\n",
                 clientRecvTimeout, DEFAULT_CLIENT_RECV_TIMEOUT);
       clientRecvTimeout = DEFAULT_CLIENT_RECV_TIMEOUT;
@@ -2282,7 +2282,8 @@ VmxConnectCb(AsyncSocket *asock,  // IN
 
    theVmxConn->connTimeout = GUESTSTORE_CONFIG_GET_INT("connTimeout",
       GUESTSTORE_DEFAULT_CONN_TIMEOUT);
-   if (theVmxConn->connTimeout <= 0) {
+   if (theVmxConn->connTimeout <= 0 ||
+       theVmxConn->connTimeout > (G_MAXINT / 1000)) {
       g_warning("Invalid connTimeout (%d); Using default (%d).\n",
                 theVmxConn->connTimeout, GUESTSTORE_DEFAULT_CONN_TIMEOUT);
       theVmxConn->connTimeout = GUESTSTORE_DEFAULT_CONN_TIMEOUT;

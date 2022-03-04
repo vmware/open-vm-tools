@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2019, 2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -186,9 +186,9 @@ MXUserHistoIndex(uint64 value)  // IN:
  */
 
 MXUserHisto *
-MXUserHistoSetUp(char *typeName,   // type (name) of histogram
-                 uint64 minValue,  // IN: ns; 1, 10, 100, 1000...
-                 uint32 decades)   // IN: decimal decades to cover from min
+MXUserHistoSetUp(const char *typeName, // type (name) of histogram
+                 uint64 minValue,      // IN: ns; 1, 10, 100, 1000...
+                 uint32 decades)       // IN: decimal decades to cover from min
 {
    MXUserHisto *histo;
 
@@ -448,7 +448,7 @@ MXUserBasicStatsSample(MXUserBasicStats *stats,  // IN/OUT:
 
 void
 MXUserBasicStatsSetUp(MXUserBasicStats *stats,  // IN/OUT:
-                      char *typeName)           // IN:
+                      const char *typeName)     // IN:
 {
    stats->typeName = Util_SafeStrdup(typeName);
    stats->numSamples = 0;
@@ -831,7 +831,7 @@ MXUser_StatisticsControl(double contentionRatioFloor,     // IN:
 
 static INLINE void
 MXUserForceHisto(Atomic_Ptr *histoPtr,  // IN/OUT:
-                 char *typeName,        // IN:
+                 const char *typeName,  // IN:
                  uint64 minValue,       // IN:
                  uint32 decades)        // IN:
 {

@@ -59,7 +59,8 @@
 
 /* The DRM device we are looking for */
 #define VMWGFXCTRL_VENDOR     "0x15ad"
-#define VMWGFXCTRL_DEVICE     "0x0405"
+#define VMWGFXCTRL_SVGA2_DEVICE     "0x0405"
+#define VMWGFXCTRL_SVGA3_DEVICE     "0x0406"
 #define VMWGFXCTRL_KERNELNAME "vmwgfx"
 
 /* Required DRM version for resolutionKMS */
@@ -136,7 +137,8 @@ vmwgfxOpenDRM(const char *node) // IN: Device node base name.
       }
 
       if (strcmp(vendor, VMWGFXCTRL_VENDOR) != 0 ||
-          strcmp(device, VMWGFXCTRL_DEVICE) != 0) {
+          (strcmp(device, VMWGFXCTRL_SVGA2_DEVICE) != 0 &&
+           strcmp(device, VMWGFXCTRL_SVGA3_DEVICE) != 0)) {
          goto skipCheck;
       }
 

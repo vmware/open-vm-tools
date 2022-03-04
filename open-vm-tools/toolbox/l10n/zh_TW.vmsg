@@ -1,5 +1,5 @@
 ##########################################################
-# Copyright (C) 2010-2017,2020-2021 VMware, Inc. All rights reserved.
+# Copyright (C) 2010-2017,2020-2022 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -104,7 +104,7 @@ help.gueststore = "%1$s: 從 GuestStore 取得資源內容\n用法: %2$s %3$s <�
 
 help.hint = "如需詳細資訊，請嘗試「%1$s%2$s%3$s%4$s」。\n"
 
-help.info = "%1$s: 更新主機上的客體資訊\n使用方式: %2$s %3$s update <資訊類別>\n\n子命令:\n   update <資訊類別>: 更新依 <資訊類別> 識別之資訊\n<資訊類別> 可為「network」\n"
+help.info = "%1$s: 更新主機上的客體資訊\n用法: %2$s %3$s update <資訊類別>\n\n子命令:\n   update <資訊類別>: 更新依 <資訊類別> 識別之資訊\n<資訊類別> 可為「network」\n"
 
 help.logging = "%1$s: 修改工具記錄\n用法: %2$s %3$s 層級 <子命令> <服務名稱> <層級>\n\n子命令:\n   get <服務名稱>: 顯示目前層級\n   備註: 如果 tools.conf 中未顯示，則其\n   在全域組態中的值會在顯示時傳回\n   set <服務名稱> <層級>: 設定目前層級\n\n<服務名稱> 可為任何受支援的服務，例如 vmsvc 或 vmusr\n<層級> 可為錯誤、嚴重、警告、資訊、訊息、偵錯之一\n   預設為 %4$s\n"
 
@@ -112,7 +112,7 @@ help.main = "用法: %1$s <命令> [選項] [子命令]\n輸入「%2$s %3$s <命
 
 help.script = "%1$s: 控制指令碼執行以回應電源作業\n用法: %2$s %3$s <power|resume|suspend|shutdown> <子命令> [args]\n\n子命令:\n   enable: 啟用指定指令碼，並將其路徑還原為預設值\n   disable: 停用指定指令碼\n   set <full_path>: 將指定指令碼設定為指定路徑\n   default: 列印指定指令碼的預設路徑\n   current: 列印指定指令碼的目前路徑\n   備註: 如果 tools.conf 中未顯示路徑，則其\n   在全域組態中的值會在顯示時傳回\n"
 
-help.stat = "%1$s: 列印實用的客體和主機資訊\n使用方式: %2$s %3$s <子命令>\n\n子命令:\n   hosttime: 列印主機時間\n   speed: 列印 CPU 速度 (MHz)\n僅 ESX 客體子命令:\n   sessionid: 列印目前的工作階段識別碼\n   balloon: 列印記憶體佔用資訊\n   swap: 列印記憶體交換資訊\n   memlimit: 列印記憶體限制資訊\n   memres: 列印記憶體保留區資訊\n   cpures: 列印 CPU 保留區資訊\n   cpulimit: 列印 CPU 限制資訊\n   raw [<代碼> <統計名称>]: 列印原始統計資訊\n      <代碼> 可為「text」、「json」、「xml」、「yaml」其中之一。\n      <統計名称> 包含「session」、「host」、「resources」、「vscsi」和\n      vnet」(某些狀態如 vscsi 為兩個字，例如「vscsi scsi0:0」)。\n      如果並未指定引數 <代碼> 和 <統計名称>\n      則列印可用的統計資料。\n"
+help.stat = "%1$s: 列印實用的客體和主機資訊\n用法: %2$s %3$s <子命令>\n\n子命令:\n   hosttime: 列印主機時間\n   speed: 列印 CPU 速度 (MHz)\n僅 ESX 客體子命令:\n   sessionid: 列印目前的工作階段識別碼\n   balloon: 列印記憶體佔用資訊\n   swap: 列印記憶體交換資訊\n   memlimit: 列印記憶體限制資訊\n   memres: 列印記憶體保留區資訊\n   cpures: 列印 CPU 保留區資訊\n   cpulimit: 列印 CPU 限制資訊\n   raw [<代碼> <統計名称>]: 列印原始統計資訊\n      <代碼> 可為「text」、「json」、「xml」、「yaml」其中之一。\n      <統計名称> 包含「session」、「host」、「resources」、「vscsi」和\n      vnet」(某些狀態如 vscsi 為兩個字，例如「vscsi scsi0:0」)。\n      如果並未指定引數 <代碼> 和 <統計名称>\n      則列印可用的統計資料。\n"
 
 help.timesync = "%1$s: 用於控制客體作業系統時間同步的功能\n用法: %2$s %3$s <subcommand>\n\n子命令:\n   enable: 啟用時間同步\n   disable: 停用時間同步\n   status: 列印時間同步狀態\n"
 

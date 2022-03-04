@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2019, 2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -197,7 +197,7 @@ typedef struct lock_values
 {
    char         *machineID;
    char         *executionID;
-   char         *lockType;
+   const char   *lockType;
    char         *locationChecksum;
    char         *memberName;
    unsigned int  lamportNumber;

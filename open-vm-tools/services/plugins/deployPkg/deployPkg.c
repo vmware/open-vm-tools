@@ -38,6 +38,10 @@
 #include "unicodeBase.h"
 #include "conf.h"
 
+#include "vm_tools_version.h"
+#include "buildNumber.h"
+#include "vm_product.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -123,6 +127,8 @@ DeployPkgDeployPkgInGuest(ToolsAppCtx *ctx,    // IN: app context
    }
    DeployPkg_SetLogger(DeployPkgLog_Log);
 
+   DeployPkgLog_Log(log_info, "%s Version: %s (%s)", VMWARE_TOOLS_SHORT_NAME,
+                    TOOLS_VERSION_EXT_CURRENT_STR, BUILD_NUMBER);
    DeployPkgLog_Log(log_debug, "Deploying %s", pkgFile);
 
 #ifdef _WIN32

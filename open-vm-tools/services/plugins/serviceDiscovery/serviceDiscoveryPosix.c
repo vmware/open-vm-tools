@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2020-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -62,21 +62,7 @@ ReadFromHandle(gint h,
                    __FUNCTION__, errno);
       }
    } else {
-      for (;;) {
-         size_t readBytes;
-         char buf[SERVICE_DISCOVERY_VALUE_MAX_SIZE];
-         readBytes = fread(buf, 1, sizeof(buf), f);
-         g_debug("%s: readBytes = %" G_GSSIZE_FORMAT "\n", __FUNCTION__,
-                 readBytes);
-
-         if (readBytes > 0) {
-            DynBuf_Append(out, buf, readBytes);
-         }
-
-         if (readBytes < sizeof(buf)) {
-            break;
-         }
-      }
+      DepleteReadFromStream(f, out);
       if (fclose(f) != 0) {
          g_warning("%s: Failed to close file stream, errno=%d",
                    __FUNCTION__, errno);
@@ -84,126 +70,103 @@ ReadFromHandle(gint h,
    }
 }
 
-
 /*
  *****************************************************************************
- * PublishScriptOutputToNamespaceDB --
+ * ExecuteScript --
  *
- * Spawns child process for script, reads stdout from pipe, writes
- * generated chunks to Namespace DB.
+ * Spawns child process for script, reads child process stdout stream and
+ * sends data to Namespace DB and/or host-side gdp daemon.
  *
- * Chunk count will be written to Namespace DB using received
- * "key" (ie. get-listening-process-info).
- *
- * Chunks will be written to Namespace DB with keys constructed by "key-[i]"
- * template (ie. get-listening-process-info-1, get-listening-process-info-2)
- *
- * @param[in] ctx             Application context.
- * @param[in] key             Key used for chunk count
+ * @param[in] ctx             The application context
+ * @param[in] key             Script name
  * @param[in] script          Script to be executed
  *
- * @retval TRUE  Script execution and Namespace DB write over RPC succeeded.
- * @retval FALSE Either of script execution or Namespace DB write failed.
+ * @retval TRUE  Successfully executed script and sent output to gdp daemon.
+ * @retval FALSE Otherwise.
  *
  *****************************************************************************
  */
 
 Bool
-PublishScriptOutputToNamespaceDB(ToolsAppCtx *ctx,
-                                 const char *key,
-                                 const char *script)
+ExecuteScript(ToolsAppCtx *ctx,
+              const char *key,
+              const char *script)
 {
-   Bool status = FALSE;
-   GPid pid;
+   Bool status;
    gchar *command = g_strdup(script);
    gchar *cmd[] = { command, NULL };
    gint child_stdout = -1;
    gint child_stderr = -1;
-   FILE* child_stdout_f;
+   FILE *child_stdout_f;
    GError *p_error = NULL;
    DynBuf err;
-   int i = 0;
 
-   status = g_spawn_async_with_pipes(NULL, cmd, NULL, G_SPAWN_DEFAULT, NULL,
-                                     NULL, &pid, NULL, &child_stdout, &child_stderr,
-                                     &p_error);
+   status = g_spawn_async_with_pipes(NULL, // const gchar *working_directory
+                                     cmd, // gchar **argv
+                                     NULL, // gchar **envp
+                                     G_SPAWN_DEFAULT, // GSpawnFlags flags
+                                     NULL, // GSpawnChildSetupFunc child_setup
+                                     NULL, // gpointer user_data
+                                     NULL, // GPid *child_pid
+                                     NULL, // gint *standard_input
+                                     &child_stdout, // gint *standard_output
+                                     &child_stderr, // gint *standard_error
+                                     &p_error); // GError **error
    if (!status) {
       if (p_error != NULL) {
-         g_warning("%s: Error during script exec %s\n", __FUNCTION__,
-                   p_error->message);
-         g_error_free(p_error);
+         g_warning("%s: Error during script exec %s\n",
+                   __FUNCTION__, p_error->message);
+         g_clear_error(&p_error);
       } else {
          g_warning("%s: Command not run\n", __FUNCTION__);
       }
+
+      /*
+       * If an error occurs, child_pid, standard_input, standard_output,
+       * and standard_error will not be filled with valid values.
+       */
       g_free(command);
       return status;
    }
 
    g_debug("%s: Child process spawned for %s\n", __FUNCTION__, key);
 
+   status = FALSE;
+
    child_stdout_f = fdopen(child_stdout, "r");
    if (child_stdout_f == NULL) {
       g_warning("%s: Failed to create file stream for child stdout, errno=%d",
-                __FUNCTION__, errno);
-      status = FALSE;
+             __FUNCTION__, errno);
       goto out;
    }
 
-   for (;;) {
-      char buf[SERVICE_DISCOVERY_VALUE_MAX_SIZE];
-      size_t readBytes = fread(buf, 1, sizeof(buf), child_stdout_f);
-
-      g_debug("%s: readBytes = %" G_GSSIZE_FORMAT " status = %s\n",
-              __FUNCTION__, readBytes, status ? "TRUE" : "FALSE");
-      // At first iteration we are sure that status is true
-      if (status && readBytes > 0) {
-         gchar* msg = g_strdup_printf("%s-%d", key, ++i);
-         status = WriteData(ctx, msg, buf, readBytes);
-         if (!status) {
-             g_warning("%s: Failed to store data\n", __FUNCTION__);
-         }
-         g_free(msg);
-      }
-
-      if (readBytes < sizeof(buf)) {
-         if (!status) {
-            g_warning("%s: Data read finished but failed to store\n", __FUNCTION__);
-         }
-         break;
-      }
-   }
-
-   if (status) {
-      gchar *chunkCount = g_strdup_printf("%d", i);
-      status = WriteData(ctx, key, chunkCount, strlen(chunkCount));
-      if (status) {
-         g_debug("%s: Written key %s chunks %s\n", __FUNCTION__, key, chunkCount);
-      }
-      g_free(chunkCount);
-   }
+   status = SendScriptOutput(ctx, key, child_stdout_f);
 
    DynBuf_Init(&err);
    ReadFromHandle(child_stderr, &err);
    child_stderr = -1;
    if (DynBuf_GetSize(&err) != 0) {
       DynBuf_AppendString(&err, "");
-      g_debug("%s: stderr=%s\n", __FUNCTION__, (const char *) DynBuf_Get(&err));
+      g_debug("%s: stderr=%s\n",
+             __FUNCTION__, (const char *) DynBuf_Get(&err));
    }
    DynBuf_Destroy(&err);
+
 out:
-   g_free(command);
    if (child_stdout_f != NULL) {
       if (fclose(child_stdout_f) != 0) {
          g_warning("%s: Failed to close child stdout file stream, errno=%d",
-                   __FUNCTION__, errno);
+                __FUNCTION__, errno);
       }
    } else if (close(child_stdout) != 0) {
       g_warning("%s: Failed to close child stdout handle, errno=%d",
-                __FUNCTION__, errno);
+             __FUNCTION__, errno);
    }
    if (child_stderr != -1 && close(child_stderr) != 0) {
       g_warning("%s: Failed to close child process stderr handle, errno=%d",
-                __FUNCTION__, errno);
+             __FUNCTION__, errno);
    }
+
+   g_free(command);
    return status;
 }

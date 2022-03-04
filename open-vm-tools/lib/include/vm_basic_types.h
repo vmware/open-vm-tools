@@ -546,9 +546,6 @@ typedef User_CartelID User_SessionID;
 typedef User_CartelID User_CartelGroupID;
 #define INVALID_CARTELGROUP_ID INVALID_CARTEL_ID
 
-typedef uint32 Worldlet_ID;
-#define INVALID_WORLDLET_ID ((Worldlet_ID)-1)
-
 typedef  int8    Reg8;
 typedef  int16   Reg16;
 typedef  int32   Reg32;
@@ -669,12 +666,12 @@ typedef void * UserVA;
 #define MAX_MPN           ((MPN)MPN38_MASK - 3) /* 50 bits of address space */
 
 #define INVALID_IOPN      ((IOPN)-1)
-#define MAX_IOPN          (INVALID_IOPN - 1)
+#define MAX_IOPN          (IOA_2_IOPN((IOA)-1))
 
 #define INVALID_LPN       ((LPN)-1)
 #define INVALID_VPN       ((VPN)-1)
 #define INVALID_LPN64     ((LPN64)-1)
-#define INVALID_PAGENUM   ((PageNum)0x000000ffffffffffull)
+#define INVALID_PAGENUM   ((PageNum)0x0000003fffffffffull)
 #define INVALID_PAGENUM32 ((uint32)-1)
 
 /*

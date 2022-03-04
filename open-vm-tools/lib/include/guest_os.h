@@ -88,10 +88,10 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
                               BS(FREEBSD12),  BS(FREEBSD13),  \
                               BS(FREEBSD14)
 
-#define ALLFREEBSD64          BS(FREEBSD_64),   BS(FREEBSD11_64),     \
-                              BS(FREEBSD12_64), BS(FREEBSD13_64),     \
-                              BS(FREEBSD14_64), BS(ARM_FREEBSD13_64), \
-                              BS(ARM_FREEBSD14_64)
+#define ALLFREEBSD64          BS(FREEBSD_64),                           \
+                              BS(FREEBSD11_64),  BS(FREEBSD12_64),      \
+                              BS(FREEBSD13_64),  BS(FREEBSD13_ARM_64),  \
+                              BS(FREEBSD14_64),  BS(FREEBSD14_ARM_64)
 
 #define ALLFREEBSD            ALLFREEBSD32, ALLFREEBSD64
 
@@ -110,52 +110,67 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define ALLWIN2008R2_64       BS(WIN2008R2_64)
 #define ALLWIN2008R2          ALLWIN2008R2_64
 
-#define ALLWINSEVEN32         BS(WINSEVEN)
-#define ALLWINSEVEN64         BS(WINSEVEN_64)
+#define ALLWINSEVEN32         BS(WIN_7)
+#define ALLWINSEVEN64         BS(WIN_7_64)
 #define ALLWINSEVEN           ALLWINSEVEN32, ALLWINSEVEN64
 
-#define ALLWINEIGHTSERVER64   BS(WINEIGHTSERVER_64)
+#define ALLWINEIGHTSERVER64   BS(WIN_8_SERVER_64)
 #define ALLWINEIGHTSERVER     ALLWINEIGHTSERVER64
 
-#define ALLWINEIGHTCLIENT32   BS(WINEIGHT)
-#define ALLWINEIGHTCLIENT64   BS(WINEIGHT_64)
+#define ALLWINEIGHTCLIENT32   BS(WIN_8)
+#define ALLWINEIGHTCLIENT64   BS(WIN_8_64)
 #define ALLWINEIGHTCLIENT     ALLWINEIGHTCLIENT32, ALLWINEIGHTCLIENT64
 
 #define ALLWINEIGHT           ALLWINEIGHTSERVER, ALLWINEIGHTCLIENT
 
-#define ALLWINTENSERVER64     BS(WIN_2016SRV_64), BS(WIN_2019SRV_64), \
-                              BS(WIN_2022SRV_64), BS(WIN_2025SRV_64)
+#define ALLWIN_10_SERVER64    BS(WIN_2016SRV_64), BS(WIN_2019SRV_64)
 
-#define ALLWINTENSERVER       ALLWINTENSERVER64
+#define ALLWIN_10_SERVER      ALLWIN_10_SERVER64
 
-#define ALLWINTENCLIENT32     BS(WINTEN)
-#define ALLWINTENCLIENT64     BS(WINTEN_64), BS(ARM_WINTEN_64)
-#define ALLWINTENCLIENT       ALLWINTENCLIENT32, ALLWINTENCLIENT64
+#define ALLWIN_10_CLIENT32    BS(WIN_10)
+#define ALLWIN_10_CLIENT64    BS(WIN_10_64), BS(WIN_10_ARM_64)
+#define ALLWIN_10_CLIENT      ALLWIN_10_CLIENT32, ALLWIN_10_CLIENT64
 
-#define ALLWINTEN32           ALLWINTENCLIENT32
-#define ALLWINTEN64           ALLWINTENCLIENT64, ALLWINTENSERVER
-#define ALLWINTEN             ALLWINTENCLIENT, ALLWINTENSERVER
+#define ALLWIN_10_32          ALLWIN_10_CLIENT32
+#define ALLWIN_10_64          ALLWIN_10_CLIENT64, ALLWIN_10_SERVER
+#define ALLWIN_10             ALLWIN_10_CLIENT,   ALLWIN_10_SERVER
+
+#define ALLWIN_11_SERVER64    BS(WIN_2022SRV_64), BS(WIN_2025SRV_64)
+#define ALLWIN_11_SERVER      ALLWIN_11_SERVER64
+
+#define ALLWIN_11_CLIENT64    BS(WIN_11_64), BS(WIN_11_ARM_64)
+#define ALLWIN_11_CLIENT      ALLWIN_11_CLIENT64
+
+#define ALLWIN_11_64          ALLWIN_11_CLIENT64, ALLWIN_11_SERVER
+#define ALLWIN_11             ALLWIN_11_CLIENT64, ALLWIN_11_SERVER
+
+#define ALLWIN_12_CLIENT64    BS(WIN_12_64), BS(WIN_12_ARM_64)
+#define ALLWIN_12_CLIENT      ALLWIN_12_CLIENT64
+
+#define ALLWIN_12             ALLWIN_12_CLIENT64
 
 #define ALLHYPER_V            BS(HYPER_V)
 
-#define ALLWINVISTA_OR_HIGHER ALLWINVISTA,       ALLWINLONGHORN,     \
-                              ALLWIN2008R2,      ALLWINSEVEN,        \
-                              ALLWINEIGHTSERVER, ALLWINEIGHTCLIENT,  \
-                              ALLWINTENSERVER,   ALLWINTENCLIENT,    \
-                              ALLHYPER_V                             \
+#define ALLWINVISTA_OR_HIGHER ALLWINVISTA,         ALLWINLONGHORN,     \
+                              ALLWIN2008R2,        ALLWINSEVEN,        \
+                              ALLWINEIGHTSERVER,   ALLWINEIGHTCLIENT,  \
+                              ALLWIN_10_SERVER,    ALLWIN_10_CLIENT,   \
+                              ALLWIN_11_SERVER,    ALLWIN_11_CLIENT,   \
+                              ALLWIN_12_CLIENT,    ALLHYPER_V
 
 #define ALLWINNT32            BS(WINNT),           ALLWIN2000,          \
                               ALLWINXP32,          ALLWINNET32,         \
                               ALLWINVISTA32,       ALLWINLONGHORN32,    \
                               ALLWINSEVEN32,       ALLWINEIGHTCLIENT32, \
-                              ALLWINTENCLIENT32
+                              ALLWIN_10_CLIENT32
 
-#define ALLWINNT64            ALLWINXP64,          ALLWINNET64,       \
-                              ALLWINVISTA64,       ALLWINLONGHORN64,  \
-                              ALLWINSEVEN64,       ALLWIN2008R2_64,   \
-                              ALLWINEIGHTCLIENT64, ALLWINEIGHTSERVER, \
-                              ALLWINTENCLIENT64,   ALLWINTENSERVER,   \
-                              ALLHYPER_V
+#define ALLWINNT64            ALLWINXP64,            ALLWINNET64,       \
+                              ALLWINVISTA64,         ALLWINLONGHORN64,  \
+                              ALLWINSEVEN64,         ALLWIN2008R2_64,   \
+                              ALLWINEIGHTCLIENT64,   ALLWINEIGHTSERVER, \
+                              ALLWIN_10_CLIENT64,    ALLWIN_10_SERVER,  \
+                              ALLWIN_11_CLIENT64,    ALLWIN_11_SERVER,  \
+                              ALLWIN_12_CLIENT64,    ALLHYPER_V
 
 #define ALLWINNT              ALLWINNT32, ALLWINNT64
 
@@ -172,14 +187,14 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
                               BS(SOLARIS10), BS(SOLARIS10_64), \
                               ALLSOLARIS11_OR_HIGHER
 
-#define ALLSOLARIS            BS(SOLARIS_6_AND_7), \
-                              BS(SOLARIS8), \
-                              BS(SOLARIS9), \
+#define ALLSOLARIS            BS(SOLARIS_6_AND_7),    \
+                              BS(SOLARIS8),           \
+                              BS(SOLARIS9),           \
                               ALLSOLARIS10_OR_HIGHER
 
 #define ALLNETWARE            BS(NETWARE4), BS(NETWARE5), BS(NETWARE6)
 
-#define ALLPHOTON             BS(PHOTON_64), BS(ARM_PHOTON_64)
+#define ALLPHOTON             BS(PHOTON_64), BS(PHOTON_ARM_64)
 
 #define ALL26XLINUX32         BS(DEBIAN),  BS(RHEL),   \
                               BS(UBUNTU),  BS(CENTOS), \
@@ -206,21 +221,30 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 #define ALL5XLINUX32          BS(OTHER5XLINUX)
 
-#define ALL5XLINUX64          BS(OTHER5XLINUX_64), BS(ARM_OTHER5XLINUX_64), \
-                              BS(ARM_DEBIAN_64),   BS(ARM_UBUNTU_64)
+#define ALL5XLINUX64          BS(OTHER5XLINUX_64), BS(OTHER5XLINUX_ARM_64), \
+                              BS(DEBIAN_ARM_64),   BS(UBUNTU_ARM_64),       \
+                              BS(RHEL9_64),        BS(RHEL9_ARM_64),        \
+                              BS(ROCKY_LINUX_64),  BS(ROCKY_LINUX_ARM_64),  \
+                              BS(ALMA_LINUX_64),   BS(ALMA_LINUX_ARM_64)
 
-#define ALLVMKERNEL           BS(VMKERNEL),   BS(VMKERNEL5), BS(VMKERNEL6), \
-                              BS(VMKERNEL65), BS(VMKERNEL7), BS(ARM_VMKERNEL7)
+#define ALL6XLINUX32          BS(OTHER6XLINUX)
 
-#define ALLLINUX32            BS(VMKERNEL), BS(OTHERLINUX), \
-                              BS(OTHER24XLINUX), \
-                              ALL26XLINUX32, ALL3XLINUX32, ALL4XLINUX32, \
-                              ALL5XLINUX32
+#define ALL6XLINUX64          BS(OTHER6XLINUX_64), BS(OTHER6XLINUX_ARM_64)
+
+#define ALLVMKERNEL           BS(VMKERNEL),   BS(VMKERNEL5),      \
+                              BS(VMKERNEL6),  BS(VMKERNEL65),     \
+                              BS(VMKERNEL7),  BS(VMKERNEL7_ARM),  \
+                              BS(VMKERNEL8),  BS(VMKERNEL8_ARM)
+
+#define ALLLINUX32            BS(VMKERNEL),      BS(OTHERLINUX), \
+                              BS(OTHER24XLINUX), ALL26XLINUX32,  \
+                              ALL3XLINUX32,      ALL4XLINUX32,   \
+                              ALL5XLINUX32,      ALL6XLINUX32
 
 #define ALLLINUX64            BS(OTHERLINUX_64), BS(OTHER24XLINUX_64), \
                               ALL26XLINUX64,     ALL3XLINUX64,         \
                               ALL4XLINUX64,      ALL5XLINUX64,         \
-                              ALLPHOTON
+                              ALL6XLINUX64,      ALLPHOTON
 
 #define ALLLINUX              ALLLINUX32, ALLLINUX64
 
@@ -232,7 +256,8 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
                               BS(DARWIN15_64), BS(DARWIN16_64),  \
                               BS(DARWIN17_64), BS(DARWIN18_64),  \
                               BS(DARWIN19_64), BS(DARWIN20_64),  \
-                              BS(DARWIN21_64), BS(DARWIN22_64)
+                              BS(DARWIN21_64), BS(DARWIN22_64),  \
+                              BS(DARWIN23_64)
 
 #define ALLDARWIN             ALLDARWIN32, ALLDARWIN64
 
@@ -240,7 +265,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
                               ALLFREEBSD64,      ALLDARWIN64,       \
                               ALLPHOTON,         ALLVMKERNEL,       \
                               BS(SOLARIS10_64),  BS(SOLARIS11_64),  \
-                              BS(OTHER_64),      BS(ARM_OTHER_64)
+                              BS(OTHER_64),      BS(OTHER_ARM_64)
 
 #define ALLECOMSTATION        BS(ECOMSTATION), BS(ECOMSTATION2)
 
@@ -248,22 +273,27 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 #define ALLCRX                BS(CRXSYS1_64), BS(CRXPOD1_64)
 
-#define ALLARM                BS(ARM_WINTEN_64),   BS(ARM_UBUNTU_64),       \
-                              BS(ARM_PHOTON_64),   BS(ARM_VMKERNEL7),       \
-                              BS(ARM_OTHER_64),    BS(ARM_OTHER5XLINUX_64), \
-                              BS(ARM_DEBIAN_64),   BS(ARM_FREEBSD13_64),    \
-                              BS(ARM_FREEBSD14_64)
+#define ALLARM                BS(WIN_10_ARM_64),        BS(WIN_11_ARM_64),       \
+                              BS(WIN_12_ARM_64),        BS(RHEL9_ARM_64),        \
+                              BS(UBUNTU_ARM_64),        BS(PHOTON_ARM_64),       \
+                              BS(VMKERNEL7_ARM),        BS(VMKERNEL8_ARM),       \
+                              BS(OTHER_ARM_64),         BS(OTHER5XLINUX_ARM_64), \
+                              BS(OTHER6XLINUX_ARM_64),  BS(DEBIAN_ARM_64),       \
+                              BS(FREEBSD13_ARM_64),     BS(FREEBSD14_ARM_64),    \
+                              BS(ALMA_LINUX_ARM_64),    BS(ROCKY_LINUX_ARM_64)
 
 /*
- * These constants are generated by GuestInfoGetOSName which is in
- * the bora-vmsoft subtree.
+ * Architecture prefixes. No prefix implies the X86 architecture.
  */
+
+#define STR_OS_ARM_PREFIX          "arm-"
+#define STR_OS_RISCV_PREFIX        "riscv-"
 
 /* vmkernel (ESX) */
 #define STR_OS_VMKERNEL            "vmkernel"
-#define STR_OS_ARM_VMKERNEL        "arm-vmkernel"
 
 /* Linux */
+#define	STR_OS_ALMA_LINUX          "almaLinux"
 #define STR_OS_AMAZON_LINUX        "amazonlinux"
 #define STR_OS_ANNVIX              "Annvix"
 #define STR_OS_ARCH                "Arch"
@@ -277,7 +307,6 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_COBALT              "Cobalt"
 #define STR_OS_CONECTIVA           "Conectiva"
 #define STR_OS_DEBIAN              "debian"
-#define STR_OS_ARM_DEBIAN          "arm-debian"
 #define STR_OS_FEDORA              "Fedora"
 #define STR_OS_FLATCAR             "flatcar"
 #define STR_OS_GENTOO              "Gentoo"
@@ -291,15 +320,13 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_MANDRAKE_FULL      "Mandrake Linux"
 #define STR_OS_MANDRIVA           "mandriva"
 #define STR_OS_MKLINUX            "MkLinux"
-#define STR_OS_NOVELL             "nld9"
+#define STR_OS_NOVELL             "nld"
 #define STR_OS_NOVELL_FULL        "Novell Linux Desktop 9"
 #define STR_OS_ORACLE             "oraclelinux"
 #define STR_OS_OTHER_LINUX        "otherlinux"
 #define STR_OS_OTHER_LINUX_FULL   "Other Linux"
 #define STR_OS_OTHER              "other"
 #define STR_OS_OTHER_FULL         "Other OSes"
-#define STR_OS_ARM_OTHER          "arm-other"
-#define STR_OS_ARM_OTHER_FULL     "Other OSes Arm"
 #define STR_OS_OTHER_LINUX        "otherlinux"
 #define STR_OS_OTHER_LINUXFULL    "Other Linux"
 #define STR_OS_OTHER_24           "other24xlinux"
@@ -309,18 +336,18 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_OTHER_3X           "other3xlinux"
 #define STR_OS_OTHER_3X_FULL      "Other Linux 3.x kernel"
 #define STR_OS_OTHER_4X           "other4xlinux"
-#define STR_OS_OTHER_4X_FULL      "Other Linux 4.x"
+#define STR_OS_OTHER_4X_FULL      "Other Linux 4.x kernel"
 #define STR_OS_OTHER_5X           "other5xlinux"
-#define STR_OS_OTHER_5X_FULL      "Other Linux 5.x and later kernel"
-#define STR_OS_ARM_OTHER_5X       "arm-other5xlinux"
-#define STR_OS_ARM_OTHER_5X_FULL  "Other Linux 5.x and later kernel Arm"
+#define STR_OS_OTHER_5X_FULL      "Other Linux 5.x kernel"
+#define STR_OS_OTHER_6X           "other6xlinux"
+#define STR_OS_OTHER_6X_FULL      "Other Linux 6.x and later kernel"
 #define STR_OS_PHOTON             "vmware-photon"
-#define STR_OS_ARM_PHOTON         "arm-vmware-photon"
 #define STR_OS_PHOTON_FULL        "VMware Photon OS"
 #define STR_OS_PLD                "PLD"
 #define STR_OS_RED_HAT            "redhat"
 #define STR_OS_RED_HAT_EN         "rhel"
 #define STR_OS_RED_HAT_FULL       "Red Hat Linux"
+#define	STR_OS_ROCKY_LINUX        "rockyLinux"
 #define STR_OS_SLACKWARE          "Slackware"
 #define STR_OS_SLES               "sles"
 #define STR_OS_SUSE               "suse"
@@ -333,7 +360,6 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_TURBO              "turbolinux"
 #define STR_OS_TURBO_FULL         "Turbolinux"
 #define STR_OS_UBUNTU             "ubuntu"
-#define STR_OS_ARM_UBUNTU         "arm-ubuntu"
 #define STR_OS_ULTRAPENGUIN       "UltraPenguin"
 #define STR_OS_UNITEDLINUX        "UnitedLinux"
 #define STR_OS_VALINUX            "VALinux"
@@ -370,14 +396,14 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_WIN_NET_ST               "winNetStandard"
 #define STR_OS_WIN_NET_ST_FULL          "Windows Server 2003 Standard Edition"
 #define STR_OS_WIN_NET_EN               "winNetEnterprise"
-#define STR_OS_WIN_NET_EN_FULL         "Windows Server 2003 Enterprise Edition"
+#define STR_OS_WIN_NET_EN_FULL          "Windows Server 2003 Enterprise Edition"
 #define STR_OS_WIN_NET_BUS              "winNetBusiness"
 #define STR_OS_WIN_NET_BUS_FULL         "Windows Server 2003 Small Business"
 #define STR_OS_WIN_NET_COMPCLUSTER      "winNetComputeCluster"
 #define STR_OS_WIN_NET_COMPCLUSTER_FULL "Windows Server 2003 Compute Cluster Edition"
 #define STR_OS_WIN_NET_STORAGESERVER    "winNetStorageSvr"
 #define STR_OS_WIN_NET_STORAGESERVER_FULL "Windows Storage Server 2003"
-#define STR_OS_WIN_NET_DC_FULL         "Windows Server 2003 Datacenter Edition"
+#define STR_OS_WIN_NET_DC_FULL          "Windows Server 2003 Datacenter Edition"
 #define STR_OS_WIN_NET_DC               "winNetDatacenter"
 #define STR_OS_WIN_LONG                 "longhorn"
 #define STR_OS_WIN_VISTA                "winVista"
@@ -397,7 +423,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_WIN_VISTA_STARTER        "winVistaStarter-32"
 #define STR_OS_WIN_VISTA_STARTER_FULL   "Windows Vista Starter Edition"
 #define STR_OS_WIN_2008_CLUSTER         "winServer2008Cluster-32"
-#define STR_OS_WIN_2008_CLUSTER_FULL "Windows Server 2008 Cluster Server Edition"
+#define STR_OS_WIN_2008_CLUSTER_FULL    "Windows Server 2008 Cluster Server Edition"
 #define STR_OS_WIN_2008_DATACENTER      "winServer2008Datacenter-32"
 #define STR_OS_WIN_2008_DATACENTER_FULL "Windows Server 2008 Datacenter Edition"
 #define STR_OS_WIN_2008_DATACENTER_CORE "winServer2008DatacenterCore-32"
@@ -416,24 +442,24 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_WIN_2008_MEDIUM_SECURITY_FULL "Windows Essential Business Server Security Server"
 #define STR_OS_WIN_2008_SERVER_FOR_SMALLBUSINESS "winServer2008ForSmallBusiness-32"
 #define STR_OS_WIN_2008_SERVER_FOR_SMALLBUSINESS_FULL "Windows Server 2008 for Windows Essential Server Solutions"
-#define STR_OS_WIN_2008_SMALL_BUSINESS "winServer2008SmallBusiness-32"
+#define STR_OS_WIN_2008_SMALL_BUSINESS  "winServer2008SmallBusiness-32"
 #define STR_OS_WIN_2008_SMALL_BUSINESS_FULL "Windows Server 2008 Small Business Server"
 #define STR_OS_WIN_2008_SMALL_BUSINESS_PREMIUM "winServer2008SmallBusinessPremium-32"
 #define STR_OS_WIN_2008_SMALL_BUSINESS_PREMIUM_FULL "Windows Server 2008 Small Business Server Premium Edition"
-#define STR_OS_WIN_2008_STANDARD "winServer2008Standard-32"
-#define STR_OS_WIN_2008_STANDARD_FULL "Windows Server 2008 Standard Edition"
-#define STR_OS_WIN_2008_STANDARD_CORE "winServer2008StandardCore-32"
+#define STR_OS_WIN_2008_STANDARD        "winServer2008Standard-32"
+#define STR_OS_WIN_2008_STANDARD_FULL   "Windows Server 2008 Standard Edition"
+#define STR_OS_WIN_2008_STANDARD_CORE   "winServer2008StandardCore-32"
 #define STR_OS_WIN_2008_STANDARD_CORE_FULL "Windows Server 2008 Standard Edition (core installation)"
 #define STR_OS_WIN_2008_STORAGE_ENTERPRISE "winServer2008StorageEnterprise-32"
 #define STR_OS_WIN_2008_STORAGE_ENTERPRISE_FULL "Windows Server 2008 Storage Server Enterprise"
-#define STR_OS_WIN_2008_STORAGE_EXPRESS "winServer2008StorageExpress-32"
+#define STR_OS_WIN_2008_STORAGE_EXPRESS  "winServer2008StorageExpress-32"
 #define STR_OS_WIN_2008_STORAGE_EXPRESS_FULL "Windows Server 2008 Storage Server Express"
 #define STR_OS_WIN_2008_STORAGE_STANDARD "winServer2008StorageStandard-32"
 #define STR_OS_WIN_2008_STORAGE_STANDARD_FULL "Windows Server 2008 Storage Server Standard"
 #define STR_OS_WIN_2008_STORAGE_WORKGROUP "winServer2008StorageWorkgroup-32"
 #define STR_OS_WIN_2008_STORAGE_WORKGROUP_FULL "Windows Server 2008 Storage Server Workgroup"
-#define STR_OS_WIN_2008_WEB_SERVER "winServer2008Web-32"
-#define STR_OS_WIN_2008_WEB_SERVER_FULL "Windows Server 2008 Web Server Edition"
+#define STR_OS_WIN_2008_WEB_SERVER       "winServer2008Web-32"
+#define STR_OS_WIN_2008_WEB_SERVER_FULL  "Windows Server 2008 Web Server Edition"
 
 /* Windows 64-bit */
 #define STR_OS_WIN_VISTA_ULTIMATE_X64         "winVistaUltimate-64"
@@ -442,12 +468,12 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_WIN_VISTA_ENTERPRISE_X64       "winVistaEnterprise-64"
 #define STR_OS_WIN_VISTA_BUSINESS_X64         "winVistaBusiness-64"
 #define STR_OS_WIN_VISTA_STARTER_X64          "winVistaStarter-64"
+
 #define STR_OS_WIN_2008_CLUSTER_X64           "winServer2008Cluster-64"
 #define STR_OS_WIN_2008_DATACENTER_X64        "winServer2008Datacenter-64"
 #define STR_OS_WIN_2008_DATACENTER_CORE_X64   "winServer2008DatacenterCore-64"
 #define STR_OS_WIN_2008_ENTERPRISE_X64        "winServer2008Enterprise-64"
 #define STR_OS_WIN_2008_ENTERPRISE_CORE_X64   "winServer2008EnterpriseCore-64"
-#define STR_OS_WIN_2008_ENTERPRISE_ITANIUM_X64 "winServer2008EnterpriseItanium-64"
 #define STR_OS_WIN_2008_MEDIUM_MANAGEMENT_X64 "winServer2008MediumManagement-64"
 #define STR_OS_WIN_2008_MEDIUM_MESSAGING_X64  "winServer2008MediumMessaging-64"
 #define STR_OS_WIN_2008_MEDIUM_SECURITY_X64   "winServer2008MediumSecurity-64"
@@ -462,10 +488,17 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_WIN_2008_STORAGE_WORKGROUP_X64 "winServer2008StorageWorkgroup-64"
 #define STR_OS_WIN_2008_WEB_SERVER_X64        "winServer2008Web-64"
 
+/* All */
+#define STR_OS_64BIT_SUFFIX "-64"
+#define STR_OS_64BIT_SUFFIX_FULL " (64 bit)"
+#define STR_OS_EMPTY ""
+
 /* Windows 7 */
 
-#define STR_OS_WIN_SEVEN     "windows7"
-#define STR_OS_WIN_SEVEN_X64 "windows7-64"
+#define STR_OS_WINDOWS       "windows"
+
+#define STR_OS_WIN_SEVEN     STR_OS_WINDOWS "7"
+#define STR_OS_WIN_SEVEN_X64 STR_OS_WIN_SEVEN STR_OS_64BIT_SUFFIX
 
 #define STR_OS_WIN_SEVEN_GENERIC           "Windows 7"
 #define STR_OS_WIN_SEVEN_STARTER_FULL      "Windows 7 Starter"
@@ -477,7 +510,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 /* Windows Server 2008 R2 (based on Windows 7) */
 
-#define STR_OS_WIN_2008R2_X64 "windows7srv-64"
+#define STR_OS_WIN_2008R2_X64 STR_OS_WINDOWS "7srv" STR_OS_64BIT_SUFFIX
 
 #define STR_OS_WIN_2008R2_FOUNDATION_FULL "Windows Server 2008 R2 Foundation Edition"
 #define STR_OS_WIN_2008R2_STANDARD_FULL   "Windows Server 2008 R2 Standard Edition"
@@ -487,8 +520,8 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 /* Windows 8 */
 
-#define STR_OS_WIN_EIGHT               "windows8"
-#define STR_OS_WIN_EIGHT_X64           "windows8-64"
+#define STR_OS_WIN_EIGHT               STR_OS_WINDOWS "8"
+#define STR_OS_WIN_EIGHT_X64           STR_OS_WIN_EIGHT STR_OS_64BIT_SUFFIX
 
 #define STR_OS_WIN_EIGHT_GENERIC_FULL        "Windows 8%s"
 #define STR_OS_WIN_EIGHTSERVER_GENERIC_FULL  "Windows Server%s 2012"
@@ -499,7 +532,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 /* Windows Server 2012 */
 
-#define STR_OS_WIN_EIGHTSERVER_X64 "windows8srv-64"
+#define STR_OS_WIN_EIGHTSERVER_X64 STR_OS_WINDOWS "8srv" STR_OS_64BIT_SUFFIX 
 
 #define STR_OS_WIN_2012_FOUNDATION_FULL      "Windows Server 2012%s Foundation Edition"
 #define STR_OS_WIN_2012_ESSENTIALS_FULL      "Windows Server 2012%s Essentials Edition"
@@ -513,6 +546,12 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 
 /*
+ * Windows on Arm
+ *
+ * Window on Arm support starts with Windows 10.
+ */
+
+/*
  * Windows 10
  *
  * Microsoft renamed Windows 9 to Windows 10 at the last minute; Windows 9 was
@@ -520,11 +559,10 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
  * Windows 10 to ensure that things continue to work.
  */
 
-#define STR_OS_WINTEN        "windows9"
-#define STR_OS_WINTEN_X64    "windows9-64"
-#define STR_OS_ARM_WIN       "arm-windows"
+#define STR_OS_WIN_10        STR_OS_WINDOWS "9"
+#define STR_OS_WIN_10_X64    STR_OS_WIN_10 STR_OS_64BIT_SUFFIX
 
-#define STR_OS_WIN_TEN_GENERIC_FULL        "Windows 10"
+#define STR_OS_WIN_10_GENERIC_FULL         "Windows 10"
 #define STR_OS_WIN_10_HOME_FULL            "Windows 10 Home"
 #define STR_OS_WIN_10_EDUCATION_FULL       "Windows 10 Education"
 #define STR_OS_WIN_10_ENTERPRISE_FULL      "Windows 10 Enterprise"
@@ -532,28 +570,52 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_WIN_10_PRO_FULL             "Windows 10 Pro"
 #define STR_OS_WIN_10_IOTCORE_FULL         "Windows 10 IoT Core"
 
+/*
+ * Windows 11
+ */
+
+#define STR_OS_WIN_11        STR_OS_WINDOWS "11"
+#define STR_OS_WIN_11_X64    STR_OS_WIN_11 STR_OS_64BIT_SUFFIX
+
+#define STR_OS_WIN_11_GENERIC_FULL         "Windows 11"
+#define STR_OS_WIN_11_HOME_FULL            "Windows 11 Home"
+#define STR_OS_WIN_11_EDUCATION_FULL       "Windows 11 Education"
+#define STR_OS_WIN_11_ENTERPRISE_FULL      "Windows 11 Enterprise"
+#define STR_OS_WIN_11_PRO_WORKSTATION_FULL "Windows 11 Pro for Workstations"
+#define STR_OS_WIN_11_PRO_FULL             "Windows 11 Pro"
+#define STR_OS_WIN_11_IOTCORE_FULL         "Windows 11 IoT Core"
+
+/*
+ * Windows 12
+ */
+
+#define STR_OS_WIN_12        STR_OS_WINDOWS "12"
+#define STR_OS_WIN_12_X64    STR_OS_WIN_12 STR_OS_64BIT_SUFFIX
+
+/* No full names known yet */
+
 /* Windows Server 2016 */
 
-#define STR_OS_WIN_2016SRV_X64 "windows9srv-64"
+#define STR_OS_WIN_2016SRV_X64 STR_OS_WINDOWS "9srv" STR_OS_64BIT_SUFFIX
 
 /* Windows Server 2019 */
 
-#define STR_OS_WIN_2019SRV_X64 "windows2019srv-64"
+#define STR_OS_WIN_2019SRV_X64 STR_OS_WINDOWS "2019srv" STR_OS_64BIT_SUFFIX
 
 /* Windows Server 2022 */
 
-#define STR_OS_WIN_2022SRV_X64 "windows2019srvNext-64"
+#define STR_OS_WIN_2022SRV_X64 STR_OS_WINDOWS "2019srvNext" STR_OS_64BIT_SUFFIX
 
 /* Windows Server 2025 */
 
-#define STR_OS_WIN_2025SRV_X64 "windows2022srvNext-64"
+#define STR_OS_WIN_2025SRV_X64 STR_OS_WINDOWS "2022srvNext" STR_OS_64BIT_SUFFIX
 
-/* THIS SPACE FOR RENT (Windows 10 official server variant names) */
+/* THIS SPACE FOR RENT (Windows 10 and later official server variant names) */
 
-#define STR_OS_WIN_TENSERVER_2016_GENERIC_FULL "Windows Server 2016"
-#define STR_OS_WIN_TENSERVER_2019_GENERIC_FULL "Windows Server 2019"
-#define STR_OS_WIN_TENSERVER_2022_GENERIC_FULL "Windows Server 2022"
-#define STR_OS_WIN_TENSERVER_2025_GENERIC_FULL "Windows Server 2025"
+#define STR_OS_WIN_10_SERVER_2016_GENERIC_FULL "Windows Server 2016"
+#define STR_OS_WIN_10_SERVER_2019_GENERIC_FULL "Windows Server 2019"
+#define STR_OS_WIN_11_SERVER_2022_GENERIC_FULL "Windows Server 2022"
+#define STR_OS_WIN_11_SERVER_2025_GENERIC_FULL "Windows Server 2025"
 
 /* Microsoft Hyper-V */
 #define STR_OS_HYPER_V      "winHyperV"
@@ -562,7 +624,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 /* Windows Future/Unknown */
 
 #define STR_OS_WIN_UNKNOWN                   "windowsUnknown"
-#define STR_OS_WIN_UNKNOWN_X64               "windowsUnknown-64"
+#define STR_OS_WIN_UNKNOWN_X64               STR_OS_WIN_UNKNOWN STR_OS_64BIT_SUFFIX
 #define STR_OS_WIN_UNKNOWN_GENERIC           "Windows Unknown"
 
 /* Modifiers for Windows Vista, Windows Server 2008, and later. */
@@ -570,8 +632,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_WIN_64_BIT_EXTENSION ", 64-bit"
 
 /* FreeBSD */
-#define STR_OS_FREEBSD      "freeBSD"
-#define STR_OS_ARM_FREEBSD  "arm-freeBSD"
+#define STR_OS_FREEBSD "freeBSD"
 
 /* Solaris */
 #define STR_OS_SOLARIS "solaris"
@@ -581,11 +642,6 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 /* Mac OS */
 #define STR_OS_MACOS "darwin"
-
-/* All */
-#define STR_OS_64BIT_SUFFIX "-64"
-#define STR_OS_64BIT_SUFFIX_FULL " (64 bit)"
-#define STR_OS_EMPTY ""
 
 #if defined(__cplusplus)
 }  // extern "C"

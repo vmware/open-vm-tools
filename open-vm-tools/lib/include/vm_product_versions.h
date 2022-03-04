@@ -45,7 +45,7 @@
    /* this should be kept in sync with the corresponding vpx branch. */
    #define PRODUCT_VERSION    7,0,3,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_HORIZON_VIEW)
-   #define PRODUCT_VERSION    8,4,0,PRODUCT_BUILD_NUMBER_NUMERIC
+   #define PRODUCT_VERSION    8,5,0,PRODUCT_BUILD_NUMBER_NUMERIC
 // VMX86_DESKTOP must be last because it is the default and is always defined.
 #elif defined(VMX86_DESKTOP)
    // WORKSTATION_VERSION_NUMBER below has to match this
@@ -145,10 +145,15 @@
 #define ESX_VERSION_THIRD_PARTY ESX_VERSION_MAJOR ESX_VERSION_MINOR \
                                 ESX_VERSION_UPDATE
 
-#define ESX_RELEASE_UPDATE "0" // Quarterly release
+#define ESX_RELEASE_UPDATE "2" // Quarterly release
 #define ESX_RELEASE_PATCH "0"  // 0 = experimental
 #define ESX_RELEASE_QUARTERLY ESX_RELEASE_UPDATE // ESX's own quarterly release
 #define ESX_RELEASE ESX_RELEASE_QUARTERLY "." ESX_RELEASE_PATCH
+
+// ESX release versioning string -
+//    <major>.<minor>.<update>-<quarter>.<patch>.<buildid>
+#define ESX_RELEASE_VERSION_STR ESX_VERSION "-" ESX_RELEASE "." \
+                                XSTR(BUILD_NUMBER_NUMERIC)
 
 #define WORKSTATION_RELEASE_DESCRIPTION ""
 #define P2V_VERSION "e.x.p"
@@ -157,8 +162,6 @@
 /*
  * HEADS UP:  Don't merge patch version bumps (e.g. x.y.0 -> x.y.1) to CBS
  * branches (*-main), 'cuz it breaks stuff in VIX land.  See bug 939456.
- *
- * Whenever WORKSTATION_VERSION_NUMBER and PLAYER_VERSION_NUMBER are changed,
  * necessary VIX changes also need to be done. See bug 939456.
  *
  * ALSO, leave FOO_VERSION at e.x.p on all EXCEPT release branches.
@@ -218,7 +221,7 @@
 #define VPX_VERSION_MAJOR "7"
 #define VPX_VERSION_MINOR "0"
 #define VPX_VERSION_MAINT "3"
-#define VPX_VERSION_PATCH "00000"
+#define VPX_VERSION_PATCH "20000"
 #define VPX_VERSION_THIRD_PARTY VPX_VERSION_MAJOR VPX_VERSION_MINOR \
                                 VPX_VERSION_MAINT
 #define VPX_VERSION_NUMERIC 7,0,3,PRODUCT_BUILD_NUMBER_NUMERIC
@@ -249,7 +252,7 @@
 // Changing the version is required when CPD releases an update.
 #define VA_PATCH_VERSION  "5100"
 
-#define HORIZONOSOT_VERSION "1.3.0"
+#define HORIZONOSOT_VERSION "1.4.0"
 #define HORIZONVMDS_VERSION "1.0.0"
 
 #define INTEGRITY_VERSION "7.0.3" /* Should use VPX_VERSION? */
@@ -271,7 +274,7 @@
 #define VDDK_VERSION_MAINT    3
 #define VDDK_FILE_VERSION     VDDK_VERSION_MAJOR,VDDK_VERSION_MINOR,\
                               VDDK_VERSION_MAINT,PRODUCT_BUILD_NUMBER_NUMERIC
-#define OVFTOOL_VERSION "4.4.2"
+#define OVFTOOL_VERSION "4.4.3"
 #define VCSA_INSTALLER_VERSION "1.0.0"
 #define OVFTOOL_FILE_VERSION 4,4,1,PRODUCT_BUILD_NUMBER_NUMERIC
 #define VGAUTH_VERSION "1.0.0"
@@ -284,7 +287,7 @@
 #define PRECHECK_VERSION "e.x.p"
 #define VHSESDK_VERSION "1.0.0"
 #define VIEWVC_VERSION "14.0.2"
-#define WCP_VERSION "0.0.10"
+#define WCP_VERSION "0.0.13"
 #define VSTATS_VERSION "0.0.1"
 #define XVP_VERSION "1.0.0"
 /*
@@ -293,24 +296,24 @@
  * SCons parsing code requires that each line have a version string, so we
  * can't just do something like #define RDESDK_VERSION VIEW_VERSION"
  */
-#define VIEW_CLIENT_VERSION "8.4.0"
+#define VIEW_CLIENT_VERSION "8.5.0"
 #define VIEW_CLIENT_VERSION_NUMBER VIEW_CLIENT_VERSION
-#define VIEW_VERSION "8.4.0"
-#define RDE_RFT_ALL_VERSION "8.4.0"
-#define RDE_RFT_REL_VERSION "8.4.0"
-#define RDESDKREL_VERSION "8.4.0"
-#define MKSVCHANDEV_VERSION "15.4.0"
-#define TSMMRDEV_VERSION "8.4.0"
-#define RDF_VERSION "8.4.0"
-#define HORIZON_DAAS_AGENT_VERSION "21.3.0"
-#define HORIZON_USB_AGENT_VERSION "11.4.0"
-#define MFW_VERSION "16.4.0"
+#define VIEW_VERSION "8.5.0"
+#define RDE_RFT_ALL_VERSION "8.5.0"
+#define RDE_RFT_REL_VERSION "8.5.0"
+#define RDESDKREL_VERSION "8.5.0"
+#define MKSVCHANDEV_VERSION "15.5.0"
+#define TSMMRDEV_VERSION "8.5.0"
+#define RDF_VERSION "8.5.0"
+#define HORIZON_DAAS_AGENT_VERSION "22.1.0"
+#define HORIZON_USB_AGENT_VERSION "11.5.0"
+#define MFW_VERSION "16.5.0"
 /*
  * This is the Horizon Marketing version which is shared between
  * Horizon Client, Agent and Server. It is set in the format of
  * YYMM of the targeted release date.
  */
-#define HORIZON_YYMM_VERSION "2109"
+#define HORIZON_YYMM_VERSION "2203"
 
 #ifndef MAKESTR
 #define MAKESTR(x) #x
@@ -426,7 +429,7 @@
 #    define PRODUCT_LICENSE_VERSION PRODUCT_FLEX_VERSION_STRING_FOR_LICENSE
 #  elif defined(VMX86_VPX)
 #    define PRODUCT_LICENSE_VERSION "7.0"
-#    define PRODUCT_LICENSE_FILE_VERSION "7.0.5.0"
+#    define PRODUCT_LICENSE_FILE_VERSION "7.0.7.0"
 #  elif defined(VMX86_SDK)
 #    define PRODUCT_LICENSE_VERSION "1.0"
 #  elif defined(VMX86_P2V)
@@ -444,7 +447,7 @@
 #  define PRODUCT_VERSION_STRING_FOR_LICENSE PRODUCT_LICENSE_VERSION
 #endif
 #define PRODUCT_ESX_LICENSE_VERSION "7.0"
-#define PRODUCT_ESX_LICENSE_FILE_VERSION "7.0.5.0"
+#define PRODUCT_ESX_LICENSE_FILE_VERSION "7.0.7.0"
 
 /*
  * The configuration file version string should be changed
@@ -517,6 +520,7 @@
 #define PRODUCT_VERSION_WORKSTATION_140 PRODUCT_WORKSTATION_BRIEF_NAME " 14.x"
 #define PRODUCT_VERSION_WORKSTATION_150 PRODUCT_WORKSTATION_BRIEF_NAME " 15.x"
 #define PRODUCT_VERSION_WORKSTATION_160 PRODUCT_WORKSTATION_BRIEF_NAME " 16.x"
+#define PRODUCT_VERSION_WORKSTATION_162 PRODUCT_WORKSTATION_BRIEF_NAME " 16.2.x"
 #define PRODUCT_VERSION_PLAYER_1 PRODUCT_PLAYER_BRIEF_NAME " 1.x"
 #define PRODUCT_VERSION_MAC_DESKTOP_1 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 1.1"
 #define PRODUCT_VERSION_MAC_DESKTOP_2 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 2.x"
@@ -530,6 +534,7 @@
 #define PRODUCT_VERSION_MAC_DESKTOP_100 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 10.x"
 #define PRODUCT_VERSION_MAC_DESKTOP_110 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 11.x"
 #define PRODUCT_VERSION_MAC_DESKTOP_120 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 12.x"
+#define PRODUCT_VERSION_MAC_DESKTOP_122 PRODUCT_MAC_DESKTOP_BRIEF_NAME " 12.2.x"
 
 /*
  * VDFS Versions

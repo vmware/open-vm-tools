@@ -48,6 +48,7 @@
 #include <unistd.h>
 #endif
 #if defined(VMX86_SERVER)
+#include "config.h"
 #include "fs_public.h"
 #endif
 
@@ -1053,4 +1054,110 @@ FileIO_AtomicUpdate(FileIODescriptor *newFD,   // IN/OUT: file IO descriptor
                     FileIODescriptor *currFD)  // IN/OUT: file IO descriptor
 {
    return FileIO_AtomicUpdateEx(newFD, currFD, TRUE) == 1;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * FileIOGetChoiceOnConfig --
+ *
+ *      Get the choice based on the "answer.msg.%s.file.open" in config file.
+ *      If it's not set, will return the default 0x20.
+ *
+ * Results:
+ *      The first character of the value or 0x20 by default.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static char
+FileIOGetChoiceOnConfig(const char *device,   // IN: device name
+                        const char *pathName) // IN: file path
+{
+   char choice = 0x20;
+
+#if defined(VMX86_SERVER)
+   char *answer = Config_GetString(NULL, "answer.msg.%s.file.open", device);
+
+   if (answer == NULL) {
+      Log("Appending %s output to %s. Use answer.msg.%s.file.open=\"replace\" "
+          "to replace file instead.", device, pathName, device);
+   } else {
+      const char *opt = answer;
+
+      while (*opt == '_') {
+         opt++;
+      }
+      choice = *opt | 0x20; // tolower() for ascii
+      free(answer);
+   }
+#endif
+   return choice;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * FileIO_CreateDeviceFileNoPrompt --
+ *
+ *      If file does not exist, new file is created. If file does exist,
+ *      configuration option answer.msg.<device>.file.open is consulted to
+ *      decide whether to truncate file (replace), append data at the end of
+ *      the file (append, the default), or fail open (cancel).
+ *
+ * Results:
+ *      FileIOResult of call: FILEIO_SUCCESS or FILEIO_CANCELLED or other value.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+FileIOResult
+FileIO_CreateDeviceFileNoPrompt(FileIODescriptor *fd,   // IN: file IO description
+                                const char *pathName,   // IN: file path
+                                int openMode,           // IN:
+                                FileIOOpenAction action,// IN:
+                                int perms,              // IN:
+                                const char *device)     // IN:
+{
+   FileIOResult fret;
+   char choice = '\0';
+   int time = 0;
+
+   ASSERT(fd != NULL);
+   ASSERT(pathName != NULL);
+   ASSERT(device != NULL);
+
+   while ((fret = FileIO_Create(fd, pathName, openMode, action, perms))
+           == FILEIO_OPEN_ERROR_EXIST) {
+      if (choice == '\0') {
+         choice = FileIOGetChoiceOnConfig(device, pathName);
+
+         switch (choice) {
+            case 'c':     // Cancel
+               fret = FILEIO_CANCELLED;
+               break;
+            case 'r':     // Replace
+            case 'o':     // Overwrite
+               action = FILEIO_OPEN_CREATE_EMPTY;
+               break;
+            default:      // Append, nothing, empty string
+               action = FILEIO_OPEN_CREATE;
+               break;
+         }
+      }
+
+      if (fret == FILEIO_CANCELLED || time++ == 3) {
+         break;
+      }
+   }
+
+   return fret;
 }

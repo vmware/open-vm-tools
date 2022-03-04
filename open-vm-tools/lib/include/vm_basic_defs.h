@@ -89,7 +89,10 @@
  * References:
  *   C90 7.17, C99 7.19, C11 7.19
  */
-#if !defined(VMKERNEL)
+/* Use linux/stddef.h when building Linux kernel modules. */
+#ifdef KBUILD_MODNAME
+#  include <linux/stddef.h>
+#elif !defined(VMKERNEL)
 #  include <stddef.h>
 #else
    /*
@@ -181,12 +184,10 @@ Max(int a, int b)
 #if defined __APPLE__
 #include <machine/param.h>
 #undef MASK
-   #if defined VM_ARM_ANY
-      #include <mach/machine/vm_param.h>
-      #undef PAGE_SHIFT
-      #undef PAGE_SIZE
-      #undef PAGE_MASK
-   #endif
+#include <mach/machine/vm_param.h>
+#undef PAGE_SHIFT
+#undef PAGE_SIZE
+#undef PAGE_MASK
 #endif
 
 /*
@@ -250,6 +251,7 @@ Max(int a, int b)
 
 #define PAGE_SHIFT_4KB   12
 #define PAGE_SHIFT_16KB  14
+#define PAGE_SHIFT_64KB  16
 
 #ifndef PAGE_SHIFT // {
 #if defined __x86_64__ || defined __i386__
@@ -271,6 +273,7 @@ Max(int a, int b)
 
 #define PAGE_SIZE_4KB    (1 << PAGE_SHIFT_4KB)
 #define PAGE_SIZE_16KB   (1 << PAGE_SHIFT_16KB)
+#define PAGE_SIZE_64KB   (1 << PAGE_SHIFT_64KB)
 
 #ifndef PAGE_SIZE
 #define PAGE_SIZE     (1 << PAGE_SHIFT)
@@ -278,6 +281,7 @@ Max(int a, int b)
 
 #define PAGE_MASK_4KB    (PAGE_SIZE_4KB - 1)
 #define PAGE_MASK_16KB   (PAGE_SIZE_16KB - 1)
+#define PAGE_MASK_64KB   (PAGE_SIZE_64KB - 1)
 
 #ifndef PAGE_MASK
 #define PAGE_MASK     (PAGE_SIZE - 1)
@@ -285,6 +289,7 @@ Max(int a, int b)
 
 #define PAGE_OFFSET_4KB(_addr)   ((uintptr_t)(_addr) & (PAGE_SIZE_4KB - 1))
 #define PAGE_OFFSET_16KB(_addr)  ((uintptr_t)(_addr) & (PAGE_SIZE_16KB - 1))
+#define PAGE_OFFSET_64KB(_addr)  ((uintptr_t)(_addr) & (PAGE_SIZE_64KB - 1))
 
 #ifndef PAGE_OFFSET
 #define PAGE_OFFSET(_addr)  ((uintptr_t)(_addr) & (PAGE_SIZE - 1))
@@ -319,9 +324,18 @@ Max(int a, int b)
 #define MBYTES_SHIFT 20
 #endif
 
+#ifndef GBYTES_SHIFT
+#define GBYTES_SHIFT 30
+#endif
+
+#ifndef KBYTES_2_PAGES
+#define KBYTES_2_PAGES(_nkbytes) \
+   ((uint64)(_nkbytes) >> (PAGE_SHIFT - KBYTES_SHIFT))
+#endif
+
 #ifndef MBYTES_2_PAGES
-#define MBYTES_2_PAGES(_nbytes) \
-   ((uint64)(_nbytes) << (MBYTES_SHIFT - PAGE_SHIFT))
+#define MBYTES_2_PAGES(_nMbytes) \
+   ((uint64)(_nMbytes) << (MBYTES_SHIFT - PAGE_SHIFT))
 #endif
 
 #ifndef PAGES_2_KBYTES
@@ -343,11 +357,12 @@ Max(int a, int b)
 #endif
 
 #ifndef GBYTES_2_PAGES
-#define GBYTES_2_PAGES(_nbytes) ((uint64)(_nbytes) << (30 - PAGE_SHIFT))
+#define GBYTES_2_PAGES(_nGbytes) \
+   ((uint64)(_nGbytes) << (GBYTES_SHIFT - PAGE_SHIFT))
 #endif
 
 #ifndef PAGES_2_GBYTES
-#define PAGES_2_GBYTES(_npages) ((_npages) >> (30 - PAGE_SHIFT))
+#define PAGES_2_GBYTES(_npages) ((_npages) >> (GBYTES_SHIFT - PAGE_SHIFT))
 #endif
 
 #ifndef BYTES_2_KBYTES
@@ -355,7 +370,7 @@ Max(int a, int b)
 #endif
 
 #ifndef KBYTES_2_BYTES
-#define KBYTES_2_BYTES(_nbytes) ((uint64)(_nbytes) << KBYTES_SHIFT)
+#define KBYTES_2_BYTES(_nkbytes) ((uint64)(_nkbytes) << KBYTES_SHIFT)
 #endif
 
 #ifndef BYTES_2_MBYTES
@@ -363,15 +378,15 @@ Max(int a, int b)
 #endif
 
 #ifndef MBYTES_2_BYTES
-#define MBYTES_2_BYTES(_nbytes) ((uint64)(_nbytes) << MBYTES_SHIFT)
+#define MBYTES_2_BYTES(_nMbytes) ((uint64)(_nMbytes) << MBYTES_SHIFT)
 #endif
 
 #ifndef BYTES_2_GBYTES
-#define BYTES_2_GBYTES(_nbytes) ((_nbytes) >> 30)
+#define BYTES_2_GBYTES(_nbytes) ((_nbytes) >> GBYTES_SHIFT)
 #endif
 
 #ifndef GBYTES_2_BYTES
-#define GBYTES_2_BYTES(_nbytes) ((uint64)(_nbytes) << 30)
+#define GBYTES_2_BYTES(_nGbytes) ((uint64)(_nGbytes) << GBYTES_SHIFT)
 #endif
 
 #ifndef VM_PAE_LARGE_PAGE_SHIFT
@@ -591,6 +606,13 @@ typedef int pid_t;
 #define DEBUG_ONLY(...)
 #endif
 
+#if defined(VMX86_DEBUG) || defined(VMX86_ENABLE_SPLOCK_STATS)
+#define LOCK_STATS_ON
+#define LOCK_STATS_ONLY(...)  __VA_ARGS__
+#else
+#define LOCK_STATS_ONLY(...)
+#endif
+
 #ifdef VMX86_STATS
 #define vmx86_stats   1
 #define STATS_ONLY(x) x
@@ -725,12 +747,6 @@ typedef int pid_t;
 #define ulm_win 0
 #define ulm_esx 0
 #define ULM_ONLY(x)
-#endif
-
-#ifdef ULM_ESX_VMX
-#define ulm_esx_vmx 1
-#else
-#define ulm_esx_vmx 0
 #endif
 
 #if defined(VMM) || defined(ULM)
@@ -886,6 +902,19 @@ typedef int pid_t;
 #define VMW_CLANG_ANALYZER_NORETURN() Panic("Disable Clang static analyzer")
 #else
 #define VMW_CLANG_ANALYZER_NORETURN() ((void)0)
+#endif
+
+/* VMW_FALLTHROUGH
+ *
+ *   Instructs GCC 9 and above to not warn when a case label of a
+ *   'switch' statement falls through to the next label.
+ *
+ *   If not GCC 9 or above, expands to nothing.
+ */
+#if __GNUC__ >= 9
+#define VMW_FALLTHROUGH() __attribute__((fallthrough))
+#else
+#define VMW_FALLTHROUGH()
 #endif
 
 #endif // ifndef _VM_BASIC_DEFS_H_

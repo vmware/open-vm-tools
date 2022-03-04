@@ -1234,9 +1234,9 @@ bail:
  *      Get the filesystem type number of the file system on which the
  *      given file/directory resides.
  *
- *      Caller can specify either a pathname or an already opened fd of
- *      the file/dir whose filesystem he wants to determine.
- *      'fd' takes precedence over 'pathName' so 'pathName' is used only
+ *      Callers can specify either a pathname, or an already opened fd,
+ *      of the file/dir whose filesystem they want to determine.
+ *      'fd' takes precedence over 'pathName', so 'pathName' is used only
  *      if 'fd' is -1.
  *
  * Results:
@@ -2996,7 +2996,7 @@ File_WalkDirectoryStart(const char *dirName)  // IN:
    context = Util_SafeMalloc(sizeof *context);
 
    context->dirName = Util_SafeStrdup(dirName);
-   context->hash = HashTable_Alloc(256, HASH_STRING_KEY, NULL);
+   context->hash = HashTable_Alloc(2048, HASH_STRING_KEY, NULL);
    context->dir = Posix_OpenDir(dirName);
 
    if (context->dir == NULL) {

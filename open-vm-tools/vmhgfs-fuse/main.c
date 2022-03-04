@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013,2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -21,10 +21,6 @@
  *
  * Main entry points for fuse file operations for HGFS
  */
-
-#if FUSE_USE_VERSION >= 26
-#define HAVE_UTIMENSAT 1
-#endif
 
 #include "module.h"
 #include "cache.h"
@@ -119,9 +115,16 @@ freeAbsPath(char *abspath)  // IN
  *----------------------------------------------------------------------
  */
 
+#if FUSE_MAJOR_VERSION == 3
+static int
+hgfs_getattr(const char *path,           //IN: path of a file/directory
+             struct stat *stbuf,         //IN/OUT: file/directoy attribute
+             struct fuse_file_info *fi)  //IN/OUT: Unused
+#else
 static int
 hgfs_getattr(const char *path,    //IN: path of a file/directory
              struct stat *stbuf)  //IN/OUT: file/directoy attribute
+#endif
 {
    HgfsHandle fileHandle = HGFS_INVALID_HANDLE;
    HgfsAttrInfo newAttr = {0};
@@ -365,12 +368,22 @@ exit:
  *----------------------------------------------------------------------
  */
 
+#if FUSE_MAJOR_VERSION == 3
+static int
+hgfs_readdir(const char *path,              //IN: path to a directory
+             void *buf,                     //OUT: buffer to fill the dir entry
+             fuse_fill_dir_t filler,        //IN: function pointer to fill buf
+             off_t offset,                  //IN: offset to read the dir
+             struct fuse_file_info *fi,     //IN: file info set by open call
+             enum fuse_readdir_flags flags) //IN: unused
+#else
 static int
 hgfs_readdir(const char *path,          //IN: path to a directory
              void *buf,                 //OUT: buffer to fill the dir entry
              fuse_fill_dir_t filler,    //IN: function pointer to fill buf
              off_t offset,              //IN: offset to read the dir
              struct fuse_file_info *fi) //IN: file info set by open call
+#endif
 {
    char *abspath = NULL;
    int res = 0;
@@ -602,9 +615,16 @@ exit:
  *----------------------------------------------------------------------
  */
 
+#if FUSE_MAJOR_VERSION == 3
+static int
+hgfs_rename(const char *from,    //IN: from path name
+            const char *to,      //IN: to path name
+            unsigned int flags)  //IN: unused
+#else
 static int
 hgfs_rename(const char *from,  //IN: from path name
             const char *to)    //IN: to path name
+#endif
 {
    char *absfrom = NULL;
    char *absto = NULL;
@@ -695,9 +715,16 @@ exit:
  *----------------------------------------------------------------------
  */
 
+#if FUSE_MAJOR_VERSION == 3
+static int
+hgfs_chmod(const char *path,          //IN: path to a file
+           mode_t mode,               //IN: mode to set
+           struct fuse_file_info *fi) //IN/OUT: unused
+#else
 static int
 hgfs_chmod(const char *path,   //IN: path to a file
            mode_t mode)        //IN: mode to set
+#endif
 {
    char *abspath = NULL;
    int res;
@@ -760,10 +787,18 @@ exit:
  *----------------------------------------------------------------------
  */
 
+#if FUSE_MAJOR_VERSION == 3
+static int
+hgfs_chown(const char *path,           //IN: Path to a file
+           uid_t uid,                  //IN: User id
+           gid_t gid,                  //IN: Group id
+           struct fuse_file_info *fi)  //IN/OUT: unused
+#else
 static int
 hgfs_chown(const char *path,  //IN: Path to a file
            uid_t uid,         //IN: User id
            gid_t gid)         //IN: Group id
+#endif
 {
    HgfsHandle fileHandle = HGFS_INVALID_HANDLE;
    HgfsAttrInfo newAttr = {0};
@@ -823,9 +858,16 @@ exit:
  *----------------------------------------------------------------------
  */
 
+#if FUSE_MAJOR_VERSION == 3
+static int
+hgfs_truncate(const char *path,           //IN: path to a file
+              off_t size,                 //IN: new size
+              struct fuse_file_info *fi)  //IN/OUT: unused
+#else
 static int
 hgfs_truncate(const char *path,  //IN: path to a file
               off_t size)        //IN: new size
+#endif
 {
    HgfsHandle fileHandle = HGFS_INVALID_HANDLE;
    HgfsAttrInfo newAttr = {0};
@@ -884,14 +926,15 @@ exit:
  *----------------------------------------------------------------------
  */
 
-#ifdef HAVE_UTIMENSAT
+#if FUSE_MAJOR_VERSION == 3
+static int
+hgfs_utimens(const char *path,              //IN: path to a file
+             const struct timespec ts[2],   //IN: new time
+             struct fuse_file_info *fi)     //IN/OUT: unused
+#else
 static int
 hgfs_utimens(const char *path,              //IN: path to a file
              const struct timespec ts[2])   //IN: new time
-#else
-static int
-hgfs_utime(const char *path,        //IN: path to a file
-           struct utimbuf *times)   //IN: new time
 #endif
 {
    HgfsHandle fileHandle = HGFS_INVALID_HANDLE;
@@ -936,17 +979,10 @@ hgfs_utime(const char *path,        //IN: path to a file
    attr->mask = (HGFS_ATTR_VALID_WRITE_TIME |
                  HGFS_ATTR_VALID_ACCESS_TIME);
 
-#ifdef HAVE_UTIMENSAT
    accessTimeSec = ts[0].tv_sec;
    accessTimeNsec = ts[0].tv_nsec;
    writeTimeSec = ts[1].tv_sec;
    writeTimeNsec = ts[1].tv_nsec;
-#else
-   accessTimeSec = times->actime;
-   accessTimeNsec = 0;
-   writeTimeSec = times->modtime;
-   writeTimeNsec = 0;
-#endif
    attr->accessTime = HgfsConvertToNtTime(accessTimeSec, accessTimeNsec);
    attr->writeTime = HgfsConvertToNtTime(writeTimeSec, writeTimeNsec);
 
@@ -1249,8 +1285,14 @@ exit:
  *----------------------------------------------------------------------
  */
 
+#if FUSE_MAJOR_VERSION == 3
+static void*
+hgfs_init(struct fuse_conn_info *conn, // IN: unused
+          struct fuse_config *cfg)     // IN/OUT: unused
+#else
 static void*
 hgfs_init(struct fuse_conn_info *conn) // IN: unused
+#endif
 {
    pthread_t purgeCacheThread;
    int dummy;
@@ -1335,11 +1377,7 @@ static struct fuse_operations vmhgfs_operations = {
    .chmod       = hgfs_chmod,
    .chown       = hgfs_chown,
    .truncate    = hgfs_truncate,
-#ifdef HAVE_UTIMENSAT
    .utimens     = hgfs_utimens,
-#else // HAVE_UTIMENSAT
-   .utime       = hgfs_utime,
-#endif // defined HAVE_UTIMENSAT
    .open        = hgfs_open,
    .read        = hgfs_read,
    .write       = hgfs_write,

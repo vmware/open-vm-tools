@@ -333,9 +333,9 @@ Log_Trivia(const char *fmt,
 
 #if !defined(VMM)
 typedef struct {
-   int32   legalLevelValue;
-   char   *legalName;
-   char   *levelIdStr;
+   int32       legalLevelValue;
+   const char *legalName;
+   const char *levelIdStr;
 } LogLevelData;
 
 const LogLevelData *
@@ -386,6 +386,25 @@ Log_NewFileOutput(const char *appPrefix,
                   const char *instanceName,
                   struct Dictionary *params,
                   struct CfgInterface *cfgIf);
+
+typedef struct {
+   uint32 keepOld;
+   uint32 rotateSize;
+   uint32 throttleThreshold;
+   uint32 throttleBPS;
+   Bool   useTimeStamp;
+   Bool   useMilliseconds;
+   Bool   useThreadName;
+   Bool   useLevelDesignator;
+   Bool   useOpID;
+   Bool   append;
+   Bool   syncAfterWrite;
+   Bool   fastRotation;
+} LogFileParameters;
+
+Bool
+Log_GetFileParameters(const LogOutput *output,
+                      LogFileParameters *parms);
 
 typedef void (LogCustomMsgFunc)(int level,
                                 const char *msg);
@@ -607,12 +626,12 @@ Log_MakeTimeString(Bool millisec,
                    char *buf,
                    size_t max);
 
-typedef Bool (LogOwnerFunc)(void *userData,
-                            const char *fileName);
+typedef Bool (LogMayDeleteFunc)(void *userData,
+                                const char *fileName);
 
 Bool
 Log_BoundNumFiles(const LogOutput *output,
-                  LogOwnerFunc *func,
+                  LogMayDeleteFunc *mayDeleteFunc,
                   void *userData);
 
 typedef struct {

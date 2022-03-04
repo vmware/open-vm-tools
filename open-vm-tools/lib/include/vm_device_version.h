@@ -56,6 +56,7 @@
  */
 #define PCI_VENDOR_ID_VMWARE                    0x15AD
 #define PCI_DEVICE_ID_VMWARE_SBX                0x0420
+#define PCI_DEVICE_ID_VMWARE_SVGA_EFI           0x0407
 #define PCI_DEVICE_ID_VMWARE_SVGA3              0x0406
 #define PCI_DEVICE_ID_VMWARE_SVGA2              0x0405
 #define PCI_DEVICE_ID_VMWARE_SVGA               0x0710
@@ -338,10 +339,10 @@
 #define MAX_FLOPPY_DRIVES      2
 
 /************* PCI Passthrough implementation limits ********************/
-#define MAX_PCI_PASSTHRU_DEVICES 16
+#define MAX_PCI_PASSTHRU_DEVICES 32
 
 /************* Test device implementation limits ********************/
-#define MAX_PCI_TEST_DEVICES 16
+#define MAX_PCI_TEST_DEVICES 32
 
 /************* VDTI PCI Device implementation limits ********************/
 #define MAX_VDTI_PCI_DEVICES 16

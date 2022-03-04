@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -114,6 +114,30 @@ Poll_InitWithImpl(const PollImpl *impl)
    pollImpl->Init();
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Poll_IsInitialized --
+ *
+ *      Allows libraries to determine if they can use poll or not.
+ *
+ * Results:
+ *      TRUE if and only if poll is initialized.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+Poll_IsInitialized(void)
+{
+   return pollImpl != NULL;
+}
+
+
 /*
  *----------------------------------------------------------------------
  *
@@ -132,9 +156,10 @@ Poll_InitWithImpl(const PollImpl *impl)
 void
 Poll_Exit(void)
 {
-   pollImpl->Exit();
-
-   pollImpl = NULL;
+   if (pollImpl) {
+      pollImpl->Exit();
+      pollImpl = NULL;
+   }
 }
 
 

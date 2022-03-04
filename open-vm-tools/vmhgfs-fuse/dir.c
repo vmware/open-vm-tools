@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013,2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013,2019,2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -396,7 +396,11 @@ HgfsReadDirFromReply(uint32 *f_pos,     // IN/OUT: Offset
       st.st_size = attr.size;
       st.st_ino = ino;
       st.st_mode = d_type << 12;
+#if FUSE_MAJOR_VERSION == 3
+      result = filldir(vfsDirent, escName, &st, 0, 0);
+#else
       result = filldir(vfsDirent, escName, &st, 0);
+#endif
 
       if (result) {
          /*

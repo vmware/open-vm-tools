@@ -37,7 +37,8 @@
 
 /* The DRM device we are looking for */
 #define RESOLUTION_VENDOR     "0x15ad"
-#define RESOLUTION_DEVICE     "0x0405"
+#define RESOLUTION_SVGA2_DEVICE     "0x0405"
+#define RESOLUTION_SVGA3_DEVICE     "0x0406"
 #define RESOLUTION_KERNELNAME "vmwgfx"
 
 /* Required DRM version for resolutionKMS */
@@ -121,8 +122,9 @@ resolutionOpenDRM(const char *node) // IN: Device node base name.
        if (!vendor || !device)
           goto skipCheck;
 
-       if (strcmp(vendor, RESOLUTION_VENDOR) ||
-           strcmp(device, RESOLUTION_DEVICE))
+       if (strcmp(vendor, RESOLUTION_VENDOR) != 0 ||
+           (strcmp(device, RESOLUTION_SVGA2_DEVICE) != 0 &&
+             strcmp(device, RESOLUTION_SVGA3_DEVICE) != 0))
           goto skipCheck;
 
        devNode = udev_device_get_devnode(dev);

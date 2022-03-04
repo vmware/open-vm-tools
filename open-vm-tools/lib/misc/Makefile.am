@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2007-2017 VMware, Inc.  All rights reserved.
+### Copyright (C) 2007-2017,2021 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -34,6 +34,7 @@ libMisc_la_SOURCES += hostname.c
 libMisc_la_SOURCES += hostType.c
 libMisc_la_SOURCES += idLinux.c
 libMisc_la_SOURCES += iovector.c
+libMisc_la_SOURCES += jsonUTF8.c
 libMisc_la_SOURCES += logFixed.c
 libMisc_la_SOURCES += machineID.c
 libMisc_la_SOURCES += miscSolaris.c

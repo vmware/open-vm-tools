@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -120,7 +120,7 @@ public:
 protected:
    virtual void OnRpcSrcDragBegin(uint32 sessionId,
                                   const CPClipboard *clip) = 0;
-   void OnRpcQueryExiting(uint32 sessionId, int32 x, int32 y);
+   virtual void OnRpcQueryExiting(uint32 sessionId, int32 x, int32 y);
    void OnRpcUpdateUnityDetWnd(uint32 sessionId,
                                bool show,
                                uint32 unityWndId);

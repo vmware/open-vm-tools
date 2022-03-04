@@ -85,6 +85,14 @@
 #define CONFNAME_APPINFO_DISABLED "disabled"
 
 /**
+ * Defines the configuration to remove duplicate applications.
+ *
+ * @param boolean Set to TRUE to remove duplicate apps.
+ *                Set to FALSE to keep duplicate apps.
+ */
+#define CONFNAME_APPINFO_REMOVE_DUPLICATES "remove-duplicates"
+
+/**
  * Defines the configuration to use the WMI for getting the application
  * version information.
  *
@@ -98,6 +106,82 @@
 
 /*
  * END AppInfo goodies.
+ ******************************************************************************
+ */
+
+/*
+ ******************************************************************************
+ * BEGIN containerInfo goodies.
+ */
+
+/**
+ * Defines the string used for the ContainerInfo config file group.
+ */
+#define CONFGROUPNAME_CONTAINERINFO "containerinfo"
+
+/**
+ * Define a custom ContainerInfo poll interval (in seconds).
+ *
+ * @note Illegal values result in a @c g_warning and fallback to the default
+ * poll interval.
+ *
+ * @param int   User-defined poll interval.  Set to 0 to disable polling.
+ */
+#define CONFNAME_CONTAINERINFO_POLLINTERVAL "poll-interval"
+
+/**
+ * Define the limit on the maximum number of containers to collect info from.
+ * If the number of running containers exceeds the limit, only the most recently
+ * created containers will be published.
+ *
+ * @note Illegal values result in a @c g_warning and fallback to the default
+ * max container limit.
+ *
+ * @param int   User-defined max limit for # of containers queried.
+ */
+#define CONFNAME_CONTAINERINFO_LIMIT "max-containers"
+
+/**
+ * Defines the configuration to remove duplicate containers.
+ *
+ * @param boolean Set to TRUE to remove duplicate containers.
+ *                Set to FALSE to keep duplicate containers.
+ */
+#define CONFNAME_CONTAINERINFO_REMOVE_DUPLICATES "remove-duplicates"
+
+/**
+ * Define the docker unix socket to use to communicate with the docker daemon.
+ *
+ * @note Illegal values result in a @c g_warning and fallback to docker's
+ * default unix socket.
+ *
+ * @param string  absolute file path of the docker unix socket in use.
+ */
+#define CONFNAME_CONTAINERINFO_DOCKERSOCKET "docker-unix-socket"
+
+/**
+ * Define the containerd unix socket to connect with containerd gRPC server.
+ * This should be used to get containers.
+ *
+ * @note Illegal values result in a @c g_warning and fallback to the containerd
+ * default unix socket.
+ *
+ * @param string  absolute file path of the containerd unix socket in use.
+ */
+#define CONFNAME_CONTAINERINFO_CONTAINERDSOCKET "containerd-unix-socket"
+
+/**
+ * Define the list of namespaces to be queried for the running containers.
+ *
+ * @note Illegal values result in a @c g_warning and fallback to the default
+ * list of namespaces.
+ *
+ * @param string  Comma separated list of namespaces to be queried.
+ */
+#define CONFNAME_CONTAINERINFO_ALLOWED_NAMESPACES "allowed-namespaces"
+
+/*
+ * END containerInfo goodies.
  ******************************************************************************
  */
 
@@ -124,6 +208,34 @@
 
 /*
  * END ServiceDiscovery goodies.
+ ******************************************************************************
+ */
+
+/*
+ ******************************************************************************
+ * BEGIN ComponentMgr goodies.
+ */
+
+/**
+ * Defines the current poll interval (in seconds).
+ * This value is controlled by the componentMgr.poll-interval config file
+ * option.
+ */
+#define COMPONENTMGR_CONF_POLLINTERVAL "poll-interval"
+
+/**
+ * Name of section of configuration to be read from tools.conf.
+ */
+#define COMPONENTMGR_CONF_GROUPNAME "componentmgr"
+
+/**
+ * Defines the components  managed by the componentMgr plugin.
+ * This value is controlled by the componentMgr.included config file option.
+ */
+#define COMPONENTMGR_CONF_INCLUDEDCOMPONENTS "included"
+
+/*
+ * END ComponentMgr goodies.
  ******************************************************************************
  */
 

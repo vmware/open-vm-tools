@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2020-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -20,7 +20,7 @@
  * serviceDiscovery.c --
  *
  * Captures the information about services inside the guest
- * and writes it to Namespace DB.
+ * and writes it to either host-side gdp daemon or Namespace DB
  */
 
 #include <string.h>
@@ -48,7 +48,6 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 #define NSDB_PRIV_GET_VALUES_CMD "namespace-priv-get-values"
 #define NSDB_PRIV_SET_KEYS_CMD "namespace-priv-set-keys"
 
-
 #if defined (_WIN32)
 
 #define SCRIPT_EXTN ".bat"
@@ -63,6 +62,7 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
         SCRIPT_EXTN
 #define SERVICE_DISCOVERY_WIN_SCRIPT_NET "net-share" SCRIPT_EXTN
 #define SERVICE_DISCOVERY_WIN_SCRIPT_IIS_PORTS "get-iis-ports-info" SCRIPT_EXTN
+#define SERVICE_DISCOVERY_WIN_SCRIPT_SHAREPOINT_PORTS "get-sharepoint-ports-info" SCRIPT_EXTN
 
 #else
 
@@ -74,6 +74,9 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
  */
 #define SERVICE_DISCOVERY_SCRIPT_PERFORMANCE_METRICS \
         "get-listening-process-perf-metrics" SCRIPT_EXTN
+
+#define _get_errno(p) (*p = errno)
+
 #endif
 
 /*
@@ -108,10 +111,55 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 #define SERVICE_DISCOVERY_RPC_WAIT_TIME 100
 
 /*
+ * Defines the configuration to cache data in gdp plugin
+ */
+#define CONFNAME_SERVICEDISCOVERY_CACHEDATA "cache-data"
+
+#define SERVICE_DISCOVERY_CONF_DEFAULT_CACHEDATA TRUE
+
+#define SERVICE_DISCOVERY_TOPIC_PREFIX "serviceDiscovery"
+
+#if defined(VMX86_DEBUG)
+/*
+ * Defines the configuration to identify whether is in GDP debug mode
+ *
+ * Tools daemon restart is required to apply this setting's cahnge
+ */
+#define CONFNAME_SERVICEDISCOVERY_GDP_DEBUG "gdp-debug"
+
+/*
+ * Defines the configuration to customize polling interval for GDP debug
+ *
+ * Tools daemon restart is required to apply this setting's cahnge
+ */
+#define CONFNAME_SERVICEDISCOVERY_GDP_POLL_INTERVAL "poll-interval"
+
+/*
+ * Default polling interval of service discovery plugin for GDP debug in seconds
+ */
+#define SERVICE_DISCOVERY_CONF_GDP_DEBUG_POLL_INTERVAL 15
+
+/*
+ * Minimum polling interval of service discovery plugin for GDP debug in seconds
+ */
+#define SERVICE_DISCOVERY_CONF_MIN_POLL_INTERVAL 1
+
+static Bool isGDPDebug = FALSE;
+#endif
+
+/*
  * Maximum number of keys that can be deleted by one operation
  */
 #define SERVICE_DISCOVERY_DELETE_CHUNK_SIZE 25
 
+/*
+ * GdpError message table.
+ */
+#define GDP_ERR_ITEM(a, b) b,
+static const char * const gdpErrMsgs[] = {
+GDP_ERR_LIST
+};
+#undef GDP_ERR_ITEM
 
 typedef struct {
    gchar *keyName;
@@ -130,6 +178,8 @@ static KeyNameValue gKeyScripts[] = {
      SERVICE_DISCOVERY_WIN_SCRIPT_RELATIONSHIP },
    { SERVICE_DISCOVERY_WIN_KEY_IIS_PORTS,
      SERVICE_DISCOVERY_WIN_SCRIPT_IIS_PORTS },
+   { SERVICE_DISCOVERY_WIN_KEY_SHAREPOINT_PORTS,
+     SERVICE_DISCOVERY_WIN_SCRIPT_SHAREPOINT_PORTS },
    { SERVICE_DISCOVERY_WIN_KEY_NET, SERVICE_DISCOVERY_WIN_SCRIPT_NET },
 #endif
 };
@@ -138,8 +188,14 @@ static GSource *gServiceDiscoveryTimeoutSource = NULL;
 static gint64 gLastWriteTime = 0;
 
 static GArray *gFullPaths = NULL;
-static volatile Bool gTaskSubmitted = FALSE;
+static Atomic_Bool gTaskSubmitted = { FALSE }; // Task has been submitted.
 
+static size_t readBytesPerCycle = 0;
+static size_t cycle = 0;
+static Bool isGDPWriteReady = TRUE;
+static Bool isNDBWriteReady = TRUE;
+
+static Bool gSkipThisTask = FALSE; // Skip this task on some gdp errors.
 
 /*
  *****************************************************************************
@@ -158,6 +214,37 @@ GetGuestTimeInMillis(void)
    return g_get_real_time() / 1000;
 }
 
+#if defined(VMX86_DEBUG)
+/*
+ *****************************************************************************
+ * GetGDPPollInterval --
+ *
+ * @brief Get poll interval from tools config for debugging the GDP
+ *
+ * @param[in]  ctx     The application context
+ *
+ * @retval Poll interval in milli-seconds.
+ *
+ *****************************************************************************
+ */
+
+static gint
+GetGDPPollInterval(ToolsAppCtx *ctx)
+{
+   gint pollInterval =
+      VMTools_ConfigGetInteger(ctx->config,
+                               CONFGROUPNAME_SERVICEDISCOVERY,
+                               CONFNAME_SERVICEDISCOVERY_GDP_POLL_INTERVAL,
+                               SERVICE_DISCOVERY_CONF_GDP_DEBUG_POLL_INTERVAL);
+   if (pollInterval < SERVICE_DISCOVERY_CONF_MIN_POLL_INTERVAL) {
+      g_info("%s: Service discovery minimum poll interval is enforced.\n",
+             __FUNCTION__);
+      pollInterval = SERVICE_DISCOVERY_CONF_MIN_POLL_INTERVAL;
+   }
+
+   return pollInterval * 1000;
+}
+#endif
 
 /*
  *****************************************************************************
@@ -205,7 +292,7 @@ SendRpcMessage(ToolsAppCtx *ctx,
        */
       if (!status && result != NULL &&
           strcmp(*result, RPCCHANNEL_SEND_PERMISSION_DENIED) == 0) {
-         g_debug("%s: Retrying RPC send", __FUNCTION__);
+         g_debug("%s: Retrying RPC send\n", __FUNCTION__);
          free(*result);
          g_usleep(SERVICE_DISCOVERY_RPC_WAIT_TIME * 1000);
          status = RpcChannel_SendOneRawPriv(msg, msgLen, result, resultLen);
@@ -215,6 +302,118 @@ SendRpcMessage(ToolsAppCtx *ctx,
    return status;
 }
 
+/*
+ *****************************************************************************
+ * SendData --
+ *
+ * Sends guest data to host-side gdp daemon.
+ *
+ * @param[in] ctx         The application context
+ * @param[in] createTime  Data create time
+ * @param[in] topic       Data topic
+ * @param[in] data        Service data
+ * @param[in] len         Service data len
+ *
+ * @retval TRUE  On success.
+ * @retval FALSE Failed.
+ *
+ *****************************************************************************
+ */
+
+Bool
+SendData(ToolsAppCtx *ctx,
+         gint64 createTime,
+         const char *topic,
+         const char *data,
+         const int len)
+{
+   GdpError gdpErr;
+   Bool status = FALSE;
+   Bool cacheData = VMTools_ConfigGetBoolean(ctx->config,
+                                             CONFGROUPNAME_SERVICEDISCOVERY,
+                                             CONFNAME_SERVICEDISCOVERY_CACHEDATA,
+                                             SERVICE_DISCOVERY_CONF_DEFAULT_CACHEDATA);
+
+   gdpErr = ToolsPluginSvcGdp_Publish(ctx,
+                                      createTime,
+                                      topic,
+                                      NULL,
+                                      NULL,
+                                      data,
+                                      len,
+                                      cacheData);
+   if (gdpErr != GDP_ERROR_SUCCESS) {
+      g_info("%s: ToolsPluginSvcGdp_Publish error: %s\n",
+             __FUNCTION__, gdpErrMsgs[gdpErr]);
+      if (gdpErr == GDP_ERROR_STOP ||
+          gdpErr == GDP_ERROR_UNREACH ||
+          gdpErr == GDP_ERROR_TIMEOUT) {
+         gSkipThisTask = TRUE;
+      }
+   } else {
+      status = TRUE;
+   }
+
+   return status;
+}
+
+/*
+ *****************************************************************************
+ * fread_safe --
+ *
+ * A wrapper of C runtime library fread() with almost same signature except
+ * the item size is always 1 byte. It ensures that when the returned number
+ * of bytes is less than the input buffer size in bytes, an error has occured
+ * or the end of the file is encountered.
+ *
+ * @param [out] buf     Pointer to a block of memory with a size of at least
+ *                      (size) bytes, converted to a void*.
+ * @param [in] size     Size, in bytes, of each element to be read.
+ * @param [in] stream   Pointer to a FILE object that specifies an input stream.
+ * @param [out] eof     Indicates whether end of file is reached.
+ *
+ * @retval The total number of elements successfully read is returned.
+ *
+ *****************************************************************************
+ */
+
+static size_t
+fread_safe(void *buf,
+           size_t size,
+           FILE *stream,
+           Bool *eof)
+{
+   size_t readBytes = 0;
+
+   while (readBytes < size) {
+      size_t localReadBytes;
+
+      /*
+       * fread is a blocking call.
+       */
+      localReadBytes = fread((char *)buf + readBytes, 1,
+                             size - readBytes, stream);
+
+      if (ferror(stream)) {
+         int error_code = 0;
+         _get_errno(&error_code);
+         g_info("%s: fread returned %"FMTSZ"u with errno=%d\n",
+                __FUNCTION__, localReadBytes, error_code);
+         break;
+      }
+
+      readBytes += localReadBytes;
+
+      if (feof(stream)) {
+         g_debug("%s: fread reached end of file\n",
+                 __FUNCTION__);
+         *eof = TRUE;
+         break;
+      }
+   }
+
+   return readBytes;
+}
 
 /*
  *****************************************************************************
@@ -371,6 +570,40 @@ done:
    return status;
 }
 
+/*
+ *****************************************************************************
+ * DepleteReadFromStream --
+ *
+ * Reads from stream and appends to the output dynamic buffer
+ *
+ * @param[in]  s            Stream
+ * @param[out] out          Output buffer
+ *
+ *****************************************************************************
+ */
+
+void
+DepleteReadFromStream(FILE *s,
+                      DynBuf *out)
+{
+   for (;;) {
+      size_t readBytes;
+      char buf[SERVICE_DISCOVERY_VALUE_MAX_SIZE];
+
+      readBytes = fread(buf, 1, sizeof(buf), s);
+
+      g_debug("%s: readBytes = %"FMTSZ"u\n", __FUNCTION__, readBytes);
+
+      if (readBytes > 0) {
+         DynBuf_Append(out, buf, readBytes);
+      }
+
+      if (readBytes < sizeof(buf)) {
+         break;
+      }
+   }
+}
+
 
 /*
  *****************************************************************************
@@ -448,6 +681,110 @@ out:
    return status;
 }
 
+/*
+ *****************************************************************************
+ * SendScriptOutput --
+ *
+ * Reads script child process stdout stream, sends output to
+ * host-side gdp daemon and/or namespace DB.
+ *
+ * Stream output data are cut into chunks with chunk size of 16K for namespace
+ * DB and 48K for gdp daemon. If there are multiple chunks of data, each chunk
+ * is sent to gdp daemon/namespace db separately with its chunk number in the
+ * topic.
+ *
+ * @param[in] ctx             The application context
+ * @param[in] key             Script name
+ * @param[in] childStdout     Stream to read child process stdout
+ *
+ * @retval TRUE  Successfully sent output.
+ * @retval FALSE Otherwise.
+ *
+ *****************************************************************************
+ */
+
+Bool
+SendScriptOutput(ToolsAppCtx *ctx,
+                 const char *key,
+                 FILE* childStdout)
+{
+   Bool status = TRUE;
+   Bool gdp_status = TRUE;
+   int i = 0;
+   size_t totalReadBytes = 0;
+   gint64 createTime = g_get_real_time();
+   size_t ndbBufSize = SERVICE_DISCOVERY_VALUE_MAX_SIZE * sizeof(char);
+   for (;;) {
+      size_t readBytes;
+      char buf[GDP_USER_DATA_LEN];
+      Bool eof = FALSE;
+      readBytes = fread_safe(buf, sizeof(buf), childStdout, &eof);
+
+      totalReadBytes += readBytes;
+      g_debug("%s: DB readBytes = %"FMTSZ"u\n", __FUNCTION__,
+              readBytes);
+      if (isGDPWriteReady && gdp_status && readBytes > 0) {
+         g_debug("%s:%s Write to GDP readBytes = %"FMTSZ"u\n",
+                 __FUNCTION__, key, readBytes);
+         gchar* topic;
+
+         if (eof || readBytes < sizeof(buf)) {
+            topic = g_strdup_printf(SERVICE_DISCOVERY_TOPIC_PREFIX ".%s.%"FMTSZ
+                                    "u.%"FMTSZ"u", key, cycle, totalReadBytes);
+         } else {
+            topic = g_strdup_printf(SERVICE_DISCOVERY_TOPIC_PREFIX ".%s.%"FMTSZ
+                                    "u", key, cycle);
+         }
+         gdp_status = SendData(ctx, createTime, topic, buf, (int)readBytes);
+         readBytesPerCycle += readBytes;
+         g_free(topic);
+      }
+
+      if (isNDBWriteReady) {
+         size_t ndbReadBytes = 0;
+         size_t j;
+         for (j = 0; j < readBytes; j += ndbReadBytes) {
+            if (j + ndbBufSize > readBytes) {
+               ndbReadBytes = readBytes - j;
+            } else {
+               ndbReadBytes = ndbBufSize;
+            }
+            if (status && ndbReadBytes > 0) {
+               g_debug("%s:%s Write to Namespace DB readBytes = %"FMTSZ"u\n",
+                       __FUNCTION__, key, ndbReadBytes);
+
+               gchar* msg = g_strdup_printf("%s-%d", key, ++i);
+               status = WriteData(ctx, msg, buf + j, ndbReadBytes);
+               if (!status) {
+                   g_warning("%s: Failed to store data\n", __FUNCTION__);
+               }
+               g_free(msg);
+            }
+         }
+      }
+
+      /*
+       * Exit the loop only after childStdout is not readable any more.
+       * Otherwise, the child process may be blocked in writing its stdout
+       * and hang.
+       */
+      if (eof || readBytes < sizeof(buf)) {
+         break;
+      }
+
+   }
+
+   if (isNDBWriteReady && status) {
+      gchar *chunkCount = g_strdup_printf("%d", i);
+      status = WriteData(ctx, key, chunkCount, strlen(chunkCount));
+      if (status) {
+         g_debug("%s: Written key %s chunks %s\n", __FUNCTION__, key, chunkCount);
+      }
+      g_free(chunkCount);
+   }
+
+   return status && gdp_status;
+}
 
 /*
  *****************************************************************************
@@ -571,53 +908,76 @@ static void
 ServiceDiscoveryTask(ToolsAppCtx *ctx,
                      void *data)
 {
-   Bool status = FALSE;
    int i;
-   gint64 previousWriteTime = gLastWriteTime;
+   Bool status = FALSE;
+   Atomic_WriteBool(&gTaskSubmitted, TRUE);
+   if (isGDPWriteReady) {
+      gSkipThisTask = FALSE;
+   }
+   if (isNDBWriteReady) {
+      gint64 previousWriteTime = gLastWriteTime;
 
-   gTaskSubmitted = TRUE;
 
-   /*
-    * We are going to write to Namespace DB, update glastWriteTime
-    */
-   gLastWriteTime = GetGuestTimeInMillis();
+      /*
+       * We are going to write to Namespace DB, update glastWriteTime
+       */
+      gLastWriteTime = GetGuestTimeInMillis();
 
-   /*
-    * Reset "ready" flag to stop readers until all data is written
-    */
-   status = WriteData(ctx, SERVICE_DISCOVERY_KEY_READY, "FALSE", 5);
-   if (!status) {
-      gLastWriteTime = previousWriteTime;
-      g_warning("%s: Failed to reset %s flag", __FUNCTION__,
-                SERVICE_DISCOVERY_KEY_READY);
-      goto out;
+      /*
+       * Reset "ready" flag to stop readers until all data is written
+       */
+      status = WriteData(ctx, SERVICE_DISCOVERY_KEY_READY, "FALSE", 5);
+      if (!status) {
+         gLastWriteTime = previousWriteTime;
+         g_warning("%s: Failed to reset %s flag", __FUNCTION__,
+                   SERVICE_DISCOVERY_KEY_READY);
+         if (!isGDPWriteReady) {
+            Atomic_WriteBool(&gTaskSubmitted, FALSE);
+            return;
+         }
+      }
+
+      /*
+       * Remove chunks written to DB in the previous iteration
+       */
+      CleanupNamespaceDB(ctx);
    }
 
-   /*
-    * Remove chunks written to DB in the previous iteration
-    */
-   CleanupNamespaceDB(ctx);
-
+   readBytesPerCycle = 0;
+   cycle++;
    for (i = 0; i < gFullPaths->len; i++) {
       KeyNameValue tmp = g_array_index(gFullPaths, KeyNameValue, i);
-      if (!PublishScriptOutputToNamespaceDB(ctx, tmp.keyName, tmp.val)) {
-         g_debug("%s: PublishScriptOutputToNamespaceDB failed for script %s\n",
-                 __FUNCTION__, tmp.val);
+      if (!ExecuteScript(ctx, tmp.keyName, tmp.val)) {
+         g_debug("%s: ExecuteScript failed for script %s\n",
+                __FUNCTION__, tmp.val);
+         if (isGDPWriteReady && gSkipThisTask && !isNDBWriteReady) {
+            break;
+         }
+      }
+   }
+   if (isGDPWriteReady && !gSkipThisTask) {
+      gchar* readyData = g_strdup_printf("%"FMTSZ"u", readBytesPerCycle);
+      g_debug("%s: Sending ready flag with number of read bytes :%s\n",
+             __FUNCTION__, readyData);
+      gchar* topic = g_strdup_printf(SERVICE_DISCOVERY_TOPIC_PREFIX ".%s.%"
+                                     FMTSZ"u", "ready", cycle);
+      SendData(ctx, g_get_real_time(), topic, readyData, strlen(readyData));
+      g_free(topic);
+      g_free(readyData);
+   }
+
+   if (isNDBWriteReady) {
+      /*
+       * Update ready flag
+       */
+      status = WriteData(ctx, SERVICE_DISCOVERY_KEY_READY, "TRUE", 4);
+      if (!status) {
+         g_warning("%s: Failed to update ready flag", __FUNCTION__);
       }
    }
 
-   /*
-    * Update ready flag
-    */
-   status = WriteData(ctx, SERVICE_DISCOVERY_KEY_READY, "TRUE", 4);
-   if (!status) {
-      g_warning("%s: Failed to update ready flag", __FUNCTION__);
-   }
-
-out:
-   gTaskSubmitted = FALSE;
+   Atomic_WriteBool(&gTaskSubmitted, FALSE);
 }
-
 
 /*
  *****************************************************************************
@@ -632,16 +992,17 @@ out:
  * Second check - checks if time greater than interval read from Namespace DB
  * has elapsed since the last write operation.
  *
- * @param[in] ctx     The application context.
+ * @param[in] ctx           The application context.
+ * @param[in] signalKey     Signal key to check the write redinness of Namespace DB or gdp.
  *
- * @retval TRUE  Execute scripts and write service data to Namespace DB.
+ * @retval TRUE  Execute scripts and write service data to Namespace DB or gdp
  * @retval FALSE Omit this cycle wihtout any script running.
  *
  *****************************************************************************
  */
 
 static Bool
-checkForWrite(ToolsAppCtx *ctx)
+checkForWrite(ToolsAppCtx *ctx, const char *signalKey)
 {
    char *signal = NULL;
    size_t signalLen = 0;
@@ -650,7 +1011,7 @@ checkForWrite(ToolsAppCtx *ctx)
    /*
     * Read signal from Namespace DB
     */
-   if (!ReadData(ctx, SERVICE_DISCOVERY_KEY_SIGNAL, &signal, &signalLen)) {
+   if (!ReadData(ctx, signalKey, &signal, &signalLen)) {
       g_debug("%s: Failed to read necessary information from Namespace DB\n",
               __FUNCTION__);
    } else {
@@ -705,13 +1066,12 @@ checkForWrite(ToolsAppCtx *ctx)
    return result;
 }
 
-
 /*
  *****************************************************************************
  * ServiceDiscoveryThread --
  *
- * Creates a new thread that collects all the desired application related
- * information and updates the Namespace DB.
+ * Creates a new task thread that gathers discovered services' data and
+ * publishes the data to either Namespace DB or host-side gdp daemon.
  *
  * @param[in]  data     The application context.
  *
@@ -724,15 +1084,29 @@ static Bool
 ServiceDiscoveryThread(gpointer data)
 {
    ToolsAppCtx *ctx = data;
+   #if defined(VMX86_DEBUG)
+   if (isGDPDebug) {
+      isGDPWriteReady = TRUE;
+      isNDBWriteReady = FALSE;
+   } else {
+      isGDPWriteReady = checkForWrite(ctx, SERVICE_DISCOVERY_KEY_GDP_SIGNAL);
+      isNDBWriteReady = checkForWrite(ctx, SERVICE_DISCOVERY_KEY_SIGNAL);
+   }
+   #else
+   isGDPWriteReady = checkForWrite(ctx, SERVICE_DISCOVERY_KEY_GDP_SIGNAL);
+   isNDBWriteReady = checkForWrite(ctx, SERVICE_DISCOVERY_KEY_SIGNAL);
+   #endif
 
    /*
     * First check for taskSubmitted, if it is true automatically omit this
     * cycle even without checking for write to avoid resetting last write
     * time.
     */
-   if (gTaskSubmitted || !checkForWrite(ctx)) {
-      g_debug("%s: Data should not be written taskSubmitted = %s\n",
-              __FUNCTION__, gTaskSubmitted ? "True" : "False");
+   if (Atomic_ReadBool(&gTaskSubmitted)) {
+      g_debug("%s: Previously submitted task is not completed\n", __FUNCTION__);
+   } else if (!isNDBWriteReady && !isGDPWriteReady) {
+      g_debug("%s: Neither Namespace DB nor GDP is ready for writing\n",
+              __FUNCTION__);
    } else {
       g_debug("%s: Submitting task to write\n", __FUNCTION__);
       if (!ToolsCorePool_SubmitTask(ctx, ServiceDiscoveryTask, NULL, NULL)) {
@@ -760,8 +1134,21 @@ static void
 TweakDiscoveryLoop(ToolsAppCtx *ctx)
 {
    if (gServiceDiscoveryTimeoutSource == NULL) {
+      gint pollInterval = SERVICE_DISCOVERY_POLL_INTERVAL;
+      #if defined(VMX86_DEBUG)
+      isGDPDebug =
+               VMTools_ConfigGetBoolean(ctx->config,
+                                        CONFGROUPNAME_SERVICEDISCOVERY,
+                                        CONFNAME_SERVICEDISCOVERY_GDP_DEBUG,
+                                        FALSE);
+      if (isGDPDebug) {
+         pollInterval = GetGDPPollInterval(ctx);
+         g_info("%s: GDP Debug is enabled with %d ms polling interval\n",
+                __FUNCTION__, pollInterval);
+      }
+      #endif
       gServiceDiscoveryTimeoutSource =
-                      g_timeout_source_new(SERVICE_DISCOVERY_POLL_INTERVAL);
+                          g_timeout_source_new(pollInterval);
       VMTOOLSAPP_ATTACH_SOURCE(ctx, gServiceDiscoveryTimeoutSource,
                                ServiceDiscoveryThread, ctx, NULL);
       g_source_unref(gServiceDiscoveryTimeoutSource);

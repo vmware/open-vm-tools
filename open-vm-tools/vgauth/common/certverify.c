@@ -93,11 +93,23 @@ VerifyDumpSSLErrors(void)
    const char *data;
    const char *file;
    unsigned long code;
+#if OPENSSL_VERSION_NUMBER >= 0X30000000L
+   const char *func;
+#endif
 
+#if OPENSSL_VERSION_NUMBER >= 0X30000000L
+   code = ERR_get_error_all(&file, &line, &func, &data, &flags);
+#else
    code = ERR_get_error_line_data(&file, &line, &data, &flags);
+#endif
    while (code) {
+#if OPENSSL_VERSION_NUMBER >= 0X30000000L
+      g_warning("SSL error: %lu (%s) in %s func %s line %d\n",
+                code, ERR_error_string(code, NULL), file, func, line);
+#else
       g_warning("SSL error: %lu (%s) in %s line %d\n",
                 code, ERR_error_string(code, NULL), file, line);
+#endif
       if (data && (flags & ERR_TXT_STRING)) {
          g_warning("SSL error data: %s\n", data);
       }
@@ -107,7 +119,11 @@ VerifyDumpSSLErrors(void)
        * until the SSL error buffer starts getting reused and a double
        * free happens.
        */
+#if OPENSSL_VERSION_NUMBER >= 0X30000000L
+      code = ERR_get_error_all(&file, &line, &func, &data, &flags);
+#else
       code = ERR_get_error_line_data(&file, &line, &data, &flags);
+#endif
    }
 }
 
