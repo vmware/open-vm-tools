@@ -1,3 +1,73 @@
+commit b47748c330f1fa495f099db0d6fcc300f9e82240
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 10 11:36:24 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 6e16f34ac546f5cdf156cc484b29823b84603f76
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 10 11:36:24 2022 -0800
+
+    Changes to common header files not directly related to open-vm-tools.
+
+commit e57a78d2fa4afe47b1a5d2d12d4e0a4a71db1073
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 10 11:36:24 2022 -0800
+
+    Service Discovery: Script correction to collect the version of Cassandra.
+
+commit dfff48a686515a5046d8e33b8181f34f79fe6fa6
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 10 11:36:23 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 092cc7135b6d0f5fc4dbbf8b14a3093dbee402d8
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 10 11:36:23 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 68391545c1c7ac7804429f7dc73a158d74690b82
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 10 11:36:23 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 69ce810007b0390a369425bc3561ab7befdb040c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 10 11:36:23 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 97440ff3bc72428be0158cada3afc2513ead463a
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Mar 2 16:49:49 2022 -0800
+
+    Update the README.md document.
+      - Adding configure and build information for new plugins and service(s)
+        added in the 12.0.0 tools release.
+
+commit 09ea13cfb0947137dd31cd1f278739e49aff95fc
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Feb 22 16:52:02 2022 -0800
+
+    Update the list of operating system with open-vm-tools.  Add:
+     * Flatcar Container Linux, all releases
+     * Rocky 8 and later releases
+     * AlmaLinux OS 8 and later releases
+    
+    Addresses:
+      https://github.com/vmware/open-vm-tools/pull/573
+      https://github.com/vmware/open-vm-tools/pull/513
+
+commit 43d17bd3f2e93566ee7b588494d29ab857c7a95f
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Feb 17 15:10:47 2022 -0800
+
+    Update ChangeLog with the granular push of Feb. 17, 2022.
+     - plus ChangeLog update of Feb. 7, 2022.
+
 commit 2cf575e2fb0a6c83211e8e09339491889bdcc8fe
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Thu Feb 17 15:01:31 2022 -0800
