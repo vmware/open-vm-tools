@@ -884,6 +884,11 @@ typedef int pid_t;
  * wasted.  On x86, GCC 6.3.0 behaves sub-optimally when variables are declared
  * on the stack using the aligned attribute, so this pattern is preferred.
  * See PRs 1795155, 1819963.
+ *
+ * GCC9 has been shown to exhibit aliasing issues when using
+ * '-fstrict-aliasing=2' that did not happen under GCC6 with this
+ * construct.
+ * See @9503890, PR 2906490.
  */
 #define WITH_PTR_TO_ALIGNED_VAR(_type, _align, _var)                     \
    do {                                                                  \
