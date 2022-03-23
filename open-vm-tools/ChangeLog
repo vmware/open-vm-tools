@@ -1,3 +1,41 @@
+commit 405c57fbcfe8772679fdaf594b368f5a68b31edf
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Mar 23 12:04:31 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit b167d985e0632d6455334e09437905ab54fa1a60
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Mar 23 12:04:31 2022 -0700
+
+    Record the use of tools version 12.0.5.
+
+commit 577764a4adf5e6ff595e23fe54c30ccdce353977
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Mar 23 12:04:31 2022 -0700
+
+    Change to common header files not applicable to open-vm-tools.
+
+commit f0cb3eebe942fba3f5abca32303998985a756b90
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Mar 23 12:04:31 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit b571bf4026b6f2dee31102a55dd7338c276646f9
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Mar 23 12:04:31 2022 -0700
+
+    VGAuth: Customize libxml2 to open local file with unescaped file name only.
+
+commit c0408788b07ec42f8c1bcf3e7373032d8b9784b3
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 10 12:06:56 2022 -0800
+
+    Update ChangeLog with the granular push of Mar. 10, 2022.
+      - plus README.md updates related to 12.0.0 OVT release.
+      - plus ChangeLog update of Feb. 17, 2022.
+
 commit b47748c330f1fa495f099db0d6fcc300f9e82240
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Thu Mar 10 11:36:24 2022 -0800
