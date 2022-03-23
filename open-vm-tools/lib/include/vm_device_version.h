@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998,2005-2012,2014-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998,2005-2012,2014-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -339,10 +339,10 @@
 #define MAX_FLOPPY_DRIVES      2
 
 /************* PCI Passthrough implementation limits ********************/
-#define MAX_PCI_PASSTHRU_DEVICES 32
+#define MAX_PCI_PASSTHRU_DEVICES 128
 
 /************* Test device implementation limits ********************/
-#define MAX_PCI_TEST_DEVICES 32
+#define MAX_PCI_TEST_DEVICES 128
 
 /************* VDTI PCI Device implementation limits ********************/
 #define MAX_VDTI_PCI_DEVICES 16
