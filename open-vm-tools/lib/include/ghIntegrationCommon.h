@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -53,7 +53,8 @@
 #define GHI_CHANNEL_VIEW_PROTOCOL               7  // Interactions with different protocols
                                                    // in View RMKS
 #define GHI_CHANNEL_FCP                         8  // FCP for View RMKS
-#define GHI_CHANNEL_COUNT                       9
+#define GHI_CHANNEL_VIEW_SDR                    9  // Handled by View SDR
+#define GHI_CHANNEL_COUNT                       10
 
 typedef uint32 GHIChannelType;
 
@@ -192,5 +193,18 @@ typedef enum {
    VDP_COMMON_SET_KEYBOARD_STATE_CAP = 0,
    VDP_COMMON_CAP_ITEM_COUNT
 } VDPCommonCapType;
+
+/*
+ * UI->MKS messages over GHI_CHANNEL_VIEW_SDR
+ */
+#define GHI_VIEW_SDR_ADD_DRIVE      "ghi.view.sdr.add.drive"
+#define GHI_VIEW_SDR_REMOVE_DRIVE   "ghi.view.sdr.remove.drive"
+
+/*
+ * MKS->UI messages over GHI_CHANNEL_VIEW_SDR.
+ */
+#define GHI_CHANNEL_VIEW_SDR_BITS         GHI_GUEST_CHANNEL_BITS(GHI_CHANNEL_VIEW_SDR)
+#define GHI_VIEW_SDR_VDP_CONNECTED        (GHI_CHANNEL_VIEW_SDR_BITS | 0x000001)
+#define GHI_VIEW_SDR_VDP_DISCONNECTED     (GHI_CHANNEL_VIEW_SDR_BITS | 0x000002)
 
 #endif // ifndef _GHINTEGRATIONCOMMON_H_
