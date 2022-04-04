@@ -1,3 +1,89 @@
+commit 37f5400a44d1fbe4fdeef0fe048e8903af9f1907
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 4 12:58:41 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 8665272146a9302faf16c98992f57d5cce6530bc
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 4 12:58:41 2022 -0700
+
+    Common header file change not directly related to open-vm-tools.
+
+commit 66644fb9b74bcad603a2e175e99be80b756bd6c8
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 4 12:58:41 2022 -0700
+
+    VGAuth: Add secure VMX RPC support.
+    
+     - Added some error handling to work around VMX closing a
+       port that is being reused.
+
+commit eef3be312ad6f7ed5d96cafa15ffafc89bc43851
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 4 12:58:41 2022 -0700
+
+    VGAuth: Update some error messages with certificate error text.
+
+commit b53ae31eaa20ec80f2d97f85ac6b9a295e21c287
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 4 12:58:41 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit bd8be34a9a4e897d78297eb8ae970300e80253a0
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 4 12:58:41 2022 -0700
+
+    DynBuf:  Implement new function DynBuf_SafeInternalInsert().
+
+commit d59878b05d57393770f1cf064141a17c9a8af3f4
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 4 12:58:41 2022 -0700
+
+    DynBuf:  Implement new function DynBuf_Insert.
+    
+     - DynBuf_Insert(): Insert data at a given offset within a dynamic buffer.
+
+commit 70509b63b728b65adfeb62afa40488782cc7f5f1
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 4 12:58:41 2022 -0700
+
+    Record use of tools version 10.3.25.
+    
+    Adding version 10.3.25 to the list of releases or planned releases
+    of VMware Tools.
+
+commit 33b7eb9f3f3b8d58025f484a9c5fd30293f60622
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 4 12:58:41 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit e7b3c7180fdf8f62b9852af90cdad725e69480da
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 4 12:58:41 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 936537f6234690f8ae1afba3ae8b0a6a89df6625
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 4 12:58:41 2022 -0700
+
+    Generalize VMX RPC code in vgauthservice.
+     - Rework the code so that it can used for other RPCs in the future.
+     - Rework the code reading the RPC reply, since it can now be much larger.
+     - Also remove the attempt to use the "guest.log.text" RPC since the VMX
+       will just drop the logging on the floor with no error if the virtual
+       HW version is too old.  A smart fail over is not possible.
+
+commit 2fe3cccfc1c36e946f46fb57813dd50c6c7f89dd
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Mar 23 13:00:26 2022 -0700
+
+    Update ChangeLog with the granular push of Mar. 23, 2022.
+      - plus ChangeLog update of Mar. 10, 2022.
+
 commit 405c57fbcfe8772679fdaf594b368f5a68b31edf
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Wed Mar 23 12:04:31 2022 -0700
