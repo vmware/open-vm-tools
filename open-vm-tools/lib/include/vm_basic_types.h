@@ -772,11 +772,11 @@ typedef void * UserVA;
 #endif
 
 /*
- * Similarly, we require a compiler that is at least vs2013.
+ * Similarly, we require a compiler that is at least vs2015.
  * Enforce this here.
  */
-#if defined _MSC_VER && _MSC_VER < 1800
-#error "cl.exe version is too old, need vs2013 or better"
+#if defined _MSC_VER && _MSC_VER < 1900
+#error "cl.exe version is too old, need vs2015 or better"
 #endif
 
 
