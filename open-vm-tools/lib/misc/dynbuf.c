@@ -432,6 +432,39 @@ DynBuf_Insert(DynBuf *b,        // IN/OUT:
 /*
  *-----------------------------------------------------------------------------
  *
+ * DynBuf_SafeInternalInsert --
+ *
+ *      Insert data at a given offset within a dynamic buffer. Memory
+ *      allocation failure is handled the same way as Util_SafeMalloc, that is
+ *      to say, with a Panic.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+void
+DynBuf_SafeInternalInsert(DynBuf *b,            // IN/OUT:
+                          size_t offset,        // IN:
+                          void const *data,     // IN:
+                          size_t size,          // IN:
+                          char const *file,     // IN:
+                          unsigned int lineno)  // IN:
+{
+   if (!DynBuf_Insert(b, offset, data, size)) {
+      Panic("Unrecoverable memory allocation failure at %s:%u\n",
+            file, lineno);
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * DynBuf_Append --
  *
  *      Append data at the end of a dynamic buffer. 'size' is the size of the
@@ -462,7 +495,7 @@ DynBuf_Append(DynBuf *b,        // IN/OUT:
  * DynBuf_SafeInternalAppend --
  *
  *      Append data at the end of a dynamic buffer. Memory allocation failure
- *      are handled the same way as Util_SafeMalloc, that is to say, with a
+ *      is handled the same way as Util_SafeMalloc, that is to say, with a
  *      Panic.
  *
  * Results:
