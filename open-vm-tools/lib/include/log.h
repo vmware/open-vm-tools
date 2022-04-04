@@ -731,12 +731,12 @@ Log_OffsetUtc(void);
  */
 
 typedef struct {
-   Bool        throttled;
-   uint32      throttleThreshold;
-   uint32      throttleBPS;
+   uint64      throttleThreshold;
    uint64      bytesLogged;
-   VmTimeType  lastSampleTime;
    uint64      lastBytesSample;
+   VmTimeType  lastTimeSample;
+   uint32      throttleBPS;
+   Bool        throttled;
 } LogThrottleInfo;
 
 Bool
