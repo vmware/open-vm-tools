@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016, 2018-2019, 2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2016, 2018-2019, 2021-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -164,10 +164,11 @@ VerifyCallback(int ok,
    } else {
       g_strlcpy(nameBuf, "<NO CERT SUBJECT>", sizeof nameBuf);
    }
-   g_debug("%s: name: %s ok: %d error %d at %d depth lookup:%s\n",
+   g_debug("%s: name: %s ok: %d error '%s' (%d) at %d depth lookup:%s\n",
            __FUNCTION__,
            nameBuf,
            ok,
+           X509_verify_cert_error_string(certErr),
            certErr,
            X509_STORE_CTX_get_error_depth(ctx),
            X509_verify_cert_error_string(certErr));
@@ -181,7 +182,9 @@ VerifyCallback(int ok,
          ret = 1;
          break;
       default:
-         g_warning("%s: error %d treated as failure\n", __FUNCTION__, certErr);
+         g_warning("%s: error '%s' (%d) treated as failure\n",
+                   __FUNCTION__, X509_verify_cert_error_string(certErr),
+                   certErr);
          break;
       }
    }
