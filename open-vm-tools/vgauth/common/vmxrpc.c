@@ -54,6 +54,9 @@ const int VMX_CID = 0;
 const int RPCI_PORT = 976;
 #define VMADDR_PORT_ANY ((unsigned int) -1)
 
+#define PRIVILEGED_PORT_MAX 1023
+#define PRIVILEGED_PORT_MIN 1
+
 static int gAddressFamily = -1;
 
 /*
@@ -82,6 +85,14 @@ typedef uint64_t uint64;
 typedef unsigned short sa_family_t;
 #endif // _WIN32
 
+#ifdef _WIN32
+#define SYSERR_ECONNRESET        WSAECONNRESET
+#define SYSERR_EADDRINUSE        WSAEADDRINUSE
+#else
+#define SYSERR_ECONNRESET        ECONNRESET
+#define SYSERR_EADDRINUSE        EADDRINUSE
+#endif
+
 
 /*
  * Wrapper for socket errnos
@@ -93,6 +104,20 @@ GetSocketErrCode(void)
    return WSAGetLastError();
 #else
    return errno;
+#endif
+}
+
+
+/*
+ * Wrapper for socket close
+ */
+static void
+Socket_Close(SOCKET fd)
+{
+#ifdef _WIN32
+   closesocket(fd);
+#else
+   close(fd);
 #endif
 }
 
@@ -324,9 +349,12 @@ GetAddressFamily(void)
 
 /*
  ******************************************************************************
- * VMXRPC_CreateVMCISocket --                                            */ /**
+ * CreateVMCISocket --                                                   */ /**
  *
  * Creates, binds and connects a socket to the VMX.
+ *
+ * @param[in] useSecure   If TRUE, use bind to a reserved port locally to allow
+ *                        for a secure channel.
  *
  * Returns a new socket that should be close()d or -1 on failure.
  *
@@ -334,13 +362,17 @@ GetAddressFamily(void)
  */
 
 static SOCKET
-VMXRPC_CreateVMCISocket(void)
+CreateVMCISocket(gboolean useSecure)
 {
    struct sockaddr_vm localAddr;
    struct sockaddr_vm addr;
    int ret;
-   SOCKET fd = socket(gAddressFamily, SOCK_STREAM, 0);
+   int errCode;
+   unsigned int localPort = PRIVILEGED_PORT_MAX;
+   SOCKET fd;
 
+again:
+   fd = socket(gAddressFamily, SOCK_STREAM, 0);
    if (fd < 0) {
       g_warning("%s: socket() failed %d\n", __FUNCTION__, GetSocketErrCode());
       return -1;
@@ -353,16 +385,40 @@ VMXRPC_CreateVMCISocket(void)
 #else
    localAddr.svm_cid = -1;
 #endif
-   /*
-    * XXX TODO -- bind (optionally?) to a privileged port
-    */
-   localAddr.svm_port = VMADDR_PORT_ANY;
-   ret = bind(fd, (struct sockaddr *)&localAddr, sizeof localAddr);
-   if (ret != 0) {
-      g_warning("%s: bind() failed %d\n", __FUNCTION__, GetSocketErrCode());
+
+   if (useSecure) {
+      while (localPort >= PRIVILEGED_PORT_MIN) {
+         localAddr.svm_port = localPort;
+         ret = bind(fd, (struct sockaddr *)&localAddr, sizeof localAddr);
+         if (ret != 0) {
+            errCode = GetSocketErrCode();
+            if (errCode == SYSERR_EADDRINUSE) {
+               g_debug("%s: bind() failed w/ ADDRINUSE, trying another port\n",
+                       __FUNCTION__);
+               --localPort;
+               continue; /* Try next port */
+            } else {
+               // unexpected failure, bail
+               g_warning("%s: bind() failed %d\n", __FUNCTION__, errCode);
+               goto err;
+            }
+         }  else {
+            g_debug("%s: bind() worked for port %d\n", __FUNCTION__, localPort);
+            goto bound;
+         }
+      }
+      g_warning("%s: failed to find a bindable port\n", __FUNCTION__);
       goto err;
+   } else {
+      localAddr.svm_port = VMADDR_PORT_ANY;
+      ret = bind(fd, (struct sockaddr *)&localAddr, sizeof localAddr);
+      if (ret != 0) {
+         g_warning("%s: bind() failed %d\n", __FUNCTION__, GetSocketErrCode());
+         goto err;
+      }
    }
 
+bound:
    /* connect to destination */
    memset(&addr, 0, sizeof addr);
    addr.svm_family = gAddressFamily;
@@ -371,17 +427,26 @@ VMXRPC_CreateVMCISocket(void)
 
    ret = connect(fd, (struct sockaddr *)&addr, sizeof addr);
    if (ret < 0) {
+      errCode = GetSocketErrCode();
+      if (errCode == SYSERR_ECONNRESET) {
+         /*
+          * VMX might be slow releasing a port pair
+          * when another client closed the client side end.
+          * Simply try next port.
+          */
+         g_debug("%s: connect() failed with RESET, trying another port\n",
+                 __FUNCTION__);
+         localPort--;
+         Socket_Close(fd);
+         goto again;
+      }
       g_warning("%s: connect() failed %d\n", __FUNCTION__, GetSocketErrCode());
       goto err;
    }
 
    return fd;
 err:
-#ifdef _WIN32
-   closesocket(fd);
-#else
-   close(fd);
-#endif
+   Socket_Close(fd);
 
    return -1;
 }
@@ -433,8 +498,9 @@ VMXRPC_Init(void)
  * Sends RPC packet to the VMX.  Returns any response if retBuf is
  * non-NULL.
  *
- * @param[in] packet      RPC packet.
- * @param[in] packetLen   Length of packet.
+ * @param[in] cmd         RPC command
+ * @param[in] useSecure   If TRUE, use bind to a reserved port locally to allow
+ *                        for a secure channel.
  * @param[out] retBuf     RPC reply.
  *
  * Returns -1 on failure, or the length of the returned reply on success (0 if
@@ -445,6 +511,7 @@ VMXRPC_Init(void)
 
 int
 VMXRPC_SendRpc(const gchar *cmd,
+               gboolean useSecure,
                gchar **retBuf)
 {
    SOCKET sock;
@@ -467,7 +534,7 @@ VMXRPC_SendRpc(const gchar *cmd,
       return -1;
    }
 
-   sock = VMXRPC_CreateVMCISocket();
+   sock = CreateVMCISocket(useSecure);
    if (sock < 0) {
       g_warning("%s: failed to create VMCI socket\n", __FUNCTION__);
       return -1;
@@ -559,7 +626,7 @@ main(int argc, char **argv)
       fprintf(stderr, "%s: needs an RPC arg\n", argv[0]);
       exit(-1);
    }
-   ret = VMXRPC_SendRpc(argv[1], &reply);
+   ret = VMXRPC_SendRpc(argv[1], TRUE, &reply);
    if (ret < 0) {
       fprintf(stderr, "%s: failed to send RPC\n", argv[0]);
       exit(-1);

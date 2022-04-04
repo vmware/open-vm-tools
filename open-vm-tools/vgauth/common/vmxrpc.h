@@ -26,7 +26,7 @@
  * Support for RPCs to the VMX.
  */
 
-int VMXRPC_SendRpc(const gchar *cmd, gchar **retBuf);
+int VMXRPC_SendRpc(const gchar *cmd, gboolean useSecure, gchar **retBuf);
 
 int VMXRPC_Init(void);
 

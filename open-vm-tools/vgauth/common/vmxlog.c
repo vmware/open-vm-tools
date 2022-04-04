@@ -33,7 +33,7 @@
 static gboolean gDisableVMXLogging = TRUE;
 
 /*
- * Error codes for SendString() and SendRpciPacket()
+ * Error codes for SendLogString()
  */
 #define VMX_RPC_OK       1                    // success
 #define VMX_RPC_UNKNOWN  0                    // RPC disabled or not supported
@@ -97,7 +97,7 @@ SendLogString(const gchar *cmd)
    int ret;
    int retVal = VMX_RPC_OK;
 
-   ret = VMXRPC_SendRpc(cmd, &reply);
+   ret = VMXRPC_SendRpc(cmd, FALSE, &reply);
    if (ret >= 0) {
       if (g_strcmp0(reply, "disabled") == 0 ||
           g_strcmp0(reply, "Unknown command") == 0) {
