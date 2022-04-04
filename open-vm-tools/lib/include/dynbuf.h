@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -72,6 +72,12 @@ DynBuf_Enlarge(DynBuf *b,        // IN/OUT
 
 Bool
 DynBuf_Append(DynBuf *b,        // IN/OUT
+              void const *data, // IN
+              size_t size);     // IN
+
+Bool
+DynBuf_Insert(DynBuf *b,        // IN/OUT
+              size_t offset,    // IN
               void const *data, // IN
               size_t size);     // IN
 
