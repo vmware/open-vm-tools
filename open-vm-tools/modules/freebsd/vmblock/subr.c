@@ -389,8 +389,13 @@ VMBlockNodeGet(struct mount *mp,        // IN: VMBlock fs info
       panic("VMBlockNodeGet: Passed a NULL vnlock.\n");
    }
 
-   /* Before FreeBSD 7, insmntque was called by getnewvnode. */
-#if __FreeBSD_version >= 700055
+#if __FreeBSD_version >= 1400051
+   error = insmntque1(vp, mp);
+   if (error != 0) {
+      VMBlockInsMntQueDtr(vp, xp);
+      return error;
+   }
+#else
    error = insmntque1(vp, mp, VMBlockInsMntQueDtr, xp);
    if (error != 0) {
       return error;
