@@ -35,8 +35,7 @@ SRCS    += backdoorGcc32.c
 .endif
 KMOD	= vmmemctl
 PROG    = ../$(KMOD).ko
-NOMAN	= t
-NO_MAN  = t
+MK_MAN  = no
 KLDMOD	= t
 
 # Don't print a warning that the object dir wasn't specified

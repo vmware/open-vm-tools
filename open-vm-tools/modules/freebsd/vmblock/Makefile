@@ -46,8 +46,7 @@ SRCS   := $(HEADERS) $(CSRCS)
 
 KMOD    = vmblock
 PROG    = ../$(KMOD).ko
-NOMAN   = t
-NO_MAN  = t
+MK_MAN  = no
 KLDMOD  = t
 
 VMBLOCK := $(MAINSRCROOT)/modules/vmblock
