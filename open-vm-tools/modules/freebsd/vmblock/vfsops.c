@@ -173,7 +173,11 @@ VMBlockVFSMount(struct mount *mp)        // IN: mount(2) parameters
       uma_zfree(VMBlockPathnameZone, pathname);
       return error;
    }
+#ifdef NDF_ONLY_PNBUF
    NDFREE(ndp, NDF_ONLY_PNBUF);
+#else
+   NDFREE_PNBUF(ndp);
+#endif
 
    /*
     * Check multi VMBlock mount to avoid `lock against myself' panic.
