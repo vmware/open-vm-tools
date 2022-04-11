@@ -300,7 +300,6 @@ VMBlockHashRem(struct VMBlockNode *xp)  // IN: node to remove
  *-----------------------------------------------------------------------------
  */
 
-#if __FreeBSD_version >= 700055
 static void
 VMBlockInsMntQueDtr(struct vnode *vp, // IN: node to cleanup
 		    void *xp)         // IN: FS private data
@@ -313,7 +312,6 @@ VMBlockInsMntQueDtr(struct vnode *vp, // IN: node to cleanup
    vgone(vp);
    vput(vp);
 }
-#endif
 
 
 /*

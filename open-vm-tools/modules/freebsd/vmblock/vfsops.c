@@ -110,12 +110,7 @@ VFS_SET(VMBlockVFSOps, vmblock, VFCF_LOOPBACK);
  */
 
 static int
-#if __FreeBSD_version >= 800011
 VMBlockVFSMount(struct mount *mp)        // IN: mount(2) parameters
-#else
-VMBlockVFSMount(struct mount *mp,        // IN: mount(2) parameters
-                struct thread *td)       // IN: caller's thread context
-#endif
 {
    struct VMBlockMount *xmp;
    struct nameidata nd, *ndp = &nd;
@@ -228,9 +223,6 @@ VMBlockVFSMount(struct mount *mp,        // IN: mount(2) parameters
     */
    MNT_ILOCK(mp);
    mp->mnt_flag |= lowerrootvp->v_mount->mnt_flag & MNT_LOCAL;
-#if __FreeBSD_version >= 600000 && __FreeBSD_version < 1000000
-   mp->mnt_kern_flag |= lowerrootvp->v_mount->mnt_kern_flag & MNTK_MPSAFE;
-#endif
    MNT_IUNLOCK(mp);
 
    mp->mnt_data = (qaddr_t) xmp;
@@ -262,14 +254,8 @@ VMBlockVFSMount(struct mount *mp,        // IN: mount(2) parameters
  */
 
 static int
-#if __FreeBSD_version >= 800011
 VMBlockVFSUnmount(struct mount *mp,    // IN: filesystem to unmount
                   int mntflags)        // IN: unmount(2) flags (ex: MNT_FORCE)
-#else
-VMBlockVFSUnmount(struct mount *mp,    // IN: filesystem to unmount
-                  int mntflags,        // IN: unmount(2) flags (ex: MNT_FORCE)
-                  struct thread *td)   // IN: caller's kernel thread context
-#endif
 {
    struct VMBlockMount *xmp;
    struct vnode *vp;
@@ -350,16 +336,9 @@ VMBlockVFSUnmount(struct mount *mp,    // IN: filesystem to unmount
  */
 
 static int
-#if __FreeBSD_version >= 800011
 VMBlockVFSRoot(struct mount *mp,        // IN: vmblock file system
                int flags,               // IN: lockmgr(9) flags
                struct vnode **vpp)      // OUT: root vnode
-#else
-VMBlockVFSRoot(struct mount *mp,        // IN: vmblock file system
-               int flags,               // IN: lockmgr(9) flags
-               struct vnode **vpp,      // OUT: root vnode
-               struct thread *td)       // IN: caller's thread context
-#endif
 {
    struct vnode *vp;
 
@@ -393,14 +372,8 @@ VMBlockVFSRoot(struct mount *mp,        // IN: vmblock file system
  */
 
 static int
-#if __FreeBSD_version >= 800011
 VMBlockVFSStatFS(struct mount *mp,      // IN: vmblock file system
                  struct statfs *sbp)    // OUT: statfs(2) arg container
-#else
-VMBlockVFSStatFS(struct mount *mp,      // IN: vmblock file system
-                 struct statfs *sbp,    // OUT: statfs(2) arg container
-                 struct thread *td)     // IN: caller's thread context
-#endif
 {
    int error;
    struct statfs mstat;
@@ -448,14 +421,8 @@ VMBlockVFSStatFS(struct mount *mp,      // IN: vmblock file system
  */
 
 static int
-#if __FreeBSD_version >= 800011
 VMBlockVFSSync(struct mount *mp,        // Ignored
                int waitfor)             // Ignored
-#else
-VMBlockVFSSync(struct mount *mp,        // Ignored
-               int waitfor,             // Ignored
-               struct thread *td)       // Ignored
-#endif
 {
    return 0;
 }

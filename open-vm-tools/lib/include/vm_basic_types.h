@@ -331,12 +331,8 @@ typedef char           Bool;
 #if !defined(USING_AUTOCONF)
 #   if defined(__FreeBSD__) || defined(sun)
 #      ifndef KLD_MODULE
-#         if __FreeBSD_version >= 500043
-#            if !defined(VMKERNEL)
-#               include <inttypes.h>
-#            endif
-#         else
-#            include <sys/inttypes.h>
+#         if !defined(VMKERNEL)
+#            include <inttypes.h>
 #         endif
 #      endif
 #   elif defined __APPLE__

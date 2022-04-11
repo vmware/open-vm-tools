@@ -53,12 +53,7 @@
  * FreeBSD version 8 and above uses the kproc API instead of the kthread API in its
  * kernel.
  */
-#if __FreeBSD_version > 800001
 #define compat_kthread_create kproc_create
 #define compat_kthread_exit kproc_exit
-#else
-#define compat_kthread_create kthread_create
-#define compat_kthread_exit kthread_exit
-#endif
 
 #endif // __COMPAT_FREEBSD_H__

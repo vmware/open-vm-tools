@@ -43,9 +43,9 @@ typedef struct DynXdrData {
 } DynXdrData;
 
 /*
- * FreeBSD < 5.0 and Solaris do not declare some parameters as "const".
+ * Solaris do not declare some parameters as "const".
  */
-#if defined(sun) || (defined(__FreeBSD__) && __FreeBSD_version < 500000)
+#if defined(sun)
 #  define DYNXDR_CONST
 #else
 #  define DYNXDR_CONST const

@@ -75,14 +75,6 @@
 #include "includeCheck.h"
 #include "vm_basic_types.h" // For INLINE.
 
-/* Checks for FreeBSD, filtering out VMKERNEL. */
-#if !defined(VMKERNEL) && defined(__FreeBSD__)
-#define __IS_FREEBSD__ 1
-#else
-#define __IS_FREEBSD__ 0
-#endif
-#define __IS_FREEBSD_VER__(ver) (__IS_FREEBSD__ && __FreeBSD_version >= (ver))
-
 /*
  * <stddef.h> provides definitions for:
  *   NULL, offsetof

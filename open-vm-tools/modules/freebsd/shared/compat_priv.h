@@ -44,10 +44,6 @@
 #ifndef __COMPAT_PRIV_H__
 #   define __COMPAT_PRIV_H__ 1
 
-#if __FreeBSD_version >= 800011
 #define compat_priv_check(td, priv) priv_check((td), (priv))
-#else
-#define compat_priv_check(td, priv) suser(td)
-#endif
 
 #endif
