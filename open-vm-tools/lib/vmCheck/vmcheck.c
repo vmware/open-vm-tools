@@ -144,6 +144,9 @@ VmCheckSafe(SafeCheckFn checkFn)
 #else
    do {
       int signals[] = {
+#if defined(__FreeBSD__)
+         SIGBUS,
+#endif
          SIGILL,
          SIGSEGV,
       };
