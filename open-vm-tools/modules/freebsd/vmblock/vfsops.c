@@ -166,7 +166,11 @@ VMBlockVFSMount(struct mount *mp)        // IN: mount(2) parameters
     * Find lower node and lock if not already locked.
     */
 
+#if __FreeBSD_version >= 1400043
+   NDINIT(ndp, LOOKUP, FOLLOW|LOCKLEAF, UIO_SYSSPACE, target);
+#else
    NDINIT(ndp, LOOKUP, FOLLOW|LOCKLEAF, UIO_SYSSPACE, target, compat_td);
+#endif
    error = namei(ndp);
    if (error) {
       NDFREE(ndp, 0);
