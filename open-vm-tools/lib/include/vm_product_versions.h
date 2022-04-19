@@ -555,7 +555,7 @@
 #  define PRODUCT_VERSION_STRING_FOR_LICENSE PRODUCT_LICENSE_VERSION
 #endif
 #define PRODUCT_ESX_LICENSE_VERSION "8.0"
-#define PRODUCT_ESX_LICENSE_FILE_VERSION "8.0.0.0"
+#define PRODUCT_ESX_LICENSE_FILE_VERSION "8.0.0.1"
 
 /*
  * The configuration file version string should be changed
