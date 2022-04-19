@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016,2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -109,24 +109,7 @@ int
 HgfsConvertFromNtTimeNsec(struct timespec *unixTime, // OUT: Time in UNIX format
 			  uint64 ntTime) // IN: Time in Windows NT format
 {
-#ifdef __i386__
-   uint32 sec;
-   uint32 nsec;
-
    ASSERT(unixTime);
-   /* We assume that time_t is 32bit */
-   ASSERT_ON_COMPILE(sizeof (unixTime->tv_sec) == 4);
-
-   /* Cap NT time values that are outside of Unix time's range */
-
-   if (ntTime >= UNIX_S32_MAX) {
-      unixTime->tv_sec = 0x7FFFFFFF;
-      unixTime->tv_nsec = 0;
-      return 1;
-   }
-#else
-   ASSERT(unixTime);
-#endif
 
    if (ntTime < UNIX_EPOCH) {
       unixTime->tv_sec = 0;
@@ -135,13 +118,26 @@ HgfsConvertFromNtTimeNsec(struct timespec *unixTime, // OUT: Time in UNIX format
    }
 
 #ifdef __i386__
-   Div643232(ntTime - UNIX_EPOCH, 10000000, &sec, &nsec);
-   unixTime->tv_sec = sec;
-   unixTime->tv_nsec = nsec * 100;
-#else
+   if (sizeof unixTime->tv_sec == 4) {
+      uint32 sec,nsec;
+
+      /* Cap NT time values that are outside of Unix time's range */
+      if (ntTime >= UNIX_S32_MAX) {
+         unixTime->tv_sec = 0x7FFFFFFF;
+         unixTime->tv_nsec = 0;
+         return 1;
+      }
+
+      Div643232(ntTime - UNIX_EPOCH, 10000000, &sec, &nsec);
+      unixTime->tv_sec = sec;
+      unixTime->tv_nsec = nsec * 100;
+
+      return 0;
+   }
+#endif
+
    unixTime->tv_sec = (ntTime - UNIX_EPOCH) / 10000000;
    unixTime->tv_nsec = ((ntTime - UNIX_EPOCH) % 10000000) * 100;
-#endif
 
    return 0;
 }
