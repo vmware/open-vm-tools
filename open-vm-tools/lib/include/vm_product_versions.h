@@ -44,6 +44,10 @@
 //MARKER_FAST_UNCOMMENT_END
 
 //MARKER_FAST_UNCOMMENT_START
+//#ifdef __cplusplus
+//extern "C" {
+//#endif
+//
 //extern unsigned int gProductVersion[];
 //extern unsigned int gVieFileVersion[];
 //extern unsigned int gVpxVersionNumeric[];
@@ -56,6 +60,10 @@
 //
 //extern unsigned int gOvftoolFileVersion[];
 //extern const char gEsxReleaseVersionString[];
+//
+//#ifdef __cplusplus
+//}
+//#endif
 //MARKER_FAST_UNCOMMENT_END
 
 /*
@@ -487,7 +495,13 @@
 #define PRODUCT_VERSION_STRING PRODUCT_VERSION_NUMBER " " BUILD_NUMBER
 //MARKER_FAST_REMOVE_END
 //MARKER_FAST_UNCOMMENT_START
+//#ifdef __cplusplus
+//extern "C" {
+//#endif
 //extern const char gProductVersionString[];
+//#ifdef __cplusplus
+//}
+//#endif
 //#define PRODUCT_VERSION_STRING gProductVersionString
 //MARKER_FAST_UNCOMMENT_END
 /*
