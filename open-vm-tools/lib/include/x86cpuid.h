@@ -1692,6 +1692,8 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 #define CPUID_MODEL_TIGERLAKE_8D      0x8d  // Tiger Lake H81
 #define CPUID_MODEL_KNM_85            0x85  // Knights Mill
 #define CPUID_MODEL_KABYLAKE_8E       0x8e  // Kaby Lake U/Y QS
+#define CPUID_MODEL_ALDERLAKE_97      0x97  // Alder Lake-S
+#define CPUID_MODEL_ALDERLAKE_9A      0x9a  // Alder Lake-P
 #define CPUID_MODEL_KABYLAKE_9E       0x9e  // Kaby Lake S/H QS
 #define CPUID_MODEL_COMETLAKE_A5      0xa5  // Comet Lake S
 #define CPUID_MODEL_COMETLAKE_A6      0xa6  // Comet Lake U
@@ -2084,6 +2086,15 @@ CPUID_UARCH_IS_ICELAKE(uint32 v) // IN: %eax from CPUID with %eax=1.
    return CPUID_MODEL_IS_ICELAKE(v)  ||
           CPUID_MODEL_IS_TIGERLAKE(v) ||
           CPUID_MODEL_IS_ROCKETLAKE(v);
+}
+
+static INLINE Bool
+CPUID_MODEL_IS_ALDERLAKE(uint32 v) // IN: %eax from CPUID with %eax=1.
+{
+   /* Assumes the CPU manufacturer is Intel. */
+   return CPUID_FAMILY_IS_P6(v) &&
+          (CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_ALDERLAKE_97 ||
+           CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_ALDERLAKE_9A);
 }
 
 
