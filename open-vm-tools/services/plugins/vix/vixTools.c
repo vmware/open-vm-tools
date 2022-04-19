@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -4386,7 +4386,7 @@ VixToolsGetMultipleEnvVarsForUser(void *userToken,       // IN
 #ifdef __FreeBSD__
       /*
        * We should check the original envp for all vars except
-       * a few whitelisted ones that we set/unset on impersonate
+       * a few allowlisted ones that we set/unset on impersonate
        * user start/stop. for them we need to do getenv()
        */
       if (!strcmp(names, "USER") ||
