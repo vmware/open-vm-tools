@@ -1364,6 +1364,7 @@ FLAG( 81F,  0, EAX,  2,  1, PAGE_FLUSH_MSR,                      NO,    0 ) \
 FLAG( 81F,  0, EAX,  3,  1, SEV_ES,                              YES,  17 ) \
 FLAG( 81F,  0, EAX,  4,  1, SEV_SNP,                             NO,    0 ) \
 FLAG( 81F,  0, EAX,  5,  1, VMPL,                                NO,    0 ) \
+FLAG( 81F,  0, EAX,  9,  1, TSC_AUX_VIRT,                        YES,  20 ) \
 FLAG( 81F,  0, EAX, 10,  1, SEV_HEC,                             NO,    0 ) \
 FLAG( 81F,  0, EAX, 11,  1, SEV_64BIT_REQ,                       NO,    0 ) \
 FLAG( 81F,  0, EAX, 12,  1, SEV_RESTR_INJECTION,                 NO,    0 ) \
