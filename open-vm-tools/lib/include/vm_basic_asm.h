@@ -1289,7 +1289,7 @@ PopCount64(uint64 value)
  *      Enforce ordering on memory operations witnessed by and
  *      affected by interrupt handlers.
  *
- *      This should be used to replace the legacy COMPILER_*_BARRIER
+ *      This should be used to replace the legacy COMPILER_MEM_BARRIER
  *      for code that has been audited to determine it only needs
  *      ordering with respect to interrupt handlers, and not to other
  *      CPUs (SMP_*), memory-mapped I/O (MMIO_*), or DMA (DMA_*).
