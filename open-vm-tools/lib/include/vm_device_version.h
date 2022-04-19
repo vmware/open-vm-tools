@@ -256,10 +256,13 @@
 /************* NVME implementation limits ********************************/
 #define NVME_MAX_CONTROLLERS   4
 #define NVME_MIN_NAMESPACES    1
-#define NVME_MAX_NAMESPACES    15 /* We support only 15 namespaces same
-                                   * as SCSI devices.
+#define NVME_MAX_NAMESPACES    64 /* We support 64 namespaces same
+                                   * as PVSCSI controller.
                                    */
-
+#define NVME_HW19_MAX_NAMESPACES 15 // HWv19 and before supports 15 namespaces
+#define NVME_FUTURE_MAX_NAMESPACES 256 /* To support NVME to the possible 256
+                                        * disks per controller in future.
+                                        */
 /************* SCSI implementation limits ********************************/
 #define SCSI_MAX_CONTROLLERS	 4	  // Need more than 1 for MSCS clustering
 #define	SCSI_MAX_DEVICES         16	  // BT-958 emulates only 16
@@ -277,11 +280,12 @@
 
 /*
  * Publicly supported maximum number of disks per VM.
+ * The officially supported maximum number of disks per VM don't change.
  */
 #define MAX_NUM_DISKS \
    ((SATA_MAX_CONTROLLERS * SATA_MAX_DEVICES) + \
     (SCSI_MAX_CONTROLLERS * SCSI_MAX_DEVICES) + \
-    (NVME_MAX_CONTROLLERS * NVME_MAX_NAMESPACES) + \
+    (NVME_MAX_CONTROLLERS * NVME_HW19_MAX_NAMESPACES) + \
     (IDE_NUM_INTERFACES * IDE_DRIVES_PER_IF))
 
 /*
@@ -293,9 +297,11 @@
  * PVSCSI_HW_MAX_DEVICES is 65 - allowing 64 disks + controller (at ID 7)
  * 4 * 64 = 256 devices.
  *
+ * NVME_MAX_NAMESPACES is 64, so 4 * 64 = 256 NVMe disks.
  */
 #define MAX_NUM_DISKS_HWV14 MAX(MAX_NUM_DISKS, \
-   (SCSI_MAX_CONTROLLERS * PVSCSI_MAX_NUM_DISKS))
+   MAX((SCSI_MAX_CONTROLLERS * PVSCSI_MAX_NUM_DISKS), \
+       (NVME_MAX_CONTROLLERS * NVME_MAX_NAMESPACES)))
 
 /*
  * VSCSI_BV_INTS is the number of uint32's needed for a bit vector
