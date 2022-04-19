@@ -67,39 +67,49 @@ extern "C" {
  * "warning" or "error" is almost certainly mis-routed.
  *
  * The following rules of thumb provide a rough guide to choice of level.
+ *
  * * VMW_LOG_AUDIT -- always logged, for auditing purposes
  *  + change to authorization
  *  + change to configuration
+ *
  * * VMW_LOG_PANIC -- system broken; cannot exit gracefully
  *  + wild pointer; corrupt arena
  *  + error during error exit
+ *
  * * VMW_LOG_ERROR -- system broken; must exit
  *  + required resource inaccessible (memory; storage; network)
  *  + incorrigible internal inconsistency
+ *
  * * VMW_LOG_WARNING -- unexpected condition; may require immediate attention
  *  + inconsistency corrected or ignored
  *  + timeout or slow operation
+ *
  * * VMW_LOG_NOTICE -- unexpected condition; may require eventual attention
  *  + missing config; default used
  *  + lower level error ignored
+ *
  * * VMW_LOG_INFO -- expected condition
  *  + non-standard configuration
  *  + alternate path taken (e.g. on lower level error)
+ *
  * * VMW_LOG_VERBOSE -- normal operation; potentially useful information
  *  + system health observation, for monitoring
  *  + unexpected non-error state
+ *
  * * VMW_LOG_TRIVIA -- normal operation; excess information
  *  + vaguely interesting note
  *  + anything else the developer thinks might be useful
+ *
  * * VMW_LOG_DEBUG_* -- flow and logic tracing
  *  + routine entry, with parameters; routine exit, with return value
  *  + intermediate values or decisions
  *
  * Log Module
  *
- * The Log routines accept an explicit level (see below)
- * as well as an optional module parameter.
- * This affords another degree of freedom in filtering.
+ * The Log_Level and LogV routines have a routing parameter. This is used
+ * to specify a level associated with the message, but can also be used to
+ * specify a named module that the control for the message affect. This affords
+ * another degree of freedom in filtering.
  *
  * To use the module parameter:
  *
@@ -115,17 +125,12 @@ extern "C" {
  *     remember to remove "loglevel_user.h".
  *
  * (2) Pass the module information to the Log Facility.
- *     LOGLEVEL_MODULE is actually encoded in the level parameter by
- *     the LOG_ROUTING_BITS(level) macro.
+ *        Log_Level(VMW_LOG_ROUTING(level), ...);
+ *     OR
+ *        Log_V(VMW_LOG_ROUTING(level), ...);
  *
- *     Use
- *        Log_LevelModule(level, ...);
- *     OR
- *        LogV_Module(level, ...);
- *     OR
- *        Log_Level(LOG_ROUTING_BITS(level), ...);
- *     OR
- *        Log_V(LOG_ROUTING_BITS(level), ...);
+ * (3) Level enablement can be checked via:
+ *        Log_IsEnabled(VMW_LOG_ROUTING(level));
  *
  * Log Message
  *
@@ -765,11 +770,7 @@ Log_IsThrottled(LogThrottleInfo *info,
  *
  *  2) Pass the LOGLEVEL_MODULE information to the Log Facility.
  *
- *     Use LogV_Module and/or Log_LevelModule.
- *
- *     OR
- *
- *     Use the LOG_ROUTING_BITS macro as part of a call to LogV and/or
+ *     Use the VMW_LOG_ROUTING macro as part of a call to LogV and/or
  *     Log_Level.
  */
 
@@ -786,39 +787,15 @@ Log_IsThrottled(LogThrottleInfo *info,
    #define VMW_LOG_MODULE_LEVELS
 #endif
 
-#if defined(LOG_ROUTING_BITS)
-   #undef LOG_ROUTING_BITS
+#if defined(VMW_LOG_ROUTING)
+   #undef VMW_LOG_ROUTING
 #endif
 
 #if defined(LOGLEVEL_MODULE)
    /* Module bits of zero (0) indicate no module has been specified */
-   #define LOG_ROUTING_BITS(level) \
+   #define VMW_LOG_ROUTING(level) \
       (((LOGFACILITY_MODULEVAR(LOGLEVEL_MODULE) + 1) << VMW_LOG_LEVEL_BITS) | level)
 #else
-   #define LOG_ROUTING_BITS(level) (level)
+   #define VMW_LOG_ROUTING(level) (level)
 #endif
 
-/*
- * Helper functions for module level filters.
- */
-
-#if defined(Log_LevelModule)
-   #undef Log_LevelModule
-#endif
-
-#define Log_LevelModule(level, ...) \
-   Log_Level(LOG_ROUTING_BITS(level), __VA_ARGS__)
-
-#if defined(LogV_Module)
-   #undef LogV_Module
-#endif
-
-#define LogV_Module(level, ...) \
-   LogV(LOG_ROUTING_BITS(level), __VA_ARGS__)
-
-#if defined(Log_IsEnabledModule)
-   #undef Log_IsEnabledModule
-#endif
-
-#define Log_IsEnabledModule(level) \
-   Log_IsEnabled(LOG_ROUTING_BITS(level))
