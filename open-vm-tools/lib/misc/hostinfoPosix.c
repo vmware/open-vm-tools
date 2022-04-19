@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1236,13 +1236,15 @@ HostinfoSetSuseShortName(const ShortNameSet *entry, // IN:
 
 
 /*
- * Table mapping from distro name to the offically recognized shortname.
+ * Table mapping from distro name to the officially recognized shortname.
  *
- * Only distros that are officially supported by VMware are present in
- * this table. If you're not VMware, do not add anything to this table.
+ * WARNING: If you are not VMware, do not change this table. Values that are
+ * not recognized by the VMware host will be ignored. Any change here must
+ * be accompanied by additional changes to the host.
  *
- * A short name that is not officially supported by VMware will be ignored
- * by the rest of the software stack.
+ * If you are interested in extending this table, do not send a pull request.
+ * Instead, submit a request via the open-vm-tools github issue tracker
+ * https://github.com/vmware/open-vm-tools/issues.
  *
  * Some distros do not have a simple substitution and special logic is
  * necessary to handle distros that do not have simple substitutions.
@@ -1252,7 +1254,7 @@ HostinfoSetSuseShortName(const ShortNameSet *entry, // IN:
  */
 
 static const ShortNameSet shortNameArray[] = {
-/* Long distro name     Short distro name          Short name set function */
+/* Long distro name      Short distro name          Short name set function */
 { "almalinux",           STR_OS_ALMA_LINUX,         HostinfoGenericSetShortName },
 { "amazon",              NULL,                      HostinfoSetAmazonShortName  },
 { "annvix",              STR_OS_ANNVIX,             HostinfoGenericSetShortName },
