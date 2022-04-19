@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1952,7 +1952,7 @@ ProcMgrKill(pid_t pid,      // IN
  * ProcMgr_KillByPid --
  *
  *      Attempt to terminate the process of procId.
- *      First try TERM for 5 seconds, then KILL for 15
+ *      First try SIGTERM for 5 seconds, then SIGKILL for 15
  *      if that is unsuccessful.
  *
  * Results:
