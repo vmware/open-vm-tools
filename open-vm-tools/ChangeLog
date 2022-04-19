@@ -1,3 +1,131 @@
+commit f1e56311c8f245d6aba2a94d37e5df7220398ed5
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Apr 19 14:30:54 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 911b68fef82a3dfb083daa3bf0f61ed793e2961e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Apr 19 14:30:54 2022 -0700
+
+    Common header file change not directly applicable to open-vm-tools.
+
+commit c8f345b0cc50417665b0eff6bf19f0af2526ff74
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Apr 19 14:30:54 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit b3c2a0e00e3d40e979dacab1833a6711e0e5620a
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Apr 19 14:30:54 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 19e2a77e0a2b29b77866876a5d45ec2df8f96d4f
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Apr 19 14:30:54 2022 -0700
+
+    Changes to common header files not applicable to open-vm-tools.
+
+commit 93af2bbbe583e95598cfb46d042ac6025a6dcac8
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Apr 19 14:30:54 2022 -0700
+
+    Improve the "don't touch this" comments for Linux guest identification.
+    
+    Pull requests to add distro identification information are often submitted.
+    Open-vm-tools does not own the guest identification code.  Such a change
+    requires coordinated changes throughout the VMware product stack.
+    
+    Improve the text to reduce pull requests for changes to common source
+    code that open-vm-tools does not own and cannot make.
+
+commit 36eea633611e678f3ea17a913c0990f319135c48
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Apr 19 14:30:54 2022 -0700
+
+    Make HgfsConvertFromNtTimeNsec aware of 64-bit time_t on i386.
+    
+    The change incorporates the support of 64 bit time epoch conversion
+    from Windows NT time to Unix Epoch time on i386.
+    
+    Addresses pull request:
+    https://github.com/vmware/open-vm-tools/pull/387
+
+commit 472335e347018fbddfbbe45618193075e77fa836
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Apr 19 14:30:54 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit bb8a37981bfb76d9314d797c3ab1b394ce431d1d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Apr 19 14:30:54 2022 -0700
+
+    Changes to common header files not applicable to open-vm-tools.
+
+commit fb011741deec7e277f34974e32f88c60826e0db3
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Apr 19 14:30:54 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit d232afd908f22104a632e3060c9bf4170ac18018
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Apr 19 14:30:54 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 1b4db25a65153bd2c1c5a725303bf22a61ac931f
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Apr 19 14:30:54 2022 -0700
+
+    Added the following miscellaneous checks for the deploypkg plugin.
+    
+    1. Check if the plugin is running in a VMware VM.
+    2. Check if the plugin is loaded by the main tools service.
+    3. Check if the underlying hypervisor is ESXi.
+
+commit df63c64bf5e12a5f5bc0ba9bda4b786a4295ae5b
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Apr 19 14:30:54 2022 -0700
+
+    Inclusive language - "kill"
+    
+    Address uses of the term "kill" in some files used by open-vm-tools.
+
+commit e057e41fc4d4e4e084cf46c9d16243fb05a7df19
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Apr 19 14:30:53 2022 -0700
+
+    Inclusive Language - "whitelist"
+    
+    Use allowlist instead of whitelist in some files used by open-vm-tools.
+
+commit 532cf9f3bb9dd3011239fb193f7458fc78ae921e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Apr 19 14:30:53 2022 -0700
+
+    ContainerInfo Plugin: correct compiler warnings in containerInfo_grpc.cc
+    
+    - The local variable "containersAdded" should be an 'unsigned int' since
+      it's compared with an 'unsigned int' parameter.
+    - Remove the unreferenced local variable "numContainers".
+
+commit 92a6422d03a932ab92f4b7c791673cf2f17bf3b9
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Apr 19 14:29:06 2022 -0700
+
+    Reverting previous bad patch erroneously comitted.
+
+commit 36b7f58392fbbb9e7bb336c0cf07202cba4d92cc
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 4 13:22:16 2022 -0700
+
+    Update ChangeLog with the granular push of Apr. 4, 2022.
+      - plus ChangeLog update of Mar. 23, 2022.
+
 commit 37f5400a44d1fbe4fdeef0fe048e8903af9f1907
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Mon Apr 4 12:58:41 2022 -0700
