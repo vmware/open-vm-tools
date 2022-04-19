@@ -54,7 +54,9 @@
                                                    // in View RMKS
 #define GHI_CHANNEL_FCP                         8  // FCP for View RMKS
 #define GHI_CHANNEL_VIEW_SDR                    9  // Handled by View SDR
-#define GHI_CHANNEL_COUNT                       10
+#define GHI_CHANNEL_VIEW_WHFB_REDIRECTION       10 // WhfbRedirectionMKSControl module in
+                                                   // View RMKS
+#define GHI_CHANNEL_COUNT                       11
 
 typedef uint32 GHIChannelType;
 
@@ -185,6 +187,20 @@ typedef uint32 GHIGuestToHostMessageType;
  */
 #define GHI_HOST_VDP_COMMON_SYNC_GUEST_LEDS_CMD  "ghi.mks.common.sync.guest.leds"
 #define GHI_HOST_VDP_COMMON_GET_GUEST_CAPS_CMD   "ghi.mks.common.get.guest.caps"
+
+/*
+ * MKS->UI messages over GHI_CHANNEL_VIEW_WHFB_REDIRECTION
+ */
+#define GHI_CHANNEL_VIEW_WHFB_REDIRECTION_BITS \
+           GHI_GUEST_CHANNEL_BITS(GHI_CHANNEL_VIEW_WHFB_REDIRECTION)
+#define GHI_GUEST_WHFB_REDIRECTION_UNLOCK_REQUEST \
+           (GHI_CHANNEL_VIEW_WHFB_REDIRECTION_BITS | 0x000001)
+
+/*
+ * UI->MKS messages over GHI_CHANNEL_VIEW_WHFB_REDIRECTION.
+ */
+#define GHI_WHFB_REDIRECTION_SET_SESSIONPIN_CMD              "ghi.whfb.set.sessionpin"
+#define GHI_WHFB_REDIRECTION_SET_USERVERIFICATIONRESULT_CMD  "ghi.whfb.set.userverificationresult"
 
 /*
  * Capabilities for the message GHI_GUEST_VDP_COMMON_CAP_FEATURES
