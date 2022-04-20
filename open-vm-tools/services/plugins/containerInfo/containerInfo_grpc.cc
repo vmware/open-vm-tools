@@ -67,13 +67,12 @@ ContainerInfo_GetContainerList(const char *ns,                   // IN
    std::unique_ptr<Tasks::Stub> taskStub;
    grpc::Status status;
    int i;
-   int containersAdded;
+   unsigned int containersAdded;
    const ListContainersRequest req;
    std::unique_ptr<ListContainersResponse> res;
    grpc::ClientContext containerContext;
    static const std::string namespaceKey = "containerd-namespace";
    gchar *unixSocket = NULL;
-   int numContainers = 0;
 
    if (ns == NULL || containerdSocketPath == NULL) {
       g_warning("%s: Invalid arguments specified.\n", __FUNCTION__);
