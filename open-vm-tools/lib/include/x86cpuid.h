@@ -1807,7 +1807,8 @@ CPUID_EFFECTIVE_FAMILY(uint32 v) /* %eax from CPUID with %eax=1. */
       CPUID_GET(1, EAX, EXTENDED_FAMILY, v);
 }
 
-/* Normally only used when FAMILY==CPUID_FAMILY_EXTENDED, but Intel is
+/*
+ * Normally only used when FAMILY==CPUID_FAMILY_EXTENDED, but Intel is
  * now using the extended model field for FAMILY==CPUID_FAMILY_P6 to
  * refer to the newer Core2 CPUs
  */
@@ -2443,19 +2444,12 @@ CPUID_MODEL_IS_ZEN3(uint32 eax)
 }
 
 
-#define CPUID_TYPE_PRIMARY     0
-#define CPUID_TYPE_OVERDRIVE   1
-#define CPUID_TYPE_SECONDARY   2
-
 #define CPUID_LEAF4_CACHE_TYPE_NULL      0
 #define CPUID_LEAF4_CACHE_TYPE_DATA      1
 #define CPUID_LEAF4_CACHE_TYPE_INST      2
 #define CPUID_LEAF4_CACHE_TYPE_UNIF      3
 #define CPUID_LEAF4_CACHE_INDEXING_DIRECT  0
 #define CPUID_LEAF4_CACHE_INDEXING_COMPLEX 1
-
-#define CPUID_LEAF4_CACHE_SELF_INIT      0x00000100
-#define CPUID_LEAF4_CACHE_FULLY_ASSOC    0x00000200
 
 #define CPUID_TOPOLOGY_LEVEL_TYPE_INVALID   0
 #define CPUID_TOPOLOGY_LEVEL_TYPE_SMT       1
@@ -2476,21 +2470,6 @@ CPUID_MODEL_IS_ZEN3(uint32 eax)
 #define CPUID_AMD_TOPOLOGY_LEVEL_TYPE_COMPLEX   2
 #define CPUID_AMD_TOPOLOGY_LEVEL_TYPE_CCD       3
 #define CPUID_AMD_TOPOLOGY_LEVEL_TYPE_SOCKET    4
-
-/*
- * For certain AMD processors, an lfence instruction is necessary at various
- * places to ensure ordering.
- */
-
-static INLINE Bool
-CPUID_RequiresFence(CpuidVendor vendor, // IN
-                    uint32 version)     // IN: %eax from CPUID with %eax=1.
-{
-   return vendor == CPUID_VENDOR_AMD &&
-          CPUID_EFFECTIVE_FAMILY(version) == CPUID_FAMILY_K8 &&
-          CPUID_EFFECTIVE_MODEL(version) < 0x40;
-}
-
 
 /*
  * Hypervisor CPUID space is 0x400000XX.
