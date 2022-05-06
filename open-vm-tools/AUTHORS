@@ -82,3 +82,6 @@ Marco Trevisan  Update open-vm-tools to build with either Fuse 3 or Fuse 2
 
 Bartosz Brachaczek Make HgfsConvertFromNtTimeNsec aware of 64-bit time_t on i386
                 - https://github.com/vmware/open-vm-tools/pull/387
+
+Bernd Zeimetz   Fix building containerinfo plugin on i386
+                - https://github.com/vmware/open-vm-tools/pull/588

@@ -608,7 +608,7 @@ ContainerInfoGatherTask(ToolsAppCtx *ctx,   // IN
 
    endInfoGatherTime = g_get_monotonic_time();
 
-   g_info("%s: time to complete containerInfo gather = %ld us\n",
+   g_info("%s: time to complete containerInfo gather = %" G_GINT64_FORMAT " us\n",
           __FUNCTION__, endInfoGatherTime - startInfoGatherTime);
 
 exit:
