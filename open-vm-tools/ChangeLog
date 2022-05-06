@@ -1,3 +1,86 @@
+commit 605c30a33f6dedc07ded8e24ce1491fba162ce82
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri May 6 14:28:00 2022 -0700
+
+    Fix a compilation issue in the containerInfo plugin for i386 builds.
+    
+    The "gint64" type used for time values in the code is not a "long" on
+    i386.  The fix using the glib "G_GINT64_FORMAT" macro was provided by
+    the Debian OVT maintainer.
+    
+    github PR:
+    https://github.com/vmware/open-vm-tools/pull/588
+
+commit be5c99cbb69afc1586315195f40d0e31d4f742b1
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri May 6 14:28:00 2022 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit cf19772adf10706fa1da83aca21a9fc45977c387
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri May 6 14:28:00 2022 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit fde902600d26f8b38f13a7c535d094963f989697
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri May 6 14:28:00 2022 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 0073b6ae4aed8466a2e657fe853cd993a60abd1b
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri May 6 14:28:00 2022 -0700
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit f9da69911d845d36515f8c45f6d5840f934a1189
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri May 6 14:28:00 2022 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit c613b3d554c49fe8bdc6103d90aa028e7bee854e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri May 6 14:28:00 2022 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 9b9f221c486069d90ed6460edab72cb545ca0361
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri May 6 14:28:00 2022 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 82e373eb02505791f34b0154a8c2762040034fd8
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri May 6 14:28:00 2022 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 6df59bd95ec5a1a23be67483ef6a4c34cf849506
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri May 6 14:27:59 2022 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 875d19750952f575f6f41b6ce4631ecdbe74b90a
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri May 6 14:27:59 2022 -0700
+
+    Service Discovery: Cassandra service version missed for a default Cassandra installation.
+    
+    Updated the get-versions.sh script to correctly report the version of the
+    Cassandra service running in the guest.
+
+commit 6452e34357b1dc258a038ea5137fd27d13f9f4ca
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Apr 19 14:48:06 2022 -0700
+
+    Update ChangeLog with the granular push of Mar. 23, 2022.
+      - plus ChangeLog update of Apr. 4, 2022.
+
 commit f1e56311c8f245d6aba2a94d37e5df7220398ed5
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Tue Apr 19 14:30:54 2022 -0700
