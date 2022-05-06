@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -156,7 +156,6 @@ Bool Hostinfo_Daemonize(const char *path,
 Bool Hostinfo_NestingSupported(void);
 Bool Hostinfo_VCPUInfoBackdoor(unsigned bit);
 Bool Hostinfo_SynchronizedVTSCs(void);
-Bool Hostinfo_NestedHVReplaySupported(void);
 Bool Hostinfo_TouchBackDoor(void);
 Bool Hostinfo_TouchVirtualPC(void);
 Bool Hostinfo_TouchXen(void);
