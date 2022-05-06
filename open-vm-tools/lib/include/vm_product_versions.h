@@ -204,7 +204,7 @@
 #define ESX_VERSION_THIRD_PARTY ESX_VERSION_MAJOR ESX_VERSION_MINOR \
                                 ESX_VERSION_UPDATE
 
-#define ESX_RELEASE_UPDATE "0" // Quarterly release
+#define ESX_RELEASE_UPDATE "1" // Quarterly release
 #define ESX_RELEASE_PATCH "0"  // 0 = experimental
 #define ESX_RELEASE_QUARTERLY ESX_RELEASE_UPDATE // ESX's own quarterly release
 #define ESX_RELEASE ESX_RELEASE_QUARTERLY "." ESX_RELEASE_PATCH
@@ -285,7 +285,7 @@
 #define VPX_VERSION_MAJOR "8"
 #define VPX_VERSION_MINOR "0"
 #define VPX_VERSION_MAINT "0"
-#define VPX_VERSION_PATCH "00000"
+#define VPX_VERSION_PATCH "10000"
 #define VPX_VERSION_THIRD_PARTY VPX_VERSION_MAJOR VPX_VERSION_MINOR \
                                 VPX_VERSION_MAINT
 //MARKER_FAST_REMOVE_START
