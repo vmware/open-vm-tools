@@ -1,6 +1,6 @@
 #!/bin/sh
 ##########################################################
-# Copyright (C) 2006-2021 VMware, Inc. All rights reserved.
+# Copyright (C) 2006-2022 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -254,7 +254,7 @@ collectNetworkDetails()
 export PATH=/bin:/sbin:/usr/bin:/usr/sbin
 
 TARFILE=vm-`date +%Y-%m-%d`.$$.tar.gz
-VER=0.94
+VER=0.95
 
 # Parse args
 for option in $@
@@ -336,6 +336,8 @@ addfiles /var/run/vmware-*
 addfile /var/log/cloud-init.log
 addfile /var/log/cloud-init-output.log
 addfile /etc/cloud/cloud.cfg
+addfile /etc/default/locale
+addfile /etc/locale.conf
 
 runcmd "/tmp/df.txt" df
 collectNetworkDetails
@@ -345,6 +347,8 @@ runcmd "/tmp/ulimit-a.txt" ulimit -a
 runcmd "/tmp/uptime.txt" uptime
 runcmd "/tmp/date.txt" date
 runcmd "/tmp/umask.txt" umask
+runcmd "/tmp/locale-current.txt" locale
+runcmd "/tmp/locale-list.txt" locale -a
 
 case `uname` in
 Linux)
