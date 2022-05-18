@@ -93,21 +93,22 @@ using signal7 = signal<T_ret(T_arg1, T_arg2, T_arg3, T_arg4, T_arg5, T_arg6, T_a
 
 //Bridge bound_mem_functor
 template <typename T_ret, typename T_obj>
-using bound_mem_functor0 = bound_mem_functor<T_ret (T_obj::*)(), T_obj>;
+using bound_mem_functor0 = bound_mem_functor<T_ret (T_obj::*)()>;
 template <typename T_ret, typename T_obj, typename T_arg1>
-using bound_mem_functor1 = bound_mem_functor<T_ret (T_obj::*)(T_arg1), T_obj>;
+using bound_mem_functor1 = bound_mem_functor<T_ret (T_obj::*)(T_arg1), T_arg1>;
 template <typename T_ret, typename T_obj, typename T_arg1, typename T_arg2>
-using bound_mem_functor2 = bound_mem_functor<T_ret (T_obj::*)(T_arg1, T_arg2), T_obj>;
+using bound_mem_functor2 = bound_mem_functor<T_ret (T_obj::*)(T_arg1, T_arg2), T_arg1, T_arg2>;
 template <typename T_ret, typename T_obj, typename T_arg1, typename T_arg2, typename T_arg3>
-using bound_mem_functor3 = bound_mem_functor<T_ret (T_obj::*)(T_arg1, T_arg2, T_arg3), T_obj>;
+using bound_mem_functor3 = bound_mem_functor<T_ret (T_obj::*)(T_arg1, T_arg2, T_arg3), T_arg1, T_arg2, T_arg3>;
 template <typename T_ret, typename T_obj, typename T_arg1, typename T_arg2, typename T_arg3, typename T_arg4>
-using bound_mem_functor4 = bound_mem_functor<T_ret (T_obj::*)(T_arg1, T_arg2, T_arg3, T_arg4), T_obj>;
+using bound_mem_functor4 = bound_mem_functor<T_ret (T_obj::*)(T_arg1, T_arg2, T_arg3, T_arg4), T_arg1, T_arg2, T_arg3, T_arg4>;
 template <typename T_ret, typename T_obj, typename T_arg1, typename T_arg2, typename T_arg3, typename T_arg4, typename T_arg5>
-using bound_mem_functor5 = bound_mem_functor<T_ret (T_obj::*)(T_arg1, T_arg2, T_arg3, T_arg4, T_arg5), T_obj>;
+using bound_mem_functor5 = bound_mem_functor<T_ret (T_obj::*)(T_arg1, T_arg2, T_arg3, T_arg4, T_arg5), T_arg1, T_arg2, T_arg3, T_arg4, T_arg5>;
 template <typename T_ret, typename T_obj, typename T_arg1, typename T_arg2, typename T_arg3, typename T_arg4, typename T_arg5, typename T_arg6>
-using bound_mem_functor6 = bound_mem_functor<T_ret (T_obj::*)(T_arg1, T_arg2, T_arg3, T_arg4, T_arg5, T_arg6), T_obj>;
+using bound_mem_functor6 = bound_mem_functor<T_ret (T_obj::*)(T_arg1, T_arg2, T_arg3, T_arg4, T_arg5, T_arg6), T_arg1, T_arg2, T_arg3, T_arg4, T_arg5, T_arg6>;
 template <typename T_ret, typename T_obj, typename T_arg1, typename T_arg2, typename T_arg3, typename T_arg4, typename T_arg5, typename T_arg6, typename T_arg7>
-using bound_mem_functor7 = bound_mem_functor<T_ret (T_obj::*)(T_arg1, T_arg2, T_arg3, T_arg4, T_arg5, T_arg6, T_arg7), T_obj>;
+using bound_mem_functor7 = bound_mem_functor<T_ret (T_obj::*)(T_arg1, T_arg2, T_arg3, T_arg4, T_arg5, T_arg6, T_arg7), T_arg1, T_arg2, T_arg3, T_arg4, T_arg5, T_arg6, T_arg7>;
+
 
 
 // Add old mem_fun API for pointer
