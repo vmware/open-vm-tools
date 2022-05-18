@@ -44,13 +44,6 @@
 #ifndef VM_VERSION_H
 #define VM_VERSION_H
 
-// vm_version_fast.h can't be used in headers shared with Windows just yet
-//MARKER_FAST_UNCOMMENT_START
-//#if defined _MSC_VER
-//#error Fast Version headers not implemented on Windows yet
-//#endif
-//MARKER_FAST_UNCOMMENT_END
-
 #define INCLUDE_ALLOW_USERLEVEL
 
 #define INCLUDE_ALLOW_MODULE

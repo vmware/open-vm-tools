@@ -35,14 +35,6 @@
  *
  */
 
-// vm_product_versions_fast.h can't be used in headers shared with Windows just
-// yet
-//MARKER_FAST_UNCOMMENT_START
-//#if defined _MSC_VER
-//#error Fast Version headers not implemented on Windows yet
-//#endif
-//MARKER_FAST_UNCOMMENT_END
-
 //MARKER_FAST_UNCOMMENT_START
 //#ifdef __cplusplus
 //extern "C" {
@@ -53,10 +45,6 @@
 //extern unsigned int gVpxVersionNumeric[];
 //extern unsigned int gNetdumpFileVersion[];
 //extern unsigned int gFoundryFileVersion[];
-//
-//extern int gVddkVersionMajor;
-//extern int gVddkVersionMinor;
-//extern int gVddkVersionMaint;
 //
 //extern unsigned int gOvftoolFileVersion[];
 //extern const char gEsxReleaseVersionString[];
