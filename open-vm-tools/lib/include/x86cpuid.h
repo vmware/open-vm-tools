@@ -525,7 +525,7 @@ FLAG(   7,  0, EBX, 11,  1, RTM,                                 YES,  11 ) \
 FLAG(   7,  0, EBX, 12,  1, PQM,                                 NO,    0 ) \
 FLAG(   7,  0, EBX, 13,  1, FP_SEGMENT_ZERO,                     ANY,  11 ) \
 FLAG(   7,  0, EBX, 14,  1, MPX,                                 ANY,  13 ) \
-FLAG(   7,  0, EBX, 15,  1, PQE,                                 YES, FUT ) \
+FLAG(   7,  0, EBX, 15,  1, PQE,                                 YES,  20 ) \
 FLAG(   7,  0, EBX, 16,  1, AVX512F,                             YES,  13 ) \
 FLAG(   7,  0, EBX, 17,  1, AVX512DQ,                            YES,  13 ) \
 FLAG(   7,  0, EBX, 18,  1, RDSEED,                              YES,  11 ) \
@@ -757,13 +757,13 @@ FLAG(   F,  1, EDX,  2,  1, PQM_MBM_LOCAL,                       NO,    0 )
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_10                                           \
-FLAG(  10,  0, EBX,  1,  1, PQE_L3,                              YES, FUT ) \
+FLAG(  10,  0, EBX,  1,  1, PQE_L3,                              YES,  20 ) \
 FLAG(  10,  0, EBX,  2,  1, PQE_L2,                              NO,    0 ) \
 FLAG(  10,  0, EBX,  3,  1, PQE_MBA,                             NO,    0 ) \
-FIELD( 10,  1, EAX,  0,  5, PQE_L3_MASK_LENGTH,                  YES, FUT ) \
+FIELD( 10,  1, EAX,  0,  5, PQE_L3_MASK_LENGTH,                  YES,  20 ) \
 FIELD( 10,  1, EBX,  0, 32, PQE_L3_ISOLATION_UNIT_MAP,           NO,    0 ) \
 FLAG(  10,  1, ECX,  2,  1, PQE_L3_CDP,                          NO,    0 ) \
-FIELD( 10,  1, EDX,  0, 16, PQE_L3_MAX_COS_NUMBER,               YES, FUT ) \
+FIELD( 10,  1, EDX,  0, 16, PQE_L3_MAX_COS_NUMBER,               YES,  20 ) \
 FIELD( 10,  2, EAX,  0,  5, PQE_L2_MASK_LENGTH,                  NO,    0 ) \
 FIELD( 10,  2, EBX,  0, 32, PQE_L2_ISOLATION_UNIT_MAP,           NO,    0 ) \
 FLAG(  10,  2, ECX,  2,  1, PQE_L2_CDP,                          NO,    0 ) \
