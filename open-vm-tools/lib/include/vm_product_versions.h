@@ -404,6 +404,7 @@
 #define RDF_VERSION "8.6.0"
 #define HORIZON_DAAS_AGENT_VERSION "22.2.0"
 #define HORIZON_USB_AGENT_VERSION "11.6.0"
+#define HORIZON_UPDATETOOL_VERSION "2.0.7"
 #define MFW_VERSION "16.6.0"
 /*
  * This is the Horizon Marketing version which is shared between
