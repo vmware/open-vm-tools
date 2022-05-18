@@ -1,3 +1,84 @@
+commit 29ba7eb2a1e6c62357ad46bc67daff94b0fc0dc4
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue May 17 18:36:21 2022 -0700
+
+    Salt-minion plugin update:
+    
+    The Salt Minion installer script svtminion.sh has been updated.
+      - version 1.3
+      - configurable download source
+      - requires the "wget" command
+
+commit e1a6796a1aecd22a7b76f5b4871d215b82277f18
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue May 17 18:36:21 2022 -0700
+
+    Changes to common header files not applicable to open-vm-tools.
+
+commit b42ed315b7844660e9f9546c7bd85e1804938526
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue May 17 18:36:21 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 074cd660a718e817e7db0df57f71252107d23490
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue May 17 18:36:21 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit ce9459965a1900159b5f563c030385e554ba3e49
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue May 17 18:36:21 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit bac24ee80957feea0336f7ac597630aedf13ec86
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue May 17 18:36:21 2022 -0700
+
+    Changes to common source files not directly applicable to open-vm-tools.
+
+commit 784c520757e883c5e46e1d3a593e24d171cd280e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue May 17 18:36:21 2022 -0700
+
+    Common header file change not applicable to open-vm-toole.
+
+commit 32db37a3cf437578efcb64d954aae9d5cca1ff83
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue May 17 18:36:21 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 619f656f4444af598179345f8c35e056e3563de1
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue May 17 18:36:21 2022 -0700
+
+    vm-support: Capture the locale configuration of the Linux guest.
+    
+    To aid in debugging issues related to locale configuration, the vm-support
+    command has been updated to collect the following:
+    
+     - The contents of the /etc/default/locale file if it exists.
+     - The contents of the /etc/locale.conf file if it exists.
+     - The output of the 'locale' command for the current environment.
+     - The output of the 'locale -a' command for a list of available locales.
+
+commit 0c675d3d53f9e859eaa396cabfbf68c85a9f5f72
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue May 17 12:57:40 2022 -0700
+
+    Sync the README.md file with the version last released in the
+    stable-12.0.x and master branches.
+
+commit e7d6abcbd3134e01cd5a8602fe4edd01b9e60aec
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri May 6 14:40:22 2022 -0700
+
+    Update ChangeLog with the granular push of May 6, 2022.
+      - plus ChangeLog update of Apr. 19, 2022.
+
 commit 605c30a33f6dedc07ded8e24ce1491fba162ce82
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Fri May 6 14:28:00 2022 -0700
