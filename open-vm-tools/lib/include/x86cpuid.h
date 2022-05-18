@@ -1211,11 +1211,11 @@ FLAG(  88,  0, EBX,  9,  1, WBNOINVD,                            YES,  17 ) \
 FLAG(  88,  0, EBX, 10,  1, LBREXTN,                             NO,    0 ) \
 FLAG(  88,  0, EBX, 12,  1, LEAF88_IBPB,                         ANY,   9 ) \
 FLAG(  88,  0, EBX, 13,  1, WBINVD_INT,                          NO,    0 ) \
-FLAG(  88,  0, EBX, 14,  1, LEAF88_IBRS,                         NO,    0 ) \
+FLAG(  88,  0, EBX, 14,  1, LEAF88_IBRS,                         ANY,  20 ) \
 FLAG(  88,  0, EBX, 15,  1, LEAF88_STIBP,                        NO,    0 ) \
 FLAG(  88,  0, EBX, 16,  1, LEAF88_IBRS_ALWAYS,                  NO,    0 ) \
 FLAG(  88,  0, EBX, 17,  1, LEAF88_STIBP_ALWAYS,                 NO,    0 ) \
-FLAG(  88,  0, EBX, 18,  1, LEAF88_PREFER_IBRS,                  NO,    0 ) \
+FLAG(  88,  0, EBX, 18,  1, LEAF88_PREFER_IBRS,                  YES,  20 ) \
 FLAG(  88,  0, EBX, 19,  1, LEAF88_IBRS_SAME_MODE,               NO,    0 ) \
 FLAG(  88,  0, EBX, 20,  1, LMSLE_UNSUPPORTED,                   NO,    0 ) \
 FLAG(  88,  0, EBX, 23,  1, PPIN,                                NO,    0 ) \
