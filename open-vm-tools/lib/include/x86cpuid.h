@@ -112,7 +112,7 @@ typedef struct CPUIDQuery {
 #endif
 
 /*
- * CPUID levels the monitor caches.
+ * Table of known CPUID levels.
  *
  * The first parameter defines whether the level has its default masks
  * generated from the values in this file. Any level which is marked as FALSE
@@ -134,7 +134,7 @@ typedef struct CPUIDQuery {
  */
 
 /*            MASKS, LVL, VAL,      CNT, HWV */
-#define CPUID_CACHED_LEVELS                  \
+#define CPUID_KNOWN_LEVELS                   \
    CPUIDLEVEL(TRUE,  0,   0x0,        0,  0) \
    CPUIDLEVEL(TRUE,  1,   0x1,        0,  0) \
    CPUIDLEVEL(FALSE, 2,   0x2,        0,  0) \
@@ -194,20 +194,18 @@ typedef struct CPUIDQuery {
    CPUIDLEVEL(TRUE,  823, 0x80000023, 0, 20) \
    CPUIDLEVEL(FALSE, 826, 0x80000026, 4, 20)
 
-#define CPUID_ALL_LEVELS CPUID_CACHED_LEVELS
-
-/* Define cached CPUID levels in the form: CPUID_LEVEL_<ShortName> */
+/* Define all CPUID levels in the form: CPUID_LEVEL_<ShortName> */
 typedef enum {
 #define CPUIDLEVEL(t, s, v, c, h) CPUID_LEVEL_##s,
-   CPUID_CACHED_LEVELS
+   CPUID_KNOWN_LEVELS
 #undef CPUIDLEVEL
-   CPUID_NUM_CACHED_LEVELS
-} CpuidCachedLevel;
+   CPUID_NUM_KNOWN_LEVELS
+} CpuidLevel;
 
 /* Enum to translate between shorthand name and actual CPUID level value. */
 enum {
 #define CPUIDLEVEL(t, s, v, c, h) CPUID_LEVEL_VAL_##s = v,
-   CPUID_ALL_LEVELS
+   CPUID_KNOWN_LEVELS
 #undef CPUIDLEVEL
 };
 
@@ -268,7 +266,7 @@ typedef enum {
  * following CPUID_FIELD_DATA macro.
  *
  * The first parameter is the CPUID level of the feature (must be defined in
- * CPUID_ALL_LEVELS, above).
+ * CPUID_KNOWN_LEVELS, above).
  *
  * The second parameter is the CPUID sub-level (subleaf) of the feature. Please
  * make sure here the number is consistent with the "subleaf count" in
@@ -2499,7 +2497,7 @@ CPUID_LevelUsesEcx(uint32 level) {
       case v:                         \
          return c != 0;
 
-      CPUID_ALL_LEVELS
+      CPUID_KNOWN_LEVELS
 
 #undef CPUIDLEVEL
 
