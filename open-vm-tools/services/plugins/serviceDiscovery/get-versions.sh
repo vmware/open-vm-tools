@@ -89,7 +89,12 @@ get_cassandra_version() {
   do
     CASSANDRA_CMD=$(get_command_line $p | grep -Eo "$PATTERN")
     CASSANDRA_INSTALL_PATH=`echo $CASSANDRA_CMD | awk 'match($0,/\/usr\/lib\/[a-zA-Z-]*\/[a-zA-Z\/]*\/apache-cassandra-[0-9.]*\//) {print substr($0,RSTART,RLENGTH)}'`
-    [ ! -z "$CASSANDRA_INSTALL_PATH" ] && echo VERSIONSTART cassandra_version "$("${CASSANDRA_INSTALL_PATH}/bin/cassandra" -v 2>/dev/null)" VERSIONEND
+    if [ ! -z "$CASSANDRA_INSTALL_PATH" ]
+    then
+      IS_LI_CASSANDRA=`echo $CASSANDRA_INSTALL_PATH | grep "loginsight"`
+      [ ! -z "$IS_LI_CASSANDRA" ] &&  export CASSANDRA_CONF="/storage/core/loginsight/cidata/cassandra/config"
+      echo VERSIONSTART cassandra_version "$("${CASSANDRA_INSTALL_PATH}/bin/cassandra" -v 2>/dev/null)" VERSIONEND
+    fi
   done
 }
 

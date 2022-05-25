@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011,2014-2017,2019-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011,2014-2017,2019-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -131,8 +131,8 @@ typedef struct AsyncSocketVTable {
                        int timeoutMS);
    int (*doOneMsg)(AsyncSocket *s, Bool read, int timeoutMS);
    int (*waitForConnection)(AsyncSocket *s, int timeoutMS);
-   int (*waitForReadMultiple)(AsyncSocket **asock, int numSock, int timeoutMS,
-                              int *outIdx);
+   int (*waitForReadMultiple)(AsyncSocket **asock, size_t numSock,
+                              int timeoutMS, int *outIdx);
    int (*peek)(AsyncSocket *asock, void *buf, int len, void *cb, void *cbData);
 
    /*
