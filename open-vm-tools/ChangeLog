@@ -1,3 +1,59 @@
+commit de9058574ef96cb761829716049ba3e7cc2ef0a8
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon May 23 13:19:36 2022 -0700
+
+    Add the ReleaseNotes.md file for the OVT 12.0.5 update release.
+
+commit bb2a9ce0b3b5273959c8d5a9d09ca66c2eafe932
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon May 23 13:18:14 2022 -0700
+
+    Update README.md effective with open-vm-tools 12.0.5
+     - Add "My version of Linux is not recognized" section.
+
+commit cdb27c50b09de15231968040770461cddd45618c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon May 23 13:15:32 2022 -0700
+
+    Preparing for the 12.0.5 open-vm-tools release
+     - configure.ac: set release version - 2 spots.
+     - lib/include/buildNumber.h: Set build number and product build number.
+
+commit cd405b344240df20ccc0dadcab6b5f9c13610432
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Apr 20 13:42:31 2022 -0700
+
+    Update ChangeLog with the granular changes through Apr. 15, 2022
+     - plus the 12.0.0 open-vm-tools release point in the ChangeLog.
+
+commit de9058574ef96cb761829716049ba3e7cc2ef0a8
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon May 23 13:19:36 2022 -0700
+
+    Add the ReleaseNotes.md file for the OVT 12.0.5 update release.
+
+commit bb2a9ce0b3b5273959c8d5a9d09ca66c2eafe932
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon May 23 13:18:14 2022 -0700
+
+    Update README.md effective with open-vm-tools 12.0.5
+     - Add "My version of Linux is not recognized" section.
+
+commit cdb27c50b09de15231968040770461cddd45618c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon May 23 13:15:32 2022 -0700
+
+    Preparing for the 12.0.5 open-vm-tools release
+     - configure.ac: set release version - 2 spots.
+     - lib/include/buildNumber.h: Set build number and product build number.
+
+commit cd405b344240df20ccc0dadcab6b5f9c13610432
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Apr 20 13:42:31 2022 -0700
+
+    Update ChangeLog with the granular changes through Apr. 15, 2022
+     - plus the 12.0.0 open-vm-tools release point in the ChangeLog.
+
 commit c313c92ee618925a4b3afdfaca1efdfccd348b26
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Wed Apr 20 13:24:07 2022 -0700
