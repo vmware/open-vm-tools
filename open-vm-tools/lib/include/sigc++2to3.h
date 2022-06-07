@@ -68,9 +68,13 @@ using slot7 = slot<T_ret(T_arg1, T_arg2, T_arg3, T_arg4, T_arg5, T_arg6, T_arg7)
 
 // Bridge signal syntax change
 template <typename T_ret, typename... T_args>
-class signal : public signal<T_ret(T_args...)> {
+class signal : public signal<T_ret(T_args...)>, public trackable {
 public:
    signal() = default;
+
+   decltype(auto) make_slot() const {
+      return mem_fun(*this, &signal::emit);
+   }
 };
 
 template <typename T_ret>
