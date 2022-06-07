@@ -37,6 +37,7 @@ extern "C" {
 
 /**
  * Log Facility
+ * ------------
  *
  * The Log Facility exists to record events of program execution for purposes
  * of auditing, debugging, and monitoring. Any non-trivial program should use
@@ -52,13 +53,14 @@ extern "C" {
  * use the source, Luke -- starting at lib/log/logFacility.c
  *
  * The events are explicitly annotated by the developer (i.e. you)
- * with a level, an optional module, and a message.
+ * with a level, an optional group, and a message.
  *
  * Notes:
  * - Log() is defined as Log_Info()
  * - Warning() is defined as Log_Warning()
  *
  * Log Level
+ * ---------
  *
  * The Log Level indicates the (in)significance of the event, with larger
  * numbers indicating lesser significance. The level, whether explicit
@@ -104,35 +106,45 @@ extern "C" {
  *  + routine entry, with parameters; routine exit, with return value
  *  + intermediate values or decisions
  *
- * Log Module
+ * Log Facility Message Groups
+ * ---------------------------
  *
- * The Log_Level and LogV routines have a routing parameter. This is used
- * to specify a level associated with the message, but can also be used to
- * specify a named module that the control for the message affect. This affords
- * another degree of freedom in filtering.
+ * All log messages are associated with a Log Facility Message Group. Each group
+ * is independent and has a set of filtering parameters associated with it.
  *
- * To use the module parameter:
+ * Unless explicitly placed into a group, log messages are part of an implicit
+ * group known as the global group, although it does not have a formal name.
+ * All other groups have (formal) names. Group names are defined in
+ * public/loglevel_userVars.h.
  *
- * (0) The module identifier must already exist, or be invented and defined,
- *     in public/loglevel_userVars.h
+ * A message is placed in a named group via two macros:
  *
- * (1) Define LOGLEVEL_MODULE before the include of "log.h".
- *     The value must be a valid module identifier (see above).
- *     It is a good idea to see if "log.h" is included more than once,
- *     and if so, to remove any extra inclusions.
+ * LOG_ROUTING_BITS(level)
  *
- *     If all uses of LOG() are converted to use Log_ variants,
- *     remember to remove "loglevel_user.h".
+ *    The group name is taken from the LOGLEVEL_MODULE define. The value of the
+ *    define must be a string whose name exists in the group name definition
+ *    file mentioned above.
  *
- * (2) Pass the module information to the Log Facility.
- *        Log_Level(VMW_LOG_ROUTING(level), ...);
- *     OR
- *        Log_V(VMW_LOG_ROUTING(level), ...);
+ *    The LOGLEVEL_MODULE define must be placed before the include of "log.h".
  *
- * (3) Level enablement can be checked via:
- *        Log_IsEnabled(VMW_LOG_ROUTING(level));
+ *    It is a good idea to see if "log.h" is included more than once,
+ *    and if so, to remove any extra inclusions.
  *
- * Log Message
+ *    If all uses of LOG() are converted to use groups, remember to remove the
+ *    include of "loglevel_user.h".
+ *
+ * LOG_ROUTINE_BITS_EX(name, value)
+ *
+ *    The group name is explicitly specified string.
+ *
+ * These macros may be used in the following routines as the routing parameter:
+ *
+ *    Log_Level
+ *    Log_V
+ *    Log_IsEnabled
+ *
+ * Log Message Guidelines
+ * ----------------------
  *
  * Every Log message should be unique, unambiguously describing the event
  * being logged, and should include all relevant data, in human-readable form.
@@ -144,32 +156,33 @@ extern "C" {
  * + format disk size or offset in hex; specify units if not bytes
  * + quote string arguments (e.g. pathnames) which can contain spaces
  *
- * Log Filter
+ * Log Message Filtering
+ * ---------------------
  *
- * The Log Facility filters events as they arrive, by level and by module,
- * discarding events above the configured filter level.
+ * The Log Facility filters messages as they arrive, by level and by group,
+ * discarding messages above the configured filter level.
  * This is similar to how syslog and the vmacore logger handle levels.
  *
- * There is a global filter and assorted module filters.
- * The global filter is used for all entries to the Log Facility
- * UNLESS a module is specified.
+ * There is a global group filter and assorted group filters.
+ * The global group filter is used for all messages to the Log Facility
+ * UNLESS a group name is specified.
  *
- * Module filters are limited to a module (name specific) context;
- * they do not fall within the global context. This allows entries to be
- * controlled by module AND level. This is similar to LOG(), for those
- * familiar with it ... except that module filters are available in
+ * Group filters are limited to a group (name specific) context;
+ * they do not fall within the global group context. This allows entries to be
+ * controlled by group AND level. This is similar to LOG(), for those
+ * familiar with it ... except that group filters are available in
  * all build types.
  *
- * Each module is a separate configuration namespace, with module-specific
- * filter levels. The default module filter level is none (VMW_LOG_AUDIT)
- * i.e. module filters by default discard all events (just like LOG()).
+ * Each group is a separate configuration namespace, with group-specific
+ * filter levels. The default group filter level is none (VMW_LOG_AUDIT)
+ * i.e. group filters by default discard all events (just like LOG()).
  *
  * Regardless of what level of filtering is specified, the VMW_LOG_AUDIT
  * level is used to log something that requires an audit at a later date.
  * It is *ALWAYS* logged and *NEVER* outputs to the "standard error".
+ *
  */
-/*
- * Level            Value    Comments
+/* Level            Value    Comments
  *---------------------------------------------------------------------------
  */
 
@@ -217,7 +230,7 @@ typedef enum {
 
 /*
  * The "routing" parameter contains the level in the low order bits;
- * the higher order bits specify the module of the log call.
+ * the higher order bits specify the group of the log call.
  */
 
 #define VMW_LOG_LEVEL_BITS 5  // Log level bits (32 levels max)
@@ -359,21 +372,21 @@ struct CfgInterface *
 Log_CfgInterface(void);
 
 int32
-Log_SetStderrLevel(uint32 module,
+Log_SetStderrLevel(uint32 group,
                    int32 level);
 
 int32
-Log_GetStderrLevel(uint32 module);
+Log_GetStderrLevel(uint32 group);
 
 int32
-Log_SetLogLevel(uint32 module,
+Log_SetLogLevel(uint32 group,
                 int32 level);
 
 int32
-Log_GetLogLevel(uint32 module);
+Log_GetLogLevel(uint32 group);
 
 uint32
-Log_LookupModuleNumber(const char *moduleName);
+Log_LookupGroupNumber(const char *groupName);
 
 LogOutput *
 Log_NewStdioOutput(const char *appPrefix,
@@ -722,8 +735,8 @@ void
 Log_RegisterOpIdFunction(GetOpId *getOpIdFunc);
 
 void
-Log_LoadModuleFilters(const char *appPrefix,
-                      struct CfgInterface *cfgIf);
+Log_LoadGroupFilters(const char *appPrefix,
+                     struct CfgInterface *cfgIf);
 
 long
 Log_OffsetUtc(void);
@@ -764,45 +777,49 @@ Log_IsThrottled(LogThrottleInfo *info,
 #endif /* VMWARE_LOG_H */
 
 /*
- * To use the Log Facility Module Specific Filters:
- *
- *  1) Modify the file (C/C++) slightly.
- *
- *     Define LOGLEVEL_MODULE before the include of "log.h". It's a good
- *     idea to see if "log.h" is included more than once and, if so, to
- *     remove any extra inclusions.
- *
- *     If all uses of LOG are converted to use the module-specific filters,
- *     remember to remove "loglevel_user.h".
- *
- *  2) Pass the LOGLEVEL_MODULE information to the Log Facility.
- *
- *     Use the VMW_LOG_ROUTING macro as part of a call to LogV and/or
- *     Log_Level.
+ * Log Facility Message Group macros
  */
 
-#if !defined(VMW_LOG_MODULE_LEVELS)
+#if !defined(VMW_LOG_GROUP_LEVELS)
    #include "vm_basic_defs.h"
    #include "loglevel_userVars.h"
 
-   #define LOGFACILITY_MODULEVAR(mod) XCONC(_logFacilityModule_, mod)
+   #define LOGFACILITY_GROUPVAR(group) XCONC(_logFacilityGroup_, group)
 
-   enum LogFacilityModuleValue {
-      LOGLEVEL_USER(LOGFACILITY_MODULEVAR)
+   enum LogFacilityGroupValue {
+      LOGLEVEL_USER(LOGFACILITY_GROUPVAR)
    };
 
-   #define VMW_LOG_MODULE_LEVELS
+   #define VMW_LOG_GROUP_LEVELS
 #endif
+
+/*
+ * Legacy VMW_LOG_ROUTING macro
+ *
+ * Group name is "inherited" from the LOGLEVEL_MODULE define.
+ */
 
 #if defined(VMW_LOG_ROUTING)
    #undef VMW_LOG_ROUTING
 #endif
 
 #if defined(LOGLEVEL_MODULE)
-   /* Module bits of zero (0) indicate no module has been specified */
    #define VMW_LOG_ROUTING(level) \
-      (((LOGFACILITY_MODULEVAR(LOGLEVEL_MODULE) + 1) << VMW_LOG_LEVEL_BITS) | level)
+   (((LOGFACILITY_GROUPVAR(LOGLEVEL_MODULE) + 1) << VMW_LOG_LEVEL_BITS) | (level))
 #else
    #define VMW_LOG_ROUTING(level) (level)
 #endif
+
+/*
+ * VMW_LOG_ROUTING_EX macro
+ *
+ * Group name is specified in the macro.
+ */
+
+#if defined(VMW_LOG_ROUTING_EX)
+   #undef VMW_LOG_ROUTING_EX
+#endif
+
+#define VMW_LOG_ROUTING_EX(name, level) \
+        (((LOGFACILITY_GROUPVAR(name) + 1) << VMW_LOG_LEVEL_BITS) | (level))
 
