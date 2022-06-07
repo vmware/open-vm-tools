@@ -1382,7 +1382,7 @@ FIELD(820,  1, EAX,  0, 32, CAPACITY_MASK_LEN,                   NO,    0 ) \
 FIELD(820,  1, EDX,  0, 32, NUM_SERVICE_CLASSES,                 NO,    0 )
 
 #define CPUID_FIELD_DATA_LEVEL_821                                          \
-FLAG( 821,  0, EAX,  7,  1, UPPER_ADDRESS_IGNORE,                NO,    0 )
+FLAG( 821,  0, EAX,  7,  1, UPPER_ADDRESS_IGNORE,                YES,  20 )
 
 #define CPUID_FIELD_DATA_LEVEL_822
 
