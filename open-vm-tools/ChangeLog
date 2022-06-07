@@ -1,3 +1,88 @@
+commit 95956d193464f2aa0547e6dbd4f51bc2052d5f82
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jun 7 09:52:42 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit dd2f50d4cc956d5d45638d31f68c449ba8afbca4
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jun 7 09:52:42 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 9a38d3f49bad645826aad7f0cb778098ba6ca381
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jun 7 09:52:42 2022 -0700
+
+    Common header file change not directly applicable to open-vm-tools.
+
+commit 0f78b84aeedab75e3614bfdda9fe5fd86268686e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jun 7 09:52:42 2022 -0700
+
+    Log Facility: Improve wording of group level messages and filtering.
+    
+    Common header file change not directly applicable to open-vm-tools.
+
+commit 41509dbb7223fa7e8905718c357fbd6f243f06e3
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jun 7 09:52:42 2022 -0700
+
+    Report consistent customization error status when custom script is disabled.
+
+commit f83c890a91e29febbe54a7be0ffe96c1e14f8057
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jun 7 09:52:42 2022 -0700
+
+    Guest OS: Prepare for Linux 6
+    
+    The basics are already there, update guest identification.
+
+commit 0b6597b97ce0d1607cb0602731b9c2d4ca0c5162
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jun 7 09:52:42 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 9945bb6cc3aa6d811ef46d9ddf2c2ae462baa38d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jun 7 09:52:41 2022 -0700
+
+    Common header file change not applicable to open-vm-tools at this time.
+
+commit d669d0263887a3da2242d55bae7eab224981e075
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jun 7 09:52:41 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 7fa64a4e23e65224b1752e5037854fd6f9ea43cb
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jun 7 09:52:41 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit cff50b62e0db5f5978c14bb09b0e2fe7c1c89fc3
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jun 7 09:52:41 2022 -0700
+
+    Log Facility: Enhance logging for grouped (named) log message.
+    
+    Common header file change not directly applicable to open-vm-tools.
+
+commit 939545b3e0445858cf7be038c978e7df2d8547ff
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed May 25 05:55:52 2022 -0700
+
+    Sync the README.md file with the version released with 12.0.5.
+
+commit 4c620fd78b6281ca8a045f3dffdf2180dd9c480f
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue May 17 18:47:08 2022 -0700
+
+    Update ChangeLog with the granular push of May 17, 2022.
+      - plus ChangeLog update of May 6, 2022.
+
 commit 29ba7eb2a1e6c62357ad46bc67daff94b0fc0dc4
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Tue May 17 18:36:21 2022 -0700
