@@ -1869,6 +1869,11 @@ HostinfoDefaultLinux(char *distro,            // OUT/OPT:
       distroShortOut = STR_OS_OTHER_5X;
       break;
 
+   case 6:
+      distroOut = STR_OS_OTHER_6X_FULL;
+      distroShortOut = STR_OS_OTHER_6X;
+      break;
+
    default:
       /*
        * Anything newer than this code explicitly handles returns the
