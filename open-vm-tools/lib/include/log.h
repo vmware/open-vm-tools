@@ -165,7 +165,7 @@ extern "C" {
  *
  * There is a global group filter and assorted group filters.
  * The global group filter is used for all messages to the Log Facility
- * UNLESS a group name is specified.
+ * UNLESS a group name is specified as part of a message submission.
  *
  * Group filters are limited to a group (name specific) context;
  * they do not fall within the global group context. This allows entries to be
