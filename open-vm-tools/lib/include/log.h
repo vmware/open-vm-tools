@@ -121,9 +121,9 @@ extern "C" {
  *
  * LOG_ROUTING_BITS(level)
  *
- *    The group name is taken from the LOGLEVEL_MODULE define. The value of the
- *    define must be a string whose name exists in the group name definition
- *    file mentioned above.
+ *    The group name is implicitly determined, by using the value of the
+ *    LOGLEVEL_MODULE define. The value of the define is a name that exists in
+ *    the group name definition file mentioned above.
  *
  *    The LOGLEVEL_MODULE define must be placed before the include of "log.h".
  *
@@ -135,7 +135,7 @@ extern "C" {
  *
  * LOG_ROUTINE_BITS_EX(name, value)
  *
- *    The group name is explicitly specified string.
+ *    The group name is an explicitly specified parameter.
  *
  * These macros may be used in the following routines as the routing parameter:
  *
