@@ -220,12 +220,30 @@ typedef enum {
    #define LOG_FILTER_DEFAULT_LEVEL VMW_LOG_INFO
 #endif
 
-#ifdef VMX86_SERVER
+#if defined(VMX86_SERVER)
 /* WORLD_MAX_OPID_STRING_SIZE */
 #define LOG_MAX_OPID_LENGTH 128
 #else
 /* We do not expect long opIDs in non-ESX environments. 32 should be enough. */
 #define LOG_MAX_OPID_LENGTH 32
+#endif
+
+#define LOG_NO_KEEPOLD                 0  // Keep no old log files
+#define LOG_NO_ROTATION_SIZE           0  // Do not rotate based on file size
+#define LOG_NO_THROTTLE_THRESHOLD      0  // No threshold before throttling
+#define LOG_NO_BPS_LIMIT               0xFFFFFFFF  // unlimited input rate
+
+/*
+ * The defaults for how many older log files to kept around, and what to do
+ * with rotation-by-size.
+ */
+
+#if defined(VMX86_SERVER)
+#define LOG_DEFAULT_KEEPOLD       10
+#define LOG_DEFAULT_ROTATION_SIZE 2048000
+#else
+#define LOG_DEFAULT_KEEPOLD       3
+#define LOG_DEFAULT_ROTATION_SIZE LOG_NO_ROTATION_SIZE
 #endif
 
 /*
@@ -663,25 +681,6 @@ typedef struct {
 Bool
 Log_GetFileObject(const LogOutput *output,
                   LogFileObject *result);
-
-#define LOG_NO_KEEPOLD                 0  // Keep no old log files
-#define LOG_NO_ROTATION_SIZE           0  // Do not rotate based on file size
-#define LOG_NO_THROTTLE_THRESHOLD      0  // No threshold before throttling
-#define LOG_NO_BPS_LIMIT               0xFFFFFFFF  // unlimited input rate
-
-/*
- * The defaults for how many older log files to kept around, and what to do
- * with rotation-by-size.
- */
-
-#if defined(VMX86_SERVER)
-#define LOG_DEFAULT_KEEPOLD       10
-#define LOG_DEFAULT_ROTATION_SIZE 2048000
-#else
-#define LOG_DEFAULT_KEEPOLD       3
-#define LOG_DEFAULT_ROTATION_SIZE LOG_NO_ROTATION_SIZE
-#endif
-
 
 /*
  * Assemble a line.
