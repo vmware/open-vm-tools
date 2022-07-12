@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2002-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 2002-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -609,6 +609,7 @@
 #define CONFNAME_AUTOUPGRADE_ALLOW_UPGRADE "allow-upgrade"
 #define CONFNAME_AUTOUPGRADE_ALLOW_ADD_FEATURE "allow-add-feature"
 #define CONFNAME_AUTOUPGRADE_ALLOW_REMOVE_FEATURE "allow-remove-feature"
+#define CONFNAME_AUTOUPGRADE_ALLOW_MSI_TRANSFORMS "allow-msi-transforms"
 
 /*
  * END upgrader goodies.

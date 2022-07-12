@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019, 2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019, 2021-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1037,6 +1037,48 @@ StrUtil_CaselessEndsWith(const char *s,      // IN
    }
 
    return Str_Strcasecmp(s + (slen - suffixlen), suffix) == 0;
+}
+
+
+/**
+ *-----------------------------------------------------------------------------
+ *
+ * StrUtil_CaselessStrstr --
+ *
+ *    This is a case-insensitive version of strstr in C string.h.
+ *
+ * Results:
+ *    return a pointer to the first occurrence of strSearch in str, or NULL
+ *    if strSearch does not appear in str. If strSearch is zero length, the
+ *    function returns str.
+ *
+ * Side effects:
+ *    none
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+const char *
+StrUtil_CaselessStrstr(const char *str,         // IN
+                       const char *strSearch)   // IN
+{
+   size_t len;
+
+   if (strSearch == NULL || *strSearch == '\0') {
+      return str;
+   }
+
+   if (str == NULL || *str == '\0') {
+      return NULL;
+   }
+
+   len = strlen(strSearch);
+   for (; *str; str++) {
+      if (strncasecmp(str, strSearch, len) == 0) {
+         return str;
+      }
+   }
+   return NULL;
 }
 
 
