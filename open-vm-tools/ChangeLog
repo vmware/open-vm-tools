@@ -1,3 +1,116 @@
+commit eb48b7972c0c64735cb6fe7ca7ac3f505b80c7d4
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 12 10:25:28 2022 -0700
+
+    Correct missed 2022 copyright update.
+
+commit ddfb569588d8b1a9cd31cb3bb5d33c58c72f7fbc
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 12 09:56:01 2022 -0700
+
+    Fix a bug in CodeSet_JsonEscape.
+    
+    Fix a bug introduced in an earlier change in which CodeSet_JsonEscape
+    erroneously tests the first character in the buffer when checking
+    whether to escape the character currently being processed.
+
+commit a816c2e149010bdca27a47006932aa10b686a895
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 12 09:56:01 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 6aa2e661a35b88f0f69e744b4918340437cd6485
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 12 09:56:01 2022 -0700
+
+    Fix a grammar error of c++11 scoped enumeration "enum class".
+
+commit e5e9a9ba31791d4f10e7dd75a8dbab179926511f
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 12 09:56:01 2022 -0700
+
+    Escape all control characters in JSON.
+    
+    Update CodeSet_JsonEscape to escape all control characters between
+    U+0000 and U+001F as required by the JSON standard.  Delete
+    CodeSet_Utf8Escape as it is no longer used.  Also update datasets
+    in-guest API tests accordingly.
+
+commit 47f47851a026cce6ee9738015759b45cf6931cc2
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 12 09:56:01 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit bb2f24ed14f8d5102df6387253ba4ac4271bf4f5
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 12 09:56:01 2022 -0700
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit f45b8f435f2d9b3536f283098ddaf69218ae7456
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 12 09:56:01 2022 -0700
+
+    Add a comment with the bump of the Guest Msg Channels to 128.
+
+commit f272162cad49f13dc2d86eafb9aec7f0c2c7c8b4
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 12 09:56:01 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 523df70f7f1b0ef760fe753404a0682b79b095b8
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 12 09:56:01 2022 -0700
+
+    Bump up the Guest Msg Channels to 128.
+
+commit 9e371bd289f53585e67853a97328906c196af818
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 12 09:56:01 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit d5b28c0380fb6687fd106e6ebd65570473940878
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 12 09:56:01 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 42c136b5a3cddb077b5c39d933141e30d4c2c129
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 12 09:56:01 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 091d43b06052d742e321d3f61c8620284d56b959
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 12 09:56:01 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit df0099727e96292279398c3fbd7f3901f215e4f3
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 12 09:56:01 2022 -0700
+
+    Common source file changes not directly applicable to open-vm-tools.
+
+commit 5317dfb778ee97c6fe83fbf23ee2e800fb608eaa
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 12 09:56:01 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 575f1ec1bee338c1a0ac6f14072429f926cf2f52
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jun 7 10:07:23 2022 -0700
+
+    Update ChangeLog with the granular push of June 7, 2022.
+      - plus the sync of the README.md with the stable-12.0.x branch.
+      - plus ChangeLog update of May 17, 2022.
+
 commit 95956d193464f2aa0547e6dbd4f51bc2052d5f82
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Tue Jun 7 09:52:42 2022 -0700
