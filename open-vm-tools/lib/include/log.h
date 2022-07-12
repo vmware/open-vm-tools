@@ -109,39 +109,14 @@ extern "C" {
  * Log Facility Message Groups
  * ---------------------------
  *
- * All log messages are associated with a Log Facility Message Group. Each group
- * is independent and has a set of filtering parameters associated with it.
+ * For information about Log Facility Message Groups visit
+ * lib/log/logFacility.c.
  *
- * Unless explicitly placed into a group, log messages are part of an implicit
- * group known as the global group, although it does not have a formal name.
- * All other groups have (formal) names. Group names are defined in
- * public/loglevel_userVars.h.
+ * Log Facility Message Filtering
+ * ------------------------------
  *
- * A message is placed in a named group via two macros:
- *
- * LOG_ROUTING_BITS(level)
- *
- *    The group name is implicitly determined, by using the value of the
- *    LOGLEVEL_MODULE define. The value of the define is a name that exists in
- *    the group name definition file mentioned above.
- *
- *    The LOGLEVEL_MODULE define must be placed before the include of "log.h".
- *
- *    It is a good idea to see if "log.h" is included more than once,
- *    and if so, to remove any extra inclusions.
- *
- *    If all uses of LOG() are converted to use groups, remember to remove the
- *    include of "loglevel_user.h".
- *
- * LOG_ROUTINE_BITS_EX(name, value)
- *
- *    The group name is an explicitly specified parameter.
- *
- * These macros may be used in the following routines as the routing parameter:
- *
- *    Log_Level
- *    Log_V
- *    Log_IsEnabled
+ * For information about Log Facility message filtering visit
+ * lib/log/logFacility.c.
  *
  * Log Message Guidelines
  * ----------------------
@@ -156,33 +131,7 @@ extern "C" {
  * + format disk size or offset in hex; specify units if not bytes
  * + quote string arguments (e.g. pathnames) which can contain spaces
  *
- * Log Message Filtering
- * ---------------------
- *
- * The Log Facility filters messages as they arrive, by level and by group,
- * discarding messages above the configured filter level.
- * This is similar to how syslog and the vmacore logger handle levels.
- *
- * There is a global group filter and assorted group filters.
- * The global group filter is used for all messages to the Log Facility
- * UNLESS a group name is specified as part of a message submission.
- *
- * Group filters are limited to a group (name specific) context;
- * they do not fall within the global group context. This allows entries to be
- * controlled by group AND level. This is similar to LOG(), for those
- * familiar with it ... except that group filters are available in
- * all build types.
- *
- * Each group is a separate configuration namespace, with group-specific
- * filter levels. The default group filter level is none (VMW_LOG_AUDIT)
- * i.e. group filters by default discard all events (just like LOG()).
- *
- * Regardless of what level of filtering is specified, the VMW_LOG_AUDIT
- * level is used to log something that requires an audit at a later date.
- * It is *ALWAYS* logged and *NEVER* outputs to the "standard error".
- *
- */
-/* Level            Value    Comments
+ * Level            Value    Comments
  *---------------------------------------------------------------------------
  */
 
