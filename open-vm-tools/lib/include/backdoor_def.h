@@ -275,7 +275,8 @@ extern "C" {
 #define   BDOOR_CMD_COREDUMP_UNSYNC          98 /* Devel only. For VMM cores */
 #define   BDOOR_CMD_APPLE_GPU_RES_SET        99
 #define   BDOOR_CMD_GETBUILDNUM             100
-#define   BDOOR_CMD_MAX                     101
+#define   BDOOR_CMD_GETENTROPY              101 /* Configurable, off by default. */
+#define   BDOOR_CMD_MAX                     102
 
 
 /*
