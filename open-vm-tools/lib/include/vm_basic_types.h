@@ -514,10 +514,6 @@ typedef uint64    PhysMemSize;
 typedef uint64    BA;
 typedef uint64    BPN;
 
-/* To be removed in next changeset (PR2928811) */
-#define UINT64_2_BPN(u) ((BPN)(u))
-#define BPN_2_UINT64(b) ((uint64)(b))
-
 typedef uint64    PageCnt;
 typedef uint64    PageNum;
 typedef unsigned  MemHandle;
