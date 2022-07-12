@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2020-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 2020-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -21,55 +21,42 @@
 #include "codeset.h"
 #include "vm_ctype.h"
 #include "dynbuf.h"
+#include "strutil.h"
 #include "unicodeBase.h"
 
 
 /*
  *-----------------------------------------------------------------------------
  *
- * CodeSetFindEscape --
+ * CodeSet_JsonEscape --
  *
- *      Is there an escape for the specified character?
+ *      Escape a unicode string following JSON rules.
  *
- *      The last entry in the characters to be escaped entry must have
- *      a 'c' on '\0' and an 'escape' of NULL.
+ *      From https://www.rfc-editor.org/rfc/rfc8259.html#section-7:
  *
- * Results:
- *      NULL No.
- *     !NULL Yes. Pointer to the escape entry for the specified character.
+ *      ... All Unicode characters may be placed within the
+ *      quotation marks, except for the characters that MUST be escaped:
+ *      quotation mark, reverse solidus, and the control characters (U+0000
+ *      through U+001F).
  *
- * Side effects:
- *      None
+ *      ... If the character is in the Basic
+ *      Multilingual Plane (U+0000 through U+FFFF), then it may be
+ *      represented as a six-character sequence: a reverse solidus, followed
+ *      by the lowercase letter u, followed by four hexadecimal digits that
+ *      encode the character's code point....
  *
- *-----------------------------------------------------------------------------
- */
-
-static const CodeSetEscapeEntry *
-CodeSetFindEscape(char c,                             // IN:
-                  const CodeSetEscapeEntry *entries)  // IN:
-{
-   const CodeSetEscapeEntry *e;
-
-   for (e = entries; e->escape != NULL; e++) {
-      if (c == e->c) {
-         return e;
-      }
-   }
-
-   return NULL;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
+ *      Alternatively, there are two-character sequence escape
+ *      representations of some popular characters.  So, for example, a
+ *      string containing only a single reverse solidus character may be
+ *      represented more compactly as "\\"
  *
- * CodeSet_Utf8Escape --
+ *      ...
  *
- *      Escape the ASCII characters specified by the escape entries
- *      within a UTF8 string.
- *
- *      The last entry in the characters to be escaped entry must have
- *      a 'c' on '\0' and an 'escape' of NULL.
+ *                  %x62 /          ; b    backspace       U+0008
+ *                  %x66 /          ; f    form feed       U+000C
+ *                  %x6E /          ; n    line feed       U+000A
+ *                  %x72 /          ; r    carriage return U+000D
+ *                  %x74 /          ; t    tab             U+0009
  *
  * Results:
  *      NULL Failure!
@@ -83,8 +70,7 @@ CodeSetFindEscape(char c,                             // IN:
  */
 
 char *
-CodeSet_Utf8Escape(const char *utf8,                   // IN:
-                   const CodeSetEscapeEntry *entries)  // IN:
+CodeSet_JsonEscape(const char *utf8)                   // IN:
 {
    DynBuf b;
    char *res;
@@ -110,18 +96,35 @@ CodeSet_Utf8Escape(const char *utf8,                   // IN:
          break;
       }
 
-      if (len == 1) {  // ASCII
-         const CodeSetEscapeEntry *e = CodeSetFindEscape(*p, entries);
-
-         if (e == NULL) {
-            DynBuf_Append(&b, p, len);
-         } else {
-            DynBuf_Append(&b, e->escape, strlen(e->escape));
+      if (len > 1 || (*utf8 > 0x001F && *utf8 != '"' && *utf8 != '\\')) {
+         DynBuf_SafeAppend(&b, p, len);
+      } else {
+         DynBuf_SafeAppend(&b, "\\", 1);
+         switch (*p) {
+         case '"':
+         case '\\':
+            DynBuf_SafeAppend(&b, p, 1);
+            break;
+         case '\b':
+            DynBuf_SafeAppend(&b, "b", 1);
+            break;
+         case '\f':
+            DynBuf_SafeAppend(&b, "f", 1);
+            break;
+         case '\n':
+            DynBuf_SafeAppend(&b, "n", 1);
+            break;
+         case '\r':
+            DynBuf_SafeAppend(&b, "r", 1);
+            break;
+         case '\t':
+            DynBuf_SafeAppend(&b, "t", 1);
+            break;
+         default:
+            StrUtil_SafeDynBufPrintf(&b, "u%04x", *p);
+            break;
          }
-      } else {  // All others
-         DynBuf_Append(&b, p, len);
       }
-
       p += len;
    }
 
@@ -134,50 +137,6 @@ CodeSet_Utf8Escape(const char *utf8,                   // IN:
    DynBuf_Destroy(&b);
 
    return res;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * CodeSet_JsonEscape --
- *
- *      Escape a unicode string following JSON rules.
- *
- *      Backspace       (\b)
- *      Form Feed       (\f)
- *      Line Feed       (\n)
- *      Carriage Return (\r)
- *      Tab             (\t)
- *      Backslash       (\)
- *      Double Quote    (")
- *
- * Results:
- *      NULL Failure!
- *     !NULL Success! The escaped string. The caller is responsible to free
- *                    this.
- *
- * Side effects:
- *      Memory is allocated
- *
- *-----------------------------------------------------------------------------
- */
-
-char *
-CodeSet_JsonEscape(const char *utf8)  // IN:
-{
-   static const CodeSetEscapeEntry JsonEscapes[] = {
-      { '\b', "\\b"  },
-      { '\f', "\\f"  },
-      { '\n', "\\n"  },
-      { '\r', "\\r"  },
-      { '\t', "\\t"  },
-      { '\\', "\\\\" },
-      { '\"', "\\\"" },
-      { '\0', NULL   }   // MUST BE LAST
-   };
-
-   return CodeSet_Utf8Escape(utf8, JsonEscapes);
 }
 
 
@@ -417,32 +376,32 @@ CodeSet_JsonUnescapeOne(const char *p,        // IN:
        * end up in the default case of the switch and fail.
        */
       switch (*p) {
-         case '\"':
-         case '\\':
-         case '/':
-            outBuf[0] = *p;
-            break;
-         case 'b':
-            outBuf[0] = '\b';
-            break;
-         case 'f':
-            outBuf[0] = '\f';
-            break;
-         case 'r':
-            outBuf[0] = '\r';
-            break;
-         case 'n':
-            outBuf[0] = '\n';
-            break;
-         case 't':
-            outBuf[0] = '\t';
-            break;
-         case 'u':
-            len = CodeSet_JsonUnescapeU(start, end, outBuf);
-            break;
-         default:
-            len = 0;
-            break;
+      case '\"':
+      case '\\':
+      case '/':
+         outBuf[0] = *p;
+         break;
+      case 'b':
+         outBuf[0] = '\b';
+         break;
+      case 'f':
+         outBuf[0] = '\f';
+         break;
+      case 'r':
+         outBuf[0] = '\r';
+         break;
+      case 'n':
+         outBuf[0] = '\n';
+         break;
+      case 't':
+         outBuf[0] = '\t';
+         break;
+      case 'u':
+         len = CodeSet_JsonUnescapeU(start, end, outBuf);
+         break;
+      default:
+         len = 0;
+         break;
       }
    }
    return len;
@@ -503,9 +462,9 @@ CodeSet_JsonUnescape(const char *utf8)   // IN:
       if (len == 0) {
          success = FALSE;
       } else if (len > 1 || *p != '\\') {
-         DynBuf_Append(&b, p, len);
+         DynBuf_SafeAppend(&b, p, len);
       } else if ((len = CodeSet_JsonUnescapeOne(p, end, unescaped)) != 0) {
-         DynBuf_Append(&b, unescaped, strlen(unescaped));
+         DynBuf_SafeAppend(&b, unescaped, strlen(unescaped));
       } else {
          success = FALSE;
       }
