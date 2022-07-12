@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2017,2020-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2017,2020-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -145,6 +145,7 @@ extern "C" {
 #define SC_PC(uc)  ((unsigned long) (uc)->uc_mcontext->__ss.__pc)
 #elif defined(__aarch64__)
 #define SC_X(uc,n) ((unsigned long) (uc)->uc_mcontext->__ss.__x[n])
+#define SC_FP(uc)  ((unsigned long) (uc)->uc_mcontext->__ss.__x[29])
 #define SC_SP(uc)  ((unsigned long) (uc)->uc_mcontext->__ss.__sp)
 #define SC_PC(uc)  ((unsigned long) (uc)->uc_mcontext->__ss.__pc)
 #define SC_PSR(uc) ((unsigned long) (uc)->uc_mcontext->__ss.__cpsr)
@@ -280,6 +281,7 @@ extern "C" {
 #define SC_PC(uc)  ((unsigned long) (uc)->uc_mcontext.arm_pc)
 #elif defined(__aarch64__)
 #define SC_X(uc,n) ((unsigned long) (uc)->uc_mcontext.regs[n])
+#define SC_FP(uc)  ((unsigned long) (uc)->uc_mcontext.regs[29])
 #define SC_SP(uc)  ((unsigned long) (uc)->uc_mcontext.sp)
 #define SC_PC(uc)  ((unsigned long) (uc)->uc_mcontext.pc)
 #define SC_PSR(uc) ((unsigned long) (uc)->uc_mcontext.pstate)
