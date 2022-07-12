@@ -512,12 +512,9 @@ typedef uint64    PhysMemOff;
 typedef uint64    PhysMemSize;
 
 typedef uint64    BA;
-#ifdef VMKERNEL
-typedef void     *BPN;
-#else
 typedef uint64    BPN;
-#endif
 
+/* To be removed in next changeset (PR2928811) */
 #define UINT64_2_BPN(u) ((BPN)(u))
 #define BPN_2_UINT64(b) ((uint64)(b))
 
