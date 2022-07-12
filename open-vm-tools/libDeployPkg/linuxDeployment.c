@@ -113,6 +113,7 @@ static const char* ERRORED         = "ERRORED";
 #ifndef IMGCUST_UNITTEST
 static const char* RUNDIR          = "/run";
 static const char* VARRUNDIR       = "/var/run";
+static const char* VARRUNIMCDIR    = "/var/run/vmware-imc";
 #endif
 static const char* TMPDIR          = "/tmp";
 
@@ -1327,8 +1328,11 @@ Deploy(const char* packageName)
 #ifdef IMGCUST_UNITTEST
    baseDirPath = TMPDIR;
 #else
+   // PR 2942062, Use /var/run/vmware-imc if the directory exists
    // PR 2127543, Use /var/run or /run but /tmp firstly
-   if (File_IsDirectory(VARRUNDIR)) {
+   if (File_IsDirectory(VARRUNIMCDIR)) {
+      baseDirPath = VARRUNIMCDIR;
+   } else if (File_IsDirectory(VARRUNDIR)) {
       baseDirPath = VARRUNDIR;
    } else if (File_IsDirectory(RUNDIR)) {
       baseDirPath = RUNDIR;
