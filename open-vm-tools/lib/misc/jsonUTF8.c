@@ -96,7 +96,7 @@ CodeSet_JsonEscape(const char *utf8)                   // IN:
          break;
       }
 
-      if (len > 1 || (*utf8 > 0x001F && *utf8 != '"' && *utf8 != '\\')) {
+      if (len > 1 || (*p > 0x001F && *p != '"' && *p != '\\')) {
          DynBuf_SafeAppend(&b, p, len);
       } else {
          DynBuf_SafeAppend(&b, "\\", 1);
