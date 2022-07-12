@@ -90,6 +90,10 @@ typedef enum {
  * Max number of channels.
  * Unfortunately this has to be public because the monitor part
  * of the backdoor needs it for its trivial-case optimization. [greg]
+ *
+ * It would be nice to have as many as 1024 channels however, as we discovered
+ * in PR 2978984, it becomes particularly difficult to raise the number beyond
+ * 250. After much discussion, 128 was chosen.
  */
 #define GUESTMSG_MAX_CHANNEL 128
 
