@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016,2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -91,7 +91,7 @@ typedef enum {
  * Unfortunately this has to be public because the monitor part
  * of the backdoor needs it for its trivial-case optimization. [greg]
  */
-#define GUESTMSG_MAX_CHANNEL 8
+#define GUESTMSG_MAX_CHANNEL 128
 
 /* Flags to open a channel. --hpreg */
 #define GUESTMSG_FLAG_COOKIE 0x80000000
