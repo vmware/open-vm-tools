@@ -104,14 +104,14 @@ public:
    // Normalize mode map to Glib::NormalizeMode
 #if GIOMM_MAJOR_VERSION >= 2 && GIOMM_MINOR_VERSION >= 68
    typedef enum {
-      NORMALIZE_DEFAULT          = Glib::NormalizeMode::DEFAULT,
-      NORMALIZE_NFD              = Glib::NormalizeMode::NFD,
-      NORMALIZE_DEFAULT_COMPOSE  = Glib::NormalizeMode::DEFAULT_COMPOSE,
-      NORMALIZE_NFC              = Glib::NormalizeMode::NFC,
-      NORMALIZE_ALL              = Glib::NormalizeMode::ALL,
-      NORMALIZE_NFKD             = Glib::NormalizeMode::NFKD,
-      NORMALIZE_ALL_COMPOSE      = Glib::NormalizeMode::ALL_COMPOSE,
-      NORMALIZE_NFKC             = Glib::NormalizeMode::NFKC
+      NORMALIZE_DEFAULT          = (int)Glib::NormalizeMode::DEFAULT,
+      NORMALIZE_NFD              = (int)Glib::NormalizeMode::NFD,
+      NORMALIZE_DEFAULT_COMPOSE  = (int)Glib::NormalizeMode::DEFAULT_COMPOSE,
+      NORMALIZE_NFC              = (int)Glib::NormalizeMode::NFC,
+      NORMALIZE_ALL              = (int)Glib::NormalizeMode::ALL,
+      NORMALIZE_NFKD             = (int)Glib::NormalizeMode::NFKD,
+      NORMALIZE_ALL_COMPOSE      = (int)Glib::NormalizeMode::ALL_COMPOSE,
+      NORMALIZE_NFKC             = (int)Glib::NormalizeMode::NFKC
    } NormalizeMode;
 #else
    typedef enum {
