@@ -361,19 +361,12 @@ void WarningThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
  * compiler is known to support it.
  */
 
-# if defined VMKPANIC
+# if defined VMKPANIC || defined VMM || defined ULM_ESX
 #  undef  NOT_REACHED
-#  if defined __GNUC__ && (__GNUC__ > 4 || __GNUC__ == 4 && __GNUC_MINOR__ >= 5)
-#   define NOT_REACHED() (__builtin_unreachable())
-#  else
-#   define NOT_REACHED() ((void)0)
-#  endif
-# elif defined VMM || defined ULM_ESX
-#  undef  NOT_REACHED
-#  define NOT_REACHED() (__builtin_unreachable())
+#  define NOT_REACHED() __builtin_unreachable()
 # elif defined ULM_WIN
 #  undef  NOT_REACHED
-#  define NOT_REACHED() (__assume(0))
+#  define NOT_REACHED() __assume(0)
 # else
  // keep debug definition
 # endif
