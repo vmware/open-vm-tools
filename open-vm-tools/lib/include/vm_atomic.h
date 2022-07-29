@@ -2194,9 +2194,6 @@ Atomic_ReadAdd64(Atomic_uint64 *var, // IN/OUT
  *
  *      Atomically subtracts a 64-bit integer from another.
  *
- *      Note: It is expected that val <= var.  If untrue, the result
- *            cannot be represented in an unsigned type.
- *
  * Results:
  *      Returns the old value just prior to the subtraction
  *
