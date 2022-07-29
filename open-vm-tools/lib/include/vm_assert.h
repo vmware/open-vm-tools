@@ -352,13 +352,13 @@ void WarningThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
  * compilation options will lead to different control-flow-derived
  * errors, causing some make targets to fail while others succeed.
  *
- * VC++ has the __assume() built-in function which we don't trust
- * (see bug 43485); gcc has no such construct; we just panic in
- * userlevel code.  The monitor doesn't want to pay the size penalty
- * (measured at 212 bytes for the release vmm for a minimal infinite
- * loop; panic would cost even more) so it does without and lives
- * with the inconsistency.
+ * VC++ has the __assume() built-in function which we don't trust (see
+ * bug 43485).  However, __assume() is used in the Windows ULM
+ * implementation, because the newer compiler used for that project
+ * generates correct code.
  *
+ * With gcc, the __builtin_unreachable() extension is used when the
+ * compiler is known to support it.
  */
 
 # if defined VMKPANIC
@@ -371,6 +371,9 @@ void WarningThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
 # elif defined VMM || defined ULM_ESX
 #  undef  NOT_REACHED
 #  define NOT_REACHED() (__builtin_unreachable())
+# elif defined ULM_WIN
+#  undef  NOT_REACHED
+#  define NOT_REACHED() (__assume(0))
 # else
  // keep debug definition
 # endif
