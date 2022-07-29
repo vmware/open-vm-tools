@@ -48,6 +48,14 @@ typedef enum {
    HOSTINFO_PROCESS_QUERY_UNKNOWN  // Process existence cannot be determined
 } HostinfoProcessQuery;
 
+typedef struct HostinfoProcessSnapshot HostinfoProcessSnapshot;
+
+HostinfoProcessSnapshot *Hostinfo_AcquireProcessSnapshot(void);
+void Hostinfo_ReleaseProcessSnapshot(HostinfoProcessSnapshot *s);
+
+HostinfoProcessQuery Hostinfo_QueryProcessSnapshot(HostinfoProcessSnapshot *s,
+                                                   int pid);
+
 HostinfoProcessQuery Hostinfo_QueryProcessExistence(int pid);
 
 /* This macro defines the current version of the structured header. */

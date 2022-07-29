@@ -612,7 +612,8 @@ Log_MakeTimeString(Bool millisec,
                    size_t max);
 
 typedef Bool (LogMayDeleteFunc)(void *userData,
-                                const char *fileName);
+                                const char *fileName,
+                                uint32 *pid);
 
 Bool
 Log_BoundNumFiles(const LogOutput *output,
