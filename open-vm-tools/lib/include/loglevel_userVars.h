@@ -164,6 +164,7 @@
    LOGLEVEL_VAR(mksDX11Basic), \
    LOGLEVEL_VAR(mksDX11ResourceView), \
    LOGLEVEL_VAR(mksDX11ShimOps), \
+   LOGLEVEL_VAR(mksDX12Renderer), \
    LOGLEVEL_VAR(mksFrame), \
    LOGLEVEL_VAR(mksGLBasic), \
    LOGLEVEL_VAR(mksGLContextMux), \
