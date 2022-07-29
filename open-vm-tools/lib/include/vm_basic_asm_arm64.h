@@ -166,7 +166,22 @@ ISB(void)
 static INLINE void
 ESB(void)
 {
-   asm volatile(".arch armv8.2-a\n\tesb" ::: "memory");
+   /*
+    * The assembler of gcc 9.3 with -march=armv8-a errors out with
+    * "Error: selected processor does not support `esb'"
+    * There is no way to cleanly temporarily push/pop -march=armv8.2-a or the
+    * ras extension. The error does not occur with gcc versions >= 10.2.
+    */
+# if __GNUC__ > 10 || __GNUC__ == 10 && __GNUC_MINOR__ >= 2
+   asm volatile("esb" ::: "memory");
+# else
+   asm volatile(
+      ".arch armv8.2-a"       "\n\t"
+      "esb"                   "\n\t"
+      ".arch " XSTR(VMW_ARCH)
+      ::: "memory"
+   );
+# endif
 }
 #endif
 
