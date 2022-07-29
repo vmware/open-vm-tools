@@ -75,7 +75,7 @@
 #if !defined(sun) && !defined __ANDROID__ && (!defined(USING_AUTOCONF) || \
                                               (defined(HAVE_SYS_IO_H) && \
                                                defined(HAVE_SYS_SYSINFO_H)))
-#if defined(__i386__) || defined(__x86_64__) || defined(__arm__)
+#if defined(__i386__) || defined(__x86_64__)
 #include <sys/io.h>
 #else
 #define NO_IOPL
