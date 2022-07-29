@@ -1,3 +1,88 @@
+commit d5b73e64a5857d40905acee1242edaaac7ce9494
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jul 29 11:11:04 2022 -0700
+
+    Correct missed 2022 copyright update.
+
+commit 1bd202e0a819c520896c743b51f2c1365f7ae2b2
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jul 28 20:03:43 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 306498ca0676354eb541b5817426191e615d0ef2
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jul 28 20:03:43 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit b3f0be90d03a5da6d3bb695e9e1dd44f071814aa
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jul 28 20:03:43 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 5887bf59e95cba480568ad731f7b037894058fef
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jul 28 20:03:43 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 9982eee37884c819759aadcec987324d9fe5b41e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jul 28 20:03:42 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit b5997ab6ecdbc6981a8a35b2349b3bd98c746a19
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jul 28 20:03:42 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 24594a971f9807fbee2253ee7680846de6cd9a63
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jul 28 20:03:42 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit bc9ab15472ed53a3071902ca5ec41d60e2f00d88
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jul 28 20:03:42 2022 -0700
+
+    lib/misc/hostinfoPosix.c: iopl(3) is not avaiable on ARM.
+
+commit 6907610abb95f96c3e8a10389483bfe54efd3eee
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jul 28 20:03:42 2022 -0700
+
+    Changes to common source files not directly applicable to open-vm-tools.
+
+commit b76e3218ddb24e49a87ef35913f9bf1389166033
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jul 28 20:03:42 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 155a8d440df8ae889d93c9aaee9d15bec9d7640d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jul 28 20:03:42 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 7452011db95a49aaaa19c293fb1ff1ea0944d6db
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jul 28 20:03:42 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 386e493c3cd58723d183ecbd3f0594706778e423
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 12 10:49:28 2022 -0700
+
+    Update ChangeLog with the granular push of July 12, 2022.
+      - plus ChangeLog update of June 7, 2022.
+
 commit eb48b7972c0c64735cb6fe7ca7ac3f505b80c7d4
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Tue Jul 12 10:25:28 2022 -0700
