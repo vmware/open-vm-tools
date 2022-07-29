@@ -394,6 +394,9 @@
 #define HORIZON_USB_AGENT_VERSION "11.7.0"
 #define HORIZON_UPDATETOOL_VERSION "2.0.7"
 #define MFW_VERSION "16.7.0"
+#define INPUTDEVTAP_VERSION_COMMAS 16,7,0,PRODUCT_BUILD_NUMBER_NUMERIC
+#define INPUTDEVTAP_VERSION_STRING "16.7.0.PRODUCT_BUILD_NUMBER_NUMERIC"
+
 /*
  * This is the Horizon Marketing version which is shared between
  * Horizon Client, Agent and Server. It is set in the format of
