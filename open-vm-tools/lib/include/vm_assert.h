@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -361,13 +361,16 @@ void WarningThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
  *
  */
 
-# if defined VMKPANIC || defined VMM
+# if defined VMKPANIC
 #  undef  NOT_REACHED
 #  if defined __GNUC__ && (__GNUC__ > 4 || __GNUC__ == 4 && __GNUC_MINOR__ >= 5)
 #   define NOT_REACHED() (__builtin_unreachable())
 #  else
 #   define NOT_REACHED() ((void)0)
 #  endif
+# elif defined VMM || defined ULM_ESX
+#  undef  NOT_REACHED
+#  define NOT_REACHED() (__builtin_unreachable())
 # else
  // keep debug definition
 # endif
