@@ -563,6 +563,9 @@ LoadConfigFile(const gchar *confPath,
    }
 
    cfg = g_key_file_new();
+
+   /* On error, 'err' will be set, null otherwise. */
+   /* coverity[check_return] */
    g_key_file_load_from_file(cfg, confPath,
                              G_KEY_FILE_NONE, &err);
    if (err != NULL) {

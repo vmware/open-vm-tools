@@ -162,6 +162,8 @@ VerifyCallback(int ok,
       X509_NAME_oneline(X509_get_subject_name(curCert), nameBuf, sizeof(nameBuf) - 1);
       nameBuf[sizeof(nameBuf)-1] = '\0';
    } else {
+      /* Ignore return, returns length of the source string */
+      /* coverity[check_return] */
       g_strlcpy(nameBuf, "<NO CERT SUBJECT>", sizeof nameBuf);
    }
    g_debug("%s: name: %s ok: %d error '%s' (%d) at %d depth lookup:%s\n",

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016,2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -168,7 +168,14 @@ CPNameEscapeAndConvertFrom(char const **bufIn, // IN/OUT: Input to convert
       }
 
       /* Leaving space for the leading path separator, thus output to savedBufOut + 1. */
-      *inSize = HgfsEscape_Do(*bufIn, *inSize, savedOutSize, savedBufOut + 1);
+      result = HgfsEscape_Do(*bufIn, *inSize, savedOutSize - 1, savedBufOut + 1);
+      if (result < 0) {
+         Log("%s: error: not enough room to perform escape: %d\n",
+             __FUNCTION__, result);
+          return -1;
+      }
+      *inSize = (size_t) result;
+
       result = CPNameConvertFrom(&savedOutConst, inSize, outSize, bufOut, pathSep);
       *bufIn += *inSize;
       *inSize = 0;
@@ -221,10 +228,10 @@ CPNameConvertFrom(char const **bufIn, // IN/OUT: Input to convert
    ASSERT(bufOut);
 
    in = *bufIn;
+   inEnd = in + *inSize;
    if (inPlaceConvertion) {
       in++; // Skip place for the leading path separator.
    }
-   inEnd = in + *inSize;
    myOutSize = *outSize;
    out = *bufOut;
 

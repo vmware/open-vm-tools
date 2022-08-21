@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2017, 2019-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2017, 2019-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -151,8 +151,14 @@ ServiceNetworkListen(ServiceConnection *conn,            // IN/OUT
 
    sockaddr.sun_family = PF_UNIX;
 
-   g_unlink(conn->pipeName);
+   ret = g_unlink(conn->pipeName);
+   if (ret < 0 && errno != ENOENT) {
+      Warning("%s: unlink(%s) failed, %d - continuing\n", __FUNCTION__,
+              conn->pipeName, errno);
+   }
 
+   /* Ignore return, returns the length of the source string */
+   /* coverity[check_return] */
    g_strlcpy(sockaddr.sun_path, conn->pipeName, UNIX_PATH_MAX);
 
    ret = bind(sock, (struct sockaddr *) &sockaddr, sizeof sockaddr);
@@ -304,6 +310,7 @@ ServiceNetworkCloseConnection(ServiceConnection *conn)
 void
 ServiceNetworkRemoveListenPipe(ServiceConnection *conn)
 {
+   /* coverity[check_return] */
    ServiceFileUnlinkFile(conn->pipeName);
 }
 

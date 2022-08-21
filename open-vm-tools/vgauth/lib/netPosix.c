@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016,2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2016,2019,2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -74,6 +74,8 @@ VGAuth_NetworkConnect(VGAuthContext *ctx)
       return VGAUTH_E_COMM;
    }
 
+   /* Ignore return, returns the length of the source string */
+   /* coverity[check_return] */
    g_strlcpy(sockaddr.sun_path, ctx->comm.pipeName, UNIX_PATH_MAX);
 
    do {
