@@ -1,3 +1,51 @@
+commit 70a74758bfe0042c27f15ce590fb21a2bc54d745
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Sun Aug 21 07:56:49 2022 -0700
+
+    Properly check authorization on incoming guestOps requests.
+    
+    Fix public pipe request checks.  Only a SessionRequest type should
+    be accepted on the public pipe.
+
+commit 08cac55b2a37fac30adfb090748ca2b96c3256db
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Sun Aug 21 07:56:49 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit a4f13c6a3427a2a9366945c817222c12c957f5af
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Sun Aug 21 07:56:49 2022 -0700
+
+    Address issues reported by Coverity.
+
+commit d2b1bb8fd315124de4cdcceb5b82b2e5b2882f30
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Sun Aug 21 07:56:49 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 581091addcbb6484047587f6d12038a04f2cc14a
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Sun Aug 21 07:56:49 2022 -0700
+
+    Changes to common header files not directly applicable to open-vm-tools.
+    
+    ARM: native atomics
+
+commit 37aefc9db67398e04f4bd9017af69edd16670080
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Sun Aug 21 07:56:49 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit ff29587e22711489207d020794b8f588058dfe52
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jul 29 15:50:29 2022 -0700
+
+    Update ChangeLog with the granular push of July 28 & 29, 2022.
+      - plus ChangeLog update of July 12, 2022.
+
 commit d5b73e64a5857d40905acee1242edaaac7ce9494
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Fri Jul 29 11:11:04 2022 -0700
