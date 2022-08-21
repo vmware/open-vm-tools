@@ -1,3 +1,14 @@
+commit 7fa57304ab41a26f1de972f4a024e7da3632df69
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Sun Aug 21 09:37:23 2022 -0700
+
+    ====================================================================
+    The "stable-12.1.x" branch was created from the "devel" branch here.
+    ====================================================================
+    
+    Update ChangeLog with the granular push of Aug. 21, 2022.
+      - plus ChangeLog update of July 29, 2022.
+
 commit 70a74758bfe0042c27f15ce590fb21a2bc54d745
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Sun Aug 21 07:56:49 2022 -0700
