@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2014,2017-2019,2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2014,2017-2019,2021,2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -75,6 +75,7 @@
 #define VMNET_CAP_RX_CHAIN             CONST64U(0x8000)             /* a pkt can span multiple rx entries */
 #define VMNET_CAP_LPD                  CONST64U(0x10000)            /* large pkt delivery */
 #define VMNET_CAP_BPF                  CONST64U(0x20000)            /* BPF Support in VMXNET Virtual Hardware */
+#define VMNET_CAP_AUTO_REBIND          CONST64U(0x20000)            /* BPF support is not for uplink, reuse this bit for uplink auto rebind */
 #define VMNET_CAP_SG_SPAN_PAGES        CONST64U(0x40000)            /* Can do scatter-gather span multiple pages transmits. */
 #define VMNET_CAP_IP6_CSUM             CONST64U(0x80000)            /* Can do IPv6 csum offload. */
 #define VMNET_CAP_TSO6                 CONST64U(0x100000)           /* Can do TSO segmentation offload for IPv6 pkts. */
