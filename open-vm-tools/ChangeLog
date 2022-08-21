@@ -1,3 +1,15 @@
+commit 4a41aee3900ddec7d84b919e26e85e9a9b623cd5
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Sun Aug 21 13:00:18 2022 -0700
+
+    VMTools 12.1.0 L10n drop.
+
+commit 732bb7a3287ebdb2be079f364da4b0ea6a4c08bd
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Sun Aug 21 12:42:12 2022 -0700
+
+    ChangeLog update of Aug. 21, 2020
+
 commit 7fa57304ab41a26f1de972f4a024e7da3632df69
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Sun Aug 21 09:37:23 2022 -0700
