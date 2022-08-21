@@ -1521,7 +1521,21 @@ Atomic_Sub32(Atomic_uint32 *var, // IN/OUT
    );
 #endif /* VM_X86_ANY */
 #elif defined _MSC_VER
-   _InterlockedExchangeAdd((long *)&var->value, -(long)val);
+   /*
+    * Microsoft warning C4146, enabled by the /sdl option for
+    * additional security checks, objects to `-val' when val is
+    * unsigned, even though that is always well-defined by C and has
+    * exactly the semantics we want, namely negation modulo 2^32.
+    * (The signed version, in contrast, has undefined behaviour at
+    * some inputs.)
+    *
+    * https://docs.microsoft.com/en-us/cpp/error-messages/compiler-warnings/compiler-warning-level-2-c4146?view=msvc-170
+    * https://docs.microsoft.com/en-us/cpp/build/reference/sdl-enable-additional-security-checks?view=msvc-170
+    */
+#   pragma warning(push)
+#   pragma warning(disable: 4146)
+   _InterlockedExchangeAdd((long *)&var->value, (long)-val);
+#   pragma warning(pop)
 #else
 #error No compiler defined for Atomic_Sub
 #endif
@@ -2229,7 +2243,25 @@ Atomic_ReadSub64(Atomic_uint64 *var, // IN/OUT
 #if defined __GNUC__ && defined VM_ARM_64
    return _VMATOM_X(ROP, 64, TRUE, &var->value, sub, val);
 #else
-   return Atomic_ReadAdd64(var, (uint64)-(int64)val);
+#   ifdef _MSC_VER
+   /*
+    * Microsoft warning C4146, enabled by the /sdl option for
+    * additional security checks, objects to `-val' when val is
+    * unsigned, even though that is always well-defined by C and has
+    * exactly the semantics we want, namely negation modulo 2^64.
+    * (The signed version, in contrast, has undefined behaviour at
+    * some inputs.)
+    *
+    * https://docs.microsoft.com/en-us/cpp/error-messages/compiler-warnings/compiler-warning-level-2-c4146?view=msvc-170
+    * https://docs.microsoft.com/en-us/cpp/build/reference/sdl-enable-additional-security-checks?view=msvc-170
+    */
+#      pragma warning(push)
+#      pragma warning(disable: 4146)
+#   endif
+   return Atomic_ReadAdd64(var, -val);
+#   ifdef _MSC_VER
+#      pragma warning(pop)
+#   endif
 #endif
 }
 
