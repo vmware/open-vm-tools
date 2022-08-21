@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -229,40 +229,59 @@ Atomic_ReadIfEqualWrite128(Atomic_uint128 *ptr,   // IN/OUT
                            uint128        oldVal, // IN
                            uint128        newVal) // IN
 {
-#ifdef __GCC_HAVE_SYNC_COMPARE_AND_SWAP_16
+#if defined VM_ARM_64
+   /*
+    * Don't use __sync_val_compare_and_swap, as this cannot magically
+    * use the right (LL/SC vs LSE) atomics without -moutline-atomics.
+    */
+#if __GNUC__ >= 9
+   if (Atomic_HaveLSE) {
+      SMP_RW_BARRIER_RW();
+      __asm__ __volatile__(
+         ".arch armv8.2-a            \n\t"
+         "casp %0, %H0, %2, %H2, %1  \n\t"
+         : "+r" (oldVal),
+           "+Q" (ptr->value)
+         : "r" (newVal)
+      );
+      SMP_RW_BARRIER_RW();
+      return oldVal;
+   } else
+#endif /* __GNUC__ */
+   {
+      union {
+         uint128 raw;
+         struct {
+            uint64 lo;
+            uint64 hi;
+         };
+      } res, _old = { oldVal }, _new = { newVal };
+      uint32 failed;
+
+      SMP_RW_BARRIER_RW();
+      __asm__ __volatile__(
+         "1: ldxp    %x0, %x1, %3        \n\t"
+         "   cmp     %x0, %x4            \n\t"
+         "   ccmp    %x1, %x5, #0, eq    \n\t"
+         "   b.ne    2f                  \n\t"
+         "   stxp    %w2, %x6, %x7, %3   \n\t"
+         "   cbnz    %w2, 1b             \n\t"
+         "2:                             \n\t"
+         : "=&r" (res.lo),
+           "=&r" (res.hi),
+           "=&r" (failed),
+           "+Q" (ptr->value)
+         : "r" (_old.lo),
+           "r" (_old.hi),
+           "r" (_new.lo),
+           "r" (_new.hi)
+         : "cc"
+      );
+      SMP_RW_BARRIER_RW();
+      return res.raw;
+   }
+#elif __GCC_HAVE_SYNC_COMPARE_AND_SWAP_16
    return __sync_val_compare_and_swap(&ptr->value, oldVal, newVal);
-#elif defined VM_ARM_64
-   union {
-      uint128 raw;
-      struct {
-         uint64 lo;
-         uint64 hi;
-      };
-   } res, _old = { oldVal }, _new = { newVal };
-   uint32 failed;
-
-   SMP_RW_BARRIER_RW();
-   __asm__ __volatile__(
-      "1: ldxp    %x0, %x1, %3        \n\t"
-      "   cmp     %x0, %x4            \n\t"
-      "   ccmp    %x1, %x5, #0, eq    \n\t"
-      "   b.ne    2f                  \n\t"
-      "   stxp    %w2, %x6, %x7, %3   \n\t"
-      "   cbnz    %w2, 1b             \n\t"
-      "2:                             \n\t"
-      : "=&r" (res.lo),
-        "=&r" (res.hi),
-        "=&r" (failed),
-        "+Q" (ptr->value)
-      : "r" (_old.lo),
-        "r" (_old.hi),
-        "r" (_new.lo),
-        "r" (_new.hi)
-      : "cc"
-   );
-   SMP_RW_BARRIER_RW();
-
-   return res.raw;
 #endif
 }
 #endif

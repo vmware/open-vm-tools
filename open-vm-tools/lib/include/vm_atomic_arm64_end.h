@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2017,2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -27,6 +27,12 @@
 #endif
 
 /* Undefine all the private macros we previously defined. */
+#undef _VMATOM_LSE_HAVE
+#undef _VMATOM_LSE_HAVE_add
+#undef _VMATOM_LSE_HAVE_sub
+#undef _VMATOM_LSE_HAVE_eor
+#undef _VMATOM_LSE_HAVE_orr
+#undef _VMATOM_LSE_HAVE_and
 #undef _VMATOM_SIZE_8
 #undef _VMATOM_SIZE_16
 #undef _VMATOM_SIZE_32
