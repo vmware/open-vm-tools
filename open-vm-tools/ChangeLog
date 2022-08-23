@@ -1,3 +1,24 @@
+commit 296bffe04df602705d223d78633877ddd2f2cb9c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Aug 23 12:44:30 2022 -0700
+
+    Open-vm-tools 12.1.0 Release Notes
+
+commit 6914f15d59bd917dfa0dad04a6cc26632c03f5ba
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Aug 22 09:16:36 2022 -0700
+
+    Preparing for the open-vm-tools 12.1.0 release.
+    
+    Syncing the tools version, build number and product build number with
+    the internal official build of VMware Tools / open-vm-tools 12.1.0.
+
+commit 8825496ceca35e28cc74721b9e25f094f1ae5f2b
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Sun Aug 21 13:16:01 2022 -0700
+
+    Update of the ChangeLog with granular push from the 12.1.0 tools product branch.
+
 commit 4a41aee3900ddec7d84b919e26e85e9a9b623cd5
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Sun Aug 21 13:00:18 2022 -0700
