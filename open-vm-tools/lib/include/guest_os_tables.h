@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -218,6 +218,7 @@ extern "C" {
    GOKM("windows9",                             windows9Guest,           TRUE) \
    GOKM("windows9-64",                          windows9_64Guest,        TRUE) \
    GOKM("windows11-64",                         windows11_64Guest,       TRUE) \
+   GOKM("windows12-64",                         windows12_64Guest,       TRUE) \
    GOKM("windows9srv-64",                       windows9Server64Guest,   TRUE) \
    GOKM("windows2019srv-64",                    windows2019srv_64Guest,  TRUE) \
    GOKM("windows2019srvNext-64",                windows2019srvNext_64Guest, TRUE) \
@@ -340,6 +341,8 @@ extern "C" {
    GOKM("debian10-64",                          debian10_64Guest,        TRUE) \
    GOKM("debian11",                             debian11Guest,           TRUE) \
    GOKM("debian11-64",                          debian11_64Guest,        TRUE) \
+   GOKM("debian12",                             debian12Guest,           TRUE) \
+   GOKM("debian12-64",                          debian12_64Guest,        TRUE) \
    GOKM("asianux3",                             asianux3Guest,           TRUE) \
    GOKM("asianux3-64",                          asianux3_64Guest,        TRUE) \
    GOKM("asianux4",                             asianux4Guest,           TRUE) \
@@ -375,6 +378,8 @@ extern "C" {
    GOKM("genericlinux",                         genericLinuxGuest,       TRUE) \
    GOKM("amazonlinux2-64",                      amazonlinux2_64Guest,    TRUE) \
    GOKM("amazonlinux3-64",                      amazonlinux3_64Guest,    TRUE) \
+   GOKM("almalinux-64",                         almalinux_64Guest,       TRUE) \
+   GOKM("rockylinux-64",                        rockylinux_64Guest,      TRUE) \
    GOKM("CRXPod1-64",                           crxPod1Guest,            TRUE) \
    /* Netware guests */ \
    GOKM("netware4",                             netware4Guest,           TRUE) \
@@ -406,12 +411,14 @@ extern "C" {
    GOKM("darwin20-64",                          darwin20_64Guest,        TRUE) \
    GOKM("darwin21-64",                          darwin21_64Guest,        TRUE) \
    GOKM("darwin22-64",                          darwin22_64Guest,        TRUE) \
+   GOKM("darwin23-64",                          darwin23_64Guest,        TRUE) \
    /* ESX guests */ \
    GOKM("vmkernel",                             vmkernelGuest,           TRUE) \
    GOKM("vmkernel5",                            vmkernel5Guest,          TRUE) \
    GOKM("vmkernel6",                            vmkernel6Guest,          TRUE) \
    GOKM("vmkernel65",                           vmkernel65Guest,         TRUE) \
    GOKM("vmkernel7",                            vmkernel7Guest,          TRUE) \
+   GOKM("vmkernel8",                            vmkernel8Guest,          TRUE) \
    /* Other guests */ \
    GOKM("dos",                                  dosGuest,                TRUE) \
    GOKM("os2",                                  os2Guest,                TRUE) \
@@ -426,6 +433,8 @@ extern "C" {
    GOKM("freeBSD12-64",                         freebsd12_64Guest,       TRUE) \
    GOKM("freeBSD13",                            freebsd13Guest,          TRUE) \
    GOKM("freeBSD13-64",                         freebsd13_64Guest,       TRUE) \
+   GOKM("freeBSD14",                            freebsd14Guest,          TRUE) \
+   GOKM("freeBSD14-64",                         freebsd14_64Guest,       TRUE) \
    GOKM("openserver5",                          openServer5Guest,        TRUE) \
    GOKM("openserver6",                          openServer6Guest,        TRUE) \
    GOKM("unixware7",                            unixWare7Guest,          TRUE) \

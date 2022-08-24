@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2016-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2016-2020,2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -279,7 +279,7 @@ GetValueFromFile(const char *filePath, char **fileContents, gsize *length)
       *fileContents = NULL;
       *length = 0;
    }
-   g_free(gErr);
+   g_error_free(gErr);
    return retVal;
 }
 

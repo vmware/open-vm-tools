@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2019,2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2019,2021-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -32,6 +32,7 @@
 
 #include <algorithm>
 #include <comutil.h>
+#include <giommconfig.h> // For GIOMM_*_VERSION
 #include <glibmm/refptr.h>
 
 #include "autoCPtr.hh"
@@ -115,6 +116,9 @@ private:
       {
       }
 
+#if GIOMM_MAJOR_VERSION >= 2 && GIOMM_MINOR_VERSION >= 68
+      // Glib::RefPtr is now just a std::shared_ptr so no extras are needed
+#else
       // For Glib::RefPtr.
       void reference()
       {
@@ -129,6 +133,7 @@ private:
             delete this;
          }
       }
+#endif
 
       // Takes ownership of the input string.
       void Set(char *utf8String) // IN/OUT: May be NULL.
@@ -145,13 +150,18 @@ private:
          return mUTF8String;
       }
 
+#if GIOMM_MAJOR_VERSION >= 2 && GIOMM_MINOR_VERSION >= 68
+   public:
+#else
    private:
       // Only destructible via unreference().
+#endif
       ~UTF8Data()
       {
          free(mUTF8String);
       }
 
+   private:
       char *mUTF8String;
       unsigned int mRefCount;
 

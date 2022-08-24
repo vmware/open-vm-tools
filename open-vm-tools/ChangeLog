@@ -1,62 +1,585 @@
-commit de9058574ef96cb761829716049ba3e7cc2ef0a8
+commit 196eee046dc54358275ee5130cd189cd686efb27
 Author: John Wolfe <jwolfe@vmware.com>
-Date:   Mon May 23 13:19:36 2022 -0700
+Date:   Tue Aug 23 14:52:28 2022 -0700
 
-    Add the ReleaseNotes.md file for the OVT 12.0.5 update release.
+      =================================================
+        open-vm-tools 12.1.0 released at this point.
+      =================================================
+    Update of the ChangeLog with the final changes in preparation for
+    the open-vm-tools 12.1.0 release.
 
-commit bb2a9ce0b3b5273959c8d5a9d09ca66c2eafe932
+commit 296bffe04df602705d223d78633877ddd2f2cb9c
 Author: John Wolfe <jwolfe@vmware.com>
-Date:   Mon May 23 13:18:14 2022 -0700
+Date:   Tue Aug 23 12:44:30 2022 -0700
 
-    Update README.md effective with open-vm-tools 12.0.5
-     - Add "My version of Linux is not recognized" section.
+    Open-vm-tools 12.1.0 Release Notes
 
-commit cdb27c50b09de15231968040770461cddd45618c
+commit 6914f15d59bd917dfa0dad04a6cc26632c03f5ba
 Author: John Wolfe <jwolfe@vmware.com>
-Date:   Mon May 23 13:15:32 2022 -0700
+Date:   Mon Aug 22 09:16:36 2022 -0700
 
-    Preparing for the 12.0.5 open-vm-tools release
-     - configure.ac: set release version - 2 spots.
-     - lib/include/buildNumber.h: Set build number and product build number.
+    Preparing for the open-vm-tools 12.1.0 release.
+    
+    Syncing the tools version, build number and product build number with
+    the internal official build of VMware Tools / open-vm-tools 12.1.0.
 
-commit cd405b344240df20ccc0dadcab6b5f9c13610432
+commit 8825496ceca35e28cc74721b9e25f094f1ae5f2b
 Author: John Wolfe <jwolfe@vmware.com>
-Date:   Wed Apr 20 13:42:31 2022 -0700
+Date:   Sun Aug 21 13:16:01 2022 -0700
 
-    Update ChangeLog with the granular changes through Apr. 15, 2022
-     - plus the 12.0.0 open-vm-tools release point in the ChangeLog.
+    Update of the ChangeLog with granular push from the 12.1.0 tools product branch.
 
-commit de9058574ef96cb761829716049ba3e7cc2ef0a8
+commit 4a41aee3900ddec7d84b919e26e85e9a9b623cd5
 Author: John Wolfe <jwolfe@vmware.com>
-Date:   Mon May 23 13:19:36 2022 -0700
+Date:   Sun Aug 21 13:00:18 2022 -0700
 
-    Add the ReleaseNotes.md file for the OVT 12.0.5 update release.
+    VMTools 12.1.0 L10n drop.
 
-commit bb2a9ce0b3b5273959c8d5a9d09ca66c2eafe932
+commit 732bb7a3287ebdb2be079f364da4b0ea6a4c08bd
 Author: John Wolfe <jwolfe@vmware.com>
-Date:   Mon May 23 13:18:14 2022 -0700
+Date:   Sun Aug 21 12:42:12 2022 -0700
 
-    Update README.md effective with open-vm-tools 12.0.5
-     - Add "My version of Linux is not recognized" section.
+    ChangeLog update of Aug. 21, 2020
 
-commit cdb27c50b09de15231968040770461cddd45618c
+commit 7fa57304ab41a26f1de972f4a024e7da3632df69
 Author: John Wolfe <jwolfe@vmware.com>
-Date:   Mon May 23 13:15:32 2022 -0700
+Date:   Sun Aug 21 09:37:23 2022 -0700
 
-    Preparing for the 12.0.5 open-vm-tools release
-     - configure.ac: set release version - 2 spots.
-     - lib/include/buildNumber.h: Set build number and product build number.
+    ====================================================================
+    The "stable-12.1.x" branch was created from the "devel" branch here.
+    ====================================================================
+    
+    Update ChangeLog with the granular push of Aug. 21, 2022.
+      - plus ChangeLog update of July 29, 2022.
 
-commit cd405b344240df20ccc0dadcab6b5f9c13610432
+commit 70a74758bfe0042c27f15ce590fb21a2bc54d745
 Author: John Wolfe <jwolfe@vmware.com>
-Date:   Wed Apr 20 13:42:31 2022 -0700
+Date:   Sun Aug 21 07:56:49 2022 -0700
 
-    Update ChangeLog with the granular changes through Apr. 15, 2022
-     - plus the 12.0.0 open-vm-tools release point in the ChangeLog.
+    Properly check authorization on incoming guestOps requests.
+    
+    Fix public pipe request checks.  Only a SessionRequest type should
+    be accepted on the public pipe.
 
-commit c313c92ee618925a4b3afdfaca1efdfccd348b26
+commit 08cac55b2a37fac30adfb090748ca2b96c3256db
 Author: John Wolfe <jwolfe@vmware.com>
-Date:   Wed Apr 20 13:24:07 2022 -0700
+Date:   Sun Aug 21 07:56:49 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit a4f13c6a3427a2a9366945c817222c12c957f5af
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Sun Aug 21 07:56:49 2022 -0700
+
+    Address issues reported by Coverity.
+
+commit d2b1bb8fd315124de4cdcceb5b82b2e5b2882f30
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Sun Aug 21 07:56:49 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 581091addcbb6484047587f6d12038a04f2cc14a
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Sun Aug 21 07:56:49 2022 -0700
+
+    Changes to common header files not directly applicable to open-vm-tools.
+    
+    ARM: native atomics
+
+commit 37aefc9db67398e04f4bd9017af69edd16670080
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Sun Aug 21 07:56:49 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit ff29587e22711489207d020794b8f588058dfe52
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jul 29 15:50:29 2022 -0700
+
+    Update ChangeLog with the granular push of July 28 & 29, 2022.
+      - plus ChangeLog update of July 12, 2022.
+
+commit d5b73e64a5857d40905acee1242edaaac7ce9494
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Jul 29 11:11:04 2022 -0700
+
+    Correct missed 2022 copyright update.
+
+commit 1bd202e0a819c520896c743b51f2c1365f7ae2b2
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jul 28 20:03:43 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 306498ca0676354eb541b5817426191e615d0ef2
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jul 28 20:03:43 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit b3f0be90d03a5da6d3bb695e9e1dd44f071814aa
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jul 28 20:03:43 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 5887bf59e95cba480568ad731f7b037894058fef
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jul 28 20:03:43 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 9982eee37884c819759aadcec987324d9fe5b41e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jul 28 20:03:42 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit b5997ab6ecdbc6981a8a35b2349b3bd98c746a19
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jul 28 20:03:42 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 24594a971f9807fbee2253ee7680846de6cd9a63
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jul 28 20:03:42 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit bc9ab15472ed53a3071902ca5ec41d60e2f00d88
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jul 28 20:03:42 2022 -0700
+
+    lib/misc/hostinfoPosix.c: iopl(3) is not avaiable on ARM.
+
+commit 6907610abb95f96c3e8a10389483bfe54efd3eee
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jul 28 20:03:42 2022 -0700
+
+    Changes to common source files not directly applicable to open-vm-tools.
+
+commit b76e3218ddb24e49a87ef35913f9bf1389166033
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jul 28 20:03:42 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 155a8d440df8ae889d93c9aaee9d15bec9d7640d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jul 28 20:03:42 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 7452011db95a49aaaa19c293fb1ff1ea0944d6db
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jul 28 20:03:42 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 386e493c3cd58723d183ecbd3f0594706778e423
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 12 10:49:28 2022 -0700
+
+    Update ChangeLog with the granular push of July 12, 2022.
+      - plus ChangeLog update of June 7, 2022.
+
+commit eb48b7972c0c64735cb6fe7ca7ac3f505b80c7d4
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 12 10:25:28 2022 -0700
+
+    Correct missed 2022 copyright update.
+
+commit ddfb569588d8b1a9cd31cb3bb5d33c58c72f7fbc
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 12 09:56:01 2022 -0700
+
+    Fix a bug in CodeSet_JsonEscape.
+    
+    Fix a bug introduced in an earlier change in which CodeSet_JsonEscape
+    erroneously tests the first character in the buffer when checking
+    whether to escape the character currently being processed.
+
+commit a816c2e149010bdca27a47006932aa10b686a895
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 12 09:56:01 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 6aa2e661a35b88f0f69e744b4918340437cd6485
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 12 09:56:01 2022 -0700
+
+    Fix a grammar error of c++11 scoped enumeration "enum class".
+
+commit e5e9a9ba31791d4f10e7dd75a8dbab179926511f
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 12 09:56:01 2022 -0700
+
+    Escape all control characters in JSON.
+    
+    Update CodeSet_JsonEscape to escape all control characters between
+    U+0000 and U+001F as required by the JSON standard.  Delete
+    CodeSet_Utf8Escape as it is no longer used.  Also update datasets
+    in-guest API tests accordingly.
+
+commit 47f47851a026cce6ee9738015759b45cf6931cc2
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 12 09:56:01 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit bb2f24ed14f8d5102df6387253ba4ac4271bf4f5
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 12 09:56:01 2022 -0700
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit f45b8f435f2d9b3536f283098ddaf69218ae7456
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 12 09:56:01 2022 -0700
+
+    Add a comment with the bump of the Guest Msg Channels to 128.
+
+commit f272162cad49f13dc2d86eafb9aec7f0c2c7c8b4
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 12 09:56:01 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 523df70f7f1b0ef760fe753404a0682b79b095b8
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 12 09:56:01 2022 -0700
+
+    Bump up the Guest Msg Channels to 128.
+
+commit 9e371bd289f53585e67853a97328906c196af818
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 12 09:56:01 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit d5b28c0380fb6687fd106e6ebd65570473940878
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 12 09:56:01 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 42c136b5a3cddb077b5c39d933141e30d4c2c129
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 12 09:56:01 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 091d43b06052d742e321d3f61c8620284d56b959
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 12 09:56:01 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit df0099727e96292279398c3fbd7f3901f215e4f3
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 12 09:56:01 2022 -0700
+
+    Common source file changes not directly applicable to open-vm-tools.
+
+commit 5317dfb778ee97c6fe83fbf23ee2e800fb608eaa
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jul 12 09:56:01 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 575f1ec1bee338c1a0ac6f14072429f926cf2f52
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jun 7 10:07:23 2022 -0700
+
+    Update ChangeLog with the granular push of June 7, 2022.
+      - plus the sync of the README.md with the stable-12.0.x branch.
+      - plus ChangeLog update of May 17, 2022.
+
+commit 95956d193464f2aa0547e6dbd4f51bc2052d5f82
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jun 7 09:52:42 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit dd2f50d4cc956d5d45638d31f68c449ba8afbca4
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jun 7 09:52:42 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 9a38d3f49bad645826aad7f0cb778098ba6ca381
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jun 7 09:52:42 2022 -0700
+
+    Common header file change not directly applicable to open-vm-tools.
+
+commit 0f78b84aeedab75e3614bfdda9fe5fd86268686e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jun 7 09:52:42 2022 -0700
+
+    Log Facility: Improve wording of group level messages and filtering.
+    
+    Common header file change not directly applicable to open-vm-tools.
+
+commit 41509dbb7223fa7e8905718c357fbd6f243f06e3
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jun 7 09:52:42 2022 -0700
+
+    Report consistent customization error status when custom script is disabled.
+
+commit f83c890a91e29febbe54a7be0ffe96c1e14f8057
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jun 7 09:52:42 2022 -0700
+
+    Guest OS: Prepare for Linux 6
+    
+    The basics are already there, update guest identification.
+
+commit 0b6597b97ce0d1607cb0602731b9c2d4ca0c5162
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jun 7 09:52:42 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 9945bb6cc3aa6d811ef46d9ddf2c2ae462baa38d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jun 7 09:52:41 2022 -0700
+
+    Common header file change not applicable to open-vm-tools at this time.
+
+commit d669d0263887a3da2242d55bae7eab224981e075
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jun 7 09:52:41 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 7fa64a4e23e65224b1752e5037854fd6f9ea43cb
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jun 7 09:52:41 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit cff50b62e0db5f5978c14bb09b0e2fe7c1c89fc3
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Jun 7 09:52:41 2022 -0700
+
+    Log Facility: Enhance logging for grouped (named) log message.
+    
+    Common header file change not directly applicable to open-vm-tools.
+
+commit 939545b3e0445858cf7be038c978e7df2d8547ff
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed May 25 05:55:52 2022 -0700
+
+    Sync the README.md file with the version released with 12.0.5.
+
+commit 4c620fd78b6281ca8a045f3dffdf2180dd9c480f
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue May 17 18:47:08 2022 -0700
+
+    Update ChangeLog with the granular push of May 17, 2022.
+      - plus ChangeLog update of May 6, 2022.
+
+commit 29ba7eb2a1e6c62357ad46bc67daff94b0fc0dc4
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue May 17 18:36:21 2022 -0700
+
+    Salt-minion plugin update:
+    
+    The Salt Minion installer script svtminion.sh has been updated.
+      - version 1.3
+      - configurable download source
+      - requires the "wget" command
+
+commit e1a6796a1aecd22a7b76f5b4871d215b82277f18
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue May 17 18:36:21 2022 -0700
+
+    Changes to common header files not applicable to open-vm-tools.
+
+commit b42ed315b7844660e9f9546c7bd85e1804938526
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue May 17 18:36:21 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 074cd660a718e817e7db0df57f71252107d23490
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue May 17 18:36:21 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit ce9459965a1900159b5f563c030385e554ba3e49
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue May 17 18:36:21 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit bac24ee80957feea0336f7ac597630aedf13ec86
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue May 17 18:36:21 2022 -0700
+
+    Changes to common source files not directly applicable to open-vm-tools.
+
+commit 784c520757e883c5e46e1d3a593e24d171cd280e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue May 17 18:36:21 2022 -0700
+
+    Common header file change not applicable to open-vm-toole.
+
+commit 32db37a3cf437578efcb64d954aae9d5cca1ff83
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue May 17 18:36:21 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 619f656f4444af598179345f8c35e056e3563de1
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue May 17 18:36:21 2022 -0700
+
+    vm-support: Capture the locale configuration of the Linux guest.
+    
+    To aid in debugging issues related to locale configuration, the vm-support
+    command has been updated to collect the following:
+    
+     - The contents of the /etc/default/locale file if it exists.
+     - The contents of the /etc/locale.conf file if it exists.
+     - The output of the 'locale' command for the current environment.
+     - The output of the 'locale -a' command for a list of available locales.
+
+commit 0c675d3d53f9e859eaa396cabfbf68c85a9f5f72
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue May 17 12:57:40 2022 -0700
+
+    Sync the README.md file with the version last released in the
+    stable-12.0.x and master branches.
+
+commit e7d6abcbd3134e01cd5a8602fe4edd01b9e60aec
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri May 6 14:40:22 2022 -0700
+
+    Update ChangeLog with the granular push of May 6, 2022.
+      - plus ChangeLog update of Apr. 19, 2022.
+
+commit 605c30a33f6dedc07ded8e24ce1491fba162ce82
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri May 6 14:28:00 2022 -0700
+
+    Fix a compilation issue in the containerInfo plugin for i386 builds.
+    
+    The "gint64" type used for time values in the code is not a "long" on
+    i386.  The fix using the glib "G_GINT64_FORMAT" macro was provided by
+    the Debian OVT maintainer.
+    
+    github PR:
+    https://github.com/vmware/open-vm-tools/pull/588
+
+commit be5c99cbb69afc1586315195f40d0e31d4f742b1
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri May 6 14:28:00 2022 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit cf19772adf10706fa1da83aca21a9fc45977c387
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri May 6 14:28:00 2022 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit fde902600d26f8b38f13a7c535d094963f989697
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri May 6 14:28:00 2022 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 0073b6ae4aed8466a2e657fe853cd993a60abd1b
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri May 6 14:28:00 2022 -0700
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit f9da69911d845d36515f8c45f6d5840f934a1189
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri May 6 14:28:00 2022 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit c613b3d554c49fe8bdc6103d90aa028e7bee854e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri May 6 14:28:00 2022 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 9b9f221c486069d90ed6460edab72cb545ca0361
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri May 6 14:28:00 2022 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 82e373eb02505791f34b0154a8c2762040034fd8
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri May 6 14:28:00 2022 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 6df59bd95ec5a1a23be67483ef6a4c34cf849506
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri May 6 14:27:59 2022 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 875d19750952f575f6f41b6ce4631ecdbe74b90a
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri May 6 14:27:59 2022 -0700
+
+    Service Discovery: Cassandra service version missed for a default Cassandra installation.
+    
+    Updated the get-versions.sh script to correctly report the version of the
+    Cassandra service running in the guest.
+
+commit 6452e34357b1dc258a038ea5137fd27d13f9f4ca
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Apr 19 14:48:06 2022 -0700
+
+    Update ChangeLog with the granular push of Mar. 23, 2022.
+      - plus ChangeLog update of Apr. 4, 2022.
+
+commit f1e56311c8f245d6aba2a94d37e5df7220398ed5
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Apr 19 14:30:54 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 911b68fef82a3dfb083daa3bf0f61ed793e2961e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Apr 19 14:30:54 2022 -0700
+
+    Common header file change not directly applicable to open-vm-tools.
+
+commit c8f345b0cc50417665b0eff6bf19f0af2526ff74
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Apr 19 14:30:54 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit b3c2a0e00e3d40e979dacab1833a6711e0e5620a
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Apr 19 14:30:54 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 19e2a77e0a2b29b77866876a5d45ec2df8f96d4f
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Apr 19 14:30:54 2022 -0700
+
+    Changes to common header files not applicable to open-vm-tools.
+
+commit 93af2bbbe583e95598cfb46d042ac6025a6dcac8
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Apr 19 14:30:54 2022 -0700
 
     Improve the "don't touch this" comments for Linux guest identification.
     
@@ -67,18 +590,71 @@ Date:   Wed Apr 20 13:24:07 2022 -0700
     Improve the text to reduce pull requests for changes to common source
     code that open-vm-tools does not own and cannot make.
 
-commit c0de81f5c52415abc5ba82d6c72de91a830b6722
+commit 36eea633611e678f3ea17a913c0990f319135c48
 Author: John Wolfe <jwolfe@vmware.com>
-Date:   Wed Apr 20 13:24:07 2022 -0700
+Date:   Tue Apr 19 14:30:54 2022 -0700
 
-    Enable time step correction log in all builds.
+    Make HgfsConvertFromNtTimeNsec aware of 64-bit time_t on i386.
     
-    Enabled logging of the information in all builds of open-vm-tools.
-    This is useful for auditing and for debugging.
+    The change incorporates the support of 64 bit time epoch conversion
+    from Windows NT time to Unix Epoch time on i386.
+    
+    Addresses pull request:
+    https://github.com/vmware/open-vm-tools/pull/387
 
-commit 6e9e2c6b8927a6c5bfc240fd598ea0763fa6ab4a
+commit 472335e347018fbddfbbe45618193075e77fa836
 Author: John Wolfe <jwolfe@vmware.com>
-Date:   Wed Apr 20 13:24:07 2022 -0700
+Date:   Tue Apr 19 14:30:54 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit bb8a37981bfb76d9314d797c3ab1b394ce431d1d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Apr 19 14:30:54 2022 -0700
+
+    Changes to common header files not applicable to open-vm-tools.
+
+commit fb011741deec7e277f34974e32f88c60826e0db3
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Apr 19 14:30:54 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit d232afd908f22104a632e3060c9bf4170ac18018
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Apr 19 14:30:54 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 1b4db25a65153bd2c1c5a725303bf22a61ac931f
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Apr 19 14:30:54 2022 -0700
+
+    Added the following miscellaneous checks for the deploypkg plugin.
+    
+    1. Check if the plugin is running in a VMware VM.
+    2. Check if the plugin is loaded by the main tools service.
+    3. Check if the underlying hypervisor is ESXi.
+
+commit df63c64bf5e12a5f5bc0ba9bda4b786a4295ae5b
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Apr 19 14:30:54 2022 -0700
+
+    Inclusive language - "kill"
+    
+    Address uses of the term "kill" in some files used by open-vm-tools.
+
+commit e057e41fc4d4e4e084cf46c9d16243fb05a7df19
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Apr 19 14:30:53 2022 -0700
+
+    Inclusive Language - "whitelist"
+    
+    Use allowlist instead of whitelist in some files used by open-vm-tools.
+
+commit 532cf9f3bb9dd3011239fb193f7458fc78ae921e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Apr 19 14:30:53 2022 -0700
 
     ContainerInfo Plugin: correct compiler warnings in containerInfo_grpc.cc
     
@@ -86,104 +662,194 @@ Date:   Wed Apr 20 13:24:07 2022 -0700
       it's compared with an 'unsigned int' parameter.
     - Remove the unreferenced local variable "numContainers".
 
-commit 32548d355e10dd469c30125818d4b32cca515cb6
+commit 92a6422d03a932ab92f4b7c791673cf2f17bf3b9
 Author: John Wolfe <jwolfe@vmware.com>
-Date:   Wed Apr 20 13:24:07 2022 -0700
+Date:   Tue Apr 19 14:29:06 2022 -0700
 
-    Adding configuration information for the GlobalConf feature.
+    Reverting previous bad patch erroneously comitted.
+
+commit 36b7f58392fbbb9e7bb336c0cf07202cba4d92cc
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 4 13:22:16 2022 -0700
+
+    Update ChangeLog with the granular push of Apr. 4, 2022.
+      - plus ChangeLog update of Mar. 23, 2022.
+
+commit 37f5400a44d1fbe4fdeef0fe048e8903af9f1907
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 4 12:58:41 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 8665272146a9302faf16c98992f57d5cce6530bc
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 4 12:58:41 2022 -0700
+
+    Common header file change not directly related to open-vm-tools.
+
+commit 66644fb9b74bcad603a2e175e99be80b756bd6c8
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 4 12:58:41 2022 -0700
+
+    VGAuth: Add secure VMX RPC support.
     
-    As part of the GlobalConf feature, a "globalconf" section is introduced
-    into tools.conf to provide custom configuration options for the feature.
-    The configuration parameters are as follows:
-     * enabled=false - Enable/disable the GlobalConf module.
-     * poll-interval=3600 - Poll interval for the GlobalConf feature.
-     * resource=<path> - Defines the location of the tools.conf in the
-                         GuestStore.  There is a separate default for Windows
-                         and Linux guests.
+     - Added some error handling to work around VMX closing a
+       port that is being reused.
 
-commit befd6dd60362be5d88c2114b5252f4c0a28d7e62
+commit eef3be312ad6f7ed5d96cafa15ffafc89bc43851
 Author: John Wolfe <jwolfe@vmware.com>
-Date:   Wed Apr 20 13:24:07 2022 -0700
+Date:   Mon Apr 4 12:58:41 2022 -0700
+
+    VGAuth: Update some error messages with certificate error text.
+
+commit b53ae31eaa20ec80f2d97f85ac6b9a295e21c287
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 4 12:58:41 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit bd8be34a9a4e897d78297eb8ae970300e80253a0
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 4 12:58:41 2022 -0700
+
+    DynBuf:  Implement new function DynBuf_SafeInternalInsert().
+
+commit d59878b05d57393770f1cf064141a17c9a8af3f4
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 4 12:58:41 2022 -0700
+
+    DynBuf:  Implement new function DynBuf_Insert.
+    
+     - DynBuf_Insert(): Insert data at a given offset within a dynamic buffer.
+
+commit 70509b63b728b65adfeb62afa40488782cc7f5f1
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 4 12:58:41 2022 -0700
+
+    Record use of tools version 10.3.25.
+    
+    Adding version 10.3.25 to the list of releases or planned releases
+    of VMware Tools.
+
+commit 33b7eb9f3f3b8d58025f484a9c5fd30293f60622
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 4 12:58:41 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit e7b3c7180fdf8f62b9852af90cdad725e69480da
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 4 12:58:41 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 936537f6234690f8ae1afba3ae8b0a6a89df6625
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Apr 4 12:58:41 2022 -0700
+
+    Generalize VMX RPC code in vgauthservice.
+     - Rework the code so that it can used for other RPCs in the future.
+     - Rework the code reading the RPC reply, since it can now be much larger.
+     - Also remove the attempt to use the "guest.log.text" RPC since the VMX
+       will just drop the logging on the floor with no error if the virtual
+       HW version is too old.  A smart fail over is not possible.
+
+commit 2fe3cccfc1c36e946f46fb57813dd50c6c7f89dd
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Mar 23 13:00:26 2022 -0700
+
+    Update ChangeLog with the granular push of Mar. 23, 2022.
+      - plus ChangeLog update of Mar. 10, 2022.
+
+commit 405c57fbcfe8772679fdaf594b368f5a68b31edf
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Mar 23 12:04:31 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit b167d985e0632d6455334e09437905ab54fa1a60
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Mar 23 12:04:31 2022 -0700
+
+    Record the use of tools version 12.0.5.
+
+commit 577764a4adf5e6ff595e23fe54c30ccdce353977
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Mar 23 12:04:31 2022 -0700
+
+    Change to common header files not applicable to open-vm-tools.
+
+commit f0cb3eebe942fba3f5abca32303998985a756b90
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Mar 23 12:04:31 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit b571bf4026b6f2dee31102a55dd7338c276646f9
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Mar 23 12:04:31 2022 -0700
 
     VGAuth: Customize libxml2 to open local file with unescaped file name only.
 
-commit 8d1d31386703643fe37e09b1012782670e2672a7
+commit c0408788b07ec42f8c1bcf3e7373032d8b9784b3
 Author: John Wolfe <jwolfe@vmware.com>
-Date:   Wed Apr 20 13:24:07 2022 -0700
+Date:   Thu Mar 10 12:06:56 2022 -0800
+
+    Update ChangeLog with the granular push of Mar. 10, 2022.
+      - plus README.md updates related to 12.0.0 OVT release.
+      - plus ChangeLog update of Feb. 17, 2022.
+
+commit b47748c330f1fa495f099db0d6fcc300f9e82240
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 10 11:36:24 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 6e16f34ac546f5cdf156cc484b29823b84603f76
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 10 11:36:24 2022 -0800
+
+    Changes to common header files not directly related to open-vm-tools.
+
+commit e57a78d2fa4afe47b1a5d2d12d4e0a4a71db1073
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Mar 10 11:36:24 2022 -0800
 
     Service Discovery: Script correction to collect the version of Cassandra.
 
-commit e34a9a1b98b334f5ebff68371256810076bd0e49
+commit dfff48a686515a5046d8e33b8181f34f79fe6fa6
 Author: John Wolfe <jwolfe@vmware.com>
-Date:   Wed Apr 20 13:24:07 2022 -0700
+Date:   Thu Mar 10 11:36:23 2022 -0800
 
-    asyncsocket.c: Use size_t in place of int type for array size and indexing.
-    
-    Glibc 2.35 with GCC 11 and 12 produces additional warnings about strings
-    and array bounds.  Switching from "int" to "size_t" type for variable
-    used for the array size and element indexing.
-    
-    GCC warned when an integer value is passed as the size of the
-    struct pollfd array to poll().
-    
-    Fixes https://github.com/vmware/open-vm-tools/issues/570
+    Common header file change not applicable to open-vm-tools.
 
-commit a1af3f17d0e27120314523ec4f9364db5d040502
+commit 092cc7135b6d0f5fc4dbbf8b14a3093dbee402d8
 Author: John Wolfe <jwolfe@vmware.com>
-Date:   Wed Apr 20 13:24:07 2022 -0700
+Date:   Thu Mar 10 11:36:23 2022 -0800
 
-    Prepare the stage-12.0.x branch for the tools 12.0.5 update release.
-    
-    - Set the tools version to 12.0.5
+    Common header file change not applicable to open-vm-tools.
 
-commit b7ab96e6e38f6559cb882278a53d7a7ea5c0592c
+commit 68391545c1c7ac7804429f7dc73a158d74690b82
 Author: John Wolfe <jwolfe@vmware.com>
-Date:   Fri Mar 4 13:01:24 2022 -0800
+Date:   Thu Mar 10 11:36:23 2022 -0800
 
-    Open-vm-tools release 12.0.0 marked in the ChangeLog.
+    Common header file change not applicable to open-vm-tools.
 
-commit 9515a1c755257f6b9f998718ea9cfd6045e5250a
+commit 69ce810007b0390a369425bc3561ab7befdb040c
 Author: John Wolfe <jwolfe@vmware.com>
-Date:   Fri Mar 4 12:50:55 2022 -0800
+Date:   Thu Mar 10 11:36:23 2022 -0800
 
-    ===================================================================
-    The 12.0.0 open-vm-tools release occurred here.
-    ===================================================================
+    Common header file change not applicable to open-vm-tools.
 
-    Updated the ChangeLog file with the final commits leading up to the
-    open-vm-tools 12.0.0 release.
-
-commit a43eac940829b44d5f19c563f76bc8f173ae9464
+commit 97440ff3bc72428be0158cada3afc2513ead463a
 Author: John Wolfe <jwolfe@vmware.com>
-Date:   Fri Mar 4 12:31:27 2022 -0800
-
-    Add the ReleaseNotes.md file for the OVT 12.0.0 release
-     - Sync README.md content with the RN where there is overlap.
-
-commit eaef22358d8b0584ae1863a4002ad14a8c5164a2
-Author: John Wolfe <jwolfe@vmware.com>
-Date:   Wed Mar 2 17:27:43 2022 -0800
+Date:   Wed Mar 2 16:49:49 2022 -0800
 
     Update the README.md document.
       - Adding configure and build information for new plugins and service(s)
         added in the 12.0.0 tools release.
 
-commit eb9d3ea1f87b78e6b46721c9e9005b4492a7154b
-Author: John Wolfe <jwolfe@vmware.com>
-Date:   Wed Mar 2 15:21:37 2022 -0800
-
-    Preparing for the 12.0.0 OVT release
-     - configure.ac: set release version - 2 spots.
-     - lib/include/buildNumber.h: Set build number and product build number.
-
-commit b5912048b23f611e79b7c5ca9f0e1d729d1973fb
-Author: John Wolfe <jwolfe@vmware.com>
-Date:   Wed Mar 2 15:08:55 2022 -0800
-
-    Copyright clean up.
-     - matching (C) vs. (c) between github and perforce source.
-
-commit f3aab8224d5647a5bc413c5af2543b0c8f8d0a75
+commit 09ea13cfb0947137dd31cd1f278739e49aff95fc
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Tue Feb 22 16:52:02 2022 -0800
 
@@ -196,30 +862,172 @@ Date:   Tue Feb 22 16:52:02 2022 -0800
       https://github.com/vmware/open-vm-tools/pull/573
       https://github.com/vmware/open-vm-tools/pull/513
 
-commit 1e9e65529def34cb60d37ab064518ec0fad0d1aa
+commit 43d17bd3f2e93566ee7b588494d29ab857c7a95f
 Author: John Wolfe <jwolfe@vmware.com>
-Date:   Mon Feb 7 10:26:57 2022 -0800
+Date:   Thu Feb 17 15:10:47 2022 -0800
 
-    Update ChangeLog with the granular changes through 1/31/22.
-     - plus ChangeLog update of Jan. 20.
+    Update ChangeLog with the granular push of Feb. 17, 2022.
+     - plus ChangeLog update of Feb. 7, 2022.
 
-commit cf3cf0f5d59a99814f90c0fbb8c321059baa3693
+commit 2cf575e2fb0a6c83211e8e09339491889bdcc8fe
 Author: John Wolfe <jwolfe@vmware.com>
-Date:   Mon Feb 7 10:23:44 2022 -0800
+Date:   Thu Feb 17 15:01:31 2022 -0800
+
+    Add missing 2022 copyright.
+
+commit 66b79830eccb5fd8c7b85f07b8090c763e12783c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Feb 17 14:51:25 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 27bd6b5a84370ad488227614df3740ad6c2014db
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Feb 17 14:51:25 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit bb597ad25dbf695b5d16ddea3c09080d1a715967
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Feb 17 14:51:25 2022 -0800
+
+    Backout previous changes to common header files not applicable to open-vm-tools.
+
+commit 92254389f42b0a09ea140427afb4d0352a56cb4b
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Feb 17 14:51:25 2022 -0800
+
+    Adding configuration information for the GlobalConf feature.
+    
+    As part of the GlobalConf feature, a "globalconf" section is introduced
+    into tools.conf to provide custom configuration options for the feature.
+    The configuration parameters are as follows:
+     * enabled=false - Enable/disable the GlobalConf module.
+     * poll-interval=3600 - Poll interval for the GlobalConf feature.
+     * resource=<path> - Defines the location of the tools.conf in the
+                         GuestStore.  There is a separate default for Windows
+                         and Linux guests.
+
+commit 1b5114ab87e342af85eb340237ba2d747b49fdad
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Feb 17 14:51:25 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit f35987b39f2874f13b2f4facd1b1d3dde7ae2a63
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Feb 17 14:51:25 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit de6d129476724668b8903e2a87654f50ba21b1b2
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Feb 17 14:51:25 2022 -0800
+
+    asyncsocket.c: Use size_t in place of int type for array size and indexing.
+    
+    Glibc 2.35 with GCC 11 and 12 produces additional warnings about strings
+    and array bounds.  Switching from "int" to "size_t" type for variable
+    used for the array size and element indexing.
+    
+    GCC warned when an integer value is passed as the size of the
+    struct pollfd array to poll().
+    
+    Fixes https://github.com/vmware/open-vm-tools/issues/570
+
+commit 956fd221b6697242405bc3c1f8fe5c18236a9b68
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Feb 17 14:51:25 2022 -0800
+
+    Changes to common header files not applicable to open-vm-tools.
+
+commit 760d6ca22de590ffcce82c43926d8b91474cf101
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 7 10:01:44 2022 -0800
+
+    Update ChangeLog with the granular push of Feb. 7, 2022.
+     - plus ChangeLog and late copyright update of Jan. 20, 2022.
+
+commit 8406802f4bf9269f02b6850b10741a7fce1635bc
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 7 09:52:43 2022 -0800
 
     Correct missed 2022 copyright update.
 
-commit 8e6db032d0ad7404b327a5126e1a62c2b91c7bb3
+commit 4311a4a5d2952703cb808feb1f6372e28c2afc68
 Author: John Wolfe <jwolfe@vmware.com>
-Date:   Mon Feb 7 10:21:18 2022 -0800
+Date:   Mon Feb 7 09:40:01 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit e9e485b9d6fd41acb5a777896b7c7efb32632722
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 7 09:40:00 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit a085da930a078f956192bb257de251a58e49a5f2
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 7 09:40:00 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 5b0c9eada72482a7149a5188f11d470272e53087
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 7 09:40:00 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 8692a2327c0bcd4608fd40d8f7539da5d82e6b28
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 7 09:40:00 2022 -0800
+
+    Enable time step correction log in all builds.
+    
+    Enabled logging of the information in all builds of open-vm-tools.
+    This is useful for auditing and for debugging.
+
+commit 87389ed6975ed40bdc7883c64c2509da6650a435
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 7 09:40:00 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 05943d86fbc47821c3036eaa3b11b7b7a1eb2780
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 7 09:40:00 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit d8ad6f5c0d2237ed6eb3230720be9701547e2ed9
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 7 09:40:00 2022 -0800
 
     Service Discovery script update.
     
     Updated the get-version.sh script to retrieve the vRLI version.
 
-commit e573682b872487b68e10fd6d821cd0bb6e705b92
+commit a9e72b211bafb19ca0e674bf73351e1aa859d083
 Author: John Wolfe <jwolfe@vmware.com>
-Date:   Mon Feb 7 10:21:18 2022 -0800
+Date:   Mon Feb 7 09:40:00 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 5a040d4c25705565e8397b2135506e93e320bd54
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 7 09:40:00 2022 -0800
+
+    Common header file cahnge not applicable to open-vm-tools.
+
+commit 627f748ab314c6bd2b6a5023d1f17684bd8eec0d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 7 09:40:00 2022 -0800
+
+    Common source file change not applicable to open-vm-tools.
+
+commit 2290690693f0590bb5ffbd592ebd4b8062d57513
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Feb 7 09:40:00 2022 -0800
 
     AppVisibility: Skip terminated/stopped containers.
     
@@ -246,70 +1054,147 @@ Date:   Mon Feb 7 10:21:18 2022 -0800
      - The protoc compiler generates .grpc.pb.* when the --grpc_out option is
        specified.
 
-commit 3d626749b6914ee013989643fed04eb14c9eb1b2
+commit 5e79bc1414f31a07a9fb74c624b8b435546e0212
 Author: John Wolfe <jwolfe@vmware.com>
-Date:   Thu Jan 20 17:21:06 2022 -0800
+Date:   Mon Feb 7 09:40:00 2022 -0800
 
-    Update ChangeLog with the granular changes through 1/1/22 thru 1/15/22
-      - granular push of Jan. 20, 2022
-      - plus ChangeLog update of Jan. 2.
+    Common source file change not applicable to open-vm-tools.
 
-commit c64088ba9b88698455b25686a464c07f59c13e6b
+commit 75f3a3e2e6b4cfec157c02e8f06e5ac139ad98cc
 Author: John Wolfe <jwolfe@vmware.com>
-Date:   Thu Jan 20 17:08:38 2022 -0800
+Date:   Mon Feb 7 09:40:00 2022 -0800
 
-    Missed a few 2022 copyright updates - correcting before publishing.
+    Common header file change not applicable to open-vm-tools.
 
-commit cc49be1a05cc5b4b133337997a475102b31e97d3
+commit 192667e6e65ad7d7592798ef567278dbe15c293d
 Author: John Wolfe <jwolfe@vmware.com>
-Date:   Thu Jan 20 16:48:46 2022 -0800
+Date:   Thu Jan 20 15:01:49 2022 -0800
 
-    Open-vm-tools 12.0.0 L10n drop.
+    Last minute 2022 copyright updates to several files.
 
-commit 68b050ba00a6244fd71e93f95d06375c30a4aa3e
+commit 99c00042476803def0d1aea4fc28cd59e271859d
 Author: John Wolfe <jwolfe@vmware.com>
-Date:   Thu Jan 20 16:48:46 2022 -0800
+Date:   Thu Jan 20 11:50:29 2022 -0800
+
+    Update ChangeLog with the granular push of Jan. 20, 2022.
+     - plus ChangeLog update of Jan 2, 2022.
+
+commit bd0f9506e5ad3ee42c95cbd1aea0c9381e4abf59
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jan 20 11:40:15 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit ddd97d710b1b49a2d8b3679ac07c70feacb2aeb0
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jan 20 11:40:15 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit b4a4387294cc9dc3cb890093398abad4d0800bc2
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jan 20 11:40:15 2022 -0800
+
+    Common header file change.
+    
+    Prepare to recognize macOS 14, Debian GNU/Linux 12, Rocky Linux,
+    and AlmaLinux.
+
+commit cbc229407f734a7b44aeecb9e3a6a51975ace35e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jan 20 11:40:15 2022 -0800
+
+    open-vm-tools-12.0.0 L10n drop.
+
+commit e85e58885523f69b01fc8a49ee40732df6b6e2a6
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jan 20 11:40:15 2022 -0800
 
     ContainerInfo: Remove 'default' namespace from the default allowed namespace list.
 
-commit cfe60646c0b07f257acd5e4470f14ed0ba70cd5a
+commit b9ebabe69f0d864bfaa28bf8773a4c8a51e29416
 Author: John Wolfe <jwolfe@vmware.com>
-Date:   Thu Jan 20 16:48:46 2022 -0800
+Date:   Thu Jan 20 11:40:15 2022 -0800
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit e2de0491601d6c14e5aa4b64467cced413ff28e6
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jan 20 11:40:15 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 28dd7a83e35173ac7d1869906442ded5d1c632eb
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jan 20 11:40:15 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 750eed3fc4dc6d0265bc3e28b845e76ca3acf944
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jan 20 11:40:15 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit b59acd69c499825b1e0cc451f3c3798b1bb18d1c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jan 20 11:40:15 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 0f084152e3e03d22dcaa5d80118f244dba3f1455
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jan 20 11:40:15 2022 -0800
+
+    Set tools builds on the "devel" branch to version 12.1.0.
+    
+    Also, add back the definitions of TOOLS_VERSION_NEXT* inadvertently
+    removed in the previous change to vm_tools_version.h.
+
+commit f48b8797c14d43b3786fddae8bd38b890e48cd9d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jan 20 11:40:15 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 87396d0925299645ce77491ca8ad30ad1cb01c85
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Jan 20 11:40:15 2022 -0800
 
     Restrict Enable Salt Minion feature to x86_64 systems.
     
     Currently Salt Minion is available only for x86_64 systems.  Update
     configure.ac to exclude ENABLE_SALTMINION from ARM and 32-bit systems.
 
-commit 10dd041d5e5c7604fb525ec72cf314a27ea0c166
+commit 9c171d9aede372e9647fe05f09a0e127df6d1dbd
 Author: John Wolfe <jwolfe@vmware.com>
-Date:   Thu Jan 20 16:48:45 2022 -0800
+Date:   Thu Jan 20 11:40:15 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit bc9832a87009a1d41729ea6d07d1fae960026655
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Sun Jan 2 02:20:56 2022 -0800
+
+    Update ChangeLog with the granular changes through 12/31/21.
+      - granular push of Jan. 2, 2022
+      - plus ChangeLog update of Dec. 25.
+
+commit 34415b186a26a563690025d50b582cb7a73aef77
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Sun Jan 2 02:10:04 2022 -0800
+
+    Set SABRE_SAW as the code name for the VMware Tools 12.0.0 release.
+
+commit e52bbb643aebf0a414d00c519cbe748a378d1570
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Sun Jan 2 02:10:04 2022 -0800
 
     The header added to the vmsvc log file is repeated at log file rotation.
     
     The log entry with the tools version, tools build number and guest OS
     details added at the start of the vmsvc log file is repeated when log
     file rotation occurs.
-
-commit 924882d1441db856cfc9c8b0fff77b727f32dd23
-Author: John Wolfe <jwolfe@vmware.com>
-Date:   Sun Jan 2 03:33:24 2022 -0800
-
-    Update ChangeLog with the granular changes through 12/31/21.
-      - granular push of Jan. 2, 2022
-      - plus ChangeLog update of Dec.25 - creation of stable-12.0.x branch.
-
-commit 7c9a9ff9a04c0818f9727ce95fa8aa4ca32cef55
-Author: John Wolfe <jwolfe@vmware.com>
-Date:   Sun Jan 2 03:23:38 2022 -0800
-
-    Set SABRE_SAW as the code name for the VMware Tools 12.0.0 release.
-
-commit df5d18f2585c5f46ce1e47b482e99828850fe19b
-Author: John Wolfe <jwolfe@vmware.com>
-Date:   Sun Jan 2 03:23:38 2022 -0800
-
-    Common header file change not applicable to open-vm-tools.
 
 commit c4220766355a623901f3d562ad03ddd3745729fd
 Author: John Wolfe <jwolfe@vmware.com>

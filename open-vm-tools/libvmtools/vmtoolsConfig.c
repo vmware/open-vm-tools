@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -150,6 +150,8 @@ VMTools_LoadConfig(const gchar *path,
       goto exit;
    }
 
+   /* On error, 'err' will be set, null otherwise */
+   /* coverity[check_return] */
    g_key_file_load_from_file(cfg, localPath, flags, &err);
    if (err == NULL || err->code == G_KEY_FILE_ERROR_GROUP_NOT_FOUND) {
       goto exit;

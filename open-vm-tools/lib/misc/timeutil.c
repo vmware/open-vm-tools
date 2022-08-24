@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -894,18 +894,6 @@ TimeUtil_NtTimeToUnixTime(struct timespec *unixTime,  // OUT: Time in Unix forma
                           VmTimeType ntTime)          // IN: Time in Windows NT format
 {
    ASSERT(unixTime);
-#ifndef VM_64BIT
-   /* We assume that time_t is 32bit */
-   ASSERT(sizeof (unixTime->tv_sec) == 4);
-
-   /* Cap NT time values that are outside of Unix time's range */
-
-   if (ntTime >= UNIX_S32_MAX) {
-      unixTime->tv_sec = 0x7FFFFFFF;
-      unixTime->tv_nsec = 0;
-      return 1;
-   }
-#endif // ifndef VM_64BIT
 
    if (ntTime < UNIX_EPOCH) {
       unixTime->tv_sec = 0;
@@ -913,19 +901,27 @@ TimeUtil_NtTimeToUnixTime(struct timespec *unixTime,  // OUT: Time in Unix forma
       return -1;
    }
 
-#ifdef __i386__ // only for 32-bit x86
-   {
-      uint32 sec;
-      uint32 nsec;
+#ifdef __i386__
+   if (sizeof unixTime->tv_sec == 4) {
+      uint32 sec,nsec;
+
+      /* Cap NT time values that are outside of Unix time's range */
+      if (ntTime >= UNIX_S32_MAX) {
+         unixTime->tv_sec = 0x7FFFFFFF;
+         unixTime->tv_nsec = 0;
+         return 1;
+      }
 
       Div643232(ntTime - UNIX_EPOCH, 10000000, &sec, &nsec);
       unixTime->tv_sec = sec;
       unixTime->tv_nsec = nsec * 100;
+
+      return 0;
    }
-#else
+#endif
+
    unixTime->tv_sec = (ntTime - UNIX_EPOCH) / 10000000;
    unixTime->tv_nsec = ((ntTime - UNIX_EPOCH) % 10000000) * 100;
-#endif // __i386__
 
    return 0;
 }

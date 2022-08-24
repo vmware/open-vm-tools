@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2019,2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -55,6 +55,7 @@
  * need to include <glib.h> here.
  */
 #include <glib.h>
+#include <giommconfig.h> // For GIOMM_*_VERSION macros
 #include <glibmm/ustring.h>
 
 #ifdef _WIN32
@@ -101,6 +102,18 @@ public:
    static const size_type npos;
 
    // Normalize mode map to Glib::NormalizeMode
+#if GIOMM_MAJOR_VERSION >= 2 && GIOMM_MINOR_VERSION >= 68
+   typedef enum {
+      NORMALIZE_DEFAULT          = (int)Glib::NormalizeMode::DEFAULT,
+      NORMALIZE_NFD              = (int)Glib::NormalizeMode::NFD,
+      NORMALIZE_DEFAULT_COMPOSE  = (int)Glib::NormalizeMode::DEFAULT_COMPOSE,
+      NORMALIZE_NFC              = (int)Glib::NormalizeMode::NFC,
+      NORMALIZE_ALL              = (int)Glib::NormalizeMode::ALL,
+      NORMALIZE_NFKD             = (int)Glib::NormalizeMode::NFKD,
+      NORMALIZE_ALL_COMPOSE      = (int)Glib::NormalizeMode::ALL_COMPOSE,
+      NORMALIZE_NFKC             = (int)Glib::NormalizeMode::NFKC
+   } NormalizeMode;
+#else
    typedef enum {
       NORMALIZE_DEFAULT          = Glib::NORMALIZE_DEFAULT,
       NORMALIZE_NFD              = Glib::NORMALIZE_NFD,
@@ -111,6 +124,7 @@ public:
       NORMALIZE_ALL_COMPOSE      = Glib::NORMALIZE_ALL_COMPOSE,
       NORMALIZE_NFKC             = Glib::NORMALIZE_NFKC
    } NormalizeMode;
+#endif
 
    string();
    string(const char *s);

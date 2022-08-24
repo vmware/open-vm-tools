@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2021 VMware, Inc. All rights reserved.
+ * Copyright (c) 2003-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -787,7 +787,7 @@ RDTSC(void)
     * bora/lib/vprobe/arm64/vp_emit_tc.c::VpEmit_BuiltinRDTSCWork()
     * bora/modules/vmkernel/tests/core/xmapTest/xmapTest_arm64.c::XMapTest_SetupLoopCode()
     */
-#if (defined(VMKERNEL) || defined(VMM)) && !defined(VMK_ARM_EL1)
+#if (defined(VMKERNEL) || defined(VMM)) && !defined(VMK_ARM_EL1_OR_VHE)
    return MRS(CNTPCT_EL0);
 #else
    return MRS(CNTVCT_EL0);
@@ -1289,7 +1289,7 @@ PopCount64(uint64 value)
  *      Enforce ordering on memory operations witnessed by and
  *      affected by interrupt handlers.
  *
- *      This should be used to replace the legacy COMPILER_*_BARRIER
+ *      This should be used to replace the legacy COMPILER_MEM_BARRIER
  *      for code that has been audited to determine it only needs
  *      ordering with respect to interrupt handlers, and not to other
  *      CPUs (SMP_*), memory-mapped I/O (MMIO_*), or DMA (DMA_*).

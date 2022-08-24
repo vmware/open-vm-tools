@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -335,3 +335,41 @@ Hostinfo_GetOSDetailedData(void)
 
    return detailedData;
 }
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Hostinfo_QueryProcessExistence --
+ *
+ *      Determine if a PID is "alive" or "dead". Failing to be able to
+ *      do this perfectly, do not make any assumption - say the answer
+ *      is unknown.
+ *
+ * Results:
+ *      HOSTINFO_PROCESS_QUERY_ALIVE    Process is alive
+ *      HOSTINFO_PROCESS_QUERY_DEAD     Process is dead
+ *      HOSTINFO_PROCESS_QUERY_UNKNOWN  Don't know
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+HostinfoProcessQuery
+Hostinfo_QueryProcessExistence(int pid)  // IN:
+{
+   HostinfoProcessQuery ret;
+   HostinfoProcessSnapshot *s = Hostinfo_AcquireProcessSnapshot();
+
+   if (s == NULL) {
+      return HOSTINFO_PROCESS_QUERY_UNKNOWN;
+   }
+
+   ret = Hostinfo_QueryProcessSnapshot(s, pid);
+
+   Hostinfo_ReleaseProcessSnapshot(s);
+
+   return ret;
+}
+

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -512,14 +512,7 @@ typedef uint64    PhysMemOff;
 typedef uint64    PhysMemSize;
 
 typedef uint64    BA;
-#ifdef VMKERNEL
-typedef void     *BPN;
-#else
 typedef uint64    BPN;
-#endif
-
-#define UINT64_2_BPN(u) ((BPN)(u))
-#define BPN_2_UINT64(b) ((uint64)(b))
 
 typedef uint64    PageCnt;
 typedef uint64    PageNum;
@@ -563,7 +556,7 @@ typedef uint128 UReg128;
 
 #if (defined(VMM) || defined(COREQUERY) || defined(EXTDECODER) ||  \
      defined (VMKERNEL) || defined (VMKBOOT) || defined (ULM)) &&  \
-    !defined (FROBOS)
+    !defined (FROBOS) || defined (VSAN_USERLEVEL)
 typedef  Reg64  Reg;
 typedef UReg64 UReg;
 #endif
@@ -772,11 +765,11 @@ typedef void * UserVA;
 #endif
 
 /*
- * Similarly, we require a compiler that is at least vs2012.
+ * Similarly, we require a compiler that is at least vs2015.
  * Enforce this here.
  */
-#if defined _MSC_VER && _MSC_VER < 1700
-#error "cl.exe version is too old, need vs2012 or better"
+#if defined _MSC_VER && _MSC_VER < 1900
+#error "cl.exe version is too old, need vs2015 or better"
 #endif
 
 

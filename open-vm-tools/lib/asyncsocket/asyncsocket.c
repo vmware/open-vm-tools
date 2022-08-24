@@ -2658,8 +2658,8 @@ AsyncTCPSocketRecv(AsyncSocket *base,   // IN:
  *
  * AsyncTCPSocketRecvPassedFd --
  *
- *      See AsyncTCPSocketRecv. Besides that it allows for receiving one file
- *      descriptor...
+ *      See AsyncTCPSocket_Recv.  Besides that it allows for receiving one
+ *      file descriptor...
  *
  * Results:
  *      ASOCKERR_*.

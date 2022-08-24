@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -113,6 +113,7 @@ static const char* ERRORED         = "ERRORED";
 #ifndef IMGCUST_UNITTEST
 static const char* RUNDIR          = "/run";
 static const char* VARRUNDIR       = "/var/run";
+static const char* VARRUNIMCDIR    = "/var/run/vmware-imc";
 #endif
 static const char* TMPDIR          = "/tmp";
 
@@ -122,6 +123,7 @@ static const int CUST_GENERIC_ERROR = 255;
 static const int CUST_NETWORK_ERROR = 254;
 static const int CUST_NIC_ERROR     = 253;
 static const int CUST_DNS_ERROR     = 252;
+static const int CUST_SCRIPT_DISABLED_ERROR = 6;
 
 // the error code to use cloudinit workflow
 typedef enum USE_CLOUDINIT_ERROR_CODE {
@@ -1326,8 +1328,11 @@ Deploy(const char* packageName)
 #ifdef IMGCUST_UNITTEST
    baseDirPath = TMPDIR;
 #else
+   // PR 2942062, Use /var/run/vmware-imc if the directory exists
    // PR 2127543, Use /var/run or /run but /tmp firstly
-   if (File_IsDirectory(VARRUNDIR)) {
+   if (File_IsDirectory(VARRUNIMCDIR)) {
+      baseDirPath = VARRUNIMCDIR;
+   } else if (File_IsDirectory(VARRUNDIR)) {
       baseDirPath = VARRUNDIR;
    } else if (File_IsDirectory(RUNDIR)) {
       baseDirPath = RUNDIR;
@@ -1442,6 +1447,11 @@ Deploy(const char* packageName)
             SetCustomizationStatusInVmx(TOOLSDEPLOYPKG_RUNNING,
                                         GUESTCUST_EVENT_NETWORK_SETUP_FAILED,
                                         NULL);
+         } else if (deploymentResult == CUST_SCRIPT_DISABLED_ERROR) {
+            sLog(log_info,
+                 "Setting custom script disabled error status in vmx.");
+            SetCustomizationStatusInVmx(TOOLSDEPLOYPKG_RUNNING,
+               TOOLSDEPLOYPKG_ERROR_CUST_SCRIPT_DISABLED, NULL);
          } else {
             sLog(log_info, "Setting '%s' error status in vmx.",
                  deploymentResult == CUST_GENERIC_ERROR ? "generic" : "unknown");

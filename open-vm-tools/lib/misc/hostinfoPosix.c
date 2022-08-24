@@ -75,7 +75,7 @@
 #if !defined(sun) && !defined __ANDROID__ && (!defined(USING_AUTOCONF) || \
                                               (defined(HAVE_SYS_IO_H) && \
                                                defined(HAVE_SYS_SYSINFO_H)))
-#if defined(__i386__) || defined(__x86_64__) || defined(__arm__)
+#if defined(__i386__) || defined(__x86_64__)
 #include <sys/io.h>
 #else
 #define NO_IOPL
@@ -1867,6 +1867,11 @@ HostinfoDefaultLinux(char *distro,            // OUT/OPT:
    case 5:
       distroOut = STR_OS_OTHER_5X_FULL;
       distroShortOut = STR_OS_OTHER_5X;
+      break;
+
+   case 6:
+      distroOut = STR_OS_OTHER_6X_FULL;
+      distroShortOut = STR_OS_OTHER_6X;
       break;
 
    default:
@@ -4391,11 +4396,67 @@ Hostinfo_GetLibraryPath(void *addr)  // IN
 /*
  *----------------------------------------------------------------------
  *
- * Hostinfo_QueryProcessExistence --
+ * Hostinfo_AcquireProcessSnapshot --
  *
- *      Determine if a PID is "alive" or "dead". Failing to be able to
- *      do this perfectly, do not make any assumption - say the answer
- *      is unknown.
+ *      Acquire a snapshot of the process table. On POSIXen, this is
+ *      a NOP.
+ *
+ * Results:
+ *      !NULL - A process snapshot pointer.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+struct HostinfoProcessSnapshot {
+   int dummy;
+};
+
+static HostinfoProcessSnapshot hostinfoProcessSnapshot = { 0 };
+
+HostinfoProcessSnapshot *
+Hostinfo_AcquireProcessSnapshot(void)
+{
+   return &hostinfoProcessSnapshot;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Hostinfo_ReleaseProcessSnapshot --
+ *
+ *      Release a snapshot of the process table. On POSIXen, this is
+ *      a NOP.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+Hostinfo_ReleaseProcessSnapshot(HostinfoProcessSnapshot *s)  // IN/OPT:
+{
+   if (s != NULL) {
+      VERIFY(s == &hostinfoProcessSnapshot);
+   }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Hostinfo_QueryProcessSnapshot --
+ *
+ *      Determine if a PID is "alive" or "dead" within the specified
+ *      process snapshot. Failing to be able to do this perfectly,
+ *      do not make any assumption - say the answer is unknown.
  *
  * Results:
  *      HOSTINFO_PROCESS_QUERY_ALIVE    Process is alive
@@ -4409,12 +4470,14 @@ Hostinfo_GetLibraryPath(void *addr)  // IN
  */
 
 HostinfoProcessQuery
-Hostinfo_QueryProcessExistence(int pid)  // IN:
+Hostinfo_QueryProcessSnapshot(HostinfoProcessSnapshot *s,  // IN:
+                              int pid)                     // IN:
 {
    HostinfoProcessQuery ret;
-   int err = (kill(pid, 0) == -1) ? errno : 0;
 
-   switch (err) {
+   ASSERT(s != NULL);
+
+   switch ((kill(pid, 0) == -1) ? errno : 0) {
    case 0:
    case EPERM:
       ret = HOSTINFO_PROCESS_QUERY_ALIVE;
@@ -4429,3 +4492,4 @@ Hostinfo_QueryProcessExistence(int pid)  // IN:
 
    return ret;
 }
+

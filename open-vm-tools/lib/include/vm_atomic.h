@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -229,40 +229,59 @@ Atomic_ReadIfEqualWrite128(Atomic_uint128 *ptr,   // IN/OUT
                            uint128        oldVal, // IN
                            uint128        newVal) // IN
 {
-#ifdef __GCC_HAVE_SYNC_COMPARE_AND_SWAP_16
+#if defined VM_ARM_64
+   /*
+    * Don't use __sync_val_compare_and_swap, as this cannot magically
+    * use the right (LL/SC vs LSE) atomics without -moutline-atomics.
+    */
+#if __GNUC__ >= 9
+   if (Atomic_HaveLSE) {
+      SMP_RW_BARRIER_RW();
+      __asm__ __volatile__(
+         ".arch armv8.2-a            \n\t"
+         "casp %0, %H0, %2, %H2, %1  \n\t"
+         : "+r" (oldVal),
+           "+Q" (ptr->value)
+         : "r" (newVal)
+      );
+      SMP_RW_BARRIER_RW();
+      return oldVal;
+   } else
+#endif /* __GNUC__ */
+   {
+      union {
+         uint128 raw;
+         struct {
+            uint64 lo;
+            uint64 hi;
+         };
+      } res, _old = { oldVal }, _new = { newVal };
+      uint32 failed;
+
+      SMP_RW_BARRIER_RW();
+      __asm__ __volatile__(
+         "1: ldxp    %x0, %x1, %3        \n\t"
+         "   cmp     %x0, %x4            \n\t"
+         "   ccmp    %x1, %x5, #0, eq    \n\t"
+         "   b.ne    2f                  \n\t"
+         "   stxp    %w2, %x6, %x7, %3   \n\t"
+         "   cbnz    %w2, 1b             \n\t"
+         "2:                             \n\t"
+         : "=&r" (res.lo),
+           "=&r" (res.hi),
+           "=&r" (failed),
+           "+Q" (ptr->value)
+         : "r" (_old.lo),
+           "r" (_old.hi),
+           "r" (_new.lo),
+           "r" (_new.hi)
+         : "cc"
+      );
+      SMP_RW_BARRIER_RW();
+      return res.raw;
+   }
+#elif __GCC_HAVE_SYNC_COMPARE_AND_SWAP_16
    return __sync_val_compare_and_swap(&ptr->value, oldVal, newVal);
-#elif defined VM_ARM_64
-   union {
-      uint128 raw;
-      struct {
-         uint64 lo;
-         uint64 hi;
-      };
-   } res, _old = { oldVal }, _new = { newVal };
-   uint32 failed;
-
-   SMP_RW_BARRIER_RW();
-   __asm__ __volatile__(
-      "1: ldxp    %x0, %x1, %3        \n\t"
-      "   cmp     %x0, %x4            \n\t"
-      "   ccmp    %x1, %x5, #0, eq    \n\t"
-      "   b.ne    2f                  \n\t"
-      "   stxp    %w2, %x6, %x7, %3   \n\t"
-      "   cbnz    %w2, 1b             \n\t"
-      "2:                             \n\t"
-      : "=&r" (res.lo),
-        "=&r" (res.hi),
-        "=&r" (failed),
-        "+Q" (ptr->value)
-      : "r" (_old.lo),
-        "r" (_old.hi),
-        "r" (_new.lo),
-        "r" (_new.hi)
-      : "cc"
-   );
-   SMP_RW_BARRIER_RW();
-
-   return res.raw;
 #endif
 }
 #endif
@@ -1502,7 +1521,21 @@ Atomic_Sub32(Atomic_uint32 *var, // IN/OUT
    );
 #endif /* VM_X86_ANY */
 #elif defined _MSC_VER
-   _InterlockedExchangeAdd((long *)&var->value, -(long)val);
+   /*
+    * Microsoft warning C4146, enabled by the /sdl option for
+    * additional security checks, objects to `-val' when val is
+    * unsigned, even though that is always well-defined by C and has
+    * exactly the semantics we want, namely negation modulo 2^32.
+    * (The signed version, in contrast, has undefined behaviour at
+    * some inputs.)
+    *
+    * https://docs.microsoft.com/en-us/cpp/error-messages/compiler-warnings/compiler-warning-level-2-c4146?view=msvc-170
+    * https://docs.microsoft.com/en-us/cpp/build/reference/sdl-enable-additional-security-checks?view=msvc-170
+    */
+#   pragma warning(push)
+#   pragma warning(disable: 4146)
+   _InterlockedExchangeAdd((long *)&var->value, (long)-val);
+#   pragma warning(pop)
 #else
 #error No compiler defined for Atomic_Sub
 #endif
@@ -2194,9 +2227,6 @@ Atomic_ReadAdd64(Atomic_uint64 *var, // IN/OUT
  *
  *      Atomically subtracts a 64-bit integer from another.
  *
- *      Note: It is expected that val <= var.  If untrue, the result
- *            cannot be represented in an unsigned type.
- *
  * Results:
  *      Returns the old value just prior to the subtraction
  *
@@ -2213,7 +2243,25 @@ Atomic_ReadSub64(Atomic_uint64 *var, // IN/OUT
 #if defined __GNUC__ && defined VM_ARM_64
    return _VMATOM_X(ROP, 64, TRUE, &var->value, sub, val);
 #else
-   return Atomic_ReadAdd64(var, (uint64)-(int64)val);
+#   ifdef _MSC_VER
+   /*
+    * Microsoft warning C4146, enabled by the /sdl option for
+    * additional security checks, objects to `-val' when val is
+    * unsigned, even though that is always well-defined by C and has
+    * exactly the semantics we want, namely negation modulo 2^64.
+    * (The signed version, in contrast, has undefined behaviour at
+    * some inputs.)
+    *
+    * https://docs.microsoft.com/en-us/cpp/error-messages/compiler-warnings/compiler-warning-level-2-c4146?view=msvc-170
+    * https://docs.microsoft.com/en-us/cpp/build/reference/sdl-enable-additional-security-checks?view=msvc-170
+    */
+#      pragma warning(push)
+#      pragma warning(disable: 4146)
+#   endif
+   return Atomic_ReadAdd64(var, -val);
+#   ifdef _MSC_VER
+#      pragma warning(pop)
+#   endif
 #endif
 }
 

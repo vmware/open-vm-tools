@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2019,2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -174,6 +174,9 @@ AppUtilCollectNamedIcons(GPtrArray *pixbufs,   // IN/OUT
           */
          iconSearchNameSize = strlen(iconName) + 1;
          iconSearchName = g_alloca(iconSearchNameSize);
+
+         /* Ignore return, returns length of the source string */
+         /* coverity[check_return] */
          g_strlcpy(iconSearchName, iconName, iconSearchNameSize);
 
          myIconName = NULL;
@@ -769,7 +772,7 @@ AppUtil_AppIsSkippable(const char *appName)
  *      Path, or NULL if not available
  *
  * Side effects:
- *      Allocated memory is returned 
+ *      Allocated memory is returned
  *
  *-----------------------------------------------------------------------------
  */

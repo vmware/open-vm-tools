@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -749,9 +749,9 @@ typedef uint8_t Eth_Address[ETH_ADDR_LENGTH];
 
 
 typedef enum {
-   VMXNET3_PKTSTEERING_NOACTION,
-   VMXNET3_PKTSTEERING_ACCEPT,
-   VMXNET3_PKTSTEERING_REJECT,
+   VMXNET3_PKTSTEERING_NOACTION,    /* Not currently supported */
+   VMXNET3_PKTSTEERING_ACCEPT,      /* Steer the packet to a specified rxQid */
+   VMXNET3_PKTSTEERING_REJECT,      /* Drop the packet */
    VMXNET3_PKTSTEERING_ACTION_MAX,
 } Vmxnet3_PktSteeringAction;
 
@@ -1118,29 +1118,38 @@ do {\
 
 
 #define VMXNET3_DCR_ERROR    31    /* error when bit 31 of DCR * is set */
-#define VMXNET3_CAP_UDP_RSS           0    /* bit 0 of DCR 0 */
-#define VMXNET3_CAP_ESP_RSS_IPV4      1    /* bit 1 of DCR 0 */
+
+#define VMXNET3_CAP_UDP_RSS           0          /* bit 0 of DCR 0 */
+#define VMXNET3_CAP_ESP_RSS_IPV4      1          /* bit 1 of DCR 0 */
 #define VMXNET3_CAP_GENEVE_CHECKSUM_OFFLOAD   2  /* bit 2 of DCR 0 */
 #define VMXNET3_CAP_GENEVE_TSO        3          /* bit 3 of DCR 0 */
 #define VMXNET3_CAP_VXLAN_CHECKSUM_OFFLOAD    4  /* bit 4 of DCR 0 */
 #define VMXNET3_CAP_VXLAN_TSO         5          /* bit 5 of DCR 0 */
 #define VMXENT3_CAP_GENEVE_OUTER_CHECKSUM_OFFLOAD 6 /* bit 6 of DCR 0 */
 #define VMXNET3_CAP_VXLAN_OUTER_CHECKSUM_OFFLOAD  7 /* bit 7 of DCR 0 */
+#define VMXNET3_CAP_VERSION_4_MAX \
+   (VMXNET3_CAP_VXLAN_OUTER_CHECKSUM_OFFLOAD + 1)
+
 #define VMXNET3_CAP_PKT_STEERING_IPV4 8   /* bit 8 of DCR 0 */
-#define VMXNET3_CAP_VERSION_4_MAX  VMXNET3_CAP_PKT_STEERING_IPV4
+#define VMXNET3_CAP_VERSION_5_MAX  (VMXNET3_CAP_PKT_STEERING_IPV4 + 1)
+
 #define VMXNET3_CAP_ESP_RSS_IPV6      9   /* bit 9 of DCR 0 */
-#define VMXNET3_CAP_VERSION_5_MAX VMXNET3_CAP_ESP_RSS_IPV6
-#define VMXNET3_CAP_ESP_OVER_UDP_RSS 10  /* bit 10 of DCR 0 */
-#define VMXNET3_CAP_INNER_RSS        11  /* bit 11 of DCR 0 */
-#define VMXNET3_CAP_INNER_ESP_RSS    12 /* bit 12 of DCR 0 */
-#define VMXNET3_CAP_CRC32_HASH_FUNC  13 /* bit 13 of DCR 0 */
-#define VMXNET3_CAP_VERSION_6_MAX  VMXNET3_CAP_CRC32_HASH_FUNC
-#define VMXNET3_CAP_OAM_FILTER       14 /* bit 14 of DCR 0 */
-#define VMXNET3_CAP_ESP_QS           15 /* bit 15 of DCR 0 */
-#define VMXNET3_CAP_LARGE_BAR        16 /* bit 16 of DCR 0 */
-#define VMXNET3_CAP_OOORX_COMP       17 /* bit 17 of DCR 0 */
-#define VMXNET3_CAP_VERSION_7_MAX    18
+#define VMXNET3_CAP_ESP_OVER_UDP_RSS 10   /* bit 10 of DCR 0 */
+#define VMXNET3_CAP_INNER_RSS        11   /* bit 11 of DCR 0 */
+#define VMXNET3_CAP_INNER_ESP_RSS    12   /* bit 12 of DCR 0 */
+#define VMXNET3_CAP_VERSION_6_MAX  (VMXNET3_CAP_INNER_ESP_RSS + 1)
+
+#define VMXNET3_CAP_CRC32_HASH_FUNC  13   /* bit 13 of DCR 0 */
+#define VMXNET3_CAP_OAM_FILTER       14   /* bit 14 of DCR 0 */
+#define VMXNET3_CAP_ESP_QS           15   /* bit 15 of DCR 0 */
+#define VMXNET3_CAP_LARGE_BAR        16   /* bit 16 of DCR 0 */
+#define VMXNET3_CAP_OOORX_COMP       17   /* bit 17 of DCR 0 */
+#define VMXNET3_CAP_VERSION_7_MAX  (VMXNET3_CAP_OOORX_COMP + 1)
+
+#define VMXNET3_CAP_PKT_STEERING_IPV6  18 /* bit 19 of DCR 0 */
+#define VMXNET3_CAP_VERSION_8_MAX  (VMXNET3_CAP_PKT_STEERING_IPV6 + 1)
+
 /* when new capability is introduced, update VMXNET3_CAP_MAX */
-#define VMXNET3_CAP_MAX              VMXNET3_CAP_VERSION_7_MAX
+#define VMXNET3_CAP_MAX              VMXNET3_CAP_VERSION_8_MAX
 
 #endif /* _VMXNET3_DEFS_H_ */

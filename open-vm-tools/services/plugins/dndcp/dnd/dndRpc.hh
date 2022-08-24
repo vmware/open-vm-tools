@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2017,2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -25,7 +25,8 @@
 #ifndef DND_RPC_HH
 #define DND_RPC_HH
 
-#include <sigc++/connection.h>
+#include <sigc++/sigc++.h>
+#include <sigc++2to3.h>
 #include "dndCPLibExport.hh"
 #include "rpcBase.h"
 

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -82,7 +82,6 @@ extern "C" {
 #define SHA1Init             VMW_SHA1Init
 #define SHA1Update           VMW_SHA1Update
 #define SHA1Final            VMW_SHA1Final
-#define SHA1RawBufferHash    VMW_SHA1RawBufferHash
 
 #endif /* !VMKERNEL */
 
@@ -113,29 +112,19 @@ typedef struct SHA1_CTX {
     unsigned char buffer[64];
 } SHA1_CTX;
 
+#if defined VMKBOOT || defined VMKERNEL
+/* New SHA1 uses are not allowed. Old uses are going away. SHA1 isn't secure. */
+void SHA1Init_Legacy(SHA1_CTX* context);
+void SHA1Update_Legacy(SHA1_CTX* context,
+                       const unsigned char *data,
+                       size_t len);
+void SHA1Final_Legacy(unsigned char digest[SHA1_HASH_LEN], SHA1_CTX* context);
+#else
 void SHA1Init(SHA1_CTX* context);
 void SHA1Update(SHA1_CTX* context,
                 const unsigned char *data,
                 size_t len);
 void SHA1Final(unsigned char digest[SHA1_HASH_LEN], SHA1_CTX* context);
-
-#if defined VMKBOOT || defined VMKERNEL
-void SHA1RawBufferHash(const void *data,
-                       uint32 size,
-                       uint32 result[5]);
-void SHA1RawTransformBlocks(uint32 state[5],
-                            const unsigned char *buffer,
-                            uint32 numBlocks);
-void SHA1RawInit(uint32 state[5]);
-
-#define SHA1_MULTI_MAX_BUFFERS 8
-
-void SHA1MultiBuffer(uint32 numBuffers,
-                     uint32 len,
-                     const void *salt,
-                     uint32 saltLen,
-                     const void *data[],
-                     unsigned char *digests[]);
 #endif
 
 #endif // defined __APPLE__ && defined USERLEVEL

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -419,37 +419,6 @@ Hostinfo_HyperV(void)
 #endif
 
    return hyperVAvailable;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- *  Hostinfo_NestedHVReplaySupported --
- *
- *      Access the backdoor with a HV replay control query. This is used
- *      to determine if we are running in a VM that supports nested HV replay.
- *      This function should only be called after determining that the
- *	backdoor is present with Hostinfo_TouchBackdoor().
- *
- * Results:
- *      TRUE if the outer VM supports nexted HV replay.
- *      FALSE otherwise.
- *
- * Side effects:
- *      Exception if not in a VM, so don't do that!
- *
- *----------------------------------------------------------------------
- */
-
-Bool
-Hostinfo_NestedHVReplaySupported(void)
-{
-#if defined(__i386__) || defined(__x86_64__)
-   return Hostinfo_VCPUInfoBackdoor(BDOOR_CMD_VCPU_HV_REPLAY_OK);
-#else
-   return FALSE;
-#endif
 }
 
 

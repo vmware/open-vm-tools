@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -164,6 +164,7 @@
    LOGLEVEL_VAR(mksDX11Basic), \
    LOGLEVEL_VAR(mksDX11ResourceView), \
    LOGLEVEL_VAR(mksDX11ShimOps), \
+   LOGLEVEL_VAR(mksDX12Renderer), \
    LOGLEVEL_VAR(mksFrame), \
    LOGLEVEL_VAR(mksGLBasic), \
    LOGLEVEL_VAR(mksGLContextMux), \

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2014, 2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 2014, 2021-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -55,11 +55,12 @@
  */
 
 #define RUNNING_ON_VALGRIND 0
-#define VALGRIND_CHECK_VALUE_IS_DEFINED(__lvalue) 0
-#define VALGRIND_CHECK_MEM_IS_ADDRESSABLE(_qzz_addr, _qzz_len) 0
-#define VALGRIND_CHECK_MEM_IS_DEFINED(_qzz_addr, _qzz_len) 0
-#define VALGRIND_MAKE_MEM_DEFINED(_qzz_addr, _qzz_len) 0
-#define VALGRIND_MAKE_MEM_UNDEFINED(_qzz_addr, _qzz_len) 0
+#define VALGRIND_CHECK_VALUE_IS_DEFINED(__lvalue) (void)0
+#define VALGRIND_CHECK_MEM_IS_ADDRESSABLE(_qzz_addr, _qzz_len) (void)0
+#define VALGRIND_CHECK_MEM_IS_DEFINED(_qzz_addr, _qzz_len) (void)0
+#define VALGRIND_MAKE_MEM_NOACCESS(_qzz_addr, _qzz_len) (void)0
+#define VALGRIND_MAKE_MEM_DEFINED(_qzz_addr, _qzz_len) (void)0
+#define VALGRIND_MAKE_MEM_UNDEFINED(_qzz_addr, _qzz_len) (void)0
 
 #endif
 

@@ -94,7 +94,10 @@ get_cassandra_version() {
       IS_LI_CASSANDRA=`echo $CASSANDRA_INSTALL_PATH | grep "loginsight"`
       [ ! -z "$IS_LI_CASSANDRA" ] &&  export CASSANDRA_CONF="/storage/core/loginsight/cidata/cassandra/config"
       echo VERSIONSTART cassandra_version "$("${CASSANDRA_INSTALL_PATH}/bin/cassandra" -v 2>/dev/null)" VERSIONEND
-    fi
+    else
+      CASSANDRA_CMD=$(get_command_line $p | grep -Eo "CassandraDaemon")
+      [ ! -z "$CASSANDRA_CMD" ] && echo VERSIONSTART cassandra_version  $($(which cassandra) 2>/dev/null -v) VERSIONEND
+   fi
   done
 }
 

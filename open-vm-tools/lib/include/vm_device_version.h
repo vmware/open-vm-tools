@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998,2005-2012,2014-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998,2005-2012,2014-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -256,10 +256,13 @@
 /************* NVME implementation limits ********************************/
 #define NVME_MAX_CONTROLLERS   4
 #define NVME_MIN_NAMESPACES    1
-#define NVME_MAX_NAMESPACES    15 /* We support only 15 namespaces same
-                                   * as SCSI devices.
+#define NVME_MAX_NAMESPACES    64 /* We support 64 namespaces same
+                                   * as PVSCSI controller.
                                    */
-
+#define NVME_HW19_MAX_NAMESPACES 15 // HWv19 and before supports 15 namespaces
+#define NVME_FUTURE_MAX_NAMESPACES 256 /* To support NVME to the possible 256
+                                        * disks per controller in future.
+                                        */
 /************* SCSI implementation limits ********************************/
 #define SCSI_MAX_CONTROLLERS	 4	  // Need more than 1 for MSCS clustering
 #define	SCSI_MAX_DEVICES         16	  // BT-958 emulates only 16
@@ -276,26 +279,11 @@
 #define AHCI_MAX_PORTS SATA_MAX_DEVICES
 
 /*
- * Publicly supported maximum number of disks per VM.
+ * Official limit for supported number of disks is 440 per VM.
+ * VM can have more disks (up to 636 as of now), but such VM is not
+ * supported (main reason being too long downtime during (s)vmotion).
  */
-#define MAX_NUM_DISKS \
-   ((SATA_MAX_CONTROLLERS * SATA_MAX_DEVICES) + \
-    (SCSI_MAX_CONTROLLERS * SCSI_MAX_DEVICES) + \
-    (NVME_MAX_CONTROLLERS * NVME_MAX_NAMESPACES) + \
-    (IDE_NUM_INTERFACES * IDE_DRIVES_PER_IF))
-
-/*
- * Maximum number of supported disks in a VM from HWV14 or later, using PVSCSI updated max
- * devices.  The note above still holds true, but instead of publicly supporting
- * all devices, HWv14 simply extends the maximum support to 256 devices,
- * instead ~244 calculated above.
- *
- * PVSCSI_HW_MAX_DEVICES is 65 - allowing 64 disks + controller (at ID 7)
- * 4 * 64 = 256 devices.
- *
- */
-#define MAX_NUM_DISKS_HWV14 MAX(MAX_NUM_DISKS, \
-   (SCSI_MAX_CONTROLLERS * PVSCSI_MAX_NUM_DISKS))
+#define MAX_NUM_DISKS_SUPPORTED 440
 
 /*
  * VSCSI_BV_INTS is the number of uint32's needed for a bit vector
@@ -339,10 +327,10 @@
 #define MAX_FLOPPY_DRIVES      2
 
 /************* PCI Passthrough implementation limits ********************/
-#define MAX_PCI_PASSTHRU_DEVICES 32
+#define MAX_PCI_PASSTHRU_DEVICES 128
 
 /************* Test device implementation limits ********************/
-#define MAX_PCI_TEST_DEVICES 32
+#define MAX_PCI_TEST_DEVICES 128
 
 /************* VDTI PCI Device implementation limits ********************/
 #define MAX_VDTI_PCI_DEVICES 16

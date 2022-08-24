@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -441,23 +441,26 @@ DeployPkgGetTempDir(void)
    int randIndex;
 #ifndef _WIN32
    /*
-    * PR 2115630. On Linux, use /var/run or /run directory
-    * to hold the package.
+    * The directories in the array must be sorted by priority from high to low.
+    * PR 2942062. On Nested ESXi, use /var/run/vmware-imc directory to hold the
+    * package if it exists.
+    * PR 2115630. On Linux, use /var/run or /run directory to hold the package.
     */
-   const char *runDir = "/run";
-   const char *varRunDir = "/var/run";
+   const char *searchDirs[] = {
+      "/var/run/vmware-imc",         // The highest priority
+      "/var/run",
+      "/run"                         // The lowest priority
+   };
 
-   if (File_IsDirectory(varRunDir)) {
-      dir = strdup(varRunDir);
-      if (dir == NULL) {
-         g_warning("%s: strdup failed\n", __FUNCTION__);
-         goto exit;
-      }
-   } else if (File_IsDirectory(runDir)) {
-      dir = strdup(runDir);
-      if (dir == NULL) {
-         g_warning("%s: strdup failed\n", __FUNCTION__);
-         goto exit;
+   size_t index;
+   for (index = 0; index < ARRAYSIZE(searchDirs); index++) {
+      if (File_IsDirectory(searchDirs[index])) {
+         dir = strdup(searchDirs[index]);
+         if (dir == NULL) {
+            g_warning("%s: strdup failed\n", __FUNCTION__);
+            goto exit;
+         }
+         break;
       }
    }
 #endif

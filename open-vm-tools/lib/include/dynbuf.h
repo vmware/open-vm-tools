@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -75,6 +75,12 @@ DynBuf_Append(DynBuf *b,        // IN/OUT
               void const *data, // IN
               size_t size);     // IN
 
+MUST_CHECK_RETURN Bool
+DynBuf_Insert(DynBuf *b,        // IN/OUT
+              size_t offset,    // IN
+              void const *data, // IN
+              size_t size);     // IN
+
 Bool
 DynBuf_Trim(DynBuf *b); // IN/OUT
 
@@ -91,6 +97,17 @@ DynBuf_SafeInternalAppend(DynBuf *b,            // IN/OUT
 
 #define DynBuf_SafeAppend(_buf, _data, _size) \
    DynBuf_SafeInternalAppend(_buf, _data, _size, __FILE__, __LINE__)
+
+void
+DynBuf_SafeInternalInsert(DynBuf *b,            // IN/OUT
+                          size_t offset,        // IN
+                          void const *data,     // IN
+                          size_t size,          // IN
+                          char const *file,     // IN
+                          unsigned int lineno); // IN
+
+#define DynBuf_SafeInsert(_buf, _offset, _data, _size) \
+   DynBuf_SafeInternalInsert(_buf, _offset, _data, _size, __FILE__, __LINE__)
 
 void
 DynBuf_SafeInternalEnlarge(DynBuf *b,            // IN/OUT

@@ -1,5 +1,5 @@
 /* **********************************************************
- * Copyright (c) 2007-2021 VMware, Inc.  All rights reserved.
+ * Copyright (c) 2007-2022 VMware, Inc.  All rights reserved.
  * **********************************************************/
 
 /*
@@ -393,14 +393,6 @@ Bool CodeSet_IsStringValidUTF8(const char *string);  // IN:
 
 Bool CodeSet_IsValidUTF8String(const char *bufIn,  // IN:
                                size_t sizeIn);     // IN:
-
-typedef struct {
-   char c;
-   char *escape;
-} CodeSetEscapeEntry;
-
-char *CodeSet_Utf8Escape(const char *utf8,                    // IN:
-                         const CodeSetEscapeEntry *entries);  // IN:
 
 char *CodeSet_JsonEscape(const char *utf8);  // IN:
 

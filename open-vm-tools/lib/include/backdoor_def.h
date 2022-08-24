@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -174,9 +174,9 @@ extern "C" {
 #define   BDOOR_CMD_SENDPSHAREHINTS          66 /* Not in use. Deprecated. */
 #define   BDOOR_CMD_ENABLE_USB_MOUSE         67
 #define   BDOOR_CMD_GET_VCPU_INFO            68
-#  define BDOOR_CMD_VCPU_SLC64                0
+//#define BDOOR_CMD_VCPU_SLC64                0 /* BT-is-dead. Deprecated. */
 #  define BDOOR_CMD_VCPU_SYNC_VTSCS           1
-#  define BDOOR_CMD_VCPU_HV_REPLAY_OK         2
+//#define BDOOR_CMD_VCPU_HV_REPLAY_OK         2 /* Replay-is-dead. Deprecated.*/
 #  define BDOOR_CMD_VCPU_LEGACY_X2APIC_OK     3
 #  define BDOOR_CMD_VCPU_MMIO_HONORS_PAT      4
 #  define BDOOR_CMD_VCPU_RESERVED            31
@@ -275,7 +275,8 @@ extern "C" {
 #define   BDOOR_CMD_COREDUMP_UNSYNC          98 /* Devel only. For VMM cores */
 #define   BDOOR_CMD_APPLE_GPU_RES_SET        99
 #define   BDOOR_CMD_GETBUILDNUM             100
-#define   BDOOR_CMD_MAX                     101
+#define   BDOOR_CMD_GETENTROPY              101 /* Configurable, off by default. */
+#define   BDOOR_CMD_MAX                     102
 
 
 /*
