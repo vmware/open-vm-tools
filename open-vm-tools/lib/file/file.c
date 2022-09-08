@@ -66,6 +66,7 @@
 #include "hostinfo.h"
 #include "hostType.h"
 #include "vm_atomic.h"
+#include "vm_basic_asm.h"
 #include "fileLock.h"
 #include "userlock.h"
 #include "strutil.h"
@@ -2243,14 +2244,24 @@ File_ExpandAndCheckDir(const char *dirName)  // IN:
 uint32
 FileSimpleRandom(void)
 {
-   static Atomic_Ptr lckStorage;
-   static rqContext *context = NULL;
    uint32 result;
-   MXUserExclLock *lck = MXUser_CreateSingletonExclLock(&lckStorage,
-                                                        "fileSimpleRandomLock",
-                                                        RANK_LEAF);
+   static rqContext *context = NULL;
+   static Atomic_uint32 spinLock = { 0 };
 
-   MXUser_AcquireExclLock(lck);
+   /*
+    * Use a spin lock here since:
+    *
+    *   The chance we'll spin in tiny.
+    *   The time spent under the spin lock is miniscule.
+    *   The time spent under the spin lock is not highly variable.
+    *   We can't get stuck under the spin lock.
+    *   The overhead of a mutex is larger than the time spent under the spin lock.
+    *   It uses much less memory than a mutex.
+    */
+
+   while (Atomic_ReadWrite(&spinLock, 1)) {
+      PAUSE();
+   }
 
    if (UNLIKELY(context == NULL)) {
       uint32 value;
@@ -2267,7 +2278,7 @@ FileSimpleRandom(void)
 
    result = Random_Quick(context);
 
-   MXUser_ReleaseExclLock(lck);
+   Atomic_Write(&spinLock, 0);
 
    return result;
 }
@@ -2279,9 +2290,9 @@ FileSimpleRandom(void)
  * FileSleeper
  *
  *      Sleep for a random amount of time, no less than the specified minimum
- *      and no more than the specified maximum sleep time values. This often
- *      proves useful to "jitter" retries such that multiple threads don't
- *      easily get into resonance performing necessary actions.
+ *      and no more than the specified maximum. This often proves useful to
+ *      "jitter" retries such that multiple threads don't easily get into
+ *      resonance performing necessary actions (e.g. retries).
  *
  * Results:
  *      Somnambulistic behavior; the amount of time slept is returned.
