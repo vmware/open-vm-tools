@@ -142,8 +142,7 @@ typedef ALIGNED(8) struct Atomic_uint64 {
    volatile uint64 value;
 } Atomic_uint64;
 
-#if defined __GNUC__ && defined VM_64BIT && \
-     (defined __GCC_HAVE_SYNC_COMPARE_AND_SWAP_16 || defined VM_ARM_64)
+#ifdef VM_HAS_INT128
 typedef ALIGNED(16) struct Atomic_uint128 {
    volatile uint128 value;
 } Atomic_uint128;
@@ -201,10 +200,8 @@ Atomic_VolatileToAtomic64(volatile uint64 *var)  // IN:
  * registers.
  */
 
-#if defined __GNUC__ && defined VM_ARM_32
 /* Force the link step to fail for unimplemented functions. */
 extern int AtomicUndefined(void const *);
-#endif
 
 
 /*
@@ -212,24 +209,25 @@ extern int AtomicUndefined(void const *);
  *
  * Atomic_ReadIfEqualWrite128 --
  *
- *      Compare and exchange a 16 byte tuple.
+ *      Compare exchange: Read variable, if equal to oldVal, write newVal
  *
  * Results:
- *      old value
+ *      The value that was compared against oldVal.
  *
  * Side effects:
- *      None
+ *      None.
  *
  *-----------------------------------------------------------------------------
  */
-#if defined __GNUC__ && defined VM_64BIT && \
-     (defined __GCC_HAVE_SYNC_COMPARE_AND_SWAP_16 || defined VM_ARM_64)
+
+#ifdef VM_HAS_INT128
 static INLINE uint128
 Atomic_ReadIfEqualWrite128(Atomic_uint128 *ptr,   // IN/OUT
                            uint128        oldVal, // IN
                            uint128        newVal) // IN
 {
-#if defined VM_ARM_64
+#if defined __GNUC__ && defined VM_ARM_64
+#define VM_HAS_ATOMIC_READIFEQUALWRITE128 // This function can be used.
    /*
     * Don't use __sync_val_compare_and_swap, as this cannot magically
     * use the right (LL/SC vs LSE) atomics without -moutline-atomics.
@@ -280,8 +278,11 @@ Atomic_ReadIfEqualWrite128(Atomic_uint128 *ptr,   // IN/OUT
       SMP_RW_BARRIER_RW();
       return res.raw;
    }
-#elif __GCC_HAVE_SYNC_COMPARE_AND_SWAP_16
+#elif defined __GNUC__ && defined __GCC_HAVE_SYNC_COMPARE_AND_SWAP_16
+#define VM_HAS_ATOMIC_READIFEQUALWRITE128 // This function can be used.
    return __sync_val_compare_and_swap(&ptr->value, oldVal, newVal);
+#else
+   return AtomicUndefined(ptr + oldVal + newVal);
 #endif
 }
 #endif
@@ -321,7 +322,7 @@ Atomic_Read8(Atomic_uint8 const *var)  // IN:
 #elif defined _MSC_VER
    val = var->value;
 #else
-#error No compiler defined for Atomic_Read8
+#error Atomic_Read8 not implemented
 #endif
 
    return val;
@@ -364,7 +365,7 @@ Atomic_ReadWrite8(Atomic_uint8 *var,  // IN/OUT:
 #elif defined _MSC_VER
    return _InterlockedExchange8((volatile char *)&var->value, val);
 #else
-#error No compiler defined for Atomic_ReadWrite8
+#error Atomic_ReadWrite8 not implemented
 #endif
 }
 
@@ -402,7 +403,7 @@ Atomic_Write8(Atomic_uint8 *var,  // IN/OUT:
 #elif defined _MSC_VER
    var->value = val;
 #else
-#error No compiler defined for Atomic_Write8
+#error Atomic_Write8 not implemented
 #endif
 }
 
@@ -415,10 +416,10 @@ Atomic_Write8(Atomic_uint8 *var,  // IN/OUT:
  *      Compare exchange: Read variable, if equal to oldVal, write newVal.
  *
  * Results:
- *      The value of the atomic variable before the write.
+ *      The value that was compared against oldVal.
  *
  * Side effects:
- *      The variable may be modified.
+ *      None.
  *
  *-----------------------------------------------------------------------------
  */
@@ -449,7 +450,7 @@ Atomic_ReadIfEqualWrite8(Atomic_uint8 *var,  // IN/OUT:
    return _InterlockedCompareExchange8((volatile char *)&var->value,
                                        newVal, oldVal);
 #else
-#error No compiler defined for Atomic_ReadIfEqualWrite8
+#error Atomic_ReadIfEqualWrite8 not implemented
 #endif
 }
 
@@ -878,7 +879,7 @@ Atomic_Read32(Atomic_uint32 const *var) // IN
 
    value = var->value;
 #else
-#error No compiler defined for Atomic_Read
+#error Atomic_Read32 not implemented
 #endif
 
    return value;
@@ -942,7 +943,7 @@ Atomic_ReadWrite32(Atomic_uint32 *var, // IN/OUT
 #elif defined _MSC_VER
    return _InterlockedExchange((long *)&var->value, (long)val);
 #else
-#error No compiler defined for Atomic_ReadWrite
+#error Atomic_ReadWrite32 not implemented
 #endif // __GNUC__
 }
 #define Atomic_ReadWrite Atomic_ReadWrite32
@@ -1024,7 +1025,7 @@ Atomic_Write32(Atomic_uint32 *var, // OUT
 
    var->value = val;
 #else
-#error No compiler defined for Atomic_Write
+#error Atomic_Write32 not implemented
 #endif
 }
 #define Atomic_Write Atomic_Write32
@@ -1038,10 +1039,10 @@ Atomic_Write32(Atomic_uint32 *var, // OUT
  *      Compare exchange: Read variable, if equal to oldVal, write newVal
  *
  * Results:
- *      The value of the atomic variable before the write.
+ *      The value that was compared against oldVal.
  *
  * Side effects:
- *      The variable may be modified.
+ *      None.
  *
  *-----------------------------------------------------------------------------
  */
@@ -1094,7 +1095,7 @@ Atomic_ReadIfEqualWrite32(Atomic_uint32 *var, // IN/OUT
                                       (long)newVal,
                                       (long)oldVal);
 #else
-#error No compiler defined for Atomic_ReadIfEqualWrite
+#error Atomic_ReadIfEqualWrite32 not implemented
 #endif
 }
 #define Atomic_ReadIfEqualWrite Atomic_ReadIfEqualWrite32
@@ -1109,10 +1110,10 @@ Atomic_ReadIfEqualWrite32(Atomic_uint32 *var, // IN/OUT
  *      Compare exchange: Read variable, if equal to oldVal, write newVal
  *
  * Results:
- *      The value of the atomic variable before the write.
+ *      The value that was compared against oldVal.
  *
  * Side effects:
- *      The variable may be modified.
+ *      None.
  *
  *-----------------------------------------------------------------------------
  */
@@ -1186,7 +1187,7 @@ Atomic_ReadIfEqualWrite64(Atomic_uint64 *var, // IN/OUT
                                         (__int64)newVal,
                                         (__int64)oldVal);
 #else
-#error No compiler defined for Atomic_ReadIfEqualWrite64
+#error Atomic_ReadIfEqualWrite64 not implemented
 #endif
 }
 #endif
@@ -1245,7 +1246,7 @@ Atomic_And32(Atomic_uint32 *var, // IN/OUT
 #elif defined _MSC_VER
    _InterlockedAnd((long *)&var->value, (long)val);
 #else
-#error No compiler defined for Atomic_And
+#error Atomic_And32 not implemented
 #endif
 }
 #define Atomic_And Atomic_And32
@@ -1304,7 +1305,7 @@ Atomic_Or32(Atomic_uint32 *var, // IN/OUT
 #elif defined _MSC_VER
    _InterlockedOr((long *)&var->value, (long)val);
 #else
-#error No compiler defined for Atomic_Or
+#error Atomic_Or32 not implemented
 #endif
 }
 #define Atomic_Or Atomic_Or32
@@ -1363,7 +1364,7 @@ Atomic_Xor32(Atomic_uint32 *var, // IN/OUT
 #elif defined _MSC_VER
    _InterlockedXor((long *)&var->value, (long)val);
 #else
-#error No compiler defined for Atomic_Xor
+#error Atomic_Xor32 not implemented
 #endif
 }
 #define Atomic_Xor Atomic_Xor32
@@ -1405,7 +1406,7 @@ Atomic_Xor64(Atomic_uint64 *var, // IN/OUT
 #elif defined _MSC_VER
    _InterlockedXor64((__int64 *)&var->value, (__int64)val);
 #else
-#error No compiler defined for Atomic_Xor64
+#error Atomic_Xor64 not implemented
 #endif
 }
 #endif
@@ -1464,7 +1465,7 @@ Atomic_Add32(Atomic_uint32 *var, // IN/OUT
 #elif defined _MSC_VER
    _InterlockedExchangeAdd((long *)&var->value, (long)val);
 #else
-#error No compiler defined for Atomic_Add
+#error Atomic_Add32 not implemented
 #endif
 }
 #define Atomic_Add Atomic_Add32
@@ -1537,7 +1538,7 @@ Atomic_Sub32(Atomic_uint32 *var, // IN/OUT
    _InterlockedExchangeAdd((long *)&var->value, (long)-val);
 #   pragma warning(pop)
 #else
-#error No compiler defined for Atomic_Sub
+#error Atomic_Sub32 not implemented
 #endif
 }
 #define Atomic_Sub Atomic_Sub32
@@ -1577,7 +1578,7 @@ Atomic_Inc32(Atomic_uint32 *var) // IN/OUT
 #elif defined _MSC_VER
    _InterlockedIncrement((long *)&var->value);
 #else
-#error No compiler defined for Atomic_Inc
+#error Atomic_Inc32 not implemented
 #endif
 }
 #define Atomic_Inc Atomic_Inc32
@@ -1617,7 +1618,7 @@ Atomic_Dec32(Atomic_uint32 *var) // IN/OUT
 #elif defined _MSC_VER
    _InterlockedDecrement((long *)&var->value);
 #else
-#error No compiler defined for Atomic_Dec
+#error Atomic_Dec32 not implemented
 #endif
 }
 #define Atomic_Dec Atomic_Dec32
@@ -1829,7 +1830,7 @@ Atomic_ReadAdd32(Atomic_uint32 *var, // IN/OUT
 #elif defined _MSC_VER
    return _InterlockedExchangeAdd((long *)&var->value, (long)val);
 #else
-#error No compiler defined for Atomic_ReadAdd32
+#error Atomic_ReadAdd32 not implemented
 #endif
 }
 
@@ -1999,7 +2000,7 @@ Atomic_CMPXCHG64(Atomic_uint64 *var,   // IN/OUT
                                                            (__int64)newVal,
                                                            (__int64)oldVal);
 #else
-#error No compiler defined for Atomic_CMPXCHG64
+#error Atomic_CMPXCHG64 not implemented
 #endif // !GNUC
 }
 
@@ -2203,7 +2204,7 @@ Atomic_ReadAdd64(Atomic_uint64 *var, // IN/OUT
 #elif defined _MSC_VER
    return _InterlockedExchangeAdd64((__int64 *)&var->value, (__int64)val);
 #else
-#error No compiler defined for Atomic_ReadAdd64
+#error Atomic_ReadAdd64 not implemented
 #endif
 
 #else
@@ -2349,7 +2350,7 @@ Atomic_Add64(Atomic_uint64 *var, // IN/OUT
 #elif defined _MSC_VER
    _InterlockedExchangeAdd64((__int64 *)&var->value, (__int64)val);
 #else
-#error No compiler defined for Atomic_Add64
+#error Atomic_Add64 not implemented
 #endif
 }
 
@@ -2391,7 +2392,7 @@ Atomic_Sub64(Atomic_uint64 *var, // IN/OUT
 #elif defined _MSC_VER
    _InterlockedExchangeAdd64((__int64 *)&var->value, (__int64)-val);
 #else
-#error No compiler defined for Atomic_Sub64
+#error Atomic_Sub64 not implemented
 #endif
 }
 
@@ -2430,7 +2431,7 @@ Atomic_Inc64(Atomic_uint64 *var) // IN/OUT
 #elif defined _MSC_VER
    _InterlockedIncrement64((__int64 *)&var->value);
 #else
-#error No compiler defined for Atomic_Inc64
+#error Atomic_Inc64 not implemented
 #endif
 }
 
@@ -2469,7 +2470,7 @@ Atomic_Dec64(Atomic_uint64 *var) // IN/OUT
 #elif defined _MSC_VER
    _InterlockedDecrement64((__int64 *)&var->value);
 #else
-#error No compiler defined for Atomic_Dec64
+#error Atomic_Dec64 not implemented
 #endif
 }
 
@@ -2867,7 +2868,7 @@ Atomic_Read16(Atomic_uint16 const *var) // IN
 #elif defined VM_ARM_64
    value = _VMATOM_X(R, 16, &var->value);
 #else
-#error No 16-bits atomics.
+#error Atomic_Read16 not implemented
 #endif
 #endif
 
@@ -2929,7 +2930,7 @@ Atomic_ReadWrite16(Atomic_uint16 *var,  // IN/OUT:
 #elif defined VM_ARM_64
    return _VMATOM_X(RW, 16, TRUE, &var->value, val);
 #else
-#error No 16-bits atomics.
+#error Atomic_ReadWrite16 not implemented
 #endif
 #endif
 }
@@ -2975,7 +2976,7 @@ Atomic_Write16(Atomic_uint16 *var,  // OUT:
     */
    Atomic_ReadWrite16(var, val);
 #else
-#error No 16-bits atomics.
+#error Atomic_Write16 not implemented
 #endif
 #endif
 }
@@ -2989,10 +2990,10 @@ Atomic_Write16(Atomic_uint16 *var,  // OUT:
  *      Compare exchange: Read variable, if equal to oldVal, write newVal
  *
  * Results:
- *      The value of the atomic variable before the write.
+ *      The value that was compared against oldVal.
  *
  * Side effects:
- *      The variable may be modified.
+ *      None.
  *
  *-----------------------------------------------------------------------------
  */
@@ -3041,7 +3042,7 @@ Atomic_ReadIfEqualWrite16(Atomic_uint16 *var,   // IN/OUT
 #elif defined VM_ARM_64
    return _VMATOM_X(RIFEQW, 16, TRUE, &var->value, oldVal, newVal);
 #else
-#error No 16-bits atomics.
+#error Atomic_ReadIfEqualWrite16 not implemented
 #endif
 #endif
 }
@@ -3098,7 +3099,7 @@ Atomic_And16(Atomic_uint16 *var, // IN/OUT
 #elif defined VM_ARM_64
    _VMATOM_X(OP, 16, TRUE, &var->value, and, val);
 #else
-#error No 16-bits atomics.
+#error Atomic_And16 not implemented
 #endif
 #endif
 }
@@ -3155,7 +3156,7 @@ Atomic_Or16(Atomic_uint16 *var, // IN/OUT
 #elif defined VM_ARM_64
    _VMATOM_X(OP, 16, TRUE, &var->value, orr, val);
 #else
-#error No 16-bits atomics.
+#error Atomic_Or16 not implemented
 #endif
 #endif
 }
@@ -3212,7 +3213,7 @@ Atomic_Xor16(Atomic_uint16 *var, // IN/OUT
 #elif defined VM_ARM_64
    _VMATOM_X(OP, 16, TRUE, &var->value, eor, val);
 #else
-#error No 16-bits atomics.
+#error Atomic_Xor16 not implemented
 #endif
 #endif
 }
@@ -3269,7 +3270,7 @@ Atomic_Add16(Atomic_uint16 *var, // IN/OUT
 #elif defined VM_ARM_64
    _VMATOM_X(OP, 16, TRUE, &var->value, add, val);
 #else
-#error No 16-bits atomics.
+#error Atomic_Add16 not implemented
 #endif
 #endif
 }
@@ -3326,7 +3327,7 @@ Atomic_Sub16(Atomic_uint16 *var, // IN/OUT
 #elif defined VM_ARM_64
    _VMATOM_X(OP, 16, TRUE, &var->value, sub, val);
 #else
-#error No 16-bits atomics.
+#error Atomic_Sub16 not implemented
 #endif
 #endif
 }
@@ -3362,7 +3363,7 @@ Atomic_Inc16(Atomic_uint16 *var) // IN/OUT
 #elif defined VM_ARM_ANY
    Atomic_Add16(var, 1);
 #else
-#error No 16-bits atomics.
+#error Atomic_Inc16 not implemented
 #endif
 #endif
 }
@@ -3398,7 +3399,7 @@ Atomic_Dec16(Atomic_uint16 *var) // IN/OUT
 #elif defined VM_ARM_ANY
    Atomic_Sub16(var, 1);
 #else
-#error No 16-bits atomics.
+#error Atomic_Dec16 not implemented
 #endif
 #endif
 }
@@ -3494,7 +3495,7 @@ Atomic_ReadAdd16(Atomic_uint16 *var,  // IN/OUT
 #elif defined VM_ARM_64
    return _VMATOM_X(ROP, 16, TRUE, &var->value, add, val);
 #else
-#error No 16-bits atomics.
+#error Atomic_ReadAdd16 not implemented
 #endif
 #endif
 }

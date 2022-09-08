@@ -56,12 +56,10 @@
  *********************************************************/
 
 /*
- *
  * vm_basic_types.h --
  *
- *    basic data types.
+ *      Basic data types.
  */
-
 
 #ifndef _VM_BASIC_TYPES_H_
 #define _VM_BASIC_TYPES_H_
@@ -351,7 +349,8 @@ typedef char           Bool;
 #endif
 
 
-#if defined(__GNUC__) && defined(__SIZEOF_INT128__)
+#if defined __GNUC__ && defined __SIZEOF_INT128__
+#define VM_HAS_INT128 // 128-bit integers can be used.
 
 typedef unsigned __int128 uint128;
 typedef          __int128  int128;
@@ -360,7 +359,6 @@ typedef          __int128  int128;
 #define MAX_INT128   (~MIN_INT128)
 #define MIN_UINT128  ((uint128)0)
 #define MAX_UINT128  (~MIN_UINT128)
-
 #endif
 
 
