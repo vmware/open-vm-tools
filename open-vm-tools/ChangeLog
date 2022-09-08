@@ -1,3 +1,174 @@
+commit 29b92ada5842c2b9d1cde7dbc9dafb69d6a18b96
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Sep 8 14:51:40 2022 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 775671dc79aa47d82df2ad43e63e18d215625510
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Sep 8 14:51:40 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 95b78cf63ea7dc37b6d9bd5b0f37cd074359ed0f
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Sep 8 14:51:40 2022 -0700
+
+    Changes to common header files not applicable to open-vm-tools.
+
+commit 8fa7eef2d27971753d9d6d1dd4fd5bd1a7a3dd17
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Sep 8 14:51:40 2022 -0700
+
+    [dnd] Coverity Fixes
+    
+    dndCommon.c
+    - truncating time value; false positive
+
+commit 900e24d53bca579d8ad6b12687daf670fb7fe5a6
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Sep 8 14:51:40 2022 -0700
+
+    [asyncsocket] Coverity Fixes
+    
+    asyncsocket.c
+    - dereferencing null pointer (asock); false positive.
+
+commit 8aa0bc98bf2986b47800dd7eaf544e7e800a075e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Sep 8 14:51:40 2022 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit d3a4f33d29db6050ca84f504c9d3a557484e4a7d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Sep 8 14:51:40 2022 -0700
+
+    Common header file change not applicable to open-vm=tools.
+
+commit bdca47456a592040474b21ad0db40f820dcc87f9
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Sep 8 14:51:40 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 2875dd33aa494879103b9bf6a635781a99c1292a
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Sep 8 14:51:40 2022 -0700
+
+    lib/rpcin/rpcin.c: Address issues reported by Coverity.
+
+commit bbf4831bcfdb90428dae3aeee2304e5e16f7c7a9
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Sep 8 14:51:40 2022 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit d379cf84e479c11f4c3b470130a27f22005ab56d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Sep 8 14:51:40 2022 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 8a8bcb4ad1773fd62ad5a8bee352bf6ed34946a6
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Sep 8 14:51:39 2022 -0700
+
+    Move HostinfoProcessQuery() from hostinfo.c into hostinfoPosix.c.
+
+commit c6de70b61177943130040563243ba6f671a0556e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Sep 8 14:51:39 2022 -0700
+
+    L10n drop for open-vm-tools 12.1.0.
+
+commit b6c4eca1f575a6f116a3ce9e1bbb6e99dd134d33
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Sep 8 14:51:39 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 53f331ccbbbc57eeaf4dfc51c94ec6f3e9a31a65
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Sep 8 14:51:39 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 662eb2af666ca75532777ac28a11e29df1a6b413
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Sep 8 14:51:39 2022 -0700
+
+    lib/file: Speed up FileSimpleRandom.
+    
+    Also remove potential lock rank violations.
+
+commit db405bfe35567f1cafaff49c623d1f5568baea58
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Sep 8 14:51:39 2022 -0700
+
+    Bump the open-vm-tools version to 12.2.0 in the "devel" branch.
+    
+    Setting the development open-vm-tools version to 12.2.0.
+    Adding the tag name "MITER_SAW_RELEASE" to tools version 12.1.0
+
+commit 366096f02bbaa95e057ed89a5de5c05a1168d23c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Sep 8 14:51:39 2022 -0700
+
+    Record the use of VMware Tools version 12.0.6 for an express patch.
+    
+    Adding the use of version 12.0.6 to lib/include/vm_tools_version.h.
+
+commit 948eb98761b2662bceda35791a3be420391ebec3
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Sep 8 14:51:39 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 7066a131959f212a71e678f7538159b5f421ffc1
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Sep 8 14:51:39 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit a2299e2022718f7fd833714a2252252c07249745
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Sep 8 14:51:39 2022 -0700
+
+    lib/file: Clarify why File_GetSize opens and closes the file.
+    
+    Spell out what's going on.
+
+commit d1f0cb0906d3a479fd3a3320ea202d96134fb16d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Sep 8 14:51:39 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 3f426fb27d85e71e10bb3264f622fdca0d1f8cd7
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Sep 8 14:51:39 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 7991ed9acfe0917bc8642a48e7db82db5c779277
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Sep 8 14:51:39 2022 -0700
+
+    Changes to common header files not applicable to open-vm-tools.
+
+commit 365db99d442774c49234ae157fc4373d0bb6c4f8
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Sep 8 14:51:39 2022 -0700
+
+    Common source file changes not applicable to open-vm-tools.
+
+commit 732bb7a3287ebdb2be079f364da4b0ea6a4c08bd
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Sun Aug 21 12:42:12 2022 -0700
+
+    ChangeLog update of Aug. 21, 2020
+
 commit 7fa57304ab41a26f1de972f4a024e7da3632df69
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Sun Aug 21 09:37:23 2022 -0700
