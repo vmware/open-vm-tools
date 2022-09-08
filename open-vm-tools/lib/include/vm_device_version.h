@@ -354,6 +354,10 @@
 /************* DeviceGroup implementation limits ********************/
 #define MAX_DEVICE_GROUP_DEVICES 4
 
+/************* Serial/Parallel Ports limits ********************/
+#define NUM_SERIAL_PORTS     32
+#define NUM_PARALLEL_PORTS   3
+
 /************* Strings for Host USB Driver *******************************/
 
 #ifdef _WIN32
