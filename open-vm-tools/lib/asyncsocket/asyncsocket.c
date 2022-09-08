@@ -3456,6 +3456,12 @@ AsyncTCPSocketSendWithFd(AsyncSocket *base,         // IN:
          AsyncTCPSocketAddRef(asock);
          asock->inLowLatencySendCb++;
          asock->internalSendFn((void *)asock);
+         /*
+          * Coverity warns that asock->internalSendFn may free asock. This is a
+          * false positive because this is a reference counted object and we've
+          * added a reference a few lines above.
+          */
+         /* coverity[deref_after_free:FALSE] */
          asock->inLowLatencySendCb--;
          AsyncTCPSocketRelease(asock);
       } else {
