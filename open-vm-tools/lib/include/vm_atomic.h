@@ -363,7 +363,7 @@ Atomic_ReadWrite8(Atomic_uint8 *var,  // IN/OUT:
    );
    return val;
 #elif defined _MSC_VER
-   ASSERT_ON_COMPILE(sizeof(volatile char) == sizeof(var->value));
+   ASSERT_ON_COMPILE(sizeof (volatile char) == sizeof var->value);
    return _InterlockedExchange8((volatile char *)&var->value, val);
 #else
 #error Atomic_ReadWrite8 not implemented
@@ -448,7 +448,7 @@ Atomic_ReadIfEqualWrite8(Atomic_uint8 *var,  // IN/OUT:
 
    return val;
 #elif defined _MSC_VER
-   ASSERT_ON_COMPILE(sizeof(volatile char) == sizeof(var->value));
+   ASSERT_ON_COMPILE(sizeof (volatile char) == sizeof var->value);
    return _InterlockedCompareExchange8((volatile char *)&var->value,
                                        newVal, oldVal);
 #else
@@ -943,7 +943,7 @@ Atomic_ReadWrite32(Atomic_uint32 *var, // IN/OUT
    return val;
 #endif /* VM_X86_ANY */
 #elif defined _MSC_VER
-   ASSERT_ON_COMPILE(sizeof(long) == sizeof(var->value));
+   ASSERT_ON_COMPILE(sizeof (long) == sizeof var->value);
    return _InterlockedExchange((long *)&var->value, (long)val);
 #else
 #error Atomic_ReadWrite32 not implemented
@@ -1094,7 +1094,7 @@ Atomic_ReadIfEqualWrite32(Atomic_uint32 *var, // IN/OUT
    return val;
 #endif /* VM_X86_ANY */
 #elif defined _MSC_VER
-   ASSERT_ON_COMPILE(sizeof(long) == sizeof(var->value));
+   ASSERT_ON_COMPILE(sizeof (long) == sizeof var->value);
    return _InterlockedCompareExchange((long *)&var->value,
                                       (long)newVal,
                                       (long)oldVal);
@@ -1187,7 +1187,7 @@ Atomic_ReadIfEqualWrite64(Atomic_uint64 *var, // IN/OUT
    return val;
 #endif //VM_ARM_V7
 #elif defined _MSC_VER
-   ASSERT_ON_COMPILE(sizeof(__int64) == sizeof(var->value));
+   ASSERT_ON_COMPILE(sizeof (__int64) == sizeof var->value);
    return _InterlockedCompareExchange64((__int64 *)&var->value,
                                         (__int64)newVal,
                                         (__int64)oldVal);
@@ -1249,7 +1249,7 @@ Atomic_And32(Atomic_uint32 *var, // IN/OUT
    );
 #endif /* VM_X86_ANY */
 #elif defined _MSC_VER
-   ASSERT_ON_COMPILE(sizeof(long) == sizeof(var->value));
+   ASSERT_ON_COMPILE(sizeof (long) == sizeof var->value);
    _InterlockedAnd((long *)&var->value, (long)val);
 #else
 #error Atomic_And32 not implemented
@@ -1309,7 +1309,7 @@ Atomic_Or32(Atomic_uint32 *var, // IN/OUT
    );
 #endif /* VM_X86_ANY */
 #elif defined _MSC_VER
-   ASSERT_ON_COMPILE(sizeof(long) == sizeof(var->value));
+   ASSERT_ON_COMPILE(sizeof (long) == sizeof var->value);
    _InterlockedOr((long *)&var->value, (long)val);
 #else
 #error Atomic_Or32 not implemented
@@ -1369,7 +1369,7 @@ Atomic_Xor32(Atomic_uint32 *var, // IN/OUT
    );
 #endif /* VM_X86_ANY */
 #elif defined _MSC_VER
-   ASSERT_ON_COMPILE(sizeof(long) == sizeof(var->value));
+   ASSERT_ON_COMPILE(sizeof (long) == sizeof var->value);
    _InterlockedXor((long *)&var->value, (long)val);
 #else
 #error Atomic_Xor32 not implemented
@@ -1412,7 +1412,7 @@ Atomic_Xor64(Atomic_uint64 *var, // IN/OUT
    );
 #endif
 #elif defined _MSC_VER
-   ASSERT_ON_COMPILE(sizeof(__int64) == sizeof(var->value));
+   ASSERT_ON_COMPILE(sizeof (__int64) == sizeof var->value);
    _InterlockedXor64((__int64 *)&var->value, (__int64)val);
 #else
 #error Atomic_Xor64 not implemented
@@ -1472,7 +1472,7 @@ Atomic_Add32(Atomic_uint32 *var, // IN/OUT
    );
 #endif /* VM_X86_ANY */
 #elif defined _MSC_VER
-   ASSERT_ON_COMPILE(sizeof(long) == sizeof(var->value));
+   ASSERT_ON_COMPILE(sizeof (long) == sizeof var->value);
    _InterlockedExchangeAdd((long *)&var->value, (long)val);
 #else
 #error Atomic_Add32 not implemented
@@ -1545,7 +1545,7 @@ Atomic_Sub32(Atomic_uint32 *var, // IN/OUT
     */
 #   pragma warning(push)
 #   pragma warning(disable: 4146)
-   ASSERT_ON_COMPILE(sizeof(long) == sizeof(var->value));
+   ASSERT_ON_COMPILE(sizeof (long) == sizeof var->value);
    _InterlockedExchangeAdd((long *)&var->value, (long)-val);
 #   pragma warning(pop)
 #else
@@ -1587,7 +1587,7 @@ Atomic_Inc32(Atomic_uint32 *var) // IN/OUT
    );
 #endif /* VM_X86_ANY */
 #elif defined _MSC_VER
-   ASSERT_ON_COMPILE(sizeof(long) == sizeof(var->value));
+   ASSERT_ON_COMPILE(sizeof (long) == sizeof var->value);
    _InterlockedIncrement((long *)&var->value);
 #else
 #error Atomic_Inc32 not implemented
@@ -1628,7 +1628,7 @@ Atomic_Dec32(Atomic_uint32 *var) // IN/OUT
    );
 #endif /* VM_X86_ANY */
 #elif defined _MSC_VER
-   ASSERT_ON_COMPILE(sizeof(long) == sizeof(var->value));
+   ASSERT_ON_COMPILE(sizeof (long) == sizeof var->value);
    _InterlockedDecrement((long *)&var->value);
 #else
 #error Atomic_Dec32 not implemented
@@ -1841,7 +1841,7 @@ Atomic_ReadAdd32(Atomic_uint32 *var, // IN/OUT
    return val;
 #endif /* VM_X86_ANY */
 #elif defined _MSC_VER
-   ASSERT_ON_COMPILE(sizeof(long) == sizeof(var->value));
+   ASSERT_ON_COMPILE(sizeof (long) == sizeof var->value);
    return _InterlockedExchangeAdd((long *)&var->value, (long)val);
 #else
 #error Atomic_ReadAdd32 not implemented
@@ -2010,7 +2010,7 @@ Atomic_CMPXCHG64(Atomic_uint64 *var,   // IN/OUT
    return equal;
 #endif //VM_ARM_V7
 #elif defined _MSC_VER
-   ASSERT_ON_COMPILE(sizeof(__int64) == sizeof(var->value));
+   ASSERT_ON_COMPILE(sizeof (__int64) == sizeof var->value);
    return (__int64)oldVal == _InterlockedCompareExchange64((__int64 *)&var->value,
                                                            (__int64)newVal,
                                                            (__int64)oldVal);
@@ -2131,11 +2131,11 @@ Atomic_Read64(Atomic_uint64 const *var) // IN
    return var->value;
 #elif defined _MSC_VER && defined VM_ARM_32
    /* MSVC + 32-bit ARM has add64 but no cmpxchg64 */
-   ASSERT_ON_COMPILE(sizeof(__int64) == sizeof(var->value));
+   ASSERT_ON_COMPILE(sizeof (__int64) == sizeof var->value);
    return _InterlockedAdd64((__int64 *)&var->value, 0);
 #elif defined _MSC_VER && defined __i386__
    /* MSVC + 32-bit x86 has cmpxchg64 but no add64 */
-   ASSERT_ON_COMPILE(sizeof(__int64) == sizeof(var->value));
+   ASSERT_ON_COMPILE(sizeof (__int64) == sizeof var->value);
    return _InterlockedCompareExchange64((__int64 *)&var->value,
                                         (__int64)255,  // Unlikely value to
                                         (__int64)255); // not dirty cache
@@ -2219,7 +2219,7 @@ Atomic_ReadAdd64(Atomic_uint64 *var, // IN/OUT
    );
    return val;
 #elif defined _MSC_VER
-   ASSERT_ON_COMPILE(sizeof(__int64) == sizeof(var->value));
+   ASSERT_ON_COMPILE(sizeof (__int64) == sizeof var->value);
    return _InterlockedExchangeAdd64((__int64 *)&var->value, (__int64)val);
 #else
 #error Atomic_ReadAdd64 not implemented
@@ -2366,7 +2366,7 @@ Atomic_Add64(Atomic_uint64 *var, // IN/OUT
    );
 #endif
 #elif defined _MSC_VER
-   ASSERT_ON_COMPILE(sizeof(__int64) == sizeof(var->value));
+   ASSERT_ON_COMPILE(sizeof (__int64) == sizeof var->value);
    _InterlockedExchangeAdd64((__int64 *)&var->value, (__int64)val);
 #else
 #error Atomic_Add64 not implemented
@@ -2409,7 +2409,7 @@ Atomic_Sub64(Atomic_uint64 *var, // IN/OUT
    );
 #endif
 #elif defined _MSC_VER
-   ASSERT_ON_COMPILE(sizeof(__int64) == sizeof(var->value));
+   ASSERT_ON_COMPILE(sizeof (__int64) == sizeof var->value);
    _InterlockedExchangeAdd64((__int64 *)&var->value, (__int64)-val);
 #else
 #error Atomic_Sub64 not implemented
@@ -2449,7 +2449,7 @@ Atomic_Inc64(Atomic_uint64 *var) // IN/OUT
       : "cc", "memory"
    );
 #elif defined _MSC_VER
-   ASSERT_ON_COMPILE(sizeof(__int64) == sizeof(var->value));
+   ASSERT_ON_COMPILE(sizeof (__int64) == sizeof var->value);
    _InterlockedIncrement64((__int64 *)&var->value);
 #else
 #error Atomic_Inc64 not implemented
@@ -2489,7 +2489,7 @@ Atomic_Dec64(Atomic_uint64 *var) // IN/OUT
       : "cc", "memory"
    );
 #elif defined _MSC_VER
-   ASSERT_ON_COMPILE(sizeof(__int64) == sizeof(var->value));
+   ASSERT_ON_COMPILE(sizeof (__int64) == sizeof var->value);
    _InterlockedDecrement64((__int64 *)&var->value);
 #else
 #error Atomic_Dec64 not implemented
@@ -2530,7 +2530,7 @@ Atomic_ReadWrite64(Atomic_uint64 *var, // IN/OUT
 #elif defined __GNUC__ && defined VM_ARM_64
    return _VMATOM_X(RW, 64, TRUE, &var->value, val);
 #elif defined _MSC_VER && defined VM_64BIT
-   ASSERT_ON_COMPILE(sizeof(__int64) == sizeof(var->value));
+   ASSERT_ON_COMPILE(sizeof (__int64) == sizeof var->value);
    return _InterlockedExchange64((__int64 *)&var->value, (__int64)val);
 #else
    uint64 oldVal;
@@ -2630,7 +2630,7 @@ Atomic_Or64(Atomic_uint64 *var, // IN/OUT
 #elif defined __GNUC__ && defined VM_ARM_64
    _VMATOM_X(OP, 64, TRUE, &var->value, orr, val);
 #elif defined _MSC_VER && defined VM_64BIT
-   ASSERT_ON_COMPILE(sizeof(__int64) == sizeof(var->value));
+   ASSERT_ON_COMPILE(sizeof (__int64) == sizeof var->value);
    _InterlockedOr64((__int64 *)&var->value, (__int64)val);
 #else
    uint64 oldVal;
@@ -2674,7 +2674,7 @@ Atomic_And64(Atomic_uint64 *var, // IN/OUT
 #elif defined __GNUC__ && defined VM_ARM_64
    _VMATOM_X(OP, 64, TRUE, &var->value, and, val);
 #elif defined _MSC_VER && defined VM_64BIT
-   ASSERT_ON_COMPILE(sizeof(__int64) == sizeof(var->value));
+   ASSERT_ON_COMPILE(sizeof (__int64) == sizeof var->value);
    _InterlockedAnd64((__int64 *)&var->value, (__int64)val);
 #else
    uint64 oldVal;
