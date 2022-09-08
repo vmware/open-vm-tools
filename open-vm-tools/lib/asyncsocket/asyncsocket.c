@@ -336,6 +336,7 @@ static int AsyncTCPSocketStartSslAccept(AsyncSocket *asock, void *sslCtx,
                                         void *clientData);
 static int AsyncTCPSocketFlush(AsyncSocket *asock, int timeoutMS);
 static void AsyncTCPSocketCancelRecvCb(AsyncTCPSocket *asock);
+static void AsyncTCPSocketCancelSendCb(AsyncTCPSocket *asock);
 
 static int AsyncTCPSocketRecv(AsyncSocket *asock,
              void *buf, int len, Bool partial, void *cb, void *cbData);
@@ -351,6 +352,7 @@ static int AsyncTCPSocketSendWithFd(AsyncSocket *asock, void *buf, int len,
                                     void *clientData);
 static int AsyncTCPSocketIsSendBufferFull(AsyncSocket *asock);
 static int AsyncTCPSocketClose(AsyncSocket *asock);
+static int AsyncTCPSocketCloseWrite(AsyncSocket *asock);
 static int AsyncTCPSocketCancelRecv(AsyncSocket *asock, int *partialRecvd,
                                     void **recvBuf, void **recvFn,
                                     Bool cancelOnSend);
@@ -412,6 +414,7 @@ static const AsyncSocketVTable asyncTCPSocketVTable = {
    AsyncTCPSocketIsSendBufferFull,
    NULL,                        /* getNetworkStats */
    AsyncTCPSocketClose,
+   AsyncTCPSocketCloseWrite,
    AsyncTCPSocketCancelRecv,
    AsyncTCPSocketCancelCbForClose,
    AsyncTCPSocketGetLocalVMCIAddress,
@@ -736,7 +739,8 @@ AsyncTCPSocketGetRemoteIPStr(AsyncSocket *base,      // IN
    ASSERT(ipRetStr != NULL);
 
    if (ipRetStr == NULL || asock == NULL ||
-       AsyncTCPSocketGetState(asock) != AsyncSocketConnected ||
+       (AsyncTCPSocketGetState(asock) != AsyncSocketConnected &&
+        AsyncTCPSocketGetState(asock) != AsyncSocketConnectedRdOnly) ||
        (asock->remoteAddrLen != sizeof (struct sockaddr_in) &&
         asock->remoteAddrLen != sizeof (struct sockaddr_in6))) {
       ret = ASOCKERR_GENERIC;
@@ -784,7 +788,8 @@ AsyncTCPSocketGetRemotePort(AsyncSocket *base,  // IN
    ASSERT(asock);
 
    if (asock == NULL ||
-      AsyncTCPSocketGetState(asock) != AsyncSocketConnected ||
+     (AsyncTCPSocketGetState(asock) != AsyncSocketConnected &&
+      AsyncTCPSocketGetState(asock) != AsyncSocketConnectedRdOnly) ||
       (asock->remoteAddrLen != sizeof(struct sockaddr_in) &&
        asock->remoteAddrLen != sizeof(struct sockaddr_in6))) {
       ret = ASOCKERR_GENERIC;
@@ -2625,7 +2630,8 @@ AsyncTCPSocketRecv(AsyncSocket *base,   // IN:
 
    ASSERT(AsyncTCPSocketIsLocked(asock));
 
-   if (AsyncTCPSocketGetState(asock) != AsyncSocketConnected) {
+   if (AsyncTCPSocketGetState(asock) != AsyncSocketConnected &&
+       AsyncTCPSocketGetState(asock) != AsyncSocketConnectedRdOnly) {
       TCPSOCKWARN(asock, "recv called but state is not connected!\n");
       return ASOCKERR_NOTCONNECTED;
    }
@@ -2761,7 +2767,8 @@ AsyncTCPSocketPeek(AsyncSocket *base,   // IN:
       return ASOCKERR_INVAL;
    }
 
-   if (AsyncTCPSocketGetState(asock) != AsyncSocketConnected) {
+   if (AsyncTCPSocketGetState(asock) != AsyncSocketConnected &&
+       AsyncTCPSocketGetState(asock) != AsyncSocketConnectedRdOnly) {
       TCPSOCKWARN(asock, "peek called but state is not connected!\n");
       return ASOCKERR_NOTCONNECTED;
    }
@@ -3206,7 +3213,9 @@ AsyncTCPSocketBlockingWork(AsyncTCPSocket *s,  // IN:
       return ASOCKERR_INVAL;
    }
 
-   if (AsyncTCPSocketGetState(s) != AsyncSocketConnected) {
+   if (AsyncTCPSocketGetState(s) != AsyncSocketConnected &&
+      /* Allow AsyncSocketConnectedRdOnly iff we are reading */
+      (AsyncTCPSocketGetState(s) != AsyncSocketConnectedRdOnly || !read)) {
       TCPSOCKWARN(s, "recv called but state is not connected!\n");
       return ASOCKERR_NOTCONNECTED;
    }
@@ -3654,7 +3663,8 @@ AsyncTCPSocketFillRecvBuffer(AsyncTCPSocket *s)         // IN
    int pending = 0;
 
    ASSERT(AsyncTCPSocketIsLocked(s));
-   ASSERT(AsyncTCPSocketGetState(s) == AsyncSocketConnected);
+   ASSERT(AsyncTCPSocketGetState(s) == AsyncSocketConnected ||
+          AsyncTCPSocketGetState(s) == AsyncSocketConnectedRdOnly);
 
    /*
     * When a socket has received all its desired content and FillRecvBuffer is
@@ -3715,10 +3725,10 @@ AsyncTCPSocketFillRecvBuffer(AsyncTCPSocket *s)         // IN
             goto exit;
          }
       } else if (recvd == 0) {
-         TCPSOCKLG0(s, "recv detected client closed connection\n");
+         TCPSOCKLG0(s, "recv detected remote shutdown\n");
          /*
-          * We treat this as an error so that the owner can detect closing
-          * of connection by peer (via the error handler callback).
+          * We treat this as an error so that the owner can detect orderly
+          * shutdown (or half-close) by peer (via the error handler callback).
           */
          result = ASOCKERR_REMOTE_DISCONNECT;
          goto exit;
@@ -3819,7 +3829,8 @@ AsyncTCPSocketFillPeekBuffer(AsyncTCPSocket *s,         // IN
 #define MAX_NESTED_PEEKS 8
 
    ASSERT(AsyncTCPSocketIsLocked(s));
-   ASSERT(AsyncTCPSocketGetState(s) == AsyncSocketConnected);
+   ASSERT(AsyncTCPSocketGetState(s) == AsyncSocketConnected ||
+          AsyncTCPSocketGetState(s) == AsyncSocketConnectedRdOnly);
    ASSERT(s->flags & ASOCK_FLAG_PEEK);
 
    needed = s->base.recvLen - s->base.recvPos;
@@ -3854,10 +3865,10 @@ AsyncTCPSocketFillPeekBuffer(AsyncTCPSocket *s,         // IN
          }
          ASSERT(s->base.recvPos == 0);
       } else if (recvd == 0) {
-         TCPSOCKLG0(s, "peek detected client closed connection\n");
+         TCPSOCKLG0(s, "peek detected remote shutdown\n");
          /*
-          * We treat this as an error so that the owner can detect closing
-          * of connection by peer (via the error handler callback).
+          * We treat this as an error so that the owner can detect orderly
+          * shutdown (or half-close) by peer (via the error handler callback).
           */
          result = ASOCKERR_REMOTE_DISCONNECT;
          goto exit;
@@ -4044,7 +4055,7 @@ AsyncTCPSocketWriteBuffers(AsyncTCPSocket *s)  // IN
    }
 
    if (AsyncTCPSocketGetState(s) != AsyncSocketConnected) {
-      TCPSOCKWARN(s, "write buffers on a disconnected socket!\n");
+      TCPSOCKWARN(s, "write buffers on a disconnected or rdonly socket!\n");
       return ASOCKERR_GENERIC;
    }
 
@@ -4360,7 +4371,8 @@ AsyncTCPSocketWaitForConnection(AsyncSocket *base,  // IN:
 
    ASSERT(AsyncTCPSocketIsLocked(s));
 
-   if (AsyncTCPSocketGetState(s) == AsyncSocketConnected) {
+   if (AsyncTCPSocketGetState(s) == AsyncSocketConnected ||
+       AsyncTCPSocketGetState(s) == AsyncSocketConnectedRdOnly) {
       return ASOCKERR_SUCCESS;
    }
 
@@ -4499,7 +4511,8 @@ AsyncTCPSocketDoOneMsg(AsyncSocket *base, // IN
    int retVal;
 
    ASSERT(AsyncTCPSocketIsLocked(s));
-   ASSERT(AsyncTCPSocketGetState(s) == AsyncSocketConnected);
+   ASSERT(AsyncTCPSocketGetState(s) == AsyncSocketConnected ||
+         (AsyncTCPSocketGetState(s) == AsyncSocketConnectedRdOnly && read));
 
    if (read) {
       if (s->inRecvLoop) {
@@ -4546,7 +4559,8 @@ AsyncTCPSocketDoOneMsg(AsyncSocket *base, // IN
 
       if (AsyncTCPSocketGetState(s) != AsyncSocketClosed && s->recvCb) {
          ASSERT(s->base.refCount > 1); /* We shouldn't be last user of socket. */
-         ASSERT(AsyncTCPSocketGetState(s) == AsyncSocketConnected);
+         ASSERT(AsyncTCPSocketGetState(s) == AsyncSocketConnected ||
+                AsyncTCPSocketGetState(s) == AsyncSocketConnectedRdOnly);
          /*
           * If AsyncTCPSocketPoll or AsyncTCPSocketFillRecvBuffer fails, do not
           * add the recv callback as it may never fire.
@@ -4620,7 +4634,8 @@ AsyncSocket_TCPDrainRecv(AsyncSocket *base, // IN
    VmTimeType startMS = Hostinfo_SystemTimerMS();
    VmTimeType nowMS;
 
-   ASSERT(AsyncTCPSocketGetState(s) == AsyncSocketConnected);
+   ASSERT(AsyncTCPSocketGetState(s) == AsyncSocketConnected ||
+          AsyncTCPSocketGetState(s) == AsyncSocketConnectedRdOnly);
    ASSERT(s->recvCb); /* We are supposed to call someone... */
 
    if (!AsyncTCPSocketIsLocked(s) || !Poll_LockingEnabled()) {
@@ -4664,7 +4679,8 @@ AsyncSocket_TCPDrainRecv(AsyncSocket *base, // IN
             TCPSOCKWARN(s, "%s: failed to poll on the socket during read.\n",
                         __FUNCTION__);
          }
-      } else if (AsyncTCPSocketGetState(s) == AsyncSocketConnected) {
+      } else if (AsyncTCPSocketGetState(s) == AsyncSocketConnected ||
+                 AsyncTCPSocketGetState(s) == AsyncSocketConnectedRdOnly) {
          ASSERT(asock == s);
          retVal = AsyncTCPSocketFillRecvBuffer(s);
       }
@@ -4689,7 +4705,8 @@ retry:
       }
       timeoutMS -= nowMS - startMS;
       startMS = nowMS;
-      ASSERT(AsyncTCPSocketGetState(s) == AsyncSocketConnected && s->recvCb);
+      ASSERT((AsyncTCPSocketGetState(s) == AsyncSocketConnectedRdOnly ||
+              AsyncTCPSocketGetState(s) == AsyncSocketConnected) && s->recvCb);
    }
 
    if (cbRemoved) {
@@ -4699,7 +4716,8 @@ retry:
        * add the recv callback as it may never fire.
        */
       if (retVal == ASOCKERR_TIMEOUT) {
-         ASSERT(AsyncTCPSocketGetState(s) == AsyncSocketConnected);
+         ASSERT(AsyncTCPSocketGetState(s) == AsyncSocketConnected ||
+                AsyncTCPSocketGetState(s) == AsyncSocketConnectedRdOnly);
          ASSERT(s->base.refCount > 1); /* We better not be the last user */
          retVal = AsyncTCPSocketRegisterRecvCb(s);
          Log("SOCKET reregister recvCb after DrainRecv (ref %d)\n",
@@ -4754,7 +4772,7 @@ AsyncTCPSocketFlush(AsyncSocket *base,  // IN
    AsyncTCPSocketAddRef(s);
 
    if (AsyncTCPSocketGetState(s) != AsyncSocketConnected) {
-      TCPSOCKWARN(s, "flush called but state is not connected!\n");
+      TCPSOCKWARN(s, "flush called but state is rdonly or disconnected!\n");
       retVal = ASOCKERR_INVAL;
       goto outHaveLock;
    }
@@ -4886,6 +4904,12 @@ AsyncTCPSocketCancelRecvCb(AsyncTCPSocket *asock)  // IN:
 {
    ASSERT(AsyncTCPSocketIsLocked(asock));
 
+   /*
+    * We could fire the current recv completion callback here, but in
+    * practice clients won't want to know about partial reads since it just
+    * complicates the common case (i.e. every read callback would need to
+    * check the len parameter).
+    */
    if (asock->recvCbTimer) {
       AsyncTCPSocketPollRemove(asock, FALSE, 0, asock->internalRecvFn);
       asock->recvCbTimer = FALSE;
@@ -4907,6 +4931,91 @@ AsyncTCPSocketCancelRecvCb(AsyncTCPSocket *asock)  // IN:
              (AsyncTCPSocketPollParams(asock)->flags &
               POLL_FLAG_ACCEPT_INVALID_FDS) != 0);
       asock->recvCb = FALSE;
+   }
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncTCPSocketCancelSendCb --
+ *
+ *      Socket specific code for canceling callbacks when a send
+ *      request is being canceled.
+ *
+ *      This function assumes the caller has done AsyncTCPSocketAddRef,
+ *      since the sendFn callback registered might close the socket.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static void
+AsyncTCPSocketCancelSendCb(AsyncTCPSocket *asock)  // IN:
+{
+   if (asock->sendCb) {
+      Bool removed;
+
+      TCPSOCKLOG(1, asock,
+                 "sendBufList is non-NULL, removing send callback\n");
+
+      /*
+       * The send callback could be either a device or RTime callback, so
+       * we check the latter if it wasn't the former.
+       */
+
+      if (asock->sendCbTimer) {
+         removed = AsyncTCPSocketPollRemove(asock, FALSE, 0,
+                                            asock->internalSendFn);
+      } else {
+         removed = AsyncTCPSocketPollRemove(asock, TRUE, POLL_FLAG_WRITE,
+                                            asock->internalSendFn);
+      }
+      ASSERT(removed || AsyncTCPSocketPollParams(asock)->iPoll);
+      asock->sendCb = FALSE;
+      asock->sendCbTimer = FALSE;
+   }
+
+   /*
+    * Go through any send buffers on the list and fire their
+    * callbacks, reflecting back how much of each buffer has been
+    * submitted to the kernel.  For the first buffer in the list that
+    * may be non-zero, for subsequent buffers it will be zero.
+    *
+    * Unlike AsyncTCPSocketCancelRecvCb, the argument of firing callbacks
+    * here is that the common case for writes is "fire and forget", e.g.
+    * send this buffer and free it. Firing the triggers at close time
+    * simplifies client code, since the clients aren't forced to keep track
+    * of send buffers themselves. Clients can figure out how much data was
+    * actually transmitted (if they care) by checking the len parameter
+    * passed to the send callback.
+    *
+    * A modification suggested by Jeremy is to pass a list of unsent
+    * buffers and their completion callbacks to the error handler if one is
+    * registered, and only fire the callbacks here if there was no error
+    * handler invoked.
+    */
+
+   while (asock->sendBufList) {
+      /*
+       * Pop each remaining buffer and fire its completion callback.
+       */
+
+      SendBufList *cur = asock->sendBufList;
+      int pos = asock->sendPos;
+
+      asock->sendBufList = asock->sendBufList->next;
+      asock->sendPos = 0;
+
+      if (cur->sendFn) {
+         cur->sendFn(cur->buf, pos, BaseSocket(asock), cur->clientData);
+      }
+      free(cur);
    }
 }
 
@@ -4945,32 +5054,12 @@ AsyncTCPSocketCancelCbForClose(AsyncSocket *base)  // IN:
    Bool removed;
 
    ASSERT(AsyncTCPSocketIsLocked(asock));
-
-   if (AsyncTCPSocketGetState(asock) == AsyncSocketConnected) {
+   if (AsyncTCPSocketGetState(asock) == AsyncSocketConnected ||
+       AsyncTCPSocketGetState(asock) == AsyncSocketConnectedRdOnly) {
       AsyncTCPSocketSetState(asock, AsyncSocketCBCancelled);
    }
 
-   /*
-    * Remove the read and write poll callbacks.
-    *
-    * We could fire the current recv completion callback here, but in
-    * practice clients won't want to know about partial reads since it just
-    * complicates the common case (i.e. every read callback would need to
-    * check the len parameter).
-    *
-    * For writes, however, we *do* fire all of the callbacks. The argument
-    * here is that the common case for writes is "fire and forget", e.g.
-    * send this buffer and free it. Firing the triggers at close time
-    * simplifies client code, since the clients aren't forced to keep track
-    * of send buffers themselves. Clients can figure out how much data was
-    * actually transmitted (if they care) by checking the len parameter
-    * passed to the send callback.
-    *
-    * A modification suggested by Jeremy is to pass a list of unsent
-    * buffers and their completion callbacks to the error handler if one is
-    * registered, and only fire the callbacks here if there was no error
-    * handler invoked.
-    */
+   /* Remove the read callback. Similar to AsyncTCPSocketCancelRecvCb */
 
    ASSERT(!asock->base.recvBuf || asock->base.recvFn);
 
@@ -4992,50 +5081,10 @@ AsyncTCPSocketCancelCbForClose(AsyncSocket *base)  // IN:
       asock->base.recvBuf = NULL;
    }
 
-   if (asock->sendCb) {
-      TCPSOCKLOG(1, asock,
-                 "sendBufList is non-NULL, removing send callback\n");
+   /* Remove the write callback. */
 
-      /*
-       * The send callback could be either a device or RTime callback, so
-       * we check the latter if it wasn't the former.
-       */
-
-      if (asock->sendCbTimer) {
-         removed = AsyncTCPSocketPollRemove(asock, FALSE, 0,
-                                         asock->internalSendFn);
-      } else {
-         removed = AsyncTCPSocketPollRemove(asock, TRUE, POLL_FLAG_WRITE,
-                                         asock->internalSendFn);
-      }
-      ASSERT(removed || AsyncTCPSocketPollParams(asock)->iPoll);
-      asock->sendCb = FALSE;
-      asock->sendCbTimer = FALSE;
-   }
-
-   /*
-    * Go through any send buffers on the list and fire their
-    * callbacks, reflecting back how much of each buffer has been
-    * submitted to the kernel.  For the first buffer in the list that
-    * may be non-zero, for subsequent buffers it will be zero.
-    */
    AsyncTCPSocketAddRef(asock);
-   while (asock->sendBufList) {
-      /*
-       * Pop each remaining buffer and fire its completion callback.
-       */
-
-      SendBufList *cur = asock->sendBufList;
-      int pos = asock->sendPos;
-
-      asock->sendBufList = asock->sendBufList->next;
-      asock->sendPos = 0;
-
-      if (cur->sendFn) {
-         cur->sendFn(cur->buf, pos, BaseSocket(asock), cur->clientData);
-      }
-      free(cur);
-   }
+   AsyncTCPSocketCancelSendCb(asock);
    AsyncTCPSocketRelease(asock);
    return ASOCKERR_SUCCESS;
 }
@@ -5108,6 +5157,74 @@ AsyncTCPSocketSetCloseOptions(AsyncSocket *base,           // IN
 /*
  *----------------------------------------------------------------------------
  *
+ * AsyncTCPSocketCloseWrite --
+ *
+ *      Close the write side of AsyncTCPSocket.
+ *
+ * Results:
+ *      ASOCKERR_*.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+static int
+AsyncTCPSocketCloseWrite(AsyncSocket *base)  // IN:
+{
+#ifdef VMX86_TOOLS
+   /* For tools, don't support closeWrite for now */
+   return ASOCKERR_INVAL;
+#else
+   AsyncTCPSocket *asock = TCPSocket(base);
+   int ret;
+
+   ASSERT(AsyncTCPSocketIsLocked(asock));
+
+   if (AsyncTCPSocketGetState(asock) != AsyncSocketConnected) {
+      return ASOCKERR_INVAL;
+   }
+   if (SSL_IsEncrypted(asock->sslSock)) {
+      /* SSL doesn't support half-close */
+      return ASOCKERR_INVAL;
+   }
+   ASSERT(asock->listenAsock4 == NULL);
+   ASSERT(asock->listenAsock6 == NULL);
+
+   if (asock->flushEnabledMaxWaitMsec && !asock->base.errorSeen) {
+      int ret = AsyncTCPSocketFlush(BaseSocket(asock),
+                                    asock->flushEnabledMaxWaitMsec);
+      if (ret != ASOCKERR_SUCCESS) {
+         TCPSOCKWARN(asock,
+                     "AsyncTCPSocket_Flush failed: %s. (ignored).\n",
+                     AsyncSocket_Err2String(ret));
+      }
+   }
+   AsyncTCPSocketSetState(asock, AsyncSocketConnectedRdOnly);
+   AsyncTCPSocketAddRef(asock);
+   AsyncTCPSocketCancelSendCb(asock);
+
+   ret = SSLGeneric_shutdown(SSL_GetFd(asock->sslSock));
+   if (ret < 0) {
+      asock->genericErrno = ASOCK_LASTERROR();
+      TCPSOCKWARN(asock, "shutdown error %d: %s\n", asock->genericErrno,
+                 Err_Errno2String(asock->genericErrno));
+      ret = ASOCKERR_GENERIC;
+      goto out;
+   }
+   ret = ASOCKERR_SUCCESS;
+
+out:
+   AsyncTCPSocketRelease(asock);
+   return ret;
+#endif
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * AsyncTCPSocketClose --
  *
  *      AsyncTCPSocket destructor. The destructor should be safe to call at any
@@ -5153,8 +5270,7 @@ AsyncTCPSocketClose(AsyncSocket *base)   // IN
       if (asock->flushEnabledMaxWaitMsec &&
           AsyncTCPSocketGetState(asock) == AsyncSocketConnected &&
           !asock->base.errorSeen) {
-         int ret = AsyncTCPSocketFlush(BaseSocket(asock),
-                                       asock->flushEnabledMaxWaitMsec);
+         int ret = AsyncTCPSocketFlush(base, asock->flushEnabledMaxWaitMsec);
          if (ret != ASOCKERR_SUCCESS) {
             TCPSOCKWARN(asock,
                         "AsyncTCPSocket_Flush failed: %s. Closing now.\n",
@@ -5189,7 +5305,8 @@ AsyncTCPSocketClose(AsyncSocket *base)   // IN
          break;
 
       case AsyncSocketConnected:
-         TCPSOCKLOG(1, asock, "old state was connected\n");
+      case AsyncSocketConnectedRdOnly:
+         TCPSOCKLOG(1, asock, "old state was connected/rdonly\n");
          AsyncTCPSocketCancelCbForClose(BaseSocket(asock));
          break;
 
@@ -5940,7 +6057,8 @@ AsyncTCPSocketCancelRecv(AsyncSocket *base,          // IN
 
    ASSERT(AsyncTCPSocketIsLocked(asock));
 
-   if (AsyncTCPSocketGetState(asock) != AsyncSocketConnected) {
+   if (AsyncTCPSocketGetState(asock) != AsyncSocketConnected &&
+       AsyncTCPSocketGetState(asock) != AsyncSocketConnectedRdOnly) {
       Warning(ASOCKPREFIX "Failed to cancel request on disconnected socket!\n");
       return ASOCKERR_INVAL;
    }
@@ -5994,7 +6112,8 @@ AsyncTCPSocketGetReceivedFd(AsyncSocket *base)      // IN
 
    ASSERT(AsyncTCPSocketIsLocked(asock));
 
-   if (AsyncTCPSocketGetState(asock) != AsyncSocketConnected) {
+   if (AsyncTCPSocketGetState(asock) != AsyncSocketConnected &&
+       AsyncTCPSocketGetState(asock) != AsyncSocketConnectedRdOnly) {
       Warning(ASOCKPREFIX "Failed to receive fd on disconnected socket!\n");
       return -1;
    }
@@ -6389,13 +6508,20 @@ AsyncTCPSocketSetOption(AsyncSocket *asyncSocket,     // IN/OUT
     * Handle non-native options first.
     */
 
-   if ((layer == ASYNC_SOCKET_OPTS_LAYER_BASE) &&
-       (optID == ASYNC_SOCKET_OPT_SEND_LOW_LATENCY_MODE)) {
-      ASSERT(inBufLen == sizeof(Bool));
-      tcpSocket->sendLowLatency = *((const Bool *)valuePtr);
-      TCPSOCKLG0(tcpSocket, "%s: sendLowLatencyMode set to [%d].\n",
-                 __FUNCTION__, (int)tcpSocket->sendLowLatency);
-      return ASOCKERR_SUCCESS;
+   if (layer == ASYNC_SOCKET_OPTS_LAYER_BASE) {
+      switch (optID) {
+         case ASYNC_SOCKET_OPT_SEND_LOW_LATENCY_MODE:
+            ASSERT(inBufLen == sizeof(Bool));
+            tcpSocket->sendLowLatency = *((const Bool *)valuePtr);
+            TCPSOCKLG0(tcpSocket, "%s: sendLowLatencyMode set to [%d].\n",
+                       __FUNCTION__, (int)tcpSocket->sendLowLatency);
+            return ASOCKERR_SUCCESS;
+         default:
+            TCPSOCKLG0(tcpSocket, "%s: could not set non-native option [%d]"
+                       " for TCP socket -- option not supported.\n",
+                       __FUNCTION__, (int)optID);
+            return ASOCKERR_INVAL;
+      }
    }
 
    /*

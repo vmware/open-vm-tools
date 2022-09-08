@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2016-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 2016-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -627,7 +627,8 @@ AsyncSocketSetRecvBuf(AsyncSocket *asock,  // IN:
       return ASOCKERR_INVAL;
    }
 
-   if (AsyncSocketGetState(asock) != AsyncSocketConnected) {
+   if (AsyncSocketGetState(asock) != AsyncSocketConnected &&
+       AsyncSocketGetState(asock) != AsyncSocketConnectedRdOnly) {
       ASOCKWARN(asock, "recv called but state is not connected!\n");
       return ASOCKERR_NOTCONNECTED;
    }

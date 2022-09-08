@@ -194,6 +194,7 @@ typedef enum AsyncSocketState {
    AsyncSocketConnected,
    AsyncSocketCBCancelled,
    AsyncSocketClosed,
+   AsyncSocketConnectedRdOnly,
 } AsyncSocketState;
 
 
@@ -746,6 +747,11 @@ int AsyncSocket_SetErrorFn(AsyncSocket *asock, AsyncSocketErrorFn errorFn,
 int AsyncSocket_SetCloseOptions(AsyncSocket *asock,
                                 int flushEnabledMaxWaitMsec,
                                 AsyncSocketCloseFn closeCb);
+
+/*
+ * Close the write side of the connection.
+ */
+int AsyncSocket_CloseWrite(AsyncSocket *asock);
 
 /*
  * Close the connection and destroy the asock.
