@@ -233,7 +233,7 @@ Atomic_ReadIfEqualWrite128(Atomic_uint128 *ptr,   // IN/OUT
     * use the right (LL/SC vs LSE) atomics without -moutline-atomics.
     */
 #if __GNUC__ >= 9
-   if (Atomic_HaveLSE) {
+   if (Atomic_HaveLse()) {
       SMP_RW_BARRIER_RW();
       __asm__ __volatile__(
          ".arch armv8.2-a            \n\t"
