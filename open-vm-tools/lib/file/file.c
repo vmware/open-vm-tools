@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1498,6 +1498,14 @@ File_GetModTimeString(const char *pathName)  // IN:
  * File_GetSize --
  *
  *      Get size of file. Try File_GetSizeEx to get size of directory/symlink.
+ *
+ *      For performance reasons, whenever a file grows, many file systems elect
+ *      to not update the on-storage inode information until close or when
+ *      forced to write a dirty page. This is done to avoid wasting I/O
+ *      throughput.
+ *
+ *      The only way to determine the exact, up-to-date size of a file is to
+ *      open it and query the file size.
  *
  * Results:
  *      Size of file or -1.
