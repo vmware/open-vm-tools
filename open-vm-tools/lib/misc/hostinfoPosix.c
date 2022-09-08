@@ -4452,6 +4452,50 @@ Hostinfo_ReleaseProcessSnapshot(HostinfoProcessSnapshot *s)  // IN/OPT:
 /*
  *----------------------------------------------------------------------
  *
+ * Hostinfo_QueryProcessExistence --
+ *
+ *      Determine if a PID is "alive" or "dead". Failing to be able to
+ *      do this perfectly, do not make any assumption - say the answer
+ *      is unknown.
+ *
+ * Results:
+ *      HOSTINFO_PROCESS_QUERY_ALIVE    Process is alive
+ *      HOSTINFO_PROCESS_QUERY_DEAD     Process is dead
+ *      HOSTINFO_PROCESS_QUERY_UNKNOWN  Don't know
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+HostinfoProcessQuery
+Hostinfo_QueryProcessExistence(int pid)  // IN:
+{
+   HostinfoProcessQuery result;
+
+   switch ((kill(pid, 0) == -1) ? errno : 0) {
+   case 0:
+   case EPERM:
+      result = HOSTINFO_PROCESS_QUERY_ALIVE;
+      break;
+
+   case ESRCH:
+      result = HOSTINFO_PROCESS_QUERY_DEAD;
+      break;
+
+   default:
+      result = HOSTINFO_PROCESS_QUERY_UNKNOWN;
+      break;
+   }
+
+   return result;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * Hostinfo_QueryProcessSnapshot --
  *
  *      Determine if a PID is "alive" or "dead" within the specified
@@ -4473,23 +4517,7 @@ HostinfoProcessQuery
 Hostinfo_QueryProcessSnapshot(HostinfoProcessSnapshot *s,  // IN:
                               int pid)                     // IN:
 {
-   HostinfoProcessQuery ret;
-
    ASSERT(s != NULL);
 
-   switch ((kill(pid, 0) == -1) ? errno : 0) {
-   case 0:
-   case EPERM:
-      ret = HOSTINFO_PROCESS_QUERY_ALIVE;
-      break;
-   case ESRCH:
-      ret = HOSTINFO_PROCESS_QUERY_DEAD;
-      break;
-   default:
-      ret = HOSTINFO_PROCESS_QUERY_UNKNOWN;
-      break;
-   }
-
-   return ret;
+   return Hostinfo_QueryProcessExistence(pid);
 }
-
