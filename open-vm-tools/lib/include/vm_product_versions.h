@@ -528,7 +528,7 @@
 #    define PRODUCT_LICENSE_VERSION PRODUCT_FLEX_VERSION_STRING_FOR_LICENSE
 #  elif defined(VMX86_VPX)
 #    define PRODUCT_LICENSE_VERSION "8.0"
-#    define PRODUCT_LICENSE_FILE_VERSION "8.0.1.1"
+#    define PRODUCT_LICENSE_FILE_VERSION "8.0.2.0"
 #  elif defined(VMX86_SDK)
 #    define PRODUCT_LICENSE_VERSION "1.0"
 #  elif defined(VMX86_P2V)
@@ -546,7 +546,7 @@
 #  define PRODUCT_VERSION_STRING_FOR_LICENSE PRODUCT_LICENSE_VERSION
 #endif
 #define PRODUCT_ESX_LICENSE_VERSION "8.0"
-#define PRODUCT_ESX_LICENSE_FILE_VERSION "8.0.1.2"
+#define PRODUCT_ESX_LICENSE_FILE_VERSION "8.0.2.0"
 
 /*
  * The configuration file version string should be changed
