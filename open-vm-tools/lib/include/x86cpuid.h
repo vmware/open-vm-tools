@@ -546,7 +546,7 @@ FLAG(   7,  0, ECX,  1,  1, AVX512VBMI,                          YES,  17 ) \
 FLAG(   7,  0, ECX,  2,  1, UMIP,                                YES,  17 ) \
 FLAG(   7,  0, ECX,  3,  1, PKU,                                 YES,  13 ) \
 FLAG(   7,  0, ECX,  4,  1, OSPKE,                               ANY,  13 ) \
-FLAG(   7,  0, ECX,  5,  1, WAITPKG,                             YES, FUT ) \
+FLAG(   7,  0, ECX,  5,  1, WAITPKG,                             YES,  21 ) \
 FLAG(   7,  0, ECX,  6,  1, AVX512VBMI2,                         YES,  17 ) \
 FLAG(   7,  0, ECX,  7,  1, CET_SS,                              YES,  20 ) \
 FLAG(   7,  0, ECX,  8,  1, GFNI,                                YES,  17 ) \
