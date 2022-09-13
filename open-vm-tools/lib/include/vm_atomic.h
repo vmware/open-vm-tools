@@ -2848,7 +2848,6 @@ Atomic_TestSetBit64(Atomic_uint64 *var, // IN/OUT
 }
 
 
-#if defined __GNUC__
 /*
  *-----------------------------------------------------------------------------
  *
@@ -2870,19 +2869,18 @@ Atomic_Read16(Atomic_uint16 const *var) // IN
 {
    uint16 value;
 
-#if defined VMM || defined VM_ARM_64 || defined VMKERNEL || defined VMKERNEL_MODULE
+#if defined VMM || defined VM_ARM_64 || defined VMKERNEL || \
+    defined VMKERNEL_MODULE
    ASSERT((uintptr_t)var % 2 == 0);
 #endif
 
-#if defined __GNUC__
-#if defined __x86_64__ || defined __i386__
-
+#if defined __GNUC__ && (defined __x86_64__ || defined __i386__)
    __asm__ __volatile__(
       "movw %1, %0"
       : "=r" (value)
       : "m" (var->value)
    );
-#elif defined VM_ARM_V7
+#elif defined __GNUC__ && defined VM_ARM_V7
    NOT_TESTED();
 
    __asm__ __volatile__(
@@ -2890,11 +2888,10 @@ Atomic_Read16(Atomic_uint16 const *var) // IN
       : "=r" (value)
       : "r" (&var->value)
    );
-#elif defined VM_ARM_64
+#elif defined __GNUC__ && defined VM_ARM_64
    value = _VMATOM_X(R, 16, &var->value);
 #else
-#error Atomic_Read16 not implemented
-#endif
+   value = (uint16)AtomicUndefined(var);
 #endif
 
    return value;
@@ -2921,8 +2918,7 @@ static INLINE uint16
 Atomic_ReadWrite16(Atomic_uint16 *var,  // IN/OUT:
                    uint16 val)          // IN:
 {
-#if defined __GNUC__
-#if defined __x86_64__ || defined __i386__
+#if defined __GNUC__ && (defined __x86_64__ || defined __i386__)
    __asm__ __volatile__(
       "xchgw %0, %1"
       : "=r" (val),
@@ -2931,7 +2927,7 @@ Atomic_ReadWrite16(Atomic_uint16 *var,  // IN/OUT:
       : "memory"
    );
    return val;
-#elif defined VM_ARM_V7
+#elif defined __GNUC__ && defined VM_ARM_V7
    uint16 retVal;
    uint16 res;
 
@@ -2952,11 +2948,10 @@ Atomic_ReadWrite16(Atomic_uint16 *var,  // IN/OUT:
    dmb();
 
    return retVal;
-#elif defined VM_ARM_64
+#elif defined __GNUC__ && defined VM_ARM_64
    return _VMATOM_X(RW, 16, TRUE, &var->value, val);
 #else
-#error Atomic_ReadWrite16 not implemented
-#endif
+   return (uint16)AtomicUndefined(var + val);
 #endif
 }
 
@@ -2981,18 +2976,18 @@ static INLINE void
 Atomic_Write16(Atomic_uint16 *var,  // OUT:
                uint16 val)          // IN:
 {
-#if defined VMM || defined VM_ARM_64 || defined VMKERNEL || defined VMKERNEL_MODULE
+#if defined VMM || defined VM_ARM_64 || defined VMKERNEL || \
+    defined VMKERNEL_MODULE
    ASSERT((uintptr_t)var % 2 == 0);
 #endif
 
-#if defined __GNUC__
-#if defined __x86_64__ || defined __i386__
+#if defined __GNUC__ && (defined __x86_64__ || defined __i386__)
    __asm__ __volatile__(
       "movw %1, %0"
       : "=m" (var->value)
       : "r" (val)
    );
-#elif defined VM_ARM_64
+#elif defined __GNUC__ && defined VM_ARM_64
    _VMATOM_X(W, 16, &var->value, val);
 #elif defined VM_ARM_32
    /*
@@ -3001,8 +2996,7 @@ Atomic_Write16(Atomic_uint16 *var,  // OUT:
     */
    Atomic_ReadWrite16(var, val);
 #else
-#error Atomic_Write16 not implemented
-#endif
+   AtomicUndefined(var + val);
 #endif
 }
 
@@ -3028,8 +3022,7 @@ Atomic_ReadIfEqualWrite16(Atomic_uint16 *var,   // IN/OUT
                           uint16 oldVal,        // IN
                           uint16 newVal)        // IN
 {
-#if defined __GNUC__
-#if defined __x86_64__ || defined __i386__
+#if defined __GNUC__ && (defined __x86_64__ || defined __i386__)
    uint16 val;
 
    __asm__ __volatile__(
@@ -3041,7 +3034,7 @@ Atomic_ReadIfEqualWrite16(Atomic_uint16 *var,   // IN/OUT
       : "cc", "memory"
    );
    return val;
-#elif defined VM_ARM_V7
+#elif defined __GNUC__ && defined VM_ARM_V7
    uint16 retVal;
    uint16 res;
 
@@ -3064,11 +3057,10 @@ Atomic_ReadIfEqualWrite16(Atomic_uint16 *var,   // IN/OUT
    dmb();
 
    return retVal;
-#elif defined VM_ARM_64
+#elif defined __GNUC__ && defined VM_ARM_64
    return _VMATOM_X(RIFEQW, 16, TRUE, &var->value, oldVal, newVal);
 #else
-#error Atomic_ReadIfEqualWrite16 not implemented
-#endif
+   return (uint16)AtomicUndefined(var + oldVal + newVal);
 #endif
 }
 
@@ -3093,15 +3085,14 @@ static INLINE void
 Atomic_And16(Atomic_uint16 *var, // IN/OUT
              uint16 val)         // IN
 {
-#if defined __GNUC__
-#if defined __x86_64__ || defined __i386__
+#if defined __GNUC__ && (defined __x86_64__ || defined __i386__)
    __asm__ __volatile__(
       "lock; andw %1, %0"
       : "+m" (var->value)
       : "re" (val)
       : "cc", "memory"
    );
-#elif defined VM_ARM_V7
+#elif defined __GNUC__ && defined VM_ARM_V7
    uint16 res;
    uint16 tmp;
 
@@ -3121,11 +3112,10 @@ Atomic_And16(Atomic_uint16 *var, // IN/OUT
    );
 
    dmb();
-#elif defined VM_ARM_64
+#elif defined __GNUC__ && defined VM_ARM_64
    _VMATOM_X(OP, 16, TRUE, &var->value, and, val);
 #else
-#error Atomic_And16 not implemented
-#endif
+   AtomicUndefined(var + val);
 #endif
 }
 
@@ -3150,15 +3140,14 @@ static INLINE void
 Atomic_Or16(Atomic_uint16 *var, // IN/OUT
             uint16 val)         // IN
 {
-#if defined __GNUC__
-#if defined __x86_64__ || defined __i386__
+#if defined __GNUC__ && (defined __x86_64__ || defined __i386__)
    __asm__ __volatile__(
       "lock; orw %1, %0"
       : "+m" (var->value)
       : "re" (val)
       : "cc", "memory"
    );
-#elif defined VM_ARM_V7
+#elif defined __GNUC__ && defined VM_ARM_V7
    uint16 res;
    uint16 tmp;
 
@@ -3178,11 +3167,10 @@ Atomic_Or16(Atomic_uint16 *var, // IN/OUT
    );
 
    dmb();
-#elif defined VM_ARM_64
+#elif defined __GNUC__ && defined VM_ARM_64
    _VMATOM_X(OP, 16, TRUE, &var->value, orr, val);
 #else
-#error Atomic_Or16 not implemented
-#endif
+   AtomicUndefined(var + val);
 #endif
 }
 
@@ -3207,15 +3195,14 @@ static INLINE void
 Atomic_Xor16(Atomic_uint16 *var, // IN/OUT
              uint16 val)         // IN
 {
-#if defined __GNUC__
-#if defined __x86_64__ || defined __i386__
+#if defined __GNUC__ && (defined __x86_64__ || defined __i386__)
    __asm__ __volatile__(
       "lock; xorw %1, %0"
       : "+m" (var->value)
       : "re" (val)
       : "cc", "memory"
    );
-#elif defined VM_ARM_V7
+#elif defined __GNUC__ && defined VM_ARM_V7
    uint16 res;
    uint16 tmp;
 
@@ -3235,11 +3222,10 @@ Atomic_Xor16(Atomic_uint16 *var, // IN/OUT
    );
 
    dmb();
-#elif defined VM_ARM_64
+#elif defined __GNUC__ && defined VM_ARM_64
    _VMATOM_X(OP, 16, TRUE, &var->value, eor, val);
 #else
-#error Atomic_Xor16 not implemented
-#endif
+   AtomicUndefined(var + val);
 #endif
 }
 
@@ -3264,15 +3250,14 @@ static INLINE void
 Atomic_Add16(Atomic_uint16 *var, // IN/OUT
              uint16 val)         // IN
 {
-#if defined __GNUC__
-#if defined __x86_64__ || defined __i386__
+#if defined __GNUC__ && (defined __x86_64__ || defined __i386__)
    __asm__ __volatile__(
       "lock; addw %1, %0"
       : "+m" (var->value)
       : "re" (val)
       : "cc", "memory"
    );
-#elif defined VM_ARM_V7
+#elif defined __GNUC__ && defined VM_ARM_V7
    uint16 res;
    uint16 tmp;
 
@@ -3292,11 +3277,10 @@ Atomic_Add16(Atomic_uint16 *var, // IN/OUT
    );
 
    dmb();
-#elif defined VM_ARM_64
+#elif defined __GNUC__ && defined VM_ARM_64
    _VMATOM_X(OP, 16, TRUE, &var->value, add, val);
 #else
-#error Atomic_Add16 not implemented
-#endif
+   AtomicUndefined(var + val);
 #endif
 }
 
@@ -3321,15 +3305,14 @@ static INLINE void
 Atomic_Sub16(Atomic_uint16 *var, // IN/OUT
              uint16 val)         // IN
 {
-#if defined __GNUC__
-#if defined __x86_64__ || defined __i386__
+#if defined __GNUC__ && (defined __x86_64__ || defined __i386__)
    __asm__ __volatile__(
       "lock; subw %1, %0"
       : "+m" (var->value)
       : "re" (val)
       : "cc", "memory"
    );
-#elif defined VM_ARM_V7
+#elif defined __GNUC__ && defined VM_ARM_V7
    uint16 res;
    uint16 tmp;
 
@@ -3349,11 +3332,10 @@ Atomic_Sub16(Atomic_uint16 *var, // IN/OUT
    );
 
    dmb();
-#elif defined VM_ARM_64
+#elif defined __GNUC__ && defined VM_ARM_64
    _VMATOM_X(OP, 16, TRUE, &var->value, sub, val);
 #else
-#error Atomic_Sub16 not implemented
-#endif
+   AtomicUndefined(var + val);
 #endif
 }
 
@@ -3377,19 +3359,15 @@ Atomic_Sub16(Atomic_uint16 *var, // IN/OUT
 static INLINE void
 Atomic_Inc16(Atomic_uint16 *var) // IN/OUT
 {
-#if defined __GNUC__
-#if defined __x86_64__ || defined __i386__
+#if defined __GNUC__ && (defined __x86_64__ || defined __i386__)
    __asm__ __volatile__(
       "lock; incw %0"
       : "+m" (var->value)
       :
       : "cc", "memory"
    );
-#elif defined VM_ARM_ANY
-   Atomic_Add16(var, 1);
 #else
-#error Atomic_Inc16 not implemented
-#endif
+   Atomic_Add16(var, 1);
 #endif
 }
 
@@ -3413,19 +3391,15 @@ Atomic_Inc16(Atomic_uint16 *var) // IN/OUT
 static INLINE void
 Atomic_Dec16(Atomic_uint16 *var) // IN/OUT
 {
-#if defined __GNUC__
-#if defined __x86_64__ || defined __i386__
+#if defined __GNUC__ && (defined __x86_64__ || defined __i386__)
    __asm__ __volatile__(
       "lock; decw %0"
       : "+m" (var->value)
       :
       : "cc", "memory"
    );
-#elif defined VM_ARM_ANY
-   Atomic_Sub16(var, 1);
 #else
-#error Atomic_Dec16 not implemented
-#endif
+   Atomic_Sub16(var, 1);
 #endif
 }
 
@@ -3452,7 +3426,7 @@ Atomic_ReadOr16(Atomic_uint16 *var, // IN/OUT
 {
    uint16 res;
 
-#if defined VM_ARM_64
+#if defined __GNUC__ && defined VM_ARM_64
    res = _VMATOM_X(ROP, 16, TRUE, &var->value, orr, val);
 #else
    do {
@@ -3484,8 +3458,7 @@ static INLINE uint16
 Atomic_ReadAdd16(Atomic_uint16 *var,  // IN/OUT
                  uint16 val)          // IN:
 {
-#if defined __GNUC__
-#if defined __x86_64__ || defined __i386__
+#if defined __GNUC__ && (defined __x86_64__ || defined __i386__)
    __asm__ __volatile__(
       "lock; xaddw %0, %1"
       : "=r" (val),
@@ -3494,7 +3467,7 @@ Atomic_ReadAdd16(Atomic_uint16 *var,  // IN/OUT
       : "cc", "memory"
    );
    return val;
-#elif defined VM_ARM_V7
+#elif defined __GNUC__ && defined VM_ARM_V7
    uint16 res;
    uint16 retVal;
    uint16 tmp;
@@ -3517,11 +3490,10 @@ Atomic_ReadAdd16(Atomic_uint16 *var,  // IN/OUT
    dmb();
 
    return retVal;
-#elif defined VM_ARM_64
+#elif defined __GNUC__ && defined VM_ARM_64
    return _VMATOM_X(ROP, 16, TRUE, &var->value, add, val);
 #else
-#error Atomic_ReadAdd16 not implemented
-#endif
+   return (uint16)AtomicUndefined(var + val);
 #endif
 }
 
@@ -3570,7 +3542,7 @@ Atomic_ReadDec16(Atomic_uint16 *var) // IN/OUT
 {
    return Atomic_ReadAdd16(var, (uint16)-1);
 }
-#endif
+
 
 /*
  * Template code for the Atomic_<name> type and its operators.
