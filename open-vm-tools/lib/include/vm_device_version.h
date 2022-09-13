@@ -259,7 +259,7 @@
 #define NVME_MAX_NAMESPACES    64 /* We support 64 namespaces same
                                    * as PVSCSI controller.
                                    */
-#define NVME_HW19_MAX_NAMESPACES 15 // HWv19 and before supports 15 namespaces
+#define NVME_HW20_MAX_NAMESPACES 15 // HWv20 and before supports 15 namespaces
 #define NVME_FUTURE_MAX_NAMESPACES 256 /* To support NVME to the possible 256
                                         * disks per controller in future.
                                         */
