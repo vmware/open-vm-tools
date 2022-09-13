@@ -400,6 +400,33 @@ string::operator const ubstr_t()
    return ubstr_t(GetUtf16Cache());
 }
 
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * utf::string::t_str --
+ *
+ *      Get the TCHAR representation of this string.
+ *
+ * Results:
+ *      The TCHAR representation.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+const TCHAR*
+string::t_str() const
+{
+#ifdef UNICODE
+   return w_str();
+#else
+   return c_str();
+#endif
+}
+
 #endif
 
 
