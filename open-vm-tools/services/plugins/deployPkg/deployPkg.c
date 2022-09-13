@@ -59,9 +59,9 @@ using namespace ImgCustCommon;
 
 // Using 3600s as the upper limit of timeout value in tools.conf.
 #define MAX_TIMEOUT_FROM_TOOLCONF 3600
-// Using 600s as the upper limit of waiting for cloud-init execution done
+// Using 1800s as the upper limit of waiting for cloud-init execution done
 // timeout value in tools.conf.
-#define MAX_TIMEOUT_WAIT_FOR_CLOUDINIT_DONE 600
+#define MAX_TIMEOUT_WAIT_FOR_CLOUDINIT_DONE 1800
 
 static char *DeployPkgGetTempDir(void);
 
