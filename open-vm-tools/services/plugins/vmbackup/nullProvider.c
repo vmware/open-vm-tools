@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2016, 2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -243,6 +243,32 @@ VmBackupNullSnapshotDone(VmBackupState *state,
    return TRUE;
 }
 
+
+/*
+ ******************************************************************************
+ * VmBackupNullUndo --                                                  */ /**
+ *
+ * Update the state machine state with the currentOpName.
+ *
+ * Can be called when snapshot times out.  See PR2993571 and PR3003917.
+ *
+ * @param[in] state        the backup state
+ * @param[in] clientData   client data
+ *
+ * @return TRUE
+ *
+ ******************************************************************************
+ */
+
+static Bool
+VmBackupNullUndo(VmBackupState *state,
+                 void *clientData)
+{
+   g_debug("*** %s\n", __FUNCTION__);
+   VmBackup_SetCurrentOp(state, NULL, NULL, __FUNCTION__);
+   return TRUE;
+}
+
 #endif
 
 /*
@@ -281,6 +307,9 @@ VmBackup_NewNullProvider(void)
 
    provider = g_new(VmBackupSyncProvider, 1);
    provider->start = VmBackupNullStart;
+#if !defined(_WIN32)
+   provider->undo = VmBackupNullUndo;
+#endif
    provider->snapshotDone = VmBackupNullSnapshotDone;
    provider->release = VmBackupNullRelease;
    provider->clientData = NULL;
