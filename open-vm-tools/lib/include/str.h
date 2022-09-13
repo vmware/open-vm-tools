@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020,2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -218,6 +218,7 @@ wchar_t *Str_SafeVaswprintf(size_t *length,         // OUT/OPT:
 
 #define Str_Strcmp(s1, s2) strcmp(s1, s2)
 #define Str_Strncmp(s1, s2, n) strncmp(s1, s2, n)
+#define Str_Strequal(s1,s2) (0 == (Str_Strcmp(s1, s2)))
 
 #define Str_Strchr(s, c) strchr(s, c)
 #define Str_Strrchr(s, c) strrchr(s, c)
