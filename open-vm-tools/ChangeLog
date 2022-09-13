@@ -1,3 +1,128 @@
+commit ab5b5fa4453fd1e1998d8571cab30b2b590053ba
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 13 10:54:06 2022 -0700
+
+    Add missed 2022 copyright.
+
+commit 7de3c1c208596a6dfaa967d9bb3b58d7f77c8671
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 13 10:31:15 2022 -0700
+
+    Record the usage of open-vm-tools version 12.1.5.
+    
+    Update bora/public/vm_tools_version.h with an entry that associates
+    version 12.1.5 with the tag TOOLS_VERSION_MITER_SAW_UPDATE1.
+
+commit abd63f3785f8e4ec5384f55021b070be22c7cf8f
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 13 10:31:15 2022 -0700
+
+    Add a null undo function to the vmbackup null provider.
+    
+    If a snapshot operation times out, vmbackup can attempt
+    to undo quiescing.  Since no quiescing is done for the null
+    backup provider, no undo function was provided.  If vmbackup
+    attempts to call the undo function, it dereferences a garbage
+    pointer resulting in a segfault.
+    
+    Rather than add null backup provider specific checks to vmbackup,
+    this change adds a null undo function to provide vmbackup with a
+    valid function pointer it can call.  The new undo function updates
+    the vmbackup state machine state with a new currentOpName, but
+    has no other effect.  currentOpName is set to the calling
+    function name, e.g. __FUNCTION__.
+
+commit 42437c1131ee990737986d3fd5248bd17ec3e5ff
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 13 10:31:15 2022 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit f1e30c3cb3b698a91de4966206350df2e08be128
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 13 10:31:15 2022 -0700
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit 484ab8d8443ac6dd42f2ba7aabae4a7b44eda2e3
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 13 10:31:15 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 8b98bd41def988342c16a870a4e7e880885dc81d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 13 10:31:15 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 6d0cf2442fb9ec26be9528952e871c35019a1854
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 13 10:31:15 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 064033a0ea74599d93f2a9988e0331efbe8f981f
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 13 10:31:14 2022 -0700
+
+    [deployPkg] Increase the maximum timeout for cloud-init execution to complete.
+
+commit f3979ace5779c481073004968d6d9787d24c1096
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 13 10:31:14 2022 -0700
+
+    Record the use of VMware Tools version 10.3.26 in vm_tools_version.h
+    
+    Tracking the use of 10.3.26 for TOOLS_VERSION_JACKHAMMER_PATCH13.
+
+commit 22f7f76e19c906890f5cd35bde1a43ae90e77f79
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 13 10:31:14 2022 -0700
+
+    Make Linux perl based customization work with the cloud-init workflow.
+    
+    To resolve issues seen where users want to set a vm's networking
+    and apply cloud-init userdata together before the vm is booted, the
+    deployPkg plugin has been modified to wait for cloud-init
+    execution to finish.  This allows cloud-init to finish execution
+    completely before the customization process triggers a reboot
+    of the guest.
+    
+    This change is solely in the deployPkg plugin side, so a user can get
+    this change by upgrading their open-vm-tools in the guest/template.
+
+commit 15e8c9828bcef3eb41e7655b0f18c575dc495b25
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 13 10:31:14 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit a2cb7be60dbaa2b632872b37e187570a92fe6b2a
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 13 10:31:14 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 1dbbb6e91e5388a88fe063d61d0cbb9602fb75a1
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 13 10:31:14 2022 -0700
+
+    Address Coverity issues.
+    
+    base64.c
+    - buffer overrun (out); false positive
+    
+    hashTable.c
+    - expression always false; false positive
+
+commit 587be32ec29a3665e30f7509d3d3c8f8ada505e7
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Sep 8 14:57:36 2022 -0700
+
+    Update ChangeLog with the granular push of Sep 8, 2022.
+      - plus ChangeLog update of Aug 21, 2022.
+
 commit 29b92ada5842c2b9d1cde7dbc9dafb69d6a18b96
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Thu Sep 8 14:51:40 2022 -0700
