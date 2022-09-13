@@ -597,7 +597,10 @@ FLAG(   7,  1, EAX, 11,  1, FAST_SHORT_STOSB,                    YES,  20 ) \
 FLAG(   7,  1, EAX, 12,  1, FAST_SHORT_CMPSB_SCASB,              YES,  20 ) \
 FLAG(   7,  1, EAX, 22,  1, HRESET,                              NO,    0 ) \
 FLAG(   7,  1, EAX, 26,  1, LAM,                                 NO,    0 ) \
-FLAG(   7,  2, EDX,  0,  1, PSFD,                                YES,  20 )
+FLAG(   7,  2, EDX,  0,  1, PSFD,                                YES,  20 ) \
+FLAG(   7,  2, EDX,  1,  1, IPRED_CTRL,                          NO,    0 ) \
+FLAG(   7,  2, EDX,  2,  1, RRSBA_CTRL,                          NO,    0 ) \
+FLAG(   7,  2, EDX,  4,  1, BHI_CTRL,                            NO,    0 )
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_9                                            \
