@@ -1,3 +1,66 @@
+commit ce6d6d1abd652c766de597120b5a19c65a9a2f3f
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Sep 21 10:53:28 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit c0002b9761a0fc18e363d1e414f9330d1acab950
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Sep 21 10:53:28 2022 -0700
+
+    Add an example of a new deployPkg/wait-cloudinit-timeout setting to tools.conf.
+
+commit e210b4f0b28f7411ea2e45d4304725d0679481d2
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Sep 21 10:53:28 2022 -0700
+
+    Inclusive terminology - "suffer"
+    
+    Update bora/public/backdoor_def.h to not use "suffer".
+
+commit 045cc568c053096ca2d5e142787ab039c03ba654
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Sep 21 10:53:28 2022 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 1d13616f84f10e836cb589a1bab62d8ae3331c7d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Sep 21 10:53:28 2022 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 7d4360383274807b488fcdf16ca6844ad27891a8
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Sep 21 10:53:28 2022 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 7ec8864176d51356ea5bdb6713496d1770aff2ba
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Sep 21 10:53:28 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit e49ffc8d24257a4c1568e3a36d1f001a16b9d4cc
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Sep 21 10:53:28 2022 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit e873df9b63d4b16239f15dd0a4abfc7c1375e936
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Sep 21 10:53:28 2022 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit b5329468f4c2115d57ccfff54d0b4e9c703df33e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 13 11:04:06 2022 -0700
+
+    Update ChangeLog with the granular push of Sep 13, 2022.
+     - plus ChangeLog update of Sep 8, 2022.
+
 commit ab5b5fa4453fd1e1998d8571cab30b2b590053ba
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Tue Sep 13 10:54:06 2022 -0700
