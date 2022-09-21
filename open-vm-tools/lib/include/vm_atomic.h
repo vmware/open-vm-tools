@@ -3068,6 +3068,40 @@ Atomic_ReadIfEqualWrite16(Atomic_uint16 *var,   // IN/OUT
 /*
  *-----------------------------------------------------------------------------
  *
+ * Atomic_ReadAnd16 --
+ *
+ *      Atomic read (returned), bitwise AND with a value, write.
+ *
+ * Results:
+ *      The value of the variable before the operation.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE uint16
+Atomic_ReadAnd16(Atomic_uint16 *var, // IN/OUT
+                 uint16 val)         // IN
+{
+   uint16 res;
+
+#if defined __GNUC__ && defined VM_ARM_64
+   res = _VMATOM_X(ROP, 16, TRUE, &var->value, and, val);
+#else
+   do {
+      res = Atomic_Read16(var);
+   } while (res != Atomic_ReadIfEqualWrite16(var, res, res & val));
+#endif
+
+   return res;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * Atomic_And16 --
  *
  *      Atomic read, bitwise AND with a 16-bit value, write.
