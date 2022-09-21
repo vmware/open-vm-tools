@@ -27,6 +27,7 @@
 /* KEEP IN SORTED ORDER! */
 
 #define LOGLEVEL_USER(LOGLEVEL_VAR) \
+   LOGLEVEL_VAR(9pfs), \
    LOGLEVEL_VAR(acpi), \
    LOGLEVEL_VAR(acpiGPE), \
    LOGLEVEL_VAR(ahci), \
