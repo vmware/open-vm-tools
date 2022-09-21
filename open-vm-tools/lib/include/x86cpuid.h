@@ -1085,7 +1085,7 @@ FLAG(  81,  0, ECX, 24,  1, PERFNB,                              NO,    0 ) \
 FLAG(  81,  0, ECX, 26,  1, DATABK,                              NO,    0 ) \
 FLAG(  81,  0, ECX, 27,  1, PERFTSC,                             NO,    0 ) \
 FLAG(  81,  0, ECX, 28,  1, PERFL3,                              NO,    0 ) \
-FLAG(  81,  0, ECX, 29,  1, MONITORX,                            NO,    0 ) \
+FLAG(  81,  0, ECX, 29,  1, MONITORX,                            YES,  21 ) \
 FLAG(  81,  0, ECX, 30,  1, ADDR_MASK_EXT,                       NO,    0 ) \
 FLAG(  81,  0, EDX,  0,  1, LEAF81_FPU,                          YES,   4 ) \
 FLAG(  81,  0, EDX,  1,  1, LEAF81_VME,                          YES,   4 ) \
