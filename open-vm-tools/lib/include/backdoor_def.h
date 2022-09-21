@@ -171,6 +171,7 @@ extern "C" {
 //#define BDOOR_CMD_FAS_GET_NVDIMM_FMT_CODE  11 /* Not in use. Never shipped. */
 #  define BDOOR_CMD_FAS_SRP_ENABLED          12
 #  define BDOOR_CMD_FAS_EXIT_BOOT_SERVICES   13
+#  define BDOOR_CMD_FAS_GET_API_ENABLES      14
 #define   BDOOR_CMD_SENDPSHAREHINTS          66 /* Not in use. Deprecated. */
 #define   BDOOR_CMD_ENABLE_USB_MOUSE         67
 #define   BDOOR_CMD_GET_VCPU_INFO            68
@@ -307,6 +308,8 @@ extern "C" {
 #define BDOOR_SECUREBOOT_STATUS_DISABLED  0xFFFFFFFFUL
 #define BDOOR_SECUREBOOT_STATUS_APPROVED  1
 #define BDOOR_SECUREBOOT_STATUS_DENIED    2
+
+#define BDOOR_FAS_API_ENABLE_FDT          0x00000001UL
 
 /* High-bandwidth backdoor port. */
 
