@@ -284,7 +284,7 @@ extern "C" {
  * IMPORTANT NOTE: When modifying the behavior of an existing backdoor command,
  * you must adhere to the semantics expected by the oldest Tools who use that
  * command. Specifically, do not alter the way in which the command modifies
- * the registers. Otherwise backwards compatibility will suffer.
+ * the registers. Otherwise backwards compatibility will be impacted.
  */
 
 /* Nesting control operations */
