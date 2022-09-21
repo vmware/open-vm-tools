@@ -547,7 +547,7 @@ typedef uint16  UReg16;
 typedef uint32  UReg32;
 typedef uint64  UReg64;
 
-#if defined(__GNUC__) && defined(__SIZEOF_INT128__)
+#ifdef VM_HAS_INT128
 typedef  int128  Reg128;
 typedef uint128 UReg128;
 #endif
