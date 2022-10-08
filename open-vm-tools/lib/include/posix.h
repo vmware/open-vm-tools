@@ -242,11 +242,16 @@ Posix_GetHostByName(const char *name)  // IN
    char **p;
    int i;
    int naddrs;
+#if defined(__NetBSD__)
+   extern struct hostent *gethostbyname_r(const char *, struct hostent *,
+                                          char *, size_t, int *);
+#endif
 
    ASSERT(name);
 
    if ((gethostbyname_r(name, &he, buffer, sizeof buffer,
-#if !defined(sun) && !defined(SOLARIS) && !defined(SOL10)
+#if !defined(sun) && !defined(SOLARIS) && !defined(SOL10) && \
+    !defined(__NetBSD__)
                         &phe,
 #endif
                         &error) == 0) && phe) {

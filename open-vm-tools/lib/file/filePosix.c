@@ -24,7 +24,7 @@
 
 #include <sys/types.h> /* Needed before sys/vfs.h with glibc 2.0 --hpreg */
 
-#if defined(__FreeBSD__)
+#if defined(__FreeBSD__) || defined(__NetBSD__)
 # include <sys/param.h>
 # include <sys/mount.h>
 #else
@@ -55,6 +55,10 @@
 
 #if defined(__APPLE__)
 #include <TargetConditionals.h>
+#endif
+
+#if defined(__NetBSD__)
+#define statfs statvfs
 #endif
 
 #include "vmware.h"
@@ -115,9 +119,9 @@ struct WalkDirContextImpl {
 #define FS_VSAND_ON_ESX "vsanD"
 #define FS_VSAN_URI_PREFIX      "vsan:"
 
-#if defined __ANDROID__
+#if defined __ANDROID__ || defined __NetBSD__
 /*
- * Android doesn't support setmntent(), endmntent() or MOUNTED.
+ * Android and NetBSD doesn't support setmntent(), endmntent() or MOUNTED.
  */
 #define NO_SETMNTENT
 #define NO_ENDMNTENT
@@ -370,7 +374,7 @@ FileAttributes(const char *pathName,  // IN:
  *----------------------------------------------------------------------
  */
 
-#if !defined(__FreeBSD__) && !defined(sun)
+#if !defined(__FreeBSD__) && !defined(__NetBSD__) && !defined(sun)
 Bool
 File_IsRemote(const char *pathName)  // IN: Path name
 {
@@ -409,7 +413,7 @@ File_IsRemote(const char *pathName)  // IN: Path name
 #endif
    }
 }
-#endif /* !FreeBSD && !sun */
+#endif /* !FreeBSD && !NetBSD && !sun */
 
 
 /*
@@ -581,8 +585,8 @@ File_StripFwdSlashes(const char *pathName)  // IN:
  *      directory and so on. If the path is NULL or "", this routine
  *      returns the current working directory.
  *
- *      On FreeBSD and Sun platforms, this routine will only work if
- *      the path exists, or when we are about to create a child in an
+ *      On BSD and Sun platforms, this routine will only work if the
+ *      path exists, or when we are about to create a child in an
  *      existing parent directory. This is because on these platforms,
  *      we cannot rely on finding existing ancestor and such because
  *      those functions are not compiled.
@@ -626,7 +630,7 @@ File_FullPath(const char *pathName)  // IN:
       if (ret == NULL) {
          char *dir;
          char *file;
-#if defined(__FreeBSD__) || defined(sun)
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(sun)
          char *realDir;
 #else
          char *ancestorPath;
@@ -634,7 +638,7 @@ File_FullPath(const char *pathName)  // IN:
 #endif
 
          File_GetPathName(path, &dir, &file);
-#if defined(__FreeBSD__) || defined(sun)
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(sun)
          realDir = Posix_RealPath(dir);
          if (realDir == NULL) {
             realDir = File_StripFwdSlashes(dir);
@@ -2184,6 +2188,10 @@ File_IsSameFile(const char *path1,  // IN:
 
 #if defined(__APPLE__) || defined(__FreeBSD__)
    if ((stfs1.f_flags & MNT_LOCAL) && (stfs2.f_flags & MNT_LOCAL)) {
+      return TRUE;
+   }
+#elif defined(__NetBSD__)
+   if ((stfs1.f_flag & MNT_LOCAL) && (stfs2.f_flag & MNT_LOCAL)) {
       return TRUE;
    }
 #else

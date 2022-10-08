@@ -1540,8 +1540,10 @@ Bool
 GuestInfoTakeSample(DynBuf *statBuf)  // IN/OUT: inited, ready to fill
 {
    GuestInfoCollector *temp;
+#if !defined __NetBSD__
    locale_t newLoc;
    locale_t prevLoc;
+#endif
 
    ASSERT(statBuf && DynBuf_GetSize(statBuf) == 0);
 
@@ -1568,6 +1570,7 @@ GuestInfoTakeSample(DynBuf *statBuf)  // IN/OUT: inited, ready to fill
       return FALSE;
    }
 
+#if !defined __NetBSD__
    /*
     * Switch the current thread to "C" locale to parse /proc files.
     *
@@ -1591,6 +1594,7 @@ GuestInfoTakeSample(DynBuf *statBuf)  // IN/OUT: inited, ready to fill
    } else {
       g_warning("%s: newlocale failed, error=%d.\n", __FUNCTION__, errno);
    }
+#endif
 
    /* Collect the current data */
    GuestInfoCollect(gCurrentCollector);
@@ -1598,11 +1602,13 @@ GuestInfoTakeSample(DynBuf *statBuf)  // IN/OUT: inited, ready to fill
    /* Encode the captured data */
    GuestInfoEncodeStats(gCurrentCollector, gPreviousCollector, statBuf);
 
+#if !defined __NetBSD__
    if (newLoc != (locale_t)0) {
       /* Restore thread previous locale */
       uselocale(prevLoc);
       freelocale(newLoc);
    }
+#endif
 
    /* Switch the collections for next time. */
    temp = gCurrentCollector;

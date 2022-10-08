@@ -308,7 +308,11 @@ RpcChannelXdrWrapper(RpcInData *data,
          goto exit;
       }
 
+#if defined __NetBSD__
+      if (!xdrProc(&xdrs, copy.result)) {
+#else
       if (!xdrProc(&xdrs, copy.result, 0)) {
+#endif
          ret = RPCIN_SETRETVALS(data, "XDR serialization failed.", FALSE);
 
          /*
@@ -378,7 +382,11 @@ RpcChannel_BuildXdrCommand(const char *cmd,
       goto exit;
    }
 
+#if defined __NetBSD__
+   if (!proc(&xdrs, xdrData)) {
+#else
    if (!proc(&xdrs, xdrData, 0)) {
+#endif
       goto exit;
    }
 

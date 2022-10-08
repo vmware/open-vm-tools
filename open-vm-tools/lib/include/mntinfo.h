@@ -34,7 +34,7 @@
 # include <limits.h>
 #elif defined(__linux__)
 # include <mntent.h>
-#elif defined(__FreeBSD__)
+#elif defined(__FreeBSD__) || defined(__NetBSD__)
 # include <sys/mount.h>
 #endif
 #include "posix.h"
@@ -106,7 +106,10 @@
 # define MNTINFO_FSTYPE(mnt)            mnt->mnt_type
 # define MNTINFO_MNTPT(mnt)             mnt->mnt_dir
 # define MNTINFO_MNT_IS_RO(mnt)         (hasmntopt((mnt), "rw") == NULL)
-#elif defined(__FreeBSD__) || defined(__APPLE__)
+#elif defined(__FreeBSD__) || defined(__NetBSD__) || defined(__APPLE__)
+#if defined(__NetBSD__)
+#define statfs statvfs
+#endif
 struct mntHandle {
    struct statfs *mountPoints;  // array of mountpoints per getmntinfo(3)
    int numMountPoints;          // number of elements in mntArray
@@ -155,7 +158,11 @@ struct mntHandle {
 # define MNTINFO_NAME(mnt)              mnt->f_mntfromname
 # define MNTINFO_FSTYPE(mnt)            mnt->f_fstypename
 # define MNTINFO_MNTPT(mnt)             mnt->f_mntonname
-# define MNTINFO_MNT_IS_RO(mnt)         ((mnt)->f_flags & MNT_RDONLY)
+# if defined __NetBSD__
+#  define MNTINFO_MNT_IS_RO(mnt)         ((mnt)->f_flag & MNT_RDONLY)
+# else
+#  define MNTINFO_MNT_IS_RO(mnt)         ((mnt)->f_flags & MNT_RDONLY)
+# endif
 #else
 # error "Define mount information macros for your OS type"
 #endif

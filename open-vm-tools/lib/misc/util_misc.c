@@ -331,7 +331,8 @@ Util_CanonicalPathsIdentical(const char *path1,  // IN:
 Bool
 Util_IsAbsolutePath(const char *path)  // IN: path to check
 {
-#if defined __linux__ || defined __APPLE__ || defined __FreeBSD__ || defined sun
+#if defined __linux__ || defined __APPLE__ || defined __FreeBSD__ || \
+    defined __NetBSD__ || defined sun
    // path[0] is valid even for the empty string.
    return path && path[0] == DIRSEPC;
 #elif defined _WIN32

@@ -64,6 +64,9 @@
 #  if defined __linux__
 #    include <sys/syscall.h>   // for gettid(2)
 #  endif
+#  if defined __NetBSD__
+     #include <lwp.h>
+#  endif
 #  include <pthread.h>
 #endif
 #include <stdlib.h>
@@ -352,6 +355,8 @@ VThreadBase_GetKernelID(void)
 #  endif
    // Best effort until FreeBSD header update
    return (uint64)(uintptr_t)(void *)pthread_self();
+#elif defined __NetBSD__
+   return (uint64)_lwp_self();
 #else
 #  error "Unknown platform"
 #endif

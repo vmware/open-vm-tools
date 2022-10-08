@@ -52,7 +52,7 @@
 #include <spawn.h>
 extern char **environ;
 #endif
-#elif defined(__FreeBSD__)
+#elif defined(__FreeBSD__) || defined(__NetBSD__)
 #include <sys/param.h>
 #include <sys/mount.h>
 #elif defined(sun)
@@ -75,6 +75,10 @@ extern char **environ;
 # else
 #  include <limits.h>  // PATH_MAX
 # endif
+
+#if defined(__NetBSD__)
+#define statfs statvfs
+#endif
 
 #include "vmware.h"
 #include "posixInt.h"
@@ -1806,7 +1810,8 @@ Posix_Unsetenv(const char *name)  // IN:
 
 #if !defined(sun) // {
 
-#if !defined(__APPLE__) && !defined(__FreeBSD__) // {
+#if !defined(__APPLE__) && !defined(__FreeBSD__) && \
+    !defined(__NetBSD__) // {
 /*
  *----------------------------------------------------------------------
  *

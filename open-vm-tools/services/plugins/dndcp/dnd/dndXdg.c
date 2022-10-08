@@ -29,7 +29,7 @@
 #include <pwd.h>
 #include <stdlib.h>
 
-#if defined __FreeBSD__
+#if defined __FreeBSD__ || defined __NetBSD__
 #include <unistd.h>
 #endif
 

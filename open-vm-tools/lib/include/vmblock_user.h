@@ -129,7 +129,7 @@ VMBLOCK_CONTROL(int fd, int op, const char *path)
    return write(fd, path, op);
 }
 
-#elif defined(__FreeBSD__)
+#elif defined(__FreeBSD__) || defined(__NetBSD__)
 
 static INLINE int
 VMBLOCK_CONTROL(int fd, int cmd, const char *path)

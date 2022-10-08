@@ -66,7 +66,8 @@
 #include <unistd.h>
 #endif
 
-#if defined(sun) || defined(__FreeBSD__) || defined(__APPLE__)
+#if defined(sun) || defined(__FreeBSD__) || defined(__NetBSD__) || \
+    defined(__APPLE__)
 #include <sys/stat.h>
 #endif
 
@@ -1592,7 +1593,7 @@ VixToolsRunProgramImpl(char *requestName,      // IN
    si.dwFlags = STARTF_USESHOWWINDOW;
    si.wShowWindow = (VIX_RUNPROGRAM_ACTIVATE_WINDOW & runProgramOptions)
                      ? SW_SHOWNORMAL : SW_MINIMIZE;
-#elif !defined(__FreeBSD__)
+#elif !defined(__FreeBSD__) && !defined(__NetBSD__)
    procArgs.envp = VixToolsEnvironmentTableToEnvp(userEnvironmentTable);
 #endif
 
@@ -1761,7 +1762,8 @@ VixToolsStartProgramImpl(const char *requestName,            // IN
     * For non-Windows, we use the user's $HOME if workingDir isn't supplied.
     */
    if (NULL == workingDir) {
-#if defined(__linux__) || defined(sun) || defined(__FreeBSD__) || defined(__APPLE__)
+#if defined(__linux__) || defined(sun) || defined(__FreeBSD__) || \
+    defined(__NetBSD__) || defined(__APPLE__)
       char *username = NULL;
 
       if (!ProcMgr_GetImpersonatedUserInfo(&username, &workingDirectory)) {
@@ -2671,7 +2673,7 @@ VixTools_GetToolsPropertiesImpl(GKeyFile *confDictRef,            // IN
    VixPropertyListImpl propList;
    char *serializedBuffer = NULL;
    size_t serializedBufferLength = 0;
-#if !defined(__FreeBSD__)
+#if !defined(__FreeBSD__) && !defined(__NetBSD__)
    char *guestName;
    int osFamily;
    char *packageList = NULL;
@@ -2885,7 +2887,7 @@ quit:
    free(powerOffScript);
 #else
    /*
-    * FreeBSD. We do not require all the properties above.
+    * FreeBSD/NetBSD. We do not require all the properties above.
     * We only Support VMODL Guest Ops for now (Bug 228398).
     */
 
@@ -2930,7 +2932,7 @@ quit:
 quit:
    VixPropertyList_RemoveAllWithoutHandles(&propList);
    free(serializedBuffer);
-#endif // __FreeBSD__
+#endif // __FreeBSD__ || __NetBSD__
 
    return err;
 } // VixTools_GetToolsPropertiesImpl
@@ -4366,7 +4368,7 @@ VixToolsGetMultipleEnvVarsForUser(void *userToken,       // IN
    char *resultLocal = Util_SafeStrdup("");  // makes the loop cleaner.
    VixToolsUserEnvironment *env;
 
-#ifdef __FreeBSD__
+#if defined __FreeBSD__ || defined __NetBSD__
    if (NULL == userEnvironmentTable) {
       err = VIX_E_FAIL;
       free(resultLocal);
@@ -4383,7 +4385,7 @@ VixToolsGetMultipleEnvVarsForUser(void *userToken,       // IN
    for (i = 0; i < numNames; i++) {
       char *value;
 
-#ifdef __FreeBSD__
+#if defined __FreeBSD__ || defined __NetBSD__
       /*
        * We should check the original envp for all vars except
        * a few allowlisted ones that we set/unset on impersonate
@@ -4482,7 +4484,7 @@ VixToolsGetAllEnvVarsForUser(void *userToken,     // IN
    char *resultLocal;
    VixToolsEnvIterator *itr;
    char *envVar;
-#ifdef __FreeBSD__
+#if defined __FreeBSD__ || defined __NetBSD__
    char **envp;
    if (NULL == userEnvironmentTable) {
       err = VIX_E_FAIL;
@@ -4498,7 +4500,7 @@ VixToolsGetAllEnvVarsForUser(void *userToken,     // IN
 
    resultLocal = Util_SafeStrdup("");  // makes the loop cleaner.
 
-#ifdef __FreeBSD__
+#if defined __FreeBSD__ || defined __NetBSD__
    err = VixToolsNewEnvIterator(userToken, envp, &itr);
 #else
    err = VixToolsNewEnvIterator(userToken, &itr);
@@ -4510,7 +4512,7 @@ VixToolsGetAllEnvVarsForUser(void *userToken,     // IN
    while ((envVar = VixToolsGetNextEnvVar(itr)) != NULL) {
       char *tmp = resultLocal;
       char *tmpVal;
-#ifdef __FreeBSD__
+#if defined __FreeBSD__ || defined __NetBSD__
       /*
        * For variables we change during Impersonatation of user,
        * we need to fetch from getenv() system call, all else
@@ -4566,7 +4568,7 @@ VixToolsGetAllEnvVarsForUser(void *userToken,     // IN
 
 quit:
    VixToolsDestroyEnvIterator(itr);
-#ifdef __FreeBSD__
+#if defined __FreeBSD__ || defined __NetBSD__
    VixToolsFreeEnvp(envp);
 #endif
    *result = resultLocal;
@@ -4783,7 +4785,7 @@ VixToolsMoveObject(VixCommandRequestHeader *requestMsg)        // IN
     * Be careful. Renaming a file to itself can cause it to be deleted.
     * This should be a no-op anyway.
     */
-#if !defined(sun) && !defined(__FreeBSD__)
+#if !defined(sun) && !defined(__FreeBSD__) && !defined(__NetBSD__)
    if (File_IsSameFile(srcFilePathName, destFilePathName)) {
       err = VIX_OK;
       goto quit;
@@ -6871,7 +6873,8 @@ VixToolsGetFileExtendedInfoLength(const char *filePathName,   // IN
    fileExtendedInfoBufferSize += 10 * 3;            // uid, gid, perms
 #endif
 
-#if defined(__linux__) || defined(sun) || defined(__FreeBSD__)
+#if defined(__linux__) || defined(sun) || defined(__FreeBSD__) || \
+    defined(__NetBSD__)
    if (File_IsSymLink(filePathName)) {
       char *symlinkTarget;
       symlinkTarget = Posix_ReadLink(filePathName);

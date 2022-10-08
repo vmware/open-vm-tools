@@ -23,7 +23,8 @@
  *
  */
 
-#if !defined(__linux__) && !defined(sun) && !defined(__FreeBSD__) && !defined(__APPLE__)
+#if !defined(__linux__) && !defined(sun) && !defined(__FreeBSD__) && \
+    !defined(__NetBSD__) && !defined(__APPLE__)
 #error This file should not be compiled on this platform.
 #endif
 
@@ -34,14 +35,15 @@
 #  include <sys/sysmacros.h>
 # endif
 # include <sys/vfs.h>
-#elif defined(__FreeBSD__) || defined(__APPLE__)
+#elif defined(__FreeBSD__) || defined(__NetBSD__) || defined(__APPLE__)
 # include <sys/param.h>
 # include <sys/ucred.h>
 # include <sys/mount.h>
 # include <fstab.h>
-# if defined(__FreeBSD_version) && __FreeBSD_version >= 500000
+# if (defined(__FreeBSD_version) && __FreeBSD_version >= 500000) || \
+     defined(__NetBSD__)
 #  include <libgen.h>
-# endif /* __FreeBSD_version >= 500000 */
+# endif /* __FreeBSD_version >= 500000 || __NetBSD__ */
 #endif
 #include <unistd.h>
 
@@ -74,7 +76,7 @@
 
 #if defined(sun) || defined(__linux__)
 # define PROCFS "proc"
-#elif defined(__FreeBSD__) || defined(__APPLE__)
+#elif defined(__FreeBSD__) || defined(__NetBSD__) || defined(__APPLE__)
 # define PROCFS "procfs"
 #endif
 
@@ -387,6 +389,35 @@ WiperIsDiskDevice(MNTINFO *mnt,         // IN: file system being considered
    return retval;
 }
 
+#elif defined(__NetBSD__) /* } { */
+
+static Bool
+WiperIsDiskDevice(MNTINFO *mnt,         // IN: file system being considered
+                  struct stat *s)       // IN: stat(2) info of fs source
+{
+   Bool retval = FALSE;
+
+#define MASK_WEDGE_DISK   "dk"
+#define MASK_WD_DISK      "wd"
+#define MASK_SD_DISK      "sd"
+#define MASK_LD_DISK      "ld"
+   if (S_ISCHR(s->st_mode)) {
+      char *name = basename(MNTINFO_NAME(mnt));
+      if ((strncmp(name, MASK_WEDGE_DISK, sizeof MASK_WEDGE_DISK - 1) == 0) ||
+          (strncmp(name, MASK_WD_DISK, sizeof MASK_WD_DISK - 1) == 0) ||
+          (strncmp(name, MASK_SD_DISK, sizeof MASK_SD_DISK - 1) == 0) ||
+          (strncmp(name, MASK_LD_DISK, sizeof MASK_LD_DISK - 1) == 0)) {
+         retval = TRUE;
+      }
+   }
+#undef MASK_WEDGE_DISK
+#undef MASK_WD_DISK
+#undef MASK_SD_DISK
+#undef MASK_LD_DISK
+
+   return retval;
+}
+
 #elif defined(__APPLE__) /* } { */
 
 static Bool
@@ -626,7 +657,7 @@ WiperSinglePartition_GetSpace(const WiperPartition *p, // IN
                               uint64 *free,            // OUT/OPT
                               uint64 *total)           // OUT
 {
-#ifdef sun
+#if defined sun || defined __NetBSD__
    struct statvfs statfsbuf;
 #else
    struct statfs statfsbuf;
@@ -635,7 +666,7 @@ WiperSinglePartition_GetSpace(const WiperPartition *p, // IN
 
    ASSERT(p);
 
-#ifdef sun
+#if defined sun || defined __NetBSD__
    if (statvfs(p->mountPoint, &statfsbuf) < 0) {
 #else
    if (Posix_Statfs(p->mountPoint, &statfsbuf) < 0) {

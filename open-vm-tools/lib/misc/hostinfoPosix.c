@@ -41,7 +41,7 @@
 #include <sys/systeminfo.h>
 #endif
 #include <sys/socket.h>
-#if defined(__FreeBSD__) || defined(__APPLE__)
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__APPLE__)
 # include <sys/sysctl.h>
 #endif
 #if !defined(__APPLE__)
@@ -87,7 +87,7 @@
 #endif
 #endif
 
-#if defined(__APPLE__) || defined(__FreeBSD__)
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__)
 #include <paths.h>
 #endif
 
@@ -477,7 +477,7 @@ Hostinfo_GetSystemBitness(void)
    }
 #else
    char buf[SYSTEM_BITNESS_MAXLEN] = { '\0', };
-#   if defined __FreeBSD__ || defined __APPLE__
+#   if defined __FreeBSD__ || defined __NetBSD__ || defined __APPLE__
    static int mib[2] = { CTL_HW, HW_MACHINE, };
    size_t len = sizeof buf;
 
@@ -2073,7 +2073,7 @@ HostinfoLinux(struct utsname *buf)  // IN:
  *
  * HostinfoBSD --
  *
- *      Determine the specifics concerning BSD.
+ *      Determine the specifics concerning FreeBSD.
  *
  * Return value:
  *      TRUE   Success
@@ -2131,6 +2131,55 @@ HostinfoBSD(struct utsname *buf)  // IN:
    }
 
    return (len != -1);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HostinfoNetBSD --
+ *
+ *      Determine the specifics concerning NetBSD.
+ *
+ * Return value:
+ *      TRUE   Success
+ *      FALSE  Failure
+ *
+ * Side effects:
+ *      Cache values are set when returning TRUE
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+HostinfoNetBSD(struct utsname *buf)  // IN:
+{
+   int len;
+   int majorVersion;
+   char distroShort[DISTRO_BUF_SIZE];
+   char osName[MAX_OS_NAME_LEN];
+   char osNameFull[MAX_OS_FULLNAME_LEN];
+
+   majorVersion = Hostinfo_OSVersion(0);
+
+   Str_Sprintf(distroShort, sizeof distroShort, "%s%s%d",
+               HostinfoArchString(), STR_OS_NETBSD, majorVersion);
+   len = Str_Snprintf(osNameFull, sizeof osNameFull, "%s %s", buf->sysname,
+                      buf->release);
+   if (len != -1) {
+      if (Hostinfo_GetSystemBitness() == 64) {
+         len = Str_Snprintf(osName, sizeof osName, "%s%s", distroShort,
+                            STR_OS_64BIT_SUFFIX);
+      } else {
+         len = Str_Snprintf(osName, sizeof osName, "%s", distroShort);
+      }
+   }
+
+   if (len != -1) {
+      HostinfoPostData(osName, osNameFull);
+   }
+
+   return len != -1;
 }
 
 
@@ -2252,6 +2301,8 @@ HostinfoOSData(void)
       success = HostinfoLinux(&buf);
    } else if (strstr(buf.sysname, "FreeBSD")) {
       success = HostinfoBSD(&buf);
+   } else if (strstr(buf.sysname, "NetBSD")) {
+      success = HostinfoNetBSD(&buf);
    } else if (strstr(buf.sysname, "SunOS")) {
       success = HostinfoSun(&buf);
    } else {
@@ -4071,7 +4122,8 @@ HostinfoSysinfo(uint64 *totalRam,  // OUT: Total RAM in bytes
 #endif // ifndef __APPLE__
 
 
-#if defined(__linux__) || defined(__FreeBSD__) || defined(sun)
+#if defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || \
+    defined(sun)
 /*
  *-----------------------------------------------------------------------------
  *

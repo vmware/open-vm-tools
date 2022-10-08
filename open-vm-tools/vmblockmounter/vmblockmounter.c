@@ -29,7 +29,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <getopt.h>
-#if defined(__FreeBSD__)
+#if defined(__FreeBSD__) || defined(__NetBSD__)
 #   include <sys/uio.h>
 #   include <sys/param.h>
 #endif
@@ -235,6 +235,9 @@ main(int argc,          // IN
       };
       mntRes = nmount(iov, ARRAYSIZE(iov), MNT_NOSUID);
    }
+#elif defined(__NetBSD__)
+   mntRes = mount(VMBLOCK_FS_NAME, mountPoint, 0, mountPoint,
+                  strlen(mountPoint) + 1);
 #else
 #error "Unsupported OS"
 #endif
