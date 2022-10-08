@@ -171,7 +171,7 @@ Bool ProcMgr_PromoteEffectiveToReal(void);
  *----------------------------------------------------------------------
  */
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(__NetBSD__)
 int
 ProcMgr_ReadProcFile(int fd,                       // IN
                      char **contents)              // OUT
@@ -665,7 +665,7 @@ quit:
 
    return procList;
 }
-#endif // defined(__linux__)
+#endif // defined(__linux__) || defined(__NetBSD__)
 
 
 /*
@@ -865,34 +865,6 @@ quit:
    return procList;
 }
 #endif // defined(__FreeBSD__)
-
-
-/*
- *----------------------------------------------------------------------
- *
- * ProcMgr_ListProcesses --
- *
- *      List all the processes that the calling client has privilege to
- *      enumerate. The strings in the returned structure should be all
- *      UTF-8 encoded, although we do not enforce it right now.
- *
- * Results:
- *
- *      A ProcMgrProcInfoArray.
- *
- * Side effects:
- *
- *----------------------------------------------------------------------
- */
-
-#if defined(__NetBSD__)
-ProcMgrProcInfoArray *
-ProcMgr_ListProcesses(void)
-{
-   Warning("TODO: ProcMgr_ListProcesses() for NetBSD");
-   return NULL;
-}
-#endif
 
 
 #if defined(__APPLE__)

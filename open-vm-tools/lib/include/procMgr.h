@@ -56,7 +56,7 @@ typedef struct ProcMgr_AsyncProc ProcMgr_AsyncProc;
 typedef struct ProcMgrProcInfo {
    ProcMgr_Pid procId;
    char *procCmdName;             // UTF-8
-#if defined(__linux__) || defined(_WIN32)
+#if defined(__linux__) || defined(__NetBSD__) || defined(_WIN32)
    char *procCmdAbsPath;          // UTF-8
 #endif
    char *procCmdLine;             // UTF-8
