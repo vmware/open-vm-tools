@@ -287,6 +287,7 @@
    LOGLEVEL_VAR(vdpPlugin), \
    LOGLEVEL_VAR(vdtiPciCfgSpc), \
    LOGLEVEL_VAR(vflash), \
+   LOGLEVEL_VAR(vg), \
    LOGLEVEL_VAR(vga), \
    LOGLEVEL_VAR(vide), \
    LOGLEVEL_VAR(viewClient), \

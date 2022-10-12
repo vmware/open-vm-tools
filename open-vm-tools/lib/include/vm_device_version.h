@@ -56,6 +56,7 @@
  */
 #define PCI_VENDOR_ID_VMWARE                    0x15AD
 #define PCI_DEVICE_ID_VMWARE_SBX                0x0420
+#define PCI_DEVICE_ID_VMWARE_SVGA4              0x0408
 #define PCI_DEVICE_ID_VMWARE_SVGA_EFI           0x0407
 #define PCI_DEVICE_ID_VMWARE_SVGA3              0x0406
 #define PCI_DEVICE_ID_VMWARE_SVGA2              0x0405
@@ -266,8 +267,8 @@
 /************* SCSI implementation limits ********************************/
 #define SCSI_MAX_CONTROLLERS	 4	  // Need more than 1 for MSCS clustering
 #define	SCSI_MAX_DEVICES         16	  // BT-958 emulates only 16
-#define PVSCSI_HWV14_MAX_DEVICES 65	  /* HWv14 And Later Supports 64 
-					   * + controller at ID 7 
+#define PVSCSI_HWV14_MAX_DEVICES 65	  /* HWv14 And Later Supports 64
+					   * + controller at ID 7
 					   */
 #define PVSCSI_MAX_DEVICES       255	  // 255 (including the controller)
 #define PVSCSI_MAX_NUM_DISKS     (PVSCSI_HWV14_MAX_DEVICES - 1)
@@ -366,13 +367,13 @@
  * Globally unique ID for the VMware device interface. Define INITGUID before including
  * this header file to instantiate the variable.
  */
-DEFINE_GUID(GUID_DEVICE_INTERFACE_VMWARE_USB_DEVICES, 
+DEFINE_GUID(GUID_DEVICE_INTERFACE_VMWARE_USB_DEVICES,
 0x2da1fe75, 0xaab3, 0x4d2c, 0xac, 0xdf, 0x39, 0x8, 0x8c, 0xad, 0xa6, 0x65);
 
 /*
  * Globally unique ID for the VMware device setup class.
  */
-DEFINE_GUID(GUID_CLASS_VMWARE_USB_DEVICES, 
+DEFINE_GUID(GUID_CLASS_VMWARE_USB_DEVICES,
 0x3b3e62a5, 0x3556, 0x4d7e, 0xad, 0xad, 0xf5, 0xfa, 0x3a, 0x71, 0x2b, 0x56);
 
 /*
