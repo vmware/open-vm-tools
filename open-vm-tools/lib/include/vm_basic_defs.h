@@ -58,7 +58,7 @@
 /*
  * vm_basic_defs.h --
  *
- *      Standard macros for VMware source code.
+ *	Standard macros for VMware source code.
  */
 
 #ifndef _VM_BASIC_DEFS_H_
@@ -167,11 +167,11 @@ Max(int a, int b)
 #define VMW_CLAMP(x, min, max) \
    ((x) < (min) ? (min) : ((x) > (max) ? (max) : (x)))
 
-#define ROUNDUP(x,y)           (((x) + (y) - 1) / (y) * (y))
-#define ROUNDDOWN(x,y)         ((x) / (y) * (y))
-#define ROUNDUPBITS(x, bits)   (((uintptr_t)(x) + MASK(bits)) & ~MASK(bits))
-#define ROUNDDOWNBITS(x, bits) ((uintptr_t)(x) & ~MASK(bits))
-#define CEILING(x, y)          (((x) + (y) - 1) / (y))
+#define ROUNDUP(x,y)		(((x) + (y) - 1) / (y) * (y))
+#define ROUNDDOWN(x,y)		((x) / (y) * (y))
+#define ROUNDUPBITS(x, bits)	(((uintptr_t) (x) + MASK(bits)) & ~MASK(bits))
+#define ROUNDDOWNBITS(x, bits)	((uintptr_t) (x) & ~MASK(bits))
+#define CEILING(x, y)		(((x) + (y) - 1) / (y))
 
 #if defined VMKERNEL || defined VMKBOOT
 # define CEIL(_a, _b)        CEILING(_a, _b)
@@ -196,9 +196,8 @@ Max(int a, int b)
  * argument. The range 0..31 is safe.
  */
 
-#define MASK(n)      ((1 << (n)) - 1)            /* make an n-bit mask */
-#define MASK64(n)    ((CONST64U(1) << (n)) - 1)  /* make an n-bit mask */
-#define MASK128(n)   (((uint128)1 << (n)) - 1)   /* make an n-bit mask */
+#define MASK(n)		((1 << (n)) - 1)	    /* make an n-bit mask */
+#define MASK64(n)	((CONST64U(1) << (n)) - 1)  /* make an n-bit mask */
 /*
  * MASKRANGE64 makes a bit vector starting at bit lo and ending at bit hi.  No
  * checking for lo < hi is done.
@@ -468,9 +467,9 @@ Max(int a, int b)
  */
 
 #define DEPOSIT_BITS(_src,_pos,_len,_target) { \
-   unsigned mask = ((1 << _len) - 1); \
-   unsigned shiftedmask = ((1 << _len) - 1) << _pos; \
-   _target = (_target & ~shiftedmask) | ((_src & mask) << _pos); \
+	unsigned mask = ((1 << _len) - 1); \
+	unsigned shiftedmask = ((1 << _len) - 1) << _pos; \
+	_target = (_target & ~shiftedmask) | ((_src & mask) << _pos); \
 }
 
 
