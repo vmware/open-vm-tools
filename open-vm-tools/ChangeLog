@@ -1,3 +1,81 @@
+commit 7909b89d2d847f416257932e3c6ef96085a69ad4
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Oct 12 13:04:00 2022 -0700
+
+    Add missed 2022 copyright change.
+
+commit cb762155088e5f56535d1f8990718d8880d165ff
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Oct 12 12:40:37 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 51a5cca0c77ea4f246e5a411727221fcf70f240e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Oct 12 12:40:37 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 70a10365ba86e871710551d54e565ba6b8b3f4eb
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Oct 12 12:40:37 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 7645e6cd7e3e8f13a862ce3489ea04bad3a26bf2
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Oct 12 12:40:37 2022 -0700
+
+    Update the guestOps to handle some edge cases.
+    
+    When File_GetSize() fails or returns a -1 indicating the user does not
+    have access permissions:
+     1) Skip the file in the output of the ListFiles() request.
+     2) Fail an InitiateFileTransferFromGuest operation.
+    
+    Properly handle the hostd request offset value returned in a ListFiles()
+    guest operation when the results are truncated.
+
+commit 2f759e610c5ceabe420df9f678d23474dd423df4
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Oct 12 12:40:37 2022 -0700
+
+    Move deployPkgFormat.h to lib/include/deployPkg.
+
+commit 90445a78a9d34da3b651fcc9ca7e967d8c397fda
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Oct 12 12:40:37 2022 -0700
+
+    Changes to common header files not applicable to open-vm-tools.
+
+commit 7ac0e26580dcc2e2e1311ab16fb937da2a2e4e72
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Oct 12 12:40:36 2022 -0700
+
+    Inclusive terminology - "rule of thumb"
+    
+    Update bora/lib/public/fileIO.h to use "general rule" instead
+    of "rule of thumb".
+
+commit 521eecf6eb591c7ef6106f9f44eee728c14a5795
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Oct 12 12:40:36 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 83e3f82592ae15cc2d213591693d5684a8c88b5f
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Oct 12 12:40:36 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 2a7556c850fae76f830a1805f4dfbdf9f49e3899
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Sep 21 11:18:00 2022 -0700
+
+    Update ChangeLog with the granular push of Sep 21, 2022.
+     - plus ChangeLog update of Sep 13, 2022.
+
 commit ce6d6d1abd652c766de597120b5a19c65a9a2f3f
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Wed Sep 21 10:53:28 2022 -0700
