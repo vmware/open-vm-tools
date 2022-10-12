@@ -51,9 +51,9 @@
 #ifndef _VMATOM_HAVE_LSE_DEFINED
 typedef struct  {
    Bool LsePresent;
-#ifdef USERLEVEL
+#ifndef VMKERNEL
    Bool ProbedForLse;
-#endif /* Atomic_LsePresent */
+#endif
    Bool PreferCasForOps;
 } Atomic_ConfigParams;
 
@@ -63,17 +63,17 @@ typedef struct  {
  * When buidling for kernel mode, Atomic_Config is exported by
  * bora/vmkernel/lib/arm64/atomic.c
  */
-#ifdef USERLEVEL
+#ifndef VMKERNEL
 #pragma weak Atomic_Config
 Atomic_ConfigParams Atomic_Config;
-#else /* !USERLEVEL */
+#else
 extern Atomic_ConfigParams Atomic_Config;
-#endif /* !USERLEVEL */
+#endif
 
 static INLINE Bool
 Atomic_HaveLse(void)
 {
-#ifdef USERLEVEL
+#ifndef VMKERNEL
    /*
     * Can't just include sys/auxv.h, unfortunately.
     */
@@ -93,7 +93,7 @@ Atomic_HaveLse(void)
 #undef _VMATOM_AT_ESXI_HWCAP
 #undef _VMATOM_AT_ESXI_HWCAP_HAVE_LSE
 #undef _VMATOM_AT_ESXI_HWCAP_PREFER_CAS_FOR_OPS
-#endif /* USERLEVEL */
+#endif
 
    return Atomic_Config.LsePresent;
 }
