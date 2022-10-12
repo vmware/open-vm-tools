@@ -28,7 +28,6 @@ libDeployPkg_la_LIBADD += @MSPACK_LIBS@
 libDeployPkg_la_LIBADD += @VMTOOLS_LIBS@
 
 libDeployPkg_la_SOURCES =
-libDeployPkg_la_SOURCES += deployPkgFormat.h
 libDeployPkg_la_SOURCES += linuxDeployment.c
 libDeployPkg_la_SOURCES += mspackConfig.h
 libDeployPkg_la_SOURCES += mspackWrapper.c
@@ -51,6 +50,7 @@ libDeployPkg_include_HEADERS += $(top_srcdir)/lib/include/imgcust-common/log.h
 libDeployPkg_include_HEADERS += $(top_srcdir)/lib/include/imgcust-common/process.h
 libDeployPkg_include_HEADERS += $(top_srcdir)/lib/include/vm_basic_types.h
 libDeployPkg_include_HEADERS += $(top_srcdir)/lib/include/vmware/tools/guestrpc.h
+libDeployPkg_include_HEADERS += $(top_srcdir)/lib/include/deployPkg/deployPkgFormat.h
 libDeployPkg_include_HEADERS += $(top_srcdir)/lib/include/deployPkg/linuxDeployment.h
 libDeployPkg_include_HEADERS += $(top_srcdir)/lib/include/vmware/guestrpc/deploypkg.h
 libDeployPkg_include_HEADERS += $(top_srcdir)/lib/include/vmware/guestrpc/guestcust-events.h
