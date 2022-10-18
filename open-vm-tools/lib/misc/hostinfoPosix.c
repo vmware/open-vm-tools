@@ -479,7 +479,11 @@ Hostinfo_GetSystemBitness(void)
 #else
    char buf[SYSTEM_BITNESS_MAXLEN] = { '\0', };
 #   if defined __FreeBSD__ || defined __NetBSD__ || defined __APPLE__
+#      if defined __NetBSD__
+   static int mib[2] = { CTL_HW, HW_MACHINE_ARCH, };
+#      else
    static int mib[2] = { CTL_HW, HW_MACHINE, };
+#      endif
    size_t len = sizeof buf;
 
    if (sysctl(mib, ARRAYSIZE(mib), buf, &len, NULL, 0) == -1) {
