@@ -114,6 +114,7 @@
 #include "vmstdio.h"
 #include "su.h"
 #include "vm_atomic.h"
+#include "vm_ctype.h"
 
 #if defined(__i386__) || defined(__x86_64__)
 #include "x86cpuid.h"
@@ -340,7 +341,7 @@ HostinfoOSVersionInit(void)
     */
 
    p = extra;
-   while (*p && !isdigit(*p)) {
+   while (*p && !CType_IsDigit(*p)) {
       p++;
    }
    sscanf(p, "%d", &version->hostinfoOSVersion[3]);
@@ -622,7 +623,7 @@ HostinfoOSDetailedData(void)
          escapedString[i] = '\0';
 
          /* No trailing spaces */
-         while (--i >= 0 && isspace(escapedString[i])) {
+         while (--i >= 0 && CType_IsSpace(escapedString[i])) {
             escapedString[i] = '\0';
          }
 
@@ -1335,7 +1336,7 @@ HostinfoGetOSShortName(const char *distro,     // IN: full distro name
 
       /* The first digit in the distro string is the version */
       while (*p != '\0') {
-         if (isdigit(*p)) {
+         if (CType_IsDigit(*p)) {
             versionStr = p;
             break;
          }
@@ -3408,8 +3409,8 @@ HostinfoGetCpuInfo(int nCpu,         // IN:
          e = s + strlen(s);
 
          /* Skip leading and trailing while spaces */
-         for (; s < e && isspace(*s); s++);
-         for (; s < e && isspace(e[-1]); e--);
+         for (; s < e && CType_IsSpace(*s); s++);
+         for (; s < e && CType_IsSpace(e[-1]); e--);
          *e = 0;
 
          /* Free previous value */

@@ -40,7 +40,7 @@ extern "C" {
  * Attack the parameter with 0xFF to cast away the signedness.
  */
 
-#ifdef _WIN32
+#if defined _WIN32 || defined __NetBSD__
 
 #define CType_IsAlnum(c) isalnum((c) & 0xFF)
 #define CType_IsAlpha(c) isalpha((c) & 0xFF)

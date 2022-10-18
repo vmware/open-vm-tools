@@ -2439,7 +2439,7 @@ UnicodeNormalizeEncodingName(const char *encodingName) // IN
    for (currentResult = result; *encodingName != '\0'; encodingName++) {
       // The explicit cast from char to int is necessary for Netware builds.
       if (isalnum((int) *encodingName)) {
-         *currentResult = tolower(*encodingName);
+         *currentResult = tolower(*encodingName & 0xff);
          currentResult++;
       }
    }

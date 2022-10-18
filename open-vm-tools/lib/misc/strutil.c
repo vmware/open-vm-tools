@@ -1405,7 +1405,7 @@ StrUtil_TrimWhitespace(const char *str)  // IN
    size_t len;
 
    /* Skip leading whitespace. */
-   while (*cur && isspace(*cur)) {
+   while (*cur && CType_IsSpace(*cur)) {
       cur++;
    }
 
@@ -1419,7 +1419,7 @@ StrUtil_TrimWhitespace(const char *str)  // IN
    }
 
    cur = res + len - 1;
-   while (cur > res && isspace(*cur)) {
+   while (cur > res && CType_IsSpace(*cur)) {
       cur--;
    }
 
