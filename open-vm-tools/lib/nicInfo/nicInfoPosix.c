@@ -35,7 +35,7 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <limits.h>
-#if defined(__FreeBSD__) || defined(__APPLE__)
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__APPLE__)
 # include <sys/sysctl.h>
 # include <ifaddrs.h>
 # include <net/if.h>
@@ -144,7 +144,8 @@ static Bool RecordRoutingInfo(unsigned int maxIPv4Routes,
                               unsigned int maxIPv6Routes,
                               NicInfoV3 *nicInfo);
 
-#if !defined(__FreeBSD__) && !defined(__APPLE__) && !defined(USERWORLD)
+#if !defined(__FreeBSD__) && !defined(__NetBSD__) && !defined(__APPLE__) && \
+    !defined(USERWORLD)
 typedef struct GuestInfoIpPriority {
    char *ipstr;
    NicInfoPriority priority;
@@ -500,6 +501,7 @@ GuestInfoGetNicInfo(unsigned int maxIPv4Routes,
  ******************************************************************************
  */
 #if defined(__FreeBSD__) || \
+    defined(__NetBSD__) || \
     defined(__APPLE__) || \
     defined(USERWORLD) || \
     (defined(__linux__) && defined(NO_DNET))
@@ -1583,7 +1585,8 @@ RecordRoutingInfo(unsigned int maxIPv4Routes,
 
 #ifndef NO_DNET
 
-#if !defined(__FreeBSD__) && !defined(__APPLE__) && !defined(USERWORLD)
+#if !defined(__FreeBSD__) && !defined(__NetBSD__) && !defined(__APPLE__) && \
+    !defined(USERWORLD)
 /*
  ******************************************************************************
  * GuestInfoGetIntf --                                                   */ /**
