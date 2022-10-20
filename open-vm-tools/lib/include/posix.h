@@ -134,7 +134,7 @@ char *Posix_MkTemp(const char *pathName);
  * Make them NULL wrappers for all other platforms.
  */
 #define Posix_GetHostName gethostname
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(__NetBSD__)
 #define Posix_GetHostByName gethostbyname
 #endif
 #define Posix_GetAddrInfo getaddrinfo
@@ -209,7 +209,7 @@ struct mntent *Posix_Getmntent_r(FILE *fp, struct mntent *m,
 int Posix_Getmntent(FILE *fp, struct mnttab *mp);
 
 #endif // !defined(sun)
-#if !defined(__APPLE__)
+#if !defined(__APPLE__) && !defined(__NetBSD__)
 
 
 /*
@@ -242,16 +242,11 @@ Posix_GetHostByName(const char *name)  // IN
    char **p;
    int i;
    int naddrs;
-#if defined(__NetBSD__)
-   extern struct hostent *gethostbyname_r(const char *, struct hostent *,
-                                          char *, size_t, int *);
-#endif
 
    ASSERT(name);
 
    if ((gethostbyname_r(name, &he, buffer, sizeof buffer,
-#if !defined(sun) && !defined(SOLARIS) && !defined(SOL10) && \
-    !defined(__NetBSD__)
+#if !defined(sun) && !defined(SOLARIS) && !defined(SOL10)
                         &phe,
 #endif
                         &error) == 0) && phe) {
@@ -285,7 +280,7 @@ Posix_GetHostByName(const char *name)  // IN
    /* There has been an error */
    return NULL;
 }
-#endif // !define(__APPLE__)
+#endif // !define(__APPLE__) && !defined(__NetBSD__)
 
 
 /*
@@ -308,7 +303,7 @@ Posix_GetHostByName(const char *name)  // IN
 static INLINE void
 Posix_FreeHostent(struct hostent *he)
 {
-#if !defined(__APPLE__)
+#if !defined(__APPLE__) && !defined(__NetBSD__)
    char **p;
 
    if (he) {
