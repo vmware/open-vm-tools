@@ -300,15 +300,6 @@ Max(int a, int b)
 #define PAGE_NUMBER(_addr)  ((uintptr_t)(_addr) / PAGE_SIZE)
 #endif
 
-#ifndef VM_PAGE_BASE
-#define VM_PAGE_BASE(_addr)  ((_addr) & ~(PAGE_SIZE - 1))
-#endif
-
-#ifndef VM_PAGES_SPANNED
-#define VM_PAGES_SPANNED(_addr, _size) \
-   ((((_addr) & (PAGE_SIZE - 1)) + (_size) + (PAGE_SIZE - 1)) >> PAGE_SHIFT)
-#endif
-
 #ifndef BYTES_2_PAGES
 #define BYTES_2_PAGES(_nbytes)  ((_nbytes) >> PAGE_SHIFT)
 #endif
@@ -319,6 +310,16 @@ Max(int a, int b)
 
 #ifndef PAGES_2_BYTES
 #define PAGES_2_BYTES(_npages)  (((uint64)(_npages)) << PAGE_SHIFT)
+#endif
+
+#ifndef VM_PAGE_BASE
+#define VM_PAGE_BASE(_addr)  ((_addr) & ~(PAGE_SIZE - 1))
+#endif
+
+#ifndef VM_PAGES_SPANNED
+#define VM_PAGES_SPANNED(_addr, _size) \
+   (BYTES_2_PAGES(PAGE_OFFSET(_addr) + PAGE_OFFSET(_size) + (PAGE_SIZE - 1)) + \
+    BYTES_2_PAGES(_size))
 #endif
 
 #ifndef KBYTES_SHIFT
