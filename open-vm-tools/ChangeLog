@@ -1,3 +1,65 @@
+commit 3e1154b1e260982a47f66a9c807b7613ced95f59
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Oct 21 11:39:49 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 6d934775155d5b1ee000056319290780e4e79b80
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Oct 21 11:39:49 2022 -0700
+
+    Fix a regression caused by the previous guestOps ListFiles() change.
+    
+    If maxResults is 0, return an empty file list plus
+    the remaining number of files.
+
+commit 3c7bcfc3a3ca1e8a4d80b2eded28cb36535717f0
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Oct 21 11:39:49 2022 -0700
+
+    Fix printf format type found by Coverity scan.
+    
+    printf format should be using %zu to print a size_t value.
+
+commit f56f1573158d0d5c1962202fba4a4aa8d0bfa35e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Oct 21 11:39:49 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 40c74575b37430a2e30dbdd149b5de8c45978949
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Oct 21 11:39:49 2022 -0700
+
+    Avoid a vmtoolsd service error message if not on a VMware hypervisor.
+    
+    When open-vm-tools comes preinstalled in a base Linux release, the
+    vmtoolsd services are started automatically at system start
+    and desktop login.  If running on physical hardware or in a non-VMware
+    hypervisor, the services will emit an error message to the systemd's
+    logging service before stopping.
+    
+    This change removes the unwanted error message.
+
+commit c1ba736f18d35d5b1e149aa43a902cb2a69927f3
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Oct 21 11:39:49 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 6224a7616e26fd816772a82e100674ffdd87cf9f
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Oct 21 11:39:49 2022 -0700
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 6ec06e4a6482872421a87367814849f340bfb1a8
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Wed Oct 12 13:21:25 2022 -0700
+
+    Update ChangeLog with the granular push of Oct 12, 2022.
+     - plus ChangeLog update of Sep 21, 2022.
+
 commit 7909b89d2d847f416257932e3c6ef96085a69ad4
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Wed Oct 12 13:04:00 2022 -0700
