@@ -405,7 +405,8 @@ SetCustomizationStatusInVmxEx(int customizationState,
          sLog(log_debug, "Got VMX response '%s'.", response);
          if (responseLength > responseBufferSize - 1) {
             sLog(log_warning,
-                 "The VMX response is too long (only %d chars are allowed).",
+                 "The VMX response is too long "
+                 "(only %"FMTSZ"u chars are allowed).",
                  responseBufferSize - 1);
             responseLength = responseBufferSize - 1;
          }
