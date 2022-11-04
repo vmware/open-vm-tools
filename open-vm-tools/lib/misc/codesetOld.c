@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017,2019,2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017,2019,2021,2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -82,22 +82,14 @@ static Bool CodeSetOldIso88591ToUtf8Db(char const *bufIn, size_t sizeIn,
 #endif
 
 #if defined __ANDROID__
-#include "vm_basic_asm.h"
 /*
- * Android doesn't have swab().
+ * This function will be called when buffer overflows. It will panic the app.
+ * It should be in libc.a. But new Android ndk does not have it.
  */
-void
-swab(const void *__restrict src,  // IN/OUT
-     void *__restrict dest,       // IN/OUT
-     ssize_t nbytes)              // IN
+void __stack_chk_fail(void);
+void __stack_chk_fail_local (void)
 {
-   const uint16 *p = src;
-   uint16 *q = dest;
-   ssize_t i;
-
-   for (i = 0; i < nbytes / sizeof *p; i++) {
-      q[i] = Bswap16(p[i]);
-   }
+   __stack_chk_fail();
 }
 #endif
 
