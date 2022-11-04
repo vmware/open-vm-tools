@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -3427,11 +3427,18 @@ HgfsServerSessionReceive(HgfsPacket *packet,      // IN: Hgfs Packet
    }
 
    /*
-    * Storage pointed at by the variable input was freed either by
-    * HgfsServerProcessRequest at the end of request processing
-    * or by HgfsServerCompleteRequest if there was a protocol error.
+    * Contrary to Coverity analysis, storage pointed to by the variable
+    * "input" is not leaked; it is freed either by HgfsServerProcessRequest
+    * at the end of request processing or by HgfsServerCompleteRequest if
+    * there is a protocol error.  However, no Coverity annotation for
+    * leaked_storage is added here because such an annotation cannot be
+    * made specific to input; as a result, if any actual memory leaks were
+    * to be introduced by a future change, the leaked_storage annotation
+    * would cause such new leaks to be flagged as false positives.
+    *
+    * XXX - can something be done with Coverity function models so that
+    * Coverity stops reporting this?
     */
-   /* coverity[leaked_storage] */
 }
 
 
@@ -5973,6 +5980,18 @@ HgfsServerGetLocalNameInfo(const char *cpName,      // IN:  Cross-platform filen
 
    *bufOut = myBufOut;
 
+   /*
+    * Contrary to Coverity analysis, storage pointed to by the variable
+    * "entry" is not leaked; HgfsCache_Put stores a pointer to it in the
+    * symlink cache.  However, no Coverity annotation for leaked_storage
+    * is added here because such an annotation cannot be made specific to
+    * entry; as a result, if any actual memory leaks were to be introduced
+    * by a future change, the leaked_storage annotation would cause such
+    * new leaks to be flagged as false positives.
+    *
+    * XXX - can something be done with Coverity function models so that
+    * Coverity stops reporting this?
+    */
    return HGFS_NAME_STATUS_COMPLETE;
 
 error:
@@ -8555,6 +8574,19 @@ HgfsServerGetattr(HgfsInputParam *input)  // IN: Input params
    free(localName);
 
    HgfsServerCompleteRequest(status, replyPayloadSize, input);
+
+   /*
+    * Contrary to Coverity analysis, storage pointed to by the variable
+    * "entry" is not leaked; HgfsCache_Put stores a pointer to it in the
+    * symlink cache.  However, no Coverity annotation for leaked_storage
+    * is added here because such an annotation cannot be made specific to
+    * entry; as a result, if any actual memory leaks were to be introduced
+    * by a future change, the leaked_storage annotation would cause such
+    * new leaks to be flagged as false positives.
+    *
+    * XXX - can something be done with Coverity function models so that
+    * Coverity stops reporting this?
+    */
 }
 
 
