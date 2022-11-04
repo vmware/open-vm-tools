@@ -422,35 +422,6 @@ Hostinfo_HyperV(void)
 }
 
 
-/*
- *----------------------------------------------------------------------
- *
- *  Hostinfo_SynchronizedVTSCs --
- *
- *      Access the backdoor to determine if the VCPUs' TSCs are
- *      synchronized.
- *
- * Results:
- *      TRUE if the outer VM provides synchronized VTSCs.
- *	FALSE otherwise.
- *
- * Side effects:
- *	Exception if not in a VM, so don't do that!
- *
- *----------------------------------------------------------------------
- */
-
-Bool
-Hostinfo_SynchronizedVTSCs(void)
-{
-#if defined(__i386__) || defined(__x86_64__)
-   return Hostinfo_VCPUInfoBackdoor(BDOOR_CMD_VCPU_SYNC_VTSCS);
-#else
-   return FALSE;
-#endif
-}
-
-
 #if defined(_WIN32)
 
 #if defined(_WIN64)
