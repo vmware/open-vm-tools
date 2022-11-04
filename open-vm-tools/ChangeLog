@@ -1,3 +1,43 @@
+commit bf074c36924f28b3f36f88aa4bed0337a0b695be
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Nov 4 11:45:05 2022 -0700
+
+    Add explanatory comments for Coverity false positives.
+    
+    Add comments for two memory leak false positives reported by a
+    Coverity scan of open-vm-tools.   Don't annotate since the
+    annotations can't be made specified to the leaked variable, so
+    that if an actual leak were introduced in the future an annotation
+    would cause it to be reported as a false positive.
+    
+    For the same reason, replace a leaked storage annotation added
+    previously with an explanatory comment.
+
+commit b85ab7a63a97d9b7258df73638c76f9b7c149a4f
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Nov 4 11:45:05 2022 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit da618bbbdaa6341c478d548a7d951250c571ad8e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Nov 4 11:45:05 2022 -0700
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit f5eb126149dccb3172a90e772f6d5471a6c2c435
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Nov 4 11:45:05 2022 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit d88dcf561315a316c1e2efda6a96ec22e2183306
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Oct 21 12:11:07 2022 -0700
+
+    Update ChangeLog with the granular push of Oct 21, 2022.
+     - plus ChangeLog update of Oct 12, 2022.
+
 commit 3e1154b1e260982a47f66a9c807b7613ced95f59
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Fri Oct 21 11:39:49 2022 -0700
