@@ -59,6 +59,9 @@ using namespace ImgCustCommon;
 
 // Using 3600s as the upper limit of timeout value in tools.conf.
 #define MAX_TIMEOUT_FROM_TOOLCONF 3600
+// Using 1800s as the upper limit of waiting for cloud-init execution done
+// timeout value in tools.conf.
+#define MAX_TIMEOUT_WAIT_FOR_CLOUDINIT_DONE 1800
 
 static char *DeployPkgGetTempDir(void);
 
@@ -90,6 +93,7 @@ DeployPkgDeployPkgInGuest(ToolsAppCtx *ctx,    // IN: app context
    ToolsDeployPkgError ret = TOOLSDEPLOYPKG_ERROR_SUCCESS;
 #ifndef _WIN32
    int processTimeout;
+   int waitForCloudinitDoneTimeout;
 #endif
 
    /*
@@ -156,10 +160,10 @@ DeployPkgDeployPkgInGuest(ToolsAppCtx *ctx,    // IN: app context
     * Using 0 as the default value of CONFNAME_DEPLOYPKG_PROCESSTIMEOUT in tools.conf
     */
    processTimeout =
-        VMTools_ConfigGetInteger(ctx->config,
-                                 CONFGROUPNAME_DEPLOYPKG,
-                                 CONFNAME_DEPLOYPKG_PROCESSTIMEOUT,
-                                 0);
+      VMTools_ConfigGetInteger(ctx->config,
+                               CONFGROUPNAME_DEPLOYPKG,
+                               CONFNAME_DEPLOYPKG_PROCESSTIMEOUT,
+                               0);
    if (processTimeout > 0 && processTimeout <= MAX_TIMEOUT_FROM_TOOLCONF) {
       DeployPkgLog_Log(log_debug, "[%s] %s in tools.conf: %d",
                        CONFGROUPNAME_DEPLOYPKG,
@@ -173,6 +177,41 @@ DeployPkgDeployPkgInGuest(ToolsAppCtx *ctx,    // IN: app context
                        CONFNAME_DEPLOYPKG_PROCESSTIMEOUT);
       DeployPkgLog_Log(log_debug, "The valid timeout value range: 1 ~ %d",
                        MAX_TIMEOUT_FROM_TOOLCONF);
+   }
+
+   /*
+    * Get timeout of waiting for cloud-init execution done from tools.conf.
+    * Only when a valid 'timeout' got from tools.conf, deployPkg will call
+    * DeployPkg_SetWaitForCloudinitDoneTimeout to overwrite the default timeout
+    * of waiting for cloud-init execution done.
+    * The valid value range is from 0 to MAX_TIMEOUT_WAIT_FOR_CLOUDINIT_DONE.
+    * Return an invalid value -1 if CONFNAME_DEPLOYPKG_WAIT_CLOUDINIT_TIMEOUT is
+    * not set in tools.conf.
+    */
+   waitForCloudinitDoneTimeout =
+      VMTools_ConfigGetInteger(ctx->config,
+                               CONFGROUPNAME_DEPLOYPKG,
+                               CONFNAME_DEPLOYPKG_WAIT_CLOUDINIT_TIMEOUT,
+                               -1);
+   if (waitForCloudinitDoneTimeout >= 0 &&
+       waitForCloudinitDoneTimeout <= MAX_TIMEOUT_WAIT_FOR_CLOUDINIT_DONE) {
+      DeployPkgLog_Log(log_debug, "[%s] %s in tools.conf: %d",
+                       CONFGROUPNAME_DEPLOYPKG,
+                       CONFNAME_DEPLOYPKG_WAIT_CLOUDINIT_TIMEOUT,
+                       waitForCloudinitDoneTimeout);
+      DeployPkg_SetWaitForCloudinitDoneTimeout(waitForCloudinitDoneTimeout);
+   } else {
+      if (waitForCloudinitDoneTimeout != -1) {
+         DeployPkgLog_Log(log_debug,
+                          "Ignore invalid value %d from tools.conf [%s] %s",
+                          waitForCloudinitDoneTimeout,
+                          CONFGROUPNAME_DEPLOYPKG,
+                          CONFNAME_DEPLOYPKG_WAIT_CLOUDINIT_TIMEOUT);
+      }
+      DeployPkgLog_Log(log_debug, "The valid [%s] %s value range: 0 ~ %d",
+                       CONFGROUPNAME_DEPLOYPKG,
+                       CONFNAME_DEPLOYPKG_WAIT_CLOUDINIT_TIMEOUT,
+                       MAX_TIMEOUT_WAIT_FOR_CLOUDINIT_DONE);
    }
 #endif
 

@@ -587,6 +587,12 @@
  */
 #define CONFNAME_DEPLOYPKG_ENABLE_CUST "enable-customization"
 
+/**
+ * How long does guest customization wait until cloud-init execution done
+ * Valid value range: 0 ~ 1800
+ */
+#define CONFNAME_DEPLOYPKG_WAIT_CLOUDINIT_TIMEOUT "wait-cloudinit-timeout"
+
 /*
  * END deployPkg goodies.
  ******************************************************************************
