@@ -1,3 +1,34 @@
+commit e058df3ebf6aa0b4cd1b15f1f55ac4d56f09c5ed
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Nov 29 12:11:43 2022 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 136de61dd7c2a473ca926e2df1800c6d76aa5da0
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Nov 29 12:11:43 2022 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 6208fe0c286f45c70c621c15bdf90e935a5a56ee
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Nov 29 12:11:43 2022 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 7a94ee4524da9c794a68d6b2e7106d719209d93e
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Nov 29 12:11:42 2022 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 5405d130aba6724ba671cf5d3ff8b250147d624c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Nov 4 11:58:14 2022 -0700
+
+    Update Changelog with the granular push of Nov 4, 2022.
+     - plus ChangeLog update of Oct 21, 2022.
+
 commit bf074c36924f28b3f36f88aa4bed0337a0b695be
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Fri Nov 4 11:45:05 2022 -0700
