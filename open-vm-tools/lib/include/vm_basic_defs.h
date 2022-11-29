@@ -741,6 +741,12 @@ typedef int pid_t;
 #define VMM_ONLY(x)
 #endif
 
+#ifdef VMX86_VMX
+#define vmx86_vmx 1
+#else
+#define vmx86_vmx 0
+#endif
+
 #ifdef VMM_BOOTSTRAP
 #define vmm_bootstrap 1
 #else
