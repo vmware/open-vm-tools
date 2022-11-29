@@ -1,3 +1,24 @@
+commit 0c740b5ffaacd814f402aba924e55dc8ea033b62
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Nov 29 13:11:04 2022 -0800
+
+    Update the ReleaseNotes.md for the 12.1.5 open-vm-tools release.
+
+commit 8958c3e0fa4b1f5ed4cb0ee98a967ddd73cd03ff
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Nov 29 13:07:17 2022 -0800
+
+    Prepare for the open-vm-tools 12.1.5 release.
+    - Update the tools version in the configure.ac.   Update the build numbers
+      buldNumber.h.
+
+commit 864ffc76c53e0523b08dad1d1a82a36f75e6f06c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Nov 10 12:10:55 2022 -0800
+
+    Update the ChangeLog file with the changes in the 12.1.5 open-vm-tools release.
+     - plus the ChangeLog update of Aug. 23, 2022
+
 commit a205236af862e732c774a5c2b77b700ccfc73f25
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Thu Nov 10 12:01:14 2022 -0800
