@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2019, 2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -62,6 +62,25 @@ typedef enum {
 
 IMGCUST_API void
 DeployPkg_SetProcessTimeout(uint16 timeout);
+
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ * DeployPkg_SetWaitForCloudinitDoneTimeout
+ *
+ *     Set the timeout value of customization process waits for cloud-init
+ *     execution done before trigger reboot and after connect network adapters.
+ *
+ * @param timeout [in]
+ *     timeout value to be used for waiting for cloud-init execution done
+ *
+ *------------------------------------------------------------------------------
+ */
+
+IMGCUST_API void
+DeployPkg_SetWaitForCloudinitDoneTimeout(uint16 timeout);
+
 
 
 /*

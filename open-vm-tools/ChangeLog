@@ -1,3 +1,102 @@
+commit 0c740b5ffaacd814f402aba924e55dc8ea033b62
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Nov 29 13:11:04 2022 -0800
+
+    Update the ReleaseNotes.md for the 12.1.5 open-vm-tools release.
+
+commit 8958c3e0fa4b1f5ed4cb0ee98a967ddd73cd03ff
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Nov 29 13:07:17 2022 -0800
+
+    Prepare for the open-vm-tools 12.1.5 release.
+    - Update the tools version in the configure.ac.   Update the build numbers
+      buldNumber.h.
+
+commit 864ffc76c53e0523b08dad1d1a82a36f75e6f06c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Nov 10 12:10:55 2022 -0800
+
+    Update the ChangeLog file with the changes in the 12.1.5 open-vm-tools release.
+     - plus the ChangeLog update of Aug. 23, 2022
+
+commit a205236af862e732c774a5c2b77b700ccfc73f25
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Nov 10 12:01:14 2022 -0800
+
+    Fix printf format type found by Coverity scan.
+    
+    printf format should be using %zu to print a size_t value.
+
+commit 0a5d9821a6a82ab773d41b7ae9afe9dc8cccff30
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Nov 10 12:01:14 2022 -0800
+
+    Avoid a vmtoolsd service error message if not on a VMware hypervisor.
+    
+    When open-vm-tools comes preinstalled in a base Linux release, the
+    vmtoolsd services are started automatically at system start
+    and desktop login.  If running on physical hardware or in a non-VMware
+    hypervisor, the services will emit an error message to the systemd's
+    logging service before stopping.
+    
+    This change removes the unwanted error message.
+
+commit bb64ec6aa24c123bb25d1c48a4c126efa4fda5bf
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Nov 10 12:01:14 2022 -0800
+
+    Add an example of a new deployPkg/wait-cloudinit-timeout setting to tools.conf.
+
+commit cd995a58b07a91d7804d9fdec5545a5fe11e9db9
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Nov 10 12:01:14 2022 -0800
+
+    Make Linux perl based customization work with the cloud-init workflow.
+    
+    To resolve issues seen where users want to set a vm's networking
+    and apply cloud-init userdata together before the vm is booted, the
+    deployPkg plugin has been modified to wait for cloud-init
+    execution to finish.  This allows cloud-init to finish execution
+    completely before the customization process triggers a reboot
+    of the guest.
+    
+    This change is solely in the deployPkg plugin side, so a user can get
+    this change by upgrading their open-vm-tools in the guest/template.
+    Crossport of change 10318445 and 10330918 from main to vmtools-prod-cpd.
+
+commit f7009c53afdab9a9507257c77bfeb30d8baaac8c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Nov 10 12:01:14 2022 -0800
+
+    Add a null undo function to the vmbackup null provider.
+    
+    If a snapshot operation times out, vmbackup can attempt
+    to undo quiescing.  Since no quiescing is done for the null
+    backup provider, no undo function was provided.  If vmbackup
+    attempts to call the undo function, it dereferences a garbage
+    pointer resulting in a segfault.
+    
+    Rather than add null backup provider specific checks to vmbackup,
+    this change adds a null undo function to provide vmbackup with a
+    valid function pointer it can call.  The new undo function updates
+    the vmbackup state machine state with a new currentOpName, but
+    has no other effect.  currentOpName is set to the calling
+    function name, e.g. __FUNCTION__.
+
+commit db9cb277841ddd56e2665fd29e3ee8c6f37fe233
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Thu Nov 10 12:01:14 2022 -0800
+
+    Prepare tools builds on vmtools-prod-cpd for the 12.1.5 update release.
+    
+    - Bump the tools version to 12.1.5.
+
+commit 6f5e4b13647b40a45c196dad76b1cb39cc6690b9
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Aug 23 14:59:44 2022 -0700
+
+    Update of the ChangeLog with the "open-vm-tools 12.1.0" release point marker.
+
 commit 196eee046dc54358275ee5130cd189cd686efb27
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Tue Aug 23 14:52:28 2022 -0700

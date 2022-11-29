@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2020,2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -178,8 +178,6 @@ main(int argc,
     * Check that environment is a VM
     */
    if (!VmCheck_IsVirtualWorld()) {
-      g_printerr("Error: %s must be run inside a virtual machine"
-                 " on a VMware hypervisor product.\n", argv[0]);
       goto exit;
    }
 

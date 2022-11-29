@@ -98,6 +98,10 @@ VM_EMBED_VERSION(SYSIMAGE_VERSION_EXT_STR);
 
 // the maximum length of cloud-init version stdout
 #define MAX_LENGTH_CLOUDINIT_VERSION 256
+// the maximum length of cloud-init status stdout
+#define MAX_LENGTH_CLOUDINIT_STATUS 256
+// the default timeout of waiting for cloud-init execution done
+#define DEFAULT_TIMEOUT_WAIT_FOR_CLOUDINIT_DONE 30
 
 /*
  * Constant definitions
@@ -135,6 +139,16 @@ typedef enum USE_CLOUDINIT_ERROR_CODE {
    USE_CLOUDINIT_NO_CUST_CFG,
    USE_CLOUDINIT_IGNORE,
 } USE_CLOUDINIT_ERROR_CODE;
+
+// the user-visible cloud-init application status code
+typedef enum CLOUDINIT_STATUS_CODE {
+   CLOUDINIT_STATUS_NOT_RUN = 0,
+   CLOUDINIT_STATUS_RUNNING,
+   CLOUDINIT_STATUS_DONE,
+   CLOUDINIT_STATUS_ERROR,
+   CLOUDINIT_STATUS_DISABLED,
+   CLOUDINIT_STATUS_UNKNOWN,
+} CLOUDINIT_STATUS_CODE;
 
 /*
  * Linked list definition
@@ -191,6 +205,8 @@ static char* gDeployError = NULL;
 LogFunction sLog = NoLogging;
 static uint16 gProcessTimeout = DEPLOYPKG_PROCESSTIMEOUT_DEFAULT;
 static bool gProcessTimeoutSetByLauncher = false;
+static uint16 gWaitForCloudinitDoneTimeout =
+   DEFAULT_TIMEOUT_WAIT_FOR_CLOUDINIT_DONE;
 
 // .....................................................................................
 
@@ -224,6 +240,31 @@ DeployPkg_SetProcessTimeout(uint16 timeout)
            gProcessTimeout);
       gProcessTimeoutSetByLauncher = true;
    }
+}
+
+/*
+ *------------------------------------------------------------------------------
+ *
+ * DeployPkg_SetWaitForCloudinitDoneTimeout
+ *
+ *     Set the timeout value of customization process waits for cloud-init
+ *     execution done before trigger reboot and after connect network adapters.
+ *     Tools deployPkg plugin reads this timeout value from tools.conf and
+ *     checks if the timeout value is valid, then calls this API to set the
+ *     valid timeout value to gWaitForCloudinitDoneTimeout.
+ *
+ * @param timeout [in]
+ *     timeout value to be used for waiting for cloud-init execution done
+ *
+ *------------------------------------------------------------------------------
+ */
+
+void
+DeployPkg_SetWaitForCloudinitDoneTimeout(uint16 timeout)
+{
+   gWaitForCloudinitDoneTimeout = timeout;
+   sLog(log_debug, "Wait for cloud-init execution done timeout value: %d.",
+        gWaitForCloudinitDoneTimeout);
 }
 
 // .....................................................................................
@@ -364,7 +405,8 @@ SetCustomizationStatusInVmxEx(int customizationState,
          sLog(log_debug, "Got VMX response '%s'.", response);
          if (responseLength > responseBufferSize - 1) {
             sLog(log_warning,
-                 "The VMX response is too long (only %d chars are allowed).",
+                 "The VMX response is too long "
+                 "(only %"FMTSZ"u chars are allowed).",
                  responseBufferSize - 1);
             responseLength = responseBufferSize - 1;
          }
@@ -1183,13 +1225,14 @@ CopyFileToDirectory(const char* srcPath, const char* destPath,
  * - cloud-init is enabled.
  *
  * @param   [IN]  dirPath  Path where the package is extracted.
+ * @param   [IN]  ignoreCloudInit  whether ignore cloud-init workflow.
  * @returns the error code to use cloud-init work flow
  *
  *----------------------------------------------------------------------------
  * */
 
 static USE_CLOUDINIT_ERROR_CODE
-UseCloudInitWorkflow(const char* dirPath)
+UseCloudInitWorkflow(const char* dirPath, bool ignoreCloudInit)
 {
    static const char cfgName[] = "cust.cfg";
    static const char metadataName[] = "metadata";
@@ -1197,6 +1240,22 @@ UseCloudInitWorkflow(const char* dirPath)
    static const char cloudInitCommand[] = "/usr/bin/cloud-init -v";
    char cloudInitCommandOutput[MAX_LENGTH_CLOUDINIT_VERSION];
    int forkExecResult;
+
+   forkExecResult = ForkExecAndWaitCommand(cloudInitCommand,
+                                           false,
+                                           cloudInitCommandOutput,
+                                           sizeof(cloudInitCommandOutput));
+   if (forkExecResult != 0) {
+      sLog(log_info, "Cloud-init is not installed.");
+      return USE_CLOUDINIT_NOT_INSTALLED;
+   } else {
+      sLog(log_info, "Cloud-init is installed.");
+      if (ignoreCloudInit) {
+         sLog(log_info,
+              "Ignoring cloud-init workflow according to header flags.");
+         return USE_CLOUDINIT_IGNORE;
+      }
+   }
 
    if (NULL == dirPath) {
       return USE_CLOUDINIT_INTERNAL_ERROR;
@@ -1207,17 +1266,6 @@ UseCloudInitWorkflow(const char* dirPath)
       return USE_CLOUDINIT_NO_CUST_CFG;
    }
 
-   forkExecResult = ForkExecAndWaitCommand(cloudInitCommand,
-                                           false,
-                                           cloudInitCommandOutput,
-                                           sizeof(cloudInitCommandOutput));
-   if (forkExecResult != 0) {
-      sLog(log_info, "cloud-init is not installed.");
-      return USE_CLOUDINIT_NOT_INSTALLED;
-   } else {
-      sLog(log_info, "cloud-init is installed.");
-   }
-
    // If cloud-init metadata exists, check if cloud-init support to handle
    // cloud-init raw data.
    // In this case, the guest customization must be delegated to cloud-init,
@@ -1225,12 +1273,12 @@ UseCloudInitWorkflow(const char* dirPath)
    if (CheckFileExist(dirPath, metadataName)) {
       int major, minor;
       GetCloudinitVersion(cloudInitCommandOutput, &major, &minor);
-      sLog(log_info, "metadata exists, check cloud-init version...");
+      sLog(log_info, "Metadata exists, check cloud-init version...");
       if (major < CLOUDINIT_SUPPORT_RAW_DATA_MAJOR_VERSION ||
           (major == CLOUDINIT_SUPPORT_RAW_DATA_MAJOR_VERSION &&
            minor < CLOUDINIT_SUPPORT_RAW_DATA_MINOR_VERSION)) {
           sLog(log_info,
-               "cloud-init version %d.%d is older than required version %d.%d",
+               "Cloud-init version %d.%d is older than required version %d.%d.",
                major,
                minor,
                CLOUDINIT_SUPPORT_RAW_DATA_MAJOR_VERSION,
@@ -1245,6 +1293,113 @@ UseCloudInitWorkflow(const char* dirPath)
       } else {
          return USE_CLOUDINIT_DISABLED;
       }
+   }
+}
+
+
+/**
+ *
+ * Function which gets the current cloud-init execution status.
+ * The status messages are copied from cloud-init offcial upstream
+ * https://github.com/canonical/cloud-init/blob/main/cloudinit/cmd/status.py
+ * These status messages are consistent since year 2017
+ *
+ * @returns the status code of cloud-init application
+ *
+ **/
+
+static CLOUDINIT_STATUS_CODE
+GetCloudinitStatus() {
+   // Cloud-init execution status messages
+   static const char* NOT_RUN = "not run";
+   static const char* RUNNING = "running";
+   static const char* DONE = "done";
+   static const char* ERROR = "error";
+   static const char* DISABLED = "disabled";
+
+   static const char cloudinitStatusCmd[] = "/usr/bin/cloud-init status";
+   char cloudinitStatusCmdOutput[MAX_LENGTH_CLOUDINIT_STATUS];
+   int forkExecResult;
+
+   forkExecResult = ForkExecAndWaitCommand(cloudinitStatusCmd,
+                                           false,
+                                           cloudinitStatusCmdOutput,
+                                           MAX_LENGTH_CLOUDINIT_STATUS);
+   if (forkExecResult != 0) {
+      sLog(log_info, "Unable to get cloud-init status.");
+      return CLOUDINIT_STATUS_UNKNOWN;
+   } else {
+      if (strstr(cloudinitStatusCmdOutput, NOT_RUN) != NULL) {
+         sLog(log_info, "Cloud-init status is '%s'.", NOT_RUN);
+         return CLOUDINIT_STATUS_NOT_RUN;
+      } else if (strstr(cloudinitStatusCmdOutput, RUNNING) != NULL) {
+         sLog(log_info, "Cloud-init status is '%s'.", RUNNING);
+         return CLOUDINIT_STATUS_RUNNING;
+      } else if (strstr(cloudinitStatusCmdOutput, DONE) != NULL) {
+         sLog(log_info, "Cloud-init status is '%s'.", DONE);
+         return CLOUDINIT_STATUS_DONE;
+      } else if (strstr(cloudinitStatusCmdOutput, ERROR) != NULL) {
+         sLog(log_info, "Cloud-init status is '%s'.", ERROR);
+         return CLOUDINIT_STATUS_ERROR;
+      } else if (strstr(cloudinitStatusCmdOutput, DISABLED) != NULL) {
+         sLog(log_info, "Cloud-init status is '%s'.", DISABLED);
+         return CLOUDINIT_STATUS_DISABLED;
+      } else {
+         sLog(log_warning, "Cloud-init status is unknown.");
+         return CLOUDINIT_STATUS_UNKNOWN;
+      }
+   }
+}
+
+
+/**
+ *
+ * Function which waits for cloud-init execution done.
+ *
+ * This function is called only when below conditions are fulfilled:
+ * - cloud-init is installed
+ * - guest os reboot is not skipped (so traditional GOSC workflow only)
+ * - deployment processed successfully in guest
+ *
+ * Default waiting timeout is DEFAULT_TIMEOUT_WAIT_FOR_CLOUDINIT_DONE seconds,
+ * when the timeout is reached, reboot will be triggered no matter what the
+ * cloud-init execution status is then.
+ * The timeout can be overwritten by the value which is set in tools.conf,
+ * if 0 is set in tools.conf, no waiting will be performed.
+ *
+ **/
+
+static void
+WaitForCloudinitDone() {
+   const int CheckStatusInterval = 5;
+   int timeoutSec = 0;
+   int elapsedSec = 0;
+   CLOUDINIT_STATUS_CODE cloudinitStatus = CLOUDINIT_STATUS_UNKNOWN;
+
+   // No waiting when gWaitForCloudinitDoneTimeout is set to 0
+   if (gWaitForCloudinitDoneTimeout == 0) {
+      return;
+   }
+
+   timeoutSec = gWaitForCloudinitDoneTimeout;
+
+   while (1) {
+      if (elapsedSec == timeoutSec) {
+         sLog(log_info, "Timed out waiting for cloud-init execution done.");
+         return;
+      }
+      if (elapsedSec % CheckStatusInterval == 0) {
+         cloudinitStatus = GetCloudinitStatus();
+         // CLOUDINIT_STATUS_NOT_RUN and CLOUDINIT_STATUS_RUNNING represent
+         // cloud-init execution has not finished
+         if (cloudinitStatus != CLOUDINIT_STATUS_NOT_RUN &&
+             cloudinitStatus != CLOUDINIT_STATUS_RUNNING) {
+            sLog(log_info, "Cloud-init execution is not on-going.");
+            return;
+         }
+      }
+      sleep(1);
+      elapsedSec++;
    }
 }
 
@@ -1316,6 +1471,7 @@ Deploy(const char* packageName)
    char *imcDirPath = NULL;
    USE_CLOUDINIT_ERROR_CODE useCloudInitWorkflow = USE_CLOUDINIT_IGNORE;
    int imcDirPathSize = 0;
+   bool ignoreCloudInit = false;
    TransitionState(NULL, INPROGRESS);
 
    // Notify the vpx of customization in-progress state
@@ -1400,11 +1556,8 @@ Deploy(const char* packageName)
       }
    }
 
-   if (!(flags & VMWAREDEPLOYPKG_HEADER_FLAGS_IGNORE_CLOUD_INIT)) {
-      useCloudInitWorkflow = UseCloudInitWorkflow(imcDirPath);
-   } else {
-      sLog(log_info, "Ignoring cloud-init.");
-   }
+   ignoreCloudInit = flags & VMWAREDEPLOYPKG_HEADER_FLAGS_IGNORE_CLOUD_INIT;
+   useCloudInitWorkflow = UseCloudInitWorkflow(imcDirPath, ignoreCloudInit);
 
    sLog(log_info, "UseCloudInitWorkflow return: %d", useCloudInitWorkflow);
 
@@ -1511,6 +1664,10 @@ Deploy(const char* packageName)
 
    //Reset the guest OS
    if (!sSkipReboot && !deploymentResult) {
+      if (useCloudInitWorkflow != USE_CLOUDINIT_NOT_INSTALLED) {
+         sLog(log_info, "Do not trigger reboot if cloud-init is executing.");
+         WaitForCloudinitDone();
+      }
       pid_t pid = fork();
       if (pid == -1) {
          sLog(log_error, "Failed to fork: '%s'.", strerror(errno));
