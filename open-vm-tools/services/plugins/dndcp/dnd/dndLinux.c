@@ -53,7 +53,7 @@
 
 #define DND_ROOTDIR_PERMS     (S_IRWXU | S_IRWXG | S_IRWXO)
 #define DND_STAGINGDIR_PERMS  (S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)
-#ifdef sun
+#ifndef ACCESSPERMS
 #define ACCESSPERMS           (S_IRWXU | S_IRWXG | S_IRWXO)
 #endif
 #ifdef __ANDROID__
@@ -62,7 +62,6 @@
  */
 #define NO_SETMNTENT
 #define NO_ENDMNTENT
-#define ACCESSPERMS           (S_IRWXU | S_IRWXG | S_IRWXO)
 #endif
 
 

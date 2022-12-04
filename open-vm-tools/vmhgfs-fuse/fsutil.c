@@ -694,7 +694,7 @@ HgfsStatusConvertToLinux(HgfsStatus hgfsStatus) // IN: Status code to convert
 unsigned long
 HgfsCalcBlockSize(uint64 tsize)
 {
-   loff_t used = (tsize + 511) >> 9;
+   off64_t used = (tsize + 511) >> 9;
    return (used > ULONG_MAX) ? ULONG_MAX : used;
 }
 

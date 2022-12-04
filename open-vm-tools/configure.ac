@@ -1169,6 +1169,7 @@ AC_CHECK_FUNCS(
 
 AC_CHECK_FUNCS([ecvt])
 AC_CHECK_FUNCS([fcvt])
+AC_CHECK_FUNCS([getifaddrs getauxval issetugid __secure_getenv])
 
 AC_CHECK_FUNC([mkdtemp], [have_mkdtemp=yes])
 
@@ -1378,10 +1379,13 @@ fi
 ###
 
 AC_CHECK_HEADERS([crypt.h])
+AC_CHECK_HEADERS([ifaddrs.h])
 AC_CHECK_HEADERS([inttypes.h])
 AC_CHECK_HEADERS([stdint.h])
 AC_CHECK_HEADERS([stdlib.h])
 AC_CHECK_HEADERS([wchar.h])
+AC_CHECK_HEADERS([net/if.h])
+AC_CHECK_HEADERS([sys/auxv.h])
 AC_CHECK_HEADERS([sys/inttypes.h])
 AC_CHECK_HEADERS([sys/io.h])
 AC_CHECK_HEADERS([sys/param.h]) # Required to make the sys/user.h check work correctly on FreeBSD
@@ -1441,6 +1445,7 @@ AC_TYPE_OFF_T
 AC_TYPE_PID_T
 AC_TYPE_SIZE_T
 AC_CHECK_MEMBERS([struct stat.st_rdev])
+AC_CHECK_MEMBERS([struct timespec.tv_sec],[],[],[[#include <time.h>]])
 AC_HEADER_TIME
 AC_STRUCT_TM
 AC_C_VOLATILE
@@ -1451,7 +1456,17 @@ AC_C_VOLATILE
 
 ### General flags / actions
 CFLAGS="$CFLAGS -Wall"
-CFLAGS="$CFLAGS -Werror"
+AC_ARG_ENABLE(
+   werror,
+   AS_HELP_STRING(
+      [--disable-werror],
+      [disable compilation with -Werror]),
+   [enable_werror="$enableval"],
+   [enable_werror="yes"])
+
+if test "$enable_werror" = "yes"; then
+   CFLAGS="$CFLAGS -Werror"
+fi
 
 # -Wno-unknown-pragmas is due to gcc not understanding '#pragma ident'
 # in Xlib.h on OpenSolaris.

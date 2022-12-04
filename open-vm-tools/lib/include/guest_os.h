@@ -295,6 +295,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 /* Linux */
 #define	STR_OS_ALMA_LINUX          "almaLinux"
 #define STR_OS_AMAZON_LINUX        "amazonlinux"
+#define STR_OS_ALPINE              "Alpine"
 #define STR_OS_ANNVIX              "Annvix"
 #define STR_OS_ARCH                "Arch"
 #define STR_OS_ARKLINUX            "Arklinux"

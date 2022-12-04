@@ -203,7 +203,7 @@ static AlignedPool alignedPool;
  * are not available in any header file.
  */
 
-#if defined(__linux__) && !defined(__ANDROID__)
+#if defined(__linux__) && defined(__GLIBC__)
    #if defined(_FILE_OFFSET_BITS) && (_FILE_OFFSET_BITS == 64)
       /*
        * We want preadv/pwritev. But due to FOB=64, the symbols are -64.

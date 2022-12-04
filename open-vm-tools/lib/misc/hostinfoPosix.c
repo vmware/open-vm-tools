@@ -201,6 +201,7 @@ typedef struct {
 
 static const DistroInfo distroArray[] = {
    { "ALT",                "/etc/altlinux-release"      },
+   { "Alpine",             "/etc/alpine-release"        },
    { "Annvix",             "/etc/annvix-release"        },
    { "Arch",               "/etc/arch-release"          },
    { "Arklinux",           "/etc/arklinux-release"      },
@@ -1256,6 +1257,7 @@ HostinfoSetSuseShortName(const ShortNameSet *entry, // IN:
 static const ShortNameSet shortNameArray[] = {
 /* Long distro name      Short distro name          Short name set function */
 { "almalinux",           STR_OS_ALMA_LINUX,         HostinfoGenericSetShortName },
+{ "alpine",              STR_OS_ALPINE,             HostinfoGenericSetShortName},
 { "amazon",              NULL,                      HostinfoSetAmazonShortName  },
 { "annvix",              STR_OS_ANNVIX,             HostinfoGenericSetShortName },
 { "arch",                STR_OS_ARCH,               HostinfoGenericSetShortName },

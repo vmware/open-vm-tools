@@ -44,7 +44,7 @@
 #define INCLUDE_ALLOW_USERLEVEL
 #include "includeCheck.h"
 
-#include "poll.h"
+#include "vm_poll.h"
 #include "vm_basic_asm.h"
 
 #if defined(__cplusplus)
