@@ -129,7 +129,8 @@ ToolsCoreAppChannelFail(UNUSED_PARAM(gpointer _state))
 #if !defined(__APPLE__)
    ToolsServiceState *state = _state;
 #endif
-#if defined(__linux__) || defined(__FreeBSD__) || defined(sun)
+#if defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || \
+    defined(sun)
    static const char  *vmusrGrepExpr = "'vmtoolsd.*vmusr'";
 #if defined(sun)
    static const char *psCmd = "ps -aef";

@@ -65,6 +65,7 @@ extern "C" {
  */
 
 #if defined(__FreeBSD__) || \
+    defined(__NetBSD__) || \
     defined(VMX86_SERVER) || \
     defined(__APPLE__) || \
     defined __ANDROID__

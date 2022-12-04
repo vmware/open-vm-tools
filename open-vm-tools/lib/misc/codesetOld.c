@@ -70,7 +70,7 @@
 #endif
 
 
-#if defined(__FreeBSD__) || defined(sun)
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(sun)
 static const char nul[] = {'\0', '\0'};
 #else
 static const wchar_t nul = L'\0';

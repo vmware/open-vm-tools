@@ -28,6 +28,9 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#if defined(__NetBSD__)
+#include <sys/ioctl.h>
+#endif
 
 #include "vmware.h"
 #include "dndInt.h"
@@ -40,7 +43,8 @@
 #include "util.h"
 #include "escape.h"
 #include "su.h"
-#if defined(__linux__) || defined(sun) || defined(__FreeBSD__)
+#if defined(__linux__) || defined(sun) || defined(__FreeBSD__) || \
+    defined(__NetBSD__)
 #include "vmblock_user.h"
 #include "mntinfo.h"
 #endif
@@ -278,7 +282,8 @@ DnD_UriIsNonFileSchemes(const char *uri)
 
 
 /* We need to make this suck less. */
-#if defined(__linux__) || defined(sun) || defined(__FreeBSD__)
+#if defined(__linux__) || defined(sun) || defined(__FreeBSD__) || \
+    defined(__NetBSD__)
 
 /*
  *----------------------------------------------------------------------------
@@ -736,7 +741,7 @@ DnD_CompleteBlockInitialization(int fd,                     // IN
    return TRUE;
 }
 
-#endif /* linux || sun || FreeBSD */
+#endif /* linux || sun || FreeBSD || NetBSD */
 
 
 /*

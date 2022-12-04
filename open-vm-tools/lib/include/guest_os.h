@@ -634,6 +634,9 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 /* FreeBSD */
 #define STR_OS_FREEBSD "freeBSD"
 
+/* NetBSD */
+#define STR_OS_NETBSD "netbsd"
+
 /* Solaris */
 #define STR_OS_SOLARIS "solaris"
 

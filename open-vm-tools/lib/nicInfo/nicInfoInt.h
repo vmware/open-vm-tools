@@ -29,7 +29,8 @@
 
 #include "nicInfo.h"
 
-#if defined __FreeBSD__ || defined __sun__ || defined __APPLE__
+#if defined __FreeBSD__ || defined __NetBSD__ || defined __sun__ || \
+    defined __APPLE__
 #   include <sys/socket.h>      // struct sockaddr
 #endif
 

@@ -448,6 +448,8 @@
 #  define PRODUCT_NAME_PLATFORM         PRODUCT_NAME " for Windows"
 #elif defined(__FreeBSD__)
 #  define PRODUCT_NAME_PLATFORM         PRODUCT_NAME " for FreeBSD"
+#elif defined(__NetBSD__)
+#  define PRODUCT_NAME_PLATFORM         PRODUCT_NAME " for NetBSD"
 #elif defined(sun)
 #  define PRODUCT_NAME_PLATFORM         PRODUCT_NAME " for Solaris"
 #elif defined(__APPLE__)

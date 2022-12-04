@@ -33,6 +33,7 @@
 
 #include "vmware.h"
 #include "vmstdio.h"
+#include "vm_ctype.h"
 #include "xdg.h"
 
 
@@ -91,7 +92,7 @@ Xdg_DetectDesktopEnv(void)
             int i;
 
             for (i = 0; i < outLen; i++) {
-               if (!isalnum(outbuf[i])) {
+               if (!CType_IsAlnum(outbuf[i])) {
                   g_debug("%s: received malformed input\n", __func__);
                   free(outbuf);
                   outbuf = NULL;

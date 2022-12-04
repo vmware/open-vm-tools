@@ -94,7 +94,7 @@ struct VixToolsUserEnvironment {
 
 VixError
 VixToolsNewEnvIterator(void *userToken,                  // IN
-#ifdef __FreeBSD__
+#if defined __FreeBSD__ || defined __NetBSD__
                        char **envp,                      // IN
 #endif
                        VixToolsEnvIterator **envItr)     // OUT
@@ -134,7 +134,7 @@ VixToolsNewEnvIterator(void *userToken,                  // IN
    }
 #elif defined(__APPLE__)
    it->environ = *_NSGetEnviron();
-#elif defined(__FreeBSD__)
+#elif defined(__FreeBSD__) || defined(__NetBSD__)
    it->environ = envp;
 #else
    it->environ = environ;

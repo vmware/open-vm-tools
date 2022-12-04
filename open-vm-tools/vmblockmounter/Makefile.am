@@ -23,7 +23,7 @@ mount_vmblock_LDADD += ../lib/stubs/libStubs.la
 mount_vmblock_SOURCES =
 mount_vmblock_SOURCES += vmblockmounter.c
 
-if FREEBSD
+if BSD
 install-exec-hook:
 	mv $(DESTDIR)$(sbindir)/mount.vmblock \
 		$(DESTDIR)$(sbindir)/mount_vmblock
@@ -39,4 +39,4 @@ install-exec-hook:
 		$(DESTDIR)/sbin/mount.vmblock &> /dev/null
 uninstall-hook:
 	rm -f $(DESTDIR)/sbin/mount.vmblock
-endif !FREEBSD
+endif !BSD

@@ -123,7 +123,7 @@ void VixToolsUnimpersonateUser(void *userToken);
 void VixToolsLogoutUser(void *userToken);
 
 VixError VixToolsNewEnvIterator(void *userToken,
-#ifdef __FreeBSD__
+#if defined __FreeBSD__ || defined __NetBSD__
                                 char **envp,
 #endif
                                 VixToolsEnvIterator **envItr);

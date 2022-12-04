@@ -26,7 +26,8 @@
  *
  */
 
-#if !defined(__linux__) && !defined(__FreeBSD__) && !defined(sun) && !defined(__APPLE__)
+#if !defined(__linux__) && !defined(__FreeBSD__) && !defined(__NetBSD__) && \
+    !defined(sun) && !defined(__APPLE__)
 #   error This file should not be compiled
 #endif
 
@@ -59,7 +60,7 @@
 #   include <utmpx.h>
 #endif
 
-#ifdef __FreeBSD__
+#if defined __FreeBSD__ || defined __NetBSD__
 #include "ifaddrs.h"
 #endif
 
@@ -315,7 +316,7 @@ System_Shutdown(Bool reboot)  // IN: "reboot or shutdown" flag
       cmd = "/sbin/shutdown -r now";
 #endif
    } else {
-#if __FreeBSD__
+#if defined __FreeBSD__ || defined __NetBSD__
       cmd = "/sbin/shutdown -p now";
 #elif defined(sun)
       cmd = "/usr/sbin/shutdown -g 0 -i 5 -y";

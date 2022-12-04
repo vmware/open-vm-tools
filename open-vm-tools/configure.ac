@@ -129,6 +129,9 @@ case "$host_os" in
    [solaris*])
       os="solaris"
       ;;
+   [netbsd*])
+      os="netbsd"
+      ;;
    [*])
       AC_MSG_WARN([This is an untested and unsupported Operating System. Proceed at your own peril.])
       ;;
@@ -614,6 +617,18 @@ if test "$with_fuse" = "fuse" ||
                      AC_DEFINE([HAVE_FUSE], 1, [Define to 1 if using FUSE.])
                      AC_DEFINE([FUSE_USE_VERSION], 29, [FUSE API version to use.])],
                     [have_fuse=no])
+
+   if test "$have_fuse" = "no" -a "$os" = "netbsd"; then
+      AC_CHECK_LIB(
+         [refuse],
+         [fuse_loop],
+         [have_fuse=yes;
+          FUSE_CPPFLAGS="-D_NETBSD_SOURCE -D_KERNTYPES";
+          FUSE_LIBS=-lrefuse;
+          AC_DEFINE([HAVE_FUSE], 1, [Define to 1 if using FUSE.])
+          AC_DEFINE([FUSE_USE_VERSION], 29, [FUSE API version to use.])],
+         [have_fuse=no])
+   fi
 
    if test "$have_fuse" = "no"; then
       if test "$with_fuse" = "auto" || test "$with_fuse" = "yes"; then
@@ -1689,6 +1704,8 @@ fi
 AM_CONDITIONAL(LINUX, test "$os" = "linux")
 AM_CONDITIONAL(SOLARIS, test "$os" = "solaris")
 AM_CONDITIONAL(FREEBSD, test "$os" = "freebsd" -o "$os" = "kfreebsd-gnu")
+AM_CONDITIONAL(NETBSD, test "$os" = "netbsd")
+AM_CONDITIONAL(BSD, test "$os" = "freebsd" -o "$os" = "kfreebsd-gnu" -o "$os" = "netbsd")
 AM_CONDITIONAL(FREEBSD_CUSTOM_SYSDIR,
                test \( "$os" = "freebsd" -o "$os" = "kfreebsd-gnu" \) -a -n "$SYSDIR")
 AM_CONDITIONAL(ARCH_X32, test "$arch" = "x32")

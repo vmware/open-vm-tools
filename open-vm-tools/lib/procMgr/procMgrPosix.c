@@ -27,7 +27,8 @@
 // pull in setresuid()/setresgid() if possible
 #define  _GNU_SOURCE
 #include <unistd.h>
-#if !defined(__FreeBSD__) && !defined(sun) && !defined(__APPLE__)
+#if !defined(__FreeBSD__) && !defined(__NetBSD__) && !defined(sun) && \
+    !defined(__APPLE__)
 #include <asm/param.h>
 #endif
 #if !defined(sun) && !defined(__APPLE__)
@@ -53,7 +54,7 @@
 // Pull in PAGE_SIZE/PAGE_SHIFT defines ahead of vm_basic_defs.h
 #   include <sys/user.h>
 #endif
-#if defined (__FreeBSD__)
+#if defined (__FreeBSD__) || defined(__NetBSD__)
 #include <kvm.h>
 #include <limits.h>
 #include <paths.h>
@@ -170,7 +171,7 @@ Bool ProcMgr_PromoteEffectiveToReal(void);
  *----------------------------------------------------------------------
  */
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(__NetBSD__)
 int
 ProcMgr_ReadProcFile(int fd,                       // IN
                      char **contents)              // OUT
@@ -664,7 +665,7 @@ quit:
 
    return procList;
 }
-#endif // defined(__linux__)
+#endif // defined(__linux__) || defined(__NetBSD__)
 
 
 /*
@@ -2228,7 +2229,8 @@ ProcMgr_Free(ProcMgr_AsyncProc *asyncProc) // IN
    free(asyncProc);
 }
 
-#if defined(__linux__) || defined(__FreeBSD__) || defined(__APPLE__)
+#if defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || \
+    defined(__APPLE__)
 
 /*
  *----------------------------------------------------------------------
@@ -2308,7 +2310,7 @@ ProcMgr_ImpersonateUserStart(const char *user,  // IN: UTF-8 encoded user name
    // first change group
 #if defined(USERWORLD)
    ret = Id_SetREGid(ppw->pw_gid, ppw->pw_gid);
-#elif defined(__APPLE__)
+#elif defined(__APPLE__) || defined(__NetBSD__)
    ret = setegid(ppw->pw_gid);
 #else
    ret = setresgid(ppw->pw_gid, ppw->pw_gid, root_gid);
@@ -2329,7 +2331,7 @@ ProcMgr_ImpersonateUserStart(const char *user,  // IN: UTF-8 encoded user name
    // now user
 #if defined(USERWORLD)
    ret = Id_SetREUid(ppw->pw_uid, ppw->pw_uid);
-#elif defined(__APPLE__)
+#elif defined(__APPLE__) || defined(__NetBSD__)
    ret = seteuid(ppw->pw_uid);
 #else
    ret = setresuid(ppw->pw_uid, ppw->pw_uid, 0);
@@ -2391,7 +2393,7 @@ ProcMgr_ImpersonateUserStop(void)
    // first change back user
 #if defined(USERWORLD)
    ret = Id_SetREUid(ppw->pw_uid, ppw->pw_uid);
-#elif defined(__APPLE__)
+#elif defined(__APPLE__) || defined(__NetBSD__)
    ret = seteuid(ppw->pw_uid);
 #else
    ret = setresuid(ppw->pw_uid, ppw->pw_uid, 0);
@@ -2404,7 +2406,7 @@ ProcMgr_ImpersonateUserStop(void)
    // now group
 #if defined(USERWORLD)
    ret = Id_SetREGid(ppw->pw_gid, ppw->pw_gid);
-#elif defined(__APPLE__)
+#elif defined(__APPLE__) || defined(__NetBSD__)
    ret = setegid(ppw->pw_gid);
 #else
    ret = setresgid(ppw->pw_gid, ppw->pw_gid, ppw->pw_gid);

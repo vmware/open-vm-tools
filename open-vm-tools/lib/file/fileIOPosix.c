@@ -66,7 +66,7 @@
 #include <dlfcn.h>
 #include <sys/xattr.h>
 #else
-#if defined(__FreeBSD__)
+#if defined(__FreeBSD__) || defined(__NetBSD__)
 #include <sys/param.h>
 #include <sys/mount.h>
 #else
@@ -1493,7 +1493,7 @@ FileIO_Writev(FileIODescriptor *fd,  // IN:
 
 
 #if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) ||\
-    defined(__sun__)
+    defined(__sun__) || defined(__NetBSD__)
 
 /*
  *----------------------------------------------------------------------
@@ -1679,7 +1679,7 @@ exit:
 }
 
 #endif /* defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) ||
-          defined(__sun__) */
+          defined(__sun__) || defined(__NetBSD__) */
 
 
 #if defined(__linux__) && !defined(__ANDROID__)
@@ -1952,7 +1952,7 @@ FileIOPwritevInternal(
 
 
 #if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) ||\
-    defined(__sun__)
+    defined(__sun__) || defined(__NetBSD__)
 
 /*
  *----------------------------------------------------------------------
@@ -2046,7 +2046,7 @@ FileIO_Pwritev(FileIODescriptor *fd,        // IN: File descriptor
 }
 
 #endif /* defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) ||
-          defined(__sun__) */
+          defined(__sun__) || defined(__NetBSD__) */
 
 
 /*

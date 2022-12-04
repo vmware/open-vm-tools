@@ -31,7 +31,8 @@
 #endif
 
 
-#if !defined(__linux__) && !defined(__FreeBSD__) && !defined(sun) && !defined(__APPLE__)
+#if !defined(__linux__) && !defined(__FreeBSD__) && !defined(__NetBSD__) && \
+    !defined(sun) && !defined(__APPLE__)
 #   error This file should not be compiled
 #endif
 
@@ -59,7 +60,7 @@
 #include <sys/ioctl.h>
 #include <net/if_arp.h>         // for ARPHRD_ETHER
 
-#if defined(__FreeBSD__) || defined(__APPLE__)
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__APPLE__)
 #include "ifaddrs.h"
 #endif
 
@@ -150,7 +151,8 @@ invalid:
  *----------------------------------------------------------------------
  */
 
-#if !defined(__FreeBSD__) && !defined(__APPLE__) /* { */
+#if !defined(__FreeBSD__) && !defined(__NetBSD__) && \
+    !defined(__APPLE__) /* { */
 char *
 NetUtil_GetPrimaryIP(void)
 {

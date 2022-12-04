@@ -134,7 +134,7 @@ char *Posix_MkTemp(const char *pathName);
  * Make them NULL wrappers for all other platforms.
  */
 #define Posix_GetHostName gethostname
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(__NetBSD__)
 #define Posix_GetHostByName gethostbyname
 #endif
 #define Posix_GetAddrInfo getaddrinfo
@@ -209,7 +209,7 @@ struct mntent *Posix_Getmntent_r(FILE *fp, struct mntent *m,
 int Posix_Getmntent(FILE *fp, struct mnttab *mp);
 
 #endif // !defined(sun)
-#if !defined(__APPLE__)
+#if !defined(__APPLE__) && !defined(__NetBSD__)
 
 
 /*
@@ -280,7 +280,7 @@ Posix_GetHostByName(const char *name)  // IN
    /* There has been an error */
    return NULL;
 }
-#endif // !define(__APPLE__)
+#endif // !define(__APPLE__) && !defined(__NetBSD__)
 
 
 /*
@@ -303,7 +303,7 @@ Posix_GetHostByName(const char *name)  // IN
 static INLINE void
 Posix_FreeHostent(struct hostent *he)
 {
-#if !defined(__APPLE__)
+#if !defined(__APPLE__) && !defined(__NetBSD__)
    char **p;
 
    if (he) {

@@ -24,7 +24,8 @@
  *
  */
 
-#if !defined __linux__ && !defined __FreeBSD__ && !defined sun && !defined __APPLE__
+#if !defined __linux__ && !defined __FreeBSD__ && !defined __NetBSD__ && \
+    !defined sun && !defined __APPLE__
 #   error This file should not be compiled
 #endif
 
@@ -65,7 +66,7 @@
 Bool
 HgfsHlpr_QuerySharesDefaultRootPath(char **hgfsRootPath)
 {
-#if defined __FreeBSD__
+#if defined __FreeBSD__ || defined __NetBSD__
    return FALSE;
 #else
    ASSERT(hgfsRootPath != NULL);

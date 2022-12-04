@@ -51,8 +51,10 @@ libguestlib_la_SOURCES += $(libguestlib_rpcchanneldir)/simpleSocket.c
 endif
 
 libguestlib_la_LDFLAGS =
+if !NETBSD
 libguestlib_la_LDFLAGS += -Wl,-ldl
 libguestlib_la_LDFLAGS += -Wl,-lrt
+endif
 # We require GCC, so we're fine passing compiler-specific flags.
 # Needed for OS's that don't link shared libraries against libc by default, e.g. FreeBSD
 libguestlib_la_LDFLAGS += -Wl,-lc

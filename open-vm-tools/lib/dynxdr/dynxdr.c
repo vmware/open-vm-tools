@@ -55,7 +55,8 @@ typedef struct DynXdrData {
  * Mac OS X, FreeBSD and Solaris don't take a const parameter to the
  * "x_getpostn" function.
  */
-#if defined(__APPLE__) || defined(__FreeBSD__) || defined(sun) || defined(USE_TIRPC)
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__) || \
+    defined(sun) || defined(USE_TIRPC)
 #  define DYNXDR_GETPOS_CONST
 #else
 #  define DYNXDR_GETPOS_CONST const

@@ -23,7 +23,8 @@
  *    x-vmware-share:// style URIs
  */
 
-#if !defined __linux__ && !defined __APPLE__ && !defined __FreeBSD__
+#if !defined __linux__ && !defined __APPLE__ && !defined __FreeBSD__ && \
+    !defined __NetBSD__
 #   error This file should not be compiled
 #endif
 
