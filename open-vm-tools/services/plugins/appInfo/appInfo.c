@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2019-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 2019-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -66,9 +66,9 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
  * Default value for CONFNAME_APPINFO_DISABLED setting in
  * tools configuration file.
  *
- * FALSE will enable the plugin. TRUE will disable the plugin.
+ * FALSE will activate the plugin. TRUE will deactivate the plugin.
  */
-#define APP_INFO_CONF_DEFAULT_DISABLED_VALUE FALSE
+#define APP_INFO_CONF_DEFAULT_DEACTIVATED_VALUE FALSE
 
 /**
  * Default value for CONFNAME_APPINFO_REMOVE_DUPLICATES setting in
@@ -425,12 +425,12 @@ AppInfoGather(gpointer data)      // IN
  * Start, stop, reconfigure a AppInfo Gather poll loop.
  *
  * This function is responsible for creating, manipulating, and resetting a
- * AppInfo Gather loop timeout source. The poll loop will be disabled if
+ * AppInfo Gather loop timeout source. The poll loop will be deactivated if
  * the poll interval is 0.
  *
  * @param[in]     ctx           The application context.
  * @param[in]     pollInterval  Poll interval in seconds. A value of 0 will
- *                              disable the loop.
+ *                              deactivate the loop.
  *
  *****************************************************************************
  */
@@ -460,7 +460,7 @@ TweakGatherLoopEx(ToolsAppCtx *ctx,       // IN
                                AppInfoGather, ctx, NULL);
       g_source_unref(gAppInfoTimeoutSource);
    } else if (gAppInfoPollInterval > 0) {
-      g_info("%s: Poll loop for %s disabled.\n",
+      g_info("%s: Poll loop for %s deactivated.\n",
              __FUNCTION__, CONFNAME_APPINFO_POLLINTERVAL);
       SetGuestInfo(ctx, APP_INFO_GUESTVAR_KEY, "");
    }
@@ -491,15 +491,15 @@ static void
 TweakGatherLoop(ToolsAppCtx *ctx,  // IN
                 gboolean force)    // IN
 {
-   gboolean disabled =
+   gboolean deactivated =
       VMTools_ConfigGetBoolean(ctx->config,
                                CONFGROUPNAME_APPINFO,
                                CONFNAME_APPINFO_DISABLED,
-                               APP_INFO_CONF_DEFAULT_DISABLED_VALUE);
+                               APP_INFO_CONF_DEFAULT_DEACTIVATED_VALUE);
 
    gint pollInterval;
 
-   if (gAppInfoEnabledInHost && !disabled) {
+   if (gAppInfoEnabledInHost && !deactivated) {
       pollInterval = VMTools_ConfigGetInteger(ctx->config,
                                               CONFGROUPNAME_APPINFO,
                                               CONFNAME_APPINFO_POLLINTERVAL,
@@ -618,7 +618,8 @@ AppInfoServerSetOption(gpointer src,         // IN
 
       if (retVal) {
          g_info("%s: State of AppInfo is changed to '%s' at host side.\n",
-                __FUNCTION__, gAppInfoEnabledInHost ? "enabled" : "disabled");
+                __FUNCTION__, gAppInfoEnabledInHost ? "enabled" : "deactivated" );
+
          TweakGatherLoop(ctx, TRUE);
       }
    }
@@ -648,7 +649,7 @@ AppInfoServerReset(gpointer src,
 {
    /*
     * gAppInfoTimeoutSource is used to figure out if the poll loop is
-    * enabled or not. If the poll loop is disabled, then
+    * enabled or not. If the poll loop is deactivated, then
     * gAppInfoTimeoutSource will be set to NULL.
     */
    if (gAppInfoTimeoutSource != NULL) {
@@ -692,7 +693,7 @@ AppInfoServerReset(gpointer src,
          gAppInfoEnabledInHost = TRUE;
          TweakGatherLoop(ctx, TRUE);
       } else {
-         g_debug("%s: Poll loop disabled. Ignoring.\n", __FUNCTION__);
+         g_debug("%s: Poll loop deactivated. Ignoring.\n", __FUNCTION__);
       }
    }
 }
@@ -721,7 +722,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)    // IN
    };
 
    /*
-    * Return NULL to disable the plugin if not running in a VMware VM.
+    * Return NULL to deactivate the plugin if not running in a VMware VM.
     */
    if (!ctx->isVMware) {
       g_info("%s: Not running in a VMware VM.\n", __FUNCTION__);
@@ -729,7 +730,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)    // IN
    }
 
    /*
-    * Return NULL to disable the plugin if not running in vmsvc daemon.
+    * Return NULL to deactivate the plugin if not running in vmsvc daemon.
     */
    if (!TOOLS_IS_MAIN_SERVICE(ctx)) {
       g_info("%s: Not running in vmsvc daemon: container name='%s'.\n",

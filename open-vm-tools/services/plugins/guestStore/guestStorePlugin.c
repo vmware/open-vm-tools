@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2019-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 2019-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -222,7 +222,7 @@ GetCurrentUtcStr(void)
  *
  * IsFeatureDisabled --
  *
- *      Check if guest admin/root has disabled GuestStore access.
+ *      Check if guest admin/root has deactivated GuestStore access.
  *
  * Results:
  *      Return the configured boolean value, default is FALSE.
@@ -2757,7 +2757,7 @@ GuestStoreAccessEnable(void)
    ASSERT(!pluginData.guestStoreAccessEnabled);
 
    if (!CreateVmxListenSocket() || !CreateClientListenSocket()) {
-      g_warning("GuestStore access is disabled "
+      g_warning("GuestStore access is deactivated "
                 "due to initialization error.\n");
       GuestStoreAccessDisable();
       return;
@@ -2816,7 +2816,7 @@ GetVmxGuestStoreAccessEnabledState(void)
  *
  * GuestStoreShutdown --
  *
- *      Disable GuestStore access before shutdown.
+ *      Deactivate GuestStore access before shutdown.
  *
  * Results:
  *      None
@@ -2981,7 +2981,7 @@ GuestStoreSetOption(gpointer src,         // IN
       if (strcmp(value, "1") == 0 &&
           !pluginData.guestStoreAccessEnabled) {
          if (CheckAndUpdateFeatureDisabled()) {
-            g_info("GuestStore access is disabled on guest side.\n");
+            g_info("GuestStore access is deactivated on guest side.\n");
          } else {
             GuestStoreAccessEnable();
             retVal = TRUE;
@@ -3035,7 +3035,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)  // IN
    };
 
    /*
-    * Return NULL to disable the plugin if not running in vmsvc daemon.
+    * Return NULL to deactivate the plugin if not running in vmsvc daemon.
     */
    if (!TOOLS_IS_MAIN_SERVICE(ctx)) {
       g_info("Not running in vmsvc daemon: container name='%s'.\n",
@@ -3044,7 +3044,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)  // IN
    }
 
    /*
-    * Return NULL to disable the plugin if not running in a VMware VM.
+    * Return NULL to deactivate the plugin if not running in a VMware VM.
     */
    if (!ctx->isVMware) {
       g_info("Not running in a VMware VM.\n");
@@ -3052,7 +3052,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)  // IN
    }
 
    /*
-    * Return NULL to disable the plugin if VM is not running on ESX host.
+    * Return NULL to deactivate the plugin if VM is not running on ESX host.
     */
    if (!VmCheck_GetVersion(&vmxVersion, &vmxType) ||
        vmxType != VMX_TYPE_SCALABLE_SERVER) {
