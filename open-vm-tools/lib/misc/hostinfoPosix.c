@@ -178,6 +178,8 @@ static const DistroNameScan osReleaseFields[] = {
    { "NAME=",               "NAME=%s"        },
    { "VERSION_ID=",         "VERSION_ID=%s"  },
    { "BUILD_ID=",           "BUILD_ID=%s"    },
+   { "VERSION=",            "VERSION=%s"     },
+   { "CPE_NAME=",           "CPE_NAME=%s"    },  // NIST CPE specification
    { NULL,                  NULL             },
 };
 
@@ -247,21 +249,34 @@ static const DistroInfo distroArray[] = {
 };
 #endif
 
-/* Must be sorted. Keep in the same ordering as DetailedDataFieldType */
+/*
+ * Any data obtained about the distro is obtained - UNMODIFIED - from the
+ * standardized (i.e. LSB, os-release) disto description files. Under no
+ * circumstances is code specific to a distro allowed or used. If the data
+ * specified by a distro isn't useful, talk to the disto, not VMware.
+ *
+ * The fields from the standardized distro description files used may be
+ * found above (i.e. lsbFields, osReleaseFields).
+ *
+ * Must be sorted. Keep in the same ordering as DetailedDataFieldType
+ */
+
 DetailedDataField detailedDataFields[] = {
 #if defined(VM_ARM_ANY)
-   { "architecture",  "Arm"   },  // Arm
+   { "architecture",      "Arm"   },  // Arm
 #else
-   { "architecture",  "X86"   },  // Intel/X86
+   { "architecture",      "X86"   },  // Intel/X86
 #endif
-   { "bitness",       ""      },  // "32" or "64"
-   { "buildNumber",   ""      },  // Present for MacOS and some Linux distros.
-   { "distroName",    ""      },  // Defaults to uname -s
-   { "distroVersion", ""      },  // Present for MacOS.
-   { "familyName",    ""      },  // Defaults to uname -s
-   { "kernelVersion", ""      },  // Defaults to uname -r
-   { "prettyName",    ""      },  // Present for MacOS.
-   { NULL,            ""      },  // MUST BE LAST
+   { "bitness",           ""      },  // "32" or "64"
+   { "buildNumber",       ""      },  // When available
+   { "cpeString",         ""      },  // When available
+   { "distroAddlVersion", ""      },  // When available
+   { "distroName",        ""      },  // Defaults to uname -s
+   { "distroVersion",     ""      },  // When available
+   { "familyName",        ""      },  // Defaults to uname -s
+   { "kernelVersion",     ""      },  // Defaults to uname -r
+   { "prettyName",        ""      },  // When available
+   { NULL,                ""      },  // MUST BE LAST
 };
 
 #if defined __ANDROID__ || defined __aarch64__
@@ -1988,6 +2003,17 @@ HostinfoBestScore(char *distro,            // OUT:
       if (osReleaseData[3] != NULL) {
          Str_Strcpy(detailedDataFields[BUILD_NUMBER].value, osReleaseData[3],
                     sizeof detailedDataFields[BUILD_NUMBER].value);
+      }
+
+      if (osReleaseData[4] != NULL) {
+         Str_Strcpy(detailedDataFields[DISTRO_ADDL_VERSION].value,
+                    osReleaseData[4],
+                    sizeof detailedDataFields[DISTRO_ADDL_VERSION].value);
+      }
+
+      if (osReleaseData[5] != NULL) {
+         Str_Strcpy(detailedDataFields[CPE_STRING].value, osReleaseData[5],
+                    sizeof detailedDataFields[CPE_STRING].value);
       }
 
       if (osReleaseData[fields] != NULL) {
