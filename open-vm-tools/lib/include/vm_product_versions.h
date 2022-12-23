@@ -663,4 +663,16 @@
 #define ZDOM_RELEASE_PATCH "0"  /* 0 = experimental */
 #define ZDOM_RELEASE ZDOM_RELEASE_UPDATE "." ZDOM_RELEASE_PATCH
 
+/*
+ * vsansky Versions
+ */
+#define VSANSKY_VERSION_MAJOR "0"
+#define VSANSKY_VERSION_MINOR "1"
+#define VSANSKY_VERSION_MAINT "0"
+#define VSANSKY_VERSION VSANSKY_VERSION_MAJOR "." VSANSKY_VERSION_MINOR "." \
+                       VSANSKY_VERSION_MAINT
+#define VSANSKY_RELEASE_UPDATE "0" /* 0 = Pre-release/GA, 1 = Update 1 */
+#define VSANSKY_RELEASE_PATCH "0"  /* 0 = experimental */
+#define VSANSKY_RELEASE VSANSKY_RELEASE_UPDATE "." VSANSKY_RELEASE_PATCH
+
 #endif
