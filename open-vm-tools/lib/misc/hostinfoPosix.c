@@ -1412,7 +1412,7 @@ HostinfoReadDistroFile(Bool osReleaseRules,   // IN: osRelease rules
    char lineBuf[DISTRO_BUF_SIZE];
    FILE *s = NULL;
    uint32 nArgs = 0;
-   Bool first = TRUE;
+   Bool any = FALSE;
    Bool success = FALSE;
    char **result = NULL;
    char *distroOrig = NULL;
@@ -1458,7 +1458,7 @@ HostinfoReadDistroFile(Bool osReleaseRules,   // IN: osRelease rules
 
    /*
     * Attempt to parse a file with one name=value pair per line. Values are
-    * expected to embedded in double quotes.
+    * expected to be embedded in double quotes.
     */
 
    nArgs = 0;
@@ -1499,21 +1499,21 @@ HostinfoReadDistroFile(Bool osReleaseRules,   // IN: osRelease rules
 
              *p = '\0';
 
-             if (p - data > MAX_DETAILED_FIELD_LEN) {
+             if (p >= &data[MAX_DETAILED_FIELD_LEN]) {
                 Warning("%s: Unexpectedly long data encountered; truncated.",
                         __FUNCTION__);
 
-                p[MAX_DETAILED_FIELD_LEN - 1] = '\0';
+                data[MAX_DETAILED_FIELD_LEN - 1] = '\0';
              }
 
-             if (!first) {
+             if (any) {
                 DynBuf_Strcat(&b, " ");
              }
 
              DynBuf_Strcat(&b, data);
              result[i] = Util_SafeStrdup(data);
 
-             first = FALSE;
+             any = TRUE;
           }
       }
    }
