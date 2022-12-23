@@ -829,6 +829,7 @@ typedef int pid_t;
                                                      lfMessageFont)
 
 /* This is not intended to be thread-safe. */
+#ifndef KBUILD_MODNAME
 #define DO_ONCE(code)                                                   \
    do {                                                                 \
       static MONITOR_ONLY(PERVCPU) Bool _doOnceDone = FALSE;            \
@@ -837,6 +838,7 @@ typedef int pid_t;
          code;                                                          \
       }                                                                 \
    } while (0)
+#endif
 
 /*
  * Bug 827422 and 838523.
