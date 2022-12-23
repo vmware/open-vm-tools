@@ -227,7 +227,9 @@ Max(int a, int b)
 #define XCONC(x, y)             CONC(x, y)
 #define XXCONC(x, y)            XCONC(x, y)
 #define MAKESTR(x)              #x
+#ifndef XSTR
 #define XSTR(x)                 MAKESTR(x)
+#endif
 
 
 /*
