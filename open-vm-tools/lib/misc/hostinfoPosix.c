@@ -136,7 +136,6 @@
 #endif
 
 #define LGPFX "HOSTINFO:"
-#define MAX_LINE_LEN 128
 
 #define SYSTEM_BITNESS_32 "i386"
 #define SYSTEM_BITNESS_64_SUN "amd64"
@@ -160,27 +159,22 @@ static Atomic_Ptr hostinfoOSVersion;
 #define DISTRO_BUF_SIZE 1024
 
 #if !defined(__APPLE__) && !defined(VMX86_SERVER) && !defined(USERWORLD)
-typedef struct {
-   const char *name;
-   const char *scanString;
-} DistroNameScan;
-
-static const DistroNameScan lsbFields[] = {
-   { "DISTRIB_ID=",          "DISTRIB_ID=%s"          },
-   { "DISTRIB_RELEASE=",     "DISTRIB_RELEASE=%s"     },
-   { "DISTRIB_CODENAME=",    "DISTRIB_CODENAME=%s"    },
-   { "DISTRIB_DESCRIPTION=", "DISTRIB_DESCRIPTION=%s" },
-   { NULL,                   NULL                     },
+static const char *lsbFields[] = {
+   "DISTRIB_ID=",
+   "DISTRIB_RELEASE=",
+   "DISTRIB_CODENAME=",
+   "DISTRIB_DESCRIPTION=",
+   NULL                      // MUST BE LAST
 };
 
-static const DistroNameScan osReleaseFields[] = {
-   { "PRETTY_NAME=",        "PRETTY_NAME=%s" },
-   { "NAME=",               "NAME=%s"        },
-   { "VERSION_ID=",         "VERSION_ID=%s"  },
-   { "BUILD_ID=",           "BUILD_ID=%s"    },
-   { "VERSION=",            "VERSION=%s"     },
-   { "CPE_NAME=",           "CPE_NAME=%s"    },  // NIST CPE specification
-   { NULL,                  NULL             },
+static const char *osReleaseFields[] = {
+   "PRETTY_NAME=",
+   "NAME=",
+   "VERSION_ID=",
+   "BUILD_ID=",
+   "VERSION=",
+   "CPE_NAME=",              // NIST CPE specification
+   NULL                      // MUST BE LAST
 };
 
 typedef struct {
@@ -1406,29 +1400,32 @@ HostinfoGetOSShortName(const char *distro,     // IN: full distro name
  */
 
 static char **
-HostinfoReadDistroFile(Bool osReleaseRules,           // IN: osRelease rules
-                       const char *filename,          // IN: distro file
-                       const DistroNameScan *values)  // IN: search strings
+HostinfoReadDistroFile(Bool osReleaseRules,   // IN: osRelease rules
+                       const char *fileName,  // IN: distro file
+                       const char *values[])  // IN: search strings
 {
    int i;
+   int fd;
    DynBuf b;
    int bufSize;
    struct stat st;
-   int fd = -1;
+   char lineBuf[DISTRO_BUF_SIZE];
+   FILE *s = NULL;
    uint32 nArgs = 0;
+   Bool first = TRUE;
    Bool success = FALSE;
    char **result = NULL;
    char *distroOrig = NULL;
 
    /* It's OK for the file to not exist, don't warn for this.  */
-   if ((fd = Posix_Open(filename, O_RDONLY)) == -1) {
+   if ((fd = Posix_Open(fileName, O_RDONLY)) == -1) {
       return FALSE;
    }
 
    DynBuf_Init(&b);
 
    if (fstat(fd, &st)) {
-      Warning("%s: could not stat file '%s': %d\n", __FUNCTION__, filename,
+      Warning("%s: could not stat file '%s': %d\n", __FUNCTION__, fileName,
            errno);
       goto out;
    }
@@ -1443,12 +1440,21 @@ HostinfoReadDistroFile(Bool osReleaseRules,           // IN: osRelease rules
    distroOrig = Util_SafeCalloc(bufSize + 1, sizeof *distroOrig);
 
    if (read(fd, distroOrig, bufSize) != bufSize) {
-      Warning("%s: could not read file '%s': %d\n", __FUNCTION__, filename,
+      Warning("%s: could not read file '%s': %d\n", __FUNCTION__, fileName,
               errno);
       goto out;
    }
 
    distroOrig[bufSize] = '\0';
+
+   lseek(fd, 0, SEEK_SET);
+
+   s = fdopen(fd, "r");
+
+   if (s == NULL) {
+      Warning("%s: fdopen conversion failed.\n", __FUNCTION__);
+      goto out;
+   }
 
    /*
     * Attempt to parse a file with one name=value pair per line. Values are
@@ -1456,40 +1462,67 @@ HostinfoReadDistroFile(Bool osReleaseRules,           // IN: osRelease rules
     */
 
    nArgs = 0;
-   for (i = 0; values[i].name != NULL; i++) {
+   for (i = 0; values[i] != NULL; i++) {
       nArgs++;
    }
    nArgs++;  // For the appended version of the data
 
    result = Util_SafeCalloc(nArgs, sizeof(char *));
 
-   for (i = 0; values[i].name != NULL; i++) {
-      const char *tmpDistroPos = strstr(distroOrig, values[i].name);
+   while (fgets(lineBuf, sizeof lineBuf, s) != NULL) {
+      for (i = 0; values[i] != NULL; i++) {
+          size_t len = strlen(values[i]);
 
-      if (tmpDistroPos != NULL) {
-         char distroPart[DISTRO_BUF_SIZE];
+          if (strncmp(lineBuf, values[i], len) == 0) {
+             char *p;
+             char *data;
 
-         if (i != 0) {
-            DynBuf_Strcat(&b, " ");
-         }
+             if (lineBuf[len] == '"') {
+                data = &lineBuf[len + 1];
+                p = strrchr(data, '"');
 
-         sscanf(tmpDistroPos, values[i].scanString, distroPart);
-         if (distroPart[0] == '"') {
-            char *tmpMakeNull;
+                if (p == NULL) {
+                   Warning("%s: Invalid os-release file.", __FUNCTION__);
+                   goto out;
+                }
+             } else {
+                data = &lineBuf[len];
 
-            tmpDistroPos += strlen(values[i].name) + 1;
-            tmpMakeNull = strchr(tmpDistroPos + 1 , '"');
-            if (tmpMakeNull != NULL) {
-               *tmpMakeNull = '\0';
-               DynBuf_Strcat(&b, tmpDistroPos);
-               result[i] = Util_SafeStrdup(tmpDistroPos);
-               *tmpMakeNull = '"' ;
-            }
-         } else {
-            DynBuf_Strcat(&b, distroPart);
-            result[i] = Util_SafeStrdup(distroPart);
-         }
+                p = strchr(data, '\n');
+
+                if (p == NULL) {
+                   Warning("%s: os-release file line too long.",
+                           __FUNCTION__);
+                   goto out;
+                }
+             }
+
+             *p = '\0';
+
+             if (p - data > MAX_DETAILED_FIELD_LEN) {
+                Warning("%s: Unexpectedly long data encountered; truncated.",
+                        __FUNCTION__);
+
+                p[MAX_DETAILED_FIELD_LEN - 1] = '\0';
+             }
+
+             if (!first) {
+                DynBuf_Strcat(&b, " ");
+             }
+
+             DynBuf_Strcat(&b, data);
+             result[i] = Util_SafeStrdup(data);
+
+             first = FALSE;
+          }
       }
+   }
+
+   if (ferror(s)) {
+       Warning("%s: Error occurred while reading '%s'\n", __FUNCTION__,
+               fileName);
+
+       goto out;
    }
 
    if (DynBuf_GetSize(&b) == 0) {
@@ -1524,7 +1557,9 @@ HostinfoReadDistroFile(Bool osReleaseRules,           // IN: osRelease rules
    }
 
 out:
-   if (fd != -1) {
+   if (s != NULL) {
+      fclose(s);
+   } else if (fd != -1) {
       close(fd);
    }
 
@@ -1663,12 +1698,11 @@ HostinfoOsRelease(char ***args)  // OUT:
 {
    int score;
 
-   *args = HostinfoReadDistroFile(TRUE, "/etc/os-release",
-                                  &osReleaseFields[0]);
+   *args = HostinfoReadDistroFile(TRUE, "/etc/os-release", osReleaseFields);
 
    if (*args == NULL) {
       *args = HostinfoReadDistroFile(TRUE, "/usr/lib/os-release",
-                                     &osReleaseFields[0]);
+                                     osReleaseFields);
    }
 
    if (*args == NULL) {
@@ -1771,7 +1805,7 @@ HostinfoLsb(char ***args)  // OUT:
 
       for (i = 0; distroArray[i].filename != NULL; i++) {
          *args = HostinfoReadDistroFile(FALSE, distroArray[i].filename,
-                                        &lsbFields[0]);
+                                        lsbFields);
 
          if (*args != NULL) {
             break;
