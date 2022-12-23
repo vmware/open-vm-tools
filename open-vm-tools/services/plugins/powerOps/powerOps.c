@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016, 2018-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2016, 2018-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -428,8 +428,10 @@ PowerOpsStateChange(RpcInData *data)
    PowerOpState *state = data->clientData;
 
    if (state->pid != INVALID_PID) {
-      g_debug("State change already in progress.\n");
-      return RPCIN_SETRETVALS(data,  "State change already in progress", FALSE);
+      g_message("State change already in progress: %d, requested = '%s'\n",
+                state->stateChgInProgress,
+                data->name);
+      return RPCIN_SETRETVALS(data, "State change already in progress", FALSE);
    }
 
    g_debug("State change: %s\n", data->name);
