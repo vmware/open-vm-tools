@@ -47,6 +47,14 @@
 #include <assert.h>
 #include <errno.h>
 
+
+/*
+ * Max number of times to try to connect to the VMX if the connection
+ * keeps getting reset.  This can also occur if vsock is disabled for RPCs.
+ * See PR 3048949, PR 728832.
+ */
+#define MAX_CONN_RETRIES 5
+
 /*
  * VMX listening address
  */
@@ -370,6 +378,7 @@ CreateVMCISocket(gboolean useSecure)
    int errCode;
    unsigned int localPort = PRIVILEGED_PORT_MAX;
    SOCKET fd;
+   int retryCount = 0;
 
 again:
    fd = socket(gAddressFamily, SOCK_STREAM, 0);
@@ -428,14 +437,20 @@ bound:
    ret = connect(fd, (struct sockaddr *)&addr, sizeof addr);
    if (ret < 0) {
       errCode = GetSocketErrCode();
-      if (errCode == SYSERR_ECONNRESET) {
+      if (errCode == SYSERR_ECONNRESET && useSecure) {
          /*
           * VMX might be slow releasing a port pair
           * when another client closed the client side end.
-          * Simply try next port.
+          * Try next port.
+          * This can also occur if there's no listen socket in the VMX.
           */
          g_debug("%s: connect() failed with RESET, trying another port\n",
                  __FUNCTION__);
+         if (++retryCount >= MAX_CONN_RETRIES) {
+            g_warning("%s: connect() RESET %d times, giving up\n",
+                      __FUNCTION__, MAX_CONN_RETRIES);
+            goto err;
+         }
          localPort--;
          Socket_Close(fd);
          goto again;
@@ -626,7 +641,7 @@ main(int argc, char **argv)
       fprintf(stderr, "%s: needs an RPC arg\n", argv[0]);
       exit(-1);
    }
-   ret = VMXRPC_SendRpc(argv[1], TRUE, &reply);
+   ret = VMXRPC_SendRpc(argv[1], FALSE, &reply);
    if (ret < 0) {
       fprintf(stderr, "%s: failed to send RPC\n", argv[0]);
       exit(-1);
