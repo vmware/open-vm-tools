@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013-2017,2019-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013-2017,2019-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -31,6 +31,7 @@
 #include "simpleSocket.h"
 #include "vmci_defs.h"
 #include "vmci_sockets.h"
+#include "vm_atomic.h"
 #include "dataMap.h"
 #include "err.h"
 #include "debug.h"
@@ -338,6 +339,10 @@ Socket_ConnectVMCI(unsigned int cid,                  // IN
                    ApiError *outApiErr,               // OUT optional
                    int *outSysErr)                    // OUT optional
 {
+#define MAX_ECONNRESET_RETRIES 8
+#define MAX_ENOBUFS_RETRIES    5
+
+   static Atomic_Bool useVsock = { TRUE };
    struct sockaddr_vm addr;
    unsigned int localPort;
    SOCKET fd;
@@ -345,7 +350,8 @@ Socket_ConnectVMCI(unsigned int cid,                  // IN
    ApiError apiErr;
    int vsockDev = -1;
    int family = VMCISock_GetAFValueFd(&vsockDev);
-   int retryCount = 0;
+   int retryCountConnReset = 0;
+   int retryCountNoBufs = 0;
 
    if (family == -1) {
       Warning(LGPFX "Couldn't get VMCI socket family info.");
@@ -380,19 +386,31 @@ Socket_ConnectVMCI(unsigned int cid,                  // IN
       if (fd != INVALID_SOCKET) {
          goto done;
       }
+
       if (apiErr == SOCKERR_BIND && sysErr == SYSERR_EADDRINUSE) {
          --localPort;
          continue; /* Try next port */
       }
-      if (apiErr == SOCKERR_CONNECT && sysErr == SYSERR_ECONNRESET) {
+
+      if (Atomic_ReadBool(&useVsock) &&
+          apiErr == SOCKERR_CONNECT && sysErr == SYSERR_ECONNRESET) {
          /*
           * VMX might be slow releasing a port pair
           * when another client closed the client side end.
           * Simply try next port.
           */
+         if (++retryCountConnReset >= MAX_ECONNRESET_RETRIES) {
+            Warning(LGPFX "Give up after %d connect() retries for ECONNRESET. "
+                          "Check if vmx option guest_rpc.rpci.usevsocket "
+                          "is set to FALSE.\n", MAX_ECONNRESET_RETRIES);
+            Atomic_WriteBool(&useVsock, FALSE);
+            goto done;
+         }
+
          --localPort;
          continue;
       }
+
       if (apiErr == SOCKERR_CONNECT && sysErr == SYSERR_EINTR) {
          /*
           * EINTR on connect due to signal.
@@ -407,9 +425,12 @@ Socket_ConnectVMCI(unsigned int cid,                  // IN
           * Delay a bit and try again using the same port.
           * Have a retry count in case something has gone horribly wrong.
           */
-         if (++retryCount > 5) {
+         if (++retryCountNoBufs >= MAX_ENOBUFS_RETRIES) {
+            Warning(LGPFX "Give up after %d connect() retries for ENOBUFS.\n",
+                    MAX_ENOBUFS_RETRIES);
             goto done;
          }
+
 #ifdef _WIN32
          Sleep(1);
 #else
@@ -417,6 +438,7 @@ Socket_ConnectVMCI(unsigned int cid,                  // IN
 #endif
          continue;
       }
+
       /* Unrecoverable error occurred */
       goto done;
    }
@@ -437,8 +459,13 @@ done:
 
    if (fd != INVALID_SOCKET) {
       Debug(LGPFX "socket %d connected\n", fd);
+      Atomic_WriteBool(&useVsock, TRUE);
    }
+
    return fd;
+
+#undef MAX_ECONNRESET_RETRIES
+#undef MAX_ENOBUFS_RETRIES
 }
 
 
