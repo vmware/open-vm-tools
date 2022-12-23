@@ -378,15 +378,7 @@ typedef struct Vmxnet3_RxCompDescExt {
    uint8  segCnt;       /* Number of aggregated packets */
    uint8  dupAckCnt;    /* Number of duplicate Acks */
    __le16 tsDelta;      /* TCP timestamp difference */
-
-#ifdef __BIG_ENDIAN_BITFIELD
-   uint32 encap:1;      /* LRO info refers to inner pkt */
-   uint32 reserved:31;
-#else
-   uint32 reserved:31;
-   uint32 encap:1;      /* LRO info refers to inner pkt */
-#endif  /* __BIG_ENDIAN_BITFIELD */
-
+   __le32 dword2;
 #ifdef __BIG_ENDIAN_BITFIELD
    uint32 gen:1;        /* generation bit */
    uint32 type:7;       /* completion type */
