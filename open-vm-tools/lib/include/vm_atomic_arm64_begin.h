@@ -60,7 +60,7 @@ typedef struct  {
 #if defined(VMX86_SERVER) || defined(VMKBOOT)
 /*
  * When building UW code for ESXi, Atomic_Config a weak symbol.
- * When buidling for kernel mode, Atomic_Config is exported by
+ * When building for kernel mode, Atomic_Config is exported by
  * bora/vmkernel/lib/arm64/atomic.c
  */
 #ifndef VMKERNEL
