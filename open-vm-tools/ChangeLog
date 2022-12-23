@@ -1,3 +1,242 @@
+commit 082f7f784b28452058ac6a6529f289144b5694d9
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Dec 22 16:25:51 2022 -0800
+
+    Inclusive terminology - "sanity check"
+    
+    Partial "sanity check" clean-up:
+    - Change comments from "sanity check" to "confidence check"
+
+commit 63a35ed428b16baedc4cea0d666ac1b8d762de2e
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Dec 22 16:25:51 2022 -0800
+
+    Powerops plugin:  Enhance logging and response message when a previous
+    powerops script is still running.
+
+commit 91e8725d65565b4b3452085a2e9db6e3f0bb1dcf
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Dec 22 16:25:51 2022 -0800
+
+    lib/panic: Remove Panic_GetCoreFileName and Panic_SetCoreFileName.
+    
+    Panic_[GS]etCoreFileName have been dead code for a very long time.
+    
+    This change removes them, along with the underlying panicState.coreDumpFile
+    field.  Also, do some reformatting and tidy a few comments.
+
+commit f2d8ed1e924818d9611db104a5a259290e53f68f
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Dec 22 16:25:50 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit bd63d8029852af847383f19cd13d62adcabaabaf
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Dec 22 16:25:50 2022 -0800
+
+    Source file changes not directly applicable to open-vm-tools.
+    
+    Minor cleanup in a couple of Makefile.am files.
+
+commit 4a2332747dc9e95e7b93d2b6d28b1d7fd474e3f2
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Dec 22 16:25:50 2022 -0800
+
+    Linux guest identification: Make the code more robust
+    
+    Additional clean up.
+
+commit 049e37fef87a515c69471e7682ed5c3274942cf0
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Dec 22 16:25:50 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 264c9c4cd4d8fbd06abaa3dc9266e4e16d2380d2
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Dec 22 16:25:50 2022 -0800
+
+    Inclusive terminology - "disabled"
+    
+    Partial "disabled" clean-up:
+    - Change comments from "disable(d)" to "deactivate(d)"
+    - Change comments from "enable" to "activate" for grammar consistency
+
+commit 4f884c52df4d03246e40715d771a23a9af17436e
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Dec 22 16:25:50 2022 -0800
+
+    Linux guest identification: Make the code more robust.
+    
+    The code to read and parse the os-release data isn't doing a good job
+    of protecting the tools daemon. Fixed this.
+     - do not depend on sscanf.
+     - bound the size of parameters;
+     - better checking for syntax errors.
+
+commit 1f1a34edda47b37d3bd7040b9f2080f8dcb23275
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Dec 22 16:25:50 2022 -0800
+
+    Silence ComponentMgr logs for a missing support file.
+    
+    Components managed by the componentMgr plugin are often optional.
+    The missing component script file is a normal condition.
+    Silenced the logs by changing the message level from g_info to g_debug.
+
+commit 422205fcad59a9202a06b65fe28e9ced1d3b1a3b
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Dec 22 16:25:50 2022 -0800
+
+    Limit the number of RPC vsocket connect() retries for ECONNRESET errors.
+    
+    If a guest VM has been configured with 'guest_rpc.rpci.usevsocket = "FALSE"'
+    to work around a problem in ESXi 6.0 ot 6.5 (KB 2149941), that guest VM
+    may experience high CPU usage on open-vm-tools 12.1.0 and 12.1.5.
+
+commit 4e278d12ea1ad9b541de94791065bf4658ed781d
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Dec 22 16:25:50 2022 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit a7da31373c5bb21d647a22c240a204645fa5f9ef
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Dec 22 16:25:50 2022 -0800
+
+    [TimeInfo] Handle notifications and get updates
+    
+    TimeInfo, which is part of TimeSync plugin, can be
+    used to query, set, subscribe, and receive updates for
+    time-related information from the host when guest is
+    using precisionclock to consume time from the host.
+    Previous changes laid foundation to subscribe and
+    unsubscribe for TimeInfo updates in open-vm-tools during
+    init/shutdown.
+    
+    When open-vm-tools subscribes for TimeInfo updates, VMX
+    will send a notification GuestRPC to tools if and
+    when the timing properties change. This change
+    adds support to handle such GuestRPCs from VMX.
+    The handler for the GuestRPC is pretty straightforward
+    for now: it queues an async task that simply gets
+    all updates and logs them.
+
+commit 4ab39d04ddde473a9698660a545c356aa5614dcb
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Dec 22 16:25:50 2022 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 0b2992f6718150d7c04ce4268e071033d4222e45
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Dec 22 16:25:50 2022 -0800
+
+    Limit retry if the VMX RESETs a vsock connection
+    
+    If guest_rpc.rpci.usevsocket = "FALSE" is set, a vsock
+    connect() will always fail with RESET. This confused code that
+    thought it could only happen for secure sockets when they
+    were quickly re-used.
+    
+    Limit retry, and only for secure connections.
+
+commit 3cfb89bd45978bababef56404e33da7e645b0b5a
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Dec 22 16:25:50 2022 -0800
+
+    [TimeInfo] Subscribe/unsubscribe to notifications during init/shutdown
+    
+    This change adds support for subscribing to time info notifications
+    when this feature is enabled in the tools. As a result VMX will
+    send time info notifications to the tools when host timing
+    properties change. The change adds support to perform subscribe/
+    unsubscribe GuestRPCs from tools. Note that, handling of notification
+    (received from VMX) will be implemented in the next change.
+
+commit a23ac6dc590374f3b990f4d220ec59d1c3d82195
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Dec 22 16:25:50 2022 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 70c64efdedfc4b6772fe540f502113b8b58d6aad
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Dec 22 16:25:50 2022 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 11d8bddccab30dea8c33ab8fb895b599ea6b8419
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Dec 22 16:25:50 2022 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 4e5ff11a5927ebf711656d30166914725fd811f9
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Dec 22 16:25:50 2022 -0800
+
+    [TimeInfo] Introduce TimeInfo in TimeSync plugin
+    
+    This change lays a foundation for upcoming changes to
+    support TimeInfo feature in open-vm-tools. TimeInfo feature
+    is introduced as part of TimeSync plugin and can be
+    used to query, set, subscribe, and receive updates for
+    time-related information from the host when guest is
+    using precisionclock to consume time from the host.
+    
+    This change simply adds a new file and basic init/shutdown
+    routines which are called as part of TimeSync plugin
+    load/unload. The change also introduces a config option
+    to enable/disable this feature (default is off). The
+    feature is Linux-only for now.
+    
+    Upcoming changes will add support for subscribing and
+    receiving TimeInfo updates.
+
+commit 042b463ba64d527345c0a6048915d1b9a6a3402c
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Dec 22 16:25:50 2022 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 6c4e9964f58d94b31fda5bcc54c976959dd4f339
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Dec 22 16:25:50 2022 -0800
+
+    Inclusive language - "disabled"
+    
+    Use “deactivated” instead of “disabled” in some files used by open-vm-tools.
+
+commit e85f51de2849566e8dd08f035474bfc626a17d8d
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Dec 22 16:25:49 2022 -0800
+
+    Enhance the guest identification code for Linux
+    
+    The Linux guest identification code is enhanced to return two
+    additional fields (when a distro makes them available):
+    
+    1) The VERSION field
+    
+    This field sometimes contains additional information not
+    found in other fields. For instance, on SLES, this provides
+    the patch level information.
+    
+    2) The CPE_NAME field
+    
+    This is the NIST Common Platform Enumeration Specification
+    string. If present, this may provide information in a
+    standardized form.
+
+commit 569c595128322339d1435d6a745243d2d7aec860
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Nov 29 12:22:44 2022 -0800
+
+    Update Changelog with the granular push of Nov 29, 2022.
+     - plus ChangeLog update of Nov 4, 2022.
+
 commit e058df3ebf6aa0b4cd1b15f1f55ac4d56f09c5ed
 Author: Katy Feng <fkaty@vmware.com>
 Date:   Tue Nov 29 12:11:43 2022 -0800
