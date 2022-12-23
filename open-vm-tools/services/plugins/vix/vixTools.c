@@ -1750,7 +1750,7 @@ VixToolsStartProgramImpl(const char *requestName,            // IN
       goto quit;
    }
 
-   /* sanity check workingDir if set */
+   /* confidence check workingDir if set */
    if (NULL != workingDir && !File_IsDirectory(workingDir)) {
       err = VIX_E_NOT_A_DIRECTORY;
       goto quit;
@@ -2411,7 +2411,7 @@ VixToolsUpdateStartedProgramList(VixToolsStartedProgramState *state)        // I
    spList = startedProcessList;
    while (spList) {
       /*
-       * Sanity check we don't have a duplicate entry -- this should
+       * Confidence check we don't have a duplicate entry -- this should
        * only happen when the OS re-uses the PID before we reap the record
        * of its exit status.
        */
@@ -5801,7 +5801,7 @@ VixToolsListProcessesEx(VixCommandRequestHeader *requestMsg, // IN
          goto quit;
       }
 
-      // sanity check offset
+      // confidence check offset
       if (listRequest->offset > cachedResult->resultBufferLen) {
          /*
           * Since this isn't user-set, assume any problem is in the

@@ -304,7 +304,7 @@ RandR12GetInfo(Display *display,     // IN: Pointer to our display connection
    }
 
    /*
-    * Sanity checks. This should never really happen with current drivers.
+    * Confidence checks. This should never really happen with current drivers.
     */
 
    if (nVMWOutput != info->nOutput) {
@@ -341,7 +341,7 @@ RandR12GetInfo(Display *display,     // IN: Pointer to our display connection
    }
 
    /*
-    * Sanity check. This should never really happen with our drivers.
+    * Confidence check. This should never really happen with our drivers.
     */
 
    if (numVMWCrtc != nVMWOutput) {
