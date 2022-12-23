@@ -27,18 +27,31 @@
 #include "timeSync.h"
 #include "system.h"
 #include "strutil.h"
+#include "dynarray.h"
 #include "vmware/tools/log.h"
 #include "vmware/tools/plugin.h"
+#include "vmware/tools/threadPool.h"
+
+typedef struct TimeInfoData {
+   char *timestamp;
+   char *key;
+   char *value;
+} TimeInfoData;
+
+DEFINE_DYNARRAY_TYPE(TimeInfoData);
 
 typedef struct TimeInfoVmxRpcCtx {
    char *request;
    struct {
       char *reply;
       size_t replyLen;
+      TimeInfoDataArray data;
    } response;
 } TimeInfoVmxRpcCtx;
 
+// TODO: Move common definitions to a shared header with VMX.
 static const char *TIMEINFO_VMXRPC_CLOCKID         = "precisionclock0";
+static const char *TIMEINFO_VMXRPC_CMD_GETUPDATES  = "get-updates";
 static const char *TIMEINFO_VMXRPC_CMD_SUBSCRIBE   = "subscribe";
 static const char *TIMEINFO_VMXRPC_CMD_UNSUBSCRIBE = "unsubscribe";
 static const char *TIMEINFO_VMXRPC_STATUS_OK       = "OK";
@@ -56,6 +69,7 @@ TimeInfoVmxRpcDone(TimeInfoVmxRpcCtx *rpc)
 {
    free(rpc->request);
    RpcChannel_Free(rpc->response.reply);
+   TimeInfoDataArray_Destroy(&rpc->response.data);
    memset(rpc, 0, sizeof *rpc);
 }
 
@@ -83,6 +97,8 @@ TimeInfoVmxRpcDo(TimeInfoVmxRpcCtx *rpc,
    char *status;
 
    memset(rpc, 0, sizeof *rpc);
+   TimeInfoDataArray_Init(&rpc->response.data, 0);
+
    StrUtil_SafeStrcatF(&rpc->request, "timeInfo.%s", method);
    for (i = 0; i < argc; ++i) {
       StrUtil_SafeStrcatF(&rpc->request, " %s", argv[i]);
@@ -106,11 +122,24 @@ TimeInfoVmxRpcDo(TimeInfoVmxRpcCtx *rpc,
    next = rpc->response.reply;
    status = StrUtil_GetNextItem(&next, '\n');
 
-   /* On success, extract payload. */
-   if (status == NULL ||
-       strcmp(status, TIMEINFO_VMXRPC_STATUS_OK) != 0 || next != NULL) {
-      g_warning("%s: Invalid result payload.", __FUNCTION__);
+   if (status == NULL || strcmp(status, TIMEINFO_VMXRPC_STATUS_OK) != 0) {
+      g_warning("%s: RPC was unsuccessful.", __FUNCTION__);
       return FALSE;
+   }
+
+   /* On success, extract payload. */
+   while (next != NULL) {
+      TimeInfoData data;
+      char *line = StrUtil_GetNextItem(&next, '\n');
+      g_debug("%s: > Response: data: %s", __FUNCTION__, VM_SAFE_STR(line));
+      data.key = StrUtil_GetNextItem(&line, ' ');
+      data.value = StrUtil_GetNextItem(&line, ' ');
+      data.timestamp = StrUtil_GetNextItem(&line, '\n');
+      if (data.timestamp == NULL || data.key == NULL || data.value == NULL) {
+         g_warning("%s: Invalid result payload.", __FUNCTION__);
+         return FALSE;
+      }
+      TimeInfoDataArray_Push(&rpc->response.data, data);
    }
    return TRUE;
 }
@@ -159,6 +188,92 @@ TimeInfoVmxUnsubscribe(void)
 
 
 /**
+ * Fetch TimeInfo updates from the platform with GuestRPC.
+ *
+ * @param[in] vmxRpc TimeInfo VMX RPC context
+ *
+ * @return TRUE on successful invocation of GuestRPC, FALSE otherwise.
+ */
+
+static gboolean
+TimeInfoVmxGetUpdates(TimeInfoVmxRpcCtx *vmxRpc)
+{
+   const char *argv[1] = { TIMEINFO_VMXRPC_CLOCKID };
+
+   g_debug("%s: Fetching updates from VMX.", __FUNCTION__);
+   if (!TimeInfoVmxRpcDo(vmxRpc, TIMEINFO_VMXRPC_CMD_GETUPDATES,
+                             argv, ARRAYSIZE(argv))) {
+      g_warning("%s: Failed to fetch updates.", __FUNCTION__);
+      return FALSE;
+   }
+   return TRUE;
+}
+
+
+/**
+ * Fetch and log TimeInfo updates.
+ */
+
+static void
+TimeInfoGetAndLogUpdates(void)
+{
+   TimeInfoVmxRpcCtx vmxRpc;
+
+   if (TimeInfoVmxGetUpdates(&vmxRpc)) {
+      int i;
+      for (i = 0; i < TimeInfoDataArray_Count(&vmxRpc.response.data); ++i) {
+         const TimeInfoData *data =
+            TimeInfoDataArray_AddressOf(&vmxRpc.response.data, i);
+         g_info("update: key %s value %s time %s", data->key, data->value,
+                data->timestamp);
+      }
+   } else {
+      g_warning("%s: Failed to perform get-updates.", __FUNCTION__);
+   }
+   TimeInfoVmxRpcDone(&vmxRpc);
+}
+
+
+/**
+ * Handler for async task when a TimeInfo update is received. Fetch updates
+ * from the platform and log them.
+ *
+ * @param[in] ctx  The application context.
+ * @param[in] data data pointer.
+ */
+
+static void
+TimeInfoHandleNotificationTask(ToolsAppCtx *ctx, gpointer data)
+{
+   g_debug("%s: Notification received.", __FUNCTION__);
+   TimeInfoGetAndLogUpdates();
+}
+
+
+/**
+ * GuestRPC handler for TimeInfo_Update. Submits an async task to fetch
+ * and log updates.
+ *
+ * @param[in] data RPC request data.
+ *
+ * @return TRUE on success.
+ */
+
+gboolean
+TimeInfo_TcloHandler(RpcInData *data)
+{
+   if (gToolsAppCtx == NULL) {
+      return RPCIN_SETRETVALS(data, "TimeInfo not enabled", FALSE);
+   }
+   ToolsCorePool_SubmitTask(gToolsAppCtx,
+                            TimeInfoHandleNotificationTask,
+                            NULL,
+                            NULL);
+   return RPCIN_SETRETVALS(data, "", TRUE);
+}
+
+
+/**
  * Initialize TimeInfo in TimeSync.
  *
  * @param[in] ctx The application context.
@@ -177,6 +292,8 @@ TimeInfo_Init(ToolsAppCtx *ctx)
            __FUNCTION__, !timeInfoEnabled ? "not " : "");
    if (timeInfoEnabled) {
       gToolsAppCtx = ctx;
+      /* Flush initial updates. */
+      TimeInfoGetAndLogUpdates();
       TimeInfoVmxSubscribe();
    }
 }

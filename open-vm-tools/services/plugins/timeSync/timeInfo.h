@@ -27,6 +27,7 @@
 
 void TimeInfo_Init(ToolsAppCtx *ctx);
 void TimeInfo_Shutdown(void);
+gboolean TimeInfo_TcloHandler(RpcInData *data);
 
 #endif /* _TIMEINFO_H_ */
 

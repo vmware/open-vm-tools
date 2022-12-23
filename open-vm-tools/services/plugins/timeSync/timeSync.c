@@ -1049,7 +1049,10 @@ ToolsOnLoad(ToolsAppCtx *ctx)
 
    TimeSyncData *data = g_malloc(sizeof (TimeSyncData));
    RpcChannelCallback rpcs[] = {
-      { TIMESYNC_SYNCHRONIZE, TimeSyncTcloHandler, data, NULL, NULL, 0 }
+      { TIMESYNC_SYNCHRONIZE, TimeSyncTcloHandler, data, NULL, NULL, 0 },
+#if defined(__linux__) && !defined(USERWORLD)
+      { TIMEINFO_UPDATE, TimeInfo_TcloHandler, data, NULL, NULL, 0 }
+#endif
    };
    ToolsPluginSignalCb sigs[] = {
       { TOOLS_CORE_SIG_SET_OPTION, TimeSyncSetOption, &regData },
