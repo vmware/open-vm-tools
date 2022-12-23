@@ -761,4 +761,24 @@
  ******************************************************************************
  */
 
+/*
+ ******************************************************************************
+ * BEGIN timeSync plugin goodies.
+ */
+
+/**
+ * Defines the string used for the timeSync config file group.
+ */
+#define CONFGROUPNAME_TIMESYNC "timeSync"
+
+/**
+ * Enable (or disable) the TimeInfo API.
+ */
+#define CONFNAME_TIMESYNC_TIMEINFO_ENABLED "timeInfo.enabled"
+
+/*
+ * END timeSync goodies.
+ ******************************************************************************
+ */
+
 #endif /* __CONF_H__ */

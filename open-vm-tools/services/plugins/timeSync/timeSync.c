@@ -120,6 +120,7 @@
 #include "vmware/guestrpc/timesync.h"
 #include "vmware/tools/plugin.h"
 #include "vmware/tools/utils.h"
+#include "timeInfo.h"
 
 #if !defined(__APPLE__)
 #include "vm_version.h"
@@ -1017,6 +1018,9 @@ TimeSyncShutdown(gpointer src,
 {
    TimeSyncData *data = plugin->_private;
 
+#if defined(__linux__) && !defined(USERWORLD)
+   TimeInfo_Shutdown();
+#endif
    if (data->state == TIMESYNC_RUNNING) {
       TimeSyncStopLoop(ctx, data);
    }
@@ -1056,6 +1060,9 @@ ToolsOnLoad(ToolsAppCtx *ctx)
       { TOOLS_APP_SIGNALS, VMTools_WrapArray(sigs, sizeof *sigs, ARRAYSIZE(sigs)) }
    };
 
+#if defined(__linux__) && !defined(USERWORLD)
+   TimeInfo_Init(ctx);
+#endif
    data->slewActive = FALSE;
    data->slewCorrection = FALSE;
    data->slewPercentCorrection = TIMESYNC_PERCENT_CORRECTION;
