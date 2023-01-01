@@ -2934,17 +2934,13 @@ GuestStoreReset(gpointer src,      // IN
 #endif
    } else if (pluginData.vmxConnectRequested) {
       /*
-       * Closing pluginData.vmxListenSock cancels pending VmxConnectCb() call,
-       * second call of AsyncSocket_ListenVMCI() results in a new vsocket
-       * listening port number.
+       * GuestStoreAccessDisable() closes pluginData.vmxListensock, which
+       * cancels any pending VmxConnectCb() call.
+       * GuestStoreAccessDisable() also calls StopVmxToGuestConnTimeout().
        */
       g_info("Perform tools reset without VMX connection "
              "but VMX connect request was made.\n");
-      GuestStoreAccessDisable(); // Calls StopVmxToGuestConnTimeout()
-      if (pluginData.guestStoreAccessEnabled &&
-          !CheckAndUpdateFeatureDisabled()) {
-         GuestStoreAccessEnable();
-      }
+      GuestStoreAccessDisable();
    }
 }
 
@@ -2957,7 +2953,7 @@ GuestStoreReset(gpointer src,      // IN
  *      Handle TOOLSOPTION_ENABLE_GUESTSTORE_ACCESS Set_Option callback.
  *
  * Results:
- *      TRUE on success.
+ *      TRUE if action is taken on the signal.
  *
  * Side-effects:
  *      None
@@ -2980,7 +2976,7 @@ GuestStoreSetOption(gpointer src,         // IN
 
       if (strcmp(value, "1") == 0 &&
           !pluginData.guestStoreAccessEnabled) {
-         if (CheckAndUpdateFeatureDisabled()) {
+         if (pluginData.featureDisabled) { // Use cached state here
             g_info("GuestStore access is deactivated on guest side.\n");
          } else {
             GuestStoreAccessEnable();
