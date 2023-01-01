@@ -1,3 +1,44 @@
+commit 301cea5522870a746112cd6d634a04c465dcf7cc
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Sat Dec 31 22:13:07 2022 -0800
+
+    open-vm-tools SUSE: Detect the proto files for the containerd grpc client
+    
+    On SUSE systems, the Go src'es are installed in a different location,
+    namely /usr/share/go/1.18/contrib/src.
+    Extend the config checks to detect that location.
+    
+    OVT pull request: https://github.com/vmware/open-vm-tools/pull/626
+
+commit f749bd5b0647c7bdf8aa46ca035e070b5def352e
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Sat Dec 31 22:13:07 2022 -0800
+
+    Add missing error codes for AsyncSocket_GetGenericError()
+    
+    AsyncSocket_GetGenericError() returns ETIMEDOUT or ECONNREFUSED
+    errors when they are encountered.  Added cross-platform #defines that
+    represent these codes.
+
+commit df63ef8559535bc57dfb5cecff7944074aca33e4
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Sat Dec 31 22:13:07 2022 -0800
+
+    Common header file change not applicable to open-vm-tools.
+
+commit 11d107a07440c8cd97f4a3c34b8664a2089812ac
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Sat Dec 31 22:13:07 2022 -0800
+
+    Changes to common source files not directly applicable to open-vm-tools.
+
+commit 47a5bd3bd87f00e9e39cd3641028940eecbb315a
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Dec 22 16:37:51 2022 -0800
+
+    Update Changelog with the granular push of Dec 22, 2022.
+    - plus ChangeLog update of Nov 29, 2022.
+
 commit 082f7f784b28452058ac6a6529f289144b5694d9
 Author: Katy Feng <fkaty@vmware.com>
 Date:   Thu Dec 22 16:25:51 2022 -0800
