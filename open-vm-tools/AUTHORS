@@ -85,3 +85,6 @@ Bartosz Brachaczek Make HgfsConvertFromNtTimeNsec aware of 64-bit time_t on i386
 
 Bernd Zeimetz   Fix building containerinfo plugin on i386
                 - https://github.com/vmware/open-vm-tools/pull/588
+
+Dirk Mueller    Detect the proto files for containerd grpc client on SUSE like systems
+                - https://github.com/vmware/open-vm-tools/pull/626
