@@ -38,10 +38,10 @@
 static void
 TimeSyncLogPLLState(const char *prefix, struct timex *tx)
 {
-   g_debug("%s : off %ld freq %ld maxerr %ld esterr %ld status %d "
-           "const %ld precision %ld tolerance %ld tick %ld\n",
-           prefix, tx->offset, tx->freq, tx->maxerror, tx->esterror, 
-           tx->status, tx->constant, tx->precision, tx->tolerance, tx->tick);
+   g_debug("%s : off %jd freq %jd maxerr %jd esterr %jd status %d "
+           "const %jd precision %jd tolerance %jd tick %jd\n",
+           prefix, (intmax_t)tx->offset, (intmax_t)tx->freq, (intmax_t)tx->maxerror, (intmax_t)tx->esterror, 
+           tx->status, (intmax_t)tx->constant, (intmax_t)tx->precision, (intmax_t)tx->tolerance, (intmax_t)tx->tick);
 }
 
 /*
