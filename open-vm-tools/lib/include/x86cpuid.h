@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2022 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -498,6 +498,7 @@ FLAG(   6,  0, EAX, 18,  1, HWP_FAST_ACCESS,                     NO,    0 ) \
 FLAG(   6,  0, EAX, 19,  1, HW_FEEDBACK,                         NO,    0 ) \
 FLAG(   6,  0, EAX, 20,  1, HWP_IGNORE_IDLE_REQUEST,             NO,    0 ) \
 FLAG(   6,  0, EAX, 23,  1, HW_FEEDBACK_ENHANCED,                NO,    0 ) \
+FLAG(   6,  0, EAX, 24,  1, HWP_THERM_INTERRUPT_MSR,             NO,    0 ) \
 FIELD(  6,  0, EBX,  0,  4, NUM_INTR_THRESHOLDS,                 NO,    0 ) \
 FLAG(   6,  0, ECX,  0,  1, HW_COORD_FEEDBACK,                   NO,    0 ) \
 FLAG(   6,  0, ECX,  1,  1, ACNT2,                               ANY,  13 ) \
@@ -568,6 +569,7 @@ FLAG(   7,  0, ECX, 28,  1, MOVDIR64B,                           YES,  18 ) \
 FLAG(   7,  0, ECX, 29,  1, ENQCMD,                              NO,    0 ) \
 FLAG(   7,  0, ECX, 30,  1, SGX_LC,                              ANY,  17 ) \
 FLAG(   7,  0, ECX, 31,  1, PKS,                                 YES,  20 ) \
+FLAG(   7,  0, EDX,  1,  1, SGK_KEYS,                            NO,    0 ) \
 FLAG(   7,  0, EDX,  2,  1, AVX512QVNNIW,                        YES,  16 ) \
 FLAG(   7,  0, EDX,  3,  1, AVX512QFMAPS,                        YES,  16 ) \
 FLAG(   7,  0, EDX,  4,  1, FAST_SHORT_REPMOV,                   YES,  18 ) \
@@ -596,6 +598,7 @@ FLAG(   7,  0, EDX, 31,  1, SSBD,                                YES,   9 ) \
 FLAG(   7,  1, EAX,  3,  1, RAO_INT,                             NO,    0 ) \
 FLAG(   7,  1, EAX,  4,  1, AVX_VNNI,                            YES,  20 ) \
 FLAG(   7,  1, EAX,  5,  1, AVX512BF16,                          YES,  18 ) \
+FLAG(   7,  1, EAX,  6,  1, LASS,                                NO,    0 ) \
 FLAG(   7,  1, EAX,  7,  1, CMPCCXADD,                           NO,    0 ) \
 FLAG(   7,  1, EAX,  8,  1, ARCH_PERFMON_EXT,                    NO,    0 ) \
 FLAG(   7,  1, EAX, 10,  1, FAST_ZERO_MOVSB,                     YES,  20 ) \
@@ -610,11 +613,14 @@ FLAG(   7,  1, EAX, 27,  1, MSRLIST,                             NO,    0 ) \
 FLAG(   7,  1, EBX,  0,  1, LEAF7_PPIN,                          NO,    0 ) \
 FLAG(   7,  1, EDX,  4,  1, AVX_VNNI_INT8,                       NO,    0 ) \
 FLAG(   7,  1, EDX,  5,  1, AVX_NE_CONVERT,                      NO,    0 ) \
-FLAG(   7,  1, EDX, 14,  1, PREFETCHITI,                         NO,    0 ) \
+FLAG(   7,  1, EDX, 14,  1, PREFETCHI,                           NO,    0 ) \
+FLAG(   7,  1, EDX, 18,  1, CET_SSS,                             NO,    0 ) \
 FLAG(   7,  2, EDX,  0,  1, PSFD,                                YES,  20 ) \
 FLAG(   7,  2, EDX,  1,  1, IPRED_CTRL,                          NO,    0 ) \
 FLAG(   7,  2, EDX,  2,  1, RRSBA_CTRL,                          NO,    0 ) \
-FLAG(   7,  2, EDX,  4,  1, BHI_CTRL,                            NO,    0 )
+FLAG(   7,  2, EDX,  3,  1, DDPD_U,                              NO,    0 ) \
+FLAG(   7,  2, EDX,  4,  1, BHI_CTRL,                            NO,    0 ) \
+FLAG(   7,  2, EDX,  5,  1, MCDT_NO,                             NO,    0 )
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_9                                            \
@@ -824,6 +830,9 @@ FLAG(  14,  0, EBX,  2,  1, PT_IP_FILTER_PERSIST_MSR,            NO,    0 ) \
 FLAG(  14,  0, EBX,  3,  1, PT_MTC,                              NO,    0 ) \
 FLAG(  14,  0, EBX,  4,  1, PT_PTWRITE,                          NO,    0 ) \
 FLAG(  14,  0, EBX,  5,  1, PT_POWER_EVENT,                      NO,    0 ) \
+FLAG(  14,  0, EBX,  6,  1, PT_PSB_PMI,                          NO,    0 ) \
+FLAG(  14,  0, EBX,  7,  1, PT_EVENT_TRACE_ENABLE,               NO,    0 ) \
+FLAG(  14,  0, EBX,  8,  1, PT_TNT_DISABLE,                      NO,    0 ) \
 FLAG(  14,  0, ECX,  0,  1, PT_TOPA,                             NO,    0 ) \
 FLAG(  14,  0, ECX,  1,  1, PT_TOPA_MULTI,                       NO,    0 ) \
 FLAG(  14,  0, ECX,  2,  1, PT_SRO,                              NO,    0 ) \
