@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
-# Copyright (c) 2021-2022 VMware, Inc. All rights reserved.
+# Copyright (c) 2021-2023 VMware, Inc.
+# SPDX-License-Identifier: Apache-2
 
 ## Salt VMware Tools Integration script
 ##  integration with Component Manager and GuestStore Helper
@@ -14,7 +15,7 @@ set -o pipefail
 # using bash for now
 # run this script as root, as needed to run salt
 
-readonly SCRIPT_VERSION='1.3'
+readonly SCRIPT_VERSION='1.4'
 
 # definitions
 
