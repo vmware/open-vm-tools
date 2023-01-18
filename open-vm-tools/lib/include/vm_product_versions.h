@@ -87,7 +87,7 @@
 // VMX86_DESKTOP must be last because it is the default and is always defined.
 #elif defined(VMX86_DESKTOP)
    // WORKSTATION_VERSION_NUMBER below has to match this
-   #define PRODUCT_VERSION    16,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
+   #define PRODUCT_VERSION    17,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_SYSIMAGE)
    #define PRODUCT_VERSION    TOOLS_VERSION_EXT_CURRENT_CSV
    #define SYSIMAGE_VERSION TOOLS_VERSION_CURRENT_STR
@@ -219,9 +219,9 @@
  * ALSO, leave FOO_VERSION at e.x.p on all EXCEPT release branches.
  * lmclient.h has a FLEX_VERSION struct so the versionPrefix can't be FLEX
  */
-#define WORKSTATION_VERSION_NUMBER "16.0.0" /* this version number should always match real WS version number */
+#define WORKSTATION_VERSION_NUMBER "17.0.0" /* this version number should always match real WS version number */
 #define WORKSTATION_VERSION "e.x.p"
-#define PLAYER_VERSION_NUMBER "16.0.0" /* this version number should always match real Player version number */
+#define PLAYER_VERSION_NUMBER "17.0.0" /* this version number should always match real Player version number */
 #define PLAYER_VERSION "e.x.p"
 #define VMRC_VERSION_NUMBER "12.1.0" /* this version number should always match real VMRC version number */
 #define VMRC_VERSION "12.1.0"
@@ -511,7 +511,7 @@
  * file.
  */
 #define PRODUCT_MAC_DESKTOP_VERSION_STRING_FOR_LICENSE "13.0"
-#define PRODUCT_PLAYER_VERSION_STRING_FOR_LICENSE "16.0"
+#define PRODUCT_PLAYER_VERSION_STRING_FOR_LICENSE "17.0"
 #define PRODUCT_VMRC_VERSION_STRING_FOR_LICENSE "10.0"
 #define PRODUCT_FLEX_VERSION_STRING_FOR_LICENSE "8.0"
 
@@ -538,7 +538,7 @@
 #    if defined(__APPLE__)
 #      define PRODUCT_LICENSE_VERSION PRODUCT_MAC_DESKTOP_VERSION_STRING_FOR_LICENSE
 #    else
-#      define PRODUCT_LICENSE_VERSION "16.0"
+#      define PRODUCT_LICENSE_VERSION "17.0"
 #    endif
 #  else
 #    define PRODUCT_LICENSE_VERSION "0.0"
