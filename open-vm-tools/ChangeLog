@@ -1,3 +1,14 @@
+commit 512af95b8788f5784126368462866eb0e4d76524
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Jan 17 19:22:16 2023 -0800
+
+    ====================================================================
+    The "stable-12.2.x" branch was created from the "devel" branch here.
+    ====================================================================
+
+    Update ChangeLog with the granular push of Jan. 17, 2023.
+    - plus ChangeLog update of Dec 31, 2022.
+
 commit 891f1f654a6d2bffb270d6f3c7e69caec431d860
 Author: Katy Feng <fkaty@vmware.com>
 Date:   Tue Jan 17 19:15:28 2023 -0800
