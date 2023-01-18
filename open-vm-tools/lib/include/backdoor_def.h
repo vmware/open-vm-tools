@@ -444,24 +444,23 @@ extern "C" {
  * Several mechanisms are available:
  *
  * o From EL1
- * The vCPU executes the HVC (64-bit code) instruction with the immediate
- * X86_IO_MAGIC. This is the mechanism to favor from EL1 because it is
- * architectural.
+ *   The vCPU executes the HVC instruction with the immediate X86_IO_MAGIC.
+ *
+ *   This is the mechanism to favor from EL1 because it is architectural.
  *
  * o From EL1 and EL0
- * 64-bit code: The vCPU sets X7<63:32> to X86_IO_MAGIC and executes the
- *              MRS XZR, MDCCSR_EL0 instruction.
- * 32-bit code: To be defined...
- * This is the mechanism to favor from EL0 because it has a negligible impact
- * on vCPU performance.
+ *   The vCPU sets X7<63:32> to X86_IO_MAGIC and executes the
+ *   MRS XZR, MDCCSR_EL0 instruction.
+ *
+ *   This is the mechanism to favor from EL0 because it has a negligible impact
+ *   on vCPU performance.
  *
  * o From EL1 and EL0, only when monitor_control.hv_hypercall = "TRUE"
- * The vCPU executes the BRK (64-bit code) or BKPT (32-bit code) instruction
- * with the immediate X86_IO_MAGIC. Note that T32 code requires an 8-bit
- * immediate.
- * Pro: This mechanism cannot be intercepted by EL3 code.
- * Con: This mechanism has a significant impact on vCPU performance when
- *      running a debugger in the guest.
+ *   The vCPU executes the BRK instruction with the immediate X86_IO_MAGIC.
+ *
+ *   Pro: This mechanism cannot be intercepted by EL3 code.
+ *   Con: This mechanism has a significant impact on vCPU performance when
+ *        running a debugger in the guest.
  *
  * 4) Read from general-purpose registers specific to the x86 I/O space
  *    instruction.
