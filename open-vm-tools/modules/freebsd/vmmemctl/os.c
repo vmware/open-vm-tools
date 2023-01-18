@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2000,2014,2018-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 2000,2014,2018-2021,2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -89,59 +89,21 @@ typedef struct {
 MALLOC_DEFINE(M_VMMEMCTL, BALLOON_NAME, "vmmemctl metadata");
 
 /*
- * FreeBSD version specific MACROS
+ * FreeBSD specific MACROS
  */
-#if __FreeBSD_version >= 900000
-   #define VM_PAGE_LOCK(page) vm_page_lock(page);
-   #define VM_PAGE_UNLOCK(page) vm_page_unlock(page)
-#else
-   #define VM_PAGE_LOCK(page) vm_page_lock_queues()
-   #define VM_PAGE_UNLOCK(page) vm_page_unlock_queues()
-#endif
+#define VM_PAGE_LOCK(page) vm_page_lock(page);
+#define VM_PAGE_UNLOCK(page) vm_page_unlock(page)
 
-#if __FreeBSD_version > 1000029
-   #define VM_OBJ_LOCK(object) VM_OBJECT_WLOCK(object)
-   #define VM_OBJ_UNLOCK(object) VM_OBJECT_WUNLOCK(object);
-#else
-   #define VM_OBJ_LOCK(object) VM_OBJECT_LOCK(object);
-   #define VM_OBJ_UNLOCK(object) VM_OBJECT_UNLOCK(object);
-#endif
+#define VM_OBJ_LOCK(object) VM_OBJECT_WLOCK(object)
+#define VM_OBJ_UNLOCK(object) VM_OBJECT_WUNLOCK(object);
 
-#if __FreeBSD_version < 1100015
-   #define VM_SYS_PAGES cnt.v_page_count
-#else
-   #define VM_SYS_PAGES vm_cnt.v_page_count
-#endif
+#define VM_SYS_PAGES vm_cnt.v_page_count
 
-/*
- * The kmem_malloc() and kmem_free() APIs changed at different times during
- * the FreeBSD 12.0 ALPHA snapshot releases.  The difference in the
- * __FreeBSD_version values for FreeBSD 12.0 in the following macros are
- * consistent with when each API was changed.
- */
-#if __FreeBSD_version < 1000000
-   #define KVA_ALLOC(size) kmem_alloc_nofault(kernel_map, size)
-   #define KVA_FREE(offset, size) kmem_free(kernel_map, offset, size)
-#else
-   #define KVA_ALLOC(size) kva_alloc(size);
-   #define KVA_FREE(offset, size) kva_free(offset, size)
-#endif
+#define KVA_ALLOC(size) kva_alloc(size);
+#define KVA_FREE(offset, size) kva_free(offset, size)
 
-#if __FreeBSD_version < 1000000
-   #define KMEM_ALLOC(size) kmem_alloc(kernel_map, size)
-#elif  __FreeBSD_version < 1200080
-   #define KMEM_ALLOC(size) kmem_malloc(kernel_arena, size, M_WAITOK | M_ZERO)
-#else
-   #define KMEM_ALLOC(size) kmem_malloc(size, M_WAITOK | M_ZERO)
-#endif
-
-#if __FreeBSD_version < 1000000
-   #define KMEM_FREE(offset, size) kmem_free(kernel_map, offset, size)
-#elif __FreeBSD_version < 1200083
-   #define KMEM_FREE(offset, size) kmem_free(kernel_arena, offset, size)
-#else
-   #define KMEM_FREE(offset, size) kmem_free(offset, size)
-#endif
+#define KMEM_ALLOC(size) kmem_malloc(size, M_WAITOK | M_ZERO)
+#define KMEM_FREE(offset, size) kmem_free(offset, size)
 
 /*
  * Globals

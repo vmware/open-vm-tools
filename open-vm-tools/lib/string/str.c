@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -67,9 +67,7 @@ extern int vasprintf(char **ptr, const char *f, va_list arg);
  * glibc >= 2.2.  I.e., even though they should be able to work on
  * FreeBSD 5.0+ and Solaris 8+, they aren't made available there.
  */
-#   if !(defined(__linux__) ||                                          \
-         (defined(__FreeBSD__) && (__FreeBSD_version >= 500000)) ||     \
-         defined(sun))
+#   if !(defined(__linux__) || defined(__FreeBSD__) || defined(sun))
 extern int vswprintf(wchar_t *wcs, size_t maxlen, const wchar_t *format, va_list args);
 #   endif
 #endif // _WIN32

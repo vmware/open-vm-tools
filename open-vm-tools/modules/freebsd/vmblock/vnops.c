@@ -1,5 +1,5 @@
 /* **********************************************************
- * Copyright 2007-2014, 2020 VMware, Inc.  All rights reserved.
+ * Copyright 2007-2014, 2020, 2023 VMware, Inc.  All rights reserved.
  * **********************************************************/
 
 /*
@@ -185,9 +185,7 @@
 #include <sys/filedesc.h>
 #include <sys/kdb.h>
 #include "compat_freebsd.h"
-#if __FreeBSD_version >= 700055
 #include <sys/priv.h>
-#endif
 
 #include "vmblock_k.h"
 #include "vmblock.h"
@@ -249,9 +247,7 @@ typedef struct VMBlockIoctlArgs VMBlockIoctlArgs;
 struct vop_vector VMBlockVnodeOps = {
    .vop_bypass =                  VMBlockVopBypass,
    .vop_access =                  VMBlockVopAccess,
-#if __FreeBSD_version >= 900013
    .vop_advlockpurge =            vop_stdadvlockpurge,
-#endif
    .vop_bmap =                    VOP_EOPNOTSUPP,
    .vop_getattr =                 VMBlockVopGetAttr,
    .vop_getwritemount =           VMBlockVopGetWriteMount,
@@ -763,11 +759,7 @@ struct vop_open_args {
        * because none of the existing privs seemed to match very well.
        */
       if ((retval = compat_priv_check(ap->a_td, PRIV_DRIVER)) == 0) {
-#if __FreeBSD_version >= 700055
          fp = ap->a_fp;
-#else
-         fp = ap->a_td->td_proc->p_fd->fd_ofiles[ap->a_fdidx];
-#endif
          fp->f_ops = &VMBlockFileOps;
       }
    } else {
@@ -1357,9 +1349,6 @@ struct vop_inactive_args {
 */
 {
    struct vnode *vp = ap->a_vp;
-#if __FreeBSD_version < 1000000
-   struct thread *td = ap->a_td;
-#endif
 
    vp->v_object = NULL;
 
@@ -1367,11 +1356,7 @@ struct vop_inactive_args {
     * If this is the last reference, then free up the vnode so as not to
     * tie up the lower vnode.
     */
-#if __FreeBSD_version < 1000000
-    vrecycle(vp, td);
-#else
    vrecycle(vp);
-#endif
    return 0;
 }
 

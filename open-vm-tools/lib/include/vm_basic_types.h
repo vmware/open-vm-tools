@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2022 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -329,11 +329,11 @@ typedef char           Bool;
 #if !defined(USING_AUTOCONF)
 #   if defined(__FreeBSD__) || defined(sun)
 #      ifndef KLD_MODULE
-#         if __FreeBSD_version >= 500043
+#         if defined(__FreeBSD__)
 #            if !defined(VMKERNEL)
 #               include <inttypes.h>
 #            endif
-#         else
+#         else /* sun */
 #            include <sys/inttypes.h>
 #         endif
 #      endif

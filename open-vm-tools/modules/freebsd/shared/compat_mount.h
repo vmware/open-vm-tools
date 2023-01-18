@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -44,12 +44,7 @@
 #ifndef __COMPAT_MOUNT_H__
 #   define __COMPAT_MOUNT_H__ 1
 
-#if __FreeBSD_version >= 800011
 #define COMPAT_VFS_STATFS(mp, sbp, threadvar) VFS_STATFS((mp), (sbp))
 #define compat_td curthread
-#else
-#define COMPAT_VFS_STATFS(mp, sbp, threadvar) VFS_STATFS((mp), (sbp), (threadvar))
-#define compat_td td
-#endif
 
 #endif
