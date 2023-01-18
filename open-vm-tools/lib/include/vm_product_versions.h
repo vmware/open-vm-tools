@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2022 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -510,7 +510,7 @@
  * a parameter that no longer match the content of the dormant license
  * file.
  */
-#define PRODUCT_MAC_DESKTOP_VERSION_STRING_FOR_LICENSE "12.0"
+#define PRODUCT_MAC_DESKTOP_VERSION_STRING_FOR_LICENSE "13.0"
 #define PRODUCT_PLAYER_VERSION_STRING_FOR_LICENSE "16.0"
 #define PRODUCT_VMRC_VERSION_STRING_FOR_LICENSE "10.0"
 #define PRODUCT_FLEX_VERSION_STRING_FOR_LICENSE "8.0"
