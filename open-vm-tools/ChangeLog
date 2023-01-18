@@ -1,3 +1,87 @@
+commit 891f1f654a6d2bffb270d6f3c7e69caec431d860
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Jan 17 19:15:28 2023 -0800
+
+    Correct missed 2023 copyright update.
+
+commit 9d458c53a7a656d4d1ba3a28d090cce82ac4af0e
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Jan 17 19:08:33 2023 -0800
+
+    Track Linux filesystem id (FSID) for quiesced (frozen) filesystems
+    
+    Tracking the filesystem FSID along with each file descriptor (FD)
+    as the ioctl FIFREEZE is done.  An EBUSY could be seen because of
+    an attempt to freeze the same superblock more than once depending
+    on the OS configuration (e.g. usage of bind mounts).  An EBUSY could
+    also mean another process has locked or frozen that filesystem.
+    
+    When an EBUSY is received, the filesyste FSID is checked against the
+    list of filesystems that have already be quiesced.  If not previously
+    seen, a warning that the filesystem is controlled by another process
+    is logged and the quiesced snapshot request will be rejected.
+
+commit 193200d3ce31461f876f4779ced3ca5c85f32459
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Jan 17 19:08:33 2023 -0800
+
+    Salt-Minion 1.4 copyright and license updates.
+
+commit c3d2d7a23ad0deac57bf53667ebe5d14c24d53c2
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Jan 17 19:08:33 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit ebd466b5a4f55e68486cc0e747ee6b76a4f171f1
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Jan 17 19:08:33 2023 -0800
+
+    backdoor_def.h: Update the Arm specific comment to be arm64 only.
+
+commit 998ff379939defc09834ae55fea450ee61f46ca9
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Jan 17 19:08:33 2023 -0800
+
+    FreeBSD: Support newer releases and code clean-up for earlier versions.
+    
+    Changes to allow open-vm-tools and drivers to be compiled for newer
+    FreeBSD releases and clean-up/remove code for earlier FreeBSD
+    releases that are no longer supported by the FreeBSD Foundation.
+    - remove old FreeBSD version support.
+    - trap SIGBUS while VmCheckSafe().
+    - fix build on recent versions.
+    - fix build after 1400043
+    - fix build after 1400051.
+    - replace deprecated NO_MAN by MK_MAN=no.
+    
+    Pull request: https://github.com/vmware/open-vm-tools/pull/584
+
+commit ab1728ebe46703624f151d09a65a100ccd514891
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Jan 17 19:08:33 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit aad49df92c53aa561c4a23507ef4617c09a449ba
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Jan 17 19:08:33 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 739cc1b828c1e23daca46a61b105391e8f271bb2
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Jan 17 19:08:33 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 0ab6ba968e040f0b72e564338c6ea2b52bcb9e7c
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Sat Dec 31 22:42:11 2022 -0800
+
+    Update Changelog with the granular push of Dec 31, 2022.
+    - plus ChangeLog update of Dec 22, 2022.
+
 commit 301cea5522870a746112cd6d634a04c465dcf7cc
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Sat Dec 31 22:13:07 2022 -0800
