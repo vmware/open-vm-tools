@@ -681,7 +681,7 @@ FLAG(   D,  1, EAX,  3,  1, XSAVES,                              YES,  13 ) \
 FLAG(   D,  1, EAX,  4,  1, XFD,                                 YES,  20 ) \
 FIELD(  D,  1, EBX,  0, 32, XSAVES_ENABLED_SIZE,                 ANY,  13 ) \
 FLAG(   D,  1, ECX,  8,  1, XSS_MASTER_PT,                       NO,    0 ) \
-FLAG(   D,  1, ECX, 10,  1, XSS_MASTER_PASID,                    NO,    0 ) \
+FLAG(   D,  1, ECX, 10,  1, XSS_MASTER_PASID,                    YES, FUT ) \
 FLAG(   D,  1, ECX, 11,  1, XSS_MASTER_CET_U,                    YES,  20 ) \
 FLAG(   D,  1, ECX, 12,  1, XSS_MASTER_CET_S,                    YES,  20 ) \
 FLAG(   D,  1, ECX, 13,  1, XSS_MASTER_HDC,                      NO,    0 ) \
@@ -728,10 +728,10 @@ FIELD(  D,  9, EBX,  0, 32, XSAVE_PKRU_OFFSET,                   YES,  13 ) \
 FLAG(   D,  9, ECX,  0,  1, XSAVE_PKRU_SUP_BY_XSS,               NO,    0 ) \
 FLAG(   D,  9, ECX,  1,  1, XSAVE_PKRU_ALIGN,                    YES,  13 ) \
 FLAG(   D,  9, ECX,  2,  1, XSAVE_PKRU_XFD,                      NO,    0 ) \
-FIELD(  D, 10, EAX,  0, 32, XSAVES_PASID_STATE_SIZE,             NO,    0 ) \
-FLAG(   D, 10, ECX,  0,  1, XSAVES_PASID_STATE_SUP_BY_XSS,       NO,    0 ) \
-FLAG(   D, 10, ECX,  1,  1, XSAVES_PASID_STATE_ALIGN,            NO,    0 ) \
-FLAG(   D, 10, ECX,  2,  1, XSAVES_PASID_STATE_XFD,              NO,    0 ) \
+FIELD(  D, 10, EAX,  0, 32, XSAVES_PASID_STATE_SIZE,             YES, FUT ) \
+FLAG(   D, 10, ECX,  0,  1, XSAVES_PASID_STATE_SUP_BY_XSS,       YES, FUT ) \
+FLAG(   D, 10, ECX,  1,  1, XSAVES_PASID_STATE_ALIGN,            YES, FUT ) \
+FLAG(   D, 10, ECX,  2,  1, XSAVES_PASID_STATE_XFD,              YES, FUT ) \
 FIELD(  D, 11, EAX,  0, 32, XSAVES_CET_U_SIZE,                   YES,  20 ) \
 FLAG(   D, 11, ECX,  0,  1, XSAVES_CET_U_SUP_BY_XSS,             YES,  20 ) \
 FLAG(   D, 11, ECX,  1,  1, XSAVES_CET_U_ALIGN,                  YES,  20 ) \
