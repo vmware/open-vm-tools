@@ -1,3 +1,99 @@
+commit 632a516d8c4b64025ed0f7b0ee890ebb36a99a15
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Feb 3 09:41:08 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit d0346245ddb589e8d35e02650321682987c60f09
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Feb 3 09:41:08 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit b2acb8fb61dd2b3888ee58e78313ee29581c41fb
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Feb 3 09:41:08 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 33b542fff5ecb78a0f1da4a005b09d11853f7026
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Feb 3 09:41:08 2023 -0800
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 007203173890d75171db2c450bcaf37eb23c6a1d
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Feb 3 09:41:08 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit e470e09b81a417e9f0c123793e3b4f0bfc1cd0cc
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Feb 3 09:41:08 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit b40e6808fd6bb6483cef741cd80c3ab58f4094c8
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Feb 3 09:41:08 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 58580a5d5bd3f8a0661408031dca52ac5c70183a
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Feb 3 09:41:08 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 82379efe344790ee4ab58927a194a55d6931bc3d
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Feb 3 09:41:08 2023 -0800
+
+    Inclusive terminology - "sanity check"
+    
+    "sanity check" clean-up:
+    
+    - Rename functions:
+     - ./scripts/linux/network -> Renamed "sanity_check" to "confidence_check".
+     - ./vgauth/lib/proto.c -> Renamed "Proto_SanityCheckReply" to
+                                         "Proto_ConfidenceCheckReply".
+    
+    - Replace "sanity check" with "confidence check" in comments.
+
+commit 556f27f7011927d27283923b6b86dd446fd2ff17
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Feb 3 09:41:08 2023 -0800
+
+    Bump the VMware Tools version to 12.3.0 in the "devel" branch.
+    
+    Setting the development VMware Tools version to 12.3.0.
+    Adding the tag "BANDSAW" to the 12.2.0 version.
+
+commit 3232ed80db1af22c9906d78d12804681dc23fbfd
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Feb 3 09:41:08 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit afc98393dfefae36bb26c9018b9d6e2d149688ad
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Feb 3 09:41:08 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 486ca6223aad2474e356b0651476db53d4917a49
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Feb 3 09:41:08 2023 -0800
+
+    Changes to common header files not applicable to open-vm-tools.
+
+commit 3bc128aa58770d400de28f899cd867804f8aefb3
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Jan 17 19:32:04 2023 -0800
+
+    ChangeLog update of Jan. 17, 2023.
+
 commit 512af95b8788f5784126368462866eb0e4d76524
 Author: Katy Feng <fkaty@vmware.com>
 Date:   Tue Jan 17 19:22:16 2023 -0800
