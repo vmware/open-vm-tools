@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020,2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -366,6 +366,8 @@ char *File_ExpandAndCheckDir(const char *dirName);
 char *File_GetSafeTmpDir(Bool useConf);
 
 char *File_GetSafeRandomTmpDir(Bool useConf);
+
+char *File_GetUacSafeRandomTmpDir(Bool useConf);
 
 int File_MakeSafeTemp(const char *tag,
                       char **presult);
