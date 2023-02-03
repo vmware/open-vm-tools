@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (c) 2007-2022 VMware, Inc.  All rights reserved.
+### Copyright (c) 2007-2023 VMware, Inc.  All rights reserved.
 ###
 ### Configure script for building the VMware OSS Tools.
 ###
