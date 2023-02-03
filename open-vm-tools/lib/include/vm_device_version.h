@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998,2005-2012,2014-2022 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998,2005-2012,2014-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -359,6 +359,10 @@
 #define NUM_SERIAL_PORTS     32
 #define NUM_PARALLEL_PORTS   3
 
+/************* USB host controller limits ********************/
+#define USB_EHCI_MAX_CONTROLLERS        1
+#define USB_XHCI_MAX_CONTROLLERS        1
+#define USB_MAX_DEVICES_PER_HOST_CTRL   20
 /************* Strings for Host USB Driver *******************************/
 
 #ifdef _WIN32
