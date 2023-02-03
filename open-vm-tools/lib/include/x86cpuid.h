@@ -566,7 +566,7 @@ FLAG(   7,  0, ECX, 24,  1, BUS_LOCK_DB,                         NO,    0 ) \
 FLAG(   7,  0, ECX, 25,  1, CLDEMOTE,                            YES,  18 ) \
 FLAG(   7,  0, ECX, 27,  1, MOVDIRI,                             YES,  18 ) \
 FLAG(   7,  0, ECX, 28,  1, MOVDIR64B,                           YES,  18 ) \
-FLAG(   7,  0, ECX, 29,  1, ENQCMD,                              NO,    0 ) \
+FLAG(   7,  0, ECX, 29,  1, ENQCMD,                              YES, FUT ) \
 FLAG(   7,  0, ECX, 30,  1, SGX_LC,                              ANY,  17 ) \
 FLAG(   7,  0, ECX, 31,  1, PKS,                                 YES,  20 ) \
 FLAG(   7,  0, EDX,  1,  1, SGK_KEYS,                            NO,    0 ) \
