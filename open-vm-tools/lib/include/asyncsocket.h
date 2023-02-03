@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2022 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -103,6 +103,7 @@ extern "C" {
 #define ASOCK_EHOSTUNREACH      WSAEHOSTUNREACH
 #define ASOCK_ETIMEDOUT         WSAETIMEDOUT
 #define ASOCK_ECONNREFUSED      WSAECONNREFUSED
+#define ASOCK_EACCES            WSAEACCES
 #else
 #define ASOCK_ENOTCONN          ENOTCONN
 #define ASOCK_ENOTSOCK          ENOTSOCK
@@ -111,11 +112,12 @@ extern "C" {
 #define ASOCK_EWOULDBLOCK       EWOULDBLOCK
 #define ASOCK_ENETUNREACH       ENETUNREACH
 #define ASOCK_ECONNRESET        ECONNRESET
-#define ASOCK_ETIMEDOUT         ETIMEDOUT
-#define ASOCK_ECONNREFUSED      ECONNREFUSED
 #define ASOCK_ECONNABORTED      ECONNABORTED
 #define ASOCK_EPIPE             EPIPE
 #define ASOCK_EHOSTUNREACH      EHOSTUNREACH
+#define ASOCK_ETIMEDOUT         ETIMEDOUT
+#define ASOCK_ECONNREFUSED      ECONNREFUSED
+#define ASOCK_EACCES            EACCES
 #endif
 
 /*
