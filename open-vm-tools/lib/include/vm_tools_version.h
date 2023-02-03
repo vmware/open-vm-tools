@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 1998-2022 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1737,10 +1737,17 @@ TOOLS_VERSION_UINT_TO_COMPONENTS(const ToolsVersion toolsVersion,   // IN
 #define   TOOLS_VERSION_MITER_SAW_UPDATE1_V_BASE 5
 
 #ifndef RC_INVOKED
+#define   TOOLS_VERSION_BANDSAW TOOLS_VERSION_TO_UINT(TOOLS_VERSION_BANDSAW_V)
+#endif /* RC_INVOKED */
+#define   TOOLS_VERSION_BANDSAW_V_MJR  12
+#define   TOOLS_VERSION_BANDSAW_V_MNR  2
+#define   TOOLS_VERSION_BANDSAW_V_BASE 0
+
+#ifndef RC_INVOKED
 #define   TOOLS_VERSION_NEXT TOOLS_VERSION_TO_UINT(TOOLS_VERSION_NEXT_V)
 #endif /* RC_INVOKED */
 #define   TOOLS_VERSION_NEXT_V_MJR  12
-#define   TOOLS_VERSION_NEXT_V_MNR  2
+#define   TOOLS_VERSION_NEXT_V_MNR  3
 #define   TOOLS_VERSION_NEXT_V_BASE 0
 
 #define   TOOLS_VERSION_CURRENT        TOOLS_VERSION_NEXT
