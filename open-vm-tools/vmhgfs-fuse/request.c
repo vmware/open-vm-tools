@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013,2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013,2019, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -164,7 +164,7 @@ HgfsUnpackHeader(void *serverReply,           // IN:  server reply
 {
    HgfsHeader *header = (HgfsHeader *)serverReply;
 
-   /* First some sanity checking. */
+   /* First some confidence checking. */
    if ((replySize < sizeof (HgfsHeader)) ||
        (header->dummy != HGFS_OP_NEW_HEADER) ||
        (header->packetSize > replySize) ||

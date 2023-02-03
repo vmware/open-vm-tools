@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016,2019-2022 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2016,2019-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1044,7 +1044,7 @@ Proto_FreeRequest(ProtoRequest *req)
 
 /*
  ******************************************************************************
- * Proto_SanityCheckRequest -                                            */ /**
+ * Proto_ConfidenceCheckRequest -                                            */ /**
  *
  * Verifies a request is internally consistent and the type is what we expected.
  *
@@ -1056,7 +1056,7 @@ Proto_FreeRequest(ProtoRequest *req)
  */
 
 static VGAuthError
-Proto_SanityCheckRequest(ProtoRequest *request)
+Proto_ConfidenceCheckRequest(ProtoRequest *request)
 {
    /*
     * There's not much else to do here for now.  The parser does
@@ -1149,12 +1149,12 @@ ServiceProtoReadAndProcessRequest(ServiceConnection *conn)
     */
    if (req->complete) {
       Proto_DumpRequest(req);
-      err = Proto_SanityCheckRequest(req);
+      err = Proto_ConfidenceCheckRequest(req);
       if (err != VGAUTH_E_OK) {
-         Warning("%s: request sanity check failed\n", __FUNCTION__);
+         Warning("%s: request confidence check failed\n", __FUNCTION__);
       }
 
-      // only try to handle it if the sanity check passed
+      // only try to handle it if the confidence check passed
       if (err == VGAUTH_E_OK) {
          err = ServiceProtoDispatchRequest(conn, req);
       }

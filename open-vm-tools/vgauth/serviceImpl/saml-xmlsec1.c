@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2016-2022 VMware, Inc. All rights reserved.
+ * Copyright (C) 2016-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -266,7 +266,7 @@ LoadCatalogAndSchema(void)
     * xmlLoadCatalog() just adds to the default catalog, and won't return an
     * error if it doesn't exist so long as a default catalog is set.
     *
-    * So sanity check its existence.
+    * So confidence check its existence.
     */
    if (!g_file_test(catalogPath, G_FILE_TEST_EXISTS)) {
       g_warning("Error: catalog file not found at \"%s\"\n", catalogPath);
