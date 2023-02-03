@@ -797,8 +797,8 @@ FIELD( 10,  2, EDX,  0, 16, PQE_L2_MAX_COS_NUMBER,               NO,    0 )
 #define CPUID_FIELD_DATA_LEVEL_12                                           \
 FLAG(  12,  0, EAX,  0,  1, SGX1,                                ANY,  17 ) \
 FLAG(  12,  0, EAX,  1,  1, SGX2,                                ANY, FUT ) \
-FLAG(  12,  0, EAX,  5,  1, SGX_OVERSUB_ENCLV,                   ANY, FUT ) \
-FLAG(  12,  0, EAX,  6,  1, SGX_OVERSUB_ENCLS,                   ANY, FUT ) \
+FLAG(  12,  0, EAX,  5,  1, SGX_OVERSUB_ENCLV,                   NO,    0 ) \
+FLAG(  12,  0, EAX,  6,  1, SGX_OVERSUB_ENCLS,                   NO,    0 ) \
 FLAG(  12,  0, EAX, 10,  1, SGX_EUPDATESVN,                      NO,    0 ) \
 FLAG(  12,  0, EBX,  0,  1, SGX_MISCSELECT_EXINFO,               ANY, FUT ) \
 FIELD( 12,  0, EBX,  1, 31, SGX_MISCSELECT_RSVD,                 NO,    0 ) \
