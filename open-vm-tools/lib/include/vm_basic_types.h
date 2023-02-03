@@ -202,7 +202,7 @@
  * - Linux userlevel uses 'long' uint64_t
  * - Windows uses 'long long' uint64_t
  */
-#if !defined(VMKERNEL) && !defined(DECODERLIB) && \
+#if !defined(VMKERNEL) &&  \
     defined(__linux__) && defined(__KERNEL__)
 #  include <linux/types.h>
 #  include <linux/version.h>
@@ -244,7 +244,7 @@
  * - VMM does not have POSIX headers
  * - Windows <sys/types.h> does not define ssize_t
  */
-#if defined(VMKERNEL) || defined(VMM) || defined(DECODERLIB)
+#if defined(VMKERNEL) || defined(VMM)
    /* Guard against FreeBSD <sys/types.h> collison. */
 #  if !defined(_SIZE_T_DEFINED) && !defined(_SIZE_T)
 #     define _SIZE_T_DEFINED
@@ -392,7 +392,7 @@ typedef int64 VmTimeVirtualClock;  /* Virtual Clock kept in CPU cycles */
       #define FMTPD      "I"
       #define FMTH       "I"
    #endif
-#elif defined __APPLE__ || (!defined VMKERNEL && !defined DECODERLIB && \
+#elif defined __APPLE__ || (!defined VMKERNEL && \
                             defined __linux__ && defined __KERNEL__)
    /* semi-LLP64 targets; 'long' is 64-bit, but uint64_t is 'long long' */
    #define FMT64         "ll"
