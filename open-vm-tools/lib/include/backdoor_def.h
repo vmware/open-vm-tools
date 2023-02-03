@@ -188,7 +188,7 @@ extern "C" {
 #  define BDOOR_CMD_FE_EXCEPTION              1
 #  define BDOOR_CMD_FE_SGX                    2
 #  define BDOOR_CMD_FE_PCI_MMIO               3
-#  define BDOOR_CMD_FE_GMM                    4
+//#define BDOOR_CMD_FE_GMM                    4 /* GMM is deprecated. */
 #define   BDOOR_CMD_VMK_INFO                 72
 #define   BDOOR_CMD_EFI_BOOT_CONFIG          73 /* CPL 0 only. */
 #  define BDOOR_CMD_EBC_LEGACYBOOT_ENABLED        0
@@ -215,29 +215,7 @@ extern "C" {
 #  define BDOOR_CMD_MKSGS_ADD_PPN             1
 #  define BDOOR_CMD_MKSGS_REMOVE_PPN          2
 #define   BDOOR_CMD_ABSPOINTER_RESTRICT      86
-#define   BDOOR_CMD_GUEST_INTEGRITY          87
-#  define BDOOR_CMD_GI_GET_CAPABILITIES       0
-#  define BDOOR_CMD_GI_SETUP_ENTRY_POINT      1
-#  define BDOOR_CMD_GI_SETUP_ALERTS           2
-#  define BDOOR_CMD_GI_SETUP_STORE            3
-#  define BDOOR_CMD_GI_SETUP_EVENT_RING       4
-#  define BDOOR_CMD_GI_SETUP_NON_FAULT_READ   5
-#  define BDOOR_CMD_GI_ENTER_INTEGRITY_MODE   6
-#  define BDOOR_CMD_GI_EXIT_INTEGRITY_MODE    7
-#  define BDOOR_CMD_GI_RESET_INTEGRITY_MODE   8
-#  define BDOOR_CMD_GI_GET_EVENT_RING_STATE   9
-#  define BDOOR_CMD_GI_CONSUME_RING_EVENTS   10
-#  define BDOOR_CMD_GI_WATCH_MAPPINGS_START  11
-#  define BDOOR_CMD_GI_WATCH_MAPPINGS_STOP   12
-#  define BDOOR_CMD_GI_CHECK_MAPPINGS_NOW    13
-#  define BDOOR_CMD_GI_WATCH_PPNS_START      14
-#  define BDOOR_CMD_GI_WATCH_PPNS_STOP       15
-#  define BDOOR_CMD_GI_SEND_MSG              16
-#  define BDOOR_CMD_GI_TEST_READ_MOB        128
-#  define BDOOR_CMD_GI_TEST_ADD_EVENT       129
-#  define BDOOR_CMD_GI_TEST_MAPPING         130
-#  define BDOOR_CMD_GI_TEST_PPN             131
-#  define BDOOR_CMD_GI_MAX                  131
+//#define BDOOR_CMD_GUEST_INTEGRITY          87 /* GI is deprecated. */
 #define   BDOOR_CMD_MKSTEST                  88 /* Devel only. */
 #  define BDOOR_CMD_MKSTEST_STATS_START       0
 #  define BDOOR_CMD_MKSTEST_STATS_STOP        1
@@ -257,16 +235,7 @@ extern "C" {
 #  define BDOOR_CMD_FUZZER_INIT               0
 #  define BDOOR_CMD_FUZZER_NEXT               1
 #define   BDOOR_CMD_PUTCHR12                 95
-#define   BDOOR_CMD_GMM                      96
-#  define BDOOR_CMD_GMM_GET_SIZE              0 /* Depends on firmware. */
-#  define BDOOR_CMD_GMM_MAP_MEMORY            1 /* Depends on firmware. */
-#  define BDOOR_CMD_GMM_ENTER                 2
-#  define BDOOR_CMD_GMM_ONESHOT_TIMER         3
-#  define BDOOR_CMD_GMM_WATCH_PPNS_START      4
-#  define BDOOR_CMD_GMM_WATCH_PPNS_STOP       5
-#  define BDOOR_CMD_GMM_RESYNC_RUNTIME_INFO   6
-#  define BDOOR_CMD_GMM_INVS_BRK_POINT        7
-#  define BDOOR_CMD_GMM_GET_CAPABILITY        8
+//#define BDOOR_CMD_GMM                      96 /* GMM is deprecated. */
 #define   BDOOR_CMD_PRECISIONCLOCK           97
 #  define BDOOR_CMD_PRECISIONCLOCK_GETTIME    0
 #  define BDOOR_CMD_PRECISIONCLOCK_SETTIME    1
