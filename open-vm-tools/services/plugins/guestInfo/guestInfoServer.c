@@ -93,7 +93,7 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 #if defined(_WIN32)
 #define GUESTINFO_DEFAULT_IFACE_EXCLUDES "vEthernet*"
 #else
-#define GUESTINFO_DEFAULT_IFACE_EXCLUDES "docker*,veth*,virbr*"
+#define GUESTINFO_DEFAULT_IFACE_EXCLUDES "docker*,veth*,virbr*,antrea-*,cali*"
 #endif
 
 /*
