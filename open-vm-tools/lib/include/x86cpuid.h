@@ -1430,7 +1430,9 @@ FIELD(820,  1, EDX,  0, 32, NUM_SERVICE_CLASSES,                 NO,    0 )
 #define CPUID_FIELD_DATA_LEVEL_821                                          \
 FLAG( 821,  0, EAX,  7,  1, UPPER_ADDRESS_IGNORE,                YES,  20 )
 
-#define CPUID_FIELD_DATA_LEVEL_822
+#define CPUID_FIELD_DATA_LEVEL_822                                          \
+FLAG( 822,  0, EAX,  1,  1, AMD_LBREXT_V2,                       NO,    0 ) \
+FIELD(822,  0, EBX,  4,  6, AMD_LBR_STACK_SIZE,                  NO,    0 )
 
 #define CPUID_FIELD_DATA_LEVEL_823
 
