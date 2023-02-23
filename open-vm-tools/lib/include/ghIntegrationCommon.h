@@ -56,7 +56,8 @@
 #define GHI_CHANNEL_VIEW_SDR                    9  // Handled by View SDR
 #define GHI_CHANNEL_VIEW_WHFB_REDIRECTION       10 // WhfbRedirectionMKSControl module in
                                                    // View RMKS
-#define GHI_CHANNEL_COUNT                       11
+#define GHI_CHANNEL_VIEW_SCREEN_CAPTURE         11 // ScreenCapture in View RMKS
+#define GHI_CHANNEL_COUNT                       12
 
 typedef uint32 GHIChannelType;
 
@@ -222,5 +223,20 @@ typedef enum {
 #define GHI_CHANNEL_VIEW_SDR_BITS         GHI_GUEST_CHANNEL_BITS(GHI_CHANNEL_VIEW_SDR)
 #define GHI_VIEW_SDR_VDP_CONNECTED        (GHI_CHANNEL_VIEW_SDR_BITS | 0x000001)
 #define GHI_VIEW_SDR_VDP_DISCONNECTED     (GHI_CHANNEL_VIEW_SDR_BITS | 0x000002)
+
+
+/*
+ * UI->MKS messages over GHI_CHANNEL_VIEW_SCREEN_CAPTURE
+ */
+#define GHI_VIEW_SCREEN_CAPTURE_TAKE_SNAPSHOT      "ghi.view.screen.capture.take.snapshot"
+#define GHI_VIEW_SCREEN_CAPTURE_ENUM_TOPOLOGY      "ghi.view.screen.capture.enum.topology"
+
+/*
+ * MKS->UI messages over GHI_CHANNEL_VIEW_SCREEN_CAPTURE.
+ */
+#define GHI_CHANNEL_VIEW_SCREEN_CAPTURE_BITS \
+           GHI_GUEST_CHANNEL_BITS(GHI_CHANNEL_VIEW_SCREEN_CAPTURE)
+#define GHI_GUEST_SCREEN_CAPTURE_FUNC_READY        (GHI_CHANNEL_VIEW_SCREEN_CAPTURE_BITS | 0x000001)
+#define GHI_GUEST_SCREEN_CAPTURE_TOPOLOGY          (GHI_CHANNEL_VIEW_SCREEN_CAPTURE_BITS | 0x000002)
 
 #endif // ifndef _GHINTEGRATIONCOMMON_H_
