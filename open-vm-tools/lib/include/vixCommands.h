@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2021, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -42,7 +42,7 @@ extern "C" {
 
 /*
  * These give upper bounds for how big any VIX IPC meesage
- * should be. There are for sanity checks and to ignore maliciously
+ * should be. There are for confidence checks and to ignore maliciously
  * large messages that may be part of an DoS attack. The may need to
  * be revised if large messages are added to the protocol.
  */

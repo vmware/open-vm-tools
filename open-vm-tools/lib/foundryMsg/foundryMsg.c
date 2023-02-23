@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2016, 2019, 2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2016, 2019, 2021, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -732,7 +732,7 @@ VixMsg_ValidateMessage(const void *vMsg, // IN
    }
 
    /*
-    * Sanity check the header.
+    * Confidence check the header.
     * Some basic rules: All the length values in the VixMsgHeader
     * struct are uint32. The headerLength must be large enough to
     * accomodate the base header: VixMsgHeader. The bodyLength and
@@ -788,7 +788,7 @@ VixMsg_ValidateRequestMsg(const void *vMsg, // IN
    }
 
    /*
-    * Sanity check the parts of the header that are specific to requests.
+    * Confidence check the parts of the header that are specific to requests.
     */
    message = vMsg;
    if (message->commonHeader.headerLength < sizeof(VixCommandRequestHeader)) {
@@ -848,7 +848,7 @@ VixMsg_ValidateResponseMsg(const void *vMsg, // IN
    }
 
    /*
-    * Sanity check the parts of the header that are specific to responses.
+    * Confidence check the parts of the header that are specific to responses.
     */
    message = vMsg;
    if (message->commonHeader.headerLength < sizeof(VixCommandResponseHeader)) {
