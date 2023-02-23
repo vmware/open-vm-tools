@@ -44,15 +44,17 @@
 #endif
 #include <unistd.h>
 #include <errno.h>
+#include <stdlib.h>
+#if !defined(__USE_ATFILE)
+#define __USE_ATFILE
+#endif
+#include <fcntl.h> /* Definition of AT_* constants */
 #include <sys/stat.h>
 #include <sys/time.h>
-#include <stdlib.h>
-#include <fcntl.h>
 #include <dirent.h>
 #if defined(__linux__)
 #   include <pwd.h>
 #endif
-
 #if defined(__APPLE__)
 #include <TargetConditionals.h>
 #endif
@@ -837,13 +839,14 @@ File_GetTimes(const char *pathName,        // IN:
 /*
  *----------------------------------------------------------------------
  *
- * File_SetTimes --
+ * FileSetTimes --
  *
- *      Set the date and time that a file was created, last accessed, or
- *      last modified.
+ *      Set the date and time that a file was last accessed or last
+ *      modified.
  *
  * Results:
- *      TRUE if succeed or FALSE if error.
+ *      TRUE  Success
+ *      FALSE Failure
  *
  * Side effects:
  *      If fileName is a symlink, target's timestamps will be updated.
@@ -852,37 +855,40 @@ File_GetTimes(const char *pathName,        // IN:
  *----------------------------------------------------------------------
  */
 
-Bool
-File_SetTimes(const char *pathName,       // IN:
-              VmTimeType createTime,      // IN: ignored
-              VmTimeType accessTime,      // IN: Windows NT time format
-              VmTimeType writeTime,       // IN: Windows NT time format
-              VmTimeType attrChangeTime)  // IN: ignored
+static Bool
+FileSetTimes(const char *path,       // IN:
+             VmTimeType accessTime,  // IN: Windows NT time format
+             VmTimeType writeTime)   // IN: Windows NT time format
+#if defined(UTIME_NOW) && defined(UTIME_OMIT)
 {
+   struct timespec times[2];
+
+   if (accessTime > 0) {
+      TimeUtil_NtTimeToUnixTime(&times[0], accessTime);
+   } else {
+      times[0].tv_sec  = 0;
+      times[0].tv_nsec = UTIME_OMIT;
+   }
+
+   if (writeTime > 0) {
+      TimeUtil_NtTimeToUnixTime(&times[1], writeTime);
+   } else {
+      times[1].tv_sec  = 0;
+      times[1].tv_nsec  = UTIME_OMIT;
+   }
+
+   return utimensat(0, path, times, 0) == 0 ? TRUE : FALSE;
+}
+#else
+{
+   struct stat statBuf;
    struct timeval times[2];
    struct timeval *aTime, *wTime;
-   struct stat statBuf;
-   char *path;
-   int err;
-
-   if (pathName == NULL) {
-      return FALSE;
-   }
-
-   path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
-   if (path == NULL) {
-      Log(LGPFX" %s: failed to convert \"%s\" to current encoding\n",
-          __FUNCTION__, pathName);
-
-      return FALSE;
-   }
-
-   err = (lstat(path, &statBuf) == -1) ? errno : 0;
+   int err = (lstat(path, &statBuf) == -1) ? errno : 0;
 
    if (err != 0) {
       Log(LGPFX" %s: error stating file \"%s\": %s\n", __FUNCTION__,
-          pathName, Err_Errno2String(err));
-      Posix_Free(path);
+          path, Err_Errno2String(err));
 
       return FALSE;
    }
@@ -904,6 +910,7 @@ File_SetTimes(const char *pathName,       // IN:
       struct timespec ts;
 
       TimeUtil_NtTimeToUnixTime(&ts, accessTime);
+
       aTime->tv_sec = ts.tv_sec;
       aTime->tv_usec = ts.tv_nsec / 1000;
    }
@@ -912,22 +919,86 @@ File_SetTimes(const char *pathName,       // IN:
       struct timespec ts;
 
       TimeUtil_NtTimeToUnixTime(&ts, writeTime);
+
       wTime->tv_sec = ts.tv_sec;
       wTime->tv_usec = ts.tv_nsec / 1000;
    }
 
    err = (utimes(path, times) == -1) ? errno : 0;
 
-   Posix_Free(path);
-
    if (err != 0) {
       Log(LGPFX" %s: utimes error on file \"%s\": %s\n", __FUNCTION__,
-          pathName, Err_Errno2String(err));
+          path, Err_Errno2String(err));
 
       return FALSE;
    }
 
    return TRUE;
+}
+#endif
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * File_SetTimes --
+ *
+ *      Set the date and time that a file was last accessed or last
+ *      modified.
+ *
+ * Results:
+ *      TRUE  Success
+ *      FALSE Failure
+ *
+ * Side effects:
+ *      If fileName is a symlink, target's timestamps will be updated.
+ *      Symlink itself's timestamps will not be changed.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+File_SetTimes(const char *pathName,       // IN:
+              VmTimeType createTime,      // IN: ignored
+              VmTimeType accessTime,      // IN: Windows NT time format
+              VmTimeType writeTime,       // IN: Windows NT time format
+              VmTimeType attrChangeTime)  // IN: ignored
+{
+   char *path;
+   Bool success;
+   char *fullPath;
+
+   if (pathName == NULL) {
+      errno = EINVAL;  // Invalid parameter
+      return FALSE;
+   }
+
+   if ((accessTime == 0) && (writeTime == 0)) {
+      return TRUE;
+   }
+
+   fullPath = File_FullPath(pathName);
+
+   if (fullPath == NULL) {
+      return FALSE;
+   }
+
+   path = Unicode_GetAllocBytes(fullPath, STRING_ENCODING_DEFAULT);
+
+   Posix_Free(fullPath);
+
+   if (path == NULL) {
+      Log(LGPFX" %s: failed to convert \"%s\" to current encoding\n",
+          __FUNCTION__, pathName);
+
+      return FALSE;
+   }
+
+   success = FileSetTimes(path, accessTime, writeTime);
+
+   Posix_Free(path);
+
+   return success;
 }
 
 
