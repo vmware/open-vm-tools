@@ -1,3 +1,85 @@
+commit a9e42290898d7077f73cda7fceeab046f0164388
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Feb 23 11:52:12 2023 -0800
+
+    Correct missed 2023 copyright update.
+
+commit e4d5478f95dc0e38b4e152278b30e49960784be9
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Feb 23 11:27:13 2023 -0800
+
+    lib/file: Improve File_SetTimes
+    
+    There is a new system call for setting times that removes race conditions.
+    Use it when it is available.
+
+commit 2e8ac3a7963a5ba98808c2b0748773140da6be86
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Feb 23 11:27:13 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 7173a629c81bd6acf45cb07dbb169fda5ab73adf
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Feb 23 11:27:13 2023 -0800
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 202c4939446da2e251ded55a9566c54d0d9f655a
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Feb 23 11:27:13 2023 -0800
+
+    Inclusive terminology - "sanity check"
+    Address uses of the term "sanity check" in some files used by open-vm-tools.
+
+commit e530a014e677213e5660106c75eddb72d151016b
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Feb 23 11:27:13 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 076aa3f0276010daaae95a95b2c3d4aea56b55bd
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Feb 23 11:27:13 2023 -0800
+
+    Remove SSL_NewContext() declaration from sslDirect.h
+
+commit 8d7402b5b309275a4ef0c609966afed086d91e13
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Feb 23 11:27:13 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 7ab29ed5a2ec3b80f0d5e69a437e48e667bca8ec
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Feb 23 11:27:13 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 6927da94f892ce3a9acae9cb297842c4f7852b16
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Feb 23 11:27:13 2023 -0800
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 355ea8ce3cd4b5038fb79e0a6ca10777ec4fdf79
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Feb 23 11:27:13 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 62b3b42fa69fc7a7fc8fdda9d1a8cd158244c819
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Feb 23 11:27:13 2023 -0800
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 830e9031f64d614c7bfe0acab022a9c33da9da2a
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Feb 3 09:57:46 2023 -0800
+
+    ChangeLog update of Feb. 3, 2023.
+
 commit 632a516d8c4b64025ed0f7b0ee890ebb36a99a15
 Author: Katy Feng <fkaty@vmware.com>
 Date:   Fri Feb 3 09:41:08 2023 -0800
