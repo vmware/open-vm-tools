@@ -1,3 +1,35 @@
+commit 813d8531e739f6a12a4e3c92f18786e10f46eacc
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Mar 6 10:32:39 2023 -0800
+
+    Add antrea and calico interface pattern to GUESTINFO_DEFAULT_IFACE_EXCLUDES.
+    
+    Since k8s are more popular nowadays and their CNI also has IPs for pods,
+    we should also exclude the IP assigned by popular CNI.
+    
+    Fixes issue: https://github.com/vmware/open-vm-tools/issues/638
+    
+    Pull request: https://github.com/vmware/open-vm-tools/pull/639
+
+commit b822932f2b0ea864fdc85005e6ed7bf34c4b2a75
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Mar 6 10:32:39 2023 -0800
+
+    Change to common source files not applicable to open-vm-tools.
+
+commit 11141b784b66a941a98cb8d781125837bbcb267b
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Mar 6 10:32:39 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 43cab44867c952b67255d92acfda43bb89ce7cbf
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Feb 23 11:55:53 2023 -0800
+
+    Update Changelog with the granular push of Feb 23, 2023.
+    - plus ChangeLog update of Feb 3, 2023.
+
 commit a9e42290898d7077f73cda7fceeab046f0164388
 Author: Katy Feng <fkaty@vmware.com>
 Date:   Thu Feb 23 11:52:12 2023 -0800
