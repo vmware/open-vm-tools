@@ -88,3 +88,6 @@ Bernd Zeimetz   Fix building containerinfo plugin on i386
 
 Dirk Mueller    Detect the proto files for containerd grpc client on SUSE like systems
                 - https://github.com/vmware/open-vm-tools/pull/626
+
+Lubron Zhan     Add antrea and calico interfaces to GUESTINFO_DEFAULT_IFACE_EXCLUDES
+Naadir Jeewa    - https://github.com/vmware/open-vm-tools/pull/639
