@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2022 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -133,6 +133,7 @@
 #include "uwvmkAPI.h"
 #include "uwvmk.h"
 #include "vmkSyscall.h"
+#include "uwvmkprivate.h"
 #endif
 
 #define LGPFX "HOSTINFO:"
@@ -4550,6 +4551,62 @@ Hostinfo_QueryProcessExistence(int pid)  // IN:
    }
 
    return result;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Hostinfo_QueryProcessReaped --
+ *
+ *      Determine if the resources of a "dead" process have been reclaimed.
+ *      On Linux, this is equivalent to querying the process's existence.
+ *      On ESX, we can query the vmkernel.
+ *
+ * Results:
+ *      HOSTINFO_PROCESS_QUERY_ALIVE    Process is not yet reaped
+ *      HOSTINFO_PROCESS_QUERY_DEAD     Process has been reaped
+ *      HOSTINFO_PROCESS_QUERY_UNKNOWN  Don't know
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+HostinfoProcessQuery
+Hostinfo_QueryProcessReaped(int pid)  // IN:
+{
+#if defined(VMX86_SERVER) || defined(USERWORLD)  // ESXi
+   VMK_ReturnStatus status = VMKPrivate_WaitForWorldDeath(pid, 1);
+   HostinfoProcessQuery result;
+
+   switch (status) {
+   case VMK_TIMEOUT:
+      result = HOSTINFO_PROCESS_QUERY_ALIVE;
+      break;
+
+   /*
+    * VMK_BAD_PARAM indicates the pid is no longer associated with
+    * a userworld.
+    *
+    * VMK_OK indicates the pid has been reaped.
+    */
+   case VMK_BAD_PARAM:
+   case VMK_OK:
+      result = HOSTINFO_PROCESS_QUERY_DEAD;
+      break;
+
+   /* VMK_DEATH_PENDING (on caller), VMK_WAIT_INTERRUPTED */
+   default:
+      result = HOSTINFO_PROCESS_QUERY_UNKNOWN;
+      break;
+   }
+
+   return result;
+#else
+   return Hostinfo_QueryProcessExistence(pid);
+#endif
 }
 
 
