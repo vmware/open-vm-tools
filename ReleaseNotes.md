@@ -1,56 +1,100 @@
-#open-vm-tools 10.0.0 Release Notes 
+#                      open-vm-tools 12.2.0 Release Notes
 
-Updated on 1 SEP 2015
-##What's in the Release Notes
-The release notes cover the following topics: 
+Updated on: 7 MAR 2023
 
-- What's New
-- Internationalization
-- Compatibility
-- Installation and Upgrades for This Release
-- Known Issues
+open-vm-tools | 7 MAR 2023 | Build 21223074
 
-##What's New 
-VMware Tools is a suite of utilities that enhances the performance of the virtual machine's guest operating system and improves management of the virtual machine. Read about the new and enhanced features in this release below:
+Check back for additions and updates to these release notes.
 
-- **Common versioning**: Infrastructure changes to enable reporting of the true version of open-vm-tools. This feature is dependent on host support. 
-- **Quiesced snapshots enhancements for Linux guests running IO workload**: Robustness related enhancements in quiesced snapshot operation. The _vmtoolsd_ service supports caching of log messages when guest IO has been quiesced. Enhancements in the _vmbackup_ plugin use a separate thread to quiesce the guest OS to avoid timeout issues due to heavy I/O in the guest. 
-- **Shared Folders**: For Linux distributions with kernel version 4.0.0 and higher, there is a new FUSE based Shared Folders client which is used as a replacement for the kernel mode client. 
-- **ESXi Serviceability**: Default _vmtoolsd_ logging is directed to a file instead of syslog.  _vmware-toolbox-cmd_ is enhanced for setting _vmtoolsd_ logging levels.
-- **GuestInfo Enhancements**: Plugin enhancements to report more than 64 IP addresses from the guest. These enhancements will be available only after upgrading the host because the guest IP addresses limit also exists on the host side.
+## What's in the Release Notes
 
-## Internationalization 
-open-vm-tools 10.0.0 supports the following languages:
+The release notes cover the following topics:
 
-- English 
-- French 
-- German 
-- Spanish 
-- Italian 
-- Japanese 
-- Korean 
-- Simplified Chinese 
-- Traditional Chinese
+* [What's New](#whatsnew) 
+* [Internationalization](#i18n) 
+* [End of Feature Support Notice](#endoffeaturesupport) 
+* [Guest Operating System Customization Support](#guestop) 
+* [Interoperability Matrix](#interop) 
+* [Resolved Issues](#resolvedissues) 
+* [Known Issues](#knownissues)
 
-## Compatibility 
-open-vm-tools 10.0.0 is compatible with all supported versions of VMware vSphere, VMware Workstation 12.0 and VMware Fusion 8.0.
-## Installation and Upgrades for This Release 
-The steps to install open-vm-tools vary depending on your VMware product and the guest operating system you have installed. For general steps to install open-vm-tools in most VMware products, see https://github.com/vmware/open-vm-tools/blob/master/README.md
-## Known Issues 
-The known issues are as follows:
+## <a id="whatsnew" name="whatsnew"></a>What's New
 
-- **The status of IPv6 address is displayed as "unknown"**
+There are no new features in the open-vm-tools 12.2.0 release.  This is primarily a maintenance release that addresses a few critical problems.
 
-	The status of IPv6 address from vim-cmd is displayed as "unknown" even when the address is valid.
+*   Please see the [Resolved Issues](#resolvedissues) and [Known Issues](#knownissues) sections below.
 
-	Workaround: None 
-- **TextCopyPaste between host and guest systems fail**
+*   A complete list of the granular changes in the open-vm-tools 12.2.0 release is available at:
 
-	Copy and Paste of text between host and guest systems fail if the text size 50KB or higher.
- 
-	Workaround: Copy and Paste smaller amounts of text. 
-- **Definition of the field _ipAddress_ in guestinfo is ambiguous**
+    [open-vm-tools ChangeLog](https://github.com/vmware/open-vm-tools/blob/stable-12.2.0/open-vm-tools/ChangeLog)
 
-	The field _ipAddress_ is defined as "Primary IP address assigned to the guest operating system, if known".
- 
-	Workaround: The field _ipAddress_ in this context for Linux is defined as the first IP address fetched by open-vm-tools.
+## <a id="i18n" name="i18n"></a>Internationalization
+
+open-vm-tools 12.2.0 is available in the following languages:
+
+* English
+* French
+* German
+* Spanish
+* Italian
+* Japanese
+* Korean
+* Simplified Chinese
+* Traditional Chinese
+
+## <a id="guestop" name="guestop"></a>Guest Operating System Customization Support
+
+The [Guest OS Customization Support Matrix](http://partnerweb.vmware.com/programs/guestOS/guest-os-customization-matrix.pdf) provides details about the guest operating systems supported for customization.
+
+## <a id="interop" name="interop"></a>Interoperability Matrix
+
+The [VMware Product Interoperability Matrix](http://partnerweb.vmware.com/comp_guide2/sim/interop_matrix.php) provides details about the compatibility of current and earlier versions of VMware Products. 
+
+## <a id="resolvedissues" name ="resolvedissues"></a> Resolved Issues
+
+*   **A number of Coverity reported issues have been addressed.**
+
+*   **The vmtoolsd task is blocked in the uninterruptible state while doing a quiesced snapshot.**
+
+    As the ioctl FIFREEZE is done during a quiesced snapshot operation, an EBUSY could be seen because of an attempt to freeze the same superblock more than once depending on the OS configuration (e.g. usage of bind mounts).  An EBUSY could also mean another process has locked or frozen that filesystem.  That later could lead to the vmtoolsd process being blocked and ultimately other processes on the system could be blocked.
+
+    The Linux quiesced snapshot procedure has been updated that when an EBUSY is received, the filesystem FSID is checked against the list of filesystems that have already been quiesced.  If not previously seen, a warning that the filesystem is controlled by another process is logged and the quiesced snapshot request will be rejected.
+
+    This fix to lib/syncDriver/syncDriverLinux.c is directly applicable to previous releases of open-vm-tools and is available at:
+
+        https://github.com/vmware/open-vm-tools/commit/9d458c53a7a656d4d1ba3a28d090cce82ac4af0e
+
+*   **Updated the guestOps to handle some edge cases.**
+
+    When File_GetSize() fails or returns a -1 indicating the user does not have access permissions:
+
+    1. Skip the file in the output of the ListFiles() request.
+    2. Fail an InitiateFileTransferFromGuest operation.
+
+*   **The following pull requests and issues have been addressed.**
+
+    * Detect the proto files for the containerd grpc client in alternate locations.
+
+      [Pull request #626](https://github.com/vmware/open-vm-tools/pull/626)
+
+    * FreeBSD: Support newer releases and code clean-up for earlier versions.
+
+      [Pull request #584](https://github.com/vmware/open-vm-tools/pull/584)
+
+
+
+## <a id="knownissues" name="knownissues"></a>Known Issues
+
+
+*   **Shared Folders mount is unavailable on Linux VM.**
+
+    If the **Shared Folders** feature is enabled on a Linux VM while it is powered off, the shared folders mount is not available on restart.
+
+    Note: This issue is applicable to open-vm-tools running on VMware Workstation and VMware Fusion.
+
+    Workaround:
+
+    If the VM is powered on, disable and enable the **Shared Folders** feature from the interface. For resolving the issue permanently, edit **/etc/fstab** and add an entry to mount the Shared Folders automatically on boot.  For example, add the line:
+
+    <tt>vmhgfs-fuse   /mnt/hgfs    fuse    defaults,allow_other    0    0</tt>
+
