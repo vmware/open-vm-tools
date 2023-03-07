@@ -1,3 +1,23 @@
+commit c589f06a759e902ffeb06845592c5fbc0cfaab2a
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Mar 7 10:51:39 2023 -0800
+
+    Update the ReleaseNotes.md for the 12.2.0 open-vm-tools release.
+
+commit 6b72d107c925d71e7dfe89fa9bc4dc9d848e285a
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Mar 7 08:33:18 2023 -0800
+
+    Prepare for the open-vm-tools 12.2.0 release.
+    - Update the tools version in the configure.ac.   Update the build numbers
+     buldNumber.h.
+
+commit 3bc128aa58770d400de28f899cd867804f8aefb3
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Jan 17 19:32:04 2023 -0800
+
+    ChangeLog update of Jan. 17, 2023.
+
 commit 512af95b8788f5784126368462866eb0e4d76524
 Author: Katy Feng <fkaty@vmware.com>
 Date:   Tue Jan 17 19:22:16 2023 -0800
