@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2022 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -56,12 +56,10 @@
  *********************************************************/
 
 /*
- *
  * vm_basic_types.h --
  *
- *    basic data types.
+ *      Basic data types.
  */
-
 
 #ifndef _VM_BASIC_TYPES_H_
 #define _VM_BASIC_TYPES_H_
@@ -331,11 +329,11 @@ typedef char           Bool;
 #if !defined(USING_AUTOCONF)
 #   if defined(__FreeBSD__) || defined(sun)
 #      ifndef KLD_MODULE
-#         if __FreeBSD_version >= 500043
+#         if defined(__FreeBSD__)
 #            if !defined(VMKERNEL)
 #               include <inttypes.h>
 #            endif
-#         else
+#         else /* sun */
 #            include <sys/inttypes.h>
 #         endif
 #      endif
@@ -351,7 +349,8 @@ typedef char           Bool;
 #endif
 
 
-#if defined(__GNUC__) && defined(__SIZEOF_INT128__)
+#if defined __GNUC__ && defined __SIZEOF_INT128__
+#define VM_HAS_INT128 // 128-bit integers can be used.
 
 typedef unsigned __int128 uint128;
 typedef          __int128  int128;
@@ -360,7 +359,6 @@ typedef          __int128  int128;
 #define MAX_INT128   (~MIN_INT128)
 #define MIN_UINT128  ((uint128)0)
 #define MAX_UINT128  (~MIN_UINT128)
-
 #endif
 
 
@@ -549,7 +547,7 @@ typedef uint16  UReg16;
 typedef uint32  UReg32;
 typedef uint64  UReg64;
 
-#if defined(__GNUC__) && defined(__SIZEOF_INT128__)
+#ifdef VM_HAS_INT128
 typedef  int128  Reg128;
 typedef uint128 UReg128;
 #endif

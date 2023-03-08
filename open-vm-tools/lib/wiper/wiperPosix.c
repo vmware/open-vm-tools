@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2019, 2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2019, 2021-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -39,9 +39,9 @@
 # include <sys/ucred.h>
 # include <sys/mount.h>
 # include <fstab.h>
-# if defined(__FreeBSD_version) && __FreeBSD_version >= 500000
-#  include <libgen.h>
-# endif /* __FreeBSD_version >= 500000 */
+#endif
+#if defined(__FreeBSD__)
+#include <libgen.h>
 #endif
 #include <unistd.h>
 
@@ -344,27 +344,6 @@ WiperIsDiskDevice(MNTINFO *mnt,         // IN: file system being considered
     * function, as a whole, does not even apply to OS X, so this caveat is
     * only minor.
     */
-#if __FreeBSD_version < 500000
-   /*
-    * Before FreeBSD 5, device nodes had static major/minor numbers.
-    * (FreeBSD 5 included devfs which got rid of this concept.)  So
-    * we'll stat(2) the mount source and test its major numbers
-    * against the values lifted from
-    *   http://www.freebsd.org/cgi/cvsweb.cgi/src/sys/i386/conf/Attic/majors.i386 (rev 1.65)
-    *
-    * Devnode Type      Description                             Major
-    * ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    * block             "Winchester" (IDE, ATA, /dev/wd*)       0
-    * character         "                                       3
-    * block             SCSI "direct access" (/dev/da*)         4
-    * character         "                                       13
-    */
-   int maj = major(s->st_rdev);
-   if ((S_ISBLK(s->st_mode) && ((maj == 0) || (maj == 4))) ||
-       (S_ISCHR(s->st_mode) && ((maj == 3) || (maj == 13)))) {
-      retval = TRUE;
-   }
-#else
    /*
     * Begin by testing whether file system source is really a character
     * device node.  (FreeBSD dropped support for block devices long ago.)
@@ -382,7 +361,6 @@ WiperIsDiskDevice(MNTINFO *mnt,         // IN: file system being considered
    }
 #undef MASK_ATA_DISK
 #undef MASK_SCSI_DISK
-#endif /* __FreeBSD_version */
 
    return retval;
 }

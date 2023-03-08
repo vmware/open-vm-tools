@@ -109,6 +109,7 @@ typedef struct AsyncSocketVTable {
    int (*getNetworkStats)(AsyncSocket *asock,
                           AsyncSocketNetworkStats *stats);
    int (*close)(AsyncSocket *asock);
+   int (*closeWrite)(AsyncSocket *asock);
    int (*cancelRecv)(AsyncSocket *asock, int *partialRecvd, void **recvBuf,
                      void **recvFn, Bool cancelOnSend);
    int (*cancelCbForClose)(AsyncSocket *asock);

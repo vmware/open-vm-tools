@@ -31,10 +31,7 @@
 #include "vm_basic_asm_arm64.h"
 
 /*
- * Today these are defines, but long-term these will be patchable globals
- * for ESXi kernel-mode code (and something similar for ESXi userspace code).
- *
- * Atomic_HaveLSE should be set to 1 for CPUs that have the LSE extenstion
+ * Atomic_LsePresent should be set to 1 for CPUs that have the LSE extenstion
  * and where the atomic instructions are known to have a performance benefit.
  * Seemingly, on some low-end chips (CA55) there may not be a benefit.
  *
@@ -47,12 +44,73 @@
  * though, remains the safest option. Atomic_PreferCasForOps controls this.
  */
 
-#ifdef VMK_ARM_LSE
-#define Atomic_HaveLSE               1
-#else
-#define Atomic_HaveLSE               0
+/*
+ * The silliness with _VMATOM_HAVE_LSE_DEFINED is necessary because this
+ * could be included multiple times (via vm_atomic and vm_atomic_relaxed).
+ */
+#ifndef _VMATOM_HAVE_LSE_DEFINED
+typedef struct  {
+   Bool LsePresent;
+#ifndef VMKERNEL
+   Bool ProbedForLse;
 #endif
-#define Atomic_PreferCasForOps       1
+   Bool PreferCasForOps;
+} Atomic_ConfigParams;
+
+#if defined(VMX86_SERVER) || defined(VMKBOOT)
+/*
+ * When building UW code for ESXi, Atomic_Config a weak symbol.
+ * When building for kernel mode, Atomic_Config is exported by
+ * bora/vmkernel/lib/arm64/atomic.c
+ */
+#ifndef VMKERNEL
+#pragma weak Atomic_Config
+Atomic_ConfigParams Atomic_Config;
+#else
+extern Atomic_ConfigParams Atomic_Config;
+#endif
+
+static INLINE Bool
+Atomic_HaveLse(void)
+{
+#ifndef VMKERNEL
+   /*
+    * Can't just include sys/auxv.h, unfortunately.
+    */
+   extern uint64 getauxval(uint64 type);
+#define _VMATOM_AT_ESXI_HWCAP                    2000
+#define _VMATOM_AT_ESXI_HWCAP_HAVE_LSE           (1 << 0)
+#define _VMATOM_AT_ESXI_HWCAP_PREFER_CAS_FOR_OPS (1 << 1)
+
+   if (!Atomic_Config.ProbedForLse) {
+      uint64 cap = getauxval(_VMATOM_AT_ESXI_HWCAP);
+      Atomic_Config.LsePresent = (cap &_VMATOM_AT_ESXI_HWCAP_HAVE_LSE) != 0;
+      Atomic_Config.PreferCasForOps = Atomic_Config.LsePresent &&
+         (cap & _VMATOM_AT_ESXI_HWCAP_PREFER_CAS_FOR_OPS) != 0;
+      SMP_W_BARRIER_W();
+      Atomic_Config.ProbedForLse = TRUE;
+   }
+#undef _VMATOM_AT_ESXI_HWCAP
+#undef _VMATOM_AT_ESXI_HWCAP_HAVE_LSE
+#undef _VMATOM_AT_ESXI_HWCAP_PREFER_CAS_FOR_OPS
+#endif
+
+   return Atomic_Config.LsePresent;
+}
+
+static INLINE Bool
+Atomic_PreferCasForOps(void) {
+   return Atomic_Config.PreferCasForOps;
+}
+#else /* !VMX86_SERVER && !VMKBOOT */
+/*
+ * Not building for ESXi? Assume no LSE.
+ */
+#define Atomic_PreferCasForOps() FALSE
+#define Atomic_HaveLse()         FALSE
+#endif
+#define _VMATOM_HAVE_LSE_DEFINED
+#endif /* _VMATOM_HAVE_LSE_DEFINED */
 
 #define _VMATOM_LSE_HAVE(x)  _VMATOM_LSE_HAVE_##x
 #define _VMATOM_LSE_HAVE_add 1
@@ -61,8 +119,7 @@
 #define _VMATOM_LSE_HAVE_orr 0
 #define _VMATOM_LSE_HAVE_and 0
 
-#define Atomic_PreferLSE(op) (Atomic_HaveLSE && \
-   (_VMATOM_LSE_HAVE(op) || Atomic_PreferCasForOps))
+#define _VMATOM_PREFER_LSE(op) ((_VMATOM_LSE_HAVE(op) && Atomic_HaveLse()) || Atomic_PreferCasForOps())
 
 /*                      bit size, instruction suffix, register prefix, extend suffix */
 #define _VMATOM_SIZE_8         8,                  b,               w,             b
@@ -158,7 +215,7 @@
    uint##bs _newval;                                                          \
                                                                               \
    _VMATOM_FENCE(fenced);                                                     \
-   if (Atomic_PreferLSE(op)) {                                                \
+   if (_VMATOM_PREFER_LSE(op)) {                                              \
       if (_VMATOM_LSE_HAVE(op)) {                                             \
          __asm__ __volatile__(                                                \
             ".arch armv8.2-a                                             \n\t"\
@@ -207,7 +264,7 @@
    uint##bs _oldval;                                                          \
                                                                               \
    _VMATOM_FENCE(fenced);                                                     \
-   if (Atomic_PreferLSE(op)) {                                                \
+   if (_VMATOM_PREFER_LSE(op)) {                                              \
       if (_VMATOM_LSE_HAVE(op)) {                                             \
          __asm__ __volatile__(                                                \
             ".arch armv8.2-a                                             \n\t"\
@@ -258,7 +315,7 @@
    uint##bs _oldval;                                                          \
                                                                               \
    _VMATOM_FENCE(fenced);                                                     \
-   if (Atomic_HaveLSE) {                                                      \
+   if (Atomic_HaveLse()) {                                                    \
       __asm__ __volatile__(                                                   \
          ".arch armv8.2-a                                                \n\t"\
          "swp"#is" %"#rp"2, %"#rp"0, %1                                  \n\t"\
@@ -288,7 +345,7 @@
    uint##bs _oldval;                                                          \
                                                                               \
    _VMATOM_FENCE(fenced);                                                     \
-   if (Atomic_HaveLSE) {                                                      \
+   if (Atomic_HaveLse()) {                                                    \
       __asm__ __volatile__(                                                   \
          ".arch armv8.2-a                                                \n\t"\
          "cas"#is" %"#rp"0, %"#rp"2, %1                                  \n\t"\

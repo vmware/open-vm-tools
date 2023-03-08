@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2018,2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2018,2021-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -116,8 +116,6 @@ Bool Config_Write(void);
 Bool Config_WriteNoMsg(void);
 
 Bool Config_FileIsWritable(void);
-
-Bool Config_IsIntegrityProtected(void);
 
 uint32 Config_GetMask(uint32 defaultMask, const char *optionName);
 uint64 Config_GetMask64(uint64 defaultMask, const char *optionName);

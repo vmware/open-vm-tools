@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2017,2019-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2017,2019-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -304,7 +304,7 @@ RandR12GetInfo(Display *display,     // IN: Pointer to our display connection
    }
 
    /*
-    * Sanity checks. This should never really happen with current drivers.
+    * Confidence checks. This should never really happen with current drivers.
     */
 
    if (nVMWOutput != info->nOutput) {
@@ -341,7 +341,7 @@ RandR12GetInfo(Display *display,     // IN: Pointer to our display connection
    }
 
    /*
-    * Sanity check. This should never really happen with our drivers.
+    * Confidence check. This should never really happen with our drivers.
     */
 
    if (numVMWCrtc != nVMWOutput) {
@@ -361,17 +361,17 @@ RandR12GetInfo(Display *display,     // IN: Pointer to our display connection
  *
  * RandR12CrtcDisable --
  *
- *      Disable crtcs and associated outputs before an fb size change.
- *      The function disables crtcs and associated outputs
+ *      Deactivate crtcs and associated outputs before an fb size change.
+ *      The function deactivates crtcs and associated outputs
  *      1) whose scanout area is too big for the new fb size.
- *      2) that are going to be disabled with the new topology.
+ *      2) that are going to be deactivated with the new topology.
  *
  * Results:
  *      TRUE on success, FALSE on failure.
  *
  * Side effects:
  *      The RandR12info context is modified.
- *      The current mode of disabled outputs is set to "None".
+ *      The current mode of deactivated outputs is set to "None".
  *
  *-----------------------------------------------------------------------------
  */

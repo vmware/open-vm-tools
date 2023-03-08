@@ -241,3 +241,4 @@ Please send an email to one of these mailing lists based on the nature of your q
 - Development related questions : open-vm-tools-devel@lists.sourceforge.net
 - Miscellaneous questions: open-vm-tools-discuss@lists.sourceforge.net
 - General project announcements: open-vm-tools-announce@lists.sourceforge.net
+

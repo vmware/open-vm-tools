@@ -1750,7 +1750,7 @@ VixToolsStartProgramImpl(const char *requestName,            // IN
       goto quit;
    }
 
-   /* sanity check workingDir if set */
+   /* confidence check workingDir if set */
    if (NULL != workingDir && !File_IsDirectory(workingDir)) {
       err = VIX_E_NOT_A_DIRECTORY;
       goto quit;
@@ -2411,7 +2411,7 @@ VixToolsUpdateStartedProgramList(VixToolsStartedProgramState *state)        // I
    spList = startedProcessList;
    while (spList) {
       /*
-       * Sanity check we don't have a duplicate entry -- this should
+       * Confidence check we don't have a duplicate entry -- this should
        * only happen when the OS re-uses the PID before we reap the record
        * of its exit status.
        */
@@ -4983,6 +4983,9 @@ VixToolsInitiateFileTransferFromGuest(VixCommandRequestHeader *requestMsg,    //
    }
 
    resultBuffer = VixToolsPrintFileExtendedInfoEx(filePathName, filePathName);
+   if (*resultBuffer == '\0') {
+      err = VIX_E_FILE_ACCESS_ERROR;
+   }
 
 quit:
    if (impersonatingVMWareUser) {
@@ -5798,7 +5801,7 @@ VixToolsListProcessesEx(VixCommandRequestHeader *requestMsg, // IN
          goto quit;
       }
 
-      // sanity check offset
+      // confidence check offset
       if (listRequest->offset > cachedResult->resultBufferLen) {
          /*
           * Since this isn't user-set, assume any problem is in the
@@ -6582,11 +6585,12 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
    void *userToken = NULL;
    VixMsgListFilesRequest *listRequest = NULL;
    Bool truncated = FALSE;
-   uint64 offset = 0;
+   int offset = 0;
    Bool listingSingleFile = FALSE;
    const char *pattern = NULL;
    int index = 0;
    int maxResults = 0;
+   int maxOffsetResults = 0;
    int count = 0;
    int remaining = 0;
    int numResults;
@@ -6603,9 +6607,58 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
    }
 
    listRequest = (VixMsgListFilesRequest *) requestMsg;
-   offset = listRequest->offset;
+
+   /*
+    * listRequest->offset is not part of the interface of ListFilesInGuest API,
+    * listRequest->index and listRequest->maxResults are.
+    *
+    * When hostd sees the results from tools are truncated while requesting
+    * maxResults number of file items, hostd issues another Vigor guest OP
+    * ListFiles with same listRequest->index and listRequest->maxResults but
+    * listRequest->offset set to the items number received. Hostd returns to
+    * API client after seeing the results from tools are no longer truncated.
+    *
+    * listRequest->maxResults defaults to 50 in API spec. If a large number is
+    * passed, truncation can happen when maxBufferSize is not big enough for
+    * the results in one Vigor ListFiles call.
+    *
+    * maxBufferSize = GUESTMSG_MAX_IN_SIZE - vixPrefixDataSize
+    *               = 64 * 1024 - 53
+    */
+   if (listRequest->offset >= (uint64)MAX_INT32) {
+      g_warning("%s: Invalid offset value %"FMT64"u\n",
+                __FUNCTION__, listRequest->offset);
+      err = VIX_E_INVALID_ARG;
+      goto quit;
+   }
+
+   offset = (int)listRequest->offset;
    index = listRequest->index;
    maxResults = listRequest->maxResults;
+   /*
+    * bora/vmx/automation/guestOps.c::GuestOpsListFiles() throws
+    * VIX_E_INVALID_ARG if (index < 0) || (maxResults < 0) is TRUE.
+    */
+   ASSERT(offset >= 0 && index >= 0 && maxResults >= 0);
+
+   /*
+    * Do not fail the API if maxResults is 0, instead, return an empty file
+    * list plus the remaining number of files.
+    */
+   if (maxResults > 0) {
+      if (offset >= maxResults) {
+         g_warning("%s: Invalid offset, offset is %d, maxResults is %d\n",
+                   __FUNCTION__, offset, maxResults);
+         err = VIX_E_INVALID_ARG;
+         goto quit;
+      }
+
+      /*
+       * This is the maximum number of results that can be returned
+       * in this call.
+       */
+      maxOffsetResults = maxResults - offset;
+   }
 
    err = VMAutomationRequestParserGetString(&parser,
                                             listRequest->guestPathNameLength,
@@ -6709,45 +6762,63 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
    lastGoodResultBufferSize = resultBufferSize;
    ASSERT_NOT_IMPLEMENTED(lastGoodResultBufferSize < maxBufferSize);
 
-   for (fileNum = offset + index;
-        fileNum < numFiles;
-        fileNum++) {
+   /*
+    * If a regex pattern is specified, apply it first. The request index
+    * and offset parameters are referring to the filtered entries.
+    */
+   if (regex) {
+      int newNumFiles = 0;
 
-      currentFileName = fileNameList[fileNum];
-
-      if (regex) {
-         if (!g_regex_match(regex, currentFileName, 0, NULL)) {
-            continue;
+      for (fileNum = 0; fileNum < numFiles; fileNum++) {
+         currentFileName = fileNameList[fileNum];
+         fileNameList[fileNum] = NULL;
+         if (g_regex_match(regex, currentFileName, 0, NULL)) {
+            fileNameList[newNumFiles++] = currentFileName;
+         } else {
+            free(currentFileName);
          }
       }
 
-      if (count < maxResults) {
-         count++;
-      } else {
-         remaining++;
-         continue;   // stop computing buffersize
-      }
-
-      if (listingSingleFile) {
-         resultBufferSize += VixToolsGetFileExtendedInfoLength(currentFileName,
-                                                               currentFileName);
-      } else {
-         pathName = Str_SafeAsprintf(NULL, "%s%s%s", dirPathName, DIRSEPS,
-                                     currentFileName);
-         resultBufferSize += VixToolsGetFileExtendedInfoLength(pathName,
-                                                               currentFileName);
-         free(pathName);
-      }
-
-      if (resultBufferSize < maxBufferSize) {
-         lastGoodResultBufferSize = resultBufferSize;
-      } else {
-         truncated = TRUE;
-         break;
-      }
+      numFiles = newNumFiles;
    }
-   resultBufferSize = lastGoodResultBufferSize;
-   numResults = count;
+
+   if (maxResults > 0) {
+      for (fileNum = index + offset;
+           fileNum < numFiles;
+           fileNum++) {
+
+         currentFileName = fileNameList[fileNum];
+
+         if (listingSingleFile) {
+            resultBufferSize += VixToolsGetFileExtendedInfoLength(
+                                   currentFileName, currentFileName);
+         } else {
+            pathName = Str_SafeAsprintf(NULL, "%s%s%s", dirPathName, DIRSEPS,
+                                        currentFileName);
+            resultBufferSize += VixToolsGetFileExtendedInfoLength(
+                                pathName, currentFileName);
+            free(pathName);
+         }
+
+         if (resultBufferSize < maxBufferSize) {
+            lastGoodResultBufferSize = resultBufferSize;
+            count++;
+            if (count == maxOffsetResults) {
+               remaining = numFiles - fileNum - 1;
+               break;
+            }
+         } else {
+            truncated = TRUE;
+            remaining = numFiles - fileNum;
+            break;
+         }
+      }
+      resultBufferSize = lastGoodResultBufferSize;
+      numResults = count;
+   } else {
+      remaining = (index < numFiles) ? (numFiles - index) : 0;
+      numResults = 0;
+   }
 
    /*
     * Print the result buffer.
@@ -6772,18 +6843,11 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
    destPtr += Str_Sprintf(destPtr, endDestPtr - destPtr,
                           listFilesRemainingFormatString, remaining);
 
-
-   for (fileNum = offset + index, count = 0;
+   for (fileNum = index + offset, count = 0;
         count < numResults;
         fileNum++) {
 
       currentFileName = fileNameList[fileNum];
-
-      if (regex) {
-         if (!g_regex_match(regex, currentFileName, 0, NULL)) {
-            continue;
-         }
-      }
 
       if (listingSingleFile) {
          pathName = Util_SafeStrdup(currentFileName);
@@ -6792,12 +6856,15 @@ VixToolsListFiles(VixCommandRequestHeader *requestMsg,    // IN
                                      currentFileName);
       }
 
+      /*
+       * When File_GetSize(pathName) fails, the file is not printed.
+       */
       VixToolsPrintFileExtendedInfo(pathName, currentFileName,
                                     &destPtr, endDestPtr);
 
       free(pathName);
       count++;
-   } // for (fileNum = 0; fileNum < lastGoodNumFiles; fileNum++)
+   }
    *destPtr = '\0';
 
 quit:
@@ -7339,7 +7406,40 @@ VixToolsPrintFileExtendedInfo(const char *filePathName,     // IN
    } else if (File_IsDirectory(filePathName)) {
       fileProperties |= VIX_FILE_ATTRIBUTES_DIRECTORY;
    } else if (File_IsFile(filePathName)) {
+      /*
+       * File_GetSize fails and returns -1 when
+       *  - the file does not exist any more
+       *  - the caller has lost permission to access the file
+       *  - the file is exclusively locked at the moment
+       *
+       * The above could happen as a race condition while guest OP
+       * is in progress.
+       */
+#if defined(VMX86_DEBUG)
+      gchar *failThisFile;
+      failThisFile = VMTools_ConfigGetString(gConfDictRef,
+                                             VIX_TOOLS_CONFIG_API_GROUPNAME,
+                                             "failThisFileGetSize",
+                                             NULL);
+      if (g_strcmp0(failThisFile, filePathName) == 0) {
+         g_info("%s: Fail this File_GetSize(%s)...\n",
+                __FUNCTION__, filePathName);
+         fileSize = -1;
+      } else {
+         fileSize = File_GetSize(filePathName);
+      }
+      g_free(failThisFile);
+#else
       fileSize = File_GetSize(filePathName);
+#endif
+      if (fileSize < 0) {
+         g_warning("%s: File_GetSize(%s) returned %"FMT64"d\n",
+                   __FUNCTION__, filePathName, fileSize);
+         /*
+          * Special handling: skip this file item when File_GetSize fails.
+          */
+         return;
+      }
    }
 
 #if !defined(_WIN32)

@@ -35,10 +35,10 @@
 ### Initialization
 ###
 
-TOOLS_VERSION="12.1.5"
+TOOLS_VERSION="12.2.0"
 AC_INIT(
    [open-vm-tools],
-   [12.1.5],
+   [12.2.0],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
@@ -726,10 +726,20 @@ AC_DEFUN([AC_VMW_CONTAINERINFO_MSG],[
 #
 # proto files needed by containerd grpc client.
 #
-   shared_prefix=/usr/share/gocode/src/github.com
+# Installation location varies between Linux vendors.
+#   Canonical, Ubuntu and Debian: in /usr/share/gocode/src
+#   openSUSE/SUSE: in /usr/share/go/<version>/contrib/src
+#
+   for d in /usr/share/gocode/src /usr/share/go/1.*/contrib/src; do
+       if test -d "$d"/github.com; then
+           src_prefix="$d"
+           break
+       fi
+   done
+   shared_prefix=$src_prefix/github.com
    AC_SUBST(TYPES_DIR, github.com/containerd/containerd/api/types)
    AC_SUBST(TASKS_PROTOPATH, $shared_prefix/containerd/containerd/api/services/tasks/v1)
-   AC_SUBST(DEP_PROTOPATH, /usr/share/gocode/src)
+   AC_SUBST(DEP_PROTOPATH, $src_prefix)
    AC_SUBST(CONTAINERD_PROTOPATH, $shared_prefix/containerd/containerd/api/services/containers/v1)
    AC_SUBST(GOGO_PROTOPATH, $shared_prefix/gogo/protobuf)
    AC_CHECK_FILE([${CONTAINERD_PROTOPATH}/containers.proto],
@@ -1938,6 +1948,10 @@ AC_CONFIG_FILES([                      \
    libappmonitor/Makefile              \
    libappmonitor/appmonitor.pc         \
 ])
+
+
+
+
 
 ###
 ### Output

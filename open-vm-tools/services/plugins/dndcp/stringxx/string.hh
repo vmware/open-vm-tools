@@ -152,6 +152,9 @@ public:
    const char *c_str() const;
    const utf16_t *w_str() const;
    const Glib::ustring& ustr() const;
+#ifdef _WIN32
+   const TCHAR* t_str() const;
+#endif
 
    // Mapping functions to Glib::ustring
    void swap(string &s);

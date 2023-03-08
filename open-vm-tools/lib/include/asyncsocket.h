@@ -101,6 +101,8 @@ extern "C" {
 #define ASOCK_ECONNABORTED      WSAECONNABORTED
 #define ASOCK_EPIPE             ERROR_NO_DATA
 #define ASOCK_EHOSTUNREACH      WSAEHOSTUNREACH
+#define ASOCK_ETIMEDOUT         WSAETIMEDOUT
+#define ASOCK_ECONNREFUSED      WSAECONNREFUSED
 #else
 #define ASOCK_ENOTCONN          ENOTCONN
 #define ASOCK_ENOTSOCK          ENOTSOCK
@@ -109,6 +111,8 @@ extern "C" {
 #define ASOCK_EWOULDBLOCK       EWOULDBLOCK
 #define ASOCK_ENETUNREACH       ENETUNREACH
 #define ASOCK_ECONNRESET        ECONNRESET
+#define ASOCK_ETIMEDOUT         ETIMEDOUT
+#define ASOCK_ECONNREFUSED      ECONNREFUSED
 #define ASOCK_ECONNABORTED      ECONNABORTED
 #define ASOCK_EPIPE             EPIPE
 #define ASOCK_EHOSTUNREACH      EHOSTUNREACH
@@ -194,6 +198,7 @@ typedef enum AsyncSocketState {
    AsyncSocketConnected,
    AsyncSocketCBCancelled,
    AsyncSocketClosed,
+   AsyncSocketConnectedRdOnly,
 } AsyncSocketState;
 
 
@@ -746,6 +751,11 @@ int AsyncSocket_SetErrorFn(AsyncSocket *asock, AsyncSocketErrorFn errorFn,
 int AsyncSocket_SetCloseOptions(AsyncSocket *asock,
                                 int flushEnabledMaxWaitMsec,
                                 AsyncSocketCloseFn closeCb);
+
+/*
+ * Close the write side of the connection.
+ */
+int AsyncSocket_CloseWrite(AsyncSocket *asock);
 
 /*
  * Close the connection and destroy the asock.

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2022 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -171,6 +171,7 @@ extern "C" {
 //#define BDOOR_CMD_FAS_GET_NVDIMM_FMT_CODE  11 /* Not in use. Never shipped. */
 #  define BDOOR_CMD_FAS_SRP_ENABLED          12
 #  define BDOOR_CMD_FAS_EXIT_BOOT_SERVICES   13
+#  define BDOOR_CMD_FAS_GET_API_ENABLES      14
 #define   BDOOR_CMD_SENDPSHAREHINTS          66 /* Not in use. Deprecated. */
 #define   BDOOR_CMD_ENABLE_USB_MOUSE         67
 #define   BDOOR_CMD_GET_VCPU_INFO            68
@@ -283,7 +284,7 @@ extern "C" {
  * IMPORTANT NOTE: When modifying the behavior of an existing backdoor command,
  * you must adhere to the semantics expected by the oldest Tools who use that
  * command. Specifically, do not alter the way in which the command modifies
- * the registers. Otherwise backwards compatibility will suffer.
+ * the registers. Otherwise backwards compatibility will be impacted.
  */
 
 /* Nesting control operations */
@@ -307,6 +308,8 @@ extern "C" {
 #define BDOOR_SECUREBOOT_STATUS_DISABLED  0xFFFFFFFFUL
 #define BDOOR_SECUREBOOT_STATUS_APPROVED  1
 #define BDOOR_SECUREBOOT_STATUS_DENIED    2
+
+#define BDOOR_FAS_API_ENABLE_FDT          0x00000001UL
 
 /* High-bandwidth backdoor port. */
 
@@ -441,24 +444,23 @@ extern "C" {
  * Several mechanisms are available:
  *
  * o From EL1
- * The vCPU executes the HVC (64-bit code) instruction with the immediate
- * X86_IO_MAGIC. This is the mechanism to favor from EL1 because it is
- * architectural.
+ *   The vCPU executes the HVC instruction with the immediate X86_IO_MAGIC.
+ *
+ *   This is the mechanism to favor from EL1 because it is architectural.
  *
  * o From EL1 and EL0
- * 64-bit code: The vCPU sets X7<63:32> to X86_IO_MAGIC and executes the
- *              MRS XZR, MDCCSR_EL0 instruction.
- * 32-bit code: To be defined...
- * This is the mechanism to favor from EL0 because it has a negligible impact
- * on vCPU performance.
+ *   The vCPU sets X7<63:32> to X86_IO_MAGIC and executes the
+ *   MRS XZR, MDCCSR_EL0 instruction.
+ *
+ *   This is the mechanism to favor from EL0 because it has a negligible impact
+ *   on vCPU performance.
  *
  * o From EL1 and EL0, only when monitor_control.hv_hypercall = "TRUE"
- * The vCPU executes the BRK (64-bit code) or BKPT (32-bit code) instruction
- * with the immediate X86_IO_MAGIC. Note that T32 code requires an 8-bit
- * immediate.
- * Pro: This mechanism cannot be intercepted by EL3 code.
- * Con: This mechanism has a significant impact on vCPU performance when
- *      running a debugger in the guest.
+ *   The vCPU executes the BRK instruction with the immediate X86_IO_MAGIC.
+ *
+ *   Pro: This mechanism cannot be intercepted by EL3 code.
+ *   Con: This mechanism has a significant impact on vCPU performance when
+ *        running a debugger in the guest.
  *
  * 4) Read from general-purpose registers specific to the x86 I/O space
  *    instruction.

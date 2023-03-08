@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2008-2018, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -43,9 +43,9 @@ typedef struct DynXdrData {
 } DynXdrData;
 
 /*
- * FreeBSD < 5.0 and Solaris do not declare some parameters as "const".
+ * Solaris does not declare some parameters as "const".
  */
-#if defined(sun) || (defined(__FreeBSD__) && __FreeBSD_version < 500000)
+#if defined(sun)
 #  define DYNXDR_CONST
 #else
 #  define DYNXDR_CONST const

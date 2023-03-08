@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -232,14 +232,11 @@ getdents_apple(DIR *fd,               // IN
 #endif
 
 
-#if defined(sun) || defined(__linux__) || \
-    (defined(__FreeBSD_version) && __FreeBSD_version < 490000)
+#if defined(sun) || defined(__linux__)
 /*
- * Implements futimes(), which was introduced in glibc 2.3.3. FreeBSD 3.2
- * doesn't have it, but 4.9 does. Unfortunately, these early FreeBSD versions
- * don't have /proc/self, so futimes() will simply fail. For now the only
- * caller to futimes() is HgfsServerSetattr which doesn't get invoked at all
- * in the HGFS server which runs in the Tools, so it's OK.
+ * Implements futimes(), which was introduced in glibc 2.3.3.
+ * For now the only caller to futimes() is HgfsServerSetattr which doesn't get
+ * invoked at all in the HGFS server which runs in the Tools.
  */
 #define PROC_SELF_FD "/proc/self/fd/"
 #define STRLEN_OF_MAXINT_AS_STRING 10
@@ -1907,23 +1904,19 @@ HgfsGetCreationTime(const struct stat *stats)
 {
    uint64 creationTime;
    /*
-    * Linux and FreeBSD before v5 doesn't know about creation time; we just use the time
+    * Linux doesn't know about creation time; we just use the time
     * of last data modification for the creation time.
-    * FreeBSD 5+ supprots file creation time.
+    * FreeBSD 5+ supports file creation time.
     *
     * Using mtime when creation time is unavailable to be consistent with SAMBA.
     */
 
 #ifdef __FreeBSD__
    /*
-    * FreeBSD: All supported versions have timestamps with nanosecond resolution.
-    *          FreeBSD 5+ has also file creation time.
+    * FreeBSD: All supported versions have timestamps with nanosecond resolution
+    *          and have file creation time.
     */
-#   if __IS_FREEBSD_VER__(500043)
    creationTime   = HgfsConvertTimeSpecToNtTime(&stats->st_birthtimespec);
-#   else
-   creationTime   = HgfsConvertTimeSpecToNtTime(&stats->st_mtimespec);
-#   endif
 #elif defined(__linux__)
    /*
     * Linux: Glibc 2.3+ has st_Xtim.  Glibc 2.1/2.2 has st_Xtime/__unusedX on
@@ -2522,8 +2515,8 @@ HgfsStatToFileAttr(struct stat *stats,       // IN: stat information
 
 #ifdef __FreeBSD__
    /*
-    * FreeBSD: All supported versions have timestamps with nanosecond resolution.
-    *          FreeBSD 5+ has also file creation time.
+    * FreeBSD: All supported versions have timestamps with nanosecond resolution
+    *          and have file creation time.
     */
    attr->accessTime     = HgfsConvertTimeSpecToNtTime(&stats->st_atimespec);
    attr->writeTime      = HgfsConvertTimeSpecToNtTime(&stats->st_mtimespec);
@@ -2565,7 +2558,7 @@ HgfsStatToFileAttr(struct stat *stats,       // IN: stat information
        attr->specialPerms, attr->ownerPerms, attr->groupPerms,
        attr->otherPerms, attr->size);
 #ifdef __FreeBSD__
-#   if !defined(VM_X86_64) && !defined(VM_ARM_64) && __FreeBSD_version >= 500043
+#   if !defined(VM_X86_64) && !defined(VM_ARM_64)
 #      define FMTTIMET ""
 #   else
 #      define FMTTIMET "l"

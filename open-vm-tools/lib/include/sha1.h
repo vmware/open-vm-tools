@@ -41,7 +41,6 @@
 
 #define INCLUDE_ALLOW_MODULE
 #define INCLUDE_ALLOW_USERLEVEL
-#define INCLUDE_ALLOW_VMKERNEL
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
@@ -70,8 +69,6 @@ extern "C" {
 
 #else
 
-#ifndef VMKERNEL
-
 /*
  * Prevent linkage conflicts with the SHA1 APIs brought in from
  * OpenSSL. (Pro tip: If you're doing anything security-related, you
@@ -82,8 +79,6 @@ extern "C" {
 #define SHA1Init             VMW_SHA1Init
 #define SHA1Update           VMW_SHA1Update
 #define SHA1Final            VMW_SHA1Final
-
-#endif /* !VMKERNEL */
 
 /*
 SHA-1 in C
@@ -112,24 +107,13 @@ typedef struct SHA1_CTX {
     unsigned char buffer[64];
 } SHA1_CTX;
 
-#if defined VMKBOOT || defined VMKERNEL
-/* New SHA1 uses are not allowed. Old uses are going away. SHA1 isn't secure. */
-void SHA1Init_Legacy(SHA1_CTX* context);
-void SHA1Update_Legacy(SHA1_CTX* context,
-                       const unsigned char *data,
-                       size_t len);
-void SHA1Final_Legacy(unsigned char digest[SHA1_HASH_LEN], SHA1_CTX* context);
-#else
 void SHA1Init(SHA1_CTX* context);
 void SHA1Update(SHA1_CTX* context,
                 const unsigned char *data,
                 size_t len);
 void SHA1Final(unsigned char digest[SHA1_HASH_LEN], SHA1_CTX* context);
-#endif
 
 #endif // defined __APPLE__ && defined USERLEVEL
-
-#if !defined VMKBOOT && !defined VMKERNEL
 
 /* Opaque handle */
 typedef union {
@@ -150,7 +134,6 @@ void CryptoHash_FinalSHA1(CryptoHash_SHA1_CTX *ctx,
                           unsigned char digest[SHA1_HASH_LEN]);
 void CryptoHash_ComputeSHA1(const void *data, size_t len,
                             unsigned char digest[SHA1_HASH_LEN]);
-#endif
 
 #if defined(__cplusplus)
 }  // extern "C"

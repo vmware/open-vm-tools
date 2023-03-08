@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2021, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -749,11 +749,9 @@ File_GetTimes(const char *pathName,        // IN:
 #if defined(__FreeBSD__)
    /*
     * FreeBSD: All supported versions have timestamps with nanosecond
-    * resolution. FreeBSD 5+ has also file creation time.
+    * resolution.
     */
-#   if defined(__FreeBSD_version) && __FreeBSD_version >= 500043
    *createTime     = TimeUtil_UnixTimeToNtTime(statBuf.st_birthtimespec);
-#   endif
    *accessTime     = TimeUtil_UnixTimeToNtTime(statBuf.st_atimespec);
    *writeTime      = TimeUtil_UnixTimeToNtTime(statBuf.st_mtimespec);
    *attrChangeTime = TimeUtil_UnixTimeToNtTime(statBuf.st_ctimespec);

@@ -163,7 +163,6 @@ Bool Hostinfo_Daemonize(const char *path,
 
 Bool Hostinfo_NestingSupported(void);
 Bool Hostinfo_VCPUInfoBackdoor(unsigned bit);
-Bool Hostinfo_SynchronizedVTSCs(void);
 Bool Hostinfo_TouchBackDoor(void);
 Bool Hostinfo_TouchVirtualPC(void);
 Bool Hostinfo_TouchXen(void);

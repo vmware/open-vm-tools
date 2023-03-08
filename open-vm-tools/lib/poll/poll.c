@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -442,11 +442,17 @@ Poll_CB_RTimeRemove(PollerFunction f,
  *
  * PollSocketPairPrepare --
  *
- *      Do miscellaneous preparetion for the socket pair before connecting
+ *      Do miscellaneous preparation for the socket pair before connecting
  *
  * Results:
- *      Socket bound to a local address, and another set properly.
- *      TRUE if all preparetion succeed, otherwise FALSE.
+ *      The given 'dst' server socket is bound to (and listening on, if a
+ *      stream socket was requested) the specified 'addr' address, with the
+ *      address updated to contain the actual assigned port number if a
+ *      wildcard port was specified.
+ *
+ *      The given client 'src' socket is set into the specified blocking mode.
+ *
+ *      Returns TRUE if all preparation succeeds, otherwise FALSE.
  *
  * Side effects:
  *      None.
@@ -456,35 +462,35 @@ Poll_CB_RTimeRemove(PollerFunction f,
 
 static Bool
 PollSocketPairPrepare(Bool blocking,           // IN: blocking socket?
-                      SOCKET *src,             // IN: client side socket
+                      SOCKET src,              // IN: client side socket
                       SOCKET dst,              // IN: server side socket
-                      struct sockaddr *addr,   // IN: the address connected to
-                      int addrlen,             // IN: length of struct sockaddr
+                      struct sockaddr *addr,   // IN/OUT: server listener address
+                      int addrlen,             // IN: size of listener address
                       int socketCommType)      // IN: SOCK_STREAM or SOCK_DGRAM?
 {
    if (bind(dst, addr, addrlen) == SOCKET_ERROR) {
-      Log("%s: Could not bind socket %d, error %d.\n",
+      Log("%s: Could not bind dst socket %d, error %d.\n",
           __FUNCTION__, dst, WSAGetLastError());
       return FALSE;
    }
 
    if (!blocking) {
       unsigned long a = 1;
-      if (ioctlsocket(*src, FIONBIO, &a) == SOCKET_ERROR) {
-         Log("%s: Could not make socket %d non-blocking, error %d.\n",
-             __FUNCTION__, *src, WSAGetLastError());
+      if (ioctlsocket(src, FIONBIO, &a) == SOCKET_ERROR) {
+         Log("%s: Could not make src socket %d non-blocking, error %d.\n",
+             __FUNCTION__, src, WSAGetLastError());
          return FALSE;
       }
    }
 
    if (socketCommType == SOCK_STREAM && listen(dst, 1) == SOCKET_ERROR) {
-      Log("%s: Could not listen on a socket %d, error %d.\n",
+      Log("%s: Could not listen on dst socket %d, error %d.\n",
           __FUNCTION__, dst, WSAGetLastError());
       return FALSE;
    }
 
    if (getsockname(dst, addr, &addrlen) == SOCKET_ERROR) {
-      Log("%s: getsockname() failed for socket %d, error %d.\n",
+      Log("%s: getsockname() failed for dst socket %d, error %d.\n",
          __FUNCTION__, dst, WSAGetLastError());
       return FALSE;
    }
@@ -498,7 +504,7 @@ PollSocketPairPrepare(Bool blocking,           // IN: blocking socket?
  *
  * PollSocketPairConnect --
  *
- *      Connects a socket to a given address.
+ *      Connects a given socket to a given address.
  *
  * Results:
  *      TRUE if connecting successfully, otherwise FALSE is returned.
@@ -511,21 +517,21 @@ PollSocketPairPrepare(Bool blocking,           // IN: blocking socket?
 
 static Bool
 PollSocketPairConnect(Bool blocking,           // IN: blocking socket?
-                      struct sockaddr *addr,   // IN: the address connected to
-                      int addrlen,             // IN: length of struct sockaddr
-                      SOCKET *s,               // IN: connecting socket
+                      struct sockaddr *addr,   // IN: the address to connect to
+                      int addrlen,             // IN: size of 'addr'
+                      SOCKET sock,             // IN: connecting socket
                       SocketSpecialOpts opts)  // IN: socket special options
 {
    if (blocking && (opts & POLL_OPTIONS_SOCKET_PAIR_NONBLOCK_CONN)) {
       /* Change blocking socket to non-blocking socket for timeout */
       unsigned long unblock = 1;
-      if (ioctlsocket(*s, FIONBIO, &unblock) == SOCKET_ERROR) {
+      if (ioctlsocket(sock, FIONBIO, &unblock) == SOCKET_ERROR) {
          Log("%s: Set socket %d to non-blocking mode failed, error %d.\n",
-             __FUNCTION__, *s, WSAGetLastError());
+             __FUNCTION__, sock, WSAGetLastError());
          return FALSE;
       }
 
-      if (connect(*s, addr, addrlen) == SOCKET_ERROR) {
+      if (connect(sock, addr, addrlen) == SOCKET_ERROR) {
          WSAPOLLFD pollFds[1];
          /* wait timeout seconds */
          unsigned int timeout = Preference_GetLong(3,
@@ -534,11 +540,11 @@ PollSocketPairConnect(Bool blocking,           // IN: blocking socket?
          if (ret != WSAEWOULDBLOCK) {
             /* connection failed */
             Log("%s: Non-blocking socket %d could not connect to a local "
-                "socket, error %d.\n", __FUNCTION__, *s, WSAGetLastError());
+                "socket, error %d.\n", __FUNCTION__, sock, WSAGetLastError());
             return FALSE;
          }
 
-         pollFds[0].fd = *s;
+         pollFds[0].fd = sock;
          pollFds[0].events = POLLWRNORM;
          pollFds[0].revents = 0;
 
@@ -548,8 +554,8 @@ PollSocketPairConnect(Bool blocking,           // IN: blocking socket?
             if (ret == 0) {
                 WSASetLastError(WSAETIMEDOUT);
             }
-            Log("%s: Non-blocking socket %d connects to a local socket "
-                "failed, error %d.\n", __FUNCTION__, *s, WSAGetLastError());
+            Log("%s: Non-blocking socket %d connect to listener socket "
+                "failed, error %d.\n", __FUNCTION__, sock, WSAGetLastError());
             return FALSE;
          }
 
@@ -558,31 +564,31 @@ PollSocketPairConnect(Bool blocking,           // IN: blocking socket?
             /* connection failed */
             int error = 0;
             int errLen = sizeof error;
-            getsockopt(*s, SOL_SOCKET, SO_ERROR, (char *)&error, &errLen);
+            getsockopt(sock, SOL_SOCKET, SO_ERROR, (char *)&error, &errLen);
             WSASetLastError(error);
-            Log("%s: Non-blocking socket %d connect to a local socket failed, "
-                "error %d.\n", __FUNCTION__, *s, WSAGetLastError());
+            Log("%s: Non-blocking socket %d connect to listener socket "
+                "failed, error %d.\n", __FUNCTION__, sock, WSAGetLastError());
             return FALSE;
          }
       }
       /* connection successful */
       Log("%s: Non-blocking socket %d connected successfully with "
-          "socket type %d.\n", __FUNCTION__, *s, addr->sa_family);
+          "socket type %d.\n", __FUNCTION__, sock, addr->sa_family);
       unblock = 0;
-      if (ioctlsocket(*s, FIONBIO, &unblock) == SOCKET_ERROR) {
+      if (ioctlsocket(sock, FIONBIO, &unblock) == SOCKET_ERROR) {
          Log("%s: Non-blocking socket %d restored to blocking mode failed, "
-             "error %d.\n", __FUNCTION__, *s, WSAGetLastError());
+             "error %d.\n", __FUNCTION__, sock, WSAGetLastError());
          return FALSE;
       }
-   } else if (connect(*s, addr, addrlen) == SOCKET_ERROR) {
+   } else if (connect(sock, addr, addrlen) == SOCKET_ERROR) {
       if (blocking || WSAGetLastError() != WSAEWOULDBLOCK) {
          Log("%s: socket %d could not connect to a local socket, "
-             "error %d.\n", __FUNCTION__, *s, WSAGetLastError());
+             "error %d.\n", __FUNCTION__, sock, WSAGetLastError());
          return FALSE;
       }
    } else {
-      Log("%s: non-blocking socket %d connected immediately!\n",
-          __FUNCTION__, *s);
+      Log("%s: %s socket %d connected immediately!\n",
+          __FUNCTION__, (blocking ? "Blocking" : "Non-blocking"), sock);
    }
 
    return TRUE;
@@ -639,46 +645,49 @@ PollSocketPairConnecting(sa_family_t sa_family,  // IN: socket family type
                          struct sockaddr *addr,  // IN: the address connected to
                          int addrlen,            // IN: length of struct sockaddr
                          Bool blocking,          // IN: blocking socket?
-                         SOCKET *s,              // OUT: connecting socket
+                         SOCKET *s,              // OUT: connected client socket
                          SocketSpecialOpts opts) // IN: socket special options
 {
-   SOCKET temp = INVALID_SOCKET;
+   SOCKET server = INVALID_SOCKET; // server (listening) socket
 
-   *s = socket(sa_family, socketCommType, 0);
-   if (*s == INVALID_SOCKET) {
-      Log("%s: Could not create socket, socket family: %d.\n", __FUNCTION__,
-          sa_family);
-      goto out;
-   }
-
-   temp = socket(sa_family, socketCommType, 0);
-   if (temp == INVALID_SOCKET) {
-      PollSocketClose(*s);
-      *s = INVALID_SOCKET;
-      Log("%s: Could not create second socket, socket family: %d.\n",
+   SOCKET client = socket(sa_family, socketCommType, 0);
+   if (client == INVALID_SOCKET) {
+      Log("%s: Could not create client socket, socket family: %d.\n",
           __FUNCTION__, sa_family);
-      goto out;
+      goto outError;
    }
 
-   if (!PollSocketPairPrepare(blocking, s, temp, addr, addrlen, socketCommType)) {
-      Log("%s: Could not prepare the socket pair for the following "
-          "connecting, socket type: %d, sockets: %d, %d.\n",
-          __FUNCTION__, sa_family, *s, temp);
-      goto outCloseTemp;
+   server = socket(sa_family, socketCommType, 0);
+   if (server == INVALID_SOCKET) {
+      Log("%s: Could not create server socket, socket family: %d.\n",
+          __FUNCTION__, sa_family);
+      goto outError;
    }
 
-   if (!PollSocketPairConnect(blocking, addr, addrlen, s, opts)) {
-      Log("%s: Could not make socket pair connected, socket type: %d, "
-          "sockets: %d, %d.\n", __FUNCTION__, sa_family, *s, temp);
-      goto outCloseTemp;
+   if (!PollSocketPairPrepare(blocking, client, server, addr, addrlen, socketCommType)) {
+      Log("%s: Could not prepare socket pair for type %d, client %d, "
+          "server %d.\n", __FUNCTION__, sa_family, client, server);
+      goto outError;
    }
 
-   return temp;
+   if (!PollSocketPairConnect(blocking, addr, addrlen, client, opts)) {
+      Log("%s: Could not connect socket pair for type %d, client %d, "
+          "server %d.\n", __FUNCTION__, sa_family, client, server);
+      goto outError;
+   }
 
-outCloseTemp:
-   PollSocketClose(temp);
+   *s = client;
+   return server;
 
-out:
+outError:
+   if (server != INVALID_SOCKET) {
+      PollSocketClose(server);
+   }
+   if (client != INVALID_SOCKET) {
+      PollSocketClose(client);
+   }
+
+   *s = INVALID_SOCKET;
    return INVALID_SOCKET;
 }
 
@@ -692,9 +701,12 @@ out:
  *      creates an *IPv4* socket pair.
  *
  * Results:
- *      Socket bound to a local address, and another connecting
- *      to that address.
- *      INVALID_SOCKET on error.  Use WSAGetLastError() for detail.
+ *      On success, returns a listening socket bound to a local address, and
+ *      sets a passed-by-reference argument 's' to a client socket that has
+ *      connected to the listening socket.  The client socket's blocking mode
+ *      is as specified by the 'blocking' argument.
+ *
+ *      Returns INVALID_SOCKET on error.  Use WSAGetLastError() for detail.
  *
  * Side effects:
  *      None.
@@ -732,9 +744,12 @@ PollIPv4SocketPairStartConnecting(int socketCommType,     // IN: SOCK_STREAM or 
  *      creates an *IPv6* socket pair.
  *
  * Results:
- *      Socket bound to a local address, and another connecting
- *      to that address.
- *      INVALID_SOCKET on error.  Use WSAGetLastError() for detail.
+ *      On success, returns a listening socket bound to a local address, and
+ *      sets a passed-by-reference argument 's' to a client socket that has
+ *      connected to the listening socket.  The client socket's blocking mode
+ *      is as specified by the 'blocking' argument.
+ *
+ *      Returns INVALID_SOCKET on error.  Use WSAGetLastError() for detail.
  *
  * Side effects:
  *      None.
@@ -772,9 +787,12 @@ PollIPv6SocketPairStartConnecting(int socketCommType,     // IN: SOCK_STREAM or 
  *      creates a *VMCI* socket pair.
  *
  * Results:
- *      Socket bound to a local address, and another connecting
- *      to that address.
- *      INVALID_SOCKET on error.  Use WSAGetLastError() for detail.
+ *      On success, returns a listening socket bound to a local address, and
+ *      sets a passed-by-reference argument 's' to a client socket that has
+ *      connected to the listening socket.  The client socket's blocking mode
+ *      is as specified by the 'blocking' argument.
+ *
+ *      Returns INVALID_SOCKET on error.  Use WSAGetLastError() for detail.
  *
  * Side effects:
  *      None.
@@ -869,32 +887,33 @@ Poll_SocketPair(Bool vmci,              // IN: create vmci pair?
                 int fds[2],             // OUT: 2 sockets connected to each other
                 SocketSpecialOpts opts) // IN: socket special options
 {
-   SOCKET temp = INVALID_SOCKET;
+   SOCKET server = INVALID_SOCKET;
 
    fds[0] = INVALID_SOCKET;
    fds[1] = INVALID_SOCKET;
 
-   temp = PollSocketPairStartConnecting(vmci, stream, TRUE,
-                                        (SOCKET *)&fds[0], opts);
-   if (temp == INVALID_SOCKET) {
+   server = PollSocketPairStartConnecting(vmci, stream, TRUE,
+                                          (SOCKET *)&fds[0], opts);
+   if (server == INVALID_SOCKET) {
       goto out;
    }
    if (stream) {
-      fds[1] = accept(temp, NULL, NULL);
+      fds[1] = accept(server, NULL, NULL);
       if (fds[1] == INVALID_SOCKET) {
-         Log("%s: Could not accept on a local socket.\n", __FUNCTION__);
+         Log("%s: Could not accept on a server socket %d.\n",
+             __FUNCTION__, server);
          goto out;
       }
-      closesocket(temp);
+      closesocket(server);
    } else {
-      fds[1] = temp;
+      fds[1] = server;
    }
    return 0;
 
 out:
    Warning("%s: Error creating a %s socket pair: %d/%s\n", __FUNCTION__,
            vmci ? "vmci" : "inet", WSAGetLastError(), Err_ErrString());
-   closesocket(temp);
+   closesocket(server);
    closesocket(fds[0]);
    closesocket(fds[1]);
    return SOCKET_ERROR;

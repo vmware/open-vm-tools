@@ -39,7 +39,7 @@
 #include "str.h"
 
 #include "mspackWrapper.h"
-#include "deployPkgFormat.h"
+#include "deployPkg/deployPkgFormat.h"
 #include "deployPkg/linuxDeployment.h"
 #include "imgcust-common/process.h"
 #include "linuxDeploymentUtilities.h"

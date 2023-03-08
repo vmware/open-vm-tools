@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -2171,7 +2171,7 @@ GuestInfoServerConfReload(gpointer src,
  *
  ******************************************************************************
  */
-
+#if !defined(USERWORLD)
 static void
 GuestInfoServerIOFreeze(gpointer src,
                         ToolsAppCtx *ctx,
@@ -2180,7 +2180,7 @@ GuestInfoServerIOFreeze(gpointer src,
 {
    TweakGatherLoops(ctx, !freeze);
 }
-
+#endif
 
 /*
  ******************************************************************************
@@ -2371,7 +2371,9 @@ ToolsOnLoad(ToolsAppCtx *ctx)
       ToolsPluginSignalCb sigs[] = {
          { TOOLS_CORE_SIG_CAPABILITIES, GuestInfoServerSendCaps, NULL },
          { TOOLS_CORE_SIG_CONF_RELOAD, GuestInfoServerConfReload, NULL },
+#if !defined(USERWORLD)
          { TOOLS_CORE_SIG_IO_FREEZE, GuestInfoServerIOFreeze, NULL },
+#endif
          { TOOLS_CORE_SIG_RESET, GuestInfoServerReset, NULL },
          { TOOLS_CORE_SIG_SET_OPTION, GuestInfoServerSetOption, NULL },
          { TOOLS_CORE_SIG_SHUTDOWN, GuestInfoServerShutdown, NULL }

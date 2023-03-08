@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 2021-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -21,8 +21,8 @@
  *
  * Functions to manage the known and enabled components by the componentMgr.
  * Consists of functions periodically handling adding/removing of
- * components in the guest OS. Periodically read the guestVar
- * guestinfo./vmware.components.<comp_name>.desiredstate and take present or
+ * components in the guest OS. Periodically read the guestVar:
+ * "guestinfo./vmware.components.<comp_name>.desiredstate" and take present or
  * absent action on the components.
  * Adding/removing a component managed by the plugin is performed
  * asynchronously using Proc_Manager API's.
@@ -811,17 +811,17 @@ ComponentMgrPublishKnownComponents(ToolsAppCtx *ctx) // IN
       if (components[i].isEnabled) {
          gchar *scriptFullPath;
          /*
-          * We need to check the existence of the script for a particular
-          * component before we begin the preset/absent action on the component.
+          * We need to check the existence of the script for a component before
+          * we begin the present/absent action on the component.
           * Skipping the component if no script is installed.
           */
          scriptFullPath = ComponentMgrGetScriptFullPath(executionScripts[i].scriptName,
                                                         executionScripts[i].componentDirectory);
 
          if (!File_Exists(scriptFullPath)) {
-            g_info("%s: Script file for component %s does not exist "
-                   "under path %s.\n", __FUNCTION__, components[i].name,
-                   scriptFullPath);
+            g_debug("%s: Script file for component %s does not exist "
+                    "under path %s.\n", __FUNCTION__, components[i].name,
+                    scriptFullPath);
             g_free(scriptFullPath);
             components[i].isEnabled = FALSE;
             continue;
@@ -852,11 +852,11 @@ ComponentMgrPublishKnownComponents(ToolsAppCtx *ctx) // IN
  *****************************************************************************
  * ComponentMgrIncludedComponents --
  *
- * This function checks and validates the comma seperated list fetched from
+ * This function checks and validates the comma separated list fetched from
  * included tools.conf configuration and classifies the first occurrence of
  * all or none which are special values and returns the result.
  *
- * @param[in] componentString Comma seperated string from the included
+ * @param[in] componentString Comma separated string from the included
  *                            tools.conf configuration.
  *
  * @retun
@@ -904,7 +904,7 @@ ComponentMgrIncludedComponents(const char* componentString) // IN
  *****************************************************************************
  * ComponentMgr_UpdateComponentEnableStatus --
  *
- * This functions reads the comma seperated list of components in the included
+ * This functions reads the comma separated list of components in the included
  * tools.conf configuration and sets the enabled/disabled status for all the
  * components managed by the plugin.
  * It also publishes guestvar guestinfo.vmware.components.available with
@@ -1090,7 +1090,7 @@ ComponentMgrCheckExecuteComponentAction(ToolsAppCtx *ctx,   // IN
  *      None.
  *
  * Side  effects:
- *       Kills the async process runing any action for a component instantly.
+ *       Kills the async process running any action for a component instantly.
  *
  *****************************************************************************
  */

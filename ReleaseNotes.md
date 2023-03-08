@@ -1,8 +1,8 @@
-#                      open-vm-tools 12.1.5 Release Notes
+#                      open-vm-tools 12.2.0 Release Notes
 
-Updated on: 29th NOV 2022
+Updated on: 7 MAR 2023
 
-open-vm-tools | 29th NOV 2022 | Build 20735119
+open-vm-tools | 7 MAR 2023 | Build 21223074
 
 Check back for additions and updates to these release notes.
 
@@ -20,17 +20,17 @@ The release notes cover the following topics:
 
 ## <a id="whatsnew" name="whatsnew"></a>What's New
 
-There are no new features in the open-vm-tools 12.1.5 release.  This is primarily a maintenance release that addresses a few critical problems.
+There are no new features in the open-vm-tools 12.2.0 release.  This is primarily a maintenance release that addresses a few critical problems.
 
 *   Please see the [Resolved Issues](#resolvedissues) and [Known Issues](#knownissues) sections below.
 
-*   A complete list of the granular changes in the open-vm-tools 12.1.5 release is available at:
+*   A complete list of the granular changes in the open-vm-tools 12.2.0 release is available at:
 
-    [open-vm-tools ChangeLog](https://github.com/vmware/open-vm-tools/blob/stable-12.1.5/open-vm-tools/ChangeLog)
+    [open-vm-tools ChangeLog](https://github.com/vmware/open-vm-tools/blob/stable-12.2.0/open-vm-tools/ChangeLog)
 
 ## <a id="i18n" name="i18n"></a>Internationalization
 
-open-vm-tools 12.1.5 is available in the following languages:
+open-vm-tools 12.2.0 is available in the following languages:
 
 * English
 * French
@@ -42,6 +42,10 @@ open-vm-tools 12.1.5 is available in the following languages:
 * Simplified Chinese
 * Traditional Chinese
 
+## <a id="guestop" name="guestop"></a>Guest Operating System Customization Support
+
+The [Guest OS Customization Support Matrix](http://partnerweb.vmware.com/programs/guestOS/guest-os-customization-matrix.pdf) provides details about the guest operating systems supported for customization.
+
 ## <a id="interop" name="interop"></a>Interoperability Matrix
 
 The [VMware Product Interoperability Matrix](http://partnerweb.vmware.com/comp_guide2/sim/interop_matrix.php) provides details about the compatibility of current and earlier versions of VMware Products. 
@@ -50,21 +54,34 @@ The [VMware Product Interoperability Matrix](http://partnerweb.vmware.com/comp_
 
 *   **A number of Coverity reported issues have been addressed.**
 
-*   **The deployPkg plugin may prematurely reboot the guest VM before cloud-init has completed user data setup.**
+*   **The vmtoolsd task is blocked in the uninterruptible state while doing a quiesced snapshot.**
 
-    If both the Perl based Linux customization script and cloud-init run when the guest VM boots, the deployPkg plugin may reboot the guest before cloud-init has finished.  The deployPkg plugin has been updated to wait for a running cloud-init process to finish before the guest VM reboot is initiated.
+    As the ioctl FIFREEZE is done during a quiesced snapshot operation, an EBUSY could be seen because of an attempt to freeze the same superblock more than once depending on the OS configuration (e.g. usage of bind mounts).  An EBUSY could also mean another process has locked or frozen that filesystem.  That later could lead to the vmtoolsd process being blocked and ultimately other processes on the system could be blocked.
 
-    This issue is fixed in this release.
+    The Linux quiesced snapshot procedure has been updated that when an EBUSY is received, the filesystem FSID is checked against the list of filesystems that have already been quiesced.  If not previously seen, a warning that the filesystem is controlled by another process is logged and the quiesced snapshot request will be rejected.
 
-*   **A SIGSEGV may be encountered when a non-quiesing snapshot times out.**
+    This fix to lib/syncDriver/syncDriverLinux.c is directly applicable to previous releases of open-vm-tools and is available at:
 
-    This issue is fixed in this release.
+        https://github.com/vmware/open-vm-tools/commit/9d458c53a7a656d4d1ba3a28d090cce82ac4af0e
 
-*   **Unwanted vmtoolsd service error message if not on a VMware hypervisor.**
+*   **Updated the guestOps to handle some edge cases.**
 
-    When open-vm-tools comes preinstalled in a base Linux release, the vmtoolsd services are started automatically at system start and desktop login.  If running on physical hardware or in a non-VMware hypervisor, the services will emit an error message to the Systemd's logging service before stopping.
+    When File_GetSize() fails or returns a -1 indicating the user does not have access permissions:
 
-    This issue is fixed in this release.
+    1. Skip the file in the output of the ListFiles() request.
+    2. Fail an InitiateFileTransferFromGuest operation.
+
+*   **The following pull requests and issues have been addressed.**
+
+    * Detect the proto files for the containerd grpc client in alternate locations.
+
+      [Pull request #626](https://github.com/vmware/open-vm-tools/pull/626)
+
+    * FreeBSD: Support newer releases and code clean-up for earlier versions.
+
+      [Pull request #584](https://github.com/vmware/open-vm-tools/pull/584)
+
+
 
 ## <a id="knownissues" name="knownissues"></a>Known Issues
 

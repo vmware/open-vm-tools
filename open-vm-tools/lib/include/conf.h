@@ -276,16 +276,6 @@
 #define CONFNAME_GSUPGRADE_POLLINTERVAL "poll-interval"
 
 /**
- * Define a custom GuestStore periodic Upgrade interval (in seconds).
- *
- * @note Illegal values result in a @c g_warning and fallback to the default
- * upgrade interval.
- *
- * @param int   User-defined upgrade interval.  Set to 0 to disable polling.
- */
-#define CONFNAME_GSUPGRADE_UPGRADEINTERVAL "upgrade-interval"
-
-/**
  * Define a custom GuestStore content path prefix.
  *
  * @note Illegal values result in a @c g_warning and fallback to the default
@@ -758,6 +748,26 @@
 
 /*
  * END gdp goodies.
+ ******************************************************************************
+ */
+
+/*
+ ******************************************************************************
+ * BEGIN timeSync plugin goodies.
+ */
+
+/**
+ * Defines the string used for the timeSync config file group.
+ */
+#define CONFGROUPNAME_TIMESYNC "timeSync"
+
+/**
+ * Enable (or disable) the TimeInfo API.
+ */
+#define CONFNAME_TIMESYNC_TIMEINFO_ENABLED "timeInfo.enabled"
+
+/*
+ * END timeSync goodies.
  ******************************************************************************
  */
 

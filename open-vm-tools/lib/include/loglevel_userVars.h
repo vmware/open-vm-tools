@@ -27,6 +27,7 @@
 /* KEEP IN SORTED ORDER! */
 
 #define LOGLEVEL_USER(LOGLEVEL_VAR) \
+   LOGLEVEL_VAR(9pfs), \
    LOGLEVEL_VAR(acpi), \
    LOGLEVEL_VAR(acpiGPE), \
    LOGLEVEL_VAR(ahci), \
@@ -286,6 +287,7 @@
    LOGLEVEL_VAR(vdpPlugin), \
    LOGLEVEL_VAR(vdtiPciCfgSpc), \
    LOGLEVEL_VAR(vflash), \
+   LOGLEVEL_VAR(vg), \
    LOGLEVEL_VAR(vga), \
    LOGLEVEL_VAR(vide), \
    LOGLEVEL_VAR(viewClient), \

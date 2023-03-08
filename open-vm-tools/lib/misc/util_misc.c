@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019, 2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019, 2021-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -304,7 +304,7 @@ Util_CanonicalPathsIdentical(const char *path1,  // IN:
    return (strcmp(path1, path2) == 0);
 #elif defined(_WIN32)
    return (_stricmp(path1, path2) == 0);
-#elif defined(__APPLE__)
+#elif defined(__APPLE__) || defined(__FreeBSD__)
    return (strcasecmp(path1, path2) == 0);
 #else
    NOT_IMPLEMENTED();

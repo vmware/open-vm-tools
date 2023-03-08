@@ -133,6 +133,7 @@ typedef enum {
    VMXNET3_CMD_UPDATE_FEATURE,
    VMXNET3_CMD_STOP_EMULATION,
    VMXNET3_CMD_LOAD_PLUGIN,
+   VMXNET3_CMD_SET_UPT_INTR_AFFINITY = VMXNET3_CMD_LOAD_PLUGIN,
    VMXNET3_CMD_ACTIVATE_VF,
    VMXNET3_CMD_SET_POLLING,
    VMXNET3_CMD_SET_COALESCE,
@@ -378,15 +379,7 @@ typedef struct Vmxnet3_RxCompDescExt {
    uint8  segCnt;       /* Number of aggregated packets */
    uint8  dupAckCnt;    /* Number of duplicate Acks */
    __le16 tsDelta;      /* TCP timestamp difference */
-
-#ifdef __BIG_ENDIAN_BITFIELD
-   uint32 encap:1;      /* LRO info refers to inner pkt */
-   uint32 reserved:31;
-#else
-   uint32 reserved:31;
-   uint32 encap:1;      /* LRO info refers to inner pkt */
-#endif  /* __BIG_ENDIAN_BITFIELD */
-
+   __le32 dword2;
 #ifdef __BIG_ENDIAN_BITFIELD
    uint32 gen:1;        /* generation bit */
    uint32 type:7;       /* completion type */

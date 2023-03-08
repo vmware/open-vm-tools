@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2016-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 2016-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1251,6 +1251,48 @@ AsyncSocket_Close(AsyncSocket *asock)         // IN
       AsyncSocketLock(asock);
       ret = VT(asock)->close(asock);
       ASSERT(!asock->inited);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocket_CloseWrite --
+ *
+ *      Close the write side of AsyncSocket, and leave the read side open. This
+ *      can be used to implement a shutdown(SHUT_WR...) equivalent.
+ *
+ *      This function is meant to be called after the socket has been connected
+ *      If no error, pending send is flushed the same way as AsyncSocket_Close,
+ *      and then the socket enters half-closed state, disallowing further send.
+ *
+ *      Like AsyncSocket_Close, it's safe to call at any time, but it could err
+ *      when the socket is not connected. Unlike Close, read side of the socket
+ *      is left intact, and the the socket is not released.
+ *
+ *      If the socket is already closed, it returns success.
+ *
+ * Results:
+ *      ASOCKERR_*.
+ *
+ * Side effects:
+ *      Send is not permitted after this call.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+AsyncSocket_CloseWrite(AsyncSocket *asock)         // IN
+{
+   int ret;
+   if (VALID(asock, closeWrite)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->closeWrite(asock);
       AsyncSocketUnlock(asock);
    } else {
       ret = ASOCKERR_INVAL;
