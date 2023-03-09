@@ -196,6 +196,7 @@ typedef struct {
  */
 
 static const DistroInfo distroArray[] = {
+   { "AlmaLinux",          "/etc/redhat-release"        },
    { "ALT",                "/etc/altlinux-release"      },
    { "Annvix",             "/etc/annvix-release"        },
    { "Arch",               "/etc/arch-release"          },
