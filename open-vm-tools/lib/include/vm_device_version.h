@@ -362,7 +362,19 @@
 /************* USB host controller limits ********************/
 #define USB_EHCI_MAX_CONTROLLERS        1
 #define USB_XHCI_MAX_CONTROLLERS        1
-#define USB_MAX_DEVICES_PER_HOST_CTRL   20
+
+/*
+ * As per USB specification 127 devices can be connected. Along with user usb
+ * devices other types of devices like root hub, hub, keyboard, mouse are also
+ * present and are not expose directly to users. These other devices also
+ * occupy ports on USB.
+ *
+ * Although we have 20 devices limit for virtual usb mass storage on each
+ * controller we can't just put 20 here as we need to account for other devices
+ * which are necessary for functionality
+ * TODO: enforce 20 devices limit from hostd
+ */
+#define USB_MAX_DEVICES_PER_HOST_CTRL   127
 /************* Strings for Host USB Driver *******************************/
 
 #ifdef _WIN32
