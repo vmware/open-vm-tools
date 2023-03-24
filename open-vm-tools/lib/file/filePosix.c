@@ -1570,8 +1570,8 @@ File_GetVMFSLockInfo(const char *path,         // IN
    int ret = -1;
    int ioctlRet;
    int fd = -1;
-   FS_GetFileLockInfoArgs lockArgs = {0};
-   FS_DumpFDData dumpArgs = {0};
+   FS_GetFileLockInfoArgs lockArgs;
+   FS_DumpFDData dumpArgs;
    char *dir = NULL;
    char *fileName = NULL;
 
@@ -1581,6 +1581,8 @@ File_GetVMFSLockInfo(const char *path,         // IN
    *outVMFSMacAddr = NULL;
    *outVMFSLockMode = 0;
 
+   memset(&lockArgs, 0, sizeof lockArgs);
+   memset(&dumpArgs, 0, sizeof dumpArgs);
    File_SplitName(path, NULL, &dir, &fileName);
 
    fd = Posix_Open(dir, O_RDONLY, 0);
