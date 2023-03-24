@@ -73,9 +73,12 @@
 #include "hostType.h"
 #include "vmfs.h"
 #include "hashTable.h"
+#include "hostinfo.h"
+#include "log.h"
 
 #ifdef VMX86_SERVER
 #include "fs_public.h"
+#include "fs3Layout.h"
 #endif
 
 #define LOGLEVEL_MODULE main
@@ -1526,7 +1529,130 @@ File_GetVMFSMountInfo(const char *pathName,    // IN:
 
    return ret;
 }
-#endif
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * File_GetVMFSLockInfo --
+ *
+ *      Get lock information about a file that has probably caused a
+ *      locking conflict.
+ *
+ *      If the file is locked by a process local to the current host,
+ *      FS open flags, world ID, and world name will be returned (or
+ *      0/NULL if not).
+ *
+ *      If the file is on VMFS, the owner MAC address and lock mode of
+ *      the on-disk lock will be provided (or 0/NULL if not).
+ *
+ *      (It's possible for a file to be on a non-VMFS shared datastore
+ *      like NFS/VVol/VSAN and be locked by another host. In that
+ *      case, this function might not return any information.)
+ *
+ * Results:
+ *      0 on success (and see above), -1 otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+File_GetVMFSLockInfo(const char *path,         // IN
+                     uint32 *outOpenFlags,     // OUT:
+                     uint32 *outWorldID,       // OUT:
+                     char **outWorldName,      // OUT:
+                     char **outVMFSMacAddr,    // OUT:
+                     uint32 *outVMFSLockMode)  // OUT:
+{
+   int ret = -1;
+   int ioctlRet;
+   int fd = -1;
+   FS_GetFileLockInfoArgs lockArgs = {0};
+   FS_DumpFDData dumpArgs = {0};
+   char *dir = NULL;
+   char *fileName = NULL;
+
+   *outOpenFlags = 0;
+   *outWorldID = INVALID_WORLD_ID;
+   *outWorldName = NULL;
+   *outVMFSMacAddr = NULL;
+   *outVMFSLockMode = 0;
+
+   File_SplitName(path, NULL, &dir, &fileName);
+
+   fd = Posix_Open(dir, O_RDONLY, 0);
+   if (fd == -1) {
+      Log(LGPFX" %s: could not open directory \"%s\": %s\n", __FUNCTION__, dir,
+          Err_Errno2String(errno));
+      goto exit;
+   }
+
+   Str_Strncpy(lockArgs.fileName, sizeof lockArgs.fileName, fileName,
+               strlen(fileName));
+   ioctlRet = ioctl(fd, IOCTLCMD_GETFILELOCKINFO, (char *)&lockArgs);
+   /* If this fails, it might be open only on another machine. */
+   if (ioctlRet != -1) {
+      *outOpenFlags = lockArgs.openFlags;
+      *outWorldID = lockArgs.worldID;
+      *outWorldName = Util_SafeStrdup(lockArgs.worldName);
+   }
+
+   Str_Strncpy(dumpArgs.args.fileName, sizeof dumpArgs.args.fileName,
+               fileName, strlen(fileName));
+   ioctlRet = ioctl(fd, IOCTLCMD_VMFS_DUMP_METADATA, (char *)&dumpArgs);
+   /* If this fails, it probably isn't on VMFS. */
+   if (ioctlRet != -1) {
+      FS3_FileDescriptor *fileDesc =
+         (FS3_FileDescriptor *)&dumpArgs.result.descriptor;
+      FS3_DiskLock *diskLock = FS3_DISKLOCK(&fileDesc->lockBlock);
+      if (dumpArgs.result.descriptorLength < sizeof(FS3_FileDescriptor)) {
+         /* This should not happen. */
+         Log(LGPFX" %s: VMFS file descriptor size %u too small (need "
+             "%"FMTSZ"u) for file \"%s\"\n", __FUNCTION__,
+             dumpArgs.result.descriptorLength, sizeof(FS3_FileDescriptor),
+             path);
+         goto exit;
+      }
+
+      *outVMFSLockMode = diskLock->mode;
+
+      if (diskLock->mode != FS3_LC_FREE &&
+          diskLock->mode != FS3_LC_EXCLUSIVE) {
+         /*
+          * This is a non-exclusive lock. Thus it can have multiple holders.
+          * For now, return only the first.
+          */
+         if (diskLock->numHolders == 0 ||
+             diskLock->numHolders > FS3_MAX_LOCK_HOLDERS) {
+            Log(LGPFX" %s: Corrupt VMFS disk lock found for file \"%s\", "
+                "invalid number of holders %u.\n", __FUNCTION__, path,
+                diskLock->numHolders);
+            goto exit;
+         }
+         *outVMFSMacAddr = Str_SafeAsprintf(NULL, FS_UUID_FMTSTR,
+            FS_UUID_VAARGS(&diskLock->holders[0].uid));
+      } else {
+         /* Exclusive lock, so there is only one owner. */
+         *outVMFSMacAddr = Str_SafeAsprintf(NULL, FS_UUID_FMTSTR,
+            FS_UUID_VAARGS(&diskLock->owner));
+      }
+   }
+
+   ret = 0;
+
+  exit:
+   if (fd != -1) {
+      close(fd);
+   }
+   free(dir);
+   free(fileName);
+   return ret;
+}
+
+#endif // VMX86_SERVER
 
 
 /*

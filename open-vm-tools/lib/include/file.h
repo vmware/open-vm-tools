@@ -116,6 +116,13 @@ int File_GetVMFSMountInfo(const char *pathName,
                           char **remoteIP,
                           char **remoteMountPoint,
                           char **localMountPoint);
+
+int File_GetVMFSLockInfo(const char *path,
+                         uint32 *outOpenFlags,
+                         uint32 *outWorldID,
+                         char **outWorldName,
+                         char **outVMFSMacAddr,
+                         uint32 *outVMFSLockMode);
 #endif
 
 Bool File_SupportsZeroedThick(const char *pathName);
