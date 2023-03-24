@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 2021,2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -197,6 +197,9 @@ typedef enum InstallStatus
    REMOVING,                /* The component is being removed on the guest OS.
                              */
    REMOVEFAILED,            /* The component remove failed on the guest OS. */
+   UNMANAGED,               /* The component is installed on the guest OS, but
+                               is not managed (or manageable), through the
+                               component manager plugin. */
    SCRIPTFAILED = 126,      /* The component script failed for some reason. */
    SCRIPTTERMINATED = 130   /* The component script terminated for some reason.
                              */
@@ -214,7 +217,7 @@ typedef enum Action
    ABSENT,       /* The action removes/uninstalls the components on the guest.*/
    CHECKSTATUS,  /* The action calls the preconfigured script to check the
                     current status of the component. */
-   INVALIDACTION /* Action not recongnised by the plugin. */
+   INVALIDACTION /* Action not recognised by the plugin. */
 } Action;
 
 
@@ -254,7 +257,7 @@ typedef struct ComponentInfo
                                 * current running async process for a component.
                                 */
    int statuscount;      /* A counter value to store max number of times to
-                            wait before starting another checkstatus opeartion
+                            wait before starting another checkstatus operation
                           */
    Action action;        /* Contains information about the action to be
                             performed on a component. */
