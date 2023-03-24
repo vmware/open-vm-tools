@@ -1,3 +1,93 @@
+commit dfe0aa7ef53ea6051d31cc69f406e746e8d0f80c
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Mar 24 13:29:28 2023 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 5e28e7e7577b35c585d4c45e053a162615bdbb1b
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Mar 24 13:29:28 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 2a9a730985ff05bcb808e68e4526856bb77a4c17
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Mar 24 13:29:28 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit acff74d7fa4e4f3bb70c575a287cac2762cfdaec
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Mar 24 13:29:28 2023 -0700
+
+    Record the usage of VMware Tools version 12.2.5 in vm_tools_version.h
+    
+    Adding tools TOOLS_VERSION_BANDSAW_UPDATE1 for 12.2.5 into the
+    vm_tools_version.h header file.
+
+commit c30e8e66dcc41fd6e869c3a87d712ab29a90df8a
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Mar 24 13:29:28 2023 -0700
+
+    Record the GA release of VMware Tools 12.2.0.
+    
+    Adding the "_RELEASE" suffix to the tools 12.2.0 tagname in vm_tools_version.h.
+
+commit a1a29b2358c8ca022d5116ee199c02337ec6a4a9
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Mar 24 13:29:28 2023 -0700
+
+    Add UNMANAGED InstallStatus value for components
+    
+    The UNMANAGED InstallStatus is returned from components operations to indicate
+    that the component is installed (detected) but is not to be managed by the
+    Component Manager.  The Component Manager will not take actions (except
+    checkStatus) until the UNMANAGED status for the component gets resolved
+    (externally).
+    
+    The Salt Minion (salt_minion) component returns code 106 ("ExternalInstall")
+    is equivalent to UNMANAGED.
+
+commit 62dc9fe959f8cc6fee64a716cc1de2dee0f0d0ef
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Mar 24 13:29:28 2023 -0700
+
+    lib/file: Fix timetools breakage to use memset
+    
+    GCC bug (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=53119) wrongly
+    complains about using the zero initializer in some circumstances.
+
+commit f26fad0849a5107018bbcc0b4687b460432e6d3c
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Mar 24 13:29:28 2023 -0700
+
+    Change to common source files not applicable to open-vm-tools.
+
+commit ab7a609bd52b57e74946a58f9a989845128555d3
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Mar 24 13:29:28 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 12cc8ad99a9cd8faaf990d03010d511d50f88ee2
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Mar 24 13:29:28 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 425df45b9551383ec393d44926782f3d64603d83
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Mar 24 13:29:28 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit e0cec2ba3f7fcf0958077d6209a58951f5a6d275
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Mar 6 10:42:40 2023 -0800
+
+    Update Changelog with the granular push of Mar 6, 2023.
+    - plus ChangeLog update of Feb 23, 2023.
+
 commit 813d8531e739f6a12a4e3c92f18786e10f46eacc
 Author: Katy Feng <fkaty@vmware.com>
 Date:   Mon Mar 6 10:32:39 2023 -0800
