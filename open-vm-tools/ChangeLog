@@ -1,3 +1,96 @@
+commit 0c15d1214d340893719c9eaaee7a071318bd7399
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Apr 6 11:33:31 2023 -0700
+
+    Correct missed 2023 copyright update.
+
+commit 41f7e48c7570673bf84938bdf243dd78ad66c608
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Apr 6 11:27:41 2023 -0700
+
+    Update the AUTHORS file in open-vm-tools.
+
+commit 377f82a668c6c02a3fa15ad3f2da3a5b7849f39a
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Apr 6 11:27:41 2023 -0700
+
+    Changes to common header files not applicable to open-vm-tools.
+
+commit d65cdcb30a38f8de7f127f9b6c8bf78e8c987b98
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Apr 6 11:27:41 2023 -0700
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit 06081ea162cb73754b9bcb6574db78cba6db5aa7
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Apr 6 11:27:41 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 215d87b455bc630f33c22f67d362a6e530fdd1db
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Apr 6 11:27:41 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 0365b80e3a5c67ecedd3dcc312e425ef4b2ec9dc
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Apr 6 11:27:41 2023 -0700
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit 9c861f7feade19ef863a46f5ddd59c44d98a7b83
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Apr 6 11:27:41 2023 -0700
+
+    Changes to common header files not applicable to open-vm-tools.
+
+commit 8ee7744f7716467185c2a7abda8776ea10387f5f
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Apr 6 11:27:41 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 241b8eefe7090086a8fc8bab5b9504578731eaf1
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Apr 6 11:27:41 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 3a16728979d86ed78009817f1940a3ddc40b9103
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Apr 6 11:27:41 2023 -0700
+
+    Improve POSIX guest identification
+
+    Many Linux distros do not provide LSB information.  Instead,
+    they rely exclusively on the the os-release standard information.
+
+    We previously used a ranking system that rates the LSB data
+    (if present) against the os-release data (if present).
+    With the LSB data install much more rare than before, perform
+    a quick check for the LSB before attempting expensive operations.
+
+    This is in response to these GitHub issues:
+
+    https://github.com/vmware/open-vm-tools/issues/647
+    https://github.com/vmware/open-vm-tools/issues/648
+
+    Note that we cannot look just for the os-release data.  In older
+    Linux releases, there are mistakes or differences between the
+    os-release and LSB data.  We must continue to do what we do now
+    or risk changing the identification of older releases.
+
+    This optimization is very effective.
+
+commit b9da6af8a561b911c6d59cfffb5b96cd5af3b6f7
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Mar 24 13:48:17 2023 -0700
+
+    Update ChangeLog with the granular push of Mar 24, 2023.
+    - plus ChangeLog update of Mar 6, 2023.
+
 commit dfe0aa7ef53ea6051d31cc69f406e746e8d0f80c
 Author: Katy Feng <fkaty@vmware.com>
 Date:   Fri Mar 24 13:29:28 2023 -0700
