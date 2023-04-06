@@ -19,12 +19,12 @@
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
 #include <ctype.h>
 #include <sys/utsname.h>
 #include <netdb.h>
 #include <fcntl.h>
+#include <unistd.h>
 #include <limits.h>
 #include <errno.h>
 #include <sys/file.h>
@@ -149,6 +149,8 @@
    MAX(sizeof SYSTEM_BITNESS_64_LINUX, \
    MAX(sizeof SYSTEM_BITNESS_64_ARM_LINUX, \
        sizeof SYSTEM_BITNESS_64_ARM_FREEBSD))))
+
+#define LSB_RELEASE "/usr/bin/lsb_release"
 
 struct hostinfoOSVersion {
    int   hostinfoOSVersion[4];
@@ -1794,10 +1796,20 @@ HostinfoLsb(char ***args)  // OUT:
    size_t fields = ARRAYSIZE(lsbFields) - 1;  // Exclude terminator
 
    /*
+    * In recent times, an increasing number of distros do not have the
+    * LSB support installed. Perform a quick check for it and bail if
+    * it's not accessible.
+    */
+
+   if (access(LSB_RELEASE, F_OK | X_OK) == -1) {
+      return -1;
+   }
+
+   /*
     * Try to get OS detailed information from the lsb_release command.
     */
 
-   lsbOutput = HostinfoGetCmdOutput("/usr/bin/lsb_release -sd 2>/dev/null");
+   lsbOutput = HostinfoGetCmdOutput(LSB_RELEASE " -sd 2>/dev/null");
 
    if (lsbOutput == NULL) {
       /*
@@ -1820,14 +1832,16 @@ HostinfoLsb(char ***args)  // OUT:
       free(lsbOutput);
 
       /* LSB Distributor */
-      lsbOutput = HostinfoGetCmdOutput("/usr/bin/lsb_release -si 2>/dev/null");
+      lsbOutput = HostinfoGetCmdOutput(LSB_RELEASE " -si 2>/dev/null");
+
       if (lsbOutput != NULL) {
          (*args)[0] = Util_SafeStrdup(HostinfoLsbRemoveQuotes(lsbOutput));
          free(lsbOutput);
       }
 
       /* LSB Release */
-      lsbOutput = HostinfoGetCmdOutput("/usr/bin/lsb_release -sr 2>/dev/null");
+      lsbOutput = HostinfoGetCmdOutput(LSB_RELEASE " -sr 2>/dev/null");
+
       if (lsbOutput != NULL) {
          (*args)[1] = Util_SafeStrdup(HostinfoLsbRemoveQuotes(lsbOutput));
          free(lsbOutput);
