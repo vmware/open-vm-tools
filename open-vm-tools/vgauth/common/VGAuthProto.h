@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2016,2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -20,6 +20,8 @@
 #define _VGAUTHPROTO_H_
 
 #include "VGAuthError.h"
+
+/* clang-format off */
 
 /*
  * @file VGAuthProto.h
@@ -615,6 +617,7 @@
 
 #define VGAUTH_REQUESTVALIDATESAMLBEARERTOKEN_ELEMENT_NAME "ValidateSamlBToken"
 
+
 #define VGAUTH_VALIDATESAMLBEARERTOKEN_REQUEST_FORMAT \
    VGAUTH_REQUEST_FORMAT_START \
       "<"VGAUTH_REQUESTNAME_ELEMENT_NAME">"VGAUTH_REQUESTVALIDATESAMLBEARERTOKEN_ELEMENT_NAME"</"VGAUTH_REQUESTNAME_ELEMENT_NAME">" \
@@ -622,6 +625,7 @@
       "<"VGAUTH_USERNAME_ELEMENT_NAME">%s</"VGAUTH_USERNAME_ELEMENT_NAME">" \
       "<"VGAUTH_VALIDATE_ONLY_ELEMENT_NAME">%s</"VGAUTH_VALIDATE_ONLY_ELEMENT_NAME">" \
    VGAUTH_REQUEST_FORMAT_END
+
 
 #define VGAUTH_VALIDATESAMLBEARERTOKEN_REPLY_FORMAT_START \
    VGAUTH_REPLY_FORMAT_START \
@@ -637,4 +641,5 @@
    VGAUTH_USERHANDLESAMLINFO_FORMAT_END \
    VGAUTH_REPLY_FORMAT_END
 
+/* clang-format on */
 #endif   // _VGAUTHPROTO_H_

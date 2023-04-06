@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2017,2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -409,7 +409,7 @@ VGAuth_ValidateSSPIResponse(VGAuthContext *ctx,
  *        authenticated.</li>
  * </ol>
  *
- * @remark One @a extraParams is supported:
+ * @remark Supported @a extraParams:
  *         VGAUTH_PARAM_VALIDATE_INFO_ONLY, which must have the value
  *         VGAUTH_PARAM_VALUE_TRUE or VGAUTH_PARAM_VALUE_FALSE.
  *         If set, SAML token validation is done, but the returned

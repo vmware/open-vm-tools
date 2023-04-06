@@ -1230,10 +1230,10 @@ done:
  *
  * Verifies the signature on an XML document.
  *
- * @param[in]  doc       Parsed XML document.
- * @param[out] numCerts  Number of certs in the token.
- * @param[out] certChain Certs in the token. Caller should g_free() array and
- *                       contents.
+ * @param[in]  doc          Parsed XML document.
+ * @param[out] numCerts     Number of certs in the token.
+ * @param[out] certChain    Certs in the token. Caller should g_free() array and
+ *                          contents.
  *
  * @return TRUE on success.
  *
@@ -1313,6 +1313,7 @@ VerifySignature(xmlDocPtr doc,
       g_warning("Failed to add cert to key manager\n");
       goto done;
    }
+
 
    /*
     * Create a signature context with the key manager
@@ -1401,11 +1402,11 @@ done:
  * Verifies a XML text as a SAML token.
  * Parses the XML, then verifies Subject, Conditions and Signature.
  *
- * @param[in]  token     Text of SAML token.
- * @param[out] subject   Subject of SAML token,  Caller must g_free().
- * @param[out] numCerts  Number of certs in the token.
- * @param[out] certChain Certs in the token. Caller should g_free() array and
- *                       contents.
+ * @param[in]  token         Text of SAML token.
+ * @param[out] subject       Subject of SAML token,  Caller must g_free().
+ * @param[out] numCerts      Number of certs in the token.
+ * @param[out] certChain     Certs in the token. Caller should g_free()
+ *                           array and contents.
  *
  * @return matching TRUE on success.
  *
@@ -1470,7 +1471,8 @@ VerifySAMLToken(const gchar *token,
    }
 #endif
 
-   bRet = VerifySignature(doc, numCerts, certChain);
+   bRet = VerifySignature(doc,
+                          numCerts, certChain);
    if (FALSE == bRet) {
       g_warning("Failed to verify Signature\n");
       // XXX Can we log the token at this point without risking security?
@@ -1494,6 +1496,8 @@ done:
 
    return retCode;
 }
+
+
 
 
 /*
@@ -1550,13 +1554,13 @@ SAML_VerifyBearerToken(const char *xmlText,
  * The token must first be verified, then the certificate chain used
  * verify it must be checked against the appropriate certificate store.
  *
- * @param[in]  xmlText     The text of the SAML assertion.
- * @param[in]  userName    Optional username to authenticate as.
- * @param[out] userNameOut The user that the token has authenticated as.
- * @param[out] subjNameOut The subject in the token.  Caller must g_free().
- * @param[out] verifyAi    The alias info associated with the entry
- *                         in the alias store used to verify the
- *                         SAML cert.
+ * @param[in]  xmlText      The text of the SAML assertion.
+ * @param[in]  userName     Optional username to authenticate as.
+ * @param[out] userNameOut  The user that the token has authenticated as.
+ * @param[out] subjNameOut  The subject in the token.  Caller must g_free().
+ * @param[out] verifyAi     The alias info associated with the entry
+ *                          in the alias store used to verify the
+ *                          SAML cert.
  *
  * @return VGAUTH_E_OK on success, VGAuthError on failure
  *

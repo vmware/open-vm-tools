@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2017,2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -463,7 +463,8 @@ SAML_VerifyBearerToken(const char *xmlText,
       VGAuthError err;
       SAMLTokenData token;
 
-      err = SAMLVerifyAssertion(xmlText, token, certs);
+      err = SAMLVerifyAssertion(xmlText,
+                                token, certs);
       if (VGAUTH_E_OK != err) {
          return err;
       }
@@ -497,13 +498,13 @@ SAML_VerifyBearerToken(const char *xmlText,
  * The token must first be verified, then the certificate chain used
  * verify it must be checked against the appropriate certificate store.
  *
- * @param[in]  xmlText     The text of the SAML assertion.
- * @param[in]  userName    Optional username to authenticate as.
- * @param[out] userNameOut The user that the token has authenticated as.
- * @param[out] subjNameOut The subject in the token.
- * @param[out] verifySi    The subjectInfo associated with the entry
- *                         in the ID provider store used to verify the
- *                         SAML cert.
+ * @param[in]  xmlText      The text of the SAML assertion.
+ * @param[in]  userName     Optional username to authenticate as.
+ * @param[out] userNameOut  The user that the token has authenticated as.
+ * @param[out] subjNameOut  The subject in the token.
+ * @param[out] verifySi     The subjectInfo associated with the entry
+ *                          in the ID provider store used to verify the
+ *                          SAML cert.
  *
  * @return VGAUTH_E_OK on success, VGAuthError on failure
  *
@@ -529,7 +530,8 @@ SAML_VerifyBearerTokenAndChain(const char *xmlText,
       ServiceSubject subj;
       int i;
 
-      err = SAMLVerifyAssertion(xmlText, token, certs);
+      err = SAMLVerifyAssertion(xmlText,
+                                token, certs);
       if (VGAUTH_E_OK != err) {
          return err;
       }
@@ -656,7 +658,8 @@ SAMLVerifyAssertion(const char *xmlText,
       return VGAUTH_E_AUTHENTICATION_DENIED;
    }
 
-   if (!SAMLCheckSignature(doc, certs)) {
+   if (!SAMLCheckSignature(doc,
+                           certs)) {
       return VGAUTH_E_AUTHENTICATION_DENIED;
    }
 
