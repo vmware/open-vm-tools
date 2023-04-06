@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2003-2022 VMware, Inc. All rights reserved.
+ * Copyright (c) 2003-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -71,6 +71,12 @@
 #elif defined VM_ARM_64
 #include "vm_basic_asm_arm64.h"
 #else
+#define MUL64_NO_ASM 1
+#include "mul64.h"
+#endif
+
+#if defined _M_ARM64EC
+#include "vm_assert.h"
 #define MUL64_NO_ASM 1
 #include "mul64.h"
 #endif

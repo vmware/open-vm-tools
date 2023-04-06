@@ -78,11 +78,11 @@
 /*
  * Standardize MSVC arch macros to GCC arch macros.
  */
-#if defined _MSC_VER && defined _M_X64
+#if defined _MSC_VER && defined _M_X64 && !defined _M_ARM64EC
 #  define __x86_64__ 1
 #elif defined _MSC_VER && defined _M_IX86
 #  define __i386__ 1
-#elif defined _MSC_VER && defined _M_ARM64
+#elif defined _MSC_VER && (defined _M_ARM64 || defined _M_ARM64EC)
 #  define __aarch64__ 1
 #elif defined _MSC_VER && defined _M_ARM
 #  define __arm__ 1

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2021, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -550,6 +550,9 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
  *
  * Window on Arm support starts with Windows 10.
  */
+
+#define STR_OS_ARM_WIN       "arm-windows"
+
 
 /*
  * Windows 10
