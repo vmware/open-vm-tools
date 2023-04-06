@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2021-2022 VMware, Inc. All rights reserved.
+ * Copyright (C) 2021-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -47,39 +47,48 @@
 
 typedef struct ComponentAction {
    const char *componentName;              /* The name of the enabled
-                                              component. */
+                                            * component.
+                                            */
 
    const char *scriptName;                 /* The default script to be invoked
-                                              to take actions for a particular
-                                              component */
+                                            * to take actions for a particular
+                                            * component
+                                            */
 
    const char *addActionArguments;         /* Default arguments to the script
-                                              to execute present action towards
-                                              the component in the guest OS. */
+                                            * to execute present action towards
+                                            * the component in the guest OS.
+                                            */
 
    const char *removeActionArguments;      /* Default arguments to the script
-                                              to execute absent action towards
-                                              the component in the guest OS. */
+                                            * to execute absent action towards
+                                            * the component in the guest OS.
+                                            */
 
    const char *checkStatusActionArguments; /* Default arguments to the script
-                                              to execute checkstatus towards
-                                              the component in the guest OS. */
+                                            * to execute checkstatus towards
+                                            * the component in the guest OS.
+                                            */
 
    const char* mandatoryParameters;        /* Arguments that are mandatory to
-                                              be passed to script. */
+                                            * be passed to script.
+                                            */
 
    const char *componentDirectory;         /* The name of directory in which
-                                              scripts will be installed.*/
+                                            * scripts will be installed.
+                                            */
 
    char* (*customizeRemoveAction)();       /* A custom callback function
-                                              to customize arguments for
-                                              absent action on the component
-                                              script. */
+                                            * to customize arguments for
+                                            * absent action on the component
+                                            * script.
+                                            */
 
    char* (*customizeAddAction)();          /* A custom callback function
-                                              to customize arguments for
-                                              present action on the component
-                                              script. */
+                                            * to customize arguments for
+                                            * present action on the component
+                                            * script.
+                                            */
 } ComponentAction;
 
 
@@ -214,7 +223,7 @@ ComponentMgr_IsAsyncProcessRunning(int componentIndex) // IN
  * component.
  *
  * @param[in] asyncProcInfo  An asyncProcInfo object of the currently running
-                             async process.
+ *                           async process.
  * @param[in] componentIndex Index of the component in the global array of
  *                           components.
  *
@@ -410,13 +419,13 @@ ComponentMgrCustomizeSaltAddAction()
  * <path to component script> <args to component script>
  *
  * The linux counterpart is constructed as:
- * <path to component script> <argumnets to the script>
+ * <path to component script> <arguments to the script>
  *
  * @param[in] scriptName Name of the component script.
  * @param[in] defaultArguments Default arguments to the component script.
  * @param[in] mandatoryParams mandatory params to the component script.
  * @param[in] customizeAction A callback function to customize the arguments
-                              for the component script.
+ *                            for the component script.
  *
  * @return
  *      A commandline to be directly run as an async process.
@@ -1178,7 +1187,7 @@ ComponentMgr_UpdateComponentStatus(ToolsAppCtx *ctx) // IN
       size_t replylen;
       gchar *msg;
 
-     /*
+      /*
        * Proceed only if the component script is installed and
        * the component is enabled by the plugin.
        */

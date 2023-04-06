@@ -75,20 +75,20 @@
 #define COMPONENTMGR_ASYNC_CHECK_STATUS_TERMINATE_PERIOD 15
 
 /*
- * Poll interval for waiting on the async process runnning the action for a
+ * Poll interval for waiting on the async process running the action for a
  * component in seconds.
  */
 #define COMPONENTMGR_ASYNCPROCESS_POLL_INTERVAL 5
 
 /*
- * The wait period after which the async proces needs to be killed for a
+ * The wait period after which the async process needs to be killed for a
  * component in seconds.
  */
 #define COMPONENTMGR_ASYNCPROCESS_TERMINATE_PERIOD 600
 
 /*
  * The amount of times the check status operation needs to wait before any
- * change in the guetsVar to trigger another checkstatus opeartion.
+ * change in the guetsVar to trigger another checkstatus operation.
  */
 #define COMPONENTMGR_CHECK_STATUS_COUNT_DOWN 10
 
@@ -166,7 +166,7 @@
 #define COMPONENTMGR_ALLCOMPONENTS "all"
 
 /*
- * The included param in the tools.conf contains comma seperated list
+ * The included param in the tools.conf contains comma separated list
  * of components and can have special values.
  * Defines various special values present in the included tools.conf param.
  */
@@ -190,7 +190,8 @@ typedef enum InstallStatus
 {
    INSTALLED = 100,         /* The component is installed on the guest OS. */
    INSTALLING,              /* The component is being installed on the guest
-                               OS. */
+                             * OS.
+                             */
    NOTINSTALLED,            /* The component is not installed on the guest OS.
                              */
    INSTALLFAILED,           /* The component install failed on the guest OS. */
@@ -198,8 +199,9 @@ typedef enum InstallStatus
                              */
    REMOVEFAILED,            /* The component remove failed on the guest OS. */
    UNMANAGED,               /* The component is installed on the guest OS, but
-                               is not managed (or manageable), through the
-                               component manager plugin. */
+                             * is not managed (or manageable), through the
+                             * component manager plugin.
+                             */
    SCRIPTFAILED = 126,      /* The component script failed for some reason. */
    SCRIPTTERMINATED = 130   /* The component script terminated for some reason.
                              */
@@ -216,7 +218,8 @@ typedef enum Action
    PRESENT,      /* The action adds/installs the components on the guest. */
    ABSENT,       /* The action removes/uninstalls the components on the guest.*/
    CHECKSTATUS,  /* The action calls the preconfigured script to check the
-                    current status of the component. */
+                  * current status of the component.
+                  */
    INVALIDACTION /* Action not recognised by the plugin. */
 } Action;
 
@@ -228,15 +231,18 @@ typedef enum Action
 
 typedef struct AsyncProcessInfo {
    ProcMgr_AsyncProc *asyncProc; /* ProcMgr_AsyncProc structure consisting of
-                                    the process data running an action on the
-                                    component. */
+                                  * the process data running an action on the
+                                  * component.
+                                  */
    ToolsAppCtx *ctx;             /* Tools application context. */
    int backoffTimer;             /* Backoff timer to wait until timeout
-                                    to kill the asynchronous process. */
+                                  * to kill the asynchronous process.
+                                  */
    int componentIndex;           /* The index of the component in the global
-                                    array of components. */
+                                  * array of components.
+                                  */
    void (*callbackFunction)(int componentIndex); /* A callback function to
-                                                    sequence a new operation
+                                                  * sequence a new operation
                                                   */
 } AsyncProcessInfo;
 
@@ -252,15 +258,17 @@ typedef struct ComponentInfo
    gboolean isEnabled;   /* Component enabled/disabled by the plugin. */
    InstallStatus status; /* Contains current status of the component. */
    GSource *sourceTimer; /* A GSource timer for async process monitoring running
-                            an operation for a component. */
+                          * an operation for a component.
+                          */
    AsyncProcessInfo *procInfo; /* A structure to store information about the
                                 * current running async process for a component.
                                 */
    int statuscount;      /* A counter value to store max number of times to
-                            wait before starting another checkstatus operation
+                          * wait before starting another checkstatus operation
                           */
    Action action;        /* Contains information about the action to be
-                            performed on a component. */
+                          * performed on a component.
+                          */
 } ComponentInfo;
 
 
