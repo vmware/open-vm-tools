@@ -1,3 +1,70 @@
+commit b4ecba012795fd6e227a36f9da43ae390f8ac121
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Apr 24 12:30:14 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit a5eb9f3ce90f3c9ac79673db7e21486fcc8b434d
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Apr 24 12:30:14 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 5321737607c4779936ea7d1ca4eb7cc02f0ba452
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Apr 24 12:30:14 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 68b465af17e333d04776fc606088fc39b2a3dcdc
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Apr 24 12:30:14 2023 -0700
+
+    Changes to common header files not applicable to open-vm-tools.
+
+commit 68107d0bd5e7f900c2af5946ef560fdcd5454534
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Apr 24 12:30:14 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 27ea45d66f2358c1dcc8400a600f5e4ed8a419a1
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Apr 24 12:30:14 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 8c7bbf28197c254d6859ac6727ab88355b2cb7f8
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Apr 24 12:30:14 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit c66fb5c9ec87167f82d8b72c611a2df35af514a9
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Apr 24 12:30:14 2023 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 0fb50371215f5a6924103309980e565eebff08a6
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Apr 24 12:30:14 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools at this time.
+
+commit a480533a0a2bbeb9701f305cf3f78278e1279347
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Apr 24 12:30:14 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 87eb9ad7ed9ded840ac577cad2c027c3eaf9b49f
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Apr 6 11:36:37 2023 -0700
+
+    Update ChangeLog with the granular push of Apr 6, 2023.
+    - plus ChangeLog update of Mar 24, 2023.
+
 commit 0c15d1214d340893719c9eaaee7a071318bd7399
 Author: Katy Feng <fkaty@vmware.com>
 Date:   Thu Apr 6 11:33:31 2023 -0700
