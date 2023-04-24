@@ -1747,6 +1747,9 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 #define CPUID_MODEL_COMETLAKE_A5      0xa5  // Comet Lake S
 #define CPUID_MODEL_COMETLAKE_A6      0xa6  // Comet Lake U
 #define CPUID_MODEL_ROCKETLAKE_A7     0xa7  // Rocket Lake S
+#define CPUID_MODEL_RAPTORLAKE_B7     0xb7  // Raptor Lake S/HX B-0
+#define CPUID_MODEL_RAPTORLAKE_BA     0xba  // Raptor Lake H/P/PX J-0, U Q-0
+#define CPUID_MODEL_RAPTORLAKE_BF     0xbf  // Raptor Lake S/HX C-0
 
 /* Intel stepping information */
 #define CPUID_STEPPING_KABYLAKE_ES     0x8  // Kaby Lake S/H/U/Y ES
