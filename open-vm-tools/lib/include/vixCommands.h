@@ -60,18 +60,19 @@ extern "C" {
 /*
  * The types of credential we can pass with any request.
  */
-#define VIX_USER_CREDENTIAL_NONE                      0
-#define VIX_USER_CREDENTIAL_NAME_PASSWORD             1
-#define VIX_USER_CREDENTIAL_ANONYMOUS                 2
-#define VIX_USER_CREDENTIAL_ROOT                      3
-#define VIX_USER_CREDENTIAL_NAME_PASSWORD_OBFUSCATED  4
-#define VIX_USER_CREDENTIAL_CONSOLE_USER              5
-#define VIX_USER_CREDENTIAL_HOST_CONFIG_SECRET        6
-#define VIX_USER_CREDENTIAL_HOST_CONFIG_HASHED_SECRET 7
-#define VIX_USER_CREDENTIAL_NAMED_INTERACTIVE_USER    8
-#define VIX_USER_CREDENTIAL_TICKETED_SESSION          9
-#define VIX_USER_CREDENTIAL_SSPI                      10
-#define VIX_USER_CREDENTIAL_SAML_BEARER_TOKEN         11
+#define VIX_USER_CREDENTIAL_NONE                             0
+#define VIX_USER_CREDENTIAL_NAME_PASSWORD                    1
+#define VIX_USER_CREDENTIAL_ANONYMOUS                        2
+#define VIX_USER_CREDENTIAL_ROOT                             3
+#define VIX_USER_CREDENTIAL_NAME_PASSWORD_OBFUSCATED         4
+#define VIX_USER_CREDENTIAL_CONSOLE_USER                     5
+#define VIX_USER_CREDENTIAL_HOST_CONFIG_SECRET               6
+#define VIX_USER_CREDENTIAL_HOST_CONFIG_HASHED_SECRET        7
+#define VIX_USER_CREDENTIAL_NAMED_INTERACTIVE_USER           8
+#define VIX_USER_CREDENTIAL_TICKETED_SESSION                 9
+#define VIX_USER_CREDENTIAL_SSPI                             10
+#define VIX_USER_CREDENTIAL_SAML_BEARER_TOKEN                11
+#define VIX_USER_CREDENTIAL_SAML_BEARER_TOKEN_HOST_VERIFIED  12
 
 #define VIX_SHARED_SECRET_CONFIG_USER_NAME          "__VMware_Vix_Shared_Secret_1__"
 
