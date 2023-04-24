@@ -105,7 +105,6 @@
    LOGLEVEL_VAR(fsresx), \
    LOGLEVEL_VAR(ftConfig), /*lib/ftConfig */ \
    LOGLEVEL_VAR(ftcpt), \
-   LOGLEVEL_VAR(gpuManager), \
    LOGLEVEL_VAR(grainTrack), \
    LOGLEVEL_VAR(grm), \
    LOGLEVEL_VAR(guestAppMonitor), \
