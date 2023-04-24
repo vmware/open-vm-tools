@@ -2150,6 +2150,16 @@ CPUID_MODEL_IS_ALDERLAKE(uint32 v) // IN: %eax from CPUID with %eax=1.
            CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_ALDERLAKE_9A);
 }
 
+static INLINE Bool
+CPUID_MODEL_IS_RAPTORLAKE(uint32 v) // IN: %eax from CPUID with %eax=1.
+{
+   /* Assumes the CPU manufacturer is Intel. */
+   return CPUID_FAMILY_IS_P6(v) &&
+          (CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_RAPTORLAKE_B7 ||
+           CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_RAPTORLAKE_BF ||
+           CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_RAPTORLAKE_BA);
+}
+
 
 static INLINE Bool
 CPUID_UARCH_IS_HASWELL(uint32 v) // IN: %eax from CPUID with %eax=1.
