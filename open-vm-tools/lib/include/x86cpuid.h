@@ -619,7 +619,7 @@ FLAG(   7,  2, EDX,  0,  1, PSFD,                                YES,  20 ) \
 FLAG(   7,  2, EDX,  1,  1, IPRED_CTRL,                          NO,    0 ) \
 FLAG(   7,  2, EDX,  2,  1, RRSBA_CTRL,                          NO,    0 ) \
 FLAG(   7,  2, EDX,  3,  1, DDPD_U,                              NO,    0 ) \
-FLAG(   7,  2, EDX,  4,  1, BHI_CTRL,                            NO,    0 ) \
+FLAG(   7,  2, EDX,  4,  1, BHI_CTRL,                            YES,  21 ) \
 FLAG(   7,  2, EDX,  5,  1, MCDT_NO,                             NO,    0 )
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
