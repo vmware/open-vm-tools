@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2022 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -168,7 +168,9 @@ extern "C" {
    GOT(GUEST_OS_AMAZONLINUX2_64)                                           \
    GOT(GUEST_OS_AMAZONLINUX3_64)                                           \
    GOT(GUEST_OS_CRXSYS1_64)        /* VMware CRX system VM 1.0 64-bit */   \
+   GOT(GUEST_OS_CRXSYS1_ARM_64)    /* VMware CRX system VM 1.0 Arm 64-bit */ \
    GOT(GUEST_OS_CRXPOD1_64)        /* VMware CRX pod VM 1.0 64-bit */      \
+   GOT(GUEST_OS_CRXPOD1_ARM_64)    /* VMware CRX pod VM 1.0 Arm 64-bit */  \
    GOT(GUEST_OS_LINUX_MINT_64)                                             \
    GOT(GUEST_OS_ROCKY_LINUX_64)                                            \
    GOT(GUEST_OS_ROCKY_LINUX_ARM_64)                                        \

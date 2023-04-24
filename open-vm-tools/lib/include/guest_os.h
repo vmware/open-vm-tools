@@ -225,7 +225,8 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
                               BS(DEBIAN_ARM_64),   BS(UBUNTU_ARM_64),       \
                               BS(RHEL9_64),        BS(RHEL9_ARM_64),        \
                               BS(ROCKY_LINUX_64),  BS(ROCKY_LINUX_ARM_64),  \
-                              BS(ALMA_LINUX_64),   BS(ALMA_LINUX_ARM_64)
+                              BS(ALMA_LINUX_64),   BS(ALMA_LINUX_ARM_64),   \
+                              BS(CRXSYS1_ARM_64),  BS(CRXPOD1_ARM_64)
 
 #define ALL6XLINUX32          BS(OTHER6XLINUX)
 
@@ -271,7 +272,8 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 #define ALLOS2                BS(OS2), ALLECOMSTATION
 
-#define ALLCRX                BS(CRXSYS1_64), BS(CRXPOD1_64)
+#define ALLCRX                BS(CRXSYS1_64),     BS(CRXPOD1_64),   \
+                              BS(CRXSYS1_ARM_64), BS(CRXPOD1_ARM_64)
 
 #define ALLARM                BS(WIN_10_ARM_64),        BS(WIN_11_ARM_64),       \
                               BS(WIN_12_ARM_64),        BS(RHEL9_ARM_64),        \
@@ -280,7 +282,8 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
                               BS(OTHER_ARM_64),         BS(OTHER5XLINUX_ARM_64), \
                               BS(OTHER6XLINUX_ARM_64),  BS(DEBIAN_ARM_64),       \
                               BS(FREEBSD13_ARM_64),     BS(FREEBSD14_ARM_64),    \
-                              BS(ALMA_LINUX_ARM_64),    BS(ROCKY_LINUX_ARM_64)
+                              BS(ALMA_LINUX_ARM_64),    BS(ROCKY_LINUX_ARM_64),  \
+                              BS(CRXSYS1_ARM_64),       BS(CRXPOD1_ARM_64)
 
 /*
  * Architecture prefixes. No prefix implies the X86 architecture.
