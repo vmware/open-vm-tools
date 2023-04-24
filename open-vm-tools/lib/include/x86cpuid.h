@@ -1736,6 +1736,7 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 #define CPUID_MODEL_ICELAKE_7E        0x7e  // Ice Lake U/Y
 #define CPUID_MODEL_ICELAKE_6A        0x6a  // Ice Lake SP (ICX)
 #define CPUID_MODEL_ICELAKE_6C        0x6c  // Ice Lake D
+#define CPUID_MODEL_LAKEFIELD_8A      0x8a  // Lakefield
 #define CPUID_MODEL_TIGERLAKE_8C      0x8c  // Tiger Lake UP3/UP4/H35
 #define CPUID_MODEL_TIGERLAKE_8D      0x8d  // Tiger Lake H81
 #define CPUID_MODEL_KNM_85            0x85  // Knights Mill
