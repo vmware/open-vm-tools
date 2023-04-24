@@ -616,7 +616,7 @@ FLAG(   7,  1, EDX,  5,  1, AVX_NE_CONVERT,                      NO,    0 ) \
 FLAG(   7,  1, EDX, 14,  1, PREFETCHI,                           NO,    0 ) \
 FLAG(   7,  1, EDX, 18,  1, CET_SSS,                             NO,    0 ) \
 FLAG(   7,  2, EDX,  0,  1, PSFD,                                YES,  20 ) \
-FLAG(   7,  2, EDX,  1,  1, IPRED_CTRL,                          NO,    0 ) \
+FLAG(   7,  2, EDX,  1,  1, IPRED_CTRL,                          YES,  21 ) \
 FLAG(   7,  2, EDX,  2,  1, RRSBA_CTRL,                          YES,  21 ) \
 FLAG(   7,  2, EDX,  3,  1, DDPD_U,                              NO,    0 ) \
 FLAG(   7,  2, EDX,  4,  1, BHI_CTRL,                            YES,  21 ) \
