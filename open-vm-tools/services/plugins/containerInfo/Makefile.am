@@ -60,9 +60,9 @@ libcontainerInfo_la_SOURCES += containers.grpc.pb.h
 libcontainerInfo_la_SOURCES += containers.grpc.pb.cc
 libcontainerInfo_la_SOURCES += containerInfo_grpc.cc
 
-libcontainerInfo_la_CPPFLAGS += @GRPC_CPPFLAGS@
+libcontainerInfo_la_CPPFLAGS += ${grpcxx_CFLAGS}
 libcontainerInfo_la_LIBADD += -lprotobuf
-libcontainerInfo_la_LIBADD += -lgrpc++
+libcontainerInfo_la_LIBADD += ${grpcxx_LIBS}
 
 tasks.grpc.pb.cc containers.grpc.pb.cc: %.grpc.pb.cc : %.proto %.pb.cc
 	$(PROTOC) -I. -I$(GOGO_PROTOPATH) \
