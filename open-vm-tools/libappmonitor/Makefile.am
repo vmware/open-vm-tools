@@ -48,12 +48,10 @@ libappmonitor_la_SOURCES += $(libappmonitor_rpcchanneldir)/vsockChannel.c
 libappmonitor_la_SOURCES += $(libappmonitor_rpcchanneldir)/simpleSocket.c
 endif
 
-libappmonitor_la_LDFLAGS =
-libappmonitor_la_LDFLAGS += -Wl,-ldl
-libappmonitor_la_LDFLAGS += -Wl,-lrt
+libappmonitor_la_LIBADD += -ldl -lrt
 # We require GCC, so we're fine passing compiler-specific flags.
 # Needed for OS's that don't link shared libraries against libc by default, e.g. FreeBSD
-libappmonitor_la_LDFLAGS += -Wl,-lc
+libappmonitor_la_LIBADD += -lc
 
 libappmonitor_includedir = $(includedir)/libappmonitor
 

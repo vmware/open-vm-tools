@@ -59,7 +59,7 @@ libvgauth_la_LDFLAGS =
 libvgauth_la_LDFLAGS += -Wl,-z,defs
 # Needed for OS's that don't link shared libraries against libc by
 #default, e.g. FreeBSD
-libvgauth_la_LDFLAGS += -Wl,-lc
+libvgauth_la_LIBADD += -lc
 
 # Message catalogs.
 install-data-hook:
