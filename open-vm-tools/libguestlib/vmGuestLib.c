@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2016,2019-2020, 2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2005-2016,2019-2020, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published

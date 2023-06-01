@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2019,2021, 2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2006-2019,2021, 2023 VMware, Inc. All rights reserved.
  *
  * The contents of this file are subject to the terms of the Common
  * Development and Distribution License (the "License") version 1.0
