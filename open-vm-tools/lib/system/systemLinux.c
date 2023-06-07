@@ -54,6 +54,7 @@
 #include <sys/ioctl.h>
 #include <net/if.h>
 #include <sys/ioctl.h>
+#include <glib.h>
 
 #if defined sun || defined __APPLE__
 #   include <utmpx.h>
@@ -305,6 +306,8 @@ void
 System_Shutdown(Bool reboot)  // IN: "reboot or shutdown" flag
 {
    char *cmd;
+   int exit_status = 0;
+   Bool success;
 
    if (reboot) {
 #if defined(sun)
@@ -325,9 +328,18 @@ System_Shutdown(Bool reboot)  // IN: "reboot or shutdown" flag
       cmd = "/sbin/shutdown -h now";
 #endif
    }
-   if (system(cmd) == -1) {
+
+   success = g_spawn_command_line_sync(cmd,
+                           NULL,
+                           NULL,
+                           &exit_status,
+                           NULL);
+   if (!success) {
       fprintf(stderr, "Unable to execute %s command: \"%s\"\n",
               reboot ? "reboot" : "shutdown", cmd);
+   }
+   if ((success) && exit_status != 0) {
+      fprintf(stderr, "Command %s failed with exit %d\n", cmd, exit_status);
    }
 }
 
