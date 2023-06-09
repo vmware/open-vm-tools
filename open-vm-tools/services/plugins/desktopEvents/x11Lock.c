@@ -421,6 +421,8 @@ X11Lock_Init(ToolsAppCtx *ctx,
    gdk_set_allowed_backends("x11");
 #endif
    /* XXX: is calling gtk_init() multiple times safe? */
+   /* gtk_disable_setlocale() must be called before gtk_init() */
+   gtk_disable_setlocale();
    gtk_init(&argc, (char ***) &argv);
 
    if (!AcquireDisplayLock()) {
