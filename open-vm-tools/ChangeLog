@@ -1,3 +1,13 @@
+commit 3b61a0b7145de1eb58bd9c463dcac8241ef185e4
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Jun 12 16:07:56 2023 -0700
+
+      =================================================
+        open-vm-tools 12.2.5 released at this point.
+      =================================================
+    Update of the ChangeLog with the final changes in preparation for
+    the open-vm-tools 12.2.5 release.
+
 commit 15c979c79cfc31a8d0cc77ecad1eb9b5369d90b3
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Mon Jun 12 15:36:15 2023 -0700
