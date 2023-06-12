@@ -1,0 +1,155 @@
+From 40ecf1b051202472a98289eec4ea1c09db27fd17 Mon Sep 17 00:00:00 2001
+From: John Wolfe <jwolfe@vmware.com>
+Date: Mon, 8 May 2023 21:16:12 -0700
+Subject: [PATCH] Remove some dead code.
+
+Address CVE-2023-20867.
+Remove some authentication types which were deprecated long
+ago and are no longer in use. These are dead code.
+---
+ open-vm-tools/services/plugins/vix/vixTools.c | 101 --------------------------
+ 1 file changed, 101 deletions(-)
+
+diff --git a/open-vm-tools/services/plugins/vix/vixTools.c b/open-vm-tools/services/plugins/vix/vixTools.c
+index 55b1f0a..30d3ccc 100644
+--- a/open-vm-tools/services/plugins/vix/vixTools.c
++++ b/open-vm-tools/services/plugins/vix/vixTools.c
+@@ -227,8 +227,6 @@ char *gImpersonatedUsername = NULL;
+ #define  VIX_TOOLS_CONFIG_API_AUTHENTICATION          "Authentication"
+ #define  VIX_TOOLS_CONFIG_AUTHTYPE_AGENTS             "InfrastructureAgents"
+ 
+-#define VIX_TOOLS_CONFIG_INFRA_AGENT_DISABLED_DEFAULT  TRUE
+-
+ /*
+  * The switch that controls all APIs
+  */
+@@ -694,9 +692,6 @@ VixError GuestAuthSAMLAuthenticateAndImpersonate(
+ 
+ void GuestAuthUnimpersonate();
+ 
+-static Bool VixToolsCheckIfAuthenticationTypeEnabled(GKeyFile *confDictRef,
+-                                                     const char *typeName);
+-
+ #if SUPPORT_VGAUTH
+ 
+ VGAuthError TheVGAuthContext(VGAuthContext **ctx);
+@@ -7715,28 +7710,6 @@ VixToolsImpersonateUser(VixCommandRequestHeader *requestMsg,   // IN
+                                           userToken);
+       break;
+    }
+-   case VIX_USER_CREDENTIAL_ROOT:
+-   {
+-      if ((requestMsg->requestFlags & VIX_REQUESTMSG_HAS_HASHED_SHARED_SECRET) &&
+-          !VixToolsCheckIfAuthenticationTypeEnabled(gConfDictRef,
+-                                            VIX_TOOLS_CONFIG_AUTHTYPE_AGENTS)) {
+-          /*
+-           * Don't accept hashed shared secret if disabled.
+-           */
+-          g_message("%s: Requested authentication type has been disabled.\n",
+-                    __FUNCTION__);
+-          err = VIX_E_GUEST_AUTHTYPE_DISABLED;
+-          goto done;
+-      }
+-   }
+-   // fall through
+-
+-   case VIX_USER_CREDENTIAL_CONSOLE_USER:
+-      err = VixToolsImpersonateUserImplEx(NULL,
+-                                          credentialType,
+-                                          NULL,
+-                                          userToken);
+-      break;
+    case VIX_USER_CREDENTIAL_NAME_PASSWORD:
+    case VIX_USER_CREDENTIAL_NAME_PASSWORD_OBFUSCATED:
+    case VIX_USER_CREDENTIAL_NAMED_INTERACTIVE_USER:
+@@ -7902,36 +7875,6 @@ VixToolsImpersonateUserImplEx(char const *credentialTypeStr,         // IN
+       }
+ 
+       /*
+-       * If the VMX asks to be root, then we allow them.
+-       * The VMX will make sure that only it will pass this value in,
+-       * and only when the VM and host are configured to allow this.
+-       */
+-      if ((VIX_USER_CREDENTIAL_ROOT == credentialType)
+-            && (thisProcessRunsAsRoot)) {
+-         *userToken = PROCESS_CREATOR_USER_TOKEN;
+-
+-         gImpersonatedUsername = Util_SafeStrdup("_ROOT_");
+-         err = VIX_OK;
+-         goto abort;
+-      }
+-
+-      /*
+-       * If the VMX asks to be root, then we allow them.
+-       * The VMX will make sure that only it will pass this value in,
+-       * and only when the VM and host are configured to allow this.
+-       *
+-       * XXX This has been deprecated XXX
+-       */
+-      if ((VIX_USER_CREDENTIAL_CONSOLE_USER == credentialType)
+-            && ((allowConsoleUserOps) || !(thisProcessRunsAsRoot))) {
+-         *userToken = PROCESS_CREATOR_USER_TOKEN;
+-
+-         gImpersonatedUsername = Util_SafeStrdup("_CONSOLE_USER_NAME_");
+-         err = VIX_OK;
+-         goto abort;
+-      }
+-
+-      /*
+        * If the VMX asks us to run commands in the context of the current
+        * user, make sure that the user who requested the command is the
+        * same as the current user.
+@@ -10602,50 +10545,6 @@ VixToolsCheckIfVixCommandEnabled(int opcode,                          // IN
+ /*
+  *-----------------------------------------------------------------------------
+  *
+- * VixToolsCheckIfAuthenticationTypeEnabled --
+- *
+- *    Checks to see if a given authentication type has been
+- *    disabled via the tools configuration.
+- *
+- * Return value:
+- *    TRUE if enabled, FALSE otherwise.
+- *
+- * Side effects:
+- *    None
+- *
+- *-----------------------------------------------------------------------------
+- */
+-
+-static Bool
+-VixToolsCheckIfAuthenticationTypeEnabled(GKeyFile *confDictRef,     // IN
+-                                         const char *typeName)      // IN
+-{
+-   char authnDisabledName[64]; // Authentication.<AuthenticationType>.disabled
+-   gboolean disabled;
+-
+-   Str_Snprintf(authnDisabledName, sizeof(authnDisabledName),
+-                VIX_TOOLS_CONFIG_API_AUTHENTICATION ".%s.disabled",
+-                typeName);
+-
+-   ASSERT(confDictRef != NULL);
+-
+-   /*
+-    * XXX Skip doing the strcmp() to verify the auth type since we only
+-    * have the one typeName (VIX_TOOLS_CONFIG_AUTHTYPE_AGENTS), and default
+-    * it to VIX_TOOLS_CONFIG_INFRA_AGENT_DISABLED_DEFAULT.
+-    */
+-   disabled = VixTools_ConfigGetBoolean(confDictRef,
+-                                        VIX_TOOLS_CONFIG_API_GROUPNAME,
+-                                        authnDisabledName,
+-                                        VIX_TOOLS_CONFIG_INFRA_AGENT_DISABLED_DEFAULT);
+-
+-   return !disabled;
+-}
+-
+-
+-/*
+- *-----------------------------------------------------------------------------
+- *
+  * VixTools_ProcessVixCommand --
+  *
+  *
+-- 
+2.6.2
+
