@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (c) 2007-2022 VMware, Inc.  All rights reserved.
+### Copyright (c) 2007-2023 VMware, Inc.  All rights reserved.
 ###
 ### Configure script for building the VMware OSS Tools.
 ###
@@ -35,10 +35,10 @@
 ### Initialization
 ###
 
-TOOLS_VERSION="12.2.0"
+TOOLS_VERSION="12.2.5"
 AC_INIT(
    [open-vm-tools],
-   [12.2.0],
+   [12.2.5],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where

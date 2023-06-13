@@ -1,9 +1,65 @@
-commit c589f06a759e902ffeb06845592c5fbc0cfaab2a
+commit 3b61a0b7145de1eb58bd9c463dcac8241ef185e4
 Author: John Wolfe <jwolfe@vmware.com>
-Date:   Tue Mar 7 10:51:39 2023 -0800
+Date:   Mon Jun 12 16:07:56 2023 -0700
+
+      =================================================
+        open-vm-tools 12.2.5 released at this point.
+      =================================================
+    Update of the ChangeLog with the final changes in preparation for
+    the open-vm-tools 12.2.5 release.
+
+commit 15c979c79cfc31a8d0cc77ecad1eb9b5369d90b3
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Jun 12 15:36:15 2023 -0700
+
+    Update the ReleaseNotes.md for the 12.2.5 open-vm-tools release.
+
+commit 941b26d6e012c5fd2184242ae24d5e5559b60c98
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Jun 12 15:03:03 2023 -0700
+
+    Prepare for the open-vm-tools 12.2.0 release.
+      - Update the tools version in the configure.ac file.
+      - Update the build numbers in the buildNumber.h header.
+
+commit 9da8095daaec2f9d12a47b69bc5fa141782ba86d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Jun 12 14:53:47 2023 -0700
+
+    Change open-vm-tools version to 12.2.5.
+
+commit c66f38194f91f8b733caa0beb6310871ac629690
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Jun 12 14:53:47 2023 -0700
+
+    Remove some dead code.
+    
+    Remove some authentication types which were deprecated long
+    ago and are no longer in use.
+
+commit 83bb95f6b33b476069b04067f4d78bbb6ad758c3
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Mon Jun 12 14:53:47 2023 -0700
+
+    Setting the VMware Tools version to 12.2.1.
+
+commit e5b380eee080a6a3f18644a3d784e4e538b6af41
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Mar 7 14:57:07 2023 -0800
+
+      =================================================
+        open-vm-tools 12.2.0 released at this point.
+      =================================================
+    Update of the ChangeLog with the final changes in preparation for
+    the open-vm-tools 12.2.0 release.
+
+commit 970d0d7d1eee353c93943704ee909523aa1ba71d
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Mar 7 14:53:12 2023 -0800
 
     Update the ReleaseNotes.md for the 12.2.0 open-vm-tools release.
-
+======================================================================
+======================================================================
 commit 6b72d107c925d71e7dfe89fa9bc4dc9d848e285a
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Tue Mar 7 08:33:18 2023 -0800
