@@ -41,5 +41,5 @@ libhgfs_la_LDFLAGS =
 libhgfs_la_LDFLAGS += -Wl,-z,defs
 # Needed for OS's that don't link shared libraries against libc by
 #default, e.g. FreeBSD
-libhgfs_la_LDFLAGS += -Wl,-lc
+libhgfs_la_LIBADD += -lc
 

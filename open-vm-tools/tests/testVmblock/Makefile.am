@@ -29,8 +29,8 @@ AM_CFLAGS =
 AM_CFLAGS += -DVMX86_DEVEL
 AM_CFLAGS += -DVMX86_DEBUG
 
-AM_LDFLAGS =
-AM_LDFLAGS += -lpthread
+LDLIBS =
+LDLIBS += -lpthread
 
 vmware_testvmblock_fuse_CFLAGS = $(AM_CFLAGS) -Dvmblock_fuse
 vmware_testvmblock_fuse_SOURCES = vmblocktest.c

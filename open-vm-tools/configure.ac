@@ -723,6 +723,8 @@ AC_DEFUN([AC_VMW_CONTAINERINFO_MSG],[
                       [],
                       [AC_VMW_CONTAINERINFO_MSG(["grpc++ >= 1.3.2"])])
 
+PKG_CHECK_MODULES([grpcxx], [grpc++ >= 1.3.2])
+
 #
 # proto files needed by containerd grpc client.
 #
