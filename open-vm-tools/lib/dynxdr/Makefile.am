@@ -22,8 +22,8 @@ libDynxdr_la_SOURCES += dynxdr.c
 libDynxdr_la_SOURCES += xdrutil.c
 
 libDynxdr_la_CPPFLAGS =
-libDynxdr_la_CPPFLAGS += @XDR_CPPFLAGS@
+libDynxdr_la_CPPFLAGS += ${XDR_CPPFLAGS}
 
 libDynxdr_la_LIBADD =
-libDynxdr_la_LIBADD += @XDR_LIBS@
+libDynxdr_la_LIBADD += ${XDR_LIBS}
 

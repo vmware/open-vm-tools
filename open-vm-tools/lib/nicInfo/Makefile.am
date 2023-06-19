@@ -24,14 +24,14 @@ libNicInfo_la_SOURCES += nicInfo.c
 libNicInfo_la_SOURCES += nicInfoPosix.c
 
 libNicInfo_la_CPPFLAGS =
-libNicInfo_la_CPPFLAGS += @GLIB2_CPPFLAGS@
-libNicInfo_la_CPPFLAGS += @XDR_CPPFLAGS@
+libNicInfo_la_CPPFLAGS += ${GLIB2_CPPFLAGS}
+libNicInfo_la_CPPFLAGS += ${XDR_CPPFLAGS}
 libNicInfo_la_CPPFLAGS += $(DNET_CPPFLAGS)
 if USE_SLASH_PROC
 libNicInfo_la_CPPFLAGS += -DUSE_SLASH_PROC
 endif
 
 libNicInfo_la_LIBADD =
-libNicInfo_la_LIBADD += @DNET_LIBS@
-libNicInfo_la_LIBADD += @XDR_LIBS@
+libNicInfo_la_LIBADD += ${DNET_LIBS}
+libNicInfo_la_LIBADD += ${XDR_LIBS}
 

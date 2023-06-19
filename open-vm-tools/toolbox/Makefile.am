@@ -19,12 +19,12 @@ bin_PROGRAMS = vmware-toolbox-cmd
 
 vmware_toolbox_cmd_LDADD =
 vmware_toolbox_cmd_LDADD += ../libguestlib/libguestlib.la
-vmware_toolbox_cmd_LDADD += @VMTOOLS_LIBS@
-vmware_toolbox_cmd_LDADD += @XDR_LIBS@
+vmware_toolbox_cmd_LDADD += ${VMTOOLS_LIBS}
+vmware_toolbox_cmd_LDADD += ${XDR_LIBS}
 
 vmware_toolbox_cmd_CPPFLAGS =
-vmware_toolbox_cmd_CPPFLAGS += @VMTOOLS_CPPFLAGS@
-vmware_toolbox_cmd_CPPFLAGS += @XDR_CPPFLAGS@
+vmware_toolbox_cmd_CPPFLAGS += ${VMTOOLS_CPPFLAGS}
+vmware_toolbox_cmd_CPPFLAGS += ${XDR_CPPFLAGS}
 
 vmware_toolbox_cmd_SOURCES =
 vmware_toolbox_cmd_SOURCES += toolbox-cmd.c
@@ -35,7 +35,7 @@ if LINUX
    vmware_toolbox_cmd_SOURCES += toolboxcmd-gueststore.c
    vmware_toolbox_cmd_SOURCES += toolboxcmd-globalconf.c
    vmware_toolbox_cmd_LDADD   += ../lib/globalConfig/libGlobalConfig.la
-   vmware_toolbox_cmd_LDADD   += @GOBJECT_LIBS@
+   vmware_toolbox_cmd_LDADD   += ${GOBJECT_LIBS}
 endif
 vmware_toolbox_cmd_SOURCES += toolboxcmd-logging.c
 vmware_toolbox_cmd_SOURCES += toolboxcmd-scripts.c
@@ -44,7 +44,7 @@ vmware_toolbox_cmd_SOURCES += toolboxcmd-stat.c
 vmware_toolbox_cmd_SOURCES += toolboxcmd-time.c
 
 if HAVE_ICU
-   vmware_toolbox_cmd_LDADD += @ICU_LIBS@
+   vmware_toolbox_cmd_LDADD += ${ICU_LIBS}
    vmware_toolbox_cmd_LINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) \
                              $(LIBTOOLFLAGS) --mode=link $(CXX) \
                              $(AM_CXXFLAGS) $(CXXFLAGS) $(AM_LDFLAGS) \

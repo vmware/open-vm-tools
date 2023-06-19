@@ -19,13 +19,13 @@ plugindir = @VMSVC_PLUGIN_INSTALLDIR@
 plugin_LTLIBRARIES = libpowerOps.la
 
 libpowerOps_la_CPPFLAGS =
-libpowerOps_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
+libpowerOps_la_CPPFLAGS += ${PLUGIN_CPPFLAGS}
 
 libpowerOps_la_LDFLAGS =
-libpowerOps_la_LDFLAGS += @PLUGIN_LDFLAGS@
+libpowerOps_la_LDFLAGS += ${PLUGIN_LDFLAGS}
 
 libpowerOps_la_LIBADD =
-libpowerOps_la_LIBADD += @VMTOOLS_LIBS@
+libpowerOps_la_LIBADD += ${VMTOOLS_LIBS}
 
 libpowerOps_la_SOURCES =
 libpowerOps_la_SOURCES += powerOps.c

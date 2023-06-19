@@ -22,22 +22,22 @@ bin_PROGRAMS = vmware-vmblock-fuse
 # get lstat.
 # -D_FILE_OFFSET_BITS=64 required for fuse.
 
-AM_CFLAGS =
-AM_CFLAGS += -Dvmblock_fuse
-AM_CFLAGS += -U_XOPEN_SOURCE
-AM_CFLAGS += -D_XOPEN_SOURCE=600
-AM_CFLAGS += -DUSERLEVEL
-AM_CFLAGS += -D_FILE_OFFSET_BITS=64
-AM_CFLAGS += @FUSE_CPPFLAGS@
-AM_CFLAGS += @FUSE3_CPPFLAGS@
-AM_CFLAGS += @GLIB2_CPPFLAGS@
-AM_CFLAGS += -I$(top_srcdir)/modules/shared/vmblock
-AM_CFLAGS += -I$(srcdir)
+AM_CPPFLAGS =
+AM_CPPFLAGS += -Dvmblock_fuse
+AM_CPPFLAGS += -U_XOPEN_SOURCE
+AM_CPPFLAGS += -D_XOPEN_SOURCE=600
+AM_CPPFLAGS += -DUSERLEVEL
+AM_CPPFLAGS += -D_FILE_OFFSET_BITS=64
+AM_CPPFLAGS += ${FUSE_CPPFLAGS}
+AM_CPPFLAGS += ${FUSE3_CPPFLAGS}
+AM_CPPFLAGS += ${GLIB2_CPPFLAGS}
+AM_CPPFLAGS += -I$(top_srcdir)/modules/shared/vmblock
+AM_CPPFLAGS += -I$(srcdir)
 
 vmware_vmblock_fuse_LDADD =
-vmware_vmblock_fuse_LDADD += @FUSE_LIBS@
-vmware_vmblock_fuse_LDADD += @FUSE3_LIBS@
-vmware_vmblock_fuse_LDADD += @GLIB2_LIBS@
+vmware_vmblock_fuse_LDADD += ${FUSE_LIBS}
+vmware_vmblock_fuse_LDADD += ${FUSE3_LIBS}
+vmware_vmblock_fuse_LDADD += ${GLIB2_LIBS}
 
 vmware_vmblock_fuse_SOURCES =
 vmware_vmblock_fuse_SOURCES += util.c
@@ -48,7 +48,7 @@ vmware_vmblock_fuse_SOURCES += $(top_srcdir)/modules/shared/vmblock/block.c
 vmware_vmblock_fuse_SOURCES += $(top_srcdir)/modules/shared/vmblock/stubs.c
 
 if HAVE_ICU
-   vmware_vmblock_fuse_LDADD += @ICU_LIBS@
+   vmware_vmblock_fuse_LDADD += ${ICU_LIBS}
    vmware_vmblock_fuse_LINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) \
                       $(LIBTOOLFLAGS) --mode=link $(CXX) $(AM_CXXFLAGS) \
                       $(CXXFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@

@@ -18,18 +18,18 @@
 bin_PROGRAMS = vmtoolsd
 
 vmtoolsd_CPPFLAGS =
-vmtoolsd_CPPFLAGS += @VMTOOLS_CPPFLAGS@
-vmtoolsd_CPPFLAGS += @GMODULE_CPPFLAGS@
-vmtoolsd_CPPFLAGS += @GOBJECT_CPPFLAGS@
-vmtoolsd_CPPFLAGS += @GTHREAD_CPPFLAGS@
+vmtoolsd_CPPFLAGS += ${VMTOOLS_CPPFLAGS}
+vmtoolsd_CPPFLAGS += ${GMODULE_CPPFLAGS}
+vmtoolsd_CPPFLAGS += ${GOBJECT_CPPFLAGS}
+vmtoolsd_CPPFLAGS += ${GTHREAD_CPPFLAGS}
 vmtoolsd_CPPFLAGS += -I$(builddir)
 vmtoolsd_CPPFLAGS += -DVMTOOLSD_PLUGIN_ROOT=\"$(pkglibdir)/plugins\"
 
 vmtoolsd_LDADD =
-vmtoolsd_LDADD += @VMTOOLS_LIBS@
-vmtoolsd_LDADD += @GMODULE_LIBS@
-vmtoolsd_LDADD += @GOBJECT_LIBS@
-vmtoolsd_LDADD += @GTHREAD_LIBS@
+vmtoolsd_LDADD += ${VMTOOLS_LIBS}
+vmtoolsd_LDADD += ${GMODULE_LIBS}
+vmtoolsd_LDADD += ${GOBJECT_LIBS}
+vmtoolsd_LDADD += ${GTHREAD_LIBS}
 if LINUX
    vmtoolsd_LDADD += ../../lib/globalConfig/libGlobalConfig.la
 endif
@@ -65,7 +65,7 @@ svcSignals.h: $(top_srcdir)/services/vmtoolsd/svcSignals.gm
 	   $@ || (rm -f $@ && exit 1)
 
 if HAVE_ICU
-   vmtoolsd_LDADD += @ICU_LIBS@
+   vmtoolsd_LDADD += ${ICU_LIBS}
    vmtoolsd_LINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS)     \
                       $(LIBTOOLFLAGS) --mode=link $(CXX)       \
                       $(AM_CXXFLAGS) $(CXXFLAGS) $(AM_LDFLAGS) \

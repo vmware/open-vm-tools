@@ -26,9 +26,9 @@ libhgfs_la_LIBADD += ../lib/hgfsUri/libHgfsUri.la
 endif
 libhgfs_la_LIBADD += ../lib/hgfsServerManagerGuest/libHgfsServerManagerGuest.la
 libhgfs_la_LIBADD += ../lib/hgfsServerPolicyGuest/libHgfsServerPolicyGuest.la
-libhgfs_la_LIBADD += @GLIB2_LIBS@
-libhgfs_la_LIBADD += @GTHREAD_LIBS@
-libhgfs_la_LIBADD += @VMTOOLS_LIBS@
+libhgfs_la_LIBADD += ${GLIB2_LIBS}
+libhgfs_la_LIBADD += ${GTHREAD_LIBS}
+libhgfs_la_LIBADD += ${VMTOOLS_LIBS}
 
 libhgfs_la_SOURCES =
 libhgfs_la_SOURCES += hgfslib.c
@@ -36,10 +36,8 @@ libhgfs_la_SOURCES += hgfslib.c
 libhgfs_la_CPPFLAGS =
 libhgfs_la_CPPFLAGS += -I$(top_srcdir)/libvmtools
 
-libhgfs_la_LDFLAGS =
 # We require GCC, so we're fine passing compiler-specific flags.
-libhgfs_la_LDFLAGS += -Wl,-z,defs
+libhgfs_la_LDFLAGS = -Wl,-z,defs
 # Needed for OS's that don't link shared libraries against libc by
 #default, e.g. FreeBSD
-libhgfs_la_LDFLAGS += -Wl,-lc
-
+libhgfs_la_LIBADD += -lc

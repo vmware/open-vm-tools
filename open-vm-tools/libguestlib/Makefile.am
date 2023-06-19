@@ -17,8 +17,8 @@
 
 lib_LTLIBRARIES = libguestlib.la
 
-AM_CFLAGS =
-AM_CFLAGS += -I$(top_srcdir)/include
+AM_CPPFLAGS =
+AM_CPPFLAGS += -I$(top_srcdir)/include
 
 libguestlib_la_LIBADD =
 libguestlib_la_LIBADD += ../lib/backdoor/libBackdoor.la
@@ -33,7 +33,7 @@ libguestlib_la_LIBADD += ../lib/string/libString.la
 libguestlib_la_LIBADD += ../lib/unicode/libUnicode.la
 libguestlib_la_LIBADD += ../lib/vmCheck/libVmCheck.la
 libguestlib_la_LIBADD += ../lib/vmSignal/libVmSignal.la
-libguestlib_la_LIBADD += @XDR_LIBS@
+libguestlib_la_LIBADD += ${XDR_LIBS}
 
 libguestlib_rpcchanneldir = $(top_srcdir)/lib/rpcChannel
 
@@ -50,12 +50,10 @@ libguestlib_la_SOURCES += $(libguestlib_rpcchanneldir)/vsockChannel.c
 libguestlib_la_SOURCES += $(libguestlib_rpcchanneldir)/simpleSocket.c
 endif
 
-libguestlib_la_LDFLAGS =
-libguestlib_la_LDFLAGS += -Wl,-ldl
-libguestlib_la_LDFLAGS += -Wl,-lrt
+libguestlib_la_LIBADD += -ldl -lrt
 # We require GCC, so we're fine passing compiler-specific flags.
 # Needed for OS's that don't link shared libraries against libc by default, e.g. FreeBSD
-libguestlib_la_LDFLAGS += -Wl,-lc
+libguestlib_la_LIBADD += -lc
 
 libguestlib_includedir = $(includedir)/vmGuestLib
 
@@ -80,8 +78,8 @@ CFLAGS += -Wno-unused
 libguestlib_la_CPPFLAGS =
 libguestlib_la_CPPFLAGS += -DVMTOOLS_USE_GLIB
 libguestlib_la_CPPFLAGS += -DUSE_RPCI_ONLY
-libguestlib_la_CPPFLAGS += @GLIB2_CPPFLAGS@
-libguestlib_la_CPPFLAGS += @XDR_CPPFLAGS@
+libguestlib_la_CPPFLAGS += ${GLIB2_CPPFLAGS}
+libguestlib_la_CPPFLAGS += ${XDR_CPPFLAGS}
 
 EXTRA_DIST = vmguestlib.pc.in
 

@@ -21,14 +21,14 @@ plugindir = @VMSVC_PLUGIN_INSTALLDIR@
 plugin_LTLIBRARIES = libgdp.la
 
 libgdp_la_CPPFLAGS =
-libgdp_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
+libgdp_la_CPPFLAGS += ${PLUGIN_CPPFLAGS}
 
 libgdp_la_LDFLAGS =
-libgdp_la_LDFLAGS += @PLUGIN_LDFLAGS@
+libgdp_la_LDFLAGS += ${PLUGIN_LDFLAGS}
 
 libgdp_la_LIBADD =
-libgdp_la_LIBADD += @VMTOOLS_LIBS@
-libgdp_la_LIBADD += @GOBJECT_LIBS@
+libgdp_la_LIBADD += ${VMTOOLS_LIBS}
+libgdp_la_LIBADD += ${GOBJECT_LIBS}
 
 libgdp_la_SOURCES =
 libgdp_la_SOURCES += gdpPlugin.c

@@ -21,4 +21,4 @@ libImpersonate_la_SOURCES =
 libImpersonate_la_SOURCES += impersonate.c
 libImpersonate_la_SOURCES += impersonatePosix.c
 
-AM_CFLAGS = @LIB_IMPERSONATE_CPPFLAGS@
+AM_CFLAGS = ${LIB_IMPERSONATE_CPPFLAGS}

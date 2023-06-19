@@ -19,14 +19,14 @@ plugindir = @COMMON_PLUGIN_INSTALLDIR@
 plugin_LTLIBRARIES = libhgfsServer.la
 
 libhgfsServer_la_CPPFLAGS =
-libhgfsServer_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
+libhgfsServer_la_CPPFLAGS += ${PLUGIN_CPPFLAGS}
 
 libhgfsServer_la_LDFLAGS =
-libhgfsServer_la_LDFLAGS += @PLUGIN_LDFLAGS@
+libhgfsServer_la_LDFLAGS += ${PLUGIN_LDFLAGS}
 
 libhgfsServer_la_LIBADD =
-libhgfsServer_la_LIBADD += @VMTOOLS_LIBS@
-libhgfsServer_la_LIBADD += @HGFS_LIBS@
+libhgfsServer_la_LIBADD += ${VMTOOLS_LIBS}
+libhgfsServer_la_LIBADD += ${HGFS_LIBS}
 
 libhgfsServer_la_SOURCES =
 libhgfsServer_la_SOURCES += hgfsPlugin.c

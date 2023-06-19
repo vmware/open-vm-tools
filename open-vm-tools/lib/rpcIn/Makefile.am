@@ -21,5 +21,5 @@ libRpcIn_la_SOURCES =
 libRpcIn_la_SOURCES += rpcin.c
 
 libRpcIn_la_CPPFLAGS =
-libRpcIn_la_CPPFLAGS += @VMTOOLS_CPPFLAGS@
+libRpcIn_la_CPPFLAGS += ${VMTOOLS_CPPFLAGS}
 

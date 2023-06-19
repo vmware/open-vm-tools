@@ -19,14 +19,14 @@ plugindir = @VMSVC_PLUGIN_INSTALLDIR@
 plugin_LTLIBRARIES = libtimeSync.la
 
 libtimeSync_la_CPPFLAGS =
-libtimeSync_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
+libtimeSync_la_CPPFLAGS += ${PLUGIN_CPPFLAGS}
 
 libtimeSync_la_LDFLAGS =
-libtimeSync_la_LDFLAGS += @PLUGIN_LDFLAGS@
+libtimeSync_la_LDFLAGS += ${PLUGIN_LDFLAGS}
 
 libtimeSync_la_LIBADD =
-libtimeSync_la_LIBADD += @VMTOOLS_LIBS@
-libtimeSync_la_LIBADD += @GOBJECT_LIBS@
+libtimeSync_la_LIBADD += ${VMTOOLS_LIBS}
+libtimeSync_la_LIBADD += ${GOBJECT_LIBS}
 
 libtimeSync_la_SOURCES =
 libtimeSync_la_SOURCES += timeSync.c

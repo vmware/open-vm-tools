@@ -21,17 +21,17 @@ plugindir = @VMSVC_PLUGIN_INSTALLDIR@
 plugin_LTLIBRARIES = libguestInfo.la
 
 libguestInfo_la_CPPFLAGS =
-libguestInfo_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
-libguestInfo_la_CPPFLAGS += @XDR_CPPFLAGS@
+libguestInfo_la_CPPFLAGS += ${PLUGIN_CPPFLAGS}
+libguestInfo_la_CPPFLAGS += ${XDR_CPPFLAGS}
 
 libguestInfo_la_LDFLAGS =
-libguestInfo_la_LDFLAGS += @PLUGIN_LDFLAGS@
+libguestInfo_la_LDFLAGS += ${PLUGIN_LDFLAGS}
 
 libguestInfo_la_LIBADD =
-libguestInfo_la_LIBADD += @VMTOOLS_LIBS@
-libguestInfo_la_LIBADD += @XDR_LIBS@
+libguestInfo_la_LIBADD += ${VMTOOLS_LIBS}
+libguestInfo_la_LIBADD += ${XDR_LIBS}
 
-libguestInfo_la_LIBADD += @DNET_LIBS@
+libguestInfo_la_LIBADD += ${DNET_LIBS}
 
 libguestInfo_la_SOURCES =
 libguestInfo_la_SOURCES += guestInfoServer.c

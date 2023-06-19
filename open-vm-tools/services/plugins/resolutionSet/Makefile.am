@@ -22,17 +22,17 @@ if HAVE_X11
 plugin_LTLIBRARIES = libresolutionSet.la
 
 libresolutionSet_la_CPPFLAGS =
-libresolutionSet_la_CPPFLAGS += @GTK_CPPFLAGS@
-libresolutionSet_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
+libresolutionSet_la_CPPFLAGS += ${GTK_CPPFLAGS}
+libresolutionSet_la_CPPFLAGS += ${PLUGIN_CPPFLAGS}
 libresolutionSet_la_CPPFLAGS += -DRESOLUTION_X11
 
 libresolutionSet_la_LDFLAGS =
-libresolutionSet_la_LDFLAGS += @PLUGIN_LDFLAGS@
+libresolutionSet_la_LDFLAGS += ${PLUGIN_LDFLAGS}
 
 libresolutionSet_la_LIBADD =
 libresolutionSet_la_LIBADD += @COMMON_XLIBS@
-libresolutionSet_la_LIBADD += @GTK_LIBS@
-libresolutionSet_la_LIBADD += @VMTOOLS_LIBS@
+libresolutionSet_la_LIBADD += ${GTK_LIBS}
+libresolutionSet_la_LIBADD += ${VMTOOLS_LIBS}
 libresolutionSet_la_LIBADD += @RESOLUTIONSET_LIBADD@
 libresolutionSet_la_LIBADD += libresolutionCommon.la
 
@@ -44,8 +44,8 @@ libresolutionSet_la_SOURCES += resolutionRandR12.c
 endif
 
 libresolutionCommon_la_CPPFLAGS =
-libresolutionCommon_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
-libresolutionCommon_la_CPPFLAGS += @LIBUDEV_CFLAGS@
+libresolutionCommon_la_CPPFLAGS += ${PLUGIN_CPPFLAGS}
+libresolutionCommon_la_CPPFLAGS += ${LIBUDEV_CFLAGS}
 
 libresolutionCommon_la_SOURCES =
 libresolutionCommon_la_SOURCES += resolutionCommon.c
@@ -53,7 +53,7 @@ libresolutionCommon_la_SOURCES += resolutionCommon.h
 libresolutionCommon_la_SOURCES += resolutionDL.c
 libresolutionCommon_la_SOURCES += resolutionDL.h
 libresolutionCommon_la_LDFLAGS =
-libresolutionCommon_la_LDFLAGS += @PLUGIN_LDFLAGS@
+libresolutionCommon_la_LDFLAGS += ${PLUGIN_LDFLAGS}
 
 libresolutionCommon_la_LIBADD =
-libresolutionCommon_la_LIBADD += @LIBUDEV_LIBS@
+libresolutionCommon_la_LIBADD += ${LIBUDEV_LIBS}

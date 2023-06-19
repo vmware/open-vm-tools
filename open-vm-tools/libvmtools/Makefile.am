@@ -59,8 +59,8 @@ libvmtools_la_LIBADD += ../lib/vmSignal/libVmSignal.la
 libvmtools_la_LIBADD += ../lib/wiper/libWiper.la
 libvmtools_la_LIBADD += ../lib/misc/libMisc.la
 libvmtools_la_LIBADD += @LIBVMTOOLS_LIBADD@
-libvmtools_la_LIBADD += @GLIB2_LIBS@
-libvmtools_la_LIBADD += @ICU_LIBS@
+libvmtools_la_LIBADD += ${GLIB2_LIBS}
+libvmtools_la_LIBADD += ${ICU_LIBS}
 
 if USE_SLASH_PROC
 libvmtools_la_LIBADD += ../lib/slashProc/libSlashProc.la
@@ -82,12 +82,10 @@ libvmtools_la_CPPFLAGS =
 libvmtools_la_CPPFLAGS += -DVMTOOLS_USE_GLIB
 libvmtools_la_CPPFLAGS += -DNO_LOG_STUB
 libvmtools_la_CPPFLAGS += -DVMTOOLS_DATA_DIR=\"$(datadir)/open-vm-tools\"
-libvmtools_la_CPPFLAGS += @GLIB2_CPPFLAGS@
+libvmtools_la_CPPFLAGS += ${GLIB2_CPPFLAGS}
 
-libvmtools_la_LDFLAGS =
 # We require GCC, so we're fine passing compiler-specific flags.
-libvmtools_la_LDFLAGS += -Wl,-z,defs
+libvmtools_la_LDFLAGS = -Wl,-z,defs
 # Needed for OS's that don't link shared libraries against libc by
 #default, e.g. FreeBSD
-libvmtools_la_LDFLAGS += -Wl,-lc
-
+libvmtools_la_LIBADD += -lc

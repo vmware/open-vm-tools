@@ -21,4 +21,4 @@ libPollGtk_la_SOURCES =
 libPollGtk_la_SOURCES += pollGtk.c
 
 AM_CFLAGS =
-AM_CFLAGS += @GLIB2_CPPFLAGS@
+AM_CFLAGS += ${GLIB2_CPPFLAGS}

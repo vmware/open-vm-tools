@@ -21,14 +21,14 @@ plugindir = @VMSVC_PLUGIN_INSTALLDIR@
 plugin_LTLIBRARIES = libappInfo.la
 
 libappInfo_la_CPPFLAGS =
-libappInfo_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
+libappInfo_la_CPPFLAGS += ${PLUGIN_CPPFLAGS}
 
 libappInfo_la_LDFLAGS =
-libappInfo_la_LDFLAGS += @PLUGIN_LDFLAGS@
+libappInfo_la_LDFLAGS += ${PLUGIN_LDFLAGS}
 
 libappInfo_la_LIBADD =
-libappInfo_la_LIBADD += @VMTOOLS_LIBS@
-libappInfo_la_LIBADD += @GOBJECT_LIBS@
+libappInfo_la_LIBADD += ${VMTOOLS_LIBS}
+libappInfo_la_LIBADD += ${GOBJECT_LIBS}
 
 libappInfo_la_SOURCES =
 libappInfo_la_SOURCES += appInfo.c

@@ -19,16 +19,16 @@ plugindir = @VMUSR_PLUGIN_INSTALLDIR@
 plugin_LTLIBRARIES = libdesktopEvents.la
 
 libdesktopEvents_la_CPPFLAGS =
-libdesktopEvents_la_CPPFLAGS += @GTK_CPPFLAGS@
-libdesktopEvents_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
+libdesktopEvents_la_CPPFLAGS += ${GTK_CPPFLAGS}
+libdesktopEvents_la_CPPFLAGS += ${PLUGIN_CPPFLAGS}
 
 libdesktopEvents_la_LDFLAGS =
-libdesktopEvents_la_LDFLAGS += @PLUGIN_LDFLAGS@
+libdesktopEvents_la_LDFLAGS += ${PLUGIN_LDFLAGS}
 
 libdesktopEvents_la_LIBADD =
 libdesktopEvents_la_LIBADD += @COMMON_XLIBS@
-libdesktopEvents_la_LIBADD += @GTK_LIBS@
-libdesktopEvents_la_LIBADD += @VMTOOLS_LIBS@
+libdesktopEvents_la_LIBADD += ${GTK_LIBS}
+libdesktopEvents_la_LIBADD += ${VMTOOLS_LIBS}
 
 libdesktopEvents_la_SOURCES =
 libdesktopEvents_la_SOURCES += desktopEvents.c
@@ -37,7 +37,7 @@ libdesktopEvents_la_SOURCES += x11Lock.c
 libdesktopEvents_la_SOURCES += xioError.c
 
 if HAVE_XSM
-libdesktopEvents_la_LIBADD += @XSM_LIBS@
+libdesktopEvents_la_LIBADD += ${XSM_LIBS}
 libdesktopEvents_la_SOURCES += sessionMgr.c
 libdesktopEvents_la_SOURCES += sessionMgrSignals.c
 

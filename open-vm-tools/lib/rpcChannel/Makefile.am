@@ -26,9 +26,9 @@ libRpcChannel_la_SOURCES += simpleSocket.c
 endif
 
 libRpcChannel_la_CPPFLAGS =
-libRpcChannel_la_CPPFLAGS += @VMTOOLS_CPPFLAGS@
-libRpcChannel_la_CPPFLAGS += @XDR_CPPFLAGS@
+libRpcChannel_la_CPPFLAGS += ${VMTOOLS_CPPFLAGS}
+libRpcChannel_la_CPPFLAGS += ${XDR_CPPFLAGS}
 
 libRpcChannel_la_LIBADD =
-libRpcChannel_la_LIBADD += @XDR_LIBS@
+libRpcChannel_la_LIBADD += ${XDR_LIBS}
 

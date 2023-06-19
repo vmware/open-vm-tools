@@ -21,14 +21,14 @@ plugindir = @VMSVC_PLUGIN_INSTALLDIR@
 plugin_LTLIBRARIES = libdeployPkgPlugin.la
 
 libdeployPkgPlugin_la_CPPFLAGS =
-libdeployPkgPlugin_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
+libdeployPkgPlugin_la_CPPFLAGS += ${PLUGIN_CPPFLAGS}
 
 libdeployPkgPlugin_la_LDFLAGS =
-libdeployPkgPlugin_la_LDFLAGS += @PLUGIN_LDFLAGS@
+libdeployPkgPlugin_la_LDFLAGS += ${PLUGIN_LDFLAGS}
 
 libdeployPkgPlugin_la_LIBADD =
-libdeployPkgPlugin_la_LIBADD += @VMTOOLS_LIBS@
-libdeployPkgPlugin_la_LIBADD += @GOBJECT_LIBS@
+libdeployPkgPlugin_la_LIBADD += ${VMTOOLS_LIBS}
+libdeployPkgPlugin_la_LIBADD += ${GOBJECT_LIBS}
 libdeployPkgPlugin_la_LIBADD += $(top_builddir)/libDeployPkg/libDeployPkg.la
 
 libdeployPkgPlugin_la_SOURCES =

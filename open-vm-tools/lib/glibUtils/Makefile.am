@@ -18,7 +18,7 @@
 noinst_LTLIBRARIES = libGlibUtils.la
 
 libGlibUtils_la_CPPFLAGS =
-libGlibUtils_la_CPPFLAGS += @GLIB2_CPPFLAGS@
+libGlibUtils_la_CPPFLAGS += ${GLIB2_CPPFLAGS}
 
 libGlibUtils_la_SOURCES =
 libGlibUtils_la_SOURCES += fileLogger.c

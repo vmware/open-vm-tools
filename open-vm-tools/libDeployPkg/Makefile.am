@@ -17,15 +17,15 @@
 
 lib_LTLIBRARIES = libDeployPkg.la
 
-AM_CFLAGS =
-AM_CFLAGS += -I$(top_srcdir)/include
-AM_CFLAGS += $(MSPACK_CPPFLAGS)
-AM_CFLAGS += -DVMTOOLS_USE_GLIB
-AM_CFLAGS += @GLIB2_CPPFLAGS@
+AM_CPPFLAGS =
+AM_CPPFLAGS += -I$(top_srcdir)/include
+AM_CPPFLAGS += $(MSPACK_CPPFLAGS)
+AM_CPPFLAGS += -DVMTOOLS_USE_GLIB
+AM_CPPFLAGS += ${GLIB2_CPPFLAGS}
 
 libDeployPkg_la_LIBADD =
-libDeployPkg_la_LIBADD += @MSPACK_LIBS@
-libDeployPkg_la_LIBADD += @VMTOOLS_LIBS@
+libDeployPkg_la_LIBADD += ${MSPACK_LIBS}
+libDeployPkg_la_LIBADD += ${VMTOOLS_LIBS}
 
 libDeployPkg_la_SOURCES =
 libDeployPkg_la_SOURCES += linuxDeployment.c
@@ -36,10 +36,9 @@ libDeployPkg_la_SOURCES += processPosix.c
 libDeployPkg_la_SOURCES += linuxDeploymentUtilities.c
 libDeployPkg_la_SOURCES += linuxDeploymentUtilities.h
 
-libDeployPkg_la_LDFLAGS =
 # We require GCC, so we're fine passing compiler-specific flags.
 # Needed for OS's that don't link shared libraries against libc by default, e.g. FreeBSD
-libDeployPkg_la_LDFLAGS += -Wl,-lc
+libDeployPkg_la_LIBADD += -lc
 
 libDeployPkg_includedir = $(includedir)/libDeployPkg
 

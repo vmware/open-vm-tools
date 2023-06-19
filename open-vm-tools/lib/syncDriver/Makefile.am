@@ -18,7 +18,7 @@
 noinst_LTLIBRARIES = libSyncDriver.la
 
 libSyncDriver_la_CPPFLAGS =
-libSyncDriver_la_CPPFLAGS += @GLIB2_CPPFLAGS@
+libSyncDriver_la_CPPFLAGS += ${GLIB2_CPPFLAGS}
 
 libSyncDriver_la_SOURCES =
 libSyncDriver_la_SOURCES += syncDriverPosix.c

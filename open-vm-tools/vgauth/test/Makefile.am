@@ -22,20 +22,20 @@ vmware_vgauth_smoketest_SOURCES += main.c
 
 vmware_vgauth_smoketest_CPPFLAGS =
 vmware_vgauth_smoketest_CPPFLAGS += -DVMTOOLS_USE_GLIB
-vmware_vgauth_smoketest_CPPFLAGS += @GLIB2_CPPFLAGS@
+vmware_vgauth_smoketest_CPPFLAGS += ${GLIB2_CPPFLAGS}
 vmware_vgauth_smoketest_CPPFLAGS += -I$(top_srcdir)/libvmtools
 vmware_vgauth_smoketest_CPPFLAGS += -I$(top_srcdir)/vgauth/public
 vmware_vgauth_smoketest_CPPFLAGS += -I$(top_srcdir)/vgauth/common
 
 vmware_vgauth_smoketest_LDADD =
-vmware_vgauth_smoketest_LDADD += @VMTOOLS_LIBS@
-vmware_vgauth_smoketest_LDADD += @GLIB2_LIBS@
-vmware_vgauth_smoketest_LDADD += @GTHREAD_LIBS@
-vmware_vgauth_smoketest_LDADD += @SSL_LIBS@
+vmware_vgauth_smoketest_LDADD += ${VMTOOLS_LIBS}
+vmware_vgauth_smoketest_LDADD += ${GLIB2_LIBS}
+vmware_vgauth_smoketest_LDADD += ${GTHREAD_LIBS}
+vmware_vgauth_smoketest_LDADD += ${SSL_LIBS}
 vmware_vgauth_smoketest_LDADD += ../lib/libvgauth.la
 
 if HAVE_ICU
-   vmware_vgauth_smoketest_LDADD += @ICU_LIBS@
+   vmware_vgauth_smoketest_LDADD += ${ICU_LIBS}
    vmware_vgauth_smoketest_LINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS)     \
                             $(LIBTOOLFLAGS) --mode=link $(CXX)       \
                             $(AM_CXXFLAGS) $(CXXFLAGS) $(AM_LDFLAGS) \
