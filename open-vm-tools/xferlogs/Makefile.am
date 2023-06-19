@@ -18,7 +18,7 @@
 bin_PROGRAMS = vmware-xferlogs
 
 vmware_xferlogs_LDADD =
-vmware_xferlogs_LDADD += @GLIB2_LIBS@
+vmware_xferlogs_LDADD += ${GLIB2_LIBS}
 vmware_xferlogs_LDADD += ../lib/rpcOut/libRpcOut.la
 vmware_xferlogs_LDADD += ../lib/rpcVmx/libRpcVmx.la
 vmware_xferlogs_LDADD += ../lib/message/libMessage.la
@@ -30,13 +30,13 @@ vmware_xferlogs_LDADD += ../lib/misc/libMisc.la
 vmware_xferlogs_LDADD += ../lib/stubs/libStubs.la
 
 vmware_xferlogs_CPPFLAGS =
-vmware_xferlogs_CPPFLAGS += @GLIB2_CPPFLAGS@
+vmware_xferlogs_CPPFLAGS += ${GLIB2_CPPFLAGS}
 
 vmware_xferlogs_SOURCES =
 vmware_xferlogs_SOURCES += xferlogs.c
 
 if HAVE_ICU
-   vmware_xferlogs_LDADD += @ICU_LIBS@
+   vmware_xferlogs_LDADD += ${ICU_LIBS}
    vmware_xferlogs_LINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) \
                           $(LIBTOOLFLAGS) --mode=link $(CXX) $(AM_CXXFLAGS) \
                           $(CXXFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@

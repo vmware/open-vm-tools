@@ -33,7 +33,7 @@ libguestlib_la_LIBADD += ../lib/string/libString.la
 libguestlib_la_LIBADD += ../lib/unicode/libUnicode.la
 libguestlib_la_LIBADD += ../lib/vmCheck/libVmCheck.la
 libguestlib_la_LIBADD += ../lib/vmSignal/libVmSignal.la
-libguestlib_la_LIBADD += @XDR_LIBS@
+libguestlib_la_LIBADD += ${XDR_LIBS}
 
 libguestlib_rpcchanneldir = $(top_srcdir)/lib/rpcChannel
 
@@ -78,8 +78,8 @@ CFLAGS += -Wno-unused
 libguestlib_la_CPPFLAGS =
 libguestlib_la_CPPFLAGS += -DVMTOOLS_USE_GLIB
 libguestlib_la_CPPFLAGS += -DUSE_RPCI_ONLY
-libguestlib_la_CPPFLAGS += @GLIB2_CPPFLAGS@
-libguestlib_la_CPPFLAGS += @XDR_CPPFLAGS@
+libguestlib_la_CPPFLAGS += ${GLIB2_CPPFLAGS}
+libguestlib_la_CPPFLAGS += ${XDR_CPPFLAGS}
 
 EXTRA_DIST = vmguestlib.pc.in
 

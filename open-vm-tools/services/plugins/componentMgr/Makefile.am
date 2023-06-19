@@ -21,15 +21,15 @@ plugindir = @VMSVC_PLUGIN_INSTALLDIR@
 plugin_LTLIBRARIES = libcomponentMgr.la
 
 libcomponentMgr_la_CPPFLAGS =
-libcomponentMgr_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
+libcomponentMgr_la_CPPFLAGS += ${PLUGIN_CPPFLAGS}
 libcomponentMgr_la_CPPFLAGS += -DVMTOOLS_COMPONENTMGR_PATH=\"$(pkglibdir)/componentMgr/\"
 
 libcomponentMgr_la_LDFLAGS =
-libcomponentMgr_la_LDFLAGS += @PLUGIN_LDFLAGS@
+libcomponentMgr_la_LDFLAGS += ${PLUGIN_LDFLAGS}
 
 libcomponentMgr_la_LIBADD =
-libcomponentMgr_la_LIBADD += @VMTOOLS_LIBS@
-libcomponentMgr_la_LIBADD += @GOBJECT_LIBS@
+libcomponentMgr_la_LIBADD += ${VMTOOLS_LIBS}
+libcomponentMgr_la_LIBADD += ${GOBJECT_LIBS}
 
 libcomponentMgr_la_SOURCES =
 libcomponentMgr_la_SOURCES += componentMgr.c

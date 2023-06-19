@@ -22,15 +22,15 @@ vmware_namespace_cmd_SOURCES += namespacetool.c
 
 vmware_namespace_cmd_CPPFLAGS =
 vmware_namespace_cmd_CPPFLAGS += -DVMTOOLS_USE_GLIB
-vmware_namespace_cmd_CPPFLAGS += @GLIB2_CPPFLAGS@
+vmware_namespace_cmd_CPPFLAGS += ${GLIB2_CPPFLAGS}
 vmware_namespace_cmd_CPPFLAGS += -I$(top_srcdir)/libvmtools
 
 vmware_namespace_cmd_LDADD =
-vmware_namespace_cmd_LDADD += @VMTOOLS_LIBS@
-vmware_namespace_cmd_LDADD += @GLIB2_LIBS@
+vmware_namespace_cmd_LDADD += ${VMTOOLS_LIBS}
+vmware_namespace_cmd_LDADD += ${GLIB2_LIBS}
 
 if HAVE_ICU
-   vmware_namespace_cmd_LDADD += @ICU_LIBS@
+   vmware_namespace_cmd_LDADD += ${ICU_LIBS}
    vmware_namespace_cmd_LINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS)  \
                                $(LIBTOOLFLAGS) --mode=link $(CXX)       \
                                $(AM_CXXFLAGS) $(CXXFLAGS) $(AM_LDFLAGS) \

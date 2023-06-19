@@ -19,16 +19,16 @@ plugindir = @VMSVC_PLUGIN_INSTALLDIR@
 plugin_LTLIBRARIES = libvmbackup.la
 
 libvmbackup_la_CPPFLAGS =
-libvmbackup_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
-libvmbackup_la_CPPFLAGS += @XDR_CPPFLAGS@
+libvmbackup_la_CPPFLAGS += ${PLUGIN_CPPFLAGS}
+libvmbackup_la_CPPFLAGS += ${XDR_CPPFLAGS}
 
 libvmbackup_la_LDFLAGS =
-libvmbackup_la_LDFLAGS += @PLUGIN_LDFLAGS@
+libvmbackup_la_LDFLAGS += ${PLUGIN_LDFLAGS}
 
 libvmbackup_la_LIBADD =
-libvmbackup_la_LIBADD += @GOBJECT_LIBS@
-libvmbackup_la_LIBADD += @VMTOOLS_LIBS@
-libvmbackup_la_LIBADD += @XDR_LIBS@
+libvmbackup_la_LIBADD += ${GOBJECT_LIBS}
+libvmbackup_la_LIBADD += ${VMTOOLS_LIBS}
+libvmbackup_la_LIBADD += ${XDR_LIBS}
 
 libvmbackup_la_SOURCES =
 libvmbackup_la_SOURCES += nullProvider.c

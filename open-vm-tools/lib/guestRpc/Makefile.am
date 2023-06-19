@@ -44,8 +44,8 @@ nicinfo_xdr.c: nicinfo.x nicinfo.h
 	@RPCGEN_WRAPPER@ lib/guestRpc/nicinfo.x $@
 
 libGuestRpc_la_CPPFLAGS =
-libGuestRpc_la_CPPFLAGS += @XDR_CPPFLAGS@
+libGuestRpc_la_CPPFLAGS += ${XDR_CPPFLAGS}
 
 libGuestRpc_la_LIBADD =
-libGuestRpc_la_LIBADD += @XDR_LIBS@
+libGuestRpc_la_LIBADD += ${XDR_LIBS}
 

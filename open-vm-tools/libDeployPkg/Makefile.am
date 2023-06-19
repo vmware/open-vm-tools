@@ -21,11 +21,11 @@ AM_CPPFLAGS =
 AM_CPPFLAGS += -I$(top_srcdir)/include
 AM_CPPFLAGS += $(MSPACK_CPPFLAGS)
 AM_CPPFLAGS += -DVMTOOLS_USE_GLIB
-AM_CPPFLAGS += @GLIB2_CPPFLAGS@
+AM_CPPFLAGS += ${GLIB2_CPPFLAGS}
 
 libDeployPkg_la_LIBADD =
-libDeployPkg_la_LIBADD += @MSPACK_LIBS@
-libDeployPkg_la_LIBADD += @VMTOOLS_LIBS@
+libDeployPkg_la_LIBADD += ${MSPACK_LIBS}
+libDeployPkg_la_LIBADD += ${VMTOOLS_LIBS}
 
 libDeployPkg_la_SOURCES =
 libDeployPkg_la_SOURCES += linuxDeployment.c

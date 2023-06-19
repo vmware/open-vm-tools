@@ -22,22 +22,22 @@ vmware_vgauth_cmd_SOURCES += main.c
 
 vmware_vgauth_cmd_CPPFLAGS =
 vmware_vgauth_cmd_CPPFLAGS += -DVMTOOLS_USE_GLIB
-vmware_vgauth_cmd_CPPFLAGS += @GLIB2_CPPFLAGS@
+vmware_vgauth_cmd_CPPFLAGS += ${GLIB2_CPPFLAGS}
 vmware_vgauth_cmd_CPPFLAGS += -I$(top_srcdir)/libvmtools
 vmware_vgauth_cmd_CPPFLAGS += -I$(top_srcdir)/vgauth/public
 vmware_vgauth_cmd_CPPFLAGS += -I$(top_srcdir)/vgauth/common
 
 vmware_vgauth_cmd_LDADD =
-vmware_vgauth_cmd_LDADD += @VMTOOLS_LIBS@
-vmware_vgauth_cmd_LDADD += @GLIB2_LIBS@
-vmware_vgauth_cmd_LDADD += @GTHREAD_LIBS@
-vmware_vgauth_cmd_LDADD += @SSL_LIBS@
+vmware_vgauth_cmd_LDADD += ${VMTOOLS_LIBS}
+vmware_vgauth_cmd_LDADD += ${GLIB2_LIBS}
+vmware_vgauth_cmd_LDADD += ${GTHREAD_LIBS}
+vmware_vgauth_cmd_LDADD += ${SSL_LIBS}
 vmware_vgauth_cmd_LDADD += ../lib/libvgauth.la
 vmware_vgauth_cmd_LDADD += -lssl
 vmware_vgauth_cmd_LDADD += -lcrypto
 
 if HAVE_ICU
-   vmware_vgauth_cmd_LDADD += @ICU_LIBS@
+   vmware_vgauth_cmd_LDADD += ${ICU_LIBS}
    vmware_vgauth_cmd_LINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS)     \
                             $(LIBTOOLFLAGS) --mode=link $(CXX)       \
                             $(AM_CXXFLAGS) $(CXXFLAGS) $(AM_LDFLAGS) \

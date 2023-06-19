@@ -21,8 +21,8 @@ libNetUtil_la_SOURCES =
 libNetUtil_la_SOURCES += netUtilLinux.c
 
 libNetUtil_la_CPPFLAGS =
-libNetUtil_la_CPPFLAGS += @XDR_CPPFLAGS@
+libNetUtil_la_CPPFLAGS += ${XDR_CPPFLAGS}
 
 libNetUtil_la_LIBADD =
-libNetUtil_la_LIBADD += @XDR_LIBS@
+libNetUtil_la_LIBADD += ${XDR_LIBS}
 

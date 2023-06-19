@@ -21,6 +21,6 @@ libSlashProc_la_SOURCES =
 libSlashProc_la_SOURCES += net.c
 
 libSlashProc_la_CPPFLAGS =
-libSlashProc_la_CPPFLAGS += @GLIB2_CPPFLAGS@
-libSlashProc_la_CPPFLAGS += @DNET_CPPFLAGS@
+libSlashProc_la_CPPFLAGS += ${GLIB2_CPPFLAGS}
+libSlashProc_la_CPPFLAGS += ${DNET_CPPFLAGS}
 

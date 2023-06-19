@@ -32,7 +32,7 @@ libappmonitor_la_LIBADD += ../lib/string/libString.la
 libappmonitor_la_LIBADD += ../lib/unicode/libUnicode.la
 libappmonitor_la_LIBADD += ../lib/vmCheck/libVmCheck.la
 libappmonitor_la_LIBADD += ../lib/vmSignal/libVmSignal.la
-libappmonitor_la_LIBADD += @ICU_LIBS@
+libappmonitor_la_LIBADD += ${ICU_LIBS}
 
 libappmonitor_rpcchanneldir = $(top_srcdir)/lib/rpcChannel
 
@@ -61,7 +61,7 @@ libappmonitor_include_HEADERS += $(top_srcdir)/lib/include/vmGuestAppMonitorLib.
 libappmonitor_la_CPPFLAGS =
 libappmonitor_la_CPPFLAGS += -DVMTOOLS_USE_GLIB
 libappmonitor_la_CPPFLAGS += -DUSE_RPCI_ONLY
-libappmonitor_la_CPPFLAGS += @GLIB2_CPPFLAGS@
+libappmonitor_la_CPPFLAGS += ${GLIB2_CPPFLAGS}
 
 EXTRA_DIST = appmonitor.pc.in
 

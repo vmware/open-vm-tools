@@ -19,10 +19,10 @@ lib_LTLIBRARIES = libvgauth.la
 
 libvgauth_la_LIBADD =
 libvgauth_la_LIBADD += @VGAUTH_LIBADD@
-libvgauth_la_LIBADD += @GLIB2_LIBS@
-libvgauth_la_LIBADD += @GTHREAD_LIBS@
-libvgauth_la_LIBADD += @VMTOOLS_LIBS@
-libvgauth_la_LIBADD += @SSL_LIBS@
+libvgauth_la_LIBADD += ${GLIB2_LIBS}
+libvgauth_la_LIBADD += ${GTHREAD_LIBS}
+libvgauth_la_LIBADD += ${VMTOOLS_LIBS}
+libvgauth_la_LIBADD += ${SSL_LIBS}
 libvgauth_la_LIBADD += -lssl
 libvgauth_la_LIBADD += -lcrypto
 
@@ -46,10 +46,10 @@ libvgauth_la_SOURCES += ../common/VGAuthLog.c
 libvgauth_la_SOURCES += ../common/VGAuthUtil.c
 
 libvgauth_la_CPPFLAGS =
-libvgauth_la_CPPFLAGS += @GLIB2_CPPFLAGS@
+libvgauth_la_CPPFLAGS += ${GLIB2_CPPFLAGS}
 libvgauth_la_CPPFLAGS += -DG_LOG_DOMAIN=\"VCGA\"
-libvgauth_la_CPPFLAGS += @PAM_CPPFLAGS@
-libvgauth_la_CPPFLAGS += @SSL_CPPFLAGS@
+libvgauth_la_CPPFLAGS += ${PAM_CPPFLAGS}
+libvgauth_la_CPPFLAGS += ${SSL_CPPFLAGS}
 libvgauth_la_CPPFLAGS += -I$(top_srcdir)/libvmtools
 libvgauth_la_CPPFLAGS += -I$(top_srcdir)/vgauth/public
 libvgauth_la_CPPFLAGS += -I$(top_srcdir)/vgauth/common

@@ -26,9 +26,9 @@ libhgfs_la_LIBADD += ../lib/hgfsUri/libHgfsUri.la
 endif
 libhgfs_la_LIBADD += ../lib/hgfsServerManagerGuest/libHgfsServerManagerGuest.la
 libhgfs_la_LIBADD += ../lib/hgfsServerPolicyGuest/libHgfsServerPolicyGuest.la
-libhgfs_la_LIBADD += @GLIB2_LIBS@
-libhgfs_la_LIBADD += @GTHREAD_LIBS@
-libhgfs_la_LIBADD += @VMTOOLS_LIBS@
+libhgfs_la_LIBADD += ${GLIB2_LIBS}
+libhgfs_la_LIBADD += ${GTHREAD_LIBS}
+libhgfs_la_LIBADD += ${VMTOOLS_LIBS}
 
 libhgfs_la_SOURCES =
 libhgfs_la_SOURCES += hgfslib.c

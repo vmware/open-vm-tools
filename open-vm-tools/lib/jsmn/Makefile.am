@@ -21,4 +21,4 @@ libJsmn_la_SOURCES =
 libJsmn_la_SOURCES += jsmn.c
 
 AM_CFLAGS =
-AM_CFLAGS += @GLIB2_CPPFLAGS@
+AM_CFLAGS += ${GLIB2_CPPFLAGS}

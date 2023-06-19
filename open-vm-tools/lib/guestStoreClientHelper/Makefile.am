@@ -21,4 +21,4 @@ libGuestStoreClientHelper_la_SOURCES =
 libGuestStoreClientHelper_la_SOURCES += guestStoreClient.c
 
 libGuestStoreClientHelper_la_CPPFLAGS =
-libGuestStoreClientHelper_la_CPPFLAGS += @GLIB2_CPPFLAGS@
+libGuestStoreClientHelper_la_CPPFLAGS += ${GLIB2_CPPFLAGS}

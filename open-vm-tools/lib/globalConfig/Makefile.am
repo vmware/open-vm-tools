@@ -21,4 +21,4 @@ libGlobalConfig_la_SOURCES =
 libGlobalConfig_la_SOURCES += globalConfig.c
 
 libGlobalConfig_la_CPPFLAGS =
-libGlobalConfig_la_CPPFLAGS += @GLIB2_CPPFLAGS@
+libGlobalConfig_la_CPPFLAGS += ${GLIB2_CPPFLAGS}

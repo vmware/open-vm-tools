@@ -17,7 +17,7 @@
 
 noinst_LTLIBRARIES = libXdg.la
 
-libXdg_la_CPPFLAGS = @GLIB2_CPPFLAGS@
+libXdg_la_CPPFLAGS = ${GLIB2_CPPFLAGS}
 
 libXdg_la_SOURCES =
 libXdg_la_SOURCES += xdg.c

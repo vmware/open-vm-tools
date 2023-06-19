@@ -21,14 +21,14 @@ plugindir = @VMSVC_PLUGIN_INSTALLDIR@
 plugin_LTLIBRARIES = libguestStore.la
 
 libguestStore_la_CPPFLAGS =
-libguestStore_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
+libguestStore_la_CPPFLAGS += ${PLUGIN_CPPFLAGS}
 
 libguestStore_la_LDFLAGS =
-libguestStore_la_LDFLAGS += @PLUGIN_LDFLAGS@
+libguestStore_la_LDFLAGS += ${PLUGIN_LDFLAGS}
 
 libguestStore_la_LIBADD =
-libguestStore_la_LIBADD += @VMTOOLS_LIBS@
-libguestStore_la_LIBADD += @GOBJECT_LIBS@
+libguestStore_la_LIBADD += ${VMTOOLS_LIBS}
+libguestStore_la_LIBADD += ${GOBJECT_LIBS}
 
 libguestStore_la_SOURCES =
 libguestStore_la_SOURCES += guestStorePlugin.c

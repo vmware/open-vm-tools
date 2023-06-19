@@ -19,14 +19,14 @@ plugindir = @VMSVC_PLUGIN_INSTALLDIR@
 plugin_LTLIBRARIES = libresolutionKMS.la
 
 libresolutionKMS_la_CPPFLAGS =
-libresolutionKMS_la_CPPFLAGS += @LIBUDEV_CFLAGS@
-libresolutionKMS_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
+libresolutionKMS_la_CPPFLAGS += ${LIBUDEV_CFLAGS}
+libresolutionKMS_la_CPPFLAGS += ${PLUGIN_CPPFLAGS}
 
 libresolutionKMS_la_LDFLAGS =
-libresolutionKMS_la_LDFLAGS += @PLUGIN_LDFLAGS@
+libresolutionKMS_la_LDFLAGS += ${PLUGIN_LDFLAGS}
 
 libresolutionKMS_la_LIBADD =
-libresolutionKMS_la_LIBADD += @VMTOOLS_LIBS@
+libresolutionKMS_la_LIBADD += ${VMTOOLS_LIBS}
 libresolutionKMS_la_LIBADD += @RESOLUTIONSET_LIBADD@
 libresolutionKMS_la_LIBADD += $(top_builddir)/services/plugins/resolutionSet/libresolutionCommon.la
 

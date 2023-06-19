@@ -21,15 +21,15 @@ plugindir = @VMSVC_PLUGIN_INSTALLDIR@
 plugin_LTLIBRARIES = libserviceDiscovery.la
 
 libserviceDiscovery_la_CPPFLAGS =
-libserviceDiscovery_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
+libserviceDiscovery_la_CPPFLAGS += ${PLUGIN_CPPFLAGS}
 libserviceDiscovery_la_CPPFLAGS += -DVMTOOLS_SERVICE_DISCOVERY_SCRIPTS=\"$(pkglibdir)/serviceDiscovery/scripts\"
 
 libserviceDiscovery_la_LDFLAGS =
-libserviceDiscovery_la_LDFLAGS += @PLUGIN_LDFLAGS@
+libserviceDiscovery_la_LDFLAGS += ${PLUGIN_LDFLAGS}
 
 libserviceDiscovery_la_LIBADD =
-libserviceDiscovery_la_LIBADD += @VMTOOLS_LIBS@
-libserviceDiscovery_la_LIBADD += @GOBJECT_LIBS@
+libserviceDiscovery_la_LIBADD += ${VMTOOLS_LIBS}
+libserviceDiscovery_la_LIBADD += ${GOBJECT_LIBS}
 
 libserviceDiscovery_la_SOURCES =
 libserviceDiscovery_la_SOURCES += serviceDiscovery.c

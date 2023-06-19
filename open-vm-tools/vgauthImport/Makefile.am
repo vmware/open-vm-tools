@@ -17,7 +17,7 @@
 bin_PROGRAMS = vmware-alias-import
 
 vmware_alias_import_LDADD =
-vmware_alias_import_LDADD += @GLIB2_LIBS@
+vmware_alias_import_LDADD += ${GLIB2_LIBS}
 vmware_alias_import_LDADD += ../lib/rpcOut/libRpcOut.la
 vmware_alias_import_LDADD += ../lib/message/libMessage.la
 vmware_alias_import_LDADD += ../lib/backdoor/libBackdoor.la
@@ -32,7 +32,7 @@ vmware_alias_import_LDADD += ../vgauth/lib/libvgauth.la
 vmware_alias_import_LDADD += ../lib/stubs/libStubs.la
 
 vmware_alias_import_CPPFLAGS =
-vmware_alias_import_CPPFLAGS += @GLIB2_CPPFLAGS@
+vmware_alias_import_CPPFLAGS += ${GLIB2_CPPFLAGS}
 vmware_alias_import_CPPFLAGS += -DUSE_RPCI_ONLY
 vmware_alias_import_CPPFLAGS += -I$(top_srcdir)/vgauth/public
 

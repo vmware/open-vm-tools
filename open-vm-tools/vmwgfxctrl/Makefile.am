@@ -22,14 +22,14 @@ if ENABLE_VMWGFXCTRL
 bin_PROGRAMS = vmwgfxctrl
 
 vmwgfxctrl_LDADD =
-vmwgfxctrl_LDADD += @VMTOOLS_LIBS@
-vmwgfxctrl_LDADD += @LIBUDEV_LIBS@
+vmwgfxctrl_LDADD += ${VMTOOLS_LIBS}
+vmwgfxctrl_LDADD += ${LIBUDEV_LIBS}
 
 vmwgfxctrl_CFLAGS = -std=gnu89
 
 vmwgfxctrl_CPPFLAGS =
-vmwgfxctrl_CPPFLAGS += @VMTOOLS_CPPFLAGS@
-vmwgfxctrl_CPPFLAGS += @LIBUDEV_CFLAGS@
+vmwgfxctrl_CPPFLAGS += ${VMTOOLS_CPPFLAGS}
+vmwgfxctrl_CPPFLAGS += ${LIBUDEV_CFLAGS}
 
 vmwgfxctrl_SOURCES =
 vmwgfxctrl_SOURCES += main.c
