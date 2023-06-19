@@ -22,5 +22,5 @@ libAsyncSocket_la_SOURCES += asyncsocket.c
 libAsyncSocket_la_SOURCES += asyncSocketBase.c
 libAsyncSocket_la_SOURCES += asyncSocketInterface.c
 
-AM_CFLAGS =
-AM_CFLAGS += -DUSE_SSL_DIRECT
+AM_CPPFLAGS =
+AM_CPPFLAGS += -DUSE_SSL_DIRECT

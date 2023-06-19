@@ -25,14 +25,14 @@ if HAVE_FUSE3
   noinst_PROGRAMS += vmware-testvmblock-manual-fuse
 endif
 
-AM_CFLAGS =
-AM_CFLAGS += -DVMX86_DEVEL
-AM_CFLAGS += -DVMX86_DEBUG
+AM_CPPFLAGS =
+AM_CPPFLAGS += -DVMX86_DEVEL
+AM_CPPFLAGS += -DVMX86_DEBUG
 
 LDLIBS = -lpthread
 
-vmware_testvmblock_fuse_CFLAGS = $(AM_CFLAGS) -Dvmblock_fuse
+vmware_testvmblock_fuse_CPPFLAGS = $(AM_CPPFLAGS) -Dvmblock_fuse
 vmware_testvmblock_fuse_SOURCES = vmblocktest.c
 
-vmware_testvmblock_manual_fuse_CFLAGS = $(AM_CFLAGS) -Dvmblock_fuse
+vmware_testvmblock_manual_fuse_CPPFLAGS = $(AM_CPPFLAGS) -Dvmblock_fuse
 vmware_testvmblock_manual_fuse_SOURCES = manual-blocker.c

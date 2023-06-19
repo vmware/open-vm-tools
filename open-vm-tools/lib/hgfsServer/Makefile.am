@@ -29,7 +29,6 @@ libHgfsServer_la_SOURCES += hgfsServerOplockMonitor.c
 libHgfsServer_la_SOURCES += hgfsServerOplockLinux.c
 libHgfsServer_la_SOURCES += hgfsThreadpoolStub.c
 
-AM_CFLAGS =
-AM_CFLAGS += -DVMTOOLS_USE_GLIB
-AM_CFLAGS += @GLIB2_CPPFLAGS@
-
+AM_CPPFLAGS =
+AM_CPPFLAGS += -DVMTOOLS_USE_GLIB
+AM_CPPFLAGS += @GLIB2_CPPFLAGS@

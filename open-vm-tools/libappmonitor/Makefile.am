@@ -17,8 +17,8 @@
 
 lib_LTLIBRARIES = libappmonitor.la
 
-AM_CFLAGS =
-AM_CFLAGS += -I$(top_srcdir)/lib/include
+AM_CPPFLAGS =
+AM_CPPFLAGS += -I$(top_srcdir)/lib/include
 
 libappmonitor_la_LIBADD =
 libappmonitor_la_LIBADD += ../lib/backdoor/libBackdoor.la

@@ -17,8 +17,8 @@
 
 lib_LTLIBRARIES = libguestlib.la
 
-AM_CFLAGS =
-AM_CFLAGS += -I$(top_srcdir)/include
+AM_CPPFLAGS =
+AM_CPPFLAGS += -I$(top_srcdir)/include
 
 libguestlib_la_LIBADD =
 libguestlib_la_LIBADD += ../lib/backdoor/libBackdoor.la
