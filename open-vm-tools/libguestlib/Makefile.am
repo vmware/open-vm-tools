@@ -50,12 +50,10 @@ libguestlib_la_SOURCES += $(libguestlib_rpcchanneldir)/vsockChannel.c
 libguestlib_la_SOURCES += $(libguestlib_rpcchanneldir)/simpleSocket.c
 endif
 
-libguestlib_la_LDFLAGS =
-libguestlib_la_LDFLAGS += -Wl,-ldl
-libguestlib_la_LDFLAGS += -Wl,-lrt
+libguestlib_la_LIBADD += -ldl -lrt
 # We require GCC, so we're fine passing compiler-specific flags.
 # Needed for OS's that don't link shared libraries against libc by default, e.g. FreeBSD
-libguestlib_la_LDFLAGS += -Wl,-lc
+libguestlib_la_LIBADD += -lc
 
 libguestlib_includedir = $(includedir)/vmGuestLib
 

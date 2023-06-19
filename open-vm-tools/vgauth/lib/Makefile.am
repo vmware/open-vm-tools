@@ -54,12 +54,11 @@ libvgauth_la_CPPFLAGS += -I$(top_srcdir)/libvmtools
 libvgauth_la_CPPFLAGS += -I$(top_srcdir)/vgauth/public
 libvgauth_la_CPPFLAGS += -I$(top_srcdir)/vgauth/common
 
-libvgauth_la_LDFLAGS =
 # We require GCC, so we're fine passing compiler-specific flags.
-libvgauth_la_LDFLAGS += -Wl,-z,defs
+libvgauth_la_LDFLAGS = -Wl,-z,defs
 # Needed for OS's that don't link shared libraries against libc by
 #default, e.g. FreeBSD
-libvgauth_la_LDFLAGS += -Wl,-lc
+libvgauth_la_LIBADD += -lc
 
 # Message catalogs.
 install-data-hook:

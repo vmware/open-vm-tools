@@ -84,10 +84,8 @@ libvmtools_la_CPPFLAGS += -DNO_LOG_STUB
 libvmtools_la_CPPFLAGS += -DVMTOOLS_DATA_DIR=\"$(datadir)/open-vm-tools\"
 libvmtools_la_CPPFLAGS += @GLIB2_CPPFLAGS@
 
-libvmtools_la_LDFLAGS =
 # We require GCC, so we're fine passing compiler-specific flags.
-libvmtools_la_LDFLAGS += -Wl,-z,defs
+libvmtools_la_LDFLAGS = -Wl,-z,defs
 # Needed for OS's that don't link shared libraries against libc by
 #default, e.g. FreeBSD
-libvmtools_la_LDFLAGS += -Wl,-lc
-
+libvmtools_la_LIBADD += -lc
