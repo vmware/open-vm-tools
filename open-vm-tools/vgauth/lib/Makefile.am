@@ -23,8 +23,6 @@ libvgauth_la_LIBADD += ${GLIB2_LIBS}
 libvgauth_la_LIBADD += ${GTHREAD_LIBS}
 libvgauth_la_LIBADD += ${VMTOOLS_LIBS}
 libvgauth_la_LIBADD += ${SSL_LIBS}
-libvgauth_la_LIBADD += -lssl
-libvgauth_la_LIBADD += -lcrypto
 
 libvgauth_la_SOURCES =
 libvgauth_la_SOURCES += alias.c
