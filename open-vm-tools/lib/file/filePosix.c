@@ -1627,15 +1627,16 @@ File_GetVMFSLockInfo(const char *path,         // IN
           * This is a non-exclusive lock. Thus it can have multiple holders.
           * For now, return only the first.
           */
-         if (diskLock->numHolders == 0 ||
-             diskLock->numHolders > FS3_MAX_LOCK_HOLDERS) {
+         if (diskLock->numHolders > FS3_MAX_LOCK_HOLDERS) {
             Log(LGPFX" %s: Corrupt VMFS disk lock found for file \"%s\", "
                 "invalid number of holders %u.\n", __FUNCTION__, path,
                 diskLock->numHolders);
             goto exit;
          }
+
          *outVMFSMacAddr = Str_SafeAsprintf(NULL, FS_UUID_FMTSTR,
-            FS_UUID_VAARGS(&diskLock->holders[0].uid));
+               FS_UUID_VAARGS(diskLock->numHolders == 0 ?
+               &diskLock->owner : &diskLock->holders[0].uid));
       } else {
          /* Exclusive lock, so there is only one owner. */
          *outVMFSMacAddr = Str_SafeAsprintf(NULL, FS_UUID_FMTSTR,
