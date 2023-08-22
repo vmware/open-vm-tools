@@ -80,6 +80,7 @@ typedef enum {
    PARSE_STATE_USERHANDLESAMLINFO,
    PARSE_STATE_USERHANDLESAMLSUBJECT,
    PARSE_STATE_SAML_VALIDATE_ONLY,
+   PARSE_STATE_SAML_HOST_VERIFIED,
 } ProtoParseState;
 
 /*
@@ -146,6 +147,7 @@ struct ProtoRequest {
          gchar *samlToken;
          gchar *userName;
          gboolean validateOnly;
+         gboolean hostVerified;
       } validateSamlBToken;
 
    } reqData;
@@ -310,6 +312,8 @@ Proto_DumpRequest(ProtoRequest *req)
       Log("username '%s'\n", req->reqData.validateSamlBToken.userName);
       Log("validate Only '%s'\n",
             req->reqData.validateSamlBToken.validateOnly ? "TRUE" : "FALSE");
+      Log("hostVerified '%s'\n",
+            req->reqData.validateSamlBToken.hostVerified ? "TRUE" : "FALSE");
       break;
    default:
       Warning("Unknown request type -- no request specific data\n");
@@ -436,6 +440,8 @@ Proto_StartElement(GMarkupParseContext *parseContext,
          req->parseState = PARSE_STATE_SAMLTOKEN;
       } else if (g_strcmp0(elementName, VGAUTH_VALIDATE_ONLY_ELEMENT_NAME) == 0) {
          req->parseState = PARSE_STATE_SAML_VALIDATE_ONLY;
+      } else if (g_strcmp0(elementName, VGAUTH_HOST_VERIFIED_ELEMENT_NAME) == 0) {
+         req->parseState = PARSE_STATE_SAML_HOST_VERIFIED;
       } else if (g_strcmp0(elementName, VGAUTH_ALIASINFO_ELEMENT_NAME) == 0) {
          req->parseState = PARSE_STATE_ALIASINFO;
       } else if (g_strcmp0(elementName, VGAUTH_SUBJECT_ELEMENT_NAME) == 0) {
@@ -566,6 +572,7 @@ Proto_EndElement(GMarkupParseContext *parseContext,
    case PARSE_STATE_TOKEN:
    case PARSE_STATE_SAMLTOKEN:
    case PARSE_STATE_SAML_VALIDATE_ONLY:
+   case PARSE_STATE_SAML_HOST_VERIFIED:
    case PARSE_STATE_USERHANDLEINFO:
       req->parseState = PARSE_STATE_REQUEST;
       break;
@@ -874,6 +881,17 @@ Proto_TextContents(GMarkupParseContext *parseContext,
       }
       iVal = atoi(val);
       req->reqData.validateSamlBToken.validateOnly = (iVal) ? TRUE : FALSE;
+      break;
+   case PARSE_STATE_SAML_HOST_VERIFIED:
+
+      if (req->reqType != PROTO_REQUEST_VALIDATE_SAML_BEARER_TOKEN) {
+         g_set_error(error, G_MARKUP_ERROR_PARSE, VGAUTH_E_INVALID_ARGUMENT,
+                     "Found hostVerified option in req type %d",
+                     req->reqType);
+         goto done;
+      }
+      iVal = atoi(val);
+      req->reqData.validateSamlBToken.hostVerified = (iVal) ? TRUE : FALSE;
       break;
    case PARSE_STATE_USERHANDLETYPE:
       {
@@ -2123,6 +2141,7 @@ ServiceProtoValidateSamlBearerToken(ServiceConnection *conn,
     */
    err = SAML_VerifyBearerTokenAndChain(req->reqData.validateSamlBToken.samlToken,
                                         req->reqData.validateSamlBToken.userName,
+                                        req->reqData.validateSamlBToken.hostVerified,
                                         &userName,
                                         &subjectName,
                                         &ai);

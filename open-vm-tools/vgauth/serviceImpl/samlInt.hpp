@@ -136,6 +136,7 @@ struct SAMLTokenData {
 auto_ptr<XMLGrammarPool> SAMLCreateAndPopulateGrammarPool();
 
 VGAuthError SAMLVerifyAssertion(const char *xmlText,
+                                gboolean hostVerified,
                                 SAMLTokenData &token,
                                 vector<string> &certs);
 #endif // ifndef _SAMLINT_H_

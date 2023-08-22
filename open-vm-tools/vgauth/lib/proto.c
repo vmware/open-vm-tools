@@ -2066,6 +2066,7 @@ done:
 VGAuthError
 VGAuth_SendValidateSamlBearerTokenRequest(VGAuthContext *ctx,
                                           gboolean validateOnly,
+                                          gboolean hostVerified,
                                           const char *samlToken,
                                           const char *userName,
                                           VGAuthUserHandle **userHandle)
@@ -2097,7 +2098,8 @@ VGAuth_SendValidateSamlBearerTokenRequest(VGAuthContext *ctx,
                                     ctx->comm.sequenceNumber,
                                     samlToken,
                                     userName ? userName : "",
-                                    validateOnly ? "1" : "0");
+                                    validateOnly ? "1" : "0",
+                                    hostVerified ? "1" : "0");
 
    err = VGAuth_CommSendData(ctx, packet);
    if (VGAUTH_E_OK != err) {

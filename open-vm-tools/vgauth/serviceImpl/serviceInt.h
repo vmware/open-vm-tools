@@ -481,6 +481,12 @@ gchar *ServiceDecodeUserName(const char *userName);
 VGAuthError SAML_Init(void);
 
 /* clang-format off */
+VGAuthError SAML_VerifyBearerTokenEx(const char *xmlText,
+                                     const char *userName,
+                                     gboolean hostVerified,
+                                     char **userNameOut,
+                                     char **subjectNameOut,
+                                     ServiceAliasInfo **verifyAi);
 VGAuthError SAML_VerifyBearerToken(const char *xmlText,
                                    const char *userName,
                                    char **userNameOut,
@@ -488,6 +494,7 @@ VGAuthError SAML_VerifyBearerToken(const char *xmlText,
                                    ServiceAliasInfo **verifyAi);
 VGAuthError SAML_VerifyBearerTokenAndChain(const char *xmlText,
                                            const char *userName,
+                                           gboolean hostVerified,
                                            char **userNameOut,
                                            char **subjectNameOut,
                                            ServiceAliasInfo **verifyAi);

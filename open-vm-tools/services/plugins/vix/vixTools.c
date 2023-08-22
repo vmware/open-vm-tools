@@ -724,6 +724,7 @@ VixError GuestAuthPasswordAuthenticateImpersonate(
 VixError GuestAuthSAMLAuthenticateAndImpersonate(
    char const *obfuscatedNamePassword,
    Bool loadUserProfile,
+   Bool hostVerified,
    void **userToken);
 
 void GuestAuthUnimpersonate();
@@ -8043,6 +8044,7 @@ VixToolsImpersonateUser(VixCommandRequestHeader *requestMsg,   // IN
    }
 #if SUPPORT_VGAUTH
    case VIX_USER_CREDENTIAL_SAML_BEARER_TOKEN:
+   case VIX_USER_CREDENTIAL_SAML_BEARER_TOKEN_HOST_VERIFIED:
    {
       VixCommandSAMLToken *samlStruct =
          (VixCommandSAMLToken *) credentialField;
@@ -8238,10 +8240,15 @@ VixToolsImpersonateUserImplEx(char const *credentialTypeStr,         // IN
 
 #if SUPPORT_VGAUTH
       else if ((VIX_USER_CREDENTIAL_SAML_BEARER_TOKEN == credentialType)
+         || (VIX_USER_CREDENTIAL_SAML_BEARER_TOKEN_HOST_VERIFIED == credentialType)
          ) {
          if (GuestAuthEnabled()) {
+            Bool hostVerified =
+               (credentialType == VIX_USER_CREDENTIAL_SAML_BEARER_TOKEN_HOST_VERIFIED)
+               ? TRUE : FALSE;
             err = GuestAuthSAMLAuthenticateAndImpersonate(obfuscatedNamePassword,
                                                           loadUserProfile,
+                                                          hostVerified,
                                                           userToken);
          } else {
             err = VIX_E_NOT_SUPPORTED;
@@ -11861,6 +11868,7 @@ VixError
 GuestAuthSAMLAuthenticateAndImpersonate(
    char const *obfuscatedNamePassword, // IN
    Bool loadUserProfile,               // IN
+   Bool hostVerified,                  // IN
    void **userToken)                   // OUT
 {
 #if SUPPORT_VGAUTH
@@ -11871,6 +11879,7 @@ GuestAuthSAMLAuthenticateAndImpersonate(
    VGAuthError vgErr;
    VGAuthUserHandle *newHandle = NULL;
    VGAuthExtraParams extraParams[1];
+   VGAuthExtraParams hostVerfiedParams[1];
    Bool impersonated = FALSE;
 
    extraParams[0].name = VGAUTH_PARAM_LOAD_USER_PROFILE;
@@ -11892,10 +11901,14 @@ GuestAuthSAMLAuthenticateAndImpersonate(
       goto done;
    }
 
+   hostVerfiedParams[0].name = VGAUTH_PARAM_SAML_HOST_VERIFIED;
+   hostVerfiedParams[0].value = hostVerified ? VGAUTH_PARAM_VALUE_TRUE :
+                                               VGAUTH_PARAM_VALUE_FALSE;
    vgErr = VGAuth_ValidateSamlBearerToken(ctx,
                                           token,
                                           username,
-                                          0, NULL,
+                                          (int)ARRAYSIZE(hostVerfiedParams),
+                                          hostVerfiedParams,
                                           &newHandle);
 #if ALLOW_LOCAL_SYSTEM_IMPERSONATION_BYPASS
    /*

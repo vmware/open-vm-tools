@@ -1944,6 +1944,11 @@ AC_CONFIG_FILES([                      \
 
 
 
+AM_CONDITIONAL([VMTOOLS_FS_VGAUTH_HOST_VERIFICATION],[true])
+if test "$enable_vgauth" = "yes"; then
+   echo "Enabling vgauth host verification"
+   CPPFLAGS="$CPPFLAGS -DVMTOOLS_FS_VGAUTH_HOST_VERIFICATION"
+fi
 
 
 ###

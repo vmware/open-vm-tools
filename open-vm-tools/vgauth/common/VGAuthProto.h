@@ -109,6 +109,7 @@
 #define VGAUTH_COMMENT_ELEMENT_NAME "comment"
 #define VGAUTH_ALIAS_ELEMENT_NAME "alias"
 #define VGAUTH_VALIDATE_ONLY_ELEMENT_NAME "validateOnly"
+#define VGAUTH_HOST_VERIFIED_ELEMENT_NAME "hostVerified"
 
 /*
  * Complex types
@@ -605,10 +606,14 @@
  * SAML token, and does not create an access token on Windows.  This
  * flag is ignored on *ix.
  *
+ * If hostVerified is set, then the service will skip the signature
+ * check in the SAML token.
+ *
  * Request:
  *   SAML token
  *   user
  *   validateOnly (bool)
+ *   hostVerified (bool)
  * =>
  *   user
  *   token (empty for non-Windows)
@@ -624,6 +629,7 @@
       "<"VGAUTH_SAMLTOKEN_ELEMENT_NAME">%s</"VGAUTH_SAMLTOKEN_ELEMENT_NAME">" \
       "<"VGAUTH_USERNAME_ELEMENT_NAME">%s</"VGAUTH_USERNAME_ELEMENT_NAME">" \
       "<"VGAUTH_VALIDATE_ONLY_ELEMENT_NAME">%s</"VGAUTH_VALIDATE_ONLY_ELEMENT_NAME">" \
+      "<"VGAUTH_HOST_VERIFIED_ELEMENT_NAME">%s</"VGAUTH_HOST_VERIFIED_ELEMENT_NAME">" \
    VGAUTH_REQUEST_FORMAT_END
 
 

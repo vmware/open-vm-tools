@@ -209,6 +209,7 @@ static bool SAMLCheckTimeAttr(const DOMElement *elem, const char *attrName,
 static bool SAMLCheckAudience(const XMLCh *audience);
 
 static bool SAMLCheckSignature(DOMDocument *doc,
+                               gboolean hostVerified,
                                vector<string> &certs);
 
 static bool SAMLCheckReference(const DOMDocument *doc, DSIGSignature *sig);
@@ -464,6 +465,7 @@ SAML_VerifyBearerToken(const char *xmlText,
       SAMLTokenData token;
 
       err = SAMLVerifyAssertion(xmlText,
+                                FALSE, // use original mode
                                 token, certs);
       if (VGAUTH_E_OK != err) {
          return err;
@@ -500,6 +502,7 @@ SAML_VerifyBearerToken(const char *xmlText,
  *
  * @param[in]  xmlText      The text of the SAML assertion.
  * @param[in]  userName     Optional username to authenticate as.
+ * @param[in]  hostVerified If true, skip signature verification.
  * @param[out] userNameOut  The user that the token has authenticated as.
  * @param[out] subjNameOut  The subject in the token.
  * @param[out] verifySi     The subjectInfo associated with the entry
@@ -514,6 +517,7 @@ SAML_VerifyBearerToken(const char *xmlText,
 VGAuthError
 SAML_VerifyBearerTokenAndChain(const char *xmlText,
                                const char *userName,
+                               gboolean hostVerified,
                                char **userNameOut,
                                char **subjNameOut,
                                ServiceAliasInfo **verifyAi)
@@ -531,6 +535,7 @@ SAML_VerifyBearerTokenAndChain(const char *xmlText,
       int i;
 
       err = SAMLVerifyAssertion(xmlText,
+                                hostVerified,
                                 token, certs);
       if (VGAUTH_E_OK != err) {
          return err;
@@ -597,6 +602,7 @@ SAML_VerifyBearerTokenAndChain(const char *xmlText,
  * certs.
  *
  * @param[in]  xmlText
+ * @param[in]  hostVerified If true, skip signature verification.
  * @param[out] token     The interesting bits extracted from the xmlText.
  * @param[out] certs     If the SAML assertion is verified, then this will
  *                       contain the certificate chain for the issuer.
@@ -611,6 +617,7 @@ SAML_VerifyBearerTokenAndChain(const char *xmlText,
 
 VGAuthError
 SAMLVerifyAssertion(const char *xmlText,
+                    gboolean hostVerified,
                     SAMLTokenData &token,
                     vector<string> &certs)
 {
@@ -659,6 +666,7 @@ SAMLVerifyAssertion(const char *xmlText,
    }
 
    if (!SAMLCheckSignature(doc,
+                           hostVerified,
                            certs)) {
       return VGAUTH_E_AUTHENTICATION_DENIED;
    }
@@ -1058,6 +1066,7 @@ SAMLCheckAudience(const XMLCh *audience)
  * from that, then checks that the signature is valid.
  *
  * @param[in]  doc     The document of which to check the signature.
+ * @param[in]  hostVerified If true, skip signature verification.
  * @param[out] certs   The base64 encoded certificates present in the
  *                     signature.
  *
@@ -1068,6 +1077,7 @@ SAMLCheckAudience(const XMLCh *audience)
 
 static bool
 SAMLCheckSignature(DOMDocument *doc,
+                   gboolean hostVerified,
                    vector<string> &certs)
 {
    DOMElement *sigElem = SAMLFindChildByName(doc->getDocumentElement(),
@@ -1091,6 +1101,9 @@ SAMLCheckSignature(DOMDocument *doc,
               __FUNCTION__);
       return false;
    }
+   if (hostVerified) {
+      Debug("hostVerified is set, skipping signtaure check");
+   } else {
 
    const XSECCryptoX509 *x509 = keyInfo->getCertificateCryptoItem(0);
    ASSERT(NULL != x509);
@@ -1111,6 +1124,7 @@ SAMLCheckSignature(DOMDocument *doc,
       return false;
    }
 
+   }
    for (int i = 0; i < keyInfo->getCertificateListSize(); i++) {
       const XSECCryptoX509 *cert = keyInfo->getCertificateCryptoItem(i);
       certs.push_back(string(cert->getDEREncodingSB().rawCharBuffer()));

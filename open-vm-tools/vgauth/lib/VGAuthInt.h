@@ -246,6 +246,7 @@ VGAuthError VGAuth_SendQueryMappedAliasesRequest(VGAuthContext *ctx,
 /* clang-format off */
 VGAuthError VGAuth_SendValidateSamlBearerTokenRequest(VGAuthContext *ctx,
                                                       gboolean validateOnly,
+                                                      gboolean hostVerified,
                                                       const char *samlToken,
                                                       const char *userName,
                                                       VGAuthUserHandle **userHandle);

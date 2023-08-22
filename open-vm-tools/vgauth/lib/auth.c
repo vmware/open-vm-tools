@@ -416,6 +416,11 @@ VGAuth_ValidateSSPIResponse(VGAuthContext *ctx,
  *         @a handle cannot be used for impersonation or ticket
  *         creation.
  *
+ *         VGAUTH_PARAM_SAML_HOST_VERIFIED, which must have the value
+ *         VGAUTH_PARAM_VALUE_TRUE or VGAUTH_PARAM_VALUE_FALSE.
+ *         If set, the SAML token has been verified by the host
+ *         and this service will skip that step when validating.
+ *
  * @param[in]  ctx            The VGAuthContext.
  * @param[in]  samlToken      The SAML token to be validated.
  * @param[in]  userName       The user to authenticate as. Optional.
@@ -453,6 +458,7 @@ VGAuth_ValidateSamlBearerToken(VGAuthContext *ctx,
    VGAuthError err;
    VGAuthUserHandle *newHandle = NULL;
    gboolean validateOnly;
+   gboolean hostVerified;
 
    /*
     * arg check
@@ -491,9 +497,17 @@ VGAuth_ValidateSamlBearerToken(VGAuthContext *ctx,
    if (VGAUTH_E_OK != err) {
       return err;
    }
+   err = VGAuthGetBoolExtraParam(numExtraParams, extraParams,
+                                 VGAUTH_PARAM_SAML_HOST_VERIFIED,
+                                 FALSE,
+                                 &hostVerified);
+   if (VGAUTH_E_OK != err) {
+      return err;
+   }
 
    err = VGAuth_SendValidateSamlBearerTokenRequest(ctx,
                                                    validateOnly,
+                                                   hostVerified,
                                                    samlToken,
                                                    userName,
                                                    &newHandle);
