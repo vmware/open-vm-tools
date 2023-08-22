@@ -581,7 +581,7 @@ FLAG(   7,  0, EDX, 11,  1, RTM_ALWAYS_ABORT,                    NO,    0 ) \
 FLAG(   7,  0, EDX, 13,  1, RTM_FORCE_ABORT,                     NO,    0 ) \
 FLAG(   7,  0, EDX, 14,  1, SERIALIZE,                           YES,  20 ) \
 FLAG(   7,  0, EDX, 15,  1, HYBRID,                              NO,    0 ) \
-FLAG(   7,  0, EDX, 16,  1, TSXLDTRK,                            NO,    0 ) \
+FLAG(   7,  0, EDX, 16,  1, TSXLDTRK,                            YES,  21 ) \
 FLAG(   7,  0, EDX, 18,  1, PCONFIG,                             NO,    0 ) \
 FLAG(   7,  0, EDX, 19,  1, ARCH_LBR,                            YES,  20 ) \
 FLAG(   7,  0, EDX, 20,  1, CET_IBT,                             YES,  20 ) \
