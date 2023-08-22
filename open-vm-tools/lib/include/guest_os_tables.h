@@ -117,6 +117,9 @@ extern "C" {
    GOT(GUEST_OS_FREEBSD14)                                                 \
    GOT(GUEST_OS_FREEBSD14_64)                                              \
    GOT(GUEST_OS_FREEBSD14_ARM_64)                                          \
+   GOT(GUEST_OS_FREEBSD15)                                                 \
+   GOT(GUEST_OS_FREEBSD15_64)                                              \
+   GOT(GUEST_OS_FREEBSD15_ARM_64)                                          \
    GOT(GUEST_OS_SOLARIS_6_AND_7)                                           \
    GOT(GUEST_OS_SOLARIS8)                                                  \
    GOT(GUEST_OS_SOLARIS9)                                                  \

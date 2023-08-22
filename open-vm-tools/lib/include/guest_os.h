@@ -86,12 +86,13 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 #define ALLFREEBSD32          BS(FREEBSD),    BS(FREEBSD11),  \
                               BS(FREEBSD12),  BS(FREEBSD13),  \
-                              BS(FREEBSD14)
+                              BS(FREEBSD14),  BS(FREEBSD15)
 
 #define ALLFREEBSD64          BS(FREEBSD_64),                           \
                               BS(FREEBSD11_64),  BS(FREEBSD12_64),      \
                               BS(FREEBSD13_64),  BS(FREEBSD13_ARM_64),  \
-                              BS(FREEBSD14_64),  BS(FREEBSD14_ARM_64)
+                              BS(FREEBSD14_64),  BS(FREEBSD14_ARM_64),  \
+                              BS(FREEBSD15_64),  BS(FREEBSD15_ARM_64)
 
 #define ALLFREEBSD            ALLFREEBSD32, ALLFREEBSD64
 
@@ -293,6 +294,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
                               BS(OTHER5XLINUX_ARM_64),  BS(OTHER6XLINUX_ARM_64), \
                               BS(OTHER7XLINUX_ARM_64),                           \
                               BS(FREEBSD13_ARM_64),     BS(FREEBSD14_ARM_64),    \
+                              BS(FREEBSD15_ARM_64),                              \
                               BS(ALMA_LINUX_ARM_64),    BS(ROCKY_LINUX_ARM_64),  \
                               BS(CRXSYS1_ARM_64),       BS(CRXSYS2_ARM_64),      \
                               BS(CRXPOD1_ARM_64),                                \
