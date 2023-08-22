@@ -100,6 +100,8 @@ extern "C" {
    GOT(GUEST_OS_RHEL_64)                                                   \
    GOT(GUEST_OS_RHEL9_64)                                                  \
    GOT(GUEST_OS_RHEL9_ARM_64)                                              \
+   GOT(GUEST_OS_RHEL10_64)                                                 \
+   GOT(GUEST_OS_RHEL10_ARM_64)                                             \
    GOT(GUEST_OS_FREEBSD)                                                   \
    GOT(GUEST_OS_FREEBSD_64)                                                \
    GOT(GUEST_OS_FREEBSD11)                                                 \
@@ -158,6 +160,7 @@ extern "C" {
    GOT(GUEST_OS_ORACLE7_64)                                                \
    GOT(GUEST_OS_ORACLE8_64)                                                \
    GOT(GUEST_OS_ORACLE9_64)                                                \
+   GOT(GUEST_OS_ORACLE10_64)                                               \
    GOT(GUEST_OS_CENTOS)                                                    \
    GOT(GUEST_OS_CENTOS_64)                                                 \
    GOT(GUEST_OS_CENTOS6)                                                   \

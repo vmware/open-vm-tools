@@ -231,7 +231,9 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 #define ALL6XLINUX32          BS(OTHER6XLINUX)
 
-#define ALL6XLINUX64          BS(OTHER6XLINUX_64), BS(OTHER6XLINUX_ARM_64)
+#define ALL6XLINUX64          BS(OTHER6XLINUX_64), BS(OTHER6XLINUX_ARM_64),  \
+                              BS(RHEL10_64),       BS(RHEL10_ARM_64),        \
+                              BS(ORACLE10_64)
 
 #define ALLVMKERNEL           BS(VMKERNEL),   BS(VMKERNEL5),      \
                               BS(VMKERNEL6),  BS(VMKERNEL65),     \
@@ -278,15 +280,16 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
                               BS(CRXSYS2_64),     BS(CRXSYS2_ARM_64)
 
 #define ALLARM                BS(WIN_10_ARM_64),        BS(WIN_11_ARM_64),       \
-                              BS(WIN_12_ARM_64),        BS(RHEL9_ARM_64),        \
+                              BS(WIN_12_ARM_64),                                 \
                               BS(UBUNTU_ARM_64),        BS(PHOTON_ARM_64),       \
                               BS(VMKERNEL7_ARM),        BS(VMKERNEL8_ARM),       \
                               BS(OTHER_ARM_64),         BS(OTHER5XLINUX_ARM_64), \
                               BS(OTHER6XLINUX_ARM_64),  BS(DEBIAN_ARM_64),       \
                               BS(FREEBSD13_ARM_64),     BS(FREEBSD14_ARM_64),    \
                               BS(ALMA_LINUX_ARM_64),    BS(ROCKY_LINUX_ARM_64),  \
-                              BS(CRXSYS1_ARM_64),       BS(CRXPOD1_ARM_64),      \
-                              BS(CRXSYS2_ARM_64)
+                              BS(CRXSYS1_ARM_64),       BS(CRXSYS2_ARM_64),      \
+                              BS(CRXPOD1_ARM_64),                                \
+                              BS(RHEL9_ARM_64),         BS(RHEL10_ARM_64)
 
 /*
  * Architecture prefixes. No prefix implies the X86 architecture.
