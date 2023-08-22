@@ -2252,6 +2252,7 @@ CPUID_UARCH_IS_SAPPHIRERAPIDS(uint32 v) // IN: %eax from CPUID with %eax=1.
           CPUID_MODEL_IS_RAPTORLAKE(v);
 }
 
+
 static INLINE Bool
 CPUID_UARCH_IS_HASWELL(uint32 v) // IN: %eax from CPUID with %eax=1.
 {
