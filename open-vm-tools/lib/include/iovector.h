@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -36,7 +36,8 @@ extern "C" {
 /*
  * Ugly definition of struct iovec.
  */
-#if defined(__linux__) || defined(sun) || defined(__APPLE__) || defined(__FreeBSD__)
+#if defined(__linux__) || defined(sun) || defined(__APPLE__) || \
+    defined(__FreeBSD__) || defined(__EMSCRIPTEN__)
 #include <sys/uio.h>    // for struct iovec
 #else
 
@@ -59,7 +60,7 @@ typedef struct VMIOVec {
    uint32 numEntries;           /* Total number of entries */
    Bool read;                   /* is it a readv operation? else it's write */
    struct iovec *entries;       /* Array of entries (dynamically allocated) */
-   struct iovec *allocEntries;  /* The original array that can be passed to free(). 
+   struct iovec *allocEntries;  /* The original array that can be passed to free().
                                  * NULL if entries is on a stack. */
 } VMIOVec;
 
