@@ -1739,6 +1739,7 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 #define CPUID_MODEL_LAKEFIELD_8A      0x8a  // Lakefield
 #define CPUID_MODEL_TIGERLAKE_8C      0x8c  // Tiger Lake UP3/UP4/H35
 #define CPUID_MODEL_TIGERLAKE_8D      0x8d  // Tiger Lake H81
+#define CPUID_MODEL_SAPPHIRERAPIDS_8F 0x8f  // Sapphire Rapids
 #define CPUID_MODEL_KNM_85            0x85  // Knights Mill
 #define CPUID_MODEL_KABYLAKE_8E       0x8e  // Kaby Lake U/Y QS
 #define CPUID_MODEL_ALDERLAKE_97      0x97  // Alder Lake-S
@@ -2160,6 +2161,23 @@ CPUID_MODEL_IS_RAPTORLAKE(uint32 v) // IN: %eax from CPUID with %eax=1.
            CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_RAPTORLAKE_BA);
 }
 
+
+static INLINE Bool
+CPUID_MODEL_IS_SAPPHIRERAPIDS(uint32 v) // IN: %eax from CPUID with %eax=1.
+{
+   /* Assumes the CPU manufacturer is Intel. */
+   return CPUID_FAMILY_IS_P6(v) &&
+          CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_SAPPHIRERAPIDS_8F;
+}
+
+static INLINE Bool
+CPUID_UARCH_IS_SAPPHIRERAPIDS(uint32 v) // IN: %eax from CPUID with %eax=1.
+{
+   /* Assumes the CPU manufacturer is Intel. */
+   return CPUID_MODEL_IS_SAPPHIRERAPIDS(v) ||
+          CPUID_MODEL_IS_ALDERLAKE(v) ||
+          CPUID_MODEL_IS_RAPTORLAKE(v);
+}
 
 static INLINE Bool
 CPUID_UARCH_IS_HASWELL(uint32 v) // IN: %eax from CPUID with %eax=1.
