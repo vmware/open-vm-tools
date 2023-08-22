@@ -547,11 +547,6 @@ Bool Vix_XMLFindStringElementText(const char *pattern,
 Bool Vix_XMLResultIsEscaped(const char *resultXML,
                             const char *dataParentTag);
 
-Bool Vix_XMLModifyStringElementText(const char *pattern,
-                                    char *str,
-                                    const char *replaceStr,
-                                    char **resultStr);
-
 Bool Vix_IsValidString(const char *str);
 #endif   // VIX_HIDE_FROM_JAVA
 
