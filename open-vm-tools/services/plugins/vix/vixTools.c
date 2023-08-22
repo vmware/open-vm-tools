@@ -254,8 +254,6 @@ char *gImpersonatedUsername = NULL;
 #define  VIX_TOOLS_CONFIG_API_AUTHENTICATION          "Authentication"
 #define  VIX_TOOLS_CONFIG_AUTHTYPE_AGENTS             "InfrastructureAgents"
 
-#define VIX_TOOLS_CONFIG_INFRA_AGENT_DISABLED_DEFAULT  TRUE
-
 /*
  * The switch that controls all APIs
  */
@@ -729,9 +727,6 @@ VixError GuestAuthSAMLAuthenticateAndImpersonate(
    void **userToken);
 
 void GuestAuthUnimpersonate();
-
-static Bool VixToolsCheckIfAuthenticationTypeEnabled(GKeyFile *confDictRef,
-                                                     const char *typeName);
 
 #if SUPPORT_VGAUTH
 
@@ -8013,29 +8008,6 @@ VixToolsImpersonateUser(VixCommandRequestHeader *requestMsg,   // IN
                                           userToken);
       break;
    }
-   case VIX_USER_CREDENTIAL_ROOT:
-   {
-      if ((requestMsg->requestFlags & VIX_REQUESTMSG_HAS_HASHED_SHARED_SECRET) &&
-          !VixToolsCheckIfAuthenticationTypeEnabled(gConfDictRef,
-                                            VIX_TOOLS_CONFIG_AUTHTYPE_AGENTS)) {
-          /*
-           * Don't accept hashed shared secret if disabled.
-           */
-          g_message("%s: Requested authentication type has been disabled.\n",
-                    __FUNCTION__);
-          err = VIX_E_GUEST_AUTHTYPE_DISABLED;
-          goto done;
-      }
-   }
-   // fall through
-
-   case VIX_USER_CREDENTIAL_CONSOLE_USER:
-      err = VixToolsImpersonateUserImplEx(NULL,
-                                          credentialType,
-                                          NULL,
-                                          loadUserProfile,
-                                          userToken);
-      break;
    case VIX_USER_CREDENTIAL_NAME_PASSWORD:
    case VIX_USER_CREDENTIAL_NAME_PASSWORD_OBFUSCATED:
    case VIX_USER_CREDENTIAL_NAMED_INTERACTIVE_USER:
@@ -8202,36 +8174,6 @@ VixToolsImpersonateUserImplEx(char const *credentialTypeStr,         // IN
             err = VIX_E_FAIL;
             goto quit;
          }
-      }
-
-      /*
-       * If the VMX asks to be root, then we allow them.
-       * The VMX will make sure that only it will pass this value in,
-       * and only when the VM and host are configured to allow this.
-       */
-      if ((VIX_USER_CREDENTIAL_ROOT == credentialType)
-            && (thisProcessRunsAsRoot)) {
-         *userToken = PROCESS_CREATOR_USER_TOKEN;
-
-         gImpersonatedUsername = Util_SafeStrdup("_ROOT_");
-         err = VIX_OK;
-         goto quit;
-      }
-
-      /*
-       * If the VMX asks to be root, then we allow them.
-       * The VMX will make sure that only it will pass this value in,
-       * and only when the VM and host are configured to allow this.
-       *
-       * XXX This has been deprecated XXX
-       */
-      if ((VIX_USER_CREDENTIAL_CONSOLE_USER == credentialType)
-            && ((allowConsoleUserOps) || !(thisProcessRunsAsRoot))) {
-         *userToken = PROCESS_CREATOR_USER_TOKEN;
-
-         gImpersonatedUsername = Util_SafeStrdup("_CONSOLE_USER_NAME_");
-         err = VIX_OK;
-         goto quit;
       }
 
       /*
@@ -10912,50 +10854,6 @@ VixToolsCheckIfVixCommandEnabled(int opcode,                          // IN
    }
 
    return enabled;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * VixToolsCheckIfAuthenticationTypeEnabled --
- *
- *    Checks to see if a given authentication type has been
- *    disabled via the tools configuration.
- *
- * Return value:
- *    TRUE if enabled, FALSE otherwise.
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-static Bool
-VixToolsCheckIfAuthenticationTypeEnabled(GKeyFile *confDictRef,     // IN
-                                         const char *typeName)      // IN
-{
-   char authnDisabledName[64]; // Authentication.<AuthenticationType>.disabled
-   gboolean disabled;
-
-   Str_Snprintf(authnDisabledName, sizeof(authnDisabledName),
-                VIX_TOOLS_CONFIG_API_AUTHENTICATION ".%s.disabled",
-                typeName);
-
-   ASSERT(confDictRef != NULL);
-
-   /*
-    * XXX Skip doing the strcmp() to verify the auth type since we only
-    * have the one typeName (VIX_TOOLS_CONFIG_AUTHTYPE_AGENTS), and default
-    * it to VIX_TOOLS_CONFIG_INFRA_AGENT_DISABLED_DEFAULT.
-    */
-   disabled = VMTools_ConfigGetBoolean(confDictRef,
-                                       VIX_TOOLS_CONFIG_API_GROUPNAME,
-                                       authnDisabledName,
-                                       VIX_TOOLS_CONFIG_INFRA_AGENT_DISABLED_DEFAULT);
-
-   return !disabled;
 }
 
 
