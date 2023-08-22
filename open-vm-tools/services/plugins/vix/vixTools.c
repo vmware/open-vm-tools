@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2007-2022 VMware, Inc. All rights reserved.
+ * Copyright (c) 2007-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -8295,7 +8295,8 @@ VixToolsImpersonateUserImplEx(char const *credentialTypeStr,         // IN
       }
 
 #if SUPPORT_VGAUTH
-      else if (VIX_USER_CREDENTIAL_SAML_BEARER_TOKEN == credentialType) {
+      else if ((VIX_USER_CREDENTIAL_SAML_BEARER_TOKEN == credentialType)
+         ) {
          if (GuestAuthEnabled()) {
             err = GuestAuthSAMLAuthenticateAndImpersonate(obfuscatedNamePassword,
                                                           loadUserProfile,
@@ -11996,8 +11997,7 @@ GuestAuthSAMLAuthenticateAndImpersonate(
    vgErr = VGAuth_ValidateSamlBearerToken(ctx,
                                           token,
                                           username,
-                                          0,
-                                          NULL,
+                                          0, NULL,
                                           &newHandle);
 #if ALLOW_LOCAL_SYSTEM_IMPERSONATION_BYPASS
    /*

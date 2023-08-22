@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
+ * Copyright (c) 2008-2019, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -75,6 +75,8 @@ VixShutdown(gpointer src,
 }
 
 
+
+
 /**
  * Returns the registration data for either the guestd or userd process.
  *
@@ -103,7 +105,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)
          ToolsDaemonTcloMountHGFS, NULL, NULL, NULL, 0 },
    };
    ToolsPluginSignalCb sigs[] = {
-      { TOOLS_CORE_SIG_SHUTDOWN, VixShutdown, &regData }
+      { TOOLS_CORE_SIG_SHUTDOWN, VixShutdown, &regData },
    };
    ToolsAppReg regs[] = {
       { TOOLS_APP_GUESTRPC, VMTools_WrapArray(rpcs, sizeof *rpcs, ARRAYSIZE(rpcs)) },
