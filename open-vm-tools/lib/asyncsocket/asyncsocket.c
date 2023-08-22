@@ -6772,8 +6772,6 @@ AsyncSocket_ListenSocketUDS(const char *pipeName,               // IN
    addr.sun_family = AF_UNIX;
    Str_Strcpy(addr.sun_path, pipeName, sizeof addr.sun_path);
 
-   Log(ASOCKPREFIX "creating new socket listening on %s\n", pipeName);
-
    asock = AsyncTCPSocketListenImpl((struct sockaddr_storage *)&addr,
                                     sizeof addr, connectFn, clientData,
                                     pollParams, &tempError);
