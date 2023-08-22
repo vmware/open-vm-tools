@@ -614,7 +614,7 @@ FLAG(   7,  1, EBX,  0,  1, LEAF7_PPIN,                          NO,    0 ) \
 FLAG(   7,  1, EDX,  4,  1, AVX_VNNI_INT8,                       NO,    0 ) \
 FLAG(   7,  1, EDX,  5,  1, AVX_NE_CONVERT,                      NO,    0 ) \
 FLAG(   7,  1, EDX,  8,  1, AMX_COMPLEX,                         NO,    0 ) \
-FLAG(   7,  1, EDX, 14,  1, PREFETCHI,                           NO,    0 ) \
+FLAG(   7,  1, EDX, 14,  1, PREFETCHI,                           YES,  21 ) \
 FLAG(   7,  1, EDX, 18,  1, CET_SSS,                             NO,    0 ) \
 FLAG(   7,  2, EDX,  0,  1, PSFD,                                YES,  20 ) \
 FLAG(   7,  2, EDX,  1,  1, IPRED_CTRL,                          YES,  21 ) \
