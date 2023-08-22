@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (c) 2014-2022 VMware, Inc.  All rights reserved.
+### Copyright (c) 2014-2023 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -36,10 +36,9 @@ libDeployPkg_la_SOURCES += processPosix.c
 libDeployPkg_la_SOURCES += linuxDeploymentUtilities.c
 libDeployPkg_la_SOURCES += linuxDeploymentUtilities.h
 
-libDeployPkg_la_LDFLAGS =
 # We require GCC, so we're fine passing compiler-specific flags.
 # Needed for OS's that don't link shared libraries against libc by default, e.g. FreeBSD
-libDeployPkg_la_LDFLAGS += -Wl,-lc
+libDeployPkg_la_LIBADD += -lc
 
 libDeployPkg_includedir = $(includedir)/libDeployPkg
 

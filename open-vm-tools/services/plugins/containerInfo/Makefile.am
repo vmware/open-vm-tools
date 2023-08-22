@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (c) 2021-2022 VMware, Inc.  All rights reserved.
+### Copyright (c) 2021-2023 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -36,7 +36,7 @@ libcontainerInfo_la_SOURCES += containerInfoInt.h
 libcontainerInfo_la_SOURCES += containerInfo.c
 
 libcontainerInfo_la_SOURCES += containerInfo_docker.c
-libcontainerInfo_la_LDFLAGS += -lcurl
+libcontainerInfo_la_LIBADD += -lcurl
 libcontainerInfo_la_CPPFLAGS += @CURL_CPPFLAGS@
 libcontainerInfo_la_LIBADD += ../../../lib/jsmn/libJsmn.la
 
@@ -60,9 +60,9 @@ libcontainerInfo_la_SOURCES += containers.grpc.pb.h
 libcontainerInfo_la_SOURCES += containers.grpc.pb.cc
 libcontainerInfo_la_SOURCES += containerInfo_grpc.cc
 
-libcontainerInfo_la_CPPFLAGS += @GRPC_CPPFLAGS@
-libcontainerInfo_la_LDFLAGS += -lprotobuf
-libcontainerInfo_la_LDFLAGS += -lgrpc++
+libcontainerInfo_la_CPPFLAGS += ${grpcxx_CFLAGS}
+libcontainerInfo_la_LIBADD += -lprotobuf
+libcontainerInfo_la_LIBADD += ${grpcxx_LIBS}
 
 tasks.grpc.pb.cc containers.grpc.pb.cc: %.grpc.pb.cc : %.proto %.pb.cc
 	$(PROTOC) -I. -I$(GOGO_PROTOPATH) \

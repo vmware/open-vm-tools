@@ -720,7 +720,7 @@ AC_DEFUN([AC_VMW_CONTAINERINFO_MSG],[
                       [1.3.2],
                       [grpc++/grpc++.h],
                       [],
-                      [],
+                      [PKG_CHECK_MODULES([grpcxx], [grpc++ >= 1.3.2])],
                       [AC_VMW_CONTAINERINFO_MSG(["grpc++ >= 1.3.2"])])
 
 #
