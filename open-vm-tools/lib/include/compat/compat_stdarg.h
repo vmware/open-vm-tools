@@ -36,10 +36,13 @@
  *    Compatibility defines for systems that need the stdarg features. If your program
  *    needs va_init, va_copy, va_end, etc. then include this file instead of including
  *    stdarg.h directly.
+ *
+ *    Note that the header guard for this file does not follow typical naming
+ *    convention as _COMPAT_STDARG_H conflicts with emscripten's compat/stdarg.h
  */
 
-#ifndef _COMPAT_STDARG_H
-#define _COMPAT_STDARG_H 1
+#ifndef _VMWARE_COMPAT_STDARG_H
+#define _VMWARE_COMPAT_STDARG_H 1
 
 #define INCLUDE_ALLOW_USERLEVEL
 
@@ -66,4 +69,4 @@
 #   endif
 #endif
 
-#endif /* _COMPAT_STDARG_H */
+#endif /* _VMWARE_COMPAT_STDARG_H */
