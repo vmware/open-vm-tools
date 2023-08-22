@@ -76,6 +76,11 @@ extern "C" {
 
 #define VIX_SHARED_SECRET_CONFIG_USER_NAME          "__VMware_Vix_Shared_Secret_1__"
 
+/*
+ * Base64 encoded value of string %HOST_VERIFIED_SIGNATURE%
+ */
+#define VIX_BASE64_ENCODED_HOST_VERIFIED_SIGNATURE_VALUE    "JUhPU1RfVkVSSUZJRURfU0lHTkFUVVJFJQA="
+
 
 /*
  * This is the port for the server side remote Vix component

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2021, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -546,6 +546,11 @@ Bool Vix_XMLFindStringElementText(const char *pattern,
 
 Bool Vix_XMLResultIsEscaped(const char *resultXML,
                             const char *dataParentTag);
+
+Bool Vix_XMLModifyStringElementText(const char *pattern,
+                                    char *str,
+                                    const char *replaceStr,
+                                    char **resultStr);
 
 Bool Vix_IsValidString(const char *str);
 #endif   // VIX_HIDE_FROM_JAVA

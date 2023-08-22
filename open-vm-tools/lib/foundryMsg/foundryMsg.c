@@ -637,7 +637,8 @@ VixMsg_AllocRequestMsg(size_t msgHeaderAndBodyLength,    // IN
       || (VIX_USER_CREDENTIAL_HOST_CONFIG_HASHED_SECRET == credentialType)
       || (VIX_USER_CREDENTIAL_TICKETED_SESSION == credentialType)
       || (VIX_USER_CREDENTIAL_SSPI == credentialType)
-      || (VIX_USER_CREDENTIAL_SAML_BEARER_TOKEN == credentialType)) {
+      || (VIX_USER_CREDENTIAL_SAML_BEARER_TOKEN == credentialType)
+      || (VIX_USER_CREDENTIAL_SAML_BEARER_TOKEN_HOST_VERIFIED == credentialType)) {
       /*
        * All of these are optional.
        */
@@ -690,7 +691,8 @@ VixMsg_AllocRequestMsg(size_t msgHeaderAndBodyLength,    // IN
          || (VIX_USER_CREDENTIAL_HOST_CONFIG_HASHED_SECRET == credentialType)
          || (VIX_USER_CREDENTIAL_TICKETED_SESSION == credentialType)
          || (VIX_USER_CREDENTIAL_SSPI == credentialType)
-         || (VIX_USER_CREDENTIAL_SAML_BEARER_TOKEN == credentialType)) {
+         || (VIX_USER_CREDENTIAL_SAML_BEARER_TOKEN == credentialType)
+         || (VIX_USER_CREDENTIAL_SAML_BEARER_TOKEN_HOST_VERIFIED == credentialType)) {
       char *destPtr = (char *) commandRequest;
 
       destPtr += commandRequest->commonHeader.headerLength;
