@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2019 VMware, Inc. All rights reserved.
+ * Copyright (c) 2005-2019, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -456,7 +456,8 @@ Bool
 SyncDriver_Freeze(const char *userPaths,              // IN
                   Bool enableNullDriver,              // IN
                   SyncDriverHandle *handle,           // OUT
-                  const char *excludedFileSystems)    // IN
+                  const char *excludedFileSystems,    // IN
+                  Bool ignoreFrozenFS)                // IN
 {
    GSList *paths = NULL;
    SyncDriverErr err = SD_UNAVAILABLE;
@@ -517,7 +518,7 @@ SyncDriver_Freeze(const char *userPaths,              // IN
          continue;
       }
 #endif
-      err = freezeFn(paths, handle);
+      err = freezeFn(paths, handle, ignoreFrozenFS);
    }
 
    /*

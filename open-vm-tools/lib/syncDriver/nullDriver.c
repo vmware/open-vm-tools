@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
+ * Copyright (c) 2011-2016, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -54,8 +54,9 @@ NullDriverClose(SyncDriverHandle handle)
  *
  * Calls sync().
  *
- * @param[in]  paths     Unused.
- * @param[out] handle    Where to store the operation handle.
+ * @param[in]  paths            Unused.
+ * @param[out] handle           Where to store the operation handle.
+ * @param[in]  ignoreFrozenFS   Unused.
  *
  * @return A SyncDriverErr.
  *
@@ -64,7 +65,8 @@ NullDriverClose(SyncDriverHandle handle)
 
 SyncDriverErr
 NullDriver_Freeze(const GSList *paths,
-                  SyncDriverHandle *handle)
+                  SyncDriverHandle *handle,
+                  Bool ignoreFrozenFS)
 {
    /*
     * This is more of a "let's at least do something" than something that

@@ -1073,9 +1073,13 @@ VmBackupStartCommon(RpcInData *data,
 #if defined(__linux__)
    gBackupState->excludedFileSystems =
          VMBACKUP_CONFIG_GET_STR(ctx->config, "excludedFileSystems", NULL);
-   g_debug("Using excludedFileSystems = \"%s\"\n",
+   gBackupState->ignoreFrozenFS =
+       VMBACKUP_CONFIG_GET_BOOL(ctx->config, "ignoreFrozenFileSystems", FALSE);
+
+   g_debug("Using excludedFileSystems = \"%s\", ignoreFrozenFileSystems = %d\n",
            (gBackupState->excludedFileSystems != NULL) ?
-            gBackupState->excludedFileSystems : "(null)");
+            gBackupState->excludedFileSystems : "(null)",
+           gBackupState->ignoreFrozenFS);
 #endif
    g_debug("Quiescing volumes: %s",
            (gBackupState->volumes) ? gBackupState->volumes : "(null)");
