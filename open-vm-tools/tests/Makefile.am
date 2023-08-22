@@ -24,6 +24,7 @@ SUBDIRS += testVmblock
 
 
 
+
 STATICLIBS = *.a
 LTLIBS     = *.la
 
