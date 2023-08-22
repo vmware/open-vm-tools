@@ -81,7 +81,7 @@
    #define PRODUCT_VERSION    1,1,5,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_VPX)
    /* this should be kept in sync with the corresponding vpx branch. */
-   #define PRODUCT_VERSION    8,0,1,PRODUCT_BUILD_NUMBER_NUMERIC
+   #define PRODUCT_VERSION    8,0,2,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_HORIZON_VIEW)
    #define PRODUCT_VERSION    8,11,0,PRODUCT_BUILD_NUMBER_NUMERIC
 // VMX86_DESKTOP must be last because it is the default and is always defined.
@@ -184,7 +184,7 @@
  */
 #define ESX_VERSION_MAJOR "8"
 #define ESX_VERSION_MINOR "0"
-#define ESX_VERSION_MAINT "1" // 0 = Pre-release/GA, 1 = Update 1
+#define ESX_VERSION_MAINT "2" // 0 = Pre-release/GA, 2 = Update 2
 #define ESX_VERSION_UPDATE ESX_VERSION_MAINT // ESX's own update level
 
 #define ESX_VERSION ESX_VERSION_MAJOR "." ESX_VERSION_MINOR "." \
@@ -192,7 +192,7 @@
 #define ESX_VERSION_THIRD_PARTY ESX_VERSION_MAJOR ESX_VERSION_MINOR \
                                 ESX_VERSION_UPDATE
 
-#define ESX_RELEASE_UPDATE "1" // Quarterly release
+#define ESX_RELEASE_UPDATE "0" // Quarterly release
 #define ESX_RELEASE_PATCH "0"  // 0 = experimental
 #define ESX_RELEASE_QUARTERLY ESX_RELEASE_UPDATE // ESX's own quarterly release
 #define ESX_RELEASE ESX_RELEASE_QUARTERLY "." ESX_RELEASE_PATCH
@@ -239,7 +239,7 @@
  */
 #define FUSION_VERSION "e.x.p"
 
-#define VIM_VERSION "8.0.1"
+#define VIM_VERSION "8.0.2"
 /*
  *For smooth version bump up for quaterly releases, we need to have a fallback
  *mechanism to previous version in all those components which perform version
@@ -269,15 +269,15 @@
 6.0.0,\
 6.5.0"
 // Put VPX_VERSION first, because vpx/make/defs.mk doesn't check for suffix.
-#define VPX_VERSION "8.0.1"
+#define VPX_VERSION "8.0.2"
 #define VPX_VERSION_MAJOR "8"
 #define VPX_VERSION_MINOR "0"
-#define VPX_VERSION_MAINT "1"
-#define VPX_VERSION_PATCH "10000"
+#define VPX_VERSION_MAINT "2"
+#define VPX_VERSION_PATCH "00000"
 #define VPX_VERSION_THIRD_PARTY VPX_VERSION_MAJOR VPX_VERSION_MINOR \
                                 VPX_VERSION_MAINT
 //MARKER_FAST_REMOVE_START
-#define VPX_VERSION_NUMERIC 8,0,1,PRODUCT_BUILD_NUMBER_NUMERIC
+#define VPX_VERSION_NUMERIC 8,0,2,PRODUCT_BUILD_NUMBER_NUMERIC
 //MARKER_FAST_REMOVE_END
 //MARKER_FAST_UNCOMMENT_START
 //#define VPX_VERSION_NUMERIC gVpxVersionNumeric
@@ -287,14 +287,14 @@
 #define VPX_MIN_HOST_VERSION "6.7.0"
 
 #define MAX_SUPPORTED_VI_VERSION "6.6" //from ovfTool/src/supportedVersions.h
-#define VCDB_CURRENT_SCHEMA_VERSION           801 // from PitCADatabase.h
+#define VCDB_CURRENT_SCHEMA_VERSION           802 // from PitCADatabase.h
 
 #define VPX_RELEASE_UPDATE "0" /* 0 = Pre-release/GA, 1 = Update 1 */
 #define VPX_RELEASE_PATCH "0"  /* 0 = experimental */
 #define VPX_RELEASE VPX_RELEASE_UPDATE "." VPX_RELEASE_PATCH
 
 /* expected database version for current release */
-#define VPXD_VDB_DB_VERSION_ID            801
+#define VPXD_VDB_DB_VERSION_ID            802
 #define VPXD_VDB_DB_VERSION_VALUE         "VirtualCenter Database 8.0"
 
 /*
@@ -312,7 +312,7 @@
 #define HORIZONOSOT_VERSION "1.2.2303"
 #define HORIZONVMDS_VERSION "1.0.0"
 
-#define INTEGRITY_VERSION "8.0.1" /* Should use VPX_VERSION? */
+#define INTEGRITY_VERSION "8.0.2" /* Should use VPX_VERSION? */
 #define SVA_VERSION "1.0.0"
 #define SSO_VERSION "1.0.0"
 #define SDK_VERSION "4.1.0"
@@ -339,10 +339,10 @@
 //#define NETDUMP_FILE_VERSION  gNetdumpFileVersion
 //MARKER_FAST_UNCOMMENT_END
 
-#define VDDK_VERSION          "8.0.1"
+#define VDDK_VERSION          "8.0.2"
 #define VDDK_VERSION_MAJOR    8
 #define VDDK_VERSION_MINOR    0
-#define VDDK_VERSION_MAINT    1
+#define VDDK_VERSION_MAINT    2
 
 //MARKER_FAST_REMOVE_START
 #define VDDK_FILE_VERSION     VDDK_VERSION_MAJOR,VDDK_VERSION_MINOR,\
