@@ -352,6 +352,8 @@ VThreadBase_GetKernelID(void)
 #  endif
    // Best effort until FreeBSD header update
    return (uint64)(uintptr_t)(void *)pthread_self();
+#elif defined __EMSCRIPTEN__
+   return (uint64)(uintptr_t)(void *)pthread_self();
 #else
 #  error "Unknown platform"
 #endif
