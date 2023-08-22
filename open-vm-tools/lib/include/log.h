@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2022 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -402,6 +402,7 @@ Log_NewCustomOutput(const char *instanceName,
 typedef struct {
    uint8 level;
    Bool  additionalLine;
+   size_t msgLen;
    char  timeStamp[64];
    char  threadName[32];
    char  opID[LOG_MAX_OPID_LENGTH + 1];  // Will be empty string on hosted products
