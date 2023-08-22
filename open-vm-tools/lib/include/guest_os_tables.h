@@ -169,6 +169,8 @@ extern "C" {
    GOT(GUEST_OS_AMAZONLINUX3_64)                                           \
    GOT(GUEST_OS_CRXSYS1_64)        /* VMware CRX system VM 1.0 64-bit */   \
    GOT(GUEST_OS_CRXSYS1_ARM_64)    /* VMware CRX system VM 1.0 Arm 64-bit */ \
+   GOT(GUEST_OS_CRXSYS2_64)        /* VMware CRX system VM 2.0 64-bit */   \
+   GOT(GUEST_OS_CRXSYS2_ARM_64)    /* VMware CRX system VM 2.0 Arm 64-bit */ \
    GOT(GUEST_OS_CRXPOD1_64)        /* VMware CRX pod VM 1.0 64-bit */      \
    GOT(GUEST_OS_CRXPOD1_ARM_64)    /* VMware CRX pod VM 1.0 Arm 64-bit */  \
    GOT(GUEST_OS_LINUX_MINT_64)                                             \
