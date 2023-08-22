@@ -1137,7 +1137,7 @@ RoundUpPow2Asm32(uint32 value)
                                            // if out == 2^32 then out = 1 as it is right rotate
        : [in]"+r"(value),[out]"+r"(out));
    return out;
-#elif defined(VM_ARM_64)
+#elif defined(VM_ARM_64) || defined(__wasm__)
    return RoundUpPow2C32(value);
 #else
    uint32 out = 2;
