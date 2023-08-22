@@ -115,7 +115,7 @@ extern "C" {
  * mssb64      MSB set (uint64)            1..64    0
  */
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__) // Clang defines _MSC_VER on Windows
 static INLINE int
 lssb32_0(const uint32 value)
 {
