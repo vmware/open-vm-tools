@@ -605,7 +605,7 @@ FLAG(   7,  1, EAX, 10,  1, FAST_ZERO_MOVSB,                     YES,  20 ) \
 FLAG(   7,  1, EAX, 11,  1, FAST_SHORT_STOSB,                    YES,  20 ) \
 FLAG(   7,  1, EAX, 12,  1, FAST_SHORT_CMPSB_SCASB,              YES,  20 ) \
 FLAG(   7,  1, EAX, 19,  1, WRMSRNS,                             NO,    0 ) \
-FLAG(   7,  1, EAX, 21,  1, AMX_FP16,                            NO,    0 ) \
+FLAG(   7,  1, EAX, 21,  1, AMX_FP16,                            YES,  21 ) \
 FLAG(   7,  1, EAX, 22,  1, HRESET,                              NO,    0 ) \
 FLAG(   7,  1, EAX, 23,  1, AVX_IFMA,                            NO,    0 ) \
 FLAG(   7,  1, EAX, 26,  1, LAM,                                 NO,    0 ) \
