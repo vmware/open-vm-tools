@@ -570,6 +570,18 @@ FreeCertArray(int num,
 
 
 /*
+ * Public API for use by the unit tests.
+ */
+
+void
+SAML_FreeCertArray(int num,
+                   gchar **certs)
+{
+   FreeCertArray(num, certs);
+}
+
+
+/*
  ******************************************************************************
  * FindAttrValue --                                                      */ /**
  *
@@ -1392,6 +1404,21 @@ done:
    }
 
    return retCode;
+}
+
+
+/*
+ * Public API for use by the unit tests.
+ */
+
+gboolean
+SAML_VerifySignature(xmlDocPtr doc,
+                     int *numCerts,
+                     gchar ***certChain)
+{
+   return VerifySignature(doc,
+                          numCerts,
+                          certChain);
 }
 
 
