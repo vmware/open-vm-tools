@@ -132,9 +132,11 @@
 /*
  * No support for userworld.  Enable support for open vm tools when
  * USE_VGAUTH is defined.
+ *
+ * XXX - Currently no support for vgauth in Windows on arm64.
  */
 #if ((defined(__linux__) && !defined(USERWORLD)) || defined(_WIN32)) && \
-     (!defined(OPEN_VM_TOOLS) || defined(USE_VGAUTH))
+     (!defined(OPEN_VM_TOOLS) || defined(USE_VGAUTH)) && !defined(_ARM64_)
 #define SUPPORT_VGAUTH 1
 #else
 #define SUPPORT_VGAUTH 0
@@ -160,32 +162,6 @@
 
 static gboolean gSupportVGAuth = USE_VGAUTH_DEFAULT;
 static gboolean QueryVGAuthConfig(GKeyFile *confDictRef);
-
-#ifdef _WIN32
-/*
- * Check bug 2508431 for more details. If an application is not built
- * with proper flags, 'creating a remote thread' to get the process
- * command line will crash the target process. To avoid any such crash,
- * 'remote thread' approach is not used by default.
- *
- * But 'remote thread' approach can be turned on (for whatever reason)
- * by setting the following option to true in the tools.conf file.
- *
- * For few processes, 'WMI' can provide detailed commandline information.
- * But using 'WMI' is a heavy weight approach and may affect the CPU
- * performance and hence it is disabled by default. It can always be
- * turned on by a setting (as mentioned below) in the tools.conf file.
- */
-#define VIXTOOLS_CONFIG_USE_REMOTE_THREAD_PROCESS_COMMAND_LINE  \
-      "useRemoteThreadForProcessCommandLine"
-
-#define VIXTOOLS_CONFIG_USE_WMI_PROCESS_COMMAND_LINE  \
-      "useWMIForProcessCommandLine"
-
-#define USE_REMOTE_THREAD_PROCESS_COMMAND_LINE_DEFAULT FALSE
-#define USE_WMI_PROCESS_COMMAND_LINE_DEFAULT FALSE
-
-#endif
 
 #if ALLOW_LOCAL_SYSTEM_IMPERSONATION_BYPASS
 static gchar *gCurrentUsername = NULL;
@@ -218,6 +194,32 @@ static gchar *gCurrentUsername = NULL;
  */
 
 static VGAuthUserHandle *currentUserHandle = NULL;
+
+#endif
+
+#ifdef _WIN32
+/*
+ * Check bug 2508431 for more details. If an application is not built
+ * with proper flags, 'creating a remote thread' to get the process
+ * command line will crash the target process. To avoid any such crash,
+ * 'remote thread' approach is not used by default.
+ *
+ * But 'remote thread' approach can be turned on (for whatever reason)
+ * by setting the following option to true in the tools.conf file.
+ *
+ * For few processes, 'WMI' can provide detailed commandline information.
+ * But using 'WMI' is a heavy weight approach and may affect the CPU
+ * performance and hence it is disabled by default. It can always be
+ * turned on by a setting (as mentioned below) in the tools.conf file.
+ */
+#define VIXTOOLS_CONFIG_USE_REMOTE_THREAD_PROCESS_COMMAND_LINE  \
+      "useRemoteThreadForProcessCommandLine"
+
+#define VIXTOOLS_CONFIG_USE_WMI_PROCESS_COMMAND_LINE  \
+      "useWMIForProcessCommandLine"
+
+#define USE_REMOTE_THREAD_PROCESS_COMMAND_LINE_DEFAULT FALSE
+#define USE_WMI_PROCESS_COMMAND_LINE_DEFAULT FALSE
 
 #endif
 
