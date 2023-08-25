@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2010-2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 2010-2020,2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -204,6 +204,9 @@ VixError VixToolsCheckSAMLForSystem(VGAuthContext *ctx,
                                     const char *token,
                                     const char *username,
                                     char *serviceUsername,
+#ifdef VMTOOLS_FS_VGAUTH_HOST_VERIFICATION
+                                    Bool hostVerified,
+#endif
                                     void **userToken,
                                     VGAuthUserHandle **curUserHandle);
 #endif // _WIN32
