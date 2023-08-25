@@ -1,3 +1,14 @@
+commit 518a77a39a30d39c4397d2533bae57880f44ec6e
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Aug 25 11:51:12 2023 -0700
+
+    ====================================================================
+    The "stable-12.3.x" branch was created from the "devel" branch here.
+    ====================================================================
+    
+    Update ChangeLog with the granular push of Aug. 22, 2023.
+    - plus ChangeLog update of Apr. 24, 2023.
+
 commit 14dfd9c00b5321bafc012f678ef1cd2129e03a73
 Author: Katy Feng <fkaty@vmware.com>
 Date:   Tue Aug 22 15:51:19 2023 -0700
