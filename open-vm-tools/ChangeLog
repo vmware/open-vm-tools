@@ -1,3 +1,75 @@
+commit 74b6d0d9000eda1a2c8f31c40c725fb0b8520b16
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Aug 25 11:58:48 2023 -0700
+
+    Allow only X509 certs to verify the SAML token signature.
+
+commit d089aa2d835f93e9c4ce988596a4754a0de68a24
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Aug 25 11:58:48 2023 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 8681def032026c3cdef872e34bf18e7934ff0145
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Aug 25 11:58:48 2023 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 8e2c1ae33923b700cd26a8e17c2d74bb355d39dd
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Aug 25 11:58:48 2023 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 96cd002a39a3ec1fd97f1773fb6e8a6ac7dad919
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Aug 25 11:58:47 2023 -0700
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit 641e13fc05118ff8215f9461df424e277cba73dc
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Aug 25 11:58:47 2023 -0700
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit 52e164c04beb853179f3429d69623f988485402d
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Aug 25 11:58:47 2023 -0700
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit 106c96ed660c89262ba71d32becaf3137622160d
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Aug 25 11:58:47 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 75507219d4c87c4e3c805059242f3fb1a8b999b4
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Aug 25 11:58:47 2023 -0700
+
+    Allow pre-Windows 2000 style user logon for Linux Guests.
+    
+    With this change, applications that requires user/password type
+    authentication/authorization (done by VGAuth service) for guestOps
+    can now use pre-windows 2000 style user logon for Linux Guests too.
+    
+    Github Issue: https://github.com/vmware/open-vm-tools/issues/641
+
+commit 9fdd875b81dded9d33b844ad1fcb2e5d0bd67c65
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Aug 25 11:58:47 2023 -0700
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit 1335787e74fc86752984c81ea7b0bd1b0065ce89
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Aug 25 11:57:15 2023 -0700
+
+    ChangeLog update of Aug. 25, 2023.
+
 commit 518a77a39a30d39c4397d2533bae57880f44ec6e
 Author: Katy Feng <fkaty@vmware.com>
 Date:   Fri Aug 25 11:51:12 2023 -0700
