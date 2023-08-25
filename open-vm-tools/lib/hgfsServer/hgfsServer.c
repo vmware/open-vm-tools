@@ -56,6 +56,10 @@
 #include "vm_basic_asm.h"
 #include "unicodeOperations.h"
 
+#ifndef VM_X86_ANY
+#include "random.h"
+#endif
+
 #if defined(_WIN32)
 #include <io.h>
 #define HGFS_PARENT_DIR "..\\"
@@ -4159,7 +4163,16 @@ HgfsServer_ShareAccessCheck(HgfsOpenMode accessMode,  // IN: open mode to check
 static uint64
 HgfsGenerateSessionId(void)
 {
+#ifdef VM_X86_ANY
    return RDTSC();
+#else
+   uint64 sessionId;
+   rqContext *rCtx = Random_QuickSeed((uint32)time(NULL));
+   sessionId = (uint64)Random_Quick(rCtx) << 32;
+   sessionId |= Random_Quick(rCtx);
+   free(rCtx);
+   return sessionId;
+#endif
 }
 
 
