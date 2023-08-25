@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -142,7 +142,18 @@ GuestApp_GetInstallPathW(void)
    DWORD  temp   = 0;
    PWCHAR data   = NULL;
 
-   rc = RegOpenKeyExW(HKEY_LOCAL_MACHINE, TOOLS_KEY_NAME, 0, KEY_READ, &key);
+   /*
+    * We need to access the WOW3264Node Registry node for arm64 windows tools,
+    * since the arm64 installer is currently built with x86 emulation mode.
+    *
+    * TODO: REMOVE the the KEY_WOW64_32KEY once the msi installer is running
+    * in native arm64.
+    */
+   REGSAM samDesired = KEY_READ;
+#ifdef TOOLS_ARM64
+   samDesired |= KEY_WOW64_32KEY;
+#endif
+   rc = RegOpenKeyExW(HKEY_LOCAL_MACHINE, TOOLS_KEY_NAME, 0, samDesired, &key);
    if (ERROR_SUCCESS != rc) {
       Debug("%s: Couldn't open key \"%S\".\n", __FUNCTION__, TOOLS_KEY_NAME);
       Debug("%s: RegOpenKeyExW error 0x%x.\n", __FUNCTION__, GetLastError());
