@@ -1,56 +1,137 @@
-#open-vm-tools 10.0.0 Release Notes 
+#                      open-vm-tools 12.3.0 Release Notes
 
-Updated on 1 SEP 2015
-##What's in the Release Notes
-The release notes cover the following topics: 
+Updated on: 31 August 2023
 
-- What's New
-- Internationalization
-- Compatibility
-- Installation and Upgrades for This Release
-- Known Issues
+open-vm-tools | 31 AUGUST 2023 | Build 22234872
 
-##What's New 
-VMware Tools is a suite of utilities that enhances the performance of the virtual machine's guest operating system and improves management of the virtual machine. Read about the new and enhanced features in this release below:
+Check back for additions and updates to these release notes.
 
-- **Common versioning**: Infrastructure changes to enable reporting of the true version of open-vm-tools. This feature is dependent on host support. 
-- **Quiesced snapshots enhancements for Linux guests running IO workload**: Robustness related enhancements in quiesced snapshot operation. The _vmtoolsd_ service supports caching of log messages when guest IO has been quiesced. Enhancements in the _vmbackup_ plugin use a separate thread to quiesce the guest OS to avoid timeout issues due to heavy I/O in the guest. 
-- **Shared Folders**: For Linux distributions with kernel version 4.0.0 and higher, there is a new FUSE based Shared Folders client which is used as a replacement for the kernel mode client. 
-- **ESXi Serviceability**: Default _vmtoolsd_ logging is directed to a file instead of syslog.  _vmware-toolbox-cmd_ is enhanced for setting _vmtoolsd_ logging levels.
-- **GuestInfo Enhancements**: Plugin enhancements to report more than 64 IP addresses from the guest. These enhancements will be available only after upgrading the host because the guest IP addresses limit also exists on the host side.
+## What's in the Release Notes
 
-## Internationalization 
-open-vm-tools 10.0.0 supports the following languages:
+The release notes cover the following topics:
 
-- English 
-- French 
-- German 
-- Spanish 
-- Italian 
-- Japanese 
-- Korean 
-- Simplified Chinese 
-- Traditional Chinese
+- [open-vm-tools 12.3.0 Release Notes](#open-vm-tools-1230-release-notes)
+	- [What's in the Release Notes](#whats-in-the-release-notes)
+	- [What's New](#whats-new)
+	- [End of Feature Support Notice](#end-of-feature-support-notice)
+	- [Internationalization](#internationalization)
+	- [Guest Operating System Customization Support](#guest-operating-system-customization-support)
+	- [Interoperability Matrix](#interoperability-matrix)
+	- [ Resolved Issues](#-resolved-issues)
+	- [Known Issues](#known-issues)
 
-## Compatibility 
-open-vm-tools 10.0.0 is compatible with all supported versions of VMware vSphere, VMware Workstation 12.0 and VMware Fusion 8.0.
-## Installation and Upgrades for This Release 
-The steps to install open-vm-tools vary depending on your VMware product and the guest operating system you have installed. For general steps to install open-vm-tools in most VMware products, see https://github.com/vmware/open-vm-tools/blob/master/README.md
-## Known Issues 
-The known issues are as follows:
+## <a id="whatsnew" name="whatsnew"></a>What's New
 
-- **The status of IPv6 address is displayed as "unknown"**
+This release resolves CVE-2023-20900. For more information on this vulnerability and its impact on VMware products, see https://www.vmware.com/security/advisories/VMSA-2023-0019.html.
 
-	The status of IPv6 address from vim-cmd is displayed as "unknown" even when the address is valid.
+*   Please see the [Resolved Issues](#resolvedissues) and [Known Issues](#knownissues) sections below.
 
-	Workaround: None 
-- **TextCopyPaste between host and guest systems fail**
+*   A complete list of the granular changes in the open-vm-tools 12.3.0 release is available at:
 
-	Copy and Paste of text between host and guest systems fail if the text size 50KB or higher.
- 
-	Workaround: Copy and Paste smaller amounts of text. 
-- **Definition of the field _ipAddress_ in guestinfo is ambiguous**
+    [open-vm-tools ChangeLog](https://github.com/vmware/open-vm-tools/blob/stable-12.3.0/open-vm-tools/ChangeLog)
 
-	The field _ipAddress_ is defined as "Primary IP address assigned to the guest operating system, if known".
- 
-	Workaround: The field _ipAddress_ in this context for Linux is defined as the first IP address fetched by open-vm-tools.
+## <a id="endsupport" name="endsupport"></a>End of Feature Support Notice
+
+*   Deprecated: Using "xml-security-c" and "xerces-c" to build the VMware Guest Authentication Service (VGAuth)
+
+    Starting with open-vm-tools 12.4.0, and going forward, the VGAuth service build will require the "xmlsec1" and "libxml2" development and runtime packages.  If still using the "xml-security-c" and "xerces-c" open source projects to build open-vm-tools, now is the time to plan for the change.  The open-vm-tools 12.3.x series will be the last version that can use "xml-security-c" and "xerces-c".
+
+## <a id="i18n" name="i18n"></a>Internationalization
+
+open-vm-tools 12.3.0 is available in the following languages:
+
+* English
+* French
+* German
+* Spanish
+* Italian
+* Japanese
+* Korean
+* Simplified Chinese
+* Traditional Chinese
+
+## <a id="guestop" name="guestop"></a>Guest Operating System Customization Support
+
+The [Guest OS Customization Support Matrix](http://partnerweb.vmware.com/programs/guestOS/guest-os-customization-matrix.pdf) provides details about the guest operating systems supported for customization.
+
+## <a id="interop" name="interop"></a>Interoperability Matrix
+
+The [VMware Product Interoperability Matrix](http://partnerweb.vmware.com/comp_guide2/sim/interop_matrix.php) provides details about the compatibility of current and earlier versions of VMware Products. 
+
+## <a id="resolvedissues" name ="resolvedissues"></a> Resolved Issues
+
+*   **This release resolves CVE-2023-20900.**
+
+    For more information on this vulnerability and its impact on VMware products, see https://www.vmware.com/security/advisories/VMSA-2023-0019.html.
+
+*   **Linux quiesced snapshot: "SyncDriver: failed to freeze '_filesystem_'"**
+
+    The open-vm-tools 12.2.0 release had an update to the Linux quiesced snapshot operation that would avoid starting a quiesced snapshot if a filesystem had already been frozen by another process.  See the [Resolved Issues](https://github.com/vmware/open-vm-tools/blob/stable-12.2.0/ReleaseNotes.md#-resolved-issues) section in the open-vm-tools 12.2.0 Release Notes.   That fix may have been backported into earlier versions of open-vm-tools by Linux vendors.  
+
+    It is possible that filesystems are being frozen in custom pre-freeze scripts to control the order in which those specific filesystems are to be frozen.  The vmtoolsd process **must be informed** of all such filesystems with the help of "excludedFileSystems" setting of tools.conf.
+
+    ```
+    [vmbackup]
+
+    excludedFileSystems=/opt/data,/opt/app/project-*,...
+    ```
+
+    A temporary workaround is available (starting from open-vm-tools 12.3.0) for system administrators to quickly allow a quiescing operation to succeed until the "excludedFileSystems" list can be configured.  Note, if another process thaws the file system while a quiescing snapshot operation is ongoing, the snapshot may be compromised.  Once the "excludedFileSystems" list is configured this setting MUST be unset (or set to false).
+
+    ```
+    [vmbackup]
+
+    ignoreFrozenFileSystems = true
+    ```
+
+    This workaround is provided in the source file changes in 
+
+        https://github.com/vmware/open-vm-tools/commit/60c3a80ddc2b400366ed05169e16a6bed6501da2
+
+    and at Linux vendors' discretion, may be backported to earlier versions of open-vm-tools.
+
+*   **A number of Coverity reported issues have been addressed.**
+
+*   **Component Manager / salt-minion: New InstallStatus "UNMANAGED".**
+
+    Salt-minion added support for "ExternalInstall" (106) to indicate an older version of salt-minion is installed on the vm and cannot be managed by the svtminion.* scripts.  The Component Manager will track that as "UNMANAGED" and take no action.
+
+*   **The following pull requests and issues have been addressed**
+
+    * Add antrea and calico interface pattern to GUESTINFO_DEFAULT_IFACE_EXCLUDES
+
+      [Issue #638](https://github.com/vmware/open-vm-tools/issues/638)  
+      [Pull request #639](https://github.com/vmware/open-vm-tools/pull/639)
+
+    * Invalid argument with "\\" in Linux username (Active Directory user)
+
+      [Issue #641](https://github.com/vmware/open-vm-tools/issues/641)
+
+    * Improve POSIX guest identification
+
+      [Issue #647](https://github.com/vmware/open-vm-tools/issues/647)  
+      [Issue #648](https://github.com/vmware/open-vm-tools/issues/648)
+
+    * Remove appUtil library which depends on deprecated "gdk-pixbuf-xlib"
+
+      [Issue #658](https://github.com/vmware/open-vm-tools/issues/658)
+
+    * Fix build problems with grpc
+
+      [Pull request #664](https://github.com/vmware/open-vm-tools/pull/664)  
+      [Issue #676](https://github.com/vmware/open-vm-tools/issues/676)
+
+## <a id="knownissues" name="knownissues"></a>Known Issues
+
+
+*   **Shared Folders mount is unavailable on Linux VM.**
+
+    If the **Shared Folders** feature is enabled on a Linux VM while it is powered off, the shared folders mount is not available on restart.
+
+    Note: This issue is applicable to open-vm-tools running on VMware Workstation and VMware Fusion.
+
+    Workaround:
+
+    If the VM is powered on, disable and enable the **Shared Folders** feature from the interface. For resolving the issue permanently, edit **/etc/fstab** and add an entry to mount the Shared Folders automatically on boot.  For example, add the line:
+
+    <tt>vmhgfs-fuse   /mnt/hgfs    fuse    defaults,allow_other    0    0</tt>
