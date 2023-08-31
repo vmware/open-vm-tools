@@ -1,3 +1,24 @@
+commit 93e8fb7c1e4423493337661b1b8d39f09a4bbc9d
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Aug 31 07:26:02 2023 -0700
+
+    open-vm-tools 12.3.0 Release Notes.
+
+commit 2e0e2d7d9da0e2def013558e583465ebd07d2589
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 29 07:26:13 2023 -0700
+
+    Preparing for the open-vm-tools 12.3.0 release.
+    Syncing the tools version, build number and product build number with
+    the internal official build of VMware Tools / open-vm-tools 12.3.0.
+
+commit 7eed1add1249a815763d597adf6d78eda170e3c4
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Aug 25 12:04:52 2023 -0700
+
+    Update of the ChangeLog with granular push from the 12.3.0 tools
+    product branch.
+
 commit 74b6d0d9000eda1a2c8f31c40c725fb0b8520b16
 Author: Katy Feng <fkaty@vmware.com>
 Date:   Fri Aug 25 11:58:48 2023 -0700
