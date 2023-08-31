@@ -1,3 +1,14 @@
+commit 4fe4b1be1d7139aa571a6431f26904e6f0b77883
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Aug 31 07:32:27 2023 -0700
+
+    =================================================
+      open-vm-tools 12.3.0 released at this point.
+    =================================================
+    
+    Update of the ChangeLog with the final changes in preparation for
+    the open-vm-tools 12.3.0 release.
+
 commit 93e8fb7c1e4423493337661b1b8d39f09a4bbc9d
 Author: Katy Feng <fkaty@vmware.com>
 Date:   Thu Aug 31 07:26:02 2023 -0700
