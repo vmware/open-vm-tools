@@ -199,8 +199,9 @@ LinuxFiGetAttr(const SyncDriverHandle handle,   // IN (ignored)
  * slow when guest is performing significant IO. Therefore, caller should
  * consider running this function in a separate thread.
  *
- * @param[in]  paths    List of paths to freeze.
- * @param[out] handle   Handle to use for thawing.
+ * @param[in]  paths           List of paths to freeze.
+ * @param[out] handle          Handle to use for thawing.
+ * @param[in]  ignoreFrozenFS  Switch to allow EBUSY error.
  *
  * @return A SyncDriverErr.
  *
@@ -209,7 +210,8 @@ LinuxFiGetAttr(const SyncDriverHandle handle,   // IN (ignored)
 
 SyncDriverErr
 LinuxDriver_Freeze(const GSList *paths,
-                   SyncDriverHandle *handle)
+                   SyncDriverHandle *handle,
+                   Bool ignoreFrozenFS)
 {
    ssize_t count = 0;
    Bool first = TRUE;
@@ -324,9 +326,12 @@ LinuxDriver_Freeze(const GSList *paths,
           * Previously, an EBUSY error was ignored, assuming that we may try
           * to freeze the same superblock more than once depending on the
           * OS configuration (e.g., usage of bind mounts).
-          * Using the filesystem Id to check if this is a filesystem that we
-          * have seen previously and will ignore this FD only if that is
-          * the case.  Log a warning otherwise since the quiesced snapshot
+          * Use the filesystem Id to check if this filesystem has been
+          * handled before and, if so, ignore it.
+          * Alternatively, allow (ignore) the EBUSY if the
+          * "ignoreFrozenFileSystems" switch inside "vmbackup" section of
+          * tools.conf file is TRUE.
+          * Otherwise, log a warning as the quiesced snapshot
           * attempt will fail.
           */
          if (ioctlerr == EBUSY) {
@@ -338,6 +343,14 @@ LinuxDriver_Freeze(const GSList *paths,
                 * mount point.  Safe to ignore.
                 */
                Debug(LGPFX "skipping path '%s' - previously frozen", path);
+               continue;
+            } else if (ignoreFrozenFS) {
+               /*
+                * Ignores the EBUSY error if the FS has been frozen by another
+                * process and the 'ignoreFrozenFileSystems' setting is
+                * turned on in tools.conf file.
+                */
+               Debug(LGPFX "Ignoring the frozen filesystem '%s'",path);
                continue;
             }
             /*

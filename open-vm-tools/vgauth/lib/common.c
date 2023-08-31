@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2017 VMware, Inc. All rights reserved.
+ * Copyright (c) 2011-2017, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -553,7 +553,7 @@ done:
  * @li VGAuth debug messages will use the glib loglevel @b G_LOG_LEVEL_DEBUG.
  *
  * Note that any bad utf8 string arguments will be passed through
- * unmodified, so an error handler may want to sanity check the data.
+ * unmodified, so an error handler may want to confidence check the data.
  *
  * @remark Can be called by any user.
  *

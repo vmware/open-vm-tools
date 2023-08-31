@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (c) 2007-2016,2020-2022 VMware, Inc.  All rights reserved.
+### Copyright (c) 2007-2016,2020-2023 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -17,9 +17,6 @@
 
 SUBDIRS =
 SUBDIRS += guestRpc
-if HAVE_X11
-   SUBDIRS += appUtil
-endif
 SUBDIRS += auth
 SUBDIRS += backdoor
 if HAVE_VSOCK

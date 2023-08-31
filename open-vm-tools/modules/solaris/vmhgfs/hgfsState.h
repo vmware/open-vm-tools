@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2016, 2021 VMware, Inc. All rights reserved.
+ * Copyright (c) 2004-2016, 2021, 2023 VMware, Inc. All rights reserved.
  *
  * The contents of this file are subject to the terms of the Common
  * Development and Distribution License (the "License") version 1.0
@@ -65,7 +65,7 @@
          HGFS_VP_TO_FP(vp)->fileType
 
 /*
- * This macro is used for sanity checking the fact that Solaris won't ever call
+ * This macro is used for confidence checking the fact that Solaris won't ever call
  * one of our vnode operations without first calling lookup(), which is the
  * place where we acquire the filename.  I have never seen a function fail
  * because of this, so it is likely that we can remove this macro and the checks

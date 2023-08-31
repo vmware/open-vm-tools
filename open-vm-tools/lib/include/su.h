@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -55,7 +55,8 @@ Bool Id_AuthCheck(char const *right,
                   char const *localizedDescription,
                   Bool showDialogIfNeeded);
 
-#elif (defined(__linux__) || defined(sun) || defined(__FreeBSD__))
+#elif defined(__linux__) || defined(sun) || defined(__FreeBSD__) || \
+      defined(__EMSCRIPTEN__)
 
 #include <sys/types.h>
 #include <unistd.h>

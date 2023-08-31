@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2022 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -19,12 +19,12 @@
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
 #include <ctype.h>
 #include <sys/utsname.h>
 #include <netdb.h>
 #include <fcntl.h>
+#include <unistd.h>
 #include <limits.h>
 #include <errno.h>
 #include <sys/file.h>
@@ -133,6 +133,7 @@
 #include "uwvmkAPI.h"
 #include "uwvmk.h"
 #include "vmkSyscall.h"
+#include "uwvmkprivate.h"
 #endif
 
 #define LGPFX "HOSTINFO:"
@@ -148,6 +149,8 @@
    MAX(sizeof SYSTEM_BITNESS_64_LINUX, \
    MAX(sizeof SYSTEM_BITNESS_64_ARM_LINUX, \
        sizeof SYSTEM_BITNESS_64_ARM_FREEBSD))))
+
+#define LSB_RELEASE "/usr/bin/lsb_release"
 
 struct hostinfoOSVersion {
    int   hostinfoOSVersion[4];
@@ -1793,10 +1796,20 @@ HostinfoLsb(char ***args)  // OUT:
    size_t fields = ARRAYSIZE(lsbFields) - 1;  // Exclude terminator
 
    /*
+    * In recent times, an increasing number of distros do not have the
+    * LSB support installed. Perform a quick check for it and bail if
+    * it's not accessible.
+    */
+
+   if (access(LSB_RELEASE, F_OK | X_OK) == -1) {
+      return -1;
+   }
+
+   /*
     * Try to get OS detailed information from the lsb_release command.
     */
 
-   lsbOutput = HostinfoGetCmdOutput("/usr/bin/lsb_release -sd 2>/dev/null");
+   lsbOutput = HostinfoGetCmdOutput(LSB_RELEASE " -sd 2>/dev/null");
 
    if (lsbOutput == NULL) {
       /*
@@ -1819,14 +1832,16 @@ HostinfoLsb(char ***args)  // OUT:
       free(lsbOutput);
 
       /* LSB Distributor */
-      lsbOutput = HostinfoGetCmdOutput("/usr/bin/lsb_release -si 2>/dev/null");
+      lsbOutput = HostinfoGetCmdOutput(LSB_RELEASE " -si 2>/dev/null");
+
       if (lsbOutput != NULL) {
          (*args)[0] = Util_SafeStrdup(HostinfoLsbRemoveQuotes(lsbOutput));
          free(lsbOutput);
       }
 
       /* LSB Release */
-      lsbOutput = HostinfoGetCmdOutput("/usr/bin/lsb_release -sr 2>/dev/null");
+      lsbOutput = HostinfoGetCmdOutput(LSB_RELEASE " -sr 2>/dev/null");
+
       if (lsbOutput != NULL) {
          (*args)[1] = Util_SafeStrdup(HostinfoLsbRemoveQuotes(lsbOutput));
          free(lsbOutput);
@@ -4550,6 +4565,62 @@ Hostinfo_QueryProcessExistence(int pid)  // IN:
    }
 
    return result;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Hostinfo_QueryProcessReaped --
+ *
+ *      Determine if the resources of a "dead" process have been reclaimed.
+ *      On Linux, this is equivalent to querying the process's existence.
+ *      On ESX, we can query the vmkernel.
+ *
+ * Results:
+ *      HOSTINFO_PROCESS_QUERY_ALIVE    Process is not yet reaped
+ *      HOSTINFO_PROCESS_QUERY_DEAD     Process has been reaped
+ *      HOSTINFO_PROCESS_QUERY_UNKNOWN  Don't know
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+HostinfoProcessQuery
+Hostinfo_QueryProcessReaped(int pid)  // IN:
+{
+#if defined(VMX86_SERVER) || defined(USERWORLD)  // ESXi
+   VMK_ReturnStatus status = VMKPrivate_WaitForWorldDeath(pid, 1);
+   HostinfoProcessQuery result;
+
+   switch (status) {
+   case VMK_TIMEOUT:
+      result = HOSTINFO_PROCESS_QUERY_ALIVE;
+      break;
+
+   /*
+    * VMK_BAD_PARAM indicates the pid is no longer associated with
+    * a userworld.
+    *
+    * VMK_OK indicates the pid has been reaped.
+    */
+   case VMK_BAD_PARAM:
+   case VMK_OK:
+      result = HOSTINFO_PROCESS_QUERY_DEAD;
+      break;
+
+   /* VMK_DEATH_PENDING (on caller), VMK_WAIT_INTERRUPTED */
+   default:
+      result = HOSTINFO_PROCESS_QUERY_UNKNOWN;
+      break;
+   }
+
+   return result;
+#else
+   return Hostinfo_QueryProcessExistence(pid);
+#endif
 }
 
 

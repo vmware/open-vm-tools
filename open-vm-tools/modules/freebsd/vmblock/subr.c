@@ -432,7 +432,7 @@ VMBlockNodeGet(struct mount *mp,        // IN: VMBlock fs info
  *
  * VMBlockCheckVp --
  *
- *      Sanity-checking intermediary used for debugging.  When module is
+ *      Confidence-checking intermediary used for debugging.  When module is
  *      compiled with FreeBSD macro "DIAGNOSTIC", every instance of
  *      VMBVPTOLOWERVP() calls this function to test vnodes' and VMBlockNodes'
  *      values, printing diagnostic information before panicing.  If the kernel

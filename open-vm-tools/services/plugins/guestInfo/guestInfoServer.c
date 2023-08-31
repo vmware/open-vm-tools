@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2022 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -93,7 +93,7 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 #if defined(_WIN32)
 #define GUESTINFO_DEFAULT_IFACE_EXCLUDES "vEthernet*"
 #else
-#define GUESTINFO_DEFAULT_IFACE_EXCLUDES "docker*,veth*,virbr*"
+#define GUESTINFO_DEFAULT_IFACE_EXCLUDES "docker*,veth*,virbr*,antrea-*,cali*"
 #endif
 
 /*

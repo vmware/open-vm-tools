@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017,2019,2021,2022 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017,2019,2021-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -646,7 +646,7 @@ CodeSetOldGetCodeSetFromLocale(void)
 {
    char *codeset;
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(__EMSCRIPTEN__)
 
    locale_t new = newlocale(LC_CTYPE_MASK, "", NULL);
    if (!new) {
@@ -656,9 +656,9 @@ CodeSetOldGetCodeSetFromLocale(void)
        * locale.
        */
 
-      new = newlocale(LC_CTYPE_MASK, "C", NULL); 
-      ASSERT(new); 
-   } 
+      new = newlocale(LC_CTYPE_MASK, "C", NULL);
+      ASSERT(new);
+   }
    codeset = Util_SafeStrdup(nl_langinfo_l(CODESET, new));
    freelocale(new);
 
@@ -928,7 +928,7 @@ CodeSetOld_GenericToGenericDb(char const *codeIn,   // IN:
        * change bufIn so a simple cast is safe. --plangdale
        */
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__EMSCRIPTEN__)
       status = iconv(cd, (char **)&bufIn, &sizeIn, &out, &outLeft);
 #else
       status = iconv(cd, &bufIn, &sizeIn, &out, &outLeft);

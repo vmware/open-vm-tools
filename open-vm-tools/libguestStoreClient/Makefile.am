@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (c) 2020 VMware, Inc.  All rights reserved.
+### Copyright (c) 2020, 2023 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -33,4 +33,4 @@ libguestStoreClient_la_LDFLAGS =
 libguestStoreClient_la_LDFLAGS += -Wl,-z,defs
 # Needed for OS's that don't link shared libraries against libc by
 #default, e.g. FreeBSD
-libguestStoreClient_la_LDFLAGS += -Wl,-lc
+libguestStoreClient_la_LIBADD += -lc

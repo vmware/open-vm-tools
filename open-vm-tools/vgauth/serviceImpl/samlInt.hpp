@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2016,2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -136,6 +136,7 @@ struct SAMLTokenData {
 auto_ptr<XMLGrammarPool> SAMLCreateAndPopulateGrammarPool();
 
 VGAuthError SAMLVerifyAssertion(const char *xmlText,
+                                gboolean hostVerified,
                                 SAMLTokenData &token,
                                 vector<string> &certs);
 #endif // ifndef _SAMLINT_H_

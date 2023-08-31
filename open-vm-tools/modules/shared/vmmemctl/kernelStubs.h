@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2019,2021 VMware, Inc. All rights reserved.
+ * Copyright (c) 2006-2019,2021, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -227,7 +227,7 @@ char * __cdecl _strdup_impl(
 
 #elif defined(__FreeBSD__)                      /* } else if (FreeBSD) { */
 
-/* Kernel memory on FreeBSD is tagged for statistics and sanity checking. */
+/* Kernel memory on FreeBSD is tagged for statistics and confidence checking. */
 MALLOC_DECLARE(M_VMWARE_TEMP);
 
 /*

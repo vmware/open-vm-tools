@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -71,7 +71,7 @@ extern "C" {
  *  constraints.
  *
  */
-#if defined(__GNUC__) && (defined(VMM) || defined(VMKERNEL) || defined(FROBOS))
+#if (defined(VMM) || defined(VMKERNEL) || defined(FROBOS) || defined(ULM))
 static INLINE Bool
 xtest(void)
 {
@@ -80,14 +80,18 @@ xtest(void)
    __asm__ __volatile__("xtest\n"
                         "setnz %%al"
                         : "=a" (result) : : "cc");
-#else
+#elif defined (__GNUC__)
    __asm__ __volatile__("xtest"
                         : "=@ccnz" (result) : : "cc");
+#elif defined (_WIN32)
+   result = _xtest();
+#else
+#error No xtest implementation for this compiler.
 #endif
    return result;
 }
 
-#endif /* __GNUC__ */
+#endif /* VMM || VMKERNEL || FROBOS || ULM */
 
 
 /*

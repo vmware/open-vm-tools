@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2016,2019-2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 2005-2016,2019-2020, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -446,7 +446,7 @@ VMGuestLibUpdateInfo(VMGuestLibHandle handle) // IN
       goto done;
    }
 
-   /* Sanity check the results. */
+   /* Confidence check the results. */
    if (replyLen < sizeof hostVersion) {
       Debug("%s: Unable to retrieve version\n", __FUNCTION__);
       ret = VMGUESTLIB_ERROR_OTHER;
@@ -457,7 +457,7 @@ VMGuestLibUpdateInfo(VMGuestLibHandle handle) // IN
       VMGuestLibDataV2 *v2reply = (VMGuestLibDataV2 *)reply;
       size_t dataSize = sizeof *v2reply;
 
-      /* More sanity checks. */
+      /* More confidence checks. */
       if (v2reply->hdr.version != hostVersion) {
          Debug("%s: Incorrect data version returned\n", __FUNCTION__);
          ret = VMGUESTLIB_ERROR_OTHER;
@@ -491,7 +491,7 @@ VMGuestLibUpdateInfo(VMGuestLibHandle handle) // IN
       GuestLibV3StatCount count;
       VMGuestLibStatisticsV3 *v3stats;
 
-      /* More sanity checks. */
+      /* More confidence checks. */
       if (v3reply->hdr.version != hostVersion) {
          Debug("%s: Incorrect data version returned\n", __FUNCTION__);
          ret = VMGUESTLIB_ERROR_OTHER;

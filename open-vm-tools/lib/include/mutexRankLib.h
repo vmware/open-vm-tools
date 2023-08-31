@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 2010-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -211,7 +211,8 @@ extern "C" {
  *    battery/button < preference
  *    workerLib < something for sure under VThread_Create
  *    licenseCheck < preference
- *    sslState < getSafeTmpDir
+ *    sslState < sslCrlCache
+ *    sslCrlCache < getSafeTmpDir
  */
 
 #define RANK_vigorTransportListLock  (RANK_libLockBase + 0x7010)
@@ -223,7 +224,8 @@ extern "C" {
 #define RANK_configDbLock            (RANK_libLockBase + 0x7070)
 #define RANK_keyLocatorLock          (RANK_libLockBase + 0x7080)
 #define RANK_sslStateLock            (RANK_libLockBase + 0x7085)
-#define RANK_getSafeTmpDirLock       (RANK_libLockBase + 0x7086)
+#define RANK_sslCrlCacheLock         (RANK_libLockBase + 0x7086)
+#define RANK_getSafeTmpDirLock       (RANK_libLockBase + 0x7087)
 #define RANK_licenseCheckLock        (RANK_libLockBase + 0x7090)
 #define RANK_preferenceLock          (RANK_libLockBase + 0x7100)
 

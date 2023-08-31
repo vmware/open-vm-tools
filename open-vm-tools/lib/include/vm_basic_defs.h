@@ -261,6 +261,8 @@ Max(int a, int b)
    #define PAGE_SHIFT    PAGE_SHIFT_4KB
 #elif defined __arm__
    #define PAGE_SHIFT    PAGE_SHIFT_4KB
+#elif defined __wasm__
+   #define PAGE_SHIFT    PAGE_SHIFT_4KB
 #else
    #error
 #endif
@@ -680,6 +682,12 @@ typedef int pid_t;
 #else
 #define vmkernel 0
 #define VMKERNEL_ONLY(x)
+#endif
+
+#ifdef COMP_TEST
+#define vmx86_test   1
+#else
+#define vmx86_test   0
 #endif
 
 /*

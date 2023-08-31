@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2019, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -34,6 +34,10 @@
 
 #if !defined(__FreeBSD__) && !defined(sun)
 #   include <pwd.h>
+#endif
+
+#if defined(__APPLE__) && defined(TARGET_MAC_OS)
+#include <libproc.h>
 #endif
 
 #include "vmware.h"
@@ -92,6 +96,95 @@ FileTryDir(const char *dirName)  // IN: Is this a writable directory?
 }
 
 
+#if defined(__APPLE__) && defined(TARGET_MAC_OS)
+/*
+ *----------------------------------------------------------------------
+ *
+ * FileExecutablePath --
+ *
+ *      Return the path of the executable running this code.
+ *
+ * Results:
+ *     !NULL  Success. The executable path. Must be freed by caller.
+ *      NULL  Failure
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static char *
+FileExecutablePath(void)
+{
+   char *path = Util_SafeMalloc((size_t) PROC_PIDPATHINFO_MAXSIZE);
+
+   if (proc_pidpath(getpid(), path, PROC_PIDPATHINFO_MAXSIZE) <= 0) {
+      Warning("%s: proc_pidpath failure %d\n", __FUNCTION__, errno);
+
+      free(path);
+      path = NULL;
+   }
+
+   return path;
+}
+#endif
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * FileTmpDirOk --
+ *
+ *      Is it OK to query the TMPDIR environment variable?
+ *
+ * Results:
+ *     TRUE   Yes
+ *     FALSE  No
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static Bool
+FileTmpDirOk(void)
+{
+#if defined(__APPLE__) && defined(TARGET_MAC_OS)
+   /* No setuid on IOS, MacOS only */
+   int err;
+   Bool ok;
+   struct stat statBuf;
+   char *path = FileExecutablePath();
+
+   if (path == NULL) {
+      return FALSE;  // Err on the side of caution
+   }
+
+   LOG_ONCE("%s: executable path '%s'\n", __FUNCTION__, path);
+
+   err = Posix_Stat(path, &statBuf);
+
+   free(path);
+
+   if (err == -1) {
+      Warning("%s: Stat failed on '%s'\n", __FUNCTION__, path);
+
+      return FALSE;  // Err on the side of caution
+   }
+
+   ok = ((statBuf.st_mode & S_ISUID) == 0);  // Only when setuid not present
+
+   LOG_ONCE("%s: TMPDIR ok %d\n", __FUNCTION__, ok);
+
+   return ok;
+#else
+   return TRUE;
+#endif
+}
+
+
 /*
  *----------------------------------------------------------------------
  *
@@ -120,7 +213,7 @@ FileGetTmpDir(Bool useConf)  // IN: Use the config file?
    /* Make several attempts to find a good temporary directory candidate */
 
    if (useConf) {
-      dirName = (char *)LocalConfig_GetString(NULL, "tmpDirectory");
+      dirName = (char *) LocalConfig_GetString(NULL, "tmpDirectory");
       edirName = FileTryDir(dirName);
       Posix_Free(dirName);
       if (edirName != NULL) {
@@ -128,10 +221,12 @@ FileGetTmpDir(Bool useConf)  // IN: Use the config file?
       }
    }
 
-   /* Posix_Getenv string must _not_ be freed */
-   edirName = FileTryDir(Posix_Getenv("TMPDIR"));
-   if (edirName != NULL) {
-      return edirName;
+   if (FileTmpDirOk()) {
+      /* Posix_Getenv string must _not_ be freed */
+      edirName = FileTryDir(Posix_Getenv("TMPDIR"));
+      if (edirName != NULL) {
+         return edirName;
+      }
    }
 
    /* P_tmpdir is usually defined in <stdio.h> */

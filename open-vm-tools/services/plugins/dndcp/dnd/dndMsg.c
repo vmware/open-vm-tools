@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2019 VMware, Inc. All rights reserved.
+ * Copyright (c) 2007-2019, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -381,7 +381,7 @@ DnDMsg_UnserializeHeader(DnDMsg *msg,   // IN/OUT: the message
        DnDReadBuffer(&r, &msg->cmd, sizeof msg->cmd) &&
        DnDReadBuffer(&r, &msg->nargs, sizeof msg->nargs) &&
        DnDReadBuffer(&r, &msg->expectedArgsSz, sizeof msg->expectedArgsSz)) {
-      /* Sanity checks. */
+      /* Confidence checks. */
       if (msg->expectedArgsSz < DNDMSG_MAX_ARGSZ &&
           (msg->cmd < DND_MAX || msg->cmd < CP_MAX) &&
           0 < msg->cmd &&

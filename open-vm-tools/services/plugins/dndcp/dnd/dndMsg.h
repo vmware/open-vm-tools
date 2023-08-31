@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2017 VMware, Inc. All rights reserved.
+ * Copyright (c) 2007-2017, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -46,7 +46,7 @@ typedef enum {
    DNDMSG_ERR,
    DNDMSG_NOMEM,
    DNDMSG_INPUT_TOO_SMALL, /* Input buffer needs to be bigger. */
-   DNDMSG_INPUT_ERR, /* Serialize/unserialized failed sanity checks. */
+   DNDMSG_INPUT_ERR, /* Serialize/unserialized failed confidence checks. */
 } DnDMsgErr;
 
 /*

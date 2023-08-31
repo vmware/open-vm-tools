@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2022 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -55,6 +55,10 @@
 #include "mutexRankLib.h"
 #include "vm_basic_asm.h"
 #include "unicodeOperations.h"
+
+#ifndef VM_X86_ANY
+#include "random.h"
+#endif
 
 #if defined(_WIN32)
 #include <io.h>
@@ -4159,7 +4163,16 @@ HgfsServer_ShareAccessCheck(HgfsOpenMode accessMode,  // IN: open mode to check
 static uint64
 HgfsGenerateSessionId(void)
 {
+#ifdef VM_X86_ANY
    return RDTSC();
+#else
+   uint64 sessionId;
+   rqContext *rCtx = Random_QuickSeed((uint32)time(NULL));
+   sessionId = (uint64)Random_Quick(rCtx) << 32;
+   sessionId |= Random_Quick(rCtx);
+   free(rCtx);
+   return sessionId;
+#endif
 }
 
 
@@ -5568,7 +5581,7 @@ HgfsServerStatFs(const char *pathName, // IN: Path we're interested in
    Wiper_Init(NULL);
 
    /*
-    * Sanity checks. If length is good, assume well-formed drive path
+    * Confidence checks. If length is good, assume well-formed drive path
     * (i.e. "C:\..." or "\\abc..."). Note that we throw out shares that
     * exactly equal p.mountPoint's size because we won't have room for a null
     * delimiter on copy. Allow 0 length drives so that hidden feature "" can
@@ -8711,7 +8724,7 @@ HgfsServerSetattr(HgfsInputParam *input)  // IN: Input params
  *
  * HgfsServerValidateOpenParameters --
  *
- *    Performs sanity check of the input parameters.
+ *    Performs confidence check of the input parameters.
  *
  * Results:
  *    HGFS_ERROR_SUCCESS if the parameters are valid.

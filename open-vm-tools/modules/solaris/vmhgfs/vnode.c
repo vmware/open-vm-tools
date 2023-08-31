@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2016 VMware, Inc. All rights reserved.
+ * Copyright (c) 2004-2016, 2023 VMware, Inc. All rights reserved.
  *
  * The contents of this file are subject to the terms of the Common
  * Development and Distribution License (the "License") version 1.0
@@ -2162,7 +2162,7 @@ HgfsReaddir(struct vnode *vp,       // IN: Vnode of directory to read
 
 
    /*
-    * XXX: If would be nice if we could perform some sort of sanity check on
+    * XXX: If would be nice if we could perform some sort of confidence check on
     * the handle here.  Perhaps make sure handle <= NUM_SEARCHES in
     * hgfsServer.c since the handle is the index number in searchArray.
     */
@@ -5571,7 +5571,7 @@ HgfsReaddir(struct vnode *vp,   // IN: Vnode of directory to read
 
 
    /*
-    * XXX: If would be nice if we could perform some sort of sanity check on
+    * XXX: If would be nice if we could perform some sort of confidence check on
     * the handle here.  Perhaps make sure handle <= NUM_SEARCHES in
     * hgfsServer.c since the handle is the index number in searchArray.
     */

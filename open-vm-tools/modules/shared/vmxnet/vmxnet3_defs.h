@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2022 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -1102,7 +1102,7 @@ do {\
 #define VMXNET3_MAX_MTU     9000
 #define VMXNET3_MIN_MTU     60
 
-#define VMXNET3_LINK_UP         (10000 << 16 | 1)    // 10 Gbps, up
+#define VMXNET3_LINK_UP         1    //up
 #define VMXNET3_LINK_DOWN       0
 
 #define VMXWIFI_DRIVER_SHARED_LEN 8192

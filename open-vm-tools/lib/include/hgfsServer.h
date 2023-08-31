@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020,2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -27,7 +27,7 @@
 extern "C" {
 #endif
 
-#define HGFS_VMX_IOV_CONTEXT_SIZE (vmx86_debug ? 112 : 96)
+#define HGFS_VMX_IOV_CONTEXT_SIZE (vmx86_debug ? 120 : 104)
 typedef struct HgfsVmxIov {
    void *va;           /* Virtual addr */
    uint64 pa;          /* Physical address passed by the guest */

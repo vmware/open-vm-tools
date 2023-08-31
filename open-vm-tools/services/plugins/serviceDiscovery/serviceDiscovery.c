@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2020-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 2020-2021,2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -24,6 +24,7 @@
  */
 
 #include <string.h>
+#include "str.h"
 
 #include "serviceDiscoveryInt.h"
 #include "vmware.h"
@@ -45,21 +46,24 @@
 VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 #endif
 
+#if defined(_WIN32)
+#include <windows.h>
+#endif
+
+
 #define NSDB_PRIV_GET_VALUES_CMD "namespace-priv-get-values"
 #define NSDB_PRIV_SET_KEYS_CMD "namespace-priv-set-keys"
 
 #if defined (_WIN32)
 
-#define SCRIPT_EXTN ".bat"
+#define SCRIPT_EXTN ".ps1"
 
 /*
  * Scripts used by plugin in Windows guests to capture information about
  * running services.
  */
-#define SERVICE_DISCOVERY_SCRIPT_PERFORMANCE_METRICS \
-        "get-performance-metrics" SCRIPT_EXTN
-#define SERVICE_DISCOVERY_WIN_SCRIPT_RELATIONSHIP "get-parent-child-rels" \
-        SCRIPT_EXTN
+#define SERVICE_DISCOVERY_SCRIPT_PERFORMANCE_METRICS "get-performance-metrics" SCRIPT_EXTN
+#define SERVICE_DISCOVERY_WIN_SCRIPT_RELATIONSHIP "get-parent-child-rels" SCRIPT_EXTN
 #define SERVICE_DISCOVERY_WIN_SCRIPT_NET "net-share" SCRIPT_EXTN
 #define SERVICE_DISCOVERY_WIN_SCRIPT_IIS_PORTS "get-iis-ports-info" SCRIPT_EXTN
 #define SERVICE_DISCOVERY_WIN_SCRIPT_SHAREPOINT_PORTS "get-sharepoint-ports-info" SCRIPT_EXTN
@@ -79,12 +83,13 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 
 #endif
 
+static gchar* scriptInstallDir = NULL;
+
 /*
  * Scripts used by plugin in both Windows and Linux guests to capture
  * information about running services.
  */
-#define SERVICE_DISCOVERY_SCRIPT_PROCESSES "get-listening-process-info" \
-        SCRIPT_EXTN
+#define SERVICE_DISCOVERY_SCRIPT_PROCESSES "get-listening-process-info" SCRIPT_EXTN
 #define SERVICE_DISCOVERY_SCRIPT_CONNECTIONS "get-connection-info" SCRIPT_EXTN
 #define SERVICE_DISCOVERY_SCRIPT_VERSIONS "get-versions" SCRIPT_EXTN
 
@@ -947,7 +952,7 @@ ServiceDiscoveryTask(ToolsAppCtx *ctx,
    cycle++;
    for (i = 0; i < gFullPaths->len; i++) {
       KeyNameValue tmp = g_array_index(gFullPaths, KeyNameValue, i);
-      if (!ExecuteScript(ctx, tmp.keyName, tmp.val)) {
+      if (!ExecuteScript(ctx, tmp.keyName, tmp.val, scriptInstallDir)) {
          g_debug("%s: ExecuteScript failed for script %s\n",
                 __FUNCTION__, tmp.val);
          if (isGDPWriteReady && gSkipThisTask && !isNDBWriteReady) {
@@ -1214,6 +1219,9 @@ ServiceDiscoveryServerShutdown(gpointer src,
       gServiceDiscoveryTimeoutSource = NULL;
    }
 
+   g_free(scriptInstallDir);
+   scriptInstallDir = NULL;
+
    if (gFullPaths != NULL) {
       int i = 0;
       guint len = gFullPaths->len;
@@ -1224,7 +1232,6 @@ ServiceDiscoveryServerShutdown(gpointer src,
       g_array_free(gFullPaths, TRUE);
    }
 }
-
 
 /*
  *****************************************************************************
@@ -1239,7 +1246,6 @@ static void
 ConstructScriptPaths(void)
 {
    int i;
-   gchar *scriptInstallDir;
 #if !defined(OPEN_VM_TOOLS)
    gchar *toolsInstallDir;
 #endif
@@ -1250,30 +1256,26 @@ ConstructScriptPaths(void)
 
    gFullPaths = g_array_sized_new(FALSE, TRUE, sizeof(KeyNameValue),
                                   ARRAYSIZE(gKeyScripts));
-
+   if (scriptInstallDir == NULL) {
 #if defined(OPEN_VM_TOOLS)
-   scriptInstallDir = Util_SafeStrdup(VMTOOLS_SERVICE_DISCOVERY_SCRIPTS);
+      scriptInstallDir = Util_SafeStrdup(VMTOOLS_SERVICE_DISCOVERY_SCRIPTS);
 #else
-   toolsInstallDir = GuestApp_GetInstallPath();
-   scriptInstallDir = g_strdup_printf("%s%s%s%s%s", toolsInstallDir, DIRSEPS,
+      toolsInstallDir = GuestApp_GetInstallPath();
+      scriptInstallDir = g_strdup_printf("%s%s%s%s%s", toolsInstallDir, DIRSEPS,
                                       "serviceDiscovery", DIRSEPS, "scripts");
-   g_free(toolsInstallDir);
+      g_free(toolsInstallDir);
 #endif
-
+   }
    for (i = 0; i < ARRAYSIZE(gKeyScripts); ++i) {
       KeyNameValue tmp;
       tmp.keyName = g_strdup_printf("%s", gKeyScripts[i].keyName);
 #if defined(_WIN32)
-      tmp.val = g_strdup_printf("\"%s%s%s\"", scriptInstallDir,
-                                DIRSEPS, gKeyScripts[i].val);
+      tmp.val = ConstructPWSScriptCommand(gKeyScripts[i].val);
 #else
-      tmp.val = g_strdup_printf("%s%s%s", scriptInstallDir, DIRSEPS,
-                                gKeyScripts[i].val);
+      tmp.val = g_strdup_printf("%s%s%s", scriptInstallDir, DIRSEPS, gKeyScripts[i].val);
 #endif
       g_array_insert_val(gFullPaths, i, tmp);
    }
-
-   g_free(scriptInstallDir);
 }
 
 
@@ -1324,7 +1326,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)
     */
    if (!TOOLS_IS_MAIN_SERVICE(ctx)) {
       g_info("%s: Not running in vmsvc daemon: container name='%s'.\n",
-         __FUNCTION__, ctx->name);
+             __FUNCTION__, ctx->name);
       return NULL;
    }
    if (ctx->rpc != NULL) {
@@ -1343,7 +1345,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)
                                        sizeof *regs,
                                        ARRAYSIZE(regs));
       /*
-       * Append scripts absolute paths based on installation dirs.
+       * Append scripts execution command line
        */
       ConstructScriptPaths();
 

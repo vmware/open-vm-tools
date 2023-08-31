@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2018 VMware, Inc. All rights reserved.
+ * Copyright (c) 2009-2018, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -566,7 +566,7 @@ SlashProcNet_GetRoute(unsigned int maxRoutes,
    myChannel = g_io_channel_unix_new(fd);
 
    /*
-    * 2.  Sanity check the header, making sure it matches what we expect.
+    * 2.  Confidence check the header, making sure it matches what we expect.
     *     (It's -extremely- unlikely this will change, but we should check
     *     anyway.)
     */

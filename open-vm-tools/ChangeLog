@@ -1,72 +1,897 @@
-commit 3b61a0b7145de1eb58bd9c463dcac8241ef185e4
-Author: John Wolfe <jwolfe@vmware.com>
-Date:   Mon Jun 12 16:07:56 2023 -0700
+commit 4fe4b1be1d7139aa571a6431f26904e6f0b77883
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Aug 31 07:32:27 2023 -0700
 
-      =================================================
-        open-vm-tools 12.2.5 released at this point.
-      =================================================
+    =================================================
+      open-vm-tools 12.3.0 released at this point.
+    =================================================
+    
     Update of the ChangeLog with the final changes in preparation for
-    the open-vm-tools 12.2.5 release.
+    the open-vm-tools 12.3.0 release.
 
-commit 15c979c79cfc31a8d0cc77ecad1eb9b5369d90b3
-Author: John Wolfe <jwolfe@vmware.com>
-Date:   Mon Jun 12 15:36:15 2023 -0700
+commit 93e8fb7c1e4423493337661b1b8d39f09a4bbc9d
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Aug 31 07:26:02 2023 -0700
 
-    Update the ReleaseNotes.md for the 12.2.5 open-vm-tools release.
+    open-vm-tools 12.3.0 Release Notes.
 
-commit 941b26d6e012c5fd2184242ae24d5e5559b60c98
-Author: John Wolfe <jwolfe@vmware.com>
-Date:   Mon Jun 12 15:03:03 2023 -0700
+commit 2e0e2d7d9da0e2def013558e583465ebd07d2589
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 29 07:26:13 2023 -0700
 
-    Prepare for the open-vm-tools 12.2.0 release.
-      - Update the tools version in the configure.ac file.
-      - Update the build numbers in the buildNumber.h header.
+    Preparing for the open-vm-tools 12.3.0 release.
+    Syncing the tools version, build number and product build number with
+    the internal official build of VMware Tools / open-vm-tools 12.3.0.
 
-commit 9da8095daaec2f9d12a47b69bc5fa141782ba86d
-Author: John Wolfe <jwolfe@vmware.com>
-Date:   Mon Jun 12 14:53:47 2023 -0700
+commit 7eed1add1249a815763d597adf6d78eda170e3c4
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Aug 25 12:04:52 2023 -0700
 
-    Change open-vm-tools version to 12.2.5.
+    Update of the ChangeLog with granular push from the 12.3.0 tools
+    product branch.
 
-commit c66f38194f91f8b733caa0beb6310871ac629690
-Author: John Wolfe <jwolfe@vmware.com>
-Date:   Mon Jun 12 14:53:47 2023 -0700
+commit 74b6d0d9000eda1a2c8f31c40c725fb0b8520b16
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Aug 25 11:58:48 2023 -0700
+
+    Allow only X509 certs to verify the SAML token signature.
+
+commit d089aa2d835f93e9c4ce988596a4754a0de68a24
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Aug 25 11:58:48 2023 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 8681def032026c3cdef872e34bf18e7934ff0145
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Aug 25 11:58:48 2023 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 8e2c1ae33923b700cd26a8e17c2d74bb355d39dd
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Aug 25 11:58:48 2023 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 96cd002a39a3ec1fd97f1773fb6e8a6ac7dad919
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Aug 25 11:58:47 2023 -0700
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit 641e13fc05118ff8215f9461df424e277cba73dc
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Aug 25 11:58:47 2023 -0700
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit 52e164c04beb853179f3429d69623f988485402d
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Aug 25 11:58:47 2023 -0700
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit 106c96ed660c89262ba71d32becaf3137622160d
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Aug 25 11:58:47 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 75507219d4c87c4e3c805059242f3fb1a8b999b4
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Aug 25 11:58:47 2023 -0700
+
+    Allow pre-Windows 2000 style user logon for Linux Guests.
+    
+    With this change, applications that requires user/password type
+    authentication/authorization (done by VGAuth service) for guestOps
+    can now use pre-windows 2000 style user logon for Linux Guests too.
+    
+    Github Issue: https://github.com/vmware/open-vm-tools/issues/641
+
+commit 9fdd875b81dded9d33b844ad1fcb2e5d0bd67c65
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Aug 25 11:58:47 2023 -0700
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit 1335787e74fc86752984c81ea7b0bd1b0065ce89
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Aug 25 11:57:15 2023 -0700
+
+    ChangeLog update of Aug. 25, 2023.
+
+commit 518a77a39a30d39c4397d2533bae57880f44ec6e
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Aug 25 11:51:12 2023 -0700
+
+    ====================================================================
+    The "stable-12.3.x" branch was created from the "devel" branch here.
+    ====================================================================
+    
+    Update ChangeLog with the granular push of Aug. 22, 2023.
+    - plus ChangeLog update of Apr. 24, 2023.
+
+commit 14dfd9c00b5321bafc012f678ef1cd2129e03a73
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 15:51:19 2023 -0700
+
+    Fix build problems with grpc
+    
+    Updating Makefiles to put -l specifiers into LIBADD and not LDFLAGS.
+    Use the grpc++ pkgconfig (.pc file) if it exists to retrieve flags
+    and libraries for linking.
+    
+    Pull request: https://github.com/vmware/open-vm-tools/pull/664
+
+commit 6584bcaa8c25da5ef0f20c7f6a17e6b173a25f2d
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 15:51:19 2023 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit a1f318dfb992cfee9555a747207fce6721313e2c
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 15:51:19 2023 -0700
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit f584dca10f4cc7e0a0733ac5dc8844aac65af7ae
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 15:37:45 2023 -0700
+
+    Enable hostVerfied SAML token feature in Tools.
+
+commit 4463b84006034879cb1d8cba8ae43f9509c6d0ac
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:43 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 6430649b834da00a81410f7c1d87ca4e67409ada
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:43 2023 -0700
+
+    Changes to common header files not applicable to open-vm-tools.
+
+commit 6489b7c0bc4d8fb603cf11ff4605a5d2a975daa8
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:43 2023 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 447f17dfb33a69a43a6d4ad1b5e486a6b20a6f77
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:43 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit dfc6ee8aa66b3bfcdefe8020639f2b2ef03c215d
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:43 2023 -0700
+
+    Changes to common header files not applicable to open-vm-tools.
+
+commit 859849c55f34a777e6ac2a4e38aab30028b5207a
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:42 2023 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 759613baeb1377708123772be1fe70da341b1707
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:42 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 972d10eab23dda4d219f919685fbcd2651a57165
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:42 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 6852459279251412d01b073de977c1848119918c
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:42 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 8a3103cfb7d68f7e501c16f8ddb4cc998a68ad20
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:42 2023 -0700
+
+    Changes to common header files not applicable to open-vm-tools.
+
+commit 8047bc8787d3bf04748fb3435c1731cc03f30405
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:42 2023 -0700
+
+    Fix VThreadBase_ForgetSelf using wrong format specifier for VThread_CurID.
+
+commit c3eb0c034c53a80d92acbdc1cb8699c4d9a724df
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:42 2023 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 1a27960f1761ad9f9e5bb7e5eb952f51e2fa0a60
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:42 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 901511c7de7a1d870725eeeb5f660f8728dd119d
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:42 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 8205b35f6b29c10a6e12616785f65c18b0c5204b
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:42 2023 -0700
+
+    Changes to common header files not applicable to open-vm-tools.
+
+commit 17543c6584bdd41ff75d1ea85b4cf61c7b39f65e
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:42 2023 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 89831b1c249ba89d683d74b3624efe77ad3f3e53
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:42 2023 -0700
+
+    svtminion scripts v1.6 fixes for salt-minion release 3006.0
+    
+    Fix output of getent group, so don't make noise on Linux.
+
+commit eabbaf9bca1320b45fb7ad46cf48f5fbf49e958f
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:42 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 60c3a80ddc2b400366ed05169e16a6bed6501da2
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:42 2023 -0700
+
+    Provide alternate method to allow (expected) pre-frozen filesystems
+    when taking a quiesced snapshot.
+    
+    Effective with open-vm-tools 12.2.0, Linux quiesced snapshots will fail if
+    any filesystem(s) have been prefrozen by other than the vmtoolsd process.
+    This has been done to assure that filesystems are inactive while the
+    snapshots are being taken. Some existing prefreeze scripts may be freezing
+    some filesystem(s). In these cases, the vmtoolsd process must be informed of
+    anticipated pre-frozen filesystems by providing an "excludedFileSystem" list in
+    the [vmbackup] section of the tools.conf file.
+    
+    This change provides a new switch in the tools.conf file to allow pre-frozen
+    filesystems to be encountered and accepted when doing a quiesced snapshot
+    operation. With the default value of "false", the "ignoreFrozenFileSystems"
+    can be configured with a setting of "true" to notify the quiesced snapshot
+    operation that pre-frozen filesystems are allowed.
+
+commit baf812a3d942e9f1a6fe9774ddc5e514b976f059
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:42 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit b3c23d050ffab46ae24d6fc8e98851a07863dd2a
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:42 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 99ee819329e6b1b51affcf15673c2020bfe4e059
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:42 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit dcc090563d12ba436c7137bb3861b2966fc372cd
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:42 2023 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit c0116f300bfe2d37919fb333d63fd401dc228e5b
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:42 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 3f4dd03d969efe60c6c77002a3b8c8ddfd325ab3
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:42 2023 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 6aa05e8959408d0981c18ed8dfc29513b71c98a8
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:42 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit f6c27bbe691ba06f535d9b5d5dbabd4d4d5e3b1b
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:41 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 01d4788e191d1a846dbe7220442e25bba2cb545c
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:41 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 9d8054800e10cabeed6911a5b8ac85d612565fe6
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:41 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 0bc0f8e68339c1bae63e9d8734d4d10c8d4b5fa9
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:41 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 549f04fabbba57a33b8983e02064e216b8393485
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:41 2023 -0700
+
+    Changes to common header files not applicable to open-vm-tools.
+
+commit 508933ad4fb97cde6d19544d13005c88eaa9362f
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:41 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 9f1c97526ba6414bfbc342fcf0f8a83118dbee8d
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:41 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 016fa52e6bcbf868a08b5dbac0fdb8f19ab14c9a
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:41 2023 -0700
+
+    Removing appUtil library from open-vm-tools.
+    
+    Several Linux distributions have deprecated the use of gdk-pixbuf-xlib library
+    and many may follow suit in future. Remove the appUtil library, which was
+    required by Unity but is no longer supported on Linux guests.
+    
+    Github Issue: https://github.com/vmware/open-vm-tools/issues/658
+
+commit 55d4f25e7ad27b77268bf5f2d61e75336890dacc
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:41 2023 -0700
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit 2a770fead82a86a8b67107c40fa8e5986fd39416
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:41 2023 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit bea8dba7af41c6988a76bf6cbc47efd1d35761f3
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:41 2023 -0700
 
     Remove some dead code.
+
+commit 3a897d916ed6e69ebcede282ee36757808ee29af
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:41 2023 -0700
+
+    svtminion scripts update for salt 3006 release
     
-    Remove some authentication types which were deprecated long
-    ago and are no longer in use.
+    Scripts Ver. 1.5, support for status 106 code feature.
 
-commit 83bb95f6b33b476069b04067f4d78bbb6ad758c3
-Author: John Wolfe <jwolfe@vmware.com>
-Date:   Mon Jun 12 14:53:47 2023 -0700
+commit 5cf3023cf9981a97cd65f3600d03dc4714b4cc5e
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:41 2023 -0700
 
-    Setting the VMware Tools version to 12.2.1.
+    Change to common header file not applicable to open-vm-tools.
 
-commit e5b380eee080a6a3f18644a3d784e4e538b6af41
-Author: John Wolfe <jwolfe@vmware.com>
-Date:   Tue Mar 7 14:57:07 2023 -0800
+commit 8b940e736ed25a7e7bad47a476f6e0db154620aa
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:41 2023 -0700
 
-      =================================================
-        open-vm-tools 12.2.0 released at this point.
-      =================================================
-    Update of the ChangeLog with the final changes in preparation for
-    the open-vm-tools 12.2.0 release.
+    Change to common header file not applicable to open-vm-tools.
 
-commit 970d0d7d1eee353c93943704ee909523aa1ba71d
-Author: John Wolfe <jwolfe@vmware.com>
-Date:   Tue Mar 7 14:53:12 2023 -0800
+commit eb771586d88bd46fc38853b4f63cc01262a168b1
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:41 2023 -0700
 
-    Update the ReleaseNotes.md for the 12.2.0 open-vm-tools release.
-======================================================================
-======================================================================
-commit 6b72d107c925d71e7dfe89fa9bc4dc9d848e285a
-Author: John Wolfe <jwolfe@vmware.com>
-Date:   Tue Mar 7 08:33:18 2023 -0800
+    Introduce the new CAP_HOST_VERIFIED_SAML_TOKEN capability.
 
-    Prepare for the open-vm-tools 12.2.0 release.
-    - Update the tools version in the configure.ac.   Update the build numbers
-     buldNumber.h.
+commit 2793302b6d4bcd427a6e4b70263b4ce8069fdd00
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:41 2023 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 0b24b9b517c939059535aae8bfcd2ad70acaced1
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Aug 22 11:11:41 2023 -0700
+
+    Modify the comment for the CONFNAME_DEPLOYPKG_PROCESSTIMEOUT value range.
+
+commit a353e69b9438ca149a185a2249d076c951d945fe
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Jun 1 10:22:47 2023 -0700
+
+    Copyright symbol updates.
+
+commit a15a0bda093255eadb3768fb845b96a185ac6af9
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Apr 24 12:46:20 2023 -0700
+
+    Update ChangeLog with the granular push of Apr 24, 2023.
+    - plus ChangeLog update of Apr 6, 2023.
+
+commit b4ecba012795fd6e227a36f9da43ae390f8ac121
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Apr 24 12:30:14 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit a5eb9f3ce90f3c9ac79673db7e21486fcc8b434d
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Apr 24 12:30:14 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 5321737607c4779936ea7d1ca4eb7cc02f0ba452
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Apr 24 12:30:14 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 68b465af17e333d04776fc606088fc39b2a3dcdc
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Apr 24 12:30:14 2023 -0700
+
+    Changes to common header files not applicable to open-vm-tools.
+
+commit 68107d0bd5e7f900c2af5946ef560fdcd5454534
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Apr 24 12:30:14 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 27ea45d66f2358c1dcc8400a600f5e4ed8a419a1
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Apr 24 12:30:14 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 8c7bbf28197c254d6859ac6727ab88355b2cb7f8
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Apr 24 12:30:14 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit c66fb5c9ec87167f82d8b72c611a2df35af514a9
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Apr 24 12:30:14 2023 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 0fb50371215f5a6924103309980e565eebff08a6
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Apr 24 12:30:14 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools at this time.
+
+commit a480533a0a2bbeb9701f305cf3f78278e1279347
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Apr 24 12:30:14 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 87eb9ad7ed9ded840ac577cad2c027c3eaf9b49f
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Apr 6 11:36:37 2023 -0700
+
+    Update ChangeLog with the granular push of Apr 6, 2023.
+    - plus ChangeLog update of Mar 24, 2023.
+
+commit 0c15d1214d340893719c9eaaee7a071318bd7399
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Apr 6 11:33:31 2023 -0700
+
+    Correct missed 2023 copyright update.
+
+commit 41f7e48c7570673bf84938bdf243dd78ad66c608
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Apr 6 11:27:41 2023 -0700
+
+    Update the AUTHORS file in open-vm-tools.
+
+commit 377f82a668c6c02a3fa15ad3f2da3a5b7849f39a
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Apr 6 11:27:41 2023 -0700
+
+    Changes to common header files not applicable to open-vm-tools.
+
+commit d65cdcb30a38f8de7f127f9b6c8bf78e8c987b98
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Apr 6 11:27:41 2023 -0700
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit 06081ea162cb73754b9bcb6574db78cba6db5aa7
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Apr 6 11:27:41 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 215d87b455bc630f33c22f67d362a6e530fdd1db
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Apr 6 11:27:41 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 0365b80e3a5c67ecedd3dcc312e425ef4b2ec9dc
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Apr 6 11:27:41 2023 -0700
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit 9c861f7feade19ef863a46f5ddd59c44d98a7b83
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Apr 6 11:27:41 2023 -0700
+
+    Changes to common header files not applicable to open-vm-tools.
+
+commit 8ee7744f7716467185c2a7abda8776ea10387f5f
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Apr 6 11:27:41 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 241b8eefe7090086a8fc8bab5b9504578731eaf1
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Apr 6 11:27:41 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 3a16728979d86ed78009817f1940a3ddc40b9103
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Apr 6 11:27:41 2023 -0700
+
+    Improve POSIX guest identification
+
+    Many Linux distros do not provide LSB information.  Instead,
+    they rely exclusively on the the os-release standard information.
+
+    We previously used a ranking system that rates the LSB data
+    (if present) against the os-release data (if present).
+    With the LSB data install much more rare than before, perform
+    a quick check for the LSB before attempting expensive operations.
+
+    This is in response to these GitHub issues:
+
+    https://github.com/vmware/open-vm-tools/issues/647
+    https://github.com/vmware/open-vm-tools/issues/648
+
+    Note that we cannot look just for the os-release data.  In older
+    Linux releases, there are mistakes or differences between the
+    os-release and LSB data.  We must continue to do what we do now
+    or risk changing the identification of older releases.
+
+    This optimization is very effective.
+
+commit b9da6af8a561b911c6d59cfffb5b96cd5af3b6f7
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Mar 24 13:48:17 2023 -0700
+
+    Update ChangeLog with the granular push of Mar 24, 2023.
+    - plus ChangeLog update of Mar 6, 2023.
+
+commit dfe0aa7ef53ea6051d31cc69f406e746e8d0f80c
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Mar 24 13:29:28 2023 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 5e28e7e7577b35c585d4c45e053a162615bdbb1b
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Mar 24 13:29:28 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 2a9a730985ff05bcb808e68e4526856bb77a4c17
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Mar 24 13:29:28 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit acff74d7fa4e4f3bb70c575a287cac2762cfdaec
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Mar 24 13:29:28 2023 -0700
+
+    Record the usage of VMware Tools version 12.2.5 in vm_tools_version.h
+    
+    Adding tools TOOLS_VERSION_BANDSAW_UPDATE1 for 12.2.5 into the
+    vm_tools_version.h header file.
+
+commit c30e8e66dcc41fd6e869c3a87d712ab29a90df8a
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Mar 24 13:29:28 2023 -0700
+
+    Record the GA release of VMware Tools 12.2.0.
+    
+    Adding the "_RELEASE" suffix to the tools 12.2.0 tagname in vm_tools_version.h.
+
+commit a1a29b2358c8ca022d5116ee199c02337ec6a4a9
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Mar 24 13:29:28 2023 -0700
+
+    Add UNMANAGED InstallStatus value for components
+    
+    The UNMANAGED InstallStatus is returned from components operations to indicate
+    that the component is installed (detected) but is not to be managed by the
+    Component Manager.  The Component Manager will not take actions (except
+    checkStatus) until the UNMANAGED status for the component gets resolved
+    (externally).
+    
+    The Salt Minion (salt_minion) component returns code 106 ("ExternalInstall")
+    is equivalent to UNMANAGED.
+
+commit 62dc9fe959f8cc6fee64a716cc1de2dee0f0d0ef
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Mar 24 13:29:28 2023 -0700
+
+    lib/file: Fix timetools breakage to use memset
+    
+    GCC bug (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=53119) wrongly
+    complains about using the zero initializer in some circumstances.
+
+commit f26fad0849a5107018bbcc0b4687b460432e6d3c
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Mar 24 13:29:28 2023 -0700
+
+    Change to common source files not applicable to open-vm-tools.
+
+commit ab7a609bd52b57e74946a58f9a989845128555d3
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Mar 24 13:29:28 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 12cc8ad99a9cd8faaf990d03010d511d50f88ee2
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Mar 24 13:29:28 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 425df45b9551383ec393d44926782f3d64603d83
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Mar 24 13:29:28 2023 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit e0cec2ba3f7fcf0958077d6209a58951f5a6d275
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Mar 6 10:42:40 2023 -0800
+
+    Update Changelog with the granular push of Mar 6, 2023.
+    - plus ChangeLog update of Feb 23, 2023.
+
+commit 813d8531e739f6a12a4e3c92f18786e10f46eacc
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Mar 6 10:32:39 2023 -0800
+
+    Add antrea and calico interface pattern to GUESTINFO_DEFAULT_IFACE_EXCLUDES.
+    
+    Since k8s are more popular nowadays and their CNI also has IPs for pods,
+    we should also exclude the IP assigned by popular CNI.
+    
+    Fixes issue: https://github.com/vmware/open-vm-tools/issues/638
+    
+    Pull request: https://github.com/vmware/open-vm-tools/pull/639
+
+commit b822932f2b0ea864fdc85005e6ed7bf34c4b2a75
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Mar 6 10:32:39 2023 -0800
+
+    Change to common source files not applicable to open-vm-tools.
+
+commit 11141b784b66a941a98cb8d781125837bbcb267b
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Mar 6 10:32:39 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 43cab44867c952b67255d92acfda43bb89ce7cbf
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Feb 23 11:55:53 2023 -0800
+
+    Update Changelog with the granular push of Feb 23, 2023.
+    - plus ChangeLog update of Feb 3, 2023.
+
+commit a9e42290898d7077f73cda7fceeab046f0164388
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Feb 23 11:52:12 2023 -0800
+
+    Correct missed 2023 copyright update.
+
+commit e4d5478f95dc0e38b4e152278b30e49960784be9
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Feb 23 11:27:13 2023 -0800
+
+    lib/file: Improve File_SetTimes
+    
+    There is a new system call for setting times that removes race conditions.
+    Use it when it is available.
+
+commit 2e8ac3a7963a5ba98808c2b0748773140da6be86
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Feb 23 11:27:13 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 7173a629c81bd6acf45cb07dbb169fda5ab73adf
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Feb 23 11:27:13 2023 -0800
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 202c4939446da2e251ded55a9566c54d0d9f655a
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Feb 23 11:27:13 2023 -0800
+
+    Inclusive terminology - "sanity check"
+    Address uses of the term "sanity check" in some files used by open-vm-tools.
+
+commit e530a014e677213e5660106c75eddb72d151016b
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Feb 23 11:27:13 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 076aa3f0276010daaae95a95b2c3d4aea56b55bd
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Feb 23 11:27:13 2023 -0800
+
+    Remove SSL_NewContext() declaration from sslDirect.h
+
+commit 8d7402b5b309275a4ef0c609966afed086d91e13
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Feb 23 11:27:13 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 7ab29ed5a2ec3b80f0d5e69a437e48e667bca8ec
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Feb 23 11:27:13 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 6927da94f892ce3a9acae9cb297842c4f7852b16
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Feb 23 11:27:13 2023 -0800
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 355ea8ce3cd4b5038fb79e0a6ca10777ec4fdf79
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Feb 23 11:27:13 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 62b3b42fa69fc7a7fc8fdda9d1a8cd158244c819
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Feb 23 11:27:13 2023 -0800
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 830e9031f64d614c7bfe0acab022a9c33da9da2a
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Feb 3 09:57:46 2023 -0800
+
+    ChangeLog update of Feb. 3, 2023.
+
+commit 632a516d8c4b64025ed0f7b0ee890ebb36a99a15
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Feb 3 09:41:08 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit d0346245ddb589e8d35e02650321682987c60f09
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Feb 3 09:41:08 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit b2acb8fb61dd2b3888ee58e78313ee29581c41fb
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Feb 3 09:41:08 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 33b542fff5ecb78a0f1da4a005b09d11853f7026
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Feb 3 09:41:08 2023 -0800
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 007203173890d75171db2c450bcaf37eb23c6a1d
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Feb 3 09:41:08 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit e470e09b81a417e9f0c123793e3b4f0bfc1cd0cc
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Feb 3 09:41:08 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit b40e6808fd6bb6483cef741cd80c3ab58f4094c8
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Feb 3 09:41:08 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 58580a5d5bd3f8a0661408031dca52ac5c70183a
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Feb 3 09:41:08 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 82379efe344790ee4ab58927a194a55d6931bc3d
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Feb 3 09:41:08 2023 -0800
+
+    Inclusive terminology - "sanity check"
+    
+    "sanity check" clean-up:
+    
+    - Rename functions:
+     - ./scripts/linux/network -> Renamed "sanity_check" to "confidence_check".
+     - ./vgauth/lib/proto.c -> Renamed "Proto_SanityCheckReply" to
+                                         "Proto_ConfidenceCheckReply".
+    
+    - Replace "sanity check" with "confidence check" in comments.
+
+commit 556f27f7011927d27283923b6b86dd446fd2ff17
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Feb 3 09:41:08 2023 -0800
+
+    Bump the VMware Tools version to 12.3.0 in the "devel" branch.
+    
+    Setting the development VMware Tools version to 12.3.0.
+    Adding the tag "BANDSAW" to the 12.2.0 version.
+
+commit 3232ed80db1af22c9906d78d12804681dc23fbfd
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Feb 3 09:41:08 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit afc98393dfefae36bb26c9018b9d6e2d149688ad
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Feb 3 09:41:08 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 486ca6223aad2474e356b0651476db53d4917a49
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Fri Feb 3 09:41:08 2023 -0800
+
+    Changes to common header files not applicable to open-vm-tools.
 
 commit 3bc128aa58770d400de28f899cd867804f8aefb3
 Author: Katy Feng <fkaty@vmware.com>

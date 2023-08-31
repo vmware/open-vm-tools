@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013-2022 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -659,131 +659,6 @@ SetSPELx(VA va)
 }
 
 
-#ifndef MUL64_NO_ASM
-/*
- *-----------------------------------------------------------------------------
- *
- * Mul64x6464 --
- *
- *    Unsigned integer by fixed point multiplication, with rounding:
- *       result = floor(multiplicand * multiplier * 2**(-shift) + 0.5)
- *
- *       Unsigned 64-bit integer multiplicand.
- *       Unsigned 64-bit fixed point multiplier, represented as
- *         (multiplier, shift), where shift < 64.
- *
- * Result:
- *       Unsigned 64-bit integer product.
- *
- *-----------------------------------------------------------------------------
- */
-
-static INLINE uint64
-Mul64x6464(uint64 multiplicand,
-           uint64 multiplier,
-           uint32 shift)
-{
-   if (shift == 0) {
-      return multiplicand * multiplier;
-   } else {
-      uint64 lo, hi;
-
-      asm("mul   %0, %2, %3" "\n\t"
-          "umulh %1, %2, %3"
-          : "=&r" (lo), "=r" (hi)
-          : "r" (multiplicand), "r" (multiplier));
-      return (hi << (64 - shift) | lo >> shift) + (lo >> (shift - 1) & 1);
-   }
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Muls64x64s64 --
- *
- *    Signed integer by fixed point multiplication, with rounding:
- *       result = floor(multiplicand * multiplier * 2**(-shift) + 0.5)
- *
- *       Signed 64-bit integer multiplicand.
- *       Unsigned 64-bit fixed point multiplier, represented as
- *         (multiplier, shift), where shift < 64.
- *
- * Result:
- *       Signed 64-bit integer product.
- *
- *-----------------------------------------------------------------------------
- */
-
-static INLINE int64
-Muls64x64s64(int64 multiplicand,
-             int64 multiplier,
-             uint32 shift)
-{
-   if (shift == 0) {
-      return multiplicand * multiplier;
-   } else {
-      uint64 lo, hi;
-
-      asm("mul   %0, %2, %3" "\n\t"
-          "smulh %1, %2, %3"
-          : "=&r" (lo), "=r" (hi)
-          : "r" (multiplicand), "r" (multiplier));
-      return (hi << (64 - shift) | lo >> shift) + (lo >> (shift - 1) & 1);
-   }
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Mul64x3264 --
- *
- *    Unsigned integer by fixed point multiplication, with rounding:
- *       result = floor(multiplicand * multiplier * 2**(-shift) + 0.5)
- *
- *       Unsigned 64-bit integer multiplicand.
- *       Unsigned 32-bit fixed point multiplier, represented as
- *         (multiplier, shift), where shift < 64.
- *
- * Result:
- *       Unsigned 64-bit integer product.
- *
- *-----------------------------------------------------------------------------
- */
-
-static INLINE uint64
-Mul64x3264(uint64 multiplicand, uint32 multiplier, uint32 shift)
-{
-   return Mul64x6464(multiplicand, multiplier, shift);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Muls64x32s64 --
- *
- *    Signed integer by fixed point multiplication, with rounding:
- *       result = floor(multiplicand * multiplier * 2**(-shift) + 0.5)
- *
- *       Signed 64-bit integer multiplicand.
- *       Unsigned 32-bit fixed point multiplier, represented as
- *         (multiplier, shift), where shift < 64.
- *
- * Result:
- *       Signed 64-bit integer product.
- *
- *-----------------------------------------------------------------------------
- */
-
-static INLINE int64
-Muls64x32s64(int64 multiplicand, uint32 multiplier, uint32 shift)
-{
-   return Muls64x64s64(multiplicand, multiplier, shift);
-}
-#endif
-
 /*
  *-----------------------------------------------------------------------------
  *
@@ -999,6 +874,139 @@ DCacheClean(VA va, uint64 len)
 }
 
 #endif // ifndef _MSC_VER
+
+#if defined _MSC_VER
+/* Until we implement Mul64x6464() with Windows intrinsics... */
+#define MUL64_NO_ASM 1
+#endif
+
+#ifdef MUL64_NO_ASM
+#include "mul64.h"
+#else
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Mul64x6464 --
+ *
+ *    Unsigned integer by fixed point multiplication, with rounding:
+ *       result = floor(multiplicand * multiplier * 2**(-shift) + 0.5)
+ *
+ *       Unsigned 64-bit integer multiplicand.
+ *       Unsigned 64-bit fixed point multiplier, represented as
+ *         (multiplier, shift), where shift < 64.
+ *
+ * Result:
+ *       Unsigned 64-bit integer product.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE uint64
+Mul64x6464(uint64 multiplicand,
+           uint64 multiplier,
+           uint32 shift)
+{
+   if (shift == 0) {
+      return multiplicand * multiplier;
+   } else {
+      uint64 lo, hi;
+
+      asm("mul   %0, %2, %3" "\n\t"
+          "umulh %1, %2, %3"
+          : "=&r" (lo), "=r" (hi)
+          : "r" (multiplicand), "r" (multiplier));
+      return (hi << (64 - shift) | lo >> shift) + (lo >> (shift - 1) & 1);
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Muls64x64s64 --
+ *
+ *    Signed integer by fixed point multiplication, with rounding:
+ *       result = floor(multiplicand * multiplier * 2**(-shift) + 0.5)
+ *
+ *       Signed 64-bit integer multiplicand.
+ *       Unsigned 64-bit fixed point multiplier, represented as
+ *         (multiplier, shift), where shift < 64.
+ *
+ * Result:
+ *       Signed 64-bit integer product.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE int64
+Muls64x64s64(int64 multiplicand,
+             int64 multiplier,
+             uint32 shift)
+{
+   if (shift == 0) {
+      return multiplicand * multiplier;
+   } else {
+      uint64 lo, hi;
+
+      asm("mul   %0, %2, %3" "\n\t"
+          "smulh %1, %2, %3"
+          : "=&r" (lo), "=r" (hi)
+          : "r" (multiplicand), "r" (multiplier));
+      return (hi << (64 - shift) | lo >> shift) + (lo >> (shift - 1) & 1);
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Mul64x3264 --
+ *
+ *    Unsigned integer by fixed point multiplication, with rounding:
+ *       result = floor(multiplicand * multiplier * 2**(-shift) + 0.5)
+ *
+ *       Unsigned 64-bit integer multiplicand.
+ *       Unsigned 32-bit fixed point multiplier, represented as
+ *         (multiplier, shift), where shift < 64.
+ *
+ * Result:
+ *       Unsigned 64-bit integer product.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE uint64
+Mul64x3264(uint64 multiplicand, uint32 multiplier, uint32 shift)
+{
+   return Mul64x6464(multiplicand, multiplier, shift);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Muls64x32s64 --
+ *
+ *    Signed integer by fixed point multiplication, with rounding:
+ *       result = floor(multiplicand * multiplier * 2**(-shift) + 0.5)
+ *
+ *       Signed 64-bit integer multiplicand.
+ *       Unsigned 32-bit fixed point multiplier, represented as
+ *         (multiplier, shift), where shift < 64.
+ *
+ * Result:
+ *       Signed 64-bit integer product.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE int64
+Muls64x32s64(int64 multiplicand, uint32 multiplier, uint32 shift)
+{
+   return Muls64x64s64(multiplicand, multiplier, shift);
+}
+#endif
+
 
 #if defined __cplusplus
 } // extern "C"

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2022 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -508,8 +508,8 @@ Panic_Panic(const char *format,
    case 0:  // case 0 stuff is below
       break;
    case 1:
-      Log("PANIC: %s", buf);
-      Log("Panic loop\n");
+      Log_Panic("PANIC: %s", buf);
+      Log_Panic("Panic loop\n");
       /* Fall through */
    default:
       fprintf(stderr, "Panic loop\n");
@@ -532,7 +532,7 @@ Panic_Panic(const char *format,
     * Log panic information.
     */
 
-   Log("PANIC: %s", buf);
+   Log_Panic("PANIC: %s", buf);
    Util_Backtrace(0);
 
    /*

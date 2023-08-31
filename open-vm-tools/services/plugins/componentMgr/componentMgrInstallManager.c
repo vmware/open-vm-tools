@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2021 VMware, Inc. All rights reserved.
+ * Copyright (c) 2021,2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -19,9 +19,9 @@
 /*
  * componentMgrInstallManager.c --
  *
- * This file contains all the neccessary functions and handling of performing
+ * This file contains all the necessary functions and handling of performing
  * check status operation and add/remove of a component.
- * The operations are triggerred as an async process and GSource timers are
+ * The operations are triggered as an async process and GSource timers are
  * created to monitor the execution status of the async process.
  * After successful completion of the async process, it's resources are
  * released to make way for a new async process.
@@ -147,7 +147,7 @@ ComponentMgrCheckStatusMonitor(void *data) // IN
      ComponentMgr_ResetComponentGSourceTimer(componentIndex);
 
      /*
-      * After checkstatus operation has completed sucessfully, we can have a
+      * After checkstatus operation has completed successfully, we can have a
       * next sequence of operations to be executed on a component.
       */
      if (callbackFunction != NULL) {

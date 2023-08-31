@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998,2005-2012,2014-2022 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998,2005-2012,2014-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -72,6 +72,7 @@
 #define PCI_DEVICE_ID_VMWARE_UHCI               0x0774
 #define PCI_DEVICE_ID_VMWARE_XHCI_0096          0x0778
 #define PCI_DEVICE_ID_VMWARE_XHCI_0100          0x0779
+#define PCI_DEVICE_ID_VMWARE_XHCI_0120          0x077A
 #define PCI_DEVICE_ID_VMWARE_1394               0x0780
 #define PCI_DEVICE_ID_VMWARE_BRIDGE             0x0790
 #define PCI_DEVICE_ID_VMWARE_ROOTPORT           0x07A0
@@ -359,6 +360,22 @@
 #define NUM_SERIAL_PORTS     32
 #define NUM_PARALLEL_PORTS   3
 
+/************* USB host controller limits ********************/
+#define USB_EHCI_MAX_CONTROLLERS        1
+#define USB_XHCI_MAX_CONTROLLERS        1
+
+/*
+ * As per USB specification 127 devices can be connected. Along with user usb
+ * devices other types of devices like root hub, hub, keyboard, mouse are also
+ * present and are not expose directly to users. These other devices also
+ * occupy ports on USB.
+ *
+ * Although we have 20 devices limit for virtual usb mass storage on each
+ * controller we can't just put 20 here as we need to account for other devices
+ * which are necessary for functionality
+ * TODO: enforce 20 devices limit from hostd
+ */
+#define USB_MAX_DEVICES_PER_HOST_CTRL   127
 /************* Strings for Host USB Driver *******************************/
 
 #ifdef _WIN32

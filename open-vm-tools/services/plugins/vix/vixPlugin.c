@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
+ * Copyright (c) 2008-2019, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -76,6 +76,31 @@ VixShutdown(gpointer src,
 
 
 /**
+ *  Sends vix capabilites.
+ *
+ * @param[in]  src      The source object.
+ * @param[in]  ctx      Unused.
+ * @param[in]  set      Whether capabilities are being set.
+ * @param[in]  data     Unused.
+ *
+ * @return List of capabilities.
+ */
+
+static GArray *
+VixCapabilitiesCb(gpointer src,
+                  ToolsAppCtx *ctx,
+                  gboolean set,
+                  gpointer data)
+{
+   const ToolsAppCapability caps[] = {
+      { TOOLS_CAP_NEW, NULL, CAP_HOST_VERIFIED_SAML_TOKEN, 1},
+   };
+
+   return VMTools_WrapArray(caps, sizeof *caps, ARRAYSIZE(caps));
+}
+
+
+/**
  * Returns the registration data for either the guestd or userd process.
  *
  * @param[in]  ctx   The application context.
@@ -103,7 +128,8 @@ ToolsOnLoad(ToolsAppCtx *ctx)
          ToolsDaemonTcloMountHGFS, NULL, NULL, NULL, 0 },
    };
    ToolsPluginSignalCb sigs[] = {
-      { TOOLS_CORE_SIG_SHUTDOWN, VixShutdown, &regData }
+      { TOOLS_CORE_SIG_SHUTDOWN, VixShutdown, &regData },
+      { TOOLS_CORE_SIG_CAPABILITIES, VixCapabilitiesCb, NULL }
    };
    ToolsAppReg regs[] = {
       { TOOLS_APP_GUESTRPC, VMTools_WrapArray(rpcs, sizeof *rpcs, ARRAYSIZE(rpcs)) },

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2021 VMware, Inc. All rights reserved.
+ * Copyright (c) 2021,2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -37,7 +37,7 @@
  * @param[in] ctx Tools application context.
  * @param[in] guestInfoCmd Guestinfo command to fetch the guestVar.
  * @param[out] outBuffer Output buffer to hold RPC result (optional).
- * @param[out] outBufferLen Output buffer len (optional).
+ * @param[out] outBufferLen Output buffer length (optional).
  *
  * @return
  *      TRUE if cmd executed successfully, otherwise FALSE
@@ -115,6 +115,7 @@ ComponentMgr_GetComponentInstallStatus(InstallStatus installStatus) // IN
       case REMOVING:          return "REMOVING";
       case INSTALLFAILED:     return "INSTALLFAILED";
       case REMOVEFAILED:      return "REMOVEFAILED";
+      case UNMANAGED:         return "UNMANAGED";
       case SCRIPTFAILED:      return "SCRIPTFAILED";
       case SCRIPTTERMINATED:  return "SCRIPTTERMINATED";
    }
@@ -191,7 +192,7 @@ ComponentMgr_GetIncludedComponents(IncludedComponents specialValue) // IN
  * requested components.
  *
  * @param[in] ctx Tools application context.
- * @param[in] components Comma seperated list of available components.
+ * @param[in] components Comma separated list of available components.
  *
  * @return
  *      None

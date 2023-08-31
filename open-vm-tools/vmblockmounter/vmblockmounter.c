@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016, 2021 VMware, Inc. All rights reserved.
+ * Copyright (c) 2011-2016, 2021, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -186,7 +186,7 @@ main(int argc,          // IN
    sourceDir = argv[optind];
    mountPoint = argv[optind + 1];
 
-   /* Do some sanity checks on our desired mount point. */
+   /* Do some confidence checks on our desired mount point. */
    if (stat(mountPoint, &statBuf)) {
       perror("Error: cannot stat mount point");
       goto out;

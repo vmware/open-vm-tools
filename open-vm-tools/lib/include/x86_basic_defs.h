@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2021,2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -274,5 +274,9 @@ typedef enum x86_FLAGS {
 #define BNDCFG_BNDPRSV   0x00000002
 #define BNDCFG_RSVD      0x00000ffc
 #define BNDCFG_BDBASE    CONST64U(0xfffffffffffff000)
+
+/* Reset state of RIP. */
+#define RESET_RIP       0xfff0
+#define RESET_RIP_TDX   0xfffffff0  /* Reset RIP for TDX protected mode boot. */
 
 #endif // ifndef _VM_BASIC_DEFS_H_

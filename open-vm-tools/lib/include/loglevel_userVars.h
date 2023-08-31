@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 1998-2022 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -105,8 +105,6 @@
    LOGLEVEL_VAR(fsresx), \
    LOGLEVEL_VAR(ftConfig), /*lib/ftConfig */ \
    LOGLEVEL_VAR(ftcpt), \
-   LOGLEVEL_VAR(gmm), \
-   LOGLEVEL_VAR(gpuManager), \
    LOGLEVEL_VAR(grainTrack), \
    LOGLEVEL_VAR(grm), \
    LOGLEVEL_VAR(guestAppMonitor), \

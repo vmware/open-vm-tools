@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2015-2016,2020-2021 VMware, Inc. All rights reserved.
+ * Copyright (c) 2015-2016,2020-2021, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -22,11 +22,11 @@
  *    Various logging operations for toolbox-cmd.
  *
  *    Note:
- *    Servicenames are not sanity checked.  This means it can report
+ *    Servicenames are not confidence checked.  This means it can report
  *    the default value for a bogus servicename, or setting values for
- *    an unsupported servicename.  But any sanity checking would require
+ *    an unsupported servicename.  But any confidence checking would require
  *    all possible servicenames to #define themselves.  Lack of
- *    a sanity check overrrides this complexity.
+ *    a confidence check overrrides this complexity.
  *
  *    TODO:  This currently just modifies the tools.conf file, which means
  *    that if tools is running, it can talke up to 5 seconds to react
@@ -49,7 +49,7 @@
  *
  * LoggingCheckLevel --
  *
- *      Sanity check logging level.
+ *      Confidence check logging level.
  *
  * Results:
  *      Returns TRUE if its a valid logging level, FALSE if not.

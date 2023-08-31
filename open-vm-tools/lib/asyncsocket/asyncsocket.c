@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2022 VMware, Inc. All rights reserved.
+ * Copyright (c) 2003-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -6159,7 +6159,7 @@ AsyncTCPSocketConnectSSL(AsyncSocket *base,           // IN
    ASSERT(asock);
 
    if (sslContext == NULL) {
-      sslContext = SSL_DefaultContext();
+      sslContext = SSL_DefaultClientContext();
    }
 
    return SSL_ConnectAndVerifyWithContext(asock->sslSock, verifyParam,
@@ -6771,8 +6771,6 @@ AsyncSocket_ListenSocketUDS(const char *pipeName,               // IN
    memset(&addr, 0, sizeof addr);
    addr.sun_family = AF_UNIX;
    Str_Strcpy(addr.sun_path, pipeName, sizeof addr.sun_path);
-
-   Log(ASOCKPREFIX "creating new socket listening on %s\n", pipeName);
 
    asock = AsyncTCPSocketListenImpl((struct sockaddr_storage *)&addr,
                                     sizeof addr, connectFn, clientData,

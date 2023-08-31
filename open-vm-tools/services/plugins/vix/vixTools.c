@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2007-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -132,9 +132,11 @@
 /*
  * No support for userworld.  Enable support for open vm tools when
  * USE_VGAUTH is defined.
+ *
+ * XXX - Currently no support for vgauth in Windows on arm64.
  */
 #if ((defined(__linux__) && !defined(USERWORLD)) || defined(_WIN32)) && \
-     (!defined(OPEN_VM_TOOLS) || defined(USE_VGAUTH))
+     (!defined(OPEN_VM_TOOLS) || defined(USE_VGAUTH)) && !defined(_ARM64_)
 #define SUPPORT_VGAUTH 1
 #else
 #define SUPPORT_VGAUTH 0
@@ -160,32 +162,6 @@
 
 static gboolean gSupportVGAuth = USE_VGAUTH_DEFAULT;
 static gboolean QueryVGAuthConfig(GKeyFile *confDictRef);
-
-#ifdef _WIN32
-/*
- * Check bug 2508431 for more details. If an application is not built
- * with proper flags, 'creating a remote thread' to get the process
- * command line will crash the target process. To avoid any such crash,
- * 'remote thread' approach is not used by default.
- *
- * But 'remote thread' approach can be turned on (for whatever reason)
- * by setting the following option to true in the tools.conf file.
- *
- * For few processes, 'WMI' can provide detailed commandline information.
- * But using 'WMI' is a heavy weight approach and may affect the CPU
- * performance and hence it is disabled by default. It can always be
- * turned on by a setting (as mentioned below) in the tools.conf file.
- */
-#define VIXTOOLS_CONFIG_USE_REMOTE_THREAD_PROCESS_COMMAND_LINE  \
-      "useRemoteThreadForProcessCommandLine"
-
-#define VIXTOOLS_CONFIG_USE_WMI_PROCESS_COMMAND_LINE  \
-      "useWMIForProcessCommandLine"
-
-#define USE_REMOTE_THREAD_PROCESS_COMMAND_LINE_DEFAULT FALSE
-#define USE_WMI_PROCESS_COMMAND_LINE_DEFAULT FALSE
-
-#endif
 
 #if ALLOW_LOCAL_SYSTEM_IMPERSONATION_BYPASS
 static gchar *gCurrentUsername = NULL;
@@ -218,6 +194,32 @@ static gchar *gCurrentUsername = NULL;
  */
 
 static VGAuthUserHandle *currentUserHandle = NULL;
+
+#endif
+
+#ifdef _WIN32
+/*
+ * Check bug 2508431 for more details. If an application is not built
+ * with proper flags, 'creating a remote thread' to get the process
+ * command line will crash the target process. To avoid any such crash,
+ * 'remote thread' approach is not used by default.
+ *
+ * But 'remote thread' approach can be turned on (for whatever reason)
+ * by setting the following option to true in the tools.conf file.
+ *
+ * For few processes, 'WMI' can provide detailed commandline information.
+ * But using 'WMI' is a heavy weight approach and may affect the CPU
+ * performance and hence it is disabled by default. It can always be
+ * turned on by a setting (as mentioned below) in the tools.conf file.
+ */
+#define VIXTOOLS_CONFIG_USE_REMOTE_THREAD_PROCESS_COMMAND_LINE  \
+      "useRemoteThreadForProcessCommandLine"
+
+#define VIXTOOLS_CONFIG_USE_WMI_PROCESS_COMMAND_LINE  \
+      "useWMIForProcessCommandLine"
+
+#define USE_REMOTE_THREAD_PROCESS_COMMAND_LINE_DEFAULT FALSE
+#define USE_WMI_PROCESS_COMMAND_LINE_DEFAULT FALSE
 
 #endif
 
@@ -724,6 +726,7 @@ VixError GuestAuthPasswordAuthenticateImpersonate(
 VixError GuestAuthSAMLAuthenticateAndImpersonate(
    char const *obfuscatedNamePassword,
    Bool loadUserProfile,
+   Bool hostVerified,
    void **userToken);
 
 void GuestAuthUnimpersonate();
@@ -8043,6 +8046,7 @@ VixToolsImpersonateUser(VixCommandRequestHeader *requestMsg,   // IN
    }
 #if SUPPORT_VGAUTH
    case VIX_USER_CREDENTIAL_SAML_BEARER_TOKEN:
+   case VIX_USER_CREDENTIAL_SAML_BEARER_TOKEN_HOST_VERIFIED:
    {
       VixCommandSAMLToken *samlStruct =
          (VixCommandSAMLToken *) credentialField;
@@ -8237,10 +8241,16 @@ VixToolsImpersonateUserImplEx(char const *credentialTypeStr,         // IN
       }
 
 #if SUPPORT_VGAUTH
-      else if (VIX_USER_CREDENTIAL_SAML_BEARER_TOKEN == credentialType) {
+      else if ((VIX_USER_CREDENTIAL_SAML_BEARER_TOKEN == credentialType)
+         || (VIX_USER_CREDENTIAL_SAML_BEARER_TOKEN_HOST_VERIFIED == credentialType)
+         ) {
          if (GuestAuthEnabled()) {
+            Bool hostVerified =
+               (credentialType == VIX_USER_CREDENTIAL_SAML_BEARER_TOKEN_HOST_VERIFIED)
+               ? TRUE : FALSE;
             err = GuestAuthSAMLAuthenticateAndImpersonate(obfuscatedNamePassword,
                                                           loadUserProfile,
+                                                          hostVerified,
                                                           userToken);
          } else {
             err = VIX_E_NOT_SUPPORTED;
@@ -11860,6 +11870,7 @@ VixError
 GuestAuthSAMLAuthenticateAndImpersonate(
    char const *obfuscatedNamePassword, // IN
    Bool loadUserProfile,               // IN
+   Bool hostVerified,                  // IN
    void **userToken)                   // OUT
 {
 #if SUPPORT_VGAUTH
@@ -11870,6 +11881,7 @@ GuestAuthSAMLAuthenticateAndImpersonate(
    VGAuthError vgErr;
    VGAuthUserHandle *newHandle = NULL;
    VGAuthExtraParams extraParams[1];
+   VGAuthExtraParams hostVerfiedParams[1];
    Bool impersonated = FALSE;
 
    extraParams[0].name = VGAUTH_PARAM_LOAD_USER_PROFILE;
@@ -11891,11 +11903,14 @@ GuestAuthSAMLAuthenticateAndImpersonate(
       goto done;
    }
 
+   hostVerfiedParams[0].name = VGAUTH_PARAM_SAML_HOST_VERIFIED;
+   hostVerfiedParams[0].value = hostVerified ? VGAUTH_PARAM_VALUE_TRUE :
+                                               VGAUTH_PARAM_VALUE_FALSE;
    vgErr = VGAuth_ValidateSamlBearerToken(ctx,
                                           token,
                                           username,
-                                          0,
-                                          NULL,
+                                          (int)ARRAYSIZE(hostVerfiedParams),
+                                          hostVerfiedParams,
                                           &newHandle);
 #if ALLOW_LOCAL_SYSTEM_IMPERSONATION_BYPASS
    /*
@@ -11941,6 +11956,7 @@ GuestAuthSAMLAuthenticateAndImpersonate(
                                        token,
                                        username,
                                        gCurrentUsername,
+                                       hostVerified,
                                        userToken,
                                        &currentUserHandle);
       goto done;

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2018,2019,2021 VMware, Inc. All rights reserved.
+ * Copyright (c) 2004-2018,2019,2021,2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -217,7 +217,11 @@ RpcVMX_ConfigGetString(const char *defval, const char *var)
           * We have to dup the default, because of our contract: values we
           * return must always be freed by the caller.
           */
+#if defined(_WIN32) && defined(USERLEVEL)
+         value = _strdup(defval);
+#else
          value = strdup(defval);
+#endif
       }
    }
 

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2014-2016 VMware, Inc. All rights reserved.
+ * Copyright (c) 2014-2016,2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -58,8 +58,6 @@ int SSL_WantRead(const SSLSock ssl);
 #define SSLGeneric_recvmsg(sock,msg,flags) recvmsg(sock,msg,flags)
 #define SSLGeneric_close(sock) close(sock)
 #endif
-
-void *SSL_NewContext(void);
 
 #endif // ifndef _SSLDIRECT_H_
 

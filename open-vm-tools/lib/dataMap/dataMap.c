@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2012-2017,2019 VMware, Inc. All rights reserved.
+ * Copyright (c) 2012-2017,2019, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1403,7 +1403,7 @@ HashMapSerializeEntryCb(void *key,            // IN
          ASSERT(0);    /*  we do not expect this to happen */
    }
 
-   /* Update left buffer size so we can do a sanity check at the end */
+   /* Update left buffer size so we can do a confidence check at the end. */
    clientData->buffLen -= (clientData->buffer - buffPtrOrig);
 }
 
@@ -1812,7 +1812,7 @@ DataMap_Serialize(const DataMap *that,     // IN
 
    HashMap_Iterate(that->map, HashMapSerializeEntryCb, FALSE, &clientData);
 
-   /* sanity check, make sure the buffer size is just used up*/
+   /* confidence check, make sure the buffer size is just used up. */
    ASSERT(clientData.buffLen == 0);
 
    if (clientData.result != DMERR_SUCCESS) {
@@ -2494,7 +2494,7 @@ DataMap_ToString(const DataMap *that,               // IN
 
    ToBufferString(&clientData, "--> End.\n");
 
-   /* sanity check, make sure the buffer is not overflown. */
+   /* confidence check, make sure the buffer is not overflown. */
    ASSERT(clientData.buffLen >= 0);
    ASSERT(buffPtr + maxBuffSize >= clientData.buffer);
 

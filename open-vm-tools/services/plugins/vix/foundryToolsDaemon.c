@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2021 VMware, Inc. All rights reserved.
+ * Copyright (c) 2003-2021, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -545,6 +545,8 @@ ToolsDaemonTcloSyncDriverFreeze(RpcInData *data)
    GKeyFile *confDictRef = ctx->config;
    Bool enableNullDriver;
    GSource *timer;
+   char *excludedFileSystems;
+   Bool ignoreFrozenFS;
 
    /*
     * Parse the arguments
@@ -581,10 +583,18 @@ ToolsDaemonTcloSyncDriverFreeze(RpcInData *data)
                                                "vmbackup",
                                                "enableNullDriver",
                                                FALSE);
+   excludedFileSystems = VMTools_ConfigGetString(confDictRef,
+                                                  "vmbackup",
+                                                  "excludedFileSystems",
+                                                  NULL);
+   ignoreFrozenFS = VMTools_ConfigGetBoolean(confDictRef,
+                                             "vmbackup",
+                                             "ignoreFrozenFileSystems",
+                                             FALSE);
 
    /* Perform the actual freeze. */
    if (!SyncDriver_Freeze(driveList, enableNullDriver, &gSyncDriverHandle,
-                          NULL) ||
+                          excludedFileSystems, ignoreFrozenFS) ||
        SyncDriver_QueryStatus(gSyncDriverHandle, INFINITE) != SYNCDRIVER_IDLE) {
       g_warning("%s: Failed to Freeze drives '%s'\n",
                 __FUNCTION__, driveList);

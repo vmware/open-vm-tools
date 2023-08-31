@@ -1,6 +1,6 @@
 #!/bin/sh
 ##########################################################
-# Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+# Copyright (c) 2010-2016, 2023 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -107,7 +107,7 @@ RunScripts() {
 #
 
 main() {
-   # This is sanity checked in the case/esac bit below.
+   # This is confidence checked in the case/esac bit below.
    powerOp=`basename "$0" | sed 's,-default,,'`
    exitCode=0
 

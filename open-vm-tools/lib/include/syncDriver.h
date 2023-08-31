@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2018 VMware, Inc. All rights reserved.
+ * Copyright (c) 2005-2018, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -51,7 +51,8 @@ typedef enum {
 Bool SyncDriver_Init(void);
 Bool SyncDriver_Freeze(const char *drives, Bool enableNullDriver,
                        SyncDriverHandle *handle,
-                       const char *excludedFileSystems);
+                       const char *excludedFileSystems,
+                       Bool ignoreFrozenFS);
 Bool SyncDriver_Thaw(const SyncDriverHandle handle);
 SyncDriverStatus SyncDriver_QueryStatus(const SyncDriverHandle handle,
                                         int32 timeout);

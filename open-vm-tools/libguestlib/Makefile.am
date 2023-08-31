@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2007-2018,2020 VMware, Inc.  All rights reserved.
+### Copyright (C) 2007-2018,2020,2023 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -50,12 +50,10 @@ libguestlib_la_SOURCES += $(libguestlib_rpcchanneldir)/vsockChannel.c
 libguestlib_la_SOURCES += $(libguestlib_rpcchanneldir)/simpleSocket.c
 endif
 
-libguestlib_la_LDFLAGS =
-libguestlib_la_LDFLAGS += -Wl,-ldl
-libguestlib_la_LDFLAGS += -Wl,-lrt
+libguestlib_la_LIBADD += -ldl -lrt
 # We require GCC, so we're fine passing compiler-specific flags.
 # Needed for OS's that don't link shared libraries against libc by default, e.g. FreeBSD
-libguestlib_la_LDFLAGS += -Wl,-lc
+libguestlib_la_LIBADD += -lc
 
 libguestlib_includedir = $(includedir)/vmGuestLib
 

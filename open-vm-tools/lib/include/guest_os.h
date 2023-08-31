@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2021 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2021, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -86,12 +86,13 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 #define ALLFREEBSD32          BS(FREEBSD),    BS(FREEBSD11),  \
                               BS(FREEBSD12),  BS(FREEBSD13),  \
-                              BS(FREEBSD14)
+                              BS(FREEBSD14),  BS(FREEBSD15)
 
 #define ALLFREEBSD64          BS(FREEBSD_64),                           \
                               BS(FREEBSD11_64),  BS(FREEBSD12_64),      \
                               BS(FREEBSD13_64),  BS(FREEBSD13_ARM_64),  \
-                              BS(FREEBSD14_64),  BS(FREEBSD14_ARM_64)
+                              BS(FREEBSD14_64),  BS(FREEBSD14_ARM_64),  \
+                              BS(FREEBSD15_64),  BS(FREEBSD15_ARM_64)
 
 #define ALLFREEBSD            ALLFREEBSD32, ALLFREEBSD64
 
@@ -225,11 +226,19 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
                               BS(DEBIAN_ARM_64),   BS(UBUNTU_ARM_64),       \
                               BS(RHEL9_64),        BS(RHEL9_ARM_64),        \
                               BS(ROCKY_LINUX_64),  BS(ROCKY_LINUX_ARM_64),  \
-                              BS(ALMA_LINUX_64),   BS(ALMA_LINUX_ARM_64)
+                              BS(ALMA_LINUX_64),   BS(ALMA_LINUX_ARM_64),   \
+                              BS(CRXSYS1_ARM_64),  BS(CRXPOD1_ARM_64),      \
+                              BS(CRXSYS2_64),      BS(CRXSYS2_ARM_64)
 
 #define ALL6XLINUX32          BS(OTHER6XLINUX)
 
-#define ALL6XLINUX64          BS(OTHER6XLINUX_64), BS(OTHER6XLINUX_ARM_64)
+#define ALL6XLINUX64          BS(OTHER6XLINUX_64), BS(OTHER6XLINUX_ARM_64),  \
+                              BS(RHEL10_64),       BS(RHEL10_ARM_64),        \
+                              BS(ORACLE10_64)
+
+#define ALL7XLINUX32          BS(OTHER7XLINUX)
+
+#define ALL7XLINUX64          BS(OTHER7XLINUX_64), BS(OTHER7XLINUX_ARM_64)
 
 #define ALLVMKERNEL           BS(VMKERNEL),   BS(VMKERNEL5),      \
                               BS(VMKERNEL6),  BS(VMKERNEL65),     \
@@ -239,12 +248,14 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define ALLLINUX32            BS(VMKERNEL),      BS(OTHERLINUX), \
                               BS(OTHER24XLINUX), ALL26XLINUX32,  \
                               ALL3XLINUX32,      ALL4XLINUX32,   \
-                              ALL5XLINUX32,      ALL6XLINUX32
+                              ALL5XLINUX32,      ALL6XLINUX32,   \
+                              ALL7XLINUX32
 
 #define ALLLINUX64            BS(OTHERLINUX_64), BS(OTHER24XLINUX_64), \
                               ALL26XLINUX64,     ALL3XLINUX64,         \
                               ALL4XLINUX64,      ALL5XLINUX64,         \
-                              ALL6XLINUX64,      ALLPHOTON
+                              ALL6XLINUX64,      ALL7XLINUX64,         \
+                              ALLPHOTON
 
 #define ALLLINUX              ALLLINUX32, ALLLINUX64
 
@@ -271,16 +282,23 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 #define ALLOS2                BS(OS2), ALLECOMSTATION
 
-#define ALLCRX                BS(CRXSYS1_64), BS(CRXPOD1_64)
+#define ALLCRX                BS(CRXSYS1_64),     BS(CRXPOD1_64),     \
+                              BS(CRXSYS1_ARM_64), BS(CRXPOD1_ARM_64), \
+                              BS(CRXSYS2_64),     BS(CRXSYS2_ARM_64)
 
 #define ALLARM                BS(WIN_10_ARM_64),        BS(WIN_11_ARM_64),       \
-                              BS(WIN_12_ARM_64),        BS(RHEL9_ARM_64),        \
+                              BS(WIN_12_ARM_64),                                 \
                               BS(UBUNTU_ARM_64),        BS(PHOTON_ARM_64),       \
                               BS(VMKERNEL7_ARM),        BS(VMKERNEL8_ARM),       \
-                              BS(OTHER_ARM_64),         BS(OTHER5XLINUX_ARM_64), \
-                              BS(OTHER6XLINUX_ARM_64),  BS(DEBIAN_ARM_64),       \
+                              BS(OTHER_ARM_64),         BS(DEBIAN_ARM_64),       \
+                              BS(OTHER5XLINUX_ARM_64),  BS(OTHER6XLINUX_ARM_64), \
+                              BS(OTHER7XLINUX_ARM_64),                           \
                               BS(FREEBSD13_ARM_64),     BS(FREEBSD14_ARM_64),    \
-                              BS(ALMA_LINUX_ARM_64),    BS(ROCKY_LINUX_ARM_64)
+                              BS(FREEBSD15_ARM_64),                              \
+                              BS(ALMA_LINUX_ARM_64),    BS(ROCKY_LINUX_ARM_64),  \
+                              BS(CRXSYS1_ARM_64),       BS(CRXSYS2_ARM_64),      \
+                              BS(CRXPOD1_ARM_64),                                \
+                              BS(RHEL9_ARM_64),         BS(RHEL10_ARM_64)
 
 /*
  * Architecture prefixes. No prefix implies the X86 architecture.
@@ -340,7 +358,9 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_OTHER_5X           "other5xlinux"
 #define STR_OS_OTHER_5X_FULL      "Other Linux 5.x kernel"
 #define STR_OS_OTHER_6X           "other6xlinux"
-#define STR_OS_OTHER_6X_FULL      "Other Linux 6.x and later kernel"
+#define STR_OS_OTHER_6X_FULL      "Other Linux 6.x kernel"
+#define STR_OS_OTHER_7X           "other7xlinux"
+#define STR_OS_OTHER_7X_FULL      "Other Linux 7.x and later kernel"
 #define STR_OS_PHOTON             "vmware-photon"
 #define STR_OS_PHOTON_FULL        "VMware Photon OS"
 #define STR_OS_PLD                "PLD"
@@ -550,6 +570,9 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
  *
  * Window on Arm support starts with Windows 10.
  */
+
+#define STR_OS_ARM_WIN       "arm-windows"
+
 
 /*
  * Windows 10

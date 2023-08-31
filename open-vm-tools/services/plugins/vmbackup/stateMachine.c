@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2021 VMware, Inc. All rights reserved.
+ * Copyright (c) 2007-2021, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1073,9 +1073,13 @@ VmBackupStartCommon(RpcInData *data,
 #if defined(__linux__)
    gBackupState->excludedFileSystems =
          VMBACKUP_CONFIG_GET_STR(ctx->config, "excludedFileSystems", NULL);
-   g_debug("Using excludedFileSystems = \"%s\"\n",
+   gBackupState->ignoreFrozenFS =
+       VMBACKUP_CONFIG_GET_BOOL(ctx->config, "ignoreFrozenFileSystems", FALSE);
+
+   g_debug("Using excludedFileSystems = \"%s\", ignoreFrozenFileSystems = %d\n",
            (gBackupState->excludedFileSystems != NULL) ?
-            gBackupState->excludedFileSystems : "(null)");
+            gBackupState->excludedFileSystems : "(null)",
+           gBackupState->ignoreFrozenFS);
 #endif
    g_debug("Quiescing volumes: %s",
            (gBackupState->volumes) ? gBackupState->volumes : "(null)");
@@ -1506,7 +1510,7 @@ VmBackupCapabilities(gpointer src,
    g_debug("%s - vmbackup NVMe feature is %s\n", __FUNCTION__,
            enableNVMe ? "enabled" : "disabled");
 
-   caps[0].value =  enableNVMe && set ? 1 : 0;
+   caps[0].value = enableNVMe && set ? 1 : 0;
 
    return VMTools_WrapArray(caps, sizeof *caps, ARRAYSIZE(caps));
 }

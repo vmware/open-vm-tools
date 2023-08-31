@@ -35,10 +35,10 @@
 ### Initialization
 ###
 
-TOOLS_VERSION="12.2.5"
+TOOLS_VERSION="12.3.0"
 AC_INIT(
    [open-vm-tools],
-   [12.2.5],
+   [12.3.0],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
@@ -720,7 +720,7 @@ AC_DEFUN([AC_VMW_CONTAINERINFO_MSG],[
                       [1.3.2],
                       [grpc++/grpc++.h],
                       [],
-                      [],
+                      [PKG_CHECK_MODULES([grpcxx], [grpc++ >= 1.3.2])],
                       [AC_VMW_CONTAINERINFO_MSG(["grpc++ >= 1.3.2"])])
 
 #
@@ -1064,16 +1064,6 @@ else
    if test "$have_xcomposite" != "no"; then
       have_xcomposite="yes"
    fi
-
-   AC_VMW_CHECK_LIB([gdk_pixbuf_xlib-2.0],
-                    [GDK_PIXBUF_XLIB2],
-                    [gdk-pixbuf-xlib-2.0],
-                    [],
-                    [2.21.0],
-                    [gdk-pixbuf-xlib/gdk-pixbuf-xlib.h],
-                    [gdk_pixbuf_xlib_init],
-                    [],
-                    [AC_MSG_ERROR([gdk-pixbuf-xlib-2.0 not found. Please configure without X11 (using --without-x) or install the gdk-pixbuf-xlib-2.0 devel package.])])
 
    # Check whether we have gtk+ 3.0.
    if test "$with_gtk3" != "no"; then
@@ -1839,7 +1829,6 @@ AC_SUBST([UDEVRULESDIR])
 AC_CONFIG_FILES([                      \
    Makefile                            \
    lib/Makefile                        \
-   lib/appUtil/Makefile                \
    lib/auth/Makefile                   \
    lib/backdoor/Makefile               \
    lib/asyncsocket/Makefile            \
@@ -1951,6 +1940,15 @@ AC_CONFIG_FILES([                      \
 
 
 
+
+
+
+
+AM_CONDITIONAL([VMTOOLS_FS_VGAUTH_HOST_VERIFICATION],[true])
+if test "$enable_vgauth" = "yes"; then
+   echo "Enabling vgauth host verification"
+   CPPFLAGS="$CPPFLAGS -DVMTOOLS_FS_VGAUTH_HOST_VERIFICATION"
+fi
 
 
 ###

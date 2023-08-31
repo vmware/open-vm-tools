@@ -88,3 +88,6 @@ Bernd Zeimetz   Fix building containerinfo plugin on i386
 
 Dirk Mueller    Detect the proto files for containerd grpc client on SUSE like systems
                 - https://github.com/vmware/open-vm-tools/pull/626
+
+Jan Engelhardt  Fix build problems with grpc (at least) 1.54
+                - https://github.com/vmware/open-vm-tools/pull/664

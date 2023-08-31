@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2012-2017, 2019-2021 VMware, Inc. All rights reserved.
+ * Copyright (c) 2012-2017, 2019-2021, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -108,7 +108,7 @@ struct ProtoReply {
 
    /*
     * The client knows what its expecting back, which is
-    * used as a sanity check against what's actually read,
+    * used as a confidence check against what's actually read,
     * as well as telling us what to allocate for complex replies.
     */
    ProtoReplyType expectedReplyType;
@@ -1141,7 +1141,7 @@ Proto_FreeReply(ProtoReply *reply)
 
 /*
  ******************************************************************************
- * Proto_SanityCheckReply --                                             */ /**
+ * Proto_ConfidenceCheckReply --                                             */ /**
  *
  * Verifies a reply is internally consistent and the type is what we expected.
  *
@@ -1155,7 +1155,7 @@ Proto_FreeReply(ProtoReply *reply)
  */
 
 static VGAuthError
-Proto_SanityCheckReply(ProtoReply *reply,
+Proto_ConfidenceCheckReply(ProtoReply *reply,
                        int expectedSequenceNumber)
 {
 #if VGAUTH_PROTO_TRACE
@@ -1274,10 +1274,10 @@ VGAuth_ReadAndParseResponse(VGAuthContext *ctx,
    Proto_DumpReply(reply);
 #endif
 
-   err = Proto_SanityCheckReply(reply, ctx->comm.sequenceNumber);
+   err = Proto_ConfidenceCheckReply(reply, ctx->comm.sequenceNumber);
 
    if (VGAUTH_E_OK != err) {
-      Warning("%s: reply sanity check failed\n", __FUNCTION__);
+      Warning("%s: reply confidence check failed\n", __FUNCTION__);
       goto quit;
    }
 
@@ -2066,6 +2066,7 @@ done:
 VGAuthError
 VGAuth_SendValidateSamlBearerTokenRequest(VGAuthContext *ctx,
                                           gboolean validateOnly,
+                                          gboolean hostVerified,
                                           const char *samlToken,
                                           const char *userName,
                                           VGAuthUserHandle **userHandle)
@@ -2097,7 +2098,8 @@ VGAuth_SendValidateSamlBearerTokenRequest(VGAuthContext *ctx,
                                     ctx->comm.sequenceNumber,
                                     samlToken,
                                     userName ? userName : "",
-                                    validateOnly ? "1" : "0");
+                                    validateOnly ? "1" : "0",
+                                    hostVerified ? "1" : "0");
 
    err = VGAuth_CommSendData(ctx, packet);
    if (VGAUTH_E_OK != err) {

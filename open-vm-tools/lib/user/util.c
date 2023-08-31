@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2020, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -90,7 +90,7 @@ struct UtilVector {
  *
  * Util_Init --
  *
- *      Opportunity to sanity check things
+ *      Opportunity to confidence check things
  *
  * Results:
  *	Bool - TRUE (this should never fail)
@@ -106,7 +106,7 @@ Util_Init(void)
 {
 #ifdef VMX86_DEVEL
    /*
-    * Sanity check Str_Snprintf so that we're never thrown off guard
+    * Confidence check Str_Snprintf so that we're never thrown off guard
     * by a change in the underlying libraries that Str_Snprintf doesn't
     * catch and wrap properly.
     */

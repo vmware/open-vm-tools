@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (c) 2007-2021 VMware, Inc.  All rights reserved.
+### Copyright (c) 2007-2021,2023 VMware, Inc.  All rights reserved.
 ###
 ### Top-level Makefile for building the VMware OSS Tools.
 ###
@@ -70,6 +70,7 @@ if HAVE_UDEV
    SUBDIRS += udev
    SUBDIRS += vmwgfxctrl
 endif
+
 
 install-data-local:
 	$(INSTALL) -d $(DESTDIR)/etc/vmware-tools/

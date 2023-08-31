@@ -61,6 +61,13 @@ Bool SendScriptOutput(ToolsAppCtx *ctx,
 
 Bool ExecuteScript(ToolsAppCtx *ctx,
                    const char *key,
-                   const char *script);
+                   const char *script,
+                   const char *workingDir);
+
+#if defined (_WIN32)
+
+char* ConstructPWSScriptCommand(const char *scriptFileName);
+
+#endif
 
 #endif /* _SERVICEDISCOVERYINT_H_ */

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2022 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -84,9 +84,12 @@ extern "C" {
    GOT(GUEST_OS_OTHER5XLINUX)        /* Linux 5.x 32-bit */                \
    GOT(GUEST_OS_OTHER5XLINUX_64)     /* Linux 5.x 64-bit */                \
    GOT(GUEST_OS_OTHER5XLINUX_ARM_64) /* Linux 5.x Arm 64-bit */            \
-   GOT(GUEST_OS_OTHER6XLINUX)        /* Linux 6.x and later 32-bit */      \
-   GOT(GUEST_OS_OTHER6XLINUX_64)     /* Linux 6.x and later 64-bit */      \
-   GOT(GUEST_OS_OTHER6XLINUX_ARM_64) /* Linux 6.x and later Arm 64-bit */  \
+   GOT(GUEST_OS_OTHER6XLINUX)        /* Linux 6.x 32-bit */                \
+   GOT(GUEST_OS_OTHER6XLINUX_64)     /* Linux 6.x 64-bit */                \
+   GOT(GUEST_OS_OTHER6XLINUX_ARM_64) /* Linux 6.x Arm 64-bit */            \
+   GOT(GUEST_OS_OTHER7XLINUX)        /* Linux 7.x and later 32-bit */      \
+   GOT(GUEST_OS_OTHER7XLINUX_64)     /* Linux 7.x and later 64-bit */      \
+   GOT(GUEST_OS_OTHER7XLINUX_ARM_64) /* Linux 7.x and later Arm 64-bit */  \
    GOT(GUEST_OS_OTHER)               /* Other 32-bit */                    \
    GOT(GUEST_OS_OTHER_64)            /* Other 64-bit */                    \
    GOT(GUEST_OS_OTHER_ARM_64)        /* Other Arm 64-bit */                \
@@ -100,6 +103,8 @@ extern "C" {
    GOT(GUEST_OS_RHEL_64)                                                   \
    GOT(GUEST_OS_RHEL9_64)                                                  \
    GOT(GUEST_OS_RHEL9_ARM_64)                                              \
+   GOT(GUEST_OS_RHEL10_64)                                                 \
+   GOT(GUEST_OS_RHEL10_ARM_64)                                             \
    GOT(GUEST_OS_FREEBSD)                                                   \
    GOT(GUEST_OS_FREEBSD_64)                                                \
    GOT(GUEST_OS_FREEBSD11)                                                 \
@@ -112,6 +117,9 @@ extern "C" {
    GOT(GUEST_OS_FREEBSD14)                                                 \
    GOT(GUEST_OS_FREEBSD14_64)                                              \
    GOT(GUEST_OS_FREEBSD14_ARM_64)                                          \
+   GOT(GUEST_OS_FREEBSD15)                                                 \
+   GOT(GUEST_OS_FREEBSD15_64)                                              \
+   GOT(GUEST_OS_FREEBSD15_ARM_64)                                          \
    GOT(GUEST_OS_SOLARIS_6_AND_7)                                           \
    GOT(GUEST_OS_SOLARIS8)                                                  \
    GOT(GUEST_OS_SOLARIS9)                                                  \
@@ -158,6 +166,7 @@ extern "C" {
    GOT(GUEST_OS_ORACLE7_64)                                                \
    GOT(GUEST_OS_ORACLE8_64)                                                \
    GOT(GUEST_OS_ORACLE9_64)                                                \
+   GOT(GUEST_OS_ORACLE10_64)                                               \
    GOT(GUEST_OS_CENTOS)                                                    \
    GOT(GUEST_OS_CENTOS_64)                                                 \
    GOT(GUEST_OS_CENTOS6)                                                   \
@@ -168,7 +177,11 @@ extern "C" {
    GOT(GUEST_OS_AMAZONLINUX2_64)                                           \
    GOT(GUEST_OS_AMAZONLINUX3_64)                                           \
    GOT(GUEST_OS_CRXSYS1_64)        /* VMware CRX system VM 1.0 64-bit */   \
+   GOT(GUEST_OS_CRXSYS1_ARM_64)    /* VMware CRX system VM 1.0 Arm 64-bit */ \
+   GOT(GUEST_OS_CRXSYS2_64)        /* VMware CRX system VM 2.0 64-bit */   \
+   GOT(GUEST_OS_CRXSYS2_ARM_64)    /* VMware CRX system VM 2.0 Arm 64-bit */ \
    GOT(GUEST_OS_CRXPOD1_64)        /* VMware CRX pod VM 1.0 64-bit */      \
+   GOT(GUEST_OS_CRXPOD1_ARM_64)    /* VMware CRX pod VM 1.0 Arm 64-bit */  \
    GOT(GUEST_OS_LINUX_MINT_64)                                             \
    GOT(GUEST_OS_ROCKY_LINUX_64)                                            \
    GOT(GUEST_OS_ROCKY_LINUX_ARM_64)                                        \

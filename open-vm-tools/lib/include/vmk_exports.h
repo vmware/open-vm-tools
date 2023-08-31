@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2016,2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -33,14 +33,23 @@
 /*
  * vmk_exports.h --
  *
- *	Macros for exporting symbols from vmkernel
+ *      Macros for exporting symbols from vmkernel.
  */
 
 #ifndef _VMK_EXPORTS_H
 #define _VMK_EXPORTS_H
 
 #ifdef VMKERNEL
-#include "vm_basic_defs.h"
+#   include "vm_basic_defs.h"
+
+#   define _VMK_KERNEL_EXPORT(string) asm(                                    \
+   ".pushsection .vmkexports, \"aS\", @progbits"                       "\n\t" \
+   ".string \"" string "\""                                            "\n\t" \
+   ".popsection"                                                              \
+)
+#else
+#   define _VMK_KERNEL_EXPORT(string)
+#endif
 
 /*
  * The following macros allow you to export symbols from vmkernel,
@@ -69,39 +78,16 @@
  * VMK_MODULE_NAMESPACE_REQUIRED("myns", "1") tag to see that symbol.
  */
 
-#define VMK_KERNEL_EXPORT_SEC ".vmkexports"
+#define VMK_KERNEL_EXPORT(symbol)                                             \
+   _VMK_KERNEL_EXPORT(XSTR(symbol))
 
-#define VMK_KERNEL_EXPORT(symbol)                                       \
-   asm(".pushsection " VMK_KERNEL_EXPORT_SEC ",\"aS\", @progbits\n"     \
-       "\t.string \"" XSTR(symbol) "\" \n" "\t.popsection\n");
+#define VMK_KERNEL_ALIAS(symbol, alias)                                       \
+   _VMK_KERNEL_EXPORT(XSTR(symbol) "!" XSTR(alias))
 
-#define VMK_KERNEL_ALIAS(symbol, alias)                                 \
-   asm(".pushsection " VMK_KERNEL_EXPORT_SEC ",\"aS\", @progbits\n"     \
-       "\t.string \"" XSTR(symbol) "!" XSTR(alias) "\" \n"             \
-       "\t.popsection\n");
+#define VMK_KERNEL_EXPORT_TO_NAMESPACE(symbol, namespace, version)            \
+   _VMK_KERNEL_EXPORT(XSTR(symbol) "@" namespace ":" version)
 
-/* name@namespace:version */
-#define VMK_KERNEL_EXPORT_TO_NAMESPACE(symbol, namespace, version)      \
-   asm(".pushsection " VMK_KERNEL_EXPORT_SEC ",\"aS\", @progbits\n"     \
-       "\t.string \"" XSTR(symbol) "@" namespace ":" version  "\" \n"   \
-       "\t.popsection\n");
-
-/* name!alias@namespace:version */
-#define VMK_KERNEL_ALIAS_TO_NAMESPACE(symbol, alias, namespace, version) \
-   asm(".pushsection " VMK_KERNEL_EXPORT_SEC ",\"aS\", @progbits\n"      \
-       "\t.string \"" XSTR(symbol) "!" XSTR(alias) "@" namespace ":"     \
-       version "\" \n\t.popsection\n");
-
-#else /* ! defined VMKERNEL */
-
-/*
- * Empty definitions for kernel exports when built in non-kernel environments. 
- */
-#define VMK_KERNEL_EXPORT(_symbol)
-#define VMK_KERNEL_ALIAS(symbol, alias)
-#define VMK_KERNEL_EXPORT_TO_NAMESPACE(symbol, namespace, version)
-#define VMK_KERNEL_ALIAS_TO_NAMESPACE(symbol, alias, namespace, version)
-
-#endif /* defined VMKERNEL */
+#define VMK_KERNEL_ALIAS_TO_NAMESPACE(symbol, alias, namespace, version)      \
+   _VMK_KERNEL_EXPORT(XSTR(symbol) "!" XSTR(alias) "@" namespace ":" version)
 
 #endif /* _VMK_EXPORTS_H */
