@@ -1204,9 +1204,7 @@ ToolsCore_Setup(ToolsServiceState *state)
    /*
     * TODO: Build vmcheck library
     */
-#ifndef _ARM64_
    state->ctx.isVMware = VmCheck_IsVirtualWorld();
-#endif
    g_main_context_unref(gctx);
 
    g_type_init();

@@ -44,10 +44,6 @@
 #include "vmware/tools/guestrpc.h"
 #include "vm_version.h"
 
-/*
- * TODO: Build vmcheck library
- */
-#ifndef _ARM64_
 /**
  * Runs the given Tools RPC command, printing the result to the terminal and
  * exiting the application afterwards.
@@ -140,7 +136,6 @@ ToolsCoreRunCommandFromFile(const gchar *option,
                   "Unable to send command from file to VMware hypervisor."));
    exit(1);
 }
-#endif //_ARM64_
 
 
 #if defined(G_PLATFORM_WIN32)
@@ -291,17 +286,12 @@ ToolsCore_ParseCommandLine(ToolsServiceState *state,
       { "plugin-path", 'p', 0, G_OPTION_ARG_FILENAME, &state->pluginPath,
          SU_(cmdline.pluginpath, "Path to the plugin directory."),
          SU_(cmdline.path, "path") },
-/*
- * TODO: Build vmcheck library
- */
-#ifndef _ARM64_
       { "cmd", '\0', 0, G_OPTION_ARG_CALLBACK, ToolsCoreRunCommand,
          SU_(cmdline.rpc, "Sends an RPC command to the host and exits."),
          SU_(cmdline.rpc.command, "command") },
       { "cmdfile", '\0', 0, G_OPTION_ARG_CALLBACK, ToolsCoreRunCommandFromFile,
          SU_(cmdline.cmdfile, "Sends an RPC command from a file to the host and exits."),
          SU_(cmdline.cmdfile.command, "command file") },
-#endif //_ARM64+
 #if defined(G_PLATFORM_WIN32)
       { "dump-state", 's', 0, G_OPTION_ARG_NONE, &dumpState,
          SU_(cmdline.state, "Dumps the internal state of a running service instance to the logs."),
