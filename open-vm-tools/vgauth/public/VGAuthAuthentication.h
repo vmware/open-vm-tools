@@ -198,7 +198,7 @@ VGAuthError VGAuth_ValidateSSPIResponse(VGAuthContext *ctx,
 
 #define  VGAUTH_PARAM_VALIDATE_INFO_ONLY  "validateInfoOnly"
 
-#   define VGAUTH_PARAM_SAML_HOST_VERIFIED "hostVerified"
+#define  VGAUTH_PARAM_SAML_HOST_VERIFIED "hostVerified"
 
 VGAuthError VGAuth_ValidateSamlBearerToken(VGAuthContext *ctx,
                                            const char *samlToken,
