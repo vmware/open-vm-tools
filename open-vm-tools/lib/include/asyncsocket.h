@@ -729,6 +729,8 @@ int AsyncSocket_SendWithFd(AsyncSocket *asock, void *buf, int len, int passFd,
 int AsyncSocket_IsSendBufferFull(AsyncSocket *asock);
 int AsyncSocket_GetNetworkStats(AsyncSocket *asock,
                                 AsyncSocketNetworkStats *stats);
+int AsyncSocket_GetSNIHostname(AsyncSocket *asock,
+                               const char **sniHostname);
 int AsyncSocket_CancelRecv(AsyncSocket *asock, int *partialRecvd, void **recvBuf,
                            void **recvFn);
 int AsyncSocket_CancelRecvEx(AsyncSocket *asock, int *partialRecvd, void **recvBuf,

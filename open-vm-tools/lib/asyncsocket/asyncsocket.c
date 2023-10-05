@@ -413,6 +413,7 @@ static const AsyncSocketVTable asyncTCPSocketVTable = {
    AsyncTCPSocketSend,
    AsyncTCPSocketIsSendBufferFull,
    NULL,                        /* getNetworkStats */
+   NULL,                        /* getSNIHostname */
    AsyncTCPSocketClose,
    AsyncTCPSocketCloseWrite,
    AsyncTCPSocketCancelRecv,

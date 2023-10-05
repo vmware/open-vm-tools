@@ -1225,6 +1225,38 @@ AsyncSocket_GetNetworkStats(AsyncSocket *asock,              // IN
 /*
  *----------------------------------------------------------------------------
  *
+ * AsyncSocket_GetSNIHostname --
+ *
+ *      Get SNI hostname from the active socket.
+ *
+ * Results:
+ *      ASOCKERR_*
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+AsyncSocket_GetSNIHostname(AsyncSocket *asock,          // IN
+                           const char **sniHostname)    // OUT
+{
+   int ret;
+   if (VALID(asock, getSNIHostname)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->getSNIHostname(asock, sniHostname);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * AsyncSocket_Close --
  *
  *      AsyncSocket destructor. The destructor should be safe to call at any
