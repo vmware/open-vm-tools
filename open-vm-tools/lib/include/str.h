@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2020,2022 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2020,2022-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -72,7 +72,7 @@ extern "C" {
 #if !defined(VMX86_TOOLS) || defined(_WIN32)
 #if (defined _WIN32 && !defined STR_NO_WIN32_LIBS) || \
     (defined __linux__ && !defined __UCLIBC__ && !defined __ANDROID__) || \
-    defined __APPLE__
+    defined __APPLE__ || defined __EMSCRIPTEN__
 #define HAS_BSD_PRINTF 1
 #endif
 #endif
