@@ -78,6 +78,7 @@ Bool System_EnableDesktopComposition(BOOL enabled);
 LPWSTR System_GetImageFilePathForWindow(HWND hwnd);
 HANDLE System_OpenProcessForHWND(DWORD mask, BOOL inherit, HWND hwnd);
 LONG System_VerifyTrust(const char *filePath);
+LPWSTR System_GetProcessCmdLine(DWORD pId);
 #endif
 
 
