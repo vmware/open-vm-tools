@@ -336,16 +336,15 @@ GET_CURRENT_PC(void)
 /*
  * GET_CURRENT_LOCATION --
  *
- * Updates the arguments with the values of the pc, x29, sp and x30
- * registers at the current code location where the macro is invoked.
+ * Updates the arguments with the values of the pc, fp, sp and the
+ * return address at the current code location where the macro is invoked.
  */
 
-#define GET_CURRENT_LOCATION(pc, fp, sp, lr) do {                             \
+#define GET_CURRENT_LOCATION(pc, fp, sp, retAddr) do {                        \
    _GET_CURRENT_PC(pc);                                                       \
-   asm volatile("mov %0, x29" "\n\t"                                          \
-                "mov %1, sp"  "\n\t"                                          \
-                "mov %2, x30"                                                 \
-                : "=r" (fp), "=r" (sp), "=r" (lr));                           \
+   asm volatile("mov %0, sp" : "=r" (sp));                                    \
+   fp = (uint64)GetFrameAddr();                                               \
+   retAddr = (uint64)GetReturnAddress();                                      \
 } while (0)
 
 
