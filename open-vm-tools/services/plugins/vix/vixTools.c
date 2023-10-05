@@ -11954,6 +11954,7 @@ GuestAuthSAMLAuthenticateAndImpersonate(
                                        token,
                                        username,
                                        gCurrentUsername,
+                                       hostVerified,
                                        userToken,
                                        &currentUserHandle);
       goto done;
