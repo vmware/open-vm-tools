@@ -914,6 +914,101 @@ HostinfoArchString(void)
 /*
  *-----------------------------------------------------------------------------
  *
+ * HostinfoDefaultLinux --
+ *
+ *      Build and return generic data about the Linux disto. Only return what
+ *      has been required - short description (i.e. guestOS string), long
+ *      description (nice looking string).
+ *
+ * Return value:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+HostinfoDefaultLinux(char *distro,            // OUT/OPT:
+                     size_t distroSize,       // IN:
+                     char *distroShort,       // OUT/OPT:
+                     size_t distroShortSize)  // IN:
+{
+   char generic[128];
+   const char *distroOut = NULL;
+   const char *distroShortOut = NULL;
+   int majorVersion = Hostinfo_OSVersion(0);
+   int minorVersion = Hostinfo_OSVersion(1);
+
+   switch (majorVersion) {
+   case 1:
+      distroOut = STR_OS_OTHER_FULL;
+      distroShortOut = STR_OS_OTHER;
+      break;
+
+   case 2:
+      if (minorVersion < 4) {
+         distroOut = STR_OS_OTHER_FULL;
+         distroShortOut = STR_OS_OTHER;
+      } else if (minorVersion < 6) {
+         distroOut = STR_OS_OTHER_24_FULL;
+         distroShortOut = STR_OS_OTHER_24;
+      } else {
+         distroOut = STR_OS_OTHER_26_FULL;
+         distroShortOut = STR_OS_OTHER_26;
+      }
+
+      break;
+
+   case 3:
+      distroOut = STR_OS_OTHER_3X_FULL;
+      distroShortOut = STR_OS_OTHER_3X;
+      break;
+
+   case 4:
+      distroOut = STR_OS_OTHER_4X_FULL;
+      distroShortOut = STR_OS_OTHER_4X;
+      break;
+
+   case 5:
+      distroOut = STR_OS_OTHER_5X_FULL;
+      distroShortOut = STR_OS_OTHER_5X;
+      break;
+
+   case 6:
+      distroOut = STR_OS_OTHER_6X_FULL;
+      distroShortOut = STR_OS_OTHER_6X;
+      break;
+
+   default:
+      /*
+       * Anything newer than this code explicitly handles returns the
+       * "highest" known short description and a dynamically created,
+       * appropriate long description.
+       */
+
+      Str_Sprintf(generic, sizeof generic, "Other Linux %d.%d kernel",
+                  majorVersion, minorVersion);
+      distroOut = generic;
+      distroShortOut = STR_OS_OTHER_5X;
+   }
+
+   if (distro != NULL) {
+      ASSERT(distroOut != NULL);
+      Str_Strcpy(distro, distroOut, distroSize);
+   }
+
+   if (distroShort != NULL) {
+      ASSERT(distroShortOut != NULL);
+      Str_Strcpy(distroShort, distroShortOut, distroShortSize);
+   }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * HostinfoGenericSetShortName --
  *
  *      Set the short name using the short name entry in the specified table
@@ -1008,6 +1103,35 @@ HostinfoSetAsianuxShortName(const ShortNameSet *entry, // IN: Unused
       Str_Sprintf(distroShort, distroShortSize, "%s%s%d",
                   HostinfoArchString(), STR_OS_ASIANUX, version);
    }
+
+   return TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * HostinfoBCSetShortName --
+ *
+ *      Handle Big Cloud Enterprise Linux.
+ *
+ * Return value:
+ *      TRUE    success
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool
+HostinfoBCSetShortName(const ShortNameSet *entry, // IN:
+                       int version,               // IN:
+                       const char *distroLower,   // IN:
+                       char *distroShort,         // OUT:
+                       int distroShortSize)       // IN:
+{
+   HostinfoDefaultLinux(NULL, 0, distroShort, distroShortSize);
 
    return TRUE;
 }
@@ -1279,6 +1403,8 @@ static const ShortNameSet shortNameArray[] = {
 { "arklinux",            STR_OS_ARKLINUX,           HostinfoGenericSetShortName },
 { "asianux",             NULL,                      HostinfoSetAsianuxShortName },
 { "aurox",               STR_OS_AUROX,              HostinfoGenericSetShortName },
+{ "bigcloud",            NULL,                      HostinfoBCSetShortName },
+/* Big Cloud must come before Red Hat Entry */
 { "black cat",           STR_OS_BLACKCAT,           HostinfoGenericSetShortName },
 { "centos",              NULL,                      HostinfoSetCentosShortName  },
 { "cobalt",              STR_OS_COBALT,             HostinfoGenericSetShortName },
@@ -1870,101 +1996,6 @@ HostinfoLsb(char ***args)  // OUT:
 
 
    return score;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * HostinfoDefaultLinux --
- *
- *      Build and return generic data about the Linux disto. Only return what
- *      has been required - short description (i.e. guestOS string), long
- *      description (nice looking string).
- *
- * Return value:
- *      None
- *
- * Side effects:
- *      None
- *
- *-----------------------------------------------------------------------------
- */
-
-static void
-HostinfoDefaultLinux(char *distro,            // OUT/OPT:
-                     size_t distroSize,       // IN:
-                     char *distroShort,       // OUT/OPT:
-                     size_t distroShortSize)  // IN:
-{
-   char generic[128];
-   const char *distroOut = NULL;
-   const char *distroShortOut = NULL;
-   int majorVersion = Hostinfo_OSVersion(0);
-   int minorVersion = Hostinfo_OSVersion(1);
-
-   switch (majorVersion) {
-   case 1:
-      distroOut = STR_OS_OTHER_FULL;
-      distroShortOut = STR_OS_OTHER;
-      break;
-
-   case 2:
-      if (minorVersion < 4) {
-         distroOut = STR_OS_OTHER_FULL;
-         distroShortOut = STR_OS_OTHER;
-      } else if (minorVersion < 6) {
-         distroOut = STR_OS_OTHER_24_FULL;
-         distroShortOut = STR_OS_OTHER_24;
-      } else {
-         distroOut = STR_OS_OTHER_26_FULL;
-         distroShortOut = STR_OS_OTHER_26;
-      }
-
-      break;
-
-   case 3:
-      distroOut = STR_OS_OTHER_3X_FULL;
-      distroShortOut = STR_OS_OTHER_3X;
-      break;
-
-   case 4:
-      distroOut = STR_OS_OTHER_4X_FULL;
-      distroShortOut = STR_OS_OTHER_4X;
-      break;
-
-   case 5:
-      distroOut = STR_OS_OTHER_5X_FULL;
-      distroShortOut = STR_OS_OTHER_5X;
-      break;
-
-   case 6:
-      distroOut = STR_OS_OTHER_6X_FULL;
-      distroShortOut = STR_OS_OTHER_6X;
-      break;
-
-   default:
-      /*
-       * Anything newer than this code explicitly handles returns the
-       * "highest" known short description and a dynamically created,
-       * appropriate long description.
-       */
-
-      Str_Sprintf(generic, sizeof generic, "Other Linux %d.%d kernel",
-                  majorVersion, minorVersion);
-      distroOut = generic;
-      distroShortOut = STR_OS_OTHER_5X;
-   }
-
-   if (distro != NULL) {
-      ASSERT(distroOut != NULL);
-      Str_Strcpy(distro, distroOut, distroSize);
-   }
-
-   if (distroShort != NULL) {
-      ASSERT(distroShortOut != NULL);
-      Str_Strcpy(distroShort, distroShortOut, distroShortSize);
-   }
 }
 
 
