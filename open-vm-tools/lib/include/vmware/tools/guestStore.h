@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 2020,2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -28,7 +28,19 @@
  * @{
  */
 
+/*
+ * glib-object.h should not be placed inside `extern "C"' blocks.
+ * However, this header is often placed inside such blocks.
+ * Here we change back into C++ for glib-object.h
+ */
+#ifdef __cplusplus
+extern "C++" {
+#endif
 #include <glib-object.h>
+#ifdef __cplusplus
+}
+#endif
+
 #include "vmware/tools/plugin.h"
 
 /**

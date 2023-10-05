@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2019,2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -45,7 +45,19 @@
  * thread.
  */
 
+/*
+ * glib-object.h should not be placed inside `extern "C"' blocks.
+ * However, this header is often placed inside such blocks.
+ * Here we change back into C++ for glib-object.h
+ */
+#ifdef __cplusplus
+extern "C++" {
+#endif
 #include <glib-object.h>
+#ifdef __cplusplus
+}
+#endif
+
 #include "vmware/tools/plugin.h"
 
 #define TOOLS_CORE_PROP_TPOOL "tcs_prop_thread_pool"
