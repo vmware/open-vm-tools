@@ -1356,7 +1356,14 @@ VerifySignature(xmlDocPtr doc,
     */
    bRet = RegisterID(xmlDocGetRootElement(doc), "ID");
    if (bRet == FALSE) {
-      g_warning("failed to register ID\n");
+      g_warning("Failed to register ID\n");
+      goto done;
+   }
+
+   /* Use only X509 certs to validate the signature */
+   if (xmlSecPtrListAdd(&(dsigCtx->keyInfoReadCtx.enabledKeyData),
+                        BAD_CAST xmlSecKeyDataX509Id) < 0) {
+      g_warning("Failed to limit allowed key data\n");
       goto done;
    }
 
