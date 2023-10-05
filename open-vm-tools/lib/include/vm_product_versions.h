@@ -310,7 +310,7 @@
 #define VA_PATCH_VERSION  "5100"
 
 // esxcli
-#define ESXCLI_VERSION "8.0"
+#define ESXCLI_VERSION "8.0.0"
 
 #define HORIZONOSOT_VERSION "1.2.2303"
 #define HORIZONVMDS_VERSION "1.0.0"
