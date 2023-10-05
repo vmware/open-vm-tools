@@ -840,24 +840,7 @@ void AsyncSocket_WebSocketServerSendError(AsyncSocket *asock, const char *text);
  */
 #define ASOCKPREFIX "SOCKET "
 
-/* gcc needs special syntax to handle zero-length variadic arguments */
-#if defined(_MSC_VER)
-#define ASOCKWARN(_asock, fmt, ...)                               \
-   Warning(ASOCKPREFIX "%d (%d) " fmt, AsyncSocket_GetID(_asock), \
-           AsyncSocket_GetFd(_asock), __VA_ARGS__)
-
-#define ASOCKLG0(_asock, fmt, ...)                            \
-   Log(ASOCKPREFIX "%d (%d) " fmt, AsyncSocket_GetID(_asock), \
-       AsyncSocket_GetFd(_asock), __VA_ARGS__)
-
-#define ASOCKLOG(_level, _asock, fmt, ...)                          \
-   do {                                                             \
-      if (((_level) == 0) || DOLOG_BYNAME(asyncsocket, (_level))) { \
-         Log(ASOCKPREFIX "%d (%d) " fmt, AsyncSocket_GetID(_asock), \
-             AsyncSocket_GetFd(_asock), __VA_ARGS__);               \
-      }                                                             \
-   } while (0)
-#else
+/* Both gcc and msvc support ##__VA_ARGS__ to handle zero-length variadic arguments */
 #define ASOCKWARN(_asock, fmt, ...)                               \
    Warning(ASOCKPREFIX "%d (%d) " fmt, AsyncSocket_GetID(_asock), \
            AsyncSocket_GetFd(_asock), ##__VA_ARGS__)
@@ -873,7 +856,6 @@ void AsyncSocket_WebSocketServerSendError(AsyncSocket *asock, const char *text);
              AsyncSocket_GetFd(_asock), ##__VA_ARGS__);             \
       }                                                             \
    } while (0)
-#endif
 
 #if defined(__cplusplus)
 }  // extern "C"
