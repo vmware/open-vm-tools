@@ -51,6 +51,7 @@
 #include <assert.h>
 #include <TargetConditionals.h>
 #if !TARGET_OS_IPHONE
+#include <libproc.h>
 #include <CoreServices/CoreServices.h>
 #endif
 #include <mach-o/dyld.h>
@@ -91,8 +92,12 @@
 #include <paths.h>
 #endif
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
 #include <dlfcn.h>
+#endif
+
+#if defined(__linux__) || defined(__ANDROID__)
+#include <dirent.h>
 #endif
 
 #if !defined(_PATH_DEVNULL)
@@ -4441,10 +4446,11 @@ Hostinfo_GetModulePath(uint32 priv)  // IN:
  *      address resides. Expected usage is that the caller will pass
  *      in the address of one of the caller's own functions.
  *
- *      Not implemented on MacOS.
+ *      Not implemented on iOS (iOS does not support dynamic loading).
+ *      Not fully implemented on ESX (the path MAY OR MAY NOT BE ABSOLUTE).
  *
  * Results:
- *      The path (which MAY OR MAY NOT BE ABSOLUTE) or NULL on failure.
+ *      The absolute path or NULL on failure.
  *
  * Side effects:
  *      Memory is allocated.
@@ -4455,16 +4461,164 @@ Hostinfo_GetModulePath(uint32 priv)  // IN:
 char *
 Hostinfo_GetLibraryPath(void *addr)  // IN
 {
-#ifdef __linux__
+   char *path = NULL;
+
+   /*
+    * Try fast path first.
+    *
+    * Does NOT work for iOS since iOS does not support dynamic loading.
+    */
+#if !TARGET_OS_IPHONE
    Dl_info info;
 
    if (dladdr(addr, &info)) {
-      return Unicode_Alloc(info.dli_fname, STRING_ENCODING_DEFAULT);
+      if (vmx86_server ||
+          *info.dli_fname == DIRSEPC) { // We have an absolute path.
+         return Unicode_Alloc(info.dli_fname, STRING_ENCODING_DEFAULT);
+      }
    }
-   return NULL;
-#else
-   return NULL;
+#endif // !TARGET_OS_IPHONE
+
+   /*
+    * Slow path for ESX, Linux, Android and macOS.
+    */
+#if defined(VMX86_SERVER)
+   {
+      // Slow path not needed on ESX by any caller.
+   }
+#elif defined(__linux__) || defined(__ANDROID__)
+   {
+      DIR *dir;
+
+      /*
+       * /proc/pid/map_files/ (since Linux 3.3)
+       *         This subdirectory contains entries corresponding to
+       *         memory-mapped files (see mmap(2)).  Entries are named by
+       *         memory region start and end address pair (expressed as
+       *         hexadecimal numbers), and are symbolic links to the mapped
+       *         files themselves.
+       *
+       *             # ls -l /proc/self/map_files/
+       *             lr--------. 1 root root 64 Apr 16 21:31
+       *                         3252e00000-3252e20000 -> /usr/lib64/ld-2.15.so
+       */
+      dir = Posix_OpenDir("/proc/self/map_files");
+      if (dir == NULL) {
+         return NULL;
+      }
+
+      for (;;) {
+         struct dirent *entry;
+         char *sep;
+         char *end;
+         uintptr_t startAddr;
+         uintptr_t endAddr;
+
+         errno = 0;
+         entry = readdir(dir);
+         if (entry == NULL) {
+            ASSERT(errno == 0);
+            break;
+         }
+
+         if (entry->d_type != DT_LNK) { // procfs supports `d_type`.
+            continue;
+         }
+
+         sep = strchr(entry->d_name, '-');
+         if (sep == NULL) {
+            continue; // The file name does NOT in `1234abcd-abcd1234` format
+         }
+
+         errno = 0;
+         endAddr = (uintptr_t) strtoll(sep + 1, &end, 16);
+         if (*end != '\0' || errno != 0) {
+            continue; // The address is NOT hexadecimal numbers.
+         }
+
+         if (endAddr < (uintptr_t) addr) {
+            continue; // `addr` is NOT in range.
+         }
+
+         *sep = '\0'; // Terminate the start address part of the file name.
+         errno = 0;
+         startAddr = (uintptr_t) strtoll(entry->d_name, &end, 16);
+         if (*end != '\0' || errno != 0) {
+            continue; // The address is NOT hexadecimal numbers.
+         }
+         *sep = '-'; // Restore to the original file name.
+
+         ASSERT((uintptr_t) addr <= endAddr);
+         if (startAddr <= (uintptr_t) addr) {
+            char targetBuf[PAGE_SIZE];
+            ssize_t targetLen;
+
+            /*
+             * readlinkat() does not append a terminating null byte to buf.
+             * It will (silently) truncate the contents in case the buffer
+             * is too small to hold all the contents.
+             */
+            targetLen = readlinkat(dirfd(dir), entry->d_name,
+                                   targetBuf, sizeof targetBuf);
+            if (targetLen == -1 ||
+                targetLen == sizeof targetBuf) { // truncation may have occurred
+               break;
+            }
+
+            targetBuf[targetLen] = '\0';
+            ASSERT(targetBuf[0] == DIRSEPC); // Ensure we have absolute path.
+
+            path = Unicode_Alloc(targetBuf, STRING_ENCODING_DEFAULT);
+            break;
+         }
+      } // for each entry in "/proc/self/map_files"
+
+      closedir(dir);
+   }
+#elif defined(__APPLE__) && !TARGET_OS_IPHONE
+   {
+      char pathBuf[MAXPATHLEN];
+      int pathLen;
+      pid_t pid;
+
+      pid = getpid();
+      errno = 0;
+      /*
+       * I cannot find a document for proc_regionfilename().
+       * The only information I have is its source code:
+       *    https://opensource.apple.com/source/Libc/Libc-825.40.1/darwin/
+       *    libproc.c.auto.html
+       *
+       * Parameters and return value:
+       *    pid:          The process ID of the `address` belongs to.
+       *    address:      The address you want to search.
+       *    buffer:       A buffer to receive the file path.
+       *    buffersize:   The size of the `buffer`, at least `MAXPATHLEN`.
+       *    return value: The length of the path in `buffer`, or 0 on error.
+       *
+       * proc_regionfilename() does not append a terminating NUL byte to buffer.
+       * It will silently truncate the contents in case the buffer is too small
+       * to hold all the contents.
+       */
+      pathLen = proc_regionfilename(pid,
+                                    (uintptr_t) addr,
+                                    pathBuf,
+                                    sizeof pathBuf);
+      if (pathLen == 0 ||
+          pathLen == sizeof pathBuf) { // truncation may have occurred
+         goto out;
+      }
+
+      ASSERT(errno == 0);
+      pathBuf[pathLen] = '\0';
+
+      path = Unicode_Alloc(pathBuf, STRING_ENCODING_DEFAULT);
+   out:
+      ; // A noop is needed at here to make the compiler happy.
+   }
 #endif
+
+   return path;
 }
 
 
