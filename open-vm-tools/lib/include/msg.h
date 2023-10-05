@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017,2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -18,7 +18,7 @@
 
 /*
  * msg.h  --
- * 
+ *
  *  user interaction through (non-modal) messages and (modal) dialogs
  */
 
@@ -192,6 +192,8 @@ HintResult Msg_HintMsgList(Bool defaultShow, HintOptions options,
                            MsgList *msg);
 int Msg_CompareAnswer(Msg_String const *buttons, unsigned answer,
                       const char *string);
+Bool Msg_IsAnswered(Msg_String const *buttons, int defaultAnswer,
+                    const char *id, unsigned int *reply);
 char *Msg_GetString(const char *idString);
 char *Msg_GetStringSafe(const char *idString);
 char *Msg_GetPlainButtonText(const char *idString);
