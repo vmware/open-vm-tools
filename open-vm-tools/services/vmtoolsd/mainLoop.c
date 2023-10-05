@@ -45,8 +45,8 @@
 #include "vmware/tools/utils.h"
 #include "vmware/tools/vmbackup.h"
 
-#if defined(_WIN32) || \
-   (defined(__linux__) && !defined(USERWORLD))
+#if (defined(_WIN32) && !defined(_ARM64_)) || \
+    (defined(__linux__) && !defined(USERWORLD))
 #  include "vmware/tools/guestStore.h"
 #  include "globalConfig.h"
 #endif
@@ -55,7 +55,7 @@
  * guestStoreClient library is needed for both GuestStore-based tools upgrade
  * and also for GlobalConfig module.
  */
-#if defined(_WIN32) || defined(GLOBALCONFIG_SUPPORTED)
+#if (defined(_WIN32) &&  !defined(_ARM64_)) || defined(GLOBALCONFIG_SUPPORTED)
 #  include "guestStoreClient.h"
 #endif
 
@@ -118,8 +118,8 @@ static gboolean gGlobalConfStarted = FALSE;
 static void
 ToolsCoreCleanup(ToolsServiceState *state)
 {
-#if defined(_WIN32) || \
-   (defined(__linux__) && !defined(USERWORLD))
+#if (defined(_WIN32) && !defined(_ARM64_)) || \
+    (defined(__linux__) && !defined(USERWORLD))
    if (state->mainService) {
       /*
        * Shut down guestStore plugin first to prevent worker threads from being
@@ -137,7 +137,7 @@ ToolsCoreCleanup(ToolsServiceState *state)
    }
 #endif
 
-#if defined(_WIN32) || defined(GLOBALCONFIG_SUPPORTED)
+#if (defined(_WIN32) && !defined(_ARM64_)) || defined(GLOBALCONFIG_SUPPORTED)
    /*
     * guestStoreClient library is needed for both GuestStore-based tools
     * upgrade and also for GlobalConfig module.
@@ -472,7 +472,7 @@ ToolsCoreRunLoop(ToolsServiceState *state)
    }
 #endif
 
-#if defined(_WIN32) || defined(GLOBALCONFIG_SUPPORTED)
+#if (defined(_WIN32) && !defined(_ARM64_)) || defined(GLOBALCONFIG_SUPPORTED)
    /*
     * guestStoreClient library is needed for both GuestStore-based tools
     * upgrade and also for GlobalConfig module.
