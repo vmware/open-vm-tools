@@ -31,7 +31,7 @@ vmtoolsd_LDADD += @GMODULE_LIBS@
 vmtoolsd_LDADD += @GOBJECT_LIBS@
 vmtoolsd_LDADD += @GTHREAD_LIBS@
 if LINUX
-   vmtoolsd_LDADD += ../../lib/globalConfig/libGlobalConfig.la
+vmtoolsd_LDADD += ../../lib/globalConfig/libGlobalConfig.la
 endif
 
 vmtoolsd_SOURCES =
