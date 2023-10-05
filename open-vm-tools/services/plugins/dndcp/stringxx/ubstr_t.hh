@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2008-2019,2021-2022 VMware, Inc. All rights reserved.
+ * Copyright (c) 2008-2019,2021-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -32,8 +32,7 @@
 
 #include <algorithm>
 #include <comutil.h>
-#include <giommconfig.h> // For GIOMM_*_VERSION
-#include <glibmm/refptr.h>
+#include <memory>
 
 #include "autoCPtr.hh"
 
@@ -111,29 +110,9 @@ private:
    public:
       // Takes ownership of the input string.
       UTF8Data(char *utf8String = NULL) // IN/OUT: May be NULL
-         : mUTF8String(utf8String),
-           mRefCount(1)
+         : mUTF8String(utf8String)
       {
       }
-
-#if GIOMM_MAJOR_VERSION >= 2 && GIOMM_MINOR_VERSION >= 68
-      // Glib::RefPtr is now just a std::shared_ptr so no extras are needed
-#else
-      // For Glib::RefPtr.
-      void reference()
-      {
-         ++mRefCount;
-      }
-
-      // For Glib::RefPtr.
-      void unreference()
-      {
-         --mRefCount;
-         if (mRefCount == 0) {
-            delete this;
-         }
-      }
-#endif
 
       // Takes ownership of the input string.
       void Set(char *utf8String) // IN/OUT: May be NULL.
@@ -150,12 +129,6 @@ private:
          return mUTF8String;
       }
 
-#if GIOMM_MAJOR_VERSION >= 2 && GIOMM_MINOR_VERSION >= 68
-   public:
-#else
-   private:
-      // Only destructible via unreference().
-#endif
       ~UTF8Data()
       {
          free(mUTF8String);
@@ -163,7 +136,6 @@ private:
 
    private:
       char *mUTF8String;
-      unsigned int mRefCount;
 
    private:
       // Intentionally unimplemented.
@@ -181,7 +153,7 @@ private:
    _bstr_t mBstr;
 
    // mUTF8 is allocated and initialized lazily.
-   mutable Glib::RefPtr<UTF8Data> mUTF8;
+   mutable std::shared_ptr<UTF8Data> mUTF8;
 };
 
 
@@ -265,7 +237,7 @@ ubstr_t::ubstr_t(const char *s) // IN: A UTF-8-encoded string.
 {
    if (s != NULL) {
       // Since we already have the UTF-8 version of the string, cache it now.
-      mUTF8 = Glib::RefPtr<UTF8Data>(new UTF8Data(Util_SafeStrdup(s)));
+      mUTF8 = std::shared_ptr<UTF8Data>(new UTF8Data(Util_SafeStrdup(s)));
       mBstr = AutoCPtr<utf16_t>(Unicode_GetAllocUTF16(s), free).get();
    }
 }
@@ -310,7 +282,7 @@ ubstr_t::ubstr_t(const ubstr_t& s) // IN
      mUTF8(s.mUTF8)
 {
    if (static_cast<wchar_t *>(mBstr) != NULL && !mUTF8) {
-      mUTF8 = s.mUTF8 = Glib::RefPtr<UTF8Data>(new UTF8Data());
+      mUTF8 = s.mUTF8 = std::shared_ptr<UTF8Data>(new UTF8Data());
    }
 }
 
@@ -839,7 +811,7 @@ ubstr_t::GetUTF8Cache()
    }
 
    if (!mUTF8) {
-      mUTF8 = Glib::RefPtr<UTF8Data>(new UTF8Data());
+      mUTF8 = std::shared_ptr<UTF8Data>(new UTF8Data());
    }
 
    if (mUTF8->Get() == NULL) {
