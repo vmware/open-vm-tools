@@ -246,7 +246,8 @@ extern "C" {
 #define   BDOOR_CMD_APPLE_GPU_RES_SET        99
 #define   BDOOR_CMD_GETBUILDNUM             100
 #define   BDOOR_CMD_GETENTROPY              101 /* Configurable, off by default. */
-#define   BDOOR_CMD_MAX                     102
+#define   BDOOR_CMD_REPORTGUESTCRASH        102
+#define   BDOOR_CMD_MAX                     103
 
 
 /*
