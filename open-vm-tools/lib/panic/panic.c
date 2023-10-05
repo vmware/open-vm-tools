@@ -542,7 +542,8 @@ Panic_Panic(const char *format,
 
    Panic_DumpGuiResources();
 
-#if (defined(_WIN32) || !defined(VMX86_TOOLS)) && !defined(__ANDROID__) && !(TARGET_OS_IPHONE)
+#if (defined(_WIN32) || !defined(VMX86_TOOLS)) && !defined(__ANDROID__) && \
+    !(TARGET_OS_IPHONE) && !defined(__EMSCRIPTEN__)
    if (Panic_GetCoreDumpOnPanic()) {
       CoreDump_CoreDump();
    }
