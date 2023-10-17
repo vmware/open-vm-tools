@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2018,2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -156,8 +156,7 @@ MaskSignals(void)
  *
  *    Obtains the library directory from the Tools locations database, then
  *    opens a file descriptor (while still root) to add and remove blocks,
- *    drops privilege to the real uid of this process, and finally starts
- *    vmware-user.
+ *    and finally starts vmware-user.
  *
  * Results:
  *    Parent: TRUE on success, FALSE on failure.
@@ -173,8 +172,6 @@ static Bool
 StartVMwareUser(char *const envp[])
 {
    pid_t pid;
-   uid_t uid;
-   gid_t gid;
    int blockFd = -1;
    char blockFdStr[8];
    int uinputFd = -1;
@@ -191,8 +188,8 @@ StartVMwareUser(char *const envp[])
    }
 
    /*
-    * Now create a child process, obtain a file descriptor as root, downgrade
-    * privilege, and run vmware-user.
+    * Now create a child process, obtain a file descriptor as root and
+    * run vmware-user.
     */
    pid = fork();
    if (pid == -1) {
@@ -227,23 +224,6 @@ StartVMwareUser(char *const envp[])
       if (uinputFd < 0) {
          uinputFd = open("/dev/input/uinput", O_WRONLY | O_NONBLOCK);
       }
-   }
-
-   uid = getuid();
-   gid = getgid();
-
-   if ((setreuid(uid, uid) != 0) ||
-       (setregid(gid, gid) != 0)) {
-      Error("could not drop privileges: %s\n", strerror(errno));
-      if (blockFd != -1) {
-         close(blockFd);
-      }
-      if (useWayland) {
-         if (uinputFd != -1) {
-            close(uinputFd);
-         }
-      }
-      return FALSE;
    }
 
    /*
