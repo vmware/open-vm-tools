@@ -1,3 +1,98 @@
+commit 1bfe23d728b74e08f4f65cd9b0093ca73937003a
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Oct 17 15:24:48 2023 -0700
+
+    Don't accept tokens with unrelated certs
+    
+    If a SAML token has a cert that's not a part of a chain,
+    fail the token as invalid.
+
+commit 63f7c79c4aecb14d37cc4ce9da509419e31d394f
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Oct 17 15:24:48 2023 -0700
+
+    File descriptor vulnerability in the open-vm-tools vmware-user-suid-wrapperx
+    on Linux
+    
+    Moving the privilege drop logic (dropping privilege to the real uid and
+    gid of the process for the vmusr service) from suidWrapper to vmtoolsd code.
+    Now the vmtoolsd is not executed with dropped privileges (started as setuid
+    program) and the dumpable attribute of the process is not reset.
+    The unprivileged user will not have access to the privileged file descriptors
+    in the vmtoolsd vmusr process.
+    Also, setting the FD_CLOEXEC flag for both uinputFd and blockFd preventing
+    the file descriptors being inherited any further from the vmtoolsd.
+
+commit 3b5308bb4bdf3eeebd49808eb0efa015aa183772
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Oct 17 15:24:48 2023 -0700
+
+    Suppress optional arg to backup scripts when empty string.
+    Backup scripts can be called with an optional argument. Don't pass the
+    optional arg to the script if it's an empty string.
+
+commit 395cb80dc14e86f07e22541ae5ff205ad695056e
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Oct 17 15:24:48 2023 -0700
+
+    Checking flag 'disable_vmware_customization' in more cloud-init config files
+    
+    Currently, deployPkg plugin checks the existence of flag
+    'disable_vmware_customization: false' in the /etc/cloud/cloud.cfg file
+    to determine if VMware customization is enabled or not on cloud-init
+    side when cloud-init is available in guest.
+    Both cloud-init team and customers suggested that it's better practice to
+    put local configuration like this flag into some .cfg files under
+    /etc/cloud/cloud.cfg.d directory, ex: /etc/cloud/cloud.cfg.d/somefile.cfg
+    
+    This change implements the following adjustments to make sure we handle
+    this flag the same way as cloud-init does in ds-identify and Datasource:
+    1. Instead of regex matching flag 'disable_vmware_customization: false',
+    we will check the value of flag 'disable_vmware_customization':
+    If the value is 'false', it means VMware customization is enabled.
+    If the value is 'true', it means VMware customization is disabled.
+    If the flag is not set, by default VMware customization is disabled
+    on cloud-init side.
+    2. Besides cloud-init /etc/cloud/cloud.cfg file, we will check all .cfg
+    files under /etc/cloud/cloud.cfg.d directory.
+    3. The value of flag 'disable_vmware_customization' in .cfg files under
+    /etc/cloud/cloud.cfg.d directory will overwrite the one in
+    /etc/cloud/cloud.cfg file.
+    4. The value of flag 'disable_vmware_customization' in a .cfg file listed
+    further down the alphabetical order under /etc/cloud/cloud.cfg.d directory
+    will overwrite the value in a .cfg file listed earier.
+    5. If a cloud-init config file contains more than one instance of this
+    flag, the value of the later flag will overwrite the former one's.
+    
+    Github Issue: https://github.com/vmware/open-vm-tools/issues/310
+
+commit d9ffb3275ada811caa8478d481cd9003766baa1c
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Oct 17 15:24:48 2023 -0700
+
+    Add missed 2023 copyright change.
+
+commit ba8219ee4bab927d7142e8392b20e183c589786e
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Oct 17 15:24:48 2023 -0700
+
+    Enabling the open-vm-tools VGAuth Host Verification feature.
+    
+    The Host Verified SAML token work is complete. Adding the new code to the
+    open-vm-tools source.
+
+commit 650ce059114e09cbac3594b9e1be4069febe4311
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Oct 17 15:24:47 2023 -0700
+
+    Setting the VMware Tools version to 12.3.5.
+
+commit 865e76adf86fb38380220a3b760aa92ba5407c60
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Aug 31 07:38:59 2023 -0700
+
+    Update of the ChangeLog with the "open-vm-tools 12.3.0" release point marker.
+
 commit 4fe4b1be1d7139aa571a6431f26904e6f0b77883
 Author: Katy Feng <fkaty@vmware.com>
 Date:   Thu Aug 31 07:32:27 2023 -0700
