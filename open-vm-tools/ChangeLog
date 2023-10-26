@@ -1,3 +1,24 @@
+commit 6acd1f6742a8fc0dea9cabf7ba15416a2daf5075
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Oct 26 08:35:59 2023 -0700
+
+    Update the ReleaseNotes.md for the 12.3.5 open-vm-tools release.
+
+commit d5a0ca16b64730507735281012bc3a4660c5b46c
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Wed Oct 25 11:13:15 2023 -0700
+
+    Prepare for the open-vm-tools 12.3.5 release.
+    - Update the tools version in the configure.ac.
+    - Update the build numbers in the buldNumber.h.
+
+commit ca8bde40e2bb2e03b5f3a38530f6be0d4b19de34
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Oct 17 15:31:51 2023 -0700
+
+    Update the ChangeLog file with the changes in the 12.3.5 open-vm-tools release.
+    - plus the 12.3.0 open-vm-tools release point in the ChangeLog.
+
 commit 1bfe23d728b74e08f4f65cd9b0093ca73937003a
 Author: Katy Feng <fkaty@vmware.com>
 Date:   Tue Oct 17 15:24:48 2023 -0700
