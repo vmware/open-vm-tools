@@ -35,10 +35,10 @@
 ### Initialization
 ###
 
-TOOLS_VERSION="12.3.0"
+TOOLS_VERSION="12.3.5"
 AC_INIT(
    [open-vm-tools],
-   [12.3.0],
+   [12.3.5],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
@@ -1943,12 +1943,6 @@ AC_CONFIG_FILES([                      \
 
 
 
-
-AM_CONDITIONAL([VMTOOLS_FS_VGAUTH_HOST_VERIFICATION],[true])
-if test "$enable_vgauth" = "yes"; then
-   echo "Enabling vgauth host verification"
-   CPPFLAGS="$CPPFLAGS -DVMTOOLS_FS_VGAUTH_HOST_VERIFICATION"
-fi
 
 
 ###

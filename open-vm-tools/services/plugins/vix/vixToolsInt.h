@@ -204,9 +204,7 @@ VixError VixToolsCheckSAMLForSystem(VGAuthContext *ctx,
                                     const char *token,
                                     const char *username,
                                     char *serviceUsername,
-#ifdef VMTOOLS_FS_VGAUTH_HOST_VERIFICATION
                                     Bool hostVerified,
-#endif
                                     void **userToken,
                                     VGAuthUserHandle **curUserHandle);
 #endif // _WIN32
