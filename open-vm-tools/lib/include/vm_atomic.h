@@ -183,6 +183,32 @@ typedef ALIGNED(16) struct Atomic_uint128 {
 #define dmb() __asm__ __volatile__("dmb" : : : "memory")
 #endif
 
+/*
+ * Whether GCC flags output operands are supported.
+ * If building with GCC 6+ on x86, and 10+ on arm, flags output is supported.
+ * Some pieces are still built with GCC 4, which doesn't support flag outputs.
+ * Also support was added for x86 before ARM / AARCH64.
+ */
+#ifdef __GCC_ASM_FLAG_OUTPUTS__
+/*
+ * The above check should be sufficient to see whether the current compiler
+ * supports GCC style assembly flag outputs, but just in case print a debug
+ * message if it looks like we're being compiled with an older version of
+ * GCC before assembly flag outputs was added.
+ */
+#if defined(VM_X86_ANY) && __GNUC__ < 6
+ #pragma message "GCC < 6 claims to support x86 asm flag outputs"
+#elif defined(VM_ARM_ANY) && __GNUC__ < 10
+ #pragma message "GCC < 10 claims to support ARM asm flag outputs"
+#endif
+
+#define IF_ASM_FLAG_OUTPUT(supportedValue, fallbackValue) supportedValue
+
+#else /* older gcc (or not gcc), flags output is not supported */
+#define IF_ASM_FLAG_OUTPUT(supportedValue, fallbackValue) fallbackValue
+
+#endif
+
 
 /* Convert a volatile uint32 to Atomic_uint32. */
 static INLINE Atomic_uint32 *
@@ -1997,10 +2023,10 @@ Atomic_CMPXCHG64(Atomic_uint64 *var,   // IN/OUT
 #if defined __x86_64__
    uint64 dummy;
    __asm__ __volatile__(
-      "lock; cmpxchgq %3, %0" "\n\t"
-      "sete %1"
+      "lock; cmpxchgq %3, %0"
+      IF_ASM_FLAG_OUTPUT("", "\n\t" "sete %1")
       : "+m" (*var),
-        "=qm" (equal),
+        IF_ASM_FLAG_OUTPUT("=@cce", "=qm") (equal),
         "=a" (dummy)
       : "r" (newVal),
         "2" (oldVal)
@@ -2042,9 +2068,9 @@ Atomic_CMPXCHG64(Atomic_uint64 *var,   // IN/OUT
    __asm__ __volatile__(
       "xchgl %%ebx, %6"      "\n\t"
       "lock; cmpxchg8b (%3)" "\n\t"
-      "xchgl %%ebx, %6"      "\n\t"
-      "sete %0"
-      : "=qm" (equal),
+      "xchgl %%ebx, %6"
+      IF_ASM_FLAG_OUTPUT("", "\n\t" "sete %0")
+      : IF_ASM_FLAG_OUTPUT("=@cce", "=qm") (equal),
         "=a" (dummy1),
         "=d" (dummy2)
       : /*
@@ -2064,10 +2090,10 @@ Atomic_CMPXCHG64(Atomic_uint64 *var,   // IN/OUT
    );
 #   else
    __asm__ __volatile__(
-      "lock; cmpxchg8b %0" "\n\t"
-      "sete %1"
+      "lock; cmpxchg8b %0"
+      IF_ASM_FLAG_OUTPUT("", "\n\t" "sete %1")
       : "+m" (*var),
-        "=qm" (equal),
+        IF_ASM_FLAG_OUTPUT("=@cce", "=qm") (equal),
         "=a" (dummy1),
         "=d" (dummy2)
       : "2" (((S_uint64 *)&oldVal)->lowValue),
@@ -2123,10 +2149,10 @@ Atomic_CMPXCHG32(Atomic_uint32 *var,   // IN/OUT
    uint32 dummy;
 
    __asm__ __volatile__(
-      "lock; cmpxchgl %3, %0" "\n\t"
-      "sete %1"
+      "lock; cmpxchgl %3, %0"
+      IF_ASM_FLAG_OUTPUT("", "\n\t" "sete %1")
       : "+m" (*var),
-        "=qm" (equal),
+        IF_ASM_FLAG_OUTPUT("=@cce", "=qm") (equal),
         "=a" (dummy)
       : "r" (newVal),
         "2" (oldVal)
@@ -2885,8 +2911,9 @@ Atomic_TestBit64(Atomic_uint64 *var, // IN
    ASSERT(bit <= 63);
 #if defined __x86_64__ && defined __GNUC__
    __asm__ __volatile__(
-      "btq %2, %1; setc %0"
-      : "=rm"(out)
+      "btq %2, %1"
+      IF_ASM_FLAG_OUTPUT("", "\n\t" "setc %0")
+      : IF_ASM_FLAG_OUTPUT("=@ccc", "=rm") (out)
       : "m" (var->value),
         "rJ" ((uint64)bit)
       : "cc"
@@ -2923,8 +2950,10 @@ Atomic_TestSetBit64(Atomic_uint64 *var, // IN/OUT
    Bool out;
    ASSERT(bit <= 63);
    __asm__ __volatile__(
-      "lock; btsq %2, %1; setc %0"
-      : "=rm" (out), "+m" (var->value)
+      "lock; btsq %2, %1"
+      IF_ASM_FLAG_OUTPUT("", "\n\t" "setc %0")
+      : IF_ASM_FLAG_OUTPUT("=@ccc", "=rm") (out),
+        "+m" (var->value)
       : "rJ" ((uint64)bit)
       : "cc", "memory"
    );
@@ -3941,9 +3970,10 @@ Atomic_TestSetBitVector(Atomic_uint8 *var, // IN/OUT
 #if defined __x86_64__ && defined __GNUC__
    Bool bit;
    __asm__ __volatile__(
-      "lock; bts %2, %1;"
-      "setc %0"
-      : "=qQm" (bit), "+m" (var->value)
+      "lock; bts %2, %1"
+      IF_ASM_FLAG_OUTPUT("", "\n\t" "setc %0")
+      : IF_ASM_FLAG_OUTPUT("=@ccc", "=qQm") (bit),
+        "+m" (var->value)
       : "rI" (index)
       : "cc", "memory"
    );
@@ -3980,9 +4010,10 @@ Atomic_TestClearBitVector(Atomic_uint8 *var, // IN/OUT
 #if defined __x86_64__ && defined __GNUC__
    Bool bit;
    __asm__ __volatile__(
-      "lock; btr %2, %1;"
-      "setc %0"
-      : "=qQm" (bit), "+m" (var->value)
+      "lock; btr %2, %1"
+      IF_ASM_FLAG_OUTPUT("", "\n\t" "setc %0")
+      : IF_ASM_FLAG_OUTPUT("=@ccc", "=qQm") (bit),
+        "+m" (var->value)
       : "rI" (index)
       : "cc", "memory"
    );
