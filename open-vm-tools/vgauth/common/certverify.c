@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2011-2016, 2018-2019, 2021-2022 VMware, Inc. All rights reserved.
+ * Copyright (c) 2011-2016, 2018-2019, 2021-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -912,5 +912,150 @@ CertVerify_CheckSignature(VGAuthHashAlg hash,
 done:
    EVP_MD_CTX_free(mdCtx);
 
+   return err;
+}
+
+
+/*
+ * Finds a cert with a subject (if checkSubj is set) or issuer (if
+ * checkSUbj is unset), matching 'val' in the list
+ * of certs.  Returns a match or NULL.
+ */
+
+static X509 *
+FindCert(GList *cList,
+         X509_NAME *val,
+         int checkSubj)
+{
+   GList *l;
+   X509 *c;
+   X509_NAME *v;
+
+   l = cList;
+   while (l != NULL) {
+      c = (X509 *) l->data;
+      if (checkSubj) {
+         v = X509_get_subject_name(c);
+      } else {
+         v = X509_get_issuer_name(c);
+      }
+      if (X509_NAME_cmp(val, v) == 0) {
+         return c;
+      }
+      l = l->next;
+   }
+   return NULL;
+}
+
+
+/*
+ ******************************************************************************
+ * CertVerify_CheckForUnrelatedCerts --                                  */ /**
+ *
+ * Looks over a list of certs.  If it finds that they are not all
+ * part of the same chain, returns failure.
+ *
+ * @param[in]     numCerts      The number of certs in the chain.
+ * @param[in]     pemCerts      The chain of certificates to verify.
+ *
+ * @return VGAUTH_E_OK on success, VGAUTH_E_FAIL if unrelated certs are found.
+ *
+ ******************************************************************************
+ */
+
+VGAuthError
+CertVerify_CheckForUnrelatedCerts(int numCerts,
+                                  const char **pemCerts)
+{
+   VGAuthError err = VGAUTH_E_FAIL;
+   int chainLen = 0;
+   int i;
+   X509 **certs = NULL;
+   GList *rawList = NULL;
+   X509 *baseCert;
+   X509 *curCert;
+   X509_NAME *subject;
+   X509_NAME *issuer;
+
+   /* common single cert case; nothing to do */
+   if (numCerts == 1) {
+      return VGAUTH_E_OK;
+   }
+
+   /* convert all PEM to X509 objects */
+   certs = g_malloc0(numCerts * sizeof(X509 *));
+   for (i = 0; i < numCerts; i++) {
+      certs[i] = CertStringToX509(pemCerts[i]);
+      if (NULL == certs[i]) {
+         g_warning("%s: failed to convert cert to X509\n", __FUNCTION__);
+         goto done;
+      }
+   }
+
+   /* choose the cert to start the chain.  shouldn't matter which */
+   baseCert = certs[0];
+
+   /* put the rest into a list */
+   for (i = 1; i < numCerts; i++) {
+      rawList = g_list_append(rawList, certs[i]);
+   }
+
+   /* now chase down to a leaf, looking for certs the baseCert issued */
+   subject = X509_get_subject_name(baseCert);
+   while ((curCert = FindCert(rawList, subject, 0)) != NULL) {
+      /* pull it from the list */
+      rawList = g_list_remove(rawList, curCert);
+      /* set up the next find */
+      subject = X509_get_subject_name(curCert);
+   }
+
+   /*
+    * walk up to the root cert, by finding a cert where the
+    * issuer equals the subject of the current
+    */
+   issuer = X509_get_issuer_name(baseCert);
+   while ((curCert = FindCert(rawList, issuer, 1)) != NULL) {
+      /* pull it from the list */
+      rawList = g_list_remove(rawList, curCert);
+      /* set up the next find */
+      issuer = X509_get_issuer_name(curCert);
+   }
+
+   /*
+    * At this point, anything on the list should be certs that are not part
+    * of the chain that includes the original 'baseCert'.
+    *
+    * For a valid token, the list should be empty.
+    */
+   chainLen = g_list_length(rawList);
+   if (chainLen != 0 ) {
+      GList *l;
+
+      g_warning("%s: %d unrelated certs found in list\n",
+                __FUNCTION__, chainLen);
+
+      /* debug helper */
+      l = rawList;
+      while (l != NULL) {
+         X509* c = (X509 *) l->data;
+         char *s = X509_NAME_oneline(X509_get_subject_name(c), NULL, 0);
+
+         g_debug("%s: unrelated cert subject: %s\n", __FUNCTION__, s);
+         free(s);
+         l = l->next;
+      }
+
+      goto done;
+   }
+
+   g_debug("%s: Success!  no unrelated certs found\n", __FUNCTION__);
+   err = VGAUTH_E_OK;
+
+done:
+   g_list_free(rawList);
+   for (i = 0; i < numCerts; i++) {
+      X509_free(certs[i]);
+   }
+   g_free(certs);
    return err;
 }

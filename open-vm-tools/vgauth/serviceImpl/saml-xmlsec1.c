@@ -76,6 +76,7 @@
  */
 
 static int gClockSkewAdjustment = VGAUTH_PREF_DEFAULT_CLOCK_SKEW_SECS;
+static gboolean gAllowUnrelatedCerts = FALSE;
 static xmlSchemaPtr gParsedSchemas = NULL;
 static xmlSchemaValidCtxtPtr gSchemaValidateCtx = NULL;
 
@@ -396,6 +397,10 @@ LoadPrefs(void)
                                       VGAUTH_PREF_DEFAULT_CLOCK_SKEW_SECS);
     Log("%s: Allowing %d of clock skew for SAML date validation\n",
         __FUNCTION__, gClockSkewAdjustment);
+    gAllowUnrelatedCerts = Pref_GetBool(gPrefs,
+                                        VGAUTH_PREF_ALLOW_UNRELATED_CERTS,
+                                        VGAUTH_PREF_GROUP_NAME_SERVICE,
+                                        FALSE);
 }
 
 
@@ -1722,6 +1727,15 @@ SAML_VerifyBearerTokenAndChain(const char *xmlText,
 
    if (FALSE == bRet) {
       return VGAUTH_E_AUTHENTICATION_DENIED;
+   }
+
+   if (!gAllowUnrelatedCerts) {
+      err = CertVerify_CheckForUnrelatedCerts(num, (const char **) certChain);
+      if (err != VGAUTH_E_OK) {
+         VMXLog_Log(VMXLOG_LEVEL_WARNING,
+                    "Unrelated certs found in SAML token, failing\n");
+         return VGAUTH_E_AUTHENTICATION_DENIED;
+      }
    }
 
    subj.type = SUBJECT_TYPE_NAMED;
