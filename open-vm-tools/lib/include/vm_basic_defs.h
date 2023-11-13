@@ -592,9 +592,9 @@ typedef int pid_t;
 
 #undef ARM64_ONLY
 #ifdef VM_ARM_64
-#define ARM64_ONLY(x)    x
+#define ARM64_ONLY(...)  __VA_ARGS__
 #else
-#define ARM64_ONLY(x)
+#define ARM64_ONLY(...)
 #endif
 
 #undef X86_ONLY
