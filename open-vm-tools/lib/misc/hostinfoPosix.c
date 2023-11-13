@@ -1079,7 +1079,7 @@ HostinfoSetAmazonShortName(const ShortNameSet *entry, // IN: Unused
  *
  * HostinfoSetAsianuxShortName --
  *
- *      Set short name for the Asianux distro.
+ *      Set short name for the Asianux (a.k.a. Miracle Linux) distro.
  *
  * Return value:
  *      TRUE    success
@@ -1420,6 +1420,7 @@ static const ShortNameSet shortNameArray[] = {
 { "linux-ppc",           STR_OS_LINUX_PPC,          HostinfoGenericSetShortName },
 { "mandrake",            STR_OS_MANDRAKE,           HostinfoGenericSetShortName },
 { "mandriva",            STR_OS_MANDRIVA,           HostinfoGenericSetShortName },
+{ "miracle linux",       NULL,                      HostinfoSetAsianuxShortName },
 { "mklinux",             STR_OS_MKLINUX,            HostinfoGenericSetShortName },
 { "opensuse",            STR_OS_OPENSUSE,           HostinfoGenericSetShortName },
 { "oracle",              NULL,                      HostinfoSetOracleShortName  },
