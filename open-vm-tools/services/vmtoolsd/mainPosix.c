@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2008-2020,2022 VMware, Inc. All rights reserved.
+ * Copyright (c) 2008-2020,2022-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -28,10 +28,12 @@
 #include <signal.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <glib/gstdio.h>
 #include "file.h"
 #include "guestApp.h"
 #include "hostinfo.h"
+#include "su.h"
 #include "system.h"
 #include "unicode.h"
 #include "util.h"
@@ -155,6 +157,59 @@ ToolsCoreWorkAroundLoop(ToolsServiceState *state,
 
 
 /**
+ * Tools function to set close-on-exec flg for the fd.
+ *
+ * @param[in] fd   open file descriptor.
+ *
+ * @return TRUE on success, FALSE otherwise.
+ */
+
+static gboolean
+ToolsSetCloexecFlag(int fd)
+{
+   int flags;
+
+   if (fd == -1) {
+      /* fd is not present, no need to manipulate */
+      return TRUE;
+   }
+
+   flags = fcntl(fd, F_GETFD, 0);
+   if (flags < 0) {
+      g_printerr("Couldn't get the flags set for fd %d, error %u.", fd, errno);
+      return FALSE;
+   }
+   flags |= FD_CLOEXEC;
+   if (fcntl(fd, F_SETFD, flags) < 0) {
+      g_printerr("Couldn't set close-on-exec for fd %d, error %u.", fd, errno);
+      return FALSE;
+   }
+
+   return TRUE;
+}
+
+
+/**
+ * Tools function to close the fds.
+ */
+
+static void
+ToolsCloseFds(void)
+{
+   if (gState.ctx.blockFD != -1) {
+      close(gState.ctx.blockFD);
+   }
+
+   /*
+    * uinputFD will be available only for wayland.
+    */
+   if (gState.ctx.uinputFD != -1) {
+      close(gState.ctx.uinputFD);
+   }
+}
+
+
+/**
  * Tools daemon entry function.
  *
  * @param[in] argc   Argument count.
@@ -209,6 +264,27 @@ main(int argc,
    }
    g_free(argvCopy);
    argvCopy = NULL;
+
+   /*
+    * Drops privilege to the real uid and gid of the process
+    * for the "vmusr" service.
+    */
+   if (TOOLS_IS_USER_SERVICE(&gState)) {
+      uid_t uid = getuid();
+      gid_t gid = getgid();
+
+      if ((Id_SetREUid(uid, uid) != 0) ||
+          (Id_SetREGid(gid, gid) != 0)) {
+         g_printerr("could not drop privileges: %s", strerror(errno));
+         ToolsCloseFds();
+         goto exit;
+      }
+      if (!ToolsSetCloexecFlag(gState.ctx.blockFD) ||
+          !ToolsSetCloexecFlag(gState.ctx.uinputFD)) {
+         ToolsCloseFds();
+         goto exit;
+      }
+   }
 
    if (gState.pidFile != NULL) {
       /*
