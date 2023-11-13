@@ -119,6 +119,8 @@
 #define __le64 uint64
 #endif
 
+#define VMXNET3_PMC_PSEUDO_TSC  0x10003
+
 typedef enum {
    VMXNET3_CMD_FIRST_SET = 0xCAFE0000,
    VMXNET3_CMD_ACTIVATE_DEV = VMXNET3_CMD_FIRST_SET,
@@ -163,6 +165,8 @@ typedef enum {
    VMXNET3_CMD_GET_RSS_HASH_FUNC,
    VMXNET3_CMD_GET_MAX_CAPABILITIES,
    VMXNET3_CMD_GET_DCR0_REG,
+   VMXNET3_CMD_GET_TSRING_DESC_SIZE,
+   VMXNET3_CMD_GET_DISABLED_OFFLOADS,
 } Vmxnet3_Cmd;
 
 /* Adaptive Ring Info Flags */
@@ -295,6 +299,30 @@ typedef struct Vmxnet3_RxDesc {
 } Vmxnet3_RxDesc;
 #pragma pack(pop)
 
+#pragma pack(push, 1)
+typedef struct Vmxnet3TSInfo {
+   uint64    tsData:56;
+   uint64    tsType:4;
+   uint64    tsi:1;      //bit to indicate to set ts
+   uint64    pad:3;
+   uint64    pad2;
+} Vmxnet3TSInfo;
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+typedef struct Vmxnet3_TxTSDesc {
+   Vmxnet3TSInfo   ts;
+   uint64          pad[14];
+} Vmxnet3_TxTSDesc;
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+typedef struct Vmxnet3_RxTSDesc {
+   Vmxnet3TSInfo   ts;
+   uint64          pad[14];
+} Vmxnet3_RxTSDesc;
+#pragma pack(pop)
+
 /* values of RXD.BTYPE */
 #define VMXNET3_RXD_BTYPE_HEAD   0    /* head only */
 #define VMXNET3_RXD_BTYPE_BODY   1    /* body only */
@@ -305,11 +333,12 @@ typedef struct Vmxnet3_RxDesc {
 
 #define VMXNET3_RCD_HDR_INNER_SHIFT  13
 #define VMXNET3_RCD_RSS_INNER_SHIFT  12
+#define VMXNET3_RCD_TS_SHIFT  31
 
 #pragma pack(push, 1)
 typedef struct Vmxnet3_RxCompDesc {
 #ifdef __BIG_ENDIAN_BITFIELD
-   uint32 ext2:1;
+   uint32 ext2:1;       /* Packet is timestamped */
    uint32 cnc:1;        /* Checksum Not Calculated */
    uint32 rssType:4;    /* RSS hash type used */
    uint32 rqID:10;      /* rx queue/ring ID */
@@ -327,7 +356,7 @@ typedef struct Vmxnet3_RxCompDesc {
    uint32 rqID:10;      /* rx queue/ring ID */
    uint32 rssType:4;    /* RSS hash type used */
    uint32 cnc:1;        /* Checksum Not Calculated */
-   uint32 ext2:1;
+   uint32 ext2:1;       /* Packet is timestamped */
 #endif  /* __BIG_ENDIAN_BITFIELD */
 
    __le32 rssHash;      /* RSS hash value */
@@ -477,6 +506,14 @@ typedef union Vmxnet3_GenericDesc {
 #define VMXNET3_TXDATA_DESC_SIZE_ALIGN 64
 #define VMXNET3_TXDATA_DESC_SIZE_MASK  (VMXNET3_TXDATA_DESC_SIZE_ALIGN - 1)
 
+/* Rx TS Ring buffer size must be a multiple of 64 bytes */
+#define VMXNET3_RXTS_DESC_SIZE_ALIGN 64
+#define VMXNET3_RXTS_DESC_SIZE_MASK  (VMXNET3_RXTS_DESC_SIZE_ALIGN - 1)
+
+/* Tx TS Ring buffer size must be a multiple of 64 bytes */
+#define VMXNET3_TXTS_DESC_SIZE_ALIGN 64
+#define VMXNET3_TXTS_DESC_SIZE_MASK  (VMXNET3_TXTS_DESC_SIZE_ALIGN - 1)
+
 /* Max ring size */
 #define VMXNET3_TX_RING_MAX_SIZE   4096
 #define VMXNET3_TC_RING_MAX_SIZE   4096
@@ -488,6 +525,9 @@ typedef union Vmxnet3_GenericDesc {
 #define VMXNET3_RXDATA_DESC_MAX_SIZE   2048
 #define VMXNET3_TXDATA_DESC_MIN_SIZE   128
 #define VMXNET3_TXDATA_DESC_MAX_SIZE   2048
+
+#define VMXNET3_TXTS_DESC_MAX_SIZE   256
+#define VMXNET3_RXTS_DESC_MAX_SIZE   256
 
 /* a list of reasons for queue stop */
 
@@ -601,6 +641,31 @@ typedef struct Vmxnet3_RxQueueConf {
    __le16    rxDataRingDescSize; /* size of rx data ring buffer */
    uint8     _pad2[4];
 } Vmxnet3_RxQueueConf;
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+typedef struct Vmxnet3_LatencyConf {
+   uint16 sampleRate;
+   uint16 packetSize;
+   uint32 pad;
+} Vmxnet3_LatencyConf;
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+typedef struct Vmxnet3_TxQueueTSConf {
+   __le64    txTSRingBasePA;
+   __le16    txTSRingDescSize; /* size of tx timestamp ring buffer */
+   uint16    pad[3];
+   Vmxnet3_LatencyConf latencyConf;
+} Vmxnet3_TxQueueTSConf;
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+typedef struct Vmxnet3_RxQueueTSConf {
+   __le64    rxTSRingBasePA;
+   __le16    rxTSRingDescSize; /* size of rx timestamp ring buffer */
+   uint16    pad[7];
+} Vmxnet3_RxQueueTSConf;
 #pragma pack(pop)
 
 enum vmxnet3_intr_mask_mode {
@@ -920,7 +985,8 @@ typedef struct Vmxnet3_TxQueueDesc {
    /* Driver read after a GET command */
    Vmxnet3_QueueStatus status;
    UPT1_TxStats        stats;
-   uint8               _pad[88]; /* 128 aligned */
+   Vmxnet3_TxQueueTSConf tsConf;
+   uint8               _pad[64]; /* 128 aligned */
 } Vmxnet3_TxQueueDesc;
 #pragma pack(pop)
 
@@ -931,7 +997,8 @@ typedef struct Vmxnet3_RxQueueDesc {
    /* Driver read after a GET command */
    Vmxnet3_QueueStatus status;
    UPT1_RxStats        stats;
-   uint8               _pad[88]; /* 128 aligned */
+   Vmxnet3_RxQueueTSConf tsConf;
+   uint8               _pad[64]; /* 128 aligned */
 } Vmxnet3_RxQueueDesc;
 #pragma pack(pop)
 
@@ -1144,5 +1211,9 @@ do {\
 
 /* when new capability is introduced, update VMXNET3_CAP_MAX */
 #define VMXNET3_CAP_MAX              VMXNET3_CAP_VERSION_8_MAX
+
+
+#define VMXNET3_OFFLOAD_TSO         (1 << 0)
+#define VMXNET3_OFFLOAD_LRO         (1 << 1)
 
 #endif /* _VMXNET3_DEFS_H_ */
