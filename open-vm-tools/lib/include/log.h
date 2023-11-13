@@ -355,6 +355,9 @@ Log_GetLogLevel(uint32 group);
 uint32
 Log_LookupGroupNumber(const char *groupName);
 
+Bool
+Log_ValidateGroupNumber(uint32 group);
+
 LogOutput *
 Log_NewStdioOutput(const char *appPrefix,
                    struct Dictionary *params,
