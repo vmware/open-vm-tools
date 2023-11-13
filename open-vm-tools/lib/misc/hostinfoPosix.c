@@ -1403,7 +1403,7 @@ static const ShortNameSet shortNameArray[] = {
 { "arklinux",            STR_OS_ARKLINUX,           HostinfoGenericSetShortName },
 { "asianux",             NULL,                      HostinfoSetAsianuxShortName },
 { "aurox",               STR_OS_AUROX,              HostinfoGenericSetShortName },
-{ "bigcloud",            NULL,                      HostinfoBCSetShortName },
+{ "bigcloud",            NULL,                      HostinfoBCSetShortName      },
 /* Big Cloud must come before Red Hat Entry */
 { "black cat",           STR_OS_BLACKCAT,           HostinfoGenericSetShortName },
 { "centos",              NULL,                      HostinfoSetCentosShortName  },
