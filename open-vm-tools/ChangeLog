@@ -1,3 +1,162 @@
+commit 8647f0cf7a15f1c3a06e903cb15e053871d23c36
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Nov 13 12:07:34 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit beb027f7eccea977d00ef2a91da29e19ccc0a6d8
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Nov 13 12:07:34 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit e7c2898e1a2b61948efd7bfd582a36a0e9363b3b
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Nov 13 12:07:34 2023 -0800
+
+    Guest identification: Asianux Linux is now Miracle Linux
+    
+    The Asianux distro rebranded itself as Miracle Linux. Our
+    infrastructure already knows about Asianux however the guest
+    identification that runs in tools does not. Add the necessary
+    aliasing code to the "in guest" code.
+
+commit b7775db161d414bb1311a1eb120a7f8474d59aeb
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Nov 13 12:07:34 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit e6937680a6ee85431799d956c521971113508dd2
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Nov 13 12:07:34 2023 -0800
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 34035501b125caadae9e0a9598f1e68bbe56282e
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Nov 13 12:07:34 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit f612000e31b788f3da054aae9d3f296447d00039
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Nov 13 12:07:34 2023 -0800
+
+    File descriptor vulnerability in the open-vm-tools vmware-user-suid-wrapper
+    on Linux
+    
+    Move the privilege drop logic (dropping privilege to the real uid and
+    gid of the process for the vmusr service) from suidWrapper to vmtoolsd code.
+    Now vmtoolsd is not executed with dropped privileges (started as setuid
+    program) and the dumpable attribute of the process is not reset.
+    Unprivileged users will not have access to the privileged file descriptors
+    in the vmtoolsd vmusr process.
+    Also, set the FD_CLOEXEC flag for both uinputFd and blockFd preventing
+    those file descriptors from being inherited any further from vmtoolsd.
+
+commit fd4c58055253ba80d84a17778d9f2e93d117350e
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Nov 13 12:07:34 2023 -0800
+
+    Don't accept tokens with unrelated certs
+    
+    If a SAML token has a cert that's not a part of a chain,
+    fail the token as invalid.
+
+commit 0546037841f16e8fe4148c8434e2b02cb2b0a6dd
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Nov 13 12:07:34 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit c10d8436ff4137dbd66b17d12ffe1be7e00a1f2d
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Nov 13 12:07:33 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit cdbc0b2bee9d771ab3c3312abe737cabecf4bfc8
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Nov 13 12:07:33 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit fa2b47d9a4d0f27be5a5172c5d0eb6f197fca596
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Nov 13 12:07:33 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit e9cab85bc079a3b5b0cc9f154a0aa90946314c72
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Nov 13 12:07:33 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit fdb122f3e196835e97d2828fd77580d4f7bedb1a
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Nov 13 12:07:33 2023 -0800
+
+    Suppress optional arg to backup scripts when empty string.
+    
+    Backup scripts can be called with an optional argument.
+    Don't pass the optional arg to the script if it's an empty string.
+
+commit e60562e9409f81541281c452af5f8426a1cc1df2
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Nov 13 12:07:33 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit b4b5483324bd241a1895e080489383ed59335117
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Nov 13 12:07:33 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 92cc832c4493c272cb9227a87f68a9ae0cf18fec
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Nov 13 12:07:33 2023 -0800
+
+    Checking flag 'disable_vmware_customization' in more cloud-init config files
+    
+    Currently, the deployPkg plugin checks the existence of the flag
+    'disable_vmware_customization: false' in the /etc/cloud/cloud.cfg file
+    to determine whether VMware customization is enabled on cloud-init
+    side when cloud-init is available in guest.  Instead, keep local settings,
+    such as this flag, in config files under the /etc/cloud/cloud.cfg.d directory,
+    for example: /etc/cloud/cloud.cfg.d/somefile.cfg
+    
+    This change implements the following adjustments to make sure this flag is
+    handled the same way as cloud-init does in ds-identify and Datasource:
+    
+       1. Instead of regex matching flag 'disable_vmware_customization: false',
+          check the value of flag 'disable_vmware_customization':
+          If the value is 'false', it means VMware customization is enabled.
+          If the value is 'true', it means VMware customization is disabled.
+          If the flag is not set, by default VMware customization is disabled
+          on cloud-init side.
+       2. Besides cloud-init /etc/cloud/cloud.cfg file, also check all .cfg
+          files under /etc/cloud/cloud.cfg.d directory.
+       3. The value of flag 'disable_vmware_customization' in .cfg files under
+          /etc/cloud/cloud.cfg.d directory will overwrite the one in the
+          /etc/cloud/cloud.cfg file.
+       4. The value of flag 'disable_vmware_customization' in a .cfg file listed
+          further down in alphabetical order under the /etc/cloud/cloud.cfg.d
+          directory will overwrite the value in a .cfg file listed earier.
+       5. If a cloud-init config file contains more than one instance of this
+          flag, the value of the later flag will overwrite the former one.
+    
+    Github Issue: https://github.com/vmware/open-vm-tools/issues/310
+
+commit 2cb54143f98031d5ab42c08e4fb1a6c9133b44b0
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Oct 5 15:53:07 2023 -0700
+
+    Update Changelog with the granular push of Oct. 5, 2023.
+    - plus ChangeLog update of Aug. 25, 2023.
+
 commit d0605c5ba368a3f417ad1a24fc9dc28c0de5bef7
 Author: Katy Feng <fkaty@vmware.com>
 Date:   Thu Oct 5 15:42:42 2023 -0700
