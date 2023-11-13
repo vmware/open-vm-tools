@@ -670,6 +670,12 @@ typedef int pid_t;
 #define HOSTED_ONLY(x) x
 #endif
 
+#ifdef VMX86_FDM
+#define vmx86_fdm 1
+#else
+#define vmx86_fdm 0
+#endif
+
 #ifdef VMX86_ESXIO
 #define vmx86_esxio      1
 #else
