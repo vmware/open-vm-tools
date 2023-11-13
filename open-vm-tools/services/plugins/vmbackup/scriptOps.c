@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2019, 2021 VMware, Inc. All rights reserved.
+ * Copyright (c) 2007-2019, 2021, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -157,7 +157,7 @@ VmBackupRunNextScript(VmBackupScriptOp *op)  // IN/OUT
       if (File_IsFile(scripts[index].path)) {
          char *cmd;
 
-         if (op->state->scriptArg != NULL) {
+         if (op->state->scriptArg != NULL && op->state->scriptArg[0] != '\0') {
             cmd = Str_Asprintf(NULL, "\"%s\" %s \"%s\"", scripts[index].path,
                                scriptOp, op->state->scriptArg);
          } else {
