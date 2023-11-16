@@ -394,6 +394,7 @@ extern "C" {
    GOKM("almalinux-64",                         almalinux_64Guest,       TRUE) \
    GOKM("rockylinux-64",                        rockylinux_64Guest,      TRUE) \
    GOKM("CRXPod1-64",                           crxPod1Guest,            TRUE) \
+   GOKM("CRXSys1-64",                           crxSys1Guest,            TRUE) \
    /* Netware guests */ \
    GOKM("netware4",                             netware4Guest,           TRUE) \
    GOKM("netware5",                             netware5Guest,           TRUE) \
