@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2012,2018-2021 VMware, Inc. All rights reserved.
+ * Copyright (c) 2012,2018-2021, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -522,8 +522,17 @@ main(int argc, char *argv[])
       { NULL },
    };
    GOptionContext *optCtx;
+
+/*
+ * Using WinUtil_EnableSafePathSearching() and WinUtil_VerifyExePathW() from
+ * "vmware/tools/win32util.h" rather than the ones
+ * in vgauth/common/winUtil.h, since this app is generic toolbox apps.
+ */
 #ifdef _WIN32
    WinUtil_EnableSafePathSearching(TRUE);
+#if defined(VMX86_RELEASE)
+   WinUtil_VerifyExePathW();
+#endif
 #endif
 
    /*

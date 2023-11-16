@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2008-2021 VMware, Inc. All rights reserved.
+ * Copyright (c) 2008-2021,2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -462,6 +462,9 @@ main(int argc,    // IN: length of command line arguments
    char **argv;
 
    WinUtil_EnableSafePathSearching(TRUE);
+#   if defined(VMX86_RELEASE)
+   WinUtil_VerifyExePathW();
+#   endif
 
    Unicode_InitW(argc, wargv, NULL, &argv, NULL);
 #else
