@@ -605,9 +605,9 @@ typedef int pid_t;
 
 #undef X86_ONLY
 #ifdef VM_X86_ANY
-#define X86_ONLY(x)      x
+#define X86_ONLY(...)    __VA_ARGS__
 #else
-#define X86_ONLY(x)
+#define X86_ONLY(...)
 #endif
 
 #undef DEBUG_ONLY
