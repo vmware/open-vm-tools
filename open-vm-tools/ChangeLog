@@ -1,3 +1,125 @@
+commit 7f7374c8ab89c546e4e32d3302442103c0a0ba5e
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Nov 16 09:21:20 2023 -0800
+
+    Fix double free in guestInfoServer.c.
+    
+    Double free in "GuestInfoGather(gpointer data)" for osNameFullOverride.
+
+commit db767e6d28188cbed8a13b2497877e05c5fd38ab
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Nov 16 09:21:20 2023 -0800
+
+    Drop group privileges before dropping user privileges in vmtoolsd vmusr service.
+
+commit d3bce5781e8c869fcdd398d2bb1fcceb4ef84076
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Nov 16 09:21:20 2023 -0800
+
+    Send guest detailed data to VMX even when short-name is set in tools.conf.
+
+commit 7c2e898997a5b5667ed0a932652124dc85b80560
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Nov 16 09:21:20 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 1910ed7b5ac64c98d03b14532f8af7460fa0ebe0
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Nov 16 09:21:20 2023 -0800
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit f094b993b7be5583e47a0d3f10fcbabe1db49122
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Nov 16 09:21:20 2023 -0800
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit 5d5bbbecd32cbc054b81b05a5af4bdbf62aee3a7
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Nov 16 09:21:20 2023 -0800
+
+    Change in Guest Data Producer plugin API and Guest Data Producer
+    protocol/handshake between the host and guest to support ‘no subscribers’
+    error feedback.
+    
+    The Service Discovery plugin was updated for API compatibility.
+    
+    Changes in the GDP protocol/handshake introduce versioning of the protocol.
+    The new version is “2” and introduces new attributes (‘version’ and
+    ‘requireSubs’) in the guest request header sent to the host publisher service.
+    The response from the host publisher service to the guest producer client is
+    also versioned and changes more significantly: V2 response messages have new
+    attributes (‘version’, ‘error-id’, and ‘error-text’) and have the ‘status’
+    attributes type change from string (‘ok’, ‘bad’) to Boolean (‘true’, ‘false’).
+    The ‘error-id’, when present, contains a string identifier for an error
+    type/code and ‘error-text’, when present, contains textual details for the error.
+    
+    The host publisher supports all protocol versions up to the version it provides
+    for backward and forward compatibility. The host publisher service responds with
+    the same version of protocol as the incoming request or its highest protocol
+    version when the incoming request version is higher than it supports.
+    The guest producer client supports all response versions up to the version it
+    provides for backward and forward compatibility. The guest producer client
+    always sends request to the host publisher service using the highest protocol
+    version it supports.
+
+commit c7c88a4aacd05f7d6f232c11c5537f2d43934d6b
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Nov 16 09:21:20 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 7800de416d88ba03db4f8bd818d7c99d51048bdf
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Nov 16 09:21:20 2023 -0800
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 72effb954333e49657315835c4df87fc0417ad2a
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Nov 16 09:21:20 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 14ada379295c86b9eed8d407753c88610312a6e8
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Nov 16 09:21:20 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 2683d53f2ef4e8e01c938b6ec81f87e46e187c3d
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Nov 16 09:21:20 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 8f03cddae70d27fe10b2833d53995f1dd3985f37
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Nov 16 09:21:20 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 77f6b260876aba27c497a96c833b26ec5d50578a
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Nov 16 09:21:20 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit f76fea45d2c4de6ebcc0d7f5ed40a6c24689abef
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Nov 16 09:21:20 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit f756d77a51c5e1c7d66b46e5e33774b5503e21de
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Mon Nov 13 13:14:45 2023 -0800
+
+    Update Changelog with the granular push of Nov. 13, 2023.
+    - plus ChangeLog update of Oct. 5, 2023.
+
 commit 8647f0cf7a15f1c3a06e903cb15e053871d23c36
 Author: Katy Feng <fkaty@vmware.com>
 Date:   Mon Nov 13 12:07:34 2023 -0800
