@@ -590,6 +590,12 @@ typedef int pid_t;
  * Convenience macros and definitions. Can often be used instead of #ifdef.
  */
 
+#ifdef VMK_HAS_VMM
+#define VMK_HAS_VMM_ONLY(...) __VA_ARGS__
+#else
+#define VMK_HAS_VMM_ONLY(...)
+#endif
+
 #undef ARM64_ONLY
 #ifdef VM_ARM_64
 #define ARM64_ONLY(...)  __VA_ARGS__
