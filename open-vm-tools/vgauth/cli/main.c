@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 2011-2020, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -41,6 +41,9 @@
 #define VMW_TEXT_DOMAIN "VGAuthCli"
 #include "i18n.h"
 #include "prefs.h"
+#ifdef _WIN32
+#   include "winUtil.h"
+#endif
 
 static gchar *appName;
 
@@ -939,6 +942,13 @@ wmain(int argc,
    int retval = -1;
    int i;
    char **argvUtf8 = g_malloc0((argc + 1) * sizeof (char*));
+
+#ifdef _WIN32
+   WinUtil_EnableSafePathSearching();
+#if defined(VMX86_RELEASE)
+   WinUtil_VerifyExePathW();
+#endif
+#endif
 
    for (i = 0; i < argc; ++i) {
       CHK_UTF16_TO_UTF8(argvUtf8[i], argv[i], goto end);

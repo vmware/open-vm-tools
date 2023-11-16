@@ -590,7 +590,17 @@
 
 
 /** Where to find Tools data in the Win32 registry. */
-#define CONF_VMWARE_TOOLS_REGKEY    "Software\\VMware, Inc.\\VMware Tools"
+#if defined(_WIN32)
+#   ifndef WSTR
+#      define WSTR_(X) L##X
+#      define WSTR(X) WSTR_(X)
+#   endif
+#   define CONF_VMWARE_TOOLS_REGKEY  "Software\\VMware, Inc.\\VMware Tools"
+#   define CONF_VMWARE_TOOLS_INSTPATH_KEY "InstallPath"
+
+#   define CONF_VMWARE_TOOLS_REGKEY_W WSTR(CONF_VMWARE_TOOLS_REGKEY)
+#   define CONF_VMWARE_TOOLS_INSTPATH_KEY_W WSTR(CONF_VMWARE_TOOLS_INSTPATH_KEY)
+#endif
 
 /* Wait 5 seconds between polls to see if the conf file has changed */
 #define CONF_POLL_TIME     5
