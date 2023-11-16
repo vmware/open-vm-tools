@@ -605,9 +605,21 @@ typedef int pid_t;
 
 #undef X86_ONLY
 #ifdef VM_X86_ANY
-#define X86_ONLY(...)    __VA_ARGS__
+# ifdef _MSC_VER
+/*
+ * Old MSVC versions (such as MSVC 14.29.30133, used to build Workstation's
+ * offset checker) are notorious to have non-standard __VA_ARGS__ handling.
+ */
+#  define X86_ONLY(x)      x
+# else
+#  define X86_ONLY(...)    __VA_ARGS__
+# endif
 #else
-#define X86_ONLY(...)
+# ifdef _MSC_VER
+#  define X86_ONLY(x)
+# else
+#  define X86_ONLY(...)
+# endif
 #endif
 
 #undef DEBUG_ONLY
