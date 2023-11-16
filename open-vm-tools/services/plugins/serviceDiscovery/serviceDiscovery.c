@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2020-2021,2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2020-2021,2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -105,7 +105,7 @@ static gchar* scriptInstallDir = NULL;
 #define SERVICE_DISCOVERY_POLL_INTERVAL 300000
 
 /*
- * Time shift for comparision of time read from the signal and
+ * Time shift for comparison of time read from the signal and
  * current system time in milliseconds.
  */
 #define SERVICE_DISCOVERY_WRITE_DELTA 60000
@@ -119,8 +119,16 @@ static gchar* scriptInstallDir = NULL;
  * Defines the configuration to cache data in gdp plugin
  */
 #define CONFNAME_SERVICEDISCOVERY_CACHEDATA "cache-data"
-
 #define SERVICE_DISCOVERY_CONF_DEFAULT_CACHEDATA TRUE
+
+/*
+ * Define the configuration to require at least one subscriber subscribed for
+ * the gdp message.
+ *
+ * TODO: SD maintainer to update default to TRUE when ready.
+ */
+#define CONFNAME_SERVICEDISCOVERY_REQUIRESUBS "require-subscribers"
+#define SERVICE_DISCOVERY_CONF_DEFAULT_REQUIRESUBS FALSE
 
 #define SERVICE_DISCOVERY_TOPIC_PREFIX "serviceDiscovery"
 
@@ -128,14 +136,14 @@ static gchar* scriptInstallDir = NULL;
 /*
  * Defines the configuration to identify whether is in GDP debug mode
  *
- * Tools daemon restart is required to apply this setting's cahnge
+ * Tools daemon restart is required to apply this setting's change
  */
 #define CONFNAME_SERVICEDISCOVERY_GDP_DEBUG "gdp-debug"
 
 /*
  * Defines the configuration to customize polling interval for GDP debug
  *
- * Tools daemon restart is required to apply this setting's cahnge
+ * Tools daemon restart is required to apply this setting's change
  */
 #define CONFNAME_SERVICEDISCOVERY_GDP_POLL_INTERVAL "poll-interval"
 
@@ -159,8 +167,12 @@ static Bool isGDPDebug = FALSE;
 
 /*
  * GdpError message table.
+ * From GDP_ERR_ITEM tuple:
+ *   - GdpEnum name
+ *   - error-id string id
+ *   - Default error message string
  */
-#define GDP_ERR_ITEM(a, b) b,
+#define GDP_ERR_ITEM(a, b, c) c,
 static const char * const gdpErrMsgs[] = {
 GDP_ERR_LIST
 };
@@ -317,7 +329,7 @@ SendRpcMessage(ToolsAppCtx *ctx,
  * @param[in] createTime  Data create time
  * @param[in] topic       Data topic
  * @param[in] data        Service data
- * @param[in] len         Service data len
+ * @param[in] len         Service data length
  *
  * @retval TRUE  On success.
  * @retval FALSE Failed.
@@ -334,22 +346,30 @@ SendData(ToolsAppCtx *ctx,
 {
    GdpError gdpErr;
    Bool status = FALSE;
-   Bool cacheData = VMTools_ConfigGetBoolean(ctx->config,
-                                             CONFGROUPNAME_SERVICEDISCOVERY,
-                                             CONFNAME_SERVICEDISCOVERY_CACHEDATA,
-                                             SERVICE_DISCOVERY_CONF_DEFAULT_CACHEDATA);
+   Bool cacheData = VMTools_ConfigGetBoolean(
+                       ctx->config,
+                       CONFGROUPNAME_SERVICEDISCOVERY,
+                       CONFNAME_SERVICEDISCOVERY_CACHEDATA,
+                       SERVICE_DISCOVERY_CONF_DEFAULT_CACHEDATA);
+   Bool requireSubs = VMTools_ConfigGetBoolean(
+                         ctx->config,
+                         CONFGROUPNAME_SERVICEDISCOVERY,
+                         CONFNAME_SERVICEDISCOVERY_REQUIRESUBS,
+                         SERVICE_DISCOVERY_CONF_DEFAULT_REQUIRESUBS);
 
    gdpErr = ToolsPluginSvcGdp_Publish(ctx,
                                       createTime,
                                       topic,
-                                      NULL,
-                                      NULL,
+                                      NULL, /* token (optional) */
+                                      NULL, /* category (optional) */
                                       data,
                                       len,
-                                      cacheData);
+                                      cacheData,
+                                      requireSubs);
    if (gdpErr != GDP_ERROR_SUCCESS) {
       g_info("%s: ToolsPluginSvcGdp_Publish error: %s\n",
              __FUNCTION__, gdpErrMsgs[gdpErr]);
+      /* NOTE to SD maintainer: gdpErr == GDP_ERROR_NO_SUBSCRIBERS to be handled here when ready*/
       if (gdpErr == GDP_ERROR_STOP ||
           gdpErr == GDP_ERROR_UNREACH ||
           gdpErr == GDP_ERROR_TIMEOUT) {
@@ -368,7 +388,7 @@ SendData(ToolsAppCtx *ctx,
  *
  * A wrapper of C runtime library fread() with almost same signature except
  * the item size is always 1 byte. It ensures that when the returned number
- * of bytes is less than the input buffer size in bytes, an error has occured
+ * of bytes is less than the input buffer size in bytes, an error has occurred
  * or the end of the file is encountered.
  *
  * @param [out] buf     Pointer to a block of memory with a size of at least
@@ -922,9 +942,8 @@ ServiceDiscoveryTask(ToolsAppCtx *ctx,
    if (isNDBWriteReady) {
       gint64 previousWriteTime = gLastWriteTime;
 
-
       /*
-       * We are going to write to Namespace DB, update glastWriteTime
+       * We are going to write to Namespace DB, update gLastWriteTime
        */
       gLastWriteTime = GetGuestTimeInMillis();
 
@@ -960,6 +979,7 @@ ServiceDiscoveryTask(ToolsAppCtx *ctx,
          }
       }
    }
+
    if (isGDPWriteReady && !gSkipThisTask) {
       gchar* readyData = g_strdup_printf("%"FMTSZ"u", readBytesPerCycle);
       g_debug("%s: Sending ready flag with number of read bytes :%s\n",
@@ -998,7 +1018,8 @@ ServiceDiscoveryTask(ToolsAppCtx *ctx,
  * has elapsed since the last write operation.
  *
  * @param[in] ctx           The application context.
- * @param[in] signalKey     Signal key to check the write redinness of Namespace DB or gdp.
+ * @param[in] signalKey     Signal key to check the write readiness of
+ *                          Namespace DB or gdp.
  *
  * @retval TRUE  Execute scripts and write service data to Namespace DB or gdp
  * @retval FALSE Omit this cycle wihtout any script running.
