@@ -543,7 +543,7 @@ GuestInfoGather(gpointer data)
    int maxIPv4RoutesToGather;
    int maxIPv6RoutesToGather;
    gchar *osNameOverride;
-   gchar *osNameFullOverride;
+   gchar *osNameFullOverride = NULL;
    Bool maxNicsError = FALSE;
    static uint32 logThrottleCount = 0;
    Bool sendOsNames = FALSE;
@@ -570,19 +570,15 @@ GuestInfoGather(gpointer data)
                                             CONFGROUPNAME_GUESTOSINFO,
                                             CONFNAME_GUESTOSINFO_SHORTNAME,
                                             NULL);
-
-   osNameFullOverride = VMTools_ConfigGetString(ctx->config,
-                                                CONFGROUPNAME_GUESTOSINFO,
-                                                CONFNAME_GUESTOSINFO_LONGNAME,
-                                                NULL);
-   /* If only the OS Full Name is provided, continue as normal, but emit
-    * warning. */
-   if (osNameOverride == NULL && osNameFullOverride != NULL) {
-      g_warning("Ignoring " CONFNAME_GUESTOSINFO_LONGNAME " override.\n");
-      g_warning("To use the GOS name override, "
-                CONFNAME_GUESTOSINFO_SHORTNAME " must be present in the "
-                "tools.conf file.\n");
-      g_free(osNameFullOverride);
+   /*
+    * CONFNAME_GUESTINFO_LONGNAME is ignored if CONFNAME_GUESTINFO_SHORTNAME
+    * is not provided
+    */
+   if (osNameOverride) {
+      osNameFullOverride = VMTools_ConfigGetString(ctx->config,
+                                                   CONFGROUPNAME_GUESTOSINFO,
+                                                   CONFNAME_GUESTOSINFO_LONGNAME,
+                                                   NULL);
    }
 
    /* Gather all the relevant guest information. */
