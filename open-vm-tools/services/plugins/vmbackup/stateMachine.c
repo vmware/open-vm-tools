@@ -100,7 +100,7 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
  * TRUE will allow the host to use NVMe feature in snapshot,
  * FALSE otherwise.
  */
-#define VMBACKUP_CFG_ENABLENVME_DEFAULT                  FALSE
+#define VMBACKUP_CFG_ENABLENVME_DEFAULT                  TRUE
 
 static VmBackupState *gBackupState = NULL;
 
