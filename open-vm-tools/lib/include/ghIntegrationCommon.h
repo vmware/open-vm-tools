@@ -126,6 +126,8 @@ typedef uint32 GHIGuestToHostMessageType;
 #define GHI_RDE_COMMON_GENERIC_CMD              "ghi.rde.generic"
 #define GHI_RDE_COMMON_SET_IME_ENABLED_CMD      "ghi.rde.set.ime.enabled"
 #define GHI_RDE_COMMON_SET_IME_HOST_KEYS_CMD    "ghi.rde.set.ime.host.keys"
+#define GHI_RDE_COMMON_SET_BLOCK_SENDINPUT_ENABLED_CMD \
+            "ghi.rde.set.blocksendinput.enabled"
 
 /*
  * MKS->UI messages over GHI_CHANNEL_VIEW_REMOTE_RDE_COMMON.
