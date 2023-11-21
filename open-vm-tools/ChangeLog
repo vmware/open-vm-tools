@@ -1,3 +1,46 @@
+commit e6c2e7a6426335e6b6cef87e223a687b4623ce8a
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Nov 21 12:17:25 2023 -0800
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 76b60aa06da13f2c1e42e10a3bef7a62a51fc896
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Nov 21 12:17:25 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit af68bed4751d1415b292d310e41f557d8c7ffcde
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Nov 21 12:17:25 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 4bf9de66e43222f50d1280f7181bc542b059d02f
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Nov 21 12:17:25 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 39e99567d4febf2987f22cc778c4cbefff40d307
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Nov 21 12:17:25 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 5bc44d481b88ddf14e9c46d56b7bd8f0ebff6b6d
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Nov 21 12:17:25 2023 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 7994b3261aa968f69c0fa6eabac63e4d68423bbc
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Thu Nov 16 09:23:56 2023 -0800
+
+    Update Changelog with the granular push of Nov. 16, 2023.
+    - plus ChangeLog update of Nov. 13, 2023.
+
 commit 7f7374c8ab89c546e4e32d3302442103c0a0ba5e
 Author: Katy Feng <fkaty@vmware.com>
 Date:   Thu Nov 16 09:21:20 2023 -0800
