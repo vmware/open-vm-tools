@@ -678,11 +678,20 @@ Bswap32(uint32 v) // IN
 static INLINE uint64
 Bswap64(uint64 v) // IN
 {
-#if defined(VM_ARM_64) && !defined(_MSC_VER)
+#if defined _MSC_VER
+   return _byteswap_uint64(v);
+#elif defined __GNUC__
+
+/* TODO: Return __builtin_bswap64(v) if gcc-arm64 is verified to use "rev". */
+#if defined VM_ARM_64
    __asm__("rev %0, %0" : "+r"(v));
    return v;
 #else
-   return ((uint64)Bswap((uint32)v) << 32) | Bswap((uint32)(v >> 32));
+   return __builtin_bswap64(v);
+#endif
+
+#else
+   return ((uint64)Bswap32((uint32)v) << 32) | Bswap32((uint32)(v >> 32));
 #endif
 }
 
