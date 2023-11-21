@@ -5576,7 +5576,7 @@ static void
 AsyncTCPSocketRecvCallback(void *clientData)         // IN
 {
    AsyncTCPSocket *asock = clientData;
-   int error;
+   int error = ASOCKERR_SUCCESS;
    Bool recv = TRUE;
 
    ASSERT(asock);
