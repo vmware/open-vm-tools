@@ -307,7 +307,7 @@ ESB(void)
 #define MMIO_RW_BARRIER_W()   MMIO_RW_BARRIER_RW()
 #define MMIO_RW_BARRIER_RW()  _DSB(SY)
 
-#ifndef _MSC_VER
+#ifdef __GNUC__
 
 /*
  * _GET_CURRENT_PC --
@@ -394,6 +394,8 @@ GET_CURRENT_PC(void)
 #define MSR_IMMED(name, val)                                                  \
    asm volatile("msr " XSTR(name) ", %0" :: "i" (val) : "memory")
 
+#endif // ifdef __GNUC__
+
 
 /*
  *----------------------------------------------------------------------
@@ -413,7 +415,13 @@ MMIORead32(const volatile void *addr)
 {
    uint32 res;
 
+#if defined __GNUC__
    asm volatile ("ldr %w0, [%1]" : "=r" (res) : "r" (addr));
+#elif defined _MSC_VER
+   res = __iso_volatile_load32((const volatile __int32 *)addr);
+#else
+#error No compiler defined for MMIORead32
+#endif
    return res;
 }
 
@@ -436,7 +444,13 @@ MMIORead64(const volatile void *addr)
 {
    uint64 res;
 
+#if defined __GNUC__
    asm volatile ("ldr %x0, [%1]" : "=r" (res) : "r" (addr));
+#elif defined _MSC_VER
+   res = __iso_volatile_load64((const volatile __int64 *)addr);
+#else
+#error No compiler defined for MMIORead64
+#endif
    return res;
 }
 
@@ -455,7 +469,13 @@ static INLINE void
 MMIOWrite32(volatile void *addr, // OUT
             uint32 val)
 {
+#if defined __GNUC__
    asm volatile ("str %w0, [%1]" : : "r" (val), "r" (addr) : "memory");
+#elif defined _MSC_VER
+   __iso_volatile_store32((volatile __int32 *)addr, val);
+#else
+#error No compiler defined for MMIOWrite32
+#endif
 }
 
 
@@ -473,7 +493,13 @@ static INLINE void
 MMIOWrite64(volatile void *addr, // OUT
             uint64 val)
 {
+#if defined __GNUC__
    asm volatile ("str %x0, [%1]" : : "r" (val), "r" (addr) : "memory");
+#elif defined _MSC_VER
+   __iso_volatile_store64((volatile __int64 *)addr, val);
+#else
+#error No compiler defined for MMIOWrite64
+#endif
 }
 
 
@@ -495,7 +521,13 @@ MMIORead16(const volatile void *addr)
 {
    uint16 res;
 
+#if defined __GNUC__
    asm volatile ("ldrh %w0, [%1]" : "=r" (res) : "r" (addr));
+#elif defined _MSC_VER
+   res = __iso_volatile_load16((const volatile __int16 *)addr);
+#else
+#error No compiler defined for MMIORead16
+#endif
    return res;
 }
 
@@ -514,7 +546,13 @@ static INLINE void
 MMIOWrite16(volatile void *addr,  // IN
             uint16 val)           // IN
 {
+#if defined __GNUC__
    asm volatile ("strh %w0, [%1]" : : "r" (val), "r" (addr) : "memory");
+#elif defined _MSC_VER
+   __iso_volatile_store16((volatile __int16 *)addr, val);
+#else
+#error No compiler defined for MMIOWrite16
+#endif
 }
 
 
@@ -536,7 +574,13 @@ MMIORead8(const volatile void *addr)
 {
    uint8 res;
 
+#if defined __GNUC__
    asm volatile ("ldrb %w0, [%1]" : "=r" (res) : "r" (addr));
+#elif defined _MSC_VER
+   res = __iso_volatile_load8((const volatile __int8 *)addr);
+#else
+#error No compiler defined for MMIORead8
+#endif
    return res;
 }
 
@@ -555,9 +599,17 @@ static INLINE void
 MMIOWrite8(volatile void *addr, // IN
            uint8 val)           // IN
 {
+#if defined __GNUC__
    asm volatile ("strb %w0, [%1]" : : "r" (val), "r" (addr) : "memory");
+#elif defined _MSC_VER
+   __iso_volatile_store8((volatile __int8 *)addr, val);
+#else
+#error No compiler defined for MMIOWrite8
+#endif
 }
 
+
+#ifdef __GNUC__
 
 /*
  *----------------------------------------------------------------------
@@ -872,7 +924,7 @@ DCacheClean(VA va, uint64 len)
    _DSB(SY);
 }
 
-#endif // ifndef _MSC_VER
+#endif // ifdef __GNUC__
 
 #if defined _MSC_VER
 /* Until we implement Mul64x6464() with Windows intrinsics... */
