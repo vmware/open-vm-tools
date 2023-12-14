@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -58,7 +58,7 @@
 /*
  * vm_basic_defs.h --
  *
- *	Standard macros for VMware source code.
+ *      Standard macros for VMware source code.
  */
 
 #ifndef _VM_BASIC_DEFS_H_
@@ -75,21 +75,16 @@
 #include "includeCheck.h"
 #include "vm_basic_types.h" // For INLINE.
 
-/* Checks for FreeBSD, filtering out VMKERNEL. */
-#if !defined(VMKERNEL) && defined(__FreeBSD__)
-#define __IS_FREEBSD__ 1
-#else
-#define __IS_FREEBSD__ 0
-#endif
-#define __IS_FREEBSD_VER__(ver) (__IS_FREEBSD__ && __FreeBSD_version >= (ver))
-
 /*
  * <stddef.h> provides definitions for:
  *   NULL, offsetof
  * References:
  *   C90 7.17, C99 7.19, C11 7.19
  */
-#if !defined(VMKERNEL)
+/* Use linux/stddef.h when building Linux kernel modules. */
+#ifdef KBUILD_MODNAME
+#  include <linux/stddef.h>
+#elif !defined(VMKERNEL)
 #  include <stddef.h>
 #else
    /*
@@ -164,14 +159,27 @@ Max(int a, int b)
 #define VMW_CLAMP(x, min, max) \
    ((x) < (min) ? (min) : ((x) > (max) ? (max) : (x)))
 
-#define ROUNDUP(x,y)		(((x) + (y) - 1) / (y) * (y))
-#define ROUNDDOWN(x,y)		((x) / (y) * (y))
-#define ROUNDUPBITS(x, bits)	(((uintptr_t) (x) + MASK(bits)) & ~MASK(bits))
-#define ROUNDDOWNBITS(x, bits)	((uintptr_t) (x) & ~MASK(bits))
-#define CEILING(x, y)		(((x) + (y) - 1) / (y))
+#define ROUNDUP(x,y)           (((x) + (y) - 1) / (y) * (y))
+#define ROUNDDOWN(x,y)         ((x) / (y) * (y))
+#define ROUNDUPBITS(x, bits)   (((uintptr_t)(x) + MASK(bits)) & ~MASK(bits))
+#define ROUNDDOWNBITS(x, bits) ((uintptr_t)(x) & ~MASK(bits))
+#define CEILING(x, y)          (((x) + (y) - 1) / (y))
+
+#if defined VMKERNEL || defined VMKBOOT
+# define CEIL(_a, _b)        CEILING(_a, _b)
+# define FLOOR(_a, _b)       ((_a)/(_b))
+# define ALIGN_DOWN(_a, _b)  ROUNDDOWN(_a, _b)
+# define ALIGN_UP(_a, _b)    ROUNDUP(_a, _b)
+# define IS_ALIGNED(_a, _b)  (ALIGN_DOWN(_a, _b) == _a)
+#endif
+
 #if defined __APPLE__
 #include <machine/param.h>
 #undef MASK
+#include <mach/machine/vm_param.h>
+#undef PAGE_SHIFT
+#undef PAGE_SIZE
+#undef PAGE_MASK
 #endif
 
 /*
@@ -180,8 +188,9 @@ Max(int a, int b)
  * argument. The range 0..31 is safe.
  */
 
-#define MASK(n)		((1 << (n)) - 1)	    /* make an n-bit mask */
-#define MASK64(n)	((CONST64U(1) << (n)) - 1)  /* make an n-bit mask */
+#define MASK(n)      ((1 << (n)) - 1)            /* make an n-bit mask */
+#define MASK64(n)    ((CONST64U(1) << (n)) - 1)  /* make an n-bit mask */
+#define MASK128(n)   (((uint128)1 << (n)) - 1)   /* make an n-bit mask */
 /*
  * MASKRANGE64 makes a bit vector starting at bit lo and ending at bit hi.  No
  * checking for lo < hi is done.
@@ -210,7 +219,9 @@ Max(int a, int b)
 #define XCONC(x, y)             CONC(x, y)
 #define XXCONC(x, y)            XCONC(x, y)
 #define MAKESTR(x)              #x
+#ifndef XSTR
 #define XSTR(x)                 MAKESTR(x)
+#endif
 
 
 /*
@@ -227,33 +238,55 @@ Max(int a, int b)
  * Page operations
  *
  * It has been suggested that these definitions belong elsewhere
- * (like x86types.h).  However, I deem them common enough
+ * (like cpu_types.h).  However, I deem them common enough
  * (since even regular user-level programs may want to do
  * page-based memory manipulation) to be here.
  * -- edward
  */
 
+#define PAGE_SHIFT_4KB   12
+#define PAGE_SHIFT_16KB  14
+#define PAGE_SHIFT_64KB  16
+
 #ifndef PAGE_SHIFT // {
 #if defined __x86_64__ || defined __i386__
-   #define PAGE_SHIFT    12
+   #define PAGE_SHIFT    PAGE_SHIFT_4KB
 #elif defined __APPLE__
-   #define PAGE_SHIFT    12
+   #if defined VM_ARM_ANY
+      #define PAGE_SHIFT    PAGE_SHIFT_16KB
+   #else
+      #define PAGE_SHIFT    PAGE_SHIFT_4KB
+   #endif
 #elif defined VM_ARM_64
-   #define PAGE_SHIFT    12
+   #define PAGE_SHIFT    PAGE_SHIFT_4KB
 #elif defined __arm__
-   #define PAGE_SHIFT    12
+   #define PAGE_SHIFT    PAGE_SHIFT_4KB
+#elif defined __wasm__
+   #define PAGE_SHIFT    PAGE_SHIFT_4KB
 #else
    #error
 #endif
 #endif // }
 
+#define PAGE_SIZE_4KB    (1 << PAGE_SHIFT_4KB)
+#define PAGE_SIZE_16KB   (1 << PAGE_SHIFT_16KB)
+#define PAGE_SIZE_64KB   (1 << PAGE_SHIFT_64KB)
+
 #ifndef PAGE_SIZE
 #define PAGE_SIZE     (1 << PAGE_SHIFT)
 #endif
 
+#define PAGE_MASK_4KB    (PAGE_SIZE_4KB - 1)
+#define PAGE_MASK_16KB   (PAGE_SIZE_16KB - 1)
+#define PAGE_MASK_64KB   (PAGE_SIZE_64KB - 1)
+
 #ifndef PAGE_MASK
 #define PAGE_MASK     (PAGE_SIZE - 1)
 #endif
+
+#define PAGE_OFFSET_4KB(_addr)   ((uintptr_t)(_addr) & (PAGE_SIZE_4KB - 1))
+#define PAGE_OFFSET_16KB(_addr)  ((uintptr_t)(_addr) & (PAGE_SIZE_16KB - 1))
+#define PAGE_OFFSET_64KB(_addr)  ((uintptr_t)(_addr) & (PAGE_SIZE_64KB - 1))
 
 #ifndef PAGE_OFFSET
 #define PAGE_OFFSET(_addr)  ((uintptr_t)(_addr) & (PAGE_SIZE - 1))
@@ -263,21 +296,26 @@ Max(int a, int b)
 #define PAGE_NUMBER(_addr)  ((uintptr_t)(_addr) / PAGE_SIZE)
 #endif
 
+#ifndef BYTES_2_PAGES
+#define BYTES_2_PAGES(_nbytes)  ((_nbytes) >> PAGE_SHIFT)
+#endif
+
+#ifndef BYTES_2_PAGES_4KB
+#define BYTES_2_PAGES_4KB(_nbytes)  ((_nbytes) >> PAGE_SHIFT_4KB)
+#endif
+
+#ifndef PAGES_2_BYTES
+#define PAGES_2_BYTES(_npages)  (((uint64)(_npages)) << PAGE_SHIFT)
+#endif
+
 #ifndef VM_PAGE_BASE
 #define VM_PAGE_BASE(_addr)  ((_addr) & ~(PAGE_SIZE - 1))
 #endif
 
 #ifndef VM_PAGES_SPANNED
 #define VM_PAGES_SPANNED(_addr, _size) \
-   ((((_addr) & (PAGE_SIZE - 1)) + (_size) + (PAGE_SIZE - 1)) >> PAGE_SHIFT)
-#endif
-
-#ifndef BYTES_2_PAGES
-#define BYTES_2_PAGES(_nbytes)  ((_nbytes) >> PAGE_SHIFT)
-#endif
-
-#ifndef PAGES_2_BYTES
-#define PAGES_2_BYTES(_npages)  (((uint64)(_npages)) << PAGE_SHIFT)
+   (BYTES_2_PAGES(PAGE_OFFSET(_addr) + PAGE_OFFSET(_size) + (PAGE_SIZE - 1)) + \
+    BYTES_2_PAGES(_size))
 #endif
 
 #ifndef KBYTES_SHIFT
@@ -288,9 +326,23 @@ Max(int a, int b)
 #define MBYTES_SHIFT 20
 #endif
 
+#ifndef GBYTES_SHIFT
+#define GBYTES_SHIFT 30
+#endif
+
+#ifndef KBYTES_2_PAGES
+#define KBYTES_2_PAGES(_nkbytes) \
+   ((uint64)(_nkbytes) >> (PAGE_SHIFT - KBYTES_SHIFT))
+#endif
+
 #ifndef MBYTES_2_PAGES
-#define MBYTES_2_PAGES(_nbytes) \
-   ((uint64)(_nbytes) << (MBYTES_SHIFT - PAGE_SHIFT))
+#define MBYTES_2_PAGES(_nMbytes) \
+   ((uint64)(_nMbytes) << (MBYTES_SHIFT - PAGE_SHIFT))
+#endif
+
+#ifndef MBYTES_2_PAGES_4KB
+#define MBYTES_2_PAGES_4KB(_nMbytes) \
+   ((uint64)(_nMbytes) << (MBYTES_SHIFT - PAGE_SHIFT_4KB))
 #endif
 
 #ifndef PAGES_2_KBYTES
@@ -312,11 +364,12 @@ Max(int a, int b)
 #endif
 
 #ifndef GBYTES_2_PAGES
-#define GBYTES_2_PAGES(_nbytes) ((uint64)(_nbytes) << (30 - PAGE_SHIFT))
+#define GBYTES_2_PAGES(_nGbytes) \
+   ((uint64)(_nGbytes) << (GBYTES_SHIFT - PAGE_SHIFT))
 #endif
 
 #ifndef PAGES_2_GBYTES
-#define PAGES_2_GBYTES(_npages) ((_npages) >> (30 - PAGE_SHIFT))
+#define PAGES_2_GBYTES(_npages) ((_npages) >> (GBYTES_SHIFT - PAGE_SHIFT))
 #endif
 
 #ifndef BYTES_2_KBYTES
@@ -324,7 +377,7 @@ Max(int a, int b)
 #endif
 
 #ifndef KBYTES_2_BYTES
-#define KBYTES_2_BYTES(_nbytes) ((uint64)(_nbytes) << KBYTES_SHIFT)
+#define KBYTES_2_BYTES(_nkbytes) ((uint64)(_nkbytes) << KBYTES_SHIFT)
 #endif
 
 #ifndef BYTES_2_MBYTES
@@ -332,15 +385,15 @@ Max(int a, int b)
 #endif
 
 #ifndef MBYTES_2_BYTES
-#define MBYTES_2_BYTES(_nbytes) ((uint64)(_nbytes) << MBYTES_SHIFT)
+#define MBYTES_2_BYTES(_nMbytes) ((uint64)(_nMbytes) << MBYTES_SHIFT)
 #endif
 
 #ifndef BYTES_2_GBYTES
-#define BYTES_2_GBYTES(_nbytes) ((_nbytes) >> 30)
+#define BYTES_2_GBYTES(_nbytes) ((_nbytes) >> GBYTES_SHIFT)
 #endif
 
 #ifndef GBYTES_2_BYTES
-#define GBYTES_2_BYTES(_nbytes) ((uint64)(_nbytes) << 30)
+#define GBYTES_2_BYTES(_nGbytes) ((uint64)(_nGbytes) << GBYTES_SHIFT)
 #endif
 
 #ifndef VM_PAE_LARGE_PAGE_SHIFT
@@ -412,9 +465,9 @@ Max(int a, int b)
  */
 
 #define DEPOSIT_BITS(_src,_pos,_len,_target) { \
-	unsigned mask = ((1 << _len) - 1); \
-	unsigned shiftedmask = ((1 << _len) - 1) << _pos; \
-	_target = (_target & ~shiftedmask) | ((_src & mask) << _pos); \
+   unsigned mask = ((1 << _len) - 1); \
+   unsigned shiftedmask = ((1 << _len) - 1) << _pos; \
+   _target = (_target & ~shiftedmask) | ((_src & mask) << _pos); \
 }
 
 
@@ -435,34 +488,14 @@ void *_ReturnAddress(void);
 
 
 #ifdef __GNUC__
-#ifndef sun
-
-/*
- * A bug in __builtin_frame_address was discovered in gcc 4.1.1, and
- * fixed in 4.2.0; assume it originated in 4.0. PR 147638 and 554369.
- */
-#if  !(__GNUC__ == 4 && (__GNUC_MINOR__ == 0 || __GNUC_MINOR__ == 1))
 #define GetFrameAddr() __builtin_frame_address(0)
-#endif
-
-#endif // sun
 #endif // __GNUC__
 
-/*
- * Data prefetch was added in gcc 3.1.1
- * http://www.gnu.org/software/gcc/gcc-3.1/changes.html
- */
 #ifdef __GNUC__
-#  if ((__GNUC__ > 3) || (__GNUC__ == 3 && __GNUC_MINOR__ > 1) || \
-       (__GNUC__ == 3 && __GNUC_MINOR__ == 1 && __GNUC_PATCHLEVEL__ >= 1))
-#     define PREFETCH_R(var) __builtin_prefetch((var), 0 /* read */, \
-                                                3 /* high temporal locality */)
-#     define PREFETCH_W(var) __builtin_prefetch((var), 1 /* write */, \
-                                                3 /* high temporal locality */)
-#  else
-#     define PREFETCH_R(var) ((void)(var))
-#     define PREFETCH_W(var) ((void)(var))
-#  endif
+#  define PREFETCH_R(var) __builtin_prefetch((var), 0 /* read */, \
+                                             3 /* high temporal locality */)
+#  define PREFETCH_W(var) __builtin_prefetch((var), 1 /* write */, \
+                                             3 /* high temporal locality */)
 #endif /* __GNUC__ */
 
 
@@ -525,14 +558,6 @@ typedef int pid_t;
 // The macOS kernel SDK defines va_copy in stdarg.h.
 #include <stdarg.h>
 
-#elif defined(__GNUC__) && (__GNUC__ < 3)
-
-/*
- * Old versions of gcc recognize __va_copy, but not va_copy.
- */
-
-#define va_copy(dest, src) __va_copy(dest, src)
-
 #endif // _WIN32
 
 #endif // va_copy
@@ -588,6 +613,13 @@ typedef int pid_t;
 #define DEBUG_ONLY(...)
 #endif
 
+#if defined(VMX86_DEBUG) || defined(VMX86_ENABLE_SPLOCK_STATS)
+#define LOCK_STATS_ON
+#define LOCK_STATS_ONLY(...)  __VA_ARGS__
+#else
+#define LOCK_STATS_ONLY(...)
+#endif
+
 #ifdef VMX86_STATS
 #define vmx86_stats   1
 #define STATS_ONLY(x) x
@@ -638,6 +670,12 @@ typedef int pid_t;
 #define HOSTED_ONLY(x) x
 #endif
 
+#ifdef VMX86_ESXIO
+#define vmx86_esxio      1
+#else
+#define vmx86_esxio      0
+#endif
+
 #ifdef VMKERNEL
 #define vmkernel 1
 #define VMKERNEL_ONLY(x) x
@@ -645,6 +683,19 @@ typedef int pid_t;
 #define vmkernel 0
 #define VMKERNEL_ONLY(x)
 #endif
+
+#ifdef COMP_TEST
+#define vmx86_test   1
+#else
+#define vmx86_test   0
+#endif
+
+/*
+ * In MSVC, _WIN32 is defined as 1 when the compilation target is
+ * 32-bit ARM, 64-bit ARM, x86, or x64 (which implies _WIN64). This
+ * is documented in C/C++ preprocessor section of the Microsoft C++,
+ * C, and Assembler documentation (https://via.vmw.com/EchK).
+ */
 
 #ifdef _WIN32
 #define WIN32_ONLY(x) x
@@ -692,11 +743,41 @@ typedef int pid_t;
 #define VMM_ONLY(x)
 #endif
 
+#ifdef VMX86_VMX
+#define vmx86_vmx 1
+#else
+#define vmx86_vmx 0
+#endif
+
+#ifdef VMM_BOOTSTRAP
+#define vmm_bootstrap 1
+#else
+#define vmm_bootstrap 0
+#endif
+
 #ifdef ULM
 #define vmx86_ulm 1
 #define ULM_ONLY(x) x
+#ifdef ULM_MAC
+#define ulm_mac 1
+#else
+#define ulm_mac 0
+#endif
+#ifdef ULM_WIN
+#define ulm_win 1
+#else
+#define ulm_win 0
+#endif
+#ifdef ULM_ESX
+#define ulm_esx 1
+#else
+#define ulm_esx 0
+#endif
 #else
 #define vmx86_ulm 0
+#define ulm_mac 0
+#define ulm_win 0
+#define ulm_esx 0
 #define ULM_ONLY(x)
 #endif
 
@@ -750,6 +831,7 @@ typedef int pid_t;
                                                      lfMessageFont)
 
 /* This is not intended to be thread-safe. */
+#ifndef KBUILD_MODNAME
 #define DO_ONCE(code)                                                   \
    do {                                                                 \
       static MONITOR_ONLY(PERVCPU) Bool _doOnceDone = FALSE;            \
@@ -758,12 +840,13 @@ typedef int pid_t;
          code;                                                          \
       }                                                                 \
    } while (0)
+#endif
 
 /*
  * Bug 827422 and 838523.
  */
 
-#if defined __GNUC__ && __GNUC__ >= 4
+#if defined __GNUC__
 #define VISIBILITY_HIDDEN __attribute__((visibility("hidden")))
 #else
 #define VISIBILITY_HIDDEN /* nothing */
@@ -819,6 +902,11 @@ typedef int pid_t;
  * wasted.  On x86, GCC 6.3.0 behaves sub-optimally when variables are declared
  * on the stack using the aligned attribute, so this pattern is preferred.
  * See PRs 1795155, 1819963.
+ *
+ * GCC9 has been shown to exhibit aliasing issues when using
+ * '-fstrict-aliasing=2' that did not happen under GCC6 with this
+ * construct.
+ * See @9503890, PR 2906490.
  */
 #define WITH_PTR_TO_ALIGNED_VAR(_type, _align, _var)                     \
    do {                                                                  \
@@ -853,6 +941,19 @@ typedef int pid_t;
 #define VMW_CLANG_ANALYZER_NORETURN() Panic("Disable Clang static analyzer")
 #else
 #define VMW_CLANG_ANALYZER_NORETURN() ((void)0)
+#endif
+
+/* VMW_FALLTHROUGH
+ *
+ *   Instructs GCC 9 and above to not warn when a case label of a
+ *   'switch' statement falls through to the next label.
+ *
+ *   If not GCC 9 or above, expands to nothing.
+ */
+#if __GNUC__ >= 9
+#define VMW_FALLTHROUGH() __attribute__((fallthrough))
+#else
+#define VMW_FALLTHROUGH()
 #endif
 
 #endif // ifndef _VM_BASIC_DEFS_H_

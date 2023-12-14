@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2019,2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -21,6 +21,26 @@
  *       stored in 'buildNumber.h' is needed.
  */
 
+/*
+ *
+ * This file contain some of the code wrapped around marker tag like
+ * MARKER_XXX_START / MARKER_XXX_END
+ *
+ * code section wrapped around these marker tag are getting processed in
+ * bora/scons/modules/buildnum.sc to generate xx_fast.h header. these generated
+ * header which is free from MACROS e.g. BUILD_NUMBER
+ *
+ * These MACROS are changing with every build and causing the file content
+ * change. Eventually with every build the hash code of these headers and
+ * source file including these headers changed. Due to this reason file are not
+ * cacheable by build (both SCons/Bazel) and end up building them again and
+ * again in place of downloading their build artifact from cache.
+ *
+ * to avoid multiple copy of similar header, xx_fast.h code is generated from
+ * this file using these marker tag.
+ *
+ */
+
 #ifndef VM_VERSION_H
 #define VM_VERSION_H
 
@@ -33,9 +53,11 @@
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 #include "vm_product.h"
+//MARKER_FAST_REMOVE_START
 #if defined(VMX86_TOOLS) || defined(VMX86_SYSIMAGE)
 #include "vm_tools_version.h"
 #endif
+//MARKER_FAST_REMOVE_END
 #include "vm_vmx_type.h"
 #include "vm_compilation_options.h"
 
@@ -44,16 +66,29 @@
  * the build number defined by the BUILD_NUMBER and PRODUCT_BUILD_NUMBER
  * variables at the beginning of every build.
  */
+//MARKER_FAST_REMOVE_START
 #include "buildNumber.h"
-
+//MARKER_FAST_REMOVE_END
+//MARKER_FAST_UNCOMMENT_START
+//#include "buildNumberFast.h"
+//MARKER_FAST_UNCOMMENT_END
 /*
  * This is used so we can identify the build and release type
  * in any generated core files.
  */
+//MARKER_FAST_UNCOMMENT_START
+//#define BUILD_VERSION gBuildVersion
+//MARKER_FAST_UNCOMMENT_END
 
+//MARKER_FAST_REMOVE_START
 #define BUILD_VERSION COMPILATION_OPTION BUILD_NUMBER
+//MARKER_FAST_REMOVE_END
 
-
+//MARKER_FAST_REMOVE_START
 #include "vm_product_versions.h"
+//MARKER_FAST_REMOVE_END
+//MARKER_FAST_UNCOMMENT_START
+//#include "vm_product_versions_fast.h"
+//MARKER_FAST_UNCOMMENT_END
 
 #endif /* VM_VERSION_H */

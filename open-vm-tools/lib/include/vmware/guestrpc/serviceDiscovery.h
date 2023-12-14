@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 2020-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -38,6 +38,7 @@
  */
 #define SERVICE_DISCOVERY_KEY_READY "ready"
 #define SERVICE_DISCOVERY_KEY_SIGNAL "signal"
+#define SERVICE_DISCOVERY_KEY_GDP_SIGNAL "gdp-signal"
 
 /*
  * keys for types of service data collected by plugin.
@@ -54,5 +55,6 @@
 #define SERVICE_DISCOVERY_WIN_KEY_RELATIONSHIP "pid-to-ppid"
 #define SERVICE_DISCOVERY_WIN_KEY_NET "net"
 #define SERVICE_DISCOVERY_WIN_KEY_IIS_PORTS "iis-ports-info"
+#define SERVICE_DISCOVERY_WIN_KEY_SHAREPOINT_PORTS "sharepoint-ports-info"
 
 #endif /* _SERVICEDISCOVERY_H_ */

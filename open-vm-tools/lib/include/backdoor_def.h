@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -171,12 +171,13 @@ extern "C" {
 //#define BDOOR_CMD_FAS_GET_NVDIMM_FMT_CODE  11 /* Not in use. Never shipped. */
 #  define BDOOR_CMD_FAS_SRP_ENABLED          12
 #  define BDOOR_CMD_FAS_EXIT_BOOT_SERVICES   13
+#  define BDOOR_CMD_FAS_GET_API_ENABLES      14
 #define   BDOOR_CMD_SENDPSHAREHINTS          66 /* Not in use. Deprecated. */
 #define   BDOOR_CMD_ENABLE_USB_MOUSE         67
 #define   BDOOR_CMD_GET_VCPU_INFO            68
-#  define BDOOR_CMD_VCPU_SLC64                0
+//#define BDOOR_CMD_VCPU_SLC64                0 /* BT-is-dead. Deprecated. */
 #  define BDOOR_CMD_VCPU_SYNC_VTSCS           1
-#  define BDOOR_CMD_VCPU_HV_REPLAY_OK         2
+//#define BDOOR_CMD_VCPU_HV_REPLAY_OK         2 /* Replay-is-dead. Deprecated.*/
 #  define BDOOR_CMD_VCPU_LEGACY_X2APIC_OK     3
 #  define BDOOR_CMD_VCPU_MMIO_HONORS_PAT      4
 #  define BDOOR_CMD_VCPU_RESERVED            31
@@ -187,7 +188,7 @@ extern "C" {
 #  define BDOOR_CMD_FE_EXCEPTION              1
 #  define BDOOR_CMD_FE_SGX                    2
 #  define BDOOR_CMD_FE_PCI_MMIO               3
-#  define BDOOR_CMD_FE_GMM                    4
+//#define BDOOR_CMD_FE_GMM                    4 /* GMM is deprecated. */
 #define   BDOOR_CMD_VMK_INFO                 72
 #define   BDOOR_CMD_EFI_BOOT_CONFIG          73 /* CPL 0 only. */
 #  define BDOOR_CMD_EBC_LEGACYBOOT_ENABLED        0
@@ -214,29 +215,7 @@ extern "C" {
 #  define BDOOR_CMD_MKSGS_ADD_PPN             1
 #  define BDOOR_CMD_MKSGS_REMOVE_PPN          2
 #define   BDOOR_CMD_ABSPOINTER_RESTRICT      86
-#define   BDOOR_CMD_GUEST_INTEGRITY          87
-#  define BDOOR_CMD_GI_GET_CAPABILITIES       0
-#  define BDOOR_CMD_GI_SETUP_ENTRY_POINT      1
-#  define BDOOR_CMD_GI_SETUP_ALERTS           2
-#  define BDOOR_CMD_GI_SETUP_STORE            3
-#  define BDOOR_CMD_GI_SETUP_EVENT_RING       4
-#  define BDOOR_CMD_GI_SETUP_NON_FAULT_READ   5
-#  define BDOOR_CMD_GI_ENTER_INTEGRITY_MODE   6
-#  define BDOOR_CMD_GI_EXIT_INTEGRITY_MODE    7
-#  define BDOOR_CMD_GI_RESET_INTEGRITY_MODE   8
-#  define BDOOR_CMD_GI_GET_EVENT_RING_STATE   9
-#  define BDOOR_CMD_GI_CONSUME_RING_EVENTS   10
-#  define BDOOR_CMD_GI_WATCH_MAPPINGS_START  11
-#  define BDOOR_CMD_GI_WATCH_MAPPINGS_STOP   12
-#  define BDOOR_CMD_GI_CHECK_MAPPINGS_NOW    13
-#  define BDOOR_CMD_GI_WATCH_PPNS_START      14
-#  define BDOOR_CMD_GI_WATCH_PPNS_STOP       15
-#  define BDOOR_CMD_GI_SEND_MSG              16
-#  define BDOOR_CMD_GI_TEST_READ_MOB        128
-#  define BDOOR_CMD_GI_TEST_ADD_EVENT       129
-#  define BDOOR_CMD_GI_TEST_MAPPING         130
-#  define BDOOR_CMD_GI_TEST_PPN             131
-#  define BDOOR_CMD_GI_MAX                  131
+//#define BDOOR_CMD_GUEST_INTEGRITY          87 /* GI is deprecated. */
 #define   BDOOR_CMD_MKSTEST                  88 /* Devel only. */
 #  define BDOOR_CMD_MKSTEST_STATS_START       0
 #  define BDOOR_CMD_MKSTEST_STATS_STOP        1
@@ -256,28 +235,25 @@ extern "C" {
 #  define BDOOR_CMD_FUZZER_INIT               0
 #  define BDOOR_CMD_FUZZER_NEXT               1
 #define   BDOOR_CMD_PUTCHR12                 95
-#define   BDOOR_CMD_GMM                      96
-#  define BDOOR_CMD_GMM_GET_SIZE              0 /* Depends on firmware. */
-#  define BDOOR_CMD_GMM_MAP_MEMORY            1 /* Depends on firmware. */
-#  define BDOOR_CMD_GMM_ENTER                 2
-#  define BDOOR_CMD_GMM_ONESHOT_TIMER         3
-#  define BDOOR_CMD_GMM_WATCH_PPNS_START      4
-#  define BDOOR_CMD_GMM_WATCH_PPNS_STOP       5
-#  define BDOOR_CMD_GMM_RESYNC_RUNTIME_INFO   6
-#  define BDOOR_CMD_GMM_INVS_BRK_POINT        7
-#  define BDOOR_CMD_GMM_GET_CAPABILITY        8
+//#define BDOOR_CMD_GMM                      96 /* GMM is deprecated. */
 #define   BDOOR_CMD_PRECISIONCLOCK           97
 #  define BDOOR_CMD_PRECISIONCLOCK_GETTIME    0
+#  define BDOOR_CMD_PRECISIONCLOCK_SETTIME    1
+#  define BDOOR_CMD_PRECISIONCLOCK_ADJTIME    2
+#  define BDOOR_CMD_PRECISIONCLOCK_ADJFREQ    3
+#  define BDOOR_CMD_PRECISIONCLOCK_NUMCMDS    4
 #define   BDOOR_CMD_COREDUMP_UNSYNC          98 /* Devel only. For VMM cores */
 #define   BDOOR_CMD_APPLE_GPU_RES_SET        99
-#define   BDOOR_CMD_MAX                     100
+#define   BDOOR_CMD_GETBUILDNUM             100
+#define   BDOOR_CMD_GETENTROPY              101 /* Configurable, off by default. */
+#define   BDOOR_CMD_MAX                     102
 
 
 /*
  * IMPORTANT NOTE: When modifying the behavior of an existing backdoor command,
  * you must adhere to the semantics expected by the oldest Tools who use that
  * command. Specifically, do not alter the way in which the command modifies
- * the registers. Otherwise backwards compatibility will suffer.
+ * the registers. Otherwise backwards compatibility will be impacted.
  */
 
 /* Nesting control operations */
@@ -301,6 +277,8 @@ extern "C" {
 #define BDOOR_SECUREBOOT_STATUS_DISABLED  0xFFFFFFFFUL
 #define BDOOR_SECUREBOOT_STATUS_APPROVED  1
 #define BDOOR_SECUREBOOT_STATUS_DENIED    2
+
+#define BDOOR_FAS_API_ENABLE_FDT          0x00000001UL
 
 /* High-bandwidth backdoor port. */
 
@@ -435,24 +413,23 @@ extern "C" {
  * Several mechanisms are available:
  *
  * o From EL1
- * The vCPU executes the HVC (64-bit code) instruction with the immediate
- * X86_IO_MAGIC. This is the mechanism to favor from EL1 because it is
- * architectural.
+ *   The vCPU executes the HVC instruction with the immediate X86_IO_MAGIC.
+ *
+ *   This is the mechanism to favor from EL1 because it is architectural.
  *
  * o From EL1 and EL0
- * 64-bit code: The vCPU sets X7<63:32> to X86_IO_MAGIC and executes the
- *              MRS XZR, MDCCSR_EL0 instruction.
- * 32-bit code: To be defined...
- * This is the mechanism to favor from EL0 because it has a negligible impact
- * on vCPU performance.
+ *   The vCPU sets X7<63:32> to X86_IO_MAGIC and executes the
+ *   MRS XZR, MDCCSR_EL0 instruction.
+ *
+ *   This is the mechanism to favor from EL0 because it has a negligible impact
+ *   on vCPU performance.
  *
  * o From EL1 and EL0, only when monitor_control.hv_hypercall = "TRUE"
- * The vCPU executes the BRK (64-bit code) or BKPT (32-bit code) instruction
- * with the immediate X86_IO_MAGIC. Note that T32 code requires an 8-bit
- * immediate.
- * Pro: This mechanism cannot be intercepted by EL3 code.
- * Con: This mechanism has a significant impact on vCPU performance when
- *      running a debugger in the guest.
+ *   The vCPU executes the BRK instruction with the immediate X86_IO_MAGIC.
+ *
+ *   Pro: This mechanism cannot be intercepted by EL3 code.
+ *   Con: This mechanism has a significant impact on vCPU performance when
+ *        running a debugger in the guest.
  *
  * 4) Read from general-purpose registers specific to the x86 I/O space
  *    instruction.

@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2008-2016,2020 VMware, Inc.  All rights reserved.
+### Copyright (c) 2020, 2023 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -15,13 +15,22 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
-noinst_LTLIBRARIES = libAppUtil.la
+lib_LTLIBRARIES = libguestStoreClient.la
 
-libAppUtil_la_SOURCES =
-libAppUtil_la_SOURCES += appUtil.c
-libAppUtil_la_SOURCES += appUtilX11.c
+libguestStoreClient_la_LIBADD =
+libguestStoreClient_la_LIBADD += ../lib/err/libErr.la
+libguestStoreClient_la_LIBADD += ../lib/string/libString.la
+libguestStoreClient_la_LIBADD += ../lib/unicode/libUnicode.la
+libguestStoreClient_la_LIBADD += ../lib/misc/libMisc.la
+libguestStoreClient_la_LIBADD += -lpthread
+libguestStoreClient_la_LIBADD += -ldl
 
-AM_CFLAGS =
-AM_CFLAGS += @GTK_CPPFLAGS@
-AM_CFLAGS += @GDK_PIXBUF_XLIB2_CPPFLAGS@
+libguestStoreClient_la_SOURCES =
+libguestStoreClient_la_SOURCES += guestStoreClientLib.c
 
+libguestStoreClient_la_LDFLAGS =
+# We require GCC, so we're fine passing compiler-specific flags.
+libguestStoreClient_la_LDFLAGS += -Wl,-z,defs
+# Needed for OS's that don't link shared libraries against libc by
+#default, e.g. FreeBSD
+libguestStoreClient_la_LIBADD += -lc

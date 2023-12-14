@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2003-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -108,7 +108,6 @@ Panic_SetBreakOnPanic(Bool breakOnPanic)  // IN:
 
 void Panic_SetCoreDumpOnPanic(Bool dumpCore);
 Bool Panic_GetCoreDumpOnPanic(void);
-void Panic_SetCoreDumpFileName(const char *fileName);
 int  Panic_GetCoreDumpFlags(void);
 void Panic_SetCoreDumpFlags(int flags);
 

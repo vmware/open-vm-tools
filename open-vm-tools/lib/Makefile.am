@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2007-2016 VMware, Inc.  All rights reserved.
+### Copyright (c) 2007-2016,2020-2023 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -17,9 +17,6 @@
 
 SUBDIRS =
 SUBDIRS += guestRpc
-if HAVE_X11
-   SUBDIRS += appUtil
-endif
 SUBDIRS += auth
 SUBDIRS += backdoor
 if HAVE_VSOCK
@@ -37,6 +34,10 @@ SUBDIRS += file
 SUBDIRS += foundryMsg
 SUBDIRS += glibUtils
 SUBDIRS += guestApp
+if LINUX
+   SUBDIRS += guestStoreClientHelper
+   SUBDIRS += globalConfig
+endif
 SUBDIRS += hgfs
 SUBDIRS += hgfsBd
 SUBDIRS += hgfsHelper
@@ -63,6 +64,7 @@ if USE_SLASH_PROC
    SUBDIRS += slashProc
 endif
 SUBDIRS += string
+SUBDIRS += jsmn
 SUBDIRS += stubs
 SUBDIRS += syncDriver
 SUBDIRS += system
@@ -72,3 +74,5 @@ SUBDIRS += vmCheck
 SUBDIRS += vmSignal
 SUBDIRS += wiper
 SUBDIRS += xdg
+
+

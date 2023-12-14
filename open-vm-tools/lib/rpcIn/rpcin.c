@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2020, 2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -380,7 +380,7 @@ RpcIn_UnregisterCallback(RpcIn *in,               // IN
     * If we called UnregisterCallback on a name that doesn't exist, we
     * have a problem.
     */
-   ASSERT(cur != NULL);
+   VERIFY(cur != NULL);
 
    if (prev == NULL) {
       in->callbacks = cur->next;
@@ -1357,6 +1357,11 @@ RpcInExecRpc(RpcIn *in,            // IN
    statusStr = status ? "OK " : "ERROR ";
    statusLen = strlen(statusStr);
 
+   /*
+    * Coverity warns that we don't allocate enough space for a null terminator.
+    * A null terminator is not necessary here as we also store the length.
+    */
+   // coverity[alloc_strlen]
    in->last_result = (char *)malloc(statusLen + resultLen);
    if (in->last_result == NULL) {
       *errmsg = "RpcIn: Not enough memory";

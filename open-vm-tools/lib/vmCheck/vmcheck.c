@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 2006-2021, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -144,6 +144,9 @@ VmCheckSafe(SafeCheckFn checkFn)
 #else
    do {
       int signals[] = {
+#if defined(__FreeBSD__)
+         SIGBUS,
+#endif
          SIGILL,
          SIGSEGV,
       };
@@ -249,7 +252,8 @@ VmCheck_GetVersion(uint32 *version, // OUT
  *    environment.
  *
  * Return value:
- *    TRUE if we're in a virtual machine, FALSE otherwise.
+ *    TRUE if we're in a virtual machine or a Linux compilation using Valgrind,
+ *    FALSE otherwise.
  *
  * Side effects:
  *    None.
@@ -264,6 +268,12 @@ VmCheck_IsVirtualWorld(void)
    uint32 dummy;
 
 #if !defined(WINNT_DDK)
+#ifdef USE_VALGRIND
+   /*
+    * Valgrind can't handle the backdoor check.
+    */
+   return TRUE;
+#endif
 #if defined VM_X86_ANY
    char *hypervisorSig;
    uint32 i;
@@ -317,14 +327,20 @@ VmCheck_IsVirtualWorld(void)
    }
 
    /* It should be safe to use the backdoor without a crash handler now. */
-   VmCheck_GetVersion(&version, &dummy);
+   if (!VmCheck_GetVersion(&version, &dummy)) {
+      Debug("%s: VmCheck_GetVersion failed.\n", __FUNCTION__);
+      return FALSE;
+   }
 #else
    /*
     * The Win32 vmwvaudio driver uses this function, so keep the old,
     * VMware-only check.
     */
    __try {
-      VmCheck_GetVersion(&version, &dummy);
+      if (!VmCheck_GetVersion(&version, &dummy)) {
+         Debug("%s: VmCheck_GetVersion failed.\n", __FUNCTION__);
+         return FALSE;
+      }
    } __except (GetExceptionCode() == STATUS_PRIVILEGED_INSTRUCTION) {
       return FALSE;
    }

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 2008-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1090,7 +1090,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)
    }
 
    /*
-    * If not running in a VMware VM, return NULL to disable the plugin.
+    * If not running in a VMware VM, return NULL to deactivate the plugin.
     */
    if (!ctx->isVMware) {
       return NULL;

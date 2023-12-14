@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2019 VMware, Inc. All rights reserved.
+ * Copyright (c) 2005-2019,2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -324,7 +324,7 @@ IsCtxMainLoopActive(void)
  *      Callback for the gtk signal "selection_received".
  *      Called because we previously requested a copy/paste selection and
  *      finally got results of that asynchronous operation. After some basic
- *      sanity checks, send the result (in selection_data) thru the backdoor
+ *      confidence checks, send the result (in selection_data) thru the backdoor
  *      (version 1) or guestRPC (version 2) so the vmx can copy it to host
  *      clipboard.
  *

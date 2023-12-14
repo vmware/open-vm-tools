@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2016,2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 2016,2020-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -29,9 +29,6 @@
 
 #include "conf.h"
 #include "toolboxCmdInt.h"
-#if defined(_WIN32)
-#include "globalConfig.h"
-#endif
 #include "vmware/tools/i18n.h"
 #include "vmware/tools/utils.h"
 #include "vmware/tools/log.h"
@@ -119,15 +116,7 @@ ConfigGet(const char *section,      // section
                       NULL);
 
    if (confDict) {
-#if defined(_WIN32)
-      if (GlobalConfig_GetEnabled(confDict)) {
-         GKeyFile *globalConf = NULL;
-         if (GlobalConfig_LoadConfig(&globalConf, NULL)) {
-            VMTools_AddConfig(globalConf, confDict);
-            g_key_file_free(globalConf);
-         }
-      }
-#endif
+      TOOLBOXCMD_LOAD_GLOBALCONFIG(confDict)
       value = g_key_file_get_string(confDict, section,
                                     key, NULL);
    } else {

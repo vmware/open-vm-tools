@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 2008-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -150,6 +150,8 @@ VMTools_LoadConfig(const gchar *path,
       goto exit;
    }
 
+   /* On error, 'err' will be set, null otherwise */
+   /* coverity[check_return] */
    g_key_file_load_from_file(cfg, localPath, flags, &err);
    if (err == NULL || err->code == G_KEY_FILE_ERROR_GROUP_NOT_FOUND) {
       goto exit;
@@ -360,18 +362,20 @@ VMTools_CompareConfig(GKeyFile *config1,
          }
 
          value1 = g_key_file_get_value(config1, group, key, &gErr);
-         if (value1 == NULL && gErr != NULL) {
+         if (value1 == NULL) {
             g_warning("%s: g_key_file_get_value(%s:%s) for first config "
                       "failed: %s\n",
-                      __FUNCTION__, group, key, gErr->message);
+                      __FUNCTION__, group, key,
+                      (gErr != NULL) ? gErr->message : "");
             goto mismatch;
          }
 
          value2 = g_key_file_get_value(config2, group, key, &gErr);
-         if (value2 == NULL && gErr != NULL) {
+         if (value2 == NULL) {
             g_warning("%s: g_key_file_get_value(%s:%s) for second config "
                       "failed: %s\n",
-                      __FUNCTION__, group, key, gErr->message);
+                      __FUNCTION__, group, key,
+                      (gErr != NULL) ? gErr->message : "");
             goto mismatch;
          }
 

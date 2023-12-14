@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -321,7 +321,7 @@ ProcMgr_ListProcesses(void)
    dir = opendir("/proc");
    if (NULL == dir) {
       Warning("ProcMgr_ListProcesses unable to open /proc\n");
-      goto abort;
+      goto quit;
    }
 
    while ((ent = readdir(dir))) {
@@ -628,7 +628,7 @@ ProcMgr_ListProcesses(void)
                  __FUNCTION__);
          free(cmdLineTemp);
          free(cmdStatTemp);
-         goto abort;
+         goto quit;
       }
       procInfo.procCmdName = NULL;
       procInfo.procCmdAbsPath = NULL;
@@ -649,7 +649,7 @@ next_entry:
       failed = FALSE;
    }
 
-abort:
+quit:
    closedir(dir);
 
    free(procInfo.procCmdName);
@@ -710,7 +710,7 @@ ProcMgr_ListProcesses(void)
    kd = kvm_openfiles(NULL, _PATH_DEVNULL, NULL, O_RDONLY, errbuf);
    if (kd == NULL) {
       Warning("%s: failed to open kvm with error: %s\n", __FUNCTION__, errbuf);
-      goto abort;
+      goto quit;
    }
 
    /*
@@ -720,7 +720,7 @@ ProcMgr_ListProcesses(void)
    if (kp == NULL || nentries <= 0) {
       Warning("%s: failed to get proc infos with error: %s\n",
               __FUNCTION__, kvm_geterr(kd));
-      goto abort;
+      goto quit;
    }
 
    /*
@@ -729,7 +729,7 @@ ProcMgr_ListProcesses(void)
    if (!ProcMgrProcInfoArray_Init(procList, nentries)) {
       Warning("%s: failed to create DynArray - out of memory\n",
               __FUNCTION__);
-      goto abort;
+      goto quit;
    }
 
    /*
@@ -779,7 +779,7 @@ ProcMgr_ListProcesses(void)
             if (!DynBuf_Append(&dbuf, *cmdLineTemp, strlen(*cmdLineTemp))) {
                Warning("%s: failed to append cmd/args in DynBuf - no memory\n",
                        __FUNCTION__);
-               goto abort;
+               goto quit;
             }
             if (cmdNameLookup) {
                /*
@@ -807,7 +807,7 @@ ProcMgr_ListProcesses(void)
                if (!DynBuf_Append(&dbuf, " ", 1)) {
                   Warning("%s: failed to append ' ' in DynBuf - no memory\n",
                           __FUNCTION__);
-                  goto abort;
+                  goto quit;
                }
             }
          }
@@ -817,7 +817,7 @@ ProcMgr_ListProcesses(void)
          if (!DynBuf_Append(&dbuf, "", 1)) {
             Warning("%s: failed to append NUL in DynBuf - out of memory\n",
                     __FUNCTION__);
-            goto abort;
+            goto quit;
          }
          DynBuf_Trim(&dbuf);
          procInfo.procCmdLine = DynBuf_Detach(&dbuf);
@@ -847,7 +847,7 @@ ProcMgr_ListProcesses(void)
 
    failed = FALSE;
 
-abort:
+quit:
    if (kd != NULL) {
       kvm_close(kd);
    }
@@ -916,7 +916,7 @@ ProcMgrGetCommandLineArgs(long pid,               // IN:  process id
               &maxargs, &maxargsSize, NULL, 0) < 0) {
       Warning("%s: failed to get the kernel max args with errno = %d\n",
                __FUNCTION__, errno);
-      goto abort;
+      goto quit;
    }
 
    /*
@@ -925,7 +925,7 @@ ProcMgrGetCommandLineArgs(long pid,               // IN:  process id
    cmdLineRaw = Util_SafeCalloc(maxargs, sizeof *cmdLineRaw);
    if (sysctl(argName, ARRAYSIZE(argName), cmdLineRaw, &maxargs, NULL, 0) < 0) {
       Debug("%s: No command line args for pid = %ld\n", __FUNCTION__, pid);
-      goto abort;
+      goto quit;
    }
    cmdLineEnd = &cmdLineRaw[maxargs];
 
@@ -948,7 +948,7 @@ ProcMgrGetCommandLineArgs(long pid,               // IN:  process id
    if (0 >= argNum) {
       Debug("%s: Invalid number of command line args (=%d) for pid = %ld\n",
              __FUNCTION__, argNum, pid);
-      goto abort;
+      goto quit;
    }
 
    /*
@@ -990,7 +990,7 @@ ProcMgrGetCommandLineArgs(long pid,               // IN:  process id
                if (!DynBuf_Append(argsBuf, " ", 1)) {
                   Warning("%s: failed to append ' ' in DynBuf\
                            - no memory\n", __FUNCTION__);
-                  goto abort;
+                  goto quit;
                }
             }
             /*
@@ -999,7 +999,7 @@ ProcMgrGetCommandLineArgs(long pid,               // IN:  process id
             if (!DynBuf_Append(argsBuf, argUnicode, strlen(argUnicode))) {
                Warning("%s: failed to append cmd/args in DynBuf\
                         - no memory\n", __FUNCTION__);
-               goto abort;
+               goto quit;
             }
             free(argUnicode);
             argUnicode = NULL;
@@ -1043,12 +1043,12 @@ ProcMgrGetCommandLineArgs(long pid,               // IN:  process id
    if (!DynBuf_Append(argsBuf, "", 1)) {
       Warning("%s: failed to append NUL in DynBuf - out of memory\n",
               __FUNCTION__);
-      goto abort;
+      goto quit;
    }
    DynBuf_Trim(argsBuf);
 
    failed = FALSE;
-abort:
+quit:
    free(cmdLineRaw);
    free(argUnicode);
    if (failed) {
@@ -1104,7 +1104,7 @@ ProcMgr_ListProcesses(void)
    if (sysctl(procName, ARRAYSIZE(procName), NULL, &procsize, NULL, 0) < 0) {
       Warning("%s: failed to get the size of the process struct\
                list with errno = %d\n", __FUNCTION__, errno);
-      goto abort;
+      goto quit;
    }
    nentries = (int)(procsize / sizeof *kp);
 
@@ -1115,14 +1115,14 @@ ProcMgr_ListProcesses(void)
    if (sysctl(procName, ARRAYSIZE(procName), kp, &procsize, NULL, 0) < 0) {
       Warning("%s: failed to get the process struct list (errno = %d)\n",
                __FUNCTION__, errno);
-      goto abort;
+      goto quit;
    }
 
    /*
     * Recalculate the number of entries as they may have changed.
     */
    if (0 >= (nentries = (int)(procsize / sizeof *kp))) {
-      goto abort;
+      goto quit;
    }
 
    /*
@@ -1131,7 +1131,7 @@ ProcMgr_ListProcesses(void)
    if (!ProcMgrProcInfoArray_Init(procList, nentries)) {
       Warning("%s: failed to create DynArray - out of memory\n",
               __FUNCTION__);
-      goto abort;
+      goto quit;
    }
 
    /*
@@ -1213,7 +1213,7 @@ ProcMgr_ListProcesses(void)
 
    failed = FALSE;
 
-abort:
+quit:
    free(kp);
    free(procInfo.procCmdLine);
    free(procInfo.procCmdName);
@@ -1674,7 +1674,7 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
 
    if (pid == -1) {
       Warning("Unable to fork: %s.\n\n", strerror(errno));
-      goto abort;
+      goto quit;
    } else if (pid == 0) {
       struct sigaction olds[ARRAYSIZE(cSignals)];
       int i, maxfd;
@@ -1809,10 +1809,10 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
        * We cannot wait on the child process here, since the error
        * may have just been on our end, so the child could be running
        * for some time and we probably cannot afford to block.
-       * Just kill the child and move on.
+       * Just force the child to quit and move on.
        */
       ProcMgrKill(pid, SIGKILL, -1);
-      goto abort;
+      goto quit;
    }
 
    if (resultPid == -1) {
@@ -1822,7 +1822,7 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
        * Clean up the child process; it should exit pretty quickly.
        */
       waitpid(pid, NULL, 0);
-      goto abort;
+      goto quit;
    }
 
    asyncProc = Util_SafeMalloc(sizeof *asyncProc);
@@ -1833,7 +1833,7 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
    asyncProc->exitCode = -1;
    asyncProc->resultPid = resultPid;
 
- abort:
+ quit:
    if (readFd != -1) {
       close(readFd);
    }
@@ -1872,13 +1872,14 @@ ProcMgr_IsProcessRunning(pid_t pid)
  *
  * ProcMgrKill --
  *
- *      Try to kill a pid & check every so often to see if it has died.
+ *      Try to force a pid to quit and check every so often to see
+ *      if it has ended.
  *
  * Results:
  *      1 if the process died; 0 on failure, -1 on timeout
  *
  * Side effects:
- *	Depends on the program being killed.
+ *	Depends on the program being forced to quit.
  *	errno set.
  *
  *----------------------------------------------------------------------
@@ -1910,7 +1911,7 @@ ProcMgrKill(pid_t pid,      // IN
              * by looking in the proc table.
              *
              * Note that this is susceptible to a race.  Its possible
-             * that just as we kill the process, a new one can come
+             * that just as we force the process to end, a new one can come
              * around and re-use the pid by the time we check on it.
              * This requires the pids have wrapped and a lot of luck.
              */
@@ -1936,7 +1937,8 @@ ProcMgrKill(pid_t pid,      // IN
    }
 
    /*
-    * timed out -- system/process is incredibly unresponsive or unkillable
+    * timed out -- system/process is incredibly unresponsive or cannot be
+    * forced to quit.
     */
    Warning("%s: timed out trying to cancel pid %"FMTPID" with signal %d\n",
            __FUNCTION__, pid, sig);
@@ -1950,7 +1952,7 @@ ProcMgrKill(pid_t pid,      // IN
  * ProcMgr_KillByPid --
  *
  *      Attempt to terminate the process of procId.
- *      First try TERM for 5 seconds, then KILL for 15
+ *      First try SIGTERM for 5 seconds, then SIGKILL for 15
  *      if that is unsuccessful.
  *
  * Results:
@@ -1971,7 +1973,7 @@ ProcMgr_KillByPid(ProcMgr_Pid procId)   // IN
    ret = ProcMgrKill(procId, SIGTERM, 5);
    if (ret != 1) {
       /*
-       * We can't try forever, since some processes are unkillable (eg systemd),
+       * We can't try forever, since some processes are immortal (eg systemd),
        * or a process could be stuck 'forever' in a disk wait.
        * 5+15 seconds should be long enough to handle very slow systems, while
        * not causing timeouts at the VMX layer or the guestInfo gathering.
@@ -1995,14 +1997,14 @@ ProcMgr_KillByPid(ProcMgr_Pid procId)   // IN
  *
  * ProcMgr_Kill --
  *
- *      Kill a process synchronously by first attempty to do so
- *      nicely & then whipping out the SIGKILL axe.
+ *      Synchronously try to force a process to quit with SIGTERM.
+ *      If that fails use SIGKILL.
  *
  * Results:
  *      None.
  *
  * Side effects:
- *      Depends on the program being killed.
+ *      Depends on the program being forced to quit.
  *
  *----------------------------------------------------------------------
  */

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2003-2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 2003-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -75,6 +75,12 @@
 #include "mul64.h"
 #endif
 
+#if defined _M_ARM64EC || defined _M_ARM64
+#include "vm_assert.h"
+#define MUL64_NO_ASM 1
+#include "mul64.h"
+#endif
+
 #if defined __cplusplus
 extern "C" {
 #endif
@@ -109,7 +115,7 @@ extern "C" {
  * mssb64      MSB set (uint64)            1..64    0
  */
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__) // Clang defines _MSC_VER on Windows
 static INLINE int
 lssb32_0(const uint32 value)
 {
@@ -205,7 +211,7 @@ mssb64_0(const uint64 value)
 }
 #endif
 
-#ifdef __GNUC__
+#if defined __GNUC__ || defined __clang__
 
 #ifdef VM_X86_ANY
 #define USE_ARCH_X86_CUSTOM
@@ -236,10 +242,6 @@ mssb64_0(const uint64 value)
  * **********************************************************
  */
 
-#if __GNUC__ < 4
-#define FEWER_BUILTINS
-#endif
-
 static INLINE int
 lssb32_0(uint32 v)
 {
@@ -258,7 +260,6 @@ lssb32_0(uint32 v)
    return __builtin_ffs(value) - 1;
 }
 
-#ifndef FEWER_BUILTINS
 static INLINE int
 mssb32_0(uint32 value)
 {
@@ -311,46 +312,6 @@ lssb64_0(const uint64 v)
 #endif
    return __builtin_ffsll(value) - 1;
 }
-#endif /* !FEWER_BUILTINS */
-
-#ifdef FEWER_BUILTINS
-/* GCC 3.3.x does not like __bulitin_clz or __builtin_ffsll. */
-static INLINE int
-mssb32_0(uint32 value)
-{
-   if (UNLIKELY(value == 0)) {
-      return -1;
-   } else {
-      int pos;
-      __asm__ __volatile__("bsrl %1, %0\n" : "=r" (pos) : "rm" (value) : "cc");
-      return pos;
-   }
-}
-
-static INLINE int
-lssb64_0(const uint64 value)
-{
-   if (UNLIKELY(value == 0)) {
-      return -1;
-   } else {
-      intptr_t pos;
-
-#ifdef VM_X86_64
-      __asm__ __volatile__("bsf %1, %0\n" : "=r" (pos) : "rm" (value) : "cc");
-#else
-      /* The coding was chosen to minimize conditionals and operations */
-      pos = lssb32_0((uint32) value);
-      if (pos == -1) {
-         pos = lssb32_0((uint32) (value >> 32));
-         if (pos != -1) {
-            return pos + 32;
-         }
-      }
-#endif /* VM_X86_64 */
-      return pos;
-   }
-}
-#endif /* FEWER_BUILTINS */
 
 
 static INLINE int
@@ -697,7 +658,7 @@ uint32set(void *dst, uint32 val, size_t count)
 static INLINE uint16
 Bswap16(uint16 v)
 {
-#if defined(VM_ARM_64)
+#if defined(VM_ARM_64) && !defined(_MSC_VER)
    __asm__("rev16 %w0, %w0" : "+r"(v));
    return v;
 #else
@@ -730,7 +691,7 @@ Bswap32(uint32 v) // IN
 #elif defined(VM_ARM_32) && !defined(__ANDROID__) && !defined(_MSC_VER)
     __asm__("rev %0, %0" : "+r"(v));
     return v;
-#elif defined(VM_ARM_64)
+#elif defined(VM_ARM_64) && !defined(_MSC_VER)
    __asm__("rev32 %x0, %x0" : "+r"(v));
    return v;
 #else
@@ -756,7 +717,7 @@ Bswap32(uint32 v) // IN
 static INLINE uint64
 Bswap64(uint64 v) // IN
 {
-#if defined(VM_ARM_64)
+#if defined(VM_ARM_64) && !defined(_MSC_VER)
    __asm__("rev %0, %0" : "+r"(v));
    return v;
 #else
@@ -787,7 +748,11 @@ PAUSE(void)
 }
 #elif defined(_MSC_VER)
 {
+#ifdef VM_X86_ANY
    _mm_pause();
+#else
+   __yield();
+#endif
 }
 #else  /* __GNUC__  */
 #error No compiler defined for PAUSE
@@ -823,7 +788,12 @@ RDTSC(void)
 
    return tim;
 #elif defined(VM_ARM_64)
-#if (defined(VMKERNEL) || defined(VMM)) && !defined(VMK_ARM_EL1)
+   /*
+    * Keep this implementation in sync with:
+    * bora/lib/vprobe/arm64/vp_emit_tc.c::VpEmit_BuiltinRDTSCWork()
+    * bora/modules/vmkernel/tests/core/xmapTest/xmapTest_arm64.c::XMapTest_SetupLoopCode()
+    */
+#if defined(VMKERNEL) && !defined(VMK_ARM_EL1_OR_VHE)
    return MRS(CNTPCT_EL0);
 #else
    return MRS(CNTVCT_EL0);
@@ -880,9 +850,10 @@ RDTSC(void)
 /*
  *-----------------------------------------------------------------------------
  *
- * {Clear,Set,Test}Bit{32,64} --
+ * {Clear, Set, Test, Toggle}Bit{32, 64} --
  *
- *    Sets tests or clears a specified single bit in the provided variable.
+ *    Sets tests clears or toggles a specified single bit in the provided
+ *    variable.
  *
  *    The index input value specifies which bit to modify and is 0-based.
  *    Index is truncated by hardware to a 5-bit or 6-bit offset for the
@@ -908,6 +879,12 @@ ClearBit32(uint32 *var, unsigned index)
 }
 
 static INLINE void
+ToggleBit32(uint32 *var, unsigned index)
+{
+   *var ^= 1 << index;
+}
+
+static INLINE void
 SetBit64(uint64 *var, unsigned index)
 {
    *var |= CONST64U(1) << index;
@@ -917,6 +894,12 @@ static INLINE void
 ClearBit64(uint64 *var, unsigned index)
 {
    *var &= ~(CONST64U(1) << index);
+}
+
+static INLINE void
+ToggleBit64(uint64 *var, unsigned index)
+{
+   *var ^= (CONST64U(1) << index);
 }
 
 static INLINE Bool
@@ -946,18 +929,27 @@ TestBit64(const uint64 *var, unsigned index)
  *-----------------------------------------------------------------------------
  */
 
+#if defined __GCC_ASM_FLAG_OUTPUTS__
+/*
+ * See https://gcc.gnu.org/onlinedocs/gcc/Extended-Asm.html
+ * 6.47.2.4 Flag Output Operands
+ *
+ * This expands to 0 or 1 instructions followed by the output operand string.
+ */
+#define GCC_ASM_BT_EPILOG : "=@ccc"
+#else
+#define GCC_ASM_BT_EPILOG "\n\tsetc\t%0" : "=qQm"
+#endif
+
 static INLINE Bool
 SetBitVector(void *var, int32 index)
 {
 #if defined(__GNUC__) && defined(VM_X86_ANY)
    Bool bit;
-   __asm__ (
-      "bts %2, %1;"
-      "setc %0"
-      : "=qQm" (bit), "+m" (*(uint32 *)var)
-      : "rI" (index)
-      : "memory", "cc"
-   );
+   __asm__("bts\t%2, %1"
+           GCC_ASM_BT_EPILOG (bit), "+m" (*(uint32 *)var)
+           : "rI" (index)
+           : "memory", "cc");
    return bit;
 #elif defined(_MSC_VER)
    return _bittestandset((long *)var, index) != 0;
@@ -973,13 +965,10 @@ ClearBitVector(void *var, int32 index)
 {
 #if defined(__GNUC__) && defined(VM_X86_ANY)
    Bool bit;
-   __asm__ (
-      "btr %2, %1;"
-      "setc %0"
-      : "=qQm" (bit), "+m" (*(uint32 *)var)
-      : "rI" (index)
-      : "memory", "cc"
-   );
+   __asm__("btr\t%2, %1"
+           GCC_ASM_BT_EPILOG (bit), "+m" (*(uint32 *)var)
+           : "rI" (index)
+           : "memory", "cc");
    return bit;
 #elif defined(_MSC_VER)
    return _bittestandreset((long *)var, index) != 0;
@@ -995,13 +984,10 @@ ComplementBitVector(void *var, int32 index)
 {
 #if defined(__GNUC__) && defined(VM_X86_ANY)
    Bool bit;
-   __asm__ (
-      "btc %2, %1;"
-      "setc %0"
-      : "=qQm" (bit), "+m" (*(uint32 *)var)
-      : "rI" (index)
-      : "memory", "cc"
-   );
+   __asm__("btc\t%2, %1"
+           GCC_ASM_BT_EPILOG (bit), "+m" (*(uint32 *)var)
+           : "rI" (index)
+           : "memory", "cc");
    return bit;
 #elif defined(_MSC_VER)
    return _bittestandcomplement((long *)var, index) != 0;
@@ -1017,13 +1003,10 @@ TestBitVector(const void *var, int32 index)
 {
 #if defined(__GNUC__) && defined(VM_X86_ANY)
    Bool bit;
-   __asm__ (
-      "bt %2, %1;"
-      "setc %0"
-      : "=qQm" (bit)
-      : "m" (*(const uint32 *)var), "rI" (index)
-      : "cc"
-   );
+   __asm__("bt\t%2, %1"
+           GCC_ASM_BT_EPILOG (bit)
+           : "m" (*(const uint32 *)var), "rI" (index)
+           : "cc");
    return bit;
 #elif defined _MSC_VER
    return _bittest((long *)var, index) != 0;
@@ -1031,6 +1014,45 @@ TestBitVector(const void *var, int32 index)
    return (((const uint8 *)var)[index / 8] & (1 << (index % 8))) != 0;
 #endif
 }
+
+#undef GCC_ASM_BT_EPILOG
+
+/*
+ *-----------------------------------------------------------------------------
+ * RoundDownPow2_{64,32} --
+ *
+ *   Rounds a value down to the previous power of 2.  Returns the original
+ *   value if it is a power of 2. Returns 0 for input of 0 and 1 for 1.
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE uint64
+RoundDownPow2_64(uint64 value)
+{
+   if ((value & (value - 1)) == 0) {
+      /*
+       * Already zero or a power of two.
+       */
+      return value;
+   }
+
+   return CONST64U(1) << mssb64_0(value);
+}
+
+
+static INLINE uint32
+RoundDownPow2_32(uint32 value)
+{
+   if ((value & (value - 1)) == 0) {
+      /*
+       * Already a power of two.
+       */
+      return value;
+   }
+
+   return 1U << mssb32_0(value);
+}
+
 
 /*
  *-----------------------------------------------------------------------------
@@ -1115,7 +1137,7 @@ RoundUpPow2Asm32(uint32 value)
                                            // if out == 2^32 then out = 1 as it is right rotate
        : [in]"+r"(value),[out]"+r"(out));
    return out;
-#elif defined(VM_ARM_64)
+#elif defined(VM_ARM_64) || defined(__wasm__)
    return RoundUpPow2C32(value);
 #else
    uint32 out = 2;
@@ -1169,7 +1191,7 @@ RoundUpPow2_32(uint32 value)
 static INLINE unsigned
 PopCount32(uint32 value)
 {
-#if defined(__GNUC__) && !defined(FEWER_BUILTINS) && defined(__POPCNT__)
+#if defined(__GNUC__) && defined(__POPCNT__)
    return __builtin_popcount(value);
 #else
    /*
@@ -1238,7 +1260,7 @@ PopCount32(uint32 value)
 static INLINE unsigned
 PopCount64(uint64 value)
 {
-#if defined(__GNUC__) && !defined(FEWER_BUILTINS) && defined(__POPCNT__)
+#if defined(__GNUC__) && defined(__POPCNT__)
 #if defined(VM_X86_64)
    return __builtin_popcountll(value);
 #else
@@ -1255,6 +1277,79 @@ PopCount64(uint64 value)
    return (unsigned) (value & 0xff);
 #endif
 }
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * INTR_R_BARRIER_R --
+ * INTR_R_BARRIER_W --
+ * INTR_R_BARRIER_RW --
+ * INTR_W_BARRIER_R --
+ * INTR_W_BARRIER_W --
+ * INTR_W_BARRIER_RW --
+ * INTR_RW_BARRIER_R --
+ * INTR_RW_BARRIER_W --
+ * INTR_RW_BARRIER_RW --
+ *
+ *      Enforce ordering on memory operations witnessed by and
+ *      affected by interrupt handlers.
+ *
+ *      This should be used to replace the legacy COMPILER_MEM_BARRIER
+ *      for code that has been audited to determine it only needs
+ *      ordering with respect to interrupt handlers, and not to other
+ *      CPUs (SMP_*), memory-mapped I/O (MMIO_*), or DMA (DMA_*).
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+#ifdef __GNUC__
+
+static INLINE void
+INTR_RW_BARRIER_RW(void)
+{
+   __asm__ __volatile__("" ::: "memory");
+}
+
+#define INTR_R_BARRIER_R INTR_RW_BARRIER_RW
+#define INTR_R_BARRIER_W INTR_RW_BARRIER_RW
+#define INTR_R_BARRIER_RW INTR_RW_BARRIER_RW
+#define INTR_W_BARRIER_R INTR_RW_BARRIER_RW
+#define INTR_W_BARRIER_W INTR_RW_BARRIER_RW
+#define INTR_W_BARRIER_RW INTR_RW_BARRIER_RW
+#define INTR_RW_BARRIER_R INTR_RW_BARRIER_RW
+#define INTR_RW_BARRIER_W INTR_RW_BARRIER_RW
+
+#elif defined _MSC_VER
+
+static INLINE void
+INTR_R_BARRIER_R(void)
+{
+   _ReadBarrier();
+}
+
+static INLINE void
+INTR_W_BARRIER_W(void)
+{
+   _WriteBarrier();
+}
+
+static INLINE void
+INTR_RW_BARRIER_RW(void)
+{
+   _ReadWriteBarrier();
+}
+
+#define INTR_R_BARRIER_W INTR_RW_BARRIER_RW
+#define INTR_R_BARRIER_RW INTR_RW_BARRIER_RW
+#define INTR_W_BARRIER_R INTR_RW_BARRIER_RW
+#define INTR_W_BARRIER_RW INTR_RW_BARRIER_RW
+#define INTR_RW_BARRIER_R INTR_RW_BARRIER_RW
+#define INTR_RW_BARRIER_W INTR_RW_BARRIER_RW
+
+#else
+#error No compiler defined for INTR_*_BARRIER_*
+#endif
 
 
 #if defined __cplusplus

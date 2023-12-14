@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
+ * Copyright (c) 2011-2016, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -220,7 +220,7 @@ VGAuth_FreeMappedAliasList(int num,
  ******************************************************************************
  * VGAuthValidateSubject --                                              */ /**
  *
- * @brief Does a sanity check on a Subject paramter.
+ * @brief Does a confidence check on a Subject parameter.
  *
  * @remark Can be called by any user.
  *

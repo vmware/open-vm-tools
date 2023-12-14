@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -104,7 +104,7 @@ ServiceHelp(char *arg)
    printf("\t-s\tRun as a normal program, sending logging to a file.\n");
 #else
 #if USE_POSIX_SERVICE
-   printf("\t-k\tKill the running instance that was started as a daemon.\n");
+   printf("\t-k\tShut down the running instance that was started as a daemon.\n");
    printf("\t-s\tRun in daemon mode.\n");
    printf("\t-b\tRun in background mode, using a pid lock file.\n");
 #endif
@@ -602,7 +602,7 @@ main(int argc,
     *
     * "-b" tells it to run as a daemon.
     * "-s" tells it to run in service mode (logging to a file).
-    * "-k" tells it to kill itself.
+    * "-k" tells it to force itself to quit.
     *
     * When running as a daemon, we restart, except with -b changed
     * to -s so we properly log to a file.
@@ -613,7 +613,7 @@ main(int argc,
     */
 
    if (argc > 1) {
-      if (g_strcmp0(argv[1], "-k") == 0) {            // kill mode
+      if (g_strcmp0(argv[1], "-k") == 0) {            // self cancel mode
          if (!ServiceSuicide(pidFileName)) {
             exit(-1);
          } else {

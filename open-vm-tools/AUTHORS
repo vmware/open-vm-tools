@@ -70,3 +70,24 @@ Alexey Shabalin Adding vmtools library dependency to deploypkg library.
 
 Christian Ehrhardt   Build: fix propagation of libtirpc flags
                 - https://github.com/vmware/open-vm-tools/pull/469
+
+Vincent Milum Jr  Adding FreeBSD on ARM64 support to open-vm-tools.
+                - https://github.com/vmware/open-vm-tools/pull/474
+
+Miroslav Rezanina   Fix issues using GCC 11 with gtk >= 3.20 and glib >=2.66.3
+                - https://github.com/vmware/open-vm-tools/pull/505
+
+Marco Trevisan  Update open-vm-tools to build with either Fuse 3 or Fuse 2
+                - https://github.com/vmware/open-vm-tools/pull/544
+
+Bartosz Brachaczek Make HgfsConvertFromNtTimeNsec aware of 64-bit time_t on i386
+                - https://github.com/vmware/open-vm-tools/pull/387
+
+Bernd Zeimetz   Fix building containerinfo plugin on i386
+                - https://github.com/vmware/open-vm-tools/pull/588
+
+Dirk Mueller    Detect the proto files for containerd grpc client on SUSE like systems
+                - https://github.com/vmware/open-vm-tools/pull/626
+
+Jan Engelhardt  Fix build problems with grpc (at least) 1.54
+                - https://github.com/vmware/open-vm-tools/pull/664

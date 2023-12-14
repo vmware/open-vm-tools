@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2018 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2018, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -32,6 +32,7 @@
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/statfs.h>
 #include "debug.h"
 #include "dynbuf.h"
 #include "syncDriverInt.h"
@@ -43,12 +44,53 @@
 #endif
 
 
+
+typedef struct LinuxFsInfo {
+   int fd;
+   fsid_t fsid;
+} LinuxFsInfo;
+
 typedef struct LinuxDriver {
    SyncHandle  driver;
    size_t      fdCnt;
-   int        *fds;
+   LinuxFsInfo *fds;
 } LinuxDriver;
 
+static
+const fsid_t MISSING_FSID = {};
+
+
+/*
+ *******************************************************************************
+ * LinuxFiFsIdMatch --
+ *
+ * Check the collection of filesystems previously frozen for the specific
+ * FSID.
+ *
+ * @param[in] fds    List of LinuxFsInfo data for filesystems previously
+ *                   frozen.
+ * @param[in] count  Number of fds in the list.
+ * @param[in] nfsid  The Filesystem ID of interest.
+ *
+ * @return TRUE if the FSID matches one previously processed.  Otherwise FALSE
+ *
+ *******************************************************************************
+ */
+
+static Bool
+LinuxFiFsIdMatch(const LinuxFsInfo *fds,
+                 const size_t count,
+                 const fsid_t *nfsid) {
+   size_t i;
+
+   for (i = 0; i < count; i++) {
+      if (fds[i].fsid.__val[0] == nfsid->__val[0] &&
+          fds[i].fsid.__val[1] == nfsid->__val[1]) {
+         return TRUE;
+      }
+   }
+   return FALSE;
+}
 
 /*
  *******************************************************************************
@@ -75,9 +117,11 @@ LinuxFiThaw(const SyncDriverHandle handle)
     * Thaw in the reverse order of freeze
     */
    for (i = sync->fdCnt; i > 0; i--) {
-      Debug(LGPFX "Thawing fd=%d.\n", sync->fds[i-1]);
-      if (ioctl(sync->fds[i-1], FITHAW) == -1) {
-         Debug(LGPFX "Thaw failed for fd=%d.\n", sync->fds[i-1]);
+      int fd = sync->fds[i-1].fd;
+
+      Debug(LGPFX "Thawing fd=%d.\n", fd);
+      if (ioctl(fd, FITHAW) == -1) {
+         Debug(LGPFX "Thaw failed for fd=%d.\n", fd);
          err = SD_ERROR;
       }
    }
@@ -108,8 +152,10 @@ LinuxFiClose(SyncDriverHandle handle)
     * Close in the reverse order of open
     */
    for (i = sync->fdCnt; i > 0; i--) {
-      Debug(LGPFX "Closing fd=%d.\n", sync->fds[i-1]);
-      close(sync->fds[i-1]);
+      int fd = sync->fds[i-1].fd;
+
+      Debug(LGPFX "Closing fd=%d.\n", fd);
+      close(fd);
    }
    free(sync->fds);
    free(sync);
@@ -153,8 +199,9 @@ LinuxFiGetAttr(const SyncDriverHandle handle,   // IN (ignored)
  * slow when guest is performing significant IO. Therefore, caller should
  * consider running this function in a separate thread.
  *
- * @param[in]  paths    List of paths to freeze.
- * @param[out] handle   Handle to use for thawing.
+ * @param[in]  paths           List of paths to freeze.
+ * @param[out] handle          Handle to use for thawing.
+ * @param[in]  ignoreFrozenFS  Switch to allow EBUSY error.
  *
  * @return A SyncDriverErr.
  *
@@ -163,7 +210,8 @@ LinuxFiGetAttr(const SyncDriverHandle handle,   // IN (ignored)
 
 SyncDriverErr
 LinuxDriver_Freeze(const GSList *paths,
-                   SyncDriverHandle *handle)
+                   SyncDriverHandle *handle,
+                   Bool ignoreFrozenFS)
 {
    ssize_t count = 0;
    Bool first = TRUE;
@@ -196,8 +244,11 @@ LinuxDriver_Freeze(const GSList *paths,
     */
    while (paths != NULL) {
       int fd;
+      LinuxFsInfo fsInfo;
       struct stat sbuf;
+      struct statfs fsbuf;
       const char *path = paths->data;
+
       Debug(LGPFX "opening path '%s'.\n", path);
       paths = g_slist_next(paths);
       fd = open(path, O_RDONLY);
@@ -258,23 +309,64 @@ LinuxDriver_Freeze(const GSList *paths,
          continue;
       }
 
+      if (fstatfs(fd, &fsbuf) == 0) {
+         fsInfo.fsid = fsbuf.f_fsid;
+      } else {
+         Debug(LGPFX "failed to get file system id for path '%s'.\n", path);
+         fsInfo.fsid = MISSING_FSID;
+      }
       Debug(LGPFX "freezing path '%s' (fd=%d).\n", path, fd);
       if (ioctl(fd, FIFREEZE) == -1) {
          int ioctlerr = errno;
+
+         close(fd);
+         Debug(LGPFX "freeze on '%s' returned: %d (%s)\n",
+               path, ioctlerr, strerror(ioctlerr));
+         /*
+          * Previously, an EBUSY error was ignored, assuming that we may try
+          * to freeze the same superblock more than once depending on the
+          * OS configuration (e.g., usage of bind mounts).
+          * Use the filesystem Id to check if this filesystem has been
+          * handled before and, if so, ignore it.
+          * Alternatively, allow (ignore) the EBUSY if the
+          * "ignoreFrozenFileSystems" switch inside "vmbackup" section of
+          * tools.conf file is TRUE.
+          * Otherwise, log a warning as the quiesced snapshot
+          * attempt will fail.
+          */
+         if (ioctlerr == EBUSY) {
+            if (LinuxFiFsIdMatch(DynBuf_Get(&fds),
+                                 DynBuf_GetSize(&fds),
+                                 &fsInfo.fsid)) {
+               /*
+                * We have previous knowledge of this file system by another
+                * mount point.  Safe to ignore.
+                */
+               Debug(LGPFX "skipping path '%s' - previously frozen", path);
+               continue;
+            } else if (ignoreFrozenFS) {
+               /*
+                * Ignores the EBUSY error if the FS has been frozen by another
+                * process and the 'ignoreFrozenFileSystems' setting is
+                * turned on in tools.conf file.
+                */
+               Debug(LGPFX "Ignoring the frozen filesystem '%s'",path);
+               continue;
+            }
+            /*
+             * It appears that this FS has been locked or frozen by another
+             * process.  We cannot proceed with the quiesced snapshot request.
+             */
+            Warning(LGPFX "'%s' appears locked or frozen by another process.  "
+                    "Cannot complete the quiesced snapshot request.\n", path);
+         }
          /*
           * If the ioctl does not exist, Linux will return ENOTTY. If it's not
           * supported on the device, we get EOPNOTSUPP. Ignore the latter,
           * since freezing does not make sense for all fs types, and some
           * Linux fs drivers may not have been hooked up in the running kernel.
-          *
-          * Also ignore EBUSY since we may try to freeze the same superblock
-          * more than once depending on the OS configuration (e.g., usage of
-          * bind mounts).
           */
-         close(fd);
-         Debug(LGPFX "freeze on '%s' returned: %d (%s)\n",
-               path, ioctlerr, strerror(ioctlerr));
-         if (ioctlerr != EBUSY && ioctlerr != EOPNOTSUPP) {
+         if (ioctlerr != EOPNOTSUPP) {
             Debug(LGPFX "failed to freeze '%s': %d (%s)\n",
                   path, ioctlerr, strerror(ioctlerr));
             err = first && ioctlerr == ENOTTY ? SD_UNAVAILABLE : SD_ERROR;
@@ -282,7 +374,8 @@ LinuxDriver_Freeze(const GSList *paths,
          }
       } else {
          Debug(LGPFX "successfully froze '%s' (fd=%d).\n", path, fd);
-         if (!DynBuf_Append(&fds, &fd, sizeof fd)) {
+         fsInfo.fd = fd;
+         if (!DynBuf_Append(&fds, &fsInfo, sizeof fsInfo)) {
             if (ioctl(fd, FITHAW) == -1) {
                Warning(LGPFX "failed to thaw '%s': %d (%s)\n",
                        path, errno, strerror(errno));

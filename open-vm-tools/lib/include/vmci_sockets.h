@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2017, 2019, 2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2007-2017, 2019, 2020-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -282,9 +282,10 @@ extern "C" {
 /**
  * \brief Option name for DGRAM socket to rate limit peers
  *
- * Use as the option name in \c getsockopt(3) to set the packet rate
- * (packets per second) for peers of a datagram socket. A value of
- * -1 means no limit set, value of 0 means to drop all packets.
+ * Use as the option name in \c setsockopt(3) or \c getsockopt to
+ * set or get the packet rate (packets per second) for peers of a
+ * datagram socket. A value of -1 means no limit set, value of 0
+ * means to drop all packets.
  *
  * \note Only available for ESX (VMkernel/userworld) endpoints.
  *
@@ -304,8 +305,65 @@ extern "C" {
  */
 
 #define SO_VMCI_PEER_LIMIT_RATE             9
-
 #define VSOCK_OPT_PEER_RATE_MAX             (1 << 14)
+
+/**
+ * \brief Option name for DGRAM socket to block non-privileged ports
+ *
+ * Use as the option name in \c setsockopt(3) or \c getsockopt(3) to
+ * block peers of a datagram socket if they are using unprivileged
+ * ports. A value of 1 means to block, value of 0 means to unblock
+ * such peers. If a rate limit is set but priv_limit is not, then
+ * the rate limit will apply to unprivileged ports too. Otherwise,
+ * if a priv_limit is set on a socket, then all packets from
+ * unprivileged ports will be dropped. The value is a signed integer.
+ *
+ * \note Only available for ESX (VMkernel/userworld) endpoints.
+ *
+ * An example is given below.
+ *
+ * \code
+ * int vmciFd;
+ * int af = VMCISock_GetAFValueFd(&vmciFd);
+ * int priv = 1;
+ * int fd = socket(af, SOCK_DGRAM, 0);
+ * setsockopt(fd, af, SO_VMCI_PEER_LIMIT_PRIV, &priv, sizeof priv);
+ * ...
+ * close(fd);
+ * VMCISock_ReleaseAFValueFd(vmciFd);
+ * \endcode
+ */
+
+#define SO_VMCI_PEER_PRIV_LIMIT             10
+
+/**
+ * \brief Option name for DGRAM socket to control peer rate limit burst
+ *
+ * Use as the option name in \c setsockopt(3) or \c getsockopt(3) to
+ * set the number of packets a rate-limited peer of a datagram socket
+ * can issue before packets are dropped. The allowed values are 1-4,
+ * corresponding to 1, 3, 7, 15 packet bursts. The default value is 2,
+ * when the rate limit option is specified on the socket. This value
+ * is ignored if a rate limit is not set on the socket. The value is an
+ * unsigned 8-bit integer.
+ *
+ * \note Only available for ESX (VMkernel/userworld) endpoints.
+ *
+ * An example is given below.
+ *
+ * \code
+ * int vmciFd;
+ * int af = VMCISock_GetAFValueFd(&vmciFd);
+ * uint8 burst = 3;
+ * int fd = socket(af, SOCK_DGRAM, 0);
+ * setsockopt(fd, af, SO_VMCI_PEER_BURST_LEVEL, &burst, sizeof burst);
+ * ...
+ * close(fd);
+ * VMCISock_ReleaseAFValueFd(vmciFd);
+ * \endcode
+ */
+
+#define SO_VMCI_PEER_BURST_LEVEL            11
 
 /**
  * \brief The vSocket equivalent of INADDR_ANY.

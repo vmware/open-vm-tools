@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 2008-2021,2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -32,6 +32,11 @@
 #include <glib-object.h>
 #include <gmodule.h>
 #include <time.h>
+#if (defined(_WIN32)  && !defined(_ARM64_)) || \
+    (defined(__linux__) && !defined(USERWORLD))
+/* Need this header for GLOBALCONFIG_SUPPORTED definition.*/
+#include "globalConfig.h"
+#endif
 #include "vmware/tools/plugin.h"
 #include "vmware/tools/rpcdebug.h"
 
@@ -72,7 +77,7 @@ typedef struct ToolsServiceState {
    gchar         *name;
    gchar         *configFile;
    time_t         configMtime;
-#if defined(_WIN32)
+#if defined(GLOBALCONFIG_SUPPORTED)
    GKeyFile      *globalConfig;
    time_t         globalConfigMtime;
 #endif

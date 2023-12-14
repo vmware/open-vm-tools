@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -193,9 +193,8 @@ typedef enum DnDCPMsgPacketType {
  * Header definition for DnD version 4 packet. Any DnD version 4 packet has 2
  * parts: fixed header and payload. payload is optional.
  */
-typedef
-#include "vmware_pack_begin.h"
-struct DnDCPMsgHdrV4 {
+#pragma pack(push, 1)
+typedef struct DnDCPMsgHdrV4 {
    uint32 cmd;             /* DnD/CP message command. */
    uint32 type;            /* DnD/CP message type. */
    uint32 src;             /* Message sender. */
@@ -210,9 +209,8 @@ struct DnDCPMsgHdrV4 {
    uint32 binarySize;      /* Binary size. */
    uint32 payloadOffset;   /* Payload offset. */
    uint32 payloadSize;     /* Payload size. */
-}
-#include "vmware_pack_end.h"
-DnDCPMsgHdrV4;
+} DnDCPMsgHdrV4;
+#pragma pack(pop)
 
 /* Some important definitions for DnDCPMsgV4. */
 #define DND_CP_MSG_HEADERSIZE_V4 (sizeof (DnDCPMsgHdrV4))

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009-2019,2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -44,7 +44,9 @@
 #define TOOLSOPTION_SYNCTIME_GUEST_RESYNC_TIMEOUT \
    "time.synchronize.guest.resync.timeout"
 
-#define TIMESYNC_SYNCHRONIZE                    "Time_Synchronize"
+#define TIMESYNC_SYNCHRONIZE "Time_Synchronize"
+#define TIMEINFO_UPDATE "TimeInfo_Update"
+
 
 #endif /* _TIMESYNC_H_ */
 

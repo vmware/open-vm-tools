@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 2008-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -53,7 +53,11 @@
 #define GHI_CHANNEL_VIEW_PROTOCOL               7  // Interactions with different protocols
                                                    // in View RMKS
 #define GHI_CHANNEL_FCP                         8  // FCP for View RMKS
-#define GHI_CHANNEL_COUNT                       9
+#define GHI_CHANNEL_VIEW_SDR                    9  // Handled by View SDR
+#define GHI_CHANNEL_VIEW_WHFB_REDIRECTION       10 // WhfbRedirectionMKSControl module in
+                                                   // View RMKS
+#define GHI_CHANNEL_VIEW_SCREEN_CAPTURE         11 // ScreenCapture in View RMKS
+#define GHI_CHANNEL_COUNT                       12
 
 typedef uint32 GHIChannelType;
 
@@ -119,7 +123,9 @@ typedef uint32 GHIGuestToHostMessageType;
 /*
  * UI->MKS Messages over GHI_CHANNEL_VIEW_REMOTE_RDE_COMMON.
  */
-#define GHI_RDE_COMMON_GENERIC_CMD             "ghi.rde.generic"
+#define GHI_RDE_COMMON_GENERIC_CMD              "ghi.rde.generic"
+#define GHI_RDE_COMMON_SET_IME_ENABLED_CMD      "ghi.rde.set.ime.enabled"
+#define GHI_RDE_COMMON_SET_IME_HOST_KEYS_CMD    "ghi.rde.set.ime.host.keys"
 
 /*
  * MKS->UI messages over GHI_CHANNEL_VIEW_REMOTE_RDE_COMMON.
@@ -184,11 +190,54 @@ typedef uint32 GHIGuestToHostMessageType;
 #define GHI_HOST_VDP_COMMON_GET_GUEST_CAPS_CMD   "ghi.mks.common.get.guest.caps"
 
 /*
+ * MKS->UI messages over GHI_CHANNEL_VIEW_WHFB_REDIRECTION
+ */
+#define GHI_CHANNEL_VIEW_WHFB_REDIRECTION_BITS \
+           GHI_GUEST_CHANNEL_BITS(GHI_CHANNEL_VIEW_WHFB_REDIRECTION)
+#define GHI_GUEST_WHFB_REDIRECTION_UNLOCK_REQUEST \
+           (GHI_CHANNEL_VIEW_WHFB_REDIRECTION_BITS | 0x000001)
+
+/*
+ * UI->MKS messages over GHI_CHANNEL_VIEW_WHFB_REDIRECTION.
+ */
+#define GHI_WHFB_REDIRECTION_SET_SESSIONPIN_CMD              "ghi.whfb.set.sessionpin"
+#define GHI_WHFB_REDIRECTION_SET_USERVERIFICATIONRESULT_CMD  "ghi.whfb.set.userverificationresult"
+
+/*
  * Capabilities for the message GHI_GUEST_VDP_COMMON_CAP_FEATURES
  */
 typedef enum {
    VDP_COMMON_SET_KEYBOARD_STATE_CAP = 0,
    VDP_COMMON_CAP_ITEM_COUNT
 } VDPCommonCapType;
+
+/*
+ * UI->MKS messages over GHI_CHANNEL_VIEW_SDR
+ */
+#define GHI_VIEW_SDR_ADD_DRIVE      "ghi.view.sdr.add.drive"
+#define GHI_VIEW_SDR_REMOVE_DRIVE   "ghi.view.sdr.remove.drive"
+
+/*
+ * MKS->UI messages over GHI_CHANNEL_VIEW_SDR.
+ */
+#define GHI_CHANNEL_VIEW_SDR_BITS         GHI_GUEST_CHANNEL_BITS(GHI_CHANNEL_VIEW_SDR)
+#define GHI_VIEW_SDR_VDP_CONNECTED        (GHI_CHANNEL_VIEW_SDR_BITS | 0x000001)
+#define GHI_VIEW_SDR_VDP_DISCONNECTED     (GHI_CHANNEL_VIEW_SDR_BITS | 0x000002)
+#define GHI_VIEW_SDR_VDP_SDRPOLICY        (GHI_CHANNEL_VIEW_SDR_BITS | 0x000003)
+
+
+/*
+ * UI->MKS messages over GHI_CHANNEL_VIEW_SCREEN_CAPTURE
+ */
+#define GHI_VIEW_SCREEN_CAPTURE_TAKE_SNAPSHOT      "ghi.view.screen.capture.take.snapshot"
+#define GHI_VIEW_SCREEN_CAPTURE_ENUM_TOPOLOGY      "ghi.view.screen.capture.enum.topology"
+
+/*
+ * MKS->UI messages over GHI_CHANNEL_VIEW_SCREEN_CAPTURE.
+ */
+#define GHI_CHANNEL_VIEW_SCREEN_CAPTURE_BITS \
+           GHI_GUEST_CHANNEL_BITS(GHI_CHANNEL_VIEW_SCREEN_CAPTURE)
+#define GHI_GUEST_SCREEN_CAPTURE_FUNC_READY        (GHI_CHANNEL_VIEW_SCREEN_CAPTURE_BITS | 0x000001)
+#define GHI_GUEST_SCREEN_CAPTURE_TOPOLOGY          (GHI_CHANNEL_VIEW_SCREEN_CAPTURE_BITS | 0x000002)
 
 #endif // ifndef _GHINTEGRATIONCOMMON_H_

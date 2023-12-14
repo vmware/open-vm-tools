@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -893,21 +893,7 @@ int
 TimeUtil_NtTimeToUnixTime(struct timespec *unixTime,  // OUT: Time in Unix format
                           VmTimeType ntTime)          // IN: Time in Windows NT format
 {
-#ifndef VM_X86_64
    ASSERT(unixTime);
-   /* We assume that time_t is 32bit */
-   ASSERT(sizeof (unixTime->tv_sec) == 4);
-
-   /* Cap NT time values that are outside of Unix time's range */
-
-   if (ntTime >= UNIX_S32_MAX) {
-      unixTime->tv_sec = 0x7FFFFFFF;
-      unixTime->tv_nsec = 0;
-      return 1;
-   }
-#else
-   ASSERT(unixTime);
-#endif // VM_X86_64
 
    if (ntTime < UNIX_EPOCH) {
       unixTime->tv_sec = 0;
@@ -915,19 +901,27 @@ TimeUtil_NtTimeToUnixTime(struct timespec *unixTime,  // OUT: Time in Unix forma
       return -1;
    }
 
-#ifdef __i386__ // only for 32-bit x86
-   {
-      uint32 sec;
-      uint32 nsec;
+#ifdef __i386__
+   if (sizeof unixTime->tv_sec == 4) {
+      uint32 sec,nsec;
+
+      /* Cap NT time values that are outside of Unix time's range */
+      if (ntTime >= UNIX_S32_MAX) {
+         unixTime->tv_sec = 0x7FFFFFFF;
+         unixTime->tv_nsec = 0;
+         return 1;
+      }
 
       Div643232(ntTime - UNIX_EPOCH, 10000000, &sec, &nsec);
       unixTime->tv_sec = sec;
       unixTime->tv_nsec = nsec * 100;
+
+      return 0;
    }
-#else
+#endif
+
    unixTime->tv_sec = (ntTime - UNIX_EPOCH) / 10000000;
    unixTime->tv_nsec = ((ntTime - UNIX_EPOCH) % 10000000) * 100;
-#endif // __i386__
 
    return 0;
 }
@@ -955,6 +949,35 @@ TimeUtil_UnixTimeToNtTime(struct timespec unixTime)  // IN: Time in Unix format
    return (VmTimeType)unixTime.tv_sec * 10000000 +
                                           unixTime.tv_nsec / 100 + UNIX_EPOCH;
 }
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * TimeUtil_IsValidDate --
+ *
+ *    Checks out if the given time and date are valid. This function assumes
+ *    that any valid minute might contain a leap second.
+ *
+ * Results:
+ *    TRUE if the time and date are valid, FALSE otherwise.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+Bool
+TimeUtil_IsValidDate(TimeUtil_Date const *d) // IN
+{
+   if (!TimeUtilIsValidDate(d->year, d->month, d->day)) {
+      return FALSE;
+   }
+
+   return d->hour < 24 && d->minute < 60 && d->second < 61;
+}
+
 
 #ifdef _WIN32
 /*

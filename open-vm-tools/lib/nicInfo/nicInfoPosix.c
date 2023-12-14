@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2014-2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 2014-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -284,10 +284,11 @@ IpEntryMatchesDevice(const char *devName,
  * @brief Gather IP addresses from ifaddrs and put into NicInfo, filtered
  *        by priority.
  *
- * @param[in]   ifaddrs  ifaddrs structure
- * @param[in]   priority the priority - only interfaces with this priority
- *                       will be considered
- * @param[out]  nicInfo  NicInfoV3 structure
+ * @param[in]   ifaddrs       ifaddrs structure
+ * @param[in]   priority      the priority - only interfaces with this priority
+ *                            will be considered
+ * @param[out]  nicInfo       NicInfoV3 structure
+ * @param[out]  maxNicsError  To determine NIC max limit error.
  *
  ******************************************************************************
  */
@@ -295,7 +296,8 @@ IpEntryMatchesDevice(const char *devName,
 static void
 GuestInfoGetInterface(struct ifaddrs *ifaddrs,
                       NicInfoPriority priority,
-                      NicInfoV3 *nicInfo)
+                      NicInfoV3 *nicInfo,
+                      Bool *maxNicsError)
 {
    struct ifaddrs *pkt;
    /*
@@ -335,7 +337,8 @@ GuestInfoGetInterface(struct ifaddrs *ifaddrs,
                      "%02x:%02x:%02x:%02x:%02x:%02x",
                      sll->sll_addr[0], sll->sll_addr[1], sll->sll_addr[2],
                      sll->sll_addr[3], sll->sll_addr[4], sll->sll_addr[5]);
-         nic = GuestInfoAddNicEntry(nicInfo, macAddress, NULL, NULL);
+         nic = GuestInfoAddNicEntry(nicInfo, macAddress, NULL, NULL,
+                                    maxNicsError);
          if (nic == NULL) {
             /*
              * We reached the maximum number of NICs that we can report.
@@ -399,6 +402,7 @@ GuestInfoGetInterface(struct ifaddrs *ifaddrs,
  * @param[in]  maxIPv4Routes  Max IPv4 routes to gather.
  * @param[in]  maxIPv6Routes  Max IPv6 routes to gather.
  * @param[out] nicInfo        NicInfoV3 container.
+ * @param[out] maxNicsError   To determine NIC max limit error.
  *
  * @copydoc GuestInfo_GetNicInfo
  *
@@ -408,7 +412,8 @@ GuestInfoGetInterface(struct ifaddrs *ifaddrs,
 Bool
 GuestInfoGetNicInfo(unsigned int maxIPv4Routes,
                     unsigned int maxIPv6Routes,
-                    NicInfoV3 *nicInfo)
+                    NicInfoV3 *nicInfo,
+                    Bool *maxNicsError)
 {
 #ifndef NO_DNET
    intf_t *intf;
@@ -459,7 +464,7 @@ GuestInfoGetNicInfo(unsigned int maxIPv4Routes,
       for (priority = NICINFO_PRIORITY_PRIMARY;
            priority < NICINFO_PRIORITY_MAX;
            priority++) {
-         GuestInfoGetInterface(ifaddrs, priority, nicInfo);
+         GuestInfoGetInterface(ifaddrs, priority, nicInfo, maxNicsError);
       }
       freeifaddrs(ifaddrs);
    }
@@ -665,7 +670,6 @@ ReadInterfaceDetails(const struct intf_entry *entry, // IN
                      void *arg,                      // IN
                      NicInfoPriority priority)       // IN
 {
-   int i;
    NicInfoV3 *nicInfo = arg;
 
    ASSERT(entry);
@@ -684,6 +688,7 @@ ReadInterfaceDetails(const struct intf_entry *entry, // IN
       if (entry->intf_link_addr.addr_type == ADDR_TYPE_ETH) {
          char macAddress[NICINFO_MAC_LEN];
          GuestNicV3 *nic = NULL;
+         int i;
 
          Str_Sprintf(macAddress, sizeof macAddress, "%s",
                      addr_ntoa(&entry->intf_link_addr));
@@ -693,7 +698,7 @@ ReadInterfaceDetails(const struct intf_entry *entry, // IN
             return 0;
          }
 
-         nic = GuestInfoAddNicEntry(nicInfo, macAddress, NULL, NULL);
+         nic = GuestInfoAddNicEntry(nicInfo, macAddress, NULL, NULL, NULL);
          if (NULL == nic) {
             /*
              * We reached maximum number of NICs we can report to the host.

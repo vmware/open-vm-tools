@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2014,2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2014, 2017, 2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -60,11 +60,11 @@ extern "C" {
 
 
 /* size of the rx ring when enhanced vmxnet is used */
-#define ENHANCED_VMXNET2_MAX_NUM_RX_BUFFERS     512 
-#define ENHANCED_VMXNET2_DEFAULT_NUM_RX_BUFFERS 150 
+#define ENHANCED_VMXNET2_MAX_NUM_RX_BUFFERS     512
+#define ENHANCED_VMXNET2_DEFAULT_NUM_RX_BUFFERS 150
 
 /* size of the 2nd rx ring */
-#define VMXNET2_MAX_NUM_RX_BUFFERS2             2048 
+#define VMXNET2_MAX_NUM_RX_BUFFERS2             2048
 #define VMXNET2_DEFAULT_NUM_RX_BUFFERS2	        512
 
 /* size of the tx ring */
@@ -98,13 +98,13 @@ typedef struct Vmxnet2_RxRingEntry {
    uint32		actualLength;	/* The actual length of the received data. */
    uint16               ownership;	/* Who owns the packet. */
    uint16		flags;		/* Flags as defined below. */
-   uint32               index;          /* 
+   uint32               index;          /*
                                          * Currently:
                                          *
                                          * This is being used as an packet index to
                                          * rx buffers.
                                          *
-                                         * Originally: 
+                                         * Originally:
                                          *
 					 * was void* driverData ("Driver specific data.")
 					 * which was used for sk_buf**s in Linux and
@@ -120,7 +120,7 @@ typedef struct Vmxnet2_RxRingEntry {
 
 /*
  * Vmxnet2_RxRingEntry flags:
- * 
+ *
  * VMXNET2_RX_HW_XSUM_OK       The hardware verified the TCP/UDP checksum.
  * VMXNET2_RX_WITH_FRAG        More data is in the 2nd ring
  * VMXNET2_RX_FRAG_EOP         This is the last frag, the only valid flag for
@@ -152,8 +152,8 @@ typedef struct Vmxnet2_TxRingEntry {
 /*
  * Vmxnet2_TxRingEntry flags:
  *
- *   VMXNET2_TX_CAN_KEEP	The implementation can return the tx ring entry 
- *				to the driver when it is ready as opposed to 
+ *   VMXNET2_TX_CAN_KEEP	The implementation can return the tx ring entry
+ *				to the driver when it is ready as opposed to
  *				before the transmit call from the driver completes.
  *   VMXNET2_TX_RING_LOW	The driver's transmit ring buffer is low on free
  *				slots.
@@ -231,11 +231,11 @@ typedef struct Vmxnet2_DriverStats {
 
 /*
  * Shared data structure between the vm, the vmm, and the vmkernel.
- * This structure was originally arranged to try to group common data 
+ * This structure was originally arranged to try to group common data
  * on 32-byte cache lines, but bit rot and the fact that we no longer
- * run on many CPUs with that cacheline size killed that optimization.
- * vmxnet3 should target 128 byte sizes and alignments to optimize for
- * the 64 byte cacheline pairs on P4.
+ * run on many CPUs with that cacheline size made that optimization
+ * ineffective. vmxnet3 should target 128 byte sizes and alignments
+ * to optimize for the 64 byte cacheline pairs on P4.
  */
 typedef struct Vmxnet2_DriverData {
    /*
@@ -244,7 +244,7 @@ typedef struct Vmxnet2_DriverData {
    Vmxnet_DDMagic       magic;
 
    /*
-    * Receive fields. 
+    * Receive fields.
     */
    uint32		rxRingLength;		/* Length of the receive ring. */
    uint32		rxDriverNext;		/* Index of the next packet that will */
@@ -315,7 +315,7 @@ typedef struct Vmxnet2_DriverData {
    uint32		length;
    uint32		rxRingOffset;
    uint32		rxRingOffset2;
-   uint32		txRingOffset;   
+   uint32		txRingOffset;
    uint32		debugLevel;
    uint32		txBufferPhysStart;
    uint32		txBufferPhysLength;
@@ -328,7 +328,7 @@ typedef struct Vmxnet2_DriverData {
 } Vmxnet2_DriverData;
 
 #ifdef VMX86_SERVER
-/* 
+/*
  * Shared between VMM and Vmkernel part of vmxnet2 to optimize action posting
  * VMM writes 1 (don't post) or 0 (okay to post) and vmk reads this.
  */
@@ -345,7 +345,7 @@ typedef struct VmxnetVMKShared {
  */
 
 /*
- * Get the next empty packet out of the receive ring and move to 
+ * Get the next empty packet out of the receive ring and move to
  * the next packet.
  */
 static INLINE Vmxnet2_RxRingEntry *
@@ -394,7 +394,7 @@ Vmxnet2_IncNextTx(Vmxnet2_TxRingInfo *ri)
 {
    unsigned int prev = ri->nicNext;
    Vmxnet2_TxRingEntry *txre = ri->base + ri->nicNext;
-   
+
    txre->ownership = VMXNET2_OWNERSHIP_NIC_PENDING;
 
    VMXNET_INC(ri->nicNext, ri->ringLength);

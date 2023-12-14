@@ -1,5 +1,5 @@
 /* **********************************************************
- * Copyright (C) 2007-2020 VMware, Inc.  All rights reserved.
+ * Copyright (c) 2007-2022 VMware, Inc.  All rights reserved.
  * **********************************************************/
 
 /*
@@ -394,6 +394,10 @@ Bool CodeSet_IsStringValidUTF8(const char *string);  // IN:
 Bool CodeSet_IsValidUTF8String(const char *bufIn,  // IN:
                                size_t sizeIn);     // IN:
 
+char *CodeSet_JsonEscape(const char *utf8);  // IN:
+
+char *CodeSet_JsonUnescape(const char *utf8);  // IN:
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -488,10 +492,10 @@ CodeSet_Utf8FindCodePointBoundary(const char *buf,   // IN
                                   size_t offset)     // IN
 {
    size_t origOffset = offset;
-   signed char c;
 
    if (offset > 0) {
 
+      signed char c;
       /*
        * Back up 1 byte and then find the start of the UTF-8 code
        * point occupying that location.

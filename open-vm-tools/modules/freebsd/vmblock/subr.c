@@ -1,5 +1,5 @@
 /* **********************************************************
- * Copyright 2007-2014 VMware, Inc.  All rights reserved.
+ * Copyright 2007-2014, 2023 VMware, Inc.  All rights reserved.
  * **********************************************************/
 
 /*
@@ -300,7 +300,6 @@ VMBlockHashRem(struct VMBlockNode *xp)  // IN: node to remove
  *-----------------------------------------------------------------------------
  */
 
-#if __FreeBSD_version >= 700055
 static void
 VMBlockInsMntQueDtr(struct vnode *vp, // IN: node to cleanup
 		    void *xp)         // IN: FS private data
@@ -313,7 +312,6 @@ VMBlockInsMntQueDtr(struct vnode *vp, // IN: node to cleanup
    vgone(vp);
    vput(vp);
 }
-#endif
 
 
 /*
@@ -391,8 +389,13 @@ VMBlockNodeGet(struct mount *mp,        // IN: VMBlock fs info
       panic("VMBlockNodeGet: Passed a NULL vnlock.\n");
    }
 
-   /* Before FreeBSD 7, insmntque was called by getnewvnode. */
-#if __FreeBSD_version >= 700055
+#if __FreeBSD_version >= 1400051
+   error = insmntque1(vp, mp);
+   if (error != 0) {
+      VMBlockInsMntQueDtr(vp, xp);
+      return error;
+   }
+#else
    error = insmntque1(vp, mp, VMBlockInsMntQueDtr, xp);
    if (error != 0) {
       return error;
@@ -429,7 +432,7 @@ VMBlockNodeGet(struct mount *mp,        // IN: VMBlock fs info
  *
  * VMBlockCheckVp --
  *
- *      Sanity-checking intermediary used for debugging.  When module is
+ *      Confidence-checking intermediary used for debugging.  When module is
  *      compiled with FreeBSD macro "DIAGNOSTIC", every instance of
  *      VMBVPTOLOWERVP() calls this function to test vnodes' and VMBlockNodes'
  *      values, printing diagnostic information before panicing.  If the kernel

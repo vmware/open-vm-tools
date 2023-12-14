@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -19,7 +19,7 @@
 /*
  * panic.c --
  *
- *	Module to encapsulate common Panic behaviors.
+ *      Module to encapsulate common Panic behaviors.
  */
 
 #include <stdio.h>
@@ -60,7 +60,6 @@ static struct PanicState {
    Bool loopOnPanic;
    int coreDumpFlags; /* Memorize for clients without init func */
    PanicBreakAction breakOnPanic; /* XXX: should this be DEVEL only? */
-   char *coreDumpFile;
 } panicState = { TRUE, TRUE }; /* defaults in lieu of Panic_Init() */
 
 
@@ -96,15 +95,15 @@ Panic_Init(void)
  *
  * Panic_SetPanicMsgPost --
  *
- *	Allow the Msg_Post() on panic to be suppressed.  If passed FALSE,
- *	then any subsequent Panics will refrain from posting the "VMWARE
- *	Panic:" message.
+ *      Allow the Msg_Post() on panic to be suppressed.  If passed FALSE,
+ *      then any subsequent Panics will refrain from posting the Panic
+ *      message.
  *
  * Results:
- *	void.
+ *      None.
  *
  * Side effects:
- *	Enables/Disables Msg_Post on Panic().
+ *      None.
  *
  *----------------------------------------------------------------------
  */
@@ -120,12 +119,14 @@ Panic_SetPanicMsgPost(Bool postMsg)
  *----------------------------------------------------------------------
  *
  * Panic_GetPanicMsgPost --
- *	Returns panicState.msgPostOnPanic
+ *
+ *      Determines whether to post a message during Panic.
  *
  * Results:
+ *      TRUE iff it's OK to post messages during Panic.
  *
  * Side effects:
- * 	None.
+ *      None.
  *
  *----------------------------------------------------------------------
  */
@@ -445,65 +446,6 @@ Panic_GetBreakOnPanic(void)
 /*
  *-----------------------------------------------------------------------------
  *
- * Panic_SetCoreDumpFileName --
- *
- *    Record the filename of a core dump file so that a subsequent
- *    Panic_PostPanicMsg can mention it by name.
- *
- *    Pass NULL to say there's no core file; pass the empty string to
- *    say there's a core file but you don't know where; pass the name
- *    of the core file if you know it.
- *
- * Results:
- *    void
- *
- * Side effects:
- *    malloc; overwrites panicState.coreDumpFile
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-Panic_SetCoreDumpFileName(const char *fileName)
-{
-   if (panicState.coreDumpFile) {
-      free(panicState.coreDumpFile);
-   }
-
-   if (fileName) {
-      panicState.coreDumpFile = strdup(fileName);
-   } else {
-      panicState.coreDumpFile = NULL;
-   }
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * Panic_GetCoreDumpFileName --
- *
- *    Returns the core dump filename if set.
- *
- * Results:
- *    coredump filename if set, NULL otherwise.
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-
-const char *
-Panic_GetCoreDumpFileName(void)
-{
-   return panicState.coreDumpFile;
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
  * Panic_Panic --
  *
  *      Panic, possibly core dump
@@ -517,7 +459,7 @@ Panic_GetCoreDumpFileName(void)
  *      None.
  *
  * Side effects:
- *	Death.
+ *      Death.
  *
  *-----------------------------------------------------------------------------
  */
@@ -557,17 +499,17 @@ Panic_Panic(const char *format,
 
    /*
     * Panic loop detection:
-    *	 first time - do the whole report and shutdown sequence
-    *	 second time - log and exit
-    *	 beyond second time - just exit
+    *    first time - do the whole report and shutdown sequence
+    *    second time - log and exit
+    *    beyond second time - just exit
     */
 
    switch (count++) {  // Try HARD to not put code in here!
    case 0:  // case 0 stuff is below
       break;
    case 1:
-      Log("PANIC: %s", buf);
-      Log("Panic loop\n");
+      Log_Panic("PANIC: %s", buf);
+      Log_Panic("Panic loop\n");
       /* Fall through */
    default:
       fprintf(stderr, "Panic loop\n");
@@ -590,7 +532,7 @@ Panic_Panic(const char *format,
     * Log panic information.
     */
 
-   Log("PANIC: %s", buf);
+   Log_Panic("PANIC: %s", buf);
    Util_Backtrace(0);
 
    /*

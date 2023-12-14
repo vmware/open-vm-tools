@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2009-2020 VMware, Inc.  All rights reserved.
+### Copyright (c) 2009-2021 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -30,6 +30,9 @@ vmtoolsd_LDADD += @VMTOOLS_LIBS@
 vmtoolsd_LDADD += @GMODULE_LIBS@
 vmtoolsd_LDADD += @GOBJECT_LIBS@
 vmtoolsd_LDADD += @GTHREAD_LIBS@
+if LINUX
+   vmtoolsd_LDADD += ../../lib/globalConfig/libGlobalConfig.la
+endif
 
 vmtoolsd_SOURCES =
 vmtoolsd_SOURCES += cmdLine.c

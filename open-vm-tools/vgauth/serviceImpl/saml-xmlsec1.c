@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2016-2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 2016-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -31,6 +31,8 @@
 #include <libxml/parser.h>
 #include <libxml/catalog.h>
 #include <libxml/xmlschemas.h>
+#include <libxml/xmlIO.h>
+#include <libxml/uri.h>
 
 #include <xmlsec/xmlsec.h>
 #include <xmlsec/xmltree.h>
@@ -47,11 +49,66 @@
 #include "vmxlog.h"
 
 static int gClockSkewAdjustment = VGAUTH_PREF_DEFAULT_CLOCK_SKEW_SECS;
+static gboolean gAllowUnrelatedCerts = FALSE;
 static xmlSchemaPtr gParsedSchemas = NULL;
 static xmlSchemaValidCtxtPtr gSchemaValidateCtx = NULL;
 
 #define CATALOG_FILENAME            "catalog.xml"
 #define SAML_SCHEMA_FILENAME        "saml-schema-assertion-2.0.xsd"
+
+
+/*
+ ******************************************************************************
+ * UserXmlFileOpen --                                                    */ /**
+ *
+ * User defined version of libxml2 export xmlFileOpen.
+ *
+ * This function opens a file with its unescaped name only.
+ *
+ * xmlInitParser() calls xmlRegisterDefaultInputCallbacks() which calls
+ *    xmlRegisterInputCallbacks(xmlFileMatch, xmlFileOpen,
+ *                              xmlFileRead, xmlFileClose)
+ *
+ * UserXmlFileOpen is registered at the end of the xmlInputCallback table by
+ *    xmlRegisterInputCallbacks(xmlFileMatch, UserXmlFileOpen,
+ *                              xmlFileRead, xmlFileClose)
+ *
+ * Based on libxml2 xmlIO.c, precedence is given to user defined handlers.
+ *
+ * @param[in]  filename          The URI file name.
+ *
+ * @return A handler or NULL in case of failure.
+ ******************************************************************************
+ */
+
+static void *
+UserXmlFileOpen(const char *filename)
+{
+   char *unescaped;
+   void *retval = NULL;
+
+   g_debug("%s: Incoming file name is \"%s\"\n", __FUNCTION__, filename);
+
+   unescaped = xmlURIUnescapeString(filename, 0, NULL);
+   if (unescaped != NULL) {
+      g_debug("%s: Opening file \"%s\"\n", __FUNCTION__, unescaped);
+      retval = xmlFileOpen(unescaped);
+      xmlFree(unescaped);
+   }
+
+   if (retval == NULL) {
+      g_warning("%s: Failed to open file \"%s\"\n", __FUNCTION__, filename);
+      /*
+       * Do not retry xmlFileOpen(filename) here.
+       * Calling system API to open escaped file paths is risky. This can
+       * cause unexpected not-secured paths being accessed and expose
+       * privilege escalation vulnerabilities.
+       */
+   }
+
+   return retval;
+}
+
 
 /*
  * Hack to test expired tokens and by-pass the time checks.
@@ -204,13 +261,13 @@ LoadCatalogAndSchema(void)
    catalogPath = g_build_filename(schemaDir, CATALOG_FILENAME, NULL);
    schemaPath = g_build_filename(schemaDir, SAML_SCHEMA_FILENAME, NULL);
 
-   xmlInitializeCatalog();
-
    /*
+    * Skip calling xmlInitializeCatalog().
+    *
     * xmlLoadCatalog() just adds to the default catalog, and won't return an
     * error if it doesn't exist so long as a default catalog is set.
     *
-    * So sanity check its existence.
+    * So confidence check its existence.
     */
    if (!g_file_test(catalogPath, G_FILE_TEST_EXISTS)) {
       g_warning("Error: catalog file not found at \"%s\"\n", catalogPath);
@@ -313,6 +370,10 @@ LoadPrefs(void)
                                       VGAUTH_PREF_DEFAULT_CLOCK_SKEW_SECS);
     Log("%s: Allowing %d of clock skew for SAML date validation\n",
         __FUNCTION__, gClockSkewAdjustment);
+    gAllowUnrelatedCerts = Pref_GetBool(gPrefs,
+                                        VGAUTH_PREF_ALLOW_UNRELATED_CERTS,
+                                        VGAUTH_PREF_GROUP_NAME_SERVICE,
+                                        FALSE);
 }
 
 
@@ -353,6 +414,12 @@ SAML_Init(void)
 
    /* set up the xml2 error handler */
    xmlSetGenericErrorFunc(NULL, XmlErrorHandler);
+
+   /*
+    * Register user defined UserXmlFileOpen
+    */
+   xmlRegisterInputCallbacks(xmlFileMatch, UserXmlFileOpen,
+                             xmlFileRead, xmlFileClose);
 
    /*
     * Load schemas
@@ -504,6 +571,18 @@ FreeCertArray(int num,
       g_free(certs[i]);
    }
    g_free(certs);
+}
+
+
+/*
+ * Public API for use by the unit tests.
+ */
+
+void
+SAML_FreeCertArray(int num,
+                   gchar **certs)
+{
+   FreeCertArray(num, certs);
 }
 
 
@@ -872,7 +951,6 @@ VerifySubject(xmlDocPtr doc,
    xmlNodePtr nameIDNode;
    xmlNodePtr child;
    gchar *subjectVal = NULL;
-   gboolean retCode = FALSE;
    gboolean validSubjectFound = FALSE;
    xmlChar *tmp;
 
@@ -956,14 +1034,13 @@ VerifySubject(xmlDocPtr doc,
       }
    }
 
+done:
    if (validSubjectFound && (NULL != subjectRet)) {
       *subjectRet = subjectVal;
    } else {
       g_free(subjectVal);
    }
-   retCode = validSubjectFound;
-done:
-   return retCode;
+   return validSubjectFound;
 }
 
 
@@ -1170,10 +1247,11 @@ done:
  *
  * Verifies the signature on an XML document.
  *
- * @param[in]  doc       Parsed XML document.
- * @param[out] numCerts  Number of certs in the token.
- * @param[out] certChain Certs in the token. Caller should g_free() array and
- *                       contents.
+ * @param[in]  doc          Parsed XML document.
+ * @param[in]  hostVerified If set, signature verifcation can be skipped.
+ * @param[out] numCerts     Number of certs in the token.
+ * @param[out] certChain    Certs in the token. Caller should g_free() array and
+ *                          contents.
  *
  * @return TRUE on success.
  *
@@ -1182,6 +1260,7 @@ done:
 
 static gboolean
 VerifySignature(xmlDocPtr doc,
+                gboolean hostVerified,
                 int *numCerts,
                 gchar ***certChain)
 {
@@ -1254,6 +1333,13 @@ VerifySignature(xmlDocPtr doc,
       goto done;
    }
 
+   if (hostVerified) {
+      // XXX add a check that the sig is replaced with the expected value
+      g_debug("%s: token is hostVerified, skipping signature check",
+              __FUNCTION__);
+      goto verified;
+   }
+
    /*
     * Create a signature context with the key manager
     */
@@ -1275,7 +1361,14 @@ VerifySignature(xmlDocPtr doc,
     */
    bRet = RegisterID(xmlDocGetRootElement(doc), "ID");
    if (bRet == FALSE) {
-      g_warning("failed to register ID\n");
+      g_warning("Failed to register ID\n");
+      goto done;
+   }
+
+   /* Use only X509 certs to validate the signature */
+   if (xmlSecPtrListAdd(&(dsigCtx->keyInfoReadCtx.enabledKeyData),
+                        BAD_CAST xmlSecKeyDataX509Id) < 0) {
+      g_warning("Failed to limit allowed key data\n");
       goto done;
    }
 
@@ -1316,6 +1409,7 @@ VerifySignature(xmlDocPtr doc,
       goto done;
    }
 
+verified:
    retCode = TRUE;
    *numCerts = num;
    *certChain = certList;
@@ -1335,17 +1429,35 @@ done:
 
 
 /*
+ * Public API for use by the unit tests.
+ */
+
+gboolean
+SAML_VerifySignature(xmlDocPtr doc,
+                     gboolean hostVerified,
+                     int *numCerts,
+                     gchar ***certChain)
+{
+   return VerifySignature(doc,
+                          hostVerified,
+                          numCerts,
+                          certChain);
+}
+
+
+/*
  ******************************************************************************
  * VerifySAMLToken --                                                    */ /**
  *
  * Verifies a XML text as a SAML token.
  * Parses the XML, then verifies Subject, Conditions and Signature.
  *
- * @param[in]  token     Text of SAML token.
- * @param[out] subject   Subject of SAML token,  Caller must g_free().
- * @param[out] numCerts  Number of certs in the token.
- * @param[out] certChain Certs in the token. Caller should g_free() array and
- *                       contents.
+ * @param[in]  token         Text of SAML token.
+ * @param[in]  hostVerfied   If true, the signature check can be skipped.
+ * @param[out] subject       Subject of SAML token,  Caller must g_free().
+ * @param[out] numCerts      Number of certs in the token.
+ * @param[out] certChain     Certs in the token. Caller should g_free()
+ *                           array and contents.
  *
  * @return matching TRUE on success.
  *
@@ -1354,6 +1466,7 @@ done:
 
 static gboolean
 VerifySAMLToken(const gchar *token,
+                gboolean hostVerified,
                 gchar **subject,
                 int *numCerts,
                 gchar ***certChain)
@@ -1410,7 +1523,9 @@ VerifySAMLToken(const gchar *token,
    }
 #endif
 
-   bRet = VerifySignature(doc, numCerts, certChain);
+   bRet = VerifySignature(doc,
+                          hostVerified,
+                          numCerts, certChain);
    if (FALSE == bRet) {
       g_warning("Failed to verify Signature\n");
       // XXX Can we log the token at this point without risking security?
@@ -1433,6 +1548,60 @@ done:
    }
 
    return retCode;
+}
+
+
+// XXX remove this?  hostVerified can be tested just fine with the 'real'
+// API, the test-only shortcut may be overkill.  Though once this is
+// out of dev, we could add the extra param to SAML_VerifyBearerToken()
+// and fix all the test calls.
+
+/*
+ ******************************************************************************
+ * SAML_VerifyBearerTokenEx --                                           */ /**
+ *
+ * Determines whether the SAML bearer token can be used to authenticate.
+ * A token consists of a single SAML assertion.
+ *
+ * This is currently only used from the test code.
+ *
+ * @param[in]  xmlText      The text of the SAML assertion.
+ * @param[in]  userName     Optional username to authenticate as.
+ * @param[in]  hostVerified If set, then the signature verification will
+ *                          be skipped.
+ * @param[out] userNameOut  The user that the token has authenticated as.
+ * @param[out] subjNameOut  The subject in the token.  Caller must g_free().
+ * @param[out] verifyAi     The alias info associated with the entry
+ *                          in the alias store used to verify the
+ *                          SAML cert.
+ *
+ * @return VGAUTH_E_OK on success, VGAuthError on failure
+ *
+ ******************************************************************************
+ */
+
+VGAuthError
+SAML_VerifyBearerTokenEx(const char *xmlText,
+                         const char *userName,                // UNUSED
+                         gboolean hostVerified,
+                         char **userNameOut,                  // UNUSED
+                         char **subjNameOut,
+                         ServiceAliasInfo **verifyAi)         // UNUSED
+{
+   gboolean ret;
+   gchar **certChain = NULL;
+   int num = 0;
+
+   ret = VerifySAMLToken(xmlText,
+                         hostVerified,
+                         subjNameOut,
+                         &num,
+                         &certChain);
+
+   // clean up -- this code doesn't look at the chain
+   FreeCertArray(num, certChain);
+
+   return (ret == TRUE) ? VGAUTH_E_OK : VGAUTH_E_AUTHENTICATION_DENIED;
 }
 
 
@@ -1470,6 +1639,7 @@ SAML_VerifyBearerToken(const char *xmlText,
    int num = 0;
 
    ret = VerifySAMLToken(xmlText,
+                         FALSE,  // XXX keep original to minimze test changes
                          subjNameOut,
                          &num,
                          &certChain);
@@ -1490,13 +1660,14 @@ SAML_VerifyBearerToken(const char *xmlText,
  * The token must first be verified, then the certificate chain used
  * verify it must be checked against the appropriate certificate store.
  *
- * @param[in]  xmlText     The text of the SAML assertion.
- * @param[in]  userName    Optional username to authenticate as.
- * @param[out] userNameOut The user that the token has authenticated as.
- * @param[out] subjNameOut The subject in the token.  Caller must g_free().
- * @param[out] verifyAi    The alias info associated with the entry
- *                         in the alias store used to verify the
- *                         SAML cert.
+ * @param[in]  xmlText      The text of the SAML assertion.
+ * @param[in]  userName     Optional username to authenticate as.
+ * @param[in]  hostVerified If true, skip signature verification.
+ * @param[out] userNameOut  The user that the token has authenticated as.
+ * @param[out] subjNameOut  The subject in the token.  Caller must g_free().
+ * @param[out] verifyAi     The alias info associated with the entry
+ *                          in the alias store used to verify the
+ *                          SAML cert.
  *
  * @return VGAUTH_E_OK on success, VGAuthError on failure
  *
@@ -1506,6 +1677,7 @@ SAML_VerifyBearerToken(const char *xmlText,
 VGAuthError
 SAML_VerifyBearerTokenAndChain(const char *xmlText,
                                const char *userName,
+                               gboolean hostVerified,
                                char **userNameOut,
                                char **subjNameOut,
                                ServiceAliasInfo **verifyAi)
@@ -1521,12 +1693,22 @@ SAML_VerifyBearerTokenAndChain(const char *xmlText,
    *verifyAi = NULL;
 
    bRet = VerifySAMLToken(xmlText,
+                          hostVerified,
                           subjNameOut,
                           &num,
                           &certChain);
 
    if (FALSE == bRet) {
       return VGAUTH_E_AUTHENTICATION_DENIED;
+   }
+
+   if (!gAllowUnrelatedCerts) {
+      err = CertVerify_CheckForUnrelatedCerts(num, (const char **) certChain);
+      if (err != VGAUTH_E_OK) {
+         VMXLog_Log(VMXLOG_LEVEL_WARNING,
+                    "Unrelated certs found in SAML token, failing\n");
+         return VGAUTH_E_AUTHENTICATION_DENIED;
+      }
    }
 
    subj.type = SUBJECT_TYPE_NAMED;

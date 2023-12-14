@@ -1,5 +1,5 @@
 ##########################################################
-# Copyright (C) 2010-2017,2020 VMware, Inc. All rights reserved.
+# Copyright (c) 2010-2017,2020-2021 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -98,7 +98,7 @@ help.device = "%1$s: functions related to the virtual machine's hardware devices
 
 help.disk = "%1$s: perform disk shrink operations\nUsage: %2$s %3$s <subcommand> [args]\n\nSubcommands:\n   list: list available locations\n   shrink <location>: wipes and shrinks a file system at the given location\n   shrinkonly: shrinks all disks\n   wipe <location>: wipes a file system at the given location\n"
 
-help.globalconf = "%1$s: Manage global configuration downloads from the GuestStore\nUsage: %2$s %3$s <subcommand>\n\nESX guests only subcommands:\n   enable: Enable the global configuration module. (Tools service is restarted)\n   disable: Disable the global configuration module (Tools service is restarted)\n   refresh: Trigger a new download of the global configuration from the GuestStore\n   status: Print the status of the global configuration module\n"
+help.globalconf = "%1$s: Manage global configuration downloads from the GuestStore\nUsage: %2$s %3$s <subcommand>\n\nESX guests only subcommands:\n   enable: Enable the global configuration module\n   disable: Disable the global configuration module\n   refresh: Trigger a new download of the global configuration from the GuestStore\n   status: Print the status of the global configuration module\n"
 
 help.gueststore = "%1$s: get resource content from GuestStore\nUsage: %2$s %3$s <subcommand>\n\nESX guests only subcommands:\n   getcontent <resource path> <output file>: get resource content from GuestStore and save to output file.\n\n<resource path> starts with / and represents a unique resource in GuestStore. If it ends with /, defaults to retrieve the underlying 'metadata.json' resource.\n<output file> is the path of a file to save resource content to.\n"
 

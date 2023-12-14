@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017,2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017,2019,2021-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -82,22 +82,14 @@ static Bool CodeSetOldIso88591ToUtf8Db(char const *bufIn, size_t sizeIn,
 #endif
 
 #if defined __ANDROID__
-#include "vm_basic_asm.h"
 /*
- * Android doesn't have swab().
+ * This function will be called when buffer overflows. It will panic the app.
+ * It should be in libc.a. But new Android ndk does not have it.
  */
-void
-swab(const void *__restrict src,  // IN/OUT
-     void *__restrict dest,       // IN/OUT
-     ssize_t nbytes)              // IN
+void __stack_chk_fail(void);
+void __stack_chk_fail_local (void)
 {
-   const uint16 *p = src;
-   uint16 *q = dest;
-   ssize_t i;
-
-   for (i = 0; i < nbytes / sizeof *p; i++) {
-      q[i] = Bswap16(p[i]);
-   }
+   __stack_chk_fail();
 }
 #endif
 
@@ -654,7 +646,7 @@ CodeSetOldGetCodeSetFromLocale(void)
 {
    char *codeset;
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(__EMSCRIPTEN__)
 
    locale_t new = newlocale(LC_CTYPE_MASK, "", NULL);
    if (!new) {
@@ -664,9 +656,9 @@ CodeSetOldGetCodeSetFromLocale(void)
        * locale.
        */
 
-      new = newlocale(LC_CTYPE_MASK, "C", NULL); 
-      ASSERT(new); 
-   } 
+      new = newlocale(LC_CTYPE_MASK, "C", NULL);
+      ASSERT(new);
+   }
    codeset = Util_SafeStrdup(nl_langinfo_l(CODESET, new));
    freelocale(new);
 
@@ -731,7 +723,7 @@ CodeSetOld_GetCurrentCodeSet(void)
 
    return ret;
 #elif defined(USE_ICONV)
-   static char *cachedCodeset;
+   static const char *cachedCodeset;
 
    /*
     * Mirror GLib behavior:
@@ -756,16 +748,16 @@ CodeSetOld_GetCurrentCodeSet(void)
     *    the first entry when converting to/from UTF-8.
     */
 
-   if (!cachedCodeset) {
+   if (cachedCodeset == NULL) {
       char *gFilenameEncoding = getenv("G_FILENAME_ENCODING");
 
-      if (gFilenameEncoding && *gFilenameEncoding) {
+      if (gFilenameEncoding != NULL && *gFilenameEncoding != '\0') {
          char *p;
 
          gFilenameEncoding = Util_SafeStrdup(gFilenameEncoding);
          p = strchr(gFilenameEncoding, ',');
 
-         if (p) {
+         if (p != NULL) {
             *p = '\0';
          }
          if (!strcmp(gFilenameEncoding, "@locale")) {
@@ -936,7 +928,7 @@ CodeSetOld_GenericToGenericDb(char const *codeIn,   // IN:
        * change bufIn so a simple cast is safe. --plangdale
        */
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__EMSCRIPTEN__)
       status = iconv(cd, (char **)&bufIn, &sizeIn, &out, &outLeft);
 #else
       status = iconv(cd, &bufIn, &sizeIn, &out, &outLeft);

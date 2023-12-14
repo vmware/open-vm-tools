@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -25,6 +25,8 @@
 
 #ifndef _BASE64_H
 #define _BASE64_H
+
+#include "vm_basic_types.h"
 
 #if defined(__cplusplus)
 extern "C" {

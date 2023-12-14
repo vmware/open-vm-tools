@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -19,12 +19,12 @@
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
 #include <ctype.h>
 #include <sys/utsname.h>
 #include <netdb.h>
 #include <fcntl.h>
+#include <unistd.h>
 #include <limits.h>
 #include <errno.h>
 #include <sys/file.h>
@@ -72,8 +72,10 @@
 #if !defined(USING_AUTOCONF) || defined(HAVE_SYS_VFS_H)
 #include <sys/vfs.h>
 #endif
-#if !defined(sun) && !defined __ANDROID__ && (!defined(USING_AUTOCONF) || (defined(HAVE_SYS_IO_H) && defined(HAVE_SYS_SYSINFO_H)))
-#if defined(__i386__) || defined(__x86_64__) || defined(__arm__)
+#if !defined(sun) && !defined __ANDROID__ && (!defined(USING_AUTOCONF) || \
+                                              (defined(HAVE_SYS_IO_H) && \
+                                               defined(HAVE_SYS_SYSINFO_H)))
+#if defined(__i386__) || defined(__x86_64__)
 #include <sys/io.h>
 #else
 #define NO_IOPL
@@ -131,20 +133,24 @@
 #include "uwvmkAPI.h"
 #include "uwvmk.h"
 #include "vmkSyscall.h"
+#include "uwvmkprivate.h"
 #endif
 
 #define LGPFX "HOSTINFO:"
-#define MAX_LINE_LEN 128
 
 #define SYSTEM_BITNESS_32 "i386"
 #define SYSTEM_BITNESS_64_SUN "amd64"
 #define SYSTEM_BITNESS_64_LINUX "x86_64"
 #define SYSTEM_BITNESS_64_ARM_LINUX "aarch64"
+#define SYSTEM_BITNESS_64_ARM_FREEBSD "arm64"
 #define SYSTEM_BITNESS_MAXLEN \
    MAX(sizeof SYSTEM_BITNESS_32, \
    MAX(sizeof SYSTEM_BITNESS_64_SUN, \
    MAX(sizeof SYSTEM_BITNESS_64_LINUX, \
-       sizeof SYSTEM_BITNESS_64_ARM_LINUX)))
+   MAX(sizeof SYSTEM_BITNESS_64_ARM_LINUX, \
+       sizeof SYSTEM_BITNESS_64_ARM_FREEBSD))))
+
+#define LSB_RELEASE "/usr/bin/lsb_release"
 
 struct hostinfoOSVersion {
    int   hostinfoOSVersion[4];
@@ -156,30 +162,27 @@ static Atomic_Ptr hostinfoOSVersion;
 #define DISTRO_BUF_SIZE 1024
 
 #if !defined(__APPLE__) && !defined(VMX86_SERVER) && !defined(USERWORLD)
-typedef struct {
-   char *name;
-   char *scanString;
-} DistroNameScan;
-
-static const DistroNameScan lsbFields[] = {
-   { "DISTRIB_ID=",          "DISTRIB_ID=%s"          },
-   { "DISTRIB_RELEASE=",     "DISTRIB_RELEASE=%s"     },
-   { "DISTRIB_CODENAME=",    "DISTRIB_CODENAME=%s"    },
-   { "DISTRIB_DESCRIPTION=", "DISTRIB_DESCRIPTION=%s" },
-   { NULL,                   NULL                     },
+static const char *lsbFields[] = {
+   "DISTRIB_ID=",
+   "DISTRIB_RELEASE=",
+   "DISTRIB_CODENAME=",
+   "DISTRIB_DESCRIPTION=",
+   NULL                      // MUST BE LAST
 };
 
-static const DistroNameScan osReleaseFields[] = {
-   { "PRETTY_NAME=",        "PRETTY_NAME=%s" },
-   { "NAME=",               "NAME=%s"        },
-   { "VERSION_ID=",         "VERSION_ID=%s"  },
-   { "BUILD_ID=",           "BUILD_ID=%s"    },
-   { NULL,                  NULL             },
+static const char *osReleaseFields[] = {
+   "PRETTY_NAME=",
+   "NAME=",
+   "VERSION_ID=",
+   "BUILD_ID=",
+   "VERSION=",
+   "CPE_NAME=",              // NIST CPE specification
+   NULL                      // MUST BE LAST
 };
 
 typedef struct {
-   char *name;
-   char *filename;
+   const char *name;
+   const char *filename;
 } DistroInfo;
 
 /*
@@ -243,16 +246,34 @@ static const DistroInfo distroArray[] = {
 };
 #endif
 
-/* Must be sorted. Keep in the same ordering as DetailedDataFieldType */
+/*
+ * Any data obtained about the distro is obtained - UNMODIFIED - from the
+ * standardized (i.e. LSB, os-release) disto description files. Under no
+ * circumstances is code specific to a distro allowed or used. If the data
+ * specified by a distro isn't useful, talk to the disto, not VMware.
+ *
+ * The fields from the standardized distro description files used may be
+ * found above (i.e. lsbFields, osReleaseFields).
+ *
+ * Must be sorted. Keep in the same ordering as DetailedDataFieldType
+ */
+
 DetailedDataField detailedDataFields[] = {
-   { "bitness",       "" },  // "32" or "64"
-   { "buildNumber",   "" },  // Present for MacOS and some Linux distros.
-   { "distroName",    "" },  // Defaults to uname -s
-   { "distroVersion", "" },  // Present for MacOS. Read from distro files for Linux.
-   { "familyName",    "" },  // Defaults to uname -s
-   { "kernelVersion", "" },  // Defaults to uname -r
-   { "prettyName",    "" },  // Present for MacOS. Read from distro files for Linux.
-   { NULL,            "" },  // MUST BE LAST
+#if defined(VM_ARM_ANY)
+   { "architecture",      "Arm"   },  // Arm
+#else
+   { "architecture",      "X86"   },  // Intel/X86
+#endif
+   { "bitness",           ""      },  // "32" or "64"
+   { "buildNumber",       ""      },  // When available
+   { "cpeString",         ""      },  // When available
+   { "distroAddlVersion", ""      },  // When available
+   { "distroName",        ""      },  // Defaults to uname -s
+   { "distroVersion",     ""      },  // When available
+   { "familyName",        ""      },  // Defaults to uname -s
+   { "kernelVersion",     ""      },  // Defaults to uname -r
+   { "prettyName",        ""      },  // When available
+   { NULL,                ""      },  // MUST BE LAST
 };
 
 #if defined __ANDROID__ || defined __aarch64__
@@ -496,7 +517,9 @@ Hostinfo_GetSystemBitness(void)
    if (strcmp(buf, SYSTEM_BITNESS_32) == 0) {
       return 32;
    } else if (strcmp(buf, SYSTEM_BITNESS_64_SUN) == 0 ||
-              strcmp(buf, SYSTEM_BITNESS_64_LINUX) == 0) {
+              strcmp(buf, SYSTEM_BITNESS_64_LINUX) == 0 ||
+              strcmp(buf, SYSTEM_BITNESS_64_ARM_LINUX) == 0 ||
+              strcmp(buf, SYSTEM_BITNESS_64_ARM_FREEBSD) == 0) {
       return 64;
    }
 
@@ -768,36 +791,16 @@ HostinfoESX(struct utsname *buf)  // IN:
       minor = 0;
    }
 
-   switch (major) {
-   case 0:
-   case 1:
-   case 2:
-   case 3:
-   case 4:
+   if (major <= 4) {
       Str_Strcpy(osName, STR_OS_VMKERNEL, sizeof osName);
-      break;
-
-   case 5:
-      Str_Strcpy(osName, STR_OS_VMKERNEL "5", sizeof osName);
-      break;
-
-   case 6:
-      if (minor < 5) {
-         Str_Strcpy(osName, STR_OS_VMKERNEL "6", sizeof osName);
+   } else {
+      if (minor == 0) {
+         Str_Sprintf(osName, sizeof osName, "%s%d", STR_OS_VMKERNEL,
+                     major);
       } else {
-         Str_Strcpy(osName, STR_OS_VMKERNEL "65", sizeof osName);
+         Str_Sprintf(osName, sizeof osName, "%s%d%d", STR_OS_VMKERNEL,
+                     major, minor);
       }
-      break;
-
-   case 7:
-   default:
-      /*
-       * New osName are created IFF the VMX/monitor requires them (rare),
-       * not (simply) with every ESXi release.
-       */
-
-      Str_Strcpy(osName, STR_OS_VMKERNEL "7", sizeof osName);
-      break;
    }
 
    len = Str_Snprintf(osNameFull, sizeof osNameFull, "VMware ESXi %s",
@@ -875,6 +878,37 @@ HostinfoSearchShortNames(const ShortNameSet *array, // IN:
 /*
  *-----------------------------------------------------------------------------
  *
+ * HostinfoArchString --
+ *
+ *      Return the machine architecture prefix. The X86 and X86_64 machine
+ *      architectures are implied - no prefix. All others require an official
+ *      string from VMware.
+ *
+ * Return value:
+ *      As above.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static const char *
+HostinfoArchString(void)
+{
+#if defined(VM_ARM_ANY)
+   return STR_OS_ARM_PREFIX;
+#elif defined(VM_X86_ANY)
+   return "";
+#else
+#error Unsupported architecture!
+#endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * HostinfoGenericSetShortName --
  *
  *      Set the short name using the short name entry in the specified table
@@ -899,7 +933,8 @@ HostinfoGenericSetShortName(const ShortNameSet *entry, // IN:
    ASSERT(entry != NULL);
    ASSERT(entry->shortName != NULL);
 
-   Str_Strcpy(distroShort, entry->shortName, distroShortSize);
+   Str_Sprintf(distroShort, distroShortSize, "%s%s", HostinfoArchString(),
+               entry->shortName);
 
    return TRUE;
 }
@@ -932,8 +967,8 @@ HostinfoSetAmazonShortName(const ShortNameSet *entry, // IN: Unused
       version = 2;
    }
 
-   Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_AMAZON_LINUX,
-               version);
+   Str_Sprintf(distroShort, distroShortSize, "%s%s%d",
+               HostinfoArchString(), STR_OS_AMAZON_LINUX, version);
 
    return TRUE;
 }
@@ -965,8 +1000,8 @@ HostinfoSetAsianuxShortName(const ShortNameSet *entry, // IN: Unused
    if (version < 3) {
       Str_Strcpy(distroShort, STR_OS_ASIANUX, distroShortSize);
    } else {
-      Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_ASIANUX,
-                  version);
+      Str_Sprintf(distroShort, distroShortSize, "%s%s%d",
+                  HostinfoArchString(), STR_OS_ASIANUX, version);
    }
 
    return TRUE;
@@ -999,8 +1034,8 @@ HostinfoSetCentosShortName(const ShortNameSet *entry, // IN: Unused
    if (version < 6) {
       Str_Strcpy(distroShort, STR_OS_CENTOS, distroShortSize);
    } else {
-      Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_CENTOS,
-                  version);
+      Str_Sprintf(distroShort, distroShortSize, "%s%s%d",
+                  HostinfoArchString(), STR_OS_CENTOS, version);
    }
 
    return TRUE;
@@ -1033,8 +1068,8 @@ HostinfoSetDebianShortName(const ShortNameSet *entry, // IN: Unused
    if (version <= 4) {
       Str_Strcpy(distroShort, STR_OS_DEBIAN "4", distroShortSize);
    } else {
-      Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_DEBIAN,
-                  version);
+      Str_Sprintf(distroShort, distroShortSize, "%s%s%d",
+                  HostinfoArchString(), STR_OS_DEBIAN, version);
    }
 
    return TRUE;
@@ -1073,10 +1108,11 @@ HostinfoSetOracleShortName(const ShortNameSet *entry, // IN: Unused
     */
 
    if (version == 0) {
-      Str_Strcpy(distroShort, STR_OS_ORACLE, distroShortSize);
+      Str_Sprintf(distroShort, distroShortSize, "%s%s",
+                  HostinfoArchString(), STR_OS_ORACLE);
    } else {
-      Str_Sprintf(distroShort, distroShortSize, "%s%d", STR_OS_ORACLE,
-                  version);
+      Str_Sprintf(distroShort, distroShortSize, "%s%s%d",
+                  HostinfoArchString(), STR_OS_ORACLE, version);
    }
 
    return TRUE;
@@ -1107,13 +1143,15 @@ HostinfoSetRedHatShortName(const ShortNameSet *entry, // IN: Unused
                            int distroShortSize)       // IN:
 {
    if (strstr(distroLower, "enterprise") == NULL) {
-      Str_Strcpy(distroShort, STR_OS_RED_HAT, distroShortSize);
+      Str_Sprintf(distroShort, distroShortSize, "%s%s",
+                  HostinfoArchString(), STR_OS_RED_HAT);
    } else {
       if (version == 0) {
-         Str_Strcpy(distroShort, STR_OS_RED_HAT_EN, distroShortSize);
+         Str_Sprintf(distroShort, distroShortSize, "%s%s",
+                     HostinfoArchString(), STR_OS_RED_HAT_EN);
       } else {
-         Str_Sprintf(distroShort, distroShortSize, "%s%d",
-                     STR_OS_RED_HAT_EN, version);
+         Str_Sprintf(distroShort, distroShortSize, "%s%s%d",
+                     HostinfoArchString(), STR_OS_RED_HAT_EN, version);
       }
    }
 
@@ -1130,18 +1168,18 @@ HostinfoSetRedHatShortName(const ShortNameSet *entry, // IN: Unused
 #define SUSE_SAP_LINUX "server for sap applications 12"
 
 static const ShortNameSet suseEnterpriseShortNameArray[] = {
-   {"desktop 10",    STR_OS_SLES "10",  HostinfoGenericSetShortName},
-   {"desktop 11",    STR_OS_SLES "11",  HostinfoGenericSetShortName},
-   {"desktop 12",    STR_OS_SLES "12",  HostinfoGenericSetShortName},
-   {"desktop 15",    STR_OS_SLES "15",  HostinfoGenericSetShortName},
-   {"desktop 16",    STR_OS_SLES "16",  HostinfoGenericSetShortName},
-   {"server 10",     STR_OS_SLES "10",  HostinfoGenericSetShortName},
-   {"server 11",     STR_OS_SLES "11",  HostinfoGenericSetShortName},
-   {"server 12",     STR_OS_SLES "12",  HostinfoGenericSetShortName},
-   {"server 15",     STR_OS_SLES "15",  HostinfoGenericSetShortName},
-   {"server 16",     STR_OS_SLES "16",  HostinfoGenericSetShortName},
-   {SUSE_SAP_LINUX,  STR_OS_SLES "12",  HostinfoGenericSetShortName},
-   {NULL,            NULL,              NULL} // MUST BE LAST
+   { "desktop 10",    STR_OS_SLES "10",  HostinfoGenericSetShortName },
+   { "desktop 11",    STR_OS_SLES "11",  HostinfoGenericSetShortName },
+   { "desktop 12",    STR_OS_SLES "12",  HostinfoGenericSetShortName },
+   { "desktop 15",    STR_OS_SLES "15",  HostinfoGenericSetShortName },
+   { "desktop 16",    STR_OS_SLES "16",  HostinfoGenericSetShortName },
+   { "server 10",     STR_OS_SLES "10",  HostinfoGenericSetShortName },
+   { "server 11",     STR_OS_SLES "11",  HostinfoGenericSetShortName },
+   { "server 12",     STR_OS_SLES "12",  HostinfoGenericSetShortName },
+   { "server 15",     STR_OS_SLES "15",  HostinfoGenericSetShortName },
+   { "server 16",     STR_OS_SLES "16",  HostinfoGenericSetShortName },
+   { SUSE_SAP_LINUX,  STR_OS_SLES "12",  HostinfoGenericSetShortName },
+   { NULL,            NULL,              NULL                        } // MUST BE LAST
 };
 
 
@@ -1152,9 +1190,9 @@ static const ShortNameSet suseEnterpriseShortNameArray[] = {
  */
 
 static const ShortNameSet suseShortNameArray[] = {
-   {"sun",           STR_OS_SUN_DESK,  HostinfoGenericSetShortName},
-   {"novell",        STR_OS_NOVELL,    HostinfoGenericSetShortName},
-   {NULL,            NULL,             NULL} // MUST BE LAST
+   { "sun",           STR_OS_SUN_DESK,     HostinfoGenericSetShortName },
+   { "novell",        STR_OS_NOVELL "9",   HostinfoGenericSetShortName },
+   { NULL,            NULL,                NULL                        } // MUST BE LAST
 };
 
 
@@ -1163,7 +1201,8 @@ static const ShortNameSet suseShortNameArray[] = {
  *
  * HostinfoSetSuseShortName --
  *
- *      Set the short name for the SUSE distros.
+ *      Set the short name for the SUSE distros. Due to ownership and naming
+ *      changes, other distros have to be "filtered" and named differently.
  *
  * Return value:
  *      TRUE    success
@@ -1191,14 +1230,16 @@ HostinfoSetSuseShortName(const ShortNameSet *entry, // IN:
                                        distroLower, distroShort,
                                        distroShortSize);
       if (!found) {
-         Str_Strcpy(distroShort, STR_OS_SUSE, distroShortSize);
+         Str_Sprintf(distroShort, distroShortSize, "%s%s",
+                     HostinfoArchString(), STR_OS_SUSE);
       }
    } else {
       found = HostinfoSearchShortNames(suseEnterpriseShortNameArray, version,
                                        distroLower, distroShort,
                                        distroShortSize);
       if (!found) {
-         Str_Strcpy(distroShort, STR_OS_SLES, distroShortSize);
+         Str_Sprintf(distroShort, distroShortSize, "%s%s",
+                     HostinfoArchString(), STR_OS_SLES);
       }
    }
 
@@ -1207,13 +1248,15 @@ HostinfoSetSuseShortName(const ShortNameSet *entry, // IN:
 
 
 /*
- * Table mapping from distro name to the offically recognized shortname.
+ * Table mapping from distro name to the officially recognized shortname.
  *
- * Only distros that are officially supported by VMware are present in
- * this table. If you're not VMware, do not add anything to this table.
+ * WARNING: If you are not VMware, do not change this table. Values that are
+ * not recognized by the VMware host will be ignored. Any change here must
+ * be accompanied by additional changes to the host.
  *
- * A short name that is not officially supported by VMware will be ignored
- * by the rest of the software stack.
+ * If you are interested in extending this table, do not send a pull request.
+ * Instead, submit a request via the open-vm-tools github issue tracker
+ * https://github.com/vmware/open-vm-tools/issues.
  *
  * Some distros do not have a simple substitution and special logic is
  * necessary to handle distros that do not have simple substitutions.
@@ -1223,44 +1266,46 @@ HostinfoSetSuseShortName(const ShortNameSet *entry, // IN:
  */
 
 static const ShortNameSet shortNameArray[] = {
-/* Long distro name     Short distro name          Short name set function */
-{"amazon",              NULL,                      HostinfoSetAmazonShortName},
-{"annvix",              STR_OS_ANNVIX,             HostinfoGenericSetShortName},
-{"arch",                STR_OS_ARCH,               HostinfoGenericSetShortName},
-{"arklinux",            STR_OS_ARKLINUX,           HostinfoGenericSetShortName},
-{"asianux",             NULL,                      HostinfoSetAsianuxShortName},
-{"aurox",               STR_OS_AUROX,              HostinfoGenericSetShortName},
-{"black cat",           STR_OS_BLACKCAT,           HostinfoGenericSetShortName},
-{"centos",              NULL,                      HostinfoSetCentosShortName},
-{"cobalt",              STR_OS_COBALT,             HostinfoGenericSetShortName},
-{"conectiva",           STR_OS_CONECTIVA,          HostinfoGenericSetShortName},
-{"debian",              NULL,                      HostinfoSetDebianShortName},
-{"red hat",             NULL,                      HostinfoSetRedHatShortName},
+/* Long distro name      Short distro name          Short name set function */
+{ "almalinux",           STR_OS_ALMA_LINUX,         HostinfoGenericSetShortName },
+{ "amazon",              NULL,                      HostinfoSetAmazonShortName  },
+{ "annvix",              STR_OS_ANNVIX,             HostinfoGenericSetShortName },
+{ "arch",                STR_OS_ARCH,               HostinfoGenericSetShortName },
+{ "arklinux",            STR_OS_ARKLINUX,           HostinfoGenericSetShortName },
+{ "asianux",             NULL,                      HostinfoSetAsianuxShortName },
+{ "aurox",               STR_OS_AUROX,              HostinfoGenericSetShortName },
+{ "black cat",           STR_OS_BLACKCAT,           HostinfoGenericSetShortName },
+{ "centos",              NULL,                      HostinfoSetCentosShortName  },
+{ "cobalt",              STR_OS_COBALT,             HostinfoGenericSetShortName },
+{ "conectiva",           STR_OS_CONECTIVA,          HostinfoGenericSetShortName },
+{ "debian",              NULL,                      HostinfoSetDebianShortName  },
+{ "red hat",             NULL,                      HostinfoSetRedHatShortName  },
 /* Red Hat must come before the Enterprise Linux entry */
-{"enterprise linux",    NULL,                      HostinfoSetOracleShortName},
-{"fedora",              STR_OS_FEDORA,             HostinfoGenericSetShortName},
-{"gentoo",              STR_OS_GENTOO,             HostinfoGenericSetShortName},
-{"immunix",             STR_OS_IMMUNIX,            HostinfoGenericSetShortName},
-{"linux-from-scratch",  STR_OS_LINUX_FROM_SCRATCH, HostinfoGenericSetShortName},
-{"linux-ppc",           STR_OS_LINUX_PPC,          HostinfoGenericSetShortName},
-{"mandrake",            STR_OS_MANDRAKE,           HostinfoGenericSetShortName},
-{"mandriva",            STR_OS_MANDRIVA,           HostinfoGenericSetShortName},
-{"mklinux",             STR_OS_MKLINUX,            HostinfoGenericSetShortName},
-{"opensuse",            STR_OS_OPENSUSE,           HostinfoGenericSetShortName},
-{"oracle",              NULL,                      HostinfoSetOracleShortName},
-{"pld",                 STR_OS_PLD,                HostinfoGenericSetShortName},
-{"slackware",           STR_OS_SLACKWARE,          HostinfoGenericSetShortName},
-{"sme server",          STR_OS_SMESERVER,          HostinfoGenericSetShortName},
-{"suse",                NULL,                      HostinfoSetSuseShortName},
-{"tiny sofa",           STR_OS_TINYSOFA,           HostinfoGenericSetShortName},
-{"turbolinux",          STR_OS_TURBO,              HostinfoGenericSetShortName},
-{"ubuntu",              STR_OS_UBUNTU,             HostinfoGenericSetShortName},
-{"ultra penguin",       STR_OS_ULTRAPENGUIN,       HostinfoGenericSetShortName},
-{"united linux",        STR_OS_UNITEDLINUX,        HostinfoGenericSetShortName},
-{"va linux",            STR_OS_VALINUX,            HostinfoGenericSetShortName},
-{"vmware photon",       STR_OS_PHOTON,             HostinfoGenericSetShortName},
-{"yellow dog",          STR_OS_YELLOW_DOG,         HostinfoGenericSetShortName},
-{NULL,                  NULL,                      NULL} // MUST BE LAST
+{ "enterprise linux",    NULL,                      HostinfoSetOracleShortName  },
+{ "fedora",              STR_OS_FEDORA,             HostinfoGenericSetShortName },
+{ "gentoo",              STR_OS_GENTOO,             HostinfoGenericSetShortName },
+{ "immunix",             STR_OS_IMMUNIX,            HostinfoGenericSetShortName },
+{ "linux-from-scratch",  STR_OS_LINUX_FROM_SCRATCH, HostinfoGenericSetShortName },
+{ "linux-ppc",           STR_OS_LINUX_PPC,          HostinfoGenericSetShortName },
+{ "mandrake",            STR_OS_MANDRAKE,           HostinfoGenericSetShortName },
+{ "mandriva",            STR_OS_MANDRIVA,           HostinfoGenericSetShortName },
+{ "mklinux",             STR_OS_MKLINUX,            HostinfoGenericSetShortName },
+{ "opensuse",            STR_OS_OPENSUSE,           HostinfoGenericSetShortName },
+{ "oracle",              NULL,                      HostinfoSetOracleShortName  },
+{ "pld",                 STR_OS_PLD,                HostinfoGenericSetShortName },
+{ "rocky linux",         STR_OS_ROCKY_LINUX,        HostinfoGenericSetShortName },
+{ "slackware",           STR_OS_SLACKWARE,          HostinfoGenericSetShortName },
+{ "sme server",          STR_OS_SMESERVER,          HostinfoGenericSetShortName },
+{ "suse",                NULL,                      HostinfoSetSuseShortName    },
+{ "tiny sofa",           STR_OS_TINYSOFA,           HostinfoGenericSetShortName },
+{ "turbolinux",          STR_OS_TURBO,              HostinfoGenericSetShortName },
+{ "ubuntu",              STR_OS_UBUNTU,             HostinfoGenericSetShortName },
+{ "ultra penguin",       STR_OS_ULTRAPENGUIN,       HostinfoGenericSetShortName },
+{ "united linux",        STR_OS_UNITEDLINUX,        HostinfoGenericSetShortName },
+{ "va linux",            STR_OS_VALINUX,            HostinfoGenericSetShortName },
+{ "vmware photon",       STR_OS_PHOTON,             HostinfoGenericSetShortName },
+{ "yellow dog",          STR_OS_YELLOW_DOG,         HostinfoGenericSetShortName },
+{ NULL,                  NULL,                      NULL                        } // MUST BE LAST
 };
 
 
@@ -1358,29 +1403,32 @@ HostinfoGetOSShortName(const char *distro,     // IN: full distro name
  */
 
 static char **
-HostinfoReadDistroFile(Bool osReleaseRules,           // IN: osRelease rules
-                       const char *filename,          // IN: distro file
-                       const DistroNameScan *values)  // IN: search strings
+HostinfoReadDistroFile(Bool osReleaseRules,   // IN: osRelease rules
+                       const char *fileName,  // IN: distro file
+                       const char *values[])  // IN: search strings
 {
    int i;
+   int fd;
    DynBuf b;
    int bufSize;
    struct stat st;
-   int fd = -1;
+   char lineBuf[DISTRO_BUF_SIZE];
+   FILE *s = NULL;
    uint32 nArgs = 0;
+   Bool any = FALSE;
    Bool success = FALSE;
    char **result = NULL;
    char *distroOrig = NULL;
 
    /* It's OK for the file to not exist, don't warn for this.  */
-   if ((fd = Posix_Open(filename, O_RDONLY)) == -1) {
+   if ((fd = Posix_Open(fileName, O_RDONLY)) == -1) {
       return FALSE;
    }
 
    DynBuf_Init(&b);
 
    if (fstat(fd, &st)) {
-      Warning("%s: could not stat file '%s': %d\n", __FUNCTION__, filename,
+      Warning("%s: could not stat file '%s': %d\n", __FUNCTION__, fileName,
            errno);
       goto out;
    }
@@ -1395,53 +1443,89 @@ HostinfoReadDistroFile(Bool osReleaseRules,           // IN: osRelease rules
    distroOrig = Util_SafeCalloc(bufSize + 1, sizeof *distroOrig);
 
    if (read(fd, distroOrig, bufSize) != bufSize) {
-      Warning("%s: could not read file '%s': %d\n", __FUNCTION__, filename,
+      Warning("%s: could not read file '%s': %d\n", __FUNCTION__, fileName,
               errno);
       goto out;
    }
 
    distroOrig[bufSize] = '\0';
 
+   lseek(fd, 0, SEEK_SET);
+
+   s = fdopen(fd, "r");
+
+   if (s == NULL) {
+      Warning("%s: fdopen conversion failed.\n", __FUNCTION__);
+      goto out;
+   }
+
    /*
     * Attempt to parse a file with one name=value pair per line. Values are
-    * expected to embedded in double quotes.
+    * expected to be embedded in double quotes.
     */
 
    nArgs = 0;
-   for (i = 0; values[i].name != NULL; i++) {
+   for (i = 0; values[i] != NULL; i++) {
       nArgs++;
    }
    nArgs++;  // For the appended version of the data
 
    result = Util_SafeCalloc(nArgs, sizeof(char *));
 
-   for (i = 0; values[i].name != NULL; i++) {
-      const char *tmpDistroPos = strstr(distroOrig, values[i].name);
+   while (fgets(lineBuf, sizeof lineBuf, s) != NULL) {
+      for (i = 0; values[i] != NULL; i++) {
+          size_t len = strlen(values[i]);
 
-      if (tmpDistroPos != NULL) {
-         char distroPart[DISTRO_BUF_SIZE];
+          if (strncmp(lineBuf, values[i], len) == 0) {
+             char *p;
+             char *data;
 
-         if (i != 0) {
-            DynBuf_Strcat(&b, " ");
-         }
+             if (lineBuf[len] == '"') {
+                data = &lineBuf[len + 1];
+                p = strrchr(data, '"');
 
-         sscanf(tmpDistroPos, values[i].scanString, distroPart);
-         if (distroPart[0] == '"') {
-            char *tmpMakeNull;
+                if (p == NULL) {
+                   Warning("%s: Invalid os-release file.", __FUNCTION__);
+                   goto out;
+                }
+             } else {
+                data = &lineBuf[len];
 
-            tmpDistroPos += strlen(values[i].name) + 1;
-            tmpMakeNull = strchr(tmpDistroPos + 1 , '"');
-            if (tmpMakeNull != NULL) {
-               *tmpMakeNull = '\0';
-               DynBuf_Strcat(&b, tmpDistroPos);
-               result[i] = Util_SafeStrdup(tmpDistroPos);
-               *tmpMakeNull = '"' ;
-            }
-         } else {
-            DynBuf_Strcat(&b, distroPart);
-            result[i] = Util_SafeStrdup(distroPart);
-         }
+                p = strchr(data, '\n');
+
+                if (p == NULL) {
+                   Warning("%s: os-release file line too long.",
+                           __FUNCTION__);
+                   goto out;
+                }
+             }
+
+             *p = '\0';
+
+             if (p >= &data[MAX_DETAILED_FIELD_LEN]) {
+                Warning("%s: Unexpectedly long data encountered; truncated.",
+                        __FUNCTION__);
+
+                data[MAX_DETAILED_FIELD_LEN - 1] = '\0';
+             }
+
+             if (any) {
+                DynBuf_Strcat(&b, " ");
+             }
+
+             DynBuf_Strcat(&b, data);
+             result[i] = Util_SafeStrdup(data);
+
+             any = TRUE;
+          }
       }
+   }
+
+   if (ferror(s)) {
+       Warning("%s: Error occurred while reading '%s'\n", __FUNCTION__,
+               fileName);
+
+       goto out;
    }
 
    if (DynBuf_GetSize(&b) == 0) {
@@ -1476,7 +1560,9 @@ HostinfoReadDistroFile(Bool osReleaseRules,           // IN: osRelease rules
    }
 
 out:
-   if (fd != -1) {
+   if (s != NULL) {
+      fclose(s);
+   } else if (fd != -1) {
       close(fd);
    }
 
@@ -1615,12 +1701,11 @@ HostinfoOsRelease(char ***args)  // OUT:
 {
    int score;
 
-   *args = HostinfoReadDistroFile(TRUE, "/etc/os-release",
-                                  &osReleaseFields[0]);
+   *args = HostinfoReadDistroFile(TRUE, "/etc/os-release", osReleaseFields);
 
    if (*args == NULL) {
       *args = HostinfoReadDistroFile(TRUE, "/usr/lib/os-release",
-                                     &osReleaseFields[0]);
+                                     osReleaseFields);
    }
 
    if (*args == NULL) {
@@ -1711,10 +1796,20 @@ HostinfoLsb(char ***args)  // OUT:
    size_t fields = ARRAYSIZE(lsbFields) - 1;  // Exclude terminator
 
    /*
+    * In recent times, an increasing number of distros do not have the
+    * LSB support installed. Perform a quick check for it and bail if
+    * it's not accessible.
+    */
+
+   if (access(LSB_RELEASE, F_OK | X_OK) == -1) {
+      return -1;
+   }
+
+   /*
     * Try to get OS detailed information from the lsb_release command.
     */
 
-   lsbOutput = HostinfoGetCmdOutput("/usr/bin/lsb_release -sd 2>/dev/null");
+   lsbOutput = HostinfoGetCmdOutput(LSB_RELEASE " -sd 2>/dev/null");
 
    if (lsbOutput == NULL) {
       /*
@@ -1723,7 +1818,7 @@ HostinfoLsb(char ***args)  // OUT:
 
       for (i = 0; distroArray[i].filename != NULL; i++) {
          *args = HostinfoReadDistroFile(FALSE, distroArray[i].filename,
-                                        &lsbFields[0]);
+                                        lsbFields);
 
          if (*args != NULL) {
             break;
@@ -1737,14 +1832,16 @@ HostinfoLsb(char ***args)  // OUT:
       free(lsbOutput);
 
       /* LSB Distributor */
-      lsbOutput = HostinfoGetCmdOutput("/usr/bin/lsb_release -si 2>/dev/null");
+      lsbOutput = HostinfoGetCmdOutput(LSB_RELEASE " -si 2>/dev/null");
+
       if (lsbOutput != NULL) {
          (*args)[0] = Util_SafeStrdup(HostinfoLsbRemoveQuotes(lsbOutput));
          free(lsbOutput);
       }
 
       /* LSB Release */
-      lsbOutput = HostinfoGetCmdOutput("/usr/bin/lsb_release -sr 2>/dev/null");
+      lsbOutput = HostinfoGetCmdOutput(LSB_RELEASE " -sr 2>/dev/null");
+
       if (lsbOutput != NULL) {
          (*args)[1] = Util_SafeStrdup(HostinfoLsbRemoveQuotes(lsbOutput));
          free(lsbOutput);
@@ -1796,8 +1893,8 @@ HostinfoDefaultLinux(char *distro,            // OUT/OPT:
                      size_t distroShortSize)  // IN:
 {
    char generic[128];
-   char *distroOut = NULL;
-   char *distroShortOut = NULL;
+   const char *distroOut = NULL;
+   const char *distroShortOut = NULL;
    int majorVersion = Hostinfo_OSVersion(0);
    int minorVersion = Hostinfo_OSVersion(1);
 
@@ -1834,6 +1931,11 @@ HostinfoDefaultLinux(char *distro,            // OUT/OPT:
    case 5:
       distroOut = STR_OS_OTHER_5X_FULL;
       distroShortOut = STR_OS_OTHER_5X;
+      break;
+
+   case 6:
+      distroOut = STR_OS_OTHER_6X_FULL;
+      distroShortOut = STR_OS_OTHER_6X;
       break;
 
    default:
@@ -1893,8 +1995,12 @@ HostinfoBestScore(char *distro,            // OUT:
    int lsbScore = HostinfoLsb(&lsbData);
    int osReleaseScore = HostinfoOsRelease(&osReleaseData);
 
-   /* We prefer the LSB so as to maintain the best backwards compatibility. */
-   if ((lsbScore > 0) && (lsbScore >= osReleaseScore)) {
+   /*
+    * Now that the os-release standard is long stable, choose it over the LSB
+    * standard, all things being the same.
+    */
+
+   if ((lsbScore > 0) && (lsbScore > osReleaseScore)) {
       size_t fields = ARRAYSIZE(lsbFields) - 1;  // Exclude terminator
 
       if (lsbData[0] != NULL) {  // Name
@@ -1946,6 +2052,17 @@ HostinfoBestScore(char *distro,            // OUT:
       if (osReleaseData[3] != NULL) {
          Str_Strcpy(detailedDataFields[BUILD_NUMBER].value, osReleaseData[3],
                     sizeof detailedDataFields[BUILD_NUMBER].value);
+      }
+
+      if (osReleaseData[4] != NULL) {
+         Str_Strcpy(detailedDataFields[DISTRO_ADDL_VERSION].value,
+                    osReleaseData[4],
+                    sizeof detailedDataFields[DISTRO_ADDL_VERSION].value);
+      }
+
+      if (osReleaseData[5] != NULL) {
+         Str_Strcpy(detailedDataFields[CPE_STRING].value, osReleaseData[5],
+                    sizeof detailedDataFields[CPE_STRING].value);
       }
 
       if (osReleaseData[fields] != NULL) {
@@ -2062,34 +2179,12 @@ HostinfoBSD(struct utsname *buf)  // IN:
     * FreeBSD 11 and later are identified using a different guest ID than
     * older FreeBSD.
     */
-   switch (majorVersion) {
-   case 1:
-   case 2:
-   case 3:
-   case 4:
-   case 5:
-   case 6:
-   case 7:
-   case 8:
-   case 9:
-   case 10:
+
+   if (majorVersion < 11) {
       Str_Strcpy(distroShort, STR_OS_FREEBSD, sizeof distroShort);
-      break;
-
-   case 11:
-      Str_Strcpy(distroShort, STR_OS_FREEBSD "11", sizeof distroShort);
-      break;
-
-   case 12:
-      Str_Strcpy(distroShort, STR_OS_FREEBSD "12", sizeof distroShort);
-      break;
-
-   default: // Unknown defaults to the highest known.
-      /* FALL THROUGH */
-
-   case 13:
-      Str_Strcpy(distroShort, STR_OS_FREEBSD "13", sizeof distroShort);
-      break;
+   } else {
+      Str_Sprintf(distroShort, sizeof distroShort, "%s%s%d",
+                  HostinfoArchString(), STR_OS_FREEBSD, majorVersion);
    }
 
    len = Str_Snprintf(osNameFull, sizeof osNameFull, "%s %s", buf->sysname,
@@ -3309,8 +3404,8 @@ Hostinfo_Daemonize(const char *path,             // IN: NUL-terminated UTF-8
  */
 
 static char *
-HostinfoGetCpuInfo(int nCpu,    // IN:
-                   char *name)  // IN:
+HostinfoGetCpuInfo(int nCpu,         // IN:
+                   const char *name) // IN:
 {
    FILE *f;
    char *line;
@@ -3722,6 +3817,35 @@ Hostinfo_GetHardwareModel(void)
 {
    return HostinfoGetSysctlStringAlloc("hw.model");
 }
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Hostinfo_ProcessIsRosetta --
+ *
+ *      Checks if the current process is running as a translated binary.
+ *
+ * Results:
+ *      0 for a native process, 1 for a translated process,
+ *      and -1 when an error occurs.
+ *
+ * Side effects:
+ *      None
+ *----------------------------------------------------------------------
+ */
+
+int
+Hostinfo_ProcessIsRosetta(void)
+{
+   int ret = 0;
+   size_t size = sizeof ret;
+
+   if (sysctlbyname("sysctl.proc_translated", &ret, &size, NULL, 0) == -1) {
+      return errno == ENOENT ? 0 : -1;
+   }
+   return ret;
+}
 #endif /* __APPLE__ */
 
 
@@ -3864,7 +3988,7 @@ NOT_IMPLEMENTED();
 
 static Bool
 HostinfoFindEntry(char *buffer,         // IN: Buffer
-                  char *string,         // IN: String sought
+                  const char *string,   // IN: String sought
                   unsigned int *value)  // OUT: Value
 {
    char *p = strstr(buffer, string);
@@ -3912,8 +4036,8 @@ HostinfoFindEntry(char *buffer,         // IN: Buffer
  */
 
 static Bool
-HostinfoGetMemInfo(char *name,           // IN:
-                   unsigned int *value)  // OUT:
+HostinfoGetMemInfo(const char *name,    // IN:
+                   unsigned int *value) // OUT:
 {
    size_t len;
    char   buffer[4096];
@@ -4347,6 +4471,62 @@ Hostinfo_GetLibraryPath(void *addr)  // IN
 /*
  *----------------------------------------------------------------------
  *
+ * Hostinfo_AcquireProcessSnapshot --
+ *
+ *      Acquire a snapshot of the process table. On POSIXen, this is
+ *      a NOP.
+ *
+ * Results:
+ *      !NULL - A process snapshot pointer.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+struct HostinfoProcessSnapshot {
+   int dummy;
+};
+
+static HostinfoProcessSnapshot hostinfoProcessSnapshot = { 0 };
+
+HostinfoProcessSnapshot *
+Hostinfo_AcquireProcessSnapshot(void)
+{
+   return &hostinfoProcessSnapshot;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Hostinfo_ReleaseProcessSnapshot --
+ *
+ *      Release a snapshot of the process table. On POSIXen, this is
+ *      a NOP.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+Hostinfo_ReleaseProcessSnapshot(HostinfoProcessSnapshot *s)  // IN/OPT:
+{
+   if (s != NULL) {
+      VERIFY(s == &hostinfoProcessSnapshot);
+   }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * Hostinfo_QueryProcessExistence --
  *
  *      Determine if a PID is "alive" or "dead". Failing to be able to
@@ -4367,21 +4547,108 @@ Hostinfo_GetLibraryPath(void *addr)  // IN
 HostinfoProcessQuery
 Hostinfo_QueryProcessExistence(int pid)  // IN:
 {
-   HostinfoProcessQuery ret;
-   int err = (kill(pid, 0) == -1) ? errno : 0;
+   HostinfoProcessQuery result;
 
-   switch (err) {
+   switch ((kill(pid, 0) == -1) ? errno : 0) {
    case 0:
    case EPERM:
-      ret = HOSTINFO_PROCESS_QUERY_ALIVE;
+      result = HOSTINFO_PROCESS_QUERY_ALIVE;
       break;
+
    case ESRCH:
-      ret = HOSTINFO_PROCESS_QUERY_DEAD;
+      result = HOSTINFO_PROCESS_QUERY_DEAD;
       break;
+
    default:
-      ret = HOSTINFO_PROCESS_QUERY_UNKNOWN;
+      result = HOSTINFO_PROCESS_QUERY_UNKNOWN;
       break;
    }
 
-   return ret;
+   return result;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Hostinfo_QueryProcessReaped --
+ *
+ *      Determine if the resources of a "dead" process have been reclaimed.
+ *      On Linux, this is equivalent to querying the process's existence.
+ *      On ESX, we can query the vmkernel.
+ *
+ * Results:
+ *      HOSTINFO_PROCESS_QUERY_ALIVE    Process is not yet reaped
+ *      HOSTINFO_PROCESS_QUERY_DEAD     Process has been reaped
+ *      HOSTINFO_PROCESS_QUERY_UNKNOWN  Don't know
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+HostinfoProcessQuery
+Hostinfo_QueryProcessReaped(int pid)  // IN:
+{
+#if defined(VMX86_SERVER) || defined(USERWORLD)  // ESXi
+   VMK_ReturnStatus status = VMKPrivate_WaitForWorldDeath(pid, 1);
+   HostinfoProcessQuery result;
+
+   switch (status) {
+   case VMK_TIMEOUT:
+      result = HOSTINFO_PROCESS_QUERY_ALIVE;
+      break;
+
+   /*
+    * VMK_BAD_PARAM indicates the pid is no longer associated with
+    * a userworld.
+    *
+    * VMK_OK indicates the pid has been reaped.
+    */
+   case VMK_BAD_PARAM:
+   case VMK_OK:
+      result = HOSTINFO_PROCESS_QUERY_DEAD;
+      break;
+
+   /* VMK_DEATH_PENDING (on caller), VMK_WAIT_INTERRUPTED */
+   default:
+      result = HOSTINFO_PROCESS_QUERY_UNKNOWN;
+      break;
+   }
+
+   return result;
+#else
+   return Hostinfo_QueryProcessExistence(pid);
+#endif
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Hostinfo_QueryProcessSnapshot --
+ *
+ *      Determine if a PID is "alive" or "dead" within the specified
+ *      process snapshot. Failing to be able to do this perfectly,
+ *      do not make any assumption - say the answer is unknown.
+ *
+ * Results:
+ *      HOSTINFO_PROCESS_QUERY_ALIVE    Process is alive
+ *      HOSTINFO_PROCESS_QUERY_DEAD     Process is dead
+ *      HOSTINFO_PROCESS_QUERY_UNKNOWN  Don't know
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+HostinfoProcessQuery
+Hostinfo_QueryProcessSnapshot(HostinfoProcessSnapshot *s,  // IN:
+                              int pid)                     // IN:
+{
+   ASSERT(s != NULL);
+
+   return Hostinfo_QueryProcessExistence(pid);
 }

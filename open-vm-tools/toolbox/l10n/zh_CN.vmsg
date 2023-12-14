@@ -1,5 +1,5 @@
 ##########################################################
-# Copyright (C) 2010-2017,2020 VMware, Inc. All rights reserved.
+# Copyright (c) 2010-2017,2020-2022 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -98,7 +98,7 @@ help.device = "%1$s: 与虚拟机的硬件设备相关的功能\n用法: %2$s %3
 
 help.disk = "%1$s: 执行磁盘压缩操作\n用法: %2$s %3$s <子命令> [参数]\n\n子命令:\n   list: 列出可用的位置\n   shrink <位置>: 擦除并压缩指定位置的文件系统\n   shrinkonly: 压缩所有磁盘\n   wipe <位置>: 擦除指定位置的文件系统\n"
 
-help.globalconf = "%1$s: 管理从 GuestStore 下载的全局配置\n用法: %2$s %3$s <子命令>\n\n仅 ESX 客户机子命令:\n   enable: 启用全局配置模块。(重新启动 Tools 服务)\n   disable: 禁用全局配置模块 (重新启动 Tools 服务)\n   refresh: 从 GuestStore 触发全局配置的新下载\n   status: 打印全局配置模块的状态\n"
+help.globalconf = "%1$s: 管理从 GuestStore 下载的全局配置\n用法: %2$s %3$s <子命令>\n\n仅 ESX 客户机子命令:\n   enable: 启用全局配置模块\n   disable: 禁用全局配置模块\n   refresh: 从 GuestStore 触发全局配置的新下载\n   status: 打印全局配置模块的状态\n"
 
 help.gueststore = "%1$s: 从 GuestStore 获取资源内容\n用法: %2$s %3$s <子命令>\n\n仅 ESX 客户机子命令:\n   getcontent <资源路径> <输出文件>: 从 GuestStore 获取资源内容并保存到输出文件。\n\n<资源路径> 以“/”开头，并代表 GuestStore 中的唯一资源。如果以“/”结尾，则默认检索底层的“metadata.json”资源。\n<输出文件> 是将资源内容保存到的文件的路径。\n"
 

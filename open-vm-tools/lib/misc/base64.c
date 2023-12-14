@@ -350,6 +350,8 @@ Base64_Decode(char const *in,      // IN:
               size_t outSize,      // IN:
               size_t *dataLength)  // OUT:
 {
+   /* -1 is properly handled in the Base64_ChunkDecode method. */
+   /* coverity[overrun-buffer-arg:FALSE] */
    return Base64_ChunkDecode(in, -1, out, outSize, dataLength);
 }
 

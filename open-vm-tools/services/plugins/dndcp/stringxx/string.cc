@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
+ * Copyright (c) 2008-2019,2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -398,6 +398,33 @@ string::operator const ubstr_t()
    const
 {
    return ubstr_t(GetUtf16Cache());
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * utf::string::t_str --
+ *
+ *      Get the TCHAR representation of this string.
+ *
+ * Results:
+ *      The TCHAR representation.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+const TCHAR*
+string::t_str() const
+{
+#ifdef UNICODE
+   return w_str();
+#else
+   return c_str();
+#endif
 }
 
 #endif

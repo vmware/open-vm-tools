@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -71,7 +71,7 @@ extern "C" {
  *  constraints.
  *
  */
-#if defined(__GNUC__) && (defined(VMM) || defined(VMKERNEL) || defined(FROBOS))
+#if (defined(VMM) || defined(VMKERNEL) || defined(FROBOS) || defined(ULM))
 static INLINE Bool
 xtest(void)
 {
@@ -80,14 +80,18 @@ xtest(void)
    __asm__ __volatile__("xtest\n"
                         "setnz %%al"
                         : "=a" (result) : : "cc");
-#else
+#elif defined (__GNUC__)
    __asm__ __volatile__("xtest"
                         : "=@ccnz" (result) : : "cc");
+#elif defined (_WIN32)
+   result = _xtest();
+#else
+#error No xtest implementation for this compiler.
 #endif
    return result;
 }
 
-#endif /* __GNUC__ */
+#endif /* VMM || VMKERNEL || FROBOS || ULM */
 
 
 /*
@@ -342,9 +346,7 @@ Div643264(uint64 dividend,   // IN
  *-----------------------------------------------------------------------------
  */
 
-#if defined(__GNUC__) && \
-   (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 4)) && \
-   !defined(MUL64_NO_ASM)
+#if defined(__GNUC__) && !defined(MUL64_NO_ASM)
 
 static INLINE uint64
 Mul64x3264(uint64 multiplicand, uint32 multiplier, uint32 shift)
@@ -449,9 +451,7 @@ Mul64x3264(uint64 multiplicand, uint32 multiplier, uint32 shift)
  *-----------------------------------------------------------------------------
  */
 
-#if defined(__GNUC__) && \
-   (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 4)) && \
-   !defined(MUL64_NO_ASM)
+#if defined(__GNUC__) && !defined(MUL64_NO_ASM)
 
 static INLINE int64
 Muls64x32s64(int64 multiplicand, uint32 multiplier, uint32 shift)

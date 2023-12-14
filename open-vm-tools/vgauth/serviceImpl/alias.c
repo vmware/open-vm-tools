@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 2011-2021, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -420,7 +420,7 @@ ServiceUserNameToTmpAliasStoreFileName(const gchar *userName)
  * ServiceLoadAliasFileContents --                                       */ /**
  *
  * Securely loads an alias or mapping file, preventing TOCTOU (Time of Check,
- * Time of Use) bugs.  This also provides a size sanity check, preventing
+ * Time of Use) bugs.  This also provides a size confidence check, preventing
  * a DoS attack.
  *
  * Steps:
@@ -518,7 +518,7 @@ ServiceLoadFileContentsWin(const gchar *fileName,
       goto done;
    }
 
-   // sanity check size
+   // confidence check size
    if ((fileAttrs.nFileSizeHigh != 0) ||
        (fileAttrs.nFileSizeLow > ALIASSTORE_FILE_MAX_SIZE)) {
       Warning("%s: size of %s too large %d %d; failing read\n", __FUNCTION__,
@@ -781,7 +781,7 @@ ServiceLoadFileContentsPosix(const gchar *fileName,
    }
 
    /*
-    * Now the sanity checks.
+    * Now the confidence checks.
     */
    if (lstatBuf.st_size != fstatBuf.st_size) {
       Warning("%s: size of %s changed (%d vs %d)\n", __FUNCTION__,
@@ -818,7 +818,7 @@ ServiceLoadFileContentsPosix(const gchar *fileName,
    }
 
    /*
-    * All sanity checks passed; read the bits.
+    * All confidence checks passed; read the bits.
     */
    toRead = lstatBuf.st_size;
    buf = g_malloc0(toRead + 1);
@@ -1879,7 +1879,7 @@ AliasSafeRenameFiles(const gchar *srcAliasFilename,
 
 
    /*
-    * Do some sanity checks on the files.
+    * Do some confidence checks on the files.
     */
    if (NULL != srcAliasFilename) {
       if (g_file_test(aliasFilename, G_FILE_TEST_EXISTS) &&
@@ -3086,7 +3086,7 @@ ServiceAliasQueryMappedAliases(int *num,
  *
  * If we fail to rename a bad file, the function returns an error.
  *
- * XXX add contents/XML sanity check too?
+ * XXX add contents/XML confidence check too?
  *
  * @return VGAUTH_E_OK on success, VGAuthError on failure
  *
@@ -3100,7 +3100,6 @@ ServiceIDVerifyStoreContents(void)
    GDir *dir;
    GError *gErr;
    const gchar *fileName;
-   gchar *fullFileName;
    gboolean saveBadFile = FALSE;
 
    dir = g_dir_open(aliasStoreRootDir, 0, &gErr);
@@ -3112,9 +3111,9 @@ ServiceIDVerifyStoreContents(void)
    }
 
    while ((fileName = g_dir_read_name(dir)) != NULL) {
-      fullFileName = g_strdup_printf("%s"DIRSEP"%s",
-                                     aliasStoreRootDir,
-                                     fileName);
+      gchar *fullFileName = g_strdup_printf("%s"DIRSEP"%s",
+                                            aliasStoreRootDir,
+                                            fileName);
       // mapping file is special
       if (g_strcmp0(ALIASSTORE_MAPFILE_NAME, fileName) == 0) {
          err = AliasCheckMapFilePerms(fullFileName);
@@ -3155,7 +3154,7 @@ ServiceIDVerifyStoreContents(void)
                         fullFileName, badFileName);
             /*
              * XXX the best way to handle this would be to add it to
-             * a blacklist of bad files and keep going.  but that's
+             * a list of prohibited bad files and keep going.  but that's
              * a lot of risky work that's very hard to test, so punt for now.
              */
             g_free(badFileName);
@@ -3397,7 +3396,7 @@ ServiceAliasInitAliasStore(void)
       }
 
       /*
-       * Sanity check the alias store.
+       * Confidence check the alias store.
        */
       err = ServiceValidateAliases();
    }

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016,2018 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2016,2018,2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -77,6 +77,7 @@ void System_SetFocusedWindow(HWND windowToFocus, Bool force);
 Bool System_EnableDesktopComposition(BOOL enabled);
 LPWSTR System_GetImageFilePathForWindow(HWND hwnd);
 HANDLE System_OpenProcessForHWND(DWORD mask, BOOL inherit, HWND hwnd);
+LONG System_VerifyTrust(const char *filePath);
 #endif
 
 

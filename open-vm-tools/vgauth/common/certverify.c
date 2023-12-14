@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016,2018-2019 VMware, Inc. All rights reserved.
+ * Copyright (c) 2011-2016, 2018-2019, 2021-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -93,11 +93,23 @@ VerifyDumpSSLErrors(void)
    const char *data;
    const char *file;
    unsigned long code;
+#if OPENSSL_VERSION_NUMBER >= 0X30000000L
+   const char *func;
+#endif
 
+#if OPENSSL_VERSION_NUMBER >= 0X30000000L
+   code = ERR_get_error_all(&file, &line, &func, &data, &flags);
+#else
    code = ERR_get_error_line_data(&file, &line, &data, &flags);
+#endif
    while (code) {
+#if OPENSSL_VERSION_NUMBER >= 0X30000000L
+      g_warning("SSL error: %lu (%s) in %s func %s line %d\n",
+                code, ERR_error_string(code, NULL), file, func, line);
+#else
       g_warning("SSL error: %lu (%s) in %s line %d\n",
                 code, ERR_error_string(code, NULL), file, line);
+#endif
       if (data && (flags & ERR_TXT_STRING)) {
          g_warning("SSL error data: %s\n", data);
       }
@@ -107,7 +119,11 @@ VerifyDumpSSLErrors(void)
        * until the SSL error buffer starts getting reused and a double
        * free happens.
        */
+#if OPENSSL_VERSION_NUMBER >= 0X30000000L
+      code = ERR_get_error_all(&file, &line, &func, &data, &flags);
+#else
       code = ERR_get_error_line_data(&file, &line, &data, &flags);
+#endif
    }
 }
 
@@ -140,18 +156,21 @@ VerifyCallback(int ok,
     * XXX
     *
     * This is a legacy function that has some issues, but setting up a bio
-    * just for a bit of debug seems overkill.
+    * just for a bit of debug seems excessive.
     */
    if (NULL != curCert) {
       X509_NAME_oneline(X509_get_subject_name(curCert), nameBuf, sizeof(nameBuf) - 1);
       nameBuf[sizeof(nameBuf)-1] = '\0';
    } else {
+      /* Ignore return, returns length of the source string */
+      /* coverity[check_return] */
       g_strlcpy(nameBuf, "<NO CERT SUBJECT>", sizeof nameBuf);
    }
-   g_debug("%s: name: %s ok: %d error %d at %d depth lookup:%s\n",
+   g_debug("%s: name: %s ok: %d error '%s' (%d) at %d depth lookup:%s\n",
            __FUNCTION__,
            nameBuf,
            ok,
+           X509_verify_cert_error_string(certErr),
            certErr,
            X509_STORE_CTX_get_error_depth(ctx),
            X509_verify_cert_error_string(certErr));
@@ -165,7 +184,9 @@ VerifyCallback(int ok,
          ret = 1;
          break;
       default:
-         g_warning("%s: error %d treated as failure\n", __FUNCTION__, certErr);
+         g_warning("%s: error '%s' (%d) treated as failure\n",
+                   __FUNCTION__, X509_verify_cert_error_string(certErr),
+                   certErr);
          break;
       }
    }
@@ -183,7 +204,7 @@ VerifyCallback(int ok,
  *
  * Assumes the data is in the openssl form, but allows for some fudge
  * factor in the way the '---' are handled in case of hand-editing.
- * This may be overkill, but since we're currently thinking people can
+ * This may be excessive, but since we're currently thinking people can
  * hand-edit things, and its not that much harder, lets try it.
  * Of course, if we get a test case that tries to do this, I'm sure
  * they can beat it if they try hard enough.
@@ -891,5 +912,150 @@ CertVerify_CheckSignature(VGAuthHashAlg hash,
 done:
    EVP_MD_CTX_free(mdCtx);
 
+   return err;
+}
+
+
+/*
+ * Finds a cert with a subject (if checkSubj is set) or issuer (if
+ * checkSUbj is unset), matching 'val' in the list
+ * of certs.  Returns a match or NULL.
+ */
+
+static X509 *
+FindCert(GList *cList,
+         X509_NAME *val,
+         int checkSubj)
+{
+   GList *l;
+   X509 *c;
+   X509_NAME *v;
+
+   l = cList;
+   while (l != NULL) {
+      c = (X509 *) l->data;
+      if (checkSubj) {
+         v = X509_get_subject_name(c);
+      } else {
+         v = X509_get_issuer_name(c);
+      }
+      if (X509_NAME_cmp(val, v) == 0) {
+         return c;
+      }
+      l = l->next;
+   }
+   return NULL;
+}
+
+
+/*
+ ******************************************************************************
+ * CertVerify_CheckForUnrelatedCerts --                                  */ /**
+ *
+ * Looks over a list of certs.  If it finds that they are not all
+ * part of the same chain, returns failure.
+ *
+ * @param[in]     numCerts      The number of certs in the chain.
+ * @param[in]     pemCerts      The chain of certificates to verify.
+ *
+ * @return VGAUTH_E_OK on success, VGAUTH_E_FAIL if unrelated certs are found.
+ *
+ ******************************************************************************
+ */
+
+VGAuthError
+CertVerify_CheckForUnrelatedCerts(int numCerts,
+                                  const char **pemCerts)
+{
+   VGAuthError err = VGAUTH_E_FAIL;
+   int chainLen = 0;
+   int i;
+   X509 **certs = NULL;
+   GList *rawList = NULL;
+   X509 *baseCert;
+   X509 *curCert;
+   X509_NAME *subject;
+   X509_NAME *issuer;
+
+   /* common single cert case; nothing to do */
+   if (numCerts == 1) {
+      return VGAUTH_E_OK;
+   }
+
+   /* convert all PEM to X509 objects */
+   certs = g_malloc0(numCerts * sizeof(X509 *));
+   for (i = 0; i < numCerts; i++) {
+      certs[i] = CertStringToX509(pemCerts[i]);
+      if (NULL == certs[i]) {
+         g_warning("%s: failed to convert cert to X509\n", __FUNCTION__);
+         goto done;
+      }
+   }
+
+   /* choose the cert to start the chain.  shouldn't matter which */
+   baseCert = certs[0];
+
+   /* put the rest into a list */
+   for (i = 1; i < numCerts; i++) {
+      rawList = g_list_append(rawList, certs[i]);
+   }
+
+   /* now chase down to a leaf, looking for certs the baseCert issued */
+   subject = X509_get_subject_name(baseCert);
+   while ((curCert = FindCert(rawList, subject, 0)) != NULL) {
+      /* pull it from the list */
+      rawList = g_list_remove(rawList, curCert);
+      /* set up the next find */
+      subject = X509_get_subject_name(curCert);
+   }
+
+   /*
+    * walk up to the root cert, by finding a cert where the
+    * issuer equals the subject of the current
+    */
+   issuer = X509_get_issuer_name(baseCert);
+   while ((curCert = FindCert(rawList, issuer, 1)) != NULL) {
+      /* pull it from the list */
+      rawList = g_list_remove(rawList, curCert);
+      /* set up the next find */
+      issuer = X509_get_issuer_name(curCert);
+   }
+
+   /*
+    * At this point, anything on the list should be certs that are not part
+    * of the chain that includes the original 'baseCert'.
+    *
+    * For a valid token, the list should be empty.
+    */
+   chainLen = g_list_length(rawList);
+   if (chainLen != 0 ) {
+      GList *l;
+
+      g_warning("%s: %d unrelated certs found in list\n",
+                __FUNCTION__, chainLen);
+
+      /* debug helper */
+      l = rawList;
+      while (l != NULL) {
+         X509* c = (X509 *) l->data;
+         char *s = X509_NAME_oneline(X509_get_subject_name(c), NULL, 0);
+
+         g_debug("%s: unrelated cert subject: %s\n", __FUNCTION__, s);
+         free(s);
+         l = l->next;
+      }
+
+      goto done;
+   }
+
+   g_debug("%s: Success!  no unrelated certs found\n", __FUNCTION__);
+   err = VGAUTH_E_OK;
+
+done:
+   g_list_free(rawList);
+   for (i = 0; i < numCerts; i++) {
+      X509_free(certs[i]);
+   }
+   g_free(certs);
    return err;
 }

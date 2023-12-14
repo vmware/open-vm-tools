@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -303,6 +303,37 @@ XRSTOR_AMD_ES0(const void *load, uint64 mask)
 }
 
 #endif /* __GNUC__ */
+
+/*
+ * XSAVES/XRSTORS
+ *     saves/restores processor state components
+ *
+ * The pointer passed in must be 64-byte aligned.
+ */
+
+#if defined(__GNUC__)
+static INLINE void
+XSAVES(const void *save, uint64 mask)
+{
+   __asm__ __volatile__ (
+        "xsaves %0 \n"
+        : "=m" (*(uint8 *)save)
+        : "a" ((uint32)mask), "d" ((uint32)(mask >> 32))
+        : "memory");
+}
+
+static INLINE void
+XRSTORS(const void *load, uint64 mask)
+{
+   __asm__ __volatile__ (
+        "xrstors %0 \n"
+        :
+        : "m" (*(const uint8 *)load),
+          "a" ((uint32)mask), "d" ((uint32)(mask >> 32))
+        : "memory");
+}
+
+#endif /* __GNUC__ */
 #endif /* VMM || VMKERNEL || FROBOS || ULM */
 
 /*
@@ -314,7 +345,7 @@ XRSTOR_AMD_ES0(const void *load, uint64 mask)
  *  constraints.
  *
  */
-#if defined(__GNUC__) && (defined(VMM) || defined(VMKERNEL) || defined(FROBOS))
+#if (defined(VMM) || defined(VMKERNEL) || defined(FROBOS) || defined(ULM))
 static INLINE Bool
 xtest(void)
 {
@@ -323,14 +354,18 @@ xtest(void)
    __asm__ __volatile__("xtest\n"
                         "setnz %%al"
                         : "=a" (result) : : "cc");
-#else
+#elif defined(__GNUC__)
    __asm__ __volatile__("xtest"
                         : "=@ccnz" (result) : : "cc");
+#elif defined (_WIN64)
+   result = _xtest();
+#else
+#error No xtest implementation for this compiler.
 #endif
    return result;
 }
 
-#endif /* __GNUC__ */
+#endif /* VMM || VMKERNEL || FROBOS || ULM */
 
 /*
  *-----------------------------------------------------------------------------

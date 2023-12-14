@@ -90,9 +90,66 @@ sudo make install
 sudo ldconfig
 ```
 
+### Service Discovery (sdmp) plugin
 To build the optional sdmp (Service Discovery) plugin use the `--enable-servicediscovery` option to invoke the configure script:
 ```
 ./configure --enable-servicediscovery
+```
+
+### The open-vm-tools 12.0.0 release introduces an optional setup script and two plugins (one optional)
+
+ * Salt Minion Setup
+ * Component Manager plugin
+ * ContainerInfo plugin (optional)
+
+### Salt Minion Setup
+The Salt support on Linux consists of a single bash script to setup Salt Minion on VMware virtual machines.  The script requires the "curl" and "awk" commands to be available on the system.
+
+Linux providers supplying open-vm-tools packages are recommended to provide Salt Minion support in a separate optional package - "open-vm-tools-salt-minion".
+
+To include the Salt Minion Setup in the open-vm-tools build use the `--enable-salt-minion` option when invoking the configure script.
+```
+./configure --enable-salt-minion
+```
+
+### Component Manager (componentMgr) plugin
+The component Manager manages a preconfigured set of components available from VMware that can be made available on the Linux guest.  Currently the only component that can be managed is the Salt Minion Setup.
+
+### ContainerInfo (containerInfo) plugin
+The optional containerInfo plugin retrieves a list of the containers running on a Linux guest and publishes the list to the guest variable "**guestinfo.vmtools.containerinfo**" in JSON format.  The containerInfo plugin communicates with the containerd daemon using gRPC to retrieve the desired information.  For containers that are managed by Docker, the plugin uses libcurl to communicate with the Docker daemon and get the names of the containers.
+
+Since this plugin requires additional build and runtime dependencies, Linux vendors are recommended to release it in a separate, optional package - "open-vm-tools-containerinfo".  This avoids unnecessary dependencies for customers not using the feature.
+
+#### Canonical, Debian, Ubuntu Linux
+| Build Dependencies | Runtime |
+|:------------------------:|:----------------:|
+| `libcurl4-openssl-dev` | `curl` |
+| `protobuf-compiler` | `protobuf` |
+| `libprotobuf-dev` | `grpc++` |
+| `protobuf-compiler-grpc` |
+| `libgrpc++-dev` |
+| `golang-github-containerd-containerd-dev` |
+| `golang-github-gogo-protobuf-dev` |
+
+#### Fedora, Red Hat Enterprise Linux, ...
+| Build Dependencies | Runtime |
+|:------------------------:|:----------------:|
+| `libcurl-devel` | `curl` |
+| `protobuf-compiler` | `protobuf` |
+| `protobuf-devel` | `grpc-cpp` |
+| `grpc-plugins` |
+| `grpc-devel` |
+| `containerd-devel` |
+
+
+#### Configuring the build for the ContainerInfo plugin
+The configure script defaults to building the ContainerInfo when all the needed dependencies are available.  ContainerInfo will not be built if there are missing dependencies.  Invoke the configure script with `--enable-containerinfo=no` to explicitly inhibit building the plugin.
+```
+./configure --enable-containerinfo=no
+```
+If the configure script is given the option `--enable-containerinfo=yes` and any necessary dependency is not available, the configure script will terminate with an error.
+```
+./configure --enable-containerinfo=yes
 ```
 
 ## Getting configure options and help
@@ -118,6 +175,9 @@ You can get involved today in several different ways:
   * Oracle Linux 7 and later 
   * Fedora 19 and later releases
   * openSUSE 11.x and later releases
+  * Flatcar Container Linux, all releases
+  * Rocky 8 and later releases
+  * AlmaLinux OS 8 and later releases
  
 ## Will external developers be allowed to become committers to the project?
 Yes. Initially, VMware engineers will be the only committers. As we roll out our development infrastructure, we will be looking to add external committers to the project as well.
@@ -136,6 +196,21 @@ Yes. We have a standard contribution agreement that covers all contributions mad
 Fax to +1.650.427.5003, Attn: Product & Technology Law Group
 Scan and email it to oss-queries_at_vmware.com
 Agreement: http://open-vm-tools.sourceforge.net/files/vca.pdf
+
+## My version of Linux is not recognized.  How do I add my Linux name to the known list?
+
+The open-vm-tools source contains a table mapping the guest distro name to the officially recognized short name.  __Please do not submit pull requests altering this table and associated code.__  Any changes here must be accompanied by additional changes in the VMware host.  Values that are not recognized by the VMware host will be ignored. 
+
+
+Use the appropriate generic Linux designation when configuring a VM for your Linux version.  The selection available will vary by virtual hardware version being used.
+- Other 5.x or later Linux (64-bit)
+- Other 5.x or later Linux (32-bit)
+- Other 4.x Linux (64-bit)
+- Other 4.x Linux (32-bit)
+- Other 3.x Linux (64-bit)
+- Other 3.x Linux (32-bit)
+- Other Linux (64-bit)
+- Other Linux (32-bit)
 
 # Compatibilty
 
@@ -166,3 +241,4 @@ Please send an email to one of these mailing lists based on the nature of your q
 - Development related questions : open-vm-tools-devel@lists.sourceforge.net
 - Miscellaneous questions: open-vm-tools-discuss@lists.sourceforge.net
 - General project announcements: open-vm-tools-announce@lists.sourceforge.net
+

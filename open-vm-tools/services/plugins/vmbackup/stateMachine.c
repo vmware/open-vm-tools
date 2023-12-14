@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 2007-2021, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -91,6 +91,16 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
    VMTools_ConfigGetInteger(config, "vmbackup", key, defVal)
 
 #define VMBACKUP_CFG_ENABLEVSS      "enableVSS"
+#define VMBACKUP_CFG_ENABLENVME     "enableNVMe"
+
+/**
+ * Default value for VMBACKUP_CFG_ENABLENVME setting in
+ * tools configuration file.
+ *
+ * TRUE will allow the host to use NVMe feature in snapshot,
+ * FALSE otherwise.
+ */
+#define VMBACKUP_CFG_ENABLENVME_DEFAULT                  FALSE
 
 static VmBackupState *gBackupState = NULL;
 
@@ -102,6 +112,31 @@ VmBackupEnableSyncWait(void);
 
 static Bool
 VmBackupEnableCompleteWait(void);
+
+
+/**
+ * Returns the configured timeout value.
+ *
+ * @param[in]  config   Config file to read from.
+ * @param[in]  defValue Default value if the timeout key is not found or error.
+ *
+ * @return value of the timeout key if read successfully,
+ *         defValue otherwise.
+ */
+
+static gint
+VmBackupGetTimeout(GKeyFile *config,
+                   const gint defValue)
+{
+   gint timeout = VMBACKUP_CONFIG_GET_INT(config, "timeout", defValue);
+   if (timeout < 0 || timeout > (G_MAXINT / 1000)) {
+      g_warning("Invalid timeout %d. Using default %us.",
+                timeout, defValue);
+      timeout = defValue;
+   }
+
+   return timeout;
+}
 
 
 /**
@@ -206,7 +241,7 @@ VmBackupPrivSendMsg(gchar *msg,
  * Sends a command to the VMX asking it to update VMDB about a new backup event.
  * This will restart the keep-alive timer.
  *
- * As the name implies, does not abort the quiesce operation on failure.
+ * As the name implies, does not cancel the quiesce operation on failure.
  *
  * @param[in]  event    The event to set.
  * @param[in]  code     Error code.
@@ -299,7 +334,7 @@ VmBackup_SendEventNoAbort(const char *event,
  * Sends a command to the VMX asking it to update VMDB about a new backup event.
  * This will restart the keep-alive timer.
  *
- * Aborts the quiesce operation on RPC failure.
+ * Cancels the quiesce operation on RPC failure.
  *
  * @param[in]  event    The event to set.
  * @param[in]  code     Error code.
@@ -474,7 +509,7 @@ VmBackupOnError(void)
 
 
 /**
- * Aborts the current operation, unless we're already in an error state.
+ * Cancels the current operation, unless we're already in an error state.
  */
 
 static void
@@ -484,7 +519,7 @@ VmBackupDoAbort(void)
    ASSERT(gBackupState != NULL);
 
    /*
-    * Once we abort the operation, we don't care about RPC state.
+    * Once we cancel the operation, we don't care about RPC state.
     */
    gBackupState->rpcState = VMBACKUP_RPC_STATE_IGNORE;
 
@@ -526,7 +561,7 @@ VmBackupDoAbort(void)
 
 
 /**
- * Timer callback to abort the current operation.
+ * Timer callback to cancel the current operation.
  *
  * @param[in] data    Unused.
  *
@@ -682,7 +717,7 @@ VmBackupAsyncCallback(void *clientData)
          VmBackupDoAbort();
 
          /*
-          * Check gBackupState, since the abort could cause a transition to
+          * Check gBackupState, since canceling could cause a transition to
           * VMBACKUP_MSTATE_IDLE, in which case the VmBackupState structure
           * would be freed and gBackupState would be NULL.
           */
@@ -1038,9 +1073,13 @@ VmBackupStartCommon(RpcInData *data,
 #if defined(__linux__)
    gBackupState->excludedFileSystems =
          VMBACKUP_CONFIG_GET_STR(ctx->config, "excludedFileSystems", NULL);
-   g_debug("Using excludedFileSystems = \"%s\"\n",
+   gBackupState->ignoreFrozenFS =
+       VMBACKUP_CONFIG_GET_BOOL(ctx->config, "ignoreFrozenFileSystems", FALSE);
+
+   g_debug("Using excludedFileSystems = \"%s\", ignoreFrozenFileSystems = %d\n",
            (gBackupState->excludedFileSystems != NULL) ?
-            gBackupState->excludedFileSystems : "(null)");
+            gBackupState->excludedFileSystems : "(null)",
+           gBackupState->ignoreFrozenFS);
 #endif
    g_debug("Quiescing volumes: %s",
            (gBackupState->volumes) ? gBackupState->volumes : "(null)");
@@ -1062,7 +1101,7 @@ VmBackupStartCommon(RpcInData *data,
     * it just discards the operation and sends an error to the caller. But
     * Tools can still keep running, blocking any new quiesced snapshot
     * requests. So we set up our own timer (which is configurable, in case
-    * anyone wants to play with it), so that we abort any ongoing operation
+    * anyone wants to play with it), so that we cancel any ongoing operation
     * if we also hit that timeout.
     *
     * First check if the timeout is specified by the RPC command, if not,
@@ -1071,8 +1110,8 @@ VmBackupStartCommon(RpcInData *data,
     * See bug 506106.
     */
    if (gBackupState->timeout == 0) {
-      gBackupState->timeout = VMBACKUP_CONFIG_GET_INT(ctx->config, "timeout",
-                                       GUEST_QUIESCE_DEFAULT_TIMEOUT_IN_SEC);
+      gBackupState->timeout = VmBackupGetTimeout(ctx->config,
+                                 GUEST_QUIESCE_DEFAULT_TIMEOUT_IN_SEC);
    }
 
    /* Treat "0" as no timeout. */
@@ -1157,8 +1196,7 @@ VmBackupStart(RpcInData *data)
       gBackupState->scriptArg = VMBACKUP_CONFIG_GET_STR(ctx->config,
                                                         "scriptArg",
                                                         NULL);
-      gBackupState->timeout = VMBACKUP_CONFIG_GET_INT(ctx->config,
-                                                      "timeout", 0);
+      gBackupState->timeout = VmBackupGetTimeout(ctx->config, 0);
       gBackupState->vssUseDefault = VMBACKUP_CONFIG_GET_BOOL(ctx->config,
                                                              "vssUseDefault",
                                                              TRUE);
@@ -1197,7 +1235,7 @@ VmBackupStart(RpcInData *data)
  *   as an argument so that the scripts can be configured to perform
  *   actions based this argument.
  * . The timeout in seconds overrides the default timeout of 15 minutes
- *   that the guest uses to abort a long quiesce operation. If the timeout
+ *   that the guest uses to cancel a long quiesce operation. If the timeout
  *   is 0, the default timeout is used.
  * . The volumes argument is a list of diskUuids separated by space.
  *
@@ -1277,8 +1315,8 @@ VmBackupStartWithOpts(RpcInData *data)
 
 
 /**
- * Aborts the current operation if one is active, and stops the backup
- * process. If the sync provider has been activated, tell it to abort
+ * Cancels the current operation if one is active, and stops the backup
+ * process. If the sync provider has been activated, tell it to cancel 
  * the ongoing operation.
  *
  * @param[in]  data     RPC data.
@@ -1440,6 +1478,44 @@ VmBackupShutdown(gpointer src,
 }
 
 
+/*
+ *******************************************************************************
+ * VmBackupCapabilities --                                               */ /**
+ *
+ * Sends the vmbackup capability to the VMX.
+ *
+ * @param[in]  src      The source object.
+ * @param[in]  ctx      The app context.
+ * @param[in]  set      Whether setting or unsetting the capability.
+ * @param[in]  data     Unused.
+ *
+ * @return An array with the capabilities to set.
+ *
+ *******************************************************************************
+ */
+
+static GArray *
+VmBackupCapabilities(gpointer src,
+                     ToolsAppCtx *ctx,
+                     gboolean set,
+                     gpointer data)
+{
+   ToolsAppCapability caps[] = {
+      { TOOLS_CAP_NEW, NULL, CAP_VMBACKUP_NVME, },
+   };
+   Bool enableNVMe = VMBACKUP_CONFIG_GET_BOOL(ctx->config,
+                                              VMBACKUP_CFG_ENABLENVME,
+                                              VMBACKUP_CFG_ENABLENVME_DEFAULT);
+
+   g_debug("%s - vmbackup NVMe feature is %s\n", __FUNCTION__,
+           enableNVMe ? "enabled" : "disabled");
+
+   caps[0].value = enableNVMe && set ? 1 : 0;
+
+   return VMTools_WrapArray(caps, sizeof *caps, ARRAYSIZE(caps));
+}
+
+
 /**
  * Plugin entry point. Initializes internal plugin state.
  *
@@ -1469,6 +1545,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)
       { VMBACKUP_PROTOCOL_SNAPSHOT_DONE, VmBackupSnapshotDone, NULL, NULL, NULL, 0 }
    };
    ToolsPluginSignalCb sigs[] = {
+      { TOOLS_CORE_SIG_CAPABILITIES, VmBackupCapabilities, NULL },
       { TOOLS_CORE_SIG_DUMP_STATE, VmBackupDumpState, NULL },
       { TOOLS_CORE_SIG_RESET, VmBackupReset, NULL },
       { TOOLS_CORE_SIG_SHUTDOWN, VmBackupShutdown, NULL },

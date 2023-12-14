@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998,2005-2012,2014-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998,2005-2012,2014-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -56,6 +56,8 @@
  */
 #define PCI_VENDOR_ID_VMWARE                    0x15AD
 #define PCI_DEVICE_ID_VMWARE_SBX                0x0420
+#define PCI_DEVICE_ID_VMWARE_SVGA4              0x0408
+#define PCI_DEVICE_ID_VMWARE_SVGA_EFI           0x0407
 #define PCI_DEVICE_ID_VMWARE_SVGA3              0x0406
 #define PCI_DEVICE_ID_VMWARE_SVGA2              0x0405
 #define PCI_DEVICE_ID_VMWARE_SVGA               0x0710
@@ -70,6 +72,7 @@
 #define PCI_DEVICE_ID_VMWARE_UHCI               0x0774
 #define PCI_DEVICE_ID_VMWARE_XHCI_0096          0x0778
 #define PCI_DEVICE_ID_VMWARE_XHCI_0100          0x0779
+#define PCI_DEVICE_ID_VMWARE_XHCI_0120          0x077A
 #define PCI_DEVICE_ID_VMWARE_1394               0x0780
 #define PCI_DEVICE_ID_VMWARE_BRIDGE             0x0790
 #define PCI_DEVICE_ID_VMWARE_ROOTPORT           0x07A0
@@ -114,6 +117,12 @@
 
 #define PCI_DEVICE_ID_VMWARE_VRDMA      0x0820
 #define PCI_DEVICE_ID_VMWARE_VTPM       0x0830
+
+/*
+ * VMware Device Virtualization Extension (DVX) devices
+ */
+#define PCI_DEVICE_ID_VMWARE_DVX_SAMPLE 0x0840
+#define PCI_DEVICE_ID_VMWARE_DVX_TEST   0x0841
 
 /*
  * VMware Virtual Device Test Infrastructure (VDTI) devices
@@ -169,7 +178,9 @@
 /*
  * Intel Volume Management Device (VMD)
  */
-#define PCI_DEVICE_ID_INTEL_VMD_V1           0x201d
+#define PCI_DEVICE_ID_INTEL_VMD_GEN1           0x201d
+#define PCI_DEVICE_ID_INTEL_VMD_GEN2           0x28c0
+#define PCI_DEVICE_ID_INTEL_VMD_GEN3           0x476F
 
 /*
  * Intel Quickassist (QAT) devices.
@@ -247,15 +258,18 @@
 /************* NVME implementation limits ********************************/
 #define NVME_MAX_CONTROLLERS   4
 #define NVME_MIN_NAMESPACES    1
-#define NVME_MAX_NAMESPACES    15 /* We support only 15 namespaces same
-                                   * as SCSI devices.
+#define NVME_MAX_NAMESPACES    64 /* We support 64 namespaces same
+                                   * as PVSCSI controller.
                                    */
-
+#define NVME_HW20_MAX_NAMESPACES 15 // HWv20 and before supports 15 namespaces
+#define NVME_FUTURE_MAX_NAMESPACES 256 /* To support NVME to the possible 256
+                                        * disks per controller in future.
+                                        */
 /************* SCSI implementation limits ********************************/
 #define SCSI_MAX_CONTROLLERS	 4	  // Need more than 1 for MSCS clustering
 #define	SCSI_MAX_DEVICES         16	  // BT-958 emulates only 16
-#define PVSCSI_HWV14_MAX_DEVICES 65	  /* HWv14 And Later Supports 64 
-					   * + controller at ID 7 
+#define PVSCSI_HWV14_MAX_DEVICES 65	  /* HWv14 And Later Supports 64
+					   * + controller at ID 7
 					   */
 #define PVSCSI_MAX_DEVICES       255	  // 255 (including the controller)
 #define PVSCSI_MAX_NUM_DISKS     (PVSCSI_HWV14_MAX_DEVICES - 1)
@@ -267,26 +281,11 @@
 #define AHCI_MAX_PORTS SATA_MAX_DEVICES
 
 /*
- * Publicly supported maximum number of disks per VM.
+ * Official limit for supported number of disks is 440 per VM.
+ * VM can have more disks (up to 636 as of now), but such VM is not
+ * supported (main reason being too long downtime during (s)vmotion).
  */
-#define MAX_NUM_DISKS \
-   ((SATA_MAX_CONTROLLERS * SATA_MAX_DEVICES) + \
-    (SCSI_MAX_CONTROLLERS * SCSI_MAX_DEVICES) + \
-    (NVME_MAX_CONTROLLERS * NVME_MAX_NAMESPACES) + \
-    (IDE_NUM_INTERFACES * IDE_DRIVES_PER_IF))
-
-/*
- * Maximum number of supported disks in a VM from HWV14 or later, using PVSCSI updated max
- * devices.  The note above still holds true, but instead of publicly supporting
- * all devices, HWv14 simply extends the maximum support to 256 devices,
- * instead ~244 calculated above.
- *
- * PVSCSI_HW_MAX_DEVICES is 65 - allowing 64 disks + controller (at ID 7)
- * 4 * 64 = 256 devices.
- *
- */
-#define MAX_NUM_DISKS_HWV14 MAX(MAX_NUM_DISKS, \
-   (SCSI_MAX_CONTROLLERS * PVSCSI_MAX_NUM_DISKS))
+#define MAX_NUM_DISKS_SUPPORTED 440
 
 /*
  * VSCSI_BV_INTS is the number of uint32's needed for a bit vector
@@ -330,10 +329,10 @@
 #define MAX_FLOPPY_DRIVES      2
 
 /************* PCI Passthrough implementation limits ********************/
-#define MAX_PCI_PASSTHRU_DEVICES 16
+#define MAX_PCI_PASSTHRU_DEVICES 128
 
 /************* Test device implementation limits ********************/
-#define MAX_PCI_TEST_DEVICES 16
+#define MAX_PCI_TEST_DEVICES 128
 
 /************* VDTI PCI Device implementation limits ********************/
 #define MAX_VDTI_PCI_DEVICES 16
@@ -354,6 +353,29 @@
 /************* PrecisionClock implementation limits ********************/
 #define MAX_PRECISIONCLOCK_DEVICES 1
 
+/************* DeviceGroup implementation limits ********************/
+#define MAX_DEVICE_GROUP_DEVICES 4
+
+/************* Serial/Parallel Ports limits ********************/
+#define NUM_SERIAL_PORTS     32
+#define NUM_PARALLEL_PORTS   3
+
+/************* USB host controller limits ********************/
+#define USB_EHCI_MAX_CONTROLLERS        1
+#define USB_XHCI_MAX_CONTROLLERS        1
+
+/*
+ * As per USB specification 127 devices can be connected. Along with user usb
+ * devices other types of devices like root hub, hub, keyboard, mouse are also
+ * present and are not expose directly to users. These other devices also
+ * occupy ports on USB.
+ *
+ * Although we have 20 devices limit for virtual usb mass storage on each
+ * controller we can't just put 20 here as we need to account for other devices
+ * which are necessary for functionality
+ * TODO: enforce 20 devices limit from hostd
+ */
+#define USB_MAX_DEVICES_PER_HOST_CTRL   127
 /************* Strings for Host USB Driver *******************************/
 
 #ifdef _WIN32
@@ -362,13 +384,13 @@
  * Globally unique ID for the VMware device interface. Define INITGUID before including
  * this header file to instantiate the variable.
  */
-DEFINE_GUID(GUID_DEVICE_INTERFACE_VMWARE_USB_DEVICES, 
+DEFINE_GUID(GUID_DEVICE_INTERFACE_VMWARE_USB_DEVICES,
 0x2da1fe75, 0xaab3, 0x4d2c, 0xac, 0xdf, 0x39, 0x8, 0x8c, 0xad, 0xa6, 0x65);
 
 /*
  * Globally unique ID for the VMware device setup class.
  */
-DEFINE_GUID(GUID_CLASS_VMWARE_USB_DEVICES, 
+DEFINE_GUID(GUID_CLASS_VMWARE_USB_DEVICES,
 0x3b3e62a5, 0x3556, 0x4d7e, 0xad, 0xad, 0xf5, 0xfa, 0x3a, 0x71, 0x2b, 0x56);
 
 /*

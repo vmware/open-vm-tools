@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -38,14 +38,6 @@
 #include "unicodeTypes.h"
 #include "dynarray.h"
 
-/*
- * TODO: this works around a compilation issue, and can be removed
- * when this file is converted to pack pragmas (after FreeBSD/Tools
- * build is removed). --kevinc
- */
-#ifdef _MSC_VER
-#   pragma warning(disable:4103)
-#endif
 
 #if defined(__cplusplus)
 extern "C" {
@@ -190,18 +182,16 @@ typedef enum
    DND_TRANSPORT_PACKET_TYPE_PAYLOAD,
 } DND_TRANSPORT_PACKET_TYPE;
 
-typedef
-#include "vmware_pack_begin.h"
-struct DnDTransportPacketHeader {
+#pragma pack(push, 1)
+typedef struct DnDTransportPacketHeader {
    uint32 type;
    uint32 seqNum;
    uint32 totalSize;
    uint32 payloadSize;
    uint32 offset;
    uint8 payload[1];
-}
-#include "vmware_pack_end.h"
-DnDTransportPacketHeader;
+} DnDTransportPacketHeader;
+#pragma pack(pop)
 
 typedef struct DnDTransportBuffer {
    size_t seqNum;

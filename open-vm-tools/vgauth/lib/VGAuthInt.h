@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2017 VMware, Inc. All rights reserved.
+ * Copyright (c) 2011-2017,2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -243,11 +243,16 @@ VGAuthError VGAuth_SendQueryMappedAliasesRequest(VGAuthContext *ctx,
                                                  int *num,            // OUT
                                                  VGAuthMappedAlias **maList); // OUT
 
+/* clang-format off */
 VGAuthError VGAuth_SendValidateSamlBearerTokenRequest(VGAuthContext *ctx,
                                                       gboolean validateOnly,
+                                                      gboolean hostVerified,
                                                       const char *samlToken,
                                                       const char *userName,
                                                       VGAuthUserHandle **userHandle);
+
+
+/* clang-format on */
 
 VGAuthError VGAuth_CreateHandleForUsername(VGAuthContext *ctx,
                                            const char *userName,

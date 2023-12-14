@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2018, 2021-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -37,6 +37,10 @@ struct DynBuf;
 
 char *StrUtil_GetNextToken(unsigned int *index, const char *str,
                            const char *delimiters);
+#if defined(_WIN32)
+wchar_t *StrUtil_GetNextTokenW(unsigned int *index, const wchar_t *str,
+                               const wchar_t *delimiters);
+#endif
 Bool StrUtil_GetNextIntToken(int32 *out, unsigned int *index, const char *str,
                              const char *delimiters);
 Bool StrUtil_GetNextUintToken(uint32 *out, unsigned int *index, const char *str,
@@ -62,6 +66,7 @@ Bool StrUtil_StartsWith(const char *s, const char *prefix);
 Bool StrUtil_CaselessStartsWith(const char *s, const char *prefix);
 Bool StrUtil_EndsWith(const char *s, const char *suffix);
 Bool StrUtil_CaselessEndsWith(const char *s, const char *suffix);
+const char * StrUtil_CaselessStrstr(const char *str, const char *strSearch);
 Bool StrUtil_IsASCII(const char *s);
 
 Bool StrUtil_VDynBufPrintf(struct DynBuf *b, const char *fmt, va_list args);

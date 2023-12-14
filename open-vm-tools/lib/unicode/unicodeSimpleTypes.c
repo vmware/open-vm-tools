@@ -2943,6 +2943,8 @@ Unicode_Shutdown(int argc,              // IN
    HashTable_FreeUnsafe(unicodeEncCache);
    unicodeEncCache = NULL;
 
+   // Please refer to comments in UnicodeInitInternal
+#if !defined(__APPLE__) && !defined(VMX86_SERVER)
    if (argv != NULL) {
       Util_FreeStringList(argv, argc + 1);
    }
@@ -2950,6 +2952,7 @@ Unicode_Shutdown(int argc,              // IN
    if (envp != NULL) {
       Util_FreeStringList(envp, -1);
    }
+#endif
 }
 
 

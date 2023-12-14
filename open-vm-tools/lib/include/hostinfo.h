@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -48,7 +48,16 @@ typedef enum {
    HOSTINFO_PROCESS_QUERY_UNKNOWN  // Process existence cannot be determined
 } HostinfoProcessQuery;
 
+typedef struct HostinfoProcessSnapshot HostinfoProcessSnapshot;
+
+HostinfoProcessSnapshot *Hostinfo_AcquireProcessSnapshot(void);
+void Hostinfo_ReleaseProcessSnapshot(HostinfoProcessSnapshot *s);
+
+HostinfoProcessQuery Hostinfo_QueryProcessSnapshot(HostinfoProcessSnapshot *s,
+                                                   int pid);
+
 HostinfoProcessQuery Hostinfo_QueryProcessExistence(int pid);
+HostinfoProcessQuery Hostinfo_QueryProcessReaped(int pid);
 
 /* This macro defines the current version of the structured header. */
 #define HOSTINFO_STRUCT_HEADER_VERSION 1
@@ -155,14 +164,14 @@ Bool Hostinfo_Daemonize(const char *path,
 
 Bool Hostinfo_NestingSupported(void);
 Bool Hostinfo_VCPUInfoBackdoor(unsigned bit);
-Bool Hostinfo_SynchronizedVTSCs(void);
-Bool Hostinfo_NestedHVReplaySupported(void);
 Bool Hostinfo_TouchBackDoor(void);
 Bool Hostinfo_TouchVirtualPC(void);
 Bool Hostinfo_TouchXen(void);
+Bool Hostinfo_HyperV(void);
 char *Hostinfo_HypervisorCPUIDSig(void);
 void Hostinfo_LogHypervisorCPUID(void);
 char *Hostinfo_HypervisorInterfaceSig(void);
+uint32 Hostinfo_GetNestedBuildNum(void);
 
 #define HGMP_PRIVILEGE    0
 #define HGMP_NO_PRIVILEGE 1
@@ -210,6 +219,7 @@ typedef enum {
    OS_WINSEVEN               = 9,
    OS_WIN8                   = 10,
    OS_WIN10                  = 11,
+   OS_WIN11                  = 12,
    OS_UNKNOWN                = 99999 // last, highest value
 } OS_TYPE;
 
@@ -239,6 +249,8 @@ typedef enum {
    OS_DETAIL_WIN8SERVER      = 23,
    OS_DETAIL_WIN10           = 24,
    OS_DETAIL_WIN10SERVER     = 25,
+   OS_DETAIL_WIN11           = 26,
+   OS_DETAIL_WIN11SERVER     = 27,
    OS_DETAIL_UNKNOWN         = 99999  // last, highest value
 } OS_DETAIL_TYPE;
 
@@ -258,6 +270,7 @@ Bool Hostinfo_GetLoadAverage(uint32 *l);
 #ifdef __APPLE__
 size_t Hostinfo_GetKernelZoneElemSize(char const *name);
 char *Hostinfo_GetHardwareModel(void);
+int Hostinfo_ProcessIsRosetta(void);
 #endif
 
 #if defined(__cplusplus)

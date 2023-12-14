@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2007-2016 VMware, Inc. All rights reserved.
+ * Copyright (c) 2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -16,24 +16,18 @@
  *
  *********************************************************/
 
+#ifndef _VMXRPC_H_
+#define _VMXRPC_H_
+
+
 /*
- * hgfsmounter_version.h --
+ * @file vmxrpc.h
  *
- * Version definitions for the HGFS mount helper application.
+ * Support for RPCs to the VMX.
  */
 
-#ifndef _HGFSMOUNTER_VERSION_H_
-#define _HGFSMOUNTER_VERSION_H_
+int VMXRPC_SendRpc(const gchar *cmd, gboolean useSecure, gchar **retBuf);
 
-/*
- * This component's version is coupled with Tools versioning. The effect
- * is that the version increments with each build, and with each Tools
- * version bump. If and when it becomes necessary to version the component
- * manually, make sure that the version is bumped any time the component or
- * its dependencies are changed.
- */
-#include "vm_tools_version.h"
-#define HGFSMOUNTER_VERSION_COMMAS   TOOLS_VERSION_EXT_CURRENT_CSV
-#define HGFSMOUNTER_VERSION_STRING   TOOLS_VERSION_EXT_CURRENT_STR
+int VMXRPC_Init(void);
 
-#endif /* _HGFSMOUNTER_VERSION_H_ */
+#endif // _VMXRPC_H_

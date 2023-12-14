@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2014-2020 VMware, Inc.  All rights reserved.
+### Copyright (c) 2014-2023 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -28,7 +28,6 @@ libDeployPkg_la_LIBADD += @MSPACK_LIBS@
 libDeployPkg_la_LIBADD += @VMTOOLS_LIBS@
 
 libDeployPkg_la_SOURCES =
-libDeployPkg_la_SOURCES += deployPkgFormat.h
 libDeployPkg_la_SOURCES += linuxDeployment.c
 libDeployPkg_la_SOURCES += mspackConfig.h
 libDeployPkg_la_SOURCES += mspackWrapper.c
@@ -37,10 +36,9 @@ libDeployPkg_la_SOURCES += processPosix.c
 libDeployPkg_la_SOURCES += linuxDeploymentUtilities.c
 libDeployPkg_la_SOURCES += linuxDeploymentUtilities.h
 
-libDeployPkg_la_LDFLAGS =
 # We require GCC, so we're fine passing compiler-specific flags.
 # Needed for OS's that don't link shared libraries against libc by default, e.g. FreeBSD
-libDeployPkg_la_LDFLAGS += -Wl,-lc
+libDeployPkg_la_LIBADD += -lc
 
 libDeployPkg_includedir = $(includedir)/libDeployPkg
 
@@ -51,6 +49,7 @@ libDeployPkg_include_HEADERS += $(top_srcdir)/lib/include/imgcust-common/log.h
 libDeployPkg_include_HEADERS += $(top_srcdir)/lib/include/imgcust-common/process.h
 libDeployPkg_include_HEADERS += $(top_srcdir)/lib/include/vm_basic_types.h
 libDeployPkg_include_HEADERS += $(top_srcdir)/lib/include/vmware/tools/guestrpc.h
+libDeployPkg_include_HEADERS += $(top_srcdir)/lib/include/deployPkg/deployPkgFormat.h
 libDeployPkg_include_HEADERS += $(top_srcdir)/lib/include/deployPkg/linuxDeployment.h
 libDeployPkg_include_HEADERS += $(top_srcdir)/lib/include/vmware/guestrpc/deploypkg.h
 libDeployPkg_include_HEADERS += $(top_srcdir)/lib/include/vmware/guestrpc/guestcust-events.h

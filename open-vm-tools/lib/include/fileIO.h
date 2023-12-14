@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2018 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2018, 2021-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -208,7 +208,7 @@ typedef enum {
 /*
  * OPTIMISTIC is an alternative to EXCLUSIVE and MANDATORY. It applies
  * only on ESX, and gives VMkernel permission to use a type of lock
- * called "optimistic" to speed up opens. Rule-of-thumb is to use it
+ * called "optimistic" to speed up opens.  A general guideline is to use it
  * only for read-only opens of small files (< 1KB).
  */
 #define FILEIO_OPEN_OPTIMISTIC_LOCK      (1 << 22)  // 0x00400000
@@ -493,6 +493,15 @@ FILE *FileIO_DescriptorToStream(FileIODescriptor *fd,
 
 const char *FileIO_Filename(FileIODescriptor *fd);
 
+#ifdef VMX86_SERVER
+FileIOResult FileIO_CreateDeviceFileNoPrompt(FileIODescriptor *fd,
+                                             const char *pathName,
+                                             int openMode,
+                                             FileIOOpenAction action,
+                                             int perms,
+                                             const char *device);
+#endif
+
 /*
  *-------------------------------------------------------------------------
  *
@@ -509,21 +518,11 @@ const char *FileIO_Filename(FileIODescriptor *fd);
  *-------------------------------------------------------------------------
  */
 
-#if !defined(sun) || __GNUC__ >= 3
 static INLINE Bool
 FileIO_IsSuccess(FileIOResult res)      // IN
 {
    return res == FILEIO_SUCCESS;
 }
-#else
-/*
- * XXX: Crosscompiler used for Solaris tools builds (gcc 2.95.3) complains
- * whenever the above definition is unused, even though that shouldn't be
- * a problem for static functions that are also inline.  So for Solaris, we
- * have a separate definition that is neither static nor inline.
- */
-Bool FileIO_IsSuccess(FileIOResult res);
-#endif
 
 Bool FileIO_SupportsPrealloc(const char *pathName,
                              Bool fsCheck);

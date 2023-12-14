@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 2011-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -138,6 +138,8 @@
 #endif
 
 #include <glib.h>
+#include "vmware/tools/guestrpc.h"
+#include "vm_basic_types.h"
 
 #if defined(__GNUC__)
 #  define FUNC __func__
@@ -348,6 +350,17 @@ VMTools_Log(LogWhere where,
             const gchar *domain,
             const gchar *fmt,
             ...);
+
+void
+VMTools_VmxLog(RpcChannel *chan,
+               const gchar *fmt,
+               ...);
+
+void
+VMTools_VmxLogThrottled(uint32 *count,
+                        RpcChannel *chan,
+                        const gchar *fmt,
+                        ...);
 
 G_END_DECLS
 

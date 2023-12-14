@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016, 2018-2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 2008-2016, 2018-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -34,6 +34,7 @@
 #include "vmware/guestrpc/powerops.h"
 #include "vmware/tools/plugin.h"
 #include "vmware/tools/utils.h"
+#include "vmware/tools/log.h"
 
 #if defined(G_PLATFORM_WIN32)
 #  define INVALID_PID NULL
@@ -213,10 +214,10 @@ PowerOpsStateChangeDone(PowerOpState *state,
    /* Finally, perform the requested operation. */
    if (success) {
       if (state->stateChgInProgress == GUESTOS_STATECHANGE_REBOOT) {
-         g_message("Initiating reboot.\n");
+         VMTools_VmxLog(state->ctx->rpc, "Initiating reboot.");
          System_Shutdown(TRUE);
       } else if (state->stateChgInProgress == GUESTOS_STATECHANGE_HALT) {
-         g_message("Initiating halt.\n");
+         VMTools_VmxLog(state->ctx->rpc, "Initiating halt.");
          System_Shutdown(FALSE);
       }
    }
@@ -247,7 +248,8 @@ PowerOpsScriptCallback(gpointer _state)
 
       success = (ProcMgr_GetExitCode(state->pid, &exitcode) == 0 &&
                  exitcode == 0);
-      g_message("Script exit code: %d, success = %d\n", exitcode, success);
+      VMTools_VmxLog(state->ctx->rpc, "Script exit code: %d, success = %d",
+                     exitcode, success);
       PowerOpsStateChangeDone(state, success);
       ProcMgr_Free(state->pid);
       state->pid = INVALID_PID;
@@ -332,16 +334,17 @@ PowerOpsScriptCallback(GPid pid,
    ASSERT(state->pid != INVALID_PID);
 
    if (WIFEXITED(exitStatus)) {
-      g_message("Script exit code: %d, success = %d\n",
-                WEXITSTATUS(exitStatus), success);
+      VMTools_VmxLog(state->ctx->rpc, "Script exit code: %d, success = %d",
+                     WEXITSTATUS(exitStatus), success);
    } else if (WIFSIGNALED(exitStatus)) {
-      g_message("Script canceled by signal: %d, success = %d\n",
-                WTERMSIG(exitStatus), success);
+      VMTools_VmxLog(state->ctx->rpc, "Script canceled by signal: %d, "
+                     "success = %d", WTERMSIG(exitStatus), success);
    } else if (WIFSTOPPED(exitStatus)) {
-      g_message("Script stopped by signal: %d, success = %d\n",
-                WSTOPSIG(exitStatus), success);
+      VMTools_VmxLog(state->ctx->rpc, "Script stopped by signal: %d, "
+                     "success = %d", WSTOPSIG(exitStatus), success);
    } else {
-      g_message("Script exit status: %d, success = %d\n", exitStatus, success);
+      VMTools_VmxLog(state->ctx->rpc, "Script exit status: %d, success = %d",
+                     exitStatus, success);
    }
    PowerOpsStateChangeDone(_state, success);
    g_spawn_close_pid(state->pid);
@@ -425,8 +428,10 @@ PowerOpsStateChange(RpcInData *data)
    PowerOpState *state = data->clientData;
 
    if (state->pid != INVALID_PID) {
-      g_debug("State change already in progress.\n");
-      return RPCIN_SETRETVALS(data,  "State change already in progress", FALSE);
+      g_message("State change already in progress: %d, requested = '%s'\n",
+                state->stateChgInProgress,
+                data->name);
+      return RPCIN_SETRETVALS(data, "State change already in progress", FALSE);
    }
 
    g_debug("State change: %s\n", data->name);
@@ -499,6 +504,8 @@ PowerOpsStateChange(RpcInData *data)
             script = tmp;
          }
 
+         VMTools_VmxLog(state->ctx->rpc, "Executing script for state change "
+                        "'%s'.", stateChangeCmdTable[i].tcloCmd);
          if (PowerOpsRunScript(state, script)) {
             result = "";
             ret = TRUE;

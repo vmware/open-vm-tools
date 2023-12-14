@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 2006-2021, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -44,15 +44,17 @@
 #endif
 #include <unistd.h>
 #include <errno.h>
+#include <stdlib.h>
+#if !defined(__USE_ATFILE)
+#define __USE_ATFILE
+#endif
+#include <fcntl.h> /* Definition of AT_* constants */
 #include <sys/stat.h>
 #include <sys/time.h>
-#include <stdlib.h>
-#include <fcntl.h>
 #include <dirent.h>
 #if defined(__linux__)
 #   include <pwd.h>
 #endif
-
 #if defined(__APPLE__)
 #include <TargetConditionals.h>
 #endif
@@ -71,9 +73,12 @@
 #include "hostType.h"
 #include "vmfs.h"
 #include "hashTable.h"
+#include "hostinfo.h"
+#include "log.h"
 
 #ifdef VMX86_SERVER
 #include "fs_public.h"
+#include "fs3Layout.h"
 #endif
 
 #define LOGLEVEL_MODULE main
@@ -749,11 +754,9 @@ File_GetTimes(const char *pathName,        // IN:
 #if defined(__FreeBSD__)
    /*
     * FreeBSD: All supported versions have timestamps with nanosecond
-    * resolution. FreeBSD 5+ has also file creation time.
+    * resolution.
     */
-#   if defined(__FreeBSD_version) && __FreeBSD_version >= 500043
    *createTime     = TimeUtil_UnixTimeToNtTime(statBuf.st_birthtimespec);
-#   endif
    *accessTime     = TimeUtil_UnixTimeToNtTime(statBuf.st_atimespec);
    *writeTime      = TimeUtil_UnixTimeToNtTime(statBuf.st_mtimespec);
    *attrChangeTime = TimeUtil_UnixTimeToNtTime(statBuf.st_ctimespec);
@@ -839,13 +842,14 @@ File_GetTimes(const char *pathName,        // IN:
 /*
  *----------------------------------------------------------------------
  *
- * File_SetTimes --
+ * FileSetTimes --
  *
- *      Set the date and time that a file was created, last accessed, or
- *      last modified.
+ *      Set the date and time that a file was last accessed or last
+ *      modified.
  *
  * Results:
- *      TRUE if succeed or FALSE if error.
+ *      TRUE  Success
+ *      FALSE Failure
  *
  * Side effects:
  *      If fileName is a symlink, target's timestamps will be updated.
@@ -854,37 +858,40 @@ File_GetTimes(const char *pathName,        // IN:
  *----------------------------------------------------------------------
  */
 
-Bool
-File_SetTimes(const char *pathName,       // IN:
-              VmTimeType createTime,      // IN: ignored
-              VmTimeType accessTime,      // IN: Windows NT time format
-              VmTimeType writeTime,       // IN: Windows NT time format
-              VmTimeType attrChangeTime)  // IN: ignored
+static Bool
+FileSetTimes(const char *path,       // IN:
+             VmTimeType accessTime,  // IN: Windows NT time format
+             VmTimeType writeTime)   // IN: Windows NT time format
+#if defined(UTIME_NOW) && defined(UTIME_OMIT)
 {
+   struct timespec times[2];
+
+   if (accessTime > 0) {
+      TimeUtil_NtTimeToUnixTime(&times[0], accessTime);
+   } else {
+      times[0].tv_sec  = 0;
+      times[0].tv_nsec = UTIME_OMIT;
+   }
+
+   if (writeTime > 0) {
+      TimeUtil_NtTimeToUnixTime(&times[1], writeTime);
+   } else {
+      times[1].tv_sec  = 0;
+      times[1].tv_nsec  = UTIME_OMIT;
+   }
+
+   return utimensat(0, path, times, 0) == 0 ? TRUE : FALSE;
+}
+#else
+{
+   struct stat statBuf;
    struct timeval times[2];
    struct timeval *aTime, *wTime;
-   struct stat statBuf;
-   char *path;
-   int err;
-
-   if (pathName == NULL) {
-      return FALSE;
-   }
-
-   path = Unicode_GetAllocBytes(pathName, STRING_ENCODING_DEFAULT);
-   if (path == NULL) {
-      Log(LGPFX" %s: failed to convert \"%s\" to current encoding\n",
-          __FUNCTION__, pathName);
-
-      return FALSE;
-   }
-
-   err = (lstat(path, &statBuf) == -1) ? errno : 0;
+   int err = (lstat(path, &statBuf) == -1) ? errno : 0;
 
    if (err != 0) {
       Log(LGPFX" %s: error stating file \"%s\": %s\n", __FUNCTION__,
-          pathName, Err_Errno2String(err));
-      Posix_Free(path);
+          path, Err_Errno2String(err));
 
       return FALSE;
    }
@@ -906,6 +913,7 @@ File_SetTimes(const char *pathName,       // IN:
       struct timespec ts;
 
       TimeUtil_NtTimeToUnixTime(&ts, accessTime);
+
       aTime->tv_sec = ts.tv_sec;
       aTime->tv_usec = ts.tv_nsec / 1000;
    }
@@ -914,22 +922,86 @@ File_SetTimes(const char *pathName,       // IN:
       struct timespec ts;
 
       TimeUtil_NtTimeToUnixTime(&ts, writeTime);
+
       wTime->tv_sec = ts.tv_sec;
       wTime->tv_usec = ts.tv_nsec / 1000;
    }
 
    err = (utimes(path, times) == -1) ? errno : 0;
 
-   Posix_Free(path);
-
    if (err != 0) {
       Log(LGPFX" %s: utimes error on file \"%s\": %s\n", __FUNCTION__,
-          pathName, Err_Errno2String(err));
+          path, Err_Errno2String(err));
 
       return FALSE;
    }
 
    return TRUE;
+}
+#endif
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * File_SetTimes --
+ *
+ *      Set the date and time that a file was last accessed or last
+ *      modified.
+ *
+ * Results:
+ *      TRUE  Success
+ *      FALSE Failure
+ *
+ * Side effects:
+ *      If fileName is a symlink, target's timestamps will be updated.
+ *      Symlink itself's timestamps will not be changed.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+File_SetTimes(const char *pathName,       // IN:
+              VmTimeType createTime,      // IN: ignored
+              VmTimeType accessTime,      // IN: Windows NT time format
+              VmTimeType writeTime,       // IN: Windows NT time format
+              VmTimeType attrChangeTime)  // IN: ignored
+{
+   char *path;
+   Bool success;
+   char *fullPath;
+
+   if (pathName == NULL) {
+      errno = EINVAL;  // Invalid parameter
+      return FALSE;
+   }
+
+   if ((accessTime == 0) && (writeTime == 0)) {
+      return TRUE;
+   }
+
+   fullPath = File_FullPath(pathName);
+
+   if (fullPath == NULL) {
+      return FALSE;
+   }
+
+   path = Unicode_GetAllocBytes(fullPath, STRING_ENCODING_DEFAULT);
+
+   Posix_Free(fullPath);
+
+   if (path == NULL) {
+      Log(LGPFX" %s: failed to convert \"%s\" to current encoding\n",
+          __FUNCTION__, pathName);
+
+      return FALSE;
+   }
+
+   success = FileSetTimes(path, accessTime, writeTime);
+
+   Posix_Free(path);
+
+   return success;
 }
 
 
@@ -1234,9 +1306,9 @@ bail:
  *      Get the filesystem type number of the file system on which the
  *      given file/directory resides.
  *
- *      Caller can specify either a pathname or an already opened fd of
- *      the file/dir whose filesystem he wants to determine.
- *      'fd' takes precedence over 'pathName' so 'pathName' is used only
+ *      Callers can specify either a pathname, or an already opened fd,
+ *      of the file/dir whose filesystem they want to determine.
+ *      'fd' takes precedence over 'pathName', so 'pathName' is used only
  *      if 'fd' is -1.
  *
  * Results:
@@ -1457,7 +1529,133 @@ File_GetVMFSMountInfo(const char *pathName,    // IN:
 
    return ret;
 }
-#endif
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * File_GetVMFSLockInfo --
+ *
+ *      Get lock information about a file that has probably caused a
+ *      locking conflict.
+ *
+ *      If the file is locked by a process local to the current host,
+ *      FS open flags, world ID, and world name will be returned (or
+ *      0/NULL if not).
+ *
+ *      If the file is on VMFS, the owner MAC address and lock mode of
+ *      the on-disk lock will be provided (or 0/NULL if not).
+ *
+ *      (It's possible for a file to be on a non-VMFS shared datastore
+ *      like NFS/VVol/VSAN and be locked by another host. In that
+ *      case, this function might not return any information.)
+ *
+ * Results:
+ *      0 on success (and see above), -1 otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+File_GetVMFSLockInfo(const char *path,         // IN
+                     uint32 *outOpenFlags,     // OUT:
+                     uint32 *outWorldID,       // OUT:
+                     char **outWorldName,      // OUT:
+                     char **outVMFSMacAddr,    // OUT:
+                     uint32 *outVMFSLockMode)  // OUT:
+{
+   int ret = -1;
+   int ioctlRet;
+   int fd = -1;
+   FS_GetFileLockInfoArgs lockArgs;
+   FS_DumpFDData dumpArgs;
+   char *dir = NULL;
+   char *fileName = NULL;
+
+   *outOpenFlags = 0;
+   *outWorldID = INVALID_WORLD_ID;
+   *outWorldName = NULL;
+   *outVMFSMacAddr = NULL;
+   *outVMFSLockMode = 0;
+
+   memset(&lockArgs, 0, sizeof lockArgs);
+   memset(&dumpArgs, 0, sizeof dumpArgs);
+   File_SplitName(path, NULL, &dir, &fileName);
+
+   fd = Posix_Open(dir, O_RDONLY, 0);
+   if (fd == -1) {
+      Log(LGPFX" %s: could not open directory \"%s\": %s\n", __FUNCTION__, dir,
+          Err_Errno2String(errno));
+      goto exit;
+   }
+
+   Str_Strncpy(lockArgs.fileName, sizeof lockArgs.fileName, fileName,
+               strlen(fileName));
+   ioctlRet = ioctl(fd, IOCTLCMD_GETFILELOCKINFO, (char *)&lockArgs);
+   /* If this fails, it might be open only on another machine. */
+   if (ioctlRet != -1) {
+      *outOpenFlags = lockArgs.openFlags;
+      *outWorldID = lockArgs.worldID;
+      *outWorldName = Util_SafeStrdup(lockArgs.worldName);
+   }
+
+   Str_Strncpy(dumpArgs.args.fileName, sizeof dumpArgs.args.fileName,
+               fileName, strlen(fileName));
+   ioctlRet = ioctl(fd, IOCTLCMD_VMFS_DUMP_METADATA, (char *)&dumpArgs);
+   /* If this fails, it probably isn't on VMFS. */
+   if (ioctlRet != -1) {
+      FS3_FileDescriptor *fileDesc =
+         (FS3_FileDescriptor *)&dumpArgs.result.descriptor;
+      FS3_DiskLock *diskLock = FS3_DISKLOCK(&fileDesc->lockBlock);
+      if (dumpArgs.result.descriptorLength < sizeof(FS3_FileDescriptor)) {
+         /* This should not happen. */
+         Log(LGPFX" %s: VMFS file descriptor size %u too small (need "
+             "%"FMTSZ"u) for file \"%s\"\n", __FUNCTION__,
+             dumpArgs.result.descriptorLength, sizeof(FS3_FileDescriptor),
+             path);
+         goto exit;
+      }
+
+      *outVMFSLockMode = diskLock->mode;
+
+      if (diskLock->mode != FS3_LC_FREE &&
+          diskLock->mode != FS3_LC_EXCLUSIVE) {
+         /*
+          * This is a non-exclusive lock. Thus it can have multiple holders.
+          * For now, return only the first.
+          */
+         if (diskLock->numHolders > FS3_MAX_LOCK_HOLDERS) {
+            Log(LGPFX" %s: Corrupt VMFS disk lock found for file \"%s\", "
+                "invalid number of holders %u.\n", __FUNCTION__, path,
+                diskLock->numHolders);
+            goto exit;
+         }
+
+         *outVMFSMacAddr = Str_SafeAsprintf(NULL, FS_UUID_FMTSTR,
+               FS_UUID_VAARGS(diskLock->numHolders == 0 ?
+               &diskLock->owner : &diskLock->holders[0].uid));
+      } else {
+         /* Exclusive lock, so there is only one owner. */
+         *outVMFSMacAddr = Str_SafeAsprintf(NULL, FS_UUID_FMTSTR,
+            FS_UUID_VAARGS(&diskLock->owner));
+      }
+   }
+
+   ret = 0;
+
+  exit:
+   if (fd != -1) {
+      close(fd);
+   }
+   free(dir);
+   free(fileName);
+   return ret;
+}
+
+#endif // VMX86_SERVER
 
 
 /*
@@ -2562,7 +2760,7 @@ FileVMKGetMaxOrSupportsFileSize(const char *pathName,  // IN:
       if (fsAttrs->versionNumber == 3) {
          maxFileSize = (VMFS3CONST * (uint64) fsAttrs->fileBlockSize * 1024);
       } else if (fsAttrs->versionNumber >= 5) {
-         /* Get ready for 64 TB on VMFS5 and perform sanity check on version */
+         /* Get ready for 64 TB on VMFS5 and perform confidence check on version */
          maxFileSize = (uint64) 0x400000000000ULL;
       } else {
          Log(LGPFX" %s: Unsupported filesystem version, %u\n", __func__,
@@ -2881,11 +3079,12 @@ int
 File_ListDirectory(const char *dirName,  // IN:
                    char ***ids)          // OUT: relative paths
 {
-   int err = 0;
    int count = -1;
    WalkDirContext context = File_WalkDirectoryStart(dirName);
 
    if (context != NULL) {
+      int err;
+
       while (File_WalkDirectoryNext(context, NULL))
          ;
 
@@ -2995,7 +3194,7 @@ File_WalkDirectoryStart(const char *dirName)  // IN:
    context = Util_SafeMalloc(sizeof *context);
 
    context->dirName = Util_SafeStrdup(dirName);
-   context->hash = HashTable_Alloc(256, HASH_STRING_KEY, NULL);
+   context->hash = HashTable_Alloc(2048, HASH_STRING_KEY, NULL);
    context->dir = Posix_OpenDir(dirName);
 
    if (context->dir == NULL) {

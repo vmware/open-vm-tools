@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2020,2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -116,6 +116,13 @@ int File_GetVMFSMountInfo(const char *pathName,
                           char **remoteIP,
                           char **remoteMountPoint,
                           char **localMountPoint);
+
+int File_GetVMFSLockInfo(const char *path,
+                         uint32 *outOpenFlags,
+                         uint32 *outWorldID,
+                         char **outWorldName,
+                         char **outVMFSMacAddr,
+                         uint32 *outVMFSLockMode);
 #endif
 
 Bool File_SupportsZeroedThick(const char *pathName);
@@ -366,6 +373,8 @@ char *File_ExpandAndCheckDir(const char *dirName);
 char *File_GetSafeTmpDir(Bool useConf);
 
 char *File_GetSafeRandomTmpDir(Bool useConf);
+
+char *File_GetUacSafeRandomTmpDir(Bool useConf);
 
 int File_MakeSafeTemp(const char *tag,
                       char **presult);

@@ -1,12 +1,13 @@
 #!/bin/sh
 
-# Copyright (C) 2020 VMware, Inc.  All rights reserved.
+# Copyright (c) 2021-2022 VMware, Inc.  All rights reserved.
 
 # check if necesary commands exist
 command -v ss >/dev/null 2>&1 || { echo >&2 "ss doesn't exist"; exit 1; }
 command -v grep >/dev/null 2>&1 || { echo >&2 "grep doesn't exist"; exit 1; }
 command -v sort >/dev/null 2>&1 || { echo >&2 "sort doesn't exist"; exit 1; }
 command -v ps >/dev/null 2>&1 || { echo >&2 "ps doesn't exist"; exit 1; }
+command -v awk>/dev/null 2>&1 || { echo >&2 "awk doesn't exist"; exit 1; }
 
 space_separated_pids=$(ss -lntup | grep -Eo "pid=[0-9]+" | grep -Eo "[0-9]*" | sort -u)
 
@@ -82,6 +83,33 @@ get_tcserver_version() {
   command -v tcserver >/dev/null 2>&1 && { tcserver version 2>/dev/null; }
 }
 
+get_cassandra_version() {
+  PATTERN="/usr/lib/.*apache-cassandra"
+  for p in $space_separated_pids
+  do
+    CASSANDRA_CMD=$(get_command_line $p | grep -Eo "$PATTERN")
+    CASSANDRA_INSTALL_PATH=`echo $CASSANDRA_CMD | awk 'match($0,/\/usr\/lib\/[a-zA-Z-]*\/[a-zA-Z\/]*\/apache-cassandra-[0-9.]*\//) {print substr($0,RSTART,RLENGTH)}'`
+    if [ ! -z "$CASSANDRA_INSTALL_PATH" ]
+    then
+      IS_LI_CASSANDRA=`echo $CASSANDRA_INSTALL_PATH | grep "loginsight"`
+      [ ! -z "$IS_LI_CASSANDRA" ] &&  export CASSANDRA_CONF="/storage/core/loginsight/cidata/cassandra/config"
+      echo VERSIONSTART cassandra_version "$("${CASSANDRA_INSTALL_PATH}/bin/cassandra" -v 2>/dev/null)" VERSIONEND
+    else
+      CASSANDRA_CMD=$(get_command_line $p | grep -Eo "CassandraDaemon")
+      [ ! -z "$CASSANDRA_CMD" ] && echo VERSIONSTART cassandra_version  $($(which cassandra) 2>/dev/null -v) VERSIONEND
+   fi
+  done
+}
+
+get_vrli_version() {
+  FILE_PATH_TEMPLATE=/storage/core/loginsight/config/loginsight-config.xml#
+  FILE_NAMES=$(ls /storage/core/loginsight/config/ 2>/dev/null | grep -o "[0-9].*")
+  [ ! -z "$FILE_NAMES" ] && LATEST_FILE_NUM=$(printf '%s\n' "${FILE_NAMES[@]}" | awk '$1 > m || NR == 1 { m = $1 } END { print m }')
+  VERSION_FILE_NAME="$FILE_PATH_TEMPLATE$LATEST_FILE_NUM"
+  VERSION=$(cat $VERSION_FILE_NAME 2>/dev/null | grep 'strata-version value=' | grep -oE "[0-9.]+" | head -1)
+  [ ! -z "$VERSION" ] && echo VERSIONSTART vrli_version $VERSION VERSIONEND
+}
+
 echo VERSIONSTART "vcops_version" "$(get_vcops_version)" VERSIONEND
 echo VERSIONSTART "srm_mgt_server_version" "$(get_srm_mgt_server_version)" VERSIONEND
 echo VERSIONSTART "vcenter_appliance_version" "$(get_vcenter_appliance_version)" VERSIONEND
@@ -99,3 +127,5 @@ get_vcloud_director_version
 get_weblogic_version
 get_apache_tomcat_version
 get_jboss_version
+get_cassandra_version
+get_vrli_version

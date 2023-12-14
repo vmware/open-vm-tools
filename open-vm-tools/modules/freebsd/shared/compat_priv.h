@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2009 VMware, Inc. All rights reserved.
+ * Copyright (C) 2009, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -44,10 +44,6 @@
 #ifndef __COMPAT_PRIV_H__
 #   define __COMPAT_PRIV_H__ 1
 
-#if __FreeBSD_version >= 800011
 #define compat_priv_check(td, priv) priv_check((td), (priv))
-#else
-#define compat_priv_check(td, priv) suser(td)
-#endif
 
 #endif

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
+ * Copyright (c) 2008-2019, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -100,18 +100,22 @@ struct VmBackupSyncCompleter;
  * Don't modify the fields directly - rather, use VmBackup_SetCurrentOp,
  * which does most of the handling needed by users of the state machine.
  *
- * NOTE: The thread for freeze operation modifies currentOp in BackupState
- *       which is also accessed by the AsyncCallback driving the state
- *       machine (run by main thread). Also, gcc might generate two
- *       instructions for writing a 64-bit value. Therefore, protect the
- *       access to currentOp and related fields using opLock mutex.
+ * NOTE 1: The thread for freeze operation modifies currentOp in BackupState
+ *         which is also accessed by the AsyncCallback driving the state
+ *         machine (run by main thread). Also, gcc might generate two
+ *         instructions for writing a 64-bit value. Therefore, protect the
+ *         access to currentOp and related fields using opLock mutex.
+ *
+ * NOTE 2: Only used by Linux guests, ignored on Windows guests and is
+ *         initialized to "false" when the VmBackupState is initialized
+ *         at the start of a backup operation.
  */
 
 typedef struct VmBackupState {
    ToolsAppCtx   *ctx;
    VmBackupOp    *currentOp;
    const char    *currentOpName;
-   GMutex         opLock;          // See note above
+   GMutex         opLock;          // See note 1 above
    char          *volumes;
    char          *snapshots;
    guint          pollPeriod;
@@ -127,6 +131,7 @@ typedef struct VmBackupState {
    Bool           allowHWProvider;
    Bool           execScripts;
    Bool           enableNullDriver;
+   Bool           ignoreFrozenFS;   // See note 2 above
    Bool           needsPriv;
    gchar         *scriptArg;
    guint          timeout;

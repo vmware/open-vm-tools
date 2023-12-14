@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2015-2016 VMware, Inc.  All rights reserved.
+### Copyright (c) 2015-2016,2021 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -19,10 +19,12 @@ bin_PROGRAMS = vmhgfs-fuse
 
 AM_CFLAGS =
 AM_CFLAGS += @FUSE_CPPFLAGS@
+AM_CFLAGS += @FUSE3_CPPFLAGS@
 AM_CFLAGS += @GLIB2_CPPFLAGS@
 
 vmhgfs_fuse_LDADD =
 vmhgfs_fuse_LDADD += @FUSE_LIBS@
+vmhgfs_fuse_LDADD += @FUSE3_LIBS@
 vmhgfs_fuse_LDADD += @GLIB2_LIBS@
 vmhgfs_fuse_LDADD += @VMTOOLS_LIBS@
 

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2019-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2019-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -30,6 +30,7 @@
 
 #include "appInfoInt.h"
 #include "vmware.h"
+#include "codeset.h"
 #include "conf.h"
 #include "dynbuf.h"
 #include "escape.h"
@@ -50,10 +51,6 @@
 VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 #endif
 
-#if defined(_WIN32)
-#include "codeset.h"
-#endif
-
 /**
  * Maximum size of the packet size that appInfo plugin should send
  * to the VMX. Currently, this is set to 62 KB.
@@ -69,9 +66,17 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
  * Default value for CONFNAME_APPINFO_DISABLED setting in
  * tools configuration file.
  *
- * FALSE will enable the plugin. TRUE will disable the plugin.
+ * FALSE will activate the plugin. TRUE will deactivate the plugin.
  */
-#define APP_INFO_CONF_DEFAULT_DISABLED_VALUE FALSE
+#define APP_INFO_CONF_DEFAULT_DEACTIVATED_VALUE FALSE
+
+/**
+ * Default value for CONFNAME_APPINFO_REMOVE_DUPLICATES setting in
+ * tools configuration file.
+ *
+ * TRUE will remove duplicate applications.
+ */
+#define APP_INFO_CONF_DEFAULT_REMOVE_DUPLICATES TRUE
 
 /**
  * Default value for CONFNAME_APPINFO_USE_WMI setting in
@@ -100,51 +105,6 @@ static gboolean gAppInfoEnabledInHost = TRUE;
 static GSource *gAppInfoTimeoutSource = NULL;
 
 static void TweakGatherLoop(ToolsAppCtx *ctx, gboolean force);
-
-
-/*
- *****************************************************************************
- * EscapeJSONString --
- *
- * Escapes a string to be included in JSON content.
- *
- * @param[in] str The string to be escaped.
- *
- * @retval Pointer to a heap-allocated memory. This holds the escaped content
- *         of the string passed by the caller.
- *
- *****************************************************************************
- */
-
-static char *
-EscapeJSONString(const char *str)    // IN
-{
-   /*
-    * Escape '"' and '\' characters in the JSON string.
-    */
-
-   static const int bytesToEscape[] = {
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,   // "
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0,   // '\'
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-   };
-
-   return Escape_DoString("\\u00", bytesToEscape, str, strlen(str),
-                          NULL);
-}
 
 
 /*
@@ -291,6 +251,8 @@ AppInfoGatherTask(ToolsAppCtx *ctx,    // IN
    GSList *appNode;
    static Atomic_uint64 updateCounter = {0};
    uint64 counter = (uint64) Atomic_ReadInc64(&updateCounter) + 1;
+   GHashTable *appsAdded = NULL;
+   gchar *key = NULL;
 
    static char headerFmt[] = "{\n"
                      "\"" APP_INFO_KEY_VERSION        "\":\"%d\", \n"
@@ -305,6 +267,11 @@ AppInfoGatherTask(ToolsAppCtx *ctx,    // IN
                            "\"" APP_INFO_KEY_APP_VERSION "\":\"%s\""
                            "}";
    static char jsonSuffix[] = "]}";
+   gboolean removeDup =
+      VMTools_ConfigGetBoolean(ctx->config,
+                               CONFGROUPNAME_APPINFO,
+                               CONFNAME_APPINFO_REMOVE_DUPLICATES,
+                               APP_INFO_CONF_DEFAULT_REMOVE_DUPLICATES);
 
    DynBuf_Init(&dynBuffer);
 
@@ -317,12 +284,16 @@ AppInfoGatherTask(ToolsAppCtx *ctx,    // IN
 
    if (len < 0) {
       g_warning("%s: Insufficient space for the header.\n", __FUNCTION__);
-      goto abort;
+      goto quit;
    }
 
    DynBuf_Append(&dynBuffer, tmpBuf, len);
 
    appList = AppInfo_SortAppList(AppInfo_GetAppList(ctx->config));
+   if (removeDup) {
+      appsAdded = g_hash_table_new_full(g_str_hash, g_str_equal,
+                                        g_free, NULL);
+   }
 
    for (appNode = appList; appNode != NULL; appNode = appNode->next) {
       size_t currentBufferSize = DynBuf_GetSize(&dynBuffer);
@@ -333,19 +304,29 @@ AppInfoGatherTask(ToolsAppCtx *ctx,    // IN
          goto next_entry;
       }
 
-      escapedCmd = EscapeJSONString(appInfo->appName);
+      if (removeDup) {
+         key = g_strdup_printf("%s|%s", appInfo->appName, appInfo->version);
+         /*
+          * If the key already exists, then this app is a duplicate. Free
+          * the key and move to the next application.
+          */
+         if (g_hash_table_contains(appsAdded, key)) {
+            goto next_entry;
+         }
+      }
+      escapedCmd = CodeSet_JsonEscape(appInfo->appName);
 
       if (NULL == escapedCmd) {
          g_warning("%s: Failed to escape the content of cmdName.\n",
                    __FUNCTION__);
-         goto abort;
+         goto quit;
       }
 
-      escapedVersion = EscapeJSONString(appInfo->version);
+      escapedVersion = CodeSet_JsonEscape(appInfo->version);
       if (NULL == escapedVersion) {
          g_warning("%s: Failed to escape the content of version information.\n",
                    __FUNCTION__);
-         goto abort;
+         goto quit;
       }
 
       if (appNode == appList) {
@@ -373,8 +354,14 @@ AppInfoGatherTask(ToolsAppCtx *ctx,    // IN
       }
 
       DynBuf_Append(&dynBuffer, tmpBuf, len);
+      if (removeDup) {
+         g_hash_table_add(appsAdded, key);
+         key = NULL;
+      }
 
 next_entry:
+      g_free(key);
+      key = NULL;
       free(escapedCmd);
       escapedCmd = NULL;
       free(escapedVersion);
@@ -384,10 +371,14 @@ next_entry:
    DynBuf_Append(&dynBuffer, jsonSuffix, sizeof jsonSuffix - 1);
    SetGuestInfo(ctx, APP_INFO_GUESTVAR_KEY, DynBuf_GetString(&dynBuffer));
 
-abort:
+quit:
    free(escapedCmd);
    free(escapedVersion);
    AppInfo_DestroyAppList(appList);
+   if (appsAdded != NULL) {
+      g_hash_table_destroy(appsAdded);
+   }
+   g_free(key);
    g_free(tstamp);
    DynBuf_Destroy(&dynBuffer);
 }
@@ -434,12 +425,12 @@ AppInfoGather(gpointer data)      // IN
  * Start, stop, reconfigure a AppInfo Gather poll loop.
  *
  * This function is responsible for creating, manipulating, and resetting a
- * AppInfo Gather loop timeout source. The poll loop will be disabled if
+ * AppInfo Gather loop timeout source. The poll loop will be deactivated if
  * the poll interval is 0.
  *
  * @param[in]     ctx           The application context.
  * @param[in]     pollInterval  Poll interval in seconds. A value of 0 will
- *                              disable the loop.
+ *                              deactivate the loop.
  *
  *****************************************************************************
  */
@@ -469,7 +460,7 @@ TweakGatherLoopEx(ToolsAppCtx *ctx,       // IN
                                AppInfoGather, ctx, NULL);
       g_source_unref(gAppInfoTimeoutSource);
    } else if (gAppInfoPollInterval > 0) {
-      g_info("%s: Poll loop for %s disabled.\n",
+      g_info("%s: Poll loop for %s deactivated.\n",
              __FUNCTION__, CONFNAME_APPINFO_POLLINTERVAL);
       SetGuestInfo(ctx, APP_INFO_GUESTVAR_KEY, "");
    }
@@ -500,21 +491,21 @@ static void
 TweakGatherLoop(ToolsAppCtx *ctx,  // IN
                 gboolean force)    // IN
 {
-   gboolean disabled =
+   gboolean deactivated =
       VMTools_ConfigGetBoolean(ctx->config,
                                CONFGROUPNAME_APPINFO,
                                CONFNAME_APPINFO_DISABLED,
-                               APP_INFO_CONF_DEFAULT_DISABLED_VALUE);
+                               APP_INFO_CONF_DEFAULT_DEACTIVATED_VALUE);
 
    gint pollInterval;
 
-   if (gAppInfoEnabledInHost && !disabled) {
+   if (gAppInfoEnabledInHost && !deactivated) {
       pollInterval = VMTools_ConfigGetInteger(ctx->config,
                                               CONFGROUPNAME_APPINFO,
                                               CONFNAME_APPINFO_POLLINTERVAL,
                                               APP_INFO_POLL_INTERVAL);
 
-      if (pollInterval < 0) {
+      if (pollInterval < 0 || pollInterval > (G_MAXINT / 1000)) {
          g_warning("%s: Invalid poll interval %d. Using default %us.\n",
                    __FUNCTION__, pollInterval, APP_INFO_POLL_INTERVAL);
          pollInterval = APP_INFO_POLL_INTERVAL;
@@ -627,7 +618,8 @@ AppInfoServerSetOption(gpointer src,         // IN
 
       if (retVal) {
          g_info("%s: State of AppInfo is changed to '%s' at host side.\n",
-                __FUNCTION__, gAppInfoEnabledInHost ? "enabled" : "disabled");
+                __FUNCTION__, gAppInfoEnabledInHost ? "enabled" : "deactivated" );
+
          TweakGatherLoop(ctx, TRUE);
       }
    }
@@ -657,7 +649,7 @@ AppInfoServerReset(gpointer src,
 {
    /*
     * gAppInfoTimeoutSource is used to figure out if the poll loop is
-    * enabled or not. If the poll loop is disabled, then
+    * enabled or not. If the poll loop is deactivated, then
     * gAppInfoTimeoutSource will be set to NULL.
     */
    if (gAppInfoTimeoutSource != NULL) {
@@ -701,7 +693,7 @@ AppInfoServerReset(gpointer src,
          gAppInfoEnabledInHost = TRUE;
          TweakGatherLoop(ctx, TRUE);
       } else {
-         g_debug("%s: Poll loop disabled. Ignoring.\n", __FUNCTION__);
+         g_debug("%s: Poll loop deactivated. Ignoring.\n", __FUNCTION__);
       }
    }
 }
@@ -730,7 +722,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)    // IN
    };
 
    /*
-    * Return NULL to disable the plugin if not running in a VMware VM.
+    * Return NULL to deactivate the plugin if not running in a VMware VM.
     */
    if (!ctx->isVMware) {
       g_info("%s: Not running in a VMware VM.\n", __FUNCTION__);
@@ -738,7 +730,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)    // IN
    }
 
    /*
-    * Return NULL to disable the plugin if not running in vmsvc daemon.
+    * Return NULL to deactivate the plugin if not running in vmsvc daemon.
     */
    if (!TOOLS_IS_MAIN_SERVICE(ctx)) {
       g_info("%s: Not running in vmsvc daemon: container name='%s'.\n",

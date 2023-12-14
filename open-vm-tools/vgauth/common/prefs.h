@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2019,2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -136,6 +136,8 @@ msgCatalog = /etc/vmware-tools/vgauth/messages
 #define VGAUTH_PREF_ALIASSTORE_DIR         "aliasStoreDir"
 /** The number of seconds slack allowed in either direction in SAML token date checks. */
 #define VGAUTH_PREF_CLOCK_SKEW_SECS        "clockSkewAdjustment"
+/** If unrelated certificates are allowed in a SAML token */
+#define VGAUTH_PREF_ALLOW_UNRELATED_CERTS  "allowUnrelatedCerts"
 
 /** Ticket group name. */
 #define VGAUTH_PREF_GROUP_NAME_TICKET      "ticket"

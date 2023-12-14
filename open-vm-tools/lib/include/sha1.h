@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -41,7 +41,6 @@
 
 #define INCLUDE_ALLOW_MODULE
 #define INCLUDE_ALLOW_USERLEVEL
-#define INCLUDE_ALLOW_VMKERNEL
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
@@ -70,8 +69,6 @@ extern "C" {
 
 #else
 
-#ifndef VMKERNEL
-
 /*
  * Prevent linkage conflicts with the SHA1 APIs brought in from
  * OpenSSL. (Pro tip: If you're doing anything security-related, you
@@ -82,9 +79,6 @@ extern "C" {
 #define SHA1Init             VMW_SHA1Init
 #define SHA1Update           VMW_SHA1Update
 #define SHA1Final            VMW_SHA1Final
-#define SHA1RawBufferHash    VMW_SHA1RawBufferHash
-
-#endif /* !VMKERNEL */
 
 /*
 SHA-1 in C
@@ -119,28 +113,7 @@ void SHA1Update(SHA1_CTX* context,
                 size_t len);
 void SHA1Final(unsigned char digest[SHA1_HASH_LEN], SHA1_CTX* context);
 
-#if defined VMKBOOT || defined VMKERNEL
-void SHA1RawBufferHash(const void *data,
-                       uint32 size,
-                       uint32 result[5]);
-void SHA1RawTransformBlocks(uint32 state[5],
-                            const unsigned char *buffer,
-                            uint32 numBlocks);
-void SHA1RawInit(uint32 state[5]);
-
-#define SHA1_MULTI_MAX_BUFFERS 8
-
-void SHA1MultiBuffer(uint32 numBuffers,
-                     uint32 len,
-                     const void *salt,
-                     uint32 saltLen,
-                     const void *data[],
-                     unsigned char *digests[]);
-#endif
-
 #endif // defined __APPLE__ && defined USERLEVEL
-
-#if !defined VMKBOOT && !defined VMKERNEL
 
 /* Opaque handle */
 typedef union {
@@ -161,7 +134,6 @@ void CryptoHash_FinalSHA1(CryptoHash_SHA1_CTX *ctx,
                           unsigned char digest[SHA1_HASH_LEN]);
 void CryptoHash_ComputeSHA1(const void *data, size_t len,
                             unsigned char digest[SHA1_HASH_LEN]);
-#endif
 
 #if defined(__cplusplus)
 }  // extern "C"

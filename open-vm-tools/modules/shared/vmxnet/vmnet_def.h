@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2014,2017-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2014,2017-2019,2021,2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -75,6 +75,7 @@
 #define VMNET_CAP_RX_CHAIN             CONST64U(0x8000)             /* a pkt can span multiple rx entries */
 #define VMNET_CAP_LPD                  CONST64U(0x10000)            /* large pkt delivery */
 #define VMNET_CAP_BPF                  CONST64U(0x20000)            /* BPF Support in VMXNET Virtual Hardware */
+#define VMNET_CAP_AUTO_REBIND          CONST64U(0x20000)            /* BPF support is not for uplink, reuse this bit for uplink auto rebind */
 #define VMNET_CAP_SG_SPAN_PAGES        CONST64U(0x40000)            /* Can do scatter-gather span multiple pages transmits. */
 #define VMNET_CAP_IP6_CSUM             CONST64U(0x80000)            /* Can do IPv6 csum offload. */
 #define VMNET_CAP_TSO6                 CONST64U(0x100000)           /* Can do TSO segmentation offload for IPv6 pkts. */
@@ -90,6 +91,7 @@
 #define VMNET_CAP_SCHED                CONST64U(0x40000000)         /* compliant with network scheduling */
 #define VMNET_CAP_SRIOV                CONST64U(0x80000000)         /* Supports SR-IOV */
 
+#define VMNET_CAP_PREFERRED_MGMT_NIC   CONST64U(0x100000000)        /* Uplink should be given preference when selecting the management NIC */
 #define VMNET_CAP_SG_TX                VMNET_CAP_SG
 #define VMNET_CAP_SG_RX                CONST64U(0x200000000)        /* Scatter-gather receive capability */
 #define VMNET_CAP_PRIV_STATS           CONST64U(0x400000000)        /* Driver supports accessing private stats */
@@ -118,6 +120,9 @@
 #define VMNET_CAP_RX_SW_LRO            CONST64U(0x200000000000000)  /* Support SW LRO */
 #define VMNET_CAP_ENS                  CONST64U(0x400000000000000)  /* Support ENS */
 #define VMNET_CAP_FPO                  CONST64U(0x800000000000000)  /* Support FPO */
+#define VMNET_CAP_BMC_NIC              CONST64U(0x1000000000000000) /* Nic Hardware connected to server BMC */
+#define VMNET_CAP_UENS_SHIM            CONST64U(0x2000000000000000) /* Driver is compatible with UENS shimming layer */
+#define VMNET_CAP_K2K_NIC              CONST64U(0x4000000000000000) /* Nic used for Kernel-to-Kernel communication */
 #define VMNET_CAP_LEGACY               CONST64U(0x8000000000000000) /* Uplink is compatible with vmklinux drivers */
 
 #endif // _VMNET_DEF_H_

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -93,7 +93,7 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 #if defined(_WIN32)
 #define GUESTINFO_DEFAULT_IFACE_EXCLUDES "vEthernet*"
 #else
-#define GUESTINFO_DEFAULT_IFACE_EXCLUDES "docker*,veth*,virbr*"
+#define GUESTINFO_DEFAULT_IFACE_EXCLUDES "docker*,veth*,virbr*,antrea-*,cali*"
 #endif
 
 /*
@@ -231,7 +231,7 @@ GuestInfoVMSupport(RpcInData *data)
     }
 
     /* Put together absolute vm-support filename. */
-    vmSupport = g_strdup_printf("cscript \"%s%s%s\" -u",
+    vmSupport = g_strdup_printf("cscript \"%s%s%s\" -u -x",
                                 vmSupportPath, DIRSEPS, vmSupportCmd);
     vm_free(vmSupportPath);
 
@@ -259,7 +259,7 @@ GuestInfoVMSupport(RpcInData *data)
 
 #else
 
-     gchar *vmSupportCmdArgv[] = {"vm-support", "-u", NULL};
+     gchar *vmSupportCmdArgv[] = {"vm-support", "-u", "-x", NULL};
 
      g_message("Starting vm-support script - %s\n", vmSupportCmdArgv[0]);
      if (!g_spawn_async(NULL, vmSupportCmdArgv, NULL,
@@ -544,6 +544,8 @@ GuestInfoGather(gpointer data)
    int maxIPv6RoutesToGather;
    gchar *osNameOverride;
    gchar *osNameFullOverride;
+   Bool maxNicsError = FALSE;
+   static uint32 logThrottleCount = 0;
 
    g_debug("Entered guest info gather.\n");
 
@@ -758,12 +760,17 @@ GuestInfoGather(gpointer data)
 
    if (!GuestInfo_GetNicInfo(maxIPv4RoutesToGather,
                              maxIPv6RoutesToGather,
-                             &nicInfo)) {
+                             &nicInfo, &maxNicsError)) {
       g_warning("Failed to get NIC info.\n");
       /*
        * Return an empty NIC info.
        */
       nicInfo = Util_SafeCalloc(1, sizeof (struct NicInfoV3));
+   }
+   if (maxNicsError) {
+      VMTools_VmxLogThrottled(&logThrottleCount, ctx->rpc,
+                              "%s: NIC limit (%d) reached.",
+                              __FUNCTION__, NICINFO_MAX_NICS);
    }
 
    /*
@@ -1599,6 +1606,12 @@ GuestInfoUpdateVMX(ToolsAppCtx *ctx,        // IN: Application context
          return FALSE;
       }
 
+      if (infoType == INFO_OS_NAME) {
+         g_message("Updated Guest OS name to %s\n", (char *) info);
+      } else if (infoType == INFO_OS_NAME_FULL) {
+         g_message("Updated Guest OS full name to %s\n", (char *) info);
+      }
+
       /* Update the value in the cache as well. */
       free(gInfoCache.value[infoType]);
       gInfoCache.value[infoType] = Util_SafeStrdup((char *) info);
@@ -1973,29 +1986,20 @@ TweakGatherLoop(ToolsAppCtx *ctx,
    gint pollInterval = 0;
 
    if (enable) {
-      pollInterval = defInterval * 1000;
-
       /*
        * Check the config registry for custom poll interval,
        * converting from seconds to milliseconds.
        */
-      if (g_key_file_has_key(ctx->config, CONFGROUPNAME_GUESTINFO,
-                             cfgKey, NULL)) {
-         GError *gError = NULL;
-
-         pollInterval = g_key_file_get_integer(ctx->config,
-                                               CONFGROUPNAME_GUESTINFO,
-                                               cfgKey, &gError);
-         pollInterval *= 1000;
-
-         if (pollInterval < 0 || gError) {
-            g_warning("Invalid %s.%s value. Using default %us.\n",
-                      CONFGROUPNAME_GUESTINFO, cfgKey, defInterval);
-            pollInterval = defInterval * 1000;
-         }
-
-         g_clear_error(&gError);
+      pollInterval = VMTools_ConfigGetInteger(ctx->config,
+                                              CONFGROUPNAME_GUESTINFO,
+                                              cfgKey, defInterval);
+      if (pollInterval < 0 || pollInterval > (G_MAXINT / 1000)) {
+         g_warning("Invalid %s.%s value. Using default %us.\n",
+                   CONFGROUPNAME_GUESTINFO, cfgKey, defInterval);
+         pollInterval = defInterval;
       }
+
+      pollInterval *= 1000;
    }
 
    if (*timeoutSource != NULL) {
@@ -2167,7 +2171,7 @@ GuestInfoServerConfReload(gpointer src,
  *
  ******************************************************************************
  */
-
+#if !defined(USERWORLD)
 static void
 GuestInfoServerIOFreeze(gpointer src,
                         ToolsAppCtx *ctx,
@@ -2176,7 +2180,7 @@ GuestInfoServerIOFreeze(gpointer src,
 {
    TweakGatherLoops(ctx, !freeze);
 }
-
+#endif
 
 /*
  ******************************************************************************
@@ -2367,7 +2371,9 @@ ToolsOnLoad(ToolsAppCtx *ctx)
       ToolsPluginSignalCb sigs[] = {
          { TOOLS_CORE_SIG_CAPABILITIES, GuestInfoServerSendCaps, NULL },
          { TOOLS_CORE_SIG_CONF_RELOAD, GuestInfoServerConfReload, NULL },
+#if !defined(USERWORLD)
          { TOOLS_CORE_SIG_IO_FREEZE, GuestInfoServerIOFreeze, NULL },
+#endif
          { TOOLS_CORE_SIG_RESET, GuestInfoServerReset, NULL },
          { TOOLS_CORE_SIG_SET_OPTION, GuestInfoServerSetOption, NULL },
          { TOOLS_CORE_SIG_SHUTDOWN, GuestInfoServerShutdown, NULL }

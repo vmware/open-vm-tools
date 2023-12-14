@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -391,60 +391,34 @@ Hostinfo_TouchXen(void)
 /*
  *----------------------------------------------------------------------
  *
- *  Hostinfo_NestedHVReplaySupported --
+ *  Hostinfo_HyperV --
  *
- *      Access the backdoor with a HV replay control query. This is used
- *      to determine if we are running in a VM that supports nested HV replay.
- *      This function should only be called after determining that the
- *	backdoor is present with Hostinfo_TouchBackdoor().
+ *      Check for HyperV.
  *
  * Results:
- *      TRUE if the outer VM supports nexted HV replay.
+ *      TRUE if we are running in HyperV.
  *      FALSE otherwise.
  *
- * Side effects:
- *      Exception if not in a VM, so don't do that!
- *
  *----------------------------------------------------------------------
  */
 
 Bool
-Hostinfo_NestedHVReplaySupported(void)
+Hostinfo_HyperV(void)
 {
+   Bool hyperVAvailable = FALSE;
 #if defined(__i386__) || defined(__x86_64__)
-   return Hostinfo_VCPUInfoBackdoor(BDOOR_CMD_VCPU_HV_REPLAY_OK);
-#else
-   return FALSE;
+   char *hypervisorSig = Hostinfo_HypervisorCPUIDSig();
+
+   if (hypervisorSig) {
+      if (!memcmp(CPUID_HYPERV_HYPERVISOR_VENDOR_STRING, hypervisorSig,
+                  sizeof CPUID_HYPERV_HYPERVISOR_VENDOR_STRING)) {
+         hyperVAvailable = TRUE;
+      }
+      free(hypervisorSig);
+   }
 #endif
-}
 
-
-/*
- *----------------------------------------------------------------------
- *
- *  Hostinfo_SynchronizedVTSCs --
- *
- *      Access the backdoor to determine if the VCPUs' TSCs are
- *      synchronized.
- *
- * Results:
- *      TRUE if the outer VM provides synchronized VTSCs.
- *	FALSE otherwise.
- *
- * Side effects:
- *	Exception if not in a VM, so don't do that!
- *
- *----------------------------------------------------------------------
- */
-
-Bool
-Hostinfo_SynchronizedVTSCs(void)
-{
-#if defined(__i386__) || defined(__x86_64__)
-   return Hostinfo_VCPUInfoBackdoor(BDOOR_CMD_VCPU_SYNC_VTSCS);
-#else
-   return FALSE;
-#endif
+   return hyperVAvailable;
 }
 
 
@@ -680,6 +654,56 @@ Hostinfo_VCPUInfoBackdoor(unsigned bit)
           (result & (1 << bit))                     != 0;
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ *  Hostinfo_GetNestedBuildNum --
+ *
+ *      Perform a backdoor call to query the build number of the
+ *      outer VMware hypervisor.
+ *
+ * Results:
+ *      The build number of the outer VMware hypervisor, or -1 if
+ *      the backdoor call is not supported.
+ *
+ * Side effects:
+ *      Exception if not in a VM, so don't do that!
+ *
+ *----------------------------------------------------------------------
+ */
+
+uint32
+Hostinfo_GetNestedBuildNum(void)
+{
+   uint32 cmd = BDOOR_CMD_GETBUILDNUM;
+   int32 result;
+
+#if defined(_WIN64)
+   Backdoor_proto bp;
+
+   bp.in.ax.quad = BDOOR_MAGIC;
+   bp.in.cx.quad = cmd;
+   bp.in.dx.quad = BDOOR_PORT;
+
+   Hostinfo_BackdoorInOut(&bp);
+
+   result = bp.out.ax.words.low;
+#else
+   _asm {
+         push edx
+         push ecx
+         mov ecx, cmd
+         mov eax, BDOOR_MAGIC
+         mov dx, BDOOR_PORT
+         in eax, dx
+         mov result, eax
+         pop ecx
+         pop edx
+   }
+#endif
+   return result;
+}
 
 #else // !defined(_WIN32)
 
@@ -921,5 +945,48 @@ Hostinfo_VCPUInfoBackdoor(unsigned bit)
    return FALSE;
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ *  Hostinfo_GetNestedBuildNum --
+ *
+ *      Perform a backdoor call to query the build number of the
+ *      outer VMware hypervisor.
+ *
+ * Results:
+ *      The build number of the outer VMware hypervisor, or -1 if
+ *      the backdoor call is not supported.
+ *
+ * Side effects:
+ *      Exception if not in a VM, so don't do that!
+ *
+ *----------------------------------------------------------------------
+ */
+
+uint32
+Hostinfo_GetNestedBuildNum(void)
+{
+#if defined(__i386__) || defined(__x86_64__)
+   uint32 result;
+   uint32 cmd = BDOOR_CMD_GETBUILDNUM;
+
+   switch (HostinfoBackdoorGetInterface()) {
+#  if defined(USE_HYPERCALL)
+   case BACKDOOR_INTERFACE_VMCALL:
+      Vmcall(cmd, result);
+      break;
+   case BACKDOOR_INTERFACE_VMMCALL:
+      Vmmcall(cmd, result);
+      break;
+#  endif
+   default:
+      Ioportcall(cmd, result);
+      break;
+   }
+   return result;
+#endif
+   return 0;
+}
 #endif
 

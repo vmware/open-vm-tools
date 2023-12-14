@@ -1,5 +1,5 @@
 ##########################################################
-# Copyright (C) 2010-2017,2020 VMware, Inc. All rights reserved.
+# Copyright (c) 2010-2017,2020-2022 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -76,7 +76,7 @@ disk.shrink.ignoreFreeSpaceWarnings = "Ignorez tout avertissement relatif à l'e
 
 disk.wipe.ignoreFreeSpaceWarnings = "Ignorez tout avertissement relatif à l'espace disque pour la durée du processus d'effacement.\n"
 
-disk.wiper.file.error = "Erreur, impossible de créer un fichier d'effacement .\n"
+disk.wiper.file.error = "Erreur, impossible de créer un fichier d'effacement.\n"
 
 disk.wiper.progress = "\rProgression : %1$d"
 
@@ -98,7 +98,7 @@ help.device = "%1$s : fonctions apparentées aux appareils matériels de la mac
 
 help.disk = "%1$s : effectue les opérations de réduction des disques\nSyntaxe : %2$s %3$s <sous-commande> [args]\n\nSous-commandes :\n   list : liste des emplacements disponibles\n   shrink <emplacement> : efface et réduit un système de fichiers à l'emplacement donné\n   shrinkonly : réduit tous les disques\n   wipe <emplacement> : efface un système de fichiers à l'emplacement donné\n"
 
-help.globalconf = "%1$s : gérez les téléchargements de la configuration globale depuis GuestStore\nUtilisation : %2$s %3$s <subcommand>\n\nSous-commandes des invités ESX uniquement :\n   enable : activez le module de configuration globale. (Le service Tools est redémarré)\n   disable : désactivez le module de configuration globale (le service Tools est redémarré)\n  refresh : déclenchez un nouveau téléchargement de la configuration globale depuis GuestStore\n   status : imprime l'état du module de configuration globale\n"
+help.globalconf = "%1$s : gérer les téléchargements de la configuration globale depuis GuestStore\nUtilisation : %2$s %3$s <subcommand>\n\nSous-commandes des invités ESX uniquement :\n   enable : activer le module de configuration globale.\n   disable : désactiver le module de configuration globale\n  refresh : déclencher un nouveau téléchargement de la configuration globale depuis GuestStore\n   status : imprimer l'état du module de configuration globale\n"
 
 help.gueststore = "%1$s : obtenez le contenu des ressources de GuestStore\nUtilisation : %2$s %3$s <subcommand>\n\nSous-commandes des invités ESX uniquement :\n   getcontent <resource path> <output file> : obtenez le contenu des ressources de GuestStore et enregistrez-le dans le fichier de sortie.\n\n<resource path> commence par / et représente une ressource unique dans GuestStore. En cas de terminaison par /, utilise la valeur par défaut pour récupérer la ressource « metadata.json » sous-jacente.\n<output file> est le chemin d'accès d'un fichier dans lequel enregistrer le contenu des ressources.\n"
 

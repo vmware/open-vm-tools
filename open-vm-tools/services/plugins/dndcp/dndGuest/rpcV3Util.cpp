@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -306,7 +306,13 @@ RpcV3Util::OnRecvPacket(uint32 srcId,
 {
    DnDTransportPacketHeader *packetV3 = (DnDTransportPacketHeader *)packet;
    ASSERT(packetV3);
-   if (packetSize <= 0 || packetSize > DND_MAX_TRANSPORT_PACKET_SIZE ||
+   /*
+    * Adding extra check to verify the validity of packetSize,
+    * In case payload is corrupted its causing illegal access exceptions.
+    * bug: 2639178
+    */
+   if (packetSize < sizeof(DnDTransportPacketHeader) ||
+       packetSize > DND_MAX_TRANSPORT_PACKET_SIZE ||
        packetV3->payloadSize > DND_MAX_TRANSPORT_PACKET_PAYLOAD_SIZE ||
        (packetV3->payloadSize + DND_TRANSPORT_PACKET_HEADER_SIZE) != packetSize) {
       goto invalid_packet;

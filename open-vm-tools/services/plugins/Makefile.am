@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2009-2019 VMware, Inc.  All rights reserved.
+### Copyright (c) 2009-2022 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -18,6 +18,12 @@
 SUBDIRS =
 if LINUX
    SUBDIRS += appInfo
+   SUBDIRS += gdp
+   SUBDIRS += guestStore
+   SUBDIRS += componentMgr
+endif
+if ENABLE_CONTAINERINFO
+   SUBDIRS += containerInfo
 endif
 if ENABLE_SDMP
    SUBDIRS += serviceDiscovery
@@ -49,15 +55,20 @@ SUBDIRS += timeSync
 SUBDIRS += vix
 SUBDIRS += vmbackup
 
+
 #
 # plugin_LTLIBRARIES causes both .la and .so files to be installed to the
 # plugin directories. Clean up the .la files and keep just the shared
-# libraries around. Sometimes, even though we're passing "-shared" to
+# libraries around. Sometimes, even though we are passing "-shared" to
 # libtool, .a files are also generated, so clean up those too.
 #
+
+STATICLIBS = *.a
+LTLIBS = *.la
+
 install-exec-local:
-	rm -f $(DESTDIR)$(VMSVC_PLUGIN_INSTALLDIR)/*.a
-	rm -f $(DESTDIR)$(VMSVC_PLUGIN_INSTALLDIR)/*.la
-	rm -f $(DESTDIR)$(VMUSR_PLUGIN_INSTALLDIR)/*.a
-	rm -f $(DESTDIR)$(VMUSR_PLUGIN_INSTALLDIR)/*.la
+	rm -f $(DESTDIR)$(VMSVC_PLUGIN_INSTALLDIR)/$(STATICLIBS)
+	rm -f $(DESTDIR)$(VMSVC_PLUGIN_INSTALLDIR)/$(LTLIBS)
+	rm -f $(DESTDIR)$(VMUSR_PLUGIN_INSTALLDIR)/$(STATICLIBS)
+	rm -f $(DESTDIR)$(VMUSR_PLUGIN_INSTALLDIR)/$(LTLIBS)
 

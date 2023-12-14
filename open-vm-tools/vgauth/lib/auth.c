@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2017 VMware, Inc. All rights reserved.
+ * Copyright (c) 2011-2017,2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -409,12 +409,17 @@ VGAuth_ValidateSSPIResponse(VGAuthContext *ctx,
  *        authenticated.</li>
  * </ol>
  *
- * @remark One @a extraParams is supported:
+ * @remark Supported @a extraParams:
  *         VGAUTH_PARAM_VALIDATE_INFO_ONLY, which must have the value
  *         VGAUTH_PARAM_VALUE_TRUE or VGAUTH_PARAM_VALUE_FALSE.
  *         If set, SAML token validation is done, but the returned
  *         @a handle cannot be used for impersonation or ticket
  *         creation.
+ *
+ *         VGAUTH_PARAM_SAML_HOST_VERIFIED, which must have the value
+ *         VGAUTH_PARAM_VALUE_TRUE or VGAUTH_PARAM_VALUE_FALSE.
+ *         If set, the SAML token has been verified by the host
+ *         and this service will skip that step when validating.
  *
  * @param[in]  ctx            The VGAuthContext.
  * @param[in]  samlToken      The SAML token to be validated.
@@ -453,6 +458,7 @@ VGAuth_ValidateSamlBearerToken(VGAuthContext *ctx,
    VGAuthError err;
    VGAuthUserHandle *newHandle = NULL;
    gboolean validateOnly;
+   gboolean hostVerified;
 
    /*
     * arg check
@@ -491,9 +497,17 @@ VGAuth_ValidateSamlBearerToken(VGAuthContext *ctx,
    if (VGAUTH_E_OK != err) {
       return err;
    }
+   err = VGAuthGetBoolExtraParam(numExtraParams, extraParams,
+                                 VGAUTH_PARAM_SAML_HOST_VERIFIED,
+                                 FALSE,
+                                 &hostVerified);
+   if (VGAUTH_E_OK != err) {
+      return err;
+   }
 
    err = VGAuth_SendValidateSamlBearerTokenRequest(ctx,
                                                    validateOnly,
+                                                   hostVerified,
                                                    samlToken,
                                                    userName,
                                                    &newHandle);

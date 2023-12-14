@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2019, 2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -58,7 +58,7 @@ typedef struct FileLogger {
  *
  * This is a racy workaround for an issue with glib code; or, rather, two
  * issues. The first issue is that we can't intercept G_LOG_FLAG_RECURSION,
- * and glib just aborts when that happens (see gnome bug 618956). The second
+ * and glib just quits when that happens (see gnome bug 618956). The second
  * is that if a GIOChannel channel write fails, that calls
  * g_io_channel_error_from_errno, which helpfully logs stuff, causing recursion.
  * Don't get me started on why that's, well, at least questionable.
@@ -392,6 +392,7 @@ FileLoggerLog(const gchar *domain,
             g_io_channel_unref(logger->file);
             logger->append = FALSE;
             logger->file = FileLoggerOpen(logger);
+            logger->handler.logHeader = TRUE;
          } else {
             g_io_channel_flush(logger->file, NULL);
          }
@@ -460,6 +461,7 @@ GlibUtils_CreateFileLogger(const char *path,
    data->handler.shared = FALSE;
    data->handler.logfn = FileLoggerLog;
    data->handler.dtor = FileLoggerDestroy;
+   data->handler.logHeader = TRUE;
 
    data->path = g_filename_from_utf8(path, -1, NULL, NULL, NULL);
    if (data->path == NULL) {

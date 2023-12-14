@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2009-2016 VMware, Inc.  All rights reserved.
+### Copyright (c) 2009-2016,2022,2023 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -21,7 +21,13 @@ SUBDIRS += testDebug
 SUBDIRS += testPlugin
 SUBDIRS += testVmblock
 
-install-exec-local:
-	rm -f $(DESTDIR)$(TEST_PLUGIN_INSTALLDIR)/*.a
-	rm -f $(DESTDIR)$(TEST_PLUGIN_INSTALLDIR)/*.la
 
+
+
+
+STATICLIBS = *.a
+LTLIBS     = *.la
+
+install-exec-local:
+	rm -f $(DESTDIR)$(TEST_PLUGIN_INSTALLDIR)/$(STATICLIBS)
+	rm -f $(DESTDIR)$(TEST_PLUGIN_INSTALLDIR)/$(LTLIBS)

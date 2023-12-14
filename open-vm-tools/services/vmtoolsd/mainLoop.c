@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 2008-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -45,15 +45,24 @@
 #include "vmware/tools/utils.h"
 #include "vmware/tools/vmbackup.h"
 
-#if defined(_WIN32)
-#include "vmware/tools/guestStore.h"
+#if (defined(_WIN32) && !defined(_ARM64_)) || \
+    (defined(__linux__) && !defined(USERWORLD))
+#  include "vmware/tools/guestStore.h"
+#  include "globalConfig.h"
+#endif
+
+/*
+ * guestStoreClient library is needed for both GuestStore-based tools upgrade
+ * and also for GlobalConfig module.
+ */
+#if (defined(_WIN32) &&  !defined(_ARM64_)) || defined(GLOBALCONFIG_SUPPORTED)
+#  include "guestStoreClient.h"
 #endif
 
 #if defined(_WIN32)
 #  include "codeset.h"
-#  include "guestStoreClient.h"
-#  include "globalConfig.h"
 #  include "toolsNotify.h"
+#  include "vsockets.h"
 #  include "windowsu.h"
 #else
 #  include "posix.h"
@@ -86,11 +95,11 @@
 
 #define CONFNAME_MAX_CHANNEL_ATTEMPTS "maxChannelAttempts"
 
-#if defined(_WIN32)
+#if defined(GLOBALCONFIG_SUPPORTED)
 /*
  * The state of the global conf module.
  */
-static gboolean gGlobalConfEnabled = FALSE;
+static gboolean gGlobalConfStarted = FALSE;
 #endif
 
 
@@ -109,7 +118,8 @@ static gboolean gGlobalConfEnabled = FALSE;
 static void
 ToolsCoreCleanup(ToolsServiceState *state)
 {
-#if defined(_WIN32)
+#if (defined(_WIN32) && !defined(_ARM64_)) || \
+    (defined(__linux__) && !defined(USERWORLD))
    if (state->mainService) {
       /*
        * Shut down guestStore plugin first to prevent worker threads from being
@@ -127,10 +137,17 @@ ToolsCoreCleanup(ToolsServiceState *state)
    }
 #endif
 
-#if defined(_WIN32)
+#if (defined(_WIN32) && !defined(_ARM64_)) || defined(GLOBALCONFIG_SUPPORTED)
+   /*
+    * guestStoreClient library is needed for both GuestStore-based tools
+    * upgrade and also for GlobalConfig module.
+    */
    if (state->mainService && GuestStoreClient_DeInit()) {
       g_info("%s: De-initialized GuestStore client.\n", __FUNCTION__);
    }
+#endif
+
+#if defined(_WIN32)
    if (state->mainService && ToolsNotify_End()) {
       g_info("%s: End Tools notifications.\n", __FUNCTION__);
    }
@@ -417,6 +434,16 @@ ToolsCoreResetSignalCb(gpointer src,          // IN
 static int
 ToolsCoreRunLoop(ToolsServiceState *state)
 {
+#if defined(_WIN32)
+   /*
+    * Verify VSockets are fully initialized before any real work.
+    * For example, this can be broken by OS upgrades, see PR 2743009.
+    */
+   if (state->mainService) {
+      VSockets_Initialized();
+   }
+#endif
+
    if (!ToolsCore_InitRpc(state)) {
       return 1;
    }
@@ -435,6 +462,21 @@ ToolsCoreRunLoop(ToolsServiceState *state)
    }
 
 #if defined(_WIN32)
+   /*
+    * Call ToolsNotify_Start() to create the global VMToolsNeedReboot event
+    * before loading plugins so that plugins can open the event in their init
+    * routines.
+    */
+   if (state->mainService && ToolsNotify_Start(&state->ctx)) {
+      g_info("%s: Successfully started tools notifications.\n", __FUNCTION__);
+   }
+#endif
+
+#if (defined(_WIN32) && !defined(_ARM64_)) || defined(GLOBALCONFIG_SUPPORTED)
+   /*
+    * guestStoreClient library is needed for both GuestStore-based tools
+    * upgrade and also for GlobalConfig module.
+    */
    if (state->mainService && GuestStoreClient_Init()) {
       g_info("%s: Initialized GuestStore client.\n", __FUNCTION__);
    }
@@ -510,22 +552,16 @@ ToolsCoreRunLoop(ToolsServiceState *state)
        */
       if (state->mainService) {
          if (ToolsCoreHangDetector_Start(&state->ctx)) {
-            g_info("%s: Successfully started tools hang detector",
+            g_info("%s: Successfully started tools hang detector.\n",
                    __FUNCTION__);
          }
-#if defined(_WIN32)
-         if (ToolsNotify_Start(&state->ctx)) {
-            g_info("%s: Successfully started tools notifications",
-                   __FUNCTION__);
-         }
-#endif
       }
 
-#if defined(_WIN32)
+#if defined(GLOBALCONFIG_SUPPORTED)
       if (GlobalConfig_Start(&state->ctx)) {
-         g_info("%s: Successfully started global config module.",
+         g_info("%s: Successfully started global config module.\n",
                   __FUNCTION__);
-         gGlobalConfEnabled = TRUE;
+         gGlobalConfStarted = TRUE;
       }
 #endif
 
@@ -670,10 +706,10 @@ ToolsCore_ReloadConfig(ToolsServiceState *state,
    gboolean first = state->ctx.config == NULL;
    gboolean loaded;
 
-#if defined(_WIN32)
+#if defined(GLOBALCONFIG_SUPPORTED)
    gboolean globalConfLoaded = FALSE;
 
-   if (gGlobalConfEnabled) {
+   if (gGlobalConfStarted) {
       globalConfLoaded =  GlobalConfig_LoadConfig(&state->globalConfig,
                                                   &state->globalConfigMtime);
       if (globalConfLoaded) {
@@ -682,6 +718,7 @@ ToolsCore_ReloadConfig(ToolsServiceState *state,
          * is reloaded. Else, the config is loaded only if it's been modified
          * since the last check.
          */
+         g_info("%s: globalconfig reloaded.\n", __FUNCTION__);
          state->configMtime = 0;
       }
    }
@@ -692,7 +729,7 @@ ToolsCore_ReloadConfig(ToolsServiceState *state,
                                &state->ctx.config,
                                &state->configMtime);
 
-#if defined(_WIN32)
+#if defined(GLOBALCONFIG_SUPPORTED)
    if (loaded || globalConfLoaded) {
       gboolean configUpdated = VMTools_AddConfig(state->globalConfig,
                                                  state->ctx.config);
@@ -701,7 +738,7 @@ ToolsCore_ReloadConfig(ToolsServiceState *state,
 #endif
 
    if (!first && loaded) {
-      g_debug("Config file reloaded.\n");
+      g_info("Config file reloaded.\n");
 
       /*
        * Inform plugins of config file update.
@@ -1150,11 +1187,6 @@ ToolsCore_Setup(ToolsServiceState *state)
    GMainContext *gctx;
    ToolsServiceProperty ctxProp = { TOOLS_CORE_PROP_CTX };
 
-   /*
-    * Useful for debugging purposes. Log the vesion and build information.
-    */
-   g_message("Tools Version: %s (%s)\n", TOOLS_VERSION_EXT_CURRENT_STR, BUILD_NUMBER);
-
    /* Initializes the app context. */
    gctx = g_main_context_default();
    state->ctx.version = TOOLS_CORE_API_V1;
@@ -1170,13 +1202,9 @@ ToolsCore_Setup(ToolsServiceState *state)
    state->ctx.mainLoop = g_main_loop_new(gctx, FALSE);
 #endif
    /*
-    * Valgrind can't handle the backdoor check.
+    * TODO: Build vmcheck library
     */
-#ifdef USE_VALGRIND
-   state->ctx.isVMware = TRUE;
-#else
    state->ctx.isVMware = VmCheck_IsVirtualWorld();
-#endif
    g_main_context_unref(gctx);
 
    g_type_init();

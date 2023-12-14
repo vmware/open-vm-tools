@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016, 2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2016, 2020, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -66,6 +66,10 @@ VGAuthError CertVerify_CheckSignatureUsingCert(VGAuthHashAlg hash,
                                                const unsigned char *data,
                                                size_t signatureLen,
                                                const unsigned char *signature);
+
+
+VGAuthError CertVerify_CheckForUnrelatedCerts(int numCerts,
+                                              const char **pemCerts);
 
 gchar * CertVerify_StripPEMCert(const gchar *pemCert);
 

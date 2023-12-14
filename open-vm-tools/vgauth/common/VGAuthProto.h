@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
+ * Copyright (c) 2011-2016,2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -20,6 +20,8 @@
 #define _VGAUTHPROTO_H_
 
 #include "VGAuthError.h"
+
+/* clang-format off */
 
 /*
  * @file VGAuthProto.h
@@ -107,6 +109,7 @@
 #define VGAUTH_COMMENT_ELEMENT_NAME "comment"
 #define VGAUTH_ALIAS_ELEMENT_NAME "alias"
 #define VGAUTH_VALIDATE_ONLY_ELEMENT_NAME "validateOnly"
+#define VGAUTH_HOST_VERIFIED_ELEMENT_NAME "hostVerified"
 
 /*
  * Complex types
@@ -603,10 +606,14 @@
  * SAML token, and does not create an access token on Windows.  This
  * flag is ignored on *ix.
  *
+ * If hostVerified is set, then the service will skip the signature
+ * check in the SAML token.
+ *
  * Request:
  *   SAML token
  *   user
  *   validateOnly (bool)
+ *   hostVerified (bool)
  * =>
  *   user
  *   token (empty for non-Windows)
@@ -621,6 +628,7 @@
       "<"VGAUTH_SAMLTOKEN_ELEMENT_NAME">%s</"VGAUTH_SAMLTOKEN_ELEMENT_NAME">" \
       "<"VGAUTH_USERNAME_ELEMENT_NAME">%s</"VGAUTH_USERNAME_ELEMENT_NAME">" \
       "<"VGAUTH_VALIDATE_ONLY_ELEMENT_NAME">%s</"VGAUTH_VALIDATE_ONLY_ELEMENT_NAME">" \
+      "<"VGAUTH_HOST_VERIFIED_ELEMENT_NAME">%s</"VGAUTH_HOST_VERIFIED_ELEMENT_NAME">" \
    VGAUTH_REQUEST_FORMAT_END
 
 #define VGAUTH_VALIDATESAMLBEARERTOKEN_REPLY_FORMAT_START \
@@ -637,4 +645,5 @@
    VGAUTH_USERHANDLESAMLINFO_FORMAT_END \
    VGAUTH_REPLY_FORMAT_END
 
+/* clang-format on */
 #endif   // _VGAUTHPROTO_H_

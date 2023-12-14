@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 2008-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -58,6 +58,12 @@
 #include "vmware/guestrpc/tclodefs.h"
 #include "err.h"
 #include "logToHost.h"
+#include "vthreadBase.h"
+#include "hostinfo.h"
+#include "vm_tools_version.h"
+#include "buildNumber.h"
+#include "vm_product.h"
+#include "util.h"
 
 #define LOGGING_GROUP         "logging"
 
@@ -115,6 +121,11 @@
       g_free(handler);                             \
    }                                               \
 } while (0)
+
+#define VMX_LOG_CMD     "log "
+#define VMX_LOG_CMD_LEN (sizeof(VMX_LOG_CMD) - 1)
+
+#define LOG_HEADER_MAX_ENTRIES 2
 
 
 typedef struct LogHandler {
@@ -190,6 +201,9 @@ static RpcChannel *gChannel; /* either NULL or allocated AND started */
  */
 static GLogLevelFlags gLevelMask;
 
+static gchar *gLogHeaderBuf[LOG_HEADER_MAX_ENTRIES];
+static guint gLogHeaderCount;
+
 static enum RpcMode {
    RPC_OFF = 0,
    RPC_GUEST_LOG_TEXT,
@@ -208,6 +222,7 @@ static void LogWhereLevelV(LogWhere where,
                            const gchar *domain,
                            const gchar *fmt,
                            va_list args);
+static LogHandler *GetLogHandlerByDomain(const gchar *domain);
 
 /* Internal functions. */
 
@@ -258,7 +273,7 @@ VMToolsLogLevelString(GLogLevelFlags level) {
 
 
 /**
- * Aborts the program, optionally creating a core dump.
+ * Forces the program to quit, optionally creating a core dump.
  */
 
 static INLINE NORETURN void
@@ -367,7 +382,7 @@ VMTools_GetTimeAsString(void)
 /**
  * Creates a formatted message to be logged. The format of the message will be:
  *
- *    [timestamp] [domain] [level] Log message
+ *    [timestamp] [domain] [level] [thread_id] Log message
  *
  * @param[in] message      User log message.
  * @param[in] domain       Log domain.
@@ -416,31 +431,38 @@ VMToolsLogFormat(const gchar *message,
 
    if (!addsTimestamp) {
       if (shared) {
-         len = VMToolsAsprintf(&msg, "[%s] [%8s] [%s:%s] %s\n",
+         len = VMToolsAsprintf(&msg, "[%s] [%8s] [%s:%s] [%"FMT64"u] %s\n",
                                (tstamp != NULL) ? tstamp : "no time",
-                               slevel, gLogDomain, domain, message);
+                               slevel, gLogDomain, domain,
+                               VThreadBase_GetKernelID(), message);
       } else {
-         len = VMToolsAsprintf(&msg, "[%s] [%8s] [%s] %s\n",
+         len = VMToolsAsprintf(&msg, "[%s] [%8s] [%s] [%"FMT64"u] %s\n",
                                (tstamp != NULL) ? tstamp : "no time",
-                               slevel, domain, message);
+                               slevel, domain, VThreadBase_GetKernelID(),
+                               message);
       }
    } else {
       if (cached) {
          if (shared) {
-            len = VMToolsAsprintf(&msg, "[cached at %s] [%8s] [%s:%s] %s\n",
-                                  (tstamp != NULL) ? tstamp : "no time",
-                                  slevel, gLogDomain, domain, message);
+            len = VMToolsAsprintf(&msg,
+                              "[cached at %s] [%8s] [%s:%s] [%"FMT64"u] %s\n",
+                              (tstamp != NULL) ? tstamp : "no time", slevel,
+                              gLogDomain, domain, VThreadBase_GetKernelID(),
+                              message);
          } else {
-            len = VMToolsAsprintf(&msg, "[cached at %s] [%8s] [%s] %s\n",
-                                  (tstamp != NULL) ? tstamp : "no time",
-                                  slevel, domain, message);
+            len = VMToolsAsprintf(&msg,
+                               "[cached at %s] [%8s] [%s] [%"FMT64"u] %s\n",
+                               (tstamp != NULL) ? tstamp : "no time", slevel,
+                               domain, VThreadBase_GetKernelID(), message);
          }
       } else {
          if (shared) {
-            len = VMToolsAsprintf(&msg, "[%8s] [%s:%s] %s\n",
-                                  slevel, gLogDomain, domain, message);
+            len = VMToolsAsprintf(&msg, "[%8s] [%s:%s] [%"FMT64"u] %s\n",
+                                  slevel, gLogDomain, domain,
+                                  VThreadBase_GetKernelID(), message);
          } else {
-            len = VMToolsAsprintf(&msg, "[%8s] [%s] %s\n", slevel, domain, message);
+            len = VMToolsAsprintf(&msg, "[%8s] [%s] [%"FMT64"u] %s\n", slevel,
+                                  domain, VThreadBase_GetKernelID(), message);
          }
       }
    }
@@ -486,6 +508,31 @@ VMToolsFreeLogEntry(gpointer data)
 
 
 /**
+ * Function that logs a cached log header of Tools version, build details
+ * and Guest OS details.
+ *
+ * @param[in] _data     LogEntry pointer.
+ */
+
+static void
+VMToolsLogHeader(gpointer _data)
+{
+   LogEntry *entry = _data;
+   GlibLogger *logger = entry->handler->logger;
+   guint i;
+
+   for (i = 0; i < gLogHeaderCount; i++) {
+      char *message = VMToolsLogFormat(gLogHeaderBuf[i], entry->domain,
+                                       G_LOG_LEVEL_MESSAGE, entry->handler,
+                                       FALSE);
+
+      logger->logfn(entry->domain, G_LOG_LEVEL_MESSAGE, message, logger);
+      g_free(message);
+   }
+}
+
+
+/**
  * Function that calls the log handler.
  *
  * Also, frees the _data to avoid having separate free call.
@@ -502,6 +549,10 @@ VMToolsLogMsg(gpointer _data, gpointer userData)
    gboolean usedSyslog = FALSE;
 
    if (logger != NULL) {
+       if (logger->logHeader) {
+          VMToolsLogHeader(entry);
+          logger->logHeader = FALSE;
+       }
        logger->logfn(entry->domain, entry->level, entry->msg, logger);
        usedSyslog = entry->handler->isSysLog;
    } else if (gErrorData->logger != NULL) {
@@ -1405,6 +1456,7 @@ VMToolsConfigLoggingInt(const gchar *defaultDomain,
    GPtrArray *oldDomains = NULL;
    LogHandler *oldDefault = NULL;
    GError *err = NULL;
+   char *gosDetails;
 
    g_return_if_fail(defaultDomain != NULL);
 
@@ -1477,6 +1529,34 @@ VMToolsConfigLoggingInt(const gchar *defaultDomain,
     */
    gLogEnabled |= force;
    MarkLogInitialized();
+
+   /*
+    * Cache Tools version, build number and guest OS details.
+    * Cached log headers will be logged at log rotation and reset.
+    * No need to re-init the log headers in case of config reload.
+    */
+   if (gLogHeaderCount == 0) {
+      LogHandler *handler = GetLogHandlerByDomain(gLogDomain);
+      GlibLogger *logger = handler->logger;
+
+      logger->logHeader = TRUE;
+
+      gLogHeaderBuf[gLogHeaderCount++] = Str_Asprintf(NULL,
+                                                      "%s Version: %s (%s)",
+                                                      VMWARE_TOOLS_SHORT_NAME,
+                                                      TOOLS_VERSION_EXT_CURRENT_STR,
+                                                      BUILD_NUMBER);
+
+      gosDetails = Hostinfo_GetOSDetailedData();
+      if (gosDetails != NULL && gLogHeaderCount < LOG_HEADER_MAX_ENTRIES) {
+         gLogHeaderBuf[gLogHeaderCount++] = Str_Asprintf(NULL,
+                                                         "Guest OS details: %s",
+                                                         gosDetails);
+      }
+      free(gosDetails);
+
+      ASSERT(gLogHeaderCount <= LOG_HEADER_MAX_ENTRIES);
+   }
 
    gMaxCacheEntries = g_key_file_get_integer(cfg, LOGGING_GROUP,
                                              "maxCacheEntries", &err);
@@ -1677,7 +1757,7 @@ VMToolsLogWrapper(GLogLevelFlags level,
          free(msg);
       }
    } else {
-      /* Try to avoid malloc() since we're aborting. */
+      /* Try to avoid malloc() since we're forcibly quitting. */
       gchar msg[256];
       Str_Vsnprintf(msg, sizeof msg, fmt, args);
       VMToolsLogInt(gLogDomain, level, msg, gDefaultData);
@@ -2547,7 +2627,7 @@ VMTools_SetupVmxGuestLog(gboolean refreshRpcChannel,   // IN
     */
    g_rec_mutex_lock(&gVmxGuestLogMutex);
 
-   /* Load config for the kill switch in tools.conf */
+   /* Load config for the disable-switch in tools.conf */
    if (NULL == cfg) {
       if (!VMTools_LoadConfig(NULL, G_KEY_FILE_NONE, &cfg, NULL)) {
          g_warning("Failed to load the tools config file.\n");
@@ -2704,4 +2784,114 @@ VMTools_Log(LogWhere where,
    va_start(args, fmt);
    LogWhereLevelV(where, level, domain, fmt, args);
    va_end(args);
+}
+
+
+/*
+ ******************************************************************************
+ * VMToolsVmxLogV --
+ *
+ * Sends the log message through RPC to vmx to be logged on the host.
+ * Also, logs the message to vmsvc log file inside guest.
+ *
+ * @param[in]  chan         The RPC channel instance.
+ * @param[in]  fmt          Log message output format.
+ * @param[in]  args         The argument list.
+ *
+ * @return None
+ *
+ ******************************************************************************
+ */
+
+static void
+VMToolsVmxLogV(RpcChannel *chan,
+               const gchar *fmt,
+               va_list args)
+{
+   char *reply = NULL;
+   size_t replyLen;
+   gchar msg[4096] = VMX_LOG_CMD;
+   gint len;
+
+   len = g_vsnprintf(msg + VMX_LOG_CMD_LEN,
+                     sizeof msg - VMX_LOG_CMD_LEN,
+                     fmt, args);
+
+   if (len <= 0) {
+      g_warning("%s: g_vsnprintf failed: return value: %d.\n", __FUNCTION__,
+                len);
+      return;
+   }
+
+   len += VMX_LOG_CMD_LEN;
+   if (len >= sizeof msg) {
+      len = sizeof msg - 1;
+      msg[len] = '\0';
+   }
+
+   if (!RpcChannel_Send(chan, msg, len + 1, &reply, &replyLen)) {
+      g_warning("%s: Error sending RPC message: %s. reply: %s\n",
+                __FUNCTION__, msg, VM_SAFE_STR(reply));
+   }
+   free(reply);
+
+   g_message("%s\n", msg + VMX_LOG_CMD_LEN);
+}
+
+
+/*
+ ******************************************************************************
+ * VMTools_VmxLog --
+ *
+ * Passes through VMToolsVmxLogV but takes the arguments inline.
+ *
+ * @param[in]  chan         The RPC channel instance.
+ * @param[in]  fmt          Log message output format.
+ *
+ * @return None
+ *
+ ******************************************************************************
+ */
+
+void
+VMTools_VmxLog(RpcChannel *chan,
+               const gchar *fmt,
+               ...)
+{
+   va_list args;
+
+   va_start(args, fmt);
+   VMToolsVmxLogV(chan, fmt, args);
+   va_end(args);
+}
+
+
+/*
+ ******************************************************************************
+ * VMTools_VmxLogThrottled --
+ *
+ * Passes through VMToolsVmxLogV to log the message after checking for the
+ * throttling condition. Takes the arguments inline.
+ *
+ * @param[in/out]  count     Throttle count.
+ * @param[in]      chan      The RPC channel instance.
+ * @param[in]      fmt       Log message output format.
+ *
+ * @return None
+ *
+ ******************************************************************************
+ */
+
+void
+VMTools_VmxLogThrottled(uint32 *count,
+                        RpcChannel *chan,
+                        const gchar *fmt,
+                        ...)
+{
+   va_list args;
+   if (Util_Throttle(++*count)) {
+      va_start(args, fmt);
+      VMToolsVmxLogV(chan, fmt, args);
+      va_end(args);
+   }
 }

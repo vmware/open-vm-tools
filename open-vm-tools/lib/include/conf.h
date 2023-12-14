@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2002-2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 2002-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -85,6 +85,14 @@
 #define CONFNAME_APPINFO_DISABLED "disabled"
 
 /**
+ * Defines the configuration to remove duplicate applications.
+ *
+ * @param boolean Set to TRUE to remove duplicate apps.
+ *                Set to FALSE to keep duplicate apps.
+ */
+#define CONFNAME_APPINFO_REMOVE_DUPLICATES "remove-duplicates"
+
+/**
  * Defines the configuration to use the WMI for getting the application
  * version information.
  *
@@ -98,6 +106,82 @@
 
 /*
  * END AppInfo goodies.
+ ******************************************************************************
+ */
+
+/*
+ ******************************************************************************
+ * BEGIN containerInfo goodies.
+ */
+
+/**
+ * Defines the string used for the ContainerInfo config file group.
+ */
+#define CONFGROUPNAME_CONTAINERINFO "containerinfo"
+
+/**
+ * Define a custom ContainerInfo poll interval (in seconds).
+ *
+ * @note Illegal values result in a @c g_warning and fallback to the default
+ * poll interval.
+ *
+ * @param int   User-defined poll interval.  Set to 0 to disable polling.
+ */
+#define CONFNAME_CONTAINERINFO_POLLINTERVAL "poll-interval"
+
+/**
+ * Define the limit on the maximum number of containers to collect info from.
+ * If the number of running containers exceeds the limit, only the most recently
+ * created containers will be published.
+ *
+ * @note Illegal values result in a @c g_warning and fallback to the default
+ * max container limit.
+ *
+ * @param int   User-defined max limit for # of containers queried.
+ */
+#define CONFNAME_CONTAINERINFO_LIMIT "max-containers"
+
+/**
+ * Defines the configuration to remove duplicate containers.
+ *
+ * @param boolean Set to TRUE to remove duplicate containers.
+ *                Set to FALSE to keep duplicate containers.
+ */
+#define CONFNAME_CONTAINERINFO_REMOVE_DUPLICATES "remove-duplicates"
+
+/**
+ * Define the docker unix socket to use to communicate with the docker daemon.
+ *
+ * @note Illegal values result in a @c g_warning and fallback to docker's
+ * default unix socket.
+ *
+ * @param string  absolute file path of the docker unix socket in use.
+ */
+#define CONFNAME_CONTAINERINFO_DOCKERSOCKET "docker-unix-socket"
+
+/**
+ * Define the containerd unix socket to connect with containerd gRPC server.
+ * This should be used to get containers.
+ *
+ * @note Illegal values result in a @c g_warning and fallback to the containerd
+ * default unix socket.
+ *
+ * @param string  absolute file path of the containerd unix socket in use.
+ */
+#define CONFNAME_CONTAINERINFO_CONTAINERDSOCKET "containerd-unix-socket"
+
+/**
+ * Define the list of namespaces to be queried for the running containers.
+ *
+ * @note Illegal values result in a @c g_warning and fallback to the default
+ * list of namespaces.
+ *
+ * @param string  Comma separated list of namespaces to be queried.
+ */
+#define CONFNAME_CONTAINERINFO_ALLOWED_NAMESPACES "allowed-namespaces"
+
+/*
+ * END containerInfo goodies.
  ******************************************************************************
  */
 
@@ -124,6 +208,34 @@
 
 /*
  * END ServiceDiscovery goodies.
+ ******************************************************************************
+ */
+
+/*
+ ******************************************************************************
+ * BEGIN ComponentMgr goodies.
+ */
+
+/**
+ * Defines the current poll interval (in seconds).
+ * This value is controlled by the componentMgr.poll-interval config file
+ * option.
+ */
+#define COMPONENTMGR_CONF_POLLINTERVAL "poll-interval"
+
+/**
+ * Name of section of configuration to be read from tools.conf.
+ */
+#define COMPONENTMGR_CONF_GROUPNAME "componentmgr"
+
+/**
+ * Defines the components  managed by the componentMgr plugin.
+ * This value is controlled by the componentMgr.included config file option.
+ */
+#define COMPONENTMGR_CONF_INCLUDEDCOMPONENTS "included"
+
+/*
+ * END ComponentMgr goodies.
  ******************************************************************************
  */
 
@@ -164,16 +276,6 @@
 #define CONFNAME_GSUPGRADE_POLLINTERVAL "poll-interval"
 
 /**
- * Define a custom GuestStore periodic Upgrade interval (in seconds).
- *
- * @note Illegal values result in a @c g_warning and fallback to the default
- * upgrade interval.
- *
- * @param int   User-defined upgrade interval.  Set to 0 to disable polling.
- */
-#define CONFNAME_GSUPGRADE_UPGRADEINTERVAL "upgrade-interval"
-
-/**
  * Define a custom GuestStore content path prefix.
  *
  * @note Illegal values result in a @c g_warning and fallback to the default
@@ -201,6 +303,53 @@
 
 /*
  * END GuestStore upgrader goodies.
+ ******************************************************************************
+ */
+
+
+/*
+ ******************************************************************************
+ * BEGIN GlobalConf goodies.
+ */
+
+/**
+ * Defines the string used for the GlobalConf config file group.
+ */
+#define CONFGROUPNAME_GLOBALCONF "globalconf"
+
+/**
+ * Defines the configuration to enable/disable the GlobalConf module.
+ *
+ * @note Illegal values result in @c g_warning and fallback to the default
+ * value.
+ *
+ * @param boolean Set to TRUE to enable the module.
+ *                Set to FALSE to disable the module.
+ */
+#define CONFNAME_GLOBALCONF_ENABLED "enabled"
+
+/**
+ * Define a custom GlobalConf poll interval (in seconds).
+ *
+ * @note Illegal values result in @c g_warning and fallback to the default
+ * value.
+ *
+ * @param int   User-defined poll interval.
+ */
+#define CONFNAME_GLOBALCONF_POLL_INTERVAL "poll-interval"
+
+/**
+ * Define the global configuration resource in GuestStore.
+ *
+ * @note Illegal values result in @c g_warning and fallback to the default
+ * value.
+ *
+ * @param string   Resource identifier in GuestStore.
+ */
+#define CONFNAME_GLOBALCONF_RESOURCE "resource"
+
+/*
+ * END GlobalConf goodies.
  ******************************************************************************
  */
 
@@ -418,7 +567,7 @@
 
 /**
  * Lets users configure the process timeout value in deployPkg
- * Valid value range: 0x01 ~ 0xFF
+ * Valid value range: 1 ~ 3600
  */
 #define CONFNAME_DEPLOYPKG_PROCESSTIMEOUT "process-timeout"
 
@@ -427,6 +576,12 @@
  * Valid value: true / false
  */
 #define CONFNAME_DEPLOYPKG_ENABLE_CUST "enable-customization"
+
+/**
+ * How long does guest customization wait until cloud-init execution done
+ * Valid value range: 0 ~ 1800
+ */
+#define CONFNAME_DEPLOYPKG_WAIT_CLOUDINIT_TIMEOUT "wait-cloudinit-timeout"
 
 /*
  * END deployPkg goodies.
@@ -450,6 +605,7 @@
 #define CONFNAME_AUTOUPGRADE_ALLOW_UPGRADE "allow-upgrade"
 #define CONFNAME_AUTOUPGRADE_ALLOW_ADD_FEATURE "allow-add-feature"
 #define CONFNAME_AUTOUPGRADE_ALLOW_REMOVE_FEATURE "allow-remove-feature"
+#define CONFNAME_AUTOUPGRADE_ALLOW_MSI_TRANSFORMS "allow-msi-transforms"
 
 /*
  * END upgrader goodies.
@@ -532,4 +688,87 @@
  ******************************************************************************
  * END CarbonBlack helper plugin goodies.
  */
+
+/*
+ ******************************************************************************
+ * BEGIN deviceHelper plugin goodies.
+ */
+
+/**
+ * Defines the string used for the device helper config file group.
+ */
+#define CONFGROUPNAME_DEVICEHELPER "devicehelper"
+
+/**
+ * Defines the configuration to perform device helper or not.
+ *
+ * @note Illegal values result in a @c g_warning and fallback to the default
+ * value.
+ *
+ * @param boolean Set to TRUE to disable device helper feature.
+ *                Set to FALSE to enable device helper feature.
+ */
+#define CONFNAME_DEVICEHELPER_DISABLED "disabled"
+
+/*
+ * END deviceHelper goodies.
+ ******************************************************************************
+ */
+
+/*
+ ******************************************************************************
+ * BEGIN gdp plugin goodies.
+ */
+
+/**
+ * Defines the string used for the gdp config file group.
+ */
+#define CONFGROUPNAME_GDP "gdp"
+
+/**
+ * Defines a custom history cache buffer size limit (in bytes).
+ *
+ * @note Illegal values result in a @c g_warning and fallback to the default
+ * cache buffer size limit 1048576.
+ *
+ * @param int   User-defined cache buffer size limit within [262144, 4194304].
+ *              Set 0 to disable caching.
+ */
+#define CONFNAME_GDP_CACHE_SIZE "cacheSize"
+
+/**
+ * Defines a custom history cache item count limit.
+ *
+ * @note Illegal values result in a @c g_warning and fallback to the default
+ * cache item count limit 256.
+ *
+ * @param int   User-defined cache item count limit within [64, 1024].
+ */
+#define CONFNAME_GDP_CACHE_COUNT "cacheCount"
+
+/*
+ * END gdp goodies.
+ ******************************************************************************
+ */
+
+/*
+ ******************************************************************************
+ * BEGIN timeSync plugin goodies.
+ */
+
+/**
+ * Defines the string used for the timeSync config file group.
+ */
+#define CONFGROUPNAME_TIMESYNC "timeSync"
+
+/**
+ * Enable (or disable) the TimeInfo API.
+ */
+#define CONFNAME_TIMESYNC_TIMEINFO_ENABLED "timeInfo.enabled"
+
+/*
+ * END timeSync goodies.
+ ******************************************************************************
+ */
+
 #endif /* __CONF_H__ */

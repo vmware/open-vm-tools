@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -201,7 +201,7 @@ Id_SetRESUid(uid_t uid,		// IN: new uid
 	     uid_t euid,	// IN: new effective uid
 	     uid_t suid)	// IN: new saved uid
 {
-#if (defined(__FreeBSD__) && __FreeBSD_version >= 500043)
+#if defined(__FreeBSD__)
    return setresuid(uid, euid, suid);
 #elif defined(__linux__)
    if (uid32) {
@@ -281,7 +281,7 @@ Id_SetRESGid(gid_t gid,		// IN: new gid
 	     gid_t egid,	// IN: new effective gid
 	     gid_t sgid)	// IN: new saved gid
 {
-#if (defined(__FreeBSD__) && __FreeBSD_version >= 500043)
+#if defined(__FreeBSD__)
    return setresgid(gid, egid, sgid);
 #elif defined(__linux__)
    if (uid32) {
@@ -844,7 +844,7 @@ Id_AuthSet(void const *buf, // IN
  * Results:
  *      TRUE if the right was granted, FALSE if the user cancelled,
  *      entered the wrong password three times in a row, or if an
- *      error was encountered, or if the Authorization session is 
+ *      error was encountered, or if the Authorization session is
  *      invalid or has not been granted the 'right'.
  *
  * Side effects:
@@ -1045,10 +1045,23 @@ IdIsSetUGid(void)
 #else
    static const char envName[] = "VMW_SETUGID_TEST";
 
+   /*
+    * Solves issue where includes are taken from glibc-2.11 while libraries are being
+    * linked against glibc-2.31 for a rde-rft-rel app
+    */
+   extern __attribute__((weak)) char *__secure_getenv(const char *);
+   extern __attribute__((weak)) char *secure_getenv(const char *);
+
    if (setenv(envName, "1", TRUE) == -1) {
       return TRUE; /* Conservative */
    }
-   return __secure_getenv(envName) == NULL;
+   if (__secure_getenv != NULL) {
+      return __secure_getenv(envName) == NULL;
+   }
+   if (secure_getenv != NULL) {
+      return secure_getenv(envName) == NULL;
+   }
+   return TRUE;
 #endif
 #endif
 }

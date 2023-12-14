@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2016, 2020-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -39,7 +39,7 @@
 #define CONFIG_FILE_EXTENSION "vmx"           // VM configuration file
 #define CONFIG_ALT_FILE_EXTENSION "cfg"       // Obsolete synonym for .vmx
 #define EXTENDED_CONFIG_FILE_EXTENSION "vmxf" // Foundry metadata
-#define MANAGED_CONFIG_FILE_EXTENSION "vmxa"  // ACE Master
+#define MANAGED_CONFIG_FILE_EXTENSION "vmxa"  // ACE Top Level
 #define VRM_CONFIG_FILE_EXTENSION "vmx"       // ACE Instance
 #define VPX_TEMPLATE_EXTENSION "vmtx"         // VirtualCenter template
 #define TEAM_FILE_EXTENSION "vmtm"            // Foundry VM team
@@ -95,6 +95,8 @@
 #define OPEN_VM_FORMAT_EXTENSION "ovf"
 #define ARCHIVED_OPEN_VM_FORMAT_EXTENSION "ova"
 #define NAMESPACEDB_EXTENSION "db"
+#define DATASETSSTORE_DISKMODE_EXTENSION "dsd"
+#define DATASETSSTORE_VMMODE_EXTENSION "dsv"
 // "xvm" // VMware console configuration file
 
 /*

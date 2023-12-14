@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2010-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -352,6 +352,8 @@ VThreadBase_GetKernelID(void)
 #  endif
    // Best effort until FreeBSD header update
    return (uint64)(uintptr_t)(void *)pthread_self();
+#elif defined __EMSCRIPTEN__
+   return (uint64)(uintptr_t)(void *)pthread_self();
 #else
 #  error "Unknown platform"
 #endif
@@ -574,7 +576,7 @@ VThreadBase_ForgetSelf(void)
 #endif
 
    if (vmx86_debug) {
-      Log("Forgetting VThreadID %" FMTPD "d (\"%s\").\n",
+      Log("Forgetting VThreadID %" FMTPD "u (\"%s\").\n",
           VThread_CurID(), VThread_CurName());
    }
 

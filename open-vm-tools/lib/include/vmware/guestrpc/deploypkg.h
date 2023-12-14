@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2021 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -46,7 +46,11 @@ typedef enum {
    TOOLSDEPLOYPKG_ERROR_COPY_FAILED,
    TOOLSDEPLOYPKG_ERROR_DEPLOY_FAILED,
    TOOLSDEPLOYPKG_ERROR_CUST_SCRIPT_DISABLED, // User defined script is disabled
-   TOOLSDEPLOYPKG_ERROR_CUST_DISABLED         // Guest customization is disabled
+   TOOLSDEPLOYPKG_ERROR_CUST_DISABLED,       // Guest customization is disabled
+   // cloud-init version is too old to support raw cloud-init data
+   TOOLSDEPLOYPKG_ERROR_CLOUDINIT_NOT_SUPPORT_RAWDATA,
+   // cloud-init meta dat is not valid format
+   TOOLSDEPLOYPKG_ERROR_CLOUDINIT_WRONG_META_FORMAT
 } ToolsDeployPkgError;
 
 #define QUERY_NICS_SUPPORTED  "queryNicsSupported"

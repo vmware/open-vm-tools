@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2019 VMware, Inc. All rights reserved.
+ * Copyright (c) 2011-2019,2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -197,6 +197,8 @@ VGAuthError VGAuth_ValidateSSPIResponse(VGAuthContext *ctx,
  */
 
 #define  VGAUTH_PARAM_VALIDATE_INFO_ONLY  "validateInfoOnly"
+
+#define  VGAUTH_PARAM_SAML_HOST_VERIFIED "hostVerified"
 
 VGAuthError VGAuth_ValidateSamlBearerToken(VGAuthContext *ctx,
                                            const char *samlToken,

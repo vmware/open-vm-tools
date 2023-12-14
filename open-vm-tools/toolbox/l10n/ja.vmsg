@@ -1,5 +1,5 @@
 ##########################################################
-# Copyright (C) 2010-2017,2020 VMware, Inc. All rights reserved.
+# Copyright (c) 2010-2017,2020-2022 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -98,7 +98,7 @@ help.device = "%1$s: 仮想マシンのハードウェア デバイスに関連�
 
 help.disk = "%1$s: ディスク圧縮操作を実行\n使用方法: %2$s %3$s <サブコマンド> [引数]\n\nサブコマンド:\n   list: 使用可能な場所を一覧表示\n   shrink <場所>: 指定された場所のファイル システムをワイプおよび圧縮\n   shrinkonly: すべてのディスクを圧縮\n   wipe <場所>: 指定された場所のファイル システムをワイプ\n"
 
-help.globalconf = "%1$s: GuestStore からのグローバル設定のダウンロードを管理します\n使用方法: %2$s %3$s <サブコマンド>\n\nESX ゲストのみのサブコマンド:\n   enable: グローバル設定モジュールを有効にします (VMware Tools Service が再起動します)\n   disable: グローバル設定モジュールを無効にします (VMware Tools Service が再起動します)\n   refresh: GuestStore からのグローバル設定の新しいダウンロードをトリガします\n   status: グローバル設定モジュールのステータスを出力します\n"
+help.globalconf = "%1$s: GuestStore からのグローバル設定のダウンロードを管理します\n使用方法: %2$s %3$s <サブコマンド>\n\nESX ゲストのみのサブコマンド:\n   enable: グローバル設定モジュールを有効にします\n   disable: グローバル設定モジュールを無効にします\n   refresh: GuestStore からのグローバル設定の新しいダウンロードをトリガします\n   status: グローバル設定モジュールのステータスを出力します\n"
 
 help.gueststore = "%1$s: GuestStore からリソース コンテンツを取得します\n使用方法: %2$s %3$s <サブコマンド>\n\nESX ゲストのみのサブコマンド:\n   getcontent <リソース パス> <出力ファイル>: GuestStore からリソース コンテンツを取得し、出力ファイルに保存します。\n\n<リソース パス>は / で始まり、GuestStore 内の一意のリソースを表します。/ で終わる場合、デフォルトでは基盤となる「metadata.json」リソースを取得します。\n<出力ファイル> は、リソース コンテンツを保存するファイルのパスです。\n"
 

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -148,6 +148,12 @@ HashTableComputeHash(const HashTable *ht,  // IN: hash table
       if (sizeof s == 4) {
          h = (uint32) (uintptr_t) s;
       } else {
+         /*
+          * Coverity warns that s >> 32 will always equate to 0 regardless of
+          * what s may be. This is true when uintptr_t is 32 bits, but
+          * not when it is 64 bit.
+          */
+         /* coverity[result_independent_of_operands] */
          h = (uint32) (uintptr_t) s ^ (uint32) ((uint64) (uintptr_t) s >> 32);
       }
       h *= 48271;  // http://www.google.com/search?q=48271+pseudorandom

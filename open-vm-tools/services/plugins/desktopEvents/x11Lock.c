@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2010-2018 VMware, Inc. All rights reserved.
+ * Copyright (c) 2010-2018,2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -92,7 +92,7 @@ InitGroupLeader(Window *groupLeader,
    XStoreName(gdk_x11_get_default_xdisplay(), myGroupLeader, VMUSER_TITLE);
 
    /*
-    * Sanity check:  Set the override redirect property on our group leader
+    * Confidence check:  Set the override redirect property on our group leader
     * window (not default), then re-parent it to the root window (default).
     * This makes sure that (a) a window manager can't re-parent our window,
     * and (b) that we remain a top-level window.

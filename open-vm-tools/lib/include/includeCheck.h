@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2019, 2021-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -79,11 +79,12 @@
  * that this is acceptable.
  */
 
+#if defined VMM && defined ULM
+#error "VMM and ULM cannot be defined at the same time."
+#endif
 
-#if defined VMCORE && \
-    !(defined VMX86_VMX || defined VMM || defined ULM || \
-      defined MONITOR_APP || defined VMMON)
-#error "VMCORE without VMX86_VMX, VMM, ULM, MONITOR_APP, or VMMON."
+#if defined ULM && !defined USERLEVEL
+#error "All ULM code must be compiled with USERLEVEL set."
 #endif
 
 #if defined VMCORE && !defined INCLUDE_ALLOW_VMCORE
@@ -100,7 +101,7 @@
 
 #if defined USERLEVEL && !defined VMX86_VMX && !defined VMCORE && \
     !defined ULM && !defined INCLUDE_ALLOW_USERLEVEL && \
-    !defined INCLUDE_ALLOW_MKS
+    !defined INCLUDE_ALLOW_MKS && !defined VSAN_USERLEVEL
 #error "The surrounding include file is not allowed at userlevel."
 #endif
 #undef INCLUDE_ALLOW_USERLEVEL

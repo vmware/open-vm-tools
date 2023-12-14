@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2009-2016 VMware, Inc.  All rights reserved.
+### Copyright (C) 2009-2016, 2022 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -26,6 +26,7 @@ libtimeSync_la_LDFLAGS += @PLUGIN_LDFLAGS@
 
 libtimeSync_la_LIBADD =
 libtimeSync_la_LIBADD += @VMTOOLS_LIBS@
+libtimeSync_la_LIBADD += @GOBJECT_LIBS@
 
 libtimeSync_la_SOURCES =
 libtimeSync_la_SOURCES += timeSync.c
@@ -42,5 +43,6 @@ endif
 if LINUX
 libtimeSync_la_SOURCES += slewLinux.c
 libtimeSync_la_SOURCES += pllLinux.c
+libtimeSync_la_SOURCES += timeInfo.c
 endif
 

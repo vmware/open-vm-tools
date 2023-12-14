@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2011-2016,2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2011-2016,2019,2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -347,19 +347,14 @@ Usercheck_UsernameIsLegal(const gchar *userName)
     * The illegal character list appears to be:
     *
     * Windows      /\@[]:;|=,+*?<>"
-    *          Note that '\' is valid with a domain username; this is
-    *          the restricted list for local usernames.
     * Ubuntu       /\[]:;|=,*<>"!(){}?$@%^&'
     * Rhel         /\[]:;|=,*<>"!(){}?$@%^&'+
     *
+    * Note that '\' is valid with a domain username; this is the
+    * restricted list for local usernames.
     */
    size_t len;
-#ifdef _WIN32
-   // allow '\' in for Windows domain usernames
    char *illegalChars = "<>/";
-#else
-   char *illegalChars = "\\<>/";
-#endif
 
    len = strlen(userName);
    if (strcspn(userName, illegalChars) != len) {

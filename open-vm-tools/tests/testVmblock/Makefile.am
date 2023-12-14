@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (c) 2009-2016,2020 VMware, Inc.  All rights reserved.
+### Copyright (c) 2009-2016,2020-2021 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -15,12 +15,14 @@
 ### Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ################################################################################
 
+  noinst_PROGRAMS =
 if HAVE_FUSE
-  noinst_PROGRAMS = vmware-testvmblock-fuse
+  noinst_PROGRAMS += vmware-testvmblock-fuse
   noinst_PROGRAMS += vmware-testvmblock-manual-fuse
-else
-  noinst_PROGRAMS = vmware-testvmblock-legacy
-  noinst_PROGRAMS += vmware-testvmblock-manual-legacy
+endif
+if HAVE_FUSE3
+  noinst_PROGRAMS += vmware-testvmblock-fuse
+  noinst_PROGRAMS += vmware-testvmblock-manual-fuse
 endif
 
 AM_CFLAGS =
@@ -29,10 +31,6 @@ AM_CFLAGS += -DVMX86_DEBUG
 
 AM_LDFLAGS =
 AM_LDFLAGS += -lpthread
-
-vmware_testvmblock_legacy_SOURCES = vmblocktest.c
-
-vmware_testvmblock_manual_legacy_SOURCES = manual-blocker.c
 
 vmware_testvmblock_fuse_CFLAGS = $(AM_CFLAGS) -Dvmblock_fuse
 vmware_testvmblock_fuse_SOURCES = vmblocktest.c

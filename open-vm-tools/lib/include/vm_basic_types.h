@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -56,12 +56,10 @@
  *********************************************************/
 
 /*
- *
  * vm_basic_types.h --
  *
- *    basic data types.
+ *      Basic data types.
  */
-
 
 #ifndef _VM_BASIC_TYPES_H_
 #define _VM_BASIC_TYPES_H_
@@ -78,12 +76,24 @@
 #include "includeCheck.h"
 
 /*
- * Macros __i386__ and __ia64 are intrinsically defined by GCC
+ * Standardize MSVC arch macros to GCC arch macros.
  */
-#if defined _MSC_VER && defined _M_X64
-#  define __x86_64__
+#if defined _MSC_VER && defined _M_X64 && !defined _M_ARM64EC
+#  define __x86_64__ 1
 #elif defined _MSC_VER && defined _M_IX86
-#  define __i386__
+#  define __i386__ 1
+#elif defined _MSC_VER && (defined _M_ARM64 || defined _M_ARM64EC)
+#  define __aarch64__ 1
+#elif defined _MSC_VER && defined _M_ARM
+#  define __arm__ 1
+#endif
+
+/*
+ * Apple/Darwin uses __arm64__, but defines the more standard
+ * __aarch64__ too. Code below assumes __aarch64__.
+ */
+#if defined __arm64__ && !defined __aarch64__
+#  error Unexpected: defined __arm64__ without __aarch64__
 #endif
 
 /*
@@ -134,6 +144,25 @@
 #define vm_arm_64 0
 #endif
 
+#ifdef VM_ARM_ANY
+#define vm_arm_any 1
+#else
+#define vm_arm_any 0
+#endif
+
+#ifdef VM_X86_ANY
+#define vm_x86_any 1
+#else
+#define vm_x86_any 0
+#endif
+
+#if defined(__APPLE__) && defined(VM_ARM_64)
+#define VM_MAC_ARM
+#define vm_mac_arm 1
+#else
+#define vm_mac_arm 0
+#endif
+
 #define vm_64bit (sizeof (void *) == 8)
 
 #ifdef _MSC_VER
@@ -156,21 +185,24 @@
 
 /*
  * C99 <stdint.h> or equivalent
- * Special cases:
- * - Linux kernel lacks <stdint.h>, preferring <linux/types.h>
+ * Userlevel: 100% <stdint.h>
+ * - gcc-4.5 or later, and earlier for some sysroots
+ * - vs2010 or later
+ * Kernel: <stdint.h> is often unavailable (and no common macros)
+ * - Linux: uses <linux/types.h> instead
  *   (and defines uintptr_t since 2.6.24, but not intptr_t)
- * - Solaris collides with gcc <stdint.h>, but has <sys/stdint.h>
- * - VMKernel + FreeBSD collides with gcc <stdint.h>, but has <sys/stdint.h>
- * - VMKernel (+DECODERLIB) share macros with Linux kernel
- * - Windows only added <stdint.h> in vc10/vs2010 (MSC ver 1600),
- *   and WDKs lack it.
+ * - Solaris: conflicts with gcc <stdint.h>, but has <sys/stdint.h>
+ * - VMKernel + FreeBSD combination collides with gcc <stdint.h>,
+ *   but has <sys/stdint.h>
+ * - Windows: some types in <crtdefs.h>, no definitions for other types.
  *
  * NB about LLP64 in LP64 environments:
  * - Apple uses 'long long' uint64_t
  * - Linux kernel uses 'long long' uint64_t
  * - Linux userlevel uses 'long' uint64_t
+ * - Windows uses 'long long' uint64_t
  */
-#if !defined(VMKERNEL) && !defined(DECODERLIB) && \
+#if !defined(VMKERNEL) &&  \
     defined(__linux__) && defined(__KERNEL__)
 #  include <linux/types.h>
 #  include <linux/version.h>
@@ -182,11 +214,8 @@
       (defined(VMKERNEL) && defined(__FreeBSD__)) || \
       defined(_SYS_STDINT_H_)
 #  include <sys/stdint.h>
-#elif !defined(_MSC_VER)
-   /* Common case */
-#  include <stdint.h>
-#else
-   /* COMPAT: until pre-vc10 is retired */
+#elif defined(_MSC_VER) && defined(_KERNEL_MODE)
+   /* Windows driver headers (km/crt) lack stdint.h */
 #  include <crtdefs.h>  // uintptr_t
    typedef unsigned __int64   uint64_t;
    typedef unsigned int       uint32_t;
@@ -197,6 +226,9 @@
    typedef int                int32_t;
    typedef short              int16_t;
    typedef signed char        int8_t;
+#else
+   /* Common case */
+#  include <stdint.h>
 #endif
 
 /*
@@ -212,7 +244,7 @@
  * - VMM does not have POSIX headers
  * - Windows <sys/types.h> does not define ssize_t
  */
-#if defined(VMKERNEL) || defined(VMM) || defined(DECODERLIB)
+#if defined(VMKERNEL) || defined(VMM)
    /* Guard against FreeBSD <sys/types.h> collison. */
 #  if !defined(_SIZE_T_DEFINED) && !defined(_SIZE_T)
 #     define _SIZE_T_DEFINED
@@ -297,11 +329,11 @@ typedef char           Bool;
 #if !defined(USING_AUTOCONF)
 #   if defined(__FreeBSD__) || defined(sun)
 #      ifndef KLD_MODULE
-#         if __FreeBSD_version >= 500043
+#         if defined(__FreeBSD__)
 #            if !defined(VMKERNEL)
 #               include <inttypes.h>
 #            endif
-#         else
+#         else /* sun */
 #            include <sys/inttypes.h>
 #         endif
 #      endif
@@ -317,7 +349,8 @@ typedef char           Bool;
 #endif
 
 
-#if defined(__GNUC__) && defined(__SIZEOF_INT128__)
+#if defined __GNUC__ && defined __SIZEOF_INT128__
+#define VM_HAS_INT128 // 128-bit integers can be used.
 
 typedef unsigned __int128 uint128;
 typedef          __int128  int128;
@@ -326,7 +359,6 @@ typedef          __int128  int128;
 #define MAX_INT128   (~MIN_INT128)
 #define MIN_UINT128  ((uint128)0)
 #define MAX_UINT128  (~MIN_UINT128)
-
 #endif
 
 
@@ -360,7 +392,7 @@ typedef int64 VmTimeVirtualClock;  /* Virtual Clock kept in CPU cycles */
       #define FMTPD      "I"
       #define FMTH       "I"
    #endif
-#elif defined __APPLE__ || (!defined VMKERNEL && !defined DECODERLIB && \
+#elif defined __APPLE__ || (!defined VMKERNEL && \
                             defined __linux__ && defined __KERNEL__)
    /* semi-LLP64 targets; 'long' is 64-bit, but uint64_t is 'long long' */
    #define FMT64         "ll"
@@ -394,12 +426,6 @@ typedef int64 VmTimeVirtualClock;  /* Virtual Clock kept in CPU cycles */
  * Suffix for 64-bit constants.  Use it like this:
  *    CONST64(0x7fffffffffffffff) for signed or
  *    CONST64U(0x7fffffffffffffff) for unsigned.
- *
- * 2004.08.30(thutt):
- *   The vmcore/asm64/gen* programs are compiled as 32-bit
- *   applications, but must handle 64 bit constants.  If the
- *   64-bit-constant defining macros are already defined, the
- *   definition will not be overwritten.
  */
 
 #if !defined(CONST64) || !defined(CONST64U)
@@ -484,20 +510,14 @@ typedef uint64    PhysMemOff;
 typedef uint64    PhysMemSize;
 
 typedef uint64    BA;
-#ifdef VMKERNEL
-typedef void     *BPN;
-#else
 typedef uint64    BPN;
-#endif
-
-#define UINT64_2_BPN(u) ((BPN)(u))
-#define BPN_2_UINT64(b) ((uint64)(b))
 
 typedef uint64    PageCnt;
 typedef uint64    PageNum;
 typedef unsigned  MemHandle;
 typedef unsigned  IoHandle;
 typedef int32     World_ID;
+typedef uint64    VSCSI_HandleID;
 
 /* !! do not alter the definition of INVALID_WORLD_ID without ensuring
  * that the values defined in both bora/public/vm_basic_types.h and
@@ -517,9 +537,6 @@ typedef User_CartelID User_SessionID;
 typedef User_CartelID User_CartelGroupID;
 #define INVALID_CARTELGROUP_ID INVALID_CARTEL_ID
 
-typedef uint32 Worldlet_ID;
-#define INVALID_WORLDLET_ID ((Worldlet_ID)-1)
-
 typedef  int8    Reg8;
 typedef  int16   Reg16;
 typedef  int32   Reg32;
@@ -530,13 +547,14 @@ typedef uint16  UReg16;
 typedef uint32  UReg32;
 typedef uint64  UReg64;
 
-#if defined(__GNUC__) && defined(__SIZEOF_INT128__)
+#ifdef VM_HAS_INT128
 typedef  int128  Reg128;
 typedef uint128 UReg128;
 #endif
 
-#if defined(VMM) || defined(COREQUERY) || defined(EXTDECODER) ||  \
-    defined (VMKERNEL) || defined (VMKBOOT) || defined (ULM)
+#if (defined(VMM) || defined(COREQUERY) || defined(EXTDECODER) ||  \
+     defined (VMKERNEL) || defined (VMKBOOT) || defined (ULM)) &&  \
+    !defined (FROBOS) || defined (VSAN_USERLEVEL)
 typedef  Reg64  Reg;
 typedef UReg64 UReg;
 #endif
@@ -639,12 +657,12 @@ typedef void * UserVA;
 #define MAX_MPN           ((MPN)MPN38_MASK - 3) /* 50 bits of address space */
 
 #define INVALID_IOPN      ((IOPN)-1)
-#define MAX_IOPN          (INVALID_IOPN - 1)
+#define MAX_IOPN          (IOA_2_IOPN((IOA)-1))
 
 #define INVALID_LPN       ((LPN)-1)
 #define INVALID_VPN       ((VPN)-1)
 #define INVALID_LPN64     ((LPN64)-1)
-#define INVALID_PAGENUM   ((PageNum)0x000000ffffffffffull)
+#define INVALID_PAGENUM   ((PageNum)0x0000003fffffffffull)
 #define INVALID_PAGENUM32 ((uint32)-1)
 
 /*
@@ -727,28 +745,29 @@ typedef void * UserVA;
 
 /*
  * At present, we effectively require a compiler that is at least
- * gcc-4.1 (circa 2006).  Enforce this here, various things below
+ * gcc-4.4 (circa 2009).  Enforce this here, various things below
  * this line depend upon it.
  *
  * Current oldest compilers:
- * - guest tools: 4.1.2 (freebsd/solaris)
  * - buildhost compiler: 4.4.3
  * - hosted kernel modules: 4.5
+ * - widespread usage: 4.8
  *
  * SWIG's preprocessor is exempt.
+ * clang pretends to be gcc (4.2.1 by default), so needs to be excluded.
  */
-#ifndef SWIG
-#if defined __GNUC__ && (__GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 1))
-#error "gcc version is too old, need gcc-4.1 or better"
+#if !defined __clang__ && !defined SWIG
+#if defined __GNUC__ && (__GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 4))
+#error "gcc version is too old, need gcc-4.4 or better"
 #endif
 #endif
 
 /*
- * Similarly, we require a compiler that is at least vs2012.
+ * Similarly, we require a compiler that is at least vs2015.
  * Enforce this here.
  */
-#if defined _MSC_VER && _MSC_VER < 1700
-#error "cl.exe version is too old, need vs2012 or better"
+#if defined _MSC_VER && _MSC_VER < 1900
+#error "cl.exe version is too old, need vs2015 or better"
 #endif
 
 
@@ -836,7 +855,7 @@ typedef void * UserVA;
  *    Note that there is no annotation for "neither."
  */
 
-#if defined __GNUC__ && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 3))
+#if defined __GNUC__
 #define HOT __attribute__((hot))
 #define COLD __attribute__((cold))
 #else

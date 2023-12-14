@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -162,6 +162,37 @@ GetCallerEFlags(void)
    X86MSR_SetMSR(MSR_BIOS_SIGN_ID, 0),          \
    __GET_EAX_FROM_CPUID(1),                     \
    X86MSR_GetMSR(MSR_BIOS_SIGN_ID))
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * CLFLUSH --
+ *
+ *      Wrapper around the CLFLUSH instruction.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      See CLFLUSH instruction in Intel SDM or AMD Programmer's Manual.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+CLFLUSH(const void *addr)
+{
+#ifdef __GNUC__
+   __asm__ __volatile__(
+      "clflush %0"
+      :: "m" (*(uint8 *)addr));
+#elif defined _MSC_VER
+   _mm_clflush(addr);
+#else
+#error No compiler defined for CLFLUSH
+#endif
+}
 
 
 /*
@@ -379,50 +410,57 @@ LOCKED_INSN_BARRIER(void)
  * accesses accross the barrier. It is not a CPU instruction, it is a compiler
  * directive (i.e. it does not emit any code).
  *
+ * => A compiler memory barrier on its own is useful for coordinating
+ *    with an interrupt handler (or preemption logic in the scheduler)
+ *    on the same CPU, so that the order of read and write
+ *    instructions in code that might be interrupted is consistent
+ *    with the barriers. But when there are other CPUs involved, or
+ *    other types of devices like memory-mapped I/O and DMA
+ *    controllers, a compiler memory barrier is not enough.
+ *
  * A CPU memory barrier prevents the CPU from re-ordering memory accesses
  * accross the barrier. It is a CPU instruction.
  *
+ * => On its own the CPU instruction isn't useful because the compiler
+ *    may reorder loads and stores around the CPU instruction.  It is
+ *    useful only when combined with a compiler memory barrier.
+ *
  * A memory barrier is the union of a compiler memory barrier and a CPU memory
- * barrier. A compiler memory barrier is a useless construct by itself. It is
- * only useful when combined with a CPU memory barrier, to implement a memory
  * barrier.
  *
  *    Semantics
  *    ---------
  *
- * At the time COMPILER_*_BARRIER were created (and references to them were
+ * At the time COMPILER_MEM_BARRIER was created (and references to it were
  * added to the code), the code was only targetting x86. The intent of the code
  * was really to use a memory barrier, but because x86 uses a strongly ordered
- * memory model, the CPU would not re-order memory accesses, and the code could
- * get away with using just a compiler memory barrier. So COMPILER_*_BARRIER
- * were born and were implemented as compiler memory barriers _on x86_. But
- * make no mistake, _the semantics that the code expects from
- * COMPILER_*_BARRIER are that of a memory barrier_!
+ * memory model, the CPU would not re-order most memory accesses (store-load
+ * ordering still requires MFENCE even on x86), and the code could get away
+ * with using just a compiler memory barrier. So COMPILER_MEM_BARRIER was born
+ * and was implemented as a compiler memory barrier _on x86_. But make no
+ * mistake, _the semantics that the code expects from COMPILER_MEM_BARRIER is
+ * that of a memory barrier_!
  *
  *    DO NOT USE!
  *    -----------
  *
- * On at least one non-x86 architecture, COMPILER_*_BARRIER are
- * 1) Misnomers
+ * On at least one non-x86 architecture, COMPILER_MEM_BARRIER is
+ * 1) A misnomer
  * 2) Not fine-grained enough to provide the best performance.
- * For the above two reasons, usage of COMPILER_*_BARRIER is now deprecated.
- * _Do not add new references to COMPILER_*_BARRIER._ Instead, precisely
+ * For the above two reasons, usage of COMPILER_MEM_BARRIER is now deprecated.
+ * _Do not add new references to COMPILER_MEM_BARRIER._ Instead, precisely
  * document the intent of your code by using
  * <mem_type/purpose>_<before_access_type>_BARRIER_<after_access_type>.
- * Existing references to COMPILER_*_BARRIER are being slowly but surely
- * converted, and when no references are left, COMPILER_*_BARRIER will be
+ * Existing references to COMPILER_MEM_BARRIER are being slowly but surely
+ * converted, and when no references are left, COMPILER_MEM_BARRIER will be
  * retired.
  *
  * Thanks for pasting this whole comment into every architecture header.
  */
 
 #if defined __GNUC__
-#   define COMPILER_READ_BARRIER()  COMPILER_MEM_BARRIER()
-#   define COMPILER_WRITE_BARRIER() COMPILER_MEM_BARRIER()
 #   define COMPILER_MEM_BARRIER()   __asm__ __volatile__("" ::: "memory")
 #elif defined _MSC_VER
-#   define COMPILER_READ_BARRIER()  _ReadBarrier()
-#   define COMPILER_WRITE_BARRIER() _WriteBarrier()
 #   define COMPILER_MEM_BARRIER()   _ReadWriteBarrier()
 #endif
 
@@ -432,12 +470,11 @@ LOCKED_INSN_BARRIER(void)
  * <mem_type/purpose>_<before_access_type>_BARRIER_<after_access_type>
  *
  * where:
- *   <mem_type/purpose> is either SMP, DMA, or MMIO.
+ *   <mem_type/purpose> is either INTR, SMP, DMA, or MMIO.
  *   <*_access type> is either R(load), W(store) or RW(any).
  *
  * Above every use of these memory barriers in the code, there _must_ be a
  * comment to justify the use, i.e. a comment which:
- *
  * 1) Precisely identifies which memory accesses must not be re-ordered across
  *    the memory barrier.
  * 2) Explains why it is important that the memory accesses not be re-ordered.
@@ -488,7 +525,7 @@ LOCKED_INSN_BARRIER(void)
  * i.e. WB using above terminology), so we only need to worry about store-load
  * reordering. In other cases a compiler barrier is sufficient. SMP store-load
  * reordering is handled with a locked XOR (instead of a proper MFENCE
- * instructon) for performance reasons. See PR 1674199 for more details.
+ * instruction) for performance reasons. See PR 1674199 for more details.
  *
  * DMA barriers are equivalent to SMP barriers on x86.
  *
@@ -498,14 +535,14 @@ LOCKED_INSN_BARRIER(void)
  * not guarding non-temporal/WC accesses.
  */
 
-#define SMP_R_BARRIER_R()     COMPILER_READ_BARRIER()
-#define SMP_R_BARRIER_W()     COMPILER_MEM_BARRIER()
-#define SMP_R_BARRIER_RW()    COMPILER_MEM_BARRIER()
+#define SMP_R_BARRIER_R()     INTR_R_BARRIER_R()
+#define SMP_R_BARRIER_W()     INTR_R_BARRIER_W()
+#define SMP_R_BARRIER_RW()    INTR_R_BARRIER_RW()
 #define SMP_W_BARRIER_R()     LOCKED_INSN_BARRIER()
-#define SMP_W_BARRIER_W()     COMPILER_WRITE_BARRIER()
+#define SMP_W_BARRIER_W()     INTR_W_BARRIER_W()
 #define SMP_W_BARRIER_RW()    LOCKED_INSN_BARRIER()
 #define SMP_RW_BARRIER_R()    LOCKED_INSN_BARRIER()
-#define SMP_RW_BARRIER_W()    COMPILER_MEM_BARRIER()
+#define SMP_RW_BARRIER_W()    INTR_RW_BARRIER_W()
 #define SMP_RW_BARRIER_RW()   LOCKED_INSN_BARRIER()
 
 /*

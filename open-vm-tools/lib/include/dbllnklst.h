@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2017,2020,2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -59,6 +59,9 @@
  * dbllnklst.h --
  *
  *    Double linked lists
+ *
+ *    Both circular and anchored (linear) lists are supported.
+ *    See bora/lib/misc/dbllnklst.c for sample code showing both use cases.
  */
 
 #ifndef _DBLLNKLST_H_
@@ -66,6 +69,7 @@
 
 #define INCLUDE_ALLOW_MODULE
 #define INCLUDE_ALLOW_USERLEVEL
+#define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
 #include "vm_basic_types.h"

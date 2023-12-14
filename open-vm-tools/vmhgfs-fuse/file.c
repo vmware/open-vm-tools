@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013,2018-2019 VMware, Inc. All rights reserved.
+ * Copyright (c) 2013,2018-2019, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -612,7 +612,7 @@ HgfsDoRead(HgfsHandle handle,  // IN:  Handle for this file
             payload = ((HgfsReplyRead *)HGFS_REQ_PAYLOAD(req))->payload;
          }
 
-         /* Sanity check on read size. */
+         /* Confidence check on read size. */
          if (actualSize > count) {
             LOG(4, ("Server reply: read too big!\n"));
             result = -EPROTO;

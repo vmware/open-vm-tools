@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -38,6 +38,10 @@
 #include "unicodeBase.h"
 #include "conf.h"
 
+#include "vm_tools_version.h"
+#include "buildNumber.h"
+#include "vm_product.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -55,6 +59,9 @@ using namespace ImgCustCommon;
 
 // Using 3600s as the upper limit of timeout value in tools.conf.
 #define MAX_TIMEOUT_FROM_TOOLCONF 3600
+// Using 1800s as the upper limit of waiting for cloud-init execution done
+// timeout value in tools.conf.
+#define MAX_TIMEOUT_WAIT_FOR_CLOUDINIT_DONE 1800
 
 static char *DeployPkgGetTempDir(void);
 
@@ -86,12 +93,46 @@ DeployPkgDeployPkgInGuest(ToolsAppCtx *ctx,    // IN: app context
    ToolsDeployPkgError ret = TOOLSDEPLOYPKG_ERROR_SUCCESS;
 #ifndef _WIN32
    int processTimeout;
+   int waitForCloudinitDoneTimeout;
 #endif
 
-   /* Init the logger */
-   DeployPkgLog_Open();
+   /*
+    * Init the logger
+    * PR 2109109. If the deployPkg log handler has been configured explicitly in
+    * tools.conf, then output deployPkg log through the specified handler.
+    * https://wiki.eng.vmware.com/Configuring_Logging_for_the_VMware_Tools
+    * If not, output the log to the default log file defined in
+    * function DeployPkgLog_Open.
+    * The deployPkg log handler is mainly configured for debugging purpose.
+    */
+   char key[128];
+   char *handler;
+   snprintf(key, sizeof key, "%s.handler", G_LOG_DOMAIN);
+   handler = VMTools_ConfigGetString(ctx->config,
+                                     CONFGROUPNAME_LOGGING,
+                                     key,
+                                     NULL);
+   if (handler != NULL &&
+       (strcmp(handler, "vmx") == 0 || strcmp(handler, "file") == 0 ||
+        strcmp(handler, "file+") == 0)) {
+      g_debug("Using deployPkg log handler: %s", handler);
+      free(handler);
+   } else {
+      DeployPkgLog_Open();
+
+      if (handler != NULL) {
+         DeployPkgLog_Log(log_debug,
+                          "Log handler %s is not applicable for deployPkg,"
+                          " ignore it and ouput the log in GOS customization"
+                          " default log path.",
+                          handler);
+         free(handler);
+      }
+   }
    DeployPkg_SetLogger(DeployPkgLog_Log);
 
+   DeployPkgLog_Log(log_info, "%s Version: %s (%s)", VMWARE_TOOLS_SHORT_NAME,
+                    TOOLS_VERSION_EXT_CURRENT_STR, BUILD_NUMBER);
    DeployPkgLog_Log(log_debug, "Deploying %s", pkgFile);
 
 #ifdef _WIN32
@@ -119,10 +160,10 @@ DeployPkgDeployPkgInGuest(ToolsAppCtx *ctx,    // IN: app context
     * Using 0 as the default value of CONFNAME_DEPLOYPKG_PROCESSTIMEOUT in tools.conf
     */
    processTimeout =
-        VMTools_ConfigGetInteger(ctx->config,
-                                 CONFGROUPNAME_DEPLOYPKG,
-                                 CONFNAME_DEPLOYPKG_PROCESSTIMEOUT,
-                                 0);
+      VMTools_ConfigGetInteger(ctx->config,
+                               CONFGROUPNAME_DEPLOYPKG,
+                               CONFNAME_DEPLOYPKG_PROCESSTIMEOUT,
+                               0);
    if (processTimeout > 0 && processTimeout <= MAX_TIMEOUT_FROM_TOOLCONF) {
       DeployPkgLog_Log(log_debug, "[%s] %s in tools.conf: %d",
                        CONFGROUPNAME_DEPLOYPKG,
@@ -136,6 +177,41 @@ DeployPkgDeployPkgInGuest(ToolsAppCtx *ctx,    // IN: app context
                        CONFNAME_DEPLOYPKG_PROCESSTIMEOUT);
       DeployPkgLog_Log(log_debug, "The valid timeout value range: 1 ~ %d",
                        MAX_TIMEOUT_FROM_TOOLCONF);
+   }
+
+   /*
+    * Get timeout of waiting for cloud-init execution done from tools.conf.
+    * Only when a valid 'timeout' got from tools.conf, deployPkg will call
+    * DeployPkg_SetWaitForCloudinitDoneTimeout to overwrite the default timeout
+    * of waiting for cloud-init execution done.
+    * The valid value range is from 0 to MAX_TIMEOUT_WAIT_FOR_CLOUDINIT_DONE.
+    * Return an invalid value -1 if CONFNAME_DEPLOYPKG_WAIT_CLOUDINIT_TIMEOUT is
+    * not set in tools.conf.
+    */
+   waitForCloudinitDoneTimeout =
+      VMTools_ConfigGetInteger(ctx->config,
+                               CONFGROUPNAME_DEPLOYPKG,
+                               CONFNAME_DEPLOYPKG_WAIT_CLOUDINIT_TIMEOUT,
+                               -1);
+   if (waitForCloudinitDoneTimeout >= 0 &&
+       waitForCloudinitDoneTimeout <= MAX_TIMEOUT_WAIT_FOR_CLOUDINIT_DONE) {
+      DeployPkgLog_Log(log_debug, "[%s] %s in tools.conf: %d",
+                       CONFGROUPNAME_DEPLOYPKG,
+                       CONFNAME_DEPLOYPKG_WAIT_CLOUDINIT_TIMEOUT,
+                       waitForCloudinitDoneTimeout);
+      DeployPkg_SetWaitForCloudinitDoneTimeout(waitForCloudinitDoneTimeout);
+   } else {
+      if (waitForCloudinitDoneTimeout != -1) {
+         DeployPkgLog_Log(log_debug,
+                          "Ignore invalid value %d from tools.conf [%s] %s",
+                          waitForCloudinitDoneTimeout,
+                          CONFGROUPNAME_DEPLOYPKG,
+                          CONFNAME_DEPLOYPKG_WAIT_CLOUDINIT_TIMEOUT);
+      }
+      DeployPkgLog_Log(log_debug, "The valid [%s] %s value range: 0 ~ %d",
+                       CONFGROUPNAME_DEPLOYPKG,
+                       CONFNAME_DEPLOYPKG_WAIT_CLOUDINIT_TIMEOUT,
+                       MAX_TIMEOUT_WAIT_FOR_CLOUDINIT_DONE);
    }
 #endif
 
@@ -210,7 +286,6 @@ void
 DeployPkgExecDeploy(ToolsAppCtx *ctx,   // IN: app context
                     void *pkgName)      // IN: pkg file name
 {
-   char errMsg[2048];
    ToolsDeployPkgError ret;
    char *pkgNameStr = (char *) pkgName;
    Bool enableCust;
@@ -246,9 +321,16 @@ DeployPkgExecDeploy(ToolsAppCtx *ctx,   // IN: app context
       g_free(msg);
       vm_free(result);
    } else {
+      char errMsg[2048];
       /* Unpack the package and run the command. */
       ret = DeployPkgDeployPkgInGuest(ctx, pkgNameStr, errMsg, sizeof errMsg);
       if (ret != TOOLSDEPLOYPKG_ERROR_SUCCESS) {
+#ifdef _WIN32
+        /*
+         * PR 1631160. for Linux, sysimage has sent failure status in vmx when
+         * deploy pkg failed, to avoid sending failure events repeatedly, here
+         * is only sending status in the case of windows.
+         */
          gchar *msg = g_strdup_printf("deployPkg.update.state %d %d %s",
                                       TOOLSDEPLOYPKG_DEPLOYING,
                                       TOOLSDEPLOYPKG_ERROR_DEPLOY_FAILED,
@@ -261,6 +343,7 @@ DeployPkgExecDeploy(ToolsAppCtx *ctx,   // IN: app context
                       TOOLSDEPLOYPKG_ERROR_DEPLOY_FAILED);
          }
          g_free(msg);
+#endif
          g_warning("DeployPkgInGuest failed, error = %d\n", ret);
       }
    }
@@ -397,23 +480,26 @@ DeployPkgGetTempDir(void)
    int randIndex;
 #ifndef _WIN32
    /*
-    * PR 2115630. On Linux, use /var/run or /run directory
-    * to hold the package.
+    * The directories in the array must be sorted by priority from high to low.
+    * PR 2942062. On Nested ESXi, use /var/run/vmware-imc directory to hold the
+    * package if it exists.
+    * PR 2115630. On Linux, use /var/run or /run directory to hold the package.
     */
-   const char *runDir = "/run";
-   const char *varRunDir = "/var/run";
+   const char *searchDirs[] = {
+      "/var/run/vmware-imc",         // The highest priority
+      "/var/run",
+      "/run"                         // The lowest priority
+   };
 
-   if (File_IsDirectory(varRunDir)) {
-      dir = strdup(varRunDir);
-      if (dir == NULL) {
-         g_warning("%s: strdup failed\n", __FUNCTION__);
-         goto exit;
-      }
-   } else if (File_IsDirectory(runDir)) {
-      dir = strdup(runDir);
-      if (dir == NULL) {
-         g_warning("%s: strdup failed\n", __FUNCTION__);
-         goto exit;
+   size_t index;
+   for (index = 0; index < ARRAYSIZE(searchDirs); index++) {
+      if (File_IsDirectory(searchDirs[index])) {
+         dir = strdup(searchDirs[index]);
+         if (dir == NULL) {
+            g_warning("%s: strdup failed\n", __FUNCTION__);
+            goto exit;
+         }
+         break;
       }
    }
 #endif

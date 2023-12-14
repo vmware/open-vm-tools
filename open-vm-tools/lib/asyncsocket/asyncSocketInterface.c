@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2016-2020 VMware, Inc. All rights reserved.
+ * Copyright (C) 2016-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -987,6 +987,64 @@ AsyncSocket_RecvPartial(AsyncSocket *asock,         // IN
 /*
  *----------------------------------------------------------------------------
  *
+ * AsyncSocket_Peek --
+ *
+ *      Similar to AsyncSocket_RecvPartial, AsyncSocket_Peek reads the socket
+ *      buffer contents into the provided buffer by registering a callback that
+ *      will fire when data becomes available.
+ *
+ *      Due to underying poll implementation, peeks are always "partial" ie.
+ *      callback returns when less than or equal amount of requested length is
+ *      available to read. Peek callers may use recv() to drain smaller amounts
+ *      notified by peek-callback and then peek for more data if that helps.
+ *
+ *      There are some noteworthy differences compared to Recv():
+ *
+ *      - By definition, Recv() drains the socket buffer while Peek() does not
+ *
+ *      - Asyncsocket Recv() is post-SSL since it internally calls SSL_Read()
+ *        so application always gets decrypted data when entire SSL record is
+ *        decrypted. Peek() on the other hand is SSL agnostic; it reads
+ *        directly from the underlying host socket and makes no attempt to
+ *        decrypt it or check for any data buffered within SSL. So asyncsocket
+ *        user doing a recv() followed by peek() may get different results.
+ *        That is why is it most safe to use peek() before SSL is setup on the
+ *        TCP connection.
+ *
+ *      - Peek is one-shot in nature, meaning that peek callbacks are
+ *        unregistered from poll once fired.
+ *
+ * Results:
+ *      ASOCKERR_*.
+ *
+ * Side effects:
+ *      Could register poll callback.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+AsyncSocket_Peek(AsyncSocket *asock,         // IN
+                 void *buf,                  // IN (buffer to fill)
+                 int len,                    // IN
+                 void *cb,                   // IN
+                 void *cbData)               // IN
+{
+   int ret;
+   if (VALID(asock, recv)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->peek(asock, buf, len, cb, cbData);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * AsyncSocket_RecvPassedFd --
  *
  *      See AsyncSocket_Recv.  Besides that it allows for receiving one
@@ -1193,6 +1251,48 @@ AsyncSocket_Close(AsyncSocket *asock)         // IN
       AsyncSocketLock(asock);
       ret = VT(asock)->close(asock);
       ASSERT(!asock->inited);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocket_CloseWrite --
+ *
+ *      Close the write side of AsyncSocket, and leave the read side open. This
+ *      can be used to implement a shutdown(SHUT_WR...) equivalent.
+ *
+ *      This function is meant to be called after the socket has been connected
+ *      If no error, pending send is flushed the same way as AsyncSocket_Close,
+ *      and then the socket enters half-closed state, disallowing further send.
+ *
+ *      Like AsyncSocket_Close, it's safe to call at any time, but it could err
+ *      when the socket is not connected. Unlike Close, read side of the socket
+ *      is left intact, and the the socket is not released.
+ *
+ *      If the socket is already closed, it returns success.
+ *
+ * Results:
+ *      ASOCKERR_*.
+ *
+ * Side effects:
+ *      Send is not permitted after this call.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+AsyncSocket_CloseWrite(AsyncSocket *asock)         // IN
+{
+   int ret;
+   if (VALID(asock, closeWrite)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->closeWrite(asock);
       AsyncSocketUnlock(asock);
    } else {
       ret = ASOCKERR_INVAL;
@@ -1455,12 +1555,11 @@ AsyncSocket_GetWebSocketCookie(AsyncSocket *asock)    // IN
  *
  * AsyncSocket_SetWebSocketCookie --
  *
- *      Return the Cookie field value supplied during a WebSocket
- *      connection request.
+ *      Insert Set-Cookie HTTP response header during WebSocket connection.
  *
  * Results:
- *      Cookie, if asock is WebSocket.
- *      NULL, if asock is not WebSocket.
+ *      ASOCKERR_SUCCESS if we finished the operation, ASOCKERR_* error codes
+ *      otherwise.
  *
  * Side effects:
  *      None.

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2005-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2005-2022 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -133,6 +133,8 @@ DnD_CreateStagingDirectory(void)
    if (!found) {
       rqContext *context;
 
+      /* We're just using the time as a random seed, not as a timestamp. */
+      /* coverity[store_truncates_time_t] */
       context = Random_QuickSeed((unsigned)time(NULL));
 
       for (i = 0; i < 10; i++) {
@@ -270,7 +272,7 @@ DnD_DeleteStagingFiles(const char *stagingDir,  // IN:
                ret = FALSE;
             }
          } else {
-            if (File_Unlink(curPath) == -1) {
+            if (File_Unlink(curPath) != 0) {
                ret = FALSE;
             }
          }
