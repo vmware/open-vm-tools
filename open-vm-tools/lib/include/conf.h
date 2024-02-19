@@ -600,6 +600,13 @@
 
 #   define CONF_VMWARE_TOOLS_REGKEY_W WSTR(CONF_VMWARE_TOOLS_REGKEY)
 #   define CONF_VMWARE_TOOLS_INSTPATH_KEY_W WSTR(CONF_VMWARE_TOOLS_INSTPATH_KEY)
+#   ifdef UNITY_FOR_VIEW
+#      define CONF_VMWARE_RDE_REGKEY  "SOFTWARE\\VMware, Inc.\\VMware VDM\\RemoteExperienceAgent"
+#      define CONF_VMWARE_RDE_INSTPATH_KEY "InstallPath"
+
+#      define CONF_VMWARE_RDE_REGKEY_W WSTR(CONF_VMWARE_RDE_REGKEY)
+#      define CONF_VMWARE_RDE_INSTPATH_KEY_W WSTR(CONF_VMWARE_RDE_INSTPATH_KEY)
+#   endif
 #endif
 
 /* Wait 5 seconds between polls to see if the conf file has changed */
