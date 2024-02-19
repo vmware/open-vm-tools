@@ -1,3 +1,72 @@
+commit 9c0491a6654630397aad6a884e6aa04f1cd962e1
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Feb 19 06:32:44 2024 -0800
+
+    Changes to common source files not applicable to open-vm-tools at this time.
+
+commit 6057078343bc803ff1614fc2039e31bec49bcf35
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Feb 19 06:32:44 2024 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit e8cbf5e4db323638b95999bb268a0d2cb2ab4ce5
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Feb 19 06:32:44 2024 -0800
+
+    Changes to common source files not applicable to open-vm-tools at this time.
+
+commit 86b1b5bf4a688e9e986400249a8170d03f24bea9
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Feb 19 06:32:44 2024 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit aad5ad195a0a502982e7cc8d5269d13ea6e38a85
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Feb 19 06:32:44 2024 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 3095d26c3d3f044911771d436c31b0cf51abea35
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Feb 19 06:32:44 2024 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 60094472f75aefbbc957574faa8c1663ee0625d4
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Feb 19 06:32:44 2024 -0800
+
+    lib/file/file.c: Handle EACCES during File_CreateDirectoryHierarchyEx
+    
+    On DELL thinOS, while creating an existing dir in a path without write
+    permission, mkdir returns EACCES. This breaks the directory
+    hierarchy check.
+    This patch handles the EACCES by checking the file with euidaccess
+    after an EACCES failure.
+
+commit 777dc80ddfcf8980c055ab33091200923a06ab67
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Feb 19 06:32:44 2024 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit c0cc78a3fa53c8f6ea82aafda981251e753bae4d
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Feb 19 06:32:44 2024 -0800
+
+    Fix out-of-bound access issues reported by Coverity
+    
+    Do not pass PATH_MAX and FILENAME_MAX to Str_Strlen function call.
+
+commit 4986a2b0cbb94e8d6e3a6e4414215246aa0cbbbd
+Author: Katy Feng <fkaty@vmware.com>
+Date:   Tue Nov 21 12:23:20 2023 -0800
+
+    Update Changelog with the granular push of Nov. 21, 2023.
+    - plus ChangeLog update of Nov. 16, 2023.
+
 commit e6c2e7a6426335e6b6cef87e223a687b4623ce8a
 Author: Katy Feng <fkaty@vmware.com>
 Date:   Tue Nov 21 12:17:25 2023 -0800
