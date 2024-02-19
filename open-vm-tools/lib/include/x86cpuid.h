@@ -1422,7 +1422,7 @@ FLAG( 81F,  0, EAX,  0,  1, SME,                                 NO,    0 ) \
 FLAG( 81F,  0, EAX,  1,  1, SEV,                                 YES,  17 ) \
 FLAG( 81F,  0, EAX,  2,  1, PAGE_FLUSH_MSR,                      NO,    0 ) \
 FLAG( 81F,  0, EAX,  3,  1, SEV_ES,                              YES,  17 ) \
-FLAG( 81F,  0, EAX,  4,  1, SEV_SNP,                             NO,    0 ) \
+FLAG( 81F,  0, EAX,  4,  1, SEV_SNP,                             YES, FUT ) \
 FLAG( 81F,  0, EAX,  5,  1, VMPL,                                YES, FUT ) \
 FLAG( 81F,  0, EAX,  6,  1, RMPQUERY,                            NO,    0 ) \
 FLAG( 81F,  0, EAX,  7,  1, VMPL_SSS,                            NO,    0 ) \
