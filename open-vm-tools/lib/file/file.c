@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2022 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1785,6 +1785,16 @@ File_CreateDirectoryHierarchyEx(const char *pathName,   // IN:
             temp = NULL;
          }
       } else {
+         /*
+          * For DELL thinOS, calling `mkdir' for an existing directory in a
+          * path which we do not have write permission will return with EACCES
+          * instead of EEXIST. Here we test again using `euidaccess' to work
+          * around this.
+          */
+         if (err == EACCES && Posix_EuidAccess(temp, F_OK) == 0) {
+            err = EEXIST;
+         }
+
          if (err == EEXIST) {
             FileData fileData;
 
