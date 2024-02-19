@@ -969,12 +969,13 @@ typedef int pid_t;
 
 /* VMW_FALLTHROUGH
  *
- *   Instructs GCC 9 and above to not warn when a case label of a
+ *   Instructs capable compilers to not warn when a case label of a
  *   'switch' statement falls through to the next label.
  *
- *   If not GCC 9 or above, expands to nothing.
+ *   If not a matched compiler, expands to nothing.
  */
-#if __GNUC__ >= 9
+#if (defined(__GNUC__) && (__GNUC__ >= 9)) ||           \
+    (defined(__clang__) && (__clang_major__ >= 13))
 #define VMW_FALLTHROUGH() __attribute__((fallthrough))
 #else
 #define VMW_FALLTHROUGH()
