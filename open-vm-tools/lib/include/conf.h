@@ -681,6 +681,34 @@
 
 /*
  ******************************************************************************
+ * BEGIN AMSI Fileless goodies.
+ */
+
+/**
+ * Defines the string used for vsep plugin AMSI Fileless config file group
+ */
+#define CONFGROUPNAME_AMSI "giamsi"
+
+/* Default state of AMSI config*/
+#define VSEP_DEFAULT_AMSI_STATE FALSE
+
+/**
+ * Defines user-defined maximum AMSI client connections.
+ */
+#define CONFNAME_AMSI_MAX_CLIENT_CONNECTIONS "amsi-max-client-connections"
+
+/**
+ * Defines user-defined maximum script size supported in fileless.
+ */
+#define CONFNAME_AMSI_MAX_SCRIPT_SIZE_IN_BYTES "amsi-max-script-size-in-bytes"
+
+/*
+ * END Fileless goodies.
+ ******************************************************************************
+ */
+
+/*
+ ******************************************************************************
  * BEGIN CarbonBlack helper plugin goodies.
  */
 
