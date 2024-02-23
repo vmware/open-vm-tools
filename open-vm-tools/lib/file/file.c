@@ -2821,3 +2821,34 @@ File_IsSubPathOf(const char *base, // IN: the base path to test against.
    return isSubPath;
 }
 
+
+/*
+ *---------------------------------------------------------------------------
+ *
+ * File_DoesVolumeSupportConvertBlocks --
+ *
+ *     Does the volume support the new convert block allocation
+ *     IOCTL?
+ *
+ * Results:
+ *     TRUE   Yes
+ *     FALSE  No
+ *
+ * Side effects:
+ *     None
+ *
+ *---------------------------------------------------------------------------
+ */
+
+Bool
+File_DoesVolumeSupportConvertBlocks(const char *pathName)  // IN:
+{
+#if defined(VMX86_SERVER)
+   uint32 vmfsVersion;
+   return (File_GetVMFSVersion(pathName, &vmfsVersion) >= 0 &&
+           vmfsVersion >= 6);
+#else
+   UNUSED_VARIABLE(pathName);
+   return FALSE;
+#endif
+}
