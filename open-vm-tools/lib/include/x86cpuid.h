@@ -608,7 +608,7 @@ FLAG(   7,  1, EAX, 12,  1, FAST_SHORT_CMPSB_SCASB,              YES,  20 ) \
 FLAG(   7,  1, EAX, 19,  1, WRMSRNS,                             NO,    0 ) \
 FLAG(   7,  1, EAX, 21,  1, AMX_FP16,                            YES,  21 ) \
 FLAG(   7,  1, EAX, 22,  1, HRESET,                              NO,    0 ) \
-FLAG(   7,  1, EAX, 23,  1, AVX_IFMA,                            NO,    0 ) \
+FLAG(   7,  1, EAX, 23,  1, AVX_IFMA,                            YES, FUT ) \
 FLAG(   7,  1, EAX, 26,  1, LAM,                                 NO,    0 ) \
 FLAG(   7,  1, EAX, 27,  1, MSRLIST,                             NO,    0 ) \
 FLAG(   7,  1, EBX,  0,  1, LEAF7_PPIN,                          NO,    0 ) \
