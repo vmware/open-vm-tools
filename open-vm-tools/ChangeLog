@@ -1,3 +1,57 @@
+commit 70684e40254279f8b8e16dbf51a33c0407d22703
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Fri Feb 23 02:25:10 2024 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit f9769f7b4f90e5da0ee51b699b203e1e737e0b90
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Fri Feb 23 02:25:10 2024 -0800
+
+    Changes to common source files not applicable to open-vm-tools.
+
+commit fe771b09686ac3160886f685488a3fd7dede7831
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Fri Feb 23 02:25:10 2024 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit c199ccedd3fd8417c0d58b4ca1d3675224d8ac48
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Fri Feb 23 02:25:10 2024 -0800
+
+    Power Ops: Attempt to execute file path only
+    
+    Adding a check to verify that the path to execute
+    is a file only and not a directory.
+    
+    Pull request: https://github.com/vmware/open-vm-tools/pull/689
+
+commit c35063e1280f549342a993453cadff3cc12b8ca6
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Fri Feb 23 02:25:10 2024 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit e4f0f9b0d72f583b5129fc8d2b19dd5bb4497d74
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Fri Feb 23 02:25:09 2024 -0800
+
+    Change to common source files not applicable to open-vm-tools.
+
+commit 190202266d0d198cef38c34420be6057bd75e3e2
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Fri Feb 23 02:25:09 2024 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 56ecc8b15b195a66d1476360b0a51579324e3820
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Feb 19 07:07:41 2024 -0800
+
+    Update Changelog with the granular push of Feb 19, 2024.
+    - plus ChangeLog update of Nov 21, 2023.
+
 commit 9c0491a6654630397aad6a884e6aa04f1cd962e1
 Author: Kruti <kpendharkar@vmware.com>
 Date:   Mon Feb 19 06:32:44 2024 -0800
