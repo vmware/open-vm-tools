@@ -88,7 +88,7 @@ RunScripts() {
 
    if [ -d "$scriptDir" ]; then
       for scriptFile in "$scriptDir"/*; do
-         if [ -x "$scriptFile" ]; then
+         if [ -f "$scriptFile" -a -x "$scriptFile" ]; then
             "$scriptFile" $powerOp
             exitCode=`expr $exitCode \| $?`
          fi
