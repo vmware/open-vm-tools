@@ -1,3 +1,16 @@
+commit a4b3c5996c1027cefc2e8dddcac24af2193c6284
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Wed Feb 28 09:33:57 2024 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 3b63dd72bf283e575d86d1b691d1191f26df7c0e
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Fri Feb 23 08:06:32 2024 -0800
+
+    Update Changelog with the granular push of Feb 23, 2024.
+    - plus ChangeLog update of Feb 19, 2024.
+
 commit 70684e40254279f8b8e16dbf51a33c0407d22703
 Author: Kruti <kpendharkar@vmware.com>
 Date:   Fri Feb 23 02:25:10 2024 -0800
