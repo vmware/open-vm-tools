@@ -1,3 +1,32 @@
+commit 70b3a68f08914f8a0321e5e244434445ab6264b6
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Sat Mar 9 20:56:08 2024 -0800
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit e8a1ee47e5c13611f1fec31a96d300c1aa5dd39c
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Sat Mar 9 20:56:08 2024 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 646fcb96b0dc9503824c62c1099f57fd3fb8845b
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Sat Mar 9 20:56:08 2024 -0800
+
+    [GDP][GdpPlugin]: Subscriber presence interrogation (ZeroData).
+    
+    This change allows empty/0 byte payload to be sent from GDP Plugin on guest
+    to the gdp daemon on host when querying for subscriber presence,
+    without publishing the data to the subscribers.
+
+commit 11647ac4a337e7b768c98b3753acd4e814e58939
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Wed Feb 28 10:01:36 2024 -0800
+
+    Update Changelog with the granular push of Feb 28, 2024.
+    - plus ChangeLog update of Feb 23, 2024.
+
 commit a4b3c5996c1027cefc2e8dddcac24af2193c6284
 Author: Kruti <kpendharkar@vmware.com>
 Date:   Wed Feb 28 09:33:57 2024 -0800
