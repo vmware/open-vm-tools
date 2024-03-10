@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2020-2021,2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2020-2021,2023-2024 Broadcom. All rights reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1647,9 +1648,16 @@ GdpTaskBuildPacket(TaskContext *taskCtx,     // IN/OUT
    GdpError gdpErr;
 
    ASSERT(topic != NULL);
-   ASSERT(data != NULL && dataLen > 0);
 
-   if (!Base64_Encode(data, dataLen, base64Data, sizeof base64Data, NULL)) {
+   if (data == NULL || dataLen == 0) {
+      /*
+       * ZeroData: Empty/no data is allowed only if requireSubs=true AND
+       *           gPublishState.cacheData=false.
+       */
+      ASSERT(requireSubs && !gPublishState.cacheData); /* see: GdpPublish() */
+      base64Data[0] = '\0';  // ZeroData: set empty payload.
+   } else if (!Base64_Encode(data, dataLen,
+                             base64Data, sizeof base64Data, NULL)) {
       g_info("%s: Base64_Encode failed, data length is %u.\n",
              __FUNCTION__, dataLen);
       return GDP_ERROR_DATA_SIZE;
@@ -3388,8 +3396,13 @@ GdpPublish(gint64 createTime,     // IN
    }
 
    if (data == NULL || dataLen == 0) {
-      g_info("%s: Topic '%s' has no data.\n", __FUNCTION__, topic);
-      return GDP_ERROR_INVALID_DATA;
+      /*
+       * ZeroData: Allow empty/no data when requireSubs=true and cacheData=false
+       */
+      if (!requireSubs || cacheData) {
+         g_info("%s: Topic '%s' has no data.\n", __FUNCTION__, topic);
+         return GDP_ERROR_INVALID_DATA;
+      }
    }
 
    if (token != NULL && *token == '\0') {
