@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 1998-2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2024 Broadcom. All rights reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -4500,7 +4501,7 @@ Hostinfo_GetLibraryPath(void *addr)  // IN
     *
     * Does NOT work for iOS since iOS does not support dynamic loading.
     */
-#if !TARGET_OS_IPHONE
+#if !TARGET_OS_IPHONE && !defined(__FreeBSD__)
    Dl_info info;
 
    if (dladdr(addr, &info)) {
