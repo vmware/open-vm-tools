@@ -1,3 +1,107 @@
+commit c2056a39e9bf4fc91cd457c4ef12c29a3e9af3a7
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Mar 18 11:30:49 2024 -0700
+
+    Correct copyright year to 2024.
+
+commit f510b78fe043392325ba0cede8066994baaa8276
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Mar 18 11:03:49 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit acfd8ab650f10759b09a93f8adde71459a131392
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Mar 18 11:03:49 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 3ad15e4e776738b993c8c2da8119f0c1a7bf0a91
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Mar 18 11:03:48 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 652a17c1d06a0ced2fceecde700ad93623d311b6
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Mar 18 11:03:48 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 9adc1653c0d40aef5e27e415bfa7cc111bda31bd
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Mar 18 11:03:48 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 7884ab85eebacf7c864e1eecab600b94dc9dd844
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Mar 18 11:03:48 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit d27143ceb08381f644fc93d8b685965685f87f1a
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Mar 18 11:03:48 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 51036fade754381b95821d54ec5e01dd56bbd5dd
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Mar 18 11:03:48 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit ad34c945344422fac091d7e7d5c1869edf4b0cdf
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Mar 18 11:03:48 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 96d97fdf1031b1c71656c7089e0ecfb7390af2eb
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Mar 18 11:03:48 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit fc9c9503ee2d4a1a18aed73d001ef6340491d302
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Mar 18 11:03:48 2024 -0700
+
+    [GDP][GdpPlugin] Subscriber presence interrogation (ZeroData).
+    
+    This change allows empty/0 byte payload to be sent from GDP Plugin on guest
+    to the gdp daemon on host when querying for subscriber presence,
+    without publishing the data to the subscribers.
+
+commit 66fb7a4816661670889d3f6f6cb74895cfb8c6fe
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Mar 18 11:03:48 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit e3ca1f9beea77e7423c1c21d8f698b18d4ebe942
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Mar 18 11:03:48 2024 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 0eeef953ab3034bfd7034b5db7c064c9b287b791
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Mar 18 11:03:48 2024 -0700
+
+    Bump the VMware Tools version to 12.5.0 on "devel" branch.
+    
+    Ear-marked "SOCKET_WRENCH" as the tools tag for the 12.4.x series of
+    releases.
+
+commit 11647ac4a337e7b768c98b3753acd4e814e58939
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Wed Feb 28 10:01:36 2024 -0800
+
+    Update Changelog with the granular push of Feb 28, 2024.
+    - plus ChangeLog update of Feb 23, 2024.
+
 commit a4b3c5996c1027cefc2e8dddcac24af2193c6284
 Author: Kruti <kpendharkar@vmware.com>
 Date:   Wed Feb 28 09:33:57 2024 -0800
