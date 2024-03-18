@@ -244,7 +244,18 @@ ESB(void)
  * Thanks for pasting this whole comment into every architecture header.
  */
 
-#define COMPILER_MEM_BARRIER()   SMP_RW_BARRIER_RW()
+/*
+ * To match x86 TSO semantics, we need to guarantee ordering for
+ * everything _except_ store-load:
+ *
+ * - DMB ISHLD orders load-load and load-store.
+ * - DMB ISHST orders store-store.
+ *
+ * In contrast, SMP_RW_BARRIER_RW, or DMB ISH, orders all four
+ * (load-load, load-store, store-load, store-store), so it's stronger
+ * than we need -- like x86 MFENCE.
+ */
+#define COMPILER_MEM_BARRIER() do { _DMB(ISHLD); _DMB(ISHST); } while (0)
 
 /*
  * Memory barriers. These take the form of
