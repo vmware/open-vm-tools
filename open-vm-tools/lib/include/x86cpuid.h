@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 1998-2023 Broadcom. All rights reserved.
+ * Copyright (c) 1998-2024 Broadcom. All rights reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -613,7 +613,7 @@ FLAG(   7,  1, EAX, 26,  1, LAM,                                 NO,    0 ) \
 FLAG(   7,  1, EAX, 27,  1, MSRLIST,                             NO,    0 ) \
 FLAG(   7,  1, EBX,  0,  1, LEAF7_PPIN,                          NO,    0 ) \
 FLAG(   7,  1, EDX,  4,  1, AVX_VNNI_INT8,                       YES, FUT ) \
-FLAG(   7,  1, EDX,  5,  1, AVX_NE_CONVERT,                      NO,    0 ) \
+FLAG(   7,  1, EDX,  5,  1, AVX_NE_CONVERT,                      YES, FUT ) \
 FLAG(   7,  1, EDX,  8,  1, AMX_COMPLEX,                         NO,    0 ) \
 FLAG(   7,  1, EDX, 14,  1, PREFETCHI,                           YES,  21 ) \
 FLAG(   7,  1, EDX, 18,  1, CET_SSS,                             NO,    0 ) \
