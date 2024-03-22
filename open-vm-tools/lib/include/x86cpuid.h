@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 1998-2023 Broadcom. All rights reserved.
+ * Copyright (c) 1998-2023 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
