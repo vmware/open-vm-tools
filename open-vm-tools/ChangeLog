@@ -1,3 +1,32 @@
+commit 619e61f96c0a82c0b3054122c81a62a29301bf1b
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Mar 22 14:00:45 2024 -0700
+
+    Update the ReleaseNotes.md for the 12.4.0 open-vm-tools release.
+
+commit 6710ee5cd85d196fc8b16ce40f9e24444eed4e5a
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Mar 22 13:53:03 2024 -0700
+
+    Correct build number strings in the build_number.h header file.
+    Synch the Broadcom copyright capitalization with that in official
+    source repo. - 4 files.
+
+commit 6d7499f9c5c9eeb8ae2288280e310d40a0d42a41
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Thu Mar 21 13:00:23 2024 -0700
+
+    Prepare for the open-vm-tools 12.4.0 release.
+    - Update the tools version in the configure.ac.
+    - Update the build numbers in the buldNumber.h.
+
+commit 0056a21c3bb0d47da45792159dc17690bdda18a0
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Sun Mar 10 08:24:52 2024 -0700
+
+    Update ChangeLog with the granular push of Mar 9, 2024.
+    - plus ChangeLog update of Feb 28, 2024.
+
 commit 70b3a68f08914f8a0321e5e244434445ab6264b6
 Author: Kruti <kpendharkar@vmware.com>
 Date:   Sat Mar 9 20:56:08 2024 -0800
