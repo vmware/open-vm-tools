@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2004-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 2004-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -254,7 +254,13 @@ DynArray_Copy(DynArray *src,        // IN
  *
  * Yes, it's a poor man's template (but better than nothing).
  *
+ * Note that emscripten does not allow function pointer casting, and has a
+ * compiler warning to enforce this, so we cannot use DEFINE_DYNARRAY_TYPE
+ * as it relies on a function cast to define T##Array_QSort.
+ *
  */
+
+#ifndef __EMSCRIPTEN__
 
 #define DEFINE_DYNARRAY_TYPE(T)     DEFINE_DYNARRAY_NAMED_TYPE(T, T)
 
@@ -354,8 +360,11 @@ DynArray_Copy(DynArray *src,        // IN
    {                                                                    \
       return DynArray_Copy((DynArray *)src, (DynArray *)dest);          \
    }
+
 /* Define DynArray of DynBuf. */
 DEFINE_DYNARRAY_TYPE(DynBuf)
+
+#endif // ifndef __EMSCRIPTEN__
 
 #if defined(__cplusplus)
 }  // extern "C"

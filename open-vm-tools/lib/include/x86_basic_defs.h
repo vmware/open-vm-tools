@@ -78,6 +78,9 @@
 #ifndef CR3_PCID_MASK
 #define CR3_PCID_MASK  0xFFF
 #endif
+
+#define CR3_LAM_U57    (1ULL << 61)
+#define CR3_LAM_U48    (1ULL << 62)
 #define CR3_NO_FLUSH   (1ULL << 63)
 
 #define CR4_VME        0x00000001
@@ -104,7 +107,9 @@
 #define CR4_CET        0x00800000
 #define CR4_PKS        0x01000000
 #define CR4_UINTR      0x02000000
-#define CR4_RESERVED   CONST64U(0xfffffffffe089000)
+#define CR4_LASS       0x08000000
+#define CR4_LAM_SUP    0x10000000
+#define CR4_RESERVED   CONST64U(0xffffffffee089000)
 #define CR8_RESERVED   CONST64U(0xfffffffffffffff0)
 
 /*

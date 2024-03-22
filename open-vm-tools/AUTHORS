@@ -91,3 +91,6 @@ Dirk Mueller    Detect the proto files for containerd grpc client on SUSE like s
 
 Jan Engelhardt  Fix build problems with grpc (at least) 1.54
                 - https://github.com/vmware/open-vm-tools/pull/664
+
+Yun Zheng Hu    Power Ops: Attempt to execute file path only
+                - https://github.com/vmware/open-vm-tools/pull/689

@@ -383,6 +383,8 @@ Bool File_DoesVolumeSupportAcls(const char *pathName);
 
 Bool File_IsSubPathOf(const char *base, const char *path);
 
+Bool File_DoesVolumeSupportConvertBlocks(const char *pathName);
+
 /*
  *---------------------------------------------------------------------------
  *

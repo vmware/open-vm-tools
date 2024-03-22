@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2016-2022 VMware, Inc. All rights reserved.
+ * Copyright (C) 2016-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -383,7 +383,7 @@ AsyncSocket_UseNodelay(AsyncSocket *asyncSocket,  // IN/OUT
 {
    const int noDelayNative = noDelay ? 1 : 0;
    return AsyncSocket_SetOption(asyncSocket,
-                                IPPROTO_TCP, TCP_NODELAY,
+                                (AsyncSocketOpts_Layer)IPPROTO_TCP, TCP_NODELAY,
                                 &noDelayNative, sizeof noDelayNative);
 }
 
@@ -443,17 +443,17 @@ AsyncSocket_SetTCPTimeouts(AsyncSocket *asyncSocket,  // IN/OUT
 
       ret = VT(asyncSocket)->setOption
                (asyncSocket,
-                IPPROTO_TCP, TCP_KEEPIDLE,
+                (AsyncSocketOpts_Layer)IPPROTO_TCP, TCP_KEEPIDLE,
                 &keepIdleSec, sizeof keepIdleSec);
       if (ret == ASOCKERR_SUCCESS) {
          ret = VT(asyncSocket)->setOption
                   (asyncSocket,
-                   IPPROTO_TCP, TCP_KEEPINTVL,
+                   (AsyncSocketOpts_Layer)IPPROTO_TCP, TCP_KEEPINTVL,
                    &keepIntvlSec, sizeof keepIntvlSec);
          if (ret == ASOCKERR_SUCCESS) {
             ret = VT(asyncSocket)->setOption
                      (asyncSocket,
-                      IPPROTO_TCP, TCP_KEEPCNT,
+                      (AsyncSocketOpts_Layer)IPPROTO_TCP, TCP_KEEPCNT,
                       &keepCnt, sizeof keepCnt);
          }
       }
@@ -1214,6 +1214,38 @@ AsyncSocket_GetNetworkStats(AsyncSocket *asock,              // IN
    if (VALID(asock, getNetworkStats)) {
       AsyncSocketLock(asock);
       ret = VT(asock)->getNetworkStats(asock, stats);
+      AsyncSocketUnlock(asock);
+   } else {
+      ret = ASOCKERR_INVAL;
+   }
+   return ret;
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
+ * AsyncSocket_GetSNIHostname --
+ *
+ *      Get SNI hostname from the active socket.
+ *
+ * Results:
+ *      ASOCKERR_*
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+int
+AsyncSocket_GetSNIHostname(AsyncSocket *asock,          // IN
+                           const char **sniHostname)    // OUT
+{
+   int ret;
+   if (VALID(asock, getSNIHostname)) {
+      AsyncSocketLock(asock);
+      ret = VT(asock)->getSNIHostname(asock, sniHostname);
       AsyncSocketUnlock(asock);
    } else {
       ret = ASOCKERR_INVAL;

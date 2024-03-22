@@ -27,7 +27,7 @@
 extern "C" {
 #endif
 
-#define HGFS_VMX_IOV_CONTEXT_SIZE (vmx86_debug ? 120 : 104)
+#define HGFS_VMX_IOV_CONTEXT_SIZE (vmx86_debug ? 112 : 96)
 typedef struct HgfsVmxIov {
    void *va;           /* Virtual addr */
    uint64 pa;          /* Physical address passed by the guest */

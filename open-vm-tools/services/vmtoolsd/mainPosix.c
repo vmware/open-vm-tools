@@ -273,8 +273,8 @@ main(int argc,
       uid_t uid = getuid();
       gid_t gid = getgid();
 
-      if ((Id_SetREUid(uid, uid) != 0) ||
-          (Id_SetREGid(gid, gid) != 0)) {
+      if ((Id_SetREGid(gid, gid) != 0) ||
+          (Id_SetREUid(uid, uid) != 0)) {
          g_printerr("could not drop privileges: %s", strerror(errno));
          ToolsCloseFds();
          goto exit;

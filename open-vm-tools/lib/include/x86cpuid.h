@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 1998-2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2023 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -607,11 +608,11 @@ FLAG(   7,  1, EAX, 12,  1, FAST_SHORT_CMPSB_SCASB,              YES,  20 ) \
 FLAG(   7,  1, EAX, 19,  1, WRMSRNS,                             NO,    0 ) \
 FLAG(   7,  1, EAX, 21,  1, AMX_FP16,                            YES,  21 ) \
 FLAG(   7,  1, EAX, 22,  1, HRESET,                              NO,    0 ) \
-FLAG(   7,  1, EAX, 23,  1, AVX_IFMA,                            NO,    0 ) \
+FLAG(   7,  1, EAX, 23,  1, AVX_IFMA,                            YES, FUT ) \
 FLAG(   7,  1, EAX, 26,  1, LAM,                                 NO,    0 ) \
 FLAG(   7,  1, EAX, 27,  1, MSRLIST,                             NO,    0 ) \
 FLAG(   7,  1, EBX,  0,  1, LEAF7_PPIN,                          NO,    0 ) \
-FLAG(   7,  1, EDX,  4,  1, AVX_VNNI_INT8,                       NO,    0 ) \
+FLAG(   7,  1, EDX,  4,  1, AVX_VNNI_INT8,                       YES, FUT ) \
 FLAG(   7,  1, EDX,  5,  1, AVX_NE_CONVERT,                      NO,    0 ) \
 FLAG(   7,  1, EDX,  8,  1, AMX_COMPLEX,                         NO,    0 ) \
 FLAG(   7,  1, EDX, 14,  1, PREFETCHI,                           YES,  21 ) \
@@ -1422,8 +1423,8 @@ FLAG( 81F,  0, EAX,  0,  1, SME,                                 NO,    0 ) \
 FLAG( 81F,  0, EAX,  1,  1, SEV,                                 YES,  17 ) \
 FLAG( 81F,  0, EAX,  2,  1, PAGE_FLUSH_MSR,                      NO,    0 ) \
 FLAG( 81F,  0, EAX,  3,  1, SEV_ES,                              YES,  17 ) \
-FLAG( 81F,  0, EAX,  4,  1, SEV_SNP,                             NO,    0 ) \
-FLAG( 81F,  0, EAX,  5,  1, VMPL,                                NO,    0 ) \
+FLAG( 81F,  0, EAX,  4,  1, SEV_SNP,                             YES, FUT ) \
+FLAG( 81F,  0, EAX,  5,  1, VMPL,                                YES, FUT ) \
 FLAG( 81F,  0, EAX,  6,  1, RMPQUERY,                            NO,    0 ) \
 FLAG( 81F,  0, EAX,  7,  1, VMPL_SSS,                            NO,    0 ) \
 FLAG( 81F,  0, EAX,  8,  1, SECURE_TSC,                          NO,    0 ) \
@@ -1438,10 +1439,13 @@ FLAG( 81F,  0, EAX, 16,  1, SEV_VTE,                             NO,    0 ) \
 FLAG( 81F,  0, EAX, 17,  1, VMGEXIT_PARAMETER,                   NO,    0 ) \
 FLAG( 81F,  0, EAX, 18,  1, VIRTUAL_MSR_TOM,                     NO,    0 ) \
 FLAG( 81F,  0, EAX, 19,  1, SEV_IBS_VIRT,                        NO,    0 ) \
-FLAG( 81F,  0, EAX, 24,  1, VMSA_REG_PROT,                       NO,    0 ) \
+FLAG( 81F,  0, EAX, 24,  1, VMSA_REG_PROT,                       YES, FUT ) \
+FLAG( 81F,  0, EAX, 25,  1, SMT_PROTECTION,                      NO,    0 ) \
+FLAG( 81F,  0, EAX, 28,  1, SVSM_COMM_PAGE_MSR,                  NO,    0 ) \
+FLAG( 81F,  0, EAX, 29,  1, NESTED_VIRT_SNP_MSR,                 NO,    0 ) \
 FIELD(81F,  0, EBX,  0,  6, SME_PAGE_TABLE_BIT_NUM,              YES,  17 ) \
 FIELD(81F,  0, EBX,  6,  6, SME_PHYS_ADDR_SPACE_REDUCTION,       NO,    0 ) \
-FIELD(81F,  0, EBX, 12,  4, NUM_VMPL,                            NO,    0 ) \
+FIELD(81F,  0, EBX, 12,  4, NUM_VMPL,                            YES, FUT ) \
 FIELD(81F,  0, ECX,  0, 32, NUM_ENCRYPTED_GUESTS,                NO,    0 ) \
 FIELD(81F,  0, EDX,  0, 32, SEV_MIN_ASID,                        NO,    0 )
 

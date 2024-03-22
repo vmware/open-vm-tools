@@ -1,8 +1,8 @@
-#                      open-vm-tools 12.3.5 Release Notes
+#                      open-vm-tools 12.4.0 Release Notes
 
-Updated on: 26 October 2023
+Updated on: 21 March 2024
 
-open-vm-tools | 26 OCTOBER 2023 | Build 22544099
+open-vm-tools | 21 MARCH 2024 | Build 23259341
 
 Check back for additions and updates to these release notes.
 
@@ -10,37 +10,32 @@ Check back for additions and updates to these release notes.
 
 The release notes cover the following topics:
 
-- [open-vm-tools 12.3.5 Release Notes](#open-vm-tools-1235-release-notes)
-	- [What's in the Release Notes](#whats-in-the-release-notes)
-	- [What's New](#whats-new)
-	- [End of Feature Support Notice](#end-of-feature-support-notice)
-	- [Internationalization](#internationalization)
-	- [Guest Operating System Customization Support](#guest-operating-system-customization-support)
-	- [Interoperability Matrix](#interoperability-matrix)
-	- [ Resolved Issues](#-resolved-issues)
-	- [Known Issues](#known-issues)
+* [What's New](#whatsnew) 
+* [End of Feature Support Notice](#endsupport)
+* [Internationalization](#i18n) 
+* [Guest Operating System Customization Support](#guestop) 
+* [Interoperability Matrix](#interop) 
+* [Resolved Issues](#resolvedissues) 
+* [Known Issues](#knownissues)
 
 ## <a id="whatsnew" name="whatsnew"></a>What's New
 
-*   This release resolves CVE-2023-34058. For more information on this vulnerability and its impact on VMware products, see https://www.vmware.com/security/advisories/VMSA-2023-0024.html.
-
-*   This release resolves CVE-2023-34059 which only affects open-vm-tools.
 
 *   Please see the [Resolved Issues](#resolvedissues) and [Known Issues](#knownissues) sections below.
 
-*   A complete list of the granular changes in the open-vm-tools 12.3.5 release is available at:
+*   A complete list of the granular changes in the open-vm-tools 12.4.0 release is available at:
 
-    [open-vm-tools ChangeLog](https://github.com/vmware/open-vm-tools/blob/stable-12.3.5/open-vm-tools/ChangeLog)
+    [open-vm-tools ChangeLog](https://github.com/vmware/open-vm-tools/blob/stable-12.4.0/open-vm-tools/ChangeLog)
 
 ## <a id="endsupport" name="endsupport"></a>End of Feature Support Notice
 
-*   Deprecated: Using "xml-security-c" and "xerces-c" to build the VMware Guest Authentication Service (VGAuth)
+*   Discontinued: Using "xml-security-c" and "xerces-c" to build the VMware Guest Authentication Service (VGAuth)
 
-    Starting with open-vm-tools 12.4.0, and going forward, the VGAuth service build will require the "xmlsec1" and "libxml2" development and runtime packages.  If still using the "xml-security-c" and "xerces-c" open source projects to build open-vm-tools, now is the time to plan for the change.  The open-vm-tools 12.3.x series will be the last version that can use "xml-security-c" and "xerces-c".
+    Starting with open-vm-tools 12.4.0, and going forward, the VGAuth service build will require the "xmlsec1" and "libxml2" development and runtime packages.  If still using the "xml-security-c" and "xerces-c" open source projects to build open-vm-tools, you must make the change now.  The open-vm-tools 12.3.x series will be the last version that can use "xml-security-c" and "xerces-c".
 
 ## <a id="i18n" name="i18n"></a>Internationalization
 
-open-vm-tools 12.3.5 is available in the following languages:
+open-vm-tools 12.4.0 is available in the following languages:
 
 * English
 * French
@@ -62,32 +57,17 @@ The [VMware Product Interoperability Matrix](http://partnerweb.vmware.com/comp_
 
 ## <a id="resolvedissues" name ="resolvedissues"></a> Resolved Issues
 
-*   **This release resolves CVE-2023-34058.**
+*   **The following github.com/vmware/open-vm-tools pull request has been addressed**
 
-    For more information on this vulnerability and its impact on VMware products, see https://www.vmware.com/security/advisories/VMSA-2023-0024.html.
+    * Power Ops: Attempt to execute file path only
 
-    open-vm-tools contains a SAML token signature bypass vulnerability. VMware has evaluated the severity of this issue to be in the Important severity range with a maximum CVSSv3 base score of 7.5 - CVSS:3.1/AV:A/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H
+      [Pull request #689](https://github.com/vmware/open-vm-tools/pull/689)
 
-    A malicious actor that has been granted Guest Operation Privileges in a target virtual machine may be able to elevate their privileges if that target virtual machine has been assigned a more privileged Guest Alias.
+*   **A number of issues flagged by Coverity have been addressed.**
 
-    Note: While the description and known attack vectors are very similar to CVE-2023-20900, CVE-2023-34058 has a different root cause that must be addressed.
+*   **Add aliasing code to identify Miracle Linux by its former name of "asianux".**
 
-    A patch for earlier versions of open-vm-tools is available at [CVE-2023-34058.patch](https://github.com/vmware/open-vm-tools/blob/CVE-2023-34058.patch).
-
-*   **This release resolves CVE-2023-34059.**
-
-    open-vm-tools contains a file descriptor hijack vulnerability in the vmware-user-suid-wrapper. VMware has evaluated the severity of this issue to be in the Important severity range with a maximum CVSSv3 base score of 7.4. - CVSS:3.1/AV:L/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H
-
-    A malicious actor with non-root privileges may be able to hijack the /dev/uinput file descriptor allowing them to simulate user inputs.
-
-    A patch for earlier versions of open-vm-tools is available at [CVE-2023-34059.patch](https://github.com/vmware/open-vm-tools/blob/CVE-2023-34059.patch).
-
-*   **The following github.com/vmware/open-vm-tools issue have been addressed**
-
-    * Better cooperation between deployPkg plugin and cloud-init concerning location of 'disable_vmware_customization' flag.
-
-      [Issue #310](https://github.com/vmware/open-vm-tools/issues/310)
-
+      The Asianux Linux distribution rebranded itself as Miracle Linux.  Since vSphere infrastructure recognizes "asianux" but not Miracle Linux, aliasing code was added to open-vm-tools to continue to identify Miracle Linux systems as "asianux".
 
 ## <a id="knownissues" name="knownissues"></a>Known Issues
 
@@ -103,3 +83,5 @@ The [VMware Product Interoperability Matrix](http://partnerweb.vmware.com/comp_
     If the VM is powered on, disable and enable the **Shared Folders** feature from the interface. For resolving the issue permanently, edit **/etc/fstab** and add an entry to mount the Shared Folders automatically on boot.  For example, add the line:
 
     <tt>vmhgfs-fuse   /mnt/hgfs    fuse    defaults,allow_other    0    0</tt>
+
+    For more information on how to configure VMware Tools Shared Folders, see [KB 60262](https://kb.vmware.com/s/article/60262)

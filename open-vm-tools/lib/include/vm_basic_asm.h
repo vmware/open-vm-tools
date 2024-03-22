@@ -403,11 +403,9 @@ mssb64(const uint64 value)
    return (unsigned)mssb64_0(value) + 1;
 }
 
-#ifdef __GNUC__
-#if defined(VM_X86_ANY) || defined(VM_ARM_ANY)
 
 /*
- *----------------------------------------------------------------------
+ *-----------------------------------------------------------------------------
  *
  * uint16set --
  *
@@ -419,16 +417,18 @@ mssb64(const uint64 value)
  * Side effects:
  *      As with memset.
  *
- *----------------------------------------------------------------------
+ *-----------------------------------------------------------------------------
  */
 
-static INLINE void *
-uint16set(void *dst, uint16 val, size_t count)
+static inline void *
+uint16set(void *dst,    // OUT
+          uint16 val,   // IN
+          size_t count) // IN
 {
-#ifdef VM_ARM_32
+#if defined __GNUC__ && defined VM_ARM_32
    void *tmpDst = dst;
 
-   __asm__ __volatile__ (
+   __asm__ __volatile__(
       "cmp     %1, #0\n\t"
       "beq     2f\n"
       "1:\n\t"
@@ -439,7 +439,7 @@ uint16set(void *dst, uint16 val, size_t count)
       : "+r" (tmpDst), "+r" (count)
       : "r" (val)
       : "cc", "memory");
-#elif defined(VM_ARM_64)
+#elif defined __GNUC__ && defined VM_ARM_64
    void   *tmpDst = dst;
    uint64  tmpVal = 0;
 
@@ -447,7 +447,7 @@ uint16set(void *dst, uint16 val, size_t count)
       return dst;
    }
 
-   __asm__ __volatile__ (
+   __asm__ __volatile__(
       "cbz     %3, 1f\n\t"
 
       // Copy 16 bits twice...
@@ -483,24 +483,31 @@ uint16set(void *dst, uint16 val, size_t count)
       : "+r" (tmpDst), "+r" (count), "+r" (tmpVal)
       : "r" ((uint64)val)
       : "cc", "memory");
-#else
+#elif defined __GNUC__ && defined VM_X86_ANY
    size_t dummy0;
    void *dummy1;
 
-   __asm__ __volatile__("\t"
-                        "cld"            "\n\t"
-                        "rep ; stosw"    "\n"
-                        : "=c" (dummy0), "=D" (dummy1)
-                        : "0" (count), "1" (dst), "a" (val)
-                        : "memory", "cc"
-      );
+   __asm__ __volatile__(
+      "cld"            "\n\t"
+      "rep ; stosw"    "\n"
+      : "=c" (dummy0), "=D" (dummy1)
+      : "0" (count), "1" (dst), "a" (val)
+      : "memory", "cc");
+#elif defined _MSC_VER && defined VM_X86_ANY
+   __stosw((uint16 *)dst, val, count);
+#else /* Fall back to a plain C implementation. */
+   size_t i;
+
+   for (i = 0; i < count; i++) {
+      ((uint16 *)dst)[i] = val;
+   }
 #endif
    return dst;
 }
 
 
 /*
- *----------------------------------------------------------------------
+ *-----------------------------------------------------------------------------
  *
  * uint32set --
  *
@@ -512,16 +519,18 @@ uint16set(void *dst, uint16 val, size_t count)
  * Side effects:
  *      As with memset.
  *
- *----------------------------------------------------------------------
+ *-----------------------------------------------------------------------------
  */
 
-static INLINE void *
-uint32set(void *dst, uint32 val, size_t count)
+static inline void *
+uint32set(void *dst,    // OUT
+          uint32 val,   // IN
+          size_t count) // IN
 {
-#ifdef VM_ARM_32
+#if defined __GNUC__ && defined VM_ARM_32
    void *tmpDst = dst;
 
-   __asm__ __volatile__ (
+   __asm__ __volatile__(
       "cmp     %1, #0\n\t"
       "beq     2f\n"
       "1:\n\t"
@@ -532,15 +541,15 @@ uint32set(void *dst, uint32 val, size_t count)
       : "+r" (tmpDst), "+r" (count)
       : "r" (val)
       : "cc", "memory");
-#elif defined(VM_ARM_64)
+#elif defined __GNUC__ && defined VM_ARM_64
    void   *tmpDst = dst;
-   uint64 tmpVal = val;
+   uint64  tmpVal = val;
 
    if (count == 0) {
       return dst;
    }
 
-   __asm__ __volatile__ (
+   __asm__ __volatile__(
       "cbz     %2, 1f\n\t"
 
       // Drop our value in the top 32 bits, then copy from there to the bottom
@@ -574,75 +583,27 @@ uint32set(void *dst, uint32 val, size_t count)
       : "+r" (tmpDst), "+r" (count), "+r" (tmpVal)
       :
       : "cc", "memory");
-#else
+#elif defined __GNUC__ && defined VM_X86_ANY
    size_t dummy0;
    void *dummy1;
 
-   __asm__ __volatile__("\t"
-                        "cld"            "\n\t"
-                        "rep ; stosl"    "\n"
-                        : "=c" (dummy0), "=D" (dummy1)
-                        : "0" (count), "1" (dst), "a" (val)
-                        : "memory", "cc"
-      );
-#endif
-   return dst;
-}
-
-#else /* unknown system: rely on C to write */
-static INLINE void *
-uint16set(void *dst, uint16 val, size_t count)
-{
+   __asm__ __volatile__(
+      "cld"            "\n\t"
+      "rep ; stosl"    "\n"
+      : "=c" (dummy0), "=D" (dummy1)
+      : "0" (count), "1" (dst), "a" (val)
+      : "memory", "cc");
+#elif defined _MSC_VER && defined VM_X86_ANY
+   __stosd((unsigned long *)dst, (unsigned long)val, count);
+#else /* Fall back to a plain C implementation. */
    size_t i;
-   for (i = 0; i < count; i++) {
-     ((uint16 *) dst)[i] = val;
-   }
-   return dst;
-}
 
-static INLINE void *
-uint32set(void *dst, uint32 val, size_t count)
-{
-   size_t i;
-   for (i = 0; i < count; i++) {
-     ((uint32 *) dst)[i] = val;
-   }
-   return dst;
-}
-#endif // defined(VM_X86_ANY) || defined(VM_ARM_ANY)
-#elif defined(_MSC_VER)
-
-static INLINE void *
-uint16set(void *dst, uint16 val, size_t count)
-{
-#ifdef VM_X86_ANY
-   __stosw((uint16*)dst, val, count);
-#else
-   size_t i;
-   for (i = 0; i < count; i++) {
-      ((uint16 *)dst)[i] = val;
-   }
-#endif
-   return dst;
-}
-
-static INLINE void *
-uint32set(void *dst, uint32 val, size_t count)
-{
-#ifdef VM_X86_ANY
-   __stosd((unsigned long*)dst, (unsigned long)val, count);
-#else
-   size_t i;
    for (i = 0; i < count; i++) {
       ((uint32 *)dst)[i] = val;
    }
 #endif
    return dst;
 }
-
-#else
-#error "No compiler defined for uint*set"
-#endif
 
 
 /*
@@ -717,11 +678,20 @@ Bswap32(uint32 v) // IN
 static INLINE uint64
 Bswap64(uint64 v) // IN
 {
-#if defined(VM_ARM_64) && !defined(_MSC_VER)
+#if defined _MSC_VER
+   return _byteswap_uint64(v);
+#elif defined __GNUC__
+
+/* TODO: Return __builtin_bswap64(v) if gcc-arm64 is verified to use "rev". */
+#if defined VM_ARM_64
    __asm__("rev %0, %0" : "+r"(v));
    return v;
 #else
-   return ((uint64)Bswap((uint32)v) << 32) | Bswap((uint32)(v >> 32));
+   return __builtin_bswap64(v);
+#endif
+
+#else
+   return ((uint64)Bswap32((uint32)v) << 32) | Bswap32((uint32)(v >> 32));
 #endif
 }
 

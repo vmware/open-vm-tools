@@ -543,9 +543,13 @@ GuestInfoGather(gpointer data)
    int maxIPv4RoutesToGather;
    int maxIPv6RoutesToGather;
    gchar *osNameOverride;
-   gchar *osNameFullOverride;
+   gchar *osNameFullOverride = NULL;
    Bool maxNicsError = FALSE;
    static uint32 logThrottleCount = 0;
+   Bool sendOsNames = FALSE;
+   char *osName = NULL;
+   char *osFullName = NULL;
+   char *detailedGosData = NULL;
 
    g_debug("Entered guest info gather.\n");
 
@@ -566,59 +570,59 @@ GuestInfoGather(gpointer data)
                                             CONFGROUPNAME_GUESTOSINFO,
                                             CONFNAME_GUESTOSINFO_SHORTNAME,
                                             NULL);
-
-   osNameFullOverride = VMTools_ConfigGetString(ctx->config,
-                                                CONFGROUPNAME_GUESTOSINFO,
-                                                CONFNAME_GUESTOSINFO_LONGNAME,
-                                                NULL);
-   /* If only the OS Full Name is provided, continue as normal, but emit
-    * warning. */
-   if (osNameOverride == NULL && osNameFullOverride != NULL) {
-      g_warning("Ignoring " CONFNAME_GUESTOSINFO_LONGNAME " override.\n");
-      g_warning("To use the GOS name override, "
-                CONFNAME_GUESTOSINFO_SHORTNAME " must be present in the "
-                "tools.conf file.\n");
-      g_free(osNameFullOverride);
+   /*
+    * CONFNAME_GUESTINFO_LONGNAME is ignored if CONFNAME_GUESTINFO_SHORTNAME
+    * is not provided
+    */
+   if (osNameOverride) {
+      osNameFullOverride = VMTools_ConfigGetString(ctx->config,
+                                                   CONFGROUPNAME_GUESTOSINFO,
+                                                   CONFNAME_GUESTOSINFO_LONGNAME,
+                                                   NULL);
    }
 
-   /* Only use override if at least the short OS name is provided */
-   if (osNameOverride == NULL) {
-      Bool sendOsNames = FALSE;
-      char *osName = NULL;
-      char *osFullName = NULL;
-      char *detailedGosData = NULL;
+   /* Gather all the relevant guest information. */
+   osFullName = Hostinfo_GetOSName();
+   osName = Hostinfo_GetOSGuestString();
 
-      /* Gather all the relevant guest information. */
-      osFullName = Hostinfo_GetOSName();
-      osName = Hostinfo_GetOSGuestString();
+   if (gSendDetailedGosData) {
+      detailedGosData = Hostinfo_GetOSDetailedData();
+   }
 
-      if (gSendDetailedGosData) {
-         detailedGosData = Hostinfo_GetOSDetailedData();
-      }
+   if (detailedGosData == NULL) {
+      g_debug("No detailed data.\n");
+      sendOsNames = TRUE;
+      gSendDetailedGosData = FALSE;
+   } else {
+      /* Build and attempt to send the detailed data */
+      HostinfoDetailedDataHeader *detailedDataHeader = NULL;
+      size_t infoHeaderSize;
+      size_t detailedGosDataLen;
+      size_t infoSize;
 
-      if (detailedGosData == NULL) {
-         g_debug("No detailed data.\n");
-         sendOsNames = TRUE;
-         gSendDetailedGosData = FALSE;
+      g_debug("Sending detailed data.\n");
+      detailedGosDataLen = strlen(detailedGosData);
+      infoHeaderSize = sizeof *detailedDataHeader;
+      infoSize = infoHeaderSize + detailedGosDataLen + 1; // cover NUL
+
+      detailedDataHeader = g_malloc(infoSize);
+      /* Clear struct and memory allocated for detailed data */
+      memset(detailedDataHeader, 0, infoSize);
+
+      /* Set the version of the detailed data header used */
+      detailedDataHeader->version = HOSTINFO_STRUCT_HEADER_VERSION;
+
+      if (osNameOverride) {
+         Str_Strcpy(detailedDataHeader->shortName, osNameOverride,
+                    sizeof detailedDataHeader->shortName);
+         if (osNameFullOverride == NULL) {
+            g_debug(CONFNAME_GUESTOSINFO_LONGNAME " was not set in "
+                    "tools.conf.\n");
+         } else {
+            Str_Strcpy(detailedDataHeader->fullName, osNameFullOverride,
+                       sizeof detailedDataHeader->fullName);
+         }
       } else {
-         /* Build and attempt to send the detailed data */
-         HostinfoDetailedDataHeader *detailedDataHeader = NULL;
-         size_t infoHeaderSize;
-         size_t detailedGosDataLen;
-         size_t infoSize;
-
-         g_debug("Sending detailed data.\n");
-         detailedGosDataLen = strlen(detailedGosData);
-         infoHeaderSize = sizeof *detailedDataHeader;
-         infoSize = infoHeaderSize + detailedGosDataLen + 1; // cover NUL
-
-         detailedDataHeader = g_malloc(infoSize);
-         /* Clear struct and memory allocated for detailed data */
-         memset(detailedDataHeader, 0, infoSize);
-
-         /* Set the version of the detailed data header used */
-         detailedDataHeader->version = HOSTINFO_STRUCT_HEADER_VERSION;
-
          if (osName == NULL) {
             g_warning("Failed to get OS name.\n");
          } else {
@@ -631,27 +635,46 @@ GuestInfoGather(gpointer data)
             Str_Strcpy(detailedDataHeader->fullName, osFullName,
                        sizeof detailedDataHeader->fullName);
          }
-
-         Str_Strcpy((char *)detailedDataHeader + infoHeaderSize,
-                    detailedGosData, infoSize - infoHeaderSize);
-
-         if (GuestInfoUpdateVMX(ctx, INFO_OS_DETAILED, detailedDataHeader,
-                                infoSize)) {
-            GuestInfoFreeDetailedData(gInfoCache.detailedData);
-            gInfoCache.detailedData = detailedDataHeader;
-            g_debug("Detailed data was sent successfully.\n");
-         } else {
-            /*
-             * Only send the OS Name if the VMX failed to receive the detailed
-             * data
-             */
-            gSendDetailedGosData = FALSE;
-            sendOsNames = TRUE;
-            g_debug("Detailed data was not sent successfully.\n");
-         }
       }
 
-      if (sendOsNames) {
+      Str_Strcpy((char *)detailedDataHeader + infoHeaderSize,
+                 detailedGosData, infoSize - infoHeaderSize);
+
+      if (GuestInfoUpdateVMX(ctx, INFO_OS_DETAILED, detailedDataHeader,
+                             infoSize)) {
+         GuestInfoFreeDetailedData(gInfoCache.detailedData);
+         gInfoCache.detailedData = detailedDataHeader;
+         g_debug("Detailed data was sent successfully.\n");
+      } else {
+         /*
+          * Only send the OS Name if the VMX failed to receive the detailed
+          * data
+          */
+         gSendDetailedGosData = FALSE;
+         sendOsNames = TRUE;
+         g_debug("Detailed data was not sent successfully.\n");
+      }
+   }
+
+   if (sendOsNames) {
+      if (osNameOverride) {
+         /* Use osName and osNameFull provided in config file */
+         if (osNameFullOverride == NULL) {
+            g_debug(CONFNAME_GUESTOSINFO_LONGNAME " was not set in "
+                    "tools.conf, using empty string.\n");
+         }
+         if (!GuestInfoUpdateVMX(ctx,
+                                 INFO_OS_NAME_FULL,
+                                 (osNameFullOverride == NULL) ? "" :
+                                 osNameFullOverride,
+                                 0)) {
+            g_warning("Failed to send INFO_OS_NAME_FULL\n");
+         }
+         if (!GuestInfoUpdateVMX(ctx, INFO_OS_NAME, osNameOverride, 0)) {
+            g_warning("Failed to send INFO_OS_NAME\n");
+         }
+         g_debug("Using values in tools.conf to override OS Name.\n");
+      } else {
          g_debug("Sending the short and long name\n");
          if (osFullName == NULL) {
             g_warning("Failed to get OS info.\n");
@@ -668,31 +691,13 @@ GuestInfoGather(gpointer data)
             }
          }
       }
-
-      free(detailedGosData);
-      free(osFullName);
-      free(osName);
-   } else {
-      /* Use osName and osNameFull provided in config file */
-      if (osNameFullOverride == NULL) {
-         g_warning(CONFNAME_GUESTOSINFO_LONGNAME " was not set in "
-                   "tools.conf, using empty string.\n");
-      }
-      if (!GuestInfoUpdateVMX(ctx,
-                              INFO_OS_NAME_FULL,
-                              (osNameFullOverride == NULL) ? "" :
-                                                             osNameFullOverride,
-                              0)) {
-         g_warning("Failed to send INFO_OS_NAME_FULL\n");
-      }
-      g_free(osNameFullOverride);
-
-      if (!GuestInfoUpdateVMX(ctx, INFO_OS_NAME, osNameOverride, 0)) {
-         g_warning("Failed to send INFO_OS_NAME\n");
-      }
-      g_free(osNameOverride);
-      g_debug("Using values in tools.conf to override OS Name.\n");
    }
+
+   free(detailedGosData);
+   free(osFullName);
+   free(osName);
+   g_free(osNameFullOverride);
+   g_free(osNameOverride);
 
 #if !defined(USERWORLD)
    disableQueryDiskInfo =

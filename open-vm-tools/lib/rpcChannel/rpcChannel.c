@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2008-2016, 2018-2021 VMware, Inc. All rights reserved.
+ * Copyright (c) 2008-2016, 2018-2021, 2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1201,6 +1201,8 @@ RpcChannelSendOneRaw(const char *data,
    } else if (priv && RpcChannel_GetType(chan) != RPCCHANNEL_TYPE_PRIV_VSOCK) {
       if (result != NULL) {
          *result = Util_SafeStrdup(RPCCHANNEL_SEND_PERMISSION_DENIED);
+         Warning("%s: failed to set up channel, returning '%s'\n",
+                 __FUNCTION__, *result);
          if (resultLen != NULL) {
             *resultLen = strlen(*result);
          }

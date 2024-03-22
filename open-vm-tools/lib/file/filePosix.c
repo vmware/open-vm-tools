@@ -1655,6 +1655,48 @@ File_GetVMFSLockInfo(const char *path,         // IN
    return ret;
 }
 
+
+/*
+ *---------------------------------------------------------------------------
+ *
+ * File_DoesVolumeSupportConvertBlocks --
+ *
+ *     Does the volume support the new convert block allocation
+ *     IOCTL? (Always FALSE for now on non-VMFS.)
+ *
+ * Results:
+ *     TRUE   Yes
+ *     FALSE  No
+ *
+ * Side effects:
+ *     None
+ *
+ *---------------------------------------------------------------------------
+ */
+
+Bool
+File_DoesVolumeSupportConvertBlocks(const char *pathName)  // IN:
+{
+   Bool supports;
+   FS_PartitionListResult *fsAttrs = NULL;
+   int ret = File_GetVMFSAttributes(pathName, &fsAttrs);
+
+   if (ret < 0) {
+      /* Probably not VMFS. */
+      return FALSE;
+   }
+
+   /*
+    * Only regular VMFS (no VMFS-L, VMFSOS, or other oddities) and
+    * only version 6 and above.
+    */
+   supports = Str_Strcmp(fsAttrs->fsType, FS_VMFS_ON_ESX) == 0 &&
+      fsAttrs->versionNumber >= 6;
+
+   Posix_Free(fsAttrs);
+   return supports;
+}
+
 #endif // VMX86_SERVER
 
 

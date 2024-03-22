@@ -392,8 +392,8 @@ typedef int64 VmTimeVirtualClock;  /* Virtual Clock kept in CPU cycles */
       #define FMTPD      "I"
       #define FMTH       "I"
    #endif
-#elif defined __APPLE__ || (!defined VMKERNEL && \
-                            defined __linux__ && defined __KERNEL__)
+#elif defined __APPLE__ || defined __EMSCRIPTEN__ || \
+      (!defined VMKERNEL && defined __linux__ && defined __KERNEL__)
    /* semi-LLP64 targets; 'long' is 64-bit, but uint64_t is 'long long' */
    #define FMT64         "ll"
    #if defined(__APPLE__) && KERNEL

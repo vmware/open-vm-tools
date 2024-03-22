@@ -117,7 +117,7 @@ extern "C" {
 #define   BDOOR_CMD_GETTIME                  23 /* Deprecated -> GETTIMEFULL. */
 #define   BDOOR_CMD_STOPCATCHUP              24
 #define   BDOOR_CMD_PUTCHR                   25 /* Disabled by default. */
-#define   BDOOR_CMD_ENABLE_MSG               26 /* Devel only. */
+//#define BDOOR_CMD_ENABLE_MSG               26 /* Not in use. Was devel only.*/
 //#define BDOOR_CMD_GOTO_TCL                 27 /* Not in use. Was devel only */
 #define   BDOOR_CMD_INITPCIOPROM             28 /* CPL 0 only. */
 //#define BDOOR_CMD_INT13                    29 /* Not in use. */
@@ -246,7 +246,8 @@ extern "C" {
 #define   BDOOR_CMD_APPLE_GPU_RES_SET        99
 #define   BDOOR_CMD_GETBUILDNUM             100
 #define   BDOOR_CMD_GETENTROPY              101 /* Configurable, off by default. */
-#define   BDOOR_CMD_MAX                     102
+#define   BDOOR_CMD_REPORTGUESTCRASH        102
+#define   BDOOR_CMD_MAX                     103
 
 
 /*

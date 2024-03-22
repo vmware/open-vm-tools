@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2006-2019,2021 VMware, Inc. All rights reserved.
+ * Copyright (c) 2006-2019,2021,2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -419,6 +419,9 @@ main(int argc,          // IN
 {
 #ifdef _WIN32
    WinUtil_EnableSafePathSearching(TRUE);
+#   if defined(VMX86_RELEASE)
+   WinUtil_VerifyExePathW();
+#   endif
 #endif
    if (argc == 2 &&
        (!strncmp(argv[1], "-h", 2) ||

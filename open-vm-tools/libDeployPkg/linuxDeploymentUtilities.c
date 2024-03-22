@@ -82,8 +82,9 @@ IsCloudInitCustomizationEnabled()
          cloudInitConfigDirPath, strerror(errno));
    } else {
       for (i = fileCount - 1; i >= 0; i--) {
-         filePathLength = Str_Strlen(cloudInitConfigDirPath, PATH_MAX) +
-            Str_Strlen(fileList[i]->d_name, FILENAME_MAX) + 1;
+         filePathLength =
+            Str_Strlen(cloudInitConfigDirPath, sizeof(cloudInitConfigDirPath))
+            + Str_Strlen(fileList[i]->d_name, NAME_MAX) + 1;
          filePath = malloc(filePathLength);
          if (filePath == NULL) {
             sLog(log_warning, "Error allocating memory to copy '%s'.",

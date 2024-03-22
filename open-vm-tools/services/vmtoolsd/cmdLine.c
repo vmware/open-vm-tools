@@ -44,6 +44,7 @@
 #include "vmware/tools/guestrpc.h"
 #include "vm_version.h"
 
+
 /**
  * Runs the given Tools RPC command, printing the result to the terminal and
  * exiting the application afterwards.

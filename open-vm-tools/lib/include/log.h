@@ -352,8 +352,11 @@ Log_SetLogLevel(uint32 group,
 int32
 Log_GetLogLevel(uint32 group);
 
-uint32
+int32
 Log_LookupGroupNumber(const char *groupName);
+
+const char *
+Log_LookupGroupName(uint32 group);
 
 LogOutput *
 Log_NewStdioOutput(const char *appPrefix,

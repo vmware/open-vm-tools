@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2006-2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2006-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -37,7 +38,7 @@
  * Updating them therefore may require updating translations and vmsg
  * auditing files in bora/messages/ to avoid breaking the build.
  */
-#define COPYRIGHT_YEARS  "1998-2023" /* See the note above when changing. */
+#define COPYRIGHT_YEARS  "1998-2024" /* See the note above when changing. */
 #define COPYRIGHT_STRING "Copyright (C) " COPYRIGHT_YEARS " " COMPANY_NAME
 #define RIGHT_RESERVED   "All rights reserved."
 
@@ -54,7 +55,17 @@
  * Windows. (Only Windows cares about UTF-16 anyway.)
  */
 #ifdef _WIN32
+#if defined(VMX86_TOOLS) || defined(VMX86_VGAUTH) || defined(VMX86_SYSIMAGE)
+/*
+ * XXX - Temporary fix for Windows user-mode binaries properties copyright.
+ */
+#define COMPANY_COPYRIGHT_NAME       "Broadcom Inc. and/or its subsidiaries."
+
+#define UTF16_COPYRIGHT_STRING L"Copyright \x00A9 " WSTR(COPYRIGHT_YEARS) L" " \
+   WSTR(COMPANY_COPYRIGHT_NAME) L" All Rights Reserved."
+#else
 #define UTF16_COPYRIGHT_STRING L"Copyright \x00A9 " WSTR(COPYRIGHT_YEARS) L" " WSTR(COMPANY_NAME)
+#endif
 #endif
 
 

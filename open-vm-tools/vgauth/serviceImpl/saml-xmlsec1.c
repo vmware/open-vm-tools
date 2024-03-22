@@ -48,6 +48,33 @@
 #include "certverify.h"
 #include "vmxlog.h"
 
+/*
+ * XXX
+ *
+ * Optimization idea: stash a hash (SHA512) of a valid token, and bypass
+ * the full assertion process when we see that token again. The expiration
+ * date of the token must also be saved off (and beware the time skew issue).
+ *
+ * Note that there's some extra complexity here:
+ *
+ * 1 - AddAlias sets up a cert/user mapping
+ * 2 - a SAML token is used (and cached) using this cert/user combo
+ * 3 - RemoveAlias removes the combo
+ * 4 - the cached token still works
+ *
+ * So the cache should only bypass the token validation, not the certificate
+ * check in ServiceVerifyAndCheckTrustCertChainForSubject()
+ *
+ * Also TBD is how much this buys us in the real world.  With short
+ * token lifetimes, its less interesting.  Its also possible that
+ * it will have no measureable affect because the token verification
+ * will be lost in the noise of the API plumbing from VC->hostd->VMX->tools.
+ *
+ * The security folks have signed off on this, so long as we store only
+ * in memory.
+ *
+ */
+
 static int gClockSkewAdjustment = VGAUTH_PREF_DEFAULT_CLOCK_SKEW_SECS;
 static gboolean gAllowUnrelatedCerts = FALSE;
 static xmlSchemaPtr gParsedSchemas = NULL;
@@ -1321,9 +1348,9 @@ VerifySignature(xmlDocPtr doc,
    /*
     * Get the cert chain from the token.
     *
-    * Unlike xml-security-c, xmlsec1 wants to validate the cert
-    * chain in the token so it needs the full chain, not just
-    * the public key from the first cert.
+    * xmlsec1 wants to validate the cert chain in the token
+    * so it needs the full chain, not just the public key from
+    * the first cert.
     *
     * Also save it off for later use by the alias store check.
     */
@@ -1383,8 +1410,8 @@ VerifySignature(xmlDocPtr doc,
    }
 
    /*
-    * The xml-security-c verifies the Reference explicitly; this
-    * isn't needed for xmlsec1 because the library does it.
+    * No need to verify the Reference explicitly because the
+    * xmlsec1 library takes care of it.
     */
 
    /*

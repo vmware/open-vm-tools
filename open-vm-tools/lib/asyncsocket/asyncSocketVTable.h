@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2011,2014-2017,2019-2022 VMware, Inc. All rights reserved.
+ * Copyright (c) 2011,2014-2017,2019-2023 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -41,6 +41,8 @@
 
 /*
  * If we change the AsyncSocketVTable, we also need to change the follow files:
+ * apps/asyncSocketProxy/asyncVvcSocket.c
+ * lib/blastSockets/asyncBweSocket.c
  * lib/blastSockets/asyncProxySocket.c
  * lib/asyncsocket/asyncsocket.c
  * lib/asyncsocket/asyncWebSocket.c
@@ -108,6 +110,8 @@ typedef struct AsyncSocketVTable {
    int (*isSendBufferFull)(AsyncSocket *asock);
    int (*getNetworkStats)(AsyncSocket *asock,
                           AsyncSocketNetworkStats *stats);
+   int (*getSNIHostname)(AsyncSocket *asock,
+                         const char **sniHostname);
    int (*close)(AsyncSocket *asock);
    int (*closeWrite)(AsyncSocket *asock);
    int (*cancelRecv)(AsyncSocket *asock, int *partialRecvd, void **recvBuf,

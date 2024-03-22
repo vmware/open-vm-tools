@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (C) 2009-2016 VMware, Inc.  All rights reserved.
+### Copyright (c) 2009-2016,2022-2023 VMware, Inc.  All rights reserved.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -21,6 +21,7 @@ DOXYGEN_INPUT += $(top_srcdir)/docs/api/services
 DOXYGEN_INPUT += $(top_srcdir)/lib/include/vmware/tools
 DOXYGEN_INPUT += $(top_srcdir)/libvmtools
 DOXYGEN_INPUT += $(top_srcdir)/tests/vmrpcdbg
+
 
 DOXYGEN_CPP_PREDEFINED =
 DOXYGEN_CPP_PREDEFINED += G_LOCK_DEFINE_STATIC(x)

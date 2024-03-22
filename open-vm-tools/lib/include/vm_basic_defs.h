@@ -590,18 +590,36 @@ typedef int pid_t;
  * Convenience macros and definitions. Can often be used instead of #ifdef.
  */
 
+#ifdef VMK_HAS_VMM
+#define VMK_HAS_VMM_ONLY(...) __VA_ARGS__
+#else
+#define VMK_HAS_VMM_ONLY(...)
+#endif
+
 #undef ARM64_ONLY
 #ifdef VM_ARM_64
-#define ARM64_ONLY(x)    x
+#define ARM64_ONLY(...)  __VA_ARGS__
 #else
-#define ARM64_ONLY(x)
+#define ARM64_ONLY(...)
 #endif
 
 #undef X86_ONLY
+#ifdef _MSC_VER
+/*
+ * Old MSVC versions (such as MSVC 14.29.30133, used to build Workstation's
+ * offset checker) are notorious to have non-standard __VA_ARGS__ handling.
+ */
 #ifdef VM_X86_ANY
 #define X86_ONLY(x)      x
 #else
 #define X86_ONLY(x)
+#endif
+#else
+#ifdef VM_X86_ANY
+#define X86_ONLY(...)    __VA_ARGS__
+#else
+#define X86_ONLY(...)
+#endif
 #endif
 
 #undef DEBUG_ONLY
@@ -668,6 +686,12 @@ typedef int pid_t;
 #define vmx86_server 0
 #define SERVER_ONLY(x)
 #define HOSTED_ONLY(x) x
+#endif
+
+#ifdef VMX86_FDM
+#define vmx86_fdm 1
+#else
+#define vmx86_fdm 0
 #endif
 
 #ifdef VMX86_ESXIO
@@ -945,12 +969,13 @@ typedef int pid_t;
 
 /* VMW_FALLTHROUGH
  *
- *   Instructs GCC 9 and above to not warn when a case label of a
+ *   Instructs capable compilers to not warn when a case label of a
  *   'switch' statement falls through to the next label.
  *
- *   If not GCC 9 or above, expands to nothing.
+ *   If not a matched compiler, expands to nothing.
  */
-#if __GNUC__ >= 9
+#if (defined(__GNUC__) && (__GNUC__ >= 9)) ||           \
+    (defined(__clang__) && (__clang_major__ >= 13))
 #define VMW_FALLTHROUGH() __attribute__((fallthrough))
 #else
 #define VMW_FALLTHROUGH()
