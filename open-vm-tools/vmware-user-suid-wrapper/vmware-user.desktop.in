@@ -6,4 +6,6 @@ Name=VMware User Agent
 # KDE bug 190522: KDE does not autostart items with NoDisplay=true...
 # NoDisplay=true
 X-KDE-autostart-phase=1
-
+# Prevent processing via systemd-xdg-autostart-generator: https://systemd.io/DESKTOP_ENVIRONMENTS/#xdg-autostart-integration
+# Correct service config provided by app-vmware-user.service
+X-systemd-skip=true
