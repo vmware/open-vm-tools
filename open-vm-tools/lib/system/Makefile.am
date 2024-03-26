@@ -17,5 +17,8 @@
 
 noinst_LTLIBRARIES = libSystem.la
 
+libSystem_la_CPPFLAGS =
+libSystem_la_CPPFLAGS += @GLIB2_CPPFLAGS@
+
 libSystem_la_SOURCES =
 libSystem_la_SOURCES += systemLinux.c
