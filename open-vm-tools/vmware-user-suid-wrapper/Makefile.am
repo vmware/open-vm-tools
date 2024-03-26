@@ -19,6 +19,8 @@ bin_PROGRAMS = vmware-user-suid-wrapper
 
 AM_CPPFLAGS =
 AM_CPPFLAGS += -DVMTOOLSD_PATH=\"$(bindir)/vmtoolsd\"
+# See post-install on Makefile of ports.
+AM_CPPFLAGS += -DVMWARE_KMOD_DIR=\"$(prefix)/lib/vmware-tools/modules/drivers\"
 
 vmware_user_suid_wrapper_SOURCES =
 vmware_user_suid_wrapper_SOURCES += main.c
