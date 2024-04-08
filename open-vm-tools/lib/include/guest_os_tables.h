@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 1998-2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2024 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -302,6 +302,7 @@ extern "C" {
    GOKM("rhel7-64",                             rhel7_64Guest,           TRUE) \
    GOKM("rhel8-64",                             rhel8_64Guest,           TRUE) \
    GOKM("rhel9-64",                             rhel9_64Guest,           TRUE) \
+   GOKM("rhel10-64",                            rhel10_64Guest,          TRUE) \
    GOKM("centos",                               centosGuest,             TRUE) \
    GOKM("centos-64",                            centos64Guest,           TRUE) \
    GOKM("centos6",                              centos6Guest,            TRUE) \
