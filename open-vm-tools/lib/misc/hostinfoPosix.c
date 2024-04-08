@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 1998-2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2024 Broadcom. All rights reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -4479,6 +4480,7 @@ Hostinfo_GetModulePath(uint32 priv)  // IN:
  *      in the address of one of the caller's own functions.
  *
  *      Not implemented on iOS (iOS does not support dynamic loading).
+ *      Not implemented on FreeBSD (doesn't support fs /proc/self)
  *      Not fully implemented on ESX (the path MAY OR MAY NOT BE ABSOLUTE).
  *
  * Results:
@@ -4498,9 +4500,10 @@ Hostinfo_GetLibraryPath(void *addr)  // IN
    /*
     * Try fast path first.
     *
-    * Does NOT work for iOS since iOS does not support dynamic loading.
+    * Does NOT work for iOS and FreeBSD, as iOS does not support dynamic loading
+    * and FreeBSD (non-linux) doesn't support the file system /proc/self/ .
     */
-#if !TARGET_OS_IPHONE
+#if !TARGET_OS_IPHONE && !defined(__FreeBSD__)
    Dl_info info;
 
    if (dladdr(addr, &info)) {
@@ -4509,7 +4512,7 @@ Hostinfo_GetLibraryPath(void *addr)  // IN
          return Unicode_Alloc(info.dli_fname, STRING_ENCODING_DEFAULT);
       }
    }
-#endif // !TARGET_OS_IPHONE
+#endif // !TARGET_OS_IPHONE && !defined(__FreeBSD__)
 
    /*
     * Slow path for ESX, Linux, Android and macOS.
