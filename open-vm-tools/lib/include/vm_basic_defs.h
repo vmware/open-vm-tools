@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2003-2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2003-2024 Broadcom. All rights reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -248,32 +249,40 @@ Max(int a, int b)
 #define PAGE_SHIFT_16KB  14
 #define PAGE_SHIFT_64KB  16
 
-#ifndef PAGE_SHIFT // {
+#define PAGE_SIZE_4KB    4096
+#define PAGE_SIZE_16KB   16384
+#define PAGE_SIZE_64KB   65536
+
 #if defined __x86_64__ || defined __i386__
-   #define PAGE_SHIFT    PAGE_SHIFT_4KB
+   #define VMW_PAGE_SHIFT PAGE_SHIFT_4KB
+   #define VMW_PAGE_SIZE  PAGE_SIZE_4KB
 #elif defined __APPLE__
    #if defined VM_ARM_ANY
-      #define PAGE_SHIFT    PAGE_SHIFT_16KB
+      #define VMW_PAGE_SHIFT PAGE_SHIFT_16KB
+      #define VMW_PAGE_SIZE  PAGE_SIZE_16KB
    #else
-      #define PAGE_SHIFT    PAGE_SHIFT_4KB
+      #define VMW_PAGE_SHIFT PAGE_SHIFT_4KB
+      #define VMW_PAGE_SIZE  PAGE_SIZE_4KB
    #endif
 #elif defined VM_ARM_64
-   #define PAGE_SHIFT    PAGE_SHIFT_4KB
+   #define VMW_PAGE_SHIFT PAGE_SHIFT_4KB
+   #define VMW_PAGE_SIZE  PAGE_SIZE_4KB
 #elif defined __arm__
-   #define PAGE_SHIFT    PAGE_SHIFT_4KB
+   #define VMW_PAGE_SHIFT PAGE_SHIFT_4KB
+   #define VMW_PAGE_SIZE  PAGE_SIZE_4KB
 #elif defined __wasm__
-   #define PAGE_SHIFT    PAGE_SHIFT_4KB
+   #define VMW_PAGE_SHIFT PAGE_SHIFT_4KB
+   #define VMW_PAGE_SIZE  PAGE_SIZE_4KB
 #else
    #error
 #endif
-#endif // }
 
-#define PAGE_SIZE_4KB    (1 << PAGE_SHIFT_4KB)
-#define PAGE_SIZE_16KB   (1 << PAGE_SHIFT_16KB)
-#define PAGE_SIZE_64KB   (1 << PAGE_SHIFT_64KB)
+#ifndef PAGE_SHIFT
+#define PAGE_SHIFT VMW_PAGE_SHIFT
+#endif
 
 #ifndef PAGE_SIZE
-#define PAGE_SIZE     (1 << PAGE_SHIFT)
+#define PAGE_SIZE     VMW_PAGE_SIZE
 #endif
 
 #define PAGE_MASK_4KB    (PAGE_SIZE_4KB - 1)
