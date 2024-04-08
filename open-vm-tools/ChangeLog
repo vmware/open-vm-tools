@@ -1,3 +1,88 @@
+commit 9026382b617114a4ea10593be3358d4f5470160a
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Sun Apr 7 23:26:32 2024 -0700
+
+    Update NetworkManager calls in suspend/resume scripts.
+    
+    Revise the NetworkManager calls in the Linux network script to
+    prefer using the Sleep method over the "Enable" method being used
+    to work around a bug in version 0.9.0.
+    
+    Pull request: https://github.com/vmware/open-vm-tools/pull/699
+    Issue: https://github.com/vmware/open-vm-tools/issues/426
+
+commit 76177671b4dbe6795b30d7282750daa6bc44c3ce
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Sun Apr 7 23:26:32 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 160a2f6464f1f8a391e20445436aac828747944b
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Sun Apr 7 23:26:32 2024 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 16b2942637b4b4c8613c97910b0c926aa78f118e
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Sun Apr 7 23:26:32 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit a27e36f708ba532610bc80aa05c6f646aff2e221
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Sun Apr 7 23:26:32 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit d00cb18b872419d1fc9dba12d82a33249c9f8381
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Sun Apr 7 23:26:32 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit dc2afa499e80d09f198d056b9f65b34054934eb9
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Sun Apr 7 23:26:31 2024 -0700
+
+    Linux network log file permissions fix: 0644 to 0600
+    Since release 11.3.5, on linux guests, the vmware-network.log file has root
+    default	file creation permissions (0644) rather than the expected 0600
+    permissions.
+    
+    Fix:
+    - Adding chmod 0600 on log file creation.
+    - Adding file creation before first logging.
+    - Adding handling of unset handler in case switch, default to file logging.
+    - Adding logging of unknown or bad handler, and using file logging as default.
+    - Default number of logfiles when network.maxOldLogFiles is set to 0.
+
+commit 98d046ba12d3eb3e34ec2cf5752a9c35721946ba
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Sun Apr 7 23:26:31 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit ef456ec9073f2f223e56117077fd2555a3e3d4c1
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Sun Apr 7 23:26:31 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 9523e770f58e440e7359b3e495f2fe6b03da3447
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Sun Apr 7 23:26:31 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit a02c7f8de02dd3108a5ebdd6158dfc9366051409
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Mar 18 11:42:23 2024 -0700
+
+    Update ChangeLog with the granular push of Mar 18, 2024.
+    - plus Copyright update of file vmxnet3_defs.h
+    - plus ChangeLog update of Feb 28, 2024.
+
 commit c2056a39e9bf4fc91cd457c4ef12c29a3e9af3a7
 Author: Kruti <kpendharkar@vmware.com>
 Date:   Mon Mar 18 11:30:49 2024 -0700
