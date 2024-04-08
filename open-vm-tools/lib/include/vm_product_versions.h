@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 1998-2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2024 Broadcom. All rights reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -375,7 +376,7 @@
 #define PRECHECK_VERSION "e.x.p"
 #define VHSESDK_VERSION "1.0.0"
 #define VIEWVC_VERSION "14.0.2"
-#define WCP_VERSION "0.1.7"
+#define WCP_VERSION "0.1.8"
 #define VSTATS_VERSION "0.0.1"
 #define XVP_VERSION "1.0.0"
 /*
