@@ -454,6 +454,8 @@ extern "C" {
    GOKM("freeBSD13-64",                         freebsd13_64Guest,       TRUE) \
    GOKM("freeBSD14",                            freebsd14Guest,          TRUE) \
    GOKM("freeBSD14-64",                         freebsd14_64Guest,       TRUE) \
+   GOKM("freeBSD15",                            freebsd15Guest,          TRUE) \
+   GOKM("freeBSD15-64",                         freebsd15_64Guest,       TRUE) \
    GOKM("openserver5",                          openServer5Guest,        TRUE) \
    GOKM("openserver6",                          openServer6Guest,        TRUE) \
    GOKM("unixware7",                            unixWare7Guest,          TRUE) \
