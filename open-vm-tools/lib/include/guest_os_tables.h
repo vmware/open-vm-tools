@@ -319,6 +319,7 @@ extern "C" {
    GOKM("oraclelinux7-64",                      oracleLinux7_64Guest,    TRUE) \
    GOKM("oraclelinux8-64",                      oracleLinux8_64Guest,    TRUE) \
    GOKM("oraclelinux9-64",                      oracleLinux9_64Guest,    TRUE) \
+   GOKM("oraclelinux10-64",                     oracleLinux10_64Guest,   TRUE) \
    GOKM("suse",                                 suseGuest,               TRUE) \
    GOKM("suse-64",                              suse64Guest,             TRUE) \
    GOKM("sles",                                 slesGuest,               TRUE) \
