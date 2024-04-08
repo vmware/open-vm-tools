@@ -561,20 +561,21 @@ TranquilizeNetworkManager()
          ;;
    esac
 
-   # NetworkManager 0.8.0 and above
-   $dbusSend --system --print-reply          \
-      --dest=org.freedesktop.NetworkManager  \
-      /org/freedesktop/NetworkManager        \
-      org.freedesktop.NetworkManager.Enable boolean:false
-   rc=$?
-   if [ $rc -eq 0 ]; then
-      return $rc
-   fi
-   # NetworkManager 0.7.0
+   # NetworkManager 0.9.1 and above + earlier versions that honor
+   # the "Sleep" config boolean.
    $dbusSend --system --print-reply          \
       --dest=org.freedesktop.NetworkManager  \
       /org/freedesktop/NetworkManager        \
       org.freedesktop.NetworkManager.Sleep boolean:true
+   rc=$?
+   if [ $rc -eq 0 ]; then
+      return $rc
+   fi
+   # NetworkManager 0.9.0
+   $dbusSend --system --print-reply          \
+      --dest=org.freedesktop.NetworkManager  \
+      /org/freedesktop/NetworkManager        \
+      org.freedesktop.NetworkManager.Enable boolean:false
    rc=$?
    if [ $rc -eq 0 ]; then
       return $rc
@@ -610,20 +611,21 @@ WakeNetworkManager()
    dbusSend=`which dbus-send 2>/dev/null`
    rc=$?
    if [ $rc = 0 ]; then
-      # NetworkManager 0.8.0
-      $dbusSend --system --print-reply          \
-         --dest=org.freedesktop.NetworkManager  \
-         /org/freedesktop/NetworkManager        \
-         org.freedesktop.NetworkManager.Enable boolean:true
-      rc=$?
-      if [ $rc = 0 ]; then
-         return $rc
-      fi
-      # NetworkManager 0.7.0
+      # NetworkManager 0.9.1 and above + earlier versions that honor
+      # the "Sleep" config boolean.
       $dbusSend --system --print-reply          \
          --dest=org.freedesktop.NetworkManager  \
          /org/freedesktop/NetworkManager        \
          org.freedesktop.NetworkManager.Sleep boolean:false
+      rc=$?
+      if [ $rc = 0 ]; then
+         return $rc
+      fi
+      # NetworkManager 0.9.0
+      $dbusSend --system --print-reply          \
+         --dest=org.freedesktop.NetworkManager  \
+         /org/freedesktop/NetworkManager        \
+         org.freedesktop.NetworkManager.Enable boolean:true
       rc=$?
       if [ $rc = 0 ]; then
          return $rc
