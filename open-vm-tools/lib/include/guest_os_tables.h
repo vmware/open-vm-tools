@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 1998-2024 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2024 Broadcom. All rights reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -358,6 +359,8 @@ extern "C" {
    GOKM("debian11-64",                          debian11_64Guest,        TRUE) \
    GOKM("debian12",                             debian12Guest,           TRUE) \
    GOKM("debian12-64",                          debian12_64Guest,        TRUE) \
+   GOKM("debian13",                             debian13Guest,           TRUE) \
+   GOKM("debian13-64",                          debian13_64Guest,        TRUE) \
    GOKM("asianux3",                             asianux3Guest,           TRUE) \
    GOKM("asianux3-64",                          asianux3_64Guest,        TRUE) \
    GOKM("asianux4",                             asianux4Guest,           TRUE) \
