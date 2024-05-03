@@ -467,6 +467,16 @@ Max(int a, int b)
 #endif
 #define QWORD(_hi, _lo)   ((((uint64)(_hi)) << 32) | ((uint32)(_lo)))
 
+#ifndef HIDWORD128
+#define HIDWORD128(_qw)    ((uint64)((_qw) >> 64))
+#endif
+#ifndef LODWORD128
+#define LODWORD128(_qw)    ((uint64)(_qw))
+#endif
+#ifndef QWORD128
+#define QWORD128(_hi, _lo) ((((uint128)(_hi)) << 64) | ((uint64)(_lo)))
+#endif
+
 
 /*
  * Deposit a field _src at _pos bits from the right,
