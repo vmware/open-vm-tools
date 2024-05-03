@@ -1415,6 +1415,7 @@ static const ShortNameSet shortNameArray[] = {
 /* Red Hat must come before the Enterprise Linux entry */
 { "enterprise linux",    NULL,                      HostinfoSetOracleShortName  },
 { "fedora",              STR_OS_FEDORA,             HostinfoGenericSetShortName },
+{ "flatcar",             STR_OS_FLATCAR,            HostinfoGenericSetShortName },
 { "gentoo",              STR_OS_GENTOO,             HostinfoGenericSetShortName },
 { "immunix",             STR_OS_IMMUNIX,            HostinfoGenericSetShortName },
 { "linux-from-scratch",  STR_OS_LINUX_FROM_SCRATCH, HostinfoGenericSetShortName },
