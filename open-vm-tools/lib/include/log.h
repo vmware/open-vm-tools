@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 1998-2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2024 Broadcom. All rights reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -448,18 +449,18 @@ Log_SetOutputLevel(LogOutput *output,
 
 /*
  * Structure contains all the pointers to where value can be updated.
- * Making VmxStats as a struct has its own advantage, such as updating
+ * Making VmxStatsInfo as a struct has its own advantage, such as updating
  * 'droppedChars' from the struct instead within LogFile.
  */
 
-struct VmxStatMinMax64;
+struct StatFileMinMax64;
 
 typedef struct {
    uint64          *logMsgsDropped;    // Number of dropped messages
    uint64          *logBytesDropped;   // Number of drop bytes
    uint64          *logBytesLogged;    // Bytes logged
 
-   struct VmxStatMinMax64 *logWriteMinMaxTime; // Min/max write time in US
+   struct StatsFileMinMax64 *logWriteMinMaxTime; // Min/max write time in US
    uint64          *logWriteAvgTime;   // Average time to write in US
 } VmxStatsInfo;
 
