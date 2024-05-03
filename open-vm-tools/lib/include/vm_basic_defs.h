@@ -605,6 +605,19 @@ typedef int pid_t;
 #define VMK_HAS_VMM_ONLY(...)
 #endif
 
+#if defined VMM || defined VMK_HAS_VMM
+/* Structure field only used to support the VMM (as opposed to the ULM). */
+#define VMM_ONLY_FIELD(name) name
+#else
+/*
+ * Structure field only used to support the VMM (as opposed to the ULM).
+ * Until VMK_HAS_VMM is retired, keep this field so the size of the structure
+ * is unchanged (was bug 3354277), but prepend an underscore to the field's
+ * name to verify at compile time that the field is indeed not used.
+ */
+#define VMM_ONLY_FIELD(name) _##name
+#endif
+
 #undef ARM64_ONLY
 #ifdef VM_ARM_64
 #define ARM64_ONLY(...)  __VA_ARGS__
