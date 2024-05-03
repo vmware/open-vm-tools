@@ -15,4 +15,4 @@ space_separated_pids=$(ss -lntup | grep -Eo "pid=[0-9]+" | sort -u)
 pattern=$(echo $space_separated_pids | tr ' ' '|')
 
 # get matching lines
-ss -antup | grep -E $pattern
+ss -antup | grep -E $pattern  | sed 's/[ \t]*$//'
