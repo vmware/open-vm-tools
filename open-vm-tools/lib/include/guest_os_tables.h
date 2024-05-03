@@ -390,6 +390,8 @@ extern "C" {
    GOKM("other5xlinux-64",                      other5xLinux64Guest,     TRUE) \
    GOKM("other6xlinux",                         other6xLinuxGuest,       TRUE) \
    GOKM("other6xlinux-64",                      other6xLinux64Guest,     TRUE) \
+   GOKM("other7xlinux",                         other7xLinuxGuest,       TRUE) \
+   GOKM("other7xlinux-64",                      other7xLinux64Guest,     TRUE) \
    GOKM("linux",                                otherLinuxGuest,         FALSE) \
    GOKM("otherlinux",                           otherLinuxGuest,         TRUE) \
    GOKM("otherlinux-64",                        otherLinux64Guest,       TRUE) \
