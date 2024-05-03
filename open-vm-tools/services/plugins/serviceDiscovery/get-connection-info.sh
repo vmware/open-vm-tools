@@ -1,6 +1,9 @@
 #!/bin/sh
 
-# Copyright (C) 2020 VMware, Inc.  All rights reserved.
+####################################################################
+# Copyright (c) 2020-2024 Broadcom. All Rights Reserved.
+# The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
+####################################################################
 
 # check if necesary commands exist
 command -v ss >/dev/null 2>&1 || { echo >&2 "ss doesn't exist"; exit 1; }
