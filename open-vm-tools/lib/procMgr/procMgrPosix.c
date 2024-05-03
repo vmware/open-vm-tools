@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 1998-2022 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2024 Broadcom. All rights reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -103,6 +104,8 @@ static int const cSignals[] = {
    SIGUSR2,
 };
 
+static Bool gOffspringProcess = FALSE;
+
 
 /*
  * Keeps track of the posix async proc info.
@@ -139,6 +142,144 @@ Bool ProcMgr_PromoteEffectiveToReal(void);
 #define  BASH_PATH "/usr/bin/bash"
 #else
 #define  BASH_PATH "/bin/bash"
+#endif
+
+
+/*
+ * Mutexes in bora-vmsoft/apps/vmtoolslib/vmtoolsLog.c and glib could have
+ * been locked at fork time. vmtoolsLog.c Debug, Warning and Panic functions
+ * are not safe for offspring processes. A straightforward alternative for
+ * offspring process code paths is to invoke SAFE_DEBUG, SAFE_WARNING and
+ * SAFE_PANIC.
+*/
+
+#define SAFE_DEBUG(fmt, ...)                \
+   if (gOffspringProcess) {                 \
+      OffspringDebug(fmt, ## __VA_ARGS__);  \
+   } else {                                 \
+      Debug(fmt, ## __VA_ARGS__);           \
+   }
+
+#define SAFE_WARNING(fmt, ...)                \
+   if (gOffspringProcess) {                   \
+      OffspringWarning(fmt, ## __VA_ARGS__);  \
+   } else {                                   \
+      Warning(fmt, ## __VA_ARGS__);           \
+   }
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * OffspringDebug --
+ *
+ *      Called by offspring processes to print a debug message to stdout.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+OffspringDebug(const char *fmt, ...)
+{
+   va_list args;
+
+   va_start(args, fmt);
+   vfprintf(stdout, fmt, args);
+   va_end(args);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * OffspringWarning --
+ *
+ *      Called by offspring processes to print a warning message to stderr.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+OffspringWarning(const char *fmt, ...)
+{
+   va_list args;
+
+   va_start(args, fmt);
+   vfprintf(stderr, fmt, args);
+   va_end(args);
+}
+
+
+#if !defined(USERWORLD)
+
+#define SAFE_PANIC(fmt, ...)                \
+   if (gOffspringProcess) {                 \
+      OffspringPanic(fmt, ## __VA_ARGS__);  \
+   } else {                                 \
+      Panic(fmt, ## __VA_ARGS__);           \
+   }
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * OffspringPanic --
+ *
+ *      Called by offspring processes to print an error message to stderr
+ *      and abort.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+OffspringPanic(const char *fmt, ...)
+{
+   char cwd[PATH_MAX];
+   va_list args;
+
+   va_start(args, fmt);
+   vfprintf(stderr, fmt, args);
+   va_end(args);
+
+   /*
+    * Refer to bora-vmsoft/apps/vmtoolslib/vmtoolsLog.c::VMToolsLogPanic
+    */
+   if (getcwd(cwd, sizeof cwd) != NULL) {
+      if (access(cwd, W_OK) == -1) {
+         /*
+          * Can't write to the working dir. chdir() to the user's home
+          * directory as an attempt to get a valid core dump.
+          */
+         const char *home = getenv("HOME");
+         if (home != NULL) {
+            if (chdir(home)) {
+               /* Just to make glibc headers happy. */
+            }
+         }
+      }
+   }
+
+   abort();
+}
+
 #endif
 
 
@@ -1436,13 +1577,13 @@ ProcMgrStartProcess(char const *cmd,            // IN: UTF-8 encoded cmd
     */
 
    if (!CodeSet_Utf8ToCurrent(cmd, strlen(cmd), &cmdCurrent, NULL)) {
-      Warning("Could not convert from UTF-8 to current\n");
+      SAFE_WARNING("Could not convert from UTF-8 to current\n");
       return -1;
    }
 
    if ((NULL != workingDir) &&
        !CodeSet_Utf8ToCurrent(workingDir, strlen(workingDir), &workDir, NULL)) {
-      Warning("Could not convert workingDir from UTF-8 to current\n");
+      SAFE_WARNING("Could not convert workingDir from UTF-8 to current\n");
       return -1;
    }
 
@@ -1485,7 +1626,7 @@ ProcMgrStartProcess(char const *cmd,            // IN: UTF-8 encoded cmd
    pid = fork();
 
    if (pid == -1) {
-      Warning("Unable to fork: %s.\n\n", strerror(errno));
+      SAFE_WARNING("Unable to fork: %s.\n\n", strerror(errno));
    } else if (pid == 0) {
       static const char bashShellPath[] = BASH_PATH;
       char *bashArgs[] = { "bash", "-c", cmdCurrent, NULL };
@@ -1493,6 +1634,11 @@ ProcMgrStartProcess(char const *cmd,            // IN: UTF-8 encoded cmd
       char *bourneArgs[] = { "sh", "-c", cmdCurrent, NULL };
       const char *shellPath;
       char **args;
+
+      /*
+       * Child
+       */
+      gOffspringProcess = TRUE;
 
       /*
        * Check bug 772203. To start the program, we start the shell
@@ -1518,10 +1664,6 @@ ProcMgrStartProcess(char const *cmd,            // IN: UTF-8 encoded cmd
          args = bourneArgs;
       }
 
-      /*
-       * Child
-       */
-
 #ifdef __APPLE__
       /*
        * On OS X with security fixes, we cannot revert the real uid if
@@ -1533,14 +1675,15 @@ ProcMgrStartProcess(char const *cmd,            // IN: UTF-8 encoded cmd
        * root.
        */
       if (!ProcMgr_PromoteEffectiveToReal()) {
-         Panic("%s: Could not set real uid to effective\n", __FUNCTION__);
+         SAFE_PANIC("%s: Could not set real uid to effective\n",
+                    __FUNCTION__);
       }
 #endif
 
       if (NULL != workDir) {
          if (chdir(workDir) != 0) {
-            Warning("%s: Could not chdir(%s) %s\n", __FUNCTION__, workDir,
-                    strerror(errno));
+            SAFE_WARNING("%s: Could not chdir(%s) %s\n", __FUNCTION__,
+                         workDir, strerror(errno));
          }
       }
 
@@ -1551,8 +1694,8 @@ ProcMgrStartProcess(char const *cmd,            // IN: UTF-8 encoded cmd
       }
 
       /* Failure */
-      Panic("Unable to execute the \"%s\" shell command: %s.\n\n",
-            cmd, strerror(errno));
+      SAFE_PANIC("Unable to execute the \"%s\" shell command: %s.\n\n",
+                 cmd, strerror(errno));
    }
 #endif
 
@@ -1612,8 +1755,8 @@ ProcMgrWaitForProcCompletion(pid_t pid,                 // IN
          continue;
       }
 
-      Warning("Unable to wait for the process %"FMTPID" to terminate: "
-              "%s.\n\n", pid, strerror(errno));
+      SAFE_WARNING("Unable to wait for the process %"FMTPID" to terminate: "
+                   "%s.\n\n", pid, strerror(errno));
 
       return FALSE;
    }
@@ -1625,8 +1768,8 @@ ProcMgrWaitForProcCompletion(pid_t pid,                 // IN
 
    retVal = (WIFEXITED(childStatus) && WEXITSTATUS(childStatus) == 0);
 
-   Debug("Done waiting for process: %"FMTPID" (%s)\n", pid,
-         retVal ? "success" : "failure");
+   SAFE_DEBUG("Done waiting for process: %"FMTPID" (%s)\n", pid,
+              retVal ? "success" : "failure");
 
    return retVal;
 }
@@ -1686,6 +1829,7 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
       /*
        * Child
        */
+      gOffspringProcess = TRUE;
 
       /*
        * shut down everything but stdio and the pipe() we just made.
@@ -1702,6 +1846,16 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
          }
       }
 
+      close(readFd);
+
+      /*
+       * Child should not invoke parent's logging facilities as logging mutex
+       * could have been locked at fork time. Also, logging file descriptors
+       * have already been closed now.
+       * Child shall terminate with _exit() or abort() to avoid calling any
+       * functions registered with atexit() or on_exit() in the parent.
+       */
+
       if (Signal_SetGroupHandler(cSignals, olds, ARRAYSIZE(cSignals),
 #ifndef sun
                                  SIG_DFL
@@ -1712,15 +1866,14 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
          status = FALSE;
       }
 
-      close(readFd);
-
       /*
        * Only run the program if we have not already experienced a failure.
        */
       if (status) {
          childPid = ProcMgrStartProcess(cmd,
                                         userArgs ? userArgs->envp : NULL,
-                                        userArgs ? userArgs->workingDirectory : NULL);
+                                        userArgs ? userArgs->workingDirectory :
+                                                   NULL);
          status = childPid != -1;
       }
 
@@ -1729,14 +1882,14 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
        * report the result pid back synchronously.
        */
       if (write(writeFd, &childPid, sizeof childPid) == -1) {
-         Warning("Waiter unable to write back to parent.\n");
+         SAFE_WARNING("Waiter unable to write back to parent.\n");
 
          /*
           * This is quite bad, since the original process will block
           * waiting for data. Unfortunately, there isn't much to do
           * (other than trying some other IPC mechanism).
           */
-         exit(-1);
+         _exit(-1);
       }
 
       if (status) {
@@ -1745,35 +1898,36 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
           * finishes executing.
           */
          ASSERT(pid != -1);
-         status = ProcMgrWaitForProcCompletion(childPid, &validExitCode, &exitCode);
+         status = ProcMgrWaitForProcCompletion(childPid, &validExitCode,
+                                               &exitCode);
       }
 
       /*
        * We always have to send IPC back to caller, so that it does not
        * block waiting for data we'll never send.
        */
-      Debug("Writing the command %s a success to fd %x\n",
-            status ? "was" : "was not", writeFd);
+      SAFE_DEBUG("Writing the command %s a success to fd %x\n",
+                 status ? "was" : "was not", writeFd);
       if (write(writeFd, &status, sizeof status) == -1) {
-         Warning("Waiter unable to write back to parent\n");
+         SAFE_WARNING("Waiter unable to write back to parent\n");
 
          /*
           * This is quite bad, since the original process will block
           * waiting for data. Unfortunately, there isn't much to do
           * (other than trying some other IPC mechanism).
           */
-         exit(-1);
+         _exit(-1);
       }
 
       if (write(writeFd, &exitCode, sizeof exitCode) == -1) {
-         Warning("Waiter unable to write back to parent\n");
+         SAFE_WARNING("Waiter unable to write back to parent\n");
 
          /*
           * This is quite bad, since the original process will block
           * waiting for data. Unfortunately, there isn't much to do
           * (other than trying some other IPC mechanism).
           */
-         exit(-1);
+         _exit(-1);
       }
 
       close(writeFd);
@@ -1789,7 +1943,7 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
          exitCode = 0;
       }
 
-      exit(exitCode);
+      _exit(exitCode);
    }
 
    /*
@@ -2460,12 +2614,12 @@ ProcMgr_PromoteEffectiveToReal(void)
 
    ret = setregid(gid, gid);
    if (ret < 0) {
-      Warning("Failed to setregid(%d) %d\n", gid, errno);
+      SAFE_WARNING("Failed to setregid(%d) %d\n", gid, errno);
       return FALSE;
    }
    ret = setreuid(uid, uid);
    if (ret < 0) {
-      Warning("Failed to setreuid(%d) %d\n", uid, errno);
+      SAFE_WARNING("Failed to setreuid(%d) %d\n", uid, errno);
       return FALSE;
    }
 
