@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2020-2021,2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2020-2021,2023-2024 Broadcom. All rights reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -92,6 +93,8 @@ extern "C++" {
  *   - GdpEnum name
  *   - error-id string id
  *   - Default error message string
+ *
+ * GDP_ERR_MAX item MUST BE LAST
  */
 #define GDP_ERR_LIST                                      \
    GDP_ERR_ITEM(GDP_ERROR_SUCCESS = 0,                    \
@@ -117,7 +120,10 @@ extern "C++" {
                 "Operation timed out")                    \
    GDP_ERR_ITEM(GDP_ERROR_NO_SUBSCRIBERS,                 \
                 "no-subscribers",                         \
-                "No subscribers for data")
+                "No subscribers for data")                \
+   GDP_ERR_ITEM(GDP_ERR_MAX,                              \
+                "last-error",                             \
+                "last-error")
 
 /*
  * GdpError codes enum.
@@ -125,7 +131,6 @@ extern "C++" {
 #define GDP_ERR_ITEM(a, b, c) a,
 typedef enum GdpError {
    GDP_ERR_LIST
-   GDP_ERR_MAX
 } GdpError;
 #undef GDP_ERR_ITEM
 
