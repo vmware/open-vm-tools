@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 1998-2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2024 Broadcom. All rights reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -3948,6 +3949,32 @@ MAKE_ATOMIC_TYPE(Bool, 8, Bool, Bool, Bool)
 /*
  *-----------------------------------------------------------------------------
  *
+ * Atomic_SetBitVector --
+ *
+ *      Atomically set the bit 'index' in bit vector var.
+ *
+ *      The index input value specifies which bit to modify and is 0-based.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+Atomic_SetBitVector(Atomic_uint8 *var, // IN/OUT
+                    unsigned index)    // IN
+{
+   Atomic_Or8(var + index / 8, 1 << index % 8);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * Atomic_TestSetBitVector --
  *
  *      Atomically test and set the bit 'index' in bit vector var.
@@ -3982,6 +4009,32 @@ Atomic_TestSetBitVector(Atomic_uint8 *var, // IN/OUT
    uint8 bit = 1 << index % 8;
    return (Atomic_ReadOr8(var + index / 8, bit) & bit) != 0;
 #endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Atomic_ClearBitVector --
+ *
+ *      Atomically clear the bit 'index' in bit vector var.
+ *
+ *      The index input value specifies which bit to modify and is 0-based.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+Atomic_ClearBitVector(Atomic_uint8 *var, // IN/OUT
+                      unsigned index)    // IN
+{
+   Atomic_And8(var + index / 8, ~(1 << index % 8));
 }
 
 
