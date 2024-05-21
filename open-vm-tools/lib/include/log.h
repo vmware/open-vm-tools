@@ -496,7 +496,6 @@ Log_SetProductInfoSimple(void)
                       ProductState_GetCompilationOption());
 }
 
-
 LogOutput *
 Log_InitWithCustomInt(struct CfgInterface *cfgIf,
                       LogCustomMsgFunc *msgFunc,
@@ -511,6 +510,22 @@ Log_InitWithCustom(struct CfgInterface *cfgIf,
    Log_SetProductInfoSimple();
 
    return Log_InitWithCustomInt(cfgIf, msgFunc, minLogLevel);
+}
+
+LogOutput *
+Log_InitWithCustomIntEx(struct CfgInterface *cfgIf,
+                        LogCustomMsgFuncEx *msgFunc,
+                        int minLogLevel);
+
+
+static INLINE LogOutput *
+Log_InitWithCustomEx(struct CfgInterface *cfgIf,
+                     LogCustomMsgFuncEx *msgFunc,
+                     int minLogLevel)
+{
+   Log_SetProductInfoSimple();
+
+   return Log_InitWithCustomIntEx(cfgIf, msgFunc, minLogLevel);
 }
 
 LogOutput *
