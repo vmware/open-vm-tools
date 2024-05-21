@@ -1,3 +1,221 @@
+commit 9daa47c599c1fd85b60419b9375ef7d53d8d5c0f
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon May 20 23:10:14 2024 -0700
+
+    Correct copyright year to 2024.
+
+commit 8cd75607fbb7b5923f791c3cd8270d88b73fbef2
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon May 20 22:58:13 2024 -0700
+
+    [Coverity]: Fixes for issues found from static application security testing
+    
+    Adding coverity escapes for false-positive issues.
+    
+    hgfsServerParameters.c -- 1 issue reported.
+    issue: Overrunning array of 5 bytes at byte offset 5 by dereferencing
+           pointer "newName".
+    impact: False-Positive
+    fix: suppress 'overrun-local'
+    
+    vmhgfs-fuse/file.c -- 2 issues reported.
+    issue: Overrunning array of n bytes at byte offset n by dereferencing
+           pointer "newNameP" (n is 17 and 5 respectively for those 2 locations
+           where the issue occured).
+    impact: False-Positive
+    fix: suppress 'overrun-local'
+    
+    vmhgfs-fuse/link.c -- 2 issues reported.
+    issue: Overrunning array of n bytes at byte offset n by dereferencing
+           pointer "fileNameP" (n is 17 and 5 respectively for those 2 locations
+           where the issue occured).
+    impact: False-Positive
+    fix: suppress 'overrun-local'
+    
+    vmhgfs-fuse/transport.c -- 1 issue reported.
+    issue: uninit_use_in_call: Using uninitialized value "reply" while calling
+           HgfsCompleteReq() function.
+    impact: Bug
+    fix: Remove function, it is unused/dead code (transport.h too).
+
+commit b91770061d3000de3fbe0994480579d1c2ca62f8
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon May 20 22:58:13 2024 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 385e9b78195e96089353fbe2e945f069b245a831
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon May 20 22:58:13 2024 -0700
+
+    Maintain compatibility with libxml2.12.5 and later.
+
+commit 9364240246824f9a1daa591cc45af8a6714e046b
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon May 20 22:58:13 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit ebe97d7d8cb01e68826ada7766f0227d3c016508
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon May 20 22:58:13 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit ae0b62370b6ca926dbabe25bf5856c2a97cdcc5c
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon May 20 22:58:13 2024 -0700
+
+    Verify the xmlsec version before passing the compiler flag "-DXMLSEC_NO_SIZE_T",
+    as it has been deprecated since 1.3.3.
+    
+    The configure option "--enable-size-t" has been set to yes by default starting
+    with 1.3.0.
+    
+    version < 1.3.0 :
+      Add "-DXMLSEC_NO_SIZE_T" if size_t has a size other than 4 bytes.
+      (There was no enable-size-t before 1.2.35 and the enable-size-t is
+       "no" by default in [1.2.35, 1.3.0))
+    version >= 1.3.0 :
+      Do not add "-DXMLSEC_NO_SIZE_T" (as enable-size-t is "yes" by
+      default in version [1.3.0, 1.3.3) and no need to consider this
+      option since 1.3.3)
+
+commit 3fb8fe48f108067c39077934497df465616ba518
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon May 20 22:58:13 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit b841140771ae6218f8875574de78dac1dd19fd90
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon May 20 22:58:12 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 084e3f4c6911d8036d157ed4f96dbda94f705142
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon May 20 22:58:12 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 1dad197a3419d900e8e4a7e2549abf8586a8b885
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon May 20 22:58:12 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 6196b065644d325d6345db2a42f8778a0fcd9751
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon May 20 22:58:12 2024 -0700
+
+    Change to common source files not applicable to open-vm-tools.
+
+commit 42ceedd78f9ccb39540c4ea12f40fba7c644a050
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon May 20 22:58:12 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit b3b985137250d9b82bb22367a1ce1e424830c21d
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon May 20 22:58:12 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit b8fbf56a86b2d7e3d937fba9858add64d9792e8b
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon May 20 22:58:12 2024 -0700
+
+    Change to common source file not directly applicable to open-vm-tools.
+
+commit 33aa649c612d2a41f850ace726047fb5d6f70475
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon May 20 22:58:12 2024 -0700
+
+    Remove unused header files from the open-vm-tools source bundle.
+
+commit 2723eb37bad5d86683e67c6c6d09871da35e92e3
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon May 20 22:58:12 2024 -0700
+
+    Log customized error exit code from offspring processes.
+
+commit 0ffadd28557203cd0c994e48ccb442f1405a85c8
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon May 20 22:58:12 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit ec5f27caeb454cf1c4142a7e95f98b9d2e001b3d
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon May 20 22:58:12 2024 -0700
+
+    Fix copyright years.
+
+commit f9649775dafd0c2666f86357c1f72fb10e0d18c4
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon May 20 22:58:12 2024 -0700
+
+    [Coverity]: UNINIT in resolutionSet finding from static application
+                security testing (SAST)
+    
+    resolutionSet.c -- 1 issue reported in the file
+    issue: capabilityArray not initialized or partially initialized when
+           reaching the statement.
+    impact: False-positive
+    fix: suppress 'uninit_use_in_call'
+    
+    VMTools_WrapArray converts the capabilityArray to a GArray.
+    The 'wrapped' array is allocated space for capabilityCount elements and
+    only the first capabilityCount elements are COPIED from capabilityArray
+    to the allocated GArray.  As such, the uninitialized elements of the
+    capabilityArray are never used to generate the returned GArray.  While
+    technically true (uninitialized) there is no reason to zero the array
+    indexes from capabilityCount through to the end of the array as these
+    elements are unused.
+
+commit b437f6f4ae99b540820cb66dabc716eb43c5c71a
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon May 20 22:58:12 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 31894dfbfcd91efe5a2712c2f33ce9114d942e11
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon May 20 22:58:12 2024 -0700
+
+    Fix LOCK_EVASION issue found by Coverity scan.
+    
+    fileLogger.c -- 2 issues reported in file
+    issue: MultiReader/SingleWriter lock race conditions between assign and
+           check.
+    fix: Mitigation more than fix.
+    
+    issue: Coverity seems confused by the MR/SW lock, but there is some data
+           field assignment performed under the wrong lock to clean up.
+           fix: Move assignment made under Read lock to Write lock.
+    
+    Moved setting the data->error status inside of writer lock block.
+    
+    Added re-checking the data->error status at reader -> writer and
+    writer -> reader lock transitions.
+
+commit 52596dea1e33e40ad8f518d445b53d7f0a4f34f1
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon May 20 22:58:12 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 9e85a0c132b8aa01e27bf958b61a802602352311
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Fri May 3 09:27:03 2024 -0700
+
+    Update ChangeLog with the granular push of May 3, 2024.
+    - plus Copyright modification of files vmxnet3_defs.h and
+      get-connection-info.sh.
+    - plus ChangeLog update of Apr 7, 2024.
+
 commit a0ffd2a0bf2a1f22cce695adad374628c832555c
 Author: Kruti <kpendharkar@vmware.com>
 Date:   Fri May 3 09:15:25 2024 -0700
