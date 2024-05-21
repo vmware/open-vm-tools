@@ -91,6 +91,25 @@
 
 
 /*
+ * Use custom exit code in the range [166, 199]
+ */
+
+#define PROCMGR_CUSTOM_EXIT_CODE_BASE 166
+
+enum {
+   PROCMGR_ERROR_CMD_ENCODE = PROCMGR_CUSTOM_EXIT_CODE_BASE,
+   PROCMGR_ERROR_WORKDIR_ENCODE,
+   PROCMGR_ERROR_VMK_FORKEXEC,
+   PROCMGR_ERROR_FORK,
+   PROCMGR_ERROR_SETREGID,
+   PROCMGR_ERROR_SETREUID,
+   PROCMGR_ERROR_SET_SIG_HANDLER,
+   PROCMGR_ERROR_WRITE_PIPE,
+   PROCMGR_ERROR_WAITPID
+};
+
+
+/*
  * All signals that:
  * . Can terminate the process
  * . May occur even if the program has no bugs
@@ -105,6 +124,7 @@ static int const cSignals[] = {
 };
 
 static Bool gOffspringProcess = FALSE;
+static int  gOffspringExitCode = 0;
 
 
 /*
@@ -166,6 +186,14 @@ Bool ProcMgr_PromoteEffectiveToReal(void);
    } else {                                   \
       Warning(fmt, ## __VA_ARGS__);           \
    }
+
+#define SET_OFFSPRING_EXIT_CODE(exitCode)  \
+   if (gOffspringProcess) {                \
+      gOffspringExitCode = exitCode;       \
+   }
+
+#define EXIT_ON_ERROR_WRITE_PIPE()  \
+   _exit(gOffspringExitCode ? gOffspringExitCode : PROCMGR_ERROR_WRITE_PIPE)
 
 
 /*
@@ -281,6 +309,40 @@ OffspringPanic(const char *fmt, ...)
 }
 
 #endif
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * WaitOffspring --
+ *
+ *      Wait to de-zombify a direct child process specified by pid.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+WaitOffspring(pid_t pid)
+{
+   int status;
+   pid_t retVal;
+
+   retVal = waitpid(pid, &status, 0);
+   if (retVal == pid) {
+      SAFE_DEBUG("waitpid(%"FMTPID") returned child status: 0x%08x, "
+                 "WIFEXITED flag: %d, WEXITSTATUS value: %d\n",
+                 pid, status, WIFEXITED(status), WEXITSTATUS(status));
+   } else {
+      SAFE_WARNING("waitpid(%"FMTPID") returned %"FMTPID" with error: %s\n",
+                   pid, retVal, strerror(errno));
+   }
+}
 
 
 /*
@@ -1449,6 +1511,7 @@ ProcMgrExecSync(char const *cmd,                  // IN: UTF-8 command line
 {
    pid_t pid;
 
+   ASSERT(cmd != NULL);
    Debug("Executing sync command: %s\n", cmd);
 
    if (validExitCode != NULL) {
@@ -1566,10 +1629,7 @@ ProcMgrStartProcess(char const *cmd,            // IN: UTF-8 encoded cmd
    char **envpCurrent = NULL;
    char *workDir = NULL;
 
-   if (cmd == NULL) {
-      ASSERT(FALSE);
-      return -1;
-   }
+   ASSERT(cmd != NULL);
 
    /*
     * Convert the strings before the call to fork(), since the conversion
@@ -1578,12 +1638,14 @@ ProcMgrStartProcess(char const *cmd,            // IN: UTF-8 encoded cmd
 
    if (!CodeSet_Utf8ToCurrent(cmd, strlen(cmd), &cmdCurrent, NULL)) {
       SAFE_WARNING("Could not convert from UTF-8 to current\n");
+      SET_OFFSPRING_EXIT_CODE(PROCMGR_ERROR_CMD_ENCODE);
       return -1;
    }
 
    if ((NULL != workingDir) &&
        !CodeSet_Utf8ToCurrent(workingDir, strlen(workingDir), &workDir, NULL)) {
       SAFE_WARNING("Could not convert workingDir from UTF-8 to current\n");
+      SET_OFFSPRING_EXIT_CODE(PROCMGR_ERROR_WORKDIR_ENCODE);
       return -1;
    }
 
@@ -1619,6 +1681,7 @@ ProcMgrStartProcess(char const *cmd,            // IN: UTF-8 encoded cmd
          pid = (pid_t)outPid;
       } else {
          VmkuserStatus_CodeToErrno(status, &errno);
+         SET_OFFSPRING_EXIT_CODE(PROCMGR_ERROR_VMK_FORKEXEC);
          pid = -1;
       }
    } while (FALSE);
@@ -1627,6 +1690,7 @@ ProcMgrStartProcess(char const *cmd,            // IN: UTF-8 encoded cmd
 
    if (pid == -1) {
       SAFE_WARNING("Unable to fork: %s.\n\n", strerror(errno));
+      SET_OFFSPRING_EXIT_CODE(PROCMGR_ERROR_FORK);
    } else if (pid == 0) {
       static const char bashShellPath[] = BASH_PATH;
       char *bashArgs[] = { "bash", "-c", cmdCurrent, NULL };
@@ -1639,6 +1703,7 @@ ProcMgrStartProcess(char const *cmd,            // IN: UTF-8 encoded cmd
        * Child
        */
       gOffspringProcess = TRUE;
+      gOffspringExitCode = 0;
 
       /*
        * Check bug 772203. To start the program, we start the shell
@@ -1757,7 +1822,7 @@ ProcMgrWaitForProcCompletion(pid_t pid,                 // IN
 
       SAFE_WARNING("Unable to wait for the process %"FMTPID" to terminate: "
                    "%s.\n\n", pid, strerror(errno));
-
+      SET_OFFSPRING_EXIT_CODE(PROCMGR_ERROR_WAITPID);
       return FALSE;
    }
 
@@ -1787,7 +1852,8 @@ ProcMgrWaitForProcCompletion(pid_t pid,                 // IN
  *      NULL if the cmd failed to be forked.
  *
  * Side effects:
- *	The cmd is run.
+ *      The cmd is run.
+ *      ProcMgrStartProcess sets gOffspringExitCode on failure.
  *
  *----------------------------------------------------------------------
  */
@@ -1802,6 +1868,7 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
    pid_t resultPid;
    int readFd, writeFd;
 
+   ASSERT(cmd != NULL);
    Debug("Executing async command: '%s' in working dir '%s'\n",
          cmd, (userArgs && userArgs->workingDirectory) ? userArgs->workingDirectory : "");
 
@@ -1830,6 +1897,7 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
        * Child
        */
       gOffspringProcess = TRUE;
+      gOffspringExitCode = 0;
 
       /*
        * shut down everything but stdio and the pipe() we just made.
@@ -1863,6 +1931,7 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
                                  0
 #endif
                                  ) == 0) {
+         gOffspringExitCode = PROCMGR_ERROR_SET_SIG_HANDLER;
          status = FALSE;
       }
 
@@ -1889,7 +1958,7 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
           * waiting for data. Unfortunately, there isn't much to do
           * (other than trying some other IPC mechanism).
           */
-         _exit(-1);
+         EXIT_ON_ERROR_WRITE_PIPE();
       }
 
       if (status) {
@@ -1916,7 +1985,7 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
           * waiting for data. Unfortunately, there isn't much to do
           * (other than trying some other IPC mechanism).
           */
-         _exit(-1);
+         EXIT_ON_ERROR_WRITE_PIPE();
       }
 
       if (write(writeFd, &exitCode, sizeof exitCode) == -1) {
@@ -1927,7 +1996,7 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
           * waiting for data. Unfortunately, there isn't much to do
           * (other than trying some other IPC mechanism).
           */
-         _exit(-1);
+         EXIT_ON_ERROR_WRITE_PIPE();
       }
 
       close(writeFd);
@@ -1939,11 +2008,11 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
           */
       }
 
-      if (!validExitCode) {
-         exitCode = 0;
+      if (validExitCode) {
+         gOffspringExitCode = exitCode;
       }
 
-      _exit(exitCode);
+      _exit(gOffspringExitCode);
    }
 
    /*
@@ -1975,7 +2044,7 @@ ProcMgr_ExecAsync(char const *cmd,                 // IN: UTF-8 command line
       /*
        * Clean up the child process; it should exit pretty quickly.
        */
-      waitpid(pid, NULL, 0);
+      WaitOffspring(pid);
       goto quit;
    }
 
@@ -2314,7 +2383,7 @@ ProcMgr_GetExitCode(ProcMgr_AsyncProc *asyncProc,  // IN
 
       if (read(asyncProc->fd, &asyncProc->exitCode,
                sizeof asyncProc->exitCode) != sizeof asyncProc->exitCode) {
-         Warning("Error reading async process status.\n");
+         Warning("Error reading async process exitCode.\n");
          goto exit;
       }
 
@@ -2328,8 +2397,9 @@ ProcMgr_GetExitCode(ProcMgr_AsyncProc *asyncProc,  // IN
 
 exit:
    if (asyncProc->waiterPid != -1) {
-      Debug("Waiting on pid %"FMTPID" to de-zombify it\n", asyncProc->waiterPid);
-      waitpid(asyncProc->waiterPid, NULL, 0);
+      Debug("Waiting on pid %"FMTPID" to de-zombify it\n",
+            asyncProc->waiterPid);
+      WaitOffspring(asyncProc->waiterPid);
       asyncProc->waiterPid = -1;
    }
    return (asyncProc->exitCode == -1) ? -1 : 0;
@@ -2615,11 +2685,13 @@ ProcMgr_PromoteEffectiveToReal(void)
    ret = setregid(gid, gid);
    if (ret < 0) {
       SAFE_WARNING("Failed to setregid(%d) %d\n", gid, errno);
+      SET_OFFSPRING_EXIT_CODE(PROCMGR_ERROR_SETREGID);
       return FALSE;
    }
    ret = setreuid(uid, uid);
    if (ret < 0) {
       SAFE_WARNING("Failed to setreuid(%d) %d\n", uid, errno);
+      SET_OFFSPRING_EXIT_CODE(PROCMGR_ERROR_SETREUID);
       return FALSE;
    }
 
