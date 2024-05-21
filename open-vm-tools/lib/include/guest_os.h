@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 1998-2021, 2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2024 Broadcom. All rights reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -234,7 +235,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 #define ALL6XLINUX64          BS(OTHER6XLINUX_64), BS(OTHER6XLINUX_ARM_64),  \
                               BS(RHEL10_64),       BS(RHEL10_ARM_64),        \
-                              BS(ORACLE10_64)
+                              BS(ORACLE10_64),     BS(PROLINUX_64)
 
 #define ALL7XLINUX32          BS(OTHER7XLINUX)
 
@@ -363,6 +364,8 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_OTHER_7X_FULL      "Other Linux 7.x and later kernel"
 #define STR_OS_PHOTON             "vmware-photon"
 #define STR_OS_PHOTON_FULL        "VMware Photon OS"
+#define STR_OS_PROLINUX           "prolinux"
+#define STR_OS_PROLINUX_FULL      "ProLinux"
 #define STR_OS_PLD                "PLD"
 #define STR_OS_RED_HAT            "redhat"
 #define STR_OS_RED_HAT_EN         "rhel"
