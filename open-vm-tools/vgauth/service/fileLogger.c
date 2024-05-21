@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2011-2019 VMware, Inc. All rights reserved.
+ * Copyright (c) 2011-2024 Broadcom. All rights reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -233,14 +234,17 @@ ServiceFileLogger_Log(const gchar *domain,
           */
          g_rw_lock_reader_unlock(&data->lock);
          g_rw_lock_writer_lock(&data->lock);
-         if (data->file == NULL) {
+         if (data->file == NULL && !data->error) {
             data->file = ServiceFileLoggerOpen(data);
+            if (data->file == NULL) {
+               data->error = TRUE;
+               fprintf(stderr, "Unable to open log file %s\n", data->path);
+            }
          }
          g_rw_lock_writer_unlock(&data->lock);
          g_rw_lock_reader_lock(&data->lock);
-         if (data->file == NULL) {
-            data->error = TRUE;
-            fprintf(stderr, "Unable to open log file %s\n", data->path);
+         if (data->error) {
+	    /* Error set here or in another thread */
             goto exit;
          }
       }
@@ -258,10 +262,15 @@ ServiceFileLogger_Log(const gchar *domain,
             /* Drop the reader lock, grab the writer lock and re-check. */
             g_rw_lock_reader_unlock(&data->lock);
             g_rw_lock_writer_lock(&data->lock);
-            if (g_atomic_int_get(&data->logSize) >= data->maxSize) {
+            if (!data->error && data->file != NULL &&
+                g_atomic_int_get(&data->logSize) >= data->maxSize) {
                fclose(data->file);
                data->append = FALSE;
                data->file = ServiceFileLoggerOpen(data);
+               if (data->file == NULL) {
+                  data->error = TRUE;
+                  fprintf(stderr, "Unable to reopen log file %s\n", data->path);
+               }
             }
             g_rw_lock_writer_unlock(&data->lock);
             g_rw_lock_reader_lock(&data->lock);
