@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2003-2024 VMware, Inc. All rights reserved.
+ * Copyright (c) 2003-2024 Broadcom. All rights reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -31,9 +32,9 @@
  *********************************************************/
 
 /*
- * vm_basic_asm.h
+ * vm_basic_asm.h --
  *
- *	Basic asm macros
+ *      Basic asm macros.
  */
 
 #ifndef _VM_BASIC_ASM_H_
@@ -760,6 +761,7 @@ RDTSC(void)
 #elif defined(VM_ARM_64)
    /*
     * Keep this implementation in sync with:
+    * bora/vmkernel/hardware/arm64/tscsync_arch.h::TSCSyncRDTSC()
     * bora/lib/vprobe/arm64/vp_emit_tc.c::VpEmit_BuiltinRDTSCWork()
     * bora/modules/vmkernel/tests/core/xmapTest/xmapTest_arm64.c::XMapTest_SetupLoopCode()
     */
@@ -783,8 +785,8 @@ RDTSC(void)
 #else
 {
    /*
-    * We need to do more inverstagetion here to find
-    * a microsoft equivalent of that code
+    * We need to do more investigation here to find
+    * a Microsoft equivalent of that code.
     */
    NOT_IMPLEMENTED();
    return 0;
