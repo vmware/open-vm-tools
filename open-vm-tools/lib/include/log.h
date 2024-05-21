@@ -551,8 +551,8 @@ Log_InitWithFileSimpleInt(const char *appPrefix,
                           const char *fileName);
 
 static INLINE LogOutput *
-Log_InitWithFileSimple(const char *fileName,
-                       const char *appPrefix)
+Log_InitWithFileSimple(const char *appPrefix,
+                       const char *fileName)
 {
    Log_SetProductInfoSimple();
 
