@@ -815,6 +815,8 @@ FLAG(  12,  1, EAX,  4,  1, SECS_ATTRIBUTES_PROVISIONKEY,        ANY,  17 ) \
 FLAG(  12,  1, EAX,  5,  1, SECS_ATTRIBUTES_EINITTOKEN_KEY,      ANY,  17 ) \
 FLAG(  12,  1, EAX,  6,  1, SECS_ATTRIBUTES_CET,                 NO,    0 ) \
 FLAG(  12,  1, EAX,  7,  1, SECS_ATTRIBUTES_KSS,                 ANY,  17 ) \
+FLAG(  12,  1, EAX,  8,  1, SECS_ATTRIBUTES_LAM_U57,             NO,    0 ) \
+FLAG(  12,  1, EAX,  9,  1, SECS_ATTRIBUTES_LAM_U48,             NO,    0 ) \
 FLAG(  12,  1, EAX, 10,  1, SECS_ATTRIBUTES_AEXNOTIFY,           ANY, FUT ) \
 FIELD( 12,  1, ECX,  0, 32, SECS_ATTRIBUTES_XFRM_LOW,            ANY,  17 ) \
 FIELD( 12,  1, EDX,  0, 32, SECS_ATTRIBUTES_XFRM_HIGH,           ANY,  17 ) \
