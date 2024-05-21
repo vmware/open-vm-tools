@@ -1424,9 +1424,10 @@ VerifySignature(xmlDocPtr doc,
     * dsigCtx->status can be at the wrong offset.  So
     * dump the value of status, which should be either
     * 1 (xmlSecDSigStatusSucceeded) or 2 (xmlSecDSigStatusInvalid).
-    * If its something else, that's a sign there's a
-    * build issue and XMLSEC_NO_SIZE_T may be set at one layer but
-    * not the other.
+    * If its something else, that could be a sign that there's a build issue
+    * and that libxmlsec1 is using a different size type than its callers.
+    * Please see xmlSecSize changelog in
+    * https://www.aleksey.com/xmlsec/news.html
     *
     */
    if (dsigCtx->status != xmlSecDSigStatusSucceeded) {
