@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
+ * Copyright (c) 2010-2024 Broadcom. All rights reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1968,6 +1969,13 @@ HgfsUnpackRenamePayloadV2(const HgfsRequestRenameV2 *requestV2, // IN: request p
    } else {
       newName = (const HgfsFileName *)((char *)(&requestV2->oldName + 1)
                                        + *cpOldNameLen);
+      /*
+       * The HgfsRequestRenameV2 structure overlay on the data has the old and
+       * new data interlaced rather. The newName pointer in the data is
+       * calculated as an offset from the oldName field. This confuses Coverity,
+       * there is no overrun here.
+       */
+      /* coverity[overrun-local] */
       if (!HgfsUnpackFileName(newName,
                               extra,
                               cpNewName,

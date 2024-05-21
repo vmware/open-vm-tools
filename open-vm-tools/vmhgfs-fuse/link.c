@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2013,2019 VMware, Inc. All rights reserved.
+ * Copyright (c) 2013-2024 Broadcom. All rights reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -90,6 +91,12 @@ HgfsPackSymlinkCreateRequest(const char* symlink,     // IN: path of the link
       LOG(6, ("Target name: \"%s\"\n", fileNameP->name));
       /* Convert target name to CPName-lite format. */
       CPNameLite_ConvertTo(fileNameP->name, targetNameBytes - 1, '/');
+      /*
+       * The req size is always sufficient to hold the request data.
+       * There is no overrun here, coverity has issue with how the data is
+       * packed (name fields data are interlaced).
+       */
+      /* coverity[overrun-local] */
       fileNameP->length = targetNameBytes - 1;
       fileNameP->flags = 0;
       fileNameP->fid = HGFS_INVALID_HANDLE;
@@ -125,6 +132,12 @@ HgfsPackSymlinkCreateRequest(const char* symlink,     // IN: path of the link
       LOG(6, ("Target name: \"%s\"\n", fileNameP->name));
       /* Convert target name to CPName-lite format. */
       CPNameLite_ConvertTo(fileNameP->name, targetNameBytes - 1, '/');
+      /*
+       * The req size is always sufficient to hold the request data.
+       * There is no overrun here, coverity has issue with how the data is
+       * packed (name fields data are interlaced).
+       */
+      /* coverity[overrun-local] */
       fileNameP->length = targetNameBytes - 1;
       break;
    }
