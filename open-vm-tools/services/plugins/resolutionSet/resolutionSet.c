@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2008-2018 VMware, Inc. All rights reserved.
+ * Copyright (c) 2008-2024 Broadcom. All rights reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -510,6 +511,12 @@ ResolutionSetCapabilities(gpointer src,
 
    ASSERT(capabilityCount <= RESOLUTION_SET_CAPABILITIES_MAX);
 
+   /*
+    * VMTools_WrapArray copies the first capabilityCount elements from
+    * capabilityArray to the returned GArray. The uninitialized elements are not
+    * used.
+    */
+   /* coverity[uninit_use_in_call] */
    return VMTools_WrapArray(capabilityArray,
                             sizeof *capabilityArray,
                             capabilityCount);
