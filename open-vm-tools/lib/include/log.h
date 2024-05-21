@@ -580,8 +580,8 @@ Log_InitWithSyslogSimpleInt(const char *appPrefix,
                             const char *syslogID);
 
 static INLINE LogOutput *
-Log_InitWithSyslogSimple(const char *syslogID,
-                         const char *appPrefix)
+Log_InitWithSyslogSimple(const char *appPrefix,
+                         const char *syslogID)
 {
    Log_SetProductInfoSimple();
 
