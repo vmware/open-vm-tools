@@ -802,7 +802,7 @@ FLAG(  12,  0, EAX,  0,  1, SGX1,                                ANY,  17 ) \
 FLAG(  12,  0, EAX,  1,  1, SGX2,                                ANY,  21 ) \
 FLAG(  12,  0, EAX,  5,  1, SGX_OVERSUB_ENCLV,                   NO,    0 ) \
 FLAG(  12,  0, EAX,  6,  1, SGX_OVERSUB_ENCLS,                   NO,    0 ) \
-FLAG(  12,  0, EAX,  7,  1, SGX_EVERIFYREPORT2,                  NO,    0 ) \
+FLAG(  12,  0, EAX,  7,  1, SGX_EVERIFYREPORT2,                  ANY, FUT ) \
 FLAG(  12,  0, EAX, 10,  1, SGX_EUPDATESVN,                      NO,    0 ) \
 FLAG(  12,  0, EAX, 11,  1, SGX_EDECCSSA,                        ANY, FUT ) \
 FLAG(  12,  0, EBX,  0,  1, SGX_MISCSELECT_EXINFO,               ANY, FUT ) \
