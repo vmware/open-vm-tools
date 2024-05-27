@@ -156,8 +156,10 @@ extern "C" {
    GOT(GUEST_OS_VMKERNEL65)          /* ESX 6.5 and 6.7 64-bit */          \
    GOT(GUEST_OS_VMKERNEL7)           /* ESX 7 64-bit */                    \
    GOT(GUEST_OS_VMKERNEL7_ARM)       /* ESX 7 Arm 64-bit */                \
-   GOT(GUEST_OS_VMKERNEL8)           /* ESX 8 and later 64-bit */          \
-   GOT(GUEST_OS_VMKERNEL8_ARM)       /* ESX 8 and later Arm 64-bit */      \
+   GOT(GUEST_OS_VMKERNEL8)           /* ESX 8 64-bit */                    \
+   GOT(GUEST_OS_VMKERNEL8_ARM)       /* ESX 8 Arm 64-bit */                \
+   GOT(GUEST_OS_VMKERNEL9)           /* ESX 9 and later 64-bit */          \
+   GOT(GUEST_OS_VMKERNEL9_ARM)       /* ESX 9 and later Arm 64-bit */      \
    GOT(GUEST_OS_PHOTON_64)           /* VMware Photon 64-bit */            \
    GOT(GUEST_OS_PHOTON_ARM_64)       /* VMware Photon Arm 64-bit */        \
    GOT(GUEST_OS_ORACLE)                                                    \

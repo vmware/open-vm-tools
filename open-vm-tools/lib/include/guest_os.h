@@ -244,7 +244,8 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define ALLVMKERNEL           BS(VMKERNEL),   BS(VMKERNEL5),      \
                               BS(VMKERNEL6),  BS(VMKERNEL65),     \
                               BS(VMKERNEL7),  BS(VMKERNEL7_ARM),  \
-                              BS(VMKERNEL8),  BS(VMKERNEL8_ARM)
+                              BS(VMKERNEL8),  BS(VMKERNEL8_ARM),  \
+                              BS(VMKERNEL9),  BS(VMKERNEL9_ARM)
 
 #define ALLLINUX32            BS(VMKERNEL),      BS(OTHERLINUX), \
                               BS(OTHER24XLINUX), ALL26XLINUX32,  \
@@ -291,6 +292,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
                               BS(WIN_12_ARM_64),                                 \
                               BS(UBUNTU_ARM_64),        BS(PHOTON_ARM_64),       \
                               BS(VMKERNEL7_ARM),        BS(VMKERNEL8_ARM),       \
+                              BS(VMKERNEL9_ARM),                                 \
                               BS(OTHER_ARM_64),         BS(DEBIAN_ARM_64),       \
                               BS(OTHER5XLINUX_ARM_64),  BS(OTHER6XLINUX_ARM_64), \
                               BS(OTHER7XLINUX_ARM_64),                           \
