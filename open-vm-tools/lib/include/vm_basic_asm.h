@@ -71,6 +71,9 @@
 #include "mul64.h"
 #elif defined VM_ARM_64
 #include "vm_basic_asm_arm64.h"
+#ifdef VMKERNEL
+#include "vmk_arm_mode.h"
+#endif
 #else
 #define MUL64_NO_ASM 1
 #include "mul64.h"
@@ -765,8 +768,8 @@ RDTSC(void)
     * bora/lib/vprobe/arm64/vp_emit_tc.c::VpEmit_BuiltinRDTSCWork()
     * bora/modules/vmkernel/tests/core/xmapTest/xmapTest_arm64.c::XMapTest_SetupLoopCode()
     */
-#if defined(VMKERNEL) && !defined(VMK_ARM_EL1_OR_VHE)
-   return MRS(CNTPCT_EL0);
+#ifdef VMKERNEL
+   return MRSx(VMK_CNT_CT_EL);
 #else
    return MRS(CNTVCT_EL0);
 #endif
