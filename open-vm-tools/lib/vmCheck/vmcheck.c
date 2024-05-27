@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2006-2021, 2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2006-2024 Broadcom. All rights reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -20,7 +21,7 @@
 /*
  * vmcheck.c --
  *
- *    Utility functions for discovering our virtualization status.
+ *      Utility functions for discovering our virtualization status.
  */
 
 #include <stdlib.h>
@@ -197,7 +198,7 @@ VmCheckSafe(SafeCheckFn checkFn)
 
 Bool
 VmCheck_GetVersion(uint32 *version, // OUT
-                    uint32 *type)    // OUT
+                   uint32 *type)    // OUT
 {
    Backdoor_proto bp;
 
@@ -239,6 +240,53 @@ VmCheck_GetVersion(uint32 *version, // OUT
    else
       *type = bp.out.cx.word;
 
+   return TRUE;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * VmCheck_GetHWVersion --
+ *
+ *    Retrieve the VM's hardware version.
+ *
+ * Return value:
+ *    TRUE on success
+ *       *hwversion contains the VM hardware version
+ *    FALSE on failure
+ *
+ * Side effects:
+ *    None
+ *
+ *----------------------------------------------------------------------
+ */
+
+Bool
+VmCheck_GetHWVersion(uint32 *hwversion) // OUT
+{
+   Backdoor_proto bp;
+   ASSERT(hwversion);
+
+   /* Make sure EBX does not contain BDOOR_MAGIC */
+   bp.in.size = (size_t)~BDOOR_MAGIC;
+   /* send backdoor command to get hw version */
+   bp.in.cx.halfs.low = BDOOR_CMD_GETHWVERSION;
+   Backdoor(&bp);
+
+   if (bp.out.ax.word == 0xFFFFFFFF) {
+      /*
+       * No backdoor device there. This code is not executing in a VMware
+       * virtual machine.
+       */
+      return FALSE;
+   }
+
+   if (bp.out.bx.word != BDOOR_MAGIC) {
+      return FALSE;
+   }
+
+   *hwversion = bp.out.ax.word;
    return TRUE;
 }
 

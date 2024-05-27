@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2006-2017 VMware, Inc. All rights reserved.
+ * Copyright (c) 2006-2024 Broadcom. All rights reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -16,13 +17,11 @@
  *
  *********************************************************/
 
-
 /*
  * vmcheck.h --
  *
- *    Utility functions for discovering our virtualization status.
+ *      Utility functions for discovering our virtualization status.
  */
-
 
 #ifndef __VMCHECK_H__
 #   define __VMCHECK_H__
@@ -36,6 +35,9 @@ extern "C" {
 Bool
 VmCheck_GetVersion(uint32 *version, // OUT
                    uint32 *type);   // OUT
+
+Bool
+VmCheck_GetHWVersion(uint32 *hwversion); // OUT
 
 Bool
 VmCheck_IsVirtualWorld(void);
