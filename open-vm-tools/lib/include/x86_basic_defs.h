@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2006-2021,2023 VMware, Inc. All rights reserved.
+ * Copyright (C) 2006-2021,2023-2024 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -81,6 +81,7 @@
 
 #define CR3_LAM_U57    (1ULL << 61)
 #define CR3_LAM_U48    (1ULL << 62)
+#define CR3_LAM_USER   (CR3_LAM_U48 | CR3_LAM_U57)
 #define CR3_NO_FLUSH   (1ULL << 63)
 
 #define CR4_VME        0x00000001
