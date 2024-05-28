@@ -1,3 +1,47 @@
+commit fa9c8fb804f47536cddcdca1365b79477dccff88
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Tue May 28 02:00:20 2024 -0700
+
+    Update Copyright pattern.
+
+commit eedd5a4b61bfd2f54eaabffc2553cb9d7fcabbb5
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Sun May 26 23:55:32 2024 -0700
+
+    Change to common source files not applicable to open-vm-tools.
+
+commit 0d0b7bd3c8c2f63519c055236af843ecfd6d718f
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Sun May 26 23:55:32 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit bf2ac0396aedb12330050eeb63d0e3f2af65f847
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Sun May 26 23:55:32 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 5ab6868b2b993a18f3680416ad1257b4240c5f25
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Sun May 26 23:55:32 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit f026fcbdf5344d531954d049b05db12c3cf14429
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Sun May 26 23:55:32 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 8112f3d6d12a59d44f87776090643a2519b52f08
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon May 20 23:18:11 2024 -0700
+
+    Update ChangeLog with the granular push of May 20, 2024.
+    - plus Copyright update of file guestApp.c
+    - plus ChangeLog update of May 3, 2024.
+
 commit 9daa47c599c1fd85b60419b9375ef7d53d8d5c0f
 Author: Kruti <kpendharkar@vmware.com>
 Date:   Mon May 20 23:10:14 2024 -0700
