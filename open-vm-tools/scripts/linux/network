@@ -85,7 +85,7 @@ get_logconfig() {
          ;;
       *)
          # Default unknown to 'file' handler, log the issue.
-         `vmtoolsd --cmd "log WARNING: [$SOURCE] Logging unknown network.handler: $handler"`
+         vmtoolsd --cmd "log WARNING: [$SOURCE] Logging unknown network.handler: $handler"
          get_logfile
          ;;
    esac
@@ -121,7 +121,7 @@ rotate_logfile() {
 log() {
    if [ $logmode -eq 1 ]; then
       if [ "$handler" = "vmx" ]; then
-         `vmtoolsd --cmd "log $*"`
+         vmtoolsd --cmd "log $*"
       elif [ "$handler" = "std" ]; then
          echo `date` ": $*"
       elif [ -w $logdir ]; then
@@ -129,11 +129,11 @@ log() {
          if [ $space -gt 1024 ]; then
             echo `date` ": $*" >> $logfile
          else
-            `vmtoolsd --cmd "log WARNING: [$SOURCE] Logging disabled. No space left in $logdir"`
+            vmtoolsd --cmd "log WARNING: [$SOURCE] Logging disabled. No space left in $logdir"
             logmode=0
          fi
       else
-         `vmtoolsd --cmd "log WARNING: [$SOURCE] Logging disabled. $logdir is not writable"`
+         vmtoolsd --cmd "log WARNING: [$SOURCE] Logging disabled. $logdir is not writable"
          logmode=0
       fi
    fi
@@ -533,7 +533,7 @@ rescue_NIC()
 
 TranquilizeNetworkManager()
 {
-   # `which' may be a bit noisy, so we'll shush it.
+   # 'which' may be a bit noisy, so we'll shush it.
    dbusSend=`which dbus-send 2>/dev/null`
    rc=$?
    if [ $rc -ne 0 ]; then
@@ -606,7 +606,7 @@ TranquilizeNetworkManager()
 
 WakeNetworkManager()
 {
-   # `which' may be a bit noisy, so we'll shush it.
+   # 'which' may be a bit noisy, so we'll shush it.
    dbusSend=`which dbus-send 2>/dev/null`
    rc=$?
    if [ $rc = 0 ]; then
