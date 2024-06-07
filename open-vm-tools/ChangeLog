@@ -1,3 +1,273 @@
+commit e7e74316e2dc30c2f406ff31b63e34d7f8c6915b
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Fri Jun 7 09:55:04 2024 -0700
+
+    [Coverity]: Fixes for issues found from static application security testing
+    
+    Adding coverity escapes for false-positive issues.
+    
+    hgfsServerParameters.c -- 1 issue reported.
+    issue: Overrunning array of 5 bytes at byte offset 5 by dereferencing
+           pointer "newName".
+    impact: False-Positive
+    fix: suppress 'overrun-local'
+    
+    vmhgfs-fuse/file.c -- 2 issues reported.
+    issue: Overrunning array of n bytes at byte offset n by dereferencing
+           pointer "newNameP" (n is 17 and 5 respectively for those 2 locations
+           where the issue occured).
+    impact: False-Positive
+    fix: suppress 'overrun-local'
+    
+    vmhgfs-fuse/link.c -- 2 issues reported.
+    issue: Overrunning array of n bytes at byte offset n by dereferencing
+           pointer "fileNameP" (n is 17 and 5 respectively for those 2 locations
+           where the issue occured).
+    impact: False-Positive
+    fix: suppress 'overrun-local'
+    
+    vmhgfs-fuse/transport.c -- 1 issue reported.
+    issue: uninit_use_in_call: Using uninitialized value "reply" while calling
+           HgfsCompleteReq() function.
+    impact: Bug
+    fix: Remove function, it is unused/dead code (transport.h too).
+
+commit 58c7fbfadca63bb61a793ae558f686a42e876505
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Fri Jun 7 09:55:04 2024 -0700
+
+    Maintain compatibility with libxml2.12.5 and later.
+
+commit d87a3da2f1d60973cb67e6e65b38cb372b8397ef
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Fri Jun 7 09:55:03 2024 -0700
+
+    Fix copyright years.
+
+commit ae9222da00e2d6f2214c04df17f2399e19fd0b06
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Fri Jun 7 09:55:03 2024 -0700
+
+    ProcManagerPosix.c:  Direct child process's logs to stdio.
+    
+    Mutexes in lib/libvmtools/vmtoolsLog.c and glib could have been locked
+    at fork time.  The vmtoolsLog.c Debug(), Warning() and Panic()functions
+    are not safe for child processes.
+     - Direct the offspring process's logs to stdio.
+     - Terminate the offspring process with _exit() or abort().
+
+commit c7c731c64bc708d8f2ad25ec88011d735c900c5b
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Fri Jun 7 09:55:03 2024 -0700
+
+    Stop the glib based logging to avoid nested logging from RpcChannel error.
+
+commit 881bbcb49fb435957ba3c2cf47aad460fa53a352
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Fri Jun 7 09:55:03 2024 -0700
+
+    Fix LOCK_EVASION issue found by Coverity scan.
+    
+    fileLogger.c -- 2 issues reported in file
+    issue: MultiReader/SingleWriter lock race conditions between assign and
+           check.
+    fix: Mitigation more than fix.
+    
+    issue: Coverity seems confused by the MR/SW lock, but there is some data
+           field assignment performed under the wrong lock to clean up.
+           fix: Move assignment made under Read lock to Write lock.
+    
+    Moved setting the data->error status inside of writer lock block.
+    
+    Added re-checking the data->error status at reader -> writer and
+    writer -> reader lock transitions.
+
+commit 355c7a60cd6c323c290487a4ff4f290f84a3e913
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Fri Jun 7 09:55:03 2024 -0700
+
+    Verify the xmlsec version before passing the compiler
+    flag "-DXMLSEC_NO_SIZE_T", as it has been deprecated since 1.3.3.
+    
+    The configure option "--enable-size-t" has been set to yes by default starting
+    with 1.3.0.
+    
+    version < 1.3.0 :
+      Add "-DXMLSEC_NO_SIZE_T" if size_t has a size other than 4 bytes.
+      (There was no enable-size-t before 1.2.35 and the enable-size-t is
+       "no" by default in [1.2.35, 1.3.0))
+    version >= 1.3.0 :
+      Do not add "-DXMLSEC_NO_SIZE_T" (as enable-size-t is "yes" by
+      default in version [1.3.0, 1.3.3) and no need to consider this
+      option since 1.3.3)
+
+commit 3a1ddef19024ac0ec767e6f71b10b999aa7489a1
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Fri Jun 7 09:55:03 2024 -0700
+
+    Change to common source file not directly applicable to open-vm-tools.
+
+commit 642f553a707c6b8ac0bb8064fe1a96fdeaf66043
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Fri Jun 7 09:55:03 2024 -0700
+
+    Remove unused header files from the open-vm-tools source bundle.
+
+commit 4854674e3bce20215f313d5d1049654a468337ef
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Fri Jun 7 09:55:03 2024 -0700
+
+    [Coverity]: UNINIT in resolutionSet finding from static application
+                security testing (SAST)
+    
+    resolutionSet.c -- 1 issue reported in the file
+    issue: capabilityArray not initialized or partially initialized when
+           reaching the statement.
+    impact: False-positive
+    fix: suppress 'uninit_use_in_call'
+    
+    VMTools_WrapArray converts the capabilityArray to a GArray.
+    The 'wrapped' array is allocated space for capabilityCount elements and
+    only the first capabilityCount elements are COPIED from capabilityArray
+    to the allocated GArray.  As such, the uninitialized elements of the
+    capabilityArray are never used to generate the returned GArray.  While
+    technically true (uninitialized) there is no reason to zero the array
+    indexes from capabilityCount through to the end of the array as these
+    elements are unused.
+
+commit 7db39873858ca26a285d5690ef25c0ffdb0d437d
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Fri Jun 7 09:55:03 2024 -0700
+
+    Update NetworkManager calls in suspend/resume scripts.
+    
+    Revise the NetworkManager calls in the Linux network script to
+    prefer using the Sleep method over the "Enable" method being used
+    to work around a bug in version 0.9.0.
+    
+    Pull request: https://github.com/vmware/open-vm-tools/pull/699
+    Issue: https://github.com/vmware/open-vm-tools/issues/426
+
+commit 0d4abd5e8b920058685199adc356836d0e4dd7f3
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Fri Jun 7 09:55:03 2024 -0700
+
+    Fixes for issues found in Coverity scan.
+    
+    vgauth/serviceImpl/saml-xmlsec1.c
+    issue: 'string_null' for strlen(pemCert)
+    impact: False-positive
+    fix: suppress 'string_null'
+    issue: leaked_storage: certChain is not cleaned up on error.
+    impact: Memory is leaked on the error path.
+    fix: Add line before return to free certChain.
+    
+    vgauth/common/i18n.c
+    issue: 'leaked_storage' for "name" variable
+    impact: False-positive
+    fix: suppress 'leaked_storage'
+    
+    lib/file/file.c
+    issue: use_after_free for 'src' pointer
+    impact: False-positive
+    fix: suppress 'use_after_free'
+    
+    services/plugins/serviceDiscovery/serviceDiscovery.c
+    issue: overrun-local: gdpErrMsgs array contains one less entry then there are
+           enum defined.
+    impact: Valid but the function never return the GDP_ERR_MAX enum.
+    fix: in gdp.h, add an error entry for GDP_ERR_MAX this way gdpErrMsgs will
+    generate all entries.
+    
+    lib/file/fileLockPosix.c
+    issue: string_null for 'buffer' not being null terminated.
+    impact: False-positive
+    fix: suppress 'string_null'
+
+commit 912e76c343e876197ab597a303eced5685d05d2f
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Fri Jun 7 09:55:03 2024 -0700
+
+    Fix the SHELLCHECK_WARNING findings from static application security testing
+    (SAST)
+    
+    install/Linux/scripts/network: Multiple shellcheck issues found in the
+    Linux "network" script with the warning "Remove backticks to avoid
+    executing output (or use eval if intentional)."
+    
+    Removed the backticks from those corresponding lines of the script.
+
+commit 36108c65d3dbfaa7bf630076376252dcefcb1e80
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Fri Jun 7 09:55:03 2024 -0700
+
+    Fix the Y2K38_SAFETY finding found by Coverity scan.
+    
+    Change the date type to 'long long' to make the size be 64 bits,
+    same as that of time_t.
+
+commit 539c497e2c29f6023cc17e3e382acc43598cfe33
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Fri Jun 7 09:55:03 2024 -0700
+
+    [Coverity]: Fix the Y2K38_SAFETY findings from static application security
+    testing (SAST)
+    
+    guestInfoServer.c -- 2 issues reported in file
+    issue: casting time_t (64bits) to int (32bits) causing Y2K38_SAFETY.
+    impact: delta is a time delta in seconds, overflow if delta >=
+    (G_MAXINT/1000)+1
+    fix: Remove cast on delta, cast both values as int64.
+    
+    issue: casting time_t to int for logging to a '%d'.
+    impact: delta is a time delta in seconds, not expected to overflow a 32 bit
+    int.
+    fix: Remove cast on delta, change string to use '%"FMT64"d' format and cast
+    the time_t to int64; time_t is defined as 'long int'.
+    
+    vixTools.c -- 7 issues reported in file
+    issue: casting time_t to int for convertion to string (xml)
+    impact: procStartTime is a time from epoch, it will overflow the int in Y2K38.
+    fix: Remove the cast, change the string to use '%"FMT64"d"' and cast the
+    time_t to int64; time_t is defined as 'long int'.
+    
+    issues: casting time_t to int in call to VixToolsPrintProcInfoEx.
+    impact: The times used are time from epoch and will be impacted by Y2K38.
+    fix: Change signature of VixToolsPrintProcInfoEx to take in time_t types.
+    Change VixToolsPrintProcInfoEx to use '%"FMT64"d' in string conversions.
+    and cast the time_t to int64; time_t is defined as 'long int'.
+
+commit 6b2f429a17b1256c32008d64785eb6d5242f5b23
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Fri Jun 7 09:55:03 2024 -0700
+
+    Linux network log file permissions fix: 0644 to 0600
+    Since release 11.3.5, on linux guests, the vmware-network.log file has root
+    default	file creation permissions (0644) rather than the expected 0600
+    permissions.
+    
+    Fix:
+    - Adding chmod 0600 on log file creation.
+    - Adding file creation before first logging.
+    - Adding handling of unset handler in case switch, default to file logging.
+    - Adding logging of unknown or bad handler, and using file logging as default.
+    - Default number of logfiles when network.maxOldLogFiles is set to 0.
+
+commit 83463bd3a458f83765fafab346e6d08562139b66
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Fri Jun 7 09:55:03 2024 -0700
+
+    Setting the VMware Tools version to 12.4.5.
+
+commit 4fb3e03c17a7a7f72946bd41675722624fdc4106
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Fri Mar 22 14:08:29 2024 -0700
+
+        open-vm-tools 12.4.0 released at this point.
+    =================================================
+    Update of the ChangeLog with the final changes in preparation for
+    the open-vm-tools 12.4.0 release.
+
 commit 619e61f96c0a82c0b3054122c81a62a29301bf1b
 Author: John Wolfe <jwolfe@vmware.com>
 Date:   Fri Mar 22 14:00:45 2024 -0700
