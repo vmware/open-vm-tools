@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 1998-2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2024 Broadcom. All rights reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -304,13 +305,13 @@ GuestInfoCheckIfRunningSlow(ToolsAppCtx *ctx)
        * Have a long enough delta to ensure that we have really missed a
        * collection.
        */
-      if (((int) delta * 1000) >= (2 * guestInfoPollInterval)) {
+      if (((int64)delta * 1000) >= ((int64) 2 * guestInfoPollInterval)) {
          gchar *msg, *rpcMsg;
 
          msg = g_strdup_printf(
                    "*** WARNING: GuestInfo collection interval longer than "
-                   "expected; actual=%d sec, expected=%d sec. ***\n",
-                   (int) delta, guestInfoPollInterval / 1000);
+                   "expected; actual=%"FMT64"d sec, expected=%d sec. ***\n",
+                   (int64) delta, guestInfoPollInterval / 1000);
 
          rpcMsg = g_strdup_printf("log %s", msg);
 
