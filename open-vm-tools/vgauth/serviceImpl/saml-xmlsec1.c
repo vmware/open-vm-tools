@@ -432,14 +432,6 @@ SAML_Init(void)
     */
    LIBXML_TEST_VERSION
 
-   /*
-    * Tell libxml to do ID/REF lookups
-    * Tell libxml to complete attributes with defaults from the DTDs
-    */
-   xmlLoadExtDtdDefaultValue = XML_DETECT_IDS | XML_COMPLETE_ATTRS;
-   xmlSubstituteEntitiesDefault(1);
-
-
    /* set up the xml2 error handler */
    xmlSetGenericErrorFunc(NULL, XmlErrorHandler);
 
@@ -1524,7 +1516,13 @@ VerifySAMLToken(const gchar *token,
                            strlen(token),
                            NULL, NULL, 0);
 #else
-   doc = xmlParseMemory(token, (int)strlen(token));
+   /*
+    * Tell libxml to substitute the entities (XML_PARSE_NOENT).
+    * Tell libxml to load the external DTD (XML_PARSE_DTDLOAD).
+    * Tell libxml to add default attributes from the DTD (XML_PARSE_DTDATTR).
+    */
+   doc = xmlReadMemory(token, (int)strlen(token), NULL, NULL,
+                       XML_PARSE_NOENT | XML_PARSE_DTDATTR | XML_PARSE_DTDLOAD);
 #endif
    if ((NULL == doc) || (xmlDocGetRootElement(doc) == NULL)) {
       g_warning("Failed to parse document\n");
