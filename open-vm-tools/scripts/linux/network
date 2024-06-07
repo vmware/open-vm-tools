@@ -1,6 +1,7 @@
 #!/bin/sh -x
 ##########################################################
-# Copyright (c) 2001-2018, 2021, 2023 VMware, Inc. All rights reserved.
+# Copyright (c) 2001-2018, 2021, 2023-2024 Broadcom. All rights reserved.
+# The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -37,6 +38,9 @@ logmode=1
 # Defines whether to rotate logs (1) or not (0)
 logrotate=1
 
+# Defines whether to set log file permissions (1) or not (0)
+logsetperms=1
+
 #
 # Get log file path
 #
@@ -56,23 +60,33 @@ get_logfile() {
 get_logconfig() {
    handler=`vmware-toolbox-cmd config get logging network.handler | \
            sed -e 's/.*= *//' -e 's/ *$//'`
+   if [ -z "${handler##*"UNSET"*}" ]; then
+      # Default unset to file handler
+      handler=file
+   fi
    case $handler in
       "file")
          get_logfile
          ;;
       "file+")
+         # Append to a file instead of recreating each time
          get_logfile
          logrotate=0
          ;;
       "vmx"|"std")
          logrotate=0
+         logsetperms=0
          ;;
       "syslog")
          logfile=/var/log/syslog
          logdir=`dirname $logfile`
          logrotate=0
+         logsetperms=0
          ;;
       *)
+         # Default unknown to 'file' handler, log the issue.
+         `vmtoolsd --cmd "log WARNING: [$SOURCE] Logging unknown network.handler: $handler"`
+         get_logfile
          ;;
    esac
 }
@@ -84,7 +98,12 @@ rotate_logfile() {
    if [ $logrotate -eq 1 ]; then
       max=`vmware-toolbox-cmd config get logging network.maxOldLogFiles | \
           sed -e 's/.*= *//' -e 's/ *$//'`
-      if [ -z "${max##*"UNSET"*}" -o `expr "$max" : '[0-9]\+$'` -eq 0 ]; then
+      if [ `expr "$max" : '[0-9]\+$'` -eq 0 ]; then
+         # max is not numeric (UNSET or else), use default.
+         max=9
+      fi
+      if [ $max -lt 1 ]; then
+         # max must be > 0, use default.
          max=9
       fi
       max=`expr $max - 1`
@@ -122,6 +141,19 @@ log() {
 
 get_logconfig
 rotate_logfile
+
+if [ $logsetperms -eq 1 ]; then
+   # Create/Recreate logfile
+   if [ ! -e $logfile ]; then
+      touch $logfile
+   fi
+
+   # Set logfile permissions before writing first log to file.
+   # ** When handler is 'file+' and logfile existed prior to execution, this
+   #    updates the permissions before appending to logfile.
+   # ** Otherwise sets permission on new file.
+   chmod 0600 $logfile
+fi
 
 log "Executing '$0 $*'"
 
