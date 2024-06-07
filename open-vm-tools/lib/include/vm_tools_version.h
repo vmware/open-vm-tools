@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 1998-2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2024 Broadcom. All rights reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1772,15 +1773,22 @@ TOOLS_VERSION_UINT_TO_COMPONENTS(const ToolsVersion toolsVersion,   // IN
 #define   TOOLS_VERSION_HEDGE_TRIMMER_UPDATE1_V_BASE 5
 
 #ifndef RC_INVOKED
-#define   TOOLS_VERSION_NEXT TOOLS_VERSION_TO_UINT(TOOLS_VERSION_NEXT_V)
+#define   TOOLS_VERSION_SOCKET_WRENCH_RELEASE TOOLS_VERSION_TO_UINT(TOOLS_VERSION_SOCKET_WRENCH_RELEASE_V)
 #endif /* RC_INVOKED */
-#define   TOOLS_VERSION_NEXT_V_MJR  12
-#define   TOOLS_VERSION_NEXT_V_MNR  4
-#define   TOOLS_VERSION_NEXT_V_BASE 0
+#define   TOOLS_VERSION_SOCKET_WRENCH_RELEASE_V_MJR  12
+#define   TOOLS_VERSION_SOCKET_WRENCH_RELEASE_V_MNR  4
+#define   TOOLS_VERSION_SOCKET_WRENCH_RELEASE_V_BASE 0
 
-#define   TOOLS_VERSION_CURRENT        TOOLS_VERSION_NEXT
-#define   TOOLS_VERSION_CURRENT_STR    TOOLS_VERSION_TO_STR(TOOLS_VERSION_NEXT)
-#define   TOOLS_VERSION_CURRENT_CSV    TOOLS_VERSION_TO_CSV(TOOLS_VERSION_NEXT)
+#ifndef RC_INVOKED
+#define   TOOLS_VERSION_SOCKET_WRENCH_UPDATE1 TOOLS_VERSION_TO_UINT(TOOLS_VERSION_SOCKET_WRENCH_UPDATE1_V)
+#endif /* RC_INVOKED */
+#define   TOOLS_VERSION_SOCKET_WRENCH_UPDATE1_V_MJR  12
+#define   TOOLS_VERSION_SOCKET_WRENCH_UPDATE1_V_MNR  4
+#define   TOOLS_VERSION_SOCKET_WRENCH_UPDATE1_V_BASE 5
+
+#define   TOOLS_VERSION_CURRENT        TOOLS_VERSION_SOCKET_WRENCH_UPDATE1
+#define   TOOLS_VERSION_CURRENT_STR    TOOLS_VERSION_TO_STR(TOOLS_VERSION_SOCKET_WRENCH_UPDATE1)
+#define   TOOLS_VERSION_CURRENT_CSV    TOOLS_VERSION_TO_CSV(TOOLS_VERSION_SOCKET_WRENCH_UPDATE1)
 
 /*
  * The extended Tools version is the current Tools version with the
