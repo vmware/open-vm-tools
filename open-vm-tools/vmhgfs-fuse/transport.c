@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2013,2019 VMware, Inc. All rights reserved.
+ * Copyright (c) 2013-2024 Broadcom. All rights reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -263,42 +264,6 @@ HgfsTransportProcessPacket(char *receivedPacket,    //IN: received packet
       LOG(4, ("No matching id, dropping reply.\n"));
    }
    LOG(8, ("Exited.\n"));
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * HgfsTransportBeforeExitingRecvThread --
- *
- *     The cleanup work to do before the recv thread exits, including
- *     completing pending requests with error.
- *
- * Results:
- *     None
- *
- * Side effects:
- *     None
- *
- *----------------------------------------------------------------------
- */
-
-void
-HgfsTransportBeforeExitingRecvThread(void)
-{
-   struct list_head *cur, *next;
-
-   /* Walk through gHgfsPendingRequests queue and reply them with error. */
-   pthread_mutex_lock(&gHgfsPendingRequestsLock);
-   list_for_each_safe(cur, next, &gHgfsPendingRequests) {
-      HgfsReq *req;
-      HgfsReply reply;
-
-      req = list_entry(cur, HgfsReq, list);
-      LOG(6, ("Injecting error reply to req id: %d\n", req->id));
-      HgfsCompleteReq(req, (char *)&reply, sizeof reply);
-   }
-   pthread_mutex_unlock(&gHgfsPendingRequestsLock);
 }
 
 

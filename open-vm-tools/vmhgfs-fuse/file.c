@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2013,2018-2019, 2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2013-2024 Broadcom. All rights reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1038,6 +1039,11 @@ retry:
          result = -EINVAL;
          goto out;
       }
+      /*
+       * The usage of the space allocated in req early in the function is kept
+       * in reqSize. If oldName length was 0 we're not causing an overrun.
+       */
+      /* coverity[overrun-local] */
       newNameP->length = result;
       reqSize += result;
       newNameP->flags = 0;
@@ -1060,6 +1066,11 @@ retry:
          result = -EINVAL;
          goto out;
       }
+      /*
+       * The usage of the space allocated in req early in the function is kept
+       * in reqSize. If oldName length was 0 we're not causing an overrun.
+       */
+      /* coverity[overrun-local] */
       newNameP->length = result;
       reqSize += result;
    }
