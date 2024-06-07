@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2016-2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2016-2024 Broadcom. All rights reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1222,6 +1223,7 @@ BuildCertChain(xmlNodePtr x509Node,
       /*
        * Add cert to the keymanager.
        */
+      /* coverity[string_null] */
       ret = xmlSecCryptoAppKeysMngrCertLoadMemory(mgr,
                                                   pemCert,
                                                   (xmlSecSize) strlen(pemCert),
@@ -1734,6 +1736,7 @@ SAML_VerifyBearerTokenAndChain(const char *xmlText,
       if (err != VGAUTH_E_OK) {
          VMXLog_Log(VMXLOG_LEVEL_WARNING,
                     "Unrelated certs found in SAML token, failing\n");
+         FreeCertArray(num, certChain);
          return VGAUTH_E_AUTHENTICATION_DENIED;
       }
    }
