@@ -156,6 +156,6 @@ TimeSync_Slew(int64 delta,
       g_debug("adjtimex failed: %s\n", strerror(errno));
       return FALSE;
    }
-   g_debug("time slew start: %ld\n", tx.tick);
+   g_debug("time slew start: %jd\n", (intmax_t)tx.tick);
    return TRUE;
 }
