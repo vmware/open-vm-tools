@@ -249,11 +249,14 @@ FakeMouse_Move(int x,    // IN
 
    bool retValue = true;
    struct input_event event;
+   struct timeval tv;
 
    event.type = EV_ABS;
    event.code = ABS_X;
    event.value = x;
-   gettimeofday(&event.time, NULL);
+   gettimeofday(&tv, NULL);
+   event.input_event_sec = tv.tv_sec;
+   event.input_event_usec = tv.tv_usec;
    if (write(uinput_fd, &event, sizeof(event)) < 0) {
       g_debug("Line:%d. Function:%s. Failed to write\n", __LINE__, __FUNCTION__);
       retValue = false;
@@ -262,7 +265,9 @@ FakeMouse_Move(int x,    // IN
    event.type = EV_ABS;
    event.code = ABS_Y;
    event.value = y;
-   gettimeofday(&event.time, NULL);
+   gettimeofday(&tv, NULL);
+   event.input_event_sec = tv.tv_sec;
+   event.input_event_usec = tv.tv_usec;
    if (write(uinput_fd, &event, sizeof(event)) < 0) {
       g_debug("Line:%d. Function:%s. Failed to write\n", __LINE__, __FUNCTION__);
       retValue = false;
@@ -271,7 +276,9 @@ FakeMouse_Move(int x,    // IN
    event.type = EV_SYN;
    event.code = SYN_REPORT;
    event.value = 0;
-   gettimeofday(&event.time, NULL);
+   gettimeofday(&tv, NULL);
+   event.input_event_sec = tv.tv_sec;
+   event.input_event_usec = tv.tv_usec;
    if (write(uinput_fd, &event, sizeof(event)) < 0) {
       g_debug("Line:%d. Function:%s. Failed to write\n", __LINE__, __FUNCTION__);
       retValue = false;
@@ -306,11 +313,14 @@ FakeMouse_Click(bool down)  // IN
 
    bool retValue = true;
    struct input_event event;
+   struct timeval tv;
 
    event.type = EV_KEY;
    event.code = BTN_LEFT;
    event.value = down;
-   gettimeofday(&event.time, NULL);
+   gettimeofday(&tv, NULL);
+   event.input_event_sec = tv.tv_sec;
+   event.input_event_usec = tv.tv_usec;
    if (write(uinput_fd, &event, sizeof(event)) < 0) {
       g_debug("Line:%d. Function:%s. Failed to write\n", __LINE__, __FUNCTION__);
       retValue = false;
