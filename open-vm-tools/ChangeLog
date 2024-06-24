@@ -1,3 +1,24 @@
+commit 122221cdc184470a83e7a3f3b2f536222076db38
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Jun 24 08:57:13 2024 -0700
+
+    Prepare for the open-vm-tools 12.4.5 release.
+    - Update the tools version in the configure.ac.
+    - Update the build numbers in the buldNumber.h.
+
+commit c7eb4e6a31205b31406b2c47c2731a6b298a4007
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Sun Jun 23 23:14:56 2024 -0700
+
+    Remove the twice-occurring incorrectly patched file content.
+
+commit de8328ede8e7fd864e3d3cd677eab499514494e5
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Fri Jun 7 10:08:25 2024 -0700
+
+    Update the ChangeLog file with the changes in the 12.4.5 open-vm-tools release.
+    - plus the 12.4.0 open-vm-tools release point in the ChangeLog.
+
 commit e7e74316e2dc30c2f406ff31b63e34d7f8c6915b
 Author: Kruti <kpendharkar@vmware.com>
 Date:   Fri Jun 7 09:55:04 2024 -0700
