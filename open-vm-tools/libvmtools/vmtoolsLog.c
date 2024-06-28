@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2008-2021 VMware, Inc. All rights reserved.
+ * Copyright (c) 2008-2024 Broadcom. All rights reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -2670,15 +2671,17 @@ VMTools_TeardownVmxGuestLog(void)
 
    /*
     * Acquire the same locks as VMTools_SetupVmxGuestLog.
+    * Stop the glib based logging to avoid nested logging
+    * from RpcChannel error.
     */
    VMTools_AcquireLogStateLock();
-
+   StopGlibLogging();
    g_rec_mutex_lock(&gVmxGuestLogMutex);
 
    DestroyRpcChannel();
 
    g_rec_mutex_unlock(&gVmxGuestLogMutex);
-
+   RestartGlibLogging();
    VMTools_ReleaseLogStateLock();
 }
 

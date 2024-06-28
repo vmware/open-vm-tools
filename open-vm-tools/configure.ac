@@ -1,5 +1,6 @@
 ################################################################################
-### Copyright (c) 2007-2023 VMware, Inc.  All rights reserved.
+### Copyright (c) 2007-2024 Broadcom. All Rights Reserved.
+### The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
 ###
 ### Configure script for building the VMware OSS Tools.
 ###
@@ -35,10 +36,10 @@
 ### Initialization
 ###
 
-TOOLS_VERSION="12.4.0"
+TOOLS_VERSION="12.4.5"
 AC_INIT(
    [open-vm-tools],
-   [12.4.0],
+   [12.4.5],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
@@ -868,8 +869,13 @@ if test "$enable_vgauth" = "yes" ; then
                      [AC_VMW_LIB_ERROR([XML2], [xml2])])
 
 # Multiple distros built xmlsec1 with -DXMLSEC_NO_SIZE_T but
-# their xmlssec1-config --cflags doesn't properly report it,
-# so force it on.
+# their xmlssec1-config --cflags doesn't properly report it.
+# Force it on following the xmlSecSize changelog in below link:
+# https://www.aleksey.com/xmlsec/news.html
+# The xmlsec configure flag "enable_size_t" is "yes" by default
+# since 1.3.0, and both the configure flag and CPP flag has been
+# deprecated since 1.3.3, which means the size_t is used by default
+# and no need to add CPP flag -DXMLSEC_NO_SIZE_T since 1.3.0.
    AC_VMW_DEFAULT_FLAGS([XMLSEC1])
    AC_VMW_CHECK_LIB([xmlsec1],
                      [XMLSEC1],
@@ -878,7 +884,16 @@ if test "$enable_vgauth" = "yes" ; then
                      [],
                      [xmlsec/xmlsec.h],
                      [xmlSecCheckVersionExt],
-                     [XMLSEC1_CPPFLAGS="$XMLSEC1_CPPFLAGS -DXMLSEC_NO_SIZE_T"],
+                     [XMLSEC1_VER=`pkg-config --modversion xmlsec1`
+                      xmlsec1_major_version="`echo $XMLSEC1_VER | cut -f1 -d. | cut -f1 -d-`"
+                      xmlsec1_minor_version="`echo $XMLSEC1_VER | cut -f2 -d. | cut -f1 -d-`"
+                      xmlsec1_micro_version="`echo $XMLSEC1_VER | cut -f3 -d. | cut -f1 -d-`"
+                      xmlsec1_version=`printf '%02d%02d%02d' $xmlsec1_major_version $xmlsec1_minor_version $xmlsec1_micro_version`
+                      AC_CHECK_SIZEOF(size_t)
+                      if test "$xmlsec1_version" -lt 010300 -a "$ac_cv_sizeof_size_t" -ne 4 ; then
+                         XMLSEC1_CPPFLAGS="$XMLSEC1_CPPFLAGS -DXMLSEC_NO_SIZE_T"
+                      fi
+                     ],
                      [AC_VMW_LIB_ERROR([XMLSEC1], [xmlsec1])])
 fi
 

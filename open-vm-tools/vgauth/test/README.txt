@@ -31,7 +31,7 @@
  *       - SAML verification failed to init (xmlsec1 build issues)
  *    - token fails to validate
  *       - this test was run after 12/18/3015
- *       - xmlsec1-config lies about how xmlsec1 was built
- *          some packages leave out -DXMLSEC_NO_SIZE_T,
- *          which can make some data structures a different size
- *          than in the library
+ *       - libxmlsec1 may have been built using a different size type than
+ *         its callers, which can make some data structures a different size
+ *         than in the library. See xmlSecSize changelog in
+ *         https://www.aleksey.com/xmlsec/news.html

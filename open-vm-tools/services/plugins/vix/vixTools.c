@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2007-2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2007-2024 Broadcom. All rights reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -590,9 +591,9 @@ static VixError VixToolsPrintProcInfoEx(DynBuf *dstBuffer,
                                         const char *name,
                                         uint64 pid,
                                         const char *user,
-                                        int start,
+                                        time_t start,
                                         int exitCode,
-                                        int exitTime);
+                                        time_t exitTime);
 
 static VixError VixToolsListDirectory(VixCommandRequestHeader *requestMsg,
                                       size_t maxBufferSize,
@@ -5383,13 +5384,13 @@ VixToolsListProcesses(VixCommandRequestHeader *requestMsg, // IN
                                     "<debugged>%d</debugged>"
 #endif
                                     "<user>%s</user>"
-                                    "<start>%d</start>"
+                                    "<start>%"FMT64"d</start>"
                                     "</proc>",
                                     cmdNamePtr, name, (int) procInfo->procId,
 #if defined(_WIN32)
                                     (int) procInfo->procDebugged,
 #endif
-                                    user, (int) procInfo->procStartTime);
+                                    user, (int64) procInfo->procStartTime);
       if (NULL == procBufPtr) {
          err = VIX_E_OUT_OF_MEMORY;
          goto quit;
@@ -5552,9 +5553,9 @@ VixToolsListProcessesExGenerateData(uint32 numPids,          // IN
                                              spList->fullCommandLine,
                                              spList->pid,
                                              spList->user,
-                                             (int) spList->startTime,
+                                             spList->startTime,
                                              spList->exitCode,
-                                             (int) spList->endTime);
+                                             spList->endTime);
                if (VIX_OK != err) {
                   goto quit;
                }
@@ -5572,9 +5573,9 @@ VixToolsListProcessesExGenerateData(uint32 numPids,          // IN
                                        spList->fullCommandLine,
                                        spList->pid,
                                        spList->user,
-                                       (int) spList->startTime,
+                                       spList->startTime,
                                        spList->exitCode,
-                                       (int) spList->endTime);
+                                       spList->endTime);
          if (VIX_OK != err) {
             goto quit;
          }
@@ -5648,7 +5649,7 @@ VixToolsListProcessesExGenerateData(uint32 numPids,          // IN
                                              procInfo->procId,
                                              (NULL == procInfo->procOwner)
                                              ? "" : procInfo->procOwner,
-                                             (int) procInfo->procStartTime,
+                                             procInfo->procStartTime,
                                              0, 0);
                if (VIX_OK != err) {
                   goto quit;
@@ -5669,7 +5670,7 @@ VixToolsListProcessesExGenerateData(uint32 numPids,          // IN
                                        procInfo->procId,
                                        (NULL == procInfo->procOwner)
                                        ? "" : procInfo->procOwner,
-                                       (int) procInfo->procStartTime,
+                                       procInfo->procStartTime,
                                        0, 0);
          if (VIX_OK != err) {
             goto quit;
@@ -5996,9 +5997,9 @@ VixToolsPrintProcInfoEx(DynBuf *dstBuffer,             // IN/OUT
                         const char *name,              // IN
                         uint64 pid,                    // IN
                         const char *user,              // IN
-                        int start,                     // IN
+                        time_t start,                  // IN
                         int exitCode,                  // IN
-                        int exitTime)                  // IN
+                        time_t exitTime)               // IN
 {
    VixError err;
    char *escapedName = NULL;
@@ -6038,12 +6039,12 @@ VixToolsPrintProcInfoEx(DynBuf *dstBuffer,             // IN/OUT
                                     "<name>%s</name>"
                                     "<pid>%"FMT64"d</pid>"
                                     "<user>%s</user>"
-                                    "<start>%d</start>"
+                                    "<start>%"FMT64"d</start>"
                                     "<eCode>%d</eCode>"
-                                    "<eTime>%d</eTime>"
+                                    "<eTime>%"FMT64"d</eTime>"
                                     "</proc>",
                                     cmdNamePtr, escapedName, pid, escapedUser,
-                                    start, exitCode, exitTime);
+                                    (int64) start, exitCode, (int64) exitTime);
    if (NULL == procInfoEntry) {
       err = VIX_E_OUT_OF_MEMORY;
       goto quit;

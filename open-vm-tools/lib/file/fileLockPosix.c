@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2006-2019 VMware, Inc. All rights reserved.
+ * Copyright (c) 2006-2019,2024 Broadcom. All rights reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -238,6 +239,7 @@ FileLockProcessDescriptor(pid_t pid)  // IN:
        * properly handled.
        */
 
+      /* coverity[string_null] */
       p = strchr(buffer, '(');
 
       if ((p == NULL) || (p == buffer) || (*(p - 1) != ' ')) {

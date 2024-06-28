@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2011-2019 VMware, Inc. All rights reserved.
+ * Copyright (c) 2011-2019,2024 Broadcom. All rights reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -622,6 +623,7 @@ MsgLoadCatalog(const char *path)
           * If the local DictLL_UnmarshalLine() returns NULL, name and value
           * will remain NULL pointers.  No malloc'ed memory to free here.
           */
+         /* coverity[leaked_storage] */
          break;
       }
 

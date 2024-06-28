@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2013 VMware, Inc. All rights reserved.
+ * Copyright (c) 2013-2024 Broadcom. All rights reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -58,6 +59,5 @@ void HgfsTransportExit(void);
 int HgfsTransportSendRequest(HgfsReq *req);
 void HgfsTransportProcessPacket(char *receivedPacket,
                                 size_t receivedSize);
-void HgfsTransportBeforeExitingRecvThread(void);
 
 #endif // _HGFS_DRIVER_TRANSPORT_H_
