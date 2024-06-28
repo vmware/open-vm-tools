@@ -1,3 +1,9 @@
+commit a3467476cfe48df0fd0c97f492ff5c4d0131d5cd
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Thu Jun 27 17:56:42 2024 -0700
+
+    Update the ReleaseNotes.md for the 12.4.5 open-vm-tools release.
+
 commit 122221cdc184470a83e7a3f3b2f536222076db38
 Author: Kruti <kpendharkar@vmware.com>
 Date:   Mon Jun 24 08:57:13 2024 -0700
