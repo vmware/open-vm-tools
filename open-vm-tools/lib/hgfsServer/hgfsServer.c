@@ -9566,7 +9566,7 @@ HgfsServerGetTargetRelativePath(const char* source,    // IN: source file name
     * to the relative target path.
     */
 
-   targetSize = level * HGFS_PARENT_DIR_LEN + strlen(relativeTarget) + sizeof '\0';
+   targetSize = level * HGFS_PARENT_DIR_LEN + strlen(relativeTarget) + 1 /* NUL */;
    result = malloc(targetSize);
    currentPosition = result;
    if (result != NULL) {
@@ -9575,7 +9575,7 @@ HgfsServerGetTargetRelativePath(const char* source,    // IN: source file name
          level--;
          currentPosition += HGFS_PARENT_DIR_LEN;
       }
-      memcpy(currentPosition, relativeTarget, strlen(relativeTarget) + sizeof '\0');
+      memcpy(currentPosition, relativeTarget, strlen(relativeTarget) + 1 /* NUL */);
    }
    return result;
 }
