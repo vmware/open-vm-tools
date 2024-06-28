@@ -565,7 +565,9 @@ WiperSinglePartition_Open(const char *mountPoint,      // IN
             WiperSinglePartition_Close(p);
             p = NULL;
          } else {
-            WiperCollectDiskMajors();
+            if(shrinkableOnly) {
+               WiperCollectDiskMajors();
+            }
             WiperPartitionFilter(p, mnt, shrinkableOnly);
          }
 
@@ -693,7 +695,9 @@ WiperPartition_Open(WiperPartition_List *pl,
       return FALSE;
    }
 
-   WiperCollectDiskMajors();
+   if(shrinkableOnly) {
+      WiperCollectDiskMajors();
+   }
 
    while (GETNEXT_MNTINFO(fp, mnt)) {
       WiperPartition *part = WiperSinglePartition_Allocate();
