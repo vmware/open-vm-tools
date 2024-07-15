@@ -1491,6 +1491,8 @@ FLAG( 821,  0, EAX, 11,  1, AMD_FAST_SHORT_CMPSB,                YES,  20 ) \
 FLAG( 821,  0, EAX, 13,  1, PREFETCHCTL_MSR,                     NO,    0 ) \
 FLAG( 821,  0, EAX, 17,  1, CPL3_CPUID_GP,                       NO,    0 ) \
 FLAG( 821,  0, EAX, 18,  1, EPSF,                                NO,    0 ) \
+FLAG( 821,  0, EAX, 19,  1, FAST_REP_SCASB,                      YES,  22 ) \
+FLAG( 821,  0, EAX, 20,  1, LEAF821_PREFETCHI,                   YES,  22 ) \
 FIELD(821,  0, EBX,  0, 12, MICROCODE_PATCH_SIZE,                NO,    0 )
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
