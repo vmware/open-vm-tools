@@ -333,6 +333,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_FUSION_OS           "fusionos"
 #define STR_OS_GENTOO              "Gentoo"
 #define STR_OS_IMMUNIX             "Immunix"
+#define STR_OS_KYLIN_LINUX         "kylinlinux"
 #define STR_OS_LINUX               "linux"
 #define STR_OS_LINUX_FROM_SCRATCH "Linux-From-Scratch"
 #define STR_OS_LINUX_FULL         "Other Linux"

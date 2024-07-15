@@ -1419,6 +1419,7 @@ static const ShortNameSet shortNameArray[] = {
 { "fusionos",            STR_OS_FUSION_OS,          HostinfoGenericSetShortName },
 { "gentoo",              STR_OS_GENTOO,             HostinfoGenericSetShortName },
 { "immunix",             STR_OS_IMMUNIX,            HostinfoGenericSetShortName },
+{ "kylin linux",         STR_OS_KYLIN_LINUX,        HostinfoGenericSetShortName },
 { "linux-from-scratch",  STR_OS_LINUX_FROM_SCRATCH, HostinfoGenericSetShortName },
 { "linux-ppc",           STR_OS_LINUX_PPC,          HostinfoGenericSetShortName },
 { "mandrake",            STR_OS_MANDRAKE,           HostinfoGenericSetShortName },
