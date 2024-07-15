@@ -96,5 +96,8 @@ Yun Zheng Hu    Power Ops: Attempt to execute file path only
                 - https://github.com/vmware/open-vm-tools/pull/689
 
 Joseph Allen    Updated NetworkManager calls in suspend/resume scripts
-                https://github.com/vmware/open-vm-tools/pull/699
+                - https://github.com/vmware/open-vm-tools/pull/699
+
+Brennan Kinney  Revise settings for vmware-user.desktop
+                - https://github.com/vmware/open-vm-tools/pull/668
 
