@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 1999-2014 VMware, Inc. All rights reserved.
+ * Copyright (c) 1999-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -166,6 +167,21 @@ typedef uint32 Vmxnet_DDMagic;
                                  /*       packet byte offset */
                                  /*       packet byte value */
 #define VMXNET_PM_OPCODE_END   0 /* args: <none> */
+
+/*
+ * The strict latency configuration
+ */
+#define VMXNET3_SL_MIN_QUEUES			1
+#define VMXNET3_SL_MAX_QUEUES			32
+#define VMXNET3_SL_MIN_RING_DESC_SIZE		128
+#define VMXNET3_SL_MAX_RING_DESC_SIZE		2048
+#define VMXNET3_SL_RING_SIZE_INCREMENT_UNIT	64
+#define VMXNET3_SL_DEFAULT_LATENCY_MEASUREMENT  1
+#define VMXNET3_SL_DEFAULT_TX_QUEUES		1
+#define VMXNET3_SL_DEFAULT_RX_QUEUES		1
+#define VMXNET3_SL_DEFAULT_TX_RING_DESC_SIZE	256
+#define VMXNET3_SL_DEFAULT_RX_RING_DESC_SIZE	256
+#define VMXNET3_SL_DEFAULT_DISABLE_OFFLOADS	"TSO_LRO"
 
 typedef union Vmxnet_WakePktCmd {
    uint32 pktData : 32;
