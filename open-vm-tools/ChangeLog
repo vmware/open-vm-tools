@@ -1,3 +1,148 @@
+commit 567b94a40a5fe8f478dfe37b3b87fc9106028e45
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Jul 15 02:56:39 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 8ab40432f52747946fe007bf2bd2afc60875ee0a
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Jul 15 02:56:38 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 4a8e42d35fcafb5d3ce77e5ea0e42887307172da
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Jul 15 02:56:38 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 0ae5e008d7f18600d424e3335da54ee3e09f77bd
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Jul 15 02:56:38 2024 -0700
+
+    Change to common source file not applicable to open-vm-tools at this time.
+
+commit 0e8e439e9fa4f1b196fd40251db0e948cde52ce5
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Jul 15 02:56:38 2024 -0700
+
+    Change to common source files not applicable to open-vm-tools.
+
+commit c22f4ebfe44a1798c2b5c445ca49cb96d2a2385f
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Jul 15 02:56:38 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 95ba5d3d67b94f9f30aab6665728c7145e432a55
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Jul 15 02:56:38 2024 -0700
+
+    Change to common header files not applicable to open-vm-tools.
+
+commit 621013de8d6e98ccb9e45b69ed26ede7b460500e
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Jul 15 02:56:38 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit b4c81e8fb510f6b978973975246d1bba78a2361a
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Jul 15 02:56:38 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 2ecb5a9bedcc6ddd6a19dd3b24ca577e463c6257
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Jul 15 02:56:38 2024 -0700
+
+    Change to common source files not applicable to open-vm-tools.
+
+commit 0d6b03ce9ee20260998dabef3fcc7b484d2935a5
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Jul 15 02:56:37 2024 -0700
+
+    Change to common source files not applicable to open-vm-tools at this time.
+
+commit abe5c72317031ad2eceb21038cca2e67431a4a79
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Jul 15 02:56:37 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 2ad2337e413d65eb88db85740d5515505db16d86
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Jul 15 02:56:37 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit aa9d798ac82e84bfdf2bb9101c689338cbfb6dfe
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Jul 15 02:56:37 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit add970dae8e60ce4a3c98c5fd6b7c7c7d5138066
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Jul 15 02:56:37 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit e44d22a272e99890f04ed14a55ec53facaabf7fb
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Jul 15 02:56:37 2024 -0700
+
+    Update vmware-user.desktop.in and delete vmware-user.desktop.
+    
+    Update settings for vmware-user.desktop.in:
+    - Remove Encoding since it's deprecated.
+    - Uncomment NoDisplay=True since the bug related to it was fixed
+    a while ago.
+    
+    Delete bora-vmsoft/install/common/vmware-user.desktop as it is no
+    longer needed. In open-vm-tools, vmware-user.desktop is generated from
+    vmware-user.desktop.in.
+    
+    Pull request: https://github.com/vmware/open-vm-tools/pull/668
+
+commit 879e7e7600d219e6be04baae3a0903802265be38
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Jul 15 02:56:37 2024 -0700
+
+    Change to common source files not applicable to open-vm-tools.
+
+commit 5cb816ddf7b4278f4fe7574180a7b1fbf5693e08
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Jul 15 02:56:37 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 3bf397e2a039772cdc62d6a7248a38388d4a58d2
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Jul 15 02:56:37 2024 -0700
+
+    Change to common source files not applicable to open-vm-tools.
+
+commit e86e129392012521937a8439ab146e79515c5ff6
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Jul 15 02:56:37 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 9bc336c8457ddf1bedb5c6ef8d2fde4b2d4a9d59
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Jul 15 02:56:36 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 515e38c175e0a642865c663334932b2247414d87
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Tue May 28 02:35:23 2024 -0700
+
+    Update ChangeLog with the granular push of May 26, 2024.
+    - plus Copyright pattern update of file x86_basic_defs.h
+    - plus ChangeLog update of May 20, 2024.
+
 commit fa9c8fb804f47536cddcdca1365b79477dccff88
 Author: Kruti <kpendharkar@vmware.com>
 Date:   Tue May 28 02:00:20 2024 -0700
