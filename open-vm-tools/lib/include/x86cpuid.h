@@ -600,7 +600,7 @@ FLAG(   7,  1, EAX,  3,  1, RAO_INT,                             NO,    0 ) \
 FLAG(   7,  1, EAX,  4,  1, AVX_VNNI,                            YES,  20 ) \
 FLAG(   7,  1, EAX,  5,  1, AVX512BF16,                          YES,  18 ) \
 FLAG(   7,  1, EAX,  6,  1, LASS,                                NO,    0 ) \
-FLAG(   7,  1, EAX,  7,  1, CMPCCXADD,                           NO,    0 ) \
+FLAG(   7,  1, EAX,  7,  1, CMPCCXADD,                           YES,  22 ) \
 FLAG(   7,  1, EAX,  8,  1, ARCH_PERFMON_EXT,                    NO,    0 ) \
 FLAG(   7,  1, EAX, 10,  1, FAST_ZERO_MOVSB,                     YES,  20 ) \
 FLAG(   7,  1, EAX, 11,  1, FAST_SHORT_STOSB,                    YES,  20 ) \
