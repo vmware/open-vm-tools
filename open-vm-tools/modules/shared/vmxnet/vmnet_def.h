@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2004-2014,2017-2019,2021,2022 VMware, Inc. All rights reserved.
+ * Copyright (c) 2004-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -125,4 +126,11 @@
 #define VMNET_CAP_K2K_NIC              CONST64U(0x4000000000000000) /* Nic used for Kernel-to-Kernel communication */
 #define VMNET_CAP_LEGACY               CONST64U(0x8000000000000000) /* Uplink is compatible with vmklinux drivers */
 
+/* Used by strict latency enabled vNIC to disable the hardware offloads. */
+typedef enum Vmxnet3OffloadDisable {
+   VMXNET3_OFFLOAD_DISABLE_NONE,
+   VMXNET3_OFFLOAD_DISABLE_TSO,
+   VMXNET3_OFFLOAD_DISABLE_LRO,
+   VMXNET3_OFFLOAD_DISABLE_TSO_LRO
+} Vmxnet3OffloadDisable;
 #endif // _VMNET_DEF_H_
