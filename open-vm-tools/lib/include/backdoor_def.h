@@ -244,7 +244,7 @@ extern "C" {
 #  define BDOOR_CMD_PRECISIONCLOCK_ADJTIME    2
 #  define BDOOR_CMD_PRECISIONCLOCK_ADJFREQ    3
 #  define BDOOR_CMD_PRECISIONCLOCK_NUMCMDS    4
-#define   BDOOR_CMD_COREDUMP_UNSYNC          98 /* Devel only. For VMM cores */
+//#define   BDOOR_CMD_COREDUMP_UNSYNC        98 /* Not in use.  PR 3328536. */
 #define   BDOOR_CMD_APPLE_GPU_RES_SET        99
 #define   BDOOR_CMD_GETBUILDNUM             100
 #define   BDOOR_CMD_GETENTROPY              101 /* Configurable, off by default. */
