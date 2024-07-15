@@ -1416,6 +1416,7 @@ static const ShortNameSet shortNameArray[] = {
 { "enterprise linux",    NULL,                      HostinfoSetOracleShortName  },
 { "fedora",              STR_OS_FEDORA,             HostinfoGenericSetShortName },
 { "flatcar",             STR_OS_FLATCAR,            HostinfoGenericSetShortName },
+{ "fusionos",            STR_OS_FUSION_OS,          HostinfoGenericSetShortName },
 { "gentoo",              STR_OS_GENTOO,             HostinfoGenericSetShortName },
 { "immunix",             STR_OS_IMMUNIX,            HostinfoGenericSetShortName },
 { "linux-from-scratch",  STR_OS_LINUX_FROM_SCRATCH, HostinfoGenericSetShortName },
