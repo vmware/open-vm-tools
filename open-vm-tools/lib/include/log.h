@@ -404,12 +404,13 @@ Log_NewCustomOutput(const char *instanceName,
                     int minLogLevel);
 
 typedef struct {
-   uint8 level;
-   Bool  additionalLine;
+   uint8  level;
+   uint32 group;
+   Bool   additionalLine;
    size_t msgLen;
-   char  timeStamp[64];
-   char  threadName[32];
-   char  opID[LOG_MAX_OPID_LENGTH + 1];  // Will be empty string on hosted products
+   char   timeStamp[64];
+   char   threadName[32];
+   char   opID[LOG_MAX_OPID_LENGTH + 1];  // Will be empty string on hosted products
 } LogLineMetadata;
 
 typedef void (LogCustomMsgFuncEx)(const LogLineMetadata * const metadata,
