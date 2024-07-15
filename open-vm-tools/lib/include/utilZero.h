@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2017 VMware, Inc. All rights reserved.
+ * Copyright (c) 2017-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -31,14 +32,16 @@
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
-#include <string.h>
-#ifndef VMKBOOT
-#include <stdlib.h>
-#endif
-#ifndef _WIN32
-   #include <unistd.h>
-   #include <sys/types.h>
-   #include <errno.h>
+#ifdef VMKBOOT
+   #include "vm_libc.h"
+#else
+   #include <string.h>
+   #include <stdlib.h>
+   #ifndef _WIN32
+      #include <unistd.h>
+      #include <sys/types.h>
+      #include <errno.h>
+   #endif
 #endif
 
 #include "vm_assert.h"
