@@ -1422,7 +1422,7 @@ static const ShortNameSet shortNameArray[] = {
 { "linux-ppc",           STR_OS_LINUX_PPC,          HostinfoGenericSetShortName },
 { "mandrake",            STR_OS_MANDRAKE,           HostinfoGenericSetShortName },
 { "mandriva",            STR_OS_MANDRIVA,           HostinfoGenericSetShortName },
-{ "miracle linux",       NULL,                      HostinfoSetAsianuxShortName },
+{ "miracle linux",       STR_OS_MIRACLE_LINUX,      HostinfoGenericSetShortName },
 { "mklinux",             STR_OS_MKLINUX,            HostinfoGenericSetShortName },
 { "opensuse",            STR_OS_OPENSUSE,           HostinfoGenericSetShortName },
 { "oracle",              NULL,                      HostinfoSetOracleShortName  },

@@ -340,6 +340,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_MANDRAKE           "mandrake"
 #define STR_OS_MANDRAKE_FULL      "Mandrake Linux"
 #define STR_OS_MANDRIVA           "mandriva"
+#define STR_OS_MIRACLE_LINUX      "miraclelinux"
 #define STR_OS_MKLINUX            "MkLinux"
 #define STR_OS_NOVELL             "nld"
 #define STR_OS_NOVELL_FULL        "Novell Linux Desktop 9"
