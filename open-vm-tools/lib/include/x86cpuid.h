@@ -1324,7 +1324,7 @@ CPUID_8A_EDX_14 \
 FLAG(  8A,  0, EDX, 15,  1, SVM_V_VMSAVE_VMLOAD,                 NO,    0 ) \
 FLAG(  8A,  0, EDX, 16,  1, SVM_VGIF,                            NO,    0 ) \
 FLAG(  8A,  0, EDX, 17,  1, SVM_GMET,                            YES,  17 ) \
-FLAG(  8A,  0, EDX, 18,  1, SVMEDX_RSVD3,                        NO,    0 ) \
+FLAG(  8A,  0, EDX, 18,  1, SVM_x2AVIC,                          NO,    0 ) \
 FLAG(  8A,  0, EDX, 19,  1, SVM_SSS,                             YES,  20 ) \
 FLAG(  8A,  0, EDX, 20,  1, SVM_GUEST_SPEC_CTRL,                 NO,    0 ) \
 FLAG(  8A,  0, EDX, 21,  1, SVM_NON_WRITEABLE_PT,                NO,    0 ) \
