@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2005-2019,2021 VMware, Inc. All rights reserved.
+ * Copyright (c) 2005-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -115,9 +116,20 @@ typedef enum VMCIIntrType {
  * memory that can be used for queue pairs. Since each queue pair
  * consists of at least two pages, the memory limit also dictates the
  * number of queue pairs a guest can create.
+ * With the addition of a configurable max QP memory limit (see comment
+ * for VMCI_MAX_GUEST_QP_MEMORY_CONFIG_MAX), VMCI_MAX_GUEST_QP_COUNT
+ * will continue to the based off VMCI_MAX_GUEST_QP_MEMORY and not
+ * adjusted according to the configured max QP memory limit.
  */
 #define VMCI_MAX_GUEST_QP_MEMORY (128 * 1024 * 1024)
 #define VMCI_MAX_GUEST_QP_COUNT  (VMCI_MAX_GUEST_QP_MEMORY / PAGE_SIZE / 2)
+
+/*
+ * VMX config option vmci.qpMemoryLimit can be used to set the max QP memory
+ * limit. This value is restricted to a maximum of 1024 MiB. This VMX config
+ * option is currently only valid for FSVMs.
+ */
+#define VMCI_MAX_GUEST_QP_MEMORY_CONFIG_MAX (1024 * 1024 * 1024)
 
 /*
  * There can be at most PAGE_SIZE doorbells since there is one doorbell
