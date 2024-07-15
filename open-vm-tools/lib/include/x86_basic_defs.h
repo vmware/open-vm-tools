@@ -195,6 +195,8 @@
 /*
  *   exception error codes
  */
+#define EXC_VEC_MIN       0
+#define EXC_VEC_MAX      31
 
 #define EXC_DE            0
 #define EXC_DB            1
