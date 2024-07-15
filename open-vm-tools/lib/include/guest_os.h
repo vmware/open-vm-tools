@@ -235,7 +235,8 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 #define ALL6XLINUX64          BS(OTHER6XLINUX_64), BS(OTHER6XLINUX_ARM_64),  \
                               BS(RHEL10_64),       BS(RHEL10_ARM_64),        \
-                              BS(ORACLE10_64),     BS(PROLINUX_64)
+                              BS(ORACLE10_64),     BS(PROLINUX_64),          \
+                              BS(PARDUS_64)
 
 #define ALL7XLINUX32          BS(OTHER7XLINUX)
 
@@ -367,6 +368,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_OTHER_6X_FULL      "Other Linux 6.x kernel"
 #define STR_OS_OTHER_7X           "other7xlinux"
 #define STR_OS_OTHER_7X_FULL      "Other Linux 7.x and later kernel"
+#define STR_OS_PARDUS             "pardus"
 #define STR_OS_PHOTON             "vmware-photon"
 #define STR_OS_PHOTON_FULL        "VMware Photon OS"
 #define STR_OS_PROLINUX           "prolinux"
@@ -375,7 +377,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_RED_HAT            "redhat"
 #define STR_OS_RED_HAT_EN         "rhel"
 #define STR_OS_RED_HAT_FULL       "Red Hat Linux"
-#define	STR_OS_ROCKY_LINUX        "rockyLinux"
+#define STR_OS_ROCKY_LINUX        "rockyLinux"
 #define STR_OS_SLACKWARE          "Slackware"
 #define STR_OS_SLES               "sles"
 #define STR_OS_SUSE               "suse"

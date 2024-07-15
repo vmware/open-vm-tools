@@ -1428,6 +1428,7 @@ static const ShortNameSet shortNameArray[] = {
 { "mklinux",             STR_OS_MKLINUX,            HostinfoGenericSetShortName },
 { "opensuse",            STR_OS_OPENSUSE,           HostinfoGenericSetShortName },
 { "oracle",              NULL,                      HostinfoSetOracleShortName  },
+{ "pardus",              STR_OS_PARDUS,             HostinfoGenericSetShortName },
 { "pld",                 STR_OS_PLD,                HostinfoGenericSetShortName },
 { "prolinux",            STR_OS_PROLINUX,           HostinfoGenericSetShortName },
 { "rocky linux",         STR_OS_ROCKY_LINUX,        HostinfoGenericSetShortName },
