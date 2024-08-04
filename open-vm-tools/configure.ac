@@ -879,7 +879,7 @@ if test "$enable_vgauth" = "yes" ; then
    AC_VMW_DEFAULT_FLAGS([XMLSEC1])
    AC_VMW_CHECK_LIB([xmlsec1],
                      [XMLSEC1],
-                     [],
+                     [xmlsec1],
                      [xmlsec1-config],
                      [],
                      [xmlsec/xmlsec.h],
