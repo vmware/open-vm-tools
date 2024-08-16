@@ -4,35 +4,47 @@ open-vm-tools is a set of services and modules that enable several features in V
  
 open-vm-tools enables the following features in VMware products:
 
-- The ability to perform virtual machine power operations gracefully.
-- Execution of VMware provided or user configured scripts in guests during various power operations.
-- The ability to run programs, commands and file system operation in guests to enhance guest automation.
-- Authentication for guest operations. 
-- Periodic collection of network, disk, and memory usage information from the guest.
-- Generation of heartbeat from guests to hosts so VMware's HA solution can determine guests' availability.
-- Clock synchronization between guests and hosts or client desktops.
-- Quiescing guest file systems to allow hosts to capture file-system-consistent guest snapshots.
+- Graceful execution of power operations (reboot and shutdown) in the guest.
+- Execution of built-in or user configured scripts in the guest during various power operations.
+- Running programs, commands and file system operations in the guest to enhance guest automation.
+- Authentication for guest operations.
+- Generation of heartbeat from guest to host for vSphere HA solution to determine guest's availabilty.
+- Clock synchronization between guest and host.
+- Quiescing guest file systems to allow host to capture file-system-consistent guest snapshot.
 - Execution of pre-freeze and post-thaw scripts while quiescing guest file systems.
-- The ability to customize guest operating systems immediately after powering on virtual machines.
-- Enabling shared folders between host and guest file systems on VMware Workstation and VMware Fusion.
-- Copying and pasting text, graphics, and files between guests and hosts or client desktops.
+- Customization of the guest immediately after power on.
+- Periodic collection of network, disk, and memory usage information from the guest.
+- Resizing the graphical desktop screen of the guest.
+- Shared Folders operations between host and guest file systems on VMware Workstation and VMware Fusion.
+- Copying and pasting text, graphics, and files between guest and host or client desktops.
+- Dragging and dropping files between guest and host UI.
+- Periodic collection of running applications, services, and containers in the guest.
+- Accessing content from GuestStore.
+- Publishing data to Guest Data Publisher.
+- Managing Salt-Minion desired state specified in a guest variable.
 
 ## Can you provide more details on the actual code being released?
 The following components have been released as open source software:
 - Linux, Solaris and FreeBSD drivers for various devices and file system access.
-- The memory balloon driver for reclaiming memory from guests.
 - The PowerOps plugin to perform graceful power operation and run power scripts.
-- The VIX plugin to run programs and commands, and perform file system operations in guests.
-- The GuestInfo plugin to periodically collect various statistics from guests.
+- The VIX plugin to run programs and commands, and perform file system operations in guest.
+- The GuestInfo plugin to periodically collect various statistics from guest.
 - The TimeSync plugin to perform time synchronization.
 - The dndcp plugin to support drag and drop, and text and file copy/paste operations.
 - The ResolutionSet plugin to adjust guest screen resolutions automatically based on window sizes.
+- The vmbackup plugin to support quiesced snapshot operation.
+- The GuestStore plugin to support GuestStore operation.
+- The gdp plugin to support guest data publishing operation.
+- The AppInfo plugin to periodically collect application information.
+- The ServiceDiscovery plugin to periodically collect service information.
+- The ContainerInfo plugin to periodically collect container information.
+- The ComponentMgr plugin to handle desired state operations.
 - The guest authentication service.
 - The toolbox command to perform disk wiping and shrinking, manage power scripts, and time synchronization.
-- The guest SDK libraries to provide information about virtual machines to guests.
-- Clients and servers for shared folders support.
+- The guest SDK libraries to provide information about virtual machine to guest.
+- Client and server for shared folders support.
 - Multiple monitor support.
-- The GTK Toolbox UI.
+- Other utilities.
  
 ## Is open-vm-tools available with Linux distributions?
 Yes. open-vm-tools packages for user space components are available with new versions of major Linux distributions, and are installed as part of the OS installation in several cases. Please refer to VMware KB article http://kb.vmware.com/kb/2073803 for details. All leading Linux vendors support open-vm-tools and bundle it with their products. For information about OS compatibility for open-vm-tools, see the 
