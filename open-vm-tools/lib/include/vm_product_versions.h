@@ -285,7 +285,7 @@
 //MARKER_FAST_UNCOMMENT_END
 
 // Last supported ESX version by VC.
-#define VPX_MIN_HOST_VERSION "6.7.0"
+#define VPX_MIN_HOST_VERSION "7.0.0"
 
 #define MAX_SUPPORTED_VI_VERSION "6.6" //from ovfTool/src/supportedVersions.h
 #define VCDB_CURRENT_SCHEMA_VERSION           900 // from PitCADatabase.h
