@@ -271,7 +271,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
                               BS(DARWIN17_64), BS(DARWIN18_64),  \
                               BS(DARWIN19_64), BS(DARWIN20_64),  \
                               BS(DARWIN21_64), BS(DARWIN22_64),  \
-                              BS(DARWIN23_64)
+                              BS(DARWIN23_64), BS(DARWIN24_64)
 
 #define ALLDARWIN             ALLDARWIN32, ALLDARWIN64
 
