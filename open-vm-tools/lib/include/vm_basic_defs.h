@@ -274,7 +274,7 @@ Max(int a, int b)
    #define VMW_PAGE_SHIFT PAGE_SHIFT_4KB
    #define VMW_PAGE_SIZE  PAGE_SIZE_4KB
 #else
-   #error
+   #error Could not determine page size information for this compiler.
 #endif
 
 #ifndef PAGE_SHIFT
@@ -629,10 +629,26 @@ typedef int pid_t;
 #endif
 
 #undef ARM64_ONLY
+#if defined(_MSC_VER)
+/*
+ * Old MSVC versions (such as MSVC 14.29.30133, used to build Workstation's
+ * offset checker) are notorious to have non-standard __VA_ARGS__ handling.
+ */
+#if defined(VMX86_DESKTOP) && (_MSC_VER > 1929)
+#pragma message("ERROR: Compiler version: " XSTR(_MSC_VER))
+#pragma message("ERROR: PR 3405101: Is __VA_ARGS__ hack needed for Arm & x86?")
+#endif
+#ifdef VM_ARM_64
+#define ARM64_ONLY(x) x
+#else
+#define ARM64_ONLY(x)
+#endif
+#else
 #ifdef VM_ARM_64
 #define ARM64_ONLY(...)  __VA_ARGS__
 #else
 #define ARM64_ONLY(...)
+#endif
 #endif
 
 #undef X86_ONLY
@@ -641,6 +657,10 @@ typedef int pid_t;
  * Old MSVC versions (such as MSVC 14.29.30133, used to build Workstation's
  * offset checker) are notorious to have non-standard __VA_ARGS__ handling.
  */
+#if defined(VMX86_DESKTOP) && (_MSC_VER > 1929)
+#pragma message("ERROR: Compiler version: " XSTR(_MSC_VER))
+#pragma message("ERROR: PR 3405101: Is __VA_ARGS__ hack needed for Arm & x86?")
+#endif
 #ifdef VM_X86_ANY
 #define X86_ONLY(x)      x
 #else
