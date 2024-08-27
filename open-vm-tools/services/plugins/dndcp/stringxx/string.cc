@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2008-2019,2022 VMware, Inc. All rights reserved.
+ * Copyright (c) 2008-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -169,7 +170,7 @@ string::string(const _bstr_t &s) // IN
       return;
    }
 
-   mUstr = AutoCPtr<char>(
+   mUstr = auto_unique(
       Unicode_AllocWithUTF16(static_cast<const utf16_t *>(s)),
       free).get();
    ASSERT(Validate(mUstr));
@@ -240,8 +241,7 @@ string::string(const utf16_t *s) // IN
     */
    mUtf16Cache = Unicode_UTF16Strdup(s);
 
-   mUstr = AutoCPtr<char>(Unicode_AllocWithUTF16(s),
-                          free).get();
+   mUstr = auto_unique(Unicode_AllocWithUTF16(s), free).get();
    ASSERT(Validate(mUstr));
 }
 
@@ -273,8 +273,7 @@ string::string(const char *s,           // IN
       return;
    }
 
-   mUstr = AutoCPtr<char>(Unicode_Alloc(s, encoding),
-                          free).get();
+   mUstr = auto_unique(Unicode_Alloc(s, encoding), free).get();
    ASSERT(Validate(mUstr));
 }
 
@@ -2194,7 +2193,7 @@ CopyAndFree(char* utf8,              // IN
             void (*freeFunc)(void*)) // IN/OPT
 {
    ASSERT(utf8 != NULL);
-   return AutoCPtr<char>(utf8, freeFunc).get();
+   return auto_unique(utf8, freeFunc).get();
 }
 
 

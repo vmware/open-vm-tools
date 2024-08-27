@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2008-2019,2021-2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2008-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -238,7 +239,7 @@ ubstr_t::ubstr_t(const char *s) // IN: A UTF-8-encoded string.
    if (s != NULL) {
       // Since we already have the UTF-8 version of the string, cache it now.
       mUTF8 = std::shared_ptr<UTF8Data>(new UTF8Data(Util_SafeStrdup(s)));
-      mBstr = AutoCPtr<utf16_t>(Unicode_GetAllocUTF16(s), free).get();
+      mBstr = auto_unique(Unicode_GetAllocUTF16(s), free).get();
    }
 }
 
@@ -815,7 +816,7 @@ ubstr_t::GetUTF8Cache()
    }
 
    if (mUTF8->Get() == NULL) {
-      AutoCPtr<char> utf8Str(
+      auto utf8Str = auto_unique(
          Unicode_AllocWithUTF16(static_cast<wchar_t *>(mBstr)),
          free);
       mUTF8->Set(utf8Str.get());
