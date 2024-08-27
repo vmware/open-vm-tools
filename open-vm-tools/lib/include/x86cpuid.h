@@ -1337,7 +1337,9 @@ FLAG(  8A,  0, EDX, 24,  1, SVM_TLB_CTL,                         NO,    0 ) \
 FLAG(  8A,  0, EDX, 25,  1, SVM_NMI_VIRT,                        NO,    0 ) \
 FLAG(  8A,  0, EDX, 26,  1, SVM_IBS_VIRT,                        NO,    0 ) \
 FLAG(  8A,  0, EDX, 27,  1, SVM_EXTLVT_OFFSET_FAULT,             NO,    0 ) \
-FLAG(  8A,  0, EDX, 28,  1, SVM_VMCB_ADDR_CHK,                   NO,    0 )
+FLAG(  8A,  0, EDX, 28,  1, SVM_VMCB_ADDR_CHK,                   NO,    0 ) \
+FLAG(  8A,  0, EDX, 29,  1, SVM_BUS_LOCK_THRESHOLD,              NO,    0 ) \
+FLAG(  8A,  0, EDX, 30,  1, SVM_IDLE_HLT,                        NO,    0 )
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_819                                          \
