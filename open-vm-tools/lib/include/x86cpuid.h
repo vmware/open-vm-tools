@@ -510,6 +510,9 @@ FLAG(   6,  0, EDX,  1,  1, ENERGY_CAP_REPORTING,                NO,    0 ) \
 FIELD(  6,  0, EDX,  8,  4, HW_FEEDBACK_SIZE,                    NO,    0 ) \
 FIELD(  6,  0, EDX, 16, 16, HW_FEEDBACK_INDEX,                   NO,    0 )
 
+#define CPUID_7_2_EDX_7 \
+FLAG(   7,  2, EDX,  7,  1, LEAF_7_2_EDX_RSVD,                   NO,    0)
+
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_7                                            \
 FIELD(  7,  0, EAX,  0, 32, LEAF_7_MAX_SUBLEVEL,                 YES,  18 ) \
@@ -623,7 +626,8 @@ FLAG(   7,  2, EDX,  2,  1, RRSBA_CTRL,                          YES,  21 ) \
 FLAG(   7,  2, EDX,  3,  1, DDPD_U,                              YES,  21 ) \
 FLAG(   7,  2, EDX,  4,  1, BHI_CTRL,                            YES,  21 ) \
 FLAG(   7,  2, EDX,  5,  1, MCDT_NO,                             NO,    0 ) \
-FLAG(   7,  2, EDX,  6,  1, UC_LOCK_DISABLE,                     NO,    0 )
+FLAG(   7,  2, EDX,  6,  1, UC_LOCK_DISABLE,                     NO,    0 ) \
+CPUID_7_2_EDX_7
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_9                                            \
