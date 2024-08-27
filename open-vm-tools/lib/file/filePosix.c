@@ -1611,6 +1611,8 @@ File_GetVMFSLockInfo(const char *path,         // IN
       FS3_FileDescriptor *fileDesc =
          (FS3_FileDescriptor *)&dumpArgs.result.descriptor;
       FS3_DiskLock *diskLock = FS3_DISKLOCK(&fileDesc->lockBlock);
+      const UUID *theOwner;
+
       if (dumpArgs.result.descriptorLength < sizeof(FS3_FileDescriptor)) {
          /* This should not happen. */
          Log(LGPFX" %s: VMFS file descriptor size %u too small (need "
@@ -1635,14 +1637,24 @@ File_GetVMFSLockInfo(const char *path,         // IN
             goto exit;
          }
 
-         *outVMFSMacAddr = Str_SafeAsprintf(NULL, FS_UUID_FMTSTR,
-               FS_UUID_VAARGS(diskLock->numHolders == 0 ?
-               &diskLock->owner : &diskLock->holders[0].uid));
+         if (diskLock->numHolders == 0) {
+            theOwner = &diskLock->owner;
+         } else {
+            theOwner = &diskLock->holders[0].uid;
+         }
       } else {
          /* Exclusive lock, so there is only one owner. */
-         *outVMFSMacAddr = Str_SafeAsprintf(NULL, FS_UUID_FMTSTR,
-            FS_UUID_VAARGS(&diskLock->owner));
+         theOwner = &diskLock->owner;
       }
+
+      *outVMFSMacAddr = Str_SafeAsprintf(NULL,
+                                         "%02x:%02x:%02x:%02x:%02x:%02x",
+                                         theOwner->macAddr[0],
+                                         theOwner->macAddr[1],
+                                         theOwner->macAddr[2],
+                                         theOwner->macAddr[3],
+                                         theOwner->macAddr[4],
+                                         theOwner->macAddr[5]);
    }
 
    ret = 0;
