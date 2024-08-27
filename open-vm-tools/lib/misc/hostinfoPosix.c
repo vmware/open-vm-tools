@@ -1821,6 +1821,11 @@ HostinfoGetCmdOutput(const char *cmd)  // IN:
  *
  *      https://www.linux.org/docs/man5/os-release.html
  *
+ *      IF THIS ROUTINE IS MODIFIED IN ANY WAY - DIRECTLY OR INDIRECTLY - TO
+ *      USE FILES OTHER THAN THOSE OFFICIALLY SANCTIONED BY THE os-release
+ *      STANDARD, THE CODE IS NO LONGER IN COMPLIANCE WITH THE os-release
+ *      STANDARD AND VMware IS NOT RESPONSIBLE FOR THE BEHAVIOR THAT RESULTS.
+ *
  * Return value:
  *      -1     Failure. No data returned.
  *      0..n   Success. A "score", the number of interesting pieces of data
