@@ -1,3 +1,127 @@
+commit 25fe7db3739a021103b4dca64255531be02602cd
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Tue Aug 27 02:27:38 2024 -0700
+
+    Update copyright pattern for tools.conf.
+
+commit 21a843e74da24401049f40efeb313a858de53b07
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Tue Aug 27 02:11:00 2024 -0700
+
+    Change to common source files not applicable to open-vm-tools.
+
+commit 2197581c0da08a4a574703cf56eca39c90ad1a40
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Tue Aug 27 02:11:00 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 26ed84ded19e61801b752f3a606187ea2745e57a
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Tue Aug 27 02:11:00 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 5413628f892125da221bd180bfb861b3e773159c
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Tue Aug 27 02:11:00 2024 -0700
+
+    Annotate the os-release guest identification function HostinfoOsRelease()
+    
+    The HostinfoOsRelease() function examines the os-release standard file(s) to
+    collect distro identification data of interest. This is open-source and users
+    can legally modify the code changing the standard file priority order or
+    accessing other files. Any such change breaks compliance with the os-release
+    standard and may cause confusion in the field.
+    The function header has been updated to remind users of this issue.
+
+commit 86b308ab9eb8e4c3e154b30861cb66802c9e4624
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Tue Aug 27 02:11:00 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit c401bc0af27dd6928970cad4f6af5f22d48dc7a7
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Tue Aug 27 02:11:00 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 97a7efcc67eb37628181666a642a439cf4bc0bab
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Tue Aug 27 02:11:00 2024 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit d9a88f25df7cab16374c7ed0c1bc2b4640df22c8
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Tue Aug 27 02:11:00 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 41d772c7ea21442f447872f52ec2fb7bd92d98b3
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Tue Aug 27 02:11:00 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 0a0b23a5080bf6ccb58c69b9b214e0c25c628173
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Tue Aug 27 02:11:00 2024 -0700
+
+    Change to common source files not applicable to open-vm-tools.
+
+commit 6e7206dbd9be10e1c0853a4ac8b9982e3d307a7e
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Tue Aug 27 02:11:00 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 159107b8027f122f8502adafbbc8ffc56b4ff7d7
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Tue Aug 27 02:10:59 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit bcc1be6f36d8a3d69c8a86f533d6deb27e6f2fda
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Tue Aug 27 02:10:59 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 649d27de9347ee507e3e863b43e861b48e5f0506
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Tue Aug 27 02:10:59 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 4bdc04df610cebde943967dc2042f90b6597d2ad
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Tue Aug 27 02:10:59 2024 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit a5f761ab56eb7afbb885e4ec57062657cfe0f171
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Tue Aug 27 02:10:59 2024 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 582763347e3384a1fa1abb77a6b9c20d7c353753
+Author: Ravindra Kumar <ravindrakumar@vmware.com>
+Date:   Thu Aug 15 18:51:54 2024 -0700
+
+    Update README.md
+    
+    Updated open-vm-tools functionality and plugin details
+
+commit 88c4194d2c6fb1804159cd36dd7d68e984afc495
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Mon Jul 15 03:00:20 2024 -0700
+
+    Update ChangeLog with the granular push of July 15, 2024.
+    - plus ChangeLog update of May 28, 2024.
+
 commit 567b94a40a5fe8f478dfe37b3b87fc9106028e45
 Author: Kruti <kpendharkar@vmware.com>
 Date:   Mon Jul 15 02:56:39 2024 -0700
