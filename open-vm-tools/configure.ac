@@ -1626,6 +1626,15 @@ else
     UDEVRULESDIR=""
 fi
 
+AC_ARG_WITH([shutdown-command],
+            [AS_HELP_STRING([--with-shutdown-command=COMMAND],
+                            [command to perform shutdown])],
+            [AC_DEFINE_UNQUOTED([SHUTDOWN_COMMAND], ["$withval"], [])])
+AC_ARG_WITH([reboot-command],
+            [AS_HELP_STRING([--with-reboot-command=COMMAND],
+                            [command to perform reboot])],
+            [AC_DEFINE_UNQUOTED([REBOOT_COMMAND], ["$withval"], [])])
+
 if test "x$enable_resolutionkms" = "xauto"; then
    enable_resolutionkms="no"
 fi
