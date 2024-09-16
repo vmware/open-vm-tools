@@ -19,7 +19,7 @@
 /*
  * su.h --
  *
- *   Manage super-user priviledges
+ *   Manage super-user privileges
  *
  */
 
