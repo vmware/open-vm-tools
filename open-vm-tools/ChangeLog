@@ -1,3 +1,12 @@
+commit 764f00f3c3393e8043ba87c2b63d1df670755c95
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Tue Aug 27 02:31:46 2024 -0700
+
+    Update ChangeLog with the granular push of Aug 27, 2024.
+    - plus Copyright pattern update of file tools.conf
+    - plus README.md update of Aug 15, 2024.
+    - plus ChangeLog update of July 15, 2024.
+
 commit 25fe7db3739a021103b4dca64255531be02602cd
 Author: Kruti <kpendharkar@vmware.com>
 Date:   Tue Aug 27 02:27:38 2024 -0700
