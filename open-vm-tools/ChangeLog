@@ -1,3 +1,40 @@
+commit e54a2d61657e3c4c0fd4299cc5c830b4263e27bd
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Thu Oct 3 23:17:34 2024 -0700
+
+    Correct missed 2024 copyright update.
+
+commit a2ff5f28720eca493c5369448b48d1ad595e368b
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Thu Oct 3 22:57:50 2024 -0700
+
+    open-vm-tools l10n message updates
+
+commit a240f6a1d75c4fbacb1e9364ff48dfce304a23dc
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Thu Oct 3 22:57:50 2024 -0700
+
+    Ignore deprecated warning for LIBXML2 APIs xmlFileXXX.
+    
+    CVE-2024-40896 has been fixed in the following libxml2 releases.
+      - 2.13.3
+      - 2.12.9
+      - 2.11.9
+    
+    The libxml2 version 2.13.0 has deprecated the xmlFileMatch, UserXmlFileOpen,
+    xmlFileRead, xmlFileClose callback functions. This change suppresses a
+    "deprecated-declaration" warning when these functions are invoked.
+
+commit a167dff31e77d9599454667220b23dac304fed46
+Author: John Wolfe <jwolfe@vmware.com>
+Date:   Tue Sep 24 14:31:17 2024 -0700
+
+    ====================================================================
+    The "stable-12.5.x" branch was created from the "devel" branch here.
+    ====================================================================
+    
+    Update the ChangeLog with the ChangeLog update of Aug 27, 2024.
+
 commit 764f00f3c3393e8043ba87c2b63d1df670755c95
 Author: Kruti <kpendharkar@vmware.com>
 Date:   Tue Aug 27 02:31:46 2024 -0700
