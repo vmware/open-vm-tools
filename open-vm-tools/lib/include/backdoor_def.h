@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 1998-2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2024 Broadcom. All rights reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -157,21 +158,22 @@ extern "C" {
 #define   BDOOR_CMD_NESTING_CONTROL          63
 #define   BDOOR_CMD_FIRMWARE_INIT            64 /* CPL 0 only. */
 #define   BDOOR_CMD_FIRMWARE_ACPI_SERVICES   65 /* CPL 0 only. */
-#  define BDOOR_CMD_FAS_GET_TABLE_SIZE        0
-#  define BDOOR_CMD_FAS_GET_TABLE_DATA        1
-#  define BDOOR_CMD_FAS_GET_PLATFORM_NAME     2
-#  define BDOOR_CMD_FAS_GET_PCIE_OSC_MASK     3
-#  define BDOOR_CMD_FAS_GET_APIC_ROUTING      4
-#  define BDOOR_CMD_FAS_GET_TABLE_SKIP        5
-#  define BDOOR_CMD_FAS_GET_SLEEP_ENABLES     6
-#  define BDOOR_CMD_FAS_GET_HARD_RESET_ENABLE 7
-#  define BDOOR_CMD_FAS_GET_MOUSE_HID         8
-#  define BDOOR_CMD_FAS_GET_SMBIOS_VERSION    9
+#  define BDOOR_CMD_FAS_GET_TABLE_SIZE           0
+#  define BDOOR_CMD_FAS_GET_TABLE_DATA           1
+#  define BDOOR_CMD_FAS_GET_PLATFORM_NAME        2
+#  define BDOOR_CMD_FAS_GET_PCIE_OSC_MASK        3
+#  define BDOOR_CMD_FAS_GET_APIC_ROUTING         4
+#  define BDOOR_CMD_FAS_GET_TABLE_SKIP           5
+#  define BDOOR_CMD_FAS_GET_SLEEP_ENABLES        6
+#  define BDOOR_CMD_FAS_GET_HARD_RESET_ENABLE    7
+#  define BDOOR_CMD_FAS_GET_MOUSE_HID            8
+#  define BDOOR_CMD_FAS_GET_SMBIOS_VERSION       9
 #  define BDOOR_CMD_FAS_GET_64BIT_PCI_HOLE_SIZE 10
-//#define BDOOR_CMD_FAS_GET_NVDIMM_FMT_CODE  11 /* Not in use. Never shipped. */
-#  define BDOOR_CMD_FAS_SRP_ENABLED          12
-#  define BDOOR_CMD_FAS_EXIT_BOOT_SERVICES   13
-#  define BDOOR_CMD_FAS_GET_API_ENABLES      14
+//#define BDOOR_CMD_FAS_GET_NVDIMM_FMT_CODE     11 /* Not in use. Never shipped. */
+#  define BDOOR_CMD_FAS_SRP_ENABLED             12
+#  define BDOOR_CMD_FAS_EXIT_BOOT_SERVICES      13
+#  define BDOOR_CMD_FAS_GET_API_ENABLES         14
+#  define BDOOR_CMD_FAS_UNACCEPTED_MEM_ENABLED  15
 #define   BDOOR_CMD_SENDPSHAREHINTS          66 /* Not in use. Deprecated. */
 #define   BDOOR_CMD_ENABLE_USB_MOUSE         67
 #define   BDOOR_CMD_GET_VCPU_INFO            68
@@ -182,7 +184,7 @@ extern "C" {
 #  define BDOOR_CMD_VCPU_MMIO_HONORS_PAT      4
 #  define BDOOR_CMD_VCPU_RESERVED            31
 #define   BDOOR_CMD_EFI_SERIALCON_CONFIG     69 /* CPL 0 only. */
-#define   BDOOR_CMD_BUG328986                70 /* CPL 0 only. */
+//#define   BDOOR_CMD_BUG328986              70 /* CPL 0 only. Deprecated. */
 #define   BDOOR_CMD_FIRMWARE_ERROR           71 /* CPL 0 only. */
 #  define BDOOR_CMD_FE_INSUFFICIENT_MEM       0
 #  define BDOOR_CMD_FE_EXCEPTION              1
@@ -242,7 +244,7 @@ extern "C" {
 #  define BDOOR_CMD_PRECISIONCLOCK_ADJTIME    2
 #  define BDOOR_CMD_PRECISIONCLOCK_ADJFREQ    3
 #  define BDOOR_CMD_PRECISIONCLOCK_NUMCMDS    4
-#define   BDOOR_CMD_COREDUMP_UNSYNC          98 /* Devel only. For VMM cores */
+//#define   BDOOR_CMD_COREDUMP_UNSYNC        98 /* Not in use.  PR 3328536. */
 #define   BDOOR_CMD_APPLE_GPU_RES_SET        99
 #define   BDOOR_CMD_GETBUILDNUM             100
 #define   BDOOR_CMD_GETENTROPY              101 /* Configurable, off by default. */

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (C) 1998-2019,2024 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -131,7 +131,7 @@ typedef struct Net_AdapterCount {
  *----------------------------------------------------------------------------
  */
 
-static INLINE void
+static inline void
 Net_AddAddrToLadrf(const uint8 *addr,  // IN: pointer to MAC address
                    uint8 *ladrf)       // IN/OUT: pointer to ladrf
 {
@@ -182,7 +182,7 @@ Net_AddAddrToLadrf(const uint8 *addr,  // IN: pointer to MAC address
  *----------------------------------------------------------------------
  */
 
-static INLINE void
+static inline void
 Net_GetNumAdapters(Net_AdapterCount *counts)
 {
    uint32 i;

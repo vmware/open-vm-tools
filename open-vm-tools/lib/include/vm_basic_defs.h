@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2003-2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2003-2024 Broadcom. All rights reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -248,32 +249,40 @@ Max(int a, int b)
 #define PAGE_SHIFT_16KB  14
 #define PAGE_SHIFT_64KB  16
 
-#ifndef PAGE_SHIFT // {
+#define PAGE_SIZE_4KB    4096
+#define PAGE_SIZE_16KB   16384
+#define PAGE_SIZE_64KB   65536
+
 #if defined __x86_64__ || defined __i386__
-   #define PAGE_SHIFT    PAGE_SHIFT_4KB
+   #define VMW_PAGE_SHIFT PAGE_SHIFT_4KB
+   #define VMW_PAGE_SIZE  PAGE_SIZE_4KB
 #elif defined __APPLE__
    #if defined VM_ARM_ANY
-      #define PAGE_SHIFT    PAGE_SHIFT_16KB
+      #define VMW_PAGE_SHIFT PAGE_SHIFT_16KB
+      #define VMW_PAGE_SIZE  PAGE_SIZE_16KB
    #else
-      #define PAGE_SHIFT    PAGE_SHIFT_4KB
+      #define VMW_PAGE_SHIFT PAGE_SHIFT_4KB
+      #define VMW_PAGE_SIZE  PAGE_SIZE_4KB
    #endif
 #elif defined VM_ARM_64
-   #define PAGE_SHIFT    PAGE_SHIFT_4KB
+   #define VMW_PAGE_SHIFT PAGE_SHIFT_4KB
+   #define VMW_PAGE_SIZE  PAGE_SIZE_4KB
 #elif defined __arm__
-   #define PAGE_SHIFT    PAGE_SHIFT_4KB
+   #define VMW_PAGE_SHIFT PAGE_SHIFT_4KB
+   #define VMW_PAGE_SIZE  PAGE_SIZE_4KB
 #elif defined __wasm__
-   #define PAGE_SHIFT    PAGE_SHIFT_4KB
+   #define VMW_PAGE_SHIFT PAGE_SHIFT_4KB
+   #define VMW_PAGE_SIZE  PAGE_SIZE_4KB
 #else
-   #error
+   #error Could not determine page size information for this compiler.
 #endif
-#endif // }
 
-#define PAGE_SIZE_4KB    (1 << PAGE_SHIFT_4KB)
-#define PAGE_SIZE_16KB   (1 << PAGE_SHIFT_16KB)
-#define PAGE_SIZE_64KB   (1 << PAGE_SHIFT_64KB)
+#ifndef PAGE_SHIFT
+#define PAGE_SHIFT VMW_PAGE_SHIFT
+#endif
 
 #ifndef PAGE_SIZE
-#define PAGE_SIZE     (1 << PAGE_SHIFT)
+#define PAGE_SIZE     VMW_PAGE_SIZE
 #endif
 
 #define PAGE_MASK_4KB    (PAGE_SIZE_4KB - 1)
@@ -458,6 +467,16 @@ Max(int a, int b)
 #endif
 #define QWORD(_hi, _lo)   ((((uint64)(_hi)) << 32) | ((uint32)(_lo)))
 
+#ifndef HIDWORD128
+#define HIDWORD128(_qw)    ((uint64)((_qw) >> 64))
+#endif
+#ifndef LODWORD128
+#define LODWORD128(_qw)    ((uint64)(_qw))
+#endif
+#ifndef QWORD128
+#define QWORD128(_hi, _lo) ((((uint128)(_hi)) << 64) | ((uint64)(_lo)))
+#endif
+
 
 /*
  * Deposit a field _src at _pos bits from the right,
@@ -596,11 +615,40 @@ typedef int pid_t;
 #define VMK_HAS_VMM_ONLY(...)
 #endif
 
+#if defined VMM || defined VMK_HAS_VMM
+/* Structure field only used to support the VMM (as opposed to the ULM). */
+#define VMM_ONLY_FIELD(name) name
+#else
+/*
+ * Structure field only used to support the VMM (as opposed to the ULM).
+ * Until VMK_HAS_VMM is retired, keep this field so the size of the structure
+ * is unchanged (was bug 3354277), but prepend an underscore to the field's
+ * name to verify at compile time that the field is indeed not used.
+ */
+#define VMM_ONLY_FIELD(name) _##name
+#endif
+
 #undef ARM64_ONLY
+#if defined(_MSC_VER)
+/*
+ * Old MSVC versions (such as MSVC 14.29.30133, used to build Workstation's
+ * offset checker) are notorious to have non-standard __VA_ARGS__ handling.
+ */
+#if defined(VMX86_DESKTOP) && (_MSC_VER > 1929)
+#pragma message("ERROR: Compiler version: " XSTR(_MSC_VER))
+#pragma message("ERROR: PR 3405101: Is __VA_ARGS__ hack needed for Arm & x86?")
+#endif
+#ifdef VM_ARM_64
+#define ARM64_ONLY(x) x
+#else
+#define ARM64_ONLY(x)
+#endif
+#else
 #ifdef VM_ARM_64
 #define ARM64_ONLY(...)  __VA_ARGS__
 #else
 #define ARM64_ONLY(...)
+#endif
 #endif
 
 #undef X86_ONLY
@@ -609,6 +657,10 @@ typedef int pid_t;
  * Old MSVC versions (such as MSVC 14.29.30133, used to build Workstation's
  * offset checker) are notorious to have non-standard __VA_ARGS__ handling.
  */
+#if defined(VMX86_DESKTOP) && (_MSC_VER > 1929)
+#pragma message("ERROR: Compiler version: " XSTR(_MSC_VER))
+#pragma message("ERROR: PR 3405101: Is __VA_ARGS__ hack needed for Arm & x86?")
+#endif
 #ifdef VM_X86_ANY
 #define X86_ONLY(x)      x
 #else

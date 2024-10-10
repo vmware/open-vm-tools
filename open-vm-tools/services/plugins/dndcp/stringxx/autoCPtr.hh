@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2014-2018 VMware, Inc. All rights reserved.
+ * Copyright (c) 2014-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -16,80 +17,36 @@
  *
  *********************************************************/
 
-/*
- * autoCPtr.hh --
- *
- *      A simple, std::auto_ptr-like class for managing memory usually
- *      allocated by C functions.
- *
- *      Unlike std::auto_ptr, allows providing a customer deleter and disallows
- *      copying.  This is basically a wanna-be std::unique_ptr for platforms
- *      that don't have C++11 available yet.
- *
- *      XXX: When everything uses C++11, this can be replaced with
- *      std::unique_ptr.
- */
-
 #ifndef AUTOCPTR_HH
 #define AUTOCPTR_HH
 
-#include <cstdlib>
-#include <utility>
+#include <memory>
 
 
-template<typename T, typename FreeFunc = void (*)(void*)>
-class AutoCPtr
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * auto_unique --
+ *
+ *      A helper function to create and return std::unique_ptr objects with
+ *      deduced types.
+ *
+ * Returns:
+ *      Returns the constructed std::unique_ptr.
+ *
+ * Usage:
+ *      auto foo = auto_unique(AllocateFoo(), DeleteFoo);
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+template<typename T, typename Deleter = std::default_delete<T>>
+std::unique_ptr<T, Deleter>
+auto_unique(T* p,                        // IN
+            Deleter deleter = Deleter()) // IN/OPT
 {
-private:
-   typedef AutoCPtr<T, FreeFunc> SelfType;
-
-public:
-   explicit AutoCPtr(T* p = NULL,            // IN/OPT
-                     FreeFunc f = std::free) // IN/OPT
-      : mP(p),
-        mFree(f)
-   {
-   }
-
-   ~AutoCPtr() { mFree(mP); }
-
-   void reset(T* p = NULL) // IN/OPT
-   {
-      if (p == mP) {
-         return;
-      }
-
-      SelfType copy(mP, mFree);
-      mP = p;
-   }
-
-   T* release()
-   {
-      T* p = mP;
-      mP = NULL;
-      return p;
-   }
-
-   T* get() const { return mP; }
-   T* operator->() const { return mP; }
-   T& operator*() const { return *mP; }
-
-   void swap(SelfType& other) // IN/OUT
-   {
-      using std::swap;
-      swap(mP, other.mP);
-      swap(mFree, other.mFree);
-   }
-
-private:
-   T* mP;
-   FreeFunc mFree;
-
-private:
-   // Non-copyable.
-   AutoCPtr(const SelfType&);
-   SelfType& operator=(const SelfType&);
-};
+   return {p, deleter};
+}
 
 
 #endif // AUTOCPTR_HH

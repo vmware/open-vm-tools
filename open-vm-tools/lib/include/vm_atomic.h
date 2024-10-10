@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 1998-2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2024 Broadcom. All rights reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -187,26 +188,11 @@ typedef ALIGNED(16) struct Atomic_uint128 {
  * Whether GCC flags output operands are supported.
  * If building with GCC 6+ on x86, and 10+ on arm, flags output is supported.
  * Some pieces are still built with GCC 4, which doesn't support flag outputs.
- * Also support was added for x86 before ARM / AARCH64.
  */
 #ifdef __GCC_ASM_FLAG_OUTPUTS__
-/*
- * The above check should be sufficient to see whether the current compiler
- * supports GCC style assembly flag outputs, but just in case print a debug
- * message if it looks like we're being compiled with an older version of
- * GCC before assembly flag outputs was added.
- */
-#if defined(VM_X86_ANY) && __GNUC__ < 6
- #pragma message "GCC < 6 claims to support x86 asm flag outputs"
-#elif defined(VM_ARM_ANY) && __GNUC__ < 10
- #pragma message "GCC < 10 claims to support ARM asm flag outputs"
-#endif
-
 #define IF_ASM_FLAG_OUTPUT(supportedValue, fallbackValue) supportedValue
-
 #else /* older gcc (or not gcc), flags output is not supported */
 #define IF_ASM_FLAG_OUTPUT(supportedValue, fallbackValue) fallbackValue
-
 #endif
 
 
@@ -3948,6 +3934,32 @@ MAKE_ATOMIC_TYPE(Bool, 8, Bool, Bool, Bool)
 /*
  *-----------------------------------------------------------------------------
  *
+ * Atomic_SetBitVector --
+ *
+ *      Atomically set the bit 'index' in bit vector var.
+ *
+ *      The index input value specifies which bit to modify and is 0-based.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+Atomic_SetBitVector(Atomic_uint8 *var, // IN/OUT
+                    unsigned index)    // IN
+{
+   Atomic_Or8(var + index / 8, 1 << index % 8);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * Atomic_TestSetBitVector --
  *
  *      Atomically test and set the bit 'index' in bit vector var.
@@ -3982,6 +3994,32 @@ Atomic_TestSetBitVector(Atomic_uint8 *var, // IN/OUT
    uint8 bit = 1 << index % 8;
    return (Atomic_ReadOr8(var + index / 8, bit) & bit) != 0;
 #endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * Atomic_ClearBitVector --
+ *
+ *      Atomically clear the bit 'index' in bit vector var.
+ *
+ *      The index input value specifies which bit to modify and is 0-based.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static INLINE void
+Atomic_ClearBitVector(Atomic_uint8 *var, // IN/OUT
+                      unsigned index)    // IN
+{
+   Atomic_And8(var + index / 8, ~(1 << index % 8));
 }
 
 

@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2007-2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2007-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -646,8 +647,7 @@ typedef struct Vmxnet3_RxQueueConf {
 #pragma pack(push, 1)
 typedef struct Vmxnet3_LatencyConf {
    uint16 sampleRate;
-   uint16 packetSize;
-   uint32 pad;
+   uint16 pad;
 } Vmxnet3_LatencyConf;
 #pragma pack(pop)
 
@@ -655,7 +655,7 @@ typedef struct Vmxnet3_LatencyConf {
 typedef struct Vmxnet3_TxQueueTSConf {
    __le64    txTSRingBasePA;
    __le16    txTSRingDescSize; /* size of tx timestamp ring buffer */
-   uint16    pad[3];
+   uint16    pad;
    Vmxnet3_LatencyConf latencyConf;
 } Vmxnet3_TxQueueTSConf;
 #pragma pack(pop)
@@ -664,7 +664,7 @@ typedef struct Vmxnet3_TxQueueTSConf {
 typedef struct Vmxnet3_RxQueueTSConf {
    __le64    rxTSRingBasePA;
    __le16    rxTSRingDescSize; /* size of rx timestamp ring buffer */
-   uint16    pad[7];
+   uint16    pad[3];
 } Vmxnet3_RxQueueTSConf;
 #pragma pack(pop)
 
@@ -986,7 +986,7 @@ typedef struct Vmxnet3_TxQueueDesc {
    Vmxnet3_QueueStatus status;
    UPT1_TxStats        stats;
    Vmxnet3_TxQueueTSConf tsConf;
-   uint8               _pad[64]; /* 128 aligned */
+   uint8               _pad[72]; /* 128 aligned */
 } Vmxnet3_TxQueueDesc;
 #pragma pack(pop)
 
@@ -998,7 +998,7 @@ typedef struct Vmxnet3_RxQueueDesc {
    Vmxnet3_QueueStatus status;
    UPT1_RxStats        stats;
    Vmxnet3_RxQueueTSConf tsConf;
-   uint8               _pad[64]; /* 128 aligned */
+   uint8               _pad[72]; /* 128 aligned */
 } Vmxnet3_RxQueueDesc;
 #pragma pack(pop)
 

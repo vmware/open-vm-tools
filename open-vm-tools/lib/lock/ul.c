@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2009-2019 VMware, Inc. All rights reserved.
+ * Copyright (c) 2009-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -310,7 +311,23 @@ MXUserDumpAndPanic(MXUserHeader *header,  // IN:
       MXUser_SetInPanic();
    }
 
-   (*header->dumpFunc)(header);
+   if (header->badHeader) {
+      Warning("%s: Corrupt lock @ %p\n", __FUNCTION__, header);
+
+      Warning("\tname %p\n", header->name);
+      Warning("\tsignature 0x%X\n", header->signature);
+      Warning("\trank 0x%X\n", header->rank);
+
+      Warning("\tdumpFunc %p\n", header->dumpFunc);
+      Warning("\tstatsFunc %p\n", header->statsFunc);
+
+      Warning("\titem.next %p\n", header->item.next);
+      Warning("\titem.prev %p\n", header->item.prev);
+
+      Warning("\tserial number %"FMT64"u\n", header->serialNumber);
+   } else {
+      (*header->dumpFunc)(header);
+   }
 
    va_start(ap, fmt);
    msg = Str_SafeVasprintf(NULL, fmt, ap);

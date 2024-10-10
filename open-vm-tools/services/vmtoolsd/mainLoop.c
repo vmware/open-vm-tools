@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2008-2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2008-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -49,6 +50,7 @@
     (defined(__linux__) && !defined(USERWORLD))
 #  include "vmware/tools/guestStore.h"
 #  include "globalConfig.h"
+
 #endif
 
 /*
@@ -126,6 +128,7 @@ ToolsCoreCleanup(ToolsServiceState *state)
        * blocked in client lib synchronous recv() call.
        */
       ToolsPluginSvcGuestStore_Shutdown(&state->ctx);
+
    }
 #endif
 

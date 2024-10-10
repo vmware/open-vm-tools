@@ -1,5 +1,7 @@
 ################################################################################
-### Copyright (c) 2007-2016,2020-2023 VMware, Inc.  All rights reserved.
+### Copyright (c) 2007-2024 Broadcom. All Rights Reserved.
+### Broadcom Confidential. The term "Broadcom" refers to Broadcom Inc.
+### and/or its subsidiaries.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as

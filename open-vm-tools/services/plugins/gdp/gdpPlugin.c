@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2020-2021,2023-2024 Broadcom. All Rights Reserved.
+ * Copyright (c) 2020-2021,2023-2024 Broadcom. All rights reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it

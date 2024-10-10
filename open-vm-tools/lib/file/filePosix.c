@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2006-2021, 2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2006-2024 Broadcom. All rights reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1610,6 +1611,8 @@ File_GetVMFSLockInfo(const char *path,         // IN
       FS3_FileDescriptor *fileDesc =
          (FS3_FileDescriptor *)&dumpArgs.result.descriptor;
       FS3_DiskLock *diskLock = FS3_DISKLOCK(&fileDesc->lockBlock);
+      const UUID *theOwner;
+
       if (dumpArgs.result.descriptorLength < sizeof(FS3_FileDescriptor)) {
          /* This should not happen. */
          Log(LGPFX" %s: VMFS file descriptor size %u too small (need "
@@ -1634,14 +1637,24 @@ File_GetVMFSLockInfo(const char *path,         // IN
             goto exit;
          }
 
-         *outVMFSMacAddr = Str_SafeAsprintf(NULL, FS_UUID_FMTSTR,
-               FS_UUID_VAARGS(diskLock->numHolders == 0 ?
-               &diskLock->owner : &diskLock->holders[0].uid));
+         if (diskLock->numHolders == 0) {
+            theOwner = &diskLock->owner;
+         } else {
+            theOwner = &diskLock->holders[0].uid;
+         }
       } else {
          /* Exclusive lock, so there is only one owner. */
-         *outVMFSMacAddr = Str_SafeAsprintf(NULL, FS_UUID_FMTSTR,
-            FS_UUID_VAARGS(&diskLock->owner));
+         theOwner = &diskLock->owner;
       }
+
+      *outVMFSMacAddr = Str_SafeAsprintf(NULL,
+                                         "%02x:%02x:%02x:%02x:%02x:%02x",
+                                         theOwner->macAddr[0],
+                                         theOwner->macAddr[1],
+                                         theOwner->macAddr[2],
+                                         theOwner->macAddr[3],
+                                         theOwner->macAddr[4],
+                                         theOwner->macAddr[5]);
    }
 
    ret = 0;
@@ -1688,10 +1701,12 @@ File_DoesVolumeSupportConvertBlocks(const char *pathName)  // IN:
 
    /*
     * Only regular VMFS (no VMFS-L, VMFSOS, or other oddities) and
-    * only version 6 and above.
+    * only version 6 and above. Also, no VMFS on VSAN/VVol objects.
     */
    supports = Str_Strcmp(fsAttrs->fsType, FS_VMFS_ON_ESX) == 0 &&
-      fsAttrs->versionNumber >= 6;
+      fsAttrs->versionNumber >= 6 &&
+      strcmp(fsAttrs->driverType, "vsan") != 0 &&
+      strcmp(fsAttrs->driverType, "vvol") != 0;
 
    Posix_Free(fsAttrs);
    return supports;

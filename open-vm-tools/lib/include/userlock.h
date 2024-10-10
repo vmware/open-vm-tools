@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2009-2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 2009-2024 Broadcom. All rights reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -35,14 +36,15 @@
 extern "C" {
 #endif
 
-typedef struct MXUserExclLock   MXUserExclLock;
-typedef struct MXUserRecLock    MXUserRecLock;
-typedef struct MXUserRWLock     MXUserRWLock;
-typedef struct MXUserRankLock   MXUserRankLock;
-typedef struct MXUserCondVar    MXUserCondVar;
-typedef struct MXUserSemaphore  MXUserSemaphore;
-typedef struct MXUserEvent      MXUserEvent;
-typedef struct MXUserBarrier    MXUserBarrier;
+typedef struct MXUserExclLock      MXUserExclLock;
+typedef struct MXUserRecLock       MXUserRecLock;
+typedef struct MXUserRWLock        MXUserRWLock;
+typedef struct MXUserRankLock      MXUserRankLock;
+typedef struct MXUserCondVar       MXUserCondVar;
+typedef struct MXUserSemaphore     MXUserSemaphore;
+typedef struct MXUserBinSemaphore  MXUserBinSemaphore;
+typedef struct MXUserEvent         MXUserEvent;
+typedef struct MXUserBarrier       MXUserBarrier;
 
 /*
  * Exclusive ownership lock
@@ -269,6 +271,23 @@ Bool MXUser_TimedDownSemaphoreNS(MXUserSemaphore *sema,
 MXUserSemaphore *MXUser_CreateSingletonSemaphore(Atomic_Ptr *semaStorage,
                                                  const char *name,
                                                  MX_Rank rank);
+
+/*
+ * Binary semaphore
+ */
+
+MXUserBinSemaphore *MXUser_CreateBinSemaphore(const char *name,
+                                              MX_Rank rank);
+
+void MXUser_DestroyBinSemaphore(MXUserBinSemaphore *binSema);
+void MXUser_UpBinSemaphore(MXUserBinSemaphore *binSema);
+void MXUser_DownBinSemaphore(MXUserBinSemaphore *binSema);
+Bool MXUser_TryDownBinSemaphore(MXUserBinSemaphore *binSema);
+
+Bool MXUser_TimedDownBinSemaphore(MXUserBinSemaphore *binSema,
+                                  uint32 waitTimeMS);
+Bool MXUser_TimedDownBinSemaphoreNS(MXUserBinSemaphore *binSema,
+                                    uint64 waitTimeNS);
 
 /*
  * Rank lock

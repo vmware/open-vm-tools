@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2003-2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2003-2024 Broadcom. All rights reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -31,9 +32,9 @@
  *********************************************************/
 
 /*
- * vm_basic_asm.h
+ * vm_basic_asm.h --
  *
- *	Basic asm macros
+ *      Basic asm macros.
  */
 
 #ifndef _VM_BASIC_ASM_H_
@@ -70,6 +71,9 @@
 #include "mul64.h"
 #elif defined VM_ARM_64
 #include "vm_basic_asm_arm64.h"
+#ifdef VMKERNEL
+#include "vmk_arm_mode.h"
+#endif
 #else
 #define MUL64_NO_ASM 1
 #include "mul64.h"
@@ -105,18 +109,18 @@ extern "C" {
  * lssbPtr_0   LSB set (uintptr_t;64-bit)  0..63    -1
  * mssbPtr_0   MSB set (uintptr_t;32-bit)  0..31    -1
  * mssbPtr_0   MSB set (uintptr_t;64-bit)  0..63    -1
- * lssbPtr     LSB set (uintptr_t;32-bit)  1..32    0
- * lssbPtr     LSB set (uintptr_t;64-bit)  1..64    0
- * mssbPtr     MSB set (uintptr_t;32-bit)  1..32    0
- * mssbPtr     MSB set (uintptr_t;64-bit)  1..64    0
  * lssb32      LSB set (uint32)            1..32    0
  * mssb32      MSB set (uint32)            1..32    0
  * lssb64      LSB set (uint64)            1..64    0
  * mssb64      MSB set (uint64)            1..64    0
+ * lssbPtr     LSB set (uintptr_t;32-bit)  1..32    0
+ * lssbPtr     LSB set (uintptr_t;64-bit)  1..64    0
+ * mssbPtr     MSB set (uintptr_t;32-bit)  1..32    0
+ * mssbPtr     MSB set (uintptr_t;64-bit)  1..64    0
  */
 
 #if defined(_MSC_VER) && !defined(__clang__) // Clang defines _MSC_VER on Windows
-static INLINE int
+static inline int
 lssb32_0(const uint32 value)
 {
    unsigned long idx;
@@ -134,7 +138,7 @@ lssb32_0(const uint32 value)
    return idx;
 }
 
-static INLINE int
+static inline int
 mssb32_0(const uint32 value)
 {
    unsigned long idx;
@@ -152,7 +156,7 @@ mssb32_0(const uint32 value)
    return idx;
 }
 
-static INLINE int
+static inline int
 lssb64_0(const uint64 value)
 {
    if (UNLIKELY(value == 0)) {
@@ -183,7 +187,7 @@ lssb64_0(const uint64 value)
    }
 }
 
-static INLINE int
+static inline int
 mssb64_0(const uint64 value)
 {
    if (UNLIKELY(value == 0)) {
@@ -242,7 +246,7 @@ mssb64_0(const uint64 value)
  * **********************************************************
  */
 
-static INLINE int
+static inline int
 lssb32_0(uint32 v)
 {
    int value = (int)v;
@@ -260,7 +264,7 @@ lssb32_0(uint32 v)
    return __builtin_ffs(value) - 1;
 }
 
-static INLINE int
+static inline int
 mssb32_0(uint32 value)
 {
    /*
@@ -283,7 +287,7 @@ mssb32_0(uint32 value)
    }
 }
 
-static INLINE int
+static inline int
 lssb64_0(const uint64 v)
 {
    int64 value = (int64)v;
@@ -314,7 +318,7 @@ lssb64_0(const uint64 v)
 }
 
 
-static INLINE int
+static inline int
 mssb64_0(const uint64 value)
 {
    if (UNLIKELY(value == 0)) {
@@ -347,7 +351,7 @@ mssb64_0(const uint64 value)
 
 #endif // __GNUC__
 
-static INLINE int
+static inline int
 lssbPtr_0(const uintptr_t value)
 {
 #ifdef VM_64BIT
@@ -357,13 +361,13 @@ lssbPtr_0(const uintptr_t value)
 #endif
 }
 
-static INLINE unsigned
+static inline unsigned
 lssbPtr(const uintptr_t value)
 {
    return (unsigned)lssbPtr_0(value) + 1;
 }
 
-static INLINE int
+static inline int
 mssbPtr_0(const uintptr_t value)
 {
 #ifdef VM_64BIT
@@ -373,31 +377,31 @@ mssbPtr_0(const uintptr_t value)
 #endif
 }
 
-static INLINE unsigned
+static inline unsigned
 mssbPtr(const uintptr_t value)
 {
    return (unsigned)mssbPtr_0(value) + 1;
 }
 
-static INLINE unsigned
+static inline unsigned
 lssb32(const uint32 value)
 {
    return (unsigned)lssb32_0(value) + 1;
 }
 
-static INLINE unsigned
+static inline unsigned
 mssb32(const uint32 value)
 {
    return (unsigned)mssb32_0(value) + 1;
 }
 
-static INLINE unsigned
+static inline unsigned
 lssb64(const uint64 value)
 {
    return (unsigned)lssb64_0(value) + 1;
 }
 
-static INLINE unsigned
+static inline unsigned
 mssb64(const uint64 value)
 {
    return (unsigned)mssb64_0(value) + 1;
@@ -616,7 +620,7 @@ uint32set(void *dst,    // OUT
  *-----------------------------------------------------------------------------
  */
 
-static INLINE uint16
+static inline uint16
 Bswap16(uint16 v)
 {
 #if defined(VM_ARM_64) && !defined(_MSC_VER)
@@ -638,7 +642,7 @@ Bswap16(uint16 v)
  *-----------------------------------------------------------------------------
  */
 
-static INLINE uint32
+static inline uint32
 Bswap32(uint32 v) // IN
 {
 #if defined(__GNUC__) && defined(VM_X86_ANY)
@@ -675,7 +679,7 @@ Bswap32(uint32 v) // IN
  *-----------------------------------------------------------------------------
  */
 
-static INLINE uint64
+static inline uint64
 Bswap64(uint64 v) // IN
 {
 #if defined _MSC_VER
@@ -701,7 +705,7 @@ Bswap64(uint64 v) // IN
  * on non-P4 IA32 systems, the encoding is interpreted as a REPZ-NOP.
  * Use volatile to avoid NOP removal.
  */
-static INLINE void
+static inline void
 PAUSE(void)
 #if defined(__GNUC__) || defined(VM_ARM_32)
 {
@@ -734,7 +738,7 @@ PAUSE(void)
  *
  * volatile because the tsc always changes without the compiler knowing it.
  */
-static INLINE uint64
+static inline uint64
 RDTSC(void)
 #ifdef __GNUC__
 {
@@ -760,11 +764,12 @@ RDTSC(void)
 #elif defined(VM_ARM_64)
    /*
     * Keep this implementation in sync with:
+    * bora/vmkernel/hardware/arm64/tscsync_arch.h::TSCSyncRDTSC()
     * bora/lib/vprobe/arm64/vp_emit_tc.c::VpEmit_BuiltinRDTSCWork()
     * bora/modules/vmkernel/tests/core/xmapTest/xmapTest_arm64.c::XMapTest_SetupLoopCode()
     */
-#if defined(VMKERNEL) && !defined(VMK_ARM_EL1_OR_VHE)
-   return MRS(CNTPCT_EL0);
+#ifdef VMKERNEL
+   return MRSx(VMK_CNT_CT_EL);
 #else
    return MRS(CNTVCT_EL0);
 #endif
@@ -783,8 +788,8 @@ RDTSC(void)
 #else
 {
    /*
-    * We need to do more inverstagetion here to find
-    * a microsoft equivalent of that code
+    * We need to do more investigation here to find
+    * a Microsoft equivalent of that code.
     */
    NOT_IMPLEMENTED();
    return 0;
@@ -836,49 +841,49 @@ RDTSC(void)
  *-----------------------------------------------------------------------------
  */
 
-static INLINE void
+static inline void
 SetBit32(uint32 *var, unsigned index)
 {
    *var |= 1 << index;
 }
 
-static INLINE void
+static inline void
 ClearBit32(uint32 *var, unsigned index)
 {
    *var &= ~(1 << index);
 }
 
-static INLINE void
+static inline void
 ToggleBit32(uint32 *var, unsigned index)
 {
    *var ^= 1 << index;
 }
 
-static INLINE void
+static inline void
 SetBit64(uint64 *var, unsigned index)
 {
    *var |= CONST64U(1) << index;
 }
 
-static INLINE void
+static inline void
 ClearBit64(uint64 *var, unsigned index)
 {
    *var &= ~(CONST64U(1) << index);
 }
 
-static INLINE void
+static inline void
 ToggleBit64(uint64 *var, unsigned index)
 {
    *var ^= (CONST64U(1) << index);
 }
 
-static INLINE Bool
+static inline Bool
 TestBit32(const uint32 *var, unsigned index)
 {
    return (*var & (1 << index)) != 0;
 }
 
-static INLINE Bool
+static inline Bool
 TestBit64(const uint64 *var, unsigned index)
 {
    return (*var & (CONST64U(1) << index)) != 0;
@@ -911,7 +916,7 @@ TestBit64(const uint64 *var, unsigned index)
 #define GCC_ASM_BT_EPILOG "\n\tsetc\t%0" : "=qQm"
 #endif
 
-static INLINE Bool
+static inline Bool
 SetBitVector(void *var, int32 index)
 {
 #if defined(__GNUC__) && defined(VM_X86_ANY)
@@ -930,7 +935,7 @@ SetBitVector(void *var, int32 index)
 #endif
 }
 
-static INLINE Bool
+static inline Bool
 ClearBitVector(void *var, int32 index)
 {
 #if defined(__GNUC__) && defined(VM_X86_ANY)
@@ -949,7 +954,7 @@ ClearBitVector(void *var, int32 index)
 #endif
 }
 
-static INLINE Bool
+static inline Bool
 ComplementBitVector(void *var, int32 index)
 {
 #if defined(__GNUC__) && defined(VM_X86_ANY)
@@ -968,7 +973,7 @@ ComplementBitVector(void *var, int32 index)
 #endif
 }
 
-static INLINE Bool
+static inline Bool
 TestBitVector(const void *var, int32 index)
 {
 #if defined(__GNUC__) && defined(VM_X86_ANY)
@@ -996,7 +1001,7 @@ TestBitVector(const void *var, int32 index)
  *-----------------------------------------------------------------------------
  */
 
-static INLINE uint64
+static inline uint64
 RoundDownPow2_64(uint64 value)
 {
    if ((value & (value - 1)) == 0) {
@@ -1010,12 +1015,12 @@ RoundDownPow2_64(uint64 value)
 }
 
 
-static INLINE uint32
+static inline uint32
 RoundDownPow2_32(uint32 value)
 {
    if ((value & (value - 1)) == 0) {
       /*
-       * Already a power of two.
+       * Already zero or a power of two.
        */
       return value;
    }
@@ -1035,7 +1040,7 @@ RoundDownPow2_32(uint32 value)
  *-----------------------------------------------------------------------------
  */
 
-static INLINE uint64
+static inline uint64
 RoundUpPow2C64(uint64 value)
 {
    if (value <= 1 || value > (CONST64U(1) << 63)) {
@@ -1046,7 +1051,7 @@ RoundUpPow2C64(uint64 value)
 }
 
 #if defined(__GNUC__) && defined(VM_X86_64)
-static INLINE uint64
+static inline uint64
 RoundUpPow2Asm64(uint64 value)
 {
    uint64 out = 2;
@@ -1064,7 +1069,7 @@ RoundUpPow2Asm64(uint64 value)
 }
 #endif
 
-static INLINE uint64
+static inline uint64
 RoundUpPow2_64(uint64 value)
 {
 #if defined(__GNUC__) && defined(VM_X86_64)
@@ -1078,7 +1083,7 @@ RoundUpPow2_64(uint64 value)
 #endif
 }
 
-static INLINE uint32
+static inline uint32
 RoundUpPow2C32(uint32 value)
 {
    if (value <= 1 || value > (1U << 31)) {
@@ -1091,7 +1096,7 @@ RoundUpPow2C32(uint32 value)
 }
 
 #ifdef __GNUC__
-static INLINE uint32
+static inline uint32
 RoundUpPow2Asm32(uint32 value)
 {
 #ifdef VM_ARM_32
@@ -1127,7 +1132,7 @@ RoundUpPow2Asm32(uint32 value)
 }
 #endif // __GNUC__
 
-static INLINE uint32
+static inline uint32
 RoundUpPow2_32(uint32 value)
 {
 #ifdef __GNUC__
@@ -1158,7 +1163,7 @@ RoundUpPow2_32(uint32 value)
  *-----------------------------------------------------------------------------
  */
 
-static INLINE unsigned
+static inline unsigned
 PopCount32(uint32 value)
 {
 #if defined(__GNUC__) && defined(__POPCNT__)
@@ -1227,7 +1232,7 @@ PopCount32(uint32 value)
  *-----------------------------------------------------------------------------
  */
 
-static INLINE unsigned
+static inline unsigned
 PopCount64(uint64 value)
 {
 #if defined(__GNUC__) && defined(__POPCNT__)
@@ -1275,7 +1280,7 @@ PopCount64(uint64 value)
 
 #ifdef __GNUC__
 
-static INLINE void
+static inline void
 INTR_RW_BARRIER_RW(void)
 {
    __asm__ __volatile__("" ::: "memory");
@@ -1292,19 +1297,19 @@ INTR_RW_BARRIER_RW(void)
 
 #elif defined _MSC_VER
 
-static INLINE void
+static inline void
 INTR_R_BARRIER_R(void)
 {
    _ReadBarrier();
 }
 
-static INLINE void
+static inline void
 INTR_W_BARRIER_W(void)
 {
    _WriteBarrier();
 }
 
-static INLINE void
+static inline void
 INTR_RW_BARRIER_RW(void)
 {
    _ReadWriteBarrier();

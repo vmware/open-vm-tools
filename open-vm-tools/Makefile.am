@@ -1,5 +1,7 @@
 ################################################################################
-### Copyright (c) 2007-2021,2023 VMware, Inc.  All rights reserved.
+### Copyright (c) 2007-2024 Broadcom. All Rights Reserved.
+### Broadcom Confidential. The term "Broadcom" refers to Broadcom Inc.
+### and/or its subsidiaries.
 ###
 ### Top-level Makefile for building the VMware OSS Tools.
 ###
@@ -39,6 +41,8 @@ SUBDIRS += libguestlib
 if ENABLE_DEPLOYPKG
    SUBDIRS += libDeployPkg
 endif
+
+
 SUBDIRS += rpctool
 SUBDIRS += namespacetool
 SUBDIRS += scripts

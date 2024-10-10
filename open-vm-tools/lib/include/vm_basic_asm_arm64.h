@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (C) 2013-2023 VMware, Inc. All rights reserved.
+ * Copyright (C) 2013-2024 VMware, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -75,7 +75,7 @@ extern "C" {
  */
 
 #if defined __GNUC__
-#define _DMB(t) asm volatile("dmb " #t ::: "memory")
+#define _DMB(t) asm volatile ("dmb " #t ::: "memory")
 #elif defined _MSC_VER
 #define _DMB(t) __dmb(_ARM64_BARRIER_##t)
 #else
@@ -103,7 +103,7 @@ extern "C" {
  */
 
 #if defined __GNUC__
-#define _DSB(t) asm volatile("dsb " #t ::: "memory")
+#define _DSB(t) asm volatile ("dsb " #t ::: "memory")
 #elif defined _MSC_VER
 #define _DSB(t) __dsb(_ARM64_BARRIER_##t)
 #else
@@ -130,11 +130,11 @@ extern "C" {
  *----------------------------------------------------------------------
  */
 
-static INLINE void
+static inline void
 ISB(void)
 {
 #if defined __GNUC__
-   asm volatile("isb" ::: "memory");
+   asm volatile ("isb" ::: "memory");
 #elif defined _MSC_VER
    __isb(_ARM64_BARRIER_SY);
 #else
@@ -163,7 +163,7 @@ ISB(void)
  */
 
 #if defined __GNUC__
-static INLINE void
+static inline void
 ESB(void)
 {
    /*
@@ -244,7 +244,18 @@ ESB(void)
  * Thanks for pasting this whole comment into every architecture header.
  */
 
-#define COMPILER_MEM_BARRIER()   SMP_RW_BARRIER_RW()
+/*
+ * To match x86 TSO semantics, we need to guarantee ordering for
+ * everything _except_ store-load:
+ *
+ * - DMB ISHLD orders load-load and load-store.
+ * - DMB ISHST orders store-store.
+ *
+ * In contrast, SMP_RW_BARRIER_RW, or DMB ISH, orders all four
+ * (load-load, load-store, store-load, store-store), so it's stronger
+ * than we need -- like x86 MFENCE.
+ */
+#define COMPILER_MEM_BARRIER() do { _DMB(ISHLD); _DMB(ISHST); } while (0)
 
 /*
  * Memory barriers. These take the form of
@@ -322,7 +333,7 @@ ESB(void)
  */
 
 #define _GET_CURRENT_PC(pc)                                                   \
-   asm volatile("1: adr %0, 1b" : "=r" (pc))
+   asm volatile ("1: adr %0, 1b" : "=r" (pc))
 
 static INLINE_ALWAYS void *
 GET_CURRENT_PC(void)
@@ -342,7 +353,7 @@ GET_CURRENT_PC(void)
 
 #define GET_CURRENT_LOCATION(pc, fp, sp, retAddr) do {                        \
    _GET_CURRENT_PC(pc);                                                       \
-   asm volatile("mov %0, sp" : "=r" (sp));                                    \
+   asm volatile ("mov %0, sp" : "=r" (sp));                                   \
    fp = (uint64)GetFrameAddr();                                               \
    retAddr = (uint64)GetReturnAddress();                                      \
 } while (0)
@@ -366,7 +377,7 @@ GET_CURRENT_PC(void)
 
 #define MRS(name) ({                                                          \
    uint64 val;                                                                \
-   asm volatile("mrs %0, " XSTR(name) : "=r" (val) :: "memory");              \
+   asm volatile ("mrs %0, " XSTR(name) : "=r" (val) :: "memory");             \
    val;                                                                       \
 })
 
@@ -389,10 +400,10 @@ GET_CURRENT_PC(void)
  */
 
 #define MSR(name, val)                                                        \
-   asm volatile("msr " XSTR(name) ", %0" :: "r" (val) : "memory")
+   asm volatile ("msr " XSTR(name) ", %0" :: "r" (val) : "memory")
 
 #define MSR_IMMED(name, val)                                                  \
-   asm volatile("msr " XSTR(name) ", %0" :: "i" (val) : "memory")
+   asm volatile ("msr " XSTR(name) ", %0" :: "i" (val) : "memory")
 
 #endif // ifdef __GNUC__
 
@@ -410,13 +421,15 @@ GET_CURRENT_PC(void)
  *----------------------------------------------------------------------
  */
 
-static INLINE uint32
-MMIORead32(const volatile void *addr)
+static inline uint32
+MMIORead32(const volatile void *addr) // IN
 {
    uint32 res;
 
 #if defined __GNUC__
-   asm volatile ("ldr %w0, [%1]" : "=r" (res) : "r" (addr));
+   asm volatile ("ldr %w0, %1"
+                 : "=r" (res)
+                 : "m" (*(const volatile uint32 *)addr));
 #elif defined _MSC_VER
    res = __iso_volatile_load32((const volatile __int32 *)addr);
 #else
@@ -439,13 +452,15 @@ MMIORead32(const volatile void *addr)
  *----------------------------------------------------------------------
  */
 
-static INLINE uint64
-MMIORead64(const volatile void *addr)
+static inline uint64
+MMIORead64(const volatile void *addr) // IN
 {
    uint64 res;
 
 #if defined __GNUC__
-   asm volatile ("ldr %x0, [%1]" : "=r" (res) : "r" (addr));
+   asm volatile ("ldr %x0, %1"
+                 : "=r" (res)
+                 : "m" (*(const volatile uint64 *)addr));
 #elif defined _MSC_VER
    res = __iso_volatile_load64((const volatile __int64 *)addr);
 #else
@@ -465,12 +480,14 @@ MMIORead64(const volatile void *addr)
  *----------------------------------------------------------------------
  */
 
-static INLINE void
+static inline void
 MMIOWrite32(volatile void *addr, // OUT
-            uint32 val)
+            uint32 val)          // IN
 {
 #if defined __GNUC__
-   asm volatile ("str %w0, [%1]" : : "r" (val), "r" (addr) : "memory");
+   asm volatile ("str %w1, %0"
+                 : "=m" (*(volatile uint32 *)addr)
+                 : "r" (val));
 #elif defined _MSC_VER
    __iso_volatile_store32((volatile __int32 *)addr, val);
 #else
@@ -489,12 +506,14 @@ MMIOWrite32(volatile void *addr, // OUT
  *----------------------------------------------------------------------
  */
 
-static INLINE void
+static inline void
 MMIOWrite64(volatile void *addr, // OUT
-            uint64 val)
+            uint64 val)          // IN
 {
 #if defined __GNUC__
-   asm volatile ("str %x0, [%1]" : : "r" (val), "r" (addr) : "memory");
+   asm volatile ("str %x1, %0"
+                 : "=m" (*(volatile uint64 *)addr)
+                 : "r" (val));
 #elif defined _MSC_VER
    __iso_volatile_store64((volatile __int64 *)addr, val);
 #else
@@ -516,13 +535,15 @@ MMIOWrite64(volatile void *addr, // OUT
  *----------------------------------------------------------------------
  */
 
-static INLINE uint16
-MMIORead16(const volatile void *addr)
+static inline uint16
+MMIORead16(const volatile void *addr) // IN
 {
    uint16 res;
 
 #if defined __GNUC__
-   asm volatile ("ldrh %w0, [%1]" : "=r" (res) : "r" (addr));
+   asm volatile ("ldrh %w0, %1"
+                 : "=r" (res)
+                 : "m" (*(const volatile uint16 *)addr));
 #elif defined _MSC_VER
    res = __iso_volatile_load16((const volatile __int16 *)addr);
 #else
@@ -542,12 +563,14 @@ MMIORead16(const volatile void *addr)
  *----------------------------------------------------------------------
  */
 
-static INLINE void
-MMIOWrite16(volatile void *addr,  // IN
+static inline void
+MMIOWrite16(volatile void *addr,  // OUT
             uint16 val)           // IN
 {
 #if defined __GNUC__
-   asm volatile ("strh %w0, [%1]" : : "r" (val), "r" (addr) : "memory");
+   asm volatile ("strh %w1, %0"
+                 : "=m" (*(volatile uint16 *)addr)
+                 : "r" (val));
 #elif defined _MSC_VER
    __iso_volatile_store16((volatile __int16 *)addr, val);
 #else
@@ -569,13 +592,15 @@ MMIOWrite16(volatile void *addr,  // IN
  *----------------------------------------------------------------------
  */
 
-static INLINE uint8
-MMIORead8(const volatile void *addr)
+static inline uint8
+MMIORead8(const volatile void *addr) // IN
 {
    uint8 res;
 
 #if defined __GNUC__
-   asm volatile ("ldrb %w0, [%1]" : "=r" (res) : "r" (addr));
+   asm volatile ("ldrb %w0, %1"
+                 : "=r" (res)
+                 : "m" (*(const volatile uint8 *)addr));
 #elif defined _MSC_VER
    res = __iso_volatile_load8((const volatile __int8 *)addr);
 #else
@@ -595,18 +620,75 @@ MMIORead8(const volatile void *addr)
  *----------------------------------------------------------------------
  */
 
-static INLINE void
-MMIOWrite8(volatile void *addr, // IN
+static inline void
+MMIOWrite8(volatile void *addr, // OUT
            uint8 val)           // IN
 {
 #if defined __GNUC__
-   asm volatile ("strb %w0, [%1]" : : "r" (val), "r" (addr) : "memory");
+   asm volatile ("strb %w1, %0"
+                 : "=m" (*(volatile uint8 *)addr)
+                 : "r" (val));
 #elif defined _MSC_VER
    __iso_volatile_store8((volatile __int8 *)addr, val);
 #else
 #error No compiler defined for MMIOWrite8
 #endif
 }
+
+
+#ifdef VM_HAS_INT128
+/*
+ *----------------------------------------------------------------------
+ *
+ * MMIORead128 --
+ *
+ *      IO read from address "addr".
+ *
+ * Results:
+ *      128-bit value at given location.
+ *
+ *----------------------------------------------------------------------
+ */
+static inline uint128
+MMIORead128(const volatile void *addr) // IN
+{
+   union {
+      uint128 val128;
+      struct {
+         uint64 val64[2];
+      };
+   } res;
+   asm volatile ("ldp %x0, %x1, %2"
+                 : "=r" (res.val64[0]), "=r" (res.val64[1])
+                 : "Q" (*(const volatile uint128 *)addr));
+   return res.val128;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * MMIOWrite128 --
+ *
+ *      IO write to address "addr".
+ *
+ *----------------------------------------------------------------------
+ */
+static inline void
+MMIOWrite128(volatile void *addr, // OUT
+             uint128 val)         // IN
+{
+   union {
+      uint128 val128;
+      struct {
+         uint64 val64[2];
+      };
+   } res = { .val128 = val };
+   asm volatile ("stp %x1, %x2, %0"
+                 : "=Q" (*(volatile uint128 *)addr)
+                 : "r" (res.val64[0]), "r" (res.val64[1]));
+}
+#endif // VM_HAS_INT128
 
 
 #ifdef __GNUC__
@@ -627,10 +709,10 @@ MMIOWrite8(volatile void *addr, // IN
  *----------------------------------------------------------------------
  */
 
-static INLINE void
+static inline void
 WFI(void)
 {
-   asm volatile("wfi" ::: "memory");
+   asm volatile ("wfi" ::: "memory");
 }
 
 
@@ -650,10 +732,10 @@ WFI(void)
  *----------------------------------------------------------------------
  */
 
-static INLINE void
+static inline void
 WFE(void)
 {
-   asm volatile("wfe" ::: "memory");
+   asm volatile ("wfe" ::: "memory");
 }
 
 
@@ -673,10 +755,10 @@ WFE(void)
  *----------------------------------------------------------------------
  */
 
-static INLINE void
+static inline void
 SEV(void)
 {
-   asm volatile("sev" ::: "memory");
+   asm volatile ("sev" ::: "memory");
 }
 
 
@@ -696,10 +778,10 @@ SEV(void)
  *-----------------------------------------------------------------------------
  */
 
-static INLINE void
+static inline void
 SetSPELx(VA va)
 {
-   asm volatile(
+   asm volatile (
       "msr     spsel, #1 \n\t"
       "mov     sp, %0    \n\t"
       "msr     spsel, #0 \n\t"
@@ -731,7 +813,7 @@ SetSPELx(VA va)
  *-----------------------------------------------------------------------------
  */
 
-static INLINE void
+static inline void
 Div643232(uint64 dividend,   // IN
           uint32 divisor,    // IN
           uint32 *quotient,  // OUT
@@ -760,7 +842,7 @@ Div643232(uint64 dividend,   // IN
  *-----------------------------------------------------------------------------
  */
 
-static INLINE void
+static inline void
 Div643264(uint64 dividend,   // IN
           uint32 divisor,    // IN
           uint64 *quotient,  // OUT
@@ -787,7 +869,7 @@ Div643264(uint64 dividend,   // IN
  *----------------------------------------------------------------------
  */
 
-static INLINE void *
+static inline void *
 uint64set(void *dst, uint64 val, uint64 count)
 {
    void   *tmpDst = dst;
@@ -847,7 +929,7 @@ uint64set(void *dst, uint64 val, uint64 count)
  *-----------------------------------------------------------------------------
  */
 
-static INLINE void
+static inline void
 RDTSC_BARRIER(void)
 {
    ISB();
@@ -873,7 +955,7 @@ RDTSC_BARRIER(void)
  *-----------------------------------------------------------------------------
  */
 
-static INLINE void
+static inline void
 DCacheCleanInvalidate(VA va, uint64 len)
 {
    VA dva;
@@ -882,7 +964,7 @@ DCacheCleanInvalidate(VA va, uint64 len)
    for (dva = ROUNDDOWN(va, CACHELINE_SIZE);
         dva < va + len;
         dva += CACHELINE_SIZE) {
-      asm volatile("dc civac, %0" :: "r" (dva) : "memory");
+      asm volatile ("dc civac, %0" :: "r" (dva) : "memory");
    }
 
    /* Ensure completion. */
@@ -908,7 +990,7 @@ DCacheCleanInvalidate(VA va, uint64 len)
  *-----------------------------------------------------------------------------
  */
 
-static INLINE void
+static inline void
 DCacheClean(VA va, uint64 len)
 {
    VA dva;
@@ -917,7 +999,7 @@ DCacheClean(VA va, uint64 len)
    for (dva = ROUNDDOWN(va, CACHELINE_SIZE);
         dva < va + len;
         dva += CACHELINE_SIZE) {
-      asm volatile("dc cvac, %0" :: "r" (dva) : "memory");
+      asm volatile ("dc cvac, %0" :: "r" (dva) : "memory");
    }
 
    /* Ensure completion of clean. */
@@ -952,7 +1034,7 @@ DCacheClean(VA va, uint64 len)
  *-----------------------------------------------------------------------------
  */
 
-static INLINE uint64
+static inline uint64
 Mul64x6464(uint64 multiplicand,
            uint64 multiplier,
            uint32 shift)
@@ -989,7 +1071,7 @@ Mul64x6464(uint64 multiplicand,
  *-----------------------------------------------------------------------------
  */
 
-static INLINE int64
+static inline int64
 Muls64x64s64(int64 multiplicand,
              int64 multiplier,
              uint32 shift)
@@ -1026,7 +1108,7 @@ Muls64x64s64(int64 multiplicand,
  *-----------------------------------------------------------------------------
  */
 
-static INLINE uint64
+static inline uint64
 Mul64x3264(uint64 multiplicand, uint32 multiplier, uint32 shift)
 {
    return Mul64x6464(multiplicand, multiplier, shift);
@@ -1051,7 +1133,7 @@ Mul64x3264(uint64 multiplicand, uint32 multiplier, uint32 shift)
  *-----------------------------------------------------------------------------
  */
 
-static INLINE int64
+static inline int64
 Muls64x32s64(int64 multiplicand, uint32 multiplier, uint32 shift)
 {
    return Muls64x64s64(multiplicand, multiplier, shift);

@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -30,21 +31,21 @@
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
-#include <stdarg.h>
-#include <string.h>
 #ifndef VMKBOOT
-#include <stdlib.h>
-#endif
+   #include <stdarg.h>
+   #include <string.h>
+   #include <stdlib.h>
 
-#ifdef _WIN32
-   #ifdef USERLEVEL
-      #include <tchar.h>   /* Needed for MBCS string functions */
-      #include <windows.h> /* for definition of HANDLE */
+   #ifdef _WIN32
+      #ifdef USERLEVEL
+         #include <tchar.h>   /* Needed for MBCS string functions */
+         #include <windows.h> /* for definition of HANDLE */
+      #endif
+   #else
+      #include <unistd.h>
+      #include <sys/types.h>
+      #include "errno.h"
    #endif
-#else
-   #include <unistd.h>
-   #include <sys/types.h>
-   #include "errno.h"
 #endif
 #include "vm_assert.h"
 #include "vm_basic_defs.h"

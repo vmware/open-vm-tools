@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2008-2017,2020-2021, 2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2008-2024 Broadcom. All rights reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -29,14 +30,23 @@
 /* clang-format off */
 /*
  * Guest capabilities.
+ *
  * The guest uses this enum to communicate whether a certain
  * feature is supported by the tools.
+ *
  * The guest sends an RPC where it specifies which features
- * are turned off and on, for example
- * "tools.capability.features 0=1 2=1 3=0".
+ * are turned off and on, for example:
+ *
+ * "tools.capability.features 0=1 2=1 3=0"
+ *
  * In the above example, the guest is capable of showing the
  * start menu and setting the work area, but does not support
  * multiple monitors.
+ *
+ * For capabilities that can be managed by tools.conf settings, guest should
+ * send a separate RPC tools.capability.features for each capability change,
+ * even when multiple such capabilities are changed by tools.conf at the same
+ * time.
  *
  * NOTE: the order for these has to stay constant for backward compatibility
  * with older Tools versions. New capabilities must be added at the end.

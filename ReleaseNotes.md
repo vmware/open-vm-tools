@@ -1,8 +1,8 @@
-#                      open-vm-tools 12.4.5 Release Notes
+#                      open-vm-tools 12.5.0 Release Notes
 
-Updated on: 27 June 2024
+Updated on: 8 October 2024
 
-open-vm-tools | 27 JUNE 2024 | Build 23787635
+open-vm-tools | 8 OCTOBER 2024 | Build 24276846
 
 Check back for additions and updates to these release notes.
 
@@ -13,7 +13,6 @@ The release notes cover the following topics:
 * [What's New](#whatsnew) 
 * [Internationalization](#i18n) 
 * [Product Support Notice](#suppnote)
-* [End of Feature Support Notice](#endsupport)
 * [Guest Operating System Customization Support](#guestop) 
 * [Interoperability Matrix](#interop) 
 * [Resolved Issues](#resolvedissues) 
@@ -24,13 +23,13 @@ The release notes cover the following topics:
 
 *   Please see the [Resolved Issues](#resolvedissues) and [Known Issues](#knownissues) sections below.
 
-*   A complete list of the granular changes in the open-vm-tools 12.4.5 release is available at:
+*   A complete list of the granular changes in the open-vm-tools 12.5.0 release is available at:
 
-    [open-vm-tools ChangeLog](https://github.com/vmware/open-vm-tools/blob/stable-12.4.5/open-vm-tools/ChangeLog)
+    [open-vm-tools ChangeLog](https://github.com/vmware/open-vm-tools/blob/stable-12.5.0/open-vm-tools/ChangeLog)
 
 ## <a id="i18n" name="i18n"></a>Internationalization
 
-open-vm-tools 12.4.5 is available in the following languages:
+open-vm-tools 12.5.0 is available in the following languages:
 
 * English
 * French
@@ -61,15 +60,10 @@ Impact:
   * Users who have been using the deprecated languages will no longer receive updates or support in these languages.
   * All user interfaces, message catalogs, help documentation, and customer support will be available only in English or in the three supported languages mentioned above.
 
-## <a id="endsupport" name="endsupport"></a>End of Feature Support Notice
-
-*   **Discontinued: Using "xml-security-c" and "xerces-c" to build the VMware Guest Authentication Service (VGAuth)**
-
-    Starting with open-vm-tools 12.4.0, and going forward, the VGAuth service build will require the "xmlsec1" and "libxml2" development and runtime packages.  If still using the "xml-security-c" and "xerces-c" open source projects to build open-vm-tools, you must make the change now.  The open-vm-tools 12.3.x series will be the last version that can use "xml-security-c" and "xerces-c".
-
 ## <a id="guestop" name="guestop"></a>Guest Operating System Customization Support
 
 The [Guest OS Customization Support Matrix](http://partnerweb.vmware.com/programs/guestOS/guest-os-customization-matrix.pdf) provides details about the guest operating systems supported for customization.
+
 
 ## <a id="interop" name="interop"></a>Interoperability Matrix
 
@@ -77,44 +71,17 @@ The [VMware Product Interoperability Matrix](http://partnerweb.vmware.com/comp_
 
 ## <a id="resolvedissues" name ="resolvedissues"></a> Resolved Issues
 
-*   **A number of issues flagged by Coverity and ShellCheck have been addressed.**
+*   **The following github.com/vmware/open-vm-tools pull request has been addressed.**
 
-    The changes include code fixes and Coverity escapes for reported false positives.
-    See the details in the [open-vm-tools ChangeLog](https://github.com/vmware/open-vm-tools/blob/stable-12.4.5/open-vm-tools/ChangeLog)  for specific fix or false positive escape.
+    * Revise settings for vmware-user.desktop
 
-*   **Nested logging from RPCChannel error may hang the vmtoolsd process.**
-
-    This issue has been fixed in this release.
-
-*   **vmtoolsd child processes invoke parent's atexit handler.****
-
-    Fixed in this release by terminating child processes with _exit().
-
-*   **Mutexes in lib/libvmtools/vmtoolsLog.c and glib could have been locked at fork time.  The vmtoolsLog.c Debug(), Warning() and Panic() functions are not safe for child processes.**
-
-    Fixed in this release by directing child processes' logging to stdout.
-
-*   **Permission on the vmware-network.log file incorrectly defaults to (0644).**
-
-    Fixed in this release.  The correct default is set to (0600).
-
-*   **The NetworkManager calls in the Linux "network" script have been updated.**
-
-    Defaults to using the "Sleep" method over the "Enabled" method used to
-    work around a bug in NetworkManager version 0.9.0.
-
-    Resolves:
-     * [Pull request #699](https://github.com/vmware/open-vm-tools/pull/699)
-     * [Issue #426](https://github.com/vmware/open-vm-tools/issues/426)
-
-*   **Unused header files have been dropped from the current open-vm-tools source.**
+      [Pull request #668](https://github.com/vmware/open-vm-tools/pull/668)
 
 *   **Accomodate newer releases of libxml2 and xmlsec1.**
 
     The configure.ac and VGAuth code updated to avoid deprecated functions and build options based on OSS product version.
 
 ## <a id="knownissues" name="knownissues"></a>Known Issues
-
 
 *   **Shared Folders mount is unavailable on Linux VM.**
 

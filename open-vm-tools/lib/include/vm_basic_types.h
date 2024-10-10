@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 1998-2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -961,6 +962,27 @@ typedef void * UserVA;
 #define ALIGNED(n)
 #endif
 
+#ifndef __has_attribute
+# define __has_attribute(x) 0
+#endif
+
+/*
+ * COUNTED_BY attribute may be attached to the C99 flexible array
+ * member of a structure. It indicates that the number of the elements
+ * of the array is given by the field "member" in the same structure as
+ * the flexible array member. Compilers may use this information to
+ * improve detection of object size information for such structures
+ * and provide better results in compile-time diagnostics and runtime
+ * features like the array bound sanitizer.
+ *
+ * https://people.kernel.org/kees/bounded-flexible-arrays-in-c
+ */
+
+#if __has_attribute(__counted_by__)
+# define COUNTED_BY(member) __attribute__((__counted_by__(member)))
+#else
+# define COUNTED_BY(member)
+#endif
 
 /*
  * Once upon a time, this was used to silence compiler warnings that

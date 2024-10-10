@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2006-2021,2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2006-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -19,7 +20,7 @@
 /*
  * x86_basic_defs.h --
  *
- *    Basic macros describing the x86 architecture.
+ *      Basic macros describing the x86 architecture.
  */
 
 #ifndef _X86_BASIC_DEFS_H_
@@ -35,12 +36,12 @@
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
-#define X86_MAX_INSTR_LEN  15   /* Max byte length of an x86 instruction. */
+#define X86_MAX_INSTR_LEN  15   /* Max byte length of an x86 instruction */
 
 #define NUM_IDT_VECTORS 256
 
 /*
- *   control registers
+ * Control registers
  */
 
 #define CR0_PE         0x00000001
@@ -81,6 +82,7 @@
 
 #define CR3_LAM_U57    (1ULL << 61)
 #define CR3_LAM_U48    (1ULL << 62)
+#define CR3_LAM_USER   (CR3_LAM_U48 | CR3_LAM_U57)
 #define CR3_NO_FLUSH   (1ULL << 63)
 
 #define CR4_VME        0x00000001
@@ -113,7 +115,7 @@
 #define CR8_RESERVED   CONST64U(0xfffffffffffffff0)
 
 /*
- * Debug registers.
+ * Debug registers
  */
 
 #define DR_COUNT       4
@@ -191,8 +193,10 @@
 #define DEBUG_STATUS_BT   (1<<15)
 
 /*
- *   exception error codes
+ * Exception vectors
  */
+#define EXC_VEC_MIN       0
+#define EXC_VEC_MAX      31
 
 #define EXC_DE            0
 #define EXC_DB            1
@@ -214,17 +218,19 @@
 #define EXC_XF           19  // SIMD exception.
 #define EXC_VE           20  // Virtualization exception - VT only.
 #define EXC_CP           21  // Control Protection exception.
+#define EXC_HV           28  // Hypervisor injection exception (SVM only)
 #define EXC_VC           29  // VMM communication exception (SVM / SEV-ES only).
 #define EXC_SX           30  // Security exception (SVM only).
 
-/* Bitmap of the exception vectors that have associated error codes. */
+/* Bitmap of the exception vectors that have associated error codes */
 #define EXC_WITH_ERR_CODE_MASK ((1u << EXC_DF) | (1u << EXC_TS) | \
                                 (1u << EXC_NP) | (1u << EXC_SS) | \
                                 (1u << EXC_GP) | (1u << EXC_PF) | \
-                                (1u << EXC_AC) | (1u << EXC_CP))
+                                (1u << EXC_AC) | (1u << EXC_CP) | \
+                                (1u << EXC_VC) | (1u << EXC_SX))
 
 /*
- * eflag/rflag definitions.
+ * eflag/rflag definitions
  */
 
 #define EFLAGS_IOPL_SHIFT 12
@@ -273,14 +279,14 @@ typedef enum x86_FLAGS {
 } x86_FLAGS;
 
 /*
- *   MPX bound configuration registers
+ * MPX bound configuration registers
  */
 #define BNDCFG_EN        0x00000001
 #define BNDCFG_BNDPRSV   0x00000002
 #define BNDCFG_RSVD      0x00000ffc
 #define BNDCFG_BDBASE    CONST64U(0xfffffffffffff000)
 
-/* Reset state of RIP. */
+/* Reset state of RIP */
 #define RESET_RIP       0xfff0
 #define RESET_RIP_TDX   0xfffffff0  /* Reset RIP for TDX protected mode boot. */
 

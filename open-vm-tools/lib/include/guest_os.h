@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 1998-2021, 2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2024 Broadcom. All rights reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -234,7 +235,8 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 #define ALL6XLINUX64          BS(OTHER6XLINUX_64), BS(OTHER6XLINUX_ARM_64),  \
                               BS(RHEL10_64),       BS(RHEL10_ARM_64),        \
-                              BS(ORACLE10_64)
+                              BS(ORACLE10_64),     BS(PROLINUX_64),          \
+                              BS(PARDUS_64)
 
 #define ALL7XLINUX32          BS(OTHER7XLINUX)
 
@@ -243,7 +245,8 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define ALLVMKERNEL           BS(VMKERNEL),   BS(VMKERNEL5),      \
                               BS(VMKERNEL6),  BS(VMKERNEL65),     \
                               BS(VMKERNEL7),  BS(VMKERNEL7_ARM),  \
-                              BS(VMKERNEL8),  BS(VMKERNEL8_ARM)
+                              BS(VMKERNEL8),  BS(VMKERNEL8_ARM),  \
+                              BS(VMKERNEL9),  BS(VMKERNEL9_ARM)
 
 #define ALLLINUX32            BS(VMKERNEL),      BS(OTHERLINUX), \
                               BS(OTHER24XLINUX), ALL26XLINUX32,  \
@@ -268,7 +271,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
                               BS(DARWIN17_64), BS(DARWIN18_64),  \
                               BS(DARWIN19_64), BS(DARWIN20_64),  \
                               BS(DARWIN21_64), BS(DARWIN22_64),  \
-                              BS(DARWIN23_64)
+                              BS(DARWIN23_64), BS(DARWIN24_64)
 
 #define ALLDARWIN             ALLDARWIN32, ALLDARWIN64
 
@@ -290,6 +293,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
                               BS(WIN_12_ARM_64),                                 \
                               BS(UBUNTU_ARM_64),        BS(PHOTON_ARM_64),       \
                               BS(VMKERNEL7_ARM),        BS(VMKERNEL8_ARM),       \
+                              BS(VMKERNEL9_ARM),                                 \
                               BS(OTHER_ARM_64),         BS(DEBIAN_ARM_64),       \
                               BS(OTHER5XLINUX_ARM_64),  BS(OTHER6XLINUX_ARM_64), \
                               BS(OTHER7XLINUX_ARM_64),                           \
@@ -327,8 +331,10 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_DEBIAN              "debian"
 #define STR_OS_FEDORA              "Fedora"
 #define STR_OS_FLATCAR             "flatcar"
+#define STR_OS_FUSION_OS           "fusionos"
 #define STR_OS_GENTOO              "Gentoo"
 #define STR_OS_IMMUNIX             "Immunix"
+#define STR_OS_KYLIN_LINUX         "kylinlinux"
 #define STR_OS_LINUX               "linux"
 #define STR_OS_LINUX_FROM_SCRATCH "Linux-From-Scratch"
 #define STR_OS_LINUX_FULL         "Other Linux"
@@ -337,6 +343,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_MANDRAKE           "mandrake"
 #define STR_OS_MANDRAKE_FULL      "Mandrake Linux"
 #define STR_OS_MANDRIVA           "mandriva"
+#define STR_OS_MIRACLE_LINUX      "miraclelinux"
 #define STR_OS_MKLINUX            "MkLinux"
 #define STR_OS_NOVELL             "nld"
 #define STR_OS_NOVELL_FULL        "Novell Linux Desktop 9"
@@ -361,13 +368,16 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_OTHER_6X_FULL      "Other Linux 6.x kernel"
 #define STR_OS_OTHER_7X           "other7xlinux"
 #define STR_OS_OTHER_7X_FULL      "Other Linux 7.x and later kernel"
+#define STR_OS_PARDUS             "pardus"
 #define STR_OS_PHOTON             "vmware-photon"
 #define STR_OS_PHOTON_FULL        "VMware Photon OS"
+#define STR_OS_PROLINUX           "prolinux"
+#define STR_OS_PROLINUX_FULL      "ProLinux"
 #define STR_OS_PLD                "PLD"
 #define STR_OS_RED_HAT            "redhat"
 #define STR_OS_RED_HAT_EN         "rhel"
 #define STR_OS_RED_HAT_FULL       "Red Hat Linux"
-#define	STR_OS_ROCKY_LINUX        "rockyLinux"
+#define STR_OS_ROCKY_LINUX        "rockyLinux"
 #define STR_OS_SLACKWARE          "Slackware"
 #define STR_OS_SLES               "sles"
 #define STR_OS_SUSE               "suse"

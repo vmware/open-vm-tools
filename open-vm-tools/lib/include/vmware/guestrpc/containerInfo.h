@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2021 VMware, Inc. All rights reserved.
+ * Copyright (c) 2021-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -47,6 +48,7 @@
 
 #define CONTAINERINFO_KEY                  "containerinfo"
 #define CONTAINERINFO_GUESTVAR_KEY         "vmtools." CONTAINERINFO_KEY
+#define CONTAINERINFO_GUESTINFO_KEY        "guestinfo." CONTAINERINFO_GUESTVAR_KEY
 #define CONTAINERINFO_VERSION_1            1
 #define CONTAINERINFO_KEY_VERSION          "version"
 #define CONTAINERINFO_KEY_UPDATE_COUNTER   "updateCounter"

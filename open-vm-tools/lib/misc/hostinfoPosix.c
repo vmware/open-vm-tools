@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 1998-2024 Broadcom. All Rights Reserved.
+ * Copyright (c) 1998-2024 Broadcom. All rights reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -1415,17 +1415,22 @@ static const ShortNameSet shortNameArray[] = {
 /* Red Hat must come before the Enterprise Linux entry */
 { "enterprise linux",    NULL,                      HostinfoSetOracleShortName  },
 { "fedora",              STR_OS_FEDORA,             HostinfoGenericSetShortName },
+{ "flatcar",             STR_OS_FLATCAR,            HostinfoGenericSetShortName },
+{ "fusionos",            STR_OS_FUSION_OS,          HostinfoGenericSetShortName },
 { "gentoo",              STR_OS_GENTOO,             HostinfoGenericSetShortName },
 { "immunix",             STR_OS_IMMUNIX,            HostinfoGenericSetShortName },
+{ "kylin linux",         STR_OS_KYLIN_LINUX,        HostinfoGenericSetShortName },
 { "linux-from-scratch",  STR_OS_LINUX_FROM_SCRATCH, HostinfoGenericSetShortName },
 { "linux-ppc",           STR_OS_LINUX_PPC,          HostinfoGenericSetShortName },
 { "mandrake",            STR_OS_MANDRAKE,           HostinfoGenericSetShortName },
 { "mandriva",            STR_OS_MANDRIVA,           HostinfoGenericSetShortName },
-{ "miracle linux",       NULL,                      HostinfoSetAsianuxShortName },
+{ "miracle linux",       STR_OS_MIRACLE_LINUX,      HostinfoGenericSetShortName },
 { "mklinux",             STR_OS_MKLINUX,            HostinfoGenericSetShortName },
 { "opensuse",            STR_OS_OPENSUSE,           HostinfoGenericSetShortName },
 { "oracle",              NULL,                      HostinfoSetOracleShortName  },
+{ "pardus",              STR_OS_PARDUS,             HostinfoGenericSetShortName },
 { "pld",                 STR_OS_PLD,                HostinfoGenericSetShortName },
+{ "prolinux",            STR_OS_PROLINUX,           HostinfoGenericSetShortName },
 { "rocky linux",         STR_OS_ROCKY_LINUX,        HostinfoGenericSetShortName },
 { "slackware",           STR_OS_SLACKWARE,          HostinfoGenericSetShortName },
 { "sme server",          STR_OS_SMESERVER,          HostinfoGenericSetShortName },
@@ -1815,6 +1820,11 @@ HostinfoGetCmdOutput(const char *cmd)  // IN:
  *      The fields of interest are found in osReleaseFields above.
  *
  *      https://www.linux.org/docs/man5/os-release.html
+ *
+ *      IF THIS ROUTINE IS MODIFIED IN ANY WAY - DIRECTLY OR INDIRECTLY - TO
+ *      USE FILES OTHER THAN THOSE OFFICIALLY SANCTIONED BY THE os-release
+ *      STANDARD, THE CODE IS NO LONGER IN COMPLIANCE WITH THE os-release
+ *      STANDARD AND VMware IS NOT RESPONSIBLE FOR THE BEHAVIOR THAT RESULTS.
  *
  * Return value:
  *      -1     Failure. No data returned.
@@ -4480,6 +4490,7 @@ Hostinfo_GetModulePath(uint32 priv)  // IN:
  *      in the address of one of the caller's own functions.
  *
  *      Not implemented on iOS (iOS does not support dynamic loading).
+ *      Not implemented on FreeBSD (doesn't support fs /proc/self)
  *      Not fully implemented on ESX (the path MAY OR MAY NOT BE ABSOLUTE).
  *
  * Results:
@@ -4499,7 +4510,8 @@ Hostinfo_GetLibraryPath(void *addr)  // IN
    /*
     * Try fast path first.
     *
-    * Does NOT work for iOS since iOS does not support dynamic loading.
+    * Does NOT work for iOS and FreeBSD, as iOS does not support dynamic loading
+    * and FreeBSD (non-linux) doesn't support the file system /proc/self/ .
     */
 #if !TARGET_OS_IPHONE && !defined(__FreeBSD__)
    Dl_info info;
@@ -4510,7 +4522,7 @@ Hostinfo_GetLibraryPath(void *addr)  // IN
          return Unicode_Alloc(info.dli_fname, STRING_ENCODING_DEFAULT);
       }
    }
-#endif // !TARGET_OS_IPHONE
+#endif // !TARGET_OS_IPHONE && !defined(__FreeBSD__)
 
    /*
     * Slow path for ESX, Linux, Android and macOS.
