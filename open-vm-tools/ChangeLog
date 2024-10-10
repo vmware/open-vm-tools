@@ -1,3 +1,14 @@
+commit 05afe0ae703d6027325059876528fe3b04fdf386
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Thu Oct 10 06:12:07 2024 -0700
+
+    =================================================
+      open-vm-tools 12.5.0 released at this point.
+    =================================================
+    
+    Update of the ChangeLog with the final changes in preparation for
+    the open-vm-tools 12.5.0 release.
+
 commit ef2095ffda17a766a65bf39d61f4cdb9c735fa62
 Author: Kruti <kpendharkar@vmware.com>
 Date:   Wed Oct 9 20:49:01 2024 -0700
