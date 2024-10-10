@@ -1,3 +1,25 @@
+commit ef2095ffda17a766a65bf39d61f4cdb9c735fa62
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Wed Oct 9 20:49:01 2024 -0700
+
+    Update the ReleaseNotes.md for the 12.5.0 open-vm-tools release.
+
+commit 96094bb1a59c67af99d31d5acfdc731f14109e47
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Wed Oct 9 19:47:45 2024 -0700
+
+    Prepare for the open-vm-tools 12.5.0 release.
+    - Update the tools version in the configure.ac.
+    - Update the build numbers in the buldNumber.h.
+
+commit 412a4b1db38627062a8ebb955b0d483edee0a1ff
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Thu Oct 3 23:34:31 2024 -0700
+
+    Update ChangeLog with the granular push of Oct 03, 2024.
+    - plus copyright update
+    - plus ChangeLog update of Sep 24, 2024.
+
 commit e54a2d61657e3c4c0fd4299cc5c830b4263e27bd
 Author: Kruti <kpendharkar@vmware.com>
 Date:   Thu Oct 3 23:17:34 2024 -0700
