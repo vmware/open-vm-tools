@@ -24,6 +24,7 @@ libguestStoreClient_la_LIBADD += ../lib/unicode/libUnicode.la
 libguestStoreClient_la_LIBADD += ../lib/misc/libMisc.la
 libguestStoreClient_la_LIBADD += -lpthread
 libguestStoreClient_la_LIBADD += -ldl
+libguestStoreClient_la_LIBADD += @ICU_LIBS@
 
 libguestStoreClient_la_SOURCES =
 libguestStoreClient_la_SOURCES += guestStoreClientLib.c
