@@ -1,0 +1,14 @@
+[Unit]
+Description=Open Virtual Machine Tools (vmware-user)
+Documentation=https://github.com/vmware/open-vm-tools
+ConditionVirtualization=vmware
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=forking
+ExecStart=/usr/bin/vmware-user-suid-wrapper
+Slice=app.slice
+
+[Install]
+WantedBy=graphical-session.target
