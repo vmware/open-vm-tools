@@ -1393,6 +1393,8 @@ AC_TYPE_OFF_T
 AC_TYPE_PID_T
 AC_TYPE_SIZE_T
 AC_CHECK_MEMBERS([struct stat.st_rdev])
+AC_CHECK_MEMBERS([struct stat.st_mtim])
+AC_CHECK_MEMBERS([struct stat.st_mtimespec])
 AC_HEADER_TIME
 AC_STRUCT_TM
 AC_C_VOLATILE
