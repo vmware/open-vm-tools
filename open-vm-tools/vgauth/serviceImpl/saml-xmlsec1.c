@@ -32,24 +32,6 @@
 #include <libxml/parser.h>
 #include <libxml/catalog.h>
 #include <libxml/xmlschemas.h>
-#include <libxml/xmlIO.h>
-#include <libxml/uri.h>
-
-// PR 3416639, xmlFile* APIs were deprecated in libxml2 2.13.0
-// Ignore the deprecated warnings after updating libxml2 to 2.13.3
-// ToDo: Define the deprecated APIs locally and remove the
-// XML_IGNORE_DEPRECATION_WARNINGS
-#ifdef _WIN32
-#define XML_IGNORE_DEPRECATION_WARNINGS \
-    __pragma(warning(push)) \
-    __pragma(warning(disable : 4996))
-#define XML_POP_WARNINGS __pragma(warning(pop))
-#else
-#define XML_IGNORE_DEPRECATION_WARNINGS \
-    _Pragma("GCC diagnostic push") \
-    _Pragma("GCC diagnostic ignored \"-Wdeprecated-declarations\"")
-#define XML_POP_WARNINGS _Pragma("GCC diagnostic pop")
-#endif
 
 #include <xmlsec/xmlsec.h>
 #include <xmlsec/xmltree.h>
@@ -99,61 +81,6 @@ static xmlSchemaValidCtxtPtr gSchemaValidateCtx = NULL;
 
 #define CATALOG_FILENAME            "catalog.xml"
 #define SAML_SCHEMA_FILENAME        "saml-schema-assertion-2.0.xsd"
-
-
-/*
- ******************************************************************************
- * UserXmlFileOpen --                                                    */ /**
- *
- * User defined version of libxml2 export xmlFileOpen.
- *
- * This function opens a file with its unescaped name only.
- *
- * xmlInitParser() calls xmlRegisterDefaultInputCallbacks() which calls
- *    xmlRegisterInputCallbacks(xmlFileMatch, xmlFileOpen,
- *                              xmlFileRead, xmlFileClose)
- *
- * UserXmlFileOpen is registered at the end of the xmlInputCallback table by
- *    xmlRegisterInputCallbacks(xmlFileMatch, UserXmlFileOpen,
- *                              xmlFileRead, xmlFileClose)
- *
- * Based on libxml2 xmlIO.c, precedence is given to user defined handlers.
- *
- * @param[in]  filename          The URI file name.
- *
- * @return A handler or NULL in case of failure.
- ******************************************************************************
- */
-
-static void *
-UserXmlFileOpen(const char *filename)
-{
-   char *unescaped;
-   void *retval = NULL;
-
-   g_debug("%s: Incoming file name is \"%s\"\n", __FUNCTION__, filename);
-
-   unescaped = xmlURIUnescapeString(filename, 0, NULL);
-   if (unescaped != NULL) {
-      g_debug("%s: Opening file \"%s\"\n", __FUNCTION__, unescaped);
-XML_IGNORE_DEPRECATION_WARNINGS
-      retval = xmlFileOpen(unescaped);
-XML_POP_WARNINGS
-      xmlFree(unescaped);
-   }
-
-   if (retval == NULL) {
-      g_warning("%s: Failed to open file \"%s\"\n", __FUNCTION__, filename);
-      /*
-       * Do not retry xmlFileOpen(filename) here.
-       * Calling system API to open escaped file paths is risky. This can
-       * cause unexpected not-secured paths being accessed and expose
-       * privilege escalation vulnerabilities.
-       */
-   }
-
-   return retval;
-}
 
 
 /*
@@ -452,14 +379,6 @@ SAML_Init(void)
 
    /* set up the xml2 error handler */
    xmlSetGenericErrorFunc(NULL, XmlErrorHandler);
-
-   /*
-    * Register user defined UserXmlFileOpen
-    */
-XML_IGNORE_DEPRECATION_WARNINGS
-   xmlRegisterInputCallbacks(xmlFileMatch, UserXmlFileOpen,
-                             xmlFileRead, xmlFileClose);
-XML_POP_WARNINGS
 
    /*
     * Load schemas
