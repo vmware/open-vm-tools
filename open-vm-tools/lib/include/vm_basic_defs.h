@@ -853,11 +853,17 @@ typedef int pid_t;
 #else
 #define ulm_esx 0
 #endif
+#ifdef ULM_LIN
+#define ulm_lin 1
+#else
+#define ulm_lin 0
+#endif
 #else
 #define vmx86_ulm 0
 #define ulm_mac 0
 #define ulm_win 0
 #define ulm_esx 0
+#define ulm_lin 0
 #define ULM_ONLY(x)
 #endif
 
