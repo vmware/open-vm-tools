@@ -1802,6 +1802,7 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 #define CPUID_FAMILY_KYOTO           0x16  // Note: Jaguar microarch
 #define CPUID_FAMILY_ZEN             0x17
 #define CPUID_FAMILY_ZEN3            0x19
+#define CPUID_FAMILY_ZEN5            0x1A
 
 /* Effective VIA CPU Families */
 #define CPUID_FAMILY_C7               6
@@ -1920,6 +1921,10 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 #define CPUID_MODEL_ZEN4_1F           0x1F // Max Zen4 model
 #define CPUID_MODEL_ZEN4_A0           0xA0 // family == CPUID_FAMILY_ZEN3
 #define CPUID_MODEL_ZEN4_AF           0xAF // Zen4 D: max model
+#define CPUID_MODEL_ZEN5_00           0x00 // family == CPUID_FAMILY_ZEN5
+#define CPUID_MODEL_ZEN5_0F           0x0F // Max Zen5 model
+#define CPUID_MODEL_ZEN5_10           0x10 // family == CPUID_FAMILY_ZEN5
+#define CPUID_MODEL_ZEN5_1F           0x1F // Zen5 D: max model
 
 /* AMD stepping information */
 #define CPUID_STEPPING_ZEN_NAPLES_B2  0x02 // Zen Naples ZP-B2
@@ -2515,6 +2520,11 @@ CPUID_FAMILY_IS_ZEN3(uint32 eax)
    return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_ZEN3;
 }
 
+static INLINE Bool
+CPUID_FAMILY_IS_ZEN5(uint32 eax)
+{
+      return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_ZEN5;
+}
 
 /*
  * AMD Barcelona (of either Opteron or Phenom kind).
@@ -2661,6 +2671,12 @@ CPUID_MODEL_IS_ZEN4(uint32 eax)
             CPUID_EFFECTIVE_MODEL(eax) <= CPUID_MODEL_ZEN4_AF));
 }
 
+static INLINE Bool
+CPUID_MODEL_IS_ZEN5(uint32 eax)
+{
+   return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_ZEN5 &&
+          CPUID_EFFECTIVE_MODEL(eax) <= CPUID_MODEL_ZEN5_1F;
+}
 
 #define CPUID_LEAF4_CACHE_TYPE_NULL      0
 #define CPUID_LEAF4_CACHE_TYPE_DATA      1
