@@ -274,7 +274,7 @@
 #define VPX_VERSION_MAJOR "9"
 #define VPX_VERSION_MINOR "0"
 #define VPX_VERSION_MAINT "0"
-#define VPX_VERSION_PATCH "00000"
+#define VPX_VERSION_PATCH "0000"
 #define VPX_VERSION_THIRD_PARTY VPX_VERSION_MAJOR VPX_VERSION_MINOR \
                                 VPX_VERSION_MAINT
 //MARKER_FAST_REMOVE_START
@@ -285,7 +285,7 @@
 //MARKER_FAST_UNCOMMENT_END
 
 // Last supported ESX version by VC.
-#define VPX_MIN_HOST_VERSION "7.0.0"
+#define VPX_MIN_HOST_VERSION "8.0.0"
 
 #define MAX_SUPPORTED_VI_VERSION "6.6" //from ovfTool/src/supportedVersions.h
 #define VCDB_CURRENT_SCHEMA_VERSION           900 // from PitCADatabase.h
