@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -19,7 +20,7 @@
 /*
  * dictll.c --
  *
- *    Low-level dictionary format --hpreg
+ *    Low-level dictionary format.
  */
 
 
@@ -37,7 +38,7 @@
 #define UTF8_BOM "\xEF\xBB\xBF"
 
 
-/* Duplicate a buffer --hpreg. The result is NUL-terminated */
+/* Duplicate a buffer. The result is NUL-terminated */
 static void *
 BufDup(void const * const bufIn,  // IN: buffer to duplicate
        unsigned int const sizeIn) // IN: buffer size in bytes
@@ -59,7 +60,7 @@ BufDup(void const * const bufIn,  // IN: buffer to duplicate
  *
  * Walk --
  *
- *    While 'bufIn' points to a byte in 'sentinel', increment it --hpreg
+ *    While 'bufIn' points to a byte in 'sentinel', increment it.
  *
  * Note:
  *    If your 'bufIn' is a NUL-terminated C string, you should rather make sure
@@ -83,7 +84,7 @@ Walk(void const * const bufIn,   // IN
    buf = (char const *)bufIn;
    ASSERT(buf);
 
-   /* Unsigned does matter --hpreg */
+   /* Unsigned does matter. */
    while (sentinel[(unsigned char)*buf]) {
       buf++;
    }
@@ -146,7 +147,7 @@ DictLL_UnmarshalLine(const char *buf,   // IN: buffer to parse
                      char **name,       // OUT: malloc()'d name or NULL
                      char **value)      // OUT: malloc()'d value or NULL
 {
-   /* Space and tab --hpreg */
+   /* Space and tab. */
    static int const ws_in[] = {
       0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,
       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -165,7 +166,7 @@ DictLL_UnmarshalLine(const char *buf,   // IN: buffer to parse
       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
    };
-   /* Everything but NUL, space, tab and pound --hpreg */
+   /* Everything but NUL, space, tab and pound. */
    static int const wsp_out[] = {
       0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1,
       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -184,7 +185,7 @@ DictLL_UnmarshalLine(const char *buf,   // IN: buffer to parse
       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
    };
-   /* Everything but NUL, space, tab, pound and equal --hpreg */
+   /* Everything but NUL, space, tab, pound and equal. */
    static int const wspe_out[] = {
       0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1,
       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -203,7 +204,7 @@ DictLL_UnmarshalLine(const char *buf,   // IN: buffer to parse
       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
    };
-   /* Everything but NUL and double quote --hpreg */
+   /* Everything but NUL and double quote. */
    static int const q_out[] = {
       0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -257,7 +258,7 @@ DictLL_UnmarshalLine(const char *buf,   // IN: buffer to parse
    /* Make local copy of line. */
    myLine = BufDup(buf, lineEnd - buf);
 
-   /* Check if the line is well-formed --hpreg */
+   /* Check if the line is well-formed. */
    nBegin = Walk(myLine, ws_in);
    nEnd = Walk(nBegin, wspe_out);
    tmp = Walk(nEnd, ws_in);
@@ -285,7 +286,7 @@ DictLL_UnmarshalLine(const char *buf,   // IN: buffer to parse
       goto weird;
    }
 
-   /* The line is well-formed. Extract the name and value --hpreg */
+   /* The line is well-formed. Extract the name and value. */
 
    myName = BufDup(nBegin, nEnd - nBegin);
    myValue = Escape_Undo('|', vBegin, vEnd - vBegin, NULL);
@@ -298,7 +299,7 @@ DictLL_UnmarshalLine(const char *buf,   // IN: buffer to parse
    return nextLine;
 
 weird:
-   /* The line is not well-formed. Let the upper layers handle it --hpreg */
+   /* The line is not well-formed. Let the upper layers handle it. */
 
    *line = myLine;
    *name = NULL;
@@ -313,22 +314,24 @@ weird:
  *
  * DictLL_ReadLine --
  *
- *    Read the next line from a dictionary file --hpreg
+ *    Read the next line from a dictionary file.
  *
  * Results:
- *    2 on success: '*line' is the allocated line
- *                  If the line is well-formed, then '*name' and '*value' are
- *                  allocated strings. Otherwise they are both NULL.
- *    1 if there is no next line (end of stream)
- *    0 on failure: errno is set accordingly
+ *    DictLL_ReadLineSuccess on success. `*line` is the allocated line.  If
+ *    line is well-formed, then `*name` and `*value` are allocated strings.
+ *    Otherwise they are both NULL.
+ *
+ *    DictLL_ReadLineEOF if there is no next line (end of stream).
+ *
+ *    DictLL_ReadLineError on failure.  errno is set accordingly.
  *
  * Side effects:
  *    None
  *
  *-----------------------------------------------------------------------------
  */
- 
-int
+
+DictLL_ReadLineResult
 DictLL_ReadLine(FILE *stream, // IN: stream to read
                 char **line,  // OUT: malloc()'d line or null pointer
                 char **name,  // OUT: malloc()'d name or null pointer
@@ -348,10 +351,10 @@ DictLL_ReadLine(FILE *stream, // IN: stream to read
 
    switch (StdIO_ReadNextLine(stream, &myLine, 0, &myLineLen)) {
    case StdIO_Error:
-      return 0;
+      return DictLL_ReadLineError;
 
    case StdIO_EOF:
-      return 1;
+      return DictLL_ReadLineEOF;
 
    case StdIO_Success:
       if (DictLL_UnmarshalLine(myLine, myLineLen,
@@ -359,10 +362,7 @@ DictLL_ReadLine(FILE *stream, // IN: stream to read
          *line = BufDup("", 0);
       }
       free(myLine);
-      return 2;
-
-   default:
-      NOT_IMPLEMENTED();
+      return DictLL_ReadLineSuccess;
    }
    NOT_REACHED();
 }
@@ -396,7 +396,7 @@ DictLL_MarshalLine(DynBuf *output,    // IN/OUT: output buffer
    if (name) {
       /*
        * Double quote, pipe, 0x7F, and all control characters but
-       * tab --hpreg
+       * tab.
        * 0x80 to 0xff are unescaped so characters in encodings
        * like UTF-8 will be displayed normally.
        */
@@ -420,7 +420,7 @@ DictLL_MarshalLine(DynBuf *output,    // IN/OUT: output buffer
       };
       char *evalue;
 
-      /* Write a well-formed line --hpreg */
+      /* Write a well-formed line. */
 
       evalue = Escape_Do('|', toEscape, value, (uint32)strlen(value), &size);
       if (   !DynBuf_Append(output, name, (uint32)strlen(name))
@@ -433,7 +433,7 @@ DictLL_MarshalLine(DynBuf *output,    // IN/OUT: output buffer
       }
       free(evalue);
    } else {
-      /* Write the line as passed from the upper layers --hpreg */
+      /* Write the line as passed from the upper layers. */
 
       size = (uint32)strlen(value);
       if (size && !DynBuf_Append(output, value, size)) {
@@ -443,7 +443,7 @@ DictLL_MarshalLine(DynBuf *output,    // IN/OUT: output buffer
 
    /*
     * Win32 takes care of adding the \r (XXX this assumes that the stream
-    * is opened in ascii mode) --hpreg
+    * is opened in ascii mode).
     */
    if (!DynBuf_Append(output, "\n", 1)) {
       return FALSE;
