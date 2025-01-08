@@ -149,12 +149,12 @@ typedef struct CPUIDQuery {
    CPUIDLEVEL(TRUE,  D,   0xd,       19,  0) \
    CPUIDLEVEL(TRUE,  F,   0xf,        2, 13) \
    CPUIDLEVEL(TRUE,  10,  0x10,       4, 13) \
-   CPUIDLEVEL(TRUE,  12,  0x12,       4, 13) \
+   CPUIDLEVEL(TRUE,  12,  0x12,       7, 13) \
    CPUIDLEVEL(TRUE,  14,  0x14,       2, 13) \
    CPUIDLEVEL(TRUE,  15,  0x15,       0, 13) \
    CPUIDLEVEL(TRUE,  16,  0x16,       0, 13) \
    CPUIDLEVEL(TRUE,  17,  0x17,       4, 14) \
-   CPUIDLEVEL(TRUE,  18,  0x18,       8, 17) \
+   CPUIDLEVEL(TRUE,  18,  0x18,       9, 17) \
    CPUIDLEVEL(TRUE,  19,  0x19,       0, 20) \
    CPUIDLEVEL(TRUE,  1A,  0x1a,       0, 17) \
    CPUIDLEVEL(TRUE,  1B,  0x1b,       2, 17) \
