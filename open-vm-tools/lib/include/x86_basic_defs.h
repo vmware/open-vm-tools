@@ -111,7 +111,7 @@
 #define CR4_UINTR      0x02000000
 #define CR4_LASS       0x08000000
 #define CR4_LAM_SUP    0x10000000
-#define CR4_RESERVED   CONST64U(0xffffffffee089000)
+#define CR4_RESERVED   CONST64U(0xffffffffe6089000)
 #define CR8_RESERVED   CONST64U(0xfffffffffffffff0)
 
 /*
