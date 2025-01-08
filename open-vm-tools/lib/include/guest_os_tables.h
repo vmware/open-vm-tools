@@ -374,6 +374,7 @@ extern "C" {
    GOKM("asianux7-64",                          asianux7_64Guest,        TRUE) \
    GOKM("asianux8-64",                          asianux8_64Guest,        TRUE) \
    GOKM("asianux9-64",                          asianux9_64Guest,        TRUE) \
+   GOKM("miraclelinux-64",                      miraclelinux_64Guest,    TRUE) \
    GOKM("nld9",                                 nld9Guest,               TRUE) \
    GOKM("oes",                                  oesGuest,                TRUE) \
    GOKM("sjds",                                 sjdsGuest,               TRUE) \
