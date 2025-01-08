@@ -68,7 +68,7 @@ ToolsCoreRunCommand(const gchar *option,
    VMTools_AttachConsole();
 #endif
    if (VmCheck_IsVirtualWorld()) {
-      char *result = NULL;
+      char *result;
       Bool status = RpcChannel_SendOne(&result, NULL, "%s", value);
 
       if (!status) {
@@ -109,7 +109,7 @@ ToolsCoreRunCommandFromFile(const gchar *option,
    VMTools_AttachConsole();
 #endif
    if (VmCheck_IsVirtualWorld()) {
-      char *result = NULL;
+      char *result;
       Bool status;
       gchar *fileContents = NULL;
 
