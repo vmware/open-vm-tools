@@ -174,6 +174,7 @@ extern "C" {
 #  define BDOOR_CMD_FAS_EXIT_BOOT_SERVICES      13
 #  define BDOOR_CMD_FAS_GET_API_ENABLES         14
 #  define BDOOR_CMD_FAS_UNACCEPTED_MEM_ENABLED  15
+#  define BDOOR_CMD_FAS_GET_DMA_PROT_ENABLED    16
 #define   BDOOR_CMD_SENDPSHAREHINTS          66 /* Not in use. Deprecated. */
 #define   BDOOR_CMD_ENABLE_USB_MOUSE         67
 #define   BDOOR_CMD_GET_VCPU_INFO            68
