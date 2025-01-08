@@ -405,6 +405,7 @@ extern "C" {
    GOKM("amazonlinux2-64",                      amazonlinux2_64Guest,    TRUE) \
    GOKM("amazonlinux3-64",                      amazonlinux3_64Guest,    TRUE) \
    GOKM("almalinux-64",                         almalinux_64Guest,       TRUE) \
+   GOKM("fusionos-64",                          fusionos_64Guest,        TRUE) \
    GOKM("rockylinux-64",                        rockylinux_64Guest,      TRUE) \
    GOKM("prolinux-64",                          prolinux_64Guest,        TRUE) \
    GOKM("kylinlinux-64",                        kylinlinux_64Guest,      TRUE) \
