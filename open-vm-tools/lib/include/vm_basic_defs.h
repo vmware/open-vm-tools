@@ -1029,18 +1029,21 @@ typedef int pid_t;
 #define VMW_CLANG_ANALYZER_NORETURN() ((void)0)
 #endif
 
-/* VMW_FALLTHROUGH
+/*
+ * VMW_FALLTHROUGH
  *
  *   Instructs capable compilers to not warn when a case label of a
  *   'switch' statement falls through to the next label.
  *
  *   If not a matched compiler, expands to nothing.
  */
-#if (defined(__GNUC__) && (__GNUC__ >= 9)) ||           \
-    (defined(__clang__) && (__clang_major__ >= 13))
-#define VMW_FALLTHROUGH() __attribute__((fallthrough))
+#if __cplusplus >= 201703L
+   #define VMW_FALLTHROUGH() [[fallthrough]]
+#elif (defined(__GNUC__) && (__GNUC__ >= 9)) ||           \
+      (defined(__clang__) && (__clang_major__ >= 13))
+   #define VMW_FALLTHROUGH() __attribute__((fallthrough))
 #else
-#define VMW_FALLTHROUGH()
+   #define VMW_FALLTHROUGH()
 #endif
 
 #endif // ifndef _VM_BASIC_DEFS_H_
