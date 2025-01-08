@@ -136,6 +136,9 @@ addfiles()
 
 # Get the log files mentioned in the logging section of tools.conf. Get the log
 # archive file names
+# The 3 $variables in tools.conf that are expanded by components using them are
+# ${USER}, ${PID}, ${IDX}
+# Any other $vars are treated literally
 # The archive logic for these logs files seems to be this. Below is one example:
 #     if vmtoolsd.data = vmtoolsd.log
 #       then the file is backed up as vmtoolsd.1.log vmtoolsd.2.log etc
@@ -146,18 +149,19 @@ addfiles()
 addLogFiles()
 {
    IFS=""
-   vmware-toolbox-cmd config get logging | grep "\.data =" | cut -d"=" -f2 | while read -r logFile; do
-      logFile=`eval echo "$logFile"`
-      if [ -z "$logFile" ]; then
-         continue
-      fi
-
-      # trim the leading spaces
-      logFile=`echo $logFile | sed 's/^ *//'`
+   # get the key value pair from tools.conf
+   # Replace the $variables in the data field value (logfile name) with a
+   # wildcard ('\*') character. Remove the leading whitespaces from the resulting
+   # value.  The '$' is escaped in the sed match pattern to match
+   # '${\<variable-name\>}' literally.
+   vmware-toolbox-cmd config get logging | grep "\.data =" | cut -d"=" -f2 | sed 's/\${.*}/\\\*/g' | sed 's/^ *//' | while read -r logFile; do
       dirName=`dirname $logFile`
       fileName=`basename $logFile`
 
-      #find and add the current logs
+      # Remove the escape char \ that was added above
+      fileName=$(echo $fileName | sed 's/\\//g')
+
+      # find and add the current logs
       find "$dirName" -maxdepth 1 -name "$fileName" -print | while read -r logFile; do
          addfile "$logFile"
       done
@@ -305,7 +309,7 @@ collectNetworkDetails()
 export PATH=/bin:/sbin:/usr/bin:/usr/sbin
 
 TARFILE=vm-`date +%Y-%m-%d`.$$.tar.gz
-VER=0.96
+VER=0.97
 
 # Parse args
 for option in $@
