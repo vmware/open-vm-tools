@@ -22,7 +22,7 @@ cmdline.background.pidfile = "file pid"
 
 cmdline.blockfd = "Descrittore file per il file system di blocco VMware."
 
-cmdline.blockfd.fd = "descrittore file"
+cmdline.blockfd.fd = "fd"
 
 cmdline.commonpath = "Percorso della directory plugin comune."
 

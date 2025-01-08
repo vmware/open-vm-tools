@@ -22,7 +22,7 @@ cmdline.background.pidfile = "archivo pid"
 
 cmdline.blockfd = "Descriptor del archivo para el sistema de archivos de bloqueo de VMware."
 
-cmdline.blockfd.fd = "descriptor del archivo"
+cmdline.blockfd.fd = "fd"
 
 cmdline.commonpath = "Ruta al directorio de complementos frecuentes."
 
