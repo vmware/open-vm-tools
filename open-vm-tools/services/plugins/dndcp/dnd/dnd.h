@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2005-2021 VMware, Inc. All rights reserved.
+ * Copyright (c) 2005-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -55,13 +56,9 @@ extern "C" {
 #define DNDMSG_HEADERSIZE_V3 ((3 * sizeof (uint32)) + (1 * sizeof (uint8)))
 /*
  * Hard limits we never want to exceed. The maximum size of a serializied
- * DnDMsg. Close to 4M for Workstion/Fusion, 4G for Horzion.
+ * DnDMsg. Close to 4M for Workstion/Fusion.
  */
-#ifdef VMX86_HORIZON_VIEW
-#define DNDMSG_MAX_ARGSZ (0xffffffff - DNDMSG_HEADERSIZE_V3)
-#else
 #define DNDMSG_MAX_ARGSZ ((1 << 22) - DNDMSG_HEADERSIZE_V3)
-#endif
 /* The maximum number of arguments we can hold */
 #define DNDMSG_MAX_ARGS 64
 
@@ -202,17 +199,8 @@ typedef struct DnDTransportBuffer {
 } DnDTransportBuffer;
 
 #define DND_TRANSPORT_PACKET_HEADER_SIZE      (5 * sizeof(uint32))
-#ifdef VMX86_HORIZON_VIEW
-/*
- * For Horizon DnD, expand the message size to almost 16M, which provides
- * better DnD Performance on text/rich text/image etc. dragging and dropping
- * per current performance tuning.
- */
-#define DND_MAX_TRANSPORT_PACKET_SIZE         ((1 << 24) - 100)
-#else
 /* Close to 64k (maximum guestRpc message size). Leave some space for guestRpc header. */
 #define DND_MAX_TRANSPORT_PACKET_SIZE         ((1 << 16) - 100)
-#endif
 
 #define DND_MAX_TRANSPORT_PACKET_PAYLOAD_SIZE (DND_MAX_TRANSPORT_PACKET_SIZE - \
                                                DND_TRANSPORT_PACKET_HEADER_SIZE)
