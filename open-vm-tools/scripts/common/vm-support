@@ -1,6 +1,7 @@
 #!/bin/sh
 ##########################################################
-# Copyright (c) 2006-2022 VMware, Inc. All rights reserved.
+# Copyright (c) 2006-2024 Broadcom. All Rights Reserved.
+# The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -133,6 +134,54 @@ addfiles()
 }
 
 
+# Get the log files mentioned in the logging section of tools.conf. Get the log
+# archive file names
+# The archive logic for these logs files seems to be this. Below is one example:
+#     if vmtoolsd.data = vmtoolsd.log
+#       then the file is backed up as vmtoolsd.1.log vmtoolsd.2.log etc
+#     if vmtoolsd.data = vmtoolsdlog
+#       then the file is backed up as vmtoolsdlog.1 vmtoolsdlog.2 etc
+#     if vmtoolsd.data = vmtoolsdlog.a
+#       then the file is backed up as vmtoolsdlog.1.a vmtoolsdlog.2.a etc
+addLogFiles()
+{
+   IFS=""
+   vmware-toolbox-cmd config get logging | grep "\.data =" | cut -d"=" -f2 | while read -r logFile; do
+      logFile=`eval echo "$logFile"`
+      if [ -z "$logFile" ]; then
+         continue
+      fi
+
+      # trim the leading spaces
+      logFile=`echo $logFile | sed 's/^ *//'`
+      dirName=`dirname $logFile`
+      fileName=`basename $logFile`
+
+      #find and add the current logs
+      find "$dirName" -maxdepth 1 -name "$fileName" -print | while read -r logFile; do
+         addfile "$logFile"
+      done
+
+      # File prefix is the part that is before the last '.' in the file name
+      fileNamePrefix=`echo $fileName | rev | cut -d"." -f2- | rev`
+
+      # File suffix is the part that is after the last '.' in the file name
+      fileNameSuffix=`echo $fileName | rev | cut -s -d"." -f1 | rev`
+      # Add numbers after the prefix to get all the backed up file names
+      # Also add the .suffix if suffix exists
+      if [ -z "$fileNameSuffix" ]; then
+         fileName="${fileNamePrefix}.*[0-9]"
+      else
+         fileName="${fileNamePrefix}.*[0-9].${fileNameSuffix}"
+      fi
+
+      find "$dirName" -maxdepth 1 -name "$fileName" -print | while read -r logFile; do
+         addfile "$logFile"
+      done
+   done
+}
+
+
 # runcmd($out, $cmd): executes the command redirected to a file
 runcmd()
 {
@@ -191,6 +240,8 @@ stageLinux()
       runcmd "/tmp/apt-list.txt" apt list
    fi
    runcmd "/tmp/free.txt" free
+
+   addLogFiles
 }
 
 
@@ -254,7 +305,7 @@ collectNetworkDetails()
 export PATH=/bin:/sbin:/usr/bin:/usr/sbin
 
 TARFILE=vm-`date +%Y-%m-%d`.$$.tar.gz
-VER=0.95
+VER=0.96
 
 # Parse args
 for option in $@
