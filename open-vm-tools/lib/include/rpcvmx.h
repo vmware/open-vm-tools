@@ -24,11 +24,19 @@
  *      Tools code) that provides some useful VMX interaction capability, e.g.
  *      logging to the VM's VMX log, querying config variables, etc.
  *
- *      NB: This library is *NOT* threadsafe, so if you want to avoid
- *          corrupting your log statements or other screwups, add your own
- *          locking around calls to RpcVMX_Log.  The exception is
- *          RpcVMX_LogVWithBuffer which does not use any global state but
- *          requires the caller to manage its own buffers.
+ *      Thread safety:
+ *          1. This library in general is *NOT* threadsafe.  Users of
+ *             RpcVMX_Log/RpcVMX_LogV and RpcVMX_LogSetPrefix should protect
+ *             this usage externally with their own locking, and any other
+ *             requirements for thread safety should be carefully audited.
+ *
+ *          2. If thread safety around logging is required at a finer-grained
+ *             level than a single external lock, callers should allocate
+ *             buffers externally and then initialize them with
+ *             RpcVMX_InitLogBackingBuffer. These buffers should be externally
+ *             protected in some way such that they are only used by one thread
+ *             at a time, and passed into RpcVMX_LogVWithBuffer at logging
+ *             time.
  */
 
 #ifndef _RPCVMX_H_
@@ -39,14 +47,13 @@
 #include "vm_basic_types.h"
 #include "rpcvmxext.h"
 
-#define RPCVMX_MAX_LOG_LEN          (2048) /* 2kb max - make it dynamic? */
-#define RPCVMX_LOG_BUFSIZE          (RPCVMX_MAX_LOG_LEN + sizeof "log")
+#define RPCVMX_DEFAULT_LOG_BUFSIZE  (2048 + sizeof "log")
 
-typedef struct RpcVMXState {
-   char         logBuf[RPCVMX_LOG_BUFSIZE];
+typedef struct RpcVMXLogBuffer {
+   char *       logBuf;
+   unsigned int logBufSizeBytes;
    unsigned int logOffset;
-} RpcVMXState;
-
+} RpcVMXLogBuffer;
 
 /*
  * Set a prefix to prepend to any future log statements.
@@ -59,6 +66,15 @@ void RpcVMX_LogSetPrefix(const char *prefix);
 const char *RpcVMX_LogGetPrefix(const char *prefix);
 
 /*
+ * Initialize the given log buffer struct with the given caller-allocated
+ * backing buffer and prefix string.
+ */
+Bool RpcVMX_InitLogBackingBuffer(RpcVMXLogBuffer *bufferOut,
+                                 char *logBuf,
+                                 unsigned int logBufSizeBytes,
+                                 const char *prefix);
+
+/*
  * Same as RpcVMX_Log but takes a va_list instead of inline arguments.
  */
 void RpcVMX_LogV(const char *fmt,
@@ -67,7 +83,7 @@ void RpcVMX_LogV(const char *fmt,
 /*
  * Same as RpcVMX_LogV but uses the caller-specified buffer to back the log.
  */
-void RpcVMX_LogVWithBuffer(RpcVMXState *rpcBuffer,
+void RpcVMX_LogVWithBuffer(RpcVMXLogBuffer *rpcBuffer,
                            const char *fmt,
                            va_list args);
 
