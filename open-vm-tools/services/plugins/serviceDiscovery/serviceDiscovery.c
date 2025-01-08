@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2020-2021,2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2020-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -369,8 +370,12 @@ SendData(ToolsAppCtx *ctx,
    if (gdpErr != GDP_ERROR_SUCCESS) {
       g_info("%s: ToolsPluginSvcGdp_Publish error: %s\n",
              __FUNCTION__, gdpErrMsgs[gdpErr]);
-      /* NOTE to SD maintainer: gdpErr == GDP_ERROR_NO_SUBSCRIBERS to be handled here when ready*/
+      /*
+       *  NOTE to SD maintainer:
+       *  GDP_ERROR_NO_SUBSCRIBERS to be handled here when ready
+       */
       if (gdpErr == GDP_ERROR_STOP ||
+          gdpErr == GDP_ERROR_GENERAL ||
           gdpErr == GDP_ERROR_UNREACH ||
           gdpErr == GDP_ERROR_TIMEOUT) {
          gSkipThisTask = TRUE;

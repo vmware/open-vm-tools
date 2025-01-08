@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2008-2016 VMware, Inc. All rights reserved.
+ * Copyright (c) 2008-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -228,6 +229,30 @@ TestPluginServiceControl(gpointer src,
 
 
 /**
+ * Handles a pre-shutdown callback; just logs debug information. This is called
+ * at the start of a service shutdown prior to the shut down signal, and should
+ * be used to prepare for an incoming shutdown signal.
+ *
+ * @param[in]  src      The source object.
+ * @param[in]  ctx      The app context.
+ * @param[in]  plugin   Plugin registration data.
+ */
+
+static void
+TestPluginPreShutdown(gpointer src,
+                      ToolsAppCtx *ctx,
+                      ToolsPluginData *plugin)
+{
+   vm_debug("pre-shutdown signal.");
+   CU_ASSERT(gInvalidSigError);
+   CU_ASSERT(gInvalidAppError);
+   CU_ASSERT(gInvalidAppProvider);
+   CU_ASSERT(gValidAppRegistration);
+}
+
+
+
+/**
  * Handles a shutdown callback; just logs debug information. This is called
  * before the service is shut down, and should be used to clean up any resources
  * that were initialized by the application.
@@ -375,6 +400,7 @@ ToolsOnLoad(ToolsAppCtx *ctx)
    };
    ToolsPluginSignalCb sigs[] = {
       { TOOLS_CORE_SIG_RESET, TestPluginReset, &regData },
+      { TOOLS_CORE_SIG_SHUTDOWN, TestPluginPreShutdown, &regData },
       { TOOLS_CORE_SIG_SHUTDOWN, TestPluginShutdown, &regData },
       { TOOLS_CORE_SIG_CAPABILITIES, TestPluginCapabilities, &regData },
       { TOOLS_CORE_SIG_SET_OPTION, TestPluginSetOption, &regData },

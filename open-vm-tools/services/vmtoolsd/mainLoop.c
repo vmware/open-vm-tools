@@ -120,6 +120,13 @@ static gboolean gGlobalConfStarted = FALSE;
 static void
 ToolsCoreCleanup(ToolsServiceState *state)
 {
+   g_info("%s: Entering\n", __FUNCTION__);
+   /*
+    * Emit the early shutdown signal.
+    */
+   g_signal_emit_by_name(state->ctx.serviceObj,
+                         TOOLS_CORE_SIG_PRE_SHUTDOWN,
+                         &state->ctx);
 #if (defined(_WIN32) && !defined(_ARM64_)) || \
     (defined(__linux__) && !defined(USERWORLD))
    if (state->mainService) {
@@ -1219,6 +1226,7 @@ ToolsCore_Setup(ToolsServiceState *state)
    ToolsCoreService_RegisterProperty(state->ctx.serviceObj,
                                      &ctxProp);
    g_object_set(state->ctx.serviceObj, TOOLS_CORE_PROP_CTX, &state->ctx, NULL);
+
    /* Initialize the environment from config. */
    ToolsCoreInitEnv(&state->ctx);
    ToolsCorePool_Init(&state->ctx);

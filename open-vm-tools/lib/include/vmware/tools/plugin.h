@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2008-2020,2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2008-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -189,6 +190,18 @@ ToolsCore_LogState(guint level,
  *         was valid.
  */
 #define TOOLS_CORE_SIG_SET_OPTION "tcs_set_option"
+
+/**
+ * Signal sent when the service is going to be shutdown. Allow for listeners to
+ * prepare for a pending shutdown. Signal occurs before the service thread pool
+ * gets shutdown. The signal handler must not perform long running and/or
+ * blocking operation, as well as not perform core resource releases.
+ *
+ * @param[in]  src      The source object.
+ * @param[in]  ctx      ToolsAppCtx *: The application context.
+ * @param[in]  data     Client data.
+ */
+#define TOOLS_CORE_SIG_PRE_SHUTDOWN "tcs_pre_shutdown"
 
 /**
  * Signal sent when shutting down the service.
