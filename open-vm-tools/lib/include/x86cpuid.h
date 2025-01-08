@@ -104,10 +104,10 @@ typedef struct CPUIDReply {
 } CPUIDReply;
 
 typedef struct CPUIDQuery {
-   uint32 eax;                // IN
-   uint32 ecx;                // IN
-   uint32 numLogicalCPUs;     // IN/OUT
-   CPUIDReply logicalCPUs[0]; // OUT
+   uint32 eax;                                          // IN
+   uint32 ecx;                                          // IN
+   uint32 numLogicalCPUs;                               // IN/OUT
+   CPUIDReply logicalCPUs[] COUNTED_BY(numLogicalCPUs); // OUT
 } CPUIDQuery;
 #pragma pack(pop)
 #endif
