@@ -820,7 +820,7 @@ FLAG(  12,  0, EAX,  5,  1, SGX_OVERSUB_ENCLV,                   NO,    0 ) \
 FLAG(  12,  0, EAX,  6,  1, SGX_OVERSUB_ENCLS,                   NO,    0 ) \
 FLAG(  12,  0, EAX,  7,  1, SGX_EVERIFYREPORT2,                  ANY, FUT ) \
 FLAG(  12,  0, EAX, 10,  1, SGX_EUPDATESVN,                      NO,    0 ) \
-FLAG(  12,  0, EAX, 11,  1, SGX_EDECCSSA,                        ANY, FUT ) \
+FLAG(  12,  0, EAX, 11,  1, SGX_EDECCSSA,                        ANY,  22 ) \
 FLAG(  12,  0, EBX,  0,  1, SGX_MISCSELECT_EXINFO,               ANY, FUT ) \
 FLAG(  12,  0, EBX,  1,  1, SGX_MISCSELECT_CPINFO,               ANY, FUT ) \
 FIELD( 12,  0, EDX,  0,  8, MAX_ENCLAVE_SIZE_NOT64,              ANY,  17 ) \
@@ -833,7 +833,7 @@ FLAG(  12,  1, EAX,  6,  1, SECS_ATTRIBUTES_CET,                 NO,    0 ) \
 FLAG(  12,  1, EAX,  7,  1, SECS_ATTRIBUTES_KSS,                 ANY,  17 ) \
 FLAG(  12,  1, EAX,  8,  1, SECS_ATTRIBUTES_LAM_U57,             NO,    0 ) \
 FLAG(  12,  1, EAX,  9,  1, SECS_ATTRIBUTES_LAM_U48,             NO,    0 ) \
-FLAG(  12,  1, EAX, 10,  1, SECS_ATTRIBUTES_AEXNOTIFY,           ANY, FUT ) \
+FLAG(  12,  1, EAX, 10,  1, SECS_ATTRIBUTES_AEXNOTIFY,           ANY,  22 ) \
 FIELD( 12,  1, ECX,  0, 32, SECS_ATTRIBUTES_XFRM_LOW,            ANY,  17 ) \
 FIELD( 12,  1, EDX,  0, 32, SECS_ATTRIBUTES_XFRM_HIGH,           ANY,  17 ) \
 FIELD( 12,  2, EAX,  0,  4, EPC00_VALID,                         ANY,  17 ) \
