@@ -268,7 +268,6 @@
    LOGLEVEL_VAR(tpm2emu), \
    LOGLEVEL_VAR(tpm2Verification), \
    LOGLEVEL_VAR(txt), \
-   LOGLEVEL_VAR(udpfec),    /* lib/udpfec */ \
    LOGLEVEL_VAR(uhci), \
    LOGLEVEL_VAR(undopoint), \
    LOGLEVEL_VAR(unityMsg),  /* mks/remote/vdpUnityVmdb */ \
