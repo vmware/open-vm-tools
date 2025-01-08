@@ -613,7 +613,7 @@ FLAG(   7,  1, EAX, 11,  1, FAST_SHORT_STOSB,                    YES,  20 ) \
 FLAG(   7,  1, EAX, 12,  1, FAST_SHORT_CMPSB_SCASB,              YES,  20 ) \
 FLAG(   7,  1, EAX, 17,  1, FRED,                                NO,    0 ) \
 FLAG(   7,  1, EAX, 18,  1, LKGS,                                NO,    0 ) \
-FLAG(   7,  1, EAX, 19,  1, WRMSRNS,                             NO,    0 ) \
+FLAG(   7,  1, EAX, 19,  1, WRMSRNS,                             YES,  22 ) \
 FLAG(   7,  1, EAX, 20,  1, NMI_SRC,                             NO,    0 ) \
 FLAG(   7,  1, EAX, 21,  1, AMX_FP16,                            YES,  21 ) \
 FLAG(   7,  1, EAX, 22,  1, HRESET,                              NO,    0 ) \
