@@ -633,8 +633,10 @@ typedef int pid_t;
 /*
  * Old MSVC versions (such as MSVC 14.29.30133, used to build Workstation's
  * offset checker) are notorious to have non-standard __VA_ARGS__ handling.
+ * The current latest Visual Studio 2022 17.10 (MSVC 19.40/_MSC_VER 1940)
+ * has not fixed the defect yet.
  */
-#if defined(VMX86_DESKTOP) && (_MSC_VER > 1929)
+#if defined(VMX86_DESKTOP) && (_MSC_VER > 1940)
 #pragma message("ERROR: Compiler version: " XSTR(_MSC_VER))
 #pragma message("ERROR: PR 3405101: Is __VA_ARGS__ hack needed for Arm & x86?")
 #endif
@@ -656,8 +658,10 @@ typedef int pid_t;
 /*
  * Old MSVC versions (such as MSVC 14.29.30133, used to build Workstation's
  * offset checker) are notorious to have non-standard __VA_ARGS__ handling.
+ * The current latest Visual Studio 2022 17.10 (MSVC 19.40/_MSC_VER 1940)
+ * has not fixed the defect yet.
  */
-#if defined(VMX86_DESKTOP) && (_MSC_VER > 1929)
+#if defined(VMX86_DESKTOP) && (_MSC_VER > 1940)
 #pragma message("ERROR: Compiler version: " XSTR(_MSC_VER))
 #pragma message("ERROR: PR 3405101: Is __VA_ARGS__ hack needed for Arm & x86?")
 #endif
