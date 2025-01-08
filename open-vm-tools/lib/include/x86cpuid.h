@@ -2684,6 +2684,34 @@ CPUID_IsHypervisorLevel(uint32 level)
    return (level & 0xffffff00) == 0x40000000;
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * CPUID_LevelMaxRsvd --
+ *
+ *      Returns maximum number of reserved sub-leaves for a given CPUID leaf.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static INLINE uint32
+CPUID_LevelMaxRsvd(uint32 level) {
+   switch (level)
+   {
+
+#define CPUIDLEVEL(t, s, v, c, h)                         \
+      case v:                                             \
+         return c;
+
+      CPUID_KNOWN_LEVELS
+
+#undef CPUIDLEVEL
+   }
+   return 0;
+}
+
+
 /*
  *----------------------------------------------------------------------
  *
@@ -2696,20 +2724,7 @@ CPUID_IsHypervisorLevel(uint32 level)
 
 static INLINE Bool
 CPUID_LevelUsesEcx(uint32 level) {
-   switch (level)
-   {
-
-#define CPUIDLEVEL(t, s, v, c, h)     \
-      case v:                         \
-         return c != 0;
-
-      CPUID_KNOWN_LEVELS
-
-#undef CPUIDLEVEL
-
-      default:
-         return FALSE;
-   }
+   return CPUID_LevelMaxRsvd(level) != 0;
 }
 
 #ifdef _MSC_VER
