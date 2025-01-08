@@ -957,10 +957,10 @@ FLAG(  1C,  0, EBX,  2,  1, LBR_CALL_STACK_MODE,                 YES,  20 ) \
 FLAG(  1C,  0, ECX,  0,  1, LBR_MISPREDICT,                      YES,  20 ) \
 FLAG(  1C,  0, ECX,  1,  1, LBR_TIMED_LBRS,                      YES,  20 ) \
 FLAG(  1C,  0, ECX,  2,  1, LBR_BRANCH_TYPE,                     YES,  20 ) \
-FLAG(  1C,  0, ECX, 16,  1, LBR_EVENT_LOGGING_PMC0,               NO,   0 ) \
-FLAG(  1C,  0, ECX, 17,  1, LBR_EVENT_LOGGING_PMC1,               NO,   0 ) \
-FLAG(  1C,  0, ECX, 18,  1, LBR_EVENT_LOGGING_PMC2,               NO,   0 ) \
-FLAG(  1C,  0, ECX, 19,  1, LBR_EVENT_LOGGING_PMC3,               NO,   0 )
+FLAG(  1C,  0, ECX, 16,  1, LBR_EVENT_LOGGING_PMC0,              YES,  22 ) \
+FLAG(  1C,  0, ECX, 17,  1, LBR_EVENT_LOGGING_PMC1,              YES,  22 ) \
+FLAG(  1C,  0, ECX, 18,  1, LBR_EVENT_LOGGING_PMC2,              YES,  22 ) \
+FLAG(  1C,  0, ECX, 19,  1, LBR_EVENT_LOGGING_PMC3,              YES,  22 )
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_1D                                           \
@@ -1916,6 +1916,10 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 #define CPUID_MODEL_ZEN2_7F           0x7F // Ryzen3: max model
 #define CPUID_MODEL_ZEN3_00           0x00 // family == CPUID_FAMILY_ZEN3
 #define CPUID_MODEL_ZEN3_0F           0x0F // Max Zen3 model
+#define CPUID_MODEL_ZEN4_10           0x10 // family == CPUID_FAMILY_ZEN3
+#define CPUID_MODEL_ZEN4_1F           0x1F // Max Zen4 model
+#define CPUID_MODEL_ZEN4_A0           0xA0 // family == CPUID_FAMILY_ZEN3
+#define CPUID_MODEL_ZEN4_AF           0xAF // Zen4 D: max model
 
 /* AMD stepping information */
 #define CPUID_STEPPING_ZEN_NAPLES_B2  0x02 // Zen Naples ZP-B2
@@ -2645,6 +2649,16 @@ CPUID_MODEL_IS_ZEN3(uint32 eax)
 {
    return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_ZEN3 &&
           CPUID_EFFECTIVE_MODEL(eax) <= CPUID_MODEL_ZEN3_0F;
+}
+
+static INLINE Bool
+CPUID_MODEL_IS_ZEN4(uint32 eax)
+{
+   return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_ZEN3 &&
+          ((CPUID_EFFECTIVE_MODEL(eax) >= CPUID_MODEL_ZEN4_10 &&
+            CPUID_EFFECTIVE_MODEL(eax) <= CPUID_MODEL_ZEN4_1F) ||
+           (CPUID_EFFECTIVE_MODEL(eax) >= CPUID_MODEL_ZEN4_A0 &&
+            CPUID_EFFECTIVE_MODEL(eax) <= CPUID_MODEL_ZEN4_AF));
 }
 
 
