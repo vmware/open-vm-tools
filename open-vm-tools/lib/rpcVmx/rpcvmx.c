@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2004-2018,2019,2021,2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2004-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -31,11 +32,6 @@
 #include "rpcout.h"
 #include "rpcvmx.h"
 
-
-typedef struct {
-   char logBuf[RPCVMX_MAX_LOG_LEN + sizeof "log"];
-   unsigned int logOffset;
-} RpcVMXState;
 
 static RpcVMXState RpcVMX = { "log ", sizeof "log" };
 
@@ -153,7 +149,8 @@ RpcVMX_Log(const char *fmt, ...)
  */
 
 void
-RpcVMX_LogV(const char *fmt, va_list args)
+RpcVMX_LogV(const char *fmt,
+            va_list args)
 {
    int payloadLen;
    char receiveBuffer[16];
@@ -187,6 +184,72 @@ RpcVMX_LogV(const char *fmt, va_list args)
 /*
  *----------------------------------------------------------------------------
  *
+ * RpcVMX_LogVWithBuffer --
+ *
+ *      Construct an output string using the provided format string and
+ *      argument list, then send it to the VMX using the RPCI "log" command.
+ *
+ *      Uses the caller-provided buffer to back the log, rather than the
+ *      global RpcVMXState.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Sends the log command described above.
+ *
+ *----------------------------------------------------------------------------
+ */
+
+void
+RpcVMX_LogVWithBuffer(RpcVMXState *rpcBuffer,                     // IN/OUT
+                      const char *fmt,                            // IN
+                      va_list args)                               // IN
+{
+   int payloadLen;
+   char receiveBuffer[16];
+
+   if (rpcBuffer == NULL || fmt == NULL) {
+      return;
+   }
+
+   if (rpcBuffer->logOffset >= sizeof rpcBuffer->logBuf) {
+      /*
+       * The RpcVMXState is not valid, because the prefix is taking up the
+       * entire buffer.  Since we can't log any actual message, silently fail.
+       */
+      return;
+   }
+
+   payloadLen = Str_Vsnprintf(rpcBuffer->logBuf + rpcBuffer->logOffset,
+                              sizeof rpcBuffer->logBuf - rpcBuffer->logOffset,
+                              fmt, args);
+
+   if (payloadLen < 1) {
+      /*
+       * Overflow. We need more space in the buffer. Just set the length to
+       * the buffer size and send the (truncated) log message.
+       */
+      payloadLen = sizeof rpcBuffer->logBuf - rpcBuffer->logOffset;
+   }
+
+   /*
+    * Use a pre-allocated receive buffer so that it's possible to
+    * perform the log without needing to call malloc.  This makes
+    * RpcVMX_LogVWithBuffer suitable to be used in Windows kernel interrupt
+    * handlers.  (It also makes it faster.)  The log command only ever
+    * returns two character strings "1 " on success and "0 " on
+    * failure, so we don't need a sizeable buffer.
+    */
+   RpcOut_SendOneRawPreallocated(rpcBuffer->logBuf,
+                                 (size_t)rpcBuffer->logOffset + payloadLen,
+                                 receiveBuffer, sizeof receiveBuffer);
+}
+
+
+/*
+ *----------------------------------------------------------------------------
+ *
  * RpcVMX_ConfigGetString --
  *
  *      Look up a config variable in the VMX's config file and return its
@@ -204,7 +267,8 @@ RpcVMX_LogV(const char *fmt, va_list args)
  */
 
 char *
-RpcVMX_ConfigGetString(const char *defval, const char *var)
+RpcVMX_ConfigGetString(const char *defval,
+                       const char *var)
 {
    char *value;
    if (!RpcOut_sendOne(&value, NULL, "info-get guestinfo.%s", var)) {
@@ -248,7 +312,8 @@ RpcVMX_ConfigGetString(const char *defval, const char *var)
  */
 
 Bool
-RpcVMX_ConfigGetBool(Bool defval, const char *var)
+RpcVMX_ConfigGetBool(Bool defval,
+                     const char *var)
 {
    char *value = RpcVMX_ConfigGetString(NULL, var);
    Bool ret = defval;
@@ -288,7 +353,8 @@ RpcVMX_ConfigGetBool(Bool defval, const char *var)
  */
 
 int32
-RpcVMX_ConfigGetLong(int32 defval, const char *var)
+RpcVMX_ConfigGetLong(int32 defval,
+                     const char *var)
 {
    char *value = RpcVMX_ConfigGetString(NULL, var);
    int32 ret = defval;
@@ -320,7 +386,8 @@ RpcVMX_ConfigGetLong(int32 defval, const char *var)
  */
 
 void
-RpcVMX_ReportDriverVersion(const char *drivername, const char *versionString)
+RpcVMX_ReportDriverVersion(const char *drivername,
+                           const char *versionString)
 {
    char setVersionCmd[128];
    Str_Sprintf(setVersionCmd, sizeof(setVersionCmd),

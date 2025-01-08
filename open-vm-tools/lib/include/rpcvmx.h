@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2004-2019 VMware, Inc. All rights reserved.
+ * Copyright (c) 2004-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -25,7 +26,9 @@
  *
  *      NB: This library is *NOT* threadsafe, so if you want to avoid
  *          corrupting your log statements or other screwups, add your own
- *          locking around calls to RpcVMX_Log.
+ *          locking around calls to RpcVMX_Log.  The exception is
+ *          RpcVMX_LogVWithBuffer which does not use any global state but
+ *          requires the caller to manage its own buffers.
  */
 
 #ifndef _RPCVMX_H_
@@ -37,6 +40,13 @@
 #include "rpcvmxext.h"
 
 #define RPCVMX_MAX_LOG_LEN          (2048) /* 2kb max - make it dynamic? */
+#define RPCVMX_LOG_BUFSIZE          (RPCVMX_MAX_LOG_LEN + sizeof "log")
+
+typedef struct RpcVMXState {
+   char         logBuf[RPCVMX_LOG_BUFSIZE];
+   unsigned int logOffset;
+} RpcVMXState;
+
 
 /*
  * Set a prefix to prepend to any future log statements.
@@ -49,28 +59,39 @@ void RpcVMX_LogSetPrefix(const char *prefix);
 const char *RpcVMX_LogGetPrefix(const char *prefix);
 
 /*
- * Save as RpcVMX_Log but takes a va_list instead of inline arguments.
+ * Same as RpcVMX_Log but takes a va_list instead of inline arguments.
  */
-void RpcVMX_LogV(const char *fmt, va_list args);
+void RpcVMX_LogV(const char *fmt,
+                 va_list args);
+
+/*
+ * Same as RpcVMX_LogV but uses the caller-specified buffer to back the log.
+ */
+void RpcVMX_LogVWithBuffer(RpcVMXState *rpcBuffer,
+                           const char *fmt,
+                           va_list args);
 
 /*
  * Get the value of "guestinfo.$key" in the host VMX dictionary and return it.
  * Returns the default if the key is not set.
  */
-char *RpcVMX_ConfigGetString(const char *defval, const char *key);
+char *RpcVMX_ConfigGetString(const char *defval,
+                             const char *key);
 
 /*
  * Same as _ConfigGetString, but convert the value to a 32-bit quantity.
  * XXX Returns 0, *NOT* the default, if the key was set but the value could
  *     not be converted to an int32.
  */
-int32 RpcVMX_ConfigGetLong(int32 defval, const char *key);
+int32 RpcVMX_ConfigGetLong(int32 defval,
+                           const char *key);
 
 /*
  * Same as _ConfigGetString, but convert the value to a Bool. Returns the
  * default value if the key was set but could not be converted.
  */
-Bool RpcVMX_ConfigGetBool(Bool defval, const char *key);
+Bool RpcVMX_ConfigGetBool(Bool defval,
+                          const char *key);
 
 #endif /* _VMXRPC_H_ */
 
