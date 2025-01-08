@@ -38,6 +38,7 @@
 #include <time.h>
 #include <unistd.h>
 #include "str.h"
+#include "vm_basic_defs.h"
 
 #include "mspackWrapper.h"
 #include "deployPkg/deployPkgFormat.h"
@@ -2103,6 +2104,7 @@ DeployPkg_DeployPackageFromFile(const char* file)
           */
          sLog(log_info,
               "Deployment delegated to Cloud-init. Returning success.");
+         VMW_FALLTHROUGH();
       case DEPLOYPKG_STATUS_SUCCESS:
          retStatus = 0;
          break;
