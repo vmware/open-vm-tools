@@ -1037,7 +1037,7 @@ typedef int pid_t;
  *
  *   If not a matched compiler, expands to nothing.
  */
-#if __cplusplus >= 201703L
+#if defined __cplusplus && __cplusplus >= 201703L
    #define VMW_FALLTHROUGH() [[fallthrough]]
 #elif (defined(__GNUC__) && (__GNUC__ >= 9)) ||           \
       (defined(__clang__) && (__clang_major__ >= 13))
