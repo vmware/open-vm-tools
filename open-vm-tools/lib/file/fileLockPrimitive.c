@@ -1214,6 +1214,7 @@ FileLockMakeDirectory(const char *pathName)  // IN:
 
 #if !defined(_WIN32)
    mode_t save;
+   mode_t check;
    static Atomic_Ptr lckStorage;
 
    /* Get and take lock to serial this routine. */
@@ -1231,7 +1232,9 @@ FileLockMakeDirectory(const char *pathName)  // IN:
    err = FileCreateDirectoryRobust(pathName, 0777);
 
 #if !defined(_WIN32)
-   umask(save);  // Restore previous value
+   check = umask(save);  // Restore previous value; 0 should be returned
+
+   ASSERT(check == 0);
 
    MXUser_ReleaseExclLock(lck);
 #endif
