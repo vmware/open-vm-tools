@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2016-2022 VMware, Inc. All rights reserved.
+ * Copyright (c) 2016-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -689,6 +690,7 @@ AsyncSocketCancelRecv(AsyncSocket *asock,         // IN
    asock->recvFn = NULL;
    asock->recvPos = 0;
    asock->recvLen = 0;
+   asock->recvFireOnPartial = FALSE;
 }
 
 
