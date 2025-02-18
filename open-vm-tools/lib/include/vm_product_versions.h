@@ -311,7 +311,8 @@
 // esxcli
 #define ESXCLI_VERSION "8.0.0"
 
-#define INTEGRITY_VERSION "9.0.0" /* Should use VPX_VERSION? */
+/* Integrity is bundled with VPX so use VPX_VERSION*/
+#define INTEGRITY_VERSION VPX_VERSION
 #define SVA_VERSION "1.0.0"
 #define SSO_VERSION "1.0.0"
 #define SDK_VERSION "4.1.0"
