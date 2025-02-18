@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 1998,2005-2012,2014-2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -190,6 +191,13 @@
 
 #define PCI_DEVICE_ID_INTEL_QAT_C62X         0x37c8
 #define PCI_DEVICE_ID_INTEL_QAT_C62X_VF      0x37c9
+
+/*
+ * Intel/Habana AI accelerators.
+ */
+#define PCI_VENDOR_ID_HABANA         0x1da3
+#define PCI_DEVICE_ID_HABANA_GAUDI2  0x1020
+#define PCI_DEVICE_ID_HABANA_GAUDI3  0x1060
 
 /*
  * Intel FPGAs
