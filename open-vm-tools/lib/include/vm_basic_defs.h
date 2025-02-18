@@ -309,6 +309,10 @@ Max(int a, int b)
 #define BYTES_2_PAGES(_nbytes)  ((_nbytes) >> PAGE_SHIFT)
 #endif
 
+#ifndef ROUNDUP_BYTES_2_PAGES
+#define ROUNDUP_BYTES_2_PAGES(_nbytes) VM_PAGES_SPANNED(0, (_nbytes))
+#endif
+
 #ifndef BYTES_2_PAGES_4KB
 #define BYTES_2_PAGES_4KB(_nbytes)  ((_nbytes) >> PAGE_SHIFT_4KB)
 #endif
