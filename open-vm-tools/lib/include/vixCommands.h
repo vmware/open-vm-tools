@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2003-2021, 2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2003-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -145,7 +146,7 @@ enum VixResponseFlagsValues {
  *  -------------------------------------
  *
  * The credential and the body may either or both be empty.
- * The 3 regions always appear in this order. First the header, then a body 
+ * The 3 regions always appear in this order. First the header, then a body
  * if there is one, then a credential if there is one.
  * There should be no gaps between these regions. New regions are added
  * to the end. This means the lengths can also be used to compute
@@ -155,7 +156,7 @@ enum VixResponseFlagsValues {
  * the common header. This should allow parsing code to receive complete
  * messages even if it does not understand them.
  *
- * Currently that the credential is only used for a Request. It is 
+ * Currently that the credential is only used for a Request. It is
  * currently empty for a response.
  *
  */
@@ -250,7 +251,7 @@ typedef struct VixMsgTrivialEvent {
 /*
  * **********************************************************
  * This is a generic progress update from the VMX.
- * The VMX may send several of these before sending a final response 
+ * The VMX may send several of these before sending a final response
  * message. These only report progress, they do not mean the job
  * has completed. These messages are identified by the
  * VIX_COMMAND_REPORT_EVENT flag in the commonFlags field and
@@ -394,7 +395,7 @@ typedef struct VixMsgReloadVMStateRequest {
  * types are defined below in the VixCommonConfigObjectType enum.
  * Following each object type struct is the specific object. Currently,
  * we support:
- * 
+ *
  *    VIX_NETWORK_SETTING_CONFIG   - VixMsgNICBandwidth
  */
 #pragma pack(push, 1)
@@ -1087,7 +1088,7 @@ typedef struct VixMsgSetSharedFolderRequest {
 #pragma pack(push, 1)
 typedef struct VixMsgCaptureScreenRequest {
    VixCommandRequestHeader header;
-   
+
    int32                   format;  // Identifies the requested data format.
    int32                    maxSize; // Max data response size in bytes
                                     //    (-1 is any size)
@@ -1099,7 +1100,7 @@ typedef struct VixMsgCaptureScreenRequest {
 #pragma pack(push, 1)
 typedef struct VixMsgCaptureScreenResponse {
    VixCommandResponseHeader header;
-   
+
    int32                   format; // Format of the data in the response.
    uint32                  dataOffset; // Relative to the address of this struct.
 } VixMsgCaptureScreenResponse;
@@ -1711,7 +1712,7 @@ typedef struct VixMsgSampleCommandResponse {
 #pragma pack(push, 1)
 typedef struct VixMsgAttachDebuggerRequest {
    VixCommandRequestHeader   header;
-   
+
    int32                     options;
    uint32                    propertyListBufferSize;
 } VixMsgAttachDebuggerRequest;
@@ -1745,7 +1746,7 @@ typedef struct VixMsgIssueDebuggerCommandResponse {
 #pragma pack(push, 1)
 typedef struct VixMsgDetachDebuggerRequest {
    VixCommandRequestHeader   header;
-  
+
    int32                     options;
    uint32                    propertyListBufferSize;
 } VixMsgDetachDebuggerRequest;
@@ -1862,10 +1863,10 @@ typedef struct VixCommandGenericRequest {
  * whether a client is allowed to perform the given command.
  */
 typedef enum VixCommandSecurityCategory {
-   
+
    /* The default for unknown commands */
    VIX_COMMAND_CATEGORY_UNKNOWN,
-   
+
    /*
     * A command that should be executed in the guest OS by the VIX Tools.
     * component. These are allowed for all connection types.
@@ -1894,8 +1895,8 @@ typedef enum VixCommandSecurityCategory {
  * Be really careful with these. These values are passed over the socket
  * between clients and the VMX process. One client may connect to newer or
  * older versions of the VMX, so we cannot ever change or recycle values if
- * if we add or remove command ids. This is why the values are explicitly 
- * assigned, and there may be gaps in the numeric sequence as some commands 
+ * if we add or remove command ids. This is why the values are explicitly
+ * assigned, and there may be gaps in the numeric sequence as some commands
  * are no longer supported.
  */
 typedef int VixAsyncOpType;
@@ -2055,7 +2056,7 @@ enum {
    /* DEPRECATED VIX_COMMAND_REMOVE_REPLAY_STATE              = 148, */
 
    /* DEPRECATED VIX_COMMAND_CANCEL_USER_PROGRESS_MESSAGE     = 150, */
-   
+
    VIX_COMMAND_GET_VMX_DEVICE_STATE             = 151,
 
    /* DEPRECATED VIX_COMMAND_GET_NUM_TIMEMARKERS              = 152, */
@@ -2271,6 +2272,14 @@ VixMsg_AllocRequestMsg(size_t msgHeaderAndBodyLength,
                        uint64 cookie,
                        int credentialType,
                        const char *userNamePassword);
+
+VixError
+VixMsg_AllocUserRequestMsg(size_t msgHeaderAndBodyLength,
+                           int opCode,
+                           uint64 cookie,
+                           int credentialType,
+                           const char *userNamePassword,
+                           VixCommandRequestHeader **request);
 
 struct VixCommandResponseHeader *
 VixMsg_AllocResponseMsg(const struct VixCommandRequestHeader *requestHeader,
