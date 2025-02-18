@@ -385,8 +385,7 @@ GET_CURRENT_PC(void)
    if (CONC(VMK_ARM_NVSIM_, name) == 0) {                                     \
       asm volatile ("mrs %0, " XSTR(name) : "=r" (val) :: "memory");          \
    } else if (CONC(VMK_ARM_NVSIM_, name) == 1) {                              \
-      asm volatile (".balign 8"   "\n\t"                                      \
-                    "hvc #0x4e56" "\n\t"                                      \
+      asm volatile (VMK_ARM_NVSIM_HVC                                         \
                     "mrs %0, " XSTR(name) : "=r" (val) :: "memory");          \
    } else if (CONC(VMK_ARM_NVSIM_, name) == 2) {                              \
       val = 2 << 2 /* CURRENTEL_EL_2 */;                                      \
@@ -424,8 +423,7 @@ GET_CURRENT_PC(void)
    if (CONC(VMK_ARM_NVSIM_, name) == 0) {                                     \
       asm volatile ("msr " XSTR(name) ", %0" :: "r" (val) : "memory");        \
    } else if (CONC(VMK_ARM_NVSIM_, name) == 1) {                              \
-      asm volatile (".balign 8"   "\n\t"                                      \
-                    "hvc #0x4e56" "\n\t"                                      \
+      asm volatile (VMK_ARM_NVSIM_HVC                                         \
                     "msr " XSTR(name) ", %0" :: "r" (val) : "memory");        \
    }                                                                          \
 } while (0)
