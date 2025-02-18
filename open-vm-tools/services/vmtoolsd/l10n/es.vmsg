@@ -22,7 +22,7 @@ cmdline.background.pidfile = "archivo pid"
 
 cmdline.blockfd = "Descriptor del archivo para el sistema de archivos de bloqueo de VMware."
 
-cmdline.blockfd.fd = "fd"
+cmdline.blockfd.fd = "descriptor del archivo"
 
 cmdline.commonpath = "Ruta al directorio de complementos frecuentes."
 
@@ -69,7 +69,7 @@ cmdline.state = "Vuelca el estado interno de una instancia de servicio en ejecuc
 
 cmdline.uinputfd = "Descriptor del archivo para el dispositivo de entrada."
 
-cmdline.uinputfd.fd = "fd"
+cmdline.uinputfd.fd = "descriptor del archivo"
 
 cmdline.uninstall = "Desinstala el servicio desde el Administrador de control de servicios."
 

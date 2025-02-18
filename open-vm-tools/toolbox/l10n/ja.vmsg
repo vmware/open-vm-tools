@@ -1,5 +1,6 @@
 ##########################################################
-# Copyright (c) 2010-2017,2020-2022 VMware, Inc. All rights reserved.
+# Copyright (c) 2010-2024 Broadcom. All Rights Reserved.
+# The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -18,13 +19,13 @@
 
 arg.command = "コマンド"
 
-arg.config.key = "設定キー"
+arg.config.key = "構成キー"
 
-arg.config.operation = "設定操作"
+arg.config.operation = "構成操作"
 
-arg.config.section = "セクションの設定"
+arg.config.section = "セクションの構成"
 
-arg.config.value = "設定値"
+arg.config.value = "構成値"
 
 arg.devicename = "デバイス名"
 
@@ -58,7 +59,7 @@ disk.shrink.complete = "ディスクの圧縮が完了しました。\n"
 
 disk.shrink.conflict = "エラー。ツールボックスでディスクの圧縮が有効であると判断されましたが、ホストでは無効であると判断されています。\n\n ツールボックスをいったん閉じてから開いて、ホストと同期してください。\n"
 
-disk.shrink.disabled = "ディスクの圧縮はこの仮想マシンでは無効になっています。\n\nリンクされたクローン、リンクされたクローンの親、\n事前割り当て済みのディスク、スナップショット、またはその他の要因により、圧縮は無効になっています。\n詳細については、ユーザー マニュアルを参照してください。\n"
+disk.shrink.disabled = "ディスクの圧縮はこの仮想マシンでは無効になっています。\n\nリンク クローン、リンク クローンの親、\n事前割り当て済みのディスク、スナップショット、またはその他の要因により、圧縮は無効になっています。\n詳細については、ユーザー マニュアルを参照してください。\n"
 
 disk.shrink.error = "圧縮中にエラーが発生しました: %1$s\n"
 
@@ -70,11 +71,11 @@ disk.shrink.partition.notfound = "パーティション %1$s が見つかりま�
 
 disk.shrink.partition.unsupported = "パーティション %1$s は圧縮できません\n"
 
-disk.shrink.unavailable = "圧縮機能が使用できません。\n\n実行している VMware 製品のバージョンが古いか、開いている通信チャネルが多すぎることが原因として考えられます。\n\nVMware 製品のバージョンが古い場合は、アップグレードを検討してください。\n\n多数の通信チャネルを開いている場合は、仮想マシンをパワーオフしてから再開してください。\n"
+disk.shrink.unavailable = "古いバージョンの VMware 製品を実行しているか、\n\n開いている通信チャネルの数が多すぎるため、圧縮機能を使用できません。\n\n古いバージョンの VMware 製品を実行している場合は、アップグレードを検討してください。\n\n開いている通信チャネルの数が多すぎる場合は、仮想マシンをパワーオフしてから、再度パワーオンしてください。\n"
 
-disk.shrink.ignoreFreeSpaceWarnings = "圧縮プロセス中に表示されるディスク領域に関する警告はすべて無視してください。\n"
+disk.shrink.ignoreFreeSpaceWarnings = "圧縮プロセス中に表示されるディスク容量に関する警告はすべて無視してください。\n"
 
-disk.wipe.ignoreFreeSpaceWarnings = "ワイプ プロセス中に表示されるディスク領域に関する警告はすべて無視してください。\n"
+disk.wipe.ignoreFreeSpaceWarnings = "ワイプ プロセス中に表示されるディスク容量に関する警告はすべて無視してください。\n"
 
 disk.wiper.file.error = "エラー。ワイパー ファイルを作成できません。\n"
 
@@ -86,51 +87,51 @@ error.missing = "%1$s: %2$s が見つかりません\n"
 
 error.noadmin.posix = "%1$s: %2$s 操作を実行するには、root ユーザーである必要があります。\n"
 
-error.noadmin.win = "%1$s: %2$s 操作を実行するには、管理者権限が必要です。\nこれらのタスクを実行するには、管理者コマンド プロンプトを使用してください。\n"
+error.noadmin.win = "%1$s: %2$s 操作を実行するには、管理者権限が必要です。\nこれらのタスクを完了するには、管理者コマンド プロンプトを使用してください。\n"
 
 error.novirtual = "%1$s は仮想マシン内で実行する必要があります。\n"
 
-error.unknown = "%1$s: 不明な %2$s '%3$s'\n"
+error.unknown = "%1$s: 不明な %2$s「%3$s」\n"
 
-help.config = "%1$s: VMware Tools の設定を変更します\n使用方法: %2$s %3$s <サブコマンド>\n\nサブコマンド: \n   get <セクション> <キー>: <キー> の現在値を表示します\n   注: tools.conf に <キー> が存在しない場合は、その\n 値がグローバル設定から返されます (存在する場合)\n   set <セクション> <キー> <値>: <キー> を <値> に設定します\n\n   remove <セクション> <キー>: <キー> を削除します\n\n<セクション> には、logging、guestoperations、または guestinfo などのサポートされる任意のセクションを指定できます。\n<キー> には、任意の構成キーを指定できます。\n<値> には任意の値を指定できます。\n"
+help.config = "%1$s: VMware Tools の構成を変更します\n使用方法: %2$s %3$s <サブコマンド>\n\nサブコマンド: \n   get <セクション> <キー>: 指定された <キー> の現在値を表示します。または <セクション> のすべてのキーの値を表示します\n   注: tools.conf に <キー> が存在しない場合は、その\n 値がグローバル構成から返されます (存在する場合)\n   set <セクション> <キー> <値>: <キー> を <値> に設定します\n   remove <セクション> <キー>: <キー> を削除します\n\n<セクション> には、logging、guestoperations、guestinfo などのサポートされる任意のセクションを指定できます。\n<キー> には、任意の構成キーを指定できます。\n<値> には任意の値を指定できます。\n"
 
-help.device = "%1$s: 仮想マシンのハードウェア デバイスに関連する機能\n使用方法： %2$s %3$s <サブコマンド> [引数]\ndev にはデバイス名を指定します。\n\nサブコマンド：\n   enable <デバイス>： デバイス dev を有効にする\n   disable <デバイス>： デバイス dev を無効にする\n   list： 有効なデバイスを一覧表示\n   status <デバイス>： デバイスのステータスを出力\n"
+help.device = "%1$s: 仮想マシンのハードウェア デバイスに関連する機能\n使用方法: %2$s %3$s <サブコマンド> [引数]\ndev にはデバイス名を指定します。\n\nサブコマンド:\n   enable <デバイス>: デバイス dev を有効にする\n   disable <デバイス>: デバイス dev を無効にする\n   list: 有効なデバイスを一覧表示\n   status <デバイス>: デバイスのステータスを出力\n"
 
 help.disk = "%1$s: ディスク圧縮操作を実行\n使用方法: %2$s %3$s <サブコマンド> [引数]\n\nサブコマンド:\n   list: 使用可能な場所を一覧表示\n   shrink <場所>: 指定された場所のファイル システムをワイプおよび圧縮\n   shrinkonly: すべてのディスクを圧縮\n   wipe <場所>: 指定された場所のファイル システムをワイプ\n"
 
-help.globalconf = "%1$s: GuestStore からのグローバル設定のダウンロードを管理します\n使用方法: %2$s %3$s <サブコマンド>\n\nESX ゲストのみのサブコマンド:\n   enable: グローバル設定モジュールを有効にします\n   disable: グローバル設定モジュールを無効にします\n   refresh: GuestStore からのグローバル設定の新しいダウンロードをトリガします\n   status: グローバル設定モジュールのステータスを出力します\n"
+help.globalconf = "%1$s: GuestStore からのグローバル構成のダウンロードを管理します\n使用方法: %2$s %3$s <サブコマンド>\n\nESX ゲストのみのサブコマンド:\n   enable: グローバル構成モジュールを有効にします\n   disable: グローバル構成モジュールを無効にします\n   refresh: GuestStore からのグローバル構成の新しいダウンロードをトリガします\n   status: グローバル構成モジュールのステータスを出力します\n"
 
-help.gueststore = "%1$s: GuestStore からリソース コンテンツを取得します\n使用方法: %2$s %3$s <サブコマンド>\n\nESX ゲストのみのサブコマンド:\n   getcontent <リソース パス> <出力ファイル>: GuestStore からリソース コンテンツを取得し、出力ファイルに保存します。\n\n<リソース パス>は / で始まり、GuestStore 内の一意のリソースを表します。/ で終わる場合、デフォルトでは基盤となる「metadata.json」リソースを取得します。\n<出力ファイル> は、リソース コンテンツを保存するファイルのパスです。\n"
+help.gueststore = "%1$s: GuestStore からリソース コンテンツを取得します\n使用方法: %2$s %3$s <サブコマンド>\n\nESX ゲストのみのサブコマンド:\n   getcontent <リソース パス> <出力ファイル>: GuestStore からリソース コンテンツを取得し、出力ファイルに保存します。\n\n<リソース パス> は / で始まり、GuestStore 内の一意のリソースを表します。/ で終わる場合、デフォルトでは基盤となる「metadata.json」リソースを取得します。\n<出力ファイル> は、リソース コンテンツを保存するファイルのパスです。\n"
 
 help.hint = "詳細については、「%1$s %2$s%3$s%4$s」を参照してください。\n"
 
 help.info = "%1$s: ホストのゲスト情報を更新します\n使用方法: %2$s %3$s update <情報カテゴリ>\n\nサブコマンド:\n   update <情報カテゴリ>: <情報カテゴリ> で特定される情報を更新します\n<情報カテゴリ> には「network」を指定できます\n"
 
-help.logging = "%1$s: VMware Tools ログを変更します\n使用方法: %2$s %3$s level <サブコマンド> <サービス名> <レベル>\n\nサブコマンド:\n   get <サービス名>: 現在のレベルを表示します\n   注: tools.conf にレベルが存在しない場合は、その\n 値がグローバル設定から返されます (存在する場合)\n   set <サービス名> <レベル>: 現在のレベルを設定します\n\n<サービス名> は、vmsvc や vmusr などのサポートされているサービスを指定できます\n<レベル> は、エラー、重大、警告、情報、メッセージ、デバッグのいずれかを指定できます\n   デフォルトは %4$s です\n"
+help.logging = "%1$s: VMware Tools ログを変更します\n使用方法: %2$s %3$s level <サブコマンド> <サービス名> <レベル>\n\nサブコマンド:\n   get <サービス名>: 現在のレベルを表示します\n   注: tools.conf にレベルが存在しない場合は、その\n 値がグローバル構成から返されます (存在する場合)\n   set <サービス名> <レベル>: 現在のレベルを設定します\n\n<サービス名> には、vmsvc や vmusr などのサポートされているサービスを指定できます\n<レベル> には、エラー、重大、警告、情報、メッセージ、デバッグのいずれかを指定できます\n   デフォルトは %4$s です\n"
 
 help.main = "使用方法: %1$s <コマンド> [オプション] [サブコマンド]\n「%2$s %3$s <コマンド>」と入力すると、そのコマンドのヘルプを表示できます。\nVMware Tools のバージョンを確認するには「%4$s -v」と入力します。\nstdout 出力を抑止するには「-q」オプションを使用します。\nほとんどのコマンドではサブコマンドも使用されます。\n\n使用可能なコマンド: \n   config\n   device\n   disk (一部のオペレーティング システムでのみ使用可能)\n   globalconf (一部のオペレーティング システムでのみ使用可能)\n   gueststore (一部のオペレーティング システムでのみ使用可能)\n   info\n   logging\n   script\n   stat\n   timesync\n   upgrade (一部のオペレーティング システムでのみ使用可能)\n"
 
-help.script = "%1$s: 電源操作に対応して実行されるスクリプトを制御します\n使用方法: %2$s %3$s <power|resume|suspend|shutdown> <サブコマンド> [引数]\n\nサブコマンド:\n   enable: 指定されたスクリプトを有効にして、そのパスをデフォルトに復元します\n   disable: 指定されたスクリプトを無効にします\n   set <フル パス>: 指定されたスクリプトを指定されたパスに設定します\n   default: 指定されたスクリプトのデフォルトのパスを出力します\n   current: 指定されたスクリプトの現在のパスを出力します\n   注: tools.conf にパスが存在しない場合は、その\n 値がグローバル設定から返されます (存在する場合)\n"
+help.script = "%1$s: 電源操作に対応して実行されるスクリプトを制御します\n使用方法: %2$s %3$s <power|resume|suspend|shutdown> <サブコマンド> [引数]\n\nサブコマンド:\n   enable: 指定されたスクリプトを有効にして、そのパスをデフォルトに復元します\n   disable: 指定されたスクリプトを無効にします\n   set <フル パス>: 指定されたスクリプトを指定されたパスに設定します\n   default: 指定されたスクリプトのデフォルトのパスを出力します\n   current: 指定されたスクリプトの現在のパスを出力します\n   注: tools.conf にパスが存在しない場合は、その\n 値がグローバル構成から返されます (存在する場合)\n"
 
-help.stat = "%1$s: 役に立つゲストおよびホスト情報を出力\n使用方法: %2$s %3$s <サブコマンド>\n\nサブコマンド:\n   hosttime: ホスト時刻を出力\n   speed: CPU 速度 (MHz) を出力\nESX ゲストのみのサブコマンド:\n   sessionid: 現在のセッション ID を出力\n   balloon: メモリのバルーニング情報を出力\n   swap: メモリのスワップ情報を出力\n   memlimit: メモリの制限情報を出力\n   memres: メモリの予約情報を出力\n   cpures: CPU の予約情報を出力\n   cpulimit: CPU の制限情報を出力\n   raw [<エンコーディング> <統計名>]: RAW 統計情報を出力\n      <エンコーディング> には、「text'」、「json」、「xml」、「yaml」のいずれかを指定できます。\n      <統計名> には、セッション、ホスト、リソース、vscsi および\n      vnet が含まれます（vscsi などのいくつかの統計は、たとえば「vscsi scsi0:0」など、2 語になります）。\n      <エンコーディング> および <統計名>\n      の引数が指定されない場合、利用可能な統計が出力されます。\n"
+help.stat = "%1$s: 役に立つゲストおよびホスト情報を出力\n使用方法: %2$s %3$s <サブコマンド>\n\nサブコマンド:\n   hosttime: ホスト時刻を出力\n   speed: CPU 速度 (MHz) を出力\nESX ゲストのみのサブコマンド:\n   sessionid: 現在のセッション ID を出力\n   balloon: メモリのバルーニング情報を出力\n   swap: メモリのスワップ情報を出力\n   memlimit: メモリの制限情報を出力\n   memres: メモリの予約情報を出力\n   cpures: CPU の予約情報を出力\n   cpulimit: CPU の制限情報を出力\n   raw [<エンコーディング> <統計名>]: RAW 統計情報を出力\n      <エンコーディング> には、「text」、「json」、「xml」、「yaml」のいずれかを指定できます。\n      <統計名> には、セッション、ホスト、リソース、vscsi および\n      vnet が含まれます (vscsi などのいくつかの統計は、たとえば「vscsi scsi0:0」など、2 語になります)。\n      <エンコーディング> および <統計名>\n      の引数が指定されない場合、利用可能な統計が出力されます。\n"
 
-help.timesync = "%1$s: ゲスト OS の時刻の同期を制御するための機能\n使用方法: %2$s %3$s <サブコマンド>\n\nサブコマンド:\n   enable: 時刻の同期を有効にする\n   disable: 時刻の同期を無効にする\n   status: 時刻の同期の状態を出力\n"
+help.timesync = "%1$s: ゲスト OS の時刻の同期を制御するための機能\n使用方法: %2$s %3$s <サブコマンド>\n\nサブコマンド:\n   enable: 時刻の同期を有効にする\n   disable: 時刻の同期を無効にする\n   status: 時刻の同期のステータスを出力\n"
 
-help.upgrade = "%1$s: VMware Tools のアップグレードに関連する機能。\n使用方法: %2$s %3$s <サブコマンド> [引数]\nサブコマンド:\n   status： VMware Tools のアップグレード ステータスを確認\n   start: VMware Tools の自動アップグレードを開始\n\nアップグレードが機能するには、VMware Tools サービスを実行している必要があります。\n"
+help.upgrade = "%1$s: VMware Tools のアップグレードに関連する機能。\n使用方法: %2$s %3$s <サブコマンド> [引数]\nサブコマンド:\n   status: VMware Tools のアップグレード ステータスを確認\n   start: VMware Tools の自動アップグレードを開始\n\nアップグレードが機能するには、VMware Tools サービスを実行している必要があります。\n"
 
-globalconf.refresh.failed  = "globalconf モジュールが無効になっているため、'%1$s' に失敗しました。\n"
+globalconf.refresh.failed  = "globalconf モジュールが無効になっているため、「%1$s」に失敗しました。\n"
 
 globalconf.start_vmtools = "%1$s: %2$s サービスを開始しています。\n"
 
-globalconf.status = "globalconf モジュールのステータスは '%1$s' です\n"
+globalconf.status = "globalconf モジュールのステータスは「%1$s」です\n"
 
 globalconf.stop_vmtools = "%1$s: %2$s サービスを停止しています。\n"
 
-globalconf.update_config = "%1$s: 設定を更新しています。\n"
+globalconf.update_config = "%1$s: 構成を更新しています。\n"
 
 gueststore.content_size = "コンテンツ サイズ (バイト): "
 
-gueststore.error.client_lib = "'%1$s' に失敗しました。GuestStore クライアント ライブラリ エラー: %2$s。\n"
+gueststore.error.client_lib = "「%1$s」に失敗しました。GuestStore クライアント ライブラリ エラー: %2$s。\n"
 
 gueststore.progress = "\r進行状況: %1$d%%"
 
@@ -138,9 +139,9 @@ option.disabled = "無効"
 
 option.enabled = "有効"
 
-result.error.failed = "'%1$s' に失敗しました。詳細については、%2$s ログを確認してください。\n"
+result.error.failed = "「%1$s」に失敗しました。詳細については、%2$s ログを確認してください。\n"
 
-result.succeeded = "'%1$s' が正常に完了しました。\n"
+result.succeeded = "「%1$s」が正常に完了しました。\n"
 
 script.notfound = "%1$s は存在しません。\n"
 
@@ -148,7 +149,7 @@ script.operation = "操作"
 
 script.unknownop = "操作 %1$s のスクリプトがありません。\n"
 
-script.write.error = "設定書き込みエラー: %1$s\n"
+script.write.error = "構成書き込みエラー: %1$s\n"
 
 stat.balloon.failed = "バルーン メモリの取得に失敗しました: %1$s\n"
 
@@ -162,7 +163,7 @@ stat.get.failed = "統計の取得に失敗しました: %1$s\n"
 
 stat.getsession.failed = "セッション ID の取得に失敗しました: %1$s\n"
 
-stat.getspeed.failed = "プロセッサ速度を取得できません。\n"
+stat.getspeed.failed = "プロセッサ速度を取得できません。\\n"
 
 stat.gettime.failed = "ホスト時刻を取得できません。\n"
 
