@@ -2508,7 +2508,7 @@ Atomic_Sub64(Atomic_uint64 *var, // IN/OUT
 #endif
 #elif defined _MSC_VER
    ASSERT_ON_COMPILE(sizeof (__int64) == sizeof var->value);
-   _InterlockedExchangeAdd64((__int64 *)&var->value, (__int64)-val);
+   _InterlockedExchangeAdd64((__int64 *)&var->value, -(__int64)val);
 #else
 #error Atomic_Sub64 not implemented
 #endif
