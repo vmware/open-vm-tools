@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2013-2024 VMware, Inc. All rights reserved.
+ * Copyright (c) 2013-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -40,6 +41,9 @@
 #define _VM_BASIC_ASM_ARM64_H_
 
 #include "vm_basic_defs.h"
+#if defined VMKERNEL && defined VMK_ARM_NVSIM
+#include "vmk_arm_nvsim.h"
+#endif
 
 #if defined __cplusplus
 extern "C" {
@@ -375,11 +379,27 @@ GET_CURRENT_PC(void)
  *----------------------------------------------------------------------
  */
 
+#if defined VMKERNEL && defined VMK_ARM_NVSIM
+#define MRS(name) ({                                                          \
+   uint64 val;                                                                \
+   if (CONC(VMK_ARM_NVSIM_, name) == 0) {                                     \
+      asm volatile ("mrs %0, " XSTR(name) : "=r" (val) :: "memory");          \
+   } else if (CONC(VMK_ARM_NVSIM_, name) == 1) {                              \
+      asm volatile (".balign 8"   "\n\t"                                      \
+                    "hvc #0x4e56" "\n\t"                                      \
+                    "mrs %0, " XSTR(name) : "=r" (val) :: "memory");          \
+   } else if (CONC(VMK_ARM_NVSIM_, name) == 2) {                              \
+      val = 2 << 2 /* CURRENTEL_EL_2 */;                                      \
+   }                                                                          \
+   val;                                                                       \
+})
+#else
 #define MRS(name) ({                                                          \
    uint64 val;                                                                \
    asm volatile ("mrs %0, " XSTR(name) : "=r" (val) :: "memory");             \
    val;                                                                       \
 })
+#endif
 
 
 /*
@@ -399,8 +419,20 @@ GET_CURRENT_PC(void)
  *----------------------------------------------------------------------
  */
 
+#if defined VMKERNEL && defined VMK_ARM_NVSIM
+#define MSR(name, val) do {                                                   \
+   if (CONC(VMK_ARM_NVSIM_, name) == 0) {                                     \
+      asm volatile ("msr " XSTR(name) ", %0" :: "r" (val) : "memory");        \
+   } else if (CONC(VMK_ARM_NVSIM_, name) == 1) {                              \
+      asm volatile (".balign 8"   "\n\t"                                      \
+                    "hvc #0x4e56" "\n\t"                                      \
+                    "msr " XSTR(name) ", %0" :: "r" (val) : "memory");        \
+   }                                                                          \
+} while (0)
+#else
 #define MSR(name, val)                                                        \
    asm volatile ("msr " XSTR(name) ", %0" :: "r" (val) : "memory")
+#endif
 
 #define MSR_IMMED(name, val)                                                  \
    asm volatile ("msr " XSTR(name) ", %0" :: "i" (val) : "memory")
