@@ -46,6 +46,12 @@
 #include "vmci_sockets.h"
 #endif
 
+/*
+ * The number of RPC channel errors to reasonably indicate that the single allowed toolbox-dnd
+ * channel is currently in use by another process vmusr channel errors before quitting the vmusr
+ * process start-up. Value used to quit vmusr process at start-up
+ */
+#define VMUSR_CHANNEL_MAX_RPC_ERRS 5
 
 
 /**
@@ -405,11 +411,10 @@ ToolsCore_InitRpc(ToolsServiceState *state)
       size_t i;
 
 #if !defined(_WIN32)
-
       /* For the *nix user service app. */
       if (TOOLS_IS_USER_SERVICE(state)) {
          failureCb = ToolsCoreAppChannelFail;
-         errorLimit = ToolsCore_GetVmusrLimit(state);
+         errorLimit = VMUSR_CHANNEL_MAX_RPC_ERRS;
       }
 #endif
 
