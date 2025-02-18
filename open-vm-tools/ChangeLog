@@ -1,3 +1,238 @@
+commit 6019f14e067365aa72aef8859b9e55abf7ab87d5
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Feb 18 01:30:18 2025 -0800
+
+    Add the missed copyright year update to multiple files.
+
+commit 9c7626bb77e8a2153265b125cc359118ce3ae19b
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Feb 18 01:13:56 2025 -0800
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 0a9ad12af8c52eb55d7fad2989471a37e6391094
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Feb 18 01:13:56 2025 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 45922f2dbfd3b15e61898bf48d61d108c97cdee3
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Feb 18 01:13:56 2025 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 92f885b49bd4a7db392cc8b0cdb8ad25cf59e6f4
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Feb 18 01:13:56 2025 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit b29e809bed8be4f3a5e207589674f122f7907c80
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Feb 18 01:13:56 2025 -0800
+
+    [componentMgr] salt-minion - update integration script to version 2024.12.05
+    
+    svtminion:
+    New release (2024.12.05) of the salt-minion integration script.
+    o Supports the new repository locations at packages.broadcom.com.
+    o Only supports Salt 3006 and higher with new Broadcom infrastructure.
+    o New return code 107 (Installed but Stopped); used when the service is
+    installed but stopped. Added to help with customer case where the service
+    remains 'not running' due to user action.
+    NOTE: Fixed line 31 apostrophe being an unicode homoglyph in svtminion.ps1
+    validated the downloaded files sha256 before that change.
+    
+    componentMgr:
+    Update component manager to support the new return code 107.
+    return code: 107
+    string id: INSTALLEDSTOPPED
+    string message: Installed but Stopped.
+
+commit ed65ddb338dee175b9e5da16ec68fb904e9da17e
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Feb 18 01:13:55 2025 -0800
+
+    Bump the VMware Tools version to 13.1.0 on "devel" branch..
+    
+    Adding the tag "TWEEZERS" to the 13.0.0 version.
+
+commit bae3ef8e56505c8a77c9b2c8e75866481b89a740
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Feb 18 01:13:55 2025 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 53b42c120cc2c9781cfdc42a48a12c179ad38368
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Feb 18 01:13:55 2025 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit ec922a95c5a10f31ca7db4f1690dd7bb24d44f68
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Feb 18 01:13:55 2025 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 2bff25dd35d8b3cb90809d2798468188e0b3df5d
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Feb 18 01:13:55 2025 -0800
+
+    Fix function pointer definition mismatch
+    
+    Caught with -std=c23 option which is the default for gcc-15
+    
+    Pull request: https://github.com/vmware/open-vm-tools/pull/751
+    Addresses issue: https://github.com/vmware/open-vm-tools/issues/750
+
+commit 1a9389c157c7cef9cf2db022fe6d86878a154cb0
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Feb 18 01:13:55 2025 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 91a97f284a16251674b385c9c75b2306cbdcb1f4
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Feb 18 01:13:55 2025 -0800
+
+    Fix a couple of memory leaks in drag-and-drop/copy-paste code:
+    
+    * `CopyPasteRpcV3::HandleMsg` calls `CPClipboard_Unserialize`
+    which allocates memory to the supplied `Clipboard`
+    structure, but it neglected to call `CPClipboard_Destroy`
+    to free it when done.  Also update the documentation for
+    `CPClipboard_Unserialize` to make the contract more
+    explicit.
+    * `DnD_SetCPClipboardFromLocalText` completely neglected to
+    free its destination buffer.
+    
+    Bonus cleanup:
+    
+    * Make some pointers `const` (which also allows us to remove
+    some casts).
+    * Replace a call to `UNICODE_RELEASE_UTF16` with `free` since
+    the memory was allocated by lib/dnd with `malloc` and was
+    not allocated by lib/unicode.
+
+commit 00c5bd919c33fa92bdbcdb3991635f6847560dce
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Feb 18 01:13:55 2025 -0800
+
+    [VMX][GuestOps] VM Denial of Service through guestops API requests.
+    
+    Using PowerCLI Invoke-VMScript; an arbitrary 'ScriptText' payload can be sent
+    that will result in an internal vix request message that exceeds the
+    VIX_COMMAND_MAX_REQUEST_SIZE limit (64KB at writing).
+    
+    Some guestops implementation do not check the result of call to
+    VixMsg_AllocRequestMsg(), which can be NULL, before use; causing a panic and
+    the VM (vmx) to crash/coredump.
+    
+    The check for VIX_COMMAND_MAX_USER_INPUT_SIZE in foundryVMGuestOps.c are ported
+    to guestOps.c and additional checks are added to other site that call into
+    VixMsg_AllocRequestMsg() within guestOps.c.
+
+commit 49ea097bb345acb0dcc1112886362bed640d7dd5
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Feb 18 01:13:55 2025 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit f3f610d08a0de2cf25961de05f25dff4ab0d174c
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Feb 18 01:13:55 2025 -0800
+
+    open-vm-tools l10n message updates
+
+commit 147555ed7dd4665c682ed57121a3064e20be2cd5
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Feb 18 01:13:55 2025 -0800
+
+    Collect journalctl output in ascending time order
+    
+    Journalctl output should follow the same time-ascending
+    format as VMware logs.
+
+commit 8c7c0f3d38f65353285b33c107418de5364d925a
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Feb 18 01:13:55 2025 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 655176f89d159d2ac1101068512a6fa9a0f14a0d
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Feb 18 01:13:55 2025 -0800
+
+    Collect journalctl output and limit to 1 month of data.
+    Replace "!=" with "ne" for the $? comparison.
+
+commit 83afa810a556d1b173b6945d480eaa2580011977
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Feb 18 01:13:55 2025 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 5e1c6de09cee11d86b6e6b312f6560471905065a
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Feb 18 01:13:55 2025 -0800
+
+    Change to common source file not applicable to open-vm-tools at this time.
+
+commit e529904963eefcd90f6e69e8cfb5b4362bd65cc0
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Feb 18 01:13:55 2025 -0800
+
+    Remove the single VMware Tools User Process enforcement
+    override condition.
+    
+    When the mechanism to enforce the single vmusr process per vm
+    was established, a user configurable feature disablement switch
+    'maxChannelAttempts' (within tools.conf) was provided to override
+    this restriction (to avoid any regression).
+    
+    Since this is no longer needed, removing the 'ToolsCore_GetVmusrLimit'
+    function and avoid reading maxChannelAttempts from tools.conf
+
+commit 91ab8ec71d9f25eee9ded3c825b9bb8e7042a866
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Feb 18 01:13:55 2025 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 9ea6cf872c1118b9cab69d463165aeb5fef59121
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Feb 18 01:13:55 2025 -0800
+
+    Update kb and confluence links from vmware to broadcom
+    
+    Update kb and confluence links from vmware domain to broadcom
+    domain
+
+commit fec5bd33ce81f48c049fdb573726b69b37a483da
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Feb 18 01:13:55 2025 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 12343e22ad3e25abfe0664589e624e64385195bf
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Feb 18 01:13:55 2025 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit e0a12a75116600f6708ef66f80ccc0ebbdab13ac
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Wed Jan 8 07:32:51 2025 -0800
+
+    ====================================================================
+    The "stable-13.0.x" branch was created from the "devel" branch here.
+    ====================================================================
+    
+    Update ChangeLog with the granular push of Jan 07, 2025.
+    - plus ChangeLog update of Sep 24, 2024.
+
 commit 1f8f4a01b89394c8e42c49fa4e2aafa6587bf20b
 Author: Kruti Pendharkar <kp025370@broadcom.com>
 Date:   Tue Jan 7 22:05:53 2025 -0800
