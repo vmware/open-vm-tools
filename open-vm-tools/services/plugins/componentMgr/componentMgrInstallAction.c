@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2021-2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2021-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -15,6 +16,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA.
  *
  *********************************************************/
+
 
 /*
  * componentMgrInstallAction.c --
@@ -736,7 +738,8 @@ ComponentMgr_ExecuteComponentAction(int componentIndex) // IN
    } else if((Str_Strcmp(action, COMPONENTMGR_COMPONENTABSENT) == 0) &&
              (components[componentIndex].status == INSTALLED ||
              components[componentIndex].status == INSTALLFAILED ||
-             components[componentIndex].status == REMOVEFAILED)) {
+             components[componentIndex].status == REMOVEFAILED ||
+             components[componentIndex].status == INSTALLEDSTOPPED)) {
       installaction = ABSENT;
    } else {
       g_debug("%s: Action %s will not be executed for component %s with "
@@ -1031,7 +1034,7 @@ ComponentMgrCheckExecuteComponentAction(ToolsAppCtx *ctx,   // IN
     * Add the component to the guest only if it is NOTINSTALLED,
     * INSTALLFAILED or REMOVEFAILED.
     * Remove the component on the guest only if it is INSTALLED,
-    * INSTALLFAILED or REMOVEFAILED.
+    * INSTALLFAILED, REMOVEFAILED or INSTALLEDSTOPPED.
     */
    if((Str_Strcmp(action, COMPONENTMGR_COMPONENTPRESENT) == 0) &&
       (components[componentIndex].status == NOTINSTALLED ||
@@ -1041,7 +1044,8 @@ ComponentMgrCheckExecuteComponentAction(ToolsAppCtx *ctx,   // IN
    } else if((Str_Strcmp(action, COMPONENTMGR_COMPONENTABSENT) == 0) &&
              (components[componentIndex].status == INSTALLED ||
              components[componentIndex].status == INSTALLFAILED ||
-             components[componentIndex].status == REMOVEFAILED)) {
+             components[componentIndex].status == REMOVEFAILED ||
+             components[componentIndex].status == INSTALLEDSTOPPED)) {
       installaction = ABSENT;
    } else {
       components[componentIndex].statuscount -= 1;

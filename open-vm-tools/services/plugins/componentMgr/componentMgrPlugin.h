@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2021,2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2021-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -201,6 +202,9 @@ typedef enum InstallStatus
    UNMANAGED,               /* The component is installed on the guest OS, but
                              * is not managed (or manageable), through the
                              * component manager plugin.
+                             */
+   INSTALLEDSTOPPED,        /* The component is installed on the guest OS; but
+                             * is stopped.
                              */
    SCRIPTFAILED = 126,      /* The component script failed for some reason. */
    SCRIPTTERMINATED = 130   /* The component script terminated for some reason.
