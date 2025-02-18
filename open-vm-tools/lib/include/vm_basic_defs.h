@@ -331,6 +331,13 @@ Max(int a, int b)
     BYTES_2_PAGES(_size))
 #endif
 
+#ifndef VM_PAGES_SPANNED_4KB
+#define VM_PAGES_SPANNED_4KB(_addr, _size) \
+   (BYTES_2_PAGES_4KB(PAGE_OFFSET_4KB(_addr) + PAGE_OFFSET_4KB(_size) + \
+                      (PAGE_SIZE_4KB - 1)) + \
+    BYTES_2_PAGES_4KB(_size))
+#endif
+
 #ifndef KBYTES_SHIFT
 #define KBYTES_SHIFT 10
 #endif
