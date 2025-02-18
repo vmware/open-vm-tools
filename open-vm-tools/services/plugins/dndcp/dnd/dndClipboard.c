@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2007-2021 VMware, Inc. All rights reserved.
+ * Copyright (c) 2007-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -690,7 +691,8 @@ CPClipboard_Serialize(const CPClipboard *clip, // IN
  *
  * Side effects:
  *      The clip passed in should be empty, otherwise will cause memory leakage.
- *      On success, arguments found in buf are unserialized into clip.
+ *      On success, arguments found in buf are unserialized into clip, which
+ *      must be destroyed by calling CPClipboard_Destroy.
  *
  *----------------------------------------------------------------------------
  */
