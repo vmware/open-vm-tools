@@ -85,10 +85,10 @@ checkOutputDir()
    if [ ! -d "${OUTPUT_DIR}$dir" ]; then
       mkdir -p "${OUTPUT_DIR}$dir"
 
-      if [ $? != 0 ]; then
+      if [ $? -ne 0 ]; then
          banner "Could not create ${OUTPUT_DIR}$dir... " \
                 "Have you run out of disk space?" "Continuing"
-         return -1
+         return 1
       fi
    fi
    return 0
@@ -113,13 +113,13 @@ addfile()
 
    dir=`dirname "$file"`
    checkOutputDir "$dir"
-   if [ $? != 0 ]; then
+   if [ $? -ne 0 ]; then
       return $?
    fi
 
    # Ignore stdout and handle errors.
    cp -pRP "$file" "${OUTPUT_DIR}$dir" 2>/dev/null
-   if [ $? != 0 ]; then
+   if [ $? -ne 0 ]; then
       banner "Could not copy '$file' to the tar area."
    fi
 }
@@ -185,6 +185,22 @@ addLogFiles()
    done
 }
 
+# collect journalctl logs. Limit to 1 month of data to limit file size
+addJournalctl()
+{
+   journalctlDir="/tmp/journalctl"
+   checkOutputDir ${journalctlDir}
+   if [ $? -ne 0 ]; then
+      return
+   fi
+   # Limit to 50000 lines per file so it is easier to view in editor
+   # collect newest logs first
+   if which journalctl > /dev/null 2>&1 && which split > /dev/null 2>&1 ; then
+      journalctl -r --no-pager --since '1 month ago' 2> /dev/null | \
+         split -l 50000 -d - ${OUTPUT_DIR}${journalctlDir}/journalctl.out 2> /dev/null
+   fi
+}
+
 
 # runcmd($out, $cmd): executes the command redirected to a file
 runcmd()
@@ -194,12 +210,12 @@ runcmd()
 
    dir=`dirname "$outFileRelPath"`
    checkOutputDir "$dir"
-   if [ $? != 0 ]; then
+   if [ $? -ne 0 ]; then
       return
    fi
 
    "$@" > "$OUTPUT_DIR$outFileRelPath" 2>/dev/null
-   if [ $? != 0 ]; then
+   if [ $? -ne 0 ]; then
       echo 3
          banner "Either could not run $@ or could not write to" \
                 "${OUTPUT_DIR}$outFileRelPath" \
@@ -246,6 +262,7 @@ stageLinux()
    runcmd "/tmp/free.txt" free
 
    addLogFiles
+   addJournalctl
 }
 
 
@@ -277,7 +294,7 @@ cleanup()
    exitCode="$1"
 
    rm -rf "$OUTPUT_DIR"
-   if [ $? != 0 ]; then
+   if [ $? -ne 0 ]; then
       banner "$OUTPUT_DIR was not successfully removed." \
              "Please remove manually."
    fi
@@ -309,7 +326,7 @@ collectNetworkDetails()
 export PATH=/bin:/sbin:/usr/bin:/usr/sbin
 
 TARFILE=vm-`date +%Y-%m-%d`.$$.tar.gz
-VER=0.97
+VER=0.98
 
 # Parse args
 for option in $@
@@ -368,7 +385,7 @@ fi
 #   replacing the directory after we have created it, with a directory that has
 #   more lenient permissions.
 OUTPUT_DIR="`mktemp -d /tmp/vm-support.XXXXXX`"
-if [ $? != 0 ]; then
+if [ $? -ne 0 ]; then
    banner "Could not create a secure temporary directory. Exiting..."
    exit 1
 fi
@@ -427,7 +444,7 @@ banner "Creating tar archive..."
 # Set umask to make diagnostic information unreadable to other users to avoid
 # possible information leakage.
 (umask 0077 && tar $TAR_OPTS $TARFILE $OUTPUT_DIR)
-if [ $? != 0 ]; then
+if [ $? -ne 0 ]; then
 	banner "The tar process did not successfully complete!" \
 	       "If tar reports that a file changed while reading, please attempt " \
 	       "to rerun this script."
@@ -440,7 +457,7 @@ if [ $transfer -eq 1 ]; then
    banner "Transferring support data to the host..."
    vmware-xferlogs enc $TARFILE 2>/dev/null
 
-   if [ $? != 0 ]; then
+   if [ $? -ne 0 ]; then
       banner "Could not transfer the support data  successfully: either " \
              "vmware-xferlogs binary is not in the path, or you are not " \
              "in a virtual machine."
