@@ -194,9 +194,8 @@ addJournalctl()
       return
    fi
    # Limit to 50000 lines per file so it is easier to view in editor
-   # collect newest logs first
    if which journalctl > /dev/null 2>&1 && which split > /dev/null 2>&1 ; then
-      journalctl -r --no-pager --since '1 month ago' 2> /dev/null | \
+      journalctl --no-pager --since '1 month ago' 2> /dev/null | \
          split -l 50000 -d - ${OUTPUT_DIR}${journalctlDir}/journalctl.out 2> /dev/null
    fi
 }
