@@ -1047,8 +1047,6 @@ else
    #
    # Check for gtkmm 2.4.0 or greater.
    #
-
-
    if test "$with_gtkmm" != "no" -o "$with_gtkmm3" != "no"; then
       if test "$with_gtkmm3" != "no"; then
          AC_VMW_CHECK_LIBXX([gtkmm-3.0],
