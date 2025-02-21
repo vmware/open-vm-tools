@@ -1,5 +1,5 @@
 ##########################################################
-# Copyright (c) 2011-2017,2020-2022 VMware, Inc. All rights reserved.
+# Copyright (C) 2011-2017,2020 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -16,7 +16,7 @@
 #
 ##########################################################
 
-addsubj.fail = "%1$s : échec de l'ajout de l'alias pour l'utilisateur '%2$s' : %3$s.\n"
+addsubj.fail = "%1$s : échec de l'ajout de l'alias pour l'utilisateur « %2$s » : %3$s.\n"
 addsubj.success = "%1$s : alias ajouté\n"
 
 addoptions.comment = "commentaire sur le sujet"
@@ -25,9 +25,9 @@ addoptions.file = "Nom de fichier PEM"
 
 addoptions.global = "Ajouter le certificat au fichier de mappage global"
 
-addoptions.subject = "Le sujet SAML"
+addoptions.subject = "Sujet SAML"
 
-addoptions.username = "Utilisateur dont le magasin de certificats est ajouté à"
+addoptions.username = "Utilisateur dont le magasin de certificats est ajouté"
 
 addoptions.verbose = "Opération en mode détaillé"
 
@@ -44,12 +44,12 @@ cmdline.summary.comm = "commentaire"
 cmdline.summary.note = "Remarque : si aucun nom d'utilisateur n'est indiqué, %1$s supprime uniquement les alias mappés"
 
 list.comment = "Commentaire"
-list.count = "%1$s a trouvé %2$d alias pour l'utilisateur '%3$s'\n"
+list.count = "%1$s a trouvé %2$d alias pour l'utilisateur « %3$s »\n"
 
-list.error = "%1$s : échec de la création de la liste d'alias pour l'utilisateur '%2$s' : %3$s.\n"
+list.error = "%1$s : échec de la création de la liste d'alias pour l'utilisateur « %2$s » : %3$s.\n"
 list.subject = "Sujet"
 
-listmapped.count = "%1$s a trouvé %2$d alias mappés\n"
+listmapped.count = "%1$s a trouvé %2$d alias mappés\n"
 
 listmapped.error = "%1$s : échec de la création de la liste d'alias mappés : %2$s.\n"
 
@@ -57,21 +57,21 @@ listmapped.subject = "Sujet"
 
 listmapped.username = "Nom d'utilisateur"
 
-listoptions.username = "Utilisateur dont le magasin de certificats est demandé"
+listoptions.username = "Utilisateur dont le magasin de certificats est interrogé"
 
 listoptions.verbose = "Opération en mode détaillé"
 
-loadfile.fail = "%1$s : impossible de lire le fichier PEM '%2$s'\n"
+loadfile.fail = "%1$s : impossible de lire le fichier PEM « %2$s »\n"
 
 name.any = "<QUELCONQUE>"
 
-removesubj.fail = "%1$s : échec de la suppression de l'alias pour l'utilisateur '%2$s' : %3$s.\n"
+removesubj.fail = "%1$s : échec de la suppression de l'alias pour l'utilisateur « %2$s » : %3$s.\n"
 
 removesubj.success = "%1$s : alias supprimé\n"
 
 removeoptions.file = "Nom de fichier PEM"
 
-removeoptions.subject = "Le sujet SAML"
+removeoptions.subject = "Sujet SAML"
 removeoptions.username = "Utilisateur pour lequel le magasin de certificats est supprimé"
 
 removeoptions.verbose = "Opération en mode détaillé"
@@ -82,7 +82,7 @@ removeall.removefail = "%1$s : échec de la suppression de l'alias pour l'utili
 
 removeall.success = "%1$s : tous les alias supprimés\n"
 
-removealloptions.subject = "Le sujet SAML"
+removealloptions.subject = "Sujet SAML"
 removealloptions.username = "Utilisateur pour lequel le magasin de certificats est supprimé"
 
 removealloptions.verbose = "Opération en mode détaillé"

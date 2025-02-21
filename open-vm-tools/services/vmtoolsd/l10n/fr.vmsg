@@ -16,62 +16,62 @@
 #
 ##########################################################
 
-cmdline.background = "S'exécute en arrière-plan et crée un fichier PID."
+cmdline.background = "S'exécute en arrière-plan et crée un fichier pid."
 
 cmdline.background.pidfile = "pidfile"
 
-cmdline.blockfd = "Le descripteur de fichier pour le fs bloquant VMware."
+cmdline.blockfd = "Descripteur de fichier pour VMware blocking fs."
 
 cmdline.blockfd.fd = "fd"
 
-cmdline.commonpath = "Chemin vers les répertoires de plug-ins communs."
+cmdline.commonpath = "Chemin d'accès au répertoire de plug-in commun."
 
-cmdline.config = "Utilise le fichier de config pour le chemin donné."
+cmdline.config = "Utilisez le fichier de configuration dans le chemin spécifié."
 
-cmdline.debug = "S'exécute en mode débogage à l'aide du module d'extension spécifié."
+cmdline.debug = "S'exécute en mode débogage en utilisant le plug-in spécifié."
 
-cmdline.displayname = "Nom d'affichage du service (uniquement utilisé avec -i)."
+cmdline.displayname = "Nom d'affichage du service (utilisé uniquement avec -i)."
 
 cmdline.displayname.argument = "nom"
 
-cmdline.install = "Installe le service avec le Service Control Manager."
+cmdline.install = "Installe le service à l'aide du Gestionnaire de contrôle de service."
 
 cmdline.install.args = "args"
 
-cmdline.forceQuit = "Arrête une 'instance en cours d'exécution d'un service d'outils."
+cmdline.forceQuit = "Arrête une instance de service d'outils en cours d'exécution."
 
-cmdline.log = "Ignoré, conservé pour compatibilité descendante."
+cmdline.log = "Ignoré, conservé pour la compatibilité descendante."
 
-cmdline.name = "Nom du service en cours de démarrage."
+cmdline.name = "Nom du service démarré."
 
 cmdline.name.argument = "svcname"
 
 cmdline.path = "chemin"
 
-cmdline.pluginpath = "Chemin vers le répertoire des plug-ins."
+cmdline.pluginpath = "Chemin d'accès au répertoire de plug-in."
 
-cmdline.rpc = "Envoie une commande d'appel de procédure à distance à l'hôte puis quitte l'application."
+cmdline.rpc = "Envoie une commande RPC à l'hôte puis quitte le programme."
 
 cmdline.rpc.command = "commande"
 
-cmdline.rpcerror = "Impossible d'envoyer la commande à l'hyperviseur VMware."
+cmdline.rpcerror = "Impossible d'envoyer une commande à l'hyperviseur VMware."
 
 cmdline.cmdfile = "Envoie une commande d'appel de procédure à distance à l'hôte depuis un fichier, puis quitte l'application."
 
-cmdline.cmdfile.command = "fichier de commandes"
+cmdline.cmdfile.command = "fichier de commande"
 
 cmdline.cmdfile.rpcerror = "Impossible d'envoyer la commande à l'hyperviseur VMware depuis le fichier."
 
 cmdline.cmdfile.read = "Impossible de lire la commande depuis le fichier %1$s.\n"
 
 
-cmdline.state = "Transfère l'état interne d'un service en cours d'exécution dans les journaux."
+cmdline.state = "Transmet aux journaux l'état interne d'une instance de service en cours d'exécution."
 
 cmdline.uinputfd = "Descripteur de fichier pour le périphérique uinput."
 
 cmdline.uinputfd.fd = "fd"
 
-cmdline.uninstall = "Désinstalle le service du Gestionnaire de contrôle du service."
+cmdline.uninstall = "Désinstalle le service du Gestionnaire de contrôle de service."
 
-cmdline.version = "Imprime la version démon et quitte l'application."
+cmdline.version = "Imprime la version du démon puis quitte le programme."
 
