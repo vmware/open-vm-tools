@@ -1,5 +1,5 @@
 # This is a generic pam config file for open-vm-tools
-# See https://kb.vmware.com/s/article/78251 for advice to use
+# See https://knowledge.broadcom.com/external/article?legacyId=78251 for advice to use
 # common authentication mechanisms.
 auth       required         pam_shells.so
 auth       sufficient       pam_unix.so shadow
