@@ -1,3 +1,69 @@
+commit 80421bf6a995839aac1a4adb98437161411f5ce4
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Fri Feb 21 05:54:27 2025 -0800
+
+    [componentMgr] salt-minion - update integration script to version 2024.12.05
+    
+    svtminion:
+    New release (2024.12.05) of the salt-minion integration script.
+    o Supports the new repository locations at packages.broadcom.com.
+    o Only supports Salt 3006 and higher with new Broadcom infrastructure.
+    o New return code 107 (Installed but Stopped); used when the service is
+    installed but stopped. Added to help with customer case where the service
+    remains 'not running' due to user action.
+    NOTE: Fixed line 31 apostrophe being an unicode homoglyph in svtminion.ps1
+    validated the downloaded files sha256 before that change.
+    
+    componentMgr:
+    Update component manager to support the new return code 107.
+    return code: 107
+    string id: INSTALLEDSTOPPED
+    string message: Installed but Stopped.
+
+commit 19fec7a1301abf9c2275c8ef8a06252e7dc346ef
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Fri Feb 21 05:54:27 2025 -0800
+
+    Fix function pointer definition mismatch
+    
+    Caught with -std=c23 option which is the default for gcc-15
+    
+    Pull request: https://github.com/vmware/open-vm-tools/pull/751
+    Addresses issue: https://github.com/vmware/open-vm-tools/issues/750
+
+commit cdeaf2961ff6921c649091202edd5407176ae2f7
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Fri Feb 21 05:54:27 2025 -0800
+
+    Collect journalctl output and limit to 1 month of data.
+    Replace "!=" with "ne" for the $? comparison.
+
+commit a7581e80b6a01c5716a23f5dc65703294be01aba
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Fri Feb 21 05:54:27 2025 -0800
+
+    Update kb and confluence links from vmware to broadcom
+    
+    Update kb and confluence links from vmware domain to broadcom
+    domain
+
+commit 8e4eb3fb772f6600712478f3d375b8fb03651770
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Fri Feb 21 05:54:27 2025 -0800
+
+    open-vm-tools l10n message updates
+
+commit e0a12a75116600f6708ef66f80ccc0ebbdab13ac
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Wed Jan 8 07:32:51 2025 -0800
+
+    ====================================================================
+    The "stable-13.0.x" branch was created from the "devel" branch here.
+    ====================================================================
+    
+    Update ChangeLog with the granular push of Jan 07, 2025.
+    - plus ChangeLog update of Sep 24, 2024.
+
 commit 1f8f4a01b89394c8e42c49fa4e2aafa6587bf20b
 Author: Kruti Pendharkar <kp025370@broadcom.com>
 Date:   Tue Jan 7 22:05:53 2025 -0800
