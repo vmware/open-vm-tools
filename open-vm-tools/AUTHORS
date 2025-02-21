@@ -101,3 +101,5 @@ Joseph Allen    Updated NetworkManager calls in suspend/resume scripts
 Brennan Kinney  Revise settings for vmware-user.desktop
                 - https://github.com/vmware/open-vm-tools/pull/668
 
+Rudy Heitbaum   Fix build when compiling with -std=c23
+                - https://github.com/vmware/open-vm-tools/pull/751

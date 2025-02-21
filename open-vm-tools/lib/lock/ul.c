@@ -29,7 +29,7 @@
 static Bool mxInPanic = FALSE;  // track when involved in a panic
 static Bool mxUserCollectLockingTree = FALSE;
 
-Bool (*MXUserTryAcquireForceFail)() = NULL;
+Bool (*MXUserTryAcquireForceFail)(const char *name) = NULL;
 
 static MX_Rank (*MXUserMxCheckRank)(void) = NULL;
 static void (*MXUserMxLockLister)(void) = NULL;
