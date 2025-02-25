@@ -152,52 +152,55 @@
 
 /* ESX release versioning scheme:
  *
- * <major>.<minor>.<update>-<quarter>.<patch>
+ * <major>.<minor>.<maintenance>.<patch>
  *
  * This maps to MACROs:
  *
- * <MAJOR>.<MINOR>.<MAINT>-<UPDATE>.<PATCH>
+ * <MAJOR>.<MINOR>.<MAINT>.<PATCH>
  *
  * The reason of the mismatches is that scons assumes all products would define
  * macros in the same style.
  *
  * Rules for updating macros:
  *
- * Set MAINT (update) to 0 for all initial GA/pre-release build.  Increment for
+ * Set MINOR to 0 for all initial GA/pre-release build.  Increment for
  * each on-prem update release.
  *
- * Set UPDATE (quarter) to 0 when MAJOR/MINOR changes.  Increment with each
- * quarterly release.
+ * Set MAINT to 0 for all update release builds.  Increment it for
+ * each on-prem maintenance release.
  *
- * Set PATCH to 0 for all initial GA/experimental builds.  Increment it for
+ * Set PATCH to 0 for all initial maintenance builds.  Increment it for
  * each build that will be delivered externally.
  *
  * THEORETICAL EXAMPLES:
  *
- * 7.0.0-0.0: Pe-release/GA
- * 7.0.0-0.1: Patch 1
- * 7.0.0-1.2: Patch 2 / quarterly release 1
- * 7.0.1-2.3: Update 1 / quarterly release 2
- * 7.0.1-3.4: Patch 3 / quarterly release 3
- * 7.0.2-5.5: Update 2 / quarterly release 5
+ * 9.0.0.0: Pre-release/GA
+ * 9.1.0.0: Update 1
+ * 9.1.1.2000: Emergency Patch 20
+ * 9.1.1.2010: Hot Patch 10 on Emergency Patch 20
  */
 #define ESX_VERSION_MAJOR "9"
-#define ESX_VERSION_MINOR "0"
-#define ESX_VERSION_MAINT "0" // 0 = Pre-release/GA, 3 = Update 3
-#define ESX_VERSION_UPDATE ESX_VERSION_MAINT // ESX's own update level
+#define ESX_VERSION_MINOR "0" // Minor or update version
+#define ESX_VERSION_MAINT "0" // 0 = Pre-release/GA, 3 = maintenance release 3
+#define ESX_VERSION_UPDATE ESX_VERSION_MINOR // ESX's update level: 9.0 semantic
 
 #define ESX_VERSION ESX_VERSION_MAJOR "." ESX_VERSION_MINOR "." \
-                    ESX_VERSION_UPDATE
+                    ESX_VERSION_MAINT
 #define ESX_VERSION_THIRD_PARTY ESX_VERSION_MAJOR ESX_VERSION_MINOR \
-                                ESX_VERSION_UPDATE
+                                ESX_VERSION_MAINT
 
-#define ESX_RELEASE_UPDATE "0" // Quarterly release
-#define ESX_RELEASE_PATCH "0"  // 0 = experimental
-#define ESX_RELEASE_QUARTERLY ESX_RELEASE_UPDATE // ESX's own quarterly release
-#define ESX_RELEASE ESX_RELEASE_QUARTERLY "." ESX_RELEASE_PATCH
+#define ESX_RELEASE_UPDATE "0" // Dummy; Retired in 9.0
+
+/* Major/minor/maintenance release: 0
+ * Emergency patch: 4 digit EP00
+ * Hot patch: 4 digit EPHP
+ * Initial value: 0
+ */
+#define ESX_RELEASE_PATCH "0"
+#define ESX_RELEASE ESX_RELEASE_PATCH
 
 // ESX release versioning string -
-//    <major>.<minor>.<update>-<quarter>.<patch>.<buildid>
+//    <major>.<minor>.<maint>-<patch>.<buildid>
 //MARKER_FAST_REMOVE_START
 #define ESX_RELEASE_VERSION_STR ESX_VERSION "-" ESX_RELEASE "." \
                                 XSTR(BUILD_NUMBER_NUMERIC)
