@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2009-2019 VMware, Inc. All rights reserved.
+ * Copyright (c) 2009-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -431,7 +432,7 @@ Util_Memcpy(void *dest,      // OUT:
       } else if ((align & 3) == 0) {
          __asm__ __volatile__("\t"
                                "cld"            "\n\t"
-                               "rep ; movsd"    "\n"
+                               "rep ; movsl"    "\n"
                                : "=c" (dummy0), "=D" (dummy1), "=S" (dummy2)
                                : "0" (count >> 2), "1" (dest), "2" (src)
                                : "memory", "cc"
