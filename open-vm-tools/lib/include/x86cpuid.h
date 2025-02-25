@@ -1525,6 +1525,7 @@ FLAG( 821,  0, EAX,  9,  1, NO_SMMCTL_MSR,                       NO,    0 ) \
 FLAG( 821,  0, EAX, 10,  1, AMD_FAST_SHORT_STOSB,                YES,  20 ) \
 FLAG( 821,  0, EAX, 11,  1, AMD_FAST_SHORT_CMPSB,                YES,  20 ) \
 FLAG( 821,  0, EAX, 13,  1, PREFETCHCTL_MSR,                     NO,    0 ) \
+FLAG( 821,  0, EAX, 16,  1, OPCODE_0F017_RECLAIM,                YES,  22 ) \
 FLAG( 821,  0, EAX, 17,  1, CPL3_CPUID_GP,                       NO,    0 ) \
 FLAG( 821,  0, EAX, 18,  1, EPSF,                                NO,    0 ) \
 FLAG( 821,  0, EAX, 19,  1, FAST_REP_SCASB,                      YES,  22 ) \
