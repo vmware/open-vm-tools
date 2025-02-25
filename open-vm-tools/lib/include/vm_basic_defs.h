@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2003-2024 Broadcom. All Rights Reserved.
+ * Copyright (c) 2003-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -319,6 +319,10 @@ Max(int a, int b)
 
 #ifndef PAGES_2_BYTES
 #define PAGES_2_BYTES(_npages)  (((uint64)(_npages)) << PAGE_SHIFT)
+#endif
+
+#ifndef PAGES_2_BYTES_4KB
+#define PAGES_2_BYTES_4KB(_npages)  (((uint64)(_npages)) << PAGE_SHIFT_4KB)
 #endif
 
 #ifndef VM_PAGE_BASE
