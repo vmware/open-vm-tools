@@ -630,6 +630,8 @@ FLAG(   7,  1, EDX, 13,  1, UTMR,                                NO,    0 ) \
 FLAG(   7,  1, EDX, 14,  1, PREFETCHI,                           YES,  21 ) \
 FLAG(   7,  1, EDX, 15,  1, USER_MSR,                            NO,    0 ) \
 FLAG(   7,  1, EDX, 18,  1, CET_SSS,                             NO,    0 ) \
+FLAG(   7,  1, EDX, 19,  1, AVX10,                               NO,    0 ) \
+FLAG(   7,  1, EDX, 21,  1, APX_F,                               NO,    0 ) \
 FLAG(   7,  2, EDX,  0,  1, PSFD,                                YES,  20 ) \
 FLAG(   7,  2, EDX,  1,  1, IPRED_CTRL,                          YES,  21 ) \
 FLAG(   7,  2, EDX,  2,  1, RRSBA_CTRL,                          YES,  21 ) \
@@ -637,9 +639,7 @@ FLAG(   7,  2, EDX,  3,  1, DDPD_U,                              YES,  21 ) \
 FLAG(   7,  2, EDX,  4,  1, BHI_CTRL,                            YES,  21 ) \
 FLAG(   7,  2, EDX,  5,  1, MCDT_NO,                             NO,    0 ) \
 FLAG(   7,  2, EDX,  6,  1, UC_LOCK_DISABLE,                     NO,    0 ) \
-FLAG(   7,  2, EDX,  7,  1, MONITOR_MITG_NO,                     NO,    0 ) \
-FLAG(   7,  2, EDX, 19,  1, AVX10,                               NO,    0 ) \
-FLAG(   7,  2, EDX, 21,  1, APX_F,                               NO,    0 )
+FLAG(   7,  2, EDX,  7,  1, MONITOR_MITG_NO,                     NO,    0 )
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_9                                            \
