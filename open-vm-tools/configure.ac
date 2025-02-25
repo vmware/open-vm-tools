@@ -1,5 +1,5 @@
 ################################################################################
-### Copyright (c) 2007-2024 Broadcom. All Rights Reserved.
+### Copyright (c) 2007-2025 Broadcom. All Rights Reserved.
 ### The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
 ###
 ### Configure script for building the VMware OSS Tools.
@@ -879,12 +879,12 @@ if test "$enable_vgauth" = "yes" ; then
    AC_VMW_DEFAULT_FLAGS([XMLSEC1])
    AC_VMW_CHECK_LIB([xmlsec1],
                      [XMLSEC1],
-                     [],
+                     [xmlsec1],
                      [xmlsec1-config],
                      [],
                      [xmlsec/xmlsec.h],
                      [xmlSecCheckVersionExt],
-                     [XMLSEC1_VER=`pkg-config --modversion xmlsec1`
+                     [XMLSEC1_VER=`$PKG_CONFIG --modversion xmlsec1`
                       xmlsec1_major_version="`echo $XMLSEC1_VER | cut -f1 -d. | cut -f1 -d-`"
                       xmlsec1_minor_version="`echo $XMLSEC1_VER | cut -f2 -d. | cut -f1 -d-`"
                       xmlsec1_micro_version="`echo $XMLSEC1_VER | cut -f3 -d. | cut -f1 -d-`"
