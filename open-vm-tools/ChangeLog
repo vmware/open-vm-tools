@@ -1,3 +1,91 @@
+commit 3d84ad3cb5c0b3cd89753ec8d340037e91b9ba38
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Feb 25 01:29:11 2025 -0800
+
+    Update the AC_VMW_CHECK_LIB fields for xmlsec1 library.
+    
+    Currently, the library's custom "config" (xmlsec1-config)
+    is being used to determine compiler and linker flags.
+    Customer reported cross compiler problem with the xmlsec1-config
+    usage and suggested the below changes to use pkg-config instead.
+    
+    o Pass library name as 3rd parameter to AC_VMW_CHECK_LIB Macro
+      to determine the compiler and linker flags via pkg-config.
+    o Also use the predefined 'PKG_CONFIG' variable rather than hardcoding
+      'pkg-config'
+    
+    Pull request: https://github.com/vmware/open-vm-tools/pull/732
+
+commit 28f0ffcfc76fa3d73653904f6f2cb51b4f37d93c
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Feb 25 01:29:11 2025 -0800
+
+    Provide a tools.conf setting to disable timesync plugin
+    
+    This change intends to address a customer issue that requires an
+    in-guest config to disable timesync without having to reboot VM or
+    restart. Although we have some ways to implement it from host side,
+    customer claimed the guest administator may not be the administrator
+    of vSphere so that an in-guest approach is still needed.
+    
+    This change adds two config options under "timeSync" group:
+    - disable-all: This disables all time sync including one-time sync
+      and periodic sync.
+    - disable-periodic: This disables periodic sync only.
+      Note we cannot disable one-time sync and keep periodic sync enabled
+      as this is not allowed according to the product design.
+    
+    Addresses Issue: https://github.com/vmware/open-vm-tools/issues/302
+
+commit 4c58276668b6a6b608f99203204e315bbf040f53
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Feb 25 01:29:11 2025 -0800
+
+    Fix a couple of memory leaks in drag-and-drop/copy-paste code:
+    
+    * `CopyPasteRpcV3::HandleMsg` calls `CPClipboard_Unserialize`
+    which allocates memory to the supplied `Clipboard`
+    structure, but it neglected to call `CPClipboard_Destroy`
+    to free it when done.  Also update the documentation for
+    `CPClipboard_Unserialize` to make the contract more
+    explicit.
+    * `DnD_SetCPClipboardFromLocalText` completely neglected to
+    free its destination buffer.
+    
+    Bonus cleanup:
+    
+    * Make some pointers `const` (which also allows us to remove
+    some casts).
+    * Replace a call to `UNICODE_RELEASE_UTF16` with `free` since
+    the memory was allocated by lib/dnd with `malloc` and was
+    not allocated by lib/unicode.
+
+commit cd4c71ad389406ad5d20d5de66aabaea13ab610f
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Feb 25 01:29:11 2025 -0800
+
+    Fix the assembler warning
+    
+    The Warning "found movsd; assuming movsl was meant" was noticed while
+    building open-vm-tools with gcc 12.2.0 (on Debian 12.2.0-14).
+    It was because of the change https://sourceware.org/bugzilla/show_bug.cgi?id=29525
+    made to the GNU assembler code (GNU Binutils for Debian) 2.39.90.20221231.
+    
+    Replace the instruction "movsd" with "movsl" to avoid this warning.
+
+commit 1fbe46b675e7f85a525df2af4cb7f2a43043f9a5
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Feb 25 01:29:11 2025 -0800
+
+    Fix copyright years.
+
+commit e336623005c9907122bd0df701d28c04db7df6e0
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Fri Feb 21 06:36:35 2025 -0800
+
+    Update ChangeLog with the granular push of Feb 21, 2025.
+    - plus ChangeLog update of Jan 08, 2025.
+
 commit 80421bf6a995839aac1a4adb98437161411f5ce4
 Author: Kruti Pendharkar <kp025370@broadcom.com>
 Date:   Fri Feb 21 05:54:27 2025 -0800
