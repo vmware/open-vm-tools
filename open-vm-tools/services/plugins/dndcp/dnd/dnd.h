@@ -231,10 +231,10 @@ HGLOBAL DnD_CreateHDropForGuest(const char *path,
                                 const char *fileList);
 size_t DnD_CPStringToLocalString(const char *bufIn,
                                  utf16_t **bufOut);
-size_t DnD_LocalStringToCPString(utf16_t *bufIn,
+size_t DnD_LocalStringToCPString(const utf16_t *bufIn,
                                  char **bufOut);
 Bool DnD_SetCPClipboardFromLocalText(CPClipboard *clip,
-                                     utf16_t *bufIn);
+                                     const utf16_t *bufIn);
 Bool DnD_SetCPClipboardAndTruncateLocalText(CPClipboard *clip,
                                             utf16_t *bufIn);
 Bool DnD_SetCPClipboardFromLocalRtf(CPClipboard *clip,

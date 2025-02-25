@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2007-2017, 2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2007-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -158,8 +159,8 @@ DynBuf *DnDMsg_GetArg(DnDMsg *msg, uint32 arg);
 Bool DnDMsg_AppendArg(DnDMsg *msg, void *buf, size_t len);
 Bool DnDMsg_Serialize(DnDMsg *msg, DynBuf *buf);
 
-DnDMsgErr DnDMsg_UnserializeHeader(DnDMsg *msg, void *buf, size_t len);
-DnDMsgErr DnDMsg_UnserializeArgs(DnDMsg *msg, void *buf, size_t len);
+DnDMsgErr DnDMsg_UnserializeHeader(DnDMsg *msg, const void *buf, size_t len);
+DnDMsgErr DnDMsg_UnserializeArgs(DnDMsg *msg, const void *buf, size_t len);
 
 #if defined(__cplusplus)
 }  // extern "C"
