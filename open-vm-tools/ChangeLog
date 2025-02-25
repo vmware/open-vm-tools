@@ -1,3 +1,174 @@
+commit 983eb55c552e171f062dd9a7322ff2946280ae6b
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Feb 24 17:42:25 2025 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit f2e50a0129d764771a1c992a134621ff0c991ef6
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Feb 24 17:42:24 2025 -0800
+
+    Minor fix to the debug log about timesync being disabled
+    
+    This change intends to log which type of timesync has been disabled to
+    avoid potential confusion.
+
+commit cfc050557f0366e5bbfffdf414eb462f8b3e3e5c
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Feb 24 17:42:24 2025 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit df5b7ec235693eabc0f919f0b519cfa5c69c02e9
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Feb 24 17:42:24 2025 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 7c196f802f171d15c74843ddfc7779ca0fdd7ae8
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Feb 24 17:42:24 2025 -0800
+
+    Update the AC_VMW_CHECK_LIB fields for xmlsec1 library.
+    
+    Currently, the library's custom "config" (xmlsec1-config)
+    is being used to determine compiler and linker flags.
+    Customer reported cross compiler problem with the xmlsec1-config
+    usage and suggested the below changes to use pkg-config instead.
+    
+    o Pass library name as 3rd parameter to AC_VMW_CHECK_LIB Macro
+      to determine the compiler and linker flags via pkg-config.
+    o Also use the predefined 'PKG_CONFIG' variable rather than hardcoding
+      'pkg-config'
+    
+    Pull request: https://github.com/vmware/open-vm-tools/pull/732
+
+commit cd2b9c026b38eede2869e6bd05f86becc69b1b21
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Feb 24 17:42:24 2025 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 3f59591b62d4e8e9ed3a434f0a89fbeef21b0994
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Feb 24 17:42:24 2025 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 5861502279bc9c2b7e989ba7712fc9f868d4cf1e
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Feb 24 17:42:24 2025 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 8586985fff7d7b4d35a21935743a7826ab3fc34e
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Feb 24 17:42:24 2025 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 7a151f2adb1151da393482c9c754c8cbf676371d
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Feb 24 17:42:24 2025 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit bd714357476424cd3f6a3752ab3ca36da2c76a32
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Feb 24 17:42:24 2025 -0800
+
+    Provide a tools.conf setting to disable timesync plugin
+    
+    This change intends to address a customer issue that requires an
+    in-guest config to disable timesync without having to reboot VM or
+    restart. Although we have some ways to implement it from host side,
+    customer claimed the guest administator may not be the administrator
+    of vSphere so that an in-guest approach is still needed.
+    
+    This change adds two config options under "timeSync" group:
+    - disable-all: This disables all time sync including one-time sync
+    and periodic sync.
+    - disable-periodic: This disables periodic sync only.
+    Note we cannot disable one-time sync and keep periodic sync enabled
+    as this is not allowed according to the product design.
+    
+    Addresses Issue: https://github.com/vmware/open-vm-tools/issues/302
+
+commit b2ec2324d0c0d3274a9ca7edb518c1b9dc10df84
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Feb 24 17:42:24 2025 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit cfab3e3b3f2a92086d2307d8d33c9e860654990f
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Feb 24 17:42:24 2025 -0800
+
+    Fix the assembler warning
+    
+    The Warning "found movsd; assuming movsl was meant" was noticed while
+    building open-vm-tools with gcc 12.2.0 (on Debian 12.2.0-14).
+    It was because of the change https://sourceware.org/bugzilla/show_bug.cgi?id=29525
+    made to the GNU assembler code (GNU Binutils for Debian) 2.39.90.20221231.
+    
+    Replace the instruction "movsd" with "movsl" to avoid this warning.
+
+commit dba73d62165b726d25249002bae50f902b4d7890
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Feb 24 17:42:24 2025 -0800
+
+    Fix copyright years.
+
+commit ae4edffc0dd7d7ddd0c3936205f2ebd91e345002
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Feb 24 17:42:24 2025 -0800
+
+    [config] Change to tools.conf ignored when time syncs backwards.
+    
+    Originally seen on Windows 2025:
+    A guest start with a date+time that gets updated by a time sync process (ntp,
+    timesync) that performs a significant jump backwards in time.
+    
+    *: Significant here as nothing to do with the size of the jump, but rather its
+    timing.
+    
+    The VMware Tools 'tools.conf' file exists and was created in the original time
+    configuration of the VM such that it's last modified time is current on boot and
+    when initially loaded (read) by the VMware Tools service. The service will have
+    saved this last modified timestamp for future comparisons.
+    
+    At a point after the VMware Tools configuration is loaded, a time sync occurs
+    that updates the guest time backwards (Tx becomes Tx-y) such that the new time
+    is before the VMware Tools configuration file's (tools.conf) last modified
+    timestamp.
+    
+    After the time adjustment AND before the new time catches up with the old time;
+    the VMware Tools configuration file (tools.conf) is updated.  Its last modified
+    time changing from a time consistent with the old time to a time at or shortly
+    later than the new time.
+    
+    When the VMware Tools service checks for configuration update, the saved and
+    current 'last modified' timestamps are compared.
+    
+    The old comparison was performing a '<=' comparison to skip reading the
+    configuration file, only re-loading the configuration for newer timestamps.
+    
+    In the conditions here, this check causes the configuration change to be ignored
+    until the guest time catches up and passes the saved 'future' timestamp or the
+    VMware Tools service is restarted.
+    
+    Change:
+    Changing the last modified timestamp check to skip the configuration reload
+    when the timestamp are the same (from '<=' to '==').
+
+commit f34b35eb1426bd84c356160edf5e2d2908b2ab07
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Feb 18 01:42:46 2025 -0800
+
+    Update ChangeLog with the granular push of Feb 18, 2025.
+    - plus ChangeLog update of Jan 08, 2025.
+    - plus missed copyright year update to multiple files.
+
 commit 6019f14e067365aa72aef8859b9e55abf7ab87d5
 Author: Kruti Pendharkar <kp025370@broadcom.com>
 Date:   Tue Feb 18 01:30:18 2025 -0800
