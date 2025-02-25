@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 1998-2024 Broadcom. All Rights Reserved.
+ * Copyright (c) 1998-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -72,9 +72,7 @@
  */
 
 //MARKER_FAST_REMOVE_START
-#if defined(VMX86_VMRC) /* check VMX86_VMRC before VMX86_DESKTOP */
-   #define PRODUCT_VERSION    12,1,0,PRODUCT_BUILD_NUMBER_NUMERIC   /* VMRC_VERSION_NUMBER below has to match this */
-#elif defined(VMX86_FLEX) /* check VMX86_FLEX before VMX86_DESKTOP */
+#if defined(VMX86_FLEX) /* check VMX86_FLEX before VMX86_DESKTOP */
    #define PRODUCT_VERSION    8,0,0,PRODUCT_BUILD_NUMBER_NUMERIC   /* FLEX_VERSION_NUMBER below has to match this */
 #elif defined(VMX86_TOOLS)
    #define PRODUCT_VERSION    TOOLS_VERSION_EXT_CURRENT_CSV
@@ -222,8 +220,6 @@
 #define WORKSTATION_VERSION "e.x.p"
 #define PLAYER_VERSION_NUMBER "17.0.0" /* this version number should always match real Player version number */
 #define PLAYER_VERSION "e.x.p"
-#define VMRC_VERSION_NUMBER "12.1.0" /* this version number should always match real VMRC version number */
-#define VMRC_VERSION "12.1.0"
 #define FLEX_CLIENT_VERSION_NUMBER "8.0.0"
 #define FLEX_CLIENT_VERSION "e.x.p"
 
@@ -338,6 +334,17 @@
 //#define NETDUMP_FILE_VERSION  gNetdumpFileVersion
 //MARKER_FAST_UNCOMMENT_END
 
+#define VMRC_VERSION          "13.0.0.0"
+#define VMRC_VERSION_MAJOR    13
+#define VMRC_VERSION_MINOR    0
+#define VMRC_VERSION_MAINT    0
+#define VMRC_VERSION_PATCH    0
+
+//MARKER_FAST_REMOVE_START
+#define VMRC_FILE_VERSION     VMRC_VERSION_MAJOR,VMRC_VERSION_MINOR,\
+                              VMRC_VERSION_MAINT,VMRC_VERSION_PATCH
+//MARKER_FAST_REMOVE_END
+
 #define VDDK_VERSION          "9.0.0.0"
 #define VDDK_VERSION_MAJOR    9
 #define VDDK_VERSION_MINOR    0
@@ -397,9 +404,7 @@
 #define VIM_ESXIO_PRODUCT_LINE_ID "esxio"
 #define VIM_WS_PRODUCT_LINE_ID "ws"
 
-#if defined(VMX86_VMRC) /* check VMX86_VMRC before VMX86_DESKTOP */
-#  define PRODUCT_VERSION_NUMBER VMRC_VERSION
-#elif defined(VMX86_FLEX) /* check VMX86_FLEX before VMX86_DESKTOP */
+#if defined(VMX86_FLEX) /* check VMX86_FLEX before VMX86_DESKTOP */
 #  define PRODUCT_VERSION_NUMBER FLEX_VERSION
 #elif defined(VMX86_SERVER)
 #  define PRODUCT_VERSION_NUMBER ESX_VERSION
@@ -479,7 +484,7 @@
  */
 #define PRODUCT_MAC_DESKTOP_VERSION_STRING_FOR_LICENSE "13.0"
 #define PRODUCT_PLAYER_VERSION_STRING_FOR_LICENSE "17.0"
-#define PRODUCT_VMRC_VERSION_STRING_FOR_LICENSE "10.0"
+#define PRODUCT_VMRC_VERSION_STRING_FOR_LICENSE "13.0"
 #define PRODUCT_FLEX_VERSION_STRING_FOR_LICENSE "8.0"
 
 #if defined(VMX86_TOOLS)
