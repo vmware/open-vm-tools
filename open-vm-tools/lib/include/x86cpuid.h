@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 1998-2024 Broadcom. All Rights Reserved.
+ * Copyright (c) 1998-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -1787,6 +1787,7 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 #define CPUID_FAMILY_P5               5
 #define CPUID_FAMILY_P6               6
 #define CPUID_FAMILY_P4              15
+#define CPUID_FAMILY_19              19
 
 /* Effective AMD CPU Families */
 #define CPUID_FAMILY_5x86            0x4
@@ -1810,7 +1811,7 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 /* Effective Hygon CPU Families. */
 #define CPUID_FAMILY_DHYANA          0x18
 
-/* Intel model information */
+/* Intel model information (family 6) */
 #define CPUID_MODEL_PPRO                 1
 #define CPUID_MODEL_PII_03               3
 #define CPUID_MODEL_PII_05               5
@@ -1876,6 +1877,7 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 #define CPUID_MODEL_RAPTORLAKE_B7     0xb7  // Raptor Lake S/HX B-0
 #define CPUID_MODEL_RAPTORLAKE_BA     0xba  // Raptor Lake H/P/PX J-0, U Q-0
 #define CPUID_MODEL_RAPTORLAKE_BF     0xbf  // Raptor Lake S/HX C-0
+
 
 /* Intel stepping information */
 #define CPUID_STEPPING_KABYLAKE_ES     0x8  // Kaby Lake S/H/U/Y ES
@@ -2038,6 +2040,12 @@ static INLINE Bool
 CPUID_FAMILY_IS_PENTIUM4(uint32 eax)
 {
    return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_P4;
+}
+
+static INLINE Bool
+CPUID_FAMILY_IS_19(uint32 eax)
+{
+   return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_19;
 }
 
 /*
