@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2013-2024 Broadcom. All Rights Reserved.
+ * Copyright (c) 2013-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -41,7 +41,7 @@
 #define _VM_BASIC_ASM_ARM64_H_
 
 #include "vm_basic_defs.h"
-#if defined VMKERNEL && defined VMK_ARM_NVSIM
+#if (defined VMKERNEL || defined VMKBOOT) && defined VMK_ARM_NVSIM
 #include "vmk_arm_nvsim.h"
 #endif
 
@@ -379,7 +379,7 @@ GET_CURRENT_PC(void)
  *----------------------------------------------------------------------
  */
 
-#if defined VMKERNEL && defined VMK_ARM_NVSIM
+#if (defined VMKERNEL || defined VMKBOOT) && defined VMK_ARM_NVSIM
 #define MRS(name) ({                                                          \
    uint64 val;                                                                \
    if (CONC(VMK_ARM_NVSIM_, name) == 0) {                                     \
@@ -418,7 +418,7 @@ GET_CURRENT_PC(void)
  *----------------------------------------------------------------------
  */
 
-#if defined VMKERNEL && defined VMK_ARM_NVSIM
+#if (defined VMKERNEL || defined VMKBOOT) && defined VMK_ARM_NVSIM
 #define MSR(name, val) do {                                                   \
    if (CONC(VMK_ARM_NVSIM_, name) == 0) {                                     \
       asm volatile ("msr " XSTR(name) ", %0" :: "r" (val) : "memory");        \
