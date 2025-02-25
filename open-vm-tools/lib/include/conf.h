@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2002-2024 Broadcom. All Rights Reserved.
+ * Copyright (c) 2002-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -811,6 +811,30 @@
  * Enable (or disable) the TimeInfo API.
  */
 #define CONFNAME_TIMESYNC_TIMEINFO_ENABLED "timeInfo.enabled"
+
+/**
+ * Defines the configuration to perform all time synchronization or not.
+ *
+ * @note Illegal values result in a @c g_warning and fallback to the default
+ * value.
+ *
+ * @param boolean If TRUE, all time synchronization is disabled.
+ *                If FALSE, one-time synchronization is enabled and periodic
+ *                synchronization is controlled by disable-periodic.
+ */
+#define CONFNAME_TIMESYNC_DISABLE_ALL "disable-all"
+
+/**
+ * Defines the configuration to perform periodic time synchronization or not.
+ *
+ * @note Illegal values result in a @c g_warning and fallback to the default
+ * value.
+ *
+ * @param boolean If TRUE, periodic time synchronization is disabled.
+ *                If FALSE, periodic time synchronization is enabled if
+ *                disable-all is also FALSE.
+ */
+#define CONFNAME_TIMESYNC_DISABLE_PERIODIC "disable-periodic"
 
 /*
  * END timeSync goodies.

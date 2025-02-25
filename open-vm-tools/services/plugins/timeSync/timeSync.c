@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2008-2022 VMware, Inc. All rights reserved.
+ * Copyright (c) 2008-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -150,6 +151,10 @@ VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 #define TIMESYNC_PLL_UNSYNC (2 * TIMESYNC_PLL_ACTIVATE)
 /* Period during which the frequency error of guest time is measured. */
 #define TIMESYNC_CALIBRATION_DURATION (15 * 60 * US_PER_SEC) /* 15min. */
+
+/* Default values for timeSync settings in tools config file. */
+#define CONFNAME_TIMESYNC_DISABLE_ALL_DEFAULT      FALSE
+#define CONFNAME_TIMESYNC_DISABLE_PERIODIC_DEFAULT FALSE
 
 typedef enum TimeSyncState {
    TIMESYNC_INITIALIZING,
@@ -612,10 +617,10 @@ TimeSyncGuestResyncTimeoutHandler(gpointer _data)
  */
 
 static gboolean
-TimeSyncDoSync(Bool slewCorrection,
-               TimeSyncType syncType,
-               Bool allowBackwardSync,
-               void *_data)
+TimeSyncDoSyncWork(Bool slewCorrection,
+                   TimeSyncType syncType,
+                   Bool allowBackwardSync,
+                   void *_data)
 {
    int64 guest, host;
    int64 gosError, apparentError, maxTimeError;
@@ -628,7 +633,7 @@ TimeSyncDoSync(Bool slewCorrection,
            syncType, slewCorrection, allowBackwardSync,
            data->guestResync, data->guestResyncTimeout);
 
-   if (!TimeSyncReadHostAndGuest(&host, &guest, &apparentError, 
+   if (!TimeSyncReadHostAndGuest(&host, &guest, &apparentError,
                                  &apparentErrorValid, &maxTimeError)) {
       return FALSE;
    }
@@ -651,7 +656,7 @@ TimeSyncDoSync(Bool slewCorrection,
        * step correction.
        */
 
-      if (gosError < -maxTimeError || 
+      if (gosError < -maxTimeError ||
           (gosError + apparentError > 0 && allowBackwardSync)) {
          if (syncType == TIMESYNC_STEP && data->guestResync &&
              TimeSync_IsGuestSyncServiceRunning()) {
@@ -660,9 +665,9 @@ TimeSyncDoSync(Bool slewCorrection,
                ASSERT(data->ctx != NULL);
                if (!TimeSync_DoGuestResync(data->ctx)) {
                   g_warning("Guest resync operation failed.\n");
-                  return TimeSyncDoSync(data->slewCorrection,
-                                        TIMESYNC_STEP_NORESYNC,
-                                        allowBackwardSync, data);
+                  return TimeSyncDoSyncWork(data->slewCorrection,
+                                            TIMESYNC_STEP_NORESYNC,
+                                            allowBackwardSync, data);
                }
                if (data->guestResyncTimeout > 0) {
                   data->guestResyncTimer =
@@ -712,6 +717,51 @@ TimeSyncDoSync(Bool slewCorrection,
    }
 
    return TRUE;
+}
+
+
+/**
+ * Check the Tools config of timeSync, skip time sync if it is disabled,
+ * call TimeSyncDoSyncWork to sync time otherwise.
+ *
+ * @param[in]  slewCorrection    Is clock slewing enabled?
+ * @param[in]  syncType          Type of synchronization requested.
+ * @param[in]  allowBackwardSync Can we sync time backwards when doing
+ *    step/resync correction?
+ * @param[in]  _data             Time sync data.
+ *
+ * @return TRUE on success or when timeSync is disabled.
+ */
+
+static gboolean
+TimeSyncDoSync(Bool slewCorrection,
+               TimeSyncType syncType,
+               Bool allowBackwardSync,
+               void *_data)
+{
+   TimeSyncData *data = _data;
+   Bool disableAll =
+      VMTools_ConfigGetBoolean(data->ctx->config,
+                               CONFGROUPNAME_TIMESYNC,
+                               CONFNAME_TIMESYNC_DISABLE_ALL,
+                               CONFNAME_TIMESYNC_DISABLE_ALL_DEFAULT);
+   Bool disablePeriodic =
+      VMTools_ConfigGetBoolean(data->ctx->config,
+                               CONFGROUPNAME_TIMESYNC,
+                               CONFNAME_TIMESYNC_DISABLE_PERIODIC,
+                               CONFNAME_TIMESYNC_DISABLE_PERIODIC_DEFAULT);
+   /*
+    * Skip all time sync or the periodic type of time sync if they are
+    * configured to be disabled in the Tools config. Return TRUE so that
+    * nothing in timeSync plugin is broken and the sync can be re-enabled
+    * seamlessly, this also avoids warning logs on the FALSE returns.
+    */
+   if (disableAll || (disablePeriodic && syncType == TIMESYNC_PERIODIC)) {
+      g_debug("Time synchronization is disabled.\n");
+      return TRUE;
+   }
+   return TimeSyncDoSyncWork(slewCorrection, syncType, allowBackwardSync,
+                             _data);
 }
 
 
