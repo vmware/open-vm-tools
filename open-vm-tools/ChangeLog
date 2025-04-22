@@ -1,3 +1,127 @@
+commit baea3a9bf05748f1aac8a891bb45a4187eb79ba3
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Apr 22 01:53:45 2025 -0700
+
+    Use different command to reboot linux VM, depending on the init system type
+    
+    We currently use the "telinit 6" command to reboot linux VMs.
+    However, the "telinit" command will be unavailable in the future as SysVinit
+    will be deprecated on some modern linux systems.
+    
+    For example: In SUSE, "telinit" command is part of systemd-sysvcompat
+    (15 SP6 and newer) or systemd-sysvinit (older than 15 SP6), whereas in some
+    SUSE images or templates such as SUSE minimal VM has no such packages installed.
+    See SUSE KB: https://www.suse.com/support/kb/doc/?id=000021564
+    
+    This change detects the init system of a linux and uses different command
+    to trigger reboot. If the modern init system, systemd, is available, then
+    "systemctl reboot" command will be used to trigger reboot. Otherwise, continue
+    using "telinit 6" command as SysVinit, the traditional init system, is still
+    available.
+
+commit c000467bf3d3de891c5db06cd744110c73320df3
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Apr 22 01:53:45 2025 -0700
+
+    Change to common header files not applicable to open-vm-tools.
+
+commit 6a86fed6de4ddc8637886ae9bb49c1d69ea9a4ea
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Apr 22 01:53:45 2025 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 66960679cdc14807107fb9e92bf92418b865e3db
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Apr 22 01:53:45 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit a9e47ee8a9e05fba099378737fc00184b6b63aa2
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Apr 22 01:53:45 2025 -0700
+
+    Set the "patch" field of VMTools version to zero.
+    
+    Prior to VMTools 13.0.0, the fourth field in the VMTools version was set
+    to PRODUCT_BUILD_NUMBER_NUMERIC which was the sequential build number
+    of the product within the branch. Going forward, the fourth field
+    of the displayed VMTools version is to be the "patch" starting with a
+    '0' value.
+
+commit 27744232752382851d23b9bffa6b0ec82f02f58e
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Apr 22 01:53:45 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 2a6d0dd95f6c717f924716a5087d4e8734dc8e30
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Apr 22 01:53:45 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit b57c9c178df7c934a00fbb73960d47a3ec27485c
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Apr 22 01:53:45 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 14ccb99791aaa332fa3f8d5246cf746abd282be0
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Apr 22 01:53:45 2025 -0700
+
+    Change to common source files not applicable to open-vm-tools.
+
+commit bcbd530c058b7be470048e826e6a79c974539edd
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Apr 22 01:53:45 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 2da916dde4c414f950d76586a2a35f69e38338ef
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Apr 22 01:53:45 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 6ea5febf371245139a48e143656c1a3ed3c70ccc
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Apr 22 01:53:45 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit cc536fb61049562c74ca621da88189aaef80fcb2
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Apr 22 01:53:45 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 37a512688ec9fd21d057eb1801622a234c9f429f
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Apr 22 01:53:45 2025 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 46bf50416ab17c0723c343513cf5ea071cf11404
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Apr 22 01:53:45 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit e10e0e8975bb51b56602b7376e45c83991a9d891
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Apr 22 01:53:45 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit fe4523f8f99776a749f6922a15fde8f0590b09ac
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Feb 24 22:34:37 2025 -0800
+
+    Update ChangeLog with the granular push of Feb 24, 2025.
+    - plus ChangeLog update of Feb 18, 2025.
+
 commit 983eb55c552e171f062dd9a7322ff2946280ae6b
 Author: Kruti Pendharkar <kp025370@broadcom.com>
 Date:   Mon Feb 24 17:42:25 2025 -0800
