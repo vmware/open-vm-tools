@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2006-2024 Broadcom. All rights reserved.
+ * Copyright (c) 2006-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -122,6 +122,9 @@ static const char* VARRUNDIR       = "/var/run";
 static const char* VARRUNIMCDIR    = "/var/run/vmware-imc";
 #endif
 static const char* TMPDIR          = "/tmp";
+static const char* USRBINSYSTEMCTL = "/usr/bin/systemctl";
+static const char* BINSYSTEMCTL    = "/bin/systemctl";
+static const char* SBINTELINIT     = "/sbin/telinit";
 
 // Possible return codes from perl script
 static const int CUST_SUCCESS       = 0;
@@ -197,7 +200,6 @@ static Bool CopyFileIfExist(const char* sourcePath,
 static void GetCloudinitVersion(const char* versionOutput,
                                 int* major,
                                 int* minor);
-static Bool IsTelinitASoftlinkToSystemctl(void);
 
 /*
  * Globals
@@ -1674,28 +1676,43 @@ Deploy(const char* packageName)
          sLog(log_error, "Failed to fork: '%s'.", strerror(errno));
       } else if (pid == 0) {
          // We're in the child
+         char rebootCommand[1024];
          int rebootCommandResult;
+         bool isSystemd = false;
          bool isRebooting = false;
-         // Retry reboot until telinit 6 succeeds to workaround PR 2716292 where
-         // telinit is a soft(symbolic) link to systemctl and it could exit
-         // abnormally due to systemd sends SIGTERM
-         bool retryReboot = IsTelinitASoftlinkToSystemctl();
+         // PR 3438671, using different command to reboot modern systemd linux
+         // or traditional SysVinit linux
+         // Repeatedly try to reboot to workaround PR 2716292 on modern systemd
+         // linux where systemctl reboot could exit abnormally due to systemd
+         // sends SIGTERM
+         // Repeatedly try to reboot to workaround PR 530641 on traditional
+         // SysVinit linux where telinit 6 is overwritten by a telinit 2
+         if (access(USRBINSYSTEMCTL, X_OK) == 0) {
+            isSystemd = true;
+            Str_Snprintf(rebootCommand, sizeof(rebootCommand), "%s reboot",
+                         USRBINSYSTEMCTL);
+         } else if (access(BINSYSTEMCTL, X_OK) == 0) {
+            isSystemd = true;
+            Str_Snprintf(rebootCommand, sizeof(rebootCommand), "%s reboot",
+                         BINSYSTEMCTL);
+         } else {
+            Str_Snprintf(rebootCommand, sizeof(rebootCommand), "%s 6",
+                         SBINTELINIT);
+         }
          sLog(log_info, "Trigger reboot.");
-         // Repeatedly try to reboot to workaround PR 530641 where
-         // telinit 6 is overwritten by a telinit 2
          do {
             if (isRebooting) {
                sLog(log_info, "Rebooting.");
             }
             rebootCommandResult =
-               ForkExecAndWaitCommand("/sbin/telinit 6", true, NULL, 0);
+               ForkExecAndWaitCommand(rebootCommand, true, NULL, 0);
             isRebooting = (rebootCommandResult == 0) ? true : isRebooting;
             sleep(1);
-         } while (rebootCommandResult == 0 || (retryReboot && !isRebooting));
+         } while (rebootCommandResult == 0 || (isSystemd && !isRebooting));
          if (!isRebooting) {
             sLog(log_error,
-                 "Failed to reboot, reboot command returned error %d.",
-                 rebootCommandResult);
+                 "Failed to reboot, reboot command %s returned error %d.",
+                 rebootCommand, rebootCommandResult);
             exit (127);
          } else {
             sLog(log_info, "Reboot has been triggered.");
@@ -1955,8 +1972,11 @@ ForkExecAndWaitCommand(const char* command,
    char** args = GetFormattedCommandLine(command);
    const char* processStdOut;
    Bool isPerlCommand = (strcmp(args[0], "/usr/bin/perl") == 0) ? true : false;
-   Bool isTelinitCommand =
-      (strcmp(args[0], "/sbin/telinit") == 0) ? true : false;
+   Bool isRebootCommand =
+      (Str_Strncmp(command, "/usr/bin/systemctl reboot", strlen(command)) ||
+       Str_Strncmp(command, "/bin/systemctl reboot", strlen(command)) ||
+       Str_Strncmp(command, "/sbin/telinit 6", strlen(command))) ?
+      true : false;
 
    sLog(log_debug, "Command to exec : '%s'.", args[0]);
    Process_Create(&hp, args, sLog);
@@ -2012,9 +2032,9 @@ ForkExecAndWaitCommand(const char* command,
          }
       }
    } else {
-      if (isTelinitCommand) {
+      if (isRebootCommand) {
          sLog(log_info,
-              "Telinit command failed with exitcode: %d, stderr: '%s'.",
+              "Reboot command failed with exitcode: %d, stderr: '%s'.",
               retval,
               Process_GetStderr(hp));
       } else {
@@ -2208,44 +2228,4 @@ GetCloudinitVersion(const char* version, int* major, int* minor)
       sscanf(version, "%*[^0123456789]%d%*[-.]%d", major, minor);
    }
    sLog(log_info, "Cloud-init version major: %d, minor: %d", *major, *minor);
-}
-
-/**
- *
- * Check if "telinit" command is a soft(symbolic) link to "systemctl" command
- *
- * The fullpath of "systemctl" command could be:
- *    /bin/systemctl
- *    or
- *    /usr/bin/systemctl
- *
- * @returns TRUE if "telinit" command is a soft link to "systemctl" command
- *          FALSE if "telinit" command is not a soft link to "systemctl" command
- *
- **/
-static Bool
-IsTelinitASoftlinkToSystemctl(void)
-{
-   static const char systemctlBinPath[] = "/bin/systemctl";
-   static const char readlinkCommand[] = "/bin/readlink /sbin/telinit";
-   char readlinkCommandOutput[256];
-   int forkExecResult;
-
-   forkExecResult = ForkExecAndWaitCommand(readlinkCommand,
-                                           true,
-                                           readlinkCommandOutput,
-                                           sizeof(readlinkCommandOutput));
-   if (forkExecResult != 0) {
-      sLog(log_debug, "readlink command result = %d.", forkExecResult);
-      return FALSE;
-   }
-
-   if (strstr(readlinkCommandOutput, systemctlBinPath) != NULL) {
-      sLog(log_debug, "/sbin/telinit is a soft link to systemctl");
-      return TRUE;
-   } else {
-      sLog(log_debug, "/sbin/telinit is not a soft link to systemctl");
-   }
-
-   return FALSE;
 }
