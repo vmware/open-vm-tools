@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 1998-2024 Broadcom. All Rights Reserved.
+ * Copyright (c) 1998-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -57,6 +57,7 @@
  */
 #define PCI_VENDOR_ID_VMWARE                    0x15AD
 #define PCI_DEVICE_ID_VMWARE_SBX                0x0420
+#define PCI_DEVICE_ID_VMWARE_SVGA4_EFI          0x0409
 #define PCI_DEVICE_ID_VMWARE_SVGA4              0x0408
 #define PCI_DEVICE_ID_VMWARE_SVGA_EFI           0x0407
 #define PCI_DEVICE_ID_VMWARE_SVGA3              0x0406
