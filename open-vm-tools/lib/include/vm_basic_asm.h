@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2003-2024 Broadcom. All rights reserved.
+ * Copyright (c) 2003-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -60,23 +60,24 @@
 #include "vm_basic_types.h"
 
 #if defined VM_X86_64
-#include "vm_basic_asm_x86_common.h"
-#include "vm_basic_asm_x86_64.h"
+   #include "vm_basic_asm_x86_common.h"
+   #include "vm_basic_asm_x86_64.h"
 #elif defined VM_X86_32
-#include "vm_basic_asm_x86_common.h"
-#include "vm_basic_asm_x86.h"
+   #include "vm_basic_asm_x86_common.h"
+   #include "vm_basic_asm_x86.h"
 #elif defined VM_ARM_32
-#include "vm_basic_asm_arm32.h"
-#define MUL64_NO_ASM 1
-#include "mul64.h"
+   #include "vm_basic_asm_arm32.h"
+   #define MUL64_NO_ASM 1
+   #include "mul64.h"
 #elif defined VM_ARM_64
-#include "vm_basic_asm_arm64.h"
-#ifdef VMKERNEL
-#include "vmk_arm_mode.h"
-#endif
+   #include "vm_basic_asm_arm64.h"
+
+   #ifdef VMKERNEL
+      #include "vmk_arm_mode.h"
+   #endif
 #else
-#define MUL64_NO_ASM 1
-#include "mul64.h"
+   #define MUL64_NO_ASM 1
+   #include "mul64.h"
 #endif
 
 #if defined _M_ARM64EC || defined _M_ARM64
@@ -646,7 +647,7 @@ static inline uint32
 Bswap32(uint32 v) // IN
 {
 #if defined(__GNUC__) && defined(VM_X86_ANY)
-   /* Checked against the Intel manual and GCC. --hpreg */
+   /* Checked against the Intel manual and GCC. */
    __asm__(
       "bswap %0"
       : "=r" (v)
@@ -734,70 +735,66 @@ PAUSE(void)
 
 
 /*
- * Checked against the Intel manual and GCC --hpreg
+ * Checked against the Intel manual and GCC.
  *
  * volatile because the tsc always changes without the compiler knowing it.
  */
 static inline uint64
 RDTSC(void)
-#ifdef __GNUC__
 {
-#ifdef VM_X86_64
-   uint64 tscLow;
-   uint64 tscHigh;
-
-   __asm__ __volatile__(
-      "rdtsc"
-      : "=a" (tscLow), "=d" (tscHigh)
-   );
-
-   return tscHigh << 32 | tscLow;
-#elif defined(VM_X86_32)
-   uint64 tim;
-
-   __asm__ __volatile__(
-      "rdtsc"
-      : "=A" (tim)
-   );
-
-   return tim;
-#elif defined(VM_ARM_64)
+#if defined VM_ARM_64
    /*
     * Keep this implementation in sync with:
     * bora/vmkernel/hardware/arm64/tscsync_arch.h::TSCSyncRDTSC()
     * bora/lib/vprobe/arm64/vp_emit_tc.c::VpEmit_BuiltinRDTSCWork()
     * bora/modules/vmkernel/tests/core/xmapTest/xmapTest_arm64.c::XMapTest_SetupLoopCode()
     */
-#ifdef VMKERNEL
-   return MRSx(VMK_CNT_CT_EL);
-#else
-   return MRS(CNTVCT_EL0);
-#endif
-#else
-   /*
-    * For platform without cheap timer, just return 0.
-    */
-   return 0;
-#endif
-}
-#elif defined(_MSC_VER)
-#ifdef VM_X86_ANY
-{
-   return __rdtsc();
-}
-#else
-{
-   /*
-    * We need to do more investigation here to find
-    * a Microsoft equivalent of that code.
-    */
-   NOT_IMPLEMENTED();
-   return 0;
-}
-#endif /* VM_X86_ANY */
+   #ifdef VMKERNEL
+      return MRSx(VMK_CNT_CT_EL);
+   #else
+      return MRS(CNTVCT_EL0);
+   #endif
+#elif defined __GNUC__
+   #ifdef VM_X86_64
+      uint64 tscLow;
+      uint64 tscHigh;
+
+      __asm__ __volatile__(
+         "rdtsc"
+         : "=a" (tscLow), "=d" (tscHigh)
+      );
+
+      return tscHigh << 32 | tscLow;
+   #elif defined VM_X86_32
+      uint64 tim;
+
+      __asm__ __volatile__(
+         "rdtsc"
+         : "=A" (tim)
+      );
+
+      return tim;
+   #else
+      /*
+       * For platform without cheap timer, just return 0.
+       */
+      return 0;
+   #endif
+#elif defined _MSC_VER
+   #ifdef VM_X86_ANY
+      return __rdtsc();
+   #else
+      /*
+       * Do investigation to find an appropriate equivalent. (Possibly
+       * QueryPerformanceCounter might be good enough.)
+       */
+      NOT_IMPLEMENTED();
+      return 0;
+   #endif /* VM_X86_ANY */
 #else  /* __GNUC__  */
-#error No compiler defined for RDTSC
+   #error No compiler defined for RDTSC
 #endif /* __GNUC__  */
+}
 
 
 /*
@@ -1332,4 +1329,3 @@ INTR_RW_BARRIER_RW(void)
 #endif
 
 #endif // _VM_BASIC_ASM_H_
-

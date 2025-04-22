@@ -45,6 +45,17 @@
 #include "vmk_arm_nvsim.h"
 #endif
 
+#if defined _MSC_VER
+#include <arm64intr.h> // For Microsoft's ARM64_SYSREG().
+
+typedef enum {
+#define _SYSREG(name, op0, op1, crn, crm, op2)                                \
+   MSC_SYSREG_##name = ARM64_SYSREG(op0, op1, crn, crm, op2),
+#include "arm64/sysreg_table.h"
+#undef _SYSREG
+} MscSysReg;
+#endif // _MSC_VER
+
 #if defined __cplusplus
 extern "C" {
 #endif
@@ -362,6 +373,8 @@ GET_CURRENT_PC(void)
    retAddr = (uint64)GetReturnAddress();                                      \
 } while (0)
 
+#endif // ifdef __GNUC__
+
 
 /*
  *----------------------------------------------------------------------
@@ -379,7 +392,9 @@ GET_CURRENT_PC(void)
  *----------------------------------------------------------------------
  */
 
-#if (defined VMKERNEL || defined VMKBOOT) && defined VMK_ARM_NVSIM
+#if defined _MSC_VER
+#define MRS(name) _ReadStatusReg(MSC_SYSREG_##name)
+#elif defined __GNUC__ && (defined VMKERNEL || defined VMKBOOT) && defined VMK_ARM_NVSIM
 #define MRS(name) ({                                                          \
    uint64 val;                                                                \
    if (CONC(VMK_ARM_NVSIM_, name) == 0) {                                     \
@@ -392,7 +407,7 @@ GET_CURRENT_PC(void)
    }                                                                          \
    val;                                                                       \
 })
-#else
+#elif defined __GNUC__
 #define MRS(name) ({                                                          \
    uint64 val;                                                                \
    asm volatile ("mrs %0, " XSTR(name) : "=r" (val) :: "memory");             \
@@ -418,7 +433,9 @@ GET_CURRENT_PC(void)
  *----------------------------------------------------------------------
  */
 
-#if (defined VMKERNEL || defined VMKBOOT) && defined VMK_ARM_NVSIM
+#if defined _MSC_VER
+#define MSR(name, val) _WriteStatusReg(MSC_SYSREG_##name, val)
+#elif defined __GNUC__ && (defined VMKERNEL || defined VMKBOOT) && defined VMK_ARM_NVSIM
 #define MSR(name, val) do {                                                   \
    if (CONC(VMK_ARM_NVSIM_, name) == 0) {                                     \
       asm volatile ("msr " XSTR(name) ", %0" :: "r" (val) : "memory");        \
@@ -427,15 +444,15 @@ GET_CURRENT_PC(void)
                     "msr " XSTR(name) ", %0" :: "r" (val) : "memory");        \
    }                                                                          \
 } while (0)
-#else
+#elif defined __GNUC__
 #define MSR(name, val)                                                        \
    asm volatile ("msr " XSTR(name) ", %0" :: "r" (val) : "memory")
 #endif
 
+#if defined __GNUC__
 #define MSR_IMMED(name, val)                                                  \
    asm volatile ("msr " XSTR(name) ", %0" :: "i" (val) : "memory")
-
-#endif // ifdef __GNUC__
+#endif
 
 
 /*
