@@ -1870,6 +1870,11 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 #define CPUID_MODEL_TIGERLAKE_8C      0x8c  // Tiger Lake UP3/UP4/H35
 #define CPUID_MODEL_TIGERLAKE_8D      0x8d  // Tiger Lake H81
 #define CPUID_MODEL_SAPPHIRERAPIDS_8F 0x8f  // Sapphire Rapids
+#define CPUID_MODEL_GRANITERAPIDS_AD  0xad  // Granite Rapids AP/SP
+#define CPUID_MODEL_GRANITERAPIDS_AE  0xae  // Granite Rapids D
+#define CPUID_MODEL_SIERRAFOREST_AF   0xaf  // Sierra Forest
+#define CPUID_MODEL_EMERALDRAPIDS_CF  0xcf  // Emerald Rapids
+#define CPUID_MODEL_METEORLAKE_AC     0xac  // Meteor Lake
 #define CPUID_MODEL_KNM_85            0x85  // Knights Mill
 #define CPUID_MODEL_KABYLAKE_8E       0x8e  // Kaby Lake U/Y QS
 #define CPUID_MODEL_ALDERLAKE_97      0x97  // Alder Lake-S
@@ -1882,6 +1887,8 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 #define CPUID_MODEL_RAPTORLAKE_BA     0xba  // Raptor Lake H/P/PX J-0, U Q-0
 #define CPUID_MODEL_RAPTORLAKE_BF     0xbf  // Raptor Lake S/HX C-0
 
+/* Intel model information (family 19) */
+#define CPUID_MODEL_DIAMONDRAPIDS     0x01  // Diamond Rapids
 
 /* Intel stepping information */
 #define CPUID_STEPPING_KABYLAKE_ES     0x8  // Kaby Lake S/H/U/Y ES
@@ -2306,6 +2313,46 @@ CPUID_MODEL_IS_RAPTORLAKE(uint32 v) // IN: %eax from CPUID with %eax=1.
            CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_RAPTORLAKE_BA);
 }
 
+static INLINE Bool
+CPUID_MODEL_IS_EMERALDRAPIDS(uint32 v) // IN: %eax from CPUID with %eax=1.
+{
+   /* Assumes the CPU manufacturer is Intel. */
+   return CPUID_FAMILY_IS_P6(v) &&
+          CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_EMERALDRAPIDS_CF;
+}
+
+static INLINE Bool
+CPUID_MODEL_IS_GRANITERAPIDS(uint32 v) // IN: %eax from CPUID with %eax=1.
+{
+   /* Assumes the CPU manufacturer is Intel. */
+   return CPUID_FAMILY_IS_P6(v) &&
+          (CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_GRANITERAPIDS_AD ||
+           CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_GRANITERAPIDS_AE);
+}
+
+static INLINE Bool
+CPUID_MODEL_IS_SIERRAFOREST(uint32 v) // IN: %eax from CPUID with %eax=1.
+{
+   /* Assumes the CPU manufacturer is Intel. */
+   return CPUID_FAMILY_IS_P6(v) &&
+          CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_SIERRAFOREST_AF;
+}
+
+static INLINE Bool
+CPUID_MODEL_IS_METEORLAKE(uint32 v) // IN: %eax from CPUID with %eax=1.
+{
+   /* Assumes the CPU manufacturer is Intel. */
+   return CPUID_FAMILY_IS_P6(v) &&
+          CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_METEORLAKE_AC;
+}
+
+static INLINE Bool
+CPUID_MODEL_IS_DIAMONDRAPIDS(uint32 v) // IN: %eax from CPUID with %eax=1.
+{
+   /* Assumes the CPU manufacturer is Intel. */
+   return CPUID_FAMILY_IS_19(v) &&
+          CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_DIAMONDRAPIDS;
+}
 
 static INLINE Bool
 CPUID_MODEL_IS_SAPPHIRERAPIDS(uint32 v) // IN: %eax from CPUID with %eax=1.
@@ -2320,10 +2367,26 @@ CPUID_UARCH_IS_SAPPHIRERAPIDS(uint32 v) // IN: %eax from CPUID with %eax=1.
 {
    /* Assumes the CPU manufacturer is Intel. */
    return CPUID_MODEL_IS_SAPPHIRERAPIDS(v) ||
+          CPUID_MODEL_IS_EMERALDRAPIDS(v) ||
           CPUID_MODEL_IS_ALDERLAKE(v) ||
           CPUID_MODEL_IS_RAPTORLAKE(v);
 }
 
+static INLINE Bool
+CPUID_UARCH_IS_GRANITERAPIDS(uint32 v) // IN: %eax from CPUID with %eax=1.
+{
+   /* Assumes the CPU manufacturer is Intel. */
+   return CPUID_MODEL_IS_GRANITERAPIDS(v) ||
+          CPUID_MODEL_IS_METEORLAKE(v) ||
+          CPUID_MODEL_IS_DIAMONDRAPIDS(v); // PR3470460: split out a new uarch?
+}
+
+static INLINE Bool
+CPUID_UARCH_IS_SIERRAFOREST(uint32 v) // IN: %eax from CPUID with %eax=1.
+{
+   /* Assumes the CPU manufacturer is Intel. */
+   return CPUID_MODEL_IS_SIERRAFOREST(v);
+}
 
 static INLINE Bool
 CPUID_UARCH_IS_HASWELL(uint32 v) // IN: %eax from CPUID with %eax=1.
