@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2008-2024 Broadcom. All Rights Reserved.
+ * Copyright (c) 2008-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -25,6 +25,10 @@
  *     between different types of string classes.
  */
 
+// Force `glib::ustring::npos` to be defined inline as a compile-time constant.
+#ifndef GLIBMM_HAVE_ALLOWS_STATIC_INLINE_NPOS
+#define GLIBMM_HAVE_ALLOWS_STATIC_INLINE_NPOS 1
+#endif
 
 #include <sstream>
 #include <iostream>
@@ -33,19 +37,15 @@
 #include "string.hh"
 #include "unicode.h"
 #include "util.h"
+#include "vm_assert.h"
+
+
+// See the comment to `utf::string::npos`.
+static_assert(utf::string::npos == Glib::ustring::npos,
+              "utf::string::npos must match Glib::ustring::npos");
 
 
 namespace utf {
-
-/*
- * Initialize static scope variables,
- *
- * Note that with the way this is done, it's important not to delay load glib
- * libraries. See bug 397373 for more details. If you're getting crazy values
- * for utf::string::npos, check your linker flags.
- */
-const string::size_type string::npos = Glib::ustring::npos;
-
 
 /*
  *-----------------------------------------------------------------------------

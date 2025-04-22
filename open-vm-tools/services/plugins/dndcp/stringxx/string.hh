@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2008-2019,2022 VMware, Inc. All rights reserved.
+ * Copyright (c) 2008-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -92,14 +93,27 @@ typedef std::basic_string<utf16_t> utf16string;
 class VMSTRING_EXPORT string
 {
 public:
-   // type definitions
+   // Type definitions.
    typedef Glib::ustring::size_type size_type;
    typedef Glib::ustring::value_type value_type;
    typedef Glib::ustring::iterator iterator;
    typedef Glib::ustring::const_iterator const_iterator;
 
-   // constant definitions
-   static const size_type npos;
+   // Constant definitions.
+   /*
+    * XXX: Ideally we'd initialize `npos = Glib::ustring::npos` directly, but
+    * `Glib::ustring::npos` might itself not be initialized inline, preventing
+    * it from being used as a compile-time constant.  There is a
+    * `GLIBMM_HAVE_ALLOWS_STATIC_INLINE_NPOS` macro that we can define to make
+    * `Glib::ustring::npos` initialized inline, but then we would need to
+    * ensure that nothing includes `glibmm/ustring.h` (whether directly or
+    * indirectly) before this header file, which is an awkward restriction.
+    *
+    * In practice, the value of `Glib::ustring::npos` will always be the same
+    * as `std::string::npos` which is defined to be -1 (which we additionally
+    * verify with a `static_assert` elsewhere).
+    */
+   static const size_type npos = static_cast<size_type>(-1);
 
    // Normalize mode map to Glib::NormalizeMode
 #if GIOMM_MAJOR_VERSION >= 2 && GIOMM_MINOR_VERSION >= 68
