@@ -1490,6 +1490,7 @@ FLAG( 81F,  0, EAX, 29,  1, NESTED_VIRT_SNP_MSR,                 NO,    0 ) \
 FIELD(81F,  0, EBX,  0,  6, SME_PAGE_TABLE_BIT_NUM,              YES,  17 ) \
 FIELD(81F,  0, EBX,  6,  6, SME_PHYS_ADDR_SPACE_REDUCTION,       NO,    0 ) \
 FIELD(81F,  0, EBX, 12,  4, NUM_VMPL,                            YES,  22 ) \
+FIELD(81F,  0, EBX, 31,  1, COHERENCY_SFW_NO,                    YES,  22 ) \
 FIELD(81F,  0, ECX,  0, 32, NUM_ENCRYPTED_GUESTS,                NO,    0 ) \
 FIELD(81F,  0, EDX,  0, 32, SEV_MIN_ASID,                        NO,    0 )
 
@@ -1530,6 +1531,7 @@ FLAG( 821,  0, EAX, 17,  1, CPL3_CPUID_GP,                       NO,    0 ) \
 FLAG( 821,  0, EAX, 18,  1, EPSF,                                NO,    0 ) \
 FLAG( 821,  0, EAX, 19,  1, FAST_REP_SCASB,                      YES,  22 ) \
 FLAG( 821,  0, EAX, 20,  1, LEAF821_PREFETCHI,                   YES,  22 ) \
+FLAG( 821,  0, EAX, 24,  1, ERAPS,                               NO,    0 ) \
 FIELD(821,  0, EBX,  0, 12, MICROCODE_PATCH_SIZE,                NO,    0 ) \
 FIELD(821,  0, EBX, 16,  8, RAP_SIZE,                            NO,    0 )
 
