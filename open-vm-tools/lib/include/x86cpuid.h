@@ -195,7 +195,7 @@ typedef struct CPUIDQuery {
    CPUIDLEVEL(TRUE,  821, 0x80000021, 0, 17) \
    CPUIDLEVEL(TRUE,  822, 0x80000022, 0, 20) \
    CPUIDLEVEL(TRUE,  823, 0x80000023, 0, 20) \
-   CPUIDLEVEL(FALSE, 826, 0x80000026, 4, 20)
+   CPUIDLEVEL(FALSE, 826, 0x80000026, 5, 20)
 
 /* Define all CPUID levels in the form: CPUID_LEVEL_<ShortName> */
 typedef enum {
