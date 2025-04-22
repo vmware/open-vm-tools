@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2008-2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 2008-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -924,8 +925,7 @@ GetHostWindowStack()
    if (!gdk_x11_screen_supports_net_wm_hint(screen,
           gdk_atom_intern_static_string("_NET_CLIENT_LIST_STACKING"))) {
       /*
-       * This is bad. We don't really have an alternative. We might want to
-       * just disable Unity.
+       * This is bad. We don't really have an alternative..
        */
       return windows;
    }
