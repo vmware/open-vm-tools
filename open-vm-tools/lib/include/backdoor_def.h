@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 1998-2024 Broadcom. All rights reserved.
+ * Copyright (c) 1998-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -250,7 +250,11 @@ extern "C" {
 #define   BDOOR_CMD_GETBUILDNUM             100
 #define   BDOOR_CMD_GETENTROPY              101 /* Configurable, off by default. */
 #define   BDOOR_CMD_REPORTGUESTCRASH        102
-#define   BDOOR_CMD_MAX                     103
+#define   BDOOR_CMD_PK_UPDATE               103 /* CPL 0 only. */
+#  define BDOOR_CMD_PKU_CHECK_NEED_UPDATE     0
+#  define BDOOR_CMD_PKU_UPDATE_FROM_HOST      1
+#  define BDOOR_CMD_PKU_LOCK                  2
+#define   BDOOR_CMD_MAX                     104
 
 
 /*
