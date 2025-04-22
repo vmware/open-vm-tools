@@ -254,7 +254,8 @@ extern "C" {
 #  define BDOOR_CMD_PKU_CHECK_NEED_UPDATE     0
 #  define BDOOR_CMD_PKU_UPDATE_FROM_HOST      1
 #  define BDOOR_CMD_PKU_LOCK                  2
-#define   BDOOR_CMD_MAX                     104
+#define   BDOOR_CMD_GET_FWTRCLOG_MASK       104
+#define   BDOOR_CMD_MAX                     105
 
 
 /*
