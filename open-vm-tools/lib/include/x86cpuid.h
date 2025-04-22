@@ -1874,6 +1874,7 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 #define CPUID_MODEL_GRANITERAPIDS_AE  0xae  // Granite Rapids D
 #define CPUID_MODEL_SIERRAFOREST_AF   0xaf  // Sierra Forest
 #define CPUID_MODEL_EMERALDRAPIDS_CF  0xcf  // Emerald Rapids
+#define CPUID_MODEL_METEORLAKE_AA     0xaa  // Meteor Lake
 #define CPUID_MODEL_METEORLAKE_AC     0xac  // Meteor Lake
 #define CPUID_MODEL_KNM_85            0x85  // Knights Mill
 #define CPUID_MODEL_KABYLAKE_8E       0x8e  // Kaby Lake U/Y QS
@@ -2343,7 +2344,8 @@ CPUID_MODEL_IS_METEORLAKE(uint32 v) // IN: %eax from CPUID with %eax=1.
 {
    /* Assumes the CPU manufacturer is Intel. */
    return CPUID_FAMILY_IS_P6(v) &&
-          CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_METEORLAKE_AC;
+          (CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_METEORLAKE_AA ||
+           CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_METEORLAKE_AC);
 }
 
 static INLINE Bool
