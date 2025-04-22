@@ -2357,6 +2357,13 @@ CPUID_MODEL_IS_DIAMONDRAPIDS(uint32 v) // IN: %eax from CPUID with %eax=1.
 }
 
 static INLINE Bool
+CPUID_UARCH_IS_DIAMONDRAPIDS(uint32 v) // IN: %eax from CPUID with %eax=1.
+{
+   /* Assumes the CPU manufacturer is Intel. */
+   return CPUID_MODEL_IS_DIAMONDRAPIDS(v);
+}
+
+static INLINE Bool
 CPUID_MODEL_IS_SAPPHIRERAPIDS(uint32 v) // IN: %eax from CPUID with %eax=1.
 {
    /* Assumes the CPU manufacturer is Intel. */
@@ -2379,8 +2386,7 @@ CPUID_UARCH_IS_GRANITERAPIDS(uint32 v) // IN: %eax from CPUID with %eax=1.
 {
    /* Assumes the CPU manufacturer is Intel. */
    return CPUID_MODEL_IS_GRANITERAPIDS(v) ||
-          CPUID_MODEL_IS_METEORLAKE(v) ||
-          CPUID_MODEL_IS_DIAMONDRAPIDS(v); // PR3470460: split out a new uarch?
+          CPUID_MODEL_IS_METEORLAKE(v);
 }
 
 static INLINE Bool
