@@ -41,6 +41,7 @@
 #include "certverify.h"
 #include "VGAuthProto.h"
 #include "vmxlog.h"
+#include "VGAuthUtil.h"
 
 // puts the identity store in an easy to find place
 #undef WIN_TEST_MODE
@@ -66,6 +67,7 @@
 #define ALIASSTORE_FILE_PREFIX   "user-"
 #define ALIASSTORE_FILE_SUFFIX   ".xml"
 
+static gboolean allowSymlinks = FALSE;
 static gchar *aliasStoreRootDir = DEFAULT_ALIASSTORE_ROOT_DIR;
 
 #ifdef _WIN32
@@ -251,6 +253,12 @@ mapping file layout:
 </mappings>
 
  */
+
+#ifdef _WIN32
+#define ISPATHSEP(c)  ((c) == '\\' || (c) == '/')
+#else
+#define ISPATHSEP(c)  ((c) == '/')
+#endif
 
 
 /*
@@ -466,6 +474,7 @@ ServiceLoadFileContentsWin(const gchar *fileName,
    gunichar2 *fileNameW = NULL;
    BOOL ok;
    DWORD bytesRead;
+   gchar *realPath = NULL;
 
    *fileSize = 0;
    *contents = NULL;
@@ -622,6 +631,22 @@ ServiceLoadFileContentsWin(const gchar *fileName,
       goto done;
    }
 
+   if (!allowSymlinks) {
+      /*
+       * Check if fileName is real path.
+       */
+      if ((realPath = ServiceFileGetPathByHandle(hFile)) == NULL) {
+         err = VGAUTH_E_FAIL;
+         goto done;
+      }
+      if (Util_Utf8CaseCmp(realPath, fileName) != 0) {
+         Warning("%s: Real path (%s) is not same as file path (%s)\n",
+                 __FUNCTION__, realPath, fileName);
+         err = VGAUTH_E_FAIL;
+         goto done;
+      }
+   }
+
    /*
     * Now finally read the contents.
     */
@@ -650,6 +675,7 @@ done:
       CloseHandle(hFile);
    }
    g_free(fileNameW);
+   g_free(realPath);
 
    return err;
 }
@@ -672,6 +698,7 @@ ServiceLoadFileContentsPosix(const gchar *fileName,
    gchar *buf;
    gchar *bp;
    int fd = -1;
+   gchar realPath[PATH_MAX] = { 0 };
 
    *fileSize = 0;
    *contents = NULL;
@@ -815,6 +842,23 @@ ServiceLoadFileContentsPosix(const gchar *fileName,
       // XXX audit this?
       err = VGAUTH_E_FAIL;
       goto done;
+   }
+
+   if (!allowSymlinks) {
+      /*
+       * Check if fileName is real path.
+       */
+      if (realpath(fileName, realPath) == NULL) {
+         Warning("%s: realpath() failed. errno (%d)\n", __FUNCTION__, errno);
+         err = VGAUTH_E_FAIL;
+         goto done;
+      }
+      if (g_strcmp0(realPath, fileName) != 0) {
+         Warning("%s: Real path (%s) is not same as file path (%s)\n",
+                 __FUNCTION__, realPath, fileName);
+         err = VGAUTH_E_FAIL;
+         goto done;
+      }
    }
 
    /*
@@ -2803,8 +2847,13 @@ ServiceAliasRemoveAlias(const gchar *reqUserName,
 
    /*
     * We don't verify the user exists in a Remove operation, to allow
-    * cleanup of deleted user's stores.
+    * cleanup of deleted user's stores, but we do check whether the
+    * user name is legal or not.
     */
+   if (!Usercheck_UsernameIsLegal(userName)) {
+      Warning("%s: Illegal user name '%s'\n", __FUNCTION__, userName);
+      return VGAUTH_E_FAIL;
+   }
 
    if (!CertVerify_IsWellFormedPEMCert(pemCert)) {
       return VGAUTH_E_INVALID_CERTIFICATE;
@@ -3035,6 +3084,16 @@ ServiceAliasQueryAliases(const gchar *userName,
       return VGAUTH_E_NO_SUCH_USER;
    }
 #endif
+
+   /*
+    * We don't verify the user exists in a Query operation to allow
+    * cleaning up after a deleted user, but we do check whether the
+    * user name is legal or not.
+    */
+   if (!Usercheck_UsernameIsLegal(userName)) {
+      Warning("%s: Illegal user name '%s'\n", __FUNCTION__, userName);
+      return VGAUTH_E_FAIL;
+   }
 
    err = AliasLoadAliases(userName, num, aList);
    if (VGAUTH_E_OK != err) {
@@ -3294,6 +3353,7 @@ ServiceAliasInitAliasStore(void)
    VGAuthError err = VGAUTH_E_OK;
    gboolean saveBadDir = FALSE;
    char *defaultDir = NULL;
+   size_t len;
 
 #ifdef _WIN32
    {
@@ -3324,6 +3384,10 @@ ServiceAliasInitAliasStore(void)
    defaultDir = g_strdup(DEFAULT_ALIASSTORE_ROOT_DIR);
 #endif
 
+   allowSymlinks = Pref_GetBool(gPrefs,
+                                VGAUTH_PREF_ALLOW_SYMLINKS,
+                                VGAUTH_PREF_GROUP_NAME_SERVICE,
+                                FALSE);
    /*
     * Find the alias store directory.  This allows an installer to put
     * it somewhere else if necessary.
@@ -3336,6 +3400,14 @@ ServiceAliasInitAliasStore(void)
                                       VGAUTH_PREF_ALIASSTORE_DIR,
                                       VGAUTH_PREF_GROUP_NAME_SERVICE,
                                       defaultDir);
+
+   /*
+    * Remove the trailing separator if any from aliasStoreRootDir path.
+    */
+   len = strlen(aliasStoreRootDir);
+   if (ISPATHSEP(aliasStoreRootDir[len - 1])) {
+      aliasStoreRootDir[len - 1] = '\0';
+   }
 
    Log("Using '%s' for alias store root directory\n", aliasStoreRootDir);
 

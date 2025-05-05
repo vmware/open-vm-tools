@@ -441,6 +441,7 @@ VGAuthError ServiceFileVerifyAdminGroupOwnedByHandle(const HANDLE hFile);
 VGAuthError ServiceFileVerifyEveryoneReadableByHandle(const HANDLE hFile);
 VGAuthError ServiceFileVerifyUserAccessByHandle(const HANDLE hFile,
                                                 const char *userName);
+gchar *ServiceFileGetPathByHandle(HANDLE hFile);
 #else
 VGAuthError ServiceFileVerifyFileOwnerAndPerms(const char *fileName,
                                                const char *userName,

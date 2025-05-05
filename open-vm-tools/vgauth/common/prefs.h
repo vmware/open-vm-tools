@@ -167,6 +167,9 @@ msgCatalog = /etc/vmware-tools/vgauth/messages
 /** Where the localized version of the messages were installed. */
 #define VGAUTH_PREF_LOCALIZATION_DIR        "msgCatalog"
 
+/** If symlinks or junctions are allowed in alias store file path */
+#define VGAUTH_PREF_ALLOW_SYMLINKS  "allowSymlinks"
+
 /*
  * Pref values
  */
