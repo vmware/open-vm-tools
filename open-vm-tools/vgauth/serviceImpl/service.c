@@ -28,6 +28,7 @@
 #include "VGAuthUtil.h"
 #ifdef _WIN32
 #include "winUtil.h"
+#include <glib.h>
 #endif
 
 static ServiceStartListeningForIOFunc startListeningIOFunc = NULL;
@@ -283,9 +284,35 @@ static gchar *
 ServiceUserNameToPipeName(const char *userName)
 {
    gchar *escapedName = ServiceEncodeUserName(userName);
+#ifdef _WIN32
+   /*
+    * Adding below pragma only in windows to suppress the compile time warning
+    * about unavailability of g_uuid_string_random() since compiler flag
+    * GLIB_VERSION_MAX_ALLOWED is defined to GLIB_VERSION_2_34.
+    * TODO: Remove below pragma when GLIB_VERSION_MAX_ALLOWED is bumped up to
+    * or greater than GLIB_VERSION_2_52.
+    */
+#pragma warning(suppress : 4996)
+   gchar *uuidStr = g_uuid_string_random();
+   /*
+    * Add a unique suffix to avoid a name collision with an existing named pipe
+    * created by someone else (intentionally or by accident).
+    * This is not needed for Linux; name collisions on sockets are already
+    * avoided there since (1) file system paths to VGAuthService sockets are in
+    * a directory that is writable only by root and (2) VGAuthService unlinks a
+    * socket path before binding it to a newly created socket.
+    */
+   gchar *pipeName = g_strdup_printf("%s-%s-%s",
+                                     SERVICE_PUBLIC_PIPE_NAME,
+                                     escapedName,
+                                     uuidStr);
+
+   g_free(uuidStr);
+#else
    gchar *pipeName = g_strdup_printf("%s-%s",
                                      SERVICE_PUBLIC_PIPE_NAME,
                                      escapedName);
+#endif
 
    g_free(escapedName);
    return pipeName;

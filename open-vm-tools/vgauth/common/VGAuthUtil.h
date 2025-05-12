@@ -105,4 +105,6 @@ gboolean Util_CheckExpiration(const GTimeVal *start, unsigned int duration);
 
 void Util_Assert(const char *cond, const char *file, int lineNum);
 
+int Util_Utf8CaseCmp(const gchar *str1, const gchar *str2);
+
 #endif

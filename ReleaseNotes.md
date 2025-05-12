@@ -1,8 +1,8 @@
-#                      open-vm-tools 12.5.0 Release Notes
+#                      open-vm-tools 12.5.2 Release Notes
 
-Updated on: 8 October 2024
+Updated on: 12 May 2025
 
-open-vm-tools | 8 OCTOBER 2024 | Build 24276846
+open-vm-tools | 12 MAY 2025 | Build 24697584
 
 Check back for additions and updates to these release notes.
 
@@ -21,15 +21,17 @@ The release notes cover the following topics:
 ## <a id="whatsnew" name="whatsnew"></a>What's New
 
 
-*   Please see the [Resolved Issues](#resolvedissues) and [Known Issues](#knownissues) sections below.
+*   This release resolves [CVE-2025-22247](https://www.cve.org/CVERecord?id=CVE-2025-22247). For more information on this vulnerability and its impact on Broadcom products, see [VMSA-2025-0007](https://support.broadcom.com/web/ecx/support-content-notification/-/external/content/SecurityAdvisories/0/25683)
 
-*   A complete list of the granular changes in the open-vm-tools 12.5.0 release is available at:
+    A patch to address CVE-2025-22247 on earlier open-vm-tools releases is provided to the Linux community at [CVE-2025-22247.patch](https://github.com/vmware/open-vm-tools/tree/CVE-2025-22247.patch).
 
-    [open-vm-tools ChangeLog](https://github.com/vmware/open-vm-tools/blob/stable-12.5.0/open-vm-tools/ChangeLog)
+*   A complete list of the granular changes in the open-vm-tools 12.5.2 release is available at:
+
+    [open-vm-tools ChangeLog](https://github.com/vmware/open-vm-tools/blob/stable-12.5.2/open-vm-tools/ChangeLog)
 
 ## <a id="i18n" name="i18n"></a>Internationalization
 
-open-vm-tools 12.5.0 is available in the following languages:
+open-vm-tools 12.5.2 is available in the following languages:
 
 * English
 * French
@@ -67,19 +69,15 @@ The [Guest OS Customization Support Matrix](http://partnerweb.vmware.com/program
 
 ## <a id="interop" name="interop"></a>Interoperability Matrix
 
-The [VMware Product Interoperability Matrix](http://partnerweb.vmware.com/comp_guide2/sim/interop_matrix.php) provides details about the compatibility of current and earlier versions of VMware Products. 
+The [VMware Product Interoperability Matrix](https://interopmatrix.broadcom.com/Interoperability) provides details about the compatibility of current and earlier versions of VMware Products. 
 
 ## <a id="resolvedissues" name ="resolvedissues"></a> Resolved Issues
 
-*   **The following github.com/vmware/open-vm-tools pull request has been addressed.**
+*   **This release resolves CVE-2025-22247.**
 
-    * Revise settings for vmware-user.desktop
+    * For more information on this vulnerability and its impact on Broadcom products, see [VMSA-2025-0007](https://support.broadcom.com/web/ecx/support-content-notification/-/external/content/SecurityAdvisories/0/25683)
 
-      [Pull request #668](https://github.com/vmware/open-vm-tools/pull/668)
-
-*   **Accomodate newer releases of libxml2 and xmlsec1.**
-
-    The configure.ac and VGAuth code updated to avoid deprecated functions and build options based on OSS product version.
+    * A patch to address CVE-2025-22247 on earlier open-vm-tools releases is provided to the Linux community at [CVE-2025-22247.patch](https://github.com/vmware/open-vm-tools/tree/CVE-2025-22247.patch).
 
 ## <a id="knownissues" name="knownissues"></a>Known Issues
 
