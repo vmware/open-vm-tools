@@ -1,3 +1,52 @@
+commit 4ba99fabfecd7a54d3ebdb9d144f9ed6ec7faf22
+Author: John Wolfe <john.wolfe@broadcom.com>
+Date:   Mon May 12 13:00:43 2025 -0700
+
+    Update the ReleaseNotes.md for the 12.5.2 open-vm-tools release.
+
+commit d466ae89716856b2a4295ce622f1887a25575f25
+Author: John Wolfe <john.wolfe@broadcom.com>
+Date:   Sun May 11 09:17:41 2025 -0700
+
+    Prepare for the open-vm-tools 12.5.2 release.
+    
+    - Update the tools version in the configure.ac.
+    - Update the build numbers in the buldNumber.h.
+
+commit f6e10ad22796353a8ed3bed876cdc41d7acc2fc0
+Author: John Wolfe <john.wolfe@broadcom.com>
+Date:   Fri May 9 11:51:44 2025 -0700
+
+    Set the open-vm-tools product version for a 12.5.2 patch release
+
+commit 6331ea0150b98316b3f41b4cdcff52ae9fc7d791
+Author: John Wolfe <john.wolfe@broadcom.com>
+Date:   Mon May 5 15:58:03 2025 -0700
+
+    Validate user names and file paths
+    
+    Prevent usage of illegal characters in user names and file paths.
+    Also, disallow unexpected symlinks in file paths.
+    
+    This patch contains changes to common source files not applicable
+    to open-vm-tools.
+    
+    All files being updated should be consider to have the copyright to
+    be updated to:
+    
+     * Copyright (c) XXXX-2025 Broadcom. All Rights Reserved.
+     * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
+    
+    The 2025 Broadcom copyright information update is not part of this
+    patch set to allow the patch to be easily applied to previous
+    open-vm-tools source releases.
+
+commit f2ca37ef3510543172657b82493d1eceefa9a134
+Author: Kruti <kpendharkar@vmware.com>
+Date:   Thu Oct 10 08:05:07 2024 -0700
+
+    Update ChangeLog with the open-vm-tools 12.5.0 release marker.
+
 commit 05afe0ae703d6027325059876528fe3b04fdf386
 Author: Kruti <kpendharkar@vmware.com>
 Date:   Thu Oct 10 06:12:07 2024 -0700
