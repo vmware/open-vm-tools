@@ -21,6 +21,7 @@ plugindir = @VMUSR_PLUGIN_INSTALLDIR@
 plugin_LTLIBRARIES = libdndcp.la
 
 libdndcp_la_CPPFLAGS =
+libdndcp_la_CPPFLAGS += -I$(top_srcdir)/lib/include
 libdndcp_la_CPPFLAGS += @GTK_CPPFLAGS@
 libdndcp_la_CPPFLAGS += @PLUGIN_CPPFLAGS@
 libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/dnd
@@ -28,7 +29,6 @@ libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/dndGuest
 libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/dndGuestBase
 libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/stringxx
 libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/xutils
-libdndcp_la_CPPFLAGS += -I$(top_srcdir)/include
 libdndcp_la_CPPFLAGS += @XDR_CPPFLAGS@
 
 # Passing C++ related flags to CPPFLAGS generates error.
