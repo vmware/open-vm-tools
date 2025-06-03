@@ -132,3 +132,27 @@ Log_GetFileName(void)
 {
    return NULL;
 }
+
+
+void *
+Log_BufBegin(void)
+{
+   return NULL;
+}
+
+
+void
+Log_BufAppend(void *acc,        // IN/OUT:
+              const char *fmt,  // IN:
+              ...)              // IN/OUT:
+{
+
+}
+
+
+void
+Log_BufEndLevel(void *acc,       // IN/OUT:
+                uint32 routing)  // IN:
+{
+
+}

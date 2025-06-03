@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2009-2019 VMware, Inc. All rights reserved.
+ * Copyright (c) 2009-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -1059,3 +1060,31 @@ MXUser_DecRefRecLock(MXUserRecLock *lock)  // IN:
 
    MXUserCondDestroyRecLock(lock);
 }
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * MXUser_GetRecLockName
+ *
+ *      Peek under the hood of the lock to retrieve it's name.
+ *
+ * Results:
+ *
+ *      Name of the lock.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+ const char *
+ MXUser_GetRecLockName(MXUserRecLock *lock)  // IN:
+ {
+    ASSERT(lock != NULL);
+
+    MXUserValidateHeader(&lock->header, MXUSER_TYPE_REC);
+
+    return lock->header.name;
+ }
