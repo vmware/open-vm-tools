@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 1998-2024 Broadcom. All Rights Reserved.
+ * Copyright (c) 1998-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -403,7 +403,7 @@ Util_Memcpy32(void *dst,
            "cld \n\t"
            "rep ; movsl"  "\n\t"
         : "=&c" (dummy0), "=&D" (dummy1), "=&S" (dummy2)
-        : "0" (nbytes / 4), "1" ((long) dst), "2" ((long) src)
+        : "0" (nbytes / 4), "1" ((intptr_t) dst), "2" ((intptr_t) src)
         : "memory", "cc"
       );
       return dst;
