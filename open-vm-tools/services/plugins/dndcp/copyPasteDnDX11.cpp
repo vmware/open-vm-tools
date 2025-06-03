@@ -24,12 +24,13 @@
  */
 
 #define G_LOG_DOMAIN "dndcp"
+#define VMTOOLS_USE_LEGACY_GTK
 
 #include "copyPasteDnDWrapper.h"
 #include "copyPasteDnDX11.h"
-#include "dndPluginIntX11.h"
 #include "copyPasteUIX11.h"
 #include "tracer.hh"
+#include "dndPluginIntX11.h"
 
 Window gXRoot;
 Display *gXDisplay;
@@ -194,12 +195,15 @@ BlockService::Shutdown()
  * Constructor.
  */
 
+
+#ifdef VMTOOLS_USE_LEGACY_GTK
 CopyPasteDnDX11::CopyPasteDnDX11() :
    m_main(NULL),
    m_copyPasteUI(NULL),
    m_dndUI(NULL)
 {
 }
+#endif
 
 
 /**
@@ -229,12 +233,18 @@ CopyPasteDnDX11::Init(ToolsAppCtx *ctx)
    CopyPasteDnDWrapper *wrapper = CopyPasteDnDWrapper::GetInstance();
 
    ASSERT(ctx);
+
+#ifdef VMTOOLS_USE_LEGACY_GTK
    int argc = 1;
    const char *argv[] = {"", NULL};
    m_main = new Gtk::Main(&argc, (char ***) &argv, false);
+#endif
+
    if (wrapper) {
       BlockService::GetInstance()->Init(ctx);
    }
+
+#ifdef VMTOOLS_USE_LEGACY_GTK
    gUserMainWidget = gtk_invisible_new();
 #ifndef GTK3
    gXDisplay = GDK_WINDOW_XDISPLAY(gUserMainWidget->window);
@@ -242,6 +252,7 @@ CopyPasteDnDX11::Init(ToolsAppCtx *ctx)
    gXDisplay = GDK_WINDOW_XDISPLAY(gtk_widget_get_window(gUserMainWidget));
 #endif
    gXRoot = RootWindow(gXDisplay, DefaultScreen(gXDisplay));
+#endif
 
    /*
     * Register legacy (backdoor) version of copy paste.
@@ -260,15 +271,12 @@ CopyPasteDnDX11::Init(ToolsAppCtx *ctx)
 
 CopyPasteDnDX11::~CopyPasteDnDX11()
 {
-   if (m_copyPasteUI) {
-      delete m_copyPasteUI;
-   }
-   if (m_dndUI) {
-      delete m_dndUI;
-   }
-   if (m_main) {
-      delete m_main;
-   }
+   delete m_copyPasteUI;
+
+#ifdef VMTOOLS_USE_LEGACY_GTK
+   delete m_dndUI;
+   delete m_main;
+#endif
 
    /*
     * Legacy CP.
@@ -276,7 +284,11 @@ CopyPasteDnDX11::~CopyPasteDnDX11()
    CopyPaste_Unregister(gUserMainWidget);
 
    if (gUserMainWidget) {
-      gtk_widget_destroy(gUserMainWidget);
+
+#ifdef VMTOOLS_USE_LEGACY_GTK
+   gtk_widget_destroy(gUserMainWidget);
+#endif
+
    }
 }
 
@@ -341,6 +353,8 @@ CopyPasteDnDX11::RegisterDnD()
    TRACE_CALL();
    CopyPasteDnDWrapper *wrapper = CopyPasteDnDWrapper::GetInstance();
 
+
+#ifdef VMTOOLS_USE_LEGACY_GTK
    if (!wrapper->IsDnDEnabled()) {
       return FALSE;
    }
@@ -367,6 +381,7 @@ CopyPasteDnDX11::RegisterDnD()
 
    g_debug("%s: dnd is registered? %d\n", __FUNCTION__, (int) wrapper->IsDnDRegistered());
    return wrapper->IsDnDRegistered();
+#endif
 }
 
 
@@ -381,10 +396,7 @@ CopyPasteDnDX11::UnregisterCP()
    TRACE_CALL();
    CopyPasteDnDWrapper *wrapper = CopyPasteDnDWrapper::GetInstance();
    if (wrapper->IsCPRegistered()) {
-      if (m_copyPasteUI) {
-         delete m_copyPasteUI;
-         m_copyPasteUI = NULL;
-      }
+      delete m_copyPasteUI;
       wrapper->SetCPIsRegistered(FALSE);
       wrapper->SetCPVersion(-1);
    }
@@ -402,10 +414,11 @@ CopyPasteDnDX11::UnregisterDnD()
    TRACE_CALL();
    CopyPasteDnDWrapper *wrapper = CopyPasteDnDWrapper::GetInstance();
    if (wrapper->IsDnDRegistered()) {
-      if (m_dndUI) {
-         delete m_dndUI;
-         m_dndUI = NULL;
-      }
+
+#ifdef VMTOOLS_USE_LEGACY_GTK
+      delete m_dndUI;
+#endif
+
       wrapper->SetDnDIsRegistered(false);
       wrapper->SetDnDVersion(-1);
       return;
@@ -423,9 +436,11 @@ CopyPasteDnDX11::UnregisterDnD()
 void
 CopyPasteDnDX11::SetDnDAllowed(bool allowed)
 {
+#ifdef VMTOOLS_USE_LEGACY_GTK
    ASSERT(m_dndUI);
    TRACE_CALL();
    m_dndUI->SetDnDAllowed(allowed);
+#endif
 }
 
 
@@ -480,8 +495,10 @@ CopyPasteDnDX11::DnDVersionChanged(int version)
    g_debug("%s: calling VmxDnDVersionChanged (version %d)\n",
           __FUNCTION__, version);
    ASSERT(ctx);
+#ifdef VMTOOLS_USE_LEGACY_GTK
    ASSERT(m_dndUI);
    m_dndUI->VmxDnDVersionChanged(ctx->rpc, version);
+#endif
 }
 
 

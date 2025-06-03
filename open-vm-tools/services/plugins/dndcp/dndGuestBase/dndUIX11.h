@@ -28,6 +28,9 @@
 #ifndef __DND_UI_X11_H__
 #define __DND_UI_X11_H__
 
+#define VMTOOLS_USE_LEGACY_GTK
+
+
 #include "stringxx/string.hh"
 #include "dnd.h"
 #include "str.h"
@@ -120,6 +123,7 @@ private:
    /*
     * Gtk+ Callbacks: Drag Destination.
     */
+#ifdef VMTOOLS_USE_LEGACY_GTK
    void OnGtkDragDataReceived(const Glib::RefPtr<Gdk::DragContext> &dc,
                               int x, int y, const Gtk::SelectionData &sd,
                               guint info, guint time);
@@ -142,6 +146,7 @@ private:
     */
    void SourceDragStartDone();
    void SourceUpdateFeedback(DND_DROPEFFECT effect);
+#endif   /* end VMTOOLS_USE_LEGACY_GTK */
    /*
     * Target function for GH DnD. Makes call to common layer.
     */

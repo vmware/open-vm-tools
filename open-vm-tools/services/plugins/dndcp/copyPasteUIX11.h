@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2009-2018 VMware, Inc. All rights reserved.
+ * Copyright (c) 2009-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -47,7 +48,7 @@ extern "C" {
 
 /*
  * Make sure exception types are public and therefore shared between libg*mm
- * and this plugin. 
+ * and this plugin.
  *
  * See
  * http://gcc.gnu.org/wiki/Visibility#Problems_with_C.2B-.2B-_exceptions_.28please_read.21.29
@@ -61,7 +62,13 @@ extern "C" {
 
 #include <X11/Xlib.h>
 #include <gtk/gtk.h>
+
+#define VMTOOLS_USE_LEGACY_GTK
+
+#ifdef VMTOOLS_USE_LEGACY_GTK
 #include <gdk/gdkx.h>
+#endif
+
 #include "vmware/guestrpc/tclodefs.h"
 
 class CopyPasteUIX11;
@@ -98,25 +105,29 @@ private:
 
    /* hg */
    void GetRemoteClipboardCB(const CPClipboard *clip);
-   void RemoteGetFilesDone(void);
+
+#ifdef VMTOOLS_USE_LEGACY_GTK
    void LocalGetFileRequestCB(Gtk::SelectionData& selection_data, guint info);
    void LocalGetTextOrRTFRequestCB(Gtk::SelectionData& sd, guint info);
    void LocalGetSelectionFileList(const Gtk::SelectionData& sd);
    void LocalGetFileContentsRequestCB(Gtk::SelectionData& sd, guint info);
    void LocalClearClipboardCB(void);
+#endif
 
    /* gh */
    void GetLocalClipboard(void);
+#ifdef VMTOOLS_USE_LEGACY_GTK
    void LocalClipboardTimestampCB(const Gtk::SelectionData& sd);
    void LocalPrimTimestampCB(const Gtk::SelectionData& sd);
    void LocalReceivedFileListCB(const Gtk::SelectionData& selection_data);
+   bool LocalPrepareFileContents(const CPClipboard *clip);
+#endif
    void GetLocalFilesDone(bool success);
    void SendClipNotChanged(void);
 
    /* Conversion methods. */
    utf::utf8string GetNextPath(utf::utf8string &str, size_t& index);
    utf::string GetLastDirName(const utf::string &str);
-   bool LocalPrepareFileContents(const CPClipboard *clip);
 
    VmTimeType GetCurrentTime(void);
 
@@ -127,29 +138,35 @@ private:
    GuestCopyPasteMgr *mCP;
    bool mClipboardEmpty;
    utf::string mHGStagingDir;
+#ifdef VMTOOLS_USE_LEGACY_GTK
    std::vector<Gtk::TargetEntry> mListTargets;
+   GdkAtom mGHSelection;
    bool mIsClipboardOwner;
    uint64 mClipTime;
    uint64 mPrimTime;
    uint64 mLastTimestamp;
-   GdkAtom mGHSelection;
+#endif
    CPClipboard mClipboard;
    ThreadParams mThreadParams;
    pthread_t mThread;
 
    /* File vars. */
    VmTimeType mHGGetListTime;
-   utf::string mHGCopiedUriList;
    utf::utf8string mHGFCPData;
+
+#ifdef VMTOOLS_USE_LEGACY_GTK
+   utf::string mHGCopiedUriList;
    utf::string mHGTextData;
    std::string mHGRTFData;
+   bool mGetTimestampOnly;
    std::vector<utf::string> mHGFileContentsList;
+#endif
+
    DND_FILE_TRANSFER_STATUS mHGGetFileStatus;
    bool mBlockAdded;
    DnDBlockControl *mBlockCtrl;
    bool mInited;
    uint64 mTotalFileSize;
-   bool mGetTimestampOnly;
 };
 
 #endif // __COPYPASTE_UI_X11_H__

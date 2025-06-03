@@ -25,9 +25,16 @@
 #ifndef __DNDPLUGIN_INTX11_H__
 #define __DNDPLUGIN_INTX11_H__
 
+#define VMTOOLS_USE_LEGACY_GTK
+
+
 #include <X11/Xlib.h>
 #include <gtk/gtk.h>
+
+#ifdef VMTOOLS_USE_LEGACY_GTK
 #include <gdk/gdkx.h>
+#endif
+
 #undef Bool
 #include "vm_basic_types.h"
 #include "dnd.h"

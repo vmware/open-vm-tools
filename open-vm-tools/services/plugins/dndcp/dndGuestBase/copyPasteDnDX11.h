@@ -27,8 +27,15 @@
 #ifndef __COPYPASTEDNDX11_H__
 #define __COPYPASTEDNDX11_H__
 
+#define VMTOOLS_USE_LEGACY_GTK
+
+
 #include "dnd.h"     /* for DnDBlockControl */
+
+#ifdef VMTOOLS_USE_LEGACY_GTK
 #include "dndUIX11.h"
+#endif
+
 #include <gtk/gtk.h>
 #include "vm_basic_types.h"
 #include "copyPasteDnDImpl.h"
@@ -53,13 +60,18 @@ public:
    virtual void DnDVersionChanged(int version);
    virtual void CopyPasteVersionChanged(int version);
    virtual uint32 GetCaps();
+#ifdef VMTOOLS_USE_LEGACY_GTK
    void SetUnityMode(Bool mode) {m_dndUI->SetUnityMode(mode);};
+#endif
    void SetDnDAllowed(bool allowed);
    void SetCopyPasteAllowed(bool allowed);
 private:
+
+#ifdef VMTOOLS_USE_LEGACY_GTK
    Gtk::Main *m_main;
    CopyPasteUIX11 *m_copyPasteUI;
    DnDUIX11 *m_dndUI;
+#endif
 };
 
 #endif // __COPYPASTEDNDX11_H__
