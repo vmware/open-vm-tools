@@ -57,6 +57,7 @@
  */
 #define PCI_VENDOR_ID_VMWARE                    0x15AD
 #define PCI_DEVICE_ID_VMWARE_SBX                0x0420
+#define PCI_DEVICE_ID_VMWARE_SVGA4_RO           0x0410
 #define PCI_DEVICE_ID_VMWARE_SVGA4_EFI          0x0409
 #define PCI_DEVICE_ID_VMWARE_SVGA4              0x0408
 #define PCI_DEVICE_ID_VMWARE_SVGA_EFI           0x0407
