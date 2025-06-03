@@ -1061,4 +1061,18 @@ typedef int pid_t;
    #define VMW_FALLTHROUGH()
 #endif
 
+
+/*
+ * VMW_CLANG_SUPPRESS
+ *
+ *   Instructs clang static analyzer to suppress unwanted warnings related to the code
+ *   block following this macro.
+ */
+#if defined(__clang__) && (__clang_major__ >= 18)
+   #define VMW_CLANG_SUPPRESS [[clang::suppress]]
+#else
+   #define VMW_CLANG_SUPPRESS
+#endif
+
+
 #endif // ifndef _VM_BASIC_DEFS_H_
