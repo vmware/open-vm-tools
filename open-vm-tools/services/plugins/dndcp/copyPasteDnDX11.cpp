@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
+ * Copyright (c) 2010-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -26,8 +27,8 @@
 
 #include "copyPasteDnDWrapper.h"
 #include "copyPasteDnDX11.h"
-#include "copyPasteUIX11.h"
 #include "dndPluginIntX11.h"
+#include "copyPasteUIX11.h"
 #include "tracer.hh"
 
 Window gXRoot;
@@ -231,11 +232,9 @@ CopyPasteDnDX11::Init(ToolsAppCtx *ctx)
    int argc = 1;
    const char *argv[] = {"", NULL};
    m_main = new Gtk::Main(&argc, (char ***) &argv, false);
-
    if (wrapper) {
       BlockService::GetInstance()->Init(ctx);
    }
-
    gUserMainWidget = gtk_invisible_new();
 #ifndef GTK3
    gXDisplay = GDK_WINDOW_XDISPLAY(gUserMainWidget->window);

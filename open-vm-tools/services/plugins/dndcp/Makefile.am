@@ -1,5 +1,7 @@
 ################################################################################
-### Copyright (C) 2009-2019 VMware, Inc.  All rights reserved.
+### Copyright (c) 2009-2025 Broadcom. All Rights Reserved.
+### Broadcom Confidential. The term "Broadcom" refers to Broadcom Inc.
+### and/or its subsidiaries.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -28,6 +30,7 @@ libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/dndGuest
 libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/dndGuestBase
 libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/stringxx
 libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/xutils
+
 libdndcp_la_CPPFLAGS += -I$(top_srcdir)/include
 libdndcp_la_CPPFLAGS += @XDR_CPPFLAGS@
 
@@ -85,15 +88,15 @@ libdndcp_la_SOURCES += dndGuest/dndCPTransportGuestRpc.cpp
 libdndcp_la_SOURCES += stringxx/string.cc
 libdndcp_la_SOURCES += xutils/xutils.cc
 
+libdndcp_la_SOURCES += dndcp.cpp
+libdndcp_la_SOURCES += pointer.cpp
 libdndcp_la_SOURCES += copyPasteCompat.c
-libdndcp_la_SOURCES += copyPasteCompatX11.c
 libdndcp_la_SOURCES += vmCopyPasteDnDWrapper.cpp
 libdndcp_la_SOURCES += copyPasteDnDX11.cpp
+libdndcp_la_SOURCES += copyPasteCompatX11.c
 libdndcp_la_SOURCES += copyPasteUIX11.cpp
 libdndcp_la_SOURCES += dndUIX11.cpp
-libdndcp_la_SOURCES += dndcp.cpp
 libdndcp_la_SOURCES += dragDetWndX11.cpp
-libdndcp_la_SOURCES += pointer.cpp
 
 if LINUX
 libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/fakeMouse

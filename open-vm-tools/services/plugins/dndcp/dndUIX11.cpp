@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2009-2021 VMware, Inc. All rights reserved.
+ * Copyright (c) 2009-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -2742,7 +2743,7 @@ DnDUIX11::OnWorkAreaChanged(Glib::RefPtr<Gdk::Screen> screen)    // IN
    TRACE_CALL();
 
    std::vector<unsigned long> values;
-   if (   xutils::GetCardinalList(screen->get_root_window(), "_NET_WORKAREA", values)
+   if (xutils::GetCardinalList(screen->get_root_window(), "_NET_WORKAREA", values)
        && values.size() > 0
        && values.size() % 4 == 0) {
       /*

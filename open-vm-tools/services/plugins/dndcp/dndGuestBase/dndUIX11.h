@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2009-2019 VMware, Inc. All rights reserved.
+ * Copyright (c) 2009-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -141,7 +142,6 @@ private:
     */
    void SourceDragStartDone();
    void SourceUpdateFeedback(DND_DROPEFFECT effect);
-
    /*
     * Target function for GH DnD. Makes call to common layer.
     */

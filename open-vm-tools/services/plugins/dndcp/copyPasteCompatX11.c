@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2005-2019,2022 VMware, Inc. All rights reserved.
+ * Copyright (c) 2005-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -18,6 +19,8 @@
 
 /*
  * copyPasteCompatX11.c --
+ *    GTK2/GTK3 implementation only. The GTK4 implementation is in
+ *    copyPasteCompatX11GTK4.c.
  *
  *    Set of functions in guest side for copy/paste (both file and text).
  *    Currently there are 2 versions copy/paste. Version 1 only supports
@@ -204,7 +207,7 @@ CopyPasteSelectionRemoveTarget(GtkWidget *widget,
  *
  * CopyPaste_RequestSelection --
  *
- *      Request the guest's text clipboard (asynchronously), we'll give it to 
+ *      Request the guest's text clipboard (asynchronously), we'll give it to
  *      the host when the request completes. For version 1 guest->host text
  *      copy/paste.
  *
