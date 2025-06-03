@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 1998-2024 Broadcom. All Rights Reserved.
+ * Copyright (c) 1998-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -137,7 +137,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define ALLWIN_10_64          ALLWIN_10_CLIENT64, ALLWIN_10_SERVER
 #define ALLWIN_10             ALLWIN_10_CLIENT,   ALLWIN_10_SERVER
 
-#define ALLWIN_11_SERVER64    BS(WIN_2022SRV_64), BS(WIN_2025SRV_64)
+#define ALLWIN_11_SERVER64    BS(WIN_2022SRV_64)
 #define ALLWIN_11_SERVER      ALLWIN_11_SERVER64
 
 #define ALLWIN_11_CLIENT64    BS(WIN_11_64), BS(WIN_11_ARM_64)
@@ -149,7 +149,10 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define ALLWIN_12_CLIENT64    BS(WIN_12_64), BS(WIN_12_ARM_64)
 #define ALLWIN_12_CLIENT      ALLWIN_12_CLIENT64
 
-#define ALLWIN_12             ALLWIN_12_CLIENT64
+#define ALLWIN_12_SERVER64    BS(WIN_2025SRV_64)
+#define ALLWIN_12_SERVER      ALLWIN_12_SERVER64
+
+#define ALLWIN_12             ALLWIN_12_CLIENT64, ALLWIN_12_SERVER
 
 #define ALLHYPER_V            BS(HYPER_V)
 
@@ -158,7 +161,8 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
                               ALLWINEIGHTSERVER,   ALLWINEIGHTCLIENT,  \
                               ALLWIN_10_SERVER,    ALLWIN_10_CLIENT,   \
                               ALLWIN_11_SERVER,    ALLWIN_11_CLIENT,   \
-                              ALLWIN_12_CLIENT,    ALLHYPER_V
+                              ALLWIN_12_SERVER,    ALLWIN_12_CLIENT,   \
+                              ALLHYPER_V
 
 #define ALLWINNT32            BS(WINNT),           ALLWIN2000,          \
                               ALLWINXP32,          ALLWINNET32,         \
@@ -172,7 +176,8 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
                               ALLWINEIGHTCLIENT64,   ALLWINEIGHTSERVER, \
                               ALLWIN_10_CLIENT64,    ALLWIN_10_SERVER,  \
                               ALLWIN_11_CLIENT64,    ALLWIN_11_SERVER,  \
-                              ALLWIN_12_CLIENT64,    ALLHYPER_V
+                              ALLWIN_12_CLIENT64,    ALLWIN_12_SERVER,  \
+                              ALLHYPER_V
 
 #define ALLWINNT              ALLWINNT32, ALLWINNT64
 
