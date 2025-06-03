@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 1998-2024 Broadcom. All Rights Reserved.
+ * Copyright (c) 1998-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -653,9 +653,10 @@ typedef void * UserVA;
 #define INVALID_MPN       ((MPN)MPN38_MASK)
 #define MEMREF_MPN        ((MPN)MPN38_MASK - 1)
 #define RELEASED_MPN      ((MPN)MPN38_MASK - 2)
+#define ECC_CORRUPTED_MPN ((MPN)MPN38_MASK - 3)
 
 /* account for special MPNs defined above */
-#define MAX_MPN           ((MPN)MPN38_MASK - 3) /* 50 bits of address space */
+#define MAX_MPN           ((MPN)MPN38_MASK - 4) /* 50 bits of address space */
 
 #define INVALID_IOPN      ((IOPN)-1)
 #define MAX_IOPN          (IOA_2_IOPN((IOA)-1))
