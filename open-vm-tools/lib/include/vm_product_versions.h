@@ -72,10 +72,8 @@
  */
 
 //MARKER_FAST_REMOVE_START
-#if  defined (VMX86_VMRC) /* check VMX86_VMRC before VMX86_DESKTOP */
+#if defined(VMX86_VMRC) /* check VMX86_VMRC before VMX86_DESKTOP */
    #define PRODUCT_VERSION    13,0,0,0
-#elif defined(VMX86_FLEX) /* check VMX86_FLEX before VMX86_DESKTOP */
-   #define PRODUCT_VERSION    8,0,0,PRODUCT_BUILD_NUMBER_NUMERIC   /* FLEX_VERSION_NUMBER below has to match this */
 #elif defined(VMX86_TOOLS)
    #define PRODUCT_VERSION    TOOLS_VERSION_EXT_CURRENT_CSV
 #elif defined(VMX86_VLICENSE)
@@ -219,14 +217,11 @@
  * necessary VIX changes also need to be done. See bug 939456.
  *
  * ALSO, leave FOO_VERSION at e.x.p on all EXCEPT release branches.
- * lmclient.h has a FLEX_VERSION struct so the versionPrefix can't be FLEX
  */
 #define WORKSTATION_VERSION_NUMBER "17.0.0" /* this version number should always match real WS version number */
 #define WORKSTATION_VERSION "e.x.p"
 #define PLAYER_VERSION_NUMBER "17.0.0" /* this version number should always match real Player version number */
 #define PLAYER_VERSION "e.x.p"
-#define FLEX_CLIENT_VERSION_NUMBER "8.0.0"
-#define FLEX_CLIENT_VERSION "e.x.p"
 
 #define THINPRINT_VERSION "1.1.2"
 
@@ -402,8 +397,6 @@
 
 #if defined(VMX86_VMRC) /* check VMX86_VMRC before VMX86_DESKTOP */
 #  define PRODUCT_VERSION_NUMBER VMRC_VERSION
-#elif defined(VMX86_FLEX) /* check VMX86_FLEX before VMX86_DESKTOP */
-#  define PRODUCT_VERSION_NUMBER FLEX_VERSION
 #elif defined(VMX86_SERVER)
 #  define PRODUCT_VERSION_NUMBER ESX_VERSION
 #elif defined(VMX86_VPX)
@@ -483,7 +476,6 @@
 #define PRODUCT_MAC_DESKTOP_VERSION_STRING_FOR_LICENSE "13.0"
 #define PRODUCT_PLAYER_VERSION_STRING_FOR_LICENSE "17.0"
 #define PRODUCT_VMRC_VERSION_STRING_FOR_LICENSE "13.0"
-#define PRODUCT_FLEX_VERSION_STRING_FOR_LICENSE "8.0"
 
 #if defined(VMX86_TOOLS)
 /* This product doesn't use a license */
@@ -494,8 +486,6 @@
 #    define PRODUCT_LICENSE_VERSION "9.0"
 #  elif defined(VMX86_VMRC) /* check VMX86_VMRC before VMX86_DESKTOP */
 #    define PRODUCT_LICENSE_VERSION PRODUCT_VMRC_VERSION_STRING_FOR_LICENSE
-#  elif defined(VMX86_FLEX) /* check VMX86_FLEX before VMX86_DESKTOP */
-#    define PRODUCT_LICENSE_VERSION PRODUCT_FLEX_VERSION_STRING_FOR_LICENSE
 #  elif defined(VMX86_VPX)
 #    define PRODUCT_LICENSE_VERSION "9.0"
 #    define PRODUCT_LICENSE_FILE_VERSION "9.0.1.0"

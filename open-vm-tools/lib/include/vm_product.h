@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2006-2024 Broadcom. All Rights Reserved.
+ * Copyright (c) 2006-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -140,24 +140,11 @@
 #define PRODUCT_VDDK_SHORT_NAME "VDDK"
 #define PRODUCT_VDDK_NAME MAKE_NAME("Virtual Disk Development Kit")
 
-#define PRODUCT_VDM_CLIENT_NAME MAKE_NAME("Horizon Client")
-#define PRODUCT_VDM_CLIENT_NAME_FOR_LICENSE PRODUCT_VDM_CLIENT_NAME
-
 #define PRODUCT_XVP_SHORT_NAME "XVP"
 #define PRODUCT_XVP_NAME MAKE_NAME("vCenter XVP Manager")
 #define PRODUCT_RMKSCONTAINER_NAME MAKE_NAME("Remote MKS Container")
 
 #define PRODUCT_HBR_SERVER_NAME MAKE_NAME("vSphere Replication Server")
-
-#define PRODUCT_VIEW_SHORT_NAME "Horizon View"
-#define PRODUCT_VIEW_NAME MAKE_NAME("Horizon View")
-#define PRODUCT_VIEW_NAME_FOR_LICENSE PRODUCT_VIEW_NAME
-
-#define PRODUCT_FLEX_GENERIC_SHORT_NAME "Horizon FLEX"
-#define PRODUCT_FLEX_GENERIC_NAME MAKE_NAME(PRODUCT_FLEX_GENERIC_SHORT_NAME)
-
-#define PRODUCT_FLEX_SERVER_SHORT_NAME PRODUCT_FLEX_GENERIC_SHORT_NAME " Server"
-#define PRODUCT_FLEX_SERVER_NAME MAKE_NAME(PRODUCT_FLEX_SERVER_SHORT_NAME)
 
 #define PRODUCT_VMCF_NAME MAKE_NAME("VMCF")
 
@@ -405,8 +392,6 @@
  */
 #   if defined(VMX86_VMRC) /* check VMX86_VMRC before VMX86_DESKTOP */
 #      define PRODUCT_NAME_FOR_LICENSE PRODUCT_VMRC_NAME
-#   elif defined(VMX86_FLEX) /* check VMX86_FLEX before VMX86_DESKTOP */
-#      define PRODUCT_NAME_FOR_LICENSE PRODUCT_FLEX_NAME
 #   elif defined(VMX86_VPX)
 #      define PRODUCT_NAME_FOR_LICENSE PRODUCT_NAME " Server"
 // VMX86_DESKTOP must be last because it is the default and is always defined.
