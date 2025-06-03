@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2011-2021, 2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2011-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -2803,8 +2804,13 @@ ServiceAliasRemoveAlias(const gchar *reqUserName,
 
    /*
     * We don't verify the user exists in a Remove operation, to allow
-    * cleanup of deleted user's stores.
+    * cleanup of deleted user's stores, but we do check whether the
+    * user name is legal or not.
     */
+   if (!Usercheck_UsernameIsLegal(userName)) {
+      Warning("%s: Illegal user name '%s'\n", __FUNCTION__, userName);
+      return VGAUTH_E_FAIL;
+   }
 
    if (!CertVerify_IsWellFormedPEMCert(pemCert)) {
       return VGAUTH_E_INVALID_CERTIFICATE;
@@ -3035,6 +3041,16 @@ ServiceAliasQueryAliases(const gchar *userName,
       return VGAUTH_E_NO_SUCH_USER;
    }
 #endif
+
+   /*
+    * We don't verify the user exists in a Query operation to allow
+    * cleaning up after a deleted user, but we do check whether the
+    * user name is legal or not.
+    */
+   if (!Usercheck_UsernameIsLegal(userName)) {
+      Warning("%s: Illegal user name '%s'\n", __FUNCTION__, userName);
+      return VGAUTH_E_FAIL;
+   }
 
    err = AliasLoadAliases(userName, num, aList);
    if (VGAUTH_E_OK != err) {
