@@ -427,22 +427,25 @@ typedef int64 VmTimeVirtualClock;  /* Virtual Clock kept in CPU cycles */
  * Suffix for 64-bit constants.  Use it like this:
  *    CONST64(0x7fffffffffffffff) for signed or
  *    CONST64U(0x7fffffffffffffff) for unsigned.
+ *
+ * Only use with literal constants.
+ * It might not do the right thing with an expression.
  */
 
 #if !defined(CONST64) || !defined(CONST64U)
 #ifdef _MSC_VER
-#define CONST64(c) c##I64
-#define CONST64U(c) c##uI64
+#define CONST64(c) (c##I64)
+#define CONST64U(c) (c##uI64)
 #elif defined __APPLE__
-#define CONST64(c) c##LL
-#define CONST64U(c) c##uLL
+#define CONST64(c) (c##LL)
+#define CONST64U(c) (c##uLL)
 #elif __GNUC__
 #if defined(VM_X86_64) || defined(VM_ARM_64)
-#define CONST64(c) c##L
-#define CONST64U(c) c##uL
+#define CONST64(c) (c##L)
+#define CONST64U(c) (c##uL)
 #else
-#define CONST64(c) c##LL
-#define CONST64U(c) c##uLL
+#define CONST64(c) (c##LL)
+#define CONST64U(c) (c##uLL)
 #endif
 #else
 #error - Need compiler define for CONST64
