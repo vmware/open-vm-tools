@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 1998-2024 Broadcom. All Rights Reserved.
+ * Copyright (c) 1998-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -342,8 +342,7 @@
    LOGLEVEL_VAR(wifi), /* macWireless and wpa_supplicant */ \
    LOGLEVEL_VAR(win32util), \
    LOGLEVEL_VAR(worker), \
-   LOGLEVEL_VAR(xled), \
-   LOGLEVEL_VAR(xpmode)
+   LOGLEVEL_VAR(xled)
 
    /* end of list */
 

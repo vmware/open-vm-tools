@@ -154,7 +154,7 @@ extern "C" {
 //#define BDOOR_CMD_GET_HOST_VIDEO_MODES     59 /* Not in use. */
 #define   BDOOR_CMD_ACPI_HOTPLUG_CPU         60 /* Devel only. */
 //#define BDOOR_CMD_USB_HOTPLUG_MOUSE        61 /* Not in use. Never shipped. */
-#define   BDOOR_CMD_XPMODE                   62 /* CPL 0 only. */
+//#define   BDOOR_CMD_XPMODE                 62 /* Not in use. Deprecated. */
 #define   BDOOR_CMD_NESTING_CONTROL          63
 #define   BDOOR_CMD_FIRMWARE_INIT            64 /* CPL 0 only. */
 #define   BDOOR_CMD_FIRMWARE_ACPI_SERVICES   65 /* CPL 0 only. */
