@@ -156,3 +156,9 @@ Log_BufEndLevel(void *acc,       // IN/OUT:
 {
 
 }
+
+Bool
+Log_IsEnabled(uint32 routing)  // IN:
+{
+   return FALSE;
+}
