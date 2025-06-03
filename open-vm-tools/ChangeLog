@@ -1,3 +1,161 @@
+commit 3bb580227c33e2b1d5520ca497692d24a2aeb3b0
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jun 3 00:32:29 2025 -0700
+
+    Correct missed 2025 copyright update.
+
+commit 9d028b131552677737342b516cc457d3ca62dfe2
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Jun 2 23:30:25 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit b98b2d92cdaa961cfc151b3a884258c70e37ec29
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Jun 2 23:30:25 2025 -0700
+
+    Change to common header files not applicable to open-vm-tools.
+
+commit 841948918e2f79f1ad3ce5d7093ec20abf217ca4
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Jun 2 23:30:25 2025 -0700
+
+    Change to common source files not applicable to open-vm-tools at this time.
+
+commit 0fa98b9bc6277b5816ee9aa5978c00536170b7f3
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Jun 2 23:30:25 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 93deda08aa746fff6dbacc1bf16cf64c696e861b
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Jun 2 23:30:25 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 51b54e5989a3833b2f07ef30817da09034f0a591
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Jun 2 23:30:25 2025 -0700
+
+    Change to common header files not applicable to open-vm-tools.
+
+commit 19eff329af59cc368edbc9bb5587319fd32d7bb2
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Jun 2 23:30:25 2025 -0700
+
+    Check if the user name contains any illegal characters.
+    
+    Verify that the user name whose store will be used to remove and query
+    aliases does not contain any illegal and path traversal characters
+    (backward and forward slashes).
+
+commit 393df17f330c3aeb411312f4619e71561b8f80f0
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Jun 2 23:30:25 2025 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 1cda7165539fbf644c155d4640899f8ab08ec2cb
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Jun 2 23:30:25 2025 -0700
+
+    Update vm_tools_version.h with recent VMTools patch releases.
+    
+    Adding the following tools patch releases to the historical list.
+    
+    12.4.6 - TOOLS_VERSION_SOCKET_WRENCH_PATCH1
+    12.5.1 - TOOLS_VERSION_PLIERS_PATCH1
+
+commit a4294b075cff1f8240cc717650b9a41a62ec85ee
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Jun 2 23:30:25 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit efb896c800fcdd685c079a3899f8b182bf9bd249
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Jun 2 23:30:25 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 3e3902bf2e996c87b468fd668d08359a1d3c464a
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Jun 2 23:30:25 2025 -0700
+
+    Change to common header files not applicable to open-vm-tools.
+
+commit af5ff08e5aa273baafa1c79c511386f9c97f5485
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Jun 2 23:30:24 2025 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit c5764de7c5d7fed2ad2ce67de00ab2efaea2ca0a
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Jun 2 23:30:24 2025 -0700
+
+    Change to common source files not applicable to open-vm-tools.
+
+commit 93d6c9c72cb665d7632918113cb99889c5c6dedf
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Jun 2 23:30:24 2025 -0700
+
+    Avoid potential pointer truncation in Util_Memcpy32
+    
+    `Util_Memcpy32` casts pointers to `long` types, but `long` is
+    not necessarily large enough to store a pointer without
+    truncation. (For example, Windows typically uses LLP64 where
+    `long` is a 32-bit integer type on x64 systems.  Although
+    `Util_Memcpy32` does its interesting work only for GCC, some
+    parts of our build use GCC on Windows, and apparently that
+    GCC configuration also uses LLP64.)
+    
+    Cast to `intptr_t` instead.
+
+commit de4d5ea805bed88ce9338ae5d47962813d6045fe
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Jun 2 23:30:24 2025 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 67fcea831495c6078b83aba405d9ecf140c55cf1
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Jun 2 23:30:24 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 430013460610a603d089f4585260827203b23ccc
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Jun 2 23:30:24 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit ff718d2309fa412f9eda556258be3c46302e6d7e
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Jun 2 23:30:24 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit fd592d1a08157170f929a6e9b353a476fbe1400d
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Jun 2 23:30:24 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 85d912e0d480ae8f5ac14bd434a3083b5306b4b9
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Jun 2 23:30:24 2025 -0700
+
+    Change to common source files not applicable to open-vm-tools at this time.
+
+commit 0aaecde8fbf2d17ec9ef09275bd92310b2b0cf4c
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Apr 22 04:04:13 2025 -0700
+
+    Update ChangeLog with the granular push of Apr 22, 2025.
+    - plus ChangeLog update of Feb 24, 2025.
+
 commit baea3a9bf05748f1aac8a891bb45a4187eb79ba3
 Author: Kruti Pendharkar <kp025370@broadcom.com>
 Date:   Tue Apr 22 01:53:45 2025 -0700
