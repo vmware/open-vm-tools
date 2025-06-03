@@ -1932,8 +1932,10 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 #define CPUID_MODEL_ZEN3_00           0x00 // family == CPUID_FAMILY_ZEN3
 #define CPUID_MODEL_ZEN3_0F           0x0F // Max Zen3 model
 #define CPUID_MODEL_ZEN4_10           0x10 // family == CPUID_FAMILY_ZEN3
+#define CPUID_MODEL_ZEN4_11           0x11 // Zen4: Genoa/Genoa-X
 #define CPUID_MODEL_ZEN4_1F           0x1F // Max Zen4 model
 #define CPUID_MODEL_ZEN4_A0           0xA0 // family == CPUID_FAMILY_ZEN3
+                                           // Zen4: Bergamo/Siena
 #define CPUID_MODEL_ZEN4_AF           0xAF // Zen4 D: max model
 #define CPUID_MODEL_ZEN5_00           0x00 // family == CPUID_FAMILY_ZEN5
 #define CPUID_MODEL_ZEN5_0F           0x0F // Max Zen5 model
