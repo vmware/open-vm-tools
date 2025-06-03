@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2011-2016,2019 VMware, Inc. All rights reserved.
+ * Copyright (c) 2011-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -28,6 +29,7 @@
 #include "VGAuthUtil.h"
 #ifdef _WIN32
 #include "winUtil.h"
+#include <gmodule.h>
 #endif
 
 static ServiceStartListeningForIOFunc startListeningIOFunc = NULL;
@@ -283,9 +285,20 @@ static gchar *
 ServiceUserNameToPipeName(const char *userName)
 {
    gchar *escapedName = ServiceEncodeUserName(userName);
+#ifdef _WIN32
+   /*
+    * Add a unique suffix to avoid a name collision with an existing named pipe
+    * created by someone else (intentionally or by accident).
+    */
+   gchar *pipeName = g_strdup_printf("%s-%s-%u",
+                                     SERVICE_PUBLIC_PIPE_NAME,
+                                     escapedName,
+                                     g_random_int());
+#else
    gchar *pipeName = g_strdup_printf("%s-%s",
                                      SERVICE_PUBLIC_PIPE_NAME,
                                      escapedName);
+#endif
 
    g_free(escapedName);
    return pipeName;
