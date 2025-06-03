@@ -44,7 +44,9 @@
 #include <stdlib.h>
 #if !defined(_WIN32)
 #include <sys/types.h>
+#if !defined(FROBOS)
 #include <dirent.h>
+#endif
 #endif
 
 #include "vm_basic_types.h"

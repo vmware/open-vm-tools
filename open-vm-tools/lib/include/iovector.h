@@ -36,8 +36,8 @@ extern "C" {
 /*
  * Ugly definition of struct iovec.
  */
-#if defined(__linux__) || defined(sun) || defined(__APPLE__) || \
-    defined(__FreeBSD__) || defined(__EMSCRIPTEN__)
+#if (defined(__linux__) || defined(sun) || defined(__APPLE__) || \
+    defined(__FreeBSD__) || defined(__EMSCRIPTEN__)) && !defined(FROBOS)
 #include <sys/uio.h>    // for struct iovec
 #else
 
