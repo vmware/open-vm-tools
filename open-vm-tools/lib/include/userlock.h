@@ -36,16 +36,21 @@
 extern "C" {
 #endif
 
-typedef struct MXUserExclLock      MXUserExclLock;
-typedef struct MXUserRecLock       MXUserRecLock;
-typedef struct MXUserRWLock        MXUserRWLock;
-typedef struct MXUserRankLock      MXUserRankLock;
-typedef struct MXUserCondVar       MXUserCondVar;
-typedef struct MXUserSemaphore     MXUserSemaphore;
-typedef struct MXUserBinSemaphore  MXUserBinSemaphore;
-typedef struct MXUserEvent         MXUserEvent;
-typedef struct MXUserBarrier       MXUserBarrier;
-typedef struct MXUserLockChain     MXUserLockChain;
+typedef struct MXUserExclLock           MXUserExclLock;
+typedef struct MXUserRecLock            MXUserRecLock;
+typedef struct MXUserRWLock             MXUserRWLock;
+typedef struct MXUserRankLock           MXUserRankLock;
+typedef struct MXUserCondVar            MXUserCondVar;
+typedef struct MXUserSemaphore          MXUserSemaphore;
+typedef struct MXUserBinSemaphore       MXUserBinSemaphore;
+typedef struct MXUserEvent              MXUserEvent;
+typedef struct MXUserBarrier            MXUserBarrier;
+typedef struct MXUserLockChain          MXUserLockChain;
+typedef struct MXUserLockChainFinalizer {
+   Bool           uninitialize;
+   MXUserRecLock *lock;
+} MXUserLockChainFinalizer;
+
 
 /*
  * Exclusive ownership lock
@@ -328,11 +333,13 @@ uint32 MXUser_ChainLength(MXUserLockChain *chain);
 MXUserLockChain *MXUser_CopyChain(void);
 void MXUser_DescribeChain(uint32 routing,
                           MXUserLockChain *chain);
+void MXUser_FinalizeChain(MXUserLockChainFinalizer finalizer,
+                          Bool allowNonEmpty);
 uint32 MXUser_GraftChainRecLock(MXUserLockChain *chain,
                                 MXUserRecLock *lock);
-Bool MXUser_InitChain(MXUserRecLock *lock,
-                      Bool derive,
-                      Bool skipIfInitialized);
+MXUserLockChainFinalizer MXUser_InitChain(MXUserRecLock *lock,
+                                          Bool derive,
+                                          Bool skipIfInitialized);
 Bool MXUser_IsChainInitialized(MXUserLockChain *chain);
 Bool MXUser_PurgeChainRecLock(MXUserLockChain *chain,
                               MXUserRecLock *lock);
