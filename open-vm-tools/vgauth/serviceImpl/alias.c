@@ -42,6 +42,7 @@
 #include "certverify.h"
 #include "VGAuthProto.h"
 #include "vmxlog.h"
+#include "VGAuthUtil.h"
 
 // puts the identity store in an easy to find place
 #undef WIN_TEST_MODE
@@ -639,7 +640,7 @@ ServiceLoadFileContentsWin(const gchar *fileName,
          err = VGAUTH_E_FAIL;
          goto done;
       }
-      if (_stricmp(realPath, fileName) != 0) {
+      if (Util_Utf8CaseCmp(realPath, fileName) != 0) {
          Warning("%s: Real path (%s) is not same as file path (%s)\n",
                  __FUNCTION__, realPath, fileName);
          err = VGAUTH_E_FAIL;
