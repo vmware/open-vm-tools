@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 1998-2024 Broadcom. All rights reserved.
+ * Copyright (c) 1998-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -122,6 +122,9 @@ TOOLS_VERSION_UINT_TO_COMPONENTS(const ToolsVersion toolsVersion,   // IN
 
 /* Historically -1 indicates tools version is not available. */
 #define TOOLS_VERSION_INVALID   0xffffffff
+
+#define _STRINGIZER(X)    #X
+#define STRINGIZER(X)     _STRINGIZER(X)
 
 #define STRINGER(MJR, MNR, BASE)     #MJR "." #MNR "." #BASE
 #define TOOLS_VERSION_STRINGER(MJR, MNR, BASE)    STRINGER(MJR, MNR, BASE)
@@ -1819,12 +1822,18 @@ TOOLS_VERSION_UINT_TO_COMPONENTS(const ToolsVersion toolsVersion,   // IN
  * For Windows tools, the fourth component of the version number must
  * be < 65k (circa), so we use PRODUCT_BUILD_NUMBER instead of
  * BUILD_NUMBER.
+ *
+ * Starting with VMware Tools 13.0.0, the fourth field in a version number
+ * represents the patch number. This is generally unused and set to 0.
  */
 
+#define TOOLS_VERSION_PATCH     0
+#define TOOLS_VERSION_PATCH_STR STRINGIZER(TOOLS_VERSION_PATCH)
+
 #define TOOLS_VERSION_EXT_CURRENT_CSV \
-   TOOLS_VERSION_CURRENT_CSV,PRODUCT_BUILD_NUMBER_NUMERIC
+   TOOLS_VERSION_CURRENT_CSV,TOOLS_VERSION_PATCH
 #define TOOLS_VERSION_EXT_CURRENT_STR \
-   TOOLS_VERSION_CURRENT_STR "." PRODUCT_BUILD_NUMBER_NUMERIC_STRING
+   TOOLS_VERSION_CURRENT_STR "." TOOLS_VERSION_PATCH_STR
 
 /* clang-format on */
 
