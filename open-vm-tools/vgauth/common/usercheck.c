@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2011-2016,2019,2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2011-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -77,6 +78,8 @@
  * XXX Right now this is just on for Linux.  We may need it for
  * Solaris as well, but that path is untested.
  */
+
+#define MAX_USER_NAME_LEN 256
 
 /*
  * A single retry works for the LDAP case, but try more often in case NIS
@@ -354,12 +357,29 @@ Usercheck_UsernameIsLegal(const gchar *userName)
     * restricted list for local usernames.
     */
    size_t len;
-   char *illegalChars = "<>/";
+   size_t i = 0;
+   int backSlashCnt = 0;
+   /*
+    * As user names are used to generate its alias store file name/path, it
+    * should not contain path traversal characters ('/' and '\').
+    */
+   char *illegalChars = "<>/\\";
 
    len = strlen(userName);
-   if (strcspn(userName, illegalChars) != len) {
+   if (len > MAX_USER_NAME_LEN) {
       return FALSE;
    }
+
+   while ((i += strcspn(userName + i, illegalChars)) < len) {
+      /*
+       * One backward slash is allowed for domain\username separator.
+       */
+      if (userName[i] != '\\' || ++backSlashCnt > 1) {
+         return FALSE;
+      }
+      ++i;
+   }
+
    return TRUE;
 }
 
