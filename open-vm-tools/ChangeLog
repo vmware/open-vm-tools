@@ -1,3 +1,65 @@
+commit 6abe63bc8993e41ded4dcdda420257362b57e281
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jun 10 17:48:53 2025 -0700
+
+    Change to common source files not applicable to open-vm-tools.
+
+commit 73365346ae6d5ce195a0501a0a5684f48f133e19
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jun 10 17:48:53 2025 -0700
+
+    Change to common source files not applicable to open-vm-tools.
+
+commit 8ca940a6a87674584eda564c18041ff60c7eb749
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jun 10 17:48:53 2025 -0700
+
+    Check the real path for the alias store file
+    
+    Verify the real path, which is the fully resolved path from junctions,
+    symbolic links, and path traversal characters.
+
+commit 760a7ad199de2b93d8a629e6a9c9810b4beecb1c
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jun 10 17:48:53 2025 -0700
+
+    Check if the user name contains any illegal characters.
+    
+    Verify that the user name whose store will be used to remove and query
+    aliases does not contain any illegal and path traversal characters
+    (backward and forward slashes).
+
+commit d91778dcdf1cc11268222cad783eedbe06bbc2d0
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jun 10 17:48:53 2025 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit b1f212f9f1cc94545d1361d52ce4acddb01a831f
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jun 10 17:48:53 2025 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 4f0a30e604883158280a7d2a91b213efb7af87b6
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jun 10 17:48:53 2025 -0700
+
+    Set the "patch" field of VMTools version to zero.
+    
+    Prior to VMTools 13.0.0, the fourth field in the VMTools version was set
+    to PRODUCT_BUILD_NUMBER_NUMERIC which was the sequential build number
+    of the product within the branch. Going forward, the fourth field
+    of the displayed VMTools version is to be the "patch" starting with a
+    '0' value.
+
+commit 3b7214d00780448e203141da0723b9d321f61a8f
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Feb 25 01:31:27 2025 -0800
+
+    Update ChangeLog with the granular push of Feb 25, 2025.
+    - plus ChangeLog update of Feb 21, 2025.
+
 commit 3d84ad3cb5c0b3cd89753ec8d340037e91b9ba38
 Author: Kruti Pendharkar <kp025370@broadcom.com>
 Date:   Tue Feb 25 01:29:11 2025 -0800
