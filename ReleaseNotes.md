@@ -1,56 +1,111 @@
-#open-vm-tools 10.0.0 Release Notes 
+#                      open-vm-tools 13.0.0 Release Notes
 
-Updated on 1 SEP 2015
-##What's in the Release Notes
-The release notes cover the following topics: 
+Updated on: 17 June 2025
 
-- What's New
-- Internationalization
-- Compatibility
-- Installation and Upgrades for This Release
-- Known Issues
+open-vm-tools | 17 JUNE 2025 | Build 24696409
 
-##What's New 
-VMware Tools is a suite of utilities that enhances the performance of the virtual machine's guest operating system and improves management of the virtual machine. Read about the new and enhanced features in this release below:
+Check back for additions and updates to these release notes.
 
-- **Common versioning**: Infrastructure changes to enable reporting of the true version of open-vm-tools. This feature is dependent on host support. 
-- **Quiesced snapshots enhancements for Linux guests running IO workload**: Robustness related enhancements in quiesced snapshot operation. The _vmtoolsd_ service supports caching of log messages when guest IO has been quiesced. Enhancements in the _vmbackup_ plugin use a separate thread to quiesce the guest OS to avoid timeout issues due to heavy I/O in the guest. 
-- **Shared Folders**: For Linux distributions with kernel version 4.0.0 and higher, there is a new FUSE based Shared Folders client which is used as a replacement for the kernel mode client. 
-- **ESXi Serviceability**: Default _vmtoolsd_ logging is directed to a file instead of syslog.  _vmware-toolbox-cmd_ is enhanced for setting _vmtoolsd_ logging levels.
-- **GuestInfo Enhancements**: Plugin enhancements to report more than 64 IP addresses from the guest. These enhancements will be available only after upgrading the host because the guest IP addresses limit also exists on the host side.
+## What's in the Release Notes
 
-## Internationalization 
-open-vm-tools 10.0.0 supports the following languages:
+The release notes cover the following topics:
 
-- English 
-- French 
-- German 
-- Spanish 
-- Italian 
-- Japanese 
-- Korean 
-- Simplified Chinese 
-- Traditional Chinese
+* [What's New](#whatsnew) 
+* [Internationalization](#i18n) 
+* [Product Support Notice](#suppnote)
+* [Guest Operating System Customization Support](#guestop) 
+* [Interoperability Matrix](#interop) 
+* [Resolved Issues](#resolvedissues) 
+* [Known Issues](#knownissues)
 
-## Compatibility 
-open-vm-tools 10.0.0 is compatible with all supported versions of VMware vSphere, VMware Workstation 12.0 and VMware Fusion 8.0.
-## Installation and Upgrades for This Release 
-The steps to install open-vm-tools vary depending on your VMware product and the guest operating system you have installed. For general steps to install open-vm-tools in most VMware products, see https://github.com/vmware/open-vm-tools/blob/master/README.md
-## Known Issues 
-The known issues are as follows:
+## <a id="whatsnew" name="whatsnew"></a>What's New
 
-- **The status of IPv6 address is displayed as "unknown"**
+*   The vm-support script has been improved (version 0.98).
 
-	The status of IPv6 address from vim-cmd is displayed as "unknown" even when the address is valid.
+    To aid in triaging open-vm-tools issues, the vm-support script has been updated to:
+      * now collect all current open-vm-tools log files as configured in the [logging] section of tools.conf.
+      * collect one month of information from the systemd journal.
 
-	Workaround: None 
-- **TextCopyPaste between host and guest systems fail**
+*   Please see the [Resolved Issues](#resolvedissues) and [Known Issues](#knownissues) sections below.
 
-	Copy and Paste of text between host and guest systems fail if the text size 50KB or higher.
- 
-	Workaround: Copy and Paste smaller amounts of text. 
-- **Definition of the field _ipAddress_ in guestinfo is ambiguous**
+*   A complete list of the granular changes in the open-vm-tools 13.0.0 release is available at:
 
-	The field _ipAddress_ is defined as "Primary IP address assigned to the guest operating system, if known".
- 
-	Workaround: The field _ipAddress_ in this context for Linux is defined as the first IP address fetched by open-vm-tools.
+    [open-vm-tools ChangeLog](https://github.com/vmware/open-vm-tools/blob/stable-13.0.0/open-vm-tools/ChangeLog)
+
+## <a id="i18n" name="i18n"></a>Internationalization
+
+open-vm-tools 13.0.0 is available in the following languages:
+
+* English
+* French
+* Japanese
+* Spanish
+
+## <a id="guestop" name="guestop"></a>Guest Operating System Customization Support
+
+The [Guest OS Customization Support Matrix](https://compatibilityguide.broadcom.com/search?program=software&persona=live&customization=Guest+Customization&column=osVendors&order=asc) provides details about the guest operating systems supported for customization.
+
+
+## <a id="interop" name="interop"></a>Interoperability Matrix
+
+The [Broadcom Product Interoperability Matrix](https://interopmatrix.broadcom.com/Interoperability) provides details about the compatibility of current and earlier versions of VMware Products. 
+
+## <a id="resolvedissues" name ="resolvedissues"></a> Resolved Issues
+
+*   **The following github.com/vmware/open-vm-tools pull requests and issues has been addressed.**
+
+    * FTBFS: --std=c23 conflicting types between function definition and declaration MXUserTryAcquireForceFail()
+
+      [Fixes Issue #750](https://github.com/vmware/open-vm-tools/issues/750)<br>
+      [Pull request #751](https://github.com/vmware/open-vm-tools/pull/751)
+
+    * Provide tools.conf settings to deactivate one-time and periodic time synchronization
+
+      The new tools.conf settings `disable-all` and `disable-periodic` allow the guest OS administrator to deactivate one-time and periodic time synchronization without rebooting the VM or restarting the guest OS.
+
+      [Fixes Issue #302](https://github.com/vmware/open-vm-tools/issues/302)
+
+    * Fix xmlsec detection when cross-compiling with pkg-config
+
+      [Pull request #732](https://github.com/vmware/open-vm-tools/pull/732)
+
+*   **After October 25, 2024, with open-vm-tools earlier than 13.0.0, the salt-minion component is not installed or fails to install in a guest operating system through the VMware Component Manager**
+
+    When you configure the salt-minion component in the present state, its last status is set to 102 (not installed) or 103 (installation failed), never reaching the installed state 100.
+
+    * The VM advanced setting with the key "guestinfo./vmware.components.salt_minion.desiredstate" has a value present.
+    * The VM advanced setting with the key "guestinfo.vmware.components.salt_minion.laststatus" has a value 102 or 103.
+
+    The salt-minion component installs a log file with traces indicating failure to access the online salt repository on https://repo.saltproject.io.  The "vmware-svtminion.sh-install-*.log" file for the failed install shows a trace similar to:
+
+    ```
+    <date+time> INFO: /usr/lib64/open-vm-tools/componentMgr/saltMinion/svtminion.sh:_curl_download attempting download of file 'repo.json'
+    <date+time> WARNING: /usr/lib64/open-vm-tools/componentMgr/saltMinion/svtminion.sh:_curl_download failed to download file 'repo.json' from 'https://repo.saltproject.io/salt/py3/onedir/repo.json' on '0' attempt, retcode '6' 
+    <date+time> WARNING: /usr/lib64/open-vm-tools/componentMgr/saltMinion/svtminion.sh:_curl_download failed to download file 'repo.json' from 'https://repo.saltproject.io/salt/py3/onedir/repo.json' on '1' attempt, retcode '6' 
+    <date+time> WARNING: /usr/lib64/open-vm-tools/componentMgr/saltMinion/svtminion.sh:_curl_download failed to download file 'repo.json' from 'https://repo.saltproject.io/salt/py3/onedir/repo.json' on '2' attempt, retcode '6' 
+    <date+time> WARNING: /usr/lib64/open-vm-tools/componentMgr/saltMinion/svtminion.sh:_curl_download failed to download file 'repo.json' from 'https://repo.saltproject.io/salt/py3/onedir/repo.json' on '3' attempt, retcode '6' 
+    <date+time> WARNING: /usr/lib64/open-vm-tools/componentMgr/saltMinion/svtminion.sh:_curl_download failed to download file 'repo.json' from 'https://repo.saltproject.io/salt/py3/onedir/repo.json' on '4' attempt, retcode '6' 
+    <date+time> ERROR: /usr/lib64/open-vm-tools/componentMgr/saltMinion/svtminion.sh:_curl_download failed to download file 'repo.json' from 'https://repo.saltproject.io/salt/py3/onedir/repo.json' after '5' attempts
+    ```
+
+    This issue is resolved in this release.
+
+    The new versions of the salt-minion integration scripts supporting the new Salt Project repository locations are available at:
+
+    * [https://packages.broadcom.com/artifactory/saltproject-generic/onedir/](https://packages.broadcom.com/artifactory/saltproject-generic/onedir/)
+
+## <a id="knownissues" name="knownissues"></a>Known Issues
+
+*   **Shared Folders mount is unavailable on Linux VM.**
+
+    If the **Shared Folders** feature is enabled on a Linux VM while it is powered off, the shared folders mount is not available on restart.
+
+    Note: This issue is applicable to open-vm-tools running on VMware Workstation and VMware Fusion.
+
+    Workaround:
+
+    If the VM is powered on, disable and enable the **Shared Folders** feature from the interface. For resolving the issue permanently, edit **/etc/fstab** and add an entry to mount the Shared Folders automatically on boot.  For example, add the line:
+
+    <tt>vmhgfs-fuse   /mnt/hgfs    fuse    defaults,allow_other    0    0</tt>
+
+    For more information on how to configure VMware Tools Shared Folders, see [KB 60262](https://knowledge.broadcom.com/external/article?legacyId=60262)
