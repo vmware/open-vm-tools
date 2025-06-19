@@ -33,22 +33,6 @@
 #include <libxml/catalog.h>
 #include <libxml/xmlschemas.h>
 
-// PR 3416639, xmlFile* APIs were deprecated in libxml2 2.13.0
-// Ignore the deprecated warnings after updating libxml2 to 2.13.3
-// ToDo: Define the deprecated APIs locally and remove the
-// XML_IGNORE_DEPRECATION_WARNINGS
-#ifdef _WIN32
-#define XML_IGNORE_DEPRECATION_WARNINGS \
-    __pragma(warning(push)) \
-    __pragma(warning(disable : 4996))
-#define XML_POP_WARNINGS __pragma(warning(pop))
-#else
-#define XML_IGNORE_DEPRECATION_WARNINGS \
-    _Pragma("GCC diagnostic push") \
-    _Pragma("GCC diagnostic ignored \"-Wdeprecated-declarations\"")
-#define XML_POP_WARNINGS _Pragma("GCC diagnostic pop")
-#endif
-
 #include <xmlsec/xmlsec.h>
 #include <xmlsec/xmltree.h>
 #include <xmlsec/xmldsig.h>
