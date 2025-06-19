@@ -1,3 +1,25 @@
+commit 276d9b3738d01c88035257532681cbd0c10b775b
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Wed Jun 18 04:34:29 2025 -0700
+
+    Update the ReleaseNotes.md for the 13.0.0 open-vm-tools release
+
+commit 2cb03d35cc28608557c82d5c81dbe5be9f9aae47
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Wed Jun 18 04:31:14 2025 -0700
+
+    Prepare for the open-vm-tools 13.0.0 release.
+    
+    - Update the tools version in the configure.ac.
+    - Update the build numbers in the buldNumber.h.
+
+commit ff312b3862dba02dffc8fa2027426fa850b08a3a
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jun 10 17:54:13 2025 -0700
+
+    Update ChangeLog with the granular push of June 10, 2025.
+    - plus ChangeLog update of Feb 25, 2025.
+
 commit 6abe63bc8993e41ded4dcdda420257362b57e281
 Author: Kruti Pendharkar <kp025370@broadcom.com>
 Date:   Tue Jun 10 17:48:53 2025 -0700
