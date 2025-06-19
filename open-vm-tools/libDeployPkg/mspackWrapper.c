@@ -103,7 +103,7 @@ MspackWrapper_SetLogger(LogFunction log)
 
 /**
  *
- * Sets up the path for exracting file. For e.g. if the file is /a/b/c/d.abc
+ * Sets up the path for extracting file. For e.g. if the file is /a/b/c/d.abc
  * then it creates /a/b/c (skips if any of the directories along the path
  * exists)
  *
