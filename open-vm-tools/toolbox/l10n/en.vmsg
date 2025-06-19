@@ -1,5 +1,6 @@
 ##########################################################
-# Copyright (c) 2010-2017,2020-2021 VMware, Inc. All rights reserved.
+# Copyright (c) 2010-2024 Broadcom. All Rights Reserved.
+# The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -92,7 +93,7 @@ error.novirtual = "%1$s must be run inside a virtual machine.\n"
 
 error.unknown = "%1$s: Unknown %2$s '%3$s'\n"
 
-help.config = "%1$s: modify Tools configuration\nUsage: %2$s %3$s <subcommand>\n\nSubcommands:\n   get <section> <key>: display current value for <key>\n   NOTE: If the <key> is not present in tools.conf, its\n   value from the global configuration is returned if present\n   set <section> <key> <value>: set <key> to <value>\n\n   remove <section> <key>: remove <key>\n\n<section> can be any supported section, such as logging, guestoperations or guestinfo.\n<key> can be any configuration key.\n<value> can be any value.\n"
+help.config = "%1$s: modify Tools configuration\nUsage: %2$s %3$s <subcommand>\n\nSubcommands:\n   get <section> [key] : display current value for given <key> or display values for all keys in <section>\n   NOTE: If the <key> is not present in tools.conf, its\n   value from the global configuration is returned if present\n   set <section> <key> <value>: set <key> to <value>\n   remove <section> <key>: remove <key>\n\n<section> can be any supported section, such as logging, guestoperations or guestinfo.\n<key> can be any configuration key.\n<value> can be any value.\n"
 
 help.device = "%1$s: functions related to the virtual machine's hardware devices\nUsage: %2$s %3$s <subcommand> [args]\ndev is the name of the device.\n\nSubcommands:\n   enable <dev>: enable the device dev\n   disable <dev>: disable the device dev\n   list: list all available devices\n   status <dev>: print the status of a device\n"
 

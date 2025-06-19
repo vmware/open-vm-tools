@@ -1,6 +1,7 @@
 #!/bin/sh
 ##########################################################
-# Copyright (c) 2006-2022 VMware, Inc. All rights reserved.
+# Copyright (c) 2006-2024 Broadcom. All Rights Reserved.
+# The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -84,10 +85,10 @@ checkOutputDir()
    if [ ! -d "${OUTPUT_DIR}$dir" ]; then
       mkdir -p "${OUTPUT_DIR}$dir"
 
-      if [ $? != 0 ]; then
+      if [ $? -ne 0 ]; then
          banner "Could not create ${OUTPUT_DIR}$dir... " \
                 "Have you run out of disk space?" "Continuing"
-         return -1
+         return 1
       fi
    fi
    return 0
@@ -112,13 +113,13 @@ addfile()
 
    dir=`dirname "$file"`
    checkOutputDir "$dir"
-   if [ $? != 0 ]; then
+   if [ $? -ne 0 ]; then
       return $?
    fi
 
    # Ignore stdout and handle errors.
    cp -pRP "$file" "${OUTPUT_DIR}$dir" 2>/dev/null
-   if [ $? != 0 ]; then
+   if [ $? -ne 0 ]; then
       banner "Could not copy '$file' to the tar area."
    fi
 }
@@ -133,6 +134,73 @@ addfiles()
 }
 
 
+# Get the log files mentioned in the logging section of tools.conf. Get the log
+# archive file names
+# The 3 $variables in tools.conf that are expanded by components using them are
+# ${USER}, ${PID}, ${IDX}
+# Any other $vars are treated literally
+# The archive logic for these logs files seems to be this. Below is one example:
+#     if vmtoolsd.data = vmtoolsd.log
+#       then the file is backed up as vmtoolsd.1.log vmtoolsd.2.log etc
+#     if vmtoolsd.data = vmtoolsdlog
+#       then the file is backed up as vmtoolsdlog.1 vmtoolsdlog.2 etc
+#     if vmtoolsd.data = vmtoolsdlog.a
+#       then the file is backed up as vmtoolsdlog.1.a vmtoolsdlog.2.a etc
+addLogFiles()
+{
+   IFS=""
+   # get the key value pair from tools.conf
+   # Replace the $variables in the data field value (logfile name) with a
+   # wildcard ('\*') character. Remove the leading whitespaces from the resulting
+   # value.  The '$' is escaped in the sed match pattern to match
+   # '${\<variable-name\>}' literally.
+   vmware-toolbox-cmd config get logging | grep "\.data =" | cut -d"=" -f2 | sed 's/\${.*}/\\\*/g' | sed 's/^ *//' | while read -r logFile; do
+      dirName=`dirname $logFile`
+      fileName=`basename $logFile`
+
+      # Remove the escape char \ that was added above
+      fileName=$(echo $fileName | sed 's/\\//g')
+
+      # find and add the current logs
+      find "$dirName" -maxdepth 1 -name "$fileName" -print | while read -r logFile; do
+         addfile "$logFile"
+      done
+
+      # File prefix is the part that is before the last '.' in the file name
+      fileNamePrefix=`echo $fileName | rev | cut -d"." -f2- | rev`
+
+      # File suffix is the part that is after the last '.' in the file name
+      fileNameSuffix=`echo $fileName | rev | cut -s -d"." -f1 | rev`
+      # Add numbers after the prefix to get all the backed up file names
+      # Also add the .suffix if suffix exists
+      if [ -z "$fileNameSuffix" ]; then
+         fileName="${fileNamePrefix}.*[0-9]"
+      else
+         fileName="${fileNamePrefix}.*[0-9].${fileNameSuffix}"
+      fi
+
+      find "$dirName" -maxdepth 1 -name "$fileName" -print | while read -r logFile; do
+         addfile "$logFile"
+      done
+   done
+}
+
+# collect journalctl logs. Limit to 1 month of data to limit file size
+addJournalctl()
+{
+   journalctlDir="/tmp/journalctl"
+   checkOutputDir ${journalctlDir}
+   if [ $? -ne 0 ]; then
+      return
+   fi
+   # Limit to 50000 lines per file so it is easier to view in editor
+   if which journalctl > /dev/null 2>&1 && which split > /dev/null 2>&1 ; then
+      journalctl --no-pager --since '1 month ago' 2> /dev/null | \
+         split -l 50000 -d - ${OUTPUT_DIR}${journalctlDir}/journalctl.out 2> /dev/null
+   fi
+}
+
+
 # runcmd($out, $cmd): executes the command redirected to a file
 runcmd()
 {
@@ -141,12 +209,12 @@ runcmd()
 
    dir=`dirname "$outFileRelPath"`
    checkOutputDir "$dir"
-   if [ $? != 0 ]; then
+   if [ $? -ne 0 ]; then
       return
    fi
 
    "$@" > "$OUTPUT_DIR$outFileRelPath" 2>/dev/null
-   if [ $? != 0 ]; then
+   if [ $? -ne 0 ]; then
       echo 3
          banner "Either could not run $@ or could not write to" \
                 "${OUTPUT_DIR}$outFileRelPath" \
@@ -191,6 +259,9 @@ stageLinux()
       runcmd "/tmp/apt-list.txt" apt list
    fi
    runcmd "/tmp/free.txt" free
+
+   addLogFiles
+   addJournalctl
 }
 
 
@@ -222,7 +293,7 @@ cleanup()
    exitCode="$1"
 
    rm -rf "$OUTPUT_DIR"
-   if [ $? != 0 ]; then
+   if [ $? -ne 0 ]; then
       banner "$OUTPUT_DIR was not successfully removed." \
              "Please remove manually."
    fi
@@ -254,7 +325,7 @@ collectNetworkDetails()
 export PATH=/bin:/sbin:/usr/bin:/usr/sbin
 
 TARFILE=vm-`date +%Y-%m-%d`.$$.tar.gz
-VER=0.95
+VER=0.98
 
 # Parse args
 for option in $@
@@ -313,7 +384,7 @@ fi
 #   replacing the directory after we have created it, with a directory that has
 #   more lenient permissions.
 OUTPUT_DIR="`mktemp -d /tmp/vm-support.XXXXXX`"
-if [ $? != 0 ]; then
+if [ $? -ne 0 ]; then
    banner "Could not create a secure temporary directory. Exiting..."
    exit 1
 fi
@@ -372,7 +443,7 @@ banner "Creating tar archive..."
 # Set umask to make diagnostic information unreadable to other users to avoid
 # possible information leakage.
 (umask 0077 && tar $TAR_OPTS $TARFILE $OUTPUT_DIR)
-if [ $? != 0 ]; then
+if [ $? -ne 0 ]; then
 	banner "The tar process did not successfully complete!" \
 	       "If tar reports that a file changed while reading, please attempt " \
 	       "to rerun this script."
@@ -385,7 +456,7 @@ if [ $transfer -eq 1 ]; then
    banner "Transferring support data to the host..."
    vmware-xferlogs enc $TARFILE 2>/dev/null
 
-   if [ $? != 0 ]; then
+   if [ $? -ne 0 ]; then
       banner "Could not transfer the support data  successfully: either " \
              "vmware-xferlogs binary is not in the path, or you are not " \
              "in a virtual machine."

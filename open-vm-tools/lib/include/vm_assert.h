@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 1998-2022 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -113,14 +114,20 @@ extern "C" {
 # if defined (VMKPANIC)
 #  include "vmk_assert.h"
 # else /* !VMKPANIC */
-#  define _ASSERT_PANIC(name) \
-           Panic(_##name##Fmt "\n", __FILE__, __LINE__)
-#  define _ASSERT_PANIC_BUG(bug, name) \
-           Panic(_##name##Fmt " bugNr=%d\n", __FILE__, __LINE__, bug)
-#  define _ASSERT_PANIC_NORETURN(name) \
-           Panic(_##name##Fmt "\n", __FILE__, __LINE__)
-#  define _ASSERT_PANIC_BUG_NORETURN(bug, name) \
-           Panic(_##name##Fmt " bugNr=%d\n", __FILE__, __LINE__, bug)
+   /*
+    * N.B. comma-eliding `## __VA_ARGS__` is supported by gcc and the
+    * latest versions of MSVC.
+    */
+#  define _ASSERT_PANIC(name, fmt, ...) \
+      Panic(_##name##Fmt " " fmt "\n", __FILE__, __LINE__, ## __VA_ARGS__)
+#  define _ASSERT_PANIC_BUG(bug, name, fmt, ...) \
+      Panic(_##name##Fmt " bugNr=%d " fmt "\n", __FILE__, __LINE__, bug, \
+            ## __VA_ARGS__)
+#  define _ASSERT_PANIC_NORETURN(name, fmt, ...) \
+      Panic(_##name##Fmt " " fmt "\n", __FILE__, __LINE__, ## __VA_ARGS__)
+#  define _ASSERT_PANIC_BUG_NORETURN(bug, name, fmt, ...) \
+      Panic(_##name##Fmt " bugNr=%d " fmt "\n", __FILE__, __LINE__, bug, \
+            ## __VA_ARGS__)
 # endif /* VMKPANIC */
 #endif
 
@@ -201,11 +208,24 @@ void WarningThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
     * class invariants, data structure invariants, etc.
     *
     * ASSERT() is special cased because of interaction with Windows DDK.
+    *
+    * We're passing `AssertAssert, "" __VA_ARGS__` in `ASSERT(cond, ...)`
+    * to `_ASSERT_PANIC(name, fmt, ...)` to be able to handle both
+    * simple `ASSERT(cond)` and more elaborate `ASSERT(cond, msg)` and
+    * `ASSERT(cond, msg, args)`.
+    * That is, when there are no optional arguments in ASSERT()'s `...`,
+    * _ASSERT_PANIC()'s `fmt` receives an empty string literal ("").
+    * OTOH, when there's at least one optional argument in ASSERT()'s `...`
+    * [the first of them is also expected to be a string literal and should
+    * be like the format string passed to printf()], "" and the string literal
+    * of the first optional argument get concatenated into one string literal
+    * that is then passed to _ASSERT_PANIC()'s `fmt`.
     */
 # undef  ASSERT
-# define ASSERT(cond) ASSERT_IFNOT(cond, _ASSERT_PANIC(AssertAssert))
-# define ASSERT_BUG(bug, cond) \
-           ASSERT_IFNOT(cond, _ASSERT_PANIC_BUG(bug, AssertAssert))
+# define ASSERT(cond, ...) \
+      ASSERT_IFNOT(cond, _ASSERT_PANIC(AssertAssert, "" __VA_ARGS__))
+# define ASSERT_BUG(bug, cond, ...) \
+      ASSERT_IFNOT(cond, _ASSERT_PANIC_BUG(bug, AssertAssert, "" __VA_ARGS__))
 #endif
 
    /*
@@ -218,10 +238,11 @@ void WarningThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
     * that it need not be handled.
     */
 #undef  VERIFY
-#define VERIFY(cond) \
-           ASSERT_IFNOT(cond, _ASSERT_PANIC_NORETURN(AssertVerify))
-#define VERIFY_BUG(bug, cond) \
-           ASSERT_IFNOT(cond, _ASSERT_PANIC_BUG_NORETURN(bug, AssertVerify))
+#define VERIFY(cond, ...) \
+      ASSERT_IFNOT(cond, _ASSERT_PANIC_NORETURN(AssertVerify, "" __VA_ARGS__))
+#define VERIFY_BUG(bug, cond, ...) \
+      ASSERT_IFNOT(cond, _ASSERT_PANIC_BUG_NORETURN(bug, AssertVerify, \
+                                                    "" __VA_ARGS__))
 
    /*
     * NOT IMPLEMENTED is useful to indicate that a codepath has not yet
@@ -240,16 +261,16 @@ void WarningThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
            ASSERT_IFNOT(cond, NOT_IMPLEMENTED())
 
 #if defined VMKPANIC || defined VMM
-# define NOT_IMPLEMENTED()        _ASSERT_PANIC_NORETURN(AssertNotImplemented)
+# define NOT_IMPLEMENTED()        _ASSERT_PANIC_NORETURN(AssertNotImplemented, "")
 #else
-# define NOT_IMPLEMENTED()        _ASSERT_PANIC(AssertNotImplemented)
+# define NOT_IMPLEMENTED()        _ASSERT_PANIC(AssertNotImplemented, "")
 #endif
 
 #if defined VMM
 # define NOT_IMPLEMENTED_BUG(bug) \
-          _ASSERT_PANIC_BUG_NORETURN(bug, AssertNotImplemented)
+      _ASSERT_PANIC_BUG_NORETURN(bug, AssertNotImplemented, "")
 #else
-# define NOT_IMPLEMENTED_BUG(bug) _ASSERT_PANIC_BUG(bug, AssertNotImplemented)
+# define NOT_IMPLEMENTED_BUG(bug) _ASSERT_PANIC_BUG(bug, AssertNotImplemented, "")
 #endif
 
    /*
@@ -262,9 +283,9 @@ void WarningThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
     * On debug builds, NOT_REACHED is a Panic with a fixed string.
     */
 #if defined VMKPANIC || defined VMM
-# define NOT_REACHED()            _ASSERT_PANIC_NORETURN(AssertNotReached)
+# define NOT_REACHED()            _ASSERT_PANIC_NORETURN(AssertNotReached, "")
 #else
-# define NOT_REACHED()            _ASSERT_PANIC(AssertNotReached)
+# define NOT_REACHED()            _ASSERT_PANIC(AssertNotReached, "")
 #endif
 
 #if !defined VMKERNEL && !defined VMKBOOT && !defined VMKERNEL_MODULE
@@ -277,8 +298,8 @@ void WarningThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
     * Despite its name, ASSERT_MEM_ALLOC is present in both debug and release
     * builds.
     */
-# define ASSERT_MEM_ALLOC(cond) \
-           ASSERT_IFNOT(cond, _ASSERT_PANIC(AssertMemAlloc))
+# define ASSERT_MEM_ALLOC(cond, ...) \
+      ASSERT_IFNOT(cond, _ASSERT_PANIC(AssertMemAlloc, "" __VA_ARGS__))
 #endif
 
    /*
@@ -323,8 +344,8 @@ void WarningThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
 #if !defined VMX86_DEBUG // {
 
 # undef  ASSERT
-# define ASSERT(cond)          ((void)0)
-# define ASSERT_BUG(bug, cond) ((void)0)
+# define ASSERT(cond, ...)          ((void)0)
+# define ASSERT_BUG(bug, cond, ...) ((void)0)
 
 /*
  * NOT_REACHED on debug builds is a Panic; but on release

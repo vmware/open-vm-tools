@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2013-2022 VMware, Inc. All rights reserved.
+ * Copyright (c) 2013-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -141,14 +142,6 @@ OUT32(uint16 port, uint32 value)
 {
    __outdword(port, value);
 }
-
-#ifndef VM_X86_64
-#ifdef NEAR
-#undef NEAR
-#endif
-
-#endif // VM_X86_64
-
 static INLINE unsigned int
 GetCallerEFlags(void)
 {

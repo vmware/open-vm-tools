@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2011-2016,2019 VMware, Inc. All rights reserved.
+ * Copyright (c) 2011-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -285,14 +286,6 @@ ServiceUserNameToPipeName(const char *userName)
 {
    gchar *escapedName = ServiceEncodeUserName(userName);
 #ifdef _WIN32
-   /*
-    * Adding below pragma only in windows to suppress the compile time warning
-    * about unavailability of g_uuid_string_random() since compiler flag
-    * GLIB_VERSION_MAX_ALLOWED is defined to GLIB_VERSION_2_34.
-    * TODO: Remove below pragma when GLIB_VERSION_MAX_ALLOWED is bumped up to
-    * or greater than GLIB_VERSION_2_52.
-    */
-#pragma warning(suppress : 4996)
    gchar *uuidStr = g_uuid_string_random();
    /*
     * Add a unique suffix to avoid a name collision with an existing named pipe

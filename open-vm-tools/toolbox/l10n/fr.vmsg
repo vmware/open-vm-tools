@@ -1,5 +1,6 @@
 ##########################################################
-# Copyright (c) 2010-2017,2020-2022 VMware, Inc. All rights reserved.
+# Copyright (c) 2010-2024 Broadcom. All Rights Reserved.
+# The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -26,19 +27,19 @@ arg.config.section = "section de configuration"
 
 arg.config.value = "valeur de configuration"
 
-arg.devicename = "Nom du périphérique"
+arg.devicename = "nom du périphérique"
 
 arg.info.class = "infos classeinfos"
 
-arg.info.subcommand = "infos opération"
+arg.info.subcommand = "opération d'obtention des informations"
 
-arg.logging.level = "niveau de journalisation"
+arg.logging.level = "Niveau de journalisation"
 
 arg.logging.service = "nom du service de journalisation"
 
 arg.logging.subcommand = "opération de journalisation"
 
-arg.mountpoint = "Point de montage"
+arg.mountpoint = "point de montage"
 
 arg.scriptpath = "chemin de script"
 
@@ -46,75 +47,75 @@ arg.scripttype = "type de script"
 
 arg.subcommand = "sous-commande"
 
-device.connect.error = "Impossible de connecter le périphérique %1$s.\n"
+device.connect.error = "Impossible de se connecter au périphérique %1$s.\n"
 
-device.disconnect.error = "Impossible de déconnecter le périphérique %1$s.\n"
+device.disconnect.error = "Impossible de se déconnecter du périphérique %1$s.\n"
 
-device.notfound = "Erreur lors de l'extraction des informations de l'interface : périphérique introuvable.\n"
+device.notfound = "Erreur de récupération des informations d'interface : périphérique introuvable.\n"
 
-disk.shrink.canceled = "Réduction du disque annulée.\n"
+disk.shrink.canceled = "Réduction de disque annulée.\n"
 
-disk.shrink.complete = "Réduction du disque terminée.\n"
+disk.shrink.complete = "Réduction de disque terminée.\n"
 
-disk.shrink.conflict = "Erreur, la Boîte à outils a repéré que la réduction de disque est activée alors que l'hôte considère qu'elle est désactivée.\n\n Fermez puis rouvrez la Boîte à outils pour la synchroniser avec l'hôte.\n"
+disk.shrink.conflict = "Erreur, la Boîte à outils a repéré que la réduction de disque est activée alors que l'hôte considère qu'elle est désactivée.\n\n Fermez, puis rouvrez la Boîte à outils pour la synchroniser avec l'hôte.\n"
 
 disk.shrink.disabled = "L'option de réduction du disque est désactivée sur cette machine virtuelle.\n\nLa réduction est désactivée pour les clones liés, les parents des clones liés, \nles disques pré-affectés, les snapshots, ou en raison d'autres facteurs. \nReportez-vous au Manuel d'utilisateur pour plus d'informations.\n"
 
-disk.shrink.error = "Erreur lors de la réduction : %1$s\n"
+disk.shrink.error = "Erreur de réduction : %1$s\n"
 
-disk.shrink.incomplete = "Réduction non terminée.\n"
+disk.shrink.incomplete = "La réduction n'est pas terminée.\n"
 
-disk.shrink.partition.error = "Impossible de récupérer les données de partition.\n"
+disk.shrink.partition.error = "Impossible de collecter les données de la partition.\n"
 
 disk.shrink.partition.notfound = "Impossible de trouver la partition %1$s\n"
 
 disk.shrink.partition.unsupported = "La partition %1$s ne peut pas être réduite\n"
 
-disk.shrink.unavailable = "La fonction de réduction n'est pas disponible,\n\nsoit parce que vous exécutez une ancienne version d'un produit VMware, soit parce que trop de canaux de communication sont ouverts.\n\nSi vous exécutez une ancienne version d'un produit VMware, vous devez envisager de le mettre à niveau.\n\nSi trop de canaux de communication sont ouverts, vous devez mettre hors tension votre machine virtuelle puis la remettre sous tension.\n"
+disk.shrink.unavailable = "La fonctionnalité de réduction n'est pas disponible,\nsoit parce que vous exécutez une ancienne version d'un produit VMware, soit parce que trop de canaux de communication sont ouverts.\n\nSi vous exécutez une ancienne version d'un produit VMware, vous devriez penser à effectuer une mise à niveau.\n\nSi trop de canaux de communication sont ouverts, vous devez désactiver votre machine virtuelle puis la réactiver.\n"
 
 disk.shrink.ignoreFreeSpaceWarnings = "Ignorez tout avertissement relatif à l'espace disque pour la durée du processus de réduction.\n"
 
 disk.wipe.ignoreFreeSpaceWarnings = "Ignorez tout avertissement relatif à l'espace disque pour la durée du processus d'effacement.\n"
 
-disk.wiper.file.error = "Erreur, impossible de créer un fichier d'effacement.\n"
+disk.wiper.file.error = "Erreur : impossible de créer le fichier de balayage.\n"
 
-disk.wiper.progress = "\rProgression : %1$d"
+disk.wiper.progress = "\\rProgression : %1$d"
 
 error.message = "Erreur : %1$s\n"
 
-error.missing = "%1$s : manquant %2$s\n"
+error.missing = "%1$s : %2$s manquant\n"
 
-error.noadmin.posix = "%1$s : vous devez être à la racine pour pouvoir effectuer les opérations %2$s.\n"
+error.noadmin.posix = "%1$s : vous devez être un utilisateur racine pour effectuer des opérations %2$s.\n"
 
 error.noadmin.win = "%1$s : les autorisations d'administrateur sont nécessaires pour pouvoir effectuer les opérations %2$s.\nUtilisez une invite de commande d'administrateur pour effectuer ces tâches.\n"
 
-error.novirtual = "%1$s doit être exécuté sur une machine virtuelle.\n"
+error.novirtual = "%1$s doit être exécuté dans une machine virtuelle.\n"
 
-error.unknown = "%1$s : %2$s inconnu '%3$s'\n"
+error.unknown = "%1$s : %2$s '%3$s' inconnu\n"
 
-help.config = "%1$s : modifiez la configuration de Tools\nUtilisation : %2$s %3$s <subcommand>\n\nSous-commandes :\n   get <section> <key> : affichez la valeur actuelle de <key>\n   REMARQUE : si <key> est absente de tools.conf, sa\n   valeur de configuration globale est renvoyée si présente\n   set <section> <key> <value> : définissez <key> sur <value>\n\n  remove <section> <key> : supprimez <key>\n\n<section> peut être n'importe quelle section prise en charge, telle que logging, guestoperations ou guestinfo.\n<key> peut être n'importe quelle clé de configuration.\n<value> peut être n'importe quelle valeur.\n"
+help.config = "%1$s : modifiez la configuration de Tools\nSyntaxe : %2$s %3$s <subcommand>\n\nSous-commandes :\n   get <section> [key] : affichez la valeur actuelle de <key> ou affichez les valeurs de toutes les clés dans <section>\n   REMARQUE : si <key> est absente de tools.conf, sa\n   valeur de configuration globale est renvoyée si présente\n   set <section> <key> <value> : définissez <key> sur <value>\n  remove <section> <key> : supprimez <key>\n\n<section> peut être n'importe quelle section prise en charge, telle que logging, guestoperations ou guestinfo.\n<key> peut être n'importe quelle clé de configuration.\n<value> peut être n'importe quelle valeur.\n"
 
 help.device = "%1$s : fonctions apparentées aux appareils matériels de la machine virtuelle\nSyntaxe : %2$s %3$s <sous-commande> [args]\ndev est le nom du périphérique.\n\nSous-commandes :\n   enable <dev> : activer le périphérique dev\n   disable <dev> : désactiver le périphérique dev\n   list : liste de tous les périphériques disponibles\n   status <dev> : imprime l'état d'un périphérique\n"
 
 help.disk = "%1$s : effectue les opérations de réduction des disques\nSyntaxe : %2$s %3$s <sous-commande> [args]\n\nSous-commandes :\n   list : liste des emplacements disponibles\n   shrink <emplacement> : efface et réduit un système de fichiers à l'emplacement donné\n   shrinkonly : réduit tous les disques\n   wipe <emplacement> : efface un système de fichiers à l'emplacement donné\n"
 
-help.globalconf = "%1$s : gérer les téléchargements de la configuration globale depuis GuestStore\nUtilisation : %2$s %3$s <subcommand>\n\nSous-commandes des invités ESX uniquement :\n   enable : activer le module de configuration globale.\n   disable : désactiver le module de configuration globale\n  refresh : déclencher un nouveau téléchargement de la configuration globale depuis GuestStore\n   status : imprimer l'état du module de configuration globale\n"
+help.globalconf = "%1$s : gérer les téléchargements de la configuration globale depuis GuestStore\nSyntaxe : %2$s %3$s <subcommand>\n\nSous-commandes des invités ESX uniquement :\n   enable : activer le module de configuration globale.\n   disable : désactiver le module de configuration globale\n  refresh : déclencher un nouveau téléchargement de la configuration globale depuis GuestStore\n   status : imprimer l'état du module de configuration globale\n"
 
-help.gueststore = "%1$s : obtenez le contenu des ressources de GuestStore\nUtilisation : %2$s %3$s <subcommand>\n\nSous-commandes des invités ESX uniquement :\n   getcontent <resource path> <output file> : obtenez le contenu des ressources de GuestStore et enregistrez-le dans le fichier de sortie.\n\n<resource path> commence par / et représente une ressource unique dans GuestStore. En cas de terminaison par /, utilise la valeur par défaut pour récupérer la ressource « metadata.json » sous-jacente.\n<output file> est le chemin d'accès d'un fichier dans lequel enregistrer le contenu des ressources.\n"
+help.gueststore = "%1$s : obtenez le contenu des ressources de GuestStore\nSyntaxe : %2$s %3$s <subcommand>\n\nSous-commandes des invités ESX uniquement :\n   getcontent <resource path> <output file> : obtenez le contenu des ressources de GuestStore et enregistrez-le dans le fichier de sortie.\n\n<resource path> commence par / et représente une ressource unique dans GuestStore. En cas de terminaison par /, utilise la valeur par défaut pour récupérer la ressource « metadata.json » sous-jacente.\n<output file> est le chemin d'accès d'un fichier dans lequel enregistrer le contenu des ressources.\n"
 
-help.hint = "Pour plus d'informations, essayez '%1$s %2$s%3$s%4$s'.\n"
+help.hint = "Voir '%1$s %2$s%3$s%4$s' pour plus d'informations.\n"
 
-help.info = "%1$s : mettre à jour des informations d'invité sur l'hôte\nSyntaxe : %2$s %3$s met à jour <classeinfos>\n\nSous-commandes :\n   mettre à jour <classeinfos> : met à jour des informations identifiées par <classeinfos>\n<classeinfos> peut être 'réseau'\n"
+help.info = "%1$s : mettre à jour des informations d'invité sur l'hôte\nSyntaxe : %2$s %3$s met à jour <classeinfos>\n\nSous-commandes :\n   mettre à jour <classeinfos> : met à jour des informations identifiées par <classeinfos>\n<classeinfos> peut être « réseau »\n"
 
-help.logging = "%1$s : modifiez la journalisation de Tools\nUtilisation : %2$s %3$s level <subcommand> <servicename> <level>\n\nSous-commandes :\n   get <servicename> : affichez les niveaux actuels\n   REMARQUE : si le niveau est absent de tools.conf, sa\n   valeur de configuration globale est renvoyée si présente\n   set <servicename> <level> : définissez le niveau actuel\n\n<servicename> peut être n'importe quel service pris en charge, tel que vmsvc ou vmusr\n<level> peut être l'un des suivants : erreur, critique, avertissement, info, message, débogage\n   la valeur par défaut est %4$s\n"
+help.logging = "%1$s : modifiez la journalisation de Tools\nSyntaxe : %2$s %3$s level <subcommand> <servicename> <level>\n\nSous-commandes :\n   get <servicename> : affichez les niveaux actuels\n   REMARQUE : si le niveau est absent de tools.conf, sa\n   valeur de configuration globale est renvoyée si présente\n   set <servicename> <level> : définissez le niveau actuel\n\n<servicename> peut être n'importe quel service pris en charge, tel que vmsvc ou vmusr\n<level> peut être l'un des suivants : erreur, critique, avertissement, info, message, débogage\n   la valeur par défaut est %4$s\n"
 
-help.main = "Utilisation : %1$s <command> [options] [subcommand]\nEntrez « %2$s %3$s <command> » pour obtenir de l'aide sur une commande spécifique.\nEntrez « %4$s -v » pour consulter la version de VMware Tools.\nUtilisez l'option « -q » pour supprimer la sortie stdout.\nLa plupart des commandes utilisent une sous-commande.\n\nCommandes disponibles :\n   config\n   device\n   disk (non disponible sur tous les systèmes d'expoloitation)\n   globalconf (non disponible sur tous les systèmes d'expoloitation)\n   gueststore (non disponible sur tous les systèmes d'expoloitation)\n   info\n   logging\n   script\n   stat\n   timesync\n   upgrade (non disponible sur tous les systèmes d'expoloitation)\n"
+help.main = "Syntaxe : %1$s <command> [options] [subcommand]\nEntrez « %2$s %3$s <command> » pour obtenir de l'aide sur une commande spécifique.\nEntrez « %4$s -v » pour consulter la version de VMware Tools.\nUtilisez l'option « -q » pour supprimer la sortie stdout.\nLa plupart des commandes utilisent une sous-commande.\n\nCommandes disponibles :\n   config\n   device\n   disk (non disponible sur tous les systèmes d'exploitation)\n   globalconf (non disponible sur tous les systèmes d'exploitation)\n   gueststore (non disponible sur tous les systèmes d'exploitation)\n   info\n   logging\n   script\n   stat\n   timesync\n   upgrade (non disponible sur tous les systèmes d'exploitation)\n"
 
-help.script = "%1$s : vérifiez que les scripts s'exécutent en réponse aux opérations d'alimentation\nUtilisation : %2$s %3$s <power|resume|suspend|shutdown> <subcommand> [args]\n\nSous-commandes :\n   enable : activez le script donné et rétablissez la valeur par défaut de son chemin d'accès\n   disable : désactivez le script donné\n   set <full_path> : définissez le script donné sur le chemin d'accès donné\n   default : imprimez le chemin d'accès par défaut du script donné\n   current : imprimez le chemin d'accès actuel du script donné\n   REMARQUE : si le chemin d'accès est absent de tools.conf, sa\n   valeur de configuration globale est renvoyée si présente\n"
+help.script = "%1$s : vérifiez que les scripts s'exécutent en réponse aux opérations d'alimentation\nSyntaxe : %2$s %3$s <power|resume|suspend|shutdown> <subcommand> [args]\n\nSous-commandes :\n   enable : activez le script donné et rétablissez la valeur par défaut de son chemin d'accès\n   disable : désactivez le script donné\n   set <full_path> : définissez le script donné sur le chemin d'accès donné\n   default : imprimez le chemin d'accès par défaut du script donné\n   current : imprimez le chemin d'accès actuel du script donné\n   REMARQUE : si le chemin d'accès est absent de tools.conf, sa\n   valeur de configuration globale est renvoyée si présente\n"
 
 help.stat = "%1$s : imprimez des informations utiles sur le client et l'hôte\nSyntaxe : %2$s %3$s <sous-commande>\n\nSous-commandes :\n   hosttime : imprimez l'heure de l'hôte\n   speed : imprimez la vitesse du CPU en MHz\nClients ESX uniquement des sous-commandes :\n   sessionid : imprimez l'ID de session actuel\n   balloon : imprimez des informations sur le gonflage de mémoire\n   swap : imprimez des informations sur l'échange de mémoire\n   memlimit : imprimez des informations sur la limite de mémoire\n   memres : imprimez des informations sur la réservation de mémoire\n   cpures : imprimez des informations sur la réservation de CPU\n   cpulimit : imprimez des informations sur la limite de CPU\n   raw [<codage> <nom statistique>] : imprimez des informations statistiques brutes\n      <codage> peut être 'text', 'json', 'xml', 'yaml'.\n      <nom statistique> inclut la session, l'hôte, les ressources, vscsi et\n      vnet (certaines statistiques comme vscsi sont deux mots, par exemple 'vscsi scsi0:0').\n      Imprime les statistiques disponibles si les arguments <codage> et <nom statistique>\n      ne sont pas spécifiés.\n"
 
-help.timesync = "%1$s : fonctions pour contrôler la synchronisation temporelle sur le système d'exploitation client\nSyntaxe : %2$s %3$s <sous-commande>\n\nSous-commandes :\n   enable : activez la synchronisation temporelle\n   disable : désactivez la synchronisation temporelle\n   status : imprimez l'état de la synchronisation temporelle\n"
+help.timesync = "%1$s : fonctions pour contrôler la synchronisation temporelle sur le SE invité\nSyntaxe : %2$s %3$s <sous-commande>\n\nSous-commandes :\n   enable : activez la synchronisation temporelle\n   disable : désactivez la synchronisation temporelle\n   status : imprimez l'état de la synchronisation temporelle\n"
 
 help.upgrade = "%1$s : fonctions en rapport avec la mise à niveau de VMware Tools.\nSyntaxe : %2$s %3$s <sous-commande> [args]\nSous-commandes :\n   status : vérifie le statut de mise à niveau de VMware Tools.\n   start : initialise une mise à niveau automatique de VMware Tools.\n\nPour que les mises à niveau fonctionnent, le service VMware Tools doit être en cours d'exécution.\n"
 
@@ -132,7 +133,7 @@ gueststore.content_size = "Taille du contenu en octets : "
 
 gueststore.error.client_lib = "Échec de « %1$s », erreur de la bibliothèque du client GuestStore : %2$s.\n"
 
-gueststore.progress = "\rProgression : %1$d%%"
+gueststore.progress = "\\rProgression : %1$d%%"
 
 option.disabled = "Désactivé"
 
@@ -146,35 +147,35 @@ script.notfound = "%1$s n'existe pas.\n"
 
 script.operation = "opération"
 
-script.unknownop = "Pas de script pour l'opération %1$s.\n"
+script.unknownop = "Aucun script pour l'opération %1$s.\n"
 
-script.write.error = "Erreur lors de l'écriture des config : %1$s\n"
+script.write.error = "Erreur d'écriture de la config : %1$s\n"
 
-stat.balloon.failed = "Échec de l'obtention d'une mémoire gonflée : %1$s\n"
+stat.balloon.failed = "Impossible d'obtenir la mémoire vive allouée dynamiquement : %1$s\n"
 
-stat.cpumax.failed = "Échec de l'obtention d'une limite CPU : %1$s\n"
+stat.cpumax.failed = "Impossible d'obtenir la limite du CPU : %1$s\n"
 
-stat.cpumin.failed = "Échec de l'obtention d'un CPU minimum : %1$s\n"
+stat.cpumin.failed = "Impossible d'obtenir la valeur minimale du CPU : %1$s\n"
 
 stat.formattime.failed = "Impossible de formater l'heure de l'hôte.\n"
 
 stat.get.failed = "Impossible d'obtenir la statistique : %1$s\n"
 
-stat.getsession.failed = "Échec de l'obtention de l'ID de la session : %1$s\n"
+stat.getsession.failed = "Impossible d'obtenir l'ID de session : %1$s\n"
 
-stat.getspeed.failed = "Impossible d'obtenir la vitesse du processeur.\n"
+stat.getspeed.failed = "Impossible d'obtenir la vitesse du CPU.\n"
 
 stat.gettime.failed = "Impossible d'obtenir l'heure de l'hôte.\n"
 
-stat.maxmem.failed = "Échec de l'obtention d'une limite de mémoire : %1$s\n"
+stat.maxmem.failed = "Impossible d'obtenir la limite de mémoire : %1$s\n"
 
-stat.memres.failed = "Échec de la réservation d'une mémoire : %1$s\n"
+stat.memres.failed = "Impossible d'obtenir la réservation de mémoire : %1$s\n"
 
-stat.memswap.failed = "Échec de l'obtention d'une mémoire échangée : %1$s\n"
+stat.memswap.failed = "Impossible d'obtenir la mémoire échangée : %1$s\n"
 
-stat.openhandle.failed = "OpenHandle a échoué : %1$s\n"
+stat.openhandle.failed = "Échec OpenHandle : %1$s\n"
 
-stat.update.failed = "UpdateInfo a échoué : %1$s\n"
+stat.update.failed = "Échec UpdateInfo : %1$s\n"
 
 stat.processorSpeed.info = "%1$u MHz\n"
 
@@ -192,15 +193,15 @@ stat.cpuLimit.info = "%1$u MHz\n"
 
 upgrade.available = "Une nouvelle version de VMware Tools est disponible.\n"
 
-upgrade.error.check_error = "Erreur lors de la vérification de la disponibilité de la mise à jour.\n"
+upgrade.error.check_error = "Erreur de vérification d'une mise à niveau disponible.\n"
 
-upgrade.error.error = "Erreur lors du démarrage de la mise à jour de VMware Tools.\n"
+upgrade.error.error = "Erreur de lancement de la mise à niveau VMware Tools.\n"
 
-upgrade.error.not_supported = "L'hôte ne prend pas en charge les mises à jour automatiques de VMware Tools.\n"
+upgrade.error.not_supported = "L'hôte ne prend pas en charge la mise à niveau automatique de VMware Tools.\n"
 
-upgrade.error.unknown_reply = "Réponse inattendue de l'hôte : %1$s\n"
+upgrade.error.unknown_reply = "Réponse inattendue de l'hôte : %1$s\n"
 
-upgrade.started = "La mise à jour a commencé.\n"
+upgrade.started = "La mise à niveau a commencé.\n"
 
-upgrade.uptodate = "Les VMware Tools sont mis à jour.\n"
+upgrade.uptodate = "Les VMware Tools sont à jour.\n"
 

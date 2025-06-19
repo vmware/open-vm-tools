@@ -83,8 +83,6 @@
 #elif defined(VMX86_VPX)
    /* this should be kept in sync with the corresponding vpx branch. */
    #define PRODUCT_VERSION    9,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
-#elif defined(VMX86_HORIZON_VIEW)
-   #define PRODUCT_VERSION    8,13,0,PRODUCT_BUILD_NUMBER_NUMERIC
 // VMX86_DESKTOP must be last because it is the default and is always defined.
 #elif defined(VMX86_DESKTOP)
    // WORKSTATION_VERSION_NUMBER below has to match this
@@ -274,7 +272,7 @@
 #define VPX_VERSION_MAJOR "9"
 #define VPX_VERSION_MINOR "0"
 #define VPX_VERSION_MAINT "0"
-#define VPX_VERSION_PATCH "00000"
+#define VPX_VERSION_PATCH "0"
 #define VPX_VERSION_THIRD_PARTY VPX_VERSION_MAJOR VPX_VERSION_MINOR \
                                 VPX_VERSION_MAINT
 //MARKER_FAST_REMOVE_START
@@ -285,7 +283,7 @@
 //MARKER_FAST_UNCOMMENT_END
 
 // Last supported ESX version by VC.
-#define VPX_MIN_HOST_VERSION "7.0.0"
+#define VPX_MIN_HOST_VERSION "8.0.0"
 
 #define MAX_SUPPORTED_VI_VERSION "6.6" //from ovfTool/src/supportedVersions.h
 #define VCDB_CURRENT_SCHEMA_VERSION           900 // from PitCADatabase.h
@@ -313,9 +311,6 @@
 // esxcli
 #define ESXCLI_VERSION "8.0.0"
 
-#define HORIZONOSOT_VERSION "1.2.2303"
-#define HORIZONVMDS_VERSION "1.0.0"
-
 #define INTEGRITY_VERSION "9.0.0" /* Should use VPX_VERSION? */
 #define SVA_VERSION "1.0.0"
 #define SSO_VERSION "1.0.0"
@@ -333,7 +328,6 @@
 #define DDK_VERSION "e.x.p"
 #define VIPERL_VERSION "7.0.0"
 #define RCLI_VERSION "7.0.0"
-#define VDM_VERSION "e.x.p"
 #define NETDUMP_VERSION        "5.1.0"
 
 //MARKER_FAST_REMOVE_START
@@ -376,36 +370,9 @@
 #define PRECHECK_VERSION "e.x.p"
 #define VHSESDK_VERSION "1.0.0"
 #define VIEWVC_VERSION "14.0.2"
-#define WCP_VERSION "0.1.10"
+#define WCP_VERSION "0.2.0"
 #define VSTATS_VERSION "0.0.1"
 #define XVP_VERSION "1.0.0"
-/*
- * All of these components should follow the current version of View, except
- * Horizon DaaS Agent and mfw which have their own version.
- * SCons parsing code requires that each line have a version string, so we
- * can't just do something like #define RDESDK_VERSION VIEW_VERSION"
- */
-#define VIEW_CLIENT_VERSION "8.13.0"
-#define VIEW_CLIENT_VERSION_NUMBER VIEW_CLIENT_VERSION
-#define VIEW_VERSION "8.13.0"
-#define RDE_RFT_ALL_VERSION "8.13.0"
-#define RDE_RFT_REL_VERSION "8.13.0"
-#define RDESDKREL_VERSION "8.13.0"
-#define MKSVCHANDEV_VERSION "15.13.0"
-#define TSMMRDEV_VERSION "8.13.0"
-#define RDF_VERSION "8.13.0"
-#define HORIZON_DAAS_AGENT_VERSION "24.1.0"
-#define HORIZON_USB_AGENT_VERSION "11.13.0"
-#define HORIZON_UPDATETOOL_VERSION "2.0.9"
-#define MFW_VERSION "16.9.0"
-#define HORIZONTOOL_VERSION "16.13.0"
-
-/*
- * This is the Horizon Marketing version which is shared between
- * Horizon Client, Agent and Server. It is set in the format of
- * YYMM of the targeted release date.
- */
-#define HORIZON_YYMM_VERSION "2403"
 
 #ifndef MAKESTR
 #define MAKESTR(x) #x
@@ -462,12 +429,6 @@
 #  define PRODUCT_VERSION_NUMBER VDDK_VERSION
 #elif defined(VMX86_HBR_SERVER)
 #  define PRODUCT_VERSION_NUMBER ESX_VERSION
-#elif defined(VMX86_HORIZON_VIEW)
-#  if defined(VDM_CLIENT)
-#    define PRODUCT_VERSION_NUMBER VIEW_CLIENT_VERSION
-#  else
-#    define PRODUCT_VERSION_NUMBER VIEW_VERSION
-#  endif
 #elif defined(VMX86_INTEGRITY)
 #  define PRODUCT_VERSION_NUMBER INTEGRITY_VERSION
 #elif defined(VMX86_VGAUTH)

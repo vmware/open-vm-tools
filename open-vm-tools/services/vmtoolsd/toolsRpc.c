@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2008-2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 2008-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -44,6 +45,8 @@
 #if defined(__linux__)
 #include "vmci_sockets.h"
 #endif
+
+
 
 /**
  * Take action after an RPC channel reset.
@@ -96,6 +99,8 @@ ToolsCoreCheckReset(RpcChannel *chan,
       g_signal_emit_by_name(state->ctx.serviceObj,
                             TOOLS_CORE_SIG_RESET,
                             &state->ctx);
+
+
 #if defined(__linux__)
       if (state->mainService) {
          /*

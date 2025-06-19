@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2020-2021,2023-2024 Broadcom. All rights reserved.
+ * Copyright (c) 2020-2024 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -361,6 +361,10 @@ typedef struct PluginState {
    GdpEvent eventStop;     /* The stop event object:
                             * Signalled to stop guest data publishing */
    Atomic_Bool stopped;    /* TRUE : Guest data publishing is stopped
+                            * FALSE: otherwise
+                            * Transitions from FALSE to TRUE only */
+
+   Atomic_Bool stopping;   /* TRUE : Guest data publishing is stopping
                             * FALSE: otherwise
                             * Transitions from FALSE to TRUE only */
 
@@ -3183,6 +3187,7 @@ GdpInit(ToolsAppCtx *ctx) // IN
 {
    gPluginState.ctx = ctx;
    Atomic_WriteBool(&gPluginState.started, FALSE);
+   Atomic_WriteBool(&gPluginState.stopping, FALSE);
 
 #if defined(_WIN32)
    gPluginState.wsaStarted = FALSE;
@@ -3295,7 +3300,31 @@ GdpStart(void)
                                   GdpThreadTask,
                                   GdpThreadInterrupt,
                                   NULL, NULL)) {
-      g_critical("%s: Failed to start the gdp task thread.\n", __FUNCTION__);
+      /*
+       * Is the failure to start caused by pending service stop?
+       *   - stopping is true if a pre-shutdown signal was handled
+       *   - stopped is true if a shutdown signal was handled
+       *
+       * During the transition from stopping to stopped, the thread pool can
+       * be/become inactive resulting in a failure to start the gdp task thread.
+       *
+       * This is an expected failure, log it as a warning.
+       */
+      if (Atomic_ReadBool(&gPluginState.stopping)) {
+         g_debug(
+            "%s: gdp: start=%s, stop=%s, pre=%s; task: pool=%s\n",
+            __FUNCTION__,
+            Atomic_ReadBool(&gPluginState.started) ? "true" : "false",
+            Atomic_ReadBool(&gPluginState.stopped) ? "true" : "false",
+            Atomic_ReadBool(&gPluginState.stopping) ? "true" : "false",
+            (ToolsCorePool_GetPool(gPluginState.ctx) == NULL) ? "no":"yes");
+
+         g_warning("%s: Failed to start the gdp task thread.\n",
+                    __FUNCTION__);
+      } else {
+         g_critical("%s: Failed to start the gdp task thread.\n",
+                    __FUNCTION__);
+      }
       goto exit;
    }
 
@@ -3415,14 +3444,29 @@ GdpPublish(gint64 createTime,     // IN
 
    g_mutex_lock(&gPublishState.mutex);
 
-   if (Atomic_ReadBool(&gPluginState.stopped)) {
+   if (Atomic_ReadBool(&gPluginState.stopping)) {
+      /*
+       * Do not publish when publishing is stopped or gdp is stopping in
+       * preparation for stopping.
+       */
+      g_debug(
+         "%s: gdp: start=%s, stop=%s, pre=%s; task: pool=%s\n",
+         __FUNCTION__,
+         Atomic_ReadBool(&gPluginState.started) ? "true" : "false",
+         Atomic_ReadBool(&gPluginState.stopped) ? "true" : "false",
+         Atomic_ReadBool(&gPluginState.stopping) ? "true" : "false",
+         (ToolsCorePool_GetPool(gPluginState.ctx) == NULL) ? "no":"yes");
       gdpErr = GDP_ERROR_STOP;
       goto exit;
    }
 
    if (!Atomic_ReadBool(&gPluginState.started) &&
        !GdpStart()) {
-      gdpErr = GDP_ERROR_GENERAL;
+      if (Atomic_ReadBool(&gPluginState.stopping)) {
+         gdpErr = GDP_ERROR_STOP;
+      } else {
+         gdpErr = GDP_ERROR_GENERAL;
+      }
       goto exit;
    }
 
@@ -3484,6 +3528,31 @@ GdpConfReload(gpointer src,     // IN
 
 /*
  ******************************************************************************
+ * GdpPreShutdown --
+ *
+ * Prepare for shutdown.  Set 'stopping' to TRUE to prevent new publications,
+ * or starting the gdp task thread in the case of a first publication.
+ *
+ * @param[in] src   The source object, unused
+ * @param[in] ctx   The application context
+ * @param[in] data  Unused
+ *
+ ******************************************************************************
+ */
+
+static void
+GdpPreShutdown(gpointer src,     // IN
+               ToolsAppCtx *ctx, // IN
+               gpointer data)    // IN
+{
+   g_info("%s: Entering ...\n", __FUNCTION__);
+   Atomic_WriteBool(&gPluginState.stopping, TRUE);
+   g_debug("%s: Exiting ...\n", __FUNCTION__);
+}
+
+
+/*
+ ******************************************************************************
  * GdpShutdown --
  *
  * Cleans up on shutdown.
@@ -3505,6 +3574,7 @@ GdpShutdown(gpointer src,     // IN
           Atomic_ReadBool(&gPluginState.stopped));
    g_object_set(ctx->serviceObj, TOOLS_PLUGIN_SVC_PROP_GDP, NULL, NULL);
    GdpDestroy();
+   g_debug("%s: Exiting ...\n", __FUNCTION__);
 }
 
 
@@ -3564,6 +3634,7 @@ ToolsOnLoad(ToolsAppCtx *ctx) // IN
 
       ToolsPluginSignalCb sigs[] = {
          { TOOLS_CORE_SIG_CONF_RELOAD, GdpConfReload, NULL },
+         { TOOLS_CORE_SIG_PRE_SHUTDOWN, GdpPreShutdown, NULL },
          { TOOLS_CORE_SIG_SHUTDOWN, GdpShutdown, NULL },
       };
       ToolsAppReg regs[] = {

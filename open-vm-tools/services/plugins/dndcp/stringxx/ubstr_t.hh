@@ -238,7 +238,7 @@ ubstr_t::ubstr_t(const char *s) // IN: A UTF-8-encoded string.
 {
    if (s != NULL) {
       // Since we already have the UTF-8 version of the string, cache it now.
-      mUTF8 = std::shared_ptr<UTF8Data>(new UTF8Data(Util_SafeStrdup(s)));
+      mUTF8 = std::make_shared<UTF8Data>(Util_SafeStrdup(s));
       mBstr = auto_unique(Unicode_GetAllocUTF16(s), free).get();
    }
 }
@@ -283,7 +283,7 @@ ubstr_t::ubstr_t(const ubstr_t& s) // IN
      mUTF8(s.mUTF8)
 {
    if (static_cast<wchar_t *>(mBstr) != NULL && !mUTF8) {
-      mUTF8 = s.mUTF8 = std::shared_ptr<UTF8Data>(new UTF8Data());
+      mUTF8 = s.mUTF8 = std::make_shared<UTF8Data>();
    }
 }
 
@@ -812,7 +812,7 @@ ubstr_t::GetUTF8Cache()
    }
 
    if (!mUTF8) {
-      mUTF8 = std::shared_ptr<UTF8Data>(new UTF8Data());
+      mUTF8 = std::make_shared<UTF8Data>();
    }
 
    if (mUTF8->Get() == NULL) {

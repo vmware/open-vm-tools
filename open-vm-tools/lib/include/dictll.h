@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -19,11 +20,11 @@
 /*
  * dictll.h --
  *
- *    Low-level dictionary format --hpreg
+ *    Low-level dictionary format.
  */
 
-#ifndef __DICTLL_H__
-#   define __DICTLL_H__
+#ifndef VMWARE_DICTLL_H
+#define VMWARE_DICTLL_H
 
 #include "vm_basic_types.h"
 #include "dynbuf.h"
@@ -32,7 +33,13 @@
 extern "C" {
 #endif
 
-int
+typedef enum {
+   DictLL_ReadLineError,
+   DictLL_ReadLineEOF,
+   DictLL_ReadLineSuccess,
+} DictLL_ReadLineResult;
+
+DictLL_ReadLineResult
 DictLL_ReadLine(FILE *stream,  // IN
                 char **line,   // OUT
                 char **name,   // OUT
@@ -63,4 +70,4 @@ DictLL_ReadUTF8BOM(FILE *file); // IN/OUT
 }  // extern "C"
 #endif
 
-#endif /* __DICTLL_H__ */
+#endif /* VMWARE_DICTLL_H */

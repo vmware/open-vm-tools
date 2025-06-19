@@ -1,5 +1,6 @@
 ##########################################################
-# Copyright (c) 2010-2017,2020-2022 VMware, Inc. All rights reserved.
+# Copyright (c) 2010-2024 Broadcom. All Rights Reserved.
+# The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -70,7 +71,7 @@ disk.shrink.partition.notfound = "No se puede encontrar la partición %1$s\n"
 
 disk.shrink.partition.unsupported = "La partición %1$s no es reducible\n"
 
-disk.shrink.unavailable = "La característica de reducción no está disponible,\n\nya sea porque está ejecutando una versión antigua de un producto de VMware o porque hay abiertos demasiados canales de comunicación.\n\nSi está ejecutando una versión antigua de un producto de VMware, debería considerar la posibilidad de actualizarla.\n\nSi hay abiertos demasiados canales de comunicación, debería apagar la máquina virtual y volver a encenderla.\n"
+disk.shrink.unavailable = "La función de reducción no está disponible,\n\nya sea porque se está ejecutando un versión antigua de un producto VMware o bien porque hay abiertos demasiados canales de comunicación.\n\nSi está ejecutando una versión antigua de un producto VMware, debería pensar en actualizarla.\n\nSi hay abiertos muchos canales de comunicación, debería apagar la máquina virtual y luego volver a encenderla.\n"
 
 disk.shrink.ignoreFreeSpaceWarnings = "Ignore cualquier aviso sobre el espacio en disco durante el proceso de reducción.\n"
 
@@ -90,29 +91,29 @@ error.noadmin.win = "%1$s: Se necesitan permisos de administrador para realizar 
 
 error.novirtual = "%1$s tiene que ejecutarse dentro de una máquina virtual.\n"
 
-error.unknown = "%1$s: %2$s '%3$s' desconocido\n"
+error.unknown = "%1$s: Desconocido %2$s '%3$s'\n"
 
-help.config = "%1$s: modificar la configuración de Tools\nUso: %2$s %3$s <subcomando>\n\nSubcomandos:\n   get <sección> <clave>: muestra el valor actual de <clave>\n   NOTA: Si la <clave> no está presente en tools.conf, su\n   valor de la configuración global se devuelve si está presente\n   set <sección> <clave> <valor>: establece <clave> en <valor>\n\n   remove <sección> <clave>: elimina <clave>\n\n<sección> puede ser cualquier sección admitida como, por ejemplo, logging, guestoperations o guestinfo.\n<clave> puede ser cualquier clave de configuración.\n<valor> puede ser cualquier valor.\n"
+help.config = "%1$s: modificar la configuración de Tools\nUso: %2$s %3$s <subcomando>\n\nSubcomandos:\n   get <sección> [clave]: muestra el valor actual de la <clave> especificada o muestra valores para todas las claves de la <sección>\n   NOTA: Si la <clave> no está presente en tools.conf, su\n   valor de la configuración global se devuelve si está presente\n   set <sección> <clave> <valor>: establece <clave> en <valor>\n   remove <sección> <clave>: elimina <clave>\n\n<sección> puede ser cualquier sección admitida como, por ejemplo, logging, guestoperations o guestinfo.\n<clave> puede ser cualquier clave de configuración.\n<valor> puede ser cualquier valor.\n"
 
 help.device = "%1$s: funciones relacionadas con los dispositivos de hardware de la máquina virtual\nUso: %2$s %3$s <subcomando> [argumentos]\ndev es el nombre del dispositivo.\n\nSubcomandos:\n   enable <dev>: habilita el dev del dispositivo\n   disable <dev>: deshabilita el dev del dispositivo\n   list: enumera todos los dispositivos disponibles\n   status <dev>: imprime el estado de un dispositivo\n"
 
 help.disk = "%1$s: realizar operaciones de reducción de disco\nUso: %2$s %3$s <subcomando> [argumentos]\n\nSubcomandos:\n   list: enumera las ubicaciones disponibles\n   shrink <ubicación>: borra y reduce un sistema de archivos en la ubicación en cuestión\n   shrinkonly: reduce todos los discos\n   wipe <ubicación>: borra un sistema de archivos en la ubicación en cuestión\n"
 
-help.globalconf = "%1$s: administrar las descargas de configuración global de GuestStore\nUso: %2$s %3$s <subcomando>\n\nSubcomandos solo de invitados de ESX:\n   enable: habilita el módulo de configuración global.\n   disable: deshabilita el módulo de configuración global\n   refresh: activa una nueva descarga de la configuración global desde GuestStore\n   status: imprime el estado del módulo de configuración global\n"
+help.globalconf = "%1$s: administrar las descargas de configuración global de GuestStore\nUso: %2$s %3$s <subcomando>\n\nSubcomandos solo de invitados de ESX:\n   enable: habilita el módulo de configuración global\n   disable: deshabilita el módulo de configuración global\n   refresh: activa una nueva descarga de la configuración global desde GuestStore\n   status: imprime el estado del módulo de configuración global\n"
 
 help.gueststore = "%1$s: obtener contenido de recursos de GuestStore\nUso: %2$s %3$s <subcomando>\n\nSubcomandos solo de invitados de ESX:\n   getcontent <ruta de acceso de recurso> <archivo de salida>: obtener contenido de recursos de GuestStore y guardar en el archivo de salida.\n\n<ruta de acceso de recurso> empieza con / y representa un recurso único en GuestStore. Si termina con /, el valor predeterminado es recuperar el recurso 'metadata.json' subyacente.\n<archivo de salida> es la ruta de acceso de un archivo en el que se guardará el contenido de los recursos.\n"
 
-help.hint = "Pruebe '%1$s %2$s%3$s%4$s' para obtener más información.\n"
+help.hint = "Intente '%1$s %2$s%3$s%4$s' para obtener más información.\n"
 
-help.info = "%1$s: actualiza la información del invitado en el host\nUso: %2$s %3$s actualiza <claseinformación>\n\nSubcomandos:\n   actualización <claseinformación>: actualiza la información identificada por <claseinformación>\n<claseinformación> puede ser 'red'\n"
+help.info = "%1$s: actualiza la información del invitado en el host\nUso: %2$s %3$s actualiza <claseinformación>\n\nSubcomandos:\n   update <claseinformación>: actualiza la información identificada por <claseinformación>\n<claseinformación> puede ser 'red'\n"
 
 help.logging = "%1$s: modificar el registro de herramientas\nUso: %2$s de nivel %3$s <subcomando> <nombreservicio> <nivel>\n\nSubcomandos:\n   get <nombreservicio>: muestra el nivel actual\n   NOTA: Si el nivel no está presente en tools.conf, su\n   valor de la configuración global se devuelve si está presente\n   set <nombreservicio> <nivel>: establece el nivel actual\n\n<nombreservicio> puede ser cualquier servicio admitido, como vmsvc o vmusr\n<nivel> puede ser un error, un fallo crítico, una advertencia, una información, un mensaje o una depuración\n   El valor predeterminado es %4$s\n"
 
-help.main = "Uso: %1$s <comando> [opciones] [subcomando]\nEscriba '%2$s %3$s <comando>' para obtener ayuda sobre un comando específico.\nEscriba '%4$s -v' para consultar la versión de VMware Tools.\nUtilice la opción '-q' para suprimir el resultado stdout.\nLa mayoría de comandos tiene un subcomando.\n\nComandos disponibles:\n   config\n   device\n   disk (no disponible en todos los sistemas operativos)\n   globalconf (no disponible en todos los sistemas operativos)\n   gueststore (no disponible en todos los sistemas operativos)\n   info\n   logging\n   script\n   stat\n   timesync\n   upgrade (no disponible en todos los sistemas operativos)\n"
+help.main = "Uso: %1$s <comando> [opciones] [subcomando]\nEscriba '%2$s %3$s <comando>' para obtener ayuda sobre un comando específico.\nEscriba '%4$s -v' para consultar la versión de VMware Tools.\nUtilice la opción '-q' para suprimir el resultado stdout.\La mayoría de comandos tiene un subcomando.\n\nComandos disponibles:\n   config\n   device\n   disk (no disponible en todos los sistemas operativos)\n   globalconf (no disponible en todos los sistemas operativos)\n   gueststore (no disponible en todos los sistemas operativos)\n   info\n   logging\n   script\n   stat\n   timesync\n   upgrade (no disponible en todos los sistemas operativos)\n"
 
 help.script = "%1$s: controlar la ejecución de secuencias de comandos en respuesta a operaciones de encendido\nUso: %2$s %3$s <power|resume|suspend|shutdown> <subcomando> [argumentos]\n\nSubcomandos:\n   enable: habilita la secuencia de comandos en cuestión y restaura la ruta de acceso predeterminada\n   disable: deshabilita la secuencia de comandos en cuestión\n   set <ruta de acceso completa>: establece la secuencia de comandos en cuestión en la ruta de acceso determinada\n   default: imprime la ruta de acceso predeterminada de la secuencia de comandos en cuestión\n   current: imprime la ruta de acceso actual de la secuencia de comandos en cuestión\n   NOTA: Si la ruta de acceso no está presente en tools.conf, su\n   valor de la configuración global se devuelve si está presente\n"
 
-help.stat = "%1$s: imprimir información útil sobre hosts e invitados\nUso: %2$s %3$s <subcomando>\n\nSubcomandos:\n   hosttime: imprime la hora del host\n   speed: imprime la velocidad de la CPU en MHz\nSubcomandos solo de invitados de ESX:\n   sessionid: imprime el identificador de sesión actual\n   balloon: imprime información de aumento de memoria\n   swap: imprime información de intercambio de memoria\n   memlimit: imprime información de límite de memoria\n   memres: imprime información de reserva de memoria\n   cpures: imprime información de reserva de la CPU\n   cpulimit: imprime información del límite de la CPU\n   raw [<codificación> <nombre de estadísticas>]: imprime información de estadísticas sin formato\n      <codificación> puede ser uno de  'text', 'json', 'xml', 'yaml'.\n      <nombre de estadísticas> incluye sesión, host, recursos, vscsi y\n      vnet (Algunas estadísticas como vscsi son dos palabras, por ejemplo, 'vscsi scsi0:0').\n      Imprime las estadísticas disponibles si no se han especificado los argumentos de <codificación> y <nombre de estadísticas>.\n"
+help.stat = "%1$s: imprimir información útil sobre hosts e invitados\nUso: %2$s %3$s <subcomando>\n\nSubcomandos:\n   hosttime: imprime la hora del host\n   speed: imprime la velocidad de la CPU en MHz\nSubcomandos solo de invitados de ESX:\n   sessionid: imprime el identificador de sesión actual\n   balloon: imprime información de aumento de memoria\n   swap: imprime información de intercambio de memoria\n   memlimit: imprime información de límite de memoria\n   memres: imprime información de reserva de memoria\n   cpures: imprime información de reserva de la CPU\n   cpulimit: imprime información del límite de la CPU\n   raw [<codificación> <nombre de estadísticas>]: imprime información de estadísticas sin formato\n      <codificación> puede ser uno de  'text', 'json', 'xml', 'yaml'.\n      <nombre de estadísticas> incluye sesión, host, recursos, vscsi y\n      vnet (Algunas estadísticas como vscsi son dos palabras, por ejemplo, 'vscsi scsi0:0').\n      Imprime las estadísticas disponibles si no se han especificado los argumentos\n de <codificación> y <nombre de estadísticas>.\n"
 
 help.timesync = "%1$s: funciones para controlar la sincronización horaria en el SO invitado\nUso: %2$s %3$s <subcomando>\n\nSubcomandos:\n   enable: habilita la sincronización horaria\n   disable: deshabilita la sincronización horaria\n   status: imprime el estado de la sincronización horaria\n"
 
@@ -134,9 +135,9 @@ gueststore.error.client_lib = "'%1$s' no se realizó correctamente, error de bib
 
 gueststore.progress = "\rProgreso: %1$d%%"
 
-option.disabled = "Desactivada"
+option.disabled = "Desactivado"
 
-option.enabled = "Activada"
+option.enabled = "Activado"
 
 result.error.failed = "'%1$s' no se realizó correctamente, compruebe el registro de %2$s para obtener más información.\n"
 
@@ -158,7 +159,7 @@ stat.cpumin.failed = "Error al obtener el mínimo de la CPU: %1$s\n"
 
 stat.formattime.failed = "No se puede formatear la hora del host.\n"
 
-stat.get.failed = "Error al obtener stat: %1$s\n"
+stat.get.failed = "Error al obtener estadísticas: %1$s\n"
 
 stat.getsession.failed = "Error al obtener identificador de sesión: %1$s\n"
 

@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2006-2022 VMware, Inc. All rights reserved.
+ * Copyright (c) 2006-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -198,7 +199,6 @@
       || defined(VMX86_SERVER)   \
       || defined(VMKBOOT)        \
       || defined(VMX86_DESKTOP)  \
-      || defined(VMX86_HORIZON_VIEW)     \
       || defined(VMX86_VPX)      \
       || defined(VMX86_SDK)      \
       || defined(VMX86_TOOLS)    \
@@ -272,9 +272,6 @@
 # define PRODUCT_SHORT_NAME PRODUCT_NETDUMP_NAME
 #elif defined(VMX86_HBR_SERVER)
 # define PRODUCT_SHORT_NAME PRODUCT_HBR_SERVER_NAME
-#elif defined(VMX86_HORIZON_VIEW)
-// Do not change product name; many consumers depend on it.
-# define PRODUCT_SHORT_NAME PRODUCT_VIEW_NAME
 #elif defined(VMX86_VMCF)
 # define PRODUCT_SHORT_NAME PRODUCT_VMCF_NAME
 #elif defined(VMX86_INTEGRITY)

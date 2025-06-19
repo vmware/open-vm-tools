@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2008-2019, 2021 VMware, Inc. All rights reserved.
+ * Copyright (c) 2008-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -378,6 +379,16 @@ ToolsCore_Service_class_init(gpointer _klass,
                 G_TYPE_POINTER,
                 G_TYPE_STRING,
                 G_TYPE_STRING);
+   g_signal_new(TOOLS_CORE_SIG_PRE_SHUTDOWN,
+                G_OBJECT_CLASS_TYPE(klass),
+                G_SIGNAL_RUN_LAST,
+                0,
+                NULL,
+                NULL,
+                g_cclosure_marshal_VOID__POINTER,
+                G_TYPE_NONE,
+                1,
+                G_TYPE_POINTER);
    g_signal_new(TOOLS_CORE_SIG_SHUTDOWN,
                 G_OBJECT_CLASS_TYPE(klass),
                 G_SIGNAL_RUN_LAST,

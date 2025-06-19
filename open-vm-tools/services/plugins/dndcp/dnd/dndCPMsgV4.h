@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2010-2021 VMware, Inc. All rights reserved.
+ * Copyright (c) 2010-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -216,16 +217,8 @@ typedef struct DnDCPMsgHdrV4 {
 #define DND_CP_MSG_HEADERSIZE_V4 (sizeof (DnDCPMsgHdrV4))
 #define DND_CP_PACKET_MAX_PAYLOAD_SIZE_V4 (DND_MAX_TRANSPORT_PACKET_SIZE - \
                                            DND_CP_MSG_HEADERSIZE_V4)
-#ifdef VMX86_HORIZON_VIEW
-/*
- * Horizon has no hard limit, but the size field is type of uint32,
- * 4G-1(0xffffffff) is the maximum size represented.
- */
-#define DND_CP_MSG_MAX_BINARY_SIZE_V4 0xffffffff
-#else
 // Workstation/fusion have hard limit in size(4M) of DnD Msg, refer to dnd.h
 #define DND_CP_MSG_MAX_BINARY_SIZE_V4 (1 << 22)
-#endif
 
 /* DnD version 4 message. */
 typedef struct DnDCPMsgV4 {

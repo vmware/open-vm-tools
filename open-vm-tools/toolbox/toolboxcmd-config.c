@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2016,2020-2021 VMware, Inc. All rights reserved.
+ * Copyright (c) 2016-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -32,6 +33,7 @@
 #include "vmware/tools/i18n.h"
 #include "vmware/tools/utils.h"
 #include "vmware/tools/log.h"
+#include "vm_assert.h"
 
 
 /*
@@ -108,7 +110,6 @@ ConfigGet(const char *section,      // section
 {
    GKeyFile *confDict = NULL;
    int ret = EXIT_SUCCESS;
-   gchar *value = NULL;
 
    VMTools_LoadConfig(NULL,
                       G_KEY_FILE_KEEP_COMMENTS | G_KEY_FILE_KEEP_TRANSLATIONS,
@@ -117,20 +118,44 @@ ConfigGet(const char *section,      // section
 
    if (confDict) {
       TOOLBOXCMD_LOAD_GLOBALCONFIG(confDict)
-      value = g_key_file_get_string(confDict, section,
-                                    key, NULL);
+
+      // If there is no key, get all the key value pairs in the section
+      if (key == NULL) {
+         gchar **keys;
+         gsize numKeys;
+         GError *err = NULL;
+         int index;
+
+         keys = g_key_file_get_keys(confDict, section, &numKeys, &err);
+	 if (err) {
+            g_print("[%s] UNSET\n", section);
+	 } else {
+            g_print("[%s]\n", section);
+            for (index = 0; index < numKeys; index++) {
+               gchar *value = g_key_file_get_string(confDict,
+			                     section, keys[index], NULL);
+               ASSERT(value != NULL);
+               if (value) {
+                  g_print("%s = %s\n", keys[index], value);
+               }
+               g_free(value);
+            }
+         }
+         g_strfreev(keys);
+      } else {
+         gchar *value = g_key_file_get_string(confDict, section, key, NULL);
+         if (value) {
+            g_print("[%s] %s = %s\n", section, key, value);
+         } else {
+            g_print("[%s] %s UNSET\n", section, key);
+         }
+         g_free(value);
+      }
    } else {
       ret = EX_UNAVAILABLE;
    }
 
-   if (value) {
-      g_print("[%s] %s = %s\n", section, key, value);
-   } else {
-      g_print("[%s] %s UNSET\n", section, key);
-   }
-
    g_key_file_free(confDict);
-   g_free(value);
 
    return ret;
 }
@@ -223,22 +248,29 @@ Config_Command(char **argv,      // IN: Command line arguments
                                   SU_(arg.config.operation, "config operation"));
       return EX_USAGE;
    }
+   op = argv[optind];
 
    if ((optind + 1) >= argc) {
       ToolsCmd_MissingEntityError(argv[0],
                                   SU_(arg.config.section, "config section"));
       return EX_USAGE;
    }
+   section = argv[optind + 1];
 
    if ((optind + 2) >= argc) {
-      ToolsCmd_MissingEntityError(argv[0],
+      /*
+       * For 'get' operation, key is optional
+       * With no key, 'get' operation prints all key-value pairs in that section
+       */
+      if (toolbox_strcmp(op, "get") != 0) {
+         ToolsCmd_MissingEntityError(argv[0],
                                   SU_(arg.config.key, "config key"));
-      return EX_USAGE;
+         return EX_USAGE;
+      }
+      key = NULL;
+   } else {
+      key = argv[optind + 2];
    }
-
-   op = argv[optind];
-   section = argv[optind + 1];
-   key = argv[optind + 2];
 
    if (toolbox_strcmp(op, "set") == 0) {
       const char *value;
@@ -288,10 +320,10 @@ Config_Help(const char *progName, // IN: The name of the program obtained from a
                "%s: modify Tools configuration\n"
                "Usage: %s %s <subcommand>\n\n"
                "Subcommands:\n"
-               "   get <section> <key>: display current value for <key>\n"
+               "   get <section> [key] : display current value for given <key> or display values for all keys in <section>\n"
                "   NOTE: If the <key> is not present in tools.conf, its\n"
                "   value from the global configuration is returned if present\n"
-               "   set <section> <key> <value>: set <key> to <value>\n\n"
+               "   set <section> <key> <value>: set <key> to <value>\n"
                "   remove <section> <key>: remove <key>\n\n"
                "<section> can be any supported section, such as logging, guestoperations or guestinfo.\n"
                "<key> can be any configuration key.\n"

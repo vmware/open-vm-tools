@@ -374,6 +374,8 @@ extern "C" {
    GOKM("asianux7-64",                          asianux7_64Guest,        TRUE) \
    GOKM("asianux8-64",                          asianux8_64Guest,        TRUE) \
    GOKM("asianux9-64",                          asianux9_64Guest,        TRUE) \
+   GOKM("miraclelinux-64",                      miraclelinux_64Guest,    TRUE) \
+   GOKM("pardus-64",                            pardus_64Guest,          TRUE) \
    GOKM("nld9",                                 nld9Guest,               TRUE) \
    GOKM("oes",                                  oesGuest,                TRUE) \
    GOKM("sjds",                                 sjdsGuest,               TRUE) \
@@ -404,7 +406,10 @@ extern "C" {
    GOKM("amazonlinux2-64",                      amazonlinux2_64Guest,    TRUE) \
    GOKM("amazonlinux3-64",                      amazonlinux3_64Guest,    TRUE) \
    GOKM("almalinux-64",                         almalinux_64Guest,       TRUE) \
+   GOKM("fusionos-64",                          fusionos_64Guest,        TRUE) \
    GOKM("rockylinux-64",                        rockylinux_64Guest,      TRUE) \
+   GOKM("prolinux-64",                          prolinux_64Guest,        TRUE) \
+   GOKM("kylinlinux-64",                        kylinlinux_64Guest,      TRUE) \
    GOKM("CRXPod1-64",                           crxPod1Guest,            TRUE) \
    GOKM("CRXSys1-64",                           crxSys1Guest,            TRUE) \
    /* Netware guests */ \
@@ -445,6 +450,7 @@ extern "C" {
    GOKM("vmkernel65",                           vmkernel65Guest,         TRUE) \
    GOKM("vmkernel7",                            vmkernel7Guest,          TRUE) \
    GOKM("vmkernel8",                            vmkernel8Guest,          TRUE) \
+   GOKM("vmkernel9",                            vmkernel9Guest,          TRUE) \
    /* Other guests */ \
    GOKM("dos",                                  dosGuest,                TRUE) \
    GOKM("os2",                                  os2Guest,                TRUE) \

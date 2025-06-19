@@ -1,5 +1,5 @@
 ##########################################################
-# Copyright (c) 2011-2017,2020-2022 VMware, Inc. All rights reserved.
+# Copyright (C) 2011-2017,2020 VMware, Inc. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -16,7 +16,7 @@
 #
 ##########################################################
 
-addsubj.fail = "%1$s: ユーザー '%2$s' のエイリアスを追加できませんでした: %3$s。\n"
+addsubj.fail = "%1$s: ユーザー「%2$s」のエイリアスを追加できませんでした: %3$s。\n"
 addsubj.success = "%1$s: エイリアスが追加されました\n"
 
 addoptions.comment = "サブジェクトのコメント"
@@ -27,14 +27,14 @@ addoptions.global = "グローバル マッピング ファイルに証明書を
 
 addoptions.subject = "SAML サブジェクト"
 
-addoptions.username = "証明書ストアが追加されているユーザー"
+addoptions.username = "次の場所に証明書ストアが追加されているユーザー"
 
 addoptions.verbose = "詳細な操作"
 
 cmdline.help.appoption = "アプリケーション オプション"
 cmdline.help.helpoption = "ヘルプ オプション"
 cmdline.help.hint = "ヘルプ オプションを表示"
-cmdline.help.usage = "使用方法"
+cmdline.help.usage = "使用量"
 cmdline.parse = "コマンド ラインの解析に失敗しました"
 
 cmdline.summary.pemfile = "PEM ファイル"
@@ -44,14 +44,14 @@ cmdline.summary.comm = "コメント"
 cmdline.summary.note = "注: ユーザー名が指定されていない場合、%1$s はマッピングされたエイリアスのみを削除します"
 
 list.comment = "コメント"
-list.count = "%1$s でユーザー '%3$s' のエイリアスが %2$d 個検出されました\n"
+list.count = "%1$s でユーザー「%3$s」のエイリアスが %2$d 個検出されました\n"
 
-list.error = "%1$s: ユーザー '%2$s' のエイリアスを一覧表示できませんでした: %3$s。\n"
+list.error = "%1$s: ユーザー「%2$s」のエイリアスを一覧表示できませんでした: %3$s。\n"
 list.subject = "サブジェクト"
 
-listmapped.count = "%1$s でマップされた %2$d 個のエイリアスが検出されました\n"
+listmapped.count = "%1$s でマッピングされた %2$d 個のエイリアスが検出されました\n"
 
-listmapped.error = "%1$s: マップされたエイリアスを一覧表示できませんでした: %2$s。\n"
+listmapped.error = "%1$s: マッピングされたエイリアスを一覧表示できませんでした: %2$s。\n"
 
 listmapped.subject = "サブジェクト"
 
@@ -61,11 +61,11 @@ listoptions.username = "証明書ストアが照会されているユーザー"
 
 listoptions.verbose = "詳細な操作"
 
-loadfile.fail = "%1$s: PEM ファイル '%2$s' を読み取ることができません\n"
+loadfile.fail = "%1$s: PEM ファイル「%2$s」を読み取ることができません\n"
 
-name.any = "<ANY>"
+name.any = "<任意>"
 
-removesubj.fail = "%1$s: ユーザー '%2$s' のエイリアスを削除できませんでした: %3$s。\n"
+removesubj.fail = "%1$s: ユーザー「%2$s」のエイリアスを削除できませんでした: %3$s。\n"
 
 removesubj.success = "%1$s: エイリアスが削除されました\n"
 
@@ -76,9 +76,9 @@ removeoptions.username = "次の場所から証明書ストアが削除されて
 
 removeoptions.verbose = "詳細な操作"
 
-removeall.fail = "%1$s: ユーザー '%2$s' のサブジェクト '%3$s' を削除できませんでした: %4$s。\n"
+removeall.fail = "%1$s: ユーザー「%2$s」のサブジェクト「%3$s」を削除できませんでした: %4$s。\n"
 
-removeall.removefail = "%1$s: ユーザー '%2$s' のサブジェクト '%3$s' の pemCert '%4$s' のエイリアスを削除できませんでした: %5$s。\n"
+removeall.removefail = "%1$s: ユーザー「%2$s」のサブジェクト「%3$s」の pemCert「%4$s」のエイリアスを削除できませんでした: %5$s。\n"
 
 removeall.success = "%1$s: すべてのエイリアスが削除されました\n"
 

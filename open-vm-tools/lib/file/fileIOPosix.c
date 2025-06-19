@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 1998-2022 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -358,11 +359,11 @@ FileIO_OptionalSafeInitialize(void)
  */
 
 void
-FileIO_Invalidate(FileIODescriptor *fd)  // OUT:
+FileIO_Invalidate(FileIODescriptor *fd)  // IN/OUT:
 {
    ASSERT(fd != NULL);
 
-   (memset)(fd, 0, sizeof *fd);
+   memset(fd, 0, sizeof *fd);
    fd->posix = -1;
 }
 

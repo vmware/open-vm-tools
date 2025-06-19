@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2007-2021,2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2007-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -54,6 +55,7 @@
 #include "vm_atomic.h"
 #include "util.h"
 #include "hostType.h"
+#include "userlock.h"
 
 #include "unicodeOperations.h"
 
@@ -1212,8 +1214,17 @@ FileLockMakeDirectory(const char *pathName)  // IN:
 
 #if !defined(_WIN32)
    mode_t save;
+   mode_t check;
+   static Atomic_Ptr lckStorage;
 
-   save = umask(0);
+   /* Get and take lock to serial this routine. */
+   MXUserExclLock *lck = MXUser_CreateSingletonExclLock(&lckStorage,
+                                                        "fileLockMakeDirectory",
+                                                        RANK_LEAF);
+
+   MXUser_AcquireExclLock(lck);
+
+   save = umask(0);  // Disable masking; save current value
 #endif
 
    ASSERT(pathName != NULL);
@@ -1221,7 +1232,11 @@ FileLockMakeDirectory(const char *pathName)  // IN:
    err = FileCreateDirectoryRobust(pathName, 0777);
 
 #if !defined(_WIN32)
-   umask(save);
+   check = umask(save);  // Restore previous value; 0 should be returned
+
+   ASSERT(check == 0);
+
+   MXUser_ReleaseExclLock(lck);
 #endif
 
    return err;

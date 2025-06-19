@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2007-2019, 2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2007-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -360,9 +361,9 @@ DnDMsg_Serialize(DnDMsg *msg,   // IN/OUT: the message
  */
 
 DnDMsgErr
-DnDMsg_UnserializeHeader(DnDMsg *msg,   // IN/OUT: the message
-                         void *buf,     // IN: the input buffer
-                         size_t len)    // IN: the buffer length
+DnDMsg_UnserializeHeader(DnDMsg *msg,     // IN/OUT: the message
+                         const void *buf, // IN: the input buffer
+                         size_t len)      // IN: the buffer length
 {
    BufRead r;
 
@@ -422,7 +423,7 @@ DnDMsg_UnserializeHeader(DnDMsg *msg,   // IN/OUT: the message
 
 DnDMsgErr
 DnDMsg_UnserializeArgs(DnDMsg *msg,     // IN/OUT: the message
-                       void *buf,       // IN: input buffer
+                       const void *buf, // IN: input buffer
                        size_t len)      // IN: buffer length
 {
    uint32 i;

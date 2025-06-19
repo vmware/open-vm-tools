@@ -633,8 +633,10 @@ typedef int pid_t;
 /*
  * Old MSVC versions (such as MSVC 14.29.30133, used to build Workstation's
  * offset checker) are notorious to have non-standard __VA_ARGS__ handling.
+ * The current latest Visual Studio 2022 17.10 (MSVC 19.40/_MSC_VER 1940)
+ * has not fixed the defect yet.
  */
-#if defined(VMX86_DESKTOP) && (_MSC_VER > 1929)
+#if defined(VMX86_DESKTOP) && (_MSC_VER > 1940)
 #pragma message("ERROR: Compiler version: " XSTR(_MSC_VER))
 #pragma message("ERROR: PR 3405101: Is __VA_ARGS__ hack needed for Arm & x86?")
 #endif
@@ -656,8 +658,10 @@ typedef int pid_t;
 /*
  * Old MSVC versions (such as MSVC 14.29.30133, used to build Workstation's
  * offset checker) are notorious to have non-standard __VA_ARGS__ handling.
+ * The current latest Visual Studio 2022 17.10 (MSVC 19.40/_MSC_VER 1940)
+ * has not fixed the defect yet.
  */
-#if defined(VMX86_DESKTOP) && (_MSC_VER > 1929)
+#if defined(VMX86_DESKTOP) && (_MSC_VER > 1940)
 #pragma message("ERROR: Compiler version: " XSTR(_MSC_VER))
 #pragma message("ERROR: PR 3405101: Is __VA_ARGS__ hack needed for Arm & x86?")
 #endif
@@ -849,11 +853,17 @@ typedef int pid_t;
 #else
 #define ulm_esx 0
 #endif
+#ifdef ULM_LIN
+#define ulm_lin 1
+#else
+#define ulm_lin 0
+#endif
 #else
 #define vmx86_ulm 0
 #define ulm_mac 0
 #define ulm_win 0
 #define ulm_esx 0
+#define ulm_lin 0
 #define ULM_ONLY(x)
 #endif
 
@@ -1019,18 +1029,21 @@ typedef int pid_t;
 #define VMW_CLANG_ANALYZER_NORETURN() ((void)0)
 #endif
 
-/* VMW_FALLTHROUGH
+/*
+ * VMW_FALLTHROUGH
  *
  *   Instructs capable compilers to not warn when a case label of a
  *   'switch' statement falls through to the next label.
  *
  *   If not a matched compiler, expands to nothing.
  */
-#if (defined(__GNUC__) && (__GNUC__ >= 9)) ||           \
-    (defined(__clang__) && (__clang_major__ >= 13))
-#define VMW_FALLTHROUGH() __attribute__((fallthrough))
+#if defined __cplusplus && __cplusplus >= 201703L
+   #define VMW_FALLTHROUGH() [[fallthrough]]
+#elif (defined(__GNUC__) && (__GNUC__ >= 9)) ||           \
+      (defined(__clang__) && (__clang_major__ >= 13))
+   #define VMW_FALLTHROUGH() __attribute__((fallthrough))
 #else
-#define VMW_FALLTHROUGH()
+   #define VMW_FALLTHROUGH()
 #endif
 
 #endif // ifndef _VM_BASIC_DEFS_H_

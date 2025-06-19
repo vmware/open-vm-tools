@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2011,2014-2017,2019-2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2011-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -30,6 +31,7 @@
  *
  *********************************************************/
 
+
 #ifndef __ASYNC_SOCKET_VTABLE_H__
 #define __ASYNC_SOCKET_VTABLE_H__
 
@@ -41,14 +43,9 @@
 
 /*
  * If we change the AsyncSocketVTable, we also need to change the follow files:
- * apps/asyncSocketProxy/asyncVvcSocket.c
- * lib/blastSockets/asyncBweSocket.c
- * lib/blastSockets/asyncProxySocket.c
  * lib/asyncsocket/asyncsocket.c
  * lib/asyncsocket/asyncWebSocket.c
  * lib/asyncsocket/asyncNamedPipe.c
- * lib/udpfec/fecAsyncSocket.c
- * lib/udpfec/fecAsyncSslSocket.c
  * devices/vsock/asyncVmciSocket.c
  */
 typedef struct AsyncSocketVTable {
