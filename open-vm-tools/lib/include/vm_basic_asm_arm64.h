@@ -1055,10 +1055,6 @@ DCacheClean(VA va, uint64 len)
 
 #endif // ifdef __GNUC__
 
-#if defined _MSC_VER
-/* Until we implement Mul64x6464() with Windows intrinsics... */
-#define MUL64_NO_ASM 1
-#endif
 
 #ifdef MUL64_NO_ASM
 #include "mul64.h"
@@ -1091,10 +1087,17 @@ Mul64x6464(uint64 multiplicand,
    } else {
       uint64 lo, hi;
 
+#if defined __GNUC__
       asm("mul   %0, %2, %3" "\n\t"
           "umulh %1, %2, %3"
           : "=&r" (lo), "=r" (hi)
           : "r" (multiplicand), "r" (multiplier));
+#elif defined _MSC_VER
+      lo = multiplicand * multiplier;
+      hi = __umulh(multiplicand, multiplier);
+#else
+#error No compiler defined for Mul64x6464
+#endif
       return (hi << (64 - shift) | lo >> shift) + (lo >> (shift - 1) & 1);
    }
 }
@@ -1128,10 +1131,17 @@ Muls64x64s64(int64 multiplicand,
    } else {
       uint64 lo, hi;
 
+#if defined __GNUC__
       asm("mul   %0, %2, %3" "\n\t"
           "smulh %1, %2, %3"
           : "=&r" (lo), "=r" (hi)
           : "r" (multiplicand), "r" (multiplier));
+#elif defined _MSC_VER
+      lo = multiplicand * multiplier;
+      hi = __mulh(multiplicand, multiplier);
+#else
+#error No compiler defined for Muls64x64s64
+#endif
       return (hi << (64 - shift) | lo >> shift) + (lo >> (shift - 1) & 1);
    }
 }
