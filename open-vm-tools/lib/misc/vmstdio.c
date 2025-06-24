@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -33,6 +34,38 @@
 #include "posixInt.h"
 
 
+#ifdef _WIN32
+   #include <io.h>
+   #include <fcntl.h>
+   #include <wchar.h>
+
+   typedef utf16_t tchar;
+
+   #define T(x) L ## x
+
+   #define fgetts fgetws
+   #define tcslen wcslen
+
+   #define AllocUTF8(utf16Str) Unicode_AllocWithUTF16(utf16Str)
+
+   #define fileno(stream) _fileno(stream)
+   #define isatty(fd) _isatty(fd)
+#else
+   #include <signal.h>
+   #include <termios.h>
+   #include <unistd.h>
+
+   typedef char tchar;
+
+   #define T(x) x
+
+   #define fgetts fgets
+   #define tcslen strlen
+
+   #define AllocUTF8(utf8Str) Unicode_Alloc(utf8Str, STRING_ENCODING_DEFAULT)
+#endif
+
+
 /*
  *-----------------------------------------------------------------------------
  *
@@ -53,7 +86,7 @@
  *      It returns bufIn on success and NULL on error.  The line terminator
  *      and NUL terminator are not stored in bufIn.  On success, '*count' is
  *      the number of bytes written to the buffer.
- *    
+ *
  * Side effects:
  *      If the line read is terminated by a standalone '\r' (legacy Mac), the
  *      next character is pushed back using ungetc.  Thus, that character may
@@ -104,11 +137,11 @@ SuperFgets(FILE *stream,   // IN:
          /* Found a Unix line terminator */
          break;
       }
-      
+
       if (c == '\r') {
 
 #ifndef _WIN32
-         /* 
+         /*
           * Look ahead to see if it is a \r\n line terminator.
           * On Windows platform, getc() returns one '\n' for a \r\n two-byte
           * sequence (for files opened in text mode), so we can skip the
@@ -272,4 +305,203 @@ error:
    DynBuf_Destroy(&b);
 
    return StdIO_Error;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StdIOSignalCatcher --
+ *
+ *      Signal handler for `StdIOCatchSignals`.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Sets the `caughtSignal` global to `TRUE`.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static Bool caughtSignal = FALSE;
+
+static void
+StdIOSignalCatcher(int signal)  // IN
+{
+   caughtSignal = TRUE;
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StdIOCatchTerminationSignals --
+ *
+ *      Registers a signal handler to catch SIGQUIT, SIGINT, and SIGTERM.
+ *      If the signal handler is a null pointer, restores the default signal
+ *      handler.
+ *
+ *      Does nothing on Windows.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+StdIOCatchTerminationSignals(void (*handler)(int))  // IN
+{
+#if !defined _WIN32
+   struct sigaction act;
+
+   /*
+    * We can't use `= { 0 }` because the definition of `struct sigaction` is
+    * implementation-dependent, and the first member could be an aggregate
+    * type.
+    */
+   memset(&act, 0, sizeof act);
+
+   if (handler == NULL) {
+      act.sa_handler = SIG_DFL;
+   } else {
+      sigfillset(&act.sa_mask);
+      act.sa_flags = SA_RESETHAND;
+      act.sa_handler = handler;
+   }
+
+   sigaction(SIGQUIT, &act, NULL);
+   sigaction(SIGINT,  &act, NULL);
+   sigaction(SIGTERM, &act, NULL);
+#endif
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * StdIO_PromptUser --
+ *
+ *      Prompts the user for input from stdin.  Optionally disables echoing the
+ *      input (when prompting for passwords, for example) if possible.
+ *
+ * Results:
+ *      Returns an allocated UTF-8 string of the input.  Returns NULL on
+ *      failure.
+ *
+ *      The caller is responsible for calling `Util_ZeroFreeString` on the
+ *      result (or alternatively `free` if the input is non-sensitive).
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+char *
+StdIO_PromptUser(FILE *out,           // IN
+                 const char *prompt,  // IN
+                 Bool echo)           // IN
+{
+   char *ret = NULL;
+   Bool readSuccess = FALSE;
+   Bool disabledEcho = FALSE;
+
+   enum {
+      bufferSize = 1024,
+   };
+
+   tchar buffer[bufferSize] = { 0 };
+   size_t length;
+
+   Bool isOutputTTY = isatty(fileno(out));
+
+   // Try to disable echoing a typed password.
+#ifdef _WIN32
+   DWORD oldConsoleMode;
+   HANDLE console = GetStdHandle(STD_INPUT_HANDLE);
+
+   if (console == INVALID_HANDLE_VALUE) {
+      goto exit;
+   }
+
+   if (!echo && GetConsoleMode(console, &oldConsoleMode)) {
+      DWORD newConsoleMode = oldConsoleMode & ~ENABLE_ECHO_INPUT;
+      disabledEcho = SetConsoleMode(console, newConsoleMode);
+   }
+#else
+   struct termios oldTermiosInfo = { 0 };
+   int stdInFd = fileno(stdin);
+
+   if (!echo && isatty(stdInFd) && tcgetattr(stdInFd, &oldTermiosInfo) == 0) {
+      struct termios tempTermiosInfo = oldTermiosInfo;
+      tempTermiosInfo.c_lflag |= ICANON;
+      tempTermiosInfo.c_lflag &= ~ECHO;
+      disabledEcho =
+         (tcsetattr(stdInFd, TCSAFLUSH, &tempTermiosInfo) == 0);
+   }
+#endif
+
+   if (isOutputTTY) {
+      Posix_Fprintf(out, "%s", prompt);
+      fflush(out);
+   }
+
+   // Enable reading UTF-16.
+   WIN32_ONLY(_setmode(_fileno(stdin), _O_U16TEXT));
+
+   /*
+    * It'd be nice to use `StdIO_ReadNextLine` instead of `fgets` and to not
+    * use a fixed-size buffer, but buffers resized via `realloc` don't allow
+    * us to zero the memory if `realloc` moves the buffer.
+    */
+   caughtSignal = FALSE;
+   StdIOCatchTerminationSignals(StdIOSignalCatcher);
+   readSuccess =
+      (fgetts(buffer, ARRAYSIZE(buffer), stdin) != NULL) && !caughtSignal;
+   StdIOCatchTerminationSignals(NULL);
+
+   // We disabled echoing, so we didn't echo the newline.  Do that now.
+   if (!echo && isOutputTTY) {
+      Posix_Fprintf(out, "\n");
+      fflush(out);
+   }
+
+   if (!readSuccess) {
+      goto exit;
+   }
+
+   // fgets/fgetws might include the newline.  Get rid of it.
+   length = tcslen(buffer);
+   if (length == 0) {
+   } else if (buffer[length - 1] == '\n') {
+      buffer[length - 1] = T('\0');
+   } else {
+      // The buffer is too small.  Better to fail than to silently truncate.
+      goto exit;
+   }
+
+   ret = AllocUTF8(buffer);
+
+exit:
+   if (disabledEcho) {
+   #ifdef _WIN32
+      SetConsoleMode(console, oldConsoleMode);
+   #else
+      /*
+       * Bug 3509716: Use `TCSAFLUSH` so that any partially inputted line
+       * (which might be a password) is discarded when pressing Ctrl+C instead
+       * of being left as potential input to the parent process.
+       */
+      tcsetattr(stdInFd, TCSAFLUSH, &oldTermiosInfo);
+   #endif
+   }
+
+   Util_Zero(buffer, sizeof buffer);
+
+   return ret;
 }
