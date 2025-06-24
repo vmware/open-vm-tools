@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2011-2017, 2019-2022 VMware, Inc. All rights reserved.
+ * Copyright (c) 2011-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -153,8 +154,10 @@ ServiceNetworkListen(ServiceConnection *conn,            // IN/OUT
 
    ret = g_unlink(conn->pipeName);
    if (ret < 0 && errno != ENOENT) {
-      Warning("%s: unlink(%s) failed, %d - continuing\n", __FUNCTION__,
-              conn->pipeName, errno);
+      err = VGAUTH_E_COMM;
+      Warning("%s: unlink(%s) failed, %d\n", __FUNCTION__, conn->pipeName,
+              errno);
+      goto quit;
    }
 
    /* Ignore return, returns the length of the source string */
