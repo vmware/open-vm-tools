@@ -270,6 +270,12 @@ mapping file layout:
                           FILE_READ_DATA)
 #endif
 
+#ifdef _WIN32
+#define ISPATHSEP(c)  ((c) == '\\' || (c) == '/')
+#else
+#define ISPATHSEP(c)  ((c) == '/')
+#endif
+
 
 /*
  ******************************************************************************
@@ -484,6 +490,7 @@ ServiceLoadFileContentsWin(const gchar *fileName,
    gunichar2 *fileNameW = NULL;
    BOOL ok;
    DWORD bytesRead;
+   gchar *realPath = NULL;
 
    *fileSize = 0;
    *contents = NULL;
@@ -641,6 +648,20 @@ ServiceLoadFileContentsWin(const gchar *fileName,
    }
 
    /*
+    * Check if fileName is real path.
+    */
+   if ((realPath = ServiceFileGetPathByHandle(hFile)) == NULL) {
+      err = VGAUTH_E_FAIL;
+      goto done;
+   }
+   if (g_strcmp0(realPath, fileName) != 0) {
+      Warning("%s: Real path (%s) is not same as file path (%s)\n",
+              __FUNCTION__, realPath, fileName);
+      err = VGAUTH_E_FAIL;
+      goto done;
+   }
+
+   /*
     * Now finally read the contents.
     */
    toRead = fileAttrs.nFileSizeLow;
@@ -668,6 +689,7 @@ done:
       CloseHandle(hFile);
    }
    g_free(fileNameW);
+   g_free(realPath);
 
    return err;
 }
@@ -690,6 +712,7 @@ ServiceLoadFileContentsPosix(const gchar *fileName,
    gchar *buf;
    gchar *bp;
    int fd = -1;
+   gchar realPath[PATH_MAX] = { 0 };
 
    *fileSize = 0;
    *contents = NULL;
@@ -831,6 +854,21 @@ ServiceLoadFileContentsPosix(const gchar *fileName,
       Warning("%s: gid of %s changed (%d vs %d vs %d)\n", __FUNCTION__,
               fileName, (int) lstatBuf.st_gid, (int) fstatBuf.st_gid, (int) gid);
       // XXX audit this?
+      err = VGAUTH_E_FAIL;
+      goto done;
+   }
+
+   /*
+    * Check if fileName is real path.
+    */
+   if (realpath(fileName, realPath) == NULL) {
+      Warning("%s: realpath() failed. errno (%d)\n", __FUNCTION__, errno);
+      err = VGAUTH_E_FAIL;
+      goto done;
+   }
+   if (g_strcmp0(realPath, fileName) != 0) {
+      Warning("%s: Real path (%s) is not same as file path (%s)\n",
+              __FUNCTION__, realPath, fileName);
       err = VGAUTH_E_FAIL;
       goto done;
    }
@@ -3333,6 +3371,7 @@ ServiceAliasInitAliasStore(void)
    VGAuthError err = VGAUTH_E_OK;
    gboolean saveBadDir = FALSE;
    char *defaultDir = NULL;
+   size_t len;
 
 #ifdef _WIN32
    {
@@ -3375,6 +3414,14 @@ ServiceAliasInitAliasStore(void)
                                       VGAUTH_PREF_ALIASSTORE_DIR,
                                       VGAUTH_PREF_GROUP_NAME_SERVICE,
                                       defaultDir);
+
+   /*
+    * Remove the trailing separator if any from aliasStoreRootDir path.
+    */
+   len = strlen(aliasStoreRootDir);
+   if (ISPATHSEP(aliasStoreRootDir[len - 1])) {
+      aliasStoreRootDir[len - 1] = '\0';
+   }
 
    Log("Using '%s' for alias store root directory\n", aliasStoreRootDir);
 
