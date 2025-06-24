@@ -80,7 +80,7 @@
    #define PRODUCT_VERSION    1,1,5,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_VPX)
    /* this should be kept in sync with the corresponding vpx branch. */
-   #define PRODUCT_VERSION    9,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
+   #define PRODUCT_VERSION    9,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
 // VMX86_DESKTOP must be last because it is the default and is always defined.
 #elif defined(VMX86_DESKTOP)
    // WORKSTATION_VERSION_NUMBER below has to match this
@@ -178,7 +178,7 @@
  * 9.1.1.2010: Hot Patch 10 on Emergency Patch 20
  */
 #define ESX_VERSION_MAJOR "9"
-#define ESX_VERSION_MINOR "0" // Minor or update version
+#define ESX_VERSION_MINOR "1" // Minor or update version
 #define ESX_VERSION_MAINT "0" // 0 = Pre-release/GA, 3 = maintenance release 3
 #define ESX_VERSION_UPDATE ESX_VERSION_MINOR // ESX's update level: 9.0 semantic
 
@@ -234,7 +234,7 @@
  */
 #define FUSION_VERSION "e.x.p"
 
-#define VIM_VERSION "9.0.0"
+#define VIM_VERSION "9.1.0"
 /*
  *For smooth version bump up for quaterly releases, we need to have a fallback
  *mechanism to previous version in all those components which perform version
@@ -264,15 +264,15 @@
 6.0.0,\
 6.5.0"
 // Put VPX_VERSION first, because vpx/make/defs.mk doesn't check for suffix.
-#define VPX_VERSION "9.0.0"
+#define VPX_VERSION "9.1.0"
 #define VPX_VERSION_MAJOR "9"
-#define VPX_VERSION_MINOR "0"
+#define VPX_VERSION_MINOR "1"
 #define VPX_VERSION_MAINT "0"
 #define VPX_VERSION_PATCH "0"
 #define VPX_VERSION_THIRD_PARTY VPX_VERSION_MAJOR VPX_VERSION_MINOR \
                                 VPX_VERSION_MAINT
 //MARKER_FAST_REMOVE_START
-#define VPX_VERSION_NUMERIC 9,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
+#define VPX_VERSION_NUMERIC 9,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
 //MARKER_FAST_REMOVE_END
 //MARKER_FAST_UNCOMMENT_START
 //#define VPX_VERSION_NUMERIC gVpxVersionNumeric
@@ -282,15 +282,15 @@
 #define VPX_MIN_HOST_VERSION "8.0.0"
 
 #define MAX_SUPPORTED_VI_VERSION "6.6" //from ovfTool/src/supportedVersions.h
-#define VCDB_CURRENT_SCHEMA_VERSION           900 // from PitCADatabase.h
+#define VCDB_CURRENT_SCHEMA_VERSION           910 // from PitCADatabase.h
 
 #define VPX_RELEASE_UPDATE "0" /* 0 = Pre-release/GA, 1 = Update 1 */
 #define VPX_RELEASE_PATCH "0"  /* 0 = experimental */
 #define VPX_RELEASE VPX_RELEASE_UPDATE "." VPX_RELEASE_PATCH
 
 /* expected database version for current release */
-#define VPXD_VDB_DB_VERSION_ID            900
-#define VPXD_VDB_DB_VERSION_VALUE         "VirtualCenter Database 9.0"
+#define VPXD_VDB_DB_VERSION_ID            910
+#define VPXD_VDB_DB_VERSION_VALUE         "VirtualCenter Database 9.1"
 
 /*
  * OSM Release Version for OSS/TP usage tracking and ticket filing
@@ -336,9 +336,9 @@
 
 #define VMRC_VERSION          "13.0.0.0"
 
-#define VDDK_VERSION          "9.0.0.0"
+#define VDDK_VERSION          "9.1.0.0"
 #define VDDK_VERSION_MAJOR    9
-#define VDDK_VERSION_MINOR    0
+#define VDDK_VERSION_MINOR    1
 #define VDDK_VERSION_MAINT    0
 #define VDDK_VERSION_PATCH    0
 
