@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2008-2021,2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2008-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -28,6 +29,7 @@
 #include <locale.h>
 #include <glib/gstdio.h>
 
+#include "conf.h"
 #include "toolboxCmdInt.h"
 #include "toolboxcmd_version.h"
 #include "system.h"
@@ -523,7 +525,21 @@ main(int argc,    // IN: length of command line arguments
    }
 
    if (show_version) {
-      g_print("%s (%s)\n", TOOLBOXCMD_VERSION_STRING, BUILD_NUMBER);
+      gboolean useLegacyVersion;
+      /*
+       * Check the config values to see if revert to older format.
+       * Default is false and new format will be used.
+       */
+      useLegacyVersion =
+         VMTools_ConfigGetBoolean(conf,
+                                  CONFGROUPNAME_VMTOOLS,
+                                  CONFNAME_USELEGACYVERSION,
+                                  FALSE);
+      if (useLegacyVersion) {
+         g_print("%s (%s)\n", TOOLBOXCMD_VERSION_STRING, BUILD_NUMBER);
+      } else {
+         g_print("%s.%s\n", TOOLBOXCMD_VERSION_STRING, BUILD_NUMBER_NUMERIC_STRING);
+      }
       retval = EXIT_SUCCESS;
    } else if (show_help) {
       ToolboxCmdHelp(argv[0], "help");

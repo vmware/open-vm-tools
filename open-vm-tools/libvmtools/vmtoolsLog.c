@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2008-2024 Broadcom. All Rights Reserved.
+ * Copyright (c) 2008-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -52,6 +52,7 @@
 #  include "w32Messages.h"
 #  include "windowsu.h"
 #endif
+#include "conf.h"
 #include "str.h"
 #include "system.h"
 #include "vmware/tools/log.h"
@@ -505,6 +506,25 @@ VMToolsFreeLogEntry(gpointer data)
    g_free(entry->domain);
    g_free(entry->msg);
    g_free(entry);
+}
+
+
+/**
+ * Function that resets log header of Tools version, build details
+ * and Guest OS details. The format of the version can change.
+ *
+ */
+
+static void
+VMToolsResetLogHeader(void)
+{
+   guint i;
+
+   for (i = 0; i < gLogHeaderCount; i++) {
+      free(gLogHeaderBuf[i]);
+      gLogHeaderBuf[i] = NULL;
+   }
+   gLogHeaderCount = 0;
 }
 
 
@@ -1452,6 +1472,8 @@ VMToolsConfigLoggingInt(const gchar *defaultDomain,
                         gboolean reset)
 {
    gboolean allocDict = (cfg == NULL);
+   static gboolean gUseLegacyVersion = FALSE; // Default is off
+   gboolean useLegacyVersion = FALSE;
    gchar **list;
    gchar **curr;
    GPtrArray *oldDomains = NULL;
@@ -1536,17 +1558,40 @@ VMToolsConfigLoggingInt(const gchar *defaultDomain,
     * Cached log headers will be logged at log rotation and reset.
     * No need to re-init the log headers in case of config reload.
     */
+   /*
+    * Check the config values to see if revert to older format.
+    * Default is false and new format will be used.
+    */
+   useLegacyVersion = g_key_file_get_boolean(cfg,
+                                             CONFGROUPNAME_VMTOOLS,
+                                             CONFNAME_USELEGACYVERSION,
+                                             NULL);
+   if (gUseLegacyVersion != useLegacyVersion) {
+      VMToolsResetLogHeader();
+      gUseLegacyVersion = useLegacyVersion;
+   }
+
    if (gLogHeaderCount == 0) {
+      const char *versionFormat;
+      const char *buildNumberString;
+
       LogHandler *handler = GetLogHandlerByDomain(gLogDomain);
       GlibLogger *logger = handler->logger;
 
       logger->logHeader = TRUE;
 
+      if (useLegacyVersion) {
+         versionFormat = "%s Version: %s (%s)";
+         buildNumberString = BUILD_NUMBER;
+      } else {
+         versionFormat = "%s Version: %s.%s";
+         buildNumberString = BUILD_NUMBER_NUMERIC_STRING;
+      }
       gLogHeaderBuf[gLogHeaderCount++] = Str_Asprintf(NULL,
-                                                      "%s Version: %s (%s)",
+                                                      versionFormat,
                                                       VMWARE_TOOLS_SHORT_NAME,
                                                       TOOLS_VERSION_EXT_CURRENT_STR,
-                                                      BUILD_NUMBER);
+                                                      buildNumberString);
 
       gosDetails = Hostinfo_GetOSDetailedData();
       if (gosDetails != NULL && gLogHeaderCount < LOG_HEADER_MAX_ENTRIES) {

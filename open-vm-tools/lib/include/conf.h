@@ -50,6 +50,7 @@
 #define CONFNAME_LOGFILE                  "log.file"
 #define CONFNAME_LOGLEVEL                 "log.level"
 #define CONFNAME_DISABLETOOLSVERSION      "disable-tools-version"
+#define CONFNAME_USELEGACYVERSION         "use-legacy-version"
 #define CONFNAME_HIDETOOLSVERSION         "hide-tools-version"
 #define CONFNAME_DISABLEPMTIMERWARNING    "disable-pmtimerwarning"
 #define CONFGROUPNAME_VMTOOLS             "vmtools"

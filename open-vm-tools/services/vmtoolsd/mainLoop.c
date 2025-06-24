@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2008-2024 Broadcom. All Rights Reserved.
+ * Copyright (c) 2008-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -259,37 +259,63 @@ ToolsCoreIOFreezeCb(gpointer src,
  *
  * Report version info as guest variables.
  *
- * @param[in]  state       Service state.
+ * @param[in]  ctx       The application context.
  *
  ******************************************************************************
  */
 
 static void
-ToolsCoreReportVersionData(ToolsServiceState *state)
+ToolsCoreReportVersionData(ToolsAppCtx *ctx)
 {
    char *value;
    const static char cmdPrefix[] = "info-set guestinfo.vmtools.";
+   static gboolean useLegacyVersion = FALSE;
+   static gboolean first = TRUE;
+   const char *cmdDescFmt;
+   const char *cmdToolsVersionStr;
+   gboolean confUseLegacyVersion;
 
    /*
     * These values are documented with specific formats.  Do not change
     * the formats, as client code can depend on them.
     */
+   confUseLegacyVersion =
+      VMTools_ConfigGetBoolean(ctx->config,
+                               CONFGROUPNAME_VMTOOLS,
+                               CONFNAME_USELEGACYVERSION,
+                               FALSE);
 
+   /* Nothing to do if not the first call and state is unchanged. */
+   if (!first && (confUseLegacyVersion == useLegacyVersion)) {
+      return;
+   }
+
+#define CMD_DESCRIPTION          "%sdescription "
+#ifdef OPEN_VM_TOOLS
+#define VMTOOLS_PRODUCT          "open-vm-tools"
+#else
+#define VMTOOLS_PRODUCT          "VMware Tools"
+#endif
+
+   first = FALSE;
+   useLegacyVersion = confUseLegacyVersion;
+   if (useLegacyVersion) {
+      cmdDescFmt = CMD_DESCRIPTION VMTOOLS_PRODUCT " %s build %s";
+      cmdToolsVersionStr = TOOLS_VERSION_CURRENT_STR;
+   } else {
+      cmdDescFmt = CMD_DESCRIPTION VMTOOLS_PRODUCT " %s.%s";
+      cmdToolsVersionStr = TOOLS_VERSION_EXT_CURRENT_STR;
+   }
 
    /*
     * Version description as a human-readable string.  This value should
     * not be parsed, so its format can be modified if necessary.
     */
-   value = g_strdup_printf("%sdescription "
-#ifdef OPEN_VM_TOOLS
-                           "open-vm-tools %s build %s",
-#else
-                           "VMware Tools %s build %s",
-#endif
+   value = g_strdup_printf(cmdDescFmt,
                            cmdPrefix,
-                           TOOLS_VERSION_CURRENT_STR,
+                           cmdToolsVersionStr,
                            BUILD_NUMBER_NUMERIC_STRING);
-   if (!RpcChannel_Send(state->ctx.rpc, value,
+   if (!RpcChannel_Send(ctx->rpc, value,
                         strlen(value) + 1, NULL, NULL)) {
       g_warning("%s: failed to send description", __FUNCTION__);
    }
@@ -300,8 +326,8 @@ ToolsCoreReportVersionData(ToolsServiceState *state)
     * be parsed, so its format should not be modified.
     */
    value = g_strdup_printf("%sversionString "
-                           "%s", cmdPrefix, TOOLS_VERSION_CURRENT_STR);
-   if (!RpcChannel_Send(state->ctx.rpc, value,
+                           "%s", cmdPrefix, cmdToolsVersionStr);
+   if (!RpcChannel_Send(ctx->rpc, value,
                         strlen(value) + 1, NULL, NULL)) {
       g_warning("%s: failed to send versionString", __FUNCTION__);
    }
@@ -313,8 +339,8 @@ ToolsCoreReportVersionData(ToolsServiceState *state)
     */
    value = g_strdup_printf("%sversionNumber "
                            "%d", cmdPrefix, TOOLS_VERSION_CURRENT);
-   if (!RpcChannel_Send(state->ctx.rpc, value,
-                         strlen(value) + 1, NULL, NULL)) {
+   if (!RpcChannel_Send(ctx->rpc, value,
+                        strlen(value) + 1, NULL, NULL)) {
       g_warning("%s: failed to send versionNumber", __FUNCTION__);
    }
    g_free(value);
@@ -325,7 +351,7 @@ ToolsCoreReportVersionData(ToolsServiceState *state)
     */
    value = g_strdup_printf("%sbuildNumber "
                            "%d", cmdPrefix, BUILD_NUMBER_NUMERIC);
-   if (!RpcChannel_Send(state->ctx.rpc, value,
+   if (!RpcChannel_Send(ctx->rpc, value,
                         strlen(value) + 1, NULL, NULL)) {
       g_warning("%s: failed to send buildNumber", __FUNCTION__);
    }
@@ -410,6 +436,33 @@ ToolsCoreResetSignalCb(gpointer src,          // IN
 
 /*
  ******************************************************************************
+ *
+ * ToolsCoreConfReloadSignalCb --
+ *  The tools.conf reload callback. The signal was triggered from
+ *  ToolsCore_ReloadConfig. This function is needed to safely run code
+ *  outside of the RPC Channel reset code.
+ *
+ *  Reinitialize the Vmx Guest variables.
+ *
+ * @param[in]  src      The source object.
+ * @param[in]  ctx      The ToolsAppCtx for passing the config.
+ * @param[in]  data     Unused.
+ *
+ ******************************************************************************
+ */
+
+static void
+ToolsCoreConfReloadSignalCb(gpointer src,          // IN
+                            ToolsAppCtx *ctx,      // IN
+                            gpointer data)         // IN
+{
+   g_debug("Reinitialize the guest vars for version data.\n");
+   ToolsCoreReportVersionData(ctx); /* Update version guest vars */
+}
+
+
+/*
+ ******************************************************************************
  * ToolsCoreRunLoop --                                                  */ /**
  *
  * Loads and registers all plugins, and runs the service's main loop.
@@ -448,7 +501,7 @@ ToolsCoreRunLoop(ToolsServiceState *state)
 
    /* Report version info as guest Vars */
    if (state->ctx.rpc) {
-      ToolsCoreReportVersionData(state);
+      ToolsCoreReportVersionData(&state->ctx);
    }
 
 #if defined(_WIN32)
@@ -527,6 +580,14 @@ ToolsCoreRunLoop(ToolsServiceState *state)
          g_signal_connect(state->ctx.serviceObj,
                           TOOLS_CORE_SIG_RESET,
                           G_CALLBACK(ToolsCoreResetSignalCb),
+                          NULL);
+      }
+
+      if (g_signal_lookup(TOOLS_CORE_SIG_CONF_RELOAD,
+                          G_OBJECT_TYPE(state->ctx.serviceObj)) != 0) {
+         g_signal_connect(state->ctx.serviceObj,
+                          TOOLS_CORE_SIG_CONF_RELOAD,
+                          G_CALLBACK(ToolsCoreConfReloadSignalCb),
                           NULL);
       }
 
