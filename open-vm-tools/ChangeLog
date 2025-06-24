@@ -1,3 +1,125 @@
+commit 943d0d03ac76750ffca3448feb9da075a126698d
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jun 24 09:26:23 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit c6a2991f60917e6bec78f08b45a028773f64e7c8
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jun 24 09:26:23 2025 -0700
+
+    Change to common source files not applicable to open-vm-tools.
+
+commit 850a133089020024e3742fd0392e1f16dc877786
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jun 24 09:26:23 2025 -0700
+
+    Change to common source files not applicable to open-vm-tools.
+
+commit 5e6fb667c05def9aeaf3d9dd92e233e2d632758b
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jun 24 09:26:23 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 36d0a94153c6268e53bcb0ee99f0db4999e65909
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jun 24 09:26:22 2025 -0700
+
+    Change to common source files not applicable to open-vm-tools.
+
+commit 35b7a45080a367c7be3ebc6b21d5e9a6d776e58d
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jun 24 09:26:22 2025 -0700
+
+    Change to common source files not applicable to open-vm-tools.
+
+commit 8fd79ccb15d30d5c5fa8e1da2db0eb22c6bb3ff1
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jun 24 09:26:22 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 3dcc452c9bd7cdf0678ca0482c715c3cfcc054f5
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jun 24 09:26:22 2025 -0700
+
+    Fail ServiceNetworkListen if g_unlink has an errno other than ENOENT
+    
+    Change ServiceNetworkListen to fail if g_unlink fails for any reason
+    other than that the entry being unlinked doesn't exist.
+
+commit 879844c84d669f3805019f252e4d3adccf1e7dd6
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jun 24 09:26:22 2025 -0700
+
+    Check the real path for the alias store file
+    
+    Verify the real path, which is the fully resolved path, is free of
+    symbolic links and path traversal characters.
+
+commit aff29fea9c5d15d40c7c2544e0bba3eec2ee025d
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jun 24 09:26:22 2025 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit aef049649c1fad94dc3ba8b4a8c9e482fddae5a3
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jun 24 09:26:22 2025 -0700
+
+    Modify alias store file permissions for regular users.
+    
+    Currently, the user whose alias store is to be used is granted 'Full Control'
+    to the alias store file created under alias store root directory (which is
+    generally secured from regular users).
+    Modifying the alias store file permissions by removing "Change
+    permissions" and "Take ownership" of the file privileges from the user.
+
+commit 7baaae353cc8d7960da3660486c4de237729f430
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jun 24 09:26:22 2025 -0700
+
+    Change to common header files not applicable to open-vm-tools.
+
+commit 850432a3546d858187a1b5891da3a27b051b2f50
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jun 24 09:26:22 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 767f04f182b070a424660e189ee7818486e831e2
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jun 24 09:26:22 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 7a5231353c4abfefc6dd70afdc74cb6cd5bde8df
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jun 24 09:26:22 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 3782b76343c4b82547fc5dcfb5a95ca0ada4c7be
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jun 24 09:26:22 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit b7ba3dd6fbee772d9ae9571b12c9e37b57dd9379
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jun 24 09:26:22 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 142ab95557e63f4a204dd35d88578a6705f36927
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jun 3 00:44:39 2025 -0700
+
+    Update ChangeLog with the granular push of Jun 02, 2025.
+    - plus ChangeLog update of Apr 22, 2025.
+    - plus missed copyright year update to few files.
+
 commit 3bb580227c33e2b1d5520ca497692d24a2aeb3b0
 Author: Kruti Pendharkar <kp025370@broadcom.com>
 Date:   Tue Jun 3 00:32:29 2025 -0700
