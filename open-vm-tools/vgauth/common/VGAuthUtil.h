@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
+ * Copyright (c) 2011-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -104,5 +105,7 @@ gboolean Util_CheckExpiration(const GTimeVal *start, unsigned int duration);
 #endif
 
 void Util_Assert(const char *cond, const char *file, int lineNum);
+
+int Util_Utf8CaseCmp(const gchar *str1, const gchar *str2);
 
 #endif

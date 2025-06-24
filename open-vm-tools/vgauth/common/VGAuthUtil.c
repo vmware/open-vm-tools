@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
+ * Copyright (c) 2011-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -308,4 +309,37 @@ Util_Assert(const char *cond,
 #endif
 #endif
    g_assert(0);
+}
+
+
+/*
+ ******************************************************************************
+ * Util_Utf8CaseCmp --                                                   */ /**
+ *
+ * Case insensitive comparison for utf8 strings which can have non-ascii
+ * characters.
+ *
+ * @param[in]  str1      Null terminated utf8 string.
+ * @param[in]  str2      Null terminated utf8 string.
+ *
+ ******************************************************************************
+ */
+
+int
+Util_Utf8CaseCmp(const gchar *str1,
+                 const gchar *str2)
+{
+   int ret;
+   gchar *str1Case;
+   gchar *str2Case;
+
+   str1Case = g_utf8_casefold(str1, -1);
+   str2Case = g_utf8_casefold(str2, -1);
+
+   ret = g_strcmp0(str1Case, str2Case);
+
+   g_free(str1Case);
+   g_free(str2Case);
+
+   return ret;
 }
