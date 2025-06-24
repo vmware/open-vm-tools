@@ -253,6 +253,23 @@ mapping file layout:
 
  */
 
+#ifdef _WIN32
+/*
+ * Access mode 0x1301bf
+ */
+#define USER_ACCESS_MODE (SYNCHRONIZE           |\
+                          READ_CONTROL          |\
+                          DELETE                |\
+                          FILE_WRITE_ATTRIBUTES |\
+                          FILE_READ_ATTRIBUTES  |\
+                          FILE_EXECUTE          |\
+                          FILE_WRITE_EA         |\
+                          FILE_READ_EA          |\
+                          FILE_APPEND_DATA      |\
+                          FILE_WRITE_DATA       |\
+                          FILE_READ_DATA)
+#endif
+
 
 /*
  ******************************************************************************
@@ -2171,7 +2188,13 @@ AliasSaveAliasesAndMapped(const gchar *userName,
       UserAccessControl uac;
       BOOL ok;
 
-      if (!UserAccessControl_GrantUser(&uac, userName, GENERIC_ALL)) {
+      /*
+       * Alias store root directory is secured by the installer from regular
+       * users. Hence the regular user should not be allowed to take ownership
+       * or change permissions of the alias store file. Hence access mode
+       * 0x1301bf is used which excludes WRITE_DAC and WRITE_OWNER permissions.
+       */
+      if (!UserAccessControl_GrantUser(&uac, userName, USER_ACCESS_MODE)) {
          err = VGAUTH_E_FAIL;
          goto cleanup;
       }
