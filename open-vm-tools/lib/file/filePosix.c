@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2006-2024 Broadcom. All Rights Reserved.
+ * Copyright (c) 2006-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -1504,6 +1504,8 @@ File_GetVMFSMountInfo(const char *pathName,    // IN:
    if (ret >= 0 && fsAttrs) {
       *version = fsAttrs->versionNumber;
       *fsType = Util_SafeStrdup(fsAttrs->fsType);
+      *remoteIP = NULL;
+      *remoteMountPoint = NULL;
 
       /*
        * We only compare the first 3 characters 'NFS'xx.
@@ -1511,18 +1513,11 @@ File_GetVMFSMountInfo(const char *pathName,    // IN:
        */
       if (strncmp(fsAttrs->fsType, FS_NFS_ON_ESX, FS_NFS_PREFIX_LEN) == 0) {
          char *sep = strchr(fsAttrs->logicalDevice, ' ');
-
-         if (sep) {
-            *sep++ = 0;
-            *remoteIP = Util_SafeStrdup(fsAttrs->logicalDevice);
+         if (sep != NULL) {
+            *sep++ = '\0';
+            *remoteIP = Util_SafeStrdup(fsAttrs->remoteServerIP);
             *remoteMountPoint = Util_SafeStrdup(sep);
-         } else {
-            *remoteIP = NULL;
-            *remoteMountPoint = NULL;
          }
-      } else {
-         *remoteIP = NULL;
-         *remoteMountPoint = NULL;
       }
 
       Posix_Free(fsAttrs);
