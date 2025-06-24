@@ -80,12 +80,6 @@
    #include "mul64.h"
 #endif
 
-#if defined _M_ARM64EC || defined _M_ARM64
-#include "vm_assert.h"
-#define MUL64_NO_ASM 1
-#include "mul64.h"
-#endif
-
 #if defined __cplusplus
 extern "C" {
 #endif
