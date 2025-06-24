@@ -379,6 +379,38 @@ GET_CURRENT_PC(void)
 /*
  *----------------------------------------------------------------------
  *
+ * BRK --
+ *
+ *      BRK instruction.
+ *
+ *      Use a compiler memory barrier to prevent the compiler from re-ordering
+ *      memory accesses across the BRK instruction: this is less surprising /
+ *      more convenient when the breakpoint hits and one attaches a debugger to
+ *      inspect and/or modify state.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Raises an exception, so side-effects depend on the exception handler.
+ *
+ *----------------------------------------------------------------------
+ */
+
+#if defined _MSC_VER
+#define BRK(imm16) do {                                                       \
+   _ReadWriteBarrier();                                                       \
+   __break(imm16);                                                            \
+   _ReadWriteBarrier();                                                       \
+} while (0)
+#elif defined __GNUC__
+#define BRK(imm16) asm volatile ("brk %0" :: "i" (imm16) : "memory")
+#endif
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * MRS --
  *
  *      Get the value of system register 'name'.

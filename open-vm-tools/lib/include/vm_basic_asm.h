@@ -805,7 +805,7 @@ RDTSC(void)
 #ifdef VM_ARM_32
 #define DEBUGBREAK() __asm__("bkpt")
 #elif defined(VM_ARM_64)
-#define DEBUGBREAK() __asm__("brk #0")
+#define DEBUGBREAK() BRK(0)
 #elif defined(_MSC_VER)
 #define DEBUGBREAK() __debugbreak()
 #else
