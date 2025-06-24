@@ -67,6 +67,7 @@
 #define ALIASSTORE_FILE_PREFIX   "user-"
 #define ALIASSTORE_FILE_SUFFIX   ".xml"
 
+static gboolean allowSymlinks = FALSE;
 static gchar *aliasStoreRootDir = DEFAULT_ALIASSTORE_ROOT_DIR;
 
 #ifdef _WIN32
@@ -647,18 +648,20 @@ ServiceLoadFileContentsWin(const gchar *fileName,
       goto done;
    }
 
-   /*
-    * Check if fileName is real path.
-    */
-   if ((realPath = ServiceFileGetPathByHandle(hFile)) == NULL) {
-      err = VGAUTH_E_FAIL;
-      goto done;
-   }
-   if (g_strcmp0(realPath, fileName) != 0) {
-      Warning("%s: Real path (%s) is not same as file path (%s)\n",
-              __FUNCTION__, realPath, fileName);
-      err = VGAUTH_E_FAIL;
-      goto done;
+   if (!allowSymlinks) {
+      /*
+       * Check if fileName is real path.
+       */
+      if ((realPath = ServiceFileGetPathByHandle(hFile)) == NULL) {
+         err = VGAUTH_E_FAIL;
+         goto done;
+      }
+      if (_stricmp(realPath, fileName) != 0) {
+         Warning("%s: Real path (%s) is not same as file path (%s)\n",
+                 __FUNCTION__, realPath, fileName);
+         err = VGAUTH_E_FAIL;
+         goto done;
+      }
    }
 
    /*
@@ -858,19 +861,21 @@ ServiceLoadFileContentsPosix(const gchar *fileName,
       goto done;
    }
 
-   /*
-    * Check if fileName is real path.
-    */
-   if (realpath(fileName, realPath) == NULL) {
-      Warning("%s: realpath() failed. errno (%d)\n", __FUNCTION__, errno);
-      err = VGAUTH_E_FAIL;
-      goto done;
-   }
-   if (g_strcmp0(realPath, fileName) != 0) {
-      Warning("%s: Real path (%s) is not same as file path (%s)\n",
-              __FUNCTION__, realPath, fileName);
-      err = VGAUTH_E_FAIL;
-      goto done;
+   if (!allowSymlinks) {
+      /*
+       * Check if fileName is real path.
+       */
+      if (realpath(fileName, realPath) == NULL) {
+         Warning("%s: realpath() failed. errno (%d)\n", __FUNCTION__, errno);
+         err = VGAUTH_E_FAIL;
+         goto done;
+      }
+      if (g_strcmp0(realPath, fileName) != 0) {
+         Warning("%s: Real path (%s) is not same as file path (%s)\n",
+                 __FUNCTION__, realPath, fileName);
+         err = VGAUTH_E_FAIL;
+         goto done;
+      }
    }
 
    /*
@@ -3402,6 +3407,10 @@ ServiceAliasInitAliasStore(void)
    defaultDir = g_strdup(DEFAULT_ALIASSTORE_ROOT_DIR);
 #endif
 
+   allowSymlinks = Pref_GetBool(gPrefs,
+                                VGAUTH_PREF_ALLOW_SYMLINKS,
+                                VGAUTH_PREF_GROUP_NAME_SERVICE,
+                                FALSE);
    /*
     * Find the alias store directory.  This allows an installer to put
     * it somewhere else if necessary.
