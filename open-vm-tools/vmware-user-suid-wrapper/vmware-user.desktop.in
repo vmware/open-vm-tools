@@ -4,4 +4,3 @@ Exec=_bindir_/vmware-user-suid-wrapper
 Name=VMware User Agent
 NoDisplay=true
 X-KDE-autostart-phase=1
-
