@@ -1,3 +1,102 @@
+commit 3c350195a1f347caf26a46778222d94822d39e3c
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Fri Jul 11 07:25:20 2025 -0700
+
+    Correcting missed copyright date updates.
+
+commit 65e26973b223d3a1af3d45ad4d10819644c254f8
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Fri Jul 11 05:48:16 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit f02688b5ac3e46d8c6528f78f5f4832799be16c9
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Fri Jul 11 05:48:16 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit ca40ebb053edf5dfd2f9fa82bf8a764b04b281bd
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Fri Jul 11 05:48:16 2025 -0700
+
+    Update regex for checking 'disable_vmware_customization' flag
+    
+    The regex check for "disable_vmware_customization" is too strict and
+    fails when there are inline comments after the flag. As a result, the
+    cloud-init workflow doesn't start.
+    This change is relaxing the check to allow inline comments. Please note
+    that non-capturing group is not supported by POSIX regex API, using
+    capturing group here.
+
+commit 7f6713c1b4ffc8ce12dc2cc58d727c8a6f5489af
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Fri Jul 11 05:48:16 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit bf1c86c08be4b6994209d82dcf6fb0424343228a
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Fri Jul 11 05:48:15 2025 -0700
+
+    Change to common source files not applicable to open-vm-tools at this time.
+
+commit 9f1325ef4e09ca5064aa03336f9729f4ee76d9bb
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Fri Jul 11 05:48:15 2025 -0700
+
+    Define Posix_Printf/Posix_Fprint for FreeBSD
+    
+    A previous change to lib/misc/posixPosix.c introduced the
+    `Posix_Printf` and `Posix_Fprintf` implementations only for non-Solaris,
+    non-Apple, and non-FreeBSD builds. (Note that this set of
+    conditions is inconsistent with when `posix.h` aliases them
+    (and various other functions) to their standard POSIX
+    counterparts.)
+    
+    Moving the `Posix_Printf`/`Posix_Fprintf` implementations out
+    of the `#if` sections so that they're always available.
+
+commit ce1da35446b0409763fd84f2eaefeac675e15092
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Fri Jul 11 05:48:15 2025 -0700
+
+    Fix the vmtools user process crash caused by use-after-free
+    
+    A previous change introduced a bug where a freed pointer was not set to
+    nullptr, potentially causing a crash in the vmtoolsd user process.
+
+commit 56239bc54f65dab173abe06fb75f60fca9afdb58
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Fri Jul 11 05:48:15 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit cf5d171b6448110b6887161f41e46bb6e95f3151
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Fri Jul 11 05:48:15 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 4ab9073d94ef4571303c56b26daf16dd29421cd6
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Fri Jul 11 05:48:15 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 9fd6ad1a6dde7990305f32483fd6babaaa72044f
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Fri Jul 11 05:48:15 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 9920a5f591a348e5d28dc2ef7e56ec0c112a63d9
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jun 24 09:30:47 2025 -0700
+
+    Update ChangeLog with the granular push of Jun 24, 2025.
+    - plus ChangeLog update of Jun 03, 2025.
+
 commit 943d0d03ac76750ffca3448feb9da075a126698d
 Author: Kruti Pendharkar <kp025370@broadcom.com>
 Date:   Tue Jun 24 09:26:23 2025 -0700
