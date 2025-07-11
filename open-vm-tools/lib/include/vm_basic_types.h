@@ -986,7 +986,7 @@ typedef void * UserVA;
  * https://people.kernel.org/kees/bounded-flexible-arrays-in-c
  */
 
-#if __has_attribute(__counted_by__)
+#if __has_attribute(__counted_by__) && !defined(__cplusplus)
 # define COUNTED_BY(member) __attribute__((__counted_by__(member)))
 #else
 # define COUNTED_BY(member)
