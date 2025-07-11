@@ -688,6 +688,7 @@ FLAG(   D,  0, EAX,  7,  1, XCR0_MASTER_HI16_ZMM,                YES,  13 ) \
 FLAG(   D,  0, EAX,  9,  1, XCR0_MASTER_PKRU,                    YES,  13 ) \
 FLAG(   D,  0, EAX, 17,  1, XCR0_MASTER_XTILECFG,                YES,  20 ) \
 FLAG(   D,  0, EAX, 18,  1, XCR0_MASTER_XTILEDATA,               YES,  20 ) \
+FLAG(   D,  0, EAX, 19,  1, XCR0_MASTER_APX_F,                   NO,    0 ) \
 FIELD(  D,  0, EBX,  0, 32, XSAVE_ENABLED_SIZE,                  ANY,   8 ) \
 FIELD(  D,  0, ECX,  0, 32, XSAVE_MAX_SIZE,                      YES,   8 ) \
 FIELD(  D,  0, EDX,  0, 29, XCR0_MASTER_UPPER,                   NO,    0 ) \
