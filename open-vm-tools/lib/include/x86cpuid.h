@@ -1888,6 +1888,7 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 #define CPUID_MODEL_RAPTORLAKE_BA     0xba  // Raptor Lake H/P/PX J-0, U Q-0
 #define CPUID_MODEL_RAPTORLAKE_BF     0xbf  // Raptor Lake S/HX C-0
 #define CPUID_MODEL_LUNARLAKE_BD      0xbd  // Lunar Lake
+#define CPUID_MODEL_ARROWLAKE_C6      0xc6  // Arrow Lake
 
 /* Intel model information (family 19) */
 #define CPUID_MODEL_DIAMONDRAPIDS     0x01  // Diamond Rapids
@@ -2360,10 +2361,18 @@ CPUID_MODEL_IS_LUNARLAKE(uint32 v) // IN: %eax from CPUID with %eax=1.
 }
 
 static INLINE Bool
+CPUID_MODEL_IS_ARROWLAKE(uint32 v) // IN: %eax from CPUID with %eax=1.
+{
+   /* Assumes the CPU manufacturer is Intel. */
+   return CPUID_FAMILY_IS_P6(v) &&
+          CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_ARROWLAKE_C6;
+}
+
+static INLINE Bool
 CPUID_UARCH_IS_LUNARLAKE(uint32 v) // IN: %eax from CPUID with %eax=1.
 {
    /* Assumes the CPU manufacturer is Intel. */
-   return CPUID_MODEL_IS_LUNARLAKE(v);
+   return CPUID_MODEL_IS_LUNARLAKE(v) || CPUID_MODEL_IS_ARROWLAKE(v);
 }
 
 static INLINE Bool
