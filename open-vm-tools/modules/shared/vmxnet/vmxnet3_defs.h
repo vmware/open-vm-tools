@@ -1209,8 +1209,13 @@ do {\
 #define VMXNET3_CAP_PKT_STEERING_IPV6  18 /* bit 19 of DCR 0 */
 #define VMXNET3_CAP_VERSION_8_MAX  (VMXNET3_CAP_PKT_STEERING_IPV6 + 1)
 
+#define VMXNET3_CAP_GRE_RSS         19 /* bit 20 of DCR 0 */
+#define VMXNET3_CAP_MPLS_RSS        20 /* bit 21 of DCR 0 */
+#define VMXNET3_CAP_VERSION_10_MAX  (VMXNET3_CAP_MPLS_RSS + 1)
+
+
 /* when new capability is introduced, update VMXNET3_CAP_MAX */
-#define VMXNET3_CAP_MAX              VMXNET3_CAP_VERSION_8_MAX
+#define VMXNET3_CAP_MAX              VMXNET3_CAP_VERSION_10_MAX
 
 
 #define VMXNET3_OFFLOAD_TSO         (1 << 0)
