@@ -19,7 +19,7 @@
 #define UNICODE_BUILDING_POSIX_WRAPPERS
 
 #if __linux__
-#define _GNU_SOURCE // Needed to get euidaccess()
+   #define _GNU_SOURCE // Needed to get euidaccess()
 #endif
 
 #include <stdio.h>
@@ -37,61 +37,62 @@
 #include <stdarg.h>
 
 #if defined(__APPLE__)
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <sys/time.h>
-#include <sys/uio.h>
-#include <sys/kauth.h>
-#include <sys/param.h>
-#include <sys/mount.h>
-#include <CoreFoundation/CoreFoundation.h>
-#include <TargetConditionals.h>
-#if TARGET_OS_IPHONE
-#include <spawn.h>
-extern char **environ;
-#endif
+   #include <sys/socket.h>
+   #include <sys/un.h>
+   #include <netinet/in.h>
+   #include <arpa/inet.h>
+   #include <sys/time.h>
+   #include <sys/uio.h>
+   #include <sys/kauth.h>
+   #include <sys/param.h>
+   #include <sys/mount.h>
+   #include <CoreFoundation/CoreFoundation.h>
+   #include <TargetConditionals.h>
+
+   #if TARGET_OS_IPHONE
+      #include <spawn.h>
+      extern char **environ;
+   #endif
 #elif defined(__FreeBSD__)
-#include <sys/param.h>
-#include <sys/mount.h>
+   #include <sys/param.h>
+   #include <sys/mount.h>
 #elif defined(sun)
-#include <alloca.h>
-#include <sys/mnttab.h>
+   #include <alloca.h>
+   #include <sys/mnttab.h>
 #else
-#include <sys/statfs.h>
-#include <sys/mount.h>
-#include <mntent.h>
+   #include <sys/statfs.h>
+   #include <sys/mount.h>
+   #include <mntent.h>
 #endif
 
 #if (!defined(__FreeBSD__) || __FreeBSD_release >= 503001) && !defined __ANDROID__
-#define VM_SYSTEM_HAS_GETPWNAM_R 1
-#define VM_SYSTEM_HAS_GETPWUID_R 1
-#define VM_SYSTEM_HAS_GETGRNAM_R 1
+   #define VM_SYSTEM_HAS_GETPWNAM_R 1
+   #define VM_SYSTEM_HAS_GETPWUID_R 1
+   #define VM_SYSTEM_HAS_GETGRNAM_R 1
 #endif
 
-# if defined(__FreeBSD__)
-#  include <sys/syslimits.h>  // PATH_MAX
-# else
-#  include <limits.h>  // PATH_MAX
-# endif
+#if defined(__FreeBSD__)
+   #include <sys/syslimits.h>  // PATH_MAX
+#else
+   #include <limits.h>  // PATH_MAX
+#endif
 
 #include "vmware.h"
 #include "posixInt.h"
 #if defined(sun)
-#include "hashTable.h" // For setenv emulation
+   #include "hashTable.h" // For setenv emulation
 #endif
 
 #include "vm_basic_defs.h"
 
 #if defined __ANDROID__
-/*
- * Android doesn't support getmntent_r() or setmntent().
- */
-#define NO_GETMNTENT_R
-#define NO_SETMNTENT
+   /*
+   * Android doesn't support getmntent_r() or setmntent().
+   */
+   #define NO_GETMNTENT_R
+   #define NO_SETMNTENT
 
-EXTERN int truncate(const char *, off_t);
+   EXTERN int truncate(const char *, off_t);
 #endif
 
 
@@ -1804,9 +1805,7 @@ Posix_Unsetenv(const char *name)  // IN:
 }
 
 
-#if !defined(sun) // {
-
-#if !defined(__APPLE__) && !defined(__FreeBSD__) // {
+#if !defined sun && !defined __APPLE__ && !defined __FreeBSD__ // {
 /*
  *----------------------------------------------------------------------
  *
@@ -2132,6 +2131,9 @@ exit:
 }
 
 
+#endif // } !defined sun && !defined __APPLE__ && !defined __FreeBSD
+
+
 /*
  *----------------------------------------------------------------------------
  *
@@ -2217,10 +2219,7 @@ Posix_Fprintf(FILE *stream,        // IN:
 }
 
 
-#endif // } !defined(__APPLE__) && !defined(__FreeBSD)
-
-
-#else  // } !defined(sun) {
+#if defined sun // {
 /*
  *----------------------------------------------------------------------
  *
@@ -2267,7 +2266,7 @@ Posix_Getmntent(FILE *fp,           // IN:
 
    return ret;
 }
-#endif // } !defined(sun)
+#endif // } defined sun
 
 
 /*

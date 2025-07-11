@@ -665,7 +665,7 @@ exit:
 /*
  * ESX and Mac OS are UTF-8 environments so these functions can be
  * "defined away" - the POSIX wrapper call can be directly mapped to the
- * POSIX function avoiding unneccesary (call and handling) overhead.
+ * POSIX function avoiding unnecessary (call and handling) overhead.
  *
  * NOTE: PLEASE KEEP THESE IN SORTED ORDER
  */
