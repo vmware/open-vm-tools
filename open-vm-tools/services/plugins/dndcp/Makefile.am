@@ -93,6 +93,7 @@ libdndcp_la_SOURCES += pointer.cpp
 libdndcp_la_SOURCES += copyPasteCompat.c
 libdndcp_la_SOURCES += vmCopyPasteDnDWrapper.cpp
 libdndcp_la_SOURCES += copyPasteDnDX11.cpp
+libdndcp_la_SOURCES += copyPasteDnDUtil.cpp
 libdndcp_la_SOURCES += copyPasteCompatX11.c
 libdndcp_la_SOURCES += copyPasteUIX11.cpp
 libdndcp_la_SOURCES += dndUIX11.cpp

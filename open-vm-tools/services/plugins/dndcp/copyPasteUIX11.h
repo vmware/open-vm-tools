@@ -120,7 +120,6 @@ private:
    void LocalClipboardTimestampCB(const Gtk::SelectionData& sd);
    void LocalPrimTimestampCB(const Gtk::SelectionData& sd);
    void LocalReceivedFileListCB(const Gtk::SelectionData& selection_data);
-   bool LocalPrepareFileContents(const CPClipboard *clip);
 #endif
    void GetLocalFilesDone(bool success);
    void SendClipNotChanged(void);
@@ -159,8 +158,8 @@ private:
    utf::string mHGTextData;
    std::string mHGRTFData;
    bool mGetTimestampOnly;
-   std::vector<utf::string> mHGFileContentsList;
 #endif
+   std::vector<utf::string> mHGFileContentsList;
 
    DND_FILE_TRANSFER_STATUS mHGGetFileStatus;
    bool mBlockAdded;
