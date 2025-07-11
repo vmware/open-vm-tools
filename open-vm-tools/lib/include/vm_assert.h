@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 1998-2024 Broadcom. All Rights Reserved.
+ * Copyright (c) 1998-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -159,6 +159,18 @@ NORETURN void Panic_NoSave(const char *fmt, ...) PRINTF_DECL(1, 2);
       Panic_NoSave(fmt);      \
    } while(0)
 
+/*
+ * Bug 3511557: Starting with linux kernels 6.15+, objtool started
+ * failing vmmon builds due to Panic() being marked as '__noreturn', due to
+ * which compiler doesn't generate clean function exits. As a fix, use
+ * kernel's panic for vmmon. In linux kernel, panic() is also marked with 
+ * '__noreturn', but objtool doesn't complain because panic() is in 
+ * objtool's hard-coded global_noreturns array.
+ */
+#elif !defined(VMKERNEL) && defined(VMMON) && \
+    defined(__linux__) && defined(__KERNEL__)
+#  include <linux/kernel.h>
+#  define Panic panic
 #else /* !VMKPANIC */
 NORETURN void Panic(const char *fmt, ...) PRINTF_DECL(1, 2);
 #endif
