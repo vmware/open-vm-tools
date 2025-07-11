@@ -333,7 +333,7 @@ CopyPasteDnDX11::RegisterCP()
          CopyPaste_SetVersion(version);
       } else {
          delete m_copyPasteUI;
-         m_copyPasteUI = NULL;
+         m_copyPasteUI = nullptr;
       }
    }
    return wrapper->IsCPRegistered();
@@ -374,7 +374,7 @@ CopyPasteDnDX11::RegisterDnD()
             }
          } else {
             delete m_dndUI;
-            m_dndUI = NULL;
+            m_dndUI = nullptr;
          }
       }
    }
@@ -397,6 +397,7 @@ CopyPasteDnDX11::UnregisterCP()
    CopyPasteDnDWrapper *wrapper = CopyPasteDnDWrapper::GetInstance();
    if (wrapper->IsCPRegistered()) {
       delete m_copyPasteUI;
+      m_copyPasteUI = nullptr;
       wrapper->SetCPIsRegistered(FALSE);
       wrapper->SetCPVersion(-1);
    }
@@ -417,6 +418,7 @@ CopyPasteDnDX11::UnregisterDnD()
 
 #ifdef VMTOOLS_USE_LEGACY_GTK
       delete m_dndUI;
+      m_dndUI = nullptr;
 #endif
 
       wrapper->SetDnDIsRegistered(false);
