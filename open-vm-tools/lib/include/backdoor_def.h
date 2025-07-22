@@ -34,8 +34,8 @@
 /*
  * backdoor_def.h --
  *
- * This contains backdoor defines that can be included from
- * an assembly language file.
+ *      This contains backdoor defines that can be included from
+ *      an assembly language file.
  */
 
 #ifndef _BACKDOOR_DEF_H_
@@ -114,7 +114,7 @@ extern "C" {
 #define   BDOOR_CMD_GETUUID                  19
 #define   BDOOR_CMD_GETMEMSIZE               20
 //#define BDOOR_CMD_HOSTCOPY                 21 /* Not in use. Was devel only. */
-//#define BDOOR_CMD_SERVICE_VM               22 /* Not in use. Never shipped. */
+#define   BDOOR_CMD_PMC                      22
 #define   BDOOR_CMD_GETTIME                  23 /* Deprecated -> GETTIMEFULL. */
 #define   BDOOR_CMD_STOPCATCHUP              24
 #define   BDOOR_CMD_PUTCHR                   25 /* Disabled by default. */
