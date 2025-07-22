@@ -278,6 +278,15 @@ mapping file layout:
 #define ISPATHSEP(c)  ((c) == '/')
 #endif
 
+/*
+ * Usernames are case-insensitive in Windows and case-sensitive in Linux.
+ */
+#ifdef _WIN32
+#define USERNAME_CMP  _stricmp
+#else
+#define USERNAME_CMP  g_strcmp0
+#endif
+
 
 /*
  ******************************************************************************
@@ -2716,7 +2725,7 @@ check_map:
                }
             }
             // if its a new subject for the same user, add it
-            if (g_strcmp0(maList[i].userName, userName) == 0) {
+            if (USERNAME_CMP(maList[i].userName, userName) == 0) {
                // additional subject for cert/username pair
                maList[i].num++;
                maList[i].subjects = g_realloc_n(maList[i].subjects,
@@ -2968,7 +2977,7 @@ ServiceAliasRemoveAlias(const gchar *reqUserName,
       userIdIdx = -1;
       for (i = 0; i < numMapped; i++) {
          if (ServiceComparePEMCerts(pemCert, maList[i].pemCert) &&
-             (g_strcmp0(userName, maList[i].userName) == 0)) {
+             (USERNAME_CMP(userName, maList[i].userName) == 0)) {
             userIdIdx = i;
             break;
          }
