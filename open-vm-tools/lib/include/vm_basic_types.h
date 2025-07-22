@@ -245,7 +245,7 @@
  * - VMM does not have POSIX headers
  * - Windows <sys/types.h> does not define ssize_t
  */
-#if defined(VMKERNEL) || defined(VMM)
+#if defined(VMKERNEL) || defined(VMM) || defined(GLM)
    /* Guard against FreeBSD <sys/types.h> collison. */
 #  if !defined(_SIZE_T_DEFINED) && !defined(_SIZE_T)
 #     define _SIZE_T_DEFINED
@@ -556,9 +556,9 @@ typedef  int128  Reg128;
 typedef uint128 UReg128;
 #endif
 
-#if (defined(VMM) || defined(COREQUERY) || defined(EXTDECODER) ||  \
-     defined (VMKERNEL) || defined (VMKBOOT) || defined (ULM)) &&  \
-    !defined (FROBOS) || defined (VSAN_USERLEVEL)
+#if (defined(VMM) || defined(GLM) || defined(COREQUERY) ||              \
+     defined(EXTDECODER) || defined(VMKERNEL) || defined(VMKBOOT) ||    \
+     defined(ULM)) && !defined(FROBOS) || defined(VSAN_USERLEVEL)
 typedef  Reg64  Reg;
 typedef UReg64 UReg;
 #endif
@@ -679,7 +679,8 @@ typedef void * UserVA;
  * Use them like this: Log("%#" FMTLA "x\n", laddr)
  */
 
-#if defined(VMM) || defined(FROBOS64) || vm_x86_64 || vm_arm_64 || defined __APPLE__
+#if defined(VMM)  || defined(GLM) || defined(FROBOS64) ||       \
+    vm_x86_64 || vm_arm_64 || defined __APPLE__
 #   define FMTLA "l"
 #   define FMTVA "l"
 #   define FMTVPN "l"
@@ -825,7 +826,7 @@ typedef void * UserVA;
  * and loop optimization just as an arithmetic operator would be.
  */
 
-#if defined(__GNUC__) && (defined(VMM) || defined (VMKERNEL))
+#if defined(__GNUC__) && (defined(VMM) || defined(GLM) || defined(VMKERNEL))
 #define SIDE_EFFECT_FREE __attribute__((__pure__))
 #else
 #define SIDE_EFFECT_FREE
@@ -838,7 +839,7 @@ typedef void * UserVA;
  * memory.
  */
 
-#if defined(__GNUC__) && (defined(VMM) || defined (VMKERNEL))
+#if defined(__GNUC__) && (defined(VMM) || defined(GLM) || defined(VMKERNEL))
 #define CONST_FUNCTION __attribute__((__const__))
 #else
 #define CONST_FUNCTION

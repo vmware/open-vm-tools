@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 1998-2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -71,7 +72,8 @@ extern "C" {
  *  constraints.
  *
  */
-#if (defined(VMM) || defined(VMKERNEL) || defined(FROBOS) || defined(ULM))
+#if defined(VMM) || defined(GLM) ||                             \
+    defined(VMKERNEL) || defined(FROBOS) || defined(ULM)
 static INLINE Bool
 xtest(void)
 {
@@ -116,25 +118,25 @@ xtest(void)
  * fxrstor, on both AMD Opteron and Intel Core CPUs.
  */
 #if defined(__GNUC__)
-static INLINE void 
+static INLINE void
 FXSAVE_ES1(void *save)
 {
    __asm__ __volatile__ ("fxsave %0\n" : "=m" (*(uint8 *)save) : : "memory");
 }
 
-static INLINE void 
+static INLINE void
 FXRSTOR_ES1(const void *load)
 {
    __asm__ __volatile__ ("fxrstor %0\n"
                          : : "m" (*(const uint8 *)load) : "memory");
 }
 
-static INLINE void 
+static INLINE void
 FXRSTOR_AMD_ES0(const void *load)
 {
    uint64 dummy = 0;
 
-   __asm__ __volatile__ 
+   __asm__ __volatile__
        ("fnstsw  %%ax    \n"     // Grab x87 ES bit
         "bt      $7,%%ax \n"     // Test ES bit
         "jnc     1f      \n"     // Jump if ES=0
@@ -144,7 +146,7 @@ FXRSTOR_AMD_ES0(const void *load)
         "fildl   %0      \n"     // Dummy Load from "safe address" changes all
                                  // x87 exception pointers.
         "fxrstor %1      \n"
-        :  
+        :
         : "m" (dummy), "m" (*(const uint8 *)load)
         : "ax", "memory");
 }
@@ -157,9 +159,10 @@ FXRSTOR_AMD_ES0(const void *load)
  * The pointer passed in must be 64-byte aligned.
  * See above comment for more information.
  */
-#if defined(__GNUC__) && (defined(VMM) || defined(VMKERNEL) || defined(FROBOS))
+#if defined(__GNUC__) && (defined(VMM) || defined(GLM) ||       \
+                          defined(VMKERNEL) || defined(FROBOS))
 
-static INLINE void 
+static INLINE void
 XSAVE_ES1(void *save, uint64 mask)
 {
    __asm__ __volatile__ (
@@ -169,7 +172,7 @@ XSAVE_ES1(void *save, uint64 mask)
         : "memory");
 }
 
-static INLINE void 
+static INLINE void
 XSAVEOPT_ES1(void *save, uint64 mask)
 {
    __asm__ __volatile__ (
@@ -179,7 +182,7 @@ XSAVEOPT_ES1(void *save, uint64 mask)
         : "memory");
 }
 
-static INLINE void 
+static INLINE void
 XRSTOR_ES1(const void *load, uint64 mask)
 {
    __asm__ __volatile__ (
@@ -190,12 +193,12 @@ XRSTOR_ES1(const void *load, uint64 mask)
         : "memory");
 }
 
-static INLINE void 
+static INLINE void
 XRSTOR_AMD_ES0(const void *load, uint64 mask)
 {
    uint64 dummy = 0;
 
-   __asm__ __volatile__ 
+   __asm__ __volatile__
        ("fnstsw  %%ax    \n"     // Grab x87 ES bit
         "bt      $7,%%ax \n"     // Test ES bit
         "jnc     1f      \n"     // Jump if ES=0
@@ -335,7 +338,7 @@ Div643264(uint64 dividend,   // IN
  *
  *    Unsigned integer by fixed point multiplication, with rounding:
  *       result = floor(multiplicand * multiplier * 2**(-shift) + 0.5)
- * 
+ *
  *       Unsigned 64-bit integer multiplicand.
  *       Unsigned 32-bit fixed point multiplier, represented as
  *         (multiplier, shift), where shift < 64.
@@ -354,7 +357,7 @@ Mul64x3264(uint64 multiplicand, uint32 multiplier, uint32 shift)
    uint64 result;
    uint32 tmp1, tmp2;
    // ASSERT(shift >= 0 && shift < 64);
-  
+
    __asm__("mov   %%eax, %2\n\t"      // Save lo(multiplicand)
            "mov   %%edx, %%eax\n\t"   // Get hi(multiplicand)
            "mull  %4\n\t"             // p2 = hi(multiplicand) * multiplier
@@ -440,7 +443,7 @@ Mul64x3264(uint64 multiplicand, uint32 multiplier, uint32 shift)
  *
  *    Signed integer by fixed point multiplication, with rounding:
  *       result = floor(multiplicand * multiplier * 2**(-shift) + 0.5)
- * 
+ *
  *       Signed 64-bit integer multiplicand.
  *       Unsigned 32-bit fixed point multiplier, represented as
  *         (multiplier, shift), where shift < 64.
@@ -506,7 +509,7 @@ static INLINE int64
 Muls64x32s64(int64 multiplicand, uint32 multiplier, uint32 shift)
 {
    //ASSERT(shift >= 0 && shift < 64);
-  
+
    __asm {
       mov  eax, DWORD PTR [multiplicand+4]  // Get hi(multiplicand)
       test eax, eax                         // Check sign of multiplicand

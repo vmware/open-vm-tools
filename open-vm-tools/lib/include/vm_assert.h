@@ -106,7 +106,7 @@ extern "C" {
  * so it uses generic functions.
  */
 
-#if !defined VMM ||                                                     \
+#if (!defined VMM && !defined GLM) ||                                   \
     defined BINARY_CHECKER || defined COREQUERY || defined DECODER ||   \
     defined DIS16 || defined FROBOS || defined TRAPAPI_APP ||           \
     defined VMM_LINKER || defined VMSS2CORE
@@ -284,13 +284,13 @@ void WarningThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
 #define ASSERT_NOT_IMPLEMENTED(cond) \
            ASSERT_IFNOT(cond, NOT_IMPLEMENTED())
 
-#if defined VMKPANIC || defined VMM
+#if defined VMKPANIC || defined VMM || defined GLM
 # define NOT_IMPLEMENTED()        _ASSERT_PANIC_NORETURN(AssertNotImplemented, "")
 #else
 # define NOT_IMPLEMENTED()        _ASSERT_PANIC(AssertNotImplemented, "")
 #endif
 
-#if defined VMM
+#if defined VMM || defined GLM
 # define NOT_IMPLEMENTED_BUG(bug) \
       _ASSERT_PANIC_BUG_NORETURN(bug, AssertNotImplemented, "")
 #else
@@ -306,7 +306,7 @@ void WarningThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
     *
     * On debug builds, NOT_REACHED is a Panic with a fixed string.
     */
-#if defined VMKPANIC || defined VMM
+#if defined VMKPANIC || defined VMM || defined GLM
 # define NOT_REACHED()            _ASSERT_PANIC_NORETURN(AssertNotReached, "")
 #else
 # define NOT_REACHED()            _ASSERT_PANIC(AssertNotReached, "")
@@ -406,7 +406,7 @@ void WarningThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
  * compiler is known to support it.
  */
 
-# if defined VMKPANIC || defined VMM || defined ULM_ESX
+# if defined VMKPANIC || defined VMM || defined GLM || defined ULM_ESX
 #  undef  NOT_REACHED
 #  define NOT_REACHED() __builtin_unreachable()
 # elif defined ULM_WIN

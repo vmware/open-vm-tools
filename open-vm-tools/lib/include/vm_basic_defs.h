@@ -630,7 +630,7 @@ typedef int pid_t;
 #define VMK_HAS_VMM_ONLY(...)
 #endif
 
-#if defined VMM || defined VMK_HAS_VMM
+#if defined VMM || defined GLM || defined VMK_HAS_VMM
 /* Structure field only used to support the VMM (as opposed to the ULM). */
 #define VMM_ONLY_FIELD(name) name
 #else
@@ -888,13 +888,13 @@ typedef int pid_t;
 #define ULM_ONLY(x)
 #endif
 
-#if defined(VMM) || defined(ULM)
+#if defined(VMM) || defined(GLM) || defined(ULM)
 #define MONITOR_ONLY(x) x
 #else
 #define MONITOR_ONLY(x)
 #endif
 
-#if defined(VMM) || defined(VMKERNEL)
+#if defined(VMM) || defined(GLM) || defined(VMKERNEL)
 #define USER_ONLY(x)
 #else
 #define USER_ONLY(x) x

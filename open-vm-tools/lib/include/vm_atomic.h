@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 1998-2024 Broadcom. All Rights Reserved.
+ * Copyright (c) 1998-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -886,7 +886,8 @@ Atomic_Read32(Atomic_uint32 const *var) // IN
 {
    uint32 value;
 
-#if defined VMM || defined VM_ARM_64 || defined VMKERNEL || defined VMKERNEL_MODULE
+#if defined VMM || defined GLM ||                                       \
+    defined VM_ARM_64 || defined VMKERNEL || defined VMKERNEL_MODULE
    ASSERT(((uintptr_t)var % 4) == 0);
 #endif
 
@@ -1016,7 +1017,8 @@ static INLINE void
 Atomic_Write32(Atomic_uint32 *var, // OUT
                uint32 val)         // IN
 {
-#if defined VMM || defined VM_ARM_64 || defined VMKERNEL || defined VMKERNEL_MODULE
+#if defined VMM || defined GLM ||                                       \
+    defined VM_ARM_64 || defined VMKERNEL || defined VMKERNEL_MODULE
    ASSERT(((uintptr_t)var % 4) == 0);
 #endif
 
@@ -2178,7 +2180,8 @@ Atomic_Read64(Atomic_uint64 const *var) // IN
    uint64 value;
 #endif
 
-#if defined VMM || defined VM_ARM_64 || defined VMKERNEL || defined VMKERNEL_MODULE
+#if defined VMM || defined GLM ||                                       \
+    defined VM_ARM_64 || defined VMKERNEL || defined VMKERNEL_MODULE
    ASSERT((uintptr_t)var % 8 == 0);
 #endif
 
@@ -2664,7 +2667,8 @@ static INLINE void
 Atomic_Write64(Atomic_uint64 *var, // OUT
                uint64 val)         // IN
 {
-#if defined VMM || defined VM_ARM_64 || defined VMKERNEL || defined VMKERNEL_MODULE
+#if defined VMM || defined GLM ||                                       \
+    defined VM_ARM_64 || defined VMKERNEL || defined VMKERNEL_MODULE
    ASSERT((uintptr_t)var % 8 == 0);
 #endif
 
@@ -2978,8 +2982,8 @@ Atomic_Read16(Atomic_uint16 const *var) // IN
 {
    uint16 value;
 
-#if defined VMM || defined VM_ARM_64 || defined VMKERNEL || \
-    defined VMKERNEL_MODULE
+#if defined VMM || defined GLM ||                                       \
+    defined VM_ARM_64 || defined VMKERNEL || defined VMKERNEL_MODULE
    ASSERT((uintptr_t)var % 2 == 0);
 #endif
 
@@ -3089,8 +3093,8 @@ static INLINE void
 Atomic_Write16(Atomic_uint16 *var,  // OUT:
                uint16 val)          // IN:
 {
-#if defined VMM || defined VM_ARM_64 || defined VMKERNEL || \
-    defined VMKERNEL_MODULE
+#if defined VMM || defined GLM ||                                       \
+   defined VM_ARM_64 || defined VMKERNEL || defined VMKERNEL_MODULE
    ASSERT((uintptr_t)var % 2 == 0);
 #endif
 
