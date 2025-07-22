@@ -1540,7 +1540,7 @@ FLAG( 821,  0, EAX, 17,  1, CPL3_CPUID_GP,                       NO,    0 ) \
 FLAG( 821,  0, EAX, 18,  1, EPSF,                                NO,    0 ) \
 FLAG( 821,  0, EAX, 19,  1, FAST_REP_SCASB,                      YES,  22 ) \
 FLAG( 821,  0, EAX, 20,  1, LEAF821_PREFETCHI,                   YES,  22 ) \
-FLAG( 821,  0, EAX, 24,  1, ERAPS,                               NO,    0 ) \
+FLAG( 821,  0, EAX, 24,  1, ERAPS,                               YES,  FUT )\
 FIELD(821,  0, EBX,  0, 12, MICROCODE_PATCH_SIZE,                NO,    0 ) \
 FIELD(821,  0, EBX, 16,  8, RAP_SIZE,                            NO,    0 ) \
 CPUID_821_ECX_1 \
