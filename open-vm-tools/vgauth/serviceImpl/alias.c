@@ -313,14 +313,7 @@ ServiceAliasIsSubjectEqual(ServiceSubjectType t1,
     * to make it case insensitive and then do a compare.
     */
    if (t1 == SUBJECT_TYPE_NAMED) {
-      gchar *n1case;
-      gchar *n2case;
-
-      n1case = g_utf8_casefold(n1, -1);
-      n2case = g_utf8_casefold(n2, -1);
-      bRet = (g_strcmp0(n1case, n2case) == 0) ? TRUE : FALSE;
-      g_free(n1case);
-      g_free(n2case);
+      bRet = Util_Utf8CaseCmp(n1, n2) == 0;
    }
 
    return bRet;
@@ -492,7 +485,7 @@ ServiceLoadFileContentsWin(const gchar *fileName,
    gunichar2 *fileNameW = NULL;
    BOOL ok;
    DWORD bytesRead;
-   gchar *realPath = NULL;
+   gunichar2 *realPathW = NULL;
 
    *fileSize = 0;
    *contents = NULL;
@@ -653,13 +646,15 @@ ServiceLoadFileContentsWin(const gchar *fileName,
       /*
        * Check if fileName is real path.
        */
-      if ((realPath = ServiceFileGetPathByHandle(hFile)) == NULL) {
+      if ((realPathW = ServiceFileGetPathByHandleW(hFile)) == NULL) {
+         Warning("%s: Failed to get the real path for file %S\n",
+                 __FUNCTION__, fileNameW);
          err = VGAUTH_E_FAIL;
          goto done;
       }
-      if (Util_Utf8CaseCmp(realPath, fileName) != 0) {
-         Warning("%s: Real path (%s) is not same as file path (%s)\n",
-                 __FUNCTION__, realPath, fileName);
+      if (_wcsicmp(realPathW, fileNameW) != 0) {
+         Warning("%s: Real path (%S) is not same as file path (%S)\n",
+                 __FUNCTION__, realPathW, fileNameW);
          err = VGAUTH_E_FAIL;
          goto done;
       }
@@ -693,7 +688,7 @@ done:
       CloseHandle(hFile);
    }
    g_free(fileNameW);
-   g_free(realPath);
+   g_free(realPathW);
 
    return err;
 }
