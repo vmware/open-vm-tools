@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
+ * Copyright (c) 2010-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -491,18 +492,7 @@ DnDRpcV4::UpdateUnityDetWnd(uint32 sessionId,
                             bool show,
                             uint32 unityWndId)
 {
-   RpcParams params;
-
-   memset(&params, 0, sizeof params);
-   params.addrId = DEFAULT_CONNECTION_ID;
-   params.cmd = DND_CMD_UPDATE_UNITY_DET_WND;
-   params.sessionId = sessionId;
-   params.optional.updateUnityDetWnd.major = mUtil.GetVersionMajor();
-   params.optional.updateUnityDetWnd.minor = mUtil.GetVersionMinor();
-   params.optional.updateUnityDetWnd.show = show ? 1 : 0;
-   params.optional.updateUnityDetWnd.unityWndId = unityWndId;
-
-   return mUtil.SendMsg(&params);
+   return false;
 }
 
 
@@ -709,9 +699,6 @@ DnDRpcV4::HandleMsg(RpcParams *params,
       dragNotPendingChanged.emit(params->sessionId);
       break;
    case DND_CMD_UPDATE_UNITY_DET_WND:
-      updateUnityDetWndChanged.emit(params->sessionId,
-                                    1 == params->optional.updateUnityDetWnd.show,
-                                    params->optional.updateUnityDetWnd.unityWndId);
       break;
    case DND_CMD_MOVE_MOUSE:
       moveMouseChanged.emit(params->sessionId,
