@@ -838,6 +838,12 @@ typedef int pid_t;
 #define VMM_ONLY(x)
 #endif
 
+#ifdef GLM
+#define vmw_glm 1
+#else
+#define vmw_glm 0
+#endif
+
 #ifdef VMX86_VMX
 #define vmx86_vmx 1
 #else
