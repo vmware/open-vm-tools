@@ -73,7 +73,7 @@
 
 //MARKER_FAST_REMOVE_START
 #if defined(VMX86_VMRC) /* check VMX86_VMRC before VMX86_DESKTOP */
-   #define PRODUCT_VERSION    13,0,0,0
+   #define PRODUCT_VERSION    13,1,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_TOOLS)
    #define PRODUCT_VERSION    TOOLS_VERSION_EXT_CURRENT_CSV
 #elif defined(VMX86_VLICENSE)
@@ -222,6 +222,7 @@
 #define WORKSTATION_VERSION "e.x.p"
 #define PLAYER_VERSION_NUMBER "17.0.0" /* this version number should always match real Player version number */
 #define PLAYER_VERSION "e.x.p"
+#define VMRC_VERSION "13.1.0"
 
 #define THINPRINT_VERSION "1.1.2"
 
@@ -334,7 +335,6 @@
 //#define NETDUMP_FILE_VERSION  gNetdumpFileVersion
 //MARKER_FAST_UNCOMMENT_END
 
-#define VMRC_VERSION          "13.0.0.0"
 
 #define VDDK_VERSION          "9.1.0.0"
 #define VDDK_VERSION_MAJOR    9
@@ -476,7 +476,7 @@
  */
 #define PRODUCT_MAC_DESKTOP_VERSION_STRING_FOR_LICENSE "13.0"
 #define PRODUCT_PLAYER_VERSION_STRING_FOR_LICENSE "17.0"
-#define PRODUCT_VMRC_VERSION_STRING_FOR_LICENSE "13.0"
+#define PRODUCT_VMRC_VERSION_STRING_FOR_LICENSE "13.1"
 
 #if defined(VMX86_TOOLS)
 /* This product doesn't use a license */
