@@ -2423,7 +2423,7 @@ cleanup:
     * If we fail somwhere, all we can do is try to clean up.
     * If this fails, there's nothing we can do.
     */
-   if (ServiceFileUnlinkFile(tmpAliasFilename)) {
+   if (tmpAliasFilename && ServiceFileUnlinkFile(tmpAliasFilename)) {
       /* XXX not much to do -- ServiceFileUnlinkFile() spewed error */
    }
    if (tmpMapFilename && ServiceFileUnlinkFile(tmpMapFilename)) {
