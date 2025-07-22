@@ -1,3 +1,168 @@
+commit 6011d8b3ac7961884cdcbe90f5ed068e08f9b6f4
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jul 22 02:08:49 2025 -0700
+
+    Correcting missed copyright year updates.
+
+commit 9ce835f683290245e00e53c3cf78112ed10dc4b7
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jul 22 00:06:54 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit a95f4a77808326f5db3e40fb117996fa35602ecf
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jul 22 00:06:54 2025 -0700
+
+    Change to common header files not applicable to open-vm-tools.
+
+commit 748039a895d2cf97ded81f5841d8bc1ff7eb0e57
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jul 22 00:06:54 2025 -0700
+
+    Change to common header files not applicable to open-vm-tools.
+
+commit cba7e6f8ded52df3d0b926d9e1b387cd81307d7b
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jul 22 00:06:54 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 06ce73ced8073e0f0c86652c99c634a03a6f439f
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jul 22 00:06:54 2025 -0700
+
+    Coverity issue fixed
+    
+    A forward null pointer dereference has been fixed in
+    vgauth/serviceImpl/alias.c: AliasSaveAliasesAndMapped()
+
+commit 85946afc1a456e9800dc90c09649c2d158ab616d
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jul 22 00:06:54 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 69464238aa1d4f4eb82b9a2536a925660af36b40
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jul 22 00:06:54 2025 -0700
+
+    Fix a memory leak for the tools dndcp plugin
+    
+    In VMTools dndcp plugin, when CopyPasteUIMac class is constructed,
+    the mCP class variable is created with "new" by calling
+    VMGuestDnDCPMgr::GetCopyPasteMgr(). The equivalent "delete" should be called
+    in the destructor.
+
+commit fd7b743a88ae75e08e9a9496d270b3a2c2ef9bc1
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jul 22 00:06:54 2025 -0700
+
+    Update the VMTools version history with recent EP releases.
+    
+    Adding versions 12.4.7, 12.4.8, 12.5.2, 12.5.3, and 13.0.1 to the
+    vm_tools_version.h header file.
+    Along the way the tagname for the 13.0.x series was changed from
+    "tweezers" to "swiss_army_knife".
+
+commit 44e464d4012ec2cefc1e82f82e23d9481cb784a7
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jul 22 00:06:54 2025 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit ceb6b57d93834ca879a1461c8a6b6ded8935ed88
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jul 22 00:06:54 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 0b6e091be870c8a2d81e3a66a29a4ea7b00ff029
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jul 22 00:06:54 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 6d31d1fc919da91f9a36e9476f728e19f9e54c5a
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jul 22 00:06:54 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 33fa95d8e239fa64e2d988937af1727cfbfbfaaf
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jul 22 00:06:54 2025 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 777e46a3cf5d1d4b9040a62994ebd1eed0d00004
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jul 22 00:06:54 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 3519f2343febe4ff9f465422baf64a2f5bc76fd3
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jul 22 00:06:54 2025 -0700
+
+    Change to common source files not applicable to open-vm-tools.
+
+commit e480c96a99c52f09aef2e7180996f67a359b59a0
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jul 22 00:06:54 2025 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 3a2b026aad7c27c3926040444d319af8c42eaf46
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jul 22 00:06:54 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 37ac19fbadea04c6ac7cbe5842b3a77857c14a38
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jul 22 00:06:54 2025 -0700
+
+    Change to common source files not applicable to open-vm-tools.
+
+commit 0a717f7b463636a1fe489d2c639747a4233b0222
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jul 22 00:06:54 2025 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 0cb99ebb4431d9137322ff5d64fe82e5d1a33377
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jul 22 00:06:53 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 488ce4aed434bc43e177016a2f0de39b77143b59
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jul 22 00:06:53 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit c24310bcf88b79efd4225eb0b92639a046828f61
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jul 22 00:06:53 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit a19f158e24a5b8f18648ea5aedf443d5c804c1fe
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jul 22 00:06:53 2025 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 4c13c2c2f6beb79b07e9c88e61562ba48b5fc626
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Fri Jul 11 07:28:31 2025 -0700
+
+    Update ChangeLog with the granular push of Jul 11, 2025.
+    - plus ChangeLog update of Jun 24, 2025.
+    - plus missed copyright year update to few files.
+
 commit 3c350195a1f347caf26a46778222d94822d39e3c
 Author: Kruti Pendharkar <kp025370@broadcom.com>
 Date:   Fri Jul 11 07:25:20 2025 -0700
