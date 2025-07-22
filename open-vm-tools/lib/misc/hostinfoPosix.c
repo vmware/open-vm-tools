@@ -3540,7 +3540,7 @@ Hostinfo_GetRatedCpuMhz(int32 cpuNumber,  // IN:
       return FALSE;
    }
 
-   *mHz = hz / 1000000;
+   *mHz = (hz + 500000) / 1000000;
 
    return TRUE;
 #  else
@@ -3549,16 +3549,16 @@ Hostinfo_GetRatedCpuMhz(int32 cpuNumber,  // IN:
 #else
 #if defined(VMX86_SERVER)
    if (HostType_OSIsVMK()) {
-      uint32 tscKhzEstimate;
-      VMK_ReturnStatus status = VMKernel_GetTSCkhzEstimate(&tscKhzEstimate);
+      uint64 cpuHzEstimate;
+      VMK_ReturnStatus status = VMKPrivate_GetProcessorHzEstimate(&cpuHzEstimate);
 
       /*
-       * The TSC frequency matches the CPU frequency in all modern CPUs.
-       * Regardless, the TSC frequency is a much better estimate of
-       * reality than failing or returning zero.
+       * TSC and CPU frequencies match on the modern x86 processors but
+       * not on the Arm processors. Therefore, use the processor frequency
+       * estimate directly.
        */
 
-      *mHz = tscKhzEstimate / 1000;
+      *mHz = (cpuHzEstimate + 500000) / 1000000;
 
       return (status == VMK_OK);
    }
