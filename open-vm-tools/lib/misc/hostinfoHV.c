@@ -19,7 +19,7 @@
 /*
  * hostinfoHV.c --
  *
- *    Code to detect different hypervisors and features.
+ *      Code to detect different hypervisors and features.
  */
 
 #include <string.h>
@@ -433,7 +433,7 @@ void Hostinfo_BackdoorInOut(Backdoor_proto *myBp);
 /*
  *----------------------------------------------------------------------
  *
- *  Hostinfo_TouchBackDoor --
+ * Hostinfo_TouchBackDoor --
  *
  *      Access the backdoor. This is used to determine if we are
  *      running in a VM or on a physical host. On a physical host
@@ -445,7 +445,7 @@ void Hostinfo_BackdoorInOut(Backdoor_proto *myBp);
  *      return either TRUE or FALSE.
  *
  * Results:
- *      TRUE if we succesfully accessed the backdoor, FALSE or segfault
+ *      TRUE if we succesfully accessed the backdoor, FALSE or exception
  *      if not.
  *
  * Side effects:
@@ -487,7 +487,7 @@ Hostinfo_TouchBackDoor(void)
    }
 #endif // _WIN64
 
-   return (ebxval == BDOOR_MAGIC) ? TRUE : FALSE;
+   return ebxval == BDOOR_MAGIC;
 }
 
 
