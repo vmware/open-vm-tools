@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2018 VMware, Inc. All rights reserved.
+ * Copyright (c) 2018-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -42,6 +43,8 @@ VMGuestDnDCPMgr::~VMGuestDnDCPMgr()
    mFileTransfer = NULL;
    delete mTransport;
    mTransport = NULL;
+   delete mCPMgr;
+   mCPMgr = NULL;
 }
 
 
