@@ -1827,79 +1827,80 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 #define CPUID_FAMILY_DHYANA          0x18
 
 /* Intel model information (family 6) */
-#define CPUID_MODEL_PPRO                 1
-#define CPUID_MODEL_PII_03               3
-#define CPUID_MODEL_PII_05               5
-#define CPUID_MODEL_CELERON_06           6
-#define CPUID_MODEL_PM_09                9
-#define CPUID_MODEL_PM_0D               13
-#define CPUID_MODEL_PM_0E               14  // Yonah / Sossaman
-#define CPUID_MODEL_CORE_0F             15  // Conroe / Merom
-#define CPUID_MODEL_CORE_17           0x17  // Penryn
-#define CPUID_MODEL_NEHALEM_1A        0x1a  // Nehalem / Gainestown
-#define CPUID_MODEL_ATOM_1C           0x1c  // Silverthorne / Diamondville
-#define CPUID_MODEL_CORE_1D           0x1d  // Dunnington
-#define CPUID_MODEL_NEHALEM_1E        0x1e  // Lynnfield
-#define CPUID_MODEL_NEHALEM_1F        0x1f  // Havendale
-#define CPUID_MODEL_NEHALEM_25        0x25  // Westmere / Clarkdale
-#define CPUID_MODEL_ATOM_26           0x26  // Lincroft
-#define CPUID_MODEL_ATOM_27           0x27  // Saltwell
-#define CPUID_MODEL_SANDYBRIDGE_2A    0x2a  // Sandybridge (desktop/mobile)
-#define CPUID_MODEL_NEHALEM_2C        0x2c  // Westmere-EP
-#define CPUID_MODEL_SANDYBRIDGE_2D    0x2d  // Sandybridge-EP
-#define CPUID_MODEL_NEHALEM_2E        0x2e  // Nehalem-EX
-#define CPUID_MODEL_NEHALEM_2F        0x2f  // Westmere-EX
-#define CPUID_MODEL_ATOM_35           0x35  // Cloverview
-#define CPUID_MODEL_ATOM_36           0x36  // Cedarview
-#define CPUID_MODEL_ATOM_37           0x37  // Bay Trail
-#define CPUID_MODEL_SANDYBRIDGE_3A    0x3a  // Ivy Bridge
-#define CPUID_MODEL_HASWELL_3C        0x3c  // Haswell DT
-#define CPUID_MODEL_BROADWELL_3D      0x3d  // Broadwell-Ult
-#define CPUID_MODEL_SANDYBRIDGE_3E    0x3e  // Ivy Bridge-EP
-#define CPUID_MODEL_HASWELL_3F        0x3f  // Haswell EP/EN/EX
-#define CPUID_MODEL_HASWELL_45        0x45  // Haswell Ultrathin
-#define CPUID_MODEL_HASWELL_46        0x46  // Haswell (Crystal Well)
-#define CPUID_MODEL_BROADWELL_47      0x47  // Broadwell (Denlow)
-#define CPUID_MODEL_ATOM_4A           0x4a  // Future Silvermont
-#define CPUID_MODEL_ATOM_4C           0x4c  // Airmont
-#define CPUID_MODEL_ATOM_4D           0x4d  // Avoton
-#define CPUID_MODEL_SKYLAKE_4E        0x4e  // Skylake-Y / Kaby Lake U/Y ES
-#define CPUID_MODEL_BROADWELL_4F      0x4f  // Broadwell EP/EN/EX
-#define CPUID_MODEL_SKYLAKE_55        0x55  // Skylake EP/EN/EX
-#define CPUID_MODEL_BROADWELL_56      0x56  // Broadwell DE
-#define CPUID_MODEL_KNL_57            0x57  // Knights Landing
-#define CPUID_MODEL_ATOM_5A           0x5a  // Future Silvermont
-#define CPUID_MODEL_ATOM_5D           0x5d  // Future Silvermont
-#define CPUID_MODEL_SKYLAKE_5E        0x5e  // Skylake-S / Kaby Lake S/H ES
-#define CPUID_MODEL_ATOM_5F           0x5f  // Denverton
-#define CPUID_MODEL_ATOM_86           0x86  // Snow Ridge
-#define CPUID_MODEL_CANNONLAKE_66     0x66  // Cannon Lake
-#define CPUID_MODEL_ICELAKE_7E        0x7e  // Ice Lake U/Y
-#define CPUID_MODEL_ICELAKE_6A        0x6a  // Ice Lake SP (ICX)
-#define CPUID_MODEL_ICELAKE_6C        0x6c  // Ice Lake D
-#define CPUID_MODEL_LAKEFIELD_8A      0x8a  // Lakefield
-#define CPUID_MODEL_TIGERLAKE_8C      0x8c  // Tiger Lake UP3/UP4/H35
-#define CPUID_MODEL_TIGERLAKE_8D      0x8d  // Tiger Lake H81
-#define CPUID_MODEL_SAPPHIRERAPIDS_8F 0x8f  // Sapphire Rapids
-#define CPUID_MODEL_GRANITERAPIDS_AD  0xad  // Granite Rapids AP/SP
-#define CPUID_MODEL_GRANITERAPIDS_AE  0xae  // Granite Rapids D
-#define CPUID_MODEL_SIERRAFOREST_AF   0xaf  // Sierra Forest
-#define CPUID_MODEL_EMERALDRAPIDS_CF  0xcf  // Emerald Rapids
-#define CPUID_MODEL_METEORLAKE_AA     0xaa  // Meteor Lake
-#define CPUID_MODEL_METEORLAKE_AC     0xac  // Meteor Lake
-#define CPUID_MODEL_KNM_85            0x85  // Knights Mill
-#define CPUID_MODEL_KABYLAKE_8E       0x8e  // Kaby Lake U/Y QS
-#define CPUID_MODEL_ALDERLAKE_97      0x97  // Alder Lake-S
-#define CPUID_MODEL_ALDERLAKE_9A      0x9a  // Alder Lake-P
-#define CPUID_MODEL_KABYLAKE_9E       0x9e  // Kaby Lake S/H QS
-#define CPUID_MODEL_COMETLAKE_A5      0xa5  // Comet Lake S
-#define CPUID_MODEL_COMETLAKE_A6      0xa6  // Comet Lake U
-#define CPUID_MODEL_ROCKETLAKE_A7     0xa7  // Rocket Lake S
-#define CPUID_MODEL_RAPTORLAKE_B7     0xb7  // Raptor Lake S/HX B-0
-#define CPUID_MODEL_RAPTORLAKE_BA     0xba  // Raptor Lake H/P/PX J-0, U Q-0
-#define CPUID_MODEL_RAPTORLAKE_BF     0xbf  // Raptor Lake S/HX C-0
-#define CPUID_MODEL_LUNARLAKE_BD      0xbd  // Lunar Lake
-#define CPUID_MODEL_ARROWLAKE_C6      0xc6  // Arrow Lake
+#define CPUID_MODEL_PPRO                   1
+#define CPUID_MODEL_PII_03                 3
+#define CPUID_MODEL_PII_05                 5
+#define CPUID_MODEL_CELERON_06             6
+#define CPUID_MODEL_PM_09                  9
+#define CPUID_MODEL_PM_0D                 13
+#define CPUID_MODEL_PM_0E                 14  // Yonah / Sossaman
+#define CPUID_MODEL_CORE_0F               15  // Conroe / Merom
+#define CPUID_MODEL_CORE_17             0x17  // Penryn
+#define CPUID_MODEL_NEHALEM_1A          0x1a  // Nehalem / Gainestown
+#define CPUID_MODEL_ATOM_1C             0x1c  // Silverthorne / Diamondville
+#define CPUID_MODEL_CORE_1D             0x1d  // Dunnington
+#define CPUID_MODEL_NEHALEM_1E          0x1e  // Lynnfield
+#define CPUID_MODEL_NEHALEM_1F          0x1f  // Havendale
+#define CPUID_MODEL_NEHALEM_25          0x25  // Westmere / Clarkdale
+#define CPUID_MODEL_ATOM_26             0x26  // Lincroft
+#define CPUID_MODEL_ATOM_27             0x27  // Saltwell
+#define CPUID_MODEL_SANDYBRIDGE_2A      0x2a  // Sandybridge (desktop/mobile)
+#define CPUID_MODEL_NEHALEM_2C          0x2c  // Westmere-EP
+#define CPUID_MODEL_SANDYBRIDGE_2D      0x2d  // Sandybridge-EP
+#define CPUID_MODEL_NEHALEM_2E          0x2e  // Nehalem-EX
+#define CPUID_MODEL_NEHALEM_2F          0x2f  // Westmere-EX
+#define CPUID_MODEL_ATOM_35             0x35  // Cloverview
+#define CPUID_MODEL_ATOM_36             0x36  // Cedarview
+#define CPUID_MODEL_ATOM_37             0x37  // Bay Trail
+#define CPUID_MODEL_SANDYBRIDGE_3A      0x3a  // Ivy Bridge
+#define CPUID_MODEL_HASWELL_3C          0x3c  // Haswell DT
+#define CPUID_MODEL_BROADWELL_3D        0x3d  // Broadwell-Ult
+#define CPUID_MODEL_SANDYBRIDGE_3E      0x3e  // Ivy Bridge-EP
+#define CPUID_MODEL_HASWELL_3F          0x3f  // Haswell EP/EN/EX
+#define CPUID_MODEL_HASWELL_45          0x45  // Haswell Ultrathin
+#define CPUID_MODEL_HASWELL_46          0x46  // Haswell (Crystal Well)
+#define CPUID_MODEL_BROADWELL_47        0x47  // Broadwell (Denlow)
+#define CPUID_MODEL_ATOM_4A             0x4a  // Future Silvermont
+#define CPUID_MODEL_ATOM_4C             0x4c  // Airmont
+#define CPUID_MODEL_ATOM_4D             0x4d  // Avoton
+#define CPUID_MODEL_SKYLAKE_4E          0x4e  // Skylake-Y / Kaby Lake U/Y ES
+#define CPUID_MODEL_BROADWELL_4F        0x4f  // Broadwell EP/EN/EX
+#define CPUID_MODEL_SKYLAKE_55          0x55  // Skylake EP/EN/EX
+#define CPUID_MODEL_BROADWELL_56        0x56  // Broadwell DE
+#define CPUID_MODEL_KNL_57              0x57  // Knights Landing
+#define CPUID_MODEL_ATOM_5A             0x5a  // Future Silvermont
+#define CPUID_MODEL_ATOM_5D             0x5d  // Future Silvermont
+#define CPUID_MODEL_SKYLAKE_5E          0x5e  // Skylake-S / Kaby Lake S/H ES
+#define CPUID_MODEL_ATOM_5F             0x5f  // Denverton
+#define CPUID_MODEL_ATOM_86             0x86  // Snow Ridge
+#define CPUID_MODEL_CANNONLAKE_66       0x66  // Cannon Lake
+#define CPUID_MODEL_ICELAKE_7E          0x7e  // Ice Lake U/Y
+#define CPUID_MODEL_ICELAKE_6A          0x6a  // Ice Lake SP (ICX)
+#define CPUID_MODEL_ICELAKE_6C          0x6c  // Ice Lake D
+#define CPUID_MODEL_LAKEFIELD_8A        0x8a  // Lakefield
+#define CPUID_MODEL_TIGERLAKE_8C        0x8c  // Tiger Lake UP3/UP4/H35
+#define CPUID_MODEL_TIGERLAKE_8D        0x8d  // Tiger Lake H81
+#define CPUID_MODEL_SAPPHIRERAPIDS_8F   0x8f  // Sapphire Rapids
+#define CPUID_MODEL_GRANITERAPIDS_AD    0xad  // Granite Rapids AP/SP
+#define CPUID_MODEL_GRANITERAPIDS_AE    0xae  // Granite Rapids D
+#define CPUID_MODEL_SIERRAFOREST_AF     0xaf  // Sierra Forest
+#define CPUID_MODEL_EMERALDRAPIDS_CF    0xcf  // Emerald Rapids
+#define CPUID_MODEL_METEORLAKE_AA       0xaa  // Meteor Lake
+#define CPUID_MODEL_METEORLAKE_AC       0xac  // Meteor Lake
+#define CPUID_MODEL_KNM_85              0x85  // Knights Mill
+#define CPUID_MODEL_KABYLAKE_8E         0x8e  // Kaby Lake U/Y QS
+#define CPUID_MODEL_ALDERLAKE_97        0x97  // Alder Lake-S
+#define CPUID_MODEL_ALDERLAKE_9A        0x9a  // Alder Lake-P
+#define CPUID_MODEL_KABYLAKE_9E         0x9e  // Kaby Lake S/H QS
+#define CPUID_MODEL_COMETLAKE_A5        0xa5  // Comet Lake S
+#define CPUID_MODEL_COMETLAKE_A6        0xa6  // Comet Lake U
+#define CPUID_MODEL_ROCKETLAKE_A7       0xa7  // Rocket Lake S
+#define CPUID_MODEL_RAPTORLAKE_B7       0xb7  // Raptor Lake S/HX B-0
+#define CPUID_MODEL_RAPTORLAKE_BA       0xba  // Raptor Lake H/P/PX J-0, U Q-0
+#define CPUID_MODEL_RAPTORLAKE_BF       0xbf  // Raptor Lake S/HX C-0
+#define CPUID_MODEL_LUNARLAKE_BD        0xbd  // Lunar Lake
+#define CPUID_MODEL_ARROWLAKE_C6        0xc6  // Arrow Lake
+#define CPUID_MODEL_CLEARWATERFOREST_DD 0xdd  // Clearwater Forest
 
 /* Intel model information (family 19) */
 #define CPUID_MODEL_DIAMONDRAPIDS     0x01  // Diamond Rapids
@@ -2384,6 +2385,21 @@ CPUID_UARCH_IS_LUNARLAKE(uint32 v) // IN: %eax from CPUID with %eax=1.
 {
    /* Assumes the CPU manufacturer is Intel. */
    return CPUID_MODEL_IS_LUNARLAKE(v) || CPUID_MODEL_IS_ARROWLAKE(v);
+}
+
+static INLINE Bool
+CPUID_MODEL_IS_CLEARWATERFOREST(uint32 v) // IN: %eax from CPUID with %eax=1.
+{
+   /* Assumes the CPU manufacturer is Intel. */
+   return CPUID_FAMILY_IS_P6(v) &&
+          CPUID_EFFECTIVE_MODEL(v) == CPUID_MODEL_CLEARWATERFOREST_DD;
+}
+
+static INLINE Bool
+CPUID_UARCH_IS_CLEARWATERFOREST(uint32 v) // IN: %eax from CPUID with %eax=1.
+{
+   /* Assumes the CPU manufacturer is Intel. */
+   return CPUID_MODEL_IS_CLEARWATERFOREST(v);
 }
 
 static INLINE Bool
