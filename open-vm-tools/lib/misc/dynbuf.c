@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 1998-2022 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -261,10 +262,16 @@ DynBufRealloc(DynBuf *b,            // IN/OUT:
 
    ASSERT(b);
 
-   new_data = realloc(b->data, newAllocated);
-   if (new_data == NULL && newAllocated) {
-      /* Not enough memory */
-      return FALSE;
+   if (newAllocated == 0) {
+      /* In C23, realloc with size 0 is undefined. */
+      free(b->data);
+      new_data = NULL;
+   } else {
+      new_data = realloc(b->data, newAllocated);
+      if (new_data == NULL) {
+         /* Not enough memory */
+         return FALSE;
+      }
    }
 
    b->data = new_data;
