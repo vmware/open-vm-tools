@@ -276,7 +276,6 @@
    LOGLEVEL_VAR(usb), \
    LOGLEVEL_VAR(usb_xhci), \
    LOGLEVEL_VAR(util), \
-   LOGLEVEL_VAR(uwt), /* lib/unityWindowTracker */ \
    LOGLEVEL_VAR(vaBasicOps), \
    LOGLEVEL_VAR(vcpuhotplug), \
    LOGLEVEL_VAR(vcpuNUMA), \
