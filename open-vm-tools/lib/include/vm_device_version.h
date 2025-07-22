@@ -146,6 +146,11 @@
 #define PCI_VENDOR_ID_ENSONIQ           0x1274
 #define PCI_DEVICE_ID_ENSONIQ_ES1371    0x1371
 
+/*
+ * AMD MI210, MI300, MI325 GPU
+ */
+#define PCI_VENDOR_ID_ATI               0x1002
+
 /* From linux/pci_ids.h:
  *    Intel 82439TX (430 HX North Bridge)
  *    Intel 82371AB (PIIX4 South Bridge)
