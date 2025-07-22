@@ -169,7 +169,19 @@ NORETURN void Panic_NoSave(const char *fmt, ...) PRINTF_DECL(1, 2);
  */
 #elif !defined(VMKERNEL) && defined(VMMON) && \
     defined(__linux__) && defined(__KERNEL__)
-#  include <linux/kernel.h>
+/*
+ * Linux kernels after 5.13.0 moved the panic() definition into
+ * linux/panic.h. Adding this check for kernel version here to avoid
+ * including linux/minmax.h thourgh linux/kernel.h in newer kernels.
+ * This checks avoid a problem with redefinition of MIN/MAX, which are
+ * defined in vm_basic_defs.h. Starting with kernel 6.11, linux kernel
+ * also #defines MIN/MAX in linux/minmax.h.
+ */
+#  if LINUX_VERSION_CODE > KERNEL_VERSION(5, 13, 0)
+#    include <linux/panic.h>
+#  else
+#    include <linux/kernel.h>
+#  endif
 #  define Panic panic
 #else /* !VMKPANIC */
 NORETURN void Panic(const char *fmt, ...) PRINTF_DECL(1, 2);
