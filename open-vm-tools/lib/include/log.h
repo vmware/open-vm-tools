@@ -317,7 +317,7 @@ Log_Trivia(const char *fmt,
    va_end(ap);
 }
 
-#if !defined(VMM)
+#if !defined(VMM) && !defined(GLM)
 typedef struct {
    int32       legalLevelValue;
    const char *legalName;
@@ -818,4 +818,3 @@ Log_IsThrottled(LogThrottleInfo *info,
 
 #define VMW_LOG_ROUTING_EX(name, level) \
         (((LOGFACILITY_GROUPVAR(name) + 1) << VMW_LOG_LEVEL_BITS) | (level))
-
