@@ -390,6 +390,7 @@
 #define VIM_API_TYPE "HostAgent"
 #endif
 
+#define VIM_ARM_ESX_PRODUCT_LINE_ID "armEsx"
 #define VIM_EESX_PRODUCT_LINE_ID "embeddedEsx"
 #define VIM_ESX_PRODUCT_LINE_ID "esx"
 #define VIM_ESXIO_PRODUCT_LINE_ID "esxio"
