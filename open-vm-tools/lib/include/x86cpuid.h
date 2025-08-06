@@ -1669,6 +1669,9 @@ enum {
 #undef FIELD
 #undef FLAG
 
+/* Uses of CPUID_INTERNAL_REG_* (set above) are of type CpuidReg. */
+#define CPUID_FEAT_REG(name) ((CpuidReg)CPUID_INTERNAL_REG_##name)
+
 /*
  * CPUID_MASK --
  * CPUID_SHIFT --
@@ -1694,28 +1697,28 @@ enum {
 #define CPUID_MASK(eaxIn, reg, flag)                                    \
    ({                                                                   \
       ASSERT_ON_COMPILE(eaxIn == CPUID_INTERNAL_EAXIN_##flag &&         \
-              CPUID_REG_##reg == (CpuidReg)CPUID_INTERNAL_REG_##flag);  \
+                        CPUID_REG_##reg == CPUID_FEAT_REG(flag));       \
       CPUID_INTERNAL_MASK_##flag;                                       \
    })
 
 #define CPUID_SHIFT(eaxIn, reg, flag)                                   \
    ({                                                                   \
       ASSERT_ON_COMPILE(eaxIn == CPUID_INTERNAL_EAXIN_##flag &&         \
-              CPUID_REG_##reg == (CpuidReg)CPUID_INTERNAL_REG_##flag);  \
+                        CPUID_REG_##reg == CPUID_FEAT_REG(flag));       \
       CPUID_INTERNAL_SHIFT_##flag;                                      \
    })
 
 #define CPUID_ISSET(eaxIn, reg, flag, data)                             \
    ({                                                                   \
       ASSERT_ON_COMPILE(eaxIn == CPUID_INTERNAL_EAXIN_##flag &&         \
-              CPUID_REG_##reg == (CpuidReg)CPUID_INTERNAL_REG_##flag);  \
+                        CPUID_REG_##reg == CPUID_FEAT_REG(flag));       \
       (((data) & CPUID_INTERNAL_MASK_##flag) != 0);                     \
    })
 
 #define CPUID_GET(eaxIn, reg, field, data)                              \
    ({                                                                   \
       ASSERT_ON_COMPILE(eaxIn == CPUID_INTERNAL_EAXIN_##field &&        \
-              CPUID_REG_##reg == (CpuidReg)CPUID_INTERNAL_REG_##field); \
+                        CPUID_REG_##reg == CPUID_FEAT_REG(field));      \
       (((uint32)(data) & CPUID_INTERNAL_MASK_##field) >>                \
        CPUID_INTERNAL_SHIFT_##field);                                   \
    })
@@ -1738,22 +1741,22 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 
 #define CPUID_MASK(eaxIn, reg, flag)                                    \
    CPUIDCheck(eaxIn, CPUID_INTERNAL_EAXIN_##flag,                       \
-              CPUID_REG_##reg, (CpuidReg)CPUID_INTERNAL_REG_##flag,     \
+              CPUID_REG_##reg, CPUID_FEAT_REG(flag),                    \
               CPUID_INTERNAL_MASK_##flag)
 
 #define CPUID_SHIFT(eaxIn, reg, flag)                                   \
    CPUIDCheck(eaxIn, CPUID_INTERNAL_EAXIN_##flag,                       \
-              CPUID_REG_##reg, (CpuidReg)CPUID_INTERNAL_REG_##flag,     \
+              CPUID_REG_##reg, CPUID_FEAT_REG(flag),                    \
               CPUID_INTERNAL_SHIFT_##flag)
 
 #define CPUID_ISSET(eaxIn, reg, flag, data)                             \
    (CPUIDCheck(eaxIn, CPUID_INTERNAL_EAXIN_##flag,                      \
-               CPUID_REG_##reg, (CpuidReg)CPUID_INTERNAL_REG_##flag,    \
+               CPUID_REG_##reg, CPUID_FEAT_REG(flag),                   \
                CPUID_INTERNAL_MASK_##flag & (data)) != 0)
 
 #define CPUID_GET(eaxIn, reg, field, data)                              \
    CPUIDCheck(eaxIn, CPUID_INTERNAL_EAXIN_##field,                      \
-              CPUID_REG_##reg, (CpuidReg)CPUID_INTERNAL_REG_##field,    \
+              CPUID_REG_##reg, CPUID_FEAT_REG(field),                   \
               ((uint32)(data) & CPUID_INTERNAL_MASK_##field) >>         \
               CPUID_INTERNAL_SHIFT_##field)
 
@@ -1764,7 +1767,7 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
    do {                                                                 \
       ASSERT_ON_COMPILE(                                                \
          (uint32)eaxIn   == (uint32)CPUID_INTERNAL_EAXIN_##flag &&      \
-         CPUID_REG_##reg == (CpuidReg)CPUID_INTERNAL_REG_##flag);       \
+         CPUID_REG_##reg == CPUID_FEAT_REG(flag));                      \
       *(dataPtr) |= CPUID_INTERNAL_MASK_##flag;                         \
    } while (0)
 
@@ -1772,7 +1775,7 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
    do {                                                                 \
       ASSERT_ON_COMPILE(                                                \
          (uint32)eaxIn   == (uint32)CPUID_INTERNAL_EAXIN_##flag &&      \
-         CPUID_REG_##reg == (CpuidReg)CPUID_INTERNAL_REG_##flag);       \
+         CPUID_REG_##reg == CPUID_FEAT_REG(flag));                      \
       *(dataPtr) &= ~CPUID_INTERNAL_MASK_##flag;                        \
    } while (0)
 
@@ -1782,7 +1785,7 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
       uint32 *_d = dataPtr;                                             \
       ASSERT_ON_COMPILE(                                                \
          (uint32)eaxIn   == (uint32)CPUID_INTERNAL_EAXIN_##field &&     \
-         CPUID_REG_##reg == (CpuidReg)CPUID_INTERNAL_REG_##field);      \
+         CPUID_REG_##reg == CPUID_FEAT_REG(field));                     \
       *_d = (*_d & ~CPUID_INTERNAL_MASK_##field) |                      \
          (_v << CPUID_INTERNAL_SHIFT_##field);                          \
       ASSERT(_v == (*_d & CPUID_INTERNAL_MASK_##field) >>               \
