@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2007-2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 2007-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -119,5 +120,6 @@ typedef struct UPT1_RSSConf {
 #define UPT1_F_RXVLAN      0x0004   /* VLAN tag stripping */
 #define UPT1_F_LRO         0x0008
 #define UPT1_F_INNEROFLD   0x0010   /* Geneve/VXLAN offloading */
+#define UPT1_F_SCX_ENCAP   0x0020   /* Driver requested offload bypass */
 
 #endif
