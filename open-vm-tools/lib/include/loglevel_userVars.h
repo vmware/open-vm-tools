@@ -223,6 +223,7 @@
    LOGLEVEL_VAR(pci_vmci), \
    LOGLEVEL_VAR(pci_vmxnet3), \
    LOGLEVEL_VAR(pci_xhci), \
+   LOGLEVEL_VAR(pl031), \
    LOGLEVEL_VAR(pmemobj), \
    LOGLEVEL_VAR(policy), \
    LOGLEVEL_VAR(poll), \
