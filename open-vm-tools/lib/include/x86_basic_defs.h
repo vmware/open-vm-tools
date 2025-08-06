@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2006-2024 Broadcom. All Rights Reserved.
+ * Copyright (c) 2006-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -111,6 +111,7 @@
 #define CR4_UINTR      0x02000000
 #define CR4_LASS       0x08000000
 #define CR4_LAM_SUP    0x10000000
+#define CR4_FRED       0x100000000
 #define CR4_RESERVED   CONST64U(0xffffffffe6089000)
 #define CR8_RESERVED   CONST64U(0xfffffffffffffff0)
 
