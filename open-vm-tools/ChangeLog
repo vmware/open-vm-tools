@@ -1,3 +1,245 @@
+commit b969c9de652342521503d49a998bc6fbaf3bcf01
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Wed Aug 6 00:00:16 2025 -0700
+
+    Capitalise "rights reserved" in copyright header.
+
+commit 66327efe6b8fce1197a59c2791365953d0a57bda
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Aug 5 23:34:17 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 002af7ca47fa2ee5219c9ad27f5de9b12fdd6d19
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Aug 5 23:34:17 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 10e5532d2954ee2ba6a1d89285846e9a33c37142
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Aug 5 23:34:17 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 97213b39278893b3965d533424a7b9c539dff622
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Aug 5 23:34:17 2025 -0700
+
+    Coverity issues fixed.
+    
+    The change is about the handling of the **result parameter in the wrapper
+    functions. (UsercheckRetryGetpwnam_r and UsercheckRetryGetpwuid_r)
+    
+    Issues:
+    o Dereference after null check (FORWARD_NULL)
+      var_deref_model: Passing null pointer result to getpwuid_r, or
+      getpwnam_r which dereferences it.
+    
+    o Dereference before null check (REVERSE_INULL)
+      check_after_deref: Null-checking result suggests that it may be
+      null, but it has already been dereferenced on all paths leading to the
+      check
+    
+    Add null check for 'result' before dereferencing
+    
+    The current caller will not have this issue.
+    We could silence the issue, but we should add an assert for development
+    and return error 'EINVAL' when '**result' parameter is NULL.
+    
+    Update caller functions to return VGAUTH_E_INVALID_ARGUMENT when return code
+    is EINVAL.
+    
+    The condition used validates that 'result' is NULL while it should
+    validate '*result' is NULL.
+    This needs to be fixed; replace "!result" with "*result == NULL" to be
+    explicit or "!*result" to match other usage in vgauth.
+
+commit b756d443e63196aca7f2b23385961e792273be1d
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Aug 5 23:34:17 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 49e89de1572ca7265e1aaf8e14fe4dcf713c3933
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Aug 5 23:34:17 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit cf3f22ba2c5b73dcc79682e0da2f560dcc27c476
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Aug 5 23:34:17 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 2f63efbc33ef19921aa9a68940006c650d63dddb
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Aug 5 23:34:17 2025 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 534b32f8c5b56e901df1a8d2177d96a613c34d9e
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Aug 5 23:34:17 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 4434134a5259ab8178172fc83aba7948fbbe500d
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Aug 5 23:34:17 2025 -0700
+
+    Change to common source files not applicable to open-vm-tools.
+
+commit dca0ceb0ec6b9ccfa65dd37a800e837737059d22
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Aug 5 23:34:17 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools at this time.
+
+commit 94928dc8aaca2f98442b6451585266c9e9c2c061
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Aug 5 23:34:17 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit b5e80fae6b3af56fb3552743da8432437fcf5a2a
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Aug 5 23:34:17 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit ddb03bff356b0cf2bfd01438fd0157d7c66745b7
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Aug 5 23:34:17 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 6834d4c565f868fc643c9b31d90684f626ae573a
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Aug 5 23:34:17 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 90da33b631834c0aede878de2de71110a4ed92f5
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Aug 5 23:34:17 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 8e582ea09c41929927b04d8e63ecf019b77a448d
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Aug 5 23:34:17 2025 -0700
+
+    [vgauth] Retry on EBADF when getting pam entry (getpwuid_r, getpwnam_r)
+    
+    Below are the changes made as part of this update
+    o resetting the errno value before calling the getpw*_r functions in
+      usercheck.c. Some man pages mention this is required as the errno might
+      be left unchanged by the function. We're performing a few retries,
+      therefore resetting errno at the start of a retry loop ensures we're
+      not 'stuck' on the error.
+    o implementing retry in impersonateLinux.c which includes the reset of errno.
+    o logging 'errno' in impersonateLinux.c and usercheck.c where relevant.
+    o On EBADF error, adding g_thread_yield in the retry loop to add some
+      delay to the retry.
+
+commit 3c96dd4c29c1a2708c2b9770e4e4220adb469ea6
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Aug 5 23:34:16 2025 -0700
+
+    Add #ifdef USE_UINPUT to fix open-vm-tools build failure on FreeBSD
+    
+    In the previous update, the "#ifdef USE_UINPUT" preprocessor guard was
+    removed, which broke the compilation of open-vm-tools on FreeBSD, because
+    FreeBSD does not have support for fakeMouseWayland.cpp.
+    
+    Since USE_UINPUT is already defined for Linux systems in
+    services/plugins/dndcp/Makefile.am, adding those conditionals back to prevent
+    build failures on FreeBSD.
+
+commit 829a8ee39c4e8666ec0caf8d2b6daa92dd0c2f44
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Aug 5 23:34:16 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit da7d40870cbd0169ebe30ba0f0aaf6cc794e2c22
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Aug 5 23:34:16 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit abced563850b8273bde3c7512b6ae510a4bd3301
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Aug 5 23:34:16 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 1b3300d410aee7d9fd6332716abfc12cbfbd72a9
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Aug 5 23:34:16 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 02e7062d1b2004671a389319fbb9db6c2a064985
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Aug 5 23:34:16 2025 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 2838c3ca1376dd47b83f982c1b3afcc1d6b6a7a7
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Aug 5 23:34:16 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit b1560586f93eb7770c71b956f205383d2b5c0d58
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Aug 5 23:34:16 2025 -0700
+
+    Enable UInput and handle few issues in DNDCP plugin for GTK3
+    
+    Below are the changes made as part of this update
+    1) Enabling UInput code for emulating Fake mouse and keyboard events in
+    Xwayland backend.
+    2) Making sure Xtest and UInput codes are inherent. The Xtest specific
+    code which was being invoked in Uinput flow as well is now guarded to be
+    used in Xtest flow only..
+    3) Fix for Leaking X server Connection
+
+commit c24231db1aaae1a1e489a228deb273cb07af1488
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Aug 5 23:34:16 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit b821721bfc1d374918bc5172f9608e7f13e1c416
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Aug 5 23:34:16 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 1c03d3eb7cf5d3e1dbd050242a648a8e623303f9
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Aug 5 23:34:16 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit be292c3e5cb61c8dcc1fa3b320a58e0a1cde2fb8
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Aug 5 23:34:16 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 177c8573545d49d56cb8bdc58453effb0fe1cc21
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Jul 22 02:11:26 2025 -0700
+
+    Update ChangeLog with the granular push of Jul 22, 2025.
+    - plus ChangeLog update of Jul 11, 2025.
+    - plus missed copyright year update to few files.
+
 commit 6011d8b3ac7961884cdcbe90f5ed068e08f9b6f4
 Author: Kruti Pendharkar <kp025370@broadcom.com>
 Date:   Tue Jul 22 02:08:49 2025 -0700
