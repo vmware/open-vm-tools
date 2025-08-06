@@ -164,7 +164,7 @@ typedef struct CPUIDQuery {
    CPUIDLEVEL(FALSE, 1F,  0x1f,       6, 17) \
    CPUIDLEVEL(TRUE,  20,  0x20,       1, 20) \
    CPUIDLEVEL(TRUE,  21,  0x21,       1, 20) \
-   CPUIDLEVEL(TRUE,  23,  0x23,       4, 21) \
+   CPUIDLEVEL(TRUE,  23,  0x23,       6, 21) \
    CPUIDLEVEL(TRUE,  24,  0x24,       1, 22) \
    CPUIDLEVEL(FALSE, 400, 0x40000000, 0,  0) \
    CPUIDLEVEL(FALSE, 401, 0x40000001, 0,  0) \
