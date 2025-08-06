@@ -90,6 +90,178 @@
 
 #ifndef _WIN32
 /*
+ * ******************************************************************************
+ * UsercheckRetryGetpwuid_r --                                             */ /**
+ *
+ * Wrapper for calls to getpwuid_r().
+ *
+ * Handle retryable errors from calls to getpwuid_r.
+ *
+ * @param[in]     uid, the user id to find.
+ * @param[in/out] struct passwd to use.
+ * @param[in/out] buf, buffer for the entry data.
+ * @param[in]     bufLen, buffer size in bytes.
+ * @param[out]    result, where to store the struct passwd address if found.
+ * @param[in]     retry, the maximum number of retries:
+ *                   < 0: use default (MAX_RETRIES),
+ *                     0: no retries (do once),
+ *                   > 0: use value for max retries
+ *
+ * @return On success (found), error is 0 and *result == ppw;
+ *         On not found, error is 0 or ENOENT and *result == NULL;
+ *         On error, error != 0 and *result == NULL.
+ *
+ *         In case retries occurred, the last attempt error and result values
+ *         are returned.
+ *
+ * Note: retries not implemented for Sun OS.
+ */
+
+int
+UsercheckRetryGetpwuid_r(const uid_t uid,
+                         struct passwd *ppw,
+                         char *buf,
+                         const size_t bufLen,
+                         struct passwd **result,
+                         const int retry) {
+#ifdef sun /* sun */
+   /*
+    * Retry loop for EBADF is not implemented for Sun OS.
+    * Adapt the getpwuid_r call's outcome to match the expectation.
+    * Use errno as the returned error value.
+    */
+   errno = 0;
+   if ((ppw = getpwuid_r(uid, ppw, buf, bufLen)) == NULL) {
+      /* Fall through, set *result to ppw (NULL), and return errno. */
+   }
+   *result = ppw;
+   return errno;
+
+#else /* !sun */
+   int error;
+   int maxRetries = retry < 0 ? MAX_RETRIES : retry;
+   int retryCount = 0;
+   int saveErrno;
+
+   /*
+    * Retry loop for EBADF.
+    */
+retry:
+   saveErrno = errno;
+   errno = 0; /* PR3105769 - reset errno before the call. Per man page */
+   if ((error = getpwuid_r(uid, ppw, buf, bufLen, result)) != 0 ||
+       !result) {
+      /*
+       * According to POSIX 1003.1-2003
+       *   - On not found: error == 0 or ENOENT && result == NULL
+       *   - On error:     error != 0 && result == NULL
+       */
+      if (EBADF == errno) {
+         retryCount++;
+         if (retryCount < maxRetries) {
+            g_debug("%s: getpwuid_r(%lu) failed %d (%d) (was: %d), try #%d\n",
+                  __FUNCTION__, (unsigned long int)uid, error, errno, saveErrno,
+                  retryCount);
+            g_thread_yield(); /* XXX: if adds too much delay, use g_usleep(X) */
+            goto retry;
+         }
+         /* Else: fall through and return the last attempt error. */
+         g_warning("%s: getpwuid_r(%lu) failed %d (%d) (was: %d), try #%d\n",
+                 __FUNCTION__, (unsigned long int)uid, error, errno, saveErrno,
+                 retryCount);
+      }
+      /* Else: fall through and return the current error. */
+   }
+   return error;
+#endif /* !sun */
+}
+
+
+/*
+ * ******************************************************************************
+ * UsercheckRetryGetpwnam_r --                                             */ /**
+ *
+ * Wrapper for calls to getpwnam_r().
+ *
+ * Handle retryable errors from calls to getpwnam_r.
+ *
+ * @param[in]     name, the user name to find.
+ * @param[in/out] struct passwd to use.
+ * @param[in/out] buf, buffer for the entry data.
+ * @param[in]     bufLen, buffer size in bytes.
+ * @param[out]    result, where to store the struct passwd address if found.
+ * @param[in]     retry, the maximum number of retries:
+ *                   < 0: use default (MAX_RETRIES),
+ *                     0: no retries (do once),
+ *                   > 0: use value for max retries
+ *
+ * @return On success (found), error is 0 and *result == ppw;
+ *         On not found, error is 0 or ENOENT and *result == NULL;
+ *         On error, error != 0 and *result == NULL.
+ *
+ *         In case retries occurred, the last attempt error and result values
+ *         are returned.
+ *
+ * Note: retries not implemented for Sun OS.
+ */
+int UsercheckRetryGetpwnam_r(const char *name,
+                             struct passwd *ppw,
+                             char *buf,
+                             const size_t bufLen,
+                             struct passwd **result,
+                             const int retry) {
+#ifdef sun /* sun */
+   /*
+    * Retry loop for EBADF is not implemented for Sun OS.
+    * Adapt the getpwnam_r call's outcome to match the expectation.
+    * Use errno as the returned error value.
+    */
+   errno = 0;
+   if ((ppw = getpwnam_r(name, ppw, buf, bufLen)) == NULL) {
+      /* Fall through, set *result to ppw (NULL), and return errno. */
+   }
+   *result = ppw;
+   return errno;
+
+#else /* !sun */
+   int error;
+   int maxRetries = retry < 0 ? MAX_RETRIES : retry;
+   int retryCount = 0;
+   int saveErrno;
+
+   /*
+    * Retry loop for EBADF.
+    */
+retry:
+   saveErrno = errno;
+   errno = 0; /* PR3105769 - reset errno before the call. Per man page */
+   if ((error = getpwnam_r(name, ppw, buf, bufLen, result)) != 0 ||
+       !result) {
+      /*
+       * According to POSIX 1003.1-2003
+       *   - On not found: error == 0 or ENOENT && result == NULL
+       *   - On error:     error != 0 && result == NULL
+       */
+      if (EBADF == errno) {
+         retryCount++;
+         if (retryCount < maxRetries) {
+            g_debug("%s: getpwnam_r(%s) failed %d (%d) (was: %d), try #%d\n",
+                  __FUNCTION__, name, error, errno, saveErrno, retryCount);
+            g_thread_yield(); /* XXX: if adds too much delay, use g_usleep(X) */
+            goto retry;
+         }
+         /* Else: fall through and return the last attempt error. */
+         g_warning("%s: getpwnam_r(%s) failed %d (%d) (was: %d), try #%d\n",
+                 __FUNCTION__, name, error, errno, saveErrno, retryCount);
+      }
+      /* Else: fall through and return the current error. */
+   }
+   return error;
+#endif /* !sun */
+}
+
+
+/*
  ******************************************************************************
  * UsercheckLookupUser --                                                */ /**
  *
@@ -113,28 +285,13 @@ UsercheckLookupUser(const gchar *userName,
    struct passwd pw;
    struct passwd *ppw = &pw;
    char buffer[BUFSIZ];
-#ifndef sun
-   int ret;
-   int retryCount = 0;
+   int error;
 
-   /*
-    * XXX Retry kludge -- see above.
-    */
-retry:
-   if ((ret = getpwnam_r(userName, &pw, buffer, sizeof buffer, &ppw)) != 0 ||
-                         !ppw) {
-      if ((EBADF == errno) && (++retryCount < MAX_RETRIES)) {
-         g_debug("%s: getpwnam_r(%s) failed %d (%d), try #%d\n",
-                 __FUNCTION__, userName, ret, errno, retryCount);
-         goto retry;
-      }
+   error = UsercheckRetryGetpwnam_r(userName, &pw, buffer, sizeof buffer, &ppw,
+                                    -1);
+   if (error != 0 || !ppw) {
       return VGAUTH_E_NO_SUCH_USER;
    }
-#else
-   if ((ppw = getpwnam_r(userName, &pw, buffer, sizeof buffer)) == NULL) {
-      return VGAUTH_E_NO_SUCH_USER;
-   }
-#endif
 
    *uid = ppw->pw_uid;
    *gid = ppw->pw_gid;
@@ -164,33 +321,12 @@ UsercheckLookupUid(uid_t uid,
    struct passwd pw;
    struct passwd *ppw = &pw;
    char buffer[BUFSIZ];
-#ifndef sun
    int error;
-   int retryCount = 0;
 
-   /*
-    * XXX Retry kludge -- see above.
-    */
-retry:
-   if ((error = getpwuid_r(uid, &pw, buffer, sizeof buffer, &ppw)) != 0 ||
-       !ppw) {
-      /*
-       * getpwuid_r() and getpwnam_r() can return a 0 (success) but not
-       * set the return pointer (ppw) if there's no entry for the user,
-       * according to POSIX 1003.1-2003.
-       */
-      if ((EBADF == errno) && (++retryCount < MAX_RETRIES)) {
-         g_debug("%s: getpwuid_r(%d) failed %d (%d), try #%d\n",
-                 __FUNCTION__, uid, error, errno, retryCount);
-         goto retry;
-      }
+   error = UsercheckRetryGetpwuid_r(uid, &pw, buffer, sizeof buffer, &ppw, -1);
+   if (error != 0 || !ppw) {
       return VGAUTH_E_NO_SUCH_USER;
    }
-#else
-   if ((ppw = getpwuid_r(uid, &pw, buffer, sizeof buffer)) == NULL) {
-      return VGAUTH_E_NO_SUCH_USER;
-   }
-#endif
 
    // XXX locale issue lurking here
    *userName = g_strdup(ppw->pw_name);

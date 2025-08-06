@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2011-2017 VMware, Inc. All rights reserved.
+ * Copyright (c) 2011-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -41,6 +42,7 @@
 #include <errno.h>
 
 #include "VGAuthInt.h"
+#include "usercheck.h"
 
 
 #if (__GLIBC__ == 2) && (__GLIBC_MINOR__ < 3)
@@ -101,25 +103,21 @@ VGAuthImpersonateImpl(VGAuthContext *ctx,
    struct passwd pw;
    struct passwd *ppw = &pw;
    gid_t root_gid;
-   int error;
    int ret;
 
-   if ((error = getpwuid_r(0, &pw, buffer, sizeof buffer, &ppw)) != 0 ||
-       !ppw) {
-      /*
-       * getpwuid_r() and getpwnam_r() can return a 0 (success) but not
-       * set the return pointer (ppw) if there's no entry for the user,
-       * according to POSIX 1003.1-2003.
-       */
-      Warning("Failed to lookup root (%d)\n", error);
+   ret = UsercheckRetryGetpwuid_r(0, &pw, buffer, sizeof buffer, &ppw, -1);
+   if (ret != 0 || !ppw) {
+      Warning("Failed to lookup root %d (%d)\n", ret, errno);
       return VGAUTH_E_INVALID_ARGUMENT;
    }
 
    root_gid = ppw->pw_gid;
 
-   if ((error = getpwnam_r(handle->userName, &pw, buffer, sizeof buffer, &ppw)) != 0 ||
-       !ppw) {
-      Warning("Failed to lookup user '%s' (%d)\n", handle->userName, error);
+   ret = UsercheckRetryGetpwnam_r(handle->userName, &pw, buffer, sizeof buffer,
+                                  &ppw, -1);
+   if (ret != 0 || !ppw) {
+      Warning("Failed to lookup user '%s' %d (%d)\n",
+              handle->userName, ret, errno);
       // XXX add VGAUTH_E_INVALIDUSER ???
       return VGAUTH_E_INVALID_ARGUMENT;
    }
@@ -177,12 +175,11 @@ VGAuthEndImpersonationImpl(VGAuthContext *ctx)
    char buffer[BUFSIZ];
    struct passwd pw;
    struct passwd *ppw = &pw;
-   int error;
    int ret;
 
-   if ((error = getpwuid_r(0, &pw, buffer, sizeof buffer, &ppw)) != 0 ||
-       !ppw) {
-      Warning("Failed to lookup root (%d)\n", error);
+   ret = UsercheckRetryGetpwuid_r(0, &pw, buffer, sizeof buffer, &ppw, -1);
+   if (ret != 0 || !ppw) {
+      Warning("Failed to lookup root %d (%d)\n", ret, errno);
       return VGAUTH_E_INVALID_ARGUMENT;
    }
 
@@ -235,9 +232,10 @@ VGAuth_GetCurrentUsername(void)
    int error;
    gchar *userName = NULL;
 
-   if ((error = getpwuid_r(uid, &pw, buffer, sizeof buffer, &ppw)) != 0 ||
-       !ppw) {
-      Warning("Failed to look up username for current uid (%d)\n", error);
+   error = UsercheckRetryGetpwuid_r(uid, &pw, buffer, sizeof buffer, &ppw, -1);
+   if (error != 0 || !ppw) {
+      Warning("Failed to look up username for current uid %d (%d)\n",
+              error, errno);
       return userName;
    }
 
