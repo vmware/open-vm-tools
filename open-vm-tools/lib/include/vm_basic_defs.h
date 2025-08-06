@@ -632,7 +632,7 @@ typedef int pid_t;
 
 #if defined VMM || defined GLM || defined VMK_HAS_VMM
 /* Structure field only used to support the VMM (as opposed to the ULM). */
-#define VMM_ONLY_FIELD(name) name
+#define VMM_GLM_ONLY_FIELD(name) name
 #else
 /*
  * Structure field only used to support the VMM (as opposed to the ULM).
@@ -640,7 +640,7 @@ typedef int pid_t;
  * is unchanged (was bug 3354277), but prepend an underscore to the field's
  * name to verify at compile time that the field is indeed not used.
  */
-#define VMM_ONLY_FIELD(name) _##name
+#define VMM_GLM_ONLY_FIELD(name) _##name
 #endif
 
 #undef ARM64_ONLY
