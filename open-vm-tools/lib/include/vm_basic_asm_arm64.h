@@ -769,6 +769,35 @@ MMIOWrite128(volatile void *addr, // OUT
 }
 #endif // VM_HAS_INT128
 
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * RDTSC_BARRIER --
+ *
+ *      Implements an RDTSC fence.  Instructions executed prior to the
+ *      fence will have completed before the fence and all stores to
+ *      memory are flushed from the store buffer.
+ *
+ *      On arm64, we need to do an ISB according to ARM ARM to prevent
+ *      instruction reordering, and to ensure no store reordering we do a DMB.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Cause loads and stores prior to this to be globally visible, and
+ *      RDTSC will not pass.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static inline void
+RDTSC_BARRIER(void)
+{
+   ISB();
+   _DMB(SY);
+}
+
 
 #ifdef __GNUC__
 
@@ -985,35 +1014,6 @@ uint64set(void *dst, uint64 val, uint64 count)
    return dst;
 }
 
-
-/*
- *-----------------------------------------------------------------------------
- *
- * RDTSC_BARRIER --
- *
- *      Implements an RDTSC fence.  Instructions executed prior to the
- *      fence will have completed before the fence and all stores to
- *      memory are flushed from the store buffer.
- *
- *      On arm64, we need to do an ISB according to ARM ARM to prevent
- *      instruction reordering, and to ensure no store reordering we do a DMB.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      Cause loads and stores prior to this to be globally visible, and
- *      RDTSC will not pass.
- *
- *-----------------------------------------------------------------------------
- */
-
-static inline void
-RDTSC_BARRIER(void)
-{
-   ISB();
-   _DMB(SY);
-}
 
 
 /*
