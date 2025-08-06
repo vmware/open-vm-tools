@@ -124,6 +124,20 @@ UsercheckRetryGetpwuid_r(const uid_t uid,
                          const size_t bufLen,
                          struct passwd **result,
                          const int retry) {
+#ifndef sun /* !sun */
+   int error;
+   int maxRetries = retry < 0 ? MAX_RETRIES : retry;
+   int retryCount = 0;
+   int saveErrno;
+#endif
+
+   ASSERT(result);
+   if (!result) {
+      /* result argument is invalid (EINVAL: 22) */
+      g_warning("%s: Invalid parameter: 'result' is NULL\n", __FUNCTION__);
+      return EINVAL;
+   }
+
 #ifdef sun /* sun */
    /*
     * Retry loop for EBADF is not implemented for Sun OS.
@@ -138,19 +152,13 @@ UsercheckRetryGetpwuid_r(const uid_t uid,
    return errno;
 
 #else /* !sun */
-   int error;
-   int maxRetries = retry < 0 ? MAX_RETRIES : retry;
-   int retryCount = 0;
-   int saveErrno;
-
    /*
     * Retry loop for EBADF.
     */
 retry:
    saveErrno = errno;
    errno = 0; /* PR3105769 - reset errno before the call. Per man page */
-   if ((error = getpwuid_r(uid, ppw, buf, bufLen, result)) != 0 ||
-       !result) {
+   if ((error = getpwuid_r(uid, ppw, buf, bufLen, result)) != 0 || !*result) {
       /*
        * According to POSIX 1003.1-2003
        *   - On not found: error == 0 or ENOENT && result == NULL
@@ -210,6 +218,20 @@ int UsercheckRetryGetpwnam_r(const char *name,
                              const size_t bufLen,
                              struct passwd **result,
                              const int retry) {
+#ifndef sun /* !sun */
+   int error;
+   int maxRetries = retry < 0 ? MAX_RETRIES : retry;
+   int retryCount = 0;
+   int saveErrno;
+#endif
+
+   ASSERT(result);
+   if (!result) {
+      /* result argument is invalid (EINVAL: 22) */
+      g_warning("%s: Invalid parameter: 'result' is NULL\n", __FUNCTION__);
+      return EINVAL;
+   }
+
 #ifdef sun /* sun */
    /*
     * Retry loop for EBADF is not implemented for Sun OS.
@@ -224,19 +246,13 @@ int UsercheckRetryGetpwnam_r(const char *name,
    return errno;
 
 #else /* !sun */
-   int error;
-   int maxRetries = retry < 0 ? MAX_RETRIES : retry;
-   int retryCount = 0;
-   int saveErrno;
-
    /*
     * Retry loop for EBADF.
     */
 retry:
    saveErrno = errno;
    errno = 0; /* PR3105769 - reset errno before the call. Per man page */
-   if ((error = getpwnam_r(name, ppw, buf, bufLen, result)) != 0 ||
-       !result) {
+   if ((error = getpwnam_r(name, ppw, buf, bufLen, result)) != 0 || !*result) {
       /*
        * According to POSIX 1003.1-2003
        *   - On not found: error == 0 or ENOENT && result == NULL
@@ -290,6 +306,9 @@ UsercheckLookupUser(const gchar *userName,
    error = UsercheckRetryGetpwnam_r(userName, &pw, buffer, sizeof buffer, &ppw,
                                     -1);
    if (error != 0 || !ppw) {
+      if (error == EINVAL) {
+         return VGAUTH_E_INVALID_ARGUMENT;
+      }
       return VGAUTH_E_NO_SUCH_USER;
    }
 
@@ -325,6 +344,9 @@ UsercheckLookupUid(uid_t uid,
 
    error = UsercheckRetryGetpwuid_r(uid, &pw, buffer, sizeof buffer, &ppw, -1);
    if (error != 0 || !ppw) {
+      if (error == EINVAL) {
+         return VGAUTH_E_INVALID_ARGUMENT;
+      }
       return VGAUTH_E_NO_SUCH_USER;
    }
 
