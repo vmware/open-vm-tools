@@ -84,7 +84,7 @@
 // VMX86_DESKTOP must be last because it is the default and is always defined.
 #elif defined(VMX86_DESKTOP)
    // WORKSTATION_VERSION_NUMBER below has to match this
-   #define PRODUCT_VERSION    17,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
+   #define PRODUCT_VERSION    25,0,0,PRODUCT_BUILD_NUMBER_NUMERIC
 #elif defined(VMX86_SYSIMAGE)
    #define PRODUCT_VERSION    TOOLS_VERSION_EXT_CURRENT_CSV
    #define SYSIMAGE_VERSION TOOLS_VERSION_CURRENT_STR
@@ -218,10 +218,11 @@
  *
  * ALSO, leave FOO_VERSION at e.x.p on all EXCEPT release branches.
  */
-#define WORKSTATION_VERSION_NUMBER "17.0.0" /* this version number should always match real WS version number */
-#define WORKSTATION_VERSION "e.x.p"
-#define PLAYER_VERSION_NUMBER "17.0.0" /* this version number should always match real Player version number */
-#define PLAYER_VERSION "e.x.p"
+#define WORKSTATION_VERSION_NUMBER "25.0.0" /* this version number should always match real WS version number */
+#define WORKSTATION_VERSION "25.0.0"
+#define PLAYER_VERSION_NUMBER "25.0.0" /* this version number should always match real Player version number */
+#define PLAYER_VERSION "25.0.0"
+#define DESKTOP_HYPERVISOR_RELEASE_SUFFIX "25H2"
 #define VMRC_VERSION "13.1.0"
 
 #define THINPRINT_VERSION "1.1.2"
@@ -233,7 +234,7 @@
  * bora/install/desktop/macos/makedmg.sh::GenerateDescriptorXML() does what you
  * want.
  */
-#define FUSION_VERSION "e.x.p"
+#define FUSION_VERSION "25.0.0"
 
 #define VIM_VERSION "9.1.0"
 /*
