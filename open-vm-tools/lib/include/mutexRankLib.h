@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2010-2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2010-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -219,6 +220,8 @@ extern "C" {
 #define RANK_batteryLock             (RANK_libLockBase + 0x7030)
 #define RANK_buttonLock              (RANK_libLockBase + 0x7040)
 #define RANK_impersonateLock         (RANK_libLockBase + 0x7045)
+#define RANK_mksMemMgrBackingLock    (RANK_libLockBase + 0x7047)
+#define RANK_mksMemMgrPoolLock       (RANK_libLockBase + 0x7048)
 #define RANK_pollDefaultLock         (RANK_libLockBase + 0x7050)
 #define RANK_workerLibLock           (RANK_libLockBase + 0x7060)
 #define RANK_configDbLock            (RANK_libLockBase + 0x7070)
