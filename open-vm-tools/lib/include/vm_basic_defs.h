@@ -166,11 +166,19 @@ Max(int a, int b)
 #define ROUNDDOWNBITS(x, bits) ((uintptr_t)(x) & ~MASK(bits))
 #define CEILING(x, y)          (((x) + (y) - 1) / (y))
 
-#if defined VMKERNEL || defined VMKBOOT
+#if !defined CEIL
 # define CEIL(_a, _b)        CEILING(_a, _b)
+#endif
+#if !defined FLOOR
 # define FLOOR(_a, _b)       ((_a)/(_b))
+#endif
+#if !defined ALIGN_DOWN
 # define ALIGN_DOWN(_a, _b)  ROUNDDOWN(_a, _b)
+#endif
+#if !defined(ALIGN_UP)
 # define ALIGN_UP(_a, _b)    ROUNDUP(_a, _b)
+#endif
+#if !defined(IS_ALIGNED)
 # define IS_ALIGNED(_a, _b)  (ALIGN_DOWN(_a, _b) == _a)
 #endif
 
