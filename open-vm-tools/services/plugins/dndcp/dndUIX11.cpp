@@ -57,9 +57,7 @@ extern "C" {
 #include "rpcout.h"
 }
 
-#ifdef USE_UINPUT
 #include "fakeMouseWayland/fakeMouseWayland.h"
-#endif
 #include "dnd.h"
 #include "dndMsg.h"
 #include "hostinfo.h"
@@ -124,17 +122,18 @@ DnDUIX11::DnDUIX11(ToolsAppCtx *ctx)
     */
    OnWorkAreaChanged(Gdk::Screen::get_default());
 
-#ifdef USE_UINPUT
    //Initialize the uinput device if available
    if (ctx->uinputFD != -1) {
-      Screen * scrn = DefaultScreenOfDisplay(XOpenDisplay(NULL));
+      Display *display = XOpenDisplay(NULL);
+      Screen * scrn = DefaultScreenOfDisplay(display);
       if (FakeMouse_Init(ctx->uinputFD, scrn->width, scrn->height)) {
          mUseUInput = true;
          mScreenWidth = scrn->width;
          mScreenHeight = scrn->height;
       }
+      // Disconnect the connection to X Server.
+      XCloseDisplay(display);
    }
-#endif
 
    g_debug("%s: Use UInput? %d.\n", __FUNCTION__, mUseUInput);
 }
@@ -393,13 +392,13 @@ DnDUIX11::OnSrcDragBegin(const CPClipboard *clip,       // IN
    CPClipboard_Clear(&mClipboard);
    CPClipboard_Copy(&mClipboard, clip);
 
-#ifdef USE_UINPUT
    if (mUseUInput) {
       /*
        * Check if the screen size changes, if so then update the
        * uinput device.
        */
-      Screen * scrn = DefaultScreenOfDisplay(XOpenDisplay(NULL));
+      Display *display = XOpenDisplay(NULL);
+      Screen * scrn = DefaultScreenOfDisplay(display);
       if (   (scrn->width != mScreenWidth)
           || (scrn->height != mScreenHeight)) {
          g_debug("%s: Update uinput device. prew:%d, preh:%d, w:%d, h:%d\n",
@@ -412,8 +411,9 @@ DnDUIX11::OnSrcDragBegin(const CPClipboard *clip,       // IN
          mScreenHeight = scrn->height;
          FakeMouse_Update(mScreenWidth, mScreenHeight);
       }
+      // Disconnect the connection to X Server.
+      XCloseDisplay(display);
    }
-#endif
 
    /*
     * Before the DnD, we should make sure that the mouse is released
@@ -1956,10 +1956,8 @@ DnDUIX11::SendFakeXEvents(
     * happen more reliably on KDE, but isn't necessary on GNOME.
     */
    if (mUseUInput) {
-#ifdef USE_UINPUT
       FakeMouse_Move(x, y);
       FakeMouse_Move(x + 1, y + 1);
-#endif
    } else {
       XTestFakeMotionEvent(dndXDisplay, -1, x, y, CurrentTime);
       XTestFakeMotionEvent(dndXDisplay, -1, x + 1, y + 1, CurrentTime);
@@ -1970,45 +1968,43 @@ DnDUIX11::SendFakeXEvents(
       g_debug("%s: faking left mouse button %s\n", __FUNCTION__,
               buttonPress ? "press" : "release");
       if (mUseUInput) {
-#ifdef USE_UINPUT
          FakeMouse_Click(buttonPress);
-#endif
       } else {
          XTestFakeButtonEvent(dndXDisplay, 1, buttonPress, CurrentTime);
          XSync(dndXDisplay, False);
-      }
 
-      if (!buttonPress) {
-         /*
-          * The button release simulation may be failed with some distributions
-          * like Ubuntu 10.4 and RHEL 6 for guest->host DnD. So first query
-          * mouse button status. If some button is still down, we will try
-          * mouse device level event simulation. For details please refer
-          * to bug 552807.
-          */
-         if (!XQueryPointer(dndXDisplay, rootWnd, &rootReturn, &childReturn,
-                            &rootXReturn, &rootYReturn, &winXReturn,
-                            &winYReturn, &maskReturn)) {
-            Warning("%s: XQueryPointer returned False.\n", __FUNCTION__);
-            goto exit;
-         }
+         if (!buttonPress) {
+            /*
+             * The button release simulation may be failed with some distributions
+             * like Ubuntu 10.4 and RHEL 6 for guest->host DnD. So first query
+             * mouse button status. If some button is still down, we will try
+             * mouse device level event simulation. For details please refer
+             * to bug 552807.
+             */
+            if (!XQueryPointer(dndXDisplay, rootWnd, &rootReturn, &childReturn,
+                               &rootXReturn, &rootYReturn, &winXReturn,
+                               &winYReturn, &maskReturn)) {
+               Warning("%s: XQueryPointer returned False.\n", __FUNCTION__);
+               goto exit;
+            }
 
-         if (   (maskReturn & Button1Mask)
-             || (maskReturn & Button2Mask)
-             || (maskReturn & Button3Mask)
-             || (maskReturn & Button4Mask)
-             || (maskReturn & Button5Mask)) {
-            Debug("%s: XTestFakeButtonEvent was not working for button "
-                  "release, trying XTestFakeDeviceButtonEvent now.\n",
-                  __FUNCTION__);
-            ret = TryXTestFakeDeviceButtonEvent();
+            if (   (maskReturn & Button1Mask)
+                || (maskReturn & Button2Mask)
+                || (maskReturn & Button3Mask)
+                || (maskReturn & Button4Mask)
+                || (maskReturn & Button5Mask)) {
+               Debug("%s: XTestFakeButtonEvent was not working for button "
+                     "release, trying XTestFakeDeviceButtonEvent now.\n",
+                     __FUNCTION__);
+               ret = TryXTestFakeDeviceButtonEvent();
+            } else {
+               g_debug("%s: XTestFakeButtonEvent was working for button release.\n",
+                       __FUNCTION__);
+               ret = true;
+            }
          } else {
-            g_debug("%s: XTestFakeButtonEvent was working for button release.\n",
-                    __FUNCTION__);
             ret = true;
          }
-      } else {
-         ret = true;
       }
    }
 
