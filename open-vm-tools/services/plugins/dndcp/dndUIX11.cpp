@@ -57,7 +57,9 @@ extern "C" {
 #include "rpcout.h"
 }
 
+#ifdef USE_UINPUT
 #include "fakeMouseWayland/fakeMouseWayland.h"
+#endif
 #include "dnd.h"
 #include "dndMsg.h"
 #include "hostinfo.h"
@@ -122,6 +124,7 @@ DnDUIX11::DnDUIX11(ToolsAppCtx *ctx)
     */
    OnWorkAreaChanged(Gdk::Screen::get_default());
 
+#ifdef USE_UINPUT
    //Initialize the uinput device if available
    if (ctx->uinputFD != -1) {
       Display *display = XOpenDisplay(NULL);
@@ -134,6 +137,7 @@ DnDUIX11::DnDUIX11(ToolsAppCtx *ctx)
       // Disconnect the connection to X Server.
       XCloseDisplay(display);
    }
+#endif
 
    g_debug("%s: Use UInput? %d.\n", __FUNCTION__, mUseUInput);
 }
@@ -392,6 +396,7 @@ DnDUIX11::OnSrcDragBegin(const CPClipboard *clip,       // IN
    CPClipboard_Clear(&mClipboard);
    CPClipboard_Copy(&mClipboard, clip);
 
+#ifdef USE_UINPUT
    if (mUseUInput) {
       /*
        * Check if the screen size changes, if so then update the
@@ -414,6 +419,7 @@ DnDUIX11::OnSrcDragBegin(const CPClipboard *clip,       // IN
       // Disconnect the connection to X Server.
       XCloseDisplay(display);
    }
+#endif
 
    /*
     * Before the DnD, we should make sure that the mouse is released
@@ -1956,8 +1962,10 @@ DnDUIX11::SendFakeXEvents(
     * happen more reliably on KDE, but isn't necessary on GNOME.
     */
    if (mUseUInput) {
+#ifdef USE_UINPUT
       FakeMouse_Move(x, y);
       FakeMouse_Move(x + 1, y + 1);
+#endif
    } else {
       XTestFakeMotionEvent(dndXDisplay, -1, x, y, CurrentTime);
       XTestFakeMotionEvent(dndXDisplay, -1, x + 1, y + 1, CurrentTime);
@@ -1968,7 +1976,9 @@ DnDUIX11::SendFakeXEvents(
       g_debug("%s: faking left mouse button %s\n", __FUNCTION__,
               buttonPress ? "press" : "release");
       if (mUseUInput) {
+#ifdef USE_UINPUT
          FakeMouse_Click(buttonPress);
+#endif
       } else {
          XTestFakeButtonEvent(dndXDisplay, 1, buttonPress, CurrentTime);
          XSync(dndXDisplay, False);
