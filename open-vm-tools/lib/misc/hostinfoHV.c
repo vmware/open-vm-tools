@@ -39,6 +39,11 @@
 #  include "acpi_table_defs.h"
 #endif
 
+#if defined __aarch64__ && defined _WIN32
+#  include "sysinfoapi.h"
+#  include "acpi_table_defs.h"
+#endif
+
 #include "hostinfo.h"
 #include "util.h"
 
@@ -185,6 +190,60 @@ Hostinfo_HypervisorPresent(void)
 #endif
 
 
+#if defined(__aarch64__) && (defined(__linux__) || defined(_WIN32))
+char *
+Hostinfo_HypervisorACPISig(void)
+{
+   char *name = NULL;
+   ACPITableFADT buf;
+#if defined(__linux__)
+   unsigned int ret;
+   FILE *f;
+#else
+   UINT ret;
+#endif
+
+#define ACPI_FACP_V6_SIZE (offsetof(ACPITableFADT, hypervisorVendor) + \
+                           sizeof(uint64))
+
+#if defined(__linux__)
+#define ACPI_FACP_TABLE_PATH "/sys/firmware/acpi/tables/FACP"
+   f = fopen(ACPI_FACP_TABLE_PATH, "r");
+   if (f == NULL) {
+      Log(LGPFX" %s: Unable to open " ACPI_FACP_TABLE_PATH " reason (%s) \n",
+          __FUNCTION__, strerror(errno));
+      return NULL;
+   }
+   ret = fread(&buf, 1, sizeof(buf), f);
+   fclose(f);
+#else
+   ret = GetSystemFirmwareTable('ACPI', 'PCAF', (PVOID)&buf, sizeof(buf));
+#endif
+
+   if (ret >= ACPI_FACP_V6_SIZE) {
+      if (buf.header.length < ACPI_FACP_V6_SIZE) {
+         Log(LGPFX" %s: Buffer is malformed. Len = %d size %d .\n",
+             __FUNCTION__, buf.header.length, ret);
+         return NULL;
+      }
+
+      if (buf.header.revision < 6) {
+         Log(LGPFX" %s: hypervisorVendor field not available.\n", __FUNCTION__);
+         return NULL;
+      }
+
+      name = Util_SafeMalloc(9);
+      strncpy(name, (char *)&buf.hypervisorVendor, 8);
+      name[8] = '\0';
+   } else {
+      Log(LGPFX" %s: Missing some data size = %d expected %ld.\n",
+          __FUNCTION__, ret, sizeof buf);
+   }
+   return name;
+}
+#endif
+
+
 /*
  *----------------------------------------------------------------------
  *
@@ -226,43 +285,8 @@ Hostinfo_HypervisorCPUIDSig(void)
    name[2] = regs.edx;
    name[3] = 0;
    return (char *)name;
-#elif defined(__aarch64__) && defined(__linux__)
-   char *name = NULL;
-   unsigned int ret;
-   ACPITableFADT buf;
-   FILE *f;
-
-#define ACPI_FACP_TABLE_PATH "/sys/firmware/acpi/tables/FACP"
-#define ACPI_FACP_V6_SIZE (offsetof(ACPITableFADT, hypervisorVendor) + \
-                           sizeof(uint64))
-   f = fopen(ACPI_FACP_TABLE_PATH, "r");
-   if (f == NULL) {
-      Log(LGPFX" %s: Unable to open " ACPI_FACP_TABLE_PATH " reason (%s) \n",
-          __FUNCTION__, strerror(errno));
-      return NULL;
-   }
-   ret = fread(&buf, 1, sizeof(buf), f);
-   fclose(f);
-   if (ret >= ACPI_FACP_V6_SIZE) {
-      if (buf.header.length < ACPI_FACP_V6_SIZE) {
-         Log(LGPFX" %s: Buffer is malformed. Len = %d size %d .\n",
-             __FUNCTION__, buf.header.length, ret);
-         return NULL;
-      }
-
-      if (buf.header.revision < 6) {
-         Log(LGPFX" %s: hypervisorVendor field not available.\n", __FUNCTION__);
-         return NULL;
-      }
-
-      name = Util_SafeMalloc(9);
-      strncpy(name, (char *)&buf.hypervisorVendor, 8);
-      name[8] = '\0';
-   } else {
-      Log(LGPFX" %s: Missing some data size = %d expected %ld.\n",
-          __FUNCTION__, ret, sizeof buf);
-   }
-   return name;
+#elif defined(__aarch64__) && (defined(__linux__) || defined(_WIN32))
+   return Hostinfo_HypervisorACPISig();
 #else
    return NULL;
 #endif
