@@ -101,6 +101,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define ALLWINNET64           BS(WINNET_64)
 #define ALLWINNET             ALLWINNET32, ALLWINNET64
 
+// Windows Server 2008
 #define ALLWINLONGHORN32      BS(LONGHORN)
 #define ALLWINLONGHORN64      BS(LONGHORN_64)
 #define ALLWINLONGHORN        ALLWINLONGHORN32, ALLWINLONGHORN64
@@ -569,7 +570,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 /* Windows Server 2012 */
 
-#define STR_OS_WIN_EIGHTSERVER_X64 STR_OS_WINDOWS "8srv" STR_OS_64BIT_SUFFIX 
+#define STR_OS_WIN_EIGHTSERVER_X64 STR_OS_WINDOWS "8srv" STR_OS_64BIT_SUFFIX
 
 #define STR_OS_WIN_2012_FOUNDATION_FULL      "Windows Server 2012%s Foundation Edition"
 #define STR_OS_WIN_2012_ESSENTIALS_FULL      "Windows Server 2012%s Essentials Edition"
