@@ -141,10 +141,10 @@ private:
    std::vector<Gtk::TargetEntry> mListTargets;
    GdkAtom mGHSelection;
    bool mIsClipboardOwner;
+#endif
    uint64 mClipTime;
    uint64 mPrimTime;
    uint64 mLastTimestamp;
-#endif
    CPClipboard mClipboard;
    ThreadParams mThreadParams;
    pthread_t mThread;
