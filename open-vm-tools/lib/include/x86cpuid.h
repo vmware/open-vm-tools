@@ -600,7 +600,7 @@ FLAG(   7,  0, EDX, 29,  1, ARCH_CAPABILITIES,                   ANY,   9 ) \
 FLAG(   7,  0, EDX, 30,  1, CORE_CAPABILITIES,                   NO,    0 ) \
 FLAG(   7,  0, EDX, 31,  1, SSBD,                                YES,   9 ) \
 FLAG(   7,  1, EAX,  0,  1, SHA512,                              YES, FUT ) \
-FLAG(   7,  1, EAX,  1,  1, SM3,                                 NO,    0 ) \
+FLAG(   7,  1, EAX,  1,  1, SM3,                                 YES, FUT ) \
 FLAG(   7,  1, EAX,  2,  1, SM4,                                 NO,    0 ) \
 FLAG(   7,  1, EAX,  3,  1, RAO_INT,                             NO,    0 ) \
 FLAG(   7,  1, EAX,  4,  1, AVX_VNNI,                            YES,  20 ) \
