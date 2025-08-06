@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2011-2019,2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2011-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -149,6 +150,9 @@ VGAuthError VGAuth_RevokeTicket(VGAuthContext *ctx,
 
 
 /* Name/Password authentication APIs */
+
+#define  VGAUTH_PARAM_REQUIRE_RDP_ACCESS_WITH_NETWORK_LOGON \
+         "requireRDPAccessWithNetworkLogon"
 
 /*
  * If the password is valid for userName, returns a VGAuthUserHandle.

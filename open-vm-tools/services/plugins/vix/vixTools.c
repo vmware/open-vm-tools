@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2007-2024 Broadcom. All Rights Reserved.
+ * Copyright (c) 2007-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -221,6 +221,20 @@ static VGAuthUserHandle *currentUserHandle = NULL;
 
 #define USE_REMOTE_THREAD_PROCESS_COMMAND_LINE_DEFAULT FALSE
 #define USE_WMI_PROCESS_COMMAND_LINE_DEFAULT FALSE
+
+
+/*
+ * For extra security, a tools.conf setting can be set to require that guest
+ * ops requests that gain access to the system through a network logon require
+ * that the requesting user have RDP access.  By default this is not required.
+ *
+ * Note RDP access is never required for a guest ops request that gains access
+ * via a batch or interactive logon.
+ */
+#define VIXTOOLS_CONFIG_REQUIRE_RDP_WITH_NETWORK_LOGON  \
+      "requireRDPAccessWithNetworkLogon"
+
+#define VIXTOOLS_CONFIG_REQUIRE_RDP_WITH_NETWORK_LOGON_DEFAULT FALSE
 
 #endif
 
@@ -11750,7 +11764,7 @@ GuestAuthEnabled(void)
  *      the GuestAuth library.
  *
  * Results:
- *      VIX_OK if successful.Other VixError code otherwise.
+ *      VIX_OK if successful, otherwise some other VixError code.
  *
  * Side effects:
  *      Current process impersonates.
@@ -11774,10 +11788,6 @@ GuestAuthPasswordAuthenticateImpersonate(
    VGAuthExtraParams extraParams[1];
    Bool impersonated = FALSE;
 
-   extraParams[0].name = VGAUTH_PARAM_LOAD_USER_PROFILE;
-   extraParams[0].value = loadUserProfile ? VGAUTH_PARAM_VALUE_TRUE :
-                                            VGAUTH_PARAM_VALUE_FALSE;
-
    err = VixMsg_DeObfuscateNamePassword(obfuscatedNamePassword,
                                         &username,
                                         &password);
@@ -11793,13 +11803,33 @@ GuestAuthPasswordAuthenticateImpersonate(
       goto done;
    }
 
+#if defined(_WIN32)
+   extraParams[0].name = VGAUTH_PARAM_REQUIRE_RDP_ACCESS_WITH_NETWORK_LOGON;
+   extraParams[0].value =
+      VMTools_ConfigGetBoolean(gConfDictRef,
+                               VIX_TOOLS_CONFIG_API_GROUPNAME,
+                               VIXTOOLS_CONFIG_REQUIRE_RDP_WITH_NETWORK_LOGON,
+                               VIXTOOLS_CONFIG_REQUIRE_RDP_WITH_NETWORK_LOGON_DEFAULT) ?
+      VGAUTH_PARAM_VALUE_TRUE : VGAUTH_PARAM_VALUE_FALSE;
+      
+#endif
+
    vgErr = VGAuth_ValidateUsernamePassword(ctx, username, password,
+#if defined(_WIN32)
+                                           (int)ARRAYSIZE(extraParams),
+                                           extraParams,
+#else
                                            0, NULL,
+#endif
                                            &newHandle);
    if (VGAUTH_FAILED(vgErr)) {
       err = VixToolsTranslateVGAuthError(vgErr);
       goto done;
    }
+
+   extraParams[0].name = VGAUTH_PARAM_LOAD_USER_PROFILE;
+   extraParams[0].value = loadUserProfile ? VGAUTH_PARAM_VALUE_TRUE :
+                                            VGAUTH_PARAM_VALUE_FALSE;
 
    vgErr = VGAuth_Impersonate(ctx, newHandle,
                               (int)ARRAYSIZE(extraParams),
@@ -11859,7 +11889,7 @@ done:
  *      the GuestAuth library.
  *
  * Results:
- *      VIX_OK if successful.  Other VixError code otherwise.
+ *      VIX_OK if successful, otherwise some other VixError code.
  *
  * Side effects:
  *      Current process impersonates.

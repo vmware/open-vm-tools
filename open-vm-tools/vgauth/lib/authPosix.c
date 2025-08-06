@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2011-2017, 2019, 2021 VMware, Inc. All rights reserved.
+ * Copyright (c) 2011-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -240,11 +241,15 @@ static struct pam_conv PAM_conversation = {
  *
  * Validates a username/password.
  *
- * @param[in]  ctx        The VGAuthContext.
- * @param[in]  userName   The username to be validated.
- * @param[in]  password   The password to be validated.
- * @param[out] handle     The resulting handle representing the user
- *                        associated with the username.
+ * @param[in]  ctx            The VGAuthContext.
+ * @param[in]  userName       The username to be validated.
+ * @param[in]  password       The password to be validated.
+ * @param[in]  numExtraParams The number of elements in extraParams.
+ * @param[in]  extraParams    Any optional, additional paramaters to the
+ *                            function. Currently none are supported, so this
+ *                            must be NULL.
+ * @param[out] handle         The resulting handle representing the user
+ *                            associated with the username.
  *
  * @return VGAUTH_E_OK on success, VGAuthError on failure
  *
@@ -255,6 +260,8 @@ VGAuthError
 VGAuthValidateUsernamePasswordImpl(VGAuthContext *ctx,
                                    const char *userName,
                                    const char *password,
+                                   const int numExtraParams,
+                                   const VGAuthExtraParams *extraParams,
                                    VGAuthUserHandle **handle)
 {
 #ifdef USE_PAM
@@ -265,6 +272,11 @@ VGAuthValidateUsernamePasswordImpl(VGAuthContext *ctx,
 #else
    struct passwd *pwd;
 #endif
+
+   err = VGAuthValidateExtraParams(numExtraParams, extraParams);
+   if (VGAUTH_E_OK != err) {
+      return err;
+   }
 
 #ifdef USE_PAM
    if (!AuthLoadPAM()) {

@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2011-2017,2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2011-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -543,8 +544,7 @@ done:
  * @param[in]  password       The password to be validated.
  * @param[in]  numExtraParams The number of elements in extraParams.
  * @param[in]  extraParams    Any optional, additional paramaters to the
- *                            function. Currently none are supported, so this
- *                            must be NULL.
+ *                            function.
  * @param[out] handle         The resulting handle representing the user
  *                            associated with @a userName.
  *                            Must be freed with VGAuth_UserHandleFree().
@@ -560,7 +560,7 @@ VGAuthError
 VGAuth_ValidateUsernamePassword(VGAuthContext *ctx,
                                 const char *userName,
                                 const char *password,
-                                int numExtraParams,
+                                const int numExtraParams,
                                 const VGAuthExtraParams *extraParams,
                                 VGAuthUserHandle **handle)
 {
@@ -587,14 +587,15 @@ VGAuth_ValidateUsernamePassword(VGAuthContext *ctx,
       return VGAUTH_E_INVALID_ARGUMENT;
    }
 
-   err = VGAuthValidateExtraParams(numExtraParams, extraParams);
-   if (VGAUTH_E_OK != err) {
-      return err;
-   }
-
+   /*
+    * numExtraParams and extraParams need to be validated before use.  No need
+    * to validate them here since they're just passed through.
+    */
    err = VGAuthValidateUsernamePasswordImpl(ctx,
                                             userName,
                                             password,
+                                            numExtraParams,
+                                            extraParams,
                                             handle);
 
    if (VGAUTH_E_OK == err) {
