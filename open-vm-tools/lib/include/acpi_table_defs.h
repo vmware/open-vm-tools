@@ -289,6 +289,9 @@ typedef struct {
 #define MADT_GIC_PMU_EDGE  (1 << 1)
 #define MADT_GIC_VGIC_EDGE (1 << 2)
 
+#define MADT_GIC_LENGTH_ACPI_5_1    76
+#define MADT_GIC_LENGTH_ACPI_6_0    80
+
 #pragma pack(push, 1)
 typedef struct {
    ACPIDTEntryHeader header;
@@ -305,6 +308,7 @@ typedef struct {
    uint32            gichGsiv;      // GSIV for GICH maintenance interrupt
    uint64            gicrBase;      // GICv3 and later.
    uint64            mpidr;         // Actual MPIDR value
+   uint8             efficiency;    // Processor power efficiency class [6.0]
 } ACPIMADTGIC;
 #pragma pack(pop)
 
