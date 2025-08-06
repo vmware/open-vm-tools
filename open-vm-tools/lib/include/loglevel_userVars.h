@@ -50,7 +50,6 @@
    LOGLEVEL_VAR(backdoor), \
    LOGLEVEL_VAR(barrier), \
    LOGLEVEL_VAR(battery), \
-   LOGLEVEL_VAR(blit), /* lib/blit */ \
    LOGLEVEL_VAR(brtalk), \
    LOGLEVEL_VAR(buslogic), \
    LOGLEVEL_VAR(buslogicMdev), \
