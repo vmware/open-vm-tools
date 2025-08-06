@@ -299,7 +299,6 @@
    LOGLEVEL_VAR(vmIPC), \
    LOGLEVEL_VAR(vmkcfg), \
    LOGLEVEL_VAR(vmkEvent), \
-   LOGLEVEL_VAR(vmkmgmtlib), \
    LOGLEVEL_VAR(vmLock), \
    LOGLEVEL_VAR(vmmouse), \
    LOGLEVEL_VAR(vmname),  /* lib/vmname */ \
