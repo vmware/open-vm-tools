@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2007-2024 Broadcom. All Rights Reserved.
+ * Copyright (c) 2007-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -2641,6 +2641,65 @@ VixToolsTranslateVGAuthError(VGAuthError vgErr)
 
 
    return err;
+}
+#endif
+
+
+#if defined(_WIN32)
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixTools_ConfigGetString --
+ *
+ *    Wrapper for VMTools_ConfigGetString to retrieve values
+ *    from VIX_TOOLS_CONFIG_API_GROUPNAME group.
+ *
+ * Return value:
+ *    Value of the key if the value was read successfully, or else
+ *    a copy of defValue unless defValue is NULL, in which case it's NULL.
+ *    The returned string should be freed with g_free when no longer
+ *    needed.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+gchar *
+VixTools_ConfigGetString(const gchar *key,         // IN
+                         const gchar *defValue)    // In
+{
+
+   return VMTools_ConfigGetString(gConfDictRef,
+                                  VIX_TOOLS_CONFIG_API_GROUPNAME,
+                                  key, defValue);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixTools_ConfigLogInvalidString --
+ *
+ *    Log a warning when a config string from the
+ *    VIX_TOOLS_CONFIG_API_GROUPNAME group has an invalid value.
+ *
+ * Return value:
+ *    None
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+void
+VixTools_ConfigLogInvalidString(const gchar *function,    // IN
+                                const gchar *key,         // IN
+                                const gchar *confValue,   // IN
+                                const gchar *usedValue)   // IN
+{
+   g_warning("%s: invalid value '%s' from tools.conf [%s] %s, using %s.\n",
+             function, confValue, VIX_TOOLS_CONFIG_API_GROUPNAME, key, usedValue);
 }
 #endif
 
@@ -11750,7 +11809,7 @@ GuestAuthEnabled(void)
  *      the GuestAuth library.
  *
  * Results:
- *      VIX_OK if successful.Other VixError code otherwise.
+ *      VIX_OK if successful, otherwise some other VixError code.
  *
  * Side effects:
  *      Current process impersonates.
@@ -11774,10 +11833,6 @@ GuestAuthPasswordAuthenticateImpersonate(
    VGAuthExtraParams extraParams[1];
    Bool impersonated = FALSE;
 
-   extraParams[0].name = VGAUTH_PARAM_LOAD_USER_PROFILE;
-   extraParams[0].value = loadUserProfile ? VGAUTH_PARAM_VALUE_TRUE :
-                                            VGAUTH_PARAM_VALUE_FALSE;
-
    err = VixMsg_DeObfuscateNamePassword(obfuscatedNamePassword,
                                         &username,
                                         &password);
@@ -11793,13 +11848,21 @@ GuestAuthPasswordAuthenticateImpersonate(
       goto done;
    }
 
+#ifdef _WIN32
+   vgErr = VGAuth_ValidateUsernamePassword_Helper(ctx, username, password,
+                                                  &newHandle);
+#else
    vgErr = VGAuth_ValidateUsernamePassword(ctx, username, password,
-                                           0, NULL,
-                                           &newHandle);
+                                           0, NULL, &newHandle);
+#endif
    if (VGAUTH_FAILED(vgErr)) {
       err = VixToolsTranslateVGAuthError(vgErr);
       goto done;
    }
+
+   extraParams[0].name = VGAUTH_PARAM_LOAD_USER_PROFILE;
+   extraParams[0].value = loadUserProfile ? VGAUTH_PARAM_VALUE_TRUE :
+                                            VGAUTH_PARAM_VALUE_FALSE;
 
    vgErr = VGAuth_Impersonate(ctx, newHandle,
                               (int)ARRAYSIZE(extraParams),
@@ -11859,7 +11922,7 @@ done:
  *      the GuestAuth library.
  *
  * Results:
- *      VIX_OK if successful.  Other VixError code otherwise.
+ *      VIX_OK if successful, otherwise some other VixError code.
  *
  * Side effects:
  *      Current process impersonates.

@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2011-2017, 2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2011-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -160,6 +161,74 @@ VGAuthGetBoolExtraParamImpl(const char *funcName,
       }
    }
 
+   return VGAUTH_E_OK;
+}
+
+
+/*
+ ******************************************************************************
+ * VGAuthGetStringExtraParamImpl --                                      */ /**
+ *
+ * Get the string value of the specified extra param in the params array.
+ *
+ * @param[in]  funcName    The name of the calling function.
+ * @param[in]  numParams   The number of elements in the params array.
+ * @param[in]  params      The params array to get param value from.
+ * @param[in]  paramName   The param name to get its value.
+ * @param[in]  defValue    The param default value if not set in the array.
+ * @param[out] paramValue  Returned param value
+ *
+ * @retval VGAUTH_E_INVALID_ARGUMENT If incomplete arguments are passed in,
+ *                                   the specified extra parameter is passed
+ *                                   in the array multiple times or the
+ *                                   parameter value is invalid.
+ * @reval VGAUTH_E_OK If no error is encountered.
+ *
+ ******************************************************************************
+ */
+
+VGAuthError
+VGAuthGetStringExtraParamImpl(const char *funcName,
+                              int numParams,
+                              const VGAuthExtraParams *params,
+                              const char *paramName,
+                              const char *defValue,
+                              const char **paramValue)
+{
+   gboolean paramSet = FALSE;
+   int i;
+
+   if ((numParams < 0) || (numParams > 0 && NULL == params)) {
+      Warning("%s: invalid number of parameters: %d.\n", funcName, numParams);
+      return VGAUTH_E_INVALID_ARGUMENT;
+   }
+
+   if (NULL == paramName || NULL == paramValue) {
+      return VGAUTH_E_INVALID_ARGUMENT;
+   }
+
+   for (i = 0; i < numParams; i++) {
+      if (g_strcmp0(params[i].name, paramName) == 0) {
+         // only allow it to be set once
+         if (paramSet) {
+            Warning("%s: extraParam '%s' passed multiple times.\n",
+                    funcName, params[i].name);
+            return VGAUTH_E_INVALID_ARGUMENT;
+         }
+         if (params[i].value) {
+            *paramValue = params[i].value;
+            paramSet = TRUE;
+         } else {
+            Warning("%s: extraParam '%s' has NULL value.\n",
+                    funcName, params[i].name);
+            return VGAUTH_E_INVALID_ARGUMENT;
+         }
+      }
+   }
+
+   if (!paramSet) {
+      *paramValue = defValue;
+   }
    return VGAUTH_E_OK;
 }
 

@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2011-2017,2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2011-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -28,6 +29,9 @@
 #include "VGAuthBasicDefs.h"
 #include "VGAuthCommon.h"
 #include "VGAuthAuthentication.h"
+#ifdef _WIN32
+#include "VGAuthAuthenticationWin32.h"
+#endif
 #include "VGAuthAlias.h"
 #include "audit.h"
 #include "prefs.h"
@@ -287,6 +291,9 @@ VGAuthError VGAuth_NetworkReadBytes(VGAuthContext *ctx,
 VGAuthError VGAuthValidateUsernamePasswordImpl(VGAuthContext *ctx,
                                                const char *userName,
                                                const char *password,
+                                               const int numExtraParams,
+                                               const VGAuthExtraParams
+                                                  *extraParams,
                                                VGAuthUserHandle **handle);
 
 #ifdef UNITTEST
@@ -341,6 +348,17 @@ VGAuthError VGAuthGetBoolExtraParamImpl(const char *funcName,
                                         const char *paramName,
                                         gboolean defValue,
                                         gboolean *paramValue);
+
+#define VGAuthGetStringExtraParam(numEP, ep, name, defValue, value)      \
+   VGAuthGetStringExtraParamImpl(__FUNCTION__, (numEP), ep,              \
+                                 name, defValue, (value))
+
+VGAuthError VGAuthGetStringExtraParamImpl(const char *funcName,
+                                          int numExtraParams,
+                                          const VGAuthExtraParams *params,
+                                          const char *paramName,
+                                          const char *defValue,
+                                          const char **paramValue);
 
 void VGAuth_FreeAliasInfoContents(VGAuthAliasInfo *si);
 void VGAuth_CopyAliasInfo(const VGAuthAliasInfo *src,
