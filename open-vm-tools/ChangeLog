@@ -1,3 +1,14 @@
+commit f1a61ba33b0954abb15b4d40e5743367a179c441
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Sep 29 20:32:50 2025 -0700
+
+    =================================================
+      open-vm-tools 12.5.4 released at this point.
+    =================================================
+    
+    Update of the ChangeLog with the final changes in preparation for
+    the open-vm-tools 12.5.4 release.
+
 commit 915d61cd9691df9efd784ddb0be8919afd8fdd26
 Author: Kruti Pendharkar <kp025370@broadcom.com>
 Date:   Mon Sep 29 20:27:54 2025 -0700
