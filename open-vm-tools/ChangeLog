@@ -1,3 +1,64 @@
+commit 915d61cd9691df9efd784ddb0be8919afd8fdd26
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Sep 29 20:27:54 2025 -0700
+
+    Update the ReleaseNotes.md for the 12.5.4 open-vm-tools release.
+
+commit e6ea70c61903684a49e10d1a7e33f3fb4eb93eab
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Sep 29 20:20:39 2025 -0700
+
+    Missed copyright year updates.
+
+commit 83a3cee6880ba42fa32fa0c179829ca594d194db
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Sep 29 18:13:52 2025 -0700
+
+    Prepare for the open-vm-tools 12.5.4 release.
+    
+    - Update the tools version in the configure.ac.
+    - Update the build numbers in the buldNumber.h.
+
+commit 7ed196cf01f8acd09011815a605b6733894b8aab
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Sep 29 01:02:40 2025 -0700
+
+    Address CVE-2025-41244
+     - Disable (default) the execution of the SDMP get-versions.sh script.
+    
+    With the Linux SDMP get-versions.sh script disabled, version information
+    of installed services will not be made available to VMware Aria
+
+commit 7db10109c673c1ab2582b329d2059e4b3ce644ee
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Sep 29 01:02:40 2025 -0700
+
+    Change to common source files not applicable to open-vm-tools.
+
+commit 32cc547423f7f5ba960ad281c4a1e6894c6ec74b
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Sep 29 01:02:40 2025 -0700
+
+    Set the tools version for open-vm-tools 12.5.4 EP release
+
+commit a001aca5ef58be68d910358b4bc655d59b8d4e19
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Mon Sep 29 01:02:40 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit fb2ff4d997f68e9d5b689794a67ac16b04ca8b41
+Author: John Wolfe <john.wolfe@broadcom.com>
+Date:   Thu May 15 12:16:07 2025 -0700
+
+    empty commit
+
+commit 2fd774e3747d1c483418d84db149f0f253b9c78f
+Author: John Wolfe <john.wolfe@broadcom.com>
+Date:   Mon May 12 14:25:59 2025 -0700
+
+    Update ChangeLog with the open-vm-tools 12.5.2 release marker.
+
 commit 908dbba833dd28d72b315ee9fc96f5bcd0576e41
 Author: John Wolfe <john.wolfe@broadcom.com>
 Date:   Mon May 12 13:07:33 2025 -0700
