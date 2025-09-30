@@ -1,0 +1,68 @@
+From b826db9f862778abd9129f4b9073ac48d789cc15 Mon Sep 17 00:00:00 2001
+From: Pengpeng Sun <pengpeng.sun@broadcom.com>
+Date: Wed, 27 Aug 2025 14:19:58 +0800
+Subject: [PATCH] Handle new cloud-init error code and status
+
+The cloud-init v23.4 introduced a new exit code 2 that means cloud-init
+was able to complete gracefully, however something went wrong and should
+be investigated - a recoverable error.
+
+The existing Guest OS Customization in open-vm-tools treated a non "0" 
+exit code as a failure.
+
+This change follows the backwards-compatible suggestion in
+https://cloudinit.readthedocs.io/en/latest/explanation/return_codes.html
+to check that the return code is not equal to 1.  The deployPackage
+plugin will wait for cloud-init execution as long as it's status is
+"running" before triggering a reboot.
+
+Addresses open-vm-tools issue https://github.com/vmware/open-vm-tools/issues/768
+
+The file being updated should be consider to have the copyright
+updated to:
+
+ * Copyright (c) XXXX-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
+
+The 2025 Broadcom copyright information update is not part of this
+patch set to allow the patch to be easily applied to previous
+open-vm-tools source releases.
+---
+ open-vm-tools/libDeployPkg/linuxDeployment.c | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/open-vm-tools/libDeployPkg/linuxDeployment.c b/open-vm-tools/libDeployPkg/linuxDeployment.c
+index 5e9ccfbd155..eed0bcce095 100644
+--- a/open-vm-tools/libDeployPkg/linuxDeployment.c
++++ b/open-vm-tools/libDeployPkg/linuxDeployment.c
+@@ -1302,6 +1302,7 @@ static CLOUDINIT_STATUS_CODE
+ GetCloudinitStatus() {
+    // Cloud-init execution status messages
+    static const char* NOT_RUN = "not run";
++   static const char* NOT_STARTED = "not started";
+    static const char* RUNNING = "running";
+    static const char* DONE = "done";
+    static const char* ERROR = "error";
+@@ -1315,13 +1316,16 @@ GetCloudinitStatus() {
+                                            false,
+                                            cloudinitStatusCmdOutput,
+                                            MAX_LENGTH_CLOUDINIT_STATUS);
+-   if (forkExecResult != 0) {
+-      sLog(log_info, "Unable to get cloud-init status.");
+-      return CLOUDINIT_STATUS_UNKNOWN;
++   if (forkExecResult == 1) {
++      sLog(log_info, "Cloud-init experienced unrecoverable error.");
++      return CLOUDINIT_STATUS_ERROR;
+    } else {
+       if (strstr(cloudinitStatusCmdOutput, NOT_RUN) != NULL) {
+          sLog(log_info, "Cloud-init status is '%s'.", NOT_RUN);
+          return CLOUDINIT_STATUS_NOT_RUN;
++      } else if (strstr(cloudinitStatusCmdOutput, NOT_STARTED) != NULL) {
++         sLog(log_info, "Cloud-init status is '%s'.", NOT_STARTED);
++         return CLOUDINIT_STATUS_NOT_RUN;
+       } else if (strstr(cloudinitStatusCmdOutput, RUNNING) != NULL) {
+          sLog(log_info, "Cloud-init status is '%s'.", RUNNING);
+          return CLOUDINIT_STATUS_RUNNING;
+-- 
+2.47.3
+
