@@ -203,4 +203,3 @@ private:
 };
 
 #endif // GUEST_DND_HH
-

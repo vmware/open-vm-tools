@@ -26,13 +26,7 @@
 
 #define G_LOG_DOMAIN "dndcp"
 
-#define VMTOOLS_USE_LEGACY_GTK
-
-
-#ifdef VMTOOLS_USE_LEGACY_GTK
-/* TODO: support xutils with GTK4 */
 #include "xutils/xutils.hh"
-#endif
 
 #include "dndUIX11.h"
 #include "guestDnDCPMgr.hh"
@@ -41,10 +35,7 @@
 extern "C" {
 #include <X11/extensions/XTest.h>       /* for XTest*() */
 #include <gtk/gtk.h>
-#ifdef VMTOOLS_USE_LEGACY_GTK
 #include <gdk/gdkx.h>
-#endif
-
 #include <X11/Xatom.h>
 
 #include "vmware/guestrpc/tclodefs.h"
@@ -111,10 +102,8 @@ DnDUIX11::DnDUIX11(ToolsAppCtx *ctx)
 {
    TRACE_CALL();
 
-#ifdef VMTOOLS_USE_LEGACY_GTK
    xutils::Init();
    xutils::workAreaChanged.connect(sigc::mem_fun(this, &DnDUIX11::OnWorkAreaChanged));
-#endif
 
    /*
     * XXX Hard coded use of default screen means this doesn't work in dual-
@@ -2759,7 +2748,6 @@ DnDUIX11::OnWorkAreaChanged(Glib::RefPtr<Gdk::Screen> screen)    // IN
 {
    TRACE_CALL();
 
-#ifdef VMTOOLS_USE_LEGACY_GTK
    std::vector<unsigned long> values;
    if (xutils::GetCardinalList(screen->get_root_window(), "_NET_WORKAREA", values)
        && values.size() > 0
@@ -2780,7 +2768,6 @@ DnDUIX11::OnWorkAreaChanged(Glib::RefPtr<Gdk::Screen> screen)    // IN
       mOrigin.set_x(0);
       mOrigin.set_y(0);
    }
-#endif
 
    g_debug("%s: new origin at (%d, %d)\n", __FUNCTION__, mOrigin.get_x(),
            mOrigin.get_y());

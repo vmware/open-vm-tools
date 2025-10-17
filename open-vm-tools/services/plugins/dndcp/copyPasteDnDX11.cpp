@@ -195,15 +195,14 @@ BlockService::Shutdown()
  * Constructor.
  */
 
-
-#ifdef VMTOOLS_USE_LEGACY_GTK
 CopyPasteDnDX11::CopyPasteDnDX11() :
+#ifdef VMTOOLS_USE_LEGACY_GTK
    m_main(NULL),
+#endif
    m_copyPasteUI(NULL),
    m_dndUI(NULL)
 {
 }
-#endif
 
 
 /**
@@ -233,6 +232,7 @@ CopyPasteDnDX11::Init(ToolsAppCtx *ctx)
    CopyPasteDnDWrapper *wrapper = CopyPasteDnDWrapper::GetInstance();
 
    ASSERT(ctx);
+
 
 #ifdef VMTOOLS_USE_LEGACY_GTK
    int argc = 1;
@@ -284,8 +284,6 @@ CopyPasteDnDX11::~CopyPasteDnDX11()
    CopyPaste_Unregister(gUserMainWidget);
 
    if (gUserMainWidget) {
-
-
 #ifdef VMTOOLS_USE_LEGACY_GTK
    gtk_widget_destroy(gUserMainWidget);
 #endif
@@ -353,6 +351,8 @@ CopyPasteDnDX11::RegisterDnD()
 {
    TRACE_CALL();
    CopyPasteDnDWrapper *wrapper = CopyPasteDnDWrapper::GetInstance();
+
+
 
    if (!wrapper->IsDnDEnabled()) {
       return FALSE;
@@ -434,11 +434,9 @@ CopyPasteDnDX11::UnregisterDnD()
 void
 CopyPasteDnDX11::SetDnDAllowed(bool allowed)
 {
-#ifdef VMTOOLS_USE_LEGACY_GTK
    ASSERT(m_dndUI);
    TRACE_CALL();
    m_dndUI->SetDnDAllowed(allowed);
-#endif
 }
 
 
