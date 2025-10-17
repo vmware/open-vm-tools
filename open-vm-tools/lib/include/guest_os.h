@@ -291,11 +291,11 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 #define ALLOS2                BS(OS2), ALLECOMSTATION
 
-#define ALLCRXSYS             BS(CRXSYS1_64),     BS(CRXSYS1_ARM_64), \
-                              BS(CRXSYS2_64),     BS(CRXSYS2_ARM_64)
-
-#define ALLCRX                ALLCRXSYS,                              \
+#define ALLCRXNOVMOTION       BS(CRXSYS1_64),     BS(CRXSYS1_ARM_64), \
+                              BS(CRXSYS2_64),     BS(CRXSYS2_ARM_64), \
                               BS(CRXPOD1_64),     BS(CRXPOD1_ARM_64)
+
+#define ALLCRX                ALLCRXNOVMOTION
 
 #define ALLARM                BS(WIN_10_ARM_64),        BS(WIN_11_ARM_64),       \
                               BS(WIN_12_ARM_64),                                 \
