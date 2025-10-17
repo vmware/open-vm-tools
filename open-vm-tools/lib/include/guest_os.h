@@ -268,6 +268,13 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 #define ALLLINUX              ALLLINUX32, ALLLINUX64
 
+#define ALLLINUX_SVGAVO       BS(OTHERLINUX),    BS(OTHER24XLINUX),    \
+                              ALL26XLINUX32,     ALL3XLINUX32,         \
+                              ALL4XLINUX32,      ALL5XLINUX32,         \
+                              BS(OTHERLINUX_64), BS(OTHER24XLINUX_64), \
+                              ALL26XLINUX64,     ALL3XLINUX64,         \
+                              ALL4XLINUX64,      ALL5XLINUX64
+
 #define ALLDARWIN32           BS(DARWIN9), BS(DARWIN10), BS(DARWIN11)
 
 #define ALLDARWIN64           BS(DARWIN9_64),  BS(DARWIN10_64),  \
