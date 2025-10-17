@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2011-2019,2024 Broadcom. All Rights Reserved.
+ * Copyright (c) 2010-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -448,12 +448,22 @@ MsgGetUserLanguage(void)
     * Windows implementation. Derive the ISO names from the user's current
     * locale.
     */
+   LCID locale;
+   DWORD sessionId = 0;
    wchar_t ctryName[10]; /* MSDN says: max is nine characters + terminator. */
    wchar_t langName[10]; /* MSDN says: max is nine characters + terminator. */
 
-   if (GetLocaleInfoW(LOCALE_USER_DEFAULT, LOCALE_SISO3166CTRYNAME,
+   if (ProcessIdToSessionId(GetCurrentProcessId(), &sessionId) && sessionId == 0) {
+      locale = LOCALE_SYSTEM_DEFAULT;
+      g_debug("%s: get SYSTEM default locale.\n", __FUNCTION__);
+   } else {
+      locale = LOCALE_USER_DEFAULT;
+      g_debug("%s: get USER default locale.\n", __FUNCTION__);
+   }
+
+   if (GetLocaleInfoW(locale, LOCALE_SISO3166CTRYNAME,
                       ctryName, (sizeof(ctryName)/sizeof(langName[0]))) == 0 ||
-       GetLocaleInfoW(LOCALE_USER_DEFAULT, LOCALE_SISO639LANGNAME,
+       GetLocaleInfoW(locale, LOCALE_SISO639LANGNAME,
                       langName, (sizeof(langName)/sizeof(langName[0]))) == 0) {
       g_warning("Couldn't retrieve user locale data, error = %u.", GetLastError());
       lang = g_strdup("C");
@@ -709,7 +719,7 @@ I18n_BindTextDomain(const char *domain,
     * to the installed location.
     */
 
-   g_debug("%s: user locale=%s\n", __FUNCTION__, lang);
+   g_debug("%s: using locale=%s\n", __FUNCTION__, lang);
 
    file = g_strdup_printf("%s%smessages%s%s%s%s.vmsg",
                           catdir, DIRSEPS, DIRSEPS, lang, DIRSEPS, domain);
