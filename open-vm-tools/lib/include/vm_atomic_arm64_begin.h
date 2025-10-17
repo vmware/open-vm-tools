@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2017-2018,2022 VMware, Inc. All rights reserved.
+ * Copyright (c) 2017-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -34,14 +35,6 @@
  * Atomic_LsePresent should be set to 1 for CPUs that have the LSE extenstion
  * and where the atomic instructions are known to have a performance benefit.
  * Seemingly, on some low-end chips (CA55) there may not be a benefit.
- *
- * Not every operation can be performed using a single-instruction atomic -
- * LSE doesn't cover all kinds of logical/arithmetic operations. For example,
- * there's an ldeor instruction, but not an ldorr. For cases, where there is no
- * combined instruction that atomically performs the load/store and the ALU
- * operation, we fall back to CAS or to LL/SC. On some uarches - e.g. Neoverse
- * N1 - CAS shows better behavior during heavy contention than LL/SC. LL/SC,
- * though, remains the safest option. Atomic_PreferCasForOps controls this.
  */
 
 /*
@@ -54,7 +47,6 @@ typedef struct  {
 #ifndef VMKERNEL
    Bool ProbedForLse;
 #endif
-   Bool PreferCasForOps;
 } Atomic_ConfigParams;
 
 #if defined(VMX86_SERVER) || defined(VMKBOOT)
@@ -78,48 +70,43 @@ Atomic_HaveLse(void)
     * Can't just include sys/auxv.h, unfortunately.
     */
    extern uint64 getauxval(uint64 type);
-#define _VMATOM_AT_ESXI_HWCAP                    2000
-#define _VMATOM_AT_ESXI_HWCAP_HAVE_LSE           (1 << 0)
-#define _VMATOM_AT_ESXI_HWCAP_PREFER_CAS_FOR_OPS (1 << 1)
+#define _VMATOM_AT_HWCAP                16
+#define _VMATOM_AT_HWCAP_ATOMICS        (1 << 8)
 
    if (!Atomic_Config.ProbedForLse) {
-      uint64 cap = getauxval(_VMATOM_AT_ESXI_HWCAP);
-      Atomic_Config.LsePresent = (cap &_VMATOM_AT_ESXI_HWCAP_HAVE_LSE) != 0;
-      Atomic_Config.PreferCasForOps = Atomic_Config.LsePresent &&
-         (cap & _VMATOM_AT_ESXI_HWCAP_PREFER_CAS_FOR_OPS) != 0;
+      uint64 cap = getauxval(_VMATOM_AT_HWCAP);
+      Atomic_Config.LsePresent = (cap & _VMATOM_AT_HWCAP_ATOMICS) != 0;
       SMP_W_BARRIER_W();
       Atomic_Config.ProbedForLse = TRUE;
    }
-#undef _VMATOM_AT_ESXI_HWCAP
-#undef _VMATOM_AT_ESXI_HWCAP_HAVE_LSE
-#undef _VMATOM_AT_ESXI_HWCAP_PREFER_CAS_FOR_OPS
+#undef _VMATOM_AT_HWCAP
+#undef _VMATOM_AT_HWCAP_ATOMICS
 #endif
 
    return Atomic_Config.LsePresent;
-}
-
-static INLINE Bool
-Atomic_PreferCasForOps(void) {
-   return Atomic_Config.PreferCasForOps;
 }
 #else /* !VMX86_SERVER && !VMKBOOT */
 /*
  * Not building for ESXi? Assume no LSE.
  */
-#define Atomic_PreferCasForOps() FALSE
 #define Atomic_HaveLse()         FALSE
 #endif
 #define _VMATOM_HAVE_LSE_DEFINED
 #endif /* _VMATOM_HAVE_LSE_DEFINED */
 
-#define _VMATOM_LSE_HAVE(x)  _VMATOM_LSE_HAVE_##x
-#define _VMATOM_LSE_HAVE_add 1
-#define _VMATOM_LSE_HAVE_sub 0
-#define _VMATOM_LSE_HAVE_eor 1
-#define _VMATOM_LSE_HAVE_orr 0
-#define _VMATOM_LSE_HAVE_and 0
+#define _VMATOM_LSE_OPNAME(x)   _VMATOM_LSE_OPNAME_##x
+#define _VMATOM_LSE_OPNAME_add  "add"
+#define _VMATOM_LSE_OPNAME_sub  "add"
+#define _VMATOM_LSE_OPNAME_eor  "eor"
+#define _VMATOM_LSE_OPNAME_orr  "set"
+#define _VMATOM_LSE_OPNAME_and  "clr"
 
-#define _VMATOM_PREFER_LSE(op) ((_VMATOM_LSE_HAVE(op) && Atomic_HaveLse()) || Atomic_PreferCasForOps())
+#define _VMATOM_LSE_OPMOD(x)    _VMATOM_LSE_OPMOD_##x
+#define _VMATOM_LSE_OPMOD_add
+#define _VMATOM_LSE_OPMOD_sub   -
+#define _VMATOM_LSE_OPMOD_eor
+#define _VMATOM_LSE_OPMOD_orr
+#define _VMATOM_LSE_OPMOD_and   ~
 
 /*                      bit size, instruction suffix, register prefix, extend suffix */
 #define _VMATOM_SIZE_8         8,                  b,               w,             b
@@ -215,33 +202,13 @@ Atomic_PreferCasForOps(void) {
    uint##bs _newval;                                                          \
                                                                               \
    _VMATOM_FENCE(fenced);                                                     \
-   if (_VMATOM_PREFER_LSE(op)) {                                              \
-      if (_VMATOM_LSE_HAVE(op)) {                                             \
-         __asm__ __volatile__(                                                \
-            ".arch armv8.2-a                                             \n\t"\
-            "st" #op #is" %"#rp"1, %0                                    \n\t"\
-            : "+Q" (*atm)                                                     \
-            : "r" (modval)                                                    \
-         );                                                                   \
-      } else {                                                                \
-         uint##bs _oldval;                                                    \
-         uint##bs _clobberedval;                                              \
-         __asm__ __volatile__(                                                \
-            ".arch armv8.2-a                                             \n\t"\
-            "   ldr"#is" %"#rp"1, %3                                     \n\t"\
-            "1: mov      %"#rp"0, %"#rp"1                                \n\t"\
-            "  "#op"     %"#rp"2, %"#rp"0, %"#rp"4                       \n\t"\
-            "   cas"#is" %"#rp"1, %"#rp"2, %3                            \n\t"\
-            "   cmp      %"#rp"0, %"#rp"1, uxt"#es"                      \n\t"\
-            "   b.ne     1b                                              \n\t"\
-            : "=&r" (_oldval),                                                \
-              "=&r" (_clobberedval),                                          \
-              "=&r" (_newval),                                                \
-              "+Q" (*atm)                                                     \
-            : "r" (modval)                                                    \
-            : "cc"                                                            \
-         );                                                                   \
-      }                                                                       \
+   if (Atomic_HaveLse()) {                                                    \
+      __asm__ __volatile__(                                                   \
+         ".arch armv8.2-a                                                \n\t"\
+         "st" _VMATOM_LSE_OPNAME(op) #is" %"#rp"1, %0                    \n\t"\
+         : "+Q" (*atm)                                                        \
+         : "r" (_VMATOM_LSE_OPMOD(op) modval)                                 \
+      );                                                                      \
    } else {                                                                   \
       uint32 _failed;                                                         \
       __asm__ __volatile__(                                                   \
@@ -264,33 +231,14 @@ Atomic_PreferCasForOps(void) {
    uint##bs _oldval;                                                          \
                                                                               \
    _VMATOM_FENCE(fenced);                                                     \
-   if (_VMATOM_PREFER_LSE(op)) {                                              \
-      if (_VMATOM_LSE_HAVE(op)) {                                             \
-         __asm__ __volatile__(                                                \
-            ".arch armv8.2-a                                             \n\t"\
-            "ld" #op #is" %"#rp"2, %"#rp"0, %1                           \n\t"\
-            : "=r" (_oldval),                                                 \
-              "+Q" (*atm)                                                     \
-            : "r" (modval)                                                    \
-         );                                                                   \
-      } else {                                                                \
-         uint##bs _clobberedval;                                              \
-         __asm__ __volatile__(                                                \
-            ".arch armv8.2-a                                             \n\t"\
-            "   ldr"#is"  %"#rp"1, %3                                    \n\t"\
-            "1: mov      %"#rp"0, %"#rp"1                                \n\t"\
-            "  "#op"     %"#rp"2, %"#rp"0, %"#rp"4                       \n\t"\
-            "   cas"#is" %"#rp"1, %"#rp"2, %3                            \n\t"\
-            "   cmp      %"#rp"0, %"#rp"1, uxt"#es"                      \n\t"\
-            "   b.ne     1b                                              \n\t"\
-            : "=&r" (_oldval),                                                \
-              "=&r" (_clobberedval),                                          \
-              "=&r" (_newval),                                                \
-              "+Q" (*atm)                                                     \
-            : "r" (modval)                                                    \
-            : "cc"                                                            \
-         );                                                                   \
-      }                                                                       \
+   if (Atomic_HaveLse()) {                                                    \
+      __asm__ __volatile__(                                                   \
+         ".arch armv8.2-a                                                \n\t"\
+         "ld" _VMATOM_LSE_OPNAME(op) #is" %"#rp"2, %"#rp"0, %1           \n\t"\
+         : "=r" (_oldval),                                                    \
+           "+Q" (*atm)                                                        \
+         : "r" (_VMATOM_LSE_OPMOD(op) modval)                                 \
+      );                                                                      \
    } else {                                                                   \
       uint32 _failed;                                                         \
       __asm__ __volatile__(                                                   \
