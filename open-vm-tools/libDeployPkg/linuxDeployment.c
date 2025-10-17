@@ -1315,6 +1315,7 @@ static CLOUDINIT_STATUS_CODE
 GetCloudinitStatus() {
    // Cloud-init execution status messages
    static const char* NOT_RUN = "not run";
+   static const char* NOT_STARTED = "not started";
    static const char* RUNNING = "running";
    static const char* DONE = "done";
    static const char* ERROR = "error";
@@ -1328,12 +1329,15 @@ GetCloudinitStatus() {
                                            false,
                                            cloudinitStatusCmdOutput,
                                            MAX_LENGTH_CLOUDINIT_STATUS);
-   if (forkExecResult != 0) {
-      sLog(log_info, "Unable to get cloud-init status.");
-      return CLOUDINIT_STATUS_UNKNOWN;
+   if (forkExecResult == 1) {
+      sLog(log_info, "Cloud-init experienced unrecoverable error.");
+      return CLOUDINIT_STATUS_ERROR;
    } else {
       if (strstr(cloudinitStatusCmdOutput, NOT_RUN) != NULL) {
          sLog(log_info, "Cloud-init status is '%s'.", NOT_RUN);
+         return CLOUDINIT_STATUS_NOT_RUN;
+      } else if (strstr(cloudinitStatusCmdOutput, NOT_STARTED) != NULL) {
+         sLog(log_info, "Cloud-init status is '%s'.", NOT_STARTED);
          return CLOUDINIT_STATUS_NOT_RUN;
       } else if (strstr(cloudinitStatusCmdOutput, RUNNING) != NULL) {
          sLog(log_info, "Cloud-init status is '%s'.", RUNNING);
