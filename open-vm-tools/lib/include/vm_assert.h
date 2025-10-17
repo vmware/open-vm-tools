@@ -106,7 +106,7 @@ extern "C" {
  * so it uses generic functions.
  */
 
-#if (!defined VMM && !defined GLM) ||                                   \
+#if !defined VMM ||                                                    \
     defined BINARY_CHECKER || defined COREQUERY || defined DECODER ||   \
     defined DIS16 || defined FROBOS || defined TRAPAPI_APP ||           \
     defined VMM_LINKER || defined VMSS2CORE
