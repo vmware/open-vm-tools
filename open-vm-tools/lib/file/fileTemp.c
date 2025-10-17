@@ -138,6 +138,7 @@ FileMakeTempEx2Work(const char *dir,                              // IN:
    uint32 i;
 
    int fd;
+   uint32 var = 0;
 
    ASSERT(presult != NULL);
 
@@ -152,7 +153,6 @@ FileMakeTempEx2Work(const char *dir,                              // IN:
    for (i = 0; i < (MAX_INT32 / 2); i++) {
       char *objName;
       char *pathName;
-      uint32 var = 0;
 
       /*
        * Files and directories are kept separate (odd and even respectfully).
