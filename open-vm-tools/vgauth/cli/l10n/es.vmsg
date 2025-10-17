@@ -66,14 +66,14 @@ loadfile.fail = "%1$s: No se puede leer el archivo PEM '%2$s'\n"
 
 name.any = "<CUALQUIERA>"
 
-removesubj.fail = "%1$s: No se ha podido eliminar el alias del usuario '%2$s': %3$s.\n"
+removesubj.fail = "%1$s: No se pudo quitar el alias del usuario '%2$s': %3$s.\n"
 
-removesubj.success = "%1$s: alias eliminado\n"
+removesubj.success = "%1$s: alias quitado\n"
 
 removeoptions.file = "nombre de archivo PEM"
 
 removeoptions.subject = "Tema de SAML"
-removeoptions.username = "El usuario cuyo almacén de certificados se está eliminando de"
+removeoptions.username = "El usuario cuyo almacén de certificados se va a eliminar de"
 
 removeoptions.verbose = "Operación detallada"
 
@@ -84,7 +84,7 @@ removeall.removefail = "%1$s: No se pudo eliminar el alias del usuario '%2$s', a
 removeall.success = "%1$s: se eliminaron todos los alias\n"
 
 removealloptions.subject = "Tema de SAML"
-removealloptions.username = "El usuario cuyo almacén de certificados se está eliminando de"
+removealloptions.username = "El usuario cuyo almacén de certificados se va a eliminar de"
 
 removealloptions.verbose = "Operación detallada"
 
