@@ -16,6 +16,6 @@
 #
 ##########################################################
 
-auth.password.invalid = "El nombre de usuario y la contraseña de '%1$s' no coinciden"
+auth.password.invalid = "Username and password validation failed for '%1$s': %2$s"
 auth.password.valid = "El nombre de usuario y la contraseña de '%1$s' se han validado correctamente"
 auth.sspi.badid = "Intento de autenticación utilizando un SSPI challenge ID no válido o caducado: %1$u"

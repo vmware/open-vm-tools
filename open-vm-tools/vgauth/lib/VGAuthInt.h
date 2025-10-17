@@ -29,6 +29,9 @@
 #include "VGAuthBasicDefs.h"
 #include "VGAuthCommon.h"
 #include "VGAuthAuthentication.h"
+#ifdef _WIN32
+#include "VGAuthAuthenticationWin32.h"
+#endif
 #include "VGAuthAlias.h"
 #include "audit.h"
 #include "prefs.h"
@@ -345,6 +348,17 @@ VGAuthError VGAuthGetBoolExtraParamImpl(const char *funcName,
                                         const char *paramName,
                                         gboolean defValue,
                                         gboolean *paramValue);
+
+#define VGAuthGetStringExtraParam(numEP, ep, name, defValue, value)      \
+   VGAuthGetStringExtraParamImpl(__FUNCTION__, (numEP), ep,              \
+                                 name, defValue, (value))
+
+VGAuthError VGAuthGetStringExtraParamImpl(const char *funcName,
+                                          int numExtraParams,
+                                          const VGAuthExtraParams *params,
+                                          const char *paramName,
+                                          const char *defValue,
+                                          const char **paramValue);
 
 void VGAuth_FreeAliasInfoContents(VGAuthAliasInfo *si);
 void VGAuth_CopyAliasInfo(const VGAuthAliasInfo *src,

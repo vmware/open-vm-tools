@@ -16,6 +16,6 @@
 #
 ##########################################################
 
-auth.password.invalid = "Username and password mismatch for '%1$s'"
+auth.password.invalid = "Username and password validation failed for '%1$s': %2$s"
 auth.password.valid = "Username and password successfully validated for '%1$s'"
 auth.sspi.badid = "Attempt to authenticate using an invalid or expired SSPI challenge ID: %1$u"

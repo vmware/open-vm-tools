@@ -16,6 +16,6 @@
 #
 ##########################################################
 
-auth.password.invalid = "Non-concordance du nom d'utilisateur et du mot de passe pour '%1$s'"
+auth.password.invalid = "Username and password validation failed for '%1$s': %2$s"
 auth.password.valid = "Validation réussie du nom d'utilisateur et du mot de passe pour '%1$s'"
 auth.sspi.badid = "Tentative d'authentification à l'aide d'un ID de demande SSPI non valide ou expiré : %1$u"

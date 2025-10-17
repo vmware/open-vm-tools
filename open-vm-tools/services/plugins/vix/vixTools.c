@@ -222,20 +222,6 @@ static VGAuthUserHandle *currentUserHandle = NULL;
 #define USE_REMOTE_THREAD_PROCESS_COMMAND_LINE_DEFAULT FALSE
 #define USE_WMI_PROCESS_COMMAND_LINE_DEFAULT FALSE
 
-
-/*
- * For extra security, a tools.conf setting can be set to require that guest
- * ops requests that gain access to the system through a network logon require
- * that the requesting user have RDP access.  By default this is not required.
- *
- * Note RDP access is never required for a guest ops request that gains access
- * via a batch or interactive logon.
- */
-#define VIXTOOLS_CONFIG_REQUIRE_RDP_WITH_NETWORK_LOGON  \
-      "requireRDPAccessWithNetworkLogon"
-
-#define VIXTOOLS_CONFIG_REQUIRE_RDP_WITH_NETWORK_LOGON_DEFAULT FALSE
-
 #endif
 
 /*
@@ -2655,6 +2641,65 @@ VixToolsTranslateVGAuthError(VGAuthError vgErr)
 
 
    return err;
+}
+#endif
+
+
+#if defined(_WIN32)
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixTools_ConfigGetString --
+ *
+ *    Wrapper for VMTools_ConfigGetString to retrieve values
+ *    from VIX_TOOLS_CONFIG_API_GROUPNAME group.
+ *
+ * Return value:
+ *    Value of the key if the value was read successfully, or else
+ *    a copy of defValue unless defValue is NULL, in which case it's NULL.
+ *    The returned string should be freed with g_free when no longer
+ *    needed.
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+gchar *
+VixTools_ConfigGetString(const gchar *key,         // IN
+                         const gchar *defValue)    // In
+{
+
+   return VMTools_ConfigGetString(gConfDictRef,
+                                  VIX_TOOLS_CONFIG_API_GROUPNAME,
+                                  key, defValue);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixTools_ConfigLogInvalidString --
+ *
+ *    Log a warning when a config string from the
+ *    VIX_TOOLS_CONFIG_API_GROUPNAME group has an invalid value.
+ *
+ * Return value:
+ *    None
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+void
+VixTools_ConfigLogInvalidString(const gchar *function,    // IN
+                                const gchar *key,         // IN
+                                const gchar *confValue,   // IN
+                                const gchar *usedValue)   // IN
+{
+   g_warning("%s: invalid value '%s' from tools.conf [%s] %s, using %s.\n",
+             function, confValue, VIX_TOOLS_CONFIG_API_GROUPNAME, key, usedValue);
 }
 #endif
 
@@ -11803,25 +11848,13 @@ GuestAuthPasswordAuthenticateImpersonate(
       goto done;
    }
 
-#if defined(_WIN32)
-   extraParams[0].name = VGAUTH_PARAM_REQUIRE_RDP_ACCESS_WITH_NETWORK_LOGON;
-   extraParams[0].value =
-      VMTools_ConfigGetBoolean(gConfDictRef,
-                               VIX_TOOLS_CONFIG_API_GROUPNAME,
-                               VIXTOOLS_CONFIG_REQUIRE_RDP_WITH_NETWORK_LOGON,
-                               VIXTOOLS_CONFIG_REQUIRE_RDP_WITH_NETWORK_LOGON_DEFAULT) ?
-      VGAUTH_PARAM_VALUE_TRUE : VGAUTH_PARAM_VALUE_FALSE;
-      
-#endif
-
-   vgErr = VGAuth_ValidateUsernamePassword(ctx, username, password,
-#if defined(_WIN32)
-                                           (int)ARRAYSIZE(extraParams),
-                                           extraParams,
+#ifdef _WIN32
+   vgErr = VGAuth_ValidateUsernamePassword_Helper(ctx, username, password,
+                                                  &newHandle);
 #else
-                                           0, NULL,
+   vgErr = VGAuth_ValidateUsernamePassword(ctx, username, password,
+                                           0, NULL, &newHandle);
 #endif
-                                           &newHandle);
    if (VGAUTH_FAILED(vgErr)) {
       err = VixToolsTranslateVGAuthError(vgErr);
       goto done;

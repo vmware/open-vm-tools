@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2010-2020,2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2010-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -38,6 +39,7 @@
 #include "VGAuthCommon.h"
 #include "VGAuthError.h"
 #include "VGAuthAuthentication.h"
+#include "VGAuthAuthenticationWin32.h"
 #include "VGAuthAlias.h"
 #endif
 
@@ -72,6 +74,15 @@ void VixTools_Uninitialize(void);
 
 #ifdef _WIN32
 VixError VixToolsTranslateVGAuthError(VGAuthError vgErr);
+
+gchar *VixTools_ConfigGetString(const gchar *key,
+                                 const gchar *defValue);
+
+void VixTools_ConfigLogInvalidString(const gchar *function,
+                                     const gchar *key,
+                                     const gchar *confValue,
+                                     const gchar *usedValue);
+
 #endif
 
 VixError VixToolsImpersonateUser(VixCommandRequestHeader *requestMsg,
@@ -207,6 +218,13 @@ VixError VixToolsCheckSAMLForSystem(VGAuthContext *ctx,
                                     Bool hostVerified,
                                     void **userToken,
                                     VGAuthUserHandle **curUserHandle);
+
+VGAuthError
+VGAuth_ValidateUsernamePassword_Helper(VGAuthContext *ctx,
+                                       const char *userName,
+                                       const char *password,
+                                       VGAuthUserHandle **handle);
+
 #endif // _WIN32
 
 #ifdef VMX86_DEVEL

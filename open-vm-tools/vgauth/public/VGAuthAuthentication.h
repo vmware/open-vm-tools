@@ -151,9 +151,6 @@ VGAuthError VGAuth_RevokeTicket(VGAuthContext *ctx,
 
 /* Name/Password authentication APIs */
 
-#define  VGAUTH_PARAM_REQUIRE_RDP_ACCESS_WITH_NETWORK_LOGON \
-         "requireRDPAccessWithNetworkLogon"
-
 /*
  * If the password is valid for userName, returns a VGAuthUserHandle.
  */
