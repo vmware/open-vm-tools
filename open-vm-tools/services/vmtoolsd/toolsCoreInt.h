@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2008-2021,2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2008-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -110,6 +111,7 @@ typedef struct ToolsServiceState {
 #endif
 } ToolsServiceState;
 
+G_BEGIN_DECLS
 
 gboolean
 ToolsCore_ParseCommandLine(ToolsServiceState *state,
@@ -178,6 +180,8 @@ ToolsCorePool_Init(ToolsAppCtx *ctx);
 
 void
 ToolsCorePool_Shutdown(ToolsAppCtx *ctx);
+
+G_END_DECLS
 
 #endif /* _TOOLSCOREINT_H_ */
 

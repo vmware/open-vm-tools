@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2008-2019, 2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2008-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -156,6 +157,7 @@ typedef Bool (*VmBackupCallback)(VmBackupState *);
 typedef Bool (*VmBackupProviderCallback)(VmBackupState *, void *clientData);
 typedef Bool (*VmBackupCompleterCallback)(VmBackupState *, void *clientData);
 
+G_BEGIN_DECLS
 
 /**
  * Defines the interface between the state machine and the implementation
@@ -313,6 +315,8 @@ Bool
 VmBackup_SendEventNoAbort(const char *event,
                           const uint32 code,
                           const char *desc);
+
+G_END_DECLS
 
 #endif /* _VMBACKUPINT_H_*/
 
