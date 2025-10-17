@@ -1,3 +1,245 @@
+commit cea32699cb4ceef142bb449ec5df8f909760652b
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Thu Oct 16 21:25:49 2025 -0700
+
+    Address potential guest to host escape
+    
+    The change addresses a double fetch issue that could result in stack overflow
+    or other potential security risks.
+
+commit 1d3a0aebfef410545951e6f6f49c617142755d2c
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Thu Oct 16 21:25:49 2025 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit ba883377e90c55ae6520bdc6f3d2a5c52c96d25f
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Thu Oct 16 21:25:49 2025 -0700
+
+    Change to common header files not applicable to open-vm-tools.
+
+commit 9b7648a56e3b984672065361e675076239a66a6a
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Thu Oct 16 21:25:49 2025 -0700
+
+    Address potential guest to host escape
+    
+    The change fixes potential out of bounds access in
+    `HgfsUnpackSymlinkCreatePayload` that could lead to a stack overflow
+    under certain conditions.
+
+commit efdab83797a5b8ccbb9f4de74c56969d0baffdae
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Thu Oct 16 21:25:49 2025 -0700
+
+    Change to common source files not applicable to open-vm-tools.
+
+commit 94d267f3d74adc94a088ad4563996f1698e506a5
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Thu Oct 16 21:25:49 2025 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 077842eeae892380ed4cb72fdbd5bcb7dfd00869
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Thu Oct 16 21:25:49 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit f24c4ba8403f439b64ece0bfd268c67b67bea0e3
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Thu Oct 16 21:25:49 2025 -0700
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 4b69a017362badb73b33f4799a473bc1001a9e67
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Thu Oct 16 21:25:49 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 3e68aa8735e860e7dbe9ba125c9675ed29e2756a
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Thu Oct 16 21:25:49 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 053302d5e1f722879575f531d1ac7918c06652a6
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Thu Oct 16 21:25:49 2025 -0700
+
+    Change to common source files not applicable to open-vm-tools at this time.
+
+commit b7a1b2f1958dc4418615b3271d3e9b10ece2da29
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Thu Oct 16 21:25:49 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit a7f904eef1a9a50e4e110124dff4e87a85fbbd27
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Thu Oct 16 21:25:49 2025 -0700
+
+    Localization update for open-vm-tools.
+
+commit 4a680029382a50d774343e849796ac40ffb2b56f
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Thu Oct 16 21:25:49 2025 -0700
+
+    Change to common source files not applicable to open-vm-tools at this time.
+
+commit 29e861b112e7181d9288b5a2e47c27a581683c9f
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Thu Oct 16 21:25:49 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 621f0243ccf1ad658b5eef29a4f69e6d791a2cdd
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Thu Oct 16 21:25:49 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit c690b52b3e70204853344f3b7b303c2ec1047675
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Thu Oct 16 21:25:49 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 5157f899aef66cb58ac2df8263cafc84345fb831
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Thu Oct 16 21:25:49 2025 -0700
+
+    Suppress missing_lock false positives reported by Coverity static analysis
+    
+    Issues:
+    - Accessing gHandler.wakeupFd.fd without holding lock
+      g__gLock_lock. Elsewhere, _GPollFD.fd is written to with >g__gLock_lock
+      held 1 out of 1 times.
+    
+      `ssize_t nbytes = read(gHandler.wakeupFd.fd, &info, sizeof info);`
+    
+      False positive: this is only called from the (single) polling thread.
+    
+    - Accessing gHandler.wakeupPipe without holding lock
+      g__gLock_lock. Elsewhere, SignalHandler.wakeupPipe is written >to with
+      g__gLock_lock held 1 out of 1 times.
+    
+      `bytes = write(gHandler.wakeupPipe[1], info, sizeof *info);`
+    
+      False positive: Linux signals are delivered one at a time sequentially
+      to an eligible thread in the process. While a signal handler is
+      executing, other signals, including the one being handled, are blocked
+      to prevent re-entrance issues.
+
+commit ac5a8ead723fb09e8c8034a8ec78f82c308c54f8
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Thu Oct 16 21:25:48 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 819d7eaa045943c99f9075ac2d1cf09a4214553b
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Thu Oct 16 21:25:48 2025 -0700
+
+    Handle the new cloud-init error code and status
+    
+    - A new error code[1] was introduced in cloud-init v23.4,
+      RedHat team reported that our OVT code should handle this
+      new error code properly.
+      This change follows the backwards-compatible approach as described in
+      Cloud-Init documentation[2], by checking that the return code is
+      not equal to 1.
+    - Running status has been changed from "not run" to "not started" in
+      cloud-init v24.1 (see [3]).
+      This change adds a "not started" match to CLOUDINIT_STATUS_NOT_RUN to
+      maintain compatibility.
+    
+    Addresses Issue: https://github.com/vmware/open-vm-tools/issues/768
+    
+    [1]: https://cloudinit.readthedocs.io/en/latest/explanation/failure_states.html#error-codes
+    [2]: https://cloudinit.readthedocs.io/en/latest/explanation/return_codes.html
+    [3]: https://github.com/canonical/cloud-init/commit/d175170aedc1398b85ac767573b8773a5a2e7c6f
+
+commit 1068689d61afa104e4c439bd10751d9dcf916fcd
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Thu Oct 16 21:25:48 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 9286a686cf006e2f2dc72b66d8e2b1d67632a93d
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Thu Oct 16 21:25:48 2025 -0700
+
+    Change to common source files not applicable to open-vm-tools at this time.
+
+commit 2994adf6dbf422bb8470f34a8e084eeab1589a89
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Thu Oct 16 21:25:48 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 2eded844e9b14088b304d748f2259b9cdb59ece3
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Thu Oct 16 21:25:48 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 7c5076843891bb612ec7aaf8e685b6947bc6e906
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Thu Oct 16 21:25:48 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 9f2a14ab5e15b109f53401e53f16a4f9bf33f728
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Thu Oct 16 21:25:48 2025 -0700
+
+    Address CVE-2025-41244
+     - Disable (default) the execution of the SDMP get-versions.sh script.
+    
+    With the Linux SDMP get-versions.sh script disabled, version information
+    of installed services will not be made available to VMware Aria
+
+commit d1cff43b23b59ce205fad478998d412f606d3767
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Thu Oct 16 21:25:48 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 607d1497c5ac2d8d7621270ad658a9f71a59fa58
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Thu Oct 16 21:25:48 2025 -0700
+
+    Change to common source files not applicable to open-vm-tools.
+
+commit fb1a73510794247b3a8fdace4a42a9903c298455
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Thu Oct 16 21:25:48 2025 -0700
+
+    Change to common source file not applicable to open-vm-tools at this time.
+
+commit fb345e3a1899f516907b867d350fc8048c74a6d9
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Thu Oct 16 21:25:48 2025 -0700
+
+    Set the tools version for open-vm-tools 13.0.5 release
+
+commit 1f4c2b3729b691e1da017c1573ea31f1374cca7a
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Thu Oct 16 21:25:48 2025 -0700
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 8a970ef69106ad6a239dc5f1ad6617007a1573ab
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Wed Aug 6 11:15:18 2025 -0700
+
+    Update ChangeLog with the granular push of Aug 5, 2025.
+    - plus ChangeLog update of Jul 22, 2025.
+    - Capitalise "rights reserved" in copyright header.
+
 commit b969c9de652342521503d49a998bc6fbaf3bcf01
 Author: Kruti Pendharkar <kp025370@broadcom.com>
 Date:   Wed Aug 6 00:00:16 2025 -0700
