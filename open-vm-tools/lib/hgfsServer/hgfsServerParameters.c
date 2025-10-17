@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2010-2024 Broadcom. All Rights Reserved.
+ * Copyright (c) 2010-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -4812,7 +4812,9 @@ HgfsUnpackSymlinkCreatePayload(const HgfsRequestSymlinkCreate *request, // IN: r
          const HgfsFileName *targetName =
             (const HgfsFileName *)(*srcFileName + 1 + *srcNameLength);
          prefixSize = ((char *)targetName - (char *)request) + offsetof(HgfsFileName, name);
-
+         if (prefixSize > payloadSize) {
+             return FALSE;
+         }
          return HgfsUnpackFileName(targetName,
                                    payloadSize - prefixSize,
                                    tgFileName,
@@ -4876,6 +4878,9 @@ HgfsUnpackSymlinkCreatePayloadV3(const HgfsRequestSymlinkCreateV3 *requestV3, //
          }
          prefixSize = ((char *)targetName - (char *)requestV3) +
                         offsetof(HgfsFileNameV3, name);
+         if (prefixSize > payloadSize) {
+             return FALSE;
+         }
 
          return HgfsUnpackFileNameV3(targetName,
                                      payloadSize - prefixSize,
