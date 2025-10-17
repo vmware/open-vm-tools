@@ -222,6 +222,8 @@ enum {
 #define CPUID_RDT_FEATURES           0x10
 #define CPUID_SGX_FEATURES           0x12
 #define CPUID_PT_FEATURES            0x14
+#define CPUID_TSC_NCCC_INFO          0x15
+#define CPUID_PROC_FREQ_INFO         0x16
 #define CPUID_HYPERVISOR_LEVEL_0     0x40000000
 #define CPUID_VMW_FEATURES           0x40000010
 #define CPUID_HYPERVISOR_LEVEL_MAX   0x400000FF
@@ -886,7 +888,7 @@ FIELD( 15,  0, ECX,  0, 32, CORE_CRYSTAL_CLK_FREQ,               NO,    0 ) \
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_16                                           \
 FIELD( 16,  0, EAX,  0, 16, PROC_BASE_FREQ,                      NO,    0 ) \
-FIELD( 16,  0, EBX,  0, 16, PROC_MIN_FREQ,                       NO,    0 ) \
+FIELD( 16,  0, EBX,  0, 16, PROC_MAX_FREQ,                       NO,    0 ) \
 FIELD( 16,  0, ECX,  0, 16, BUS_FREQ,                            NO,    0 ) \
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
