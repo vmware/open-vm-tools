@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2008-2016, 2018-2022 VMware, Inc. All rights reserved.
+ * Copyright (c) 2008-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -49,6 +50,7 @@
 #include "vmtoolsd_version.h"
 VM_EMBED_VERSION(VMTOOLSD_VERSION_STRING);
 #endif
+
 
 static const char *stateChgConfNames[] = {
    NULL,
@@ -311,6 +313,8 @@ PowerOpsRunScript(PowerOpState *state,
    }
 }
 
+
+
 #else
 
 /**
@@ -442,7 +446,6 @@ PowerOpsStateChange(RpcInData *data)
          const char *result;
          const char *confName;
          Bool ret;
-
          state->stateChgInProgress = stateChangeCmdTable[i].id;
 
          /* Check for the toolScripts option. */
@@ -480,7 +483,7 @@ PowerOpsStateChange(RpcInData *data)
          /* If script path is not absolute, assume the Tools install path. */
          if (!g_path_is_absolute(script)) {
             char *dfltPath;
-            char *tmp;
+            gchar *tmp;
 
             dfltPath = GuestApp_GetInstallPath();
             ASSERT(dfltPath != NULL);
