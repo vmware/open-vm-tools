@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 1998-2024 Broadcom. All Rights Reserved.
+ * Copyright (c) 1998-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -410,6 +410,7 @@ extern "C" {
    GOKM("rockylinux-64",                        rockylinux_64Guest,      TRUE) \
    GOKM("prolinux-64",                          prolinux_64Guest,        TRUE) \
    GOKM("kylinlinux-64",                        kylinlinux_64Guest,      TRUE) \
+   GOKM("flatcar-64",                           flatcar_64Guest,         TRUE) \
    GOKM("CRXPod1-64",                           crxPod1Guest,            TRUE) \
    GOKM("CRXSys1-64",                           crxSys1Guest,            TRUE) \
    /* Netware guests */ \
