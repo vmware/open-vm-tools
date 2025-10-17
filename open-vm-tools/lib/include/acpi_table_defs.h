@@ -954,5 +954,9 @@ typedef struct {
  */
 #define IORT_SIGNATURE "IORT"
 
+/*
+ * Memory-mapped Configuration Space Base Address Description Table (MCFG).
+ */
+#define MCFG_SIGNATURE "MCFG"
 
 #endif /* !_ACPI_TABLE_DEFS_H_ */
