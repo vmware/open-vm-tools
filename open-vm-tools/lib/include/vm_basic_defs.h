@@ -1089,4 +1089,21 @@ typedef int pid_t;
 #endif
 
 
+/*
+ * VMW_DECL_MIN_SIZE
+ *
+ *   Defines the minimum size of an array parameter. On capable C compilers,
+ *   this expands to the static keyword introduced in C99. Unsupported in C++.
+ *
+ *   TODO: Update the MSVC check after the following bug gets fixed:
+ *         https://developercommunity.visualstudio.com/t/c1/1475168
+ */
+#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
+    !defined(_MSC_VER)
+   #define VMW_DECL_MIN_SIZE(_sz) static _sz
+#else
+   #define VMW_DECL_MIN_SIZE(_sz)
+#endif
+
+
 #endif // ifndef _VM_BASIC_DEFS_H_
