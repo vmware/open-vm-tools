@@ -272,9 +272,9 @@ CopyPasteDnDX11::Init(ToolsAppCtx *ctx)
 CopyPasteDnDX11::~CopyPasteDnDX11()
 {
    delete m_copyPasteUI;
+   delete m_dndUI;
 
 #ifdef VMTOOLS_USE_LEGACY_GTK
-   delete m_dndUI;
    delete m_main;
 #endif
 
@@ -284,6 +284,7 @@ CopyPasteDnDX11::~CopyPasteDnDX11()
    CopyPaste_Unregister(gUserMainWidget);
 
    if (gUserMainWidget) {
+
 
 #ifdef VMTOOLS_USE_LEGACY_GTK
    gtk_widget_destroy(gUserMainWidget);
@@ -353,8 +354,6 @@ CopyPasteDnDX11::RegisterDnD()
    TRACE_CALL();
    CopyPasteDnDWrapper *wrapper = CopyPasteDnDWrapper::GetInstance();
 
-
-#ifdef VMTOOLS_USE_LEGACY_GTK
    if (!wrapper->IsDnDEnabled()) {
       return FALSE;
    }
@@ -378,10 +377,9 @@ CopyPasteDnDX11::RegisterDnD()
          }
       }
    }
-
    g_debug("%s: dnd is registered? %d\n", __FUNCTION__, (int) wrapper->IsDnDRegistered());
    return wrapper->IsDnDRegistered();
-#endif
+
 }
 
 
@@ -416,10 +414,8 @@ CopyPasteDnDX11::UnregisterDnD()
    CopyPasteDnDWrapper *wrapper = CopyPasteDnDWrapper::GetInstance();
    if (wrapper->IsDnDRegistered()) {
 
-#ifdef VMTOOLS_USE_LEGACY_GTK
       delete m_dndUI;
       m_dndUI = nullptr;
-#endif
 
       wrapper->SetDnDIsRegistered(false);
       wrapper->SetDnDVersion(-1);
@@ -497,10 +493,8 @@ CopyPasteDnDX11::DnDVersionChanged(int version)
    g_debug("%s: calling VmxDnDVersionChanged (version %d)\n",
           __FUNCTION__, version);
    ASSERT(ctx);
-#ifdef VMTOOLS_USE_LEGACY_GTK
    ASSERT(m_dndUI);
    m_dndUI->VmxDnDVersionChanged(ctx->rpc, version);
-#endif
 }
 
 

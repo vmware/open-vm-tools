@@ -66,12 +66,13 @@ public:
    void SetDnDAllowed(bool allowed);
    void SetCopyPasteAllowed(bool allowed);
 private:
+   CopyPasteUIX11 *m_copyPasteUI;
 
 #ifdef VMTOOLS_USE_LEGACY_GTK
    Gtk::Main *m_main;
-   CopyPasteUIX11 *m_copyPasteUI;
-   DnDUIX11 *m_dndUI;
 #endif
+
+   DnDUIX11 *m_dndUI;
 };
 
 #endif // __COPYPASTEDNDX11_H__

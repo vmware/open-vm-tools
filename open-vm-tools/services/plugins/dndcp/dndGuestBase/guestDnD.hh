@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2010-2021 VMware, Inc. All rights reserved.
+ * Copyright (c) 2010-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -39,7 +40,7 @@ extern "C" {
    #include "vmware/tools/plugin.h"
 }
 
-#define UNGRAB_TIMEOUT 500        // 0.5s
+#define UNGRAB_TIMEOUT 500    // 0.5s
 #define HIDE_DET_WND_TIMER 500    // 0.5s
 #define UNITY_DND_DET_TIMEOUT 500 // 0.5s
 
