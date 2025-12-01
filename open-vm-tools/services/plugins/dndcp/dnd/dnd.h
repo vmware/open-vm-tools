@@ -106,7 +106,11 @@ extern "C" {
 #define DRAG_LEAVE_TIMEOUT         500
 
 /* Guest detection window width and height. */
+#ifdef GTK4
+#define DRAG_DET_WINDOW_WIDTH 62
+#else
 #define DRAG_DET_WINDOW_WIDTH 31
+#endif
 
 /* Clipboard image size limit. */
 #define CLIPBOARD_IMAGE_MAX_WIDTH  4000

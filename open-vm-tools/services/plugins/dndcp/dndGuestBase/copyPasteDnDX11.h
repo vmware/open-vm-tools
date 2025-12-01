@@ -29,8 +29,16 @@
 
 #define VMTOOLS_USE_LEGACY_GTK
 
+#ifdef GTK4
+#undef VMTOOLS_USE_LEGACY_GTK
+#endif
 
 #include "dnd.h"     /* for DnDBlockControl */
+#ifdef GTK4
+#include <gtkmm/application.h>
+#include "dndUIX11GTK4.h"
+
+#endif
 
 #ifdef VMTOOLS_USE_LEGACY_GTK
 #include "dndUIX11.h"

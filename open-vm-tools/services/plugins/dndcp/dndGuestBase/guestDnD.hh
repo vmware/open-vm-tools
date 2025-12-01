@@ -40,7 +40,12 @@ extern "C" {
    #include "vmware/tools/plugin.h"
 }
 
+#ifdef GTK4
+/* Need to use higher timeout value in GTK4, otherwise G->H dnd will fail */
+#define UNGRAB_TIMEOUT 3000    // 3.0s
+#else
 #define UNGRAB_TIMEOUT 500    // 0.5s
+#endif
 #define HIDE_DET_WND_TIMER 500    // 0.5s
 #define UNITY_DND_DET_TIMEOUT 500 // 0.5s
 

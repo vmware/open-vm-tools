@@ -65,6 +65,10 @@ extern "C" {
 
 #define VMTOOLS_USE_LEGACY_GTK
 
+#ifdef GTK4
+#undef VMTOOLS_USE_LEGACY_GTK
+#include <gdk/x11/gdkx.h>
+#endif
 #ifdef VMTOOLS_USE_LEGACY_GTK
 #include <gdk/gdkx.h>
 #endif
@@ -105,6 +109,18 @@ private:
 
    /* hg */
    void GetRemoteClipboardCB(const CPClipboard *clip);
+#ifdef GTK4
+   void LocalGetFileRequest();
+   void BuildFileURIList(utf::string& uriList,
+                         utf::string pre,
+                         utf::string post,
+                         utf::string stagingDirName);
+   void BuildFileContentURIList(utf::string& uriList,
+                                utf::string pre,
+                                utf::string post);
+   void LocalSetFileListToClipboard(const char* desktop);
+   void LocalGetFileContentsRequest();
+#endif
 
 #ifdef VMTOOLS_USE_LEGACY_GTK
    void LocalGetFileRequestCB(Gtk::SelectionData& selection_data, guint info);
@@ -116,6 +132,20 @@ private:
 
    /* gh */
    void GetLocalClipboard(void);
+#ifdef GTK4
+   void CopyPasteSendText(const Glib::ustring& cpStr);
+   void CopyPasteSendImage(const Glib::RefPtr<Glib::Bytes>& imgData);
+   void CopyPasteSendRtfValue(const Glib::RefPtr<Gio::AsyncResult>& result);
+   void CopyPasteSendFile(const Glib::RefPtr<Gio::AsyncResult>& result);
+   void CopyPasteRequestStreamCb(const Glib::RefPtr<Gio::AsyncResult>& result,
+                                 const Glib::RefPtr<Gdk::Clipboard>& clipboard);
+   void CopyPasteRequestTextCb(const Glib::RefPtr<Gio::AsyncResult>& result,
+                               const Glib::RefPtr<Gdk::Clipboard>& clipboard);
+   void CopyPasteRequestImageCb(const Glib::RefPtr<Gio::AsyncResult>& result,
+                                const Glib::RefPtr<Gdk::Clipboard>& clipboard);
+   void GuestDefaultClipboardChangedCb();
+   void GuestPrimaryClipboardChangedCb();
+#endif
 #ifdef VMTOOLS_USE_LEGACY_GTK
    void LocalClipboardTimestampCB(const Gtk::SelectionData& sd);
    void LocalPrimTimestampCB(const Gtk::SelectionData& sd);
@@ -137,6 +167,11 @@ private:
    GuestCopyPasteMgr *mCP;
    bool mClipboardEmpty;
    utf::string mHGStagingDir;
+#ifdef GTK4
+   Glib::RefPtr<Gdk::Clipboard> mDftClipboardPtr;
+   Glib::RefPtr<Gdk::Clipboard> mPrimClipboardPtr;
+   Glib::RefPtr<Gio::InputStream> mCpStream;
+#endif
 #ifdef VMTOOLS_USE_LEGACY_GTK
    std::vector<Gtk::TargetEntry> mListTargets;
    GdkAtom mGHSelection;
@@ -152,6 +187,11 @@ private:
    /* File vars. */
    VmTimeType mHGGetListTime;
    utf::utf8string mHGFCPData;
+#ifdef GTK4
+   utf::string mHGCopiedUriListGnome;
+   utf::string mHGCopiedUriListKde;
+   utf::string mHGCopiedUriListNautilus;
+#endif
 
 #ifdef VMTOOLS_USE_LEGACY_GTK
    utf::string mHGCopiedUriList;

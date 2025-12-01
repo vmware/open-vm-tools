@@ -28,6 +28,10 @@
 
 #include "copyPasteDnDWrapper.h"
 #include "copyPasteDnDX11.h"
+#ifdef GTK4
+#undef VMTOOLS_USE_LEGACY_GTK
+#include "dndCPMsgV4.h"
+#endif
 #include "copyPasteUIX11.h"
 #include "tracer.hh"
 #include "dndPluginIntX11.h"
@@ -35,6 +39,9 @@
 Window gXRoot;
 Display *gXDisplay;
 GtkWidget *gUserMainWidget;
+#ifdef GTK4
+GdkDisplay *gGdkDisplay;
+#endif
 
 
 extern "C" {
@@ -217,6 +224,9 @@ gboolean
 CopyPasteDnDX11::Init(ToolsAppCtx *ctx)
 {
    TRACE_CALL();
+#if GTK_MAJOR_VERSION > 4
+   g_error("Unsupported GTK version!")
+#endif
 
 #if GTK_MAJOR_VERSION > 3 || (GTK_MAJOR_VERSION == 3 && GTK_MINOR_VERSION >= 10)
    /*
@@ -233,6 +243,9 @@ CopyPasteDnDX11::Init(ToolsAppCtx *ctx)
 
    ASSERT(ctx);
 
+#ifdef GTK4
+   Gtk::Application::create("com.tools.gtk4");
+#endif
 
 #ifdef VMTOOLS_USE_LEGACY_GTK
    int argc = 1;
@@ -243,6 +256,13 @@ CopyPasteDnDX11::Init(ToolsAppCtx *ctx)
    if (wrapper) {
       BlockService::GetInstance()->Init(ctx);
    }
+#ifdef GTK4
+   gUserMainWidget = gtk_window_new();
+   gtk_widget_set_visible(gUserMainWidget, FALSE);
+   gGdkDisplay = gdk_display_get_default();
+   gXDisplay = gdk_x11_display_get_xdisplay(gGdkDisplay);
+   gXRoot = gdk_x11_display_get_xrootwindow(gGdkDisplay);
+#endif
 
 #ifdef VMTOOLS_USE_LEGACY_GTK
    gUserMainWidget = gtk_invisible_new();
@@ -286,6 +306,9 @@ CopyPasteDnDX11::~CopyPasteDnDX11()
    if (gUserMainWidget) {
 #ifdef VMTOOLS_USE_LEGACY_GTK
    gtk_widget_destroy(gUserMainWidget);
+#endif
+#ifdef GTK4
+   gtk_window_destroy(GTK_WINDOW(gUserMainWidget));
 #endif
 
    }

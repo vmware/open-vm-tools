@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2010-2025 Broadcom. All Rights Reserved.
+ * Copyright (c) 2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -17,41 +17,23 @@
  *
  *********************************************************/
 
-/*
- * dndPluginX11Int.h --
- *
- *     Common defines used by Linux DnD plugin implementation.
- */
-#ifndef __DNDPLUGIN_INTX11_H__
-#define __DNDPLUGIN_INTX11_H__
+#ifndef XUTILS_XUTILS_HH
+#define XUTILS_XUTILS_HH
 
-#define VMTOOLS_USE_LEGACY_GTK
+#include <gdkmm.h>
+#include <gtkmm.h>
 
-#ifdef GTK4
-#undef VMTOOLS_USE_LEGACY_GTK
-#endif
+#include "stringxx/string.hh"
 
-#include <X11/Xlib.h>
-#include <gtk/gtk.h>
-#ifdef GTK4
-#include <gdk/x11/gdkx.h>
-#endif
 
-#ifdef VMTOOLS_USE_LEGACY_GTK
-#include <gdk/gdkx.h>
-#endif
+namespace xutils {
+/* General property helpers */
+bool GetCardinal(Glib::RefPtr<const Gdk::Surface> surface,
+                 const utf::string& atomName,
+                 unsigned long& retValue);
+bool GetCardinalList(Glib::RefPtr<const Gdk::Surface> surface,
+                     const utf::string& atomName,
+                     std::vector<unsigned long>& retValues);
+} // namespace xutils
 
-#undef Bool
-#include "vm_basic_types.h"
-#include "dnd.h"
-
-#define UNGRABBED_POS (-100)
-
-extern Display *gXDisplay;
-extern Window gXRoot;
-extern GtkWidget *gUserMainWidget;
-#ifdef GTK4
-extern GdkDisplay *gGdkDisplay;
-#endif
-
-#endif
+#endif // XUTILS_XUTILS_HH

@@ -86,7 +86,11 @@ libdndcp_la_SOURCES += dndGuest/rpcV4Util.cpp
 libdndcp_la_SOURCES += dndGuest/dndCPTransportGuestRpc.cpp
 
 libdndcp_la_SOURCES += stringxx/string.cc
+if HAVE_GTK4
+libdndcp_la_SOURCES += xutils/xutilsGTK4.cc
+else
 libdndcp_la_SOURCES += xutils/xutils.cc
+endif
 
 libdndcp_la_SOURCES += dndcp.cpp
 libdndcp_la_SOURCES += pointer.cpp
@@ -94,10 +98,17 @@ libdndcp_la_SOURCES += copyPasteCompat.c
 libdndcp_la_SOURCES += vmCopyPasteDnDWrapper.cpp
 libdndcp_la_SOURCES += copyPasteDnDX11.cpp
 libdndcp_la_SOURCES += copyPasteDnDUtil.cpp
+if HAVE_GTK4
+libdndcp_la_SOURCES += copyPasteCompatX11GTK4.c
+libdndcp_la_SOURCES += copyPasteUIX11GTK4.cpp
+libdndcp_la_SOURCES += dndUIX11GTK4.cpp
+libdndcp_la_SOURCES += dragDetWndX11GTK4.cpp
+else
 libdndcp_la_SOURCES += copyPasteCompatX11.c
 libdndcp_la_SOURCES += copyPasteUIX11.cpp
 libdndcp_la_SOURCES += dndUIX11.cpp
 libdndcp_la_SOURCES += dragDetWndX11.cpp
+endif
 
 if LINUX
 libdndcp_la_CPPFLAGS += -I$(top_srcdir)/services/plugins/dndcp/fakeMouse
