@@ -1,3 +1,64 @@
+commit 7f67f9618b59a5dd4c152597a3eeeb5768222ffa
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Sun Nov 30 23:18:02 2025 -0800
+
+    Correct missed 2025 copyright update.
+
+commit 9ea6cadba89c57cc119164702aac2e167a1d4071
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Sun Nov 30 23:06:48 2025 -0800
+
+    Add GTK4 support in open-vm-tools
+
+commit 76f485367769d6b3edf1f4ade26f5a3f8e2f0b08
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Sun Nov 30 22:48:33 2025 -0800
+
+    Change to common header files not applicable to open-vm-tools.
+
+commit 3e6e9ebd9b6945d6b0dbc547822eb2f686fe7b8c
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Sun Nov 30 22:48:33 2025 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 4ee7f075cbbafe6c611b651b4e5d61504afb50ad
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Sun Nov 30 22:48:33 2025 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 9d2a5a1e6683236f2a1e3e407beeb6910271d7b0
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Sun Nov 30 22:48:33 2025 -0800
+
+    Change to common source file not applicable to open-vm-tools.
+
+commit 8747ca4feb22be1848c0009e92fa235b4774c64b
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Sun Nov 30 22:48:33 2025 -0800
+
+    Change to common source files not applicable to open-vm-tools.
+
+commit dfccfe41ea7f10ee777e3c750fd5b5c55972514c
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Sun Nov 30 22:48:33 2025 -0800
+
+    Change to common source files not applicable to open-vm-tools.
+
+commit 3b366a43e14b06e65166ff660b743bfa5eb6f83a
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Sun Nov 30 22:48:33 2025 -0800
+
+    Change to common source files not applicable to open-vm-tools.
+
+commit 9d48f43d60f83f8b461173be69623ec8dcc59d42
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Thu Oct 16 23:04:49 2025 -0700
+
+    Update ChangeLog with the granular push of Oct 16, 2025.
+    - plus ChangeLog update of Aug 6, 2025.
+
 commit cea32699cb4ceef142bb449ec5df8f909760652b
 Author: Kruti Pendharkar <kp025370@broadcom.com>
 Date:   Thu Oct 16 21:25:49 2025 -0700
