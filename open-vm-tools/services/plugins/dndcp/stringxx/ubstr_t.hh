@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2008-2024 Broadcom. All Rights Reserved.
+ * Copyright (c) 2008-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -781,7 +781,10 @@ ubstr_t::operator _variant_t()
 inline void
 ubstr_t::swap(ubstr_t& s) // IN/OUT
 {
-   std::swap(mBstr, s.mBstr);
+   // `_bstr_t` reference-counts its internal `BSTR`, so using `std::swap`
+   // should be cheap.
+   using std::swap;
+   swap(mBstr, s.mBstr);
    mUTF8.swap(s.mUTF8);
 }
 

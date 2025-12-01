@@ -154,6 +154,8 @@ public:
    string(const Glib::ustring &s);
    string(const string &s);
 
+   string(string&& s);
+
    ~string();
 
    // Implicit conversions

@@ -330,6 +330,31 @@ string::string(const string& s) // IN
 /*
  *-----------------------------------------------------------------------------
  *
+ * utf::string::string --
+ *
+ *      Move constructor.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+string::string(string&& s) // IN/OUT
+   : mUstr(),
+     mUtf16Cache(nullptr),
+     mUtf16Length(npos)
+{
+   swap(s);
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
  * utf::string::~string --
  *
  *      Destructor.
@@ -434,7 +459,7 @@ string::t_str() const
  *
  * utf::string::operator= --
  *
- *      Assignment operator.
+ *      Unifying (copy and move) assignment operator.
  *
  * Results:
  *      A reference to this string.
