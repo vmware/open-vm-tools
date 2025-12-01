@@ -610,7 +610,7 @@ VGAuth_ValidateUsernamePassword(VGAuthContext *ctx,
                         SU_(auth.password.invalid,
                             "Username and password validation failed for '%s': "
                             "%s"),
-                        userName, VGAuth_GetErrorText(err, NULL));
+                        userName, VGAuth_GetLocaleErrorText(err));
    }
 
    return err;
