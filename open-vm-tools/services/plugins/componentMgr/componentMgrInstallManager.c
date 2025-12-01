@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2021,2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2021-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -31,7 +32,12 @@
  */
 
 #include "componentMgrPlugin.h"
-
+#if defined(_WIN32)
+#include "codeset.h"
+#define VMW_TEXT_DOMAIN "vmtoolsd" // Has to be before i18h.h
+#include "vmware/tools/i18n.h"
+#include "vmware/tools/log.h"
+#endif
 
 /*
  *****************************************************************************
@@ -70,6 +76,38 @@ ComponentMgr_FreeAsyncProc(AsyncProcessInfo *procInfo) // IN
    // process is no longer available.
    ComponentMgr_ResetComponentAsyncProcInfo(componentIndex);
 }
+
+#if defined (_WIN32)
+/*
+ *****************************************************************************
+ * ComponentMgrLogWinEvent --
+ *
+ * This function logs the windows event related to certificate.
+ * The event is logged only once for the lifetime of vmtoolsd.
+ *
+ * @return
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *****************************************************************************
+ */
+
+static void
+ComponentMgrLogWinEvent()
+{
+   static gboolean cmEventLogged = FALSE;
+
+   if (cmEventLogged) {
+      return;
+   }
+
+   cmEventLogged = TRUE;
+
+   VMTools_LogWinEvent(SU_(vmtools.cert, VMTOOLS_CERT_MSG));
+}
+#endif
 
 
 /*
@@ -126,8 +164,28 @@ ComponentMgrCheckStatusMonitor(void *data) // IN
          exitCode = SCRIPTFAILED;
       }
 #else
-      if (ProcMgr_GetExitCode(procInfo->asyncProc, &exitCode)) {
+      int ret;
+
+      ret = ProcMgr_GetExitCode(procInfo->asyncProc, &exitCode);
+      if (ret != 0) {
          exitCode = SCRIPTFAILED;
+      }
+
+      if ((ret != 0 ||
+           exitCode == 1) &&
+          VMTools_IsGPOExecPolicyAllSigned() &&
+          !VMTools_IsCertPresent()) {
+         static uint32 logCount = 0;
+         /*
+          * Exit code 1 is a special case. We assume this is because the
+          * componentMgr process/script failed to launch. Check if there
+          * is a certificate issue and log appropriately.
+          *
+          * If the componentMgr process/script ran and it didn't result in
+          * a desired state, those exit codes will be different.
+          */
+         VMTools_LogThrottled(&logCount, "%s", VMTOOLS_CERT_MSG);
+         ComponentMgrLogWinEvent();
       }
 #endif
      g_debug("%s: Checking status of a component has terminated gracefully"
@@ -240,7 +298,29 @@ ComponentMgrProcessMonitor(void *data) // IN
        * Free all the async process resources and destroy the GSource timer.
        */
       g_debug("%s: Async process has exited.\n", __FUNCTION__);
+#if defined(_WIN32)
+      int exitCode;
+      int ret;
 
+      ret = ProcMgr_GetExitCode(procInfo->asyncProc, &exitCode);
+
+      if ((ret != 0 ||
+           exitCode == 1) &&
+          VMTools_IsGPOExecPolicyAllSigned() &&
+          !VMTools_IsCertPresent()) {
+         static uint32 logCount = 0;
+         /*
+          * Exit code 1 is a special case. We assume this is because the
+          * componentMgr process/script failed to launch. Check if there
+          * is a certificate issue and log appropriately.
+          *
+          * If the componentMgr process/script ran and it didn't result in
+          * a desired state, those exit codes will be different.
+          */
+         VMTools_LogThrottled(&logCount, "%s", VMTOOLS_CERT_MSG);
+         ComponentMgrLogWinEvent();
+      }
+#endif
       ComponentMgr_FreeAsyncProc(procInfo);
       ComponentMgr_ResetComponentGSourceTimer(componentIndex);
 

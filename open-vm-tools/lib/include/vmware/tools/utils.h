@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2008-2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 2008-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -144,12 +145,25 @@ VMTools_ConfigGetString(GKeyFile *config,
 
 #if defined(G_PLATFORM_WIN32)
 
+#define VMTOOLS_CERT_MSG "Verify that a valid \"Broadcom Inc\" certificate "\
+                         "is present in the Trusted Publishers certificate "\
+                         "store. Refer to the VMware Tools Administration "\
+                         "Guide for details."
+
 gboolean
 VMTools_AttachConsole(void);
 
 GSource *
 VMTools_NewHandleSource(HANDLE h);
 
+gboolean
+VMTools_IsGPOExecPolicyAllSigned(void);
+
+gboolean
+VMTools_IsCertPresent(void);
+
+void
+VMTools_LogWinEvent(const gchar *certMsg);
 #else
 
 /** Type of callback used by the signal event source. */

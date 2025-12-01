@@ -1,5 +1,5 @@
 ##########################################################
-# Copyright (c) 2010-2024 Broadcom. All Rights Reserved.
+# Copyright (c) 2010-2025 Broadcom. All Rights Reserved.
 # The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
 #
 # This program is free software; you can redistribute it and/or modify it
@@ -73,6 +73,7 @@ cmdline.uinputfd = "Descripteur de fichier pour le périphérique uinput."
 cmdline.uinputfd.fd = "fd"
 
 cmdline.uninstall = "Désinstalle le service du Gestionnaire de contrôle du service."
-
+s
 cmdline.version = "Imprime la version démon et quitte l'application."
 
+vmtools.cert  = "Verify that a valid \"Broadcom Inc\" certificate is present in the Trusted Publishers certificate store. Refer to the VMware Tools Administration Guide for details."

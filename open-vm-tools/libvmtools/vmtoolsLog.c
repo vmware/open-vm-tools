@@ -2943,3 +2943,47 @@ VMTools_VmxLogThrottled(uint32 *count,
       va_end(args);
    }
 }
+
+
+/*
+ ******************************************************************************
+ * VMTools_LogThrottled --
+ *
+ * Logs a message at 'message' log level after checking for throttling
+ * condition.
+ *
+ * @param[in/out]  count     Throttle count.
+ * @param[in]      fmt       Log message output format.
+ *
+ * XXX: In future, this function can be enhanced to log messages at different
+ *      log levels.
+ *
+ * @return None
+ *
+ ******************************************************************************
+ */
+
+void
+VMTools_LogThrottled(uint32 *count,
+                     const gchar *fmt,
+                     ...)
+{
+   if (Util_Throttle(++*count)) {
+      va_list args;
+      gchar *msg;
+      gint length;
+
+      va_start(args, fmt);
+      length = g_vasprintf(&msg, fmt, args);
+      va_end(args);
+
+      if (length < 0) {
+         g_warning("%s g_vasprintf failed\n.", __FUNCTION__);
+         return;
+      }
+
+      g_message("%s\n", msg);
+
+      g_free(msg);
+   }
+}
