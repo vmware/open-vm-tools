@@ -170,8 +170,6 @@ VGAuth_GetErrorName(VGAuthError errCode)
    return VGAuthGetErrorInfo(errCode)->name;
 }
 
-#define ERRMSGID(id)   MSGID(id)
-
 
 /*
  ******************************************************************************
@@ -194,50 +192,50 @@ VGAuth_ErrCodeToErrMsgId(VGAuthError errCode)
 {
    switch (errCode) {
    case VGAUTH_E_OK:
-      return ERRMSGID(vgauth.errcode.ok) "The operation was successful";
+      return MSGID(vgauth.errcode.ok) "The operation was successful";
    case VGAUTH_E_INVALID_ARGUMENT:
-      return ERRMSGID(vgauth.errcode.invalid_argument) "One of the parameters was invalid";
+      return MSGID(vgauth.errcode.invalid_argument) "One of the parameters was invalid";
    case VGAUTH_E_INVALID_CERTIFICATE:
-      return ERRMSGID(vgauth.errcode.invalid_certificate) "The certificate is not a well-formed x509 document";
+      return MSGID(vgauth.errcode.invalid_certificate) "The certificate is not a well-formed x509 document";
    case VGAUTH_E_PERMISSION_DENIED:
-      return ERRMSGID(vgauth.errcode.permission_denied) "Insufficient permissions";
+      return MSGID(vgauth.errcode.permission_denied) "Insufficient permissions";
    case VGAUTH_E_OUT_OF_MEMORY:
-      return ERRMSGID(vgauth.errcode.out_of_memory) "Out of memory";
+      return MSGID(vgauth.errcode.out_of_memory) "Out of memory";
    case VGAUTH_E_COMM:
-      return ERRMSGID(vgauth.errcode.comm) "Internal communication error between library and service";
+      return MSGID(vgauth.errcode.comm) "Internal communication error between library and service";
    case VGAUTH_E_NOTIMPLEMENTED:
-      return ERRMSGID(vgauth.errcode.notimplemented) "Not implemented";
+      return MSGID(vgauth.errcode.notimplemented) "Not implemented";
    case VGAUTH_E_NOT_CONNECTED:
-      return ERRMSGID(vgauth.errcode.not_connected) "Not connected to the service";
+      return MSGID(vgauth.errcode.not_connected) "Not connected to the service";
    case VGAUTH_E_VERSION_MISMATCH:
-      return ERRMSGID(vgauth.errcode.version_mismatch) "Service/library version mismatch";
+      return MSGID(vgauth.errcode.version_mismatch) "Service/library version mismatch";
    case VGAUTH_E_SECURITY_VIOLATION:
-      return ERRMSGID(vgauth.errcode.security_violation) "Potential security violation detected";
+      return MSGID(vgauth.errcode.security_violation) "Potential security violation detected";
    case VGAUTH_E_CERT_ALREADY_EXISTS:
-      return ERRMSGID(vgauth.errcode.cert_already_exists) "The certificate already exists";
+      return MSGID(vgauth.errcode.cert_already_exists) "The certificate already exists";
    case VGAUTH_E_AUTHENTICATION_DENIED:
-      return ERRMSGID(vgauth.errcode.authentication_denied) "Authentication denied";
+      return MSGID(vgauth.errcode.authentication_denied) "Authentication denied";
    case VGAUTH_E_INVALID_TICKET:
-      return ERRMSGID(vgauth.errcode.invalid_ticket) "Invalid ticket";
+      return MSGID(vgauth.errcode.invalid_ticket) "Invalid ticket";
    case VGAUTH_E_MULTIPLE_MAPPINGS:
-      return ERRMSGID(vgauth.errcode.multiple_mappings)
+      return MSGID(vgauth.errcode.multiple_mappings)
 	 "The certificate was found associated with more than one user, or a chain contained multiple matches against the mapping file";
    case VGAUTH_E_ALREADY_IMPERSONATING:
-      return ERRMSGID(vgauth.errcode.already_impersonating) "The context is already impersonating";
+      return MSGID(vgauth.errcode.already_impersonating) "The context is already impersonating";
    case VGAUTH_E_NO_SUCH_USER:
-      return ERRMSGID(vgauth.errcode.no_such_user) "User cannot be found";
+      return MSGID(vgauth.errcode.no_such_user) "User cannot be found";
    case VGAUTH_E_SERVICE_NOT_RUNNING:
-      return ERRMSGID(vgauth.errcode.service_not_running) "Service not running";
+      return MSGID(vgauth.errcode.service_not_running) "Service not running";
    case VGAUTH_E_SYSTEM_ERRNO:
-      return ERRMSGID(vgauth.errcode.system_errno) "An OS-specific operation failed";
+      return MSGID(vgauth.errcode.system_errno) "An OS-specific operation failed";
    case VGAUTH_E_SYSTEM_WINDOWS:
-      return ERRMSGID(vgauth.errcode.system_windows) "An OS-specific operation failed";
+      return MSGID(vgauth.errcode.system_windows) "An OS-specific operation failed";
    case VGAUTH_E_TOO_MANY_CONNECTIONS:
-      return ERRMSGID(vgauth.errcode.too_many_connections) "The user exceeded its max number of connections";
+      return MSGID(vgauth.errcode.too_many_connections) "The user exceeded its max number of connections";
    case VGAUTH_E_UNSUPPORTED:
-      return ERRMSGID(vgauth.errcode.unsupported) "The operation is not supported";
+      return MSGID(vgauth.errcode.unsupported) "The operation is not supported";
    }
-   return ERRMSGID(vgauth.errcode.fail) "Unknown error";
+   return MSGID(vgauth.errcode.fail) "Unknown error";
 }
 
 
@@ -263,6 +261,5 @@ VGAuth_GetLocaleErrorText(VGAuthError errCode)
    const char* msgid = VGAuth_ErrCodeToErrMsgId(errCode);
    const char* errmsg = I18n_GetString(VMW_TEXT_DOMAIN, msgid);
 
-   g_debug("ErrCode %llu (ErrMsgId: %s) --- ErrMsg: %s", errCode, msgid, errmsg);
    return errmsg;
 }
