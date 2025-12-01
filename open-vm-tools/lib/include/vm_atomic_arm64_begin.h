@@ -136,7 +136,24 @@ Atomic_HaveLse(void)
                                                                               \
    _val;                                                                      \
 })
-#define _VMATOM_SNIPPET_R _VMATOM_SNIPPET_R_NF
+
+/* Read total store order (returned). */
+#define _VMATOM_SNIPPET_R(bs, is, rp, es, atm) ({                             \
+   uint##bs _val;                                                             \
+                                                                              \
+   /* ldr is atomic if and only if 'atm' is aligned on #bs bits. */           \
+   __asm__ __volatile__(                                                      \
+      "dmb ishld                                                         \n\t"\
+      "dmb ishst                                                         \n\t"\
+      "ldr"#is" %"#rp"0, %1                                              \n\t"\
+      "dmb ishld                                                         \n\t"\
+      : "=r" (_val)                                                           \
+      : "m" (*atm)                                                            \
+      : "memory"                                                              \
+   );                                                                         \
+                                                                              \
+   _val;                                                                      \
+})
 
 /* Read acquire/seq_cst (returned). */
 #define _VMATOM_SNIPPET_R_SC(bs, is, rp, es, atm) ({                          \
@@ -147,6 +164,7 @@ Atomic_HaveLse(void)
       "ldar"#is" %"#rp"0, %1                                             \n\t"\
       : "=r" (_val)                                                           \
       : "Q" (*atm)                                                            \
+      : "memory"                                                              \
    );                                                                         \
                                                                               \
    _val;                                                                      \
@@ -167,7 +185,19 @@ Atomic_HaveLse(void)
       : "r" (val)                                                             \
    );                                                                         \
 })
-#define _VMATOM_SNIPPET_W _VMATOM_SNIPPET_W_NF
+
+/* Write total store order. */
+#define _VMATOM_SNIPPET_W(bs, is, rp, es, atm, val) ({                        \
+   __asm__ __volatile__(                                                      \
+      "dmb ishld                                                         \n\t"\
+      "dmb ishst                                                         \n\t"\
+      "str"#is" %"#rp"1, %0                                              \n\t"\
+      "dmb ishst                                                         \n\t"\
+      : "=m" (*atm)                                                           \
+      : "r" (val)                                                             \
+      : "memory"                                                              \
+   );                                                                         \
+})
 
 /* Write release/seq_cst. */
 #define _VMATOM_SNIPPET_W_SC(bs, is, rp, es, atm, val) ({                     \
@@ -182,6 +212,7 @@ Atomic_HaveLse(void)
       "stlr"#is" %"#rp"1, %0                                             \n\t"\
       : "=Q" (*atm)                                                           \
       : "r" (val)                                                             \
+      : "memory"                                                              \
    );                                                                         \
 })
 
