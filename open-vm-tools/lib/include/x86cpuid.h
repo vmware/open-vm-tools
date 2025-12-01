@@ -624,6 +624,7 @@ FLAG(   7,  1, EAX, 26,  1, LAM,                                 YES,  22 ) \
 FLAG(   7,  1, EAX, 27,  1, MSRLIST,                             NO,    0 ) \
 FLAG(   7,  1, EBX,  0,  1, LEAF7_PPIN,                          NO,    0 ) \
 FLAG(   7,  1, EBX,  1,  1, PBNDKB,                              NO,    0 ) \
+FLAG(   7,  1, ECX,  5,  1, MSR_IMM,                             NO,    0 ) \
 FLAG(   7,  1, EDX,  4,  1, AVX_VNNI_INT8,                       YES,  22 ) \
 FLAG(   7,  1, EDX,  5,  1, AVX_NE_CONVERT,                      YES,  22 ) \
 FLAG(   7,  1, EDX,  8,  1, AMX_COMPLEX,                         YES,  22 ) \
