@@ -1543,13 +1543,24 @@ bool DnDUIX11::SetCPClipboardFromGtk_PlainText(utf::string &source)
 
 bool DnDUIX11::SetCPClipboardFromGtk_RTF(utf::string &source)
 {
-   if (source.size() > 0 &&
-       source.size() < DNDMSG_MAX_ARGSZ &&
-       CPClipboard_SetItem(&mClipboard, CPFORMAT_RTF, source.c_str(), source.size() + 1)) {
-      g_debug("%s: Got RTF, size %" FMTSZ "u\n", __FUNCTION__, source.size());
-      return true;
+   if (source.size() > 0 && source.size() < DNDMSG_MAX_ARGSZ) {
+      /*
+       * PR3578465, we could not get raw rtf format info from dnd clipboard
+       * set to plain text as workaround. And removing one trailing "_" char.
+       */
+      if (source[source.size() - 1] == '_') {
+         source.erase(source.size() - 1, 1);
+      }
+      if (CPClipboard_SetItem(&mClipboard, CPFORMAT_TEXT, source.c_str(),
+                              source.size() + 1)) {
+         g_debug("%s: Got RTF and parse as plain text, size %" FMTSZ "u\n",
+                 __FUNCTION__, source.size());
+         return true;
+      } else {
+         g_warning("%s: Failed to set target clipboard\n", __FUNCTION__);
+      }
    } else {
-      g_warning("%s: Failed to get RTF\n", __FUNCTION__);
+      g_warning("%s: wrong RTF size from drag source\n", __FUNCTION__);
    }
 
    return false;
