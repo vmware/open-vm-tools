@@ -144,6 +144,7 @@
 #define PRODUCT_XVP_NAME MAKE_NAME("vCenter XVP Manager")
 #define PRODUCT_RMKSCONTAINER_NAME MAKE_NAME("Remote MKS Container")
 
+#define PRODUCT_HBR_PROXY_NAME MAKE_NAME("Data Protection and Recovery Proxy")
 #define PRODUCT_HBR_SERVER_NAME MAKE_NAME("vSphere Replication Server")
 
 #define PRODUCT_VMCF_NAME MAKE_NAME("VMCF")
@@ -196,6 +197,7 @@
       || defined(VMX86_DDK)      \
       || defined(VMX86_VDDK)     \
       || defined(VMX86_NETDUMP) \
+      || defined(VMX86_HBR_PROXY) \
       || defined(VMX86_HBR_SERVER) \
       || defined(VMX86_VMCF) \
       || defined(VMX86_VMRC))
@@ -257,6 +259,8 @@
 # define PRODUCT_SHORT_NAME PRODUCT_VDDK_NAME
 #elif defined(VMX86_NETDUMP)
 # define PRODUCT_SHORT_NAME PRODUCT_NETDUMP_NAME
+#elif defined(VMX86_HBR_PROXY)
+# define PRODUCT_SHORT_NAME PRODUCT_HBR_PROXY_NAME
 #elif defined(VMX86_HBR_SERVER)
 # define PRODUCT_SHORT_NAME PRODUCT_HBR_SERVER_NAME
 #elif defined(VMX86_VMCF)
