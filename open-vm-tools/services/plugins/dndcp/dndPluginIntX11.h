@@ -25,19 +25,11 @@
 #ifndef __DNDPLUGIN_INTX11_H__
 #define __DNDPLUGIN_INTX11_H__
 
-#define VMTOOLS_USE_LEGACY_GTK
-
-#ifdef GTK4
-#undef VMTOOLS_USE_LEGACY_GTK
-#endif
-
 #include <X11/Xlib.h>
 #include <gtk/gtk.h>
 #ifdef GTK4
 #include <gdk/x11/gdkx.h>
-#endif
-
-#ifdef VMTOOLS_USE_LEGACY_GTK
+#else
 #include <gdk/gdkx.h>
 #endif
 

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2010-2024 Broadcom. All Rights Reserved.
+ * Copyright (c) 2010-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -31,14 +31,14 @@
 #include <string.h>
 #include <gtk/gtk.h>
 #include <X11/Xlib.h>
-#if GTK_MAJOR_VERSION == 4
+#ifdef GTK4
 #include <gdk/x11/gdkx.h>
 #else
 #include <gdk/gdkx.h>
 #endif
 
 #define LOCK_ATOM_NAME  "vmware-user-lock"
-#if GTK_MAJOR_VERSION == 4
+#ifdef GTK4
 #define GDK_GET_XDISPLAY(X) gdk_x11_display_get_xdisplay(X)
 #else
 #define GDK_GET_XDISPLAY(X) gdk_x11_get_default_xdisplay()
@@ -83,7 +83,7 @@ InitGroupLeader(Window *groupLeader,
    Window myRootWindow;
    XSetWindowAttributes attr;
    GdkDisplay *gdkDisplay;
-#if GTK_MAJOR_VERSION == 4
+#ifdef GTK4
    GdkSurface *gdkLeader;
 #else
    GdkWindow *gdkLeader;
@@ -95,7 +95,7 @@ InitGroupLeader(Window *groupLeader,
    ASSERT(rootWindow);
 
    gdkDisplay = gdk_display_get_default();
-#if GTK_MAJOR_VERSION == 4
+#ifdef GTK4
    gdkLeader = gdk_x11_display_get_default_group(gdkDisplay);
    myGroupLeader = gdk_x11_surface_get_xid(gdkLeader);
    /*
@@ -107,6 +107,8 @@ InitGroupLeader(Window *groupLeader,
    gdkLeader = gdk_display_get_default_group(gdkDisplay);
    myGroupLeader = GDK_WINDOW_XID(gdkLeader);
    myRootWindow = GDK_ROOT_WINDOW();
+   /* set gdkDisplay to NULL for non-GTK4 for GDK_GET_XDISPLAY macro */
+   gdkDisplay = NULL;
 #endif
 
    ASSERT(myGroupLeader);
@@ -114,7 +116,6 @@ InitGroupLeader(Window *groupLeader,
 
    /* XXX: With g_set_prgname() being called, this can probably go away. */
    XStoreName(GDK_GET_XDISPLAY(gdkDisplay), myGroupLeader, VMUSER_TITLE);
-
    /*
     * Confidence check:  Set the override redirect property on our group leader
     * window (not default), then re-parent it to the root window (default).
@@ -277,14 +278,13 @@ AcquireDisplayLock(void)
    unsigned int index;
    Bool alreadyLocked = FALSE;  // Set to TRUE if we discover lock is held.
    Bool retval = FALSE;
-   GdkDisplay *gdkDisplay;
 
-#if GTK_MAJOR_VERSION == 4
-   gdkDisplay = gdk_display_get_default();
-#else
-   gdkDisplay = NULL;
-#endif
+#ifdef GTK4
+   GdkDisplay *gdkDisplay = gdk_display_get_default();
    defaultDisplay = GDK_GET_XDISPLAY(gdkDisplay);
+#else
+   defaultDisplay = gdk_x11_get_default_xdisplay();
+#endif
 
    /*
     * Reset some of our main window's settings & fetch Xlib handles for
@@ -421,6 +421,9 @@ gboolean
 X11Lock_Init(ToolsAppCtx *ctx,
              ToolsPluginData *pdata)
 {
+#ifndef GTK4
+   int argc = 0;
+#endif
    char *argv[] = { NULL, NULL };
 
    if (!TOOLS_IS_USER_SERVICE(ctx)) {
@@ -451,10 +454,9 @@ X11Lock_Init(ToolsAppCtx *ctx,
    gdk_set_allowed_backends("x11");
 #endif
    /* XXX: is calling gtk_init() multiple times safe? */
-#if GTK_MAJOR_VERSION == 4
+#ifdef GTK4
    gtk_init();
 #else
-   int argc = 0;
    gtk_init(&argc, (char ***) &argv);
 #endif
 
@@ -466,4 +468,3 @@ X11Lock_Init(ToolsAppCtx *ctx,
 
    return TRUE;
 }
-

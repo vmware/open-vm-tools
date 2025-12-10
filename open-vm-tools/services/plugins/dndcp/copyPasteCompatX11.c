@@ -40,9 +40,9 @@
  *    selection text.
  */
 
-#  if !defined(GTK2) && !defined(GTK3)
-#  error "This should only build with GTK2 or GTK3"
-#  endif
+#if !defined(GTK2) && !defined(GTK3)
+#error "This should only build with GTK2 or GTK3"
+#endif
 #define G_LOG_DOMAIN "dndcp"
 
 #include "dndPluginIntX11.h"

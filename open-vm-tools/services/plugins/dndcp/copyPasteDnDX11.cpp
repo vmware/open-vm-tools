@@ -24,14 +24,9 @@
  */
 
 #define G_LOG_DOMAIN "dndcp"
-#define VMTOOLS_USE_LEGACY_GTK
 
 #include "copyPasteDnDWrapper.h"
 #include "copyPasteDnDX11.h"
-#ifdef GTK4
-#undef VMTOOLS_USE_LEGACY_GTK
-#include "dndCPMsgV4.h"
-#endif
 #include "copyPasteUIX11.h"
 #include "tracer.hh"
 #include "dndPluginIntX11.h"
@@ -203,7 +198,7 @@ BlockService::Shutdown()
  */
 
 CopyPasteDnDX11::CopyPasteDnDX11() :
-#ifdef VMTOOLS_USE_LEGACY_GTK
+#if defined(GTK2) || defined(GTK3)
    m_main(NULL),
 #endif
    m_copyPasteUI(NULL),
@@ -245,9 +240,7 @@ CopyPasteDnDX11::Init(ToolsAppCtx *ctx)
 
 #ifdef GTK4
    Gtk::Application::create("com.tools.gtk4");
-#endif
-
-#ifdef VMTOOLS_USE_LEGACY_GTK
+#else
    int argc = 1;
    const char *argv[] = {"", NULL};
    m_main = new Gtk::Main(&argc, (char ***) &argv, false);
@@ -262,14 +255,13 @@ CopyPasteDnDX11::Init(ToolsAppCtx *ctx)
    gGdkDisplay = gdk_display_get_default();
    gXDisplay = gdk_x11_display_get_xdisplay(gGdkDisplay);
    gXRoot = gdk_x11_display_get_xrootwindow(gGdkDisplay);
-#endif
-
-#ifdef VMTOOLS_USE_LEGACY_GTK
-   gUserMainWidget = gtk_invisible_new();
-#ifndef GTK3
-   gXDisplay = GDK_WINDOW_XDISPLAY(gUserMainWidget->window);
 #else
+   gUserMainWidget = gtk_invisible_new();
+#ifdef GTK3
    gXDisplay = GDK_WINDOW_XDISPLAY(gtk_widget_get_window(gUserMainWidget));
+#endif
+#ifdef GTK2
+   gXDisplay = GDK_WINDOW_XDISPLAY(gUserMainWidget->window);
 #endif
    gXRoot = RootWindow(gXDisplay, DefaultScreen(gXDisplay));
 #endif
@@ -293,8 +285,7 @@ CopyPasteDnDX11::~CopyPasteDnDX11()
 {
    delete m_copyPasteUI;
    delete m_dndUI;
-
-#ifdef VMTOOLS_USE_LEGACY_GTK
+#if defined(GTK2) || defined(GTK3)
    delete m_main;
 #endif
 
@@ -304,11 +295,10 @@ CopyPasteDnDX11::~CopyPasteDnDX11()
    CopyPaste_Unregister(gUserMainWidget);
 
    if (gUserMainWidget) {
-#ifdef VMTOOLS_USE_LEGACY_GTK
-   gtk_widget_destroy(gUserMainWidget);
-#endif
 #ifdef GTK4
    gtk_window_destroy(GTK_WINDOW(gUserMainWidget));
+#else
+   gtk_widget_destroy(gUserMainWidget);
 #endif
 
    }

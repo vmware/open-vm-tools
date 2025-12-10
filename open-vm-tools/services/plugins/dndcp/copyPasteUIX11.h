@@ -63,13 +63,9 @@ extern "C" {
 #include <X11/Xlib.h>
 #include <gtk/gtk.h>
 
-#define VMTOOLS_USE_LEGACY_GTK
-
 #ifdef GTK4
-#undef VMTOOLS_USE_LEGACY_GTK
 #include <gdk/x11/gdkx.h>
-#endif
-#ifdef VMTOOLS_USE_LEGACY_GTK
+#else
 #include <gdk/gdkx.h>
 #endif
 
@@ -120,9 +116,7 @@ private:
                                 utf::string post);
    void LocalSetFileListToClipboard(const char* desktop);
    void LocalGetFileContentsRequest();
-#endif
-
-#ifdef VMTOOLS_USE_LEGACY_GTK
+#else
    void LocalGetFileRequestCB(Gtk::SelectionData& selection_data, guint info);
    void LocalGetTextOrRTFRequestCB(Gtk::SelectionData& sd, guint info);
    void LocalGetSelectionFileList(const Gtk::SelectionData& sd);
@@ -145,8 +139,7 @@ private:
                                 const Glib::RefPtr<Gdk::Clipboard>& clipboard);
    void GuestDefaultClipboardChangedCb();
    void GuestPrimaryClipboardChangedCb();
-#endif
-#ifdef VMTOOLS_USE_LEGACY_GTK
+#else
    void LocalClipboardTimestampCB(const Gtk::SelectionData& sd);
    void LocalPrimTimestampCB(const Gtk::SelectionData& sd);
    void LocalReceivedFileListCB(const Gtk::SelectionData& selection_data);
@@ -171,8 +164,7 @@ private:
    Glib::RefPtr<Gdk::Clipboard> mDftClipboardPtr;
    Glib::RefPtr<Gdk::Clipboard> mPrimClipboardPtr;
    Glib::RefPtr<Gio::InputStream> mCpStream;
-#endif
-#ifdef VMTOOLS_USE_LEGACY_GTK
+#else
    std::vector<Gtk::TargetEntry> mListTargets;
    GdkAtom mGHSelection;
    bool mIsClipboardOwner;
@@ -191,9 +183,7 @@ private:
    utf::string mHGCopiedUriListGnome;
    utf::string mHGCopiedUriListKde;
    utf::string mHGCopiedUriListNautilus;
-#endif
-
-#ifdef VMTOOLS_USE_LEGACY_GTK
+#else
    utf::string mHGCopiedUriList;
    utf::string mHGTextData;
    std::string mHGRTFData;
