@@ -1963,7 +1963,7 @@ CPUIDCheck(int32 eaxIn, int32 eaxInCheck,
 #define CPUID_MODEL_ZEN5_10           0x10 // family == CPUID_FAMILY_ZEN5
 #define CPUID_MODEL_ZEN5_1F           0x1F // Zen5 D: max model
 #define CPUID_MODEL_ZEN6_50           0x50 // family == CPUID_FAMILY_ZEN5
-#define CPUID_MODEL_ZEN6_5F           0x5F // Max Zen6 model
+#define CPUID_MODEL_ZEN6_57           0x57 // Max Zen6 model
 
 /* AMD stepping information */
 #define CPUID_STEPPING_ZEN_NAPLES_B2  0x02 // Zen Naples ZP-B2
@@ -2829,7 +2829,7 @@ CPUID_MODEL_IS_ZEN6(uint32 eax)
 {
    return CPUID_EFFECTIVE_FAMILY(eax) == CPUID_FAMILY_ZEN5 &&
           (CPUID_EFFECTIVE_MODEL(eax) >= CPUID_MODEL_ZEN6_50 ||
-           CPUID_EFFECTIVE_MODEL(eax) <= CPUID_MODEL_ZEN6_5F);
+           CPUID_EFFECTIVE_MODEL(eax) <= CPUID_MODEL_ZEN6_57);
 }
 
 #define CPUID_LEAF4_CACHE_TYPE_NULL      0
