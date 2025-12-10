@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 1998-2019 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -78,6 +79,8 @@
 #include "hashTable.h"
 #include "strutil.h"
 #include "vmstdio.h"
+#include "err.h"
+#include "str.h"
 
 #define MAX_IFACES      4
 #define LOOPBACK        "lo"
@@ -85,6 +88,8 @@
 #define INET_ADDRSTRLEN 16
 #endif
 
+#define SYSTEMCTL_PATH "/usr/bin/systemctl"
+#define ALT_SYSTEMCTL_PATH "/sbin/systemctl"
 
 /*
  * Data types
@@ -114,6 +119,8 @@ static HashTable *SNEBuildHash(const char **nativeEnviron);
 static const char **SNEHashToEnviron(HashTable *environTable);
 static int SNEForEachCallback(const char *key, void *value, void *clientData);
 
+static int SystemRunShutdownCommand(Bool reboot, const char *cmd);
+static void SystemUninhibitedShutdown(Bool reboot);
 
 /*
  * Global functions
@@ -284,7 +291,6 @@ System_Uptime(void)
    return uptime;
 }
 
-
 /*
  *-----------------------------------------------------------------------------
  *
@@ -325,9 +331,9 @@ System_Shutdown(Bool reboot)  // IN: "reboot or shutdown" flag
       cmd = "/sbin/shutdown -h now";
 #endif
    }
-   if (system(cmd) == -1) {
-      fprintf(stderr, "Unable to execute %s command: \"%s\"\n",
-              reboot ? "reboot" : "shutdown", cmd);
+
+   if (SystemRunShutdownCommand(reboot, cmd) != 0) {
+      SystemUninhibitedShutdown(reboot);
    }
 }
 
@@ -767,4 +773,85 @@ SNEForEachCallback(const char *key,     // IN: environment variable
    free(itemBuf);
 
    return 0;
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * SystemRunShutdownCommand --
+ *
+ *   Run a reboot or shutdown command using system() and log a warning if it fails.
+ *
+ * Return value:
+ *    Returns the return value of the system() call.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static int
+SystemRunShutdownCommand(Bool reboot,     // IN: "reboot or shutdown" flag
+                         const char *cmd) // IN: "command to run"
+{
+   int status;
+
+   if ((status = system(cmd)) != 0) {
+      char cmsg[128];
+
+      Str_Snprintf(cmsg, sizeof(cmsg), "%s: %s command \"%s\"",
+                   __func__, reboot ? "reboot" : "shutdown", cmd);
+
+      if (status == -1) {
+         Warning("%s: failed. Error: %s\n", cmsg, Err_Errno2String(errno));
+      } else if (WIFEXITED(status)) {
+         Warning("%s exited. status: %d\n", cmsg, WEXITSTATUS(status));
+      } else if (WIFSIGNALED(status)) {
+         Warning("%s terminated by signal: %d\n", cmsg, WTERMSIG(status));
+      } else if (WIFSTOPPED(status)) {
+         Warning("%s stopped by signal: %d\n", cmsg, WSTOPSIG(status));
+      } else {
+         Warning("%s Unexpected status (0x%x)\n", cmsg, status);
+      }
+   }
+
+   return status;
+}
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * SystemUninhibitedShutdown --
+ *
+ *   On systems running systemd, reboot or shutdown ignoring inhibitors
+ *
+ * Return value:
+ *    None.
+ *
+ * Side effects:
+ *    None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static void
+SystemUninhibitedShutdown(Bool reboot)  // IN: "reboot or shutdown" flag
+{
+   const char *path;
+   char cmd[64];
+
+   if (access(SYSTEMCTL_PATH, X_OK) == 0) {
+      path = SYSTEMCTL_PATH;
+   } else if (access(ALT_SYSTEMCTL_PATH, X_OK) == 0) {
+      path = ALT_SYSTEMCTL_PATH;
+   } else {
+      Log("%s: systemctl command not found", __func__);
+      return;
+   }
+
+   Str_Snprintf(cmd, sizeof(cmd), "%s %s -i", path, reboot ? "reboot" : "poweroff");
+
+   Log("%s: Executing command: \"%s\"", __func__, cmd);
+   SystemRunShutdownCommand(reboot, cmd);
 }
