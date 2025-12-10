@@ -73,7 +73,7 @@ cmdline.uinputfd = "Descripteur de fichier pour le périphérique uinput."
 cmdline.uinputfd.fd = "fd"
 
 cmdline.uninstall = "Désinstalle le service du Gestionnaire de contrôle du service."
-s
+
 cmdline.version = "Imprime la version démon et quitte l'application."
 
-vmtools.cert  = "Verify that a valid \"Broadcom Inc\" certificate is present in the Trusted Publishers certificate store. Refer to the VMware Tools Administration Guide for details."
+vmtools.cert = "Verify that a valid VMware Tools signing certificate is present in the Trusted Publishers certificate store on the system. Refer to the VMware Tools Administration Guide for how to set up a VMware Tools signing certificate."

@@ -145,11 +145,14 @@ VMTools_ConfigGetString(GKeyFile *config,
 
 #if defined(G_PLATFORM_WIN32)
 
-#define VMTOOLS_CERT_MSG "Verify that a valid \"Broadcom Inc\" certificate "\
-                         "is present in the Trusted Publishers certificate "\
-                         "store. Refer to the VMware Tools Administration "\
-                         "Guide for details."
+#define VMTOOLS_WIN_EVENT_SOURCE_NAME  L"VMware Tools"
 
+#define VMTOOLS_CERT_MSG "Verify that a valid VMware Tools signing "\
+                         "certificate is present in the Trusted "\
+                         "Publishers certificate store on the system. "\
+                         "Refer to the VMware Tools Administration Guide "\
+                         "for how to set up a VMware Tools signing "\
+                         "certificate."
 gboolean
 VMTools_AttachConsole(void);
 
@@ -157,10 +160,10 @@ GSource *
 VMTools_NewHandleSource(HANDLE h);
 
 gboolean
-VMTools_IsGPOExecPolicyAllSigned(void);
+VMTools_IsPSScriptSigningEnforced(void);
 
 gboolean
-VMTools_IsCertPresent(void);
+VMTools_IsScriptSignerCertPresent(void);
 
 void
 VMTools_LogWinEvent(const gchar *certMsg);

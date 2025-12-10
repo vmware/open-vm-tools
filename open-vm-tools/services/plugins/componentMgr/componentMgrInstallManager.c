@@ -173,8 +173,8 @@ ComponentMgrCheckStatusMonitor(void *data) // IN
 
       if ((ret != 0 ||
            exitCode == 1) &&
-          VMTools_IsGPOExecPolicyAllSigned() &&
-          !VMTools_IsCertPresent()) {
+          VMTools_IsPSScriptSigningEnforced() &&
+          !VMTools_IsScriptSignerCertPresent()) {
          static uint32 logCount = 0;
          /*
           * Exit code 1 is a special case. We assume this is because the
@@ -306,8 +306,8 @@ ComponentMgrProcessMonitor(void *data) // IN
 
       if ((ret != 0 ||
            exitCode == 1) &&
-          VMTools_IsGPOExecPolicyAllSigned() &&
-          !VMTools_IsCertPresent()) {
+          VMTools_IsPSScriptSigningEnforced() &&
+          !VMTools_IsScriptSignerCertPresent()) {
          static uint32 logCount = 0;
          /*
           * Exit code 1 is a special case. We assume this is because the

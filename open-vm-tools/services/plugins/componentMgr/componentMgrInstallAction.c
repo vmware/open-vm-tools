@@ -116,7 +116,7 @@ static struct ComponentInfo components[] = {
  */
 #if defined(_WIN32)
 static const char powershellExecutable[] = "\\WindowsPowerShell\\v1.0\\PowerShell.exe";
-static const char powershellOption[] = "-ExecutionPolicy RemoteSigned -File";
+static const char powershellOption[] = "-NonInteractive -ExecutionPolicy RemoteSigned -File";
 
 static ComponentAction executionScripts[] = {
    {SALT_MINION,"svtminion.ps1", "-Install", "-Remove", "-Status", "-Loglevel debug", "saltMinion", NULL, &ComponentMgrCustomizeSaltAddAction}
@@ -416,7 +416,7 @@ ComponentMgrCustomizeSaltAddAction()
  * component.
  *
  * The windows counterpart is constructed as:
- * <path to powershell.exe> -ExecutionPolicy RemoteSigned -File \
+ * <path to PowerShell.exe> -ExecutionPolicy RemoteSigned -File \
  * <path to component script> <args to component script>
  *
  * The linux counterpart is constructed as:

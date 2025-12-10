@@ -123,17 +123,20 @@ exit:
 #define POWERSHELL_GPO_REG_KEY \
         "Software\\Policies\\Microsoft\\Windows\\PowerShell"
 #define POWERSHELL_GPO_EXEC_POLICY "ExecutionPolicy"
+#define VMTOOLS_SIGNER L"Broadcom Inc"
+#define POWERSHELL_EXEC_POLICY_ALLSIGNED "AllSigned"
 #define VMW_CERT_ENCODING (X509_ASN_ENCODING | PKCS_7_ASN_ENCODING)
 
 
 /*
  ******************************************************************************
- * VMTools_IsGPOExecPolicyAllSigned --
+ * VMTools_IsPSScriptSigningEnforced --
  *
- * Check the powershell GPO machine execution policy
+ * Check the GPO PowerShell Execution Policy
  *
- * @return TRUE if powershell GPO MachinePolicy is set to AllSigned.
- *         FALSE in case of error or if MachinePolicy is not AllSigned.
+ * @return TRUE if GPO PowerShell Execution Policy is set to AllSigned.
+ *         FALSE in case of error or if GPO PowerShell Execution Policy
+ *         not AllSigned.
  *
  * Side effects:
  *      None.
@@ -142,7 +145,7 @@ exit:
  */
 
 gboolean
-VMTools_IsGPOExecPolicyAllSigned(void)
+VMTools_IsPSScriptSigningEnforced(void)
 {
    LONG ret;
    HKEY hKey;
@@ -157,7 +160,13 @@ VMTools_IsGPOExecPolicyAllSigned(void)
                        KEY_READ,
                        &hKey);
    if (ret != ERROR_SUCCESS) {
-      g_debug("%s: Registry open failed.\n", __FUNCTION__);
+      if (ret == ERROR_FILE_NOT_FOUND) {
+         g_debug("%s: The key for GPO PowerShell ExecutionPolicy does not "
+                 "exist.\n", __FUNCTION__);
+      } else {
+         g_warning("%s: Failed to open registry for GPO PowerShell "
+                   "ExecutionPolicy. ret: %d\n", __FUNCTION__, ret);
+      }
       return FALSE;
    }
 
@@ -170,23 +179,34 @@ VMTools_IsGPOExecPolicyAllSigned(void)
 
    RegCloseKey(hKey);
 
-   if (ret != ERROR_SUCCESS || regSz != REG_SZ || len == 0) {
-      g_debug("%s: Failed to get powershell GPO policy. ret: %d\n",
-              __FUNCTION__,
-              ret);
+   if (ret != ERROR_SUCCESS) {
+      if (ret == ERROR_FILE_NOT_FOUND) {
+         g_debug("%s: The value for GPO PowerShell ExecutionPolicy "
+                 "is not found.\n", __FUNCTION__);
+      } else {
+         g_warning("%s: Failed to get GPO PowerShell ExecutionPolicy. "
+                   "ret: %d\n", __FUNCTION__, ret);
+      }
+      return FALSE;
+   }
+
+   if (regSz != REG_SZ) {
+      g_warning("%s: The value of GPO PowerShell ExecutionPolicy is not of "
+                "type string.\n", __FUNCTION__);
       return FALSE;
    }
 
    buf[len] = '\0';
-   g_debug("%s: Powershell GPO execution policy: \"%s\"\n", __FUNCTION__, buf);
 
-   return (g_strcmp0(buf, "AllSigned") == 0);
+   g_debug("%s: GPO PowerShell ExecutionPolicy: \"%s\"\n", __FUNCTION__, buf);
+
+   return (g_strcmp0(buf, POWERSHELL_EXEC_POLICY_ALLSIGNED) == 0);
 }
 
 
 /*
  ******************************************************************************
- * VMTools_IsCertPresent --
+ * VMTools_IsScriptSignerCertPresent --
  *
  * Checks if our certificate is present in TrustedPublisher cert store.
  *
@@ -197,15 +217,18 @@ VMTools_IsGPOExecPolicyAllSigned(void)
  * Side effects:
  *      None.
  *
+ * XXX: In future, this needs to be enhanced to check for the certificate that
+ *      is used to sign the PowerShell scripts or any of the binaries.
+ *
  ******************************************************************************
  */
 
 gboolean
-VMTools_IsCertPresent()
+VMTools_IsScriptSignerCertPresent()
 {
    HCERTSTORE trustedPublisher;
    static const wchar_t *certStoreW = L"TrustedPublisher";
-   static const wchar_t *certSubjectW = L"Broadcom Inc";
+   static const wchar_t *certSubjectW = VMTOOLS_SIGNER;
    PCCERT_CONTEXT certContext;
 
    trustedPublisher = CertOpenStore(CERT_STORE_PROV_SYSTEM_W,
@@ -264,9 +287,11 @@ VMTools_LogWinEvent(const gchar *msg)
    HANDLE h;
    wchar_t *msgBufW;
 
-   h = RegisterEventSourceW(NULL, L"VMware Tools");
+   h = RegisterEventSourceW(NULL, VMTOOLS_WIN_EVENT_SOURCE_NAME);
    if (h == NULL) {
-      g_debug("%s: Register windows event failed.\n", __FUNCTION__);
+      g_warning("%s: Failed to register event source. err: %d\n",
+                __FUNCTION__,
+                GetLastError());
       return;
    }
 
