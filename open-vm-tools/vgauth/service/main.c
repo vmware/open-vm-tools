@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2011-2021, 2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2011-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -538,6 +539,7 @@ main(int argc,
 #endif
 
    gPrefs = Pref_Init(VGAUTH_PREF_CONFIG_FILENAME);
+   Pref_InitEnv(gPrefs, VGAUTH_SERVICE_NAME, TRUE);
 
    /*
     * Determine where the service is running from, so resources can

@@ -482,8 +482,9 @@ MsgLoadCatalog(const char *path)
    stream = g_io_channel_new_file(localPath, "r", &err);
    VMTOOLS_RELEASE_FILENAME_LOCAL(localPath);
 
-   if (err != NULL) {
-      g_debug("Unable to open '%s': %s\n", path, err->message);
+   if (stream == NULL) {
+      g_debug("Unable to open '%s': %s\n", path,
+              err != NULL ? err->message : "No GError");
       g_clear_error(&err);
       return NULL;
    }
@@ -495,21 +496,22 @@ MsgLoadCatalog(const char *path)
       gboolean eof = FALSE;
       char *name = NULL;
       char *value = NULL;
-      gchar *line;
 
       /* Read the next key / value pair. */
       for (;;) {
          gsize i;
          gsize len;
          gsize term;
+         gchar *line = NULL;
          char *unused = NULL;
          gboolean cont = FALSE;
+         GIOStatus status;
 
-         g_io_channel_read_line(stream, &line, &len, &term, &err);
+         status = g_io_channel_read_line(stream, &line, &len, &term, &err);
 
-         if (err != NULL) {
+         if (status == G_IO_STATUS_ERROR) {
             g_warning("Unable to read a line from '%s': %s\n",
-                      path, err->message);
+                      path, err != NULL ? err->message : "No GError");
             g_clear_error(&err);
             error = TRUE;
             g_free(line);

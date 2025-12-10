@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2010-2025 Broadcom. All Rights Reserved.
+ * Copyright (c) 2011-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -571,8 +571,9 @@ MsgLoadCatalog(const char *path)
    g_debug("%s: loading message catalog '%s'\n", __FUNCTION__, localPath);
    RELEASE_FILENAME_LOCAL(localPath);
 
-   if (err != NULL) {
-      g_debug("Unable to open '%s': %s\n", path, err->message);
+   if (stream == NULL) {
+      g_debug("Unable to open '%s': %s\n", path,
+              err != NULL ? err->message : "No GError");
       g_clear_error(&err);
       return NULL;
    }
@@ -584,18 +585,19 @@ MsgLoadCatalog(const char *path)
    for (;;) {
       char *name = NULL;
       char *value = NULL;
-      gchar *line;
+      gchar *line = NULL;
       gsize len;
       gsize term;
       char *unused = NULL;
+      GIOStatus status;
 
       /* Read the next key / value pair. */
 
-      g_io_channel_read_line(stream, &line, &len, &term, &err);
+      status = g_io_channel_read_line(stream, &line, &len, &term, &err);
 
-      if (err != NULL) {
+      if (status == G_IO_STATUS_ERROR) {
          g_warning("Unable to read a line from '%s': %s\n",
-                   path, err->message);
+                   path, err != NULL ? err->message : "No GError");
          g_clear_error(&err);
          error = TRUE;
          g_free(line);
@@ -627,13 +629,13 @@ MsgLoadCatalog(const char *path)
       }
       g_free(unused);
       g_free(line);
+      line = NULL;
 
       if (error) {
          /*
           * If the local DictLL_UnmarshalLine() returns NULL, name and value
           * will remain NULL pointers.  No malloc'ed memory to free here.
           */
-         /* coverity[leaked_storage] */
          break;
       }
 

@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2012,2018-2021, 2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2012-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -45,7 +46,8 @@
 
 #define NOT_VMWARE_ERROR "Failed sending message to VMware.\n"
 
-static Bool ProcessNamespace(char *namespace);
+static Bool ProcessNamespace(char *namespace,
+                             VGAuthContext *ctx);
 
 #define NSDB_PRIV_GET_VALUES_CMD "namespace-priv-get-values"
 #define NSDB_PRIV_SET_KEYS_CMD "namespace-priv-set-keys"
@@ -154,8 +156,9 @@ vgauthLog(const char *logDomain,
  * Parses the data coming back from the namespace-get-values call, and
  * updates the VGAuth alias store with the information.
  *
+ * @param[in]  ctx       The VGAuthContext.
  * @param[in]  result    The raw data.  UTF-8 bytestream with embedded NULs.
- * @param[in]  ersultLen The length of the data.
+ * @param[in]  resultLen The length of the data.
  *
  * @return TRUE if successful, FALSE otherwise.
  *
@@ -163,7 +166,8 @@ vgauthLog(const char *logDomain,
  */
 
 static Bool
-ProcessQueryReply(char *result,
+ProcessQueryReply(VGAuthContext *ctx,
+                  char *result,
                   size_t resultLen)
 {
    char *p = result;
@@ -173,7 +177,6 @@ ProcessQueryReply(char *result,
    Bool addMapped = FALSE;
    Bool status = TRUE;
    VGAuthError vgErr;
-   VGAuthContext *ctx = NULL;
    int i;
    int numMapped = 0;
    VGAuthMappedAlias *maList = NULL;
@@ -230,17 +233,6 @@ ProcessQueryReply(char *result,
     * the base64 decoded data.
     */
    g_strstrip(pemCert);
-
-   /*
-    * Now tell VGAuth.
-    */
-   VGAuth_SetLogHandler(vgauthLog, NULL, 0, NULL);
-   vgErr = VGAuth_Init(VGAUTHIMPORT_APP_NAME, 0, NULL, &ctx);
-   if (VGAUTH_FAILED(vgErr)) {
-      fprintf(stderr, "Failed to init VGAuth context\n");
-      status = FALSE;
-      goto done;
-   }
 
    /*
     * Make sure we don't already have the entry.
@@ -303,9 +295,6 @@ ProcessQueryReply(char *result,
    }
 
 done:
-   if (NULL != ctx) {
-      VGAuth_Shutdown(ctx);
-   }
    for (i = 0; i < ARRAYSIZE(nameVals); i++) {
       free(nameVals[i].val);
    }
@@ -452,6 +441,7 @@ done:
  * with a timestamp noting when the data was processed.
  *
  * @param[in]  namespace   The namespace name.
+ * @param[in]  ctx         The VGAuthContext.
  *
  * @return TRUE if successful, FALSE otherwise.
  *
@@ -459,7 +449,8 @@ done:
  */
 
 static Bool
-ProcessNamespace(char *namespace)
+ProcessNamespace(char *namespace,
+                 VGAuthContext *ctx)
 {
    char *result = NULL;
    size_t resultLen = 0;
@@ -479,7 +470,7 @@ ProcessNamespace(char *namespace)
       if (resultLen == 0) {
          fprintf(stderr, "Error: No keys found in namespace '%s'\n", namespace);
       } else {
-         status = ProcessQueryReply(result, resultLen);
+         status = ProcessQueryReply(ctx, result, resultLen);
 
          if (status ) {
             status = SetImportTime(namespace);
@@ -522,6 +513,8 @@ main(int argc, char *argv[])
       { NULL },
    };
    GOptionContext *optCtx;
+   VGAuthContext *ctx = NULL;
+   VGAuthError vgErr;
 
 /*
  * Using WinUtil_EnableSafePathSearching() and WinUtil_VerifyExePathW() from
@@ -545,6 +538,17 @@ main(int argc, char *argv[])
    gAppName = g_path_get_basename(argv[0]);
 
    g_set_prgname(gAppName);
+
+   /*
+    * Initialize VGAuth and set up the environment.
+    */
+   VGAuth_SetLogHandler(vgauthLog, NULL, 0, NULL);
+   vgErr = VGAuth_Init(VGAUTHIMPORT_APP_NAME, 0, NULL, &ctx);
+   if (VGAUTH_FAILED(vgErr)) {
+      fprintf(stderr, "Failed to init VGAuth context\n");
+      goto out;
+   }
+
    optCtx = g_option_context_new(usageMsg);
    g_option_context_set_summary(optCtx, summaryMsg);
    g_option_context_add_main_entries(optCtx, options, NULL);
@@ -569,9 +573,12 @@ main(int argc, char *argv[])
       goto out;
    }
 
-   success = ProcessNamespace(argv[1]) ? 0 : 1;
+   success = ProcessNamespace(argv[1], ctx) ? 0 : 1;
 
 out:
+   if (NULL != ctx) {
+      VGAuth_Shutdown(ctx);
+   }
    g_option_context_free(optCtx);
    g_free(gAppName);
 

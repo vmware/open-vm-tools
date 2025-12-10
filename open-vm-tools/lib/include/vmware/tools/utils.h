@@ -177,6 +177,11 @@ VMTools_GetLibdir(void);
 
 #endif
 
+void
+VMTools_SetupEnv(const gchar *appName,
+                 GKeyFile *config,
+                 gboolean globalVars);
+
 GSource *
 VMTools_CreateTimer(gint timeout);
 

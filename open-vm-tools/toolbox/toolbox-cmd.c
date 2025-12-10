@@ -479,6 +479,8 @@ main(int argc,    // IN: length of command line arguments
    TOOLBOXCMD_LOAD_GLOBALCONFIG(conf)
 
    VMTools_ConfigLogging("toolboxcmd", conf, FALSE, FALSE);
+   /* Initialize any global environment variables that might be required. */
+   VMTools_SetupEnv("toolboxcmd", conf, TRUE);
    VMTools_BindTextDomain(VMW_TEXT_DOMAIN, NULL, NULL);
 
    if (!VmCheck_IsVirtualWorld()) {

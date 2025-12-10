@@ -1,5 +1,7 @@
 ################################################################################
-### Copyright (c) 2008-2021,2023 VMware, Inc.  All rights reserved.
+### Copyright (c) 2008-2025 Broadcom. All Rights Reserved.
+### Broadcom Confidential. The term "Broadcom" refers to Broadcom Inc.
+### and/or its subsidiaries.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -73,6 +75,7 @@ libvmtools_la_SOURCES += signalSource.c
 libvmtools_la_SOURCES += vmtools.c
 libvmtools_la_SOURCES += vmtoolsConfig.c
 libvmtools_la_SOURCES += vmtoolsLog.c
+libvmtools_la_SOURCES += vmtoolsMisc.c
 libvmtools_la_SOURCES += vmxLogger.c
 
 # Recompile the stub for Log_* functions, but not Log() itself (see -DNO_LOG_STUB).
@@ -80,7 +83,7 @@ libvmtools_la_SOURCES += $(top_srcdir)/lib/stubs/stub-log.c
 
 libvmtools_la_CPPFLAGS =
 libvmtools_la_CPPFLAGS += -DVMTOOLS_USE_GLIB
-libvmtools_la_CPPFLAGS += -DNO_LOG_STUB
+libvmtools_la_CPPFLAGS += -DNO_LOG_STUB -DG_LOG_DOMAIN=\"vmtoolslib\"
 libvmtools_la_CPPFLAGS += -DVMTOOLS_DATA_DIR=\"$(datadir)/open-vm-tools\"
 libvmtools_la_CPPFLAGS += @GLIB2_CPPFLAGS@
 

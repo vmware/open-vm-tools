@@ -367,7 +367,8 @@ ToolsCore_ParseCommandLine(ToolsServiceState *state,
                                  ToolsCoreCmdLineError);
 
    if (!g_option_context_parse(context, &argc, &argv, &error)) {
-      g_printerr("%s: %s\n", N_("Command line parsing failed"), error->message);
+      g_printerr("%s: %s\n", N_("Command line parsing failed"),
+                 error != NULL ? error->message : "No GError");
       goto exit;
    }
 

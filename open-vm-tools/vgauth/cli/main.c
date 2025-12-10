@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2011-2020, 2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2011-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -749,6 +750,13 @@ mainRun(int argc,
     * Set up the option parser
     */
    g_set_prgname(appName);
+
+   err = VGAuth_Init(appName, 0, NULL, &ctx);
+   if (VGAUTH_E_OK != err) {
+      g_printerr("%s\n", SU_(vgauth.init.failed, "Failed to init VGAuth"));
+      exit(-1);
+   }
+
    noteMsg = g_strdup_printf(lNote, "removeAll");
    context = g_option_context_new(paramStr);
    summaryMsg = g_strdup_printf(
@@ -872,6 +880,8 @@ next:
                  SU_(cmdline.parse, "Command line parsing failed"),
                  gErr->message);
       g_error_free(gErr);
+      VGAuth_Shutdown(ctx);
+      g_free(appName);
       exit(-1);
    }
 #endif
@@ -881,12 +891,6 @@ next:
     */
    if (((doAdd || doRemove) && !pemFilename) ||(doRemoveAll && !subject)) {
       Usage(context, paramStr, cmdOptions);
-   }
-
-   err = VGAuth_Init(appName, 0, NULL, &ctx);
-   if (VGAUTH_E_OK != err) {
-      g_printerr("%s\n", SU_(vgauth.init.failed, "Failed to init VGAuth"));
-      exit(-1);
    }
 
    /*
