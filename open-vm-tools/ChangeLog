@@ -1,3 +1,142 @@
+commit a49dc1275549f175bece52ccf7e84ee1ef3305fe
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Dec 9 21:31:20 2025 -0800
+
+    Change to common header files not applicable to open-vm-tools.
+
+commit aef2c4fb99f43c9331bd0af536820c143bcaec3e
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Dec 9 21:31:20 2025 -0800
+
+    Ignore systemd inhibitors during guest poweroff/reboot.
+    
+    The system() call returns 0 when the command runs successfully, or the exit
+    code of the command if it fails. The returned code is checked, and if the
+    shutdown command fails due to any systemd inhibitors, a fallback
+    systemctl shutdown/reboot is executed while ignoring the systemd inhibitors.
+
+commit 01a87920d7a41d3184e9e09b136e3eb135351096
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Dec 9 21:31:20 2025 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit a65569b7709b1082b499ec2ac690caf192b3d01d
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Dec 9 21:31:20 2025 -0800
+
+    Localization update for open-vm-tools.
+
+commit 7e90f0758bc13bc7e97a44c8f5e91727267fbee7
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Dec 9 21:31:20 2025 -0800
+
+    Change to common source files not applicable to open-vm-tools.
+
+commit f20d3df6000a3c5e7ce63b82bef5d2d67d6053c5
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Dec 9 21:31:19 2025 -0800
+
+    [GTK4] Workaround for G->H RTF Text DnD by returning Plain Text Only
+    
+    This change introduces a workaround for G->H Drag and Drop operations involving
+    RTF text in GTK4.
+    
+    In GTK4, when performing G->H DnD with RTF text, we are unable retrieve the raw
+    GValue/Byte data from the DnD Clipboard, unlike with the CopyPaste clipboard.
+    As a result, the original format info is lost. Additionally, the DnD clipboard
+    always returns a trailing "_" char for these dnd G->H with RTF, which needs to
+    be removed.
+    
+    To address these issues, the following changes have been made:
+    * Always return plain text for G->H RTF DnD
+    * Remove the trailing "_" if present
+
+commit 136bce5d13360aeee467e0710a20b08a244c60bd
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Dec 9 21:31:19 2025 -0800
+
+    Fix open-vm-tools build failure on FreeBSD 13 after adding GTK4 support
+    
+    This change includes the following fixes:
+    1. Building now defaults to GTK3 on FreeBSD, unless --with-gtk4 is explicitly
+       specified.
+    2. Unnecessary header files such as cpName.h, cpNameUtil.h and
+       dnd/dndFileContentsUtil.h have been removed. These headers caused a typedef
+       conflict for Bool between /usr/local/include/X11/Xdefs.h and vm_basic_types.h
+    3. `fakeMouseWayland` and `UINPUT` do not work on FreeBSD, so they have been
+       disabled, with their code guarded under `#ifdef UINPUT`
+
+commit 9f3d000f538b9e225b5b615af6a8d6f8dd20af63
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Dec 9 21:31:19 2025 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit e4c0f80b1de553792bc08577ae56eed9ba2e43a9
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Dec 9 21:31:19 2025 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 8ee8e1468abdc2778bf26556cffd9c8a3f9eb6a6
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Dec 9 21:31:19 2025 -0800
+
+    Change to common header files not applicable to open-vm-tools.
+
+commit 183bb8bc5195370668629b733654b4aaf599d012
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Dec 9 21:31:19 2025 -0800
+
+    Change to common source files not applicable to open-vm-tools.
+
+commit 2ad2ca8ff6538faedb18106fb230ce2a03e18db5
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Dec 9 21:31:19 2025 -0800
+
+    VMTools: services/apps use config env settings to override unhandled system env
+    settings
+    
+    Previously, only the VMToolsd service and user process would use the
+    config file set or unset environment settings, and only when the process name
+    was known (vmsvc, vmusr).
+    
+    The code to process the config environment variables has moved from tools core to
+    vmtools library.
+
+commit 4445bcb9866a17cfec116cb858f2eb3db3057a38
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Dec 9 21:31:19 2025 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 3aac889dbd44e69bcab62bf45f22864623326fff
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Dec 9 21:31:19 2025 -0800
+
+    Change to common source files not applicable to open-vm-tools.
+
+commit 2539d57a23ea62a325d00065d3e7e636166815e6
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Dec 9 21:31:19 2025 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 8b52fadbff079f3d2c156dff13f8aec940b642e7
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Dec 9 21:31:19 2025 -0800
+
+    Remove the VMTOOLS_USE_LEGACY_GTK macro now that GTK4 support has been added.
+
+commit f556e5f9055565cea63f39f60db986231f461ef3
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Sun Nov 30 23:23:17 2025 -0800
+
+    Update ChangeLog with the granular push of Nov 30, 2025.
+    - plus ChangeLog update of Oct 16, 2025.
+    - plus copyright year update in few files.
+
 commit 7f67f9618b59a5dd4c152597a3eeeb5768222ffa
 Author: Kruti Pendharkar <kp025370@broadcom.com>
 Date:   Sun Nov 30 23:18:02 2025 -0800
