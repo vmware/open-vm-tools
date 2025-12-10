@@ -34,7 +34,10 @@
 #if !defined(DETWNDTEST)
 #include "dnd.h"
 #endif
+/* Need to check USE_UINPUT, as FreeBSD does not support this */
+#ifdef USE_UINPUT
 #include "fakeMouseWayland/fakeMouseWayland.h"
+#endif
 
 using source_drag_begin_handler = void (const Glib::RefPtr< Gdk::Drag > &, void *);
 using source_drag_end_handler =  void (const Glib::RefPtr< Gdk::Drag > &, bool, void *);

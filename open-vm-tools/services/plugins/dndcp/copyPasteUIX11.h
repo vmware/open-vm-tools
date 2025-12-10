@@ -36,8 +36,6 @@
 extern "C" {
 #include "debug.h"
 #include "dndClipboard.h"
-#include "../dnd/dndFileContentsUtil.h"
-#include "cpNameUtil.h"
 #include "vmware/tools/guestrpc.h"
 }
 

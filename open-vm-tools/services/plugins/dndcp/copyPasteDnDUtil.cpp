@@ -21,7 +21,7 @@
  * copyPasteDnDUtil.cpp --
  *
  *    This is the utility file to keep the common API's
- *    for Copy/Paste and Drag/Drop functionality. 
+ *    for Copy/Paste and Drag/Drop functionality.
  *
  */
 
@@ -31,7 +31,9 @@
 #include "dndFileContentsUtil.h"
 #include "dndFileList.hh"
 #include "copyPasteUIX11.h"
+extern "C" {
 #include "cpNameUtil.h"
+}
 
 
 /*

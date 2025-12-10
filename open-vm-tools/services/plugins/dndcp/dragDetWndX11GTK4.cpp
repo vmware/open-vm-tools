@@ -96,6 +96,8 @@ DragDetWnd::DragDetWnd(int UseUInput_fd)
    // Let GTK preload data early.
    mTarget->set_preload(true);
 
+/* Need to check USE_UINPUT, as FreeBSD does not support this */
+#ifdef USE_UINPUT
    // Uinput simulation for wayland backend.
    if (UseUInput_fd != -1) {
        g_debug("%s: Using uinput simulation", __FUNCTION__);
@@ -110,6 +112,7 @@ DragDetWnd::DragDetWnd(int UseUInput_fd)
        // Disconnect the connection to X Server.
        XCloseDisplay(display);
    }
+#endif
    return;
 fail:
    if (mWnd) {
@@ -126,9 +129,11 @@ fail:
 
 DragDetWnd::~DragDetWnd()
 {
+#ifdef USE_UINPUT
    if (mUseUInput) {
       FakeMouse_Destory();
    }
+#endif
    if (mWnd) {
       delete mWnd;
       mWnd = NULL;
@@ -981,9 +986,11 @@ DragDetWnd::SimulateXEvents(const bool showWidget, const bool buttonEvent,
     * happen more reliably on KDE, but isn't necessary on GNOME.
     */
    if (mUseUInput) {
+#ifdef USE_UINPUT
        FakeMouse_Move(x, y);
        FakeMouse_Move(x + 1, y + 1);
        g_debug("%s: Uinput simulating moving mouse\n", __FUNCTION__);
+#endif
    } else {
        XTestFakeMotionEvent(dndXDisplay, -1, x, y, CurrentTime);
        XTestFakeMotionEvent(dndXDisplay, -1, x + 1, y + 1, CurrentTime);
@@ -996,8 +1003,10 @@ DragDetWnd::SimulateXEvents(const bool showWidget, const bool buttonEvent,
       g_debug("%s: faking left mouse button %s\n", __FUNCTION__,
               buttonPress ? "press" : "release");
       if (mUseUInput) {
+#ifdef USE_UINPUT
          ret = FakeMouse_Click(buttonPress);
          g_debug("%s: Uinput simulating click mouse with ret %d\n", __FUNCTION__, ret);
+#endif
       }
       else {
          XTestFakeButtonEvent(dndXDisplay, 1, buttonPress, CurrentTime);

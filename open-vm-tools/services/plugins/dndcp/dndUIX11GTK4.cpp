@@ -37,8 +37,6 @@ extern "C" {
 #include "vmware/guestrpc/tclodefs.h"
 
 #include "copyPasteCompat.h"
-#include "cpName.h"
-#include "cpNameUtil.h"
 #include "dndClipboard.h"
 #include "hgfsUri.h"
 #include "rpcout.h"

@@ -292,6 +292,13 @@ elif test "$with_gtk2" = "yes" ; then
    with_gtk4="no"
 fi
 
+# PR3594893, do not build with gtk4 for FreeBSD by default. Build with gtk3
+# by default as previous behavior, even both gtk4 and gtk3 libs are availale.
+# Only build with gtk4 when explicitly set by "--with_gtk4"
+if test "$with_gtk4" = "auto" && test "$os" = "freebsd" ; then
+   with_gtk4="no"
+fi
+
 AC_ARG_ENABLE(
    docs,
    AS_HELP_STRING(
