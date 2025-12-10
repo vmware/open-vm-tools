@@ -283,6 +283,7 @@
    LOGLEVEL_VAR(vdfs), \
    LOGLEVEL_VAR(vdfs_9p), \
    LOGLEVEL_VAR(vdpPlugin), \
+   LOGLEVEL_VAR(vdsm), \
    LOGLEVEL_VAR(vdtiPciCfgSpc), \
    LOGLEVEL_VAR(vflash), \
    LOGLEVEL_VAR(vg), \
