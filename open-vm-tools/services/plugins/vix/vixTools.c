@@ -242,11 +242,6 @@ char *gImpersonatedUsername = NULL;
 
 
 /*
- * The config file groupname for API configuration.
- */
-#define  VIX_TOOLS_CONFIG_API_GROUPNAME               "guestoperations"
-
-/*
  * Authentication configuration.
  * There are various forms of authentication supported,
  * e.g. InfrastructureAgents, NamePassword, SSPI, SAML etc.
@@ -2641,65 +2636,6 @@ VixToolsTranslateVGAuthError(VGAuthError vgErr)
 
 
    return err;
-}
-#endif
-
-
-#if defined(_WIN32)
-/*
- *-----------------------------------------------------------------------------
- *
- * VixTools_ConfigGetString --
- *
- *    Wrapper for VMTools_ConfigGetString to retrieve values
- *    from VIX_TOOLS_CONFIG_API_GROUPNAME group.
- *
- * Return value:
- *    Value of the key if the value was read successfully, or else
- *    a copy of defValue unless defValue is NULL, in which case it's NULL.
- *    The returned string should be freed with g_free when no longer
- *    needed.
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-gchar *
-VixTools_ConfigGetString(const gchar *key,         // IN
-                         const gchar *defValue)    // In
-{
-
-   return VMTools_ConfigGetString(gConfDictRef,
-                                  VIX_TOOLS_CONFIG_API_GROUPNAME,
-                                  key, defValue);
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * VixTools_ConfigLogInvalidString --
- *
- *    Log a warning when a config string from the
- *    VIX_TOOLS_CONFIG_API_GROUPNAME group has an invalid value.
- *
- * Return value:
- *    None
- *
- * Side effects:
- *    None
- *
- *-----------------------------------------------------------------------------
- */
-void
-VixTools_ConfigLogInvalidString(const gchar *function,    // IN
-                                const gchar *key,         // IN
-                                const gchar *confValue,   // IN
-                                const gchar *usedValue)   // IN
-{
-   g_warning("%s: invalid value '%s' from tools.conf [%s] %s, using %s.\n",
-             function, confValue, VIX_TOOLS_CONFIG_API_GROUPNAME, key, usedValue);
 }
 #endif
 
@@ -12237,6 +12173,28 @@ GuestAuthUnloadUserProfileAndToken(HANDLE hToken,
       }
       CloseHandle(hToken);
    }
+}
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixTools_GetConfDict --
+ *
+ *    Return pointer to dictionary used during VixTools_ProcessVixCommand
+ *
+ * Return value:
+ *    Pointer to GKeyFile for dictionary
+ *
+ * Side effects:
+ *    None
+ *
+ *-----------------------------------------------------------------------------
+ */
+GKeyFile *
+VixTools_GetConfDict(void)
+{
+   return gConfDictRef;
 }
 #endif // _WIN32
 

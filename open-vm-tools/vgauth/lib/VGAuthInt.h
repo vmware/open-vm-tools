@@ -287,14 +287,14 @@ VGAuthError VGAuth_NetworkReadBytes(VGAuthContext *ctx,
                                     gsize *len,
                                     gchar **buffer);
 
-
-VGAuthError VGAuthValidateUsernamePasswordImpl(VGAuthContext *ctx,
-                                               const char *userName,
-                                               const char *password,
-                                               const int numExtraParams,
-                                               const VGAuthExtraParams
-                                                  *extraParams,
-                                               VGAuthUserHandle **handle);
+VGAuthError VGAuthValidateUsernamePasswordImpl(
+               VGAuthContext *ctx,
+               const char *userName,
+               const char *password,
+               const int numExtraParams,
+               const VGAuthExtraParams *extraParams,
+               VGAuthUserHandle **handle
+            );
 
 #ifdef UNITTEST
 VGAuthError VGAuthComm_SetTestBufferInput(VGAuthContext *ctx,

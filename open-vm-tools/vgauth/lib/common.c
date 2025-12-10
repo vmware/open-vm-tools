@@ -195,8 +195,8 @@ VGAuthGetStringExtraParamImpl(const char *funcName,
                               const char *defValue,
                               const char **paramValue)
 {
-   gboolean paramSet = FALSE;
    int i;
+   int paramIndex;
 
    if ((numParams < 0) || (numParams > 0 && NULL == params)) {
       Warning("%s: invalid number of parameters: %d.\n", funcName, numParams);
@@ -207,27 +207,27 @@ VGAuthGetStringExtraParamImpl(const char *funcName,
       return VGAUTH_E_INVALID_ARGUMENT;
    }
 
+   paramIndex = -1;
    for (i = 0; i < numParams; i++) {
       if (g_strcmp0(params[i].name, paramName) == 0) {
-         // only allow it to be set once
-         if (paramSet) {
+         // make sure it's only specified once
+         if (paramIndex >= 0) {
             Warning("%s: extraParam '%s' passed multiple times.\n",
                     funcName, params[i].name);
             return VGAUTH_E_INVALID_ARGUMENT;
          }
-         if (params[i].value) {
-            *paramValue = params[i].value;
-            paramSet = TRUE;
-         } else {
-            Warning("%s: extraParam '%s' has NULL value.\n",
-                    funcName, params[i].name);
-            return VGAUTH_E_INVALID_ARGUMENT;
-         }
+         paramIndex = i;
       }
    }
 
-   if (!paramSet) {
+   if (paramIndex < 0) {
       *paramValue = defValue;
+   } else if (params[paramIndex].value != NULL) {
+      *paramValue = params[paramIndex].value;
+   } else {
+      Warning("%s: extraParam '%s' has NULL value.\n",
+              funcName, params[i].name);
+      return VGAUTH_E_INVALID_ARGUMENT;
    }
    return VGAUTH_E_OK;
 }

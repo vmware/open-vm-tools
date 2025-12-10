@@ -43,6 +43,12 @@
 #include "VGAuthAlias.h"
 #endif
 
+
+/*
+ * The config file groupname for API configuration.
+ */
+#define  VIX_TOOLS_CONFIG_API_GROUPNAME               "guestoperations"
+
 #define PROCESS_CREATOR_USER_TOKEN       ((void *)1)
 
 #ifdef _WIN32
@@ -73,15 +79,10 @@ VixError VixTools_Initialize(Bool thisProcessRunsAsRootArg,
 void VixTools_Uninitialize(void);
 
 #ifdef _WIN32
+
+GKeyFile *VixTools_GetConfDict(void);
+
 VixError VixToolsTranslateVGAuthError(VGAuthError vgErr);
-
-gchar *VixTools_ConfigGetString(const gchar *key,
-                                 const gchar *defValue);
-
-void VixTools_ConfigLogInvalidString(const gchar *function,
-                                     const gchar *key,
-                                     const gchar *confValue,
-                                     const gchar *usedValue);
 
 #endif
 
