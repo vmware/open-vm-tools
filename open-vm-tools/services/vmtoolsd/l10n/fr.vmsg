@@ -76,4 +76,4 @@ cmdline.uninstall = "Désinstalle le service du Gestionnaire de contrôle du ser
 
 cmdline.version = "Imprime la version démon et quitte l'application."
 
-vmtools.cert = "Verify that a valid VMware Tools signing certificate is present in the Trusted Publishers certificate store on the system. Refer to the VMware Tools Administration Guide for how to set up a VMware Tools signing certificate."
+vmtools.cert = "Vérifiez qu'un certificat de signature VMware Tools valide est présent dans le magasin de certificats des serveurs de publication approuvés sur le système. Reportez-vous au Guide d'administration de VMware Tools pour savoir comment configurer un certificat de signature VMware Tools."

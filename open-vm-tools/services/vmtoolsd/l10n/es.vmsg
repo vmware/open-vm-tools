@@ -76,4 +76,4 @@ cmdline.uninstall = "Desinstala el servicio desde el Administrador de control de
 
 cmdline.version = "Imprime la versión daemon y sale."
 
-vmtools.cert = "Verify that a valid VMware Tools signing certificate is present in the Trusted Publishers certificate store on the system. Refer to the VMware Tools Administration Guide for how to set up a VMware Tools signing certificate."
+vmtools.cert = "Compruebe que haya un certificado de firma de VMware Tools válido en el almacén de certificados Editores de confianza del sistema. Consulte la Guía de administración de VMware Tools para obtener información sobre cómo configurar un certificado de firma de VMware Tools."
