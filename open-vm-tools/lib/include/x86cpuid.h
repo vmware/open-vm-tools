@@ -1333,10 +1333,12 @@ FIELD( 88,  0, ECX, 16,  2, PERFTSC_SIZE,                        NO,    0 ) \
 FIELD( 88,  0, EDX,  0, 16, INVLPGB_MAX,                         NO,    0 ) \
 FIELD( 88,  0, EDX, 16,  8, RDPRU_MAX,                           NO,    0 )
 
-#define CPUID_8A_EDX_11 \
-FLAG(  8A,  0, EDX, 11,  1, SVMEDX_RSVD1,                        NO,    0 )
-#define CPUID_8A_EDX_14 \
-FLAG(  8A,  0, EDX, 14,  1, SVMEDX_RSVD2,                        NO,    0 )
+#define CPUID_8A_ECX_0_9 \
+FIELD(  8A,  0, ECX,  0, 10, SVM_ECX_RSVD1,                      NO,    0 )
+#define CPUID_8A_EDX_11  \
+FLAG(  8A,  0, EDX, 11,  1,  SVMEDX_RSVD1,                       NO,    0 )
+#define CPUID_8A_EDX_14  \
+FLAG(  8A,  0, EDX, 14,  1,  SVMEDX_RSVD2,                       NO,    0 )
 
 /*    LEVEL, REG, POS, SIZE, NAME,                          MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_8A                                           \
@@ -1344,7 +1346,8 @@ FIELD( 8A,  0, EAX,  0,  8, SVM_REVISION,                        YES,   4 ) \
 FLAG(  8A,  0, EAX,  8,  1, SVM_HYPERVISOR,                      NO,    0 ) \
 FIELD( 8A,  0, EAX,  9, 23, SVMEAX_RSVD,                         NO,    0 ) \
 FIELD( 8A,  0, EBX,  0, 32, SVM_NUM_ASIDS,                       YES,   7 ) \
-FIELD( 8A,  0, ECX,  0, 32, SVMECX_RSVD,                         NO,    0 ) \
+CPUID_8A_ECX_0_9 \
+FIELD( 8A,  0, ECX, 10, 22, SVMECX_RSVD,                         NO,    0 ) \
 FLAG(  8A,  0, EDX,  0,  1, SVM_NPT,                             YES,   7 ) \
 FLAG(  8A,  0, EDX,  1,  1, SVM_LBR,                             NO,    0 ) \
 FLAG(  8A,  0, EDX,  2,  1, SVM_LOCK,                            ANY,   7 ) \
@@ -1518,12 +1521,16 @@ FLAG( 820,  3, ECX,  4,  1, L3_CACHE_LCL_SLOW_BW_FILL,           NO,    0 ) \
 FLAG( 820,  3, ECX,  5,  1, L3_CACHE_RMT_SLOW_BW_FILL,           NO,    0 ) \
 FLAG( 820,  3, ECX,  6,  1, L3_CACHE_BW_VIC,                     NO,    0 )
 
-#define CPUID_821_EAX_5 \
+#define CPUID_821_EAX_5  \
 FLAG(  821, 0, EAX,  5,  1, CPUID_821_RSVD1,                     NO,    0 )
-#define CPUID_821_ECX_1 \
-FLAG(  821, 0, ECX,  1,  1, CPUID_821_RSVD2,                     NO,    0 )
-#define CPUID_821_ECX_2 \
-FLAG(  821, 0, ECX,  2,  1, CPUID_821_RSVD3,                     NO,    0 )
+#define CPUID_821_EAX_23 \
+FLAG(  821, 0, EAX, 23,  1, CPUID_821_RSVD2,                     NO,    0 )
+#define CPUID_821_EAX_26 \
+FLAG(  821, 0, EAX, 26,  1, CPUID_821_RSVD3,                     NO,    0 )
+#define CPUID_821_ECX_1  \
+FLAG(  821, 0, ECX,  1,  1, CPUID_821_RSVD4,                     NO,    0 )
+#define CPUID_821_ECX_2  \
+FLAG(  821, 0, ECX,  2,  1, CPUID_821_RSVD5,                     NO,    0 )
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_821                                          \
@@ -1531,7 +1538,7 @@ FLAG( 821,  0, EAX,  0,  1, NO_NESTED_DATA_BP,                   NO,    0 ) \
 FLAG( 821,  0, EAX,  1,  1, NON_SERIALIZING_FSGSBASE,            NO,    0 ) \
 FLAG( 821,  0, EAX,  2,  1, ALWAYS_SERIALIZING_LFENCE,           YES,  19 ) \
 FLAG( 821,  0, EAX,  3,  1, SMM_PGCFG_LOCK,                      NO,    0 ) \
-CPUID_821_EAX_5 \
+CPUID_821_EAX_5  \
 FLAG( 821,  0, EAX,  6,  1, NULL_SELECTOR_CLEARS_BASE,           NO,    0 ) \
 FLAG( 821,  0, EAX,  7,  1, UPPER_ADDRESS_IGNORE,                YES,  20 ) \
 FLAG( 821,  0, EAX,  8,  1, AUTOMATIC_IBRS,                      YES,  20 ) \
@@ -1544,10 +1551,12 @@ FLAG( 821,  0, EAX, 17,  1, CPL3_CPUID_GP,                       NO,    0 ) \
 FLAG( 821,  0, EAX, 18,  1, EPSF,                                NO,    0 ) \
 FLAG( 821,  0, EAX, 19,  1, FAST_REP_SCASB,                      YES,  22 ) \
 FLAG( 821,  0, EAX, 20,  1, LEAF821_PREFETCHI,                   YES,  22 ) \
+CPUID_821_EAX_23 \
 FLAG( 821,  0, EAX, 24,  1, ERAPS,                               YES,  FUT )\
+CPUID_821_EAX_26 \
 FIELD(821,  0, EBX,  0, 12, MICROCODE_PATCH_SIZE,                NO,    0 ) \
 FIELD(821,  0, EBX, 16,  8, RAP_SIZE,                            NO,    0 ) \
-CPUID_821_ECX_1 \
+CPUID_821_ECX_1  \
 CPUID_821_ECX_2
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
