@@ -144,7 +144,7 @@
 #define PRODUCT_XVP_NAME MAKE_NAME("vCenter XVP Manager")
 #define PRODUCT_RMKSCONTAINER_NAME MAKE_NAME("Remote MKS Container")
 
-#define PRODUCT_HBR_PROXY_NAME MAKE_NAME("Data Protection and Recovery Proxy")
+#define PRODUCT_HBR_PROXY_NAME MAKE_NAME("Protection and Recovery Proxy")
 #define PRODUCT_HBR_SERVER_NAME MAKE_NAME("vSphere Replication Server")
 
 #define PRODUCT_VMCF_NAME MAKE_NAME("VMCF")
