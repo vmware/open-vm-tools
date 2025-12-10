@@ -114,11 +114,6 @@
  * vmsvc.level = info
  * vmsvc.handler = std
  *
- * # Defines the "unity" domain, logging to a file.
- * unity.level = warning
- * unity.handler = file
- * unity.data = /tmp/unity.log
- *
  * # Defines the "vmtoolsd" domain, and disable logging for it.
  * vmtoolsd.level = none
  * @endverbatim
