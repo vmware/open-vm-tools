@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
+ * Copyright (c) 2010-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -77,9 +78,6 @@ public:
                           int32 y);
    virtual bool QueryExiting(uint32 sessionId, int32 x, int32 y);
    virtual bool DragNotPending(uint32 sessionId);
-   virtual bool UpdateUnityDetWnd(uint32 sessionId,
-                                  bool bShow,
-                                  uint32 unityWndId);
    virtual bool RequestFiles(uint32 sessionId);
    virtual bool SendFilesDone(uint32 sessionId,
                               bool success,

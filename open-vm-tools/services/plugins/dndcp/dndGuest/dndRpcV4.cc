@@ -478,25 +478,6 @@ DnDRpcV4::QueryExiting(uint32 sessionId,
 
 
 /**
- * Send cmd DND_CMD_UPDATE_UNITY_DET_WND to controller.
- *
- * @param[in] sessionId  Active session id the controller assigned earlier.
- * @param[in] show       Show or hide unity DnD detection window.
- * @param[in] unityWndId The unity window id.
- *
- * @return true on success, false otherwise.
- */
-
-bool
-DnDRpcV4::UpdateUnityDetWnd(uint32 sessionId,
-                            bool show,
-                            uint32 unityWndId)
-{
-   return false;
-}
-
-
-/**
  * Send cmd DND_CMD_MOVE_MOUSE to controller.
  *
  * @param[in] sessionId active session id the controller assigned earlier.
@@ -697,8 +678,6 @@ DnDRpcV4::HandleMsg(RpcParams *params,
       break;
    case DND_CMD_DRAG_NOT_PENDING:
       dragNotPendingChanged.emit(params->sessionId);
-      break;
-   case DND_CMD_UPDATE_UNITY_DET_WND:
       break;
    case DND_CMD_MOVE_MOUSE:
       moveMouseChanged.emit(params->sessionId,

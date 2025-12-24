@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2007-2024 Broadcom. All Rights Reserved.
+ * Copyright (c) 2007-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -86,9 +86,6 @@ typedef enum {
    DND_HG_UPDATE_FEEDBACK,
    DND_HG_DROP_DONE,
    DND_HG_START_FILE_COPY,
-
-   // Add future commands here.
-   DND_GH_UPDATE_UNITY_DET_WND,
 
    // New command after DnD version 3.1
    DND_UPDATE_HOST_VERSION,

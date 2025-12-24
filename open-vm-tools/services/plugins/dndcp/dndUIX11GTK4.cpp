@@ -186,8 +186,6 @@ DnDUIX11::Init()
    CONNECT_SIGNAL(mDnD, destMoveDetWndToMousePosChanged, OnDestMoveDetWndToMousePos);
    CONNECT_SIGNAL(mDnD, privDropChanged,       OnPrivateDrop);
    CONNECT_SIGNAL(mDnD, updateDetWndChanged,   OnUpdateDetWnd);
-   /* TODO: Unity related functions are deprecated, remove it later */
-   CONNECT_SIGNAL(mDnD, updateUnityDetWndChanged, OnUpdateUnityDetWnd);
 #undef CONNECT_SIGNAL
 
    mDetWnd->UpdateDetWnd(false, 0, 0);
@@ -760,7 +758,6 @@ DnDUIX11::OnPrivateDrop(int32 x,        // UNUSED
 {
    TRACE_CALL();
 
-   /* Unity manager in host side may already send the drop into guest. */
    if (mGHDnDInProgress) {
 
       /*
@@ -796,7 +793,6 @@ DnDUIX11::OnDestCancel()
 {
    TRACE_CALL();
 
-   /* Unity manager in host side may already send the drop into guest. */
    if (mGHDnDInProgress) {
       Glib::RefPtr<Gdk::Display> display = Gdk::Display::get_default();
       GdkSurface *gdkSurface = gdk_x11_display_get_default_group(display->gobj());
@@ -918,34 +914,6 @@ DnDUIX11::OnUpdateDetWnd(bool show,     // IN: show (true) or hide (false)
       g_debug("%s: hide\n", __FUNCTION__);
       mDetWnd->UpdateDetWnd(show, x, y);
    }
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * DnDUIX11::OnUpdateUnityDetWnd --
- *
- *      Callback to show/hide fullscreen Unity drag detection window.
- *
- *      TODO: Unity related functions are deprecated, remove it later once
- *            backend RPC functions are removed.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      Detection window shown, hidden.
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-DnDUIX11::OnUpdateUnityDetWnd(bool show,         // IN: show (true) or hide (false)
-                              uint32 unityWndId, // IN: XXX ?
-                              bool bottom)       // IN: place window at bottom of stack?
-{
-   NOT_IMPLEMENTED();
 }
 
 
