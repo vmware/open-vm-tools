@@ -23,6 +23,11 @@
  *    Functions to support the Alias store.
  */
 
+#ifndef _WIN32
+// Some Linux distributions need this for flag O_NOFOLLOW used in open.
+#define _GNU_SOURCE
+#endif
+
 #include <errno.h>
 #include <glib.h>
 #include <glib/gstdio.h>
@@ -806,15 +811,17 @@ ServiceLoadFileContentsPosix(const gchar *fileName,
       }
    }
 
+
    /*
     * Now open the file.
     */
-   fd = g_open(fileName, O_RDONLY);
+   fd = g_open(fileName, O_RDONLY | O_NOFOLLOW);
    if (fd < 0) {
       Warning("%s: failed to open %s for read (%d)\n",
               __FUNCTION__, fileName, errno);
       return VGAUTH_E_FAIL;
    }
+
 
    /*
     * fstat() to make sure it wasn't changed between the first check
@@ -832,6 +839,30 @@ ServiceLoadFileContentsPosix(const gchar *fileName,
    /*
     * Now the confidence checks.
     */
+   if (lstatBuf.st_mtime != fstatBuf.st_mtime) {
+      Warning("%s: mtime of %s changed (%ld vs %ld)\n", __FUNCTION__,
+              fileName, lstatBuf.st_mtime, fstatBuf.st_mtime);
+      // XXX audit this?
+      err = VGAUTH_E_FAIL;
+      goto done;
+   }
+
+   if (lstatBuf.st_dev != fstatBuf.st_dev) {
+      Warning("%s: dev of %s changed (%"FMT64"u vs %"FMT64"u)\n", __FUNCTION__,
+              fileName, lstatBuf.st_dev, fstatBuf.st_dev);
+      // XXX audit this?
+      err = VGAUTH_E_FAIL;
+      goto done;
+   }
+
+   if (lstatBuf.st_ino != fstatBuf.st_ino) {
+      Warning("%s: ino of %s changed (%"FMT64"u vs %"FMT64"u)\n", __FUNCTION__,
+              fileName, lstatBuf.st_ino, fstatBuf.st_ino);
+      // XXX audit this?
+      err = VGAUTH_E_FAIL;
+      goto done;
+   }
+
    if (lstatBuf.st_size != fstatBuf.st_size) {
       Warning("%s: size of %s changed (%d vs %d)\n", __FUNCTION__,
               fileName, (int) lstatBuf.st_size, (int) fstatBuf.st_size);
@@ -937,6 +968,7 @@ ServiceLoadFileContents(const gchar *fileName,
                                        fileSize);
 #endif
 }
+
 
 
 /*
