@@ -163,8 +163,8 @@ NORETURN void Panic_NoSave(const char *fmt, ...) PRINTF_DECL(1, 2);
  * Bug 3511557: Starting with linux kernels 6.15+, objtool started
  * failing vmmon builds due to Panic() being marked as '__noreturn', due to
  * which compiler doesn't generate clean function exits. As a fix, use
- * kernel's panic for vmmon. In linux kernel, panic() is also marked with 
- * '__noreturn', but objtool doesn't complain because panic() is in 
+ * kernel's panic for vmmon. In linux kernel, panic() is also marked with
+ * '__noreturn', but objtool doesn't complain because panic() is in
  * objtool's hard-coded global_noreturns array.
  */
 #elif !defined(VMKERNEL) && defined(VMMON) && \
@@ -482,6 +482,11 @@ void WarningThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
    static INLINE void name(void) {   \
       assertions                     \
    }
+
+// Verify at compile-time that a type is a certain size
+#define ASSERT_CONST_SIZE(X, C) ASSERT_ON_COMPILE(sizeof(X) == (C))
+// Verify at compile-time that two items have the same size (types, vars, etc).
+#define ASSERT_SAME_SIZE(X, Y)  ASSERT_ON_COMPILE(sizeof(X) == sizeof(Y))
 
 /*
  * Avoid generating extra code due to asserts which are required by
