@@ -1,8 +1,7 @@
 ################################################################################
-### Copyright (C) 2014-2025 Broadcom.  All rights reserved.
-### Broadcom Confidential. The term "Broadcom" refers to Broadcom Inc.
-### and/or its subsidiaries.
-################################################################################
+### Copyright (c) 2014-2025 Broadcom. All Rights Reserved.
+### The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
+###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
 ### published by the Free Software Foundation.
