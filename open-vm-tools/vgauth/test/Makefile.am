@@ -1,6 +1,8 @@
 ################################################################################
-### Copyright (C) 2014-2017 VMware, Inc.  All rights reserved.
-###
+### Copyright (C) 2014-2025 Broadcom.  All rights reserved.
+### Broadcom Confidential. The term "Broadcom" refers to Broadcom Inc.
+### and/or its subsidiaries.
+################################################################################
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
 ### published by the Free Software Foundation.
@@ -43,3 +45,4 @@ if HAVE_ICU
 else
    vmware_vgauth_smoketest_LINK = $(LINK)
 endif
+

@@ -344,6 +344,7 @@ gboolean ServiceAliasIsSubjectEqual(ServiceSubjectType t1,
 gboolean ServiceComparePEMCerts(const gchar *pemCert1,
                                 const gchar *pemCert2);
 
+
 /*
  * Connection functions
  */
