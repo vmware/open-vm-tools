@@ -43,7 +43,7 @@ extern "C" {
  * Constructor.
  */
 
-DragDetWnd::DragDetWnd(int UseUInput_fd)
+DragDetWnd::DragDetWnd(int useUInput_fd)
    : m_isVisible(false),
      mWnd(NULL),
      mSource(NULL),
@@ -99,11 +99,11 @@ DragDetWnd::DragDetWnd(int UseUInput_fd)
 /* Need to check USE_UINPUT, as FreeBSD does not support this */
 #ifdef USE_UINPUT
    // Uinput simulation for wayland backend.
-   if (UseUInput_fd != -1) {
+   if (useUInput_fd != -1) {
        g_debug("%s: Using uinput simulation", __FUNCTION__);
        Display *display = XOpenDisplay(NULL);
        Screen * scrn = DefaultScreenOfDisplay(display);
-       if (FakeMouse_Init(UseUInput_fd, scrn->width, scrn->height)) {
+       if (FakeMouse_Init(useUInput_fd, scrn->width, scrn->height)) {
            mUseUInput = true;
            mScreenWidth = scrn->width;
            mScreenHeight = scrn->height;

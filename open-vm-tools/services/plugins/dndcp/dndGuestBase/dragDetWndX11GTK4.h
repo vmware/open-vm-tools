@@ -53,7 +53,7 @@ using target_drag_value_handler = void (void *);
 class DragDetWnd
 {
 public:
-   DragDetWnd(int UseUInput_fd = -1);
+   DragDetWnd(int useUInput_fd = -1);
    virtual ~DragDetWnd();
    GtkWindow * GetWnd_gobj();
    Gtk::Widget *GetWnd();
