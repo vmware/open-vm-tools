@@ -231,6 +231,17 @@
                                 (1u << EXC_VC) | (1u << EXC_SX))
 
 /*
+ * Exception error code definitions
+ */
+
+// #CP - Control Protection
+#define EC_CP_ENCL_BIT        15
+#define EC_CP_ENCL_MASK       (1u << EC_CP_ENCL_BIT)
+#define EC_CP_IS_ENCL(_ec)    (((_ec) & EC_CP_ENCL_MASK) != 0)
+#define EC_CP_CPEC_MASK       (EC_CP_ENCL_MASK - 1)
+#define EC_CP_CPEC(_ec)       ((_ec) & EC_CP_CPEC_MASK)
+
+/*
  * eflag/rflag definitions
  */
 
