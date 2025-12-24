@@ -198,7 +198,7 @@ BlockService::Shutdown()
  */
 
 CopyPasteDnDX11::CopyPasteDnDX11() :
-#if defined(GTK2) || defined(GTK3)
+#if defined(GTK3)
    m_main(NULL),
 #endif
    m_copyPasteUI(NULL),
@@ -260,9 +260,6 @@ CopyPasteDnDX11::Init(ToolsAppCtx *ctx)
 #ifdef GTK3
    gXDisplay = GDK_WINDOW_XDISPLAY(gtk_widget_get_window(gUserMainWidget));
 #endif
-#ifdef GTK2
-   gXDisplay = GDK_WINDOW_XDISPLAY(gUserMainWidget->window);
-#endif
    gXRoot = RootWindow(gXDisplay, DefaultScreen(gXDisplay));
 #endif
 
@@ -285,7 +282,7 @@ CopyPasteDnDX11::~CopyPasteDnDX11()
 {
    delete m_copyPasteUI;
    delete m_dndUI;
-#if defined(GTK2) || defined(GTK3)
+#if defined(GTK3)
    delete m_main;
 #endif
 

@@ -18,7 +18,7 @@
  *********************************************************/
 
 #if GTK_MAJOR_VERSION > 3
-#error "This should only build with GTK2/GTK3, use xutilsGTK4.cc for GTK4"
+#error "This should only build with GTK3, use xutilsGTK4.cc for GTK4"
 #endif
 #include <cairomm/cairomm.h>
 #include <gdkmm.h>

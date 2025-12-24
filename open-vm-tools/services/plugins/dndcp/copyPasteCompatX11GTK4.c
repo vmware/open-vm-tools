@@ -27,7 +27,7 @@
  *    Set of functions in this file are for guest side text copy/paste between
  *    host and guest. Currently there are 4 versions copy/paste.
  *    ** Version 1 is based on backdoor, supports only text copy/paste,
- *    available with GTK2/GTK3/GTK4.
+ *    available with GTK3/GTK4.
  *    ** Version 2/3/4 are all based on tools guestRPC.
  *    *** Version 2 only existed for a certain period for compatibility with
  *    pre-2000 windows guest and is deprecated.
@@ -287,7 +287,7 @@ CopyPaste_RequestSelection(void)
  *
  *      Set the clipboard uses CopyPaste_SetSelLength and set backdoor selection
  *      with clipboard. If unavailable, set backdoor selection length to be 0.
- *      Unlike its GTK3/GTK2 implementation in copyPasteCompatX11.c, we could
+ *      Unlike its GTK3 implementation in copyPasteCompatX11.c, we could
  *      not compare with the timestamps so only the default clipboard is used.
  *
  * Results:

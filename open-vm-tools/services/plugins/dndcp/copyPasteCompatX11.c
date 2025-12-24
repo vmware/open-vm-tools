@@ -19,7 +19,7 @@
 
 /*
  * copyPasteCompatX11.c --
- *    GTK2/GTK3 implementation only. The GTK4 implementation is in
+ *    GTK3 implementation only. The GTK4 implementation is in
  *    copyPasteCompatX11GTK4.c.
  *
  *    Set of functions in guest side for copy/paste (both file and text).
@@ -40,8 +40,8 @@
  *    selection text.
  */
 
-#if !defined(GTK2) && !defined(GTK3)
-#error "This should only build with GTK2 or GTK3"
+#if !defined(GTK3)
+#error "This should only build with GTK3"
 #endif
 #define G_LOG_DOMAIN "dndcp"
 

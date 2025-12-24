@@ -59,7 +59,7 @@ public:
    virtual void DnDVersionChanged(int version);
    virtual void CopyPasteVersionChanged(int version);
    virtual uint32 GetCaps();
-#if defined(GTK2) || defined(GTK3)
+#if defined(GTK3)
    void SetUnityMode(Bool mode) {m_dndUI->SetUnityMode(mode);};
 #endif
    void SetDnDAllowed(bool allowed);
@@ -67,7 +67,7 @@ public:
 private:
    CopyPasteUIX11 *m_copyPasteUI;
    DnDUIX11 *m_dndUI;
-#if defined(GTK2) || defined(GTK3)
+#if defined(GTK3)
    Gtk::Main *m_main;
 #endif
 };

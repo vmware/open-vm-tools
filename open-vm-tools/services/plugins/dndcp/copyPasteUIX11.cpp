@@ -63,8 +63,8 @@
  *   ignore everything else.
  */
 
-#if !defined(GTK2) && !defined(GTK3)
-#error "This could only build with GTK2 or GTK3"
+#if !defined(GTK3)
+#error "This could only build with GTK3"
 #endif
 
 #define G_LOG_DOMAIN "dndcp"
