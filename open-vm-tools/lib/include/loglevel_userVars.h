@@ -288,6 +288,7 @@
    LOGLEVEL_VAR(vflash), \
    LOGLEVEL_VAR(vg), \
    LOGLEVEL_VAR(vga), \
+   LOGLEVEL_VAR(vgTriCache), \
    LOGLEVEL_VAR(vide), \
    LOGLEVEL_VAR(viewClient), \
    LOGLEVEL_VAR(vigor), \
