@@ -1540,6 +1540,8 @@ FLAG(  821, 0, EAX, 26,  1, CPUID_821_RSVD3,                     NO,    0 )
 FLAG(  821, 0, ECX,  1,  1, CPUID_821_RSVD4,                     NO,    0 )
 #define CPUID_821_ECX_2  \
 FLAG(  821, 0, ECX,  2,  1, CPUID_821_RSVD5,                     NO,    0 )
+#define CPUID_821_ECX_7  \
+FLAG(  821, 0, ECX,  7,  1, CPUID_821_RSVD6,                     NO,    0 )
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_821                                          \
@@ -1566,7 +1568,8 @@ CPUID_821_EAX_26 \
 FIELD(821,  0, EBX,  0, 12, MICROCODE_PATCH_SIZE,                NO,    0 ) \
 FIELD(821,  0, EBX, 16,  8, RAP_SIZE,                            NO,    0 ) \
 CPUID_821_ECX_1  \
-CPUID_821_ECX_2
+CPUID_821_ECX_2  \
+CPUID_821_ECX_7
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_822                                          \
