@@ -160,7 +160,7 @@ typedef struct CPUIDQuery {
    CPUIDLEVEL(TRUE,  1B,  0x1b,       2, 17) \
    CPUIDLEVEL(TRUE,  1C,  0x1c,       0, 20) \
    CPUIDLEVEL(TRUE,  1D,  0x1d,       2, 19) \
-   CPUIDLEVEL(TRUE,  1E,  0x1e,       1, 19) \
+   CPUIDLEVEL(TRUE,  1E,  0x1e,       2, 19) \
    CPUIDLEVEL(FALSE, 1F,  0x1f,       6, 17) \
    CPUIDLEVEL(TRUE,  20,  0x20,       1, 20) \
    CPUIDLEVEL(TRUE,  21,  0x21,       1, 20) \
@@ -977,8 +977,17 @@ FIELD( 1D,  1, ECX,  0, 16, TILE_PALETTE1_MAX_ROWS,              YES,  20 )
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_1E                                           \
+FIELD( 1E,  0, EAX,  0, 32, TMUL_INFO_MAX_SUBLEAF,               NO,    0 ) \
 FIELD( 1E,  0, EBX,  0,  8, TMUL_MAX_K,                          YES,  20 ) \
-FIELD( 1E,  0, EBX,  8, 16, TMUL_MAX_N,                          YES,  20 )
+FIELD( 1E,  0, EBX,  8, 16, TMUL_MAX_N,                          YES,  20 ) \
+FLAG(  1E,  1, EAX,  0,  1, TMUL_AMX_INT8,                       NO,    0 ) \
+FLAG(  1E,  1, EAX,  1,  1, TMUL_AMX_BF16,                       NO,    0 ) \
+FLAG(  1E,  1, EAX,  2,  1, TMUL_AMX_COMLPEX,                    NO,    0 ) \
+FLAG(  1E,  1, EAX,  3,  1, TMUL_AMX_FP16,                       NO,    0 ) \
+FLAG(  1E,  1, EAX,  4,  1, TMUL_AMX_FP8,                        NO,    0 ) \
+FLAG(  1E,  1, EAX,  6,  1, TMUL_AMX_TF32,                       NO,    0 ) \
+FLAG(  1E,  1, EAX,  7,  1, TMUL_AMX_AVX512,                     NO,    0 ) \
+FLAG(  1E,  1, EAX,  8,  1, TMUL_AMX_MOVRS,                      NO,    0 )
 
 /*    LEVEL, SUB-LEVEL, REG, POS, SIZE, NAME,               MON SUPP, HWV  */
 #define CPUID_FIELD_DATA_LEVEL_1F                                           \
