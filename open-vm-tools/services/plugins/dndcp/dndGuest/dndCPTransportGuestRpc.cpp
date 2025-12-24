@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
+ * Copyright (c) 2010-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -391,10 +392,13 @@ DnDCPTransportGuestRpc::SendPacket(uint32 destId,
 
    free(rpc);
 #else
-   GuestRpc_SendWithTimeOut((const unsigned char *)TOOLS_DND_NAME,
-                            (const unsigned char *)rpc, rpcSize,
-                            GuestRpc_GenericCompletionRoutine, rpc,
-                            DND_TIMEOUT);
+   if (NULL == GuestRpc_XferWithTimeOut((const unsigned char *)TOOLS_DND_NAME,
+                                        (unsigned char *)rpc, rpcSize,
+                                        NULL, NULL,
+                                        DND_TIMEOUT)) {
+      ret = false;
+      free(rpc);
+   }
 #endif
    return ret;
 }
