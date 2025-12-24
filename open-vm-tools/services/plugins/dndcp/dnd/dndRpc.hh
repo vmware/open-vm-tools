@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2007-2017,2022 VMware, Inc. All rights reserved.
+ * Copyright (c) 2007-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -55,7 +56,6 @@ public:
    sigc::signal<void, uint32, uint32> updateFeedbackChanged;
    sigc::signal<void, uint32, int32, int32> queryExitingChanged;
    sigc::signal<void, uint32> dragNotPendingChanged;
-   sigc::signal<void, uint32, bool, uint32> updateUnityDetWndChanged;
    sigc::signal<void, uint32, const uint8 *, uint32> requestFileChanged;
    sigc::signal<void, uint32, bool, const uint8 *, uint32> getFilesDoneChanged;
 
@@ -95,9 +95,6 @@ public:
                           int32 y) = 0;
    virtual bool QueryExiting(uint32 sessionId, int32 x, int32 y) = 0;
    virtual bool DragNotPending(uint32 sessionId) = 0;
-   virtual bool UpdateUnityDetWnd(uint32 sessionId,
-                                  bool show,
-                                  uint32 unityWndId) = 0;
    virtual bool RequestFiles(uint32 sessionId) = 0;
    virtual bool SendFilesDone(uint32 sessionId,
                               bool success,

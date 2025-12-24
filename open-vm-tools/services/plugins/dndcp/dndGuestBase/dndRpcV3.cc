@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2007-2017 VMware, Inc. All rights reserved.
+ * Copyright (c) 2007-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -383,26 +384,6 @@ DnDRpcV3::QueryExiting(uint32 sessionId,
 /**
  * Not needed for version 3.
  *
- * @param[ignored] sessionId  Active session id the controller assigned earlier.
- * @param[ignored] show       Show or hide unity DnD detection window.
- * @param[ignored] unityWndId The unity windows id.
- *
- * @return always true.
- */
-
-bool
-DnDRpcV3::UpdateUnityDetWnd(uint32 sessionId,
-                            bool show,
-                            uint32 unityWndId)
-{
-   TRACE_CALL();
-   return true;
-}
-
-
-/**
- * Not needed for version 3.
- *
  * @param[ignored] sessionId active session id the controller assigned earlier.
  * @param[ignored] x mouse position x.
  * @param[ignored] y mouse position y.
@@ -584,28 +565,6 @@ DnDRpcV3::HandleMsg(RpcParams *params,
       }
 
       destPrivDropChanged.emit(1, x, y);
-      break;
-   }
-   case DND_GH_UPDATE_UNITY_DET_WND:
-   {
-      bool show = false;
-      uint32 unityWndId;
-
-      buf = DnDMsg_GetArg(&msg, 0);
-      if (DynBuf_GetSize(buf) == sizeof(show)) {
-         memcpy(&show, (const char *)DynBuf_Get(buf), sizeof(show));
-      } else {
-         break;
-      }
-
-      buf = DnDMsg_GetArg(&msg, 1);
-      if (DynBuf_GetSize(buf) == sizeof(unityWndId)) {
-         memcpy(&unityWndId, (const char *)DynBuf_Get(buf), sizeof(unityWndId));
-      } else {
-         break;
-      }
-      updateUnityDetWndChanged.emit(1, show, unityWndId);
-
       break;
    }
    case DND_GH_QUERY_PENDING_DRAG:

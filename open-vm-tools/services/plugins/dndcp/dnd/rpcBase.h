@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2010-2017 VMware, Inc. All rights reserved.
+ * Copyright (c) 2010-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -69,14 +70,6 @@ typedef struct RpcParams {
          uint32 x;
          uint32 y;
       } queryExiting;
-
-      struct {
-         uint32 major;
-         uint32 minor;
-         uint32 capability;
-         uint32 show;
-         uint32 unityWndId;
-      } updateUnityDetWnd;
 
       struct {
          uint32 major;

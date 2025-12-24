@@ -39,10 +39,6 @@
 #include "vm_basic_types.h"
 #include "copyPasteDnDImpl.h"
 
-extern "C" {
-void CopyPasteDnDWrapper_SetUnityMode(Bool mode);
-}
-
 class CopyPasteUIX11;
 
 class CopyPasteDnDX11 : public CopyPasteDnDImpl
@@ -59,9 +55,6 @@ public:
    virtual void DnDVersionChanged(int version);
    virtual void CopyPasteVersionChanged(int version);
    virtual uint32 GetCaps();
-#if defined(GTK3)
-   void SetUnityMode(Bool mode) {m_dndUI->SetUnityMode(mode);};
-#endif
    void SetDnDAllowed(bool allowed);
    void SetCopyPasteAllowed(bool allowed);
 private:

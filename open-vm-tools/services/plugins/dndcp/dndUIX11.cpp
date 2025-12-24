@@ -86,7 +86,6 @@ DnDUIX11::DnDUIX11(ToolsAppCtx *ctx)
       mGHDnDInProgress(false),
       mGHDnDDataReceived(false),
       mGHDnDDropOccurred(false),
-      mUnityMode(false),
       mInHGDrag(false),
       mEffect(DROP_NONE),
       mMousePosX(0),
@@ -225,7 +224,6 @@ DnDUIX11::Init()
    CONNECT_SIGNAL(mDnD, moveMouseChanged,      OnMoveMouse);
    CONNECT_SIGNAL(mDnD, privDropChanged,       OnPrivateDrop);
    CONNECT_SIGNAL(mDnD, updateDetWndChanged,   OnUpdateDetWnd);
-   CONNECT_SIGNAL(mDnD, updateUnityDetWndChanged, OnUpdateUnityDetWnd);
 
    /* Set Gtk+ callbacks for source. */
    CONNECT_SIGNAL(mDetWnd->GetWnd(), signal_drag_begin(),        OnGtkDragBegin);
@@ -245,7 +243,6 @@ DnDUIX11::Init()
 #undef CONNECT_SIGNAL
 
    OnUpdateDetWnd(false, 0, 0);
-   OnUpdateUnityDetWnd(false, 0, false);
    goto out;
 fail:
    ret = false;
@@ -562,7 +559,6 @@ DnDUIX11::OnPrivateDrop(int32 x,        // UNUSED
 {
    TRACE_CALL();
 
-   /* Unity manager in host side may already send the drop into guest. */
    if (mGHDnDInProgress) {
 
       /*
@@ -598,7 +594,6 @@ DnDUIX11::OnDestCancel()
 {
    TRACE_CALL();
 
-   /* Unity manager in host side may already send the drop into guest. */
    if (mGHDnDInProgress) {
       /*
        * Show the window, move it to the mouse position, and release the
@@ -725,60 +720,6 @@ DnDUIX11::OnUpdateDetWnd(bool show,     // IN: show (true) or hide (false)
       g_debug("%s: hide\n", __FUNCTION__);
       mDetWnd->Hide();
       mDetWnd->SetIsVisible(false);
-   }
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * DnDUIX11::OnUpdateUnityDetWnd --
- *
- *      Callback to show/hide fullscreen Unity drag detection window.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      Detection window shown, hidden.
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-DnDUIX11::OnUpdateUnityDetWnd(bool show,         // IN: show (true) or hide (false)
-                              uint32 unityWndId, // IN: XXX ?
-                              bool bottom)       // IN: place window at bottom of stack?
-{
-   g_debug("%s: enter 0x%lx unityID 0x%x\n",
-         __FUNCTION__,
-         (unsigned long) mDetWnd->GetWnd()->get_window()->gobj(),
-         unityWndId);
-
-   if (show && ((unityWndId > 0) || bottom)) {
-      int width = mDetWnd->GetScreenWidth();
-      int height = mDetWnd->GetScreenHeight();
-      mDetWnd->SetGeometry(0, 0, width, height);
-      mDetWnd->Show();
-      if (bottom) {
-         mDetWnd->Lower();
-      }
-
-      g_debug("%s: show, (0, 0, %d, %d)\n", __FUNCTION__, width, height);
-   } else {
-      if (mDetWnd->GetIsVisible() == true) {
-         if (mUnityMode) {
-
-            /*
-             * Show and move detection window to current mouse position
-             * and resize.
-             */
-            SendFakeXEvents(true, false, true, true, false, 0, 0);
-         }
-      } else {
-         mDetWnd->Hide();
-         g_debug("%s: hide\n", __FUNCTION__);
-      }
    }
 }
 

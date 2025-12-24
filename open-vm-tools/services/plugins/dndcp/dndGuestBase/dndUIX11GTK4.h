@@ -114,8 +114,6 @@ private:
     * Callbacks for showing/hiding detection window.
     */
    void OnUpdateDetWnd(bool bShow, int32 x, int32 y);
-   /* TODO: Unity related functions are deprecated, remove it later */
-   void OnUpdateUnityDetWnd(bool bShow, uint32 unityWndId, bool bottom);
    void OnDestMoveDetWndToMousePos();
    void SourceDragStartDone();
    void SourceUpdateFeedback(DND_DROPEFFECT effect);

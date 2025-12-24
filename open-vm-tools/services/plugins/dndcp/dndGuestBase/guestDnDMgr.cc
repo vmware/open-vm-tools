@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2010-2018 VMware, Inc. All rights reserved.
+ * Copyright (c) 2010-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -46,7 +47,6 @@ GuestDnDMgr::GuestDnDMgr(DnDCPTransport *transport,
    mDnDState(GUEST_DND_READY),
    mSessionId(0),
    mHideDetWndTimer(NULL),
-   mUnityDnDDetTimeout(NULL),
    mUngrabTimeout(NULL),
    mDnDAllowed(false),
    mDnDTransport(transport),
@@ -69,10 +69,6 @@ GuestDnDMgr::~GuestDnDMgr(void)
    if (mHideDetWndTimer) {
       g_source_destroy(mHideDetWndTimer);
       mHideDetWndTimer = NULL;
-   }
-   if (mUnityDnDDetTimeout) {
-      g_source_destroy(mUnityDnDDetTimeout);
-      mUnityDnDDetTimeout = NULL;
    }
    RemoveUngrabTimeout();
 }
@@ -171,11 +167,7 @@ GuestDnDMgr::DestUIDragEnter(const CPClipboard *clip)
        */
       return;
    }
-
-   /*
-    * In Unity mode, there is no QueryPendingDrag signal, so may get called
-    * with state READY.
-    */
+   /* TODO: Re-evaluate the need for GUEST_DND_READY check now that Unity is gone.*/
    if (mDnDState != GUEST_DND_QUERY_EXITING &&
        mDnDState != GUEST_DND_READY) {
       g_debug("%s: Bad state: %d, reset\n", __FUNCTION__, mDnDState);
@@ -268,80 +260,6 @@ GuestDnDMgr::UngrabTimeout(void)
 
    HideDetWnd();
    SetState(GUEST_DND_READY);
-}
-
-
-/**
- * This callback is trigged when a user clicks into any Unity window or just
- * releases the mouse button. Either show the full-screen detection window
- * right after the Unity window, or hide the detection window.
- *
- * @param[in] sessionId  Active session id the controller assigned earlier.
- * @param[in] show       Show or hide unity DnD detection window.
- * @param[in] unityWndId The unity window id.
- */
-
-void
-GuestDnDMgr::OnRpcUpdateUnityDetWnd(uint32 sessionId,
-                                    bool show,
-                                    uint32 unityWndId)
-{
-   TRACE_CALL();
-
-   if (show && mDnDState != GUEST_DND_READY) {
-      /*
-       * Reset DnD for any wrong state. Only do this when host asked to
-       * show the window.
-       */
-      g_debug("%s: Bad state: %d\n", __FUNCTION__, mDnDState);
-      ResetDnD();
-      return;
-   }
-
-   if (mUnityDnDDetTimeout) {
-      g_source_destroy(mUnityDnDDetTimeout);
-      mUnityDnDDetTimeout = NULL;
-   }
-
-   if (show) {
-      /*
-       * When showing full screen window, also show the small top-most
-       * window at (1, 1). After detected a GH DnD, the full screen
-       * window will be hidden to avoid blocking other windows. So use
-       * this window to accept drop in cancel case.
-       */
-      UpdateDetWnd(show, 1, 1);
-      AddUnityDnDDetTimeoutEvent();
-      SetSessionId(sessionId);
-   } else {
-      /*
-       * If there is active DnD, the regular detection window will be hidden
-       * after DnD is done.
-       */
-      if (mDnDState == GUEST_DND_READY) {
-         UpdateDetWnd(false, 0, 0);
-      }
-   }
-
-   /* Show/hide the full screen detection window. */
-   updateUnityDetWndChanged.emit(show, unityWndId, false);
-   g_debug("%s: updating Unity detection window, show %d, id %u\n",
-           __FUNCTION__, show, unityWndId);
-}
-
-
-/**
- * Can not detect pending GH DnD within UNITY_DND_DET_TIMEOUT, put the full
- * screen detection window to bottom most.
- */
-
-void
-GuestDnDMgr::UnityDnDDetTimeout(void)
-{
-   TRACE_CALL();
-
-   mUnityDnDDetTimeout = NULL;
-   updateUnityDetWndChanged.emit(true, 0, true);
 }
 
 
@@ -517,8 +435,6 @@ GuestDnDMgr::VmxDnDVersionChanged(uint32 version)
          sigc::mem_fun(this, &GuestDnDMgr::OnRpcSrcDragBegin));
       mRpc->queryExitingChanged.connect(
          sigc::mem_fun(this, &GuestDnDMgr::OnRpcQueryExiting));
-      mRpc->updateUnityDetWndChanged.connect(
-         sigc::mem_fun(this, &GuestDnDMgr::OnRpcUpdateUnityDetWnd));
       mRpc->moveMouseChanged.connect(
          sigc::mem_fun(this, &GuestDnDMgr::OnRpcMoveMouse));
       mRpc->Init();
@@ -606,26 +522,6 @@ GuestDnDMgr::DnDHideDetWndTimer(void *clientData)
    GuestDnDMgr *dnd = (GuestDnDMgr *)clientData;
    dnd->SetHideDetWndTimer(NULL);
    dnd->HideDetWnd();
-   return FALSE;
-}
-
-
-/**
- * Callback for UnityDnDDetTimeout.
- *
- * @param[in] clientData
- *
- * @return FALSE always
- */
-
-gboolean
-GuestDnDMgr::DnDUnityDetTimeout(void *clientData)
-{
-   TRACE_CALL();
-
-   ASSERT(clientData);
-   GuestDnDMgr *dnd = (GuestDnDMgr *)clientData;
-   dnd->UnityDnDDetTimeout();
    return FALSE;
 }
 
