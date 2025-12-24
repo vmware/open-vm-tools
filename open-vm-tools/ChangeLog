@@ -1,3 +1,109 @@
+commit fbd98e374e9fb61c883bd1678a2219e416ac5c53
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Dec 23 22:34:37 2025 -0800
+
+    Fix copyright formatting and correct missed copyright year update.
+
+commit fb0c6c0a9227b36c52259bf2e2b5031987b359e0
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Dec 23 21:58:16 2025 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 3b5cfe6bf1c1bf6f545980ca7124779f0f62f327
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Dec 23 21:58:16 2025 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 1d8b3833535ba5993d7b5380c8b4929290e91e58
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Dec 23 21:58:16 2025 -0800
+
+    Change to common source files not applicable to open-vm-tools.
+
+commit 69efa0df2b3676c178eadaf4939566550f1411e9
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Dec 23 21:58:16 2025 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 43aacccac1f08e641358f4ecc823b682b1ae41de
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Dec 23 21:58:16 2025 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 75de6d8f9e624c6b2d51d149464819f10fbeb73c
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Dec 23 21:58:16 2025 -0800
+
+    Prevent race condition in VGAuth Service
+    
+    In ServiceLoadFileContentsPosix, in addition to existing checks
+    (size, mode, uid, gid), add verification of modification time,
+    device, inode to ensure the opened file matches the intended file.
+
+commit 4ed0ebdb025d643099044fbda7fc0d9917df3c58
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Dec 23 21:58:16 2025 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit 219242c0ed29280b07941b2926caedc6d409d68e
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Dec 23 21:58:16 2025 -0800
+
+    Renaming vgauth lib vmsg file to VGAuthLib.vmsg
+    
+    This resolves an error encountered while running vmware-vgauth-smoketest
+    caused by a missing message catalog file.
+    
+    Fix for open-vm-tools github issue:
+    https://github.com/vmware/open-vm-tools/issues/707
+
+commit 0754e1188d95b3ecb41674cd93991c5d215300bf
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Dec 23 21:58:16 2025 -0800
+
+    Update DnDCPTransportGuestRpc::SendPacket to use GuestRpc_XferWithTimeOut
+    without the GuestRpc_GenericCompletionRoutine callback.
+    
+    Previously, GuestRpc_GenericCompletionRoutine was responsible for freeing
+    the buffer after the message was processed, but it could sometimes be called
+    before GuestRpc finished using the buffer, leading to use-after-free errors.
+    
+    With this change, GuestRpc takes ownership of the buffer and ensures it is used
+    safely, and the caller frees it only if GuestRpc_XferWithTimeOut fails.
+
+commit e82bb1fb7618553edddb3367c6c4c231ed47f2da
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Dec 23 21:58:16 2025 -0800
+
+    Update function parameter UseUInput_fd to start with a lowercase letter.
+
+commit a39914ba6ff722a0d7224a4a235247f0c7e61a4e
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Dec 23 21:58:16 2025 -0800
+
+    Change to common header file not applicable to open-vm-tools.
+
+commit d440ac3ec7ce82022f048f4ba53c469ca596b708
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Dec 23 21:58:16 2025 -0800
+
+    Remove GTK2 related code from open-vm-tools
+    
+    GTK4 is now supported by open-vm-tools, so GTK2 support is no longer required
+    and has been removed.
+
+commit 098e3f55d0e5b1254214178d87de8c29503cb485
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue Dec 9 21:51:46 2025 -0800
+
+    Update ChangeLog with the granular push of Dec 9, 2025.
+    - plus ChangeLog update of Nov 30, 2025.
+
 commit a49dc1275549f175bece52ccf7e84ee1ef3305fe
 Author: Kruti Pendharkar <kp025370@broadcom.com>
 Date:   Tue Dec 9 21:31:20 2025 -0800
