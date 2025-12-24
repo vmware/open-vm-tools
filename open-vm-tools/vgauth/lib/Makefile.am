@@ -63,4 +63,4 @@ libvgauth_la_LIBADD += -lc
 
 # Message catalogs.
 install-data-hook:
-	@INSTVMSG@ libvgauth.la $(srcdir)/l10n $(DESTDIR)$(datadir)
+	@INSTVMSG@ VGAuthLib $(srcdir)/l10n $(DESTDIR)$(datadir)
