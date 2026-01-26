@@ -698,7 +698,7 @@ VMTools_BindTextDomain(const char *domain,
        * If we couldn't find the catalog file for the user's language, see if
        * we can find a more generic language (e.g., for "en_US", also try "en").
        */
-      char *sep = Str_Strrchr(lang, '_');
+      const char *sep = Str_Strrchr(lang, '_');
       if (sep != NULL) {
          if (usrlang == NULL) {
             usrlang = Util_SafeStrdup(lang);
