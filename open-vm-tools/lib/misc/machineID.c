@@ -115,7 +115,7 @@ FindWindowsAdapter(IP_ADAPTER_INFO *head,  // IN:
  *      Locate and return the hardwareID for this machine.
  *
  * Results:
- *      0       No errors occured
+ *      0       No errors occurred
  *      >0      failure (errno)
  *
  * Side effects:
@@ -305,7 +305,7 @@ CheckEthernet(struct ifaddrs *ifp,  // IN:
  *      Locate and return the hardwareID for this machine.
  *
  * Results:
- *      0       No errors occured
+ *      0       No errors occurred
  *      >0      failure (errno)
  *
  * Side effects:
@@ -366,7 +366,7 @@ ObtainHardwareID(uint64 *hardwareID)  // OUT:
  *      Determine if "eth<n>" exists and, if so, return its MAC address
  *
  * Results:
- *      0       No errors occured
+ *      0       No errors occurred
  *      >0      failure (errno)
  *
  * Side effects:
@@ -423,7 +423,7 @@ CheckEthernet(uint32 n,        // IN:
  *      Locate the hardwareID for this machine.
  *
  * Results:
- *      0       No errors occured
+ *      0       No errors occurred
  *      >0      failure (errno)
  *
  * Side effects:
@@ -478,7 +478,7 @@ ObtainHardwareID(uint64 *hardwareID)  // OUT:
  *      Locate the hardwareID for this machine.
  *
  * Results:
- *      0       No errors occured
+ *      0       No errors occurred
  *      >0      failure (errno)
  *
  * Side effects:
