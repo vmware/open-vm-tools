@@ -925,7 +925,7 @@ VixToolsBuildUserEnvironmentTable(const char * const *envp)   // IN: optional
    for (; NULL != *envp; envp++) {
       char *name;
       char *value;
-      char *whereToSplit;
+      const char *whereToSplit;
       size_t nameLen;
 
       whereToSplit = strchr(*envp, '=');
