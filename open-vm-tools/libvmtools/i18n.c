@@ -484,7 +484,7 @@ MsgLoadCatalog(const char *path)
       gboolean eof = FALSE;
       char *name = NULL;
       char *value = NULL;
-      gchar *line;
+      gchar *line = NULL;
 
       /* Read the next key / value pair. */
       for (;;) {
@@ -493,12 +493,13 @@ MsgLoadCatalog(const char *path)
          gsize term;
          char *unused = NULL;
          gboolean cont = FALSE;
+         GIOStatus status;
 
-         g_io_channel_read_line(stream, &line, &len, &term, &err);
+         status = g_io_channel_read_line(stream, &line, &len, &term, &err);
 
-         if (err != NULL) {
+         if (status == G_IO_STATUS_ERROR || err != NULL) {
             g_warning("Unable to read a line from '%s': %s\n",
-                      path, err->message);
+                      path, err ? err->message : "G_IO_STATUS_ERROR");
             g_clear_error(&err);
             error = TRUE;
             g_free(line);
