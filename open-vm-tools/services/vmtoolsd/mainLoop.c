@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2008-2025 Broadcom. All Rights Reserved.
+ * Copyright (c) 2008-2026 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -304,7 +304,15 @@ ToolsCoreReportVersionData(ToolsAppCtx *ctx)
       cmdToolsVersionStr = TOOLS_VERSION_CURRENT_STR;
    } else {
       cmdDescFmt = CMD_DESCRIPTION VMTOOLS_PRODUCT " %s.%s";
-      cmdToolsVersionStr = TOOLS_VERSION_EXT_CURRENT_STR;
+      /*
+       * Set the versionString to 3 number format. SDMP adapter code parses
+       * this string to process version. The older versions of SDMP adapters
+       * will break if the versionString is modified to 4 number format.
+       *
+       * This has to be fixed in future and set to TOOLS_VERSION_EXT_CURRENT_STR
+       * when we stop supporting older SDMP adapters.
+       */
+      cmdToolsVersionStr = TOOLS_VERSION_CURRENT_STR;
    }
 
    /*
