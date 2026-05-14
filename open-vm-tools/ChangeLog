@@ -1,56 +1,98 @@
-commit fbd98e374e9fb61c883bd1678a2219e416ac5c53
+commit 8f472b7b3134605ac0e2ed510e6c07bcc7fc5e8d
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Wed May 13 21:53:36 2026 -0700
+
+    Update the ReleaseNotes.md and README.md for the 13.1.0 open-vm-tools
+    release.
+
+commit 310e7665677422e601dbd4cdaa401087221d1893
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue May 12 20:01:02 2026 -0700
+
+    Prepare for the open-vm-tools 13.1.0 release.
+    
+    - Update the tools version in the configure.ac.
+    - Update the build numbers in the buildNumber.h.
+
+commit f7242795c4bcaffe98edb0b6eace45c8f43d05bf
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue May 12 09:42:31 2026 -0700
+
+    Fix vmtools version string format for SDMP compatibility
+    
+    Use 3-number version format for backward compatibility
+    with SDMP adapters.
+
+commit 115cd3a4748d2bd07d5f71ae7be3bf1e7afd1ef0
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Tue May 12 09:42:30 2026 -0700
+
+    Bump svtminion integration script to release version 2026.01.09
+    and update copyrights.
+
+commit 10b22e0e8a6e303ad639e511306792b91145f8b3
+Author: Kruti Pendharkar <kp025370@broadcom.com>
+Date:   Wed Dec 24 04:17:34 2025 -0800
+
+    ====================================================================
+    The "stable-13.1.x" branch was created from the "devel" branch here.
+    ====================================================================
+    
+    Update ChangeLog with the granular push of Dec 23, 2025.
+    - plus ChangeLog update of Dec 9, 2025.
+    - plus copyright updates in few files.
+
+commit d5d6b1529b107a287a98a037049170edec40e7ec
 Author: Kruti Pendharkar <kp025370@broadcom.com>
 Date:   Tue Dec 23 22:34:37 2025 -0800
 
     Fix copyright formatting and correct missed copyright year update.
 
-commit fb0c6c0a9227b36c52259bf2e2b5031987b359e0
+commit 6d26baf3fb946cef338cf4dcc8911cdf733cc71c
 Author: Kruti Pendharkar <kp025370@broadcom.com>
 Date:   Tue Dec 23 21:58:16 2025 -0800
 
     Change to common header file not applicable to open-vm-tools.
 
-commit 3b5cfe6bf1c1bf6f545980ca7124779f0f62f327
+commit df2b5c3c2b00d6eb1022042c9e7168943759520c
 Author: Kruti Pendharkar <kp025370@broadcom.com>
 Date:   Tue Dec 23 21:58:16 2025 -0800
 
     Change to common header file not applicable to open-vm-tools.
 
-commit 1d8b3833535ba5993d7b5380c8b4929290e91e58
+commit 9f57ca93c05135a813b5c718d248835c0f2d19e7
 Author: Kruti Pendharkar <kp025370@broadcom.com>
 Date:   Tue Dec 23 21:58:16 2025 -0800
 
     Change to common source files not applicable to open-vm-tools.
 
-commit 69efa0df2b3676c178eadaf4939566550f1411e9
+commit 75398014413aba1043a4f54e48f086a40ccf1962
 Author: Kruti Pendharkar <kp025370@broadcom.com>
 Date:   Tue Dec 23 21:58:16 2025 -0800
 
     Change to common header file not applicable to open-vm-tools.
 
-commit 43aacccac1f08e641358f4ecc823b682b1ae41de
+commit 77e1390377aa1ccd12322f4c88c9f7ad1a3c3eb8
 Author: Kruti Pendharkar <kp025370@broadcom.com>
 Date:   Tue Dec 23 21:58:16 2025 -0800
 
     Change to common header file not applicable to open-vm-tools.
 
-commit 75de6d8f9e624c6b2d51d149464819f10fbeb73c
+commit 6c143b634ebf2ea2f77ebfdd906069d7b54ec385
 Author: Kruti Pendharkar <kp025370@broadcom.com>
 Date:   Tue Dec 23 21:58:16 2025 -0800
 
-    Prevent race condition in VGAuth Service
-    
     In ServiceLoadFileContentsPosix, in addition to existing checks
     (size, mode, uid, gid), add verification of modification time,
     device, inode to ensure the opened file matches the intended file.
 
-commit 4ed0ebdb025d643099044fbda7fc0d9917df3c58
+commit f433164f2565efe8fc9f22fd60966c5c1ecb9d5b
 Author: Kruti Pendharkar <kp025370@broadcom.com>
 Date:   Tue Dec 23 21:58:16 2025 -0800
 
     Change to common header file not applicable to open-vm-tools.
 
-commit 219242c0ed29280b07941b2926caedc6d409d68e
+commit 16c3417605293ef3c742f534bebe6880913b5e97
 Author: Kruti Pendharkar <kp025370@broadcom.com>
 Date:   Tue Dec 23 21:58:16 2025 -0800
 
@@ -62,19 +104,11 @@ Date:   Tue Dec 23 21:58:16 2025 -0800
     Fix for open-vm-tools github issue:
     https://github.com/vmware/open-vm-tools/issues/707
 
-commit 0754e1188d95b3ecb41674cd93991c5d215300bf
+commit 68fd6560af01a9687061bf0376d6612a8471ad81
 Author: Kruti Pendharkar <kp025370@broadcom.com>
 Date:   Tue Dec 23 21:58:16 2025 -0800
 
-    Update DnDCPTransportGuestRpc::SendPacket to use GuestRpc_XferWithTimeOut
-    without the GuestRpc_GenericCompletionRoutine callback.
-    
-    Previously, GuestRpc_GenericCompletionRoutine was responsible for freeing
-    the buffer after the message was processed, but it could sometimes be called
-    before GuestRpc finished using the buffer, leading to use-after-free errors.
-    
-    With this change, GuestRpc takes ownership of the buffer and ensures it is used
-    safely, and the caller frees it only if GuestRpc_XferWithTimeOut fails.
+    Change to common source file not applicable to open-vm-tools.
 
 commit e82bb1fb7618553edddb3367c6c4c231ed47f2da
 Author: Kruti Pendharkar <kp025370@broadcom.com>
