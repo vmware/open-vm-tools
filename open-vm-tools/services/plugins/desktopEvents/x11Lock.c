@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2010-2024 Broadcom. All Rights Reserved.
+ * Copyright (c) 2010-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -29,11 +29,20 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <gdk/gdkx.h>
 #include <gtk/gtk.h>
 #include <X11/Xlib.h>
+#ifdef GTK4
+#include <gdk/x11/gdkx.h>
+#else
+#include <gdk/gdkx.h>
+#endif
 
 #define LOCK_ATOM_NAME  "vmware-user-lock"
+#ifdef GTK4
+#define GDK_GET_XDISPLAY(X) gdk_x11_display_get_xdisplay(X)
+#else
+#define GDK_GET_XDISPLAY(X) gdk_x11_get_default_xdisplay()
+#endif
 
 
 /*
@@ -74,7 +83,11 @@ InitGroupLeader(Window *groupLeader,
    Window myRootWindow;
    XSetWindowAttributes attr;
    GdkDisplay *gdkDisplay;
+#ifdef GTK4
+   GdkSurface *gdkLeader;
+#else
    GdkWindow *gdkLeader;
+#endif
 
    attr.override_redirect = True;
 
@@ -82,26 +95,38 @@ InitGroupLeader(Window *groupLeader,
    ASSERT(rootWindow);
 
    gdkDisplay = gdk_display_get_default();
+#ifdef GTK4
+   gdkLeader = gdk_x11_display_get_default_group(gdkDisplay);
+   myGroupLeader = gdk_x11_surface_get_xid(gdkLeader);
+   /*
+    * GTK4 deprecated the idea of root windows
+    * https://docs.gtk.org/gtk4/migrating-3to4.html#stop-using-the-root-window
+    */
+   myRootWindow = gdk_x11_display_get_xrootwindow(gdkDisplay);
+#else
    gdkLeader = gdk_display_get_default_group(gdkDisplay);
    myGroupLeader = GDK_WINDOW_XID(gdkLeader);
    myRootWindow = GDK_ROOT_WINDOW();
+   /* set gdkDisplay to NULL for non-GTK4 for GDK_GET_XDISPLAY macro */
+   gdkDisplay = NULL;
+#endif
 
    ASSERT(myGroupLeader);
    ASSERT(myRootWindow);
 
    /* XXX: With g_set_prgname() being called, this can probably go away. */
-   XStoreName(gdk_x11_get_default_xdisplay(), myGroupLeader, VMUSER_TITLE);
-
+   XStoreName(GDK_GET_XDISPLAY(gdkDisplay), myGroupLeader, VMUSER_TITLE);
    /*
     * Confidence check:  Set the override redirect property on our group leader
     * window (not default), then re-parent it to the root window (default).
     * This makes sure that (a) a window manager can't re-parent our window,
     * and (b) that we remain a top-level window.
     */
-   XChangeWindowAttributes(gdk_x11_get_default_xdisplay(), myGroupLeader, CWOverrideRedirect,
-                           &attr);
-   XReparentWindow(gdk_x11_get_default_xdisplay(), myGroupLeader, myRootWindow, 10, 10);
-   XSync(gdk_x11_get_default_xdisplay(), FALSE);
+   XChangeWindowAttributes(GDK_GET_XDISPLAY(gdkDisplay), myGroupLeader,
+                           CWOverrideRedirect, &attr);
+   XReparentWindow(GDK_GET_XDISPLAY(gdkDisplay), myGroupLeader, myRootWindow,
+                   10, 10);
+   XSync(GDK_GET_XDISPLAY(gdkDisplay), FALSE);
 
    *groupLeader = myGroupLeader;
    *rootWindow = myRootWindow;
@@ -254,7 +279,12 @@ AcquireDisplayLock(void)
    Bool alreadyLocked = FALSE;  // Set to TRUE if we discover lock is held.
    Bool retval = FALSE;
 
+#ifdef GTK4
+   GdkDisplay *gdkDisplay = gdk_display_get_default();
+   defaultDisplay = GDK_GET_XDISPLAY(gdkDisplay);
+#else
    defaultDisplay = gdk_x11_get_default_xdisplay();
+#endif
 
    /*
     * Reset some of our main window's settings & fetch Xlib handles for
@@ -391,7 +421,9 @@ gboolean
 X11Lock_Init(ToolsAppCtx *ctx,
              ToolsPluginData *pdata)
 {
+#ifndef GTK4
    int argc = 0;
+#endif
    char *argv[] = { NULL, NULL };
 
    if (!TOOLS_IS_USER_SERVICE(ctx)) {
@@ -422,7 +454,11 @@ X11Lock_Init(ToolsAppCtx *ctx,
    gdk_set_allowed_backends("x11");
 #endif
    /* XXX: is calling gtk_init() multiple times safe? */
+#ifdef GTK4
+   gtk_init();
+#else
    gtk_init(&argc, (char ***) &argv);
+#endif
 
    if (!AcquireDisplayLock()) {
       g_warning("Another instance of vmware-user already running. Exiting.\n");
@@ -432,4 +468,3 @@ X11Lock_Init(ToolsAppCtx *ctx,
 
    return TRUE;
 }
-

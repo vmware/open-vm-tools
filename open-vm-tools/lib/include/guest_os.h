@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 1998-2024 Broadcom. All rights reserved.
+ * Copyright (c) 1998-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -101,6 +101,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define ALLWINNET64           BS(WINNET_64)
 #define ALLWINNET             ALLWINNET32, ALLWINNET64
 
+// Windows Server 2008
 #define ALLWINLONGHORN32      BS(LONGHORN)
 #define ALLWINLONGHORN64      BS(LONGHORN_64)
 #define ALLWINLONGHORN        ALLWINLONGHORN32, ALLWINLONGHORN64
@@ -137,7 +138,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define ALLWIN_10_64          ALLWIN_10_CLIENT64, ALLWIN_10_SERVER
 #define ALLWIN_10             ALLWIN_10_CLIENT,   ALLWIN_10_SERVER
 
-#define ALLWIN_11_SERVER64    BS(WIN_2022SRV_64), BS(WIN_2025SRV_64)
+#define ALLWIN_11_SERVER64    BS(WIN_2022SRV_64)
 #define ALLWIN_11_SERVER      ALLWIN_11_SERVER64
 
 #define ALLWIN_11_CLIENT64    BS(WIN_11_64), BS(WIN_11_ARM_64)
@@ -149,7 +150,10 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define ALLWIN_12_CLIENT64    BS(WIN_12_64), BS(WIN_12_ARM_64)
 #define ALLWIN_12_CLIENT      ALLWIN_12_CLIENT64
 
-#define ALLWIN_12             ALLWIN_12_CLIENT64
+#define ALLWIN_12_SERVER64    BS(WIN_2025SRV_64)
+#define ALLWIN_12_SERVER      ALLWIN_12_SERVER64
+
+#define ALLWIN_12             ALLWIN_12_CLIENT64, ALLWIN_12_SERVER
 
 #define ALLHYPER_V            BS(HYPER_V)
 
@@ -158,7 +162,8 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
                               ALLWINEIGHTSERVER,   ALLWINEIGHTCLIENT,  \
                               ALLWIN_10_SERVER,    ALLWIN_10_CLIENT,   \
                               ALLWIN_11_SERVER,    ALLWIN_11_CLIENT,   \
-                              ALLWIN_12_CLIENT,    ALLHYPER_V
+                              ALLWIN_12_SERVER,    ALLWIN_12_CLIENT,   \
+                              ALLHYPER_V
 
 #define ALLWINNT32            BS(WINNT),           ALLWIN2000,          \
                               ALLWINXP32,          ALLWINNET32,         \
@@ -172,7 +177,8 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
                               ALLWINEIGHTCLIENT64,   ALLWINEIGHTSERVER, \
                               ALLWIN_10_CLIENT64,    ALLWIN_10_SERVER,  \
                               ALLWIN_11_CLIENT64,    ALLWIN_11_SERVER,  \
-                              ALLWIN_12_CLIENT64,    ALLHYPER_V
+                              ALLWIN_12_CLIENT64,    ALLWIN_12_SERVER,  \
+                              ALLHYPER_V
 
 #define ALLWINNT              ALLWINNT32, ALLWINNT64
 
@@ -262,6 +268,13 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 #define ALLLINUX              ALLLINUX32, ALLLINUX64
 
+#define ALLLINUX_SVGAVO       BS(OTHERLINUX),    BS(OTHER24XLINUX),    \
+                              ALL26XLINUX32,     ALL3XLINUX32,         \
+                              ALL4XLINUX32,      ALL5XLINUX32,         \
+                              BS(OTHERLINUX_64), BS(OTHER24XLINUX_64), \
+                              ALL26XLINUX64,     ALL3XLINUX64,         \
+                              ALL4XLINUX64,      ALL5XLINUX64
+
 #define ALLDARWIN32           BS(DARWIN9), BS(DARWIN10), BS(DARWIN11)
 
 #define ALLDARWIN64           BS(DARWIN9_64),  BS(DARWIN10_64),  \
@@ -271,7 +284,8 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
                               BS(DARWIN17_64), BS(DARWIN18_64),  \
                               BS(DARWIN19_64), BS(DARWIN20_64),  \
                               BS(DARWIN21_64), BS(DARWIN22_64),  \
-                              BS(DARWIN23_64), BS(DARWIN24_64)
+                              BS(DARWIN23_64), BS(DARWIN24_64),  \
+                              BS(DARWIN25_64)
 
 #define ALLDARWIN             ALLDARWIN32, ALLDARWIN64
 
@@ -285,9 +299,11 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 #define ALLOS2                BS(OS2), ALLECOMSTATION
 
-#define ALLCRX                BS(CRXSYS1_64),     BS(CRXPOD1_64),     \
-                              BS(CRXSYS1_ARM_64), BS(CRXPOD1_ARM_64), \
-                              BS(CRXSYS2_64),     BS(CRXSYS2_ARM_64)
+#define ALLCRXNOVMOTION       BS(CRXSYS1_64),     BS(CRXSYS1_ARM_64), \
+                              BS(CRXSYS2_64),     BS(CRXSYS2_ARM_64), \
+                              BS(CRXPOD1_64),     BS(CRXPOD1_ARM_64)
+
+#define ALLCRX                ALLCRXNOVMOTION
 
 #define ALLARM                BS(WIN_10_ARM_64),        BS(WIN_11_ARM_64),       \
                               BS(WIN_12_ARM_64),                                 \
@@ -315,7 +331,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 #define STR_OS_VMKERNEL            "vmkernel"
 
 /* Linux */
-#define	STR_OS_ALMA_LINUX          "almaLinux"
+#define STR_OS_ALMA_LINUX          "almaLinux"
 #define STR_OS_AMAZON_LINUX        "amazonlinux"
 #define STR_OS_ANNVIX              "Annvix"
 #define STR_OS_ARCH                "Arch"
@@ -562,7 +578,7 @@ Bool Gos_InSetArray(uint32 gos, const uint32 *set);
 
 /* Windows Server 2012 */
 
-#define STR_OS_WIN_EIGHTSERVER_X64 STR_OS_WINDOWS "8srv" STR_OS_64BIT_SUFFIX 
+#define STR_OS_WIN_EIGHTSERVER_X64 STR_OS_WINDOWS "8srv" STR_OS_64BIT_SUFFIX
 
 #define STR_OS_WIN_2012_FOUNDATION_FULL      "Windows Server 2012%s Foundation Edition"
 #define STR_OS_WIN_2012_ESSENTIALS_FULL      "Windows Server 2012%s Essentials Edition"

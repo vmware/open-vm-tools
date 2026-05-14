@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2011-2021 VMware, Inc. All rights reserved.
+ * Copyright (c) 2011-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -112,11 +113,6 @@
  * # Defines the "vmsvc" domain, logging to stdout/stderr.
  * vmsvc.level = info
  * vmsvc.handler = std
- *
- * # Defines the "unity" domain, logging to a file.
- * unity.level = warning
- * unity.handler = file
- * unity.data = /tmp/unity.log
  *
  * # Defines the "vmtoolsd" domain, and disable logging for it.
  * vmtoolsd.level = none
@@ -362,6 +358,10 @@ VMTools_VmxLogThrottled(uint32 *count,
                         const gchar *fmt,
                         ...);
 
+void
+VMTools_LogThrottled(uint32 *count,
+                     const gchar *fmt,
+                     ...);
 G_END_DECLS
 
 #define host_warning(fmt, ...)                                          \

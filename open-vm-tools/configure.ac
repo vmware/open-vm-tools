@@ -36,10 +36,10 @@
 ### Initialization
 ###
 
-TOOLS_VERSION="13.0.10"
+TOOLS_VERSION="13.1.0"
 AC_INIT(
    [open-vm-tools],
-   [13.0.10],
+   [13.1.0],
    [open-vm-tools-devel@lists.sourceforge.net])
 
 # In order to make this configure script auto-detect situations where
@@ -231,6 +231,14 @@ AC_ARG_ENABLE(
    [enable_multimon="yes"])
 
 AC_ARG_WITH(
+   gtk4,
+   AS_HELP_STRING(
+      [--without-gtk4],
+      [compiles without Gtk 4.0]),
+   [with_gtk4="$withval"],
+   [with_gtk4="auto"])
+
+AC_ARG_WITH(
    gtk3,
    AS_HELP_STRING(
       [--without-gtk3],
@@ -238,69 +246,40 @@ AC_ARG_WITH(
    [with_gtk3="$withval"],
    [with_gtk3="auto"])
 
-AC_ARG_WITH(
-   gtk2,
-   AS_HELP_STRING(
-      [--without-gtk2],
-      [compiles without Gtk 2.0]),
-   [with_gtk2="$withval"],
-   [with_gtk2="auto"])
 
+# only one "with_gtkX" option allowed
+num_gtk_args=0
+if test "$with_gtk4" = "yes" ; then
+   (( num_gtk_args += 1 ))
+fi
+if test "$with_gtk3" = "yes" ; then
+   (( num_gtk_args += 1 ))
+fi
+if (( $num_gtk_args > 1 )); then
+   AC_MSG_ERROR('cannot set multiple "with-gtkX" option')
+fi
 
+# any "with_gtkX option is ignored if "no_x" is set
 if test "$no_x" = "yes" ; then
-   with_gtk2="no"
    with_gtk3="no"
-else
-   if test "$with_gtk2" = "auto" ; then
-      if test "$with_gtk3" = "auto" ; then
-         with_gtk2="no"
-         with_gtk3="yes"
-      elif test "$with_gtk3" = "no" ; then
-         with_gtk2="yes"
-      elif test "$with_gtk3" = "yes" ; then
-         with_gtk2="no"
-      fi
-   elif test "$with_gtk2" = "no" ; then
-      if test "$with_gtk3" = "auto" ; then
-         with_gtk3="yes"
-      elif test "$with_gtk3" = "no" ; then
-         AC_MSG_ERROR('need either gtk2 or gtk3 or build with --without-x to disable building desktop plugins')
-      fi
-   elif test "$with_gtk2" = "yes"  ; then
-      if test "$with_gtk3" = "auto" ; then
-         with_gtk3="no"
-      elif test "$with_gtk3" = "yes" ; then
-         AC_MSG_ERROR('cannot set both --with-gtk2 and --with-gtk3')
-      fi
+   with_gtk4="no"
+   if (( $num_gtk_args > 0 )); then
+      AC_MSG_WARN('"with-gtkX" option is ignored when "no_x" option is set')
    fi
 fi
 
-if test "$with_gtk2" = "no" ; then
-   with_gtkmm="no"
+# use the gtk version if the option is set with "yes" explicitly
+if test "$with_gtk4" = "yes" ; then
+   with_gtk3="no"
+elif test "$with_gtk3" = "yes" ; then
+   with_gtk4="no"
 fi
 
-if test "$with_gtk3" = "no" ; then
-   with_gtkmm3="no"
-fi
-
-if test "$with_gtk3" = "yes"; then
-   AC_ARG_WITH(
-      gtkmm3,
-      AS_HELP_STRING(
-         [--without-gtkmm3],
-         [compiles without Gtkmm 3, sigc++, and related libs]),
-      [with_gtkmm3="$withval"],
-      [with_gtkmm3="yes"])
-      with_gtkmm="no"
-elif test "$with_gtk2" = "yes"; then
-   AC_ARG_WITH(
-      gtkmm,
-      AS_HELP_STRING(
-         [--without-gtkmm],
-         [compiles without Gtkmm, sigc++, and related libs]),
-      [with_gtkmm="$withval"],
-      [with_gtkmm="yes"])
-      with_gtkmm3="no"
+# PR3594893, do not build with gtk4 for FreeBSD by default. Build with gtk3
+# by default as previous behavior, even both gtk4 and gtk3 libs are availale.
+# Only build with gtk4 when explicitly set by "--with_gtk4"
+if test "$with_gtk4" = "auto" && test "$os" = "freebsd" ; then
+   with_gtk4="no"
 fi
 
 AC_ARG_ENABLE(
@@ -1017,6 +996,31 @@ else
       have_xcomposite="yes"
    fi
 
+   # Check if the gtk lib installed matches with gtkN option
+   have_gtk="no"
+   # Check whether we have gtk+ 4.0
+   if test "$with_gtk4" != "no"; then
+      # gdk_x11_display_get_default_group (added in gtk+ 4.0) is function currently
+      # needed by vmware-user.
+      AC_VMW_CHECK_LIB([gtk-4],
+                       [GTK],
+                       [gtk4],
+                       [],
+                       [4.0.0],
+                       [gtk/x11/gtkx.h],
+                       [gdk_x11_display_get_default_group],
+                       [with_gtk4="yes"
+                        have_gtk="yes"
+                        GTK_CPPFLAGS="$GTK_CPPFLAGS -DGTK4 -DGDK_DISABLE_DEPRECATED -DGTK_DISABLE_DEPRECATED"
+                        with_gtk3="no"],
+                       [AS_IF([test $with_gtk4 = "auto"],
+                              [AC_MSG_WARN([Gtk+ 4.0 library not found or devel package not found. Please configure without Gtk+ support (using --without-gtk4) or install the Gtk+ 4.0 devel package.])
+                               with_gtk4="no"],
+                              [AC_MSG_ERROR([Gtk+ 4.0 library not found or devel package not found. Please configure without Gtk+ support (using --without-gtk4) or install the Gtk+ 4.0 devel package.])]
+                             )]
+                      )
+   fi
+
    # Check whether we have gtk+ 3.0.
    if test "$with_gtk3" != "no"; then
       # gdk_display_get_default_group (added in gtk+ 2.4.0) is function currently
@@ -1028,51 +1032,78 @@ else
                        [3.0.0],
                        [gtk/gtk.h],
                        [gdk_display_get_default_group],
-                       [GTK_CPPFLAGS="$GTK_CPPFLAGS -DGTK3"],
-                       [AC_MSG_ERROR([Gtk+ 3.0 library not found or too old. Please configure without Gtk+ support (using --without-gtk3) or install the Gtk+ 3.0 devel package.])])
+                       [with_gtk3="yes"
+                        have_gtk="yes"
+                        GTK_CPPFLAGS="$GTK_CPPFLAGS -DGTK3"],
+                       [AS_IF([test $with_gtk3 = "auto"],
+                              [AC_MSG_WARN([Gtk+ 3.0 library not found or devel package not found. Please configure without Gtk+ support (using --without-gtk3) or install the Gtk+ 3.0 devel package.])
+                               with_gtk3="no"],
+                              [AC_MSG_ERROR([Gtk+ 3.0 library not found or devel package not found. Please configure without Gtk+ support (using --without-gtk3) or install the Gtk+ 3.0 devel package.])]
+                             )]
+                      )
+   fi
 
-   # Check whether we have gtk+ 2.0.
-   elif test "$with_gtk2" != "no"; then
-      AC_VMW_CHECK_LIB([gtk-x11-2.0],
-                       [GTK],
-                       [gtk+-2.0],
-                       [],
-                       [2.4.0],
-                       [gtk/gtk.h],
-                       [gdk_display_get_default_group],
-                       [GTK_CPPFLAGS="$GTK_CPPFLAGS -DGTK2"],
-                       [AC_MSG_ERROR([Gtk+ 2.0 library not found or too old. Please configure without Gtk+ support (using --without-gtk2) or install the Gtk+ 2.0 devel package.])])
+   if test "$have_gtk" != "yes" && test "$no_x" != "yes"; then
+      AC_MSG_ERROR('need at least one of gtk3/gtk4 available or build with --without-x to disable building desktop plugins')
+   fi
+
+   # Now set gtkmm version after gtkN version is determined
+   if test "$with_gtk4" = "yes"; then
+      AC_ARG_WITH(
+         gtkmm4,
+         AS_HELP_STRING(
+            [--without-gtkmm4],
+            [compiles without Gtkmm 4, sigc++, and related libs]),
+         [with_gtkmm4="$withval"],
+         [with_gtkmm4="yes"])
+         with_gtkmm3="no"
+   elif test "$with_gtk3" = "yes"; then
+      AC_ARG_WITH(
+         gtkmm3,
+         AS_HELP_STRING(
+            [--without-gtkmm3],
+            [compiles without Gtkmm 3, sigc++, and related libs]),
+         [with_gtkmm3="$withval"],
+         [with_gtkmm3="yes"])
+         with_gtkmm4="no"
    fi
 
    #
-   # Check for gtkmm 2.4.0 or greater.
+   # Check for gtkmm 3.0 or greater.
    #
+   if test "$with_gtkmm4" != "no"; then
+      AC_VMW_CHECK_LIBXX([gtkmm-4.0],
+                         [GTKMM],
+                         [gtkmm-4.0],
+                         [],
+                         [4.0.0],
+                         [gtkmm.h],
+                         [],
+                         [GTKMM_CPPFLAGS="$GTKMM_CPPFLAGS -DHAVE_GTKMM"],
+                         [AC_MSG_ERROR([gtkmm4 library not found. Please install the libgtkmm4 devel package(s), or re-configure using --without-gtkmm4.])])
 
-
-   if test "$with_gtkmm" != "no" -o "$with_gtkmm3" != "no"; then
-      if test "$with_gtkmm3" != "no"; then
-         AC_VMW_CHECK_LIBXX([gtkmm-3.0],
-                            [GTKMM],
-                            [gtkmm-3.0],
-                            [],
-                            [3.0.0],
-                            [gtkmm.h],
-                            [],
-                            [GTKMM_CPPFLAGS="$GTKMM_CPPFLAGS -DHAVE_GTKMM"],
-                            [AC_MSG_ERROR([gtkmm3 library not found. Please install the libgtkmm devel package(s), or re-configure using --without-gtkmm3.])])
-
-      elif test "$with_gtkmm" != "no"; then
-         CUSTOM_GTKMM_CPPFLAGS="$CUSTOM_GTKMM_CPPFLAGS $GTK_CPPFLAGS"
-         AC_VMW_CHECK_LIBXX([gtkmm-2.4],
-                            [GTKMM],
-                            [gtkmm-2.4],
-                            [],
-                            [2.4.0],
-                            [gtkmm.h],
-                            [],
-                            [GTKMM_CPPFLAGS="$GTKMM_CPPFLAGS -DHAVE_GTKMM"],
-                            [AC_MSG_ERROR([gtkmm library not found. Please install the libgtkmm devel package(s), or re-configure using --without-gtkmm.])])
-      fi
+      #
+      # libsigc++-3.0 >= 3.0.0 requires C++17 support
+      #
+      AC_VMW_CHECK_LIBXX([sigc++-3.0],
+                         [SIGCXX],
+                         [sigc++-3.0],
+                         [],
+                         [3.0.0],
+                         [sigc++.h],
+                         [],
+                         [SIGCXX_CPPFLAGS="$SIGCXX_CPPFLAGS -std=c++17"],
+                         [SIGCXX_CPPFLAGS="$SIGCXX_CPPFLAGS"])
+   elif test "$with_gtkmm3" != "no"; then
+      AC_VMW_CHECK_LIBXX([gtkmm-3.0],
+                         [GTKMM],
+                         [gtkmm-3.0],
+                         [],
+                         [3.0.0],
+                         [gtkmm.h],
+                         [],
+                         [GTKMM_CPPFLAGS="$GTKMM_CPPFLAGS -DHAVE_GTKMM"],
+                         [AC_MSG_ERROR([gtkmm3 library not found. Please install the libgtkmm devel package(s), or re-configure using --without-gtkmm3.])])
 
       #
       # libsigc++-2.0 >= 2.5.1 requires C++11 support
@@ -1095,7 +1126,7 @@ else
                          [],
                          [SIGCXX_CPPFLAGS="$SIGCXX_CPPFLAGS -std=c++11"],
                          [SIGCXX_CPPFLAGS="$SIGCXX_CPPFLAGS"])
-   fi
+   fi # End of checks for gtkmm3, gtkmm4
 fi # End of checks for X libraries
 
 AC_CHECK_LIB(
@@ -1638,6 +1669,12 @@ if test "x$enable_vmwgfxctrl" = "xauto"; then
    enable_vmwgfxctrl="no"
 fi
 
+if test "$with_gtkmm3" = "yes" || test "$with_gtkmm4" = "yes"; then
+   have_gtkmm="yes"
+else
+   have_gtkmm="no"
+   AC_MSG_WARN('dndcp plugin will not build without gtkmm')
+fi
 AM_CONDITIONAL(LINUX, test "$os" = "linux")
 AM_CONDITIONAL(SOLARIS, test "$os" = "solaris")
 AM_CONDITIONAL(FREEBSD, test "$os" = "freebsd" -o "$os" = "kfreebsd-gnu")
@@ -1657,7 +1694,8 @@ AM_CONDITIONAL(HAVE_DOXYGEN, test "$have_doxygen" = "yes")
 AM_CONDITIONAL(HAVE_FUSE, test "$have_fuse" = "yes" || test "$have_fuse3" = "yes")
 AM_CONDITIONAL(HAVE_FUSE3, test "$have_fuse3" = "yes")
 AM_CONDITIONAL(HAVE_GNU_LD, test "$with_gnu_ld" = "yes")
-AM_CONDITIONAL(HAVE_GTKMM, test "$have_x" = "yes" -a \( "$with_gtkmm" = "yes" -o "$with_gtkmm3" = "yes" \) )
+AM_CONDITIONAL(HAVE_GTK4,  test "$have_x" = "yes" && test "$with_gtk4" = "yes")
+AM_CONDITIONAL(HAVE_GTKMM,  test "$have_x" = "yes" && test "$have_gtkmm" = "yes")
 AM_CONDITIONAL(HAVE_PAM, test "$with_pam" = "yes")
 AM_CONDITIONAL(USE_SLASH_PROC, test "$os" = "linux")
 AM_CONDITIONAL(ENABLE_CONTAINERINFO, test "$enable_containerinfo" = "yes")
@@ -1888,6 +1926,7 @@ AC_CONFIG_FILES([                      \
    libappmonitor/Makefile              \
    libappmonitor/appmonitor.pc         \
 ])
+
 
 
 

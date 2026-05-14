@@ -23,6 +23,11 @@
  *    Functions to support the Alias store.
  */
 
+#ifndef _WIN32
+// Some Linux distributions need this for flag O_NOFOLLOW used in open.
+#define _GNU_SOURCE
+#endif
+
 #include <errno.h>
 #include <glib.h>
 #include <glib/gstdio.h>
@@ -256,9 +261,35 @@ mapping file layout:
  */
 
 #ifdef _WIN32
+/*
+ * Access mode 0x1301bf
+ */
+#define USER_ACCESS_MODE (SYNCHRONIZE           |\
+                          READ_CONTROL          |\
+                          DELETE                |\
+                          FILE_WRITE_ATTRIBUTES |\
+                          FILE_READ_ATTRIBUTES  |\
+                          FILE_EXECUTE          |\
+                          FILE_WRITE_EA         |\
+                          FILE_READ_EA          |\
+                          FILE_APPEND_DATA      |\
+                          FILE_WRITE_DATA       |\
+                          FILE_READ_DATA)
+#endif
+
+#ifdef _WIN32
 #define ISPATHSEP(c)  ((c) == '\\' || (c) == '/')
 #else
 #define ISPATHSEP(c)  ((c) == '/')
+#endif
+
+/*
+ * Usernames are case-insensitive in Windows and case-sensitive in Linux.
+ */
+#ifdef _WIN32
+#define USERNAME_CMP  _stricmp
+#else
+#define USERNAME_CMP  g_strcmp0
 #endif
 
 
@@ -296,14 +327,7 @@ ServiceAliasIsSubjectEqual(ServiceSubjectType t1,
     * to make it case insensitive and then do a compare.
     */
    if (t1 == SUBJECT_TYPE_NAMED) {
-      gchar *n1case;
-      gchar *n2case;
-
-      n1case = g_utf8_casefold(n1, -1);
-      n2case = g_utf8_casefold(n2, -1);
-      bRet = (g_strcmp0(n1case, n2case) == 0) ? TRUE : FALSE;
-      g_free(n1case);
-      g_free(n2case);
+      bRet = Util_Utf8CaseCmp(n1, n2) == 0;
    }
 
    return bRet;
@@ -475,7 +499,7 @@ ServiceLoadFileContentsWin(const gchar *fileName,
    gunichar2 *fileNameW = NULL;
    BOOL ok;
    DWORD bytesRead;
-   gchar *realPath = NULL;
+   gunichar2 *realPathW = NULL;
 
    *fileSize = 0;
    *contents = NULL;
@@ -636,13 +660,15 @@ ServiceLoadFileContentsWin(const gchar *fileName,
       /*
        * Check if fileName is real path.
        */
-      if ((realPath = ServiceFileGetPathByHandle(hFile)) == NULL) {
+      if ((realPathW = ServiceFileGetPathByHandleW(hFile)) == NULL) {
+         Warning("%s: Failed to get the real path for file %S\n",
+                 __FUNCTION__, fileNameW);
          err = VGAUTH_E_FAIL;
          goto done;
       }
-      if (Util_Utf8CaseCmp(realPath, fileName) != 0) {
-         Warning("%s: Real path (%s) is not same as file path (%s)\n",
-                 __FUNCTION__, realPath, fileName);
+      if (_wcsicmp(realPathW, fileNameW) != 0) {
+         Warning("%s: Real path (%S) is not same as file path (%S)\n",
+                 __FUNCTION__, realPathW, fileNameW);
          err = VGAUTH_E_FAIL;
          goto done;
       }
@@ -676,7 +702,7 @@ done:
       CloseHandle(hFile);
    }
    g_free(fileNameW);
-   g_free(realPath);
+   g_free(realPathW);
 
    return err;
 }
@@ -785,15 +811,17 @@ ServiceLoadFileContentsPosix(const gchar *fileName,
       }
    }
 
+
    /*
     * Now open the file.
     */
-   fd = g_open(fileName, O_RDONLY);
+   fd = g_open(fileName, O_RDONLY | O_NOFOLLOW);
    if (fd < 0) {
       Warning("%s: failed to open %s for read (%d)\n",
               __FUNCTION__, fileName, errno);
       return VGAUTH_E_FAIL;
    }
+
 
    /*
     * fstat() to make sure it wasn't changed between the first check
@@ -811,6 +839,30 @@ ServiceLoadFileContentsPosix(const gchar *fileName,
    /*
     * Now the confidence checks.
     */
+   if (lstatBuf.st_mtime != fstatBuf.st_mtime) {
+      Warning("%s: mtime of %s changed (%ld vs %ld)\n", __FUNCTION__,
+              fileName, lstatBuf.st_mtime, fstatBuf.st_mtime);
+      // XXX audit this?
+      err = VGAUTH_E_FAIL;
+      goto done;
+   }
+
+   if (lstatBuf.st_dev != fstatBuf.st_dev) {
+      Warning("%s: dev of %s changed (%"FMT64"u vs %"FMT64"u)\n", __FUNCTION__,
+              fileName, lstatBuf.st_dev, fstatBuf.st_dev);
+      // XXX audit this?
+      err = VGAUTH_E_FAIL;
+      goto done;
+   }
+
+   if (lstatBuf.st_ino != fstatBuf.st_ino) {
+      Warning("%s: ino of %s changed (%"FMT64"u vs %"FMT64"u)\n", __FUNCTION__,
+              fileName, lstatBuf.st_ino, fstatBuf.st_ino);
+      // XXX audit this?
+      err = VGAUTH_E_FAIL;
+      goto done;
+   }
+
    if (lstatBuf.st_size != fstatBuf.st_size) {
       Warning("%s: size of %s changed (%d vs %d)\n", __FUNCTION__,
               fileName, (int) lstatBuf.st_size, (int) fstatBuf.st_size);
@@ -916,6 +968,7 @@ ServiceLoadFileContents(const gchar *fileName,
                                        fileSize);
 #endif
 }
+
 
 
 /*
@@ -2215,7 +2268,13 @@ AliasSaveAliasesAndMapped(const gchar *userName,
       UserAccessControl uac;
       BOOL ok;
 
-      if (!UserAccessControl_GrantUser(&uac, userName, GENERIC_ALL)) {
+      /*
+       * Alias store root directory is secured by the installer from regular
+       * users. Hence the regular user should not be allowed to take ownership
+       * or change permissions of the alias store file. Hence access mode
+       * 0x1301bf is used which excludes WRITE_DAC and WRITE_OWNER permissions.
+       */
+      if (!UserAccessControl_GrantUser(&uac, userName, USER_ACCESS_MODE)) {
          err = VGAUTH_E_FAIL;
          goto cleanup;
       }
@@ -2396,7 +2455,7 @@ cleanup:
     * If we fail somwhere, all we can do is try to clean up.
     * If this fails, there's nothing we can do.
     */
-   if (ServiceFileUnlinkFile(tmpAliasFilename)) {
+   if (tmpAliasFilename && ServiceFileUnlinkFile(tmpAliasFilename)) {
       /* XXX not much to do -- ServiceFileUnlinkFile() spewed error */
    }
    if (tmpMapFilename && ServiceFileUnlinkFile(tmpMapFilename)) {
@@ -2698,7 +2757,7 @@ check_map:
                }
             }
             // if its a new subject for the same user, add it
-            if (g_strcmp0(maList[i].userName, userName) == 0) {
+            if (USERNAME_CMP(maList[i].userName, userName) == 0) {
                // additional subject for cert/username pair
                maList[i].num++;
                maList[i].subjects = g_realloc_n(maList[i].subjects,
@@ -2950,7 +3009,7 @@ ServiceAliasRemoveAlias(const gchar *reqUserName,
       userIdIdx = -1;
       for (i = 0; i < numMapped; i++) {
          if (ServiceComparePEMCerts(pemCert, maList[i].pemCert) &&
-             (g_strcmp0(userName, maList[i].userName) == 0)) {
+             (USERNAME_CMP(userName, maList[i].userName) == 0)) {
             userIdIdx = i;
             break;
          }

@@ -449,7 +449,7 @@ Util_Memcpy(void *dest,      // OUT:
       if ((align & 3) == 0) {
          __asm__ __volatile__("\t"
                                "cld"            "\n\t"
-                               "rep ; movsd"    "\n"
+                               "rep ; movsl"    "\n"
                                : "=c" (dummy0), "=D" (dummy1), "=S" (dummy2)
                                : "0" (count >> 2), "1" (dest), "2" (src)
                                : "memory", "cc"

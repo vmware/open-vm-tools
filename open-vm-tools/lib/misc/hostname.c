@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2007-2017 VMware, Inc. All rights reserved.
+ * Copyright (c) 2007-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -28,10 +29,15 @@
 #include <winsock.h>
 #endif
 
+#include <hostType.h>
+#include <strutil.h>
+#include <vm_basic_defs.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <ctype.h>
 
 #include "vmware.h"
 #include "str.h"
@@ -200,6 +206,24 @@ Hostinfo_HostName(void)
    struct utsname un;
 
    char *result = NULL;
+
+#ifdef VMX86_SERVER
+   if (HostType_OSIsSimulator()) {
+      FILE *f = fopen("/var/run/vmware/HostSim_HostName.txt", "r");
+
+      if (f != NULL) {
+         char name[255] = {0};
+
+         (void)!fread(name, 1, sizeof(name) - 1, f); // ignore the result
+         fclose(f);
+
+         if (strlen(name) > 0 && Unicode_IsStringValidUTF8(name) == TRUE) {
+            result = StrUtil_TrimWhitespace(name);
+            return result;
+         }
+      }
+   }
+#endif
 
    if ((uname(&un) == 0) && (*un.nodename != '\0')) {
       char *p;

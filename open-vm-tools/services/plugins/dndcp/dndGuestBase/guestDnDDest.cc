@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2010-2018 VMware, Inc. All rights reserved.
+ * Copyright (c) 2010-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -103,11 +104,7 @@ GuestDnDDest::UIDragEnter(const CPClipboard *clip)
       g_debug("%s: already in SRC_DRAGGING state, ignoring\n", __FUNCTION__);
       return;
    }
-
-   /*
-    * In Unity mode, there is no QueryPendingDrag signal, so may get called
-    * with state READY.
-    */
+   /* TODO: Re-evaluate the need for GUEST_DND_READY check now that Unity is gone.*/
    if (mMgr->GetState() != GUEST_DND_QUERY_EXITING &&
        mMgr->GetState() != GUEST_DND_READY) {
       g_debug("%s: Bad state: %d, reset\n", __FUNCTION__, mMgr->GetState());

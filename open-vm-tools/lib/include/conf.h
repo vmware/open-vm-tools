@@ -50,6 +50,7 @@
 #define CONFNAME_LOGFILE                  "log.file"
 #define CONFNAME_LOGLEVEL                 "log.level"
 #define CONFNAME_DISABLETOOLSVERSION      "disable-tools-version"
+#define CONFNAME_USELEGACYVERSION         "use-legacy-version"
 #define CONFNAME_HIDETOOLSVERSION         "hide-tools-version"
 #define CONFNAME_DISABLEPMTIMERWARNING    "disable-pmtimerwarning"
 #define CONFGROUPNAME_VMTOOLS             "vmtools"
@@ -520,44 +521,6 @@
 
 /*
  ******************************************************************************
- * BEGIN Unity goodies.
- */
-
-/**
- * Defines the string used for the Unity config file group.
- */
-#define CONFGROUPNAME_UNITY "unity"
-
-/**
- * Lets users override system decisions about whether unity should be available.
- */
-#define CONFNAME_UNITY_FORCEENABLE "forceEnable"
-
-/**
- * Lets users override the desktop background color when in Unity mode.
- */
-#define CONFNAME_UNITY_BACKGROUNDCOLOR "desktop.backgroundColor"
-
-/**
- * Lets users enable (or disable) the Protocol Buffer enabled service
- */
-#define CONFNAME_UNITY_ENABLEPBRPC "pbrpc.enable"
-
-/**
- * Lets users configure the socket type for the PBRPC Services
- */
-#define CONFNAME_UNITY_PBRPCSOCKETTYPE "pbrpc.socketType"
-#define CONFNAME_UNITY_PBRPCSOCKETTYPE_IPSOCKET "ipsocket"
-#define CONFNAME_UNITY_PBRPCSOCKETTYPE_VSOCKET "vsocket"
-
-/*
- * END Unity goodies.
- ******************************************************************************
- */
-
-
-/*
- ******************************************************************************
  * BEGIN deployPkg goodies.
  */
 
@@ -601,13 +564,6 @@
 
 #   define CONF_VMWARE_TOOLS_REGKEY_W WSTR(CONF_VMWARE_TOOLS_REGKEY)
 #   define CONF_VMWARE_TOOLS_INSTPATH_KEY_W WSTR(CONF_VMWARE_TOOLS_INSTPATH_KEY)
-#   ifdef UNITY_FOR_VIEW
-#      define CONF_VMWARE_RDE_REGKEY  "SOFTWARE\\VMware, Inc.\\VMware VDM\\RemoteExperienceAgent"
-#      define CONF_VMWARE_RDE_INSTPATH_KEY "InstallPath"
-
-#      define CONF_VMWARE_RDE_REGKEY_W WSTR(CONF_VMWARE_RDE_REGKEY)
-#      define CONF_VMWARE_RDE_INSTPATH_KEY_W WSTR(CONF_VMWARE_RDE_INSTPATH_KEY)
-#   endif
 #endif
 
 /* Wait 5 seconds between polls to see if the conf file has changed */

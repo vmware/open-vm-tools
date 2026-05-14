@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2009-2021 VMware, Inc. All rights reserved.
+ * Copyright (c) 2009-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -85,7 +86,6 @@ DnDUIX11::DnDUIX11(ToolsAppCtx *ctx)
       mGHDnDInProgress(false),
       mGHDnDDataReceived(false),
       mGHDnDDropOccurred(false),
-      mUnityMode(false),
       mInHGDrag(false),
       mEffect(DROP_NONE),
       mMousePosX(0),
@@ -115,12 +115,15 @@ DnDUIX11::DnDUIX11(ToolsAppCtx *ctx)
 #ifdef USE_UINPUT
    //Initialize the uinput device if available
    if (ctx->uinputFD != -1) {
-      Screen * scrn = DefaultScreenOfDisplay(XOpenDisplay(NULL));
+      Display *display = XOpenDisplay(NULL);
+      Screen * scrn = DefaultScreenOfDisplay(display);
       if (FakeMouse_Init(ctx->uinputFD, scrn->width, scrn->height)) {
          mUseUInput = true;
          mScreenWidth = scrn->width;
          mScreenHeight = scrn->height;
       }
+      // Disconnect the connection to X Server.
+      XCloseDisplay(display);
    }
 #endif
 
@@ -221,7 +224,6 @@ DnDUIX11::Init()
    CONNECT_SIGNAL(mDnD, moveMouseChanged,      OnMoveMouse);
    CONNECT_SIGNAL(mDnD, privDropChanged,       OnPrivateDrop);
    CONNECT_SIGNAL(mDnD, updateDetWndChanged,   OnUpdateDetWnd);
-   CONNECT_SIGNAL(mDnD, updateUnityDetWndChanged, OnUpdateUnityDetWnd);
 
    /* Set Gtk+ callbacks for source. */
    CONNECT_SIGNAL(mDetWnd->GetWnd(), signal_drag_begin(),        OnGtkDragBegin);
@@ -241,7 +243,6 @@ DnDUIX11::Init()
 #undef CONNECT_SIGNAL
 
    OnUpdateDetWnd(false, 0, 0);
-   OnUpdateUnityDetWnd(false, 0, false);
    goto out;
 fail:
    ret = false;
@@ -387,7 +388,8 @@ DnDUIX11::OnSrcDragBegin(const CPClipboard *clip,       // IN
        * Check if the screen size changes, if so then update the
        * uinput device.
        */
-      Screen * scrn = DefaultScreenOfDisplay(XOpenDisplay(NULL));
+      Display *display = XOpenDisplay(NULL);
+      Screen * scrn = DefaultScreenOfDisplay(display);
       if (   (scrn->width != mScreenWidth)
           || (scrn->height != mScreenHeight)) {
          g_debug("%s: Update uinput device. prew:%d, preh:%d, w:%d, h:%d\n",
@@ -400,6 +402,8 @@ DnDUIX11::OnSrcDragBegin(const CPClipboard *clip,       // IN
          mScreenHeight = scrn->height;
          FakeMouse_Update(mScreenWidth, mScreenHeight);
       }
+      // Disconnect the connection to X Server.
+      XCloseDisplay(display);
    }
 #endif
 
@@ -555,7 +559,6 @@ DnDUIX11::OnPrivateDrop(int32 x,        // UNUSED
 {
    TRACE_CALL();
 
-   /* Unity manager in host side may already send the drop into guest. */
    if (mGHDnDInProgress) {
 
       /*
@@ -591,7 +594,6 @@ DnDUIX11::OnDestCancel()
 {
    TRACE_CALL();
 
-   /* Unity manager in host side may already send the drop into guest. */
    if (mGHDnDInProgress) {
       /*
        * Show the window, move it to the mouse position, and release the
@@ -718,60 +720,6 @@ DnDUIX11::OnUpdateDetWnd(bool show,     // IN: show (true) or hide (false)
       g_debug("%s: hide\n", __FUNCTION__);
       mDetWnd->Hide();
       mDetWnd->SetIsVisible(false);
-   }
-}
-
-
-/*
- *-----------------------------------------------------------------------------
- *
- * DnDUIX11::OnUpdateUnityDetWnd --
- *
- *      Callback to show/hide fullscreen Unity drag detection window.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      Detection window shown, hidden.
- *
- *-----------------------------------------------------------------------------
- */
-
-void
-DnDUIX11::OnUpdateUnityDetWnd(bool show,         // IN: show (true) or hide (false)
-                              uint32 unityWndId, // IN: XXX ?
-                              bool bottom)       // IN: place window at bottom of stack?
-{
-   g_debug("%s: enter 0x%lx unityID 0x%x\n",
-         __FUNCTION__,
-         (unsigned long) mDetWnd->GetWnd()->get_window()->gobj(),
-         unityWndId);
-
-   if (show && ((unityWndId > 0) || bottom)) {
-      int width = mDetWnd->GetScreenWidth();
-      int height = mDetWnd->GetScreenHeight();
-      mDetWnd->SetGeometry(0, 0, width, height);
-      mDetWnd->Show();
-      if (bottom) {
-         mDetWnd->Lower();
-      }
-
-      g_debug("%s: show, (0, 0, %d, %d)\n", __FUNCTION__, width, height);
-   } else {
-      if (mDetWnd->GetIsVisible() == true) {
-         if (mUnityMode) {
-
-            /*
-             * Show and move detection window to current mouse position
-             * and resize.
-             */
-            SendFakeXEvents(true, false, true, true, false, 0, 0);
-         }
-      } else {
-         mDetWnd->Hide();
-         g_debug("%s: hide\n", __FUNCTION__);
-      }
    }
 }
 
@@ -1964,39 +1912,39 @@ DnDUIX11::SendFakeXEvents(
       } else {
          XTestFakeButtonEvent(dndXDisplay, 1, buttonPress, CurrentTime);
          XSync(dndXDisplay, False);
-      }
 
-      if (!buttonPress) {
-         /*
-          * The button release simulation may be failed with some distributions
-          * like Ubuntu 10.4 and RHEL 6 for guest->host DnD. So first query
-          * mouse button status. If some button is still down, we will try
-          * mouse device level event simulation. For details please refer
-          * to bug 552807.
-          */
-         if (!XQueryPointer(dndXDisplay, rootWnd, &rootReturn, &childReturn,
-                            &rootXReturn, &rootYReturn, &winXReturn,
-                            &winYReturn, &maskReturn)) {
-            Warning("%s: XQueryPointer returned False.\n", __FUNCTION__);
-            goto exit;
-         }
+         if (!buttonPress) {
+            /*
+             * The button release simulation may be failed with some distributions
+             * like Ubuntu 10.4 and RHEL 6 for guest->host DnD. So first query
+             * mouse button status. If some button is still down, we will try
+             * mouse device level event simulation. For details please refer
+             * to bug 552807.
+             */
+            if (!XQueryPointer(dndXDisplay, rootWnd, &rootReturn, &childReturn,
+                               &rootXReturn, &rootYReturn, &winXReturn,
+                               &winYReturn, &maskReturn)) {
+               Warning("%s: XQueryPointer returned False.\n", __FUNCTION__);
+               goto exit;
+            }
 
-         if (   (maskReturn & Button1Mask)
-             || (maskReturn & Button2Mask)
-             || (maskReturn & Button3Mask)
-             || (maskReturn & Button4Mask)
-             || (maskReturn & Button5Mask)) {
-            Debug("%s: XTestFakeButtonEvent was not working for button "
-                  "release, trying XTestFakeDeviceButtonEvent now.\n",
-                  __FUNCTION__);
-            ret = TryXTestFakeDeviceButtonEvent();
+            if (   (maskReturn & Button1Mask)
+                || (maskReturn & Button2Mask)
+                || (maskReturn & Button3Mask)
+                || (maskReturn & Button4Mask)
+                || (maskReturn & Button5Mask)) {
+               Debug("%s: XTestFakeButtonEvent was not working for button "
+                     "release, trying XTestFakeDeviceButtonEvent now.\n",
+                     __FUNCTION__);
+               ret = TryXTestFakeDeviceButtonEvent();
+            } else {
+               g_debug("%s: XTestFakeButtonEvent was working for button release.\n",
+                       __FUNCTION__);
+               ret = true;
+            }
          } else {
-            g_debug("%s: XTestFakeButtonEvent was working for button release.\n",
-                    __FUNCTION__);
             ret = true;
          }
-      } else {
-         ret = true;
       }
    }
 
@@ -2742,7 +2690,7 @@ DnDUIX11::OnWorkAreaChanged(Glib::RefPtr<Gdk::Screen> screen)    // IN
    TRACE_CALL();
 
    std::vector<unsigned long> values;
-   if (   xutils::GetCardinalList(screen->get_root_window(), "_NET_WORKAREA", values)
+   if (xutils::GetCardinalList(screen->get_root_window(), "_NET_WORKAREA", values)
        && values.size() > 0
        && values.size() % 4 == 0) {
       /*

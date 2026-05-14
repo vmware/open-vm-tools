@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2013-2024 VMware, Inc. All rights reserved.
+ * Copyright (c) 2013-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -40,6 +41,20 @@
 #define _VM_BASIC_ASM_ARM64_H_
 
 #include "vm_basic_defs.h"
+#if (defined VMKERNEL || defined VMKBOOT) && defined VMK_ARM_NVSIM
+#include "vmk_arm_nvsim.h"
+#endif
+
+#if defined _MSC_VER
+#include <arm64intr.h> // For Microsoft's ARM64_SYSREG().
+
+typedef enum {
+#define _SYSREG(name, op0, op1, crn, crm, op2)                                \
+   MSC_SYSREG_##name = ARM64_SYSREG(op0, op1, crn, crm, op2),
+#include "arm64/sysreg_table.h"
+#undef _SYSREG
+} MscSysReg;
+#endif // _MSC_VER
 
 #if defined __cplusplus
 extern "C" {
@@ -358,6 +373,40 @@ GET_CURRENT_PC(void)
    retAddr = (uint64)GetReturnAddress();                                      \
 } while (0)
 
+#endif // ifdef __GNUC__
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * BRK --
+ *
+ *      BRK instruction.
+ *
+ *      Use a compiler memory barrier to prevent the compiler from re-ordering
+ *      memory accesses across the BRK instruction: this is less surprising /
+ *      more convenient when the breakpoint hits and one attaches a debugger to
+ *      inspect and/or modify state.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Raises an exception, so side-effects depend on the exception handler.
+ *
+ *----------------------------------------------------------------------
+ */
+
+#if defined _MSC_VER
+#define BRK(imm16) do {                                                       \
+   _ReadWriteBarrier();                                                       \
+   __break(imm16);                                                            \
+   _ReadWriteBarrier();                                                       \
+} while (0)
+#elif defined __GNUC__
+#define BRK(imm16) asm volatile ("brk %0" :: "i" (imm16) : "memory")
+#endif
+
 
 /*
  *----------------------------------------------------------------------
@@ -375,11 +424,28 @@ GET_CURRENT_PC(void)
  *----------------------------------------------------------------------
  */
 
+#if defined _MSC_VER
+#define MRS(name) _ReadStatusReg(MSC_SYSREG_##name)
+#elif defined __GNUC__ && (defined VMKERNEL || defined VMKBOOT) && defined VMK_ARM_NVSIM
+#define MRS(name) ({                                                          \
+   uint64 val;                                                                \
+   if (CONC(VMK_ARM_NVSIM_, name) == 0) {                                     \
+      asm volatile ("mrs %0, " XSTR(name) : "=r" (val) :: "memory");          \
+   } else if (CONC(VMK_ARM_NVSIM_, name) == 1) {                              \
+      asm volatile (VMK_ARM_NVSIM_HVC                                         \
+                    "mrs %0, " XSTR(name) : "=r" (val) :: "memory");          \
+   } else if (CONC(VMK_ARM_NVSIM_, name) == 2) {                              \
+      val = 2 << 2 /* CURRENTEL_EL_2 */;                                      \
+   }                                                                          \
+   val;                                                                       \
+})
+#elif defined __GNUC__
 #define MRS(name) ({                                                          \
    uint64 val;                                                                \
    asm volatile ("mrs %0, " XSTR(name) : "=r" (val) :: "memory");             \
    val;                                                                       \
 })
+#endif
 
 
 /*
@@ -399,13 +465,26 @@ GET_CURRENT_PC(void)
  *----------------------------------------------------------------------
  */
 
+#if defined _MSC_VER
+#define MSR(name, val) _WriteStatusReg(MSC_SYSREG_##name, val)
+#elif defined __GNUC__ && (defined VMKERNEL || defined VMKBOOT) && defined VMK_ARM_NVSIM
+#define MSR(name, val) do {                                                   \
+   if (CONC(VMK_ARM_NVSIM_, name) == 0) {                                     \
+      asm volatile ("msr " XSTR(name) ", %0" :: "r" (val) : "memory");        \
+   } else if (CONC(VMK_ARM_NVSIM_, name) == 1) {                              \
+      asm volatile (VMK_ARM_NVSIM_HVC                                         \
+                    "msr " XSTR(name) ", %0" :: "r" (val) : "memory");        \
+   }                                                                          \
+} while (0)
+#elif defined __GNUC__
 #define MSR(name, val)                                                        \
    asm volatile ("msr " XSTR(name) ", %0" :: "r" (val) : "memory")
+#endif
 
+#if defined __GNUC__
 #define MSR_IMMED(name, val)                                                  \
    asm volatile ("msr " XSTR(name) ", %0" :: "i" (val) : "memory")
-
-#endif // ifdef __GNUC__
+#endif
 
 
 /*
@@ -690,6 +769,35 @@ MMIOWrite128(volatile void *addr, // OUT
 }
 #endif // VM_HAS_INT128
 
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * RDTSC_BARRIER --
+ *
+ *      Implements an RDTSC fence.  Instructions executed prior to the
+ *      fence will have completed before the fence and all stores to
+ *      memory are flushed from the store buffer.
+ *
+ *      On arm64, we need to do an ISB according to ARM ARM to prevent
+ *      instruction reordering, and to ensure no store reordering we do a DMB.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Cause loads and stores prior to this to be globally visible, and
+ *      RDTSC will not pass.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+static inline void
+RDTSC_BARRIER(void)
+{
+   ISB();
+   _DMB(SY);
+}
+
 
 #ifdef __GNUC__
 
@@ -907,35 +1015,6 @@ uint64set(void *dst, uint64 val, uint64 count)
 }
 
 
-/*
- *-----------------------------------------------------------------------------
- *
- * RDTSC_BARRIER --
- *
- *      Implements an RDTSC fence.  Instructions executed prior to the
- *      fence will have completed before the fence and all stores to
- *      memory are flushed from the store buffer.
- *
- *      On arm64, we need to do an ISB according to ARM ARM to prevent
- *      instruction reordering, and to ensure no store reordering we do a DMB.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      Cause loads and stores prior to this to be globally visible, and
- *      RDTSC will not pass.
- *
- *-----------------------------------------------------------------------------
- */
-
-static inline void
-RDTSC_BARRIER(void)
-{
-   ISB();
-   _DMB(SY);
-}
-
 
 /*
  *-----------------------------------------------------------------------------
@@ -1008,10 +1087,6 @@ DCacheClean(VA va, uint64 len)
 
 #endif // ifdef __GNUC__
 
-#if defined _MSC_VER
-/* Until we implement Mul64x6464() with Windows intrinsics... */
-#define MUL64_NO_ASM 1
-#endif
 
 #ifdef MUL64_NO_ASM
 #include "mul64.h"
@@ -1044,10 +1119,17 @@ Mul64x6464(uint64 multiplicand,
    } else {
       uint64 lo, hi;
 
+#if defined __GNUC__
       asm("mul   %0, %2, %3" "\n\t"
           "umulh %1, %2, %3"
           : "=&r" (lo), "=r" (hi)
           : "r" (multiplicand), "r" (multiplier));
+#elif defined _MSC_VER
+      lo = multiplicand * multiplier;
+      hi = __umulh(multiplicand, multiplier);
+#else
+#error No compiler defined for Mul64x6464
+#endif
       return (hi << (64 - shift) | lo >> shift) + (lo >> (shift - 1) & 1);
    }
 }
@@ -1081,10 +1163,17 @@ Muls64x64s64(int64 multiplicand,
    } else {
       uint64 lo, hi;
 
+#if defined __GNUC__
       asm("mul   %0, %2, %3" "\n\t"
           "smulh %1, %2, %3"
           : "=&r" (lo), "=r" (hi)
           : "r" (multiplicand), "r" (multiplier));
+#elif defined _MSC_VER
+      lo = multiplicand * multiplier;
+      hi = __mulh(multiplicand, multiplier);
+#else
+#error No compiler defined for Muls64x64s64
+#endif
       return (hi << (64 - shift) | lo >> shift) + (lo >> (shift - 1) & 1);
    }
 }

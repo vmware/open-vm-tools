@@ -1,5 +1,6 @@
 ################################################################################
-### Copyright (C) 2014-2016,2023 VMware, Inc.  All rights reserved.
+### Copyright (c) 2014-2025 Broadcom. All Rights Reserved.
+### The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -63,4 +64,4 @@ libvgauth_la_LIBADD += -lc
 
 # Message catalogs.
 install-data-hook:
-	@INSTVMSG@ libvgauth.la $(srcdir)/l10n $(DESTDIR)$(datadir)
+	@INSTVMSG@ VGAuthLib $(srcdir)/l10n $(DESTDIR)$(datadir)

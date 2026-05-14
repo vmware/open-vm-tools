@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2021-2024 Broadcom. All Rights Reserved.
+ * Copyright (c) 2021-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -116,8 +116,7 @@ static struct ComponentInfo components[] = {
  */
 #if defined(_WIN32)
 static const char powershellExecutable[] = "\\WindowsPowerShell\\v1.0\\PowerShell.exe";
-
-static const char componentMgrExecutionPolicy[] = "-ExecutionPolicy RemoteSigned -File";
+static const char powershellOption[] = "-NonInteractive -ExecutionPolicy RemoteSigned -File";
 
 static ComponentAction executionScripts[] = {
    {SALT_MINION,"svtminion.ps1", "-Install", "-Remove", "-Status", "-Loglevel debug", "saltMinion", NULL, &ComponentMgrCustomizeSaltAddAction}
@@ -417,7 +416,7 @@ ComponentMgrCustomizeSaltAddAction()
  * component.
  *
  * The windows counterpart is constructed as:
- * <path to powershell.exe> -ExecutionPolicy RemoteSigned -File \
+ * <path to PowerShell.exe> -ExecutionPolicy RemoteSigned -File \
  * <path to component script> <args to component script>
  *
  * The linux counterpart is constructed as:
@@ -480,14 +479,14 @@ ComponentMgrConstructCommandline(gchar *scriptPath,            // IN
       if (mandatoryParamsExists == NULL) {
          commandline = Str_SafeAsprintf(NULL, "\"%s%s\" %s \"%s\" %s %s %s",
                                         sysDir, powershellExecutable,
-                                        componentMgrExecutionPolicy,
+                                        powershellOption,
                                         scriptPath,
                                         defaultArguments, customArguments,
                                         mandatoryParams);
       } else {
          commandline = Str_SafeAsprintf(NULL, "\"%s%s\" %s \"%s\" %s %s",
                                         sysDir, powershellExecutable,
-                                        componentMgrExecutionPolicy,
+                                        powershellOption,
                                         scriptPath,
                                         defaultArguments, customArguments);
 
@@ -495,7 +494,7 @@ ComponentMgrConstructCommandline(gchar *scriptPath,            // IN
    } else {
       commandline = Str_SafeAsprintf(NULL, "\"%s%s\" %s \"%s\" %s %s",
                                      sysDir, powershellExecutable,
-                                     componentMgrExecutionPolicy,
+                                     powershellOption,
                                      scriptPath,
                                      defaultArguments,
                                      mandatoryParams);

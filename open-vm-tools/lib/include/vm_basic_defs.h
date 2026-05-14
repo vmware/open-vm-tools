@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2003-2024 Broadcom. All rights reserved.
+ * Copyright (c) 2003-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -166,11 +166,19 @@ Max(int a, int b)
 #define ROUNDDOWNBITS(x, bits) ((uintptr_t)(x) & ~MASK(bits))
 #define CEILING(x, y)          (((x) + (y) - 1) / (y))
 
-#if defined VMKERNEL || defined VMKBOOT
+#if !defined CEIL
 # define CEIL(_a, _b)        CEILING(_a, _b)
+#endif
+#if !defined FLOOR
 # define FLOOR(_a, _b)       ((_a)/(_b))
+#endif
+#if !defined ALIGN_DOWN
 # define ALIGN_DOWN(_a, _b)  ROUNDDOWN(_a, _b)
+#endif
+#if !defined(ALIGN_UP)
 # define ALIGN_UP(_a, _b)    ROUNDUP(_a, _b)
+#endif
+#if !defined(IS_ALIGNED)
 # define IS_ALIGNED(_a, _b)  (ALIGN_DOWN(_a, _b) == _a)
 #endif
 
@@ -309,12 +317,20 @@ Max(int a, int b)
 #define BYTES_2_PAGES(_nbytes)  ((_nbytes) >> PAGE_SHIFT)
 #endif
 
+#ifndef ROUNDUP_BYTES_2_PAGES
+#define ROUNDUP_BYTES_2_PAGES(_nbytes) VM_PAGES_SPANNED(0, (_nbytes))
+#endif
+
 #ifndef BYTES_2_PAGES_4KB
 #define BYTES_2_PAGES_4KB(_nbytes)  ((_nbytes) >> PAGE_SHIFT_4KB)
 #endif
 
 #ifndef PAGES_2_BYTES
 #define PAGES_2_BYTES(_npages)  (((uint64)(_npages)) << PAGE_SHIFT)
+#endif
+
+#ifndef PAGES_2_BYTES_4KB
+#define PAGES_2_BYTES_4KB(_npages)  (((uint64)(_npages)) << PAGE_SHIFT_4KB)
 #endif
 
 #ifndef VM_PAGE_BASE
@@ -325,6 +341,13 @@ Max(int a, int b)
 #define VM_PAGES_SPANNED(_addr, _size) \
    (BYTES_2_PAGES(PAGE_OFFSET(_addr) + PAGE_OFFSET(_size) + (PAGE_SIZE - 1)) + \
     BYTES_2_PAGES(_size))
+#endif
+
+#ifndef VM_PAGES_SPANNED_4KB
+#define VM_PAGES_SPANNED_4KB(_addr, _size) \
+   (BYTES_2_PAGES_4KB(PAGE_OFFSET_4KB(_addr) + PAGE_OFFSET_4KB(_size) + \
+                      (PAGE_SIZE_4KB - 1)) + \
+    BYTES_2_PAGES_4KB(_size))
 #endif
 
 #ifndef KBYTES_SHIFT
@@ -615,9 +638,9 @@ typedef int pid_t;
 #define VMK_HAS_VMM_ONLY(...)
 #endif
 
-#if defined VMM || defined VMK_HAS_VMM
+#if defined VMM || defined GLM || defined VMK_HAS_VMM
 /* Structure field only used to support the VMM (as opposed to the ULM). */
-#define VMM_ONLY_FIELD(name) name
+#define VMM_GLM_ONLY_FIELD(name) name
 #else
 /*
  * Structure field only used to support the VMM (as opposed to the ULM).
@@ -625,7 +648,7 @@ typedef int pid_t;
  * is unchanged (was bug 3354277), but prepend an underscore to the field's
  * name to verify at compile time that the field is indeed not used.
  */
-#define VMM_ONLY_FIELD(name) _##name
+#define VMM_GLM_ONLY_FIELD(name) _##name
 #endif
 
 #undef ARM64_ONLY
@@ -823,6 +846,12 @@ typedef int pid_t;
 #define VMM_ONLY(x)
 #endif
 
+#ifdef GLM
+#define vmw_glm 1
+#else
+#define vmw_glm 0
+#endif
+
 #ifdef VMX86_VMX
 #define vmx86_vmx 1
 #else
@@ -867,13 +896,13 @@ typedef int pid_t;
 #define ULM_ONLY(x)
 #endif
 
-#if defined(VMM) || defined(ULM)
+#if defined(VMM) || defined(GLM) || defined(ULM)
 #define MONITOR_ONLY(x) x
 #else
 #define MONITOR_ONLY(x)
 #endif
 
-#if defined(VMM) || defined(VMKERNEL)
+#if defined(VMM) || defined(GLM) || defined(VMKERNEL)
 #define USER_ONLY(x)
 #else
 #define USER_ONLY(x) x
@@ -1045,5 +1074,36 @@ typedef int pid_t;
 #else
    #define VMW_FALLTHROUGH()
 #endif
+
+
+/*
+ * VMW_CLANG_SUPPRESS
+ *
+ *   Instructs clang static analyzer to suppress unwanted warnings related to the code
+ *   block following this macro.
+ */
+#if defined(__clang__) && (__clang_major__ >= 18)
+   #define VMW_CLANG_SUPPRESS [[clang::suppress]]
+#else
+   #define VMW_CLANG_SUPPRESS
+#endif
+
+
+/*
+ * VMW_DECL_MIN_SIZE
+ *
+ *   Defines the minimum size of an array parameter. On capable C compilers,
+ *   this expands to the static keyword introduced in C99. Unsupported in C++.
+ *
+ *   TODO: Update the MSVC check after the following bug gets fixed:
+ *         https://developercommunity.visualstudio.com/t/c1/1475168
+ */
+#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
+    !defined(_MSC_VER)
+   #define VMW_DECL_MIN_SIZE(_sz) static _sz
+#else
+   #define VMW_DECL_MIN_SIZE(_sz)
+#endif
+
 
 #endif // ifndef _VM_BASIC_DEFS_H_

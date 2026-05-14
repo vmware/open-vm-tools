@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2008-2016,2019 VMware, Inc. All rights reserved.
+ * Copyright (c) 2008-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -77,6 +78,10 @@ SignalSourceReadSigInfo(void)
 {
    if (gHandler.wakeupFd.revents & G_IO_IN) {
       siginfo_t info;
+      /*
+       * Called by the polling thread only. Refer to PR 3555868 Update #1
+       */
+      /* coverity[missing_lock] */
       ssize_t nbytes = read(gHandler.wakeupFd.fd, &info, sizeof info);
 
       if (nbytes == -1) {
@@ -130,6 +135,11 @@ SignalSourceSigHandler(int signum,
       dummy.si_signo = signum;
       info = &dummy;
    }
+   /*
+    * Linux signals are delivered sequentially, one at a time, to an eligible
+    * thread within a process. Refer to PR 3555868 Update #1
+    */
+   /* coverity[missing_lock] */
    bytes = write(gHandler.wakeupPipe[1], info, sizeof *info);
 
    if (bytes == -1) {

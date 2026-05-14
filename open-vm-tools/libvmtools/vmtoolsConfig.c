@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2008-2022 VMware, Inc. All rights reserved.
+ * Copyright (c) 2008-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -137,7 +138,7 @@ VMTools_LoadConfig(const gchar *path,
    hadConfFile = TRUE;
 
    /* Check if we really need to load the data. */
-   if (mtime != NULL && confStat.st_mtime <= *mtime) {
+   if (mtime != NULL && confStat.st_mtime == *mtime) {
       goto exit;
    }
 

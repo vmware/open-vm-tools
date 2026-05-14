@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 1998-2024 Broadcom. All rights reserved.
+ * Copyright (c) 1998-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -34,8 +34,8 @@
 /*
  * backdoor_def.h --
  *
- * This contains backdoor defines that can be included from
- * an assembly language file.
+ *      This contains backdoor defines that can be included from
+ *      an assembly language file.
  */
 
 #ifndef _BACKDOOR_DEF_H_
@@ -114,7 +114,7 @@ extern "C" {
 #define   BDOOR_CMD_GETUUID                  19
 #define   BDOOR_CMD_GETMEMSIZE               20
 //#define BDOOR_CMD_HOSTCOPY                 21 /* Not in use. Was devel only. */
-//#define BDOOR_CMD_SERVICE_VM               22 /* Not in use. Never shipped. */
+#define   BDOOR_CMD_PMC                      22
 #define   BDOOR_CMD_GETTIME                  23 /* Deprecated -> GETTIMEFULL. */
 #define   BDOOR_CMD_STOPCATCHUP              24
 #define   BDOOR_CMD_PUTCHR                   25 /* Disabled by default. */
@@ -154,7 +154,7 @@ extern "C" {
 //#define BDOOR_CMD_GET_HOST_VIDEO_MODES     59 /* Not in use. */
 #define   BDOOR_CMD_ACPI_HOTPLUG_CPU         60 /* Devel only. */
 //#define BDOOR_CMD_USB_HOTPLUG_MOUSE        61 /* Not in use. Never shipped. */
-#define   BDOOR_CMD_XPMODE                   62 /* CPL 0 only. */
+//#define   BDOOR_CMD_XPMODE                 62 /* Not in use. Deprecated. */
 #define   BDOOR_CMD_NESTING_CONTROL          63
 #define   BDOOR_CMD_FIRMWARE_INIT            64 /* CPL 0 only. */
 #define   BDOOR_CMD_FIRMWARE_ACPI_SERVICES   65 /* CPL 0 only. */
@@ -175,6 +175,8 @@ extern "C" {
 #  define BDOOR_CMD_FAS_GET_API_ENABLES         14
 #  define BDOOR_CMD_FAS_UNACCEPTED_MEM_ENABLED  15
 #  define BDOOR_CMD_FAS_GET_DMA_PROT_ENABLED    16
+#  define BDOOR_CMD_FAS_GET_LLC_PROP            17
+#  define BDOOR_CMD_FAS_GLM_GET_NUMVCPU         18
 #define   BDOOR_CMD_SENDPSHAREHINTS          66 /* Not in use. Deprecated. */
 #define   BDOOR_CMD_ENABLE_USB_MOUSE         67
 #define   BDOOR_CMD_GET_VCPU_INFO            68
@@ -250,7 +252,12 @@ extern "C" {
 #define   BDOOR_CMD_GETBUILDNUM             100
 #define   BDOOR_CMD_GETENTROPY              101 /* Configurable, off by default. */
 #define   BDOOR_CMD_REPORTGUESTCRASH        102
-#define   BDOOR_CMD_MAX                     103
+#define   BDOOR_CMD_PK_UPDATE               103 /* CPL 0 only. */
+#  define BDOOR_CMD_PKU_CHECK_NEED_UPDATE     0
+#  define BDOOR_CMD_PKU_UPDATE_FROM_HOST      1
+#  define BDOOR_CMD_PKU_LOCK                  2
+#define   BDOOR_CMD_GET_FWTRCLOG_MASK       104
+#define   BDOOR_CMD_MAX                     105
 
 
 /*

@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2003-2014,2017 VMware, Inc. All rights reserved.
+ * Copyright (c) 2003-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -31,7 +32,7 @@
  *********************************************************/
 
 /*
- * mul64.h
+ * mul64.h --
  *
  *      Integer by fixed point multiplication, with rounding.
  *
@@ -52,14 +53,19 @@
 #define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
-#include "vm_basic_asm.h"
+#if !((defined _VM_BASIC_ASM_H_ ||                                            \
+       defined _VM_BASIC_ASM_ARM64_H_ ||                                      \
+       defined _VM_BASIC_ASM_X86_H_ ||                                        \
+       defined _VM_BASIC_ASM_X86_64_H_) &&                                    \
+      defined MUL64_NO_ASM)
+#error "This file should only be included by vm_basic_asm*.h with MUL64_NO_ASM defined."
+#endif
 
 #if defined __cplusplus
 extern "C" {
 #endif
 
 
-#ifdef MUL64_NO_ASM
 /*
  *-----------------------------------------------------------------------------
  *
@@ -142,12 +148,10 @@ Muls64x32s64(int64 multiplicand, uint32 multiplier, uint32 shift)
          ((lo2 >> (shift - 1)) & 1);
    }
 }
-#endif
 
 
 #if defined __cplusplus
 } // extern "C"
 #endif
 
-#endif // _MUL64_NOASM_H_
-
+#endif // _MUL64_H_

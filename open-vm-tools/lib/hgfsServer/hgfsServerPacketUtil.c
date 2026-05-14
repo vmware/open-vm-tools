@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
+ * Copyright (c) 2010-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -470,14 +471,7 @@ HSPUGetBuf(HgfsServerChannelCallbacks *chanCb,  // IN: Channel callbacks
       goto exit;
    }
 
-   if (iovMapped == 1) {
-      /* A single page buffer is contiguous so hold on to guest mappings. */
-      *buf = iov[startIndex].va;
-      goto exit;
-   }
-
-   /* More than one page was mapped. */
-   ASSERT(iov[startIndex].len < bufSize);
+   ASSERT(iov[startIndex].len <= bufSize);
 
    LOG(10, "%s: Hgfs Allocating buffer \n", __FUNCTION__);
    *buf = Util_SafeMalloc(bufSize);

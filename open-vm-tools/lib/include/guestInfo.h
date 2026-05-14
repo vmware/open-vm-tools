@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2003-2021 VMware, Inc. All rights reserved.
+ * Copyright (c) 2003-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -39,10 +40,12 @@
 #define _GUEST_INFO_H_
 
 #define INCLUDE_ALLOW_USERLEVEL
+#define INCLUDE_ALLOW_VMCORE
 #include "includeCheck.h"
 
 #include "vm_basic_types.h"
 
+#ifndef VMCORE
 #include "dbllnklst.h"
 #include "guestrpc/nicinfo.h"
 
@@ -118,6 +121,9 @@ typedef struct _DiskInfo {
 #define DISK_INFO_KEY_DISK_UUID        "uuid"
 #define DISK_INFO_KEY_DISK_FSTYPE      "fstype"
 #define DISK_INFO_KEY_DISK_DEVICE_ARR  "devices"
+#endif
+
+Bool GuestInfo_ParseOSDetailedData(char *keyName, char **value);
 
 /**
  * @}

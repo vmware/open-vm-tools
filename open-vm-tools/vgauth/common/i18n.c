@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2011-2019,2024 Broadcom. All rights reserved.
+ * Copyright (c) 2011-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -448,12 +448,22 @@ MsgGetUserLanguage(void)
     * Windows implementation. Derive the ISO names from the user's current
     * locale.
     */
+   LCID locale;
+   DWORD sessionId = 0;
    wchar_t ctryName[10]; /* MSDN says: max is nine characters + terminator. */
    wchar_t langName[10]; /* MSDN says: max is nine characters + terminator. */
 
-   if (GetLocaleInfoW(LOCALE_USER_DEFAULT, LOCALE_SISO3166CTRYNAME,
+   if (ProcessIdToSessionId(GetCurrentProcessId(), &sessionId) && sessionId == 0) {
+      locale = LOCALE_SYSTEM_DEFAULT;
+      g_debug("%s: get SYSTEM default locale.\n", __FUNCTION__);
+   } else {
+      locale = LOCALE_USER_DEFAULT;
+      g_debug("%s: get USER default locale.\n", __FUNCTION__);
+   }
+
+   if (GetLocaleInfoW(locale, LOCALE_SISO3166CTRYNAME,
                       ctryName, (sizeof(ctryName)/sizeof(langName[0]))) == 0 ||
-       GetLocaleInfoW(LOCALE_USER_DEFAULT, LOCALE_SISO639LANGNAME,
+       GetLocaleInfoW(locale, LOCALE_SISO639LANGNAME,
                       langName, (sizeof(langName)/sizeof(langName[0]))) == 0) {
       g_warning("Couldn't retrieve user locale data, error = %u.", GetLastError());
       lang = g_strdup("C");
@@ -561,8 +571,9 @@ MsgLoadCatalog(const char *path)
    g_debug("%s: loading message catalog '%s'\n", __FUNCTION__, localPath);
    RELEASE_FILENAME_LOCAL(localPath);
 
-   if (err != NULL) {
-      g_debug("Unable to open '%s': %s\n", path, err->message);
+   if (stream == NULL) {
+      g_debug("Unable to open '%s': %s\n", path,
+              err != NULL ? err->message : "No GError");
       g_clear_error(&err);
       return NULL;
    }
@@ -574,18 +585,19 @@ MsgLoadCatalog(const char *path)
    for (;;) {
       char *name = NULL;
       char *value = NULL;
-      gchar *line;
+      gchar *line = NULL;
       gsize len;
       gsize term;
       char *unused = NULL;
+      GIOStatus status;
 
       /* Read the next key / value pair. */
 
-      g_io_channel_read_line(stream, &line, &len, &term, &err);
+      status = g_io_channel_read_line(stream, &line, &len, &term, &err);
 
-      if (err != NULL) {
+      if (status == G_IO_STATUS_ERROR) {
          g_warning("Unable to read a line from '%s': %s\n",
-                   path, err->message);
+                   path, err != NULL ? err->message : "No GError");
          g_clear_error(&err);
          error = TRUE;
          g_free(line);
@@ -617,13 +629,13 @@ MsgLoadCatalog(const char *path)
       }
       g_free(unused);
       g_free(line);
+      line = NULL;
 
       if (error) {
          /*
           * If the local DictLL_UnmarshalLine() returns NULL, name and value
           * will remain NULL pointers.  No malloc'ed memory to free here.
           */
-         /* coverity[leaked_storage] */
          break;
       }
 
@@ -709,7 +721,7 @@ I18n_BindTextDomain(const char *domain,
     * to the installed location.
     */
 
-   g_debug("%s: user locale=%s\n", __FUNCTION__, lang);
+   g_debug("%s: using locale=%s\n", __FUNCTION__, lang);
 
    file = g_strdup_printf("%s%smessages%s%s%s%s.vmsg",
                           catdir, DIRSEPS, DIRSEPS, lang, DIRSEPS, domain);

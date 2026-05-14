@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 1998-2024 Broadcom. All rights reserved.
+ * Copyright (c) 1998-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -30,6 +30,8 @@
 #define INCLUDE_ALLOW_VMCORE
 #define INCLUDE_ALLOW_VMKERNEL // for typedefs only
 #include "includeCheck.h"
+
+#include "vm_basic_types.h"
 
 #if defined(__cplusplus)
 extern "C" {

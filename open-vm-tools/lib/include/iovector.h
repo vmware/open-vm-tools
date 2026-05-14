@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 1998-2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -36,8 +37,8 @@ extern "C" {
 /*
  * Ugly definition of struct iovec.
  */
-#if defined(__linux__) || defined(sun) || defined(__APPLE__) || \
-    defined(__FreeBSD__) || defined(__EMSCRIPTEN__)
+#if (defined(__linux__) || defined(sun) || defined(__APPLE__) || \
+    defined(__FreeBSD__) || defined(__EMSCRIPTEN__)) && !defined(FROBOS)
 #include <sys/uio.h>    // for struct iovec
 #else
 

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2009-2024 Broadcom. All rights reserved.
+ * Copyright (c) 2009-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -36,15 +36,21 @@
 extern "C" {
 #endif
 
-typedef struct MXUserExclLock      MXUserExclLock;
-typedef struct MXUserRecLock       MXUserRecLock;
-typedef struct MXUserRWLock        MXUserRWLock;
-typedef struct MXUserRankLock      MXUserRankLock;
-typedef struct MXUserCondVar       MXUserCondVar;
-typedef struct MXUserSemaphore     MXUserSemaphore;
-typedef struct MXUserBinSemaphore  MXUserBinSemaphore;
-typedef struct MXUserEvent         MXUserEvent;
-typedef struct MXUserBarrier       MXUserBarrier;
+typedef struct MXUserExclLock           MXUserExclLock;
+typedef struct MXUserRecLock            MXUserRecLock;
+typedef struct MXUserRWLock             MXUserRWLock;
+typedef struct MXUserRankLock           MXUserRankLock;
+typedef struct MXUserCondVar            MXUserCondVar;
+typedef struct MXUserSemaphore          MXUserSemaphore;
+typedef struct MXUserBinSemaphore       MXUserBinSemaphore;
+typedef struct MXUserEvent              MXUserEvent;
+typedef struct MXUserBarrier            MXUserBarrier;
+typedef struct MXUserLockChain          MXUserLockChain;
+typedef struct MXUserLockChainFinalizer {
+   Bool           uninitialize;
+   MXUserRecLock *lock;
+} MXUserLockChainFinalizer;
+
 
 /*
  * Exclusive ownership lock
@@ -321,6 +327,27 @@ void MXUser_DumpLockTree(const char *fileName,
 
 void MXUser_EmptyLockTree(void);
 
+void MXUser_AcquireChain(MXUserLockChain *chain);
+uint32 MXUser_AddChainRecLock(MXUserRecLock *lock);
+uint32 MXUser_ChainLength(MXUserLockChain *chain);
+MXUserLockChain *MXUser_CopyChain(void);
+void MXUser_DescribeChain(uint32 routing,
+                          MXUserLockChain *chain);
+void MXUser_FinalizeChain(MXUserLockChainFinalizer finalizer,
+                          Bool allowNonEmpty);
+uint32 MXUser_GraftChainRecLock(MXUserLockChain *chain,
+                                MXUserRecLock *lock);
+MXUserLockChainFinalizer MXUser_InitChain(MXUserRecLock *lock,
+                                          Bool derive,
+                                          Bool skipIfInitialized);
+Bool MXUser_IsChainInitialized(MXUserLockChain *chain);
+Bool MXUser_PurgeChainRecLock(MXUserLockChain *chain,
+                              MXUserRecLock *lock);
+void MXUser_ReleaseChain(MXUserLockChain *chain);
+uint32 MXUser_RemoveChainRecLock(MXUserRecLock *lock);
+void MXUser_SetChain(MXUserLockChain *chain,
+                     Bool shouldFree);
+const char * MXUser_TryAcquireChain(MXUserLockChain *chain);
 
 #if defined(VMX86_DEBUG) && !defined(DISABLE_MXUSER_DEBUG)
 #define MXUSER_DEBUG  // debugging "everywhere" when requested
@@ -352,6 +379,7 @@ MXUserRecLock       *MXUser_BindMXMutexRec(struct MX_MutexRec *mutex,
 
 struct MX_MutexRec  *MXUser_GetRecLockVmm(MXUserRecLock *lock);
 MX_Rank              MXUser_GetRecLockRank(MXUserRecLock *lock);
+const char          *MXUser_GetRecLockName(MXUserRecLock *lock);
 
 #if defined(__cplusplus)
 }  // extern "C"

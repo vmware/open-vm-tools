@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2010-2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 2010-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -216,12 +217,22 @@ MsgGetUserLanguage(void)
     * Windows implementation. Derive the ISO names from the user's current
     * locale.
     */
+   LCID locale;
+   DWORD sessionId = 0;
    wchar_t ctryName[10]; /* MSDN says: max is nine characters + terminator. */
    wchar_t langName[10]; /* MSDN says: max is nine characters + terminator. */
 
-   if (GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_SISO3166CTRYNAME,
+   if (ProcessIdToSessionId(GetCurrentProcessId(), &sessionId) && sessionId == 0) {
+      locale = LOCALE_SYSTEM_DEFAULT;
+      g_debug("%s: get SYSTEM default locale.\n", __FUNCTION__);
+   } else {
+      locale = LOCALE_USER_DEFAULT;
+      g_debug("%s: get USER default locale.\n", __FUNCTION__);
+   }
+
+   if (GetLocaleInfo(locale, LOCALE_SISO3166CTRYNAME,
                      ctryName, ARRAYSIZE(ctryName)) == 0 ||
-       GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_SISO639LANGNAME,
+       GetLocaleInfo(locale, LOCALE_SISO639LANGNAME,
                      langName, ARRAYSIZE(langName)) == 0) {
       g_warning("Couldn't retrieve user locale data, error = %u.", GetLastError());
       lang = g_strdup("C");
@@ -471,8 +482,9 @@ MsgLoadCatalog(const char *path)
    stream = g_io_channel_new_file(localPath, "r", &err);
    VMTOOLS_RELEASE_FILENAME_LOCAL(localPath);
 
-   if (err != NULL) {
-      g_debug("Unable to open '%s': %s\n", path, err->message);
+   if (stream == NULL) {
+      g_debug("Unable to open '%s': %s\n", path,
+              err != NULL ? err->message : "No GError");
       g_clear_error(&err);
       return NULL;
    }
@@ -484,21 +496,22 @@ MsgLoadCatalog(const char *path)
       gboolean eof = FALSE;
       char *name = NULL;
       char *value = NULL;
-      gchar *line;
 
       /* Read the next key / value pair. */
       for (;;) {
          gsize i;
          gsize len;
          gsize term;
+         gchar *line = NULL;
          char *unused = NULL;
          gboolean cont = FALSE;
+         GIOStatus status;
 
-         g_io_channel_read_line(stream, &line, &len, &term, &err);
+         status = g_io_channel_read_line(stream, &line, &len, &term, &err);
 
-         if (err != NULL) {
+         if (status == G_IO_STATUS_ERROR) {
             g_warning("Unable to read a line from '%s': %s\n",
-                      path, err->message);
+                      path, err != NULL ? err->message : "No GError");
             g_clear_error(&err);
             error = TRUE;
             g_free(line);
@@ -675,7 +688,7 @@ VMTools_BindTextDomain(const char *domain,
       lang = usrlang;
    }
 
-   g_debug("%s: user locale=%s\n", __FUNCTION__, lang);
+   g_debug("%s: using locale=%s\n", __FUNCTION__, lang);
 
    /*
     * Use the default install directory if none is provided.

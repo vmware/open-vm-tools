@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 1998-2024 Broadcom. All Rights Reserved.
+ * Copyright (c) 1998-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -106,7 +106,7 @@ extern "C" {
  * so it uses generic functions.
  */
 
-#if !defined VMM ||                                                     \
+#if !defined VMM ||                                                    \
     defined BINARY_CHECKER || defined COREQUERY || defined DECODER ||   \
     defined DIS16 || defined FROBOS || defined TRAPAPI_APP ||           \
     defined VMM_LINKER || defined VMSS2CORE
@@ -159,6 +159,30 @@ NORETURN void Panic_NoSave(const char *fmt, ...) PRINTF_DECL(1, 2);
       Panic_NoSave(fmt);      \
    } while(0)
 
+/*
+ * Bug 3511557: Starting with linux kernels 6.15+, objtool started
+ * failing vmmon builds due to Panic() being marked as '__noreturn', due to
+ * which compiler doesn't generate clean function exits. As a fix, use
+ * kernel's panic for vmmon. In linux kernel, panic() is also marked with
+ * '__noreturn', but objtool doesn't complain because panic() is in
+ * objtool's hard-coded global_noreturns array.
+ */
+#elif !defined(VMKERNEL) && defined(VMMON) && \
+    defined(__linux__) && defined(__KERNEL__)
+/*
+ * Linux kernels after 5.13.0 moved the panic() definition into
+ * linux/panic.h. Adding this check for kernel version here to avoid
+ * including linux/minmax.h thourgh linux/kernel.h in newer kernels.
+ * This checks avoid a problem with redefinition of MIN/MAX, which are
+ * defined in vm_basic_defs.h. Starting with kernel 6.11, linux kernel
+ * also #defines MIN/MAX in linux/minmax.h.
+ */
+#  if LINUX_VERSION_CODE > KERNEL_VERSION(5, 13, 0)
+#    include <linux/panic.h>
+#  else
+#    include <linux/kernel.h>
+#  endif
+#  define Panic panic
 #else /* !VMKPANIC */
 NORETURN void Panic(const char *fmt, ...) PRINTF_DECL(1, 2);
 #endif
@@ -260,13 +284,13 @@ void WarningThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
 #define ASSERT_NOT_IMPLEMENTED(cond) \
            ASSERT_IFNOT(cond, NOT_IMPLEMENTED())
 
-#if defined VMKPANIC || defined VMM
+#if defined VMKPANIC || defined VMM || defined GLM
 # define NOT_IMPLEMENTED()        _ASSERT_PANIC_NORETURN(AssertNotImplemented, "")
 #else
 # define NOT_IMPLEMENTED()        _ASSERT_PANIC(AssertNotImplemented, "")
 #endif
 
-#if defined VMM
+#if defined VMM || defined GLM
 # define NOT_IMPLEMENTED_BUG(bug) \
       _ASSERT_PANIC_BUG_NORETURN(bug, AssertNotImplemented, "")
 #else
@@ -282,7 +306,7 @@ void WarningThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
     *
     * On debug builds, NOT_REACHED is a Panic with a fixed string.
     */
-#if defined VMKPANIC || defined VMM
+#if defined VMKPANIC || defined VMM || defined GLM
 # define NOT_REACHED()            _ASSERT_PANIC_NORETURN(AssertNotReached, "")
 #else
 # define NOT_REACHED()            _ASSERT_PANIC(AssertNotReached, "")
@@ -382,7 +406,7 @@ void WarningThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
  * compiler is known to support it.
  */
 
-# if defined VMKPANIC || defined VMM || defined ULM_ESX
+# if defined VMKPANIC || defined VMM || defined GLM || defined ULM_ESX
 #  undef  NOT_REACHED
 #  define NOT_REACHED() __builtin_unreachable()
 # elif defined ULM_WIN
@@ -458,6 +482,11 @@ void WarningThrottled(uint32 *count, const char *fmt, ...) PRINTF_DECL(2, 3);
    static INLINE void name(void) {   \
       assertions                     \
    }
+
+// Verify at compile-time that a type is a certain size
+#define ASSERT_CONST_SIZE(X, C) ASSERT_ON_COMPILE(sizeof(X) == (C))
+// Verify at compile-time that two items have the same size (types, vars, etc).
+#define ASSERT_SAME_SIZE(X, Y)  ASSERT_ON_COMPILE(sizeof(X) == sizeof(Y))
 
 /*
  * Avoid generating extra code due to asserts which are required by

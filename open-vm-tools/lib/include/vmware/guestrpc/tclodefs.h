@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2009-2021 VMware, Inc. All rights reserved.
+ * Copyright (c) 2009-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -91,9 +92,21 @@
 #define AUTOUPGRADE_AVAILABLE_CMD       "vmx.capability.tools_is_upgradable"
 #define AUTOUPGRADE_START_CMD           "guest.initiateAutoUpgrade"
 #define AUTOUPGRADE_POWERON_POLICY_CMD  "vmx.autoupgrade.poweron_policy"
+#define AUTOUPGRADE_BEGIN_CMD           "upgrader.setGuestFileRoot"
 
 /* More upgrader commands. */
 #define GUEST_UPGRADER_SEND_CMD_LINE_ARGS  "guest.upgrader_send_cmd_line_args"
+
+#define TOOLINSTALL_INSTALLER_ACTIVE_CMD  "toolinstall.installerActive"
+#define TOOLINSTALL_IMAGE_INSERTED_CMD    "toolinstall.is_image_inserted"
+#define TOOLINSTALL_END_CMD               "toolinstall.end"
+#define TOOLINSTALL_REBOOTCOMPONENTS_CMD  "toolinstall.needRebootComponents"
+
+/**
+ * The guest Variable name for the VMTools Windows installer error code.
+ */
+#define INSTALL_CODE_GUESTVAR_KEY     "toolsInstallErrCode"
+#define INSTALL_CODE_GUESTINFO_KEY    "guestinfo." INSTALL_CODE_GUESTVAR_KEY
 
 /*
  * GuestStore Upgrade commands.

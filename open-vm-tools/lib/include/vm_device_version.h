@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 1998,2005-2012,2014-2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -56,6 +57,8 @@
  */
 #define PCI_VENDOR_ID_VMWARE                    0x15AD
 #define PCI_DEVICE_ID_VMWARE_SBX                0x0420
+#define PCI_DEVICE_ID_VMWARE_SVGA4_RO           0x0410
+#define PCI_DEVICE_ID_VMWARE_SVGA4_EFI          0x0409
 #define PCI_DEVICE_ID_VMWARE_SVGA4              0x0408
 #define PCI_DEVICE_ID_VMWARE_SVGA_EFI           0x0407
 #define PCI_DEVICE_ID_VMWARE_SVGA3              0x0406
@@ -143,6 +146,11 @@
 #define PCI_VENDOR_ID_ENSONIQ           0x1274
 #define PCI_DEVICE_ID_ENSONIQ_ES1371    0x1371
 
+/*
+ * AMD MI210, MI300, MI325 GPU
+ */
+#define PCI_VENDOR_ID_ATI               0x1002
+
 /* From linux/pci_ids.h:
  *    Intel 82439TX (430 HX North Bridge)
  *    Intel 82371AB (PIIX4 South Bridge)
@@ -190,6 +198,13 @@
 
 #define PCI_DEVICE_ID_INTEL_QAT_C62X         0x37c8
 #define PCI_DEVICE_ID_INTEL_QAT_C62X_VF      0x37c9
+
+/*
+ * Intel/Habana AI accelerators.
+ */
+#define PCI_VENDOR_ID_HABANA         0x1da3
+#define PCI_DEVICE_ID_HABANA_GAUDI2  0x1020
+#define PCI_DEVICE_ID_HABANA_GAUDI3  0x1060
 
 /*
  * Intel FPGAs

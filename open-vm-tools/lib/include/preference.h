@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 1998-2017 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -32,17 +33,17 @@ extern "C" {
 void Preference_DisableUserPreferences(void);
 Bool Preference_Init(void);
 void Preference_Exit(void);
-Bool Preference_GetBool(Bool defaultValue, const char *fmt);
-int32 Preference_GetTriState(int32 defaultValue, const char *fmt);
-int32 Preference_GetLong(int32 defaultValue, const char *fmt);
-int64 Preference_GetInt64(int64 defaultvalue, const char *fmt);
-double Preference_GetDouble(double defaultValue, const char *fmt);
-char *Preference_GetString(const char *defaultValue, const char *fmt);
+Bool Preference_GetBool(Bool defaultValue, const char *name);
+int32 Preference_GetTriState(int32 defaultValue, const char *name);
+int32 Preference_GetLong(int32 defaultValue, const char *name);
+int64 Preference_GetInt64(int64 defaultvalue, const char *name);
+double Preference_GetDouble(double defaultValue, const char *name);
+char *Preference_GetString(const char *defaultValue, const char *name);
 
 void Preference_Log(void);
-char *Preference_GetPathName(const char *defaultValue, const char *fmt);
+char *Preference_GetPathName(const char *defaultValue, const char *name);
 void Preference_SetFromString(const char *string, Bool overwrite);
-Bool Preference_NotSet(const char *fmt);
+Bool Preference_NotSet(const char *name);
 
 #if defined(__cplusplus)
 }  // extern "C"

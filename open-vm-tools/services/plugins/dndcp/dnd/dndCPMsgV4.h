@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2010-2024 Broadcom. All Rights Reserved.
+ * Copyright (c) 2010-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -95,7 +95,6 @@ typedef enum {
    DND_CMD_SEND_FILES_DONE,
    DND_CMD_QUERY_EXITING,
    DND_CMD_DRAG_NOT_PENDING,
-   DND_CMD_UPDATE_UNITY_DET_WND,
    DND_CMD_DEST_CANCEL
 } DnDCmdV4;
 

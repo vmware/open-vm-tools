@@ -1,5 +1,6 @@
 ##########################################################
-# Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
+# Copyright (c) 2011-2025 Broadcom. All Rights Reserved.
+# The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -16,6 +17,29 @@
 #
 ##########################################################
 
-auth.password.invalid = "El nombre de usuario y la contraseña de '%1$s' no coinciden"
+auth.password.invalid = "Error en la validación del nombre de usuario y la contraseña para '%1$s': %2$s"
 auth.password.valid = "El nombre de usuario y la contraseña de '%1$s' se han validado correctamente"
 auth.sspi.badid = "Intento de autenticación utilizando un SSPI challenge ID no válido o caducado: %1$u"
+
+vgauth.errcode.ok = "La operación se realizó correctamente."
+vgauth.errcode.invalid_argument = "Uno de los parámetros no era válido."
+vgauth.errcode.invalid_certificate = "El certificado no es un documento x509 bien formado"
+vgauth.errcode.permission_denied = "Permisos insuficientes"
+vgauth.errcode.out_of_memory = "Sin memoria"
+vgauth.errcode.comm = "Error de comunicación interna entre biblioteca y servicio"
+vgauth.errcode.notimplemented = "Sin implementar"
+vgauth.errcode.not_connected = "No conectado al servicio"
+vgauth.errcode.version_mismatch = "La versión del servicio o la biblioteca no coincide"
+vgauth.errcode.security_violation = "Se detectó una posible infracción de seguridad"
+vgauth.errcode.cert_already_exists = "El certificado ya existe"
+vgauth.errcode.authentication_denied = "Se denegó la autenticación"
+vgauth.errcode.invalid_ticket = "Ticket no válido"
+vgauth.errcode.multiple_mappings = "Se encontró el certificado asociado a más de un usuario o una cadena contenía varias coincidencias con el archivo de asignación"
+vgauth.errcode.already_impersonating = "El contexto ya está suplantando"
+vgauth.errcode.no_such_user = "No se encuentra el usuario"
+vgauth.errcode.service_not_running = "El servicio no se está ejecutando"
+vgauth.errcode.system_errno = "Error en una operación específica del sistema operativo"
+vgauth.errcode.system_windows = "Error en una operación específica del sistema operativo"
+vgauth.errcode.too_many_connections = "El usuario superó su número máximo de conexiones"
+vgauth.errcode.unsupported = "No se admite la operación."
+vgauth.errcode.fail = "Error desconocido"

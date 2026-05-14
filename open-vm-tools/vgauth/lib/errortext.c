@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
+ * Copyright (c) 2011-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -22,7 +23,7 @@
  * Error descriptions.
  */
 
-#include "VGAuthCommon.h"
+#include "VGAuthInt.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -167,4 +168,98 @@ const char *
 VGAuth_GetErrorName(VGAuthError errCode)
 {
    return VGAuthGetErrorInfo(errCode)->name;
+}
+
+
+/*
+ ******************************************************************************
+ * VGAuth_GetErrCodeToErrMsgId --                                          */ /**
+ *
+ * Returns error message id for an error code.  This returns a reference
+ * to a static global string, do not free it.
+ *
+ * @remark Can be called by any user.
+ *
+ * @param[in]  errCode    The VGAuthError code.
+ *
+ * @return An error message id with type const char *.
+ *
+ ******************************************************************************
+ */
+
+static const char *
+VGAuth_ErrCodeToErrMsgId(VGAuthError errCode)
+{
+   switch (errCode) {
+   case VGAUTH_E_OK:
+      return MSGID(vgauth.errcode.ok) "The operation was successful";
+   case VGAUTH_E_INVALID_ARGUMENT:
+      return MSGID(vgauth.errcode.invalid_argument) "One of the parameters was invalid";
+   case VGAUTH_E_INVALID_CERTIFICATE:
+      return MSGID(vgauth.errcode.invalid_certificate) "The certificate is not a well-formed x509 document";
+   case VGAUTH_E_PERMISSION_DENIED:
+      return MSGID(vgauth.errcode.permission_denied) "Insufficient permissions";
+   case VGAUTH_E_OUT_OF_MEMORY:
+      return MSGID(vgauth.errcode.out_of_memory) "Out of memory";
+   case VGAUTH_E_COMM:
+      return MSGID(vgauth.errcode.comm) "Internal communication error between library and service";
+   case VGAUTH_E_NOTIMPLEMENTED:
+      return MSGID(vgauth.errcode.notimplemented) "Not implemented";
+   case VGAUTH_E_NOT_CONNECTED:
+      return MSGID(vgauth.errcode.not_connected) "Not connected to the service";
+   case VGAUTH_E_VERSION_MISMATCH:
+      return MSGID(vgauth.errcode.version_mismatch) "Service/library version mismatch";
+   case VGAUTH_E_SECURITY_VIOLATION:
+      return MSGID(vgauth.errcode.security_violation) "Potential security violation detected";
+   case VGAUTH_E_CERT_ALREADY_EXISTS:
+      return MSGID(vgauth.errcode.cert_already_exists) "The certificate already exists";
+   case VGAUTH_E_AUTHENTICATION_DENIED:
+      return MSGID(vgauth.errcode.authentication_denied) "Authentication denied";
+   case VGAUTH_E_INVALID_TICKET:
+      return MSGID(vgauth.errcode.invalid_ticket) "Invalid ticket";
+   case VGAUTH_E_MULTIPLE_MAPPINGS:
+      return MSGID(vgauth.errcode.multiple_mappings)
+	 "The certificate was found associated with more than one user, or a chain contained multiple matches against the mapping file";
+   case VGAUTH_E_ALREADY_IMPERSONATING:
+      return MSGID(vgauth.errcode.already_impersonating) "The context is already impersonating";
+   case VGAUTH_E_NO_SUCH_USER:
+      return MSGID(vgauth.errcode.no_such_user) "User cannot be found";
+   case VGAUTH_E_SERVICE_NOT_RUNNING:
+      return MSGID(vgauth.errcode.service_not_running) "Service not running";
+   case VGAUTH_E_SYSTEM_ERRNO:
+      return MSGID(vgauth.errcode.system_errno) "An OS-specific operation failed";
+   case VGAUTH_E_SYSTEM_WINDOWS:
+      return MSGID(vgauth.errcode.system_windows) "An OS-specific operation failed";
+   case VGAUTH_E_TOO_MANY_CONNECTIONS:
+      return MSGID(vgauth.errcode.too_many_connections) "The user exceeded its max number of connections";
+   case VGAUTH_E_UNSUPPORTED:
+      return MSGID(vgauth.errcode.unsupported) "The operation is not supported";
+   }
+   return MSGID(vgauth.errcode.fail) "Unknown error";
+}
+
+
+/*
+ ******************************************************************************
+ * VGAuth_GetLocaleErrorText --                                          */ /**
+ *
+ * Returns explanatory text for an error code.  This returns a reference
+ * to a string in hash table, do not free it.
+ *
+ * @remark Can be called by any user.
+ *
+ * @param[in]  errCode    The VGAuthError code.
+ *
+ * @return A description of @a errCode.
+ *
+ ******************************************************************************
+ */
+
+const char *
+VGAuth_GetLocaleErrorText(VGAuthError errCode)
+{
+   const char* msgid = VGAuth_ErrCodeToErrMsgId(errCode);
+   const char* errmsg = I18n_GetString(VMW_TEXT_DOMAIN, msgid);
+
+   return errmsg;
 }

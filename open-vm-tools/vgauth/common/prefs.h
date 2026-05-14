@@ -51,6 +51,9 @@ gboolean Pref_GetBool(PrefHandle ph,
                       const gchar *prefName,
                       const gchar *groupName,
                       gboolean defaultVal);
+void Pref_InitEnv(PrefHandle ph,
+                  const gchar *appfName,
+                  gboolean globalVars);
 
 void Pref_LogAllEntries(const PrefHandle ph);
 

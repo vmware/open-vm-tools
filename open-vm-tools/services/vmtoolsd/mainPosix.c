@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2008-2020,2022-2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2008-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -253,8 +254,16 @@ main(int argc,
    i = atexit(VMTools_TeardownVmxGuestLog);
    ASSERT(i == 0);
    VMTools_UseVmxGuestLog(VMTOOLS_APP_NAME);
-   VMTools_ConfigLogging(G_LOG_DOMAIN, NULL, TRUE, FALSE);
-   VMTools_SetupVmxGuestLog(FALSE, NULL, NULL);
+
+   /*
+    * ConfigLogging will be reset due to the config file being loaded.
+    * Set to vmtoolsd, temporarily, then clear.
+    * This is performed early to update env settings from the config file.
+    */
+   gState.name = G_LOG_DOMAIN;
+   ToolsCore_ReloadConfig(&gState, TRUE);
+   VMTools_SetupEnv(gState.name, gState.ctx.config, TRUE);
+   gState.name = NULL;
 
    VMTools_BindTextDomain(VMW_TEXT_DOMAIN, NULL, NULL);
 

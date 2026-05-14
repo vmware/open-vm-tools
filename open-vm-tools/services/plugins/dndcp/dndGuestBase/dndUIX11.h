@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2009-2019 VMware, Inc. All rights reserved.
+ * Copyright (c) 2009-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -66,8 +67,6 @@ public:
    void SetDnDAllowed(bool isDnDAllowed)
       {ASSERT(mDnD); mDnD->SetDnDAllowed(isDnDAllowed);}
    void SetBlockControl(DnDBlockControl *blockCtrl);
-   void SetUnityMode(Bool mode)
-      {mUnityMode = mode;};
 
    DragDetWnd *GetFullDetWnd() {return mDetWnd;}
    GtkWidget *GetDetWndAsWidget();
@@ -113,7 +112,6 @@ private:
     * Callbacks for showing/hiding detection window.
     */
    void OnUpdateDetWnd(bool bShow, int32 x, int32 y);
-   void OnUpdateUnityDetWnd(bool bShow, uint32 unityWndId, bool bottom);
    void OnDestMoveDetWndToMousePos();
 
    /*
@@ -214,7 +212,6 @@ private:
    /* Only update mouse when we have clipboard contents from the host. */
    bool mGHDnDDataReceived;
    bool mGHDnDDropOccurred;
-   bool mUnityMode;
    bool mInHGDrag;
    DND_DROPEFFECT mEffect;
    int32 mMousePosX;

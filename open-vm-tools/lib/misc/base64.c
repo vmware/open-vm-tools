@@ -391,7 +391,7 @@ Base64_ChunkDecode(char const *in,      // IN:
    ASSERT(in);
    ASSERT(out || outSize == 0);
    ASSERT(dataLength);
-   ASSERT((inSize == -1) || (inSize % 4) == 0);
+   ASSERT((inSize == (size_t)-1) || (inSize % 4) == 0);
    *dataLength = 0;
 
    i = 0;

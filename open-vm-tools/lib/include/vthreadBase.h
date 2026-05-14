@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2006-2021 VMware, Inc. All rights reserved.
+ * Copyright (c) 2006-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -36,7 +37,7 @@
 
 #include "vm_atomic.h"
 
-#if !defined VMM
+#if !defined VMM && !defined GLM
 
 /*
  * Most major OSes now support __thread, so begin making TLS access via
@@ -82,7 +83,7 @@ typedef uintptr_t VThreadID;
 
 #define VTHREAD_INVALID_ID    (VThreadID)(0)
 
-#ifdef VMM
+#if defined(VMM) || defined(GLM)
 /*
  *-----------------------------------------------------------------------------
  *

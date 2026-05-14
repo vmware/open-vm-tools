@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 1998-2019, 2021-2022 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -79,8 +80,10 @@
  * that this is acceptable.
  */
 
-#if defined VMM && defined ULM
-#error "VMM and ULM cannot be defined at the same time."
+#if (defined VMM && defined ULM) ||             \
+    (defined VMM && defined GLM) ||             \
+    (defined GLM && defined ULM)
+#error "Only one of { VMM, ULM, GLM } can be defined during build."
 #endif
 
 #if defined ULM && !defined USERLEVEL

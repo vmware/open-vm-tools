@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 1998-2024 Broadcom. All rights reserved.
+ * Copyright (c) 1998-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -78,6 +78,7 @@ extern "C" {
  *
  * C11 has standardized a good model for expressing these orderings when doing
  * atomics. It defines three *tiers* of ordering:
+ *
  * 1. Sequential Consistency (every processor sees the same total order of
  *    events)
  *
@@ -93,6 +94,7 @@ extern "C" {
  *    In other words, this tier is close in behavior to Sequential Consistency
  *    in much the same way a General-Relativity universe is close to a
  *    Newtonian universe.
+ *
  * 3. Relaxed (i.e unordered/unfenced)
  *
  * In C11 standard's terminology for atomic memory ordering,
@@ -105,25 +107,30 @@ extern "C" {
  * - https://www.cl.cam.ac.uk/~pes20/cpp/cpp0xmappings.html
  * - http://preshing.com/20120913/acquire-and-release-semantics/
  *
+ * The x86/amd64 architectures have a Total Store Order memory model, which
+ * differs from a sequentially consistent ordering by allowing stores to
+ * be re-ordered after loads.
+ *
  * In this file:
  * 1. all RMW (Read/Modify/Write) operations are sequentially consistent.
  *    This includes operations like Atomic_IncN, Atomic_ReadIfEqualWriteN,
  *    Atomic_ReadWriteN, etc.
- * 2. all R and W operations are relaxed. This includes operations like
- *    Atomic_WriteN, Atomic_ReadN, Atomic_TestBitN, etc.
+ * 2. all R and W operations have TSO consistency. This includes operations
+ *    like Atomic_WriteN, Atomic_ReadN, Atomic_TestBitN, etc.
  *
  * The below routines of course ensure both the CPU and compiler honor the
  * ordering constraint.
  *
  * Notes:
- * 1. Since R-only and W-only operations do not provide ordering, callers
- *    using them for synchronizing operations like double-checked
- *    initialization or releasing spinlocks must provide extra barriers.
- * 2. This implementation of Atomic operations is suboptimal. On x86,simple
+ * 1. R-only and W-only operations provide TSO consistency between atomic
+ *    operations because most of our code was written with that assumption
+ *    in mind (PR 2060781).
+ * 2. This implementation of Atomic operations is suboptimal. On x86, simple
  *    reads and writes have acquire/release semantics at the hardware level.
- *    On arm64, we have separate instructions for sequentially consistent
- *    reads and writes (the same instructions are used for acquire/release).
- *    Neither of these are exposed for R-only or W-only callers.
+ *    On arm64, we have separate functions for sequentially consistent
+ *    reads and writes, see Atomic_Read*Acquire and Atomic_Write*Release.
+ * 3. For R-only and W-only "relaxed" ordering, see Atomic_ReadNRelaxed and
+ *    Atomic_WriteNRelaxed.
  *
  * For further details on x86 and ARM memory ordering see
  * https://wiki.eng.vmware.com/ARM/MemoryOrdering.
@@ -886,7 +893,8 @@ Atomic_Read32(Atomic_uint32 const *var) // IN
 {
    uint32 value;
 
-#if defined VMM || defined VM_ARM_64 || defined VMKERNEL || defined VMKERNEL_MODULE
+#if defined VMM || defined GLM ||                                       \
+    defined VM_ARM_64 || defined VMKERNEL || defined VMKERNEL_MODULE
    ASSERT(((uintptr_t)var % 4) == 0);
 #endif
 
@@ -1016,7 +1024,8 @@ static INLINE void
 Atomic_Write32(Atomic_uint32 *var, // OUT
                uint32 val)         // IN
 {
-#if defined VMM || defined VM_ARM_64 || defined VMKERNEL || defined VMKERNEL_MODULE
+#if defined VMM || defined GLM ||                                       \
+    defined VM_ARM_64 || defined VMKERNEL || defined VMKERNEL_MODULE
    ASSERT(((uintptr_t)var % 4) == 0);
 #endif
 
@@ -2178,7 +2187,8 @@ Atomic_Read64(Atomic_uint64 const *var) // IN
    uint64 value;
 #endif
 
-#if defined VMM || defined VM_ARM_64 || defined VMKERNEL || defined VMKERNEL_MODULE
+#if defined VMM || defined GLM ||                                       \
+    defined VM_ARM_64 || defined VMKERNEL || defined VMKERNEL_MODULE
    ASSERT((uintptr_t)var % 8 == 0);
 #endif
 
@@ -2508,7 +2518,7 @@ Atomic_Sub64(Atomic_uint64 *var, // IN/OUT
 #endif
 #elif defined _MSC_VER
    ASSERT_ON_COMPILE(sizeof (__int64) == sizeof var->value);
-   _InterlockedExchangeAdd64((__int64 *)&var->value, (__int64)-val);
+   _InterlockedExchangeAdd64((__int64 *)&var->value, -(__int64)val);
 #else
 #error Atomic_Sub64 not implemented
 #endif
@@ -2664,7 +2674,8 @@ static INLINE void
 Atomic_Write64(Atomic_uint64 *var, // OUT
                uint64 val)         // IN
 {
-#if defined VMM || defined VM_ARM_64 || defined VMKERNEL || defined VMKERNEL_MODULE
+#if defined VMM || defined GLM ||                                       \
+    defined VM_ARM_64 || defined VMKERNEL || defined VMKERNEL_MODULE
    ASSERT((uintptr_t)var % 8 == 0);
 #endif
 
@@ -2905,7 +2916,7 @@ Atomic_TestBit64(Atomic_uint64 *var, // IN
       : "cc"
    );
 #else
-   out = (var->value & (CONST64U(1) << bit)) != 0;
+   out = (Atomic_Read64(var) & (CONST64U(1) << bit)) != 0;
 #endif
    return out;
 }
@@ -2978,8 +2989,8 @@ Atomic_Read16(Atomic_uint16 const *var) // IN
 {
    uint16 value;
 
-#if defined VMM || defined VM_ARM_64 || defined VMKERNEL || \
-    defined VMKERNEL_MODULE
+#if defined VMM || defined GLM ||                                       \
+    defined VM_ARM_64 || defined VMKERNEL || defined VMKERNEL_MODULE
    ASSERT((uintptr_t)var % 2 == 0);
 #endif
 
@@ -3089,8 +3100,8 @@ static INLINE void
 Atomic_Write16(Atomic_uint16 *var,  // OUT:
                uint16 val)          // IN:
 {
-#if defined VMM || defined VM_ARM_64 || defined VMKERNEL || \
-    defined VMKERNEL_MODULE
+#if defined VMM || defined GLM ||                                       \
+   defined VM_ARM_64 || defined VMKERNEL || defined VMKERNEL_MODULE
    ASSERT((uintptr_t)var % 2 == 0);
 #endif
 

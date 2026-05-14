@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2018 VMware, Inc. All rights reserved.
+ * Copyright (c) 2018-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -63,23 +64,6 @@ VMGuestDnDMgr::AddDnDUngrabTimeoutEvent()
                                GuestDnDMgr::DnDUngrabTimeout, this, NULL);
       g_source_unref(mUngrabTimeout);
    }
-}
-
-
-/**
- * Add Unity DnD detect timeout event.
- */
-
-void
-VMGuestDnDMgr::AddUnityDnDDetTimeoutEvent()
-{
-   mUnityDnDDetTimeout = g_timeout_source_new(UNITY_DND_DET_TIMEOUT);
-   VMTOOLSAPP_ATTACH_SOURCE(mToolsAppCtx,
-                            mUnityDnDDetTimeout,
-                            GuestDnDMgr::DnDUnityDetTimeout,
-                            this,
-                            NULL);
-   g_source_unref(mUnityDnDDetTimeout);
 }
 
 

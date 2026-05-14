@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2008-2016,2019 VMware, Inc. All rights reserved.
+ * Copyright (c) 2008-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -131,4 +132,34 @@ const char *
 Log_GetFileName(void)
 {
    return NULL;
+}
+
+
+void *
+Log_BufBegin(void)
+{
+   return NULL;
+}
+
+
+void
+Log_BufAppend(void *acc,        // IN/OUT:
+              const char *fmt,  // IN:
+              ...)              // IN/OUT:
+{
+
+}
+
+
+void
+Log_BufEndLevel(void *acc,       // IN/OUT:
+                uint32 routing)  // IN:
+{
+
+}
+
+Bool
+Log_IsEnabled(uint32 routing)  // IN:
+{
+   return FALSE;
 }

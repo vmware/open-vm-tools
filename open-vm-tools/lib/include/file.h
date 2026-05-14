@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 1998-2024 Broadcom. All Rights Reserved.
+ * Copyright (c) 1998-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -243,6 +243,13 @@ int File_MakeTempEx2(const char *dir,
                      Bool createTempFile,
                      File_MakeTempCreateNameFunc *createNameFunc,
                      void *createFuncData,
+                     char **presult);
+
+int File_MakeTempEx3(const char *dir,
+                     Bool createTempFile,
+                     File_MakeTempCreateNameFunc *createNameFunc,
+                     void *createFuncData,
+                     uint32 prefix,
                      char **presult);
 
 char *File_MakeSafeTempDir(const char *prefix);

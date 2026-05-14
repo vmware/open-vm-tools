@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2008-2021,2023-2024 Broadcom. All rights reserved.
+ * Copyright (c) 2008-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -367,13 +367,36 @@ ToolsCore_ParseCommandLine(ToolsServiceState *state,
                                  ToolsCoreCmdLineError);
 
    if (!g_option_context_parse(context, &argc, &argv, &error)) {
-      g_printerr("%s: %s\n", N_("Command line parsing failed"), error->message);
+      g_printerr("%s: %s\n", N_("Command line parsing failed"),
+                 error != NULL ? error->message : "No GError");
       goto exit;
    }
 
    if (version) {
-      g_print("%s %s (%s)\n", _("VMware Tools daemon, version"),
-              VMTOOLSD_VERSION_STRING, BUILD_NUMBER);
+      /*
+       * Configure logging system, without resetting the logging
+       * if reporting the version. When reporting the version, the
+       * process will immediately exit.
+       */
+      gboolean useLegacyVersion;
+
+      ToolsCore_ReloadConfig(state, FALSE);
+
+      /*
+       * Check the config values to see if revert to older format.
+       * Default is false and new format will be used.
+       */
+      useLegacyVersion = VMTools_ConfigGetBoolean(state->ctx.config,
+                                                  CONFGROUPNAME_VMTOOLS,
+                                                  CONFNAME_USELEGACYVERSION,
+                                                  FALSE);
+      if (useLegacyVersion) {
+         g_print("%s %s (%s)\n", _("VMware Tools daemon, version"),
+                 VMTOOLSD_VERSION_STRING, BUILD_NUMBER);
+      } else {
+         g_print("%s %s.%s\n", _("VMware Tools daemon, version"),
+                 VMTOOLSD_VERSION_STRING, BUILD_NUMBER_NUMERIC_STRING);
+      }
       exit(0);
    }
 

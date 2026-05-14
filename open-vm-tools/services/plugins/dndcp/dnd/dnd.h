@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2005-2024 Broadcom. All Rights Reserved.
+ * Copyright (c) 2005-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -83,6 +83,7 @@ extern "C" {
 #define FCP_TARGET_INFO_URI_LIST             1
 /* FCP target used for nautilus 3.30 or later. */
 #define FCP_TARGET_NAME_NAUTILUS_FILES       "UTF8_STRING"
+#define FCP_TARGET_NAME_NAUTILUS_GTK4_UTF8   "text/plain;charset=utf-8"
 #define FCP_TARGET_MIME_NAUTILUS_FILES       "x-special/nautilus-clipboard"
 #define FCP_TARGET_INFO_NAUTILUS_FILES       2
 /* Number of FCP targets. */
@@ -94,6 +95,7 @@ extern "C" {
 #define TARGET_NAME_TIMESTAMP                "TIMESTAMP"
 #define TARGET_NAME_STRING                   "STRING"
 #define TARGET_NAME_TEXT_PLAIN               "text/plain"
+#define TARGET_NAME_TEXT_PLAIN_UTF8          "text/plain;charset=utf-8"
 #define TARGET_NAME_UTF8_STRING              "UTF8_STRING"
 #define TARGET_NAME_COMPOUND_TEXT            "COMPOUND_TEXT"
 #define TARGET_NAME_APPLICATION_RTF          "application/rtf"
@@ -104,7 +106,11 @@ extern "C" {
 #define DRAG_LEAVE_TIMEOUT         500
 
 /* Guest detection window width and height. */
+#ifdef GTK4
+#define DRAG_DET_WINDOW_WIDTH 62
+#else
 #define DRAG_DET_WINDOW_WIDTH 31
+#endif
 
 /* Clipboard image size limit. */
 #define CLIPBOARD_IMAGE_MAX_WIDTH  4000

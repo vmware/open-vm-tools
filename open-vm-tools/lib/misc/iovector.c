@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 1998-2016 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2016,2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -311,11 +312,11 @@ IOVSplitList(VMIOVec *regionV,      // IN/OUT: VMIOVec for this region
 
       if (regionV->numBytes > regionV->numSectors * sectorSize) {
          int spillover;
-         
+
          spillover = (int) (regionV->numBytes -
                                             regionV->numSectors * sectorSize);
-         ASSERT(spillover < curEntry->iov_len);
-         ASSERT(spillover > 0);
+         VERIFY(spillover < curEntry->iov_len);
+         VERIFY(spillover > 0);
 
          /*
           * Truncate the last overlapping entry and store the excess. After

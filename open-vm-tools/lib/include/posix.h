@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2008-2019 VMware, Inc. All rights reserved.
+ * Copyright (c) 2008-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -665,7 +666,7 @@ exit:
 /*
  * ESX and Mac OS are UTF-8 environments so these functions can be
  * "defined away" - the POSIX wrapper call can be directly mapped to the
- * POSIX function avoiding unneccesary (call and handling) overhead.
+ * POSIX function avoiding unnecessary (call and handling) overhead.
  *
  * NOTE: PLEASE KEEP THESE IN SORTED ORDER
  */

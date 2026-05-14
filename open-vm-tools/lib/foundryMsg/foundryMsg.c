@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2004-2016, 2019, 2021, 2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2004-2024 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -706,6 +707,59 @@ VixMsg_AllocRequestMsg(size_t msgHeaderAndBodyLength,    // IN
 
    return commandRequest;
 } // VixMsg_AllocRequestMsg
+
+
+/*
+ *-----------------------------------------------------------------------------
+ *
+ * VixMsg_AllocUserRequestMsg --
+ *
+ *      Allocate and initialize a request message.
+ *      Validate the requested size of header and body length is within the
+ *      VIX_COMMAND_MAX_USER_INPUT_SIZE and that a request was allocated.
+ *
+ * Results:
+ *      On VIX_OK, request is set to the message, with the headers properly
+ *      initialized. Anything else, request is NULL.
+ *
+ * Side effects:
+ *      None.
+ *
+ *-----------------------------------------------------------------------------
+ */
+
+VixError
+VixMsg_AllocUserRequestMsg(size_t msgHeaderAndBodyLength,     // IN
+                           int opCode,                        // IN
+                           uint64 cookie,                     // IN
+                           int credentialType,                // IN
+                           const char *credential,            // IN
+                           VixCommandRequestHeader **request) // OUT
+{
+
+   /*
+    * request is required for output
+    */
+   ASSERT(request != NULL);
+
+   *request = NULL;
+
+   if (msgHeaderAndBodyLength > VIX_COMMAND_MAX_USER_INPUT_SIZE) {
+      return VIX_E_ARGUMENT_TOO_BIG;
+   }
+
+   *request = VixMsg_AllocRequestMsg(msgHeaderAndBodyLength,
+                                     opCode,
+                                     cookie,
+                                     credentialType,
+                                     credential);
+
+   if (*request == NULL) {
+      return VIX_E_FAIL;
+   }
+
+   return VIX_OK;
+}
 
 
 /*

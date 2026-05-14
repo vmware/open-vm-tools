@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2008-2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 2008-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -144,12 +145,28 @@ VMTools_ConfigGetString(GKeyFile *config,
 
 #if defined(G_PLATFORM_WIN32)
 
+#define VMTOOLS_WIN_EVENT_SOURCE_NAME  L"VMware Tools"
+
+#define VMTOOLS_CERT_MSG "Verify that a valid VMware Tools signing "\
+                         "certificate is present in the Trusted "\
+                         "Publishers certificate store on the system. "\
+                         "Refer to the VMware Tools Administration Guide "\
+                         "for how to set up a VMware Tools signing "\
+                         "certificate."
 gboolean
 VMTools_AttachConsole(void);
 
 GSource *
 VMTools_NewHandleSource(HANDLE h);
 
+gboolean
+VMTools_IsPSScriptSigningEnforced(void);
+
+gboolean
+VMTools_IsScriptSignerCertPresent(void);
+
+void
+VMTools_LogWinEvent(const gchar *certMsg);
 #else
 
 /** Type of callback used by the signal event source. */
@@ -162,6 +179,11 @@ gchar *
 VMTools_GetLibdir(void);
 
 #endif
+
+void
+VMTools_SetupEnv(const gchar *appName,
+                 GKeyFile *config,
+                 gboolean globalVars);
 
 GSource *
 VMTools_CreateTimer(gint timeout);

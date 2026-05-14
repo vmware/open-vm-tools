@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (c) 2016-2019, 2023 VMware, Inc. All rights reserved.
+ * Copyright (c) 2016-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -202,7 +203,7 @@ GetDisableVMwareCustomizationFlagStatus(const char* cloudInitConfigFilePath)
    size_t maxGroups = 2, flagValueLength = 0;
    regmatch_t groupArray[maxGroups];
    const char *flagPattern =
-      "^\\s*disable_vmware_customization\\s*:\\s*(true|false)\\s*$";
+      "^\\s*disable_vmware_customization\\s*:\\s*(true|false)\\s*(\\s+#.*)?$";
    int reti;
 
    cloudInitConfigFile = fopen(cloudInitConfigFilePath, "r");

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 1998-2024 Broadcom. All rights reserved.
+ * Copyright (c) 1998-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -317,7 +317,7 @@ Log_Trivia(const char *fmt,
    va_end(ap);
 }
 
-#if !defined(VMM)
+#if !defined(VMM) && !defined(GLM)
 typedef struct {
    int32       legalLevelValue;
    const char *legalName;
@@ -477,9 +477,12 @@ Log_SetVmxStatsData(LogOutput *output,
  * the product should have the dependency, not an underlying library.
  *
  * In complex cases, where an "InitWith" is not sufficient and Log_AddOutput
- * must be used directly, the client should call Log_SetProductInfo, passing
- * the appropriate parameters, so the log file header information will be
- * correct.
+ * must be used directly, the client must call Log_SetProductInfo2, passing
+ * the appropriate parameters, so the logging information will be correct
+ * (e.g. log file header, syslog transmissions).
+ *
+ * The original Log_SetProductInfo continues to exist for compatiblity with
+ * ancient iofilters. It should not be used.
  */
 
 void
@@ -488,13 +491,33 @@ Log_SetProductInfo(const char *appName,
                    const char *buildNumber,
                    const char *compilationOption);
 
+void
+Log_SetProductInfo2(const char *appName,
+                    const char *appVersion,
+                    const char *buildNumber,
+                    const char *compilationOption,
+                    const char *sdCompId);
+
+#if defined(VMX86_SERVER)
+#define VMW_LOG_DEFAULT_SD_COMP_ID "esx"
+#elif defined (__APPLE__)
+#define VMW_LOG_DEFAULT_SD_COMP_ID "fusion"
+#else
+#define VMW_LOG_DEFAULT_SD_COMP_ID "ws"
+#endif
+
+#if !defined(VMW_LOG_SET_SD_COMP_ID)
+#define VMW_LOG_SET_SD_COMP_ID VMW_LOG_DEFAULT_SD_COMP_ID
+#endif
+
 static INLINE void
 Log_SetProductInfoSimple(void)
 {
-   Log_SetProductInfo(ProductState_GetName(),
-                      ProductState_GetVersion(),
-                      ProductState_GetBuildNumberString(),
-                      ProductState_GetCompilationOption());
+   Log_SetProductInfo2(ProductState_GetName(),
+                       ProductState_GetVersion(),
+                       ProductState_GetBuildNumberString(),
+                       ProductState_GetCompilationOption(),
+                       VMW_LOG_SET_SD_COMP_ID);
 }
 
 LogOutput *
@@ -795,4 +818,3 @@ Log_IsThrottled(LogThrottleInfo *info,
 
 #define VMW_LOG_ROUTING_EX(name, level) \
         (((LOGFACILITY_GROUPVAR(name) + 1) << VMW_LOG_LEVEL_BITS) | (level))
-

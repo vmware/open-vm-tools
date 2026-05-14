@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2011-2022 VMware, Inc. All rights reserved.
+ * Copyright (c) 2011-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -19,7 +20,7 @@
 /*
  * hostinfoHV.c --
  *
- *    Code to detect different hypervisors and features.
+ *      Code to detect different hypervisors and features.
  */
 
 #include <string.h>
@@ -31,6 +32,18 @@
 #  include "backdoor_def.h"
 #  include "backdoor_types.h"
 #endif
+
+#if defined __aarch64__ && defined __linux__
+#  include <errno.h>
+#  include <stdio.h>
+#  include "acpi_table_defs.h"
+#endif
+
+#if defined __aarch64__ && defined _WIN32
+#  include "sysinfoapi.h"
+#  include "acpi_table_defs.h"
+#endif
+
 #include "hostinfo.h"
 #include "util.h"
 
@@ -177,6 +190,60 @@ Hostinfo_HypervisorPresent(void)
 #endif
 
 
+#if defined(__aarch64__) && (defined(__linux__) || defined(_WIN32))
+char *
+Hostinfo_HypervisorACPISig(void)
+{
+   char *name = NULL;
+   ACPITableFADT buf;
+#if defined(__linux__)
+   unsigned int ret;
+   FILE *f;
+#else
+   UINT ret;
+#endif
+
+#define ACPI_FACP_V6_SIZE (offsetof(ACPITableFADT, hypervisorVendor) + \
+                           sizeof(uint64))
+
+#if defined(__linux__)
+#define ACPI_FACP_TABLE_PATH "/sys/firmware/acpi/tables/FACP"
+   f = fopen(ACPI_FACP_TABLE_PATH, "r");
+   if (f == NULL) {
+      Log(LGPFX" %s: Unable to open " ACPI_FACP_TABLE_PATH " reason (%s) \n",
+          __FUNCTION__, strerror(errno));
+      return NULL;
+   }
+   ret = fread(&buf, 1, sizeof(buf), f);
+   fclose(f);
+#else
+   ret = GetSystemFirmwareTable('ACPI', 'PCAF', (PVOID)&buf, sizeof(buf));
+#endif
+
+   if (ret >= ACPI_FACP_V6_SIZE) {
+      if (buf.header.length < ACPI_FACP_V6_SIZE) {
+         Log(LGPFX" %s: Buffer is malformed. Len = %d size %d .\n",
+             __FUNCTION__, buf.header.length, ret);
+         return NULL;
+      }
+
+      if (buf.header.revision < 6) {
+         Log(LGPFX" %s: hypervisorVendor field not available.\n", __FUNCTION__);
+         return NULL;
+      }
+
+      name = Util_SafeMalloc(9);
+      strncpy(name, (char *)&buf.hypervisorVendor, 8);
+      name[8] = '\0';
+   } else {
+      Log(LGPFX" %s: Missing some data size = %d expected %ld.\n",
+          __FUNCTION__, ret, sizeof buf);
+   }
+   return name;
+}
+#endif
+
+
 /*
  *----------------------------------------------------------------------
  *
@@ -197,8 +264,8 @@ Hostinfo_HypervisorPresent(void)
 char *
 Hostinfo_HypervisorCPUIDSig(void)
 {
-   uint32 *name = NULL;
 #if defined(__i386__) || defined(__x86_64__)
+   uint32 *name = NULL;
    CPUIDRegs regs;
 
    if (!Hostinfo_HypervisorPresent()) {
@@ -217,9 +284,12 @@ Hostinfo_HypervisorCPUIDSig(void)
    name[1] = regs.ecx;
    name[2] = regs.edx;
    name[3] = 0;
-#endif // defined(__i386__) || defined(__x86_64__)
-
    return (char *)name;
+#elif defined(__aarch64__) && (defined(__linux__) || defined(_WIN32))
+   return Hostinfo_HypervisorACPISig();
+#else
+   return NULL;
+#endif
 }
 
 
@@ -433,7 +503,7 @@ void Hostinfo_BackdoorInOut(Backdoor_proto *myBp);
 /*
  *----------------------------------------------------------------------
  *
- *  Hostinfo_TouchBackDoor --
+ * Hostinfo_TouchBackDoor --
  *
  *      Access the backdoor. This is used to determine if we are
  *      running in a VM or on a physical host. On a physical host
@@ -445,7 +515,7 @@ void Hostinfo_BackdoorInOut(Backdoor_proto *myBp);
  *      return either TRUE or FALSE.
  *
  * Results:
- *      TRUE if we succesfully accessed the backdoor, FALSE or segfault
+ *      TRUE if we succesfully accessed the backdoor, FALSE or exception
  *      if not.
  *
  * Side effects:
@@ -487,7 +557,7 @@ Hostinfo_TouchBackDoor(void)
    }
 #endif // _WIN64
 
-   return (ebxval == BDOOR_MAGIC) ? TRUE : FALSE;
+   return ebxval == BDOOR_MAGIC;
 }
 
 

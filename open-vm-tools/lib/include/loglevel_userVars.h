@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 1998-2024 Broadcom. All rights reserved.
+ * Copyright (c) 1998-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -50,7 +50,6 @@
    LOGLEVEL_VAR(backdoor), \
    LOGLEVEL_VAR(barrier), \
    LOGLEVEL_VAR(battery), \
-   LOGLEVEL_VAR(blit), /* lib/blit */ \
    LOGLEVEL_VAR(brtalk), \
    LOGLEVEL_VAR(buslogic), \
    LOGLEVEL_VAR(buslogicMdev), \
@@ -106,6 +105,7 @@
    LOGLEVEL_VAR(fsresx), \
    LOGLEVEL_VAR(ftConfig), /*lib/ftConfig */ \
    LOGLEVEL_VAR(ftcpt), \
+   LOGLEVEL_VAR(glmLoader), \
    LOGLEVEL_VAR(grainTrack), \
    LOGLEVEL_VAR(grm), \
    LOGLEVEL_VAR(guestAppMonitor), \
@@ -223,6 +223,7 @@
    LOGLEVEL_VAR(pci_vmci), \
    LOGLEVEL_VAR(pci_vmxnet3), \
    LOGLEVEL_VAR(pci_xhci), \
+   LOGLEVEL_VAR(pl031), \
    LOGLEVEL_VAR(pmemobj), \
    LOGLEVEL_VAR(policy), \
    LOGLEVEL_VAR(poll), \
@@ -276,17 +277,18 @@
    LOGLEVEL_VAR(usb), \
    LOGLEVEL_VAR(usb_xhci), \
    LOGLEVEL_VAR(util), \
-   LOGLEVEL_VAR(uwt), /* lib/unityWindowTracker */ \
    LOGLEVEL_VAR(vaBasicOps), \
    LOGLEVEL_VAR(vcpuhotplug), \
    LOGLEVEL_VAR(vcpuNUMA), \
    LOGLEVEL_VAR(vdfs), \
    LOGLEVEL_VAR(vdfs_9p), \
    LOGLEVEL_VAR(vdpPlugin), \
+   LOGLEVEL_VAR(vdsm), \
    LOGLEVEL_VAR(vdtiPciCfgSpc), \
    LOGLEVEL_VAR(vflash), \
    LOGLEVEL_VAR(vg), \
    LOGLEVEL_VAR(vga), \
+   LOGLEVEL_VAR(vgTriCache), \
    LOGLEVEL_VAR(vide), \
    LOGLEVEL_VAR(viewClient), \
    LOGLEVEL_VAR(vigor), \
@@ -300,7 +302,6 @@
    LOGLEVEL_VAR(vmIPC), \
    LOGLEVEL_VAR(vmkcfg), \
    LOGLEVEL_VAR(vmkEvent), \
-   LOGLEVEL_VAR(vmkmgmtlib), \
    LOGLEVEL_VAR(vmLock), \
    LOGLEVEL_VAR(vmmouse), \
    LOGLEVEL_VAR(vmname),  /* lib/vmname */ \
@@ -342,8 +343,7 @@
    LOGLEVEL_VAR(wifi), /* macWireless and wpa_supplicant */ \
    LOGLEVEL_VAR(win32util), \
    LOGLEVEL_VAR(worker), \
-   LOGLEVEL_VAR(xled), \
-   LOGLEVEL_VAR(xpmode)
+   LOGLEVEL_VAR(xled)
 
    /* end of list */
 

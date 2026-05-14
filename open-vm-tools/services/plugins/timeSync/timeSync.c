@@ -757,7 +757,8 @@ TimeSyncDoSync(Bool slewCorrection,
     * seamlessly, this also avoids warning logs on the FALSE returns.
     */
    if (disableAll || (disablePeriodic && syncType == TIMESYNC_PERIODIC)) {
-      g_debug("Time synchronization is disabled.\n");
+      g_debug("%s time synchronization is disabled.\n",
+              disableAll ? "All" : "Periodic");
       return TRUE;
    }
    return TimeSyncDoSyncWork(slewCorrection, syncType, allowBackwardSync,

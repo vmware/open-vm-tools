@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2011-2016,2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 2011-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -28,7 +29,7 @@
 #ifdef _WIN32
 #include "winUtil.h"
 #endif
-
+#include "vmware/tools/utils.h"
 
 /*
  ******************************************************************************
@@ -236,11 +237,33 @@ Pref_GetBool(PrefHandle ph,
 
 /*
  ******************************************************************************
+ * Pref_InitEnv --                                                       */ /**
+ *
+ * Intializes the environment variables from any preferences.
+ *
+ * @param[in] ph         The handle to the preferences.
+ * @param[in] appfName   The app name.
+ * @param[in] globalVars Update global environment variables.
+ *
+ ******************************************************************************
+ */
+
+void
+Pref_InitEnv(PrefHandle ph,
+             const gchar *appName,
+             gboolean globalVars)
+{
+   GKeyFile *keyFile = ph->keyFile;
+   VMTools_SetupEnv(appName, keyFile, globalVars);
+}
+
+/*
+ ******************************************************************************
  * Pref_LogAllEntries --                                                 */ /**
  *
  * Logs the full contents of the prefs.  Useful for debugging.
  *
- * @param[in] ph  The PrefHandle to dunp.
+ * @param[in] ph  The PrefHandle to dump.
  *
  ******************************************************************************
  */

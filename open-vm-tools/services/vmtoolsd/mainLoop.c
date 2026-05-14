@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2008-2024 Broadcom. All Rights Reserved.
+ * Copyright (c) 2008-2026 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -76,26 +76,6 @@
  * that will be used to detect that the single allowed toolbox-dnd channel
  * is not available.
  */
-
-/*
- * Lowest number of RPC channel errors to reasonably indicate that the
- * single allowed toolbox-dnd channel is currently in use by another
- * process.
- */
-#define VMUSR_CHANNEL_ERR_MIN 3        /* approximately 3 secs. */
-
-/*
- * The default number of vmusr channel errors before quitting the vmusr
- * process start-up.
- */
-#define VMUSR_CHANNEL_ERR_DEFAULT 5    /* approximately 5  secs. */
-
-/*
- * Arbitrary upper vmusr channel error count limit.
- */
-#define VMUSR_CHANNEL_ERR_MAX 15       /* approximately 15 secs. */
-
-#define CONFNAME_MAX_CHANNEL_ATTEMPTS "maxChannelAttempts"
 
 #if defined(GLOBALCONFIG_SUPPORTED)
 /*
@@ -279,37 +259,71 @@ ToolsCoreIOFreezeCb(gpointer src,
  *
  * Report version info as guest variables.
  *
- * @param[in]  state       Service state.
+ * @param[in]  ctx       The application context.
  *
  ******************************************************************************
  */
 
 static void
-ToolsCoreReportVersionData(ToolsServiceState *state)
+ToolsCoreReportVersionData(ToolsAppCtx *ctx)
 {
    char *value;
    const static char cmdPrefix[] = "info-set guestinfo.vmtools.";
+   static gboolean useLegacyVersion = FALSE;
+   static gboolean first = TRUE;
+   const char *cmdDescFmt;
+   const char *cmdToolsVersionStr;
+   gboolean confUseLegacyVersion;
 
    /*
     * These values are documented with specific formats.  Do not change
     * the formats, as client code can depend on them.
     */
+   confUseLegacyVersion =
+      VMTools_ConfigGetBoolean(ctx->config,
+                               CONFGROUPNAME_VMTOOLS,
+                               CONFNAME_USELEGACYVERSION,
+                               FALSE);
 
+   /* Nothing to do if not the first call and state is unchanged. */
+   if (!first && (confUseLegacyVersion == useLegacyVersion)) {
+      return;
+   }
+
+#define CMD_DESCRIPTION          "%sdescription "
+#ifdef OPEN_VM_TOOLS
+#define VMTOOLS_PRODUCT          "open-vm-tools"
+#else
+#define VMTOOLS_PRODUCT          "VMware Tools"
+#endif
+
+   first = FALSE;
+   useLegacyVersion = confUseLegacyVersion;
+   if (useLegacyVersion) {
+      cmdDescFmt = CMD_DESCRIPTION VMTOOLS_PRODUCT " %s build %s";
+      cmdToolsVersionStr = TOOLS_VERSION_CURRENT_STR;
+   } else {
+      cmdDescFmt = CMD_DESCRIPTION VMTOOLS_PRODUCT " %s.%s";
+      /*
+       * Set the versionString to 3 number format. SDMP adapter code parses
+       * this string to process version. The older versions of SDMP adapters
+       * will break if the versionString is modified to 4 number format.
+       *
+       * This has to be fixed in future and set to TOOLS_VERSION_EXT_CURRENT_STR
+       * when we stop supporting older SDMP adapters.
+       */
+      cmdToolsVersionStr = TOOLS_VERSION_CURRENT_STR;
+   }
 
    /*
     * Version description as a human-readable string.  This value should
     * not be parsed, so its format can be modified if necessary.
     */
-   value = g_strdup_printf("%sdescription "
-#ifdef OPEN_VM_TOOLS
-                           "open-vm-tools %s build %s",
-#else
-                           "VMware Tools %s build %s",
-#endif
+   value = g_strdup_printf(cmdDescFmt,
                            cmdPrefix,
-                           TOOLS_VERSION_CURRENT_STR,
+                           cmdToolsVersionStr,
                            BUILD_NUMBER_NUMERIC_STRING);
-   if (!RpcChannel_Send(state->ctx.rpc, value,
+   if (!RpcChannel_Send(ctx->rpc, value,
                         strlen(value) + 1, NULL, NULL)) {
       g_warning("%s: failed to send description", __FUNCTION__);
    }
@@ -320,8 +334,8 @@ ToolsCoreReportVersionData(ToolsServiceState *state)
     * be parsed, so its format should not be modified.
     */
    value = g_strdup_printf("%sversionString "
-                           "%s", cmdPrefix, TOOLS_VERSION_CURRENT_STR);
-   if (!RpcChannel_Send(state->ctx.rpc, value,
+                           "%s", cmdPrefix, cmdToolsVersionStr);
+   if (!RpcChannel_Send(ctx->rpc, value,
                         strlen(value) + 1, NULL, NULL)) {
       g_warning("%s: failed to send versionString", __FUNCTION__);
    }
@@ -333,8 +347,8 @@ ToolsCoreReportVersionData(ToolsServiceState *state)
     */
    value = g_strdup_printf("%sversionNumber "
                            "%d", cmdPrefix, TOOLS_VERSION_CURRENT);
-   if (!RpcChannel_Send(state->ctx.rpc, value,
-                         strlen(value) + 1, NULL, NULL)) {
+   if (!RpcChannel_Send(ctx->rpc, value,
+                        strlen(value) + 1, NULL, NULL)) {
       g_warning("%s: failed to send versionNumber", __FUNCTION__);
    }
    g_free(value);
@@ -345,7 +359,7 @@ ToolsCoreReportVersionData(ToolsServiceState *state)
     */
    value = g_strdup_printf("%sbuildNumber "
                            "%d", cmdPrefix, BUILD_NUMBER_NUMERIC);
-   if (!RpcChannel_Send(state->ctx.rpc, value,
+   if (!RpcChannel_Send(ctx->rpc, value,
                         strlen(value) + 1, NULL, NULL)) {
       g_warning("%s: failed to send buildNumber", __FUNCTION__);
    }
@@ -430,6 +444,33 @@ ToolsCoreResetSignalCb(gpointer src,          // IN
 
 /*
  ******************************************************************************
+ *
+ * ToolsCoreConfReloadSignalCb --
+ *  The tools.conf reload callback. The signal was triggered from
+ *  ToolsCore_ReloadConfig. This function is needed to safely run code
+ *  outside of the RPC Channel reset code.
+ *
+ *  Reinitialize the Vmx Guest variables.
+ *
+ * @param[in]  src      The source object.
+ * @param[in]  ctx      The ToolsAppCtx for passing the config.
+ * @param[in]  data     Unused.
+ *
+ ******************************************************************************
+ */
+
+static void
+ToolsCoreConfReloadSignalCb(gpointer src,          // IN
+                            ToolsAppCtx *ctx,      // IN
+                            gpointer data)         // IN
+{
+   g_debug("Reinitialize the guest vars for version data.\n");
+   ToolsCoreReportVersionData(ctx); /* Update version guest vars */
+}
+
+
+/*
+ ******************************************************************************
  * ToolsCoreRunLoop --                                                  */ /**
  *
  * Loads and registers all plugins, and runs the service's main loop.
@@ -468,7 +509,7 @@ ToolsCoreRunLoop(ToolsServiceState *state)
 
    /* Report version info as guest Vars */
    if (state->ctx.rpc) {
-      ToolsCoreReportVersionData(state);
+      ToolsCoreReportVersionData(&state->ctx);
    }
 
 #if defined(_WIN32)
@@ -547,6 +588,14 @@ ToolsCoreRunLoop(ToolsServiceState *state)
          g_signal_connect(state->ctx.serviceObj,
                           TOOLS_CORE_SIG_RESET,
                           G_CALLBACK(ToolsCoreResetSignalCb),
+                          NULL);
+      }
+
+      if (g_signal_lookup(TOOLS_CORE_SIG_CONF_RELOAD,
+                          G_OBJECT_TYPE(state->ctx.serviceObj)) != 0) {
+         g_signal_connect(state->ctx.serviceObj,
+                          TOOLS_CORE_SIG_CONF_RELOAD,
+                          G_CALLBACK(ToolsCoreConfReloadSignalCb),
                           NULL);
       }
 
@@ -637,45 +686,6 @@ ToolsCore_DumpState(ToolsServiceState *state)
                          TOOLS_CORE_SIG_DUMP_STATE,
                          &state->ctx);
 }
-
-
-/**
- * Return the RpcChannel failure threshold for the tools user service.
- *
- * @param[in]      state       The service state.
- *
- * @return  The RpcChannel failure limit for the user tools service.
- */
-
-guint
-ToolsCore_GetVmusrLimit(ToolsServiceState *state)      // IN
-{
-   gint errorLimit = 0;      /* Special value 0 means no error threshold. */
-
-   if (TOOLS_IS_USER_SERVICE(state)) {
-      errorLimit = VMTools_ConfigGetInteger(state->ctx.config,
-                                            state->name,
-                                            CONFNAME_MAX_CHANNEL_ATTEMPTS,
-                                            VMUSR_CHANNEL_ERR_DEFAULT);
-
-      /*
-       * A zero value is allowed and will disable the single vmusr
-       * process restriction.
-       */
-      if (errorLimit != 0 &&
-          (errorLimit < VMUSR_CHANNEL_ERR_MIN ||
-           errorLimit > VMUSR_CHANNEL_ERR_MAX)) {
-         g_warning("%s: Invalid %s: %s (%d) specified in tools configuration; "
-                   "using default value (%d)\n", __FUNCTION__,
-                   state->name, CONFNAME_MAX_CHANNEL_ATTEMPTS,
-                   errorLimit, VMUSR_CHANNEL_ERR_DEFAULT);
-         errorLimit = VMUSR_CHANNEL_ERR_DEFAULT;
-      }
-   }
-
-   return errorLimit;
-}
-
 
 /**
  * Returns the name of the TCLO app name. This will only return non-NULL
@@ -784,33 +794,6 @@ ToolsCore_ReloadConfig(ToolsServiceState *state,
 #if defined(_WIN32)
 
 /**
- * Gets error message for the last error.
- *
- * @param[in]  error    Error code to be converted to string message.
- *
- * @return The error message, or NULL in case of failure.
- */
-
-static char *
-ToolCoreGetLastErrorMsg(DWORD error)
-{
-   char *msg = Win32U_FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM |
-                                     FORMAT_MESSAGE_IGNORE_INSERTS,
-                                     NULL,
-                                     error,
-                                     0,       // Default language
-                                     NULL);
-   if (msg == NULL) {
-      g_warning("Failed to get error message for %d, error=%d.\n",
-                error, GetLastError());
-      return NULL;
-   }
-
-   return msg;
-}
-
-
-/**
  * Check the version for a file using GetFileVersionInfo method
  *
  * @param[in]  pluginPath        plugin path name.
@@ -905,287 +888,6 @@ exit:
 
 
 /**
- * Gets an environment variable for the current process.
- *
- * @param[in]  name       Name of the env variable.
- *
- * @return The value of env variable, or NULL in case of error.
- */
-
-static gchar *
-ToolsCoreEnvGetVar(const char *name)      // IN
-{
-   gchar *value;
-
-#if defined(_WIN32)
-   DWORD valueSize;
-   /*
-    * Win32U_GetEnvironmentVariable requires buffer to be accurate size.
-    * So, we need to get the value size first.
-    *
-    * Windows bug: GetEnvironmentVariable() does not clear stale
-    * error when the return value is 0 because of env variable
-    * holding empty string value (just NUL-char). So, we need to
-    * clear it before we call the Win32 API.
-    */
-   SetLastError(ERROR_SUCCESS);
-   valueSize = Win32U_GetEnvironmentVariable(name, NULL, 0);
-   if (valueSize == 0) {
-      goto error;
-   }
-
-   value = g_malloc(valueSize);
-   SetLastError(ERROR_SUCCESS);
-   if (Win32U_GetEnvironmentVariable(name, value, valueSize) == 0) {
-      g_free(value);
-      goto error;
-   }
-
-   return value;
-
-error:
-{
-   DWORD error = GetLastError();
-   if (error == ERROR_SUCCESS) {
-      g_message("Env variable %s is empty.\n", name);
-   } else if (error == ERROR_ENVVAR_NOT_FOUND) {
-      g_message("Env variable %s not found.\n", name);
-   } else {
-      char *errorMsg = ToolCoreGetLastErrorMsg(error);
-      if (errorMsg != NULL) {
-         g_warning("Failed to get env variable size %s, error=%s.\n",
-                   name, errorMsg);
-         free(errorMsg);
-      } else {
-         g_warning("Failed to get env variable size %s, error=%d.\n",
-                   name, error);
-      }
-   }
-   return NULL;
-}
-#else
-   value = Posix_Getenv(name);
-   return value == NULL ? value : g_strdup(value);
-#endif
-}
-
-
-/**
- * Sets an environment variable for the current process.
- *
- * @param[in]  name       Name of the env variable.
- * @param[in]  value      Value for the env variable.
- *
- * @return gboolean, TRUE on success or FALSE in case of error.
- */
-
-static gboolean
-ToolsCoreEnvSetVar(const char *name,      // IN
-                   const char *value)     // IN
-{
-#if defined(_WIN32)
-   if (!Win32U_SetEnvironmentVariable(name, value)) {
-      char *errorMsg;
-      DWORD error = GetLastError();
-
-      errorMsg = ToolCoreGetLastErrorMsg(error);
-      if (errorMsg != NULL) {
-         g_warning("Failed to set env variable %s=%s, error=%s.\n",
-                   name, value, errorMsg);
-         free(errorMsg);
-      } else {
-         g_warning("Failed to set env variable %s=%s, error=%d.\n",
-                   name, value, error);
-      }
-      return FALSE;
-   }
-#else
-   if (Posix_Setenv(name, value, TRUE) != 0) {
-      g_warning("Failed to set env variable %s=%s, error=%s.\n",
-                name, value, strerror(errno));
-      return FALSE;
-   }
-#endif
-   return TRUE;
-}
-
-
-/**
- * Unsets an environment variable for the current process.
- *
- * @param[in]  name       Name of the env variable.
- *
- * @return gboolean, TRUE on success or FALSE in case of error.
- */
-
-static gboolean
-ToolsCoreEnvUnsetVar(const char *name)    // IN
-{
-#if defined(_WIN32)
-   if (!Win32U_SetEnvironmentVariable(name, NULL)) {
-      char *errorMsg;
-      DWORD error = GetLastError();
-
-      errorMsg = ToolCoreGetLastErrorMsg(error);
-      if (errorMsg != NULL) {
-         g_warning("Failed to unset env variable %s, error=%s.\n",
-                   name, errorMsg);
-         free(errorMsg);
-      } else {
-         g_warning("Failed to unset env variable %s, error=%d.\n",
-                   name, error);
-      }
-      return FALSE;
-   }
-#else
-   if (Posix_Unsetenv(name) != 0) {
-      g_warning("Failed to unset env variable %s, error=%s.\n",
-                name, strerror(errno));
-      return FALSE;
-   }
-#endif
-   return TRUE;
-}
-
-
-/**
- * Setup environment variables for the current process from
- * a given config group.
- *
- * @param[in]  ctx       Application context.
- * @param[in]  group     Configuration group to be read.
- * @param[in]  doUnset   Whether to unset the environment vars.
- */
-
-static void
-ToolsCoreInitEnvGroup(ToolsAppCtx *ctx,   // IN
-                      const gchar *group, // IN
-                      gboolean doUnset)   // IN
-{
-   gsize i;
-   gsize length;
-   GError *err = NULL;
-   gchar **keys = g_key_file_get_keys(ctx->config, group, &length, &err);
-   if (err != NULL) {
-      if (err->code != G_KEY_FILE_ERROR_GROUP_NOT_FOUND) {
-         g_warning("Failed to get keys for config group %s (err=%d).\n",
-                   group, err->code);
-      }
-      g_clear_error(&err);
-      g_info("Skipping environment initialization for %s from %s config.\n",
-             ctx->name, group);
-      return;
-   }
-
-   g_info("Found %"FMTSZ"d environment variable(s) in %s config.\n",
-          length, group);
-
-   /*
-    * Following 2 formats are supported:
-    * 1. <variableName> = <value>
-    * 2. <serviceName>.<variableName> = <value>
-    *
-    * Variables specified in format #1 are applied to all services and
-    * variables specified in format #2 are applied to specified service only.
-    */
-   for (i = 0; i < length; i++) {
-      const gchar *name = NULL;
-      const gchar *key = keys[i];
-      const gchar *delim;
-
-      /*
-       * Pick the keys that have service name prefix or no prefix.
-       */
-      delim = strchr(key, '.');
-      if (delim == NULL) {
-         name = key;
-      } else if (strncmp(key, ctx->name, delim - key) == 0) {
-         name = delim + 1;
-      }
-
-      /*
-       * Ignore entries with empty env variable names.
-       */
-      if (name != NULL && *name != '\0') {
-         gchar *oldValue = ToolsCoreEnvGetVar(name);
-         if (doUnset) {
-            /*
-             * We can't avoid duplicate removals, but removing a non-existing
-             * environment variable is a no-op anyway.
-             */
-            if (ToolsCoreEnvUnsetVar(name)) {
-               g_message("Removed env var %s=[%s]\n",
-                         name, oldValue == NULL ? "(null)" : oldValue);
-            }
-         } else {
-            gchar *value = VMTools_ConfigGetString(ctx->config, group,
-                                                   key, NULL);
-            if (value != NULL) {
-               /*
-                * Get rid of trailing space.
-                */
-               g_strchomp(value);
-
-               /*
-                * Avoid updating environment var if it is already set to
-                * the same value.
-                *
-                * Also, g_key_file_get_keys() does not filter out duplicates
-                * but, VMTools_ConfigGetString returns only last entry
-                * for the key. So, by comparing old value, we avoid setting
-                * the environment multiple times when there are duplicates.
-                *
-                * NOTE: Need to use g_strcmp0 because oldValue can be NULL.
-                * As value can't be NULL but oldValue can be NULL, we might
-                * still do an unnecessary update in cases like setting a
-                * variable to empty/no value twice. However, it does not harm
-                * and is not worth avoiding it.
-                */
-               if (g_strcmp0(oldValue, value) == 0) {
-                  g_info("Env var %s already set to [%s], skipping.\n",
-                         name, oldValue);
-                  g_free(oldValue);
-                  g_free(value);
-                  continue;
-               }
-               g_debug("Changing env var %s from [%s] -> [%s]\n",
-                       name, oldValue == NULL ? "(null)" : oldValue, value);
-               if (ToolsCoreEnvSetVar(name, value)) {
-                  g_message("Updated env var %s from [%s] -> [%s]\n",
-                            name, oldValue == NULL ? "(null)" : oldValue,
-                            value);
-               }
-               g_free(value);
-            }
-         }
-         g_free(oldValue);
-      }
-   }
-
-   g_info("Initialized environment for %s from %s config.\n",
-          ctx->name, group);
-   g_strfreev(keys);
-}
-
-
-/**
- * Setup environment variables for the current process.
- *
- * @param[in]  ctx       Application context.
- */
-
-static void
-ToolsCoreInitEnv(ToolsAppCtx *ctx)
-{
-   /*
-    * First apply unset environment configuration to start clean.
-    */
-   ToolsCoreInitEnvGroup(ctx, CONFGROUPNAME_UNSET_ENVIRONMENT, TRUE);
-   ToolsCoreInitEnvGroup(ctx, CONFGROUPNAME_SET_ENVIRONMENT, FALSE);
-}
-
-
-/**
  * Performs any initial setup steps for the service's main loop.
  *
  * @param[in]  state       Service state.
@@ -1228,7 +930,7 @@ ToolsCore_Setup(ToolsServiceState *state)
    g_object_set(state->ctx.serviceObj, TOOLS_CORE_PROP_CTX, &state->ctx, NULL);
 
    /* Initialize the environment from config. */
-   ToolsCoreInitEnv(&state->ctx);
+   VMTools_SetupEnv(state->ctx.name, state->ctx.config, FALSE);
    ToolsCorePool_Init(&state->ctx);
 
    /* Initializes the debug library if needed. */

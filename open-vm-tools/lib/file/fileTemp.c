@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2011-2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 2011-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -55,6 +56,8 @@
  *      Regardless of the input value of *var, the output value will
  *      be even or odd as determined by createTempFile.
  *
+ *      The parameter "prefix" is a 24-bit unsigned integer.
+ *
  * Results:
  *      An odd number if createTempFile is TRUE.
  *      An even number if createTempFile is FALSE.
@@ -67,12 +70,14 @@
 
 static void
 FileTempNum(Bool createTempFile,  // IN:
+            uint32 prefix,        // IN:
             uint32 *var)          // IN/OUT:
 {
    ASSERT(var != NULL);
 
    *var += (FileSimpleRandom() >> 8) & 0xFF;
    *var = (*var & ~0x1) | (createTempFile ? 1 : 0);
+   *var |= (prefix << 8);
 }
 
 
@@ -103,6 +108,8 @@ FileTempNum(Bool createTempFile,  // IN:
  *
  *      Check the documentation for File_MakeTempHelperFunc.
  *
+ *      The parameter "prefix" is a 24-bit unsigned integer.
+ *
  * Results:
  *      if a temporary file is created, then Open file descriptor or -1;
  *      if a temporary directory is created, then 0 or -1;
@@ -125,6 +132,7 @@ FileMakeTempEx2Work(const char *dir,                              // IN:
                     Bool makeSubdirSafe,                          // IN:
                     File_MakeTempCreateNameFunc *createNameFunc,  // IN:
                     void *createNameFuncData,                     // IN:
+                    uint32 prefix,                                // IN:
                     char **presult)                               // OUT:
 {
    uint32 i;
@@ -154,7 +162,7 @@ FileMakeTempEx2Work(const char *dir,                              // IN:
        * Not attempting an open on a directory is a good thing...
        */
 
-      FileTempNum(createTempFile, &var);
+      FileTempNum(createTempFile, prefix, &var);
 
       objName = (*createNameFunc)(var, createNameFuncData);
       ASSERT(objName != NULL);
@@ -233,9 +241,42 @@ File_MakeTempEx2(const char *dir,                              // IN:
                  char **presult)                               // OUT:
 {
    return FileMakeTempEx2Work(dir, createTempFile, FALSE, createNameFunc,
-                              createNameFuncData, presult);
+                              createNameFuncData, 0, presult);
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ *  File_MakeTempEx3 --
+ *
+ *      Same as FileMakeTempEx2Int, defaulting 'makeSubdirSafe' to
+ *      FALSE.
+ *
+ *      Add support with a prefix for temp file random number generation.
+ *
+ *      The parameter "prefix" is a 24-bit unsigned integer.
+ *
+ * Results:
+ *      See FileMakeTempEx2Int.
+ *
+ * Side effects:
+ *      See FileMakeTempEx2Int.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+File_MakeTempEx3(const char *dir,                              // IN:
+                 Bool createTempFile,                          // IN:
+                 File_MakeTempCreateNameFunc *createNameFunc,  // IN:
+                 void *createNameFuncData,                     // IN:
+                 uint32 prefix,                                // IN:
+                 char **presult)                               // OUT:
+{
+   return FileMakeTempEx2Work(dir, createTempFile, FALSE, createNameFunc,
+                              createNameFuncData, prefix, presult);
+}
 
 /*
  *----------------------------------------------------------------------------
@@ -337,7 +378,7 @@ File_MakeSafeTempDir(const char *prefix)  // IN:
       const char *effectivePrefix = (prefix == NULL) ? "safeDir" : prefix;
 
       FileMakeTempEx2Work(dir, FALSE, TRUE, FileMakeTempExCreateNameFunc,
-                          (void *) effectivePrefix, &result);
+                          (void *) effectivePrefix, 0, &result);
 
       Posix_Free(dir);
    }

@@ -1,5 +1,7 @@
 ################################################################################
-### Copyright (C) 2014-2016, 2020 VMware, Inc.  All rights reserved.
+### Copyright (c) 2014-2025 Broadcom. All Rights Reserved.
+### Broadcom Confidential. The term "Broadcom" refers to Broadcom Inc.
+### and/or its subsidiaries.
 ###
 ### This program is free software; you can redistribute it and/or modify
 ### it under the terms of version 2 of the GNU General Public License as
@@ -32,6 +34,7 @@ vmware_vgauth_cmd_LDADD += @VMTOOLS_LIBS@
 vmware_vgauth_cmd_LDADD += @GLIB2_LIBS@
 vmware_vgauth_cmd_LDADD += @GTHREAD_LIBS@
 vmware_vgauth_cmd_LDADD += @SSL_LIBS@
+vmware_vgauth_cmd_LDADD += @VMTOOLS_LIBS@
 vmware_vgauth_cmd_LDADD += ../lib/libvgauth.la
 vmware_vgauth_cmd_LDADD += -lssl
 vmware_vgauth_cmd_LDADD += -lcrypto

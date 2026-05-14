@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2010-2021 VMware, Inc. All rights reserved.
+ * Copyright (c) 2010-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -39,9 +40,13 @@ extern "C" {
    #include "vmware/tools/plugin.h"
 }
 
-#define UNGRAB_TIMEOUT 500        // 0.5s
+#ifdef GTK4
+/* Need to use higher timeout value in GTK4, otherwise G->H dnd will fail */
+#define UNGRAB_TIMEOUT 3000    // 3.0s
+#else
+#define UNGRAB_TIMEOUT 500    // 0.5s
+#endif
 #define HIDE_DET_WND_TIMER 500    // 0.5s
-#define UNITY_DND_DET_TIMEOUT 500 // 0.5s
 
 enum GUEST_DND_STATE {
    GUEST_DND_INVALID = 0,
@@ -70,7 +75,6 @@ public:
 
    sigc::signal<void, int, int> moveMouseChanged;
    sigc::signal<void, bool, int, int> updateDetWndChanged;
-   sigc::signal<void, bool, uint32, bool> updateUnityDetWndChanged;
    sigc::signal<void, GUEST_DND_STATE> stateChanged;
 
    sigc::signal<void, const CPClipboard*, std::string> srcDragBeginChanged;
@@ -97,7 +101,6 @@ public:
    void UpdateDetWnd(bool show, int32 x, int32 y);
    void HideDetWnd(void) { UpdateDetWnd(false, 0, 0); }
    void ShowDetWnd(int32 x, int32 y) { UpdateDetWnd(true, x, y); }
-   void UnityDnDDetTimeout(void);
    uint32 GetSessionId(void) { return mSessionId; }
    void SetSessionId(uint32 id) { mSessionId = id; }
    void ResetDnD(void);
@@ -115,22 +118,17 @@ public:
 
    static gboolean DnDUngrabTimeout(void *clientData);
    static gboolean DnDHideDetWndTimer(void *clientData);
-   static gboolean DnDUnityDetTimeout(void *clientData);
 
 protected:
    virtual void OnRpcSrcDragBegin(uint32 sessionId,
                                   const CPClipboard *clip) = 0;
    virtual void OnRpcQueryExiting(uint32 sessionId, int32 x, int32 y);
-   void OnRpcUpdateUnityDetWnd(uint32 sessionId,
-                               bool show,
-                               uint32 unityWndId);
    void OnRpcMoveMouse(uint32 sessionId,
                        int32 x,
                        int32 y);
    void OnPingReply(uint32 capabilities);
 
    virtual void AddDnDUngrabTimeoutEvent() = 0;
-   virtual void AddUnityDnDDetTimeoutEvent() = 0;
    virtual void AddHideDetWndTimerEvent() = 0;
    virtual void CreateDnDRpcWithVersion(uint32 version) = 0;
 
@@ -140,7 +138,6 @@ protected:
    GUEST_DND_STATE mDnDState;
    uint32 mSessionId;
    GSource *mHideDetWndTimer;
-   GSource *mUnityDnDDetTimeout;
    GSource *mUngrabTimeout;
    bool mDnDAllowed;
    DnDCPTransport *mDnDTransport;
@@ -202,4 +199,3 @@ private:
 };
 
 #endif // GUEST_DND_HH
-

@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2008-2024 Broadcom. All Rights Reserved.
+ * Copyright (c) 2008-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -46,6 +46,12 @@
 #include "vmci_sockets.h"
 #endif
 
+/*
+ * The number of RPC channel errors to reasonably indicate that the single allowed toolbox-dnd
+ * channel is currently in use by another process vmusr channel errors before quitting the vmusr
+ * process start-up. Value used to quit vmusr process at start-up
+ */
+#define VMUSR_CHANNEL_MAX_RPC_ERRS 5
 
 
 /**
@@ -63,6 +69,7 @@ ToolsCoreCheckReset(RpcChannel *chan,
 {
    ToolsServiceState *state = _state;
    static gboolean version_sent = FALSE;
+   static gboolean useLegacyVersion = FALSE;
 
    ASSERT(state != NULL);
    ASSERT(chan == state->ctx.rpc);
@@ -70,6 +77,7 @@ ToolsCoreCheckReset(RpcChannel *chan,
    if (success) {
       const gchar *app;
       gchar *msg;
+      gboolean confUseLegacyVersion;
 
       app = ToolsCore_GetTcloName(state);
       if (app == NULL) {
@@ -83,16 +91,35 @@ ToolsCoreCheckReset(RpcChannel *chan,
       }
       g_free(msg);
 
-      if (!version_sent) {
+      /*
+       * Check the config values to see if revert to older format.
+       * Default is false and new format will be used.
+       */
+      confUseLegacyVersion =
+         VMTools_ConfigGetBoolean(state->ctx.config,
+                                  CONFGROUPNAME_VMTOOLS,
+                                  CONFNAME_USELEGACYVERSION,
+                                  FALSE);
+
+      /* Logging reset */
+      if (!version_sent || confUseLegacyVersion != useLegacyVersion) {
          /*
           * Log the Tools version to the VMX log file. We don't really care
           * if sending the message fails.
           */
-         msg = g_strdup_printf("log %s: Version: %s (%s)",
-                               app, VMTOOLSD_VERSION_STRING, BUILD_NUMBER);
+         g_debug("reset vmtools service: using legacy version=%d\n",
+                 confUseLegacyVersion);
+         if (confUseLegacyVersion) {
+            msg = g_strdup_printf("log %s: Version: %s (%s)",
+                                  app, VMTOOLSD_VERSION_STRING, BUILD_NUMBER);
+         } else {
+            msg = g_strdup_printf("log %s: Version: %s.%s",
+                                  app, VMTOOLSD_VERSION_STRING, BUILD_NUMBER_NUMERIC_STRING);
+         }
          RpcChannel_Send(state->ctx.rpc, msg, strlen(msg) + 1, NULL, NULL);
          g_free(msg);
          /* send message only once to prevent log spewing: */
+         useLegacyVersion = confUseLegacyVersion;
          version_sent = TRUE;
       }
 
@@ -405,11 +432,10 @@ ToolsCore_InitRpc(ToolsServiceState *state)
       size_t i;
 
 #if !defined(_WIN32)
-
       /* For the *nix user service app. */
       if (TOOLS_IS_USER_SERVICE(state)) {
          failureCb = ToolsCoreAppChannelFail;
-         errorLimit = ToolsCore_GetVmusrLimit(state);
+         errorLimit = VMUSR_CHANNEL_MAX_RPC_ERRS;
       }
 #endif
 

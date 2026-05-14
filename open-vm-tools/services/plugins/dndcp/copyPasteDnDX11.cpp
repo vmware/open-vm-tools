@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2010-2019 VMware, Inc. All rights reserved.
+ * Copyright (c) 2010-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -27,12 +28,15 @@
 #include "copyPasteDnDWrapper.h"
 #include "copyPasteDnDX11.h"
 #include "copyPasteUIX11.h"
-#include "dndPluginIntX11.h"
 #include "tracer.hh"
+#include "dndPluginIntX11.h"
 
 Window gXRoot;
 Display *gXDisplay;
 GtkWidget *gUserMainWidget;
+#ifdef GTK4
+GdkDisplay *gGdkDisplay;
+#endif
 
 
 extern "C" {
@@ -194,7 +198,9 @@ BlockService::Shutdown()
  */
 
 CopyPasteDnDX11::CopyPasteDnDX11() :
+#if defined(GTK3)
    m_main(NULL),
+#endif
    m_copyPasteUI(NULL),
    m_dndUI(NULL)
 {
@@ -213,6 +219,9 @@ gboolean
 CopyPasteDnDX11::Init(ToolsAppCtx *ctx)
 {
    TRACE_CALL();
+#if GTK_MAJOR_VERSION > 4
+   g_error("Unsupported GTK version!")
+#endif
 
 #if GTK_MAJOR_VERSION > 3 || (GTK_MAJOR_VERSION == 3 && GTK_MINOR_VERSION >= 10)
    /*
@@ -228,21 +237,31 @@ CopyPasteDnDX11::Init(ToolsAppCtx *ctx)
    CopyPasteDnDWrapper *wrapper = CopyPasteDnDWrapper::GetInstance();
 
    ASSERT(ctx);
+
+#ifdef GTK4
+   Gtk::Application::create("com.tools.gtk4");
+#else
    int argc = 1;
    const char *argv[] = {"", NULL};
    m_main = new Gtk::Main(&argc, (char ***) &argv, false);
+#endif
 
    if (wrapper) {
       BlockService::GetInstance()->Init(ctx);
    }
-
-   gUserMainWidget = gtk_invisible_new();
-#ifndef GTK3
-   gXDisplay = GDK_WINDOW_XDISPLAY(gUserMainWidget->window);
+#ifdef GTK4
+   gUserMainWidget = gtk_window_new();
+   gtk_widget_set_visible(gUserMainWidget, FALSE);
+   gGdkDisplay = gdk_display_get_default();
+   gXDisplay = gdk_x11_display_get_xdisplay(gGdkDisplay);
+   gXRoot = gdk_x11_display_get_xrootwindow(gGdkDisplay);
 #else
+   gUserMainWidget = gtk_invisible_new();
+#ifdef GTK3
    gXDisplay = GDK_WINDOW_XDISPLAY(gtk_widget_get_window(gUserMainWidget));
 #endif
    gXRoot = RootWindow(gXDisplay, DefaultScreen(gXDisplay));
+#endif
 
    /*
     * Register legacy (backdoor) version of copy paste.
@@ -261,15 +280,11 @@ CopyPasteDnDX11::Init(ToolsAppCtx *ctx)
 
 CopyPasteDnDX11::~CopyPasteDnDX11()
 {
-   if (m_copyPasteUI) {
-      delete m_copyPasteUI;
-   }
-   if (m_dndUI) {
-      delete m_dndUI;
-   }
-   if (m_main) {
-      delete m_main;
-   }
+   delete m_copyPasteUI;
+   delete m_dndUI;
+#if defined(GTK3)
+   delete m_main;
+#endif
 
    /*
     * Legacy CP.
@@ -277,7 +292,12 @@ CopyPasteDnDX11::~CopyPasteDnDX11()
    CopyPaste_Unregister(gUserMainWidget);
 
    if (gUserMainWidget) {
-      gtk_widget_destroy(gUserMainWidget);
+#ifdef GTK4
+   gtk_window_destroy(GTK_WINDOW(gUserMainWidget));
+#else
+   gtk_widget_destroy(gUserMainWidget);
+#endif
+
    }
 }
 
@@ -322,7 +342,7 @@ CopyPasteDnDX11::RegisterCP()
          CopyPaste_SetVersion(version);
       } else {
          delete m_copyPasteUI;
-         m_copyPasteUI = NULL;
+         m_copyPasteUI = nullptr;
       }
    }
    return wrapper->IsCPRegistered();
@@ -341,6 +361,8 @@ CopyPasteDnDX11::RegisterDnD()
 {
    TRACE_CALL();
    CopyPasteDnDWrapper *wrapper = CopyPasteDnDWrapper::GetInstance();
+
+
 
    if (!wrapper->IsDnDEnabled()) {
       return FALSE;
@@ -361,13 +383,13 @@ CopyPasteDnDX11::RegisterDnD()
             }
          } else {
             delete m_dndUI;
-            m_dndUI = NULL;
+            m_dndUI = nullptr;
          }
       }
    }
-
    g_debug("%s: dnd is registered? %d\n", __FUNCTION__, (int) wrapper->IsDnDRegistered());
    return wrapper->IsDnDRegistered();
+
 }
 
 
@@ -382,10 +404,8 @@ CopyPasteDnDX11::UnregisterCP()
    TRACE_CALL();
    CopyPasteDnDWrapper *wrapper = CopyPasteDnDWrapper::GetInstance();
    if (wrapper->IsCPRegistered()) {
-      if (m_copyPasteUI) {
-         delete m_copyPasteUI;
-         m_copyPasteUI = NULL;
-      }
+      delete m_copyPasteUI;
+      m_copyPasteUI = nullptr;
       wrapper->SetCPIsRegistered(FALSE);
       wrapper->SetCPVersion(-1);
    }
@@ -403,10 +423,10 @@ CopyPasteDnDX11::UnregisterDnD()
    TRACE_CALL();
    CopyPasteDnDWrapper *wrapper = CopyPasteDnDWrapper::GetInstance();
    if (wrapper->IsDnDRegistered()) {
-      if (m_dndUI) {
-         delete m_dndUI;
-         m_dndUI = NULL;
-      }
+
+      delete m_dndUI;
+      m_dndUI = nullptr;
+
       wrapper->SetDnDIsRegistered(false);
       wrapper->SetDnDVersion(-1);
       return;

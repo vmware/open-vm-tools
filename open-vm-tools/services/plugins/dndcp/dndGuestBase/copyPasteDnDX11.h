@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2010-2018 VMware, Inc. All rights reserved.
+ * Copyright (c) 2010-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -27,14 +28,16 @@
 #define __COPYPASTEDNDX11_H__
 
 #include "dnd.h"     /* for DnDBlockControl */
+#ifdef GTK4
+#include <gtkmm/application.h>
+#include "dndUIX11GTK4.h"
+#else
 #include "dndUIX11.h"
+#endif
+
 #include <gtk/gtk.h>
 #include "vm_basic_types.h"
 #include "copyPasteDnDImpl.h"
-
-extern "C" {
-void CopyPasteDnDWrapper_SetUnityMode(Bool mode);
-}
 
 class CopyPasteUIX11;
 
@@ -52,13 +55,14 @@ public:
    virtual void DnDVersionChanged(int version);
    virtual void CopyPasteVersionChanged(int version);
    virtual uint32 GetCaps();
-   void SetUnityMode(Bool mode) {m_dndUI->SetUnityMode(mode);};
    void SetDnDAllowed(bool allowed);
    void SetCopyPasteAllowed(bool allowed);
 private:
-   Gtk::Main *m_main;
    CopyPasteUIX11 *m_copyPasteUI;
    DnDUIX11 *m_dndUI;
+#if defined(GTK3)
+   Gtk::Main *m_main;
+#endif
 };
 
 #endif // __COPYPASTEDNDX11_H__

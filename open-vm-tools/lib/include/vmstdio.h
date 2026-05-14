@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 1998-2020 VMware, Inc. All rights reserved.
+ * Copyright (c) 1998-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -22,8 +23,8 @@
  *    Functions that operate on FILE objects --hpreg
  */
 
-#ifndef __VMSTDIO_H__
-#   define __VMSTDIO_H__
+#ifndef VMSTDIO_H
+#define VMSTDIO_H
 
 #include <stdio.h>
 
@@ -43,8 +44,13 @@ StdIO_ReadNextLine(FILE *stream,         // IN
                    size_t maxBufLength,  // IN
                    size_t *count);       // OUT
 
+char *
+StdIO_PromptUser(FILE *out,           // IN
+                 const char *prompt,  // IN
+                 Bool echo);          // IN
+
 #if defined(__cplusplus)
 }  // extern "C"
 #endif
 
-#endif /* __VMSTDIO_H__ */
+#endif /* VMSTDIO_H */

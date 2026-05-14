@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 1998-2024 Broadcom. All Rights Reserved.
+ * Copyright (c) 1998-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -245,7 +245,7 @@
  * - VMM does not have POSIX headers
  * - Windows <sys/types.h> does not define ssize_t
  */
-#if defined(VMKERNEL) || defined(VMM)
+#if defined(VMKERNEL) || defined(VMM) || defined(GLM)
    /* Guard against FreeBSD <sys/types.h> collison. */
 #  if !defined(_SIZE_T_DEFINED) && !defined(_SIZE_T)
 #     define _SIZE_T_DEFINED
@@ -427,22 +427,25 @@ typedef int64 VmTimeVirtualClock;  /* Virtual Clock kept in CPU cycles */
  * Suffix for 64-bit constants.  Use it like this:
  *    CONST64(0x7fffffffffffffff) for signed or
  *    CONST64U(0x7fffffffffffffff) for unsigned.
+ *
+ * Only use with literal constants.
+ * It might not do the right thing with an expression.
  */
 
 #if !defined(CONST64) || !defined(CONST64U)
 #ifdef _MSC_VER
-#define CONST64(c) c##I64
-#define CONST64U(c) c##uI64
+#define CONST64(c) (c##I64)
+#define CONST64U(c) (c##uI64)
 #elif defined __APPLE__
-#define CONST64(c) c##LL
-#define CONST64U(c) c##uLL
+#define CONST64(c) (c##LL)
+#define CONST64U(c) (c##uLL)
 #elif __GNUC__
 #if defined(VM_X86_64) || defined(VM_ARM_64)
-#define CONST64(c) c##L
-#define CONST64U(c) c##uL
+#define CONST64(c) (c##L)
+#define CONST64U(c) (c##uL)
 #else
-#define CONST64(c) c##LL
-#define CONST64U(c) c##uLL
+#define CONST64(c) (c##LL)
+#define CONST64U(c) (c##uLL)
 #endif
 #else
 #error - Need compiler define for CONST64
@@ -553,9 +556,9 @@ typedef  int128  Reg128;
 typedef uint128 UReg128;
 #endif
 
-#if (defined(VMM) || defined(COREQUERY) || defined(EXTDECODER) ||  \
-     defined (VMKERNEL) || defined (VMKBOOT) || defined (ULM)) &&  \
-    !defined (FROBOS) || defined (VSAN_USERLEVEL)
+#if (defined(VMM) || defined(GLM) || defined(COREQUERY) ||              \
+     defined(EXTDECODER) || defined(VMKERNEL) || defined(VMKBOOT) ||    \
+     defined(ULM)) && !defined(FROBOS) || defined(VSAN_USERLEVEL)
 typedef  Reg64  Reg;
 typedef UReg64 UReg;
 #endif
@@ -647,15 +650,20 @@ typedef void * UserVA;
 
 #define INVALID_BPN       ((BPN)0x0000ffffffffffffull)
 
-#define MPN38_MASK        ((1ull << 38) - 1)
+#if defined(VM_X86_ANY)
+#define MPN_MASK          ((1ull << 38) - 1)
+#elif defined(VM_ARM_64)
+#define MPN_MASK          ((1ull << 36) - 1) /* without FEAT_LPA{,2} */
+#endif
 
 #define RESERVED_MPN      ((MPN)0)
-#define INVALID_MPN       ((MPN)MPN38_MASK)
-#define MEMREF_MPN        ((MPN)MPN38_MASK - 1)
-#define RELEASED_MPN      ((MPN)MPN38_MASK - 2)
+#define INVALID_MPN       ((MPN)MPN_MASK)
+#define MEMREF_MPN        ((MPN)MPN_MASK - 1)
+#define RELEASED_MPN      ((MPN)MPN_MASK - 2)
+#define ECC_CORRUPTED_MPN ((MPN)MPN_MASK - 3)
 
 /* account for special MPNs defined above */
-#define MAX_MPN           ((MPN)MPN38_MASK - 3) /* 50 bits of address space */
+#define MAX_MPN           ((MPN)MPN_MASK - 4)
 
 #define INVALID_IOPN      ((IOPN)-1)
 #define MAX_IOPN          (IOA_2_IOPN((IOA)-1))
@@ -671,7 +679,8 @@ typedef void * UserVA;
  * Use them like this: Log("%#" FMTLA "x\n", laddr)
  */
 
-#if defined(VMM) || defined(FROBOS64) || vm_x86_64 || vm_arm_64 || defined __APPLE__
+#if defined(VMM)  || defined(GLM) || defined(FROBOS64) ||       \
+    vm_x86_64 || vm_arm_64 || defined __APPLE__
 #   define FMTLA "l"
 #   define FMTVA "l"
 #   define FMTVPN "l"
@@ -817,7 +826,7 @@ typedef void * UserVA;
  * and loop optimization just as an arithmetic operator would be.
  */
 
-#if defined(__GNUC__) && (defined(VMM) || defined (VMKERNEL))
+#if defined(__GNUC__) && (defined(VMM) || defined(GLM) || defined(VMKERNEL))
 #define SIDE_EFFECT_FREE __attribute__((__pure__))
 #else
 #define SIDE_EFFECT_FREE
@@ -830,7 +839,7 @@ typedef void * UserVA;
  * memory.
  */
 
-#if defined(__GNUC__) && (defined(VMM) || defined (VMKERNEL))
+#if defined(__GNUC__) && (defined(VMM) || defined(GLM) || defined(VMKERNEL))
 #define CONST_FUNCTION __attribute__((__const__))
 #else
 #define CONST_FUNCTION
@@ -978,7 +987,7 @@ typedef void * UserVA;
  * https://people.kernel.org/kees/bounded-flexible-arrays-in-c
  */
 
-#if __has_attribute(__counted_by__)
+#if __has_attribute(__counted_by__) && !defined(__cplusplus)
 # define COUNTED_BY(member) __attribute__((__counted_by__(member)))
 #else
 # define COUNTED_BY(member)

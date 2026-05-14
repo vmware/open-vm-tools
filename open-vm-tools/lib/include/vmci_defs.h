@@ -1,5 +1,5 @@
 /*********************************************************
- * Copyright (c) 2005-2024 Broadcom. All Rights Reserved.
+ * Copyright (c) 2005-2025 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -175,7 +175,12 @@ typedef uint32 VMCI_Resource;
  * hypervisor (CID 0) because RID 1 is already reserved.
  */
 #define VSOCK_PACKET_HYPERVISOR_RID 15
-#define VMCI_RESOURCE_MAX           16
+/*
+ * This resource id is used by D-TLS vDSM component
+ * Details: https://vmw-jira.broadcom.net/browse/ANSD-2795
+ */
+#define VMCI_VDSM_RID               16
+#define VMCI_RESOURCE_MAX           17
 /*
  * The core VMCI device functionality only requires the resource IDs of
  * VMCI_QUEUEPAIR_DETACH and below.

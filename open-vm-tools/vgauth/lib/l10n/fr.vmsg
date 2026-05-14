@@ -1,5 +1,6 @@
 ##########################################################
-# Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
+# Copyright (c) 2011-2025 Broadcom. All Rights Reserved.
+# The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -16,6 +17,29 @@
 #
 ##########################################################
 
-auth.password.invalid = "Non-concordance du nom d'utilisateur et du mot de passe pour '%1$s'"
+auth.password.invalid = "Échec de la validation du nom d'utilisateur et du mot de passe pour « %1$s » : %2$s"
 auth.password.valid = "Validation réussie du nom d'utilisateur et du mot de passe pour '%1$s'"
 auth.sspi.badid = "Tentative d'authentification à l'aide d'un ID de demande SSPI non valide ou expiré : %1$u"
+
+vgauth.errcode.ok = "L'opération a réussi"
+vgauth.errcode.invalid_argument = "L'un des paramètres n'était pas valide"
+vgauth.errcode.invalid_certificate = "Le certificat n'est pas un document x509 bien formé"
+vgauth.errcode.permission_denied = "Autorisations insuffisantes"
+vgauth.errcode.out_of_memory = "Mémoire insuffisante"
+vgauth.errcode.comm = "Erreur de communication interne entre la bibliothèque et le service"
+vgauth.errcode.notimplemented = "Non implémenté"
+vgauth.errcode.not_connected = "Non connecté au service"
+vgauth.errcode.version_mismatch = "Non-correspondance de la version de bibliothèque/service"
+vgauth.errcode.security_violation = "Violation de sécurité potentielle détectée"
+vgauth.errcode.cert_already_exists = "Le certificat existe déjà"
+vgauth.errcode.authentication_denied = "Authentification refusée"
+vgauth.errcode.invalid_ticket = "Ticket non valide"
+vgauth.errcode.multiple_mappings = "Le certificat est associé à plusieurs utilisateurs ou une chaîne contient plusieurs correspondances avec le fichier de mappage"
+vgauth.errcode.already_impersonating = "Le contexte emprunte déjà l'identité"
+vgauth.errcode.no_such_user = "Utilisateur introuvable"
+vgauth.errcode.service_not_running = "Ce service n'est pas en cours d'exécution"
+vgauth.errcode.system_errno = "Une opération spécifique au système d'exploitation a échoué"
+vgauth.errcode.system_windows = "Une opération spécifique au système d'exploitation a échoué"
+vgauth.errcode.too_many_connections = "L'utilisateur a dépassé son nombre maximal de connexions"
+vgauth.errcode.unsupported = "L'opération n'est pas prise en charge"
+vgauth.errcode.fail = "Erreur inconnue"

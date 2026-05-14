@@ -308,6 +308,7 @@ VGAuth_Init(const char *applicationName,
       gchar *msgCatalog;
 
       gPrefs = Pref_Init(VGAUTH_PREF_CONFIG_FILENAME);
+      Pref_InitEnv(gPrefs, applicationName, TRUE);
       logSuccessAudits = Pref_GetBool(gPrefs,
                                       VGAUTH_PREF_AUDIT_SUCCESS,
                                       VGAUTH_PREF_GROUP_NAME_AUDIT,

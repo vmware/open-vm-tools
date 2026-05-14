@@ -1,5 +1,6 @@
 /*********************************************************
- * Copyright (C) 2010-2016 VMware, Inc. All rights reserved.
+ * Copyright (c) 2010-2025 Broadcom. All Rights Reserved.
+ * The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published
@@ -26,7 +27,12 @@
 
 #include <X11/Xlib.h>
 #include <gtk/gtk.h>
+#ifdef GTK4
+#include <gdk/x11/gdkx.h>
+#else
 #include <gdk/gdkx.h>
+#endif
+
 #undef Bool
 #include "vm_basic_types.h"
 #include "dnd.h"
@@ -36,5 +42,8 @@
 extern Display *gXDisplay;
 extern Window gXRoot;
 extern GtkWidget *gUserMainWidget;
+#ifdef GTK4
+extern GdkDisplay *gGdkDisplay;
+#endif
 
 #endif

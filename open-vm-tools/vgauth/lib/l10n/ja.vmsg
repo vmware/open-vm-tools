@@ -1,5 +1,6 @@
 ##########################################################
-# Copyright (C) 2011-2016 VMware, Inc. All rights reserved.
+# Copyright (c) 2011-2025 Broadcom. All Rights Reserved.
+# The term "Broadcom" refers to Broadcom Inc. and/or its subsidiaries.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -16,6 +17,29 @@
 #
 ##########################################################
 
-auth.password.invalid = "'%1$s' のユーザー名とパスワードが一致しません"
+auth.password.invalid = "'%1$s' のユーザー名とパスワードの検証に失敗しました: %2$s"
 auth.password.valid = "'%1$s' のユーザー名とパスワードが正しく検証されました"
 auth.sspi.badid = "無効または期限切れの SSPI チャレンジ ID を使用して認証を試みます: %1$u"
+
+vgauth.errcode.ok = "操作が成功しました"
+vgauth.errcode.invalid_argument = "パラメータの 1 つが無効です"
+vgauth.errcode.invalid_certificate = "証明書は適切な形式の x509 ドキュメントではありません"
+vgauth.errcode.permission_denied = "権限不足"
+vgauth.errcode.out_of_memory = "メモリが不足しています"
+vgauth.errcode.comm = "ライブラリとサービス間の内部通信エラー"
+vgauth.errcode.notimplemented = "実装されませんでした"
+vgauth.errcode.not_connected = "サービスに接続されていません"
+vgauth.errcode.version_mismatch = "サービス/ライブラリのバージョンが一致しません"
+vgauth.errcode.security_violation = "潜在的なセキュリティ違反が検出されました"
+vgauth.errcode.cert_already_exists = "証明書はすでに存在します"
+vgauth.errcode.authentication_denied = "認証が拒否されました"
+vgauth.errcode.invalid_ticket = "無効なチケット"
+vgauth.errcode.multiple_mappings = "証明書が複数のユーザーに関連付けられているか、チェーンにマッピング ファイルに対する複数の一致が含まれていました"
+vgauth.errcode.already_impersonating = "コンテキストはすでになりすましです"
+vgauth.errcode.no_such_user = "ユーザーが見つかりません"
+vgauth.errcode.service_not_running = "サービスが実行されていません"
+vgauth.errcode.system_errno = "OS 固有の操作に失敗しました"
+vgauth.errcode.system_windows = "OS 固有の操作に失敗しました"
+vgauth.errcode.too_many_connections = "ユーザーが最大接続数を超えました"
+vgauth.errcode.unsupported = "この操作はサポートされていません"
+vgauth.errcode.fail = "不明なエラー"
