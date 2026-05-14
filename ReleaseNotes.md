@@ -1,56 +1,127 @@
-#open-vm-tools 10.0.0 Release Notes 
+#                      open-vm-tools 13.1.0 Release Notes
 
-Updated on 1 SEP 2015
-##What's in the Release Notes
-The release notes cover the following topics: 
+Updated on: 12 May 2026
 
-- What's New
-- Internationalization
-- Compatibility
-- Installation and Upgrades for This Release
-- Known Issues
+open-vm-tools | 12 MAY 2026 | Build 25218885
 
-##What's New 
-VMware Tools is a suite of utilities that enhances the performance of the virtual machine's guest operating system and improves management of the virtual machine. Read about the new and enhanced features in this release below:
+Check back for additions and updates to these release notes.
 
-- **Common versioning**: Infrastructure changes to enable reporting of the true version of open-vm-tools. This feature is dependent on host support. 
-- **Quiesced snapshots enhancements for Linux guests running IO workload**: Robustness related enhancements in quiesced snapshot operation. The _vmtoolsd_ service supports caching of log messages when guest IO has been quiesced. Enhancements in the _vmbackup_ plugin use a separate thread to quiesce the guest OS to avoid timeout issues due to heavy I/O in the guest. 
-- **Shared Folders**: For Linux distributions with kernel version 4.0.0 and higher, there is a new FUSE based Shared Folders client which is used as a replacement for the kernel mode client. 
-- **ESXi Serviceability**: Default _vmtoolsd_ logging is directed to a file instead of syslog.  _vmware-toolbox-cmd_ is enhanced for setting _vmtoolsd_ logging levels.
-- **GuestInfo Enhancements**: Plugin enhancements to report more than 64 IP addresses from the guest. These enhancements will be available only after upgrading the host because the guest IP addresses limit also exists on the host side.
+## What is in the Release Notes
 
-## Internationalization 
-open-vm-tools 10.0.0 supports the following languages:
+The release notes cover the following topics:
 
-- English 
-- French 
-- German 
-- Spanish 
-- Italian 
-- Japanese 
-- Korean 
-- Simplified Chinese 
-- Traditional Chinese
+* [What's New](#whatsnew) 
+* [Internationalization](#i18n) 
+* [Compatibility Notes](#compat)
+* [Guest Operating System Customization Support](#guestop) 
+* [Interoperability Matrix](#interop) 
+* [Resolved Issues](#resolvedissues) 
+* [Known Issues](#knownissues)
 
-## Compatibility 
-open-vm-tools 10.0.0 is compatible with all supported versions of VMware vSphere, VMware Workstation 12.0 and VMware Fusion 8.0.
-## Installation and Upgrades for This Release 
-The steps to install open-vm-tools vary depending on your VMware product and the guest operating system you have installed. For general steps to install open-vm-tools in most VMware products, see https://github.com/vmware/open-vm-tools/blob/master/README.md
-## Known Issues 
-The known issues are as follows:
+## <a id="whatsnew" name="whatsnew"></a>What's New
 
-- **The status of IPv6 address is displayed as "unknown"**
+#### Support for GNOME Toolkit version 4 - GTK4.
 
-	The status of IPv6 address from vim-cmd is displayed as "unknown" even when the address is valid.
+The open-vm-tools release 13.1.0 introduces support for the GNOME Toolkit version 4.  Providers of open-vm-tools can choose to build the desktop plugins using GTK4 or continue to build using GTK3.  The choice of GTK version to be used is made with the one of the following options to the configure script
 
-	Workaround: None 
-- **TextCopyPaste between host and guest systems fail**
+* __--with-gtk4__        # build only with GTK4; configure error if not available.
+* __--with-gtk3__        # build only with GTK3; configure error if not available.
 
-	Copy and Paste of text between host and guest systems fail if the text size 50KB or higher.
- 
-	Workaround: Copy and Paste smaller amounts of text. 
-- **Definition of the field _ipAddress_ in guestinfo is ambiguous**
+If neither option is provided, the configure script will attempt to determine if the required pieces of GTK4 or GTK3 are available on the system.   If successful, the open-vm-tools build will be configured to use the highest available version.
 
-	The field _ipAddress_ is defined as "Primary IP address assigned to the guest operating system, if known".
- 
-	Workaround: The field _ipAddress_ in this context for Linux is defined as the first IP address fetched by open-vm-tools.
+If no GTK development and runtime is found on the system, the configure script will terminate with a short message with details in the "config.log" file.
+
+Support for GTK2 has been removed from the open-vm-tools source.
+
+See the [Known Issues](#knownissues) section below for GTK4 related issues that are being tracked.
+
+#### Additional Changes.
+
+*   New release of the Salt-Minion integration script.
+
+    Picking up the latest release of the svtminion.sh script - version v2026.01.09
+
+*   Fallback to ignore systemd inhibitors during guest poweroff / reboot.
+
+    If the system() shutdown command fails due to any system inhibitors, a fallback "systemctl shutdown/reboot" is executed while ignoring the systemd inhibitors.
+
+*   Two issues reported on github have been fixed.  Please see the [Resolved Issues](#resolvedissues) section below.
+
+*   Various fixes for critical issues.
+
+*   Please see the [Resolved Issues](#resolvedissues) and [Known Issues](#knownissues) sections below.
+
+*   A complete list of the granular changes in the open-vm-tools 13.1.0 release is available at:
+
+    [open-vm-tools ChangeLog](https://github.com/vmware/open-vm-tools/blob/stable-13.1.0/open-vm-tools/ChangeLog)
+
+## <a id="i18n" name="i18n"></a>Internationalization
+
+open-vm-tools 13.1.0 is available in the following languages:
+
+* English
+* French
+* Japanese
+* Spanish
+
+## <a id="compat" name="compat"></a>Compatibility Notes
+
+* **VMware Product and Hardware Version Compatibility**
+
+This release of open-vm-tools is compatible with all supported versions of VMware products and with different hardware versions supported by VMware products.  For more information about the officially supported VMware product compatibility, see the [Broadcom Interoperability Matrix](https://interopmatrix.broadcom.com/Interoperability).
+
+* **Guest Operating System Compatibility**
+
+This release of open-vm-tools is compatible with a wide range of guest OS versions supported by VMware products. For more information about the officially supported Linux guest OS versions, see the Broadcom knowledge base article [313371](https://knowledge.broadcom.com/external/article/313371).
+
+## <a id="guestop" name="guestop"></a>Guest Operating System Customization Support
+
+The [Guest OS Customization Support Matrix](https://compatibilityguide.broadcom.com/search?program=software&persona=live&customization=Guest+Customization&column=osVendors&order=asc) provides details about the guest operating systems that are supported for customization.
+
+
+## <a id="interop" name="interop"></a>Interoperability Matrix
+
+The [Broadcom Interoperability Matrix](https://interopmatrix.broadcom.com/Interoperability) provides details about the compatibility of current and earlier versions of VMware Products. 
+
+## <a id="resolvedissues" name ="resolvedissues"></a> Resolved Issues
+
+*   **Missing VGAuthLib vmsg files.**
+
+    [issue #707](https://github.com/vmware/open-vm-tools/issues/707) vmware-vgauth-smoketest: no VGAuthLib.vmsg file
+
+    The vgauth/lib/Makefile.am has been corrected to install the expected VGAuthLib vmsg files.
+
+    This issue is resolved in this release.
+
+*   **Guest customization fails to recognize cloudinit "disable_vmware_customization" flag in the presence of a comment.**
+
+    [issue #763](https://github.com/vmware/open-vm-tools/issues/763) Inline comment breaks "disable_vmware_customization" check
+
+    The regex check for "disable_vmware_customization" was too strict and fails when there are inline comments after the flag.
+
+    This issue is resolved in this release.
+
+## <a id="knownissues" name="knownissues"></a>Known Issues
+
+*   **General list of GTK4 related issues.**
+
+    The following issues identified when testing with GTK4 are being tracked.
+    * In general, UI features work better when using Xorg/X11 rather than Wayland.
+    * CopyPaste is more stable than Drag and Drop (DnD). It is recommended to use CopyPaste where possible.
+    * DnD from a guest to the host may block with the cursor at the guest VM's desktop edge.
+    * DnD of RTF text from a guest to the host loses the RTF formatting information.
+    * DnD is working with Windows as a host; Linux and MacOS hosts experience issues.
+
+*   **Shared Folders mount is unavailable on Linux VM.**
+
+    If the **Shared Folders** feature is enabled on a Linux VM while it is powered off, the shared folders mount is not available on restart.
+
+    Note: This issue is applicable to open-vm-tools running on VMware Workstation and VMware Fusion.
+
+    Workaround:
+
+    If the VM is powered on, disable and enable the **Shared Folders** feature from the interface. For resolving the issue permanently, edit **/etc/fstab** and add an entry to mount the Shared Folders automatically on boot.  For example, add the line:
+
+    <tt>vmhgfs-fuse   /mnt/hgfs    fuse    defaults,allow_other    0    0</tt>
+
+    For more information on how to configure open-vm-tools Shared Folders, see [KB 60262](https://knowledge.broadcom.com/external/article?legacyId=60262).

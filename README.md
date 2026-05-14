@@ -25,7 +25,8 @@ open-vm-tools enables the following features in VMware products:
 
 ## Can you provide more details on the actual code being released?
 The following components have been released as open source software:
-- Linux, Solaris and FreeBSD drivers for various devices and file system access.
+- Solaris and FreeBSD drivers for various devices and file system access.
+- Linux drivers have been upstreamed to the Linux community and are not provided in the open-vm-tools release.
 - The PowerOps plugin to perform graceful power operation and run power scripts.
 - The VIX plugin to run programs and commands, and perform file system operations in guest.
 - The GuestInfo plugin to periodically collect various statistics from guest.
@@ -224,7 +225,7 @@ Use the appropriate generic Linux designation when configuring a VM for your Lin
 - Other Linux (64-bit)
 - Other Linux (32-bit)
 
-# Compatibilty
+# Compatibility
 
 ## What Operating Systems are supported for customization?
 The [Guest OS Customization Support Matrix](http://partnerweb.vmware.com/programs/guestOS/guest-os-customization-matrix.pdf) provides details about the guest operating systems supported for customization.
@@ -236,13 +237,15 @@ The [VMware Product Interoperability Matrix](http://partnerweb.vmware.com/comp_g
 # Internationalization
 ## Which languages are supported?
 
-open-vm-tools supports the following languages:
+Effective with open-vm-tools 13.0.0, only the following languages are supported:
 - English
 - French
-- German
-- Spanish
-- Italian
 - Japanese
+- Spanish
+
+The following languages will no longer be supported:
+- Italian
+- German
 - Korean
 - Simplified Chinese
 - Traditional Chinese
