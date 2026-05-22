@@ -109,9 +109,9 @@ rotate_logfile() {
       max=`expr $max - 1`
       for s in `seq $max -1 1`; do
          d=`expr $s + 1`
-         mv -f $logbase.$s.log $logbase.$d.log
+         mv -f $logbase.log.$s $logbase.log.$d
       done
-      mv -f $logbase.log $logbase.1.log
+      mv -f $logbase.log $logbase.log.1
    fi
 }
 
