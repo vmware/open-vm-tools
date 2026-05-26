@@ -66,6 +66,10 @@
 #include <arpa/nameser.h>
 #include <resolv.h>
 
+#if !defined(__GLIBC__)
+# include "resolv_compat.h"
+#endif
+
 #ifdef __linux__
 #   include <net/if.h>
 #endif
