@@ -105,11 +105,13 @@ typedef struct DirectoryEntry {
 #endif
 
 /*
- * ALLPERMS (mode 07777) and ACCESSPERMS (mode 0777) are not defined in the
- * Solaris version of <sys/stat.h>.
+ * ALLPERMS (mode 07777) and ACCESSPERMS (mode 0777) are not specified in
+ * POSIX.
  */
-#ifdef sun
+#ifndef ACCESSPERMS
 #   define ACCESSPERMS (S_IRWXU|S_IRWXG|S_IRWXO)
+#endif
+#ifndef ALLPERMS
 #   define ALLPERMS (S_ISUID|S_ISGID|S_ISVTX|S_IRWXU|S_IRWXG|S_IRWXO)
 #endif
 
