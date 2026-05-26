@@ -201,13 +201,31 @@ hgfs_getattr(const char *path,    //IN: path of a file/directory
    stbuf->st_rdev = 0;
 
    if (attr->mask & HGFS_ATTR_VALID_ACCESS_TIME) {
+#if HAVE_STRUCT_STAT_ST_MTIMESPEC
+      HGFS_SET_TIME(stbuf->st_atimespec, attr->accessTime);
+#elif HAVE_STRUCT_STAT_ST_MTIM
+      HGFS_SET_TIME(stbuf->st_atim, attr->accessTime);
+#else
       HGFS_SET_TIME(stbuf->st_atime, attr->accessTime);
+#endif
    }
    if (attr->mask & HGFS_ATTR_VALID_WRITE_TIME) {
+#if HAVE_STRUCT_STAT_ST_MTIMESPEC
+      HGFS_SET_TIME(stbuf->st_mtimespec, attr->writeTime);
+#elif HAVE_STRUCT_STAT_ST_MTIM
+      HGFS_SET_TIME(stbuf->st_mtim, attr->writeTime);
+#else
       HGFS_SET_TIME(stbuf->st_mtime, attr->writeTime);
+#endif
    }
    if (attr->mask & HGFS_ATTR_VALID_CHANGE_TIME) {
+#if HAVE_STRUCT_STAT_ST_MTIMESPEC
+      HGFS_SET_TIME(stbuf->st_ctimespec, attr->attrChangeTime);
+#elif HAVE_STRUCT_STAT_ST_MTIM
+      HGFS_SET_TIME(stbuf->st_ctim, attr->attrChangeTime);
+#else
       HGFS_SET_TIME(stbuf->st_ctime, attr->attrChangeTime);
+#endif
    }
 
 exit:
@@ -748,7 +766,7 @@ hgfs_chmod(const char *path,   //IN: path to a file
    attr->otherPerms = mode & S_IRWXO;
 
    attr->mask |= HGFS_ATTR_VALID_ACCESS_TIME;
-   attr->accessTime = attr->attrChangeTime = HGFS_GET_TIME(time(NULL));
+   attr->accessTime = attr->attrChangeTime = HGFS_GET_CURRENT_TIME();
 
    res = HgfsSetattr(abspath, attr);
    if (res < 0) {
@@ -819,7 +837,7 @@ hgfs_chown(const char *path,  //IN: Path to a file
    attr->groupId = gid;
 
    attr->mask |= HGFS_ATTR_VALID_ACCESS_TIME;
-   attr->accessTime = attr->attrChangeTime = HGFS_GET_TIME(time(NULL));
+   attr->accessTime = attr->attrChangeTime = HGFS_GET_CURRENT_TIME();
 
    res = HgfsSetattr(abspath, attr);
    if (res < 0) {
@@ -887,7 +905,7 @@ hgfs_truncate(const char *path,  //IN: path to a file
    attr->mask |= (HGFS_ATTR_VALID_WRITE_TIME |
                   HGFS_ATTR_VALID_ACCESS_TIME |
                   HGFS_ATTR_VALID_CHANGE_TIME);
-   attr->writeTime = attr->accessTime = attr->attrChangeTime = HGFS_GET_TIME(time(NULL));
+   attr->writeTime = attr->accessTime = attr->attrChangeTime = HGFS_GET_CURRENT_TIME();
 
    res = HgfsSetattr(abspath, attr);
    if (res < 0) {
