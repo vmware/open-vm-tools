@@ -33,6 +33,8 @@
 #error "This file should be compiled for RPCI-only channel!"
 #endif
 
+#undef g_free
+
 void *g_malloc0(size_t s) { return Util_SafeCalloc(1, s); }
 void *g_malloc0_n(size_t n, size_t s) { return Util_SafeCalloc(n, s); }
 void g_free(void *p) { free(p); }
