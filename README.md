@@ -1,6 +1,6 @@
 # General
 ## What is the open-vm-tools project?
-open-vm-tools is a set of services and modules that enable several features in VMware products for better management of, and seamless user interactions with, guests. It includes kernel modules for enhancing the performance of virtual machines running Linux or other VMware supported Unix like guest operating systems. 
+open-vm-tools is a set of services and modules that enable several features in VMware products for better management of, and seamless user interactions with, guests. It includes kernel modules for enhancing the performance of virtual machines running Linux or other VMware supported Unix like guest operating systems.
  
 open-vm-tools enables the following features in VMware products:
 
@@ -250,7 +250,7 @@ The following languages will no longer be supported:
 - Simplified Chinese
 - Traditional Chinese
 
-# Other
+# Other(s)
 ## Mailing Lists
 Please send an email to one of these mailing lists based on the nature of your question.
 - Development related questions : open-vm-tools-devel@lists.sourceforge.net
