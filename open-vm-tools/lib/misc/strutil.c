@@ -1454,6 +1454,7 @@ StrUtil_ReplaceAll(const char *orig, // IN
     char *result;
     const char *current;
     char *tmp;
+    const char *tmp2;
     size_t lenWhat;
     size_t lenWith;
     size_t occurrences = 0;
@@ -1467,8 +1468,8 @@ StrUtil_ReplaceAll(const char *orig, // IN
     lenWith = strlen(with);
 
     current = orig;
-    while ((tmp = strstr(current, what)) != NULL) {
-       current = tmp + lenWhat;
+    while ((tmp2 = strstr(current, what)) != NULL) {
+       current = tmp2 + lenWhat;
        ++occurrences;
     }
 
@@ -1695,7 +1696,7 @@ StrUtilHasListItem(char const *list,                               // IN:
                    char const *item,                               // IN:
                    int (*ncmp)(char const *, char const*, size_t)) // IN:
 {
-   char *foundDelim;
+   const char *foundDelim;
    int itemLen = strlen(item);
 
    if (list == NULL) {

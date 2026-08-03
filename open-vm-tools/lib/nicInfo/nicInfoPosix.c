@@ -263,7 +263,7 @@ static Bool
 IpEntryMatchesDevice(const char *devName,
                      const char *label)
 {
-   char *p;
+   const char *p;
    size_t n;
 
    if ((p = strchr(label, ':')) != NULL) {

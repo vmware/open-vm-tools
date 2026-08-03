@@ -175,7 +175,7 @@ HgfsAddEscapeCharacter(char const * bufIn,      // IN: input name
    HgfsEscapeContext *escapeContext = (HgfsEscapeContext *)context;
    uint32 charactersToCopy;
    uint32 outputSpace;
-   char* illegal;
+   const char* illegal;
    Bool result = TRUE;
 
    ASSERT(offset >= escapeContext->processedOffset); // Scanning forward
@@ -573,7 +573,7 @@ HgfsIsEscapeSequence(char const *bufIn,   // IN: input name
                      uint32 length)       // IN: length of the name in characters
 {
    if (bufIn[offset] == HGFS_ESCAPE_CHAR && offset > 0) {
-      char *substitute;
+      const char *substitute;
       if (bufIn[offset - 1] == HGFS_ESCAPE_SUBSTITUE_CHAR && offset > 1) {
          /*
           * Possibly a valid sequence, check it must be preceded with a substitute
@@ -887,7 +887,7 @@ HgfsEscapeUndoComponent(char   *bufIn,             // IN: Characters to be unesc
       size_t offset = escapePointer - bufIn;
 
       if (HgfsIsEscapeSequence(bufIn, offset, sizeIn)) {
-         char* substitute = strchr(HGFS_SUBSTITUTE_CHARS, bufIn[offset - 1]);
+         const char* substitute = strchr(HGFS_SUBSTITUTE_CHARS, bufIn[offset - 1]);
          if (substitute != NULL) {
             bufIn[offset - 1] = HGFS_ILLEGAL_CHARS[substitute - HGFS_SUBSTITUTE_CHARS];
          } else if (bufIn[offset - 1] == HGFS_ESCAPE_SUBSTITUE_CHAR) {

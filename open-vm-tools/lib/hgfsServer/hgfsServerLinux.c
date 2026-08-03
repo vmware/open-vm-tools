@@ -1364,7 +1364,7 @@ static void
 HgfsGetHiddenAttr(char const *fileName,         // IN:  Input filename
                   HgfsFileAttrInfo *attr)       // OUT: Struct to copy into
 {
-   char *baseName;
+   const char *baseName;
 
    ASSERT(fileName);
    ASSERT(attr);
