@@ -250,7 +250,7 @@ The following languages will no longer be supported:
 - Simplified Chinese
 - Traditional Chinese
 
-# Other
+# Other(s)
 ## Mailing Lists
 Please send an email to one of these mailing lists based on the nature of your question.
 - Development related questions : open-vm-tools-devel@lists.sourceforge.net
