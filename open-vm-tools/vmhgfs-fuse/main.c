@@ -1038,6 +1038,16 @@ hgfs_open(const char *path,          //IN: path to a file
 
    res = HgfsOpen(abspath, fi);
 
+   /*
+    * When the open carried O_TRUNC the server truncated the file, but the
+    * cached attributes still carry the pre-truncate size. Drop them, or a
+    * subsequent append is positioned at the stale offset and leaves a hole
+    * of NUL bytes at the start of the file.
+    */
+   if (res == 0 && (fi->flags & O_TRUNC) != 0) {
+      HgfsInvalidateAttrCache(abspath);
+   }
+
 exit:
    LOG(4, ("Exit(%d)\n", res));
    freeAbsPath(abspath);
