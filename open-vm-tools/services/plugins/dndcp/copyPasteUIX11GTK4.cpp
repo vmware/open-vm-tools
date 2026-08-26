@@ -524,7 +524,7 @@ CopyPasteUIX11::CopyPasteSendText(const Glib::ustring& cpStr)   // IN
       return;
    }
 
-   size_t bufSize = cpStr.size();
+   size_t bufSize = cpStr.bytes();
    if (bufSize > 0  &&
        bufSize <= CPCLIPITEM_MAX_SIZE_V3 &&
        CPClipboard_SetItem(&mClipboard, CPFORMAT_TEXT,
