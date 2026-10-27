@@ -792,8 +792,8 @@ CertVerify_CheckSignatureUsingCert(VGAuthHashAlg hash,
                                    const unsigned char *signature)
 {
    VGAuthError err;
-   X509 *cert;
-   X509_PUBKEY *x509PubKey;
+   const X509 *cert;
+   const X509_PUBKEY *x509PubKey;
    EVP_PKEY *publicKey;
 
    cert = CertStringToX509(pemCert);
@@ -817,8 +817,6 @@ CertVerify_CheckSignatureUsingCert(VGAuthHashAlg hash,
    EVP_PKEY_free(publicKey);
 
 done:
-   X509_free(cert);
-
    return err;
 }
 
@@ -922,14 +920,14 @@ done:
  * of certs.  Returns a match or NULL.
  */
 
-static X509 *
+static const X509 *
 FindCert(GList *cList,
-         X509_NAME *val,
+         const X509_NAME *val,
          int checkSubj)
 {
    GList *l;
-   X509 *c;
-   X509_NAME *v;
+   const X509 *c;
+   const X509_NAME *v;
 
    l = cList;
    while (l != NULL) {
@@ -972,10 +970,10 @@ CertVerify_CheckForUnrelatedCerts(int numCerts,
    int i;
    X509 **certs = NULL;
    GList *rawList = NULL;
-   X509 *baseCert;
-   X509 *curCert;
-   X509_NAME *subject;
-   X509_NAME *issuer;
+   const X509 *baseCert;
+   const X509 *curCert;
+   const X509_NAME *subject;
+   const X509_NAME *issuer;
 
    /* common single cert case; nothing to do */
    if (numCerts == 1) {
