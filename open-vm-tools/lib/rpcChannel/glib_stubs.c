@@ -35,6 +35,9 @@
 
 void *g_malloc0(size_t s) { return Util_SafeCalloc(1, s); }
 void *g_malloc0_n(size_t n, size_t s) { return Util_SafeCalloc(n, s); }
+/* GLib defines g_free as a macro, so undefine it before providing
+ * our own stub implementation. */
+#undef g_free
 void g_free(void *p) { free(p); }
 
 void g_mutex_init(GMutex *mutex) { }
