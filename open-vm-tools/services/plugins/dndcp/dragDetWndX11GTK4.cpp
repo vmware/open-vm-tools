@@ -29,12 +29,59 @@
 #include "dragDetWndX11GTK4.h"
 #include "dndUIX11GTK4.h"
 #include <list>
+#include <cstring>
 
 extern "C" {
 #include <X11/extensions/XTest.h>       /* for XTest*() */
 #include <gtk/gtk.h>
 #include <gdk/x11/gdkx.h>
 #include <X11/Xatom.h>
+}
+
+
+/**
+ * Show the window without letting the window manager focus it.
+ *
+ * The detection window only has to be on top and under the pointer, it
+ * never needs the input focus. Taking it steals the focus from the user's
+ * application, see https://github.com/vmware/open-vm-tools/issues/804.
+ * GTK4 has no equivalent of the GTK3 set_accept_focus(false) and
+ * set_keep_above() calls, so set the EWMH hints directly.
+ */
+
+static void
+show_without_focus(Gtk::Window *window)
+{
+   GdkSurface *surface = gtk_native_get_surface(GTK_NATIVE(window->gobj()));
+
+   if (!surface || !GDK_IS_X11_SURFACE(surface)) {
+      window->set_visible(true);
+      return;
+   }
+
+   /*
+    * A user time of 0 asks the window manager not to focus the window on
+    * map. Reset it before every map, GDK updates it on button presses such
+    * as the fake one for H->G DnD.
+    */
+   gdk_x11_surface_set_user_time(surface, 0);
+   window->set_visible(true);
+
+   /* Keep the unfocused window on top. GDK resets _NET_WM_STATE on map. */
+   Display *display = GDK_SURFACE_XDISPLAY(surface);
+   XClientMessageEvent xclient;
+
+   memset(&xclient, 0, sizeof xclient);
+   xclient.type = ClientMessage;
+   xclient.window = GDK_SURFACE_XID(surface);
+   xclient.message_type = XInternAtom(display, "_NET_WM_STATE", False);
+   xclient.format = 32;
+   xclient.data.l[0] = 1; // _NET_WM_STATE_ADD
+   xclient.data.l[1] = XInternAtom(display, "_NET_WM_STATE_ABOVE", False);
+   xclient.data.l[3] = 1; // source indication: application
+   XSendEvent(display, RootWindow(display, DefaultScreen(display)), False,
+              SubstructureRedirectMask | SubstructureNotifyMask,
+              (XEvent *) &xclient);
 }
 
 
@@ -478,7 +525,7 @@ DragDetWnd::Show(void)
    }
 
    mWnd->set_sensitive(true);
-   mWnd->set_visible(true);
+   show_without_focus(mWnd);
 
    if (mWnd->grab_focus()) {
       g_debug("%s: grab_focus successfully\n", __FUNCTION__);
@@ -567,8 +614,13 @@ static Glib::RefPtr<Gdk::Monitor> get_monitor(Gtk::Window *window)
 void
 DragDetWnd::Raise(void)
 {
-   mWnd->present();
-   g_debug("%s: detwnd Presenting\n", __FUNCTION__);
+   GdkSurface *surface = gtk_native_get_surface(GTK_NATIVE(mWnd->gobj()));
+
+   /* Only restack, like GTK3. present() would also focus the window. */
+   if (surface && GDK_IS_X11_SURFACE(surface)) {
+      XRaiseWindow(GDK_SURFACE_XDISPLAY(surface), GDK_SURFACE_XID(surface));
+   }
+   g_debug("%s: detwnd raised\n", __FUNCTION__);
    Flush();
 }
 
@@ -926,9 +978,8 @@ DragDetWnd::SimulateXEvents(const bool showWidget, const bool buttonEvent,
 
    if (showWidget) {
       g_debug("%s: showing Gtk widget\n", __FUNCTION__);
-      gtk_widget_set_visible(GTK_WIDGET(mWnd->gobj()), true);
-      gtk_window_present(mWnd->gobj());
-
+      /* No present(), it would focus the window; moveWindow raises it. */
+      show_without_focus(mWnd);
    }
 
    /* Get the current location of the mouse if coordinates weren't provided. */
