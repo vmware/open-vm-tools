@@ -40,6 +40,14 @@
 #include <xmlsec/crypto.h>
 #include <xmlsec/errors.h>
 
+#ifdef XMLSEC_CRYPTO_DYNAMIC_LOADING
+/*
+ * xmlsec 1.3.13 stopped including this from xmlsec/app.h; the crypto
+ * dynamic-load functions are declared here.
+ */
+#include <xmlsec/dl.h>
+#endif
+
 #include <glib.h>
 
 #include "prefs.h"
